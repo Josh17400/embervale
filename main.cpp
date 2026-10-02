@@ -41,13 +41,17 @@ struct Touch {
 }  // namespace
 
 int main(int argc, char** argv) {
-  bool bot = false, vsync = true, noPick = false;
+  bool bot = false, vsync = true, noPick = false, god = false, perf = false;
+  float fastForward = 0;
   const char* shotPath = nullptr;
   float shotAfter = 15.0f;
   uint64_t seed = (uint64_t)SDL_GetTicks() + 1;
   for (int i = 1; i < argc; i++) {
     if (!std::strcmp(argv[i], "--bot")) bot = true;
     else if (!std::strcmp(argv[i], "--novsync")) vsync = false;
+    else if (!std::strcmp(argv[i], "--god")) god = true;
+    else if (!std::strcmp(argv[i], "--perf")) perf = true;
+    else if (!std::strcmp(argv[i], "--ff") && i + 1 < argc) fastForward = (float)std::atof(argv[++i]);
     else if (!std::strcmp(argv[i], "--nopick")) noPick = true;   // bot leaves level-up / death screens up (screenshots)
     else if (!std::strcmp(argv[i], "--shot") && i + 1 < argc) shotPath = argv[++i];
     else if (!std::strcmp(argv[i], "--after") && i + 1 < argc) shotAfter = (float)std::atof(argv[++i]);
@@ -73,7 +77,16 @@ int main(int argc, char** argv) {
   Bot botAI;
   Touch touch;
 
-  if (bot) { game.startRun(); }
+  if (bot) {
+    game.startRun();
+    game.god = god;
+    // --ff N: simulate N seconds up front so screenshots/perf checks can land in the late game
+    while (game.stats.time < fastForward && game.mode != Mode::Dead) {
+      if (game.mode == Mode::LevelUp) { game.pickUpgrade(botAI.r.irange(game.numChoices)); continue; }
+      game.update(SIM_DT, botAI.act(game, SIM_DT));
+      game.events.clear();
+    }
+  }
 
   bool running = true, wasDead = false;
   float deadT = 0;
@@ -180,6 +193,7 @@ int main(int argc, char** argv) {
       char title[96];
       std::snprintf(title, sizeof title, "TAILSPIN  -  %d fps  -  %zu enemies", (int)(fpsN / fpsT + 0.5), game.enemies.size());
       SDL_SetWindowTitle(gfx.window(), title);
+      if (perf) std::printf("t=%.0f fps=%d enemies=%zu gems=%zu\n", game.stats.time, (int)(fpsN / fpsT + 0.5), game.enemies.size(), game.gems.size());
       fpsT = 0; fpsN = 0;
     }
 

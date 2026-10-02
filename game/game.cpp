@@ -219,19 +219,23 @@ int Game::doLoop(const std::vector<Vec2>& poly, Vec2 center) {
     damageEnemy((int)i, d, true);
   }
   float cr = chainRadius();
+  buildGrids();                       // chain blasts query the grid instead of scanning every enemy
   int guard = 0;
   while (!chainQ.empty() && guard++ < 400) {
     Vec2 c = chainQ.back();
     chainQ.pop_back();
-    float r2 = cr * cr;
-    for (size_t i = 0; i < enemies.size(); i++) {
-      Enemy& e = enemies[i];
-      if (e.maxhp <= 0) continue;
-      float rr = cr + e.r;
-      if (len2(e.p - c) > rr * rr) continue;
-      (void)r2;
-      damageEnemy((int)i, 28.0f * blastMul(), true);
-    }
+    float reach = cr + 95.0f;         // + largest enemy radius (boss 90)
+    int cx0 = std::max(0, (int)((c.x - reach) / CELL)), cx1 = std::min(gridW - 1, (int)((c.x + reach) / CELL));
+    int cy0 = std::max(0, (int)((c.y - reach) / CELL)), cy1 = std::min(gridH - 1, (int)((c.y + reach) / CELL));
+    for (int gy = cy0; gy <= cy1; gy++)
+      for (int gx = cx0; gx <= cx1; gx++)
+        for (int idx : grid[gy * gridW + gx]) {
+          Enemy& e = enemies[idx];
+          if (e.maxhp <= 0) continue;
+          float rr = cr + e.r;
+          if (len2(e.p - c) > rr * rr) continue;
+          damageEnemy(idx, 28.0f * blastMul(), true);
+        }
   }
   int kills = loopKillCount;
   float radius = 0;
@@ -276,7 +280,7 @@ void Game::spawnEnemy(EType t, Vec2 at, bool ring) {
 
 void Game::spawnDirector(float dt) {
   float t = stats.time;
-  float rate = 1.8f + 0.032f * t;
+  float rate = 2.4f + 0.045f * t;
   spawnAcc += rate * dt;
   while (spawnAcc >= 1.0f) {
     spawnAcc -= 1.0f;
@@ -325,7 +329,7 @@ void Game::buildGrids() {
 }
 
 void Game::hurtPlayer(float dmg) {
-  if (invuln > 0 || mode != Mode::Play) return;
+  if (god || invuln > 0 || mode != Mode::Play) return;
   hp -= dmg;
   invuln = 0.7f;
   emit(Ev::Hurt, head, dmg);

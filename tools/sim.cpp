@@ -91,6 +91,7 @@ int main(int argc, char** argv) {
   int runs = argc > 3 ? std::atoi(argv[3]) : 1;
   for (int run = 0; run < runs; run++) {
     Game g; g.reset(seed + run);
+    g.god = std::getenv("GOD") != nullptr;
     Bot bot; bot.r = Rng(seed + run * 77);
     double worst = 0, total = 0; long steps = 0;
     float nextReport = 30;

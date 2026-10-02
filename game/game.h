@@ -62,6 +62,7 @@ class Game {
   // --- state (read by renderer) ---
   Mode mode = Mode::Title;
   Stats stats;
+  bool god = false;                       // testing: take no damage
   uint64_t nextSeed = 1;
   Vec2 head, prevHead;
   float heading = 0, speed = 0;
