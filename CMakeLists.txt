@@ -32,6 +32,20 @@ FetchContent_Declare(SDL3
   GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(SDL3)
 
-add_executable(tailspin WIN32
-  main.cpp engine/gfx.cpp engine/audio.cpp game/render.cpp)
-target_link_libraries(tailspin PRIVATE tailspin_game SDL3::SDL3)
+# --- shared engine (renderer + audio) ---
+add_library(engine STATIC engine/gfx.cpp engine/audio.cpp engine/pix.cpp)
+target_include_directories(engine PUBLIC ${CMAKE_SOURCE_DIR})
+target_link_libraries(engine PUBLIC SDL3::SDL3)
+
+add_executable(tailspin WIN32 main.cpp game/render.cpp)
+target_link_libraries(tailspin PRIVATE tailspin_game engine)
+
+# --- HOLDLINE: merge-and-defend (enabled once its sources exist) ---
+if(EXISTS ${CMAKE_SOURCE_DIR}/game2/mg_game.cpp)
+  add_library(holdline_game STATIC game2/mg_game.cpp)
+  target_include_directories(holdline_game PUBLIC ${CMAKE_SOURCE_DIR})
+  add_executable(holdline_sim tools/mg_sim.cpp)
+  target_link_libraries(holdline_sim PRIVATE holdline_game)
+  add_executable(holdline WIN32 main_mg.cpp game2/mg_render.cpp)
+  target_link_libraries(holdline PRIVATE holdline_game engine)
+endif()

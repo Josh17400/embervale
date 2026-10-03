@@ -25,3 +25,11 @@ GitHub Actions macOS runner and ship to TestFlight with fastlane, the same flow 
 `workflow_dispatch`, shared Apple Developer team secrets (ASC_KEY_*, APPLE_TEAM_ID, IOS_CERT_P12_B64,
 CERT_EXPORT_PASS), run number = build number. Differences: this repo has an Xcode project that builds
 the C++ core + SDL3 (CMake -G Xcode) instead of Capacitor. Not started yet: Windows build comes first.
+
+## HOLDLINE (second game, same engine) - pixel open-world merge-and-defend
+`holdline.exe`: 480x270 pixel canvas (integer scaled), procedural 224x144-tile world, fog of war, hero camera,
+villages with inns, wild units to find, drag-merge in the world, goblin camps, raids, autosave.
+Files: `engine/pix.*` (pixel renderer + sprite baking), `game2/mg_game.*` (sim), `game2/mg_render.*` (look),
+`game2/mg_bot.h`, `main_mg.cpp`, `tools/mg_sim.cpp` (`holdline_sim --test`, `holdline_sim 900 1`).
+App flags: `--bot --god --ff N --seed S --shot out.png --after SECS --perf --novsync` (test runs never touch the save).
+Save: SDL pref path `Josh17400/Holdline/save.bin`.

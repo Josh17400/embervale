@@ -103,6 +103,42 @@ void Audio::play(Sfx s, float pitch, float vol) {
     case Sfx::Start:
       for (int i = 0; i < 3; i++) add(Square, kScale[i * 2 + 1], 0, 0.1f * vol, 0.15f, 0.06f * i, 0.003f, 0.6f);
       break;
+    case Sfx::Summon:
+      add(Sine, 300 * pitch, 1.6f, 0.22f * vol, 0.14f);
+      add(Noise, 0, 0, 0.08f * vol, 0.06f, 0, 0.001f, 0.8f);
+      break;
+    case Sfx::Merge:   // pitch climbs with level/combo; two-note chime + thump
+      add(Sine, 110, -1.2f, 0.30f * vol, 0.22f);
+      add(Square, 392 * pitch, 0, 0.09f * vol, 0.16f, 0.0f, 0.002f, 0.55f);
+      add(Square, 588 * pitch, 0, 0.09f * vol, 0.22f, 0.07f, 0.002f, 0.55f);
+      add(Sine, 1176 * pitch, 0, 0.06f * vol, 0.25f, 0.12f);
+      break;
+    case Sfx::Shot:
+      add(Noise, 0, 0, 0.05f * vol, 0.03f, 0, 0.001f, 0.9f);
+      add(Square, 900 * pitch, -2.5f, 0.035f * vol, 0.05f, 0, 0.001f, 0.7f);
+      break;
+    case Sfx::Hit:
+      add(Noise, 0, 0, 0.07f * vol, 0.04f, 0, 0.001f, 0.6f);
+      add(Sine, 240 * pitch, -2.0f, 0.08f * vol, 0.06f);
+      break;
+    case Sfx::Coin:
+      add(Sine, 1320 * pitch, 0, 0.06f * vol, 0.05f);
+      add(Sine, 1760 * pitch, 0, 0.06f * vol, 0.08f, 0.04f);
+      break;
+    case Sfx::WaveStart:
+      add(Saw, 98, 0.2f, 0.25f * vol, 0.5f, 0, 0.05f, 0.25f);
+      add(Square, 196, 0, 0.08f * vol, 0.3f, 0.1f, 0.003f, 0.5f);
+      break;
+    case Sfx::Lucky:
+      for (int i = 0; i < 7; i++) add(Sine, kScale[i + 2] * 2 * pitch, 0, 0.11f * vol, 0.28f, 0.05f * i);
+      break;
+    case Sfx::WaveClear:
+      for (int i = 0; i < 5; i++) add(Square, kScale[i * 2] * 2, 0, 0.08f * vol, 0.2f, 0.07f * i, 0.003f, 0.6f);
+      break;
+    case Sfx::WallHit:
+      add(Noise, 0, 0, 0.3f * vol, 0.25f, 0, 0.001f, 0.25f);
+      add(Sine, 70, -0.8f, 0.5f * vol, 0.3f);
+      break;
   }
   SDL_UnlockMutex(mu_);
 }
