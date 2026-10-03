@@ -7,8 +7,7 @@
 struct SDL_AudioStream;
 struct SDL_Mutex;
 
-enum class Sfx : uint8_t { Pop, Gem, Loop, Level, Hurt, Boost, Zap, Select, BossSpawn, BossDie, Dead, Start,
-                       Summon, Merge, Shot, Hit, Coin, WaveStart, Lucky, WaveClear, WallHit };
+enum class Sfx : uint8_t { Level, Hurt, Select, Dead, Start, Summon, Merge, Shot, Hit, Coin, WaveStart, Lucky, WaveClear, WallHit };
 
 class Audio {
  public:

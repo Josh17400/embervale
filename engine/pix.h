@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
-#include "engine/gfx.h"   // Color
+#include "engine/color.h"
 #include "engine/mathx.h"
 
 struct SDL_Window;

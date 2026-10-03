@@ -55,20 +55,6 @@ void Audio::play(Sfx s, float pitch, float vol) {
   if (!mu_) return;
   SDL_LockMutex(mu_);
   switch (s) {
-    case Sfx::Pop:
-      add(Noise, 0, 0, 0.16f * vol, 0.07f, 0, 0.001f, 0.5f);
-      add(Sine, 520 * pitch, -1.6f, 0.2f * vol, 0.10f);
-      break;
-    case Sfx::Gem:
-      add(Sine, 880 * pitch, 0.5f, 0.08f * vol, 0.07f);
-      break;
-    case Sfx::Loop: {
-      add(Sine, 140, -1.8f, 0.55f * vol, 0.7f);                       // sub drop
-      add(Noise, 0, 0, 0.30f * vol, 0.5f, 0, 0.002f, 0.35f);          // rumble
-      for (int i = 0; i < 6; i++)                                      // rising sparkle
-        add(Sine, kScale[(i * 2 + 2) % 10] * 2 * pitch, 0, 0.10f * vol, 0.25f, 0.04f * i);
-      break;
-    }
     case Sfx::Level:
       for (int i = 0; i < 4; i++) add(Square, kScale[i * 2] * 2, 0, 0.09f * vol, 0.16f, 0.07f * i, 0.003f, 0.6f);
       break;
@@ -76,25 +62,9 @@ void Audio::play(Sfx s, float pitch, float vol) {
       add(Saw, 240, -1.4f, 0.28f * vol, 0.28f, 0, 0.002f, 0.5f);
       add(Noise, 0, 0, 0.20f * vol, 0.15f, 0, 0.001f, 0.7f);
       break;
-    case Sfx::Boost:
-      add(Noise, 0, 0, 0.14f * vol, 0.35f, 0, 0.05f, 0.25f);
-      add(Sine, 260, 1.2f, 0.16f * vol, 0.3f);
-      break;
-    case Sfx::Zap:
-      add(Square, 1400 * pitch, -2.2f, 0.06f * vol, 0.06f, 0, 0.001f, 0.8f);
-      break;
     case Sfx::Select:
       add(Sine, 660, 0.3f, 0.2f * vol, 0.08f);
       add(Sine, 990, 0.0f, 0.15f * vol, 0.12f, 0.05f);
-      break;
-    case Sfx::BossSpawn:
-      add(Saw, 55, -0.15f, 0.40f * vol, 1.2f, 0, 0.1f, 0.2f);
-      add(Saw, 58, -0.15f, 0.30f * vol, 1.2f, 0, 0.1f, 0.2f);
-      break;
-    case Sfx::BossDie:
-      add(Sine, 200, -1.5f, 0.6f * vol, 1.3f);
-      add(Noise, 0, 0, 0.4f * vol, 1.0f, 0, 0.002f, 0.4f);
-      for (int i = 0; i < 8; i++) add(Sine, kScale[i] * 2, 0, 0.1f * vol, 0.3f, 0.06f * i);
       break;
     case Sfx::Dead:
       add(Saw, 300, -1.0f, 0.35f * vol, 0.9f, 0, 0.002f, 0.4f);
