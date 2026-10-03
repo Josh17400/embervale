@@ -24,7 +24,7 @@ jobs:
 
       - name: Headless game tests
         run: |
-          cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release
+          cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release -DSDL_UNIX_CONSOLE_BUILD=ON
           cmake --build build-native --target rpg_test -j4
           for s in 1 7 99 12345; do ./build-native/rpg_test $s --secs 60; done
 
