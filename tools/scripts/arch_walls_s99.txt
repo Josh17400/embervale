@@ -1,0 +1,20 @@
+# Architecture lane: walk up to a city gate from outside, through the passage, and look back along the wall inside;
+# then the same spot at dusk and at night. Gate coordinates come from: rpg_test 99 (archChecks prints them).
+# Run from a scratch directory (screenshots are written to the current directory):
+#   embervale --script tools/scripts/arch_walls_s99.txt
+seed 99
+0 goto city
+0.3 god
+0.5 hour 12
+1 walkto 72 256 60
++1 shot arch_s99_out.png
++0.2 walkto 72 253
++0.4 shot arch_s99_passage.png
++0.2 walkto 72 250
++1 shot arch_s99_inside.png
++0.2 walkto 78 251
++1 shot arch_s99_along.png
++0.2 hour 19
++1.5 shot arch_s99_dusk.png
++0.2 hour 23
++1.5 shot arch_s99_night.png

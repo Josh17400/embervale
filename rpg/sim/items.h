@@ -6,7 +6,11 @@
 #include "rpg/art.h"
 #include "rpg/sim/common.h"
 
-enum class ItemKind : uint8_t { Weapon, Bow, Staff, Armor, Helmet, Shield, Ring, Amulet, Potion, Food, Arrows, Misc, Quest, COUNT };
+// Values are saved (writeItem): append only. Gloves, Boots and Cloak arrived with SAVE_VER 3 (M0).
+enum class ItemKind : uint8_t { Weapon, Bow, Staff, Armor, Helmet, Shield, Ring, Amulet, Potion, Food, Arrows, Misc, Quest, Gloves, Boots, Cloak, COUNT };
+inline bool itemEquippable(ItemKind k) {
+  return k <= ItemKind::Amulet || k == ItemKind::Gloves || k == ItemKind::Boots || k == ItemKind::Cloak;
+}
 enum class WeaponType : uint8_t { Sword, Axe, Mace, Dagger, Greatsword, COUNT };
 enum class Ench : uint8_t { None, Fire, Frost, Drain, Health, Magicka, Stamina, Fortify, COUNT };
 enum class PotionType : uint8_t { Health, Magicka, Stamina, COUNT };
@@ -38,12 +42,13 @@ const char* enchName(Ench e);
 Item makeWeapon(Rng& r, int level, int forceType = -1, bool allowEnch = true);
 Item makeBow(Rng& r, int level);
 Item makeStaff(Rng& r, int level);
-Item makeArmor(Rng& r, int level, ItemKind slot);
+Item makeArmor(Rng& r, int level, ItemKind slot);   // Armor, Helmet, Shield, Gloves, Boots, Cloak
 Item makeJewel(Rng& r, int level);
 Item makePotion(PotionType t, int size);   // size 0 minor, 1 normal, 2 plentiful
 Item makeFood(int which);
 Item makeArrows(int n);
 Item makeMisc(int which);                  // pelts, bones, gems, ore...
+ItemKind randomArmorSlot(Rng& r);         // Armor, Helmet, Shield, Gloves, Boots or Cloak (one draw)
 Item randomLoot(Rng& r, int level, bool boss);
 
 void writeItem(BinW& w, const Item& it);

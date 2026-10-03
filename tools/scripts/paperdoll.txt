@@ -1,0 +1,73 @@
+# The equip screen (menu tab EQUIP, id 5): the hero in each armour band, equipping and taking off with keys and taps,
+# deltas against what is worn; then the hero in game in every band (1 leather .. 7 emberforged).
+#   embervale.exe --script tools/scripts/paperdoll.txt      (screenshots land in the working directory)
+# Layout (paperdoll.cpp): slot boxes 28 px, left column x 18 (HEAD 36, NECK 69, CLOAK 102, BODY 135, HANDS 168,
+# FEET 201), right column x 168 (WEAPON 36, SHIELD 69, BOW 102, STAFF 135, RING 168); the pack list at x 206, rows of
+# 24 px from y 112; EQUIP 206-330 and REMOVE 338-462 at y 238.
+seed 7
+0.3  newgame                     # straight into play (no creator)
+0.4  hour 11
+0.5  strip                       # shirt and trousers only
+0.6  menu 5
+1.0  shot paperdoll_0_empty.png
+1.1  expect mode menu
+1.2  key Escape
+1.3  gear 3                      # a steel set, a steel sword and a bow (on the back)
+1.4  gear 5 axe                  # ...and a jade set on top, so every slot has two choices
+1.5  menu 5
+1.9  shot paperdoll_1_jade.png
+# keyboard: BODY is selected with the steel plate under the cursor (jade is worn): Right/Left move the cursor,
+# Enter wears the picked piece, X takes the slot's piece off
+2.0  key Right
+2.2  shot paperdoll_2_pick_jade.png
+2.3  key Left
+2.4  key Return
+2.6  shot paperdoll_3_steel.png
+2.7  expect slot armor 1
+2.8  key X
+3.0  expect slot armor 0
+3.2  shot paperdoll_4_bare.png
+3.3  key Return                  # wear the picked one again
+3.4  expect slot armor 1
+3.5  key Up                      # CLOAK
+3.6  key Up                      # NECK
+3.7  key Up                      # HEAD
+3.8  key Right
+3.9  key Return
+4.0  key ]                       # turn the preview
+4.2  shot paperdoll_5_keys.png
+# touch: tap SHIELD, tap the first pack row (wears it), tap REMOVE, tap the CLOAK slot and its second row
+4.4  tap 182 83
+4.6  tap 300 124
+4.8  shot paperdoll_6_touch_shield.png
+5.0  tap 400 250                 # REMOVE
+5.2  expect slot shield 0
+5.4  shot paperdoll_7_touch_removed.png
+5.6  tap 300 124                 # wear the first shield again
+5.8  expect slot shield 1
+5.9  tap 32 116                  # CLOAK
+6.1  tap 300 148                 # its second row
+6.4  shot paperdoll_8_touch_cloak.png
+6.8  key Escape
+7.0  expect mode play
+# in game at 1x, in every band
+7.2  strip
+7.3  gear 1
+7.6  shot band_1_leather.png
+7.7  gear 2
+8.0  shot band_2_iron.png
+8.1  gear 3
+8.4  shot band_3_steel.png
+8.5  gear 4 mace
+8.8  shot band_4_gilded.png
+8.9  gear 5 dagger
+9.2  shot band_5_jade.png
+9.3  gear 6 greatsword
+9.6  shot band_6_obsidian.png
+9.7  gear 7 axe
+10.0 shot band_7_ember.png
+10.1 hold D 1.2
+10.6 shot band_7_walk.png
+11.4 hold W 1.0
+11.9 shot band_7_up.png
+12.6 quit

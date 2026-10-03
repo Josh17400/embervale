@@ -2,6 +2,13 @@
 //   save_test [fixtureDir]            load tests/fixtures/save_v1.bin, check its values and its regenerated world, round-trip v2
 //   save_test --make-fixture out.bin  play a fixed seed with the bot and write a save in the CURRENT format
 //                                     (run once with SAVE_VER 1 code to create save_v1.bin; do not overwrite it)
+//   save_test --make-fixture-v2 out.bin   the v2 fixture (seed 5150, generator v2), written by today's code: a v3 save
+//                                     with the v3 character block cut off and the version set to 2, which is
+//                                     byte-for-byte what SAVE_VER 2 code wrote (v3 only appended that block)
+//   save_test --make-fixture-v3 out.bin   the v3 fixture (seed 6061, generator v2, a created character with a
+//                                     background, story flags and gloves/boots/cloak equipped)
+// Fixtures are made once and never regenerated: they are the old formats. Every fixture's world uses a generator
+// version whose output is frozen (v1, v2), so generator work on WORLDGEN_LATEST cannot invalidate them.
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -24,6 +31,9 @@ constexpr int FIX_BOUNTY_SITE = 17, FIX_BOUNTY_BLDG = 142;   // quest 2: BOUNTY:
 constexpr int FIX_SITES = 57, FIX_BLDGS = 148, FIX_GATES = 8, FIX_START = 17, FIX_CAPITAL = 2, FIX_LAIR = 56;
 constexpr uint32_t FIX_SITEHASH = 0xA94319E3, FIX_BLDGHASH = 0xC733FDAF, FIX_GROUNDHASH = 0x20C1960B;
 const char* const FIX_START_NAME = "SALTHOLD";
+
+// ---- the v2 fixture (seed 5150, generator v2); values printed by --make-fixture-v2
+constexpr uint64_t FIX2_SEED = 5150;
 
 uint32_t fnv(uint32_t h, const void* p, size_t n) {
   const uint8_t* b = (const uint8_t*)p;
@@ -93,9 +103,49 @@ bool readFile(const std::string& path, std::vector<uint8_t>& out) {
   return true;
 }
 
-int makeFixture(const char* out) {
-  Game g(FIX_SEED);
-  g.newGame(FIX_SEED);
+// v3 tail = eqGloves, eqBoots, eqCloak (12) + background (1) + story flags (4) + u16 length + appearance block
+size_t v3TailSize(const std::vector<uint8_t>& b) {
+  for (size_t L = 0; L + 2 + 17 < b.size() && L < 4096; L++) {
+    size_t at = b.size() - L - 2;
+    if ((size_t)(b[at] | (b[at + 1] << 8)) == L) return L + 2 + 17;
+  }
+  return 0;
+}
+std::vector<uint8_t> asV2(std::vector<uint8_t> b) {
+  size_t tail = v3TailSize(b);
+  if (!tail) return {};
+  b.resize(b.size() - tail);
+  b[4] = 2; b[5] = b[6] = b[7] = 0;
+  return b;
+}
+
+// the v3 fixture's character (also what section 4 checks after loading it)
+constexpr uint64_t FIX3_SEED = 6061;
+constexpr uint32_t FIX3_SKIN = 0xFF4A6E96u, FIX3_HAIRC = 0xFF2A62D2u, FIX3_EYE = 0xFF3C8C30u, FIX3_TOP = 0xFF283C8Cu, FIX3_BOTTOM = 0xFF203040u;
+constexpr uint32_t FIX3_FLAGS = SF_CREATED | SF_FIRST_WEAPON | (1u << 9);
+const char* const FIX3_NAME = "BRYNJA";
+Item fixtureWear(ItemKind k, const char* name, art::Icon icon, int power) {
+  Item it;
+  it.kind = k; it.name = name; it.icon = icon; it.power = (int16_t)power; it.value = power * 10; it.tint = tierTint(0);
+  return it;
+}
+void makeCharacter(Game& g) {
+  g.app.name = FIX3_NAME; g.app.female = true; g.app.build = 1; g.app.skinTone = 5; g.app.skin = FIX3_SKIN;
+  g.app.hair = (uint8_t)art::Hair::Braids; g.app.hairColor = FIX3_HAIRC; g.app.beard = false; g.app.eyeColor = FIX3_EYE;
+  g.app.topColor = FIX3_TOP; g.app.bottomColor = FIX3_BOTTOM; g.app.created = true;
+  g.background = Background::Hunter;
+  g.storyFlags = FIX3_FLAGS;
+  g.inv.push_back(fixtureWear(ItemKind::Gloves, "LEATHER GLOVES", art::Icon::Gloves, 2));
+  g.inv.push_back(fixtureWear(ItemKind::Boots, "LEATHER BOOTS", art::Icon::Boots, 3));
+  g.inv.push_back(fixtureWear(ItemKind::Cloak, "HUNTER'S CLOAK", art::Icon::Armor, 1));
+  int n = (int)g.inv.size();
+  g.useItem(n - 3); g.useItem(n - 2); g.useItem(n - 1);
+}
+
+int makeFixture(const char* out, uint64_t seed = FIX_SEED, int genVer = WORLDGEN_LATEST, int form = 0) {
+  Game g(seed);
+  g.newGame(seed, genVer);
+  if (form == 3) makeCharacter(g);
   g.mode = Mode::Play;
   g.godMode = true;
   // take the innkeeper's job in the start village
@@ -122,7 +172,7 @@ int makeFixture(const char* out) {
     Input down; down.move = Vec2(0, 1);
     for (int f = 0; f < 120 && g.inside; f++) g.update(SIM_DT, down);
   }
-  bot(g, 150, FIX_SEED);
+  bot(g, 150, seed);
   printf("after bot: lvl %d gold %d kills %d inside %d\n", g.plLevel, g.gold, g.kills, g.inside);
   // loot the nearest overworld chest
   if (!g.inside) {
@@ -155,11 +205,13 @@ int makeFixture(const char* out) {
           g.update(SIM_DT, Input());
         }
     printf("cave %s: inside %d\n", s.name.c_str(), g.inside);
-    bot(g, 60, FIX_SEED + 1);
+    bot(g, 60, seed + 1);
   }
   g.mode = Mode::Play;
   std::vector<uint8_t> buf;
   g.serialize(buf);
+  if (form == 2) buf = asV2(buf);
+  if (buf.empty()) { printf("cannot cut the v3 tail\n"); return 1; }
   FILE* f = fopen(out, "wb");
   if (!f) { printf("cannot write %s\n", out); return 1; }
   fwrite(buf.data(), 1, buf.size(), f);
@@ -174,7 +226,7 @@ int makeFixture(const char* out) {
          h.plLevel, h.gold, h.quests.size(), h.inv.size(), h.looted.size(), km, h.kills);
   printf("constexpr bool FIX_INSIDE = %s;\nconstexpr int FIX_SUBSITE = %d;\nconstexpr float FIX_PX = %.3ff, FIX_PY = %.3ff;\n", h.inside ? "true" : "false", h.subSite, h.pl().p.x, h.pl().p.y);
   World w;
-  w.generate(FIX_SEED);
+  w.generate(seed, genVer);
   printf("constexpr int FIX_SITES = %zu, FIX_BLDGS = %zu, FIX_GATES = %zu, FIX_START = %d, FIX_CAPITAL = %d, FIX_LAIR = %d;\n",
          w.sites.size(), w.over.bldgs.size(), w.gates.size(), w.startSite, w.capital, w.lair);
   printf("constexpr uint32_t FIX_SITEHASH = 0x%08X, FIX_BLDGHASH = 0x%08X, FIX_GROUNDHASH = 0x%08X;\n", siteHash(w), bldgHash(w), groundHash(w));
@@ -216,6 +268,8 @@ std::string summary(const Game& g) {
 
 int main(int argc, char** argv) {
   if (argc >= 3 && !strcmp(argv[1], "--make-fixture")) return makeFixture(argv[2]);
+  if (argc >= 3 && !strcmp(argv[1], "--make-fixture-v2")) return makeFixture(argv[2], FIX2_SEED, WORLDGEN_V2, 2);
+  if (argc >= 3 && !strcmp(argv[1], "--make-fixture-v3")) return makeFixture(argv[2], FIX3_SEED, WORLDGEN_V2, 3);
   std::string dir = argc >= 2 ? argv[1] : "";
 #ifdef EMB_SOURCE_DIR
   if (dir.empty()) dir = std::string(EMB_SOURCE_DIR) + "/tests/fixtures";
@@ -253,20 +307,107 @@ int main(int argc, char** argv) {
   sameWorldV1(w1, "generate(seed, WORLDGEN_V1)");
   check(w1.fingerprint() == g.world.fingerprint(), "fingerprint not deterministic");
 
-  // 3. v2 round trip
-  std::vector<uint8_t> v2;
-  g.serialize(v2);
-  BinR hr(v2);
+  // pre-v3 saves get the default character
+  check(!g.app.created && g.background == Background::None && g.storyFlags == 0 && g.eqGloves < 0 && g.eqBoots < 0 && g.eqCloak < 0,
+        "v1 save did not get the default character block");
+
+  // 3. current-format (v3) round trip of the v1 game
+  std::vector<uint8_t> cur;
+  g.serialize(cur);
+  BinR hr(cur);
   uint32_t magic = hr.u32(), ver = hr.u32(), gv = hr.u32();
-  check(magic == 0x454D4256 && ver == 2 && (int)gv == WORLDGEN_V1, "v2 header (magic, version, world-gen version)");
+  check(magic == 0x454D4256 && ver == 3 && (int)gv == WORLDGEN_V1, "v3 header (magic, version, world-gen version)");
   Game h(1);
-  check(h.deserialize(v2), "v2 save did not load");
-  check(!h.worldChanged, "v2 reload flagged a changed world");
-  std::vector<uint8_t> v2b;
-  h.serialize(v2b);
-  check(v2b == v2, "v2 round trip is not byte-identical");
-  check(summary(h) == summary(g), "v2 reload restores different state");
-  printf("v2 save: %zu bytes (v1 %zu)\n", v2.size(), v1.size());
+  check(h.deserialize(cur), "v3 save did not load");
+  check(!h.worldChanged, "v3 reload flagged a changed world");
+  std::vector<uint8_t> curb;
+  h.serialize(curb);
+  check(curb == cur, "v3 round trip is not byte-identical");
+  check(summary(h) == summary(g), "v3 reload restores different state");
+  printf("v3 save of the v1 game: %zu bytes (v1 %zu)\n", cur.size(), v1.size());
+
+  // 3b. the v2 fixture (generator v2): loads with its values and its world; re-saved and cut back to v2 it is the
+  //     same bytes, which proves v3 only appended the character block
+  {
+    std::vector<uint8_t> v2;
+    if (!readFile(dir + "/save_v2.bin", v2)) { printf("FAIL: cannot read %s/save_v2.bin\n", dir.c_str()); bad++; }
+    else {
+      Game a(1);
+      check(a.deserialize(v2), "v2 fixture did not load");
+      printf("v2 load: %s\n", summary(a).c_str());
+      check(a.seed == FIX2_SEED && a.world.genVersion == WORLDGEN_V2 && !a.worldChanged, "v2 fixture seed / generator / fingerprint");
+      check(a.plLevel == 2 && a.gold == 198 && a.quests.size() == 2 && a.inv.size() == 8 && a.looted.size() == 1 && a.kills == 14,
+            "v2 level/gold/quests/inventory/looted/kills");
+      check(a.inside && a.subSite == 24 && std::fabs(a.pl().p.x - 971.264f) < 0.01f && std::fabs(a.pl().p.y - 723.546f) < 0.01f,
+            "v2 position / inside the cave");
+      const Quest* b2 = a.questById(2);
+      check(b2 && b2->type == QType::Bounty && b2->state == QState::Complete && b2->giverSite == 9 && b2->giverBldg == 91, "v2 bounty quest");
+      const World& w = a.world;
+      bool same = w.sites.size() == 57 && w.over.bldgs.size() == 161 && w.gates.size() == 8 && w.startSite == 9 && w.capital == 0 &&
+                  w.lair == 56 && siteHash(w) == 0xD05AD85Fu && bldgHash(w) == 0xF21F6A27u && groundHash(w) == 0xD449AD59u &&
+                  w.sites[w.startSite].name == "RAVENGATE" && !w.dens.empty();
+      if (!same)
+        printf("FAIL: v2 world differs from the generator-v2 world: sites %zu bldgs %zu gates %zu hashes %08X %08X %08X\n", w.sites.size(),
+               w.over.bldgs.size(), w.gates.size(), siteHash(w), bldgHash(w), groundHash(w));
+      if (!same) bad++;
+      check(!a.app.created && a.background == Background::None && a.storyFlags == 0 && a.eqGloves < 0, "v2 save did not get the default character block");
+      std::vector<uint8_t> re;
+      a.serialize(re);
+      check(asV2(re) == v2, "v2 fixture re-saved and cut back to v2 is not byte-identical");
+    }
+  }
+
+  // 3c. the v3 fixture: a created character with a background, story flags and gloves/boots/cloak equipped
+  {
+    std::vector<uint8_t> v3;
+    if (!readFile(dir + "/save_v3.bin", v3)) { printf("FAIL: cannot read %s/save_v3.bin\n", dir.c_str()); bad++; }
+    else {
+      Game a(1);
+      check(a.deserialize(v3), "v3 fixture did not load");
+      printf("v3 load: %s\n", summary(a).c_str());
+      check(a.seed == FIX3_SEED && a.world.genVersion == WORLDGEN_V2 && !a.worldChanged, "v3 fixture seed / generator / fingerprint");
+      check(a.inside && a.subSite == 18 && a.quests.size() == 2 && a.inv.size() == 7 && a.looted.size() == 1, "v3 position/quests/inventory");
+      const World& w = a.world;
+      bool same = w.sites.size() == 49 && w.over.bldgs.size() == 158 && w.gates.size() == 12 && siteHash(w) == 0x127A1874u &&
+                  bldgHash(w) == 0x10D35626u && groundHash(w) == 0x303FDFA5u && w.sites[w.startSite].name == "STONEDALE";
+      if (!same) { printf("FAIL: v3 fixture world differs: hashes %08X %08X %08X\n", siteHash(w), bldgHash(w), groundHash(w)); bad++; }
+      const Appearance& ap = a.app;
+      check(ap.name == FIX3_NAME && ap.female && ap.build == 1 && ap.skinTone == 5 && ap.skin == FIX3_SKIN &&
+                ap.hair == (uint8_t)art::Hair::Braids && ap.hairColor == FIX3_HAIRC && !ap.beard && ap.eyeColor == FIX3_EYE &&
+                ap.topColor == FIX3_TOP && ap.bottomColor == FIX3_BOTTOM && ap.created,
+            "v3 appearance");
+      check(a.background == Background::Hunter && a.storyFlags == FIX3_FLAGS, "v3 background / story flags");
+      auto wears = [&](int idx, ItemKind k, const char* name) {
+        return idx >= 0 && idx < (int)a.inv.size() && a.inv[idx].kind == k && a.inv[idx].name == name;
+      };
+      check(wears(a.eqGloves, ItemKind::Gloves, "LEATHER GLOVES") && wears(a.eqBoots, ItemKind::Boots, "LEATHER BOOTS") &&
+                wears(a.eqCloak, ItemKind::Cloak, "HUNTER'S CLOAK"),
+            "v3 gloves/boots/cloak slots");
+      check(a.pl().look.skin == FIX3_SKIN && a.pl().look.hairColor == FIX3_HAIRC, "v3 appearance did not reach the player's look");
+      std::vector<uint8_t> re;
+      a.serialize(re);
+      check(re == v3, "v3 fixture round trip is not byte-identical");
+      // the appearance block is length-prefixed: a longer block (fields from a later build) is skipped...
+      size_t tail = v3TailSize(v3);
+      check(tail > 0, "v3 tail not found");
+      if (tail > 0) {
+        size_t lenAt = v3.size() - (tail - 17);
+        int blen = v3[lenAt] | (v3[lenAt + 1] << 8);
+        std::vector<uint8_t> longer = v3;
+        longer.push_back(0xAB); longer.push_back(0xCD); longer.push_back(0xEF);
+        longer[lenAt] = (uint8_t)(blen + 3); longer[lenAt + 1] = (uint8_t)((blen + 3) >> 8);
+        Game b(1);
+        check(b.deserialize(longer) && b.app.name == FIX3_NAME && b.app.created && b.background == Background::Hunter,
+              "a longer appearance block (newer build) did not load");
+        // ...and a shorter one (an older build with fewer fields) loads with defaults for the missing fields
+        std::vector<uint8_t> shorter(v3.begin(), v3.end() - 1);
+        shorter[lenAt] = (uint8_t)(blen - 1); shorter[lenAt + 1] = (uint8_t)((blen - 1) >> 8);
+        Game c(1);
+        check(c.deserialize(shorter) && c.app.name == FIX3_NAME && !c.app.created && c.app.bottomColor == FIX3_BOTTOM,
+              "a shorter appearance block (older build) did not load with defaults");
+      }
+    }
+  }
 
   // 4. new games use the latest generator and round-trip it
   {
@@ -284,7 +425,7 @@ int main(int argc, char** argv) {
   // 5. rejects: newer save version, newer generator, bad magic, truncation; a mismatching fingerprint is flagged
   {
     auto patched = [&](size_t at, uint32_t v) {
-      std::vector<uint8_t> b = v2;
+      std::vector<uint8_t> b = cur;
       for (int k = 0; k < 4; k++) b[at + k] = (uint8_t)(v >> (8 * k));
       return b;
     };
@@ -292,9 +433,9 @@ int main(int argc, char** argv) {
     check(!x.deserialize(patched(4, 99)), "accepted a save from a newer format");
     check(!x.deserialize(patched(8, (uint32_t)WORLDGEN_LATEST + 1)), "accepted a world from a newer generator");
     check(!x.deserialize(patched(0, 0x12345678u)), "accepted bad magic");
-    const size_t cuts[] = {6, 14, v2.size() / 2, v2.size() - 1};
+    const size_t cuts[] = {6, 14, cur.size() / 2, cur.size() - 1};
     for (size_t cut : cuts) {
-      std::vector<uint8_t> b(v2.begin(), v2.begin() + (long)cut);
+      std::vector<uint8_t> b(cur.begin(), cur.begin() + (long)cut);
       if (x.deserialize(b)) { printf("FAIL: accepted a save truncated to %zu bytes\n", cut); bad++; }
     }
     std::vector<uint8_t> t(v1.begin(), v1.end() - 1);

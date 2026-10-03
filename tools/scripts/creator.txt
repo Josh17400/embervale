@@ -1,0 +1,72 @@
+# Title -> NEW ADVENTURE -> the character creator: change looks with keys and taps, type and tap a name, pick a
+# background, BEGIN -> play in a shirt and trousers. Escape from the creator returns to the title.
+#   embervale.exe --script tools/scripts/creator.txt        (screenshots land in the working directory)
+# Layout (creator.cpp): tabs at y 22-46 (LOOKS x 164-261, NAME 265-362, ORIGIN 366-463); LOOKS rows every 24 px from
+# y 50; RANDOMIZE 164-310 and NEXT/BEGIN 322-468 at y 244-268.
+seed 11
+0.6  shot creator_0_title.png
+0.8  key Return                  # title: New Adventure opens the creator
+1.2  expect mode creator
+1.4  key Escape                  # ...and Escape goes back to the title
+1.6  expect mode title
+1.8  key Return
+2.2  expect mode creator
+2.6  shot creator_1_looks.png
+# LOOKS with the keyboard: build broad, skin two tones darker, curls, a beard
+2.8  key Right                   # build: slim
+2.9  key Right                   # build: broad
+3.0  key Down                    # skin
+3.1  key Right
+3.2  key Right
+3.3  key Down                    # hair
+3.4  key Left                    # short -> bald -> wraps to curls
+3.5  key Left
+3.6  key Down                    # hair colour
+3.7  key Right
+3.8  key Down                    # beard
+3.9  key Right
+4.2  shot creator_2_keys.png
+# ...and with taps: a shirt swatch, the eyes' ">" arrow, a trousers swatch
+4.4  tap 334 206                 # SHIRT row, 5th swatch
+4.6  tap 425 182                 # EYES row ">"
+4.8  tap 300 230                 # TROUSERS row, 1st swatch
+5.2  shot creator_3_taps.png
+5.4  tap 237 256                 # RANDOMIZE
+5.8  shot creator_4_random.png
+# NAME: tap the tab, clear the suggestion with Backspace, type ASTRI, tap D on the letter grid
+6.0  tap 313 34
+6.2  shot creator_5_name.png
+6.3  key Backspace
+6.35 key Backspace
+6.4  key Backspace
+6.45 key Backspace
+6.5  key Backspace
+6.55 key Backspace
+6.6  key Backspace
+6.65 key Backspace
+6.7  key Backspace
+6.75 key Backspace
+6.8  key Backspace
+6.85 key Backspace
+7.0  key A
+7.1  key S
+7.2  key T
+7.3  key R
+7.4  key I
+7.6  tap 283 140                 # the D key on the grid
+8.0  shot creator_6_named.png
+# ORIGIN: Enter moves on from NAME; Down moves the pick; then tap EXILED NOBLE
+8.2  key Return
+8.4  key Down
+8.6  shot creator_7_origin.png
+8.8  tap 390 116                 # EXILED NOBLE (background 6)
+9.0  expect background 6
+9.2  shot creator_8_noble.png
+9.4  tap 395 256                 # BEGIN
+9.8  expect mode play
+9.9  expect name ASTRID
+10.0 expect slot armor 0
+10.6 shot creator_9_play.png
+10.8 menu 5                      # the equip screen shows the new hero
+11.4 shot creator_10_equip.png
+11.6 quit

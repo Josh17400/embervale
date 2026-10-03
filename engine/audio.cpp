@@ -488,6 +488,7 @@ const float kSfxTrim[(int)Sfx::COUNT] = {
   0.88f, 1.15f, 0.9f,  0.8f,                                // LevelUp QuestStart QuestDone Discover
   1.0f,  1.0f,  1.0f,                                       // MenuMove MenuSelect MenuBack
   0.67f, 1.1f,                                              // Roar Splash
+  0.8f,                                                     // Bell
 };
 
 void Audio::trigger(Sfx s, float k, float V) {
@@ -739,6 +740,20 @@ void Audio::trigger(Sfx s, float k, float V) {
       add(NB(Noise, 0, 0.7f * V).env(0.02f, 0.35f).bp(1100 * k, 0.8f).at(0.02f).send(0.3f));
       for (int i = 0; i < 4; i++)
         add(NB(Sine, rnd(500, 1100) * k, 0.18f * V).perc(0.05f).slide(2.5f).at(0.08f + 0.06f * (float)i + rnd(0, 0.03f)));
+      break;
+    }
+    case Sfx::Bell: {     // bronze alarm bell, struck twice: inharmonic partials (hum, prime, minor-third tierce,
+                          // quint, nominal) ringing out at different rates, a clank at the strike and a metallic shimmer
+      const float f0 = 392.0f * k;
+      static const float part[7][3] = {   // ratio, level, decay (s)
+          {0.5f, 0.30f, 2.6f}, {1.0f, 0.34f, 1.8f}, {1.19f, 0.22f, 1.3f}, {1.5f, 0.12f, 1.0f}, {2.0f, 0.20f, 0.9f}, {2.52f, 0.08f, 0.5f}, {3.0f, 0.06f, 0.35f}};
+      for (int hit = 0; hit < 2; hit++) {
+        float d = hit * 0.42f, a = hit ? 0.8f : 1.0f;
+        for (auto& pt : part) add(NB(Sine, f0 * pt[0], pt[1] * a * V).perc(pt[2]).at(d).send(0.45f));
+        add(NB(Fm, f0 * 2.0f, 0.07f * a * V).perc(0.6f).fm(2.76f, 2.2f, 0.25f).at(d).send(0.5f));
+        add(NB(Noise, 0, 0.35f * a * V).perc(0.025f).bp(2600 * k, 1.4f).at(d));
+        add(NB(Sine, f0 * 0.25f, 0.18f * a * V).perc(0.08f).pitch(0.6f, 0.02f).at(d));
+      }
       break;
     }
     case Sfx::COUNT: break;

@@ -2,8 +2,11 @@
 #include "rpg/sim/game.h"
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <string>
 #include <vector>
 #include "engine/audio.h"
+#include "rpg/sim/game_internal.h"
 
 using art::Monster;
 using art::Prop;
@@ -17,43 +20,6 @@ int spellCost(Spell s) {
   return c[(int)s];
 }
 
-namespace {
-struct MStat { float hp, dmg, speed, range, aggro, radius, windup; int xp; bool ranged, flying; };
-const MStat& mstat(Monster m) {
-  static const MStat t[] = {
-      {34, 13, 66, 13, 120, 5, 0.32f, 12, false, false},   // Wolf
-      {36, 8, 56, 13, 90, 6, 0.40f, 14, false, false},     // Boar
-      {95, 15, 46, 17, 100, 8, 0.50f, 38, false, false},   // Bear
-      {22, 4, 30, 11, 80, 5, 0.45f, 6, false, false},      // Slime
-      {34, 7, 58, 13, 110, 6, 0.34f, 15, true, false},     // Spider
-      {14, 3, 76, 10, 120, 4, 0.25f, 5, false, true},      // Bat
-      {35, 8, 40, 15, 120, 5, 0.42f, 18, false, false},    // Skeleton
-      {70, 12, 38, 17, 120, 6, 0.48f, 30, false, false},   // Draugr
-      {26, 6, 60, 12, 120, 5, 0.30f, 10, false, false},    // Goblin
-      {105, 17, 44, 19, 110, 9, 0.55f, 60, false, false},  // Troll
-      {60, 10, 48, 15, 140, 6, 0.40f, 36, true, true},     // Wraith
-      {22, 5, 30, 11, 60, 6, 0.40f, 6, false, false},      // Mudcrab
-      {46, 9, 66, 13, 130, 5, 0.30f, 20, false, false},    // IceWolf
-      {62, 10, 52, 15, 120, 7, 0.36f, 30, true, false},    // FrostSpider
-      {85, 14, 40, 18, 100, 8, 0.50f, 42, false, false},   // Sandworm
-      {1500, 30, 72, 34, 320, 18, 0.60f, 1500, true, true},// Dragon
-  };
-  return t[(int)m];
-}
-const char* monsterName(Monster m) {
-  static const char* n[] = {"WOLF", "BOAR", "CAVE BEAR", "SLIME", "GIANT SPIDER", "BAT", "SKELETON", "DRAUGR", "GOBLIN", "TROLL",
-                            "WRAITH", "MUDCRAB", "ICE WOLF", "RIME SPIDER", "SANDWORM", "ASHFANG THE DRAGON"};
-  return n[(int)m];
-}
-Vec2 faceVec(int f) {
-  static const Vec2 v[4] = {{0, 1}, {0, -1}, {1, 0}, {-1, 0}};
-  return v[f & 3];
-}
-int faceOf(Vec2 d) {
-  if (std::fabs(d.x) > std::fabs(d.y) * 1.05f) return d.x > 0 ? 2 : 3;
-  return d.y > 0 ? 0 : 1;
-}
-}  // namespace
 
 Game::Game(uint64_t s) : seed(s), rng_(s) {}
 
@@ -85,10 +51,11 @@ void Game::newGame(uint64_t s, int genVer) {
   npcQuestsDone.clear(); looted.clear(); killedSlots.clear(); shopCache_.clear();
   projs.clear(); pickups.clear(); events.clear();
   kills = 0; dungeonsCleared = 0; blessT = 0;
+  app = Appearance(); background = Background::None; storyFlags = 0;
   actors.clear();
   Actor p;
   p.id = nextId_++;
-  p.player = true; p.human = true; p.name = "YOU";
+  p.player = true; p.human = true; p.name = "YOU"; p.faction = Faction::Player;
   actors.push_back(p);
   resetPlayer();
   const Site& home = world.sites[world.startSite];
@@ -105,7 +72,24 @@ void Game::newGame(uint64_t s, int genVer) {
   q.desc = "A DRAGON HAS BEEN SEEN OVER THE PEAKS. JARL OF " + cap.name + " SEEKS ANYONE BRAVE ENOUGH TO HELP. TRAVEL TO " + cap.name + " AND SPEAK WITH THE JARL IN THE KEEP.";
   q.stage = 0;
   quests.push_back(q);
-  trackedQuest = q.id;
+  // the opening (VISION_PLAN 15.1): shirt only, so the first tracked quest leads to a weapon within a few minutes.
+  // The start village's innkeeper keeps an old blade over the hearth (game_rpg.cpp giveFirstWeapon).
+  {
+    Quest o;
+    o.id = nextQuestId++;
+    o.type = QType::Retrieve;
+    o.title = "A BLADE OF YOUR OWN";
+    o.giverSite = world.startSite;
+    o.giverName = "THE INNKEEPER";
+    for (int b = home.bldgFirst; b < home.bldgFirst + home.bldgCount; b++)
+      if (world.over.bldgs[b].type == art::Building::Inn) { o.giverBldg = b; break; }
+    o.giverSlot = -1;   // whoever keeps the inn
+    o.target = world.startSite;
+    o.desc = "YOU CAME TO " + home.name + " WITH NOTHING BUT THE SHIRT ON YOUR BACK. THE INNKEEPER IS SAID TO KEEP AN OLD BLADE OVER THE HEARTH, AND TO GIVE IT TO ANYONE WILLING TO WORK.";
+    o.gold = 0; o.xp = 20;
+    quests.push_back(o);
+    trackedQuest = o.giverBldg >= 0 ? o.id : q.id;
+  }
   loadMapActors();
   updateLocation();
 }
@@ -115,15 +99,9 @@ void Game::resetPlayer() {
   baseHp = 100; maxMp = 60; maxSt = 80;
   inv.clear();
   eqWeapon = eqBow = eqStaff = eqArmor = eqHelmet = eqShield = eqRing = eqAmulet = -1;
-  Rng r(seed);
-  Item sw = makeWeapon(r, 1, (int)WeaponType::Sword, false);
-  sw.name = "IRON SWORD"; sw.power = 8;
-  inv.push_back(sw); eqWeapon = 0;
-  Item bow; bow.kind = ItemKind::Bow; bow.power = 9; bow.name = "HUNTING BOW"; bow.icon = art::Icon::Bow; bow.tint = tierTint(0); bow.value = 40;
-  inv.push_back(bow); eqBow = 1;
-  inv.push_back(makeArrows(20));
-  Item pot = makePotion(PotionType::Health, 0); pot.count = 3;
-  inv.push_back(pot);
+  eqGloves = eqBoots = eqCloak = -1;
+  // everyone starts with just the shirt on their back (VISION_PLAN 15.1): no weapon, armour, bow or arrows.
+  // A heel of bread and a few coins; the first weapon comes from the start village (the opening quest).
   Item bread = makeFood(0); bread.count = 2;
   inv.push_back(bread);
   spellsKnown = 1; spell = Spell::Flames;
@@ -133,59 +111,46 @@ void Game::resetPlayer() {
   p.st = AState::Idle;
 }
 
-void Game::recalcPlayer() {
-  Actor& p = pl();
-  float bonusHp = 0, bonusMp = 0, bonusSt = 0;
-  for (int idx : {eqArmor, eqHelmet, eqShield, eqRing, eqAmulet}) {
-    if (idx < 0 || idx >= (int)inv.size()) continue;
-    const Item& it = inv[idx];
-    if (it.ench == Ench::Health) bonusHp += it.enchPow;
-    if (it.ench == Ench::Magicka) bonusMp += it.enchPow;
-    if (it.ench == Ench::Stamina) bonusSt += it.enchPow;
-  }
-  float oldMax = p.maxHp;
-  p.maxHp = baseHp + bonusHp;
-  if (oldMax > 0 && p.hp > p.maxHp) p.hp = p.maxHp;
-  (void)bonusMp; (void)bonusSt;
-  p.armor = armorRating();
-  p.radius = 4.5f;
-  p.speed = 74;
-  // appearance follows equipment
-  art::HumanLook& L = p.look;
-  L.skin = rgba(236, 188, 146);
-  L.hairColor = rgba(120, 70, 36);
-  L.hair = art::Hair::Short;
-  L.topColor = rgba(70, 110, 150);
-  L.bottomColor = rgba(78, 60, 44);
-  L.tabardColor = rgba(170, 50, 40);
-  L.outfit = art::Outfit::Tunic;
-  if (eqArmor >= 0) {
-    static const art::Outfit byTier[] = {art::Outfit::Leather, art::Outfit::Plate, art::Outfit::Elven, art::Outfit::Elven, art::Outfit::Ebony, art::Outfit::Ebony};
-    const Item& a = inv[eqArmor];
-    L.outfit = a.name.rfind("IRON", 0) == 0 ? art::Outfit::Chain : byTier[a.tier];
-  }
-  L.helmet = eqHelmet >= 0;
-  L.shield = eqShield >= 0;
-  L.cape = plLevel >= 5;
-  L.weapon = 1;
-  if (eqWeapon >= 0) {
-    static const uint8_t wmap[] = {1, 2, 6, 5, 1};
-    L.weapon = wmap[inv[eqWeapon].sub % 5];
-    L.weaponColor = inv[eqWeapon].tint ? inv[eqWeapon].tint : rgba(200, 205, 215);
-  }
+void Game::debugKit() {
+  Rng r(seed);
+  Item sw = makeWeapon(r, 1, (int)WeaponType::Sword, false);
+  sw.name = "IRON SWORD"; sw.power = 8;
+  addItem(sw, false);
+  eqWeapon = (int)inv.size() - 1;
+  Item bow; bow.kind = ItemKind::Bow; bow.power = 9; bow.name = "HUNTING BOW"; bow.icon = art::Icon::Bow; bow.tint = tierTint(0); bow.value = 40;
+  addItem(bow, false);
+  eqBow = (int)inv.size() - 1;
+  addItem(makeArrows(20), false);
+  Item pot = makePotion(PotionType::Health, 0); pot.count = 3;
+  addItem(pot, false);
+  Item bread = makeFood(0); bread.count = 2;
+  addItem(bread, false);
+  recalcPlayer();
 }
 
-float Game::armorRating() const {
-  float a = 0;
-  for (int idx : {eqArmor, eqHelmet, eqShield}) if (idx >= 0 && idx < (int)inv.size()) a += inv[idx].power;
-  for (int idx : {eqArmor, eqHelmet, eqShield, eqRing, eqAmulet})
-    if (idx >= 0 && idx < (int)inv.size() && inv[idx].ench == Ench::Fortify) a += inv[idx].enchPow * 0.5f;
-  if (blessT > 0) a += 15;
-  return a;
-}
-float Game::weaponDamage() const {
-  float d = eqWeapon >= 0 ? inv[eqWeapon].power : 4;
-  return d * (1.0f + (plLevel - 1) * 0.04f);
+// The character creator is done (app and background are set): apply the background's trait and start playing.
+// M0 town-defence/opening lane: the background effects (VISION_PLAN 15.1) are applied here.
+void Game::finishCreator() {
+  app.created = true;
+  storyFlags |= SF_CREATED;
+  // the background's one trait (VISION_PLAN 15.1). Never gear. The rest act where they matter:
+  //   blacksmith's child  priceFactor(Smith)                      hunter      aggro range (ai.cpp), pelts (dropLoot)
+  //   farmhand            stamina regen (updatePlayer), food      urchin      priceFactor(Merchant)
+  //   temple novice       MEND known, blessingSecs()              noble       hasOffer: guards and jarls offer more
+  //   sailor / marked     small hooks: sea legs (+stamina) / a faint echo of lost magic (+magicka)
+  switch (background) {
+    case Background::Novice: spellsKnown |= (uint8_t)(1 << (int)Spell::Heal); break;
+    case Background::Sailor: maxSt += 15; break;
+    case Background::Marked: maxMp += 15; break;
+    default: break;
+  }
+  recalcPlayer();
+  pl().hp = pl().maxHp; mp = maxMp; stamina = maxSt;
+  mode = Mode::Play;
+  if (int oq = openingQuest(); oq >= 0) {
+    trackedQuest = oq;
+    emit(Ev::QuestUpdate, pl().p, oq, 0, "QUEST STARTED: A BLADE OF YOUR OWN");
+  }
 }
 
 Vec2 Game::freeSpot(int tx, int ty) const {
@@ -276,6 +241,7 @@ void Game::update(float dt, const Input& in) {
       if (!b.player) moveActor(b, push);
       if (a.player && b.npc) moveActor(b, push);
     }
+  updateTownDefence(dt);
   updateProjectiles(dt);
   updatePickups(dt);
   if (!inside) updateSpawning(dt);
@@ -303,13 +269,14 @@ void Game::updatePlayer(float dt, const Input& in) {
   if (p.st == AState::Dead) return;
   // regen
   bool busy = p.st == AState::Windup || p.st == AState::Strike || p.st == AState::Roll;
-  if (!busy) stamina = stamina + dt * 22.0f;
+  const float stRegen = background == Background::Farmhand ? 1.3f : 1.0f;   // farmhand: a field worker's wind
+  if (!busy) stamina = stamina + dt * 22.0f * stRegen;
   float mpMax = maxMp;
-  for (int idx : {eqArmor, eqHelmet, eqShield, eqRing, eqAmulet}) if (idx >= 0 && inv[idx].ench == Ench::Magicka) mpMax += inv[idx].enchPow;
+  for (int idx : worn()) if (idx >= 0 && inv[idx].ench == Ench::Magicka) mpMax += inv[idx].enchPow;
   float stMax = maxSt;
-  for (int idx : {eqArmor, eqHelmet, eqShield, eqRing, eqAmulet}) if (idx >= 0 && inv[idx].ench == Ench::Stamina) stMax += inv[idx].enchPow;
+  for (int idx : worn()) if (idx >= 0 && inv[idx].ench == Ench::Stamina) stMax += inv[idx].enchPow;
   stamina = std::min(stamina, stMax);
-  if (!busy) stamina = std::min(stMax, stamina + dt * 4.0f);
+  if (!busy) stamina = std::min(stMax, stamina + dt * 4.0f * stRegen);
   mp = std::min(mpMax, mp + dt * 3.2f);
   // health comes back between fights, barely during one (the potion is the in-fight heal)
   bool calm = time - lastHurtT > 6.0f;
@@ -338,7 +305,10 @@ void Game::updatePlayer(float dt, const Input& in) {
       return;
     }
     case AState::Windup:
-      if (p.stT >= 0.07f) { p.st = AState::Strike; p.stT = 0; p.hitDone = false; sfx((int)Sfx::Swing, p.p, 1.0f + p.combo * 0.12f); }
+      if (p.stT >= (eqWeapon < 0 ? 0.05f : 0.07f)) {
+        p.st = AState::Strike; p.stT = 0; p.hitDone = false;
+        sfx((int)Sfx::Swing, p.p, (eqWeapon < 0 ? 1.45f : 1.0f) + p.combo * 0.12f, eqWeapon < 0 ? 0.6f : 1.0f);
+      }
       break;
     case AState::Strike:
       if (!p.hitDone) { meleeHit(p); p.hitDone = true; }
@@ -346,7 +316,7 @@ void Game::updatePlayer(float dt, const Input& in) {
       if (p.stT >= 0.11f) { p.st = AState::Recover; p.stT = 0; }
       break;
     case AState::Recover:
-      if (p.stT >= (p.combo == 2 ? 0.28f : 0.13f)) { p.st = AState::Idle; p.stT = 0; }
+      if (p.stT >= (p.combo == 2 ? 0.28f : eqWeapon < 0 ? 0.08f : 0.13f)) { p.st = AState::Idle; p.stT = 0; }
       break;
     case AState::Cast:
       if (p.stT >= 0.22f) { p.st = AState::Idle; p.stT = 0; }
@@ -393,7 +363,7 @@ void Game::updatePlayer(float dt, const Input& in) {
     if (best >= 0) { p.aim = norm(actors[best].p - p.p); p.face = faceOf(p.aim); }
     p.combo = (p.comboT > 0) ? (p.combo + 1) % 3 : 0;
     p.comboT = 0.55f;
-    float cost = p.combo == 2 ? 14.0f : 4.0f;
+    float cost = p.combo == 2 ? (eqWeapon < 0 ? 10.0f : 14.0f) : (eqWeapon < 0 ? 3.0f : 4.0f);
     if (stamina < cost) { if (p.combo == 2 || stamina < 4) stFlash = 0.6f; p.combo = 0; }
     stamina = std::max(0.0f, stamina - cost);
     p.st = AState::Windup; p.stT = 0;
@@ -446,6 +416,10 @@ void Game::meleeHit(Actor& a) {
   float reach = isPl ? (a.combo == 2 ? 24.0f : 20.0f) : a.range;
   float cone = isPl ? (a.combo == 2 ? -0.1f : 0.25f) : 0.2f;
   float dmg = isPl ? weaponDamage() * (a.combo == 2 ? 1.7f : 1.0f) : a.dmg;
+  if (isPl && eqWeapon < 0) {   // bare fists: short reach, quick jabs, a finisher that staggers
+    reach -= 4;
+    dmg *= a.combo == 2 ? 1.0f : 1.2f;
+  }
   Ench ench = Ench::None; float ep = 0;
   if (isPl && eqWeapon >= 0) { ench = inv[eqWeapon].ench; ep = inv[eqWeapon].enchPow; }
   if (isPl && inv.size() && eqWeapon >= 0 && inv[eqWeapon].sub == (uint8_t)WeaponType::Dagger) reach -= 3;
@@ -455,7 +429,7 @@ void Game::meleeHit(Actor& a) {
     Actor& v = actors[i];
     if (v.id == a.id || v.st == AState::Dead) continue;
     if (v.fly) continue;   // can't reach a dragon in the air
-    bool enemy = isPl ? v.hostile : (a.hostile ? (v.player || (v.npc && v.role == Role::Guard)) : v.hostile);
+    bool enemy = isPl ? v.hostile : factionsHostile(a.faction, v.faction);   // monsters hit townsfolk too (M0)
     if (!enemy) continue;
     Vec2 d = (v.p + Vec2(0, -4)) - origin;
     float l = len(d);
@@ -492,7 +466,10 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
     kill(v, attacker);
     return;
   }
-  if (v.npc && v.role != Role::Guard && !v.hostile) return;
+  if (v.npc && !v.hostile) {   // townsfolk and guards are only hurt by their enemies (never by the player's swings)
+    int ai = attacker >= 0 ? findActor(attacker) : -1;
+    if (ai < 0 || !factionsHostile(actors[ai].faction, v.faction)) return;
+  }
   if (v.player) dmg = dmg * 100.0f / (100.0f + armorRating() * 1.6f);
   else dmg = dmg * 60.0f / (60.0f + v.armor);
   if (ench == Ench::Fire) { v.burnT = 3.0f; v.regen = 0; dmg += ep * 0.4f; }
@@ -560,7 +537,9 @@ void Game::kill(Actor& a, int killer) {
     if (a.xp > 0) gainXp(a.xp);
     kills++;
   }
-  if (a.fromMap) killedSlots[mapKey()].insert(a.slot + (a.site >= 0 && !inside ? a.site * 1000 : 0));
+  // townsfolk felled by monsters are back on their feet when the town next loads (only enemies stay dead)
+  if (a.fromMap && !a.npc) killedSlots[mapKey()].insert(a.slot + (a.site >= 0 && !inside ? a.site * 1000 : 0));
+  if (a.npc && !inside) emit(Ev::Text, a.p + Vec2(0, -20), (int)rgba(255, 120, 100), 0, "DOWN");
   if (a.den >= 0 && !inside && a.den < (int)world.dens.size()) {
     bool left = false;
     for (const Actor& o : actors) if (o.id != a.id && o.den == a.den && o.st != AState::Dead) left = true;
@@ -633,6 +612,7 @@ void Game::shootArrow() {
     inv.erase(inv.begin() + ai);
     auto fix = [&](int& e) { if (e == ai) e = -1; else if (e > ai) e--; };
     fix(eqWeapon); fix(eqBow); fix(eqStaff); fix(eqArmor); fix(eqHelmet); fix(eqShield); fix(eqRing); fix(eqAmulet);
+    fix(eqGloves); fix(eqBoots); fix(eqCloak);
   }
   Projectile pr;
   pr.p = p.p + Vec2(0, -8) + aim * 6;
@@ -705,7 +685,7 @@ void Game::updateProjectiles(float dt) {
       for (size_t k = 0; k < actors.size(); k++) {
         Actor& a = actors[k];
         if (a.st == AState::Dead || a.id == pr.owner) continue;
-        bool enemy = pr.fromPlayer ? a.hostile : (a.player || (a.npc && a.role == Role::Guard));
+        bool enemy = pr.fromPlayer ? a.hostile : (a.player || a.npc) && factionsHostile(pr.fac, a.faction);
         if (!enemy) continue;
         Vec2 c = a.p + Vec2(0, a.fly ? -28.0f : -7.0f);
         float r = a.radius + pr.radius + (a.mon == Monster::Dragon ? 10 : 2);
@@ -789,309 +769,6 @@ void Game::updateActor(Actor& a, float dt) {
   updateAI(a, dt);
 }
 
-void Game::updateAI(Actor& a, float dt) {
-  Actor& p = pl();
-  float slow = a.slowT > 0 ? 0.55f : 1.0f;
-  if (a.st == AState::Hurt) { if (a.stT > 0.25f) { a.st = AState::Idle; a.stT = 0; } return; }
-
-  // ---- friendly NPCs
-  if (!a.hostile) {
-    bool talking = mode == Mode::Dialogue && dlg.actor == a.id;
-    // guards engage hostiles nearby
-    if (a.role == Role::Guard) {
-      a.thinkT -= dt;
-      if (a.thinkT <= 0) {
-        a.thinkT = 0.4f;
-        a.target = -1;
-        float bd = 110 * 110;
-        for (auto& e : actors) if (e.hostile && e.st != AState::Dead && !e.fly && len2(e.p - a.p) < bd) { bd = len2(e.p - a.p); a.target = e.id; }
-      }
-      int ti = a.target >= 0 ? findActor(a.target) : -1;
-      if (ti >= 0 && actors[ti].st != AState::Dead) {
-        Actor& t = actors[ti];
-        Vec2 d = t.p - a.p; float l = len(d);
-        a.aim = norm(d); a.face = faceOf(d);
-        if (a.st == AState::Windup) { if (a.stT > 0.3f) { a.st = AState::Strike; a.stT = 0; meleeHit(a); sfx((int)Sfx::Swing, a.p); } return; }
-        if (a.st == AState::Strike) { if (a.stT > 0.25f) { a.st = AState::Idle; a.stT = 0; a.atkCd = 0.9f; } return; }
-        if (l > a.range) { moveActor(a, a.aim * (a.speed * 1.2f * dt)); a.st = AState::Walk; }
-        else if (a.atkCd <= 0) { a.st = AState::Windup; a.stT = 0; }
-        return;
-      }
-    }
-    if (talking) { a.face = faceOf(p.p - a.p); a.st = AState::Idle; return; }
-    // townsfolk run from monsters on the loose instead of strolling past them
-    if (a.role != Role::Guard && !inside) {
-      const Actor* threat = nullptr; float td = 90.0f * 90.0f;
-      for (const Actor& e : actors) if (e.hostile && e.st != AState::Dead && !e.fly && len2(e.p - a.p) < td) { td = len2(e.p - a.p); threat = &e; }
-      if (threat) {
-        Vec2 away = norm(a.p - threat->p);
-        moveActor(a, away * (a.speed * 1.15f * dt));
-        a.face = faceOf(away); a.st = AState::Walk;
-        a.goal = a.p; a.thinkT = 1.0f;   // when it's over, stay put a moment before wandering again
-        return;
-      }
-    }
-    a.thinkT -= dt;
-    if (a.thinkT <= 0) {
-      a.thinkT = 2.0f + rng_.f() * 4.0f;
-      if (rng_.f() < 0.45f) a.goal = a.p;
-      else {
-        float range = inside ? 3.0f : 6.0f;
-        a.goal = a.home + Vec2(rng_.range(-range, range) * TILE, rng_.range(-range * 0.4f, range * 0.4f) * TILE);
-      }
-    }
-    Vec2 d = a.goal - a.p;
-    float l = len(d);
-    if (l > 3) {
-      Vec2 before = a.p;
-      moveActor(a, d * (1.0f / l) * (a.speed * 0.45f * dt));
-      a.face = faceOf(d);
-      a.st = AState::Walk;
-      if (len2(a.p - before) < 0.0004f) a.goal = a.p;
-    } else a.st = AState::Idle;
-    return;
-  }
-
-  // ---- hostiles
-  Vec2 toP = p.p - a.p;
-  float dist = len(toP);
-  a.thinkT -= dt;
-  if (a.thinkT <= 0) {
-    a.thinkT = 0.25f;
-    if (p.st != AState::Dead && !a.fleeing && dist < a.aggroR * (isNight() && !inside ? 0.8f : 1.0f)) a.aggro = true;
-    // packs are tied to their den: past the leash (or once the player is long gone) they give up and go home
-    float leash = a.den >= 0 ? 18.0f * TILE : 28.0f * TILE;
-    if (len(a.p - a.home) > leash && dist > 6 * TILE && !a.boss) a.aggro = false;
-    if (!a.boss && !inside && dist > std::max(a.aggroR * 2.4f, 15.0f * TILE)) a.aggro = false;
-    if (p.st == AState::Dead) a.aggro = false;
-    if (!a.aggro) a.fleeing = false;
-    if (!a.aggro && a.st != AState::Windup) {
-      if (rng_.f() < 0.25f) {
-        float r = a.wild ? 5.0f : 3.0f;
-        a.goal = a.home + Vec2(rng_.range(-r, r) * TILE, rng_.range(-r, r) * TILE);
-      }
-    }
-  }
-
-  // dragon: its own dance
-  if (a.mon == Monster::Dragon) {
-    a.special -= dt;
-    if (!a.aggro) { if (dist < 260) a.aggro = true; else return; }
-    a.aim = norm(toP);
-    a.face = toP.x >= 0 ? 2 : 3;
-    if (a.fly) {
-      // circle the player and rain fire
-      float ang = std::atan2(a.p.y - p.p.y, a.p.x - p.p.x) + dt * 0.9f;
-      Vec2 want = p.p + Vec2(std::cos(ang), std::sin(ang)) * 90.0f;
-      Vec2 d = want - a.p;
-      a.p += d * std::min(1.0f, dt * 1.8f);
-      a.st = AState::Walk;
-      a.shootCd -= 0;
-      if (a.shootCd <= 0) {
-        a.shootCd = 1.6f;
-        for (int k = -1; k <= 1; k++) {
-          Projectile pr;
-          pr.kind = ProjKind::DragonFire; pr.fromPlayer = false; pr.owner = a.id;
-          Vec2 aim = norm(p.p + Vec2(k * 14.0f, 0) - (a.p + Vec2(0, -28)));
-          pr.p = a.p + Vec2(0, -28); pr.v = aim * 150; pr.dmg = a.dmg * 0.8f; pr.life = 0.7f + (rng_.f() * 0.3f); pr.radius = 6;
-          // fire lands on the ground near the player: let it travel to the target point
-          pr.life = std::min(1.4f, len(p.p - pr.p) / 150.0f);
-          projs.push_back(pr);
-        }
-        sfx((int)Sfx::Fireball, a.p, 0.6f);
-      }
-      if (a.special <= 0) { a.fly = false; a.special = 7.0f; sfx((int)Sfx::Roar, a.p); emit(Ev::Shake, a.p, 0, 5); a.st = AState::Idle; a.stT = 0; }
-    } else {
-      if (a.special <= 0) { a.fly = true; a.special = 9.0f; sfx((int)Sfx::Roar, a.p, 1.1f); return; }
-      if (a.st == AState::Windup) {
-        if (a.stT > a.windup) { a.st = AState::Strike; a.stT = 0; meleeHit(a); sfx((int)Sfx::HitHeavy, a.p, 0.6f); emit(Ev::Shake, a.p, 0, 4); }
-        return;
-      }
-      if (a.st == AState::Strike) { if (a.stT > 0.4f) { a.st = AState::Idle; a.stT = 0; a.atkCd = 1.2f; } return; }
-      if (dist > a.range + 4) { moveActor(a, a.aim * (a.speed * 0.6f * dt)); a.st = AState::Walk; }
-      else if (a.atkCd <= 0) { a.st = AState::Windup; a.stT = 0; }
-      // breath cone
-      if (a.shootCd <= 0 && dist < 120) {
-        a.shootCd = 2.6f;
-        for (int k = 0; k < 5; k++) {
-          Projectile pr; pr.kind = ProjKind::DragonFire; pr.owner = a.id; pr.radius = 5;
-          float ang = std::atan2(a.aim.y, a.aim.x) + (k - 2) * 0.18f;
-          pr.p = a.p + Vec2(a.aim.x * 20, -14); pr.v = Vec2(std::cos(ang), std::sin(ang)) * 170; pr.dmg = a.dmg * 0.6f; pr.life = 0.6f;
-          projs.push_back(pr);
-        }
-        sfx((int)Sfx::Fireball, a.p, 0.5f);
-      }
-    }
-    return;
-  }
-
-  // behaviour sets: wolves circle and lunge from the flank, goblins swarm and flee when hurt, bandit archers
-  // kite, bears and trolls mix in a slow heavy slam you roll through
-  const bool wolf = a.mon == Monster::Wolf || a.mon == Monster::IceWolf;
-  const bool goblin = a.mon == Monster::Goblin;
-  const bool brute = a.mon == Monster::Bear || a.mon == Monster::Troll;
-  const bool archer = a.ranged && a.human;
-  const float wu = a.heavy ? (a.mon == Monster::Troll ? 0.9f : 0.8f) : a.windup;
-  switch (a.st) {
-    case AState::Windup:
-      a.face = faceOf(toP);
-      if (!a.lunge) a.aim = norm(toP);
-      if (a.heavy && a.stT < wu - 0.2f) a.aim = norm(toP);   // tracks you, then commits
-      if (a.stT >= wu) {
-        a.st = AState::Strike; a.stT = 0; a.atkN++; a.special = 0;
-        if (a.ranged && dist > a.range + 6) {
-          Projectile pr;
-          pr.owner = a.id; pr.fromPlayer = false; pr.dmg = a.dmg;
-          Vec2 aim = norm(p.p + Vec2(0, -6) - (a.p + Vec2(0, -8)));
-          pr.p = a.p + Vec2(0, -8) + aim * 5;
-          if (a.human) { pr.kind = ProjKind::Arrow; pr.v = aim * 210; pr.life = 1.0f; sfx((int)Sfx::Arrow, a.p, 0.9f); }
-          else if (a.mon == Monster::Wraith) { pr.kind = ProjKind::Magic; pr.v = aim * 130; pr.life = 1.6f; pr.ench = Ench::Frost; pr.enchPow = 4; sfx((int)Sfx::Frost, a.p, 0.8f); }
-          else { pr.kind = ProjKind::Spit; pr.v = aim * 150; pr.life = 1.0f; sfx((int)Sfx::Splash, a.p, 1.4f); }
-          projs.push_back(pr);
-          a.atkCd = 1.6f + rng_.f();
-        } else if (a.heavy) {
-          heavySlam(a);
-          a.vel = a.aim * 30.0f;
-          a.atkCd = 1.5f + rng_.f() * 0.6f;
-        } else if (a.lunge) {
-          a.aim = norm(toP);
-          a.vel = a.aim * 235.0f;
-          a.hitDone = false;
-          a.atkCd = 0.8f + rng_.f() * 0.6f;
-          sfx((int)Sfx::Swing, a.p, 0.7f);
-        } else {
-          meleeHit(a);
-          a.atkCd = 1.0f + rng_.f() * 0.7f;
-          if (wolf || a.mon == Monster::Boar || goblin) a.vel = a.aim * 120.0f;
-          else a.vel = a.aim * 40.0f;
-          sfx((int)Sfx::Swing, a.p, 0.8f);
-        }
-      }
-      return;
-    case AState::Strike:
-      if (a.lunge && !a.hitDone && len2(a.vel) > 1) {   // a lunge bends a little toward a dodging target
-        float sp = len(a.vel);
-        a.vel = norm(norm(a.vel) + norm(toP) * std::min(1.0f, dt * 4.0f)) * sp;
-      }
-      moveActor(a, a.vel * dt);
-      a.vel *= std::pow(0.01f, dt);
-      if (a.lunge && !a.hitDone && len(p.p - a.p) < a.range + p.radius + 2) {   // the bite lands on contact
-        a.aim = norm(p.p - a.p);
-        damage(p, a.dmg * (0.9f + rng_.f() * 0.2f), a.p, a.id);
-        a.hitDone = true;
-        a.vel *= 0.25f;
-      }
-      if (a.stT >= (a.heavy ? 0.4f : 0.28f)) { a.st = AState::Recover; a.stT = 0; }
-      return;
-    case AState::Recover:
-      if (a.stT >= (a.heavy ? 0.75f : 0.35f)) { a.st = AState::Idle; a.stT = 0; a.heavy = false; a.lunge = false; }
-      return;
-    default: break;
-  }
-
-  if (a.aggro && p.st != AState::Dead) {
-    a.aim = norm(toP);
-    a.face = faceOf(toP);
-    Vec2 side(-a.aim.y, a.aim.x);
-    float want = a.ranged ? 70.0f : a.range * 0.8f;
-    float spd = 1.0f;
-    Vec2 mv;
-    if (a.fleeing) {
-      // run, weaving a little; once well away, give up the fight
-      mv = a.aim * -1.0f + side * (std::sin(a.animT * 3 + a.id) * 0.5f);
-      spd = 1.1f;
-      if (dist > 11 * TILE) { a.aggro = false; a.fleeing = false; a.goal = a.home; }
-    } else if (wolf) {
-      // circle at a few strides, drifting in and out; the lunge comes from wherever the player isn't looking
-      float orbitR = 38.0f + (a.id % 3) * 5.0f;
-      float radial = clampf((dist - orbitR) / 14.0f, -1.0f, 1.0f);
-      mv = a.aim * radial + side * (0.95f * a.orbitDir);
-      spd = 0.85f;
-      if (rng_.f() < dt * 0.35f) a.orbitDir = (int8_t)-a.orbitDir;
-      a.special += dt;   // time spent circling
-    } else if (goblin) {
-      // swarm: each goblin closes in from its own side so the pack surrounds you
-      float spread = (float)((int)(a.id % 3) - 1) * 0.75f;
-      if (dist > want) mv = a.aim + side * (dist > 28 ? spread : 0.0f);
-      spd = 1.05f;
-    } else if (archer) {
-      // keep a bow-shot away: back off when crowded, close in when far, strafe in between
-      if (dist < 62) mv = a.aim * -1.0f + side * (0.5f * a.orbitDir);
-      else if (dist > 115) mv = a.aim;
-      else mv = side * (0.6f * a.orbitDir);
-      if (rng_.f() < dt * 0.4f) a.orbitDir = (int8_t)-a.orbitDir;
-    } else if (dist > want) mv = a.aim;
-    if (a.mon == Monster::Bat || a.mon == Monster::Wraith) {   // erratic flight
-      float w = std::sin(a.animT * 5 + a.id) * 0.8f;
-      mv = mv + side * w;
-    }
-    // simple obstacle avoidance: if stuck, sidestep
-    Vec2 before = a.p;
-    if (len2(mv) > 0.01f) {
-      moveActor(a, norm(mv) * (a.speed * spd * slow * dt));
-      a.st = AState::Walk;
-      if (len2(a.p - before) < 0.02f * a.speed * dt) {
-        Vec2 sd = side * ((a.id & 1) ? 1.0f : -1.0f);
-        moveActor(a, sd * (a.speed * slow * dt));
-        if (wolf) a.orbitDir = (int8_t)-a.orbitDir;
-        if (a.fleeing && dist < 34) a.fleeing = false;   // cornered: fight
-      }
-    } else a.st = AState::Idle;
-    if (a.fleeing) return;
-    bool inMelee = dist < a.range + p.radius + 2;
-    bool inShot = a.ranged && dist < 150 && dist > 30;
-    if (a.atkCd > 0) return;
-    if (wolf) {
-      // the pack takes turns (two at once in a big pack); prefer the flank, but don't circle forever
-      int busy = 0, mates = 0;
-      for (const Actor& o : actors) {
-        if (o.id == a.id || o.st == AState::Dead || o.mon != a.mon || len2(o.p - p.p) > 140 * 140) continue;
-        mates++;
-        if (o.lunge && o.st == AState::Windup) busy++;
-      }
-      int slots = mates >= 2 ? 2 : 1;
-      bool flank = dot(norm(a.p - p.p), p.aim) < 0.3f;
-      if (busy < slots && dist > 16 && dist < 48 && (flank || a.special > 0.7f)) {
-        a.st = AState::Windup; a.stT = 0; a.lunge = true;
-      } else if (inMelee && dist <= 16 && busy < slots) {
-        a.st = AState::Windup; a.stT = 0; a.lunge = false;
-      }
-      return;
-    }
-    if (brute) {
-      bool heavyNow = (a.atkN % 3 == 2) || rng_.f() < 0.15f;
-      if (inMelee || (heavyNow && dist < a.range + p.radius + 12)) { a.st = AState::Windup; a.stT = 0; a.heavy = heavyNow; }
-      return;
-    }
-    if (inMelee || (inShot && rng_.f() < dt * 2.5f)) { a.st = AState::Windup; a.stT = 0; }
-  } else {
-    Vec2 d = a.goal - a.p;
-    float l = len(d);
-    // a pack that lost its prey trots back to the den
-    float back = (a.den >= 0 && len2(a.p - a.home) > 5.0f * TILE * 5.0f * TILE) ? 0.7f : 0.35f;
-    if (back > 0.5f) { d = a.home - a.p; l = len(d); }
-    if (l > 4) { moveActor(a, d * (1.0f / l) * (a.speed * back * slow * dt)); a.face = faceOf(d); a.st = AState::Walk; }
-    else a.st = AState::Idle;
-  }
-}
-
-void Game::heavySlam(Actor& a) {
-  // a ground slam in front of the brute: big damage and knockback, no cone check. Rolling through it is the answer.
-  Vec2 c = a.p + a.aim * 10.0f;
-  float r = 26.0f + a.radius;
-  for (Actor& v : actors) {
-    if (v.id == a.id || v.st == AState::Dead || v.fly) continue;
-    bool enemy = v.player || (v.npc && v.role == Role::Guard);
-    if (!enemy) continue;
-    if (len2(v.p - c) > (r + v.radius) * (r + v.radius)) continue;
-    damage(v, a.dmg * 2.1f * (0.9f + rng_.f() * 0.2f), a.p, a.id);
-    if (v.player && v.st != AState::Roll && v.iframes <= 0.36f) v.knock = norm(v.p - a.p) * 190.0f;
-  }
-  emit(Ev::Shake, c, 0, 4.5f);
-  for (int k = 0; k < 6; k++) emit(Ev::Dust, c + Vec2(std::cos(k * 1.047f) * r * 0.6f, std::sin(k * 1.047f) * r * 0.4f));
-  sfx((int)Sfx::HitHeavy, a.p, 0.55f);
-}
-
 // ------------------------------------------------------------------ spawning
 void Game::applyLevel(Actor& a, int level) {
   a.level = std::max(1, level);
@@ -1107,6 +784,7 @@ int Game::spawnMonster(Monster m, Vec2 p, int level, bool boss) {
   Actor a;
   a.id = nextId_++;
   a.hostile = true; a.mon = m; a.p = p; a.home = p; a.goal = p;
+  a.faction = monsterFaction(m);
   a.maxHp = s.hp; a.dmg = s.dmg; a.speed = s.speed; a.range = s.range; a.aggroR = s.aggro; a.radius = s.radius;
   a.windup = s.windup; a.xp = s.xp; a.ranged = s.ranged; a.flying = s.flying;
   a.name = monsterName(m);
@@ -1169,7 +847,7 @@ int Game::spawnHuman(const Spawn& sp, Vec2 p) {
   uint64_t key = ((uint64_t)(sp.site + 1) << 24) ^ ((uint64_t)(a.bldg + 1) << 12) ^ (uint64_t)sp.slot;
   Rng rr(hash32((uint32_t)key) ^ (uint32_t)seed);
   if (sp.bandit) {
-    a.hostile = true; a.role = Role::Bandit;
+    a.hostile = true; a.role = Role::Bandit; a.faction = Faction::Bandit;
     makeLook(a, Role::Bandit, rr);
     a.ranged = rr.f() < 0.35f && !sp.boss;
     if (a.ranged) a.look.weapon = 3;
@@ -1188,6 +866,12 @@ int Game::spawnHuman(const Spawn& sp, Vec2 p) {
     if (sp.role == Role::Guard) { a.maxHp = 300; a.hp = 300; a.dmg = 22; a.name = "GUARD"; a.speed = 54; }
     if (sp.role == Role::Child) { a.radius = 3.5f; a.look.outfit = art::Outfit::Tunic; a.look.beard = false; }
     a.level = 10;
+    // militia (M0 town defence): brave adults with a tool pick it up when monsters come. Weak, and they run when hurt.
+    // (Decided by hash so the look's random stream is untouched.)
+    if (!inside && (sp.role == Role::Smith || sp.role == Role::Farmer || (sp.role == Role::Villager && hash32((uint32_t)key * 2246822519u ^ (uint32_t)seed) % 100 < 30))) {
+      a.militia = true;
+      a.dmg = 7;
+    }
   }
   actors.push_back(a);
   return a.id;
@@ -1199,6 +883,9 @@ void Game::clearNonPlayer() {
   pickups.clear();
   activeSites_.clear();
   activeDens_.clear();
+  sheltered_.clear();
+  alarms_.clear();
+  alarmSite = -1;
   dragonId_ = -1;
 }
 
@@ -1244,6 +931,9 @@ void Game::updateSpawning(float dt) {
       activeSites_.erase(si);
       for (size_t i = 1; i < actors.size();)
         if (actors[i].site == si && !actors[i].wild && actors[i].fromMap) actors.erase(actors.begin() + i); else i++;
+      for (size_t i = 0; i < sheltered_.size();)
+        if (sheltered_[i].site == si) sheltered_.erase(sheltered_.begin() + (std::ptrdiff_t)i); else i++;
+      alarms_.erase(si);
     }
   }
   // the dragon waits at its peak once the hunt is on
@@ -1262,6 +952,12 @@ void Game::updateSpawning(float dt) {
     }
   }
   if (noWildSpawns) return;
+  // the opening (shirt only, VISION_PLAN 15.1): no roaming beasts around the start village until the first weapon
+  if (eqWeapon < 0 && !hasFlag(SF_FIRST_WEAPON) && openingQuest() >= 0) {
+    const Site& home = world.sites[world.startSite];
+    int dx = home.r.cx() - ptx, dy = home.r.cy() - pty;
+    if (dx * dx + dy * dy < 40 * 40) return;
+  }
   // packs live in dens (WORLDGEN_V2+): they appear at their den when you come near and go home when they lose you
   bool haveDens = !world.dens.empty();
   if (haveDens) {
@@ -1384,6 +1080,8 @@ void Game::updateLocation() {
         emit(Ev::Discover, p.p, si, 1, st.name);
         sfx((int)Sfx::Discover, p.p);
         gainXp(10);
+        if (background == Background::Marked && (st.type == SiteType::Ruin || st.type == SiteType::DragonLair))   // marked one: a hook into M9
+          emit(Ev::Notice, p.p, (int)rgba(170, 140, 255), 0, "THE MARK ON YOUR WRIST GROWS WARM");
       }
       if (st.type == SiteType::City || st.type == SiteType::Town || st.type == SiteType::Village) lastTown = si;
     }

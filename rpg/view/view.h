@@ -131,6 +131,41 @@ class View {
   Mode lastMode_ = Mode::Title;
   float modeT_ = 0;          // seconds since the game mode last changed (death-screen grace, etc.)
 
+  // ---- M0 lane entry points (declared here once so no lane has to edit this header; each lives in its own file
+  //      and keeps its private state as file statics there - there is only one View)
+  // creator.cpp (hero lane): the character creator shown in Mode::Creator
+  void drawCreator(Game& g);
+  void creatorKey(Game& g, int key);       // SDL keycode
+  void creatorTap(Game& g, Vec2 p);        // logical coordinates
+  // paperdoll.cpp (hero lane): the equipment screen (a menu tab)
+  void drawPaperdoll(Game& g, float x, float y, float w, float h);
+  void paperdollKey(Game& g, int key);
+  void paperdollTap(Game& g, Vec2 p);
+  // render_deco.cpp (homes lane): Map::deco floor decorations for the visible tiles, drawn after the terrain
+  void drawDeco(const Map& m, Vec2 cam, int tx0, int ty0, int tx1, int ty1);
+  // render_markers.cpp (town-defence lane): world-space markers over actors ("!" reward waiting, alarm...)
+  void drawMarkers(Game& g, Vec2 cam);
+  // a texture cache for lane-painted sprites: key spaces are tagged by the top byte (0x01 deco, 0x02 markers,
+  // 0x03 creator/paperdoll, 0x04 architecture); paint(key) is called once per key
+  const Tex& cachedTex(uint64_t key, Canvas (*paint)(uint64_t key));
+  std::unordered_map<uint64_t, Tex> laneTex_;
+
+  // ---- architecture (render.cpp, M0 architecture lane): wall-tile keys for the current map (art::wallKeys), the
+  //      wall-tile / gatehouse sprites, and the chimney mouths of each building sprite (for smoke)
+  std::vector<uint32_t> wallKeys_;
+  uint64_t wallKeysId_ = 0;
+  std::unordered_map<uint32_t, Tex> wallTiles_;
+  Tex gateTex_;
+  std::unordered_map<uint64_t, std::vector<Vec2>> bldgSmoke_;
+  std::unordered_map<uint64_t, int> bldgTopRow_;   // first opaque row of each building sprite (fade test)
+  float smokeT_ = 0;
+  const Map* bldgMap_ = nullptr;   // the map whose buildings drawWorld is drawing (bldgTex reads its biome)
+  int bldgPrefetch_ = 0;           // round-robin cursor: buildings near the player are painted ahead, one per frame
+  std::vector<uint32_t> wallTodo_; // wall-tile keys of the current map not painted yet (painted ahead, one per frame)
+  std::unordered_map<uint64_t, std::vector<uint32_t>> wallKeyCache_;   // per map id, so leaving a house is free
+  const Tex& wallTileTex(uint32_t key);
+  uint64_t bldgKey(const Map& m, const Bldg& b, int index) const;
+
   void drawWorld(Game& g);
   void drawLighting(Game& g);
   void drawWeather(Game& g, float dt);

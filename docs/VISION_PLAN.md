@@ -2023,3 +2023,50 @@ These are binding inputs. Each is mapped onto the milestones above. Where it con
 - **Builds to support and test:** spellblade, necromancer, battlemage, illusionist, elementalist, paladin, ranger-mage, lost-tradition mystic.
 - **Slow roll:** start with nothing (background aside). Schools level slowly. Strong spells come from rare tomes and higher skill. The most powerful magic is gated behind ruins, lost traditions and distant lands.
 - **Touch input:** tap to cast, hold to upcast, swipe gestures for dual-cast.
+
+### 15.6 Owner answers to the section 14 questions (2026-10-03)
+1. **Start:** new games start on the endless mainland (no starter island).
+2. **Companions: permadeath.** A companion who dies is gone for good (the player character is NOT permadeath). This makes the player
+   careful and makes the bond matter. The companion system must therefore be deep enough to build attachment:
+   - a personal history and personality, opinions on the player's choices;
+   - approval and loyalty;
+   - personal quests;
+   - banter with each other and with the world;
+   - progression and a gear loadout;
+   - clear danger feedback, so a death is never a cheap surprise:
+     - low-HP warnings;
+     - a "downed, bleeding out" window (a few seconds to revive or carry them out) before the death is final;
+     - an option to tell them to hold back or wait at camp, an inn or home;
+   - meaningful remembrance after a death: a grave you can visit, their belongings, and other NPCs who remember them.
+3. **World drama: slow and realistic.** Diplomacy erodes gradually through causes:
+   - a famine;
+   - a failed harvest that breaks a food trade deal;
+   - border tension;
+   - skirmishes;
+   - war.
+   
+   Wars are rare, have reasons, and are foreshadowed by rumours, prices, refugees and troop movements. There is no "lively" default.
+4. **Late game: yes.** After a long, long time the player's renown can become great enough to found a village and grow it into a
+   kingdom, or to conquer an existing one. This adds roughly 1.5 weeks to M12, and its renown and land hooks should be designed in from M4 and M7.
+5. **Peoples:** humans, half-breeds and elves from the start (all humanoid, so they share the human rig with per-people proportions,
+   ears and colouring). Other peoples later.
+
+### 15.7 Interiors must make logical sense (owner, 2026-10-03). This binds every interior generator and art pass.
+- **Multi-storey buildings have real upper floors.** If a building's exterior shows 2+ storeys (inns, taverns, keeps, larger houses,
+  towers), its interior has stairs (a staircase prop on the ground floor) leading to a separate upper-floor map, and the upper floor is
+  entered and left by those stairs.
+- **Inns and taverns:** the ground floor is the public room: bar/counter, kitchen corner with hearth, tables, benches, patrons. Guest
+  **beds are never in the common room.** They are upstairs in separate rented rooms, each with walls, a door, a bed, a chest and a small
+  table or candle. The innkeeper's own quarters are separate. The room you rent is the one you sleep in.
+- **Every room has a purpose that the layout explains:**
+  - kitchens next to a hearth/oven;
+  - bedrooms private (walls and doors), not sharing open space with the shop counter;
+  - shops have the counter between the customer and the stock;
+  - smithies have the forge vented at a wall;
+  - temples are oriented to the altar;
+  - keeps have a throne hall plus private quarters.
+- **Interior walls and doors partition rooms.** Furniture is placed against walls in plausible ways (beds head-to-wall, shelves on
+  walls, tables with chairs around them), and paths stay clear from the entrance to every room.
+- **Exterior and interior must agree:** footprint size, number of storeys, chimney ⇒ hearth, and shop sign ⇒ shop interior.
+- **Verification:** an automated check per building type (no bed in a common room; every room reachable; stairs present iff the
+  exterior has 2+ storeys), plus a screenshot review of each type.

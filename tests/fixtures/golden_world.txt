@@ -1,0 +1,8 @@
+# rpg/world golden values (rpg_test --golden --write). Integer math only: must match on every platform.
+cellseed 6186013f089be268
+coords 17664e32e6da4719
+fbm 3e780c27e2359806
+ids 56f5b74e05eaf4bf
+isqrt 6d7478cc0d7c01f8
+vnoise b96c1f243004aae5
+warp 1ec0e2ae697eb197

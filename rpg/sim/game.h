@@ -1,5 +1,6 @@
 // EMBERVALE simulation: actors, combat, AI, inventory, quests, dialogue, time of day, saving. No SDL.
 #pragma once
+#include <array>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -7,11 +8,20 @@
 #include <string>
 #include <vector>
 #include "rpg/art.h"
+#include "rpg/sim/appearance.h"
+#include "rpg/sim/backgrounds.h"
 #include "rpg/sim/common.h"
+#include "rpg/sim/factions.h"
 #include "rpg/sim/items.h"
 #include "rpg/sim/world.h"
 
-enum class Mode : uint8_t { Title, Play, Dialogue, Menu, Shop, LevelUp, Dead, Paused };
+// Creator: the character creator after NEW GAME (the world exists; the player picks looks and a background).
+enum class Mode : uint8_t { Title, Play, Dialogue, Menu, Shop, LevelUp, Dead, Paused, Creator };
+
+// Game::storyFlags bits (saved, SAVE_VER 3). Bits 8..31 are free: define them next to the code that owns them,
+// with a comment here when they become permanent.
+constexpr uint32_t SF_CREATED = 1u << 0;        // the character creator was finished for this save
+constexpr uint32_t SF_FIRST_WEAPON = 1u << 1;   // the opening's guaranteed first weapon has been handed out
 
 struct Input {
   Vec2 move;
@@ -28,6 +38,7 @@ int spellCost(Spell s);
 struct Actor {
   int id = 0;
   bool player = false, npc = false, hostile = false, human = false, boss = false, ranged = false, flying = false;
+  Faction faction = Faction::Town;   // who it fights (factions.h); `hostile` stays == factionsHostile(faction, Player)
   art::Monster mon = art::Monster::Wolf;
   art::HumanLook look;
   std::string name;
@@ -65,6 +76,13 @@ struct Actor {
   int atkN = 0;            // attacks made (heavy-attack cadence)
   int8_t orbitDir = 1;     // wolves: circling direction
   float lastHitT = -99;    // Game::time this actor last took damage (troll regen pauses)
+  // town defence (M0): townsfolk run home and hide, brave ones with a tool fight as militia, guards converge
+  bool militia = false;    // a brave adult with a tool (smith, farmer...): fights weakly when monsters come
+  bool indoors = false;    // reached its home door this frame: Game moves it indoors (out of `actors`) until it is safe
+  int homeBldg = -1;       // overworld building it shelters in (-1 not chosen yet, -2 none)
+  float fleeT = 0;         // seconds spent running for home during this threat
+  int navGoal = -1, navNext = -1;   // tile path-finding: goal tile index and the next tile on the way
+  float navT = 0;          // time until the path is re-planned
 };
 
 enum class ProjKind : uint8_t { Arrow, Fireball, IceSpike, Spit, Magic, DragonFire };
@@ -76,6 +94,7 @@ struct Projectile {
   ProjKind kind = ProjKind::Arrow;
   Ench ench = Ench::None;
   float enchPow = 0;
+  Faction fac = Faction::Player;   // who fired it: it hits whatever that faction is hostile to (factionsHostile)
 };
 
 struct Pickup {
@@ -160,6 +179,15 @@ class Game {
   float baseHp = 100;
   std::vector<Item> inv;
   int eqWeapon = -1, eqBow = -1, eqStaff = -1, eqArmor = -1, eqHelmet = -1, eqShield = -1, eqRing = -1, eqAmulet = -1;
+  int eqGloves = -1, eqBoots = -1, eqCloak = -1;   // SAVE_VER 3
+  int* equipSlot(ItemKind k);                       // the eq* index for an equippable kind (nullptr otherwise)
+  // everything worn (not wielded): enchantment bonuses come from these
+  std::array<int, 8> worn() const { return {eqArmor, eqHelmet, eqShield, eqRing, eqAmulet, eqGloves, eqBoots, eqCloak}; }
+  // character (SAVE_VER 3): chosen in the creator; pre-M0 saves load with the defaults (created == false)
+  Appearance app;
+  Background background = Background::None;
+  uint32_t storyFlags = 0;                          // SF_* bits
+  bool hasFlag(uint32_t f) const { return (storyFlags & f) != 0; }
   uint8_t spellsKnown = 1;     // bit per Spell
   Spell spell = Spell::Flames;
   int kills = 0, dungeonsCleared = 0;
@@ -190,6 +218,10 @@ class Game {
 
   // --- actions called by the UI
   void startPlay() { mode = Mode::Play; }
+  void beginCreator() { mode = Mode::Creator; }   // after newGame(): the UI edits app/background, then...
+  void finishCreator();                            // ...applies the background's trait, rebuilds the look, starts play
+  bool rewardWaiting(const Actor& npc) const;      // a completed quest's reward waits with this NPC (world "!" marker)
+  std::string questStatus(const Quest& q) const;   // one journal line: what to do next ("" = nothing extra)
   void dialogueChoose(int optIndex);
   void closeDialogue();
   bool buy(int stockIndex);
@@ -211,6 +243,14 @@ class Game {
   uint64_t npcKey(const Actor& a) const;
   bool isNight() const { return hour < 5.5f || hour > 20.0f; }
   float daylight() const;              // 0 night .. 1 noon
+  // town defence (M0): the settlement whose bell is ringing (-1 none). The view plays combat music while it rings.
+  int alarmSite = -1;
+  int settlementAt(Vec2 p) const;      // the city/town/village whose footprint holds this overworld point (-1 none)
+  int shelteredCount(int site = -1) const;   // townsfolk hiding indoors from a threat (site -1: all)
+  // background traits (VISION_PLAN 15.1), applied where they act; small and visible in dialogue, shops and stats
+  float blessingSecs() const;          // how long a shrine or temple blessing lasts
+  float priceFactor(Role seller) const;   // what this background pays at a seller (1 = list price)
+  int openingQuest() const;            // id of the opening quest "A BLADE OF YOUR OWN" while it is open (-1 otherwise)
 
   // persistence
   void serialize(std::vector<uint8_t>& out) const;
@@ -222,6 +262,8 @@ class Game {
   bool noWildSpawns = false;           // metrics arenas: no roaming spawns or dens
   void debugSpawn(art::Monster m, int n, float dist);
   int debugSpawnAt(art::Monster m, Vec2 at, int level);   // returns the actor id (already aggro)
+  void debugKit();                     // the pre-M0 starting kit (iron sword, hunting bow, 20 arrows, 3 potions, bread),
+                                       // equipped: for fight scripts and bots once the real start is shirt-only
 
  private:
   int nextId_ = 1;
@@ -241,6 +283,17 @@ class Game {
   void updateDens(int ptx, int pty);
   int denClearedDay(int den) const;    // -1 = not cleared
   void heavySlam(Actor& a);
+  // town defence (M0, ai.cpp)
+  struct SiteAlarm { float lastThreatT = -99, bellT = 0, quietT = 0; bool ringing = false; int hostiles = 0; };
+  std::map<int, SiteAlarm> alarms_;    // per active settlement (derived each frame, never saved)
+  std::vector<Actor> sheltered_;       // townsfolk hiding indoors; they come back out ~30 s after the threat ends
+  std::vector<int> navPrev_;           // path-finding scratch
+  void updateTownDefence(float dt);
+  int pickTarget(const Actor& a) const;            // hostiles: the actors index to fight (0 = the player)
+  bool navStep(Actor& a, Vec2 goal, float speed, float dt);   // walk toward goal around buildings; false = no path
+  int homeDoor(Actor& a);              // the building a townsperson shelters in (chosen once), -1 none
+  void updateFolk(Actor& a, float dt);   // friendly NPC behaviour (guards, militia, fleeing, wandering)
+  void giveFirstWeapon(Quest& q);      // the opening: the start village innkeeper hands over the old blade
   Rng rng_;
   void emit(Ev t, Vec2 p, int a = 0, float f = 1, const std::string& s = "") { events.push_back({t, p, a, f, s}); }
   void sfx(int s, Vec2 p, float pitch = 1, float vol = 1);

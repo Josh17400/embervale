@@ -1,0 +1,85 @@
+# Bounty clarity (M0): the innkeeper's bounty on BLOOD STOCKADE, first the WRONG camp (SHADOW CAMP: "NOT YOUR
+# TARGET: ... IS <DIR> OF HERE"), then the right one ("BOUNTY READY: RETURN TO <GIVER> IN <TOWN>"), the journal line,
+# the "!" over the giver, and "COLLECT BOUNTY (+N GOLD)" as the first option.
+#   embervale.exe --script tools/scripts/bounty.txt         (screenshots land in the working directory)
+# Seed 1 facts (EMB_SCRIPT_INFO=1 rpg_test 1): start WHITEHOLD; BLOOD STOCKADE chief at 136,212 (the nearest camp, the
+# innkeeper's bounty); SHADOW CAMP chief at 157,333. Dialogue text types out: wait ~2.5 s before choosing.
+seed 1
+0.3  newgame
++0.1 god                         # the screenshots must survive the camps
++0.1 kit                         # an iron sword: the chiefs go down in a sensible time
++0.1 hour 10
++0.2 walkto inn
++0.8 expect inside 1
++0.2 walkto innkeeper
++0.2 key E                       # the first talk also hands over the opening's old blade
++0.2 expect mode dialogue
++2.6 shot bounty_0_blade.png     # the opening: the old blade
++0.2 key Return                  # option 0: ANY WORK GOING?
++3.4 shot bounty_1_offer.png     # BOUNTY: BLOOD STOCKADE, reward in gold
++0.2 key Return                  # I'LL DO IT.
++1.2 shot bounty_1b_accepted.png
++0.2 key Escape
++0.3 menu 1
++0.3 key Down                    # select the bounty
++0.4 shot bounty_2_journal.png   # CLEAR BLOOD STOCKADE (NORTH)
++0.2 key Escape
++0.3 walkto exit
+# --- the wrong camp first
++0.5 walkto 157 336 150
++0.2 shot bounty_3_wrongcamp_arrive.png
++0.1 hold J 40
++2.5 shot bounty_4a_wrong.png
++2.5 shot bounty_4b_wrong.png
++2.5 shot bounty_4c_wrong.png
++2.5 shot bounty_4d_wrong.png
++2.5 shot bounty_4e_wrong.png
++2.5 shot bounty_4f_wrong.png
++2.5 shot bounty_4g_wrong.png
++2.5 shot bounty_4h_wrong.png
++2.5 shot bounty_4i_wrong.png
++2.5 shot bounty_4j_wrong.png
++2.5 shot bounty_4k_wrong.png
++2.5 shot bounty_4l_wrong.png
++2.5 shot bounty_4m_wrong.png
++2.5 shot bounty_4n_wrong.png
++2.5 shot bounty_4o_wrong.png
++3.0 shot bounty_4p_wrong.png
+# --- the right camp
++0.5 walkto 136 215 200
++0.2 shot bounty_5_target_arrive.png
++0.1 hold J 40
++2.5 shot bounty_6a_ready.png
++2.5 shot bounty_6b_ready.png
++2.5 shot bounty_6c_ready.png
++2.5 shot bounty_6d_ready.png
++2.5 shot bounty_6e_ready.png
++2.5 shot bounty_6f_ready.png
++2.5 shot bounty_6g_ready.png
++2.5 shot bounty_6h_ready.png
++2.5 shot bounty_6i_ready.png
++2.5 shot bounty_6j_ready.png
++2.5 shot bounty_6k_ready.png
++2.5 shot bounty_6l_ready.png
++2.5 shot bounty_6m_ready.png
++2.5 shot bounty_6n_ready.png
++2.5 shot bounty_6o_ready.png
++3.0 shot bounty_6p_ready.png
++0.2 menu 1
++0.3 key Down
++0.4 shot bounty_7_journal_return.png   # RETURN TO <GIVER> IN WHITEHOLD
++0.2 key Escape
+# --- back to the giver
++0.3 walkto 149 270 200          # back to WHITEHOLD (another village's inn is nearer the camp)
++0.3 walkto inn
++0.8 expect inside 1
++0.6 shot bounty_8_giver_mark.png       # the "!" over the innkeeper
++0.2 walkto innkeeper
++0.2 key E
++0.2 expect mode dialogue
++2.6 shot bounty_9_collect.png          # first option: COLLECT BOUNTY (+175 GOLD)
++0.2 key Return
++1.0 shot bounty_10_paid.png
++0.2 key Escape
++0.4 expect mode play
++0.2 quit

@@ -31,7 +31,9 @@ const char* siteTypeName(SiteType t);
 // (seed, genVersion), and saves store both, so a save keeps the exact world it was made in.
 constexpr int WORLDGEN_V1 = 1;       // the original generator: every save before SAVE_VER 2
 constexpr int WORLDGEN_V2 = 2;       // + wilderness dens (Gen::dens, own "dens" stream)
-constexpr int WORLDGEN_LATEST = 2;   // what new games use; bump when generator output changes, gating the change on it
+constexpr int WORLDGEN_V3 = 3;       // M0: cluttered interiors (genInterior via Bldg::genVer) and the M0 building/wall
+                                     // pass (city-wall joins, building footprints); every such change is gated on ver >= 3
+constexpr int WORLDGEN_LATEST = 3;   // what new games use; bump when generator output changes, gating the change on it
 
 enum class Role : uint8_t { Villager, Guard, Merchant, Smith, Innkeeper, Priest, Jarl, Farmer, Child, Mage, Bandit, COUNT };
 
@@ -93,11 +95,14 @@ struct Map {
   std::vector<uint8_t> prop;     // art::Prop + 1, 0 = none
   std::vector<uint8_t> solid;    // 1 = blocks movement (props, buildings, walls)
   std::vector<uint8_t> wall;     // city wall pieces (1)
+  std::vector<uint8_t> deco;     // per-tile decoration id (rpg/sim/deco.h; 0 = none): non-blocking clutter drawn on
+                                 // the floor (stains, straw, scattered papers...). Regenerated with the map, never saved
   std::vector<int16_t> bldgAt;   // building index at tile or -1
   std::vector<uint8_t> biome;    // Biome (overworld only)
   std::vector<Bldg> bldgs;
   int exitX = 0, exitY = 0;      // caves/interiors: tile you appear on when entering (and where the exit is)
   Ground at(int x, int y) const { return (x < 0 || y < 0 || x >= w || y >= h) ? Ground::Void : (Ground)ground[(size_t)y * w + x]; }
+  int decoAt(int x, int y) const { return (x < 0 || y < 0 || x >= w || y >= h || deco.empty()) ? 0 : deco[(size_t)y * w + x]; }
   int propAt(int x, int y) const { return (x < 0 || y < 0 || x >= w || y >= h) ? 0 : prop[(size_t)y * w + x]; }
   void setG(int x, int y, Ground g) { if (in(x, y)) ground[(size_t)y * w + x] = (uint8_t)g; }
   void setP(int x, int y, int p) { if (in(x, y)) prop[(size_t)y * w + x] = (uint8_t)p; }
@@ -109,7 +114,7 @@ struct Map {
   void rebuildSolid();
 };
 
-bool propSolid(art::Prop p);
+bool propSolid(art::Prop p);   // rpg/sim/prop_rules.cpp
 
 struct World {
   uint64_t seed = 0;
@@ -121,6 +126,8 @@ struct World {
   int lair = -1;
   std::vector<std::pair<int, int>> gates;   // city gatehouses: left tile of a 3-wide opening in a horizontal wall run
   std::vector<Den> dens;                    // empty before WORLDGEN_V2
+  std::vector<IRect> wallGaps;              // every opening cut into a city wall (gates included): bookkeeping only,
+                                            // recorded by every generator version, never saved (rendering and tests)
   void generate(uint64_t seed, int genVer = WORLDGEN_LATEST);
   uint32_t fingerprint() const;   // hash of site and building identity (names, places, indices): detects a reshuffled world
   int siteAt(int tx, int ty, int pad = 0) const;

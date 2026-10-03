@@ -1,0 +1,21 @@
+# Town defence (M0, VISION_PLAN 10.4): three wolves loose in the middle of a guarded town. The bell rings
+# ("THE TOWN IS UNDER ATTACK!", combat music), townsfolk run home and hide, militia grab their tools, the guards
+# converge from across town and kill the pack; ~30 s after it is over the townsfolk come back out.
+#   embervale.exe --script tools/scripts/defence.txt        (screenshots land in the working directory)
+seed 3
+0.3  newgame
+0.4  god                         # the player only watches (the wolves still prefer them, so stay put)
+0.5  goto town                   # fast travel into the nearest town
+0.6  hour 11
+1.5  shot defence_0_town.png     # a quiet town
+1.6  fight wolf 3                # three wolves in the street
+2.2  shot defence_1_alarm.png    # the bell: THE TOWN IS UNDER ATTACK!
+3.4  shot defence_2_flee.png     # townsfolk running for their doors
+5.0  shot defence_3_guards.png   # guards closing in
+7.0  shot defence_4_fight.png
+10.0 shot defence_5_fight.png
+16.0 shot defence_6_after.png    # the pack is down; the street is empty
+24.0 shot defence_7_quiet.png    # the bell falls silent
+52.0 shot defence_8_back.png     # ~30 s later the townsfolk come back out
+52.2 expect mode play
+52.4 quit

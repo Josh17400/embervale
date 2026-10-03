@@ -1,6 +1,10 @@
 // World rendering: sprite bank, y-sorted scene, effects, lighting, weather, event handling.
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include "rpg/view/prop_traits.h"
 #include "rpg/view/view.h"
 
 using art::Prop;
@@ -8,38 +12,6 @@ using art::Monster;
 
 namespace {
 Color col(uint32_t c, float a = 1) { return Color((c & 255) / 255.0f, ((c >> 8) & 255) / 255.0f, ((c >> 16) & 255) / 255.0f, a); }
-uint64_t lookKey(const art::HumanLook& L) {
-  uint64_t k = 1469598103934665603ull;
-  auto mix = [&](uint64_t v) { k ^= v; k *= 1099511628211ull; };
-  mix(L.skin); mix(L.hairColor); mix(L.topColor); mix(L.bottomColor); mix(L.tabardColor); mix(L.weaponColor);
-  mix((uint64_t)L.hair | (uint64_t)L.outfit << 8 | (uint64_t)L.beard << 16 | (uint64_t)L.helmet << 17 | (uint64_t)L.hood << 18 |
-      (uint64_t)L.cape << 19 | (uint64_t)L.shield << 20 | (uint64_t)L.weapon << 24);
-  return k;
-}
-bool flatProp(Prop p) {
-  return p == Prop::Rug || p == Prop::LilyPad || p == Prop::Flowers1 || p == Prop::Flowers2 || p == Prop::Flowers3 || p == Prop::Bones ||
-         p == Prop::SkullPile || p == Prop::Mushrooms || p == Prop::Ladder;
-}
-bool natureProp(Prop p) { return (int)p <= (int)Prop::Fern; }
-bool treeProp(Prop p) {
-  return p == Prop::OakTree || p == Prop::OakTree2 || p == Prop::PineTree || p == Prop::PineTree2 || p == Prop::SnowPine || p == Prop::BirchTree ||
-         p == Prop::DeadTree || p == Prop::WillowTree || p == Prop::PalmTree || p == Prop::AutumnTree;
-}
-// light sources: radius (px) and colour
-bool propLight(Prop p, float& r, Color& c) {
-  switch (p) {
-    case Prop::Torch: r = 56; c = Color(1.0f, 0.62f, 0.3f); return true;
-    case Prop::Campfire: r = 90; c = Color(1.0f, 0.55f, 0.25f); return true;
-    case Prop::Brazier: r = 70; c = Color(1.0f, 0.6f, 0.3f); return true;
-    case Prop::Lamppost: r = 64; c = Color(1.0f, 0.8f, 0.5f); return true;
-    case Prop::Fireplace: r = 80; c = Color(1.0f, 0.6f, 0.3f); return true;
-    case Prop::Crystal: r = 44; c = Color(0.4f, 0.8f, 1.0f); return true;
-    case Prop::Shrine: r = 40; c = Color(0.8f, 0.8f, 1.0f); return true;
-    case Prop::Altar: r = 40; c = Color(0.9f, 0.6f, 1.0f); return true;
-    case Prop::Cauldron: r = 36; c = Color(0.5f, 1.0f, 0.6f); return true;
-    default: return false;
-  }
-}
 }  // namespace
 
 bool View::init(Pix& pix, Audio& audio) {
@@ -48,8 +20,8 @@ bool View::init(Pix& pix, Audio& audio) {
   for (int i = 0; i < (int)Prop::COUNT; i++) props_.push_back(pix.bake(art::propSprite((Prop)i)));
   for (int i = 0; i < (int)Monster::COUNT; i++) monsters_.push_back(pix.bake(art::monsterSheet((Monster)i)));
   for (int i = 0; i < (int)art::Fx::COUNT; i++) fx_.push_back(pix.bake(art::fxSprite((art::Fx)i)));
-  for (int m = 0; m < 16; m++) walls_.push_back(pix.bake(art::wallPiece(m)));
-  gate_ = pix.bake(art::gatePiece());
+  gateTex_ = pix.bake(art::gateHouse(7));
+  gate_ = gateTex_;
   {
     Canvas c(14, 6);
     for (int y = 0; y < 6; y++)
@@ -104,7 +76,7 @@ bool View::init(Pix& pix, Audio& audio) {
 }
 
 const Tex& View::humanTex(const art::HumanLook& L) {
-  uint64_t k = lookKey(L);
+  uint64_t k = L.key();
   auto it = humans_.find(k);
   if (it != humans_.end()) return it->second;
   return humans_[k] = pix_->bake(art::humanSheet(L));
@@ -115,11 +87,57 @@ const Tex& View::iconTex(art::Icon i, uint32_t tint) {
   if (it != icons_.end()) return it->second;
   return icons_[k] = pix_->bake(art::itemIcon(i, tint));
 }
+// a building's look: the style of the biome it stands in (the M0 stand-in for its culture), tinted by Bldg::roof.
+// Test hook: EMB_ARCH_BIOME=<Biome index> paints every building in that biome's style (screenshots of snow, desert
+// and swamp architecture from any start village); unset in normal play.
+static int archBiomeOverride() {
+  static int v = [] { const char* e = std::getenv("EMB_ARCH_BIOME"); return e ? std::atoi(e) : -1; }();
+  return v;
+}
+static art::ArchStyle bldgStyle(const Map& m, const Bldg& b) {
+  int biome = archBiomeOverride() >= 0 ? archBiomeOverride() : (int)m.biomeAt(b.r.x + b.r.w / 2, b.r.y + b.r.h / 2);
+  return art::withRoofTint(art::archForBiome(biome, b.seed), b.roof);
+}
+uint64_t View::bldgKey(const Map& m, const Bldg& b, int index) const {
+  uint64_t k = bldgStyle(m, b).key();
+  k ^= (uint64_t)index * 0x9E3779B97F4A7C15ull;
+  k ^= ((uint64_t)b.r.w << 8 | (uint64_t)b.r.h << 16 | (uint64_t)b.type << 24 | (uint64_t)b.seed << 32);
+  return k;
+}
 const Tex& View::bldgTex(const Bldg& b, int index) {
-  uint64_t k = (uint64_t)index;
+  static const Map empty;
+  const Map& m = bldgMap_ ? *bldgMap_ : empty;
+  uint64_t k = bldgKey(m, b, index);
   auto it = bldgTex_.find(k);
   if (it != bldgTex_.end()) return it->second;
-  return bldgTex_[k] = pix_->bake(art::buildingSprite(b.type, b.r.w, b.r.h, b.roof, b.seed));
+  art::BuildingInfo info;
+  auto t0 = std::chrono::steady_clock::now();
+  Canvas c = art::buildingSprite(b.type, b.r.w, b.r.h, bldgStyle(m, b), b.seed, &info);
+  if (std::getenv("EMB_TIMING")) {
+    static double total = 0;
+    static int n = 0;
+    total += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    std::printf("building %d painted: %d so far, %.1f ms total\n", index, ++n, total);
+  }
+  std::vector<Vec2>& smoke = bldgSmoke_[k];
+  smoke.clear();
+  for (int i = 0; i < info.smokeN; i++) smoke.push_back(Vec2((float)info.smokeX[i], (float)info.smokeY[i]));
+  int topRow = 0;
+  for (bool found = false; topRow < c.h && !found; topRow++)
+    for (int x = 0; x < c.w; x++) if ((c.get(x, topRow) >> 24) > 96) { found = true; break; }
+  bldgTopRow_[k] = topRow;
+  return bldgTex_[k] = pix_->bake(c);
+}
+const Tex& View::wallTileTex(uint32_t key) {
+  auto it = wallTiles_.find(key);
+  if (it != wallTiles_.end()) return it->second;
+  return wallTiles_[key] = pix_->bake(art::wallTile(key));
+}
+
+const Tex& View::cachedTex(uint64_t key, Canvas (*paint)(uint64_t key)) {
+  auto it = laneTex_.find(key);
+  if (it != laneTex_.end()) return it->second;
+  return laneTex_[key] = pix_->bake(paint(key));
 }
 
 void View::snap(Game& g) {
@@ -254,6 +272,7 @@ void View::update(Game& g, float dt) {
     bool fight = false, boss = false;
     for (const Actor& a : g.actors)
       if (a.hostile && a.aggro && a.st != AState::Dead && len2(a.p - g.pl().p) < 170 * 170) { fight = true; if (a.boss) boss = true; }
+    if (g.alarmSite >= 0) fight = true;   // town alarm bell: combat music even when the fight is across town
     if (fight) combatT_ = boss ? 6.0f : 4.0f;
     else combatT_ = std::max(0.0f, combatT_ - dt);
     if (boss && fight) want = Music::Boss;
@@ -332,10 +351,42 @@ void View::drawWorld(Game& g) {
     }
   prefetch(m, mapId, cam);
   pumpBake(5.0);
+  // wall layout (towers, joins, gate flanks): once per map
+  bldgMap_ = &m;
+  // the id also carries the generator version and gate count: a new game on the same seed with another generator
+  // has the same map id but other walls
+  const uint64_t wallId = mapId ^ ((uint64_t)g.world.genVersion << 58) ^ ((uint64_t)g.world.gates.size() << 48);
+  if (wallKeysId_ != wallId) {
+    wallKeysId_ = wallId;
+    bool any = false;
+    for (uint8_t v : m.wall) if (v) { any = true; break; }
+    wallKeys_.clear();
+    if (any) {
+      auto it = wallKeyCache_.find(wallId);
+      if (it != wallKeyCache_.end() && it->second.size() == (size_t)m.w * m.h) wallKeys_ = it->second;
+      else {
+        if (m.kind == MapKind::Overworld) art::wallKeys(m.wall.data(), m.w, m.h, g.world.gates.data(), (int)g.world.gates.size(), wallKeys_);
+        else art::wallKeys(m.wall.data(), m.w, m.h, nullptr, 0, wallKeys_);
+        if (wallKeyCache_.size() > 4) wallKeyCache_.clear();
+        wallKeyCache_[wallId] = wallKeys_;
+      }
+    }
+    wallTodo_.clear();
+    std::unordered_map<uint32_t, bool> queued;
+    for (uint32_t k : wallKeys_)
+      if (k && !wallTiles_.count(k) && !queued.count(k)) { queued[k] = true; wallTodo_.push_back(k); }
+  }
+  // wall tiles not seen yet are painted ahead, one per frame (the ones on screen are painted on first use anyway)
+  while (!wallTodo_.empty()) {
+    uint32_t k = wallTodo_.back();
+    wallTodo_.pop_back();
+    if (!wallTiles_.count(k)) { wallTileTex(k); break; }
+  }
   // collect drawables
   std::vector<Drawable> list;
   int tx0 = (int)std::floor(cam.x / 16) - 3, ty0 = (int)std::floor(cam.y / 16) - 2;
   int tx1 = tx0 + Pix::W / 16 + 6, ty1 = ty0 + Pix::H / 16 + 7;
+  drawDeco(m, cam, std::max(0, tx0), std::max(0, ty0), std::min(m.w, tx1), std::min(m.h, ty1));
   const Actor& pl = g.pl();
   for (int ty = std::max(0, ty0); ty < std::min(m.h, ty1); ty++)
     for (int tx = std::max(0, tx0); tx < std::min(m.w, tx1); tx++) {
@@ -350,13 +401,26 @@ void View::drawWorld(Game& g) {
           P.blitRegion(t, fr * fw, 0, fw, t.h, tx * 16 + 8 - fw / 2 - cam.x, ty * 16 + 16 - t.h - cam.y);
         } else list.push_back({ty * 16.0f + 15.0f, 0, pr - 1, tx, ty});
       }
-      if (m.wall[(size_t)ty * m.w + tx]) list.push_back({ty * 16.0f + 15.0f, 2, 0, tx, ty});
+      uint32_t wk = wallKeys_.empty() ? 0u : wallKeys_[(size_t)ty * m.w + tx];
+      if (wk) list.push_back({ty * 16.0f + ((wk & art::WALL_BIT_TOWER) ? 15.3f : 15.0f), 2, (int)wk, tx, ty});
     }
   for (int bi = 0; bi < (int)m.bldgs.size(); bi++) {
     const Bldg& b = m.bldgs[bi];
-    if (b.r.x * 16 > cam.x + Pix::W + 16 || (b.r.x + b.r.w) * 16 < cam.x - 16) continue;
-    if ((b.r.y - 3) * 16 > cam.y + Pix::H || (b.r.y + b.r.h) * 16 < cam.y) continue;
+    if (b.r.x * 16 - 16 > cam.x + Pix::W || (b.r.x + b.r.w) * 16 + 16 < cam.x) continue;
+    if ((b.r.y - 6) * 16 > cam.y + Pix::H || (b.r.y + b.r.h) * 16 + 8 < cam.y) continue;
     list.push_back({(b.r.y + b.r.h) * 16.0f - 1.0f, 1, bi, 0, 0});
+  }
+  // paint the sprites of buildings near the player ahead of time, at most one per frame, so walking into a town
+  // never stalls on a burst of building paints
+  if (!m.bldgs.empty() && g.mode != Mode::Title) {
+    for (int k = 0; k < 12; k++) {
+      bldgPrefetch_ = (bldgPrefetch_ + 1) % (int)m.bldgs.size();
+      const Bldg& b = m.bldgs[bldgPrefetch_];
+      if (std::fabs(b.r.cx() * 16.0f - pl.p.x) > 720 || std::fabs(b.r.cy() * 16.0f - pl.p.y) > 520) continue;
+      if (bldgTex_.count(bldgKey(m, b, bldgPrefetch_))) continue;
+      bldgTex(b, bldgPrefetch_);
+      break;
+    }
   }
   for (int i = 0; i < (int)g.actors.size(); i++) {
     const Actor& a = g.actors[i];
@@ -372,8 +436,8 @@ void View::drawWorld(Game& g) {
   }
   if (m.kind == MapKind::Overworld)
     for (auto& gt : g.world.gates) {
-      if ((gt.first + 4) * 16 < cam.x || (gt.first - 2) * 16 > cam.x + Pix::W || gt.second * 16 < cam.y - 40 || gt.second * 16 > cam.y + Pix::H + 40) continue;
-      list.push_back({gt.second * 16.0f + 15.0f, 6, 0, gt.first, gt.second});
+      if ((gt.first + 5) * 16 < cam.x || (gt.first - 3) * 16 > cam.x + Pix::W || gt.second * 16 + 24 < cam.y || gt.second * 16 - 60 > cam.y + Pix::H) continue;
+      list.push_back({gt.second * 16.0f + 15.6f, 6, 0, gt.first, gt.second});
     }
   std::sort(list.begin(), list.end(), [](const Drawable& a, const Drawable& b) { return a.y < b.y; });
 
@@ -389,9 +453,13 @@ void View::drawWorld(Game& g) {
       P.blitEx(s, 0, 0, s.w, s.h, a.p.x - s.w * sc / 2 - cam.x, a.p.y - s.h * sc / 2 - cam.y, s.w * sc, s.h * sc, false, Color(1, 1, 1, a.fly ? 0.6f : 1));
     } else if (d.kind == 0) {
       Prop p = (Prop)d.idx;
-      if (treeProp(p)) P.blitEx(shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - 12 - cam.x, d.ty * 16 + 11 - cam.y, 24, 8, false, Color(1, 1, 1, 0.8f));
-      else if (p == Prop::Boulder || p == Prop::Tent || p == Prop::Well || p == Prop::Fountain || p == Prop::Statue || p == Prop::Cart)
-        P.blitEx(shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - 11 - cam.x, d.ty * 16 + 12 - cam.y, 22, 7, false, Color(1, 1, 1, 0.7f));
+      int sh = propShadow(p);
+      if (sh == 1) P.blitEx(shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - 12 - cam.x, d.ty * 16 + 11 - cam.y, 24, 8, false, Color(1, 1, 1, 0.8f));
+      else if (sh == 2) P.blitEx(shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - 11 - cam.x, d.ty * 16 + 12 - cam.y, 22, 7, false, Color(1, 1, 1, 0.7f));
+    } else if (d.kind == 6) {
+      // the gate passage lies in the gatehouse's shade, deepest under the vault
+      P.rect(d.tx * 16 + 3 - cam.x, d.ty * 16 - cam.y, 42, 16, Color(0.10f, 0.07f, 0.20f, 0.28f));
+      P.rect(d.tx * 16 + 3 - cam.x, d.ty * 16 - cam.y, 42, 10, Color(0.10f, 0.07f, 0.20f, 0.22f));
     }
   }
   for (const Drawable& d : list) {
@@ -417,25 +485,40 @@ void View::drawWorld(Game& g) {
       case 1: {
         const Bldg& b = m.bldgs[d.idx];
         const Tex& t = bldgTex(b, d.idx);
-        float x = b.r.x * 16.0f - cam.x, y = (b.r.y + b.r.h) * 16.0f - t.h - cam.y;
+        const float bottom = (b.r.y + b.r.h) * 16.0f, top = bottom + art::BLDG_PAD_B - t.h;
+        float x = b.r.x * 16.0f - art::BLDG_PAD_X - cam.x, y = top - cam.y;
         float alpha = 1;
-        if (pl.p.y < (b.r.y + b.r.h) * 16 - 4 && pl.p.y > (b.r.y + b.r.h) * 16 - t.h + 8 && pl.p.x > b.r.x * 16 && pl.p.x < (b.r.x + b.r.w) * 16) alpha = 0.55f;
+        // fade when the player stands behind the building (feet hidden under its walls or roof)
+        auto tr = bldgTopRow_.find(bldgKey(m, b, d.idx));
+        float vis = top + (tr != bldgTopRow_.end() ? (float)tr->second : 0.0f);
+        if (pl.p.y < bottom - 4 && pl.p.y > vis + 6 && pl.p.x > b.r.x * 16 - 2 && pl.p.x < (b.r.x + b.r.w) * 16 + 2) alpha = 0.55f;
         P.blitEx(t, 0, 0, t.w, t.h, x, y, (float)t.w, (float)t.h, false, Color(1, 1, 1, alpha));
+        // chimney smoke: soft puffs that rise, drift east with the wind and spread
+        auto sm = bldgSmoke_.find(bldgKey(m, b, d.idx));
+        if (sm != bldgSmoke_.end() && g.mode != Mode::Title)
+          for (size_t si = 0; si < sm->second.size(); si++) {
+            Rng r((uint32_t)(t_ * 40) * 31u + (uint32_t)d.idx * 977u + (uint32_t)si * 13u);
+            if (r.f() > 0.10f) continue;
+            Particle q;
+            q.p = Vec2(b.r.x * 16.0f - art::BLDG_PAD_X + sm->second[si].x + r.range(-1, 1), top + sm->second[si].y);
+            q.v = Vec2(r.range(2, 7), r.range(-13, -8));
+            q.life = q.max = r.range(2.2f, 3.2f);
+            float gr = r.range(0.72f, 0.86f);
+            q.c = Color(gr, gr, gr + 0.04f);
+            q.size = r.f() < 0.5f ? 2.0f : 1.0f;
+            q.grav = -1.5f;
+            q.kind = 2;
+            parts_.push_back(q);
+          }
         break;
       }
       case 2: {
-        int mask = 0;
-        auto W = [&](int x, int y) { return m.in(x, y) && m.wall[(size_t)y * m.w + x]; };
-        if (W(d.tx, d.ty - 1)) mask |= 1;
-        if (W(d.tx + 1, d.ty)) mask |= 2;
-        if (W(d.tx, d.ty + 1)) mask |= 4;
-        if (W(d.tx - 1, d.ty)) mask |= 8;
-        const Tex& t = walls_[mask];
-        P.blit(t, d.tx * 16.0f - cam.x, d.ty * 16.0f + 16 - t.h - cam.y);
+        const Tex& t = wallTileTex((uint32_t)d.idx);
+        P.blit(t, d.tx * 16.0f - art::WALL_OX - cam.x, d.ty * 16.0f - art::WALL_OY - cam.y);
         break;
       }
       case 6:
-        P.blit(gate_, d.tx * 16.0f + 24 - gate_.w / 2.0f - cam.x, d.ty * 16.0f + 16 - gate_.h - cam.y);
+        P.blit(gateTex_, d.tx * 16.0f - art::GATE_OX - cam.x, d.ty * 16.0f - art::GATE_OY - cam.y);
         break;
       case 3: {
         const Actor& a = g.actors[d.idx];
@@ -608,6 +691,11 @@ void View::drawWorld(Game& g) {
       P.blitRegion(t, fr * fw, 0, fw, fh, q.p.x - fw / 2.0f - cam.x, q.p.y - fh / 2.0f - cam.y);
       continue;
     }
+    if (q.kind == 2) {   // chimney smoke: grows and fades as it rises
+      float sz = q.size + (1 - a) * 2.5f;
+      P.rect(q.p.x - sz * 0.5f - cam.x, q.p.y - sz * 0.5f - cam.y, sz, sz, Color(q.c.r, q.c.g, q.c.b, 0.55f * a * std::min(1.0f, (1 - a) * 6 + 0.2f)));
+      continue;
+    }
     if (q.layer == 1) { P.rectAdd(q.p.x - cam.x, q.p.y - cam.y, 1, 1, Color(q.c.r, q.c.g, q.c.b, a * (0.5f + 0.5f * std::sin(t_ * 5 + q.p.x)))); continue; }
     P.rect(q.p.x - cam.x, q.p.y - cam.y, q.size, q.size, Color(q.c.r, q.c.g, q.c.b, std::min(1.0f, a * 1.5f)));
   }
@@ -666,6 +754,15 @@ void View::drawLighting(Game& g) {
       if (c.x < cam.x - 80 || c.x > cam.x + Pix::W + 80 || c.y < cam.y - 80 || c.y > cam.y + Pix::H + 80) continue;
       if (hash32((uint32_t)(b.seed + g.day)) % 3 == 0) continue;   // not every house is awake
       light(c + Vec2(0, 4), 18 + b.r.w * 4.0f, Color(1, 0.7f, 0.35f), 0.45f * dark);
+    }
+  // the lanterns either side of every gate passage
+  if (!g.inside && m.kind == MapKind::Overworld && dark > 0.15f)
+    for (auto& gt : g.world.gates) {
+      Vec2 c(gt.first * 16 + 24.0f, gt.second * 16.0f);
+      if (c.x < cam.x - 80 || c.x > cam.x + Pix::W + 80 || c.y < cam.y - 80 || c.y > cam.y + Pix::H + 80) continue;
+      float f = 0.9f + 0.1f * std::sin(t_ * 8 + gt.first);
+      light(Vec2(gt.first * 16.0f, gt.second * 16.0f - 1), 40, Color(1, 0.72f, 0.38f), 0.75f * f);
+      light(Vec2(gt.first * 16.0f + 47, gt.second * 16.0f - 1), 40, Color(1, 0.72f, 0.38f), 0.75f * f);
     }
   for (const Projectile& pr : g.projs) {
     if (pr.kind == ProjKind::Fireball || pr.kind == ProjKind::DragonFire) light(pr.p, 60, Color(1, 0.6f, 0.25f), 0.9f);

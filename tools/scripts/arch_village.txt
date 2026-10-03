@@ -1,0 +1,12 @@
+# Architecture lane: the start village at noon and at dusk, then a step back to see more of it.
+#   embervale --script tools/scripts/arch_village.txt --seed N        (N from rpg_test N: "--goto village -> ..., biome")
+#   EMB_ARCH_BIOME=<Biome index> paints every building in that biome's style (6 snow, 7 swamp, 8 desert): a test hook
+#   for biomes no start village can be in.
+0 goto village
+0.3 god
+0.5 hour 12
+2 shot arch_village_noon.png
++0.2 hold S 1.2
++1.6 shot arch_village_south.png
++0.2 hour 19
++1.5 shot arch_village_dusk.png

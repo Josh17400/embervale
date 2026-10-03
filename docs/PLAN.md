@@ -253,3 +253,36 @@ Steps (the owner creates the repo and sets the secrets; agents never touch secre
 - The "scripted playthrough passes on 5 seeds" check and the Windows `ci.yml` are not wired up.
 - No Emscripten build was run locally (no emsdk or clang on this PC). Code was reviewed by hand, and the next push's `web.yml` is the real check.
 - Tasks 3 to 7 are untouched. The repetition-audit numbers above are their baseline.
+
+**2026-10-03: M0 phase A (lead) is done** (VISION_PLAN §13 M0). Behaviour is unchanged: `rpg_test --seeds 1..20` gives the
+same numbers as before, `art_hash` is identical, `save_test` prints ALL OK and both example scripts pass.
+- `rpg/art.cpp` is split into `rpg/art/*.cpp`, with shared helpers in `rpg/art/art_internal.h` and one public header per
+  area (`art_human.h`, `art_props.h`, `art_building.h`...; `rpg/art.h` includes them all). `tools/art_hash` hashes every
+  sprite by category, and the split is pixel-identical.
+- The AI is in `rpg/sim/ai.cpp`, the player's look and stats in `rpg/sim/player.cpp`, `propSolid` in
+  `rpg/sim/prop_rules.cpp`, and the renderer's prop traits in `rpg/view/prop_traits.cpp`. `tools/rpg_sim.cpp` is now
+  `tools/tests/*.cpp`, with a per-seed hook file for each lane.
+- New shared state: `Actor::faction` (`factions.h`), `Map::deco` (`deco.h`), `ItemKind::Gloves/Boots/Cloak` with
+  `eqGloves/eqBoots/eqCloak`, `HumanLook` equipment fields with `key()`, `Appearance`, `Background`, `Game::storyFlags`,
+  `Mode::Creator`, `rpg/culture/style.h` (`ArchStyle`), and the view entry points for the creator, paper doll, deco and
+  markers.
+- **SAVE_VER 3** appends a character block (the new slots, background, story flags and a length-prefixed appearance).
+  The fixtures are `tests/fixtures/save_v2.bin` (generator v2) and `save_v3.bin`. **WORLDGEN_V3** is reserved for the
+  M0 interiors and the building/wall pass.
+- Prep for M1: `rpg/world/{coords,ids,dmath,noise,jobs}.h`. `rpg_test --golden` pins them against
+  `tests/fixtures/golden_world.txt`.
+- `tools/slot.sh` is the machine-wide 3-slot lock. Wrap every build, game run and test in it.
+
+### M0 integration (2026-10-03)
+- All four lanes (arch, homes, hero, town) are merged and build clean with BDIR=build. Results: rpg_test --seeds 1..20
+  20/20, save_test ALL OK, --golden ok, --metrics first weapon avg 6 s, and all 12 tools/scripts exit 0.
+- Integration fixes:
+  - gatehouse towers were clipped at gy 18 (ground showed through their lower fronts), so the canvas is now 80 px tall;
+  - gate flanks joined to the ring only diagonally keep their wall piece (no ground sliver at the tower);
+  - thatch texel calmed so hip/gable planes read as lit volumes;
+  - flat roofs get a parapet shadow band, and adobe decks sit a step lighter than their walls;
+  - quest "!" markers are drawn after the night pass, the alarm bell forces combat music, and the world pin is hidden
+    under a giver's "!" bubble;
+  - the blade hand-off line names the actual tracked follow-up quest;
+  - Bell was added to audio_preview, and interiors.txt now starts itself.
+- **Freeze WORLDGEN_V3 now** (the arch wall pass and the homes genInterior both gate on it).

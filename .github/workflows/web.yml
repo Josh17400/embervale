@@ -35,6 +35,11 @@ jobs:
         continue-on-error: true
         run: ./build-native/save_test
 
+      # rpg/world integer noise/ids golden values (M1 prep): must match MSVC bit for bit; blocking once proven green here.
+      - name: Endless-world golden test
+        continue-on-error: true
+        run: ./build-native/rpg_test --golden
+
       - uses: mymindstorm/setup-emsdk@v14
         with:
           version: latest

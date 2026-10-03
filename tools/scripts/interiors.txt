@@ -1,0 +1,33 @@
+# M0 homes lane: cluttered interiors. Visits the inn, a house and the smithy of the nearest town, by day and at night.
+#   embervale.exe --script tools/scripts/interiors.txt [--seed 7]      (also seeds 7 and 99)
+# Screenshots land in the working directory. Exit code 3 if an expect/walkto fails.
+seed 2
+0.3  newgame                     # self-starting: works with or without --play
+0.5  expect mode play
+0.6  god
+0.8  goto town
+1.5  hour 11
+1.6  walkto inn 60
+2.0  expect inside 1
+2.6  shot int_inn_day.png
+2.8  hour 22
+3.4  shot int_inn_night.png
+3.6  walkto exit
+4.0  expect inside 0
+4.2  hour 11
+4.4  walkto house 60
+4.8  expect inside 1
+5.4  shot int_house_day.png
+5.6  hour 22
+6.2  shot int_house_night.png
+6.4  walkto exit
+6.8  expect inside 0
+7.0  hour 11
+7.2  walkto smithy 60
+7.6  expect inside 1
+8.2  shot int_smithy_day.png
+8.4  hour 22
+9.0  shot int_smithy_night.png
+9.2  walkto exit
+9.6  expect inside 0
+9.8  quit

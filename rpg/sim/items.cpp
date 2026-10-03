@@ -98,6 +98,9 @@ Item makeArmor(Rng& r, int level, ItemKind slot) {
   it.tier = (uint8_t)tierFor(r, level);
   it.rarity = rollRarity(r, level, false);
   it.tint = tierTint(it.tier);
+  // tier 0 pieces are either leather or iron; the choice for the M0 slots (and the cap) comes from the level, not
+  // the rng, so the random stream of the pre-M0 kinds is unchanged
+  const bool leather0 = it.tier == 0 && (level & 1);
   static const char* bodyN[] = {"LEATHER ARMOR", "STEEL PLATE", "GILDED MAIL", "JADE SCALE", "OBSIDIAN PLATE", "EMBERFORGED PLATE"};
   if (slot == ItemKind::Armor) {
     it.power = (int16_t)(8 + it.tier * 7 + level / 2);
@@ -106,12 +109,29 @@ Item makeArmor(Rng& r, int level, ItemKind slot) {
   } else if (slot == ItemKind::Helmet) {
     it.power = (int16_t)(3 + it.tier * 3 + level / 4);
     it.icon = Icon::Helmet;
-    it.name = std::string(tierName(it.tier)) + " HELMET";
+    it.name = leather0 ? "LEATHER CAP" : std::string(tierName(it.tier)) + " HELMET";
+  } else if (slot == ItemKind::Gloves) {
+    it.power = (int16_t)(2 + it.tier * 2 + level / 5);
+    it.icon = Icon::Gloves;
+    it.name = it.tier == 0 ? (leather0 ? "LEATHER GLOVES" : "IRON GAUNTLETS") : std::string(tierName(it.tier)) + " GAUNTLETS";
+  } else if (slot == ItemKind::Boots) {
+    it.power = (int16_t)(2 + it.tier * 2 + level / 5);
+    it.icon = Icon::Boots;
+    it.name = it.tier == 0 ? (leather0 ? "LEATHER BOOTS" : "IRON BOOTS") : std::string(tierName(it.tier)) + " BOOTS";
+  } else if (slot == ItemKind::Cloak) {
+    // cloth, not metal: the tint is the cloth colour (the paper doll and the hero wear it)
+    static const char* cloakN[] = {"TRAVEL CLOAK", "WOOL CLOAK", "FUR MANTLE", "RANGER CLOAK", "SHADOW CLOAK", "EMBER MANTLE"};
+    static const uint32_t cloakC[] = {rgba(112, 82, 58), rgba(60, 96, 62), rgba(52, 70, 120), rgba(40, 92, 66), rgba(46, 38, 58), rgba(150, 40, 36)};
+    it.power = (int16_t)(1 + it.tier + level / 6);
+    it.icon = Icon::Cloak;
+    it.name = cloakN[it.tier];
+    it.tint = cloakC[it.tier];
   } else {
     it.power = (int16_t)(4 + it.tier * 3 + level / 4);
     it.icon = Icon::Shield;
     it.name = std::string(tierName(it.tier)) + " SHIELD";
   }
+  if (it.name.rfind("LEATHER", 0) == 0) it.tint = rgba(150, 100, 62);
   if (it.rarity >= Rarity::Uncommon) {
     static const Ench ae[] = {Ench::Health, Ench::Magicka, Ench::Stamina, Ench::Fortify};
     it.ench = ae[r.irange(4)];
@@ -120,6 +140,17 @@ Item makeArmor(Rng& r, int level, ItemKind slot) {
   }
   it.value = (it.power * 8 + it.enchPow * 8) * (1 + it.tier);
   return it;
+}
+
+// which armour slot a random drop fills (one rng draw)
+ItemKind randomArmorSlot(Rng& r) {
+  float s = r.f();
+  if (s < 0.30f) return ItemKind::Armor;
+  if (s < 0.46f) return ItemKind::Helmet;
+  if (s < 0.60f) return ItemKind::Shield;
+  if (s < 0.73f) return ItemKind::Gloves;
+  if (s < 0.86f) return ItemKind::Boots;
+  return ItemKind::Cloak;
 }
 
 Item makeJewel(Rng& r, int level) {
@@ -193,7 +224,7 @@ Item randomLoot(Rng& r, int level, bool boss) {
   float q = r.f();
   if (boss) {
     if (q < 0.35f) { Item w = makeWeapon(r, level + 3); return w; }
-    if (q < 0.65f) return makeArmor(r, level + 3, r.f() < 0.5f ? ItemKind::Armor : (r.f() < 0.5f ? ItemKind::Helmet : ItemKind::Shield));
+    if (q < 0.65f) return makeArmor(r, level + 3, randomArmorSlot(r));
     if (q < 0.8f) return makeJewel(r, level + 2);
     if (q < 0.9f) return makeBow(r, level + 3);
     return makeStaff(r, level + 2);
@@ -203,7 +234,7 @@ Item randomLoot(Rng& r, int level, bool boss) {
   if (q < 0.56f) return makeMisc(r.irange(8));
   if (q < 0.64f) return makeFood(r.irange(4));
   if (q < 0.78f) return makeWeapon(r, level);
-  if (q < 0.90f) return makeArmor(r, level, r.f() < 0.5f ? ItemKind::Armor : (r.f() < 0.5f ? ItemKind::Helmet : ItemKind::Shield));
+  if (q < 0.90f) return makeArmor(r, level, randomArmorSlot(r));
   if (q < 0.95f) return makeBow(r, level);
   if (q < 0.98f) return makeJewel(r, level);
   return makeStaff(r, level);

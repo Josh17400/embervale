@@ -26,6 +26,7 @@ const char* kSfxName[(int)Sfx::COUNT] = {
   "LevelUp", "QuestStart", "QuestDone", "Discover",
   "MenuMove", "MenuSelect", "MenuBack",
   "Roar", "Splash",
+  "Bell",
 };
 const char* kMusicName[(int)Music::COUNT] = {"Silence", "Title", "Wild", "Night", "Town", "Cave", "Combat", "Boss"};
 

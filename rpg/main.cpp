@@ -19,8 +19,15 @@
 //                             house (walks in the door), innkeeper|merchant|smith|priest|jarl|guard|villager|mage (until
 //                             they can be talked to), exit (walks out of a building or dungeon), or "x y" tiles.
 //                             An optional trailing number is the timeout in seconds (default 40).
-//   6 expect mode shop        check state: mode title|play|dialogue|menu|shop|levelup|dead|paused, inside 0|1
+//   6 expect mode shop        check state: mode title|play|dialogue|menu|shop|levelup|dead|paused|creator, inside 0|1
 //   6 newgame | goto ruin [enter] | talk 0|1|2 | fight wolf [n] | god [0|1] | hour 22 | menu 2 | log text
+//   6 kit                     give and equip the test kit (sword, bow, arrows, potions); fight does this when unarmed
+//   6 gear 3 [weapon]         give and equip a full set of armour band 3 (1 leather, 2 iron, 3 steel, 4 gilded, 5 jade,
+//                             6 obsidian, 7 emberforged): body, helmet, gloves, boots, cloak, shield, amulet, ring, plus a
+//                             weapon of that tier (sword|axe|mace|dagger|greatsword, default sword) and a bow for the back
+//   6 strip                   take every piece of equipment off (shirt and trousers only)
+//   6 expect name ASTRID      the player's name (the character creator); also: expect background 3, expect slot armor 1|0
+// New Game from the title opens the character creator (Mode::Creator); --play and the newgame command skip it.
 //   9 quit                    (the script also quits 2 s after its last line)
 // The exit code is 3 if any expect or walkto failed.
 #include <SDL3/SDL.h>
@@ -59,7 +66,7 @@ bool readSave(std::vector<uint8_t>& out) {
   return got == out.size();
 }
 void writeSave(const Game& g) {
-  if (g_savePath.empty() || g.mode == Mode::Title) return;
+  if (g_savePath.empty() || g.mode == Mode::Title || g.mode == Mode::Creator) return;   // the creator saves when done
   std::vector<uint8_t> buf;
   g.serialize(buf);
   std::string tmp = g_savePath + ".tmp";
@@ -290,7 +297,42 @@ int main(int argc, char** argv) {
         break;
       }
   };
+  // test helper: a full armour set of one band (1 leather .. 7 emberforged), equipped, plus a weapon and a bow
+  auto giveGear = [&](int band, const std::string& weaponName) {
+    band = std::clamp(band, 1, 7);
+    int tier = band <= 2 ? 0 : band - 2;
+    Rng r(game.seed * 31 + (uint64_t)band);
+    auto wear = [&](Item it) {
+      game.inv.push_back(it);
+      int idx = (int)game.inv.size() - 1;
+      int* e = game.equipSlot(it.kind);
+      if (e && *e != idx) game.useItem(idx);
+    };
+    std::string pre = band == 1 ? "LEATHER " : (band == 2 ? "IRON " : std::string(tierName(tier)) + " ");
+    static const char* suffix[] = {"ARMOR", "HELMET", "GAUNTLETS", "BOOTS", "", "SHIELD"};
+    const ItemKind kinds[] = {ItemKind::Armor, ItemKind::Helmet, ItemKind::Gloves, ItemKind::Boots, ItemKind::Cloak, ItemKind::Shield};
+    for (int k = 0; k < 6; k++) {
+      Item it = makeArmor(r, 1 + tier * 5, kinds[k]);
+      it.tier = (uint8_t)tier;
+      it.ench = Ench::None; it.enchPow = 0; it.rarity = Rarity::Common;
+      if (kinds[k] != ItemKind::Cloak) {
+        it.name = pre + suffix[k];
+        it.tint = band == 1 ? rgba(150, 100, 62) : tierTint(tier);
+      }
+      wear(it);
+    }
+    static const char* wn[] = {"sword", "axe", "mace", "dagger", "greatsword"};
+    int wt = 0;
+    for (int i = 0; i < 5; i++) if (weaponName == wn[i]) wt = i;
+    Item w = makeWeapon(r, 1 + tier * 5, wt, false);
+    w.tier = (uint8_t)tier; w.tint = tierTint(tier);
+    wear(w);
+    wear(makeBow(r, 1 + tier * 5));
+    Item j = makeJewel(r, 5); j.kind = ItemKind::Amulet; j.icon = art::Icon::Amulet; wear(j);
+    Item ring = makeJewel(r, 5); ring.kind = ItemKind::Ring; ring.icon = art::Icon::Ring; wear(ring);
+  };
   auto doFight = [&](const std::string& name, int n) {
+    if (game.eqWeapon < 0) game.debugKit();   // the real start is shirt-only (M0): fights get the test kit
     static const char* names[] = {"wolf", "boar", "bear", "slime", "spider", "bat", "skeleton", "draugr", "goblin", "troll", "wraith", "mudcrab", "icewolf", "frostspider", "sandworm", "dragon"};
     for (int m = 0; m < (int)art::Monster::COUNT && m < (int)(sizeof(names) / sizeof(names[0])); m++)
       if (name == names[m]) game.debugSpawn((art::Monster)m, n > 0 ? n : (m == (int)art::Monster::Dragon ? 1 : 3), 60);
@@ -490,8 +532,8 @@ int main(int argc, char** argv) {
     setMove(false, false, false, false);   // the nearest reachable tile: wait there (an actor may still come within reach)
   };
   auto modeByName = [](const std::string& s, Mode& m) {
-    static const char* n[] = {"title", "play", "dialogue", "menu", "shop", "levelup", "dead", "paused"};
-    for (int i = 0; i < 8; i++) if (s == n[i]) { m = (Mode)i; return true; }
+    static const char* n[] = {"title", "play", "dialogue", "menu", "shop", "levelup", "dead", "paused", "creator"};
+    for (int i = 0; i < 9; i++) if (s == n[i]) { m = (Mode)i; return true; }
     return false;
   };
   auto runCmd = [&](const ScriptCmd& c) {
@@ -530,6 +572,14 @@ int main(int argc, char** argv) {
       doTalk(std::atoi(arg(1).c_str()));
     } else if (op == "fight") {
       doFight(arg(1), std::atoi(arg(2).c_str()));
+    } else if (op == "kit") {
+      game.debugKit();
+    } else if (op == "gear") {
+      giveGear(std::atoi(arg(1).c_str()), arg(2));
+    } else if (op == "strip") {
+      for (ItemKind k : {ItemKind::Weapon, ItemKind::Bow, ItemKind::Staff, ItemKind::Armor, ItemKind::Helmet, ItemKind::Shield,
+                         ItemKind::Ring, ItemKind::Amulet, ItemKind::Gloves, ItemKind::Boots, ItemKind::Cloak})
+        if (int* e = game.equipSlot(k)) if (*e >= 0) game.useItem(*e);
     } else if (op == "god") {
       game.godMode = arg(1).empty() || arg(1) != "0";
     } else if (op == "hour") {
@@ -542,9 +592,23 @@ int main(int argc, char** argv) {
       std::string what = arg(1), want = arg(2);
       if (what == "mode") {
         Mode m;
-        static const char* n[] = {"title", "play", "dialogue", "menu", "shop", "levelup", "dead", "paused"};
+        static const char* n[] = {"title", "play", "dialogue", "menu", "shop", "levelup", "dead", "paused", "creator"};
         if (!modeByName(want, m)) fail(c.line, "expect mode: unknown mode '" + want + "'");
         else if (game.mode != m) fail(c.line, "expected mode " + want + ", got " + n[(int)game.mode]);
+      } else if (what == "name") {
+        if (game.app.name != want) fail(c.line, "expected name " + want + ", got " + game.app.name);
+      } else if (what == "background") {
+        if ((int)game.background != std::atoi(want.c_str())) fail(c.line, "expected background " + want + ", got " + std::to_string((int)game.background));
+      } else if (what == "slot") {
+        static const struct { const char* n; ItemKind k; } sk[] = {
+            {"weapon", ItemKind::Weapon}, {"bow", ItemKind::Bow}, {"staff", ItemKind::Staff}, {"armor", ItemKind::Armor},
+            {"helmet", ItemKind::Helmet}, {"shield", ItemKind::Shield}, {"ring", ItemKind::Ring}, {"amulet", ItemKind::Amulet},
+            {"gloves", ItemKind::Gloves}, {"boots", ItemKind::Boots}, {"cloak", ItemKind::Cloak}};
+        int* e = nullptr;
+        for (auto& q : sk) if (want == q.n) e = game.equipSlot(q.k);
+        bool on = arg(3) != "0";
+        if (!e) fail(c.line, "expect slot: unknown slot '" + want + "'");
+        else if ((*e >= 0) != on) fail(c.line, "expected slot " + want + (on ? " worn" : " empty"));
       } else if (what == "inside") {
         if ((want != "0") != game.inside) fail(c.line, std::string("expected inside ") + want + ", got " + (game.inside ? "1" : "0"));
       } else fail(c.line, "expect: unknown check '" + what + "'");
@@ -619,8 +683,16 @@ int main(int argc, char** argv) {
     if (view.wantNewGame) {
       view.wantNewGame = false;
       startNew(seed ? seed : (uint64_t)SDL_GetTicks() * 2654435761ull + 777);   // --seed / a script's seed: reproducible
-      if (!noSave) writeSave(game);
-      hasSave = !noSave;
+      game.beginCreator();   // the character creator; the first save happens when it hands over to play
+    }
+    {   // the creator just finished: save the new character right away
+      static Mode prevMode = Mode::Title;
+      if (prevMode == Mode::Creator && game.mode == Mode::Play) {
+        if (!noSave) writeSave(game);
+        hasSave = !noSave;
+        view.snap(game);
+      }
+      prevMode = game.mode;
     }
     if (view.wantSave) { view.wantSave = false; if (!noSave) writeSave(game); }
 

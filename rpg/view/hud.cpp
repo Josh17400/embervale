@@ -13,8 +13,15 @@ enum Btn { B_ATTACK, B_BOW, B_SPELL, B_ROLL, B_POTION, B_MENU, B_COUNT };
 struct BtnDef { float x, y, r; };
 const BtnDef kBtn[B_COUNT] = {{424, 222, 23}, {374, 240, 14}, {380, 196, 14}, {424, 172, 14}, {464, 176, 11}, {466, 12, 10}};
 
-const char* kTabs[] = {"ITEMS", "QUESTS", "MAP", "HERO", "SYSTEM"};
-constexpr int NTABS = 5;
+// menuTab_ ids are stable (scripts and --menu use them); EQUIP (M0) is id 5 but shows second
+const char* kTabs[] = {"ITEMS", "QUESTS", "MAP", "HERO", "SYSTEM", "EQUIP"};
+constexpr int NTABS = 6;
+const int kTabOrder[NTABS] = {0, 5, 1, 2, 3, 4};
+int tabStep(int tab, int dir) {
+  int at = 0;
+  for (int i = 0; i < NTABS; i++) if (kTabOrder[i] == tab) at = i;
+  return kTabOrder[(at + dir + NTABS) % NTABS];
+}
 
 std::vector<std::string> wrap(const std::string& s, int maxChars) {
   std::vector<std::string> lines;
@@ -42,7 +49,8 @@ std::string itemStats(const Game& g, const Item& it) {
     case ItemKind::Weapon: s = "DAMAGE " + std::to_string(it.power); break;
     case ItemKind::Bow: s = "ARROW DAMAGE " + std::to_string(it.power); break;
     case ItemKind::Staff: s = "SPELL POWER +" + std::to_string(it.power * 2) + "%"; break;
-    case ItemKind::Armor: case ItemKind::Helmet: case ItemKind::Shield: s = "ARMOR " + std::to_string(it.power); break;
+    case ItemKind::Armor: case ItemKind::Helmet: case ItemKind::Shield: case ItemKind::Gloves: case ItemKind::Boots: case ItemKind::Cloak:
+      s = "ARMOR " + std::to_string(it.power); break;
     case ItemKind::Potion: s = "RESTORES " + std::to_string(it.power); break;
     case ItemKind::Food: s = "HEALS " + std::to_string(it.power); break;
     case ItemKind::Arrows: s = "AMMUNITION"; break;
@@ -87,13 +95,15 @@ const char* useVerb(int pr) {
   }
 }
 bool equipped(const Game& g, int i) {
-  return i == g.eqWeapon || i == g.eqBow || i == g.eqStaff || i == g.eqArmor || i == g.eqHelmet || i == g.eqShield || i == g.eqRing || i == g.eqAmulet;
+  return i == g.eqWeapon || i == g.eqBow || i == g.eqStaff || i == g.eqArmor || i == g.eqHelmet || i == g.eqShield || i == g.eqRing || i == g.eqAmulet ||
+         i == g.eqGloves || i == g.eqBoots || i == g.eqCloak;
 }
 int equippedOf(const Game& g, ItemKind k) {
   switch (k) {
     case ItemKind::Weapon: return g.eqWeapon; case ItemKind::Bow: return g.eqBow; case ItemKind::Staff: return g.eqStaff;
     case ItemKind::Armor: return g.eqArmor; case ItemKind::Helmet: return g.eqHelmet; case ItemKind::Shield: return g.eqShield;
-    case ItemKind::Ring: return g.eqRing; case ItemKind::Amulet: return g.eqAmulet; default: return -1;
+    case ItemKind::Ring: return g.eqRing; case ItemKind::Amulet: return g.eqAmulet;
+    case ItemKind::Gloves: return g.eqGloves; case ItemKind::Boots: return g.eqBoots; case ItemKind::Cloak: return g.eqCloak; default: return -1;
   }
 }
 }  // namespace
@@ -137,6 +147,9 @@ void View::draw(Game& g, bool hasSave) {
   drawWorld(g);
   drawLighting(g);
   drawWeather(g, 0);
+  // quest-giver markers after the night/weather pass so the "!" stays readable in the dark
+  if (g.mode != Mode::Title && g.mode != Mode::Creator)
+    drawMarkers(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));
   // floating combat text (screen)
   Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
   for (const FloatText& f : texts_) {
@@ -145,6 +158,7 @@ void View::draw(Game& g, bool hasSave) {
     P.text(f.p.x - cam.x, f.p.y - cam.y, f.s, 1, Color(f.c.r, f.c.g, f.c.b, a), 1);
   }
   if (g.mode == Mode::Title) { drawTitle(g, hasSave); }
+  else if (g.mode == Mode::Creator) { drawCreator(g); }
   else {
     drawHud(g);
     if (touchUI && (g.mode == Mode::Play)) drawTouch(g);
@@ -168,7 +182,7 @@ void View::drawHud(Game& g) {
   const Actor& p = g.pl();
   // vitals
   float mpMax = g.maxMp, stMax = g.maxSt;
-  for (int idx : {g.eqArmor, g.eqHelmet, g.eqShield, g.eqRing, g.eqAmulet}) {
+  for (int idx : g.worn()) {
     if (idx < 0) continue;
     if (g.inv[idx].ench == Ench::Magicka) mpMax += g.inv[idx].enchPow;
     if (g.inv[idx].ench == Ench::Stamina) stMax += g.inv[idx].enchPow;
@@ -270,7 +284,12 @@ void View::drawHud(Game& g) {
           // the distance sits behind the arrowhead (further back on diagonals, where the label is widest)
           float back = 15 + 8 * std::fabs(d.x);
           P.textS(a.x - d.x * back, a.y - d.y * back - 3, std::to_string((int)dist), 1, kGold, 1);
-        } else {
+        } else if (!(q->state == QState::Complete && [&] {
+                     // the giver already wears the world "!" bubble (drawMarkers): don't stack a second pin on it
+                     for (const Actor& a2 : g.actors)
+                       if (a2.npc && a2.st != AState::Dead && len2(a2.p - tgt) < 48.0f * 48.0f && g.rewardWaiting(a2)) return true;
+                     return false;
+                   }())) {
           float bob = std::sin(t_ * 5) * 2;
           P.rect(sc.x - 1, sc.y - 26 + bob, 3, 7, kGold);
           P.rect(sc.x - 1, sc.y - 17 + bob, 3, 2, kGold);
@@ -539,7 +558,7 @@ void View::drawMenu(Game& g) {
   panel(8, 6, Pix::W - 16, Pix::H - 12);
   // tabs
   float tw = (Pix::W - 40) / (float)NTABS;
-  for (int i = 0; i < NTABS; i++) button(20 + i * tw, 12, tw - 4, 14, kTabs[i], i == menuTab_);
+  for (int i = 0; i < NTABS; i++) button(20 + i * tw, 12, tw - 4, 14, kTabs[kTabOrder[i]], kTabOrder[i] == menuTab_);
   button(Pix::W - 36, 30, 20, 12, "X", false);
   float top = 34;
   switch (menuTab_) {
@@ -578,7 +597,7 @@ void View::drawMenu(Game& g) {
           int diff = it.power - g.inv[eq].power;
           P.text(272, top + 104, std::string("VS EQUIPPED: ") + (diff >= 0 ? "+" : "") + std::to_string(diff), 1, diff >= 0 ? Color(0.5f, 1, 0.5f) : Color(1, 0.5f, 0.45f));
         }
-        bool canEquip = it.kind <= ItemKind::Amulet;
+        bool canEquip = itemEquippable(it.kind);
         std::string use = canEquip ? (equipped(g, menuSel_) ? "UNEQUIP" : "EQUIP") : (it.kind == ItemKind::Potion || it.kind == ItemKind::Food || it.name.rfind("SPELL TOME", 0) == 0 ? "USE" : "");
         if (!use.empty()) button(272, Pix::H - 44, 84, 16, use + (touchUI ? "" : " (ENT)"), true);
         if (it.kind != ItemKind::Quest) button(364, Pix::H - 44, 84, 16, touchUI ? "DROP" : "DROP (X)", false);
@@ -603,6 +622,7 @@ void View::drawMenu(Game& g) {
         const Quest& q = g.quests[order[menuSel_]];
         wrapText(236, top + 12, 220, q.title, q.type == QType::Main ? kGold : kText);
         std::string st = q.state == QState::Done ? "COMPLETED" : q.state == QState::Complete ? "READY TO TURN IN" : "IN PROGRESS";
+        if (q.state != QState::Done) { std::string qs = g.questStatus(q); if (!qs.empty()) st = qs.size() > 36 ? qs.substr(0, 36) : qs; }
         P.text(236, top + 24, st, 1, q.state == QState::Complete ? Color(0.5f, 1, 0.5f) : kDim);
         wrapText(236, top + 40, 220, q.desc, kText, -1, 10);
         if (q.type == QType::Hunt) P.text(236, Pix::H - 62, "PROGRESS " + std::to_string(q.have) + "/" + std::to_string(q.need), 1, kGold);
@@ -641,7 +661,7 @@ void View::drawMenu(Game& g) {
       auto stat = [&](float yy, const std::string& n, const std::string& v) { P.text(x, yy, n, 1, kDim); P.text(x + 110, yy, v, 1, kText); };
       stat(y + 36, "HEALTH", std::to_string((int)p.hp) + " / " + std::to_string((int)p.maxHp));
       float mpMax = g.maxMp, stMax = g.maxSt;   // include enchantment bonuses, same as the HUD bars
-      for (int idx : {g.eqArmor, g.eqHelmet, g.eqShield, g.eqRing, g.eqAmulet}) {
+      for (int idx : g.worn()) {
         if (idx < 0 || idx >= (int)g.inv.size()) continue;
         if (g.inv[idx].ench == Ench::Magicka) mpMax += g.inv[idx].enchPow;
         if (g.inv[idx].ench == Ench::Stamina) stMax += g.inv[idx].enchPow;
@@ -679,6 +699,9 @@ void View::drawMenu(Game& g) {
       }
       break;
     }
+    case 5:   // equip (paperdoll.cpp)
+      drawPaperdoll(g, 8, 30, Pix::W - 16, Pix::H - 36);
+      break;
   }
 }
 
@@ -831,8 +854,9 @@ void View::menuKey(Game& g, int key) {
   auto back = [&]() { g.mode = Mode::Play; audio_->play(Sfx::MenuBack); };
   if (g.mode == Mode::Menu || g.mode == Mode::LevelUp) {
     if (key == SDLK_ESCAPE || key == SDLK_TAB || key == SDLK_I) { back(); return; }
-    if (key == SDLK_Q || key == SDLK_PAGEUP) { menuTab_ = (menuTab_ + NTABS - 1) % NTABS; menuSel_ = 0; audio_->play(Sfx::MenuMove); return; }
-    if (key == SDLK_E || key == SDLK_PAGEDOWN) { menuTab_ = (menuTab_ + 1) % NTABS; menuSel_ = 0; audio_->play(Sfx::MenuMove); return; }
+    if (key == SDLK_Q || key == SDLK_PAGEUP) { menuTab_ = tabStep(menuTab_, -1); menuSel_ = 0; audio_->play(Sfx::MenuMove); return; }
+    if (key == SDLK_E || key == SDLK_PAGEDOWN) { menuTab_ = tabStep(menuTab_, 1); menuSel_ = 0; audio_->play(Sfx::MenuMove); return; }
+    if (menuTab_ == 5 && g.mode == Mode::Menu) { paperdollKey(g, key); return; }
     if (menuTab_ == 3 && g.perkPts > 0) {
       if (key == SDLK_UP || key == SDLK_W) levelSel_ = (levelSel_ + 2) % 3;
       if (key == SDLK_DOWN || key == SDLK_S) levelSel_ = (levelSel_ + 1) % 3;
@@ -866,8 +890,8 @@ void View::menuKey(Game& g, int key) {
     }
     if (key == SDLK_UP || key == SDLK_W) { menuSel_ = std::max(0, menuSel_ - 1); audio_->play(Sfx::MenuMove); }
     if (key == SDLK_DOWN || key == SDLK_S) { menuSel_++; audio_->play(Sfx::MenuMove); }
-    if (key == SDLK_LEFT || key == SDLK_A) { menuTab_ = (menuTab_ + NTABS - 1) % NTABS; menuSel_ = 0; }
-    if (key == SDLK_RIGHT || key == SDLK_D) { menuTab_ = (menuTab_ + 1) % NTABS; menuSel_ = 0; }
+    if (key == SDLK_LEFT || key == SDLK_A) { menuTab_ = tabStep(menuTab_, -1); menuSel_ = 0; }
+    if (key == SDLK_RIGHT || key == SDLK_D) { menuTab_ = tabStep(menuTab_, 1); menuSel_ = 0; }
     if (key == SDLK_RETURN || key == SDLK_SPACE) {
       if (menuTab_ == 0 && menuSel_ < (int)g.inv.size()) g.useItem(menuSel_);
       if (menuTab_ == 1) {
@@ -917,6 +941,7 @@ void View::menuKey(Game& g, int key) {
 void View::tap(Game& g, Vec2 p) {
   auto inR = [&](float x, float y, float w, float h) { return p.x >= x && p.y >= y && p.x < x + w && p.y < y + h; };
   if (g.mode == Mode::Title) { titleTap(p); return; }
+  if (g.mode == Mode::Creator) { creatorTap(g, p); return; }
   if (g.mode == Mode::Dead) { if (modeT_ > 1.2f) g.respawn(); return; }
   if (g.mode == Mode::Paused) { g.mode = Mode::Play; return; }
   if (g.mode == Mode::Dialogue) {
@@ -961,7 +986,7 @@ void View::tap(Game& g, Vec2 p) {
   }
   if (g.mode == Mode::Menu || g.mode == Mode::LevelUp) {
     float tw = (Pix::W - 40) / (float)NTABS;
-    for (int i = 0; i < NTABS; i++) if (inR(20 + i * tw, 12, tw - 4, 14)) { menuTab_ = i; menuSel_ = 0; mapSel_ = -1; audio_->play(Sfx::MenuMove); return; }
+    for (int i = 0; i < NTABS; i++) if (inR(20 + i * tw, 10, tw - 4, 16)) { menuTab_ = kTabOrder[i]; menuSel_ = 0; mapSel_ = -1; audio_->play(Sfx::MenuMove); return; }
     if (inR(Pix::W - 40, 26, 30, 20)) { g.mode = Mode::Play; return; }
     float top = 34;
     switch (menuTab_) {
@@ -1017,6 +1042,9 @@ void View::tap(Game& g, Vec2 p) {
           for (int i = 0; i < 3; i++) if (inR(310, top + 120 + i * 22, 100, 18)) { g.chooseLevelUp(i); levelSel_ = i; }
         }
         break;
+      case 5:
+        paperdollTap(g, p);
+        break;
       case 4:
         if (inR(Pix::W / 2 - 70, top + 40, 140, 20)) { wantSave = true; banner_ = "GAME SAVED"; bannerSub_ = ""; bannerT_ = 2; }
         if (inR(Pix::W / 2 - 70, top + 68, 140, 20)) touchUI = !touchUI;
@@ -1044,6 +1072,7 @@ void View::event(const SDL_Event& e, Game& g) {
       }
       if (g.mode == Mode::Dead) { if ((k == SDLK_RETURN || k == SDLK_SPACE || k == SDLK_E) && modeT_ > 1.2f) g.respawn(); break; }
       if (g.mode == Mode::Paused) { if (k == SDLK_ESCAPE || k == SDLK_RETURN || k == SDLK_SPACE) g.mode = Mode::Play; break; }
+      if (g.mode == Mode::Creator) { creatorKey(g, (int)k); break; }
       if (g.mode != Mode::Play) { menuKey(g, k); break; }
       switch (k) {
         case SDLK_ESCAPE: g.mode = Mode::Paused; break;

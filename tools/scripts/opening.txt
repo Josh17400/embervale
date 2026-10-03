@@ -1,0 +1,52 @@
+# The opening (M0, VISION_PLAN 15.1): everyone starts with just the shirt on their back. The tracked quest
+# "A BLADE OF YOUR OWN" leads to the start village inn, whose innkeeper (marked with a "!") hands over an old blade
+# and a draught for the road. Then the first job: a villager's boar hunt, done with the old blade, and the "!" over
+# that villager outdoors, by day and at night (collecting is shown in bounty.txt).
+#   embervale.exe --script tools/scripts/opening.txt        (screenshots land in the working directory)
+# Seed 15 facts (EMB_SCRIPT_INFO=1 rpg_test 15): start RAVENGATE; the nearest villager, ALENMAR, wants 4 boars culled.
+# Dialogue text types out: wait ~2.5 s before choosing.
+seed 15
+0.3  newgame                     # straight into the start village (the creator is skipped: background None)
++0.02 hour 10
++0.03 walkto villager            # ALENMAR, a few steps away
++0.1 shot opening_0_start.png    # shirt only; the HUD tracks A BLADE OF YOUR OWN
++0.1 key E
++0.2 expect mode dialogue
++2.6 key Return                  # DO YOU NEED HELP?
++3.4 shot opening_1_job.png      # CULL THE BOARS
++0.2 key Return                  # I'LL DO IT.
++1.0 key Escape
++0.3 menu 1
++0.6 shot opening_2_journal.png  # the opening and the job, each with its next step
++0.2 key Escape
++0.2 expect mode play
++0.1 walkto inn
++0.7 expect inside 1
++0.8 shot opening_3_inn.png      # the "!" bobbing over the innkeeper
++0.1 walkto innkeeper
++0.2 key E                       # talk: the old blade changes hands
++0.2 expect mode dialogue
++2.6 shot opening_4_blade.png    # the innkeeper's words
++0.2 key Escape
++0.3 expect mode play
++0.2 shot opening_5_armed.png    # QUEST COMPLETE, the blade in hand
++0.2 menu 0
++0.5 shot opening_6_items.png    # ITEMS: OLD BLADE equipped, a minor health potion, bread
++0.2 key Escape
++0.2 walkto exit
++1.0 expect inside 0
++0.3 shot opening_7_outside.png  # back on the street, armed
+# --- the first job, with the old blade (god keeps the screenshots coming)
++0.2 god
++0.2 fight boar 4
++0.2 hold J 18
++1.5 shot opening_8_fight.png
++4.0 shot opening_9_fight.png
++5.0 shot opening_10_fight.png
++5.0 shot opening_11_fight.png
++3.0 shot opening_12_done.png    # BOUNTY READY: RETURN TO ALENMAR IN RAVENGATE
+# the villagers hid from the boars; they come back out ~30 s after it is over
++34  shot opening_13_day_mark.png    # the "!" over ALENMAR by day
++0.2 hour 22.5
++1.3 shot opening_14_night_mark.png  # ... and at night
++0.3 quit

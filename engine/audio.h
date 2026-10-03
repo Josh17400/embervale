@@ -14,6 +14,7 @@ enum class Sfx : uint8_t {
   LevelUp, QuestStart, QuestDone, Discover,
   MenuMove, MenuSelect, MenuBack,
   Roar, Splash,
+  Bell,      // town alarm bell (M0 town defence): two quick strikes of a bronze bell
   COUNT
 };
 

@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <vector>
 #include "rpg/view/view.h"
 
 namespace {
@@ -318,7 +319,70 @@ void View::bakeRows(const Map& m, int cx, int cy, Canvas& c, int r0, int r1) {
     for (int x = 0; x < c.w; x++) c.px[(size_t)y * c.w + x] = groundPixel(m, x0 + x, y0 + y);
 }
 
+namespace {
+// cast shadow on the ground (light from the top-left): cool and darker, a deeper contact shade at the foot of walls
+inline uint32_t groundShade(uint32_t p, int level) {
+  uint32_t s = lerpc(p, C(48, 34, 92), level == 2 ? 0.42f : 0.30f);
+  return mul(s, level == 2 ? 0.70f : 0.80f);
+}
+}  // namespace
+
+// Static shadows of city walls and buildings, baked into the ground so they cost nothing per frame and sit under
+// actors and props. Walls: the art's own wall shape (bevels, joins) swept down-right. Buildings: the footprint swept
+// down-right by an amount that grows with the building's height, plus a contact shade along the front wall's foot.
+static void bakeArchShadows(const Map& m, int cx, int cy, Canvas& c) {
+  const int x0 = cx * CH * 16, y0 = cy * CH * 16, x1 = x0 + CH * 16, y1 = y0 + CH * 16;
+  std::vector<uint8_t> lv((size_t)c.w * c.h, 0);
+  bool any = false;
+  if (!m.wall.empty())
+    for (int ty = cy * CH; ty < cy * CH + CH; ty++)
+      for (int tx = cx * CH; tx < cx * CH + CH; tx++) {
+        bool near = false;
+        for (int oy = -1; oy <= 0 && !near; oy++)
+          for (int ox = -1; ox <= 0; ox++)
+            if (m.in(tx + ox, ty + oy) && m.wall[(size_t)(ty + oy) * m.w + tx + ox]) { near = true; break; }
+        if (!near) continue;
+        for (int y = 0; y < 16; y++)
+          for (int x = 0; x < 16; x++) {
+            int px = tx * 16 + x, py = ty * 16 + y;
+            int l = art::wallShadeAt(m.wall.data(), m.w, m.h, px, py);
+            if (l) { lv[(size_t)(py - y0) * c.w + (px - x0)] = (uint8_t)l; any = true; }
+          }
+      }
+  for (const Bldg& b : m.bldgs) {
+    int fx = b.r.x * 16, fy = b.r.y * 16, fw = b.r.w * 16, fh = b.r.h * 16;
+    if (fx > x1 + 4 || fy > y1 + 4 || fx + fw + 24 < x0 || fy + fh + 16 < y0) continue;
+    art::ArchStyle st = art::withRoofTint(art::archForBiome((int)m.biomeAt(b.r.x + b.r.w / 2, b.r.y + b.r.h / 2), b.seed), b.roof);
+    int hgt = art::buildingHeight(b.type, b.r.w, b.r.h, st);
+    int L = std::clamp(hgt / 4, 6, 14), Ly = std::max(3, L * 3 / 5);
+    for (int py = std::max(y0, fy); py < std::min(y1, fy + fh + Ly + 2); py++)
+      for (int px = std::max(x0, fx); px < std::min(x1, fx + fw + L + 2); px++) {
+        if (px < fx + fw && py < fy + fh) continue;   // under the building itself
+        int l = 0;
+        if (py >= fy + fh && py < fy + fh + 2 && px < fx + fw + 1) l = 2;
+        else
+          for (int k = 1; k <= 8 && !l; k++) {
+            int sx = px - L * k / 8, sy = py - Ly * k / 8;
+            if (sx >= fx && sx < fx + fw && sy >= fy && sy < fy + fh) l = 1;
+          }
+        if (!l) continue;
+        uint8_t& d = lv[(size_t)(py - y0) * c.w + (px - x0)];
+        d = (uint8_t)std::max<int>(d, l);
+        any = true;
+      }
+  }
+  if (!any) return;
+  for (size_t i = 0; i < lv.size(); i++) {
+    if (!lv[i]) continue;
+    int px = x0 + (int)(i % c.w), py = y0 + (int)(i / c.w);
+    Ground g = m.at(px >> 4, py >> 4);
+    if (groundWater(g) || g == Ground::Void) continue;
+    c.px[i] = groundShade(c.px[i], lv[i]);
+  }
+}
+
 void View::bakeFinish(const Map& m, int cx, int cy, Canvas& c) {
+  bakeArchShadows(m, cx, cy, c);
   // soft ambient occlusion along the base of walls and cliffs
   for (int ty = 0; ty < CH; ty++)
     for (int tx = 0; tx < CH; tx++) {

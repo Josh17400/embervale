@@ -1,10 +1,15 @@
-# New game -> walk into the start village inn -> talk to the innkeeper -> open the shop, buy -> walk out.
+# New game -> the character creator (Enter through it) -> walk into the start village inn -> talk to the innkeeper -> open the shop, buy -> walk out.
 #   embervale.exe --script tools/scripts/inn.txt        (screenshots land in the working directory)
 # Times are script seconds; script time stops while a walkto runs. Exit code 3 if an expect/walkto fails.
 seed 7
 0.8  shot inn_0_title.png
-1.0  key Return                  # title: New Game (test runs never see the Continue entry)
-1.2  expect mode play
+1.0  key Return                  # title: New Game (test runs never see the Continue entry) opens the creator
+1.2  expect mode creator
+1.3  shot inn_0b_creator.png
+1.4  key Return                  # LOOKS -> NAME
+1.5  key Return                  # NAME -> ORIGIN
+1.6  key Return                  # ORIGIN: BEGIN
+1.8  expect mode play
 2.5  shot inn_1_start.png
 2.6  walkto inn                  # steers with held W/A/S/D along a tile path, then walks in the door
 3.4  expect inside 1

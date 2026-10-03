@@ -15,6 +15,7 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include <cstddef>
 #include <cstdlib>
 #include <functional>
 #include <queue>
@@ -30,17 +31,6 @@ const char* siteTypeName(SiteType t) {
   return n[(int)t];
 }
 
-bool propSolid(Prop p) {
-  switch (p) {
-    case Prop::Flowers1: case Prop::Flowers2: case Prop::Flowers3: case Prop::TallGrass: case Prop::Reeds:
-    case Prop::Mushrooms: case Prop::LilyPad: case Prop::Fern: case Prop::Bones: case Prop::SkullPile:
-    case Prop::Cobweb: case Prop::Rug: case Prop::Chair: case Prop::ChestOpen: case Prop::Torch: case Prop::Ladder:
-    case Prop::CaveEntrance: case Prop::Banner: case Prop::IronDoor:
-      return false;
-    default: return true;
-  }
-}
-
 void Map::alloc(int w_, int h_, Ground fill) {
   w = w_; h = h_;
   size_t n = (size_t)w * h;
@@ -48,6 +38,7 @@ void Map::alloc(int w_, int h_, Ground fill) {
   prop.assign(n, 0);
   solid.assign(n, 0);
   wall.assign(n, 0);
+  deco.assign(n, 0);
   bldgAt.assign(n, -1);
   bldgs.clear();
   spawns.clear();
@@ -365,6 +356,164 @@ struct Gen {
     return std::sqrt(dx * dx + dy * dy) - wob;
   }
 
+  // WORLDGEN_V3 city wall: the whole ring of inside tiles with an outside 8-neighbour (a closed, 4-connected band),
+  // then one proper opening where each main street crosses it: a gatehouse (World::gates) on the top and bottom
+  // runs, a plain 3-tile opening flanked by the wall's end towers on the side runs (or a breach where the run is
+  // stepped). Streets no longer punch stray gaps; lanes that reach the ring end at it. It runs after everything else
+  // is generated and makes no random draws, so the rest of a v3 world is exactly the v2 world.
+  struct V3Wall { Town T; std::vector<uint8_t> inside; Ground mainG, base; size_t gates0, gates1, gaps0, gaps1; };
+  std::vector<V3Wall> v3Walls;
+  void rebuildCityWallsV3() {
+    // drop the v2 walls, gates and gaps of every city (latest first so the recorded ranges stay valid)
+    for (int i = (int)v3Walls.size() - 1; i >= 0; i--) {
+      V3Wall& v = v3Walls[(size_t)i];
+      W.gates.erase(W.gates.begin() + (std::ptrdiff_t)v.gates0, W.gates.begin() + (std::ptrdiff_t)v.gates1);
+      W.wallGaps.erase(W.wallGaps.begin() + (std::ptrdiff_t)v.gaps0, W.wallGaps.begin() + (std::ptrdiff_t)v.gaps1);
+      for (int y = v.T.y0 - 1; y <= v.T.y0 + v.T.h; y++)
+        for (int x = v.T.x0 - 1; x <= v.T.x0 + v.T.w; x++) if (M.in(x, y)) M.wall[I(x, y)] = 0;
+    }
+    for (V3Wall& v : v3Walls) cityWallV3(v.T, v.inside, v.mainG, v.base);
+    M.rebuildSolid();
+  }
+  void cityWallV3(Town& T, const std::vector<uint8_t>& inside, Ground mainG, Ground base) {
+    auto ins = [&](int x, int y) { return T.in(x, y) && inside[(size_t)(y - T.y0) * T.w + (x - T.x0)]; };
+    auto wallAt = [&](int x, int y) { return M.in(x, y) && M.wall[I(x, y)] != 0; };
+    auto setWall = [&](int x, int y) {
+      if (!M.in(x, y)) return;
+      M.wall[I(x, y)] = 1;
+      M.setP(x, y, 0);
+      if (groundWater(M.at(x, y)) || groundSolid(M.at(x, y))) M.setG(x, y, base);
+    };
+    auto clearWall = [&](int x, int y) {
+      if (!M.in(x, y)) return;
+      if (M.wall[I(x, y)]) { M.wall[I(x, y)] = 0; M.setG(x, y, mainG); }
+      M.setP(x, y, 0);
+      if (groundSolid(M.at(x, y))) M.setG(x, y, mainG);
+    };
+    std::vector<std::pair<int, int>> ring;
+    for (int y = T.y0; y < T.y0 + T.h; y++)
+      for (int x = T.x0; x < T.x0 + T.w; x++) {
+        if (!ins(x, y)) continue;
+        bool edge = false;
+        for (int oy = -1; oy <= 1 && !edge; oy++) for (int ox = -1; ox <= 1; ox++) if (!ins(x + ox, y + oy)) { edge = true; break; }
+        if (!edge) continue;
+        setWall(x, y);
+        ring.push_back({x, y});
+      }
+    // main-street crossings, clustered
+    std::vector<uint8_t> seen((size_t)T.w * T.h, 0);
+    struct Cross { float mx, my; int n; };
+    std::vector<Cross> crosses;
+    for (auto& rt : ring) {
+      int x = rt.first, y = rt.second;
+      if (T.get(x, y) != 1 || seen[(size_t)(y - T.y0) * T.w + (x - T.x0)]) continue;
+      Cross c{0, 0, 0};
+      std::vector<std::pair<int, int>> q{{x, y}};
+      seen[(size_t)(y - T.y0) * T.w + (x - T.x0)] = 1;
+      for (size_t qi = 0; qi < q.size(); qi++) {
+        c.mx += q[qi].first; c.my += q[qi].second; c.n++;
+        for (int oy = -1; oy <= 1; oy++)
+          for (int ox = -1; ox <= 1; ox++) {
+            int nx = q[qi].first + ox, ny = q[qi].second + oy;
+            if (!T.in(nx, ny) || !wallAt(nx, ny) || T.get(nx, ny) != 1 || seen[(size_t)(ny - T.y0) * T.w + (nx - T.x0)]) continue;
+            seen[(size_t)(ny - T.y0) * T.w + (nx - T.x0)] = 1;
+            q.push_back({nx, ny});
+          }
+      }
+      c.mx /= c.n; c.my /= c.n;
+      crosses.push_back(c);
+    }
+    std::vector<IRect> made;
+    auto nearMade = [&](int x, int y, int d) {
+      for (const IRect& r : made)
+        if (x >= r.x - d && x < r.x + r.w + d && y >= r.y - d && y < r.y + r.h + d) return true;
+      return false;
+    };
+    // a straight run of five ring tiles centred on (x, y), with nothing beside its middle three
+    auto bldg = [&](int x, int y) { return !M.in(x, y) || M.bldgAt[I(x, y)] >= 0; };
+    auto straightH = [&](int x, int y) {
+      for (int k = -2; k <= 2; k++) if (!wallAt(x + k, y)) return false;
+      for (int k = -1; k <= 1; k++) if (wallAt(x + k, y - 1) || wallAt(x + k, y + 1) || bldg(x + k, y - 1) || bldg(x + k, y + 1)) return false;
+      return true;
+    };
+    auto straightV = [&](int x, int y) {
+      for (int k = -2; k <= 2; k++) if (!wallAt(x, y + k)) return false;
+      for (int k = -1; k <= 1; k++) if (wallAt(x - 1, y + k) || wallAt(x + 1, y + k) || bldg(x - 1, y + k) || bldg(x + 1, y + k)) return false;
+      return true;
+    };
+    auto gap = [&](IRect g) {
+      // the opening and the tiles before and behind it become street, so nothing is built or planted in the way
+      for (int y = g.y - 1; y <= g.y + g.h; y++)
+        for (int x = g.x - 1; x <= g.x + g.w; x++) {
+          bool in = x >= g.x && x < g.x + g.w && y >= g.y && y < g.y + g.h;
+          bool approach = (g.h == 1 && x >= g.x && x < g.x + g.w) || (g.w == 1 && y >= g.y && y < g.y + g.h) || (g.w == 3 && g.h == 3);
+          if (!in && !approach) continue;
+          if (in) clearWall(x, y);
+          if (!M.in(x, y) || M.wall[I(x, y)]) continue;
+          M.setP(x, y, 0);
+          if (groundSolid(M.at(x, y))) M.setG(x, y, mainG);
+          if (T.in(x, y) && T.get(x, y) != 3) T.set(x, y, 1);
+        }
+      W.wallGaps.push_back(g);
+      made.push_back(g);
+    };
+    bool gated = false;
+    for (const Cross& c : crosses) {
+      int cxr = (int)std::lround(c.mx), cyr = (int)std::lround(c.my);
+      if (nearMade(cxr, cyr, 4)) continue;
+      float a = std::atan2((c.my - T.cy) / T.ry, (c.mx - T.cx) / T.rx);
+      bool horiz = std::fabs(std::sin(a)) > 0.70f;
+      // the nearest straight run in the street's direction of travel: a gatehouse there, or a side opening
+      int bx = 0, by = 0, bd = 1 << 30;
+      for (int oy = -6; oy <= 6; oy++)
+        for (int ox = -6; ox <= 6; ox++) {
+          int x = cxr + ox, y = cyr + oy;
+          if (!(horiz ? straightH(x, y) : straightV(x, y))) continue;
+          int d = ox * ox + oy * oy;
+          // prefer an opening with room around it: no house pressed against the gatehouse
+          for (int ky = -2; ky <= 2; ky++)
+            for (int kx = -2; kx <= 2; kx++)
+              if (bldg(x + kx, y + ky)) { d += 40; ky = 3; break; }
+          if (d < bd) { bd = d; bx = x; by = y; }
+        }
+      if (bd < (1 << 30)) {
+        if (horiz) { gap(IRect{bx - 1, by, 3, 1}); W.gates.push_back({bx - 1, by}); gated = true; }
+        else gap(IRect{bx, by - 1, 1, 3});
+      } else {
+        gap(IRect{cxr - 1, cyr - 1, 3, 3});   // a breach through a stepped run, its ends become towers
+      }
+    }
+    if (!gated) {   // every city gets a gatehouse: on the straight top or bottom run nearest a street crossing
+      int bx = 0, by = 0, bd = 1 << 30;
+      for (int y = T.y0; y < T.y0 + T.h; y++)
+        for (int x = T.x0; x < T.x0 + T.w; x++) {
+          if (!straightH(x, y) || nearMade(x, y, 2)) continue;
+          int d = 1 << 29;
+          for (const Cross& c : crosses) d = std::min(d, (int)((x - c.mx) * (x - c.mx) + (y - c.my) * (y - c.my)));
+          if (crosses.empty()) d = std::abs(x - T.cx) + (T.y0 + T.h - y);
+          if (d < bd) { bd = d; bx = x; by = y; }
+        }
+      if (bd < (1 << 30)) { gap(IRect{bx - 1, by, 3, 1}); W.gates.push_back({bx - 1, by}); }
+    }
+    // tidy: drop orphans and spurs that are not jambs of an opening
+    for (int pass = 0; pass < 12; pass++) {
+      bool changed = false;
+      for (int y = T.y0 - 1; y <= T.y0 + T.h; y++)
+        for (int x = T.x0 - 1; x <= T.x0 + T.w; x++) {
+          if (!wallAt(x, y)) continue;
+          int n = 0;
+          for (int oy = -1; oy <= 1; oy++) for (int ox = -1; ox <= 1; ox++) if ((ox || oy) && wallAt(x + ox, y + oy)) n++;
+          bool jamb = false;   // beside an opening (4-neighbour), as the tests define it
+          for (const IRect& r : made) {
+            auto inR = [&](int px, int py) { return px >= r.x && px < r.x + r.w && py >= r.y && py < r.y + r.h; };
+            if (inR(x - 1, y) || inR(x + 1, y) || inR(x, y - 1) || inR(x, y + 1)) jamb = true;
+          }
+          if (n < 2 && !jamb) { M.wall[I(x, y)] = 0; changed = true; }
+        }
+      if (!changed) break;
+    }
+  }
+
   void paintStreet(Town& T, int x, int y, uint8_t kind, Ground g) {
     if (!T.in(x, y) || !M.in(x, y)) return;
     uint8_t cur = T.get(x, y);
@@ -552,6 +701,9 @@ struct Gen {
         for (int x = T.x0; x < T.x0 + T.w; x++)
           inside[(size_t)(y - T.y0) * T.w + (x - T.x0)] = blob(x, y, T.cx, T.cy, T.rx, T.ry, M.seed + 900 + si) < wallR;
       auto ins = [&](int x, int y) { return T.in(x, y) && inside[(size_t)(y - T.y0) * T.w + (x - T.x0)]; };
+      // WORLDGEN_V3 keeps this wall while the town is laid out (so every later random draw matches v2) and
+      // rebuilds it at the very end of generation (cityWallV3, from run())
+      const size_t gates0 = W.gates.size(), gaps0 = W.wallGaps.size();
       for (int y = T.y0; y < T.y0 + T.h; y++)
         for (int x = T.x0; x < T.x0 + T.w; x++) {
           if (!ins(x, y)) continue;
@@ -571,13 +723,16 @@ struct Gen {
         bool horizRun = M.wall[I(x - 1, y)] || M.wall[I(x + 1, y)] || M.wall[I(x - 2, y)] || M.wall[I(x + 2, y)];
         if (horizRun && (M.wall[I(x - 1, y)] || M.wall[I(x + 1, y)])) {
           for (int k = -1; k <= 1; k++) if (M.wall[I(x + k, y)]) { M.wall[I(x + k, y)] = 0; M.setG(x + k, y, mainG); }
+          W.wallGaps.push_back(IRect{x - 1, y, 3, 1});
           bool dup = false;
           for (auto& gt : W.gates) if (std::abs(gt.first - (x - 1)) <= 2 && std::abs(gt.second - y) <= 2) dup = true;
           if (!dup && std::abs(y - T.cy) > T.ry * 0.5f) W.gates.push_back({x - 1, y});
         } else {
           for (int k = -1; k <= 1; k++) if (M.wall[I(x, y + k)]) { M.wall[I(x, y + k)] = 0; M.setG(x, y + k, mainG); }
+          W.wallGaps.push_back(IRect{x, y - 1, 1, 3});
         }
       }
+      if (ver >= WORLDGEN_V3) v3Walls.push_back({T, inside, mainG, base, gates0, W.gates.size(), gaps0, W.wallGaps.size()});
     }
     // ---- buildings: landmarks first, near the heart
     struct Want { art::Building b; Role r; int w, h; float near; bool req; bool north; };
@@ -1388,6 +1543,7 @@ struct Gen {
     connectAll();
     M.rebuildSolid();
     if (ver >= WORLDGEN_V2) dens();
+    if (ver >= WORLDGEN_V3) rebuildCityWallsV3();
     // difficulty per site
     for (auto& st : W.sites) st.level = W.zoneLevel(st.ex, st.ey);
     // main quest: the three ruins furthest apart-ish from home, mid difficulty
@@ -1425,6 +1581,7 @@ void World::generate(uint64_t sd, int genVer) {
   sites.clear();
   gates.clear();
   dens.clear();
+  wallGaps.clear();
   lair = -1;
   Gen g(*this, sd);
   g.run();
