@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(holdline CXX)
+project(pixel_engine CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -29,10 +29,6 @@ add_library(engine STATIC engine/audio.cpp engine/pix.cpp)
 target_include_directories(engine PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(engine PUBLIC SDL3::SDL3)
 
-# --- HOLDLINE: pixel open-world merge-and-defend ---
-add_library(holdline_game STATIC game2/mg_game.cpp)
-target_include_directories(holdline_game PUBLIC ${CMAKE_SOURCE_DIR})
-add_executable(holdline_sim tools/mg_sim.cpp)
-target_link_libraries(holdline_sim PRIVATE holdline_game)
-add_executable(holdline WIN32 main_mg.cpp game2/mg_render.cpp)
-target_link_libraries(holdline PRIVATE holdline_game engine)
+# --- game goes here ---
+# add_executable(mygame WIN32 main.cpp ...)
+# target_link_libraries(mygame PRIVATE engine)

@@ -1,31 +1,22 @@
-# HOLDLINE
+# Pixel engine starter
 
-Pixel open-world merge-and-defend. Explore a fogged world with a hero, find sleeping allies, drag matching
-units together to merge them into stronger ones, house them in village inns, clear goblin camps and hold
-off raids. Custom C++20 engine on SDL3, built for Windows first and iPhone later.
+Custom C++20 engine on SDL3 for pixel-art games, Windows first, iPhone later (SDL3 uses Metal on iOS).
+No game is in this repo right now; it is a clean starting point.
 
-## Layout
-- `engine/`  `pix.*` pixel renderer (480x270 canvas, integer scaled, sprites/terrain baked from code),
-             `audio.*` software synth + procedural music (no audio files), `font5x7.h`, `color.h`, `mathx.h`
-- `game2/`   `mg_game.*` pure simulation (no SDL), `mg_render.*` look/HUD/fog, `mg_bot.h` autoplay bot
-- `main_mg.cpp`  SDL3 platform layer: window, keyboard/mouse/touch, fixed 120 Hz timestep, autosave
-- `tools/`   `mg_sim.cpp` headless tests + bot runs, `build.bat` (MSVC + Ninja)
+## What's here
+- `engine/pix.*`    pixel renderer: 480x270 logical canvas, integer-scaled with nearest filtering, rects, text,
+                    `Canvas` (CPU pixel buffer) -> `Tex` baking so terrain/sprites can be drawn from code, streaming minimap texture,
+                    screenshot readback (`Pix::screenshot`) for visual checks
+- `engine/audio.*`  software synth + procedural music, thread-safe `play()`, no audio files (add `Sfx` entries as needed)
+- `engine/font5x7.h` embedded 5x7 bitmap font (uppercase, digits, light punctuation)
+- `engine/mathx.h`  `Vec2`, `Rng` (seedable xorshift), angle helpers; `engine/color.h` float RGBA
+- `tools/build.bat` MSVC + Ninja build (finds Visual Studio 2026 Community, CMake, Ninja); `CMakeLists.txt` fetches SDL3 3.4.16 statically
 
-## Build / run (Windows)
-    tools\build.bat                       # build\holdline.exe and build\holdline_sim.exe
-    build\holdline_sim.exe --test         # world gen, reachability, merge rules, recruit, inn, save/load
-    build\holdline_sim.exe 900 1          # bot plays 15 min on seed 1 (LOG=1 prints events)
-    build\holdline.exe --bot --ff 120 --shot out.png --after 2   # simulate 120s, then screenshot
-
-Flags: `--bot --god --ff N --seed S --shot FILE --after SECS --perf --novsync --fresh`
-(test runs with --bot/--shot/--seed never read or write your save).
-Controls: WASD move, drag a unit onto a matching one to merge, M merge all, E lodge party at an inn,
-B hire at the home inn, click a unit to lodge/join, Esc pause, F11 fullscreen. Touch: finger on empty
-ground steers, finger on a unit drags it.
-Save: SDL pref path `Josh17400/Holdline/save.bin`.
+## Conventions that worked well
+- Keep the simulation in pure C++ with no SDL (fixed 120 Hz step) so it can run headless: unit tests + a bot player + `--ff N` fast-forward.
+- Add test flags to the app: `--bot`, `--seed`, `--shot out.png --after SECS`, `--ff N`, `--perf`; tests must never touch the player's save.
+- Verify visuals by screenshot, not by assumption. Save files go to `SDL_GetPrefPath`.
 
 ## iOS plan
-Game code is platform-neutral C++; SDL3 provides window/GPU/audio/touch on iOS (Metal). Builds run on a
-GitHub Actions macOS runner and ship to TestFlight with fastlane, the same flow as The Fort
-(`the-fort/CI_SETUP.md`, `.github/workflows/ios.yml`, `native/ios/fastlane/Fastfile`): manual
-`workflow_dispatch`, shared Apple Developer team secrets, run number = build number. Not started yet.
+GitHub Actions macOS runner + fastlane to TestFlight, copying The Fort's flow (`the-fort/CI_SETUP.md`,
+`.github/workflows/ios.yml`, `native/ios/fastlane/Fastfile`, shared Apple team secrets). Not started.
