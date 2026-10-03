@@ -841,13 +841,19 @@ void Game::respawn() {
 }
 
 // ------------------------------------------------------------------ save / load
+// Format history (every version must keep loading; tests/fixtures/save_v1.bin + save_test guard this):
+//   v1  magic, ver, seed, ... (the original layout, world always built with WORLDGEN_V1)
+//   v2  adds the world-gen version and the world fingerprint right after the version
+// To change the format: bump SAVE_VER, write the new layout, and gate each new or changed read on `ver >= N`
+// with a default for older saves. Add new fields at the end of the save where possible.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 1;
+static constexpr uint32_t SAVE_VER = 2;
 
 void Game::serialize(std::vector<uint8_t>& out) const {
   out.clear();
   BinW w(out);
   w.u32(SAVE_MAGIC); w.u32(SAVE_VER);
+  w.u32((uint32_t)world.genVersion); w.u32(world.fingerprint());   // v2
   w.u64(seed); w.f32(time); w.f32(hour); w.i32(day);
   const Actor& p = pl();
   w.u8(inside ? 1 : 0); w.i32(subSite); w.i32(subBldg);
@@ -882,11 +888,19 @@ void Game::serialize(std::vector<uint8_t>& out) const {
 
 bool Game::deserialize(const std::vector<uint8_t>& in) {
   BinR r(in);
-  if (r.u32() != SAVE_MAGIC || r.u32() != SAVE_VER) return false;
+  if (r.u32() != SAVE_MAGIC) return false;
+  const uint32_t ver = r.u32();
+  if (ver < 1 || ver > SAVE_VER) return false;   // a save from a newer build
+  int genVer = WORLDGEN_V1;
+  uint32_t fp = 0;
+  if (ver >= 2) { genVer = (int)r.u32(); fp = r.u32(); }
+  if (r.bad) return false;
+  if (genVer < WORLDGEN_V1 || genVer > WORLDGEN_LATEST) return false;   // world from a newer generator
   uint64_t sd = r.u64();
   float t = r.f32(), hr = r.f32(); int dy = r.i32();
   if (r.bad) return false;
-  newGame(sd);
+  newGame(sd, genVer);   // regenerates the exact world the save was made in
+  worldChanged = ver >= 2 && fp != world.fingerprint();
   time = t; hour = hr; day = dy;
   bool ins = r.u8() != 0; int ss = r.i32(), sb = r.i32();
   Vec2 pp; pp.x = r.f32(); pp.y = r.f32();

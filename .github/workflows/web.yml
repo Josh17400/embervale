@@ -25,8 +25,15 @@ jobs:
       - name: Headless game tests
         run: |
           cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release -DSDL_UNIX_CONSOLE_BUILD=ON
-          cmake --build build-native --target rpg_test -j4
-          for s in 1 7 99 12345; do ./build-native/rpg_test $s --secs 60; done
+          cmake --build build-native --target rpg_test save_test -j4
+          ./build-native/rpg_test --seeds 1..20
+          for s in 7 99 12345; do ./build-native/rpg_test $s --secs 60; done
+
+      # The v1 fixture's world hashes were recorded with MSVC; libm differences on Linux could shift
+      # world gen by a tile, so this step reports but does not block the Pages deploy until it is proven green here.
+      - name: Save format test
+        continue-on-error: true
+        run: ./build-native/save_test
 
       - uses: mymindstorm/setup-emsdk@v14
         with:

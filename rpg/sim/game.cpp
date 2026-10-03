@@ -1,6 +1,8 @@
 // EMBERVALE core simulation: player control, movement/collision, combat, AI, spawning, maps.
 #include "rpg/sim/game.h"
 #include <algorithm>
+#include <cmath>
+#include <vector>
 #include "engine/audio.h"
 
 using art::Monster;
@@ -19,16 +21,16 @@ namespace {
 struct MStat { float hp, dmg, speed, range, aggro, radius, windup; int xp; bool ranged, flying; };
 const MStat& mstat(Monster m) {
   static const MStat t[] = {
-      {30, 6, 64, 13, 120, 5, 0.32f, 12, false, false},    // Wolf
-      {42, 8, 56, 13, 90, 6, 0.40f, 14, false, false},     // Boar
+      {34, 13, 66, 13, 120, 5, 0.32f, 12, false, false},   // Wolf
+      {36, 8, 56, 13, 90, 6, 0.40f, 14, false, false},     // Boar
       {95, 15, 46, 17, 100, 8, 0.50f, 38, false, false},   // Bear
       {22, 4, 30, 11, 80, 5, 0.45f, 6, false, false},      // Slime
       {34, 7, 58, 13, 110, 6, 0.34f, 15, true, false},     // Spider
       {14, 3, 76, 10, 120, 4, 0.25f, 5, false, true},      // Bat
-      {40, 8, 40, 15, 120, 5, 0.42f, 18, false, false},    // Skeleton
+      {35, 8, 40, 15, 120, 5, 0.42f, 18, false, false},    // Skeleton
       {70, 12, 38, 17, 120, 6, 0.48f, 30, false, false},   // Draugr
       {26, 6, 60, 12, 120, 5, 0.30f, 10, false, false},    // Goblin
-      {150, 18, 44, 19, 110, 9, 0.55f, 65, false, false},  // Troll
+      {105, 17, 44, 19, 110, 9, 0.55f, 60, false, false},  // Troll
       {60, 10, 48, 15, 140, 6, 0.40f, 36, true, true},     // Wraith
       {22, 5, 30, 11, 60, 6, 0.40f, 6, false, false},      // Mudcrab
       {46, 9, 66, 13, 130, 5, 0.30f, 20, false, false},    // IceWolf
@@ -60,7 +62,7 @@ int Game::findActor(int id) const {
   return -1;
 }
 
-void Game::sfx(int s, Vec2 p, float pitch, float vol) { emit(Ev::Sfx, p, s, pitch, ""), events.back().f = pitch, (void)vol; }
+void Game::sfx(int s, Vec2 p, float pitch, float vol) { emit(Ev::Sfx, p, s, pitch, ""); events.back().vol = vol; }
 void Game::say(const std::string& s) { notice = s; noticeT = 3.5f; }
 
 float Game::daylight() const {
@@ -73,10 +75,10 @@ float Game::daylight() const {
 }
 
 // ------------------------------------------------------------------ setup
-void Game::newGame(uint64_t s) {
+void Game::newGame(uint64_t s, int genVer) {
   seed = s;
   rng_ = Rng(s ^ 0xABCDEF);
-  world.generate(s);
+  world.generate(s, genVer);
   inside = false; subSite = -1; subBldg = -1;
   time = 0; hour = 8.5f; day = 1;
   quests.clear(); nextQuestId = 1; trackedQuest = -1;
@@ -215,6 +217,11 @@ bool Game::solidAt(float x, float y, bool flying) const {
   return m.blocked(tx, ty);
 }
 
+bool Game::bodyFree(Vec2 p, float r, bool flying) const {
+  float ry = r * 0.6f;
+  return !solidAt(p.x - r, p.y - ry, flying) && !solidAt(p.x + r, p.y - ry, flying) && !solidAt(p.x - r, p.y + ry, flying) && !solidAt(p.x + r, p.y + ry, flying);
+}
+
 void Game::moveActor(Actor& a, Vec2 d) {
   float steps = std::ceil(std::max(std::fabs(d.x), std::fabs(d.y)) / 3.0f);
   if (steps < 1) steps = 1;
@@ -240,7 +247,9 @@ void Game::moveActor(Actor& a, Vec2 d) {
 // ------------------------------------------------------------------ main update
 void Game::update(float dt, const Input& in) {
   if (mode != Mode::Play) return;
+  if (stFlash > 0) stFlash -= dt;
   if (hitStop > 0) { hitStop -= dt; return; }
+  if (slowMo > 0) { slowMo -= dt; dt *= 0.3f; }   // perfect roll / level-up: a brief slow-motion blip
   time += dt;
   float prevHour = hour;
   hour += dt * (24.0f / 840.0f);   // a day lasts 14 minutes
@@ -302,7 +311,9 @@ void Game::updatePlayer(float dt, const Input& in) {
   stamina = std::min(stamina, stMax);
   if (!busy) stamina = std::min(stMax, stamina + dt * 4.0f);
   mp = std::min(mpMax, mp + dt * 3.2f);
-  p.hp = std::min(p.maxHp, p.hp + dt * (blessT > 0 ? 1.6f : 0.7f));
+  // health comes back between fights, barely during one (the potion is the in-fight heal)
+  bool calm = time - lastHurtT > 6.0f;
+  p.hp = std::min(p.maxHp, p.hp + dt * (blessT > 0 ? 1.6f : calm ? 1.1f : 0.12f));
   if (p.burnT > 0) {
     p.burnT -= dt;
     if (!godMode) p.hp -= dt * 3;
@@ -359,8 +370,10 @@ void Game::updatePlayer(float dt, const Input& in) {
     if (ml > 0.15f) moveActor(p, mv * (p.speed * 0.35f * dt));
   }
 
+  if (canAct && in.roll && stamina < 20) { if (stFlash <= 0) sfx((int)Sfx::MenuBack, p.p, 0.6f); stFlash = 0.6f; }
   if (canAct && in.roll && stamina >= 20) {
     stamina -= 20;
+    perfectRoll_ = false;
     Vec2 d = ml > 0.15f ? norm(mv) : p.aim;
     p.vel = d * 165.0f;
     p.st = AState::Roll; p.stT = 0; p.iframes = 0.3f;
@@ -381,7 +394,7 @@ void Game::updatePlayer(float dt, const Input& in) {
     p.combo = (p.comboT > 0) ? (p.combo + 1) % 3 : 0;
     p.comboT = 0.55f;
     float cost = p.combo == 2 ? 14.0f : 4.0f;
-    if (stamina < cost) p.combo = 0;
+    if (stamina < cost) { if (p.combo == 2 || stamina < 4) stFlash = 0.6f; p.combo = 0; }
     stamina = std::max(0.0f, stamina - cost);
     p.st = AState::Windup; p.stT = 0;
     return;
@@ -461,7 +474,24 @@ void Game::meleeHit(Actor& a) {
 
 void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float ep, bool crit) {
   if (v.st == AState::Dead) return;
+  if (v.player && v.st == AState::Roll && v.iframes > 0 && attacker >= 0 && !perfectRoll_) {
+    // rolled through a blow that would have landed: a slow-motion blip and a little stamina back
+    perfectRoll_ = true;
+    slowMo = 0.4f;
+    stamina = std::min(stamina + 12.0f, maxSt);
+    emit(Ev::Sparkle, v.p + Vec2(0, -8));
+    emit(Ev::Text, v.p + Vec2(0, -22), (int)rgba(150, 220, 255), 0, "DODGE");
+    sfx((int)Sfx::Roll, v.p, 1.6f);
+  }
   if (v.player && (v.iframes > 0 || godMode)) return;
+  if (v.st == AState::Down) {   // smashing the bones before they rise
+    v.reassembled = true;
+    v.hp = 0;
+    emit(Ev::Hit, v.p + Vec2(0, -4), 0, dmg);
+    sfx((int)Sfx::HitHeavy, v.p, 1.3f);
+    kill(v, attacker);
+    return;
+  }
   if (v.npc && v.role != Role::Guard && !v.hostile) return;
   if (v.player) dmg = dmg * 100.0f / (100.0f + armorRating() * 1.6f);
   else dmg = dmg * 60.0f / (60.0f + v.armor);
@@ -470,6 +500,8 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
   if (ench == Ench::Drain && attacker == pl().id) { pl().hp = std::min(pl().maxHp, pl().hp + ep * 0.5f); dmg += ep * 0.3f; }
   v.hp -= dmg;
   v.flash = 0.12f;
+  v.lastHitT = time;
+  if (v.player) lastHurtT = time;
   Vec2 dir = norm(v.p - from);
   float kb = v.boss ? 30.0f : (v.player ? 110.0f : 150.0f);
   if (v.mon == Monster::Dragon) kb = 0;
@@ -485,12 +517,35 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
   if (!v.player) {
     v.aggro = true;
     v.target = attacker;
-    if (!v.boss && dmg > v.maxHp * 0.12f && v.st != AState::Strike) { v.st = AState::Hurt; v.stT = 0; }
+    // a committed lunge or heavy slam can't be interrupted by a light hit: roll, don't trade
+    bool committed = v.st == AState::Strike || (v.st == AState::Windup && (v.heavy || v.lunge) && dmg < v.maxHp * 0.3f);
+    if ((v.mon == Monster::Wolf || v.mon == Monster::IceWolf) && !v.human && dmg < v.maxHp * 0.4f) committed = true;   // wolves shrug off light cuts
+    if (!v.boss && dmg > v.maxHp * 0.12f && !committed) { v.st = AState::Hurt; v.stT = 0; v.heavy = false; v.lunge = false; }
+    // goblins lose their nerve when badly hurt; so does the last wolf of a pack
+    bool lastWolf = false;
+    if ((v.mon == Monster::Wolf || v.mon == Monster::IceWolf) && !v.human && v.hp > 0 && v.hp < v.maxHp * 0.4f) {
+      lastWolf = true;
+      for (const Actor& o : actors) if (o.id != v.id && o.mon == v.mon && !o.human && o.hostile && o.st != AState::Dead && len2(o.p - v.p) < 160 * 160) lastWolf = false;
+    }
+    if (((v.mon == Monster::Goblin && v.hp < v.maxHp * 0.3f) || lastWolf) && !v.human && !v.fleeing && v.hp > 0) {
+      v.fleeing = true;
+      emit(Ev::Text, v.p + Vec2(0, -20), (int)rgba(255, 230, 120), 0, "!");
+    }
   } else if (v.st != AState::Roll && dmg > 8) { v.st = AState::Hurt; v.stT = 0; }
   if (v.hp <= 0) kill(v, attacker);
 }
 
 void Game::kill(Actor& a, int killer) {
+  if (a.mon == Monster::Skeleton && !a.human && !a.boss && !a.reassembled && a.st != AState::Down && rng_.f() < 0.4f) {
+    // the bones collapse... and may stand back up (see updateActor). Another blow while it is down finishes it.
+    a.reassembled = true;
+    a.hp = 1;
+    a.st = AState::Down; a.stT = 0;
+    a.heavy = a.lunge = false;
+    sfx((int)Sfx::EnemyDie, a.p, 1.4f);
+    emit(Ev::Dust, a.p);
+    return;
+  }
   a.hp = 0;
   a.st = AState::Dead;
   a.stT = 0;
@@ -506,6 +561,18 @@ void Game::kill(Actor& a, int killer) {
     kills++;
   }
   if (a.fromMap) killedSlots[mapKey()].insert(a.slot + (a.site >= 0 && !inside ? a.site * 1000 : 0));
+  if (a.den >= 0 && !inside && a.den < (int)world.dens.size()) {
+    bool left = false;
+    for (const Actor& o : actors) if (o.id != a.id && o.den == a.den && o.st != AState::Dead) left = true;
+    if (!left && denClearedDay(a.den) < 0) {
+      // the den is cleared: a small reward, and it stays empty for a few days (killedSlots[-1] = den * 4096 + day)
+      killedSlots[-1].insert(a.den * 4096 + std::min(day, 4095));
+      int bonus = 12 + world.zoneLevel(world.dens[a.den].x, world.dens[a.den].y) * 4;
+      emit(Ev::Notice, a.p, (int)rgba(255, 210, 90), 0, "DEN CLEARED  +" + std::to_string(bonus) + " XP");
+      sfx((int)Sfx::QuestDone, a.p, 1.15f);
+      gainXp(bonus);
+    }
+  }
   dropLoot(a);
   questKill(a);
   if (a.boss) {
@@ -522,6 +589,8 @@ void Game::gainXp(int xp) {
     perkPts++;
     emit(Ev::LevelUp, pl().p, plLevel);
     sfx((int)Sfx::LevelUp, pl().p);
+    emit(Ev::Shake, pl().p, 0, 3.0f);
+    slowMo = std::max(slowMo, 0.5f);
     say("LEVEL UP! YOU ARE NOW LEVEL " + std::to_string(plLevel));
     recalcPlayer();
   }
@@ -673,7 +742,10 @@ void Game::updatePickups(float dt) {
     k.t += dt;
     Vec2 d = p.p - k.p;
     float l = len(d);
-    if (k.t > 0.5f && l < 40) k.p += d * (std::min(1.0f, dt * 7.0f));
+    if (k.t > 0.5f && l < 40) {
+      if (!k.magnet) { k.magnet = true; sfx((int)(k.gold > 0 ? Sfx::Coin : Sfx::Pickup), k.p, 1.5f + rng_.f() * 0.2f, 0.5f); }
+      k.p += d * (std::min(1.0f, dt * 7.0f));
+    }
     if (k.t > 0.5f && l < 9) {
       if (k.gold > 0) { giveGold(k.gold); }
       else addItem(k.item);
@@ -699,8 +771,21 @@ void Game::updateActor(Actor& a, float dt) {
     if (a.hp <= 0) { kill(a, pl().id); return; }
   }
   if (a.slowT > 0) a.slowT -= dt;
-  if (a.regen > 0 && a.hp < a.maxHp) a.hp = std::min(a.maxHp, a.hp + a.regen * dt);
+  // troll regeneration pauses for a moment after every wound (and fire stops it, see damage())
+  if (a.regen > 0 && a.hp < a.maxHp && time - a.lastHitT > 3.0f) a.hp = std::min(a.maxHp, a.hp + a.regen * dt);
   if (len2(a.knock) > 0.01f) { moveActor(a, a.knock * dt); a.knock *= std::pow(0.0005f, dt); }
+  if (a.st == AState::Down) {
+    // a collapsed skeleton rattles back together unless it is struck again
+    if (a.stT > 2.8f) {
+      a.st = AState::Idle; a.stT = 0;
+      a.hp = a.maxHp * 0.5f;
+      a.atkCd = 0.6f;
+      sfx((int)Sfx::Block, a.p, 1.4f);
+      emit(Ev::Dust, a.p);
+      emit(Ev::Text, a.p + Vec2(0, -20), (int)rgba(220, 220, 200), 0, "RISES");
+    }
+    return;
+  }
   updateAI(a, dt);
 }
 
@@ -773,9 +858,13 @@ void Game::updateAI(Actor& a, float dt) {
   a.thinkT -= dt;
   if (a.thinkT <= 0) {
     a.thinkT = 0.25f;
-    if (p.st != AState::Dead && dist < a.aggroR * (isNight() && !inside ? 0.8f : 1.0f)) a.aggro = true;
-    if (len(a.p - a.home) > 28 * TILE && dist > 6 * TILE && !a.boss) a.aggro = false;
+    if (p.st != AState::Dead && !a.fleeing && dist < a.aggroR * (isNight() && !inside ? 0.8f : 1.0f)) a.aggro = true;
+    // packs are tied to their den: past the leash (or once the player is long gone) they give up and go home
+    float leash = a.den >= 0 ? 18.0f * TILE : 28.0f * TILE;
+    if (len(a.p - a.home) > leash && dist > 6 * TILE && !a.boss) a.aggro = false;
+    if (!a.boss && !inside && dist > std::max(a.aggroR * 2.4f, 15.0f * TILE)) a.aggro = false;
     if (p.st == AState::Dead) a.aggro = false;
+    if (!a.aggro) a.fleeing = false;
     if (!a.aggro && a.st != AState::Windup) {
       if (rng_.f() < 0.25f) {
         float r = a.wild ? 5.0f : 3.0f;
@@ -836,11 +925,20 @@ void Game::updateAI(Actor& a, float dt) {
     return;
   }
 
+  // behaviour sets: wolves circle and lunge from the flank, goblins swarm and flee when hurt, bandit archers
+  // kite, bears and trolls mix in a slow heavy slam you roll through
+  const bool wolf = a.mon == Monster::Wolf || a.mon == Monster::IceWolf;
+  const bool goblin = a.mon == Monster::Goblin;
+  const bool brute = a.mon == Monster::Bear || a.mon == Monster::Troll;
+  const bool archer = a.ranged && a.human;
+  const float wu = a.heavy ? (a.mon == Monster::Troll ? 0.9f : 0.8f) : a.windup;
   switch (a.st) {
     case AState::Windup:
       a.face = faceOf(toP);
-      if (a.stT >= a.windup) {
-        a.st = AState::Strike; a.stT = 0;
+      if (!a.lunge) a.aim = norm(toP);
+      if (a.heavy && a.stT < wu - 0.2f) a.aim = norm(toP);   // tracks you, then commits
+      if (a.stT >= wu) {
+        a.st = AState::Strike; a.stT = 0; a.atkN++; a.special = 0;
         if (a.ranged && dist > a.range + 6) {
           Projectile pr;
           pr.owner = a.id; pr.fromPlayer = false; pr.dmg = a.dmg;
@@ -851,22 +949,42 @@ void Game::updateAI(Actor& a, float dt) {
           else { pr.kind = ProjKind::Spit; pr.v = aim * 150; pr.life = 1.0f; sfx((int)Sfx::Splash, a.p, 1.4f); }
           projs.push_back(pr);
           a.atkCd = 1.6f + rng_.f();
+        } else if (a.heavy) {
+          heavySlam(a);
+          a.vel = a.aim * 30.0f;
+          a.atkCd = 1.5f + rng_.f() * 0.6f;
+        } else if (a.lunge) {
+          a.aim = norm(toP);
+          a.vel = a.aim * 235.0f;
+          a.hitDone = false;
+          a.atkCd = 0.8f + rng_.f() * 0.6f;
+          sfx((int)Sfx::Swing, a.p, 0.7f);
         } else {
           meleeHit(a);
           a.atkCd = 1.0f + rng_.f() * 0.7f;
-          if (a.mon == Monster::Wolf || a.mon == Monster::IceWolf || a.mon == Monster::Boar || a.mon == Monster::Goblin) a.vel = a.aim * 120.0f;
+          if (wolf || a.mon == Monster::Boar || goblin) a.vel = a.aim * 120.0f;
           else a.vel = a.aim * 40.0f;
           sfx((int)Sfx::Swing, a.p, 0.8f);
         }
       }
       return;
     case AState::Strike:
+      if (a.lunge && !a.hitDone && len2(a.vel) > 1) {   // a lunge bends a little toward a dodging target
+        float sp = len(a.vel);
+        a.vel = norm(norm(a.vel) + norm(toP) * std::min(1.0f, dt * 4.0f)) * sp;
+      }
       moveActor(a, a.vel * dt);
       a.vel *= std::pow(0.01f, dt);
-      if (a.stT >= 0.28f) { a.st = AState::Recover; a.stT = 0; }
+      if (a.lunge && !a.hitDone && len(p.p - a.p) < a.range + p.radius + 2) {   // the bite lands on contact
+        a.aim = norm(p.p - a.p);
+        damage(p, a.dmg * (0.9f + rng_.f() * 0.2f), a.p, a.id);
+        a.hitDone = true;
+        a.vel *= 0.25f;
+      }
+      if (a.stT >= (a.heavy ? 0.4f : 0.28f)) { a.st = AState::Recover; a.stT = 0; }
       return;
     case AState::Recover:
-      if (a.stT >= 0.35f) { a.st = AState::Idle; a.stT = 0; }
+      if (a.stT >= (a.heavy ? 0.75f : 0.35f)) { a.st = AState::Idle; a.stT = 0; a.heavy = false; a.lunge = false; }
       return;
     default: break;
   }
@@ -874,42 +992,114 @@ void Game::updateAI(Actor& a, float dt) {
   if (a.aggro && p.st != AState::Dead) {
     a.aim = norm(toP);
     a.face = faceOf(toP);
+    Vec2 side(-a.aim.y, a.aim.x);
     float want = a.ranged ? 70.0f : a.range * 0.8f;
+    float spd = 1.0f;
     Vec2 mv;
-    if (a.ranged && a.human && dist < 50) mv = a.aim * -1.0f;   // archers back off
-    else if (dist > want) mv = a.aim;
+    if (a.fleeing) {
+      // run, weaving a little; once well away, give up the fight
+      mv = a.aim * -1.0f + side * (std::sin(a.animT * 3 + a.id) * 0.5f);
+      spd = 1.1f;
+      if (dist > 11 * TILE) { a.aggro = false; a.fleeing = false; a.goal = a.home; }
+    } else if (wolf) {
+      // circle at a few strides, drifting in and out; the lunge comes from wherever the player isn't looking
+      float orbitR = 38.0f + (a.id % 3) * 5.0f;
+      float radial = clampf((dist - orbitR) / 14.0f, -1.0f, 1.0f);
+      mv = a.aim * radial + side * (0.95f * a.orbitDir);
+      spd = 0.85f;
+      if (rng_.f() < dt * 0.35f) a.orbitDir = (int8_t)-a.orbitDir;
+      a.special += dt;   // time spent circling
+    } else if (goblin) {
+      // swarm: each goblin closes in from its own side so the pack surrounds you
+      float spread = (float)((int)(a.id % 3) - 1) * 0.75f;
+      if (dist > want) mv = a.aim + side * (dist > 28 ? spread : 0.0f);
+      spd = 1.05f;
+    } else if (archer) {
+      // keep a bow-shot away: back off when crowded, close in when far, strafe in between
+      if (dist < 62) mv = a.aim * -1.0f + side * (0.5f * a.orbitDir);
+      else if (dist > 115) mv = a.aim;
+      else mv = side * (0.6f * a.orbitDir);
+      if (rng_.f() < dt * 0.4f) a.orbitDir = (int8_t)-a.orbitDir;
+    } else if (dist > want) mv = a.aim;
     if (a.mon == Monster::Bat || a.mon == Monster::Wraith) {   // erratic flight
       float w = std::sin(a.animT * 5 + a.id) * 0.8f;
-      mv = mv + Vec2(-a.aim.y, a.aim.x) * w;
+      mv = mv + side * w;
     }
     // simple obstacle avoidance: if stuck, sidestep
     Vec2 before = a.p;
     if (len2(mv) > 0.01f) {
-      moveActor(a, norm(mv) * (a.speed * slow * dt));
+      moveActor(a, norm(mv) * (a.speed * spd * slow * dt));
       a.st = AState::Walk;
       if (len2(a.p - before) < 0.02f * a.speed * dt) {
-        Vec2 side = Vec2(-a.aim.y, a.aim.x) * ((a.id & 1) ? 1.0f : -1.0f);
-        moveActor(a, side * (a.speed * slow * dt));
+        Vec2 sd = side * ((a.id & 1) ? 1.0f : -1.0f);
+        moveActor(a, sd * (a.speed * slow * dt));
+        if (wolf) a.orbitDir = (int8_t)-a.orbitDir;
+        if (a.fleeing && dist < 34) a.fleeing = false;   // cornered: fight
       }
     } else a.st = AState::Idle;
+    if (a.fleeing) return;
     bool inMelee = dist < a.range + p.radius + 2;
     bool inShot = a.ranged && dist < 150 && dist > 30;
-    if (a.atkCd <= 0 && (inMelee || (inShot && rng_.f() < dt * 2.5f))) { a.st = AState::Windup; a.stT = 0; }
+    if (a.atkCd > 0) return;
+    if (wolf) {
+      // the pack takes turns (two at once in a big pack); prefer the flank, but don't circle forever
+      int busy = 0, mates = 0;
+      for (const Actor& o : actors) {
+        if (o.id == a.id || o.st == AState::Dead || o.mon != a.mon || len2(o.p - p.p) > 140 * 140) continue;
+        mates++;
+        if (o.lunge && o.st == AState::Windup) busy++;
+      }
+      int slots = mates >= 2 ? 2 : 1;
+      bool flank = dot(norm(a.p - p.p), p.aim) < 0.3f;
+      if (busy < slots && dist > 16 && dist < 48 && (flank || a.special > 0.7f)) {
+        a.st = AState::Windup; a.stT = 0; a.lunge = true;
+      } else if (inMelee && dist <= 16 && busy < slots) {
+        a.st = AState::Windup; a.stT = 0; a.lunge = false;
+      }
+      return;
+    }
+    if (brute) {
+      bool heavyNow = (a.atkN % 3 == 2) || rng_.f() < 0.15f;
+      if (inMelee || (heavyNow && dist < a.range + p.radius + 12)) { a.st = AState::Windup; a.stT = 0; a.heavy = heavyNow; }
+      return;
+    }
+    if (inMelee || (inShot && rng_.f() < dt * 2.5f)) { a.st = AState::Windup; a.stT = 0; }
   } else {
     Vec2 d = a.goal - a.p;
     float l = len(d);
-    if (l > 4) { moveActor(a, d * (1.0f / l) * (a.speed * 0.35f * slow * dt)); a.face = faceOf(d); a.st = AState::Walk; }
+    // a pack that lost its prey trots back to the den
+    float back = (a.den >= 0 && len2(a.p - a.home) > 5.0f * TILE * 5.0f * TILE) ? 0.7f : 0.35f;
+    if (back > 0.5f) { d = a.home - a.p; l = len(d); }
+    if (l > 4) { moveActor(a, d * (1.0f / l) * (a.speed * back * slow * dt)); a.face = faceOf(d); a.st = AState::Walk; }
     else a.st = AState::Idle;
   }
+}
+
+void Game::heavySlam(Actor& a) {
+  // a ground slam in front of the brute: big damage and knockback, no cone check. Rolling through it is the answer.
+  Vec2 c = a.p + a.aim * 10.0f;
+  float r = 26.0f + a.radius;
+  for (Actor& v : actors) {
+    if (v.id == a.id || v.st == AState::Dead || v.fly) continue;
+    bool enemy = v.player || (v.npc && v.role == Role::Guard);
+    if (!enemy) continue;
+    if (len2(v.p - c) > (r + v.radius) * (r + v.radius)) continue;
+    damage(v, a.dmg * 2.1f * (0.9f + rng_.f() * 0.2f), a.p, a.id);
+    if (v.player && v.st != AState::Roll && v.iframes <= 0.36f) v.knock = norm(v.p - a.p) * 190.0f;
+  }
+  emit(Ev::Shake, c, 0, 4.5f);
+  for (int k = 0; k < 6; k++) emit(Ev::Dust, c + Vec2(std::cos(k * 1.047f) * r * 0.6f, std::sin(k * 1.047f) * r * 0.4f));
+  sfx((int)Sfx::HitHeavy, a.p, 0.55f);
 }
 
 // ------------------------------------------------------------------ spawning
 void Game::applyLevel(Actor& a, int level) {
   a.level = std::max(1, level);
-  float hm = 1.0f + 0.16f * (a.level - 1), dm = 1.0f + 0.11f * (a.level - 1);
+  // tuned against the player's growth (perks, gear): a same-level wolf stays a 3-4 hit kill from level 1 to 5
+  float hm = 1.0f + 0.10f * (a.level - 1), dm = 1.0f + 0.13f * (a.level - 1);
   a.maxHp *= hm; a.hp = a.maxHp; a.dmg *= dm;
   a.xp = (int)(a.xp * (1.0f + 0.12f * (a.level - 1)));
-  a.armor = a.level * 2.0f;
+  a.armor = a.level * 1.5f;
 }
 
 int Game::spawnMonster(Monster m, Vec2 p, int level, bool boss) {
@@ -920,7 +1110,8 @@ int Game::spawnMonster(Monster m, Vec2 p, int level, bool boss) {
   a.maxHp = s.hp; a.dmg = s.dmg; a.speed = s.speed; a.range = s.range; a.aggroR = s.aggro; a.radius = s.radius;
   a.windup = s.windup; a.xp = s.xp; a.ranged = s.ranged; a.flying = s.flying;
   a.name = monsterName(m);
-  if (m == Monster::Troll) a.regen = 3;
+  a.orbitDir = (hash32((uint32_t)a.id * 2654435761u) & 1) ? 1 : -1;
+  if (m == Monster::Troll) a.regen = 2.5f;
   applyLevel(a, level);
   if (boss && m != Monster::Dragon) {
     a.boss = true; a.maxHp *= 3.2f; a.hp = a.maxHp; a.dmg *= 1.35f; a.xp *= 4; a.radius += 1.5f;
@@ -1007,6 +1198,7 @@ void Game::clearNonPlayer() {
   projs.clear();
   pickups.clear();
   activeSites_.clear();
+  activeDens_.clear();
   dragonId_ = -1;
 }
 
@@ -1069,13 +1261,20 @@ void Game::updateSpawning(float dt) {
       say("ASHFANG DESCENDS FROM THE PEAK!");
     }
   }
-  // wildlife and roaming monsters
+  if (noWildSpawns) return;
+  // packs live in dens (WORLDGEN_V2+): they appear at their den when you come near and go home when they lose you
+  bool haveDens = !world.dens.empty();
+  if (haveDens) {
+    denT_ -= dt;
+    if (denT_ <= 0) { denT_ = 0.5f; updateDens(ptx, pty); }
+  }
+  // wildlife and roaming monsters: with dens these are lone wanderers, fewer of them
   spawnT_ -= dt;
   if (spawnT_ > 0) return;
-  spawnT_ = 1.5f;
+  spawnT_ = haveDens ? 3.5f : 1.5f;
   int nearby = 0;
   for (const Actor& a : actors) if (a.wild && a.st != AState::Dead) nearby++;
-  int cap = isNight() ? 9 : 6;
+  int cap = haveDens ? (isNight() ? 4 : 2) : (isNight() ? 9 : 6);
   if (nearby >= cap) return;
   for (int tries = 0; tries < 12; tries++) {
     float ang = rng_.f() * TAU;
@@ -1103,6 +1302,10 @@ void Game::updateSpawning(float dt) {
     int lvl = world.zoneLevel(tx, ty);
     int pack = (m == Monster::Wolf || m == Monster::IceWolf || m == Monster::Goblin || m == Monster::Slime) ? 1 + rng_.irange(3) : 1;
     if (lvl <= 2 && pack > 2) pack = 2;
+    if (haveDens) {
+      pack = m == Monster::Slime ? 1 + rng_.irange(2) : 1;
+      if ((m == Monster::Troll || m == Monster::Bear) && lvl <= 3) continue;   // big brutes live in dens near home
+    }
     for (int k = 0; k < pack; k++) {
       Vec2 at = sp + Vec2(rng_.range(-12, 12), rng_.range(-12, 12));
       if (solidAt(at.x, at.y, false)) at = sp;
@@ -1110,6 +1313,53 @@ void Game::updateSpawning(float dt) {
       actors[findActor(id)].wild = true;
     }
     return;
+  }
+}
+
+int Game::denClearedDay(int den) const {
+  auto it = killedSlots.find(-1);
+  if (it == killedSlots.end()) return -1;
+  for (int v : it->second) if (v / 4096 == den) return v % 4096;
+  return -1;
+}
+
+void Game::updateDens(int ptx, int pty) {
+  for (int i = 0; i < (int)world.dens.size(); i++) {
+    const Den& dn = world.dens[i];
+    int dx = dn.x - ptx, dy = dn.y - pty;
+    int d2 = dx * dx + dy * dy;
+    bool active = activeDens_.count(i) > 0;
+    if (!active && d2 < 27 * 27) {
+      int cd = denClearedDay(i);
+      if (cd >= 0) {
+        if (day - cd < 3) continue;   // cleared dens stay empty for three days, then something moves back in
+        for (int v : std::vector<int>(killedSlots[-1].begin(), killedSlots[-1].end())) if (v / 4096 == i) killedSlots[-1].erase(v);
+      }
+      activeDens_.insert(i);
+      int lvl = world.zoneLevel(dn.x, dn.y);
+      int n = dn.pack;
+      bool packKind = dn.mon == Monster::Wolf || dn.mon == Monster::IceWolf || dn.mon == Monster::Goblin || dn.mon == Monster::Skeleton;
+      if (packKind && lvl <= 3) n = std::min(n, lvl <= 1 ? 2 : 3);       // gentler packs close to home
+      if (packKind && lvl > 3 && isNight() && dn.mon != Monster::Goblin) n++;   // and bigger ones out in the dark
+      Rng r(hash2(dn.x, dn.y, (uint32_t)seed ^ (uint32_t)day));
+      for (int k = 0; k < n; k++) {
+        float a = k * TAU / n + r.f();
+        int tx = dn.x + (int)std::lround(std::cos(a) * 1.5f), ty = dn.y + (int)std::lround(std::sin(a) * 1.2f);
+        Vec2 at(tx * TILE + 8.0f, ty * TILE + 10.0f);
+        if (!bodyFree(at, mstat(dn.mon).radius, false)) at = Vec2(dn.x * TILE + 8.0f, dn.y * TILE + 10.0f);
+        if (!bodyFree(at, mstat(dn.mon).radius, false)) at = freeSpot(dn.x, dn.y);
+        int id = spawnMonster(dn.mon, at, lvl, false);
+        Actor& m = actors[findActor(id)];
+        m.den = i;
+        m.home = Vec2(dn.x * TILE + 8.0f, dn.y * TILE + 10.0f);
+        m.goal = m.p;
+      }
+    } else if (active && d2 > 38 * 38) {
+      // out of range: the den resets (a pack you only thinned is whole again next time)
+      activeDens_.erase(i);
+      for (size_t k = 1; k < actors.size();)
+        if (actors[k].den == i) actors.erase(actors.begin() + k); else k++;
+    }
   }
 }
 
@@ -1198,7 +1448,18 @@ void Game::debugSpawn(Monster m, int n, float dist) {
   for (int i = 0; i < n; i++) {
     float a = i * TAU / n + 0.3f;
     Vec2 at = pl().p + Vec2(std::cos(a) * dist, std::sin(a) * dist * 0.7f);
+    // never inside rock or water (the whole body, or it can't move): walk the ring inward until it fits
+    const MStat& ms = mstat(m);
+    for (float k = 1.0f; k > 0.15f && !bodyFree(at, ms.radius, ms.flying); k -= 0.1f)
+      at = pl().p + Vec2(std::cos(a) * dist * k, std::sin(a) * dist * 0.7f * k);
+    if (!bodyFree(at, ms.radius, ms.flying)) { int tx = (int)(at.x / TILE), ty = (int)(at.y / TILE); at = freeSpot(tx, ty); }
     int id = spawnMonster(m, at, 1, false);
     actors[findActor(id)].aggro = true;
   }
+}
+
+int Game::debugSpawnAt(Monster m, Vec2 at, int level) {
+  int id = spawnMonster(m, at, level, false);
+  actors[findActor(id)].aggro = true;
+  return id;
 }

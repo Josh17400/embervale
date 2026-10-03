@@ -1,7 +1,22 @@
 // Overworld generation: continent, biomes, rivers, settlements, roads, dungeons, vegetation.
+//
+// VERSIONING RULE (saves store the seed and World::genVersion, and regenerate the world from both, so quest givers,
+// interiors, looted chests and killed spawns keep pointing at the same things):
+//  1. Never change what an existing version generates. Any change to the output (new dens, settlement archetypes,
+//     curved roads, different building mix...) goes behind `if (ver >= N)`, where N = WORLDGEN_LATEST + 1, and then
+//     WORLDGEN_LATEST becomes N (world.h). Old saves keep their version and their exact world.
+//  2. New features draw randomness from their own stream, `Rng r = stream("dens")` (or genSubSeed(seed, "dens")
+//     for hashed choices), never from the shared `rng`: one extra rng draw shifts every later feature.
+//  3. Indices are identity: a version's site and building order and counts never change. New sites or buildings
+//     exist only in the versions that gate them (rule 1); place them late in run() so earlier indices stay put.
+//  4. Sub-levels follow the same rule through Site::genVer / Bldg::genVer (genCave, genRuin, genInterior).
+//  5. save_test checks that the checked-in v1 save still regenerates the world it was made in.
 #include "rpg/sim/world.h"
 #include <algorithm>
+#include <cmath>
+#include <vector>
 #include <cstdlib>
+#include <functional>
 #include <queue>
 
 using art::Prop;
@@ -109,12 +124,16 @@ constexpr int WW = 448, WH = 448;
 struct Gen {
   World& W;
   Map& M;
-  Rng rng;
+  Rng rng;          // the shared WORLDGEN_V1 stream: its draw order is frozen (see the rule above)
   uint32_t s;
+  uint64_t seed64;
+  int ver;          // generator version being built (World::genVersion)
   std::vector<float> elev, temp, moist;
   std::vector<uint8_t> reserved;   // 1 = settlement/dungeon area (no vegetation/roads cutting through freely)
   std::vector<uint8_t> river;
-  Gen(World& w, uint64_t seed) : W(w), M(w.over), rng(seed), s((uint32_t)(seed ^ (seed >> 32))) {}
+  Gen(World& w, uint64_t seed) : W(w), M(w.over), rng(seed), s((uint32_t)(seed ^ (seed >> 32))), seed64(seed), ver(w.genVersion) {}
+  // an independent stream for a feature added after v1 (rule 2)
+  Rng stream(const char* feature) const { return Rng(genSubSeed(seed64, feature)); }
 
   size_t I(int x, int y) const { return (size_t)y * WW + x; }
   bool land(int x, int y) const { Ground g = M.at(x, y); return !groundSolid(g) && g != Ground::Void; }
@@ -235,6 +254,7 @@ struct Gen {
     Site st;
     st.type = t; st.r = r; st.ex = ex; st.ey = ey;
     st.seed = rng.next();
+    st.genVer = ver;
     Rng nr(st.seed);
     if (t == SiteType::City || t == SiteType::Town || t == SiteType::Village) {
       for (int tries = 0; tries < 20; tries++) {
@@ -311,6 +331,7 @@ struct Gen {
   int putBldg(art::Building type, IRect r, int site, Role owner) {
     Bldg b;
     b.type = type; b.r = r; b.site = site; b.owner = owner; b.seed = rng.next();
+    b.genVer = ver;
     static const uint32_t roofs[] = {rgba(150, 62, 48), rgba(84, 92, 120), rgba(110, 78, 52), rgba(70, 100, 80), rgba(130, 100, 60), rgba(96, 60, 90)};
     b.roof = (type == art::Building::House || type == art::Building::StoneHouse) ? roofs[rng.irange(6)] : 0;
     M.bldgs.push_back(b);
@@ -1208,6 +1229,118 @@ struct Gen {
     }
   }
 
+  // WORLDGEN_V2: wilderness dens. A small clearing with a few readable props (bones and a skull pile for wolves,
+  // a campfire and crates for goblins, webs for spiders, graves for a barrow...) and a chest tucked at the back.
+  // Every random choice comes from the "dens" stream, so nothing else in the world moves. Solid props are only
+  // placed on tiles whose 8 neighbours are all open, so a den can never cut a path (rpg_test checks reachability).
+  void dens() {
+    Rng r = stream("dens");
+    const Site& home = W.sites[W.startSite];
+    auto openAround = [&](int x, int y) {
+      for (int oy = -1; oy <= 1; oy++)
+        for (int ox = -1; ox <= 1; ox++) if (M.blocked(x + ox, y + oy) || M.bldgAt[I(x + ox, y + oy)] >= 0) return false;
+      return true;
+    };
+    auto natural = [&](Prop p) { return (int)p <= (int)Prop::Fern; };
+    for (int tries = 0; tries < 4000 && W.dens.size() < 64; tries++) {
+      int x = 16 + r.irange(WW - 32), y = 16 + r.irange(WH - 32);
+      Biome b = M.biomeAt(x, y);
+      if (b == Biome::Ocean || b == Biome::Beach || b == Biome::Mountain) continue;
+      if (W.siteAt(x, y, 9) >= 0) continue;
+      float dh = std::hypot((float)(x - home.r.cx()), (float)(y - home.r.cy()));
+      if (dh < 20) continue;   // not on the doorstep of the start village
+      bool farEnough = true;
+      for (const Den& d : W.dens) if (std::abs(d.x - x) < 24 && std::abs(d.y - y) < 24) { farEnough = false; break; }
+      if (!farEnough) continue;
+      // the clearing: open land, no roads, no water, no settlement ground within it
+      bool ok = true;
+      for (int oy = -3; oy <= 3 && ok; oy++)
+        for (int ox = -3; ox <= 3 && ok; ox++) {
+          int tx = x + ox, ty = y + oy;
+          if (!M.in(tx, ty) || reserved[I(tx, ty)] || M.wall[I(tx, ty)] || M.bldgAt[I(tx, ty)] >= 0) { ok = false; break; }
+          Ground g = M.at(tx, ty);
+          if (g == Ground::Road || g == Ground::Bridge || g == Ground::Plaza || g == Ground::Farmland) ok = false;
+          if (std::abs(ox) <= 2 && std::abs(oy) <= 2 && groundSolid(g)) ok = false;
+          int pp = M.prop[I(tx, ty)];
+          if (pp && !natural((Prop)(pp - 1))) ok = false;   // leave camps, graves, chests alone
+        }
+      if (!ok) continue;
+      Den d;
+      d.x = x; d.y = y;
+      float q = r.f();
+      using art::Monster;
+      switch (b) {
+        case Biome::Plains: d.mon = q < 0.5f ? Monster::Wolf : q < 0.85f ? Monster::Goblin : Monster::Skeleton; break;
+        case Biome::Forest: d.mon = q < 0.45f ? Monster::Wolf : q < 0.75f ? Monster::Spider : Monster::Bear; break;
+        case Biome::Autumn: d.mon = q < 0.4f ? Monster::Goblin : q < 0.7f ? Monster::Spider : Monster::Bear; break;
+        case Biome::Taiga: d.mon = q < 0.5f ? Monster::Wolf : q < 0.8f ? Monster::Bear : Monster::Troll; break;
+        case Biome::Snow: d.mon = q < 0.55f ? Monster::IceWolf : q < 0.8f ? Monster::FrostSpider : Monster::Troll; break;
+        case Biome::Swamp: d.mon = q < 0.6f ? Monster::Spider : Monster::Skeleton; break;
+        case Biome::Desert: d.mon = q < 0.6f ? Monster::Goblin : Monster::Skeleton; break;
+        default: continue;
+      }
+      switch (d.mon) {
+        case Monster::Wolf: case Monster::IceWolf: d.pack = (uint8_t)(3 + (r.f() < 0.35f)); break;
+        case Monster::Goblin: d.pack = (uint8_t)(3 + r.irange(2)); break;
+        case Monster::Skeleton: d.pack = 3; break;
+        case Monster::Spider: case Monster::FrostSpider: d.pack = 2; break;
+        default: d.pack = 1; break;   // bears, trolls
+      }
+      // clear an irregular glade (trees and bushes go; the ground is left alone: hard-edged dirt tiles read as boxes)
+      bool snowy = b == Biome::Snow;
+      for (int oy = -3; oy <= 3; oy++)
+        for (int ox = -3; ox <= 3; ox++) {
+          int tx = x + ox, ty = y + oy;
+          float rr = std::sqrt((float)(ox * ox) + oy * oy * 1.3f) + hashf(tx, ty, s + 7101) * 1.2f;
+          if (rr > 3.2f) continue;
+          int pp = M.prop[I(tx, ty)];
+          if (pp && natural((Prop)(pp - 1))) M.prop[I(tx, ty)] = 0;
+        }
+      M.rebuildSolid();
+      // scatter: (dx, dy, prop) candidates by kind; the back (north) half gets the big pieces
+      auto put = [&](int ox, int oy, Prop p) {
+        int tx = x + ox, ty = y + oy;
+        if (!M.in(tx, ty) || M.prop[I(tx, ty)] || groundSolid(M.at(tx, ty))) return false;
+        if (propSolid(p)) {
+          if (!openAround(tx, ty)) return false;
+          M.setProp(tx, ty, p);
+          M.solid[I(tx, ty)] = 1;
+        } else M.setProp(tx, ty, p);
+        return true;
+      };
+      Prop rock = snowy ? Prop::SnowRock : (b == Biome::Forest || b == Biome::Swamp || b == Biome::Taiga) ? Prop::MossRock : Prop::Boulder;
+      std::vector<Prop> big, small;
+      switch (d.mon) {
+        case Monster::Wolf: case Monster::IceWolf: big = {rock, Prop::Boulder, Prop::DeadTree}; small = {Prop::Bones, Prop::SkullPile, Prop::Bones}; break;
+        case Monster::Goblin: big = {Prop::Tent, Prop::Crate, Prop::Woodpile}; small = {Prop::Bones, Prop::Barrel}; break;
+        case Monster::Skeleton: big = {Prop::Gravestone, Prop::Gravestone, Prop::DeadTree}; small = {Prop::SkullPile, Prop::Bones, Prop::Bones}; break;
+        case Monster::Spider: case Monster::FrostSpider: big = {Prop::DeadTree, rock}; small = {Prop::Cobweb, Prop::Cobweb, Prop::Bones}; break;
+        case Monster::Troll: big = {rock, Prop::Boulder, rock}; small = {Prop::SkullPile, Prop::Bones, Prop::Bones}; break;
+        default: big = {rock, Prop::Boulder, Prop::Log}; small = {Prop::Bones, Prop::Bones}; break;   // bear
+      }
+      if (d.mon == Monster::Goblin) put(0, 0, Prop::Campfire);
+      // the reward: a chest at the back of the den (placed first so the bigger pieces arrange around it)
+      {
+        static const int co[][2] = {{0, -2}, {1, -2}, {-1, -2}, {0, -1}, {2, -1}, {-2, -1}, {1, -1}, {-1, -1}, {2, -2}, {-2, -2}};
+        int start = r.irange(3);
+        for (int k = 0; k < 10; k++) { const int* c = co[(start + k) % 10]; if (put(c[0], c[1], Prop::Chest)) break; }
+      }
+      // big pieces in an arc behind the centre
+      int placedBig = 0;
+      for (int k = 0; k < 10 && placedBig < (int)big.size(); k++) {
+        float a = 3.14159f + 0.35f + r.f() * 2.45f;   // upper half (north)
+        float rad = 2.0f + r.f() * 1.2f;
+        if (put((int)std::lround(std::cos(a) * rad), (int)std::lround(std::sin(a) * rad * 0.8f), big[placedBig])) placedBig++;
+      }
+      for (int k = 0; k < 12; k++) {
+        if (!put(r.irange(5) - 2, r.irange(5) - 2, small[r.irange((int)small.size())])) continue;
+        if (k > 4 && r.f() < 0.5f) break;
+      }
+      W.dens.push_back(d);
+    }
+    M.rebuildSolid();
+  }
+
   void run() {
     terrain();
     rivers();
@@ -1254,6 +1387,7 @@ struct Gen {
     wildernessCamps();
     connectAll();
     M.rebuildSolid();
+    if (ver >= WORLDGEN_V2) dens();
     // difficulty per site
     for (auto& st : W.sites) st.level = W.zoneLevel(st.ex, st.ey);
     // main quest: the three ruins furthest apart-ish from home, mid difficulty
@@ -1266,10 +1400,31 @@ struct Gen {
 };
 }  // namespace
 
-void World::generate(uint64_t sd) {
+uint64_t genSubSeed(uint64_t seed, const char* feature) {
+  uint64_t h = 1469598103934665603ull ^ (seed * 0x9E3779B97F4A7C15ull);
+  for (const char* c = feature; *c; c++) { h ^= (uint8_t)*c; h *= 1099511628211ull; }
+  h ^= h >> 33; h *= 0xFF51AFD7ED558CCDull; h ^= h >> 33;
+  return h;
+}
+
+uint32_t World::fingerprint() const {
+  uint32_t h = 2166136261u;
+  auto mix = [&](int v) { for (int k = 0; k < 4; k++) { h ^= (uint8_t)(v >> (k * 8)); h *= 16777619u; } };
+  mix(genVersion); mix((int)sites.size()); mix((int)over.bldgs.size()); mix(startSite); mix(capital); mix(lair);
+  for (const Site& st : sites) {
+    mix((int)st.type); for (char c : st.name) mix(c);
+    mix(st.r.x); mix(st.r.y); mix(st.r.w); mix(st.r.h); mix(st.ex); mix(st.ey); mix(st.bldgFirst); mix(st.bldgCount); mix((int)st.seed);
+  }
+  for (const Bldg& b : over.bldgs) { mix((int)b.type); mix(b.r.x); mix(b.r.y); mix(b.r.w); mix(b.r.h); mix(b.site); mix((int)b.owner); mix((int)b.seed); }
+  return h;
+}
+
+void World::generate(uint64_t sd, int genVer) {
   seed = sd;
+  genVersion = genVer < WORLDGEN_V1 ? WORLDGEN_V1 : (genVer > WORLDGEN_LATEST ? WORLDGEN_LATEST : genVer);
   sites.clear();
   gates.clear();
+  dens.clear();
   lair = -1;
   Gen g(*this, sd);
   g.run();

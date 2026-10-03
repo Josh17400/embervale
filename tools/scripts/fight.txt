@@ -1,0 +1,23 @@
+# Start out in the wilds (by the nearest cave, away from villagers who would catch the talk key), spawn a wolf pack and fight it with the keyboard (sword combo, roll, bow, spell, potion).
+#   embervale.exe --script tools/scripts/fight.txt
+seed 3
+0.3  newgame                     # skip the title straight into the start village
+0.4  god                         # stay alive so the screenshots always show the fight
+0.5  goto cave                   # fast travel to the mouth of the nearest cave
+0.6  hour 10
+1.0  fight wolf 3
+1.6  shot fight_0_spawn.png
+1.7  hold J 2.5                  # held attack: the sword combo repeats
+2.4  hold A 0.6                  # strafe while swinging
+3.0  shot fight_1_melee.png
+4.3  key Left Shift              # roll
+4.6  key K                       # bow
+5.0  key L                       # spell
+5.2  shot fight_2_spell.png
+5.4  hold J 3
+5.5  hold D 1.0
+7.0  shot fight_3_later.png
+8.5  key Q                       # potion
+9.0  shot fight_4_end.png
+9.2  expect mode play
+9.4  quit

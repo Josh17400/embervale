@@ -184,6 +184,7 @@ void View::drawHud(Game& g) {
   bar(36, 6, 90, p.hp, p.maxHp, Color(0.85f, 0.18f, 0.16f), Color(0.3f, 0.05f, 0.05f));
   bar(36, 14, 70, g.mp, mpMax, Color(0.25f, 0.45f, 0.95f), Color(0.06f, 0.1f, 0.3f));
   bar(36, 22, 70, g.stamina, stMax, Color(0.3f, 0.8f, 0.35f), Color(0.06f, 0.22f, 0.08f));
+  if (g.stFlash > 0) P.rect(35, 21, 72, 6, Color(1, 0.25f, 0.2f, ((int)(g.stFlash * 16) & 1) ? 0.75f : 0.3f));   // too winded to act
   // xp sliver
   P.rect(6, 14, 26, 2, Color(0.1f, 0.1f, 0.1f, 0.8f));
   P.rect(6, 14, 26 * clampf(g.plXp / (float)g.xpForNext(), 0, 1), 2, kGold);
@@ -801,12 +802,13 @@ int View::buttonAt(Vec2 p) const {
 
 Input View::input(Game& g) {
   Input in;
-  const bool* k = SDL_GetKeyboardState(nullptr);
+  const bool* ks = SDL_GetKeyboardState(nullptr);
+  auto k = [&](SDL_Scancode sc) { return ks[sc] || scriptKeys_[sc]; };   // real keyboard or a test script's held key
   if (g.mode == Mode::Play) {
-    if (k[SDL_SCANCODE_A] || k[SDL_SCANCODE_LEFT]) in.move.x -= 1;
-    if (k[SDL_SCANCODE_D] || k[SDL_SCANCODE_RIGHT]) in.move.x += 1;
-    if (k[SDL_SCANCODE_W] || k[SDL_SCANCODE_UP]) in.move.y -= 1;
-    if (k[SDL_SCANCODE_S] || k[SDL_SCANCODE_DOWN]) in.move.y += 1;
+    if (k(SDL_SCANCODE_A) || k(SDL_SCANCODE_LEFT)) in.move.x -= 1;
+    if (k(SDL_SCANCODE_D) || k(SDL_SCANCODE_RIGHT)) in.move.x += 1;
+    if (k(SDL_SCANCODE_W) || k(SDL_SCANCODE_UP)) in.move.y -= 1;
+    if (k(SDL_SCANCODE_S) || k(SDL_SCANCODE_DOWN)) in.move.y += 1;
     if (stick_.on) {
       Vec2 d = stick_.cur - stick_.start;
       float l = len(d);
@@ -814,7 +816,7 @@ Input View::input(Game& g) {
       if (l > 34) stick_.start += d * ((l - 34) / l);
     }
     // gamepad-like hold: attack repeats while held on keyboard
-    if (k[SDL_SCANCODE_J] || k[SDL_SCANCODE_SPACE]) in.attack = true;
+    if (k(SDL_SCANCODE_J) || k(SDL_SCANCODE_SPACE)) in.attack = true;
     for (auto& f : fingers_) if (f.on && f.button == B_ATTACK && g.interactTarget() < 0) in.attack = true;
   }
   if (kAttack_) { in.attack = true; }

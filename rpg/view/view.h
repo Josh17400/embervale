@@ -41,6 +41,8 @@ class View {
   bool wantsQuit = false;
   bool wantNewGame = false, wantContinue = false, wantSave = false;
   bool touchUI = false;                  // show on-screen controls
+  // test scripts (--script): hold a key as if it were physically down; one-shot presses go through event()
+  void scriptHold(int scancode, bool down) { if (scancode >= 0 && scancode < 512) scriptKeys_[scancode] = down; }
 
  private:
   Pix* pix_ = nullptr;
@@ -114,6 +116,7 @@ class View {
   float combatT_ = 0;
 
   // ---- input state
+  bool scriptKeys_[512] = {};   // indexed by SDL_Scancode (SDL_SCANCODE_COUNT is 512)
   bool kAttack_ = false, kBow_ = false, kSpell_ = false, kRoll_ = false, kUse_ = false, kPotion_ = false, kSwap_ = false;
   struct Finger { uint64_t id = 0; bool on = false; Vec2 start, cur; int button = -1; };
   Finger stick_;

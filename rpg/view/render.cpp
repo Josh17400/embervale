@@ -141,7 +141,7 @@ void View::spawnParticles(const Event& e, Game& g) {
     Particle q; q.p = p; q.life = q.max = life; q.kind = 1; q.fx = (int)f; parts_.push_back(q);
   };
   switch (e.type) {
-    case Ev::Sfx: audio_->play((Sfx)e.a, e.f); break;
+    case Ev::Sfx: audio_->play((Sfx)e.a, e.f, e.vol); break;
     case Ev::Hit:
       for (int i = 0; i < 6; i++) add(e.p, Vec2(r.range(-70, 70), r.range(-80, 20)), 0.25f, Color(1, 1, 0.85f), 1, 200);
       break;
@@ -165,8 +165,15 @@ void View::spawnParticles(const Event& e, Game& g) {
       banner_ = "DISCOVERED"; bannerSub_ = e.s; bannerT_ = 4.0f;
       break;
     case Ev::LevelUp:
-      banner_ = "LEVEL UP"; bannerSub_ = "LEVEL " + std::to_string(e.a) + "  -  CHOOSE A STAT IN THE MENU"; bannerT_ = 4.0f;
-      for (int i = 0; i < 24; i++) { float a = i / 24.0f * TAU; add(e.p + Vec2(0, -10), Vec2(std::cos(a) * 60, std::sin(a) * 40), 0.9f, Color(1, 0.85f, 0.3f), 1.5f, 0); }
+      banner_ = "LEVEL UP"; bannerSub_ = "LEVEL " + std::to_string(e.a) + "  -  CHOOSE A STAT IN THE MENU"; bannerT_ = 4.5f;
+      // a bigger moment: a layered fanfare, two rings of light and a column of rising sparks
+      audio_->play(Sfx::LevelUp, 0.5f, 1.2f);
+      audio_->play(Sfx::QuestDone, 1.5f, 0.8f);
+      audio_->play(Sfx::Discover, 0.75f, 0.7f);
+      for (int i = 0; i < 32; i++) { float a = i / 32.0f * TAU; add(e.p + Vec2(0, -10), Vec2(std::cos(a) * 75, std::sin(a) * 48), 1.0f, Color(1, 0.85f, 0.3f), 2.0f, 0); }
+      for (int i = 0; i < 20; i++) { float a = i / 20.0f * TAU; add(e.p + Vec2(0, -10), Vec2(std::cos(a) * 38, std::sin(a) * 24), 0.8f, Color(1, 1, 0.8f), 1.0f, 0); }
+      for (int i = 0; i < 26; i++) add(e.p + Vec2(r.range(-9, 9), r.range(-4, 2)), Vec2(r.range(-6, 6), r.range(-90, -40)), r.range(0.8f, 1.4f), Color(1, r.range(0.75f, 0.95f), 0.35f), 1, -20);
+      shake_ = std::max(shake_, 3.0f);
       break;
     case Ev::QuestUpdate: {
       Toast t; t.s = e.s; t.c = e.f == 1 ? Color(1, 0.85f, 0.3f) : Color(0.9f, 0.85f, 0.7f); toasts_.push_back(t);
@@ -464,13 +471,18 @@ void View::drawWorld(Game& g) {
             case AState::Windup: fr = 4; break;
             case AState::Strike: fr = 5; break;
             case AState::Hurt: fr = 6; break;
-            case AState::Dead: fr = 7; break;
+            case AState::Dead: case AState::Down: fr = 7; break;
             default: fr = (int)(a.animT * 3) % 2; break;
           }
           if (a.fly && a.mon == Monster::Dragon) fr = (int)(a.animT * 6) % 4;
           bool flip = a.aim.x < 0;
           float lift = a.fly ? 34 + std::sin(a.animT * 3) * 3 : (a.flying && a.st != AState::Dead ? 6 + std::sin(a.animT * 6) * 2 : 0);
           float x = a.p.x - cw / 2.0f - cam.x, y = a.p.y - chh + 2 - lift - cam.y;
+          // collapsed bones rattle harder as they are about to stand back up
+          if (a.st == AState::Down && a.stT > 1.2f) x += std::sin(t_ * 60) * std::min(2.0f, (a.stT - 1.2f) * 1.5f);
+          // a heavy windup rears back; a wolf crouches before the lunge
+          if (a.st == AState::Windup && a.heavy) y -= std::min(3.0f, a.stT * 6);
+          if (a.st == AState::Windup && a.lunge) y += 1;
           P.blitEx(t, fr * cw, 0, cw, chh, x, y, (float)cw, (float)chh, flip, Color(1, a.slowT > 0 ? 0.85f : 1, a.slowT > 0 ? 1 : 1, alpha));
           if (a.slowT > 0) P.blitEx(t, fr * cw, 0, cw, chh, x, y, (float)cw, (float)chh, flip, Color(0.2f, 0.4f, 0.7f, 0.5f), 1);
           if (flash > 0) P.blitEx(t, fr * cw, 0, cw, chh, x, y, (float)cw, (float)chh, flip, Color(1, 1, 1, flash), 1);
@@ -492,11 +504,44 @@ void View::drawWorld(Game& g) {
         if (a.hostile && a.st == AState::Windup && a.mon != Monster::Dragon) {
           float lift = a.human ? 30.0f : art::monsterCellH(a.mon) + 6.0f;
           float pulse = 0.6f + 0.4f * std::sin(t_ * 30);
-          P.rect(a.p.x - 1 - cam.x, a.p.y - lift - cam.y, 2, 5, Color(1, 0.3f, 0.2f, pulse));
-          P.rect(a.p.x - 1 - cam.x, a.p.y - lift + 6 - cam.y, 2, 2, Color(1, 0.3f, 0.2f, pulse));
+          if (a.heavy) {
+            // heavy slam: a ground ring that fills in as the blow comes, and a double "!!" - roll out (or through)
+            float wu = a.mon == Monster::Troll ? 0.9f : 0.8f;
+            float k = clampf(a.stT / wu, 0, 1);
+            Vec2 c = a.p + a.aim * 10.0f;
+            float r = 26.0f + a.radius;
+            int seg = 44;
+            for (int i = 0; i < seg; i++) {   // the danger zone: a solid outline...
+              float an = i * TAU / seg;
+              float px = c.x + std::cos(an) * r - cam.x, py = c.y + std::sin(an) * r * 0.55f - cam.y;
+              P.rect(px - 1, py - 1, 2, 2, Color(1, 0.22f, 0.12f, 0.55f + 0.45f * k));
+            }
+            for (float ir = 4; ir < r * k; ir += 4) {   // ...that fills from the middle as the blow comes
+              int n = std::max(8, (int)(ir * 1.2f));
+              for (int i = 0; i < n; i++) {
+                float an = i * TAU / n;
+                P.rect(c.x + std::cos(an) * ir - cam.x, c.y + std::sin(an) * ir * 0.55f - cam.y, 1, 1, Color(1, 0.35f, 0.2f, 0.25f + 0.3f * k));
+              }
+            }
+            Color rc(1, 0.2f + 0.3f * k, 0.15f, pulse);
+            P.rect(a.p.x - 4 - cam.x, a.p.y - lift - 2 - cam.y, 2, 6, rc);
+            P.rect(a.p.x - 4 - cam.x, a.p.y - lift + 5 - cam.y, 2, 2, rc);
+            P.rect(a.p.x + 2 - cam.x, a.p.y - lift - 2 - cam.y, 2, 6, rc);
+            P.rect(a.p.x + 2 - cam.x, a.p.y - lift + 5 - cam.y, 2, 2, rc);
+          } else {
+            Color tc = a.lunge ? Color(1, 0.65f, 0.2f, pulse) : Color(1, 0.3f, 0.2f, pulse);
+            P.rect(a.p.x - 1 - cam.x, a.p.y - lift - cam.y, 2, 5, tc);
+            P.rect(a.p.x - 1 - cam.x, a.p.y - lift + 6 - cam.y, 2, 2, tc);
+            if (a.lunge) {   // a short streak showing where the lunge will go
+              for (int i = 1; i <= 4; i++) {
+                Vec2 q = a.p + Vec2(0, -3) + a.aim * (6.0f + i * 5.0f);
+                P.rect(q.x - cam.x, q.y - cam.y, 1, 1, Color(1, 0.65f, 0.2f, 0.5f - i * 0.08f));
+              }
+            }
+          }
         }
         // health bar for damaged enemies
-        if (a.hostile && a.st != AState::Dead && a.hp < a.maxHp && !a.boss) {
+        if (a.hostile && a.st != AState::Dead && a.st != AState::Down && a.hp < a.maxHp && !a.boss) {
           float lift = a.fly ? 34 : 0;
           float bw = 16, x = a.p.x - bw / 2 - cam.x, y = a.p.y - (a.human ? 26 : art::monsterCellH(a.mon) + 2) - lift - cam.y;
           P.rect(x - 1, y - 1, bw + 2, 4, Color(0.05f, 0.03f, 0.05f, 0.8f));

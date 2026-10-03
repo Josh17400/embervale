@@ -27,6 +27,12 @@ enum class MapKind : uint8_t { Overworld, Cave, Ruin, Interior };
 enum class SiteType : uint8_t { City, Town, Village, Cave, Ruin, BanditCamp, Shrine, DragonLair, COUNT };
 const char* siteTypeName(SiteType t);
 
+// World-generator versions (see the rule at the top of world.cpp). A world is always regenerated from
+// (seed, genVersion), and saves store both, so a save keeps the exact world it was made in.
+constexpr int WORLDGEN_V1 = 1;       // the original generator: every save before SAVE_VER 2
+constexpr int WORLDGEN_V2 = 2;       // + wilderness dens (Gen::dens, own "dens" stream)
+constexpr int WORLDGEN_LATEST = 2;   // what new games use; bump when generator output changes, gating the change on it
+
 enum class Role : uint8_t { Villager, Guard, Merchant, Smith, Innkeeper, Priest, Jarl, Farmer, Child, Mage, Bandit, COUNT };
 
 struct Bldg {
@@ -36,6 +42,7 @@ struct Bldg {
   uint32_t seed = 0;
   int site = -1;
   Role owner = Role::Villager;   // who lives/works here
+  int genVer = WORLDGEN_LATEST;  // generator version of the world it belongs to (gates genInterior changes)
   int doorX() const { return r.x + r.w / 2; }
   int doorY() const { return r.y + r.h - 1; }
 };
@@ -52,6 +59,7 @@ struct Site {
   uint32_t seed = 0;
   bool mainQuest = false; // one of the ancient ruins holding an Ember Shard
   art::Monster theme = art::Monster::Spider;   // dungeon inhabitants
+  int genVer = WORLDGEN_LATEST;  // generator version of the world it belongs to (gates genCave/genRuin changes)
 };
 
 // Something to populate when a map becomes active (deterministic per map).
@@ -64,6 +72,15 @@ struct Spawn {
   bool bandit = false;   // human enemy (mon ignored)
   int site = -1;
   int slot = 0;          // stable identity within the map (names/looks/quests derive from it)
+};
+
+// A wilderness den (WORLDGEN_V2+): the home of a wild pack. Its props (bones, boulders, a chest...) are on the
+// overworld prop layer; the pack spawns here when the player comes near and walks back here when it loses them.
+// Index = identity (Game::killedSlots[-1] records cleared dens by index).
+struct Den {
+  int x = 0, y = 0;                        // centre tile
+  art::Monster mon = art::Monster::Wolf;   // who lives here
+  uint8_t pack = 3;                        // members at full strength (trimmed near the start village)
 };
 
 // A placed object on a tile (props layer). Buildings are separate.
@@ -96,17 +113,24 @@ bool propSolid(art::Prop p);
 
 struct World {
   uint64_t seed = 0;
+  int genVersion = WORLDGEN_LATEST;   // generator version this world was built with
   Map over;
   std::vector<Site> sites;
   int startSite = 0;      // village the player starts near
   int capital = 0;        // city with the jarl who gives the main quest
   int lair = -1;
   std::vector<std::pair<int, int>> gates;   // city gatehouses: left tile of a 3-wide opening in a horizontal wall run
-  void generate(uint64_t seed);
+  std::vector<Den> dens;                    // empty before WORLDGEN_V2
+  void generate(uint64_t seed, int genVer = WORLDGEN_LATEST);
+  uint32_t fingerprint() const;   // hash of site and building identity (names, places, indices): detects a reshuffled world
   int siteAt(int tx, int ty, int pad = 0) const;
   int nearestSite(int tx, int ty, SiteType t, int exclude = -1) const;
   int zoneLevel(int tx, int ty) const;
 };
+
+// Independent RNG seed for one generator feature: hash of the world seed and a feature tag such as "dens".
+// Features added after WORLDGEN_V1 draw from their own stream so they never shift any other feature's randomness.
+uint64_t genSubSeed(uint64_t seed, const char* feature);
 
 // sub-levels (caves, ruins, interiors) are generated deterministically from their seed
 void genCave(Map& m, const Site& s, uint32_t seed);

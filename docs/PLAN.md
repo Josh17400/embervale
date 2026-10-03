@@ -212,3 +212,44 @@ Steps (the owner creates the repo and sets the secrets; agents never touch secre
 - Feel tasks (2): the bot metrics table, plus a playtester session on feel.
 - iOS (7): a device run of the checklist above. A build number that matches the GitHub run number shows in
   the System tab, as in The Fort.
+
+## Progress
+
+**2026-10-03: tasks 1, 8 and 2 are done.** On MSVC, `rpg_test --seeds 1..20` passes 20/20, `save_test` prints ALL OK, and both example scripts exit 0 with no failures.
+
+- **Task 1 (harness):**
+  - `embervale --script file.txt` sends real key, mouse and touch input. It adds `walkto`, `expect`, `goto`, `fight`, `talk`, `hour` and `shot`, never saves, and exits 3 on any failure. The examples are `tools/scripts/inn.txt` and `fight.txt`.
+  - `rpg_test --seeds A..B` runs a range, with a repetition audit. Today's baseline over seeds 1..20:
+    - POI kinds within 60 tiles: average 3.4, minimum 2 (target 8).
+    - Settlement shapes: 46 % distinct.
+    - Greetings: 72 % distinct.
+    - Largest group of identical buildings: 23 on average.
+- **Task 8 (versioning):**
+  - `SAVE_VER` is 2. The loader still reads v1. Saves record the world-gen version and a world fingerprint.
+  - `WORLDGEN_LATEST` is 2: dens, gated on `ver >= 2`, using their own RNG stream.
+  - `tools/save_test` loads the checked-in v1 fixture (`tests/fixtures/save_v1.bin`), checks it field by field, round-trips v2 saves and rejects corrupt ones.
+  - Old saves keep their v1 world, which has no dens.
+- **Task 2 (feel and balance):**
+  - Per-species behaviour:
+    - wolves flank and lunge;
+    - goblins surround, then flee;
+    - skeletons can reassemble;
+    - archers keep their distance;
+    - bears and trolls telegraph a slam that the player rolls through.
+  - About 60 dens per world, with leash and reset. A cleared den gives XP and stays empty for 3 days.
+  - Feedback: a stamina flash, perfect-roll slow motion, a pickup sound and a bigger level-up.
+  - Rebalanced HP regen, XP curve and monster scaling.
+  - `rpg_test --metrics` gives:
+    - first level-up at 2.6 min;
+    - level 5 at about 32 min;
+    - 3 wolves kill a potionless player 10 to 26 % of the time;
+    - 3 to 4.5 hits to kill a wolf, boar, goblin or skeleton, and about 11 for a bear or troll.
+- **CI:** `web.yml` now runs `rpg_test --seeds 1..20` on Linux. `save_test` runs there as a non-blocking step, because the fixture's world hashes were recorded with MSVC and may differ under glibc's libm. Make it blocking once it is green.
+
+**Remaining:**
+- The bot still dies about 6 times per 40 minutes, because it wanders into camps and over-levelled zones. Its routing needs work.
+- Potion prices are untouched.
+- Dens don't count toward the POI audit yet.
+- The "scripted playthrough passes on 5 seeds" check and the Windows `ci.yml` are not wired up.
+- No Emscripten build was run locally (no emsdk or clang on this PC). Code was reviewed by hand, and the next push's `web.yml` is the real check.
+- Tasks 3 to 7 are untouched. The repetition-audit numbers above are their baseline.

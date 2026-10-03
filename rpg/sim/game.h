@@ -18,7 +18,8 @@ struct Input {
   bool attack = false, bow = false, spell = false, roll = false, interact = false, potion = false, swapSpell = false;
 };
 
-enum class AState : uint8_t { Idle, Walk, Windup, Strike, Recover, Roll, Hurt, Dead, Cast };
+// Down: a skeleton that has collapsed and may reassemble (a hit while it is down finishes it)
+enum class AState : uint8_t { Idle, Walk, Windup, Strike, Recover, Roll, Hurt, Dead, Cast, Down };
 
 enum class Spell : uint8_t { Flames, Heal, IceSpike, COUNT };
 const char* spellName(Spell s);
@@ -55,6 +56,15 @@ struct Actor {
   bool fly = false;        // dragon in the air
   float special = 0;       // ability timer
   bool dropped = false;
+  // behaviour sets (game feel)
+  bool heavy = false;      // the current windup is a heavy, roll-through attack (bears, trolls)
+  bool lunge = false;      // the current strike is a wolf lunge (hits on contact while it travels)
+  bool fleeing = false;    // goblins run at low health
+  bool reassembled = false;   // skeletons get back up at most once
+  int den = -1;            // World::dens index this pack member belongs to
+  int atkN = 0;            // attacks made (heavy-attack cadence)
+  int8_t orbitDir = 1;     // wolves: circling direction
+  float lastHitT = -99;    // Game::time this actor last took damage (troll regen pauses)
 };
 
 enum class ProjKind : uint8_t { Arrow, Fireball, IceSpike, Spit, Magic, DragonFire };
@@ -73,6 +83,7 @@ struct Pickup {
   Item item;
   int gold = 0;
   float t = 0;
+  bool magnet = false;     // already flying to the player (sound played)
 };
 
 enum class Ev : uint8_t { Sfx, Hit, Blood, Explode, Sparkle, Dust, Heal, Frost, Text, Discover, LevelUp, QuestUpdate, Shake, MapChange, Notice };
@@ -82,6 +93,7 @@ struct Event {
   int a = 0;          // Sfx id / colour / amount
   float f = 1;        // pitch / magnitude
   std::string s;
+  float vol = 1;      // Sfx volume
 };
 
 enum class QType : uint8_t { Main, Clear, Hunt, Retrieve, Bounty };
@@ -117,7 +129,7 @@ struct ShopState {
 class Game {
  public:
   explicit Game(uint64_t seed = 1);
-  void newGame(uint64_t seed);
+  void newGame(uint64_t seed, int genVer = WORLDGEN_LATEST);   // genVer: world-generator version (old saves pass theirs)
   void update(float dt, const Input& in);
 
   // --- world & level
@@ -156,6 +168,9 @@ class Game {
   int lastTown = -1;           // respawn point
   float sleepFade = 0;         // view: fade-out when resting/travelling
   float hitStop = 0;           // brief freeze on heavy hits (game feel)
+  float slowMo = 0;            // perfect-roll / level-up slow motion left (real seconds; sim runs at 30 %)
+  float stFlash = 0;           // view: flash the stamina bar (tried to act with too little stamina)
+  float lastHurtT = -99;       // time the player last took damage (out-of-combat regen)
 
   // quests
   std::vector<Quest> quests;
@@ -189,7 +204,8 @@ class Game {
   bool nearDoorOrExit() const;
   float armorRating() const;
   float weaponDamage() const;
-  int xpForNext() const { return 60 + (plLevel - 1) * 45 + (plLevel - 1) * (plLevel - 1) * 6; }
+  // first level in ~4 min, level 5 in ~30 (PLAN.md targets; measured by rpg_test --metrics)
+  int xpForNext() const { return 120 + (plLevel - 1) * 100 + (plLevel - 1) * (plLevel - 1) * 14; }
   const Quest* questById(int id) const;
   bool questTarget(int qid, int& tx, int& ty) const;   // overworld tile of the tracked quest's objective
   uint64_t npcKey(const Actor& a) const;
@@ -198,11 +214,14 @@ class Game {
 
   // persistence
   void serialize(std::vector<uint8_t>& out) const;
-  bool deserialize(const std::vector<uint8_t>& in);
+  bool deserialize(const std::vector<uint8_t>& in);   // reads every SAVE_VER from 1 up
+  bool worldChanged = false;   // set by deserialize: the regenerated world's fingerprint differs from the saved one
 
   // test helpers
   bool godMode = false;
+  bool noWildSpawns = false;           // metrics arenas: no roaming spawns or dens
   void debugSpawn(art::Monster m, int n, float dist);
+  int debugSpawnAt(art::Monster m, Vec2 at, int level);   // returns the actor id (already aggro)
 
  private:
   int nextId_ = 1;
@@ -216,6 +235,12 @@ class Game {
   Vec2 freeSpot(int tx, int ty) const;
   void placePlayerAt(int tx, int ty);
   std::set<int> activeSites_;
+  std::set<int> activeDens_;
+  float denT_ = 0;
+  bool perfectRoll_ = false;   // this roll already earned its slow-mo blip
+  void updateDens(int ptx, int pty);
+  int denClearedDay(int den) const;    // -1 = not cleared
+  void heavySlam(Actor& a);
   Rng rng_;
   void emit(Ev t, Vec2 p, int a = 0, float f = 1, const std::string& s = "") { events.push_back({t, p, a, f, s}); }
   void sfx(int s, Vec2 p, float pitch = 1, float vol = 1);
@@ -232,6 +257,7 @@ class Game {
   void updateLocation();
   void moveActor(Actor& a, Vec2 delta);
   bool solidAt(float x, float y, bool flying) const;
+  bool bodyFree(Vec2 p, float r, bool flying) const;   // an actor of radius r fits here (moveActor's box)
   void meleeHit(Actor& a);
   void damage(Actor& victim, float dmg, Vec2 from, int attacker, Ench ench = Ench::None, float enchPow = 0, bool crit = false);
   void kill(Actor& a, int killer);
