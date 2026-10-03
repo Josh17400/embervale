@@ -1,0 +1,10 @@
+{
+  "name": "Embervale",
+  "short_name": "Embervale",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#08060c",
+  "theme_color": "#08060c",
+  "icons": [{ "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }]
+}

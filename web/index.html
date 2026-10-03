@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Embervale">
+<meta name="theme-color" content="#08060c">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" type="image/png" href="./apple-touch-icon.png">
+<link rel="manifest" href="./manifest.json">
+<title>Embervale</title>
+<style>
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #08060c; overflow: hidden;
+               touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  canvas { display: block; outline: none; image-rendering: pixelated; }
+  #status { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #f5d58c; font: 600 16px/1.4 -apple-system, system-ui, sans-serif; letter-spacing: 2px; text-align: center; pointer-events: none; }
+  #status small { color: #9a8f80; font-weight: 400; letter-spacing: 1px; margin-top: 8px; }
+  #rotate { display: none; position: fixed; inset: 0; z-index: 10; background: #08060c; color: #f5d58c;
+            align-items: center; justify-content: center; text-align: center; font: 600 18px/1.5 -apple-system, system-ui, sans-serif; }
+  @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
+</style>
+</head>
+<body>
+<div id="status">EMBERVALE<small id="sub">forging the world...</small></div>
+<div id="rotate">Turn your phone sideways<br>to play Embervale</div>
+<canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+<script>
+  var Module = {
+    canvas: document.getElementById('canvas'),
+    // saves live in IndexedDB: mount it at /save and load it before the game starts
+    preRun: [function () {
+      FS.mkdir('/save');
+      FS.mount(IDBFS, {}, '/save');
+      addRunDependency('syncfs');
+      FS.syncfs(true, function (err) {
+        if (err) console.log('save load failed', err);
+        removeRunDependency('syncfs');
+      });
+    }],
+    onRuntimeInitialized: function () { document.getElementById('status').style.display = 'none'; },
+    setStatus: function (t) { if (t) document.getElementById('sub').textContent = t.toLowerCase(); },
+    print: function (t) { console.log(t); },
+    printErr: function (t) { console.warn(t); }
+  };
+  // iOS: stop page bounce / pinch zoom from fighting the game's touch controls
+  document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+  document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+</script>
+<script async src="embervale.js"></script>
+</body>
+</html>

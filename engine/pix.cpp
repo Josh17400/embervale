@@ -10,7 +10,11 @@ constexpr int kCols = 16, kRows = 6;
 }  // namespace
 
 bool Pix::init(const char* title, int winW, int winH, bool vsync) {
-  if (!SDL_CreateWindowAndRenderer(title, winW, winH, SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY, &win_, &ren_)) {
+  SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+#ifdef __EMSCRIPTEN__
+  flags |= SDL_WINDOW_FILL_DOCUMENT;   // the canvas takes the whole page and follows the browser size
+#endif
+  if (!SDL_CreateWindowAndRenderer(title, winW, winH, flags, &win_, &ren_)) {
     SDL_Log("window/renderer failed: %s", SDL_GetError());
     return false;
   }
@@ -72,6 +76,41 @@ void Pix::blitRegion(const Tex& t, int sx, int sy, int sw, int sh, float dx, flo
   SDL_FRect s{(float)sx, (float)sy, (float)sw, (float)sh};
   SDL_FRect d{std::floor(dx), std::floor(dy), (float)sw, (float)sh};
   SDL_RenderTexture(ren_, t.t, &s, &d);
+}
+
+void Pix::blitEx(const Tex& t, int sx, int sy, int sw, int sh, float dx, float dy, float dw, float dh, bool flipX, Color tint, int blend) {
+  if (!t.t) return;
+  static const SDL_BlendMode modes[] = {SDL_BLENDMODE_BLEND, SDL_BLENDMODE_ADD, SDL_BLENDMODE_MOD, SDL_BLENDMODE_MUL};
+  SDL_SetTextureBlendMode(t.t, modes[blend & 3]);
+  SDL_SetTextureColorModFloat(t.t, tint.r, tint.g, tint.b);
+  SDL_SetTextureAlphaModFloat(t.t, tint.a);
+  SDL_FRect s{(float)sx, (float)sy, (float)sw, (float)sh};
+  SDL_FRect d{std::floor(dx), std::floor(dy), dw, dh};
+  SDL_RenderTextureRotated(ren_, t.t, &s, &d, 0.0, nullptr, flipX ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
+  if (blend) SDL_SetTextureBlendMode(t.t, SDL_BLENDMODE_BLEND);
+}
+
+Tex Pix::makeTarget(int w, int h) {
+  Tex t;
+  t.t = SDL_CreateTexture(ren_, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, w, h);
+  t.w = w; t.h = h;
+  if (t.t) { SDL_SetTextureScaleMode(t.t, SDL_SCALEMODE_LINEAR); owned_.push_back(t.t); }
+  return t;
+}
+void Pix::setTarget(const Tex* t) { SDL_SetRenderTarget(ren_, t ? t->t : nullptr); }
+Tex Pix::makeStream(int w, int h) {
+  Tex t;
+  t.t = SDL_CreateTexture(ren_, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, w, h);
+  t.w = w; t.h = h;
+  if (t.t) { SDL_SetTextureScaleMode(t.t, SDL_SCALEMODE_NEAREST); SDL_SetTextureBlendMode(t.t, SDL_BLENDMODE_BLEND); owned_.push_back(t.t); }
+  return t;
+}
+void Pix::updateStream(const Tex& t, const uint32_t* px) { if (t.t) SDL_UpdateTexture(t.t, nullptr, px, t.w * 4); }
+void Pix::destroy(Tex& t) {
+  if (!t.t) return;
+  for (size_t i = 0; i < owned_.size(); i++) if (owned_[i] == t.t) { owned_.erase(owned_.begin() + i); break; }
+  SDL_DestroyTexture(t.t);
+  t.t = nullptr;
 }
 
 void Pix::rect(float x, float y, float w, float h, Color c) {

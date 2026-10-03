@@ -1,3 +1,5 @@
-build/
+build*/
+site/
 *.png
+!web/*.png
 !assets/**/*.png

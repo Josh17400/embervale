@@ -1,0 +1,59 @@
+# Builds the web version (Emscripten -> WebAssembly) and publishes it on GitHub Pages,
+# the same way The Fort is served: open the Pages URL in Safari, Share > Add to Home Screen.
+name: Web build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Headless game tests
+        run: |
+          cmake -S . -B build-native -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-native --target rpg_test -j4
+          for s in 1 7 99 12345; do ./build-native/rpg_test $s --secs 60; done
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+
+      - name: Build for the web
+        run: |
+          emcmake cmake -S . -B build-web -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-web --target embervale -j4
+
+      - name: Assemble site
+        run: |
+          mkdir -p site
+          cp web/* site/
+          cp build-web/embervale.js build-web/embervale.wasm site/
+          ls -la site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

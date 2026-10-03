@@ -42,10 +42,22 @@ class Pix {
   Tex bake(const Canvas& c);
   void blit(const Tex& t, float x, float y, bool flipX = false, Color tint = Color(1, 1, 1, 1));
   void blitRegion(const Tex& t, int sx, int sy, int sw, int sh, float dx, float dy);
+  // general blit: source region -> dest rect, optional flip, tint/alpha and blend (0 normal, 1 add, 2 mod, 3 mul)
+  void blitEx(const Tex& t, int sx, int sy, int sw, int sh, float dx, float dy, float dw, float dh, bool flipX = false,
+              Color tint = Color(1, 1, 1, 1), int blend = 0);
+  Tex makeTarget(int w, int h);                 // render-target texture
+  void setTarget(const Tex* t);                 // nullptr = back to the screen
+  Tex makeStream(int w, int h);                 // CPU-updatable texture
+  void updateStream(const Tex& t, const uint32_t* px);
+  void destroy(Tex& t);
   void rect(float x, float y, float w, float h, Color c);
   void rectAdd(float x, float y, float w, float h, Color c);
   void frame(float x, float y, float w, float h, Color c);   // 1px outline
   void text(float x, float y, const std::string& s, int scale, Color c, int align = 0);  // 0 left 1 center 2 right
+  void textS(float x, float y, const std::string& s, int scale, Color c, int align = 0) {   // with a 1px drop shadow
+    text(x + scale, y + scale, s, scale, Color(0.02f, 0.02f, 0.04f, c.a * 0.85f), align);
+    text(x, y, s, scale, c, align);
+  }
   int textW(const std::string& s, int scale) const { return (int)s.size() * 6 * scale - scale; }
 
   // streaming minimap texture
