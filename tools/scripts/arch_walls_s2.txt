@@ -1,18 +1,18 @@
 # Architecture lane: walk up to a city gate from outside, through the passage, and look back along the wall inside;
-# then the same spot at dusk and at night. Gate coordinates come from: rpg_test 2 (archChecks prints them).
+# then the same spot at dusk and at night. Gate coordinates come from: rpg_test 2 (archChecks prints them; WORLDGEN_V5 worlds: MISTWATCH gate at 268,314).
 # Run from a scratch directory (screenshots are written to the current directory):
 #   embervale --script tools/scripts/arch_walls_s2.txt
 seed 2
 0 goto city
 0.3 god
 0.5 hour 12
-1 walkto 260 285 60
+1 walkto 269 317 60
 +1 shot arch_s2_out.png
-+0.2 walkto 260 282
++0.2 walkto 269 314
 +0.4 shot arch_s2_passage.png
-+0.2 walkto 260 279
++0.2 walkto 269 311
 +1 shot arch_s2_inside.png
-+0.2 walkto 266 280
++0.2 walkto 265 310 20
 +1 shot arch_s2_along.png
 +0.2 hour 19
 +1.5 shot arch_s2_dusk.png

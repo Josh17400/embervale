@@ -79,6 +79,12 @@ uint32_t View::groundPixel(const Map& m, int px, int py) {
     float wx = px + (vnoise(px / 7.0f, py / 7.0f, 11) - 0.5f) * amp + (hashf(px, py, 3) - 0.5f) * 1.5f;
     float wy = py + (vnoise(px / 7.0f, py / 7.0f, 23) - 0.5f) * amp + (hashf(px, py, 5) - 0.5f) * 1.5f;
     Ground w = m.at((int)std::floor(wx / 16), (int)std::floor(wy / 16));
+    if ((w == Ground::Rock) != (real == Ground::Rock)) {
+      // a rock outcrop's outline: the smooth warp only (the per-pixel jitter made rock edges a fuzzy smudge)
+      wx = px + (vnoise(px / 7.0f, py / 7.0f, 11) - 0.5f) * amp;
+      wy = py + (vnoise(px / 7.0f, py / 7.0f, 23) - 0.5f) * amp;
+      w = m.at((int)std::floor(wx / 16), (int)std::floor(wy / 16));
+    }
     if (w == Ground::Void && m.kind == MapKind::Overworld) w = Ground::DeepWater;
     if (natural(w) && !(isWall(w) != isWall(real) && m.kind != MapKind::Overworld)) { g = w; sx = (int)std::floor(wx); sy = (int)std::floor(wy); }
   } else if (real == Ground::Road || real == Ground::Farmland) {
@@ -86,6 +92,203 @@ uint32_t View::groundPixel(const Map& m, int px, int py) {
     float wx = px + (vnoise(px / 5.0f, py / 5.0f, 31) - 0.5f) * 4.0f, wy = py + (vnoise(px / 5.0f, py / 5.0f, 37) - 0.5f) * 4.0f;
     Ground w = m.at((int)std::floor(wx / 16), (int)std::floor(wy / 16));
     if (soft(w) && !groundWater(w)) g = w;
+  }
+  // ruins and crypts (M0 round 3): the built rooms and corridors are walled in dressed stone on every side. A wall
+  // tile touching the floor gets a masonry face where the floor lies south of it (lit coping lip, block courses
+  // darkening to the foot), a coping band along the wall top on every edge that meets the floor (west, east, north
+  // and the corners), and the floor takes the west wall's cast shadow (light from the top-left). Before, the brick
+  // floor ended in a straight cut against cave rock with only a brown earthen strip along some north edges.
+  if (m.kind == MapKind::Ruin && (real == Ground::CaveWall || real == Ground::StoneFloor)) {
+    auto fl = [&](int x, int y) { Ground q = m.at(x, y); return !isWall(q); };
+    const int lx = px & 15, ly = py & 15;
+    if (real == Ground::StoneFloor) {
+      int row = py / 8, shift = (row & 1) * 4, col = (px + shift) / 8;
+      bool line = ((px + shift) % 8 == 0) || (py % 8 == 0);
+      uint32_t c = line ? C(58, 56, 62) : lerpc(C(96, 94, 104), C(116, 112, 122), hashf(col, row, 231));
+      if (!line && hashf(px, py, 13) < 0.03f) c = C(80, 78, 86);
+      // the west wall's cast shadow (a cool band), and the corner where it meets the north wall
+      int sw = !fl(tx - 1, ty) ? 4 - lx : (!fl(tx - 1, ty - 1) && !fl(tx, ty - 1) ? 0 : -1);
+      if (sw > 0) c = lerpc(mul(c, 0.66f + (4 - sw) * 0.06f), C(40, 30, 70), 0.18f);
+      return c;
+    }
+    const bool fS = fl(tx, ty + 1), fN = fl(tx, ty - 1), fW = fl(tx - 1, ty), fE = fl(tx + 1, ty);
+    const bool fNW = fl(tx - 1, ty - 1), fNE = fl(tx + 1, ty - 1), fSW = fl(tx - 1, ty + 1), fSE = fl(tx + 1, ty + 1);
+    if (fS || fN || fW || fE || fNW || fNE || fSW || fSE) {
+      const int FH = 12, RB = 6;   // face height, coping band width
+      // the masonry face of a wall with the floor south of it
+      if (fS && ly >= 16 - FH) {
+        const int k = ly - (16 - FH);          // 0 at the lip .. FH-1 at the foot
+        const int crs = (k + 1) / 4, kk = (k + 1) % 4;
+        const int off = (crs & 1) * 5;
+        const bool joint = kk == 0 || ((px + off) % 10 == 0);
+        float t = k / (float)(FH - 1);
+        uint32_t c = lerpc(C(132, 126, 136), C(72, 68, 80), t);
+        c = mul(c, 0.94f + hashf((px + off) / 10, crs + ty * 7, 611) * 0.12f);
+        if (joint) c = mul(c, 0.62f);
+        else if (kk == 1) c = mul(c, 1.08f);                                    // each block's lit upper edge
+        if (k == 0) c = C(178, 170, 176);                                       // the coping's lit lip
+        if (k >= FH - 2) c = mul(c, 0.72f);                                     // contact shade at the foot
+        // the face ends cleanly where the wall turns: a lit edge at its west end, a shaded one at its east end
+        if (lx == 0 && !fl(tx - 1, ty) && fl(tx - 1, ty + 1) == false) c = mul(c, 1.18f);
+        if (lx == 0 && fW) c = mul(c, 1.25f);
+        if (lx == 15 && fE) c = mul(c, 0.7f);
+        if (hashf(px, py, 613) < 0.02f) c = mul(c, 0.85f);                      // chips
+        return c;
+      }
+      // the coping on the wall top along every edge that meets the floor
+      int dEdge = 99;   // px from the nearest floor-side edge of this tile's top
+      bool lit = false;
+      if (fS) { int d = (16 - FH) - 1 - ly; if (d < dEdge) { dEdge = d; lit = false; } }
+      if (fN) { if (ly < dEdge) { dEdge = ly; lit = true; } }
+      if (fW) { if (lx < dEdge) { dEdge = lx; lit = true; } }
+      if (fE) { if (15 - lx < dEdge) { dEdge = 15 - lx; lit = false; } }
+      if (fNW && !fN && !fW) { int d = std::max(lx, ly); if (d < dEdge) { dEdge = d; lit = true; } }
+      if (fNE && !fN && !fE) { int d = std::max(15 - lx, ly); if (d < dEdge) { dEdge = d; lit = false; } }
+      if (fSW && !fS && !fW) { int d = std::max(lx, 15 - ly); if (d < dEdge) { dEdge = d; lit = true; } }
+      if (fSE && !fS && !fE) { int d = std::max(15 - lx, 15 - ly); if (d < dEdge) { dEdge = d; lit = false; } }
+      if (dEdge < RB) {
+        // dressed coping stones 8 px long, a joint between them, lit on the floor-facing rim (west and north)
+        bool alongX = (fN || fS) && !(fW || fE);
+        int a = alongX ? px : py;
+        uint32_t c = lerpc(C(120, 114, 126), C(136, 130, 140), hashf(a / 8, (alongX ? py : px) / 16, 617));
+        if (a % 8 == 0) c = mul(c, 0.7f);
+        if (dEdge == 0) c = lit ? C(164, 158, 166) : C(66, 62, 72);   // the rim over the floor
+        else if (dEdge == 1) c = mul(c, lit ? 1.08f : 0.9f);
+        else if (dEdge >= RB - 1) c = C(40, 36, 44);                  // the back edge, where the rock mass begins
+        return c;
+      }
+      // the rest of a wall tile beside a room: the dark top of the wall mass (no face, no cave rim)
+      uint32_t c = lerpc(C(50, 43, 45), C(60, 52, 52), toneField(px, py, 107));   // as the cave rock beyond
+      c = mul(c, 0.9f + vnoise(px / 9.0f, py / 9.0f, 371) * 0.22f);
+      int tf = tuft(px, py, 377, 0.35f);
+      if (tf == 1) c = mul(c, 0.75f); else if (tf == 2) c = mul(c, 1.2f);
+      return c;
+    }
+  }
+  // caves: the rock is a raised mass with a rounded, wandering outline (a smoothed wall field, like the shorelines),
+  // a dark rubbly top lit along its north-west rim, and a tall south face lit at the lip and falling into shadow at
+  // its foot, where the floor gets a contact shade. Movement stays on the tile grid; only the look is organic.
+  if (m.kind != MapKind::Overworld && (real == Ground::CaveWall || real == Ground::CaveFloor)) {
+    auto wallT = [&](int x, int y) -> float {
+      Ground q = m.at(x, y);
+      return (q == Ground::CaveWall || q == Ground::Rock || q == Ground::Void) ? 1.0f : 0.0f;
+    };
+    auto F = [&](int x, int y) -> float {
+      float fx = (x - 7.5f) / 16.0f, fy = (y - 7.5f) / 16.0f;
+      int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
+      float ax = fx - ix, ay = fy - iy;
+      float a = wallT(ix, iy), b = wallT(ix + 1, iy), c0 = wallT(ix, iy + 1), d = wallT(ix + 1, iy + 1);
+      if (a == b && a == c0 && a == d) return a;
+      float v = (a * (1 - ax) + b * ax) * (1 - ay) + (c0 * (1 - ax) + d * ax) * ay;
+      return v + (vnoise(x / 5.0f, y / 5.0f, 361) - 0.5f) * 0.34f + (vnoise(x / 15.0f, y / 15.0f, 363) - 0.5f) * 0.24f;
+    };
+    const int FH = 12;   // face height, px
+    float n2 = toneField(px, py, 107);
+    float h2 = hashf(px, py, 17);
+    if (F(px, py) > 0.5f) {
+      int k = 0;   // px above the foot of the face (0 = not a face pixel)
+      for (int j = 1; j <= FH; j++) if (F(px, py + j) <= 0.5f) { k = j; break; }
+      if (k) {
+        float t = (k - 1) / (float)(FH - 1);   // 0 at the foot, 1 at the lip
+        uint32_t c = lerpc(C(64, 52, 50), C(124, 106, 94), t);
+        int col = px / 3 + (int)(hash2(px / 3, py / 16, 281) % 2);
+        if ((hash2(col, py / 16, 283) & 3) == 0) c = mul(c, 0.82f);                  // vertical fissures
+        if (((py + (int)(hash2(px / 5, 0, 285) % 3)) % 4) == 0) c = mul(c, 0.9f);    // strata
+        if (k == FH || F(px, py - 1) <= 0.5f) c = C(150, 132, 116);                  // lit lip
+        if (k <= 2) c = mul(c, 0.78f);
+        if (h2 < 0.03f) c = mul(c, 1.15f);
+        return c;
+      }
+      // the top of the rock: dark rubble, lit along the rim that faces the light (north and west)
+      uint32_t c = lerpc(C(50, 43, 45), C(60, 52, 52), n2);
+      c = mul(c, 0.9f + vnoise(px / 9.0f, py / 9.0f, 371) * 0.22f);
+      int tf = tuft(px, py, 377, 0.35f);
+      if (tf == 1) c = mul(c, 0.72f); else if (tf == 2) c = mul(c, 1.25f);
+      // lumps of rock: each lit on its upper-left, shaded on its lower-right
+      float lu = vnoise(px / 4.5f, py / 4.5f, 381), ld = vnoise((px + 2) / 4.5f, (py + 2) / 4.5f, 381);
+      if (lu > 0.66f && ld <= 0.66f) c = mul(c, 1.3f);
+      else if (lu <= 0.66f && ld > 0.66f) c = mul(c, 0.72f);
+      if (F(px, py - 1) <= 0.5f || F(px - 1, py) <= 0.5f) c = C(112, 98, 90);
+      else if (F(px, py - 2) <= 0.5f || F(px - 2, py) <= 0.5f) c = mul(c, 1.35f);
+      return c;
+    }
+    // floor: the cave floor, darker in the contact shade at the foot of a face
+    uint32_t c = pick3(n2, C(70, 62, 58), C(78, 70, 64), C(86, 76, 70));
+    if (h2 < 0.015f) c = C(104, 94, 86);
+    else if (h2 < 0.03f) c = mul(c, 0.8f);
+    if (F(px, py - 1) > 0.5f) c = mul(c, 0.6f);
+    else if (F(px, py - 2) > 0.5f) c = mul(c, 0.7f);
+    else if (F(px, py - 3) > 0.5f) c = mul(c, 0.8f);
+    else if (F(px, py - 4) > 0.5f || F(px - 2, py - 2) > 0.5f) c = mul(c, 0.9f);
+    return c;
+  }
+  // organic shorelines: whether a pixel is water follows a smoothed field (the tile grid's wetness, bilinear between
+  // tile centres, plus two octaves of noise) instead of the tile staircase, so ponds, rivers and coasts have rounded,
+  // wandering banks. shoreV is that field (0 dry .. 1 wet), -1 away from any shore.
+  float shoreV = -1;
+  if (soft(real) && real != Ground::CaveFloor) {
+    float fx = (px - 7.5f) / 16.0f, fy = (py - 7.5f) / 16.0f;
+    int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
+    float ax = fx - ix, ay = fy - iy;
+    auto wet = [&](int x, int y) -> float {
+      Ground q = m.at(x, y);
+      if (q == Ground::Void) return m.kind == MapKind::Overworld ? 1.0f : 0.0f;
+      return groundWater(q) || q == Ground::Bridge ? 1.0f : 0.0f;
+    };
+    float w00 = wet(ix, iy), w10 = wet(ix + 1, iy), w01 = wet(ix, iy + 1), w11 = wet(ix + 1, iy + 1);
+    if (!(w00 == w10 && w00 == w01 && w00 == w11)) {
+      float v = (w00 * (1 - ax) + w10 * ax) * (1 - ay) + (w01 * (1 - ax) + w11 * ax) * ay;
+      v += (vnoise(px / 6.0f, py / 6.0f, 351) - 0.5f) * 0.30f + (vnoise(px / 19.0f, py / 19.0f, 353) - 0.5f) * 0.26f;
+      shoreV = v;
+      bool wetPix = v > 0.5f;
+      if (wetPix && !groundWater(g)) g = Ground::Water;
+      else if (!wetPix && groundWater(g)) {
+        // dry: take the nearest land tile's ground (never a road: built ground keeps its own edge)
+        Ground land = Ground::Void;
+        float bd = 1e9f;
+        for (int oy = -1; oy <= 1; oy++)
+          for (int ox = -1; ox <= 1; ox++) {
+            Ground q = m.at(tx + ox, ty + oy);
+            if (!soft(q) || groundWater(q)) continue;
+            float ddx = (tx + ox) * 16 + 7.5f - px, ddy = (ty + oy) * 16 + 7.5f - py;
+            float d = ddx * ddx + ddy * ddy;
+            if (d < bd) { bd = d; land = q; }
+          }
+        if (land != Ground::Void) { g = land; sx = px; sy = py; }
+      }
+    }
+  }
+  // paved ground (roads, squares) meets soft ground along a smoothed edge too: streets widen and narrow in soft
+  // curves instead of whole-tile steps. paveV is the field (-1 away from an edge).
+  float paveV = -1;
+  if (m.kind == MapKind::Overworld && (real == Ground::Road || real == Ground::Plaza || (soft(real) && !groundWater(real)))) {
+    auto paved = [&](int x, int y) -> float { Ground q = m.at(x, y); return q == Ground::Road || q == Ground::Plaza || q == Ground::Bridge ? 1.0f : 0.0f; };
+    float fx = (px - 7.5f) / 16.0f, fy = (py - 7.5f) / 16.0f;
+    int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
+    float ax = fx - ix, ay = fy - iy;
+    float p00 = paved(ix, iy), p10 = paved(ix + 1, iy), p01 = paved(ix, iy + 1), p11 = paved(ix + 1, iy + 1);
+    if (!(p00 == p10 && p00 == p01 && p00 == p11)) {
+      float v = (p00 * (1 - ax) + p10 * ax) * (1 - ay) + (p01 * (1 - ax) + p11 * ax) * ay;
+      v += (vnoise(px / 5.0f, py / 5.0f, 391) - 0.5f) * 0.26f + (vnoise(px / 13.0f, py / 13.0f, 393) - 0.5f) * 0.18f;
+      paveV = v;
+      bool pv = v > 0.5f;
+      bool isPaved = g == Ground::Road || g == Ground::Plaza;
+      if (pv != isPaved) {
+        // take the ground of the nearest tile of the other kind
+        Ground want = Ground::Void;
+        float bd = 1e9f;
+        for (int oy = -1; oy <= 1; oy++)
+          for (int ox = -1; ox <= 1; ox++) {
+            Ground q = m.at(tx + ox, ty + oy);
+            bool qp = q == Ground::Road || q == Ground::Plaza;
+            if (pv ? !qp : (!soft(q) || groundWater(q))) continue;
+            float ddx = (tx + ox) * 16 + 7.5f - px, ddy = (ty + oy) * 16 + 7.5f - py;
+            float d = ddx * ddx + ddy * ddy;
+            if (d < bd) { bd = d; want = q; }
+          }
+        if (want != Ground::Void) { g = want; sx = px; sy = py; }
+      }
+    }
   }
   float n = toneField(px, py, 101);
   float h = hashf(px, py, 13);
@@ -171,6 +374,7 @@ uint32_t View::groundPixel(const Map& m, int px, int py) {
       if (edgeR) e = std::max(e, 1.0f - (15 - lx) / 6.0f);
       if (edgeU) e = std::max(e, 1.0f - ly / 6.0f);
       if (edgeD) e = std::max(e, 1.0f - (15 - ly) / 6.0f);
+      if (paveV >= 0) e = std::clamp((0.66f - paveV) / 0.16f, 0.0f, 1.0f);   // the smoothed edge, not the tile's
       float wear = vnoise(px / 7.0f, py / 7.0f, 211) * 0.8f + e * 0.75f;
       if (wear > 0.72f) c = earth;
       else if (wear > 0.64f && mortar) c = earth;
@@ -181,6 +385,8 @@ uint32_t View::groundPixel(const Map& m, int px, int py) {
       bool line = ((px + shift) % 8 == 0) || (py % 8 == 0);
       c = line ? C(112, 110, 112) : lerpc(C(160, 158, 156), C(184, 180, 174), hashf(col, row, 221));
       if (!line && h < 0.04f) c = mul(c, 0.88f);
+      // the square's rim: worn flags with earth in the joints, fading into the ground around it
+      if (paveV >= 0 && paveV < 0.6f) c = line ? C(140, 116, 86) : lerpc(c, C(170, 150, 120), 0.35f);
       break;
     }
     case Ground::StoneFloor: {
@@ -199,13 +405,28 @@ uint32_t View::groundPixel(const Map& m, int px, int py) {
       break;
     }
     case Ground::Bridge: {
-      bool vertical = groundWater(m.at(tx - 1, ty)) || groundWater(m.at(tx + 1, ty));
-      int a = vertical ? px : py, b2 = vertical ? py : px;
-      (void)b2;
-      bool gap = a % 4 == 0;
+      // one plank direction per bridge: it runs the way its deck is longest (the way you cross), the planks lie across
+      // it, and the rails run along both open sides. Deciding per tile from the water beside it made L-shaped decks
+      // with planks turning at the river's edge.
+      auto isB = [&](int x, int y) { return m.at(x, y) == Ground::Bridge; };
+      int hl = 1, vl = 1;
+      for (int k = 1; k < 8 && isB(tx - k, ty); k++) hl++;
+      for (int k = 1; k < 8 && isB(tx + k, ty); k++) hl++;
+      for (int k = 1; k < 8 && isB(tx, ty - k); k++) vl++;
+      for (int k = 1; k < 8 && isB(tx, ty + k); k++) vl++;
+      // the water beside the deck says it plainest (water north or south: you cross east-west); where water lies on
+      // both axes (a deck's corner over a bend), the longer run decides
+      const bool wNS = groundWater(m.at(tx, ty - 1)) || groundWater(m.at(tx, ty + 1));
+      const bool wEW = groundWater(m.at(tx - 1, ty)) || groundWater(m.at(tx + 1, ty));
+      bool eastWest = wNS != wEW ? wNS : (hl != vl ? hl > vl : true);
+      int a = eastWest ? px : py;   // across the planks
+      bool gap = ((a % 4) + 4) % 4 == 0;
       c = gap ? C(70, 46, 30) : lerpc(C(140, 96, 56), C(160, 112, 66), hashf(a / 4, 0, 261));
-      int edge = vertical ? lx : ly;
-      if (edge < 1 || edge > 14) c = C(90, 60, 36);
+      if (!gap && hashf(a / 4, (eastWest ? py : px) / 6, 263) < 0.12f) c = mul(c, 0.9f);   // a worn plank end
+      // rails along the open sides (not where the deck continues into a wider bridge)
+      bool sideA = eastWest ? !isB(tx, ty - 1) : !isB(tx - 1, ty), sideB = eastWest ? !isB(tx, ty + 1) : !isB(tx + 1, ty);
+      int e = eastWest ? ly : lx;
+      if ((sideA && e < 2) || (sideB && e > 13)) c = (e == 0 || e == 15) ? C(62, 40, 28) : C(116, 80, 48);
       break;
     }
     case Ground::Rock:
@@ -225,9 +446,45 @@ uint32_t View::groundPixel(const Map& m, int px, int py) {
         int col = sx / 3 + (int)(hash2(sx / 3, gy, 281) % 2);
         if ((hash2(col, gy, 283) & 3) == 0) c = mul(c, 0.84f);          // vertical fissures
         if ((sx % 3) == 0) c = mul(c, 0.93f);
-        if (slx == 16 - faceH) c = mul(c, 1.25f);                       // lit lip at the top of the face
+        if (slx == 16 - faceH) c = mul(c, 1.32f);                       // lit lip at the top of the face
+        else if (slx == 16 - faceH + 1) c = mul(c, 1.12f);
         if (slx >= 14) c = mul(c, 0.72f);                                // contact shadow at the base
         if (cold && slx <= 16 - faceH + 1) c = C(236, 240, 248);         // snow overhang
+      } else if (!cave) {
+        // the plateau: broken stone slabs (a jittered cell pattern). Each slab is lit along its north-west edge and
+        // shaded along its south-east one, with dark cracks between slabs, so the rock reads as rock at 1x and not
+        // as a flat grey decal; higher terraces are a little lighter.
+        const int CS = 13;
+        int cx0 = (int)std::floor(sx / (float)CS), cy0 = (int)std::floor(sy / (float)CS);
+        float d1 = 1e9f, d2 = 1e9f, fdx = 0, fdy = 0;
+        uint32_t cellH = 0;
+        for (int oy = -1; oy <= 1; oy++)
+          for (int ox = -1; ox <= 1; ox++) {
+            int ccx = cx0 + ox, ccy = cy0 + oy;
+            uint32_t hh = hash2(ccx, ccy, 307);
+            float fx = (ccx + 0.2f + (hh & 255) / 255.0f * 0.6f) * CS, fy = (ccy + 0.2f + ((hh >> 8) & 255) / 255.0f * 0.6f) * CS;
+            float ddx = sx + 0.5f - fx, ddy = sy + 0.5f - fy, d = ddx * ddx + ddy * ddy;
+            if (d < d1) { d2 = d1; d1 = d; fdx = ddx; fdy = ddy; cellH = hh; }
+            else if (d < d2) d2 = d;
+          }
+        float edge = std::sqrt(d2) - std::sqrt(d1);   // distance to the crack, roughly
+        float lvl = (L - 1) / 3.0f;
+        uint32_t base = lerpc(C(128, 121, 110), C(150, 143, 130), lvl);
+        c = mul(base, 0.93f + ((cellH >> 16) & 15) / 15.0f * 0.12f);
+        float lean = (fdx + fdy) / (float)CS;          // < 0: the slab's north-west side, > 0: south-east
+        if (lean < -0.55f) c = mul(c, 1.10f);
+        else if (lean > 0.55f) c = mul(c, 0.90f);
+        if (edge < 0.9f) c = mul(c, 0.70f);                  // crack
+        else if (edge < 1.8f && lean > 0) c = mul(c, 0.84f); // the crack's shaded lip
+        else if (edge < 1.8f && lean <= 0) c = mul(c, 1.06f);
+        int tf = tuft(sx, sy, 297, 0.18f);
+        if (tf == 1) c = mul(c, 0.8f);
+        if (L == 1 && m.kind == MapKind::Overworld && vnoise(sx / 9.0f, sy / 9.0f, 299) > 0.74f && edge > 1.2f) c = lerpc(c, C(104, 128, 80), 0.35f);   // moss on the low ledges
+        if (cold && (L >= 2 || vnoise(sx / 12.0f, sy / 12.0f, 301) > 0.45f)) {
+          c = n < 0.5f ? C(228, 234, 244) : C(240, 244, 250);
+          if (edge < 0.9f) c = C(196, 206, 224);
+        }
+        if (La < L && slx < 2) c = mul(c, 1.2f);    // rim where the terrace above ends
       } else {
         // calm plateau surface, lighter with height
         uint32_t lo = cave ? C(44, 37, 35) : C(126, 119, 109), hi = cave ? C(54, 46, 42) : C(134, 127, 116);
@@ -277,15 +534,20 @@ uint32_t View::groundPixel(const Map& m, int px, int py) {
       // semi-transparent tint over the animated water layer drawn underneath
       bool deep = g == Ground::DeepWater;
       float shore = 0;
-      for (int k = 0; k < 4; k++) {
-        static const int dx[4] = {3, -3, 0, 0}, dy[4] = {0, 0, 3, -3};
-        Ground o = m.at((px + dx[k]) >> 4, (py + dy[k]) >> 4);
-        if (o != Ground::Void && !groundWater(o) && o != Ground::Bridge) shore = 1;
-      }
+      if (shoreV >= 0) {
+        // the smoothed bank: a band of shallows, a broken line of foam right at the edge
+        if (shoreV < 0.66f) shore = 1;
+        if (shoreV < 0.57f && hashf(px / 2, py / 2, 341) < 0.62f) { c = C(220, 240, 250, 210); break; }
+      } else
+        for (int k = 0; k < 4; k++) {
+          static const int dx[4] = {3, -3, 0, 0}, dy[4] = {0, 0, 3, -3};
+          Ground o = m.at((px + dx[k]) >> 4, (py + dy[k]) >> 4);
+          if (o != Ground::Void && !groundWater(o) && o != Ground::Bridge && !soft(o)) shore = 1;   // built edges (quays, roads)
+        }
       c = deep ? C(28, 58, 118, 190) : C(48, 112, 168, 130);
       if (m.kind != MapKind::Overworld) c = C(30, 60, 90, 170);
-      if (shore > 0 && !deep) c = C(150, 200, 220, 150);
-      if (shore > 0 && hashf(px / 2, py / 2, 341) < 0.5f) c = C(220, 240, 250, 210);
+      if (shore > 0 && !deep) c = C(110, 170, 200, 140);
+      if (shore > 0 && shoreV < 0 && hashf(px / 2, py / 2, 341) < 0.5f) c = C(220, 240, 250, 210);
       break;
     }
     case Ground::Ice:
@@ -299,10 +561,15 @@ uint32_t View::groundPixel(const Map& m, int px, int py) {
       c = C(0, 0, 0);
       break;
   }
-  // ledge shading: soft ground sitting above water / lower ground gets a dark lip
+  // ledge shading: soft ground sitting above water gets a dark lip (the bank seen from above, lit from the top-left)
   if (soft(g) && !groundWater(g) && g != Ground::CaveFloor) {
-    Ground b1 = m.at(px >> 4, (py + 2) >> 4);
-    if (groundWater(b1) && ((py + 2) >> 4) != (py >> 4)) c = mul(c, 0.7f);
+    if (shoreV >= 0) {
+      if (shoreV > 0.40f) c = mul(c, 0.72f);        // the damp bank right at the water
+      else if (shoreV > 0.33f) c = mul(c, 0.86f);
+    } else {
+      Ground b1 = m.at(px >> 4, (py + 2) >> 4);
+      if (groundWater(b1) && ((py + 2) >> 4) != (py >> 4)) c = mul(c, 0.7f);
+    }
   }
   return c;
 }
@@ -389,6 +656,7 @@ void View::bakeFinish(const Map& m, int cx, int cy, Canvas& c) {
       int wx = cx * CH + tx, wy = cy * CH + ty;
       Ground g = m.at(wx, wy);
       if (isWall(g) || groundWater(g)) continue;
+      if (g == Ground::CaveFloor && m.kind != MapKind::Overworld) continue;   // caves shade per pixel (groundPixel)
       bool wallAbove = isWall(m.at(wx, wy - 1));
       if (!wallAbove) continue;
       for (int y = 0; y < 5; y++)

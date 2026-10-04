@@ -23,6 +23,35 @@ int tabStep(int tab, int dir) {
   return kTabOrder[(at + dir + NTABS) % NTABS];
 }
 
+// The HUD's step line under the tracked quest title: the journal's "what to do next" (Game::questStatus), cut to
+// the quest column's width.
+std::string trackedStep(const Game& g, const Quest& q) {
+  std::string s = g.questStatus(q);
+  if (s.empty() && q.state == QState::Complete) s = "RETURN TO " + q.giverName;
+  if (s.size() <= 30) return s;
+  // drop a trailing clause (" IN <TOWN>", " (NORTH-EAST)", " NEAR <TOWN>") rather than cutting a word in half
+  size_t cut = std::string::npos;
+  for (const char* sep : {" IN ", " NEAR ", " AT ", " (", ": "}) {
+    size_t p = s.find(sep);
+    while (p != std::string::npos) {
+      if (p >= 8 && p <= 30 && (cut == std::string::npos || p > cut)) cut = p;
+      p = s.find(sep, p + 1);
+    }
+  }
+  if (cut != std::string::npos) return s.substr(0, cut);
+  s = s.substr(0, 30);
+  size_t sp = s.find_last_of(' ');
+  return sp != std::string::npos && sp > 18 ? s.substr(0, sp) : s;
+}
+
+// Menu layout, shared by drawMenu and tap(): on touch the ITEMS and QUESTS rows are finger-sized (18 px, as the shop's)
+// and the action buttons taller; keyboard/mouse keeps the dense 12 px list.
+struct MenuLay { float pitch; int rows; float btnY, btnH, trackY, trackH, sysH; };
+MenuLay menuLay(bool touch) {
+  if (touch) return {18.0f, 11, (float)Pix::H - 48, 24.0f, (float)Pix::H - 40, 24.0f, 24.0f};
+  return {12.0f, 17, (float)Pix::H - 44, 16.0f, (float)Pix::H - 38, 16.0f, 20.0f};
+}
+
 std::vector<std::string> wrap(const std::string& s, int maxChars) {
   std::vector<std::string> lines;
   std::string line, word;
@@ -163,6 +192,9 @@ void View::draw(Game& g, bool hasSave) {
     drawHud(g);
     if (touchUI && (g.mode == Mode::Play)) drawTouch(g);
     if (g.mode == Mode::Dialogue) drawDialogue(g);
+    // toasts and the banner wait while a dialogue is open (render.cpp holds their timers): on a phone the touch
+    // panel is tall and anything drawn over it hides the speaker and the first line
+    if (g.mode != Mode::Shop && g.mode != Mode::Menu && g.mode != Mode::Dialogue) drawToasts();
     if (g.mode == Mode::Shop) drawShop(g);
     if (g.mode == Mode::Menu) drawMenu(g);
     if (g.mode == Mode::LevelUp) drawLevelUp(g);
@@ -209,7 +241,7 @@ void View::drawHud(Game& g) {
   P.textS(20, 33, std::to_string(g.gold), 1, kGold);
   P.blit(iconTex(art::Icon::Arrows, 0), 56, 28);
   P.textS(72, 33, std::to_string(arrows), 1, kText);
-  P.textS(100, 33, spellName(g.spell), 1, Color(0.6f, 0.75f, 1.0f));
+  if (g.spellsKnown & (1 << (int)g.spell)) P.textS(100, 33, spellName(g.spell), 1, Color(0.6f, 0.75f, 1.0f));
   if (g.perkPts > 0 && ((int)(t_ * 2) & 1)) P.textS(6, 44, "LEVEL UP! OPEN MENU", 1, kGold);
   if (g.blessT > 0) P.textS(6, g.perkPts > 0 ? 54 : 44, g.blessName, 1, Color(0.7f, 0.85f, 1.0f, 0.8f));
 
@@ -228,7 +260,7 @@ void View::drawHud(Game& g) {
     bool hasQ = tq && tq->state != QState::Done;
     int wmax = std::max(P.textW(loc, 1), P.textW(dayStr, 1));
     if (hasQ) wmax = std::max(wmax, P.textW(tq->title.size() > 22 ? tq->title.substr(0, 22) : tq->title, 1));
-    if (hasQ && tq->state == QState::Complete) wmax = std::max(wmax, P.textW("RETURN TO " + tq->giverName, 1));
+    if (hasQ) wmax = std::max(wmax, P.textW(trackedStep(g, *tq), 1));
     float bh = hasQ ? 42.0f : 21.0f;
     P.rect(Pix::W - wmax - 10, 88, (float)wmax + 8, bh, Color(0.03f, 0.02f, 0.05f, 0.38f));
   }
@@ -246,10 +278,7 @@ void View::drawHud(Game& g) {
   if (g.trackedQuest >= 0) {
     const Quest* q = g.questById(g.trackedQuest);
     if (q && q->state != QState::Done) {
-      std::string obj;
-      if (q->type == QType::Hunt && q->state == QState::Active) obj = std::to_string(q->have) + "/" + std::to_string(q->need);
-      else if (q->type == QType::Main && q->stage == 1) obj = "SHARDS " + std::to_string(q->have) + "/3";
-      else if (q->state == QState::Complete) obj = "RETURN TO " + q->giverName;
+      const std::string obj = trackedStep(g, *q);
       std::string t = q->title.size() > 22 ? q->title.substr(0, 22) : q->title;
       P.textS(Pix::W - 6, 112, t, 1, kGold, 2);
       if (!obj.empty()) P.textS(Pix::W - 6, 121, obj, 1, kText, 2);
@@ -290,9 +319,41 @@ void View::drawHud(Game& g) {
                        if (a2.npc && a2.st != AState::Dead && len2(a2.p - tgt) < 48.0f * 48.0f && g.rewardWaiting(a2)) return true;
                      return false;
                    }())) {
-          float bob = std::sin(t_ * 5) * 2;
-          P.rect(sc.x - 1, sc.y - 26 + bob, 3, 7, kGold);
-          P.rect(sc.x - 1, sc.y - 17 + bob, 3, 2, kGold);
+          // an outlined quest pin in the "!" bubble's style (render_markers.cpp): a gold diamond with a dark outline
+          // and a tail pointing down. A door target (a building) carries it above the roof line, not on the facade.
+          float pinY = sc.y - 26;   // tail tip
+          const Map& om = g.map();
+          for (int bi = 0; bi < (int)om.bldgs.size(); bi++) {
+            const Bldg& b = om.bldgs[bi];
+            if (b.doorX() != tx || b.doorY() != ty) continue;
+            const uint64_t k = bldgKey(om, b, bi);
+            auto bt = bldgTex_.find(k);
+            auto tr = bldgTopRow_.find(k);
+            if (bt != bldgTex_.end() && tr != bldgTopRow_.end()) {
+              const float top = (b.r.y + b.r.h) * 16.0f + art::BLDG_PAD_B - bt->second.h + tr->second;
+              pinY = std::min(pinY, top - std::floor(cam_.y) - 3);
+            }
+            break;
+          }
+          // never into the HUD: above the screen top or behind the vitals block, it sits just over the door instead
+          if (pinY - 11 < 6 || (sc.x < 160 && pinY - 11 < 46)) pinY = sc.y - 22;
+          const int bob = (int)std::lround(std::sin(t_ * 4) * 1.2f);
+          static const char* kPin[12] = {
+              "....ooo....", "...oHYYo...", "..oHYYYSo..", ".oHYYYYYSo.", "oHYYYWYYYSo", "oYYYWWWYYSo",
+              ".oYYYWYYSo.", "..oYYYYSo..", "...oYSSo...", "....oSo....", "....oSo....", ".....o.....",
+          };
+          const Color outline(0.09f, 0.06f, 0.08f), hi(1.0f, 0.9f, 0.5f), gold(1.0f, 0.7f, 0.16f), goldShade(0.72f, 0.36f, 0.06f),
+              core(1.0f, 0.98f, 0.9f);
+          const int x0 = (int)std::floor(sc.x) - 5, y0 = (int)std::floor(pinY) - 11 + bob;
+          for (int pass = 0; pass < 2; pass++)
+            for (int r = 0; r < 12; r++)
+              for (int c = 0; c < 11; c++) {
+                char ch = kPin[r][c];
+                if (ch == '.') continue;
+                if (pass == 0) { P.rect((float)(x0 + c + 1), (float)(y0 + r + 1), 1, 1, Color(0, 0, 0, 0.35f)); continue; }
+                P.rect((float)(x0 + c), (float)(y0 + r), 1, 1,
+                       ch == 'o' ? outline : ch == 'H' ? hi : ch == 'S' ? goldShade : ch == 'W' ? core : gold);
+              }
         }
       }
     }
@@ -315,8 +376,27 @@ void View::drawHud(Game& g) {
     for (const Actor& a : g.actors)
       if (a.id == it) {
         Vec2 s = a.p - Vec2(std::floor(cam_.x), std::floor(cam_.y));
-        P.textS(s.x, s.y - 34, a.name, 1, kText, 1);
-        if (!touchUI) P.textS(s.x, s.y - 43, "E: TALK", 1, kGold, 1);
+        // a giver with a reward waiting wears the "!" bubble (drawMarkers) just above the head: the label goes over it
+        float ly = g.rewardWaiting(a) ? s.y - art::HUMAN_H - 24.0f : s.y - 34.0f;
+        // keep the label off the hero: when the hero's head is where the label would go, lift it clear
+        const Vec2 hs = g.pl().p - Vec2(std::floor(cam_.x), std::floor(cam_.y));
+        const float labelW = (float)std::max(P.textW(a.name, 1), touchUI ? 0 : P.textW("E: TALK", 1)) * 0.5f + 6;
+        const float labelTop = ly - (touchUI ? 2.0f : 11.0f);
+        if (std::fabs(hs.x - s.x) < labelW + 6 && hs.y - 30.0f < ly + 8 && hs.y > labelTop - 4)
+          ly = std::min(ly, hs.y - 38.0f);
+        // and off the HUD's top-left block (vitals, gold, arrows, spell name): an NPC near the top of a room had its
+        // name run into the spell text ("FIREBOLTULONMAR"). There the label goes under the NPC's feet instead (the
+        // floor below a person at the top of a room is open; the "!" bubble stays over the head).
+        float lx = s.x;
+        {
+          const float hudR = (float)std::max(130, 100 + P.textW(spellName(g.spell), 1)) + 12;
+          const float hudB = (g.perkPts > 0 || g.blessT > 0) ? (g.perkPts > 0 && g.blessT > 0 ? 64.0f : 54.0f) : 46.0f;
+          const float half = labelW - 6;
+          const float topY = ly - (touchUI ? 0.0f : 9.0f);
+          if (lx - half < hudR && topY < hudB) ly = s.y + (touchUI ? 4.0f : 13.0f);
+        }
+        P.textS(lx, ly, a.name, 1, kText, 1);
+        if (!touchUI) P.textS(lx, ly - 9, "E: TALK", 1, kGold, 1);
       }
   } else if (g.mode == Mode::Play) {
     int ptx = 0, pty = 0, pr = usablePropAt(g, ptx, pty);
@@ -326,23 +406,14 @@ void View::drawHud(Game& g) {
     }
   }
 
-  // toasts (bottom-left)
-  float ty = Pix::H - 14;
-  for (int i = (int)toasts_.size() - 1; i >= 0; i--) {
-    const Toast& t = toasts_[i];
-    float a = clampf(4.0f - t.t, 0, 1);
-    P.textS(7, ty + 1, t.s, 1, Color(0, 0, 0, a * 0.6f));
-    P.textS(6, ty, t.s, 1, Color(t.c.r, t.c.g, t.c.b, a));
-    ty -= 10;
-    if (ty < Pix::H - 70) break;
-  }
+  // (toasts are drawn by drawToasts, above the dialogue panel)
   if (g.noticeT > 0) {
     float a = clampf(g.noticeT, 0, 1);
     P.textS(Pix::W / 2 + 1, Pix::H - 41, g.notice, 1, Color(0, 0, 0, a * 0.6f), 1);
     P.textS(Pix::W / 2, Pix::H - 42, g.notice, 1, Color(1, 0.95f, 0.85f, a), 1);
   }
   // banner
-  if (bannerT_ > 0) {
+  if (bannerT_ > 0 && g.mode != Mode::Dialogue) {
     float a = clampf(std::min(bannerT_, 4.0f - bannerT_) * 2.5f, 0, 1);
     float y = 56;
     P.rect(0, y - 6, Pix::W, 34, Color(0, 0, 0, 0.45f * a));
@@ -351,6 +422,23 @@ void View::drawHud(Game& g) {
     P.textS(Pix::W / 2, y, banner_, 1, Color(kGold.r, kGold.g, kGold.b, a), 1);
     P.textS(Pix::W / 2 + 1, y + 11, bannerSub_, 2, Color(0, 0, 0, a * 0.5f), 1);
     P.textS(Pix::W / 2, y + 10, bannerSub_, 2, Color(1, 0.97f, 0.9f, a), 1);
+  }
+}
+
+// Toasts (items received, quest steps, notices): a column on the left under the vitals, clear of the thumbs (the
+// touch stick and buttons sit at the bottom), the centre notice and the quest column; newest at the top.
+void View::drawToasts() {
+  Pix& P = *pix_;
+  float ty = 92;
+  int shown = 0;
+  for (int i = (int)toasts_.size() - 1; i >= 0 && shown < 5; i--, shown++) {
+    const Toast& t = toasts_[i];
+    float a = clampf(4.0f - t.t, 0, 1);
+    float w = (float)P.textW(t.s, 1);
+    P.rect(3, ty - 2, w + 6, 10, Color(0.03f, 0.02f, 0.05f, 0.42f * a));
+    P.textS(7, ty + 1, t.s, 1, Color(0, 0, 0, a * 0.6f));
+    P.textS(6, ty, t.s, 1, Color(t.c.r, t.c.g, t.c.b, a));
+    ty += 11;
   }
 }
 
@@ -385,7 +473,32 @@ void View::drawTouch(Game& g) {
       case B_ATTACK:
         if (target >= 0) P.text(d.x, d.y - 3, "TALK", 1, kGold, 1);
         else if (usePr) P.text(d.x, d.y - 3, useVerb(usePr), 1, kGold, 1);
-        else P.blitEx(iconTex(art::Icon::Sword, g.eqWeapon >= 0 ? g.inv[g.eqWeapon].tint : 0), 0, 0, 16, 16, d.x - 12, d.y - 12, 24, 24);
+        else if (g.eqWeapon >= 0) P.blitEx(iconTex(g.inv[g.eqWeapon].icon, g.inv[g.eqWeapon].tint), 0, 0, 16, 16, d.x - 12, d.y - 12, 24, 24);
+        else {
+          // unarmed (the shirt-only start): a clenched fist, knuckles up, lit from the top-left
+          static const char* kFist[] = {
+              "..####.....",
+              ".#aab#####.",
+              "#aabb#aab#.",
+              "#abbb#abb##",
+              "#abbb#abbc#",
+              "#abbbbbbbc#",
+              "#bbbbbbbcc#",
+              ".#bbbbbbc#.",
+              "..#bbbbcc#.",
+              "...#bbbc#..",
+              "...#cccc#..",
+              "....####...",
+          };
+          const Color ink(0.12f, 0.07f, 0.08f), la(1.0f, 0.86f, 0.70f), mb(0.88f, 0.66f, 0.50f), dc(0.62f, 0.40f, 0.33f);
+          for (int yy = 0; yy < 12; yy++)
+            for (int xx = 0; xx < 11; xx++) {
+              char ch = kFist[yy][xx];
+              if (ch == '.') continue;
+              Color c = ch == '#' ? ink : ch == 'a' ? la : ch == 'b' ? mb : dc;
+              P.rect(d.x - 11 + xx * 2, d.y - 12 + yy * 2, 2, 2, c);
+            }
+        }
         break;
       case B_BOW: P.blit(iconTex(art::Icon::Bow, 0), d.x - 8, d.y - 8); break;
       case B_SPELL: P.blit(iconTex(g.spell == Spell::Heal ? art::Icon::PotionGreen : (g.spell == Spell::IceSpike ? art::Icon::Gem : art::Icon::Staff), g.spell == Spell::Flames ? rgba(255, 120, 40) : rgba(120, 200, 255)), d.x - 8, d.y - 8); break;
@@ -565,15 +678,17 @@ void View::drawMenu(Game& g) {
     case 0: {   // items
       int n = (int)g.inv.size();
       menuSel_ = std::clamp(menuSel_, 0, std::max(0, n - 1));
-      int rows = 17;
+      const MenuLay L = menuLay(touchUI);
+      int rows = L.rows;
       if (menuSel_ < menuScroll_) menuScroll_ = menuSel_;
       if (menuSel_ >= menuScroll_ + rows) menuScroll_ = menuSel_ - rows + 1;
       for (int r = 0; r < rows && menuScroll_ + r < n; r++) {
         int i = menuScroll_ + r;
         const Item& it = g.inv[i];
-        float y = top + 12 + r * 12;
-        if (i == menuSel_) P.rect(18, y - 2, 236, 12, Color(0.3f, 0.22f, 0.12f, 0.8f));
-        P.blitEx(iconTex(it.icon, it.tint), 0, 0, 16, 16, 20, y - 2, 12, 12);
+        const float rowTop = top + 10 + r * L.pitch, y = rowTop + std::floor((L.pitch - 8) / 2);
+        if (i == menuSel_) P.rect(18, rowTop, 236, L.pitch, Color(0.3f, 0.22f, 0.12f, 0.8f));
+        else if (touchUI && (r & 1)) P.rect(18, rowTop, 236, L.pitch, Color(0.16f, 0.12f, 0.08f, 0.35f));
+        P.blitEx(iconTex(it.icon, it.tint), 0, 0, 16, 16, 20, rowTop + std::floor((L.pitch - 12) / 2), 12, 12);
         std::string name = it.name;
         if (name.size() > 30) name = name.substr(0, 30);
         if (it.count > 1) name += " (" + std::to_string(it.count) + ")";
@@ -599,8 +714,8 @@ void View::drawMenu(Game& g) {
         }
         bool canEquip = itemEquippable(it.kind);
         std::string use = canEquip ? (equipped(g, menuSel_) ? "UNEQUIP" : "EQUIP") : (it.kind == ItemKind::Potion || it.kind == ItemKind::Food || it.name.rfind("SPELL TOME", 0) == 0 ? "USE" : "");
-        if (!use.empty()) button(272, Pix::H - 44, 84, 16, use + (touchUI ? "" : " (ENT)"), true);
-        if (it.kind != ItemKind::Quest) button(364, Pix::H - 44, 84, 16, touchUI ? "DROP" : "DROP (X)", false);
+        if (!use.empty()) button(272, L.btnY, 84, L.btnH, use + (touchUI ? "" : " (ENT)"), true);
+        if (it.kind != ItemKind::Quest) button(364, L.btnY, 84, L.btnH, touchUI ? "DROP" : "DROP (X)", false);
       }
       break;
     }
@@ -609,10 +724,16 @@ void View::drawMenu(Game& g) {
       for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state != QState::Done) order.push_back(i);
       for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state == QState::Done) order.push_back(i);
       menuSel_ = std::clamp(menuSel_, 0, std::max(0, (int)order.size() - 1));
-      for (int r = 0; r < (int)order.size() && r < 17; r++) {
-        const Quest& q = g.quests[order[r]];
-        float y = top + 12 + r * 12;
-        if (r == menuSel_) P.rect(18, y - 2, 200, 12, Color(0.3f, 0.22f, 0.12f, 0.8f));
+      const MenuLay L = menuLay(touchUI);
+      if (menuSel_ < menuScroll_) menuScroll_ = menuSel_;
+      if (menuSel_ >= menuScroll_ + L.rows) menuScroll_ = menuSel_ - L.rows + 1;
+      menuScroll_ = std::clamp(menuScroll_, 0, std::max(0, (int)order.size() - 1));
+      for (int r = 0; r < L.rows && menuScroll_ + r < (int)order.size(); r++) {
+        const int oi = menuScroll_ + r;
+        const Quest& q = g.quests[order[oi]];
+        const float rowTop = top + 10 + r * L.pitch, y = rowTop + std::floor((L.pitch - 8) / 2);
+        if (oi == menuSel_) P.rect(18, rowTop, 200, L.pitch, Color(0.3f, 0.22f, 0.12f, 0.8f));
+        else if (touchUI && (r & 1)) P.rect(18, rowTop, 200, L.pitch, Color(0.16f, 0.12f, 0.08f, 0.35f));
         Color c = q.state == QState::Done ? kDim : (q.type == QType::Main ? kGold : kText);
         std::string t = q.title.size() > 28 ? q.title.substr(0, 28) : q.title;
         P.text(22, y, (q.id == g.trackedQuest ? "> " : "  ") + t, 1, c);
@@ -628,7 +749,7 @@ void View::drawMenu(Game& g) {
         if (q.type == QType::Hunt) P.text(236, Pix::H - 62, "PROGRESS " + std::to_string(q.have) + "/" + std::to_string(q.need), 1, kGold);
         if (q.type == QType::Main && q.stage == 1) P.text(236, Pix::H - 62, "EMBER SHARDS " + std::to_string(q.have) + "/3", 1, kGold);
         if (q.gold > 0 && q.state != QState::Done) P.text(236, Pix::H - 50, "REWARD " + std::to_string(q.gold) + " GOLD", 1, kGold);
-        if (q.state != QState::Done) button(236, Pix::H - 38, 100, 16, q.id == g.trackedQuest ? "TRACKED" : "TRACK", q.id == g.trackedQuest);
+        if (q.state != QState::Done) button(236, L.trackY, touchUI ? 120 : 100, L.trackH, q.id == g.trackedQuest ? "TRACKED" : "TRACK", q.id == g.trackedQuest);
       } else P.text(236, top + 14, "NO QUESTS YET", 1, kDim);
       break;
     }
@@ -689,9 +810,10 @@ void View::drawMenu(Game& g) {
       break;
     }
     case 4: {   // system
-      button(Pix::W / 2 - 70, top + 40, 140, 20, "SAVE GAME", menuSel_ == 0);
-      button(Pix::W / 2 - 70, top + 68, 140, 20, touchUI ? "TOUCH CONTROLS: ON" : "TOUCH CONTROLS: OFF", menuSel_ == 1);
-      button(Pix::W / 2 - 70, top + 96, 140, 20, "SAVE AND QUIT", menuSel_ == 2);
+      const float sh = menuLay(touchUI).sysH;
+      button(Pix::W / 2 - 70, top + 40, 140, sh, "SAVE GAME", menuSel_ == 0);
+      button(Pix::W / 2 - 70, top + 68, 140, sh, touchUI ? "TOUCH CONTROLS: ON" : "TOUCH CONTROLS: OFF", menuSel_ == 1);
+      button(Pix::W / 2 - 70, top + 96, 140, sh, "SAVE AND QUIT", menuSel_ == 2);
       P.text(Pix::W / 2, top + 140, "WORLD SEED " + std::to_string(g.seed), 1, kDim, 1);
       if (!touchUI) {
         const char* keys[] = {"WASD MOVE   J/SPACE ATTACK   K BOW   L SPELL", "SHIFT ROLL   E TALK/OPEN   Q POTION   R SWAP SPELL", "TAB MENU   M MAP   ESC PAUSE   F11 FULLSCREEN"};
@@ -710,22 +832,62 @@ void View::drawDialogue(Game& g) {
   const Dialogue& d = g.dlg;
   float x = 20, w = Pix::W - 40;
   int nOpt = (int)d.opts.size();
-  float h = 58 + nOpt * 13;
+  const float rowH = dlgRowH();
+  float h = 58 + nOpt * rowH;
   float y = Pix::H - h - 8;
   panel(x, y, w, h, 0.94f);
   P.text(x + 10, y + 8, d.speaker, 1, kGold);
   wrapText(x + 10, y + 20, w - 20, d.text, kText, (int)dlgChars_, 9);
   dlgSel_ = std::clamp(dlgSel_, 0, std::max(0, nOpt - 1));
+  // the options stay dimmed until the line has finished typing (a tap meanwhile only skips the text, see tap())
+  int total = 0;
+  for (auto& l : wrap(d.text, (Pix::W - 60) / 6)) total += (int)l.size();
+  const bool typing = dlgChars_ < total;
   for (int i = 0; i < nOpt; i++) {
-    float oy = y + h - 8 - (nOpt - i) * 13;
-    bool hot = i == dlgSel_;
-    if (hot) P.rect(x + 8, oy - 2, w - 16, 12, Color(0.32f, 0.24f, 0.12f, 0.85f));
-    P.text(x + 14, oy, (hot ? "> " : "  ") + d.opts[i].label, 1, hot ? Color(1, 0.95f, 0.8f) : Color(0.8f, 0.75f, 0.65f));
+    float top = y + h - 6 - (nOpt - i) * rowH;
+    bool hot = i == dlgSel_ && !typing;
+    if (typing) {
+      if (touchUI) P.rect(x + 8, top + 1, w - 16, rowH - 2, Color(0.12f, 0.09f, 0.06f, 0.4f));
+      P.text(x + 14, top + std::floor((rowH - 7) / 2), "  " + d.opts[i].label, 1, Color(0.45f, 0.42f, 0.37f));
+      continue;
+    }
+    // touch: every option is a full-width band (tappable over its whole height, see tap())
+    if (touchUI && !hot) P.rect(x + 8, top + 1, w - 16, rowH - 2, Color(0.16f, 0.12f, 0.08f, 0.55f));
+    if (hot) P.rect(x + 8, top + 1, w - 16, rowH - 2, Color(0.32f, 0.24f, 0.12f, 0.85f));
+    P.text(x + 14, top + std::floor((rowH - 7) / 2), (hot ? "> " : "  ") + d.opts[i].label, 1, hot ? Color(1, 0.95f, 0.8f) : Color(0.8f, 0.75f, 0.65f));
   }
+}
+
+// Shop layout, shared by drawShop and tap(): touch rows are finger-sized and a tap only selects; the BUY / SELL
+// button under the lists does the deal (a worn item asks twice).
+namespace {
+struct ShopLay { float pitch; int rows; float detailY, btnY, hintY; };
+ShopLay shopLay(bool touch) {
+  if (touch) return {18.0f, 9, (float)Pix::H - 62, (float)Pix::H - 50, (float)Pix::H - 22};
+  return {12.0f, 16, (float)Pix::H - 30, -1.0f, (float)Pix::H - 19};
+}
+int shopPrice(const Item& it, bool buying) {
+  return buying ? (it.kind == ItemKind::Arrows ? it.count : it.value) : (it.kind == ItemKind::Arrows ? std::max(1, it.count / 3) : std::max(1, it.value * 2 / 5));
+}
+int shopScroll(int sel, int rows) { return sel >= rows ? sel - rows + 1 : 0; }
+}  // namespace
+
+// The deal on the selected row. Selling something you wear asks first (a second press).
+void View::shopDeal(Game& g) {
+  if (shopSide_ == 0) g.buy(shopSel_);
+  else {
+    if (shopSel_ < 0 || shopSel_ >= (int)g.inv.size()) return;
+    if (equipped(g, shopSel_) && shopArm_ != shopSel_) { shopArm_ = shopSel_; audio_->play(Sfx::MenuMove); return; }
+    g.sell(shopSel_);
+  }
+  shopArm_ = -1;
+  int n2 = shopSide_ == 0 ? (int)g.shop.stock.size() : (int)g.inv.size();
+  shopSel_ = std::min(shopSel_, std::max(0, n2 - 1));
 }
 
 void View::drawShop(Game& g) {
   Pix& P = *pix_;
+  const ShopLay L = shopLay(touchUI);
   P.rect(0, 0, Pix::W, Pix::H, Color(0, 0, 0, 0.5f));
   panel(8, 6, Pix::W - 16, Pix::H - 12);
   P.text(18, 14, g.shop.title, 1, kGold);
@@ -734,38 +896,55 @@ void View::drawShop(Game& g) {
   button(Pix::W - 36, 10, 20, 12, "X", false);
   P.text(20, 28, "BUY", 1, shopSide_ == 0 ? kGold : kDim);
   P.text(Pix::W / 2 + 6, 28, "SELL", 1, shopSide_ == 1 ? kGold : kDim);
-  P.rect(Pix::W / 2, 26, 1, Pix::H - 44, Color(0.4f, 0.32f, 0.2f));
+  P.rect(Pix::W / 2, 26, 1, (touchUI ? L.detailY - 4 : (float)Pix::H - 18) - 26, Color(0.4f, 0.32f, 0.2f));
   auto list = [&](float x0, const std::vector<Item>& items, bool buying, int side) {
     int n = (int)items.size();
-    int rows = 16;
     int sel = shopSide_ == side ? shopSel_ : -1;
-    int scroll = sel >= rows ? sel - rows + 1 : 0;
-    for (int r = 0; r < rows && scroll + r < n; r++) {
+    int scroll = shopScroll(sel, L.rows);
+    for (int r = 0; r < L.rows && scroll + r < n; r++) {
       int i = scroll + r;
       const Item& it = items[i];
-      float y = 40 + r * 12;
-      if (i == sel) P.rect(x0 - 2, y - 2, Pix::W / 2 - 22, 12, Color(0.3f, 0.22f, 0.12f, 0.8f));
-      P.blitEx(iconTex(it.icon, it.tint), 0, 0, 16, 16, x0, y - 2, 12, 12);
+      float y = 40 + r * L.pitch;
+      float ty = y + std::floor((L.pitch - 12) / 2);
+      if (touchUI && i != sel) P.rect(x0 - 2, y - 2, Pix::W / 2 - 22, L.pitch - 2, Color(0.16f, 0.12f, 0.08f, 0.45f));
+      if (i == sel) P.rect(x0 - 2, y - 2, Pix::W / 2 - 22, L.pitch - (touchUI ? 2 : 0), Color(0.3f, 0.22f, 0.12f, 0.8f));
+      P.blitEx(iconTex(it.icon, it.tint), 0, 0, 16, 16, x0, ty - 2, 12, 12);
       std::string nm = it.name.size() > 24 ? it.name.substr(0, 24) : it.name;
       if (it.count > 1 && it.kind != ItemKind::Arrows) nm += " x" + std::to_string(it.count);
       if (it.kind == ItemKind::Arrows) nm += " x" + std::to_string(it.count);
-      P.text(x0 + 15, y, nm, 1, col(rarityColor(it.rarity)));
-      int price = buying ? (it.kind == ItemKind::Arrows ? it.count : it.value) : (it.kind == ItemKind::Arrows ? std::max(1, it.count / 3) : std::max(1, it.value * 2 / 5));
+      if (!buying && equipped(g, i)) nm += " (E)";
+      P.text(x0 + 15, ty, nm, 1, col(rarityColor(it.rarity)));
+      int price = shopPrice(it, buying);
       bool afford = !buying || g.gold >= price;
-      P.text(x0 + Pix::W / 2 - 30, y, std::to_string(price), 1, afford ? kGold : Color(0.7f, 0.3f, 0.3f), 2);
+      P.text(x0 + Pix::W / 2 - 30, ty, std::to_string(price), 1, afford ? kGold : Color(0.7f, 0.3f, 0.3f), 2);
     }
   };
   list(18, g.shop.stock, true, 0);
   list(Pix::W / 2 + 8, g.inv, false, 1);
   // detail line
   const std::vector<Item>& src = shopSide_ == 0 ? g.shop.stock : g.inv;
-  if (shopSel_ >= 0 && shopSel_ < (int)src.size()) {
+  const bool any = shopSel_ >= 0 && shopSel_ < (int)src.size();
+  if (any) {
     std::string s = itemStats(g, src[shopSel_]);
     std::replace(s.begin(), s.end(), '\n', ' ');
     if (s.size() > 74) s = s.substr(0, 74);
-    P.text(Pix::W / 2, Pix::H - 30, s, 1, kText, 1);
+    P.text(Pix::W / 2, L.detailY, s, 1, kText, 1);
   }
-  P.text(Pix::W / 2, Pix::H - 19, touchUI ? "TAP AN ITEM TO BUY OR SELL" : "ARROWS SELECT  ENTER BUY/SELL  LEFT/RIGHT SWITCH  ESC CLOSE", 1, kDim, 1);
+  const bool armed = shopSide_ == 1 && shopArm_ >= 0 && shopArm_ == shopSel_;
+  if (touchUI) {
+    if (any) {
+      const Item& it = src[shopSel_];
+      const int price = shopPrice(it, shopSide_ == 0);
+      std::string lbl = shopSide_ == 0 ? "BUY FOR " + std::to_string(price) + " GOLD"
+                      : armed ? "YOU WEAR IT - TAP AGAIN TO SELL"
+                      : "SELL FOR " + std::to_string(price) + " GOLD";
+      button(Pix::W / 2 - 100, L.btnY, 200, 22, lbl, true);
+    }
+    P.text(Pix::W / 2, L.hintY, "TAP AN ITEM, THEN THE BUTTON TO BUY OR SELL", 1, kDim, 1);
+  } else {
+    P.text(Pix::W / 2, L.hintY, armed ? "YOU WEAR IT - PRESS ENTER AGAIN TO SELL" : "ARROWS SELECT  ENTER BUY/SELL  LEFT/RIGHT SWITCH  ESC CLOSE", 1,
+           armed ? kGold : kDim, 1);
+  }
 }
 
 void View::drawLevelUp(Game& g) { menuTab_ = 3; drawMenu(g); }
@@ -845,8 +1024,9 @@ Input View::input(Game& g) {
   if (kAttack_) { in.attack = true; }
   in.bow = kBow_; in.spell = kSpell_; in.roll = kRoll_; in.interact = kUse_; in.potion = kPotion_; in.swapSpell = kSwap_;
   int utx = 0, uty = 0;
-  if (in.attack && g.mode == Mode::Play && kAttack_ && (g.interactTarget() >= 0 || usablePropAt(g, utx, uty))) { in.attack = false; in.interact = true; }
-  kAttack_ = kBow_ = kSpell_ = kRoll_ = kUse_ = kPotion_ = kSwap_ = false;
+  // the attack key/button talks when someone is in reach; a tap on the world far from them stays an attack
+  if (in.attack && g.mode == Mode::Play && kAttack_ && !kTapAttack_ && (g.interactTarget() >= 0 || usablePropAt(g, utx, uty))) { in.attack = false; in.interact = true; }
+  kAttack_ = kBow_ = kSpell_ = kRoll_ = kUse_ = kPotion_ = kSwap_ = kTapAttack_ = false;
   return in;
 }
 
@@ -926,14 +1106,10 @@ void View::menuKey(Game& g, int key) {
   }
   if (g.mode == Mode::Shop) {
     const int n = shopSide_ == 0 ? (int)g.shop.stock.size() : (int)g.inv.size();
-    if (key == SDLK_UP || key == SDLK_W) shopSel_ = std::max(0, shopSel_ - 1);
-    if (key == SDLK_DOWN || key == SDLK_S) shopSel_ = std::min(std::max(0, n - 1), shopSel_ + 1);
-    if (key == SDLK_LEFT || key == SDLK_A || key == SDLK_RIGHT || key == SDLK_D) { shopSide_ ^= 1; shopSel_ = 0; }
-    if (key == SDLK_RETURN || key == SDLK_SPACE) {
-      if (shopSide_ == 0) g.buy(shopSel_); else g.sell(shopSel_);
-      int n2 = shopSide_ == 0 ? (int)g.shop.stock.size() : (int)g.inv.size();
-      shopSel_ = std::min(shopSel_, std::max(0, n2 - 1));
-    }
+    if (key == SDLK_UP || key == SDLK_W) { shopSel_ = std::max(0, shopSel_ - 1); shopArm_ = -1; }
+    if (key == SDLK_DOWN || key == SDLK_S) { shopSel_ = std::min(std::max(0, n - 1), shopSel_ + 1); shopArm_ = -1; }
+    if (key == SDLK_LEFT || key == SDLK_A || key == SDLK_RIGHT || key == SDLK_D) { shopSide_ ^= 1; shopSel_ = 0; shopArm_ = -1; }
+    if (key == SDLK_RETURN || key == SDLK_SPACE) shopDeal(g);
     if (key == SDLK_ESCAPE || key == SDLK_TAB) { g.mode = Mode::Play; audio_->play(Sfx::MenuBack); }
   }
 }
@@ -947,12 +1123,18 @@ void View::tap(Game& g, Vec2 p) {
   if (g.mode == Mode::Dialogue) {
     const Dialogue& d = g.dlg;
     int nOpt = (int)d.opts.size();
-    float h = 58 + nOpt * 13, y = Pix::H - h - 8;
+    const float rowH = dlgRowH();
+    float h = 58 + nOpt * rowH, y = Pix::H - h - 8;
     auto lines = wrap(g.dlg.text, (Pix::W - 60) / 6);
     int total = 0; for (auto& l : lines) total += (int)l.size();
+    // while the line is still typing, a tap anywhere only finishes it (the common "tap to skip" gesture must never
+    // pick an option the player has not read yet; the keyboard path in menuKey does the same)
+    if (dlgChars_ < total) { dlgChars_ = 9999; return; }
     for (int i = 0; i < nOpt; i++) {
-      float oy = y + h - 8 - (nOpt - i) * 13;
-      if (inR(28, oy - 3, Pix::W - 56, 13)) {
+      // each option owns its whole row band, the full panel width; the last one reaches down to the screen edge
+      float top = y + h - 6 - (nOpt - i) * rowH;
+      float bh = i == nOpt - 1 ? Pix::H - top : rowH;
+      if (inR(0, top, Pix::W, bh)) {
         std::string before = g.dlg.text;
         g.dialogueChoose(i);
         if (g.dlg.text != before) dlgChars_ = 0;
@@ -960,24 +1142,27 @@ void View::tap(Game& g, Vec2 p) {
         return;
       }
     }
-    if (dlgChars_ < total) dlgChars_ = 9999;
+    // a tap above the panel closes a conversation that only has one way out (FAREWELL)
+    if (nOpt == 1 && p.y < y) { g.dialogueChoose(0); dlgSel_ = 0; }
     return;
   }
   if (g.mode == Mode::Shop) {
     if (inR(Pix::W - 40, 6, 30, 20)) { g.mode = Mode::Play; return; }
+    const ShopLay L = shopLay(touchUI);
+    // the deal button (touch): a tap on a row only selects it
+    if (touchUI && inR(Pix::W / 2 - 104, L.btnY - 3, 208, 28)) { shopDeal(g); return; }
     for (int side = 0; side < 2; side++) {
       float x0 = side == 0 ? 18 : Pix::W / 2 + 8;
       int n = side == 0 ? (int)g.shop.stock.size() : (int)g.inv.size();
       int sel = shopSide_ == side ? shopSel_ : -1;
-      int scroll = sel >= 16 ? sel - 15 : 0;
-      for (int r = 0; r < 16 && scroll + r < n; r++) {
-        float y = 40 + r * 12;
-        if (inR(x0 - 2, y - 2, Pix::W / 2 - 22, 12)) {
+      int scroll = shopScroll(sel, L.rows);
+      for (int r = 0; r < L.rows && scroll + r < n; r++) {
+        float y = 40 + r * L.pitch;
+        if (inR(x0 - 2, y - 2, Pix::W / 2 - 22, L.pitch)) {
           int i = scroll + r;
-          if (shopSide_ == side && shopSel_ == i) { if (side == 0) g.buy(i); else g.sell(i); }
+          if (!(shopSide_ == side && shopSel_ == i)) shopArm_ = -1;
           shopSide_ = side; shopSel_ = i;
-          int n2 = side == 0 ? (int)g.shop.stock.size() : (int)g.inv.size();
-          shopSel_ = std::min(shopSel_, std::max(0, n2 - 1));
+          audio_->play(Sfx::MenuMove);
           return;
         }
       }
@@ -987,33 +1172,37 @@ void View::tap(Game& g, Vec2 p) {
   if (g.mode == Mode::Menu || g.mode == Mode::LevelUp) {
     float tw = (Pix::W - 40) / (float)NTABS;
     for (int i = 0; i < NTABS; i++) if (inR(20 + i * tw, 10, tw - 4, 16)) { menuTab_ = kTabOrder[i]; menuSel_ = 0; mapSel_ = -1; audio_->play(Sfx::MenuMove); return; }
-    if (inR(Pix::W - 40, 26, 30, 20)) { g.mode = Mode::Play; return; }
+    if (touchUI ? inR(Pix::W - 50, 26, 44, 30) : inR(Pix::W - 40, 26, 30, 20)) { g.mode = Mode::Play; return; }
     float top = 34;
+    const MenuLay L = menuLay(touchUI);
     switch (menuTab_) {
       case 0: {
         int n = (int)g.inv.size();
-        for (int r = 0; r < 17 && menuScroll_ + r < n; r++) {
-          float y = top + 12 + r * 12;
-          if (inR(18, y - 2, 236, 12)) {
+        for (int r = 0; r < L.rows && menuScroll_ + r < n; r++) {
+          if (inR(18, top + 10 + r * L.pitch, 236, L.pitch)) {
             int i = menuScroll_ + r;
             if (i == menuSel_) g.useItem(i);
             menuSel_ = i;
             return;
           }
         }
-        if (n > 0 && inR(272, Pix::H - 44, 84, 16)) g.useItem(menuSel_);
-        if (n > 0 && inR(364, Pix::H - 44, 84, 16) && g.inv[menuSel_].kind != ItemKind::Quest) g.dropItem(menuSel_);
+        if (n > 0 && inR(272, L.btnY, 84, L.btnH)) g.useItem(menuSel_);
+        if (n > 0 && inR(364, L.btnY, 84, L.btnH) && g.inv[menuSel_].kind != ItemKind::Quest) g.dropItem(menuSel_);
         // scroll by tapping the list edges
         if (inR(18, top + 4, 236, 10)) menuScroll_ = std::max(0, menuScroll_ - 5), menuSel_ = std::max(0, menuSel_ - 5);
-        if (inR(18, Pix::H - 22, 236, 12)) menuSel_ = std::min(n - 1, menuSel_ + 5);
+        if (inR(18, std::max(Pix::H - 22.0f, top + 10 + L.rows * L.pitch), 236, 12)) menuSel_ = std::min(n - 1, menuSel_ + 5);
         break;
       }
       case 1: {
         std::vector<int> order;
         for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state != QState::Done) order.push_back(i);
         for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state == QState::Done) order.push_back(i);
-        for (int r = 0; r < (int)order.size() && r < 17; r++) if (inR(18, top + 10 + r * 12, 200, 12)) { menuSel_ = r; return; }
-        if (menuSel_ < (int)order.size() && inR(236, Pix::H - 38, 100, 16)) g.trackedQuest = g.quests[order[menuSel_]].id;
+        for (int r = 0; r < L.rows && menuScroll_ + r < (int)order.size(); r++)
+          if (inR(18, top + 10 + r * L.pitch, 200, L.pitch)) { menuSel_ = menuScroll_ + r; return; }
+        // scroll the journal by tapping just above / below the list
+        if (inR(18, top + 2, 200, 8)) { menuSel_ = std::max(0, menuSel_ - 5); return; }
+        if (inR(18, top + 10 + L.rows * L.pitch, 200, 14)) { menuSel_ = std::min((int)order.size() - 1, menuSel_ + 5); return; }
+        if (menuSel_ < (int)order.size() && inR(236, L.trackY, touchUI ? 120 : 100, L.trackH)) g.trackedQuest = g.quests[order[menuSel_]].id;
         break;
       }
       case 2: {
@@ -1046,9 +1235,9 @@ void View::tap(Game& g, Vec2 p) {
         paperdollTap(g, p);
         break;
       case 4:
-        if (inR(Pix::W / 2 - 70, top + 40, 140, 20)) { wantSave = true; banner_ = "GAME SAVED"; bannerSub_ = ""; bannerT_ = 2; }
-        if (inR(Pix::W / 2 - 70, top + 68, 140, 20)) touchUI = !touchUI;
-        if (inR(Pix::W / 2 - 70, top + 96, 140, 20)) { wantSave = true; wantsQuit = true; }
+        if (inR(Pix::W / 2 - 70, top + 40, 140, L.sysH)) { wantSave = true; banner_ = "GAME SAVED"; bannerSub_ = ""; bannerT_ = 2; }
+        if (inR(Pix::W / 2 - 70, top + 68, 140, L.sysH)) touchUI = !touchUI;
+        if (inR(Pix::W / 2 - 70, top + 96, 140, L.sysH)) { wantSave = true; wantsQuit = true; }
         break;
     }
     return;
@@ -1126,9 +1315,16 @@ void View::event(const SDL_Event& e, Game& g) {
       else if (b == B_POTION) kPotion_ = true;
       else if (p.x < Pix::W * 0.55f && !stick_.on) { stick_ = f; stick_.button = -2; }
       else if (b < 0) {
-        // tap on the world: talk to / open what's there, otherwise attack
+        // tap on the world: talk to / open what's there, otherwise attack. Talking needs the tap on (or near) the
+        // person or the hero, so a tap across the screen never opens a conversation by accident
         int utx = 0, uty = 0;
-        if (g.interactTarget() >= 0 || usablePropAt(g, utx, uty)) kUse_ = true; else kAttack_ = true;
+        bool talk = false;
+        if (int it = g.interactTarget(); it >= 0) {
+          const Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
+          for (const Actor& a : g.actors)
+            if (a.id == it && (len2(p - (a.p - cam - Vec2(0, 10))) < 40.0f * 40.0f || len2(p - (g.pl().p - cam - Vec2(0, 10))) < 40.0f * 40.0f)) talk = true;
+        }
+        if (talk || usablePropAt(g, utx, uty)) kUse_ = true; else { kAttack_ = true; kTapAttack_ = true; }
       }
       fingers_.push_back(f);
       break;

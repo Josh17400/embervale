@@ -83,6 +83,8 @@ struct Actor {
   float fleeT = 0;         // seconds spent running for home during this threat
   int navGoal = -1, navNext = -1;   // tile path-finding: goal tile index and the next tile on the way
   float navT = 0;          // time until the path is re-planned
+  int unreach = -1;        // guards: a target no path reaches (across a wall, in water) is ignored for unreachT s
+  float unreachT = 0;
 };
 
 enum class ProjKind : uint8_t { Arrow, Fireball, IceSpike, Spit, Magic, DragonFire };

@@ -2070,3 +2070,67 @@ These are binding inputs. Each is mapped onto the milestones above. Where it con
 - **Exterior and interior must agree:** footprint size, number of storeys, chimney ⇒ hearth, and shop sign ⇒ shop interior.
 - **Verification:** an automated check per building type (no bed in a common room; every room reachable; stairs present iff the
   exterior has 2+ storeys), plus a screenshot review of each type.
+
+### 15.8 Settlement scale and spacing, plus kingdom identity (owner, 2026-10-03). This binds M1 and later.
+- **Spacing:** settlements must be **much, much further apart** than in the classic island. Travel between them should feel like a
+  journey through wilderness: roads with points of interest, camps, dens and ruins in between. Use the endless world's room for
+  this; don't pack sites together.
+- **Size targets (houses/homes, not counting service buildings):**
+  - villages: **10–15** houses;
+  - towns: **40–60** homes;
+  - cities: **huge, 160–220** homes, with districts, several squares, markets, walls and gates.
+  
+  Perf and mobile budgets must be planned for big cities (chunk streaming, actor LOD and sleeping NPCs).
+- Every village gets its core services. The owner's sentence was cut off ("have all villages have..."); assume at least an inn or
+  tavern, a well or green, and a shop or smith. Confirm with the owner.
+- **Kingdom identity must be obvious:**
+  - banners, guard tabards and colours of the ruling kingdom in every settlement;
+  - a sign or arrival banner naming the town and its kingdom;
+  - the map shows ownership.
+  
+  **Capital cities are unmistakable:** the king's palace (a large walled palace or castle compound with a throne hall, gardens,
+  barracks and a royal guard), grander walls and the royal banner.
+
+### 15.9 Quest and campaign engine, and a rags-to-riches economy (owner, 2026-10-03)
+- **Three quest tiers:**
+  1. **Generic radiant quests** (bounties, hunts, deliveries), kept, but phrased and framed with variety.
+  2. **Story quests:** small hand-authored-style stories generated from templates, with real dialogue (branching, characters with
+     motives, a twist or a choice, consequences that persist: an NPC remembers, a family moves, a shop changes hands).
+  3. **Campaigns:** large, multi-stage story arcs (10–30+ quests) that the player can stumble into anywhere in the endless world.
+     Examples:
+     - a succession crisis;
+     - a plague cult;
+     - a lost heir;
+     - a rebellion;
+     - a dragon cult;
+     - an ancient magic tradition awakening.
+     
+     They have recurring characters, factions, betrayals, branching outcomes that change the world (who rules, which town survives),
+     and companions with stakes in them.
+- **Engine requirements:** a data-driven quest/campaign DSL (stages, objectives, conditions, dialogue trees, variables, world-state
+  hooks), plus a generator that casts real world entities (this kingdom, that ruin, this NPC, the history sim's events) into roles, so
+  stories come out of the living world rather than floating above it. A writing-quality bar: no generic filler in tier 2 and 3
+  dialogue; templates with enough authored variation and specificity. Tests must walk every campaign path headlessly.
+- **Economy: slow rags to riches.** The player must not get rich fast or get great gear fast.
+  - Money sinks: lodging, food, repairs, training, property, taxes, bribes.
+  - Prices follow the region's economy (scarcity and wars move them).
+  - Rewards scale with place and danger, not player level.
+  - Great gear is rare and earned (dungeons, campaigns, crafting with rare materials), and selling loot has diminishing returns
+    (merchant gold limits, saturation).
+  - A balance sim (bot playthroughs measuring gold/hour and gear tier over 1, 5, 20 and 50 hours) gates every economy change against
+    target curves.
+- **Roadmap placement:**
+  - the quest engine and story quests land with M4 (kingdoms give stories their actors);
+  - campaigns arrive with M4/M12, the first campaign ships as soon as the engine exists;
+  - the economy pass lands with M6 (items), and its balance sim is a CI gate from then on.
+- **Story inspiration (owner):** draw on the whole world's storytelling (scripture and ancient myth, folk and fairy tales, epics,
+  classic and modern fantasy such as C.S. Lewis and Sarah J. Maas) to build a large library of **story archetypes and plot structures**.
+  Examples:
+  - the prodigal's return, a betrayal by a brother, an exile and a homecoming;
+  - a flood or plague as judgement, a prophecy misread, a rightful heir in hiding;
+  - a deal with a fae court, a portal to another realm, a hidden queen, an enemies-to-allies bond;
+  - the trickster's bargain, a cursed gift, a sacrificial stand.
+  
+  The generator combines archetype, cast (from the living world), setting, twist and moral choice, giving effectively millions of
+  distinct quests. **Rule:** borrow structures, themes and motifs, never copyrighted names, characters, places or verbatim plots of
+  modern works. Public-domain myth, scripture and folklore can be referenced more directly.

@@ -110,10 +110,11 @@ bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
     a.navT = 0.5f;
     a.navNext = -1;
     // bounded BFS from the actor's tile to the goal tile
-    int x0 = std::max(0, std::min(sx, gx) - 10), y0 = std::max(0, std::min(sy, gy) - 10);
-    int x1 = std::min(m.w - 1, std::max(sx, gx) + 10), y1 = std::min(m.h - 1, std::max(sy, gy) + 10);
+    // (the margin lets a path swing out through a city gate or around a long house row)
+    int x0 = std::max(0, std::min(sx, gx) - 16), y0 = std::max(0, std::min(sy, gy) - 16);
+    int x1 = std::min(m.w - 1, std::max(sx, gx) + 16), y1 = std::min(m.h - 1, std::max(sy, gy) + 16);
     int ww = x1 - x0 + 1, hh = y1 - y0 + 1;
-    if (ww > 96 || hh > 96 || !m.in(sx, sy) || !m.in(gx, gy)) return false;
+    if (ww > 112 || hh > 112 || !m.in(sx, sy) || !m.in(gx, gy)) return false;
     navPrev_.assign((size_t)ww * hh, -1);
     auto loc = [&](int x, int y) { return (y - y0) * ww + (x - x0); };
     std::vector<int> q;
@@ -166,6 +167,7 @@ void Game::updateFolk(Actor& a, float dt) {
   const bool guard = a.role == Role::Guard;
   if (guard || (a.militia && !hurt)) {
     a.thinkT -= dt;
+    if (a.unreachT > 0) a.unreachT -= dt;
     if (a.thinkT <= 0) {
       a.thinkT = 0.4f;
       a.target = -1;
@@ -173,6 +175,7 @@ void Game::updateFolk(Actor& a, float dt) {
       const Site* st = town ? &world.sites[a.site] : nullptr;
       for (const Actor& e : actors) {
         if (e.player || e.st == AState::Dead || e.fly || !factionsHostile(a.faction, e.faction)) continue;
+        if (e.id == a.unreach && a.unreachT > 0) continue;   // no way to it from here: leave it for someone else
         float d2 = len2(e.p - a.p);
         bool nearMe = d2 < (guard ? 110.0f * 110.0f : 90.0f * 90.0f);
         bool inTown = false;
@@ -201,7 +204,12 @@ void Game::updateFolk(Actor& a, float dt) {
       }
       if (a.st == AState::Strike) { if (a.stT > 0.25f) { a.st = AState::Idle; a.stT = 0; a.atkCd = guard ? 0.8f : 1.3f; } return; }
       if (l > reach) {
-        if (!navStep(a, t.p, a.speed * 1.2f, dt)) moveActor(a, a.aim * (a.speed * 1.2f * dt));
+        if (!navStep(a, t.p, a.speed * 1.2f, dt)) {
+          // no path (a wall, water or a house row in between): don't grind against it; give the target up for a
+          // while unless it is right there
+          if (l > 3.0f * TILE) { a.unreach = t.id; a.unreachT = 6.0f; a.target = -1; a.thinkT = 0; a.st = AState::Idle; return; }
+          moveActor(a, a.aim * (a.speed * 1.2f * dt));
+        }
         a.st = AState::Walk;
       } else if (a.atkCd <= 0) { a.st = AState::Windup; a.stT = 0; }
       else a.st = AState::Idle;
@@ -214,18 +222,40 @@ void Game::updateFolk(Actor& a, float dt) {
   if (town && !guard) {
     const Actor* threat = nullptr;
     float td = 100.0f * 100.0f;
+    // a threat is a monster on the hunt (aggro) or one right beside them; a pack dozing at its den by the
+    // fields does not send the whole street indoors
     for (const Actor& e : actors)
-      if (!e.player && e.st != AState::Dead && !e.fly && factionsHostile(a.faction, e.faction) && len2(e.p - a.p) < td) { td = len2(e.p - a.p); threat = &e; }
+      if (!e.player && e.st != AState::Dead && !e.fly && factionsHostile(a.faction, e.faction) && len2(e.p - a.p) < td &&
+          (e.aggro || len2(e.p - a.p) < 48.0f * 48.0f)) { td = len2(e.p - a.p); threat = &e; }
     if (threat || ringing) {
       if (threat) alarms_[a.site].lastThreatT = time;
       a.fleeT += dt;
       bool ran = false;
+      if (a.fleeT > 8.0f && a.fleeT - dt <= 8.0f) {
+        // home is cut off: make for the nearest door from here instead
+        a.homeBldg = -1;
+        Vec2 h = a.home;
+        a.home = a.p;
+        homeDoor(a);
+        a.home = h;
+      }
+      // after 16 s with every door out of reach (cut off by the threat or the river) they give up running for a door:
+      // they only ever go inside AT a door (vanishing in the open street read as a glitch), so from here they cower
+      // where they stand and only scramble away when the threat closes in. The flight clock stops at 16 s.
+      const bool cower = a.fleeT > 16.0f;
+      if (cower) a.fleeT = 16.0f + 1e-3f;
       int b = homeDoor(a);
       if (b >= 0) {
         const Bldg& B = world.over.bldgs[b];
         Vec2 door = tileCentre(B.doorX(), B.doorY() + 1);
         if (len2(a.p - door) < 7.0f * 7.0f) { a.indoors = true; a.st = AState::Idle; return; }
-        ran = navStep(a, door, a.speed * 1.25f, dt);
+        if (!cower) ran = navStep(a, door, a.speed * 1.25f, dt);
+      }
+      if (cower && !(threat && len2(threat->p - a.p) < 56.0f * 56.0f)) {
+        if (threat) a.face = faceOf(threat->p - a.p);   // watching it, frozen to the spot
+        a.st = AState::Idle;
+        a.goal = a.p; a.thinkT = 1.0f;
+        return;
       }
       if (!ran) {
         if (!threat) { a.st = AState::Idle; return; }
@@ -237,6 +267,7 @@ void Game::updateFolk(Actor& a, float dt) {
       a.goal = a.p; a.thinkT = 1.0f;   // when it's over, stay put a moment before wandering again
       return;
     }
+    if (a.fleeT > 8.0f) a.homeBldg = -1;   // the nearest-door fallback was for that alarm only: home is home again
     a.fleeT = 0;
   }
   a.thinkT -= dt;
@@ -281,8 +312,17 @@ void Game::updateTownDefence(float dt) {
     for (const Actor& e : actors) {
       if (e.player || e.st == AState::Dead || !factionsHostile(Faction::Town, e.faction)) continue;
       int tx = tileX(e.p), ty = tileY(e.p);
-      if (tx >= st.r.x - 1 && ty >= st.r.y - 1 && tx < st.r.x + st.r.w + 1 && ty < st.r.y + st.r.h + 1) n++;
-      if (tx >= st.r.x - 6 && ty >= st.r.y - 6 && tx < st.r.x + st.r.w + 6 && ty < st.r.y + st.r.h + 6) near++;
+      bool in = tx >= st.r.x - 1 && ty >= st.r.y - 1 && tx < st.r.x + st.r.w + 1 && ty < st.r.y + st.r.h + 1;
+      if (in) n++;
+      // the threat lasts while anything hostile is inside, or something hunts around the edge of town (a wolf
+      // chasing a villager out past the houses); a pack idling at a nearby den or camp is not a threat
+      // a stray (no den or camp to go home to: what came into town) is a threat while it hunts anyone nearby or
+      // prowls just outside the houses; a den or camp pack only while it hunts townsfolk (a pack defending its den
+      // against the player out in the fields is the player's fight, not the town's)
+      const bool stray = e.den < 0 && e.site < 0;
+      const bool hunting = e.aggro && (stray || e.target != p.id);
+      const bool edge6 = tx >= st.r.x - 6 && ty >= st.r.y - 6 && tx < st.r.x + st.r.w + 6 && ty < st.r.y + st.r.h + 6;
+      if (in || (stray && edge6) || (hunting && tx >= st.r.x - 14 && ty >= st.r.y - 14 && tx < st.r.x + st.r.w + 14 && ty < st.r.y + st.r.h + 14)) near++;
     }
     al.hostiles = n;
     if (near > 0) al.lastThreatT = time;
@@ -319,10 +359,17 @@ void Game::updateTownDefence(float dt) {
     if (safe && b >= 0 && b < (int)world.over.bldgs.size()) {
       const Bldg& B = world.over.bldgs[b];
       Vec2 door = tileCentre(B.doorX(), B.doorY() + 1);
-      for (const Actor& e : actors)
-        if (!e.player && e.st != AState::Dead && factionsHostile(s.faction, e.faction) && len2(e.p - door) < 140.0f * 140.0f) safe = false;
+      const IRect sr = s.site >= 0 && s.site < (int)world.sites.size() ? world.sites[s.site].r : IRect{};
+      for (const Actor& e : actors) {
+        if (e.player || e.st == AState::Dead || !factionsHostile(s.faction, e.faction) || len2(e.p - door) >= 140.0f * 140.0f) continue;
+        int tx = tileX(e.p), ty = tileY(e.p);
+        bool inTown = tx >= sr.x - 1 && ty >= sr.y - 1 && tx < sr.x + sr.w + 1 && ty < sr.y + sr.h + 1;
+        const bool stray = e.den < 0 && e.site < 0;
+        if ((e.aggro && e.target != pl().id) || inTown || stray) safe = false;   // (not a pack dozing at its den or fighting the player)
+      }
       if (safe) {
         s.p = door; s.vel = Vec2(); s.fleeT = 0; s.fleeing = false; s.hp = s.maxHp; s.face = 0;
+        s.homeBldg = -1;   // out of whatever door sheltered them; the next alarm sends them home again (homeDoor)
         s.goal = s.home; s.thinkT = 0.5f + rng_.f() * 2.0f; s.st = AState::Walk; s.stT = 0;
         if (s.militia) s.look.weapon = calmTool(s.role);
         sfx((int)Sfx::Door, door, 1.1f, 0.3f);

@@ -109,17 +109,27 @@ bool eventHas(const Game& g, const char* text) {
   for (const Event& e : g.events) if (e.s.find(text) != std::string::npos) return true;
   return false;
 }
-// a bandit camp's chief burns down (kill() runs the clear logic exactly as a player kill would)
+// a bandit camp's chief burns down (kill() runs the clear logic exactly as a player kill would). The bounty asks for
+// the chief: the camp must count as cleared the moment the chief falls (CLEARED and BOUNTY READY / NOT YOUR TARGET
+// at once, plus a "CHIEF SLAIN - N BANDITS FIGHT ON" line when stragglers remain), not only after the last bandit.
 bool killChief(Game& g, int camp) {
   const Site& s = g.world.sites[camp];
   int x, y;
   if (!freeTile(g, s.r.cx(), s.r.y + s.r.h + 2, x, y, 8)) return false;
   g.pl().p = tileCentre(x, y);
   tick(g, 3);
-  for (int tries = 0; tries < 400; tries++) {
-    int chief = -1;
-    for (size_t k = 1; k < g.actors.size(); k++) if (g.actors[k].boss && g.actors[k].site == camp && g.actors[k].st != AState::Dead) chief = (int)k;
-    if (chief < 0) return g.world.sites[camp].cleared;
+  for (int tries = 0; tries < 800; tries++) {
+    int chief = -1, others = 0;
+    for (size_t k = 1; k < g.actors.size(); k++) {
+      const Actor& a = g.actors[k];
+      if (a.site != camp || !a.hostile || a.st == AState::Dead) continue;
+      if (a.boss) chief = (int)k; else others++;
+    }
+    if (chief < 0) {
+      if (!g.world.sites[camp].cleared) { out("FAIL: bounty: the chief of %s is dead but the camp is not cleared\n", s.name.c_str()); return false; }
+      if (others > 0 && !eventHas(g, "CHIEF SLAIN")) { out("FAIL: bounty: chief of %s slain with %d bandits left, no 'CHIEF SLAIN' line\n", s.name.c_str(), others); return false; }
+      return true;
+    }
     g.actors[chief].hp = std::min(g.actors[chief].hp, 0.4f);
     g.actors[chief].burnT = 2.0f;
     g.actors[chief].reassembled = true;
@@ -248,7 +258,7 @@ int bountyChecks(const Game& base) {
   g.quests.push_back(q);
   g.trackedQuest = q.id;
   std::string st0 = g.questStatus(g.quests.back());
-  if (st0.rfind("CLEAR ", 0) != 0 || st0.find('(') == std::string::npos || st0.size() > 36) { out("FAIL: bounty: journal line '%s'\n", st0.c_str()); bad++; }
+  if ((st0.rfind("KILL THE CHIEF", 0) != 0 && st0.rfind("CHIEF AT ", 0) != 0) || st0.find('(') == std::string::npos || st0.size() > 36) { out("FAIL: bounty: journal line '%s'\n", st0.c_str()); bad++; }
   leaveInside(g);
   if (g.inside) { out("FAIL: bounty: could not leave the inn\n"); return bad + 1; }
   // the wrong camp first: never silent

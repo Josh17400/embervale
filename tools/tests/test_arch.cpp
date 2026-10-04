@@ -9,6 +9,9 @@
 
 namespace {
 
+// the town box (Town::x0..) is the site rect grown by 3, and the wall ring can reach its edge: check one tile beyond
+constexpr int MG = 4;
+
 int wallChecks(const World& w, int si, bool dump) {
   const Map& m = w.over;
   const Site& s = w.sites[si];
@@ -16,7 +19,7 @@ int wallChecks(const World& w, int si, bool dump) {
   auto W = [&](int x, int y) { return m.in(x, y) && m.wall[(size_t)y * m.w + x] != 0; };
   // gate passages and wall gaps of this city
   std::vector<uint8_t> gap((size_t)m.w * m.h, 0);
-  auto inSite = [&](int x, int y) { return x >= s.r.x - 2 && y >= s.r.y - 2 && x < s.r.x + s.r.w + 2 && y < s.r.y + s.r.h + 2; };
+  auto inSite = [&](int x, int y) { return x >= s.r.x - MG && y >= s.r.y - MG && x < s.r.x + s.r.w + MG && y < s.r.y + s.r.h + MG; };
   for (const IRect& r : w.wallGaps)
     for (int y = r.y; y < r.y + r.h; y++)
       for (int x = r.x; x < r.x + r.w; x++)
@@ -39,8 +42,8 @@ int wallChecks(const World& w, int si, bool dump) {
   }
   auto G = [&](int x, int y) { return m.in(x, y) ? gap[(size_t)y * m.w + x] : 0; };
   int walls = 0, lonely = 0;
-  for (int y = s.r.y - 2; y < s.r.y + s.r.h + 2; y++)
-    for (int x = s.r.x - 2; x < s.r.x + s.r.w + 2; x++) {
+  for (int y = s.r.y - MG; y < s.r.y + s.r.h + MG; y++)
+    for (int x = s.r.x - MG; x < s.r.x + s.r.w + MG; x++) {
       if (!W(x, y)) continue;
       walls++;
       int n = 0;
@@ -65,7 +68,7 @@ int wallChecks(const World& w, int si, bool dump) {
     int ex = -1, ey = -1;
     for (size_t qi = 0; qi < q.size() && !escaped; qi++) {
       int x = q[qi] % m.w, y = q[qi] / m.w;
-      if (!inSite(x, y) || x == s.r.x - 2 || y == s.r.y - 2 || x == s.r.x + s.r.w + 1 || y == s.r.y + s.r.h + 1) { escaped = true; ex = x; ey = y; break; }
+      if (!inSite(x, y) || x == s.r.x - MG || y == s.r.y - MG || x == s.r.x + s.r.w + MG - 1 || y == s.r.y + s.r.h + MG - 1) { escaped = true; ex = x; ey = y; break; }
       static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
       for (int k = 0; k < 4; k++) {
         int nx = x + dx[k], ny = y + dy[k];
@@ -85,9 +88,9 @@ int wallChecks(const World& w, int si, bool dump) {
   for (auto& gt : w.gates)
     if (inSite(gt.first, gt.second)) out("    gate at %d,%d (walk through: %d,%d -> %d,%d)\n", gt.first, gt.second, gt.first + 1, gt.second + 2, gt.first + 1, gt.second - 2);
   if (dump) {
-    for (int y = s.r.y - 2; y < s.r.y + s.r.h + 2; y++) {
+    for (int y = s.r.y - MG; y < s.r.y + s.r.h + MG; y++) {
       std::string line;
-      for (int x = s.r.x - 2; x < s.r.x + s.r.w + 2; x++) {
+      for (int x = s.r.x - MG; x < s.r.x + s.r.w + MG; x++) {
         char c = '.';
         if (W(x, y)) c = '#';
         else if (G(x, y) == 2) c = 'G';
@@ -118,6 +121,87 @@ int archChecks(uint64_t seed) {
     for (int y = b.r.y; y < b.r.y + b.r.h; y++)
       for (int x = b.r.x; x < b.r.x + b.r.w; x++)
         if (!m.in(x, y) || m.bldgAt[(size_t)y * m.w + x] != (int16_t)bi) { out("FAIL: building %zu footprint tile %d,%d not owned\n", bi, x, y); bad++; y = 1 << 20; break; }
+  }
+  // WORLDGEN_V5 placement: no building's sprite covers another's front (foundation row and doorstep) or its door
+  // apron, no market stall stands against a facade or under a roof, no gatehouse stands by a river, and no road runs
+  // up to the city wall away from an opening
+  if (w.genVersion >= WORLDGEN_V5) {
+    auto spriteOf = [](const Bldg& b) { int up = bldgRiseTiles(b.type); return IRect{b.r.x - 1, b.r.y - up, b.r.w + 2, b.r.h + up + 1}; };
+    int clashes = 0;
+    for (const Site& s : w.sites) {
+      for (int i = s.bldgFirst; i < s.bldgFirst + s.bldgCount; i++)
+        for (int j = s.bldgFirst; j < s.bldgFirst + s.bldgCount; j++) {
+          if (i == j) continue;
+          const Bldg& A = m.bldgs[(size_t)i];
+          const Bldg& B = m.bldgs[(size_t)j];
+          IRect front{B.r.x, B.r.y + B.r.h - 1, B.r.w, 1}, apron{B.doorX() - 1, B.r.y + B.r.h, 3, 2};
+          if (spriteOf(A).overlaps(front) || spriteOf(A).overlaps(apron)) {
+            if (clashes++ < 5) out("FAIL: %s: building %d (type %d at %d,%d) covers the front of building %d (type %d at %d,%d)\n", s.name.c_str(), i,
+                                   (int)A.type, A.r.x, A.r.y, j, (int)B.type, B.r.x, B.r.y);
+            bad++;
+          }
+        }
+    }
+    for (int y = 2; y < m.h - 4; y++)
+      for (int x = 1; x < m.w - 1; x++) {
+        if (m.prop[(size_t)y * m.w + x] != (int)art::Prop::MarketStall + 1) continue;
+        for (int oy = -2; oy <= 3; oy++)
+          for (int ox = -1; ox <= 1; ox++)
+            if (m.bldgAt[(size_t)(y + oy) * m.w + x + ox] >= 0) { out("FAIL: market stall at %d,%d against a building\n", x, y); bad++; oy = 9; break; }
+      }
+    for (auto& gt : w.gates)
+      for (int oy = -2; oy <= 2; oy++)
+        for (int ox = -2; ox <= 4; ox++)
+          if (m.in(gt.first + ox, gt.second + oy) && (groundWater(m.at(gt.first + ox, gt.second + oy)) || m.at(gt.first + ox, gt.second + oy) == Ground::Bridge)) {
+            out("FAIL: gate at %d,%d stands by water (%d,%d)\n", gt.first, gt.second, gt.first + ox, gt.second + oy); bad++; oy = 9; break;
+          }
+    for (int si = 0; si < (int)w.sites.size(); si++) {
+      const Site& s = w.sites[si];
+      if (s.type != SiteType::City) continue;
+      for (int y = s.r.y - MG; y < s.r.y + s.r.h + MG; y++)
+        for (int x = s.r.x - MG; x < s.r.x + s.r.w + MG; x++) {
+          if (!m.in(x, y) || m.wall[(size_t)y * m.w + x]) continue;
+          Ground gg = m.at(x, y);
+          if (gg != Ground::Road && gg != Ground::Bridge) continue;
+          bool touches = false, nearOpening = false;
+          for (int k = 0; k < 4; k++) {
+            static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
+            if (m.in(x + dx[k], y + dy[k]) && m.wall[(size_t)(y + dy[k]) * m.w + x + dx[k]]) touches = true;
+          }
+          for (const IRect& g : w.wallGaps) if (x >= g.x - 3 && x < g.x + g.w + 3 && y >= g.y - 3 && y < g.y + g.h + 3) nearOpening = true;
+          // (a road may run along the wall's foot; one that meets it head-on - wall ahead, road behind - dead-ends)
+          if (touches && !nearOpening) {
+            int headOn = 0;
+            for (int k = 0; k < 4; k++) {
+              static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
+              bool wallAhead = m.in(x + dx[k], y + dy[k]) && m.wall[(size_t)(y + dy[k]) * m.w + x + dx[k]];
+              Ground back = m.at(x - dx[k], y - dy[k]);
+              bool sideRoad = m.at(x + dy[k], y + dx[k]) == Ground::Road || m.at(x - dy[k], y - dx[k]) == Ground::Road;
+              if (wallAhead && (back == Ground::Road || back == Ground::Bridge) && !sideRoad) headOn++;
+            }
+            if (headOn) {
+              out("FAIL: city %s: a road meets the wall head-on at %d,%d, away from any opening\n", s.name.c_str(), x, y);
+              bad++;
+              for (int oy = -4; oy <= 4; oy++) {   // # wall, R road, B bridge, ~ water, b building, . other
+                std::string row;
+                for (int ox = -6; ox <= 6; ox++) {
+                  int qx = x + ox, qy = y + oy;
+                  char ch = '.';
+                  if (!m.in(qx, qy)) ch = ' ';
+                  else if (m.wall[(size_t)qy * m.w + qx]) ch = '#';
+                  else if (m.bldgAt[(size_t)qy * m.w + qx] >= 0) ch = 'b';
+                  else if (m.at(qx, qy) == Ground::Road) ch = 'R';
+                  else if (m.at(qx, qy) == Ground::Bridge) ch = 'B';
+                  else if (groundWater(m.at(qx, qy))) ch = '~';
+                  if (ox == 0 && oy == 0) ch = '@';
+                  row += ch;
+                }
+                out("      %s\n", row.c_str());
+              }
+            }
+          }
+        }
+    }
   }
   // settlements per biome (for screenshots: --play --seed N --goto village picks the village nearest the start)
   const Site& home = w.sites[w.startSite];

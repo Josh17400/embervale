@@ -33,7 +33,27 @@ constexpr int WORLDGEN_V1 = 1;       // the original generator: every save befor
 constexpr int WORLDGEN_V2 = 2;       // + wilderness dens (Gen::dens, own "dens" stream)
 constexpr int WORLDGEN_V3 = 3;       // M0: cluttered interiors (genInterior via Bldg::genVer) and the M0 building/wall
                                      // pass (city-wall joins, building footprints); every such change is gated on ver >= 3
-constexpr int WORLDGEN_LATEST = 3;   // what new games use; bump when generator output changes, gating the change on it
+constexpr int WORLDGEN_V4 = 4;       // M0 fix round: city walls are built before the town's buildings (final ring, gates and
+                                     // side gates first; buildings, lamps and trees keep clear of the ring and every gate
+                                     // approach; overland roads route through the real openings, which are paved)
+constexpr int WORLDGEN_V5 = 5;       // M0 fix round 2: every road through a city wall gets a real gate (gatehouses searched
+                                     // wider, a lane from each gate to the streets, street stubs outside the ring removed),
+                                     // gates keep off rivers (a river crossing the ring keeps its water under a culvert arch),
+                                     // buildings keep their roofs, sprites and doorsteps clear of each other, stalls keep
+                                     // off facades
+constexpr int WORLDGEN_V6 = 6;       // M0 fix round 3: worlds left with fewer than 8 caves get a top-up pass on its own
+                                     // stream (rock edges scanned in a shuffled order, up to 10 caves); others are unchanged
+constexpr int WORLDGEN_LATEST = 6;   // what new games use; bump when generator output changes, gating the change on it
+
+// WORLDGEN_V5 placement: how many tiles a building's sprite may rise above its footprint's top row (roof, steeple,
+// cone), generous on purpose. A generator constant (never measured from the art), so art changes never move buildings.
+inline int bldgRiseTiles(art::Building t) {
+  switch (t) {
+    case art::Building::Tower: case art::Building::Temple: return 5;
+    case art::Building::Keep: case art::Building::Inn: return 4;
+    default: return 3;
+  }
+}
 
 enum class Role : uint8_t { Villager, Guard, Merchant, Smith, Innkeeper, Priest, Jarl, Farmer, Child, Mage, Bandit, COUNT };
 

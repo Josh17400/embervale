@@ -91,6 +91,22 @@ void Game::newGame(uint64_t s, int genVer) {
     trackedQuest = o.giverBldg >= 0 ? o.id : q.id;
   }
   loadMapActors();
+  // nobody stands on the newcomer's toes: a villager placed right on the spawn steps aside, so the first key press or
+  // tap doesn't open a dead-end conversation and no name label sits on the hero's head
+  for (size_t k = 1; k < actors.size(); k++) {
+    Actor& a = actors[k];
+    if (!a.npc || len2(a.p - pl().p) >= 26.0f * 26.0f) continue;
+    static const Vec2 offs[] = {{-32, 0}, {32, 0}, {0, -32}, {-32, -32}, {32, -32}, {0, 32}, {-32, 32}, {32, 32}};
+    for (Vec2 o : offs) {
+      Vec2 q = pl().p + o;
+      if (world.over.blocked((int)std::floor(q.x / TILE), (int)std::floor((q.y - 2) / TILE))) continue;
+      bool crowded = false;
+      for (size_t j = 1; j < actors.size(); j++) if (j != k && len2(actors[j].p - q) < 12.0f * 12.0f) crowded = true;
+      if (crowded) continue;
+      a.p = q;
+      break;
+    }
+  }
   updateLocation();
 }
 
@@ -104,7 +120,7 @@ void Game::resetPlayer() {
   // A heel of bread and a few coins; the first weapon comes from the start village (the opening quest).
   Item bread = makeFood(0); bread.count = 2;
   inv.push_back(bread);
-  spellsKnown = 1; spell = Spell::Flames;
+  spellsKnown = 0; spell = Spell::Flames;   // no magic at the start: spells come from a background, tomes or teachers
   recalcPlayer();
   Actor& p = pl();
   p.hp = p.maxHp; mp = maxMp; stamina = maxSt;
@@ -113,6 +129,7 @@ void Game::resetPlayer() {
 
 void Game::debugKit() {
   Rng r(seed);
+  spellsKnown |= (uint8_t)(1 << (int)Spell::Flames);
   Item sw = makeWeapon(r, 1, (int)WeaponType::Sword, false);
   sw.name = "IRON SWORD"; sw.power = 8;
   addItem(sw, false);
@@ -139,9 +156,9 @@ void Game::finishCreator() {
   //   temple novice       MEND known, blessingSecs()              noble       hasOffer: guards and jarls offer more
   //   sailor / marked     small hooks: sea legs (+stamina) / a faint echo of lost magic (+magicka)
   switch (background) {
-    case Background::Novice: spellsKnown |= (uint8_t)(1 << (int)Spell::Heal); break;
+    case Background::Novice: spellsKnown |= (uint8_t)(1 << (int)Spell::Heal); spell = Spell::Heal; break;
     case Background::Sailor: maxSt += 15; break;
-    case Background::Marked: maxMp += 15; break;
+    case Background::Marked: maxMp += 15; spellsKnown |= (uint8_t)(1 << (int)Spell::Flames); spell = Spell::Flames; break;
     default: break;
   }
   recalcPlayer();
@@ -500,11 +517,13 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
     if (!v.boss && dmg > v.maxHp * 0.12f && !committed) { v.st = AState::Hurt; v.stT = 0; v.heavy = false; v.lunge = false; }
     // goblins lose their nerve when badly hurt; so does the last wolf of a pack
     bool lastWolf = false;
-    if ((v.mon == Monster::Wolf || v.mon == Monster::IceWolf) && !v.human && v.hp > 0 && v.hp < v.maxHp * 0.4f) {
+    // (inside a settlement nothing flees: whatever got in fights until the guards end it, as the leash rule says)
+    const bool inTownV = !inside && settlementAt(v.p) >= 0;
+    if ((v.mon == Monster::Wolf || v.mon == Monster::IceWolf) && !v.human && v.hp > 0 && v.hp < v.maxHp * 0.4f && !inTownV) {
       lastWolf = true;
       for (const Actor& o : actors) if (o.id != v.id && o.mon == v.mon && !o.human && o.hostile && o.st != AState::Dead && len2(o.p - v.p) < 160 * 160) lastWolf = false;
     }
-    if (((v.mon == Monster::Goblin && v.hp < v.maxHp * 0.3f) || lastWolf) && !v.human && !v.fleeing && v.hp > 0) {
+    if (((v.mon == Monster::Goblin && v.hp < v.maxHp * 0.3f && !inTownV) || lastWolf) && !v.human && !v.fleeing && v.hp > 0) {
       v.fleeing = true;
       emit(Ev::Text, v.p + Vec2(0, -20), (int)rgba(255, 230, 120), 0, "!");
     }
@@ -533,7 +552,10 @@ void Game::kill(Actor& a, int killer) {
     return;
   }
   sfx((int)Sfx::EnemyDie, a.p, a.boss ? 0.7f : 1.0f);
-  if (killer == pl().id || a.hostile) {
+  // only the player's own blows, arrows and fire earn XP, the kill count and hunt progress: a wolf the town guard
+  // cuts down is not the player's kill
+  const bool byPlayer = killer == pl().id;
+  if (byPlayer) {
     if (a.xp > 0) gainXp(a.xp);
     kills++;
   }
@@ -547,14 +569,30 @@ void Game::kill(Actor& a, int killer) {
       // the den is cleared: a small reward, and it stays empty for a few days (killedSlots[-1] = den * 4096 + day)
       killedSlots[-1].insert(a.den * 4096 + std::min(day, 4095));
       int bonus = 12 + world.zoneLevel(world.dens[a.den].x, world.dens[a.den].y) * 4;
-      emit(Ev::Notice, a.p, (int)rgba(255, 210, 90), 0, "DEN CLEARED  +" + std::to_string(bonus) + " XP");
-      sfx((int)Sfx::QuestDone, a.p, 1.15f);
-      gainXp(bonus);
+      if (byPlayer) {
+        emit(Ev::Notice, a.p, (int)rgba(255, 210, 90), 0, "DEN CLEARED  +" + std::to_string(bonus) + " XP");
+        sfx((int)Sfx::QuestDone, a.p, 1.15f);
+        gainXp(bonus);
+      }
     }
   }
   dropLoot(a);
-  questKill(a);
-  if (a.boss) {
+  if (byPlayer) questKill(a);
+  if (!inside && a.site >= 0 && a.site < (int)world.sites.size() && world.sites[a.site].type == SiteType::BanditCamp) {
+    // a camp is broken when its chief falls (what the bounty asks: "KILL THEIR CHIEF"), or when its last fighter
+    // does (a camp whose chief is already gone). Either way the player hears about it at once: CLEARED and BOUNTY
+    // READY, or NOT YOUR TARGET, and how many stragglers still fight on.
+    int left = 0;
+    for (const Actor& o : actors)
+      if (o.id != a.id && o.site == a.site && o.hostile && o.st != AState::Dead && !o.npc) left++;
+    if (a.boss || left == 0) {
+      const bool was = world.sites[a.site].cleared;
+      checkDungeonCleared(a.site);
+      if (!was && a.boss && left > 0)
+        emit(Ev::Text, a.p + Vec2(0, -34), (int)rgba(255, 200, 120), 0,
+             "CHIEF SLAIN - " + std::to_string(left) + (left == 1 ? " BANDIT FIGHTS ON" : " BANDITS FIGHT ON"));
+    }
+  } else if (a.boss) {
     if (inside && subSite >= 0) checkDungeonCleared(subSite);
     else if (!inside && a.site >= 0) checkDungeonCleared(a.site);
   }
@@ -628,6 +666,11 @@ void Game::shootArrow() {
 
 void Game::castSpell() {
   Actor& p = pl();
+  if (!(spellsKnown & (1 << (int)spell))) {
+    say(spellsKnown ? "SWAP TO A SPELL YOU KNOW" : "YOU KNOW NO SPELLS YET");
+    sfx((int)Sfx::MenuBack, p.p);
+    return;
+  }
   int cost = spellCost(spell);
   if (mp < cost) { say("NOT ENOUGH MAGICKA"); sfx((int)Sfx::MenuBack, p.p); return; }
   if (p.shootCd > 0) return;
@@ -825,7 +868,7 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
   switch (r) {
     case Role::Guard: L.outfit = art::Outfit::Guard; L.helmet = true; L.shield = true; L.weapon = 1; L.tabardColor = rgba(150, 40, 40); L.beard = false; break;
     case Role::Jarl: L.outfit = art::Outfit::Plate; L.cape = true; L.tabardColor = rgba(130, 30, 40); a.name = "JARL " + a.name; break;
-    case Role::Priest: L.outfit = art::Outfit::Robe; L.topColor = rgba(220, 200, 150); L.tabardColor = rgba(200, 160, 60); a.name = "PRIEST " + a.name; break;
+    case Role::Priest: L.outfit = art::Outfit::Robe; L.topColor = rgba(232, 234, 244); L.tabardColor = rgba(150, 34, 48); a.name = "PRIEST " + a.name; break;   // white + crimson: never skin-toned
     case Role::Mage: L.outfit = art::Outfit::Robe; L.topColor = rgba(70, 60, 140); L.tabardColor = rgba(200, 180, 80); L.hood = rr.f() < 0.5f; L.weapon = 4; break;
     case Role::Smith: L.outfit = art::Outfit::Leather; L.weapon = 6; L.beard = !female; break;
     case Role::Innkeeper: L.outfit = female ? art::Outfit::Dress : art::Outfit::Tunic; L.topColor = rgba(170, 140, 100); break;

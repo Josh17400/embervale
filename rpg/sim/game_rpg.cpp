@@ -163,7 +163,11 @@ int Game::interactTarget() const {
     float d = len2(a.p - p.p);
     // shopkeepers behind counters can be reached across them
     float reach = (a.role == Role::Merchant || a.role == Role::Innkeeper || a.role == Role::Smith) ? 40.0f : 24.0f;
-    if (d < reach * reach && d < bd + (reach * reach - 24 * 24)) { bd = d; best = a.id; }
+    if (d >= reach * reach) continue;
+    // someone with a reward waiting or work to offer wins over a bystander about as close (two villagers side by
+    // side: the prompt and the tap go to the one with something to say)
+    if (rewardWaiting(a) || hasOffer(a)) d *= 0.45f;
+    if (d < bd + (reach * reach - 24 * 24)) { bd = d; best = a.id; }
   }
   return best;
 }
@@ -464,7 +468,9 @@ void Game::acceptQuest(const Quest& q0) {
     if (world.sites[q.target].cleared) q.state = QState::Complete;
   }
   quests.push_back(q);
-  trackedQuest = q.id;
+  // the opening stays tracked until the old blade is collected: an unarmed newcomer who takes a villager's job on
+  // the way to the inn still has the pin over the inn door
+  if (openingQuest() < 0 || q.type == QType::Main) trackedQuest = q.id;
   emit(Ev::QuestUpdate, pl().p, q.id, 0, "QUEST STARTED: " + q.title);
   sfx((int)Sfx::QuestStart, pl().p);
 }
@@ -480,8 +486,10 @@ void Game::completeQuest(Quest& q) {
   Rng r(hash32((uint32_t)q.id * 977u) ^ (uint32_t)seed);
   if (r.f() < 0.5f) addItem(randomLoot(r, plLevel + 1, true));
   if (trackedQuest == q.id) {
+    // next: an open local job first (a nearby, level-fitting step), the main quest only when nothing else is open
     trackedQuest = -1;
-    for (auto& o : quests) if (o.state != QState::Done) { trackedQuest = o.id; if (o.type == QType::Main) break; }
+    for (auto& o : quests) if (o.state != QState::Done && o.type != QType::Main) { trackedQuest = o.id; break; }
+    if (trackedQuest < 0) for (auto& o : quests) if (o.state != QState::Done) { trackedQuest = o.id; break; }
   }
 }
 
@@ -632,6 +640,30 @@ bool Game::questTarget(int qid, int& tx, int& ty) const {
     tx = world.sites[t].ex; ty = world.sites[t].ey;
     return true;
   }
+  // an open hunt points at the quarry: the nearest one about (outdoors), else the nearest den of its kind, else the
+  // giver's home (where the beasts are said to roam)
+  if (q->type == QType::Hunt && q->state == QState::Active) {
+    int px, py;
+    overworldTile(*this, px, py);
+    float bd = 1e30f;
+    if (!inside)
+      for (size_t i = 1; i < actors.size(); i++) {
+        const Actor& a = actors[i];
+        if (a.st == AState::Dead || a.human || a.npc || a.mon != q->mon) continue;
+        float d = len2(a.p - pl().p);
+        if (d < bd) { bd = d; tx = (int)std::floor(a.p.x / TILE); ty = (int)std::floor(a.p.y / TILE); }
+      }
+    if (bd < 1e30f) return true;
+    bool found = false;
+    bd = 90.0f * 90.0f;   // a den within a day's walk; further off, the giver's home is the better hint
+    for (int di = 0; di < (int)world.dens.size(); di++) {
+      const Den& dn = world.dens[di];
+      if (dn.mon != q->mon || denClearedDay(di) >= 0) continue;
+      float d = (float)((dn.x - px) * (dn.x - px) + (dn.y - py) * (dn.y - py));
+      if (d < bd) { bd = d; tx = dn.x; ty = dn.y; found = true; }
+    }
+    if (found) return true;
+  }
   // a finished job (and the opening) points at whoever pays: their door, or the giver themself out on the street
   bool toGiver = q->state == QState::Complete || q->type == QType::Retrieve;
   int t = toGiver ? q->giverSite : q->target;
@@ -713,8 +745,12 @@ std::string Game::questStatus(const Quest& q) const {
   }
   if ((q.type == QType::Clear || q.type == QType::Bounty) && q.target >= 0 && q.target < (int)world.sites.size()) {
     const Site& t = world.sites[q.target];
-    const std::string verb = "CLEAR ";
-    return fitLine({verb + t.name + " (" + dirTo(t.ex, t.ey, false) + ")", verb + t.name + " (" + dirTo(t.ex, t.ey, true) + ")", t.name + " (" + dirTo(t.ex, t.ey, true) + ")"});
+    const std::string dl = " (" + dirTo(t.ex, t.ey, false) + ")", ds = " (" + dirTo(t.ex, t.ey, true) + ")";
+    // a bounty is won by the chief's death (Game::kill), so its line says so
+    if (q.type == QType::Bounty)
+      return fitLine({"KILL THE CHIEF AT " + t.name + dl, "KILL THE CHIEF AT " + t.name + ds, "KILL THE CHIEF: " + t.name + ds,
+                      "CHIEF AT " + t.name + ds, t.name + ds});
+    return fitLine({"CLEAR " + t.name + dl, "CLEAR " + t.name + ds, t.name + ds});
   }
   return "";
 }
@@ -741,8 +777,10 @@ void Game::giveFirstWeapon(Quest& q) {
   emit(Ev::QuestUpdate, pl().p, q.id, 1, "QUEST COMPLETE: " + q.title);
   sfx((int)Sfx::QuestDone, pl().p);
   if (trackedQuest == q.id) {
+    // next: an open local job first (a nearby, level-fitting step), the main quest only when nothing else is open
     trackedQuest = -1;
-    for (auto& o : quests) if (o.state != QState::Done) { trackedQuest = o.id; if (o.type == QType::Main) break; }
+    for (auto& o : quests) if (o.state != QState::Done && o.type != QType::Main) { trackedQuest = o.id; break; }
+    if (trackedQuest < 0) for (auto& o : quests) if (o.state != QState::Done) { trackedQuest = o.id; break; }
   }
 }
 

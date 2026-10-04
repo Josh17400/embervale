@@ -18,15 +18,21 @@
 //   5 walkto inn              autopilot over the tile grid, steering with held WASD: inn|shop|smithy|temple|keep|tower|
 //                             house (walks in the door), innkeeper|merchant|smith|priest|jarl|guard|villager|mage (until
 //                             they can be talked to), exit (walks out of a building or dungeon), or "x y" tiles.
+//                             a person by NAME (walkto VIGRIMA: until they can be talked to).
 //                             An optional trailing number is the timeout in seconds (default 40).
 //   6 expect mode shop        check state: mode title|play|dialogue|menu|shop|levelup|dead|paused|creator, inside 0|1
 //   6 newgame | goto ruin [enter] | talk 0|1|2 | fight wolf [n] | god [0|1] | hour 22 | menu 2 | log text
+//   6 talkto VIGRIMA [30]     walkto a person and talk to them the moment they are in reach (E in that same frame)
 //   6 kit                     give and equip the test kit (sword, bow, arrows, potions); fight does this when unarmed
 //   6 gear 3 [weapon]         give and equip a full set of armour band 3 (1 leather, 2 iron, 3 steel, 4 gilded, 5 jade,
 //                             6 obsidian, 7 emberforged): body, helmet, gloves, boots, cloak, shield, amulet, ring, plus a
 //                             weapon of that tier (sword|axe|mace|dagger|greatsword, default sword) and a bow for the back
 //   6 strip                   take every piece of equipment off (shirt and trousers only)
 //   6 expect name ASTRID      the player's name (the character creator); also: expect background 3, expect slot armor 1|0
+//   6 expect quest active BOUNTY: X   a quest whose title contains the words is active|complete|done (or none exists)
+//   6 expect tracked CULL THE       the tracked quest's title contains the words
+//   6 expect heard NOT YOUR TARGET  some notice since the script began contained the words
+//   6 expect option COLLECT BOUNTY  the open dialogue offers an option containing the words (expect text: its text)
 // New Game from the title opens the character creator (Mode::Creator); --play and the newgame command skip it.
 //   9 quit                    (the script also quits 2 s after its last line)
 // The exit code is 3 if any expect or walkto failed.
@@ -360,6 +366,7 @@ int main(int argc, char** argv) {
   size_t scriptNext = 0;
   float scriptT = 0, scriptEndT = -1;
   int scriptFails = 0;
+  std::vector<std::string> heard;   // every notice (Game::say) shown since the script began, for "expect heard"
   std::string pendingShot;
   struct Held { SDL_Scancode sc; float until; };
   std::vector<Held> held;
@@ -371,7 +378,8 @@ int main(int argc, char** argv) {
     std::string what;
     int kind = 0;            // 0 tile, 1 building door, 2 actor, 3 exit
     int tx = 0, ty = 0, actorId = -1, bldg = -1;
-    float t = 0, timeout = 40, replanT = 0, finalT = 0;
+    float t = 0, timeout = 40, replanT = 0, finalT = 0, closeT = 0;
+    bool talk = false;       // talkto: press E on arrival
     std::vector<int> path;
     size_t step = 0;
     int line = 0;
@@ -482,6 +490,11 @@ int main(int argc, char** argv) {
         walk.kind = 2; walk.actorId = best;
         return;
       }
+    // a person by name (as rpg_test's EMB_SCRIPT_INFO lists them): walkto VIGRIMA
+    for (size_t k = 1; k < game.actors.size(); k++) {
+      const Actor& ac = game.actors[k];
+      if (ac.npc && ac.st != AState::Dead && ac.name == walk.what) { walk.kind = 2; walk.actorId = ac.id; return; }
+    }
     walk.on = false;
     fail(c.line, "walkto: unknown target '" + walk.what + "'");
   };
@@ -489,6 +502,7 @@ int main(int argc, char** argv) {
     setMove(false, false, false, false);
     if (!ok) fail(walk.line, "walkto " + walk.what + ": " + why);
     else std::printf("script %.2f: walkto %s done in %.1f s\n", scriptT, walk.what.c_str(), walk.t);
+    if (ok && walk.talk) { pushKey(SDL_SCANCODE_E, true); pushKey(SDL_SCANCODE_E, false); }
     walk.on = false;
   };
   auto stepWalk = [&](float dt) {
@@ -503,7 +517,12 @@ int main(int argc, char** argv) {
     if (walk.kind == 2) {
       int k = findActorIdx(walk.actorId);
       if (k < 0) { endWalk(false, "they left"); return; }
-      if (game.interactTarget() == walk.actorId) { endWalk(true, ""); return; }
+      // in reach: keep closing in a moment longer (a step from the edge of reach, a wandering innkeeper or a neighbour
+      // who comes nearer turns the next key press into the wrong conversation), unless already close
+      if (game.interactTarget() == walk.actorId) {
+        walk.closeT += dt;
+        if (len(game.actors[k].p - game.pl().p) < 20.0f || walk.closeT > 0.6f) { endWalk(true, ""); return; }
+      }
       walk.tx = (int)std::floor(game.actors[k].p.x / TILE); walk.ty = (int)std::floor((game.actors[k].p.y - 2) / TILE);
     }
     if (walk.kind == 0 && px == walk.tx && py == walk.ty) { endWalk(true, ""); return; }
@@ -564,6 +583,10 @@ int main(int argc, char** argv) {
       running = false;
     } else if (op == "walkto") {
       startWalk(c);
+    } else if (op == "talkto") {   // walkto a person, then talk in the very frame they come in reach (no one else steps in)
+      startWalk(c);
+      if (walk.on && walk.kind == 2) walk.talk = true;
+      else if (walk.on) { walk.on = false; setMove(false, false, false, false); fail(c.line, "talkto needs a person"); }
     } else if (op == "newgame") {
       startNew(startSeed);
     } else if (op == "goto") {
@@ -595,6 +618,8 @@ int main(int argc, char** argv) {
         static const char* n[] = {"title", "play", "dialogue", "menu", "shop", "levelup", "dead", "paused", "creator"};
         if (!modeByName(want, m)) fail(c.line, "expect mode: unknown mode '" + want + "'");
         else if (game.mode != m) fail(c.line, "expected mode " + want + ", got " + n[(int)game.mode]);
+      } else if (what == "gold") {
+        if (game.gold != std::atoi(want.c_str())) fail(c.line, "expected gold " + want + ", got " + std::to_string(game.gold));
       } else if (what == "name") {
         if (game.app.name != want) fail(c.line, "expected name " + want + ", got " + game.app.name);
       } else if (what == "background") {
@@ -611,12 +636,41 @@ int main(int argc, char** argv) {
         else if ((*e >= 0) != on) fail(c.line, "expected slot " + want + (on ? " worn" : " empty"));
       } else if (what == "inside") {
         if ((want != "0") != game.inside) fail(c.line, std::string("expected inside ") + want + ", got " + (game.inside ? "1" : "0"));
+      } else if (what == "quest" || what == "heard" || what == "option" || what == "text" || what == "tracked") {
+        // the rest of the line (original case) is a substring to look for
+        auto rest = [&](size_t from) { std::string r; for (size_t k = from; k < c.a.size(); k++) { if (k > from) r += ' '; r += c.a[k]; } return r; };
+        if (what == "quest") {   // expect quest active|complete|done|none <title words>
+          std::string t = rest(3);
+          const Quest* q = nullptr;
+          for (const Quest& x : game.quests) if (x.title.find(t) != std::string::npos) q = &x;
+          static const char* sn[] = {"active", "complete", "done"};
+          std::string got = q ? sn[(int)q->state] : "none";
+          if (got != want) fail(c.line, "expected quest '" + t + "' " + want + ", got " + got);
+        } else if (what == "tracked") {   // expect tracked <title words>
+          std::string t = rest(2), got = "none";
+          for (const Quest& x : game.quests) if (x.id == game.trackedQuest) got = x.title;
+          if (got.find(t) == std::string::npos) fail(c.line, "expected tracked quest '" + t + "', got " + got);
+        } else if (what == "heard") {   // a notice (say) since the script began contains these words
+          std::string t = rest(2);
+          bool ok = false;
+          for (const std::string& h : heard) if (h.find(t) != std::string::npos) ok = true;
+          if (!ok) fail(c.line, "never heard '" + t + "'" + (heard.empty() ? std::string() : " (last: " + heard.back() + ")"));
+        } else if (what == "option") {   // the open dialogue offers an option containing these words
+          std::string t = rest(2);
+          bool ok = false;
+          for (const DlgOpt& o : game.dlg.opts) if (o.label.find(t) != std::string::npos) ok = true;
+          if (game.mode != Mode::Dialogue || !ok) fail(c.line, "no dialogue option '" + t + "'" + (game.dlg.opts.empty() ? std::string() : " (first: " + game.dlg.opts[0].label + ")"));
+        } else {   // text: the open dialogue's text contains these words
+          std::string t = rest(2);
+          if (game.mode != Mode::Dialogue || game.dlg.text.find(t) == std::string::npos) fail(c.line, "dialogue text lacks '" + t + "': " + game.dlg.text);
+        }
       } else fail(c.line, "expect: unknown check '" + what + "'");
     } else {
       fail(c.line, "unknown command '" + op + "'");
     }
   };
   auto scriptStep = [&](float dt) {
+    if (game.noticeT > 0 && !game.notice.empty() && (heard.empty() || heard.back() != game.notice)) heard.push_back(game.notice);
     // releases first, so a hold ending this frame lets go before new presses
     for (size_t i = 0; i < held.size();) {
       if (scriptT >= held[i].until) {

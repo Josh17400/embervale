@@ -118,13 +118,14 @@ class View {
   // ---- input state
   bool scriptKeys_[512] = {};   // indexed by SDL_Scancode (SDL_SCANCODE_COUNT is 512)
   bool kAttack_ = false, kBow_ = false, kSpell_ = false, kRoll_ = false, kUse_ = false, kPotion_ = false, kSwap_ = false;
+  bool kTapAttack_ = false;   // this attack came from a tap on the open world (never turned into a talk)
   struct Finger { uint64_t id = 0; bool on = false; Vec2 start, cur; int button = -1; };
   Finger stick_;
   std::vector<Finger> fingers_;
   bool mouseDown_ = false;
   Vec2 mouse_;
   // ---- menus
-  int menuTab_ = 0, menuSel_ = 0, menuScroll_ = 0, dlgSel_ = 0, shopSide_ = 0, shopSel_ = 0, titleSel_ = 0, levelSel_ = 0;
+  int menuTab_ = 0, menuSel_ = 0, menuScroll_ = 0, dlgSel_ = 0, shopSide_ = 0, shopSel_ = 0, shopArm_ = -1, titleSel_ = 0, levelSel_ = 0;
   float dlgChars_ = 0;
   int mapSel_ = -1;
   float menuOpenT_ = 0;
@@ -158,6 +159,9 @@ class View {
   Tex gateTex_;
   std::unordered_map<uint64_t, std::vector<Vec2>> bldgSmoke_;
   std::unordered_map<uint64_t, int> bldgTopRow_;   // first opaque row of each building sprite (fade test)
+  std::unordered_map<uint64_t, Tex> bldgNight_;    // the same sprite with its windows lit (night, people awake)
+  std::unordered_map<uint64_t, std::vector<Vec2>> bldgWin_;   // window centres in sprite pixels (night light pools)
+  bool windowsLit(const Game& g, const Bldg& b) const;       // night, and this household is awake
   float smokeT_ = 0;
   const Map* bldgMap_ = nullptr;   // the map whose buildings drawWorld is drawing (bldgTex reads its biome)
   int bldgPrefetch_ = 0;           // round-robin cursor: buildings near the player are painted ahead, one per frame
@@ -171,9 +175,12 @@ class View {
   void drawWeather(Game& g, float dt);
   void drawHud(Game& g);
   void drawTouch(Game& g);
+  void drawToasts();
+  float dlgRowH() const { return touchUI ? 20.0f : 13.0f; }   // dialogue option pitch (touch: finger-sized rows)
   void drawMenu(Game& g);
   void drawDialogue(Game& g);
   void drawShop(Game& g);
+  void shopDeal(Game& g);   // buy or sell the selected row (a worn item asks twice)
   void drawLevelUp(Game& g);
   void drawTitle(Game& g, bool hasSave);
   void drawDead(Game& g);

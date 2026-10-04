@@ -7,8 +7,11 @@
 //                                     byte-for-byte what SAVE_VER 2 code wrote (v3 only appended that block)
 //   save_test --make-fixture-v3 out.bin   the v3 fixture (seed 6061, generator v2, a created character with a
 //                                     background, story flags and gloves/boots/cloak equipped)
+//   save_test --make-fixture-gen3 / -gen4 / -gen5 / -gen6 out.bin   SAVE_VER 3 saves of a generator-v3 world
+//                                     (seed 33) and a generator-v4 world (seed 3): they lock those generators' output,
+//                                     walls and gates included (paste the printed GENLOCK line into this file)
 // Fixtures are made once and never regenerated: they are the old formats. Every fixture's world uses a generator
-// version whose output is frozen (v1, v2), so generator work on WORLDGEN_LATEST cannot invalidate them.
+// version whose output is frozen (v1..v6), so generator work on a newer WORLDGEN_LATEST cannot invalidate them.
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -62,6 +65,13 @@ uint32_t bldgHash(const World& w) {
 uint32_t groundHash(const World& w) {
   uint32_t h = fnv(2166136261u, w.over.ground.data(), w.over.ground.size());
   return fnv(h, w.over.wall.data(), w.over.wall.size());
+}
+// city gatehouses and wall openings (the v3/v4 wall passes), plus the overworld props (lamps, trees by the walls)
+uint32_t gateHash(const World& w) {
+  uint32_t h = 2166136261u;
+  for (auto& g : w.gates) { h = fnvI(h, g.first); h = fnvI(h, g.second); }
+  for (const IRect& r : w.wallGaps) { h = fnvI(h, r.x); h = fnvI(h, r.y); h = fnvI(h, r.w); h = fnvI(h, r.h); }
+  return fnv(h, w.over.prop.data(), w.over.prop.size());
 }
 
 // the rpg_test wandering bot
@@ -121,6 +131,17 @@ std::vector<uint8_t> asV2(std::vector<uint8_t> b) {
 
 // the v3 fixture's character (also what section 4 checks after loading it)
 constexpr uint64_t FIX3_SEED = 6061;
+// SAVE_VER 3 saves of worlds from generator v3 (the M0 buildings, walls and interiors as first shipped) and v4 (walls
+// built before the buildings). They lock each generator's output, walls, gates, openings and props included. Made
+// once with --make-fixture-gen3 / --make-fixture-gen4 / --make-fixture-gen5, which also print the GENLOCK lines below.
+// v5 (M0 fix round 2: gates on every road through the wall, no gate by a river, building/stall clearances): seed 8.
+// v6 (M0 fix round 3: the cave top-up for worlds with fewer than 8 caves): seed 52, which v5 left with 3 caves.
+constexpr uint64_t FIXG3_SEED = 33, FIXG4_SEED = 3, FIXG5_SEED = 8, FIXG6_SEED = 52;
+struct GenLock { int sites, bldgs, gates, gaps; uint32_t site, bldg, ground, gate; };
+constexpr GenLock GENLOCK_V3 = {59, 170, 6, 12, 0x7EC87F5E, 0x9E0BE718, 0x5E5712E2, 0x4DE6008C};
+constexpr GenLock GENLOCK_V4 = {56, 157, 5, 12, 0x0D1BA049, 0x6F34B156, 0xDA5CD4DC, 0x500A7CA3};
+constexpr GenLock GENLOCK_V5 = {63, 154, 6, 14, 0xBCDF1A11, 0x1D2EE86D, 0xDEA1AF28, 0x5BCE217E};
+constexpr GenLock GENLOCK_V6 = {55, 144, 4, 13, 0x191E3503, 0x9ADCD698, 0x90982C97, 0x54D00250};
 constexpr uint32_t FIX3_SKIN = 0xFF4A6E96u, FIX3_HAIRC = 0xFF2A62D2u, FIX3_EYE = 0xFF3C8C30u, FIX3_TOP = 0xFF283C8Cu, FIX3_BOTTOM = 0xFF203040u;
 constexpr uint32_t FIX3_FLAGS = SF_CREATED | SF_FIRST_WEAPON | (1u << 9);
 const char* const FIX3_NAME = "BRYNJA";
@@ -231,6 +252,8 @@ int makeFixture(const char* out, uint64_t seed = FIX_SEED, int genVer = WORLDGEN
          w.sites.size(), w.over.bldgs.size(), w.gates.size(), w.startSite, w.capital, w.lair);
   printf("constexpr uint32_t FIX_SITEHASH = 0x%08X, FIX_BLDGHASH = 0x%08X, FIX_GROUNDHASH = 0x%08X;\n", siteHash(w), bldgHash(w), groundHash(w));
   printf("const char* const FIX_START_NAME = \"%s\";\n", w.sites[w.startSite].name.c_str());
+  printf("constexpr GenLock GENLOCK_V%d = {%zu, %zu, %zu, %zu, 0x%08X, 0x%08X, 0x%08X, 0x%08X};\n", w.genVersion, w.sites.size(), w.over.bldgs.size(),
+         w.gates.size(), w.wallGaps.size(), siteHash(w), bldgHash(w), groundHash(w), gateHash(w));
   for (auto& q : h.quests) printf("  quest %d type %d state %d giver %d/%d/%d: %s\n", q.id, (int)q.type, (int)q.state, q.giverSite, q.giverBldg, q.giverSlot, q.title.c_str());
   return 0;
 }
@@ -270,6 +293,26 @@ int main(int argc, char** argv) {
   if (argc >= 3 && !strcmp(argv[1], "--make-fixture")) return makeFixture(argv[2]);
   if (argc >= 3 && !strcmp(argv[1], "--make-fixture-v2")) return makeFixture(argv[2], FIX2_SEED, WORLDGEN_V2, 2);
   if (argc >= 3 && !strcmp(argv[1], "--make-fixture-v3")) return makeFixture(argv[2], FIX3_SEED, WORLDGEN_V2, 3);
+  if (argc >= 3 && !strcmp(argv[1], "--gen-stats")) {   // --gen-stats N: buildings per city/town, generator v3 vs latest
+    int n = atoi(argv[2]);
+    for (int sd = 1; sd <= n; sd++)
+      for (int gv : {(int)WORLDGEN_V3, (int)WORLDGEN_LATEST}) {
+        World w;
+        w.generate((uint64_t)sd, gv);
+        int city = 0, town = 0, nc = 0, nt = 0;
+        for (const Site& st : w.sites) {
+          if (st.type == SiteType::City) { city += st.bldgCount; nc++; }
+          if (st.type == SiteType::Town) { town += st.bldgCount; nt++; }
+        }
+        printf("seed %d gen %d: %zu buildings, %.1f per city, %.1f per town, %zu gates, %zu openings\n", sd, gv, w.over.bldgs.size(),
+               nc ? city / (float)nc : 0.0f, nt ? town / (float)nt : 0.0f, w.gates.size(), w.wallGaps.size());
+      }
+    return 0;
+  }
+  if (argc >= 3 && !strcmp(argv[1], "--make-fixture-gen3")) return makeFixture(argv[2], FIXG3_SEED, WORLDGEN_V3, 3);
+  if (argc >= 3 && !strcmp(argv[1], "--make-fixture-gen4")) return makeFixture(argv[2], FIXG4_SEED, WORLDGEN_V4, 3);
+  if (argc >= 3 && !strcmp(argv[1], "--make-fixture-gen5")) return makeFixture(argv[2], FIXG5_SEED, WORLDGEN_V5, 3);
+  if (argc >= 3 && !strcmp(argv[1], "--make-fixture-gen6")) return makeFixture(argv[2], FIXG6_SEED, WORLDGEN_V6, 3);
   std::string dir = argc >= 2 ? argv[1] : "";
 #ifdef EMB_SOURCE_DIR
   if (dir.empty()) dir = std::string(EMB_SOURCE_DIR) + "/tests/fixtures";
@@ -406,6 +449,42 @@ int main(int argc, char** argv) {
         check(c.deserialize(shorter) && c.app.name == FIX3_NAME && !c.app.created && c.app.bottomColor == FIX3_BOTTOM,
               "a shorter appearance block (older build) did not load with defaults");
       }
+    }
+  }
+
+  // 3d. worlds from generators v3, v4, v5 and v6 (SAVE_VER 3 saves): they load on their own generator with no change, and the
+  //     regenerated world (sites, buildings, ground, walls, gates, openings and props) is exactly the locked one
+  {
+    struct GenFix { const char* file; uint64_t seed; int gen; GenLock lock; };
+    const GenFix fx[] = {
+        {"save_v3_gen3.bin", FIXG3_SEED, WORLDGEN_V3, GENLOCK_V3},
+        {"save_v3_gen4.bin", FIXG4_SEED, WORLDGEN_V4, GENLOCK_V4},
+        {"save_v3_gen5.bin", FIXG5_SEED, WORLDGEN_V5, GENLOCK_V5},
+        {"save_v3_gen6.bin", FIXG6_SEED, WORLDGEN_V6, GENLOCK_V6},
+    };
+    for (const GenFix& f : fx) {
+      std::vector<uint8_t> b;
+      if (!readFile(dir + "/" + f.file, b)) { printf("FAIL: cannot read %s/%s\n", dir.c_str(), f.file); bad++; continue; }
+      Game a(1);
+      if (!a.deserialize(b)) { printf("FAIL: %s did not load\n", f.file); bad++; continue; }
+      printf("%s load: %s\n", f.file, summary(a).c_str());
+      if (a.seed != f.seed || a.world.genVersion != f.gen || a.worldChanged) { printf("FAIL: %s seed / generator / fingerprint\n", f.file); bad++; }
+      // the lock is taken on a freshly generated world (a played save has opened chests on the prop layer)
+      World w;
+      w.generate(f.seed, f.gen);
+      if (w.fingerprint() != a.world.fingerprint() || groundHash(w) != groundHash(a.world)) { printf("FAIL: %s: loaded world differs from its generator\n", f.file); bad++; }
+      const GenLock& L = f.lock;
+      bool same = (int)w.sites.size() == L.sites && (int)w.over.bldgs.size() == L.bldgs && (int)w.gates.size() == L.gates &&
+                  (int)w.wallGaps.size() == L.gaps && siteHash(w) == L.site && bldgHash(w) == L.bldg && groundHash(w) == L.ground &&
+                  gateHash(w) == L.gate;
+      if (!same) {
+        printf("FAIL: %s: generator v%d output drifted: {%zu, %zu, %zu, %zu, 0x%08X, 0x%08X, 0x%08X, 0x%08X}\n", f.file, f.gen, w.sites.size(),
+               w.over.bldgs.size(), w.gates.size(), w.wallGaps.size(), siteHash(w), bldgHash(w), groundHash(w), gateHash(w));
+        bad++;
+      }
+      std::vector<uint8_t> re;
+      a.serialize(re);
+      check(re == b, "gen-v3..v6 fixture round trip is not byte-identical");
     }
   }
 

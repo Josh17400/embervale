@@ -40,9 +40,14 @@ struct Facade {
   int w = 0, h = 0;
   std::vector<uint32_t> px;
   std::vector<int> top;   // highest v of the wall at each u (gables rise)
+  std::vector<uint8_t> glass;   // 1 = a window pane (lit from inside at night, see BuildingInfo::glass)
   Facade() = default;
-  Facade(int w_, int h_) : w(w_), h(h_), px((size_t)w_ * h_, 0), top((size_t)w_, h_ - 1) {}
-  void set(int u, int v, uint32_t c) { if (u >= 0 && v >= 0 && u < w && v < h && v <= top[(size_t)u]) px[(size_t)v * w + u] = c; }
+  Facade(int w_, int h_) : w(w_), h(h_), px((size_t)w_ * h_, 0), top((size_t)w_, h_ - 1), glass((size_t)w_ * h_, 0) {}
+  void set(int u, int v, uint32_t c) {
+    if (u >= 0 && v >= 0 && u < w && v < h && v <= top[(size_t)u]) { px[(size_t)v * w + u] = c; glass[(size_t)v * w + u] = 0; }
+  }
+  void markGlass(int u, int v) { if (u >= 0 && v >= 0 && u < w && v < h && v <= top[(size_t)u] && px[(size_t)v * w + u]) glass[(size_t)v * w + u] = 1; }
+  bool isGlass(int u, int v) const { return u >= 0 && v >= 0 && u < w && v < h && glass[(size_t)v * w + u]; }
   uint32_t get(int u, int v) const { return (u >= 0 && v >= 0 && u < w && v < h) ? px[(size_t)v * w + u] : 0; }
   bool in(int u, int v) const { return u >= 0 && v >= 0 && u < w && v < h && v <= top[(size_t)u]; }
 };
@@ -135,6 +140,13 @@ float massTop(const Mass& m, float x, float y, Surf& surf) {
   }
   const float rx0 = m.x0 - m.ov, rx1 = m.x1 + m.ov, ry0 = m.y0 - m.ov, ry1 = m.y1 + m.ovF;
   if (x < rx0 || x >= rx1 || y < ry0 || y >= ry1) return -1;
+  // thatch is laid round the corners: a rounded eave outline instead of a ruler-cut rectangle (a hipped thatch roof
+  // otherwise reads as one flat slab from above; the rounded corners give it the soft, bulky cottage silhouette)
+  if (m.rmat == RoofMat::Thatch && m.shape != RoofShape::Turf && !m.gambrel) {
+    const float R = 6.0f;
+    float qx = std::clamp(x, rx0 + R, rx1 - R), qy = std::clamp(y, ry0 + R, ry1 - R);
+    if ((x - qx) * (x - qx) + (y - qy) * (y - qy) > R * R) return -1;
+  }
   const float ze = zt - 1;
   float dy = std::min(y - ry0, ry1 - y), dx = std::min(x - rx0, rx1 - x);
   float d, dmax;
@@ -147,6 +159,10 @@ float massTop(const Mass& m, float x, float y, Surf& surf) {
     default:   // gable, steep, turf: two planes
       d = m.alongY ? dx : dy;
       dmax = m.alongY ? (rx1 - rx0) * 0.5f : (ry1 - ry0) * 0.5f;
+      // side-gabled roofs (ridge across the view) are clipped at both ends into a half-hip: in the 3/4 view their
+      // gable triangles face east and west and are never seen, so without the clipped ends the roof is one flat
+      // front plane (a featureless slab). The small end facets catch the light (west) and fall into shade (east).
+      if (!m.alongY && !m.gambrel) d = std::min(d, dx * 1.1f + dmax * 0.32f);
       break;
   }
   float t = std::clamp(d / std::max(1.0f, dmax), 0.0f, 1.0f);
@@ -185,15 +201,25 @@ int roofTexel(RoofMat mat, int u, int v, uint32_t seed, bool& special) {
   switch (mat) {
     case RoofMat::Thatch: {
       // soft courses of straw: a ragged lit butt edge, broken shade under the next course, fine straw strokes
-      int wave = (int)std::lround(std::sin(u * 0.37f + (float)(seed % 7)) * 1.2f + std::sin(u * 1.7f + 1.3f) * 0.5f);
+      int wave = (int)std::lround(std::sin(u * 0.29f + (float)(seed % 7)) * 1.1f);   // gently rolling course lines
       // (integration: kept mostly at the plane's own value so hip and gable planes read as separate lit volumes;
       // the old +-1 speckle on every row drowned the plane lighting and made thatch roofs look flat)
-      int vv = v + wave + 64;
-      int p = vv % 5, row = vv / 5;
+      // (M0 round 3: the old texture was short horizontal dashes in rows, which read as bricks or stone blocks. Straw
+      // now runs DOWN the slope: each course is a combed bundle with vertical strands, a ragged lit butt edge at its
+      // foot and a continuous wavy shadow line under it, so the roof reads as layered thatch.)
+      int vv = v + wave + 70;
+      const int CH = 7;
+      int p = vv % CH, row = vv / CH;
       uint32_t h = hash3(u, row, seed);
-      if (p == 4) return (h % 4 == 0) ? 0 : -1;   // shade under the next course's butt edge
-      if (p == 0) return (h % 3 == 0) ? 1 : 0;    // a few lit straw ends on the butt edge
-      if (hash3(u, vv, seed + 5) % 11 == 0) return -1;   // sparse dark straw strokes
+      if (p == CH - 1) return -1;                       // the soft shadow under the next course's butt: a full line,
+      if (p == CH - 2 && (h & 1)) return -1;            // ragged upward where straw ends hang over it
+      if (p == 0) return (h % 3) ? 1 : 0;               // lit straw ends along the butt edge
+      // combed strands: 1 px vertical strokes of varying length down the course, dense and staggered per column, so
+      // the course reads as bundled straw (never as brick joints)
+      uint32_t s = hash3(u, row, seed + 11);
+      const int a = 1 + (int)((s >> 4) % 2), len = 2 + (int)((s >> 6) % 3);
+      if (s % 3 == 0 && p >= a && p < a + len) return -1;
+      if (s % 5 == 1 && p >= 1 && p <= 3) return 1;
       return 0;
     }
     case RoofMat::Shingle: {
@@ -202,20 +228,25 @@ int roofTexel(RoofMat mat, int u, int v, uint32_t seed, bool& special) {
       int off = (row & 1) * 3 + (int)(hash3(row, 7, seed) % 2);
       int w = 6, col = (u + off + 64) / w, q = (u + off + 64) % w;
       uint32_t h = hash3(col, row, seed);
+      // (quieter than before: lit butts on every course plus joints and speckle drowned the two planes' light and
+      // shade, and a shingle roof read as a noisy check pattern at 1x)
       if (p == 3) return -1;
-      if (q == 0 && p < 2) return -1;
-      if (p == 0) return (h % 5 == 0) ? 0 : 1;
-      return (h % 7 == 0) ? -1 : ((h % 11 == 1) ? 1 : 0);
+      if (q == 0 && p == 1) return -1;
+      if (p == 0) return (h % 3 == 0) ? 1 : 0;
+      return (h % 13 == 0) ? -1 : 0;
     }
     case RoofMat::Slate: {
       int row = (v + 63) / 3, p = (v + 63) % 3;
       int off = (row & 1) * 2;
       int col = (u + off + 64) / 4, q = (u + off + 64) % 4;
       uint32_t h = hash3(col, row, seed);
+      // (M0 round 3: no more isolated light slates (h % 9 -> +1): on a flat front plane they read as random light
+      // rectangles. The courses carry a lit lower lip and a shadow line; the plane light does the rest.)
       if (p == 2) return -1;
       if (q == 0 && p == 1) return -1;
-      if (p == 0) return h % 4 == 0 ? 0 : 1;
-      return (h % 9 == 0) ? 1 : 0;
+      if (p == 0) return q == 0 ? 0 : 1;   // a continuous lit lip per course, broken only at the joints
+      (void)h;
+      return 0;
     }
     case RoofMat::ClayTile: {
       int q = ((u % 4) + 4) % 4, p = ((v + 64) % 5);
@@ -225,11 +256,14 @@ int roofTexel(RoofMat mat, int u, int v, uint32_t seed, bool& special) {
       return k;
     }
     case RoofMat::Turf: {
+      // sod: short grass in loose tufts (a lit blade over a dark root), quiet enough that the two planes, the ridge
+      // and the eave read; blotchy +-1 noise made sod roofs a flat lawn
       uint32_t h = hash3(u, v, seed);
-      int k = (h % 5 == 0) ? 1 : ((h % 7 == 0) ? -1 : 0);
-      if (hash3(u / 2, v / 2, seed + 3) % 3 == 0) k += (hash3(u / 3, v / 3, seed + 9) & 1) ? 1 : -1;
+      int k = 0;
+      if (h % 13 == 0) k = 1;
+      else if (hash3(u, v + 1, seed) % 13 == 0) k = -1;   // the shade under the tuft above
       if (hash3(u, v, seed + 77) % 97 == 0) special = true;   // a flower
-      return std::clamp(k, -1, 1);
+      return k;
     }
     case RoofMat::Copper: {
       int q = ((u % 6) + 6) % 6;
@@ -410,6 +444,10 @@ void facadeWindow(Mass& m, int u0, int v0, int ww, int wh, uint32_t seed, bool s
   for (int i = 0; i < ww; i++) F.set(u0 + i, v0 + wh / 2, T[2]);
   F.set(u0 + 1, v0 + wh - 2, kGlass[4]);   // glint
   F.set(u0 + 2, v0 + wh - 3, kGlass[3]);
+  // the panes (not the mullion and transom): lit from inside at night
+  for (int j = 0; j < wh; j++)
+    for (int i = 0; i < ww; i++)
+      if (i != ww / 2 && j != wh / 2) F.markGlass(u0 + i, v0 + j);
   // lintel above, sill below (lit top, dark underside)
   if (!arched) for (int i = -2; i <= ww + 1; i++) { F.set(u0 + i, v0 + wh + 1, T[3]); }
   for (int i = -2; i <= ww + 1; i++) { F.set(u0 + i, v0 - 1, T[4]); F.set(u0 + i, v0 - 2, T[1]); }
@@ -617,7 +655,7 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed) {
     case Building::Hut: wallH = 20; break;
     case Building::Farmhouse: wallH = 28; break;
     case Building::Temple: wallH = 30; break;
-    case Building::Shop: wallH = 28; break;
+    case Building::Shop: wallH = 33; break;   // a tall shop front: the awning hangs below the windows line, not under the eave
     default: break;
   }
   if (st.roof == RoofShape::FlatParapet || st.roof == RoofShape::Dome) wallH += 4;   // the parapet rises above the roof deck
@@ -637,17 +675,21 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed) {
     if (dj.shape == RoofShape::FlatParapet) dj.crenel = true;
     else { dj.shape = RoofShape::Hip; dj.slope = std::max(dj.slope, 1.0f); }
     ms.push_back(dj);
-    // corner turrets
+    // corner towers: real drum towers that stand proud of the curtain wall (the front pair projects into the sprite's
+    // pads, so their stone bodies show in full beside and in front of the wall face), the back pair taller so its
+    // bodies rise clear above the front cones. Slate cones: a stone keep never wears thatch.
     for (int k = 0; k < 4; k++) {
-      Mass t = baseMass(p, 0, 0, 0, 0, k < 2 ? 46 : 50);
+      const bool front = k < 2;
+      Mass t = baseMass(p, 0, 0, 0, 0, front ? 54 : 70);
       t.round = true;
-      t.r = 10;
-      t.cx = (k & 1) ? W - 10.0f : 10.0f;
-      t.cy = k < 2 ? D - 10.0f : 10.0f;
+      t.r = front ? 11.0f : 10.0f;
+      t.cx = (k & 1) ? W - (front ? 5.0f : 7.0f) : (front ? 5.0f : 7.0f);
+      t.cy = front ? D - 7.0f : 9.0f;
       t.wall = WallKind::Stone; t.wR = kStone; t.tR = kStoneWarm;
       bool cone = st.roof != RoofShape::FlatParapet && st.roof != RoofShape::Dome;
       t.shape = cone ? RoofShape::Conical : RoofShape::FlatParapet;
       t.crenel = !cone;
+      if (cone) { t.rmat = RoofMat::Slate; t.rR = kRoofSlate; }
       t.ov = 2;
       t.slope = 1.2f;
       ms.push_back(t);
@@ -721,7 +763,11 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed) {
       if (std::fabs(m.cx - p.doorX) > m.r - 7) m.cx = (float)p.doorX;
     }
     if (b == Building::Farmhouse) {
-      m.wall = WallKind::Planks; m.wR = kBarnRed; m.tR = kCloth;
+      // the barn follows the local building culture: red board-and-batten in the farmlands, mud brick in the desert,
+      // logs in the north and the swamps (a red barn among adobe houses breaks the village palette)
+      if (st.wall == WallMat::Adobe) { m.wall = WallKind::Adobe; m.wR = wallRampFor(WallKind::Adobe, st.wallTint, seed >> 3); m.tR = kWood; }
+      else if (st.wall == WallMat::Log) { m.wall = WallKind::Log; m.wR = kLog; m.tR = kWoodDark; }
+      else { m.wall = WallKind::Planks; m.wR = kBarnRed; m.tR = kCloth; }
       if (pitched) { m.shape = RoofShape::Gable; m.alongY = true; m.gambrel = true; m.slope = std::max(m.slope, 1.0f); }
     }
     // narrow-and-deep or seeded: turn the ridge so the gable faces the street
@@ -731,8 +777,11 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed) {
     p.doorMass = 0;
     if (wing) {
       float wx0 = wing == 1 ? mx1 : 0, wx1 = wing == 1 ? (float)W : mx0;
-      int wh = b == Building::Smithy ? wallH - 2 : wallH - 6 - (b == Building::Inn ? 10 : 0);
-      Mass wm = baseMass(p, wx0, wx1, b == Building::Smithy ? 0.0f : 6.0f, (float)D, wh);
+      // the smithy's forge bay is a lower, shallower lean-to against the main block (M0 round 3: at nearly the main
+      // block's height its roof ran into the main hip, the main roof's shaded east plane cutting across the bay roof
+      // with a seam; now the main roof stays whole above it and the bay roof tucks under the main eave)
+      int wh = b == Building::Smithy ? wallH - 6 : wallH - 6 - (b == Building::Inn ? 10 : 0);
+      Mass wm = baseMass(p, wx0, wx1, b == Building::Smithy ? 10.0f : 6.0f, (float)D, wh);
       wm.alongY = false;
       if (wm.shape == RoofShape::Gable || wm.shape == RoofShape::Steep) wm.shape = RoofShape::Hip;
       if (b == Building::Smithy) { wm.shape = pitched ? RoofShape::Gable : RoofShape::FlatParapet; wm.wall = WallKind::Timber; wm.wR = kBeam; wm.tR = kBeam; }
@@ -823,7 +872,9 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed) {
   }
   // dormers: small front gables on the front plane of deep, pitched roofs
   if (!ms[0].alongY && !ms[0].round && (ms[0].shape == RoofShape::Gable || ms[0].shape == RoofShape::Hip || ms[0].shape == RoofShape::Steep) &&
-      D >= 48 && (b == Building::House || b == Building::StoneHouse || b == Building::Inn || b == Building::Shop)) {
+      D >= 48 && (b == Building::House || b == Building::StoneHouse || b == Building::Inn || b == Building::Shop) &&
+      !st.snow) {   // (M0 round 3) no dormers under snow: the drift buried all but a dark, ragged gable that read as a
+                    // burnt hole in the roof, with the dormer ridge a stray seam down the white front plane
     int nd = (int)(hash3(7, 7, seed) % 3);
     if (b == Building::Inn) nd = std::max(nd, 1);
     const Mass base = ms[0];
@@ -844,7 +895,9 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed) {
       d.zBase = (int)std::floor(zr - 3);
       d.wallH = 11;
       d.alongY = true;
-      d.shape = (base.shape == RoofShape::Hip) ? RoofShape::Hip : RoofShape::Gable;
+      // always a front gable: the gable triangle is part of the dormer's own face, so its little roof sits right on
+      // the window wall (a hipped dormer read as a box with a lid floating above the window)
+      d.shape = RoofShape::Gable;
       d.ov = 1; d.ovF = 1;
       d.slope = std::max(0.9f, base.slope);
       if (d.wall == WallKind::Stone || d.wall == WallKind::Brick || d.wall == WallKind::Log) { d.wall = WallKind::Plaster; d.wR = kPlaster; }
@@ -1047,16 +1100,19 @@ struct Painter {
   Plan& p;
   Canvas c;
   std::vector<uint8_t> layer;   // 0 empty, 1 wall, 2 roof, 3 overlay
+  std::vector<uint8_t> glass;   // 1 = a visible window pane
   int ox = BLDG_PAD_X;
   explicit Painter(Plan& pl) : p(pl) {
     c = Canvas(p.W + 2 * BLDG_PAD_X, p.sc.top + p.D + BLDG_PAD_B);
     layer.assign((size_t)c.w * c.h, 0);
+    glass.assign((size_t)c.w * c.h, 0);
   }
   int rowOf(float y, float z) const { return (int)std::floor(p.sc.top + y - z); }
-  void put(int x, int y, uint32_t col, uint8_t l) {
+  void put(int x, int y, uint32_t col, uint8_t l, bool pane = false) {
     if (x < 0 || y < 0 || x >= c.w || y >= c.h || !chA(col)) return;
     c.set(x, y, col);
     layer[(size_t)y * c.w + x] = l;
+    glass[(size_t)y * c.w + x] = pane ? 1 : 0;
   }
 };
 
@@ -1135,16 +1191,44 @@ uint32_t roofColor(const Plan& p, const Mass& m, int mi, float x, float y, float
   else if (l > 0.16f) k = 2;
   else if (l > -0.16f) k = 1;
   else k = 0;
+  // a plane facing the viewer (south) is mid-tone, like the south walls, never in deep shade: steep front planes
+  // otherwise sink to the darkest ramp step and read as a dark flat slab
+  if (!m.round && ny > 0.2f && std::fabs(nx) < 0.3f) k = std::max(k, 2);
   // courses: v up the slope from the nearest eave, u along it
   bool facesY = std::fabs(gy) >= std::fabs(gx);
   int u = (int)std::floor(facesY ? x : y);
   int v = (int)std::floor(z - (m.zTop() - 1));
   if (m.round) { u = (int)std::floor(std::atan2(y - m.cy, x - m.cx) * m.r); v = (int)std::floor(z); }
+  // thatch is laid screen-aligned on every plane (strands straight down, courses across, one course every 6 screen
+  // rows), as a painter would. Laid along each slope it turned into horizontal dashes in vertical columns on the
+  // east/west planes, and on shallow planes (a course stretched over 2-3 screen rows, its wavy edge stepping by whole
+  // rows) into staggered blocks: both read as brickwork.
+  int tu = u, tv = v;
+  if (!m.round && m.rmat == RoofMat::Thatch) { tu = (int)std::floor(x); tv = (int)std::floor(z - y) + 400; }
   bool special = false;
-  int t = roofTexel(m.rmat, u, v, m.seed, special);
+  int t = roofTexel(m.rmat, tu, tv, m.seed, special);
   // keep the strongest highlight for the ridge itself
   if (k == 4 && t > 0) t = 0;
+  // hip roofs: the courses on the two end planes run at right angles to the front's, and with the same shade lines on
+  // all four planes the roof reads as nested trays. The end planes stay smooth (light and shade only), so the four
+  // planes read as volumes and the front plane carries the courses.
+  const bool hipRoof = !m.round && (m.shape == RoofShape::Hip || m.shape == RoofShape::Pagoda);
+  const bool endPlane = hipRoof && (m.alongY ? facesY : !facesY);
+  if (endPlane && t < 0 && m.rmat != RoofMat::Thatch) t = 0;   // (thatch keeps its strands on every plane)
   k = std::clamp(k + t, 0, 4);
+  // hip lines: the capped edges where two planes meet catch the light (brightest on the west, the side facing the
+  // sun), so the roof shows its four faces and its ridge even at 1x
+  if (hipRoof && m.roofH > 4) {
+    const float rx0 = m.x0 - m.ov, rx1 = m.x1 + m.ov, ry0 = m.y0 - m.ov, ry1 = m.y1 + m.ovF;
+    const float ddy = std::min(y - ry0, ry1 - y), ddx = std::min(x - rx0, rx1 - x);
+    const float a = m.alongY ? ddx : ddy, b = m.alongY ? ddy * m.hk : ddx * m.hk;
+    const float dmax = m.alongY ? (rx1 - rx0) * 0.5f : (ry1 - ry0) * 0.5f;
+    if (std::fabs(a - b) < 0.75f && std::min(a, b) > 0.6f && std::min(a, b) < dmax - 0.8f) {
+      const bool west = x < (rx0 + rx1) * 0.5f;
+      k = west ? 4 : std::max(k, 3);
+      if (m.rmat == RoofMat::Thatch) k = west ? 3 : std::max(k, 2);   // thatch hips are rounded: a softer line
+    }
+  }
   if (special && m.rmat == RoofMat::Turf) { uint32_t fh = hash3(u, v, 5) % 3; return fh == 0 ? rgba(240, 214, 96) : (fh == 1 ? rgba(224, 228, 244) : rgba(196, 132, 210)); }
   // ridge cap: a lit capping along the ridge; thatch gets a woven ridge band
   float zt = m.zTop() - 1 + m.roofH;
@@ -1153,10 +1237,20 @@ uint32_t roofColor(const Plan& p, const Mass& m, int mi, float x, float y, float
     else if (z > zt - 1.0f) k = 4;
     else if (z > zt - 1.6f && ny > 0.2f) k = std::min(k, 2);
   }
-  // front planes: a soft fall-off toward the eave gives the slope its curve
+  // sod: a sunlit crest of grass along the ridge, and the front slope falling into shade toward the eave, so the
+  // hump reads as a roof and not as a lawn
+  if (!m.round && m.shape == RoofShape::Turf && m.roofH > 4) {
+    if (z > zt - 1.4f) k = std::min(4, std::max(k, 3) + ((hash3((int)std::floor(x), 3, m.seed) & 1) ? 1 : 0));
+    else if (ny > 0.2f && (z - (m.zTop() - 1)) / m.roofH < 0.45f) k = std::max(0, k - 1);
+  }
+  // front planes: lit toward the ridge, a soft fall-off toward the eave gives the slope its curve (a dithered seam
+  // between the bands, so the plane reads as a volume turning toward the light, not one flat value)
   if (!m.round && ny > 0.2f && m.roofH > 4) {
+    // (M0 round 3: the band edges are clean rows now. A per-pixel dither there broke the lit course lips into
+    // isolated light rectangles scattered across slate and snow front planes.)
     float tt = (z - (m.zTop() - 1)) / m.roofH;
     if (tt < 0.16f) k = std::max(0, k - 1);
+    else if (tt > 0.62f && k < 3) k++;
   }
   // barge boards on the open gable ends of side-gabled roofs: lit on the west, shaded on the east
   if (!m.round && !m.alongY && (m.shape == RoofShape::Gable || m.shape == RoofShape::Steep) && m.rmat != RoofMat::Thatch) {
@@ -1179,12 +1273,20 @@ uint32_t roofColor(const Plan& p, const Mass& m, int mi, float x, float y, float
   }
   if (m.snow && m.rmat != RoofMat::Turf && v > 1 + (int)(hash3(u / 3, 0, m.seed + 7) % 3)) {
     // snow lies on the roof, thin at the eaves and on steep planes facing the sun
-    int ks = std::clamp(k + 1, 1, 4);
+    // (M0 round 3: k + 1 pushed the front plane and the lit west plane both to the two whitest steps, so snowed roofs
+    // were nearly uniform white. The plane's own step now maps straight onto the snow ramp: the sunlit west plane
+    // and the ridge band white, the front plane a cool blue-white, the east plane in blue shade.)
+    int ks = std::clamp(k - std::max(t, 0), 1, 4);   // snow hides the courses' lit lips (no light dashes on it)
     if (t < 0 && hash3(u, v, m.seed) % 3 == 0) ks = std::max(1, ks - 1);
     return kSnow[ks];
   }
+  // sod roofs: the turf sits on a log edge (the "torvtak" eave board), a dark lip that gives the roof its thickness
+  if (!m.round && m.rmat == RoofMat::Turf && m.shape == RoofShape::Turf) {
+    if (v <= 0) return ny > 0.2f ? kWood[1] : kWood[2];
+    if (v == 1) return mix(R[std::max(0, k - 1)], kSoil[1], 0.5f);
+  }
   // the lowest courses sit in the gloom under the next roof edge; the eave line darkens a little
-  if (!m.round && v <= 1 && k > 1) k--;
+  if (!m.round && v <= 1 && k > 1 && !endPlane) k--;
   if (shade) k = std::max(0, k - 1);
   (void)p; (void)mi;
   return R[k];
@@ -1244,7 +1346,7 @@ void renderBuilding(Painter& P) {
             else if (l < 0.0f) col = darken(col, 0.38f);
             else if (l < 0.25f) col = darken(col, 0.16f);
           }
-          P.put(P.ox + x, P.rowOf(e.y, (float)m.zBase + v), col, m.chimney ? 2 : 1);
+          P.put(P.ox + x, P.rowOf(e.y, (float)m.zBase + v), col, m.chimney ? 2 : 1, !m.chimney && m.f.isGlass(u, v));
         }
       }
       int mi;
@@ -1356,7 +1458,6 @@ void overlays(Painter& P, BuildingInfo* info) {
     }
   };
   if (b == Building::Inn) sign((float)p.doorX + 9, frontZ0 + 26, 0);
-  if (b == Building::Shop) sign((float)p.doorX + 9, frontZ0 + 24, 2);
   if (b == Building::Smithy) sign((float)p.doorX - 21, frontZ0 + 22, 1);
   // lanterns by the door
   if (b == Building::Inn || b == Building::Keep || b == Building::Temple) {
@@ -1376,7 +1477,7 @@ void overlays(Painter& P, BuildingInfo* info) {
     static const Ramp* cloths[3] = {&kRed, &kCloth, &kPurple};
     const Ramp& A = *cloths[hash3(4, 4, p.seed) % 3];
     float ax0 = b == Building::Shop ? m.x0 + 3 : p.doorX - 9.0f, ax1 = b == Building::Shop ? m.x1 - 3 : p.doorX + 9.0f;
-    float az = frontZ0 + (b == Building::Shop ? 21.0f : 19.0f);
+    float az = frontZ0 + (b == Building::Shop ? 26.0f : 19.0f);   // the shop canopy hangs above its windows
     for (int x = (int)ax0; x < (int)ax1; x++)
       for (int k = 0; k < 6; k++) {
         auto q = at(x + 0.5f, D + 0.5f + k * 0.5f, az - k);
@@ -1397,6 +1498,8 @@ void overlays(Painter& P, BuildingInfo* info) {
         P.put(q.first, q.second, kWood[s == 0 ? 3 : 1], 3);
       }
     }
+    // the shop's sign projects on its bracket from the east awning post, in front of the canopy (painted after it)
+    if (b == Building::Shop) sign(ax1 - 2, frontZ0 + 25, 2);
   }
   // banners on the keep's front, and a flag on its donjon
   if (b == Building::Keep) {
@@ -1500,8 +1603,32 @@ Canvas buildingSprite(Building b, int wTiles, int hTiles, const ArchStyle& style
   renderBuilding(P);
   overlays(P, info);
   outline(P.c, 0.95f);
-  if (info) info->height = p.sc.top;
+  if (info) {
+    info->height = p.sc.top;
+    info->glass = P.glass;
+    for (size_t i = 0; i < info->glass.size(); i++) if (info->glass[i] && !chA(P.c.px[i])) info->glass[i] = 0;
+  }
   return P.c;
+}
+
+Canvas buildingNight(const Canvas& sprite, const std::vector<uint8_t>& glass, uint32_t seed) {
+  Canvas c = sprite;
+  if (glass.size() != c.px.size()) return c;
+  for (int y = 0; y < c.h; y++)
+    for (int x = 0; x < c.w; x++) {
+      if (!glass[(size_t)y * c.w + x]) continue;
+      // lamplight behind the panes: brightest low in the window (the lamp on the table), a warm-orange top where the
+      // curtain hangs, a pane here and there a little dimmer; the glints stay the brightest pixels
+      uint32_t old = c.get(x, y);
+      int lum = (int)(old & 255) + (int)((old >> 8) & 255) + (int)((old >> 16) & 255);
+      bool upper = y > 0 && !glass[(size_t)(y - 1) * c.w + x];
+      int k = 3;
+      if (upper) k = 2;
+      if (hash3(x / 3, y / 3, seed) % 5 == 0) k--;
+      if (lum > 500) k = 4;   // the glint
+      c.set(x, y, kGlow[std::clamp(k, 1, 4)]);
+    }
+  return c;
 }
 
 Canvas buildingSprite(Building b, int wTiles, int hTiles, uint32_t roofColor, uint32_t seed) {
@@ -1666,7 +1793,7 @@ int masonryK(int gx, int h, uint32_t var, int base) {
 
 Canvas wallTile(uint32_t key) {
   WallShape S(key & 255u);
-  const bool tower = key & WALL_BIT_TOWER, towerN = key & WALL_BIT_TOWER_N;
+  const bool tower = key & WALL_BIT_TOWER, towerN = key & WALL_BIT_TOWER_N, culvert = (key & WALL_BIT_CULVERT) && !(key & WALL_BIT_S);
   const uint32_t var = (key >> WALL_VAR_SHIFT) & 3u;
   const Ramp& R = kStone;
   // the 3x3 block plus room for heights: footprint x -16..31, y -16..31
@@ -1742,6 +1869,24 @@ Canvas wallTile(uint32_t key) {
       return R[v == 0 ? 3 : 1];
     }
     // outer face of the wall
+    if (culvert && gx >= 0 && gx < 16 && gy >= 0 && gy < 16) {
+      // a water gate: a round arch over the river, dark water inside behind an iron grate, a ring of voussoirs
+      const float ax = gx + 0.5f - 8.0f, ay = h + 0.5f - 6.0f;
+      const float rr = ax * ax + (ay > 0 ? ay * ay : 0.0f);
+      const bool opening = std::fabs(ax) < 6.0f && (ay <= 0 || rr < 36.0f);
+      if (opening) {
+        if (h <= 1) return (gx & 1) ? rgba(92, 132, 168) : rgba(64, 100, 140);    // the river sliding out, lit
+        if (gx % 3 == 1 || h == 7) return rgba(46, 44, 52);                        // grate bars
+        if (gx % 3 == 2 && h > 2) return rgba(84, 82, 90);                         // lit edge of each bar
+        return h > 6 ? rgba(10, 12, 22) : rgba(18, 28, 46);                         // the dark tunnel, water at its foot
+      }
+      const bool ring = std::fabs(ax) < 7.6f && (ay <= 0 ? std::fabs(ax) >= 6.0f : rr < 57.0f);
+      if (ring) {
+        int seg = (int)std::floor((std::atan2(std::max(0.0f, ay), ax) / PI) * 7.0f);
+        bool joint = (gx + h + seg) % 4 == 0;
+        return R[joint ? 1 : (ax < 0 ? 4 : 3)];                                    // voussoirs, lit from the left
+      }
+    }
     if (v == 0) return R[4];                                  // lit coping edge
     if (h >= WALL_H + 2) return R[2];                         // merlon fronts
     if (h == WALL_H + 1) return R[3];                         // cornice
@@ -1964,10 +2109,35 @@ void wallKeys(const uint8_t* wall, int W, int H, const std::pair<int, int>* gate
     return true;
   };
   auto place = [&](int x, int y) { tower[(size_t)y * W + x] = 1; marks.push_back({x, y}); };
-  // 1. every wall end (and lone pier) gets a tower
+  // 1. every wall end (and lone pier) gets a tower. An end is a tile whose wall neighbours all lie within one 90-degree
+  //    arc of its 8-neighbourhood (three consecutive cells): the last tile of a run that steps diagonally into the
+  //    opening has two or three such neighbours, not one, and without a tower it ends in a bare wedge or stub.
+  static const int cdx[8] = {0, 1, 1, 1, 0, -1, -1, -1}, cdy[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
+  auto isEnd = [&](int x, int y) {
+    int mask = 0;
+    for (int b = 0; b < 8; b++) if (at(x + cdx[b], y + cdy[b])) mask |= 1 << b;
+    if (!mask) return true;
+    // arcs centred on an orthogonal neighbour only: {W, S} is a corner of the ring, not an end
+    for (int c = 0; c < 8; c += 2) {
+      int arc = (1 << c) | (1 << ((c + 1) & 7)) | (1 << ((c + 7) & 7));
+      if ((mask & ~arc) == 0) return true;
+    }
+    return false;
+  };
   for (int y = 0; y < H; y++)
     for (int x = 0; x < W; x++)
-      if (at(x, y) && !flank[(size_t)y * W + x] && degree(x, y) <= 1) place(x, y);
+      if (at(x, y) && !flank[(size_t)y * W + x] && isEnd(x, y)) place(x, y);
+  // two end towers on touching tiles would merge into one blob: keep the one further into the run
+  for (int y = 0; y < H; y++)
+    for (int x = 0; x < W; x++) {
+      if (!tower[(size_t)y * W + x]) continue;
+      for (int b = 0; b < 4; b++) {   // E, SE, S, SW neighbours (each pair is visited once)
+        static const int ndx2[4] = {1, 1, 0, -1}, ndy2[4] = {0, 1, 1, 1};
+        int nx = x + ndx2[b], ny = y + ndy2[b];
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H || !tower[(size_t)ny * W + nx]) continue;
+        if (degree(nx, ny) >= degree(x, y)) tower[(size_t)y * W + x] = 0; else tower[(size_t)ny * W + nx] = 0;
+      }
+    }
   // 2. strong corners: an L whose two arms run straight for 3+ tiles
   struct Cand { int score, x, y; };
   std::vector<Cand> cands;

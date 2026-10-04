@@ -40,7 +40,11 @@ struct BuildingInfo {
   int smokeN = 0;
   int smokeX[3] = {}, smokeY[3] = {};   // chimney mouths that smoke (empty unless the style or the type smokes)
   int height = 0;                       // pixels from the footprint's bottom edge to the highest roof pixel
+  std::vector<uint8_t> glass;           // sprite-sized mask: 1 = a visible window pane (the view lights them at night)
 };
+// The night look of a building sprite: its window panes (BuildingInfo::glass) lit warm from inside, with a little
+// variation per pane. Same size as the sprite.
+Canvas buildingNight(const Canvas& sprite, const std::vector<uint8_t>& glass, uint32_t seed);
 
 // The style decides roof shape and material, wall material and climate details; the type only adds its function
 // (inn sign, forge, steeple, crenellations, awning). seed varies the massing (wings, porch, dormers, chimneys),
@@ -63,6 +67,8 @@ constexpr uint32_t WALL_BIT_N = 1u, WALL_BIT_NE = 2u, WALL_BIT_E = 4u, WALL_BIT_
 constexpr uint32_t WALL_BIT_TOWER = 256u;      // a round tower stands on this tile (ends, strong corners, long runs)
 constexpr uint32_t WALL_BIT_TOWER_N = 512u;    // the tile to the north has a tower (its base overlaps this tile)
 constexpr int WALL_VAR_SHIFT = 12;             // 2 bits of per-tile variation (weathering) at bits 12..13
+constexpr uint32_t WALL_BIT_CULVERT = 1u << 14; // a river runs under this tile: an arched water gate with an iron
+                                               // grate in the south face (the view sets it on wall tiles over water)
 Canvas wallTile(uint32_t key);
 
 // The wall layout pass shared by the view, the gallery and the tests: for a wall grid (w x h, nonzero = wall) and the

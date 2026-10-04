@@ -126,7 +126,50 @@ const Tex& View::bldgTex(const Bldg& b, int index) {
   for (bool found = false; topRow < c.h && !found; topRow++)
     for (int x = 0; x < c.w; x++) if ((c.get(x, topRow) >> 24) > 96) { found = true; break; }
   bldgTopRow_[k] = topRow;
+  // night: the lit-window variant and one light pool per window (centre of each connected run of panes)
+  std::vector<Vec2>& wins = bldgWin_[k];
+  wins.clear();
+  bool anyGlass = false;
+  for (uint8_t v : info.glass) if (v) { anyGlass = true; break; }
+  if (anyGlass) {
+    bldgNight_[k] = pix_->bake(art::buildingNight(c, info.glass, b.seed));
+    std::vector<uint8_t> seen(info.glass.size(), 0);
+    for (int y = 0; y < c.h; y++)
+      for (int x = 0; x < c.w; x++) {
+        size_t i = (size_t)y * c.w + x;
+        if (!info.glass[i] || seen[i]) continue;
+        // flood the pane group (8-connected, through the mullion gap of a pixel or two)
+        std::vector<int> q{(int)i};
+        seen[i] = 1;
+        float sx = 0, sy = 0;
+        for (size_t h = 0; h < q.size(); h++) {
+          int qx = q[h] % c.w, qy = q[h] / c.w;
+          sx += qx; sy += qy;
+          for (int oy = -2; oy <= 2; oy++)
+            for (int ox = -2; ox <= 2; ox++) {
+              int nx = qx + ox, ny = qy + oy;
+              if (nx < 0 || ny < 0 || nx >= c.w || ny >= c.h) continue;
+              size_t ni = (size_t)ny * c.w + nx;
+              if (!info.glass[ni] || seen[ni]) continue;
+              seen[ni] = 1;
+              q.push_back((int)ni);
+            }
+        }
+        if (q.size() >= 4) wins.push_back(Vec2(sx / q.size() + 0.5f, sy / q.size() + 0.5f));
+      }
+  } else bldgNight_.erase(k);
   return bldgTex_[k] = pix_->bake(c);
+}
+
+bool View::windowsLit(const Game& g, const Bldg& b) const {
+  if (g.inside || g.daylight() > 0.55f) return false;
+  if (b.type == art::Building::Inn || b.type == art::Building::Temple || b.type == art::Building::Keep) return true;   // never all asleep
+  // households go to bed: fewer windows lit deep in the night, each house on its own schedule
+  uint32_t h = hash32((uint32_t)(b.seed + g.day * 7919u));
+  float bed = 22.0f + (h % 5);   // 22..26 (26 = past 2 o'clock)
+  float hr = g.hour < 12 ? g.hour + 24 : g.hour;
+  if (hr > bed && hr < 29.5f) return false;
+  return h % 4 != 0;
 }
 const Tex& View::wallTileTex(uint32_t key) {
   auto it = wallTiles_.find(key);
@@ -194,11 +237,15 @@ void View::spawnParticles(const Event& e, Game& g) {
       shake_ = std::max(shake_, 3.0f);
       break;
     case Ev::QuestUpdate: {
-      Toast t; t.s = e.s; t.c = e.f == 1 ? Color(1, 0.85f, 0.3f) : Color(0.9f, 0.85f, 0.7f); toasts_.push_back(t);
+      // the same line already showing as the centre notice (Game::say) is not repeated as a toast
+      if (!(g.noticeT > 0 && g.notice == e.s)) { Toast t; t.s = e.s; t.c = e.f == 1 ? Color(1, 0.85f, 0.3f) : Color(0.9f, 0.85f, 0.7f); toasts_.push_back(t); }
       if (e.f == 0 || e.f == 1) { banner_ = e.f == 1 ? "QUEST COMPLETE" : "NEW QUEST"; bannerSub_ = e.s.substr(e.s.find(':') == std::string::npos ? 0 : e.s.find(':') + 2); bannerT_ = 3.5f; }
       break;
     }
-    case Ev::Notice: { Toast t; t.s = e.s; t.c = col((uint32_t)e.a); toasts_.push_back(t); break; }
+    case Ev::Notice: {
+      if (!(g.noticeT > 0 && g.notice == e.s)) { Toast t; t.s = e.s; t.c = col((uint32_t)e.a); toasts_.push_back(t); }
+      break;
+    }
     case Ev::Shake: shake_ = std::max(shake_, e.f); break;
     case Ev::MapChange: fade_ = 1.0f; snap(g); break;
     default: break;
@@ -211,7 +258,7 @@ void View::update(Game& g, float dt) {
   if (g.mode != lastMode_) {
     modeT_ = 0;
     if (g.mode == Mode::Dialogue) { dlgChars_ = 0; dlgSel_ = 0; }
-    if (g.mode == Mode::Shop) { shopSide_ = 0; shopSel_ = 0; }
+    if (g.mode == Mode::Shop) { shopSide_ = 0; shopSel_ = 0; shopArm_ = -1; }
     lastMode_ = g.mode;
   }
   for (const Event& e : g.events) spawnParticles(e, g);
@@ -249,11 +296,14 @@ void View::update(Game& g, float dt) {
     texts_[i].p.y -= dt * 22;
     if (texts_[i].t > 0.9f) texts_.erase(texts_.begin() + i); else i++;
   }
+  // toasts wait while a dialogue or menu is open, so "OLD BLADE" is still there when the player looks up
+  const bool modal = g.mode == Mode::Dialogue || g.mode == Mode::Shop || g.mode == Mode::Menu || g.mode == Mode::LevelUp || g.mode == Mode::Paused;
   for (size_t i = 0; i < toasts_.size();) {
+    if (modal) { i++; continue; }
     toasts_[i].t += dt;
     if (toasts_[i].t > 4.0f) toasts_.erase(toasts_.begin() + i); else i++;
   }
-  if (bannerT_ > 0) bannerT_ -= dt;
+  if (bannerT_ > 0 && g.mode != Mode::Dialogue) bannerT_ -= dt;   // shown once the dialogue closes (drawHud)
   if (fade_ > 0) fade_ = std::max(0.0f, fade_ - dt * 2.2f);
   {
     float before = dlgChars_;
@@ -365,8 +415,21 @@ void View::drawWorld(Game& g) {
       auto it = wallKeyCache_.find(wallId);
       if (it != wallKeyCache_.end() && it->second.size() == (size_t)m.w * m.h) wallKeys_ = it->second;
       else {
-        if (m.kind == MapKind::Overworld) art::wallKeys(m.wall.data(), m.w, m.h, g.world.gates.data(), (int)g.world.gates.size(), wallKeys_);
-        else art::wallKeys(m.wall.data(), m.w, m.h, nullptr, 0, wallKeys_);
+        if (m.kind == MapKind::Overworld) {
+          art::wallKeys(m.wall.data(), m.w, m.h, g.world.gates.data(), (int)g.world.gates.size(), wallKeys_);
+          // a river under the wall (WORLDGEN_V5 keeps its water there): no tower standing in it, and a water gate in
+          // the wall's face so the river visibly flows through instead of stopping at a dam
+          for (int y = 0; y < m.h; y++)
+            for (int x = 0; x < m.w; x++) {
+              uint32_t& k = wallKeys_[(size_t)y * m.w + x];
+              if (!k || !groundWater(m.at(x, y))) continue;
+              if (k & art::WALL_BIT_TOWER) {
+                k &= ~art::WALL_BIT_TOWER;
+                if (y + 1 < m.h && wallKeys_[(size_t)(y + 1) * m.w + x]) wallKeys_[(size_t)(y + 1) * m.w + x] &= ~art::WALL_BIT_TOWER_N;
+              }
+              k |= art::WALL_BIT_CULVERT;
+            }
+        } else art::wallKeys(m.wall.data(), m.w, m.h, nullptr, 0, wallKeys_);
         if (wallKeyCache_.size() > 4) wallKeyCache_.clear();
         wallKeyCache_[wallId] = wallKeys_;
       }
@@ -462,6 +525,11 @@ void View::drawWorld(Game& g) {
       P.rect(d.tx * 16 + 3 - cam.x, d.ty * 16 - cam.y, 42, 10, Color(0.10f, 0.07f, 0.20f, 0.22f));
     }
   }
+  bool ghost = false;   // the hero is hidden behind a building or a tree crown: show a silhouette over it
+  const Tex* ghostTex = nullptr;
+  int ghostFr = 0, ghostRow = 0;
+  bool ghostFlip = false;
+  float ghostX = 0, ghostY = 0;
   for (const Drawable& d : list) {
     switch (d.kind) {
       case 0: {
@@ -474,7 +542,11 @@ void View::drawWorld(Game& g) {
         if (natureProp(p) && m.kind == MapKind::Overworld) { uint32_t h = hash2(d.tx, d.ty, 55); jx = (float)((int)(h % 7) - 3); jy = (float)((int)((h >> 4) % 3) - 1); }
         float x = d.tx * 16 + 8 - fw / 2 + jx - cam.x, y = d.ty * 16 + 16 - fh + jy - cam.y;
         float alpha = 1;
-        if (treeProp(p) && pl.p.y < d.ty * 16 + 10 && pl.p.y > d.ty * 16 + 16 - fh + 4 && std::fabs(pl.p.x - (d.tx * 16 + 8 + jx)) < fw * 0.4f) alpha = 0.5f;
+        // a tree crown over the hero (drawn before it): the crown thins out and the hero shows through (ghost below)
+        if (treeProp(p) && pl.p.y < d.ty * 16 + 15 && pl.p.y > d.ty * 16 + 16 - fh + 8 && std::fabs(pl.p.x - (d.tx * 16 + 8 + jx)) < fw * 0.5f) {
+          alpha = 0.6f;
+          ghost = true;
+        }
         P.blitEx(t, fr * fw, 0, fw, fh, x, y, (float)fw, (float)fh, false, Color(1, 1, 1, alpha));
         if (p == Prop::Campfire || p == Prop::Brazier) {
           Rng r((uint32_t)(t_ * 30) + d.tx * 7);
@@ -484,15 +556,21 @@ void View::drawWorld(Game& g) {
       }
       case 1: {
         const Bldg& b = m.bldgs[d.idx];
-        const Tex& t = bldgTex(b, d.idx);
+        const Tex* tp = &bldgTex(b, d.idx);
+        if (m.kind == MapKind::Overworld && g.mode != Mode::Title && windowsLit(g, b)) {
+          auto nt = bldgNight_.find(bldgKey(m, b, d.idx));
+          if (nt != bldgNight_.end()) tp = &nt->second;
+        }
+        const Tex& t = *tp;
         const float bottom = (b.r.y + b.r.h) * 16.0f, top = bottom + art::BLDG_PAD_B - t.h;
         float x = b.r.x * 16.0f - art::BLDG_PAD_X - cam.x, y = top - cam.y;
-        float alpha = 1;
-        // fade when the player stands behind the building (feet hidden under its walls or roof)
+        // the hero behind the building (feet hidden under its walls or roof): the building stays solid and the hero
+        // shows through it as a silhouette (drawn after everything, below). Fading the whole house - door, windows and
+        // all - turned buildings into ghosts whenever the hero passed behind a roof.
         auto tr = bldgTopRow_.find(bldgKey(m, b, d.idx));
         float vis = top + (tr != bldgTopRow_.end() ? (float)tr->second : 0.0f);
-        if (pl.p.y < bottom - 4 && pl.p.y > vis + 6 && pl.p.x > b.r.x * 16 - 2 && pl.p.x < (b.r.x + b.r.w) * 16 + 2) alpha = 0.55f;
-        P.blitEx(t, 0, 0, t.w, t.h, x, y, (float)t.w, (float)t.h, false, Color(1, 1, 1, alpha));
+        if (pl.p.y < bottom - 4 && pl.p.y > vis + 6 && pl.p.x > b.r.x * 16 - 2 && pl.p.x < (b.r.x + b.r.w) * 16 + 2) ghost = true;
+        P.blitEx(t, 0, 0, t.w, t.h, x, y, (float)t.w, (float)t.h, false, Color(1, 1, 1, 1));
         // chimney smoke: soft puffs that rise, drift east with the wind and spread
         auto sm = bldgSmoke_.find(bldgKey(m, b, d.idx));
         if (sm != bldgSmoke_.end() && g.mode != Mode::Title)
@@ -543,6 +621,7 @@ void View::drawWorld(Game& g) {
           float x = a.p.x - art::HUMAN_W / 2.0f - cam.x, y = a.p.y - art::HUMAN_H + 2 + bob - cam.y;
           if (a.st == AState::Dead) y += 3;
           P.blitEx(t, fr * art::HUMAN_W, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, x, y, (float)art::HUMAN_W, (float)art::HUMAN_H, flip, Color(1, 1, 1, alpha));
+          if (a.player) { ghostTex = &t; ghostFr = fr; ghostRow = row; ghostFlip = flip; ghostX = x; ghostY = y; }
           if (flash > 0) P.blitEx(t, fr * art::HUMAN_W, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, x, y, (float)art::HUMAN_W, (float)art::HUMAN_H, flip, Color(1, 1, 1, flash), 1);
           if (a.burnT > 0 && ((int)(t_ * 10) & 1)) P.rectAdd(x + 5, y + 6, 6, 10, Color(0.6f, 0.25f, 0.05f, 0.6f));
         } else {
@@ -680,6 +759,13 @@ void View::drawWorld(Game& g) {
       default: break;
     }
   }
+  // the hidden hero: a cool, see-through silhouette over whatever hides it, so it reads as "behind" the roof or crown
+  // rather than standing on it (a faint additive rim keeps it visible on dark slate as well as on pale thatch)
+  if (ghost && ghostTex && g.mode != Mode::Title) {
+    const float W = (float)art::HUMAN_W, H = (float)art::HUMAN_H;
+    P.blitEx(*ghostTex, ghostFr * art::HUMAN_W, ghostRow * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, ghostX, ghostY, W, H, ghostFlip, Color(0.42f, 0.48f, 0.72f, 0.55f));
+    P.blitEx(*ghostTex, ghostFr * art::HUMAN_W, ghostRow * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, ghostX, ghostY, W, H, ghostFlip, Color(0.18f, 0.22f, 0.36f, 0.5f), 1);
+  }
   // particles (world layer)
   for (const Particle& q : parts_) {
     float a = clampf(q.life / q.max, 0, 1);
@@ -747,13 +833,25 @@ void View::drawLighting(Game& g) {
       float f = 0.85f + 0.15f * std::sin(t_ * 9 + tx * 1.7f + ty);
       light(Vec2(tx * 16 + 8.0f, ty * 16 + 4.0f), r, c, 0.9f * f);
     }
-  // warm windows at night
-  if (!g.inside && dark > 0.2f)
-    for (const Bldg& b : m.bldgs) {
+  // warm windows at night: each lit window glows (it reads at full colour through the dark) and spills a little
+  // light onto the wall and the street in front; a soft pool at the door of every household still up
+  if (!g.inside && dark > 0.2f && g.mode != Mode::Title)
+    for (size_t bi = 0; bi < m.bldgs.size(); bi++) {
+      const Bldg& b = m.bldgs[bi];
       Vec2 c(b.r.x * 16 + b.r.w * 8.0f, (b.r.y + b.r.h) * 16 - 10.0f);
-      if (c.x < cam.x - 80 || c.x > cam.x + Pix::W + 80 || c.y < cam.y - 80 || c.y > cam.y + Pix::H + 80) continue;
-      if (hash32((uint32_t)(b.seed + g.day)) % 3 == 0) continue;   // not every house is awake
-      light(c + Vec2(0, 4), 18 + b.r.w * 4.0f, Color(1, 0.7f, 0.35f), 0.45f * dark);
+      if (c.x < cam.x - 80 || c.x > cam.x + Pix::W + 80 || c.y < cam.y - 120 || c.y > cam.y + Pix::H + 80) continue;
+      if (!windowsLit(g, b)) continue;
+      light(c + Vec2(0, 8), 18 + b.r.w * 4.0f, Color(1, 0.7f, 0.35f), 0.40f * dark);
+      auto w = bldgWin_.find(bldgKey(m, b, (int)bi));
+      auto t = bldgTex_.find(bldgKey(m, b, (int)bi));
+      if (w == bldgWin_.end() || t == bldgTex_.end()) continue;
+      const float bottom = (b.r.y + b.r.h) * 16.0f, top = bottom + art::BLDG_PAD_B - t->second.h;
+      float f = 0.94f + 0.06f * std::sin(t_ * 5 + bi);
+      for (const Vec2& wc : w->second) {
+        Vec2 wp(b.r.x * 16.0f - art::BLDG_PAD_X + wc.x, top + wc.y);
+        light(wp, 22, Color(1, 0.86f, 0.6f), 0.95f * dark * f);   // the pane itself, near full brightness
+        light(wp + Vec2(0, 8), 44, Color(1, 0.62f, 0.3f), 0.30f * dark * f);   // spill on the wall and ground
+      }
     }
   // the lanterns either side of every gate passage
   if (!g.inside && m.kind == MapKind::Overworld && dark > 0.15f)

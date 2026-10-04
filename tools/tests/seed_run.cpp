@@ -142,7 +142,11 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
     if (g.world.genVersion >= WORLDGEN_V2 && g.world.dens.size() < 20) out("WARN: only %zu dens\n", g.world.dens.size());
   }
   int bad = 0;
-  if (counts[(int)SiteType::City] < 2 || counts[(int)SiteType::Town] < 3 || counts[(int)SiteType::Cave] < 8 || mq < 3 || g.world.lair < 0) { out("FAIL: too few sites\n"); bad++; }
+  if (counts[(int)SiteType::City] < 2 || counts[(int)SiteType::Town] < 3 || counts[(int)SiteType::Cave] < 8 || mq < 3 || g.world.lair < 0) {
+    out("FAIL: too few sites (cities %d towns %d caves %d main-quest ruins %d lair %d)\n", counts[(int)SiteType::City], counts[(int)SiteType::Town],
+        counts[(int)SiteType::Cave], mq, g.world.lair);
+    bad++;
+  }
   if (g.map().blocked((int)(g.pl().p.x / 16), (int)(g.pl().p.y / 16))) { out("FAIL: player starts inside a wall\n"); bad++; }
   {
     // the main quest needs a jarl in the capital's keep
@@ -205,8 +209,8 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
       bool town = s.type == SiteType::City || s.type == SiteType::Town || s.type == SiteType::Village;
       int ty = s.ey + (s.type == SiteType::Cave ? 1 : (s.type == SiteType::Ruin ? 3 : 0));
       if (!reach(s.ex, ty)) {
-        if (story) { out("FAIL: %s (%s) is not reachable on foot from the start\n", s.name.c_str(), siteTypeName(s.type)); bad++; }
-        else if (town) { out("FAIL: settlement %s is not reachable on foot\n", s.name.c_str()); bad++; }
+        if (story) { out("FAIL: %s (%s) at %d,%d is not reachable on foot from the start\n", s.name.c_str(), siteTypeName(s.type), s.ex, ty); bad++; }
+        else if (town) { out("FAIL: settlement %s at %d,%d is not reachable on foot\n", s.name.c_str(), s.ex, ty); bad++; }
         else unreachable++;
       }
     }
