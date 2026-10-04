@@ -1,0 +1,46 @@
+# M0b rooms lane: homes. One- and two-storey houses (hall, kitchen, bedrooms behind doors, stairs up to the bedrooms),
+# a stone house, a farmhouse with its barn end and a hut, by day and at night.
+#   embervale.exe --script tools/scripts/m0b_homes.txt [--seed 7]      (also seeds 7, 99, 19 desert, 10 taiga)
+# Screenshots land in the working directory. Exit code 3 if an expect/walkto fails.
+seed 2
+0.3  newgame
+0.5  expect mode play
+0.6  god
+0.8  goto town
+1.0  hour 11
+1.2  enter house 0 0
+1.4  expect inside 1
+1.5  expect floor 0
+2.0  shot m0b_house_a.png
+2.2  enter house 0 1
+2.4  expect floor 0
+3.0  shot m0b_house_b.png
+3.2  enter house 1
+3.4  expect floor 1
+4.0  shot m0b_house2_upstairs.png
+4.2  walkto downstairs 30
+4.4  expect floor 0
+5.0  shot m0b_house2_ground.png
+5.2  walkto upstairs 30
+5.4  expect floor 1
+5.6  walkto downstairs 30
+5.8  expect floor 0
+6.0  walkto exit 30
+6.2  expect inside 0
+6.4  enter stonehouse 0
+6.6  expect inside 1
+7.2  shot m0b_stonehouse.png
+7.4  enter farmhouse 0
+7.6  expect inside 1
+8.2  shot m0b_farmhouse.png
+8.4  enter hut 0
+8.6  expect inside 1
+9.2  shot m0b_hut.png
+9.4  hour 22
+9.6  enter house 1 1
+9.8  expect floor 1
+10.4 shot m0b_house2_upstairs_night.png
+10.6 enter house 0 2
+10.8 expect floor 0
+11.4 shot m0b_house_c_night.png
+11.6 quit

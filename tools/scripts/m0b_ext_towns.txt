@@ -1,0 +1,26 @@
+# M0b exterior lane: towns, cities and villages with 2-storey houses and shops among 1-storey ones, by day and at
+# night (upper-floor windows lit). Run on several seeds; EMB_ARCH_BIOME=<Biome index> paints every building in one
+# biome's style (6 snow, 7 swamp, 8 desert):
+#   embervale --script tools/scripts/m0b_ext_towns.txt --seed 2|7|99
+0 goto town
+0.3 god
+0.5 hour 12
+2 expect mode play
++0 expect inside 0
++0.1 shot m0b_ext_town_noon.png
++0.2 hold S 1.2
++1.6 shot m0b_ext_town_south.png
++0.2 hour 22
++1.5 shot m0b_ext_town_night.png
++0.2 goto city
++0.3 hour 12
++2 expect inside 0
++0.1 shot m0b_ext_city_noon.png
++0.2 hold W 1.4
++1.8 shot m0b_ext_city_north.png
++0.2 hour 22
++1.5 shot m0b_ext_city_night.png
++0.2 goto village
++0.3 hour 15
++2 expect inside 0
++0.1 shot m0b_ext_village.png

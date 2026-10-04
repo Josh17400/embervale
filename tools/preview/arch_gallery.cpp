@@ -1,9 +1,18 @@
 // Architecture gallery (M0 architecture lane): buildings in every style, the roof library (shape x material), and city
 // walls laid out the way the game draws them (wallKeys + wallTile + gateHouse, y-sorted, ground shadows baked), so wall
 // joins, towers, gates, roofs and lighting can be judged at 1x and zoomed.
-//   arch_gallery <outDir>      writes buildings.png, roofs.png, styles.png, walls.png (3x) and *_1x.png (1x)
+//   arch_gallery <outDir>      writes buildings.png, roofs.png, styles.png, walls.png, storeys.png, streets.png (3x)
+//                              and *_1x.png (1x); storeys_night / streets_night show the lit windows
+//   arch_gallery <outDir> <panel>   one panel only (walls, buildings, roofs, styles, storeys, streets)
+//   arch_gallery --check [first..last]   M0b agreement check (VISION_PLAN 15.7) on WORLDGEN_LATEST worlds, seeds 1..10 by
+//                              default: every building painted as the view paints it (bldgArch + bldgFacts) must show
+//                              exactly Bldg::storeys, carry no chimney without a hearth, and keep its highest opaque pixel
+//                              within bldgRiseTiles(type, storeys) tiles above its footprint. Exit 1 on any failure.
 #include <algorithm>
 #include <chrono>
+#include <cstring>
+#include <map>
+#include "rpg/sim/world.h"
 #include "tools/preview/preview_util.h"
 
 namespace {
@@ -250,9 +259,184 @@ void walls(const std::string& dir) {
   save2(b.c, dir, "walls");
 }
 
+// ---------------------------------------------------------------- M0b: storeys
+const char* kTypeNames[(int)art::Building::COUNT] = {"House", "StoneHouse", "Inn", "Smithy", "Shop", "Temple", "Keep", "Tower", "Farmhouse", "Hut"};
+
+// rows of the highest opaque pixel above the footprint's top edge (what the V5 clearance test budgets)
+int spriteRise(const Canvas& c, int hT) {
+  int footTop = c.h - art::BLDG_PAD_B - hT * 16;
+  for (int y = 0; y < c.h; y++)
+    for (int x = 0; x < c.w; x++)
+      if ((c.get(x, y) >> 24) > 0) return footTop - y;
+  return 0;
+}
+
+int check(int s0, int s1) {
+  int bad = 0, total = 0, minSlack = 1 << 30;
+  std::map<std::pair<int, int>, int> counts;   // (type, storeys) -> buildings
+  std::map<int, int> chim;                      // type -> buildings with a chimney
+  std::map<int, int> riseMax;                   // type*8+storeys -> highest rise seen
+  int covers = 0;
+  for (int seed = s0; seed <= s1; seed++) {
+    World w;
+    w.generate((uint64_t)seed, WORLDGEN_LATEST);
+    std::vector<Canvas> sprites(w.over.bldgs.size());
+    for (size_t bi = 0; bi < w.over.bldgs.size(); bi++) {
+      const Bldg& b = w.over.bldgs[bi];
+      art::BuildingInfo info;
+      Canvas c = art::buildingSprite(b.type, b.r.w, b.r.h, bldgArch(b), b.seed, &info, bldgFacts(b));
+      sprites[bi] = c;
+      total++;
+      counts[{(int)b.type, (int)b.storeys}]++;
+      if (info.chimneys > 0) chim[(int)b.type]++;
+      int rise = spriteRise(c, b.r.h), budget = bldgRiseTiles(b.type, b.storeys) * 16;
+      int& rm = riseMax[(int)b.type * 8 + b.storeys];
+      rm = std::max(rm, rise);
+      minSlack = std::min(minSlack, budget - rise);
+      const char* tn = kTypeNames[(int)b.type];
+      if (info.storeys != (int)b.storeys) {
+        if (bad < 40)
+          std::printf("FAIL seed %d bldg %zu %s %dx%d biome %s: painted %d storeys, generator says %d\n", seed, bi, tn, b.r.w, b.r.h,
+                      biomeName(b.biome), info.storeys, (int)b.storeys);
+        bad++;
+      }
+      if (info.chimneys > 0 && !b.hearth) {
+        if (bad < 40) std::printf("FAIL seed %d bldg %zu %s: %d chimneys but no hearth\n", seed, bi, tn, info.chimneys);
+        bad++;
+      }
+      if (rise > budget) {
+        if (bad < 40)
+          std::printf("FAIL seed %d bldg %zu %s %dx%d storeys %d biome %s: rises %d px over a budget of %d\n", seed, bi, tn, b.r.w, b.r.h,
+                      (int)b.storeys, biomeName(b.biome), rise, budget);
+        bad++;
+      }
+    }
+    // what the clearance protects: no painted pixel of a building drawn later (further south) lands on the front row or
+    // the door apron of a building behind it
+    for (const Site& s : w.sites)
+      for (int i = s.bldgFirst; i < s.bldgFirst + s.bldgCount; i++) {
+        const Bldg& A = w.over.bldgs[(size_t)i];
+        const Canvas& c = sprites[(size_t)i];
+        int cx0 = A.r.x * 16 - art::BLDG_PAD_X, cy0 = (A.r.y + A.r.h) * 16 + art::BLDG_PAD_B - c.h;
+        for (int j = s.bldgFirst; j < s.bldgFirst + s.bldgCount; j++) {
+          if (i == j) continue;
+          const Bldg& B = w.over.bldgs[(size_t)j];
+          if (A.r.y + A.r.h <= B.r.y + B.r.h) continue;
+          IRect zones[2] = {IRect{B.r.x, B.r.y + B.r.h - 1, B.r.w, 1}, IRect{B.doorX() - 1, B.r.y + B.r.h, 3, 2}};
+          int hit = 0;
+          for (const IRect& z : zones)
+            for (int py = z.y * 16; py < (z.y + z.h) * 16 && !hit; py++)
+              for (int px = z.x * 16; px < (z.x + z.w) * 16; px++)
+                if ((c.get(px - cx0, py - cy0) >> 24) > 0 && px - cx0 >= 0 && py - cy0 >= 0 && px - cx0 < c.w && py - cy0 < c.h) { hit = 1; break; }
+          if (hit) {
+            if (covers < 10)
+              std::printf("  covers: seed %d %s %s at %d,%d paints over the front of %s at %d,%d\n", seed, s.name.c_str(), kTypeNames[(int)A.type], A.r.x,
+                          A.r.y, kTypeNames[(int)B.type], B.r.x, B.r.y);
+            covers++;
+          }
+        }
+      }
+  }
+  std::printf("arch_gallery --check: seeds %d..%d, %d buildings on WORLDGEN_V%d, %d sprites over a front behind\n", s0, s1, total, WORLDGEN_LATEST, covers);
+  for (int t = 0; t < (int)art::Building::COUNT; t++) {
+    std::string line;
+    int n = 0;
+    for (int st = 1; st <= 3; st++) {
+      auto it = counts.find({t, st});
+      if (it == counts.end()) continue;
+      n += it->second;
+      char buf[80];
+      std::snprintf(buf, sizeof buf, "  %d-storey %4d (rise max %2d/%2d px)", st, it->second, riseMax[t * 8 + st], bldgRiseTiles((art::Building)t, st) * 16);
+      line += buf;
+    }
+    if (n) std::printf("  %-10s %4d:%s  chimneys on %d\n", kTypeNames[t], n, line.c_str(), chim[t]);
+  }
+  std::printf("  smallest headroom under a rise budget: %d px\n", minSlack);
+  if (bad) std::printf("arch_gallery --check: %d FAILURES\n", bad);
+  else std::printf("arch_gallery --check: ALL OK (storeys 100%%, no chimney without a hearth, every sprite within its rise budget)\n");
+  return bad ? 1 : 0;
+}
+
+// every type x storeys in each main biome style, by day (storeys.png) and by night (storeys_night.png). A red tick left
+// of each building marks the highest row the generator's clearance allows; the number is BuildingInfo::storeys.
+void storeysPanel(const std::string& dir) {
+  static const int biomes[8] = {2, 3, 4, 6, 5, 8, 7, 1};
+  static const char* names[8] = {"PLAINS", "FOREST", "AUTUMN", "SNOW", "TAIGA", "DESERT", "SWAMP", "BEACH"};
+  struct Col { art::Building t; int wT, hT, st; const char* label; };
+  static const Col cols[] = {
+      {art::Building::House, 5, 3, 1, "HOUSE 1"},      {art::Building::House, 5, 3, 2, "HOUSE 2"},      {art::Building::House, 4, 3, 2, "HOUSE 4W 2"},
+      {art::Building::StoneHouse, 4, 3, 1, "STONE 1"}, {art::Building::StoneHouse, 4, 3, 2, "STONE 2"}, {art::Building::StoneHouse, 3, 3, 2, "STONE 3W 2"},
+      {art::Building::Shop, 5, 3, 1, "SHOP 1"},        {art::Building::Shop, 5, 3, 2, "SHOP 2"},        {art::Building::Inn, 6, 3, 2, "INN 2"},
+      {art::Building::Keep, 7, 4, 2, "KEEP 2"},        {art::Building::Tower, 3, 3, 3, "TOWER 3"},      {art::Building::Smithy, 5, 3, 1, "SMITHY"},
+      {art::Building::Temple, 5, 4, 1, "TEMPLE"},      {art::Building::Farmhouse, 6, 4, 1, "FARM"},     {art::Building::Hut, 3, 2, 1, "HUT"}};
+  const int nC = (int)(sizeof cols / sizeof cols[0]);
+  const int colW = 7 * 16 + 30, rowH = 150;
+  Board day(40 + nC * colW, 24 + 8 * rowH), night(40 + nC * colW, 24 + 8 * rowH);
+  for (uint32_t& px : night.c.px) px = art::mix(art::shade(px, 0.45f), rgba(24, 28, 70), 0.35f);   // the ground at night
+  for (int i = 0; i < nC; i++) { day.text(40 + i * colW, 4, cols[i].label); night.text(40 + i * colW, 4, cols[i].label); }
+  for (int r = 0; r < 8; r++) {
+    day.text(4, 24 + r * rowH + 4, names[r]);
+    night.text(4, 24 + r * rowH + 4, names[r]);
+    for (int i = 0; i < nC; i++) {
+      const Col& cc = cols[i];
+      uint32_t seed = 4000u + (uint32_t)r * 131u + (uint32_t)i * 17u;
+      art::ArchStyle st = art::archForBiome(biomes[r], seed);
+      art::BuildingFacts f;
+      f.storeys = cc.st;
+      f.hearth = cc.t != art::Building::Temple && cc.t != art::Building::Tower;
+      art::BuildingInfo info;
+      Canvas c = art::buildingSprite(cc.t, cc.wT, cc.hT, st, seed, &info, f);
+      int fx = 40 + i * colW + 8, fy = 24 + r * rowH + rowH - 10 - cc.hT * 16;
+      placeBuilding(day, c, fx, fy, cc.wT, cc.hT, info.height);
+      Canvas n = art::buildingNight(c, info.glass, seed);
+      for (size_t k = 0; k < n.px.size(); k++)   // a cheap night grade on all but the lit panes
+        if (!info.glass[k] && (n.px[k] >> 24)) n.px[k] = (n.px[k] & 0xFF000000u) | (art::mix(art::shade(n.px[k], 0.45f), rgba(24, 28, 70), 0.35f) & 0xFFFFFFu);
+      placeBuilding(night, n, fx, fy, cc.wT, cc.hT, info.height);
+      int top = fy - bldgRiseTiles(cc.t, cc.st) * 16;
+      for (int x = fx - 7; x < fx - 2; x++) day.c.set(x, top, rgba(255, 60, 60));
+      if (info.storeys != cc.st) day.text(fx - 7, top + 3, "!");
+    }
+  }
+  save2(day.c, dir, "storeys");
+  save2(night.c, dir, "storeys_night");
+}
+
+// a street per biome of 2-storey houses and shops among 1-storey ones, as a town builds them: no two alike
+void streets(const std::string& dir) {
+  static const int biomes[7] = {2, 3, 4, 6, 5, 8, 7};
+  static const char* names[7] = {"PLAINS", "FOREST", "AUTUMN", "SNOW", "TAIGA", "DESERT", "SWAMP"};
+  const int rowH = 140;
+  Board b(16 + 10 * 92, 16 + 7 * rowH);
+  for (int r = 0; r < 7; r++) {
+    b.text(8, 4 + r * rowH, names[r]);
+    int x = 12;
+    for (int k = 0; k < 12; k++) {
+      uint32_t seed = 7300u + (uint32_t)r * 211u + (uint32_t)k * 29u;
+      uint32_t h = (uint32_t)(k * 2654435761u) ^ (uint32_t)(r * 40503u) ^ seed;
+      h ^= h >> 13; h *= 0x5bd1e995u; h ^= h >> 15;
+      art::Building t = (k % 4 == 3) ? art::Building::Shop : (k % 5 == 1 ? art::Building::StoneHouse : art::Building::House);
+      int wT = 3 + (int)(h % 3), hT = 3;
+      art::BuildingFacts f;
+      f.storeys = (wT >= 4 && (h >> 4) % 3 != 0) || (t == art::Building::StoneHouse && (h >> 6) % 3 == 0) ? 2 : 1;
+      art::ArchStyle st = art::archForBiome(biomes[r], seed);
+      art::BuildingInfo info;
+      Canvas c = art::buildingSprite(t, wT, hT, st, seed, &info, f);
+      if (x + wT * 16 + 16 > b.c.w) break;
+      placeBuilding(b, c, x + 8, 4 + r * rowH + rowH - 8 - hT * 16, wT, hT, info.height);
+      x += wT * 16 + 12 + (int)((h >> 9) % 8);
+    }
+  }
+  save2(b.c, dir, "streets");
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
+  if (argc >= 2 && std::strcmp(argv[1], "--check") == 0) {
+    int s0 = 1, s1 = 10;
+    if (argc >= 3 && std::sscanf(argv[2], "%d..%d", &s0, &s1) < 2) s1 = s0;
+    return check(s0, s1);
+  }
   std::string dir = argc >= 2 ? argv[1] : ".";
   SDL_CreateDirectory(dir.c_str());
   std::string only = argc >= 3 ? argv[2] : "";
@@ -260,5 +444,7 @@ int main(int argc, char** argv) {
   if (only.empty() || only == "buildings") buildings(dir);
   if (only.empty() || only == "roofs") roofs(dir);
   if (only.empty() || only == "styles") styles(dir);
+  if (only.empty() || only == "storeys") storeysPanel(dir);
+  if (only.empty() || only == "streets") streets(dir);
   return 0;
 }

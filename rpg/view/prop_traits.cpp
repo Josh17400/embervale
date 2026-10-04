@@ -5,7 +5,7 @@ using art::Prop;
 
 bool flatProp(Prop p) {
   return p == Prop::Rug || p == Prop::LilyPad || p == Prop::Flowers1 || p == Prop::Flowers2 || p == Prop::Flowers3 || p == Prop::Bones ||
-         p == Prop::SkullPile || p == Prop::Mushrooms || p == Prop::Ladder || p == Prop::Filler;
+         p == Prop::SkullPile || p == Prop::Mushrooms || p == Prop::Ladder || p == Prop::Filler || p == Prop::StairsDown;
 }
 bool natureProp(Prop p) { return (int)p <= (int)Prop::Fern; }
 bool treeProp(Prop p) {
@@ -29,6 +29,10 @@ bool propLight(Prop p, float& r, Color& c) {
     case Prop::Sconce: r = 46; c = Color(1.0f, 0.74f, 0.42f); return true;
     case Prop::TableWork: r = 30; c = Color(1.0f, 0.78f, 0.46f); return true;
     case Prop::HolySymbol: r = 34; c = Color(1.0f, 0.88f, 0.6f); return true;
+    // M0b
+    case Prop::Oven: r = 64; c = Color(1.0f, 0.55f, 0.25f); return true;
+    case Prop::Candelabra: r = 52; c = Color(1.0f, 0.78f, 0.46f); return true;
+    case Prop::Nightstand: r = 28; c = Color(1.0f, 0.78f, 0.46f); return true;
     default: return false;
   }
 }

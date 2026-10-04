@@ -1,0 +1,58 @@
+# M0b fix round 3: climb the stairs, lift the thumb during the fade, push up again to carry on: you must stay
+# upstairs (the arrival tile is beside the stairwell, and the stairs sleep until you step off where you arrived).
+# Then step away: walking back onto the stairwell takes you down.
+#   embervale.exe --script tools/scripts/m0b_stairs_tap.txt [--seed 7]      (also seeds 7, 19 desert, 10 taiga)
+# Exit code 3 if an expect/walkto fails.
+seed 2
+0.3  newgame
+0.5  expect mode play
+0.6  god
+0.8  goto city
+1.0  hour 11
+1.2  enter inn 1 0
+1.3  floor 0
+1.4  walkto upstairs 25
+1.5  expect floor 1
++0.4 hold W 0.5
++0.8 expect floor 1
++0.1 hold S 0.3
++0.6 expect floor 1
++0.1 walkto downstairs 25
++0.2 expect floor 0
++0.4 hold S 0.5
++0.8 expect floor 0
++0.1 enter house 1 0
++0.1 floor 0
++0.2 walkto upstairs 25
++0.2 expect floor 1
++0.4 hold W 0.5
++0.8 expect floor 1
++0.1 enter stonehouse 1 0
++0.1 floor 0
++0.2 walkto upstairs 25
++0.2 expect floor 1
++0.4 hold W 0.5
++0.8 expect floor 1
++0.1 enter shop 1 0
++0.1 floor 0
++0.2 walkto upstairs 25
++0.2 expect floor 1
++0.4 hold W 0.5
++0.8 expect floor 1
++0.1 enter keep 1 0
++0.1 floor 0
++0.2 walkto upstairs 25
++0.2 expect floor 1
++0.4 hold W 0.5
++0.8 expect floor 1
++0.1 enter tower 1 0
++0.1 floor 0
++0.2 walkto upstairs 25
++0.2 expect floor 1
++0.4 hold W 0.5
++0.8 expect floor 1
++0.2 walkto upstairs 25
++0.2 expect floor 2
++0.4 hold W 0.5
++0.8 expect floor 2
++0.4 quit

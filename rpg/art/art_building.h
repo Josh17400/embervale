@@ -41,18 +41,44 @@ struct BuildingInfo {
   int smokeX[3] = {}, smokeY[3] = {};   // chimney mouths that smoke (empty unless the style or the type smokes)
   int height = 0;                       // pixels from the footprint's bottom edge to the highest roof pixel
   std::vector<uint8_t> glass;           // sprite-sized mask: 1 = a visible window pane (the view lights them at night)
+  // M0b: what the painter actually drew, so a check (arch_gallery --check) can hold the exterior to the generator's
+  // facts: storeys shown (rows of windows / floor beams) and chimney stacks on the roof
+  int storeys = 0;
+  int chimneys = 0;
 };
 // The night look of a building sprite: its window panes (BuildingInfo::glass) lit warm from inside, with a little
 // variation per pane. Same size as the sprite.
 Canvas buildingNight(const Canvas& sprite, const std::vector<uint8_t>& glass, uint32_t seed);
 
+// M0b: what the world generator decided about a building that its exterior must show (VISION_PLAN 15.7: the exterior
+// and the interior agree). Bldg carries these (world.h bldgFacts). The defaults reproduce the classic M0 look.
+struct BuildingFacts {
+  int storeys = 0;      // storeys the walls show (window rows, floor beams, wall height); 0 = defaultStoreys(type).
+                        // From WORLDGEN_V7 the interior has exactly this many floors joined by stairs.
+  bool hearth = true;   // false: nothing inside burns a fire, so the roof carries NO chimney. true: chimneys as the
+                        // style and the type decide (a style without chimneys may still show none: chimney => hearth,
+                        // not the reverse)
+};
+// The storeys each type showed before M0b (and still shows for worlds before WORLDGEN_V7): inns and keeps 2, mage
+// towers 3, everything else 1. Header-only: the simulation (which does not link the art) needs it.
+inline int defaultStoreys(Building b) {
+  switch (b) {
+    case Building::Inn: case Building::Keep: return 2;
+    case Building::Tower: return 3;
+    default: return 1;
+  }
+}
+
 // The style decides roof shape and material, wall material and climate details; the type only adds its function
 // (inn sign, forge, steeple, crenellations, awning). seed varies the massing (wings, porch, dormers, chimneys),
-// windows and weathering, so neighbours in one style never look copy-pasted.
+// windows and weathering, so neighbours in one style never look copy-pasted. facts: storeys and hearth (above).
+Canvas buildingSprite(Building b, int wTiles, int hTiles, const ArchStyle& style, uint32_t seed, BuildingInfo* info,
+                      const BuildingFacts& facts);
 Canvas buildingSprite(Building b, int wTiles, int hTiles, const ArchStyle& style, uint32_t seed, BuildingInfo* info = nullptr);
 // Older form kept for the tools: the plains style for this seed, roofColor (0 = material default) as the roof tint.
 Canvas buildingSprite(Building b, int wTiles, int hTiles, uint32_t roofColor, uint32_t seed);
 // Cheap estimate of BuildingInfo::height without painting (for baked ground shadows).
+int buildingHeight(Building b, int wTiles, int hTiles, const ArchStyle& style, const BuildingFacts& facts);
 int buildingHeight(Building b, int wTiles, int hTiles, const ArchStyle& style);
 
 // ---------------------------------------------------------------- city wall

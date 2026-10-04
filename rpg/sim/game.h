@@ -140,6 +140,13 @@ struct Dialogue {
   Role role = Role::Villager;
 };
 
+// M0b: the inn room the player has rented (SAVE_VER 4). It is theirs until noon of untilDay: its bed can be slept in,
+// and the innkeeper sends them to it. room indexes the Map::rooms of that building's floor `floor` (a GuestRoom).
+struct Lodging {
+  int bldg = -1, floor = 0, room = -1;
+  int untilDay = -1;
+};
+
 struct ShopState {
   int actor = -1;
   uint64_t key = 0;        // merchant identity (npcKey)
@@ -158,9 +165,15 @@ class Game {
   Map sub;                 // current cave/ruin/interior (when inside)
   bool inside = false;
   int subSite = -1, subBldg = -1;
+  int subFloor = 0;        // M0b: which floor of building subBldg (0 ground; SAVE_VER 4)
   Map& map() { return inside ? sub : world.over; }
   const Map& map() const { return inside ? sub : world.over; }
-  int mapKey() const { return !inside ? 0 : (subBldg >= 0 ? 100000 + subBldg : 1 + subSite); }
+  // identity of the current map (looted chests, killed spawns, terrain caches). Upper floors get their own keys.
+  int mapKey() const {
+    if (!inside) return 0;
+    if (subBldg >= 0) return subFloor > 0 ? 10000000 + subBldg * 16 + subFloor : 100000 + subBldg;
+    return 1 + subSite;
+  }
 
   // --- state
   Mode mode = Mode::Title;
@@ -196,6 +209,8 @@ class Game {
   float blessT = 0;            // shrine blessing time left
   std::string blessName;
   int lastTown = -1;           // respawn point
+  Lodging lodging;             // M0b: the rented inn room (SAVE_VER 4)
+  bool lodgingActive() const { return lodging.bldg >= 0 && (day < lodging.untilDay || (day == lodging.untilDay && hour < 12.0f)); }
   float sleepFade = 0;         // view: fade-out when resting/travelling
   float hitStop = 0;           // brief freeze on heavy hits (game feel)
   float slowMo = 0;            // perfect-roll / level-up slow motion left (real seconds; sim runs at 30 %)
@@ -235,6 +250,7 @@ class Game {
   void respawn();
   int interactTarget() const;          // actor id the player would talk to (-1 none)
   int interactProp(int& tx, int& ty) const;   // usable prop in front of the player (art::Prop + 1, 0 none)
+  bool bedIsYours(int tx, int ty) const;      // M0b: a bed you may sleep in (an inn's beds are let room by room)
   bool nearDoorOrExit() const;
   float armorRating() const;
   float weaponDamage() const;
@@ -266,11 +282,24 @@ class Game {
   int debugSpawnAt(art::Monster m, Vec2 at, int level);   // returns the actor id (already aggro)
   void debugKit();                     // the pre-M0 starting kit (iron sword, hunting bow, 20 arrows, 3 potions, bread),
                                        // equipped: for fight scripts and bots once the real start is shirt-only
+  // M0b: go into building bi (from anywhere, leaving the current sub-level) and up to floor f; false if f is not one
+  // of its floors. Scripts, tests and save loading use it; play goes through doors and stairs.
+  bool debugEnterBuilding(int bi, int floor = 0);
+  void changeFloor(int floor);         // inside a building: move to another of its floors, arriving by its stairs
+  bool stairsAsleep() const { return stairsArrive_ >= 0; }   // just climbed: the stairwell down sleeps against a push north
 
  private:
   int nextId_ = 1;
   float spawnT_ = 0;
   bool exitArmed_ = false;
+  bool stairsArmed_ = false;   // M0b: the player has stepped off the stairs they arrived by
+  bool stairsLatch_ = false;   // M0b: just arrived by the stairs: they stay asleep until the stick is let go or the
+                               // player has walked more than a tile and a half away (no floor ping-pong while held)
+  Vec2 stairsFrom_;            // where the player arrived
+  Vec2 stairsOff_;             // M0b: the player's last position off the stairs (the stairwell's railing turns them back)
+  int stairsArrive_ = -1;      // M0b: the tile (y * w + x) the player arrived on by the stairs: the stairs stay asleep
+                               // until the player has stood on some other tile off the steps (-1: none)
+  bool stairsNorth_ = false;   // M0b: the stick was let go while standing on the stairs: pushing north takes them
   Quest pendingOffer_;
   int dragonId_ = -1;
   // what each merchant has left this restock period (every 2 days): buying must not refill the shelf

@@ -16,6 +16,7 @@ enum class Deco : uint8_t {
   RugRed, RugBlue, RugGreen, RugGold,
   // the room's wall style, set on every back-wall tile (row 1) of a v3 interior (art::RoomStyle = id - WallTimber)
   WallTimber, WallLog, WallStone, WallHall, WallSoot, WallArcane,
+  WallAdobe, WallPlaster,   // M0b (art::RoomStyle::Adobe / Plaster)
   COUNT
 };
 
@@ -31,3 +32,10 @@ constexpr int kDecoPasses = 4;
 // The pieces tile (tx, ty) of map m shows (appended to out). Interiors get walls, floors, rugs, shadows and clutter
 // (old interiors too: their look improves, their layout is untouched); other maps only their clutter. rpg/sim/prop_rules.cpp
 void decoLayers(const Map& m, int tx, int ty, std::vector<DecoLayer>& out);
+
+// M0b: the room style of an interior (the Deco::Wall* id on its back wall; older interiors derive it from the floor)
+art::RoomStyle interiorStyle(const Map& m);
+// M0b: some props are drawn in the room's material or fitted to a partition's short face (stairs and doors in stone
+// or wood, wall decor on a partition). Returns the art::interiorPiece key to draw in place of the prop's own sprite
+// (same canvas size and anchor: bottom-centre on the tile's bottom-centre), or 0 to draw the prop sprite.
+uint32_t interiorPropKey(const Map& m, int tx, int ty, art::Prop p);

@@ -3,6 +3,7 @@
 # Run from a scratch directory (screenshots are written to the current directory):
 #   embervale --script tools/scripts/arch_walls_s99.txt
 seed 99
+worldgen 6                   # written against generator-v6 worlds (coordinates, names, the M0 rooms)
 0 goto city
 0.3 god
 0.5 hour 12

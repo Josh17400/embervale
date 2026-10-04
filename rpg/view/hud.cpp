@@ -2,6 +2,8 @@
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <cmath>
+#include <initializer_list>
+#include <string>
 #include "rpg/view/view.h"
 
 namespace {
@@ -107,11 +109,19 @@ std::string itemStats(const Game& g, const Item& it) {
 int usablePropAt(const Game& g, int& tx, int& ty) {
   int pr = g.interactProp(tx, ty);
   if (!pr) return 0;
+  // (M0b fix round 2: another guest's bed, or the innkeeper's, stays usable: the button reads LOOK and a tap explains
+  // whose it is and that the innkeeper lets rooms, instead of swinging a weapon in a room full of people)
   for (size_t i = 1; i < g.actors.size(); i++) {
     const Actor& a = g.actors[i];
     if (a.hostile && a.st != AState::Dead && len2(a.p - g.pl().p) < 70 * 70) return 0;
   }
   return pr;
+}
+const char* useVerb(int pr);
+// the verb for the prop at (tx, ty): a bed that is not yours to sleep in is only looked at
+const char* useVerbAt(const Game& g, int pr, int tx, int ty) {
+  if (pr == (int)art::Prop::Bed + 1 && !g.bedIsYours(tx, ty)) return "LOOK";
+  return useVerb(pr);
 }
 const char* useVerb(int pr) {
   switch ((art::Prop)(pr - 1)) {
@@ -245,8 +255,25 @@ void View::drawHud(Game& g) {
   if (g.perkPts > 0 && ((int)(t_ * 2) & 1)) P.textS(6, 44, "LEVEL UP! OPEN MENU", 1, kGold);
   if (g.blessT > 0) P.textS(6, g.perkPts > 0 ? 54 : 44, g.blessName, 1, Color(0.7f, 0.85f, 1.0f, 0.8f));
 
+  // M0b fix round 3: inside a building the rooms fill the screen and a wide one runs on under the minimap and the
+  // location / quest column. The building is in full view, so its minimap is dropped there, and the column fades to
+  // a faint overlay (fainter still with the hero right under it) so the hearth corner and the shelves show through.
+  float hudA = 1.0f;
+  bool showMini = true;
+  if (g.inside && g.subBldg >= 0) {
+    const Map& m = g.map();
+    const Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
+    float mx1 = m.w * 16.0f - cam.x, my0 = -16.0f - cam.y;
+    if (mx1 > Pix::W - 74 && my0 < 90) showMini = false;   // the rooms run on under the minimap
+    if (mx1 > Pix::W - 160 && my0 < 130) {                   // ... or under the location / quest column
+      hudA = 0.5f;
+      Vec2 ps = g.pl().p - cam;
+      if (ps.x > Pix::W - 170 && ps.y < 160) hudA = 0.2f;
+    }
+  }
   // minimap + location
-  drawMinimap(g, Pix::W - 70, 24, 64);
+  if (showMini) drawMinimap(g, Pix::W - 70, 24, 64);
+  auto fa = [&](Color c) { c.a *= hudA; return c; };
   std::string loc = g.locName;
   if (loc.size() > 26) loc = loc.substr(0, 26);
   // clock
@@ -262,10 +289,10 @@ void View::drawHud(Game& g) {
     if (hasQ) wmax = std::max(wmax, P.textW(tq->title.size() > 22 ? tq->title.substr(0, 22) : tq->title, 1));
     if (hasQ) wmax = std::max(wmax, P.textW(trackedStep(g, *tq), 1));
     float bh = hasQ ? 42.0f : 21.0f;
-    P.rect(Pix::W - wmax - 10, 88, (float)wmax + 8, bh, Color(0.03f, 0.02f, 0.05f, 0.38f));
+    P.rect(Pix::W - wmax - 10, 88, (float)wmax + 8, bh, Color(0.03f, 0.02f, 0.05f, 0.38f * hudA));
   }
-  P.textS(Pix::W - 5, 91, loc, 1, kText, 2);
-  P.textS(Pix::W - 5, 100, dayStr, 1, kDim, 2);
+  P.textS(Pix::W - 5, 91, loc, 1, fa(kText), 2);
+  P.textS(Pix::W - 5, 100, dayStr, 1, fa(kDim), 2);
   if (!touchUI) { P.textS(Pix::W - 24, 7, "TAB", 1, kDim, 1); }
   else {
     const BtnDef& b = kBtn[B_MENU];
@@ -280,8 +307,8 @@ void View::drawHud(Game& g) {
     if (q && q->state != QState::Done) {
       const std::string obj = trackedStep(g, *q);
       std::string t = q->title.size() > 22 ? q->title.substr(0, 22) : q->title;
-      P.textS(Pix::W - 6, 112, t, 1, kGold, 2);
-      if (!obj.empty()) P.textS(Pix::W - 6, 121, obj, 1, kText, 2);
+      P.textS(Pix::W - 6, 112, t, 1, fa(kGold), 2);
+      if (!obj.empty()) P.textS(Pix::W - 6, 121, obj, 1, fa(kText), 2);
       // off-screen arrow toward the objective
       int tx, ty;
       if (!g.inside && g.questTarget(q->id, tx, ty)) {
@@ -402,15 +429,29 @@ void View::drawHud(Game& g) {
     int ptx = 0, pty = 0, pr = usablePropAt(g, ptx, pty);
     if (pr) {
       Vec2 s = Vec2(ptx * 16 + 8.0f, pty * 16 - 4.0f) - Vec2(std::floor(cam_.x), std::floor(cam_.y));
-      P.textS(s.x, s.y - 10, std::string(touchUI ? "TAP: " : "E: ") + useVerb(pr), 1, kGold, 1);
+      P.textS(s.x, s.y - 10, std::string(touchUI ? "TAP: " : "E: ") + useVerbAt(g, pr, ptx, pty), 1, kGold, 1);
     }
   }
 
   // (toasts are drawn by drawToasts, above the dialogue panel)
   if (g.noticeT > 0) {
     float a = clampf(g.noticeT, 0, 1);
-    P.textS(Pix::W / 2 + 1, Pix::H - 41, g.notice, 1, Color(0, 0, 0, a * 0.6f), 1);
-    P.textS(Pix::W / 2, Pix::H - 42, g.notice, 1, Color(1, 0.95f, 0.85f, a), 1);
+    // M0b fix round 2: with the touch buttons on, a notice too wide to clear the bow button (x >= 360) breaks into two
+    // centred lines at the space nearest its middle
+    std::string l1 = g.notice, l2;
+    if (touchUI && P.textW(g.notice, 1) > 2 * (kBtn[B_BOW].x - kBtn[B_BOW].r - 6 - Pix::W / 2)) {
+      size_t mid = g.notice.size() / 2, best = std::string::npos;
+      for (size_t i = 0; i < g.notice.size(); i++)
+        if (g.notice[i] == ' ' && (best == std::string::npos || (i > mid ? i - mid : mid - i) < (best > mid ? best - mid : mid - best))) best = i;
+      if (best != std::string::npos) { l1 = g.notice.substr(0, best); l2 = g.notice.substr(best + 1); }
+    }
+    float ny = (float)(Pix::H - 42) - (l2.empty() ? 0.0f : 9.0f);
+    for (const std::string* L : {&l1, &l2}) {
+      if (L->empty()) continue;
+      P.textS(Pix::W / 2 + 1, ny + 1, *L, 1, Color(0, 0, 0, a * 0.6f), 1);
+      P.textS(Pix::W / 2, ny, *L, 1, Color(1, 0.95f, 0.85f, a), 1);
+      ny += 9;
+    }
   }
   // banner
   if (bannerT_ > 0 && g.mode != Mode::Dialogue) {
@@ -472,7 +513,7 @@ void View::drawTouch(Game& g) {
     switch (b) {
       case B_ATTACK:
         if (target >= 0) P.text(d.x, d.y - 3, "TALK", 1, kGold, 1);
-        else if (usePr) P.text(d.x, d.y - 3, useVerb(usePr), 1, kGold, 1);
+        else if (usePr) P.text(d.x, d.y - 3, useVerbAt(g, usePr, utx, uty), 1, kGold, 1);
         else if (g.eqWeapon >= 0) P.blitEx(iconTex(g.inv[g.eqWeapon].icon, g.inv[g.eqWeapon].tint), 0, 0, 16, 16, d.x - 12, d.y - 12, 24, 24);
         else {
           // unarmed (the shirt-only start): a clenched fist, knuckles up, lit from the top-left
@@ -1019,7 +1060,12 @@ Input View::input(Game& g) {
     }
     // gamepad-like hold: attack repeats while held on keyboard
     if (k(SDL_SCANCODE_J) || k(SDL_SCANCODE_SPACE)) in.attack = true;
-    for (auto& f : fingers_) if (f.on && f.button == B_ATTACK && g.interactTarget() < 0) in.attack = true;
+    // a finger held on the button swings again only while it reads ATTACK: when it shows a use verb (TALK, SLEEP,
+    // OPEN, PRAY...) the tap is a use, and a held finger must not turn the next frame back into a swing
+    for (auto& f : fingers_) {
+      int hx = 0, hy = 0;
+      if (f.on && f.button == B_ATTACK && g.interactTarget() < 0 && !usablePropAt(g, hx, hy)) in.attack = true;
+    }
   }
   if (kAttack_) { in.attack = true; }
   in.bow = kBow_; in.spell = kSpell_; in.roll = kRoll_; in.interact = kUse_; in.potion = kPotion_; in.swapSpell = kSwap_;
@@ -1306,7 +1352,7 @@ void View::event(const SDL_Event& e, Game& g) {
       }
       if (g.mode != Mode::Play) { tap(g, p); break; }
       int b = buttonAt(p);
-      Finger f; f.id = e.tfinger.fingerID; f.on = true; f.start = f.cur = p; f.button = b;
+      Finger f; f.id = e.tfinger.fingerID; f.on = true; f.start = f.cur = p; f.button = b; f.t0 = SDL_GetTicks();
       if (b == B_MENU) { g.mode = Mode::Menu; menuTab_ = g.perkPts > 0 ? 3 : 0; menuSel_ = 0; audio_->play(Sfx::MenuSelect); break; }
       if (b == B_ATTACK) kAttack_ = true;
       else if (b == B_BOW) kBow_ = true;
@@ -1338,7 +1384,25 @@ void View::event(const SDL_Event& e, Game& g) {
       break;
     }
     case SDL_EVENT_FINGER_UP: case SDL_EVENT_FINGER_CANCELED: {
-      if (stick_.on && stick_.id == e.tfinger.fingerID) stick_.on = false;
+      if (stick_.on && stick_.id == e.tfinger.fingerID) {
+        stick_.on = false;
+        // M0b fix round 3: a short, still tap on the left half opens the stick, but when it lands on the "TAP: SLEEP"
+        // label / the prop it names, or on the person in reach, it is a use: the label says tap here, so it must work
+        if (e.type == SDL_EVENT_FINGER_UP && g.mode == Mode::Play && SDL_GetTicks() - stick_.t0 < 350 && len2(stick_.cur - stick_.start) < 8.0f * 8.0f) {
+          const Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
+          const Vec2 q = stick_.start;
+          bool use = false;
+          int utx = 0, uty = 0;
+          if (usablePropAt(g, utx, uty)) {
+            Vec2 s = Vec2(utx * 16 + 8.0f, uty * 16 - 4.0f) - cam;   // the prop's label sits at s.y - 10
+            if (std::fabs(q.x - s.x) < 32 && q.y > s.y - 22 && q.y < s.y + 24) use = true;
+          }
+          if (int it = g.interactTarget(); it >= 0)
+            for (const Actor& a : g.actors)
+              if (a.id == it && len2(q - (a.p - cam - Vec2(0, 10))) < 24.0f * 24.0f) use = true;
+          if (use) kUse_ = true;
+        }
+      }
       for (size_t i = 0; i < fingers_.size();) if (fingers_[i].id == e.tfinger.fingerID) fingers_.erase(fingers_.begin() + i); else i++;
       break;
     }

@@ -1,0 +1,31 @@
+# M0b fix round 1: holding the stick toward the stairs must not bounce the player between floors. Come down, step
+# away, then hold W (a thumb kept on the stick): up once, and stay upstairs while W is still held.
+#   embervale.exe --script tools/scripts/m0b_stairs_hold.txt [--seed 7]      (also seeds 7, 19 desert, 10 taiga)
+# Exit code 3 if an expect/walkto fails.
+seed 2
+0.3  newgame
+0.5  expect mode play
+0.6  god
+0.8  goto town
+1.0  hour 11
+1.2  enter inn 1
+1.4  expect floor 1
+1.6  walkto downstairs 30
+1.8  expect floor 0
+2.0  hold S 0.5
+2.8  hold W 3.0
+4.2  expect floor 1
+4.8  expect floor 1
+5.4  expect floor 1
+5.9  expect floor 1
+6.2  expect floor 1
+# fix round 3: you arrive beside the stairwell, so the held W carried you on along the landing. Let go and push north
+# again (a thumb lifted and put back): still upstairs. Walking back onto the stairwell takes you down.
+6.4  hold W 0.4
+7.0  expect floor 1
+7.2  walkto downstairs 30
+7.4  expect floor 0
+# and from below, a fresh push north takes you up again
+7.6  hold W 0.6
+8.2  expect floor 1
+8.4  quit

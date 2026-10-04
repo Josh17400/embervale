@@ -7,6 +7,7 @@
 # bounty on GLOOM OUTPOST (chief at 141,210); BONE OUTPOST is the other camp (chief at 94,289).
 # Every step has an expect, so a stale seed fact fails the script instead of passing it.
 seed 1
+worldgen 6                   # written against generator-v6 worlds (coordinates, names, the M0 rooms)
 0.3  newgame
 +0.1 god                         # the screenshots must survive the camps
 +0.1 kit                         # an iron sword: the chiefs go down in a sensible time

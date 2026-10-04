@@ -4,6 +4,7 @@
 // wood alike; the "!" is orange-gold, lit from the top-left like every other sprite, the bubble's lower-right edge is
 // shaded, a 1 px drop shadow lifts it off the scene, and the tail points down at the giver's head.
 #include <cmath>
+#include <string>
 #include "rpg/view/view.h"
 
 namespace {
@@ -48,5 +49,106 @@ void View::drawMarkers(Game& g, Vec2 cam) {
           Color col = ch == 'o' ? outline : ch == 'W' ? paper : ch == 'D' ? paperShade : ch == 'H' ? hi : ch == 'S' ? goldShade : gold;
           P.rect((float)(x0 + c), (float)(y0 + r), 1, 1, col);
         }
+  }
+
+  // M0b: the inn's rented rooms carry brass number plates over their doors, and the room you rented has a gold
+  // marker bobbing over its door, so "room 7, the fourth door on the right" can be found at a glance
+  if (g.inside && g.subBldg >= 0 && g.world.over.bldgs[(size_t)g.subBldg].type == art::Building::Inn) {
+    const Map& m = g.sub;
+    const bool rented = g.lodgingActive() && g.lodging.bldg == g.subBldg && g.lodging.floor == g.subFloor;
+    for (size_t i = 0; i < m.rooms.size(); i++) {
+      const RoomInfo& R = m.rooms[i];
+      if (R.kind != RoomKind::GuestRoom || R.guest < 0 || R.doorX < 0) continue;
+      bool h = m.propAt(R.doorX, R.doorY) == (int)art::Prop::DoorH + 1;
+      // over the lintel: an E-W door's frame rises through the cap row above its face-row tile
+      int cxp = (int)std::floor(R.doorX * 16 + 8 - cam.x);
+      int cyp = (int)std::floor((R.doorY - (h ? 1 : 0)) * 16 - cam.y) + (h ? 6 : 1);
+      std::string num = std::to_string((int)R.guest + 1);
+      // fix round 3: the plate reads as a fitting on the wall, not a UI badge: a small dark oak board (rounded corners,
+      // lit on its top-left edge, shaded bottom-right, a nail head either side) holding an inset brass plate whose
+      // digits are punched in dark, a soft shadow on the wall
+      const Color oakHi(0.55f, 0.36f, 0.20f), oak(0.40f, 0.25f, 0.13f), oakLo(0.26f, 0.15f, 0.08f);
+      const Color plate(0.78f, 0.58f, 0.27f), plateHi(0.95f, 0.80f, 0.48f), plateLo(0.55f, 0.38f, 0.16f);
+      const Color punch(0.24f, 0.13f, 0.06f), nail(0.70f, 0.66f, 0.60f);
+      const int tw = P.textW(num, 1), w = tw + 8, ph = 13;
+      int x0 = cxp - w / 2, y0 = cyp - 6;
+      auto px = [&](int x, int y, Color c) { P.rect((float)x, (float)y, 1, 1, c); };
+      // shadow on the wall (down-right, light from the top-left)
+      P.rect((float)x0 + 2, (float)y0 + ph, (float)w - 2, 1, Color(0, 0, 0, 0.30f));
+      P.rect((float)x0 + w, (float)y0 + 2, 1, (float)ph - 2, Color(0, 0, 0, 0.30f));
+      // the board, outlined, corners rounded
+      P.rect((float)x0 + 1, (float)y0, (float)w - 2, (float)ph, outline);
+      P.rect((float)x0, (float)y0 + 1, (float)w, (float)ph - 2, outline);
+      P.rect((float)x0 + 1, (float)y0 + 1, (float)w - 2, (float)ph - 2, oak);
+      P.rect((float)x0 + 1, (float)y0 + 1, (float)w - 2, 1, oakHi);
+      P.rect((float)x0 + 1, (float)y0 + 1, 1, (float)ph - 2, oakHi);
+      P.rect((float)x0 + 1, (float)y0 + ph - 2, (float)w - 2, 1, oakLo);
+      P.rect((float)x0 + w - 2, (float)y0 + 2, 1, (float)ph - 3, oakLo);
+      // the inset brass plate: dark top/left lip (it sits below the board's face), lit bottom/right lip
+      const int bx = x0 + 3, by = y0 + 2, bw = w - 6, bh = ph - 4;
+      P.rect((float)bx, (float)by, (float)bw, (float)bh, plate);
+      P.rect((float)bx, (float)by, (float)bw, 1, plateLo);
+      P.rect((float)bx, (float)by, 1, (float)bh, plateLo);
+      P.rect((float)bx + 1, (float)by + bh - 1, (float)bw - 1, 1, plateHi);
+      P.rect((float)bx + bw - 1, (float)by + 1, 1, (float)bh - 1, plateHi);
+      // nail heads at the board's ends
+      px(x0 + 1, y0 + ph / 2, nail);
+      px(x0 + w - 2, y0 + ph / 2, nail);
+      // the digits, punched dark into the brass (a highlight copy under them closed the 6 into an 8)
+      P.text((float)bx + 1, (float)by + 1, num, 1, punch, 0);
+      y0 -= 1;
+      if (!rented || (int)i != g.lodging.room) continue;
+      // yours: a gold arrow bobbing over the plate
+      int bob = (int)std::lround(std::sin(t_ * 3.2f) * 1.5f);
+      int ay = y0 - 11 + bob;
+      static const char* kArrow[7] = {"ooooooo", "oYYYYYo", "oHYYYSo", ".oHYSo.", ".oHYSo.", "..oYo..", "...o..."};
+      for (int r = 0; r < 7; r++)
+        for (int c = 0; c < 7; c++) {
+          char ch = kArrow[r][c];
+          if (ch == '.') continue;
+          P.rect((float)(cxp - 3 + c + 1), (float)(ay + r + 1), 1, 1, Color(0, 0, 0, 0.35f));
+          P.rect((float)(cxp - 3 + c), (float)(ay + r), 1, 1, ch == 'o' ? outline : ch == 'H' ? hi : ch == 'S' ? goldShade : gold);
+        }
+    }
+    // M0b fix round 3: on another floor than your room, the same gold arrow bobs over the stairs that lead toward
+    // it. The inn's flight often stands in a back corner under the HUD, so when the stairs are off screen or under
+    // the HUD the arrow waits at the edge of the clear area and points at them.
+    if (g.lodgingActive() && g.lodging.bldg == g.subBldg && g.lodging.floor != g.subFloor) {
+      const Stairs& st = g.lodging.floor > g.subFloor ? m.up : m.down;
+      if (st.valid()) {
+        // the middle of the flight (both of its tiles), at the top of the steps
+        const int sp = m.propAt(st.x, st.y);
+        int x0 = st.x, x1 = st.x;
+        while (m.propAt(x0 - 1, st.y) == sp) x0--;
+        while (m.propAt(x1 + 1, st.y) == sp) x1++;
+        float tx = (x0 + x1 + 1) * 8.0f - cam.x, ty = st.y * 16.0f - 6 - cam.y;
+        const float L = 10, T = 54, R = Pix::W - 142, B = Pix::H - (touchUI ? 56.0f : 12.0f);
+        float cx = clampf(tx, L, R), cy = clampf(ty, T, B);
+        bool off = std::fabs(cx - tx) > 0.5f || std::fabs(cy - ty) > 0.5f;
+        // dir 0: down (at the stairs), 1: up, 2: left, 3: right (pointing out of the clear area at them)
+        int dir = 0;
+        if (off) {
+          float dx = tx - cx, dy = ty - cy;
+          dir = std::fabs(dx) > std::fabs(dy) ? (dx < 0 ? 2 : 3) : (dy < 0 ? 1 : 0);
+        }
+        float ph = std::sin(t_ * 3.2f) * 1.5f;
+        int ox = (int)std::floor(cx) + (dir == 2 ? -(int)std::lround(ph) : dir == 3 ? (int)std::lround(ph) : 0);
+        int oy = (int)std::floor(cy) + (dir <= 1 ? (dir == 1 ? -(int)std::lround(ph) : (int)std::lround(ph)) : 0);
+        static const char* kArrow[7] = {"ooooooo", "oYYYYYo", "oHYYYSo", ".oHYSo.", ".oHYSo.", "..oYo..", "...o..."};
+        for (int r = 0; r < 7; r++)
+          for (int c = 0; c < 7; c++) {
+            // rotate the down-pointing pattern: (r, c) is the cell of the drawn grid
+            int rr = r, cc = c;
+            if (dir == 1) { rr = 6 - r; cc = c; }
+            else if (dir == 2) { rr = 6 - c; cc = r; }
+            else if (dir == 3) { rr = c; cc = r; }
+            char ch = kArrow[rr][cc];
+            if (ch == '.') continue;
+            int px = ox - 3 + c, py = oy - (dir == 0 ? 7 : 3) + r;
+            P.rect((float)(px + 1), (float)(py + 1), 1, 1, Color(0, 0, 0, 0.35f));
+            P.rect((float)px, (float)py, 1, 1, ch == 'o' ? outline : ch == 'H' ? hi : ch == 'S' ? goldShade : gold);
+          }
+      }
+    }
   }
 }

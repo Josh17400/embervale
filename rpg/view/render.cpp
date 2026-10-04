@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include "rpg/sim/deco.h"
 #include "rpg/view/prop_traits.h"
 #include "rpg/view/view.h"
 
@@ -12,6 +13,27 @@ using art::Monster;
 
 namespace {
 Color col(uint32_t c, float a = 1) { return Color((c & 255) / 255.0f, ((c >> 8) & 255) / 255.0f, ((c >> 16) & 255) / 255.0f, a); }
+Canvas paintInteriorPiece(uint64_t key) { return art::interiorPiece((uint32_t)key); }
+
+// M0b interiors: stairs and doors in the room's material, wall decor fitted to a partition's short face
+// (interiorPropKey, rpg/sim/deco.h). A door into a private room (a bedroom, a guest room, the stockroom) stands shut
+// until someone comes near it; other doors stand open.
+uint32_t interiorPropTexKey(const Game& g, const Map& m, int tx, int ty, Prop p) {
+  uint32_t key = interiorPropKey(m, tx, ty, p);
+  if (!key || (p != Prop::DoorH && p != Prop::DoorV)) return key;
+  bool priv = false;
+  auto side = [&](int x, int y) {
+    int ri = m.roomIndexAt(x, y);
+    if (ri >= 0 && ri < (int)m.rooms.size() && roomPrivate(m.rooms[(size_t)ri].kind)) priv = true;
+  };
+  if (p == Prop::DoorH) { side(tx, ty + 1); side(tx, ty - 2); }
+  else { side(tx - 1, ty); side(tx + 1, ty); }
+  if (!priv) return key;
+  Vec2 c(tx * 16 + 8.0f, (p == Prop::DoorH ? ty * 16.0f : ty * 16 + 8.0f));
+  for (const Actor& a : g.actors)
+    if (a.st != AState::Dead && std::fabs(a.p.x - c.x) < 20 && std::fabs(a.p.y - c.y) < 26) return key;
+  return key | (2u << 24);   // variant bit 2: shut
+}
 }  // namespace
 
 bool View::init(Pix& pix, Audio& audio) {
@@ -102,6 +124,7 @@ uint64_t View::bldgKey(const Map& m, const Bldg& b, int index) const {
   uint64_t k = bldgStyle(m, b).key();
   k ^= (uint64_t)index * 0x9E3779B97F4A7C15ull;
   k ^= ((uint64_t)b.r.w << 8 | (uint64_t)b.r.h << 16 | (uint64_t)b.type << 24 | (uint64_t)b.seed << 32);
+  k ^= ((uint64_t)b.storeys << 1 | (uint64_t)(b.hearth ? 1 : 0)) * 0xC2B2AE3D27D4EB4Full;   // M0b facts
   return k;
 }
 const Tex& View::bldgTex(const Bldg& b, int index) {
@@ -112,7 +135,7 @@ const Tex& View::bldgTex(const Bldg& b, int index) {
   if (it != bldgTex_.end()) return it->second;
   art::BuildingInfo info;
   auto t0 = std::chrono::steady_clock::now();
-  Canvas c = art::buildingSprite(b.type, b.r.w, b.r.h, bldgStyle(m, b), b.seed, &info);
+  Canvas c = art::buildingSprite(b.type, b.r.w, b.r.h, bldgStyle(m, b), b.seed, &info, bldgFacts(b));
   if (std::getenv("EMB_TIMING")) {
     static double total = 0;
     static int n = 0;
@@ -271,8 +294,25 @@ void View::update(Game& g, float dt) {
     cam_ += (want - cam_) * std::min(1.0f, dt * 6.0f);
     const Map& m = g.map();
     float mw = m.w * 16.0f, mh = m.h * 16.0f;
-    if (mw > Pix::W) cam_.x = clampf(cam_.x, 0, mw - Pix::W); else cam_.x = (mw - Pix::W) / 2;
-    if (mh > Pix::H) cam_.y = clampf(cam_.y, 0, mh - Pix::H); else cam_.y = (mh - Pix::H) / 2;
+    if (m.kind == MapKind::Interior) {
+      // M0b fix round: indoors the HUD (vitals and purse top-left, minimap and quest column top-right, the touch
+      // buttons bottom-right) must never hide part of a room for good. A room that fits clear of the HUD stays put
+      // (centred, or centred in the free area); one that doesn't pans with the player far enough that every corner
+      // can be brought out from under the HUD.
+      const float padT = 46, padR = 134, padB = touchUI ? 48 : 0, padL = 0;
+      auto axis = [](float& c, float want, float lo, float hi, float scr, float pa, float pb) {
+        float len = hi - lo;
+        if (len <= scr - 2 * std::max(pa, pb)) c = lo - (scr - len) / 2;             // fits clear, centred
+        else if (len + pa + pb <= scr) c = lo - pa - (scr - pa - pb - len) / 2;      // fits in the free area
+        else c = clampf(want, lo - pa, hi - scr + pb);                               // pans with the player
+      };
+      float wantX = cam_.x, wantY = cam_.y;
+      axis(cam_.x, wantX, 0, mw, Pix::W, padL, padR);
+      axis(cam_.y, wantY, -16, mh, Pix::H, padT, padB);   // the back wall rises a row above the map
+    } else {
+      if (mw > Pix::W) cam_.x = clampf(cam_.x, 0, mw - Pix::W); else cam_.x = (mw - Pix::W) / 2;
+      if (mh > Pix::H) cam_.y = clampf(cam_.y, 0, mh - Pix::H); else cam_.y = (mh - Pix::H) / 2;
+    }
   } else {
     // title: slow drift across the start region
     const Site& home = g.world.sites[g.world.startSite];
@@ -457,11 +497,16 @@ void View::drawWorld(Game& g) {
       if (pr) {
         Prop p = (Prop)(pr - 1);
         if (flatProp(p)) {
-          const Tex& t = props_[(int)p];
-          int fw = art::propW(p);
-          int frames = std::max(1, art::propFrames(p));
-          int fr = frames > 1 ? (int)(t_ * 8 + tx * 3) % frames : 0;
-          P.blitRegion(t, fr * fw, 0, fw, t.h, tx * 16 + 8 - fw / 2 - cam.x, ty * 16 + 16 - t.h - cam.y);
+          if (uint32_t ik = interiorPropTexKey(g, m, tx, ty, p)) {
+            const Tex& t = cachedTex(0x01ull << 56 | ik, paintInteriorPiece);
+            P.blit(t, tx * 16 + 8 - t.w / 2 - cam.x, ty * 16 + 16 - t.h - cam.y);
+          } else {
+            const Tex& t = props_[(int)p];
+            int fw = art::propW(p);
+            int frames = std::max(1, art::propFrames(p));
+            int fr = frames > 1 ? (int)(t_ * 8 + tx * 3) % frames : 0;
+            P.blitRegion(t, fr * fw, 0, fw, t.h, tx * 16 + 8 - fw / 2 - cam.x, ty * 16 + 16 - t.h - cam.y);
+          }
         } else list.push_back({ty * 16.0f + 15.0f, 0, pr - 1, tx, ty});
       }
       uint32_t wk = wallKeys_.empty() ? 0u : wallKeys_[(size_t)ty * m.w + tx];
@@ -534,6 +579,12 @@ void View::drawWorld(Game& g) {
     switch (d.kind) {
       case 0: {
         Prop p = (Prop)d.idx;
+        if (m.kind == MapKind::Interior)
+          if (uint32_t ik = interiorPropTexKey(g, m, d.tx, d.ty, p)) {
+            const Tex& t = cachedTex(0x01ull << 56 | ik, paintInteriorPiece);
+            P.blit(t, d.tx * 16 + 8 - t.w / 2 - cam.x, d.ty * 16 + 16 - t.h - cam.y);
+            break;
+          }
         const Tex& t = props_[d.idx];
         int fw = art::propW(p), fh = art::propH(p);
         int frames = std::max(1, art::propFrames(p));
@@ -795,7 +846,11 @@ void View::drawLighting(Game& g) {
   bool interior = g.mode != Mode::Title && g.inside && g.subBldg >= 0;
   bool dungeon = g.mode != Mode::Title && g.inside && g.subSite >= 0;
   if (dungeon) amb = Color(0.30f, 0.27f, 0.34f);
-  else if (interior) amb = Color(0.78f, 0.68f, 0.58f);
+  else if (interior) {
+    // M0b: rooms follow the day; by night only the hearths, candles and lamps keep them lit
+    float d = clampf(day, 0, 1);
+    amb = Color(lerpf(0.36f, 0.78f, d), lerpf(0.32f, 0.68f, d), lerpf(0.44f, 0.58f, d));
+  }
   else {
     Color night(0.12f, 0.15f, 0.30f), dusk(1.0f, 0.72f, 0.55f), noon(1, 1, 1);
     float h = g.hour;
@@ -829,6 +884,10 @@ void View::drawLighting(Game& g) {
       int pr = m.prop[(size_t)ty * m.w + tx];
       if (!pr) continue;
       float r; Color c;
+      if (interior && (Prop)(pr - 1) == Prop::Window) {   // daylight falls in through the windows
+        if (day > 0.05f) light(Vec2(tx * 16 + 8.0f, ty * 16 + 22.0f), 70, Color(1.0f, 0.95f, 0.82f), 0.55f * clampf(day, 0, 1));
+        continue;
+      }
       if (!propLight((Prop)(pr - 1), r, c)) continue;
       float f = 0.85f + 0.15f * std::sin(t_ * 9 + tx * 1.7f + ty);
       light(Vec2(tx * 16 + 8.0f, ty * 16 + 4.0f), r, c, 0.9f * f);

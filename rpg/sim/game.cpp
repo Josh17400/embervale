@@ -45,7 +45,8 @@ void Game::newGame(uint64_t s, int genVer) {
   seed = s;
   rng_ = Rng(s ^ 0xABCDEF);
   world.generate(s, genVer);
-  inside = false; subSite = -1; subBldg = -1;
+  inside = false; subSite = -1; subBldg = -1; subFloor = 0;
+  lodging = Lodging();
   time = 0; hour = 8.5f; day = 1;
   quests.clear(); nextQuestId = 1; trackedQuest = -1;
   npcQuestsDone.clear(); looted.clear(); killedSlots.clear(); shopCache_.clear();
@@ -305,9 +306,33 @@ void Game::updatePlayer(float dt, const Input& in) {
   }
   if (p.slowT > 0) p.slowT -= dt;
 
+  // M0b: rooms are regenerated from the building's seed; a save made on a different layout (a generator still in
+  // development) can put the player inside a wall: step out onto the nearest free tile
+  if (inside && subBldg >= 0) {
+    int ux = (int)std::floor(p.p.x / TILE), uy = (int)std::floor((p.p.y - 2) / TILE);
+    if (sub.blocked(ux, uy) && groundSolid(sub.at(ux, uy))) placePlayerAt(ux, uy);
+  }
   Vec2 mv = in.move;
   float ml = len(mv);
   if (ml > 1) { mv = mv * (1.0f / ml); ml = 1; }
+  // M0b doorway assist (indoors): walking straight at a one-tile doorway (an interior door, the front door) slides you
+  // onto its centre line instead of catching you on its frame
+  if (inside && subBldg >= 0 && ml > 0.3f) {
+    int ax = (int)std::floor(p.p.x / TILE), ay = (int)std::floor((p.p.y - 2) / TILE);
+    if (std::fabs(mv.y) > 0.5f && std::fabs(mv.x) < 0.5f) {
+      int ny = ay + (mv.y > 0 ? 1 : -1);
+      if (!sub.blocked(ax, ny) && groundSolid(sub.at(ax - 1, ny)) && groundSolid(sub.at(ax + 1, ny))) {
+        float dx = ax * TILE + 8.0f - p.p.x;
+        if (std::fabs(dx) > 1.0f) mv.x = std::clamp(dx * 0.2f, -0.7f, 0.7f);
+      }
+    } else if (std::fabs(mv.x) > 0.5f && std::fabs(mv.y) < 0.5f) {
+      int nx = ax + (mv.x > 0 ? 1 : -1);
+      if (!sub.blocked(nx, ay) && groundSolid(sub.at(nx, ay - 1)) && groundSolid(sub.at(nx, ay + 1))) {
+        float dy = ay * TILE + 10.0f - p.p.y;
+        if (std::fabs(dy) > 1.0f) mv.y = std::clamp(dy * 0.2f, -0.7f, 0.7f);
+      }
+    }
+  }
   if (ml > 0.15f) p.aim = norm(mv);
 
   // knockback decays
@@ -368,7 +393,10 @@ void Game::updatePlayer(float dt, const Input& in) {
     sfx((int)Sfx::Roll, p.p);
     return;
   }
-  if (canAct && in.attack) {
+  // a use (talk, sleep, open, pray) wins over a swing given in the same step: on touch the use tap and the held
+  // finger can land in one step when a render frame runs no sim step
+  const bool swing = in.attack && !in.interact;
+  if (canAct && swing) {
     // aim assist: snap toward the nearest hostile close by
     int best = -1; float bd = 34.0f * 34.0f;
     for (size_t i = 1; i < actors.size(); i++) {
@@ -419,6 +447,37 @@ void Game::updatePlayer(float dt, const Input& in) {
       }
     }
   } else {
+    // M0b: stairs between the floors of a building. Walking onto the steps takes you to the other floor; you arrive
+    // beside the stairs there, and must step off them before they take you back. A flight up climbs north into the
+    // wall, so it takes a step north (walking past along the wall does not carry you upstairs); a stairwell down is
+    // taken from any side.
+    if (subBldg >= 0 && (sub.up.valid() || sub.down.valid())) {
+      // a flight is two tiles wide (both carry the stairs prop; Map::up/down record the first)
+      int spr = m.propAt(tx, ty);
+      bool onUp = sub.up.valid() && spr == (int)Prop::StairsUp + 1;
+      bool onDown = sub.down.valid() && spr == (int)Prop::StairsDown + 1;
+      bool moving = len2(mv) > 0.09f && p.st != AState::Hurt && len2(p.knock) < 30.0f * 30.0f;
+      if (onUp && mv.y > -0.3f) moving = false;
+      // arriving with the stick still held (a phone thumb stays on it) must not walk you straight back: the stairs
+      // wake once the stick is released or you have moved away from where you arrived
+      if (stairsLatch_ && len2(mv) < 0.01f) stairsLatch_ = false;
+      if ((onUp || onDown) && len2(mv) < 0.01f) stairsNorth_ = true;   // let go on the steps: a fresh push north takes them
+      if (stairsLatch_ && len2(p.p - stairsFrom_) > (1.5f * TILE) * (1.5f * TILE)) stairsLatch_ = false;
+      // fix round 3: after climbing, letting go on the arrival tile is not enough to wake the stairwell down against a
+      // push north: a phone player lifts the thumb during the fade and pushes on the way they climbed. Until the player
+      // has stood on another tile off the steps, only a push across (from beside the opening) or south takes it.
+      bool onArrival = stairsArrive_ >= 0 && ty * m.w + tx == stairsArrive_;
+      if (!onUp && !onDown) { stairsNorth_ = false; if (!stairsLatch_) stairsArmed_ = true; if (!onArrival) stairsArrive_ = -1; stairsOff_ = p.p; }
+      else if (onDown && stairsArrive_ >= 0 && mv.y < -0.3f && !stairsNorth_) {
+        // pushing on north into the opening straight after the climb: its railing turns you back (no walking over it)
+        p.p = stairsOff_;
+        p.vel = Vec2();
+      }
+      else if (moving && ((stairsArmed_ && !(onDown && stairsArrive_ >= 0 && mv.y < -0.3f)) || (stairsNorth_ && mv.y < -0.3f))) {
+        changeFloor(subFloor + (onUp ? 1 : -1));
+        return;
+      }
+    }
     bool onExit = tx == sub.exitX && (ty == sub.exitY || (int)std::floor(p.p.y / TILE) == sub.exitY);
     // leaving takes intent: walking down onto the ladder/doorway. Being knocked or staggered onto it mid-fight
     // must not throw you out of the dungeon.
@@ -938,8 +997,17 @@ void Game::loadMapActors() {
     auto& killed = killedSlots[mapKey()];
     int lvl = subSite >= 0 ? world.sites[subSite].level : 1;
     bool cleared = subSite >= 0 && world.sites[subSite].cleared;
+    // M0b: a tower's mage sleeps on the top floor at night; nobody else stands in the room you rented
+    const Bldg* B = subBldg >= 0 ? &world.over.bldgs[subBldg] : nullptr;
+    const bool night = hour >= 22.0f || hour < 6.0f;
+    const bool mageUp = B && B->type == art::Building::Tower && B->floors() >= 2 && night;
+    // the mage is one person on two floors: killed on either, gone from both
+    auto slainOn = [&](int key) { auto it = killedSlots.find(key); return it != killedSlots.end() && it->second.count(0) > 0; };
+    const bool mageDead = B && B->type == art::Building::Tower && (slainOn(100000 + subBldg) || slainOn(10000000 + subBldg * 16 + B->floors() - 1));
     for (const Spawn& sp : sub.spawns) {
       if (killed.count(sp.slot)) continue;
+      if ((mageUp || mageDead) && subFloor == 0 && sp.slot == 0) continue;
+      if (sp.npc && B && lodgingActive() && lodging.bldg == subBldg && lodging.floor == subFloor && sub.roomIndexAt(sp.x, sp.y) == lodging.room) continue;
       Vec2 p(sp.x * TILE + 8.0f, sp.y * TILE + 10.0f);
       if (sp.npc) { spawnHuman(sp, p); continue; }
       if (cleared && !sp.boss && hashf(sp.x, sp.y, (uint32_t)day) < 0.6f) continue;   // cleared dungeons are mostly empty
@@ -948,6 +1016,21 @@ void Game::loadMapActors() {
       Actor& a = actors[findActor(id)];
       a.fromMap = true; a.slot = sp.slot; a.site = -1;
       if (sp.boss && subSite >= 0 && world.sites[subSite].mainQuest) a.name = "DRAUGR WARLORD";
+    }
+    if (mageUp && !mageDead && subFloor == B->floors() - 1) {
+      // the mage's own spawn (slot 0 of the ground floor: same name and face), beside the bed
+      Map g0;
+      genInterior(g0, *B, B->seed, 0);
+      for (const Spawn& sp : g0.spawns) {
+        if (sp.slot != 0 || !sp.npc) continue;
+        int bx = sub.w / 2, by = sub.h / 2;
+        for (const RoomInfo& R : sub.rooms) if (R.bedX >= 0) { bx = R.bedX; by = R.bedY; break; }
+        static const int dx[5] = {0, 1, -1, 0, 2}, dy[5] = {1, 0, 0, 2, 1};
+        int px = sub.down.valid() ? sub.down.ax : sub.w / 2, py = sub.down.valid() ? sub.down.ay : sub.h / 2;
+        for (int k = 0; k < 5; k++)
+          if (sub.in(bx + dx[k], by + dy[k]) && !sub.blocked(bx + dx[k], by + dy[k])) { px = bx + dx[k]; py = by + dy[k]; break; }
+        spawnHuman(sp, Vec2(px * TILE + 8.0f, py * TILE + 10.0f));
+      }
     }
   }
 }
@@ -1109,7 +1192,10 @@ void Game::updateLocation() {
     if (subBldg >= 0) {
       const Bldg& b = world.over.bldgs[subBldg];
       static const char* nm[] = {"HOUSE", "HOUSE", "INN", "SMITHY", "GENERAL GOODS", "TEMPLE", "THE KEEP", "MAGE TOWER", "FARMHOUSE", "HUT"};
-      locName = (b.site >= 0 ? world.sites[b.site].name + " - " : std::string()) + nm[(int)b.type];
+      // M0b: upper floors drop the town's name so the label fits the HUD ("MAGE TOWER - TOP FLOOR")
+      bool top = subFloor > 0 && subFloor == b.floors() - 1 && b.floors() >= 3;
+      if (subFloor > 0) locName = std::string(nm[(int)b.type]) + (top ? " - TOP FLOOR" : " - UPSTAIRS");
+      else locName = (b.site >= 0 ? world.sites[b.site].name + " - " : std::string()) + nm[(int)b.type];
     } else if (subSite >= 0) locName = world.sites[subSite].name;
     return;
   }
@@ -1137,7 +1223,7 @@ void Game::updateLocation() {
 void Game::enterSite(int si) {
   Site& st = world.sites[si];
   st.discovered = true;
-  inside = true; subSite = si; subBldg = -1;
+  inside = true; subSite = si; subBldg = -1; subFloor = 0;
   if (st.type == SiteType::Ruin) genRuin(sub, st, st.seed); else genCave(sub, st, st.seed);
   // apply looted chests
   for (int i = 0; i < sub.w * sub.h; i++)
@@ -1154,22 +1240,68 @@ void Game::enterSite(int si) {
 
 void Game::enterBuilding(int bi) {
   const Bldg& b = world.over.bldgs[bi];
-  inside = true; subSite = -1; subBldg = bi;
-  genInterior(sub, b, b.seed);
+  inside = true; subSite = -1; subBldg = bi; subFloor = 0;
+  genInterior(sub, b, b.seed, 0);
   for (int i = 0; i < sub.w * sub.h; i++)
     if (sub.prop[(size_t)i] == (int)Prop::Chest + 1 && looted.count(((uint64_t)mapKey() << 32) | (uint32_t)i)) sub.prop[(size_t)i] = (int)Prop::ChestOpen + 1;
   sub.rebuildSolid();
   placePlayerAt(sub.exitX, sub.exitY - 1);
   pl().face = 1;
   exitArmed_ = false;
+  stairsArmed_ = true;
+  stairsLatch_ = false;
+  stairsNorth_ = false;
+  stairsArrive_ = -1;
   loadMapActors();
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p);
 }
 
+// M0b: another floor of the current building. The new floor's map is generated like any interior (looted chests
+// re-applied by its own mapKey); the player arrives beside the stairs that lead back where they came from.
+void Game::changeFloor(int f) {
+  if (!inside || subBldg < 0) return;
+  const Bldg& b = world.over.bldgs[subBldg];
+  if (f < 0 || f >= b.floors() || f == subFloor) return;
+  bool up = f > subFloor;
+  clearNonPlayer();
+  subFloor = f;
+  genInterior(sub, b, b.seed, f);
+  for (int i = 0; i < sub.w * sub.h; i++)
+    if (sub.prop[(size_t)i] == (int)Prop::Chest + 1 && looted.count(((uint64_t)mapKey() << 32) | (uint32_t)i)) sub.prop[(size_t)i] = (int)Prop::ChestOpen + 1;
+  sub.rebuildSolid();
+  const Stairs& via = up ? sub.down : sub.up;   // going up you arrive at the head of the stairs down, and vice versa
+  if (via.valid()) placePlayerAt(via.ax, via.ay);
+  else placePlayerAt(sub.w / 2, sub.h / 2);
+  // face away from the stairs you came by: beside the stairwell, look along the floor away from it; below, south
+  if (via.valid() && via.ax != via.x) pl().face = via.ax > via.x ? 2 : 3;
+  else pl().face = 0;
+  stairsArrive_ = up && via.valid() ? via.ay * sub.w + via.ax : -1;   // only a climb leaves the stairwell asleep
+  stairsOff_ = pl().p;
+  exitArmed_ = false;
+  stairsArmed_ = false;
+  stairsLatch_ = true;
+  stairsNorth_ = false;
+  stairsFrom_ = pl().p;
+  loadMapActors();
+  updateLocation();
+  emit(Ev::MapChange, pl().p);
+  sfx((int)Sfx::Door, pl().p, up ? 1.15f : 0.9f);
+}
+
+bool Game::debugEnterBuilding(int bi, int f) {
+  if (bi < 0 || bi >= (int)world.over.bldgs.size()) return false;
+  if (f < 0 || f >= world.over.bldgs[bi].floors()) return false;
+  if (inside) leaveSub();
+  enterBuilding(bi);
+  if (f > 0) changeFloor(f);
+  sleepFade = 0;
+  return subFloor == f;
+}
+
 void Game::leaveSub() {
   int bi = subBldg, si = subSite;
-  inside = false; subBldg = -1; subSite = -1;
+  inside = false; subBldg = -1; subSite = -1; subFloor = 0;
   sub = Map();
   clearNonPlayer();
   if (bi >= 0) {

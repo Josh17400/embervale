@@ -1104,66 +1104,93 @@ void altar(Canvas& c) {
 }
 
 // ---- interior furniture -----------------------------------------------------------------------------
-void bed(Canvas& c) {
+// M0b fix round: a bed in 3/4 view, head to the wall: turned posts, a panelled headboard, a long pillow, the sheet
+// turned down over a plain wool quilt that falls in soft folds and drapes over the foot rail, the frame's front face.
+// 20x32 (one tile; the headboard rises against the wall above) or 20x48 (the two-tile bed of the M0b rooms: the head
+// tile and the bed's tile, the headboard against the wall above the head tile).
+void bedPaint(Canvas& c, const Ramp& Q) {
   const int W = c.w, H = c.h;
   const Ramp& R = kWood;
-  const Ramp Q = ramp(rgba(70, 104, 168));
-  // headboard: two turned posts and an arched, panelled board against the wall
-  for (int y = 3; y <= 9; y++)
+  const bool lng = H >= 48;
+  const int hb0 = lng ? 5 : 2, hb1 = lng ? 18 : 11;   // the headboard's rows
+  // headboard: an arched top rail and a sunk panel between the two back posts
+  for (int y = hb0; y <= hb1; y++)
     for (int x = 2; x <= W - 3; x++) {
       float dx = (x + 0.5f - W * 0.5f) / (W * 0.5f - 2);
-      if (y < 3 + (int)(dx * dx * 3.0f)) continue;
+      int arch = hb0 + (int)(dx * dx * 2.5f);
+      if (y < arch) continue;
       int k = 2;
-      bool inset = x >= 5 && x <= W - 6 && y >= 5 && y <= 8;
-      if (inset) k = (y == 5 || x == 5) ? 1 : ((y == 8 || x == W - 6) ? 3 : 2);
-      if (y == 3 + (int)(dx * dx * 3.0f)) k = 4;
+      if (y == arch) k = 4;
+      else if (y == arch + 1) k = 3;
+      bool inset = x >= 4 && x <= W - 5 && y >= arch + 3 && y <= hb1 - 1;
+      if (inset) k = (x == 4 || y == arch + 3) ? 1 : (x == W - 5 ? 3 : 2);
+      if (x >= W - 4 && !inset) k = std::max(0, k - 1);
+      c.set(x, y, R[k]);
+    }
+  // the back posts with ball finials
+  for (int side = 0; side < 2; side++) {
+    int x0 = side ? W - 2 : 0;
+    for (int y = hb0; y <= hb1 + 2; y++) { c.set(x0, y, R[side ? 2 : 4]); c.set(x0 + 1, y, R[side ? 1 : 2]); }
+    c.set(x0, hb0 - 1, R[side ? 3 : 4]); c.set(x0 + 1, hb0 - 1, R[side ? 2 : 3]); c.set(x0, hb0 - 2, R[3]); c.set(x0 + 1, hb0 - 2, R[2]);
+  }
+  // the mattress top: pillow, the sheet's turn-down, the quilt
+  const int py0 = hb1, py1 = hb1 + (lng ? 5 : 5), sy = py1 + 1, qy0 = sy + 2, qy1 = H - 7;
+  for (int y = py0; y <= qy1 + 1; y++)
+    for (int x = 1; x <= W - 2; x++) {
+      uint32_t col;
+      if (y <= py1) {   // a long bolster pillow, plump, lit from the top-left
+        float dx = (x + 0.5f - W * 0.5f) / (W * 0.5f - 2.0f), dy = (y - (py0 + py1) * 0.5f) / ((py1 - py0) * 0.5f + 0.6f);
+        if (dx * dx * dx * dx + dy * dy > 1.0f) { col = kCloth[2]; c.set(x, y, col); continue; }
+        int k = lightIndex(lightAt(dx * 0.55f, dy * 0.9f), x, y, 0.0f);
+        col = k >= 3 ? kWhite : (k == 2 ? kCloth[4] : kCloth[3]);
+        if (y == py1 && x > 3 && x < W - 4) col = kCloth[2];
+      } else if (y <= sy + 1) {   // the sheet turned down over the quilt's edge
+        col = y == sy ? kWhite : kCloth[3];
+        if (x == 1) col = kCloth[4];
+        if (x >= W - 3) col = kCloth[2];
+      } else {   // the quilt: broad soft folds running down the bed, a stitched border, darker toward the foot
+        float fold = std::sin((x - 1) * 0.9f + (y - qy0) * 0.25f) * 0.6f + std::sin((y - qy0) * 0.7f) * 0.3f;
+        int k = 2 + (fold > 0.45f ? 1 : (fold < -0.5f ? -1 : 0));
+        if (x <= 2) k = std::min(4, k + 1);
+        if (x >= W - 3) k = std::max(0, k - 1);
+        if (y == qy0) k = std::max(0, k - 1);
+        if (y >= qy1) k = std::max(0, k - 1);
+        if ((x == 3 || x == W - 4) && y > qy0) k = std::max(0, k - 1);   // the border's stitching
+        col = Q[std::clamp(k, 0, 4)];
+      }
+      c.set(x, y, col);
+    }
+  // the side rails under the quilt's edge
+  for (int y = hb1 + 1; y <= H - 6; y++) { c.set(0, y, R[3]); c.set(W - 1, y, R[1]); }
+  // the foot: the quilt drapes over the rail; the rail's front face and the front posts
+  for (int x = 1; x <= W - 2; x++) { c.set(x, H - 6, Q[1]); c.set(x, H - 5, Q[0]); }
+  for (int y = H - 4; y <= H - 1; y++)
+    for (int x = 0; x < W; x++) {
+      int k = y == H - 4 ? 3 : (y == H - 1 ? 0 : 2);
+      if (x <= 1) k = std::min(4, k + 1);
+      if (x >= W - 2) k = std::max(0, k - 1);
       c.set(x, y, R[k]);
     }
   for (int side = 0; side < 2; side++) {
     int x0 = side ? W - 2 : 0;
-    for (int y = 2; y <= 12; y++) { c.set(x0, y, R[side ? 2 : 4]); c.set(x0 + 1, y, R[side ? 0 : 2]); }
-    c.set(x0, 1, R[4]); c.set(x0 + 1, 1, R[3]); c.set(x0, 0, R[3]);
+    for (int y = H - 8; y <= H - 1; y++) { c.set(x0, y, R[side ? 2 : 4]); c.set(x0 + 1, y, R[side ? 1 : 3]); }
+    c.set(x0, H - 9, R[side ? 3 : 4]); c.set(x0 + 1, H - 9, R[side ? 2 : 3]);
   }
-  // mattress edge, pillow, the turned-down sheet
-  for (int y = 9; y <= H - 6; y++) { c.set(1, y, kCloth[2]); c.set(W - 2, y, kCloth[1]); }
-  for (int y = 9; y <= 13; y++)
-    for (int x = 2; x <= W - 3; x++) {
-      float dx = (x + 0.5f - W * 0.5f) / (W * 0.5f - 2.5f), dy = (y - 11.0f) / 2.6f;
-      if (dx * dx * dx * dx + dy * dy > 1.0f) { c.set(x, y, kCloth[2]); continue; }
-      int k = lightIndex(lightAt(dx * 0.6f, dy * 0.8f), x, y, 0.0f);
-      c.set(x, y, k >= 3 ? kWhite : (k == 2 ? kCloth[4] : kCloth[3]));
-    }
-  c.set(W / 2, 11, kCloth[3]); c.set(W / 2 - 1, 12, kCloth[3]);   // the dent of a head
-  for (int x = 1; x <= W - 2; x++) { c.set(x, 14, kWhite); c.set(x, 15, kCloth[3]); }
-  c.set(1, 14, kCloth[4]); c.set(W - 2, 14, kCloth[2]); c.set(W - 2, 15, kCloth[1]);
-  // patchwork quilt with soft folds; it drapes over the sides
-  for (int y = 16; y <= H - 6; y++)
-    for (int x = 1; x <= W - 2; x++) {
-      bool patch = (((x - 1) / 4) + ((y - 16) / 4)) % 2 == 0;
-      const Ramp& P = patch ? Q : kCloth;
-      int k = patch ? 2 : 3;
-      float fold = std::sin((y - 16) * 0.7f + x * 0.15f);
-      if (fold > 0.75f) k++;
-      if (fold < -0.8f) k--;
-      if (x == 1) k = std::min(4, k + 1);
-      if (x >= W - 3) k = std::max(0, k - 1);
-      if (y == 16) k = std::max(0, k - 1);
-      if (y == H - 6) k = std::max(0, k - 2);
-      if (((x - 1) % 4 == 0 || (y - 16) % 4 == 0) && x > 1 && x < W - 2) k = std::max(0, k - 1);   // stitching
-      c.set(x, y, P[std::clamp(k, 0, 4)]);
-    }
-  // footboard: a low rail with post ends
-  for (int y = H - 5; y <= H - 1; y++)
-    for (int x = 0; x < W; x++) {
-      int k = y == H - 5 ? 4 : (y == H - 1 ? 0 : 2);
-      if (y > H - 5 && y < H - 1) { if (x <= 1) k = 3; else if (x >= W - 2) k = 1; }
-      c.set(x, y, R[k]);
-    }
-  c.set(0, H - 6, R[4]); c.set(1, H - 6, R[3]); c.set(W - 2, H - 6, R[3]); c.set(W - 1, H - 6, R[2]);
+}
+void bed(Canvas& c) { bedPaint(c, ramp(rgba(58, 92, 150))); }
+// the two-tile bed of the M0b rooms in one of four quilts (Piece::Styled 4)
+Canvas longBedPiece(int variant) {
+  static const uint32_t quilt[4] = {rgba(58, 92, 150), rgba(150, 52, 50), rgba(64, 120, 76), rgba(176, 128, 52)};
+  Canvas c(20, 48);
+  bedPaint(c, ramp(quilt[variant & 3]));
+  // the shade the bed casts on the floor along its right side
+  for (int y = 22; y < 47; y++) if (!chA(c.get(19, y))) c.set(19, y, withA(rgba(34, 20, 46), 90));   // kShadowCol
+  outline(c);
+  return c;
 }
 
 void tableSeg(Canvas& c, int part);
-void counterSeg(Canvas& c, int part);
+void counterSeg(Canvas& c, int part, int goods = -1);
 void table(Canvas& c) {
   Canvas l(16, 18), r(16, 18);
   tableSeg(l, 0); tableSeg(r, 2);
@@ -1368,7 +1395,9 @@ void throne(Canvas& c) {
 // front lip, a front face (left column lit, right column in shade) and a dark foot row. Wall decor canvases are
 // 16x30 with the bottom row at the foot of the back wall (the wall face spans canvas rows 3..29).
 // =====================================================================================================
-const Ramp kFloorWood = ramp5(rgba(70, 44, 42), rgba(110, 74, 54), rgba(150, 106, 72), rgba(178, 136, 92), rgba(204, 168, 118));
+// M0b fix round: the boards underfoot are an older, greyer oak a step darker than the warm wood of the walls and
+// furniture, so walls, wall tops, stairs and furniture stand off the floor
+const Ramp kFloorWood = ramp5(rgba(50, 36, 40), rgba(82, 60, 54), rgba(114, 86, 68), rgba(140, 110, 84), rgba(166, 138, 106));
 const Ramp kFloorOld = ramp5(rgba(58, 44, 46), rgba(94, 74, 64), rgba(130, 106, 84), rgba(160, 134, 106), rgba(188, 164, 132));
 const Ramp kPlaster = ramp5(rgba(124, 98, 94), rgba(170, 146, 124), rgba(206, 188, 156), rgba(226, 212, 178), rgba(242, 232, 204));
 const Ramp kBlueCloth = ramp5(rgba(30, 36, 76), rgba(44, 62, 118), rgba(64, 96, 160), rgba(104, 140, 194), rgba(160, 192, 226));
@@ -1378,6 +1407,12 @@ const Ramp kGlassG = ramp5(rgba(26, 54, 50), rgba(40, 90, 70), rgba(66, 134, 92)
 const Ramp kSky = ramp5(rgba(70, 96, 150), rgba(96, 136, 190), rgba(132, 176, 218), rgba(176, 210, 236), rgba(226, 240, 250));
 const Ramp kPewter = ramp5(rgba(52, 52, 68), rgba(88, 90, 106), rgba(130, 132, 144), rgba(170, 172, 180), rgba(214, 216, 220));
 const Ramp kSoot = ramp5(rgba(30, 28, 38), rgba(52, 50, 60), rgba(80, 76, 84), rgba(110, 104, 108), rgba(144, 136, 134));
+// M0b regional walls: lime-washed mud (Adobe), whitewash (Plaster), the adobe's ochre dado, terracotta floor tiles
+const Ramp kMud = ramp5(rgba(104, 70, 62), rgba(150, 108, 82), rgba(192, 150, 110), rgba(218, 184, 140), rgba(238, 214, 174));
+const Ramp kLime = ramp5(rgba(126, 112, 120), rgba(176, 166, 164), rgba(212, 204, 192), rgba(232, 226, 212), rgba(248, 244, 232));
+const Ramp kOchre = ramp5(rgba(92, 46, 44), rgba(136, 70, 50), rgba(174, 100, 62), rgba(202, 132, 80), rgba(226, 170, 110));
+const Ramp kTerra = ramp5(rgba(94, 50, 46), rgba(138, 74, 54), rgba(176, 102, 68), rgba(202, 132, 88), rgba(226, 168, 120));
+const Ramp kPaint = ramp5(rgba(36, 50, 58), rgba(52, 76, 82), rgba(72, 106, 106), rgba(100, 138, 128), rgba(146, 176, 156));
 const uint32_t kVoid = rgba(18, 13, 20);
 const uint32_t kShadowCol = rgba(34, 20, 46);
 
@@ -1735,7 +1770,68 @@ void tableSeg(Canvas& c, int part) {   // 0 left, 1 middle, 2 right
   }
 }
 
-void counterSeg(Canvas& c, int part) {
+// M0b fix round 2: a shop's counter carries the trade's things, not the inn's tankards: an open ledger and quill at
+// the left end, the shop bell at the right, and along the middle brass scales, bolts of cloth, a tray of coins or a
+// folded cloth (goods 0..3)
+void shopCounterGoods(Canvas& c, int top, int part, int goods) {
+  if (part == 0) {   // the ledger, open, and an inkpot with its quill
+    for (int y = top; y <= top + 3; y++)
+      for (int x = 3; x <= 11; x++) {
+        int k = x == 7 ? 1 : (y == top ? 4 : (x < 7 ? 3 : 2));
+        c.set(x, y, kBone[k]);
+      }
+    for (int x : {4, 5, 6, 8, 9, 10}) c.set(x, top + 1, kBone[1]);   // lines of writing
+    for (int x : {4, 5, 8, 9, 10}) c.set(x, top + 2, kBone[1]);
+    hline(c, 3, 11, top + 4, kLeather[1]);
+    c.set(13, top + 2, kWoodDark[0]); c.set(14, top + 2, kWoodDark[0]); c.set(13, top + 1, kWoodDark[1]); c.set(14, top + 1, kPewter[3]);
+    c.set(14, top - 1, kBone[4]); c.set(14, top, kBone[3]); c.set(15, top - 2, kBone[4]);
+    return;
+  }
+  if (part == 2) {
+    ball(c, 8.0f, top + 1.5f, 3.0f, 2.2f, kBrass);   // the shop bell
+    c.set(7, top - 1, kBrass[4]); vline(c, 8, top - 2, top - 1, kBrass[2]);
+    return;
+  }
+  switch (goods & 3) {
+    case 0:   // brass scales: a post, the beam, two pans on chains
+      vline(c, 8, top - 7, top + 2, kBrass[2]); c.set(7, top - 6, kBrass[4]); c.set(7, top - 5, kBrass[3]);
+      hline(c, 7, 9, top + 3, kBrass[1]); hline(c, 6, 10, top + 3, kBrass[1]);
+      hline(c, 3, 13, top - 7, kBrass[3]); c.set(3, top - 7, kBrass[4]); c.set(13, top - 7, kBrass[1]);
+      for (int sx : {3, 13}) {
+        vline(c, sx, top - 6, top - 2, kBrass[1]);
+        hline(c, sx - 2, sx + 2, top - 1, kBrass[3]); hline(c, sx - 1, sx + 1, top, kBrass[1]);
+        c.set(sx - 2, top - 1, kBrass[4]);
+      }
+      c.set(12, top - 2, kGold[4]); c.set(13, top - 2, kGold[3]); c.set(14, top - 2, kGold[2]);   // a weight on one pan
+      break;
+    case 1:   // bolts of cloth lying on the counter, ends towards us
+      for (int b = 0; b < 2; b++) {
+        const Ramp& R = b == 0 ? kRed : kBlueCloth;
+        int x0 = 2 + b * 6;
+        for (int y = top - 2; y <= top + 2; y++)
+          for (int x = x0; x <= x0 + 4; x++) {
+            int k = y == top - 2 ? 4 : (y == top + 2 ? 1 : (x == x0 ? 3 : (x == x0 + 4 ? 1 : 2)));
+            c.set(x, y, R[k]);
+          }
+        c.set(x0 + 2, top, R[0]); c.set(x0 + 1, top - 1, R[4]);
+      }
+      break;
+    case 2:   // a tray of coins and a small strongbox
+      for (int x = 2; x <= 8; x++) { c.set(x, top + 2, kWoodDark[1]); c.set(x, top + 1, kWoodDark[3]); }
+      for (int i = 0; i < 4; i++) { c.set(3 + i * 1 + (i & 1), top + (i & 1), kGold[3 + (i & 1)]); c.set(3 + i + (i & 1), top + 1 - (i & 1), kGold[2]); }
+      for (int y = top - 3; y <= top + 2; y++)
+        for (int x = 10; x <= 14; x++) c.set(x, y, y == top - 3 ? kWood[4] : (x == 14 ? kWood[1] : (y == top - 1 ? kIron[2] : kWood[2])));
+      c.set(12, top, kGold[4]);
+      break;
+    default:   // a folded cloth and a jar of buttons
+      for (int y = top; y <= top + 2; y++)
+        for (int x = 3; x <= 10; x++) c.set(x, y, kCloth[y == top ? 4 : (y == top + 2 ? 1 : 3)]);
+      jugAt(c, 12, top + 2);
+      break;
+  }
+}
+
+void counterSeg(Canvas& c, int part, int goods) {
   const Ramp& R = kWood;
   int top = c.h - 18, depth = 5, fh = c.h - top - depth;
   int x0 = part == 0 ? 1 : 0, x1 = part == 2 ? 14 : 15;
@@ -1763,6 +1859,7 @@ void counterSeg(Canvas& c, int part) {
       if (part == 2 && x == x1) k = std::min(k, 1);
       c.set(x, y, R[k]);
     }
+  if (goods >= 0) { shopCounterGoods(c, top, part, goods); return; }
   if (part == 1) {
     mugAt(c, 3, top + 3, true);
     mugAt(c, 9, top + 3, false);
@@ -2109,6 +2206,7 @@ const Ramp& capRamp(art::RoomStyle s) {
   switch (s) {
     case RoomStyle::Stone: case RoomStyle::Hall: return kStoneWarm;
     case RoomStyle::Soot: case RoomStyle::Arcane: return kStone;
+    case RoomStyle::Adobe: return kMud;
     default: return kWood;
   }
 }
@@ -2154,6 +2252,36 @@ uint32_t floorColor(FloorStyle fs, int gx, int gy) {
       if (e < 0.8f) return mix(kStoneWarm[1], kStoneWarm[0], 0.35f);
       if (e < 1.6f) col = mix(col, kStoneWarm[1], 0.3f);
       if (hash3(gx, gy, 927) % 17 == 0) col = mix(col, kStoneWarm[1], 0.5f);
+      return col;
+    }
+    case FloorStyle::Terracotta: {
+      // square fired-clay tiles (8 px) in lime grout, each a little different; a bevel lit from the top-left
+      int cx = gx >> 3, cy = gy >> 3, lx = gx & 7, ly = gy & 7;
+      if (lx == 7 || ly == 7) return mix(kLime[1], kTerra[1], 0.35f);
+      float t = hashf(cx, cy, 941) * 2 - 1;
+      uint32_t col = tone(kTerra, 2, t * 0.55f);
+      uint32_t h = hash3(cx, cy, 943);
+      if (h % 9 == 0) col = mix(col, kOchre[3], 0.35f);           // a paler, sun-faded tile
+      if (h % 13 == 1) col = mix(col, kTerra[1], 0.4f);           // a darker, scorched one
+      if (lx == 0 || ly == 0) col = mix(col, kTerra[4], 0.35f);
+      else if (lx == 6 || ly == 6) col = mix(col, kTerra[1], 0.3f);
+      if (hash3(gx, gy, 945) % 19 == 0) col = mix(col, kTerra[1], 0.45f);   // wear pits
+      return col;
+    }
+    case FloorStyle::Rushes: {
+      // old boards strewn with rushes and straw: short stalks scattered over the planks
+      uint32_t col = floorColor(FloorStyle::OldPlanks, gx, gy);
+      for (int oy = -1; oy <= 1; oy++)
+        for (int ox = -1; ox <= 1; ox++) {
+          int cx = (gx >> 2) + ox, cy = (gy >> 2) + oy;
+          uint32_t h = hash3(cx, cy, 951);
+          if (h % 100 >= 11) continue;
+          int sx = cx * 4 + (int)(h >> 8) % 4, sy = cy * 4 + (int)(h >> 12) % 4, len = 3 + (int)(h >> 16) % 3, dir = (int)(h >> 20) % 4;
+          static const int ddx[4] = {1, 1, 1, 0}, ddy[4] = {0, 1, -1, 1};
+          for (int k = 0; k < len; k++)
+            if (sx + ddx[dir] * k == gx && sy + ddy[dir] * k == gy)
+              return mix(col, (h >> 24) % 3 == 0 ? kThatch[3] : (k == 0 ? kThatch[1] : kThatch[2]), 0.75f);
+        }
       return col;
     }
     case FloorStyle::Slab:
@@ -2273,6 +2401,87 @@ uint32_t wallFaceColor(RoomStyle rs, int gx, int r) {
       if (r == 13) col = darken(col, 0.3f);
       return col;
     }
+    case RoomStyle::Adobe: {
+      // lime-washed mud brick: the ends of the roof beams (vigas) under the ceiling, a soft mottled wash with the
+      // bricks showing where it has flaked, an arched niche now and then, and an ochre dado at the foot
+      int bay = gx / 24, bx = gx % 24;
+      if (r <= 9) {
+        uint32_t col = mix(kMud[2], kMud[1], 0.35f + (r - 5) * 0.04f);
+        float dx = bx - 11.5f, dy = r - 7.0f;
+        if (dx * dx + dy * dy * 1.4f < 9.5f) {                          // a round beam end
+          col = kWood[dx < -0.5f && dy < 0.5f ? 3 : 2];
+          if (dx * dx + dy * dy * 1.4f < 2.0f) col = kWood[1];
+          if (dx > 1.5f || dy > 1.5f) col = kWood[1];
+        }
+        if (r == 9) col = darken(col, 0.2f);
+        return col;
+      }
+      if (r >= 38) {
+        // fix round 3: the dado a deep earth red-brown, clearly darker than the terracotta floor it meets, under a
+        // lit lime bead, so a partition's face reads as wall and never as more floor tiles
+        if (r == 38) return kLime[4];
+        if (r == 39) return mix(kOchre[0], kMud[0], 0.4f);
+        if (r >= 46) return r == 47 ? mix(kOchre[0], kVoid, 0.35f) : kOchre[0];
+        float n = vnoise(gx * 0.2f, r * 0.5f, 973);
+        uint32_t col = n > 0.66f ? kOchre[2] : (n < 0.3f ? kOchre[0] : kOchre[1]);
+        return r == 40 ? mix(col, kOchre[0], 0.5f) : col;
+      }
+      int nb = gx / 80, nx = gx % 80;                                    // niches, one per five tiles
+      if (hash3(nb, 0, 975) % 3 != 0 && nx >= 32 && nx <= 46 && r >= 14 && r <= 31) {
+        float cx = 39.0f, ax = std::fabs(nx - cx);
+        int topY = 14 + (int)(ax * ax / 9.0f);
+        if (r >= topY) {
+          if (r >= 30) return r == 30 ? kMud[4] : kMud[2];               // the lit sill
+          if (nx == 32 || r == topY) return kMud[1];
+          if (nx == 46) return kMud[3];
+          return mix(kMud[1], kVoid, 0.25f + (r < 20 ? 0.15f : 0.0f));
+        }
+      }
+      float n = vnoise(gx * 0.12f, r * 0.2f, 977) * 0.7f + vnoise(gx * 0.5f, r * 0.6f, 979) * 0.3f;
+      uint32_t col = n > 0.62f ? kLime[4] : (n > 0.4f ? kLime[3] : mix(kLime[3], kMud[3], 0.5f));
+      if (vnoise(gx * 0.07f + 3.0f, r * 0.11f, 981) > 0.72f) {         // the wash has flaked: mud bricks show
+        int course = r / 5, cy = r % 5, shift = (course & 1) * 6;
+        int bxx = (gx + shift) % 12;
+        col = (cy == 4 || bxx == 11) ? kMud[1] : tone(kMud, 2, (hashf((gx + shift) / 12, course, 983) * 2 - 1) * 0.4f);
+        if (cy == 0 && bxx != 11) col = mix(col, kMud[3], 0.5f);
+      }
+      if (r == 10) col = mix(col, kMud[1], 0.35f);
+      if (r == 37) col = mix(col, kOchre[1], 0.45f);
+      if (hash3(gx, r, 985) % 29 == 0) col = mix(col, kMud[2], 0.6f);
+      return col;
+    }
+    case RoomStyle::Plaster: {
+      // whitewashed plaster over a panelled wood wainscot, a moulded cornice under the ceiling
+      if (r <= 8) {
+        static const int ck[4] = {4, 2, 3, 1};
+        if (r <= 6) return kLime[r == 5 ? 1 : (r == 6 ? 4 : 2)];
+        return kLime[ck[(r - 5) & 3]];
+      }
+      if (r >= 28) {
+        if (r == 28) return kWood[4];
+        if (r == 29) return kWood[2];
+        if (r == 30) return kWoodDark[1];
+        if (r >= 44) return r == 47 ? kWoodDark[0] : (r == 44 ? kWood[3] : kWood[1]);
+        int px2 = gx % 16, ly = r - 31;                                  // raised panels between stiles and rails
+        if (px2 <= 1 || ly <= 1 || ly >= 11) {
+          int k = px2 == 0 ? 3 : (ly == 0 ? 3 : 2);
+          if (ly == 12) k = 1;
+          return kWood[k];
+        }
+        int ix = px2 - 2, iy = ly - 2;
+        if (iy == 0 || ix == 0) return kWood[1];
+        if (iy == 8 || ix == 13) return kWood[3];
+        if (iy == 1 || ix == 1) return kWood[3];
+        return tone(kWood, 2, (hashf(gx / 16, 0, 987) * 2 - 1) * 0.25f);
+      }
+      float n = vnoise(gx * 0.1f, r * 0.16f, 989);
+      uint32_t col = n > 0.6f ? kLime[4] : (n < 0.32f ? kLime[2] : kLime[3]);
+      if (r == 9) col = kLime[1];
+      if (r == 10) col = mix(col, kLime[1], 0.5f);
+      if (r == 27) col = mix(col, kLime[1], 0.4f);
+      if (hash3(gx, r, 991) % 37 == 0) col = kLime[2];
+      return col;
+    }
     case RoomStyle::Stone: case RoomStyle::Soot: case RoomStyle::Arcane: default: {
       const Ramp& R = rs == RoomStyle::Stone ? kStoneWarm : kStone;
       if (rs == RoomStyle::Stone && r >= 32) {   // a wooden wainscot keeps a stone home warm
@@ -2318,26 +2527,81 @@ bool roomPx(int mask, int x, int y) {
   if (y >= 16) return (mask & CapS) != 0;
   return false;
 }
-uint32_t capSurface(RoomStyle rs, int x, int y, bool along, int seed) {
+// the top of a partition: a section through the wall, a step darker than the room's floor so it reads as wall
+uint32_t partTop(RoomStyle rs, int x, int y, bool ns, int seed) {
   const Ramp& R = capRamp(rs);
-  bool wood = rs == RoomStyle::Timber || rs == RoomStyle::Log;
-  int a = along ? y : x, b = along ? x : y;   // a runs along the wall
-  if (wood) {
-    float t = vnoise(a * 0.18f + seed * 3.1f, b * 0.9f, 981);
-    uint32_t col = tone(R, 3, (t - 0.5f) * 0.6f);
-    if ((a + seed * 5) % 23 == 0) col = R[2];
-    return col;
+  int a = ns ? y : x, b = ns ? x : y;   // a runs along the wall, b across it
+  switch (rs) {
+    case RoomStyle::Timber: case RoomStyle::Plaster: {
+      // M0b fix round: the wall in section: the pale lime-plaster infill between the two oak plates that carry it, so
+      // a wall top reads as wall at a glance against the boards of the floor (never as more floor boards)
+      if (b <= 2 || b >= 13) {   // the plates: lit along their outer (top-left) edge
+        int k = (b == 1 || b == 13) ? 3 : 2;
+        if (b == 0 || b == 15) k = 1;
+        // fix round 2: the light comes from the top-left: the west / north plate a step lighter, the other a step darker
+        if (b <= 2 && b > 0) k = std::min(4, k + 1);
+        if (b >= 13) k = std::max(1, k - 1);
+        uint32_t col = tone(kWood, k, (vnoise(a * 0.2f + seed * 3.1f, b * 0.5f, 981) - 0.5f) * 0.4f);
+        if ((a + seed * 5) % 23 == 0 && (b == 1 || b == 14)) col = kWoodDark[1];   // pegs
+        return col;
+      }
+      float n = vnoise(a * 0.21f + seed * 2.7f, b * 0.33f, 983);
+      uint32_t col = n > 0.62f ? kLime[4] : (n < 0.3f ? kLime[2] : kLime[3]);
+      if (b == 3) col = mix(col, kWoodDark[1], 0.45f);   // the plaster sits a hair below the plates
+      if (b == 12) col = mix(col, kLime[1], 0.5f);
+      if (hash3(a, b + seed * 16, 985) % 29 == 0) col = kLime[1];
+      return col;
+    }
+    case RoomStyle::Log: {
+      // M0b fix round: the top of the log wall: one round log seen from above, a lit ridge along its crown falling
+      // into shade on both flanks, its bark split here and there; chinking where it beds on the log below
+      float u = (b - 7.5f) / 7.5f;   // -1 .. 1 across the log
+      int k = u < -0.65f ? 2 : (u < -0.15f ? 4 : (u < 0.35f ? 3 : (u < 0.75f ? 2 : 1)));
+      uint32_t col = tone(kBark, k, (vnoise(a * 0.18f + seed * 3.3f, b * 0.4f, 987) - 0.5f) * 0.35f);
+      // fix round 2: the wall tops a clear step lighter than the rush-strewn boards (adzed, weathered pale crown), so
+      // the rooms read at 1x in a log house
+      col = mix(col, kWood[4], k >= 3 ? 0.34f : 0.18f);
+      if (b == 0 || b == 15) col = mix(kCloth[1], kBark[1], 0.5f);
+      if ((a + seed * 7) % 17 == 0 && b >= 4 && b <= 11) col = kBark[1];                    // a split in the bark
+      if ((a + seed * 7) % 31 == 3 && b >= 5 && b <= 9) col = mix(kBark[4], kWood[4], 0.5f);   // a pale knot
+      return col;
+    }
+    case RoomStyle::Adobe: {
+      // fix round 3: the mud wall's rounded top in section: a lit west / north shoulder, a pale crown, the far
+      // shoulder falling into shade, so the top reads as a solid mass (it was one flat tan, read as a floor runner).
+      // Straw flecks and small pits in the render.
+      float u = (b - 7.5f) / 7.5f;
+      int k = u < -0.72f ? 3 : (u < -0.3f ? 4 : (u < 0.25f ? 3 : (u < 0.65f ? 2 : 1)));
+      float t = vnoise(a * 0.22f + seed * 2.3f, b * 0.4f, 995);
+      uint32_t col = tone(kMud, k, (t - 0.5f) * 0.35f);
+      if ((a * 7 + b * 3 + seed * 11) % 37 == 0 && k >= 2) col = mix(col, kOchre[4], 0.5f);    // straw
+      if (hash3(a, b + seed * 16, 996) % 41 == 0 && k >= 2) col = mix(col, kMud[1], 0.5f);   // a pit in the render
+      return col;
+    }
+    default: {   // coping stones laid across the wall
+      int len = 8, sh = (seed * 3) % len;
+      int blk = (a + sh) / len, ba = (a + sh) % len;
+      if (ba == len - 1) return R[0];
+      uint32_t col = mix(tone(R, 2, (hashf(blk, seed, 997) * 2 - 1) * 0.35f), R[1], rs == RoomStyle::Hall ? 0.5f : 0.3f);
+      if (ba == 0) col = mix(col, R[3], 0.45f);
+      if (hash3(x, y + seed * 16, 999) % 23 == 0) col = mix(col, R[1], 0.5f);
+      return col;
+    }
   }
-  int blk = (a + seed * 7) % 12;
-  if (blk == 0) return R[2];
-  return tone(R, 3, (hashf((a + seed * 7) / 12, seed, 983) * 2 - 1) * 0.3f);
 }
 
-Canvas capPiece(RoomStyle rs, int mask, int seed, int topFlags) {
+// the wall top of the shell (and the back wall's top rows): the same section as a partition's top
+uint32_t capSurface(RoomStyle rs, int x, int y, bool along, int seed) { return partTop(rs, x, y, along, seed & 31); }
+
+Canvas capPiece(RoomStyle rs, int mask, int seed, int topFlags, int part) {
   Canvas c(16, 16);
   const Ramp& R = capRamp(rs);
-  // a neighbouring back wall's top (its rows 0..4) counts as cap, so the side strip joins it without a seam
+  // a neighbouring back wall's top (its rows 0..4) counts as cap, so the side strip joins it without a seam; so does a
+  // partition's top next to the shell (part: 1 E, 2 W, 4 N)
   auto cap = [&](int x, int y) {
+    if ((part & 1) && x >= 16 && y >= 0 && y < 16) return true;
+    if ((part & 2) && x < 0 && y >= 0 && y < 16) return true;
+    if ((part & 4) && y < 0 && x >= 0 && x < 16) return true;
     if (y < 0 && (topFlags & 4)) return false;
     if (x >= 16 && y >= 0 && y <= 4 && (topFlags & 1)) return true;
     if (x < 0 && y >= 0 && y <= 4 && (topFlags & 2)) return true;
@@ -2377,8 +2641,19 @@ Canvas backWallPiece(RoomStyle rs, int ends, int tx) {
         float k = 0;
         if (ends & 16) { static const float f[6] = {0.55f, 0.42f, 0.3f, 0.2f, 0.11f, 0.05f}; if (x < 6) k = f[x]; }
         if (ends & 32) { if (x == 15) k = 0.25f; else if (x == 14) k = 0.1f; }
+        // M0b: a low partition joins the face's foot at the left (64: its shadow falls on the face) or right (128)
+        if ((ends & 64) && y >= 32) { static const float f[5] = {0.42f, 0.3f, 0.2f, 0.11f, 0.05f}; if (x < 5) k = std::max(k, f[x] * (y >= 34 ? 1.0f : 0.6f)); }
+        if ((ends & 128) && y >= 32 && x == 15) k = std::max(k, 0.2f);
         if (y == 5) k = std::max(k, 0.15f);
         if (k > 0) col = darken(col, k);
+        if (rs == RoomStyle::Log && y >= 44) {   // fix round 2: the fieldstone sill course the partitions share
+          int course = (gx + (y >= 46 ? 3 : 0)) % 7;
+          uint32_t st = tone(kStone, y == 44 ? 3 : 2, (hashf(gx / 7, (y - 32) / 2, 1013) * 2 - 1) * 0.3f);
+          if (course == 0 || y == 45) st = kStone[1];
+          if (y == 47) st = kStone[0];
+          if (k > 0) st = darken(st, k);
+          col = st;
+        }
       }
       c.set(x, y, col);
     }
@@ -2399,6 +2674,528 @@ Canvas doorPiece(RoomStyle rs) {
       c.set(x, y, withA(kVoid, std::min(235, aa)));
     }
   }
+  return c;
+}
+
+// ---- M0b partitions: cut-away walls one tile high (rpg/sim/rooms.h). The face is the foot of the room's back wall
+//      (its last 16 rows), so a partition reads as the same wall cut down; the top is the wall's section seen from
+//      above, lit on its top-left rims, with a bright lip where it turns down into its own face.
+uint32_t edgeInk(const Ramp& R) { return mix(R[0], kInk, 0.45f); }
+
+Canvas partFacePiece(RoomStyle rs, int endL, int endR, int tx, int ty) {
+  Canvas c(16, 16);
+  const Ramp& R = capRamp(rs);
+  for (int y = 0; y < 16; y++)
+    for (int x = 0; x < 16; x++) {
+      int gx = tx * 16 + x;
+      uint32_t col = wallFaceColor(rs, gx, 32 + y);
+      float k = 0;
+      if (rs == RoomStyle::Hall) k = 0.16f;  // pale dressed stone: a touch of shade so the wall stands off the slabs
+      if (rs == RoomStyle::Log) k = 0.22f;   // fix round 2: log faces a step darker than the boards and the tops
+      if (y == 0) k = 0.42f;                 // the lip of the top casts a hairline shadow
+      else if (y == 1) k = 0.14f;
+      if (endL == PartEndWall) { static const float f[5] = {0.5f, 0.36f, 0.24f, 0.13f, 0.05f}; if (x < 5) k = std::max(k, f[x]); }
+      if (endR == PartEndWall) { if (x == 15) k = std::max(k, 0.26f); else if (x == 14) k = std::max(k, 0.1f); }
+      if (k > 0) col = darken(col, k);
+      if (rs == RoomStyle::Log && y >= 12) {   // the logs sit on a fieldstone sill course
+        int course = (gx + (y >= 14 ? 3 : 0)) % 7;
+        uint32_t st = tone(kStone, y == 12 ? 3 : 2, (hashf(gx / 7, y / 2, 1013) * 2 - 1) * 0.3f);
+        if (course == 0 || y == 13) st = kStone[1];
+        if (y == 15) st = kStone[0];
+        col = st;
+      }
+      if (endL == PartEndFree) { if (x == 0) col = edgeInk(R); else if (x == 1) col = lighten(col, 0.4f); }
+      if (endR == PartEndFree) { if (x == 15) col = edgeInk(R); else if (x == 14) col = darken(col, 0.3f); }
+      if (y == 15 && (endL == PartEndFree || endR == PartEndFree)) col = darken(col, 0.2f);
+      c.set(x, y, col);
+    }
+  (void)ty;
+  return c;
+}
+
+Canvas partCapPiece(RoomStyle rs, int seed, int open, int faces) {
+  Canvas c(16, 16);
+  const Ramp& R = capRamp(rs);
+  auto dirBit = [](int ox, int oy) {
+    if (ox == 0 && oy == 0) return 0;
+    if (oy == 0) return ox > 0 ? (int)CapE : (int)CapW;
+    if (ox == 0) return oy > 0 ? (int)CapS : (int)CapN;
+    if (oy < 0) return ox > 0 ? (int)CapNE : (int)CapNW;
+    return ox > 0 ? (int)CapSE : (int)CapSW;
+  };
+  // what lies at pixel (x, y) of the 3x3 tile block around this one: 0 wall top, 1 floor, 2 a face
+  auto at = [&](int x, int y) {
+    int ox = x < 0 ? -1 : (x >= 16 ? 1 : 0), oy = y < 0 ? -1 : (y >= 16 ? 1 : 0);
+    int b = dirBit(ox, oy);
+    if (!b || !(open & b)) return 0;
+    return (faces & b) ? 2 : 1;
+  };
+  // a run going north-south: open east or west, and nothing but faces (the back wall behind, a face it meets) north
+  // and south. (Fix round 2: a face counted as "open" turned the run's first tiles into E-W pieces with plates across
+  // them, so the top of every N-S partition began with two separate blocks.)
+  bool ns = (open & (CapE | CapW)) && !((open & ~faces) & (CapN | CapS));
+  const uint32_t ink = edgeInk(R);
+  for (int y = 0; y < 16; y++)
+    for (int x = 0; x < 16; x++) {
+      uint32_t col = partTop(rs, x, y, ns, seed);
+      if (rs == RoomStyle::Adobe) {}   // the rounded mud top carries its own light and shade (partTop)
+      else if (ns && x >= 12) col = darken(col, x >= 14 ? 0.16f : 0.08f);   // the run's east side falls into shade
+      // edges, nearest first
+      int s1 = at(x, y + 1), n1 = at(x, y - 1), w1 = at(x - 1, y), e1 = at(x + 1, y);
+      if (w1) col = ink;
+      else if (e1) col = ink;
+      else if (s1 == 2) col = R[4];                        // the lip where the top turns down into its face
+      else if (s1 == 1) col = ink;
+      else if (n1 == 2) col = mix(R[0], kVoid, 0.3f);      // the foot of the tall face behind
+      else if (n1 == 1) col = ink;
+      else if (at(x - 1, y - 1) || at(x + 1, y - 1) || at(x - 1, y + 1) || at(x + 1, y + 1)) {
+        int dg = at(x - 1, y + 1) ? at(x - 1, y + 1) : (at(x + 1, y + 1) ? at(x + 1, y + 1) : 0);
+        col = (dg == 2 && !at(x - 1, y - 1) && !at(x + 1, y - 1)) ? R[4] : ink;
+      } else {
+        int s2 = at(x, y + 2), n2 = at(x, y - 2), w2 = at(x - 2, y), e2 = at(x + 2, y);
+        if (w2 || n2 == 1) col = mix(col, R[4], 0.7f);    // the lit rim on the top-left
+        else if (e2) col = mix(col, R[1], 0.6f);          // the shaded rim on the right
+        else if (s2 == 2) col = mix(col, R[4], 0.35f);
+        else if (n2 == 2) col = darken(col, 0.3f);
+      }
+      c.set(x, y, col);
+    }
+  return c;
+}
+
+// the threshold of an interior doorway: worn boards (or a stone sill) across the wall's line
+Canvas sillPiece(RoomStyle rs, int vertical) {
+  Canvas c(16, 16);
+  bool stone = rs == RoomStyle::Stone || rs == RoomStyle::Hall || rs == RoomStyle::Soot || rs == RoomStyle::Arcane || rs == RoomStyle::Adobe;
+  const Ramp& R = stone ? (rs == RoomStyle::Adobe ? kMud : kStoneWarm) : kWoodDark;
+  if (!vertical) {
+    // a sill board across the doorway at the wall's foot, the passage floor shaded by the jambs either side
+    for (int y = 0; y < 16; y++)
+      for (int x = 0; x < 16; x++) {
+        int a = 0;
+        if (x <= 2 || x >= 13) a = x <= 2 ? 90 - x * 25 : 40 + (x - 13) * 20;
+        if (y >= 10 && y <= 14 && x >= 1 && x <= 14) {
+          int k = y == 10 ? 4 : (y == 11 ? 3 : (y == 14 ? 0 : 2));
+          if (x == 1) k = std::min(4, k + 1);
+          if (x == 14) k = std::max(0, k - 1);
+          uint32_t col = R[k];
+          if (!stone && y > 10 && y < 14 && (x == 5 || x == 10)) col = R[1];
+          c.set(x, y, col);
+          continue;
+        }
+        if (y == 15 && x >= 1 && x <= 14) { c.set(x, y, withA(kShadowCol, 110)); continue; }
+        if (a > 0) c.set(x, y, withA(kShadowCol, a));
+      }
+  } else {
+    // fix round 3: the threshold of an N-S doorway spans the wall's full width (the casing rails stand on its edges),
+    // so the wall's line runs on unbroken under the door: worn boards running along the wall (a stone sill in
+    // masonry rooms), lit at the top-left, a little darker where feet have worn it in the middle
+    for (int y = 0; y < 16; y++)
+      for (int x = 0; x < 16; x++) {
+        int k = 2;
+        if (x == 0 || y == 0) k = 3;
+        if (x == 15 || y == 15) k = 1;
+        if (!stone && (x == 5 || x == 10)) k = std::max(0, k - 1);   // board seams
+        if (stone && y == 7) k = 1;                                    // the joint between two sill stones
+        uint32_t col = R[k];
+        if (x >= 6 && x <= 9 && y >= 3 && y <= 12) col = darken(col, 0.10f);   // worn in the middle
+        c.set(x, y, col);
+      }
+  }
+  return c;
+}
+
+// ---- M0b stairs and interior doors, painted in the room's material (Piece::Styled; the prop sprites are the timber
+//      look). Same canvases and anchors as the props.
+struct DoorLook {
+  const Ramp* frame;   // jambs, lintel, stringers
+  const Ramp* leaf;    // the door leaf
+  const Ramp* strap;   // hinges and straps
+  bool stone;          // stone stairs and a masonry frame
+};
+DoorLook doorLook(RoomStyle rs) {
+  switch (rs) {
+    case RoomStyle::Log: return {&kBark, &kWood, &kIron, false};
+    case RoomStyle::Stone: return {&kStoneWarm, &kWood, &kIron, true};
+    case RoomStyle::Hall: return {&kStoneWarm, &kWoodDark, &kIron, true};
+    case RoomStyle::Soot: return {&kStone, &kWoodDark, &kIron, true};
+    case RoomStyle::Arcane: return {&kStone, &kPurple, &kBrass, true};
+    case RoomStyle::Adobe: return {&kMud, &kBlueCloth, &kIron, true};
+    case RoomStyle::Plaster: return {&kWood, &kPaint, &kBrass, false};
+    default: return {&kWood, &kWood, &kIron, false};
+  }
+}
+
+// M0b fix round: a flight is two tiles wide (32 px) where the plan fits it; the two tiles are painted as the halves of
+// one 32 px flight (variant 2: left half, 4: right half, neither: the narrow one-tile flight of the plain fallback).
+// The runner down the middle of a dressed flight: red wool in inns, homes and halls, none on bare work stairs.
+const Ramp* stairRunner(RoomStyle rs) {
+  switch (rs) {
+    case RoomStyle::Timber: case RoomStyle::Plaster: case RoomStyle::Hall: return &kRed;
+    case RoomStyle::Stone: return &kBlueCloth;
+    case RoomStyle::Arcane: return &kPurple;
+    default: return nullptr;
+  }
+}
+// copies columns [x0, x0 + c.w) of the full painting into c
+void sliceInto(Canvas& c, const Canvas& full, int x0) {
+  for (int y = 0; y < c.h; y++)
+    for (int x = 0; x < c.w; x++) c.set(x, y, full.get(x0 + x, y));
+}
+
+// a flight climbing north into the wall face above its tile (16x40 per tile; the tile is canvas rows 24..39).
+// variant & 1: under a partition's short face (the flight and its opening stay below the partition's top).
+// Read at 1x as stairs, not a ladder: a wide flight between solid stringers, every step a lit tread and nosing over a
+// riser in the shade of the step above, a warm light falling down the flight from the landing above, a balustrade
+// with a turned newel post at the foot on each open side, the runner held by brass rods.
+void stairsUpPaint(Canvas& c, RoomStyle rs, int variant) {
+  const int half = variant & 2 ? 0 : (variant & 4 ? 1 : -1);
+  const int Wd = half >= 0 ? 32 : 16;
+  Canvas f(Wd, c.h);
+  const DoorLook L = doorLook(rs);
+  const Ramp& F = *L.frame;
+  const Ramp& T = L.stone ? F : kWood;
+  const Ramp& D = L.stone ? F : kWoodDark;
+  const Ramp* run = stairRunner(rs);
+  const int H = f.h, top = (variant & 1) ? 9 : 0;   // the lintel's top row
+  const int sx0 = 4, sx1 = Wd - 5;                   // the treads, between the stringers
+  const int oy0 = top + 3, oy1 = top + ((variant & 1) ? 8 : 12);   // the opening under the lintel
+  // the opening the flight climbs into: dark, with the lamplight of the floor above caught on its top steps
+  for (int y = oy0; y <= oy1 + 4; y++)
+    for (int x = 2; x < Wd - 2; x++) {
+      float t = (float)(y - oy0) / (float)std::max(1, oy1 - oy0);
+      uint32_t col = mix(kVoid, D[0], 0.25f + 0.2f * t);
+      if (y == oy0 || y == oy0 + 1) col = mix(col, rgba(196, 140, 78), y == oy0 ? 0.45f : 0.25f);   // light from upstairs
+      f.set(x, y, col);
+    }
+  // the frame: a heavy lintel (lit top, dark underside) on two jambs
+  for (int x = 0; x < Wd; x++) {
+    f.set(x, top, F[4]); f.set(x, top + 1, F[3]); f.set(x, top + 2, F[1]);
+    if (L.stone && x % 8 == 4) { f.set(x, top + 1, F[1]); }
+  }
+  for (int y = top + 3; y < H; y++) {
+    f.set(0, y, D[0]); f.set(1, y, F[3]);
+    f.set(Wd - 2, y, F[1]); f.set(Wd - 1, y, D[0]);
+  }
+  // the steps, from the floor up into the opening: nosing, tread, riser (5 rows a step); the risers sit in the shade of
+  // the step above, the treads catch the light; dimmer toward the opening
+  for (int k = 0; k < 12; k++) {
+    int yb = H - 1 - k * 5;
+    for (int r = 0; r < 5; r++) {
+      int y = yb - r;
+      if (y < oy0 + 2) continue;
+      static const int kk[5] = {0, 1, 1, 3, 4};      // riser foot, riser, riser top, tread, nosing
+      for (int x = sx0; x <= sx1; x++) {
+        int k2 = kk[r];
+        if (x == sx0 && r >= 3) k2 = std::min(4, k2 + 1);
+        if (x >= sx1 - 1 && r >= 3) k2 = std::max(0, k2 - 1);
+        uint32_t col = r <= 2 ? D[k2 + 1] : T[k2];
+        if (L.stone && r <= 2 && ((x + k * 5) % 9 == 0)) col = F[0];   // block joints
+        if (run && Wd >= 32 && x >= Wd / 2 - 6 && x <= Wd / 2 + 5) {
+          int rk = r >= 3 ? (r == 4 ? 4 : 3) : (r == 0 ? 0 : 1);
+          if (x == Wd / 2 - 6 && r >= 3) rk = 4;
+          if (x == Wd / 2 + 5) rk = std::max(0, rk - 1);
+          col = (*run)[rk];
+          if (r == 3 && (x == Wd / 2 - 6 || x == Wd / 2 + 5)) col = kGold[4];   // brass stair rods
+        }
+        float dim = y < oy1 + 10 ? (oy1 + 10 - y) * 0.075f : 0.0f;
+        if (dim > 0) col = darken(col, std::min(0.75f, dim));
+        f.set(x, y, col);
+      }
+    }
+  }
+  // the stringers: a lit board on the left, a shaded one on the right, a dark seam against the treads
+  for (int y = oy0 + 2; y < H; y++) {
+    float dim = y < oy1 + 6 ? (oy1 + 6 - y) * 0.1f : 0.0f;
+    auto put = [&](int x, uint32_t col) { f.set(x, y, dim > 0 ? darken(col, std::min(0.8f, dim)) : col); };
+    put(2, T[4]); put(3, D[1]);
+    put(Wd - 4, D[0]); put(Wd - 3, T[1]);
+  }
+  // a balustrade down both outer sides: a handrail (lit top) over the stringer on turned balusters, and a newel post
+  // at the foot rising above the bottom step, capped
+  const Ramp& Rr = (L.stone && rs != RoomStyle::Adobe) ? kIron : kWood;
+  const Ramp& Rd = (L.stone && rs != RoomStyle::Adobe) ? kIron : kWoodDark;
+  for (int side = 0; side < 2; side++) {
+    int x = side ? Wd - 3 : 2;
+    int o = side ? 1 : -1;   // the outer side
+    for (int y = oy1 + 2; y <= H - 20; y++) { f.set(x, y, Rr[side ? 2 : 4]); f.set(x + o, y, Rd[side ? 0 : 1]); }
+    for (int y = oy1 + 5; y <= H - 20; y += 4) f.set(x, y, Rd[2]);   // the balusters' turnings
+    for (int y = H - 19; y < H; y++) {
+      f.set(x - 1, y, Rr[side ? 2 : 4]); f.set(x, y, Rr[side ? 1 : 3]); f.set(x + 1, y, Rd[side ? 0 : 2]);
+    }
+    for (int y = H - 15; y < H; y += 5) { f.set(x - 1, y, Rr[side ? 1 : 3]); f.set(x + 1, y, Rd[0]); }   // turnings
+    f.set(x - 1, H - 20, Rr[4]); f.set(x, H - 20, Rr[4]); f.set(x + 1, H - 20, Rr[2]);   // the cap
+    f.set(x, H - 21, Rr[4]);
+    f.set(x - 1, H - 1, Rd[0]); f.set(x, H - 1, Rd[0]); f.set(x + 1, H - 1, Rd[0]);
+  }
+  sliceInto(c, f, half == 1 ? 16 : 0);
+}
+
+// the head of a flight going down: a stairwell opening in the floor with a balustrade round its far and outer sides,
+// open toward the south where you step down (16x24 per tile; the tile is canvas rows 8..23)
+void stairsDownPaint(Canvas& c, RoomStyle rs, int variant) {
+  const int half = variant & 2 ? 0 : (variant & 4 ? 1 : -1);
+  const int Wd = half >= 0 ? 32 : 16;
+  Canvas f(Wd, c.h);
+  const DoorLook L = doorLook(rs);
+  const Ramp& F = *L.frame;
+  const Ramp& T = L.stone ? F : kWood;
+  const Ramp* run = stairRunner(rs);
+  const int x0 = 3, x1 = Wd - 4, y0 = 9, y1 = 23;
+  // the well: the top step at the near (south) edge, steps going down and away (north) into the floor below's
+  // lamplight, each nosing lit
+  for (int y = y0; y <= y1; y++)
+    for (int x = x0; x <= x1; x++) {
+      int d = y1 - y;
+      int step = d / 3, r = d % 3;
+      int k = r == 0 ? 4 : (r == 1 ? 3 : 1);
+      if (x == x0) k = std::min(4, k + 1);
+      if (x == x1) k = std::max(0, k - 2);
+      uint32_t col = T[k];
+      if (run && Wd >= 32 && x >= Wd / 2 - 6 && x <= Wd / 2 + 5) col = (*run)[r == 0 ? 3 : (r == 1 ? 2 : 1)];
+      col = darken(col, std::min(0.9f, 0.1f + step * 0.17f));
+      if (d >= 12) col = mix(mix(kVoid, T[0], 0.3f), rgba(120, 80, 50), 0.25f);
+      f.set(x, y, col);
+    }
+  // the stringers down either side, in the well's shade
+  for (int y = y0; y <= y1; y++) {
+    f.set(x0 - 1, y, darken(F[2], 0.3f)); f.set(x0 - 2, y, darken(F[3], 0.2f));
+    f.set(x1 + 1, y, darken(F[1], 0.45f)); f.set(x1 + 2, y, darken(F[1], 0.3f));
+  }
+  // the cut floor edge: a lit lip along the near side, a shaded one along the far side
+  for (int x = x0 - 2; x <= x1 + 2; x++) { f.set(x, y0 - 1, F[1]); f.set(x, y0, darken(F[2], 0.25f)); }
+  // the balustrade: posts at the far corners and at the near ends, a rail 7 px up along the far side and down both
+  // outer sides, balusters between
+  const Ramp& P = (L.stone && rs != RoomStyle::Adobe) ? kIron : kWood;
+  const int xl = x0 - 2, xr = x1 + 2;
+  for (int x = xl; x <= xr; x++) {   // the far rail, its top lit, with its balusters to the floor edge
+    f.set(x, y0 - 8, P[4]); f.set(x, y0 - 7, P[2]);
+    if ((x - xl) % 3 == 1) for (int y = y0 - 6; y <= y0 - 2; y++) f.set(x, y, P[(x - xl) % 6 == 1 ? 3 : 1]);
+  }
+  for (int side = 0; side < 2; side++) {
+    int x = side ? xr : xl;
+    for (int y = y0 - 7; y <= y1 - 6; y++) { f.set(x, y, P[side ? 2 : 4]); f.set(x + (side ? -1 : 1), y, P[side ? 1 : 3]); }
+    for (int y = y0 + 1; y <= y1; y += 3) for (int yy = y - 5; yy <= y; yy++) f.set(x, yy, P[side ? 1 : 3]);   // balusters
+    for (int yy : {y0 - 1, y1 + 1}) {   // newel posts at the far corner and at the near end
+      int yb = std::min(yy, f.h - 1);
+      for (int y = yb - 9; y <= yb; y++) { f.set(x, y, P[side ? 2 : 3]); f.set(x + (side ? 1 : -1), y, P[side ? 0 : 2]); }
+      f.set(x, yb - 10, P[4]); f.set(x + (side ? 1 : -1), yb - 10, P[3]);
+    }
+  }
+  sliceInto(c, f, half == 1 ? 16 : 0);
+}
+
+// an interior door in an E-W partition (16x36: the face row is canvas rows 20..35, the cap row 4..19). The frame
+// stands in the doorway; its lintel spans the top of the cap row. open: the leaf stands open, swung in on its hinge;
+// closed: the leaf fills the opening.
+void doorHPaint(Canvas& c, RoomStyle rs, bool open) {
+  const DoorLook L = doorLook(rs);
+  const Ramp& F = *L.frame;
+  const Ramp& Lf = *L.leaf;
+  const int H = c.h;
+  if (open) {
+    // a narrow panel swung in toward the room beyond: its free edge is further away, so higher on the screen
+    for (int x = 3; x <= 8; x++) {
+      int lift = (x - 3) * 3 / 2;
+      int yb = H - 1 - lift, yt = yb - 25;
+      for (int y = std::max(7, yt); y <= yb; y++) {
+        int k = x == 3 ? 3 : (x == 8 ? 1 : 2);
+        if (y == yt) k = 4;
+        if (x == 6 && y > yt) k = 1;                   // a plank seam
+        c.set(x, y, darken(Lf[k], 0.18f + (x - 3) * 0.04f));   // in the doorway's shade
+      }
+      if (x == 7) { c.set(x, yb - 12, L.strap->c[3]); c.set(x, yb - 11, L.strap->c[1]); }   // ring pull
+    }
+  } else {
+    for (int y = 7; y < H; y++)
+      for (int x = 3; x <= 12; x++) {
+        int k = 2;
+        if ((x - 3) % 3 == 2) k = 1;                   // plank seams
+        if (x == 3) k = 3;
+        if (x == 12) k = 1;
+        if (y == 7 || y == H - 1) k = 0;
+        uint32_t col = Lf[k];
+        if ((y == 12 || y == H - 7) && x <= 9) col = L.strap->c[y == 12 ? 2 : 1];   // strap hinges
+        c.set(x, y, col);
+      }
+    c.set(10, H - 15, L.strap->c[4]); c.set(10, H - 14, L.strap->c[2]); c.set(11, H - 14, L.strap->c[1]);   // latch
+  }
+  // shade under the lintel, inside the doorway
+  for (int y = 7; y <= 10; y++)
+    for (int x = 3; x <= 12; x++)
+      if (!chA(c.get(x, y))) c.set(x, y, withA(kShadowCol, 130 - (y - 7) * 30));
+  // jambs
+  for (int y = 4; y < H; y++) {
+    c.set(0, y, F[3]); c.set(1, y, F[2]); c.set(2, y, F[1]);
+    c.set(13, y, F[3]); c.set(14, y, F[2]); c.set(15, y, F[1]);
+    if (L.stone && y % 6 == 0) { c.set(0, y, F[1]); c.set(1, y, F[1]); c.set(13, y, F[1]); c.set(14, y, F[1]); }
+  }
+  for (int x : {0, 1, 2, 13, 14, 15}) c.set(x, H - 1, F[0]);
+  // lintel: its top seen from above, its face below
+  for (int x = 0; x < 16; x++) {
+    c.set(x, 0, F[4]); c.set(x, 1, F[3]); c.set(x, 2, F[3]);
+    c.set(x, 3, F[2]); c.set(x, 4, F[2]); c.set(x, 5, F[2]); c.set(x, 6, F[1]);
+    if (L.stone && x == 8) { c.set(x, 3, F[4]); c.set(x, 4, F[3]); c.set(x, 5, F[3]); }   // keystone
+  }
+  c.set(0, 3, F[3]); c.set(15, 3, F[1]); c.set(15, 4, F[1]); c.set(15, 5, F[1]);
+}
+
+// an interior door in an N-S partition (16x32: canvas rows 0..15 lie on the wall's last tile north of the doorway,
+// rows 16..31 on the doorway tile). M0b fix round 3: the old sprite stood a front-facing cased doorway on the end of
+// the wall, which cut the wall's top short, read as a door leading north into the wall, and left the doorway tile
+// as bare floor with a thin pale sill (an orphan post). Now the doorway is seen as the 3/4 view shows an N-S wall:
+// from above, along the wall. The wall's top runs on to the frame; the frame's head block caps the wall's end; two
+// casing rails run along the wall's lit (west) and shaded (east) edges down the whole doorway, so the wall line
+// never breaks; a foot block meets the next run of wall. Between the rails lies the threshold (the floor layer's
+// sill). Open: the leaf stands swung back against the east rail, its top edge and its lit face seen from above.
+// Shut: the leaf fills the opening along the wall's line, planks running north-south, strap hinges across.
+void doorVPaint(Canvas& c, RoomStyle rs, bool open) {
+  const DoorLook L = doorLook(rs);
+  const Ramp& F = *L.frame;
+  const Ramp& Lf = *L.leaf;
+  const Ramp& S = *L.strap;
+  const int top = 16, bot = 31;   // the doorway tile
+  // the head block on the wall's end: its top lit, its south face in shade (it rises over the doorway)
+  for (int y = 11; y <= 17; y++)
+    for (int x = 0; x <= 15; x++) {
+      int k;
+      if (y == 11) k = 4;
+      else if (y <= 13) k = 3;
+      else if (y <= 15) k = 2;
+      else k = 1;                          // the face of the head, falling into the doorway's shade
+      if (x == 0 && y > 11) k = std::min(4, k + 1);
+      if (x == 15) k = std::max(0, k - 1);
+      uint32_t col = F[k];
+      if (L.stone && y >= 14 && (x == 5 || x == 10)) col = F[std::max(0, k - 1)];   // dressed blocks
+      if (!L.stone && y == 13 && x % 5 == 2) col = F[2];                             // grain
+      c.set(x, y, col);
+    }
+  // casing rails along both edges of the wall, down the doorway: lit west rail, shaded east rail
+  for (int y = 18; y <= bot - 3; y++) {
+    c.set(0, y, F[3]); c.set(1, y, F[4]); c.set(2, y, F[2]);
+    c.set(13, y, F[2]); c.set(14, y, F[1]); c.set(15, y, F[0]);
+    if (L.stone && y % 5 == 1) { c.set(1, y, F[3]); c.set(14, y, F[0]); }
+  }
+  // the foot block where the frame meets the next run of wall
+  for (int y = bot - 2; y <= bot; y++)
+    for (int x = 0; x <= 15; x++) {
+      int k = y == bot - 2 ? 4 : (y == bot - 1 ? 3 : 2);
+      if (x == 15) k = std::max(0, k - 2);
+      c.set(x, y, F[k]);
+    }
+  // the head's shadow falls into the opening (soft, so the player walking through stays clear)
+  for (int x = 3; x <= 12; x++) {
+    c.set(x, 18, withA(kShadowCol, 120));
+    c.set(x, 19, withA(kShadowCol, 70));
+    c.set(x, 20, withA(kShadowCol, 30));
+  }
+  if (open) {
+    // the leaf swung back flat against the east rail: its top edge (lit) and a sliver of its face
+    for (int y = 18; y <= bot - 3; y++) {
+      c.set(11, y, Lf[3]);
+      c.set(12, y, Lf[1]);
+      if (y == 18) { c.set(11, y, Lf[4]); c.set(12, y, Lf[3]); }
+    }
+    c.set(11, 22, S.c[3]); c.set(11, bot - 6, S.c[3]);   // hinge straps catching the light
+  } else {
+    // shut: the leaf in the wall's line, seen from above: planks running north-south, straps across, a ring pull
+    for (int y = 18; y <= bot - 3; y++)
+      for (int x = 3; x <= 12; x++) {
+        int k = 2;
+        if (x == 3) k = 4;
+        else if (x == 4) k = 3;
+        else if (x == 12) k = 0;
+        else if (x == 11) k = 1;
+        else if ((x - 3) % 3 == 0) k = 1;   // plank seams
+        if (y == 18) k = std::max(0, k - 1);
+        uint32_t col = Lf[k];
+        if ((y == 21 || y == bot - 6) && x >= 3 && x <= 12) col = S.c[x <= 4 ? 3 : (x >= 11 ? 0 : 1)];   // straps
+        c.set(x, y, col);
+      }
+    c.set(8, 24, S.c[4]); c.set(8, 25, S.c[2]); c.set(9, 25, S.c[1]);   // the ring pull
+  }
+}
+
+Canvas longBedPiece(int variant);
+Canvas styledPiece(RoomStyle rs, int which, int variant) {
+  if (which == 4) return longBedPiece(variant);
+  if (which == 5) {   // a shop's counter segment: variant = part (0..2) | goods << 2
+    Canvas c(propW(Prop::CounterM), propH(Prop::CounterM));
+    counterSeg(c, variant & 3, (variant >> 2) & 3);
+    outline(c);
+    return c;
+  }
+  static const Prop props[4] = {Prop::StairsUp, Prop::StairsDown, Prop::DoorH, Prop::DoorV};
+  Prop p = props[std::clamp(which, 0, 3)];
+  Canvas c(propW(p), propH(p));
+  switch (which) {
+    case 0: stairsUpPaint(c, rs, variant & 7); break;
+    case 1: stairsDownPaint(c, rs, variant & 6); break;
+    case 2: doorHPaint(c, rs, (variant & 2) == 0); break;
+    default: doorVPaint(c, rs, (variant & 2) == 0); break;
+  }
+  outline(c);
+  return c;
+}
+
+// wall decor fitted to a partition's short face (16x32; the face is canvas rows 16..31): the decor's own painting moved
+// down onto the face and kept below the partition's top; the tall pieces get a small version of their own
+Canvas lowDecorPiece(int idx) {
+  Canvas c(16, 32);
+  Prop p = (Prop)((int)Prop::Tapestry + std::clamp(idx, 0, (int)Prop::HolySymbol - (int)Prop::Tapestry));
+  Canvas t(16, 30);
+  switch (p) {
+    case Prop::Tapestry: {   // a short pennant on a rod
+      hline(t, 2, 13, 1, kWoodDark[3]); hline(t, 2, 13, 2, kWoodDark[1]);
+      for (int y = 3; y <= 12; y++)
+        for (int x = 4; x <= 11; x++) {
+          int tip = 12 - std::abs(x * 2 - 15) / 3;
+          if (y > tip) continue;
+          int k = x == 4 ? 3 : (x == 11 ? 1 : 2);
+          bool border = x == 5 || x == 10 || y == 4;
+          t.set(x, y, border ? kGold[3] : kRed[k]);
+        }
+      t.set(7, 7, kGold[4]); t.set(8, 7, kGold[3]); t.set(7, 8, kGold[2]); t.set(8, 8, kGold[2]);
+      break;
+    }
+    case Prop::Window: {     // a shuttered hatch through the wall
+      for (int y = 2; y <= 11; y++)
+        for (int x = 3; x <= 12; x++) {
+          bool fr = x == 3 || x == 12 || y == 2 || y == 11;
+          uint32_t col = fr ? kWood[(x == 3 || y == 2) ? 3 : 1] : mix(kVoid, kWoodDark[1], 0.4f);
+          if (!fr && (x <= 4 || x >= 11)) col = kWood[x <= 4 ? 2 : 1];   // shutters folded back
+          t.set(x, y, col);
+        }
+      hline(t, 2, 13, 12, kWood[4]); hline(t, 2, 13, 13, kWood[2]);
+      break;
+    }
+    default: {
+      switch (p) {
+        case Prop::WallShelf: wallShelf(t); break;
+        case Prop::HerbBundle: herbBundle(t); break;
+        case Prop::Antlers: antlers(t); break;
+        case Prop::Painting: painting(t); break;
+        case Prop::Sconce: sconce(t, 0); break;
+        case Prop::WallShield: wallShield(t); break;
+        case Prop::ToolRack: toolRack(t); break;
+        case Prop::PanRack: panRack(t); break;
+        case Prop::Wreath: wreath(t); break;
+        default: holySymbol(t); break;
+      }
+      break;
+    }
+  }
+  // fit: the decor's top sits a pixel under the face's top edge; nothing below the face's skirting
+  int y0 = 99, y1 = -1;
+  for (int y = 0; y < t.h; y++)
+    for (int x = 0; x < t.w; x++)
+      if (chA(t.get(x, y))) { y0 = std::min(y0, y); y1 = std::max(y1, y); }
+  if (y1 < 0) return c;
+  int dy = 18 - y0;
+  for (int y = y0; y <= y1; y++)
+    for (int x = 0; x < 16; x++)
+      if (y + dy <= 29 && chA(t.get(x, y))) c.set(x, y + dy, t.get(x, y));
+  outline(c);
   return c;
 }
 
@@ -2632,6 +3429,371 @@ Canvas clutterPiece(int id) {
   return c;
 }
 
+// ---- M0b furniture (3/4 view, light from the top-left; outlined by propSprite) --------------------------------
+void flameAt(Canvas& c, int x, int y, int frame) {   // a candle flame whose base is at (x, y)
+  static const int fl[4][2] = {{3, 0}, {4, -1}, {3, 1}, {4, 0}};
+  int h = fl[frame & 3][0], sx = fl[frame & 3][1];
+  for (int k = 0; k < h; k++) c.set(x + (k == h - 1 ? sx : 0), y - k, kFire[k == 0 ? 2 : (k == h - 1 ? 4 : 3)]);
+  c.set(x, y - h, withA(kGlow[4], 120));
+}
+
+void nightstand(Canvas& c) {
+  const int W = c.w, base = c.h - 1;
+  block34(c, 1, 6, W - 2, 4, base - 9, kWood);
+  // a drawer with a brass knob, an open shelf below
+  for (int x = 2; x <= W - 3; x++) { c.set(x, 11, kWood[1]); c.set(x, 13, kWood[3]); }
+  c.set(W / 2 - 1, 12, kBrass[4]); c.set(W / 2, 12, kBrass[2]);
+  for (int y = 14; y <= base - 1; y++) for (int x = 2; x <= W - 3; x++) c.set(x, y, y == 14 ? kWoodDark[0] : kWoodDark[1]);
+  bookAt(c, 3, base - 1, kBlueCloth);
+  for (int x = 1; x <= W - 2; x++) c.set(x, base, kWood[0]);
+  // a candle in a brass dish
+  hline(c, 2, 5, 8, kBrass[1]); hline(c, 2, 5, 7, kBrass[3]);
+  candleAt(c, 3, 6, 4);
+  c.set(8, 8, kCloth[3]); c.set(9, 8, kCloth[2]); c.set(8, 7, kCloth[4]);   // a folded note
+}
+
+void washstand(Canvas& c) {
+  const int W = c.w, base = c.h - 1;
+  block34(c, 1, 9, W - 2, 4, base - 12, kWood);
+  // an open shelf with a folded towel and a soap dish
+  for (int y = 15; y <= base - 2; y++) for (int x = 2; x <= W - 3; x++) c.set(x, y, y == 15 ? kWoodDark[0] : kWoodDark[1]);
+  for (int y = 16; y <= base - 2; y++) for (int x = 3; x <= 7; x++) c.set(x, y, y == 16 ? kWhite : (x == 7 ? kCloth[2] : kCloth[3]));
+  hline(c, 9, 11, base - 2, kPewter[3]); c.set(10, base - 3, kBone[4]);
+  for (int x = 1; x <= W - 2; x++) c.set(x, base, kWood[0]);
+  // the basin on top: a glazed bowl with water
+  ellipse(c, 6.0f, 10.5f, 4.6f, 2.2f, kBone[1]);
+  ellipse(c, 6.0f, 10.2f, 4.0f, 1.7f, kBone[4]);
+  ellipse(c, 6.0f, 10.6f, 3.0f, 1.1f, kWater[3]);
+  c.set(4, 10, kWater[4]);
+  hline(c, 3, 9, 12, kBone[2]);
+  // a jug beside it
+  ball(c, 11.5f, 8.5f, 2.0f, 2.6f, kBlueCloth);
+  vline(c, 11, 4, 6, kBlueCloth[2]); c.set(12, 4, kBlueCloth[1]); c.set(11, 3, kBlueCloth[3]);
+  c.set(13, 7, kBlueCloth[1]); c.set(13, 8, kBlueCloth[0]);
+  // a towel over the side rail
+  for (int y = 13; y <= 18; y++) { c.set(W - 2, y, y % 3 == 0 ? kRed[2] : kWhite); c.set(W - 1, y, kCloth[2]); }
+}
+
+void oven(Canvas& c, int frame) {
+  const int W = c.w, base = c.h - 1;
+  // a stone hearth slab, a brick body with a dome on top and a smoke flue, the arched mouth glowing
+  for (int y = base - 3; y <= base; y++)
+    for (int x = 0; x < W; x++) c.set(x, y, kStone[y == base - 3 ? 4 : (y == base ? 0 : (x == 0 ? 3 : (x == W - 1 ? 1 : 2)))]);
+  for (int y = 9; y <= base - 4; y++)
+    for (int x = 1; x <= W - 2; x++) {
+      float t = (x - 1 + 0.5f) / (W - 2) * 2 - 1;
+      int k = lightIndex(lightAt(t * 0.9f, 0), x, y, 0.05f);
+      int row = (y - 9) / 3, sh = (row & 1) * 3;
+      bool mortar = (y - 9) % 3 == 2 || (x + sh) % 6 == 0;
+      c.set(x, y, mortar ? kBrick[std::max(0, k - 1)] : kBrick[k]);
+    }
+  for (int y = 1; y <= 12; y++)
+    for (int x = 1; x <= W - 2; x++) {
+      float dx = (x + 0.5f - W * 0.5f) / (W * 0.5f - 1), dy = (y - 11.0f) / 9.5f;
+      if (dx * dx + dy * dy > 1.0f || y > 10) continue;
+      int k = lightIndex(lightAt(dx * 0.9f, dy * 0.9f), x, y, 0.08f);
+      c.set(x, y, kBrick[k]);
+    }
+  for (int x = 1; x <= W - 2; x++) c.set(x, 10, kBrick[1]);
+  for (int y = 0; y <= 3; y++) { c.set(9, y, kSoot[3]); c.set(10, y, kSoot[2]); c.set(11, y, kSoot[1]); }
+  hline(c, 9, 11, 0, kSoot[4]);
+  // the mouth: an arch of headers, the fire inside, embers spilling onto the slab
+  for (int y = 13; y <= base - 4; y++)
+    for (int x = 4; x <= W - 5; x++) {
+      float ax = std::fabs(x + 0.5f - W * 0.5f);
+      if (y < 13 + (int)(ax * ax / 5.0f)) continue;
+      int d = base - 4 - y;
+      uint32_t col = mix(kVoid, kBrick[0], 0.4f);
+      int flick = (int)(hash3(x, frame, 1001) % 3);
+      if (d <= 1 + flick) col = kFire[d == 0 ? 3 : 2];
+      else if (d <= 3 + flick) col = kFire[1];
+      if (d == 0 && (x + frame) % 3 == 0) col = kGlow[4];
+      c.set(x, y, col);
+    }
+  for (int x = 3; x <= W - 4; x++) {
+    float ax = std::fabs(x + 0.5f - W * 0.5f);
+    int y = 12 + (int)(ax * ax / 5.0f);
+    if (y < base - 4) c.set(x, y, kBrick[4]);
+  }
+  c.set(5 + frame % 3, base - 3, kFire[3]); c.set(10 - frame % 2, base - 3, kFire[2]);
+  // a peel leaning on the side
+  line(c, W - 2, 6, W - 1, base - 4, kWood[3]);
+}
+
+void prepTable(Canvas& c) {
+  tableSmall(c, 0);
+  const int top = c.h - 15;
+  // a chopping board with a cleaver, carrots, an onion and a cabbage
+  for (int y = top + 2; y <= top + 5; y++) for (int x = 2; x <= 8; x++) c.set(x, y, y == top + 5 ? kWood[2] : (x == 2 || y == top + 2 ? kWood[4] : kThatch[3]));
+  hline(c, 4, 7, top + 3, kPewter[4]); hline(c, 4, 7, top + 4, kPewter[2]); c.set(3, top + 4, kWoodDark[1]); c.set(3, top + 3, kWoodDark[2]);
+  for (int i = 0; i < 2; i++) { int y = top + 6 + i; hline(c, 3 + i, 6 + i, y, kOchre[3]); c.set(7 + i, y, kGreenCloth[3]); }
+  ball(c, 11.5f, top + 3.0f, 2.4f, 2.2f, kGreenCloth);
+  c.set(11, top + 2, kGreenCloth[4]);
+  ball(c, 12.5f, top + 6.5f, 1.4f, 1.3f, kBone);
+  c.set(13, top + 5, kGreenCloth[2]);
+}
+
+void bottleShelf(Canvas& c) {
+  const int W = c.w, base = c.h - 1;
+  const Ramp& R = kWoodDark;
+  // a crowned back shelf: two shelves of bottles, mugs on the lowest, a closed cupboard below
+  for (int x = 0; x < W; x++) { c.set(x, 0, kWood[4]); c.set(x, 1, kWood[2]); c.set(x, 2, kWood[0]); }
+  for (int y = 3; y <= base; y++) { c.set(0, y, R[4]); c.set(1, y, R[3]); c.set(W - 2, y, R[2]); c.set(W - 1, y, R[1]); }
+  static const Ramp* glass[5] = {&kGlassG, &kRed, &kBrass, &kBlueCloth, &kPurple};
+  for (int s = 0; s < 3; s++) {
+    int y0 = 3 + s * 7, y1 = y0 + 6;
+    for (int y = y0; y < y1; y++) for (int x = 2; x <= W - 3; x++) c.set(x, y, y == y0 ? R[0] : R[1]);
+    hline(c, 1, W - 2, y1, kWood[4]);
+    if (s < 2) {
+      for (int i = 0; i < 4; i++) {
+        int x = 3 + i * 3, h = 4 + (int)(hash3(i, s, 1011) % 2);
+        const Ramp& G = *glass[(i + s * 2) % 5];
+        for (int y = y1 - h; y < y1; y++) { c.set(x, y, G[2]); c.set(x + 1, y, G[1]); }
+        c.set(x, y1 - h + 1, G[4]);
+        c.set(x, y1 - h - 1, kWood[2]);   // the cork
+        if (i == 1 && s == 0) c.set(x + 1, y1 - h - 1, kWood[1]);
+      }
+    } else {
+      mugAt(c, 3, y1 - 1, false);
+      mugAt(c, 8, y1 - 1, false);
+      c.set(12, y1 - 1, kClay[2]); c.set(12, y1 - 2, kClay[3]); c.set(13, y1 - 1, kClay[1]); c.set(12, y1 - 3, kClay[3]);
+    }
+  }
+  for (int y = 25; y <= base - 1; y++)
+    for (int x = 2; x <= W - 3; x++) {
+      bool edge = x == 2 || x == W - 3 || y == 25 || y == base - 1 || x == W / 2;
+      c.set(x, y, edge ? kWood[x == 2 || y == 25 ? 3 : 1] : kWood[2]);
+    }
+  c.set(W / 2 - 2, 29, kBrass[4]); c.set(W / 2 + 1, 29, kBrass[3]);
+  for (int x = 0; x < W; x++) c.set(x, base, R[0]);
+}
+
+void weaponRack(Canvas& c) {
+  const int W = c.w, base = c.h - 1;
+  // spears behind, a frame of two uprights with a slotted top rail and a foot box, swords in the slots, a shield
+  for (int sx : {3, 12}) {
+    vline(c, sx, 3, base - 3, kWood[2]); vline(c, sx + 1, 3, base - 3, kWood[1]);
+    c.set(sx, 0, kIron[4]); c.set(sx, 1, kIron[3]); c.set(sx + 1, 1, kIron[2]); c.set(sx, 2, kIron[2]); c.set(sx + 1, 2, kIron[1]);
+  }
+  for (int sx : {6, 9}) {
+    hline(c, sx - 1, sx + 1, 9, kBrass[3]); c.set(sx + 1, 9, kBrass[1]);
+    vline(c, sx, 6, 8, kLeather[2]); c.set(sx, 5, kBrass[4]);
+    for (int y = 10; y <= base - 5; y++) { c.set(sx, y, kIron[4]); c.set(sx + 1, y, kIron[2]); }
+  }
+  for (int uy : {0, 1}) {
+    int x = uy ? W - 2 : 0;
+    for (int y = 6; y <= base; y++) { c.set(x, y, kWood[uy ? 1 : 3]); c.set(x + 1, y, kWood[uy ? 0 : 2]); }
+    c.set(x, 5, kWood[4]); c.set(x + 1, 5, kWood[3]);
+  }
+  for (int x = 0; x < W; x++) { c.set(x, 11, kWood[x == 0 ? 4 : 3]); c.set(x, 12, kWood[1]); }
+  block34(c, 1, base - 5, W - 2, 2, 4, kWood);
+  // a round shield leaning against the foot
+  ball(c, 11.0f, base - 6.0f, 4.0f, 4.6f, kRed);
+  for (int a = 0; a < 24; a++) {
+    float t = a / 24.0f * 6.2832f;
+    c.set((int)std::lround(11.0f + std::cos(t) * 3.8f), (int)std::lround(base - 6.0f + std::sin(t) * 4.4f), kIron[a < 12 ? 2 : 3]);
+  }
+  ball(c, 11.0f, base - 6.0f, 1.3f, 1.3f, kIron);
+}
+
+void lectern(Canvas& c) {
+  const int W = c.w, base = c.h - 1;
+  // a slanted reading desk on a turned post, a big book open on it, a ribbon hanging down
+  for (int y = 2; y <= 8; y++)
+    for (int x = 0; x < W; x++) {
+      int k = y == 8 ? 4 : (y >= 7 ? 1 : 3);
+      if (x == 0) k = std::min(4, k + 1);
+      if (x == W - 1) k = std::max(0, k - 1);
+      c.set(x, y, kWood[k]);
+    }
+  for (int y = 9; y <= 10; y++) for (int x = 1; x < W - 1; x++) c.set(x, y, kWood[y == 9 ? 1 : 2]);
+  for (int y = 1; y <= 6; y++)
+    for (int x = 1; x <= W - 2; x++) {
+      bool gutter = x == W / 2 || x == W / 2 - 1;
+      uint32_t col = gutter ? kCloth[2] : (y == 1 ? kCloth[3] : kWhite);
+      if (!gutter && y >= 2 && y <= 5 && x % 2 == 0 && x != 1 && x != W - 2) col = kCloth[3];   // lines of text
+      c.set(x, y, col);
+    }
+  vline(c, W / 2, 7, 12, kRed[2]);
+  for (int y = 11; y <= base - 2; y++) { c.set(W / 2 - 1, y, kWood[3]); c.set(W / 2, y, kWood[2]); c.set(W / 2 + 1, y, kWood[1]); }
+  c.set(W / 2 - 1, 14, kWood[4]);
+  for (int x = 2; x <= W - 3; x++) { c.set(x, base - 1, kWood[x == 2 ? 3 : 2]); c.set(x, base, kWood[0]); }
+}
+
+void candelabra(Canvas& c, int frame) {
+  const int W = c.w, base = c.h - 1;
+  const Ramp& R = kBrass;
+  // a tripod foot, a turned stem with knops, two arms and a central socket, three candles
+  for (int k = 0; k < 3; k++) { c.set(W / 2 - 1 - k, base - 2 + k, R[3]); c.set(W / 2 + k, base - 2 + k, R[1]); }
+  c.set(W / 2, base, R[2]);
+  for (int y = 9; y <= base - 2; y++) { c.set(W / 2 - 1, y, R[3]); c.set(W / 2, y, R[1]); }
+  for (int ky : {14, 20}) { c.set(W / 2 - 2, ky, R[4]); c.set(W / 2 + 1, ky, R[1]); c.set(W / 2 - 1, ky, R[4]); }
+  for (int x = 1; x <= W - 2; x++) c.set(x, 10, x < W / 2 ? R[3] : R[2]);
+  c.set(1, 9, R[3]); c.set(W - 2, 9, R[2]);
+  for (int cx : {1, W / 2 - 1, W - 3}) {
+    int cy = cx == W / 2 - 1 ? 8 : 9, h = cx == W / 2 - 1 ? 5 : 4;
+    hline(c, cx - (cx == 1 ? 0 : 0), cx + 1, cy, R[4]);
+    vline(c, cx, cy - h, cy - 1, kCloth[4]); vline(c, cx + 1, cy - h, cy - 1, kCloth[2]);
+    flameAt(c, cx, cy - h - 1, frame + cx);
+  }
+}
+
+void displayTable(Canvas& c) {
+  const int W = c.w, base = c.h - 1;
+  const int top = c.h - 15;
+  // a trestle table under a green cloth that hangs to a fringed edge, wares laid out on it
+  tableLegs(c, 2, top + 9, base, kWood, false);
+  tableLegs(c, 12, top + 9, base, kWood, false);
+  for (int y = top; y <= top + 11; y++)
+    for (int x = 0; x < W; x++) {
+      int k = 3;
+      if (y >= top + 7) k = (x == 0 ? 3 : (x == W - 1 ? 1 : 2));
+      if (y == top + 6) k = 4;
+      if (y >= top + 7 && (x % 4 == 1)) k = std::max(0, k - 1);   // folds
+      if (y == top + 11) { if (x % 2) continue; k = 1; }
+      c.set(x, y, kGreenCloth[k]);
+    }
+  for (int x = 1; x < W - 1; x++) c.set(x, top + 7, kGold[x % 3 == 0 ? 3 : 2]);   // a braided hem
+  // wares: a little pile of coins, a red potion, a gem, a dagger, a scroll
+  c.set(3, top + 4, kGold[4]); c.set(4, top + 4, kGold[3]); c.set(3, top + 5, kGold[2]); c.set(4, top + 5, kGold[2]); c.set(5, top + 5, kGold[1]); c.set(4, top + 3, kGold[4]);
+  ball(c, 8.0f, top + 3.5f, 1.5f, 1.6f, kRed); c.set(8, top + 1, kWood[2]); c.set(7, top + 3, kRed[4]);
+  c.set(12, top + 2, kCrystal[4]); c.set(11, top + 3, kCrystal[3]); c.set(12, top + 3, kCrystal[2]); c.set(13, top + 3, kCrystal[1]);
+  hline(c, 10, 14, top + 5, kIron[4]); c.set(9, top + 5, kLeather[2]); c.set(10, top + 4, kBrass[3]); c.set(10, top + 6, kBrass[2]);
+  hline(c, 2, 5, top + 1, kCloth[4]); c.set(2, top + 2, kCloth[2]); c.set(5, top + 2, kCloth[2]);
+}
+
+void quenchTub(Canvas& c) {
+  const int W = c.w, base = c.h - 1;
+  // a low cooper's tub with iron hoops, dark water in it, tongs hanging over the rim
+  for (int y = 7; y <= base; y++)
+    for (int x = 1; x <= W - 2; x++) {
+      float t = (x - 1 + 0.5f) / (W - 2) * 2 - 1;
+      int k = lightIndex(lightAt(t * 0.95f, 0), x, y, 0.04f);
+      uint32_t col = kWood[k];
+      if ((x - 1) % 3 == 2) col = kWood[std::max(0, k - 1)];
+      if (y == 9 || y == base - 2) col = kIron[std::min(4, k + 1)];
+      if (y == base) col = kWood[0];
+      c.set(x, y, col);
+    }
+  ellipse(c, W * 0.5f, 6.5f, W * 0.5f - 0.5f, 2.6f, kWood[3]);
+  ellipse(c, W * 0.5f, 6.6f, W * 0.5f - 2.0f, 1.8f, kWater[0]);
+  hline(c, 5, 8, 6, kWater[2]); c.set(6, 5, kWater[3]);
+  for (int x = 2; x <= W - 3; x++) c.set(x, 4, kWood[4]);
+  // tongs
+  line(c, 10, 6, 13, 0, kIron[3]); line(c, 11, 6, 14, 1, kIron[1]);
+  c.set(13, 0, kIron[4]); c.set(14, 0, kIron[2]);
+}
+
+void grindstone(Canvas& c) {
+  const int W = c.w, base = c.h - 1;
+  // a sandstone wheel on an axle in a trestle frame, a trough under it, a crank on the side
+  for (int y = 12; y <= base; y++) {
+    c.set(2, y, kWood[3]); c.set(3, y, kWood[1]);
+    c.set(W - 4, y, kWood[2]); c.set(W - 3, y, kWood[0]);
+  }
+  block34(c, 3, 14, W - 6, 2, 3, kWood);
+  for (int x = 4; x <= W - 5; x++) c.set(x, 14, kWater[x % 3 == 0 ? 3 : 2]);
+  // the wheel stands across our view: we see its rim edge-on, a worn grey sandstone band
+  for (int y = 2; y <= 15; y++)
+    for (int x = 5; x <= W - 6; x++) {
+      float dy = (y + 0.5f - 8.5f) / 6.8f, dx = (x + 0.5f - W * 0.5f) / 3.2f;
+      if (dx * dx + dy * dy > 1.0f) continue;
+      int k = lightIndex(lightAt(dx * 0.8f, dy * 0.7f), x, y, 0.08f);
+      c.set(x, y, (y % 3 == 0 && k > 1) ? kStone[k - 1] : kStone[k]);
+    }
+  hline(c, 1, W - 2, 9, kIron[1]); c.set(1, 9, kIron[3]);
+  vline(c, W - 1, 9, 12, kIron[2]); c.set(W - 1, 12, kWood[3]); c.set(W - 1, 13, kWood[2]);
+}
+
+void pillar(Canvas& c) {
+  const int W = c.w, base = c.h - 1;
+  const Ramp& R = kStoneWarm;
+  // abacus and capital, a fluted shaft lit from the left, a moulded base on a plinth
+  for (int y = 0; y <= 2; y++) for (int x = 0; x < W; x++) c.set(x, y, R[y == 0 ? 4 : (y == 2 ? 2 : 3)]);
+  for (int y = 3; y <= 4; y++) for (int x = 0; x < W; x++) c.set(x, y, R[y == 3 ? 2 : 1]);
+  for (int y = 5; y <= 7; y++)
+    for (int x = 1 + (y - 5); x <= W - 2 - (y - 5); x++) c.set(x, y, R[x < W / 2 ? 3 : 2]);
+  for (int y = 8; y <= base - 7; y++)
+    for (int x = 3; x <= W - 4; x++) {
+      float t = (x - 3 + 0.5f) / (W - 6) * 2 - 1;
+      int k = lightIndex(lightAt(t * 0.95f, 0), x, y, 0.0f);
+      if ((x - 3) % 3 == 2) k = std::max(0, k - 1);   // flutes
+      c.set(x, y, R[k]);
+    }
+  for (int x = 3; x <= W - 4; x++) { c.set(x, 8, R[1]); c.set(x, base - 7, R[1]); }
+  for (int y = base - 6; y <= base - 4; y++) for (int x = 2; x <= W - 3; x++) c.set(x, y, R[y == base - 6 ? 4 : (x < W / 2 ? 3 : 2)]);
+  for (int y = base - 3; y <= base; y++) for (int x = 0; x < W; x++) c.set(x, y, R[y == base - 3 ? 4 : (y == base ? 0 : (x == 0 ? 3 : (x == W - 1 ? 1 : 2)))]);
+}
+
+void bunkBed(Canvas& c) {
+  const int W = c.w, H = c.h;
+  // the lower bunk is an ordinary bed; the upper deck stands over its head end on four tall posts
+  Canvas lower(20, 32);
+  bed(lower);
+  blit(c, lower, 0, H - 32);
+  const int d0 = 3, d1 = 19;   // the upper mattress rows
+  for (int y = d0; y <= d1; y++)
+    for (int x = 2; x <= W - 3; x++) {
+      uint32_t col;
+      if (y <= d0 + 4) {   // pillow
+        float dx = (x + 0.5f - W * 0.5f) / (W * 0.5f - 3), dy = (y - d0 - 2.0f) / 2.4f;
+        col = dx * dx * dx * dx + dy * dy > 1.0f ? kCloth[2] : (dy < 0 ? kWhite : kCloth[4]);
+      } else {
+        bool patch = (((x - 2) / 4) + ((y - d0 - 5) / 4)) % 2 == 0;
+        int k = patch ? 2 : 3;
+        if (x == 2) k++;
+        if (x >= W - 4) k--;
+        if (y == d0 + 5) k--;
+        if (((x - 2) % 4 == 0 || (y - d0 - 5) % 4 == 0) && x > 2) k--;
+        col = patch ? kGreenCloth[std::clamp(k, 0, 4)] : kCloth[std::clamp(k, 0, 4)];
+      }
+      c.set(x, y, col);
+    }
+  // the deck's side rail and its shadow on the lower bunk
+  for (int x = 1; x <= W - 2; x++) { c.set(x, d1 + 1, kWood[4]); c.set(x, d1 + 2, kWood[2]); c.set(x, d1 + 3, kWood[1]); }
+  for (int y = d1 + 4; y <= d1 + 7; y++)
+    for (int x = 2; x <= W - 3; x++) c.set(x, y, darken(c.get(x, y), 0.5f - (y - d1 - 4) * 0.12f));
+  // posts and the upper headboard
+  for (int side = 0; side < 2; side++) {
+    int x0 = side ? W - 2 : 0;
+    for (int y = 0; y < H; y++) { c.set(x0, y, kWood[side ? 2 : 4]); c.set(x0 + 1, y, kWood[side ? 0 : 2]); }
+    c.set(x0, 0, kWood[4]); c.set(x0 + 1, 0, kWood[3]);
+  }
+  for (int x = 2; x <= W - 3; x++) { c.set(x, 1, kWood[4]); c.set(x, 2, kWood[2]); }
+  // a ladder up the right side
+  for (int y = d1 + 2; y <= H - 4; y++) { c.set(W - 6, y, kWood[3]); c.set(W - 3, y, kWood[1]); }
+  for (int y = d1 + 4; y <= H - 5; y += 4) { c.set(W - 5, y, kWood[3]); c.set(W - 4, y, kWood[2]); }
+}
+
+void dresser(Canvas& c) {
+  const int W = c.w, base = c.h - 1;
+  // a chest of three drawers with a framed mirror standing on it
+  for (int y = 1; y <= 12; y++)
+    for (int x = 3; x <= W - 4; x++) {
+      float dx = (x + 0.5f - W * 0.5f) / (W * 0.5f - 3), dy = (y - 6.5f) / 6.0f;
+      float d = dx * dx + dy * dy;
+      if (d > 1.0f) continue;
+      uint32_t col;
+      if (d > 0.62f) col = kWood[(dx < 0 && dy < 0.3f) ? 4 : (dx > 0.3f ? 1 : 2)];
+      else {
+        col = dy < -0.2f ? kSky[3] : (dy < 0.4f ? kSky[2] : kSky[1]);
+        if (std::fabs(dx + dy * 0.8f + 0.2f) < 0.16f) col = kSky[4];   // a glint
+      }
+      c.set(x, y, col);
+    }
+  vline(c, W / 2 - 1, 12, 13, kWood[2]); vline(c, W / 2, 12, 13, kWood[1]);
+  block34(c, 1, 14, W - 2, 3, base - 16, kWood);
+  for (int d = 0; d < 3; d++) {
+    int y = 18 + d * 4;
+    for (int x = 2; x <= W - 3; x++) { c.set(x, y, kWood[1]); c.set(x, y + 1, kWood[3]); }
+    c.set(W / 2 - 3, y + 2, kBrass[4]); c.set(W / 2 + 2, y + 2, kBrass[3]);
+  }
+  for (int x = 1; x <= W - 2; x++) c.set(x, base, kWood[0]);
+  c.set(1, base, kWood[1]);
+  // a comb and a little bottle of scent on top
+  hline(c, 3, 5, 15, kBone[3]); c.set(11, 14, kPurple[3]); c.set(11, 15, kPurple[2]); c.set(11, 13, kBrass[3]);
+}
+
 // prop sizes ----------------------------------------------------------------------------------------
 struct PropInfo { uint8_t w, h, frames; };
 const PropInfo kPropInfo[(int)Prop::COUNT] = {
@@ -2652,7 +3814,35 @@ const PropInfo kPropInfo[(int)Prop::COUNT] = {
   {16, 34, 1}, {16, 36, 1}, {12, 12, 1}, {16, 12, 1}, {16, 16, 1}, {16, 22, 1}, {16, 30, 1}, {16, 20, 1}, {16, 20, 1}, {48, 64, 4}, {48, 60, 4},
   // TableSmall TableMeal TableWork TableL TableM TableR CounterL CounterM CounterR Filler
   {16, 18, 1}, {16, 18, 1}, {16, 18, 1}, {16, 18, 1}, {16, 18, 1}, {16, 18, 1}, {16, 22, 1}, {16, 22, 1}, {16, 22, 1}, {1, 1, 1},
+  // M0b: StairsUp StairsDown DoorH DoorV Nightstand Washstand Oven PrepTable BottleShelf WeaponRack Lectern Candelabra
+  //      DisplayTable QuenchTub Grindstone Pillar BunkBed Dresser
+  {16, 40, 1}, {16, 24, 1}, {16, 36, 1}, {16, 32, 1}, {12, 16, 1}, {14, 20, 1}, {16, 28, 4}, {16, 18, 1}, {16, 34, 1}, {16, 30, 1},
+  {12, 20, 1}, {10, 28, 4}, {16, 18, 1}, {16, 16, 1}, {16, 20, 1}, {16, 48, 1}, {20, 40, 1}, {16, 30, 1},
 };
+
+void m0bProp(Canvas& c, Prop p, int frame) {
+  switch (p) {
+    case Prop::StairsUp: stairsUpPaint(c, RoomStyle::Timber, 0); break;
+    case Prop::StairsDown: stairsDownPaint(c, RoomStyle::Timber, 0); break;
+    case Prop::DoorH: doorHPaint(c, RoomStyle::Timber, true); break;
+    case Prop::DoorV: doorVPaint(c, RoomStyle::Timber, true); break;
+    case Prop::Nightstand: nightstand(c); break;
+    case Prop::Washstand: washstand(c); break;
+    case Prop::Oven: oven(c, frame); break;
+    case Prop::PrepTable: prepTable(c); break;
+    case Prop::BottleShelf: bottleShelf(c); break;
+    case Prop::WeaponRack: weaponRack(c); break;
+    case Prop::Lectern: lectern(c); break;
+    case Prop::Candelabra: candelabra(c, frame); break;
+    case Prop::DisplayTable: displayTable(c); break;
+    case Prop::QuenchTub: quenchTub(c); break;
+    case Prop::Grindstone: grindstone(c); break;
+    case Prop::Pillar: pillar(c); break;
+    case Prop::BunkBed: bunkBed(c); break;
+    case Prop::Dresser: dresser(c); break;
+    default: break;
+  }
+}
 
 void paintProp(Canvas& c, Prop p, int frame) {
   switch (p) {
@@ -2799,7 +3989,7 @@ void paintProp(Canvas& c, Prop p, int frame) {
     case Prop::CounterM: counterSeg(c, 1); break;
     case Prop::CounterR: counterSeg(c, 2); break;
     case Prop::Filler: filler(c); break;
-    default: break;
+    default: if ((int)p >= (int)Prop::StairsUp) m0bProp(c, p, frame); break;
   }
 }
 
@@ -2825,8 +4015,13 @@ Canvas interiorPiece(uint32_t key) {
   int kind = (int)(key & 255), style = (int)((key >> 8) & 255), a = (int)((key >> 16) & 255), b = (int)((key >> 24) & 255);
   switch ((Piece)kind) {
     case Piece::Floor: return floorPiece((FloorStyle)(style & 7), style >> 3, a, b);
-    case Piece::BackWall: return backWallPiece((RoomStyle)(style & 15), style & 48, a);
-    case Piece::Cap: return capPiece((RoomStyle)(style & 7), a, b, style >> 3);
+    case Piece::BackWall: return backWallPiece((RoomStyle)(style & 15), style & 240, a);
+    case Piece::Cap: return capPiece((RoomStyle)(style & 7), a, b & 127, (style >> 3) & 7, ((style & 64) ? 1 : 0) | ((style & 128) ? 2 : 0) | ((b & 128) ? 4 : 0));
+    case Piece::PartFace: return partFacePiece((RoomStyle)(style & 7), (style >> 3) & 3, (style >> 5) & 3, a, b);
+    case Piece::PartCap: return partCapPiece((RoomStyle)(style & 7), style >> 3, a, b);
+    case Piece::Sill: return sillPiece((RoomStyle)(style & 7), a);
+    case Piece::Styled: return styledPiece((RoomStyle)(style & 7), a, b);
+    case Piece::LowDecor: return lowDecorPiece(style);
     case Piece::Shadow: return shadowPiece(a, b);
     case Piece::Rug: return rugPiece(style, a);
     case Piece::Clutter: return clutterPiece(style);

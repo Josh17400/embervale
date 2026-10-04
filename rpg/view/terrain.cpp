@@ -620,7 +620,7 @@ static void bakeArchShadows(const Map& m, int cx, int cy, Canvas& c) {
     int fx = b.r.x * 16, fy = b.r.y * 16, fw = b.r.w * 16, fh = b.r.h * 16;
     if (fx > x1 + 4 || fy > y1 + 4 || fx + fw + 24 < x0 || fy + fh + 16 < y0) continue;
     art::ArchStyle st = art::withRoofTint(art::archForBiome((int)m.biomeAt(b.r.x + b.r.w / 2, b.r.y + b.r.h / 2), b.seed), b.roof);
-    int hgt = art::buildingHeight(b.type, b.r.w, b.r.h, st);
+    int hgt = art::buildingHeight(b.type, b.r.w, b.r.h, st, bldgFacts(b));
     int L = std::clamp(hgt / 4, 6, 14), Ly = std::max(3, L * 3 / 5);
     for (int py = std::max(y0, fy); py < std::min(y1, fy + fh + Ly + 2); py++)
       for (int px = std::max(x0, fx); px < std::min(x1, fx + fw + L + 2); px++) {

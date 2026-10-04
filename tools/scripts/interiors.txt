@@ -2,6 +2,7 @@
 #   embervale.exe --script tools/scripts/interiors.txt [--seed 7]      (also seeds 7 and 99)
 # Screenshots land in the working directory. Exit code 3 if an expect/walkto fails.
 seed 2
+worldgen 6                   # written against generator-v6 worlds (coordinates, names, the M0 rooms)
 0.3  newgame                     # self-starting: works with or without --play
 0.5  expect mode play
 0.6  god

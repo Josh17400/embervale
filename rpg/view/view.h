@@ -119,7 +119,7 @@ class View {
   bool scriptKeys_[512] = {};   // indexed by SDL_Scancode (SDL_SCANCODE_COUNT is 512)
   bool kAttack_ = false, kBow_ = false, kSpell_ = false, kRoll_ = false, kUse_ = false, kPotion_ = false, kSwap_ = false;
   bool kTapAttack_ = false;   // this attack came from a tap on the open world (never turned into a talk)
-  struct Finger { uint64_t id = 0; bool on = false; Vec2 start, cur; int button = -1; };
+  struct Finger { uint64_t id = 0; bool on = false; Vec2 start, cur; int button = -1; uint64_t t0 = 0; };   // t0: SDL_GetTicks at the touch
   Finger stick_;
   std::vector<Finger> fingers_;
   bool mouseDown_ = false;

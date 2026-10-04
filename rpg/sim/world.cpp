@@ -319,9 +319,19 @@ struct Gen {
       }
     return true;
   }
+  // WORLDGEN_V7: storeys and hearths are hashed per building index on their own stream (no rng draw moves)
+  uint32_t storeyHash(int index) const { return hash32((uint32_t)genSubSeed(seed64, "storeys") ^ (uint32_t)index * 0x9E3779B1u); }
+  int storeysFor(art::Building type, int w, int h) const {
+    return ver >= WORLDGEN_V7 ? bldgStoreysV7(type, w, h, storeyHash((int)M.bldgs.size())) : art::defaultStoreys(type);
+  }
+  int riseOf(art::Building t, int storeys) const { return ver >= WORLDGEN_V7 ? bldgRiseTiles(t, storeys) : bldgRiseTiles(t); }
   int putBldg(art::Building type, IRect r, int site, Role owner) {
     Bldg b;
-    b.type = type; b.r = r; b.site = site; b.owner = owner; b.seed = rng.next();
+    b.type = type; b.r = r; b.site = site; b.owner = owner;
+    b.storeys = (uint8_t)storeysFor(type, r.w, r.h);
+    b.hearth = ver >= WORLDGEN_V7 ? bldgHearthV7(type, b.storeys, hash32(storeyHash((int)M.bldgs.size()) + 77u)) : true;
+    b.biome = M.biomeAt(r.x + r.w / 2, r.y + r.h / 2);
+    b.seed = rng.next();
     b.genVer = ver;
     static const uint32_t roofs[] = {rgba(150, 62, 48), rgba(84, 92, 120), rgba(110, 78, 52), rgba(70, 100, 80), rgba(130, 100, 60), rgba(96, 60, 90)};
     b.roof = (type == art::Building::House || type == art::Building::StoneHouse) ? roofs[rng.irange(6)] : 0;
@@ -735,21 +745,21 @@ struct Gen {
 
   // WORLDGEN_V5: how many tiles a building's sprite rises above its footprint's top row (roof, steeple, cone),
   // generous on purpose. A generator constant, not measured from the art, so art changes never move buildings.
-  static int riseTiles(art::Building t) { return bldgRiseTiles(t); }
+  // (WORLDGEN_V7: and its storeys, riseOf)
   // WORLDGEN_V5: no sprite covers another building's front (its foundation row and doorstep) or the apron in front
   // of its door, in either direction; and a sprite's sides (eaves, wings) keep a tile from the neighbour.
-  bool clearOfNeighboursV5(const Town& T, IRect r, art::Building type) {
-    auto spriteOf = [&](IRect f, art::Building t) { int up = riseTiles(t); return IRect{f.x - 1, f.y - up, f.w + 2, f.h + up + 1}; };
+  bool clearOfNeighboursV5(const Town& T, IRect r, art::Building type, int storeys) {
+    auto spriteOf = [&](IRect f, art::Building t, int s) { int up = riseOf(t, s); return IRect{f.x - 1, f.y - up, f.w + 2, f.h + up + 1}; };
     auto frontOf = [&](IRect f, int doorX) {
       IRect a{f.x, f.y + f.h - 1, f.w, 1};            // the foundation row (front wall foot)
       IRect b{doorX - 1, f.y + f.h, 3, 2};              // the doorstep and the apron before it
       return std::make_pair(a, b);
     };
-    const IRect sN = spriteOf(r, type);
+    const IRect sN = spriteOf(r, type, storeys);
     const auto fN = frontOf(r, r.x + r.w / 2);
     for (int i = W.sites[T.si].bldgFirst; i < (int)M.bldgs.size(); i++) {
       const Bldg& E = M.bldgs[i];
-      const IRect sE = spriteOf(E.r, E.type);
+      const IRect sE = spriteOf(E.r, E.type, E.storeys);
       const auto fE = frontOf(E.r, E.doorX());
       if (sN.overlaps(fE.first) || sN.overlaps(fE.second) || sE.overlaps(fN.first) || sE.overlaps(fN.second)) return false;
     }
@@ -770,7 +780,7 @@ struct Gen {
       if (T.get(ax, ay) == 1 && rng.f() < 0.5f) ay -= 1;
       IRect r{ax - bw / 2, ay - bh, bw, bh};
       if (!footprintFree(T, r, T.city, wallR)) continue;
-      if (ver >= WORLDGEN_V5 && !clearOfNeighboursV5(T, r, type)) continue;
+      if (ver >= WORLDGEN_V5 && !clearOfNeighboursV5(T, r, type, storeysFor(type, bw, bh))) continue;
       if (ver >= WORLDGEN_V5 && T.city) {   // a front door opens onto the street, never onto the city wall a step away
         bool wallInFront = false;
         for (int y = r.y + r.h; y <= r.y + r.h + 2; y++)
@@ -1809,6 +1819,27 @@ uint64_t genSubSeed(uint64_t seed, const char* feature) {
   return h;
 }
 
+// ---- WORLDGEN_V7 (M0b): storeys and hearths. h is a per-building hash; the answers must never change for V7.
+int bldgStoreysV7(art::Building t, int wTiles, int hTiles, uint32_t h) {
+  (void)hTiles;
+  float f = (h >> 8) * (1.0f / 16777216.0f);
+  switch (t) {
+    case art::Building::Inn: case art::Building::Keep: return 2;   // the public room below, rented rooms / quarters above
+    case art::Building::Tower: return 3;                           // workroom, library, the mage's chamber at the top
+    case art::Building::House: return wTiles >= 5 ? (f < 0.65f ? 2 : 1) : (wTiles >= 4 ? (f < 0.4f ? 2 : 1) : 1);
+    case art::Building::StoneHouse: return wTiles >= 4 ? (f < 0.6f ? 2 : 1) : (f < 0.3f ? 2 : 1);   // narrow town houses too
+    case art::Building::Shop: return wTiles >= 4 && f < 0.7f ? 2 : 1;   // the shopkeeper lives above the shop
+    default: return 1;   // smithy, temple, farmhouse, hut
+  }
+}
+bool bldgHearthV7(art::Building t, int storeys, uint32_t h) {
+  switch (t) {
+    case art::Building::Temple: case art::Building::Tower: return false;   // braziers and a cauldron, no chimney
+    case art::Building::Shop: return storeys >= 2 || (h >> 8) % 100 < 40;   // living quarters cook; a lock-up shop may not
+    default: return true;   // homes, the inn's kitchen, the smithy's forge, the keep's great hearth
+  }
+}
+
 uint32_t World::fingerprint() const {
   uint32_t h = 2166136261u;
   auto mix = [&](int v) { for (int k = 0; k < 4; k++) { h ^= (uint8_t)(v >> (k * 8)); h *= 16777619u; } };
@@ -1818,6 +1849,7 @@ uint32_t World::fingerprint() const {
     mix(st.r.x); mix(st.r.y); mix(st.r.w); mix(st.r.h); mix(st.ex); mix(st.ey); mix(st.bldgFirst); mix(st.bldgCount); mix((int)st.seed);
   }
   for (const Bldg& b : over.bldgs) { mix((int)b.type); mix(b.r.x); mix(b.r.y); mix(b.r.w); mix(b.r.h); mix(b.site); mix((int)b.owner); mix((int)b.seed); }
+  if (genVersion >= WORLDGEN_V7) for (const Bldg& b : over.bldgs) { mix(b.storeys); mix(b.hearth ? 1 : 0); }
   if (genVersion >= WORLDGEN_V4) {
     // from v4 the city walls, gates and openings are part of the fingerprint, so any later wall drift flags old saves
     // (worldChanged). Earlier versions keep their original fingerprint (their saves store it).

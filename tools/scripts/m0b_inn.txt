@@ -1,0 +1,53 @@
+# M0b rooms lane: an inn on both floors. The common room (bar, kitchen behind it, stairs), renting a room, going up
+# to bed in YOUR room and sleeping there, walking downstairs and up again, the corridor of rented rooms.
+#   embervale.exe --script tools/scripts/m0b_inn.txt [--seed 7]      (also seeds 7, 99, 19 desert, 10 taiga)
+# Screenshots land in the working directory. Exit code 3 if an expect/walkto fails.
+seed 2
+0.3  newgame
+0.5  expect mode play
+0.6  god
+0.8  goto town
+1.0  hour 11
+1.2  enter inn
+1.4  expect inside 1
+1.5  expect floor 0
+2.0  shot m0b_inn_ground_day.png
+2.2  hour 22
+2.8  shot m0b_inn_ground_night.png
+3.0  hour 19
+3.2  talkto innkeeper 40
+3.6  expect mode dialogue
+5.0  expect option RENT A ROOM (10 GOLD)
+5.1  choose RENT A ROOM
+5.3  expect text UP THE STAIRS
+5.4  expect gold 20
+5.6  shot m0b_inn_rent.png
+5.8  choose GO UP TO BED
+6.0  expect mode play
+6.1  expect floor 1
+6.2  expect heard YOU SLEEP IN YOUR ROOM
+7.4  shot m0b_inn_myroom.png
+7.6  key E
+8.0  expect heard YOU SLEEP SOUNDLY IN YOUR ROOM
+8.2  expect floor 1
+8.4  walkto downstairs 30
+8.6  expect floor 0
+9.2  shot m0b_inn_came_down.png
+9.4  talkto innkeeper 40
+9.8  expect mode dialogue
+11.0 expect option ABOUT MY ROOM
+11.1 choose ABOUT MY ROOM
+11.3 expect text STILL YOURS
+11.4 expect gold 20
+11.5 choose LATER
+11.7 expect mode play
+11.8 walkto upstairs 30
+12.0 expect floor 1
+12.6 shot m0b_inn_upstairs.png
+12.8 hour 22
+13.4 shot m0b_inn_upstairs_night.png
+13.6 walkto downstairs 30
+13.8 expect floor 0
+14.0 walkto exit 30
+14.4 expect inside 0
+14.6 quit

@@ -286,3 +286,74 @@ same numbers as before, `art_hash` is identical, `save_test` prints ALL OK and b
   - the blade hand-off line names the actual tracked follow-up quest;
   - Bell was added to audio_preview, and interiors.txt now starts itself.
 - **Freeze WORLDGEN_V3 now** (the arch wall pass and the homes genInterior both gate on it).
+
+## M0b, "Rooms and Storeys" (owner notes 2026-10-04; binds VISION_PLAN 15.7)
+
+Goal: interiors that make logical sense and feel lived in. Multi-storey buildings (inns, keeps, towers, larger houses and
+shops) get real upper floors reached by stairs; inns keep guests upstairs in rented rooms with walls and doors; every
+room has a purpose; layouts vary per building and per regional style; interior walls, doors and stairs reach the
+commercial 16-bit bar.
+
+### Phase A (lead), 2026-10-04: done
+- **WORLDGEN_V7** (`world.h`): `Bldg::storeys`, `Bldg::hearth` and `Bldg::biome`, decided at generation on their own
+  hashed "storeys" stream (`bldgStoreysV7`, `bldgHearthV7`): inns and keeps 2 storeys, mage towers 3, houses of width 5
+  65 % / width 4 40 %, stone houses 60 % (narrow ones 30 %), shops of width 4+ 70 %; temples and towers have no hearth,
+  lock-up shops 60 % none. `bldgRiseTiles(type, storeys)` lets 2-storey houses and shops rise 4 tiles in the V5
+  clearance test. `Bldg::floors()` is `storeys` from V7 and 1 before. Older worlds are unchanged (storeys = the type's
+  classic look, `art::defaultStoreys`).
+- **Rooms contract** (`rpg/sim/rooms.h`): `Stairs`, `RoomKind`, `RoomInfo`, `Map::floor/up/down/rooms/roomAt`, and the
+  geometry contract (2-row E-W partitions, 1-column N-S partitions, 1-tile doorways with `DoorH`/`DoorV`, `StairsUp`
+  under a wall face, `StairsDown` stairwells, spawn slots 16*floor+k). `genInterior(m, b, seed, floor)` dispatches
+  `genInteriorV4` (a PHASE A STUB for the rooms lane to replace) for V7 buildings; V2 and V3 rooms are frozen and
+  hash-locked (`kGen2Hash`, new `kGen6Hash` in test_interiors.cpp).
+- **Game**: `Game::subFloor`, per-floor `mapKey()`, stairs trigger (walk onto the steps), `changeFloor`,
+  `debugEnterBuilding(bi, floor)`, `Lodging` (the rented room) with `lodgingActive()`, the "- UPSTAIRS" label.
+- **SAVE_VER 4**: a length-prefixed lodging block (floor, rented building/floor/room/until-day). Fixture
+  `tests/fixtures/save_v4.bin` (seed 707, generator v7, upstairs in the start inn with a rented room) with
+  `GENLOCK_V7` and a storeys/hearth hash; every older fixture still loads and round-trips (cut back with `asV3`).
+- **Art API**: `art::BuildingFacts {storeys, hearth}` into `buildingSprite`/`buildingHeight` (the view passes
+  `bldgFacts(b)`; `hearth == false` already removes chimneys), `BuildingInfo::storeys/chimneys`; 18 new props
+  (stairs, doors, nightstand, washstand, oven, prep table, bottle shelf, weapon rack, lectern, candelabra, display table,
+  quench tub, grindstone, pillar, bunk bed, dresser) with placeholder painters; `RoomStyle::Adobe/Plaster` +
+  `Deco::WallAdobe/WallPlaster`.
+- **Scripts**: `worldgen N` header / `--worldgen N` (bounty, arch_walls*, interiors pinned to v6), `enter <type>
+  [floor] [nth]`, `floor N`, `expect floor N`, `walkto upstairs|downstairs`.
+- Verified: rpg_test --seeds 1..20 20/20, save_test ALL OK, --golden ok, all 13 tools/scripts exit 0, a stairs tour
+  (inn up and down, keep floor 1, tower floor 2 and back down) passes.
+
+### Phase B lanes (disjoint files; shared headers frozen)
+- **rooms** (build_rooms): the V4 interior generator, renting/sleeping in your room, per-type checks, tours.
+- **intart** (build_intart): partition walls, doorways, doors, stairs and the new furniture at the quality bar.
+- **exterior** (build_ext): exteriors that show their storeys and chimneys honestly; the agreement check.
+
+### Integration, 2026-10-04: done
+- Clean build of every target (MSVC /W3: only the old int-to-float notes). The changed sources also parse cleanly under
+  clang 22 (-std=c++20 -fno-ms-compatibility -Wall -Wextra) through clang-tidy; there is still no local Emscripten run.
+- rpg_test --seeds 1..20: 20 passed; --golden ok; save_test ALL OK; all 18 tools/scripts exit 0; the five m0b_* tours
+  also exit 0 on seeds 19 (desert) and 10 (taiga). arch_gallery --check 1..10: ALL OK.
+- save_v4.bin was regenerated (it was saved at a tile that the rooms lane's layout turned into a wall); save_test now
+  checks that the fixture stands on a free tile and that its rented room is a guest room.
+- kGen7Hash (tools/tests/test_interiors.cpp) locks the M0b interiors of v7 worlds: every floor, stairs and rooms, seeds
+  1..3. Once M0b ships, any change to them needs a new WORLDGEN version (EMB_INTERIOR_V7HASH=1 prints the values).
+
+### Fix round 3, 2026-10-04
+- Stairs (phone flow): upstairs you now arrive beside the stairwell (`arrivalOf`, down: beside the opening first, also
+  beside the flight's second tile), facing away from it. Until you have stood on another tile, a push north into the
+  stairwell is turned back by its railing (`Game::stairsArrive_`, `stairsAsleep()`); a push across or south still takes
+  it. `m0b_stairs_tap.txt` (climb, lift the thumb, push on: stay upstairs; inn, house, stone house, shop, keep, tower)
+  and the updated `m0b_stairs_hold.txt`.
+- Touch: a use tap can no longer turn into a swing (a held finger only swings while the button reads ATTACK, and a use
+  wins over a swing in the same step); a short still tap on a "TAP: SLEEP" label or the person in reach on the stick's
+  half is a use (`m0b_touch_use.txt`, `m0b_touch_label.txt`).
+- Lodging: from 11:00 on the due day the room has no sleep left, so the innkeeper lets a fresh room (paid) instead of
+  offering GO UP TO BED (`m0b_inn_noon.txt`). A gold arrow marks the stairs toward your room on other floors (clamped
+  into the clear area, pointing at them, when they are under the HUD).
+- Art: N-S doors drawn along the wall (head block, casing rails, foot block, full-width sill; the leaf open against a
+  rail or shut in the wall's line), so the wall line never breaks; adobe wall tops shaded as a rounded mass, the
+  adobe dado a deep earth red below a lime bead; inn plaques an oak board with an inset brass plate.
+- Rooms: per-building seat styles and per-table variation, firewood and hay at most two per floor, no stacked wall
+  pieces or clutter on the tile above a piece, no scholar's table in smithies (meal/plain table, display table,
+  bench, a second work station in big forges), a gallery table and columns in the keep's upper hall, a mage's study
+  on the tower's top floor, round tower floors (front corners walled on a curve).
+- HUD indoors: the minimap is dropped and the location/quest column fades when the rooms run on under them.
+- kGen7Hash re-recorded (M0b is not shipped yet).

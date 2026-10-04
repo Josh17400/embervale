@@ -10,8 +10,11 @@
 //   save_test --make-fixture-gen3 / -gen4 / -gen5 / -gen6 out.bin   SAVE_VER 3 saves of a generator-v3 world
 //                                     (seed 33) and a generator-v4 world (seed 3): they lock those generators' output,
 //                                     walls and gates included (paste the printed GENLOCK line into this file)
+//   save_test --make-fixture-v4 out.bin   (M0b) a SAVE_VER 4 save of a generator-v7 world (seed 707): upstairs in
+//                                     the start village's inn with a rented room (the lodging block)
 // Fixtures are made once and never regenerated: they are the old formats. Every fixture's world uses a generator
 // version whose output is frozen (v1..v6), so generator work on a newer WORLDGEN_LATEST cannot invalidate them.
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -65,6 +68,12 @@ uint32_t bldgHash(const World& w) {
 uint32_t groundHash(const World& w) {
   uint32_t h = fnv(2166136261u, w.over.ground.data(), w.over.ground.size());
   return fnv(h, w.over.wall.data(), w.over.wall.size());
+}
+// M0b: what WORLDGEN_V7 decided per building (storeys, hearth, biome)
+uint32_t storeyHash(const World& w) {
+  uint32_t h = 2166136261u;
+  for (const Bldg& b : w.over.bldgs) { h = fnvI(h, b.storeys); h = fnvI(h, b.hearth ? 1 : 0); h = fnvI(h, (int)b.biome); }
+  return h;
 }
 // city gatehouses and wall openings (the v3/v4 wall passes), plus the overworld props (lamps, trees by the walls)
 uint32_t gateHash(const World& w) {
@@ -121,7 +130,18 @@ size_t v3TailSize(const std::vector<uint8_t>& b) {
   }
   return 0;
 }
+// v4 tail = the lodging block: u16 length (20) + subFloor, lodging bldg/floor/room/untilDay
+constexpr size_t kV4Block = 20;
+std::vector<uint8_t> asV3(std::vector<uint8_t> b) {
+  if (b.size() < kV4Block + 2 + 8 || b[4] != 4) return b;
+  size_t at = b.size() - kV4Block - 2;
+  if ((size_t)(b[at] | (b[at + 1] << 8)) != kV4Block) return {};
+  b.resize(at);
+  b[4] = 3; b[5] = b[6] = b[7] = 0;
+  return b;
+}
 std::vector<uint8_t> asV2(std::vector<uint8_t> b) {
+  b = asV3(b);
   size_t tail = v3TailSize(b);
   if (!tail) return {};
   b.resize(b.size() - tail);
@@ -142,6 +162,11 @@ constexpr GenLock GENLOCK_V3 = {59, 170, 6, 12, 0x7EC87F5E, 0x9E0BE718, 0x5E5712
 constexpr GenLock GENLOCK_V4 = {56, 157, 5, 12, 0x0D1BA049, 0x6F34B156, 0xDA5CD4DC, 0x500A7CA3};
 constexpr GenLock GENLOCK_V5 = {63, 154, 6, 14, 0xBCDF1A11, 0x1D2EE86D, 0xDEA1AF28, 0x5BCE217E};
 constexpr GenLock GENLOCK_V6 = {55, 144, 4, 13, 0x191E3503, 0x9ADCD698, 0x90982C97, 0x54D00250};
+// M0b: generator v7 (storeys, hearths, the taller 2-storey houses' clearance), locked by save_v4.bin (seed 707)
+constexpr GenLock GENLOCK_V7 = {63, 140, 6, 12, 0xCA2E057C, 0x4FBFFB59, 0x20C3A928, 0x008AACDC};
+constexpr int FIX4_INN = 80, FIX4_ROOM = 1;
+constexpr float FIX4_PX = 136.000f, FIX4_PY = 58.000f;
+constexpr uint32_t FIX4_STOREYHASH = 0xFB3BB75B;   // storeys + hearth of every building of the v7 world (storeyHash)
 constexpr uint32_t FIX3_SKIN = 0xFF4A6E96u, FIX3_HAIRC = 0xFF2A62D2u, FIX3_EYE = 0xFF3C8C30u, FIX3_TOP = 0xFF283C8Cu, FIX3_BOTTOM = 0xFF203040u;
 constexpr uint32_t FIX3_FLAGS = SF_CREATED | SF_FIRST_WEAPON | (1u << 9);
 const char* const FIX3_NAME = "BRYNJA";
@@ -161,6 +186,38 @@ void makeCharacter(Game& g) {
   g.inv.push_back(fixtureWear(ItemKind::Cloak, "HUNTER'S CLOAK", art::Icon::Armor, 1));
   int n = (int)g.inv.size();
   g.useItem(n - 3); g.useItem(n - 2); g.useItem(n - 1);
+}
+
+// ---- the v4 fixture (M0b): seed 707 on generator v7, saved upstairs in the start village's inn with a rented room
+constexpr uint64_t FIX4_SEED = 707;
+int makeFixtureV4(const char* out) {
+  Game g(FIX4_SEED);
+  g.newGame(FIX4_SEED, WORLDGEN_V7);
+  makeCharacter(g);
+  g.mode = Mode::Play;
+  const Site& home = g.world.sites[g.world.startSite];
+  int inn = -1;
+  for (int b = home.bldgFirst; b < home.bldgFirst + home.bldgCount; b++)
+    if (g.world.over.bldgs[b].type == art::Building::Inn) inn = b;
+  if (inn < 0 || !g.debugEnterBuilding(inn, 1)) { printf("cannot go upstairs in the start inn\n"); return 1; }
+  int room = -1;
+  for (size_t i = 0; i < g.sub.rooms.size() && room < 0; i++) if (g.sub.rooms[i].kind == RoomKind::GuestRoom) room = (int)i;
+  g.lodging.bldg = inn; g.lodging.floor = 1; g.lodging.room = room; g.lodging.untilDay = 2;
+  g.gold = 77;
+  std::vector<uint8_t> buf;
+  g.serialize(buf);
+  FILE* f = fopen(out, "wb");
+  if (!f) { printf("cannot write %s\n", out); return 1; }
+  fwrite(buf.data(), 1, buf.size(), f);
+  fclose(f);
+  World w;
+  w.generate(FIX4_SEED, WORLDGEN_V7);
+  printf("wrote %s (%zu bytes): inn %d floor %d room %d pos %.3f,%.3f\n", out, buf.size(), inn, g.subFloor, room, g.pl().p.x, g.pl().p.y);
+  printf("constexpr int FIX4_INN = %d, FIX4_ROOM = %d;\nconstexpr float FIX4_PX = %.3ff, FIX4_PY = %.3ff;\n", inn, room, g.pl().p.x, g.pl().p.y);
+  printf("constexpr uint32_t FIX4_STOREYHASH = 0x%08X;\n", storeyHash(w));
+  printf("constexpr GenLock GENLOCK_V%d = {%zu, %zu, %zu, %zu, 0x%08X, 0x%08X, 0x%08X, 0x%08X};\n", w.genVersion, w.sites.size(), w.over.bldgs.size(),
+         w.gates.size(), w.wallGaps.size(), siteHash(w), bldgHash(w), groundHash(w), gateHash(w));
+  return 0;
 }
 
 int makeFixture(const char* out, uint64_t seed = FIX_SEED, int genVer = WORLDGEN_LATEST, int form = 0) {
@@ -313,6 +370,7 @@ int main(int argc, char** argv) {
   if (argc >= 3 && !strcmp(argv[1], "--make-fixture-gen4")) return makeFixture(argv[2], FIXG4_SEED, WORLDGEN_V4, 3);
   if (argc >= 3 && !strcmp(argv[1], "--make-fixture-gen5")) return makeFixture(argv[2], FIXG5_SEED, WORLDGEN_V5, 3);
   if (argc >= 3 && !strcmp(argv[1], "--make-fixture-gen6")) return makeFixture(argv[2], FIXG6_SEED, WORLDGEN_V6, 3);
+  if (argc >= 3 && !strcmp(argv[1], "--make-fixture-v4")) return makeFixtureV4(argv[2]);
   std::string dir = argc >= 2 ? argv[1] : "";
 #ifdef EMB_SOURCE_DIR
   if (dir.empty()) dir = std::string(EMB_SOURCE_DIR) + "/tests/fixtures";
@@ -354,20 +412,22 @@ int main(int argc, char** argv) {
   check(!g.app.created && g.background == Background::None && g.storyFlags == 0 && g.eqGloves < 0 && g.eqBoots < 0 && g.eqCloak < 0,
         "v1 save did not get the default character block");
 
-  // 3. current-format (v3) round trip of the v1 game
+  // 3. current-format (v4) round trip of the v1 game
   std::vector<uint8_t> cur;
   g.serialize(cur);
   BinR hr(cur);
   uint32_t magic = hr.u32(), ver = hr.u32(), gv = hr.u32();
-  check(magic == 0x454D4256 && ver == 3 && (int)gv == WORLDGEN_V1, "v3 header (magic, version, world-gen version)");
+  check(magic == 0x454D4256 && ver == 4 && (int)gv == WORLDGEN_V1, "v4 header (magic, version, world-gen version)");
   Game h(1);
-  check(h.deserialize(cur), "v3 save did not load");
-  check(!h.worldChanged, "v3 reload flagged a changed world");
+  check(h.deserialize(cur), "v4 save did not load");
+  check(!h.worldChanged, "v4 reload flagged a changed world");
   std::vector<uint8_t> curb;
   h.serialize(curb);
-  check(curb == cur, "v3 round trip is not byte-identical");
-  check(summary(h) == summary(g), "v3 reload restores different state");
-  printf("v3 save of the v1 game: %zu bytes (v1 %zu)\n", cur.size(), v1.size());
+  check(curb == cur, "v4 round trip is not byte-identical");
+  check(summary(h) == summary(g), "v4 reload restores different state");
+  check(h.subFloor == 0 && h.lodging.bldg < 0, "a pre-v4 save did not load on floor 0 without a rented room");
+  check(!asV3(cur).empty() && asV3(cur).size() + kV4Block + 2 == cur.size(), "v4 lodging block not where expected");
+  printf("v4 save of the v1 game: %zu bytes (v1 %zu)\n", cur.size(), v1.size());
 
   // 3b. the v2 fixture (generator v2): loads with its values and its world; re-saved and cut back to v2 it is the
   //     same bytes, which proves v3 only appended the character block
@@ -429,7 +489,7 @@ int main(int argc, char** argv) {
       check(a.pl().look.skin == FIX3_SKIN && a.pl().look.hairColor == FIX3_HAIRC, "v3 appearance did not reach the player's look");
       std::vector<uint8_t> re;
       a.serialize(re);
-      check(re == v3, "v3 fixture round trip is not byte-identical");
+      check(asV3(re) == v3, "v3 fixture re-saved and cut back to v3 is not byte-identical");
       // the appearance block is length-prefixed: a longer block (fields from a later build) is skipped...
       size_t tail = v3TailSize(v3);
       check(tail > 0, "v3 tail not found");
@@ -484,7 +544,49 @@ int main(int argc, char** argv) {
       }
       std::vector<uint8_t> re;
       a.serialize(re);
-      check(re == b, "gen-v3..v6 fixture round trip is not byte-identical");
+      check(asV3(re) == b, "gen-v3..v6 fixture re-saved and cut back to v3 is not byte-identical");
+    }
+  }
+
+  // 3e. the v4 fixture (M0b): a generator-v7 world, saved upstairs in the start inn with a rented room. It loads on
+  //     floor 1 of the same building with its lodging, its world is the locked v7 world, and it round-trips
+  {
+    std::vector<uint8_t> b;
+    if (!readFile(dir + "/save_v4.bin", b)) { printf("FAIL: cannot read %s/save_v4.bin\n", dir.c_str()); bad++; }
+    else {
+      Game a(1);
+      check(a.deserialize(b), "v4 fixture did not load");
+      printf("v4 load: %s floor %d lodging %d/%d/%d/%d\n", summary(a).c_str(), a.subFloor, a.lodging.bldg, a.lodging.floor, a.lodging.room, a.lodging.untilDay);
+      check(a.seed == FIX4_SEED && a.world.genVersion == WORLDGEN_V7 && !a.worldChanged, "v4 fixture seed / generator / fingerprint");
+      check(a.inside && a.subBldg == FIX4_INN && a.subFloor == 1 && a.sub.floor == 1, "v4 fixture is not upstairs in the inn");
+      check(a.lodging.bldg == FIX4_INN && a.lodging.floor == 1 && a.lodging.room == FIX4_ROOM && a.lodging.untilDay == 2, "v4 lodging");
+      check(std::fabs(a.pl().p.x - FIX4_PX) < 0.01f && std::fabs(a.pl().p.y - FIX4_PY) < 0.01f && a.gold == 77 && a.app.name == FIX3_NAME, "v4 position / gold / character");
+      check(a.mapKey() != 100000 + FIX4_INN, "upper floor shares the ground floor's map key");
+      check(!a.sub.blocked((int)(a.pl().p.x / TILE), (int)(a.pl().p.y / TILE)), "v4 fixture position is inside a wall or prop");
+      check(FIX4_ROOM >= 0 && FIX4_ROOM < (int)a.sub.rooms.size() && a.sub.rooms[(size_t)FIX4_ROOM].kind == RoomKind::GuestRoom,
+            "v4 fixture's rented room is not a guest room");
+      World w;
+      w.generate(FIX4_SEED, WORLDGEN_V7);
+      const GenLock& L = GENLOCK_V7;
+      bool same = (int)w.sites.size() == L.sites && (int)w.over.bldgs.size() == L.bldgs && (int)w.gates.size() == L.gates &&
+                  (int)w.wallGaps.size() == L.gaps && siteHash(w) == L.site && bldgHash(w) == L.bldg && groundHash(w) == L.ground &&
+                  gateHash(w) == L.gate && w.fingerprint() == a.world.fingerprint();
+      if (!same) {
+        printf("FAIL: save_v4.bin: generator v7 output drifted: {%zu, %zu, %zu, %zu, 0x%08X, 0x%08X, 0x%08X, 0x%08X}\n", w.sites.size(), w.over.bldgs.size(),
+               w.gates.size(), w.wallGaps.size(), siteHash(w), bldgHash(w), groundHash(w), gateHash(w));
+        bad++;
+      }
+      // v7 buildings carry storeys and floors: inns and keeps have two, every building at least one
+      bool storeys = true;
+      for (const Bldg& B : w.over.bldgs) {
+        if (B.floors() != B.storeys || B.storeys < 1) storeys = false;
+        if ((B.type == art::Building::Inn || B.type == art::Building::Keep) && B.storeys != 2) storeys = false;
+      }
+      check(storeys, "v7 storeys / floors");
+      if (storeyHash(w) != FIX4_STOREYHASH) { printf("FAIL: v7 storeys/hearths drifted: 0x%08X\n", storeyHash(w)); bad++; }
+      std::vector<uint8_t> re;
+      a.serialize(re);
+      check(re == b, "v4 fixture round trip is not byte-identical");
     }
   }
 

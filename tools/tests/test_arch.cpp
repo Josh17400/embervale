@@ -122,11 +122,34 @@ int archChecks(uint64_t seed) {
       for (int x = b.r.x; x < b.r.x + b.r.w; x++)
         if (!m.in(x, y) || m.bldgAt[(size_t)y * m.w + x] != (int16_t)bi) { out("FAIL: building %zu footprint tile %d,%d not owned\n", bi, x, y); bad++; y = 1 << 20; break; }
   }
+  // M0b (WORLDGEN_V7): the storeys and hearths the generator decides are ones the exterior can paint (VISION_PLAN 15.7:
+  // the outside and the inside agree): inns and keeps 2, mage towers 3, houses, stone houses and shops 1 or 2 (narrow
+  // houses 1), everything else 1; temples and towers burn no hearth. arch_gallery --check paints them all.
+  if (w.genVersion >= WORLDGEN_V7) {
+    int n2 = 0;
+    for (size_t bi = 0; bi < m.bldgs.size(); bi++) {
+      const Bldg& b = m.bldgs[bi];
+      int s = b.storeys, lo = 1, hi = 1;
+      switch (b.type) {
+        case art::Building::Inn: case art::Building::Keep: lo = hi = 2; break;
+        case art::Building::Tower: lo = hi = 3; break;
+        case art::Building::House: hi = b.r.w >= 4 ? 2 : 1; break;
+        case art::Building::StoneHouse: hi = 2; break;
+        case art::Building::Shop: hi = b.r.w >= 4 ? 2 : 1; break;
+        default: break;
+      }
+      if (s < lo || s > hi) { out("FAIL: building %zu (type %d, %d wide) has %d storeys, the exterior shows %d..%d\n", bi, (int)b.type, b.r.w, s, lo, hi); bad++; }
+      if (b.hearth && (b.type == art::Building::Temple || b.type == art::Building::Tower)) { out("FAIL: building %zu (type %d) has a hearth\n", bi, (int)b.type); bad++; }
+      if (b.floors() != s) { out("FAIL: building %zu: %d floors inside, %d storeys outside\n", bi, b.floors(), s); bad++; }
+      if (s >= 2 && b.type != art::Building::Inn && b.type != art::Building::Keep) n2++;
+    }
+    out("  M0b: %d houses, stone houses and shops of 2 storeys\n", n2);
+  }
   // WORLDGEN_V5 placement: no building's sprite covers another's front (foundation row and doorstep) or its door
   // apron, no market stall stands against a facade or under a roof, no gatehouse stands by a river, and no road runs
   // up to the city wall away from an opening
   if (w.genVersion >= WORLDGEN_V5) {
-    auto spriteOf = [](const Bldg& b) { int up = bldgRiseTiles(b.type); return IRect{b.r.x - 1, b.r.y - up, b.r.w + 2, b.r.h + up + 1}; };
+    auto spriteOf = [&](const Bldg& b) { int up = w.genVersion >= WORLDGEN_V7 ? bldgRiseTiles(b.type, b.storeys) : bldgRiseTiles(b.type); return IRect{b.r.x - 1, b.r.y - up, b.r.w + 2, b.r.h + up + 1}; };
     int clashes = 0;
     for (const Site& s : w.sites) {
       for (int i = s.bldgFirst; i < s.bldgFirst + s.bldgCount; i++)

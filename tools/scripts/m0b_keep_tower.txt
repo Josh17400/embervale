@@ -1,0 +1,38 @@
+# M0b rooms lane: the keep (throne hall with barracks and kitchen wings; the lord's quarters, a study and guest rooms
+# upstairs) and the mage tower (laboratory, library, the mage's bedroom on the top floor), up and down the stairs.
+#   embervale.exe --script tools/scripts/m0b_keep_tower.txt [--seed 7]      (also seeds 7, 99, 19 desert, 10 taiga)
+# Screenshots land in the working directory. Exit code 3 if an expect/walkto fails.
+seed 2
+0.3  newgame
+0.5  expect mode play
+0.6  god
+0.8  goto city
+1.0  hour 11
+1.2  enter keep
+1.4  expect inside 1
+1.5  expect floor 0
+2.0  shot m0b_keep_ground.png
+2.2  walkto upstairs 40
+2.4  expect floor 1
+3.0  shot m0b_keep_upstairs.png
+3.2  hour 22
+3.8  shot m0b_keep_upstairs_night.png
+4.0  walkto downstairs 40
+4.2  expect floor 0
+4.4  hour 11
+4.6  enter tower
+4.8  expect floor 0
+5.4  shot m0b_tower_0.png
+5.6  walkto upstairs 30
+5.8  expect floor 1
+6.4  shot m0b_tower_1.png
+6.6  walkto upstairs 30
+6.8  expect floor 2
+7.4  shot m0b_tower_2.png
+7.6  walkto downstairs 30
+7.8  expect floor 1
+8.0  walkto downstairs 30
+8.2  expect floor 0
+8.4  walkto exit 30
+8.6  expect inside 0
+8.8  quit

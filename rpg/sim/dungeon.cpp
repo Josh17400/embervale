@@ -4,6 +4,7 @@
 #include <utility>
 #include <vector>
 #include "rpg/sim/deco.h"
+#include "rpg/sim/interior_v4.h"
 #include "rpg/sim/world.h"
 
 using art::Prop;
@@ -959,9 +960,14 @@ void genInteriorV3(Map& m, const Bldg& b, uint32_t seed) {
   clutter(R, b.type, b.owner, wealth, taken);
   m.rebuildSolid();
 }
+// ===================================================================================== interiors, WORLDGEN_V7 (M0b)
+// Rooms and storeys (VISION_PLAN 15.7): the generator lives in rpg/sim/interior_v4.cpp.
+void genInteriorV4(Map& m, const Bldg& b, uint32_t seed, int floor) { genInteriorRooms(m, b, seed, floor); }
 }  // namespace
 
-void genInterior(Map& m, const Bldg& b, uint32_t seed) {
-  if (b.genVer >= WORLDGEN_V3) genInteriorV3(m, b, seed);
+void genInterior(Map& m, const Bldg& b, uint32_t seed, int floor) {
+  m = Map();
+  if (b.genVer >= WORLDGEN_V7) genInteriorV4(m, b, seed, std::clamp(floor, 0, b.floors() - 1));
+  else if (b.genVer >= WORLDGEN_V3) genInteriorV3(m, b, seed);
   else genInteriorV2(m, b, seed);
 }

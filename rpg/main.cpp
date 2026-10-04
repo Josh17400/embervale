@@ -10,6 +10,8 @@
 // their spacing however long the walk takes. Input is injected through the same paths real input uses: key
 // presses become SDL key events (View::event), held keys are read by View::input, taps become SDL touch events.
 //   seed 7                    world seed (a header line, no time; --seed on the command line wins)
+//   worldgen 6                world-generator version (a header line; default WORLDGEN_LATEST). Scripts that rely on
+//                             facts of one world (names, coordinates) pin the generator they were written against
 //   0.5 key E                 press and release a key (SDL key names: E, Return, Escape, Tab, Space, Up, Left Shift...)
 //   2.0 hold W 1.5            hold a key down for 1.5 s
 //   3 tap 424 222             touch tap at logical (480x270) coordinates
@@ -18,7 +20,8 @@
 //   5 walkto inn              autopilot over the tile grid, steering with held WASD: inn|shop|smithy|temple|keep|tower|
 //                             house (walks in the door), innkeeper|merchant|smith|priest|jarl|guard|villager|mage (until
 //                             they can be talked to), exit (walks out of a building or dungeon), or "x y" tiles.
-//                             a person by NAME (walkto VIGRIMA: until they can be talked to).
+//                             a person by NAME (walkto VIGRIMA: until they can be talked to). Inside a building:
+//                             upstairs|downstairs (walks onto the stairs; done when the floor changed).
 //                             An optional trailing number is the timeout in seconds (default 40).
 //   6 expect mode shop        check state: mode title|play|dialogue|menu|shop|levelup|dead|paused|creator, inside 0|1
 //   6 newgame | goto ruin [enter] | talk 0|1|2 | fight wolf [n] | god [0|1] | hour 22 | menu 2 | log text
@@ -28,11 +31,16 @@
 //                             6 obsidian, 7 emberforged): body, helmet, gloves, boots, cloak, shield, amulet, ring, plus a
 //                             weapon of that tier (sword|axe|mace|dagger|greatsword, default sword) and a bow for the back
 //   6 strip                   take every piece of equipment off (shirt and trousers only)
+//   6 enter inn [floor] [n]   (M0b) step straight into the n-th nearest (default 0) inn|shop|smithy|temple|keep|tower|
+//                             house|stonehouse|farmhouse|hut, on that floor (default 0); fails if it has no such floor
+//   6 floor 1                 (M0b) inside a building: go to that floor (arriving by its stairs)
+//   6 expect floor 1          the floor the player is on (0 ground)
 //   6 expect name ASTRID      the player's name (the character creator); also: expect background 3, expect slot armor 1|0
 //   6 expect quest active BOUNTY: X   a quest whose title contains the words is active|complete|done (or none exists)
 //   6 expect tracked CULL THE       the tracked quest's title contains the words
 //   6 expect heard NOT YOUR TARGET  some notice since the script began contained the words
 //   6 expect option COLLECT BOUNTY  the open dialogue offers an option containing the words (expect text: its text)
+//   6 choose RENT A ROOM      (M0b) choose the open dialogue's option whose label contains the words
 // New Game from the title opens the character creator (Mode::Creator); --play and the newgame command skip it.
 //   9 quit                    (the script also quits 2 s after its last line)
 // The exit code is 3 if any expect or walkto failed.
@@ -57,6 +65,7 @@
 
 namespace {
 std::string g_savePath;
+int g_worldgen = WORLDGEN_LATEST;   // test runs: the world-generator version (script header "worldgen N", --worldgen N)
 
 bool readSave(std::vector<uint8_t>& out) {
   if (g_savePath.empty()) return false;
@@ -126,6 +135,7 @@ bool loadScript(const char* path, std::vector<ScriptCmd>& out, uint64_t& seed) {
     }
     if (tok.empty()) continue;
     if (tok[0] == "seed" && tok.size() >= 2) { if (!seed) seed = (uint64_t)std::atoll(tok[1].c_str()); continue; }
+    if (tok[0] == "worldgen" && tok.size() >= 2) { g_worldgen = std::clamp(std::atoi(tok[1].c_str()), (int)WORLDGEN_V1, (int)WORLDGEN_LATEST); continue; }
     char* endp = nullptr;
     bool rel = tok[0][0] == '+';
     float t = std::strtof(tok[0].c_str() + (rel ? 1 : 0), &endp);
@@ -215,6 +225,7 @@ int main(int argc, char** argv) {
     else if (!std::strcmp(argv[i], "--fight") && i + 1 < argc) fight = argv[++i];
     else if (!std::strcmp(argv[i], "--talk") && i + 1 < argc) talkStep = std::atoi(argv[++i]);   // PT test-only
     else if (!std::strcmp(argv[i], "--script") && i + 1 < argc) scriptPath = argv[++i];
+    else if (!std::strcmp(argv[i], "--worldgen") && i + 1 < argc) g_worldgen = std::clamp(std::atoi(argv[++i]), (int)WORLDGEN_V1, (int)WORLDGEN_LATEST);
   }
   std::vector<ScriptCmd> script;
   if (scriptPath) {
@@ -242,7 +253,7 @@ int main(int argc, char** argv) {
 
   uint64_t startSeed = seed ? seed : (uint64_t)SDL_GetTicks() * 2654435761ull + 12345;
   Game game(startSeed);
-  game.newGame(startSeed);   // title screen drifts over this world
+  game.newGame(startSeed, g_worldgen);   // title screen drifts over this world
   game.mode = Mode::Title;
   View view;
   view.init(pix, audio);
@@ -257,7 +268,7 @@ int main(int argc, char** argv) {
   }
 
   auto startNew = [&](uint64_t s) {
-    game.newGame(s);
+    game.newGame(s, g_worldgen);
     game.mode = Mode::Play;
     view.snap(game);
     audio.play(Sfx::QuestStart);
@@ -376,7 +387,8 @@ int main(int argc, char** argv) {
   struct Walk {
     bool on = false;
     std::string what;
-    int kind = 0;            // 0 tile, 1 building door, 2 actor, 3 exit
+    int kind = 0;            // 0 tile, 1 building door, 2 actor, 3 exit, 4 stairs (M0b)
+    int floor0 = 0;          // stairs: the floor the walk started on
     int tx = 0, ty = 0, actorId = -1, bldg = -1;
     float t = 0, timeout = 40, replanT = 0, finalT = 0, closeT = 0;
     bool talk = false;       // talkto: press E on arrival
@@ -459,6 +471,12 @@ int main(int argc, char** argv) {
         {"innkeeper", Role::Innkeeper}, {"merchant", Role::Merchant}, {"smith", Role::Smith}, {"priest", Role::Priest},
         {"jarl", Role::Jarl}, {"guard", Role::Guard}, {"villager", Role::Villager}, {"mage", Role::Mage}, {"farmer", Role::Farmer}};
     if (tiles) { walk.kind = 0; walk.tx = std::atoi(a[0].c_str()); walk.ty = std::atoi(a[1].c_str()); return; }
+    if (walk.what == "upstairs" || walk.what == "downstairs") {
+      bool up = walk.what == "upstairs";
+      const Stairs& s = up ? game.sub.up : game.sub.down;
+      if (!game.inside || game.subBldg < 0 || !s.valid()) { walk.on = false; fail(c.line, "walkto " + walk.what + ": no stairs here"); return; }
+      walk.kind = 4; walk.tx = s.x; walk.ty = s.y; walk.floor0 = game.subFloor; return;
+    }
     if (walk.what == "exit") {
       if (!game.inside) { walk.on = false; fail(c.line, "walkto exit: not inside"); return; }
       walk.kind = 3; walk.tx = game.sub.exitX; walk.ty = game.sub.exitY; return;
@@ -514,6 +532,7 @@ int main(int argc, char** argv) {
     // arrived?
     if (walk.kind == 1 && game.inside) { endWalk(true, ""); return; }
     if (walk.kind == 3 && !game.inside) { endWalk(true, ""); return; }
+    if (walk.kind == 4 && game.subFloor != walk.floor0) { endWalk(true, ""); return; }
     if (walk.kind == 2) {
       int k = findActorIdx(walk.actorId);
       if (k < 0) { endWalk(false, "they left"); return; }
@@ -526,6 +545,25 @@ int main(int argc, char** argv) {
       walk.tx = (int)std::floor(game.actors[k].p.x / TILE); walk.ty = (int)std::floor((game.actors[k].p.y - 2) / TILE);
     }
     if (walk.kind == 0 && px == walk.tx && py == walk.ty) { endWalk(true, ""); return; }
+    if (walk.kind == 4 && walk.what == "downstairs" && game.stairsAsleep()) {
+      // just climbed: the stairwell sleeps until you have stepped off the tile you arrived on. Step to a free
+      // neighbour (south first) and the stairs are awake again.
+      static const int nd[4][2] = {{0, 1}, {1, 0}, {-1, 0}, {0, -1}};
+      for (auto& d : nd) {
+        int nx = px + d[0], ny = py + d[1];
+        int pr = game.sub.propAt(nx, ny);
+        if (!game.sub.in(nx, ny) || game.sub.blocked(nx, ny) || pr == (int)art::Prop::StairsDown + 1 || pr == (int)art::Prop::StairsUp + 1) continue;
+        setMove(d[1] < 0, d[0] < 0, d[1] > 0, d[0] > 0);
+        return;
+      }
+    }
+    if (walk.kind == 4 && px == walk.tx && py == walk.ty) {   // on the steps: keep walking onto them until the floor changes
+      // (up: into the flight, north; down: a step south across the stairwell, as a player coming from its foot would)
+      float cx = walk.tx * TILE + 8.0f - game.pl().p.x;
+      bool up = walk.what == "upstairs";
+      setMove(up, cx < -2, !up, cx > 2);
+      return;
+    }
     // at the approach tile: the last step is a push through the door (up) or onto the exit (down)
     if ((walk.kind == 1 || walk.kind == 3) && px == walk.tx && (py == walk.ty || (walk.kind == 3 && py == walk.ty - 1))) {
       walk.finalT += dt;
@@ -591,6 +629,37 @@ int main(int argc, char** argv) {
       startNew(startSeed);
     } else if (op == "goto") {
       doGoto(arg(1), arg(2) == "enter");
+    } else if (op == "enter") {   // M0b: enter <type> [floor] [nth]
+      static const struct { const char* n; art::Building b; } et[] = {
+          {"inn", art::Building::Inn}, {"shop", art::Building::Shop}, {"smithy", art::Building::Smithy}, {"temple", art::Building::Temple},
+          {"keep", art::Building::Keep}, {"tower", art::Building::Tower}, {"house", art::Building::House},
+          {"stonehouse", art::Building::StoneHouse}, {"farmhouse", art::Building::Farmhouse}, {"hut", art::Building::Hut}};
+      int want = -1;
+      for (auto& e : et) if (arg(1) == e.n) want = (int)e.b;
+      int fl = std::atoi(arg(2).c_str()), nth = std::atoi(arg(3).c_str());
+      int px, py;
+      if (game.inside && game.subBldg >= 0) { px = game.world.over.bldgs[game.subBldg].doorX(); py = game.world.over.bldgs[game.subBldg].doorY(); }
+      else plTile(px, py);
+      std::vector<std::pair<float, int>> cand;
+      const auto& B = game.world.over.bldgs;
+      for (size_t i = 0; i < B.size(); i++)
+        if ((int)B[i].type == want && fl < B[i].floors()) cand.push_back({std::hypot((float)(B[i].doorX() - px), (float)(B[i].doorY() - py)), (int)i});
+      std::sort(cand.begin(), cand.end());
+      if (want < 0) fail(c.line, "enter: unknown building type '" + arg(1) + "'");
+      else if (nth >= (int)cand.size()) fail(c.line, "enter " + arg(1) + ": no such building with floor " + arg(2));
+      else if (!game.debugEnterBuilding(cand[(size_t)nth].second, fl)) fail(c.line, "enter " + arg(1) + ": could not enter");
+      else { game.mode = Mode::Play; view.snap(game); }
+    } else if (op == "floor") {
+      int fl = std::atoi(arg(1).c_str());
+      if (!game.inside || game.subBldg < 0 || fl < 0 || fl >= game.world.over.bldgs[game.subBldg].floors()) fail(c.line, "floor " + arg(1) + ": not a floor here");
+      else { game.changeFloor(fl); view.snap(game); }
+    } else if (op == "choose") {   // M0b: choose the open dialogue's option whose label contains the words
+      std::string t;
+      for (size_t k = 1; k < c.a.size(); k++) { if (k > 1) t += ' '; t += c.a[k]; }
+      int pickI = -1;
+      for (size_t o = 0; o < game.dlg.opts.size() && pickI < 0; o++) if (game.dlg.opts[o].label.find(t) != std::string::npos) pickI = (int)o;
+      if (game.mode != Mode::Dialogue || pickI < 0) fail(c.line, "choose: no dialogue option '" + t + "'");
+      else { game.dialogueChoose(pickI); view.snap(game); }
     } else if (op == "talk") {
       doTalk(std::atoi(arg(1).c_str()));
     } else if (op == "fight") {
@@ -634,6 +703,8 @@ int main(int argc, char** argv) {
         bool on = arg(3) != "0";
         if (!e) fail(c.line, "expect slot: unknown slot '" + want + "'");
         else if ((*e >= 0) != on) fail(c.line, "expected slot " + want + (on ? " worn" : " empty"));
+      } else if (what == "floor") {
+        if (game.subFloor != std::atoi(want.c_str())) fail(c.line, "expected floor " + want + ", got " + std::to_string(game.subFloor));
       } else if (what == "inside") {
         if ((want != "0") != game.inside) fail(c.line, std::string("expected inside ") + want + ", got " + (game.inside ? "1" : "0"));
       } else if (what == "quest" || what == "heard" || what == "option" || what == "text" || what == "tracked") {

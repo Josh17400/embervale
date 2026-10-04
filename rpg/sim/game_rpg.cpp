@@ -10,7 +10,7 @@
 using art::Monster;
 using art::Prop;
 
-enum DlgAct { A_BYE, A_TRADE, A_REST, A_RUMOR, A_ACCEPT, A_TURNIN, A_MAIN, A_HEAL, A_LEARN, A_CHAT, A_DECLINE, A_ASK };
+enum DlgAct { A_BYE, A_TRADE, A_REST, A_RUMOR, A_ACCEPT, A_TURNIN, A_MAIN, A_HEAL, A_LEARN, A_CHAT, A_DECLINE, A_ASK, A_BED };
 
 // ------------------------------------------------------------------ inventory
 void Game::giveGold(int g) {
@@ -174,6 +174,39 @@ int Game::interactTarget() const {
 
 bool Game::nearDoorOrExit() const { return false; }
 
+// M0b: a night in a bed lasts until morning: from the afternoon on you wake around 06:00-07:00 (never less than 8
+// hours); a nap in the day is 8 hours
+static int hoursToMorning(float hour) {
+  if (hour >= 15.0f || hour < 6.0f) {
+    float until = 6.5f - hour;
+    if (until < 0) until += 24.0f;
+    return std::max(8, (int)std::lround(until));
+  }
+  return 8;
+}
+
+// M0b fix round 2: hours of sleep in your rented room. On the morning it is due back you wake by 11:00 (the
+// innkeeper would knock); from 11:00 on that day there is no time left to sleep (0)
+static int lodgingSleepHours(int day, float hour, int untilDay) {
+  int h = hoursToMorning(hour);
+  if (day == untilDay) {
+    if (hour >= 11.0f) return 0;
+    h = std::max(1, std::min(h, (int)std::floor(11.0f - hour)));
+  } else if (day + 1 == untilDay && hour >= 15.0f) {
+    // a night's sleep never runs past 11:00 on the due morning either
+    h = std::min(h, (int)std::floor(24.0f - hour + 11.0f));
+  }
+  return h;
+}
+static const char* kRoomDue = "IT IS NEARLY NOON: YOUR ROOM IS DUE BACK.";
+
+bool Game::bedIsYours(int tx, int ty) const {
+  if (!inside || subBldg < 0) return true;
+  const Bldg& B = world.over.bldgs[subBldg];
+  if (B.type != art::Building::Inn || B.genVer < WORLDGEN_V7) return true;
+  return lodgingActive() && lodging.bldg == subBldg && lodging.floor == subFloor && lodging.room == sub.roomIndexAt(tx, ty);
+}
+
 int Game::interactProp(int& otx, int& oty) const {
   const Actor& p = pl();
   const Map& m = map();
@@ -187,7 +220,8 @@ int Game::interactProp(int& otx, int& oty) const {
         Prop prop = (Prop)(pr - 1);
         bool usable = prop == Prop::Chest || prop == Prop::Shrine || prop == Prop::Altar || prop == Prop::BerryBush ||
                       (prop == Prop::Signpost && !inside && world.siteAt(tx, ty, 3) >= 0) ||
-                      (prop == Prop::Bed && inside && subBldg >= 0 && world.over.bldgs[subBldg].type != art::Building::Inn);
+                      (prop == Prop::Bed && inside && subBldg >= 0 &&
+                       (world.over.bldgs[subBldg].type != art::Building::Inn || world.over.bldgs[subBldg].genVer >= WORLDGEN_V7));
         if (!usable) continue;
         otx = tx; oty = ty;
         return pr;
@@ -231,7 +265,25 @@ void Game::interact() {
     return;
   }
   if (prop == Prop::Bed) {
-    rest(8);
+    // M0b: an inn's beds upstairs are let room by room; only the one you rented is yours to sleep in
+    const Bldg& B = world.over.bldgs[subBldg];
+    if (B.type == art::Building::Inn && B.genVer >= WORLDGEN_V7) {
+      int ri = sub.roomIndexAt(tx, ty);
+      RoomKind k = ri >= 0 && ri < (int)sub.rooms.size() ? sub.rooms[(size_t)ri].kind : RoomKind::Common;
+      bool mine = lodgingActive() && lodging.bldg == subBldg && lodging.floor == subFloor && lodging.room == ri;
+      if (mine) {
+        // a lie-in on the morning the room is due back ends before noon (the innkeeper would knock)
+        int h = lodgingSleepHours(day, hour, lodging.untilDay);
+        if (h <= 0) { say(kRoomDue); return; }
+        rest(h);
+        say("YOU SLEEP SOUNDLY IN YOUR ROOM.");
+        return;
+      }
+      if (k == RoomKind::OwnerRoom) { say("THAT IS THE INNKEEPER'S OWN BED."); return; }
+      say(lodgingActive() && lodging.bldg == subBldg ? "THIS ROOM IS TAKEN. YOURS IS ANOTHER." : "THIS ROOM IS TAKEN. RENT ONE FROM THE INNKEEPER.");
+      return;
+    }
+    rest(hoursToMorning(hour));
     say("YOU SLEEP SOUNDLY.");
     return;
   }
@@ -837,7 +889,13 @@ void Game::talkTo(Actor& a) {
   if (hasOffer(a)) dlg.opts.push_back({a.role == Role::Innkeeper ? "ANY WORK GOING?" : "DO YOU NEED HELP?", A_ASK, 0});
   if (a.role == Role::Merchant || a.role == Role::Smith || a.role == Role::Mage || a.role == Role::Priest || a.role == Role::Innkeeper)
     dlg.opts.push_back({"LET ME SEE YOUR WARES.", A_TRADE, 0});
-  if (a.role == Role::Innkeeper) { dlg.opts.push_back({"RENT A ROOM (10 GOLD)", A_REST, 10}); dlg.opts.push_back({"HEARD ANY RUMORS?", A_RUMOR, 0}); }
+  if (a.role == Role::Innkeeper) {
+    // M0b: a room already paid for is not charged again; in its last hour (from 11:00 on the due day) there is no
+    // sleep left in it, so the innkeeper lets you a fresh room instead
+    bool mine = lodgingActive() && inside && lodging.bldg == subBldg && lodgingSleepHours(day, hour, lodging.untilDay) > 0;
+    dlg.opts.push_back({mine ? "ABOUT MY ROOM..." : "RENT A ROOM (10 GOLD)", A_REST, mine ? 0 : 10});
+    dlg.opts.push_back({"HEARD ANY RUMORS?", A_RUMOR, 0});
+  }
   if (a.role == Role::Priest) dlg.opts.push_back({"BLESS ME.", A_HEAL, 0});
   if (a.role == Role::Mage) {
     if (!(spellsKnown & (1 << (int)Spell::Heal))) dlg.opts.push_back({"TEACH ME MEND (120 GOLD)", A_LEARN, (int)Spell::Heal});
@@ -858,13 +916,95 @@ void Game::dialogueChoose(int oi) {
   switch (o.action) {
     case A_BYE: mode = Mode::Play; return;
     case A_TRADE: if (ai >= 0) openShop(actors[ai]); return;
-    case A_REST:
-      if (gold < o.arg) { dlg.text = "YOU DON'T HAVE ENOUGH GOLD."; return; }
-      gold -= o.arg;
-      rest(8);
-      dlg.text = "YOU WAKE WELL RESTED. GOOD MORNING!";
-      dlg.opts = {{"FAREWELL.", A_BYE, 0}};
+    case A_REST: {
+      // M0b: an inn with rooms upstairs lets you one of them (until noon tomorrow) and tells you where it is
+      int inn = inside && subBldg >= 0 && world.over.bldgs[subBldg].type == art::Building::Inn && world.over.bldgs[subBldg].floors() >= 2 ? subBldg : -1;
+      Map up;
+      std::vector<int> guestRooms;
+      if (inn >= 0) {
+        const Bldg& B = world.over.bldgs[inn];
+        genInterior(up, B, B.seed, 1);
+        for (int i = 0; i < (int)up.rooms.size(); i++) if (up.rooms[(size_t)i].kind == RoomKind::GuestRoom && up.rooms[(size_t)i].bedX >= 0) guestRooms.push_back(i);
+      }
+      if (inn < 0 || guestRooms.empty()) {   // an old inn: beds in the common room, sleep where you stand
+        if (gold < o.arg) { dlg.text = "YOU DON'T HAVE ENOUGH GOLD."; return; }
+        gold -= o.arg;
+        rest(8);
+        dlg.text = "YOU WAKE WELL RESTED. GOOD MORNING!";
+        dlg.opts = {{"FAREWELL.", A_BYE, 0}};
+        return;
+      }
+      bool mine = lodgingActive() && lodging.bldg == inn && lodgingSleepHours(day, hour, lodging.untilDay) > 0;
+      if (!mine) {
+        if (gold < o.arg) { dlg.text = "YOU DON'T HAVE ENOUGH GOLD."; return; }
+        gold -= o.arg;
+        int pickR = guestRooms[hash32((uint32_t)inn * 2654435761u ^ (uint32_t)day * 40503u) % guestRooms.size()];
+        lodging.bldg = inn; lodging.floor = 1; lodging.room = pickR; lodging.untilDay = day + 1;
+        sfx((int)Sfx::Coin, pl().p);
+      }
+      if (std::find(guestRooms.begin(), guestRooms.end(), lodging.room) == guestRooms.end()) lodging.room = guestRooms[0];
+      // where it is, as you come up the stairs: doors to the left / right of the stairwell, nearest first
+      const RoomInfo& R = up.rooms[(size_t)lodging.room];
+      int sx = up.down.valid() ? up.down.x : up.w / 2;
+      // (fix round 2: left and right are counted from the middle of the flight, both of its tiles: a door in front of
+      // the flight's second tile is the first one on that side, as the player sees it)
+      int sx0 = sx, sx1 = sx;
+      if (up.down.valid()) {
+        const int dn = (int)Prop::StairsDown + 1;
+        while (up.propAt(sx0 - 1, up.down.y) == dn) sx0--;
+        while (up.propAt(sx1 + 1, up.down.y) == dn) sx1++;
+      }
+      auto sideOf = [&](int x) { int d = 2 * x - (sx0 + sx1); return d < 0 ? -1 : (d > 0 ? 1 : 0); };
+      auto distOf = [&](int x) { return std::abs(2 * x - (sx0 + sx1)); };
+      int side = sideOf(R.doorX);
+      std::vector<int> rows;
+      for (const RoomInfo& Q : up.rooms) if (Q.doorX >= 0 && std::find(rows.begin(), rows.end(), Q.doorY) == rows.end()) rows.push_back(Q.doorY);
+      int nth = 1;
+      for (const RoomInfo& Q : up.rooms) {
+        if (Q.doorX < 0 || &Q == &R || Q.doorY != R.doorY) continue;
+        if (sideOf(Q.doorX) == side && distOf(Q.doorX) < distOf(R.doorX)) nth++;
+      }
+      static const char* ord[] = {"FIRST", "SECOND", "THIRD", "FOURTH", "FIFTH", "SIXTH"};
+      std::string where = side == 0 ? "THE DOOR STRAIGHT AHEAD" : std::string("THE ") + ord[std::min(nth, 6) - 1] + " DOOR ON THE " + (side < 0 ? "LEFT" : "RIGHT");
+      if (rows.size() >= 2) {
+        int minRow = *std::min_element(rows.begin(), rows.end());
+        where += R.doorY == minRow ? ", ON THE BACK SIDE" : ", ON THE FRONT SIDE";
+      }
+      std::string num = std::to_string((int)R.guest + 1);
+      dlg.text = (mine ? "YOUR ROOM IS STILL YOURS UNTIL NOON: ROOM " : "ROOM ") + num + ". UP THE STAIRS, " + where + "." +
+                 (mine ? "" : " IT'S YOURS UNTIL NOON TOMORROW.");
+      dlg.opts = {{"GO UP TO BED", A_BED, 0}, {"LATER.", A_BYE, 0}};
       return;
+    }
+    case A_BED: {
+      // straight up to your room: wake beside your own bed
+      mode = Mode::Play;
+      if (!lodgingActive() || !inside || subBldg != lodging.bldg) return;
+      const int h = lodgingSleepHours(day, hour, lodging.untilDay);
+      if (h <= 0) { say(kRoomDue); return; }
+      if (subFloor != lodging.floor) changeFloor(lodging.floor);
+      if (lodging.room >= 0 && lodging.room < (int)sub.rooms.size()) {
+        const RoomInfo& R = sub.rooms[(size_t)lodging.room];
+        int bx = R.bedX >= 0 ? R.bedX : R.r.cx(), by = R.bedX >= 0 ? R.bedY : R.r.cy();
+        int best = -1, bd = 1 << 30;
+        for (int y = R.r.y; y < R.r.y + R.r.h; y++)
+          for (int x = R.r.x; x < R.r.x + R.r.w; x++) {
+            if (sub.roomIndexAt(x, y) != lodging.room || sub.blocked(x, y)) continue;
+            int pr = sub.propAt(x, y);
+            if (pr == (int)Prop::DoorH + 1 || pr == (int)Prop::DoorV + 1) continue;
+            int d = std::abs(x - bx) * 2 + std::abs(y - by) * 2 + (y < by ? 3 : 0);
+            if (d < bd) { bd = d; best = y * sub.w + x; }
+          }
+        if (best >= 0) { pl().p = Vec2((best % sub.w) * TILE + 8.0f, (best / sub.w) * TILE + 10.0f); pl().vel = Vec2(); pl().knock = Vec2(); }
+        // face the bed
+        Vec2 to = Vec2(bx * TILE + 8.0f, by * TILE + 10.0f) - pl().p;
+        pl().aim = len2(to) > 1 ? norm(to) : Vec2(0, -1);
+        pl().face = std::fabs(to.x) > std::fabs(to.y) ? (to.x > 0 ? 2 : 3) : (to.y < 0 ? 1 : 0);
+      }
+      rest(h);
+      say("YOU SLEEP IN YOUR ROOM.");
+      return;
+    }
     case A_RUMOR: {
       // reveal an undiscovered dungeon nearby
       int best = -1; float bd = 1e30f;
@@ -1077,7 +1217,7 @@ bool Game::fastTravel(int si) {
 }
 
 void Game::respawn() {
-  if (inside) { inside = false; subBldg = -1; subSite = -1; sub = Map(); }
+  if (inside) { inside = false; subBldg = -1; subSite = -1; subFloor = 0; sub = Map(); }
   clearNonPlayer();
   int si = lastTown >= 0 ? lastTown : world.startSite;
   const Site& s = world.sites[si];
@@ -1101,10 +1241,12 @@ void Game::respawn() {
 //   v2  adds the world-gen version and the world fingerprint right after the version
 //   v3  (M0) appends the character block at the end: the gloves/boots/cloak slots, the background, the story flags
 //       and the appearance as a length-prefixed block (fields appended later are skipped by older readers)
+//   v4  (M0b) appends the lodging block, length-prefixed like the appearance: the floor the player is on inside a
+//       building, then the rented room (building, floor, room, until-day). Older saves load on floor 0, no room.
 // To change the format: bump SAVE_VER, write the new layout, and gate each new or changed read on `ver >= N`
 // with a default for older saves. Add new fields at the end of the save where possible.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 3;
+static constexpr uint32_t SAVE_VER = 4;
 
 namespace {
 // The appearance block: u16 byte length, then the fields in this order. Append new fields at the end only.
@@ -1181,6 +1323,15 @@ void Game::serialize(std::vector<uint8_t>& out) const {
   w.i32(eqGloves); w.i32(eqBoots); w.i32(eqCloak);
   w.u8((uint8_t)background); w.u32(storyFlags);
   writeAppearance(w, app);
+  // v4: the lodging block (u16 length, then the fields; append new ones at the end only)
+  {
+    std::vector<uint8_t> blk;
+    BinW b(blk);
+    b.i32(inside && subBldg >= 0 ? subFloor : 0);
+    b.i32(lodging.bldg); b.i32(lodging.floor); b.i32(lodging.room); b.i32(lodging.untilDay);
+    w.u16((uint16_t)blk.size());
+    for (uint8_t c : blk) w.u8(c);
+  }
 }
 
 bool Game::deserialize(const std::vector<uint8_t>& in) {
@@ -1247,6 +1398,20 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
     storyFlags = r.u32();
     if (!readAppearance(r, app)) return false;
   }
+  int floorIn = 0;
+  lodging = Lodging();
+  if (ver >= 4) {
+    int n4 = r.u16();
+    std::vector<uint8_t> blk;
+    for (int i = 0; i < n4 && !r.bad; i++) blk.push_back(r.u8());
+    if (r.bad) return false;
+    BinR b(blk);
+    auto more = [&] { return b.p < blk.size() && !b.bad; };
+    if (more()) floorIn = b.i32();
+    if (more()) { lodging.bldg = b.i32(); lodging.floor = b.i32(); lodging.room = b.i32(); lodging.untilDay = b.i32(); }
+    if (b.bad) return false;
+    if (lodging.bldg < -1 || lodging.bldg >= (int)world.over.bldgs.size()) lodging = Lodging();
+  }
   if (r.bad) return false;
   // re-apply looted overworld chests
   for (uint64_t k : looted)
@@ -1256,7 +1421,10 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
     }
   world.over.rebuildSolid();
   recalcPlayer();
-  if (ins && sb >= 0 && sb < (int)world.over.bldgs.size()) enterBuilding(sb);
+  if (ins && sb >= 0 && sb < (int)world.over.bldgs.size()) {
+    enterBuilding(sb);
+    if (floorIn > 0 && floorIn < world.over.bldgs[sb].floors()) changeFloor(floorIn);
+  }
   else if (ins && ss >= 0 && ss < (int)world.sites.size()) enterSite(ss);
   pl().p = pp;
   pl().hp = hp;

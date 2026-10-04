@@ -1,0 +1,23 @@
+# M0b fix round 3: on a phone, using a prop must work both ways the screen offers: the use button (it reads SLEEP)
+# and a tap on the "TAP: SLEEP" label over the bed, even when the bed sits on the stick's (left) half of the screen.
+#   embervale.exe --script tools/scripts/m0b_touch_label.txt [--seed 2]
+# Exit code 3 if an expect/walkto fails.
+seed 2
+0.3  newgame
+0.5  expect mode play
+0.6  god
+0.8  goto town
+1.0  hour 23
+1.2  enter inn 0 0
+1.4  talkto innkeeper 40
+1.8  expect mode dialogue
+3.0  choose RENT A ROOM
+3.2  choose GO UP TO BED
+3.4  expect floor 1
+# a tap on the stick's half, far from the bed, switches the HUD to touch (the buttons appear) and does nothing else
+5.0  tap 40 250
+6.0  shot m0b_touch_label.png
+# the label over the bed says TAP: SLEEP, and the bed is on the stick's half: a short tap there sleeps
+6.2  tap 190 163
+6.6  expect heard SLEEP SOUNDLY
+6.8  quit

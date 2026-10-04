@@ -1,0 +1,30 @@
+# M0b fix round 3: the last hour of a rented room (11:00 to noon on the day it is due). There is no sleep left in it,
+# so the innkeeper lets you a fresh room (paid again) instead of offering a bed you cannot use.
+#   embervale.exe --script tools/scripts/m0b_inn_noon.txt [--seed 19]      (also seeds 2, 7)
+# Exit code 3 if an expect/walkto fails.
+seed 19
+0.3  newgame
+0.5  expect mode play
+0.6  god
+0.8  goto town
+1.0  hour 23
+1.2  enter inn 0 0
+1.4  talkto innkeeper 40
+1.8  expect mode dialogue
+3.0  choose RENT A ROOM
+3.1  expect gold 20
+3.2  choose GO UP TO BED
+3.4  expect floor 1
+5.0  hour 11.5
+5.2  floor 0
+5.4  talkto innkeeper 40
+5.8  expect mode dialogue
+7.0  expect option RENT A ROOM (10 GOLD)
+7.1  choose RENT A ROOM
+7.2  expect gold 10
+7.3  expect text TOMORROW
+7.4  choose GO UP TO BED
+7.6  expect mode play
+7.7  expect floor 1
+8.6  shot m0b_inn_noon.png
+8.8  quit
