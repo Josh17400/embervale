@@ -1,0 +1,39 @@
+# VIEW lane, M1: the endless world map. Explore a little (two fast travels discover a town and the story city and
+# reveal the land around them), open the map, step through the zoom levels, pan, pick a place and travel there.
+#   embervale.exe --script tools/scripts/view_map.txt        (map_*.png in the working directory)
+seed 7
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 walk east 4
++4.2 goto town
++1.5 goto city
++1.5 key M
++0.6 shot map_0_land.png
++0.1 key E
++0.4 key E
++0.6 shot map_1_town.png
++0.1 key E
++0.4 key E
++0.6 shot map_2_street.png
++0.1 key Q
++0.1 key Q
++0.1 key Q
++0.1 key Q
++0.1 key Q
++0.4 key Q
++0.8 shot map_3_kingdom.png
++0.1 key E
++0.1 key E
++0.2 key Right
++0.1 key Right
++0.1 key Right
++0.1 key Down
++0.5 shot map_4_panned.png
++0.1 key W                       # the nearest discovered place
++0.1 key S
++0.4 shot map_5_selected.png
++0.1 key Return                  # fast travel
++1.5 expect mode play
++0.1 shot map_6_arrived.png
++0.3 quit

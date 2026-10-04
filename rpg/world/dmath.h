@@ -26,6 +26,20 @@ inline uint32_t isqrt(uint64_t v) {
   return (uint32_t)r;
 }
 
+// ---- integer directions (structural code): angles in 1/1024 turns, Bhaskara's sine in exact integer maths
+// (max error about 0.0016), so a direction never depends on float rounding
+inline q16 isinT(int32_t t) {
+  t &= 1023;
+  const bool neg = t >= 512;
+  if (neg) t -= 512;
+  const int64_t u = (int64_t)t * (512 - t);   // <= 65536
+  const q16 s = (q16)((16 * u * 65536) / (5 * 262144 - 4 * u));
+  return neg ? -s : s;
+}
+inline q16 icosT(int32_t t) { return isinT(t + 256); }
+inline int32_t icosR(int32_t t, int32_t r) { return (int32_t)(((int64_t)icosT(t) * r) >> 16); }
+inline int32_t isinR(int32_t t, int32_t r) { return (int32_t)(((int64_t)isinT(t) * r) >> 16); }
+
 // ---- float approximations
 constexpr float D_PI = 3.14159265358979f, D_TAU = 6.28318530717959f;
 // wrap to [-pi, pi]

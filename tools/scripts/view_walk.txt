@@ -1,0 +1,35 @@
+# VIEW lane, M1: walks across many endless window shifts (the window moves 64 tiles once the hero leaves its middle
+# 128 x 128), for frame times (EMB_PERF=1: bakes, texture counts, the worst frame each second) and for seams between
+# chunks baked in different windows. "nearshift" steps to just short of the shift line, the walk then crosses it.
+# Shots right after a crossing (a screenshot itself costs ~40 ms, so the perf lines with a shot are not the shift's).
+#   EMB_PERF=1 embervale.exe --script tools/scripts/view_walk.txt
+seed 7
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.5 shot vwalk_0_start.png
++0.1 nearshift east
++0.2 walk east 2
++2.5 shot vwalk_1_east.png
++0.1 nearshift east
++0.2 walk east 2
++2.5 nearshift east
++0.2 walk east 2
++2.5 shot vwalk_2_east3.png
++0.1 nearshift south
++0.2 walk south 2
++2.5 nearshift south
++0.2 walk south 2
++2.5 shot vwalk_3_south.png
++0.1 nearshift west
++0.2 walk west 2
++2.5 nearshift west
++0.2 walk west 2
++2.5 shot vwalk_4_west.png
++0.1 nearshift north
++0.2 walk north 2
++2.5 nearshift north
++0.2 walk north 2
++2.5 shot vwalk_5_north.png
++0.3 expect mode play
++0.3 quit

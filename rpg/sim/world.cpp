@@ -26,43 +26,16 @@ const char* biomeName(Biome b) {
   static const char* n[] = {"OCEAN", "COAST", "PLAINS", "FOREST", "AUTUMN WOODS", "TAIGA", "FROSTLANDS", "MARSH", "DUNES", "MOUNTAINS"};
   return n[(int)b];
 }
+const char* bldgTypeName(art::Building t) {
+  static const char* n[] = {"HOUSE", "HOUSE", "INN", "SMITHY", "GENERAL GOODS", "TEMPLE", "THE KEEP", "MAGE TOWER", "FARMHOUSE", "HUT",
+                            "THE PALACE", "BARRACKS"};
+  static_assert(sizeof(n) / sizeof(n[0]) == (size_t)art::Building::COUNT, "a name for every building type");
+  int i = (int)t;
+  return i >= 0 && i < (int)art::Building::COUNT ? n[i] : "HALL";
+}
 const char* siteTypeName(SiteType t) {
   static const char* n[] = {"CITY", "TOWN", "VILLAGE", "CAVE", "ANCIENT RUIN", "BANDIT CAMP", "SHRINE", "DRAGON LAIR"};
   return n[(int)t];
-}
-
-void Map::alloc(int w_, int h_, Ground fill) {
-  w = w_; h = h_;
-  size_t n = (size_t)w * h;
-  ground.assign(n, (uint8_t)fill);
-  prop.assign(n, 0);
-  solid.assign(n, 0);
-  wall.assign(n, 0);
-  deco.assign(n, 0);
-  bldgAt.assign(n, -1);
-  bldgs.clear();
-  spawns.clear();
-}
-
-bool Map::blocked(int x, int y) const {
-  if (!in(x, y)) return true;
-  size_t i = (size_t)y * w + x;
-  return groundSolid((Ground)ground[i]) || solid[i];
-}
-
-void Map::rebuildSolid() {
-  std::fill(solid.begin(), solid.end(), 0);
-  std::fill(bldgAt.begin(), bldgAt.end(), -1);
-  for (size_t i = 0; i < prop.size(); i++)
-    if (prop[i] && propSolid((Prop)(prop[i] - 1))) solid[i] = 1;
-  for (size_t i = 0; i < wall.size(); i++) if (wall[i]) solid[i] = 1;
-  for (int bi = 0; bi < (int)bldgs.size(); bi++) {
-    const Bldg& b = bldgs[bi];
-    for (int y = b.r.y; y < b.r.y + b.r.h; y++)
-      for (int x = b.r.x; x < b.r.x + b.r.w; x++)
-        if (in(x, y)) { solid[(size_t)y * w + x] = 1; bldgAt[(size_t)y * w + x] = (int16_t)bi; }
-    if (in(b.doorX(), b.doorY())) solid[(size_t)b.doorY() * w + b.doorX()] = 0;   // the door is walkable: stepping in enters
-  }
 }
 
 // ------------------------------------------------------------------ names
@@ -1812,6 +1785,57 @@ struct Gen {
 };
 }  // namespace
 
+// M1 bridge (lead stub, see world.h): one settlement stamped by the classic generator on a scratch island.
+void classicTownStamp(SiteType t, int w, int h, uint32_t seed, const std::function<void(int lx, int ly, Ground& g, Biome& b)>& base,
+                      ClassicTownOut& out) {
+  World tmp;
+  tmp.seed = seed;
+  tmp.genVersion = WORLDGEN_LATEST;
+  Gen g(tmp, seed);
+  g.M.kind = MapKind::Overworld;
+  g.M.alloc(WW, WH, Ground::Grass);
+  g.M.biome.assign((size_t)WW * WH, (uint8_t)Biome::Plains);
+  g.M.seed = seed;
+  g.reserved.assign((size_t)WW * WH, 0);
+  g.river.assign((size_t)WW * WH, 0);
+  const int margin = ClassicTownOut::MARGIN;
+  const int fx = WW / 2 - w / 2, fy = WH / 2 - h / 2;
+  const int bx0 = fx - margin, by0 = fy - margin, bw = w + 2 * margin, bh = h + 2 * margin;
+  for (int y = 0; y < bh; y++)
+    for (int x = 0; x < bw; x++) {
+      Ground gr = Ground::Grass;
+      Biome bi = Biome::Plains;
+      base(x, y, gr, bi);
+      g.M.setG(bx0 + x, by0 + y, gr);
+      g.M.biome[g.I(bx0 + x, by0 + y)] = (uint8_t)bi;
+      if (groundWater(gr)) g.river[g.I(bx0 + x, by0 + y)] = 1;   // rivers and lakes stay: the town builds around them
+    }
+  int si = g.addSite(t, IRect{fx, fy, w, h}, fx + w / 2, fy + h / 2);
+  g.stampSettlement(si);
+  g.M.rebuildSolid();
+  out = ClassicTownOut();
+  out.buf.kind = MapKind::Overworld;
+  out.buf.alloc(bw, bh, Ground::Grass);
+  out.buf.biome.assign((size_t)bw * bh, (uint8_t)Biome::Plains);
+  out.used.assign((size_t)bw * bh, 0);
+  for (int y = 0; y < bh; y++)
+    for (int x = 0; x < bw; x++) {
+      size_t si2 = g.I(bx0 + x, by0 + y), di = (size_t)y * bw + x;
+      out.buf.ground[di] = g.M.ground[si2];
+      out.buf.prop[di] = g.M.prop[si2];
+      out.buf.wall[di] = g.M.wall[si2];
+      out.buf.biome[di] = g.M.biome[si2];
+      out.used[di] = g.reserved[si2];
+    }
+  for (Bldg b : g.M.bldgs) { b.r.x -= bx0; b.r.y -= by0; b.site = -1; out.buf.bldgs.push_back(b); }
+  for (Spawn sp : g.M.spawns) { sp.x -= bx0; sp.y -= by0; sp.site = -1; out.buf.spawns.push_back(sp); }
+  for (auto gt : tmp.gates) out.gates.push_back({gt.first - bx0, gt.second - by0});
+  for (IRect r : tmp.wallGaps) { r.x -= bx0; r.y -= by0; out.gaps.push_back(r); }
+  out.buf.rebuildSolid();
+  out.ex = tmp.sites[(size_t)si].ex - bx0;
+  out.ey = tmp.sites[(size_t)si].ey - by0;
+}
+
 uint64_t genSubSeed(uint64_t seed, const char* feature) {
   uint64_t h = 1469598103934665603ull ^ (seed * 0x9E3779B97F4A7C15ull);
   for (const char* c = feature; *c; c++) { h ^= (uint8_t)*c; h *= 1099511628211ull; }
@@ -1868,34 +1892,31 @@ void World::generate(uint64_t sd, int genVer) {
   dens.clear();
   wallGaps.clear();
   lair = -1;
+  kingdoms.clear();
+  endless = false; ox = 0; oy = 0; src.reset();
+  siteById.clear(); bldgById.clear(); denById.clear(); kingdomById.clear(); spawnKeys.clear(); gateKeys.clear();
   Gen g(*this, sd);
   g.run();
-}
-
-int World::siteAt(int tx, int ty, int pad) const {
-  for (int i = 0; i < (int)sites.size(); i++) {
-    const IRect& r = sites[i].r;
-    if (tx >= r.x - pad && ty >= r.y - pad && tx < r.x + r.w + pad && ty < r.y + r.h + pad) return i;
+  // M1: stable ids (the classic island's are its indices) and the island's one kingdom, seated at the capital
+  for (int i = 0; i < (int)sites.size(); i++) { sites[(size_t)i].id = ew::legacySiteId(i); siteById[sites[(size_t)i].id] = i; }
+  for (int i = 0; i < (int)over.bldgs.size(); i++) { over.bldgs[(size_t)i].id = ew::legacyBldgId(i); bldgById[over.bldgs[(size_t)i].id] = i; }
+  for (int i = 0; i < (int)dens.size(); i++) { dens[(size_t)i].id = ew::makeId(0, 0, ew::IdKind::Den, (uint32_t)i); denById[dens[(size_t)i].id] = i; }
+  Kingdom k;
+  k.id = ew::makeId(0, 0, ew::IdKind::Kingdom, 0);
+  Rng kr(genSubSeed(sd, "kingdom"));
+  k.name = makeTownName(kr);
+  static const uint32_t fields[] = {rgba(150, 32, 36), rgba(36, 64, 140), rgba(28, 100, 60), rgba(110, 40, 120), rgba(180, 120, 30)};
+  k.color = fields[kr.irange(5)];
+  k.color2 = rgba(232, 214, 160);
+  k.emblem = (uint8_t)kr.irange(8);
+  if (capital >= 0 && capital < (int)sites.size()) {
+    k.capitalId = sites[(size_t)capital].id;
+    k.gx = sites[(size_t)capital].ex; k.gy = sites[(size_t)capital].ey;
+    sites[(size_t)capital].capital = true;
   }
-  return -1;
+  kingdoms.push_back(k);
+  kingdomById[k.id] = 0;
+  for (Site& st : sites) if (st.settlement()) st.kingdom = 0;
+  if (startSite >= 0 && startSite < (int)sites.size()) sites[(size_t)startSite].start = true;
 }
 
-int World::nearestSite(int tx, int ty, SiteType t, int exclude) const {
-  int best = -1; int bd = 1 << 30;
-  for (int i = 0; i < (int)sites.size(); i++) {
-    if (sites[i].type != t || i == exclude) continue;
-    int dx = sites[i].ex - tx, dy = sites[i].ey - ty;
-    int d = dx * dx + dy * dy;
-    if (d < bd) { bd = d; best = i; }
-  }
-  return best;
-}
-
-int World::zoneLevel(int tx, int ty) const {
-  if (sites.empty()) return 1;
-  const Site& h = sites[startSite];
-  float d = std::hypot((float)(tx - h.r.cx()), (float)(ty - h.r.cy()));
-  int lv = 1 + (int)(d / 22.0f);
-  if (over.biomeAt(tx, ty) == Biome::Snow || over.biomeAt(tx, ty) == Biome::Mountain) lv += 2;
-  return std::min(lv, 30);
-}

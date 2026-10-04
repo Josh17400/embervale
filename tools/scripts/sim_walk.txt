@@ -1,0 +1,72 @@
+# M1 SIM lane: window shifts under a walking player, for the eye and for --perf. Each crossing steps to just short of
+# the window's shift line (an open lane: `nearshift`) and walks across it with a shot every 0.2 s: the sequence must show
+# no jump, seam, stale strip or pop-in at the moment the window moves. Three crossings east (three shifts in a row: the
+# prefetched ring keeps up), then one each south, west and north. --perf reports the worst frame in which a walking
+# shift happened and the worst frame in the second after one (target: 16 ms).
+#   embervale.exe --script tools/scripts/sim_walk.txt --perf [--seed 7]   (screenshots land in the working directory)
+seed 7
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.6 nearshift east
++0.1 pos
++0.5 walk east 1.6
++0.3 shot sim_walk_e0_0.png
++0.2 shot sim_walk_e0_1.png
++0.2 shot sim_walk_e0_2.png
++0.2 shot sim_walk_e0_3.png
++0.2 shot sim_walk_e0_4.png
++0.2 shot sim_walk_e0_5.png
++0.1 pos
++0.6 nearshift east
++0.1 pos
++0.5 walk east 1.6
++0.3 shot sim_walk_e1_0.png
++0.2 shot sim_walk_e1_1.png
++0.2 shot sim_walk_e1_2.png
++0.2 shot sim_walk_e1_3.png
++0.2 shot sim_walk_e1_4.png
++0.2 shot sim_walk_e1_5.png
++0.1 pos
++0.6 nearshift east
++0.1 pos
++0.5 walk east 1.6
++0.3 shot sim_walk_e2_0.png
++0.2 shot sim_walk_e2_1.png
++0.2 shot sim_walk_e2_2.png
++0.2 shot sim_walk_e2_3.png
++0.2 shot sim_walk_e2_4.png
++0.2 shot sim_walk_e2_5.png
++0.1 pos
++0.6 nearshift south
++0.1 pos
++0.5 walk south 1.6
++0.3 shot sim_walk_s_0.png
++0.2 shot sim_walk_s_1.png
++0.2 shot sim_walk_s_2.png
++0.2 shot sim_walk_s_3.png
++0.2 shot sim_walk_s_4.png
++0.2 shot sim_walk_s_5.png
++0.1 pos
++0.6 nearshift west
++0.1 pos
++0.5 walk west 1.6
++0.3 shot sim_walk_w_0.png
++0.2 shot sim_walk_w_1.png
++0.2 shot sim_walk_w_2.png
++0.2 shot sim_walk_w_3.png
++0.2 shot sim_walk_w_4.png
++0.2 shot sim_walk_w_5.png
++0.1 pos
++0.6 nearshift north
++0.1 pos
++0.5 walk north 1.6
++0.3 shot sim_walk_n_0.png
++0.2 shot sim_walk_n_1.png
++0.2 shot sim_walk_n_2.png
++0.2 shot sim_walk_n_3.png
++0.2 shot sim_walk_n_4.png
++0.2 shot sim_walk_n_5.png
++0.1 pos
++0.6 expect mode play
++0.2 quit

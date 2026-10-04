@@ -30,8 +30,15 @@ enum class Building : uint8_t {
   Tower,       // mage tower, tall round, conical roof
   Farmhouse,   // wide barn
   Hut,         // small shack (village / bandits)
+  Palace,      // M1: the king's palace in a capital (multi-storey hall, throne room). Until the towns lane paints it,
+               // paintedAs() draws it as a Keep
+  Barracks,    // M1: the royal guard's barracks in a palace compound (and city garrisons); painted as a StoneHouse
+               // until it has its own look
   COUNT
 };
+// M1: the type whose painter draws b while a new type has no look of its own yet. The palace and the barracks have
+// their own painters now (art_building.cpp), so every type paints as itself.
+inline Building paintedAs(Building b) { return b; }
 constexpr int BLDG_PAD_X = 8;
 constexpr int BLDG_PAD_B = 4;
 
@@ -58,12 +65,16 @@ struct BuildingFacts {
   bool hearth = true;   // false: nothing inside burns a fire, so the roof carries NO chimney. true: chimneys as the
                         // style and the type decide (a style without chimneys may still show none: chimney => hearth,
                         // not the reverse)
+  // M1 kingdom identity (VISION_PLAN 15.8): the ruling kingdom's banner colours (rgba, banner == 0: none) and emblem.
+  // Keeps, palaces, barracks and inns fly it where the painter sees fit.
+  uint32_t banner = 0, banner2 = 0;
+  int emblem = 0;
 };
 // The storeys each type showed before M0b (and still shows for worlds before WORLDGEN_V7): inns and keeps 2, mage
 // towers 3, everything else 1. Header-only: the simulation (which does not link the art) needs it.
 inline int defaultStoreys(Building b) {
   switch (b) {
-    case Building::Inn: case Building::Keep: return 2;
+    case Building::Inn: case Building::Keep: case Building::Barracks: case Building::Palace: return 2;
     case Building::Tower: return 3;
     default: return 1;
   }
@@ -112,6 +123,8 @@ int wallShadeAt(const uint8_t* wall, int w, int h, int px, int py);
 // whole opening. Canvas GATE_CW x GATE_CH; tile (gx, gy)'s top-left corner sits at canvas (GATE_OX, GATE_OY).
 constexpr int GATE_OX = 24, GATE_OY = 52, GATE_CW = 96, GATE_CH = 80;   // towers reach 6 px below the wall front
 Canvas gateHouse(uint32_t seed);
+// M1: the same flying a kingdom's banner (field and trim colours, rgba; field == 0: none) and emblem
+Canvas gateHouse(uint32_t seed, uint32_t field, uint32_t trim, int emblem);
 
 // Older pieces kept for the tools: wallPiece(mask) is wallTile for a 4-bit N/E/S/W mask (diagonals filled where both
 // sides are), gatePiece() is gateHouse(0).

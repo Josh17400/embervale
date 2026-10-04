@@ -9,6 +9,9 @@
 //   test_interiors.cpp  interiorChecks: interior BFS validity and clutter           (homes lane)
 //   test_defence.cpp    defenceChecks: factions, town defence, bounty clarity       (town-defence lane)
 //   test_arch.cpp       archChecks: walls, gates, building footprints and styles     (architecture lane)
+// M1 (endless world): lanes add whole commands without touching main.cpp through RPG_TEST_CMD (below):
+//   test_endless.cpp    --endless: generator determinism, spacing, start plan, golden chunks   (WORLD lane)
+//   test_window.cpp     --window: the Active Window, streaming, shifts, endless saves          (SIM lane)
 #pragma once
 #include <cstdint>
 #include <string>
@@ -55,3 +58,21 @@ int heroChecks(uint64_t seed);
 int interiorChecks(uint64_t seed);
 int defenceChecks(uint64_t seed);
 int archChecks(uint64_t seed);
+
+// ---- M1: self-registering commands. In any tools/tests/*.cpp:
+//        static int myCmd(int argc, char** argv) { ...; return failures ? 1 : 0; }
+//        RPG_TEST_CMD("--endless", "endless generator checks [--seeds A..B]", myCmd);
+//      `rpg_test --endless [args]` then runs myCmd with the full argv (main.cpp checks the registry first).
+//      `rpg_test --help` lists every command.
+struct TestCmd {
+  const char* flag;
+  const char* help;
+  int (*run)(int argc, char** argv);
+};
+std::vector<TestCmd>& testCmds();
+inline int registerTestCmd(const TestCmd& c) { testCmds().push_back(c); return (int)testCmds().size(); }
+#define RPG_TEST_CAT2(a, b) a##b
+#define RPG_TEST_CAT(a, b) RPG_TEST_CAT2(a, b)
+#define RPG_TEST_CMD(flag, help, fn) static const int RPG_TEST_CAT(rpgTestReg_, __LINE__) = registerTestCmd(TestCmd{flag, help, fn})
+// shared argument helper: "A..B", "A-B" or a single number
+bool parseSeedRange(const char* s, uint64_t& a, uint64_t& b);

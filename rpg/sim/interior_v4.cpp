@@ -321,7 +321,8 @@ RoomKind mainKindOf(Building t, int f, int floors) {
     case Building::Shop: return RoomKind::Shopfloor;
     case Building::Smithy: return RoomKind::Forge;
     case Building::Temple: return RoomKind::Nave;
-    case Building::Keep: return RoomKind::ThroneHall;
+    case Building::Keep: case Building::Palace: return RoomKind::ThroneHall;
+    case Building::Barracks: return RoomKind::Hall;
     case Building::Tower: return RoomKind::Workshop;
     case Building::Hut: return RoomKind::Cottage;
     default: return RoomKind::Hall;
@@ -833,6 +834,104 @@ bool planKeep(Plan& P, Rng& r) {
   return true;
 }
 
+// ---- PALACE (M1, VISION_PLAN 15.8): the king's palace. Below, the throne hall runs the whole depth down the middle (the
+// throne on the axis at the far wall, the aisle to it from the doors), with the wings either side: the kitchen and the
+// steward's records or a store at the back, the guardroom and the armoury by the front. The hall reaches the side walls
+// between them, so the wings open off a cross hall. A broad flight climbs from the hall's back bay, clear of the dais,
+// to the royal apartments upstairs: rooms along the gallery (both sides when it is deep enough): the king's
+// bedchamber, the council chamber, a library and the household's bedchambers.
+bool planPalace(Plan& P, Rng& r) {
+  const int W = P.W, H = P.H, ex = P.ex;
+  Geo& g0 = P.geo[0];
+  g0.init(W, H, RoomKind::ThroneHall);
+  const int ww = 6 + r.irange(3), kd = 5 + r.irange(2), gd = 4 + r.irange(2);
+  if (ww + 2 > ex - 6 || H - 3 - gd <= kd + 3) return false;
+  int kit = P.carve(g0, 1, 2, ww, kd, RoomKind::Kitchen);
+  int grd = P.carve(g0, 1, H - 1 - gd, ww, H - 2, RoomKind::Barracks);
+  int rec = P.carve(g0, W - 1 - ww, 2, W - 2, kd, r.f() < 0.5f ? RoomKind::Study : RoomKind::Storeroom);
+  int arm = P.carve(g0, W - 1 - ww, H - 1 - gd, W - 2, H - 2, RoomKind::Storeroom);
+  if (kit < 0 || grd < 0 || rec < 0 || arm < 0 || !g0.finish()) return false;
+  for (int x = ex - 3; x <= ex + 3; x++) if (g0.roomOf(x, 2) != 0) return false;
+  for (int y = 3; y <= H - 2; y++) if (g0.roomOf(ex, y) != 0) return false;   // the aisle from the doors to the throne
+  // the stairs (unmirrored column): the hall's back bay between a wing and the dais
+  std::vector<int> cand;
+  for (int x = ww + 2; x + 1 <= ex - 5; x++) if (nookOk(W, x, 5)) cand.push_back(x);
+  for (int x = ex + 4; x + 1 <= W - ww - 3; x++) if (nookOk(W, x, 5)) cand.push_back(x);
+  if (cand.empty()) return false;
+  const int sxU = cand[(size_t)r.irange((int)cand.size())];
+  // upstairs: the royal apartments
+  Geo& g1 = P.geo[1];
+  g1.init(W, H, RoomKind::Corridor);
+  const int ud = 5 + r.irange(2);
+  const bool dbl = ud + 7 <= H - 5;
+  std::vector<int> back, front;
+  if (!carveRows(P, g1, ud, sxU, dbl ? ud + 7 : -1, 5, 9, r, back, front)) return false;
+  if (!g1.finish()) return false;
+  std::vector<int> ids = back;
+  ids.insert(ids.end(), front.begin(), front.end());
+  if (ids.size() < 4) return false;
+  // who has which room: the king the largest, the council the next, a library, the household's bedchambers
+  std::vector<int> bySize = ids;
+  std::stable_sort(bySize.begin(), bySize.end(), [&](int a, int b) {
+    const IRect &ra = g1.rooms[(size_t)a].r, &rb = g1.rooms[(size_t)b].r;
+    return ra.w * ra.h > rb.w * rb.h;
+  });
+  for (int ri : ids) g1.rooms[(size_t)ri].kind = RoomKind::Bedroom;
+  g1.rooms[(size_t)bySize[0]].kind = RoomKind::OwnerRoom;
+  g1.rooms[(size_t)bySize[1]].kind = RoomKind::Council;
+  g1.rooms[(size_t)bySize[bySize.size() - 1]].kind = RoomKind::Study;
+  if (!setStairs(P, 0, P.X(sxU), 2)) return false;
+  if (!doorsTo(g1, back, r) || !doorsTo(g1, front, r)) return false;
+  // the ground floor's doors into the hall
+  if (!g0.door(kit, 0, P.X(2 + r.irange(std::max(1, ww - 2))), kd + 2, r)) return false;
+  if (!g0.door(grd, 0, P.X(2 + r.irange(std::max(1, ww - 2))), H - 2 - gd, r)) return false;
+  if (!g0.door(rec, 0, P.X(W - 3 - r.irange(std::max(1, ww - 2))), kd + 2, r)) return false;
+  if (!g0.door(arm, 0, P.X(W - 3 - r.irange(std::max(1, ww - 2))), H - 2 - gd, r)) return false;
+  P.var = ww * 16 + kd * 4 + gd + (dbl ? 1000 : 0);
+  return true;
+}
+
+// ---- BARRACKS (M1): the guard's hall below (the mess table, the hearth, weapon racks) with the armoury and a kitchen at
+// the back; upstairs the dormitories of bunks and the captain's room along a corridor.
+bool planBarracks(Plan& P, Rng& r) {
+  const int W = P.W, H = P.H;
+  Geo& g0 = P.geo[0];
+  g0.init(W, H, RoomKind::Hall);
+  const int aw = 4 + r.irange(2), ad = 4 + r.irange(2);
+  const bool kitchen = W >= 19 && r.f() < 0.65f;
+  const int kw = 4 + r.irange(2);
+  int arm = P.carve(g0, 1, 2, aw, ad, RoomKind::Storeroom);
+  int kit = kitchen ? P.carve(g0, W - 1 - kw, 2, W - 2, ad, RoomKind::Kitchen) : 0;
+  if (arm < 0 || kit < 0 || !g0.finish()) return false;
+  std::vector<int> cand;
+  for (int x = aw + 2; x + 1 <= (kitchen ? W - 3 - kw : W - 2); x++) if (nookOk(W, x, 4)) cand.push_back(x);
+  if (cand.empty()) return false;
+  const int sxU = cand[(size_t)r.irange((int)cand.size())];
+  Geo& g1 = P.geo[1];
+  g1.init(W, H, RoomKind::Corridor);
+  const int ud = 4 + r.irange(2);
+  const bool dbl = ud + 7 <= H - 4;
+  std::vector<int> back, front;
+  if (!carveRows(P, g1, ud, sxU, dbl ? ud + 7 : -1, 4, 7, r, back, front)) return false;
+  if (!g1.finish()) return false;
+  std::vector<int> ids = back;
+  ids.insert(ids.end(), front.begin(), front.end());
+  if (ids.size() < 2) return false;
+  int cap = ids[0];
+  for (int ri : ids) {
+    g1.rooms[(size_t)ri].kind = RoomKind::Barracks;
+    const IRect &a = g1.rooms[(size_t)ri].r, &b = g1.rooms[(size_t)cap].r;
+    if (a.w * a.h < b.w * b.h) cap = ri;   // the captain keeps the smallest room to himself
+  }
+  g1.rooms[(size_t)cap].kind = RoomKind::OwnerRoom;
+  if (!setStairs(P, 0, P.X(sxU), 2)) return false;
+  if (!doorsTo(g1, back, r) || !doorsTo(g1, front, r)) return false;
+  if (!g0.door(arm, 0, P.X(2 + r.irange(std::max(1, aw - 2))), ad + 2, r)) return false;
+  if (kitchen && !g0.door(kit, 0, P.X(W - 3 - r.irange(std::max(1, kw - 2))), ad + 2, r)) return false;
+  P.var = aw * 8 + ad + (kitchen ? 100 : 0) + (dbl ? 1000 : 0);
+  return true;
+}
+
 // ---- TOWER: one round room per floor (laboratory, library, the mage's bedroom), stairs along the back wall
 bool planTower(Plan& P, Rng& r) {
   bool closet = r.f() < 0.45f;
@@ -926,6 +1025,8 @@ void planSize(Plan& P) {
   switch (b.type) {
     case Building::Inn: P.W = std::max(17, 2 * w + 7); P.H = std::max(13, 2 * h + 9); break;
     case Building::Keep: P.W = std::max(23, 2 * w + 9); P.H = std::max(14, 2 * h + 8); break;
+    case Building::Palace: P.W = std::max(33, 2 * w + 9); P.H = std::max(20, 2 * h + 9); break;   // M1: the king's palace
+    case Building::Barracks: P.W = std::max(17, 2 * w + 5); P.H = std::max(14, 2 * h + 7); break;
     case Building::Temple: P.W = std::max(15, 2 * w + 5); P.H = std::max(13, 2 * h + 7); break;
     case Building::Shop: P.W = std::max(13, 2 * w + 5); P.H = std::max(14, 2 * h + 8); break;
     case Building::Smithy: {   // fix round 2: a smithy's floor follows its footprint, give or take a stride, so no two
@@ -945,8 +1046,8 @@ void planSize(Plan& P) {
     }
     default: P.W = std::max(11, 2 * w + 5); P.H = std::max(P.floors >= 2 ? 11 : 10, 2 * h + (P.floors >= 2 ? 7 : 6)); break;
   }
-  P.W = std::min(oddUp(P.W), 31);
-  P.H = std::min(P.H, 24);
+  P.W = std::min(oddUp(P.W), b.type == Building::Palace ? 45 : 31);
+  P.H = std::min(P.H, b.type == Building::Palace ? 26 : 24);
   P.ex = P.W / 2;
 }
 
@@ -958,7 +1059,8 @@ Plan makePlan(const Bldg& b, uint32_t seed) {
   planSize(P);
   Rng wr(seed ^ 0x2F6A9D1Bu);
   P.wealth = b.type == Building::Hut ? 0 : (b.type == Building::StoneHouse ? 2 : 1);
-  if (b.type == Building::Keep || b.type == Building::Temple) P.wealth = 3;
+  if (b.type == Building::Keep || b.type == Building::Temple || b.type == Building::Palace) P.wealth = 3;
+  if (b.type == Building::Barracks) P.wealth = 1;
   if (P.floors >= 2 && P.wealth == 1 && wr.f() < 0.3f) P.wealth = 2;
   if (P.wealth > 0 && P.wealth < 3 && wr.f() < 0.2f) P.wealth--;
   Rng r(seed ^ 0xB4A1E5C3u);
@@ -975,6 +1077,8 @@ Plan makePlan(const Bldg& b, uint32_t seed) {
       case Building::Shop: ok = planShop(T, r); break;
       case Building::Temple: ok = T.floors == 1 && planTemple(T, r); break;
       case Building::Keep: ok = planKeep(T, r); break;
+      case Building::Palace: ok = planPalace(T, r); break;
+      case Building::Barracks: ok = planBarracks(T, r); break;
       case Building::Tower: ok = planTower(T, r); break;
       case Building::Hut: ok = T.floors == 1 && planHut(T, r); break;
       default:
@@ -1438,7 +1542,7 @@ void furnishBedroom(Fit& F, int ri, RoomKind kind, bool child, Ctx& cx) {
     if (R.w * R.h >= 12 && F.r.f() < 0.55f) tableIn(F, ri, 1, Prop::TableSmall, 1, false, 16);
   }
   if (kind == RoomKind::Bedroom && !child && F.r.f() < 0.35f) northPiece(F, ri, F.r.f() < 0.5f ? Prop::Cupboard : Prop::Shelf, 0);
-  if (F.P.type == Building::Tower || F.P.type == Building::Keep) {
+  if (F.P.type == Building::Tower || F.P.type == Building::Keep || F.P.type == Building::Palace) {
     northPiece(F, ri, Prop::Bookshelf, 0);
     if (F.r.f() < 0.6f) northPiece(F, ri, Prop::Candelabra, 0);
   }
@@ -1495,6 +1599,14 @@ void furnishKitchen(Fit& F, int ri, Ctx& cx) {
 void furnishHallish(Fit& F, int ri, RoomKind kind, Ctx& cx) {
   const IRect& R = F.g.rooms[(size_t)ri].r;
   const Bldg& b = *F.P.b;
+  if (b.type == Building::Barracks && F.m.floor == 0) {
+    // the guard's mess hall: weapon racks along the back, the long table with benches, the sergeant at its head
+    northPiece(F, ri, Prop::WeaponRack, 1);
+    northPiece(F, ri, Prop::WeaponRack, 0);
+    int tx = -1, ty = -1;
+    if (tableIn(F, ri, 3, Prop::TableMeal, 0, true, 60, &tx, &ty) || tableIn(F, ri, 2, Prop::TableMeal, 0, true, 60, &tx, &ty)) { cx.ownerX = tx; cx.ownerY = ty + 2; }
+    wallPiece(F, ri, Prop::Chest);
+  }
   bool cottage = kind == RoomKind::Cottage;
   // the hearth on the outer back wall (a home without a separate kitchen)
   int hx = -1;
@@ -1542,7 +1654,7 @@ void furnishHallish(Fit& F, int ri, RoomKind kind, Ctx& cx) {
 
 void furnishStore(Fit& F, int ri, RoomKind kind) {
   const IRect& R = F.g.rooms[(size_t)ri].r;
-  if (F.P.type == Building::Keep && kind == RoomKind::Storeroom && F.m.floor == 0) {   // the keep's armoury
+  if ((F.P.type == Building::Keep || F.P.type == Building::Palace || F.P.type == Building::Barracks) && kind == RoomKind::Storeroom && F.m.floor == 0) {   // the keep's armoury
     for (int k = 0; k < 1 + R.w / 3; k++) northPiece(F, ri, Prop::WeaponRack, k == 0 ? 1 : 0);
     wallPiece(F, ri, Prop::Chest);
     wallPiece(F, ri, Prop::Crate);
@@ -1611,7 +1723,7 @@ void furnishCorridor(Fit& F, int ri) {
     int tx = -1, ty = -1;
     if (tableIn(F, ri, F.r.f() < 0.5f ? 2 : 1, F.r.f() < 0.5f ? Prop::TableMeal : Prop::TableSmall, 2 + F.r.irange(2), F.r.f() < 0.3f, 40, &tx, &ty))
       rugRect(F, ri, tx - 1, ty - 1, tx + 2, ty + 1, rugFor(F));
-    if (F.P.type == Building::Keep) {
+    if (F.P.type == Building::Keep || F.P.type == Building::Palace) {
       northPiece(F, ri, Prop::Banner, 0); northPiece(F, ri, Prop::Banner, 0);
       // fix round 2: the keep's gallery is the household's sitting room too: shelves, a cupboard, a statue in a niche
       northPiece(F, ri, F.r.f() < 0.5f ? Prop::Bookshelf : Prop::Cupboard, 0);
@@ -1646,7 +1758,7 @@ void furnishCorridor(Fit& F, int ri) {
     }
   }
   wallPiece(F, ri, Prop::PlantPot);
-  if (R.w * R.h >= 20) wallPiece(F, ri, F.P.type == Building::Keep ? Prop::Chest : Prop::Bench);
+  if (R.w * R.h >= 20) wallPiece(F, ri, F.P.type == Building::Keep || F.P.type == Building::Palace ? Prop::Chest : Prop::Bench);
 }
 
 // the inn's bar or the shop's counter: wares and kegs against the partition, the keeper's walkway, the counter with
@@ -1947,6 +2059,25 @@ void furnishThrone(Fit& F, int ri, Ctx& cx) {
   else { int sd = F.r.f() < 0.5f ? -1 : 1; cx.seats.push_back({ex + 2 * sd, 4}); cx.seats.push_back({ex - sd, H - 3}); }
 }
 
+// the palace's council chamber (M1): the long table in the middle with chairs all round, the realm's banners and
+// candle-stands along the walls, books and chests of charters
+void furnishCouncil(Fit& F, int ri) {
+  const IRect& R = F.g.rooms[(size_t)ri].r;
+  int tx = -1, ty = -1, len = 0;
+  for (int l = std::clamp(R.w - 4, 2, 5); l >= 2 && tx < 0; l--) {
+    int x0 = R.cx() - l / 2, y0 = R.y + R.h / 2;
+    if (F.group([&](int gid) { return tableSet(F, ri, x0, y0, l, Prop::TableMeal, l * 2 + 2, false, gid); })) { tx = x0; ty = y0; len = l; }
+    else if (tableIn(F, ri, l, Prop::TableMeal, l * 2, false, 60, &tx, &ty)) len = l;
+  }
+  if (tx >= 0) rugRect(F, ri, tx - 1, ty - 1, tx + len, ty + 1, F.r.f() < 0.6f ? Deco::RugGold : Deco::RugRed);
+  northPiece(F, ri, Prop::Banner, 1);
+  northPiece(F, ri, Prop::Bookshelf, 0);
+  northPiece(F, ri, Prop::Banner, 1);
+  northPiece(F, ri, Prop::Candelabra, 0);
+  wallPiece(F, ri, Prop::Chest);
+  if (R.w * R.h >= 30) { wallPiece(F, ri, Prop::Candelabra); wallPiece(F, ri, Prop::PlantPot); }
+}
+
 // ---- pass 3: wall decor on every visible face of the room (the back wall and partition face rows) -----------------
 void wallDecorRoom(Fit& F, int ri, RoomKind kind) {
   std::vector<Weighted> pool;
@@ -1955,7 +2086,7 @@ void wallDecorRoom(Fit& F, int ri, RoomKind kind) {
   switch (kind) {
     case RoomKind::Kitchen: pool = {{P(Prop::PanRack), 4}, {P(Prop::HerbBundle), 4}, {P(Prop::WallShelf), 3}}; break;
     case RoomKind::Bedroom: case RoomKind::GuestRoom: pool = {{P(Prop::Painting), 2}, {P(Prop::Wreath), 1}, {P(Prop::WallShelf), 1}, {P(Prop::Tapestry), F.P.wealth >= 2 ? 2 : 0}}; break;
-    case RoomKind::OwnerRoom: pool = {{P(Prop::Painting), 2}, {P(Prop::Tapestry), 2}, {P(Prop::WallShelf), 1}, {P(Prop::WallShield), b.type == Building::Keep ? 2 : 0}}; break;
+    case RoomKind::OwnerRoom: pool = {{P(Prop::Painting), 2}, {P(Prop::Tapestry), 2}, {P(Prop::WallShelf), 1}, {P(Prop::WallShield), b.type == Building::Keep || b.type == Building::Palace ? 2 : 0}}; break;
     case RoomKind::Common: pool = {{P(Prop::Antlers), 3}, {P(Prop::WallShield), 2}, {P(Prop::WallShelf), 2}, {P(Prop::HerbBundle), 1}, {P(Prop::Painting), 1}, {P(Prop::PanRack), 1}}; break;
     case RoomKind::Storeroom: case RoomKind::Stockroom: pool = {{P(Prop::WallShelf), 3}, {P(Prop::HerbBundle), 2}, {P(Prop::ToolRack), 1}}; break;
     case RoomKind::Barn: pool = {{P(Prop::ToolRack), 3}, {P(Prop::HerbBundle), 2}, {P(Prop::Antlers), 1}}; break;
@@ -1967,7 +2098,8 @@ void wallDecorRoom(Fit& F, int ri, RoomKind kind) {
     case RoomKind::Vestry: pool = {{P(Prop::Tapestry), 2}, {P(Prop::WallShelf), 2}, {P(Prop::Wreath), 1}}; break;
     case RoomKind::ThroneHall: pool = {{P(Prop::Tapestry), 4}, {P(Prop::WallShield), 3}, {P(Prop::Antlers), 2}}; break;
     case RoomKind::Barracks: pool = {{P(Prop::WallShield), 4}, {P(Prop::ToolRack), 1}}; break;
-    case RoomKind::Corridor: pool = {{P(Prop::Painting), 2}, {P(Prop::Tapestry), b.type == Building::Keep ? 3 : 1}, {P(Prop::Wreath), 1}}; break;
+    case RoomKind::Corridor: pool = {{P(Prop::Painting), 2}, {P(Prop::Tapestry), b.type == Building::Keep || b.type == Building::Palace ? 3 : 1}, {P(Prop::Wreath), 1}}; break;
+    case RoomKind::Council: pool = {{P(Prop::Tapestry), 4}, {P(Prop::WallShield), 2}, {P(Prop::Painting), 2}}; break;
     default:
       pool = {{P(Prop::HerbBundle), 3}, {P(Prop::WallShelf), 3}, {P(Prop::Wreath), 2}, {P(Prop::PanRack), 2}, {P(Prop::Painting), F.P.wealth >= 1 ? 2 : 0},
               {P(Prop::Antlers), b.owner == Role::Farmer || F.biome == Biome::Taiga || F.biome == Biome::Snow ? 3 : 1}, {P(Prop::Tapestry), F.P.wealth >= 2 ? 2 : 0}};
@@ -2058,6 +2190,7 @@ void clutterRoom(Fit& F, int ri, RoomKind kind) {
     // nightstands, candelabras and in sconces)
     case RoomKind::Workshop: pool = {{D(Deco::Bottles), 3}, {D(Deco::Books), 2}, {D(Deco::Scrolls), 2}, {D(Deco::Basket), 1}}; density = 0.35f; break;
     case RoomKind::Study: pool = {{D(Deco::Books), 4}, {D(Deco::Scrolls), 3}}; density = 0.35f; break;
+    case RoomKind::Council: pool = {{D(Deco::Scrolls), 3}, {D(Deco::Books), 2}}; density = 0.12f; break;
     case RoomKind::Nave: pool = {{D(Deco::Books), 1}, {D(Deco::Basket), 1}}; density = 0.05f; break;
     case RoomKind::Vestry: pool = {{D(Deco::Books), 3}, {D(Deco::Scrolls), 2}, {D(Deco::Basket), 1}}; density = 0.35f; break;
     case RoomKind::ThroneHall: pool = {{D(Deco::Jugs), 1}, {D(Deco::Kindling), 1}}; density = 0.04f; break;
@@ -2182,7 +2315,8 @@ void spawnNear(Fit& F, Spawn& s, int x, int y, int ri, int avoidX = -1, int avoi
 
 art::RoomStyle wallStyleOf(const Bldg& b, Rng& r) {
   switch (b.type) {
-    case Building::Temple: case Building::Keep: return art::RoomStyle::Hall;
+    case Building::Temple: case Building::Keep: case Building::Palace: return art::RoomStyle::Hall;
+    case Building::Barracks: return art::RoomStyle::Stone;
     case Building::Tower: return art::RoomStyle::Arcane;
     default: break;
   }
@@ -2222,7 +2356,7 @@ void genInteriorRooms(Map& m, const Bldg& b, uint32_t seed, int floor) {
   m.alloc(W, H, Ground::InteriorWall);
   m.floor = floor;
   // floors: stone in stone buildings, the desert's tiles, flagged kitchens; planks elsewhere
-  bool stone = b.type == Building::Keep || b.type == Building::Temple || b.type == Building::StoneHouse || b.type == Building::Tower ||
+  bool stone = b.type == Building::Keep || b.type == Building::Temple || b.type == Building::Palace || b.type == Building::Barracks || b.type == Building::StoneHouse || b.type == Building::Tower ||
                b.type == Building::Smithy || b.biome == Biome::Desert;
   Ground base = stone && !(floor > 0 && (b.type == Building::StoneHouse)) ? Ground::StoneFloor : Ground::WoodFloor;
   for (int y = 0; y < H; y++)
@@ -2314,6 +2448,7 @@ void genInteriorRooms(Map& m, const Bldg& b, uint32_t seed, int floor) {
       case RoomKind::Nave: furnishNave(F, ri, cx); break;
       case RoomKind::Vestry: furnishVestry(F, ri); break;
       case RoomKind::ThroneHall: furnishThrone(F, ri, cx); break;
+      case RoomKind::Council: furnishCouncil(F, ri); break;
       default: break;
     }
   }
@@ -2341,11 +2476,18 @@ void genInteriorRooms(Map& m, const Bldg& b, uint32_t seed, int floor) {
         m.spawns.push_back(p);
       }
     }
-    if (b.type == Building::Keep)
+    if (b.type == Building::Keep || b.type == Building::Palace)
+      for (int k = 1; k <= (b.type == Building::Palace ? 4 : 2); k++) {
+        Spawn gd; gd.npc = true; gd.role = Role::Guard; gd.slot = k; gd.site = b.site;
+        // the palace: two at the dais, two by the doors
+        auto at = k - 1 < (int)cx.seats.size() ? cx.seats[(size_t)k - 1] : std::pair<int, int>{P.ex + (k % 2 ? -2 : 2), k <= 2 ? 4 : P.H - 3};
+        spawnNear(F, gd, at.first, at.second, 0);
+        m.spawns.push_back(gd);
+      }
+    if (b.type == Building::Barracks)   // soldiers off duty in the mess hall
       for (int k = 1; k <= 2; k++) {
         Spawn gd; gd.npc = true; gd.role = Role::Guard; gd.slot = k; gd.site = b.site;
-        auto at = k - 1 < (int)cx.seats.size() ? cx.seats[(size_t)k - 1] : std::pair<int, int>{P.ex, 4};
-        spawnNear(F, gd, at.first, at.second, 0);
+        spawnNear(F, gd, P.W / 2 + (k == 1 ? -3 : 3), P.H / 2, 0);
         m.spawns.push_back(gd);
       }
   } else {
@@ -2366,7 +2508,9 @@ void genInteriorRooms(Map& m, const Bldg& b, uint32_t seed, int floor) {
       add(role, x, y, ri);
     };
     const IRect& G = gg.rooms[0].r;
-    if (b.type == Building::Keep) {
+    if (b.type == Building::Barracks) {
+      for (int ri : rooms(RoomKind::Barracks)) if (ur.f() < 0.7f) atBed(Role::Guard, ri);   // a guard asleep off his watch
+    } else if (b.type == Building::Keep || b.type == Building::Palace) {
       add(Role::Villager, G.x + ur.irange(G.w), G.y + ur.irange(G.h), 0);   // a servant about the gallery
       for (int ri : rooms(RoomKind::OwnerRoom)) {                            // a guard at the lord's door
         const RoomDef& R = gg.rooms[(size_t)ri];

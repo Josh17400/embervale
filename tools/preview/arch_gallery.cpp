@@ -67,6 +67,8 @@ void buildings(const std::string& dir) {
     if (t == art::Building::Hut) { wT = 3; hT = 2; }
     if (t == art::Building::Tower) { wT = 3; hT = 3; }
     if (t == art::Building::Inn) { wT = 6; hT = 3; }
+    if (t == art::Building::Palace) continue;   // M1: too big for this panel (town_gallery heraldry.png shows palaces)
+    if (t == art::Building::Barracks) { wT = 7; hT = 4; }
     for (int bi = 0; bi < 6; bi++) {
       uint32_t seed = 1000u + (uint32_t)i * 31u + (uint32_t)bi * 7u;
       art::ArchStyle st = art::archForBiome(biomes[bi], seed);
@@ -260,7 +262,7 @@ void walls(const std::string& dir) {
 }
 
 // ---------------------------------------------------------------- M0b: storeys
-const char* kTypeNames[(int)art::Building::COUNT] = {"House", "StoneHouse", "Inn", "Smithy", "Shop", "Temple", "Keep", "Tower", "Farmhouse", "Hut"};
+const char* kTypeNames[(int)art::Building::COUNT] = {"House", "StoneHouse", "Inn", "Smithy", "Shop", "Temple", "Keep", "Tower", "Farmhouse", "Hut", "Palace", "Barracks"};
 
 // rows of the highest opaque pixel above the footprint's top edge (what the V5 clearance test budgets)
 int spriteRise(const Canvas& c, int hT) {

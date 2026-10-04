@@ -1,0 +1,51 @@
+# M1 SIM lane: the M0b rooms on the ENDLESS world (m0b_inn, m0b_keep_tower and m0b_trades in one tour): renting a room
+# in a town inn and going up to bed, the story city's keep (the jarl's throne hall) up and down its stairs, the trades.
+#   embervale.exe --script tools/scripts/sim_rooms.txt [--seed 7]      (screenshots land in the working directory)
+seed 7
+0.3  newgame
+0.5  expect mode play
+0.6  god
+0.8  goto town
+1.0  hour 19
+1.2  enter inn
+1.4  expect inside 1
+1.5  expect floor 0
+2.0  shot sim_rooms_inn_ground.png
+2.2  talkto innkeeper 40
+2.6  expect mode dialogue
+4.0  expect option RENT A ROOM (10 GOLD)
+4.1  choose RENT A ROOM
+4.3  expect text UP THE STAIRS
+4.6  shot sim_rooms_inn_rent.png
+4.8  choose GO UP TO BED
+5.0  expect mode play
+5.1  expect floor 1
+5.2  expect heard YOU SLEEP IN YOUR ROOM
+6.4  shot sim_rooms_inn_myroom.png
+6.6  walkto downstairs 30
+6.8  expect floor 0
+7.0  walkto exit 30
+7.2  expect inside 0
+7.4  goto city
+7.6  hour 11
+7.8  enter keep
+8.0  expect inside 1
+8.2  expect npc jarl
+8.6  shot sim_rooms_keep_hall.png
+8.8  walkto upstairs 40
+9.0  expect floor 1
+9.6  shot sim_rooms_keep_upstairs.png
+9.8  walkto downstairs 40
+10.0 expect floor 0
+10.2 enter smithy
+10.4 expect inside 1
+11.0 shot sim_rooms_smithy.png
+11.2 enter shop
+11.4 expect inside 1
+12.0 shot sim_rooms_shop.png
+12.2 enter temple
+12.4 expect inside 1
+13.0 shot sim_rooms_temple.png
+13.2 walkto exit 30
+13.4 expect inside 0
+13.6 quit

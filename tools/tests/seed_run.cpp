@@ -1,4 +1,9 @@
 // rpg_test: one seed: world stats, reachability, quests, the wandering bot, a save round trip.
+// M1 (SIM lane): the seed runs on the ENDLESS world (new games start there); `rpg_test --classic [seed | --seeds A..B]`
+// runs the same suite on the classic island (kept as a test fixture through M1). On the endless world the checks are
+// what a new game needs around the player: the start village's services reachable on foot, everything the window
+// holds generating and reachable, the story's places present (the main quest itself is played end to end by a
+// teleporting bot, sim_mainquest.cpp), the opening, the wandering bot, dialogue, death and the save round trip.
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -63,6 +68,16 @@ void followPath(Game& g, std::vector<int>& path, Input& in) {
 // One frame of the opening bot: fills `in`; returns true once the player is armed and back outside (or there is no
 // opening to play). `clock` counts frames (replanning cadence), `path` is its scratch.
 bool openingStep(Game& g, std::vector<int>& path, int& clock, Input& in);
+int mainQuestBot(uint64_t seed, bool verbose);   // sim_mainquest.cpp
+
+// the suite's world: endless (default) or the classic island (rpg_test --classic)
+bool g_classicSuite = false;
+void newTestGame(Game& g, uint64_t seed);
+void newTestGame(Game& g, uint64_t seed) {
+  if (g_classicSuite) g.newGame(seed);
+  else g.newEndlessGame(seed);
+}
+
 bool openingStep(Game& g, std::vector<int>& path, int& clock, Input& in) {
   in = Input();
   clock++;
@@ -107,7 +122,7 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
   g_curSeed = seed;
   auto t0 = std::chrono::steady_clock::now();
   Game g(seed);
-  g.newGame(seed);
+  newTestGame(g, seed);
   auto t1 = std::chrono::steady_clock::now();
   res.genMs = std::chrono::duration<double, std::milli>(t1 - t0).count();
   res.sites = (int)g.world.sites.size();
@@ -142,10 +157,25 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
     if (g.world.genVersion >= WORLDGEN_V2 && g.world.dens.size() < 20) out("WARN: only %zu dens\n", g.world.dens.size());
   }
   int bad = 0;
-  if (counts[(int)SiteType::City] < 2 || counts[(int)SiteType::Town] < 3 || counts[(int)SiteType::Cave] < 8 || mq < 3 || g.world.lair < 0) {
+  if (!g.world.endless && (counts[(int)SiteType::City] < 2 || counts[(int)SiteType::Town] < 3 || counts[(int)SiteType::Cave] < 8 || mq < 3 || g.world.lair < 0)) {
     out("FAIL: too few sites (cities %d towns %d caves %d main-quest ruins %d lair %d)\n", counts[(int)SiteType::City], counts[(int)SiteType::Town],
         counts[(int)SiteType::Cave], mq, g.world.lair);
     bad++;
+  }
+  if (g.world.endless) {
+    // the start plan: a start village, the story city (a city), three shard ruins, the lair; every record by id
+    const World& W = g.world;
+    if (W.startSite < 0 || !W.sites[(size_t)W.startSite].start || !W.sites[(size_t)W.startSite].settlement()) { out("FAIL: no start settlement\n"); bad++; }
+    if (mq != 3 || W.lair < 0 || W.sites[(size_t)W.lair].type != SiteType::DragonLair) { out("FAIL: start plan: %d shard ruins, lair %d\n", mq, W.lair); bad++; }
+    for (const Site& s : W.sites) if (!s.id || W.siteHandle(s.id) < 0) { out("FAIL: site %s has no stable id\n", s.name.c_str()); bad++; break; }
+    std::set<ew::Gid> ids;
+    for (const Bldg& b : W.over.bldgs) if (!b.id || !ids.insert(b.id).second) { out("FAIL: building without a unique id\n"); bad++; break; }
+    out("  window %d,%d: %zu sites (%zu near), %zu kingdoms, start %s (%s)\n", W.ox, W.oy, W.sites.size(), W.nearSites.size(), W.kingdoms.size(),
+        W.sites[(size_t)W.startSite].name.c_str(), W.kingdomOf(W.startSite) ? W.kingdomOf(W.startSite)->name.c_str() : "no kingdom");
+    g.world.ensureSiteRecords(g.world.capital);   // the story city's records (its keep) wherever it lies
+    if (W.sstats.entrancesRepaired)
+      out("WARN: %d cave / ruin entrances in the window had no door (painted over by the generator; World put them back)\n",
+          W.sstats.entrancesRepaired);
   }
   if (g.map().blocked((int)(g.pl().p.x / 16), (int)(g.pl().p.y / 16))) { out("FAIL: player starts inside a wall\n"); bad++; }
   {
@@ -203,8 +233,31 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
       return false;
     };
     int unreachable = 0;
+    if (g.world.endless) {
+      // the start village's services, on foot from where a new game begins (VISION_PLAN 15.8: every village has an
+      // inn or tavern, a well or green, and a shop or smith)
+      const Site& h = g.world.sites[(size_t)g.world.startSite];
+      bool inn = false, innR = false, trade = false, tradeR = false, well = false;
+      for (int b = h.bldgFirst; b < h.bldgFirst + h.bldgCount; b++) {
+        const Bldg& B = g.world.over.bldgs[(size_t)b];
+        bool r = reach(B.doorX(), B.doorY() + 1);
+        if (B.type == art::Building::Inn) { inn = true; innR = innR || r; }
+        if (B.type == art::Building::Shop || B.type == art::Building::Smithy) { trade = true; tradeR = tradeR || r; }
+      }
+      for (int y = h.r.y; y < h.r.y + h.r.h; y++)
+        for (int x = h.r.x; x < h.r.x + h.r.w; x++) {
+          int p = m.propAt(x, y);
+          if (p == (int)art::Prop::Well + 1 || p == (int)art::Prop::Fountain + 1) well = true;
+        }
+      if (!inn || !innR) { out("FAIL: the start village's inn %s\n", inn ? "is not reachable on foot" : "is missing"); bad++; }
+      if (trade && !tradeR) { out("FAIL: the start village's shop / smithy is not reachable on foot\n"); bad++; }
+      if (!trade) out("WARN: the start village has no shop or smithy\n");
+      if (!well) out("WARN: the start village has no well or fountain\n");
+    }
     for (int si = 0; si < (int)g.world.sites.size(); si++) {
       const Site& s = g.world.sites[si];
+      // endless: what the window holds (the rest of the world is reached by walking; the main quest bot travels there)
+      if (g.world.endless && !(m.in(s.ex, s.ey) && m.in(s.r.x, s.r.y) && m.in(s.r.x + s.r.w - 1, s.r.y + s.r.h - 1))) continue;
       bool story = si == g.world.capital || s.mainQuest || si == g.world.lair;
       bool town = s.type == SiteType::City || s.type == SiteType::Town || s.type == SiteType::Village;
       int ty = s.ey + (s.type == SiteType::Cave ? 1 : (s.type == SiteType::Ruin ? 3 : 0));
@@ -233,7 +286,7 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
     genInterior(m, g.world.over.bldgs[bi], g.world.over.bldgs[bi].seed);
     if (m.blocked(m.exitX, m.exitY - 1)) { out("FAIL: interior %zu exit blocked\n", bi); bad++; }
     const Bldg& b = g.world.over.bldgs[bi];
-    if (g.world.over.blocked(b.doorX(), b.doorY() + 1)) { const Map& o = g.world.over; int ax = b.doorX(), ay = b.doorY() + 1; out("WARN: building %zu door approach blocked: ground %d prop %d wall %d bldg %d\n", bi, (int)o.at(ax, ay), o.propAt(ax, ay), (int)o.wall[(size_t)ay * o.w + ax], (int)o.bldgAt[(size_t)ay * o.w + ax]); }
+    if (g.world.over.in(b.doorX(), b.doorY() + 1) && g.world.over.blocked(b.doorX(), b.doorY() + 1)) { const Map& o = g.world.over; int ax = b.doorX(), ay = b.doorY() + 1; out("WARN: building %zu door approach blocked: ground %d prop %d wall %d bldg %d\n", bi, (int)o.at(ax, ay), o.propAt(ax, ay), (int)o.wall[(size_t)ay * o.w + ax], (int)o.bldgAt[(size_t)ay * o.w + ax]); }
   }
 
   // bot: wander, fight, use doors
@@ -294,10 +347,17 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
     in.spell = (f % 151) == 0;
     in.roll = (f % 211) == 0;
     in.interact = (f % 60) == 0;
+    const int sh0 = g.world.sstats.shifts;
+    const bool in0 = g.inside;
+    const size_t ac0 = g.actors.size();
     auto a = std::chrono::steady_clock::now();
     g.update(SIM_DT, in);
     auto b = std::chrono::steady_clock::now();
-    maxStep = std::max(maxStep, (float)std::chrono::duration<double, std::milli>(b - a).count());
+    const float stepMs = (float)std::chrono::duration<double, std::milli>(b - a).count();
+    maxStep = std::max(maxStep, stepMs);
+    if (stepMs > 6.0f)
+      out("  slow bot step %.1f ms: window moves %d, inside %d -> %d, actors %zu -> %zu\n", stepMs, g.world.sstats.shifts - sh0, in0, g.inside,
+          ac0, g.actors.size());
     evCount += (int)g.events.size();
     g.events.clear();
     if (g.mode == Mode::Dialogue) g.dialogueChoose(0), g.mode = Mode::Play;
@@ -312,7 +372,7 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
   // dialogue + quest flow: walk into the start village inn, talk to the innkeeper, take a job
   {
     Game q(seed);
-    q.newGame(seed);
+    newTestGame(q, seed);
     q.mode = Mode::Play;
     const Site& home = q.world.sites[q.world.startSite];
     int inn = -1;
@@ -360,8 +420,10 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
     }
   }
 
-  // main quest end to end: the jarl, shards from warlords slain early, the dragon's death
-  {
+  // main quest end to end. Endless: the teleporting bot (sim_mainquest.cpp) plays every step. Classic: the jarl,
+  // shards from warlords slain early, the dragon's death
+  if (!g_classicSuite) bad += mainQuestBot(seed, false);
+  else {
     Game q(seed);
     q.newGame(seed);
     q.mode = Mode::Play;
@@ -432,7 +494,7 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
   // dying (to fire, which once couldn't kill) and waking in town; saving on the death screen respawns on load
   {
     Game d(seed);
-    d.newGame(seed);
+    newTestGame(d, seed);
     d.mode = Mode::Play;
     d.gold = 200;
     d.pl().hp = 1; d.pl().burnT = 2;
@@ -457,9 +519,46 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
   else {
     std::vector<uint8_t> buf2;
     h.serialize(buf2);
-    if (buf2.size() != buf.size()) { out("FAIL: save round-trip size %zu vs %zu\n", buf.size(), buf2.size()); bad++; }
+    if (buf2 != buf) { out("FAIL: save round trip is not byte-identical (%zu vs %zu bytes)\n", buf.size(), buf2.size()); bad++; }
     out("save %zu bytes ok\n", buf.size());
   }
   res.bad = bad;
   return bad;
 }
+
+// rpg_test --classic [seed] [--seeds A..B] [--secs N] [--mortal] [--noaudit]: the whole per-seed suite (and the lane
+// checks and the repetition audit) on the classic island, kept as a test fixture through M1
+namespace {
+int cmdClassic(int argc, char** argv) {
+  g_classicSuite = true;
+  uint64_t seed = 12345, a = 0, b = 0;
+  bool range = false, audit = true, mortal = false;
+  float secs = 120;
+  for (int i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "--classic")) continue;
+    if (!strcmp(argv[i], "--seeds") && i + 1 < argc) range = parseSeedRange(argv[++i], a, b);
+    else if (!strcmp(argv[i], "--secs") && i + 1 < argc) secs = (float)atof(argv[++i]);
+    else if (!strcmp(argv[i], "--mortal")) mortal = true;
+    else if (!strcmp(argv[i], "--noaudit")) audit = false;
+    else seed = (uint64_t)atoll(argv[i]);
+  }
+  if (!range) { a = b = seed; }
+  g_quiet = range;
+  int pass = 0, fail = 0;
+  for (uint64_t s = a; s <= b; s++) {
+    SeedResult r;
+    int bad = runSeed(s, nullptr, secs, mortal, r);
+    g_curSeed = s;
+    bad += heroChecks(s) + interiorChecks(s) + defenceChecks(s) + archChecks(s);
+    if (bad) fail++; else pass++;
+    printf("classic seed %-6llu %s  gen %4.0f ms  sites %3d  bot kills %3d lvl %2d  step %.2f ms\n", (unsigned long long)s, bad ? "FAIL" : "ok  ",
+           r.genMs, r.sites, r.kills, r.level, r.maxStep);
+    if (audit && !range) printAudit(repetitionAudit(s));
+    fflush(stdout);
+  }
+  printf("classic: %d passed, %d failed\n", pass, fail);
+  g_classicSuite = false;
+  return fail ? 1 : 0;
+}
+}  // namespace
+RPG_TEST_CMD("--classic", "the per-seed suite on the classic island (test fixture during M1) [seed | --seeds A..B] [--secs N]", cmdClassic);

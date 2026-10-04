@@ -1,4 +1,5 @@
-// Pixel-art renderer: a 480x270 logical canvas, integer-scaled to the window with nearest filtering.
+// Pixel-art renderer: a logical canvas (480x270 by default; Pix::W / Pix::H are runtime values so the screen code can
+// match the device's aspect, M1 phone screen fill), scaled to the window with nearest filtering.
 // Sprites/terrain are baked from code into textures (no art files).
 #pragma once
 #include <cstdint>
@@ -33,7 +34,26 @@ struct Tex { SDL_Texture* t = nullptr; int w = 0, h = 0; };
 
 class Pix {
  public:
-  static constexpr int W = 480, H = 270;
+  // The logical canvas size. Runtime values (M1): rpg/view/screen.cpp may change them (adaptive width for wide phones)
+  // through setLogical(); everything that lays out UI reads them every frame, never caches them.
+  static inline int W = 480, H = 270;
+  // The safe-area (HUD) insets in logical px: the HUD, the touch controls and the menus keep inside
+  // [SL, W - SR] x [ST, H - SB] (the iPhone notch, rounded corners, the home bar, or the player's HUD MARGIN).
+  // Set by screen.cpp; zero inside a pushed UI box (the box already lies inside them).
+  static inline int SL = 0, ST = 0, SR = 0, SB = 0;
+  void setLogical(int w, int h, bool integerScale);   // simple fit (tools); the game uses present()
+  // The presentation (rpg/view/screen.cpp, M1 phone screen fill): the logical canvas w x h is drawn at `scale`
+  // device pixels per logical pixel with its top-left at device pixel (offX, offY); the rest of the window stays
+  // black (the BORDER setting). A non-integer scale switches the sprites to SDL's pixel-art filter (crisp, even
+  // pixel widths without shimmer); an integer scale keeps plain nearest sampling.
+  void present(int w, int h, float scale, int offX, int offY);
+  float presentScale() const { return scale_; }
+  // UI boxes: draws go into the logical rectangle (x, y, w, h) of the screen, with (0, 0) at its top-left, clipped
+  // to it, and Pix::W / Pix::H read the box size until popBox(). Menus and dialogues are laid out for 480 px of
+  // width, so on a wide phone they sit in a centred box instead of stretching. Nested boxes are relative.
+  void pushBox(int x, int y, int w, int h);
+  void popBox();
+  void outputSize(int& w, int& h) const;   // the window's drawable size in device pixels
   bool init(const char* title, int winW, int winH, bool vsync = true);
   void shutdown();
   void begin(Color clear);
@@ -77,4 +97,12 @@ class Pix {
   SDL_Texture* mini_ = nullptr;
   int miniW_ = 0, miniH_ = 0;
   std::vector<SDL_Texture*> owned_;
+  float scale_ = 1;
+  bool pixelArt_ = false;            // sprites use SDL_SCALEMODE_PIXELART (non-integer scale)
+  int baseX_ = 0, baseY_ = 0;        // the canvas viewport origin (logical units)
+  struct BoxState { int vx, vy, vw, vh, W, H, SL, ST, SR, SB; };
+  std::vector<BoxState> boxes_;
+  int vpX_ = 0, vpY_ = 0;            // the current viewport origin (base + boxes)
+  void applyViewport(int x, int y, int w, int h);
+  void spriteScaleMode(SDL_Texture* t);
 };

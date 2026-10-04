@@ -27,6 +27,10 @@
 <body>
 <div id="status">EMBERVALE<small id="sub">forging the world...</small></div>
 <div id="rotate">Turn your phone sideways<br>to play Embervale</div>
+<!-- Screen fill (M1): the canvas back-buffer runs at devicePixelRatio (SDL_WINDOW_HIGH_PIXEL_DENSITY, so an iPhone
+     gets 2556x1179 real pixels, not 852x393) and covers the whole page with SDL_WINDOW_FILL_DOCUMENT; the game picks
+     its logical size and scale from that (rpg/view/screen.cpp) and reads env(safe-area-inset-*), which needs the
+     viewport-fit=cover above, to keep the HUD clear of the notch. -->
 <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
 <script>
   var Module = {
@@ -41,7 +45,12 @@
         removeRunDependency('syncfs');
       });
     }],
-    onRuntimeInitialized: function () { document.getElementById('status').style.display = 'none'; },
+    onRuntimeInitialized: function () {
+      document.getElementById('status').style.display = 'none';
+      // SDL's fill-document mode hides every <body> child but the canvas: keep the "turn your phone" notice alive
+      // by hanging it off <html> instead
+      document.documentElement.appendChild(document.getElementById('rotate'));
+    },
     setStatus: function (t) { if (t) document.getElementById('sub').textContent = t.toLowerCase(); },
     print: function (t) { console.log(t); },
     printErr: function (t) { console.warn(t); }

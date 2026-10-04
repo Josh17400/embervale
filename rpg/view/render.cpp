@@ -91,7 +91,7 @@ bool View::init(Pix& pix, Audio& audio) {
     Canvas wt(1, 1); wt.set(0, 0, rgba(255, 255, 255));
     white_ = pix.bake(wt);
   }
-  lightMap_ = pix.makeTarget(Pix::W / 2, Pix::H / 2);
+  lightMap_ = pix.makeTarget((Pix::W + 1) / 2, (Pix::H + 1) / 2);
   miniPx_.assign(64 * 64, 0);
   pix.miniInit(64, 64);
   return true;
@@ -99,9 +99,101 @@ bool View::init(Pix& pix, Audio& audio) {
 
 const Tex& View::humanTex(const art::HumanLook& L) {
   uint64_t k = L.key();
+  humanUsed_[k] = t_;
   auto it = humans_.find(k);
   if (it != humans_.end()) return it->second;
   return humans_[k] = pix_->bake(art::humanSheet(L));
+}
+
+// Least-recently-used trimming of the sprite caches (called once per frame before anything is drawn, so no reference
+// handed out earlier in the frame is invalidated): building sprites past 192 (with their night variant, smoke, window
+// and fade facts), character sheets past 320. Only entries unused for a few seconds go.
+void View::trimCaches() {
+  if (t_ - lruT_ < 1.0f) return;
+  lruT_ = t_;
+  auto trim = [&](std::unordered_map<uint64_t, Tex>& tex, std::unordered_map<uint64_t, float>& used, size_t cap, auto&& extra) {
+    if (tex.size() <= cap) return;
+    std::vector<std::pair<float, uint64_t>> age;
+    age.reserve(tex.size());
+    for (auto& kv : tex) {
+      auto u = used.find(kv.first);
+      age.push_back({u == used.end() ? -1.0f : u->second, kv.first});
+    }
+    std::sort(age.begin(), age.end());
+    size_t drop = tex.size() - cap * 3 / 4;   // trim to three quarters, so this does not run every second
+    for (size_t i = 0; i < drop && i < age.size(); i++) {
+      if (t_ - age[i].first < 4.0f) break;   // still in use
+      const uint64_t k = age[i].second;
+      auto it = tex.find(k);
+      if (it != tex.end()) { pix_->destroy(it->second); tex.erase(it); }
+      used.erase(k);
+      extra(k);
+    }
+  };
+  trim(bldgTex_, bldgUsed_, 192, [&](uint64_t k) {
+    auto n = bldgNight_.find(k);
+    if (n != bldgNight_.end()) { pix_->destroy(n->second); bldgNight_.erase(n); }
+    bldgSmoke_.erase(k); bldgTopRow_.erase(k); bldgWin_.erase(k);
+  });
+  trim(humans_, humanUsed_, 320, [](uint64_t) {});
+}
+
+// Buildings whose sprite may show in a rectangle of map pixels. Large maps (an endless window collects every
+// building of the session's nearby towns) keep an index per 32 x 32-tile cell; small ones are simply scanned.
+void View::bldgsIn(const Game& g, const Map& m, float x0, float y0, float x1, float y1, std::vector<int>& out) {
+  out.clear();
+  const int n = (int)m.bldgs.size();
+  auto overlaps = [&](const Bldg& b) {
+    return !(b.r.x * 16 - 16 > x1 || (b.r.x + b.r.w) * 16 + 16 < x0 || (b.r.y - 6) * 16 > y1 || (b.r.y + b.r.h) * 16 + 8 < y0);
+  };
+  if (n < 48) {
+    for (int i = 0; i < n; i++) if (overlaps(m.bldgs[i])) out.push_back(i);
+    return;
+  }
+  const int key = g.mode == Mode::Title ? 0 : g.mapKey();
+  if (bgridMap_ != &m || bgridKey_ != key || bgridN_ != m.bldgs.size() || bgridOX_ != g.world.ox || bgridOY_ != g.world.oy ||
+      bgridW_ != (m.w + 31) / 32 || bgridH_ != (m.h + 31) / 32) {
+    bgridMap_ = &m; bgridKey_ = key; bgridN_ = m.bldgs.size(); bgridOX_ = g.world.ox; bgridOY_ = g.world.oy;
+    bgridW_ = (m.w + 31) / 32; bgridH_ = (m.h + 31) / 32;
+    bgrid_.assign((size_t)bgridW_ * bgridH_, std::vector<int>());
+    for (int i = 0; i < n; i++) {
+      const Bldg& b = m.bldgs[i];
+      const int cx0 = std::max(0, (b.r.x - 1) / 32), cx1 = std::min(bgridW_ - 1, (b.r.x + b.r.w + 1) / 32);
+      const int cy0 = std::max(0, (b.r.y - 6) / 32), cy1 = std::min(bgridH_ - 1, (b.r.y + b.r.h + 1) / 32);
+      if (b.r.x + b.r.w + 1 < 0 || b.r.y + b.r.h + 1 < 0) continue;   // a record of a town outside the window
+      for (int cy = cy0; cy <= cy1; cy++)
+        for (int cx = cx0; cx <= cx1; cx++) bgrid_[(size_t)cy * bgridW_ + cx].push_back(i);
+    }
+    bstamp_.assign((size_t)n, 0);
+    bstampN_ = 0;
+  }
+  if (++bstampN_ == 0) { std::fill(bstamp_.begin(), bstamp_.end(), 0u); bstampN_ = 1; }
+  const int cx0 = std::max(0, (int)std::floor(x0 / 512) - 1), cx1 = std::min(bgridW_ - 1, (int)std::floor(x1 / 512) + 1);
+  const int cy0 = std::max(0, (int)std::floor(y0 / 512) - 1), cy1 = std::min(bgridH_ - 1, (int)std::floor(y1 / 512) + 1);
+  for (int cy = cy0; cy <= cy1; cy++)
+    for (int cx = cx0; cx <= cx1; cx++)
+      for (int i : bgrid_[(size_t)cy * bgridW_ + cx]) {
+        if (bstamp_[(size_t)i] == bstampN_) continue;
+        bstamp_[(size_t)i] = bstampN_;
+        if (overlaps(m.bldgs[i])) out.push_back(i);
+      }
+  std::sort(out.begin(), out.end());
+}
+
+// EMB_PERF=1: once a second, the frame times, the terrain bakes (background and inline) and the texture caches
+void View::perfTick(float dt) {
+  static const bool on = std::getenv("EMB_PERF") != nullptr;
+  if (!on) return;
+  perf_.frames++;
+  perf_.frameMs += dt * 1000.0f;
+  perf_.worstFrameMs = std::max(perf_.worstFrameMs, (double)dt * 1000.0);
+  perf_.t += dt;
+  if (perf_.t < 1.0f) return;
+  std::printf("perf: frame avg %.1f ms worst %.1f ms | bakes %d (+%d inline) %.1f ms, worst %.1f ms | chunks %zu, bldg tex %zu, humans %zu, wall tiles %zu\n",
+              perf_.frameMs / std::max(1, perf_.frames), perf_.worstFrameMs, perf_.bakes, perf_.inlineBakes, perf_.bakeMs, perf_.worstBakeMs,
+              chunks_.size(), bldgTex_.size(), humans_.size(), wallTiles_.size());
+  std::fflush(stdout);
+  perf_ = Perf();
 }
 const Tex& View::iconTex(art::Icon i, uint32_t tint) {
   uint64_t k = (uint64_t)i << 32 | tint;
@@ -116,8 +208,10 @@ static int archBiomeOverride() {
   static int v = [] { const char* e = std::getenv("EMB_ARCH_BIOME"); return e ? std::atoi(e) : -1; }();
   return v;
 }
+// (M1) the building's own biome (Bldg::biome, where it stands), not the tile's: an endless window may not cover it
 static art::ArchStyle bldgStyle(const Map& m, const Bldg& b) {
-  int biome = archBiomeOverride() >= 0 ? archBiomeOverride() : (int)m.biomeAt(b.r.x + b.r.w / 2, b.r.y + b.r.h / 2);
+  (void)m;
+  int biome = archBiomeOverride() >= 0 ? archBiomeOverride() : (int)b.biome;
   return art::withRoofTint(art::archForBiome(biome, b.seed), b.roof);
 }
 uint64_t View::bldgKey(const Map& m, const Bldg& b, int index) const {
@@ -125,12 +219,14 @@ uint64_t View::bldgKey(const Map& m, const Bldg& b, int index) const {
   k ^= (uint64_t)index * 0x9E3779B97F4A7C15ull;
   k ^= ((uint64_t)b.r.w << 8 | (uint64_t)b.r.h << 16 | (uint64_t)b.type << 24 | (uint64_t)b.seed << 32);
   k ^= ((uint64_t)b.storeys << 1 | (uint64_t)(b.hearth ? 1 : 0)) * 0xC2B2AE3D27D4EB4Full;   // M0b facts
+  k ^= ew::mix64(((uint64_t)b.banner << 32 | b.banner2) ^ ((uint64_t)b.emblem << 56));     // M1 kingdom banner
   return k;
 }
 const Tex& View::bldgTex(const Bldg& b, int index) {
   static const Map empty;
   const Map& m = bldgMap_ ? *bldgMap_ : empty;
   uint64_t k = bldgKey(m, b, index);
+  bldgUsed_[k] = t_;
   auto it = bldgTex_.find(k);
   if (it != bldgTex_.end()) return it->second;
   art::BuildingInfo info;
@@ -198,6 +294,15 @@ const Tex& View::wallTileTex(uint32_t key) {
   auto it = wallTiles_.find(key);
   if (it != wallTiles_.end()) return it->second;
   return wallTiles_[key] = pix_->bake(art::wallTile(key));
+}
+
+// kingdom-coloured sprites, cached per kingdom look: kind 0 the standing banner, 1 the gatehouse (with its seed)
+const Tex& View::kingdomTex(int kind, const Kingdom& k, uint32_t seed) {
+  const uint64_t key = ew::mix64(((uint64_t)k.color << 32 | k.color2) ^ ((uint64_t)k.emblem << 8 | (uint64_t)kind) ^ ((uint64_t)seed << 40));
+  auto it = kingdomTex_.find(key);
+  if (it != kingdomTex_.end()) return it->second;
+  Canvas c = kind == 0 ? art::kingdomBanner(k.color, k.color2, k.emblem) : art::gateHouse(seed, k.color, k.color2, k.emblem);
+  return kingdomTex_[key] = pix_->bake(c);
 }
 
 const Tex& View::cachedTex(uint64_t key, Canvas (*paint)(uint64_t key)) {
@@ -271,12 +376,18 @@ void View::spawnParticles(const Event& e, Game& g) {
     }
     case Ev::Shake: shake_ = std::max(shake_, e.f); break;
     case Ev::MapChange: fade_ = 1.0f; snap(g); break;
+    case Ev::WindowShift:   // M1: the endless window moved; everything overworld moved by e.p pixels
+      cam_ += e.p;
+      for (Particle& q : parts_) if (q.world) q.p += e.p;
+      for (FloatText& ft : texts_) ft.p += e.p;
+      break;
     default: break;
   }
 }
 
 void View::update(Game& g, float dt) {
   t_ += dt;
+  perfTick(dt);
   modeT_ += dt;
   if (g.mode != lastMode_) {
     modeT_ = 0;
@@ -286,6 +397,21 @@ void View::update(Game& g, float dt) {
   }
   for (const Event& e : g.events) spawnParticles(e, g);
   g.events.clear();
+  // (M1) arriving in a settlement: a banner with its name and its kingdom (merged into DISCOVERED the first time)
+  if (g.mode == Mode::Play && !g.inside) {
+    const int cs = g.curSite >= 0 && g.curSite < (int)g.world.sites.size() && g.world.sites[g.curSite].settlement() ? g.curSite : -1;
+    if (cs != arriveSite_) {
+      if (cs >= 0)
+        if (const Kingdom* k = g.world.kingdomOf(cs)) {
+          const std::string kl = (g.world.sites[cs].capital ? "CAPITAL OF THE KINGDOM OF " : "KINGDOM OF ") + k->name;
+          if (bannerT_ > 0 && banner_ == "DISCOVERED") banner_ = "DISCOVERED  -  " + kl;
+          else if (bannerT_ <= 0 || banner_.rfind("KINGDOM", 0) == 0 || banner_.rfind("CAPITAL", 0) == 0) {
+            banner_ = kl; bannerSub_ = g.world.sites[cs].name; bannerT_ = 3.5f;
+          }
+        }
+      arriveSite_ = cs;
+    }
+  }
   if (toasts_.size() > 5) toasts_.erase(toasts_.begin(), toasts_.begin() + (toasts_.size() - 5));
   // camera follows with a little lead in the aim direction
   if (g.mode != Mode::Title) {
@@ -299,7 +425,7 @@ void View::update(Game& g, float dt) {
       // buttons bottom-right) must never hide part of a room for good. A room that fits clear of the HUD stays put
       // (centred, or centred in the free area); one that doesn't pans with the player far enough that every corner
       // can be brought out from under the HUD.
-      const float padT = 46, padR = 134, padB = touchUI ? 48 : 0, padL = 0;
+      const float padT = 46.0f + Pix::ST, padR = 134.0f + Pix::SR, padB = (touchUI ? 48.0f : 0.0f) + Pix::SB, padL = (float)Pix::SL;
       auto axis = [](float& c, float want, float lo, float hi, float scr, float pa, float pb) {
         float len = hi - lo;
         if (len <= scr - 2 * std::max(pa, pb)) c = lo - (scr - len) / 2;             // fits clear, centred
@@ -412,7 +538,15 @@ void View::drawWorld(Game& g) {
   int key = g.mode == Mode::Title ? 0 : g.mapKey();
   if (key != lastMapKey_) { lastMapKey_ = key; }
   uint64_t mapId = hash32((uint32_t)g.world.seed ^ (uint32_t)(g.world.seed >> 32)) * 2654435761ull + (uint64_t)(key + 7);
+  mapId ^= (uint64_t)g.world.genVersion << 56 | (uint64_t)(g.world.endless ? 1 : 0) << 55;
+  // M1: an endless overworld's terrain chunks are keyed by GLOBAL chunk (the window origin in chunks plus the local
+  // chunk), so a window shift keeps every chunk already baked (terrain.cpp)
+  const bool endlessOver = key == 0 && g.world.endless && m.kind == MapKind::Overworld;
+  chunkEndless_ = endlessOver;
+  chunkOX_ = endlessOver ? (int)std::floor(g.world.ox / 32.0) : 0;
+  chunkOY_ = endlessOver ? (int)std::floor(g.world.oy / 32.0) : 0;
   Vec2 cam(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y));
+  trimCaches();
   // water layer underneath the terrain (shows through translucent water pixels)
   if (m.kind == MapKind::Overworld) {
     P.rect(0, 0, Pix::W, Pix::H, Color(0.16f, 0.36f, 0.6f));
@@ -433,6 +567,7 @@ void View::drawWorld(Game& g) {
   // terrain chunks
   int c0x = (int)std::floor(cam.x / 512), c0y = (int)std::floor(cam.y / 512);
   int c1x = (int)std::floor((cam.x + Pix::W) / 512), c1y = (int)std::floor((cam.y + Pix::H) / 512);
+  bakeVisibleNow(m, mapId, c0x, c0y, c1x, c1y);
   for (int cy = c0y; cy <= c1y; cy++)
     for (int cx = c0x; cx <= c1x; cx++) {
       if (cx < 0 || cy < 0 || cx * 32 >= m.w || cy * 32 >= m.h) continue;
@@ -445,9 +580,19 @@ void View::drawWorld(Game& g) {
   bldgMap_ = &m;
   // the id also carries the generator version and gate count: a new game on the same seed with another generator
   // has the same map id but other walls
-  const uint64_t wallId = mapId ^ ((uint64_t)g.world.genVersion << 58) ^ ((uint64_t)g.world.gates.size() << 48);
+  // (M1: and the endless window's origin, as the layout is in window tiles)
+  uint64_t wallId = mapId ^ ((uint64_t)g.world.genVersion << 58) ^ ((uint64_t)g.world.gates.size() << 48);
+  if (endlessOver) wallId ^= ew::mix64(((uint64_t)(uint32_t)g.world.ox << 32) | (uint32_t)g.world.oy);
   if (wallKeysId_ != wallId) {
     wallKeysId_ = wallId;
+    const auto tw0 = std::chrono::steady_clock::now();
+    struct WallTime {
+      std::chrono::steady_clock::time_point t0;
+      ~WallTime() {
+        if (std::getenv("EMB_TIMING"))
+          std::printf("wall keys: %.1f ms\n", std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
+      }
+    } wallTime{tw0};
     bool any = false;
     for (uint8_t v : m.wall) if (v) { any = true; break; }
     wallKeys_.clear();
@@ -512,11 +657,10 @@ void View::drawWorld(Game& g) {
       uint32_t wk = wallKeys_.empty() ? 0u : wallKeys_[(size_t)ty * m.w + tx];
       if (wk) list.push_back({ty * 16.0f + ((wk & art::WALL_BIT_TOWER) ? 15.3f : 15.0f), 2, (int)wk, tx, ty});
     }
-  for (int bi = 0; bi < (int)m.bldgs.size(); bi++) {
-    const Bldg& b = m.bldgs[bi];
-    if (b.r.x * 16 - 16 > cam.x + Pix::W || (b.r.x + b.r.w) * 16 + 16 < cam.x) continue;
-    if ((b.r.y - 6) * 16 > cam.y + Pix::H || (b.r.y + b.r.h) * 16 + 8 < cam.y) continue;
-    list.push_back({(b.r.y + b.r.h) * 16.0f - 1.0f, 1, bi, 0, 0});
+  {
+    static std::vector<int> vis;
+    bldgsIn(g, m, cam.x, cam.y, cam.x + Pix::W, cam.y + Pix::H, vis);
+    for (int bi : vis) list.push_back({(m.bldgs[bi].r.y + m.bldgs[bi].r.h) * 16.0f - 1.0f, 1, bi, 0, 0});
   }
   // paint the sprites of buildings near the player ahead of time, at most one per frame, so walking into a town
   // never stalls on a burst of building paints
@@ -585,7 +729,11 @@ void View::drawWorld(Game& g) {
             P.blit(t, d.tx * 16 + 8 - t.w / 2 - cam.x, d.ty * 16 + 16 - t.h - cam.y);
             break;
           }
-        const Tex& t = props_[d.idx];
+        const Tex* tp = &props_[d.idx];
+        // (M1) a banner inside a kingdom's settlement flies that kingdom's colours
+        if (p == Prop::Banner && m.kind == MapKind::Overworld && g.mode != Mode::Title)
+          if (const Kingdom* k = g.world.kingdomOf(g.world.siteAt(d.tx, d.ty, 2))) tp = &kingdomTex(0, *k, 0);
+        const Tex& t = *tp;
         int fw = art::propW(p), fh = art::propH(p);
         int frames = std::max(1, art::propFrames(p));
         int fr = frames > 1 ? (int)(t_ * 8 + d.tx * 3 + d.ty) % frames : 0;
@@ -646,9 +794,13 @@ void View::drawWorld(Game& g) {
         P.blit(t, d.tx * 16.0f - art::WALL_OX - cam.x, d.ty * 16.0f - art::WALL_OY - cam.y);
         break;
       }
-      case 6:
-        P.blit(gateTex_, d.tx * 16.0f - art::GATE_OX - cam.x, d.ty * 16.0f - art::GATE_OY - cam.y);
+      case 6: {
+        // (M1) the gatehouse flies the banner of the kingdom whose town it guards
+        const Tex* gt = &gateTex_;
+        if (const Kingdom* k = g.world.kingdomOf(g.world.siteAt(d.tx + 1, d.ty, 3))) gt = &kingdomTex(1, *k, 7);
+        P.blit(*gt, d.tx * 16.0f - art::GATE_OX - cam.x, d.ty * 16.0f - art::GATE_OY - cam.y);
         break;
+      }
       case 3: {
         const Actor& a = g.actors[d.idx];
         float flash = a.flash > 0 ? a.flash / 0.12f : 0;
@@ -865,6 +1017,11 @@ void View::drawLighting(Game& g) {
   }
   if (amb.r > 0.99f && amb.g > 0.99f && amb.b > 0.99f) return;
   Vec2 cam(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y));
+  // (M1) the light map is half the canvas: re-made when the screen fit changes the canvas size
+  if (lightMap_.w != (Pix::W + 1) / 2 || lightMap_.h != (Pix::H + 1) / 2) {
+    P.destroy(lightMap_);
+    lightMap_ = P.makeTarget((Pix::W + 1) / 2, (Pix::H + 1) / 2);
+  }
   P.setTarget(&lightMap_);
   SDL_Renderer* ren = P.renderer();
   (void)ren;
@@ -894,9 +1051,12 @@ void View::drawLighting(Game& g) {
     }
   // warm windows at night: each lit window glows (it reads at full colour through the dark) and spills a little
   // light onto the wall and the street in front; a soft pool at the door of every household still up
-  if (!g.inside && dark > 0.2f && g.mode != Mode::Title)
-    for (size_t bi = 0; bi < m.bldgs.size(); bi++) {
-      const Bldg& b = m.bldgs[bi];
+  static std::vector<int> litB;
+  if (!g.inside && dark > 0.2f && g.mode != Mode::Title) bldgsIn(g, m, cam.x - 80, cam.y - 80, cam.x + Pix::W + 80, cam.y + Pix::H + 120, litB);
+  else litB.clear();
+  for (int bi : litB) {
+    {
+      const Bldg& b = m.bldgs[(size_t)bi];
       Vec2 c(b.r.x * 16 + b.r.w * 8.0f, (b.r.y + b.r.h) * 16 - 10.0f);
       if (c.x < cam.x - 80 || c.x > cam.x + Pix::W + 80 || c.y < cam.y - 120 || c.y > cam.y + Pix::H + 80) continue;
       if (!windowsLit(g, b)) continue;
@@ -912,6 +1072,7 @@ void View::drawLighting(Game& g) {
         light(wp + Vec2(0, 8), 44, Color(1, 0.62f, 0.3f), 0.30f * dark * f);   // spill on the wall and ground
       }
     }
+  }
   // the lanterns either side of every gate passage
   if (!g.inside && m.kind == MapKind::Overworld && dark > 0.15f)
     for (auto& gt : g.world.gates) {
@@ -929,7 +1090,7 @@ void View::drawLighting(Game& g) {
   for (const Actor& a : g.actors) if (a.mon == Monster::Wraith && a.hostile && a.st != AState::Dead) light(a.p + Vec2(0, -10), 40, Color(0.5f, 0.5f, 1), 0.6f);
   for (const Pickup& k : g.pickups) if (k.gold == 0 && k.item.rarity >= Rarity::Rare) light(k.p, 24, col(rarityColor(k.item.rarity)), 0.5f);
   P.setTarget(nullptr);
-  P.blitEx(lightMap_, 0, 0, lightMap_.w, lightMap_.h, 0, 0, (float)Pix::W, (float)Pix::H, false, Color(1, 1, 1, 1), 2);
+  P.blitEx(lightMap_, 0, 0, lightMap_.w, lightMap_.h, 0, 0, lightMap_.w * 2.0f, lightMap_.h * 2.0f, false, Color(1, 1, 1, 1), 2);
 }
 
 void View::drawWeather(Game& g, float dt) {
@@ -948,26 +1109,32 @@ void View::drawWeather(Game& g, float dt) {
   bool fog = b == Biome::Swamp;
   if (rain) {
     P.rect(0, 0, Pix::W, Pix::H, Color(0.1f, 0.12f, 0.2f, 0.18f));
-    for (int i = 0; i < 90; i++) {
-      float sx = std::fmod(hashf(i, 0, 5) * 600 + t_ * 120 - cam_.x * 1.0f, 520.0f) - 20;
-      float sy = std::fmod(hashf(i, 1, 5) * 400 + t_ * 330 - cam_.y * 1.0f, 300.0f) - 15;
-      if (sx < 0) sx += 520; if (sy < 0) sy += 300;
+    for (int i = 0; i < 90 * Pix::W / 480; i++) {
+      const float ww = Pix::W + 40.0f, wh = Pix::H + 30.0f;   // (M1) the drops wrap over the whole canvas
+      float sx = std::fmod(hashf(i, 0, 5) * 600 + t_ * 120 - cam_.x * 1.0f, ww);
+      float sy = std::fmod(hashf(i, 1, 5) * 400 + t_ * 330 - cam_.y * 1.0f, wh);
+      if (sx < 0) sx += ww;
+      if (sy < 0) sy += wh;
+      sx -= 20; sy -= 15;
       for (int k = 0; k < 4; k++) P.rect(sx - k * 0.5f, sy - k * 1.5f, 1, 1, Color(0.7f, 0.8f, 0.95f, 0.45f - k * 0.08f));
     }
   }
   if (snow) {
-    for (int i = 0; i < 110; i++) {
+    for (int i = 0; i < 110 * Pix::W / 480; i++) {
       float sp = 14 + hashf(i, 3, 7) * 18;
-      float sx = std::fmod(hashf(i, 0, 7) * 600 + std::sin(t_ * 0.8f + i) * 10 - cam_.x * 1.0f + t_ * 6, 500.0f) - 10;
-      float sy = std::fmod(hashf(i, 1, 7) * 400 + t_ * sp - cam_.y * 1.0f, 290.0f) - 10;
-      if (sx < 0) sx += 500; if (sy < 0) sy += 290;
+      const float ww = Pix::W + 20.0f, wh = Pix::H + 20.0f;
+      float sx = std::fmod(hashf(i, 0, 7) * 600 + std::sin(t_ * 0.8f + i) * 10 - cam_.x * 1.0f + t_ * 6, ww);
+      float sy = std::fmod(hashf(i, 1, 7) * 400 + t_ * sp - cam_.y * 1.0f, wh);
+      if (sx < 0) sx += ww;
+      if (sy < 0) sy += wh;
+      sx -= 10; sy -= 10;
       float s = hashf(i, 2, 7) < 0.3f ? 2.f : 1.f;
       P.rect(sx, sy, s, s, Color(1, 1, 1, 0.8f));
     }
   }
   if (fog) {
-    for (int i = 0; i < 6; i++) {
-      float x = std::fmod(i * 140 + t_ * 8 - cam_.x * 0.3f, 700.0f) - 160;
+    for (int i = 0; i < 6 * (Pix::W + 220) / 700 + 1; i++) {
+      float x = std::fmod(i * 140 + t_ * 8 - cam_.x * 0.3f + 7000.0f, (float)Pix::W + 220.0f) - 160;
       P.blitEx(light_, 0, 0, 64, 64, x, 40 + i * 30 + std::sin(t_ * 0.3f + i) * 10, 260, 90, false, Color(0.75f, 0.8f, 0.75f, 0.12f));
     }
   }

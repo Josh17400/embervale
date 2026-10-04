@@ -2134,3 +2134,36 @@ These are binding inputs. Each is mapped onto the milestones above. Where it con
   The generator combines archetype, cast (from the living world), setting, twist and moral choice, giving effectively millions of
   distinct quests. **Rule:** borrow structures, themes and motifs, never copyrighted names, characters, places or verbatim plots of
   modern works. Public-domain myth, scripture and folklore can be referenced more directly.
+
+### 15.10 Owner rules for M1 (2026-10-04) and what Phase A built
+These bind M1 and override the M1 section above where they differ.
+- **Old saves are not a concern.** Only the current `SAVE_VER` (5) loads; an older save is refused and the title says
+  "THIS SAVE IS FROM AN OLDER VERSION - START A NEW ADVENTURE". `save_test` checks the current format only
+  (`tests/fixtures/save_v5.bin` holds format-level facts; round trips are byte-identical). The CI save step is blocking.
+- **New games start on the endless mainland** (15.6). `Game::newEndlessGame`; the classic island stays only as a test
+  fixture during M1 (`rpg_test --seeds`, scripts with a `worldgen 7` header, `--classic`) and is retired in M2.
+- **Scale (15.8):** settlements far apart (a real walk with wilderness, roads, camps, ruins and caves between them);
+  villages 10-15 houses, towns 40-60, cities 160-220 buildings; every village has an inn or tavern, a well or green and a
+  shop or smith; organic layouts; big cities stay fast on iPhone web (measure with `--perf`).
+- **Kingdom identity (M4 groundwork):** every settlement records its kingdom and whether it is the capital (`Site::kingdom`,
+  `Site::capital`, `World::kingdoms`); banners in kingdom colours on gates, keeps, palaces and signs (`Bldg::banner`,
+  `art::kingdomBanner`); the name label and the world map show the kingdom; capitals get a large multi-storey palace
+  (`art::Building::Palace`, `Role::King`) with a throne hall built with the M0b rooms system.
+- **Deterministic generation:** integer / `rpg/world/dmath.h` maths only in world generation; `rpg/world/*.cpp` compile
+  without fast-math or FMA contraction; golden fixtures must pass on Linux CI.
+- **Relief instead of brown mountain blobs** (section 11): `Map::height` carries the level (bits 0-2), cliff faces
+  (`HEIGHT_CLIFF`, not walkable) and ramps (`HEIGHT_RAMP`).
+- **The world map works with the endless world:** zoomable, panning, discovered areas (`Game::explored`, 1 bit per 8x8
+  tiles, saved), kingdom labels.
+- **Endless saves store deltas keyed by stable ids** (`Gid`): sites, buildings, dens, map keys and overworld chests
+  (`Game::lootKey`) are saved by id, never by handle.
+- **Phone screen fill (owner request):** the game image must fill the iPhone screen. High-DPI web canvas, an adaptive
+  logical width (the height stays near 270), and a SETTINGS option SCREEN (FILL default on phones, PIXEL PERFECT) with a
+  SCREEN BORDER / SAFE AREA slider, saved in its own small settings file (`rpg/view/screen.h`).
+
+**Phase A (lead) contracts:** `rpg/world/source.h` (the generator: macro samples, region plans, chunks, kingdoms, the start
+plan; pimpl so internals change freely), `rpg/world/settlement.h` (one settlement on a local buffer),
+`rpg/sim/world_endless.cpp` (the Active Window: `World::WIN` = 256 tiles, shifts of 64, append-only records with `Gid`
+maps, `Ev::WindowShift`), `rpg/sim/explored.h`, `rpg/view/screen.h`, `RPG_TEST_CMD` in `tools/tests/tests.h`
+(`rpg_test --endless`, `rpg_test --window`). The stub generator (`rpg/world/endless.cpp`) and the classic-stamp settlement
+bridge (`rpg/world/settlement.cpp` via `classicTownStamp`) are placeholders for the WORLD and TOWNS lanes.

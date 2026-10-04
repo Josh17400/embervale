@@ -29,9 +29,18 @@ void out(const char* fmt, ...) {
   va_end(ap);
 }
 
+std::vector<TestCmd>& testCmds() {
+  static std::vector<TestCmd> cmds;
+  return cmds;
+}
+bool parseSeedRange(const char* s, uint64_t& a, uint64_t& b);
+
 namespace {
+bool parseRange(const char* s, uint64_t& a, uint64_t& b) { return parseSeedRange(s, a, b); }
+}  // namespace
+
 // "A..B", "A-B" or a single number
-bool parseRange(const char* s, uint64_t& a, uint64_t& b) {
+bool parseSeedRange(const char* s, uint64_t& a, uint64_t& b) {
   char* e = nullptr;
   a = strtoull(s, &e, 10);
   if (e == s) return false;
@@ -41,6 +50,8 @@ bool parseRange(const char* s, uint64_t& a, uint64_t& b) {
   b = strtoull(s2, &e, 10);
   return e != s2 && *e == 0 && b >= a;
 }
+
+namespace {
 // every lane's per-seed checks (tests.h); a crash-free 0 means "nothing to check yet"
 int laneChecks(uint64_t seed) {
   g_curSeed = seed;
@@ -49,6 +60,16 @@ int laneChecks(uint64_t seed) {
 }  // namespace
 
 int main(int argc, char** argv) {
+  // M1: commands registered by the lanes' test files (RPG_TEST_CMD in tests.h)
+  for (int i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "--help")) {
+      printf("rpg_test [seed] [--map out.png] [--secs N] [--mortal] [--noaudit] | --seeds A..B | --metrics | --golden [--write]\n");
+      for (const TestCmd& c : testCmds()) printf("  %-14s %s\n", c.flag, c.help);
+      return 0;
+    }
+    for (const TestCmd& c : testCmds())
+      if (!strcmp(argv[i], c.flag)) return c.run(argc, argv);
+  }
   uint64_t seed = 12345, seedA = 0, seedB = 0;
   bool range = false, audit = true;
   const char* mapOut = nullptr;

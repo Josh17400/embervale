@@ -59,6 +59,10 @@ int propW(Prop p);
 int propH(Prop p);
 int propFrames(Prop p);
 Canvas propSprite(Prop p);
+// M1 kingdom identity (VISION_PLAN 15.8): a standing banner in a kingdom's colours (field / trim rgba, emblem 0..7), the
+// same canvas size and anchor as propSprite(Prop::Banner). The view draws Prop::Banner tiles that belong to a kingdom's
+// settlement with this. Phase A stub: the neutral banner; the TOWNS lane paints the colours and emblems.
+Canvas kingdomBanner(uint32_t field, uint32_t trim, int emblem);
 
 // ---------------------------------------------------------------- interior surfaces and floor clutter (M0)
 // Interiors get painted walls (with thickness and a lit top), floors, rugs, contact shadows and small clutter on top

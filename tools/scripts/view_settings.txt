@@ -1,0 +1,23 @@
+# VIEW lane, M1: the SETTINGS screen by keyboard and by touch, and that it persists. Run twice with the same
+# EMB_SETTINGS_FILE (a scratch file, never the player's settings): the first run changes SCREEN, BORDER and HUD MARGIN,
+# the second run's log (EMB_SCREEN_LOG=1) and settings_1_reload.png show the same values after the restart.
+#   EMB_SETTINGS_FILE=s.bin EMB_SCREEN_LOG=1 embervale.exe --script tools/scripts/view_settings.txt
+seed 7
+0.5  shot settings_1_reload.png  # (second run) the title in the remembered fit
+0.6  key Down                    # NEW ADVENTURE -> SETTINGS
+0.7  key Return
+0.8  expect mode title
+0.9  shot settings_2_open.png
+1.0  key Right                   # SCREEN: toggle the mode (keyboard)
+1.1  key Down
+1.2  key Right                   # BORDER: 1 step
+1.3  key Right                   # BORDER: 2 steps
+1.5  shot settings_3_keys.png
+# touch (box coordinates at the default window, FILL with a small border keeps the box near 0,0)
+1.6  tap 397 130                 # HUD MARGIN ">": AUTO -> 0 PX (a tap switches to the touch layout: 30 px rows)
+1.7  tap 397 130                 # -> 4 PX
+1.8  tap 300 100                 # BORDER slider: the notch under the finger (6)
+2.0  shot settings_4_taps.png
+2.1  tap 240 190                 # DONE
+2.3  shot settings_5_closed.png
+2.4  quit

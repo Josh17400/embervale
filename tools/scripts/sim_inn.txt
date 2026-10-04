@@ -1,0 +1,29 @@
+# M1 SIM lane: inn.txt on the ENDLESS world. New Game -> the character creator (Enter through it) -> the start village
+# inn -> the innkeeper -> the shop, buy -> walk out.
+#   embervale.exe --script tools/scripts/sim_inn.txt [--seed 7]        (screenshots land in the working directory)
+seed 7
+0.8  shot sim_inn_0_title.png
+1.0  key Return                  # title: New Game opens the creator
+1.2  expect mode creator
+1.4  key Return                  # LOOKS -> NAME
+1.5  key Return                  # NAME -> ORIGIN
+1.6  key Return                  # ORIGIN: BEGIN
+1.8  expect mode play
+2.5  shot sim_inn_1_start.png
+2.6  walkto inn 60
+3.4  expect inside 1
+3.5  shot sim_inn_2_inside.png
+3.6  talkto innkeeper 40
+4.0  expect mode dialogue
+6.0  shot sim_inn_3_greeting.png
+6.1  choose LET ME SEE YOUR WARES
+6.6  expect mode shop
+7.2  shot sim_inn_4_shop.png
+7.4  key Return                  # buy the first item
+8.0  shot sim_inn_5_bought.png
+8.2  key Escape
+8.4  expect mode play
+8.5  walkto exit 30
+9.5  expect inside 0
+10.0 shot sim_inn_6_outside.png
+10.2 quit

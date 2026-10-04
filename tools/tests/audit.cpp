@@ -22,10 +22,12 @@ bool isSettlement(SiteType t) { return t == SiteType::City || t == SiteType::Tow
 
 }  // namespace
 
+void newTestGame(Game& g, uint64_t seed);   // seed_run.cpp: endless, or the classic island under rpg_test --classic
+
 Audit repetitionAudit(uint64_t seed) {
   Audit au;
   Game g(seed);
-  g.newGame(seed);
+  newTestGame(g, seed);
   g.mode = Mode::Play;
   const World& W = g.world;
   const Map& m = W.over;
@@ -66,10 +68,15 @@ Audit repetitionAudit(uint64_t seed) {
   }
 
   // 3. distinct greeting lines per town: walk up to every outdoor NPC of each settlement and say hello
+  //    (endless: the settlements within 600 tiles of the start, each a fast travel away)
   {
     g.godMode = true;
-    for (int si = 0; si < (int)W.sites.size(); si++) {
-      if (!isSettlement(W.sites[si].type)) continue;
+    std::vector<ew::Gid> towns;
+    for (const Site& s : W.sites)
+      if (isSettlement(s.type) && (!W.endless || distStart(s) <= 600)) towns.push_back(s.id);
+    for (ew::Gid tid : towns) {
+      int si = W.siteHandle(tid);
+      if (si < 0) continue;
       g.world.sites[si].discovered = true;
       if (!g.fastTravel(si)) continue;
       g.hour = 12;

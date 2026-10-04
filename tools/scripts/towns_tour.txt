@@ -1,0 +1,43 @@
+# M1 towns tour (TOWNS lane, VISION_PLAN 15.8): the start village, a town, a city (its heart and a walk north through
+# its streets), the capital (its heart, the palace from its door, the throne hall with the king, the royal apartments
+# upstairs, the courtyard, the barracks and its dormitory), then the palace compound and the city square at night.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/towns_tour.txt      (screenshots land in the cwd)
+seed 7
+0.3  newgame
++0.05 hour 12
++0.1 god 1
++0.6 shot towns_01_start_village.png
++0.2 goto village
++1.2 shot towns_02_village.png
++0.2 goto town
++1.2 shot towns_03_town.png
++0.2 goto city
++1.2 shot towns_04_city_heart.png
++0.1 hold W 3
++3.3 shot towns_05_city_north.png
++0.1 hold D 3
++3.3 shot towns_06_city_east.png
++0.2 goto capital
++1.2 shot towns_07_capital_heart.png
++0.2 enter palace 0
++1.0 shot towns_08_throne_hall.png
++0.2 walkto king
++0.8 shot towns_09_king.png
++0.2 floor 1
++1.0 shot towns_10_palace_upper.png
++0.2 floor 0
++0.3 walkto exit
++1.2 shot towns_11_palace_door.png
++0.1 hold S 1.2
++1.5 shot towns_12_palace_court.png
++0.2 enter barracks 0
++1.0 shot towns_13_barracks.png
++0.2 floor 1
++1.0 shot towns_14_barracks_upper.png
++0.2 floor 0
++0.3 walkto exit
++0.2 hour 22
++1.5 shot towns_15_night_compound.png
++0.2 goto capital
++1.5 shot towns_16_night_square.png
++0.3 expect mode play

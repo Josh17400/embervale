@@ -2,6 +2,7 @@
 # ("THE TOWN IS UNDER ATTACK!", combat music), townsfolk run home and hide, militia grab their tools, the guards
 # converge from across town and kill the pack; ~30 s after it is over the townsfolk come back out.
 #   embervale.exe --script tools/scripts/defence.txt        (screenshots land in the working directory)
+worldgen 7   # M1: written against the classic island (generator v7); new games are endless now
 seed 3
 0.3  newgame
 0.4  god                         # the player only watches (the wolves still prefer them, so stay put)

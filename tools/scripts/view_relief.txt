@@ -1,0 +1,20 @@
+# VIEW lane, M1: relief (VISION_PLAN 11) and ecotones. Cliff faces, side lips, rims, ramps and stairs, cast shadows and
+# the per-level colour grade, near the caves and hills of an endless world, plus a biome edge on the walk out.
+#   embervale.exe --script tools/scripts/view_relief.txt     (relief_*.png in the working directory)
+seed 7
+0.3  newgame
++0.02 hour 10
++0.1 god 1
++0.3 goto cave
++1.0 shot relief_0_cave.png
++0.1 walk south 3
++3.2 shot relief_1_south.png
++0.1 walk east 3
++3.2 shot relief_2_east.png
++0.1 goto ruin
++1.0 shot relief_3_ruin.png
++0.1 goto camp
++1.0 shot relief_4_camp.png
++0.1 goto shrine
++1.0 shot relief_5_shrine.png
++0.3 quit

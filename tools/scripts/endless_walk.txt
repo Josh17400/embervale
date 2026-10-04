@@ -1,0 +1,22 @@
+# M1 endless smoke walk (lead, Phase A; the SIM and VIEW lanes extend it): a new endless game, a walk east across many
+# window shifts with a shot every few seconds (review for seams, stale strips and position jumps), then a fast travel
+# to the story city.
+#   embervale.exe --script tools/scripts/endless_walk.txt      (screenshots land in the working directory)
+seed 7
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.5 shot endless_0_start.png
++0.1 hold D 6
++6.2 shot endless_1_east.png
++0.1 hold D 6
++6.2 shot endless_2_east.png
++0.1 hold S 6
++6.2 shot endless_3_south.png
++0.1 hold A 6
++6.2 shot endless_4_west.png
++0.3 goto city
++1.5 shot endless_5_city.png
++0.3 goto town
++1.5 shot endless_6_town.png
++0.3 expect mode play

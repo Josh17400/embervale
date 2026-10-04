@@ -1,0 +1,49 @@
+# M1 WORLD lane review walk (seed 7): about three minutes through the endless mainland with a shot every ~20 s:
+# a river bridge, lattice ramps and road stairs through the relief terraces, a lake
+# shore, a cave in a real cliff face, the capital, a long road through the wilderness, and the coast.
+# Places come from `rpg_test --world-places --seeds 7` (global tiles; rerun it when the generator changes).
+#   embervale.exe --script tools/scripts/world_walk.txt      (screenshots land in the working directory)
+seed 7
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.5 shot world_00_start.png
+# a river with a road bridge
++0.3 at -407 -221
++1.0 shot world_01_bridge.png
++0.1 walk north 3
++3.2 shot world_02_over_bridge.png
+# terraces: a ramp on the lattice, then stairs where a road climbs
++0.3 at -169 -385
++1.0 shot world_03_ramp.png
++0.1 walk north 2
++2.2 shot world_04_up_ramp.png
++0.3 at -187 -386
++1.0 shot world_05_road_stairs.png
+# a lake shore and a cave mouth in a cliff
++0.3 at -255 -494
++1.0 shot world_06_lake.png
++0.3 at -140 -531
++1.0 shot world_07_cave.png
+# the capital (the story city): a road arriving at the town
++0.3 goto capital
++1.5 shot world_08_capital.png
++0.1 hour 11
+# a long road through the wilderness: walk it for a minute
++0.3 at -500 -682
++1.0 shot world_09_wild_road.png
++0.1 walk east 20
++20.1 shot world_10_walk_a.png
++0.1 walk north 20
++20.1 shot world_11_walk_b.png
++0.1 walk west 20
++20.1 shot world_12_walk_c.png
+# the coast
++0.1 hour 12
++0.3 at -164 613
++1.0 shot world_13_coast.png
++0.1 walk south 15
++15.1 shot world_14_coast_b.png
++0.1 walk north 30
++30.1 shot world_15_coast_c.png
++0.3 expect mode play

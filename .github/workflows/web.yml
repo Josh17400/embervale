@@ -29,17 +29,29 @@ jobs:
           ./build-native/rpg_test --seeds 1..20
           for s in 7 99 12345; do ./build-native/rpg_test $s --secs 60; done
 
-      # Save compatibility is an owner rule. Proven green on Linux GCC (run 37161023299), so this blocks the deploy.
-      # Non-blocking for now: the classic island generator uses libm float maths, so a world hashed on MSVC can drift
-      # on Linux (seen for the gen-3 fixture). Saves never cross platforms (phone saves stay on the phone). M1's
-      # deterministic integer/dmath generator is the real fix; make this blocking again once fixtures are platform-stable.
+      # The current save format (SAVE_VER 5) only: owner rule 2026-10-04, old saves are not carried over. The fixture
+      # holds format-level facts only and the round trips run on this machine, so the check is platform-stable: blocking.
       - name: Save format test
-        continue-on-error: true
         run: ./build-native/save_test
+
+      # M1 endless world: generator order independence, start plan, spacing, kingdoms, rock share, reachability flood
+      # and plateau check (costs reported, not gated on shared runners); the Active Window (walks, shifts,
+      # streaming, fast travel, save round trips)
+      - name: Endless world tests
+        run: |
+          ./build-native/rpg_test --endless --seeds 1..10 --no-budget
+          ./build-native/rpg_test --window --seeds 1..5
+          ./build-native/rpg_test --towns --seeds 1..10
 
       # rpg/world integer noise/ids golden values (M1 prep): must match MSVC bit for bit (green on Linux, run 37161023299).
       - name: Endless-world golden test
         run: ./build-native/rpg_test --golden
+
+      # M1 WORLD lane, owner rule D (cross-platform determinism): the endless generator's region plans, chunks and macro
+      # samples near the origin and about 1e5 tiles out must hash exactly as on MSVC (tests/fixtures/golden_endless.txt;
+      # integer maths only, settlement interiors masked out). Blocking.
+      - name: Endless generator golden test
+        run: ./build-native/rpg_test --endless --golden
 
       - uses: mymindstorm/setup-emsdk@v14
         with:

@@ -4,6 +4,7 @@
 # Layout (paperdoll.cpp): slot boxes 28 px, left column x 18 (HEAD 36, NECK 69, CLOAK 102, BODY 135, HANDS 168,
 # FEET 201), right column x 168 (WEAPON 36, SHIELD 69, BOW 102, STAFF 135, RING 168); the pack list at x 206, rows of
 # 24 px from y 112; EQUIP 206-330 and REMOVE 338-462 at y 238.
+worldgen 7   # M1: written against the classic island (generator v7); new games are endless now
 seed 7
 0.3  newgame                     # straight into play (no creator)
 0.4  hour 11

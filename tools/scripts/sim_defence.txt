@@ -1,0 +1,22 @@
+# M1 SIM lane: defence.txt on the ENDLESS world. Three wolves loose in the nearest town: the bell rings, townsfolk run
+# home and hide, militia grab their tools, the guards (in their kingdom's colours) converge and kill the pack; about
+# 30 s after it is over the townsfolk come back out.
+#   embervale.exe --script tools/scripts/sim_defence.txt [--seed 7]    (screenshots land in the working directory)
+seed 7
+0.3  newgame
+0.4  god                         # the player only watches
+0.5  goto town
+0.6  hour 11
+0.7  expect kingdom
+1.5  shot sim_defence_0_town.png
+1.6  expect npc guard
+1.7  fight wolf 3
+2.2  shot sim_defence_1_alarm.png
+3.4  shot sim_defence_2_flee.png
+5.0  shot sim_defence_3_guards.png
+8.0  shot sim_defence_4_fight.png
+16.0 shot sim_defence_5_after.png
+24.0 shot sim_defence_6_quiet.png
+52.0 shot sim_defence_7_back.png
+52.2 expect mode play
+52.4 quit

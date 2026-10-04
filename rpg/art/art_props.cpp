@@ -1,5 +1,6 @@
 // EMBERVALE art: props (nature, camp/town, dungeon, interior furniture). See rpg/art.h for the contract and rpg/art/art_internal.h for the shared helpers.
 #include "rpg/art/art_internal.h"
+#include "rpg/art/art_heraldry.h"
 
 namespace art {
 
@@ -4030,4 +4031,51 @@ Canvas interiorPiece(uint32_t key) {
   }
 }
 
+}  // namespace art
+
+namespace art {
+// M1 kingdom identity (VISION_PLAN 15.8): a standing banner in the kingdom's colours. The same pole, crossbar, size,
+// frames and ripple as the plain banner; the cloth in the field colour with a trim border and the charge (emblem) in
+// the trim colour, lit from the top-left like the cloth around it. field == 0: the plain banner.
+Canvas kingdomBanner(uint32_t field, uint32_t trim, int emblem) {
+  if (!field) return propSprite(Prop::Banner);
+  const int w = propW(Prop::Banner), h = propH(Prop::Banner), n = propFrames(Prop::Banner);
+  const Ramp F = ramp(opaque(field)), T = ramp(opaque(trim ? trim : rgba(232, 200, 90)));
+  Canvas sheet(w * n, h);
+  for (int f = 0; f < n; f++) {
+    Canvas c(w, h);
+    const int base = h - 1;
+    for (int y = 2; y <= base; y++) { c.set(2, y, kWood[3]); c.set(3, y, kWood[1]); }
+    c.set(2, 1, kGold[4]); c.set(3, 1, kGold[2]); c.set(2, 0, kGold[3]);
+    c.set(1, base, kWood[2]); c.set(4, base, kWood[1]);   // the foot it stands on
+    hline(c, 3, w - 2, 3, kWood[2]);
+    c.set(w - 2, 3, kGold[3]);   // the crossbar's gilded end
+    const int x0 = 4, x1 = w - 1, y0 = 4, y1 = 24;   // the cloth: columns x0..x1-1, rows y0..y1-1
+    const int ex = x0 + 1, ey = 8;
+    for (int y = y0; y < y1; y++) {
+      float t = (y - y0) / (float)(y1 - y0);
+      int off = (int)std::lround(std::sin(t * 4.0f + f * 1.6f) * 1.1f * t);
+      for (int x = x0; x < x1; x++) {
+        if (y > y1 - 6) {   // swallow tail
+          int mid = (x0 + x1 - 1) / 2;
+          if (std::abs(x - mid) < (y - (y1 - 6))) continue;
+        }
+        float wave = std::sin((x - x0) * 0.9f + f * 1.6f + t * 2);
+        int k = 2;
+        if (wave > 0.5f) k = 3;
+        if (wave < -0.5f) k = 1;
+        if (x == x0) k = std::min(4, k + 1);
+        uint32_t col = F[k];
+        bool edge = x == x0 || x == x1 - 1 || y == y0 || y == y0 + 1;
+        if (edge) col = T[y == y0 ? 3 : std::clamp(k, 1, 3)];
+        int i = x - ex, j = y - ey;
+        if (heraldry::chargeAt(emblem, 7, i, j)) col = T[std::clamp(heraldry::chargeShade(emblem, 7, i, j) + (k - 2), 1, 4)];
+        c.set(x + off, y, col);
+      }
+    }
+    outline(c);
+    place(sheet, c, f, 0);
+  }
+  return sheet;
+}
 }  // namespace art

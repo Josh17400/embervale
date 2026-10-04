@@ -189,6 +189,11 @@ void View::drawCreator(Game& g) {
   const Appearance& a = g.app;
   S.faceHold = std::max(0.0f, S.faceHold - 1.0f / 60.0f);
   P.rect(0, 0, Pix::W, Pix::H, Color(0.04f, 0.03f, 0.06f, 0.82f));
+  if (settingsOpen_) return;
+  // (M1) laid out for 480 x 270: a centred box on a wider or taller screen
+  const UiBox box = uiBox(270);
+  P.pushBox(box.x, box.y, box.w, box.h);
+  struct Pop { Pix& p; ~Pop() { p.popBox(); } } pop{P};
   P.textS(Pix::W / 2.0f, 7, "WHO ARE YOU?", 1, kGoldC, 1);
 
   // ---- preview: the hero walks on the spot and turns; a warm light behind, a shadow below
@@ -337,6 +342,7 @@ void View::creatorKey(Game& g, int key) {
 
 void View::creatorTap(Game& g, Vec2 p) {
   ensureInit(g);
+  p = inBox(uiBox(270), p);   // drawCreator's box
   Appearance& a = g.app;
   auto move = [&]() { audio_->play(Sfx::MenuMove); };
   // preview turn buttons

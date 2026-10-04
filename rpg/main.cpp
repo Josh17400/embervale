@@ -4,14 +4,19 @@
 //   embervale.exe --play --goto city|town|cave|ruin|camp|lair [--enter] [--hour 22] [--menu 0-4]
 //                 --shot out.png --after 2           screenshot after N seconds, then quit
 //   embervale.exe --script file.txt [--seed 7] [--play]   drive the game from a timed script (test only, never saves)
+//   embervale.exe --play --at 4100,-2300            (M1) start on that GLOBAL tile of the endless world
+//   --perf                                          once a second: fps, frame work ms (avg / worst), NPCs awake and
+//                                                   asleep, hostiles, active sites, chunks/s, worst shift ms, regions,
+//                                                   settlements built; at exit a summary (worst frame at a window shift)
 //
 // Script format: one command per line, "<time> <command> [args]". Times are seconds of script time; "+0.5" means
 // 0.5 s after the previous line. '#' starts a comment. Script time stops while a walkto runs, so later lines keep
 // their spacing however long the walk takes. Input is injected through the same paths real input uses: key
 // presses become SDL key events (View::event), held keys are read by View::input, taps become SDL touch events.
 //   seed 7                    world seed (a header line, no time; --seed on the command line wins)
-//   worldgen 6                world-generator version (a header line; default WORLDGEN_LATEST). Scripts that rely on
-//                             facts of one world (names, coordinates) pin the generator they were written against
+//   worldgen 6                a CLASSIC island world built by that generator version (a header line). Without it
+//                             (and without --worldgen / --classic) every run is on the endless mainland (M1). Scripts
+//                             that rely on facts of one classic world (names, coordinates) pin the generator
 //   0.5 key E                 press and release a key (SDL key names: E, Return, Escape, Tab, Space, Up, Left Shift...)
 //   2.0 hold W 1.5            hold a key down for 1.5 s
 //   3 tap 424 222             touch tap at logical (480x270) coordinates
@@ -25,14 +30,21 @@
 //                             An optional trailing number is the timeout in seconds (default 40).
 //   6 expect mode shop        check state: mode title|play|dialogue|menu|shop|levelup|dead|paused|creator, inside 0|1
 //   6 newgame | goto ruin [enter] | talk 0|1|2 | fight wolf [n] | god [0|1] | hour 22 | menu 2 | log text
+//                             goto city|town|village|cave|ruin|camp|shrine|lair|capital (capital: the nearest kingdom
+//                             capital, M1)
 //   6 talkto VIGRIMA [30]     walkto a person and talk to them the moment they are in reach (E in that same frame)
+//   6 at 4100 -2300           (M1) teleport to a GLOBAL tile (endless: the window recentres there; classic: island tiles)
+//   6 walk east 6             (M1) hold the direction (east|west|north|south) for 6 s (script time keeps running)
+//   6 nearshift east          (M1) step to 2 tiles short of the endless window's shift line that way (shift reviews)
+//   6 expect kingdom          (M1) the settlement the player stands in belongs to a kingdom (expect kingdom capital:
+//                             ... and is its capital); expect npc king|royal: someone with that role / title is in play
 //   6 kit                     give and equip the test kit (sword, bow, arrows, potions); fight does this when unarmed
 //   6 gear 3 [weapon]         give and equip a full set of armour band 3 (1 leather, 2 iron, 3 steel, 4 gilded, 5 jade,
 //                             6 obsidian, 7 emberforged): body, helmet, gloves, boots, cloak, shield, amulet, ring, plus a
 //                             weapon of that tier (sword|axe|mace|dagger|greatsword, default sword) and a bow for the back
 //   6 strip                   take every piece of equipment off (shirt and trousers only)
 //   6 enter inn [floor] [n]   (M0b) step straight into the n-th nearest (default 0) inn|shop|smithy|temple|keep|tower|
-//                             house|stonehouse|farmhouse|hut, on that floor (default 0); fails if it has no such floor
+//                             house|stonehouse|farmhouse|hut|palace|barracks, on that floor (default 0); fails if it has no such floor
 //   6 floor 1                 (M0b) inside a building: go to that floor (arriving by its stairs)
 //   6 expect floor 1          the floor the player is on (0 ground)
 //   6 expect name ASTRID      the player's name (the character creator); also: expect background 3, expect slot armor 1|0
@@ -61,11 +73,20 @@
 #include "engine/audio.h"
 #include "engine/pix.h"
 #include "rpg/sim/game.h"
+#include "rpg/view/screen.h"
 #include "rpg/view/view.h"
+#include "rpg/sim/stream.h"
+#include "rpg/world/source.h"
 
 namespace {
 std::string g_savePath;
-int g_worldgen = WORLDGEN_LATEST;   // test runs: the world-generator version (script header "worldgen N", --worldgen N)
+// 0: the endless mainland (M1, the default); N >= 1: a classic island built by generator N (script header
+// "worldgen N", --worldgen N, --classic for the latest)
+int g_worldgen = 0;
+void newWorld(Game& g, uint64_t s) {
+  if (g_worldgen > 0) g.newGame(s, g_worldgen);
+  else g.newEndlessGame(s);
+}
 
 bool readSave(std::vector<uint8_t>& out) {
   if (g_savePath.empty()) return false;
@@ -210,6 +231,9 @@ int main(int argc, char** argv) {
   const char* fight = nullptr;
   int talkStep = -1;   // PT test-only: 0 = innkeeper greeting, 1 = job offer, 2 = shop
   uint64_t seed = 0;
+  int winW = 1440, winH = 810;   // --window WxH: the initial window size in pixels (screen-fit tests: 2556x1179, 852x393...)
+  bool atSet = false;
+  int32_t atX = 0, atY = 0;      // --at GX,GY: start on that global tile (M1)
   for (int i = 1; i < argc; i++) {
     if (!std::strcmp(argv[i], "--novsync")) vsync = false;
     else if (!std::strcmp(argv[i], "--perf")) perf = true;
@@ -226,6 +250,15 @@ int main(int argc, char** argv) {
     else if (!std::strcmp(argv[i], "--talk") && i + 1 < argc) talkStep = std::atoi(argv[++i]);   // PT test-only
     else if (!std::strcmp(argv[i], "--script") && i + 1 < argc) scriptPath = argv[++i];
     else if (!std::strcmp(argv[i], "--worldgen") && i + 1 < argc) g_worldgen = std::clamp(std::atoi(argv[++i]), (int)WORLDGEN_V1, (int)WORLDGEN_LATEST);
+    else if (!std::strcmp(argv[i], "--classic")) g_worldgen = WORLDGEN_LATEST;
+    else if (!std::strcmp(argv[i], "--at") && i + 1 < argc) {
+      int x = 0, y = 0;
+      if (std::sscanf(argv[++i], "%d,%d", &x, &y) == 2) { atSet = true; atX = x; atY = y; }
+    }
+    else if (!std::strcmp(argv[i], "--window") && i + 1 < argc) {
+      int w = 0, h = 0;
+      if (std::sscanf(argv[++i], "%dx%d", &w, &h) == 2 && w >= 160 && h >= 90) { winW = w; winH = h; }
+    }
   }
   std::vector<ScriptCmd> script;
   if (scriptPath) {
@@ -247,28 +280,44 @@ int main(int argc, char** argv) {
   if (scripted) g_savePath.clear();   // belt and braces: a script can never read or write the real save
 
   Pix pix;
-  if (!pix.init("EMBERVALE", 1440, 810, vsync)) return 1;
+  if (!pix.init("EMBERVALE", winW, winH, vsync)) return 1;
   static Audio audio;   // ~175 KB: keep it off the stack
   audio.init();
 
   uint64_t startSeed = seed ? seed : (uint64_t)SDL_GetTicks() * 2654435761ull + 12345;
   Game game(startSeed);
-  game.newGame(startSeed, g_worldgen);   // title screen drifts over this world
+  newWorld(game, startSeed);   // title screen drifts over this world
   game.mode = Mode::Title;
   View view;
   view.init(pix, audio);
 #if defined(SDL_PLATFORM_IOS) || defined(SDL_PLATFORM_ANDROID)
   view.touchUI = true;
 #endif
+  {   // M1: screen fit and the player's settings (a small file of its own next to the save; scripts use defaults)
+    std::string settingsPath;
+#ifdef __EMSCRIPTEN__
+    settingsPath = "/save/settings.bin";
+#else
+    if (char* pref = SDL_GetPrefPath("Josh17400", "Embervale")) { settingsPath = std::string(pref) + "settings.bin"; SDL_free(pref); }
+#endif
+    if (scripted) settingsPath.clear();
+    screen::init(pix, settingsPath, view.touchUI);
+  }
 
   bool hasSave = false;
   if (!noSave) {
     std::vector<uint8_t> buf;
-    if (readSave(buf)) { Game probe(1); hasSave = probe.deserialize(buf); }
+    if (readSave(buf)) {
+      Game probe(1);
+      hasSave = probe.deserialize(buf);
+      int v = Game::saveVersion(buf);
+      // owner, 2026-10-04: old saves are not carried over; say so instead of silently starting fresh
+      if (!hasSave && v > 0 && v < Game::currentSaveVersion()) view.titleNote = "THIS SAVE IS FROM AN OLDER VERSION - START A NEW ADVENTURE";
+    }
   }
 
   auto startNew = [&](uint64_t s) {
-    game.newGame(s, g_worldgen);
+    newWorld(game, s);
     game.mode = Mode::Play;
     view.snap(game);
     audio.play(Sfx::QuestStart);
@@ -280,7 +329,26 @@ int main(int argc, char** argv) {
     else if (w == "ruin") want = SiteType::Ruin; else if (w == "camp") want = SiteType::BanditCamp; else if (w == "lair") want = SiteType::DragonLair;
     else if (w == "shrine") want = SiteType::Shrine;
     int si = game.world.nearestSite(game.world.sites[game.world.startSite].ex, game.world.sites[game.world.startSite].ey, want);
-    if (si < 0) return;
+    if (w == "capital") {   // M1: the nearest kingdom capital to the start (the king's palace)
+      si = -1;
+      int bd = 1 << 30;
+      const Site& h = game.world.sites[game.world.startSite];
+      for (int i = 0; i < (int)game.world.sites.size(); i++) {
+        const Site& s = game.world.sites[i];
+        if (!s.capital) continue;
+        int d = (s.ex - h.ex) * (s.ex - h.ex) + (s.ey - h.ey) * (s.ey - h.ey);
+        if (d < bd) { bd = d; si = i; }
+      }
+    }
+    if (game.world.endless) {
+      // the endless world: the nearest one in the region plans around the start (settlements are far apart: the nearest
+      // town may lie beyond the records the window has loaded)
+      const Site& h = game.world.sites[(size_t)game.world.startSite];
+      int far = game.world.findSiteNear(game.world.ox + h.ex, game.world.oy + h.ey, w == "capital" ? SiteType::City : want, 8, w == "capital");
+      if (w == "capital" && far < 0) far = game.world.findSiteNear(game.world.ox + h.ex, game.world.oy + h.ey, SiteType::Town, 8, true);
+      if (far >= 0) si = far;
+    }
+    if (si < 0) { std::printf("goto %s: none found\n", w.c_str()); return; }
     game.world.sites[si].discovered = true;
     game.fastTravel(si);
     if (enterIt && (want == SiteType::Cave || want == SiteType::Ruin)) {
@@ -359,6 +427,7 @@ int main(int argc, char** argv) {
     startNew(startSeed);
     game.godMode = god;
     if (hourSet >= 0) game.hour = hourSet;
+    if (atSet) { game.teleportGlobal(atX, atY); view.snap(game); }
     if (gotoWhat) doGoto(gotoWhat, enter);
     if (talkStep >= 0) doTalk(talkStep);
     view.snap(game);
@@ -390,6 +459,7 @@ int main(int argc, char** argv) {
     int kind = 0;            // 0 tile, 1 building door, 2 actor, 3 exit, 4 stairs (M0b)
     int floor0 = 0;          // stairs: the floor the walk started on
     int tx = 0, ty = 0, actorId = -1, bldg = -1;
+    int32_t wox = 0, woy = 0;   // M1: the endless window's origin the target tiles are relative to (shifts move them)
     float t = 0, timeout = 40, replanT = 0, finalT = 0, closeT = 0;
     bool talk = false;       // talkto: press E on arrival
     std::vector<int> path;
@@ -454,6 +524,7 @@ int main(int argc, char** argv) {
   auto startWalk = [&](const ScriptCmd& c) {
     walk = Walk();
     walk.on = true;
+    walk.wox = game.world.ox; walk.woy = game.world.oy;
     walk.line = c.line;
     std::vector<std::string> a(c.a.begin() + 1, c.a.end());
     auto num = [](const std::string& v) { return !v.empty() && (std::isdigit((unsigned char)v[0]) || v[0] == '.'); };
@@ -466,10 +537,12 @@ int main(int argc, char** argv) {
     plTile(px, py);
     static const struct { const char* n; art::Building b; } bt[] = {
         {"inn", art::Building::Inn}, {"shop", art::Building::Shop}, {"smithy", art::Building::Smithy}, {"temple", art::Building::Temple},
-        {"keep", art::Building::Keep}, {"tower", art::Building::Tower}, {"house", art::Building::House}, {"farmhouse", art::Building::Farmhouse}};
+        {"keep", art::Building::Keep}, {"tower", art::Building::Tower}, {"house", art::Building::House}, {"farmhouse", art::Building::Farmhouse},
+        {"palace", art::Building::Palace}, {"barracks", art::Building::Barracks}};
     static const struct { const char* n; Role r; } rt[] = {
         {"innkeeper", Role::Innkeeper}, {"merchant", Role::Merchant}, {"smith", Role::Smith}, {"priest", Role::Priest},
-        {"jarl", Role::Jarl}, {"guard", Role::Guard}, {"villager", Role::Villager}, {"mage", Role::Mage}, {"farmer", Role::Farmer}};
+        {"jarl", Role::Jarl}, {"guard", Role::Guard}, {"villager", Role::Villager}, {"mage", Role::Mage}, {"farmer", Role::Farmer},
+        {"king", Role::King}};
     if (tiles) { walk.kind = 0; walk.tx = std::atoi(a[0].c_str()); walk.ty = std::atoi(a[1].c_str()); return; }
     if (walk.what == "upstairs" || walk.what == "downstairs") {
       bool up = walk.what == "upstairs";
@@ -525,6 +598,12 @@ int main(int argc, char** argv) {
   };
   auto stepWalk = [&](float dt) {
     walk.t += dt;
+    if (!game.inside && (game.world.ox != walk.wox || game.world.oy != walk.woy)) {
+      // the endless window moved under the walk: the target's window tiles moved with it, the path is stale
+      walk.tx -= game.world.ox - walk.wox; walk.ty -= game.world.oy - walk.woy;
+      walk.wox = game.world.ox; walk.woy = game.world.oy;
+      walk.path.clear(); walk.step = 0; walk.replanT = 0;
+    }
     if (walk.t > walk.timeout) { endWalk(false, "timed out"); return; }
     if (game.mode != Mode::Play) { setMove(false, false, false, false); return; }   // a dialogue or menu is up: wait
     int px, py;
@@ -633,7 +712,8 @@ int main(int argc, char** argv) {
       static const struct { const char* n; art::Building b; } et[] = {
           {"inn", art::Building::Inn}, {"shop", art::Building::Shop}, {"smithy", art::Building::Smithy}, {"temple", art::Building::Temple},
           {"keep", art::Building::Keep}, {"tower", art::Building::Tower}, {"house", art::Building::House},
-          {"stonehouse", art::Building::StoneHouse}, {"farmhouse", art::Building::Farmhouse}, {"hut", art::Building::Hut}};
+          {"stonehouse", art::Building::StoneHouse}, {"farmhouse", art::Building::Farmhouse}, {"hut", art::Building::Hut},
+          {"palace", art::Building::Palace}, {"barracks", art::Building::Barracks}};
       int want = -1;
       for (auto& e : et) if (arg(1) == e.n) want = (int)e.b;
       int fl = std::atoi(arg(2).c_str()), nth = std::atoi(arg(3).c_str());
@@ -660,6 +740,40 @@ int main(int argc, char** argv) {
       for (size_t o = 0; o < game.dlg.opts.size() && pickI < 0; o++) if (game.dlg.opts[o].label.find(t) != std::string::npos) pickI = (int)o;
       if (game.mode != Mode::Dialogue || pickI < 0) fail(c.line, "choose: no dialogue option '" + t + "'");
       else { game.dialogueChoose(pickI); view.snap(game); }
+    } else if (op == "at") {   // M1: a global tile
+      game.teleportGlobal((int32_t)std::atoi(arg(1).c_str()), (int32_t)std::atoi(arg(2).c_str()));
+      game.mode = Mode::Play;
+      view.snap(game);
+    } else if (op == "nearshift") {   // M1: step to 2 tiles short of the window's east|west|north|south shift line
+      int tx = 0, ty = 0;
+      plTile(tx, ty);
+      const int lo = World::WIN_SHIFT, hi = World::WIN - World::WIN_SHIFT;
+      int ddx = 0, ddy = 0;
+      if (arg(1) == "east") { tx = hi - 2; ddx = 1; } else if (arg(1) == "west") { tx = lo + 1; ddx = -1; }
+      else if (arg(1) == "south") { ty = hi - 2; ddy = 1; } else if (arg(1) == "north") { ty = lo + 1; ddy = -1; }
+      // a lane where the next few tiles across the line are open (so the walk really crosses it)
+      const Map& M = game.world.over;
+      for (int off = 0; off < 120; off++) {
+        int o = (off & 1) ? -(off + 1) / 2 : off / 2;
+        int x0 = tx + (ddy ? o : 0), y0 = ty + (ddx ? o : 0);
+        bool open = true;
+        for (int k = -1; k <= 6 && open; k++)
+          if (M.blocked(x0 + ddx * k, y0 + ddy * k)) open = false;
+        if (open) { tx = x0; ty = y0; break; }
+      }
+      if (!game.world.endless) fail(c.line, "nearshift: not an endless world");
+      else { game.teleportGlobal(game.world.ox + tx, game.world.oy + ty); game.mode = Mode::Play; view.snap(game); }
+    } else if (op == "walk") {   // M1: walk east|west|north|south SECS (a held direction key)
+      static const struct { const char* n; SDL_Scancode sc; } dirs[] = {
+          {"east", SDL_SCANCODE_D}, {"west", SDL_SCANCODE_A}, {"north", SDL_SCANCODE_W}, {"south", SDL_SCANCODE_S}};
+      SDL_Scancode sc = SDL_SCANCODE_UNKNOWN;
+      for (auto& d : dirs) if (arg(1) == d.n) sc = d.sc;
+      if (sc == SDL_SCANCODE_UNKNOWN) fail(c.line, "walk: unknown direction '" + arg(1) + "'");
+      else {
+        pushKey(sc, true);
+        view.scriptHold(sc, true);
+        held.push_back({sc, scriptT + (float)std::atof(arg(2).c_str())});
+      }
     } else if (op == "talk") {
       doTalk(std::atoi(arg(1).c_str()));
     } else if (op == "fight") {
@@ -680,6 +794,28 @@ int main(int argc, char** argv) {
       view.openMenu(game, std::atoi(arg(1).c_str()));
     } else if (op == "log") {
       // printed above
+    } else if (op == "pos") {   // M1: print where the player is (window tile, global tile, window origin, site)
+      int tx = 0, ty = 0;
+      plTile(tx, ty);
+      std::printf("script: pos window tile %d,%d global %d,%d origin %d,%d inside %d site %s\n", tx, ty, game.world.ox + tx, game.world.oy + ty,
+                  game.world.ox, game.world.oy, game.inside ? 1 : 0, game.curSite >= 0 ? game.world.sites[(size_t)game.curSite].name.c_str() : "-");
+      if (game.curSite >= 0) {
+        int guards = 0, folk = 0;
+        for (size_t k = 1; k < game.actors.size(); k++)
+          if (game.actors[k].npc && game.actors[k].site == game.curSite) (game.actors[k].role == Role::Guard ? guards : folk)++;
+        const Site& cs = game.world.sites[(size_t)game.curSite];
+        auto it = game.world.siteSpawns.find(game.curSite);
+        std::printf("script:   %s %s, %d buildings, %zu spawns; in play %d townsfolk, %d guards\n", siteTypeName(cs.type), cs.name.c_str(), cs.bldgCount,
+                    it == game.world.siteSpawns.end() ? (size_t)0 : it->second.size(), folk, guards);
+      }
+      if (arg(1) == "map") {   // the tiles around: '#' blocked, '.' open, '@' the player
+        for (int y = ty - 3; y <= ty + 3; y++) {
+          std::string row;
+          for (int x = tx - 8; x <= tx + 8; x++) row += (x == tx && y == ty) ? '@' : (game.map().blocked(x, y) ? '#' : '.');
+          std::printf("script:   %s\n", row.c_str());
+        }
+        std::printf("script:   player px %.1f,%.1f state %d mode %d\n", game.pl().p.x, game.pl().p.y, (int)game.pl().st, (int)game.mode);
+      }
     } else if (op == "expect") {
       std::string what = arg(1), want = arg(2);
       if (what == "mode") {
@@ -705,6 +841,22 @@ int main(int argc, char** argv) {
         else if ((*e >= 0) != on) fail(c.line, "expected slot " + want + (on ? " worn" : " empty"));
       } else if (what == "floor") {
         if (game.subFloor != std::atoi(want.c_str())) fail(c.line, "expected floor " + want + ", got " + std::to_string(game.subFloor));
+      } else if (what == "kingdom") {   // M1: the settlement here belongs to a kingdom (expect kingdom capital: its capital)
+        int si = game.inside && game.subBldg >= 0 ? game.world.over.bldgs[(size_t)game.subBldg].site : game.curSite;
+        const Kingdom* K = game.world.kingdomOf(si);
+        if (!K) fail(c.line, "expected a kingdom's settlement here");
+        else if (want == "capital" && !game.world.sites[(size_t)si].capital) fail(c.line, "expected " + game.world.sites[(size_t)si].name + " to be the capital of " + K->name);
+        else std::printf("script: %s, kingdom of %s%s\n", game.world.sites[(size_t)si].name.c_str(), K->name.c_str(), game.world.sites[(size_t)si].capital ? " (capital)" : "");
+      } else if (what == "npc") {   // M1: someone in play with this role (king, guard...) or title word (royal)
+        bool ok = false;
+        for (size_t k = 1; k < game.actors.size(); k++) {
+          const Actor& ac = game.actors[k];
+          if (!ac.npc || ac.st == AState::Dead) continue;
+          if ((want == "king" && ac.role == Role::King) || (want == "guard" && ac.role == Role::Guard) || (want == "jarl" && ac.role == Role::Jarl) ||
+              (want == "innkeeper" && ac.role == Role::Innkeeper) || (want == "royal" && ac.name.find("ROYAL") != std::string::npos))
+            ok = true;
+        }
+        if (!ok) fail(c.line, "expected an npc '" + want + "' in play");
       } else if (what == "inside") {
         if ((want != "0") != game.inside) fail(c.line, std::string("expected inside ") + want + ", got " + (game.inside ? "1" : "0"));
       } else if (what == "quest" || what == "heard" || what == "option" || what == "text" || what == "tracked") {
@@ -766,8 +918,40 @@ int main(int argc, char** argv) {
     scriptT += dt;
   };
 
+  // --perf / script summary (M1): the CPU work of each frame (everything before the present), the worst one, and the
+  // worst one in which the endless window shifted under a walking player (the "no hitch at shifts" check)
+  struct PerfAcc {
+    double workSum = 0, workWorst = 0;        // this second
+    double worstAll = 0, worstShift = 0;      // the whole run
+    double worstAfterShift = 0;               // the second after a walking shift (the view re-bakes what moved)
+    int afterShift = 0;
+    int frames = 0, shiftFrames = 0;
+    long long chunks0 = 0;                    // chunks generated (main source + streamer) at the last print
+  } pacc;
+  auto chunksMade = [&]() -> long long {
+    long long n = 0;
+    if (game.world.src) n += game.world.src->stats().chunks;
+    if (game.world.streamer) n += game.world.streamer->stats().chunksMade;
+    return n;
+  };
+  auto printSummary = [&]() {
+    const World::StreamStats& ss = game.world.sstats;
+    std::printf("perf summary: %d frames, worst frame work %.1f ms, worst frame with a walking window shift %.1f ms (%d such frames), "
+                "worst in the second after one %.1f ms; "
+                "shifts %d (walking %d), worst shift %.1f ms, worst recentre %.1f ms, chunks prefetched %d, generated in a move %d "
+                "(%d in walking shifts), records recycled %d\n",
+                pacc.frames, pacc.worstAll, pacc.worstShift, pacc.shiftFrames, pacc.worstAfterShift, ss.shifts, ss.walkShifts, ss.worstShiftMs, ss.worstRecentreMs,
+                ss.prefetched, ss.syncChunks, ss.syncInShifts, ss.recycled);
+  };
+
   // one frame of the game; desktop loops on it, the browser calls it once per animation frame
   auto frame = [&]() {
+    const Uint64 work0 = SDL_GetPerformanceCounter();
+    const int walkShifts0 = game.world.sstats.walkShifts;
+    screen::frame(pix);
+    game.frameWork(3.0);   // M1 streaming: collect the worker's chunks (native) or generate within ~3 ms (web)
+    game.sleepHalfW = std::max(22.0f, Pix::W * 0.5f / TILE + 4.0f);   // NPC LOD: off screen is beyond the view
+    game.sleepHalfH = std::max(13.0f, Pix::H * 0.5f / TILE + 4.0f);
     if (scripted) {
       Uint64 nowS = SDL_GetPerformanceCounter();
       static Uint64 prevS = nowS;
@@ -827,7 +1011,20 @@ int main(int argc, char** argv) {
     double wall = (double)(now - t0) / (double)freq;
     fpsT += frameDt; fpsN++;
     if (fpsT >= 1.0) {
-      if (perf) std::printf("fps=%d actors=%zu mode=%d\n", (int)(fpsN / fpsT + 0.5), game.actors.size(), (int)game.mode);
+      if (perf) {
+        const World::StreamStats& ss = game.world.sstats;
+        long long ch = chunksMade();
+        int regions = 0, settlements = 0;
+        if (game.world.src) { regions = game.world.src->stats().regions; settlements = game.world.src->stats().settlements; }
+        if (game.world.streamer) regions += game.world.streamer->stats().regionsMade;
+        std::printf("perf fps=%d work avg %.2f ms worst %.2f ms | actors %zu npc awake %d asleep %d hostiles %d active sites %d | "
+                    "chunks/s %lld worst shift %.1f ms (sync %d) recentre %.1f ms | regions %d settlements %d | window %d,%d mode %d\n",
+                    (int)(fpsN / fpsT + 0.5), fpsN ? pacc.workSum / fpsN : 0.0, pacc.workWorst, game.actors.size(),
+                    game.perf.npcAwake, game.perf.npcAsleep, game.perf.hostiles, game.perf.activeSites, (long long)((ch - pacc.chunks0) / fpsT),
+                    ss.worstShiftMs, ss.syncInShifts, ss.worstRecentreMs, regions, settlements, game.world.ox, game.world.oy, (int)game.mode);
+        pacc.chunks0 = ch;
+      }
+      pacc.workSum = 0; pacc.workWorst = 0;
       fpsT = 0; fpsN = 0;
     }
 
@@ -857,6 +1054,15 @@ int main(int argc, char** argv) {
     }
     view.update(game, (float)frameDt);
     view.draw(game, hasSave);
+    {   // the frame's CPU work: everything before the present (vsync waits) and before a test screenshot (PNG writing)
+      double workMs = (double)(SDL_GetPerformanceCounter() - work0) * 1000.0 / (double)freq;
+      pacc.frames++;
+      pacc.workSum += workMs;
+      pacc.workWorst = std::max(pacc.workWorst, workMs);
+      if (pacc.frames > 30) pacc.worstAll = std::max(pacc.worstAll, workMs);   // (not the first frames: start-up)
+      if (game.world.sstats.walkShifts != walkShifts0) { pacc.shiftFrames++; pacc.worstShift = std::max(pacc.worstShift, workMs); pacc.afterShift = 60; }
+      else if (pacc.afterShift > 0) { pacc.afterShift--; pacc.worstAfterShift = std::max(pacc.worstAfterShift, workMs); }
+    }
 
     if (!pendingShot.empty()) {
       bool ok = pix.screenshot(pendingShot.c_str());
@@ -885,6 +1091,7 @@ int main(int argc, char** argv) {
   audio.shutdown();
   pix.shutdown();
   SDL_Quit();
+  if (perf || scripted) printSummary();
   if (scripted) {
     std::printf("script: %d failure(s)\n", scriptFails);
     return scriptFails ? 3 : 0;

@@ -7,6 +7,7 @@
 // turrets, fascia boards on every eave, and the eave's shadow on the wall below. The building type adds only its
 // function (sign, forge, steeple, crenellations, awning); the ArchStyle decides how it is built.
 #include "rpg/art/art_internal.h"
+#include "rpg/art/art_heraldry.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -642,7 +643,8 @@ void finishRoofHeight(Mass& m) {
 int riseBudgetPx(Building b, int storeys) {
   int r = 3;
   if (b == Building::Tower || b == Building::Temple) r = 5;
-  else if (b == Building::Keep || b == Building::Inn) r = 4;
+  else if (b == Building::Keep || b == Building::Inn || b == Building::Barracks) r = 4;
+  else if (b == Building::Palace) r = 7;   // M1: rpg/world/town_rules.h townRiseTiles
   if (storeys >= 2 && (b == Building::House || b == Building::StoneHouse || b == Building::Shop || b == Building::Farmhouse)) r = std::max(r, 4);
   return r * 16;
 }
@@ -710,7 +712,7 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed, c
   // generator's word); the rest are single halls (smithy, temple, barn, hut) whatever the facts say.
   switch (b) {
     case Building::House: case Building::StoneHouse: case Building::Shop: p.facts.storeys = std::clamp(p.facts.storeys, 1, 2); break;
-    case Building::Inn: case Building::Keep: p.facts.storeys = 2; break;
+    case Building::Inn: case Building::Keep: case Building::Palace: case Building::Barracks: p.facts.storeys = 2; break;
     case Building::Tower: p.facts.storeys = 3; break;
     default: p.facts.storeys = 1; break;
   }
@@ -727,9 +729,16 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed, c
     case Building::StoneHouse:
       if (st.wall == WallMat::Timber || st.wall == WallMat::Log || st.wall == WallMat::Plaster) st.wall = (seed & 8) ? WallMat::Brick : WallMat::Stone;
       break;
-    case Building::Temple: case Building::Keep: case Building::Tower:
+    case Building::Temple: case Building::Keep: case Building::Tower: case Building::Palace:
       if (st.wall != WallMat::Adobe) st.wall = WallMat::Stone;
       if (st.roofMat == RoofMat::Thatch || st.roofMat == RoofMat::Turf) st.roofMat = RoofMat::Slate;
+      if (b == Building::Palace && st.roofMat == RoofMat::Shingle) st.roofMat = RoofMat::Slate;   // a king roofs in slate
+      if (st.roof == RoofShape::Turf || st.roof == RoofShape::Conical) st.roof = RoofShape::Hip;
+      break;
+    case Building::Barracks:   // the garrison builds in stone, under slate or the region's tiles
+      if (st.wall != WallMat::Adobe && st.wall != WallMat::Brick) st.wall = WallMat::Stone;
+      if (st.roofMat == RoofMat::Thatch || st.roofMat == RoofMat::Turf) st.roofMat = RoofMat::Slate;
+      if (st.roof == RoofShape::Turf || st.roof == RoofShape::Conical) st.roof = RoofShape::Hip;
       break;
     case Building::Smithy:
       if (st.wall == WallMat::Timber || st.wall == WallMat::Plaster) st.wall = WallMat::Stone;
@@ -755,7 +764,7 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed, c
     default: break;
   }
   // M0b: a second storey: the walls rise to the inn's height (a floor line at mid-height, a row of windows above it)
-  if (storeys >= 2 && (b == Building::House || b == Building::StoneHouse)) wallH = 40;
+  if (storeys >= 2 && (b == Building::House || b == Building::StoneHouse || b == Building::Barracks)) wallH = 40;
   if (storeys >= 2 && b == Building::Shop) wallH = 41;
   if (st.roof == RoofShape::FlatParapet || st.roof == RoofShape::Dome) wallH += 4;   // the parapet rises above the roof deck
   std::vector<Mass>& ms = p.sc.ms;
@@ -794,6 +803,55 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed, c
       ms.push_back(t);
     }
     p.doorMass = 0;
+  } else if (b == Building::Palace) {
+    // M1, VISION_PLAN 15.8: the king's palace. The great hall in the middle (two storeys of tall windows under a high
+    // roof, its ridge across the view so the whole long slope shows), the wings either side a little lower and set
+    // forward, the entrance tower before the hall with the great door, drum towers on the four corners (the back pair
+    // taller, so they rise clear behind the front cones). Stone (adobe in the desert); the roofs in the region's
+    // material, slate cones on the towers (copper domes in the desert).
+    const bool flat = st.roof == RoofShape::FlatParapet || st.roof == RoofShape::Dome;
+    const WallKind wk = st.wall == WallMat::Adobe ? WallKind::Adobe : WallKind::Stone;
+    auto dress = [&](Mass& m) {
+      m.wall = wk;
+      m.wR = wk == WallKind::Adobe ? wallRampFor(WallKind::Adobe, st.wallTint, seed >> 3) : ((seed & 2) ? kStoneWarm : kStone);
+      m.tR = wk == WallKind::Adobe ? kWood : kStoneWarm;
+    };
+    const float wingW = std::floor(W * 0.27f);
+    Mass hall = baseMass(p, wingW - 6, W - wingW + 6, 6, (float)D - 12, 46);
+    if (flat) { hall.shape = RoofShape::Dome; hall.rmat = RoofMat::Copper; hall.rR = kCopper; }   // the desert: a great dome
+    else { hall.shape = st.roof == RoofShape::Gable || st.roof == RoofShape::Steep ? RoofShape::Gable : RoofShape::Hip; hall.alongY = false; hall.slope = std::max(hall.slope, 1.0f); }
+    dress(hall);
+    ms.push_back(hall);
+    for (int s = 0; s < 2; s++) {
+      Mass wg = baseMass(p, s == 0 ? 12.0f : W - wingW - 2, s == 0 ? wingW + 2 : W - 12.0f, 16, (float)D - 4, 36);
+      if (flat) { wg.shape = RoofShape::FlatParapet; wg.crenel = true; }
+      else { wg.shape = RoofShape::Hip; wg.alongY = true; wg.slope = std::max(wg.slope, 0.9f); }
+      dress(wg);
+      ms.push_back(wg);
+    }
+    const float tw = 44;
+    Mass et = baseMass(p, p.doorX - tw * 0.5f, p.doorX + tw * 0.5f, (float)D - 28, (float)D, 54);
+    if (flat) { et.shape = RoofShape::FlatParapet; et.crenel = true; }
+    else { et.shape = RoofShape::Hip; et.slope = 1.9f; et.ov = 2; et.ovF = 2; }
+    dress(et);
+    ms.push_back(et);
+    p.doorMass = (int)ms.size() - 1;
+    for (int k = 0; k < 4; k++) {
+      const bool front = k < 2;
+      Mass t = baseMass(p, 0, 0, 0, 0, front ? 56 : 66);
+      t.round = true;
+      t.r = front ? 12.0f : 11.0f;
+      t.cx = (k & 1) ? W - (front ? 6.0f : 9.0f) : (front ? 6.0f : 9.0f);
+      t.cy = front ? D - 7.0f : 11.0f;
+      dress(t);
+      t.shape = flat ? RoofShape::Dome : RoofShape::Conical;
+      t.crenel = false;
+      if (flat) { t.rmat = RoofMat::Copper; t.rR = kCopper; }
+      else { t.rmat = RoofMat::Slate; t.rR = kRoofSlate; }
+      t.ov = 2;
+      t.slope = 1.25f;
+      ms.push_back(t);
+    }
   } else if (b == Building::Tower) {
     float r = std::min(W, D) * 0.5f - 1;
     if (W - 2 * r > 20) {   // low annexes either side
@@ -874,6 +932,15 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed, c
     if (b == Building::Hut && pitched) m.alongY = (mx1 - mx0) < 52;
     ms.push_back(m);
     p.doorMass = 0;
+    if (b == Building::Barracks && W >= 80) {
+      // the garrison's watchtower at one end: square, crenellated, a storey above the roofs
+      const bool east = (seed >> 5) & 1;
+      Mass t = baseMass(p, east ? W - 26.0f : 2.0f, east ? W - 2.0f : 26.0f, 2, (float)D - 2, 58);
+      t.shape = RoofShape::FlatParapet;
+      t.crenel = true;
+      t.wall = WallKind::Stone; t.wR = kStone; t.tR = kStoneWarm;
+      ms.push_back(t);
+    }
     if (wing) {
       float wx0 = wing == 1 ? mx1 : 0, wx1 = wing == 1 ? (float)W : mx0;
       // the smithy's forge bay is a lower, shallower lean-to against the main block (M0 round 3: at nearly the main
@@ -903,7 +970,7 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed, c
   }
   // a flat-roofed house often carries a little roof room (the stair head) at the back
   if (!ms.empty() && ms[0].shape == RoofShape::FlatParapet && !ms[0].round && b != Building::Keep && b != Building::Temple &&
-      b != Building::Tower && ms[0].x1 - ms[0].x0 >= 40 && H(8, 5) < 3) {
+      b != Building::Tower && b != Building::Palace && ms[0].x1 - ms[0].x0 >= 40 && H(8, 5) < 3) {
     const Mass base = ms[0];
     float rw = 18 + (float)H(9, 3) * 3;
     bool left = H(10, 2) == 0;
@@ -927,7 +994,7 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed, c
   for (int i = 0; i < (int)ms.size(); i++) {
     Mass& m = ms[i];
     bool body = i == 0 || (i == p.doorMass && b != Building::Temple);
-    if (b == Building::Keep) body = i == 0;
+    if (b == Building::Keep || b == Building::Palace) body = i == 0;
     if (b == Building::Tower) body = i == p.doorMass;
     if (!body && !m.round && m.alongY && m.wallH == ms[0].wallH && m.zBase == ms[0].zBase && i > 0 && b != Building::Temple && b != Building::Keep) body = true;   // the cross gable
     m.body = body;
@@ -956,10 +1023,11 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed, c
     Mass& m = ms[i];
     float extra = 2;   // the outline, and rounding to rows
     if (b == Building::Keep && i == 1) extra += 9;
+    if (b == Building::Palace && (m.round || i == p.doorMass)) extra += 10;   // the flags above the towers
     if (b == Building::Temple && i == 1 && !m.round) extra += 6;
     if (b == Building::Tower && m.round) extra += 5;
     int minWall = m.body ? m.wallH : std::max(10, m.wallH - 16);   // the body keeps its storeys; towers and wings give
-    if (b == Building::Keep || b == Building::Tower) minWall = std::max(20, m.wallH - 16);
+    if (b == Building::Keep || b == Building::Tower || b == Building::Palace) minWall = std::max(20, m.wallH - 16);
     fitMass(m, (float)p.budget - extra, minWall);
   }
   // chimneys: on the main block, by the ridge, placed by seed; the smithy's forge stack over the wing junction
@@ -968,6 +1036,8 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed, c
     if (b == Building::Smithy) n = 1;
     if (b == Building::Tower || b == Building::Temple || b == Building::Farmhouse) n = 0;
     if (b == Building::Keep) n = 1;   // M0b: the great hall's hearth, a stack on the donjon
+    if (b == Building::Palace) n = 2;   // M1: the great hall's hearths
+    if (b == Building::Barracks) n = 1;
     if (b == Building::Hut) n = (st.smoke || (seed & 4)) ? 1 : 0;
     if (b == Building::Inn) n = std::max(n, 1);
     if (!p.facts.hearth) n = 0;   // M0b: chimney => hearth (VISION_PLAN 15.7)
@@ -1147,7 +1217,7 @@ void buildFacades(Plan& p) {
     // the door
     int du = p.doorX - (int)std::lround(m.x0);
     bool hasDoor = front && mi == p.doorMass && du >= 4 && du < w - 4;
-    bool arched = m.wall == WallKind::Stone || m.wall == WallKind::Adobe || b == Building::Temple || b == Building::Keep;
+    bool arched = m.wall == WallKind::Stone || m.wall == WallKind::Adobe || b == Building::Temple || b == Building::Keep || b == Building::Palace;
     if (hasDoor) {
       if (b == Building::Farmhouse) {
         // big barn doors with X braces
@@ -1171,8 +1241,8 @@ void buildFacades(Plan& p) {
               m.f.set(du - 4 + i, v, c);
             }
       } else {
-        int dw = b == Building::Hut ? 8 : (b == Building::Keep || b == Building::Temple ? 12 : 10);
-        int dh = b == Building::Hut ? 13 : (b == Building::Keep ? 22 : (b == Building::Temple ? 20 : 16));
+        int dw = b == Building::Hut ? 8 : (b == Building::Keep || b == Building::Temple ? 12 : (b == Building::Palace ? 16 : 10));
+        int dh = b == Building::Hut ? 13 : (b == Building::Keep ? 22 : (b == Building::Temple ? 20 : (b == Building::Palace ? 26 : 16)));
         facadeDoor(m, du, dw, dh, arched, b == Building::Temple ? kWood : kWoodDark);
         if (b == Building::Temple) {   // rose window over the door
           int rv = dh + 8, ru = du;
@@ -1855,9 +1925,9 @@ void overlays(Painter& P, BuildingInfo* info) {
   if (b == Building::Inn) sign((float)p.doorX + 9, frontZ0 + 26, 0);
   if (b == Building::Smithy) sign((float)p.doorX - 21, frontZ0 + 22, 1);
   // lanterns by the door
-  if (b == Building::Inn || b == Building::Keep || b == Building::Temple) {
+  if (b == Building::Inn || b == Building::Keep || b == Building::Temple || b == Building::Palace || b == Building::Barracks) {
     for (int s = -1; s <= 1; s += 2) {
-      auto q = at((float)p.doorX + s * (b == Building::Keep ? 11 : 9), D + 0.5f, frontZ0 + 15);
+      auto q = at((float)p.doorX + s * (b == Building::Keep ? 11 : (b == Building::Palace ? 13 : 9)), D + 0.5f, frontZ0 + (b == Building::Palace ? 18 : 15));
       P.put(q.first, q.second - 1, kIron[2], 3);
       P.put(q.first, q.second, kGlow[4], 3);
       P.put(q.first, q.second + 1, kGlow[2], 3);
@@ -1897,33 +1967,84 @@ void overlays(Painter& P, BuildingInfo* info) {
     // the shop's sign projects on its bracket from the east awning post, in front of the canopy (painted after it)
     if (b == Building::Shop) sign(ax1 - 2, az - 1, 2);
   }
+  // M1 kingdom identity (VISION_PLAN 15.8): the ruling kingdom's colours (BuildingFacts::banner, banner2, emblem; red and
+  // gold where the facts carry none). hang: a banner hanging flat on a front wall (face at ground y fy) from height zTop,
+  // wd x ht px, a gilded rod on top and a swallow-tail; flag: a pennant flying east from a pole planted at (x, y, z).
+  const bool kc = p.facts.banner != 0;
+  const Ramp BF = kc ? ramp(opaque(p.facts.banner)) : kRed;
+  const Ramp BT = kc ? ramp(opaque(p.facts.banner2 ? p.facts.banner2 : rgba(232, 200, 90))) : kGold;
+  const int em = kc ? p.facts.emblem : 0;
+  auto hang = [&](float x, float fy, float zTop, int wd, int ht) {
+    for (int j = 0; j < ht; j++)
+      for (int i = 0; i < wd; i++) {
+        int mid = wd / 2;
+        if (j >= ht - 2 && (i == mid || i == mid - 1)) continue;   // the swallow-tail
+        if (j == ht - 1 && (i == mid - 2 || i == mid + 1)) continue;
+        auto q = at(x + i + 0.5f, fy, zTop - j);
+        int k = i == 0 ? 3 : (i == wd - 1 ? 1 : 2);
+        uint32_t c = BF[k];
+        if (j == 0 || i == 0 || i == wd - 1) c = BT[i == wd - 1 ? 1 : 2];   // the trim
+        int ci = i - (wd - 5) / 2, cj = j - 3;
+        if (wd >= 6 && heraldry::chargeAt(em, 5, ci, cj)) c = BT[std::max(1, heraldry::chargeShade(em, 5, ci, cj) - (i == wd - 1 ? 1 : 0))];
+        P.put(q.first, q.second, c, 3);
+      }
+    auto q = at(x + 0.5f, fy, zTop);
+    for (int i = -1; i <= wd; i++) P.put(q.first + i, q.second - 1, kGold[i == -1 ? 4 : 3], 3);
+    P.put(q.first - 2, q.second - 1, kGold[2], 3); P.put(q.first + wd + 1, q.second - 1, kGold[2], 3);
+  };
+  auto flag = [&](float x, float y, float z, int len) {
+    for (int k = -2; k < 10; k++) { auto q = at(x, y, z + k); P.put(q.first, q.second, k == 9 ? kGold[4] : kWood[k & 1 ? 1 : 2], 3); }
+    for (int j = 0; j < 5; j++)
+      for (int i = 1; i < len - j / 2; i++) {
+        auto q = at(x + i, y, z + 8 - j);
+        int wv = (int)std::floor(std::sin(i * 0.9f + (float)(p.seed & 7)) * 0.8f + 0.5f);
+        uint32_t c = BF[(i + j) % 3 == 0 ? 3 : 2];
+        if (j == 0) c = BF[3];
+        if (j == 4) c = BF[1];
+        if (i >= 3 && i <= 4 && j >= 1 && j <= 3) c = BT[3];   // a fleck of the charge colour
+        P.put(q.first, q.second + wv, c, 3);
+      }
+  };
   // banners on the keep's front, and a flag on its donjon
   if (b == Building::Keep) {
     for (int x = 22; x < p.W - 22; x += 24) {
       if (std::abs(x + 3 - p.doorX) < 14) continue;
-      for (int j = 0; j < 16; j++)
-        for (int i = 0; i < 6; i++) {
-          if (j >= 14 && (i == 2 || i == 3)) continue;
-          if (j == 15 && (i == 1 || i == 4)) continue;
-          auto q = at(x + i + 0.5f, D + 0.5f, 31.0f - j);
-          int k = i == 0 ? 3 : (i == 5 ? 1 : 2);
-          P.put(q.first, q.second, kRed[k], 3);
-        }
-      auto q = at(x + 0.5f, D + 0.5f, 31.0f);
-      for (int i = -1; i <= 6; i++) P.put(q.first + i, q.second - 1, kGold[3], 3);
-      P.put(q.first + 2, q.second + 5, kGold[4], 3); P.put(q.first + 3, q.second + 5, kGold[3], 3);
-      P.put(q.first + 2, q.second + 6, kGold[3], 3); P.put(q.first + 3, q.second + 6, kGold[2], 3);
+      hang((float)x, D + 0.5f, 31.0f, 6, 16);
     }
     const Mass& dj = p.sc.ms[1];
-    float fx = (dj.x0 + dj.x1) * 0.5f, fy = (dj.y0 + dj.y1) * 0.5f;
-    float ztop = dj.zTop() + dj.roofH;
-    for (int z = (int)ztop - 2; z < (int)ztop + 9; z++) { auto q = at(fx, fy, (float)z); P.put(q.first, q.second, kWood[2], 3); }
-    for (int j = 0; j < 5; j++)
-      for (int i = 1; i < 9 - j / 2; i++) {
-        auto q = at(fx + i, fy, ztop + 8 - j);
-        P.put(q.first, q.second + (int)(std::sin(i * 0.9f) * 0.8f), kRed[(i + j) % 3 == 0 ? 3 : 2], 3);
+    flag((dj.x0 + dj.x1) * 0.5f, (dj.y0 + dj.y1) * 0.5f, dj.zTop() + dj.roofH, 9);
+  }
+  // the palace: banners on the entrance tower beside the great door and on both wings, the royal standard over the
+  // entrance, a flag on every tower
+  if (b == Building::Palace) {
+    const Mass& et = p.sc.ms[(size_t)p.doorMass];
+    for (int s = -1; s <= 1; s += 2) hang((float)p.doorX + (s < 0 ? -18.0f : 12.0f), et.y1 - 0.5f, et.zBase + 44.0f, 6, 18);
+    for (int k = 1; k <= 2; k++) {
+      const Mass& wg = p.sc.ms[(size_t)k];
+      int wdt = (int)std::lround(wg.x1 - wg.x0);
+      float x = k == 1 ? wg.x0 + 16 : wg.x1 - 22;
+      if (wdt >= 40) hang(x, wg.y1 - 0.5f, wg.zBase + 31.0f, 6, 16);
+    }
+    flag((et.x0 + et.x1) * 0.5f, (et.y0 + et.y1) * 0.5f, et.zTop() - 1 + et.roofH, 12);
+    for (const Mass& t : p.sc.ms)
+      if (t.round) flag(t.cx, t.cy, t.zTop() - 1 + t.roofH, 9);
+  }
+  // the barracks: the colours either side of the door, a shield over it
+  if (b == Building::Barracks) {
+    const Mass& m = p.sc.ms[(size_t)p.doorMass];
+    for (int s = -1; s <= 1; s += 2) hang((float)p.doorX + (s < 0 ? -15.0f : 9.0f), m.y1 - 0.5f, frontZ0 + 31.0f, 6, 15);
+    auto q = at((float)p.doorX - 3, m.y1 + 0.5f, frontZ0 + 25.0f);
+    for (int j = 0; j < 7; j++)
+      for (int i = 0; i < 6; i++) {
+        if (j >= 5 && (i == 0 || i == 5)) continue;
+        if (j == 6 && (i == 1 || i == 4)) continue;
+        uint32_t c = (i == 0 || j == 0) ? BF[3] : (i == 5 || j == 6 ? BF[1] : BF[2]);
+        if (heraldry::chargeAt(em, 5, i, j - 1)) c = BT[heraldry::chargeShade(em, 5, i, j - 1)];
+        P.put(q.first + i, q.second + j, c, 3);
       }
   }
+  // an inn in a kingdom flies its colours from the front wall, the other side of the door from its sign
+  if (b == Building::Inn && kc) hang((float)p.doorX - 18, D + 0.5f, frontZ0 + 33.0f, 6, 13);
   // the temple's bell and finial; the tower's arcane windows and finial
   if (b == Building::Temple && p.sc.ms.size() >= 2 && !p.sc.ms[1].round && p.sc.ms[1].alongY == false && p.sc.ms[1].wallH >= 40) {
     const Mass& t = p.sc.ms[1];
@@ -2022,6 +2143,7 @@ Canvas buildingSprite(Building b, int wTiles, int hTiles, const ArchStyle& style
 }
 Canvas buildingSprite(Building b, int wTiles, int hTiles, const ArchStyle& style, uint32_t seed, BuildingInfo* info,
                       const BuildingFacts& facts) {
+  b = paintedAs(b);
   Plan p = makePlan(b, wTiles, hTiles, style, seed, facts);
   buildFacades(p);
   Painter P(p);
@@ -2071,6 +2193,7 @@ int buildingHeight(Building b, int wTiles, int hTiles, const ArchStyle& style) {
   return buildingHeight(b, wTiles, hTiles, style, BuildingFacts{});
 }
 int buildingHeight(Building b, int wTiles, int hTiles, const ArchStyle& style, const BuildingFacts& facts) {
+  b = paintedAs(b);
   Plan p = makePlan(b, wTiles, hTiles, style, 1u, facts);
   return p.sc.top;
 }
@@ -2364,7 +2487,13 @@ Canvas wallPiece(int mask) {
 }
 
 // ---- gatehouse ---------------------------------------------------------------------------------------
-Canvas gateHouse(uint32_t seed) {
+Canvas gateHouse(uint32_t seed) { return gateHouse(seed, 0, 0, 0); }
+// M1: the gatehouse flies its kingdom's colours: the banners on its towers and the arms over the arch carry the field,
+// the trim and the charge (field == 0: the old red and gold)
+Canvas gateHouse(uint32_t seed, uint32_t field, uint32_t trim, int emblem) {
+  const bool kc = field != 0;
+  const Ramp BF = kc ? ramp(opaque(field)) : kRed;
+  const Ramp BT = kc ? ramp(opaque(trim ? trim : rgba(232, 200, 90))) : kGold;
   // footprint x -16..63 (flank tile, three passage tiles, flank tile), y 0..15; towers centred on the flank tiles
   const Ramp& R = kStone;
   const int BX = GATE_OX, BY = GATE_OY;
@@ -2465,10 +2594,16 @@ Canvas gateHouse(uint32_t seed) {
       for (int i = 0; i < 6; i++) {
         if (j >= 5 && (i == 0 || i == 5)) continue;
         if (j == 6 && (i == 1 || i == 4)) continue;
-        c.set(sx + i, sy + j, (i == 0 || j == 0) ? kRed[3] : (i == 5 || j == 6 ? kRed[1] : kRed[2]));
+        c.set(sx + i, sy + j, (i == 0 || j == 0) ? BF[3] : (i == 5 || j == 6 ? BF[1] : BF[2]));
       }
-    c.set(sx + 2, sy + 2, kGold[4]); c.set(sx + 3, sy + 2, kGold[3]); c.set(sx + 2, sy + 3, kGold[3]); c.set(sx + 3, sy + 3, kGold[2]);
-    c.set(sx + 2, sy + 4, kGold[2]);
+    if (kc) {
+      for (int j = 0; j < 5; j++)
+        for (int i = 0; i < 5; i++)
+          if (heraldry::chargeAt(emblem, 5, i, j)) c.set(sx + i, sy + 1 + j, BT[heraldry::chargeShade(emblem, 5, i, j)]);
+    } else {
+      c.set(sx + 2, sy + 2, kGold[4]); c.set(sx + 3, sy + 2, kGold[3]); c.set(sx + 2, sy + 3, kGold[3]); c.set(sx + 3, sy + 3, kGold[2]);
+      c.set(sx + 2, sy + 4, kGold[2]);
+    }
   }
   for (int side = 0; side < 2; side++) {
     int cx = side == 0 ? t0x : t1x;
@@ -2479,11 +2614,16 @@ Canvas gateHouse(uint32_t seed) {
         if (j == 15 && (i == 1 || i == 4)) continue;
         int k = i == 0 ? 3 : (i == 5 ? 1 : 2);
         if (j == 0) k = 1;
-        c.set(bx + i, by + j, kRed[k]);
+        uint32_t col = BF[k];
+        if (kc && (i == 0 || i == 5)) col = BT[i == 0 ? 2 : 1];   // the trim down its edges
+        if (kc && heraldry::chargeAt(emblem, 5, i, j - 4)) col = BT[std::max(1, heraldry::chargeShade(emblem, 5, i, j - 4) - (i >= 4 ? 1 : 0))];
+        c.set(bx + i, by + j, col);
       }
     hline(c, bx - 1, bx + 6, by - 1, kGold[3]);
-    c.set(bx + 2, by + 5, kGold[4]); c.set(bx + 3, by + 5, kGold[3]); c.set(bx + 2, by + 6, kGold[3]); c.set(bx + 3, by + 6, kGold[2]);
-    c.set(bx + 1, by + 6, kGold[2]); c.set(bx + 4, by + 6, kGold[1]); c.set(bx + 2, by + 7, kGold[2]); c.set(bx + 3, by + 7, kGold[1]);
+    if (!kc) {
+      c.set(bx + 2, by + 5, kGold[4]); c.set(bx + 3, by + 5, kGold[3]); c.set(bx + 2, by + 6, kGold[3]); c.set(bx + 3, by + 6, kGold[2]);
+      c.set(bx + 1, by + 6, kGold[2]); c.set(bx + 4, by + 6, kGold[1]); c.set(bx + 2, by + 7, kGold[2]); c.set(bx + 3, by + 7, kGold[1]);
+    }
     // lantern on a bracket by the arch
     int lx = BX + (side == 0 ? ax0 - 3 : ax1 + 3), ly = BY + 15 - 16;
     c.set(lx, ly - 1, kIron[2]); c.set(lx, ly, kGlow[4]); c.set(lx, ly + 1, kGlow[2]); c.set(lx - 1, ly, kIron[1]); c.set(lx + 1, ly, kIron[1]);

@@ -18,7 +18,7 @@ bool Pix::init(const char* title, int winW, int winH, bool vsync) {
     SDL_Log("window/renderer failed: %s", SDL_GetError());
     return false;
   }
-  SDL_SetRenderLogicalPresentation(ren_, W, H, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
+  SDL_SetRenderLogicalPresentation(ren_, W, H, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);   // until present()
   SDL_SetRenderVSync(ren_, vsync ? 1 : 0);
   Canvas f(kCols * kCellW, kRows * kCellH);
   for (int gi = 0; gi < kGlyphCount; gi++) {
@@ -30,6 +30,68 @@ bool Pix::init(const char* title, int winW, int winH, bool vsync) {
   Tex ft = bake(f);
   font_ = ft.t;
   return font_ != nullptr;
+}
+
+void Pix::setLogical(int w, int h, bool integerScale) {
+  W = w; H = h;
+  if (ren_) SDL_SetRenderLogicalPresentation(ren_, W, H, integerScale ? SDL_LOGICAL_PRESENTATION_INTEGER_SCALE : SDL_LOGICAL_PRESENTATION_LETTERBOX);
+}
+
+void Pix::outputSize(int& w, int& h) const {
+  w = h = 0;
+  if (ren_) SDL_GetCurrentRenderOutputSize(ren_, &w, &h);
+}
+
+// Sprites follow the presentation: nearest sampling at an integer scale, SDL's pixel-art filter (nearest with a
+// one-device-pixel blend at texel edges) at a non-integer one. Linear textures (the light map) are left alone.
+void Pix::spriteScaleMode(SDL_Texture* t) {
+  if (!t) return;
+  SDL_ScaleMode m = SDL_SCALEMODE_NEAREST;
+  if (!SDL_GetTextureScaleMode(t, &m) || m == SDL_SCALEMODE_LINEAR) return;
+  SDL_SetTextureScaleMode(t, pixelArt_ ? SDL_SCALEMODE_PIXELART : SDL_SCALEMODE_NEAREST);
+}
+
+void Pix::applyViewport(int x, int y, int w, int h) {
+  vpX_ = x; vpY_ = y;
+  SDL_Rect r{x, y, w, h};
+  SDL_SetRenderViewport(ren_, &r);
+}
+
+void Pix::present(int w, int h, float scale, int offX, int offY) {
+  if (!ren_) return;
+  W = w; H = h;
+  scale_ = scale > 0 ? scale : 1;
+  // the canvas is drawn straight to the window at this scale (no intermediate texture): SDL's own logical
+  // presentation is off, the render scale does the scaling and the viewport places (and clips) the canvas
+  SDL_SetRenderLogicalPresentation(ren_, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED);
+  SDL_SetRenderScale(ren_, scale_, scale_);
+  baseX_ = (int)std::lround(offX / scale_);
+  baseY_ = (int)std::lround(offY / scale_);
+  boxes_.clear();
+  applyViewport(baseX_, baseY_, W, H);
+  const bool pa = std::fabs(scale_ - std::round(scale_)) > 0.01f;
+  if (pa != pixelArt_) {
+    pixelArt_ = pa;
+    for (SDL_Texture* t : owned_) spriteScaleMode(t);
+    spriteScaleMode(font_);
+    spriteScaleMode(mini_);
+  }
+}
+
+void Pix::pushBox(int x, int y, int w, int h) {
+  boxes_.push_back({vpX_, vpY_, W, H, W, H, SL, ST, SR, SB});
+  W = w; H = h;
+  SL = ST = SR = SB = 0;
+  applyViewport(vpX_ + x, vpY_ + y, w, h);
+}
+
+void Pix::popBox() {
+  if (boxes_.empty()) return;
+  BoxState b = boxes_.back();
+  boxes_.pop_back();
+  W = b.W; H = b.H;
+  SL = b.SL; ST = b.ST; SR = b.SR; SB = b.SB;
+  applyViewport(b.vx, b.vy, b.vw, b.vh);
 }
 
 void Pix::shutdown() {
@@ -54,7 +116,7 @@ Tex Pix::bake(const Canvas& c) {
   SDL_DestroySurface(s);
   t.w = c.w; t.h = c.h;
   if (t.t) {
-    SDL_SetTextureScaleMode(t.t, SDL_SCALEMODE_NEAREST);
+    SDL_SetTextureScaleMode(t.t, pixelArt_ ? SDL_SCALEMODE_PIXELART : SDL_SCALEMODE_NEAREST);
     SDL_SetTextureBlendMode(t.t, SDL_BLENDMODE_BLEND);
     owned_.push_back(t.t);
   }
@@ -102,7 +164,7 @@ Tex Pix::makeStream(int w, int h) {
   Tex t;
   t.t = SDL_CreateTexture(ren_, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, w, h);
   t.w = w; t.h = h;
-  if (t.t) { SDL_SetTextureScaleMode(t.t, SDL_SCALEMODE_NEAREST); SDL_SetTextureBlendMode(t.t, SDL_BLENDMODE_BLEND); owned_.push_back(t.t); }
+  if (t.t) { SDL_SetTextureScaleMode(t.t, pixelArt_ ? SDL_SCALEMODE_PIXELART : SDL_SCALEMODE_NEAREST); SDL_SetTextureBlendMode(t.t, SDL_BLENDMODE_BLEND); owned_.push_back(t.t); }
   return t;
 }
 void Pix::updateStream(const Tex& t, const uint32_t* px) { if (t.t) SDL_UpdateTexture(t.t, nullptr, px, t.w * 4); }
@@ -150,7 +212,7 @@ void Pix::text(float x, float y, const std::string& s, int scale, Color c, int a
 void Pix::miniInit(int w, int h) {
   miniW_ = w; miniH_ = h;
   mini_ = SDL_CreateTexture(ren_, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, w, h);
-  if (mini_) { SDL_SetTextureScaleMode(mini_, SDL_SCALEMODE_NEAREST); SDL_SetTextureBlendMode(mini_, SDL_BLENDMODE_BLEND); }
+  if (mini_) { SDL_SetTextureScaleMode(mini_, pixelArt_ ? SDL_SCALEMODE_PIXELART : SDL_SCALEMODE_NEAREST); SDL_SetTextureBlendMode(mini_, SDL_BLENDMODE_BLEND); }
 }
 void Pix::miniUpdate(const uint32_t* px) {
   if (mini_) SDL_UpdateTexture(mini_, nullptr, px, miniW_ * 4);
@@ -165,8 +227,17 @@ void Pix::windowToLogical(float wx, float wy, float& lx, float& ly) const {
   SDL_RenderCoordinatesFromWindow(ren_, wx, wy, &lx, &ly);
 }
 
+// the whole window as the player sees it (border included), at device resolution
 bool Pix::screenshot(const char* path) {
+  SDL_Rect vp{};
+  float sx = 1, sy = 1;
+  SDL_GetRenderViewport(ren_, &vp);
+  SDL_GetRenderScale(ren_, &sx, &sy);
+  SDL_SetRenderScale(ren_, 1, 1);
+  SDL_SetRenderViewport(ren_, nullptr);
   SDL_Surface* s = SDL_RenderReadPixels(ren_, nullptr);
+  SDL_SetRenderScale(ren_, sx, sy);
+  SDL_SetRenderViewport(ren_, &vp);
   if (!s) return false;
   bool ok = SDL_SavePNG(s, path);
   SDL_DestroySurface(s);
