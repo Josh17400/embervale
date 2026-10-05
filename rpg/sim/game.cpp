@@ -1185,6 +1185,26 @@ int Game::spawnHuman(const Spawn& sp, Vec2 p) {
     if (sp.role == Role::King) { a.maxHp = 500; a.hp = 500; a.dmg = 30; }
     if (sp.role == Role::Child) { a.radius = 3.5f; a.look.outfit = art::Outfit::Tunic; a.look.beard = false; }
     a.level = 10;
+    // (M1 economy) a merchant spawned behind a market stall's counter keeps the stall
+    if (!inside && sp.role == Role::Merchant) {
+      const int tx = (int)std::floor(p.x / 16.0f), ty = (int)std::floor(p.y / 16.0f);
+      const int q = world.over.propAt(tx, ty + 1);
+      if (q && art::isVendorProp((art::Prop)(q - 1))) {   // stands close behind the counter, facing the customers
+        a.stallKeeper = true; a.face = 0;
+        a.p.y = (ty + 1) * 16.0f + 2.0f;   // (the counter hides the legs)
+        // (M1 fixer round 2) behind an open table or a cloth on the paving: in the middle of its two tiles (still over
+        // its west tile, the one whose closing hour the view and the keeper share), a step back from a cloth
+        if (!art::isStall((art::Prop)(q - 1))) {
+          a.p.x = tx * 16.0f + 15.0f;
+          if ((art::Prop)(q - 1) == art::Prop::GroundCloth) a.p.y = (ty + 1) * 16.0f + 1.0f;
+        }
+        a.home = a.p; a.goal = a.p;
+        // every keeper in their own clothes (merchants otherwise share the guild's plum), by hash: the look's draws stay
+        static const uint32_t keep[] = {rgba(70, 110, 150), rgba(150, 60, 50), rgba(80, 120, 70), rgba(160, 130, 80), rgba(110, 80, 130),
+                                        rgba(190, 170, 130), rgba(60, 90, 110), rgba(170, 110, 60), rgba(120, 60, 70)};
+        a.look.topColor = keep[hash32((uint32_t)key * 2654435761u ^ 0x5A11u) % 9];
+      }
+    }
     // militia (M0 town defence): brave adults with a tool pick it up when monsters come. Weak, and they run when hurt.
     // (Decided by hash so the look's random stream is untouched.)
     if (!inside && (sp.role == Role::Smith || sp.role == Role::Farmer || (sp.role == Role::Villager && hash32((uint32_t)key * 2246822519u ^ (uint32_t)seed) % 100 < 30))) {

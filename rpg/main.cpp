@@ -31,7 +31,7 @@
 //   6 expect mode shop        check state: mode title|play|dialogue|menu|shop|levelup|dead|paused|creator, inside 0|1
 //   6 newgame | goto ruin [enter] | talk 0|1|2 | fight wolf [n] | god [0|1] | hour 22 | menu 2 | log text
 //                             goto city|town|village|cave|ruin|camp|shrine|lair|capital (capital: the nearest kingdom
-//                             capital, M1)
+//                             capital, M1; market: the nearest market town, M1 economy)
 //   6 talkto VIGRIMA [30]     walkto a person and talk to them the moment they are in reach (E in that same frame)
 //   6 at 4100 -2300           (M1) teleport to a GLOBAL tile (endless: the window recentres there; classic: island tiles)
 //   6 walk east 6             (M1) hold the direction (east|west|north|south) for 6 s (script time keeps running)
@@ -44,7 +44,8 @@
 //                             weapon of that tier (sword|axe|mace|dagger|greatsword, default sword) and a bow for the back
 //   6 strip                   take every piece of equipment off (shirt and trousers only)
 //   6 enter inn [floor] [n]   (M0b) step straight into the n-th nearest (default 0) inn|shop|smithy|temple|keep|tower|
-//                             house|stonehouse|farmhouse|hut|palace|barracks, on that floor (default 0); fails if it has no such floor
+//                             house|stonehouse|farmhouse|hut|palace|barracks|windmill|watermill|granary|bakery|butcher|
+//                             tannery|fishmonger|smelter|sawmill|weaver, on that floor (default 0); fails if it has no such floor
 //   6 floor 1                 (M0b) inside a building: go to that floor (arriving by its stairs)
 //   6 expect floor 1          the floor the player is on (0 ground)
 //   6 expect name ASTRID      the player's name (the character creator); also: expect background 3, expect slot armor 1|0
@@ -332,7 +333,7 @@ int main(int argc, char** argv) {
   // test helpers shared by the command-line flags and the script commands
   auto doGoto = [&](const std::string& w, bool enterIt) {
     SiteType want = SiteType::City;
-    if (w == "town") want = SiteType::Town; else if (w == "village") want = SiteType::Village; else if (w == "cave") want = SiteType::Cave;
+    if (w == "town" || w == "market") want = SiteType::Town; else if (w == "village") want = SiteType::Village; else if (w == "cave") want = SiteType::Cave;
     else if (w == "ruin") want = SiteType::Ruin; else if (w == "camp") want = SiteType::BanditCamp; else if (w == "lair") want = SiteType::DragonLair;
     else if (w == "shrine") want = SiteType::Shrine;
     int si = game.world.nearestSite(game.world.sites[game.world.startSite].ex, game.world.sites[game.world.startSite].ey, want);
@@ -353,6 +354,11 @@ int main(int argc, char** argv) {
       const Site& h = game.world.sites[(size_t)game.world.startSite];
       int far = game.world.findSiteNear(game.world.ox + h.ex, game.world.oy + h.ey, w == "capital" ? SiteType::City : want, 8, w == "capital");
       if (w == "capital" && far < 0) far = game.world.findSiteNear(game.world.ox + h.ex, game.world.oy + h.ey, SiteType::Town, 8, true);
+      if (w == "market") {   // (M1 economy) the nearest market town: a real crossroads of trade (region.cpp: six roads,
+                             // or four and the town's own roll; a village at five roads and a rarer roll)
+        far = game.world.findSiteNear(game.world.ox + h.ex, game.world.oy + h.ey, SiteType::Town, 12, false, (int)ew::Archetype::Market);
+        if (far < 0) far = game.world.findSiteNear(game.world.ox + h.ex, game.world.oy + h.ey, SiteType::City, 12, false, (int)ew::Archetype::Market);
+      }
       if (far >= 0) si = far;
     }
     if (si < 0) { std::printf("goto %s: none found\n", w.c_str()); return; }
@@ -436,6 +442,7 @@ int main(int argc, char** argv) {
     if (hourSet >= 0) game.hour = hourSet;
     if (atSet) { game.teleportGlobal(atX, atY); view.snap(game); }
     if (gotoWhat) doGoto(gotoWhat, enter);
+    if (hourSet >= 0) game.hour = hourSet;   // (a fast travel passes the hours of the journey: the hour asked for wins)
     if (talkStep >= 0) doTalk(talkStep);
     view.snap(game);
     if (menuTab >= 0) view.openMenu(game, menuTab);
@@ -720,7 +727,12 @@ int main(int argc, char** argv) {
           {"inn", art::Building::Inn}, {"shop", art::Building::Shop}, {"smithy", art::Building::Smithy}, {"temple", art::Building::Temple},
           {"keep", art::Building::Keep}, {"tower", art::Building::Tower}, {"house", art::Building::House},
           {"stonehouse", art::Building::StoneHouse}, {"farmhouse", art::Building::Farmhouse}, {"hut", art::Building::Hut},
-          {"palace", art::Building::Palace}, {"barracks", art::Building::Barracks}};
+          {"palace", art::Building::Palace}, {"barracks", art::Building::Barracks},
+          // M1 economy: the production buildings
+          {"windmill", art::Building::Windmill}, {"watermill", art::Building::Watermill}, {"granary", art::Building::Granary},
+          {"bakery", art::Building::Bakery}, {"butcher", art::Building::Butcher}, {"tannery", art::Building::Tanner},
+          {"tanner", art::Building::Tanner}, {"fishmonger", art::Building::Fishmonger}, {"smelter", art::Building::Smelter},
+          {"sawmill", art::Building::Sawmill}, {"weaver", art::Building::Weaver}};
       int want = -1;
       for (auto& e : et) if (arg(1) == e.n) want = (int)e.b;
       int fl = std::atoi(arg(2).c_str()), nth = std::atoi(arg(3).c_str());

@@ -5,6 +5,8 @@
 
 namespace art {
 
+void paintEconomyProp(Canvas& c, Prop p, int frame);   // M1 economy: rpg/art/art_market.cpp (Sacks .. WaterWheel)
+
 // =====================================================================================================
 // 5. props
 // =====================================================================================================
@@ -4021,6 +4023,14 @@ const PropInfo kPropInfo[(int)Prop::COUNT] = {
   {12, 20, 1}, {10, 28, 4}, {16, 18, 1}, {16, 16, 1}, {16, 20, 1}, {16, 48, 1}, {20, 40, 1}, {16, 30, 1},
   // M1 ruins: RuinWall RuinColumn
   {16, 36, 1}, {16, 40, 1},
+  // M1 economy: the seven stalls; Sacks Baskets DryingRack HideRack OreCart OrePile MineEntrance LogPile Trough
+  {48, 54, 1}, {48, 54, 1}, {48, 54, 1}, {48, 54, 1}, {48, 54, 1}, {48, 54, 1}, {48, 54, 1}, {48, 54, 1},   // (M1 fixer: + StallTimber)
+  {20, 16, 1}, {20, 14, 1}, {30, 30, 1}, {24, 28, 1}, {26, 22, 1}, {22, 14, 1}, {44, 36, 1}, {34, 20, 1}, {26, 14, 1},
+  {24, 34, 4},
+  // M1 fixer round 2: MarketTable GroundCloth MarketCross Sheep Cow MineRail PenShelter
+  {48, 44, 1}, {48, 20, 1}, {32, 60, 1}, {20, 18, 8}, {30, 24, 8}, {16, 16, 1}, {48, 44, 1},
+  // MineHill
+  {80, 76, 1},
 };
 
 void m0bProp(Canvas& c, Prop p, int frame) {
@@ -4194,7 +4204,10 @@ void paintProp(Canvas& c, Prop p, int frame) {
     case Prop::CounterM: counterSeg(c, 1); break;
     case Prop::CounterR: counterSeg(c, 2); break;
     case Prop::Filler: filler(c); break;
-    default: if ((int)p >= (int)Prop::StairsUp) m0bProp(c, p, frame); break;
+    default:
+      if ((int)p >= (int)Prop::Sacks) paintEconomyProp(c, p, frame);
+      else if ((int)p >= (int)Prop::StairsUp) m0bProp(c, p, frame);
+      break;
   }
 }
 
@@ -4205,6 +4218,7 @@ int propH(Prop p) { return (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].h : 16;
 int propFrames(Prop p) { return (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].frames : 1; }
 
 Canvas propSprite(Prop p) {
+  if (isStall(p)) return marketStall(stallTrade(p), 0);
   const int w = propW(p), h = propH(p), n = propFrames(p);
   Canvas sheet(w * n, h);
   for (int f = 0; f < n; f++) {

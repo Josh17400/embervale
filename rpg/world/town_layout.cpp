@@ -101,6 +101,7 @@ void Gen::land() {
   // the town's biome and its ground
   bio = M.biomeAt(cx, cy);
   if (bio == Biome::Ocean || bio == Biome::Mountain) bio = Biome::Plains;
+  pickSpecialty();
   switch (bio) {
     case Biome::Snow: base = Ground::Snow; break;
     case Biome::Taiga: base = Ground::Tundra; break;
@@ -197,9 +198,65 @@ void Gen::paintSquare(int x0, int y0, float r, District d) {
 }
 
 void Gen::squaresPass() {
-  float sqR = city ? 6.0f : (town ? 4.2f : 2.8f);
-  if (arch == Archetype::Market) sqR *= 1.3f;
+  // (M1 economy) the main square holds the market: room for rows of stalls with their aisles beside the centrepiece
+  float sqR = capital ? 8.2f : (city ? 7.0f : (town ? 5.4f : 3.2f));
+  if (arch == Archetype::Market) sqR *= 1.25f;
   paintSquare(cx, cy, sqR, District::Centre);
+  // (M1 economy) the market place: one side of the square opened out to fit the rows of stalls (their aisles and
+  // keepers), its edge left a little ragged where the houses crowd in; the centrepiece stands across from it.
+  // (M1 fixer) which side, and how deep and wide, by the town's seed: a market to the north of the heart in one town,
+  // to the south, east or west in the next (the stalls always face south, so the rows sit differently in each)
+  {
+    const bool mk = arch == Archetype::Market;
+    const uint32_t hs = hash2(cx, cy, bseed + 823u);
+    const int hw = (village ? 4 : (town ? (mk ? 11 : 8) : (capital ? 10 : (mk ? 13 : 9)))) + (int)((hs >> 4) % 3) - 1;
+    const int top = (village ? 4 : (town ? (mk ? 9 : 6) : (capital ? 11 : (mk ? 12 : 9)))) + (int)((hs >> 8) % 3) - 1;
+    const int bot = village ? 1 : 2;
+    int x0 = 0, x1 = 0, y0 = 0, y1 = 0;
+    auto zoneOf = [&](int side) {
+      switch (side) {
+        // (the houses on a square's south side rise over its southern rows, so a market reaching south takes a few
+        // more rows to keep the same open ground)
+        case 1: x0 = cx - hw; x1 = cx + hw; y0 = cy - bot; y1 = cy + top + 4; break;                   // south
+        case 2: x0 = cx - bot - 1; x1 = cx + hw + top / 2 + 1; y0 = cy - (top + bot) / 2 - 2; y1 = cy + (top + bot) / 2 + 4; break;   // east
+        case 3: x0 = cx - hw - top / 2 - 1; x1 = cx + bot + 1; y0 = cy - (top + bot) / 2 - 2; y1 = cy + (top + bot) / 2 + 4; break;   // west
+        default: x0 = cx - hw; x1 = cx + hw; y0 = cy - top; y1 = cy + bot; break;                    // north
+      }
+    };
+    // the drawn side, unless the water, the slope or the edge of the buffer spoils it: then the next side round that
+    // does not (or spoils it least)
+    int bestSide = (int)(hs % 4u), bestBad = 1 << 30;
+    for (int k = 0; k < 4; k++) {
+      const int side = (int)((hs + (uint32_t)k) % 4u);
+      zoneOf(side);
+      int bad = 0;
+      for (int y = y0 - 1; y <= y1 + 1; y++)
+        for (int x = x0 - 1; x <= x1 + 1; x++) {
+          if (!in(x, y)) { bad += 4; continue; }
+          if (wet(x, y) || water[I(x, y)] || inCompound(x, y, 2)) bad += 4;
+          else if (lvl[I(x, y)] != lvl[I(cx, cy)]) bad++;
+        }
+      if (bad < bestBad) { bestBad = bad; bestSide = side; }
+      if (bad == 0) break;
+    }
+    mktSide = bestSide;
+    zoneOf(mktSide);
+    mktZone = IRect{x0, y0, x1 - x0 + 1, y1 - y0 + 1};
+    const uint32_t ms = bseed + 811u;
+    for (int y = y0; y <= y1; y++)
+      for (int x = x0; x <= x1; x++) {
+        if (!in(x, y) || inCompound(x, y, 2) || wet(x, y) || get(x, y) == K_SQUARE) continue;
+        if (walled && !ins(x, y)) continue;
+        if (lvl[I(x, y)] != lvl[I(cx, cy)]) continue;
+        const bool edgeX = x == x0 || x == x1, edgeY = y == y0 || y == y1;
+        if (edgeX && edgeY) continue;                                   // rounded corners
+        if ((edgeX || edgeY) && hashf(x, y, ms) < 0.35f) continue;       // a ragged edge
+        set(x, y, K_SQUARE);
+        if (village) M.setG(x, y, layout == 1 ? Ground::Dirt : (base == Ground::Grass ? Ground::Meadow : base));
+        else M.setG(x, y, Ground::Plaza);
+        M.setP(x, y, 0);
+      }
+  }
   if (city) {
     for (int k = 0; k < 4; k++) {
       float a = sector0 + k * (D_PI / 2) + rng.range(-0.25f, 0.25f);
@@ -208,10 +265,11 @@ void Gen::squaresPass() {
       if (inCompound(x, y, 6) || wet(x, y)) continue;
       paintSquare(x, y, 3.0f + rng.f(), sectorKind[k]);
     }
-  } else if (town && rng.f() < 0.65f) {
+  } else if (town && (rng.f() < 0.65f || arch == Archetype::Market)) {
+    // (M1 fixer) a market town always has its second square: the second market (the produce and beast market)
     float a = rng.f() * D_TAU;
     int x = cx + iround(dcos(a) * rx * 0.5f), y = cy + iround(dsin(a) * ry * 0.5f);
-    if (!wet(x, y)) paintSquare(x, y, 2.6f, District::Centre);
+    if (!wet(x, y)) paintSquare(x, y, arch == Archetype::Market ? 3.6f : 2.6f, District::Centre);
   }
 }
 
@@ -852,6 +910,9 @@ void Gen::pruneStreets() {
 
 // hill-fort villages: a fence ring round the houses, open where the streets leave
 void Gen::palisadeRing() {
+  // (M1 fixer round 2) the ring's tiles are chosen first and fenced after: marking each piece a yard as it went made
+  // its neighbour skip itself (a yard beside it), so the ring came out as a dotted line of lone posts
+  std::vector<int> ring;
   for (int y = 1; y < H - 1; y++)
     for (int x = 1; x < W - 1; x++) {
       float b = blob(x, y, cx, cy, rx * 0.95f, ry * 0.95f, bseed + 3);
@@ -864,10 +925,23 @@ void Gen::palisadeRing() {
       bool nearStreet = false;
       for (int oy = -1; oy <= 1; oy++) for (int ox = -1; ox <= 1; ox++) if (isStreet(x + ox, y + oy) || get(x + ox, y + oy) == K_YARD) nearStreet = true;
       if (nearStreet) continue;
-      float a = datan2((float)(y - cy) / ry, (float)(x - cx) / rx);
-      M.setProp(x, y, std::fabs(dsin(a)) > 0.7f ? art::Prop::FenceH : art::Prop::FenceV);
-      set(x, y, K_YARD);
+      ring.push_back(y * W + x);
     }
+  for (int k : ring) {
+    const int x = k % W, y = k / W;
+    float a = datan2((float)(y - cy) / ry, (float)(x - cx) / rx);
+    M.setProp(x, y, std::fabs(dsin(a)) > 0.7f ? art::Prop::FenceH : art::Prop::FenceV);
+    set(x, y, K_YARD);
+  }
+  // a lone post between two gaps encloses nothing: it goes
+  auto fenceAt = [&](int x, int y) { const int q = M.propAt(x, y); return q == (int)art::Prop::FenceH + 1 || q == (int)art::Prop::FenceV + 1; };
+  for (int k : ring) {
+    const int x = k % W, y = k / W;
+    bool nb = false;
+    for (int oy = -1; oy <= 1 && !nb; oy++)
+      for (int ox = -1; ox <= 1; ox++) if ((ox || oy) && fenceAt(x + ox, y + oy)) { nb = true; break; }
+    if (!nb) M.setP(x, y, 0);
+  }
 }
 
 }  // namespace town

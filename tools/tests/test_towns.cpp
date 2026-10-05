@@ -13,6 +13,12 @@
 //  - capitals: the palace's throne hall (throne, king) reachable from the door, stairs up to the private quarters, a
 //    council room and bedchambers; the barracks' bunks and weapon racks;
 //  - determinism: the same context built twice hashes the same; build times per type (budget about 25 ms native).
+//  - (M1 economy, owner 2026-10-05) every village has a well, an inn, a smith and a small market (a stall or a cart on
+//    the green), a mill when it farms, its specialisation's building (granary, fishmonger, smelter, sawmill, tannery)
+//    and yard (the mine...); towns and cities the full set of trades; markets of the right size laid out in rows
+//    (at most three rows, the stalls of a row touching or a walkway apart, never a ring), every counter with Filler
+//    either side, its two-row aisle open and its keeper's tile walkable, never on a door's step or apron.
+//  --sweep N: N random settlements (every type, archetype, land and specialisation), the same checks, 0 failures.
 #include <cstdlib>
 #include <algorithm>
 #include <chrono>
@@ -74,12 +80,14 @@ struct Case {
   bool capital;
   std::vector<float> roads;
   uint32_t seed;
+  ew::Specialty spec = ew::Specialty::None;   // (M1 economy) None: the generator derives it
 };
 
 void buildCase(const Case& c, ew::SitePlan& p, ew::KingdomPlan& k, ew::SettlementOut& so, double& ms) {
   p = ew::SitePlan();
   p.type = c.type;
   p.archetype = c.arch;
+  p.special = c.spec;
   p.seed = c.seed;
   ew::settlementFootprint(c.type, c.arch, p.seed, p.w, p.h);
   p.gx = 1000 - p.w / 2; p.gy = -2000 - p.h / 2; p.ex = 1000; p.ey = -2000;
@@ -161,6 +169,11 @@ void dumpPng(const ew::SettlementOut& so, const std::string& path) {
       if (!so.used.empty() && !so.used[(size_t)y * m.w + x]) c = art::mix(c, rgba(0, 0, 0), 0.35f);
       int p = m.propAt(x, y);
       if (p) c = (Prop)(p - 1) == Prop::Banner ? rgba(40, 70, 220) : rgba(30, 90, 30);
+      if (p && art::isStall((Prop)(p - 1))) c = rgba(255, 220, 0);
+      if (p && (Prop)(p - 1) == Prop::Filler) c = rgba(255, 140, 0);
+      if (p && ((Prop)(p - 1) == Prop::MarketTable || (Prop)(p - 1) == Prop::GroundCloth)) c = rgba(255, 60, 220);
+      if (p && ((Prop)(p - 1) == Prop::Sheep || (Prop)(p - 1) == Prop::Cow)) c = rgba(255, 255, 255);
+      if (p && ((Prop)(p - 1) == Prop::Well || (Prop)(p - 1) == Prop::Fountain || (Prop)(p - 1) == Prop::Statue)) c = rgba(0, 255, 255);
       if (m.wall[(size_t)y * m.w + x]) c = rgba(110, 110, 120);
       int bi = m.bldgAt[(size_t)y * m.w + x];
       if (bi >= 0) {
@@ -242,6 +255,193 @@ int checkPalace(const Bldg& b0, const char* what) {
   return bad;
 }
 
+// (M1 economy) markets and specialisations. Also counts stalls per settlement type (printed at the end).
+std::map<std::string, std::pair<int, int>> g_stallRange;   // type -> min, max stalls
+std::map<std::string, int> g_noStall;                      // type -> settlements without a stall
+std::map<std::string, std::pair<int, int>> g_vendorRange;  // type -> min, max stalls + tables + cloths
+int g_mineHills = 0, g_mineAdits = 0, g_pens = 0, g_herders = 0;
+int checkEconomy(const Case& c, const ew::SettlementOut& so, const char* what) {
+  int bad = 0;
+  const Map& m = so.buf;
+  auto fail = [&](const char* fmt, auto... args) {
+    char buf[300];
+    std::snprintf(buf, sizeof buf, fmt, args...);
+    out("FAIL: %s: %s\n", what, buf);
+    bad++;
+  };
+  std::map<Building, int> n;
+  for (const Bldg& b : m.bldgs) n[b.type]++;
+  const ew::Specialty sp = so.special;
+  if (sp == ew::Specialty::None) fail("no specialisation recorded");
+  // the specialisation's buildings
+  switch (sp) {
+    case ew::Specialty::Farming:
+      if (!n[Building::Windmill] && !n[Building::Watermill]) fail("a farming settlement without a mill");
+      // (M1 fixer round 2) a village's mill is found from its heart: within a short walk (24 tiles)
+      if (c.type == SiteType::Village) {
+        int best = 1 << 30;
+        for (const Bldg& b : m.bldgs)
+          if (b.type == Building::Windmill || b.type == Building::Watermill)
+            best = std::min(best, std::max(std::abs(b.r.cx() - (so.ex - so.gx)), std::abs(b.r.cy() - (so.ey - so.gy))));
+        if (best > 24) fail("the village's mill stands %d tiles from its heart (want 24 or less)", best);
+      }
+      if (!n[Building::Granary]) fail("a farming settlement without a granary");
+      break;
+    case ew::Specialty::Fishing: if (!n[Building::Fishmonger]) fail("a fishing settlement without a fishmonger"); break;
+    case ew::Specialty::Mining: {
+      if (!n[Building::Smelter]) fail("a mining settlement without a smelter");
+      if (!countProp(m, Prop::MineEntrance) && !countProp(m, Prop::MineHill)) fail("a mining settlement without its mine");
+      g_mineHills += countProp(m, Prop::MineHill);
+      g_mineAdits += countProp(m, Prop::MineEntrance);
+      if (!countProp(m, Prop::MineRail)) fail("a mine without its track");
+      // (M1 fixer) the mine's mouth is reached from the heart
+      const int hx0 = so.ex - so.gx, hy0 = so.ey - so.gy;
+      std::vector<std::pair<int, int>> from;
+      for (int oy = -3; oy <= 3; oy++) for (int ox = -3; ox <= 3; ox++) from.push_back({hx0 + ox, hy0 + oy});
+      auto seen = reach(m, from);
+      for (int y = 0; y + 1 < m.h; y++)
+        for (int x = 0; x < m.w; x++)
+          if ((m.propAt(x, y) == (int)Prop::MineEntrance + 1 || m.propAt(x, y) == (int)Prop::MineHill + 1) && !seen[(size_t)(y + 1) * m.w + x])
+            fail("the mine at %d,%d: no way to its mouth from the heart", x, y);
+      break;
+    }
+    case ew::Specialty::Lumber: if (!n[Building::Sawmill]) fail("a lumber settlement without a sawmill"); break;
+    case ew::Specialty::Herding: {
+      if (!n[Building::Tanner]) fail("a herding settlement without a tannery");
+      // (M1 fixer round 2) the herders' work yard: beasts in a fenced pen by the tannery, with its lean-to
+      g_herders++;
+      int beasts = 0;
+      for (int sy = 0; sy < m.h; sy++)
+        for (int sx = 0; sx < m.w; sx++) {
+          if (m.propAt(sx, sy) != (int)Prop::PenShelter + 1) continue;
+          int here = 0;
+          for (int y = sy; y <= sy + 5; y++)
+            for (int x = sx - 4; x <= sx + 4; x++) {
+              const int q = m.propAt(x, y);
+              if (q == (int)Prop::Sheep + 1 || q == (int)Prop::Cow + 1) here++;
+            }
+          beasts = std::max(beasts, here);
+        }
+      if (beasts >= 2) g_pens++;
+      else if (c.type == SiteType::Village) fail("a herding village without its pen by the tannery (%d beasts)", beasts);
+      break;
+    }
+    default: break;
+  }
+  if (c.type != SiteType::Village && (!n[Building::Bakery] || !n[Building::Butcher]))
+    fail("%s without the trades: bakery %d butcher %d", siteTypeName(c.type), n[Building::Bakery], n[Building::Butcher]);
+  // watermills stand with their wheel in the river
+  for (const Bldg& b : m.bldgs) {
+    if (b.type != Building::Watermill) continue;
+    const int sx = (b.variant & 1) ? b.r.x - 1 : b.r.x + b.r.w;
+    int wet = 0;
+    for (int y = b.r.y; y < b.r.y + b.r.h; y++) if (m.in(sx, y) && groundWater(m.at(sx, y))) wet++;
+    if (wet < 2) fail("a watermill at %d,%d without its river beside the wheel", b.r.x, b.r.y);
+  }
+  // the market
+  struct St { int x, y; };
+  std::vector<St> st;
+  for (int y = 0; y < m.h; y++)
+    for (int x = 0; x < m.w; x++) {
+      const int p = m.propAt(x, y);
+      if (p && art::isStall((Prop)(p - 1))) st.push_back({x, y});
+    }
+  // (M1 fixer round 2) the open tables and cloths: Filler on their east tile, the seller's tile behind and the two
+  // rows before them open, and no two of one town selling the same goods
+  int tables = 0;
+  {
+    bool usedT[art::kTableGoods] = {}, usedC[art::kClothGoods] = {};
+    for (int y = 0; y < m.h; y++)
+      for (int x = 0; x < m.w; x++) {
+        const int p = m.propAt(x, y);
+        if (p != (int)Prop::MarketTable + 1 && p != (int)Prop::GroundCloth + 1) continue;
+        tables++;
+        const bool cloth = p == (int)Prop::GroundCloth + 1;
+        if (m.propAt(x + 1, y) != (int)Prop::Filler + 1) fail("the %s at %d,%d has no Filler on its east tile", cloth ? "cloth" : "table", x, y);
+        for (int dx = 0; dx <= 1; dx++)
+          if (m.blocked(x + dx, y - 1) || m.blocked(x + dx, y + 1)) { fail("the %s at %d,%d is shut in", cloth ? "cloth" : "table", x, y); break; }
+        const int gx = so.gx + x, gy = so.gy + y;
+        bool& u = cloth ? usedC[ew::clothGoodsAt(gx, gy)] : usedT[ew::tableGoodsAt(gx, gy)];
+        if (u) fail("two %s sell the same goods (%d,%d)", cloth ? "cloths" : "tables", x, y);
+        u = true;
+      }
+  }
+  const int vendors = (int)st.size() + tables;
+  const int minVendors = c.type == SiteType::Village ? 1 : (c.type == SiteType::Town ? 3 : (c.capital ? 9 : 6));
+  const int minStalls = c.type == SiteType::Village ? 1 : (c.type == SiteType::Town ? 2 : (c.capital ? 4 : 3));
+  // (M1 fixer) every settlement has a market of real stalls (a village at least one; a cart alone is no market)
+  if ((int)st.size() < minStalls) fail("a market of %zu stalls (want %d+)", st.size(), minStalls);
+  if (vendors < minVendors) fail("a market of %d stalls and tables (want %d+)", vendors, minVendors);
+  if (c.arch == ew::Archetype::Market && c.type != SiteType::Village && vendors < minVendors + 3)
+    fail("a market town's market of %d stalls and tables (want %d+: it is the trading hub)", vendors, minVendors + 3);
+  // (M1 fixer round 2) every trade keeps one stall at most in a town; outside villages no stall stands alone (each
+  // touches a neighbour), and every run opens at both ends onto walkable ground
+  {
+    std::map<int, int> trades;
+    for (const St& s : st) trades[m.propAt(s.x, s.y) - 1]++;
+    for (auto& [t, k] : trades) if (k > 1) { fail("%d stalls of one trade (%d)", k, t - (int)Prop::StallProduce); break; }
+    if (c.type != SiteType::Village)
+      for (const St& s : st) {
+        bool nb = false;
+        for (const St& o : st) if (o.y == s.y && std::abs(o.x - s.x) == 3) nb = true;
+        if (!nb) { fail("a lone stall at %d,%d", s.x, s.y); break; }
+        const bool leftEnd = m.propAt(s.x - 3, s.y) - 1 < (int)Prop::StallProduce || m.propAt(s.x - 3, s.y) - 1 > (int)Prop::StallTimber;
+        const bool rightEnd = m.propAt(s.x + 3, s.y) - 1 < (int)Prop::StallProduce || m.propAt(s.x + 3, s.y) - 1 > (int)Prop::StallTimber;
+        if ((leftEnd && m.blocked(s.x - 3, s.y + 1)) || (rightEnd && m.blocked(s.x + 3, s.y + 1))) { fail("the run at %d,%d is shut in at an end", s.x, s.y); break; }
+      }
+  }
+  std::string tn = c.capital ? "capital" : siteTypeName(c.type);
+  auto& rg = g_stallRange[tn];
+  if (!rg.first && !rg.second) rg = {(int)st.size(), (int)st.size()};
+  rg.first = std::min(rg.first, (int)st.size()); rg.second = std::max(rg.second, (int)st.size());
+  auto& vr = g_vendorRange[tn];
+  if (!vr.first && !vr.second) vr = {vendors, vendors};
+  vr.first = std::min(vr.first, vendors); vr.second = std::max(vr.second, vendors);
+  if (st.empty()) g_noStall[tn]++;
+  // rows, per market: the stalls of one market are those within reach of each other (8 tiles across, 6 up or down);
+  // a street market's stalls stand apart along the street, each its own short row
+  {
+    std::vector<int> grp(st.size(), -1);
+    int ng = 0;
+    for (size_t i = 0; i < st.size(); i++) {
+      if (grp[i] >= 0) continue;
+      std::vector<size_t> q{i};
+      grp[i] = ng;
+      for (size_t h = 0; h < q.size(); h++)
+        for (size_t j = 0; j < st.size(); j++)
+          if (grp[j] < 0 && std::abs(st[j].x - st[q[h]].x) <= 8 && std::abs(st[j].y - st[q[h]].y) <= 6) { grp[j] = ng; q.push_back(j); }
+      ng++;
+    }
+    for (int g = 0; g < ng; g++) {
+      std::map<int, int> ys;
+      for (size_t i = 0; i < st.size(); i++) if (grp[i] == g) ys[st[i].y]++;
+      if (ys.size() > 3) { fail("a market's stalls on %zu rows (a ring, not rows)", ys.size()); break; }
+    }
+  }
+  std::map<int, std::vector<int>> rows;
+  for (const St& s : st) rows[s.y].push_back(s.x);
+  for (auto& [y, xs] : rows) {
+    std::sort(xs.begin(), xs.end());
+    for (size_t i = 1; i < xs.size(); i++) {
+      const int gap = xs[i] - xs[i - 1];
+      if (gap != 3 && gap < 5) { fail("stalls on row %d at %d and %d: neither touching nor a walkway apart", y, xs[i - 1], xs[i]); break; }
+    }
+  }
+  for (const St& s : st) {
+    if (m.propAt(s.x - 1, s.y) != (int)Prop::Filler + 1 || m.propAt(s.x + 1, s.y) != (int)Prop::Filler + 1) fail("the stall at %d,%d has no counter either side", s.x, s.y);
+    for (int dx = -1; dx <= 1; dx++)
+      for (int dy = 1; dy <= 2; dy++)
+        if (m.blocked(s.x + dx, s.y + dy) || m.propAt(s.x + dx, s.y + dy)) { fail("the stall at %d,%d: its aisle is blocked at %d,%d (prop %d)", s.x, s.y, s.x + dx, s.y + dy, m.propAt(s.x + dx, s.y + dy) - 1); dy = 3; dx = 2; }
+    if (m.blocked(s.x, s.y - 1)) fail("the stall at %d,%d: no room for its keeper", s.x, s.y);
+    for (const Bldg& b : m.bldgs) {
+      const int ax = b.doorX(), ay = b.r.y + b.r.h;
+      for (int dx = -1; dx <= 1; dx++)
+        if (std::abs(s.x + dx - ax) <= 1 && s.y >= ay && s.y <= ay + 1) { fail("the stall at %d,%d stands on the doorstep of %s", s.x, s.y, bldgTypeName(b.type)); dx = 2; }
+    }
+  }
+  return bad;
+}
+
 int checkTown(const Case& c, const ew::SitePlan& p, const ew::SettlementOut& so, const char* what) {
   int bad = 0;
   const Map& m = so.buf;
@@ -261,7 +461,7 @@ int checkTown(const Case& c, const ew::SitePlan& p, const ew::SettlementOut& so,
   for (const Bldg& b : m.bldgs) n[b.type]++;
   if (c.type == SiteType::Village) {
     if (!n[Building::Inn]) fail("village without an inn");
-    if (!n[Building::Shop] && !n[Building::Smithy]) fail("village without a shop or smithy");
+    if (!n[Building::Smithy]) fail("village without a smithy");
     if (!countProp(m, Prop::Well)) fail("village without a well");
   } else if (c.type == SiteType::Town) {
     if (!n[Building::Inn] || !n[Building::Shop] || !n[Building::Smithy] || !n[Building::Temple])
@@ -272,6 +472,7 @@ int checkTown(const Case& c, const ew::SitePlan& p, const ew::SettlementOut& so,
     if (c.capital && (!n[Building::Palace] || !n[Building::Barracks])) fail("capital without palace %d / barracks %d", n[Building::Palace], n[Building::Barracks]);
     if (!c.capital && n[Building::Palace]) fail("a palace in a city that is no capital");
   }
+  bad += checkEconomy(c, so, what);
   // ids unique
   for (size_t i = 0; i < m.bldgs.size(); i++)
     for (size_t j = i + 1; j < m.bldgs.size(); j++)
@@ -372,15 +573,43 @@ int checkTown(const Case& c, const ew::SitePlan& p, const ew::SettlementOut& so,
     if ((b.type == Building::Keep || b.type == Building::Palace || b.type == Building::Inn || b.type == Building::Barracks) && !b.banner)
       { fail("%s flies no banner", bldgTypeName(b.type)); break; }
   if (!countProp(m, Prop::Signpost)) fail("no signpost at the road entrances");
+  // (M1 fixer round 2) no stray piece of fence enclosing nothing: every fence tile joins another
+  {
+    auto fence = [&](int x, int y) { const int q = m.propAt(x, y); return q == (int)Prop::FenceH + 1 || q == (int)Prop::FenceV + 1; };
+    int lone = 0, lx = 0, ly = 0;
+    for (int y = 0; y < m.h; y++)
+      for (int x = 0; x < m.w; x++) {
+        if (!fence(x, y)) continue;
+        bool nb = false;
+        for (int oy = -1; oy <= 1 && !nb; oy++)
+          for (int ox = -1; ox <= 1; ox++) if ((ox || oy) && fence(x + ox, y + oy)) { nb = true; break; }
+        if (!nb) { if (!lone) { lx = x; ly = y; } lone++; }
+      }
+    if (lone) fail("%d stray fence pieces (the first at %d,%d)", lone, lx, ly);
+  }
   return bad;
+}
+
+std::string townsFixture() {
+#ifdef EMB_SOURCE_DIR
+  return std::string(EMB_SOURCE_DIR) + "/tests/fixtures/golden_towns.txt";
+#else
+  return "tests/fixtures/golden_towns.txt";
+#endif
 }
 
 int cmdTowns(int argc, char** argv) {
   uint64_t a = 1, b = 3;
   std::string pngDir;
-  bool verbose = false;
+  bool verbose = false, golden = false, write = false;
+  std::map<std::string, uint64_t> hashes;   // --golden: every case's town hash (the layout, the market, the props)
+  int sweep = 0, pickS = -1, pickK = -1;
   for (int i = 1; i < argc; i++) {
-    if (!strcmp(argv[i], "--seeds") && i + 1 < argc) parseSeedRange(argv[++i], a, b);
+    if (!strcmp(argv[i], "--golden")) { golden = true; continue; }
+    if (!strcmp(argv[i], "--write")) { write = true; continue; }
+    if (!strcmp(argv[i], "--pick") && i + 1 < argc) { std::sscanf(argv[++i], "%d,%d", &pickS, &pickK); continue; }
+    if (!strcmp(argv[i], "--sweep") && i + 1 < argc) sweep = std::max(1, atoi(argv[++i]));
+    else if (!strcmp(argv[i], "--seeds") && i + 1 < argc) parseSeedRange(argv[++i], a, b);
     else if (!strcmp(argv[i], "--png") && i + 1 < argc) pngDir = argv[++i];
     else if (!strcmp(argv[i], "--verbose")) verbose = true;
   }
@@ -389,10 +618,34 @@ int cmdTowns(int argc, char** argv) {
   std::map<std::string, std::pair<int, int>> homes;   // type -> min, max
   static const ew::Archetype archs[] = {ew::Archetype::Plain, ew::Archetype::Farming, ew::Archetype::Fishing, ew::Archetype::Port,
                                         ew::Archetype::Mining, ew::Archetype::RiverCrossing, ew::Archetype::HillFort, ew::Archetype::Market};
+  if (sweep) { a = 1; b = (uint64_t)(sweep + 9) / 10; }
   for (uint64_t s = a; s <= b; s++) {
     g_curSeed = s;
     std::vector<Case> cases;
     Rng r(s * 977 + 13);
+    if (sweep) {
+      // (M1 economy) the sweep: ten random settlements per step, every type, archetype, land and specialisation
+      Rng q(s * 104729 + 7);
+      for (int k = 0; k < 10 && (int)((s - 1) * 10 + (uint64_t)k) < sweep; k++) {
+        Case c;
+        const float tq = q.f();
+        c.type = tq < 0.5f ? SiteType::Village : (tq < 0.8f ? SiteType::Town : SiteType::City);
+        c.arch = archs[q.irange(8)];
+        c.land = (Land)q.irange(4);
+        c.spec = (ew::Specialty)q.irange((int)ew::Specialty::COUNT);
+        if (c.arch == ew::Archetype::Fishing || c.arch == ew::Archetype::Port) c.land = Land::Coast;
+        if (c.arch == ew::Archetype::RiverCrossing) c.land = Land::River;
+        if (c.spec == ew::Specialty::Fishing && c.land != Land::Coast) c.land = Land::River;
+        c.capital = c.type == SiteType::City && q.f() < 0.35f;
+        if (q.f() < 0.7f) {
+          int nr = c.type == SiteType::Village ? 1 + q.irange(2) : 2 + q.irange(c.type == SiteType::City ? 3 : 2);
+          float a0 = q.f() * ew::D_TAU;
+          for (int j = 0; j < nr; j++) c.roads.push_back(ew::dwrap(a0 + j * ew::D_TAU / nr + q.range(-0.4f, 0.4f)));
+        }
+        c.seed = (uint32_t)ew::mix64(s * 1000003 + (uint64_t)k * 7777);
+        cases.push_back(c);
+      }
+    } else {
     for (int li = 0; li < 3; li++) {
       for (SiteType t : {SiteType::Village, SiteType::Town, SiteType::City}) {
         Case c;
@@ -419,7 +672,9 @@ int cmdTowns(int argc, char** argv) {
       c.seed = (uint32_t)ew::mix64(s * 7919 + 5);
       cases.push_back(c);
     }
+    }
     for (size_t ci = 0; ci < cases.size(); ci++) {
+      if (pickS >= 0 && ((int)s != pickS || (int)ci != pickK)) continue;   // --pick S,K: one case (with --png)
       const Case& c = cases[ci];
       ew::SitePlan p;
       ew::KingdomPlan k;
@@ -428,10 +683,17 @@ int cmdTowns(int argc, char** argv) {
       buildCase(c, p, k, so, ms);
       buildCase(c, p, k, so2, ms2);
       char what[160];
-      std::snprintf(what, sizeof what, "seed %llu %s%s %s on %s%s", (unsigned long long)s, c.capital ? "capital " : "", siteTypeName(c.type),
-                    archName(c.arch), landName(c.land), c.roads.empty() ? "" : " with roads");
+      std::snprintf(what, sizeof what, "seed %llu #%zu %s%s %s %s on %s%s", (unsigned long long)s, ci, c.capital ? "capital " : "", siteTypeName(c.type),
+                    archName(c.arch), ew::specialtyName(so.special), landName(c.land), c.roads.empty() ? "" : " with roads");
       int fails = 0;
       if (townHash(so) != townHash(so2)) { out("FAIL: %s: not deterministic (two builds differ)\n", what); fails++; }
+      if (golden) {   // (M1 fixer round 2) the cross-platform check: the hash only
+        char key[64];
+        std::snprintf(key, sizeof key, "town_s%llu_c%zu", (unsigned long long)s, ci);
+        hashes[key] = townHash(so);
+        bad += fails;
+        continue;
+      }
       fails += checkTown(c, p, so, what);
       bad += fails;
       std::string tn = c.capital ? "capital" : siteTypeName(c.type);
@@ -451,15 +713,47 @@ int cmdTowns(int argc, char** argv) {
       }
     }
   }
+  if (golden) {
+    // (M1 fixer round 2) settlement layouts are platform-stable: native and the web build make the same towns. The
+    // fixture holds every case's hash (streets, buildings, the market's rows and tables, yards, spawns); regenerate it
+    // with --towns --golden --write when the generator changes on purpose.
+    if (write) {
+      printf("# rpg/world settlement golden values (rpg_test --towns --golden --write; seeds %llu..%llu): every synthetic case's town\n",
+             (unsigned long long)a, (unsigned long long)b);
+      printf("# hash (ground, props, walls, heights, buildings, spawns, gates). Must match on every platform.\n");
+      for (auto& kv : hashes) printf("%s %016llx\n", kv.first.c_str(), (unsigned long long)kv.second);
+      return bad ? 1 : 0;
+    }
+    FILE* f = fopen(townsFixture().c_str(), "r");
+    if (!f) { printf("FAIL: cannot read %s\n", townsFixture().c_str()); return 1; }
+    int seen = 0;
+    char line[256], key[96];
+    unsigned long long val;
+    while (fgets(line, sizeof line, f)) {
+      if (line[0] == '#' || sscanf(line, "%95s %llx", key, &val) != 2) continue;
+      auto it = hashes.find(key);
+      if (it == hashes.end()) { printf("FAIL: towns golden key %s is not computed (run with the fixture's seeds)\n", key); bad++; continue; }
+      seen++;
+      if (it->second != val) { printf("FAIL: towns golden %s = %016llx, expected %016llx\n", key, (unsigned long long)it->second, val); bad++; }
+    }
+    fclose(f);
+    if (seen != (int)hashes.size()) { printf("FAIL: towns golden file has %d of %zu keys\n", seen, hashes.size()); bad++; }
+    printf("towns golden: %zu hashes: %s\n", hashes.size(), bad ? "FAILED" : "ok");
+    return bad ? 1 : 0;
+  }
   for (auto& [tn, T] : times) {
     auto hm = homes[tn];
+    auto sr = g_stallRange[tn];
+    printf("towns: %-8s market stalls %d..%d, with the tables and cloths %d..%d (%d without a stall)\n", tn.c_str(), sr.first, sr.second,
+           g_vendorRange[tn].first, g_vendorRange[tn].second, g_noStall[tn]);
     printf("towns: %-8s %3d built, homes %d..%d, build %.1f ms avg, %.1f ms max\n", tn.c_str(), T.n, hm.first, hm.second, T.n ? T.sum / T.n : 0.0, T.max);
     if (T.max > 60.0) { printf("FAIL: towns: %s build %.1f ms (budget about 25 ms native)\n", tn.c_str(), T.max); bad++; }
   }
+  printf("towns: mines %d in their hill, %d bare adits; herders' pens by the tannery %d of %d\n", g_mineHills, g_mineAdits, g_pens, g_herders);
   printf("towns: %d failures\n", bad);
   return bad ? 1 : 0;
 }
 
 }  // namespace
 
-RPG_TEST_CMD("--towns", "settlements at scale: homes, services, reachability, walls and gates, palaces [--seeds A..B] [--png DIR] [--verbose]", cmdTowns);
+RPG_TEST_CMD("--towns", "settlements at scale: homes, services, reachability, walls and gates, palaces [--seeds A..B] [--png DIR] [--verbose] [--golden [--write]]", cmdTowns);

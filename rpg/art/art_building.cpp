@@ -546,6 +546,7 @@ struct Plan {
   uint32_t rowsShown = 0;    // M0b: bit s set when storey s shows on the body (a door or windows on the ground floor,
                              // a row of windows, slits or a band above it): BuildingInfo::storeys counts them
   bool balcony = false, hood = false;   // M0b: 2-storey variety (a balcony on the upper floor, a hood over the door)
+  Building trade = Building::House;     // M1 economy: the type asked for (b is its frame, artBase); signs and machinery
 };
 
 float slopeFor(int pitch) {
@@ -641,6 +642,8 @@ void finishRoofHeight(Mass& m) {
 // generator constant the art cannot include: rpg_art does not depend on rpg_sim); arch_gallery --check holds the two
 // together on real worlds.
 int riseBudgetPx(Building b, int storeys) {
+  if (b == Building::Windmill) return 6 * 16;   // (M1 fixer) mirrors world.h bldgRiseTiles: the tall tower mill
+  b = artBase(b);   // M1 economy: the production buildings rise like their frames (the windmill like a tower)
   int r = 3;
   if (b == Building::Tower || b == Building::Temple) r = 5;
   else if (b == Building::Keep || b == Building::Inn || b == Building::Barracks) r = 4;
@@ -705,7 +708,10 @@ void fitMass(Mass& m, float lim, int minWall) {
 
 Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed, const BuildingFacts& facts = BuildingFacts{}) {
   Plan p;
+  const Building trade = b;
+  b = artBase(b);
   p.b = b;
+  p.trade = trade;
   p.facts = facts;
   if (p.facts.storeys <= 0) p.facts.storeys = defaultStoreys(b);
   // M0b: the storeys each type can show. Inns and keeps always 2, towers 3; houses, stone houses and shops 1 or 2 (the
@@ -713,7 +719,7 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed, c
   switch (b) {
     case Building::House: case Building::StoneHouse: case Building::Shop: p.facts.storeys = std::clamp(p.facts.storeys, 1, 2); break;
     case Building::Inn: case Building::Keep: case Building::Palace: case Building::Barracks: p.facts.storeys = 2; break;
-    case Building::Tower: p.facts.storeys = 3; break;
+    case Building::Tower: p.facts.storeys = trade == Building::Windmill ? 2 : 3; break;
     default: p.facts.storeys = 1; break;
   }
   const int storeys = p.facts.storeys;
@@ -852,6 +858,28 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed, c
       t.slope = 1.25f;
       ms.push_back(t);
     }
+  } else if (b == Building::Tower && trade == Building::Windmill) {
+    // M1 economy: a tower mill. A round tower of whitewashed rubble (or the region's stone) under a boarded or thatched
+    // cap; the sails (overlays) turn on the cap's front. Two storeys: the stone floor with the sacks, the millstone loft.
+    // (M1 fixer) it stands taller than the barns round it: a broad drum on a four-tile plot, sails longer than the
+    // tower is wide
+    Mass t = baseMass(p, 0, 0, 0, 0, 54 + H(1, 6));
+    t.round = true;
+    t.r = std::min(std::min(W, D) * 0.5f - 4.0f, 17.0f);
+    t.cx = std::clamp((float)p.doorX, t.r + 3.0f, W - t.r - 3.0f);   // the door (the footprint's door tile) at its foot
+    t.cy = D - t.r - 1;
+    t.shape = RoofShape::Conical;
+    const bool white = st0.wall != WallMat::Stone && st0.wall != WallMat::Brick && st0.wall != WallMat::Adobe;
+    t.wall = white ? WallKind::Plaster : WallKind::Stone;
+    t.wR = white ? kPlaster : (st0.wall == WallMat::Adobe ? kAdobe : kStoneWarm);
+    t.tR = kWood;
+    const bool thatch = st0.roofMat == RoofMat::Thatch || st0.roofMat == RoofMat::Turf;
+    t.rmat = thatch ? RoofMat::Thatch : RoofMat::Shingle;
+    t.rR = thatch ? kThatch : kRoofBrown;
+    t.ov = 2;
+    t.slope = 0.95f;
+    ms.push_back(t);
+    p.doorMass = 0;
   } else if (b == Building::Tower) {
     float r = std::min(W, D) * 0.5f - 1;
     if (W - 2 * r > 20) {   // low annexes either side
@@ -1147,6 +1175,12 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed, c
   p.sc.W = W;
   p.sc.D = D;
   p.sc.top = (int)std::ceil(hmax) + 4;
+  // M1 economy: the windmill's sails reach well above its cap (windmillDress): room for the upper arm, within budget
+  if (trade == Building::Windmill && !ms.empty() && ms[0].round) {
+    const Mass& t = ms[0];
+    const int need = (int)std::ceil(48.0f + t.zTop() - t.cy - t.r * 0.55f);
+    p.sc.top = std::min(std::max(p.sc.top, need), p.budget - 2);
+  }
   return p;
 }
 
@@ -1765,6 +1799,87 @@ void renderBuilding(Painter& P) {
 }
 
 // details that stand proud of the walls, painted last: stilts, steps, signs, awnings, banners, lanterns
+// ---------------------------------------------------------------- M1 economy: mill machinery
+// The tower mill's door, windows and sails. The sails turn in the screen plane on the cap's front (the mill faces the
+// wind from the south, the viewer): four stocks from a hub, each carrying a lattice sail of canvas on its trailing side,
+// the upper-left ones catching the light.
+template <class AT>
+void windmillDress(Painter& P, AT&& at) {
+  Plan& p = P.p;
+  if (p.sc.ms.empty() || !p.sc.ms[0].round) return;
+  const Mass& t = p.sc.ms[0];
+  auto onFront = [&](float x, float z) { float dx = x - t.cx; return at(x, t.cy + std::sqrt(std::max(0.0f, t.r * t.r - dx * dx)) - 0.5f, z); };
+  // the floor line between the stone floor and the loft: a timber band round the drum
+  const float zc = std::floor(t.wallH * 0.48f);
+  for (float x = t.cx - t.r + 0.5f; x < t.cx + t.r; x += 1.0f) {
+    float tt = (x - t.cx) / t.r;
+    auto q = onFront(x, zc);
+    P.put(q.first, q.second, kWood[tt < -0.3f ? 3 : (tt < 0.5f ? 2 : 1)], 3);
+    q = onFront(x, zc - 1);
+    uint32_t c = P.c.get(q.first, q.second);
+    if (chA(c)) P.put(q.first, q.second, darken(c, 0.25f), 1);
+  }
+  // small shuttered windows: one in the loft, one lighting the stair beside the door
+  auto window = [&](float xc, float z0, int hgt) {
+    for (int j = 0; j < hgt; j++)
+      for (int k = -2; k <= 2; k++) {
+        auto q = onFront(xc + k + 0.5f, z0 + hgt - 1 - j);
+        uint32_t c = (k == -2 || k == 2 || j == 0) ? kWood[k == -2 ? 3 : 1] : (j < 2 ? kGlass[3] : kGlass[1]);
+        P.put(q.first, q.second, c, 3, !(k == -2 || k == 2 || j == 0));
+      }
+    for (int k = -3; k <= 3; k++) { auto q = onFront(xc + k + 0.5f, z0 - 1); P.put(q.first, q.second, kWood[k < 0 ? 3 : 2], 3); }
+  };
+  window(t.cx + 2, zc + 6, 7);
+  if (t.r >= 12) window(t.cx - t.r * 0.6f, 8, 5);
+  p.rowsShown |= 3u;
+  // the door at the foot
+  const int dw = 9, dh = 14;
+  for (int z = 0; z < dh; z++)
+    for (int i = -dw / 2 - 1; i <= dw / 2; i++) {
+      auto q = at((float)p.doorX + i + 0.5f, t.cy + t.r - 0.5f, (float)z);
+      bool frame = i == -dw / 2 - 1 || i == dw / 2 || z == dh - 1;
+      float ax = (i + 0.5f) / (dw * 0.5f), ay = (z - (dh - 5)) / 5.0f;
+      if (z > dh - 5 && ax * ax + ay * ay > 1.0f) continue;
+      P.put(q.first, q.second, frame ? kWood[3] : kWoodDark[(i % 3 == 0) ? 1 : 2], 3);
+    }
+  // the sails
+  auto hub = at(t.cx, t.cy + t.r * 0.55f, t.zTop() + 5);
+  const float hx = (float)hub.first + 0.5f, hy = (float)hub.second + 0.5f;
+  const float L = std::min(41.0f, hy - 2.0f);
+  const float a0 = 0.30f + (float)(p.seed % 5) * 0.11f;   // where the sails stopped turning
+  for (int k = 0; k < 4; k++) {
+    const float a = a0 + k * 1.5707963f;
+    const float dx = std::cos(a), dy = std::sin(a), nx = -dy, ny = dx;   // n: the trailing side
+    const bool lit = dx + dy < 0.2f;                                     // facing up-left: in the sun
+    // the sail: a lattice frame on the trailing side of the stock from a fifth of the way out to the tip, spread with
+    // canvas (lit on the arms facing the sun), its cross bars and outer frame in timber
+    const float u0 = L * 0.2f;
+    for (float u = u0; u <= L; u += 0.5f)
+      for (float v = 1.0f; v <= 6.5f; v += 0.5f) {
+        const int px = (int)std::floor(hx + dx * u + nx * v), py = (int)std::floor(hy + dy * u + ny * v);
+        const bool frame = v > 5.9f || u > L - 0.9f || u < u0 + 0.6f;
+        const bool bar = std::fmod(u - u0, 3.0f) < 0.6f && v > 1.4f;
+        uint32_t c;
+        if (frame) c = lit ? kWood[1] : kWoodDark[1];
+        else if (bar) c = kCloth[lit ? 1 : 0];
+        else c = kCloth[lit ? (v < 4.0f ? 3 : 2) : (v < 4.0f ? 2 : 1)];
+        P.put(px, py, c, 3);
+      }
+    // the stock (the arm), drawn over the sail's leading edge
+    for (float u = 0; u <= L + 1; u += 0.5f) {
+      int px = (int)std::floor(hx + dx * u), py = (int)std::floor(hy + dy * u);
+      P.put(px, py, kWood[lit ? 2 : 1], 3);
+      P.put((int)std::floor(hx + dx * u - ny * 0.9f), (int)std::floor(hy + dy * u + nx * 0.9f), kWoodDark[1], 3);
+    }
+  }
+  for (int j = -2; j <= 2; j++)
+    for (int i = -2; i <= 2; i++) {
+      if (i * i + j * j > 5) continue;
+      P.put(hub.first + i, hub.second + j, i + j < -1 ? kWood[4] : (i + j > 1 ? kWoodDark[1] : kWood[2]), 3);
+    }
+  P.put(hub.first, hub.second, kIron[3], 3);
+}
+
 void overlays(Painter& P, BuildingInfo* info) {
   Plan& p = P.p;
   const Building b = p.b;
@@ -1921,14 +2036,74 @@ void overlays(Painter& P, BuildingInfo* info) {
         for (int i = 0; i < 4; i++) P.put(ix + i, iy + 2, kIron[2], 3);
         P.put(ix + 1, iy + 3, kIron[1], 3); P.put(ix + 2, iy + 3, kIron[1], 3);
         break;
+      case 3:   // M1 economy: a loaf (bakery)
+        for (int i = -1; i <= 4; i++) P.put(ix + i, iy + 2, kGold[1], 3);
+        for (int i = -1; i <= 4; i++) P.put(ix + i, iy + 1, kGold[i < 1 ? 3 : 2], 3);
+        for (int i = 0; i <= 3; i++) P.put(ix + i, iy, kGold[i < 2 ? 4 : 3], 3);
+        P.put(ix, iy + 1, kGold[4], 3); P.put(ix + 2, iy + 1, kGold[1], 3);
+        break;
+      case 4:   // a ham on the bone (butcher)
+        for (int j = 0; j < 3; j++) for (int i = 0; i < 3; i++) P.put(ix + i, iy + j, kRed[j == 0 && i == 0 ? 4 : (i == 2 || j == 2 ? 1 : 3)], 3);
+        P.put(ix + 3, iy + 2, kBone[3], 3); P.put(ix + 4, iy + 3, kBone[4], 3); P.put(ix + 3, iy + 3, kBone[2], 3);
+        break;
+      case 5:   // a fish (fishmonger)
+        for (int i = -1; i <= 3; i++) { P.put(ix + i, iy + 1, kIron[3], 3); P.put(ix + i, iy + 2, kIron[2], 3); }
+        P.put(ix, iy, kIron[4], 3); P.put(ix + 1, iy, kIron[3], 3);
+        P.put(ix + 4, iy, kIron[2], 3); P.put(ix + 4, iy + 1, kIron[1], 3); P.put(ix + 4, iy + 2, kIron[1], 3); P.put(ix + 4, iy + 3, kIron[2], 3);
+        P.put(ix - 1, iy + 1, kInk, 3);
+        break;
+      case 6:   // a ball of yarn and its spindle (weaver)
+        for (int j = 0; j < 4; j++) for (int i = 0; i < 4; i++) if (!((i == 0 || i == 3) && (j == 0 || j == 3))) P.put(ix + i, iy + j, kPurple[(i + j) % 2 ? 3 : 2], 3);
+        P.put(ix + 1, iy, kPurple[4], 3); P.put(ix + 4, iy + 3, kWood[3], 3); P.put(ix + 5, iy + 3, kWood[2], 3);
+        break;
+      case 7:   // a stretched hide (tannery)
+        for (int j = 0; j < 5; j++) {
+          int hw = j == 0 || j == 4 ? 1 : 2;
+          for (int i = -hw; i <= hw; i++) P.put(ix + 1 + i, iy - 1 + j, kLeather[i < 0 ? 4 : (i > 0 ? 2 : 3)], 3);
+        }
+        break;
+      case 8:   // an ingot (smelter)
+        for (int i = 0; i <= 3; i++) P.put(ix + i, iy + 1, kGold[4], 3);
+        for (int i = -1; i <= 4; i++) P.put(ix + i, iy + 2, kGold[3], 3);
+        for (int i = -1; i <= 4; i++) P.put(ix + i, iy + 3, kGold[1], 3);
+        break;
+      case 9:   // a sheaf of wheat (granary)
+        for (int i = 0; i < 5; i++) for (int j = 0; j < 5; j++) if (j >= 2 || (i + j) % 2 == 0) P.put(ix - 1 + i, iy - 1 + j, kGold[j < 2 ? 4 : (j == 3 ? 1 : 3)], 3);
+        break;
+      case 10:   // a frame saw (sawmill)
+        for (int i = -1; i <= 4; i++) P.put(ix + i, iy + 1, kIron[3], 3);
+        for (int i = -1; i <= 4; i += 2) P.put(ix + i, iy + 2, kIron[2], 3);
+        P.put(ix - 2, iy, kWood[3], 3); P.put(ix - 2, iy + 1, kWood[3], 3); P.put(ix + 5, iy, kWood[2], 3); P.put(ix + 5, iy + 1, kWood[2], 3);
+        for (int i = -2; i <= 5; i++) P.put(ix + i, iy - 1, kWood[2], 3);
+        break;
+      case 11:   // a sack of flour (mills)
+        for (int j = 0; j < 4; j++) for (int i = 0; i < 4; i++) P.put(ix + i, iy + j, kCloth[i == 0 ? 4 : (i == 3 || j == 3 ? 2 : 3)], 3);
+        P.put(ix + 1, iy - 1, kCloth[3], 3); P.put(ix + 2, iy - 1, kCloth[2], 3); P.put(ix + 1, iy, kWood[1], 3); P.put(ix + 2, iy, kWood[1], 3);
+        break;
       default:  // coin pouch
         for (int j = 1; j < 4; j++) for (int i = 0; i < 4; i++) P.put(ix + i, iy + j, kLeather[3 - (i == 3)], 3);
         P.put(ix + 1, iy, kLeather[2], 3); P.put(ix + 2, iy, kLeather[2], 3); P.put(ix + 1, iy + 2, kGold[4], 3);
         break;
     }
   };
+  // M1 economy: the trade's sign
+  int tradeIcon = 2;
+  switch (p.trade) {
+    case Building::Bakery: tradeIcon = 3; break;
+    case Building::Butcher: tradeIcon = 4; break;
+    case Building::Fishmonger: tradeIcon = 5; break;
+    case Building::Weaver: tradeIcon = 6; break;
+    case Building::Tanner: tradeIcon = 7; break;
+    case Building::Smelter: tradeIcon = 8; break;
+    case Building::Granary: tradeIcon = 9; break;
+    case Building::Sawmill: tradeIcon = 10; break;
+    case Building::Watermill: case Building::Windmill: tradeIcon = 11; break;
+    default: break;
+  }
+  if (p.trade == Building::Granary || p.trade == Building::Sawmill || p.trade == Building::Tanner || p.trade == Building::Watermill)
+    sign((float)p.doorX + 10, frontZ0 + 20, tradeIcon);
   if (b == Building::Inn) sign((float)p.doorX + 9, frontZ0 + 26, 0);
-  if (b == Building::Smithy) sign((float)p.doorX - 21, frontZ0 + 22, 1);
+  if (b == Building::Smithy) sign((float)p.doorX - 21, frontZ0 + 22, p.trade == Building::Smelter ? 8 : 1);
   // lanterns by the door
   if (b == Building::Inn || b == Building::Keep || b == Building::Temple || b == Building::Palace || b == Building::Barracks) {
     for (int s = -1; s <= 1; s += 2) {
@@ -1946,6 +2121,9 @@ void overlays(Painter& P, BuildingInfo* info) {
     bool stripes = b == Building::Shop;
     static const Ramp* cloths[3] = {&kRed, &kCloth, &kPurple};
     const Ramp& A = *cloths[hash3(4, 4, p.seed) % 3];
+    // M1 economy: each trade's awning in its own colours (the general store keeps red and white)
+    const Ramp SR = p.trade == Building::Bakery ? ramp(rgba(206, 150, 56)) : p.trade == Building::Fishmonger ? ramp(rgba(56, 96, 168))
+                  : p.trade == Building::Weaver ? kPurple : p.trade == Building::Butcher ? ramp(rgba(150, 40, 44)) : kRed;
     float ax0 = b == Building::Shop ? m.x0 + 3 : p.doorX - 9.0f, ax1 = b == Building::Shop ? m.x1 - 3 : p.doorX + 9.0f;
     float az = frontZ0 + (b == Building::Shop ? 26.0f : 19.0f);   // the shop canopy hangs above its windows
     if (m.floorV > 0) az = frontZ0 + (float)std::min(m.floorV - 1, b == Building::Shop ? 26 : 19);   // M0b: under the floor line
@@ -1953,13 +2131,13 @@ void overlays(Painter& P, BuildingInfo* info) {
       for (int k = 0; k < 6; k++) {
         auto q = at(x + 0.5f, D + 0.5f + k * 0.5f, az - k);
         bool st = ((x / 4) & 1) == 0;
-        const Ramp& R = stripes ? (st ? kRed : kCloth) : A;
+        const Ramp& R = stripes ? (st ? SR : kCloth) : A;
         int kk = k == 0 ? 4 : (k < 4 ? 3 : 2);
         P.put(q.first, q.second, R[kk], 3);
       }
     for (int x = (int)ax0; x < (int)ax1; x++) {
       auto q = at(x + 0.5f, D + 3.5f, az - 6);
-      if ((x & 3) == 1 || (x & 3) == 2) P.put(q.first, q.second, (stripes && ((x / 4) & 1) == 0) ? kRed[1] : (stripes ? kCloth[1] : A[1]), 3);
+      if ((x & 3) == 1 || (x & 3) == 2) P.put(q.first, q.second, (stripes && ((x / 4) & 1) == 0) ? SR[1] : (stripes ? kCloth[1] : A[1]), 3);
     }
     // posts at the awning's ends
     for (int s = 0; s < 2; s++) {
@@ -1970,7 +2148,7 @@ void overlays(Painter& P, BuildingInfo* info) {
       }
     }
     // the shop's sign projects on its bracket from the east awning post, in front of the canopy (painted after it)
-    if (b == Building::Shop) sign(ax1 - 2, az - 1, 2);
+    if (b == Building::Shop) sign(ax1 - 2, az - 1, tradeIcon);
   }
   // M1 kingdom identity (VISION_PLAN 15.8): the ruling kingdom's colours (BuildingFacts::banner, banner2, emblem; red and
   // gold where the facts carry none). hang: a banner hanging flat on a front wall (face at ground y fy) from height zTop,
@@ -2073,7 +2251,8 @@ void overlays(Painter& P, BuildingInfo* info) {
     for (int k = 1; k < 6; k++) P.put(q.first, q.second - k, kGold[k == 3 ? 4 : 2], 3);
     P.put(q.first - 1, q.second - 4, kGold[3], 3); P.put(q.first + 1, q.second - 4, kGold[1], 3);
   }
-  if (b == Building::Tower) {
+  if (b == Building::Tower && p.trade == Building::Windmill) windmillDress(P, at);
+  if (b == Building::Tower && p.trade != Building::Windmill) {
     const Mass& t = p.sc.ms.back().round ? p.sc.ms.back() : p.sc.ms[p.doorMass];
     if (t.round) {
       // M0b: three storeys (workroom, library, the mage's chamber), each a band of the drum between string courses

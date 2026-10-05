@@ -17,13 +17,16 @@
 #include <vector>
 #include "rpg/sim/world.h"
 #include "rpg/world/coords.h"
+#include "rpg/world/economy.h"
 #include "rpg/world/ids.h"
 
 namespace ew {
 
 // Bumped when the endless generator's output changes. Old saves are not kept compatible across M1 (owner rule,
 // 2026-10-04); the save stores it so a mismatch can say "this save is from an older world".
-constexpr int ENDLESS_GEN_VER = 2;   // 2: M1 round 2 (meandering relief, organic terraces, settlement water)
+constexpr int ENDLESS_GEN_VER = 5;   // 2: M1 round 2 (meandering relief, organic terraces, settlement water); 4: M1 fixer (markets, specialisations)
+                                     // 3: settlement economy (specialisations, production buildings, market rows)
+                                     // 5: M1 fixer round 2 (planned markets, tables and cloths, pens and their beasts, the mine hill)
 
 // One sample of the macro fields (L0) at a global tile. Q16 fixed point: 65536 = 1.0.
 struct MacroSample {
@@ -59,6 +62,10 @@ struct SitePlan {
   Gid kingdom = 0;                  // 0: wildlands
   uint16_t flags = 0;               // SPF_*
   Archetype archetype = Archetype::Plain;
+  // M1 economy (rpg/world/economy.h): what a settlement lives from (from its surroundings), and the goods it makes and
+  // must buy (goodBit masks). Specialty::None: the settlement generator derives it from the archetype and the land.
+  Specialty special = Specialty::None;
+  uint32_t produces = 0, needs = 0;
   art::Monster theme = art::Monster::Spider;   // dungeon inhabitants
   uint16_t bldgBase = 0, bldgCap = 0;          // building ids: makeId(rx, ry, IdKind::Bldg, bldgBase + i), i < bldgCap
   std::string name;

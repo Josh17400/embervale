@@ -7,6 +7,7 @@
 #include <vector>
 #include "engine/audio.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/world/economy.h"
 
 using art::Monster;
 using art::Prop;
@@ -281,7 +282,31 @@ void Game::updateFolk(Actor& a, float dt) {
     a.fleeT = 0;
   }
   a.thinkT -= dt;
-  if (a.thinkT <= 0) {
+  if (a.stallKeeper) {
+    // (M1 economy) a stall keeper minds the counter while the stall is open: back behind it, facing the customers.
+    // (M1 fixer) The way back (from shelter, from a door across the square) goes round the stalls by the path finder
+    // to the keeper's tile behind the counter, then the last step in; after the stall's closing hour the keeper is off
+    // duty and strolls the square until morning.
+    const int stx = (int)std::floor(a.home.x / TILE), sty = (int)std::floor(a.home.y / TILE);
+    if (ew::stallOpen(stx + world.ox, sty + world.oy, hour)) {
+      a.goal = a.home;
+      if (len2(a.home - a.p) < 9.0f) { a.st = AState::Idle; a.face = 0; return; }
+      if (tileX(a.p) == stx && tileY(a.p) == sty - 1) { a.p = a.home; a.st = AState::Idle; a.face = 0; return; }
+      const Vec2 post = tileCentre(stx, sty - 1);
+      if (!navStep(a, post, a.speed * 0.5f, dt)) moveActor(a, norm(post - a.p) * (a.speed * 0.45f * dt));
+      a.face = faceOf(post - a.p);
+      a.st = AState::Walk;
+      return;
+    }
+    // off duty: out from behind the counter (the keeper stood a step into the stall's row), then a stroll round the
+    // square behind the stall
+    if (tileY(a.p) == sty && std::fabs(a.p.x - a.home.x) < 12.0f) { a.p = tileCentre(stx, sty - 1); a.thinkT = 0; }
+    if (a.thinkT <= 0) {
+      a.thinkT = 3.0f + rng_.f() * 5.0f;
+      a.goal = tileCentre(stx, sty - 1) + Vec2(rng_.range(-4.0f, 4.0f) * TILE, rng_.range(-4.0f, -1.0f) * TILE);
+    }
+  }
+  if (a.thinkT <= 0 && !a.stallKeeper) {
     a.thinkT = 2.0f + rng_.f() * 4.0f;
     if (rng_.f() < 0.45f) a.goal = a.p;
     else {

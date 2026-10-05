@@ -34,8 +34,33 @@ enum class Building : uint8_t {
                // paintedAs() draws it as a Keep
   Barracks,    // M1: the royal guard's barracks in a palace compound (and city garrisons); painted as a StoneHouse
                // until it has its own look
+  // M1 economy (owner 2026-10-05, rpg/world/economy.h): the production buildings that make each settlement's living.
+  // Each paints on the frame of a base type (artBase) with its own trade's sign, yard and machinery.
+  Windmill,    // a round tapering tower under a cap, four lattice sails (2 storeys: the stone floor, the millstone loft)
+  Watermill,   // a stone mill house with an undershot water wheel on its river side (BuildingFacts::variant bit 0: west)
+  Granary,     // a raised barn of grain (on the farm frame), the sheaf sign
+  Bakery,      // a shop front with the loaf sign, an oven chimney
+  Butcher,     // a shop front with the ham sign
+  Tanner,      // a workshop house with the hide sign (stretching frames in its yard)
+  Fishmonger,  // a shop front with the fish sign
+  Smelter,     // a stone furnace house (on the smithy frame), the ingot sign, a tall stack
+  Sawmill,     // an open timber shed (on the farm frame), the saw sign
+  Weaver,      // a shop front with the spool sign
   COUNT
 };
+// M1 economy: the type whose frame (masses, walls, roof, storeys) a building is painted on; the production buildings
+// add their own signs and machinery over it
+inline Building artBase(Building b) {
+  switch (b) {
+    case Building::Windmill: return Building::Tower;
+    case Building::Watermill: return Building::StoneHouse;
+    case Building::Granary: case Building::Sawmill: return Building::Farmhouse;
+    case Building::Bakery: case Building::Butcher: case Building::Fishmonger: case Building::Weaver: return Building::Shop;
+    case Building::Tanner: return Building::House;
+    case Building::Smelter: return Building::Smithy;
+    default: return b;
+  }
+}
 // M1: the type whose painter draws b while a new type has no look of its own yet. The palace and the barracks have
 // their own painters now (art_building.cpp), so every type paints as itself.
 inline Building paintedAs(Building b) { return b; }
@@ -69,12 +94,13 @@ struct BuildingFacts {
   // Keeps, palaces, barracks and inns fly it where the painter sees fit.
   uint32_t banner = 0, banner2 = 0;
   int emblem = 0;
+  int variant = 0;      // M1 economy: type-specific detail (the watermill: bit 0 = its wheel on the west side)
 };
 // The storeys each type showed before M0b (and still shows for worlds before WORLDGEN_V7): inns and keeps 2, mage
 // towers 3, everything else 1. Header-only: the simulation (which does not link the art) needs it.
 inline int defaultStoreys(Building b) {
   switch (b) {
-    case Building::Inn: case Building::Keep: case Building::Barracks: case Building::Palace: return 2;
+    case Building::Inn: case Building::Keep: case Building::Barracks: case Building::Palace: case Building::Windmill: return 2;
     case Building::Tower: return 3;
     default: return 1;
   }

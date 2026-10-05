@@ -46,6 +46,33 @@ uint64_t chunkHash(const ChunkData& c) {
 }
 
 bool isSettle(SiteType t) { return t == SiteType::City || t == SiteType::Town || t == SiteType::Village; }
+
+// (M1 economy) the real world's spread of specialisations (owner: believable variety; lumber was the default for
+// temperate land): tallied over every seed a command visits, checked at its end
+int g_spec[(int)Specialty::COUNT] = {};
+int g_specArch[8] = {};
+void tallySpecialties(const SitePlan& p) {
+  if ((int)p.special < (int)Specialty::COUNT) g_spec[(int)p.special]++;
+  if ((int)p.archetype < 8) g_specArch[(int)p.archetype]++;
+}
+// prints the spread; fails when one specialisation holds more than 40 % (with enough settlements to judge) or a
+// specialisation never occurs
+int checkSpecialties(const char* tag) {
+  int n = 0, bad = 0;
+  for (int k = 1; k < (int)Specialty::COUNT; k++) n += g_spec[k];
+  printf("%s: specialisations over %d settlements:", tag, n);
+  for (int k = 1; k < (int)Specialty::COUNT; k++) printf(" %s %d (%d%%)", specialtyName((Specialty)k), g_spec[k], n ? g_spec[k] * 100 / n : 0);
+  printf(" | archetypes:");
+  static const char* an[8] = {"plain", "farming", "fishing", "port", "mining", "river", "hillfort", "market"};
+  for (int k = 0; k < 8; k++) printf(" %s %d", an[k], g_specArch[k]);
+  printf("\n");
+  if (n >= 40)
+    for (int k = 1; k < (int)Specialty::COUNT; k++) {
+      if (g_spec[k] * 100 > n * 40) { printf("FAIL: %s: %s is %d%% of settlements (max 40%%)\n", tag, specialtyName((Specialty)k), g_spec[k] * 100 / n); bad++; }
+      if (!g_spec[k]) { printf("FAIL: %s: no %s settlement at all\n", tag, specialtyName((Specialty)k)); bad++; }
+    }
+  return bad;
+}
 double dst(int32_t ax, int32_t ay, int32_t bx, int32_t by) { return std::sqrt((double)(ax - bx) * (ax - bx) + (double)(ay - by) * (ay - by)); }
 
 uint32_t rgb(int r, int g, int b) { return 0xFF000000u | ((uint32_t)std::clamp(b, 0, 255) << 16) | ((uint32_t)std::clamp(g, 0, 255) << 8) | (uint32_t)std::clamp(r, 0, 255); }
@@ -402,6 +429,7 @@ int endlessSeed(uint64_t seed, const char* mapDir, bool quick, bool budget) {
     if (p.ex < R0 * REGION || p.ey < R0 * REGION || p.ex >= (R1 + 1) * REGION || p.ey >= (R1 + 1) * REGION) continue;
     if (!isSettle(p.type)) { other++; continue; }
     settle.push_back(&p);
+    tallySpecialties(p);
     if (p.type == SiteType::City) {
       nCity++;
       if (!(p.flags & SPF_CAPITAL)) fail("city " + p.name + " is not a capital");
@@ -670,7 +698,45 @@ int cmdEndless(int argc, char** argv) {
     bad += f;
     if (f) failedSeeds++;
   }
+  bad += checkSpecialties("endless");
   printf("endless: %llu seeds, %d failed (%d failures)\n", (unsigned long long)(b - a + 1), failedSeeds, bad);
+  return bad ? 1 : 0;
+}
+
+// rpg_test --specialties [--seeds A..B]: the spread of specialisations over the real world's settlements (region plans
+// only, 2048 x 2048 tiles round the origin per seed): no specialisation above 40 %, every one present
+int cmdSpecialties(int argc, char** argv) {
+  uint64_t a = 1, b = 20;
+  bool list = false;   // --list: every settlement (for screenshot scripts: --play --at X,Y)
+  for (int i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "--seeds") && i + 1 < argc) parseSeedRange(argv[++i], a, b);
+    else if (!strcmp(argv[i], "--list")) list = true;
+  }
+  for (uint64_t s = a; s <= b; s++) {
+    EndlessSource A(s);
+    std::set<Gid> seen;
+    for (int ry = -4; ry <= 3; ry++)
+      for (int rx = -4; rx <= 3; rx++)
+        for (const SitePlan& p : A.region(rx, ry).sites)
+          if (isSettle(p.type) && seen.insert(p.id).second) {
+            tallySpecialties(p);
+            if (list) {
+              printf("seed %llu %s %s arch %d %s at %d,%d", (unsigned long long)s, siteTypeName(p.type), specialtyName(p.special), (int)p.archetype, p.name.c_str(), p.ex, p.ey);
+              if (p.special == Specialty::Mining) {   // where its mine is (the chunks over its footprint)
+                ChunkData c;
+                for (int32_t cy = (p.gy - 12) >> 5; cy <= (p.gy + p.h + 12) >> 5; cy++)
+                  for (int32_t cx = (p.gx - 12) >> 5; cx <= (p.gx + p.w + 12) >> 5; cx++) {
+                    A.chunk(cx, cy, c);
+                    for (int i = 0; i < ChunkData::N; i++)
+                      if (c.prop[i] == (int)art::Prop::MineEntrance + 1 || c.prop[i] == (int)art::Prop::MineHill + 1) printf("  mine %d,%d", cx * CHUNK + i % CHUNK, cy * CHUNK + i / CHUNK);
+                  }
+              }
+              printf("\n");
+            }
+          }
+  }
+  const int bad = checkSpecialties("specialties");
+  printf("specialties: %d failures\n", bad);
   return bad ? 1 : 0;
 }
 
@@ -797,6 +863,7 @@ int cmdGroundAt(int argc, char** argv) {
 
 }  // namespace
 
+RPG_TEST_CMD("--specialties", "the real world's spread of settlement specialisations (none above 40 %) [--seeds A..B]", cmdSpecialties);
 RPG_TEST_CMD("--ground-at", "ASCII dump of the endless ground around a global tile [--seeds S..S] --ground-at X,Y [--r R] [--levels | --nat]", cmdGroundAt);
 RPG_TEST_CMD("--world-places", "interesting global tiles for world screenshot scripts [--seeds A..B]", cmdPlaces);
 RPG_TEST_CMD("--endless", "endless generator: start plan, order independence, spacing, kingdoms, rock, reachability, cost "

@@ -105,7 +105,7 @@ bool Gen::fits(const IRect& r, Building type, int storeys) const {
     for (int x = r.x - 1; x <= r.x + r.w; x++) {
       if (!in(x, y)) continue;
       const size_t i = I(x, y);
-      if (front[i] || (noBuild[i] & 2)) return false;
+      if (front[i] || (noBuild[i] & 6)) return false;   // (4: a street market's lot, kept open for its stalls)
     }
   // our front lies under nobody's sprite
   for (int x = r.x; x < r.x + r.w; x++) if (cover[I(x, r.y + r.h - 1)]) return false;
@@ -182,6 +182,12 @@ bool Gen::placeBuilding(const Want& w) {
     } else if (dist(s.first, s.second) > w.near + t / 500.0f) continue;
     // (M1) a farm stands out among its fields, never on the market square
     if (w.b == Building::Farmhouse && dist(s.first, s.second) < 0.62f - t / 2500.0f) continue;
+    // (M1 economy) the windmill stands out by the fields in the wind; the noisy, smelly and dusty trades (the smelter,
+    // the sawmill, the tannery, the granary) keep to the edge
+    // (M1 fixer round 2: a village's mill stands just past its houses, in sight of the green, not out at the far edge)
+    if (w.b == Building::Windmill && dist(s.first, s.second) < (village ? 0.55f : 0.78f) - t / 2000.0f) continue;
+    if ((w.b == Building::Smelter || w.b == Building::Sawmill || w.b == Building::Tanner || w.b == Building::Granary) && !city &&
+        dist(s.first, s.second) < 0.5f - t / 2500.0f) continue;
     if (city && w.d != District::COUNT && districtAt(s.first, s.second) != w.d && t < tries * 6 / 10) continue;
     if (w.north && s.second > cy - 2 && t < tries / 2) continue;
     if (M.at(s.first, s.second) == Ground::Bridge) continue;
@@ -247,11 +253,10 @@ void Gen::services() {
     want.push_back(Want{b, r, w, h, near, req, north, d, px, py});
   };
   if (village) {
+    // (owner 2026-10-05) every village keeps its inn, its smith, its well and a small market; a general store in some
     add(Building::Inn, Role::Innkeeper, 5 + rng.irange(2), 3, 0.5f, true);
-    bool smithFirst = arch == Archetype::Mining || (arch != Archetype::Farming && arch != Archetype::Market && rng.f() < 0.5f);
-    add(smithFirst ? Building::Smithy : Building::Shop, smithFirst ? Role::Smith : Role::Merchant, smithFirst ? 5 : 4, 3, 0.6f, true);
-    if (rng.f() < 0.45f || arch == Archetype::Market)
-      add(smithFirst ? Building::Shop : Building::Smithy, smithFirst ? Role::Merchant : Role::Smith, smithFirst ? 4 : 5, 3, 0.8f, false);
+    add(Building::Smithy, Role::Smith, 5, 3, 0.65f, true);
+    if (rng.f() < 0.45f || arch == Archetype::Market) add(Building::Shop, Role::Merchant, 4, 3, 0.75f, false);
   } else if (town) {
     add(Building::Inn, Role::Innkeeper, 6, 3, 0.45f, true);
     add(Building::Shop, Role::Merchant, 4, 3, 0.45f, true);
@@ -297,15 +302,31 @@ void Gen::services() {
     if (arch == Archetype::Mining) add(Building::Smithy, Role::Smith, 5, 3, 0.8f, false, false, District::Crafts);
     if (arch == Archetype::Port || arch == Archetype::RiverCrossing) add(Building::Inn, Role::Innkeeper, 6, 3, 0.8f, false);
   }
+  // (M1 economy) the mill, the specialisation's workshop, the towns' trades; the optional ones after the homes
+  {
+    std::vector<Want> econ;
+    economyServices(econ);
+    for (const Want& w : econ) (w.req ? want : lateWants).push_back(w);
+  }
   for (const Want& w : want) {
     int before = (int)M.bldgs.size();
-    if (!placeBuilding(w) && w.req) {
-      Want s = w;
-      s.w = std::max(3, w.w - 1); s.h = std::max(2, w.h - 1); s.near = 2.0f; s.north = false; s.d = District::COUNT; s.px = s.py = -1;
-      placeBuilding(s);
-    }
+    placeWant(w);
     if (w.b == Building::Keep && (int)M.bldgs.size() > before) keepIdx = before;
   }
+}
+
+bool Gen::placeWant(const Want& w0) {
+  Want w = w0;
+  bool ok = false;
+  if (w.water) ok = placeByWater(w.b, w.r, w.w, w.h, w.water == 1);
+  if (!ok && w.water == 1) { w.b = Building::Windmill; w.w = 4; w.h = 3; w.near = 1.2f; }   // no bank for a wheel: wind
+  if (!ok) ok = placeBuilding(w);
+  if (!ok && w.req) {
+    Want s = w;
+    s.w = std::max(3, w.w - 1); s.h = std::max(w.b == Building::Windmill ? 3 : 2, w.h - 1); s.near = 2.0f; s.north = false; s.d = District::COUNT; s.px = s.py = -1;
+    ok = placeBuilding(s);
+  }
+  return ok;
 }
 
 void Gen::homes() {
@@ -368,8 +389,10 @@ void Gen::homes() {
   // still short of the scale (a river or the sea took the land, a hillside's terraces): every open tile near a street
   // becomes a candidate doorstep for a cottage, the footpaths may run a little longer
   const TownScale need = townScale(P.type);
-  if (have < need.homesMin + 2) {
-    pathMax = 12;
+  // (M1 economy: a second, wider round when the first leaves a hillside city short: the footpaths may run to 15)
+  for (int round = 0; round < 2 && have < need.homesMin + 2; round++) {
+    pathMax = round == 0 ? 12 : 15;
+    const int reach = round == 0 ? 5 : 8;
     std::vector<int> spots;
     for (int y = 2; y < H - 2; y++)
       for (int x = 2; x < W - 2; x++) {
@@ -377,7 +400,7 @@ void Gen::homes() {
         if ((k != K_NONE && k != K_YARD) || M.bldgAt[I(x, y)] >= 0 || water[I(x, y)]) continue;
         if (!walled && dist(x, y) > 1.15f) continue;
         bool near = false;
-        for (int oy = -5; oy <= 5 && !near; oy++) for (int ox = -5; ox <= 5; ox++) if (isStreet(x + ox, y + oy)) { near = true; break; }
+        for (int oy = -reach; oy <= reach && !near; oy++) for (int ox = -reach; ox <= reach; ox++) if (isStreet(x + ox, y + oy)) { near = true; break; }
         if (near) spots.push_back(y * W + x);
       }
     for (size_t i = spots.size(); i > 1; i--) std::swap(spots[i - 1], spots[(size_t)rng.irange((int)i)]);
@@ -388,6 +411,9 @@ void Gen::homes() {
     }
   }
   pathMax = 12;
+  // (M1 economy) the optional trades where the homes left room
+  for (const Want& w : lateWants) placeWant(w);
+  lateWants.clear();
 }
 
 // ------------------------------------------------------------------------------------------------ the palace compound

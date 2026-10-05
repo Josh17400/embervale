@@ -174,8 +174,17 @@ Canvas render(const ew::SettlementOut& so, const ew::KingdomPlan& k, bool night)
   auto putProp = [&](int x, int y, int p) {
     Prop pp = (Prop)(p - 1);
     if (pp == Prop::Filler) return;
-    if (!propCache.count(p)) propCache[p] = pp == Prop::Banner ? banner : art::propSprite(pp);
-    const Canvas& s = propCache[p];
+    int key = p;
+    if (art::isStall(pp)) {   // the awning cloth steps along a row, as the view does it (render.cpp)
+      const int gx = so.gx + x, gy = so.gy + y;
+      const int row = (int)(ghash(0, gy) % (uint32_t)art::kStallAwnings);
+      const int col3 = gx >= 0 ? gx / 3 : -((-gx + 2) / 3);
+      const int aw = ((col3 * 5 + row) % art::kStallAwnings + art::kStallAwnings) % art::kStallAwnings;
+      key = 1000 + art::stallTrade(pp) * 16 + aw;
+      if (!propCache.count(key)) propCache[key] = art::marketStall(art::stallTrade(pp), aw);
+    }
+    if (!propCache.count(key)) propCache[key] = pp == Prop::Banner ? banner : art::propSprite(pp);
+    const Canvas& s = propCache[key];
     const int w = art::propW(pp), h = art::propH(pp);
     Canvas f(w, h);
     for (int j = 0; j < h; j++) for (int i = 0; i < w; i++) f.set(i, j, s.get(i, j));

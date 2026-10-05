@@ -7,5 +7,5 @@
 bool flatProp(art::Prop p);      // lies on the ground: drawn before the y-sorted scene
 bool natureProp(art::Prop p);    // gets a small per-tile position jitter on the overworld
 bool treeProp(art::Prop p);      // fades when the player walks behind it
-int propShadow(art::Prop p);     // ground shadow: 0 none, 1 tree-sized, 2 large object
+int propShadow(art::Prop p);     // ground shadow: 0 none, 1 tree-sized, 2 large object, 3 a market stall's awning
 bool propLight(art::Prop p, float& radius, Color& c);   // light source: radius (px) and colour

@@ -28,7 +28,8 @@ const char* biomeName(Biome b) {
 }
 const char* bldgTypeName(art::Building t) {
   static const char* n[] = {"HOUSE", "HOUSE", "INN", "SMITHY", "GENERAL GOODS", "TEMPLE", "THE KEEP", "MAGE TOWER", "FARMHOUSE", "HUT",
-                            "THE PALACE", "BARRACKS"};
+                            "THE PALACE", "BARRACKS", "WINDMILL", "WATERMILL", "GRANARY", "BAKERY", "BUTCHER", "TANNERY",
+                            "FISHMONGER", "SMELTER", "SAWMILL", "WEAVER"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)art::Building::COUNT, "a name for every building type");
   int i = (int)t;
   return i >= 0 && i < (int)art::Building::COUNT ? n[i] : "HALL";
@@ -1805,13 +1806,22 @@ int bldgStoreysV7(art::Building t, int wTiles, int hTiles, uint32_t h) {
     case art::Building::House: return wTiles >= 5 ? (f < 0.65f ? 2 : 1) : (wTiles >= 4 ? (f < 0.4f ? 2 : 1) : 1);
     case art::Building::StoneHouse: return wTiles >= 4 ? (f < 0.6f ? 2 : 1) : (f < 0.3f ? 2 : 1);   // narrow town houses too
     case art::Building::Shop: return wTiles >= 4 && f < 0.7f ? 2 : 1;   // the shopkeeper lives above the shop
-    default: return 1;   // smithy, temple, farmhouse, hut
+    // M1 economy: the trades' shop fronts are shops (the family above in the wider ones); the windmill's tower holds
+    // the millstone loft over the stone floor
+    case art::Building::Bakery: case art::Building::Butcher: case art::Building::Fishmonger: case art::Building::Weaver:
+      return wTiles >= 4 && f < 0.6f ? 2 : 1;
+    case art::Building::Windmill: return 2;
+    default: return 1;   // smithy, temple, farmhouse, hut, watermill, granary, tannery, smelter, sawmill
   }
 }
 bool bldgHearthV7(art::Building t, int storeys, uint32_t h) {
   switch (t) {
     case art::Building::Temple: case art::Building::Tower: return false;   // braziers and a cauldron, no chimney
     case art::Building::Shop: return storeys >= 2 || (h >> 8) % 100 < 40;   // living quarters cook; a lock-up shop may not
+    case art::Building::Butcher: case art::Building::Fishmonger: case art::Building::Weaver: return storeys >= 2 || (h >> 8) % 100 < 50;
+    // M1 economy: mills, the granary and the sawmill burn nothing (flour dust, grain, sawdust); the bakery's ovens, the
+    // smelter's furnace and the tannery's vats do
+    case art::Building::Windmill: case art::Building::Watermill: case art::Building::Granary: case art::Building::Sawmill: return false;
     default: return true;   // homes, the inn's kitchen, the smithy's forge, the keep's great hearth
   }
 }

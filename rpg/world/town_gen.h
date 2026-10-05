@@ -5,8 +5,11 @@
 //   town_build.cpp   buildings: landmarks and services first, then homes by district (frontage plots with uneven
 //                    setbacks and footpaths to the doors), the V5 sprite clearance on occupancy grids, the capital's
 //                    palace compound (walled courtyard, gardens, fountain, palace, barracks, royal guard)
-//   town_dress.cpp   centrepieces, market stalls, lamps, banners, signposts, yards and gardens, fields and pastures,
-//                    archetype dressing (quays, mine carts, palisades), greenery, townsfolk and guards, the used mask
+//   town_dress.cpp   centrepieces, lamps, banners, signposts, yards and gardens, fields and pastures, archetype
+//                    dressing (quays, palisades), greenery, townsfolk and guards, the used mask
+//   town_market.cpp  (M1 economy) the settlement's specialisation and its production buildings, the market: stalls in
+//                    tidy rows facing the walking space with their stock and keepers; the other squares' benches and
+//                    trees; the trades' yards (mine, ore carts, log piles, drying racks, hide frames, troughs)
 // Determinism: only the ctx inputs; one Rng seeded from the plan's seed; + - * / sqrt and ew::dsin/dcos/datan2 (no libm
 // transcendentals), so MSVC, clang and Emscripten build the same town.
 #pragma once
@@ -53,6 +56,7 @@ struct Gen {
   bool walled = false;           // a curved stone wall (cities, hill-fort towns)
   bool palisade = false;         // a fence ring (hill-fort villages)
   Archetype arch = Archetype::Plain;
+  Specialty spec = Specialty::None;   // (M1 economy) what the settlement lives from (SitePlan::special, else derived)
   int cx = 0, cy = 0;            // the heart (local)
   float rx = 1, ry = 1;          // the settlement's radii (1.0 = the footprint's edge)
   float wallR = 0.93f;           // the wall ring's normalised radius
@@ -80,6 +84,16 @@ struct Gen {
   int palaceIdx = -1, barracksIdx = -1, keepIdx = -1;
   std::vector<int> gateBearing;  // per wall gap: index of the bearing it serves (-1: a side gate, -2: the palace compound)
   int slot = 0;                  // spawn slots
+  // (M1 economy) the market: every stall (its middle tile and trade) and the tiles kept clear for its customers and
+  // keepers (no banner, bench or tree may stand there)
+  struct Stall { int x, y, trade; };
+  std::vector<Stall> stalls;
+  std::vector<uint8_t> reserved;
+  int cpX = -1, cpY = -1;        // the main square's centrepiece (towns and cities: across the square from the market)
+  // (M1 fixer) the market place: the side of the heart the main square opens out to for the stalls (0 north, 1 south,
+  // 2 east, 3 west; by the town's seed, so no two towns hold their market the same way) and that part's bounds
+  int mktSide = 0;
+  IRect mktZone;
   int pathMax = 12;              // the longest footpath from a door to the street
 
   // ---------------------------------------------------------------- helpers
@@ -122,7 +136,12 @@ struct Gen {
   void pruneStreets();               // streets the heart cannot reach go back to the land               // hill-fort villages: a fence ring with gaps where the streets leave
 
   // ---------------------------------------------------------------- town_build.cpp
-  struct Want { art::Building b; Role r; int w, h; float near; bool req; bool north; District d; int px, py; };
+  struct Want {
+    art::Building b; Role r; int w, h; float near; bool req; bool north; District d; int px, py;
+    int water = 0;   // (M1 economy) 1: beside a river (the watermill's wheel), 2: by the shore (placeByWater)
+  };
+  std::vector<Want> lateWants;   // (M1 economy) the optional trades, built where the homes leave room
+  bool placeWant(const Want& w); // services(): one want, by the water when it asks, with the fallback for required ones
   int putBldg(art::Building type, IRect r, Role owner, int storeys);
   bool fits(const IRect& r, art::Building type, int storeys) const;
   bool footpath(int ax, int ay, std::vector<std::pair<int, int>>& path) const;
@@ -148,6 +167,19 @@ struct Gen {
   void archetypeDress();
   void greenery();
   void folk();
+  // ---------------------------------------------------------------- town_market.cpp (M1 economy)
+  void pickSpecialty();              // spec from the plan, or from the archetype and the land
+  void economyServices(std::vector<Want>& want);   // the production buildings for services()
+  bool placeByWater(art::Building type, Role owner, int bw, int bh, bool sideWater);   // watermill, fishmonger
+  bool walkable(int x, int y) const; // nothing solid stands here (buildings, walls, water, solid props)
+  bool keepsWay(int x, int y) const; // (M1 fixer) something solid on (x, y) would cut nobody off (a local check: the
+                                     // open tiles beside it still reach each other round it)
+  bool putSolid(int x, int y, art::Prop p);   // setProp guarded by keepsWay when p is solid (false: nothing placed)
+  void marketLots();                 // (M1 fixer) lots kept along the main street for a street market (noBuild bit 4)
+  int lotStalls = 0;                 // the stalls those lots hold
+  void markets();                    // the market rows on the main square (or along the main street), the keepers
+  void squareDress();                // the other squares: benches, trees, a lamp
+  void tradeYards();                 // the specialisation's yard props round its buildings and at the edge
   void finish();
   void addSpawn(Role r, int x, int y);
 };

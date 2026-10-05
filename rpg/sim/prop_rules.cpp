@@ -23,6 +23,9 @@ bool propSolid(Prop p) {
     // M0b: stairs are walked onto (that changes floor); doors stand open in their doorways
     case Prop::StairsUp: case Prop::StairsDown: case Prop::DoorH: case Prop::DoorV:
       return false;
+    // M1 fixer round 2: the mine's track is walked over
+    case Prop::MineRail:
+      return false;
     default: return true;
   }
 }

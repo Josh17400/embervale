@@ -79,6 +79,7 @@ struct Actor {
   float lastHitT = -99;    // Game::time this actor last took damage (troll regen pauses)
   // town defence (M0): townsfolk run home and hide, brave ones with a tool fight as militia, guards converge
   bool militia = false;    // a brave adult with a tool (smith, farmer...): fights weakly when monsters come
+  bool stallKeeper = false; // (M1 economy) keeps a market stall: stands behind its counter facing the customers
   bool indoors = false;    // reached its home door this frame: Game moves it indoors (out of `actors`) until it is safe
   int homeBldg = -1;       // overworld building it shelters in (-1 not chosen yet, -2 none)
   float fleeT = 0;         // seconds spent running for home during this threat

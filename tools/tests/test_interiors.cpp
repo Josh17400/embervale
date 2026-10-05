@@ -568,15 +568,69 @@ int interiorChecks(uint64_t seed) {
       }
     }
   }
+  // M1 economy: the production buildings (VISION_PLAN 15.7: purposeful rooms). Every type on a few footprints and biomes,
+  // with the generator's storeys and hearth; the rooms the trade needs: the windmill's millstones in its loft above the
+  // grain store, the watermill's in its hall, the bakery's oven behind the counter, the smelter's furnace, the sawmill's
+  // benches, the tannery's vats, the weaver's loom
+  {
+    static const Biome biomes[4] = {Biome::Plains, Biome::Snow, Biome::Desert, Biome::Forest};
+    struct T { Building t; int w, h; Role r; Prop need; int needFloor; };
+    static const T types[] = {
+        {Building::Windmill, 4, 3, Role::Farmer, Prop::Grindstone, 1}, {Building::Watermill, 4, 3, Role::Farmer, Prop::Grindstone, 0},
+        {Building::Granary, 4, 3, Role::Farmer, Prop::COUNT, 0},       {Building::Bakery, 4, 3, Role::Merchant, Prop::COUNT, 0},
+        {Building::Butcher, 4, 3, Role::Merchant, Prop::COUNT, 0},     {Building::Tanner, 4, 3, Role::Villager, Prop::QuenchTub, 0},
+        {Building::Fishmonger, 4, 3, Role::Merchant, Prop::COUNT, 0},  {Building::Smelter, 5, 3, Role::Smith, Prop::Forge, 0},
+        {Building::Sawmill, 5, 3, Role::Villager, Prop::Workbench, 0}, {Building::Weaver, 4, 3, Role::Merchant, Prop::Loom, 0}};
+    int econ = 0, econBad = 0;
+    for (const T& tt : types)
+      for (int k = 0; k < 8; k++) {
+        Bldg b;
+        b.type = tt.t;
+        b.r = IRect{0, 0, tt.w + (k % 3 == 2 && tt.t != Building::Windmill ? 1 : 0), tt.h};
+        b.owner = tt.r;
+        const uint32_t hs = (uint32_t)(seed * 2246822519u) ^ (uint32_t)(k * 7919 + (int)tt.t * 104729);
+        b.storeys = (uint8_t)bldgStoreysV7(b.type, b.r.w, b.r.h, hs);
+        b.hearth = bldgHearthV7(b.type, b.storeys, hash32(hs + 77u));
+        b.biome = biomes[k % 4];
+        b.seed = hash32(hs ^ 0xEC0u);
+        b.genVer = WORLDGEN_LATEST;
+        s7.bldgs++;
+        econ++;
+        uint64_t sig = 0;
+        std::string why = checkBuildingV7(b, s7, sig);
+        if (why.empty() && b.type == Building::Bakery) {   // the bakehouse: an oven or a hearth behind the counter
+          Map m;
+          genInterior(m, b, b.seed, 0);
+          bool oven = false;
+          for (uint8_t p : m.prop) if (p == (int)Prop::Oven + 1 || p == (int)Prop::Hearth + 1) oven = true;
+          if (!oven) why = "a bakery without an oven";
+        }
+        if (why.empty() && tt.need != Prop::COUNT && tt.needFloor < b.floors()) {
+          Map m;
+          genInterior(m, b, b.seed, tt.needFloor);
+          bool has = false;
+          for (uint8_t p : m.prop) if (p == (int)tt.need + 1) has = true;
+          if (!has) why = std::string("without its ") + std::to_string((int)tt.need) + " on floor " + std::to_string(tt.needFloor);
+        }
+        if (b.type == Building::Windmill && b.floors() < 2) why = "a windmill with one floor (its exterior shows two)";
+        if (!why.empty()) {
+          if (econBad < 6) out("FAIL: v7 %s (%dx%d, %s, variant %d): %s\n", bldgTypeName(b.type), b.r.w, b.r.h, biomeName(b.biome), k, why.c_str());
+          econBad++;
+        }
+      }
+    out("interiors: %d production buildings (mills, granaries, trades), %d invalid\n", econ, econBad);
+    s7.bad += econBad;
+  }
   bad += s7.bad;
   std::string var;
-  static const char* tn[] = {"house", "stonehouse", "inn", "smithy", "shop", "temple", "keep", "tower", "farm", "hut", "palace", "barracks"};
+  static const char* tn[] = {"house", "stonehouse", "inn", "smithy", "shop", "temple", "keep", "tower", "farm", "hut", "palace", "barracks",
+                             "windmill", "watermill", "granary", "bakery", "butcher", "tannery", "fishmonger", "smelter", "sawmill", "weaver"};
   int distinct = 0, total = 0, furnished = 0;
   for (auto& kv : s7.count) {
     int d = (int)s7.sigs[kv.first].size();
     distinct += d; total += kv.second; furnished += (int)s7.furn[kv.first].size();
     char t[48];
-    std::snprintf(t, sizeof t, " %s %d%%", kv.first < 12 ? tn[kv.first] : "?", kv.second ? d * 100 / kv.second : 0);
+    std::snprintf(t, sizeof t, " %s %d%%", kv.first < 22 ? tn[kv.first] : "?", kv.second ? d * 100 / kv.second : 0);
     var += t;
   }
   double ms7 = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t7).count();

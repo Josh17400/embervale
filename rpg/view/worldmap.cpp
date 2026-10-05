@@ -355,7 +355,14 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     const bool label = st.type == SiteType::City || (st.type == SiteType::Town && z <= 16) || (st.settlement() && z <= 8) || i == mapSel_;
     if (label) {
       const int prio = i == mapSel_ ? 0 : st.capital ? 1 : st.type == SiteType::City ? 2 : st.type == SiteType::Town ? 4 : 5;
-      labs.push_back({prio, s.x, s.y + r + 2, s.y - r - (st.capital ? 17 : 11), st.name, kInk, Color(0.95f, 0.9f, 0.8f, 0.6f)});
+      // (M1 economy) the selected place says what it lives from: "IRONHOLLOW - MINING VILLAGE"
+      std::string nm = st.name;
+      if (i == mapSel_ && st.settlement() && st.special) {
+        if (st.archetype == (uint8_t)ew::Archetype::Market && st.type != SiteType::Village)   // (M1 fixer) a market town says so
+          nm += std::string(" - MARKET ") + siteTypeName(st.type) + " - " + ew::specialtyName((ew::Specialty)st.special);
+        else nm += std::string(" - ") + ew::specialtyName((ew::Specialty)st.special) + " " + siteTypeName(st.type);
+      }
+      labs.push_back({prio, s.x, s.y + r + 2, s.y - r - (st.capital ? 17 : 11), nm, kInk, Color(0.95f, 0.9f, 0.8f, 0.6f)});
     }
   }
   // (M1 round 3) the tracked quest's destination: a large pulsing marker named after the place it leads to (even one

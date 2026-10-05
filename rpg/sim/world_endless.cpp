@@ -282,6 +282,9 @@ int World::addSitePlan(const ew::SitePlan& p) {
   s.capital = (p.flags & ew::SPF_CAPITAL) != 0;
   s.start = (p.flags & ew::SPF_START) != 0;
   s.archetype = (uint8_t)p.archetype;
+  s.special = (uint8_t)p.special;
+  s.produces = p.produces;
+  s.needs = p.needs;
   s.bldgFirst = (int)over.bldgs.size();
   s.bldgCount = 0;
   int h = (int)sites.size();
@@ -439,7 +442,7 @@ void World::prefetch(int ptx, int pty, int dirx, int diry) {
 
 int World::endlessDanger(int tx, int ty) const { return src ? src->danger(ox + tx, oy + ty) : 1; }
 
-int World::findSiteNear(int32_t gx, int32_t gy, SiteType t, int regions, bool capitalOnly) {
+int World::findSiteNear(int32_t gx, int32_t gy, SiteType t, int regions, bool capitalOnly, int archetype) {
   if (!endless || !src) return -1;
   const int32_t rx0 = ew::regionOf(gx), ry0 = ew::regionOf(gy);
   ew::Gid best = 0;
@@ -453,6 +456,7 @@ int World::findSiteNear(int32_t gx, int32_t gy, SiteType t, int regions, bool ca
         const ew::RegionPlan R = regionPlan(rx, ry);
         for (const ew::SitePlan& p : R.sites) {
           if (p.type != t || (capitalOnly && !(p.flags & ew::SPF_CAPITAL))) continue;
+          if (archetype >= 0 && (int)p.archetype != archetype) continue;
           int64_t dx = p.ex - gx, dy = p.ey - gy, d = dx * dx + dy * dy;
           if (d < bd) { bd = d; best = p.id; }
         }

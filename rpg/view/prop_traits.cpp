@@ -5,7 +5,8 @@ using art::Prop;
 
 bool flatProp(Prop p) {
   return p == Prop::Rug || p == Prop::LilyPad || p == Prop::Flowers1 || p == Prop::Flowers2 || p == Prop::Flowers3 || p == Prop::Bones ||
-         p == Prop::SkullPile || p == Prop::Mushrooms || p == Prop::Ladder || p == Prop::Filler || p == Prop::StairsDown;
+         p == Prop::SkullPile || p == Prop::Mushrooms || p == Prop::Ladder || p == Prop::Filler || p == Prop::StairsDown ||
+         p == Prop::MineRail;
 }
 bool natureProp(Prop p) { return (int)p <= (int)Prop::Fern; }
 bool treeProp(Prop p) {
@@ -40,5 +41,11 @@ bool propLight(Prop p, float& r, Color& c) {
 int propShadow(Prop p) {
   if (treeProp(p)) return 1;
   if (p == Prop::Boulder || p == Prop::Tent || p == Prop::Well || p == Prop::Fountain || p == Prop::Statue || p == Prop::Cart || p == Prop::RuinColumn) return 2;
+  // M1 economy: a stall's awning throws a wide shade over its counter and the ground before it; the yard machinery
+  if (art::isStall(p)) return 3;
+  if (p == Prop::OreCart || p == Prop::LogPile || p == Prop::Sacks || p == Prop::MineEntrance || p == Prop::MarketCross) return 2;
+  if (p == Prop::PenShelter) return 3;
+  if (p == Prop::MarketTable || p == Prop::GroundCloth) return 4;   // (M1 fixer round 2) two tiles wide, on the west one
+  if (p == Prop::Sheep || p == Prop::Cow) return 5;
   return 0;
 }

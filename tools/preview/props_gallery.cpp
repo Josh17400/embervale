@@ -101,6 +101,42 @@ void townSheet(const std::string& dir) {
   savePng(b.c, dir + "/town.png", kScale);
 }
 
+// (M1 fixer round 2) the market's forms: every trade's stall in its three forms (open, then closed), the open tables
+// and ground cloths (every goods and shade, open and closed), the market cross, the livestock, the pen shelter and
+// the mine track's joins, on paving
+void marketSheet(const std::string& dir) {
+  const int cellW = 52, cellH = 60;
+  const int rows = 2 * art::kStallForms + 3;
+  Board b(art::kStallTrades * cellW + 8, rows * cellH + 8);
+  for (auto& p : b.c.px) p = rgba(150, 146, 140);
+  for (int f = 0; f < art::kStallForms; f++)
+    for (int closed = 0; closed < 2; closed++)
+      for (int t = 0; t < art::kStallTrades; t++) {
+        Canvas s = art::marketStallForm(t, t + f * 3, f, closed != 0);
+        blitA(b.c, s, 4 + t * cellW, 4 + (f * 2 + closed) * cellH + cellH - s.h);
+      }
+  int row = art::kStallForms * 2;
+  for (int g = 0; g < art::kTableGoods; g++) {
+    Canvas s = art::marketTable(g, g % art::kTableShades, false);
+    blitA(b.c, s, 4 + g * cellW - 16, 4 + row * cellH + cellH - s.h);
+  }
+  row++;
+  for (int g = 0; g < art::kTableGoods; g++) {
+    Canvas s = g < art::kClothGoods ? art::groundCloth(g, g, false) : (g < 6 ? art::marketTable(g, g, true) : art::groundCloth(g, g, true));
+    blitA(b.c, s, 4 + g * cellW - 16, 4 + row * cellH + cellH - s.h);
+  }
+  row++;
+  const Prop more[] = {Prop::MarketCross, Prop::Sheep, Prop::Cow, Prop::PenShelter};
+  int x = 4;
+  for (Prop p : more) {
+    Canvas s = art::propSprite(p);
+    const int fw = art::propW(p), fh = art::propH(p), n = art::propFrames(p);
+    for (int f = 0; f < std::min(n, 2); f++) { blitA(b.c, s, x, 4 + row * cellH + cellH - fh, (n > 1 ? (f ? 6 : 0) : 0) * fw, fw); x += fw + 4; }
+  }
+  for (int j = 0; j < 16; j++) blitA(b.c, art::mineRail(j), x + (j % 8) * 18, 4 + row * cellH + 8 + (j / 8) * 20);
+  savePng(b.c, dir + "/market.png", kScale);
+}
+
 // a whole room, drawn like render.cpp + render_deco.cpp do
 Canvas composeRoom(const Map& m) {
   const int pad = 8;
@@ -197,6 +233,7 @@ int main(int argc, char** argv) {
   propsSheet(dir);
   clutterSheet(dir);
   townSheet(dir);
+  marketSheet(dir);
   rooms(dir);
   return 0;
 }

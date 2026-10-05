@@ -16,9 +16,9 @@ void settlementFootprint(SiteType type, Archetype arch, uint32_t seed, int& w, i
   const uint32_t hs = hash32(seed ^ 0xF00715EEu);
   const int jw = (int)(hs % 3u) * 2, jh = (int)((hs >> 4) % 3u) * 2;
   switch (type) {
-    case SiteType::City: w = 164 + jw; h = 130 + jh; break;   // room for the capital's palace compound in any city
+    case SiteType::City: w = 172 + jw; h = 138 + jh; break;   // room for the capital's palace compound in any city
     case SiteType::Town: w = 90 + jw; h = 72 + jh; break;
-    default: w = 44 + jw; h = 34 + jh; break;
+    default: w = 46 + jw; h = 36 + jh; break;   // (M1 economy: room for the mill, the trade and the market)
   }
   switch (arch) {
     case Archetype::Market: w += type == SiteType::Village ? 4 : 8; h += type == SiteType::Village ? 2 : 6; break;

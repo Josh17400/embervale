@@ -21,6 +21,7 @@ bool tallProp(Prop p) {
     case Prop::Flowers1: case Prop::Flowers2: case Prop::Flowers3: case Prop::TallGrass: case Prop::Mushrooms:
     case Prop::Bush: case Prop::Barrel: case Prop::Crate: case Prop::Woodpile: case Prop::FenceH: case Prop::FenceV:
     case Prop::Haystack: case Prop::Anvil: case Prop::Rock:
+    case Prop::Sacks: case Prop::Baskets: case Prop::OrePile: case Prop::LogPile: case Prop::Trough: case Prop::Filler: case Prop::Stump:
       return false;
     default: return true;
   }
@@ -44,6 +45,7 @@ bool Gen::freeTile(int x, int y) const {
   if (!in(x, y)) return false;
   const size_t i = I(x, y);
   if (mask[i] != K_NONE || M.bldgAt[i] >= 0 || M.wall[i] || M.prop[i] || front[i]) return false;
+  if (!reserved.empty() && reserved[i]) return false;   // (M1 economy) a market keeper's walk or aisle
   Ground g = M.at(x, y);
   return !groundSolid(g) && g != Ground::Bridge && !water[i];
 }
@@ -56,8 +58,10 @@ void Gen::centrepieces() {
     float cq = hfAt(s.x, s.y, 3u);
     Prop centre;
     if (k == 0) {
-      centre = city ? (cq < 0.6f ? Prop::Fountain : Prop::Statue)
-                    : town ? (cq < 0.45f ? Prop::Well : Prop::Fountain)   // (M1 round 3: no oak among a town's stalls)
+      // (M1 fixer) a capital's great fountain; (M1 round 3) no oak among a town's stalls; (M1 fixer round 2) a market
+      // cross in some towns and cities, where the market was granted
+      centre = city ? (capital || cq < 0.45f ? Prop::Fountain : (cq < 0.72f ? Prop::MarketCross : Prop::Statue))
+                    : town ? (cq < 0.35f ? Prop::Well : (cq < 0.65f || arch == Archetype::Market ? Prop::MarketCross : Prop::Fountain))
                            : Prop::Well;
       if (village && layout == 2 && cq < 0.5f) {
         // the village green's old oak, and the well beside it
@@ -78,7 +82,32 @@ void Gen::centrepieces() {
       if (bio == Biome::Desert && centre == Prop::OakTree) centre = Prop::PalmTree;
       if ((bio == Biome::Snow || bio == Biome::Taiga) && centre == Prop::OakTree) centre = Prop::PineTree;
     }
-    M.setProp(s.x, s.y, centre);
+    int px = s.x, py = s.y;
+    if (k == 0 && !(village && layout == 2 && centre == Prop::OakTree)) {
+      // (M1 economy) the market fills one side of the square: the fountain or the well stands toward the other side,
+      // in a plaza of its own (M1 fixer: the market's side is mktSide)
+      const int ddx = mktSide == 2 ? -1 : (mktSide == 3 ? 1 : 0), ddy = mktSide == 0 ? 1 : (mktSide == 1 ? -1 : 0);
+      // (M1 fixer round 2) and off the square's axis by the town's own draw (a few tiles to one side), so no two
+      // squares hold it in the same spot
+      const int lat0 = village ? 0 : (int)(hashAt(s.x, s.y, 557u) % 7u) - 3;
+      bool placed = false;
+      for (int li = 0; li < 3 && !placed; li++) {
+        const int lat = li == 0 ? lat0 : (li == 1 ? lat0 / 2 : 0);
+        for (int d = town || city ? 3 : 1; d > 0; d--) {
+          const int bx = s.x + ddx * d + (ddx ? 0 : lat), by = s.y + ddy * d + (ddx ? lat / 2 : 0);
+          bool ok = true;
+          for (int oy = -1; oy <= 2 && ok; oy++)
+            for (int ox = -2; ox <= 2; ox++) {
+              const int tx = bx + ox, ty = by + oy;
+              // on the square, and never before a door (its step and apron: the basin's rim would shut it)
+              if (get(tx, ty) != K_SQUARE || front[I(tx, ty)] || (in(tx, ty - 1) && front[I(tx, ty - 1)])) { ok = false; break; }
+            }
+          if (ok) { px = bx; py = by; placed = true; break; }
+        }
+      }
+      cpX = px; cpY = py;
+    }
+    M.setProp(px, py, centre);
   }
   // villages always have their well (VISION_PLAN 15.8)
   if (village) {
@@ -100,6 +129,7 @@ bool squareSpot(const Gen& g, int x, int y, int pad) {
       int tx = x + ox, ty = y + oy;
       if (!g.in(tx, ty) || g.M.prop[g.I(tx, ty)]) return false;
     }
+  if (!g.reserved.empty() && g.reserved[g.I(x, y)]) return false;   // (M1 economy) a market aisle or a keeper's walk
   if (!g.in(x, y) || g.get(x, y) != K_SQUARE || g.cover[g.I(x, y)] || g.front[g.I(x, y)]) return false;
   // nor against a facade: a free row between a stall and the house behind it, none in front under a roof
   for (int oy = -2; oy <= 3; oy++)
@@ -108,51 +138,9 @@ bool squareSpot(const Gen& g, int x, int y, int pad) {
 }
 
 void Gen::stallsAndLamps() {
-  // market stalls round the squares (the main square most; a market town's square is full of them)
-  for (size_t k = 0; k < squares.size(); k++) {
-    const Square& s = squares[k];
-    int want = k == 0 ? (city ? 7 : (town ? 3 : 0)) : (s.d == District::Crafts || s.d == District::Centre ? 2 : 0);
-    if (arch == Archetype::Market) want += k == 0 ? 4 : 1;
-    if (village && arch == Archetype::Market && k == 0) want = 3;
-    int placed = 0;
-    const int R = (int)(s.r * 1.25f) + 1;
-    for (int t = 0; t < 300 && placed < want; t++) {
-      int x = s.x + rng.irange(2 * R + 1) - R, y = s.y + rng.irange(2 * (int)s.r + 3) - (int)s.r - 1;
-      if (std::abs(x - s.x) + std::abs(y - s.y) < 3) continue;
-      if (get(x, y + 1) != K_SQUARE || get(x - 1, y) != K_SQUARE || get(x + 1, y) != K_SQUARE) continue;
-      if (!squareSpot(*this, x, y, 2)) continue;
-      // (M1 round 3) no stall under a tree's crown (the village green's oak spread over a stall by the well)
-      bool underTree = false;
-      for (int oy = -1; oy <= 4 && !underTree; oy++)
-        for (int ox = -3; ox <= 3; ox++) {
-          const int q = in(x + ox, y + oy) ? M.prop[I(x + ox, y + oy)] : 0;
-          if (q && (q == (int)Prop::OakTree + 1 || q == (int)Prop::OakTree2 + 1 || q == (int)Prop::PineTree + 1 || q == (int)Prop::BirchTree + 1 ||
-                    q == (int)Prop::AutumnTree + 1 || q == (int)Prop::PalmTree + 1 || q == (int)Prop::SnowPine + 1 || q == (int)Prop::WillowTree + 1)) { underTree = true; break; }
-        }
-      if (underTree) continue;
-      M.setProp(x, y, Prop::MarketStall);
-      placed++;
-    }
-    // (M1) market clutter between the stalls: a trader's cart, crates and barrels of stock, never in a grid
-    if (placed >= 2) {
-      static const Prop extra[] = {Prop::Cart, Prop::Crate, Prop::Barrel, Prop::Crate, Prop::Barrel};
-      int want2 = 1 + (int)rng.irange(placed >= 5 ? 3 : 2), put = 0;
-      for (int t = 0; t < 200 && put < want2; t++) {
-        int x = s.x + rng.irange(2 * R + 1) - R, y = s.y + rng.irange(2 * (int)s.r + 3) - (int)s.r - 1;
-        if (std::abs(x - s.x) + std::abs(y - s.y) < 3 || !squareSpot(*this, x, y, 1)) continue;
-        M.setProp(x, y, put == 0 && (city || town) ? Prop::Cart : extra[1 + rng.irange(4)]);
-        put++;
-      }
-    }
-  }
-  // benches and a statue on the big squares
-  if (city && !squares.empty()) {
-    const Square& s = squares[0];
-    for (int sd : {-1, 1}) {
-      int x = s.x + sd * 4, y = s.y - 3;
-      if (squareSpot(*this, x, y, 1)) M.setProp(x, y, Prop::Statue);
-    }
-  }
+  // (M1 economy) the market rows and the other squares' benches and trees: rpg/world/town_market.cpp
+  markets();
+  squareDress();
   // lampposts along the main streets (towns and cities) and by the squares
   if (!village) {
     int step = 0;
@@ -165,7 +153,7 @@ void Gen::stallsAndLamps() {
         bool lampNear = false;
         for (int oy = -5; oy <= 5; oy++) for (int ox = -5; ox <= 5; ox++) if (M.propAt(x + ox, y + oy) == (int)Prop::Lamppost + 1) lampNear = true;
         if (lampNear) break;
-        M.setProp(x, y, Prop::Lamppost);
+        if (!putSolid(x, y, Prop::Lamppost)) continue;   // (M1 fixer) never across the only way past
         set(x, y, K_YARD);
         break;
       }
@@ -178,7 +166,7 @@ void Gen::banners() {
   if (!C.kingdom && !capital) return;   // the wildlands fly nobody's colours
   auto put = [&](int x, int y) {
     if (!in(x, y) || M.prop[I(x, y)] || M.bldgAt[I(x, y)] >= 0 || M.wall[I(x, y)] || groundSolid(M.at(x, y)) || water[I(x, y)]) return false;
-    if (cover[I(x, y)] || front[I(x, y)]) return false;
+    if (cover[I(x, y)] || front[I(x, y)] || (!reserved.empty() && reserved[I(x, y)])) return false;
     M.setProp(x, y, Prop::Banner);
     if (get(x, y) == K_NONE) set(x, y, K_YARD);
     return true;
@@ -214,6 +202,27 @@ void Gen::banners() {
         if (placed == 1 && x <= s.x) continue;
         if (squareSpot(*this, x, y, 1)) { M.setProp(x, y, Prop::Banner); placed++; x += 3; }
       }
+    // (M1 economy) the market's keepers have the north edge: the colours fly either side of the centrepiece instead
+    // (M1 fixer round 2: not a matched pair flanking it: one close by, the other further out on the far side)
+    const int px = cpX >= 0 ? cpX : s.x, py = cpX >= 0 ? cpY : s.y;
+    const int first = (hashAt(px, py, 571u) & 1) ? 1 : -1;
+    for (int sd : {first, -first})
+      for (int t = sd == first ? 3 : 6; t <= (sd == first ? 5 : 9) && placed < 2; t++) {
+        const int x = px + sd * t, y = py - (sd == first ? 1 : 0);
+        if (squareSpot(*this, x, y, 1)) { M.setProp(x, y, Prop::Banner); placed++; break; }
+      }
+    // (M1 fixer) a crowded square: the colours fly at its edge wherever a pole fits
+    for (int r = 2; r <= 14 && placed == 0; r++)
+      for (int oy = -r; oy <= r && placed == 0; oy++)
+        for (int ox = -r; ox <= r && placed == 0; ox++) {
+          if (std::max(std::abs(ox), std::abs(oy)) != r) continue;
+          const int x = s.x + ox, y = s.y + oy;
+          if (!in(x, y) || (get(x, y) != K_SQUARE && get(x, y) != K_YARD && get(x, y) != K_NONE)) continue;
+          bool clear = true;
+          for (int qy = -1; qy <= 1 && clear; qy++)
+            for (int qx = -1; qx <= 1; qx++) if (!in(x + qx, y + qy) || M.prop[I(x + qx, y + qy)] || M.bldgAt[I(x + qx, y + qy)] >= 0) { clear = false; break; }
+          if (clear && put(x, y)) placed++;
+        }
   }
 }
 
@@ -246,10 +255,9 @@ void Gen::signposts() {
         if (freeTile(bx, by) && !cover[I(bx, by)]) { M.setProp(bx, by, Prop::Banner); set(bx, by, K_YARD); }
       }
     }
-    return;
   }
   // villages and towns: where each road leaves the houses behind
-  for (size_t b = 0; b < bearings.size(); b++) {
+  for (size_t b = 0; b < bearings.size() && !walled; b++) {
     float ba = bearings[b];
     int bx = -1, by = -1;
     float bd = 1e9f;
@@ -308,6 +316,7 @@ void Gen::yards() {
     }
     if (b.type == Building::Barracks) { if (ok(side, fy)) { M.setProp(side, fy, Prop::Crate); set(side, fy, K_YARD); } continue; }
     if (b.type == Building::Keep || b.type == Building::Temple || b.type == Building::Tower) continue;
+    if (!townIsHome(b.type) && b.type != Building::Shop) continue;   // (M1 economy) the trades' yards: tradeYards
     float q = rng.f();
     bool gardens = !city || d == District::Noble || d == District::Temple;
     if (q < 0.35f && gardens) {
@@ -316,13 +325,16 @@ void Gen::yards() {
       bool good = true;
       for (int y = b.r.y; y < b.r.y + b.r.h && good; y++) for (int x = gx0; x < gx0 + 3 && good; x++) if (!ok(x, y)) good = false;
       if (good) {
+        // (M1 fixer round 2) fenced on its three open sides (the house wall the fourth), so it encloses its beds
+        const int outer = side == b.r.x - 1 ? gx0 : gx0 + 2;
         for (int y = b.r.y; y < b.r.y + b.r.h; y++)
           for (int x = gx0; x < gx0 + 3; x++) {
             set(x, y, K_YARD);
-            bool edgeY = y == b.r.y + b.r.h - 1;
+            const bool edgeY = y == b.r.y + b.r.h - 1 || y == b.r.y;
             if (edgeY) M.setProp(x, y, Prop::FenceH);
+            else if (x == outer) M.setProp(x, y, Prop::FenceV);
             else if (hashf(x, y, ys) < 0.6f) M.setProp(x, y, hashf(x, y, ys + 1) < 0.5f ? Prop::Flowers2 : (village ? Prop::Mushrooms : Prop::Flowers3));
-            if (village && !edgeY && hashf(x, y, ys + 2) < 0.5f) M.setG(x, y, Ground::Farmland);
+            if (village && !edgeY && x != outer && hashf(x, y, ys + 2) < 0.5f) M.setG(x, y, Ground::Farmland);
           }
       }
     } else if (q < 0.65f) {
@@ -345,7 +357,8 @@ void Gen::yards() {
 
 void Gen::fields() {
   int fields = city ? 8 + rng.irange(4) : (town ? 6 + rng.irange(3) : 4 + rng.irange(3));
-  if (arch == Archetype::Farming) fields += village ? 4 : 5;
+  if (arch == Archetype::Farming || spec == Specialty::Farming) fields += village ? 4 : 5;
+  if (spec == Specialty::Herding) fields += village ? 2 : 3;
   const uint32_t fs = bseed + 9u;
   for (int k = 0, t = 0; k < fields && t < 700; t++) {
     int fw = 5 + rng.irange(5), fh = 3 + rng.irange(3);
@@ -374,20 +387,48 @@ void Gen::fields() {
         else if (lvl[i] != lvl[I(fx, fy)]) good = false;
       }
     if (!good) continue;
-    bool pasture = rng.f() < (arch == Archetype::Farming ? 0.4f : 0.3f);
+    bool pasture = fh >= 4 && rng.f() < (spec == Specialty::Herding ? 0.75f : (arch == Archetype::Farming ? 0.4f : 0.3f));
+    // (M1 fixer round 2) a pasture is fenced all round, a gate on the side toward the town and its beasts inside; a
+    // field of crops is open to its headland (no stray run of fence along one side)
+    int gateX = -1, gateY = -1;
+    if (pasture) {
+      const int mx = fx + fw / 2, my = fy + fh / 2;
+      if (std::abs(cx - mx) * fh > std::abs(cy - my) * fw) { gateX = cx < mx ? fx : fx + fw - 1; gateY = my; }
+      else { gateX = mx; gateY = cy < my ? fy : fy + fh - 1; }
+    }
     for (int y = fy; y < fy + fh; y++)
       for (int x = fx; x < fx + fw; x++) {
         set(x, y, K_FIELD);
         M.setP(x, y, 0);
         if (!pasture) M.setG(x, y, Ground::Farmland);
+        else if (x == gateX && y == gateY) continue;
         else if (y == fy || y == fy + fh - 1) M.setProp(x, y, Prop::FenceH);
         else if (x == fx || x == fx + fw - 1) M.setProp(x, y, Prop::FenceV);
       }
     if (!pasture) {
-      for (int x = fx - 1; x <= fx + fw; x++) if (hashf(x, fy, fs) < 0.85f && get(x, fy - 1) == K_NONE && freeTile(x, fy - 1)) M.setProp(x, fy - 1, Prop::FenceH);
       if (freeTile(fx + fw, fy + 1)) M.setProp(fx + fw, fy + 1, Prop::Haystack);
       if (rng.f() < 0.5f && freeTile(fx - 1, fy + fh - 1)) M.setProp(fx - 1, fy + fh - 1, Prop::Cart);
-    } else M.setProp(fx + fw / 2, fy + fh / 2, Prop::Haystack);
+    } else {
+      M.setProp(fx + fw / 2, fy + 1, Prop::Haystack);
+      if (fw >= 6) M.setProp(fx + 2, fy + fh - 2, Prop::Trough);   // (M1 economy) the beasts' water
+      // the flock or the herd grazing, never on top of one another
+      const bool cows = spec != Specialty::Herding ? hashf(fx, fy, fs + 3) < 0.6f : hashf(fx, fy, fs + 3) < 0.3f;
+      const int beasts = std::max(2, (fw - 2) * (fh - 2) / 5);
+      int put = 0;
+      for (int t = 0; t < 40 && put < beasts; t++) {
+        const int x = fx + 1 + rng.irange(fw - 2), y = fy + 1 + rng.irange(fh - 2);
+        if (M.prop[I(x, y)]) continue;
+        bool crowd = false;
+        for (int oy = -1; oy <= 1; oy++)
+          for (int ox = -1; ox <= 1; ox++) {
+            const int q = M.propAt(x + ox, y + oy);
+            if (q == (int)Prop::Sheep + 1 || q == (int)Prop::Cow + 1) crowd = true;
+          }
+        if (crowd) continue;
+        M.setProp(x, y, cows && (t & 1) == 0 ? Prop::Cow : Prop::Sheep);
+        put++;
+      }
+    }
     k++;
   }
 }
@@ -439,7 +480,7 @@ void Gen::gardens() {
         const bool inner = x >= x0 && x < x0 + gw && y >= y0 && y < y0 + gh;
         if (M.bldgAt[i] >= 0 || M.wall[i]) ok = false;   // the margin: nobody's house or wall
         if (!inner || !ok) continue;
-        if (mask[i] != K_NONE) ok = false;
+        if (mask[i] != K_NONE || (!reserved.empty() && reserved[i])) ok = false;
         else if (M.prop[i] || water[i] || front[i]) ok = false;
         else if (cover[i]) ok = false;
         else if (noBuild[i]) ok = false;
@@ -487,7 +528,7 @@ void Gen::gardens() {
 
 // ------------------------------------------------------------------------------------------------ archetypes
 void Gen::archetypeDress() {
-  if (arch == Archetype::Fishing || arch == Archetype::Port) {
+  if (arch == Archetype::Fishing || arch == Archetype::Port || spec == Specialty::Fishing) {
     // quays: plank piers out into the water from the shore nearest the streets, crates and barrels at their roots
     int piers = arch == Archetype::Port ? 3 : 2;
     std::vector<std::pair<int, int>> made;
@@ -495,11 +536,16 @@ void Gen::archetypeDress() {
       int x = 2 + rng.irange(W - 4), y = 2 + rng.irange(H - 4);
       if (water[I(x, y)] || groundSolid(M.at(x, y)) || M.bldgAt[I(x, y)] >= 0 || M.wall[I(x, y)] || dist(x, y) > 1.15f) continue;
       if (get(x, y) == K_FIELD || get(x, y) == K_COMPOUND) continue;
+      // (M1 fixer round 2) never rooted on something standing there (a stall's counter, a cart) or a market's aisle:
+      // the lane painted to it would clear it away
+      if (M.prop[I(x, y)] || (!reserved.empty() && reserved[I(x, y)])) continue;
       int dir = -1;
       for (int d = 0; d < 4; d++) if (in(x + D4X[d] * 3, y + D4Y[d] * 3) && water[I(x + D4X[d], y + D4Y[d])] && water[I(x + D4X[d] * 2, y + D4Y[d] * 2)]) dir = d;
       if (dir < 0) continue;
       bool far = true;
       for (auto& m : made) if (std::abs(m.first - x) + std::abs(m.second - y) < 10) far = false;
+      for (const Bldg& b : M.bldgs)   // (M1 economy) no jetty across a watermill's race
+        if (b.type == Building::Watermill && x >= b.r.x - 4 && x < b.r.x + b.r.w + 4 && y >= b.r.y - 3 && y < b.r.y + b.r.h + 3) far = false;
       if (!far) continue;
       // join the root to the streets
       std::vector<int> prev((size_t)W * H, -2);
@@ -556,7 +602,7 @@ void Gen::archetypeDress() {
       if (freeTile(x, y) && !cover[I(x, y)]) { M.setProp(x, y, rng.f() < 0.5f ? Prop::Boulder : Prop::Rock); n++; }
     }
   }
-  if (arch == Archetype::Farming) {
+  if (arch == Archetype::Farming || spec == Specialty::Farming) {
     for (const Bldg& b : M.bldgs) {
       if (b.type != Building::Farmhouse) continue;
       for (int s : {-2, b.r.w + 1}) {
@@ -601,7 +647,18 @@ void Gen::greenery() {
       const Biome bb = M.biomeAt(x, y);
       bool nearStall = false;   // (M1 round 3) no crown spreading over a market stall
       for (int oy = -3; oy <= 1 && !nearStall; oy++)
-        for (int ox = -2; ox <= 2; ox++) if (in(x + ox, y + oy) && M.prop[I(x + ox, y + oy)] == (int)Prop::MarketStall + 1) { nearStall = true; break; }
+        for (int ox = -2; ox <= 2; ox++) {
+          const int q = in(x + ox, y + oy) ? M.prop[I(x + ox, y + oy)] : 0;
+          if (q && (art::isVendorProp((Prop)(q - 1)) || (Prop)(q - 1) == Prop::MineEntrance || (Prop)(q - 1) == Prop::MineHill)) { nearStall = true; break; }
+        }
+      if (!reserved.empty() && reserved[I(x, y)]) continue;
+      bool nearField = false;   // (M1 fixer round 2) no crown spreading over a fence, a pen or a field
+      for (int oy = -3; oy <= 1 && !nearField; oy++)
+        for (int ox = -2; ox <= 2; ox++) {
+          const int q = in(x + ox, y + oy) ? M.prop[I(x + ox, y + oy)] : 0;
+          if (get(x + ox, y + oy) == K_FIELD || q == (int)Prop::FenceH + 1 || q == (int)Prop::FenceV + 1) { nearField = true; break; }
+        }
+      if (nearField && r < treeP + 0.03f) continue;
       if (r < treeP && !besideStreet && !nearStall && !cover[I(x, y)] && !noBuild[I(x, y)]) {
         Prop tree = bb == Biome::Taiga ? Prop::PineTree : bb == Biome::Autumn ? Prop::AutumnTree : bb == Biome::Desert ? Prop::PalmTree
                   : (hashf(x, y, gs + 1) < 0.3f ? Prop::BirchTree : Prop::OakTree);
@@ -618,7 +675,7 @@ void Gen::greenery() {
       if (front[I(x, y)] && get(x, y) != K_SQUARE) { M.setP(x, y, 0); continue; }
       if (cover[I(x, y)] && tallProp((Prop)(p - 1)) && (Prop)(p - 1) != Prop::Fountain && (Prop)(p - 1) != Prop::Well && M.bldgAt[I(x, y)] < 0) {
         Prop pp = (Prop)(p - 1);
-        if (pp == Prop::Banner || pp == Prop::Lamppost || pp == Prop::Signpost || pp == Prop::MarketStall || pp == Prop::Statue ||
+        if (pp == Prop::Banner || pp == Prop::Lamppost || pp == Prop::Signpost || pp == Prop::MarketStall || pp == Prop::Statue || pp == Prop::DryingRack || pp == Prop::HideRack ||
             pp == Prop::OakTree || pp == Prop::BirchTree || pp == Prop::PineTree || pp == Prop::AutumnTree || pp == Prop::PalmTree || pp == Prop::SnowPine || pp == Prop::Cart)
           M.setP(x, y, 0);
       }
@@ -701,6 +758,7 @@ void Gen::finish() {
   }
   O.ex = O.gx + cx;
   O.ey = O.gy + cy;
+  O.special = spec;
 }
 
 void Gen::run() {
@@ -730,12 +788,13 @@ bool Gen::step() {
         for (int y = z.y; y < z.y + z.h; y++)
           for (int x = z.x; x < z.x + z.w; x++) if (in(x, y)) noBuild[I(x, y)] |= 2;
       }
+      marketLots();
       services();
       break;
     }
     case 7: homes(); break;
     case 8: centrepieces(); stallsAndLamps(); archetypeDress(); break;
-    case 9: yards(); gardens(); break;
+    case 9: yards(); tradeYards(); gardens(); break;
     case 10: fields(); banners(); signposts(); break;
     case 11: greenery(); break;
     case 12: folk(); finish(); return false;

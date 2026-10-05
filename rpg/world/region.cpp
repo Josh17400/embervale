@@ -733,15 +733,22 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
       int32_t px = n.x + icosR(a, R0 + 18), py = n.y + isinR(a, R0 + 18);
       if (tile(px, py).sea) coast = true;
     }
+    // (a lake under the footprint is drained when the town is built (hydro.cpp lakeUnderSettlement), so only a river
+    // counts here; a lake never makes a fishing place it could not keep)
     for (int32_t dy = -R0 / 2; dy <= R0 / 2 && !river; dy += 8)
       for (int32_t dx = -R0 / 2; dx <= R0 / 2 && !river; dx += 8)
         if (riverWidthCell(n.x + dx, n.y + dy) & 7) river = true;
-    int Lc = natLevel(n.x, n.y), lower = 0;
+    int Lc = natLevel(n.x, n.y), lower = 0, higher = 0;
+    int32_t ridgeMax = 0;
     for (int k = 0; k < 8; k++) {
       int32_t a = k * (1024 / 8);
       int32_t px = n.x + icosR(a, 70), py = n.y + isinR(a, 70);
-      if (coarse(px, py).ridge > Q(0.35)) ridge = true;
-      if (natLevel(px, py) < Lc) lower++;
+      const int32_t rg = coarse(px, py).ridge;
+      if (rg > Q(0.35)) ridge = true;
+      ridgeMax = std::max(ridgeMax, rg);
+      const int lv = natLevel(px, py);
+      if (lv < Lc) lower++;
+      if (lv > Lc) higher++;
     }
     hill = lower >= 7;
     int degree = 0;
@@ -751,9 +758,42 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
     else if (river) p.archetype = Archetype::RiverCrossing;
     else if (ridge) p.archetype = Archetype::Mining;
     else if (hill) p.archetype = Archetype::HillFort;
-    else if (degree >= 3) p.archetype = Archetype::Market;
+    // a market town is a real crossroads of trade: six roads, or four and a town's luck (villages: rarely, at five);
+    // (every third settlement has three roads, so three alone made most of the world a "market")
+    else if (n.type != SiteType::Village ? (degree >= 6 || (degree >= 4 && ((n.seed >> 9) % 3u) == 0)) : (degree >= 5 && ((n.seed >> 9) % 5u) == 0))
+      p.archetype = Archetype::Market;
     else if (tf.m > Q(0.52)) p.archetype = Archetype::Farming;
     else p.archetype = Archetype::Plain;
+    // the specialisation (owner 2026-10-05, rpg/world/economy.h): what the land round it offers. The sea: fishing; a
+    // ridge or a rocky hilltop: mining; deep woods on every side: lumber (a clearing at the forest's edge farms or
+    // herds like anywhere else); a river: fishing or farming with a watermill; dry open grass, the north and the hills:
+    // herding; good wet soil: farming
+    {
+      int forest = 0, open = 0;
+      for (int k = 0; k < 12; k++) {
+        int32_t a = k * (1024 / 12);
+        const Biome b = tile(n.x + icosR(a, R0 + 12), n.y + isinR(a, R0 + 12)).biome;
+        if (b == Biome::Forest || b == Biome::Taiga || b == Biome::Autumn) forest++;
+        if (b == Biome::Plains || b == Biome::Snow || b == Biome::Desert) open++;
+      }
+      const Biome hb = tf.biome;
+      const bool inWood = hb == Biome::Forest || hb == Biome::Taiga || hb == Biome::Autumn;
+      const bool deepWoods = inWood && forest >= 10;
+      const uint32_t coin = (n.seed >> 11) % 100u;
+      Specialty sp;
+      if (coast) sp = Specialty::Fishing;
+      else if (ridge || (hill && (hb == Biome::Mountain || hb == Biome::Snow || coin < 45)) ||
+               ((ridgeMax > Q(0.2) || higher >= 3) && coin < 40)) sp = Specialty::Mining;   // high ground over the houses
+      else if (deepWoods && coin < 60) sp = Specialty::Lumber;
+      else if (river) sp = (n.seed >> 7) & 1 ? Specialty::Fishing : Specialty::Farming;
+      else if (hill || hb == Biome::Snow || hb == Biome::Desert || hb == Biome::Mountain || (tf.m < Q(0.40) && open >= 5)) sp = Specialty::Herding;
+      else if (inWood && forest >= 7 && coin < 20) sp = Specialty::Lumber;   // a forest village that still lives by the axe
+      else if ((tf.m < Q(0.45) && coin >= 55) || coin >= 85) sp = Specialty::Herding;   // drier grass: sheep and cattle
+      else sp = Specialty::Farming;
+      p.special = sp;
+      p.produces = specialtyProduces(sp, n.type != SiteType::Village);
+      p.needs = specialtyNeeds(sp, n.type != SiteType::Village);
+    }
     settlementFootprint(n.type, p.archetype, n.seed, p.w, p.h);
     p.gx = n.x - p.w / 2; p.gy = n.y - p.h / 2;
     p.bldgCap = n.type == SiteType::City ? 640 : n.type == SiteType::Town ? 200 : 48;

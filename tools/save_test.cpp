@@ -188,7 +188,7 @@ int makeFixture(const char* out) {
 }
 // values printed by --make-fixture (format-level facts only)
 struct Fix5 { int level, xp, gold; size_t inv, quests, looted; int kills, ox; float px, py; int oy; float hour; int day; };
-constexpr Fix5 FIX5 = {1, 84, 30, 9, 3, 1, 5, 128, 2472.000f, 1320.000f, -192, 11.039f, 1};
+constexpr Fix5 FIX5 = {1, 69, 50, 8, 3, 1, 4, 64, 1704.000f, 1976.000f, -320, 11.049f, 1};
 
 }  // namespace
 

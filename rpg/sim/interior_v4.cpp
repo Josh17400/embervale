@@ -315,8 +315,15 @@ bool setStairs(Plan& P, int f, int x, int y, bool needPublic = true, bool allowS
 }
 
 RoomKind mainKindOf(Building t, int f, int floors) {
+  if (f > 0 && t == Building::Windmill) return RoomKind::Workshop;   // (M1 economy) the millstone loft
   if (f > 0) return t == Building::Tower ? (f == floors - 1 ? RoomKind::Bedroom : RoomKind::Study) : RoomKind::Corridor;
   switch (t) {
+    // (M1 economy) the production buildings: the tower mill's stone floor stores the grain and the flour; the trades
+    // sell over a counter; the mills, the sawmill and the tannery are work halls; the granary is one great store
+    case Building::Windmill: case Building::Granary: return RoomKind::Storeroom;
+    case Building::Bakery: case Building::Butcher: case Building::Fishmonger: case Building::Weaver: return RoomKind::Shopfloor;
+    case Building::Smelter: return RoomKind::Forge;
+    case Building::Watermill: case Building::Sawmill: case Building::Tanner: return RoomKind::Workshop;
     case Building::Inn: return RoomKind::Common;
     case Building::Shop: return RoomKind::Shopfloor;
     case Building::Smithy: return RoomKind::Forge;
@@ -1033,6 +1040,21 @@ bool planHut(Plan& P, Rng& r) {
   return g0.door(byre, 0, P.X(W - 5), 3 + r.irange(std::max(1, H - 6)), r);
 }
 
+// ---- (M1 economy) WORK HALL: the mill's, the sawmill's or the tannery's hall (the granary's store), a store or the
+// keeper's room walled off in a back corner, its door onto the hall
+bool planWorkshop(Plan& P, Rng& r) {
+  Geo& g0 = P.geo[0];
+  g0.init(P.W, P.H, mainKindOf(P.type, 0, 1));
+  if (P.type == Building::Granary && r.f() < 0.6f) { P.var = 0; return g0.finish(); }   // one great store of grain
+  const int bw = 3 + r.irange(2), bd = 4 + (P.H >= 12 ? r.irange(2) : 0);
+  const RoomKind k = P.type == Building::Tanner && r.f() < 0.5f ? RoomKind::Bedroom : (P.type == Building::Granary ? RoomKind::OwnerRoom : RoomKind::Storeroom);
+  const int ri = P.carve(g0, 1, 2, bw, bd, k);
+  if (ri < 0 || !g0.finish() || g0.roomOf(P.ex, P.H - 2) != 0) return false;
+  const bool south = r.f() < 0.5f;
+  P.var = 1 + (south ? 1 : 0) + (bw - 3) * 2 + (bd - 4) * 4;
+  return g0.door(ri, 0, south ? P.X(2 + r.irange(bw - 1)) : P.X(bw + 1), south ? bd + 2 : 3, r);
+}
+
 // the fallback: one room per floor, stairs at the back wall
 void planPlain(Plan& P) {
   for (int f = 0; f < P.floors; f++) {
@@ -1059,8 +1081,9 @@ void planSize(Plan& P) {
     case Building::Palace: P.W = std::max(33, 2 * w + 9); P.H = std::max(20, 2 * h + 9); break;   // M1: the king's palace
     case Building::Barracks: P.W = std::max(17, 2 * w + 5); P.H = std::max(14, 2 * h + 7); break;
     case Building::Temple: P.W = std::max(15, 2 * w + 5); P.H = std::max(13, 2 * h + 7); break;
-    case Building::Shop: P.W = std::max(13, 2 * w + 5); P.H = std::max(14, 2 * h + 8); break;
-    case Building::Smithy: {   // fix round 2: a smithy's floor follows its footprint, give or take a stride, so no two
+    case Building::Shop: case Building::Bakery: case Building::Butcher: case Building::Fishmonger: case Building::Weaver:
+      P.W = std::max(13, 2 * w + 5); P.H = std::max(14, 2 * h + 8); break;
+    case Building::Smithy: case Building::Smelter: {   // fix round 2: a smithy's floor follows its footprint, give or take a stride, so no two
                                // smithies share one plan
       uint32_t hs = hash32(b.seed ^ 0x5A17F0u);
       P.W = std::max(13, 2 * w + 5) + (int)(hs % 3) * 2;
@@ -1068,7 +1091,7 @@ void planSize(Plan& P) {
       break;
     }
     case Building::Farmhouse: P.W = std::max(15, 2 * w + 5); P.H = std::max(12, 2 * h + 6); break;
-    case Building::Tower: P.W = std::max(11, 2 * w + 5); P.H = std::max(11, 2 * h + 5); break;
+    case Building::Tower: case Building::Windmill: P.W = std::max(11, 2 * w + 5); P.H = std::max(11, 2 * h + 5); break;
     case Building::Hut: {   // a hut's room follows its footprint, give or take a stride (V7: not every hut alike)
       uint32_t h = hash32(b.seed ^ 0x51ED2Bu);
       P.W = std::max(9, 2 * w + 5 + (int)(h % 3) * 2 - 2);
@@ -1112,6 +1135,17 @@ Plan makePlan(const Bldg& b, uint32_t seed) {
       case Building::Barracks: ok = planBarracks(T, r); break;
       case Building::Tower: ok = planTower(T, r); break;
       case Building::Hut: ok = T.floors == 1 && planHut(T, r); break;
+      // (M1 economy) the production buildings on the plans of their kind (the trades behind a shop counter: the bakery's
+      // back room is its bakehouse, the weaver's the loom room)
+      case Building::Bakery: case Building::Butcher: case Building::Fishmonger: case Building::Weaver:
+        ok = planShop(T, r);
+        if (ok && (b.type == Building::Bakery || b.type == Building::Weaver))
+          for (RoomDef& R : T.geo[0].rooms)
+            if (R.kind == RoomKind::Stockroom) R.kind = b.type == Building::Bakery ? RoomKind::Kitchen : RoomKind::Workshop;
+        break;
+      case Building::Smelter: ok = T.floors == 1 && planSmithy(T, r); break;
+      case Building::Windmill: ok = planTower(T, r); break;
+      case Building::Watermill: case Building::Sawmill: case Building::Tanner: case Building::Granary: ok = T.floors == 1 && planWorkshop(T, r); break;
       default:
         T.geo[0].init(T.W, T.H, mainKindOf(b.type, 0, 1));
         ok = T.floors == 1 && T.geo[0].finish();
@@ -1726,6 +1760,40 @@ void furnishStudy(Fit& F, int ri) {
 
 void furnishWorkshop(Fit& F, int ri, Ctx& cx) {
   const IRect& R = F.g.rooms[(size_t)ri].r;
+  // (M1 economy) the trades' work rooms
+  const Building t = F.P.type;
+  if (t != Building::Tower) {
+    if (t == Building::Windmill || t == Building::Watermill) {   // the millstones, sacks of grain and of flour, the miller's bench
+      northPiece(F, ri, Prop::Grindstone, 1);
+      if (R.w >= 5) northPiece(F, ri, Prop::Grindstone, 0);
+      for (int k = 0; k < 2 + R.w * R.h / 12; k++) wallPiece(F, ri, k % 3 == 2 ? Prop::Barrel : Prop::Sacks);
+      wallPiece(F, ri, Prop::Workbench);
+    } else if (t == Building::Sawmill) {   // the saw bench, timber stacked to season, the saw doctor's grindstone
+      northPiece(F, ri, Prop::Workbench, 1);
+      northPiece(F, ri, Prop::Workbench, 0);
+      tableIn(F, ri, 1, Prop::TableWork, 0, false, 20);
+      for (int k = 0; k < 2 + R.w * R.h / 14; k++) wallPiece(F, ri, k % 2 ? Prop::Woodpile : Prop::Crate);
+      wallPiece(F, ri, Prop::Grindstone);
+    } else if (t == Building::Tanner) {   // the soaking vats, the scraping table, hides drying on the frame
+      northPiece(F, ri, Prop::HideRack, 1);
+      for (int k = 0; k < 2; k++) wallPiece(F, ri, Prop::QuenchTub);
+      tableIn(F, ri, 1, Prop::TableWork, 0, false, 20);
+      wallPiece(F, ri, Prop::Barrel);
+      wallPiece(F, ri, Prop::Barrel2);
+    } else if (t == Building::Weaver) {   // the loom by the window, the spinning wheel, wool in baskets
+      northPiece(F, ri, Prop::Loom, 1);
+      northPiece(F, ri, Prop::Shelf, 0);
+      wallPiece(F, ri, Prop::SpinningWheel);
+      wallPiece(F, ri, Prop::Baskets);
+      wallPiece(F, ri, Prop::Crate);
+    } else {
+      northPiece(F, ri, Prop::Workbench, 1);
+      wallPiece(F, ri, Prop::Crate);
+      wallPiece(F, ri, Prop::Barrel);
+    }
+    if (cx.ownerX < 0) { cx.ownerX = R.cx(); cx.ownerY = R.cy(); }
+    return;
+  }
   // the laboratory: a cauldron in the middle, a work table, shelves of jars and books
   F.group([&](int gid) {
     int x = R.cx() + F.r.irange(3) - 1, y = R.y + 2 + F.r.irange(std::max(1, R.h - 5));
@@ -2269,7 +2337,11 @@ void clutterRoom(Fit& F, int ri, RoomKind kind) {
     case RoomKind::Forge: pool = {{D(Deco::Tools), 5}, {D(Deco::Kindling), 3}, {D(Deco::Bucket), 2}, {D(Deco::Broom), 1}}; density = 0.35f; break;
     // (no loose candles on the floor anywhere: a cluster of them read as a golden hand at 1x; candles stand on
     // nightstands, candelabras and in sconces)
-    case RoomKind::Workshop: pool = {{D(Deco::Bottles), 3}, {D(Deco::Books), 2}, {D(Deco::Scrolls), 2}, {D(Deco::Basket), 1}}; density = 0.35f; break;
+    case RoomKind::Workshop:
+      if (F.P.type == Building::Tower) pool = {{D(Deco::Bottles), 3}, {D(Deco::Books), 2}, {D(Deco::Scrolls), 2}, {D(Deco::Basket), 1}};
+      else pool = {{D(Deco::Tools), 3}, {D(Deco::Sacks), 3}, {D(Deco::Basket), 2}, {D(Deco::Straw), 2}, {D(Deco::Kindling), 1}};   // (M1 economy) a trade's floor
+      density = 0.35f;
+      break;
     case RoomKind::Study: pool = {{D(Deco::Books), 4}, {D(Deco::Scrolls), 3}}; density = 0.35f; break;
     case RoomKind::Council: pool = {{D(Deco::Scrolls), 3}, {D(Deco::Books), 2}}; density = 0.12f; break;
     case RoomKind::Nave: pool = {{D(Deco::Books), 1}, {D(Deco::Basket), 1}}; density = 0.05f; break;
@@ -2402,7 +2474,7 @@ art::RoomStyle wallStyleOf(const Bldg& b, Rng& r) {
     default: break;
   }
   art::ArchStyle a = bldgArch(b);
-  if (b.type == Building::Smithy) {   // fix round 2: the forge hall in the culture's own material, sooted where it is stone
+  if (b.type == Building::Smithy || b.type == Building::Smelter) {   // fix round 2: the forge hall in the culture's own material, sooted where it is stone
     switch (a.wall) {
       case art::WallMat::Adobe: return art::RoomStyle::Adobe;
       case art::WallMat::Log: return art::RoomStyle::Log;
@@ -2438,7 +2510,8 @@ void genInteriorRooms(Map& m, const Bldg& b, uint32_t seed, int floor) {
   m.floor = floor;
   // floors: stone in stone buildings, the desert's tiles, flagged kitchens; planks elsewhere
   bool stone = b.type == Building::Keep || b.type == Building::Temple || b.type == Building::Palace || b.type == Building::Barracks || b.type == Building::StoneHouse || b.type == Building::Tower ||
-               b.type == Building::Smithy || b.biome == Biome::Desert;
+               b.type == Building::Smithy || b.type == Building::Smelter || b.type == Building::Windmill || b.type == Building::Watermill ||
+               b.biome == Biome::Desert;
   Ground base = stone && !(floor > 0 && (b.type == Building::StoneHouse)) ? Ground::StoneFloor : Ground::WoodFloor;
   for (int y = 0; y < H; y++)
     for (int x = 0; x < W; x++) {

@@ -68,7 +68,8 @@ constexpr int WORLDGEN_LATEST = 7;   // what new games use; bump when generator 
 // WORLDGEN_V5 placement: how many tiles a building's sprite may rise above its footprint's top row (roof, steeple,
 // cone), generous on purpose. A generator constant (never measured from the art), so art changes never move buildings.
 inline int bldgRiseTiles(art::Building t) {
-  switch (t) {
+  if (t == art::Building::Windmill) return 6;   // (M1 fixer) a tall tower mill whose sails reach over its cap
+  switch (art::artBase(t)) {   // M1 economy: the production buildings rise like their frames (the windmill like a tower)
     case art::Building::Tower: case art::Building::Temple: return 5;
     case art::Building::Keep: case art::Building::Inn: return 4;
     default: return 3;
@@ -77,6 +78,7 @@ inline int bldgRiseTiles(art::Building t) {
 // WORLDGEN_V7: the same with the building's storeys: a 2-storey house, stone house or shop rises like an inn.
 inline int bldgRiseTiles(art::Building t, int storeys) {
   int r = bldgRiseTiles(t);
+  t = art::artBase(t);
   if (storeys >= 2 && (t == art::Building::House || t == art::Building::StoneHouse || t == art::Building::Shop || t == art::Building::Farmhouse))
     r = std::max(r, 4);
   return r;
@@ -111,6 +113,9 @@ struct Bldg {
   uint8_t emblem = 0;
   // M1: how urban the place it stands in is (art::urbanize): 0 countryside / village, 1 town, 2 city, 3 a capital
   uint8_t urban = 0;
+  // M1 economy: type-specific detail the exterior shows (art::BuildingFacts::variant; the watermill: bit 0 = its wheel
+  // on the west side, where its river runs)
+  uint8_t variant = 0;
   int floors() const { return genVer >= WORLDGEN_V7 ? std::max(1, (int)storeys) : 1; }
   int doorX() const { return r.x + r.w / 2; }
   int doorY() const { return r.y + r.h - 1; }
@@ -126,6 +131,7 @@ inline art::BuildingFacts bldgFacts(const Bldg& b) {
   f.banner = b.banner;
   f.banner2 = b.banner2;
   f.emblem = b.emblem;
+  f.variant = b.variant;
   return f;
 }
 // WORLDGEN_V7 decisions (rpg/sim/world.cpp), deterministic from the type, the footprint and a hash:
@@ -152,6 +158,10 @@ struct Site {
   bool capital = false;
   bool start = false;            // M1: the start village of an endless world
   uint8_t archetype = 0;         // M1: ew::Archetype (fishing, mining, farming...; rpg/world/source.h)
+  // M1 economy (rpg/world/economy.h): what the settlement lives from (ew::Specialty), and the goods it makes and must
+  // buy (ew::goodBit masks), for the economy (M4) and crafting (M6)
+  uint8_t special = 0;
+  uint32_t produces = 0, needs = 0;
   bool settlement() const { return type == SiteType::City || type == SiteType::Town || type == SiteType::Village; }
 };
 
@@ -291,7 +301,7 @@ struct World {
   void recycleFar();                        // drop far spawns, gates and wall gaps (re-streamed when they come near)
   // the nearest site of a type to a GLOBAL tile among the region plans within `regions` regions (loading it into the
   // records); capitalOnly: a kingdom's capital. -1 if none. Scripts' goto, tests, far quest targets.
-  int findSiteNear(int32_t gx, int32_t gy, SiteType t, int regions, bool capitalOnly = false);
+  int findSiteNear(int32_t gx, int32_t gy, SiteType t, int regions, bool capitalOnly = false, int archetype = -1);   // archetype: ew::Archetype or -1
   bool nearWindow(int tx, int ty) const { return tx >= -NEAR_MARGIN && ty >= -NEAR_MARGIN && tx < WIN + NEAR_MARGIN && ty < WIN + NEAR_MARGIN; }
   // a new endless world for this seed, the window centred on the start village (sites, kingdoms, startSite, capital,
   // lair and the main-quest ruins filled from the generator's start plan)

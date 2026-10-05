@@ -262,7 +262,7 @@ void walls(const std::string& dir) {
 }
 
 // ---------------------------------------------------------------- M0b: storeys
-const char* kTypeNames[(int)art::Building::COUNT] = {"House", "StoneHouse", "Inn", "Smithy", "Shop", "Temple", "Keep", "Tower", "Farmhouse", "Hut", "Palace", "Barracks"};
+const char* kTypeNames[(int)art::Building::COUNT] = {"House", "StoneHouse", "Inn", "Smithy", "Shop", "Temple", "Keep", "Tower", "Farmhouse", "Hut", "Palace", "Barracks", "Windmill", "Watermill", "Granary", "Bakery", "Butcher", "Tanner", "Fishmonger", "Smelter", "Sawmill", "Weaver"};
 
 // rows of the highest opaque pixel above the footprint's top edge (what the V5 clearance test budgets)
 int spriteRise(const Canvas& c, int hT) {
