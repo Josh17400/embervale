@@ -1,7 +1,11 @@
 // EMBERVALE art: props (nature, camp/town, dungeon, interior furniture). See rpg/art.h for the contract and rpg/art/art_internal.h for the shared helpers.
+#include <cstdlib>
 #include "rpg/art/art_internal.h"
+#include "rpg/art/art_heraldry.h"
 
 namespace art {
+
+void paintEconomyProp(Canvas& c, Prop p, int frame);   // M1 economy: rpg/art/art_market.cpp (Sacks .. WaterWheel)
 
 // =====================================================================================================
 // 5. props
@@ -720,6 +724,93 @@ void marketStall(Canvas& c) {
     }
   // scalloped edge
   for (int x = 0; x < W; x++) if ((x % 4) == 1 || (x % 4) == 2) c.set(x, 11, ((x / 4) & 1) == 0 ? kRed[1] : kCloth[1]);
+}
+
+// (M1) Market stalls vary: awning cloth (striped or plain with a trim) and the goods on the counter. v: awning in
+// v % 6, goods in (v / 6) % 6. A stall with v = 0 is the classic red-and-white fruit stall.
+void marketStallV(Canvas& c, int v) {
+  int W = c.w, base = c.h - 2;
+  const int aw = v % 6, gk = (v / 6) % 6;
+  for (int y = 10; y <= base; y++) { c.set(2, y, kWood[3]); c.set(3, y, kWood[1]); c.set(W - 4, y, kWood[2]); c.set(W - 3, y, kWood[0]); }
+  plankBox(c, 1, base - 11, W - 2, 4, 8, kWood);
+  const float gy = base - 11.5f;
+  switch (gk) {
+    case 0: {   // fruit and vegetables
+      const uint32_t goods[4] = {rgba(220, 60, 50), rgba(250, 180, 60), rgba(120, 180, 70), rgba(160, 90, 160)};
+      for (int i = 0; i < 6; i++) {
+        Ramp g = ramp(goods[i % 4], 0.8f);
+        ball(c, 6 + i * 5.3f, gy, 2.0f, 1.6f, g);
+        ball(c, 6 + i * 5.3f + 1.5f, gy - 1, 1.4f, 1.2f, g);
+      }
+      break;
+    }
+    case 1: {   // bolts of cloth, folded in stacks
+      const uint32_t cl[5] = {rgba(70, 90, 170), rgba(190, 60, 60), rgba(220, 200, 120), rgba(70, 140, 90), rgba(150, 80, 150)};
+      for (int i = 0; i < 5; i++) {
+        Ramp r = ramp(cl[(i + v) % 5], 0.7f);
+        int x0 = 5 + i * 6, h = 3 + (int)((i * 7 + v) % 3);
+        for (int y = 0; y < h; y++) hline(c, x0, x0 + 4, base - 12 - y, r[y == h - 1 ? 4 : ((y & 1) ? 2 : 3)]);
+        c.set(x0 + 4, base - 12, r[1]);
+      }
+      break;
+    }
+    case 2: {   // pottery: jugs and bowls
+      for (int i = 0; i < 5; i++) {
+        Ramp r = ramp(i % 2 ? rgba(176, 96, 60) : rgba(150, 120, 96), 0.8f);
+        float x = 6.5f + i * 6.0f;
+        if (i % 2 == 0) { ball(c, x, gy - 1, 2.4f, 2.6f, r); hline(c, (int)x - 1, (int)x + 1, (int)gy - 4, r[0]); }
+        else { ball(c, x, gy + 0.5f, 2.8f, 1.4f, r); hline(c, (int)x - 2, (int)x + 2, (int)gy - 1, r[4]); }
+      }
+      break;
+    }
+    case 3: {   // fish on ice
+      hline(c, 4, W - 5, base - 12, rgba(210, 228, 240));
+      for (int i = 0; i < 5; i++) {
+        Ramp r = ramp(i % 2 ? rgba(130, 150, 170) : rgba(160, 170, 150), 0.8f);
+        float x = 7.0f + i * 5.5f;
+        ball(c, x, gy, 2.6f, 1.1f, r);
+        c.set((int)x + 3, (int)gy, r[1]); c.set((int)x + 4, (int)gy - 1, r[1]); c.set((int)x + 4, (int)gy + 1, r[1]);   // the tail
+        c.set((int)x - 2, (int)gy, rgba(30, 30, 40));                                                                // the eye
+      }
+      break;
+    }
+    case 4: {   // bread: loaves and round cobs in baskets
+      Ramp crust = ramp(rgba(200, 140, 70), 0.8f), basket = ramp(rgba(150, 110, 60), 0.7f);
+      for (int i = 0; i < 3; i++) {
+        float x = 8.0f + i * 9.0f;
+        for (int y = 0; y < 2; y++) hline(c, (int)x - 4, (int)x + 4, base - 12 + y, basket[y ? 1 : 3]);
+        ball(c, x - 2, gy - 1.5f, 2.2f, 1.5f, crust);
+        ball(c, x + 2, gy - 1.2f, 2.0f, 1.6f, crust);
+      }
+      break;
+    }
+    default: {   // hams and sausages hanging from the awning, cheese wheels below
+      Ramp meat = ramp(rgba(150, 64, 56), 0.8f), cheese = ramp(rgba(230, 196, 90), 0.8f);
+      for (int i = 0; i < 4; i++) {
+        int x = 6 + i * 7;
+        c.set(x, 12, kWood[0]);
+        ball(c, x, 15.5f, 1.6f, 2.6f, meat);
+      }
+      for (int i = 0; i < 3; i++) ball(c, 8.0f + i * 9.0f, gy, 3.0f, 1.6f, cheese);
+      break;
+    }
+  }
+  // the awning
+  static const uint32_t cols[6][2] = {{rgba(176, 50, 46), 0}, {rgba(46, 82, 160), 0}, {rgba(52, 120, 70), rgba(222, 200, 120)},
+                                      {rgba(214, 160, 48), rgba(120, 70, 40)}, {rgba(118, 62, 132), 0}, {rgba(150, 100, 60), rgba(232, 214, 160)}};
+  const Ramp A = ramp(cols[aw][0], 0.8f);
+  const bool striped = aw < 2 || aw == 4;
+  const Ramp B = striped ? kCloth : ramp(cols[aw][1], 0.7f);
+  for (int y = 1; y <= 10; y++)
+    for (int x = 0; x < W; x++) {
+      const bool a = striped ? ((x / 4) & 1) == 0 : y < 9;
+      const Ramp& r = a ? A : B;
+      int k = y < 3 ? 4 : (y < 8 ? 3 : 2);
+      if (y == 10) k = 1;
+      c.set(x, y, r[k]);
+    }
+  for (int x = 0; x < W; x++)
+    if ((x % 4) == 1 || (x % 4) == 2) c.set(x, 11, striped ? (((x / 4) & 1) == 0 ? A[1] : B[1]) : B[1]);
 }
 
 void haystack(Canvas& c) {
@@ -3794,6 +3885,118 @@ void dresser(Canvas& c) {
   hline(c, 3, 5, 15, kBone[3]); c.set(11, 14, kPurple[3]); c.set(11, 15, kPurple[2]); c.set(11, 13, kBrass[3]);
 }
 
+// ---- M1 ruins ----------------------------------------------------------------------------------------
+// A tile of an old hall's wall, broken: a 16 px deep top seen from above (dressed blocks, lit on their north-west
+// edges) over the south face (coursed masonry darkening to its foot). Variant v sets how far the wall has fallen
+// (the face 9..20 px), notches knocked out of its top and the moss on it. The canvas is full width, so tiles side by
+// side join without an outline between them; a tile with another wall south of it has its face covered by that
+// tile's top, so north-south runs read as one continuous wall top.
+void ruinWall(Canvas& c, int v) {
+  const int W = c.w, H = c.h;
+  static const int kFace[8] = {20, 17, 14, 20, 11, 18, 15, 9};
+  const bool joinedN = (v & 8) != 0;   // another wall tile north: the top runs on unbroken into it
+  v &= 7;
+  const int FH = kFace[v];
+  const int faceY = H - FH;            // first face row
+  const int capY = faceY - 16;         // first top row
+  const Ramp& R = kStone;
+  const uint32_t sd = 911u + (uint32_t)v * 37u;
+  // the broken top edge: a stepped profile (whole blocks gone in places, a deep gap now and then), not crenels
+  int lost[16];
+  {
+    int cur = (int)(hash3(v, 0, sd) % 3);
+    for (int x = 0; x < W;) {
+      const int bw = 4 + (int)(hash3(x, v, sd) % 4);
+      const uint32_t h = hash3(x, v, sd + 1) % 16;
+      if (h < 6) cur = std::max(0, cur - 2);
+      else if (h < 11) cur = std::min(6, cur + 2);
+      else if (h == 15) cur = 9;
+      else if (cur > 6) cur = 4;
+      for (int k = 0; k < bw && x < W; k++, x++) lost[x] = joinedN ? 0 : cur;
+    }
+  }
+  // the top seen from above: two courses of long slabs, a little uneven in tone, the north edges lit
+  for (int y = capY; y < faceY; y++)
+    for (int x = 0; x < W; x++) {
+      const int ty = y - capY;
+      if (ty < lost[x]) continue;
+      const int course = ty / 8, off = (course & 1) ? 5 : 1;
+      const int slab = (x + off) / 9, bx = (x + off) % 9, by = ty % 8;
+      uint32_t col = mix(R[3], R[4], 0.15f + hashf(slab, course, sd + 3) * 0.3f);
+      if (bx == 0 || by == 0) col = R[2];                               // the joint
+      else if (by == 1) col = mix(R[3], R[4], 0.6f);                    // the slab's lit north edge
+      else if (by == 7 || bx == 8) col = mix(R[2], R[3], 0.55f);
+      if (hashf(x, y, sd + 10) < 0.06f) col = R[2];                     // pitting
+      if (ty == lost[x]) col = joinedN ? col : (ty > 0 ? R[2] : R[4]);  // a broken edge catches less light than the lip
+      if (x == W - 1 && !(bx == 0 || by == 0)) col = mix(col, R[2], 0.5f);
+      c.set(x, y, col);
+    }
+  // the face: courses of 5 rows, staggered joints, darkening to the foot; the top course is the lit lip
+  for (int y = faceY; y < H; y++)
+    for (int x = 0; x < W; x++) {
+      const int fy = y - faceY;
+      const int course = fy / 5, off = (course & 1) ? 3 : 0;
+      const int bx = (x + off) % 7, by = fy % 5;
+      int k = (by == 0 || bx == 0) ? 0 : 1;
+      if (k == 1 && hashf((x + off) / 7, course, sd + 4) < 0.35f) k = 2;
+      uint32_t col = R[k];
+      if (k && by == 1) col = mix(col, R[2], 0.5f);
+      if (fy == 0) col = R[3];
+      if (y >= H - 3) col = darken(col, 0.35f);
+      if (y == H - 1) col = R[0];
+      c.set(x, y, col);
+    }
+  // moss: patches on the top and creeping up the face from the ground
+  const int moss = v % 3;
+  for (int x = 0; x < W; x++) {
+    if (moss && hashf(x / 3, 0, sd + 5) < 0.22f * moss) {
+      const int top = capY + lost[x] + (int)(hash3(x / 3, 1, sd + 6) % 10);
+      const int len = 2 + (int)(hash3(x, 9, sd + 6) % 3);
+      for (int y = top; y < std::min(faceY, top + len); y++) if (solid(c, x, y)) c.set(x, y, kMoss[2 + (y == top)]);
+    }
+    const int up = (int)(hash3(x, 2, sd + 7) % (moss + 3));
+    for (int k = 0; k < up; k++) c.set(x, H - 2 - k, kMoss[k == up - 1 ? 2 : 1]);
+  }
+  // a crack running down the face
+  int cx = 3 + (int)(hash3(v, 3, sd) % 10);
+  for (int y = faceY + 1; y < H - 2; y++) {
+    if (hashf(y, v, sd + 8) < 0.35f) cx += hashf(y, v, sd + 9) < 0.5f ? -1 : 1;
+    cx = std::clamp(cx, 1, W - 2);
+    c.set(cx, y, R[0]);
+  }
+}
+
+// A column snapped off: plinth, moulded base, a fluted drum broken at a ragged height (the break seen from above,
+// lit), a fallen piece at its foot.
+void ruinColumn(Canvas& c, int v) {
+  const int W = c.w, base = c.h - 1;
+  const Ramp& R = kStone;
+  static const int kShaft[8] = {22, 14, 28, 18, 10, 25, 16, 20};
+  const int sh = kShaft[v & 7];
+  const uint32_t sd = 953u + (uint32_t)v * 41u;
+  for (int y = base - 3; y <= base; y++)
+    for (int x = 0; x < W; x++) c.set(x, y, R[y == base - 3 ? 4 : (y == base ? 0 : (x == 0 ? 3 : (x == W - 1 ? 1 : 2)))]);
+  for (int y = base - 6; y <= base - 4; y++) for (int x = 2; x <= W - 3; x++) c.set(x, y, R[y == base - 6 ? 4 : (x < W / 2 ? 3 : 2)]);
+  const int top = base - 6 - sh;
+  for (int x = 3; x <= W - 4; x++) {
+    const int brk = top + (int)(hash3(x / 2, v, sd) % 4);
+    for (int y = brk; y < base - 6; y++) {
+      const float t = (x - 3 + 0.5f) / (W - 6) * 2 - 1;
+      int k = lightIndex(lightAt(t * 0.95f, 0), x, y, 0.0f);
+      if ((x - 3) % 3 == 2) k = std::max(0, k - 1);
+      if (y == brk) k = 4;                               // the broken surface catches the light
+      else if (y == brk + 1) k = std::min(4, k + 1);
+      c.set(x, y, R[k]);
+    }
+  }
+  // a drum fallen at its foot (some columns), and moss at the base
+  if (v & 1) {
+    ellipse(c, W - 4.5, base - 1.5, 3.4, 2.2, R[2]);
+    ellipse(c, W - 5.2, base - 2.2, 2.2, 1.2, R[3]);
+  }
+  for (int x = 2; x <= W - 3; x++) if (hashf(x, 0, sd + 1) < 0.4f) c.set(x, base - 4, kMoss[2]);
+}
+
 // prop sizes ----------------------------------------------------------------------------------------
 struct PropInfo { uint8_t w, h, frames; };
 const PropInfo kPropInfo[(int)Prop::COUNT] = {
@@ -3818,6 +4021,16 @@ const PropInfo kPropInfo[(int)Prop::COUNT] = {
   //      DisplayTable QuenchTub Grindstone Pillar BunkBed Dresser
   {16, 40, 1}, {16, 24, 1}, {16, 36, 1}, {16, 32, 1}, {12, 16, 1}, {14, 20, 1}, {16, 28, 4}, {16, 18, 1}, {16, 34, 1}, {16, 30, 1},
   {12, 20, 1}, {10, 28, 4}, {16, 18, 1}, {16, 16, 1}, {16, 20, 1}, {16, 48, 1}, {20, 40, 1}, {16, 30, 1},
+  // M1 ruins: RuinWall RuinColumn
+  {16, 36, 1}, {16, 40, 1},
+  // M1 economy: the seven stalls; Sacks Baskets DryingRack HideRack OreCart OrePile MineEntrance LogPile Trough
+  {48, 54, 1}, {48, 54, 1}, {48, 54, 1}, {48, 54, 1}, {48, 54, 1}, {48, 54, 1}, {48, 54, 1}, {48, 54, 1},   // (M1 fixer: + StallTimber)
+  {20, 16, 1}, {20, 14, 1}, {30, 30, 1}, {24, 28, 1}, {26, 22, 1}, {22, 14, 1}, {44, 36, 1}, {34, 20, 1}, {26, 14, 1},
+  {24, 34, 4},
+  // M1 fixer round 2: MarketTable GroundCloth MarketCross Sheep Cow MineRail PenShelter
+  {48, 44, 1}, {48, 20, 1}, {32, 60, 1}, {20, 18, 8}, {30, 24, 8}, {16, 16, 1}, {48, 44, 1},
+  // MineHill
+  {80, 76, 1},
 };
 
 void m0bProp(Canvas& c, Prop p, int frame) {
@@ -3840,6 +4053,8 @@ void m0bProp(Canvas& c, Prop p, int frame) {
     case Prop::Pillar: pillar(c); break;
     case Prop::BunkBed: bunkBed(c); break;
     case Prop::Dresser: dresser(c); break;
+    case Prop::RuinWall: ruinWall(c, 0); break;
+    case Prop::RuinColumn: ruinColumn(c, 0); break;
     default: break;
   }
 }
@@ -3989,7 +4204,10 @@ void paintProp(Canvas& c, Prop p, int frame) {
     case Prop::CounterM: counterSeg(c, 1); break;
     case Prop::CounterR: counterSeg(c, 2); break;
     case Prop::Filler: filler(c); break;
-    default: if ((int)p >= (int)Prop::StairsUp) m0bProp(c, p, frame); break;
+    default:
+      if ((int)p >= (int)Prop::Sacks) paintEconomyProp(c, p, frame);
+      else if ((int)p >= (int)Prop::StairsUp) m0bProp(c, p, frame);
+      break;
   }
 }
 
@@ -4000,6 +4218,7 @@ int propH(Prop p) { return (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].h : 16;
 int propFrames(Prop p) { return (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].frames : 1; }
 
 Canvas propSprite(Prop p) {
+  if (isStall(p)) return marketStall(stallTrade(p), 0);
   const int w = propW(p), h = propH(p), n = propFrames(p);
   Canvas sheet(w * n, h);
   for (int f = 0; f < n; f++) {
@@ -4009,6 +4228,23 @@ Canvas propSprite(Prop p) {
     place(sheet, cell, f, 0);
   }
   return sheet;
+}
+
+Canvas marketStallVariant(int v) {
+  const int w = propW(Prop::MarketStall), h = propH(Prop::MarketStall);
+  Canvas c(w, h);
+  marketStallV(c, v);
+  outline(c);
+  return c;
+}
+
+Canvas ruinVariant(Prop p, int v) {
+  Canvas c(propW(p), propH(p));
+  if (p == Prop::RuinWall) ruinWall(c, v & 15);
+  else if (p == Prop::RuinColumn) ruinColumn(c, v & 7);
+  else paintProp(c, p, 0);
+  outline(c);
+  return c;
 }
 
 Canvas interiorPiece(uint32_t key) {
@@ -4030,4 +4266,51 @@ Canvas interiorPiece(uint32_t key) {
   }
 }
 
+}  // namespace art
+
+namespace art {
+// M1 kingdom identity (VISION_PLAN 15.8): a standing banner in the kingdom's colours. The same pole, crossbar, size,
+// frames and ripple as the plain banner; the cloth in the field colour with a trim border and the charge (emblem) in
+// the trim colour, lit from the top-left like the cloth around it. field == 0: the plain banner.
+Canvas kingdomBanner(uint32_t field, uint32_t trim, int emblem) {
+  if (!field) return propSprite(Prop::Banner);
+  const int w = propW(Prop::Banner), h = propH(Prop::Banner), n = propFrames(Prop::Banner);
+  const Ramp F = ramp(opaque(field)), T = ramp(opaque(trim ? trim : rgba(232, 200, 90)));
+  Canvas sheet(w * n, h);
+  for (int f = 0; f < n; f++) {
+    Canvas c(w, h);
+    const int base = h - 1;
+    for (int y = 2; y <= base; y++) { c.set(2, y, kWood[3]); c.set(3, y, kWood[1]); }
+    c.set(2, 1, kGold[4]); c.set(3, 1, kGold[2]); c.set(2, 0, kGold[3]);
+    c.set(1, base, kWood[2]); c.set(4, base, kWood[1]);   // the foot it stands on
+    hline(c, 3, w - 2, 3, kWood[2]);
+    c.set(w - 2, 3, kGold[3]);   // the crossbar's gilded end
+    const int x0 = 4, x1 = w - 1, y0 = 4, y1 = 24;   // the cloth: columns x0..x1-1, rows y0..y1-1
+    const int ex = x0 + 1, ey = 8;
+    for (int y = y0; y < y1; y++) {
+      float t = (y - y0) / (float)(y1 - y0);
+      int off = (int)std::lround(std::sin(t * 4.0f + f * 1.6f) * 1.1f * t);
+      for (int x = x0; x < x1; x++) {
+        if (y > y1 - 6) {   // swallow tail
+          int mid = (x0 + x1 - 1) / 2;
+          if (std::abs(x - mid) < (y - (y1 - 6))) continue;
+        }
+        float wave = std::sin((x - x0) * 0.9f + f * 1.6f + t * 2);
+        int k = 2;
+        if (wave > 0.5f) k = 3;
+        if (wave < -0.5f) k = 1;
+        if (x == x0) k = std::min(4, k + 1);
+        uint32_t col = F[k];
+        bool edge = x == x0 || x == x1 - 1 || y == y0 || y == y0 + 1;
+        if (edge) col = T[y == y0 ? 3 : std::clamp(k, 1, 3)];
+        int i = x - ex, j = y - ey;
+        if (heraldry::chargeAt(emblem, 7, i, j)) col = T[std::clamp(heraldry::chargeShade(emblem, 7, i, j) + (k - 2), 1, 4)];
+        c.set(x + off, y, col);
+      }
+    }
+    outline(c);
+    place(sheet, c, f, 0);
+  }
+  return sheet;
+}
 }  // namespace art

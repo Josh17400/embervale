@@ -12,6 +12,10 @@
 //    the innkeeper's room upstairs; shop: the counter between the customers and the stockroom; smithy: the forge on an
 //    outer wall; temple: the altar on the axis; keep: a throne hall and the lord's quarters). One summary line reports
 //    rooms per building, misplaced beds and the share of distinct layouts per building type.
+//  - M1 palaces and barracks (TOWNS lane, VISION_PLAN 15.8): a dozen of each per seed in every main biome, all the
+//    checks above, plus the palace's throne on the axis at the far wall with the king beside it, the royal bedchamber
+//    and the council chamber upstairs (reached by the stairs and their doors), and the barracks' bunks upstairs and
+//    weapon racks below.
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -54,7 +58,7 @@ const uint64_t kGen6Hash[4] = {0, 0xe71669014ab8e28full, 0x09a784b14128ba17ull, 
 // so any later change to these rooms needs a new WORLDGEN version. Re-record (EMB_INTERIOR_V7HASH=1 prints the values)
 // only while v7 is unreleased.
 // M0b fix round 1 (stairs two tiles wide, two-tile beds, keep/hut/smithy plans, clutter, upstairs residents)
-const uint64_t kGen7Hash[4] = {0, 0x8aa521dc17cb1e42ull, 0x2ad672207ee870d1ull, 0x62c5d07acd1916ecull};   // M0b fix round 3 (arrival beside the stairwell, round tower floors, furnishing variety)
+const uint64_t kGen7Hash[4] = {0, 0x1116c859902c3633ull, 0x0692c417dc915513ull, 0xe35048232981c9e2ull};   // M1 fixer round 3 (keep throne halls swept, palace upper rooms varied); before: M1 fixer round 2
 
 uint64_t floorHash(const Map& m, uint64_t h) {
   h = mapHash(m, h);
@@ -313,6 +317,22 @@ std::string checkFloorV7(const Map& m, const Bldg& b, int f, V7Stats& st) {
   }
   if (b.type == Building::Temple && f == 0 && !isProp(m, m.exitX, 2, Prop::Altar)) return "the altar is not on the temple's axis at the far wall";
   if (b.type == Building::Keep && f == 0 && !has(RoomKind::ThroneHall)) return "keep without a throne hall";
+  if (b.type == Building::Palace && f == 0) {
+    if (!has(RoomKind::ThroneHall)) return "palace without a throne hall";
+    if (!isProp(m, m.exitX, 2, Prop::Throne)) return "the palace's throne is not on the axis at the far wall";
+    bool king = false;
+    for (const Spawn& s : m.spawns) if (s.role == Role::King && std::abs(s.x - m.exitX) <= 3 && s.y <= 5) king = true;
+    if (!king) return "no king by the palace's throne";
+    if (!has(RoomKind::Kitchen) || !has(RoomKind::Barracks)) return "palace without its kitchen or guardroom";
+  }
+  if (b.type == Building::Palace && f == 1 && (!has(RoomKind::OwnerRoom) || !has(RoomKind::Council) || !has(RoomKind::Bedroom)))
+    return "palace upstairs lacks the king's bedchamber, the council chamber or the household's bedchambers";
+  if (b.type == Building::Barracks) {
+    bool bunks = false, racks = false;
+    for (int i = 0; i < W * H; i++) { bunks |= m.prop[(size_t)i] == (int)Prop::BunkBed + 1; racks |= m.prop[(size_t)i] == (int)Prop::WeaponRack + 1; }
+    if (f == 1 && (!has(RoomKind::Barracks) || !bunks)) return "barracks upstairs without a dormitory of bunks";
+    if (f == 0 && !racks) return "barracks without weapon racks";
+  }
   st.rooms += (int)m.rooms.size();
   return "";
 }
@@ -367,7 +387,7 @@ std::string checkBuildingV7(const Bldg& b, V7Stats& st, uint64_t& sig) {
     sig *= 1099511628211ull;
     fsig = fnv(fsig ^ sig, m.prop.data(), m.prop.size());
   }
-  if (b.type == Building::Keep && !owner) return "keep without the lord's quarters";
+  if ((b.type == Building::Keep || b.type == Building::Palace) && !owner) return "keep or palace without the lord's quarters";
   st.sigs[(int)b.type].insert(sig);
   st.furn[(int)b.type].insert(fsig);
   st.count[(int)b.type]++;
@@ -526,15 +546,91 @@ int interiorChecks(uint64_t seed) {
     }
     if (B7.empty()) break;
   }
+  // M1: palaces and barracks (they stand only in endless capitals, so they are built here from their own facts)
+  {
+    static const Biome biomes[6] = {Biome::Plains, Biome::Snow, Biome::Desert, Biome::Forest, Biome::Taiga, Biome::Autumn};
+    for (int k = 0; k < 12; k++) {
+      Bldg b;
+      b.type = k % 2 ? Building::Barracks : Building::Palace;
+      b.r = b.type == Building::Palace ? IRect{0, 0, 15 + 2 * ((k / 2) % 2), 7} : IRect{0, 0, 7, 4};
+      b.owner = b.type == Building::Palace ? Role::King : Role::Guard;
+      b.storeys = 2;
+      b.hearth = true;
+      b.biome = biomes[(k / 2) % 6];
+      b.seed = (uint32_t)(seed * 2654435761u) ^ (uint32_t)(k * 40503 + 99);
+      b.genVer = WORLDGEN_LATEST;
+      s7.bldgs++;
+      uint64_t sig = 0;
+      std::string why = checkBuildingV7(b, s7, sig);
+      if (!why.empty()) {
+        if (s7.bad < 6) out("FAIL: v7 %s (%dx%d, %s, variant %d): %s\n", bldgTypeName(b.type), b.r.w, b.r.h, biomeName(b.biome), k, why.c_str());
+        s7.bad++;
+      }
+    }
+  }
+  // M1 economy: the production buildings (VISION_PLAN 15.7: purposeful rooms). Every type on a few footprints and biomes,
+  // with the generator's storeys and hearth; the rooms the trade needs: the windmill's millstones in its loft above the
+  // grain store, the watermill's in its hall, the bakery's oven behind the counter, the smelter's furnace, the sawmill's
+  // benches, the tannery's vats, the weaver's loom
+  {
+    static const Biome biomes[4] = {Biome::Plains, Biome::Snow, Biome::Desert, Biome::Forest};
+    struct T { Building t; int w, h; Role r; Prop need; int needFloor; };
+    static const T types[] = {
+        {Building::Windmill, 4, 3, Role::Farmer, Prop::Grindstone, 1}, {Building::Watermill, 4, 3, Role::Farmer, Prop::Grindstone, 0},
+        {Building::Granary, 4, 3, Role::Farmer, Prop::COUNT, 0},       {Building::Bakery, 4, 3, Role::Merchant, Prop::COUNT, 0},
+        {Building::Butcher, 4, 3, Role::Merchant, Prop::COUNT, 0},     {Building::Tanner, 4, 3, Role::Villager, Prop::QuenchTub, 0},
+        {Building::Fishmonger, 4, 3, Role::Merchant, Prop::COUNT, 0},  {Building::Smelter, 5, 3, Role::Smith, Prop::Forge, 0},
+        {Building::Sawmill, 5, 3, Role::Villager, Prop::Workbench, 0}, {Building::Weaver, 4, 3, Role::Merchant, Prop::Loom, 0}};
+    int econ = 0, econBad = 0;
+    for (const T& tt : types)
+      for (int k = 0; k < 8; k++) {
+        Bldg b;
+        b.type = tt.t;
+        b.r = IRect{0, 0, tt.w + (k % 3 == 2 && tt.t != Building::Windmill ? 1 : 0), tt.h};
+        b.owner = tt.r;
+        const uint32_t hs = (uint32_t)(seed * 2246822519u) ^ (uint32_t)(k * 7919 + (int)tt.t * 104729);
+        b.storeys = (uint8_t)bldgStoreysV7(b.type, b.r.w, b.r.h, hs);
+        b.hearth = bldgHearthV7(b.type, b.storeys, hash32(hs + 77u));
+        b.biome = biomes[k % 4];
+        b.seed = hash32(hs ^ 0xEC0u);
+        b.genVer = WORLDGEN_LATEST;
+        s7.bldgs++;
+        econ++;
+        uint64_t sig = 0;
+        std::string why = checkBuildingV7(b, s7, sig);
+        if (why.empty() && b.type == Building::Bakery) {   // the bakehouse: an oven or a hearth behind the counter
+          Map m;
+          genInterior(m, b, b.seed, 0);
+          bool oven = false;
+          for (uint8_t p : m.prop) if (p == (int)Prop::Oven + 1 || p == (int)Prop::Hearth + 1) oven = true;
+          if (!oven) why = "a bakery without an oven";
+        }
+        if (why.empty() && tt.need != Prop::COUNT && tt.needFloor < b.floors()) {
+          Map m;
+          genInterior(m, b, b.seed, tt.needFloor);
+          bool has = false;
+          for (uint8_t p : m.prop) if (p == (int)tt.need + 1) has = true;
+          if (!has) why = std::string("without its ") + std::to_string((int)tt.need) + " on floor " + std::to_string(tt.needFloor);
+        }
+        if (b.type == Building::Windmill && b.floors() < 2) why = "a windmill with one floor (its exterior shows two)";
+        if (!why.empty()) {
+          if (econBad < 6) out("FAIL: v7 %s (%dx%d, %s, variant %d): %s\n", bldgTypeName(b.type), b.r.w, b.r.h, biomeName(b.biome), k, why.c_str());
+          econBad++;
+        }
+      }
+    out("interiors: %d production buildings (mills, granaries, trades), %d invalid\n", econ, econBad);
+    s7.bad += econBad;
+  }
   bad += s7.bad;
   std::string var;
-  static const char* tn[] = {"house", "stonehouse", "inn", "smithy", "shop", "temple", "keep", "tower", "farm", "hut"};
+  static const char* tn[] = {"house", "stonehouse", "inn", "smithy", "shop", "temple", "keep", "tower", "farm", "hut", "palace", "barracks",
+                             "windmill", "watermill", "granary", "bakery", "butcher", "tannery", "fishmonger", "smelter", "sawmill", "weaver"};
   int distinct = 0, total = 0, furnished = 0;
   for (auto& kv : s7.count) {
     int d = (int)s7.sigs[kv.first].size();
     distinct += d; total += kv.second; furnished += (int)s7.furn[kv.first].size();
     char t[48];
-    std::snprintf(t, sizeof t, " %s %d%%", kv.first < 10 ? tn[kv.first] : "?", kv.second ? d * 100 / kv.second : 0);
+    std::snprintf(t, sizeof t, " %s %d%%", kv.first < 22 ? tn[kv.first] : "?", kv.second ? d * 100 / kv.second : 0);
     var += t;
   }
   double ms7 = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t7).count();

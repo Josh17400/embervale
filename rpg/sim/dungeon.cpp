@@ -1,4 +1,5 @@
 // Sub-level generation: natural caves (cellular automata), ancient ruins (rooms + corridors), building interiors.
+#include <cstdlib>
 #include <algorithm>
 #include <queue>
 #include <utility>
@@ -965,8 +966,12 @@ void genInteriorV3(Map& m, const Bldg& b, uint32_t seed) {
 void genInteriorV4(Map& m, const Bldg& b, uint32_t seed, int floor) { genInteriorRooms(m, b, seed, floor); }
 }  // namespace
 
-void genInterior(Map& m, const Bldg& b, uint32_t seed, int floor) {
+void genInterior(Map& m, const Bldg& b0, uint32_t seed, int floor) {
   m = Map();
+  // M1: the palace and the barracks have rooms of their own (interior_v4.cpp planPalace / planBarracks); before
+  // WORLDGEN_V7 (never the case for them) a new type is furnished as the type it is painted as
+  Bldg b = b0;
+  if (b.genVer < WORLDGEN_V7) b.type = art::paintedAs(b0.type);
   if (b.genVer >= WORLDGEN_V7) genInteriorV4(m, b, seed, std::clamp(floor, 0, b.floors() - 1));
   else if (b.genVer >= WORLDGEN_V3) genInteriorV3(m, b, seed);
   else genInteriorV2(m, b, seed);

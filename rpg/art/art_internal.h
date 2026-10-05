@@ -11,6 +11,7 @@
 //   art_items.cpp     item icons
 //   art_fx.cpp        effects
 #pragma once
+#include <cstdlib>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>

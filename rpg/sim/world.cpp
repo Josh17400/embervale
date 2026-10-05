@@ -26,43 +26,17 @@ const char* biomeName(Biome b) {
   static const char* n[] = {"OCEAN", "COAST", "PLAINS", "FOREST", "AUTUMN WOODS", "TAIGA", "FROSTLANDS", "MARSH", "DUNES", "MOUNTAINS"};
   return n[(int)b];
 }
+const char* bldgTypeName(art::Building t) {
+  static const char* n[] = {"HOUSE", "HOUSE", "INN", "SMITHY", "GENERAL GOODS", "TEMPLE", "THE KEEP", "MAGE TOWER", "FARMHOUSE", "HUT",
+                            "THE PALACE", "BARRACKS", "WINDMILL", "WATERMILL", "GRANARY", "BAKERY", "BUTCHER", "TANNERY",
+                            "FISHMONGER", "SMELTER", "SAWMILL", "WEAVER"};
+  static_assert(sizeof(n) / sizeof(n[0]) == (size_t)art::Building::COUNT, "a name for every building type");
+  int i = (int)t;
+  return i >= 0 && i < (int)art::Building::COUNT ? n[i] : "HALL";
+}
 const char* siteTypeName(SiteType t) {
   static const char* n[] = {"CITY", "TOWN", "VILLAGE", "CAVE", "ANCIENT RUIN", "BANDIT CAMP", "SHRINE", "DRAGON LAIR"};
   return n[(int)t];
-}
-
-void Map::alloc(int w_, int h_, Ground fill) {
-  w = w_; h = h_;
-  size_t n = (size_t)w * h;
-  ground.assign(n, (uint8_t)fill);
-  prop.assign(n, 0);
-  solid.assign(n, 0);
-  wall.assign(n, 0);
-  deco.assign(n, 0);
-  bldgAt.assign(n, -1);
-  bldgs.clear();
-  spawns.clear();
-}
-
-bool Map::blocked(int x, int y) const {
-  if (!in(x, y)) return true;
-  size_t i = (size_t)y * w + x;
-  return groundSolid((Ground)ground[i]) || solid[i];
-}
-
-void Map::rebuildSolid() {
-  std::fill(solid.begin(), solid.end(), 0);
-  std::fill(bldgAt.begin(), bldgAt.end(), -1);
-  for (size_t i = 0; i < prop.size(); i++)
-    if (prop[i] && propSolid((Prop)(prop[i] - 1))) solid[i] = 1;
-  for (size_t i = 0; i < wall.size(); i++) if (wall[i]) solid[i] = 1;
-  for (int bi = 0; bi < (int)bldgs.size(); bi++) {
-    const Bldg& b = bldgs[bi];
-    for (int y = b.r.y; y < b.r.y + b.r.h; y++)
-      for (int x = b.r.x; x < b.r.x + b.r.w; x++)
-        if (in(x, y)) { solid[(size_t)y * w + x] = 1; bldgAt[(size_t)y * w + x] = (int16_t)bi; }
-    if (in(b.doorX(), b.doorY())) solid[(size_t)b.doorY() * w + b.doorX()] = 0;   // the door is walkable: stepping in enters
-  }
 }
 
 // ------------------------------------------------------------------ names
@@ -105,7 +79,10 @@ std::string makeDungeonName(Rng& r, SiteType t, Biome b) {
   if (t == SiteType::Ruin) return a + " " + ruinN[r.irange(8)];
   if (t == SiteType::BanditCamp) return a + " " + campN[r.irange(6)];
   if (t == SiteType::Shrine) { static const char* g[] = {"SHRINE OF SOLMIR", "SHRINE OF VEYNA", "SHRINE OF HALDRUN", "SHRINE OF ORISSA", "SHRINE OF KEVRAN", "SHRINE OF ILMATH", "SHRINE OF BRANNOCK", "SHRINE OF ESKARA"}; return g[r.irange(8)]; }
-  return "SKYFANG PEAK";
+  // the dragon's peak: a name of its own in every world
+  static const char* peak[] = {"SKYFANG", "ASHCROWN", "CINDERHORN", "WYRMSPIRE", "STORMTOOTH", "EMBERCREST", "GREYFANG", "DRAKEHOLM"};
+  static const char* kind[] = {"PEAK", "SPIRE", "CRAG", "PEAK"};
+  return std::string(peak[r.irange(8)]) + " " + kind[r.irange(4)];
 }
 
 // ------------------------------------------------------------------ world generation
@@ -1829,13 +1806,22 @@ int bldgStoreysV7(art::Building t, int wTiles, int hTiles, uint32_t h) {
     case art::Building::House: return wTiles >= 5 ? (f < 0.65f ? 2 : 1) : (wTiles >= 4 ? (f < 0.4f ? 2 : 1) : 1);
     case art::Building::StoneHouse: return wTiles >= 4 ? (f < 0.6f ? 2 : 1) : (f < 0.3f ? 2 : 1);   // narrow town houses too
     case art::Building::Shop: return wTiles >= 4 && f < 0.7f ? 2 : 1;   // the shopkeeper lives above the shop
-    default: return 1;   // smithy, temple, farmhouse, hut
+    // M1 economy: the trades' shop fronts are shops (the family above in the wider ones); the windmill's tower holds
+    // the millstone loft over the stone floor
+    case art::Building::Bakery: case art::Building::Butcher: case art::Building::Fishmonger: case art::Building::Weaver:
+      return wTiles >= 4 && f < 0.6f ? 2 : 1;
+    case art::Building::Windmill: return 2;
+    default: return 1;   // smithy, temple, farmhouse, hut, watermill, granary, tannery, smelter, sawmill
   }
 }
 bool bldgHearthV7(art::Building t, int storeys, uint32_t h) {
   switch (t) {
     case art::Building::Temple: case art::Building::Tower: return false;   // braziers and a cauldron, no chimney
     case art::Building::Shop: return storeys >= 2 || (h >> 8) % 100 < 40;   // living quarters cook; a lock-up shop may not
+    case art::Building::Butcher: case art::Building::Fishmonger: case art::Building::Weaver: return storeys >= 2 || (h >> 8) % 100 < 50;
+    // M1 economy: mills, the granary and the sawmill burn nothing (flour dust, grain, sawdust); the bakery's ovens, the
+    // smelter's furnace and the tannery's vats do
+    case art::Building::Windmill: case art::Building::Watermill: case art::Building::Granary: case art::Building::Sawmill: return false;
     default: return true;   // homes, the inn's kitchen, the smithy's forge, the keep's great hearth
   }
 }
@@ -1868,34 +1854,31 @@ void World::generate(uint64_t sd, int genVer) {
   dens.clear();
   wallGaps.clear();
   lair = -1;
+  kingdoms.clear();
+  endless = false; ox = 0; oy = 0; src.reset();
+  siteById.clear(); bldgById.clear(); denById.clear(); kingdomById.clear(); spawnKeys.clear(); gateKeys.clear();
   Gen g(*this, sd);
   g.run();
-}
-
-int World::siteAt(int tx, int ty, int pad) const {
-  for (int i = 0; i < (int)sites.size(); i++) {
-    const IRect& r = sites[i].r;
-    if (tx >= r.x - pad && ty >= r.y - pad && tx < r.x + r.w + pad && ty < r.y + r.h + pad) return i;
+  // M1: stable ids (the classic island's are its indices) and the island's one kingdom, seated at the capital
+  for (int i = 0; i < (int)sites.size(); i++) { sites[(size_t)i].id = ew::legacySiteId(i); siteById[sites[(size_t)i].id] = i; }
+  for (int i = 0; i < (int)over.bldgs.size(); i++) { over.bldgs[(size_t)i].id = ew::legacyBldgId(i); bldgById[over.bldgs[(size_t)i].id] = i; }
+  for (int i = 0; i < (int)dens.size(); i++) { dens[(size_t)i].id = ew::makeId(0, 0, ew::IdKind::Den, (uint32_t)i); denById[dens[(size_t)i].id] = i; }
+  Kingdom k;
+  k.id = ew::makeId(0, 0, ew::IdKind::Kingdom, 0);
+  Rng kr(genSubSeed(sd, "kingdom"));
+  k.name = makeTownName(kr);
+  static const uint32_t fields[] = {rgba(150, 32, 36), rgba(36, 64, 140), rgba(28, 100, 60), rgba(110, 40, 120), rgba(180, 120, 30)};
+  k.color = fields[kr.irange(5)];
+  k.color2 = rgba(232, 214, 160);
+  k.emblem = (uint8_t)kr.irange(8);
+  if (capital >= 0 && capital < (int)sites.size()) {
+    k.capitalId = sites[(size_t)capital].id;
+    k.gx = sites[(size_t)capital].ex; k.gy = sites[(size_t)capital].ey;
+    sites[(size_t)capital].capital = true;
   }
-  return -1;
+  kingdoms.push_back(k);
+  kingdomById[k.id] = 0;
+  for (Site& st : sites) if (st.settlement()) st.kingdom = 0;
+  if (startSite >= 0 && startSite < (int)sites.size()) sites[(size_t)startSite].start = true;
 }
 
-int World::nearestSite(int tx, int ty, SiteType t, int exclude) const {
-  int best = -1; int bd = 1 << 30;
-  for (int i = 0; i < (int)sites.size(); i++) {
-    if (sites[i].type != t || i == exclude) continue;
-    int dx = sites[i].ex - tx, dy = sites[i].ey - ty;
-    int d = dx * dx + dy * dy;
-    if (d < bd) { bd = d; best = i; }
-  }
-  return best;
-}
-
-int World::zoneLevel(int tx, int ty) const {
-  if (sites.empty()) return 1;
-  const Site& h = sites[startSite];
-  float d = std::hypot((float)(tx - h.r.cx()), (float)(ty - h.r.cy()));
-  int lv = 1 + (int)(d / 22.0f);
-  if (over.biomeAt(tx, ty) == Biome::Snow || over.biomeAt(tx, ty) == Biome::Mountain) lv += 2;
-  return std::min(lv, 30);
-}

@@ -1,0 +1,33 @@
+# M1 SIM lane: the opening on the ENDLESS world (a port of opening.txt that uses roles, not one seed's names).
+# Shirt only; the tracked quest "A BLADE OF YOUR OWN" leads to the start village inn, whose innkeeper hands over the
+# old blade; then the innkeeper's first job, and back out on the street armed.
+#   embervale.exe --script tools/scripts/sim_opening.txt [--seed 7]     (screenshots land in the working directory)
+seed 7
+0.3  newgame                     # straight into the start village (the creator is skipped: background None)
++0.02 hour 10
++0.4 shot sim_opening_0_start.png
++0.1 expect tracked A BLADE OF YOUR OWN
++0.1 expect slot weapon 0
++0.1 expect kingdom
++0.1 walkto inn 60
++0.7 expect inside 1
++0.8 shot sim_opening_1_inn.png  # the "!" bobbing over the innkeeper
++0.1 talkto innkeeper 40
++0.3 expect mode dialogue
++2.6 shot sim_opening_2_blade.png
++0.1 expect slot weapon 1
++0.1 expect quest done A BLADE OF YOUR OWN
++0.1 expect option ANY WORK GOING
++0.1 choose ANY WORK GOING
++2.6 expect option I'LL DO IT
++0.1 shot sim_opening_3_job.png
++0.1 choose I'LL DO IT
++0.3 key Escape
++0.3 expect mode play
++0.2 menu 1
++0.6 shot sim_opening_4_journal.png
++0.2 key Escape
++0.2 walkto exit 30
++1.0 expect inside 0
++0.3 shot sim_opening_5_outside.png
++0.3 quit

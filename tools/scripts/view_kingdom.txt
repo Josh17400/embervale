@@ -1,0 +1,17 @@
+# VIEW lane, M1: kingdom identity in the UI. The arrival banner (town name and kingdom), the location label's
+# KINGDOM OF / CAPITAL OF line, banners in the kingdom's colours, and a gatehouse flying them.
+#   embervale.exe --script tools/scripts/view_kingdom.txt     (kingdom_*.png in the working directory)
+seed 7
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++1.0 shot kingdom_0_start.png
++0.3 goto town
++1.2 shot kingdom_1_town.png
++0.3 goto capital
++1.2 shot kingdom_2_capital.png
++2.0 walk south 6
++6.2 shot kingdom_3_capital_walk.png
++0.1 walk west 5
++5.2 shot kingdom_4_capital_walk2.png
++0.3 quit

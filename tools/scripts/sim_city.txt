@@ -1,0 +1,22 @@
+# M1 SIM lane: a walk through the biggest city near the start, for --perf (the crowd streams in and out around the
+# player, far townsfolk sleep) and for the eye: no frozen crowds, nobody popping in on screen.
+#   embervale.exe --script tools/scripts/sim_city.txt --perf [--seed 7]   (screenshots land in the working directory)
+seed 7
+0.3  newgame
+0.4  god
+0.5  goto capital
+0.6  hour 12
+1.5  shot sim_city_0.png
+1.6  walk east 8
+5.0  shot sim_city_1.png
+9.8  walk north 6
+12.5 shot sim_city_2.png
+16.0 walk west 12
+21.0 shot sim_city_3.png
+28.2 walk south 8
+32.0 shot sim_city_4.png
+36.5 fight wolf 3
+38.0 shot sim_city_5_alarm.png
+44.0 shot sim_city_6_guards.png
+50.0 expect mode play
+50.2 quit

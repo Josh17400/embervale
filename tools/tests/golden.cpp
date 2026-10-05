@@ -28,7 +28,7 @@ std::map<std::string, uint64_t> computeGolden() {
   using namespace ew;
   std::map<std::string, uint64_t> g;
   const uint64_t S = 0x00C0FFEE12345678ull;
-  Fnv ids, seeds, vn, fb, wp, sq, cd;
+  Fnv ids, seeds, vn, fb, wp, sq, cd, tr;
   for (int32_t ry = -3; ry <= 3; ry++)
     for (int32_t rx = -3; rx <= 3; rx++)
       for (uint32_t l : {0u, 1u, 77u, 4095u}) {
@@ -47,13 +47,14 @@ std::map<std::string, uint64_t> computeGolden() {
       warpQ(wx, wy, 6, 7, S + 3);
       wp.add((uint64_t)(uint32_t)wx | ((uint64_t)(uint32_t)wy << 32));
     }
+  for (int32_t t = -2048; t <= 2048; t += 7) tr.add((uint64_t)(uint32_t)isinT(t) ^ ((uint64_t)(uint32_t)icosR(t, 1000 + t) << 32));
   for (uint64_t v = 0; v < 200000; v += 997) sq.add(isqrt(v * v + v * 31));
   sq.add(isqrt(0xFFFFFFFFFFFFull));
   for (int32_t t = -100000; t <= 100000; t += 4093) {
     cd.add((uint64_t)(uint32_t)chunkOf(t) | ((uint64_t)(uint32_t)regionOf(t) << 32));
     cd.add((uint64_t)(uint32_t)floorDiv(t, 1024) | ((uint64_t)(uint32_t)floorMod(t, 6144) << 32));
   }
-  g["ids"] = ids.h; g["cellseed"] = seeds.h; g["vnoise"] = vn.h; g["fbm"] = fb.h; g["warp"] = wp.h; g["isqrt"] = sq.h; g["coords"] = cd.h;
+  g["ids"] = ids.h; g["cellseed"] = seeds.h; g["vnoise"] = vn.h; g["fbm"] = fb.h; g["warp"] = wp.h; g["isqrt"] = sq.h; g["coords"] = cd.h; g["isin"] = tr.h;
   return g;
 }
 

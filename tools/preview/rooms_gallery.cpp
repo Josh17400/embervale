@@ -199,6 +199,8 @@ const char* typeName(art::Building t) {
     case art::Building::StoneHouse: return "stonehouse";
     case art::Building::Farmhouse: return "farmhouse";
     case art::Building::Hut: return "hut";
+    case art::Building::Palace: return "palace";
+    case art::Building::Barracks: return "barracks";
     default: return "bldg";
   }
 }
@@ -207,13 +209,27 @@ void real(const std::string& dir, uint64_t seed, std::vector<Canvas>& firsts) {
   World w;
   w.generate(seed);
   // one building of each type (preferring ones with upper floors), every floor side by side
-  const art::Building types[] = {art::Building::Inn, art::Building::Keep, art::Building::Tower, art::Building::House, art::Building::StoneHouse,
-                                 art::Building::Shop, art::Building::Smithy, art::Building::Temple, art::Building::Farmhouse, art::Building::Hut};
   int n = 0;
-  for (art::Building t : types) {
+  // M1: the palace and the barracks stand only in endless capitals: built here from their own facts
+  std::vector<Bldg> extra;
+  for (int k = 0; k < 2; k++) {
+    Bldg b;
+    b.type = k == 0 ? art::Building::Palace : art::Building::Barracks;
+    b.r = k == 0 ? IRect{0, 0, 15 + 2 * (int)(seed & 1), 7} : IRect{0, 0, 7, 4};
+    b.owner = k == 0 ? Role::King : Role::Guard;
+    b.storeys = 2;
+    b.biome = Biome::Plains;
+    b.seed = (uint32_t)(seed * 2654435761u) + (uint32_t)k * 977u;
+    extra.push_back(b);
+  }
+  for (art::Building t : {art::Building::Inn, art::Building::Keep, art::Building::Tower, art::Building::House, art::Building::StoneHouse,
+                          art::Building::Shop, art::Building::Smithy, art::Building::Temple, art::Building::Farmhouse, art::Building::Hut,
+                          art::Building::Palace, art::Building::Barracks}) {
     const Bldg* best = nullptr;
     for (const Bldg& b : w.over.bldgs)
       if (b.type == t && (!best || b.floors() > best->floors())) best = &b;
+    for (const Bldg& b : extra)
+      if (b.type == t) best = &b;
     if (!best) continue;
     std::vector<Canvas> fl;
     for (int f = 0; f < best->floors(); f++) {

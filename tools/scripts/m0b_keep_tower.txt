@@ -2,6 +2,7 @@
 # upstairs) and the mage tower (laboratory, library, the mage's bedroom on the top floor), up and down the stairs.
 #   embervale.exe --script tools/scripts/m0b_keep_tower.txt [--seed 7]      (also seeds 7, 99, 19 desert, 10 taiga)
 # Screenshots land in the working directory. Exit code 3 if an expect/walkto fails.
+worldgen 7   # M1: written against the classic island (generator v7); new games are endless now
 seed 2
 0.3  newgame
 0.5  expect mode play

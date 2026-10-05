@@ -8,12 +8,24 @@
 
 namespace {
 Color col(uint32_t c, float a = 1) { return Color((c & 255) / 255.0f, ((c >> 8) & 255) / 255.0f, ((c >> 16) & 255) / 255.0f, a); }
+// a kingdom's banner colour lifted toward parchment so a dark field still reads as text over the world
+Color mixKing(Color c) { return Color(c.r * 0.55f + 0.42f, c.g * 0.55f + 0.38f, c.b * 0.55f + 0.32f, c.a); }
 const Color kGold(0.98f, 0.82f, 0.42f), kText(0.93f, 0.9f, 0.82f), kDim(0.62f, 0.58f, 0.52f), kPanel(0.07f, 0.06f, 0.08f);
 
 // on-screen touch buttons
 enum Btn { B_ATTACK, B_BOW, B_SPELL, B_ROLL, B_POTION, B_MENU, B_COUNT };
 struct BtnDef { float x, y, r; };
+// laid out on the 480 x 270 design screen; btnPos() anchors them to the safe area's bottom-right corner (the menu
+// button: its top-right), so on a wide phone they stay under the right thumb and clear of the notch
 const BtnDef kBtn[B_COUNT] = {{424, 222, 23}, {374, 240, 14}, {380, 196, 14}, {424, 172, 14}, {464, 176, 11}, {466, 12, 10}};
+BtnDef btnPos(int b) {
+  BtnDef d = kBtn[b];
+  d.x = (float)(Pix::W - Pix::SR) - (480 - d.x);
+  d.y = b == B_MENU ? (float)Pix::ST + d.y : (float)(Pix::H - Pix::SB) - (270 - d.y);
+  return d;
+}
+// the resting place of the movement stick (bottom-left of the safe area)
+Vec2 stickRest() { return Vec2((float)Pix::SL + 60, (float)(Pix::H - Pix::SB) - 55); }
 
 // menuTab_ ids are stable (scripts and --menu use them); EQUIP (M0) is id 5 but shows second
 const char* kTabs[] = {"ITEMS", "QUESTS", "MAP", "HERO", "SYSTEM", "EQUIP"};
@@ -40,7 +52,13 @@ std::string trackedStep(const Game& g, const Quest& q) {
       p = s.find(sep, p + 1);
     }
   }
-  if (cut != std::string::npos) return s.substr(0, cut);
+  if (cut != std::string::npos) {
+    // (M1) a place clause ("IN BRIGHTFELL") is where to go: it moves to a second line instead of being dropped
+    std::string rest = s.substr(cut + 1);
+    if (rest.size() > 30) rest = rest.substr(0, 30);
+    if (rest.rfind("IN ", 0) == 0 || rest.rfind("NEAR ", 0) == 0 || rest.rfind("AT ", 0) == 0) return s.substr(0, cut) + "\n" + rest;
+    return s.substr(0, cut);
+  }
   s = s.substr(0, 30);
   size_t sp = s.find_last_of(' ');
   return sp != std::string::npos && sp > 18 ? s.substr(0, sp) : s;
@@ -50,8 +68,9 @@ std::string trackedStep(const Game& g, const Quest& q) {
 // and the action buttons taller; keyboard/mouse keeps the dense 12 px list.
 struct MenuLay { float pitch; int rows; float btnY, btnH, trackY, trackH, sysH; };
 MenuLay menuLay(bool touch) {
-  if (touch) return {18.0f, 11, (float)Pix::H - 48, 24.0f, (float)Pix::H - 40, 24.0f, 24.0f};
-  return {12.0f, 17, (float)Pix::H - 44, 16.0f, (float)Pix::H - 38, 16.0f, 20.0f};
+  // (M1) the rows follow the box height: 11 / 17 at 270, a row or two more on a taller screen
+  if (touch) return {18.0f, std::max(8, (Pix::H - 72) / 18), (float)Pix::H - 48, 24.0f, (float)Pix::H - 40, 24.0f, 24.0f};
+  return {12.0f, std::max(12, (Pix::H - 64) / 12), (float)Pix::H - 44, 16.0f, (float)Pix::H - 38, 16.0f, 20.0f};
 }
 
 std::vector<std::string> wrap(const std::string& s, int maxChars) {
@@ -199,7 +218,9 @@ void View::draw(Game& g, bool hasSave) {
   if (g.mode == Mode::Title) { drawTitle(g, hasSave); }
   else if (g.mode == Mode::Creator) { drawCreator(g); }
   else {
-    drawHud(g);
+    // (M1 round 3) the HUD steps away under the menu and the shop (its bars, gold, minimap and the hamburger showed
+    // round the panel's edges on a wide phone)
+    if (g.mode != Mode::Menu && g.mode != Mode::Shop && g.mode != Mode::LevelUp) drawHud(g);
     if (touchUI && (g.mode == Mode::Play)) drawTouch(g);
     if (g.mode == Mode::Dialogue) drawDialogue(g);
     // toasts and the banner wait while a dialogue is open (render.cpp holds their timers): on a phone the touch
@@ -211,13 +232,45 @@ void View::draw(Game& g, bool hasSave) {
     if (g.mode == Mode::Dead) drawDead(g);
     if (g.mode == Mode::Paused) {
       P.rect(0, 0, Pix::W, Pix::H, Color(0, 0, 0, 0.5f));
+      const UiBox b = uiBox(270);
+      P.pushBox(b.x, b.y, b.w, b.h);
       P.text(Pix::W / 2, 120, "PAUSED", 3, kGold, 1);
       P.text(Pix::W / 2, 150, "ESC / TAP TO RESUME", 1, kText, 1);
+      P.popBox();
     }
   }
+  if (settingsOpen_) drawSettings();
   float f = std::max(fade_, g.sleepFade > 0 ? std::min(1.0f, g.sleepFade) : 0.0f);
   if (f > 0) P.rect(0, 0, Pix::W, Pix::H, Color(0, 0, 0, f));
+  if (!loadingCard.empty()) {   // (M1) the world is being made: say so instead of a frozen title
+    P.rect(0, 0, Pix::W, Pix::H, Color(0.03f, 0.025f, 0.04f));
+    P.text(Pix::W / 2, Pix::H / 2 - 12, loadingCard, 2, kGold, 1);
+    P.text(Pix::W / 2, Pix::H / 2 + 14, "...", 2, kText, 1);
+  }
 }
+
+// A 480-wide box, up to maxH tall (at least 270: screen.cpp guarantees that much safe area), centred in the safe area.
+View::UiBox View::uiBox(int maxH) const {
+  const int aw = Pix::W - Pix::SL - Pix::SR, ah = Pix::H - Pix::ST - Pix::SB;
+  UiBox b;
+  b.w = std::min(480, std::max(1, aw));
+  b.h = std::max(1, std::min(maxH, ah));
+  b.x = Pix::SL + (aw - b.w) / 2;
+  b.y = Pix::ST + (ah - b.h) / 2;
+  return b;
+}
+// (M1 round 3) the modal panels' box: the MAP tab takes the safe area's width on a wide phone (up to 640: the map
+// grows, the side column keeps its size); everything else keeps the 480-wide layout
+View::UiBox View::modalBox(const Game& g) const {
+  UiBox b = uiBox(300);
+  if (g.mode == Mode::Menu && menuTab_ == 2) {
+    const int aw = Pix::W - Pix::SL - Pix::SR;
+    b.w = std::max(b.w, std::min(640, aw));
+    b.x = Pix::SL + (aw - b.w) / 2;
+  }
+  return b;
+}
+int View::titleItems() const { return hasSave_ ? 3 : 2; }
 
 void View::drawHud(Game& g) {
   Pix& P = *pix_;
@@ -236,43 +289,47 @@ void View::drawHud(Game& g) {
     P.rect(x, y, w * k, 4, c);
     P.rect(x, y, w * k, 1, Color(std::min(1.0f, c.r + 0.3f), std::min(1.0f, c.g + 0.3f), std::min(1.0f, c.b + 0.3f)));
   };
-  P.textS(6, 5, "LV " + std::to_string(g.plLevel), 1, kGold);
-  bar(36, 6, 90, p.hp, p.maxHp, Color(0.85f, 0.18f, 0.16f), Color(0.3f, 0.05f, 0.05f));
-  bar(36, 14, 70, g.mp, mpMax, Color(0.25f, 0.45f, 0.95f), Color(0.06f, 0.1f, 0.3f));
-  bar(36, 22, 70, g.stamina, stMax, Color(0.3f, 0.8f, 0.35f), Color(0.06f, 0.22f, 0.08f));
-  if (g.stFlash > 0) P.rect(35, 21, 72, 6, Color(1, 0.25f, 0.2f, ((int)(g.stFlash * 16) & 1) ? 0.75f : 0.3f));   // too winded to act
+  // M1: every HUD piece is anchored to the safe area (the notch side of a phone, the HUD MARGIN setting)
+  const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
+  P.textS(L + 6, T + 5, "LV " + std::to_string(g.plLevel), 1, kGold);
+  bar(L + 36, T + 6, 90, p.hp, p.maxHp, Color(0.85f, 0.18f, 0.16f), Color(0.3f, 0.05f, 0.05f));
+  bar(L + 36, T + 14, 70, g.mp, mpMax, Color(0.25f, 0.45f, 0.95f), Color(0.06f, 0.1f, 0.3f));
+  bar(L + 36, T + 22, 70, g.stamina, stMax, Color(0.3f, 0.8f, 0.35f), Color(0.06f, 0.22f, 0.08f));
+  if (g.stFlash > 0) P.rect(L + 35, T + 21, 72, 6, Color(1, 0.25f, 0.2f, ((int)(g.stFlash * 16) & 1) ? 0.75f : 0.3f));   // too winded to act
   // xp sliver
-  P.rect(6, 14, 26, 2, Color(0.1f, 0.1f, 0.1f, 0.8f));
-  P.rect(6, 14, 26 * clampf(g.plXp / (float)g.xpForNext(), 0, 1), 2, kGold);
+  P.rect(L + 6, T + 14, 26, 2, Color(0.1f, 0.1f, 0.1f, 0.8f));
+  P.rect(L + 6, T + 14, 26 * clampf(g.plXp / (float)g.xpForNext(), 0, 1), 2, kGold);
   // gold, arrows, spell
   int arrows = 0;
   for (auto& it : g.inv) if (it.kind == ItemKind::Arrows) arrows += it.count;
-  P.blit(iconTex(art::Icon::Gold, 0), 4, 28);
-  P.textS(20, 33, std::to_string(g.gold), 1, kGold);
-  P.blit(iconTex(art::Icon::Arrows, 0), 56, 28);
-  P.textS(72, 33, std::to_string(arrows), 1, kText);
-  if (g.spellsKnown & (1 << (int)g.spell)) P.textS(100, 33, spellName(g.spell), 1, Color(0.6f, 0.75f, 1.0f));
-  if (g.perkPts > 0 && ((int)(t_ * 2) & 1)) P.textS(6, 44, "LEVEL UP! OPEN MENU", 1, kGold);
-  if (g.blessT > 0) P.textS(6, g.perkPts > 0 ? 54 : 44, g.blessName, 1, Color(0.7f, 0.85f, 1.0f, 0.8f));
+  P.blit(iconTex(art::Icon::Gold, 0), L + 4, T + 28);
+  P.textS(L + 20, T + 33, std::to_string(g.gold), 1, kGold);
+  P.blit(iconTex(art::Icon::Arrows, 0), L + 56, T + 28);
+  P.textS(L + 72, T + 33, std::to_string(arrows), 1, kText);
+  if (g.spellsKnown & (1 << (int)g.spell)) P.textS(L + 100, T + 33, spellName(g.spell), 1, Color(0.6f, 0.75f, 1.0f));
+  if (g.perkPts > 0 && ((int)(t_ * 2) & 1)) P.textS(L + 6, T + 44, "LEVEL UP! OPEN MENU", 1, kGold);
+  if (g.blessT > 0) P.textS(L + 6, T + (g.perkPts > 0 ? 54 : 44), g.blessName, 1, Color(0.7f, 0.85f, 1.0f, 0.8f));
 
   // M0b fix round 3: inside a building the rooms fill the screen and a wide one runs on under the minimap and the
   // location / quest column. The building is in full view, so its minimap is dropped there, and the column fades to
   // a faint overlay (fainter still with the hero right under it) so the hearth corner and the shelves show through.
-  float hudA = 1.0f;
+  float hudA = 1.0f, backA = 0.38f;
   bool showMini = true;
   if (g.inside && g.subBldg >= 0) {
+    // (M1) a big hall (the palace, a keep) runs on under the minimap and the column: keep both readable over the
+    // shelves and beds with a firmer backing, and step aside only while the hero is right under them
     const Map& m = g.map();
     const Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
     float mx1 = m.w * 16.0f - cam.x, my0 = -16.0f - cam.y;
-    if (mx1 > Pix::W - 74 && my0 < 90) showMini = false;   // the rooms run on under the minimap
-    if (mx1 > Pix::W - 160 && my0 < 130) {                   // ... or under the location / quest column
-      hudA = 0.5f;
-      Vec2 ps = g.pl().p - cam;
-      if (ps.x > Pix::W - 170 && ps.y < 160) hudA = 0.2f;
+    const Vec2 ps = g.pl().p - cam;
+    if (mx1 > R - 74 && my0 < T + 90 && ps.x > R - 84 && ps.y < T + 100) showMini = false;
+    if (mx1 > R - 160 && my0 < T + 130) {   // the rooms run on under the location / quest column
+      backA = 0.74f;
+      if (ps.x > R - 170 && ps.y < T + 160) { hudA = 0.35f; backA = 0.3f; }
     }
   }
   // minimap + location
-  if (showMini) drawMinimap(g, Pix::W - 70, 24, 64);
+  if (showMini) drawMinimap(g, R - 70, T + 24, 64);
   auto fa = [&](Color c) { c.a *= hudA; return c; };
   std::string loc = g.locName;
   if (loc.size() > 26) loc = loc.substr(0, 26);
@@ -281,21 +338,40 @@ void View::drawHud(Game& g) {
   char clock[16];
   std::snprintf(clock, sizeof clock, "%02d:%02d", hh, mm);
   std::string dayStr = std::string("DAY ") + std::to_string(g.day) + " " + clock;
+  // (M1) kingdom identity: in a settlement, the line under its name says whose it is (and marks a capital)
+  std::string kingLine;
+  Color kingCol = kDim;
+  if (g.curSite >= 0 && g.curSite < (int)g.world.sites.size() && g.world.sites[g.curSite].settlement())
+    if (const Kingdom* k = g.world.kingdomOf(g.curSite)) {
+      kingLine = (g.world.sites[g.curSite].capital ? "CAPITAL OF " : "KINGDOM OF ") + k->name;
+      if (kingLine.size() > 26) kingLine = kingLine.substr(0, 26);
+      if (k->color) kingCol = mixKing(col(k->color));
+    }
+  const float kdy = kingLine.empty() ? 0.0f : 9.0f;
+  float colBottom = T + 150;   // the foot of the location / quest column (the quest arrow keeps below it)
   {
     // a soft backing so the location / clock / quest column stays readable over busy roofs and snow
     const Quest* tq = g.trackedQuest >= 0 ? g.questById(g.trackedQuest) : nullptr;
     bool hasQ = tq && tq->state != QState::Done;
-    int wmax = std::max(P.textW(loc, 1), P.textW(dayStr, 1));
+    int wmax = std::max(std::max(P.textW(loc, 1), P.textW(dayStr, 1)), P.textW(kingLine, 1));
     if (hasQ) wmax = std::max(wmax, P.textW(tq->title.size() > 22 ? tq->title.substr(0, 22) : tq->title, 1));
-    if (hasQ) wmax = std::max(wmax, P.textW(trackedStep(g, *tq), 1));
-    float bh = hasQ ? 42.0f : 21.0f;
-    P.rect(Pix::W - wmax - 10, 88, (float)wmax + 8, bh, Color(0.03f, 0.02f, 0.05f, 0.38f * hudA));
+    float extra = 0;
+    if (hasQ) {
+      const std::string st = trackedStep(g, *tq);
+      const size_t nl = st.find('\n');
+      wmax = std::max(wmax, P.textW(st.substr(0, nl), 1));
+      if (nl != std::string::npos) { wmax = std::max(wmax, P.textW(st.substr(nl + 1), 1)); extra = 9.0f; }
+    }
+    float bh = (hasQ ? 42.0f : 21.0f) + kdy + extra;
+    P.rect(R - wmax - 10, T + 88, (float)wmax + 8, bh, Color(0.03f, 0.02f, 0.05f, backA));
+    colBottom = T + 88 + bh + 12;
   }
-  P.textS(Pix::W - 5, 91, loc, 1, fa(kText), 2);
-  P.textS(Pix::W - 5, 100, dayStr, 1, fa(kDim), 2);
-  if (!touchUI) { P.textS(Pix::W - 24, 7, "TAB", 1, kDim, 1); }
+  P.textS(R - 5, T + 91, loc, 1, fa(kText), 2);
+  if (!kingLine.empty()) P.textS(R - 5, T + 100, kingLine, 1, fa(kingCol), 2);
+  P.textS(R - 5, T + 100 + kdy, dayStr, 1, fa(kDim), 2);
+  if (!touchUI) { P.textS(R - 24, T + 7, "TAB", 1, kDim, 1); }
   else {
-    const BtnDef& b = kBtn[B_MENU];
+    const BtnDef b = btnPos(B_MENU);
     P.rect(b.x - 9, b.y - 8, 18, 16, Color(0.1f, 0.08f, 0.08f, 0.8f));
     P.frame(b.x - 9, b.y - 8, 18, 16, Color(0.6f, 0.5f, 0.3f));
     for (int k = 0; k < 3; k++) P.rect(b.x - 5, b.y - 4 + k * 4, 10, 2, kText);
@@ -307,23 +383,30 @@ void View::drawHud(Game& g) {
     if (q && q->state != QState::Done) {
       const std::string obj = trackedStep(g, *q);
       std::string t = q->title.size() > 22 ? q->title.substr(0, 22) : q->title;
-      P.textS(Pix::W - 6, 112, t, 1, fa(kGold), 2);
-      if (!obj.empty()) P.textS(Pix::W - 6, 121, obj, 1, fa(kText), 2);
+      P.textS(R - 6, T + 112 + kdy, t, 1, fa(kGold), 2);
+      if (!obj.empty()) {
+        const size_t nl = obj.find('\n');
+        P.textS(R - 6, T + 121 + kdy, obj.substr(0, nl), 1, fa(kText), 2);
+        if (nl != std::string::npos) P.textS(R - 6, T + 130 + kdy, obj.substr(nl + 1), 1, fa(kText), 2);
+      }
       // off-screen arrow toward the objective
       int tx, ty;
       if (!g.inside && g.questTarget(q->id, tx, ty)) {
         Vec2 tgt(tx * 16 + 8.0f, ty * 16 + 8.0f);
         Vec2 sc = tgt - Vec2(std::floor(cam_.x), std::floor(cam_.y));
-        bool on = sc.x > 10 && sc.y > 10 && sc.x < Pix::W - 10 && sc.y < Pix::H - 10;
+        bool on = sc.x > L + 10 && sc.y > T + 10 && sc.x < R - 10 && sc.y < B - 10;
         float dist = len(tgt - p.p) / 16;
         if (!on) {
-          Vec2 c(Pix::W / 2.0f, Pix::H / 2.0f);
+          // the arrow rides the edge of the safe area, around its centre
+          Vec2 c((L + R) / 2.0f, (T + B) / 2.0f);
           Vec2 d = norm(sc - c);
-          float k = std::min((Pix::W / 2.0f - 18) / std::max(0.01f, std::fabs(d.x)), (Pix::H / 2.0f - 18) / std::max(0.01f, std::fabs(d.y)));
+          float k = std::min(((R - L) / 2.0f - 18) / std::max(0.01f, std::fabs(d.x)), ((B - T) / 2.0f - 18) / std::max(0.01f, std::fabs(d.y)));
           Vec2 a = c + d * k;
           // slide along the screen edge out of the HUD corners (vitals top-left, minimap + quest column top-right)
-          if (a.x < 150 && a.y < 58) { if (a.y <= 20) a.x = 150; else a.y = 58; }
-          if (a.x > Pix::W - 160 && a.y < 140) { if (a.y <= 20) a.x = Pix::W - 160; else a.y = 140; }
+          if (a.x < L + 150 && a.y < T + 58) { if (a.y <= T + 20) a.x = L + 150; else a.y = T + 58; }
+          // (M1 round 3) below the column's real foot (a two-line step and a kingdom line made it taller than the old
+          // fixed limit, and the arrow and its distance sat on the quest's last line)
+          if (a.x > R - 160 && a.y < colBottom) { if (a.y <= T + 20) a.x = R - 160; else a.y = colBottom; }
           // a filled arrowhead (dark outline first so it reads on snow and sand), gently pulsing toward the goal
           a = a + d * (std::sin(t_ * 6) * 1.5f);
           Vec2 side(-d.y, d.x);
@@ -363,7 +446,7 @@ void View::drawHud(Game& g) {
             break;
           }
           // never into the HUD: above the screen top or behind the vitals block, it sits just over the door instead
-          if (pinY - 11 < 6 || (sc.x < 160 && pinY - 11 < 46)) pinY = sc.y - 22;
+          if (pinY - 11 < T + 6 || (sc.x < L + 160 && pinY - 11 < T + 46)) pinY = sc.y - 22;
           const int bob = (int)std::lround(std::sin(t_ * 4) * 1.2f);
           static const char* kPin[12] = {
               "....ooo....", "...oHYYo...", "..oHYYYSo..", ".oHYYYYYSo.", "oHYYYWYYYSo", "oYYYWWWYYSo",
@@ -390,7 +473,7 @@ void View::drawHud(Game& g) {
   for (const Actor& a : g.actors) {
     if (!a.boss || a.st == AState::Dead || !a.aggro) continue;
     if (len2(a.p - p.p) > 260 * 260) continue;
-    float w = 200, x = (Pix::W - w) / 2, y = Pix::H - 22;
+    float w = 200, x = (Pix::W - w) / 2, y = B - 22;
     P.textS(Pix::W / 2, y - 10, a.name, 1, Color(1, 0.75f, 0.6f), 1);
     P.rect(x - 1, y - 1, w + 2, 6, Color(0, 0, 0, 0.85f));
     P.rect(x, y, w * clampf(a.hp / a.maxHp, 0, 1), 4, Color(0.75f, 0.12f, 0.1f));
@@ -416,8 +499,8 @@ void View::drawHud(Game& g) {
         // floor below a person at the top of a room is open; the "!" bubble stays over the head).
         float lx = s.x;
         {
-          const float hudR = (float)std::max(130, 100 + P.textW(spellName(g.spell), 1)) + 12;
-          const float hudB = (g.perkPts > 0 || g.blessT > 0) ? (g.perkPts > 0 && g.blessT > 0 ? 64.0f : 54.0f) : 46.0f;
+          const float hudR = L + (float)std::max(130, 100 + P.textW(spellName(g.spell), 1)) + 12;
+          const float hudB = T + ((g.perkPts > 0 || g.blessT > 0) ? (g.perkPts > 0 && g.blessT > 0 ? 64.0f : 54.0f) : 46.0f);
           const float half = labelW - 6;
           const float topY = ly - (touchUI ? 0.0f : 9.0f);
           if (lx - half < hudR && topY < hudB) ly = s.y + (touchUI ? 4.0f : 13.0f);
@@ -439,13 +522,13 @@ void View::drawHud(Game& g) {
     // M0b fix round 2: with the touch buttons on, a notice too wide to clear the bow button (x >= 360) breaks into two
     // centred lines at the space nearest its middle
     std::string l1 = g.notice, l2;
-    if (touchUI && P.textW(g.notice, 1) > 2 * (kBtn[B_BOW].x - kBtn[B_BOW].r - 6 - Pix::W / 2)) {
+    if (touchUI && P.textW(g.notice, 1) > 2 * (btnPos(B_BOW).x - btnPos(B_BOW).r - 6 - Pix::W / 2)) {
       size_t mid = g.notice.size() / 2, best = std::string::npos;
       for (size_t i = 0; i < g.notice.size(); i++)
         if (g.notice[i] == ' ' && (best == std::string::npos || (i > mid ? i - mid : mid - i) < (best > mid ? best - mid : mid - best))) best = i;
       if (best != std::string::npos) { l1 = g.notice.substr(0, best); l2 = g.notice.substr(best + 1); }
     }
-    float ny = (float)(Pix::H - 42) - (l2.empty() ? 0.0f : 9.0f);
+    float ny = B - 42 - (l2.empty() ? 0.0f : 9.0f);
     for (const std::string* L : {&l1, &l2}) {
       if (L->empty()) continue;
       P.textS(Pix::W / 2 + 1, ny + 1, *L, 1, Color(0, 0, 0, a * 0.6f), 1);
@@ -456,7 +539,7 @@ void View::drawHud(Game& g) {
   // banner
   if (bannerT_ > 0 && g.mode != Mode::Dialogue) {
     float a = clampf(std::min(bannerT_, 4.0f - bannerT_) * 2.5f, 0, 1);
-    float y = 56;
+    float y = T + 56;
     P.rect(0, y - 6, Pix::W, 34, Color(0, 0, 0, 0.45f * a));
     P.rect(Pix::W / 2 - 90, y - 6, 180, 1, Color(kGold.r, kGold.g, kGold.b, a * 0.8f));
     P.rect(Pix::W / 2 - 90, y + 27, 180, 1, Color(kGold.r, kGold.g, kGold.b, a * 0.8f));
@@ -470,15 +553,16 @@ void View::drawHud(Game& g) {
 // touch stick and buttons sit at the bottom), the centre notice and the quest column; newest at the top.
 void View::drawToasts() {
   Pix& P = *pix_;
-  float ty = 92;
+  const float L = (float)Pix::SL;
+  float ty = (float)Pix::ST + 92;
   int shown = 0;
   for (int i = (int)toasts_.size() - 1; i >= 0 && shown < 5; i--, shown++) {
     const Toast& t = toasts_[i];
     float a = clampf(4.0f - t.t, 0, 1);
     float w = (float)P.textW(t.s, 1);
-    P.rect(3, ty - 2, w + 6, 10, Color(0.03f, 0.02f, 0.05f, 0.42f * a));
-    P.textS(7, ty + 1, t.s, 1, Color(0, 0, 0, a * 0.6f));
-    P.textS(6, ty, t.s, 1, Color(t.c.r, t.c.g, t.c.b, a));
+    P.rect(L + 3, ty - 2, w + 6, 10, Color(0.03f, 0.02f, 0.05f, 0.42f * a));
+    P.textS(L + 7, ty + 1, t.s, 1, Color(0, 0, 0, a * 0.6f));
+    P.textS(L + 6, ty, t.s, 1, Color(t.c.r, t.c.g, t.c.b, a));
     ty += 11;
   }
 }
@@ -494,12 +578,36 @@ void View::drawTouch(Game& g) {
     P.blitEx(light_, 0, 0, 64, 64, stick_.start.x - 30, stick_.start.y - 30, 60, 60, false, Color(0.9f, 0.9f, 1, 0.25f));
     P.blitEx(light_, 0, 0, 64, 64, stick_.start.x + d.x - 14, stick_.start.y + d.y - 14, 28, 28, false, Color(1, 1, 1, 0.6f));
   } else {
-    P.blitEx(light_, 0, 0, 64, 64, 60 - 26, 215 - 26, 52, 52, false, Color(0.9f, 0.9f, 1, 0.12f));
+    // (M1 round 3) the stick at rest is drawn like the buttons (a dark disc in a ring, with its thumb and four
+    // direction ticks), so a new phone player sees where to drag: the old faint glow vanished on grass and cobbles
+    const Vec2 rest = stickRest();
+    const float R = 26, r2 = 11;
+    for (int yy = (int)-R; yy <= (int)R; yy++) {
+      const float hw = std::sqrt(std::max(0.0f, R * R - yy * yy));
+      P.rect(rest.x - hw, rest.y + yy, hw * 2, 1, Color(0.08f, 0.07f, 0.09f, 0.32f));
+    }
+    for (int k = 0; k < 64; k++) {
+      const float a = k / 64.0f * TAU;
+      P.rect(rest.x + std::cos(a) * R, rest.y + std::sin(a) * R, 1, 1, Color(0.9f, 0.85f, 0.75f, 0.5f));
+    }
+    for (int k = 0; k < 4; k++) {   // direction ticks
+      const float a = k * TAU / 4;
+      const float cx = rest.x + std::cos(a) * (R - 6), cy = rest.y + std::sin(a) * (R - 6);
+      P.rect(cx - 1, cy - 1, 2, 2, Color(0.95f, 0.9f, 0.8f, 0.45f));
+    }
+    for (int yy = (int)-r2; yy <= (int)r2; yy++) {
+      const float hw = std::sqrt(std::max(0.0f, r2 * r2 - yy * yy));
+      P.rect(rest.x - hw, rest.y + yy, hw * 2, 1, Color(0.85f, 0.82f, 0.78f, 0.38f));
+    }
+    for (int k = 0; k < 32; k++) {
+      const float a = k / 32.0f * TAU;
+      P.rect(rest.x + std::cos(a) * r2, rest.y + std::sin(a) * r2, 1, 1, Color(0.12f, 0.1f, 0.14f, 0.6f));
+    }
   }
   int target = g.interactTarget();
   int utx = 0, uty = 0, usePr = target < 0 ? usablePropAt(g, utx, uty) : 0;
   for (int b = 0; b < B_MENU; b++) {
-    const BtnDef& d = kBtn[b];
+    const BtnDef d = btnPos(b);
     bool held = false;
     for (auto& f : fingers_) if (f.on && f.button == b) held = true;
     Color ring = held ? Color(1, 0.9f, 0.6f, 0.9f) : Color(0.9f, 0.85f, 0.75f, 0.45f);
@@ -548,39 +656,6 @@ void View::drawTouch(Game& g) {
       default: break;
     }
   }
-}
-
-void View::bakeWorldMap(Game& g) {
-  const Map& m = g.world.over;
-  int W = m.w / 2, H = m.h / 2;
-  Canvas c(W, H);
-  for (int y = 0; y < H; y++)
-    for (int x = 0; x < W; x++) {
-      Ground gr = m.at(x * 2, y * 2);
-      uint32_t k;
-      switch (gr) {
-        case Ground::DeepWater: k = rgba(56, 84, 120); break;
-        case Ground::Water: k = rgba(80, 116, 150); break;
-        case Ground::Sand: k = rgba(214, 196, 150); break;
-        case Ground::Snow: k = rgba(232, 232, 228); break;
-        case Ground::Rock: k = rgba(128, 116, 100); break;
-        case Ground::Road: case Ground::Bridge: k = rgba(120, 92, 60); break;
-        case Ground::Plaza: k = rgba(150, 120, 90); break;
-        case Ground::Swamp: k = rgba(118, 124, 88); break;
-        case Ground::ForestFloor: k = rgba(108, 132, 84); break;
-        case Ground::Autumn: k = rgba(176, 136, 84); break;
-        case Ground::Tundra: k = rgba(150, 156, 128); break;
-        default: k = rgba(150, 168, 110); break;
-      }
-      if (m.prop[(size_t)y * 2 * m.w + x * 2] && gr != Ground::Road) k = art::shade(k, 0.88f);
-      if (gr == Ground::Rock) { float l = vnoise(x / 3.0f, y / 3.0f, 9); k = art::shade(k, 0.85f + l * 0.35f); }
-      // parchment grain
-      float n = hashf(x, y, 77);
-      k = art::mix(k, rgba(222, 202, 160), 0.18f + n * 0.06f);
-      c.set(x, y, k);
-    }
-  worldMap_ = pix_->bake(c);
-  worldMapBaked_ = true;
 }
 
 void View::drawMinimap(Game& g, float x, float y, int size) {
@@ -657,62 +732,20 @@ void View::drawMinimap(Game& g, float x, float y, int size) {
   }
 }
 
-void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
-  Pix& P = *pix_;
-  if (!worldMapBaked_) bakeWorldMap(g);
-  float sc = std::min(w / worldMap_.w, h / worldMap_.h);
-  float mw = worldMap_.w * sc, mh = worldMap_.h * sc;
-  float ox = x + (w - mw) / 2, oy = y + (h - mh) / 2;
-  P.blitEx(worldMap_, 0, 0, worldMap_.w, worldMap_.h, ox, oy, mw, mh);
-  P.frame(ox - 1, oy - 1, mw + 2, mh + 2, Color(0.4f, 0.3f, 0.2f));
-  float k = sc / 2;   // tiles -> map px
-  for (int i = 0; i < (int)g.world.sites.size(); i++) {
-    const Site& s = g.world.sites[i];
-    if (!s.discovered) continue;
-    float sx = ox + s.ex * k, sy = oy + s.ey * k;
-    Color c;
-    float r = 1;
-    switch (s.type) {
-      case SiteType::City: c = Color(0.95f, 0.85f, 0.4f); r = 3; break;
-      case SiteType::Town: c = Color(0.95f, 0.85f, 0.55f); r = 2; break;
-      case SiteType::Village: c = Color(0.9f, 0.85f, 0.7f); r = 1.5f; break;
-      case SiteType::Cave: c = Color(0.2f, 0.15f, 0.1f); r = 1.5f; break;
-      case SiteType::Ruin: c = s.mainQuest ? Color(1, 0.45f, 0.1f) : Color(0.45f, 0.3f, 0.55f); r = 1.5f; break;
-      case SiteType::BanditCamp: c = Color(0.75f, 0.15f, 0.12f); r = 1.5f; break;
-      case SiteType::Shrine: c = Color(0.4f, 0.7f, 1); r = 1.5f; break;
-      case SiteType::DragonLair: c = Color(1, 0.3f, 0.1f); r = 2.5f; break;
-      default: break;
-    }
-    P.rect(sx - r - 1, sy - r - 1, r * 2 + 2, r * 2 + 2, Color(0.1f, 0.06f, 0.04f));
-    P.rect(sx - r, sy - r, r * 2, r * 2, c);
-    if (s.cleared && (s.type == SiteType::Cave || s.type == SiteType::Ruin || s.type == SiteType::BanditCamp)) P.rect(sx - 0.5f, sy - 0.5f, 1, 1, Color(1, 1, 1));
-    if (i == mapSel_) P.frame(sx - r - 3, sy - r - 3, r * 2 + 6, r * 2 + 6, Color(1, 1, 1));
-    if (s.type == SiteType::City) P.text(sx, sy + 5, s.name, 1, Color(0.18f, 0.12f, 0.08f), 1);
-  }
-  // player
-  Vec2 pp = g.pl().p;
-  if (g.inside) {
-    if (g.subSite >= 0) pp = Vec2(g.world.sites[g.subSite].ex * 16.0f, g.world.sites[g.subSite].ey * 16.0f);
-    else if (g.subBldg >= 0) pp = Vec2(g.world.over.bldgs[g.subBldg].doorX() * 16.0f, g.world.over.bldgs[g.subBldg].doorY() * 16.0f);
-  }
-  float px = ox + pp.x / 16 * k, py = oy + pp.y / 16 * k;
-  if (((int)(t_ * 3)) & 1) { P.rect(px - 2, py, 5, 1, Color(1, 1, 1)); P.rect(px, py - 2, 1, 5, Color(1, 1, 1)); }
-  int tx, ty;
-  if (g.trackedQuest >= 0 && g.questTarget(g.trackedQuest, tx, ty)) {
-    float qx = ox + tx * k, qy = oy + ty * k;
-    P.rect(qx - 1, qy - 7, 3, 4, kGold);
-    P.rect(qx, qy - 3, 1, 2, kGold);
-  }
-}
-
 // ------------------------------------------------------------------ menus
 void View::drawMenu(Game& g) {
   Pix& P = *pix_;
   P.rect(0, 0, Pix::W, Pix::H, Color(0, 0, 0, 0.55f));
+  if (settingsOpen_) return;   // the settings screen replaces the menu while it is open
+  const UiBox box = modalBox(g);
+  P.pushBox(box.x, box.y, box.w, box.h);
+  struct Pop { Pix& p; ~Pop() { p.popBox(); } } pop{P};
   panel(8, 6, Pix::W - 16, Pix::H - 12);
   // tabs
   float tw = (Pix::W - 40) / (float)NTABS;
-  for (int i = 0; i < NTABS; i++) button(20 + i * tw, 12, tw - 4, 14, kTabs[kTabOrder[i]], kTabOrder[i] == menuTab_);
+  // (M1) finger-sized tabs on touch (their tap box runs from the top edge down to the list: tap())
+  for (int i = 0; i < NTABS; i++)
+    button(20 + i * tw, touchUI ? 9.0f : 12.0f, tw - 4, touchUI ? 20.0f : 14.0f, kTabs[kTabOrder[i]], kTabOrder[i] == menuTab_);
   button(Pix::W - 36, 30, 20, 12, "X", false);
   float top = 34;
   switch (menuTab_) {
@@ -792,27 +825,44 @@ void View::drawMenu(Game& g) {
         if (q.gold > 0 && q.state != QState::Done) P.text(236, Pix::H - 50, "REWARD " + std::to_string(q.gold) + " GOLD", 1, kGold);
         if (q.state != QState::Done) button(236, L.trackY, touchUI ? 120 : 100, L.trackH, q.id == g.trackedQuest ? "TRACKED" : "TRACK", q.id == g.trackedQuest);
       } else P.text(236, top + 14, "NO QUESTS YET", 1, kDim);
+      // (M1) touch: page buttons beside TRACK (the strips above and below the list were too thin for a finger)
+      if (touchUI && (int)order.size() > L.rows) {
+        button(362, L.trackY, 44, L.trackH, "UP", false);
+        button(410, L.trackY, 44, L.trackH, "DOWN", false);
+      }
       break;
     }
-    case 2: {   // map
-      drawWorldMap(g, 16, top + 6, 300, Pix::H - top - 18);
-      float x = 324;
+    case 2: {   // map (worldmap.cpp): pans and zooms over the whole known world
+      drawWorldMap(g, 16, top + 6, Pix::W - 180, Pix::H - top - 18);
+      float x = Pix::W - 156;
       P.text(x, top + 10, "WORLD MAP", 1, kGold);
+      // zoom and centre buttons (finger-sized on touch)
+      const float bh = touchUI ? 28.0f : 16.0f;
+      button(x, top + 22, 40, bh, "+", false);
+      button(x + 45, top + 22, 40, bh, "-", false);
+      button(x + 90, top + 22, 40, bh, "ME", false);
+      static const char* kZoomName[] = {"STREET", "STREET", "TOWN", "TOWN", "LAND", "LAND", "KINGDOM", "KINGDOM"};
+      P.text(x, top + 26 + bh, std::string("ZOOM: ") + kZoomName[std::clamp(worldMapZoomLevel(), 0, 7)], 1, kDim);
+      const float iy = top + 40 + bh;
       if (mapSel_ >= 0 && mapSel_ < (int)g.world.sites.size()) {
         const Site& s = g.world.sites[mapSel_];
-        wrapText(x, top + 26, 136, s.name, kText);
-        P.text(x, top + 46, siteTypeName(s.type), 1, kDim);
-        P.text(x, top + 56, "LEVEL " + std::to_string(s.level), 1, kDim);
-        if (s.cleared) P.text(x, top + 66, "CLEARED", 1, Color(0.5f, 1, 0.5f));
-        button(x, top + 84, 130, 18, "FAST TRAVEL", true);
+        wrapText(x, iy, 136, s.name, kText);
+        std::string sub = siteTypeName(s.type);
+        if (s.capital) sub += " - CAPITAL";
+        P.text(x, iy + 20, sub, 1, kDim);
+        if (const Kingdom* k = g.world.kingdomOf(mapSel_)) P.text(x, iy + 30, k->name, 1, col(k->color ? k->color : rgba(200, 180, 140)));
+        P.text(x, iy + 40, "LEVEL " + std::to_string(s.level) + (s.cleared ? "  CLEARED" : ""), 1, kDim);
+        button(x, iy + 54, 130, touchUI ? 24.0f : 18.0f, "FAST TRAVEL", true);
       } else {
-        wrapText(x, top + 26, 136, touchUI ? "TAP A DISCOVERED PLACE TO FAST TRAVEL." : "CLICK A PLACE, OR W/S TO PICK AND ENTER TO TRAVEL.", kDim);
+        wrapText(x, iy, 136, touchUI ? "DRAG TO PAN, PINCH TO ZOOM. TAP A PLACE TO FAST TRAVEL."
+                                     : "DRAG OR ARROWS TO PAN, WHEEL OR Q/E TO ZOOM. CLICK A PLACE, OR W/S, THEN ENTER TO TRAVEL.", kDim);
       }
       // legend
-      float ly = Pix::H - 74;
-      struct L { Color c; const char* n; } leg[] = {{Color(0.95f, 0.85f, 0.4f), "CITY / TOWN"}, {Color(0.2f, 0.15f, 0.1f), "CAVE"}, {Color(0.45f, 0.3f, 0.55f), "RUIN"},
-                                                    {Color(1, 0.45f, 0.1f), "EMBER SHARD"}, {Color(0.75f, 0.15f, 0.12f), "BANDITS"}, {Color(0.4f, 0.7f, 1), "SHRINE"}};
-      for (int i = 0; i < 6; i++) { P.rect(x, ly + i * 9, 5, 5, leg[i].c); P.text(x + 9, ly + i * 9 - 1, leg[i].n, 1, kDim); }
+      float ly = Pix::H - 83;
+      struct L { Color c; const char* n; } leg[] = {{kGold, "QUEST (TRACKED)"}, {Color(0.95f, 0.85f, 0.4f), "CITY / TOWN"}, {Color(0.2f, 0.15f, 0.1f), "CAVE"},
+                                                    {Color(0.45f, 0.3f, 0.55f), "RUIN"}, {Color(1, 0.45f, 0.1f), "EMBER SHARD"}, {Color(0.75f, 0.15f, 0.12f), "BANDITS"},
+                                                    {Color(0.4f, 0.7f, 1), "SHRINE"}};
+      for (int i = 0; i < 7; i++) { P.rect(x, ly + i * 9, 5, 5, leg[i].c); P.text(x + 9, ly + i * 9 - 1, leg[i].n, 1, kDim); }
       break;
     }
     case 3: {   // hero
@@ -852,13 +902,15 @@ void View::drawMenu(Game& g) {
     }
     case 4: {   // system
       const float sh = menuLay(touchUI).sysH;
-      button(Pix::W / 2 - 70, top + 40, 140, sh, "SAVE GAME", menuSel_ == 0);
-      button(Pix::W / 2 - 70, top + 68, 140, sh, touchUI ? "TOUCH CONTROLS: ON" : "TOUCH CONTROLS: OFF", menuSel_ == 1);
-      button(Pix::W / 2 - 70, top + 96, 140, sh, "SAVE AND QUIT", menuSel_ == 2);
-      P.text(Pix::W / 2, top + 140, "WORLD SEED " + std::to_string(g.seed), 1, kDim, 1);
+      menuSel_ = std::clamp(menuSel_, 0, 3);
+      button(Pix::W / 2 - 70, top + 30, 140, sh, "SAVE GAME", menuSel_ == 0);
+      button(Pix::W / 2 - 70, top + 58, 140, sh, "SETTINGS", menuSel_ == 1);
+      button(Pix::W / 2 - 70, top + 86, 140, sh, touchUI ? "TOUCH CONTROLS: ON" : "TOUCH CONTROLS: OFF", menuSel_ == 2);
+      button(Pix::W / 2 - 70, top + 114, 140, sh, "SAVE AND QUIT", menuSel_ == 3);
+      P.text(Pix::W / 2, top + 148, "WORLD SEED " + std::to_string(g.seed), 1, kDim, 1);
       if (!touchUI) {
         const char* keys[] = {"WASD MOVE   J/SPACE ATTACK   K BOW   L SPELL", "SHIFT ROLL   E TALK/OPEN   Q POTION   R SWAP SPELL", "TAB MENU   M MAP   ESC PAUSE   F11 FULLSCREEN"};
-        for (int i = 0; i < 3; i++) P.text(Pix::W / 2, top + 160 + i * 11, keys[i], 1, kDim, 1);
+        for (int i = 0; i < 3; i++) P.text(Pix::W / 2, top + 166 + i * 11, keys[i], 1, kDim, 1);
       }
       break;
     }
@@ -870,6 +922,10 @@ void View::drawMenu(Game& g) {
 
 void View::drawDialogue(Game& g) {
   Pix& P = *pix_;
+  if (settingsOpen_) return;
+  const UiBox box = uiBox(300);
+  P.pushBox(box.x, box.y, box.w, box.h);
+  struct Pop { Pix& p; ~Pop() { p.popBox(); } } pop{P};
   const Dialogue& d = g.dlg;
   float x = 20, w = Pix::W - 40;
   int nOpt = (int)d.opts.size();
@@ -928,8 +984,12 @@ void View::shopDeal(Game& g) {
 
 void View::drawShop(Game& g) {
   Pix& P = *pix_;
-  const ShopLay L = shopLay(touchUI);
   P.rect(0, 0, Pix::W, Pix::H, Color(0, 0, 0, 0.5f));
+  if (settingsOpen_) return;
+  const UiBox box = uiBox(300);
+  P.pushBox(box.x, box.y, box.w, box.h);
+  struct Pop { Pix& p; ~Pop() { p.popBox(); } } pop{P};
+  const ShopLay L = shopLay(touchUI);
   panel(8, 6, Pix::W - 16, Pix::H - 12);
   P.text(18, 14, g.shop.title, 1, kGold);
   P.blit(iconTex(art::Icon::Gold, 0), Pix::W - 100, 9);
@@ -994,6 +1054,15 @@ void View::drawTitle(Game& g, bool hasSave) {
   Pix& P = *pix_;
   (void)g;
   P.rect(0, 0, Pix::W, Pix::H, Color(0.02f, 0.02f, 0.05f, 0.35f));
+  // embers rising over the whole screen
+  for (int i = 0; i < 30 + Pix::W / 16; i++) {
+    float ex = std::fmod(hashf(i, 0, 3) * Pix::W + std::sin(t_ + i) * 8 + Pix::W, (float)Pix::W);
+    float ey = Pix::H - std::fmod(t_ * (12 + hashf(i, 1, 3) * 20) + hashf(i, 2, 3) * Pix::H, (float)Pix::H);
+    P.rectAdd(ex, ey, 1, 1, Color(1, 0.5f, 0.2f, 0.6f));
+  }
+  if (settingsOpen_) return;   // the settings screen is drawn over the drifting world instead of the title
+  const UiBox box = uiBox(270);
+  P.pushBox(box.x, box.y, box.w, box.h);
   float y = 58;
   // ember glow behind the logo
   P.blitEx(light_, 0, 0, 64, 64, Pix::W / 2 - 160, y - 50, 320, 120, false, Color(1, 0.45f, 0.15f, 0.35f + 0.1f * std::sin(t_ * 2)), 1);
@@ -1002,43 +1071,52 @@ void View::drawTitle(Game& g, bool hasSave) {
   P.text(Pix::W / 2, y, title, 5, Color(1, 0.86f, 0.55f), 1);
   P.text(Pix::W / 2, y + 2, title, 5, Color(1, 0.7f, 0.35f, 0.35f), 1);
   P.text(Pix::W / 2, y + 44, "A SAGA OF STEEL, SORCERY AND DRAGONFIRE", 1, Color(0.9f, 0.85f, 0.75f), 1);
-  float by = 150;
-  int n = hasSave ? 2 : 1;
+  // CONTINUE (with a save), NEW ADVENTURE, SETTINGS: the same rows titleTap() and the keys use
+  const int n = titleItems();
   titleSel_ = std::clamp(titleSel_, 0, n - 1);
-  if (hasSave) { button(Pix::W / 2 - 70, by, 140, 22, "CONTINUE", titleSel_ == 0); by += 30; }
+  float by = hasSave ? 138.0f : 150.0f;
+  if (hasSave) { button(Pix::W / 2 - 70, by, 140, 22, "CONTINUE", titleSel_ == 0); by += 28; }
   button(Pix::W / 2 - 70, by, 140, 22, "NEW ADVENTURE", titleSel_ == (hasSave ? 1 : 0));
+  by += 28;
+  button(Pix::W / 2 - 50, by, 100, 20, "SETTINGS", titleSel_ == n - 1);
+  if (!titleNote.empty()) P.textS(Pix::W / 2, by + 28, titleNote, 1, Color(1, 0.8f, 0.45f), 1);
   P.text(Pix::W / 2, Pix::H - 14, "EVERY WORLD IS UNIQUE  -  PROCEDURALLY GENERATED", 1, Color(0.7f, 0.65f, 0.6f, 0.8f), 1);
-  // embers rising
-  for (int i = 0; i < 30; i++) {
-    float ex = std::fmod(hashf(i, 0, 3) * 480 + std::sin(t_ + i) * 8, 480.0f);
-    float ey = Pix::H - std::fmod(t_ * (12 + hashf(i, 1, 3) * 20) + hashf(i, 2, 3) * 270, 270.0f);
-    P.rectAdd(ex, ey, 1, 1, Color(1, 0.5f, 0.2f, 0.6f));
-  }
+  P.popBox();
 }
 
 void View::drawDead(Game& g) {
   Pix& P = *pix_;
   (void)g;
   P.rect(0, 0, Pix::W, Pix::H, Color(0.15f, 0, 0, 0.55f));
+  const UiBox box = uiBox(270);
+  P.pushBox(box.x, box.y, box.w, box.h);
   P.text(Pix::W / 2 + 2, 102, "YOU HAVE FALLEN", 3, Color(0, 0, 0, 0.6f), 1);
   P.text(Pix::W / 2, 100, "YOU HAVE FALLEN", 3, Color(0.9f, 0.25f, 0.2f), 1);
   // the prompt (and input) waits a beat, so mashing attack as you fall doesn't skip the moment
   if (modeT_ > 1.2f) P.text(Pix::W / 2, 140, touchUI ? "TAP TO RISE AGAIN" : "PRESS ENTER TO RISE AGAIN", 1, Color(kText.r, kText.g, kText.b, clampf((modeT_ - 1.2f) * 2, 0, 1)), 1);
+  P.popBox();
 }
 
 // ------------------------------------------------------------------ input
 void View::titleTap(Vec2 p) {
-  float by = 150;
-  if (std::fabs(p.x - Pix::W / 2) > 80) return;
-  bool first = p.y >= by - 2 && p.y < by + 24, second = p.y >= by + 28 && p.y < by + 54;
-  if (hasSave_ && first) wantContinue = true;
-  else if ((!hasSave_ && first) || (hasSave_ && second)) wantNewGame = true;
+  if (settingsOpen_) { settingsTap(p); return; }
+  p = inBox(uiBox(270), p);
+  if (std::fabs(p.x - 240) > 80) return;
+  // the rows drawTitle lays out: 28 px apart from 138 (with a save) or 150; each owns its whole pitch
+  const float by = hasSave_ ? 138.0f : 150.0f;
+  const int row = (int)std::floor((p.y - (by - 3)) / 28.0f);
+  if (row < 0 || row >= titleItems()) return;
+  titleSel_ = row;
+  if (row == titleItems() - 1) { openSettings(); audio_->play(Sfx::MenuSelect); }
+  else if (hasSave_ && row == 0) wantContinue = true;
+  else wantNewGame = true;
 }
 
 int View::buttonAt(Vec2 p) const {
   for (int b = 0; b < B_COUNT; b++) {
-    float r = kBtn[b].r + 6;
-    if (len2(p - Vec2(kBtn[b].x, kBtn[b].y)) < r * r) return b;
+    const BtnDef d = btnPos(b);
+    float r = d.r + 6;
+    if (len2(p - Vec2(d.x, d.y)) < r * r) return b;
   }
   return -1;
 }
@@ -1080,8 +1158,10 @@ void View::menuKey(Game& g, int key) {
   auto back = [&]() { g.mode = Mode::Play; audio_->play(Sfx::MenuBack); };
   if (g.mode == Mode::Menu || g.mode == Mode::LevelUp) {
     if (key == SDLK_ESCAPE || key == SDLK_TAB || key == SDLK_I) { back(); return; }
-    if (key == SDLK_Q || key == SDLK_PAGEUP) { menuTab_ = tabStep(menuTab_, -1); menuSel_ = 0; audio_->play(Sfx::MenuMove); return; }
-    if (key == SDLK_E || key == SDLK_PAGEDOWN) { menuTab_ = tabStep(menuTab_, 1); menuSel_ = 0; audio_->play(Sfx::MenuMove); return; }
+    // (M1) on the MAP tab Q / E zoom (worldMapKey); PageUp / PageDown and A / D still switch tabs there
+    const bool mapQE = menuTab_ == 2 && g.mode == Mode::Menu && (key == SDLK_Q || key == SDLK_E);
+    if (!mapQE && (key == SDLK_Q || key == SDLK_PAGEUP)) { menuTab_ = tabStep(menuTab_, -1); menuSel_ = 0; audio_->play(Sfx::MenuMove); return; }
+    if (!mapQE && (key == SDLK_E || key == SDLK_PAGEDOWN)) { menuTab_ = tabStep(menuTab_, 1); menuSel_ = 0; audio_->play(Sfx::MenuMove); return; }
     if (menuTab_ == 5 && g.mode == Mode::Menu) { paperdollKey(g, key); return; }
     if (menuTab_ == 3 && g.perkPts > 0) {
       if (key == SDLK_UP || key == SDLK_W) levelSel_ = (levelSel_ + 2) % 3;
@@ -1089,9 +1169,11 @@ void View::menuKey(Game& g, int key) {
       if (key == SDLK_RETURN || key == SDLK_SPACE) g.chooseLevelUp(levelSel_);
       return;
     }
+    if (menuTab_ == 2 && key != SDLK_UP && key != SDLK_DOWN && worldMapKey(g, key)) return;
     if (menuTab_ == 2) {
       // keyboard fast travel: up/down cycle the discovered places (nearest first), enter travels
-      if (key == SDLK_UP || key == SDLK_W || key == SDLK_DOWN || key == SDLK_S) {
+      if (key == SDLK_UP || key == SDLK_DOWN) { worldMapKey(g, key); return; }   // the arrows pan
+      if (key == SDLK_W || key == SDLK_S) {
         std::vector<int> list;
         for (int i = 0; i < (int)g.world.sites.size(); i++) if (g.world.sites[i].discovered) list.push_back(i);
         const Vec2 pp = g.pl().p;
@@ -1102,9 +1184,10 @@ void View::menuKey(Game& g, int key) {
         if (!list.empty()) {
           int at = (int)(std::find(list.begin(), list.end(), mapSel_) - list.begin());
           int n = (int)list.size();
-          if (at >= n) at = (key == SDLK_UP || key == SDLK_W) ? 0 : -1;
-          at = (key == SDLK_UP || key == SDLK_W) ? (at + n - 1) % n : (at + 1) % n;
+          if (at >= n) at = key == SDLK_W ? 0 : -1;
+          at = key == SDLK_W ? (at + n - 1) % n : (at + 1) % n;
           mapSel_ = list[at];
+          worldMapCentre(g, mapSel_);
           audio_->play(Sfx::MenuMove);
         }
         return;
@@ -1127,8 +1210,9 @@ void View::menuKey(Game& g, int key) {
       }
       if (menuTab_ == 4) {
         if (menuSel_ == 0) { wantSave = true; banner_ = "GAME SAVED"; bannerSub_ = ""; bannerT_ = 2; }
-        if (menuSel_ == 1) touchUI = !touchUI;
-        if (menuSel_ == 2) { wantSave = true; wantsQuit = true; }
+        if (menuSel_ == 1) { openSettings(); audio_->play(Sfx::MenuSelect); }
+        if (menuSel_ == 2) touchUI = !touchUI;
+        if (menuSel_ == 3) { wantSave = true; wantsQuit = true; }
       }
     }
     if (key == SDLK_X && menuTab_ == 0 && menuSel_ < (int)g.inv.size() && g.inv[menuSel_].kind != ItemKind::Quest) g.dropItem(menuSel_);
@@ -1163,9 +1247,17 @@ void View::menuKey(Game& g, int key) {
 void View::tap(Game& g, Vec2 p) {
   auto inR = [&](float x, float y, float w, float h) { return p.x >= x && p.y >= y && p.x < x + w && p.y < y + h; };
   if (g.mode == Mode::Title) { titleTap(p); return; }
+  if (settingsOpen_) { settingsTap(p); return; }
   if (g.mode == Mode::Creator) { creatorTap(g, p); return; }
   if (g.mode == Mode::Dead) { if (modeT_ > 1.2f) g.respawn(); return; }
   if (g.mode == Mode::Paused) { g.mode = Mode::Play; return; }
+  // the dialogue, the shop and the menu are laid out in a 480-wide box (drawDialogue / drawShop / drawMenu): the tap
+  // moves into it, and Pix::W / Pix::H read the box while the hit tests run
+  Pix& P = *pix_;
+  const UiBox box = modalBox(g);
+  p = inBox(box, p);
+  P.pushBox(box.x, box.y, box.w, box.h);
+  struct Pop { Pix& p; ~Pop() { p.popBox(); } } pop{P};
   if (g.mode == Mode::Dialogue) {
     const Dialogue& d = g.dlg;
     int nOpt = (int)d.opts.size();
@@ -1179,8 +1271,8 @@ void View::tap(Game& g, Vec2 p) {
     for (int i = 0; i < nOpt; i++) {
       // each option owns its whole row band, the full panel width; the last one reaches down to the screen edge
       float top = y + h - 6 - (nOpt - i) * rowH;
-      float bh = i == nOpt - 1 ? Pix::H - top : rowH;
-      if (inR(0, top, Pix::W, bh)) {
+      float bh = i == nOpt - 1 ? 1000.0f : rowH;   // (M1: on past the box, to the screen's real edge)
+      if (inR(-1000.0f, top, Pix::W + 2000.0f, bh)) {
         std::string before = g.dlg.text;
         g.dialogueChoose(i);
         if (g.dlg.text != before) dlgChars_ = 0;
@@ -1217,8 +1309,10 @@ void View::tap(Game& g, Vec2 p) {
   }
   if (g.mode == Mode::Menu || g.mode == Mode::LevelUp) {
     float tw = (Pix::W - 40) / (float)NTABS;
-    for (int i = 0; i < NTABS; i++) if (inR(20 + i * tw, 10, tw - 4, 16)) { menuTab_ = kTabOrder[i]; menuSel_ = 0; mapSel_ = -1; audio_->play(Sfx::MenuMove); return; }
+    // the close X first: on touch the tabs' tall tap boxes reach down beside it
     if (touchUI ? inR(Pix::W - 50, 26, 44, 30) : inR(Pix::W - 40, 26, 30, 20)) { g.mode = Mode::Play; return; }
+    for (int i = 0; i < NTABS; i++)
+      if (touchUI ? inR(18 + i * tw, 0, tw, 35) : inR(20 + i * tw, 10, tw - 4, 16)) { menuTab_ = kTabOrder[i]; menuSel_ = 0; mapSel_ = -1; audio_->play(Sfx::MenuMove); return; }
     float top = 34;
     const MenuLay L = menuLay(touchUI);
     switch (menuTab_) {
@@ -1248,28 +1342,25 @@ void View::tap(Game& g, Vec2 p) {
         // scroll the journal by tapping just above / below the list
         if (inR(18, top + 2, 200, 8)) { menuSel_ = std::max(0, menuSel_ - 5); return; }
         if (inR(18, top + 10 + L.rows * L.pitch, 200, 14)) { menuSel_ = std::min((int)order.size() - 1, menuSel_ + 5); return; }
+        if (touchUI && (int)order.size() > L.rows) {
+          if (inR(360, L.trackY - 4, 48, L.trackH + 8)) { menuSel_ = std::max(0, menuSel_ - 5); return; }
+          if (inR(408, L.trackY - 4, 48, L.trackH + 8)) { menuSel_ = std::min((int)order.size() - 1, menuSel_ + 5); return; }
+        }
         if (menuSel_ < (int)order.size() && inR(236, L.trackY, touchUI ? 120 : 100, L.trackH)) g.trackedQuest = g.quests[order[menuSel_]].id;
         break;
       }
       case 2: {
-        if (mapSel_ >= 0 && inR(324, top + 84, 130, 18)) {
+        const float bh = touchUI ? 28.0f : 16.0f, x = Pix::W - 156, iy = top + 40 + bh;
+        if (inR(x, top + 22, 40, bh)) { worldMapZoom(-1, Vec2(-1, -1)); return; }
+        if (inR(x + 45, top + 22, 40, bh)) { worldMapZoom(1, Vec2(-1, -1)); return; }
+        if (inR(x + 90, top + 22, 40, bh)) { mapSel_ = -1; worldMapCentre(g, -1); return; }
+        if (mapSel_ >= 0 && inR(x, iy + 54, 130, touchUI ? 24.0f : 18.0f)) {
           if (g.fastTravel(mapSel_)) { snap(g); mapSel_ = -1; }
           else { g.mode = Mode::Play; }
           return;
         }
-        if (!worldMapBaked_) bakeWorldMap(g);
-        float w = 300, h = Pix::H - top - 18, x = 16, y = top + 6;
-        float sc = std::min(w / worldMap_.w, h / worldMap_.h);
-        float ox = x + (w - worldMap_.w * sc) / 2, oy = y + (h - worldMap_.h * sc) / 2;
-        float k = sc / 2;
-        int best = -1; float bd = 10 * 10;
-        for (int i = 0; i < (int)g.world.sites.size(); i++) {
-          const Site& s = g.world.sites[i];
-          if (!s.discovered) continue;
-          float d = len2(Vec2(ox + s.ex * k, oy + s.ey * k) - p);
-          if (d < bd) { bd = d; best = i; }
-        }
-        if (best >= 0 || inR(x, y, w, h)) mapSel_ = best;
+        // a tap on the map itself picks the place under it (drags pan instead: worldMapPointer, from event())
+        if (p.x >= 16 && p.x < 16 + (Pix::W - 180) && p.y >= top + 6 && p.y < Pix::H - 12) mapSel_ = worldMapPick(g, p);
         break;
       }
       case 3:
@@ -1281,9 +1372,10 @@ void View::tap(Game& g, Vec2 p) {
         paperdollTap(g, p);
         break;
       case 4:
-        if (inR(Pix::W / 2 - 70, top + 40, 140, L.sysH)) { wantSave = true; banner_ = "GAME SAVED"; bannerSub_ = ""; bannerT_ = 2; }
-        if (inR(Pix::W / 2 - 70, top + 68, 140, L.sysH)) touchUI = !touchUI;
-        if (inR(Pix::W / 2 - 70, top + 96, 140, L.sysH)) { wantSave = true; wantsQuit = true; }
+        if (inR(Pix::W / 2 - 70, top + 30, 140, L.sysH)) { menuSel_ = 0; wantSave = true; banner_ = "GAME SAVED"; bannerSub_ = ""; bannerT_ = 2; }
+        if (inR(Pix::W / 2 - 70, top + 58, 140, L.sysH)) { menuSel_ = 1; openSettings(); audio_->play(Sfx::MenuSelect); }
+        if (inR(Pix::W / 2 - 70, top + 86, 140, L.sysH)) { menuSel_ = 2; touchUI = !touchUI; }
+        if (inR(Pix::W / 2 - 70, top + 114, 140, L.sysH)) { wantSave = true; wantsQuit = true; }
         break;
     }
     return;
@@ -1292,15 +1384,37 @@ void View::tap(Game& g, Vec2 p) {
 
 void View::event(const SDL_Event& e, Game& g) {
   auto logical = [&](float wx, float wy) { float lx, ly; pix_->windowToLogical(wx, wy, lx, ly); return Vec2(lx, ly); };
+  // (M1) the MAP tab: drags pan and pinches zoom the world map; a press that does not move is a tap (picks a place)
+  const bool onMap = g.mode == Mode::Menu && menuTab_ == 2 && !settingsOpen_;
+  auto mapPtr = [&](int phase, uint64_t id, Vec2 screenP) {
+    Pix& P = *pix_;
+    const UiBox box = modalBox(g);
+    P.pushBox(box.x, box.y, box.w, box.h);   // Pix::H as drawMenu sees it
+    const bool tapped = worldMapPointer(phase, id, inBox(box, screenP));
+    P.popBox();
+    return tapped;
+  };
   switch (e.type) {
+    case SDL_EVENT_MOUSE_WHEEL:
+      if (onMap && e.wheel.y != 0) worldMapZoom(e.wheel.y > 0 ? -1 : 1, inBox(modalBox(g), mouse_));
+      break;
+    case SDL_EVENT_MOUSE_BUTTON_UP:
+      if (onMap && e.button.which != SDL_TOUCH_MOUSEID && e.button.button == SDL_BUTTON_LEFT && mapPtr(2, 1ull << 62, logical(e.button.x, e.button.y)))
+        tap(g, logical(e.button.x, e.button.y));
+      break;
     case SDL_EVENT_KEY_DOWN: {
       if (e.key.repeat && g.mode == Mode::Play) break;
       SDL_Keycode k = e.key.key;
       touchUI = false;
+      if (settingsOpen_) { settingsKey((int)k); break; }
       if (g.mode == Mode::Title) {
         if (k == SDLK_UP || k == SDLK_W) titleSel_ = std::max(0, titleSel_ - 1);
-        if (k == SDLK_DOWN || k == SDLK_S) titleSel_ = std::min(hasSave_ ? 1 : 0, titleSel_ + 1);
-        if (k == SDLK_RETURN || k == SDLK_SPACE) { if (hasSave_ && titleSel_ == 0) wantContinue = true; else wantNewGame = true; }
+        if (k == SDLK_DOWN || k == SDLK_S) titleSel_ = std::min(titleItems() - 1, titleSel_ + 1);
+        if (k == SDLK_RETURN || k == SDLK_SPACE) {
+          if (titleSel_ == titleItems() - 1) { openSettings(); audio_->play(Sfx::MenuSelect); }
+          else if (hasSave_ && titleSel_ == 0) wantContinue = true;
+          else wantNewGame = true;
+        }
         if (k == SDLK_N) wantNewGame = true;
         if (k == SDLK_ESCAPE) wantsQuit = true;
         break;
@@ -1324,7 +1438,10 @@ void View::event(const SDL_Event& e, Game& g) {
       }
       break;
     }
-    case SDL_EVENT_MOUSE_MOTION: mouse_ = logical(e.motion.x, e.motion.y); break;
+    case SDL_EVENT_MOUSE_MOTION:
+      mouse_ = logical(e.motion.x, e.motion.y);
+      if (onMap && e.motion.which != SDL_TOUCH_MOUSEID) mapPtr(1, 1ull << 62, mouse_);
+      break;
     case SDL_EVENT_MOUSE_BUTTON_DOWN: {
       if (e.button.which == SDL_TOUCH_MOUSEID) break;
       Vec2 p = logical(e.button.x, e.button.y);
@@ -1338,6 +1455,12 @@ void View::event(const SDL_Event& e, Game& g) {
         else if (e.button.button == SDL_BUTTON_RIGHT) kBow_ = true;
         break;
       }
+      if (onMap && e.button.button == SDL_BUTTON_LEFT) {
+        const UiBox box = modalBox(g);
+        const Vec2 bp = inBox(box, p);
+        // on the map itself: the press may become a drag (the tap is decided on release)
+        if (bp.x >= 16 && bp.x < box.w - 164 && bp.y >= 40 && bp.y < box.h - 12) { mapPtr(0, 1ull << 62, p); break; }
+      }
       tap(g, p);
       break;
     }
@@ -1349,6 +1472,11 @@ void View::event(const SDL_Event& e, Game& g) {
       if (g.mode == Mode::Title) {
         titleTap(p);
         break;
+      }
+      if (onMap) {
+        const UiBox box = modalBox(g);
+        const Vec2 bp = inBox(box, p);
+        if (bp.x >= 16 && bp.x < box.w - 164 && bp.y >= 40 && bp.y < box.h - 12) { mapPtr(0, (uint64_t)e.tfinger.fingerID, p); break; }
       }
       if (g.mode != Mode::Play) { tap(g, p); break; }
       int b = buttonAt(p);
@@ -1379,11 +1507,18 @@ void View::event(const SDL_Event& e, Game& g) {
       int ww, wh;
       SDL_GetWindowSize(pix_->window(), &ww, &wh);
       Vec2 p = logical(e.tfinger.x * ww, e.tfinger.y * wh);
+      if (onMap) mapPtr(1, (uint64_t)e.tfinger.fingerID, p);
       if (stick_.on && stick_.id == e.tfinger.fingerID) stick_.cur = p;
       for (auto& f : fingers_) if (f.id == e.tfinger.fingerID) f.cur = p;
       break;
     }
     case SDL_EVENT_FINGER_UP: case SDL_EVENT_FINGER_CANCELED: {
+      if (onMap) {
+        int ww, wh;
+        SDL_GetWindowSize(pix_->window(), &ww, &wh);
+        const Vec2 p = logical(e.tfinger.x * ww, e.tfinger.y * wh);
+        if (mapPtr(2, (uint64_t)e.tfinger.fingerID, p) && e.type == SDL_EVENT_FINGER_UP) tap(g, p);
+      }
       if (stick_.on && stick_.id == e.tfinger.fingerID) {
         stick_.on = false;
         // M0b fix round 3: a short, still tap on the left half opens the stick, but when it lands on the "TAP: SLEEP"

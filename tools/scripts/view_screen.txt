@@ -1,0 +1,40 @@
+# VIEW lane, M1 screen fit (owner request 2026-10-04: the phone picture must fill the screen; a setting for the
+# border). One pass through every screen a window size can break: the title, its SETTINGS, play outdoors with the
+# touch controls, the menu, the in-game SETTINGS, a dialogue and a shop. Run it at several window sizes and modes:
+#   EMB_SCREEN=fill  EMB_SAFE=59,0,59,21 embervale.exe --script tools/scripts/view_screen.txt --window 2556x1179
+#   EMB_SCREEN=pixel embervale.exe --script tools/scripts/view_screen.txt --window 1280x800
+# (EMB_SAFE fakes an iPhone's landscape safe area in points; EMB_BORDER / EMB_HUD preset the settings.)
+# Screenshots: fit_*.png in the working directory, the whole window at device resolution (border included).
+seed 7
+0.6  shot fit_0_title.png
+0.7  key Down                    # title: NEW ADVENTURE -> SETTINGS
+0.8  key Return
+0.9  shot fit_1_title_settings.png
+1.0  key Escape
+1.1  expect mode title
+1.2  newgame
++0.02 hour 11
++0.5 shot fit_2_play.png
++0.1 tap 40 250                  # a tap on the stick half: the touch controls appear
++0.4 shot fit_3_touch.png
++0.1 key Tab                     # the menu (a key press turns the touch controls off again)
++0.3 shot fit_4_menu.png
++0.1 menu 4
++0.1 key Down                    # SYSTEM: SAVE GAME -> SETTINGS
++0.1 key Return
++0.3 shot fit_5_settings.png
++0.1 key Right                   # SCREEN: toggles the mode (the next shot shows the other fit)
++0.3 shot fit_6_settings_toggled.png
++0.1 key Left
++0.1 key Escape
++0.1 key Escape
++0.2 expect mode play
++0.1 walkto inn
++0.3 walkto innkeeper
++0.1 key E
++2.5 shot fit_7_dialogue.png
++0.1 choose WARES
++0.3 expect mode shop
++0.3 shot fit_8_shop.png
++0.2 key Escape
++0.3 quit

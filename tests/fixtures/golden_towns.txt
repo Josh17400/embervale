@@ -1,0 +1,32 @@
+# rpg/world settlement golden values (rpg_test --towns --golden --write; seeds 1..3): every synthetic case's town
+# hash (ground, props, walls, heights, buildings, spawns, gates). Must match on every platform.
+town_s1_c0 5e3985eb85dffe46
+town_s1_c1 9c280198bf65e0ac
+town_s1_c2 ddc26d05f435b61a
+town_s1_c3 b7e470de3d69bb92
+town_s1_c4 49b36dd37322abac
+town_s1_c5 ae4643762597a686
+town_s1_c6 ca7f07eda9416a49
+town_s1_c7 e62317c49920d3fd
+town_s1_c8 edd4c4f89b8f6f25
+town_s1_c9 090e8bf8de97ddd5
+town_s2_c0 db62d74c413591ca
+town_s2_c1 76b4cf0328011ce4
+town_s2_c2 8cd6b2c8d97b03a7
+town_s2_c3 1e70ee35befa230c
+town_s2_c4 aaeeccfc621ec693
+town_s2_c5 83a87b86449f372b
+town_s2_c6 3f807e2b21b66782
+town_s2_c7 f0217dc61778079e
+town_s2_c8 57abe45288375239
+town_s2_c9 3546f4e8556de722
+town_s3_c0 0404da1ce933fa0f
+town_s3_c1 cf76f375681bf69b
+town_s3_c2 93be06866a39b170
+town_s3_c3 c32186751d904e86
+town_s3_c4 c89f09eeb0c929aa
+town_s3_c5 36083ab35f29c651
+town_s3_c6 6e5e9936bffdcf74
+town_s3_c7 76ae566892c26864
+town_s3_c8 6a3d776dc27d1daa
+town_s3_c9 5860a79ede83105a

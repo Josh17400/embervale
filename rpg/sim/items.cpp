@@ -250,5 +250,11 @@ Item readItem(BinR& r) {
   it.kind = (ItemKind)r.u8(); it.sub = r.u8(); it.tier = r.u8(); it.ench = (Ench)r.u8(); it.rarity = (Rarity)r.u8();
   it.power = (int16_t)r.u16(); it.enchPow = (int16_t)r.u16(); it.count = r.i32(); it.value = r.i32();
   it.name = r.str(); it.icon = (art::Icon)r.u8(); it.tint = r.u32(); it.questId = r.i32();
+  // a damaged save must not index past the tables (names, colours, icons): out-of-range values load as defaults
+  if ((int)it.kind >= (int)ItemKind::COUNT) it.kind = ItemKind::Misc;
+  if ((int)it.ench >= (int)Ench::COUNT) it.ench = Ench::None;
+  if ((int)it.rarity > (int)Rarity::Legendary) it.rarity = Rarity::Common;
+  if ((int)it.icon >= (int)art::Icon::COUNT) it.icon = art::Icon::Scroll;
+  if (it.tier > 5) it.tier = 5;
   return it;
 }

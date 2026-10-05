@@ -1,11 +1,13 @@
 // EMBERVALE RPG systems: inventory, loot, quests, dialogue, shops, resting, travel, saving.
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <initializer_list>
 #include <string>
 #include <vector>
 #include "engine/audio.h"
 #include "rpg/sim/game.h"
+#include "rpg/world/source.h"
 
 using art::Monster;
 using art::Prop;
@@ -141,11 +143,12 @@ void Game::openChest(int tx, int ty) {
   Map& m = map();
   size_t i = (size_t)ty * m.w + tx;
   m.prop[i] = (uint8_t)((int)Prop::ChestOpen + 1);
-  looted.insert(((uint64_t)mapKey() << 32) | (uint32_t)i);
+  const uint64_t lk = lootKey(tx, ty);
+  looted.insert(lk);
   m.rebuildSolid();
   sfx((int)Sfx::Chest, pl().p);
   int lvl = inside && subSite >= 0 ? world.sites[subSite].level : world.zoneLevel(tx, ty);
-  Rng r(hash2(tx, ty, (uint32_t)seed + mapKey()));
+  Rng r(world.endless ? (uint32_t)ew::mix64(lk ^ seed) : hash2(tx, ty, (uint32_t)seed + mapKey()));
   bool rich = inside && subSite >= 0;
   int n = 1 + r.irange(rich ? 3 : 2);
   Vec2 c(tx * TILE + 8.0f, ty * TILE + 18.0f);
@@ -289,9 +292,16 @@ void Game::interact() {
   }
 }
 
-uint64_t Game::npcKey(const Actor& a) const {
-  return ((uint64_t)(a.site + 1) << 24) ^ ((uint64_t)(a.bldg + 1) << 12) ^ (uint64_t)(a.slot & 0xFFF);
+// M1: an NPC's identity from stable ids (site, home building, slot), so shop stock, greetings and finished-quest
+// counts follow the same person across sessions and window moves
+uint64_t Game::npcKeyOf(int site, int bldg, int slot) const {
+  // the classic island's handles are its indices, so its NPCs keep the M0 key (and with it their offers and greetings)
+  if (!world.endless) return ((uint64_t)(site + 1) << 24) ^ ((uint64_t)(bldg + 1) << 12) ^ (uint64_t)(slot & 0xFFF);
+  uint64_t s = site >= 0 && site < (int)world.sites.size() ? world.sites[(size_t)site].id : 0;
+  uint64_t b = bldg >= 0 && bldg < (int)world.over.bldgs.size() ? world.over.bldgs[(size_t)bldg].id : 0;
+  return ew::mix64(s * 0x9E3779B97F4A7C15ull ^ ew::mix64(b + 0x51ED27ull) ^ (uint64_t)(uint32_t)(slot & 0xFFF));
 }
+uint64_t Game::npcKey(const Actor& a) const { return npcKeyOf(a.site, a.bldg, a.slot); }
 
 const Quest* Game::questById(int id) const {
   for (auto& q : quests) if (q.id == id) return &q;
@@ -343,7 +353,16 @@ bool isGiver(const Quest& q, const Actor& a) {
 
 std::string Game::greeting(const Actor& a) {
   Rng r(hash32((uint32_t)npcKey(a)) ^ (uint32_t)(day * 31 + (int)hour));
-  const std::string town = a.site >= 0 ? world.sites[a.site].name : "THESE PARTS";
+  // where they live: their site, or for people indoors the site of the building they are in
+  const int homeSite = a.site >= 0 ? a.site
+                       : (a.bldg >= 0 && a.bldg < (int)world.over.bldgs.size() ? world.over.bldgs[(size_t)a.bldg].site : -1);
+  const std::string town = homeSite >= 0 ? world.sites[(size_t)homeSite].name : "THESE PARTS";
+  // M1 kingdom identity: whose land this is, and whether the king holds court here
+  const Kingdom* K = world.kingdomOf(homeSite);
+  const std::string realm = K ? K->name : std::string();
+  const bool capitalHere = homeSite >= 0 && world.sites[(size_t)homeSite].capital && K;
+  std::string seat;   // the kingdom's capital by name, when known
+  if (K) { int ch = world.siteHandle(K->capitalId); if (ch >= 0) seat = world.sites[(size_t)ch].name; }
   // world-aware small talk, so the same handful of lines doesn't repeat in every village
   std::vector<std::string> local;
   {
@@ -374,10 +393,22 @@ std::string Game::greeting(const Actor& a) {
       if (q.state == QState::Done) local.push_back("IT'S YOU! THE ONE WHO SLEW ASHFANG! YOUR MEAD IS FREE IN " + town + ".");
     }
     if (plLevel >= 10) local.push_back("BY THE OLD GODS, YOU LOOK LIKE YOU'VE WALKED THROUGH A WAR.");
+    if (K && !capitalHere) {
+      local.push_back("THIS IS " + realm + " LAND. THE KING'S TAX MEN COME EVERY AUTUMN, WHETHER THE HARVEST DOES OR NOT.");
+      if (!seat.empty()) local.push_back("THEY SAY THE KING OF " + realm + " HOLDS COURT IN " + seat + ". I'VE NEVER SEEN HIM MYSELF.");
+    }
+    if (capitalHere) local.push_back("THE KING OF " + realm + " HOLDS COURT IN THE PALACE. MIND YOUR MANNERS NEAR THE ROYAL GUARD.");
   }
   auto withLocal = [&](const std::string& fixed) { return !local.empty() && r.f() < 0.5f ? local[r.irange((int)local.size())] : fixed; };
   switch (a.role) {
     case Role::Guard: {
+      if (a.name == "ROYAL GUARD") {
+        static const char* rg[] = {"THE KING IS NOT TO BE TROUBLED WITHOUT CAUSE. STATE YOUR BUSINESS.",
+                                   "THE ROYAL GUARD SEES EVERYTHING IN THIS HALL. REMEMBER THAT.",
+                                   "LONG LIVE THE KING. NOW MOVE ALONG."};
+        return realm.empty() ? rg[r.irange(3)] : std::string(rg[r.irange(3)]) + " THIS IS THE COURT OF " + realm + ".";
+      }
+      if (capitalHere && r.f() < 0.4f) return "LONG LIVE THE KING OF " + realm + ". THE PALACE IS OFF LIMITS WITHOUT GOOD CAUSE, TRAVELLER.";
       static const char* g[] = {"I WAS A SELLSWORD ONCE. NOW I WATCH A GATE AND COUNT CARTS.",
                                 "KEEP YOUR NOSE CLEAN, TRAVELLER.", "LOST SOMETHING? TRY THE INN. EVERYTHING ENDS UP AT THE INN.",
                                 "WATCH THE ROADS AT NIGHT. THE DEAD DON'T STAY BURIED HERE.", "EYES OPEN, BLADE SHARP. THAT'S THE WATCH'S WAY."};
@@ -385,6 +416,12 @@ std::string Game::greeting(const Actor& a) {
       return g[r.irange(5)];
     }
     case Role::Innkeeper: {
+      if (capitalHere) {   // a capital is unmistakable: its innkeepers always talk of the king
+        const std::string c[] = {"WELCOME TO " + town + ", SEAT OF THE KING OF " + realm + ". BEDS ARE 10 GOLD, AND THE COURT GOSSIP IS FREE.",
+                                 "THE KING'S OWN GUARD DRINKS HERE ON FEAST DAYS. SIT, TRAVELLER: THIS IS THE FINEST INN IN " + realm + ".",
+                                 "YOU'VE COME TO THE CAPITAL! THE KING OF " + realm + " RIDES OUT FROM THE PALACE NOW AND THEN. A ROOM IS 10 GOLD."};
+        return c[hash32((uint32_t)npcKey(a) ^ (uint32_t)day) % 3];
+      }
       const std::string v[] = {"WELCOME TO THE INN OF " + town + ". A WARM BED IS 10 GOLD, AND THE MEAD IS COLD.",
                                "COME IN OUT OF THE " + std::string(isNight() ? "DARK" : "ROAD DUST") + ". STEW'S ON, AND THE ROOMS ARE CLEAN ENOUGH.",
                                "ANOTHER TRAVELLER! " + town + " DOESN'T SEE MANY. SIT, DRINK, TELL ME WHERE YOU'VE BEEN.",
@@ -406,6 +443,18 @@ std::string Game::greeting(const Actor& a) {
     case Role::Priest: return "THE OLD GODS WATCH OVER YOU. SHALL I MEND YOUR WOUNDS?";
     case Role::Mage: return "MAGIC IS NOT A TOY. BUT IF YOU HAVE GOLD, I HAVE KNOWLEDGE.";
     case Role::Jarl: return "SPEAK, STRANGER. THE JARL OF " + town + " IS LISTENING.";
+    case Role::King: {
+      std::string nm = a.name.rfind("KING ", 0) == 0 ? a.name.substr(5) : a.name;
+      std::string t = "WELCOME TO MY HALL, TRAVELLER. I AM " + nm + ", KING OF " + (realm.empty() ? town : realm) + ".";
+      for (const Quest& q : quests) {
+        if (q.type != QType::Main) continue;
+        if (q.state == QState::Done) t += " ALL " + (realm.empty() ? std::string("THE REALM") : realm) + " SINGS OF THE ONE WHO SLEW ASHFANG. YOU HONOUR MY HALL.";
+        else if (q.stage >= 1) t += " MY JARLS WRITE OF YOU AND THE DRAGON. THE CROWN STANDS WITH YOU.";
+        else if (homeSite == world.capital) t += " A DRAGON STIRS IN THE NORTH, THEY TELL ME. MY JARL IN THE KEEP GATHERS SWORDS AGAINST IT: GO TO HIM.";
+        else t += " A DRAGON STIRS IN THE NORTH, THEY TELL ME. THE JARL OF " + world.sites[(size_t)world.capital].name + " GATHERS SWORDS AGAINST IT.";
+      }
+      return t;
+    }
     case Role::Child: { static const char* c[] = {"WANNA PLAY TAG?", "MY DAD SAYS DRAGONS AREN'T REAL.", "ARE YOU AN ADVENTURER? WHOA!"}; return c[r.irange(3)]; }
     default: {
       const std::string v[] = {"FINE WEATHER TODAY. GOOD FOR THE CROPS.", "HAVE YOU HEARD? SOMETHING BIG WAS FLYING OVER THE MOUNTAINS.",
@@ -419,7 +468,7 @@ std::string Game::greeting(const Actor& a) {
 
 bool Game::hasOffer(const Actor& a) const {
   const bool noble = background == Background::Noble;   // exiled noble: guards and jarls offer more work
-  if (!a.npc || (a.role == Role::Guard && !noble) || a.role == Role::Child || a.site < 0) return false;
+  if (!a.npc || (a.role == Role::Guard && !noble) || a.role == Role::Child || a.role == Role::King || a.site < 0) return false;
   uint64_t key = npcKey(a);
   for (auto& q : quests) if (q.state != QState::Done && q.type != QType::Main && q.giverSite == a.site && q.giverBldg == a.bldg && q.giverSlot == a.slot) return false;
   auto it = npcQuestsDone.find(key);
@@ -448,7 +497,11 @@ Quest Game::makeOffer(const Actor& a) {
       bool taken = false;
       for (auto& o : quests) if (o.state != QState::Done && o.target == i) taken = true;
       if (taken) continue;
-      float d = std::hypot((float)(s.ex - home.ex), (float)(s.ey - home.ey)) * (0.8f + r.f() * 0.5f);
+      float raw = std::hypot((float)(s.ex - home.ex), (float)(s.ey - home.ey));
+      // endless worlds (VISION_PLAN 2.11): real places within a long day's walk, and preferably not far beyond the
+      // player's strength (a much harder place is offered only when nothing fits)
+      if (world.endless && raw > 768.0f) continue;
+      float d = raw * (0.8f + r.f() * 0.5f) * (s.level > plLevel + 3 ? 2.5f : 1.0f);
       if (d < bd) { bd = d; best = i; }
     }
     return best;
@@ -531,7 +584,7 @@ void Game::completeQuest(Quest& q) {
   q.state = QState::Done;
   giveGold(q.gold);
   gainXp(q.xp);
-  npcQuestsDone[((uint64_t)(q.giverSite + 1) << 24) ^ ((uint64_t)(q.giverBldg + 1) << 12) ^ (uint64_t)(q.giverSlot & 0xFFF)]++;
+  npcQuestsDone[npcKeyOf(q.giverSite, q.giverBldg, q.giverSlot)]++;
   emit(Ev::QuestUpdate, pl().p, q.id, 1, "QUEST COMPLETE: " + q.title);
   sfx((int)Sfx::QuestDone, pl().p);
   // occasional item reward
@@ -641,7 +694,7 @@ void Game::advanceMain(int stage) {
         break;
       case 3:
         q.title = "DRAGONSLAYER";
-        q.desc = "THE CROWN IS WHOLE AND ASHFANG CAN BE KILLED. CLIMB TO SKYFANG PEAK AND END THE DRAGON.";
+        q.desc = "THE CROWN IS WHOLE AND ASHFANG CAN BE KILLED. CLIMB TO " + lairName() + " AND END THE DRAGON.";
         q.target = world.lair;
         world.sites[world.lair].discovered = true;
         // the shards are consumed
@@ -866,7 +919,7 @@ void Game::talkTo(Actor& a) {
   // main quest hooks
   for (auto& q : quests) {
     if (q.type != QType::Main || a.role != Role::Jarl || a.site != world.capital) continue;
-    if (q.stage == 0) { dlg.text = "SO YOU'VE HEARD THE RUMOURS. THEY ARE TRUE: A DRAGON, ASHFANG, HAS WOKEN BENEATH SKYFANG PEAK. STEEL ALONE CANNOT KILL IT."; dlg.opts.push_back({"HOW CAN IT BE STOPPED?", A_MAIN, 1}); }
+    if (q.stage == 0) { dlg.text = "SO YOU'VE HEARD THE RUMOURS. THEY ARE TRUE: A DRAGON, ASHFANG, HAS WOKEN BENEATH " + lairName() + ". STEEL ALONE CANNOT KILL IT."; dlg.opts.push_back({"HOW CAN IT BE STOPPED?", A_MAIN, 1}); }
     if (q.stage == 2) { dlg.text = "THE THREE EMBER SHARDS! I NEVER THOUGHT I WOULD SEE THEM WHOLE AGAIN. LET THE SMITHS FORGE THE CROWN."; dlg.opts.push_back({"I WILL HUNT THE DRAGON.", A_MAIN, 3}); }
   }
   for (auto& q : quests)
@@ -1058,7 +1111,7 @@ void Game::dialogueChoose(int oi) {
     case A_MAIN:
       advanceMain(o.arg);
       if (o.arg == 1) dlg.text = "LEGEND SAYS THE EMBER CROWN CAN BIND A DRAGON'S SOUL. ITS THREE SHARDS LIE WITH DRAUGR WARLORDS IN THE OLD RUINS. I HAVE MARKED THEM ON YOUR MAP. BRING THEM TO ME.";
-      else dlg.text = "THEN GO, WITH THE BLESSINGS OF THE HOLD. ASHFANG NESTS ON SKYFANG PEAK. TAKE THIS GOLD FOR SUPPLIES.";
+      else dlg.text = "THEN GO, WITH THE BLESSINGS OF THE HOLD. ASHFANG NESTS ON " + lairName() + ". TAKE THIS GOLD FOR SUPPLIES.";
       if (o.arg == 3) giveGold(300);
       dlg.opts = {{"FAREWELL.", A_BYE, 0}};
       return;
@@ -1199,16 +1252,43 @@ bool Game::fastTravel(int si) {
   if (si < 0 || si >= (int)world.sites.size() || !world.sites[si].discovered) return false;
   for (const Actor& a : actors) if (a.hostile && a.aggro && a.st != AState::Dead && len2(a.p - pl().p) < 120 * 120) { say("YOU CANNOT TRAVEL WITH ENEMIES NEARBY"); return false; }
   if (inside) leaveSub();
-  const Site& s = world.sites[si];
+  const Site s = world.sites[si];   // a copy: placing the player may move the endless window
   float dist = std::hypot(s.ex * 16.0f - pl().p.x, s.ey * 16.0f - pl().p.y) / 16.0f;
   hour += dist / 30.0f;
   while (hour >= 24) { hour -= 24; day++; }
   clearNonPlayer();
-  int ty = s.ey + (s.type == SiteType::Cave ? 2 : (s.type == SiteType::Ruin ? 4 : 1));
+  // (settlements: a few tiles south of the square's centrepiece, whose fountain blocks the tiles beside and above it,
+  //  so the first step after arriving is onto open paving)
+  int ty = s.ey + (s.type == SiteType::Cave ? 2 : (s.type == SiteType::Ruin ? 4 : s.settlement() ? 3 : 1));
   // arrive at the edge of hostile places, not in the bandit chief's lap or under the dragon
   if (s.type == SiteType::BanditCamp) ty = s.r.y + s.r.h + 4;
   if (s.type == SiteType::DragonLair) ty = s.ey + 5;
   placePlayerAt(s.ex, ty);
+  // (M1 round 3) arrive in the open: a settlement's square is full of stalls, crates and wells, and landing on the
+  // tile just north of one hid the hero under its awning with the way south blocked. Take the nearest tile with open
+  // ground around it and two clear tiles south of it (nothing standing in front of the hero, a free first step).
+  if (s.settlement()) {
+    const Map& m = map();
+    const int px = (int)std::floor(pl().p.x / TILE), py = (int)std::floor(pl().p.y / TILE);
+    auto open = [&](int x, int y) {
+      for (int dy = -1; dy <= 2; dy++)
+        for (int dx = -1; dx <= 1; dx++) {
+          if (m.blocked(x + dx, y + dy)) return false;
+          if (dy >= 0 && m.propAt(x + dx, y + dy) > 0) return false;   // nothing standing in front (low clutter too)
+        }
+      // no house just south either: its roof would rise over the hero
+      for (int dy = 3; dy <= 5; dy++)
+        if (m.in(x, y + dy) && !m.bldgAt.empty() && m.bldgAt[(size_t)(y + dy) * m.w + x] >= 0) return false;
+      return true;
+    };
+    bool found = false;
+    for (int r = 0; r <= 10 && !found; r++)
+      for (int oy = -r; oy <= r && !found; oy++)
+        for (int ox = -r; ox <= r && !found; ox++) {
+          if (std::max(std::abs(ox), std::abs(oy)) != r) continue;
+          if (open(px + ox, py + oy)) { pl().p = Vec2((px + ox) * TILE + 8.0f, (py + oy) * TILE + 10.0f); found = true; }
+        }
+  }
   sleepFade = 1.2f;
   mode = Mode::Play;
   updateLocation();
@@ -1220,7 +1300,7 @@ void Game::respawn() {
   if (inside) { inside = false; subBldg = -1; subSite = -1; subFloor = 0; sub = Map(); }
   clearNonPlayer();
   int si = lastTown >= 0 ? lastTown : world.startSite;
-  const Site& s = world.sites[si];
+  const Site s = world.sites[si];   // a copy: placing the player may move the endless window and load more sites
   placePlayerAt(s.r.cx(), s.r.cy() + 1);
   Actor& p = pl();
   p.st = AState::Idle; p.stT = 0; p.hp = p.maxHp; p.burnT = 0; p.slowT = 0;
@@ -1236,20 +1316,56 @@ void Game::respawn() {
 }
 
 // ------------------------------------------------------------------ save / load
-// Format history (every version must keep loading; tests/fixtures/save_v1.bin + save_test guard this):
-//   v1  magic, ver, seed, ... (the original layout, world always built with WORLDGEN_V1)
-//   v2  adds the world-gen version and the world fingerprint right after the version
-//   v3  (M0) appends the character block at the end: the gloves/boots/cloak slots, the background, the story flags
-//       and the appearance as a length-prefixed block (fields appended later are skipped by older readers)
-//   v4  (M0b) appends the lodging block, length-prefixed like the appearance: the floor the player is on inside a
-//       building, then the rented room (building, floor, room, until-day). Older saves load on floor 0, no room.
-// To change the format: bump SAVE_VER, write the new layout, and gate each new or changed read on `ver >= N`
-// with a default for older saves. Add new fields at the end of the save where possible.
+// SAVE_VER 5 (M1). Owner, 2026-10-04: old saves are not a concern, so only this version loads; an older file is refused
+// and the title offers a new game ("this save is from an older version"). Until M1 ships the SIM lane may change this
+// layout in place (regenerate tests/fixtures/save_v5.bin with `save_test --make-fixture` when it does); after that,
+// any change bumps SAVE_VER.
+//
+// Everything that points into the world is saved by stable id (Gid), never by handle (a vector index), because an
+// endless world loads its sites and buildings in whatever order the player walked: sites by Site::id, buildings by
+// (Bldg::id, owner Site::id), map keys (looted chests, killed spawns) as (kind, id, floor). Overworld chests of an
+// endless world are keyed by global tile (Game::lootKey). The classic island uses the same path with its legacy ids.
+//
+//   header   magic 'EMBV', ver 5, worldKind u8 (0 classic, 1 endless), genVer u32 (classic WORLDGEN_* or
+//            ew::ENDLESS_GEN_VER), fingerprint u32 (classic; 0 endless), seed u64, time f32, hour f32, day i32
+//   endless  window origin ox i32, oy i32 (positions below are window-local pixels)
+//   where    inside u8, subSite (site ref), subBldg (bldg ref), subFloor i32, x f32, y f32
+//   player   hp, mp, stamina f32; level, xp, gold, perk points i32; baseHp, maxMp, maxSt f32; inventory; 11 equip
+//            slots i32; spellsKnown u8, spell u8; kills, dungeons i32; blessT f32, blessName str; lastTown (site ref)
+//   quests   count, then id, type, state, title, desc, giverName, giverSite (site ref), giverBldg (bldg ref),
+//            giverSlot i32, target (site ref), mon u8, need, have, gold, xp, stage i32; nextQuestId, trackedQuest i32
+//   npcs     count, then npcKey u64 (already id-based) + done i32
+//   looted   count, then (map ref, tile u32) or an endless overworld key (map kind 0xE + the raw key)
+//   killed   count, then (map ref, n, n values: site ref + slot for overworld spawns (slot < 4096), den id + day for
+//            dens, slot otherwise)
+//   sites    count, then site id u64 + flags u8 (1 discovered, 2 cleared)
+//   char     background u8, storyFlags u32, appearance (u16 length + fields)
+//   lodging  bldg ref, floor i32, room i32, untilDay i32
+//   explored count, then rx i32, ry i32, 128 bytes (the fog-of-war bits of one region)
+// refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
+// 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 4;
+static constexpr uint32_t SAVE_VER = 5;
+
+int Game::currentSaveVersion() { return (int)SAVE_VER; }
+int Game::saveVersion(const std::vector<uint8_t>& in) {
+  BinR r(in);
+  if (r.u32() != SAVE_MAGIC || r.bad) return 0;
+  uint32_t v = r.u32();
+  return r.bad ? 0 : (int)v;
+}
+bool Game::saveFromOlderGenerator(const std::vector<uint8_t>& in) {
+  BinR r(in);
+  if (r.u32() != SAVE_MAGIC || r.bad) return false;
+  if (r.u32() != SAVE_VER || r.bad) return false;
+  const bool endless = r.u8() == 1;
+  const int genVer = (int)r.u32();
+  if (r.bad) return false;
+  return endless ? genVer < ew::ENDLESS_GEN_VER : genVer < WORLDGEN_V1;
+}
 
 namespace {
-// The appearance block: u16 byte length, then the fields in this order. Append new fields at the end only.
+// The appearance block: u16 byte length, then the fields in this order.
 void writeAppearance(BinW& w, const Appearance& a) {
   std::vector<uint8_t> blk;
   BinW b(blk);
@@ -1264,7 +1380,7 @@ bool readAppearance(BinR& r, Appearance& a) {
   for (int i = 0; i < n && !r.bad; i++) blk.push_back(r.u8());
   if (r.bad) return false;
   BinR b(blk);
-  Appearance d;   // fields missing from an older (shorter) block keep these defaults
+  Appearance d;
   auto more = [&] { return b.p < blk.size() && !b.bad; };
   if (more()) d.name = b.str();
   if (more()) d.female = b.u8() != 0;
@@ -1282,75 +1398,185 @@ bool readAppearance(BinR& r, Appearance& a) {
   a = d;
   return true;
 }
+
+// handle <-> stable id
+struct Refs {
+  World& w;
+  ew::Gid site(int h) const { return h >= 0 && h < (int)w.sites.size() ? w.sites[(size_t)h].id : 0; }
+  // an id that is not a site's (a damaged or foreign save) loads as "none", never as some other record
+  int siteFrom(ew::Gid id) const {
+    if (!id) return -1;
+    if (!w.endless) { int h = w.siteHandle(id); return h; }
+    return w.ensureSite(id);
+  }
+  void bldg(BinW& o, int h) const {
+    if (h < 0 || h >= (int)w.over.bldgs.size()) { o.u64(0); o.u64(0); return; }
+    const Bldg& b = w.over.bldgs[(size_t)h];
+    o.u64(b.id); o.u64(site(b.site));
+  }
+  int bldgFrom(BinR& r) const {
+    ew::Gid id = r.u64(), owner = r.u64();
+    if (!id || r.bad) return -1;
+    int sh = owner ? siteFrom(owner) : -1;
+    if (sh >= 0) w.ensureSiteRecords(sh);
+    return w.bldgHandle(id);
+  }
+  // Game::mapKey(): 0 overworld, 1 + site (cave/ruin), 100000 + bldg (ground floor), 10000000 + bldg * 16 + floor
+  // (upper floors); -1 the dens' record in killedSlots
+  void map(BinW& o, int key) const {
+    if (key == 0) { o.u8(0); o.u64(0); o.u64(0); o.u8(0); return; }
+    if (key == -1) { o.u8(3); o.u64(0); o.u64(0); o.u8(0); return; }
+    if (key < 100000) { o.u8(1); o.u64(site(key - 1)); o.u64(0); o.u8(0); return; }
+    int b = key < 10000000 ? key - 100000 : (key - 10000000) / 16, f = key < 10000000 ? 0 : (key - 10000000) % 16;
+    o.u8(2); bldg(o, b); o.u8((uint8_t)f);
+  }
+  bool mapFrom(BinR& r, int& key) const {
+    uint8_t kind = r.u8();
+    if (kind == 2) {
+      int b = bldgFrom(r);
+      int f = r.u8();
+      if (b < 0) return false;
+      key = f > 0 ? 10000000 + b * 16 + f : 100000 + b;
+      return true;
+    }
+    ew::Gid id = r.u64(); r.u64(); r.u8();
+    if (kind == 0) { key = 0; return true; }
+    if (kind == 3) { key = -1; return true; }
+    int s = siteFrom(id);
+    if (s < 0) return false;
+    key = 1 + s;
+    return true;
+  }
+};
 }  // namespace
 
 void Game::serialize(std::vector<uint8_t>& out) const {
   out.clear();
   BinW w(out);
+  Refs R{const_cast<World&>(world)};
   w.u32(SAVE_MAGIC); w.u32(SAVE_VER);
-  w.u32((uint32_t)world.genVersion); w.u32(world.fingerprint());   // v2
+  w.u8(world.endless ? 1 : 0);
+  w.u32(world.endless ? (uint32_t)ew::ENDLESS_GEN_VER : (uint32_t)world.genVersion);
+  w.u32(world.endless ? 0u : world.fingerprint());
   w.u64(seed); w.f32(time); w.f32(hour); w.i32(day);
+  if (world.endless) { w.i32(world.ox); w.i32(world.oy); }
   const Actor& p = pl();
-  w.u8(inside ? 1 : 0); w.i32(subSite); w.i32(subBldg);
-  w.f32(p.p.x); w.f32(p.p.y); w.f32(p.hp); w.f32(mp); w.f32(stamina);
+  w.u8(inside ? 1 : 0);
+  w.u64(R.site(inside ? subSite : -1));
+  R.bldg(w, inside ? subBldg : -1);
+  w.i32(inside && subBldg >= 0 ? subFloor : 0);
+  w.f32(p.p.x); w.f32(p.p.y);
+  w.f32(p.hp); w.f32(mp); w.f32(stamina);
   w.i32(plLevel); w.i32(plXp); w.i32(gold); w.i32(perkPts);
   w.f32(baseHp); w.f32(maxMp); w.f32(maxSt);
   w.u32((uint32_t)inv.size());
   for (auto& it : inv) writeItem(w, it);
-  for (int e : {eqWeapon, eqBow, eqStaff, eqArmor, eqHelmet, eqShield, eqRing, eqAmulet}) w.i32(e);
+  for (int e : {eqWeapon, eqBow, eqStaff, eqArmor, eqHelmet, eqShield, eqRing, eqAmulet, eqGloves, eqBoots, eqCloak}) w.i32(e);
   w.u8(spellsKnown); w.u8((uint8_t)spell);
-  w.i32(kills); w.i32(dungeonsCleared); w.f32(blessT); w.str(blessName); w.i32(lastTown);
+  w.i32(kills); w.i32(dungeonsCleared); w.f32(blessT); w.str(blessName);
+  w.u64(R.site(lastTown));
   w.u32((uint32_t)quests.size());
   for (auto& q : quests) {
     w.i32(q.id); w.u8((uint8_t)q.type); w.u8((uint8_t)q.state); w.str(q.title); w.str(q.desc); w.str(q.giverName);
-    w.i32(q.giverSite); w.i32(q.giverBldg); w.i32(q.giverSlot); w.i32(q.target); w.u8((uint8_t)q.mon);
+    w.u64(R.site(q.giverSite)); R.bldg(w, q.giverBldg); w.i32(q.giverSlot); w.u64(R.site(q.target)); w.u8((uint8_t)q.mon);
     w.i32(q.need); w.i32(q.have); w.i32(q.gold); w.i32(q.xp); w.i32(q.stage);
   }
   w.i32(nextQuestId); w.i32(trackedQuest);
   w.u32((uint32_t)npcQuestsDone.size());
   for (auto& kv : npcQuestsDone) { w.u64(kv.first); w.i32(kv.second); }
-  w.u32((uint32_t)looted.size());
-  for (uint64_t k : looted) w.u64(k);
-  uint32_t nk = 0;
-  for (auto& kv : killedSlots) if (!kv.second.empty()) nk++;
-  w.u32(nk);
-  for (auto& kv : killedSlots) {
-    if (kv.second.empty()) continue;
-    w.i32(kv.first); w.u32((uint32_t)kv.second.size()); for (int s : kv.second) w.i32(s); }
-  w.u32((uint32_t)world.sites.size());
-  for (auto& s : world.sites) w.u8((uint8_t)((s.discovered ? 1 : 0) | (s.cleared ? 2 : 0)));
-  // v3: the character block
-  w.i32(eqGloves); w.i32(eqBoots); w.i32(eqCloak);
+  // (records keyed by ids are written in the order of their encoded bytes: an endless session's handles depend on the
+  // order the player met things, so handle order would make two saves of the same state differ)
+  auto writeSorted = [&](std::vector<std::vector<uint8_t>>& recs) {
+    std::sort(recs.begin(), recs.end());
+    w.u32((uint32_t)recs.size());
+    for (const auto& rec : recs) for (uint8_t c : rec) w.u8(c);
+  };
+  {
+    std::vector<std::vector<uint8_t>> recs;
+    for (uint64_t k : looted) {
+      recs.emplace_back();
+      BinW b(recs.back());
+      if ((k >> 60) == 0xE) { b.u8(0xE); b.u64(k); continue; }
+      b.u8(0); R.map(b, (int)(k >> 32)); b.u32((uint32_t)k);
+    }
+    writeSorted(recs);
+  }
+  {
+    std::vector<std::vector<uint8_t>> recs;
+    for (auto& kv : killedSlots) {
+      if (kv.second.empty()) continue;
+      std::vector<std::vector<uint8_t>> vals;
+      for (int v : kv.second) {
+        vals.emplace_back();
+        BinW b(vals.back());
+        if (kv.first == 0) { b.u64(R.site(v / 4096)); b.i32(v % 4096); }   // overworld spawns: slot + site * 4096
+        else if (kv.first == -1) {                                        // dens: den * 4096 + the day it was cleared
+          int d = v / 4096;
+          b.u64(d >= 0 && d < (int)world.dens.size() ? world.dens[(size_t)d].id : 0); b.i32(v % 4096);
+        } else { b.u64(0); b.i32(v); }
+      }
+      std::sort(vals.begin(), vals.end());
+      recs.emplace_back();
+      BinW b(recs.back());
+      R.map(b, kv.first);
+      b.u32((uint32_t)vals.size());
+      for (const auto& v : vals) for (uint8_t c : v) b.u8(c);
+    }
+    writeSorted(recs);
+  }
+  {
+    std::vector<std::pair<uint64_t, uint8_t>> fl;
+    for (const Site& s : world.sites) if (s.discovered || s.cleared) fl.push_back({s.id, (uint8_t)((s.discovered ? 1 : 0) | (s.cleared ? 2 : 0))});
+    std::sort(fl.begin(), fl.end());
+    w.u32((uint32_t)fl.size());
+    for (auto& f : fl) { w.u64(f.first); w.u8(f.second); }
+  }
   w.u8((uint8_t)background); w.u32(storyFlags);
   writeAppearance(w, app);
-  // v4: the lodging block (u16 length, then the fields; append new ones at the end only)
-  {
-    std::vector<uint8_t> blk;
-    BinW b(blk);
-    b.i32(inside && subBldg >= 0 ? subFloor : 0);
-    b.i32(lodging.bldg); b.i32(lodging.floor); b.i32(lodging.room); b.i32(lodging.untilDay);
-    w.u16((uint16_t)blk.size());
-    for (uint8_t c : blk) w.u8(c);
+  R.bldg(w, lodging.bldg); w.i32(lodging.floor); w.i32(lodging.room); w.i32(lodging.untilDay);
+  // explored, in key order so the bytes do not depend on hash-map order
+  std::vector<uint64_t> keys;
+  for (auto& kv : explored.regions) keys.push_back(kv.first);
+  std::sort(keys.begin(), keys.end());
+  w.u32((uint32_t)keys.size());
+  for (uint64_t k : keys) {
+    w.i32(ExploredMask::keyRx(k)); w.i32(ExploredMask::keyRy(k));
+    for (uint8_t b : explored.regions.at(k)) w.u8(b);
   }
 }
 
 bool Game::deserialize(const std::vector<uint8_t>& in) {
   BinR r(in);
   if (r.u32() != SAVE_MAGIC) return false;
-  const uint32_t ver = r.u32();
-  if (ver < 1 || ver > SAVE_VER) return false;   // a save from a newer build
-  int genVer = WORLDGEN_V1;
-  uint32_t fp = 0;
-  if (ver >= 2) { genVer = (int)r.u32(); fp = r.u32(); }
+  if (r.u32() != SAVE_VER || r.bad) return false;   // older (or newer) saves are not loaded: the title says so
+  const bool endless = r.u8() == 1;
+  const int genVer = (int)r.u32();
+  const uint32_t fp = r.u32();
+  const uint64_t sd = r.u64();
+  const float t = r.f32(), hr = r.f32();
+  const int dy = r.i32();
   if (r.bad) return false;
-  if (genVer < WORLDGEN_V1 || genVer > WORLDGEN_LATEST) return false;   // world from a newer generator
-  uint64_t sd = r.u64();
-  float t = r.f32(), hr = r.f32(); int dy = r.i32();
-  if (r.bad) return false;
-  newGame(sd, genVer);   // regenerates the exact world the save was made in
-  worldChanged = ver >= 2 && fp != world.fingerprint();
+  if (endless) {
+    if (genVer != ew::ENDLESS_GEN_VER) return false;   // made by another endless generator
+    int32_t wox = r.i32(), woy = r.i32();
+    if (r.bad || std::abs(wox) > ew::WORLD_EDGE + 4096 || std::abs(woy) > ew::WORLD_EDGE + 4096) return false;
+    // the window is built once, where the save was made (not at the start first): a load behind the fade
+    seed = sd;
+    rng_ = Rng(sd ^ 0xABCDEF);
+    world.generateEndlessAt(sd, wox, woy);
+    resetSession();
+    worldChanged = false;
+  } else {
+    if (genVer < WORLDGEN_V1 || genVer > WORLDGEN_LATEST) return false;
+    newGame(sd, genVer);
+    worldChanged = fp != world.fingerprint();
+  }
+  Refs R{world};
   time = t; hour = hr; day = dy;
-  bool ins = r.u8() != 0; int ss = r.i32(), sb = r.i32();
+  bool ins = r.u8() != 0;
+  int ss = R.siteFrom(r.u64());
+  int sb = R.bldgFrom(r);
+  int floorIn = r.i32();
   Vec2 pp; pp.x = r.f32(); pp.y = r.f32();
   float hp = r.f32(); mp = r.f32(); stamina = r.f32();
   plLevel = r.i32(); plXp = r.i32(); gold = r.i32(); perkPts = r.i32();
@@ -1359,18 +1585,25 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   if (n > 5000) return false;
   inv.clear();
   for (uint32_t i = 0; i < n && !r.bad; i++) inv.push_back(readItem(r));
-  int* eqs[] = {&eqWeapon, &eqBow, &eqStaff, &eqArmor, &eqHelmet, &eqShield, &eqRing, &eqAmulet};
+  int* eqs[] = {&eqWeapon, &eqBow, &eqStaff, &eqArmor, &eqHelmet, &eqShield, &eqRing, &eqAmulet, &eqGloves, &eqBoots, &eqCloak};
   for (int* e : eqs) { *e = r.i32(); if (*e >= (int)inv.size()) *e = -1; }
   spellsKnown = r.u8(); spell = (Spell)(r.u8() % (int)Spell::COUNT);
-  kills = r.i32(); dungeonsCleared = r.i32(); blessT = r.f32(); blessName = r.str(); lastTown = r.i32();
+  kills = r.i32(); dungeonsCleared = r.i32(); blessT = r.f32(); blessName = r.str();
+  lastTown = R.siteFrom(r.u64());
   n = r.u32();
   if (n > 5000) return false;
   quests.clear();
   for (uint32_t i = 0; i < n && !r.bad; i++) {
     Quest q;
     q.id = r.i32(); q.type = (QType)r.u8(); q.state = (QState)r.u8(); q.title = r.str(); q.desc = r.str(); q.giverName = r.str();
-    q.giverSite = r.i32(); q.giverBldg = r.i32(); q.giverSlot = r.i32(); q.target = r.i32(); q.mon = (Monster)r.u8();
+    q.giverSite = R.siteFrom(r.u64()); q.giverBldg = R.bldgFrom(r); q.giverSlot = r.i32(); q.target = R.siteFrom(r.u64());
+    q.mon = (Monster)r.u8();
     q.need = r.i32(); q.have = r.i32(); q.gold = r.i32(); q.xp = r.i32(); q.stage = r.i32();
+    // (a damaged save: out-of-range kinds load as harmless defaults, never as indices past a table)
+    if ((int)q.type > (int)QType::Bounty) q.type = QType::Hunt;
+    if ((int)q.state > (int)QState::Done) q.state = QState::Done;
+    if ((int)q.mon >= (int)Monster::COUNT) q.mon = Monster::Wolf;
+    if (q.type == QType::Main) q.stage = std::clamp(q.stage, 0, 4);
     quests.push_back(q);
   }
   nextQuestId = r.i32(); trackedQuest = r.i32();
@@ -1379,54 +1612,73 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   for (uint32_t i = 0; i < n && !r.bad; i++) { uint64_t k = r.u64(); npcQuestsDone[k] = r.i32(); }
   n = r.u32();
   looted.clear();
-  for (uint32_t i = 0; i < n && !r.bad; i++) looted.insert(r.u64());
+  for (uint32_t i = 0; i < n && !r.bad; i++) {
+    if (r.u8() == 0xE) { looted.insert(r.u64()); continue; }
+    int key = 0;
+    bool ok = R.mapFrom(r, key);
+    uint32_t tile = r.u32();
+    if (ok) looted.insert(((uint64_t)(uint32_t)key << 32) | tile);
+  }
   n = r.u32();
   killedSlots.clear();
   for (uint32_t i = 0; i < n && !r.bad; i++) {
-    int k = r.i32(); uint32_t m = r.u32();
-    for (uint32_t j = 0; j < m && !r.bad; j++) killedSlots[k].insert(r.i32());
+    int key = 0;
+    bool ok = R.mapFrom(r, key);
+    uint32_t m = r.u32();
+    for (uint32_t j = 0; j < m && !r.bad; j++) {
+      ew::Gid id = r.u64();
+      int v = r.i32();
+      if (!ok) continue;
+      if (key == 0) { int s = R.siteFrom(id); if (s >= 0 && v >= 0 && v < 4096) killedSlots[0].insert(v + s * 4096); }
+      else if (key == -1) { int d = world.ensureDen(id); if (d >= 0) killedSlots[-1].insert(d * 4096 + v); }
+      else killedSlots[key].insert(v);
+    }
   }
   n = r.u32();
-  for (uint32_t i = 0; i < n && i < world.sites.size() && !r.bad; i++) {
+  for (uint32_t i = 0; i < n && !r.bad; i++) {
+    ew::Gid id = r.u64();
     uint8_t f = r.u8();
-    world.sites[i].discovered = f & 1; world.sites[i].cleared = (f & 2) != 0;
+    int s = R.siteFrom(id);
+    if (s >= 0) { world.sites[(size_t)s].discovered = f & 1; world.sites[(size_t)s].cleared = (f & 2) != 0; }
   }
-  if (ver >= 3) {
-    for (int* e : {&eqGloves, &eqBoots, &eqCloak}) { *e = r.i32(); if (*e >= (int)inv.size()) *e = -1; }
-    uint8_t bg = r.u8();
-    background = bg < (uint8_t)Background::COUNT ? (Background)bg : Background::None;
-    storyFlags = r.u32();
-    if (!readAppearance(r, app)) return false;
-  }
-  int floorIn = 0;
+  uint8_t bg = r.u8();
+  background = bg < (uint8_t)Background::COUNT ? (Background)bg : Background::None;
+  storyFlags = r.u32();
+  if (!readAppearance(r, app)) return false;
   lodging = Lodging();
-  if (ver >= 4) {
-    int n4 = r.u16();
-    std::vector<uint8_t> blk;
-    for (int i = 0; i < n4 && !r.bad; i++) blk.push_back(r.u8());
-    if (r.bad) return false;
-    BinR b(blk);
-    auto more = [&] { return b.p < blk.size() && !b.bad; };
-    if (more()) floorIn = b.i32();
-    if (more()) { lodging.bldg = b.i32(); lodging.floor = b.i32(); lodging.room = b.i32(); lodging.untilDay = b.i32(); }
-    if (b.bad) return false;
-    if (lodging.bldg < -1 || lodging.bldg >= (int)world.over.bldgs.size()) lodging = Lodging();
+  lodging.bldg = R.bldgFrom(r); lodging.floor = r.i32(); lodging.room = r.i32(); lodging.untilDay = r.i32();
+  if (lodging.bldg < 0) lodging = Lodging();
+  n = r.u32();
+  if (n > 1000000) return false;
+  explored.clear();
+  for (uint32_t i = 0; i < n && !r.bad; i++) {
+    int32_t rx = r.i32(), ry = r.i32();
+    std::vector<uint8_t> m((size_t)ExploredMask::CELLS * ExploredMask::CELLS / 8);
+    for (uint8_t& b : m) b = r.u8();
+    explored.regions[ExploredMask::key(rx, ry)] = std::move(m);
   }
   if (r.bad) return false;
-  // re-apply looted overworld chests
+  // re-apply looted overworld chests (classic: by tile index; endless: by global tile)
   for (uint64_t k : looted)
     if ((k >> 32) == 0) {
       uint32_t i = (uint32_t)k;
       if (i < world.over.prop.size() && world.over.prop[i] == (int)Prop::Chest + 1) world.over.prop[i] = (int)Prop::ChestOpen + 1;
     }
   world.over.rebuildSolid();
+  reapplyLooted();
   recalcPlayer();
   if (ins && sb >= 0 && sb < (int)world.over.bldgs.size()) {
     enterBuilding(sb);
-    if (floorIn > 0 && floorIn < world.over.bldgs[sb].floors()) changeFloor(floorIn);
-  }
-  else if (ins && ss >= 0 && ss < (int)world.sites.size()) enterSite(ss);
+    if (floorIn > 0 && floorIn < world.over.bldgs[(size_t)sb].floors()) changeFloor(floorIn);
+  } else if (ins && ss >= 0 && ss < (int)world.sites.size()) enterSite(ss);
+  else clearNonPlayer();
   pl().p = pp;
+  // a position off the map (a damaged save) would leave the player stuck in the void: stand them on a free tile
+  if (!(std::isfinite(pp.x) && std::isfinite(pp.y)) || !map().in((int)std::floor(pp.x / TILE), (int)std::floor(pp.y / TILE))) {
+    if (inside) placePlayerAt(sub.exitX, sub.exitY - 1);
+    else placePlayerAt(world.over.w / 2, world.over.h / 2);
+  }
+  if (!std::isfinite(hp)) hp = 1;
   pl().hp = hp;
   if (hp <= 0) respawn();   // saved on the death screen: wake in town rather than standing up with 1 HP where you fell
   events.clear();

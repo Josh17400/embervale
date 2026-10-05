@@ -490,5 +490,51 @@ int defenceChecks(uint64_t seed) {
   bad += townDefence(base, base.world.startSite, base.world.sites[base.world.startSite].type != SiteType::Village, "start");
   bad += bountyChecks(base);
   bad += backgroundChecks(base);
+  // (M1) a townsperson felled by a monster stays down while their town is active: the site streamer must not bring the
+  // same person back at their spawn tile once the body is cleared (they return when the town next loads)
+  {
+    Game g = base;
+    g.noWildSpawns = true;
+    tick(g, 30);
+    int victim = -1;
+    float bd = 1e30f;
+    for (const Actor& a : g.actors)
+      if (a.npc && a.fromMap && a.site >= 0 && a.slot >= 0 && a.st != AState::Dead && a.role != Role::Guard) {
+        const float d = len2(a.p - g.pl().p);
+        if (d < bd) { bd = d; victim = a.id; }
+      }
+    if (victim >= 0) {
+      int site = -1, slot = -1;
+      for (const Actor& a : g.actors) if (a.id == victim) { site = a.site; slot = a.slot; }
+      g.debugFell(victim);
+      int back = 0;
+      for (int f = 0; f < (int)(12.0f / SIM_DT); f++) {
+        tick(g, 1);
+        for (const Actor& a : g.actors)
+          if (a.site == site && a.slot == slot && a.fromMap && a.st != AState::Dead) { back++; break; }
+        if (back) break;
+      }
+      if (back) { out("FAIL: a felled townsperson (site %d slot %d) was back on their feet within 12 s\n", site, slot); bad++; }
+      // ...nor after a quick visit to the nearest building (entering and leaving clears the actors and re-streams the
+      // town: the felled stay down until the town is put away)
+      int bi = -1;
+      float bb = 1e30f;
+      for (size_t i = 0; i < g.world.over.bldgs.size(); i++) {
+        const Bldg& B = g.world.over.bldgs[i];
+        const float d = len2(Vec2(B.doorX() * TILE + 8.0f, B.doorY() * TILE + 8.0f) - g.pl().p);
+        if (d < bb) { bb = d; bi = (int)i; }
+      }
+      if (!back && bi >= 0 && g.debugEnterBuilding(bi, 0)) {
+        tick(g, 20);
+        g.debugLeave();
+        for (int f = 0; f < (int)(6.0f / SIM_DT) && !back; f++) {
+          tick(g, 1);
+          for (const Actor& a : g.actors)
+            if (a.site == site && a.slot == slot && a.fromMap && a.st != AState::Dead) { back++; break; }
+        }
+        if (back) { out("FAIL: a felled townsperson (site %d slot %d) was back after a visit to a building\n", site, slot); bad++; }
+      }
+    }
+  }
   return bad;
 }

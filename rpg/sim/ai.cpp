@@ -7,6 +7,7 @@
 #include <vector>
 #include "engine/audio.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/world/economy.h"
 
 using art::Monster;
 using art::Prop;
@@ -25,11 +26,16 @@ uint8_t calmTool(Role r) { return r == Role::Smith ? 6 : 0; }
 int Game::settlementAt(Vec2 p) const {
   if (inside) return -1;
   int tx = tileX(p), ty = tileY(p);
-  for (int i = 0; i < (int)world.sites.size(); i++) {
-    const Site& s = world.sites[i];
-    if (!isSettlement(s.type)) continue;
-    if (tx >= s.r.x - 1 && ty >= s.r.y - 1 && tx < s.r.x + s.r.w + 1 && ty < s.r.y + s.r.h + 1) return i;
+  auto test = [&](int i) {
+    const Site& s = world.sites[(size_t)i];
+    return isSettlement(s.type) && tx >= s.r.x - 1 && ty >= s.r.y - 1 && tx < s.r.x + s.r.w + 1 && ty < s.r.y + s.r.h + 1;
+  };
+  // endless: the sites near the window (M1 spatial look-up; a point in the window can only lie in one of those)
+  if (world.endless && world.nearWindow(tx, ty)) {
+    for (int i : world.nearSites) if (test(i)) return i;
+    return -1;
   }
+  for (int i = 0; i < (int)world.sites.size(); i++) if (test(i)) return i;
   return -1;
 }
 
@@ -173,7 +179,9 @@ void Game::updateFolk(Actor& a, float dt) {
       a.target = -1;
       float bd = 1e30f;
       const Site* st = town ? &world.sites[a.site] : nullptr;
-      for (const Actor& e : actors) {
+      for (int hi : hostiles_) {
+        if (hi < 0 || hi >= (int)actors.size()) continue;
+        const Actor& e = actors[(size_t)hi];
         if (e.player || e.st == AState::Dead || e.fly || !factionsHostile(a.faction, e.faction)) continue;
         if (e.id == a.unreach && a.unreachT > 0) continue;   // no way to it from here: leave it for someone else
         float d2 = len2(e.p - a.p);
@@ -224,9 +232,12 @@ void Game::updateFolk(Actor& a, float dt) {
     float td = 100.0f * 100.0f;
     // a threat is a monster on the hunt (aggro) or one right beside them; a pack dozing at its den by the
     // fields does not send the whole street indoors
-    for (const Actor& e : actors)
+    for (int hi : hostiles_) {
+      if (hi < 0 || hi >= (int)actors.size()) continue;
+      const Actor& e = actors[(size_t)hi];
       if (!e.player && e.st != AState::Dead && !e.fly && factionsHostile(a.faction, e.faction) && len2(e.p - a.p) < td &&
           (e.aggro || len2(e.p - a.p) < 48.0f * 48.0f)) { td = len2(e.p - a.p); threat = &e; }
+    }
     if (threat || ringing) {
       if (threat) alarms_[a.site].lastThreatT = time;
       a.fleeT += dt;
@@ -271,7 +282,31 @@ void Game::updateFolk(Actor& a, float dt) {
     a.fleeT = 0;
   }
   a.thinkT -= dt;
-  if (a.thinkT <= 0) {
+  if (a.stallKeeper) {
+    // (M1 economy) a stall keeper minds the counter while the stall is open: back behind it, facing the customers.
+    // (M1 fixer) The way back (from shelter, from a door across the square) goes round the stalls by the path finder
+    // to the keeper's tile behind the counter, then the last step in; after the stall's closing hour the keeper is off
+    // duty and strolls the square until morning.
+    const int stx = (int)std::floor(a.home.x / TILE), sty = (int)std::floor(a.home.y / TILE);
+    if (ew::stallOpen(stx + world.ox, sty + world.oy, hour)) {
+      a.goal = a.home;
+      if (len2(a.home - a.p) < 9.0f) { a.st = AState::Idle; a.face = 0; return; }
+      if (tileX(a.p) == stx && tileY(a.p) == sty - 1) { a.p = a.home; a.st = AState::Idle; a.face = 0; return; }
+      const Vec2 post = tileCentre(stx, sty - 1);
+      if (!navStep(a, post, a.speed * 0.5f, dt)) moveActor(a, norm(post - a.p) * (a.speed * 0.45f * dt));
+      a.face = faceOf(post - a.p);
+      a.st = AState::Walk;
+      return;
+    }
+    // off duty: out from behind the counter (the keeper stood a step into the stall's row), then a stroll round the
+    // square behind the stall
+    if (tileY(a.p) == sty && std::fabs(a.p.x - a.home.x) < 12.0f) { a.p = tileCentre(stx, sty - 1); a.thinkT = 0; }
+    if (a.thinkT <= 0) {
+      a.thinkT = 3.0f + rng_.f() * 5.0f;
+      a.goal = tileCentre(stx, sty - 1) + Vec2(rng_.range(-4.0f, 4.0f) * TILE, rng_.range(-4.0f, -1.0f) * TILE);
+    }
+  }
+  if (a.thinkT <= 0 && !a.stallKeeper) {
     a.thinkT = 2.0f + rng_.f() * 4.0f;
     if (rng_.f() < 0.45f) a.goal = a.p;
     else {
@@ -303,13 +338,15 @@ void Game::updateTownDefence(float dt) {
     sheltered_.push_back(s);
     actors.erase(actors.begin() + i);
   }
+  collectHostiles();   // (indices moved: people went indoors)
   const Actor& p = pl();
   for (int si : activeSites_) {
     const Site& st = world.sites[si];
     if (!isSettlement(st.type)) continue;
     SiteAlarm& al = alarms_[si];
     int n = 0, near = 0;   // inside the footprint (the bell) / prowling at its edge (keeps folk indoors)
-    for (const Actor& e : actors) {
+    for (int hi : hostiles_) {
+      const Actor& e = actors[(size_t)hi];
       if (e.player || e.st == AState::Dead || !factionsHostile(Faction::Town, e.faction)) continue;
       int tx = tileX(e.p), ty = tileY(e.p);
       bool in = tx >= st.r.x - 1 && ty >= st.r.y - 1 && tx < st.r.x + st.r.w + 1 && ty < st.r.y + st.r.h + 1;
@@ -360,7 +397,8 @@ void Game::updateTownDefence(float dt) {
       const Bldg& B = world.over.bldgs[b];
       Vec2 door = tileCentre(B.doorX(), B.doorY() + 1);
       const IRect sr = s.site >= 0 && s.site < (int)world.sites.size() ? world.sites[s.site].r : IRect{};
-      for (const Actor& e : actors) {
+      for (int hi : hostiles_) {
+        const Actor& e = actors[(size_t)hi];
         if (e.player || e.st == AState::Dead || !factionsHostile(s.faction, e.faction) || len2(e.p - door) >= 140.0f * 140.0f) continue;
         int tx = tileX(e.p), ty = tileY(e.p);
         bool inTown = tx >= sr.x - 1 && ty >= sr.y - 1 && tx < sr.x + sr.w + 1 && ty < sr.y + sr.h + 1;

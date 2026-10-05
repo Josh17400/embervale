@@ -59,6 +59,7 @@ enum class RoomKind : uint8_t {
   Study,          // books, desk, lectern (towers, keeps, wealthy homes)
   Storeroom,      // sacks, crates, barrels, firewood
   Barn,           // a farmhouse's animal / hay end
+  Council,        // M1: a palace's council chamber: the long table with the king's chair at its head, maps, banners
   COUNT
 };
 const char* roomKindName(RoomKind k);   // "COMMON ROOM", "GUEST ROOM"... (rpg/sim/rooms.cpp)

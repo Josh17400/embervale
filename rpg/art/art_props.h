@@ -53,12 +53,79 @@ enum class Prop : uint8_t {
   Pillar,         // a stone column for halls, naves and keeps (16x48)
   BunkBed,        // a two-tier bunk, head to the wall (20x40)
   Dresser,        // a chest of drawers with a mirror, against a wall (16x30)
+  // ---- M1 ruins: the standing remains of old halls (overworld ruin sites). The view draws each tile with its own
+  //      variant (ruinVariant), so a run of wall never repeats one broken top.
+  RuinWall,       // a tile of broken masonry wall in 3/4 view: a 16 px deep top over a south face (16x36). Runs join
+                  // seamlessly side by side, and north-south runs show one continuous wall top
+  RuinColumn,     // a snapped-off column on its plinth (16x40)
+  // ---- M1 economy (owner 2026-10-05; rpg/world/economy.h). Market stalls by trade: a counter three tiles wide under a
+  //      sloping awning, seen from the customers' side (south), the trade's goods on the counter and hanging under the
+  //      awning. The prop stands on the middle tile; the generator puts Filler on the tiles either side (the counter is
+  //      solid) and the stall keeper on the tile behind. The view varies the awning cloth per stall (marketStall).
+  StallProduce, StallFish, StallCloth, StallPottery, StallMeat, StallBread, StallTools,
+  StallTimber,    // (M1 fixer) the lumber trade's stall: sawn planks, split firewood and a log or two, an axe on the rail
+  //      market and trade clutter, and the specialisations' yard machinery
+  Sacks,          // a heap of grain / flour sacks (20x16)
+  Baskets,        // two wicker baskets of produce (20x14)
+  DryingRack,     // a fish-drying rack: a pole frame hung with split fish (30x30)
+  HideRack,       // a tanner's stretching frame with a hide laced in it (24x28)
+  OreCart,        // a mine cart heaped with ore on a stub of rail (26x22)
+  OrePile,        // a heap of broken ore (22x14)
+  MineEntrance,   // a timbered adit into the hillside (44x36); stands on its middle tile, Filler either side
+  LogPile,        // trunks stacked for the sawmill (34x20)
+  Trough,         // a wooden water trough for the beasts (26x14)
+  WaterWheel,     // a watermill's undershot wheel turning in the river beside the mill (24x34, 4 frames); stands on the
+                  // water tile against the mill's side wall
+  // ---- M1 fixer round 2: a grand market has more than one kind of stall, and the trades' work yards
+  MarketTable,    // an open trestle table of goods two tiles wide, sometimes under a square sunshade (48x44). Stands on
+                  // its WEST tile (the canvas's left third is empty), Filler on the east tile; the view picks its goods
+                  // and shade by tile (marketTable)
+  GroundCloth,    // a cloth spread on the paving with goods laid out on it, two tiles wide (48x20); like MarketTable
+  MarketCross,    // a market cross: a stepped stone base, a shaft and a carved head (32x60), a market's centrepiece
+  Sheep,          // a grazing sheep (20x18, 8 frames: head down cropping, then up)
+  Cow,            // a grazing cow (30x24, 8 frames)
+  MineRail,       // a tile of mine-cart track (16x16, flat, walk-over); the view joins it to its neighbours (mineRail)
+  PenShelter,     // an open-fronted lean-to shed for the flock, hay in its rack (48x44); middle tile, Filler either side
+  MineHill,       // the mine: a grassy knoll, its south face a cliff of layered rock with the timbered adit cut into its
+                  // foot (80x76); stands on the adit's tile, the knoll's five-by-four footprint all Filler (mineHill)
   COUNT
 };
+// M1 economy: the market stall trades in prop order (ew::StallTrade); stallProp(t) and back
+constexpr int kStallTrades = 8;
+inline Prop stallProp(int trade) { return (Prop)((int)Prop::StallProduce + (trade % kStallTrades)); }
+inline bool isStall(Prop p) { return (int)p >= (int)Prop::StallProduce && (int)p <= (int)Prop::StallTimber; }
+inline int stallTrade(Prop p) { return (int)p - (int)Prop::StallProduce; }
 int propW(Prop p);
 int propH(Prop p);
 int propFrames(Prop p);
 Canvas propSprite(Prop p);
+Canvas marketStallVariant(int v);   // M1: a market stall with awning v % 6 and goods (v / 6) % 6 (36 looks)
+// M1 economy: a trade's market stall (trade 0..6 in StallProduce order) under awning cloth `awning` (0..7). The same
+// canvas and anchor as propSprite(stallProp(trade)) (which is awning 0).
+Canvas marketStall(int trade, int awning);
+constexpr int kStallAwnings = 8;
+// (M1 fixer round 2) one stall in three looks: 0 the cloth-awning booth, 1 a peaked canvas tent over a clothed trestle,
+// 2 a timber booth under a shingle roof with a painted board. closed: packed up for the night (the goods under a
+// cover, the hanging goods taken in, a booth's shutter down). Same canvas and anchor as marketStall.
+constexpr int kStallForms = 3;
+Canvas marketStallForm(int trade, int awning, int form, bool closed);
+// the open table's goods (cheese, eggs, spices, flowers, honey and candles, baskets, wool, apples and cider) and its
+// sunshade (0 none, else a cloth colour); the ground cloth's goods (pots, rugs, gourds and roots, furs). Canvases as
+// propSprite(MarketTable / GroundCloth).
+constexpr int kTableGoods = 8, kTableShades = 4, kClothGoods = 4;
+Canvas marketTable(int goods, int shade, bool closed);
+Canvas groundCloth(int goods, int cloth, bool closed);
+// a tile of mine track joined toward its neighbours (bit 1 north, 2 east, 4 south, 8 west); 0 or a lone bit: straight
+inline bool isVendorProp(Prop p) { return isStall(p) || p == Prop::MarketTable || p == Prop::GroundCloth; }
+Canvas mineRail(int joins);
+// the mine hill in variant v (0..3) for its land (0 green, 1 snow, 2 dry grass); the canvas of propSprite(MineHill)
+Canvas mineHill(int variant, int land);
+Canvas ruinVariant(Prop p, int v);   // M1: RuinWall / RuinColumn variant v % 8 (height, broken top, moss); a RuinWall
+                                     // with v & 8 joins a wall tile north of it (its top runs on unbroken)
+// M1 kingdom identity (VISION_PLAN 15.8): a standing banner in a kingdom's colours (field / trim rgba, emblem 0..7), the
+// same canvas size and anchor as propSprite(Prop::Banner). The view draws Prop::Banner tiles that belong to a kingdom's
+// settlement with this (field == 0 gives the plain banner).
+Canvas kingdomBanner(uint32_t field, uint32_t trim, int emblem);
 
 // ---------------------------------------------------------------- interior surfaces and floor clutter (M0)
 // Interiors get painted walls (with thickness and a lit top), floors, rugs, contact shadows and small clutter on top

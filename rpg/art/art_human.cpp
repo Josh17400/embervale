@@ -1,4 +1,5 @@
 // EMBERVALE art: humans (player, NPCs, bandits) and the humanoid monsters that share the rig. See rpg/art.h for the contract and rpg/art/art_internal.h for the shared helpers.
+#include <cstdlib>
 #include <cstring>
 
 #include "rpg/art/art_internal.h"

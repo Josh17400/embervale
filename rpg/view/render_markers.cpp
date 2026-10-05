@@ -122,7 +122,7 @@ void View::drawMarkers(Game& g, Vec2 cam) {
         while (m.propAt(x0 - 1, st.y) == sp) x0--;
         while (m.propAt(x1 + 1, st.y) == sp) x1++;
         float tx = (x0 + x1 + 1) * 8.0f - cam.x, ty = st.y * 16.0f - 6 - cam.y;
-        const float L = 10, T = 54, R = Pix::W - 142, B = Pix::H - (touchUI ? 56.0f : 12.0f);
+        const float L = 10.0f + Pix::SL, T = 54.0f + Pix::ST, R = Pix::W - Pix::SR - 142.0f, B = Pix::H - Pix::SB - (touchUI ? 56.0f : 12.0f);
         float cx = clampf(tx, L, R), cy = clampf(ty, T, B);
         bool off = std::fabs(cx - tx) > 0.5f || std::fabs(cy - ty) > 0.5f;
         // dir 0: down (at the stairs), 1: up, 2: left, 3: right (pointing out of the clear area at them)

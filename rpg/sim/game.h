@@ -11,6 +11,7 @@
 #include "rpg/sim/appearance.h"
 #include "rpg/sim/backgrounds.h"
 #include "rpg/sim/common.h"
+#include "rpg/sim/explored.h"
 #include "rpg/sim/factions.h"
 #include "rpg/sim/items.h"
 #include "rpg/sim/world.h"
@@ -78,6 +79,7 @@ struct Actor {
   float lastHitT = -99;    // Game::time this actor last took damage (troll regen pauses)
   // town defence (M0): townsfolk run home and hide, brave ones with a tool fight as militia, guards converge
   bool militia = false;    // a brave adult with a tool (smith, farmer...): fights weakly when monsters come
+  bool stallKeeper = false; // (M1 economy) keeps a market stall: stands behind its counter facing the customers
   bool indoors = false;    // reached its home door this frame: Game moves it indoors (out of `actors`) until it is safe
   int homeBldg = -1;       // overworld building it shelters in (-1 not chosen yet, -2 none)
   float fleeT = 0;         // seconds spent running for home during this threat
@@ -85,6 +87,10 @@ struct Actor {
   float navT = 0;          // time until the path is re-planned
   int unreach = -1;        // guards: a target no path reaches (across a wall, in water) is ignored for unreachT s
   float unreachT = 0;
+  // M1 NPC level of detail (VISION_PLAN 4.4): townsfolk well off screen with nothing to react to sleep (their AI runs
+  // a few times a second with the gathered time instead of every step)
+  bool asleep = false;
+  float lodAcc = 0;
 };
 
 enum class ProjKind : uint8_t { Arrow, Fireball, IceSpike, Spit, Magic, DragonFire };
@@ -107,7 +113,10 @@ struct Pickup {
   bool magnet = false;     // already flying to the player (sound played)
 };
 
-enum class Ev : uint8_t { Sfx, Hit, Blood, Explode, Sparkle, Dust, Heal, Frost, Text, Discover, LevelUp, QuestUpdate, Shake, MapChange, Notice };
+// WindowShift (M1): the endless world's Active Window moved; p is the pixel offset every overworld position just got
+// (the view moves its camera, particles and floating texts by it)
+enum class Ev : uint8_t { Sfx, Hit, Blood, Explode, Sparkle, Dust, Heal, Frost, Text, Discover, LevelUp, QuestUpdate, Shake, MapChange, Notice,
+                          WindowShift };
 struct Event {
   Ev type = Ev::Sfx;
   Vec2 p;
@@ -157,7 +166,8 @@ struct ShopState {
 class Game {
  public:
   explicit Game(uint64_t seed = 1);
-  void newGame(uint64_t seed, int genVer = WORLDGEN_LATEST);   // genVer: world-generator version (old saves pass theirs)
+  void newGame(uint64_t seed, int genVer = WORLDGEN_LATEST);   // a classic island world (tests; genVer: its generator)
+  void newEndlessGame(uint64_t seed);                          // M1: a new game on the endless mainland (VISION_PLAN 15.6)
   void update(float dt, const Input& in);
 
   // --- world & level
@@ -222,7 +232,8 @@ class Game {
   int nextQuestId = 1;
   int trackedQuest = -1;
   std::map<uint64_t, int> npcQuestsDone;     // npc key -> completed count (new offers)
-  std::set<uint64_t> looted;                 // mapKey<<32 | tile
+  std::set<uint64_t> looted;                 // mapKey<<32 | tile, or lootKey's global key (endless overworld)
+  ExploredMask explored;                     // M1: fog of war for the world map (global tiles the player has seen)
   std::map<int, std::set<int>> killedSlots;  // mapKey -> spawn slots defeated (no respawn)
 
   // UI-facing state
@@ -270,26 +281,60 @@ class Game {
   float priceFactor(Role seller) const;   // what this background pays at a seller (1 = list price)
   int openingQuest() const;            // id of the opening quest "A BLADE OF YOUR OWN" while it is open (-1 otherwise)
 
-  // persistence
+  // persistence. Only the current SAVE_VER loads (owner, 2026-10-04: old saves are not a concern); an older save is
+  // refused and the title says so (saveVersion tells the UI which case it is).
   void serialize(std::vector<uint8_t>& out) const;
-  bool deserialize(const std::vector<uint8_t>& in);   // reads every SAVE_VER from 1 up
+  bool deserialize(const std::vector<uint8_t>& in);
+  static int saveVersion(const std::vector<uint8_t>& in);   // the file's SAVE_VER (0: not a save at all)
+  static int currentSaveVersion();
+  // a current-format save whose world came from an older generator (endless ENDLESS_GEN_VER, classic WORLDGEN_*):
+  // refused like an older SAVE_VER, and the title words it the same way
+  static bool saveFromOlderGenerator(const std::vector<uint8_t>& in);
   bool worldChanged = false;   // set by deserialize: the regenerated world's fingerprint differs from the saved one
+  // M1 stable keys: an overworld chest (endless worlds key it by global tile, so it stays looted wherever the window is)
+  uint64_t lootKey(int tx, int ty) const;
+  uint64_t npcKeyOf(int site, int bldg, int slot) const;   // npcKey's formula from handles (quest givers)
+
+  // M1 endless streaming and NPC level of detail (SIM lane)
+  void frameWork(double budgetMs);     // once per rendered frame: the streamer's work (web: generation within the budget)
+  struct PerfCounters {
+    int npcAwake = 0, npcAsleep = 0;   // townsfolk in `actors` this step, by LOD
+    int hostiles = 0;                  // monsters and bandits in `actors`
+    int activeSites = 0;               // settlements and camps whose people are streamed in
+    int spawnedNpcs = 0, despawnedNpcs = 0;   // people streamed in / out so far
+  };
+  PerfCounters perf;
+  static constexpr int FOLK_CAP = 80;          // townsfolk streamed in at once (nearest first)
+  static constexpr int FOLK_IN = 34, FOLK_OUT = 44;   // tiles: a person streams in within FOLK_IN, out beyond FOLK_OUT
+  static constexpr int SITE_IN = 26, SITE_OUT = 40;   // tiles from a site's area: it activates / deactivates
+  // half the view in tiles plus a margin (the platform layer sets it from the logical canvas: the VIEW lane's screen
+  // fit makes it wider on phones); townsfolk beyond it may sleep
+  float sleepHalfW = 22.0f, sleepHalfH = 13.0f;
 
   // test helpers
   bool godMode = false;
   bool noWildSpawns = false;           // metrics arenas: no roaming spawns or dens
+  bool streamThreads = true;           // false: stream as the web build does (no worker; frameWork generates); tests
   void debugSpawn(art::Monster m, int n, float dist);
   int debugSpawnAt(art::Monster m, Vec2 at, int level);   // returns the actor id (already aggro)
+  void debugFell(int actorId);         // tests: an actor falls as if a monster struck it down (kill with no killer)
   void debugKit();                     // the pre-M0 starting kit (iron sword, hunting bow, 20 arrows, 3 potions, bread),
                                        // equipped: for fight scripts and bots once the real start is shirt-only
   // M0b: go into building bi (from anywhere, leaving the current sub-level) and up to floor f; false if f is not one
   // of its floors. Scripts, tests and save loading use it; play goes through doors and stairs.
   bool debugEnterBuilding(int bi, int floor = 0);
+  void debugLeave() { if (inside) leaveSub(); }   // step out of the building or site (tests)
+  // the dragon's lair by name (its peak is named per world: makeDungeonName)
+  std::string lairName() const { return world.lair >= 0 && world.lair < (int)world.sites.size() ? world.sites[(size_t)world.lair].name : std::string("THE DRAGON'S PEAK"); }
+  // M1: put the player on a GLOBAL tile (endless: the window recentres there; classic: island tiles), outdoors, on the
+  // nearest free tile. Scripts (`at X Y`), --at and tests use it.
+  void teleportGlobal(int32_t gx, int32_t gy);
   void changeFloor(int floor);         // inside a building: move to another of its floors, arriving by its stairs
   bool stairsAsleep() const { return stairsArrive_ >= 0; }   // just climbed: the stairwell down sleeps against a push north
 
  private:
   int nextId_ = 1;
+  float exploreT_ = 0;
   float spawnT_ = 0;
   bool exitArmed_ = false;
   bool stairsArmed_ = false;   // M0b: the player has stepped off the stairs they arrived by
@@ -306,8 +351,12 @@ class Game {
   std::map<uint64_t, std::pair<int, std::vector<Item>>> shopCache_;
   int findActor(int id) const;
   Vec2 freeSpot(int tx, int ty) const;
-  void placePlayerAt(int tx, int ty);
+  void placePlayerAt(int tx, int ty);   // endless: recentres the window first when the tile is off its middle
+  void maybeRecentre();                 // M1: keep the player in the window's middle (VISION_PLAN 2.9)
+  void windowMoved(int dx, int dy);     // M1: the window moved by (dx, dy) tiles: translate everything overworld
+  void reapplyLooted();                 // M1: open the looted overworld chests the window shows
   std::set<int> activeSites_;
+  std::map<int, std::set<int>> felled_;   // site -> townsfolk slots felled while it is active (no respawn until it reloads)
   std::set<int> activeDens_;
   float denT_ = 0;
   bool perfectRoll_ = false;   // this roll already earned its slow-mo blip
@@ -331,6 +380,8 @@ class Game {
   void say(const std::string& s);
 
   void resetPlayer();
+  void beginWorld();   // newGame / newEndlessGame: the player, the opening quests, the first actors
+  void resetSession(); // beginWorld's first half: every per-game state back to a new game's, the player alone
   void recalcPlayer();
   void updatePlayer(float dt, const Input& in);
   void updateActor(Actor& a, float dt);
@@ -338,6 +389,15 @@ class Game {
   void updateProjectiles(float dt);
   void updatePickups(float dt);
   void updateSpawning(float dt);
+  // M1 (SIM lane): streaming and LOD
+  float prefetchT_ = 0;
+  Vec2 prefetchFrom_;                  // the player's position at the last wish-list update (heading)
+  void prefetchTick(float dt);         // keep the streamer's wish list current (creates the streamer on first use)
+  float siteScanT_ = 0;
+  void streamSitePeople(int si);       // spawn the site's people near the player, put the far calm ones away
+  std::vector<int> hostiles_;          // actors indices that may threaten townsfolk (rebuilt each step)
+  void collectHostiles();
+  bool sleepy(const Actor& a) const;   // NPC LOD: far off screen with nothing to react to
   void updateLocation();
   void moveActor(Actor& a, Vec2 delta);
   bool solidAt(float x, float y, bool flying) const;

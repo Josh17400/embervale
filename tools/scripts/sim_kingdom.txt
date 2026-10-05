@@ -1,0 +1,30 @@
+# M1 SIM lane: kingdom identity in the capital. Guards in the kingdom's colours on the street, an innkeeper who talks
+# of the king, the palace with the king on his throne and the royal guard, the king's greeting naming his kingdom.
+#   embervale.exe --script tools/scripts/sim_kingdom.txt [--seed 7]    (screenshots land in the working directory)
+seed 7
+0.3  newgame
+0.4  god
+0.5  goto capital
+0.6  hour 11
+0.8  expect kingdom capital
+1.6  shot sim_kingdom_0_capital.png       # the capital's streets
+1.7  expect npc guard
+1.8  walkto guard 40
+2.4  shot sim_kingdom_1_guard.png         # a guard in the kingdom's colours, the royal heater shield
+2.6  enter inn
+2.8  talkto innkeeper 40
+3.2  expect mode dialogue
+4.6  expect text KING
+4.7  shot sim_kingdom_2_innkeeper.png     # the innkeeper speaks of the king
+4.8  key Escape
+5.0  enter palace
+5.2  expect inside 1
+5.4  expect npc king
+5.5  expect npc royal
+6.0  shot sim_kingdom_3_throne.png        # the throne hall: the king and the royal guard
+6.1  talkto king 40
+6.4  expect mode dialogue
+7.8  expect text KING OF
+7.9  shot sim_kingdom_4_king.png
+8.0  key Escape
+8.2  quit
