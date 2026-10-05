@@ -2167,3 +2167,28 @@ plan; pimpl so internals change freely), `rpg/world/settlement.h` (one settlemen
 maps, `Ev::WindowShift`), `rpg/sim/explored.h`, `rpg/view/screen.h`, `RPG_TEST_CMD` in `tools/tests/tests.h`
 (`rpg_test --endless`, `rpg_test --window`). The stub generator (`rpg/world/endless.cpp`) and the classic-stamp settlement
 bridge (`rpg/world/settlement.cpp` via `classicTownStamp`) are placeholders for the WORLD and TOWNS lanes.
+
+### 15.11 Owner direction, 2026-10-05: markets, village economies, ores, alloys and crafting
+
+- **Markets (binds M1 onward):** the old ring of identical stalls around the square was rejected ("copy pasted in circles,
+  doesn't fit, sloppy"). Markets are laid out like real ones: rows along the sides of a square or a street, facing the
+  walking space, with clear aisles. Each stall shows a specific trade and its goods. Villages get one cart or one or two
+  stalls at most; towns get a cluster; cities and capitals get a proper market square. Other squares get wells, trees,
+  benches or statues, never filler stalls.
+- **Every village has what it needs to function** (this completes the cut-off 15.8 sentence): a well, an inn or tavern,
+  a smith and a small market, plus a mill where it fits (a watermill on a river, a windmill on farmland).
+- **Village specialisation:** each village has a trade chosen from its surroundings (farming, fishing, mining, lumber,
+  herding...) with the matching production buildings. It records what it produces and what it needs; the M4 economy
+  (famine -> trade collapse -> war) runs on this data. Mining villages sell or refine their ore as their main income.
+- **Crafting (M6 Steel, with workstations in M7 Home):** a deep, robust system in which the player can, if they want,
+  craft everything. Crafting uses **the same production chains as the economy** (ore -> smelter -> ingot -> smith -> item;
+  grain -> mill -> flour -> baker -> bread; hide -> tanner -> leather -> leatherworker). The player may do any step or buy
+  any intermediate. Material quality, workstation and skill decide the result.
+- **Materials:** the universal tiers, known by every culture, are **leather, bronze (copper + tin), iron, steel**. Above
+  them, each culture (M3 culture engine) has its own alloys made from regional ores, with its own distinctive look for
+  armour and weapons. Travelling far, and sailing to the hidden kingdoms (M10), reveals metals and gear never seen at home.
+- **Ores are regional:** they follow geology and biome, so no region has everything and trade and travel matter. The
+  generator should record a per-region geology value early (M2) so ores sit in the right places when M6 lands.
+- **Culture secrets are discoverable knowledge:** a player can learn a culture's alloy recipes and its armour and weapon
+  making by earning trust and apprenticing with a master smith, from lore in ruins (journals, moulds), by slowly breaking
+  down pieces at a forge, or by stealing from guarded workshops (at the cost of that culture's goodwill).
