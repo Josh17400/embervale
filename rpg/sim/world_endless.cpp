@@ -18,6 +18,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
+#include <cstdlib>
 #include <cstdlib>
 #include <cstring>
 #include "rpg/sim/stream.h"
@@ -205,7 +207,13 @@ void World::placeWindow(int32_t nox, int32_t noy) {
     if ((s.type != SiteType::Cave && s.type != SiteType::Ruin) || !over.in(s.ex, s.ey)) continue;
     uint8_t& pr = over.prop[(size_t)s.ey * WIN + s.ex];
     const uint8_t want = (uint8_t)((int)(s.type == SiteType::Ruin ? art::Prop::IronDoor : art::Prop::CaveEntrance) + 1);
-    if (pr != (uint8_t)((int)art::Prop::IronDoor + 1) && pr != (uint8_t)((int)art::Prop::CaveEntrance + 1)) { pr = want; sstats.entrancesRepaired++; }
+    if (pr != (uint8_t)((int)art::Prop::IronDoor + 1) && pr != (uint8_t)((int)art::Prop::CaveEntrance + 1)) {
+      if (std::getenv("EMB_DEBUG_DOORS"))
+        std::printf("door repaired: %s %s at %d,%d (prop %d, ground %d)\n", siteTypeName(s.type), s.name.c_str(), ox + s.ex, oy + s.ey, (int)pr - 1,
+                    (int)over.at(s.ex, s.ey));
+      pr = want;
+      sstats.entrancesRepaired++;
+    }
   }
   over.rebuildSolid();
   if (over.spawns.size() > spawnCap || gates.size() + wallGaps.size() > spawnCap) recycleFar();

@@ -111,9 +111,10 @@ int mainQuestBot(uint64_t seed, bool verbose) {
     const ew::Gid rid = g.world.sites[(size_t)ruin].id;
     const int rep0 = g.world.sstats.entrancesRepaired;
     if (!g.fastTravel(ruin)) { fail("fast travel to a shard ruin refused"); break; }
+    // (M1 round 3) every cave and ruin stamps its door on its own entrance tile: a repair is a generator bug
     if (g.world.sstats.entrancesRepaired > rep0)
-      out("WARN: main quest bot seed %llu: %d dungeon entrances around %s had lost their door to the generator (World put them back)\n",
-          (unsigned long long)seed, g.world.sstats.entrancesRepaired - rep0, g.world.sites[(size_t)g.world.siteHandle(rid)].name.c_str());
+      fail("seed " + std::to_string(seed) + ": " + std::to_string(g.world.sstats.entrancesRepaired - rep0) + " dungeon entrances around " +
+           g.world.sites[(size_t)g.world.siteHandle(rid)].name + " had lost their door to the generator (World put them back)");
     travels++;
     ruin = g.world.siteHandle(rid);
     const Site s = g.world.sites[(size_t)ruin];

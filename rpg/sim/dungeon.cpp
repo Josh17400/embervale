@@ -1,4 +1,5 @@
 // Sub-level generation: natural caves (cellular automata), ancient ruins (rooms + corridors), building interiors.
+#include <cstdlib>
 #include <algorithm>
 #include <queue>
 #include <utility>

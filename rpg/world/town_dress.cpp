@@ -2,6 +2,7 @@
 // stalls, lamps, kingdom banners, signposts where the roads arrive, yards and gardens, fields and pastures thinning out
 // at the edge, the archetype's touch (quays, mine carts, palisades), old trees and flowers between the houses, the
 // townsfolk and the watch; then the relief, the used mask and the building ids. See rpg/world/town_gen.h.
+#include <cstdlib>
 #include <algorithm>
 #include <cmath>
 #include <queue>
@@ -56,7 +57,7 @@ void Gen::centrepieces() {
     Prop centre;
     if (k == 0) {
       centre = city ? (cq < 0.6f ? Prop::Fountain : Prop::Statue)
-                    : town ? (cq < 0.45f ? Prop::Well : (cq < 0.8f ? Prop::Fountain : Prop::OakTree))
+                    : town ? (cq < 0.45f ? Prop::Well : Prop::Fountain)   // (M1 round 3: no oak among a town's stalls)
                            : Prop::Well;
       if (village && layout == 2 && cq < 0.5f) {
         // the village green's old oak, and the well beside it
@@ -120,8 +121,28 @@ void Gen::stallsAndLamps() {
       if (std::abs(x - s.x) + std::abs(y - s.y) < 3) continue;
       if (get(x, y + 1) != K_SQUARE || get(x - 1, y) != K_SQUARE || get(x + 1, y) != K_SQUARE) continue;
       if (!squareSpot(*this, x, y, 2)) continue;
+      // (M1 round 3) no stall under a tree's crown (the village green's oak spread over a stall by the well)
+      bool underTree = false;
+      for (int oy = -1; oy <= 4 && !underTree; oy++)
+        for (int ox = -3; ox <= 3; ox++) {
+          const int q = in(x + ox, y + oy) ? M.prop[I(x + ox, y + oy)] : 0;
+          if (q && (q == (int)Prop::OakTree + 1 || q == (int)Prop::OakTree2 + 1 || q == (int)Prop::PineTree + 1 || q == (int)Prop::BirchTree + 1 ||
+                    q == (int)Prop::AutumnTree + 1 || q == (int)Prop::PalmTree + 1 || q == (int)Prop::SnowPine + 1 || q == (int)Prop::WillowTree + 1)) { underTree = true; break; }
+        }
+      if (underTree) continue;
       M.setProp(x, y, Prop::MarketStall);
       placed++;
+    }
+    // (M1) market clutter between the stalls: a trader's cart, crates and barrels of stock, never in a grid
+    if (placed >= 2) {
+      static const Prop extra[] = {Prop::Cart, Prop::Crate, Prop::Barrel, Prop::Crate, Prop::Barrel};
+      int want2 = 1 + (int)rng.irange(placed >= 5 ? 3 : 2), put = 0;
+      for (int t = 0; t < 200 && put < want2; t++) {
+        int x = s.x + rng.irange(2 * R + 1) - R, y = s.y + rng.irange(2 * (int)s.r + 3) - (int)s.r - 1;
+        if (std::abs(x - s.x) + std::abs(y - s.y) < 3 || !squareSpot(*this, x, y, 1)) continue;
+        M.setProp(x, y, put == 0 && (city || town) ? Prop::Cart : extra[1 + rng.irange(4)]);
+        put++;
+      }
     }
   }
   // benches and a statue on the big squares
@@ -388,6 +409,15 @@ void Gen::gardens() {
         bool near = false;
         for (int oy = -1; oy <= 1 && !near; oy++)
           for (int ox = -1; ox <= 1; ox++) if (isStreet(x + ox, y + oy) || bldgAt(x + ox, y + oy) || get(x + ox, y + oy) == K_YARD) { near = true; break; }
+        // (M1 round 3) a capital is paved: the ground along its streets and between its houses is cobbled right up to
+        // the walls (lawns and earth blotches through the paving made the king's city read as a village); the
+        // gardens below still take the open plots further from the street
+        if (capital) {
+          bool near2 = near;
+          for (int oy = -2; oy <= 2 && !near2; oy++)
+            for (int ox = -2; ox <= 2; ox++) if (isStreet(x + ox, y + oy)) { near2 = true; break; }
+          if (near2) { M.setG(x, y, Ground::Road); continue; }
+        }
         if (near && vnoise(x * 0.3f, y * 0.3f, bseed + 55u) < 0.6f) M.setG(x, y, Ground::Dirt);
       }
   const Biome gb = bio;
@@ -432,6 +462,8 @@ void Gen::gardens() {
         }
     } else if (q < 0.45f) {
       // an orchard: fruit trees in rows on the grass (none whose crown would hide a doorstep)
+      for (int y = y0; y < y0 + gh; y++)
+        for (int x = x0; x < x0 + gw; x++) if (M.at(x, y) == Ground::Road) M.setG(x, y, Ground::Meadow);   // (a capital's paving)
       for (int y = y0 + 1; y < y0 + gh; y += 3)
         for (int x = x0 + 1; x < x0 + gw; x += 3) {
           bool clear = true;
@@ -567,7 +599,10 @@ void Gen::greenery() {
       for (int d = 0; d < 4; d++) if (get(x + D4X[d], y + D4Y[d]) == K_MAIN) besideStreet = true;
       float r = hashf(x, y, gs);
       const Biome bb = M.biomeAt(x, y);
-      if (r < treeP && !besideStreet && !cover[I(x, y)] && !noBuild[I(x, y)]) {
+      bool nearStall = false;   // (M1 round 3) no crown spreading over a market stall
+      for (int oy = -3; oy <= 1 && !nearStall; oy++)
+        for (int ox = -2; ox <= 2; ox++) if (in(x + ox, y + oy) && M.prop[I(x + ox, y + oy)] == (int)Prop::MarketStall + 1) { nearStall = true; break; }
+      if (r < treeP && !besideStreet && !nearStall && !cover[I(x, y)] && !noBuild[I(x, y)]) {
         Prop tree = bb == Biome::Taiga ? Prop::PineTree : bb == Biome::Autumn ? Prop::AutumnTree : bb == Biome::Desert ? Prop::PalmTree
                   : (hashf(x, y, gs + 1) < 0.3f ? Prop::BirchTree : Prop::OakTree);
         if (bb == Biome::Snow) tree = Prop::SnowPine;
@@ -669,43 +704,44 @@ void Gen::finish() {
 }
 
 void Gen::run() {
-  land();
-  pickBearings();
-  if (city) pickDistricts();
-  if (capital) placeCompound();
-  squaresPass();
-  mainStreets();
-  ringRoads();
-  fabric();
-  lanes();
-  if (walled) cityWall();
-  if (capital) buildCompound();
-  pruneStreets();
-  // nothing is built on a wall's foot (one tile round every wall piece, the compound's too)
-  for (int y = 0; y < H; y++)
-    for (int x = 0; x < W; x++) {
-      if (!M.wall[I(x, y)]) continue;
-      for (int oy = -1; oy <= 1; oy++) for (int ox = -1; ox <= 1; ox++) if (in(x + ox, y + oy)) noBuild[I(x + ox, y + oy)] |= 1;
+  while (step()) {}
+}
+
+// One phase of the build per call (false once the town is finished). The order is run()'s and must never change: the
+// phases share one Rng, so the web's phase-at-a-time build (EndlessSource::prepareChunk) makes the same town.
+bool Gen::step() {
+  switch (phase++) {
+    case 0: land(); break;
+    case 1: pickBearings(); if (city) pickDistricts(); if (capital) placeCompound(); break;
+    case 2: squaresPass(); mainStreets(); ringRoads(); break;
+    case 3: fabric(); lanes(); break;
+    case 4: if (walled) cityWall(); break;
+    case 5: if (capital) buildCompound(); pruneStreets(); if (capital) compoundApproach(); break;
+    case 6: {
+      // nothing is built on a wall's foot (one tile round every wall piece, the compound's too)
+      for (int y = 0; y < H; y++)
+        for (int x = 0; x < W; x++) {
+          if (!M.wall[I(x, y)]) continue;
+          for (int oy = -1; oy <= 1; oy++) for (int ox = -1; ox <= 1; ox++) if (in(x + ox, y + oy)) noBuild[I(x + ox, y + oy)] |= 1;
+        }
+      // and nothing is built (or roofed) in a gate's approach
+      for (const IRect& g : O.wallGaps) {
+        IRect z = g.h == 1 ? IRect{g.x - 2, g.y - 4, g.w + 4, 9} : (g.w == 1 ? IRect{g.x - 4, g.y - 3, 9, g.h + 5} : IRect{g.x - 3, g.y - 4, 9, 10});
+        for (int y = z.y; y < z.y + z.h; y++)
+          for (int x = z.x; x < z.x + z.w; x++) if (in(x, y)) noBuild[I(x, y)] |= 2;
+      }
+      services();
+      break;
     }
-  // and nothing is built (or roofed) in a gate's approach
-  for (const IRect& g : O.wallGaps) {
-    IRect z = g.h == 1 ? IRect{g.x - 2, g.y - 4, g.w + 4, 9} : (g.w == 1 ? IRect{g.x - 4, g.y - 3, 9, g.h + 5} : IRect{g.x - 3, g.y - 4, 9, 10});
-    for (int y = z.y; y < z.y + z.h; y++)
-      for (int x = z.x; x < z.x + z.w; x++) if (in(x, y)) noBuild[I(x, y)] |= 2;
+    case 7: homes(); break;
+    case 8: centrepieces(); stallsAndLamps(); archetypeDress(); break;
+    case 9: yards(); gardens(); break;
+    case 10: fields(); banners(); signposts(); break;
+    case 11: greenery(); break;
+    case 12: folk(); finish(); return false;
+    default: return false;
   }
-  services();
-  homes();
-  centrepieces();
-  stallsAndLamps();
-  archetypeDress();
-  yards();
-  gardens();
-  fields();
-  banners();
-  signposts();
-  greenery();
-  folk();
-  finish();
+  return true;
 }
 
 }  // namespace town

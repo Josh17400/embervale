@@ -133,6 +133,35 @@ inline ArchStyle archForBiome(int biome, uint32_t seed) {
   return s;
 }
 
+// (M1) Town and city building: the biome's family, made urban. urban: 0 the countryside (unchanged), 1 a town (no
+// stilts or turf roofs; log walls mostly give way to timber framing), 2 a city, 3 a capital (stone, brick and
+// plaster under slate, tile or shingle; no thatch, turf, logs or stilts: town houses that read as a royal seat).
+// Desert adobe and the snow family's slate stay as they are (they are already masonry).
+inline ArchStyle urbanize(ArchStyle s, int urban, uint32_t seed) {
+  using namespace style_detail;
+  if (urban <= 0) return s;
+  uint32_t h = mixSeed(seed, 0x0B4Au + (uint32_t)urban * 131u);
+  auto pick = [&](int n) { int v = (int)(h % (uint32_t)n); h = mixSeed(h, 0x77u); return v; };
+  s.stilts = false;
+  if (s.roof == RoofShape::Turf) s.roof = pick(2) ? RoofShape::Gable : RoofShape::Steep;
+  if (s.roofMat == RoofMat::Turf) s.roofMat = RoofMat::Shingle;
+  if (s.wall == WallMat::Adobe) return s;
+  if (urban == 1) {
+    if (s.wall == WallMat::Log && pick(3) != 0) s.wall = pick(2) ? WallMat::Timber : WallMat::Plaster;
+    if (s.roofMat == RoofMat::Thatch && pick(2) == 0) s.roofMat = RoofMat::Shingle;
+    return s;
+  }
+  // cities and capitals: masonry and fired roofs; a capital's core is grander still
+  static const WallMat walls[6] = {WallMat::Stone, WallMat::Plaster, WallMat::Brick, WallMat::Stone, WallMat::Timber, WallMat::Plaster};
+  if (s.wall == WallMat::Log || s.wall == WallMat::Timber || urban >= 3) s.wall = walls[pick(urban >= 3 ? 4 : 6)];
+  if (s.roofMat == RoofMat::Thatch) { const int r = pick(3); s.roofMat = r == 0 ? RoofMat::Slate : r == 1 ? RoofMat::ClayTile : RoofMat::Shingle; }
+  if (urban >= 3 && s.roofMat == RoofMat::Shingle && pick(2) == 0) s.roofMat = RoofMat::Slate;
+  if (s.pitch < 2) s.pitch = 2;
+  s.weather = (uint8_t)(s.weather > 1 ? 1 : s.weather);   // kept up
+  s.shutters = true;
+  return s;
+}
+
 // Bldg::roof (a world-generator tint) applies to the materials that come in colours; thatch, turf and adobe keep theirs.
 inline ArchStyle withRoofTint(ArchStyle s, uint32_t tint) {
   if (tint && (s.roofMat == RoofMat::Shingle || s.roofMat == RoofMat::Slate || s.roofMat == RoofMat::ClayTile)) s.roofTint = tint;

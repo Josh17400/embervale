@@ -277,25 +277,35 @@ void EndlessSource::Impl::makeStart() {
   Node sv;
   bool have = false;
   int64_t bd = INT64_MAX;
-  for (int32_t cy = -2; cy <= 1; cy++)
-    for (int32_t cx = -2; cx <= 1; cx++) {
-      Cand c = settleCand(SiteType::Village, cx, cy);
-      if (!c.ok) continue;
-      Coarse cc = coarse(c.x, c.y);
-      Biome b = classify(cc.e, cc.t, cc.m, c.x, c.y, false);
-      if (b != Biome::Plains && b != Biome::Forest && b != Biome::Autumn) continue;
-      if (cc.t < Q(0.37) || cc.t > Q(0.66)) continue;   // well inside the temperate band (no taiga or desert edge)
-      if (cc.m > Q(0.60) && cc.e < Q(0.48)) continue;    // and clear of the marsh edge
-      if (!seaFar(c.x, c.y, 90)) continue;
-      int64_t d = dist2(c.x, c.y, 0, 0);
-      if (d < bd) { bd = d; have = true; sv.x = c.x; sv.y = c.y; sv.seed = c.seed; }
-    }
-  for (int32_t r = 0; r < 3000 && !have; r += 24)
-    for (int k = 0; k < 8 && !have; k++) {
-      int32_t x = (k % 3 - 1) * r, y = (k / 3 - 1) * r;
-      if (k == 4 && r) continue;
-      if (habitability(SiteType::Village, x, y, nullptr) && seaFar(x, y, 90)) { have = true; sv.x = x; sv.y = y; sv.seed = (uint32_t)(mix64(seed ^ 0x5717ull) >> 16); }
-    }
+  // a temperate home: plains or woods well inside the temperate band (no taiga or desert edge), clear of the marsh
+  auto temperate = [&](int32_t x, int32_t y) {
+    Coarse cc = coarse(x, y);
+    Biome b = classify(cc.e, cc.t, cc.m, x, y, false);
+    if (b != Biome::Plains && b != Biome::Forest && b != Biome::Autumn) return false;
+    if (cc.t < Q(0.37) || cc.t > Q(0.66)) return false;
+    return !(cc.m > Q(0.60) && cc.e < Q(0.48));
+  };
+  // the village candidates of the cells around the origin, then (rarely needed) of a wider ring of cells
+  for (int32_t ring = 0; ring < 2 && !have; ring++)
+    for (int32_t cy = -2 - 2 * ring; cy <= 1 + 2 * ring; cy++)
+      for (int32_t cx = -2 - 2 * ring; cx <= 1 + 2 * ring; cx++) {
+        if (ring && cx >= -2 && cx <= 1 && cy >= -2 && cy <= 1) continue;
+        Cand c = settleCand(SiteType::Village, cx, cy);
+        if (!c.ok || !temperate(c.x, c.y) || !seaFar(c.x, c.y, 90)) continue;
+        int64_t d = dist2(c.x, c.y, 0, 0);
+        if (d < bd) { bd = d; have = true; sv.x = c.x; sv.y = c.y; sv.seed = c.seed; }
+      }
+  // no candidate: any habitable temperate spot out from the origin (the climate test too: the hero never starts in
+  // the frozen north or the desert), and only then any habitable one
+  for (int pass = 0; pass < 2 && !have; pass++)
+    for (int32_t r = 0; r < 3000 && !have; r += 24)
+      for (int k = 0; k < 8 && !have; k++) {
+        int32_t x = (k % 3 - 1) * r, y = (k / 3 - 1) * r;
+        if (k == 4 && r) continue;
+        if ((pass == 1 || temperate(x, y)) && habitability(SiteType::Village, x, y, nullptr) && seaFar(x, y, 90)) {
+          have = true; sv.x = x; sv.y = y; sv.seed = (uint32_t)(mix64(seed ^ 0x5717ull) >> 16);
+        }
+      }
   sv.type = SiteType::Village;
   sv.flags = SPF_START;
   sv.id = makeId(regionOf(sv.x), regionOf(sv.y), IdKind::Site, LOCAL_FORCED + 0);
@@ -306,7 +316,8 @@ void EndlessSource::Impl::makeStart() {
     Node sc;
     bool found = false;
     const int32_t a0 = (int32_t)(hq(mix64(seed ^ tag("start.cap"))) & 1023);
-    for (int32_t dist : {190, 170, 215, 240, 160, 265, 280}) {
+    // (within 200 tiles first: the story city is one of the start's six kinds of place within reach)
+    for (int32_t dist : {190, 170, 160, 180, 200, 215, 240, 265, 280}) {
       int bestHab = 0;
       for (int k = 0; k < 32; k++) {
         int32_t a = a0 + k * 1024 / 32;

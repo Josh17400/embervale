@@ -42,6 +42,7 @@ class View {
   bool wantNewGame = false, wantContinue = false, wantSave = false;
   bool touchUI = false;                  // show on-screen controls
   std::string titleNote;                 // a line under the title menu (e.g. an old save that no longer loads)
+  std::string loadingCard;               // M1: a full-screen card ("FORGING THE WORLD") shown while a world is made
   // test scripts (--script): hold a key as if it were physically down; one-shot presses go through event()
   void scriptHold(int scancode, bool down) { if (scancode >= 0 && scancode < 512) scriptKeys_[scancode] = down; }
 
@@ -82,6 +83,10 @@ class View {
     uint8_t heightBits(int x, int y) const { return m->heightBits(x - ox, y - oy); }
     int heightAt(int x, int y) const { return m->heightAt(x - ox, y - oy); }
     bool relief() const { return !m->height.empty(); }
+    bool wallAt(int x, int y) const {   // a city wall piece stands on the tile
+      const int lx = x - ox, ly = y - oy;
+      return !m->wall.empty() && lx >= 0 && ly >= 0 && lx < m->w && ly < m->h && m->wall[(size_t)ly * m->w + lx] != 0;
+    }
   };
   static constexpr int kBakeMargin = 8;
   struct Chunk { Tex tex; uint64_t key = 0; float used = 0; };
@@ -216,6 +221,7 @@ class View {
   bool windowsLit(const Game& g, const Bldg& b) const;       // night, and this household is awake
   float smokeT_ = 0;
   const Map* bldgMap_ = nullptr;   // the map whose buildings drawWorld is drawing (bldgTex reads its biome)
+  double fadePaintMs_ = 0;         // (M1 round 3) building paint time spent this frame behind a fade (drawWorld)
   int bldgPrefetch_ = 0;           // round-robin cursor: buildings near the player are painted ahead, one per frame
   std::vector<uint32_t> wallTodo_; // wall-tile keys of the current map not painted yet (painted ahead, one per frame)
   std::unordered_map<uint64_t, std::vector<uint32_t>> wallKeyCache_;   // per map id, so leaving a house is free
@@ -260,6 +266,7 @@ class View {
   //      tap() maps a screen point into the same box.
   struct UiBox { int x = 0, y = 0, w = 480, h = 270; };
   UiBox uiBox(int maxH) const;               // a 480-wide box, up to maxH tall, centred in the safe area
+  UiBox modalBox(const Game& g) const;       // the menu / shop / dialogue box (the MAP tab: wider on wide screens)
   static Vec2 inBox(const UiBox& b, Vec2 p) { return Vec2(p.x - b.x, p.y - b.y); }
   int titleItems() const;                    // CONTINUE (with a save), NEW ADVENTURE, SETTINGS
   // ---- settings.cpp: the SETTINGS screen (SCREEN mode, BORDER, HUD MARGIN, touch controls), reached from the

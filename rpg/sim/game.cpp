@@ -1,5 +1,6 @@
 // EMBERVALE core simulation: player control, movement/collision, combat, AI, spawning, maps.
 #include "rpg/sim/game.h"
+#include <cstdlib>
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -78,6 +79,7 @@ void Game::resetSession() {
   actors.push_back(p);
   resetPlayer();
   clearNonPlayer();
+  felled_.clear();
   perf = PerfCounters();
   prefetchT_ = 0; siteScanT_ = 0; prefetchFrom_ = Vec2();
   curSite = -1;
@@ -98,7 +100,14 @@ void Game::beginWorld() {
   const Site cap = world.sites[world.capital];
   q.giverSite = world.capital;
   q.target = world.capital;
-  q.desc = "A DRAGON HAS BEEN SEEN OVER THE PEAKS. JARL OF " + cap.name + " SEEKS ANYONE BRAVE ENOUGH TO HELP. TRAVEL TO " + cap.name + " AND SPEAK WITH THE JARL IN THE KEEP.";
+  // (a capital also has the King in his palace: say plainly that the war is the Jarl's, and where he sits)
+  {
+    const Kingdom* K = world.kingdomOf(world.capital);
+    q.desc = "A DRAGON HAS BEEN SEEN OVER THE PEAKS. " +
+             (K && cap.capital ? "THE KING OF " + K->name + " HAS LEFT THE WAR TO HIS JARL, WHO SEEKS ANYONE BRAVE ENOUGH TO HELP. "
+                               : "THE JARL OF " + cap.name + " SEEKS ANYONE BRAVE ENOUGH TO HELP. ") +
+             "TRAVEL TO " + cap.name + " AND SPEAK WITH THE JARL IN HIS KEEP" + (K && cap.capital ? ", NOT THE KING'S PALACE." : ".");
+  }
   q.stage = 0;
   quests.push_back(q);
   // the opening (VISION_PLAN 15.1): shirt only, so the first tracked quest leads to a weapon within a few minutes.
@@ -253,6 +262,8 @@ void Game::windowMoved(int dx, int dy) {
   for (Actor& a : sheltered_) move(a);
   for (Projectile& pr : projs) pr.p += d;
   for (Pickup& pk : pickups) pk.p += d;
+  // the heading reference moves with the window too, or the next wish list reads the shift as a walk backwards
+  if (len2(prefetchFrom_) > 1e-6f) prefetchFrom_ += d;
   reapplyLooted();
   emit(Ev::WindowShift, d);
 }
@@ -267,7 +278,7 @@ void Game::prefetchTick(float dt) {
 #ifdef __EMSCRIPTEN__
     world.streamer = std::make_shared<ChunkStreamer>(world.seed, world.src, false);
 #else
-    world.streamer = std::make_shared<ChunkStreamer>(world.seed, world.src, true);
+    world.streamer = std::make_shared<ChunkStreamer>(world.seed, world.src, streamThreads);
 #endif
   }
   const Actor& p = pl();
@@ -394,7 +405,8 @@ void Game::update(float dt, const Input& in) {
   if (world.endless && !inside) { maybeRecentre(); prefetchTick(dt); }
   if (!inside && (exploreT_ -= dt) <= 0) {   // fog of war: what the screen shows around the player (global tiles)
     exploreT_ = 0.25f;
-    explored.markAround(world.ox + (int)std::floor(pl().p.x / TILE), world.oy + (int)std::floor(pl().p.y / TILE), 16);
+    // (a box a little wider than the 4x phone view, about 40 x 24 tiles: what the player has seen is on the map)
+    explored.markAround(world.ox + (int)std::floor(pl().p.x / TILE), world.oy + (int)std::floor(pl().p.y / TILE), 24);
   }
   collectHostiles();
   perf.npcAwake = perf.npcAsleep = 0;
@@ -793,6 +805,7 @@ void Game::kill(Actor& a, int killer) {
   }
   // townsfolk felled by monsters are back on their feet when the town next loads (only enemies stay dead)
   if (a.fromMap && !a.npc) killedSlots[mapKey()].insert(!inside && a.site >= 0 ? owKillKey(a.site, a.slot) : a.slot);
+  if (a.fromMap && a.npc && !inside && a.site >= 0 && a.slot >= 0) felled_[a.site].insert(a.slot);   // not back this visit
   if (a.npc && !inside) emit(Ev::Text, a.p + Vec2(0, -20), (int)rgba(255, 120, 100), 0, "DOWN");
   if (a.den >= 0 && !inside && a.den < (int)world.dens.size()) {
     bool left = false;
@@ -1183,11 +1196,20 @@ int Game::spawnHuman(const Spawn& sp, Vec2 p) {
   return a.id;
 }
 
+void Game::debugFell(int actorId) {
+  const int i = findActor(actorId);
+  if (i <= 0) return;
+  actors[(size_t)i].hp = 0;
+  kill(actors[(size_t)i], -1);
+}
+
 void Game::clearNonPlayer() {
   actors.resize(1);
   projs.clear();
   pickups.clear();
   activeSites_.clear();
+  // (felled_ is kept: a townsperson felled outside stays down while the player pops into a shop and out again; the
+  //  entry goes when the site is put away, updateSpawning)
   activeDens_.clear();
   sheltered_.clear();
   alarms_.clear();
@@ -1293,6 +1315,7 @@ void Game::streamSitePeople(int si) {
   for (size_t k = 1; k < actors.size(); k++) { mark(actors[k]); if (actors[k].npc && actors[k].fromMap && actors[k].role != Role::Guard) folk++; }
   for (const Actor& a : sheltered_) { mark(a); if (a.role != Role::Guard) folk++; }
   auto& killed = killedSlots[0];
+  const auto felledIt = felled_.find(si);
   const bool camp = st.type == SiteType::BanditCamp;
   // a small place (a village, a town of the classic size, a camp) comes out whole while it is active; a big one
   // streams. The watch always turns out across a wider ring (they answer the bell from across town).
@@ -1325,6 +1348,7 @@ void Game::streamSitePeople(int si) {
     if (sp.site != si) continue;
     if (sp.slot >= 0 && (size_t)sp.slot < present.size() && present[(size_t)sp.slot]) continue;
     if (killed.count(owKillKey(si, sp.slot))) continue;
+    if (felledIt != felled_.end() && felledIt->second.count(sp.slot)) continue;   // felled this visit: stays down
     if (camp && st.cleared) continue;
     if (!world.over.in(sp.x, sp.y)) continue;   // endless: the far side of a big town lies outside the window
     float dx = sp.x + 0.5f - ptx, dy = sp.y + 0.5f - pty;
@@ -1364,12 +1388,14 @@ void Game::updateSpawning(float dt) {
       streamSitePeople(si);
     } else if (active && d2 > SITE_OUT * SITE_OUT) {
       activeSites_.erase(si);
+      felled_.erase(si);
       for (size_t i = 1; i < actors.size();)
         if (actors[i].site == si && !actors[i].wild && actors[i].fromMap) actors.erase(actors.begin() + (std::ptrdiff_t)i); else i++;
       for (size_t i = 0; i < sheltered_.size();)
         if (sheltered_[i].site == si) sheltered_.erase(sheltered_.begin() + (std::ptrdiff_t)i); else i++;
       alarms_.erase(si);
     } else if (active && scan) streamSitePeople(si);
+    else if (!active && d2 > SITE_OUT * SITE_OUT) felled_.erase(si);   // put away while the player was indoors
   };
   if (world.endless) {
     const std::vector<int> near = world.nearSites;   // a copy: streaming people never adds sites, but stay safe
@@ -1379,12 +1405,15 @@ void Game::updateSpawning(float dt) {
       int si = *itA;
       if (std::find(near.begin(), near.end(), si) != near.end()) { ++itA; continue; }
       itA = activeSites_.erase(itA);
+      felled_.erase(si);
       for (size_t i = 1; i < actors.size();)
         if (actors[i].site == si && !actors[i].wild && actors[i].fromMap) actors.erase(actors.begin() + (std::ptrdiff_t)i); else i++;
       for (size_t i = 0; i < sheltered_.size();)
         if (sheltered_[i].site == si) sheltered_.erase(sheltered_.begin() + (std::ptrdiff_t)i); else i++;
       alarms_.erase(si);
     }
+    for (auto itF = felled_.begin(); itF != felled_.end();)
+      if (std::find(near.begin(), near.end(), itF->first) == near.end()) itF = felled_.erase(itF); else ++itF;
   } else {
     for (int si = 0; si < (int)world.sites.size(); si++) visit(si);
   }
@@ -1549,7 +1578,14 @@ void Game::updateLocation() {
         if (background == Background::Marked && (st.type == SiteType::Ruin || st.type == SiteType::DragonLair))   // marked one: a hook into M9
           emit(Ev::Notice, p.p, (int)rgba(170, 140, 255), 0, "THE MARK ON YOUR WRIST GROWS WARM");
       }
-      if (st.type == SiteType::City || st.type == SiteType::Town || st.type == SiteType::Village) lastTown = si;
+      if (st.type == SiteType::City || st.type == SiteType::Town || st.type == SiteType::Village) {
+        lastTown = si;
+        // the whole settlement goes on the world map once the player stands in it (its streets are in sight)
+        if (world.endless)
+          for (int y = st.r.y; y < st.r.y + st.r.h + ExploredMask::CELL; y += ExploredMask::CELL)
+            for (int x = st.r.x; x < st.r.x + st.r.w + ExploredMask::CELL; x += ExploredMask::CELL)
+              explored.mark(world.ox + std::min(x, st.r.x + st.r.w - 1), world.oy + std::min(y, st.r.y + st.r.h - 1));
+      }
     }
   }
   if (curSite >= 0) locName = world.sites[curSite].name;

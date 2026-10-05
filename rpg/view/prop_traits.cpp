@@ -39,6 +39,6 @@ bool propLight(Prop p, float& r, Color& c) {
 
 int propShadow(Prop p) {
   if (treeProp(p)) return 1;
-  if (p == Prop::Boulder || p == Prop::Tent || p == Prop::Well || p == Prop::Fountain || p == Prop::Statue || p == Prop::Cart) return 2;
+  if (p == Prop::Boulder || p == Prop::Tent || p == Prop::Well || p == Prop::Fountain || p == Prop::Statue || p == Prop::Cart || p == Prop::RuinColumn) return 2;
   return 0;
 }

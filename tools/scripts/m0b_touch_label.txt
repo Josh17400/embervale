@@ -19,6 +19,6 @@ seed 2
 5.0  tap 40 250
 6.0  shot m0b_touch_label.png
 # the label over the bed says TAP: SLEEP, and the bed is on the stick's half: a short tap there sleeps
-6.2  tap 190 163
+6.2  tap 108 100
 6.6  expect heard SLEEP SOUNDLY
 6.8  quit

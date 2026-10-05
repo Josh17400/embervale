@@ -78,7 +78,10 @@ std::string makeDungeonName(Rng& r, SiteType t, Biome b) {
   if (t == SiteType::Ruin) return a + " " + ruinN[r.irange(8)];
   if (t == SiteType::BanditCamp) return a + " " + campN[r.irange(6)];
   if (t == SiteType::Shrine) { static const char* g[] = {"SHRINE OF SOLMIR", "SHRINE OF VEYNA", "SHRINE OF HALDRUN", "SHRINE OF ORISSA", "SHRINE OF KEVRAN", "SHRINE OF ILMATH", "SHRINE OF BRANNOCK", "SHRINE OF ESKARA"}; return g[r.irange(8)]; }
-  return "SKYFANG PEAK";
+  // the dragon's peak: a name of its own in every world
+  static const char* peak[] = {"SKYFANG", "ASHCROWN", "CINDERHORN", "WYRMSPIRE", "STORMTOOTH", "EMBERCREST", "GREYFANG", "DRAKEHOLM"};
+  static const char* kind[] = {"PEAK", "SPIRE", "CRAG", "PEAK"};
+  return std::string(peak[r.irange(8)]) + " " + kind[r.irange(4)];
 }
 
 // ------------------------------------------------------------------ world generation
@@ -1784,57 +1787,6 @@ struct Gen {
   }
 };
 }  // namespace
-
-// M1 bridge (lead stub, see world.h): one settlement stamped by the classic generator on a scratch island.
-void classicTownStamp(SiteType t, int w, int h, uint32_t seed, const std::function<void(int lx, int ly, Ground& g, Biome& b)>& base,
-                      ClassicTownOut& out) {
-  World tmp;
-  tmp.seed = seed;
-  tmp.genVersion = WORLDGEN_LATEST;
-  Gen g(tmp, seed);
-  g.M.kind = MapKind::Overworld;
-  g.M.alloc(WW, WH, Ground::Grass);
-  g.M.biome.assign((size_t)WW * WH, (uint8_t)Biome::Plains);
-  g.M.seed = seed;
-  g.reserved.assign((size_t)WW * WH, 0);
-  g.river.assign((size_t)WW * WH, 0);
-  const int margin = ClassicTownOut::MARGIN;
-  const int fx = WW / 2 - w / 2, fy = WH / 2 - h / 2;
-  const int bx0 = fx - margin, by0 = fy - margin, bw = w + 2 * margin, bh = h + 2 * margin;
-  for (int y = 0; y < bh; y++)
-    for (int x = 0; x < bw; x++) {
-      Ground gr = Ground::Grass;
-      Biome bi = Biome::Plains;
-      base(x, y, gr, bi);
-      g.M.setG(bx0 + x, by0 + y, gr);
-      g.M.biome[g.I(bx0 + x, by0 + y)] = (uint8_t)bi;
-      if (groundWater(gr)) g.river[g.I(bx0 + x, by0 + y)] = 1;   // rivers and lakes stay: the town builds around them
-    }
-  int si = g.addSite(t, IRect{fx, fy, w, h}, fx + w / 2, fy + h / 2);
-  g.stampSettlement(si);
-  g.M.rebuildSolid();
-  out = ClassicTownOut();
-  out.buf.kind = MapKind::Overworld;
-  out.buf.alloc(bw, bh, Ground::Grass);
-  out.buf.biome.assign((size_t)bw * bh, (uint8_t)Biome::Plains);
-  out.used.assign((size_t)bw * bh, 0);
-  for (int y = 0; y < bh; y++)
-    for (int x = 0; x < bw; x++) {
-      size_t si2 = g.I(bx0 + x, by0 + y), di = (size_t)y * bw + x;
-      out.buf.ground[di] = g.M.ground[si2];
-      out.buf.prop[di] = g.M.prop[si2];
-      out.buf.wall[di] = g.M.wall[si2];
-      out.buf.biome[di] = g.M.biome[si2];
-      out.used[di] = g.reserved[si2];
-    }
-  for (Bldg b : g.M.bldgs) { b.r.x -= bx0; b.r.y -= by0; b.site = -1; out.buf.bldgs.push_back(b); }
-  for (Spawn sp : g.M.spawns) { sp.x -= bx0; sp.y -= by0; sp.site = -1; out.buf.spawns.push_back(sp); }
-  for (auto gt : tmp.gates) out.gates.push_back({gt.first - bx0, gt.second - by0});
-  for (IRect r : tmp.wallGaps) { r.x -= bx0; r.y -= by0; out.gaps.push_back(r); }
-  out.buf.rebuildSolid();
-  out.ex = tmp.sites[(size_t)si].ex - bx0;
-  out.ey = tmp.sites[(size_t)si].ey - by0;
-}
 
 uint64_t genSubSeed(uint64_t seed, const char* feature) {
   uint64_t h = 1469598103934665603ull ^ (seed * 0x9E3779B97F4A7C15ull);

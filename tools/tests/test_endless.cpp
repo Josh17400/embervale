@@ -20,6 +20,7 @@
 // --map dir writes, per seed: endless_<seed>.png (2048^2 tiles at 2 tiles/px: biomes, relief shading, rivers, lakes,
 //   roads, kingdom borders, sites), endless_<seed>_far.png (16384^2 at 32 tiles/px: continents) and, unless --quick,
 //   endless_<seed>_window.png (the 1024^2 reachability window at 1 tile/px: cliffs, ramps, unreached ground in red).
+#include <cstdlib>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -749,8 +750,54 @@ int cmdPlaces(int argc, char** argv) {
   return 0;
 }
 
+// rpg_test --ground-at X,Y [--seeds S..S] [--r R]: an ASCII dump of the chunk tiles around a global tile (ground
+// letter, upper case where the biome is Mountain) plus the biome / relief level counts, to debug terrain by eye
+int cmdGroundAt(int argc, char** argv) {
+  uint64_t a = 42, b = 42;
+  int32_t gx = 0, gy = 0, R = 24;
+  bool levels = false, nat = false;
+  for (int i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "--seeds") && i + 1 < argc) parseSeedRange(argv[++i], a, b);
+    else if (!strcmp(argv[i], "--ground-at") && i + 1 < argc) sscanf(argv[++i], "%d,%d", &gx, &gy);
+    else if (!strcmp(argv[i], "--r") && i + 1 < argc) R = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--levels")) levels = true;
+    else if (!strcmp(argv[i], "--nat")) nat = true;
+  }
+  static const char* letters = "~-swgmfatndlrp#ckoeibvz ????????";
+  EndlessSource A(a);
+  ChunkData c;
+  std::map<int, int> biomes, grounds;
+  for (int32_t y = gy - R / 2; y <= gy + R / 2; y++) {
+    std::string row;
+    for (int32_t x = gx - R; x <= gx + R; x++) {
+      A.chunk(chunkOf(x), chunkOf(y), c);
+      const int i = c.at(x - c.cx * CHUNK, y - c.cy * CHUNK);
+      const int g = c.ground[i];
+      char ch = g < 32 ? letters[g] : '?';
+      if (c.biome[i] == (uint8_t)Biome::Mountain && ch >= 'a' && ch <= 'z') ch = (char)(ch - 32);
+      if (levels) ch = (char)('0' + (c.height[i] & Map::HEIGHT_LEVEL));
+      if (c.height[i] & Map::HEIGHT_CLIFF) ch = levels ? '|' : '|';
+      if (levels && (c.height[i] & Map::HEIGHT_RAMP)) ch = '/';
+      if (nat) ch = (char)('0' + A.macro(x, y).height);
+      row += ch;
+      biomes[c.biome[i]]++; grounds[g]++;
+    }
+    printf("%s\n", row.c_str());
+  }
+  printf("biomes:"); for (auto& kv : biomes) printf(" %d:%d", kv.first, kv.second);
+  printf("\ngrounds:"); for (auto& kv : grounds) printf(" %d:%d", kv.first, kv.second);
+  if (nat) {
+    printf("\nelev along the row:");
+    for (int32_t x = gx - 8; x <= gx + 8; x++) printf(" %d/%d", A.macro(x, gy).elev, A.macro(x, gy).height);
+  }
+  MacroSample m = A.macro(gx, gy);
+  printf("\nmacro at %d,%d: biome %d height %d elev %d temp %d\n", gx, gy, (int)m.biome, m.height, m.elev, m.temp);
+  return 0;
+}
+
 }  // namespace
 
+RPG_TEST_CMD("--ground-at", "ASCII dump of the endless ground around a global tile [--seeds S..S] --ground-at X,Y [--r R] [--levels | --nat]", cmdGroundAt);
 RPG_TEST_CMD("--world-places", "interesting global tiles for world screenshot scripts [--seeds A..B]", cmdPlaces);
 RPG_TEST_CMD("--endless", "endless generator: start plan, order independence, spacing, kingdoms, rock, reachability, cost "
              "[--seeds A..B] [--map dir [--map-at X,Y]] [--quick] [--no-budget] [--golden [--write]]", cmdEndless);

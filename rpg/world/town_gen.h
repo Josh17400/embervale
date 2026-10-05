@@ -39,6 +39,8 @@ enum class District : uint8_t { Centre, Crafts, Temple, Noble, Poor, COUNT };
 struct Gen {
   Gen(const SettlementCtx& c, SettlementOut& o);
   void run();
+  bool step();                     // the next phase of run() (false: finished); the web builds a town over frames
+  int phase = 0;
 
   // ---------------------------------------------------------------- inputs and shape
   const SettlementCtx& C;
@@ -131,6 +133,7 @@ struct Gen {
   void homes();
   void placeCompound();              // choose the palace compound's place (before the streets)
   void buildCompound();              // its wall, gate, palace, barracks, courtyard and gardens
+  void compoundApproach();           // the paved way from its gate to the town's streets (after pruneStreets)
   void kingdomColours(Bldg& b) const;
 
   // ---------------------------------------------------------------- town_dress.cpp

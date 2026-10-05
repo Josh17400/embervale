@@ -286,6 +286,9 @@ class Game {
   bool deserialize(const std::vector<uint8_t>& in);
   static int saveVersion(const std::vector<uint8_t>& in);   // the file's SAVE_VER (0: not a save at all)
   static int currentSaveVersion();
+  // a current-format save whose world came from an older generator (endless ENDLESS_GEN_VER, classic WORLDGEN_*):
+  // refused like an older SAVE_VER, and the title words it the same way
+  static bool saveFromOlderGenerator(const std::vector<uint8_t>& in);
   bool worldChanged = false;   // set by deserialize: the regenerated world's fingerprint differs from the saved one
   // M1 stable keys: an overworld chest (endless worlds key it by global tile, so it stays looted wherever the window is)
   uint64_t lootKey(int tx, int ty) const;
@@ -310,13 +313,18 @@ class Game {
   // test helpers
   bool godMode = false;
   bool noWildSpawns = false;           // metrics arenas: no roaming spawns or dens
+  bool streamThreads = true;           // false: stream as the web build does (no worker; frameWork generates); tests
   void debugSpawn(art::Monster m, int n, float dist);
   int debugSpawnAt(art::Monster m, Vec2 at, int level);   // returns the actor id (already aggro)
+  void debugFell(int actorId);         // tests: an actor falls as if a monster struck it down (kill with no killer)
   void debugKit();                     // the pre-M0 starting kit (iron sword, hunting bow, 20 arrows, 3 potions, bread),
                                        // equipped: for fight scripts and bots once the real start is shirt-only
   // M0b: go into building bi (from anywhere, leaving the current sub-level) and up to floor f; false if f is not one
   // of its floors. Scripts, tests and save loading use it; play goes through doors and stairs.
   bool debugEnterBuilding(int bi, int floor = 0);
+  void debugLeave() { if (inside) leaveSub(); }   // step out of the building or site (tests)
+  // the dragon's lair by name (its peak is named per world: makeDungeonName)
+  std::string lairName() const { return world.lair >= 0 && world.lair < (int)world.sites.size() ? world.sites[(size_t)world.lair].name : std::string("THE DRAGON'S PEAK"); }
   // M1: put the player on a GLOBAL tile (endless: the window recentres there; classic: island tiles), outdoors, on the
   // nearest free tile. Scripts (`at X Y`), --at and tests use it.
   void teleportGlobal(int32_t gx, int32_t gy);
@@ -347,6 +355,7 @@ class Game {
   void windowMoved(int dx, int dy);     // M1: the window moved by (dx, dy) tiles: translate everything overworld
   void reapplyLooted();                 // M1: open the looted overworld chests the window shows
   std::set<int> activeSites_;
+  std::map<int, std::set<int>> felled_;   // site -> townsfolk slots felled while it is active (no respawn until it reloads)
   std::set<int> activeDens_;
   float denT_ = 0;
   bool perfectRoll_ = false;   // this roll already earned its slow-mo blip

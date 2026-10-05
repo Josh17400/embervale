@@ -936,6 +936,11 @@ Plan makePlan(Building b, int wT, int hT, const ArchStyle& st0, uint32_t seed, c
       // the garrison's watchtower at one end: square, crenellated, a storey above the roofs
       const bool east = (seed >> 5) & 1;
       Mass t = baseMass(p, east ? W - 26.0f : 2.0f, east ? W - 2.0f : 26.0f, 2, (float)D - 2, 58);
+      // (M1) the hall stops where the tower stands: its hip used to run on under the tower, so the tower's block
+      // seemed to burst up through the hall's roof
+      Mass& hall = ms.back();
+      if (east) hall.x1 = std::min(hall.x1, W - 26.0f);
+      else hall.x0 = std::max(hall.x0, 26.0f);
       t.shape = RoofShape::FlatParapet;
       t.crenel = true;
       t.wall = WallKind::Stone; t.wR = kStone; t.tR = kStoneWarm;
@@ -2389,13 +2394,22 @@ Canvas wallTile(uint32_t key) {
         if (d > kTowerR - 3.4f) k = std::max(1, k - 1);    // shade under the rim
         if (std::abs(gx - 9) <= 1 && std::abs(gy - cy - 1) <= 1) return kWoodDark[(gx == 8) ? 3 : 1];   // hatch
       }
-    } else if (z > WALL_H + 2) k = 4;                      // merlon tops
-    else if (z > WALL_H) k = 3;                            // crenel sills
-    else {
+    } else if (z > WALL_H) {
+      // merlon tops and crenel sills. (M1) Along a north-south run the light from the west catches the west parapet
+      // and leaves the east one in shade, so the run reads as a raised wall and not a paved strip
+      k = z > WALL_H + 2 ? 4 : 3;
+      const bool wOpen = !S.in(gx - 1, gy) || !S.in(gx - 2, gy), eOpen = !S.in(gx + 1, gy) || !S.in(gx + 2, gy);
+      const bool nsEdge = S.in(gx, gy - 3) && S.in(gx, gy + 3);
+      if (nsEdge && z <= WALL_H + 2) k = 1;                 // the crenels between the merlons: deep notches
+      else if (nsEdge && eOpen && !wOpen) k = 2;             // the east merlons, in shade
+      else if (nsEdge && wOpen && !eOpen) k = 4;             // the west merlons, lit
+    } else {
       // walkway flagstones
       int row = ((gy % 4) + 4) % 4, col = (((gx + ((gy >> 2) & 1) * 2) % 5) + 5) % 5;
       k = (row == 3 || col == 0) ? 2 : 3;
       if (hash3((gx + 64) / 5, (gy + 64) / 4, 23u) % 7 == 0 && k == 3) k = 4;
+      // (M1) the walkway of a north-south run lies in the east parapet's lee: its east half a shade darker
+      if (S.in(gx, gy - 3) && S.in(gx, gy + 3) && (!S.in(gx + 4, gy) || !S.in(gx + 5, gy)) && S.in(gx - 6, gy)) k = std::max(1, k - 1);
     }
     // shade cast by anything taller just up-left
     int zul = Z(gx - 1, gy - 1), zu = Z(gx, gy - 1);
@@ -2650,8 +2664,10 @@ int wallShadeAt(const uint8_t* wall, int W, int H, int px, int py) {
   if (shapeAt(px, py)) return 0;
   // contact shade right at the foot of the wall face, then the cast shadow, which falls down-right
   if (shapeAt(px, py - 1) || shapeAt(px - 1, py - 1)) return 2;
-  static const int sx[6] = {1, 2, 3, 4, 5, 6}, sy[6] = {1, 1, 2, 3, 3, 4};
-  for (int k = 0; k < 6; k++)
+  // (M1) the walls stand WALL_H px tall: the shadow reaches about half that down-right, so a north-south run casts a
+  // band of shade along its east foot (it read as a flat road before, with a 6 px sliver)
+  static const int sx[11] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11}, sy[11] = {1, 1, 2, 3, 3, 4, 4, 5, 5, 6, 6};
+  for (int k = 0; k < 11; k++)
     if (shapeAt(px - sx[k], py - sy[k])) return 1;
   return 0;
 }

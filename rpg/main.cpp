@@ -278,6 +278,10 @@ int main(int argc, char** argv) {
   if (char* pref = SDL_GetPrefPath("Josh17400", "Embervale")) { g_savePath = std::string(pref) + "save.bin"; SDL_free(pref); }
 #endif
   if (scripted) g_savePath.clear();   // belt and braces: a script can never read or write the real save
+  // test hook: read the title's save from another file (e.g. an old-format save, to see the title's notice). Test runs
+  // (--shot, --play, --seed) still never write it.
+  const char* saveOverride = std::getenv("EMB_SAVE_PATH");
+  if (saveOverride && *saveOverride && !scripted) g_savePath = saveOverride;
 
   Pix pix;
   if (!pix.init("EMBERVALE", winW, winH, vsync)) return 1;
@@ -305,16 +309,19 @@ int main(int argc, char** argv) {
   }
 
   bool hasSave = false;
-  if (!noSave) {
+  if (!noSave || (saveOverride && *saveOverride)) {
     std::vector<uint8_t> buf;
-    if (readSave(buf)) {
+    if (readSave(buf) && !buf.empty()) {
       Game probe(1);
       hasSave = probe.deserialize(buf);
       int v = Game::saveVersion(buf);
-      // owner, 2026-10-04: old saves are not carried over; say so instead of silently starting fresh
-      if (!hasSave && v > 0 && v < Game::currentSaveVersion()) view.titleNote = "THIS SAVE IS FROM AN OLDER VERSION - START A NEW ADVENTURE";
+      // owner, 2026-10-04: old saves are not carried over; say so instead of silently starting fresh (a damaged or
+      // newer file gets a notice too: it is never loaded, and the next save replaces it)
+      if (!hasSave && ((v > 0 && v < Game::currentSaveVersion()) || Game::saveFromOlderGenerator(buf))) view.titleNote = "THIS SAVE IS FROM AN OLDER VERSION - START A NEW ADVENTURE";
+      else if (!hasSave) view.titleNote = "THIS SAVE COULD NOT BE LOADED - START A NEW ADVENTURE";
     }
   }
+  if (noSave) hasSave = false;   // (the override above only shows the title's notice; a test run never continues it)
 
   auto startNew = [&](uint64_t s) {
     newWorld(game, s);
@@ -989,10 +996,18 @@ int main(int argc, char** argv) {
       if (readSave(buf) && game.deserialize(buf)) { game.mode = Mode::Play; view.snap(game); audio.play(Sfx::Discover); }
       else startNew(seed ? seed : (uint64_t)SDL_GetTicks() * 2654435761ull + 777);
     }
-    if (view.wantNewGame) {
-      view.wantNewGame = false;
+    // NEW ADVENTURE: making the world takes a few hundred ms on a phone, so the "FORGING THE WORLD" card is put on
+    // screen first (this frame) and the world is made at the top of the next one, behind the card
+    static int newGameIn = 0;
+    if (newGameIn > 0 && --newGameIn == 0) {
       startNew(seed ? seed : (uint64_t)SDL_GetTicks() * 2654435761ull + 777);   // --seed / a script's seed: reproducible
       game.beginCreator();   // the character creator; the first save happens when it hands over to play
+      view.loadingCard.clear();
+    }
+    if (view.wantNewGame) {
+      view.wantNewGame = false;
+      view.loadingCard = "FORGING THE WORLD";
+      newGameIn = 2;
     }
     {   // the creator just finished: save the new character right away
       static Mode prevMode = Mode::Title;

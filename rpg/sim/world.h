@@ -109,12 +109,16 @@ struct Bldg {
   // palaces, barracks, gatehouses and inns may fly it (the painter decides where, BuildingFacts carries it)
   uint32_t banner = 0, banner2 = 0;
   uint8_t emblem = 0;
+  // M1: how urban the place it stands in is (art::urbanize): 0 countryside / village, 1 town, 2 city, 3 a capital
+  uint8_t urban = 0;
   int floors() const { return genVer >= WORLDGEN_V7 ? std::max(1, (int)storeys) : 1; }
   int doorX() const { return r.x + r.w / 2; }
   int doorY() const { return r.y + r.h - 1; }
 };
 // M0b: the exterior's style (what the view paints) and its art facts, so interiors can match their outside.
-inline art::ArchStyle bldgArch(const Bldg& b) { return art::withRoofTint(art::archForBiome((int)b.biome, b.seed), b.roof); }
+inline art::ArchStyle bldgArch(const Bldg& b) {
+  return art::withRoofTint(art::urbanize(art::archForBiome((int)b.biome, b.seed), b.urban, b.seed), b.roof);
+}
 inline art::BuildingFacts bldgFacts(const Bldg& b) {
   art::BuildingFacts f;
   f.storeys = b.storeys;
@@ -327,21 +331,6 @@ struct World {
   int nearestSite(int tx, int ty, SiteType t, int exclude = -1) const;
   int zoneLevel(int tx, int ty) const;
 };
-
-// M1 bridge (lead stub): one settlement stamped by the classic island generator on a scratch island, so endless worlds
-// have real towns before the towns lane's own generator (rpg/world/settlement.cpp) replaces this. base(lx, ly) gives
-// the land at buffer tile (lx, ly); the footprint (w x h) sits MARGIN tiles in from the buffer's top-left. Delete this
-// (and its use in settlement.cpp) once buildSettlement no longer calls it.
-struct ClassicTownOut {
-  static constexpr int MARGIN = 8;
-  Map buf;                                   // local tiles; bldgs and spawns in local tiles, site = -1
-  std::vector<std::pair<int, int>> gates;
-  std::vector<IRect> gaps;
-  std::vector<uint8_t> used;
-  int ex = 0, ey = 0;
-};
-void classicTownStamp(SiteType t, int w, int h, uint32_t seed, const std::function<void(int lx, int ly, Ground& g, Biome& b)>& base,
-                      ClassicTownOut& out);
 
 // Independent RNG seed for one generator feature: hash of the world seed and a feature tag such as "dens".
 // Features added after WORLDGEN_V1 draw from their own stream so they never shift any other feature's randomness.

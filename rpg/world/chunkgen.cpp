@@ -14,8 +14,11 @@
 // and sites stand on one level: the land is flattened under them and terraced back to its own level around them.
 #include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
+#include <memory>
 #include "rpg/world/gen.h"
+#include "rpg/world/town_gen.h"
 
 namespace ew {
 using namespace gen;
@@ -34,7 +37,7 @@ void EndlessSource::Impl::baseRect(int32_t x0, int32_t y0, int w, int h, BaseRec
   B.x0 = x0; B.y0 = y0; B.w = w; B.h = h;
   const size_t n = (size_t)w * h;
   B.ground.assign(n, 0); B.biome.assign(n, 0); B.level.assign(n, 0); B.riverW.assign(n, 0); B.lake.assign(n, 0); B.bridge.assign(n, 0);
-  std::vector<uint8_t> deep(n, 0);
+  std::vector<uint8_t> deep(n, 0), path(n, 0);
   for (int y = 0; y < h; y++)
     for (int x = 0; x < w; x++) {
       TileF f = tile(x0 + x, y0 + y);
@@ -64,6 +67,7 @@ void EndlessSource::Impl::baseRect(int32_t x0, int32_t y0, int w, int h, BaseRec
       for (const Lake& L : H->lakes) {
         const int32_t R = 2 * L.r + 2;
         if (L.x + R < x0 || L.x - R >= x1 || L.y + R < y0 || L.y - R >= y1) continue;
+        if (lakeUnderSettlement(L)) continue;
         const uint8_t lakeLv = (uint8_t)natLevel(L.x, L.y);
         for (int32_t y = std::max(y0, L.y - R); y < std::min(y1, L.y + R + 1); y++)
           for (int32_t x = std::max(x0, L.x - R); x < std::min(x1, L.x + R + 1); x++) {
@@ -80,11 +84,11 @@ void EndlessSource::Impl::baseRect(int32_t x0, int32_t y0, int w, int h, BaseRec
     }
   // footbridges: rivers cannot be swum, so every few pieces of a river's course a plank bridge crosses it (about one
   // every 40-50 tiles; roads and tracks add their own). Chosen by a hash of the piece, so every rect agrees.
-  for (int32_t ry = regionOf(y0 - 10); ry <= regionOf(y1 + 9); ry++)
-    for (int32_t rx = regionOf(x0 - 10); rx <= regionOf(x1 + 9); rx++) {
+  for (int32_t ry = regionOf(y0 - 14); ry <= regionOf(y1 + 13); ry++)
+    for (int32_t rx = regionOf(x0 - 14); rx <= regionOf(x1 + 13); rx++) {
       std::shared_ptr<const RegionHydro> H = hydro(rx, ry);
       for (const RiverSeg& s : H->segs) {
-        if (std::max(s.x0, s.x1) + 10 < x0 || std::min(s.x0, s.x1) - 10 >= x1 || std::max(s.y0, s.y1) + 10 < y0 || std::min(s.y0, s.y1) - 10 >= y1) continue;
+        if (std::max(s.x0, s.x1) + 14 < x0 || std::min(s.x0, s.x1) - 14 >= x1 || std::max(s.y0, s.y1) + 14 < y0 || std::min(s.y0, s.y1) - 14 >= y1) continue;
         if (mix64(key2(s.x0, s.y0) ^ mix64(key2(s.x1, s.y1)) ^ seed ^ tag("b.bridge")) % 6 != 0) continue;
         int32_t len = idist(s.x0, s.y0, s.x1, s.y1);
         if (len < 5) continue;
@@ -95,9 +99,18 @@ void EndlessSource::Impl::baseRect(int32_t x0, int32_t y0, int w, int h, BaseRec
           size_t i = B.at(x, y);
           if (B.riverW[i] && !B.lake[i] && B.biome[i] != (uint8_t)Biome::Ocean) B.bridge[i] = 1;
         });
+        // (M1 round 3) a trodden path leads on from both ends of the footbridge (it stood alone in the grass)
+        const int32_t far = reach + 5;
+        walk4(mx - px * far / len, my - py * far / len, mx + px * far / len, my + py * far / len, [&](int32_t x, int32_t y) {
+          if (!B.in(x, y)) return;
+          size_t i = B.at(x, y);
+          if (!B.riverW[i] && !B.lake[i] && B.biome[i] != (uint8_t)Biome::Ocean) path[i] = 1;
+        });
       }
     }
   for (size_t i = 0; i < n; i++) {
+    if (path[i] && !B.bridge[i] && !B.lake[i] && !B.riverW[i] && !groundSolid((Ground)B.ground[i]) && B.ground[i] != (uint8_t)Ground::Sand)
+      B.ground[i] = (uint8_t)Ground::Dirt;
     if (B.bridge[i]) B.ground[i] = (uint8_t)Ground::Bridge;
     else if (B.lake[i] || B.riverW[i]) B.ground[i] = (uint8_t)(deep[i] ? Ground::DeepWater : Ground::Water);
   }
@@ -117,49 +130,200 @@ void EndlessSource::Impl::baseRect(int32_t x0, int32_t y0, int w, int h, BaseRec
 }
 
 // ------------------------------------------------------------------ settlements (cached buffers)
-std::shared_ptr<SettlementOut> EndlessSource::Impl::town(const SitePlan& p, const RegionData& D) {
-  auto it = towns.find(p.id);
-  if (it != towns.end()) { it->second.used = ++townClock; return it->second.out; }
+// A settlement being built: the land under it, then the town generator's phases (town::Gen::step). town() runs a job
+// to the end at once; prepareChunk (the web's streaming, no threads) runs it a phase at a time within a frame budget.
+struct EndlessSource::Impl::TownJob {
+  Gid id = 0;
+  std::shared_ptr<const RegionData> D;   // keeps the plan (ctx.plan points into it) alive
+  const SitePlan* p = nullptr;
+  int flat = 0;
+  std::shared_ptr<BaseRect> B;
+  SettlementCtx ctx;
+  std::shared_ptr<SettlementOut> out;
+  std::unique_ptr<town::Gen> gen;
+  int stage = 0;                         // 0 the land, 1 the generator, 2 done
+  double ms = 0;
+};
+
+std::shared_ptr<EndlessSource::Impl::TownJob> EndlessSource::Impl::townJobFor(const SitePlan& p, std::shared_ptr<const RegionData> D) {
+  if (townJob && townJob->id == p.id) return townJob;
+  auto J = std::make_shared<TownJob>();
+  J->id = p.id;
+  J->D = std::move(D);
+  J->p = &p;
+  for (size_t k = 0; k < J->D->plan.sites.size(); k++)
+    if (J->D->plan.sites[k].id == p.id) { J->p = &J->D->plan.sites[k]; J->flat = J->D->flatLevel[k].first; }
+  J->out = std::make_shared<SettlementOut>();
+  return J;
+}
+
+// (M1) A river that ENDS inside a settlement's footprint (it fed a lake there, and lakeUnderSettlement drops such
+// lakes) would leave a dead-end pool across the streets. Its reaches inside the footprint, followed back from the
+// end until the river leaves the footprint, are drained on the town's land. A river that runs through stays (bridged).
+void EndlessSource::Impl::drainDeadEndRivers(const SitePlan& p, BaseRect& B) {
+  const int32_t ax0 = p.gx - 8, ay0 = p.gy - 8, ax1 = p.gx + p.w + 8, ay1 = p.gy + p.h + 8;
+  auto inA = [&](int32_t x, int32_t y) { return x >= ax0 && y >= ay0 && x < ax1 && y < ay1; };
+  std::vector<RiverSeg> segs;
+  for (int32_t ry = regionOf(ay0); ry <= regionOf(ay1); ry++)
+    for (int32_t rx = regionOf(ax0); rx <= regionOf(ax1); rx++) {
+      std::shared_ptr<const RegionHydro> H = hydro(rx, ry);
+      for (const RiverSeg& s : H->segs) {
+        if (!inA(s.x0, s.y0) && !inA(s.x1, s.y1)) continue;
+        bool dup = false;
+        for (const RiverSeg& o : segs) if (o.x0 == s.x0 && o.y0 == s.y0 && o.x1 == s.x1 && o.y1 == s.y1) { dup = true; break; }
+        if (!dup) segs.push_back(s);
+      }
+    }
+  if (segs.empty()) return;
+  // endpoints shared by no other piece are the river's ends (or springs)
+  auto uses = [&](int32_t x, int32_t y) {
+    int n = 0;
+    for (const RiverSeg& s : segs) n += (s.x0 == x && s.y0 == y) + (s.x1 == x && s.y1 == y);
+    return n;
+  };
+  std::vector<uint8_t> dry(segs.size(), 0);
+  for (size_t i = 0; i < segs.size(); i++) {
+    const RiverSeg& s = segs[i];
+    if (!inA(s.x0, s.y0) || !inA(s.x1, s.y1)) continue;
+    if (uses(s.x0, s.y0) == 1 || uses(s.x1, s.y1) == 1) dry[i] = 1;
+  }
+  for (bool grew = true; grew;) {
+    grew = false;
+    for (size_t i = 0; i < segs.size(); i++) {
+      if (dry[i] || !inA(segs[i].x0, segs[i].y0) || !inA(segs[i].x1, segs[i].y1)) continue;
+      for (size_t j = 0; j < segs.size() && !dry[i]; j++) {
+        if (!dry[j]) continue;
+        const RiverSeg &a = segs[i], &b = segs[j];
+        if ((a.x0 == b.x0 && a.y0 == b.y0) || (a.x0 == b.x1 && a.y0 == b.y1) || (a.x1 == b.x0 && a.y1 == b.y0) || (a.x1 == b.x1 && a.y1 == b.y1)) {
+          dry[i] = 1;
+          grew = true;
+        }
+      }
+    }
+  }
+  for (size_t i = 0; i < segs.size(); i++) {
+    if (!dry[i]) continue;
+    const RiverSeg& s = segs[i];
+    const int lo = s.w >= 3 ? -1 : 0, hi = s.w == 1 ? 0 : s.w == 4 ? 2 : 1;
+    walk4(s.x0, s.y0, s.x1, s.y1, [&](int32_t x, int32_t y) {
+      for (int oy = lo - 1; oy <= hi + 1; oy++)
+        for (int ox = lo - 1; ox <= hi + 1; ox++) {
+          const int32_t gx = x + ox, gy = y + oy;
+          if (!B.in(gx, gy) || !inA(gx, gy)) continue;
+          const size_t k = B.at(gx, gy);
+          if (!B.riverW[k] || B.lake[k]) continue;
+          B.riverW[k] = 0;
+          B.bridge[k] = 0;
+          const Biome bio = (Biome)B.biome[k];
+          B.ground[k] = (uint8_t)(bio == Biome::Swamp ? Ground::Swamp : bio == Biome::Beach ? Ground::Sand : bio == Biome::Ocean ? (Ground)B.ground[k]
+                                  : groundFor(bio, Q(0.5), Q(0.5), gx, gy));
+        }
+    });
+  }
+}
+
+// one step of the job (false: finished, and the town is cached)
+bool EndlessSource::Impl::townJobStep(TownJob& J) {
   Nest nest(*this);
   auto t0 = Clock::now();
-  auto out = std::make_shared<SettlementOut>();
-  SettlementCtx ctx;
-  ctx.plan = &p;
-  ctx.kingdom = kingdom(p.kingdom);
-  ctx.rx = D.plan.rx; ctx.ry = D.plan.ry;
-  auto bi = D.bearings.find(p.id);
-  if (bi != D.bearings.end()) ctx.roadBearings = bi->second;
-  int flat = 0;
-  for (size_t k = 0; k < D.plan.sites.size(); k++) if (D.plan.sites[k].id == p.id) flat = D.flatLevel[k].first;
-  // the land the town is built on: base terrain with its rivers and lakes, at the town's flattened level
-  auto B = std::make_shared<BaseRect>();
-  const int pad = 48;
-  baseRect(p.gx - pad, p.gy - pad, p.w + 2 * pad, p.h + 2 * pad, *B);
-  ctx.base = [this, B, flat, &p](int32_t gx, int32_t gy, Ground& g, Biome& b, uint8_t& h) {
-    if (gx > B->x0 && gy > B->y0 && gx < B->x0 + B->w - 1 && gy < B->y0 + B->h - 1) {
-      size_t i = B->at(gx, gy);
-      g = (Ground)B->ground[i];
-      b = (Biome)B->biome[i];
-    } else {
-      TileF f = tile(gx, gy);
-      g = groundFor(f.biome, f.e, f.t, gx, gy);
-      b = f.biome;
-    }
-    bool inside = gx >= p.gx - 8 && gy >= p.gy - 8 && gx < p.gx + p.w + 8 && gy < p.gy + p.h + 8;
-    h = (uint8_t)(inside ? flat : natLevel(gx, gy));
-  };
-  buildSettlement(ctx, *out);
-  double ms = msSince(t0);
+  const SitePlan& p = *J.p;
+  if (J.stage == 0) {
+    // the land the town is built on: base terrain with its rivers and lakes, at the town's flattened level
+    SettlementCtx& ctx = J.ctx;
+    ctx.plan = &p;
+    ctx.kingdom = kingdom(p.kingdom);
+    ctx.rx = J.D->plan.rx; ctx.ry = J.D->plan.ry;
+    auto bi = J.D->bearings.find(p.id);
+    if (bi != J.D->bearings.end()) ctx.roadBearings = bi->second;
+    J.B = std::make_shared<BaseRect>();
+    const int pad = 48;
+    baseRect(p.gx - pad, p.gy - pad, p.w + 2 * pad, p.h + 2 * pad, *J.B);
+    std::shared_ptr<BaseRect> B = J.B;
+    drainDeadEndRivers(p, *B);
+    const int flat = J.flat;
+    const SitePlan* pp = &p;
+    ctx.base = [this, B, flat, pp](int32_t gx, int32_t gy, Ground& g, Biome& b, uint8_t& h) {
+      if (gx > B->x0 && gy > B->y0 && gx < B->x0 + B->w - 1 && gy < B->y0 + B->h - 1) {
+        size_t i = B->at(gx, gy);
+        g = (Ground)B->ground[i];
+        b = (Biome)B->biome[i];
+      } else {
+        TileF f = tile(gx, gy);
+        g = groundFor(f.biome, f.e, f.t, gx, gy);
+        b = f.biome;
+      }
+      bool inside = gx >= pp->gx - 8 && gy >= pp->gy - 8 && gx < pp->gx + pp->w + 8 && gy < pp->gy + pp->h + 8;
+      h = (uint8_t)(inside ? flat : natLevel(gx, gy));
+      // the town stands on dry land: marsh pools in its footprint are drained (a river still runs through, bridged)
+      if (inside && (g == Ground::Water || g == Ground::DeepWater) && b != Biome::Ocean) {
+        bool river = false;
+        if (gx > B->x0 && gy > B->y0 && gx < B->x0 + B->w - 1 && gy < B->y0 + B->h - 1) river = B->riverW[B->at(gx, gy)] != 0;
+        if (!river) g = b == Biome::Swamp ? Ground::Swamp : b == Biome::Beach ? Ground::Sand : Ground::Grass;
+      }
+    };
+    // what buildSettlement does before its generator runs
+    *J.out = SettlementOut();
+    J.out->gx = p.gx - town::MARGIN;
+    J.out->gy = p.gy - town::MARGIN;
+    J.gen.reset(new town::Gen(J.ctx, *J.out));
+    J.stage = 1;
+  } else if (J.stage == 1) {
+    if (!J.gen->step()) { J.gen.reset(); J.stage = 2; }
+  }
+  J.ms += msSince(t0);
+  if (J.stage < 2) return true;
   stats.settlements++;
-  stats.settlementMs += ms;
-  stats.maxSettlementMs = std::max(stats.maxSettlementMs, ms);
+  stats.settlementMs += J.ms;
+  stats.maxSettlementMs = std::max(stats.maxSettlementMs, J.ms);
   if (towns.size() >= 24) {
     auto oldest = towns.begin();
     for (auto i = towns.begin(); i != towns.end(); ++i) if (i->second.used < oldest->second.used) oldest = i;
     towns.erase(oldest);
   }
-  towns[p.id] = TownEntry{out, ++townClock};
-  return out;
+  towns[J.id] = TownEntry{J.out, ++townClock};
+  return false;
+}
+
+std::shared_ptr<SettlementOut> EndlessSource::Impl::town(const SitePlan& p, std::shared_ptr<const RegionData> D) {
+  auto it = towns.find(p.id);
+  if (it != towns.end()) { it->second.used = ++townClock; return it->second.out; }
+  // (a phase-at-a-time build of this very town already under way is finished rather than started over)
+  std::shared_ptr<TownJob> J = townJobFor(p, std::move(D));
+  while (townJobStep(*J)) {}
+  if (townJob == J) townJob.reset();
+  return J->out;
+}
+
+bool EndlessSource::Impl::prepareChunk(int32_t cx, int32_t cy, double budgetMs) {
+  auto t0 = Clock::now();
+  makeStart();
+  const int32_t x0 = cx * CHUNK, y0 = cy * CHUNK;
+  const int32_t rx0 = regionOf(x0), ry0 = regionOf(y0);
+  std::shared_ptr<const RegionData> RD[9];
+  for (int k = 0; k < 9; k++) {
+    if (msSince(t0) >= budgetMs) return false;   // (one region plan is one piece of work: a few ms at most)
+    RD[k] = regionData(rx0 - 1 + k % 3, ry0 - 1 + k / 3);
+  }
+  // a town left half-built by an earlier call comes first (it is wanted now, or soon will be)
+  if (townJob) {
+    while (msSince(t0) < budgetMs)
+      if (!townJobStep(*townJob)) { townJob.reset(); break; }
+    if (townJob) return false;
+  }
+  // the settlements chunk() asks town() for
+  for (int k = 0; k < 9; k++)
+    for (const SitePlan& p : RD[k]->plan.sites) {
+      if (!isSettlement(p.type)) continue;
+      const int margin = 32;
+      if (p.gx - margin >= x0 + CHUNK + 1 || p.gy - margin >= y0 + CHUNK + 1 || p.gx + p.w + margin <= x0 - 1 || p.gy + p.h + margin <= y0 - 1) continue;
+      if (towns.count(p.id)) continue;
+      townJob = townJobFor(p, RD[k]);
+      for (;;) {
+        if (msSince(t0) >= budgetMs) return false;
+        if (!townJobStep(*townJob)) { townJob.reset(); break; }
+      }
+    }
+  return true;
 }
 
 // ------------------------------------------------------------------ site stamps
@@ -171,13 +335,27 @@ void EndlessSource::Impl::stampSite(const SitePlan& p, Stamp& S) {
     case SiteType::Cave: {
       // the mouth in a real cliff face (relief): the entrance tile stays walkable, its approach clear. Where the land
       // has no face here (a start-plan cave on the flat), the mouth opens in a rocky knoll.
-      if (natLevel(x, y - 1) <= natLevel(x, y))
-        for (int32_t yy = y - 5; yy <= y; yy++)
-          for (int32_t xx = x - 5; xx <= x + 5; xx++) {
-            int32_t dx = xx - x, dy = yy - (y - 2);
-            if (dx * dx * 4 + dy * dy * 10 > 92 + (int32_t)(tileHash(p.seed, xx, yy) & 15)) continue;
+      // (M1) the mouth is always set into rock: where a face exists, a crag of rock rises behind it on the level above
+      // (M1 round 3) the crag is an outcrop, not a box: broad at its foot, narrowing row by row to a peak that leans
+      // one way or the other, each flank ragged on its own (it was an 11x5 block with straight sides)
+      {
+        const bool face = natLevel(x, y - 1) > natLevel(x, y);
+        const int32_t yBot = face ? y - 1 : y;
+        Rng cr(p.seed ^ 0xC4A6u);
+        const int32_t hgt = 5 + cr.irange(3);
+        const int lean = cr.irange(3) - 1;
+        const int baseL = 5 + cr.irange(3), baseR = 5 + cr.irange(3);
+        for (int32_t yy = std::max(y - 7, yBot - hgt); yy <= yBot; yy++) {
+          const int32_t r = yBot - yy;                                   // rows above the foot
+          const int32_t cx = x + (lean * r) / 3;
+          const int jl = (int)(tileHash(p.seed ^ 0x51u, 0, yy) % 3) - 1, jr = (int)(tileHash(p.seed ^ 0x52u, 0, yy) % 3) - 1;
+          const int32_t hl = std::max<int32_t>(1, baseL - (baseL - 1) * r / hgt + jl);
+          const int32_t hr = std::max<int32_t>(1, baseR - (baseR - 1) * r / hgt + jr);
+          for (int32_t xx = std::max(x - 8, cx - hl); xx <= std::min(x + 8, cx + hr); xx++) {
             S.g(xx, yy, Ground::Rock); S.clear(xx, yy);
           }
+        }
+      }
       S.g(x, y, Ground::Dirt);
       S.p(x, y, Prop::CaveEntrance);
       for (int k = -1; k <= 1; k++)
@@ -191,24 +369,106 @@ void EndlessSource::Impl::stampSite(const SitePlan& p, Stamp& S) {
       break;
     }
     case SiteType::Ruin: {
+      // (M1 round 3) the remains of an old hall: the door down into the vaults stands in what is left of its north
+      // wall (always on the site's entrance tile, so World never has to paint a second one), broken walls run round a
+      // floor of cracked flags that grass and earth are taking back, columns stand or lie snapped off in two rows, the
+      // south wall has mostly fallen (the way in), and flags and rubble lie scattered outside the walls. Every wall
+      // tile and column is drawn with its own broken top (the view picks a variant per tile).
       const int32_t rx = p.gx, ry = p.gy;
-      for (int32_t yy = ry; yy < ry + 7; yy++) for (int32_t xx = rx; xx < rx + 9; xx++) { S.clear(xx, yy); if (groundSolid(S.at(xx, yy))) S.g(xx, yy, Ground::Dirt); }
-      for (int32_t yy = ry + 1; yy < ry + 7; yy++) for (int32_t xx = rx + 1; xx < rx + 8; xx++) S.g(xx, yy, Ground::StoneFloor);
-      S.p(rx + 4, ry + 2, Prop::IronDoor);
-      S.p(rx + 1, ry + 2, Prop::Statue); S.p(rx + 7, ry + 2, Prop::Statue);
-      S.p(rx + 2, ry + 5, Prop::Brazier); S.p(rx + 6, ry + 5, Prop::Brazier);
-      S.p(rx + 1, ry + 6, Prop::Rock); S.p(rx + 7, ry + 4, Prop::Gravestone);
-      for (int32_t xx = rx + 2; xx <= rx + 6; xx++) if (xx != rx + 4) S.p(xx, ry + 1, Prop::Boulder);
+      const int32_t dx0 = p.ex, wy = p.ey;                  // the door, in the north wall's line
+      const int32_t hx0 = rx - 1, hx1 = rx + 9, hy1 = wy + 7;  // walls: x hx0 / hx1, rows wy (north) and hy1 (south)
+      const uint64_t rs = p.seed ^ 0x52u;
+      for (int32_t yy = ry - 3; yy <= hy1 + 3; yy++)
+        for (int32_t xx = hx0 - 2; xx <= hx1 + 2; xx++) S.reserve(xx, yy);
+      // the floor and the ground under the walls
+      for (int32_t yy = wy; yy <= hy1; yy++)
+        for (int32_t xx = hx0; xx <= hx1; xx++) {
+          S.clear(xx, yy);
+          const int32_t n = vnoiseQ(xx, yy, 2, mix64(rs ^ 0x9Eu));
+          const uint32_t h = (uint32_t)(tileHash(rs, xx, yy) & 255);
+          const bool wallLine = xx == hx0 || xx == hx1 || yy == wy || yy == hy1;
+          Ground g = Ground::StoneFloor;
+          if (!wallLine) {
+            if (n > 47000 && h < 200) g = Ground::Grass;
+            else if (n > 40000 || h < 22) g = Ground::Dirt;
+          }
+          S.g(xx, yy, g);
+        }
+      // behind the north wall and round the outside: trodden earth and rubble fallen from the walls
+      for (int32_t yy = ry - 2; yy <= hy1 + 2; yy++)
+        for (int32_t xx = hx0 - 2; xx <= hx1 + 2; xx++) {
+          if (xx >= hx0 && xx <= hx1 && yy >= wy && yy <= hy1) continue;
+          const Ground at = S.at(xx, yy);
+          if (groundSolid(at) || at == Ground::Bridge || at == Ground::Road) continue;
+          const int dist = std::max({hx0 - xx, xx - hx1, wy - yy, yy - hy1, 0});
+          const uint32_t h = (uint32_t)(tileHash(rs ^ 0x11u, xx, yy) & 255);
+          const bool behind = yy < wy && xx >= hx0 && xx <= hx1;   // the vault's mound behind the door wall
+          if (behind ? h < 170u : h < (dist <= 1 ? 120u : 50u)) { S.clear(xx, yy); S.g(xx, yy, Ground::Dirt); }
+          if ((behind && h >= 200) || (!behind && h >= 236 && dist <= 2))
+            S.p(xx, yy, (h & 1) ? Prop::Rock : (h & 2) ? Prop::MossRock : Prop::Boulder);
+        }
+      // the walls: the north one stands best, one side has fallen further than the other, the south one is mostly gone
+      Rng rr(p.seed ^ 0x2B1Fu);
+      const bool westWorse = rr.irange(2) != 0;
+      auto rubble = [&](int32_t xx, int32_t yy, uint32_t h) {
+        if (h & 64) S.p(xx, yy, (h & 1) ? Prop::Rock : (h & 2) ? Prop::MossRock : Prop::Boulder);
+        else S.g(xx, yy, (h & 128) ? Ground::Dirt : Ground::StoneFloor);
+      };
+      for (int32_t yy = wy; yy <= hy1; yy++)
+        for (int32_t xx = hx0; xx <= hx1; xx++) {
+          const bool n = yy == wy, so = yy == hy1, w = xx == hx0, e = xx == hx1;
+          if (!n && !so && !w && !e) continue;
+          if (xx == dx0 && n) continue;                                 // the door
+          const uint32_t h = (uint32_t)(tileHash(rs ^ 0x33u, xx, yy) & 255);
+          if ((n || so) && (w || e)) {                                  // corners: a column, a wall end or a heap
+            if (h < 150) S.p(xx, yy, Prop::RuinColumn);
+            else if (h < 215) S.p(xx, yy, Prop::RuinWall);
+            else rubble(xx, yy, h);
+            continue;
+          }
+          uint32_t keep = 200;                                          // out of 256
+          if (so) keep = std::abs(xx - dx0) <= 1 ? 0 : 96;              // the way in
+          else if (w || e) keep = (w == westWorse) ? 90 : 185;
+          else if (std::abs(xx - dx0) == 1) keep = 256;                 // the door's jambs always stand
+          if (h < keep) S.p(xx, yy, Prop::RuinWall);
+          else rubble(xx, yy, h);
+        }
+      S.g(dx0, wy, Ground::StoneFloor);
+      S.p(dx0, wy, Prop::IronDoor);
+      // inside: two rows of columns (some standing, some snapped off, some lying in pieces), braziers by the door
+      const int32_t c0 = wy + 2 + rr.irange(2), c1 = c0 + 3;
+      for (int32_t cy : {c0, c1})
+        for (int32_t cx : {rx + 1, rx + 7}) {
+          const uint32_t h = (uint32_t)(tileHash(rs ^ 0x44u, cx, cy) & 255);
+          if (h < 190) S.p(cx, cy, Prop::RuinColumn);
+          else S.p(cx, cy, (h & 1) ? Prop::Rock : Prop::MossRock);
+        }
+      S.p(dx0 - 2, wy + 1, Prop::Brazier); S.p(dx0 + 2, wy + 1, Prop::Brazier);
+      const int layout = rr.irange(3);
+      if (layout == 0) { S.p(dx0 - 1, wy + 1, Prop::Statue); S.p(dx0 + 1, wy + 1, Prop::Statue); }
+      else if (layout == 1) { S.p(rx + 2 + rr.irange(2) * 4, hy1 - 1, Prop::Gravestone); S.p(rx, c0 + 1, Prop::Urn); S.p(rx + 8, c1 - 1, Prop::Bones); }
+      else { S.p(rx, c0 + 1, Prop::Gravestone); S.p(rx + 8, c0 + 2, Prop::Gravestone); S.p(rx + 2, c1 + 1, Prop::Coffin); S.p(rx + 6, c0 + 1, Prop::SkullPile); }
+      // the way from the fallen south wall to the door stays open
+      for (int32_t yy = wy + 1; yy <= hy1 + 1; yy++)
+        for (int32_t xx = dx0 - 1; xx <= dx0 + 1; xx++) {
+          const int pr = S.in(xx, yy) ? S.c.prop[S.idx(xx, yy)] : 0;
+          if (pr && propSolid((Prop)(pr - 1)) && !(yy == wy + 1 && xx != dx0)) S.clear(xx, yy);
+        }
       break;
     }
     case SiteType::BanditCamp: {
       const int32_t bx = p.gx, by = p.gy;
-      for (int32_t yy = by + 1; yy < by + 8; yy++)
-        for (int32_t xx = bx + 1; xx < bx + 10; xx++) {
-          S.clear(xx, yy);
+      // (M1) a trampled clearing with a ragged edge: the dirt and the cleared ground follow noisy ovals instead of
+      // the old rectangle
+      for (int32_t yy = by; yy < by + 9; yy++)
+        for (int32_t xx = bx; xx < bx + 11; xx++) {
           int32_t dx = 2 * (xx - (bx + 5)), dy = 2 * (yy - (by + 4));
-          if (dx * dx + (dy * dy * 169) / 100 < 58) S.g(xx, yy, Ground::Dirt);
-          else if (groundSolid(S.at(xx, yy))) S.g(xx, yy, Ground::Dirt);
+          const int32_t d = dx * dx + (dy * dy * 169) / 100;
+          const int32_t j = (int32_t)(tileHash(p.seed ^ 0xCA3Bu, xx, yy) % 28);
+          const bool inner = xx > bx && yy > by && xx < bx + 10 && yy < by + 8;
+          if (d < 70 + j || (inner && groundSolid(S.at(xx, yy)))) S.clear(xx, yy);
+          if (d < 46 + j) S.g(xx, yy, Ground::Dirt);
+          else if (inner && groundSolid(S.at(xx, yy))) S.g(xx, yy, Ground::Dirt);
         }
       S.p(bx + 5, by + 4, Prop::Campfire);
       S.p(bx + 2, by + 2, Prop::Tent); S.p(bx + 8, by + 2, Prop::Tent);
@@ -238,7 +498,11 @@ void EndlessSource::Impl::stampSite(const SitePlan& p, Stamp& S) {
       break;
     }
     case SiteType::DragonLair: {
-      // a scorched eyrie on the ridge: a ring of rubble and bones around a paved fire-scarred floor
+      // a scorched eyrie on the ridge: a fire-blackened floor round an old dais, bones and rubble strewn, and crags of
+      // bare rock standing round its back and sides (open to the south, where the track climbs in)
+      // (M1 round 3) the scorch fades into the land's own ground (snow, tundra) along a noisy edge instead of a tan
+      // blob with a hard rim, and the crags really ring the summit (the old ring lay almost wholly outside its box)
+      const uint64_t ls = mix64(p.seed ^ 0x1A11u);
       for (int32_t yy = y - 7; yy <= y + 7; yy++)
         for (int32_t xx = x - 8; xx <= x + 8; xx++) {
           int32_t dx = xx - x, dy = yy - y;
@@ -246,11 +510,37 @@ void EndlessSource::Impl::stampSite(const SitePlan& p, Stamp& S) {
           int32_t lim = 76 + (int32_t)(tileHash(p.seed ^ 61u, xx, yy) % 15);
           if (d2 >= lim * lim) continue;
           S.clear(xx, yy);
-          S.g(xx, yy, d2 < 34 * 34 ? Ground::StoneFloor : Ground::Dirt);
-          if (d2 > 52 * 52 && (tileHash(p.seed ^ 62u, xx, yy) & 7) == 0) S.p(xx, yy, (tileHash(p.seed ^ 63u, xx, yy) & 1) ? Prop::Boulder : Prop::Bones);
+          const uint32_t fh = (uint32_t)(tileHash(p.seed ^ 66u, xx, yy) & 15);
+          const int32_t q = d2 * 100 / (lim * lim);                    // 0 at the heart .. 100 at the rim
+          const int32_t n = vnoiseQ(xx, yy, 2, ls) >> 8;               // 0..255
+          const bool dais = std::abs(dx) <= 2 - (dy == -6 || dy == -3 ? 1 : 0) && dy >= -6 && dy <= -3 && fh > 2;
+          const Ground nat = S.at(xx, yy);
+          if (dais) S.g(xx, yy, Ground::StoneFloor);
+          else if (q < 30 || n * 100 > (q - 20) * 330 || groundSolid(nat) || nat == Ground::Grass || nat == Ground::Meadow) S.g(xx, yy, Ground::Dirt);
+          // else: the land's own snow or tundra, swept by the scorch's edge
+          if (d2 > 52 * 52 && (tileHash(p.seed ^ 62u, xx, yy) % 11) == 0) {
+            const uint32_t k = (uint32_t)(tileHash(p.seed ^ 63u, xx, yy) % 5);
+            S.p(xx, yy, k == 0 ? Prop::Boulder : k == 1 ? Prop::Bones : k == 2 ? Prop::SnowRock : k == 3 ? Prop::SkullPile : Prop::Rock);
+          }
         }
-      S.p(x - 3, y - 2, Prop::SkullPile); S.p(x + 4, y + 1, Prop::Bones); S.p(x - 5, y + 3, Prop::Bones);
-      S.p(x + 2, y - 4, Prop::Brazier); S.p(x - 2, y - 4, Prop::Brazier); S.p(x, y - 5, Prop::Altar);
+      for (int32_t yy = y - 12; yy <= y + 4; yy++)
+        for (int32_t xx = x - 13; xx <= x + 13; xx++) {
+          int32_t dx = xx - x, dy = yy - y;
+          int32_t d2 = dx * dx * 100 + dy * dy * 132;
+          int32_t lim = 76 + (int32_t)(tileHash(p.seed ^ 61u, xx, yy) % 15);
+          const int32_t outer = 100 + (vnoiseQ(xx, yy, 2, ls ^ 0x77u) >> 11);   // 100..131: the crags' ragged back
+          if (d2 < (lim + 6) * (lim + 6) || d2 > outer * outer) continue;
+          if (dy > 1 && std::abs(dx) < 9) continue;                              // the way in from the south
+          if (dy > 3) continue;
+          S.clear(xx, yy);
+          S.g(xx, yy, Ground::Rock);
+        }
+      {
+        Rng lr(p.seed ^ 0x1A12u);
+        const int32_t ax = x, sp = 2 + lr.irange(2);
+        S.p(x - 3 - lr.irange(2), y - 2 + lr.irange(2), Prop::SkullPile); S.p(x + 3 + lr.irange(2), y + 1, Prop::Bones); S.p(x - 5, y + 2 + lr.irange(2), Prop::Bones);
+        S.p(ax + sp, y - 4, Prop::Brazier); S.p(ax - sp, y - 4, Prop::Brazier); S.p(ax, y - 5, Prop::Altar);
+      }
       break;
     }
     default: break;
@@ -315,7 +605,7 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
       if (!isSettlement(p.type)) continue;
       const int margin = 32;
       if (p.gx - margin >= x0 + CHUNK + 1 || p.gy - margin >= y0 + CHUNK + 1 || p.gx + p.w + margin <= x0 - 1 || p.gy + p.h + margin <= y0 - 1) continue;
-      std::shared_ptr<SettlementOut> T = town(p, *RD[k]);
+      std::shared_ptr<SettlementOut> T = town(p, RD[k]);
       const Map& b = T->buf;
       for (int32_t gy = y0 - 1; gy < y0 + CHUNK + 1; gy++)
         for (int32_t gx = x0 - 1; gx < x0 + CHUNK + 1; gx++) {
@@ -374,7 +664,10 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
   for (int k = 0; k < 9; k++)
     for (const SitePlan& p : RD[k]->plan.sites) {
       int pad = isSettlement(p.type) ? 0 : 1;
-      clips.push_back(Clip{p.id, p.gx - pad, p.gy - pad, p.gx + p.w + pad, p.gy + p.h + pad});
+      // (M1) a cave's track runs right up to the trodden ground before its mouth (it stopped at the footprint, a few
+      // tiles short): only the rows down to the mouth's are kept clear
+      const int32_t yEnd = p.type == SiteType::Cave ? std::min(p.gy + p.h + pad, p.ey + 1) : p.gy + p.h + pad;
+      clips.push_back(Clip{p.id, p.gx - pad, p.gy - pad, p.gx + p.w + pad, yEnd});
     }
   auto clipOf = [&](Gid id) -> const Clip* {
     for (const Clip& cl : clips) if (cl.id == id) return &cl;
@@ -423,7 +716,8 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
       } else {
         c.ground[i] = (uint8_t)(code >= 2 ? Ground::Road : Ground::Dirt);
       }
-      c.prop[i] = 0;
+      // (M1 round 3) a road that runs up to a dungeon's door leads to it, it does not pave it over
+      if (c.prop[i] != (uint8_t)((int)Prop::IronDoor + 1) && c.prop[i] != (uint8_t)((int)Prop::CaveEntrance + 1)) c.prop[i] = 0;
       reserved[(size_t)i] = 1;
     }
   // 6: relief. Settlements and sites stand on one level, terraced back to the land's own level around them.
@@ -440,8 +734,8 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
       const bool st = isSettlement(p.type);
       const int pad = st ? 10 : 3;
       Flat f{2 * p.gx + p.w, 2 * p.gy + p.h, p.w + 2 * pad, p.h + 2 * pad, 0, lv, st ? 14 : 6, mix64(p.id ^ 0xF1A7u)};
-      f.rc = std::min(f.hw2, f.hh2) * 7 / 10;   // corner radius (doubled units)
-      const int32_t reach = 4 * f.step + 8;
+      f.rc = std::min(f.hw2, f.hh2) * (st ? 7 : 10) / 10;   // corner radius (doubled units); small sites: a stadium
+      const int32_t reach = 4 * f.step + 14;
       if ((f.cx2 - f.hw2) / 2 - reach > x0 + CHUNK + BR || (f.cy2 - f.hh2) / 2 - reach > y0 + CHUNK + BR ||
           (f.cx2 + f.hw2) / 2 + reach < x0 - BR || (f.cy2 + f.hh2) / 2 + reach < y0 - BR)
         continue;
@@ -458,7 +752,10 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
           // distance (tiles) outside the rounded rectangle, plus a slow wobble of +-5 tiles
           int32_t qx = std::max(0, std::abs(2 * gx + 1 - f.cx2) - (f.hw2 - f.rc)), qy = std::max(0, std::abs(2 * gy + 1 - f.cy2) - (f.hh2 - f.rc));
           int32_t out2 = (int32_t)isqrt((uint64_t)qx * qx + (uint64_t)qy * qy) - f.rc;   // doubled units
-          int32_t wob = (int32_t)(((int64_t)(vnoiseQ(gx, gy, 4, f.wob) - 32768) * 10) >> 16);
+          // (two octaves, +-12 tiles: with one gentle octave the terraces ran as long straight lines parallel to
+          // the town's rectangle, the "grid crack" through open plain)
+          int32_t wob = (int32_t)(((int64_t)(vnoiseQ(gx, gy, 5, f.wob) - 32768) * 18) >> 16) +
+                        (int32_t)(((int64_t)(vnoiseQ(gx, gy, 3, f.wob ^ 0x5A5Au) - 32768) * 6) >> 16);
           int32_t d = std::max(0, out2 / 2 + wob);
           int dev = d / f.step;
           if (dev >= 4) continue;

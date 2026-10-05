@@ -1,6 +1,7 @@
 // Settlement layout (TOWNS lane, VISION_PLAN 15.8): the land under the town, its heart, the roads it grows along,
 // squares, main streets, ring roads and lanes, the city wall with its gatehouses and side gates, the lanes that join every
 // opening to the streets and the approach roads out to the country. See rpg/world/town_gen.h.
+#include <cstdlib>
 #include <algorithm>
 #include <cmath>
 #include <queue>

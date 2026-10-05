@@ -1,4 +1,4 @@
-// rpg_test --window [--seeds A..B] [--walk TILES] [--speed TILES_PER_S] [--fast] [--budget MS]: the endless Active
+// rpg_test --window [--seeds A..B] [--walk TILES] [--speed TILES_PER_S] [--fast] [--web] [--budget MS]: the endless Active
 // Window in a real Game (VISION_PLAN 2.8, 2.9). SIM lane.
 //   - a new endless game: start village with an inn (the opening quest's giver), the story city, the lair, 3 shard ruins
 //   - a long walk east, then south, then back west, at a brisk pace (default 16 tiles/s, twice a mounted rider) with the
@@ -33,6 +33,7 @@ struct WinOpts {
   bool fast = false;
   double budget = 0;        // > 0: a worse step fails
   bool verbose = false;     // --verbose: report every step over 2 ms and what it did
+  bool web = false;         // --web: stream as the web build does (no worker thread; each step pumps 3 ms of work)
 };
 
 int checkWindowTiles(Game& g, const char* when) {
@@ -104,6 +105,7 @@ int windowSeed(uint64_t seed, const WinOpts& o) {
   g.mode = Mode::Play;
   g.godMode = true;
   g.noWildSpawns = true;
+  g.streamThreads = !o.web;
   World& w = g.world;
   if (!w.endless) { fail("not an endless world"); return bad; }
   const Site& home = w.sites[(size_t)w.startSite];
@@ -153,7 +155,7 @@ int windowSeed(uint64_t seed, const WinOpts& o) {
   std::vector<float> stepMs;   // every step (percentiles: a busy machine preempts a single step now and then)
   long steps = 0;
   const float perStep = o.fast ? 2.0f * TILE : o.speed * TILE / 60.0f;   // pixels per 60 Hz step
-  const double pace = o.fast ? 0.0 : 0.5;                                 // ms of wall time per step at least
+  const double pace = o.fast || o.web ? 0.0 : 0.5;                                // ms of wall time per step at least
   for (auto& L : legs) {
     float walked = 0;
     while (walked < (float)o.walk * TILE) {
@@ -175,6 +177,7 @@ int windowSeed(uint64_t seed, const WinOpts& o) {
       const size_t a0 = g.actors.size(), sites0 = w.sites.size(), k0 = w.kingdoms.size(), b0 = w.over.bldgs.size();
       const double rms0 = w.src->stats().regionMs, cms0 = w.src->stats().chunkMs;
       g.update(SIM_DT, Input());
+      if (o.web) g.frameWork(3.0);   // the web's per-frame generation budget (rpg/main.cpp)
       g.events.clear();
       if (g.mode != Mode::Play) g.mode = Mode::Play;
       double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - s0).count();
@@ -369,6 +372,7 @@ int cmdWindow(int argc, char** argv) {
     else if (!strcmp(argv[i], "--budget") && i + 1 < argc) o.budget = atof(argv[++i]);
     else if (!strcmp(argv[i], "--fast")) o.fast = true;
     else if (!strcmp(argv[i], "--verbose")) o.verbose = true;
+    else if (!strcmp(argv[i], "--web")) o.web = true;
   }
   int bad = 0, failedSeeds = 0;
   for (uint64_t s = a; s <= b; s++) {
@@ -384,4 +388,4 @@ int cmdWindow(int argc, char** argv) {
 }  // namespace
 
 RPG_TEST_CMD("--window", "endless Active Window: walk, shifts, prefetching, look-ups, fast travel, save round trip "
-                         "[--seeds A..B] [--walk N] [--speed T/S] [--fast] [--budget MS]", cmdWindow);
+                         "[--seeds A..B] [--walk N] [--speed T/S] [--fast] [--web] [--budget MS]", cmdWindow);

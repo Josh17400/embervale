@@ -276,11 +276,33 @@ int EndlessSource::Impl::riverWidthCell(int32_t x, int32_t y) {
   return H->riverW[j * HN + i] + (H->lakeCell[j * HN + i] ? 8 : 0);
 }
 
+// (M1) Lakes and settlements are planned independently: a lake whose shore would reach into a settlement's footprint
+// (a capital with a lake in its market and ponds across its streets) is dropped. Only the chunk land and waterAt
+// read this, never the region planner (which would recurse into itself).
+bool EndlessSource::Impl::lakeUnderSettlement(const Lake& L) {
+  const uint64_t k = key2(L.x, L.y) ^ ((uint64_t)L.seed << 7);
+  auto it = lakeTownMemo.find(k);
+  if (it != lakeTownMemo.end()) return it->second;
+  const int32_t R = (L.r * 17) / 10 + 2;   // the lobed shore never passes 1.6 r
+  bool under = false;
+  for (int32_t ry = regionOf(L.y - R - 200); ry <= regionOf(L.y + R + 200) && !under; ry++)
+    for (int32_t rx = regionOf(L.x - R - 200); rx <= regionOf(L.x + R + 200) && !under; rx++) {
+      std::shared_ptr<const RegionData> D = regionData(rx, ry);
+      for (const SitePlan& p : D->plan.sites) {
+        if (!isSettlement(p.type)) continue;
+        const int32_t m = 6;
+        if (L.x + R >= p.gx - m && L.x - R < p.gx + p.w + m && L.y + R >= p.gy - m && L.y - R < p.gy + p.h + m) { under = true; break; }
+      }
+    }
+  lakeTownMemo.emplace(k, under);
+  return under;
+}
+
 bool EndlessSource::Impl::waterAt(int32_t x, int32_t y) {
   std::shared_ptr<const RegionHydro> H = hydro(regionOf(x), regionOf(y));
   for (const Lake& L : H->lakes) {
     int32_t rr = lakeRadius(L, x, y);
-    if (dist2(x, y, L.x, L.y) < (int64_t)rr * rr) return true;
+    if (dist2(x, y, L.x, L.y) < (int64_t)rr * rr && !lakeUnderSettlement(L)) return true;
   }
   int i = (x - regionOf(x) * REGION) >> 3, j = (y - regionOf(y) * REGION) >> 3;
   if (!H->riverW[j * HN + i]) return false;

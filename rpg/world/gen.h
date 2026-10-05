@@ -237,6 +237,9 @@ struct EndlessSource::Impl {
   bool waterAt(int32_t x, int32_t y);                               // sea, lake or river at a tile (slowish)
   std::unordered_map<uint64_t, int32_t> hydroMemo;
   std::unordered_map<uint64_t, std::pair<bool, gen::Lake>> lakeMemo;
+  // a lake that would lie under a settlement is not made (the town is built on dry land; rivers still run through)
+  bool lakeUnderSettlement(const gen::Lake& L);
+  std::unordered_map<uint64_t, bool> lakeTownMemo;
   gen::Lru<gen::Trace> traces;
   gen::Lru<gen::RegionHydro> hydros;
 
@@ -283,7 +286,14 @@ struct EndlessSource::Impl {
   // ================================================================ L2 (chunkgen.cpp)
   void baseRect(int32_t x0, int32_t y0, int w, int h, gen::BaseRect& B);
   void chunk(int32_t cx, int32_t cy, ChunkData& out);
-  std::shared_ptr<SettlementOut> town(const SitePlan& p, const gen::RegionData& D);
+  std::shared_ptr<SettlementOut> town(const SitePlan& p, std::shared_ptr<const gen::RegionData> D);
+  // web streaming (no threads): a settlement built a phase at a time across frames (EndlessSource::prepareChunk)
+  struct TownJob;
+  std::shared_ptr<TownJob> townJob;   // the one under way, if any
+  std::shared_ptr<TownJob> townJobFor(const SitePlan& p, std::shared_ptr<const gen::RegionData> D);
+  bool townJobStep(TownJob& J);
+  void drainDeadEndRivers(const SitePlan& p, gen::BaseRect& B);   // a river ending in a town: its last reaches dry
+  bool prepareChunk(int32_t cx, int32_t cy, double budgetMs);
   void stampSite(const SitePlan& p, gen::Stamp& S);
   void stampDen(const DenPlan& d, gen::Stamp& S);
   struct TownEntry { std::shared_ptr<SettlementOut> out; uint64_t used = 0; };

@@ -123,7 +123,7 @@ void View::drawSettings() {
     }
   }
   // what the picked row does, wrapped under the rows
-  const float hy = Y.rowY + R_COUNT * Y.pitch + 4;
+  const float hy = Y.rowY + int(R_COUNT) * Y.pitch + 4;
   wrapText(Y.x + 14, hy, Y.w - 28, helpText(setSel_), kDim, -1, 9);
   if (!touchUI) P.text(240, Y.y + Y.h - 11, "UP/DOWN PICK   LEFT/RIGHT CHANGE   ESC CLOSE", 1, Color(kDim.r, kDim.g, kDim.b, 0.8f), 1);
   P.popBox();

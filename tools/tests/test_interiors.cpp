@@ -58,7 +58,7 @@ const uint64_t kGen6Hash[4] = {0, 0xe71669014ab8e28full, 0x09a784b14128ba17ull, 
 // so any later change to these rooms needs a new WORLDGEN version. Re-record (EMB_INTERIOR_V7HASH=1 prints the values)
 // only while v7 is unreleased.
 // M0b fix round 1 (stairs two tiles wide, two-tile beds, keep/hut/smithy plans, clutter, upstairs residents)
-const uint64_t kGen7Hash[4] = {0, 0x8aa521dc17cb1e42ull, 0x2ad672207ee870d1ull, 0x62c5d07acd1916ecull};   // M0b fix round 3 (arrival beside the stairwell, round tower floors, furnishing variety)
+const uint64_t kGen7Hash[4] = {0, 0x1116c859902c3633ull, 0x0692c417dc915513ull, 0xe35048232981c9e2ull};   // M1 fixer round 3 (keep throne halls swept, palace upper rooms varied); before: M1 fixer round 2
 
 uint64_t floorHash(const Map& m, uint64_t h) {
   h = mapHash(m, h);

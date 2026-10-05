@@ -5,7 +5,9 @@
 //     (seed, coordinates), so the worker's chunks equal what the main thread's source would make. One source instance is
 //     not thread-safe, and the main-thread instance is also used by the view, so they are never shared across threads.
 //   Web (no pthreads on GitHub Pages): no thread; pump(budgetMs) generates on the main thread with the main source,
-//     a chunk at a time, until the frame's budget (about 3 ms) is spent (rpg/world/jobs.h).
+//     a chunk at a time, until the frame's budget (about 3 ms) is spent (rpg/world/jobs.h). A settlement under a chunk
+//     is built first, a generator phase at a time across frames (EndlessSource::prepareChunk), so a city never costs
+//     one frame its whole build (rpg_test --window --web measures it).
 // Teleports and loads stay synchronous behind the fade (World::placeWindow generates what is not ready).
 #pragma once
 #include <cstdint>

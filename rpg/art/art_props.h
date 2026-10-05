@@ -53,15 +53,23 @@ enum class Prop : uint8_t {
   Pillar,         // a stone column for halls, naves and keeps (16x48)
   BunkBed,        // a two-tier bunk, head to the wall (20x40)
   Dresser,        // a chest of drawers with a mirror, against a wall (16x30)
+  // ---- M1 ruins: the standing remains of old halls (overworld ruin sites). The view draws each tile with its own
+  //      variant (ruinVariant), so a run of wall never repeats one broken top.
+  RuinWall,       // a tile of broken masonry wall in 3/4 view: a 16 px deep top over a south face (16x36). Runs join
+                  // seamlessly side by side, and north-south runs show one continuous wall top
+  RuinColumn,     // a snapped-off column on its plinth (16x40)
   COUNT
 };
 int propW(Prop p);
 int propH(Prop p);
 int propFrames(Prop p);
 Canvas propSprite(Prop p);
+Canvas marketStallVariant(int v);   // M1: a market stall with awning v % 6 and goods (v / 6) % 6 (36 looks)
+Canvas ruinVariant(Prop p, int v);   // M1: RuinWall / RuinColumn variant v % 8 (height, broken top, moss); a RuinWall
+                                     // with v & 8 joins a wall tile north of it (its top runs on unbroken)
 // M1 kingdom identity (VISION_PLAN 15.8): a standing banner in a kingdom's colours (field / trim rgba, emblem 0..7), the
 // same canvas size and anchor as propSprite(Prop::Banner). The view draws Prop::Banner tiles that belong to a kingdom's
-// settlement with this. Phase A stub: the neutral banner; the TOWNS lane paints the colours and emblems.
+// settlement with this (field == 0 gives the plain banner).
 Canvas kingdomBanner(uint32_t field, uint32_t trim, int emblem);
 
 // ---------------------------------------------------------------- interior surfaces and floor clutter (M0)

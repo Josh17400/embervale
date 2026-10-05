@@ -13,6 +13,7 @@
 //  - capitals: the palace's throne hall (throne, king) reachable from the door, stairs up to the private quarters, a
 //    council room and bedchambers; the barracks' bunks and weapon racks;
 //  - determinism: the same context built twice hashes the same; build times per type (budget about 25 ms native).
+#include <cstdlib>
 #include <algorithm>
 #include <chrono>
 #include <cmath>

@@ -694,7 +694,7 @@ void Game::advanceMain(int stage) {
         break;
       case 3:
         q.title = "DRAGONSLAYER";
-        q.desc = "THE CROWN IS WHOLE AND ASHFANG CAN BE KILLED. CLIMB TO SKYFANG PEAK AND END THE DRAGON.";
+        q.desc = "THE CROWN IS WHOLE AND ASHFANG CAN BE KILLED. CLIMB TO " + lairName() + " AND END THE DRAGON.";
         q.target = world.lair;
         world.sites[world.lair].discovered = true;
         // the shards are consumed
@@ -919,7 +919,7 @@ void Game::talkTo(Actor& a) {
   // main quest hooks
   for (auto& q : quests) {
     if (q.type != QType::Main || a.role != Role::Jarl || a.site != world.capital) continue;
-    if (q.stage == 0) { dlg.text = "SO YOU'VE HEARD THE RUMOURS. THEY ARE TRUE: A DRAGON, ASHFANG, HAS WOKEN BENEATH SKYFANG PEAK. STEEL ALONE CANNOT KILL IT."; dlg.opts.push_back({"HOW CAN IT BE STOPPED?", A_MAIN, 1}); }
+    if (q.stage == 0) { dlg.text = "SO YOU'VE HEARD THE RUMOURS. THEY ARE TRUE: A DRAGON, ASHFANG, HAS WOKEN BENEATH " + lairName() + ". STEEL ALONE CANNOT KILL IT."; dlg.opts.push_back({"HOW CAN IT BE STOPPED?", A_MAIN, 1}); }
     if (q.stage == 2) { dlg.text = "THE THREE EMBER SHARDS! I NEVER THOUGHT I WOULD SEE THEM WHOLE AGAIN. LET THE SMITHS FORGE THE CROWN."; dlg.opts.push_back({"I WILL HUNT THE DRAGON.", A_MAIN, 3}); }
   }
   for (auto& q : quests)
@@ -1111,7 +1111,7 @@ void Game::dialogueChoose(int oi) {
     case A_MAIN:
       advanceMain(o.arg);
       if (o.arg == 1) dlg.text = "LEGEND SAYS THE EMBER CROWN CAN BIND A DRAGON'S SOUL. ITS THREE SHARDS LIE WITH DRAUGR WARLORDS IN THE OLD RUINS. I HAVE MARKED THEM ON YOUR MAP. BRING THEM TO ME.";
-      else dlg.text = "THEN GO, WITH THE BLESSINGS OF THE HOLD. ASHFANG NESTS ON SKYFANG PEAK. TAKE THIS GOLD FOR SUPPLIES.";
+      else dlg.text = "THEN GO, WITH THE BLESSINGS OF THE HOLD. ASHFANG NESTS ON " + lairName() + ". TAKE THIS GOLD FOR SUPPLIES.";
       if (o.arg == 3) giveGold(300);
       dlg.opts = {{"FAREWELL.", A_BYE, 0}};
       return;
@@ -1257,11 +1257,38 @@ bool Game::fastTravel(int si) {
   hour += dist / 30.0f;
   while (hour >= 24) { hour -= 24; day++; }
   clearNonPlayer();
-  int ty = s.ey + (s.type == SiteType::Cave ? 2 : (s.type == SiteType::Ruin ? 4 : 1));
+  // (settlements: a few tiles south of the square's centrepiece, whose fountain blocks the tiles beside and above it,
+  //  so the first step after arriving is onto open paving)
+  int ty = s.ey + (s.type == SiteType::Cave ? 2 : (s.type == SiteType::Ruin ? 4 : s.settlement() ? 3 : 1));
   // arrive at the edge of hostile places, not in the bandit chief's lap or under the dragon
   if (s.type == SiteType::BanditCamp) ty = s.r.y + s.r.h + 4;
   if (s.type == SiteType::DragonLair) ty = s.ey + 5;
   placePlayerAt(s.ex, ty);
+  // (M1 round 3) arrive in the open: a settlement's square is full of stalls, crates and wells, and landing on the
+  // tile just north of one hid the hero under its awning with the way south blocked. Take the nearest tile with open
+  // ground around it and two clear tiles south of it (nothing standing in front of the hero, a free first step).
+  if (s.settlement()) {
+    const Map& m = map();
+    const int px = (int)std::floor(pl().p.x / TILE), py = (int)std::floor(pl().p.y / TILE);
+    auto open = [&](int x, int y) {
+      for (int dy = -1; dy <= 2; dy++)
+        for (int dx = -1; dx <= 1; dx++) {
+          if (m.blocked(x + dx, y + dy)) return false;
+          if (dy >= 0 && m.propAt(x + dx, y + dy) > 0) return false;   // nothing standing in front (low clutter too)
+        }
+      // no house just south either: its roof would rise over the hero
+      for (int dy = 3; dy <= 5; dy++)
+        if (m.in(x, y + dy) && !m.bldgAt.empty() && m.bldgAt[(size_t)(y + dy) * m.w + x] >= 0) return false;
+      return true;
+    };
+    bool found = false;
+    for (int r = 0; r <= 10 && !found; r++)
+      for (int oy = -r; oy <= r && !found; oy++)
+        for (int ox = -r; ox <= r && !found; ox++) {
+          if (std::max(std::abs(ox), std::abs(oy)) != r) continue;
+          if (open(px + ox, py + oy)) { pl().p = Vec2((px + ox) * TILE + 8.0f, (py + oy) * TILE + 10.0f); found = true; }
+        }
+  }
   sleepFade = 1.2f;
   mode = Mode::Play;
   updateLocation();
@@ -1326,6 +1353,15 @@ int Game::saveVersion(const std::vector<uint8_t>& in) {
   if (r.u32() != SAVE_MAGIC || r.bad) return 0;
   uint32_t v = r.u32();
   return r.bad ? 0 : (int)v;
+}
+bool Game::saveFromOlderGenerator(const std::vector<uint8_t>& in) {
+  BinR r(in);
+  if (r.u32() != SAVE_MAGIC || r.bad) return false;
+  if (r.u32() != SAVE_VER || r.bad) return false;
+  const bool endless = r.u8() == 1;
+  const int genVer = (int)r.u32();
+  if (r.bad) return false;
+  return endless ? genVer < ew::ENDLESS_GEN_VER : genVer < WORLDGEN_V1;
 }
 
 namespace {

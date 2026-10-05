@@ -219,6 +219,16 @@ int ChunkStreamer::pump(double budgetMs) {
       d_->st.regionsMade++;
     } else {
       if (d_->ready.count(packKey(k.x, k.y))) continue;
+      // a settlement under the chunk (a city takes tens of ms) is built a phase at a time over several frames, so
+      // no single frame pays for a whole town; the chunk itself is made once that work is done
+      const double left = budgetMs - msSince(t0);
+      if (!d_->mainSrc->prepareChunk(k.x, k.y, left > 0.5 ? left : 0.5)) {
+        d_->wishLocal.push_front(k);
+        double ms = msSince(c0);
+        d_->st.workMs += ms;
+        d_->st.maxChunkMs = std::max(d_->st.maxChunkMs, ms);
+        break;
+      }
       std::unique_ptr<ew::ChunkData> c(new ew::ChunkData());
       d_->mainSrc->chunk(k.x, k.y, *c);
       d_->ready[packKey(k.x, k.y)] = std::move(c);

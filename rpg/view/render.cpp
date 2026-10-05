@@ -14,6 +14,8 @@ using art::Monster;
 namespace {
 Color col(uint32_t c, float a = 1) { return Color((c & 255) / 255.0f, ((c >> 8) & 255) / 255.0f, ((c >> 16) & 255) / 255.0f, a); }
 Canvas paintInteriorPiece(uint64_t key) { return art::interiorPiece((uint32_t)key); }
+Canvas paintStall(uint64_t key) { return art::marketStallVariant((int)(key & 255)); }
+Canvas paintRuin(uint64_t key) { return art::ruinVariant((Prop)((key >> 8) & 255), (int)(key & 255)); }
 
 // M0b interiors: stairs and doors in the room's material, wall decor fitted to a partition's short face
 // (interiorPropKey, rpg/sim/deco.h). A door into a private room (a bedroom, a guest room, the stockroom) stands shut
@@ -212,7 +214,7 @@ static int archBiomeOverride() {
 static art::ArchStyle bldgStyle(const Map& m, const Bldg& b) {
   (void)m;
   int biome = archBiomeOverride() >= 0 ? archBiomeOverride() : (int)b.biome;
-  return art::withRoofTint(art::archForBiome(biome, b.seed), b.roof);
+  return art::withRoofTint(art::urbanize(art::archForBiome(biome, b.seed), b.urban, b.seed), b.roof);
 }
 uint64_t View::bldgKey(const Map& m, const Bldg& b, int index) const {
   uint64_t k = bldgStyle(m, b).key();
@@ -534,6 +536,7 @@ struct Drawable {
 
 void View::drawWorld(Game& g) {
   Pix& P = *pix_;
+  fadePaintMs_ = 0;
   const Map& m = g.mode == Mode::Title ? g.world.over : g.map();
   int key = g.mode == Mode::Title ? 0 : g.mapKey();
   if (key != lastMapKey_) { lastMapKey_ = key; }
@@ -730,6 +733,19 @@ void View::drawWorld(Game& g) {
             break;
           }
         const Tex* tp = &props_[d.idx];
+        // (M1) every market stall on the overworld has its own awning and goods (by its tile: stable, never repeats
+        // on one square)
+        if (p == Prop::MarketStall && m.kind == MapKind::Overworld) {
+          const int32_t gx = d.tx + (m.kind == MapKind::Overworld ? g.world.ox : 0), gy = d.ty + (m.kind == MapKind::Overworld ? g.world.oy : 0);
+          const uint32_t h = hash2(gx, gy, 6151);
+          tp = &cachedTex(0x02ull << 56 | (uint64_t)(h % 36), paintStall);
+        }
+        // (M1) every piece of a ruin's walls and columns has its own broken top (by its global tile)
+        if ((p == Prop::RuinWall || p == Prop::RuinColumn) && m.kind == MapKind::Overworld) {
+          const uint32_t h = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6173);
+          const bool joinN = p == Prop::RuinWall && m.propAt(d.tx, d.ty - 1) == (int)Prop::RuinWall + 1;
+          tp = &cachedTex(0x03ull << 56 | (uint64_t)p << 8 | (uint64_t)(h % 8) | (joinN ? 8u : 0u), paintRuin);
+        }
         // (M1) a banner inside a kingdom's settlement flies that kingdom's colours
         if (p == Prop::Banner && m.kind == MapKind::Overworld && g.mode != Mode::Title)
           if (const Kingdom* k = g.world.kingdomOf(g.world.siteAt(d.tx, d.ty, 2))) tp = &kingdomTex(0, *k, 0);
@@ -755,6 +771,15 @@ void View::drawWorld(Game& g) {
       }
       case 1: {
         const Bldg& b = m.bldgs[d.idx];
+        // (M1 round 3) behind a fade (a fast travel's arrival, a new game) the buildings not painted yet are painted
+        // a few per frame within a budget instead of all in the arrival frame (a capital's 70-90 sprites took ~150 ms
+        // on the desktop, more on a phone's wasm); the fade hides the ones still waiting
+        if ((g.sleepFade > 0.5f || fade_ > 0.5f) && !bldgTex_.count(bldgKey(m, b, d.idx))) {
+          if (fadePaintMs_ >= 10.0) break;
+          const auto t0 = std::chrono::steady_clock::now();
+          bldgTex(b, d.idx);
+          fadePaintMs_ += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+        }
         const Tex* tp = &bldgTex(b, d.idx);
         if (m.kind == MapKind::Overworld && g.mode != Mode::Title && windowsLit(g, b)) {
           auto nt = bldgNight_.find(bldgKey(m, b, d.idx));
@@ -997,7 +1022,7 @@ void View::drawLighting(Game& g) {
   Color amb;
   bool interior = g.mode != Mode::Title && g.inside && g.subBldg >= 0;
   bool dungeon = g.mode != Mode::Title && g.inside && g.subSite >= 0;
-  if (dungeon) amb = Color(0.30f, 0.27f, 0.34f);
+  if (dungeon) amb = Color(0.46f, 0.42f, 0.52f);   // (M1: readable on a phone; torches and the hero's light lift it further)
   else if (interior) {
     // M0b: rooms follow the day; by night only the hearths, candles and lamps keep them lit
     float d = clampf(day, 0, 1);

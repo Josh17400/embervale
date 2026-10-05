@@ -23,7 +23,7 @@ namespace ew {
 
 // Bumped when the endless generator's output changes. Old saves are not kept compatible across M1 (owner rule,
 // 2026-10-04); the save stores it so a mismatch can say "this save is from an older world".
-constexpr int ENDLESS_GEN_VER = 1;
+constexpr int ENDLESS_GEN_VER = 2;   // 2: M1 round 2 (meandering relief, organic terraces, settlement water)
 
 // One sample of the macro fields (L0) at a global tile. Q16 fixed point: 65536 = 1.0.
 struct MacroSample {
@@ -161,6 +161,10 @@ class EndlessSource {
   std::vector<float> roadBearings(Gid site);
   const RegionPlan& region(int32_t rx, int32_t ry);       // cached; the reference stays valid until the next call
   void chunk(int32_t cx, int32_t cy, ChunkData& out);     // pure; may cache settlement buffers internally
+  // Streaming without threads (the web): does up to about budgetMs of the work chunk(cx, cy) needs first (its region
+  // plans, then each settlement it touches, built a generator phase at a time and cached). True once chunk(cx, cy) is
+  // cheap; false: call again next frame. The result of chunk() is the same either way.
+  bool prepareChunk(int32_t cx, int32_t cy, double budgetMs);
   const KingdomPlan* kingdom(Gid id);                      // nullptr for 0 / unknown
   const StartPlan& start();                                // computed once per seed
   int danger(int32_t gx, int32_t gy);                      // VISION_PLAN 7.1: the level of what lives here

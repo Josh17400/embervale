@@ -169,8 +169,10 @@ std::shared_ptr<const Block> EndlessSource::Impl::block(int32_t bx, int32_t by) 
             hi = std::max(hi, l2);
             lo = std::min(lo, l2);
           }
-        if (lv > hi && lv >= 1) b->eClean[idx] = levelFloor(lv) - 1;
-        else if (lv < lo) b->eClean[idx] = levelFloor(lv + 1);
+        // (moved to the middle of the next level, not onto its edge: a sample sitting exactly on a level boundary
+        // made the contour run along the coarse grid line, a dead-straight cliff 16 tiles long)
+        if (lv > hi && lv >= 1) b->eClean[idx] = levelFloor(lv) - H_STEP / 2;
+        else if (lv < lo) b->eClean[idx] = levelFloor(lv + 1) + H_STEP / 2;
       }
     stats.blocks++;
     stats.blockMs += msSince(t0);
@@ -236,7 +238,8 @@ TileF EndlessSource::Impl::tile(int32_t x, int32_t y) {
        qm(centered(vnoiseQ(x, y, 1, mix64(seed ^ tag("t.d2"))), Q(1.0)), Q(0.004));
   f.e = e;
   f.sea = e < ELEV_SEA;
-  f.h = f.sea ? 0 : (uint8_t)levelOf(ec);
+  (void)ec;
+  f.h = f.sea ? 0 : (uint8_t)natLevel(x, y);
   f.rock = !f.sea && rock > Q(0.5) + qm(centered(vnoiseQ(x, y, 2, mix64(seed ^ tag("t.rk"))), Q(1.0)), Q(0.12));
   // ecotones: the climate edges interleave over a few tiles instead of running along the interpolation
   int32_t tj = qm(centered(vnoiseQ(x, y, 5, mix64(seed ^ tag("t.tj"))), Q(1.0)), Q(0.03)) +
@@ -274,9 +277,20 @@ int32_t EndlessSource::Impl::waterE(int32_t x, int32_t y) {
          qm(centered(vnoiseQ(x, y, 1, mix64(seed ^ tag("t.d2"))), Q(1.0)), Q(0.004));
 }
 
+// The relief level reads the clean field through one more warp. The bilinear coarse field alone draws the level
+// contours as straight segments along the 16-tile grid (a cliff running dead straight north-south through open
+// plain), and the shared t.warp (axis-aligned value noise, flat along its own lattice lines) barely bends them. This
+// warp samples value noise on rotated lattices (3-4-5 and 12-5-13 rotations, wavelengths about 26 and 39 tiles) so it
+// has no preferred axis. It moves the contours by up to 4 + 6 tiles; its slope stays under 1 (about 3A / wavelength
+// per octave: 0.47 + 0.46), so it is a smooth deformation of the plane: it bends contours but can never make a new
+// plateau or pit, and the relief keeps the ramp guarantee of the unwarped field.
 int EndlessSource::Impl::natLevel(int32_t x, int32_t y) {
   int32_t wx = x, wy = y;
   warpQ(wx, wy, 5, 5, mix64(seed ^ tag("t.warp")));
+  const uint64_t s1 = mix64(seed ^ tag("t.rw1")), s2 = mix64(seed ^ tag("t.rw2"));
+  const int32_t a1 = 3 * x + 4 * y, b1 = 4 * x - 3 * y, a2 = 12 * x + 5 * y, b2 = 5 * x - 12 * y;
+  wx += (int32_t)(((int64_t)(vnoiseQ(a1, b1, 7, s1) - 32768) * 8) >> 16) + (int32_t)(((int64_t)(vnoiseQ(a2, b2, 9, s2) - 32768) * 12) >> 16);
+  wy += (int32_t)(((int64_t)(vnoiseQ(a1, b1, 7, s1 ^ 0x77u) - 32768) * 8) >> 16) + (int32_t)(((int64_t)(vnoiseQ(a2, b2, 9, s2 ^ 0x77u) - 32768) * 12) >> 16);
   const int32_t bx = wx >> REGION_SHIFT, by = wy >> REGION_SHIFT;
   const Block& B = *block(bx, by);
   const int32_t lx = wx - bx * REGION, ly = wy - by * REGION;

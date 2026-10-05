@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 #include "rpg/sim/game.h"
+#include "rpg/world/source.h"
 
 namespace {
 
@@ -187,7 +188,7 @@ int makeFixture(const char* out) {
 }
 // values printed by --make-fixture (format-level facts only)
 struct Fix5 { int level, xp, gold; size_t inv, quests, looted; int kills, ox; float px, py; int oy; float hour; int day; };
-constexpr Fix5 FIX5 = {1, 20, 30, 7, 3, 1, 0, -192, 1432.000f, 2776.000f, -256, 11.081f, 1};
+constexpr Fix5 FIX5 = {1, 84, 30, 9, 3, 1, 5, 128, 2472.000f, 1320.000f, -192, 11.039f, 1};
 
 }  // namespace
 
@@ -335,6 +336,9 @@ int main(int argc, char** argv) {
     std::vector<uint8_t> genv = b;
     genv[9] = (uint8_t)(genv[9] + 1);   // the endless generator version (u32 after the u8 world kind)
     check(!x.deserialize(genv), "accepted a save from another endless generator");
+    check(!Game::saveFromOlderGenerator(genv) && !Game::saveFromOlderGenerator(b), "called a current or newer generator's save older");
+    std::vector<uint8_t> oldGen = patched(9, (uint32_t)ew::ENDLESS_GEN_VER - 1);
+    check(!x.deserialize(oldGen) && Game::saveFromOlderGenerator(oldGen), "an older endless generator's save is not refused as older");
   }
   // ---- 4. damaged saves never crash (unknown or missing ids, counts and values out of range): each either loads into
   //      a playable game or is refused. Bytes after the header are flipped at random, and the file is cut short.

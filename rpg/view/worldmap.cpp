@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <initializer_list>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -106,13 +107,47 @@ static Canvas paintMapTile(Game& g, int zi, int ix, int iy) {
   std::vector<Smp> grid((size_t)N * N);
   const bool endless = g.world.endless && g.world.src;
   const Map& m = g.world.over;
+  // (M1) the edge of the explored land wanders (a warped look-up of the 8-tile fog cells: no square blocks), and a
+  // discovered settlement shows whole (no town cut by a straight fog edge)
+  auto seenSoft = [&](int32_t gx, int32_t gy) {
+    const float jx = (vnoise(gx / 13.0f, gy / 13.0f, 701) - 0.5f) * 14.0f + (vnoise(gx / 5.0f, gy / 5.0f, 703) - 0.5f) * 4.0f;
+    const float jy = (vnoise(gx / 13.0f, gy / 13.0f, 709) - 0.5f) * 14.0f + (vnoise(gx / 5.0f, gy / 5.0f, 711) - 0.5f) * 4.0f;
+    return g.explored.seen(gx + (int32_t)std::lround(jx), gy + (int32_t)std::lround(jy));
+  };
+  struct GRect { int32_t x0, y0, x1, y1; };
+  std::vector<GRect> towns, cores;   // discovered settlements: with a margin (shown whole) / their built area
+  if (endless) {
+    const int32_t tx0 = (int32_t)std::floor(ix * TS * z) - 8, ty0 = (int32_t)std::floor(iy * TS * z) - 8;
+    const int32_t tx1 = (int32_t)std::floor((ix + 1) * TS * z) + 8, ty1 = (int32_t)std::floor((iy + 1) * TS * z) + 8;
+    for (const Site& st : g.world.sites) {
+      if (!st.discovered || !st.settlement()) continue;
+      GRect r{g.world.ox + st.r.x - 6, g.world.oy + st.r.y - 6, g.world.ox + st.r.x + st.r.w + 6, g.world.oy + st.r.y + st.r.h + 6};
+      if (r.x1 < tx0 || r.y1 < ty0 || r.x0 > tx1 || r.y0 > ty1) continue;
+      towns.push_back(r);
+      cores.push_back(GRect{r.x0 + 6, r.y0 + 6, r.x1 - 6, r.y1 - 6});
+    }
+  }
   for (int y = 0; y < N; y++)
     for (int x = 0; x < N; x++) {
       const int32_t gx = (int32_t)std::floor((ix * TS + x - 1 + 0.5f) * z), gy = (int32_t)std::floor((iy * TS + y - 1 + 0.5f) * z);
       Smp s{kParch, 0, false, true, 0, Ground::Void, false};
       const int lx = gx - g.world.ox, ly = gy - g.world.oy;
       if (endless) {
-        s.known = g.explored.seen(gx, gy);
+        s.known = seenSoft(gx, gy);
+        // zoomed out a map pixel spans many fog cells: it is known if any part of it was seen, so the roads walked and
+        // the towns visited stay visible as the map zooms out (instead of washing out below a pixel)
+        if (!s.known && z >= 4) {
+          const int32_t hz = (int32_t)(z * 0.5f);
+          s.known = seenSoft(gx - hz, gy - hz) || seenSoft(gx + hz, gy - hz) || seenSoft(gx - hz, gy + hz) || seenSoft(gx + hz, gy + hz);
+        }
+        for (const GRect& r : towns)
+          if (!s.known && gx >= r.x0 && gy >= r.y0 && gx < r.x1 && gy < r.y1) s.known = true;
+        if (!s.known && z >= 2) {
+          // the unexplored land is not blank: the coasts and the open water are sketched in faintly (the realm's
+          // outline, as an old map shows it), the rest stays parchment
+          ew::MacroSample ms = z >= 8 ? g.world.src->macroFar(gx, gy) : g.world.src->macro(gx, gy);
+          s.water = ms.water;
+        }
         if (s.known) {
           if (z <= 2 && m.in(lx, ly)) {
             s.gr = m.at(lx, ly);
@@ -128,6 +163,30 @@ static Canvas paintMapTile(Game& g, int zi, int ix, int iy) {
             s.c = ms.water ? (ms.elev < ew::ELEV_SEA - 4000 ? C(70, 104, 140) : C(96, 136, 166)) : biomeInk(ms.biome);
             s.h = ms.height;
             s.kingdom = ms.kingdom;
+            // (M1 round 3) the land is drawn, not washed in one green: woods stippled with little trees, mountains
+            // hatched, marsh in dashes, the built area of a discovered settlement in roofs and streets
+            if (!ms.water) {
+              const int mx = ix * TS + x, my = iy * TS + y;
+              const Biome b = ms.biome;
+              if (b == Biome::Forest || b == Biome::Taiga || b == Biome::Autumn) {
+                const int jx = (int)(hash2(mx / 3, my / 3, 731) % 2);
+                if ((mx + jx) % 3 == 0 && my % 3 == 0) s.c = shadec(s.c, 0.68f);
+                else if ((mx + jx) % 3 == 0 && my % 3 == 1) s.c = shadec(s.c, 0.84f);
+              } else if (b == Biome::Mountain) {
+                if (((mx - my) & 3) == 0) s.c = shadec(s.c, 0.82f);
+              } else if (b == Biome::Swamp) {
+                if (my % 3 == 0 && (mx % 5) < 3) s.c = shadec(s.c, 0.8f);
+              } else if (b == Biome::Plains || b == Biome::Beach) {
+                if (hashf(mx, my, 733) < 0.05f) s.c = shadec(s.c, 0.88f);
+              }
+              for (const GRect& r : cores)
+                if (gx >= r.x0 && gy >= r.y0 && gx < r.x1 && gy < r.y1) {
+                  const bool street = ((gx - r.x0) % 9) < 2 || ((gy - r.y0) % 8) < 2;
+                  s.c = street ? C(176, 150, 112) : C(150, 84, 64);
+                  s.bldg = !street;
+                  break;
+                }
+            }
           }
         }
       } else if (m.in(gx, gy)) {
@@ -151,6 +210,10 @@ static Canvas paintMapTile(Game& g, int zi, int ix, int iy) {
       if (!s.known) {
         // parchment: paper grain and a faint hatching, a little darker along the edge of the known land
         k = mixc(kParch, kParchDark, grain * 0.35f + (((px + py) & 7) == 0 ? 0.25f : 0.0f));
+        if (endless && z >= 2) {   // the sketched outline of the unexplored coasts and seas
+          if (s.water) k = mixc(k, C(120, 150, 170), ((px * 3 + py * 5) & 7) == 0 ? 0.42f : 0.28f);
+          if ((!n.known && s.water != n.water) || (!w.known && s.water != w.water)) k = mixc(k, C(64, 52, 44), 0.45f);
+        }
         if (n.known || w.known || nw.known) k = shadec(k, 0.9f);
       } else {
         k = s.c;
@@ -168,7 +231,8 @@ static Canvas paintMapTile(Game& g, int zi, int ix, int iy) {
         if (((n.known && s.kingdom != n.kingdom) || (w.known && s.kingdom != w.kingdom)) && !s.water && ((px + py) % 3 != 0)) k = C(150, 40, 44);
         // the paper shows through the paint, and the known land fades into the parchment at its edge (dithered)
         float fade = 0.16f + grain * 0.06f;
-        if (!n.known || !w.known || !nw.known) fade = 0.55f;
+        if (z >= 8) {}   // (zoomed far out a walked road is a pixel or two wide: no edge fade, or it vanishes)
+        else if (!n.known || !w.known || !nw.known) fade = 0.55f;
         else {
           const Smp& e = grid[(size_t)(y + 1) * N + std::min(N - 1, x + 2)];
           const Smp& so = grid[(size_t)std::min(N - 1, y + 2) * N + x + 1];
@@ -247,15 +311,17 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     for (size_t i = 0; i < age.size() - 128; i++) { pix_->destroy(S.tiles[age[i].second].tex); S.tiles.erase(age[i].second); }
   }
   auto toScr = [&](double gx, double gy) { return Vec2((float)(gx / z - left), (float)(gy / z - top)); };
-  // kingdom labels at their seats (far zoom)
+  // (M1) labels are placed after the markers, most important first, and one that would overlap a placed label (or
+  // the hero's marker) tries the other side of its marker and is otherwise left out: the selected place, capitals,
+  // cities, the kingdoms, towns, villages
+  struct Lab { int prio; float x, y, alt; std::string s; Color ink, halo; };
+  std::vector<Lab> labs;
   if (g.world.endless && z >= 4)
     for (const Kingdom& k : g.world.kingdoms) {
       if (!g.explored.seen(k.gx, k.gy)) continue;
       Vec2 s = toScr(k.gx + 0.5, k.gy + 0.5);
       if (s.x < -60 || s.y < -20 || s.x > w + 60 || s.y > h + 20) continue;
-      const std::string nm = "KINGDOM OF " + k.name;
-      P.text(s.x + 1, s.y - 13, nm, 1, Color(0.95f, 0.9f, 0.8f, 0.7f), 1);
-      P.text(s.x, s.y - 14, nm, 1, colOf(k.color ? k.color : rgba(150, 40, 44)), 1);
+      labs.push_back({3, s.x, s.y - 14, s.y + 6, "KINGDOM OF " + k.name, colOf(k.color ? k.color : rgba(150, 40, 44)), Color(0.95f, 0.9f, 0.8f, 0.7f)});
     }
   // discovered places
   for (int i = 0; i < (int)g.world.sites.size(); i++) {
@@ -284,10 +350,59 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     }
     if (st.cleared && (st.type == SiteType::Cave || st.type == SiteType::Ruin || st.type == SiteType::BanditCamp)) P.rect(s.x - 0.5f, s.y - 0.5f, 1, 1, Color(1, 1, 1));
     if (i == mapSel_) P.frame(s.x - r - 3, s.y - r - 3, r * 2 + 6, r * 2 + 6, Color(1, 1, 1));
-    const bool label = st.type == SiteType::City || (st.type == SiteType::Town && z <= 8) || (st.settlement() && z <= 2) || i == mapSel_;
+    // (M1 round 3) every discovered settlement is named at the land zoom (the start village and a visited town were
+    // bare squares there), towns and cities further out
+    const bool label = st.type == SiteType::City || (st.type == SiteType::Town && z <= 16) || (st.settlement() && z <= 8) || i == mapSel_;
     if (label) {
-      P.text(s.x + 1, s.y + r + 3, st.name, 1, Color(0.95f, 0.9f, 0.8f, 0.6f), 1);
-      P.text(s.x, s.y + r + 2, st.name, 1, kInk, 1);
+      const int prio = i == mapSel_ ? 0 : st.capital ? 1 : st.type == SiteType::City ? 2 : st.type == SiteType::Town ? 4 : 5;
+      labs.push_back({prio, s.x, s.y + r + 2, s.y - r - (st.capital ? 17 : 11), st.name, kInk, Color(0.95f, 0.9f, 0.8f, 0.6f)});
+    }
+  }
+  // (M1 round 3) the tracked quest's destination: a large pulsing marker named after the place it leads to (even one
+  // not discovered yet), so the gold tick on the map says where the quest goes
+  int qtx = 0, qty = 0;
+  const bool hasQ = g.trackedQuest >= 0 && g.questTarget(g.trackedQuest, qtx, qty);
+  Vec2 qs;
+  if (hasQ) {
+    qs = toScr(qtx + g.world.ox + 0.5, qty + g.world.oy + 0.5);
+    const bool onMap = qs.x >= 0 && qs.y >= 0 && qs.x < w && qs.y < h;
+    qs.x = std::clamp(qs.x, 6.0f, w - 7); qs.y = std::clamp(qs.y, 12.0f, h - 6);
+    std::string nm;
+    int bd = 12 * 12;
+    for (const Site& st : g.world.sites) {
+      const int d = (st.ex - qtx) * (st.ex - qtx) + (st.ey - qty) * (st.ey - qty);
+      if (d <= bd) { bd = d; nm = st.name; }
+    }
+    if (nm.empty()) nm = "QUEST";
+    else nm += " (QUEST)";
+    if (!onMap) nm += " >";
+    labs.push_back({0, qs.x, qs.y + 6, qs.y - 20, nm, Color(0.45f, 0.24f, 0.04f), Color(1.0f, 0.95f, 0.8f, 0.8f)});
+  }
+  {
+    std::stable_sort(labs.begin(), labs.end(), [](const Lab& a, const Lab& b) { return a.prio < b.prio; });
+    double pgx0, pgy0;
+    playerG(pgx0, pgy0);
+    const Vec2 hp = toScr(pgx0, pgy0);
+    struct Box { float x0, y0, x1, y1; };
+    std::vector<Box> taken{{hp.x - 4, hp.y - 4, hp.x + 4, hp.y + 4}};
+    auto clear = [&](const Box& b) {
+      for (const Box& o : taken) if (b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0) return false;
+      return true;
+    };
+    for (Lab l : labs) {
+      const float tw = (float)P.textW(l.s, 1);
+      l.x = std::clamp(l.x, tw / 2 + 2, std::max(tw / 2 + 2, w - tw / 2 - 2));   // (M1 round 3) whole on the map, not cut at its edge
+      bool placed = false;
+      for (float yy : {l.y, l.alt}) {
+        Box b{l.x - tw / 2 - 1, yy - 1, l.x + tw / 2 + 1, yy + 9};
+        if (!clear(b) && l.prio > 0) continue;
+        taken.push_back(b);
+        P.text(l.x + 1, yy + 1, l.s, 1, l.halo, 1);
+        P.text(l.x, yy, l.s, 1, l.ink, 1);
+        placed = true;
+        break;
+      }
+      (void)placed;
     }
   }
   // the hero
@@ -296,12 +411,22 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
   Vec2 ps = toScr(pgx, pgy);
   if (((int)(t_ * 3)) & 1) { P.rect(ps.x - 3, ps.y, 7, 1, Color(1, 1, 1)); P.rect(ps.x, ps.y - 3, 1, 7, Color(1, 1, 1)); }
   P.rect(ps.x - 1, ps.y - 1, 3, 3, Color(0.85f, 0.1f, 0.1f));
-  int tx, ty;
-  if (g.trackedQuest >= 0 && g.questTarget(g.trackedQuest, tx, ty)) {
-    Vec2 q = toScr(tx + g.world.ox + 0.5, ty + g.world.oy + 0.5);
-    q.x = std::clamp(q.x, 3.0f, w - 4); q.y = std::clamp(q.y, 8.0f, h - 2);
-    P.rect(q.x - 1, q.y - 7, 3, 4, kGold);
-    P.rect(q.x, q.y - 3, 1, 2, kGold);
+  if (hasQ) {
+    // a gold diamond in a dark outline with a pulsing ring round it
+    const float pr = 7 + 2.5f * (0.5f + 0.5f * std::sin(t_ * 5));
+    for (int k = 0; k < 28; k++) {
+      const float a = k / 28.0f * 6.2831853f;
+      P.rect(std::floor(qs.x + std::cos(a) * pr), std::floor(qs.y + std::sin(a) * pr), 1, 1, Color(0.98f, 0.82f, 0.42f, 0.8f));
+    }
+    for (int pass = 0; pass < 2; pass++) {
+      const int rr = pass == 0 ? 5 : 4;
+      for (int yy = -rr; yy <= rr; yy++) {
+        const int hw = rr - std::abs(yy);
+        P.rect(qs.x - hw, qs.y + yy, hw * 2 + 1, 1, pass == 0 ? Color(0.18f, 0.1f, 0.04f) : kGold);
+      }
+    }
+    P.rect(qs.x, qs.y - 2, 1, 3, Color(0.45f, 0.24f, 0.04f));
+    P.rect(qs.x, qs.y + 2, 1, 1, Color(0.45f, 0.24f, 0.04f));
   }
   // scale bar
   {

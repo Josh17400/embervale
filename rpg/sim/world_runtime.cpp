@@ -30,7 +30,17 @@ void Map::rebuildSolid() {
   std::fill(solid.begin(), solid.end(), 0);
   std::fill(bldgAt.begin(), bldgAt.end(), -1);
   for (size_t i = 0; i < prop.size(); i++)
-    if (prop[i] && propSolid((Prop)(prop[i] - 1))) solid[i] = 1;
+    if (prop[i] && propSolid((Prop)(prop[i] - 1))) {
+      solid[i] = 1;
+      // (M1) a fountain's basin is wider than its tile (art: about 38 px across): its rim blocks the tiles either side
+      if ((Prop)(prop[i] - 1) == Prop::Fountain) {
+        const int x = (int)(i % (size_t)w);
+        if (x > 0 && !groundSolid((Ground)ground[i - 1])) solid[i - 1] = 1;
+        if (x + 1 < w && !groundSolid((Ground)ground[i + 1])) solid[i + 1] = 1;
+        // ... and its spout and back rim rise into the tile above: walking up from the north stops short of the basin
+        if (i >= (size_t)w && !groundSolid((Ground)ground[i - (size_t)w])) solid[i - (size_t)w] = 1;
+      }
+    }
   for (size_t i = 0; i < wall.size(); i++) if (wall[i]) solid[i] = 1;
   for (int bi = 0; bi < (int)bldgs.size(); bi++) {
     const Bldg& b = bldgs[bi];

@@ -2,6 +2,7 @@
 // plots along the streets with uneven setbacks and short footpaths to the doors; and the capital's palace compound.
 // Every sprite keeps clear of its neighbours' fronts and doorsteps (the V5 rule, here on occupancy grids so a city of
 // two hundred buildings stays cheap). See rpg/world/town_gen.h.
+#include <cstdlib>
 #include <algorithm>
 #include <cmath>
 #include <queue>
@@ -51,6 +52,7 @@ int Gen::putBldg(Building type, IRect r, Role owner, int storeys) {
   b.biome = M.biomeAt(r.x + r.w / 2, r.y + r.h / 2);
   b.seed = rng.next();
   b.genVer = WORLDGEN_LATEST;
+  b.urban = (uint8_t)(capital ? 3 : city ? 2 : town ? 1 : 0);
   static const uint32_t roofs[] = {rgba(150, 62, 48), rgba(84, 92, 120), rgba(110, 78, 52), rgba(70, 100, 80), rgba(130, 100, 60), rgba(96, 60, 90)};
   b.roof = (type == Building::House || type == Building::StoneHouse) ? roofs[rng.irange(6)] : 0;
   kingdomColours(b);
@@ -82,6 +84,10 @@ bool Gen::fits(const IRect& r, Building type, int storeys) const {
       if (!foot) continue;
       if (mask[i] != K_NONE) return false;
       Ground g = M.at(x, y);
+      // (M1) never on the paving a street spreads over (its frayed edges), and a house's side stands back a step
+      // from a main street instead of closing half of it (only its front may face the road directly)
+      if (g == Ground::Road || g == Ground::Plaza) return false;
+      if (y < r.y + r.h - 1 && (mask[I(x - 1, y)] == K_MAIN || mask[I(x + 1, y)] == K_MAIN || mask[I(x, y - 1)] == K_MAIN)) return false;
       if (groundSolid(g) || g == Ground::Bridge || g == Ground::Swamp || water[i]) return false;
       if (lvl[i] != need) return false;
       if (walled && !inside[i]) return false;
@@ -174,6 +180,8 @@ bool Gen::placeBuilding(const Want& w) {
     if (w.px >= 0) {
       if (std::abs(s.first - w.px) + std::abs(s.second - w.py) > 8 + t / 40) continue;
     } else if (dist(s.first, s.second) > w.near + t / 500.0f) continue;
+    // (M1) a farm stands out among its fields, never on the market square
+    if (w.b == Building::Farmhouse && dist(s.first, s.second) < 0.62f - t / 2500.0f) continue;
     if (city && w.d != District::COUNT && districtAt(s.first, s.second) != w.d && t < tries * 6 / 10) continue;
     if (w.north && s.second > cy - 2 && t < tries / 2) continue;
     if (M.at(s.first, s.second) == Ground::Bridge) continue;
@@ -212,7 +220,7 @@ void Gen::homeShape(District d, Building& t, int& bw, int& bh) {
       bw = 4 + rng.irange(3); bh = 3 + rng.irange(2);
       break;
     case District::Poor:
-      if (rng.f() < 0.35f) { t = Building::Hut; bw = 3; bh = 2; }
+      if (rng.f() < (capital ? 0.08f : 0.35f)) { t = Building::Hut; bw = 3; bh = 2; }   // (M1: a royal seat's poor quarter is still a town)
       else { t = Building::House; bw = 3 + rng.irange(2); bh = 2; }
       break;
     case District::Crafts:
@@ -223,8 +231,8 @@ void Gen::homeShape(District d, Building& t, int& bw, int& bh) {
       t = rng.f() < 0.55f ? Building::StoneHouse : Building::House;
       bw = 3 + rng.irange(3); bh = rng.f() < 0.7f ? 2 : 3;
       break;
-    default:   // the old centre: tall narrow town houses
-      t = rng.f() < 0.55f ? Building::StoneHouse : Building::House;
+    default:   // the old centre: tall narrow town houses (in a capital, mostly stone)
+      t = rng.f() < (capital ? 0.8f : 0.55f) ? Building::StoneHouse : Building::House;
       bw = 3 + rng.irange(2); bh = rng.f() < 0.75f ? 2 : 3;
       break;
   }
@@ -499,7 +507,22 @@ void Gen::buildCompound() {
   for (int s : {-3, 3}) { int x = doorX + s; if (get(x, terrace) == K_SQUARE && !M.prop[I(x, terrace)]) M.setProp(x, terrace, Prop::Banner); }
   for (int y = terrace + 3; y < gy - 1; y += 3)
     for (int s : {-1, 3}) if (lawnFree(gx + s, y) || (get(gx + s, y) == K_COMPOUND && !M.prop[I(gx + s, y)] && M.bldgAt[I(gx + s, y)] < 0)) { M.setP(gx + s, y, 0); M.setProp(gx + s, y, Prop::Banner); }
-  // the way out: a paved approach from the gate to the nearest street
+  // the royal guard: two before the gate, two in the court, two at the palace door
+  addSpawn(Role::Guard, gx - 1, gy + 1);
+  addSpawn(Role::Guard, gx + 3, gy + 1);
+  addSpawn(Role::Guard, fx - 3, fy);
+  addSpawn(Role::Guard, fx + 3, fy);
+  addSpawn(Role::Guard, doorX - 2, terrace + 1);
+  addSpawn(Role::Guard, doorX + 2, terrace + 1);
+}
+
+
+// the way out of the palace compound: a paved approach from its gate to the nearest street of the town's network.
+// (M1: run after pruneStreets, so it always meets a street that leads somewhere; before, it could join a stub that
+// the pruning then removed, leaving the gate opening onto bare grass)
+void Gen::compoundApproach() {
+  if (compound.w == 0) return;
+  const int gx = compound.x + compound.w / 2 - 1, gy = compound.y + compound.h - 1;
   {
     std::vector<int> prev((size_t)W * H, -2);
     std::queue<int> q;
@@ -521,13 +544,6 @@ void Gen::buildCompound() {
     for (int c : path) paintStreet(c % W, c / W, K_MAIN, Ground::Road);
     for (int k = 0; k < 3; k++) for (int y = gy + 1; y <= gy + 2; y++) paintStreet(gx + k, y, K_MAIN, Ground::Plaza);
   }
-  // the royal guard: two before the gate, two in the court, two at the palace door
-  addSpawn(Role::Guard, gx - 1, gy + 1);
-  addSpawn(Role::Guard, gx + 3, gy + 1);
-  addSpawn(Role::Guard, fx - 3, fy);
-  addSpawn(Role::Guard, fx + 3, fy);
-  addSpawn(Role::Guard, doorX - 2, terrace + 1);
-  addSpawn(Role::Guard, doorX + 2, terrace + 1);
 }
 
 }  // namespace town
