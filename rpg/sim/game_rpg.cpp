@@ -7,12 +7,13 @@
 #include <vector>
 #include "engine/audio.h"
 #include "rpg/sim/game.h"
+#include "rpg/sim/game_internal.h"
 #include "rpg/world/source.h"
 
 using art::Monster;
 using art::Prop;
 
-enum DlgAct { A_BYE, A_TRADE, A_REST, A_RUMOR, A_ACCEPT, A_TURNIN, A_MAIN, A_HEAL, A_LEARN, A_CHAT, A_DECLINE, A_ASK, A_BED };
+// (dialogue actions: DlgAct in rpg/sim/game_internal.h)
 
 // ------------------------------------------------------------------ inventory
 void Game::giveGold(int g) {
@@ -140,6 +141,7 @@ void Game::dropLoot(const Actor& a) {
 }
 
 void Game::openChest(int tx, int ty) {
+  if (questChest(tx, ty)) return;   // M2: an Heirloom's chest holds the keepsake (quests.cpp)
   Map& m = map();
   size_t i = (size_t)ty * m.w + tx;
   m.prop[i] = (uint8_t)((int)Prop::ChestOpen + 1);
@@ -167,6 +169,11 @@ int Game::interactTarget() const {
     // shopkeepers behind counters can be reached across them
     float reach = (a.role == Role::Merchant || a.role == Role::Innkeeper || a.role == Role::Smith) ? 40.0f : 24.0f;
     if (d >= reach * reach) continue;
+    // (stall facings) a keeper at their counter is talked to across it, from the customers' side (not through its back)
+    if (a.stallKeeper && len2(a.p - a.home) < 4.0f) {
+      const Vec2 fv = faceVec(a.face);
+      if ((p.p.x - a.p.x) * fv.x + (p.p.y - a.p.y) * fv.y < 2.0f) continue;
+    }
     // someone with a reward waiting or work to offer wins over a bystander about as close (two villagers side by
     // side: the prompt and the tap go to the one with something to say)
     if (rewardWaiting(a) || hasOffer(a)) d *= 0.45f;
@@ -222,6 +229,7 @@ int Game::interactProp(int& otx, int& oty) const {
         if (!pr) continue;
         Prop prop = (Prop)(pr - 1);
         bool usable = prop == Prop::Chest || prop == Prop::Shrine || prop == Prop::Altar || prop == Prop::BerryBush ||
+                      ((prop == Prop::StandingStone || prop == Prop::GraveCairn) && !inside) ||   // M2 wayside (wayside.cpp)
                       (prop == Prop::Signpost && !inside && world.siteAt(tx, ty, 3) >= 0) ||
                       (prop == Prop::Bed && inside && subBldg >= 0 &&
                        (world.over.bldgs[subBldg].type != art::Building::Inn || world.over.bldgs[subBldg].genVer >= WORLDGEN_V7));
@@ -242,6 +250,7 @@ void Game::interact() {
   if (!pr) return;
   Prop prop = (Prop)(pr - 1);
   if (prop == Prop::Chest) { openChest(tx, ty); return; }
+  if (useWaysideProp(prop, tx, ty)) return;
   if (prop == Prop::Shrine || prop == Prop::Altar) {
     static const char* bless[] = {"BLESSING OF SOLMIR", "BLESSING OF VEYNA", "BLESSING OF HALDRUN", "BLESSING OF ORISSA"};
     blessName = bless[hash2(tx, ty) % 4];
@@ -308,48 +317,7 @@ const Quest* Game::questById(int id) const {
   return nullptr;
 }
 
-namespace {
-const char* monsterPlural(Monster m) {
-  static const char* mn[] = {"WOLVES", "BOARS", "BEARS", "SLIMES", "SPIDERS", "BATS", "SKELETONS", "DRAUGR", "GOBLINS", "TROLLS", "WRAITHS", "MUDCRABS", "ICE WOLVES", "RIME SPIDERS", "SANDWORMS", "DRAGONS"};
-  return mn[(int)m];
-}
-// compass direction of a tile offset (north is up the map): "NORTH-EAST" or, short, "NE"
-std::string dirWord(int dx, int dy, bool shortForm) {
-  static const char* lf[8] = {"EAST", "NORTH-EAST", "NORTH", "NORTH-WEST", "WEST", "SOUTH-WEST", "SOUTH", "SOUTH-EAST"};
-  static const char* sf[8] = {"E", "NE", "N", "NW", "W", "SW", "S", "SE"};
-  if (dx == 0 && dy == 0) return shortForm ? "HERE" : "RIGHT HERE";
-  float a = std::atan2((float)-dy, (float)dx);
-  int k = ((int)std::lround(a / (3.14159265f / 4)) % 8 + 8) % 8;
-  return shortForm ? sf[k] : lf[k];
-}
-// the giver's town name ("" when unknown)
-std::string giverTown(const World& w, const Quest& q) {
-  return q.giverSite >= 0 && q.giverSite < (int)w.sites.size() ? w.sites[q.giverSite].name : std::string();
-}
-// "BOUNTY READY: RETURN TO X IN Y": shown as a notice when a radiant quest's objective is done
-std::string rewardReadyMsg(const World& w, const Quest& q) {
-  std::string town = giverTown(w, q);
-  return std::string(q.type == QType::Clear ? "REWARD READY" : "BOUNTY READY") + ": RETURN TO " + q.giverName + (town.empty() ? "" : " IN " + town);
-}
-// the first of these that fits a journal line (36 characters), else the last one cut down
-std::string fitLine(std::initializer_list<std::string> opts) {
-  std::string last;
-  for (const std::string& o : opts) { if (o.size() <= 36) return o; last = o; }
-  return last.substr(0, 36);
-}
-// where the player is on the overworld (the door or entrance they went in by, when inside)
-void overworldTile(const Game& g, int& x, int& y) {
-  if (g.inside && g.subBldg >= 0) { x = g.world.over.bldgs[g.subBldg].doorX(); y = g.world.over.bldgs[g.subBldg].doorY() + 1; return; }
-  if (g.inside && g.subSite >= 0) { x = g.world.sites[g.subSite].ex; y = g.world.sites[g.subSite].ey; return; }
-  x = (int)std::floor(g.pl().p.x / TILE); y = (int)std::floor(g.pl().p.y / TILE);
-}
-// is this NPC the one who gave the quest? (the opening's giver is whoever keeps the start village inn)
-bool isGiver(const Quest& q, const Actor& a) {
-  if (!a.npc) return false;
-  if (q.giverSlot < 0) return a.role == Role::Innkeeper && a.bldg >= 0 && a.bldg == q.giverBldg;
-  return q.giverSite == a.site && q.giverBldg == a.bldg && q.giverSlot == a.slot;
-}
-}  // namespace
+// (monsterPlural, dirWord, giverTown, rewardReadyMsg, fitLine, overworldTile, isGiver: rpg/sim/game_internal.h)
 
 std::string Game::greeting(const Actor& a) {
   Rng r(hash32((uint32_t)npcKey(a)) ^ (uint32_t)(day * 31 + (int)hour));
@@ -455,6 +423,33 @@ std::string Game::greeting(const Actor& a) {
       }
       return t;
     }
+    // M2 wayside people (wayside.cpp)
+    case Role::Hunter: {
+      const std::string v[] = {"QUIET, NOW. YOU'LL SPOOK EVERY DEER FROM HERE TO " + town + ".",
+                               "PELTS, MEAT, ARROWS. TAKE YOUR PICK, OR TAKE A BOW AND HELP ME THIN THE WOLVES.",
+                               "THE TRACKS SAY THREE WOLVES PASSED AT DAWN. THE TRACKS ARE NEVER WRONG.",
+                               "I SLEEP UNDER THE STARS AND EAT WHAT I CATCH. FEW TOWNSFOLK CAN SAY THE SAME."};
+      return withLocal(v[hash32((uint32_t)npcKey(a) ^ (uint32_t)day) % 4]);
+    }
+    case Role::Fisher: {
+      const std::string v[] = {"THE FISH ARE BITING TODAY. THEY USUALLY ARE, IF YOU'RE PATIENT.",
+                               "TROUT AT DAWN, EEL AT DUSK. SMOKED, IF YOU'RE TRAVELLING FAR.",
+                               "SIT A WHILE. THE WATER TELLS YOU THINGS IF YOU LISTEN."};
+      return v[hash32((uint32_t)npcKey(a) ^ (uint32_t)day) % 3];
+    }
+    case Role::Herbalist: {
+      const std::string v[] = {"MIND THE NIGHTSHADE. THE BLUE FLOWERS YOU MAY TOUCH.",
+                               "EVERY HERB IN THIS GARDEN HEALS SOMETHING, OR KILLS SOMETHING. OFTEN BOTH.",
+                               "A TEA FOR THE COLD, A SALVE FOR THE CUT, A DRAUGHT FOR THE ROAD. WHAT AILS YOU?"};
+      return v[hash32((uint32_t)npcKey(a) ^ (uint32_t)day) % 3];
+    }
+    case Role::Traveller: {
+      const std::string v[] = {"WARM YOURSELF BY THE FIRE, FRIEND. THE ROAD IS LONG IN BOTH DIRECTIONS.",
+                               "I'VE WALKED FROM ONE END OF " + (realm.empty() ? std::string("THIS LAND") : realm) + " TO THE OTHER. ASK ME WHAT I'VE SEEN.",
+                               "THE ROADS ARE QUIET TONIGHT. THAT'S WHEN I WORRY.",
+                               "SIT. SHARE THE FIRE. NEWS IS THE ONLY COIN I CARRY."};
+      return v[hash32((uint32_t)npcKey(a) ^ (uint32_t)day) % 4];
+    }
     case Role::Child: { static const char* c[] = {"WANNA PLAY TAG?", "MY DAD SAYS DRAGONS AREN'T REAL.", "ARE YOU AN ADVENTURER? WHOA!"}; return c[r.irange(3)]; }
     default: {
       const std::string v[] = {"FINE WEATHER TODAY. GOOD FOR THE CROPS.", "HAVE YOU HEARD? SOMETHING BIG WAS FLYING OVER THE MOUNTAINS.",
@@ -469,6 +464,7 @@ std::string Game::greeting(const Actor& a) {
 bool Game::hasOffer(const Actor& a) const {
   const bool noble = background == Background::Noble;   // exiled noble: guards and jarls offer more work
   if (!a.npc || (a.role == Role::Guard && !noble) || a.role == Role::Child || a.role == Role::King || a.site < 0) return false;
+  if (!a.human || a.quest > 0 || a.role == Role::Traveller) return false;   // M2: a troll, a missing person, a traveller
   uint64_t key = npcKey(a);
   for (auto& q : quests) if (q.state != QState::Done && q.type != QType::Main && q.giverSite == a.site && q.giverBldg == a.bldg && q.giverSlot == a.slot) return false;
   auto it = npcQuestsDone.find(key);
@@ -477,101 +473,34 @@ bool Game::hasOffer(const Actor& a) const {
   if (a.role == Role::Innkeeper) return done < 6;
   if (a.role == Role::Guard) return done < 2;
   if (a.role == Role::Priest || a.role == Role::Smith || a.role == Role::Mage) return done < 2;
+  if (a.role == Role::Farmer || a.role == Role::Hunter) return done < 3;   // M2: the fields, the hunt
+  if (a.role == Role::Fisher || a.role == Role::Herbalist) return done < 2;
   return (hash32((uint32_t)key ^ (uint32_t)seed) % 3 == 0) && done < 2;
 }
 
-Quest Game::makeOffer(const Actor& a) {
-  uint64_t key = npcKey(a);
-  auto it = npcQuestsDone.find(key);
-  int done = it == npcQuestsDone.end() ? 0 : it->second;
-  Rng r(hash32((uint32_t)key * 31 + done) ^ (uint32_t)seed);
-  Quest q;
-  q.giverSite = a.site; q.giverBldg = a.bldg; q.giverSlot = a.slot; q.giverName = a.name;
-  const Site& home = world.sites[a.site];
-  // nearest un-cleared site of a type, not already targeted
-  auto pickSite = [&](SiteType t) {
-    int best = -1; float bd = 1e30f;
-    for (int i = 0; i < (int)world.sites.size(); i++) {
-      const Site& s = world.sites[i];
-      if (s.type != t || s.cleared || s.mainQuest) continue;
-      bool taken = false;
-      for (auto& o : quests) if (o.state != QState::Done && o.target == i) taken = true;
-      if (taken) continue;
-      float raw = std::hypot((float)(s.ex - home.ex), (float)(s.ey - home.ey));
-      // endless worlds (VISION_PLAN 2.11): real places within a long day's walk, and preferably not far beyond the
-      // player's strength (a much harder place is offered only when nothing fits)
-      if (world.endless && raw > 768.0f) continue;
-      float d = raw * (0.8f + r.f() * 0.5f) * (s.level > plLevel + 3 ? 2.5f : 1.0f);
-      if (d < bd) { bd = d; best = i; }
-    }
-    return best;
-  };
-  int kind = r.irange(3);
-  if (a.role == Role::Jarl) kind = r.f() < 0.5f ? 0 : 3;
-  if (a.role == Role::Innkeeper) kind = r.f() < 0.6f ? 2 : 1;
-  if (a.role == Role::Priest) kind = 3;
-  if (a.role == Role::Smith) kind = 1;
-  if (a.role == Role::Guard) kind = r.f() < 0.6f ? 2 : 0;   // the watch wants camps and caves cleared
-  int lvl = std::max(home.level, plLevel);
-  if (kind == 0) {   // clear a cave
-    q.type = QType::Clear;
-    q.target = pickSite(SiteType::Cave);
-    if (q.target < 0) kind = 1;
-    else {
-      const Site& t = world.sites[q.target];
-      q.title = "CLEAR " + t.name;
-      q.desc = "SOMETHING FOUL HAS MADE ITS NEST IN " + t.name + ". KILL WHATEVER LEADS THEM AND THE ROADS WILL BE SAFER. RETURN TO " + a.name + " IN " + home.name + ".";
-    }
-  }
-  if (kind == 3) {   // ruin
-    q.type = QType::Clear;
-    q.target = pickSite(SiteType::Ruin);
-    if (q.target < 0) kind = 2;
-    else {
-      const Site& t = world.sites[q.target];
-      q.title = "THE RESTLESS DEAD";
-      q.desc = "THE DEAD STIR IN " + t.name + ". PUT THEIR MASTER BACK IN THE GROUND, THEN REPORT TO " + a.name + ".";
-    }
-  }
-  if (kind == 2) {   // bandit bounty
-    q.type = QType::Bounty;
-    q.target = pickSite(SiteType::BanditCamp);
-    if (q.target < 0) kind = 1;
-    else {
-      const Site& t = world.sites[q.target];
-      q.title = "BOUNTY: " + t.name;
-      q.desc = "BANDITS AT " + t.name + " HAVE BEEN RAIDING TRAVELLERS. KILL THEIR CHIEF AND COLLECT THE BOUNTY FROM " + a.name + ".";
-    }
-  }
-  if (kind == 1) {   // hunt
-    q.type = QType::Hunt;
-    Biome b = world.over.biomeAt(home.ex, home.ey);
-    Monster opts[3] = {Monster::Wolf, Monster::Boar, Monster::Spider};
-    if (b == Biome::Snow) { opts[0] = Monster::IceWolf; opts[1] = Monster::FrostSpider; opts[2] = Monster::Troll; }
-    else if (b == Biome::Taiga) { opts[1] = Monster::Bear; opts[2] = Monster::Troll; }
-    else if (b == Biome::Swamp) { opts[0] = Monster::Slime; opts[1] = Monster::Mudcrab; }
-    else if (b == Biome::Desert) { opts[0] = Monster::Sandworm; opts[1] = Monster::Goblin; opts[2] = Monster::Skeleton; }
-    else if (b == Biome::Plains) { opts[2] = Monster::Goblin; }
-    q.mon = opts[r.irange(3)];
-    q.need = (q.mon == Monster::Troll || q.mon == Monster::Bear || q.mon == Monster::Sandworm) ? 2 : 4 + r.irange(3);
-    static const char* mn[] = {"WOLVES", "BOARS", "BEARS", "SLIMES", "SPIDERS", "BATS", "SKELETONS", "DRAUGR", "GOBLINS", "TROLLS", "WRAITHS", "MUDCRABS", "ICE WOLVES", "RIME SPIDERS", "SANDWORMS", "DRAGONS"};
-    q.title = std::string("CULL THE ") + mn[(int)q.mon];
-    q.desc = std::string("THE ") + mn[(int)q.mon] + " AROUND " + home.name + " ARE GETTING BOLD. KILL " + std::to_string(q.need) + " OF THEM AND " + a.name + " WILL PAY YOU.";
-    q.target = -1;
-  }
-  q.gold = 60 + lvl * 22 + (q.type == QType::Hunt ? 0 : 80) + r.irange(40);
-  q.xp = 40 + lvl * 14 + (q.type == QType::Hunt ? 0 : 50);
-  return q;
-}
+// makeOffer: rpg/sim/quests.cpp (M2: radiant targets over the region plans, the new quest types, the text grammar)
 
 void Game::acceptQuest(const Quest& q0) {
   Quest q = q0;
   q.id = nextQuestId++;
   q.state = QState::Active;
-  if (q.target >= 0) {
-    world.sites[q.target].discovered = true;
-    if (world.sites[q.target].cleared) q.state = QState::Complete;
+  if (q.target >= 0 && q.target < (int)world.sites.size()) {
+    Site& T = world.sites[(size_t)q.target];
+    // the place goes on the map: a dungeon as found (the giver told the way), a delivery's settlement as heard of
+    if (q.type == QType::Deliver || q.type == QType::Protect) { if (!T.discovered) T.rumoured = true; }
+    else T.discovered = true;
+    if (T.cleared && (q.type == QType::Clear || q.type == QType::Bounty || q.type == QType::NamedBandit)) q.state = QState::Complete;
+    if (!q.targetId) q.targetId = T.id;
   }
+  // M2: a parcel to carry; the giver's next job is of another kind (quests.cpp)
+  if (q.type == QType::Deliver) {
+    Item parcel;
+    parcel.kind = ItemKind::Quest; parcel.name = "PARCEL FOR " + q.subject; parcel.icon = art::Icon::Letter;
+    parcel.tint = rgba(200, 170, 120); parcel.questId = q.id; parcel.value = 0;
+    addItem(parcel, false);
+    q.flags |= QF_PARCEL;
+  }
+  if (q.giverSlot >= 0 || q.giverBldg >= 0) marks[markKey(npcKeyOf(q.giverSite, q.giverBldg, q.giverSlot), Mk::LastOffer)] = (int)q.type + 1;
   quests.push_back(q);
   // the opening stays tracked until the old blade is collected: an unarmed newcomer who takes a villager's job on
   // the way to the inn still has the pin over the inn door
@@ -582,6 +511,8 @@ void Game::acceptQuest(const Quest& q0) {
 
 void Game::completeQuest(Quest& q) {
   q.state = QState::Done;
+  // M2: a quest's own items (a parcel, a keepsake) go to whoever the quest was for
+  for (int i = (int)inv.size() - 1; i >= 0; i--) if (inv[(size_t)i].kind == ItemKind::Quest && inv[(size_t)i].questId == q.id) dropItem(i);
   giveGold(q.gold);
   gainXp(q.xp);
   npcQuestsDone[npcKeyOf(q.giverSite, q.giverBldg, q.giverSlot)]++;
@@ -623,10 +554,10 @@ void Game::checkDungeonCleared(int si) {
   sfx((int)Sfx::QuestDone, pl().p, 0.9f);
   bool forQuest = false;
   for (auto& q : quests) {
-    if (q.state == QState::Active && q.target == si && (q.type == QType::Clear || q.type == QType::Bounty)) {
+    if (q.state == QState::Active && q.target == si && (q.type == QType::Clear || q.type == QType::Bounty || q.type == QType::NamedBandit)) {
       q.state = QState::Complete;
       forQuest = true;
-      std::string m = rewardReadyMsg(world, q);
+      std::string m = (q.type == QType::NamedBandit ? q.subject + " IS DEAD. " : std::string()) + rewardReadyMsg(world, q);
       emit(Ev::QuestUpdate, pl().p, q.id, 2, m);
       say(m);
     }
@@ -745,6 +676,7 @@ bool Game::questTarget(int qid, int& tx, int& ty) const {
     tx = world.sites[t].ex; ty = world.sites[t].ey;
     return true;
   }
+  if (questTargetM2(*q, tx, ty)) return true;   // M2 quest types (quests.cpp)
   // an open hunt points at the quarry: the nearest one about (outdoors), else the nearest den of its kind, else the
   // giver's home (where the beasts are said to roam)
   if (q->type == QType::Hunt && q->state == QState::Active) {
@@ -842,6 +774,7 @@ std::string Game::questStatus(const Quest& q) const {
   const std::string inTown = town.empty() ? "" : " IN " + town;
   if (q.type == QType::Retrieve)
     return fitLine({"TALK TO THE INNKEEPER" + inTown, "TALK TO THE INNKEEPER"});
+  if (std::string m2 = questStatusM2(q); !m2.empty()) return m2;   // M2 quest types (quests.cpp)
   if (q.state == QState::Complete)
     return fitLine({"RETURN TO " + q.giverName + inTown, "RETURN TO " + q.giverName, "RETURN TO" + inTown});
   if (q.type == QType::Hunt) {
@@ -895,6 +828,20 @@ void Game::talkTo(Actor& a) {
   dlg.actor = a.id;
   dlg.speaker = a.name;
   dlg.role = a.role;
+  // M2: a toll bridge's troll asks its toll; a missing person found in a cave asks to be led out
+  if (a.npc && !a.human && a.mon == Monster::Troll) { tollTalk(a); return; }
+  if (a.quest > 0) {
+    const Quest* q = questById(a.quest);
+    if (q && q->state == QState::Active && !(q->flags & QF_FOUND)) {
+      dlg.text = "YOU CAME FOR ME? " + q->giverName + " SENT YOU? THANK THE GODS. I CAN'T FIND THE WAY OUT, AND THERE ARE THINGS IN THE DARK.";
+      dlg.opts.push_back({"STAY CLOSE. I'LL GET YOU OUT.", A_ESCORT, q->id});
+    } else if (q && q->state == QState::Active) dlg.text = "I'M RIGHT BEHIND YOU. JUST GET US OUT OF HERE.";
+    else dlg.text = "I'LL FIND MY OWN WAY HOME FROM HERE. TELL " + (q ? q->giverName : std::string("THEM")) + " I'M SAFE!";
+    dlg.opts.push_back({"FAREWELL.", A_BYE, 0});
+    mode = Mode::Dialogue;
+    sfx((int)Sfx::Talk, a.p);
+    return;
+  }
   dlg.text = greeting(a);
   // the background shows in how people talk to you (and what they charge)
   {
@@ -910,11 +857,9 @@ void Game::talkTo(Actor& a) {
   // a reward waiting comes first: the first option collects it
   for (auto& q : quests)
     if (q.state == QState::Complete && q.type != QType::Main && isGiver(q, a)) {
-      bool bounty = q.type == QType::Bounty || q.type == QType::Hunt;
+      bool bounty = q.type == QType::Bounty || q.type == QType::Hunt || q.type == QType::NamedBandit;
       dlg.opts.push_back({std::string(bounty ? "COLLECT BOUNTY (+" : "COLLECT REWARD (+") + std::to_string(q.gold) + " GOLD)", A_TURNIN, q.id});
-      dlg.text = (q.target >= 0 && q.target < (int)world.sites.size() ? "YOU'RE BACK! THEY SAY " + world.sites[q.target].name + " HAS GONE QUIET."
-                                                                        : std::string("YOU'RE BACK, AND THE ") + monsterPlural(q.mon) + " ARE THINNED OUT.") +
-                 " I OWE YOU " + std::to_string(q.gold) + " GOLD.";
+      dlg.text = turnInLine(q);
     }
   // main quest hooks
   for (auto& q : quests) {
@@ -939,15 +884,18 @@ void Game::talkTo(Actor& a) {
       }
       break;
     }
+  if (std::string t = questDialogue(a); !t.empty()) dlg.text = t;   // M2: a parcel's recipient (quests.cpp)
   if (hasOffer(a)) dlg.opts.push_back({a.role == Role::Innkeeper ? "ANY WORK GOING?" : "DO YOU NEED HELP?", A_ASK, 0});
-  if (a.role == Role::Merchant || a.role == Role::Smith || a.role == Role::Mage || a.role == Role::Priest || a.role == Role::Innkeeper)
+  if (a.role == Role::Merchant || a.role == Role::Smith || a.role == Role::Mage || a.role == Role::Priest || a.role == Role::Innkeeper ||
+      a.role == Role::Hunter || a.role == Role::Fisher || a.role == Role::Herbalist)
     dlg.opts.push_back({"LET ME SEE YOUR WARES.", A_TRADE, 0});
+  if (a.role == Role::Traveller) dlg.opts.push_back({"ANY NEWS FROM THE ROAD?", A_NEWS, 0});
   if (a.role == Role::Innkeeper) {
     // M0b: a room already paid for is not charged again; in its last hour (from 11:00 on the due day) there is no
     // sleep left in it, so the innkeeper lets you a fresh room instead
     bool mine = lodgingActive() && inside && lodging.bldg == subBldg && lodgingSleepHours(day, hour, lodging.untilDay) > 0;
     dlg.opts.push_back({mine ? "ABOUT MY ROOM..." : "RENT A ROOM (10 GOLD)", A_REST, mine ? 0 : 10});
-    dlg.opts.push_back({"HEARD ANY RUMORS?", A_RUMOR, 0});
+    dlg.opts.push_back({"BUY A RUMOUR (10 GOLD)", A_RUMOR, 10});
   }
   if (a.role == Role::Priest) dlg.opts.push_back({"BLESS ME.", A_HEAL, 0});
   if (a.role == Role::Mage) {
@@ -1059,48 +1007,84 @@ void Game::dialogueChoose(int oi) {
       return;
     }
     case A_RUMOR: {
-      // reveal an undiscovered dungeon nearby
-      int best = -1; float bd = 1e30f;
-      const Actor& p = pl();
-      for (int i = 0; i < (int)world.sites.size(); i++) {
-        const Site& s = world.sites[i];
-        if (s.discovered || (s.type != SiteType::Cave && s.type != SiteType::Ruin && s.type != SiteType::BanditCamp && s.type != SiteType::Shrine)) continue;
-        float d = std::hypot(s.ex * 16.0f - p.p.x, s.ey * 16.0f - p.p.y);
-        if (d < bd) { bd = d; best = i; }
-      }
-      if (best < 0) dlg.text = "CAN'T SAY I'VE HEARD ANYTHING NEW.";
+      // M2 rumours (wayside.cpp): the nearest place the player has not heard of goes on the map as rumoured
+      if (gold < o.arg) { dlg.text = "NO GOLD, NO GOSSIP. THE ALE ISN'T FREE EITHER."; return; }
+      const std::string line = hearRumour();
+      if (line.empty()) dlg.text = "CAN'T SAY I'VE HEARD ANYTHING NEW. KEEP YOUR COIN.";
       else {
-        world.sites[best].discovered = true;
-        dlg.text = "THEY SAY THERE'S A PLACE CALLED " + world.sites[best].name + " NOT FAR FROM HERE. I'VE MARKED IT ON YOUR MAP.";
+        gold -= o.arg;
+        sfx((int)Sfx::Coin, pl().p);
+        dlg.text = "THEY SAY THERE'S " + line + ". I'VE MARKED IT ON YOUR MAP.";
       }
-      for (size_t k = 0; k < dlg.opts.size(); k++) if (dlg.opts[k].action == A_RUMOR) { dlg.opts.erase(dlg.opts.begin() + k); break; }
+      for (size_t k = 0; k < dlg.opts.size(); k++) if (dlg.opts[k].action == A_RUMOR) { dlg.opts.erase(dlg.opts.begin() + (std::ptrdiff_t)k); break; }
+      return;
+    }
+    case A_NEWS: {
+      // a traveller's news: one rumour a day, free
+      const uint64_t k = markKey(ai >= 0 ? npcKey(actors[(size_t)ai]) : 0, Mk::News);
+      auto it = marks.find(k);
+      if (it != marks.end() && it->second == day) dlg.text = "THAT'S ALL I KNOW FOR NOW. ASK ME AGAIN TOMORROW, IF WE'RE BOTH STILL ON THE ROAD.";
+      else {
+        const std::string line = hearRumour();
+        if (line.empty()) dlg.text = "THE ROADS HAVE BEEN QUIET. NOTHING WORTH THE TELLING.";
+        else { marks[k] = day; dlg.text = "ON MY WAY HERE I PASSED " + line + ". MIND HOW YOU GO."; }
+      }
+      for (size_t k2 = 0; k2 < dlg.opts.size(); k2++) if (dlg.opts[k2].action == A_NEWS) { dlg.opts.erase(dlg.opts.begin() + (std::ptrdiff_t)k2); break; }
       return;
     }
     case A_ASK:
       if (ai < 0) return;
       pendingOffer_ = makeOffer(actors[ai]);
-      {
-        // the log keeps the third-person description; spoken aloud, the giver says "me", not their own name
-        std::string pitch = pendingOffer_.desc;
-        const std::string& nm = pendingOffer_.giverName;
-        auto rep = [&](const std::string& from, const std::string& to) {
-          for (size_t at = pitch.find(from); at != std::string::npos; at = pitch.find(from, at + to.size())) pitch.replace(at, from.size(), to);
-        };
-        if (pendingOffer_.giverSite >= 0) rep("TO " + nm + " IN " + world.sites[pendingOffer_.giverSite].name + ".", "TO ME.");
-        rep("REPORT TO " + nm + ".", "REPORT BACK TO ME.");
-        rep("FROM " + nm + ".", "FROM ME.");
-        rep("AND " + nm + " WILL PAY YOU.", "AND I WILL PAY YOU.");
-        rep("TO " + nm + ".", "TO ME.");
-        dlg.text = pitch + " REWARD: " + std::to_string(pendingOffer_.gold) + " GOLD.";
-      }
+      dlg.text = pendingPitch_.empty() ? pendingOffer_.desc + " REWARD: " + std::to_string(pendingOffer_.gold) + " GOLD." : pendingPitch_;
       dlg.opts = {{"I'LL DO IT.", A_ACCEPT, 0}, {"NOT RIGHT NOW.", A_DECLINE, 0}};
       return;
     case A_ACCEPT:
       acceptQuest(pendingOffer_);
-      dlg.text = "THANK YOU. COME BACK WHEN IT'S DONE.";
+      dlg.text = pendingOffer_.type == QType::Deliver ? "HERE'S THE PARCEL. KEEP IT DRY, AND KEEP IT SHUT."
+                 : pendingOffer_.type == QType::Protect ? "THEN BE AT THE FIELDS BY NIGHTFALL. THEY COME AFTER DARK."
+                 : "THANK YOU. COME BACK WHEN IT'S DONE.";
       dlg.opts = {{"FAREWELL.", A_BYE, 0}};
       return;
     case A_DECLINE: mode = Mode::Play; return;
+    case A_DELIVER:
+      for (auto& q : quests)
+        if (q.id == o.arg && q.type == QType::Deliver && q.state == QState::Active) {
+          completeQuest(q);   // the recipient pays (the parcel leaves the pack)
+          dlg.text = "AT LAST! YOU HAVE MY THANKS, AND " + std::to_string(q.gold) + " GOLD AS PROMISED. TELL " + q.giverName + " IT CAME SAFE.";
+          break;
+        }
+      dlg.opts = {{"FAREWELL.", A_BYE, 0}};
+      return;
+    case A_ESCORT:
+      for (auto& q : quests)
+        if (q.id == o.arg && q.type == QType::Missing && q.state == QState::Active) {
+          q.flags |= QF_FOUND;
+          const std::string place = q.target >= 0 && q.target < (int)world.sites.size() ? world.sites[(size_t)q.target].name : std::string("HERE");
+          emit(Ev::QuestUpdate, pl().p, q.id, 2, q.subject + " FOLLOWS YOU: LEAD THEM OUT OF " + place);
+          sfx((int)Sfx::QuestStart, pl().p, 1.1f);
+        }
+      mode = Mode::Play;
+      return;
+    case A_TOLLPAY: {
+      const int si = o.arg, toll = tollOf(si);
+      if (gold < toll) { dlg.text = "NO GOLD, NO CROSSING. COME BACK RICHER."; dlg.opts = {{"FAREWELL.", A_BYE, 0}}; return; }
+      gold -= toll;
+      if (si >= 0 && si < (int)world.sites.size()) marks[markKey(world.sites[(size_t)si].id, Mk::Toll)] = day;
+      sfx((int)Sfx::Coin, pl().p);
+      dlg.text = dlg.speaker + " COUNTS THE COINS TWICE. \"CROSS, LITTLE ONE. TODAY ONLY.\"";
+      dlg.opts = {{"FAREWELL.", A_BYE, 0}};
+      return;
+    }
+    case A_TOLLREFUSE:
+      if (ai >= 0) {
+        Actor& t = actors[(size_t)ai];
+        t.hostile = true; t.npc = false; t.faction = Faction::Monster; t.aggro = true; t.target = pl().id;
+        sfx((int)Sfx::Roar, t.p);
+        emit(Ev::Shake, t.p, 0, 3);
+      }
+      mode = Mode::Play;
+      say("THE TROLL ROARS AND COMES FOR YOU!");
+      return;
     case A_TURNIN:
       for (auto& q : quests) if (q.id == o.arg && q.state == QState::Complete) { completeQuest(q); break; }
       dlg.text = "YOU HAVE MY THANKS. HERE, YOU'VE EARNED THIS.";
@@ -1173,6 +1157,31 @@ std::vector<Item> Game::shopStock(const Actor& a) {
       s.push_back(makePotion(PotionType::Health, 1)); s.back().count = 3;
       s.push_back(makePotion(PotionType::Magicka, 0)); s.back().count = 3;
       s.push_back(makeJewel(r, lvl));
+      break;
+    // M2 wayside traders (wayside.cpp): a hunter's pelts, meat and arrows; a fisher's catch; an herbalist's herbs and potions
+    case Role::Hunter:
+      s.push_back(makeMisc(0)); s.back().count = 3;
+      s.push_back(makeMisc(8)); s.back().count = 2;
+      if (r.f() < 0.5f) s.push_back(makeMisc(9));
+      s.push_back(makeFood(1)); s.back().count = 4;
+      s.push_back(makeFood(7)); s.back().count = 3;
+      s.push_back(makeArrows(40));
+      s.push_back(makeBow(r, lvl));
+      break;
+    case Role::Fisher:
+      s.push_back(makeFood(4)); s.back().count = 6;
+      s.push_back(makeFood(5)); s.back().count = 3;
+      s.push_back(makeFood(6)); s.back().count = 2;
+      break;
+    case Role::Herbalist:
+      s.push_back(makeMisc(7)); s.back().count = 4;
+      s.push_back(makeMisc(10)); s.back().count = 2;
+      s.push_back(makeMisc(11)); s.back().count = 3;
+      s.push_back(makeMisc(12)); s.back().count = 5;
+      s.push_back(makePotion(PotionType::Health, 0)); s.back().count = 3;
+      s.push_back(makePotion(PotionType::Stamina, 0)); s.back().count = 2;
+      s.push_back(makePotion(PotionType::Magicka, 0)); s.back().count = 2;
+      s.push_back(makeFood(8)); s.back().count = 3;
       break;
     case Role::Innkeeper:
       s.push_back(makeFood(0)); s.back().count = 6;
@@ -1247,105 +1256,42 @@ bool Game::sell(int ii) {
   return true;
 }
 
-// ------------------------------------------------------------------ travel / death
-bool Game::fastTravel(int si) {
-  if (si < 0 || si >= (int)world.sites.size() || !world.sites[si].discovered) return false;
-  for (const Actor& a : actors) if (a.hostile && a.aggro && a.st != AState::Dead && len2(a.p - pl().p) < 120 * 120) { say("YOU CANNOT TRAVEL WITH ENEMIES NEARBY"); return false; }
-  if (inside) leaveSub();
-  const Site s = world.sites[si];   // a copy: placing the player may move the endless window
-  float dist = std::hypot(s.ex * 16.0f - pl().p.x, s.ey * 16.0f - pl().p.y) / 16.0f;
-  hour += dist / 30.0f;
-  while (hour >= 24) { hour -= 24; day++; }
-  clearNonPlayer();
-  // (settlements: a few tiles south of the square's centrepiece, whose fountain blocks the tiles beside and above it,
-  //  so the first step after arriving is onto open paving)
-  int ty = s.ey + (s.type == SiteType::Cave ? 2 : (s.type == SiteType::Ruin ? 4 : s.settlement() ? 3 : 1));
-  // arrive at the edge of hostile places, not in the bandit chief's lap or under the dragon
-  if (s.type == SiteType::BanditCamp) ty = s.r.y + s.r.h + 4;
-  if (s.type == SiteType::DragonLair) ty = s.ey + 5;
-  placePlayerAt(s.ex, ty);
-  // (M1 round 3) arrive in the open: a settlement's square is full of stalls, crates and wells, and landing on the
-  // tile just north of one hid the hero under its awning with the way south blocked. Take the nearest tile with open
-  // ground around it and two clear tiles south of it (nothing standing in front of the hero, a free first step).
-  if (s.settlement()) {
-    const Map& m = map();
-    const int px = (int)std::floor(pl().p.x / TILE), py = (int)std::floor(pl().p.y / TILE);
-    auto open = [&](int x, int y) {
-      for (int dy = -1; dy <= 2; dy++)
-        for (int dx = -1; dx <= 1; dx++) {
-          if (m.blocked(x + dx, y + dy)) return false;
-          if (dy >= 0 && m.propAt(x + dx, y + dy) > 0) return false;   // nothing standing in front (low clutter too)
-        }
-      // no house just south either: its roof would rise over the hero
-      for (int dy = 3; dy <= 5; dy++)
-        if (m.in(x, y + dy) && !m.bldgAt.empty() && m.bldgAt[(size_t)(y + dy) * m.w + x] >= 0) return false;
-      return true;
-    };
-    bool found = false;
-    for (int r = 0; r <= 10 && !found; r++)
-      for (int oy = -r; oy <= r && !found; oy++)
-        for (int ox = -r; ox <= r && !found; ox++) {
-          if (std::max(std::abs(ox), std::abs(oy)) != r) continue;
-          if (open(px + ox, py + oy)) { pl().p = Vec2((px + ox) * TILE + 8.0f, (py + oy) * TILE + 10.0f); found = true; }
-        }
-  }
-  sleepFade = 1.2f;
-  mode = Mode::Play;
-  updateLocation();
-  emit(Ev::MapChange, pl().p);
-  return true;
-}
-
-void Game::respawn() {
-  if (inside) { inside = false; subBldg = -1; subSite = -1; subFloor = 0; sub = Map(); }
-  clearNonPlayer();
-  int si = lastTown >= 0 ? lastTown : world.startSite;
-  const Site s = world.sites[si];   // a copy: placing the player may move the endless window and load more sites
-  placePlayerAt(s.r.cx(), s.r.cy() + 1);
-  Actor& p = pl();
-  p.st = AState::Idle; p.stT = 0; p.hp = p.maxHp; p.burnT = 0; p.slowT = 0;
-  p.knock = Vec2(); p.vel = Vec2(); p.iframes = 1.5f;   // a moment of grace after waking
-  mp = maxMp; stamina = maxSt;
-  int lost = gold / 10;
-  gold -= lost;
-  mode = Mode::Play;
-  sleepFade = 1.5f;
-  say(lost > 0 ? "YOU WAKE IN " + s.name + ". LOST " + std::to_string(lost) + " GOLD." : "YOU WAKE IN " + s.name + ".");
-  updateLocation();
-  emit(Ev::MapChange, p.p);
-}
+// travel and death: rpg/sim/travel.cpp (M2)
 
 // ------------------------------------------------------------------ save / load
-// SAVE_VER 5 (M1). Owner, 2026-10-04: old saves are not a concern, so only this version loads; an older file is refused
-// and the title offers a new game ("this save is from an older version"). Until M1 ships the SIM lane may change this
-// layout in place (regenerate tests/fixtures/save_v5.bin with `save_test --make-fixture` when it does); after that,
-// any change bumps SAVE_VER.
+// SAVE_VER 6 (M2). Owner, 2026-10-04: old saves are not a concern, so only this version loads; an older file is refused
+// and the title offers a new game ("this save is from an older version"). The layout is frozen for M2 after phase A
+// (the lanes fill the new fields, they do not move them); any later change bumps SAVE_VER and regenerates
+// tests/fixtures/save_v6.bin with `save_test --make-fixture`.
 //
 // Everything that points into the world is saved by stable id (Gid), never by handle (a vector index), because an
 // endless world loads its sites and buildings in whatever order the player walked: sites by Site::id, buildings by
 // (Bldg::id, owner Site::id), map keys (looted chests, killed spawns) as (kind, id, floor). Overworld chests of an
-// endless world are keyed by global tile (Game::lootKey). The classic island uses the same path with its legacy ids.
+// endless world are keyed by global tile (Game::lootKey). M2 retired the classic island: worldKind is always 1.
 //
-//   header   magic 'EMBV', ver 5, worldKind u8 (0 classic, 1 endless), genVer u32 (classic WORLDGEN_* or
-//            ew::ENDLESS_GEN_VER), fingerprint u32 (classic; 0 endless), seed u64, time f32, hour f32, day i32
-//   endless  window origin ox i32, oy i32 (positions below are window-local pixels)
+//   header   magic 'EMBV', ver 6, worldKind u8 (1 endless; anything else is refused), genVer u32 (ew::ENDLESS_GEN_VER),
+//            seed u64, time f32, hour f32, day i32
+//   window   origin ox i32, oy i32 (positions below are window-local pixels)
 //   where    inside u8, subSite (site ref), subBldg (bldg ref), subFloor i32, x f32, y f32
 //   player   hp, mp, stamina f32; level, xp, gold, perk points i32; baseHp, maxMp, maxSt f32; inventory; 11 equip
 //            slots i32; spellsKnown u8, spell u8; kills, dungeons i32; blessT f32, blessName str; lastTown (site ref)
 //   quests   count, then id, type, state, title, desc, giverName, giverSite (site ref), giverBldg (bldg ref),
-//            giverSlot i32, target (site ref), mon u8, need, have, gold, xp, stage i32; nextQuestId, trackedQuest i32
+//            giverSlot i32, target (site ref), mon u8, need, have, gold, xp, stage i32,
+//            (v6) targetId u64, hasPos u8, tgx i32, tgy i32, giverId u64, subject str, destBldg (bldg ref),
+//            deadlineDay i32, flags u32; then nextQuestId, trackedQuest i32
 //   npcs     count, then npcKey u64 (already id-based) + done i32
 //   looted   count, then (map ref, tile u32) or an endless overworld key (map kind 0xE + the raw key)
 //   killed   count, then (map ref, n, n values: site ref + slot for overworld spawns (slot < 4096), den id + day for
 //            dens, slot otherwise)
-//   sites    count, then site id u64 + flags u8 (1 discovered, 2 cleared)
+//   sites    count, then site id u64 + flags u8 (1 discovered, 2 cleared, 4 rumoured)
 //   char     background u8, storyFlags u32, appearance (u16 length + fields)
 //   lodging  bldg ref, floor i32, room i32, untilDay i32
 //   explored count, then rx i32, ry i32, 128 bytes (the fog-of-war bits of one region)
+//   marks    (v6) count, then key u64 + value i32, in key order
 // refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
 // 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 5;
+static constexpr uint32_t SAVE_VER = 6;
 
 int Game::currentSaveVersion() { return (int)SAVE_VER; }
 int Game::saveVersion(const std::vector<uint8_t>& in) {
@@ -1361,7 +1307,7 @@ bool Game::saveFromOlderGenerator(const std::vector<uint8_t>& in) {
   const bool endless = r.u8() == 1;
   const int genVer = (int)r.u32();
   if (r.bad) return false;
-  return endless ? genVer < ew::ENDLESS_GEN_VER : genVer < WORLDGEN_V1;
+  return !endless || genVer < ew::ENDLESS_GEN_VER;
 }
 
 namespace {
@@ -1406,7 +1352,6 @@ struct Refs {
   // an id that is not a site's (a damaged or foreign save) loads as "none", never as some other record
   int siteFrom(ew::Gid id) const {
     if (!id) return -1;
-    if (!w.endless) { int h = w.siteHandle(id); return h; }
     return w.ensureSite(id);
   }
   void bldg(BinW& o, int h) const {
@@ -1455,11 +1400,10 @@ void Game::serialize(std::vector<uint8_t>& out) const {
   BinW w(out);
   Refs R{const_cast<World&>(world)};
   w.u32(SAVE_MAGIC); w.u32(SAVE_VER);
-  w.u8(world.endless ? 1 : 0);
-  w.u32(world.endless ? (uint32_t)ew::ENDLESS_GEN_VER : (uint32_t)world.genVersion);
-  w.u32(world.endless ? 0u : world.fingerprint());
+  w.u8(1);
+  w.u32((uint32_t)ew::ENDLESS_GEN_VER);
   w.u64(seed); w.f32(time); w.f32(hour); w.i32(day);
-  if (world.endless) { w.i32(world.ox); w.i32(world.oy); }
+  w.i32(world.ox); w.i32(world.oy);
   const Actor& p = pl();
   w.u8(inside ? 1 : 0);
   w.u64(R.site(inside ? subSite : -1));
@@ -1480,6 +1424,8 @@ void Game::serialize(std::vector<uint8_t>& out) const {
     w.i32(q.id); w.u8((uint8_t)q.type); w.u8((uint8_t)q.state); w.str(q.title); w.str(q.desc); w.str(q.giverName);
     w.u64(R.site(q.giverSite)); R.bldg(w, q.giverBldg); w.i32(q.giverSlot); w.u64(R.site(q.target)); w.u8((uint8_t)q.mon);
     w.i32(q.need); w.i32(q.have); w.i32(q.gold); w.i32(q.xp); w.i32(q.stage);
+    w.u64(q.targetId); w.u8(q.hasPos ? 1 : 0); w.i32(q.tgx); w.i32(q.tgy); w.u64(q.giverId); w.str(q.subject);
+    R.bldg(w, q.destBldg); w.i32(q.deadlineDay); w.u32(q.flags);
   }
   w.i32(nextQuestId); w.i32(trackedQuest);
   w.u32((uint32_t)npcQuestsDone.size());
@@ -1526,7 +1472,8 @@ void Game::serialize(std::vector<uint8_t>& out) const {
   }
   {
     std::vector<std::pair<uint64_t, uint8_t>> fl;
-    for (const Site& s : world.sites) if (s.discovered || s.cleared) fl.push_back({s.id, (uint8_t)((s.discovered ? 1 : 0) | (s.cleared ? 2 : 0))});
+    for (const Site& s : world.sites)
+      if (s.discovered || s.cleared || s.rumoured) fl.push_back({s.id, (uint8_t)((s.discovered ? 1 : 0) | (s.cleared ? 2 : 0) | (s.rumoured ? 4 : 0))});
     std::sort(fl.begin(), fl.end());
     w.u32((uint32_t)fl.size());
     for (auto& f : fl) { w.u64(f.first); w.u8(f.second); }
@@ -1543,6 +1490,8 @@ void Game::serialize(std::vector<uint8_t>& out) const {
     w.i32(ExploredMask::keyRx(k)); w.i32(ExploredMask::keyRy(k));
     for (uint8_t b : explored.regions.at(k)) w.u8(b);
   }
+  w.u32((uint32_t)marks.size());   // (std::map: already in key order)
+  for (auto& kv : marks) { w.u64(kv.first); w.i32(kv.second); }
 }
 
 bool Game::deserialize(const std::vector<uint8_t>& in) {
@@ -1551,13 +1500,12 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   if (r.u32() != SAVE_VER || r.bad) return false;   // older (or newer) saves are not loaded: the title says so
   const bool endless = r.u8() == 1;
   const int genVer = (int)r.u32();
-  const uint32_t fp = r.u32();
   const uint64_t sd = r.u64();
   const float t = r.f32(), hr = r.f32();
   const int dy = r.i32();
-  if (r.bad) return false;
-  if (endless) {
-    if (genVer != ew::ENDLESS_GEN_VER) return false;   // made by another endless generator
+  if (r.bad || !endless) return false;                 // (M2: the classic island is retired)
+  if (genVer != ew::ENDLESS_GEN_VER) return false;     // made by another endless generator
+  {
     int32_t wox = r.i32(), woy = r.i32();
     if (r.bad || std::abs(wox) > ew::WORLD_EDGE + 4096 || std::abs(woy) > ew::WORLD_EDGE + 4096) return false;
     // the window is built once, where the save was made (not at the start first): a load behind the fade
@@ -1565,11 +1513,6 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
     rng_ = Rng(sd ^ 0xABCDEF);
     world.generateEndlessAt(sd, wox, woy);
     resetSession();
-    worldChanged = false;
-  } else {
-    if (genVer < WORLDGEN_V1 || genVer > WORLDGEN_LATEST) return false;
-    newGame(sd, genVer);
-    worldChanged = fp != world.fingerprint();
   }
   Refs R{world};
   time = t; hour = hr; day = dy;
@@ -1599,8 +1542,10 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
     q.giverSite = R.siteFrom(r.u64()); q.giverBldg = R.bldgFrom(r); q.giverSlot = r.i32(); q.target = R.siteFrom(r.u64());
     q.mon = (Monster)r.u8();
     q.need = r.i32(); q.have = r.i32(); q.gold = r.i32(); q.xp = r.i32(); q.stage = r.i32();
+    q.targetId = r.u64(); q.hasPos = r.u8() != 0; q.tgx = r.i32(); q.tgy = r.i32(); q.giverId = r.u64(); q.subject = r.str();
+    q.destBldg = R.bldgFrom(r); q.deadlineDay = r.i32(); q.flags = r.u32();
     // (a damaged save: out-of-range kinds load as harmless defaults, never as indices past a table)
-    if ((int)q.type > (int)QType::Bounty) q.type = QType::Hunt;
+    if ((int)q.type >= (int)QType::COUNT) q.type = QType::Hunt;
     if ((int)q.state > (int)QState::Done) q.state = QState::Done;
     if ((int)q.mon >= (int)Monster::COUNT) q.mon = Monster::Wolf;
     if (q.type == QType::Main) q.stage = std::clamp(q.stage, 0, 4);
@@ -1639,7 +1584,9 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
     ew::Gid id = r.u64();
     uint8_t f = r.u8();
     int s = R.siteFrom(id);
-    if (s >= 0) { world.sites[(size_t)s].discovered = f & 1; world.sites[(size_t)s].cleared = (f & 2) != 0; }
+    if (s >= 0) {
+      world.sites[(size_t)s].discovered = f & 1; world.sites[(size_t)s].cleared = (f & 2) != 0; world.sites[(size_t)s].rumoured = (f & 4) != 0;
+    }
   }
   uint8_t bg = r.u8();
   background = bg < (uint8_t)Background::COUNT ? (Background)bg : Background::None;
@@ -1657,13 +1604,12 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
     for (uint8_t& b : m) b = r.u8();
     explored.regions[ExploredMask::key(rx, ry)] = std::move(m);
   }
+  n = r.u32();
+  if (n > 1000000) return false;
+  marks.clear();
+  for (uint32_t i = 0; i < n && !r.bad; i++) { uint64_t k = r.u64(); marks[k] = r.i32(); }
   if (r.bad) return false;
-  // re-apply looted overworld chests (classic: by tile index; endless: by global tile)
-  for (uint64_t k : looted)
-    if ((k >> 32) == 0) {
-      uint32_t i = (uint32_t)k;
-      if (i < world.over.prop.size() && world.over.prop[i] == (int)Prop::Chest + 1) world.over.prop[i] = (int)Prop::ChestOpen + 1;
-    }
+  // re-apply looted overworld chests (by global tile)
   world.over.rebuildSolid();
   reapplyLooted();
   recalcPlayer();

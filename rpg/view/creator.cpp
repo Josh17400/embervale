@@ -38,13 +38,28 @@ constexpr int kNameCount = (int)(sizeof kNames / sizeof kNames[0]);
 constexpr int kNameMax = 12;
 constexpr int kNBg = (int)Background::COUNT - 1;   // the creator offers every background but None
 
-// ---- layout
-constexpr float kRX = 164, kRW = 304;                    // right column
+// ---- layout (M2: from the box, which is the whole safe area; at 480 x 270 exactly the M0 layout the scripts tap)
+float kRX = 164, kRW = 304;                    // right column
 constexpr float kTabY = 22, kTabH = 24;
-constexpr float kRowY = 50, kRowH = 24;
-constexpr float kBotY = 244, kBotH = 24;
-constexpr float kLX = 10, kLW = 146;                     // preview column
-constexpr float kArrowW = 26, kValX = kRX + 126, kValW = kRW - 126 - 2 * kArrowW - 8;
+constexpr float kRowY = 50;
+float kRowH = 24;
+float kBotY = 244;
+constexpr float kBotH = 24;
+constexpr float kLX = 10;
+float kLW = 146;                               // preview column
+float kArrowW = 26, kValX = kRX + 126, kValW = kRW - 126 - 2 * kArrowW - 8;
+float kKeyW = 30;                              // the NAME tab's letter keys
+void relayout(int W, int H) {
+  kLW = 146 + std::floor(std::max(0, W - 480) * 0.3f);
+  kRX = kLX + kLW + 8;
+  kRW = (float)W - 12 - kRX;
+  kBotY = (float)H - 26;
+  kRowH = std::max(24.0f, std::floor((kBotY - 6 - kRowY) / 8));
+  kArrowW = W >= 560 ? 30.0f : 26.0f;
+  kValX = kRX + 126 + std::floor(std::max(0.0f, kRW - 304) * 0.2f);
+  kValW = kRX + kRW - kValX - 2 * kArrowW - 8;
+  kKeyW = 30 + std::floor(std::max(0.0f, kRW - 304) / 9 * 0.6f);
+}
 
 // ---- state (one View, one creator)
 struct CState {
@@ -194,6 +209,7 @@ void View::drawCreator(Game& g) {
   const UiBox box = uiBox(270);
   P.pushBox(box.x, box.y, box.w, box.h);
   struct Pop { Pix& p; ~Pop() { p.popBox(); } } pop{P};
+  relayout(Pix::W, Pix::H);
   P.textS(Pix::W / 2.0f, 7, "WHO ARE YOU?", 1, kGoldC, 1);
 
   // ---- preview: the hero walks on the spot and turns; a warm light behind, a shadow below
@@ -201,7 +217,7 @@ void View::drawCreator(Game& g) {
   std::string nm = a.name.empty() ? std::string("_") : a.name;
   P.textS(kLX + kLW / 2, kTabY + 8, nm, 1, kGoldC, 1);
   P.text(kLX + kLW / 2, kTabY + 19, backgroundInfo(g.background).name, 1, kDimC, 1);
-  float cx = kLX + kLW / 2, footY = kTabY + 168;
+  float cx = kLX + kLW / 2, footY = kBotY - 54;
   heroStage(P, light_, cx, footY, 1.0f);
   static const int order[4] = {0, 2, 1, 3};
   int face = S.face >= 0 && S.faceHold > 0 ? S.face : order[(int)(t_ / 2.2f) & 3];
@@ -261,7 +277,7 @@ void View::drawCreator(Game& g) {
     P.textS(kRX + kRW / 2, kRowY + 21, shown, 2, Color(1, 0.95f, 0.82f), 1);
     button(kRX + 10, kRowY + 46, 140, 24, "RANDOM NAME", false);
     button(kRX + kRW - 150, kRowY + 46, 140, 24, "DELETE", false);
-    const float kw = 30, kh = 24, gap = 3, x0 = kRX + (kRW - (9 * kw + 8 * gap)) / 2, y0 = kRowY + 78;
+    const float kw = kKeyW, kh = 24, gap = 3, x0 = kRX + (kRW - (9 * kw + 8 * gap)) / 2, y0 = kRowY + 78;
     for (int i = 0; i < 27; i++) {
       float x = x0 + (i % 9) * (kw + gap), y = y0 + (i / 9) * (kh + gap);
       std::string k = i < 26 ? std::string(1, (char)('A' + i)) : std::string("SPC");
@@ -342,7 +358,9 @@ void View::creatorKey(Game& g, int key) {
 
 void View::creatorTap(Game& g, Vec2 p) {
   ensureInit(g);
-  p = inBox(uiBox(270), p);   // drawCreator's box
+  const UiBox box = uiBox(270);
+  p = inBox(box, p);   // drawCreator's box
+  relayout(box.w, box.h);
   Appearance& a = g.app;
   auto move = [&]() { audio_->play(Sfx::MenuMove); };
   // preview turn buttons
@@ -380,7 +398,7 @@ void View::creatorTap(Game& g, Vec2 p) {
   } else if (S.tab == 1) {
     if (inR(p, kRX + 10, kRowY + 46, 140, 24)) { S.nameHint = g_rng.irange(kNameCount); a.name = kNames[S.nameHint]; move(); return; }
     if (inR(p, kRX + kRW - 150, kRowY + 46, 140, 24)) { if (!a.name.empty()) a.name.pop_back(); move(); return; }
-    const float kw = 30, kh = 24, gap = 3, x0 = kRX + (kRW - (9 * kw + 8 * gap)) / 2, y0 = kRowY + 78;
+    const float kw = kKeyW, kh = 24, gap = 3, x0 = kRX + (kRW - (9 * kw + 8 * gap)) / 2, y0 = kRowY + 78;
     for (int i = 0; i < 27; i++) {
       float x = x0 + (i % 9) * (kw + gap), y = y0 + (i / 9) * (kh + gap);
       if (!inR(p, x, y, kw, kh)) continue;

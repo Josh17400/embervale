@@ -2,7 +2,6 @@
 # so the innkeeper lets you a fresh room (paid again) instead of offering a bed you cannot use.
 #   embervale.exe --script tools/scripts/m0b_inn_noon.txt [--seed 19]      (also seeds 2, 7)
 # Exit code 3 if an expect/walkto fails.
-worldgen 7   # M1: written against the classic island (generator v7); new games are endless now
 seed 19
 0.3  newgame
 0.5  expect mode play

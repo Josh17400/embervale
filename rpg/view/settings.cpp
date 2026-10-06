@@ -15,18 +15,23 @@ const Color kGold(0.98f, 0.82f, 0.42f), kText(0.93f, 0.9f, 0.82f), kDim(0.62f, 0
 enum Row { R_SCREEN, R_BORDER, R_HUD, R_TOUCH, R_DONE, R_COUNT };
 const char* kRowName[R_COUNT] = {"SCREEN", "BORDER", "HUD MARGIN", "TOUCH CONTROLS", ""};
 
-// the layout on the 480 x 270 box, shared by drawing and taps
-struct Lay { float x, y, w, h, rowY, pitch, rowH, arrowL, valX, valW, arrowR, arrowW; };
+// the layout, shared by drawing and taps (M2: from the box, which is the whole safe area; at 480 x 270 the panel is
+// 34..446 x 12..258 as before, on a phone it widens to the safe area, up to 560, and grows with its height)
+struct Lay { float x, y, w, h, cx, rowY, pitch, rowH, arrowL, valX, valW, arrowR, arrowW; };
 Lay lay(bool touch) {
   Lay L;
-  L.x = 34; L.y = 12; L.w = 412; L.h = 246;
-  L.rowY = 58;
+  L.w = std::min((float)Pix::W - 68, 560.0f);
+  L.x = std::floor((Pix::W - L.w) / 2);
+  L.cx = std::floor(Pix::W / 2.0f);
+  L.h = std::min((float)Pix::H - 24, 300.0f);
+  L.y = std::floor((Pix::H - L.h) / 2);
+  L.rowY = L.y + 46;
   L.pitch = touch ? 30.0f : 26.0f;
   L.rowH = touch ? 26.0f : 22.0f;
   L.arrowW = touch ? 30.0f : 24.0f;
-  L.arrowL = 196;
+  L.arrowL = L.x + std::floor(L.w * 0.393f);   // 196 at 480
   L.valX = L.arrowL + L.arrowW + 4;
-  L.arrowR = 412 - L.arrowW;
+  L.arrowR = L.x + L.w - 34 - L.arrowW;
   L.valW = L.arrowR - 4 - L.valX;
   return L;
 }
@@ -90,13 +95,13 @@ void View::drawSettings() {
   const screen::Settings s = screen::get();
   setSel_ = std::clamp(setSel_, 0, R_COUNT - 1);
   panel(Y.x, Y.y, Y.w, Y.h, 0.95f);
-  P.textS(240, Y.y + 10, "SETTINGS", 2, kGold, 1);
-  P.text(240, Y.y + 30, "SCREEN " + screen::describe(), 1, kDim, 1);
+  P.textS(Y.cx, Y.y + 10, "SETTINGS", 2, kGold, 1);
+  P.text(Y.cx, Y.y + 30, "SCREEN " + screen::describe(), 1, kDim, 1);
   for (int r = 0; r < R_COUNT; r++) {
     const float y = Y.rowY + r * Y.pitch;
     const bool sel = r == setSel_;
     if (r == R_DONE) {
-      button(240 - 60, y + 2, 120, Y.rowH, "DONE", sel);
+      button(Y.cx - 60, y + 2, 120, Y.rowH, "DONE", sel);
       continue;
     }
     if (sel) P.rect(Y.x + 6, y, Y.w - 12, Y.rowH, Color(0.3f, 0.22f, 0.12f, 0.75f));
@@ -125,7 +130,7 @@ void View::drawSettings() {
   // what the picked row does, wrapped under the rows
   const float hy = Y.rowY + int(R_COUNT) * Y.pitch + 4;
   wrapText(Y.x + 14, hy, Y.w - 28, helpText(setSel_), kDim, -1, 9);
-  if (!touchUI) P.text(240, Y.y + Y.h - 11, "UP/DOWN PICK   LEFT/RIGHT CHANGE   ESC CLOSE", 1, Color(kDim.r, kDim.g, kDim.b, 0.8f), 1);
+  if (!touchUI) P.text(Y.cx, Y.y + Y.h - 11, "UP/DOWN PICK   LEFT/RIGHT CHANGE   ESC CLOSE", 1, Color(kDim.r, kDim.g, kDim.b, 0.8f), 1);
   P.popBox();
 }
 
@@ -148,13 +153,15 @@ void View::settingsKey(int key) {
 void View::settingsTap(Vec2 p) {
   const UiBox box = uiBox(270);
   p = inBox(box, p);
+  pix_->pushBox(box.x, box.y, box.w, box.h);   // Pix::W / H read the box, as drawSettings sees it
   const Lay Y = lay(touchUI);
+  pix_->popBox();
   bool touch = touchUI;
   for (int r = 0; r < R_COUNT; r++) {
     const float y = Y.rowY + r * Y.pitch;
     if (!inR(p, Y.x, y - (Y.pitch - Y.rowH) / 2, Y.w, Y.pitch)) continue;   // each row owns its whole pitch
     setSel_ = r;
-    if (r == R_DONE) { if (std::fabs(p.x - 240) < 80) { settingsOpen_ = false; audio_->play(Sfx::MenuBack); } return; }
+    if (r == R_DONE) { if (std::fabs(p.x - Y.cx) < 80) { settingsOpen_ = false; audio_->play(Sfx::MenuBack); } return; }
     if (p.x >= Y.arrowL - 6 && p.x < Y.arrowL + Y.arrowW + 2) stepRow(r, -1, touch);
     else if (p.x >= Y.arrowR - 2 && p.x < Y.arrowR + Y.arrowW + 6) stepRow(r, 1, touch);
     else if (p.x >= Y.valX && p.x < Y.valX + Y.valW) {

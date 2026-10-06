@@ -3,6 +3,7 @@
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -37,6 +38,7 @@ class View {
   void update(Game& g, float dt);        // consumes g.events, animates UI
   void draw(Game& g, bool hasSave);
   void snap(Game& g);                    // snap camera (after load/teleport)
+  Vec2 camera() const { return cam_; }   // M2: top-left of the view in world pixels (scripts tap world things)
   void openMenu(Game& g, int tab) { g.mode = Mode::Menu; menuTab_ = tab; menuSel_ = 0; }
   bool wantsQuit = false;
   bool wantNewGame = false, wantContinue = false, wantSave = false;
@@ -83,6 +85,8 @@ class View {
     uint8_t heightBits(int x, int y) const { return m->heightBits(x - ox, y - oy); }
     int heightAt(int x, int y) const { return m->heightAt(x - ox, y - oy); }
     bool relief() const { return !m->height.empty(); }
+    uint8_t blendAt(int x, int y) const { return m->blendAt(x - ox, y - oy); }   // M2 ecotones (Map::blend)
+    bool ecoDerive = false;   // M2: the map carries no blend bytes: the view derives ecotones from the biomes
     bool wallAt(int x, int y) const {   // a city wall piece stands on the tile
       const int lx = x - ox, ly = y - oy;
       return !m->wall.empty() && lx >= 0 && ly >= 0 && lx < m->w && ly < m->h && m->wall[(size_t)ly * m->w + lx] != 0;
@@ -98,6 +102,7 @@ class View {
     int ox = 0, oy = 0;               // the snapshot's origin in global tiles
     int gcx = 0, gcy = 0;             // the chunk in global chunk coordinates
     uint64_t key = 0, mapId = 0;
+    bool ecoDerive = false;           // M2: no blend bytes in this map (TMap::ecoDerive)
   };
   struct BakeDone { uint64_t key = 0, mapId = 0; Canvas c; double ms = 0; };
   std::thread worker_;
@@ -227,6 +232,12 @@ class View {
   std::unordered_map<uint64_t, std::vector<uint32_t>> wallKeyCache_;   // per map id, so leaving a house is free
   const Tex& wallTileTex(uint32_t key);
   uint64_t bldgKey(const Map& m, const Bldg& b, int index) const;
+  // M2: a building sprite painted off the main thread (an arrival's buildings, desktop), then stored as textures
+  struct BldgPaint { uint64_t key = 0; Canvas c, night; bool anyGlass = false; std::vector<Vec2> smoke, wins; int topRow = 0; };
+  static BldgPaint paintBldg(const Bldg& b, uint64_t key);
+  const Tex& storeBldg(BldgPaint& p);
+  std::vector<std::future<BldgPaint>> bldgAsync_;
+  std::vector<uint64_t> bldgAsyncKeys_;
 
   void drawWorld(Game& g);
   void drawLighting(Game& g);
@@ -234,7 +245,7 @@ class View {
   void drawHud(Game& g);
   void drawTouch(Game& g);
   void drawToasts();
-  float dlgRowH() const { return touchUI ? 20.0f : 13.0f; }   // dialogue option pitch (touch: finger-sized rows)
+  float dlgRowH() const { return touchUI ? 25.0f : 13.0f; }   // dialogue option pitch (touch: finger-sized rows, 25 px = 33 pt)
   void drawMenu(Game& g);
   void drawDialogue(Game& g);
   void drawShop(Game& g);
@@ -251,6 +262,21 @@ class View {
   bool worldMapPointer(int phase, uint64_t id, Vec2 p);   // 0 down 1 move 2 up (box coords); true: a tap
   int worldMapPick(Game& g, Vec2 p);           // the discovered place under a box point, or -1
   int worldMapZoomLevel() const;
+  // M2 (worldmap.cpp owns the whole MAP tab: the map, its side column, legend and travel; top = the content's y)
+  void drawMapTab(Game& g, float top);
+  void mapTabTap(Game& g, Vec2 p, float top);  // a tap in box coordinates (drags and pinches go to worldMapPointer)
+  bool mapTabKey(Game& g, int key);            // false: not the map's key (the menu handles it)
+  // M2 travel behind the fade (game.h Travel): called by update() every frame while g.travel.phase is Arrive. It snaps
+  // the camera to the arrival, bakes the terrain chunks the arrival shows within a per-frame budget (the screen is
+  // black meanwhile) and calls g.finishTravel() once they are ready (terrain.cpp).
+  void travelArrive(Game& g);
+  // M2 (VIEW lane): the terrain chunk frame of the map drawWorld shows (sets chunkOX_ / chunkOY_ / chunkEndless_) and
+  // its map id; drawWorld and travelArrive share it. While arriving_ is set, chunkTex never bakes a chunk inline (it
+  // returns an empty texture: the screen is black) and drawWorld skips bakeVisibleNow, so no frame stalls.
+  uint64_t terrainFrame(Game& g, const Map*& m);
+  bool arriving_ = false;
+  struct Arrival { bool on = false; float t = 0; int frames = 0; double ms = 0, wall0 = 0; };
+  Arrival arrival_;
   void panel(float x, float y, float w, float h, float alpha = 0.92f);
   void button(float x, float y, float w, float h, const std::string& label, bool hot);
   void wrapText(float x, float y, float w, const std::string& s, Color c, int maxChars = -1, int lineH = 9);

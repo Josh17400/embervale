@@ -1,10 +1,15 @@
 // World-space markers over actors: a bobbing "!" speech bubble over quest givers with a reward waiting
 // (Game::rewardWaiting). M0 town-defence lane.
+// M2 (UI lane): the wayside people (a vignette's hunter, fisher, herbalist or traveller) who have work to offer wear a
+// bare gold "!" (no bubble: the bubble means a reward is waiting), and the person a Missing quest has the player walk
+// home (the escort, whose name is the quest's subject) wears a teal chevron and a ring at the feet, so they can be
+// told from a crowd and seen to follow.
 // Pixel art at 1x (11 x 14): a cream bubble with a near-black outline reads on grass, snow, stone and warm interior
 // wood alike; the "!" is orange-gold, lit from the top-left like every other sprite, the bubble's lower-right edge is
 // shaded, a 1 px drop shadow lifts it off the scene, and the tail points down at the giver's head.
 #include <cmath>
 #include <string>
+#include <vector>
 #include "rpg/view/view.h"
 
 namespace {
@@ -25,16 +30,63 @@ const char* kBubble[14] = {
     "....oDo....",
     ".....o.....",
 };
+// a bare gold "!" with a dark outline over the head (work on offer)
+const char* kBang[12] = {".ooo.", "oHYSo", "oHYSo", "oHYSo", "oHYSo", ".oYSo", ".oYo.", ".oYo.", "..o..", ".ooo.", "oHYSo", ".ooo."};
+void drawOfferMark(Pix& P, const Actor& a, Vec2 cam, float t, Color outline, Color hi, Color gold, Color goldShade) {
+  const int bob = (int)std::lround(std::sin(t * 3.0f) * 1.2f);
+  const int x0 = (int)std::floor(a.p.x - cam.x) - 2, y0 = (int)std::floor(a.p.y - cam.y) - art::HUMAN_H - 13 + bob;
+  for (int pass = 0; pass < 2; pass++)
+    for (int r = 0; r < 12; r++)
+      for (int c = 0; c < 5; c++) {
+        const char ch = kBang[r][c];
+        if (ch == '.') continue;
+        if (pass == 0) { P.rect((float)(x0 + c + 1), (float)(y0 + r + 1), 1, 1, Color(0, 0, 0, 0.35f)); continue; }
+        P.rect((float)(x0 + c), (float)(y0 + r), 1, 1, ch == 'o' ? outline : ch == 'H' ? hi : ch == 'S' ? goldShade : gold);
+      }
+}
+// the escort: a teal chevron over the head and a soft ring at the feet
+void drawEscortMark(Pix& P, const Actor& a, Vec2 cam, float t, Color outline) {
+  const Color hi(0.62f, 1.0f, 0.92f), mid(0.22f, 0.78f, 0.70f), lo(0.10f, 0.46f, 0.44f);
+  const float fx = std::floor(a.p.x - cam.x), fy = std::floor(a.p.y - cam.y);
+  for (int k = 0; k < 48; k++) {   // the ring (an ellipse, brighter at the front)
+    const float an = k / 48.0f * 6.2831853f;
+    if (std::sin(an) < -0.15f) continue;   // the back half would cross the legs (markers draw over the sprites)
+    const float x = fx + std::cos(an) * 9.0f, y = fy + 1 + std::sin(an) * 4.0f;
+    P.rect(std::floor(x), std::floor(y), 1, 1, Color(mid.r, mid.g, mid.b, std::sin(an) > 0 ? 0.85f : 0.45f));
+  }
+  static const char* kChev[6] = {"ooooooo", "oHMMMLo", ".oHMLo.", "..oMo..", "...o...", "......."};
+  const int bob = (int)std::lround(std::sin(t * 3.4f) * 1.2f);
+  const int x0 = (int)fx - 3, y0 = (int)fy - art::HUMAN_H - 9 + bob;
+  for (int pass = 0; pass < 2; pass++)
+    for (int r = 0; r < 6; r++)
+      for (int c = 0; c < 7; c++) {
+        const char ch = kChev[r][c];
+        if (ch == '.') continue;
+        if (pass == 0) { P.rect((float)(x0 + c + 1), (float)(y0 + r + 1), 1, 1, Color(0, 0, 0, 0.35f)); continue; }
+        P.rect((float)(x0 + c), (float)(y0 + r), 1, 1, ch == 'o' ? outline : ch == 'H' ? hi : ch == 'L' ? lo : mid);
+      }
+}
 }  // namespace
 
 void View::drawMarkers(Game& g, Vec2 cam) {
   Pix& P = *pix_;
   const Color outline(0.09f, 0.06f, 0.08f), paper(1.0f, 0.97f, 0.88f), paperShade(0.82f, 0.74f, 0.62f);
   const Color hi(1.0f, 0.86f, 0.38f), gold(1.0f, 0.64f, 0.10f), goldShade(0.74f, 0.33f, 0.05f);
+  // the escorts: the subjects of the active Missing quests
+  std::vector<const std::string*> escorts;
+  for (const Quest& q : g.quests)
+    if (q.type == QType::Missing && q.state == QState::Active && !q.subject.empty()) escorts.push_back(&q.subject);
   for (const Actor& a : g.actors) {
     if (!a.npc || a.st == AState::Dead) continue;
     if (a.p.x < cam.x - 20 || a.p.x > cam.x + Pix::W + 20 || a.p.y < cam.y - 10 || a.p.y > cam.y + Pix::H + 40) continue;
-    if (!g.rewardWaiting(a)) continue;
+    bool escort = false;
+    for (const std::string* s : escorts) if (a.name.find(*s) != std::string::npos || s->find(a.name) == 0) escort = true;
+    if (escort) { drawEscortMark(P, a, cam, t_, outline); continue; }
+    if (!g.rewardWaiting(a)) {
+      const bool wayside = a.role == Role::Hunter || a.role == Role::Fisher || a.role == Role::Herbalist || a.role == Role::Traveller;
+      if (wayside && g.offersWork(a)) drawOfferMark(P, a, cam, t_ + a.id * 0.57f, outline, hi, gold, goldShade);
+      continue;
+    }
     // a slow bob snapped to whole pixels (no shimmer), each giver on their own phase
     float ph = t_ * 3.0f + a.id * 1.7f;
     int bob = (int)std::lround(std::sin(ph) * 1.2f);

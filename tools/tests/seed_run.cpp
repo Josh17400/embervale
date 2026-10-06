@@ -1,6 +1,5 @@
 // rpg_test: one seed: world stats, reachability, quests, the wandering bot, a save round trip.
-// M1 (SIM lane): the seed runs on the ENDLESS world (new games start there); `rpg_test --classic [seed | --seeds A..B]`
-// runs the same suite on the classic island (kept as a test fixture through M1). On the endless world the checks are
+// The seed runs on the ENDLESS world (M2 retired the classic island). The checks are
 // what a new game needs around the player: the start village's services reachable on foot, everything the window
 // holds generating and reachable, the story's places present (the main quest itself is played end to end by a
 // teleporting bot, sim_mainquest.cpp), the opening, the wandering bot, dialogue, death and the save round trip.
@@ -70,13 +69,9 @@ void followPath(Game& g, std::vector<int>& path, Input& in) {
 bool openingStep(Game& g, std::vector<int>& path, int& clock, Input& in);
 int mainQuestBot(uint64_t seed, bool verbose);   // sim_mainquest.cpp
 
-// the suite's world: endless (default) or the classic island (rpg_test --classic)
-bool g_classicSuite = false;
+// the suite's world: the endless mainland (M2 retired the classic island)
 void newTestGame(Game& g, uint64_t seed);
-void newTestGame(Game& g, uint64_t seed) {
-  if (g_classicSuite) g.newGame(seed);
-  else g.newEndlessGame(seed);
-}
+void newTestGame(Game& g, uint64_t seed) { g.newEndlessGame(seed); }
 
 bool openingStep(Game& g, std::vector<int>& path, int& clock, Input& in) {
   in = Input();
@@ -420,76 +415,8 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
     }
   }
 
-  // main quest end to end. Endless: the teleporting bot (sim_mainquest.cpp) plays every step. Classic: the jarl,
-  // shards from warlords slain early, the dragon's death
-  if (!g_classicSuite) bad += mainQuestBot(seed, false);
-  else {
-    Game q(seed);
-    q.newGame(seed);
-    q.mode = Mode::Play;
-    q.godMode = true;
-    for (auto& s : q.world.sites) if (s.mainQuest) s.cleared = true;   // warlords slain before meeting the jarl
-    const Site& cap = q.world.sites[q.world.capital];
-    int keep = -1;
-    for (int b = cap.bldgFirst; b < cap.bldgFirst + cap.bldgCount; b++) if (q.world.over.bldgs[b].type == art::Building::Keep) keep = b;
-    Quest* mq = nullptr;
-    for (auto& qq : q.quests) if (qq.type == QType::Main) mq = &qq;
-    if (keep < 0 || !mq) { out("FAIL: main quest setup\n"); bad++; }
-    else {
-      const Bldg& B = q.world.over.bldgs[keep];
-      q.pl().p = Vec2(B.doorX() * 16 + 8.0f, B.doorY() * 16 + 10.0f);
-      q.update(SIM_DT, Input());
-      int jarl = -1;
-      for (size_t k = 1; k < q.actors.size(); k++) if (q.actors[k].role == Role::Jarl) jarl = (int)k;
-      if (!q.inside || jarl < 0) { out("FAIL: no jarl in the keep\n"); bad++; }
-      else {
-        q.pl().p = q.actors[jarl].p + Vec2(0, 18);
-        Input talk; talk.interact = true;
-        q.update(SIM_DT, talk);
-        int opt = -1;
-        for (size_t o = 0; o < q.dlg.opts.size(); o++) if (q.dlg.opts[o].label.find("STOPPED") != std::string::npos) opt = (int)o;
-        if (q.mode != Mode::Dialogue || opt < 0) { out("FAIL: jarl has no main quest option\n"); bad++; }
-        else {
-          q.dialogueChoose(opt);
-          for (auto& qq : q.quests) if (qq.type == QType::Main) mq = &qq;
-          out("main quest after jarl: stage %d (%s)\n", mq->stage, mq->title.c_str());
-          if (mq->stage != 2) { out("FAIL: shards from pre-cleared ruins did not count\n"); bad++; }
-        }
-      }
-      // the dragon hunt
-      q.mode = Mode::Play;
-      for (auto& qq : q.quests) if (qq.type == QType::Main) { qq.stage = 3; mq = &qq; }
-      const Site& L = q.world.sites[q.world.lair];
-      if (q.inside) {
-        // stepping onto the exit while knocked back must NOT leave; walking down onto it must
-        q.pl().p = Vec2(q.sub.exitX * 16 + 8.0f, (q.sub.exitY - 2) * 16 + 8.0f);
-        q.update(SIM_DT, Input());
-        q.pl().p = Vec2(q.sub.exitX * 16 + 8.0f, q.sub.exitY * 16 + 4.0f);
-        q.pl().knock = Vec2(0, 110);
-        q.update(SIM_DT, Input());
-        if (!q.inside) { out("FAIL: knockback onto the exit threw the player out\n"); bad++; }
-        q.pl().knock = Vec2();
-        Input down; down.move = Vec2(0, 1);
-        for (int f = 0; f < 3 && q.inside; f++) q.update(SIM_DT, down);
-        if (q.inside) { out("FAIL: walking onto the exit did not leave\n"); bad++; }
-      }
-      q.pl().p = Vec2(L.ex * 16 + 8.0f, (L.ey + 2) * 16 + 8.0f);
-      int dragon = -1;
-      for (int f = 0; f < 10 && dragon < 0; f++) {
-        q.update(SIM_DT, Input());
-        for (size_t k = 1; k < q.actors.size(); k++) if (q.actors[k].mon == art::Monster::Dragon) dragon = (int)k;
-      }
-      if (dragon < 0) { out("FAIL: the dragon never appeared at its lair\n"); bad++; }
-      else {
-        out("dragon: %.0f hp, level %d\n", q.actors[dragon].maxHp, q.actors[dragon].level);
-        q.actors[dragon].hp = 0.5f; q.actors[dragon].burnT = 1.0f;
-        for (int f = 0; f < 30; f++) { q.update(SIM_DT, Input()); if (q.mode != Mode::Play) q.mode = Mode::Play; }
-        for (auto& qq : q.quests) if (qq.type == QType::Main) mq = &qq;
-        out("after the dragon: stage %d, %s\n", mq->stage, mq->state == QState::Done ? "DONE" : "not done");
-        if (mq->state != QState::Done) { out("FAIL: killing the dragon did not finish the main quest\n"); bad++; }
-      }
-    }
-  }
+  // main quest end to end: the teleporting bot (sim_mainquest.cpp) plays every step
+  bad += mainQuestBot(seed, false);
 
   // dying (to fire, which once couldn't kill) and waking in town; saving on the death screen respawns on load
   {
@@ -525,40 +452,3 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
   res.bad = bad;
   return bad;
 }
-
-// rpg_test --classic [seed] [--seeds A..B] [--secs N] [--mortal] [--noaudit]: the whole per-seed suite (and the lane
-// checks and the repetition audit) on the classic island, kept as a test fixture through M1
-namespace {
-int cmdClassic(int argc, char** argv) {
-  g_classicSuite = true;
-  uint64_t seed = 12345, a = 0, b = 0;
-  bool range = false, audit = true, mortal = false;
-  float secs = 120;
-  for (int i = 1; i < argc; i++) {
-    if (!strcmp(argv[i], "--classic")) continue;
-    if (!strcmp(argv[i], "--seeds") && i + 1 < argc) range = parseSeedRange(argv[++i], a, b);
-    else if (!strcmp(argv[i], "--secs") && i + 1 < argc) secs = (float)atof(argv[++i]);
-    else if (!strcmp(argv[i], "--mortal")) mortal = true;
-    else if (!strcmp(argv[i], "--noaudit")) audit = false;
-    else seed = (uint64_t)atoll(argv[i]);
-  }
-  if (!range) { a = b = seed; }
-  g_quiet = range;
-  int pass = 0, fail = 0;
-  for (uint64_t s = a; s <= b; s++) {
-    SeedResult r;
-    int bad = runSeed(s, nullptr, secs, mortal, r);
-    g_curSeed = s;
-    bad += heroChecks(s) + interiorChecks(s) + defenceChecks(s) + archChecks(s);
-    if (bad) fail++; else pass++;
-    printf("classic seed %-6llu %s  gen %4.0f ms  sites %3d  bot kills %3d lvl %2d  step %.2f ms\n", (unsigned long long)s, bad ? "FAIL" : "ok  ",
-           r.genMs, r.sites, r.kills, r.level, r.maxStep);
-    if (audit && !range) printAudit(repetitionAudit(s));
-    fflush(stdout);
-  }
-  printf("classic: %d passed, %d failed\n", pass, fail);
-  g_classicSuite = false;
-  return fail ? 1 : 0;
-}
-}  // namespace
-RPG_TEST_CMD("--classic", "the per-seed suite on the classic island (test fixture during M1) [seed | --seeds A..B] [--secs N]", cmdClassic);

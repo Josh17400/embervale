@@ -281,7 +281,7 @@ int check(int s0, int s1) {
   int covers = 0;
   for (int seed = s0; seed <= s1; seed++) {
     World w;
-    w.generate((uint64_t)seed, WORLDGEN_LATEST);
+    w.generateEndless((uint64_t)seed);   // (M2: the start window of the endless world)
     std::vector<Canvas> sprites(w.over.bldgs.size());
     for (size_t bi = 0; bi < w.over.bldgs.size(); bi++) {
       const Bldg& b = w.over.bldgs[bi];

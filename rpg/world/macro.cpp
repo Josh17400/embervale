@@ -65,23 +65,31 @@ int32_t EndlessSource::Impl::continent(int32_t x, int32_t y) {
 // ---- plates on a 1536-tile jittered lattice. Convergent boundaries raise ridges (long ranges), divergent ones sink
 //      rifts. The distance to the boundary is the exact distance to the bisector of the two nearest plate points; a
 //      pass field knocks notches out of the ridges so every range has passes.
-void EndlessSource::Impl::plates(int32_t x, int32_t y, int32_t& ridge, int32_t& rift) {
+EndlessSource::Impl::PlatePt EndlessSource::Impl::platePoint(int32_t cx, int32_t cy) {
   const int32_t PC = 1536, PJ = 1152, PM = (PC - PJ) / 2;
+  const uint64_t h = cellSeed(seed, tag("p.cell"), cx, cy);
+  return PlatePt{cx * PC + PM + (int32_t)((h & 0xFFFFFFFFull) % (uint64_t)PJ), cy * PC + PM + (int32_t)((h >> 32) % (uint64_t)PJ), h};
+}
+
+void EndlessSource::Impl::plates(int32_t x, int32_t y, int32_t& ridge, int32_t& rift, uint64_t* pair) {
+  const int32_t PC = 1536;
   int32_t wx = x, wy = y;
   warpQ(wx, wy, 9, 170, mix64(seed ^ tag("p.warp")));
   const int32_t cx0 = floorDiv(wx, PC), cy0 = floorDiv(wy, PC);
   int64_t d1 = INT64_MAX, d2 = INT64_MAX;
   int32_t ax = 0, ay = 0, bx = 0, by = 0;
   uint64_t ha = 0, hb = 0;
+  uint64_t ka = 0, kb = 0;
   for (int32_t cy = cy0 - 1; cy <= cy0 + 1; cy++)
     for (int32_t cx = cx0 - 1; cx <= cx0 + 1; cx++) {
-      uint64_t h = cellSeed(seed, tag("p.cell"), cx, cy);
-      int32_t px = cx * PC + PM + (int32_t)((h & 0xFFFFFFFFull) % (uint64_t)PJ);
-      int32_t py = cy * PC + PM + (int32_t)((h >> 32) % (uint64_t)PJ);
+      const PlatePt pp = platePoint(cx, cy);
+      const uint64_t h = pp.h;
+      int32_t px = pp.x, py = pp.y;
       int64_t d = dist2(wx, wy, px, py);
-      if (d < d1) { d2 = d1; bx = ax; by = ay; hb = ha; d1 = d; ax = px; ay = py; ha = h; }
-      else if (d < d2) { d2 = d; bx = px; by = py; hb = h; }
+      if (d < d1) { d2 = d1; bx = ax; by = ay; hb = ha; kb = ka; d1 = d; ax = px; ay = py; ha = h; ka = key2(cx, cy); }
+      else if (d < d2) { d2 = d; bx = px; by = py; hb = h; kb = key2(cx, cy); }
     }
+  if (pair) *pair = ka < kb ? mix64(ka) ^ kb : mix64(kb) ^ ka;
   ridge = 0; rift = 0;
   int32_t ab = std::max<int32_t>(1, idist(ax, ay, bx, by));
   int64_t db = (d2 - d1) / (2 * (int64_t)ab);   // tiles to the boundary
@@ -228,7 +236,6 @@ TileF EndlessSource::Impl::tile(int32_t x, int32_t y) {
   const Coarse &a = B.at(i, j), &b = B.at(i + 1, j), &c = B.at(i, j + 1), &d = B.at(i + 1, j + 1);
   TileF f;
   int32_t e = bil(a.e, b.e, c.e, d.e, fx, fy);
-  int32_t ec = bil(B.clean(i, j), B.clean(i + 1, j), B.clean(i, j + 1), B.clean(i + 1, j + 1), fx, fy);
   f.t = bil(a.t, b.t, c.t, d.t, fx, fy);
   f.m = bil(a.m, b.m, c.m, d.m, fx, fy);
   f.ridge = bil(a.ridge, b.ridge, c.ridge, d.ridge, fx, fy);
@@ -238,9 +245,9 @@ TileF EndlessSource::Impl::tile(int32_t x, int32_t y) {
        qm(centered(vnoiseQ(x, y, 1, mix64(seed ^ tag("t.d2"))), Q(1.0)), Q(0.004));
   f.e = e;
   f.sea = e < ELEV_SEA;
-  (void)ec;
   f.h = f.sea ? 0 : (uint8_t)natLevel(x, y);
-  f.rock = !f.sea && rock > Q(0.5) + qm(centered(vnoiseQ(x, y, 2, mix64(seed ^ tag("t.rk"))), Q(1.0)), Q(0.12));
+  // (the noise moves the threshold by at most 0.12: below 0.38 no tile is rock, and the noise need not be drawn)
+  f.rock = !f.sea && rock > Q(0.38) && rock > Q(0.5) + qm(centered(vnoiseQ(x, y, 2, mix64(seed ^ tag("t.rk"))), Q(1.0)), Q(0.12));
   // ecotones: the climate edges interleave over a few tiles instead of running along the interpolation
   int32_t tj = qm(centered(vnoiseQ(x, y, 5, mix64(seed ^ tag("t.tj"))), Q(1.0)), Q(0.03)) +
                qm(centered(vnoiseQ(x, y, 3, mix64(seed ^ tag("t.tj2"))), Q(1.0)), Q(0.01));
@@ -298,6 +305,44 @@ int EndlessSource::Impl::natLevel(int32_t x, int32_t y) {
   const int32_t fx = (lx & (CG - 1)) << (16 - CG_SHIFT), fy = (ly & (CG - 1)) << (16 - CG_SHIFT);
   int32_t ec = bil(B.clean(i, j), B.clean(i + 1, j), B.clean(i, j + 1), B.clean(i + 1, j + 1), fx, fy);
   return levelOf(ec);
+}
+
+// (M2) the clean elevation natLevel reads (the same warps), for peaks: a crest is where this has a local maximum
+int32_t EndlessSource::Impl::reliefE(int32_t x, int32_t y) {
+  int32_t wx = x, wy = y;
+  warpQ(wx, wy, 5, 5, mix64(seed ^ tag("t.warp")));
+  const uint64_t s1 = mix64(seed ^ tag("t.rw1")), s2 = mix64(seed ^ tag("t.rw2"));
+  const int32_t a1 = 3 * x + 4 * y, b1 = 4 * x - 3 * y, a2 = 12 * x + 5 * y, b2 = 5 * x - 12 * y;
+  wx += (int32_t)(((int64_t)(vnoiseQ(a1, b1, 7, s1) - 32768) * 8) >> 16) + (int32_t)(((int64_t)(vnoiseQ(a2, b2, 9, s2) - 32768) * 12) >> 16);
+  wy += (int32_t)(((int64_t)(vnoiseQ(a1, b1, 7, s1 ^ 0x77u) - 32768) * 8) >> 16) + (int32_t)(((int64_t)(vnoiseQ(a2, b2, 9, s2 ^ 0x77u) - 32768) * 12) >> 16);
+  const int32_t bx = wx >> REGION_SHIFT, by = wy >> REGION_SHIFT;
+  const Block& B = *block(bx, by);
+  const int32_t lx = wx - bx * REGION, ly = wy - by * REGION;
+  const int i = lx >> CG_SHIFT, j = ly >> CG_SHIFT;
+  const int32_t fx = (lx & (CG - 1)) << (16 - CG_SHIFT), fy = (ly & (CG - 1)) << (16 - CG_SHIFT);
+  return bil(B.clean(i, j), B.clean(i + 1, j), B.clean(i, j + 1), B.clean(i + 1, j + 1), fx, fy);
+}
+
+// (M2) the biome tile() gives a land tile, without its beach band and rock cores (the ecotone ring round a chunk)
+Biome EndlessSource::Impl::biomeLite(int32_t x, int32_t y) {
+  int32_t wx = x, wy = y;
+  warpQ(wx, wy, 5, 5, mix64(seed ^ tag("t.warp")));
+  const int32_t bx = wx >> REGION_SHIFT, by = wy >> REGION_SHIFT;
+  const Block& B = *block(bx, by);
+  const int32_t lx = wx - bx * REGION, ly = wy - by * REGION;
+  const int i = lx >> CG_SHIFT, j = ly >> CG_SHIFT;
+  const int32_t fx = (lx & (CG - 1)) << (16 - CG_SHIFT), fy = (ly & (CG - 1)) << (16 - CG_SHIFT);
+  const Coarse &a = B.at(i, j), &b = B.at(i + 1, j), &c = B.at(i, j + 1), &d = B.at(i + 1, j + 1);
+  int32_t e = bil(a.e, b.e, c.e, d.e, fx, fy);
+  e += qm(centered(vnoiseQ(x, y, 3, mix64(seed ^ tag("t.d1"))), Q(1.0)), Q(0.010)) +
+       qm(centered(vnoiseQ(x, y, 1, mix64(seed ^ tag("t.d2"))), Q(1.0)), Q(0.004));
+  if (e < ELEV_SEA) return Biome::Ocean;
+  const int32_t t = bil(a.t, b.t, c.t, d.t, fx, fy), m = bil(a.m, b.m, c.m, d.m, fx, fy);
+  const int32_t tj = qm(centered(vnoiseQ(x, y, 5, mix64(seed ^ tag("t.tj"))), Q(1.0)), Q(0.03)) +
+                     qm(centered(vnoiseQ(x, y, 3, mix64(seed ^ tag("t.tj2"))), Q(1.0)), Q(0.01));
+  const int32_t mj = qm(centered(vnoiseQ(x, y, 5, mix64(seed ^ tag("t.mj"))), Q(1.0)), Q(0.035)) +
+                     qm(centered(vnoiseQ(x, y, 3, mix64(seed ^ tag("t.mj2"))), Q(1.0)), Q(0.012));
+  return classify(std::max(e, ELEV_SEA + Q(0.011)), t + tj, m + mj, x, y, false);
 }
 
 MacroSample EndlessSource::Impl::macro(int32_t x, int32_t y) {

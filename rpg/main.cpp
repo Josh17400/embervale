@@ -13,19 +13,22 @@
 // 0.5 s after the previous line. '#' starts a comment. Script time stops while a walkto runs, so later lines keep
 // their spacing however long the walk takes. Input is injected through the same paths real input uses: key
 // presses become SDL key events (View::event), held keys are read by View::input, taps become SDL touch events.
-//   seed 7                    world seed (a header line, no time; --seed on the command line wins)
-//   worldgen 6                a CLASSIC island world built by that generator version (a header line). Without it
-//                             (and without --worldgen / --classic) every run is on the endless mainland (M1). Scripts
-//                             that rely on facts of one classic world (names, coordinates) pin the generator
+//   seed 7                    world seed (a header line, no time; --seed on the command line wins). Every run is on the
+//                             endless mainland (M2 retired the classic island: a "worldgen N" header is refused)
 //   0.5 key E                 press and release a key (SDL key names: E, Return, Escape, Tab, Space, Up, Left Shift...)
 //   2.0 hold W 1.5            hold a key down for 1.5 s
-//   3 tap 424 222             touch tap at logical (480x270) coordinates
-//   3 click 240 135           left mouse click at logical coordinates
+//   phone                     header line: run at the iPhone review size (window 2556x1179 unless --window is given,
+//                             EMB_SCREEN=fill and EMB_SAFE=59,0,59,21 unless already set): a 639x294 logical canvas
+//   3 tap 424 222             touch tap at LOGICAL canvas coordinates. The canvas is the live logical size, which
+//                             depends on the window and screen fit: 480x270 at the 1440x810 desktop default, 639x294
+//                             with "phone" (the hamburger is at 610 12 there), so tap scripts are written for one size
+//   3 click 240 135           left mouse click at logical coordinates (same space as tap)
 //   4 shot out.png            screenshot of this frame
 //   5 walkto inn              autopilot over the tile grid, steering with held WASD: inn|shop|smithy|temple|keep|tower|
 //                             house (walks in the door), innkeeper|merchant|smith|priest|jarl|guard|villager|mage (until
 //                             they can be talked to), exit (walks out of a building or dungeon), or "x y" tiles.
-//                             a person by NAME (walkto VIGRIMA: until they can be talked to). Inside a building:
+//                             a person by NAME (walkto VIGRIMA: until they can be talked to), giver (M2: the nearest
+//                             person with a job to offer or a reward waiting). Inside a building:
 //                             upstairs|downstairs (walks onto the stairs; done when the floor changed).
 //                             An optional trailing number is the timeout in seconds (default 40).
 //   6 expect mode shop        check state: mode title|play|dialogue|menu|shop|levelup|dead|paused|creator, inside 0|1
@@ -33,7 +36,7 @@
 //                             goto city|town|village|cave|ruin|camp|shrine|lair|capital (capital: the nearest kingdom
 //                             capital, M1; market: the nearest market town, M1 economy)
 //   6 talkto VIGRIMA [30]     walkto a person and talk to them the moment they are in reach (E in that same frame)
-//   6 at 4100 -2300           (M1) teleport to a GLOBAL tile (endless: the window recentres there; classic: island tiles)
+//   6 at 4100 -2300           (M1) teleport to a GLOBAL tile (the window recentres there)
 //   6 walk east 6             (M1) hold the direction (east|west|north|south) for 6 s (script time keeps running)
 //   6 nearshift east          (M1) step to 2 tiles short of the endless window's shift line that way (shift reviews)
 //   6 expect kingdom          (M1) the settlement the player stands in belongs to a kingdom (expect kingdom capital:
@@ -55,6 +58,8 @@
 //   6 expect option COLLECT BOUNTY  the open dialogue offers an option containing the words (expect text: its text)
 //   6 choose RENT A ROOM      (M0b) choose the open dialogue's option whose label contains the words
 // New Game from the title opens the character creator (Mode::Creator); --play and the newgame command skip it.
+// M2: lanes register more commands (and expect checks) from rpg/view/*.cpp through rpg/view/script_api.h;
+// `embervale --script-help` lists them.
 //   9 quit                    (the script also quits 2 s after its last line)
 // The exit code is 3 if any expect or walkto failed.
 #include <SDL3/SDL.h>
@@ -75,19 +80,14 @@
 #include "engine/pix.h"
 #include "rpg/sim/game.h"
 #include "rpg/view/screen.h"
+#include "rpg/view/script_api.h"
 #include "rpg/view/view.h"
 #include "rpg/sim/stream.h"
 #include "rpg/world/source.h"
 
 namespace {
 std::string g_savePath;
-// 0: the endless mainland (M1, the default); N >= 1: a classic island built by generator N (script header
-// "worldgen N", --worldgen N, --classic for the latest)
-int g_worldgen = 0;
-void newWorld(Game& g, uint64_t s) {
-  if (g_worldgen > 0) g.newGame(s, g_worldgen);
-  else g.newEndlessGame(s);
-}
+void newWorld(Game& g, uint64_t s) { g.newEndlessGame(s); }
 
 bool readSave(std::vector<uint8_t>& out) {
   if (g_savePath.empty()) return false;
@@ -104,6 +104,10 @@ bool readSave(std::vector<uint8_t>& out) {
 }
 void writeSave(const Game& g) {
   if (g_savePath.empty() || g.mode == Mode::Title || g.mode == Mode::Creator) return;   // the creator saves when done
+  // (M2 fixer round 2) never mid-journey: the fare (or a death's lost gold and full health) is taken when the journey
+  // begins but the move happens at the arrival, and the journey is not saved, so a save on the road kept the cost and
+  // left the hero where they started. The last save (from before the journey) stands; the next one follows the arrival.
+  if (g.travelling()) return;
   std::vector<uint8_t> buf;
   g.serialize(buf);
   std::string tmp = g_savePath + ".tmp";
@@ -126,6 +130,15 @@ struct ScriptCmd {
   int line = 0;
   std::string text;
 };
+bool g_scriptPhone = false;   // a "phone" header line: run at the iPhone review size (see the header comment)
+void setEnvIfUnset(const char* k, const char* v) {
+  if (std::getenv(k)) return;
+#ifdef _WIN32
+  _putenv_s(k, v);
+#else
+  setenv(k, v, 0);
+#endif
+}
 
 bool loadScript(const char* path, std::vector<ScriptCmd>& out, uint64_t& seed) {
   FILE* f = std::fopen(path, "rb");
@@ -157,7 +170,8 @@ bool loadScript(const char* path, std::vector<ScriptCmd>& out, uint64_t& seed) {
     }
     if (tok.empty()) continue;
     if (tok[0] == "seed" && tok.size() >= 2) { if (!seed) seed = (uint64_t)std::atoll(tok[1].c_str()); continue; }
-    if (tok[0] == "worldgen" && tok.size() >= 2) { g_worldgen = std::clamp(std::atoi(tok[1].c_str()), (int)WORLDGEN_V1, (int)WORLDGEN_LATEST); continue; }
+    if (tok[0] == "phone") { g_scriptPhone = true; continue; }
+    if (tok[0] == "worldgen") { std::printf("script %s:%d: 'worldgen' is retired (M2: every world is endless)\n", path, lineNo); return false; }
     char* endp = nullptr;
     bool rel = tok[0][0] == '+';
     float t = std::strtof(tok[0].c_str() + (rel ? 1 : 0), &endp);
@@ -232,6 +246,7 @@ int main(int argc, char** argv) {
   const char* fight = nullptr;
   int talkStep = -1;   // PT test-only: 0 = innkeeper greeting, 1 = job offer, 2 = shop
   uint64_t seed = 0;
+  bool windowSet = false;
   int winW = 1440, winH = 810;   // --window WxH: the initial window size in pixels (screen-fit tests: 2556x1179, 852x393...)
   bool atSet = false;
   int32_t atX = 0, atY = 0;      // --at GX,GY: start on that global tile (M1)
@@ -250,21 +265,29 @@ int main(int argc, char** argv) {
     else if (!std::strcmp(argv[i], "--fight") && i + 1 < argc) fight = argv[++i];
     else if (!std::strcmp(argv[i], "--talk") && i + 1 < argc) talkStep = std::atoi(argv[++i]);   // PT test-only
     else if (!std::strcmp(argv[i], "--script") && i + 1 < argc) scriptPath = argv[++i];
-    else if (!std::strcmp(argv[i], "--worldgen") && i + 1 < argc) g_worldgen = std::clamp(std::atoi(argv[++i]), (int)WORLDGEN_V1, (int)WORLDGEN_LATEST);
-    else if (!std::strcmp(argv[i], "--classic")) g_worldgen = WORLDGEN_LATEST;
+    else if (!std::strcmp(argv[i], "--script-help")) {
+      std::printf("script commands registered by the lanes (rpg/view/script_api.h):\n");
+      for (const ScriptExt& e : scriptExts()) std::printf("  %-22s %s\n", e.name, e.help);
+      return 0;
+    }
     else if (!std::strcmp(argv[i], "--at") && i + 1 < argc) {
       int x = 0, y = 0;
       if (std::sscanf(argv[++i], "%d,%d", &x, &y) == 2) { atSet = true; atX = x; atY = y; }
     }
     else if (!std::strcmp(argv[i], "--window") && i + 1 < argc) {
       int w = 0, h = 0;
-      if (std::sscanf(argv[++i], "%dx%d", &w, &h) == 2 && w >= 160 && h >= 90) { winW = w; winH = h; }
+      if (std::sscanf(argv[++i], "%dx%d", &w, &h) == 2 && w >= 160 && h >= 90) { winW = w; winH = h; windowSet = true; }
     }
   }
   std::vector<ScriptCmd> script;
   if (scriptPath) {
     if (!loadScript(scriptPath, script, seed)) { std::printf("script %s: cannot open\n", scriptPath); return 2; }
     std::printf("script %s: %zu commands, seed %llu\n", scriptPath, script.size(), (unsigned long long)seed);
+    if (g_scriptPhone) {   // the landscape iPhone 15 Pro: 2556x1179, fill, its safe-area insets (639x294 logical)
+      if (!windowSet) { winW = 2556; winH = 1179; }
+      setEnvIfUnset("EMB_SCREEN", "fill");
+      setEnvIfUnset("EMB_SAFE", "59,0,59,21");
+    }
   }
   const bool scripted = scriptPath != nullptr;
   const bool noSave = play || shotPath || seed != 0 || scripted;   // test runs never touch the player's save
@@ -470,7 +493,7 @@ int main(int argc, char** argv) {
   struct Walk {
     bool on = false;
     std::string what;
-    int kind = 0;            // 0 tile, 1 building door, 2 actor, 3 exit, 4 stairs (M0b)
+    int kind = 0;            // 0 tile, 1 building door, 2 actor, 3 exit, 4 stairs (M0b), 5 waiting for a giver (M2)
     int floor0 = 0;          // stairs: the floor the walk started on
     int tx = 0, ty = 0, actorId = -1, bldg = -1;
     int32_t wox = 0, woy = 0;   // M1: the endless window's origin the target tiles are relative to (shifts move them)
@@ -595,6 +618,13 @@ int main(int argc, char** argv) {
         walk.kind = 2; walk.actorId = best;
         return;
       }
+    // (M2) giver: the nearest person with a job to offer or a reward waiting (any role). When nobody is in play yet
+    // (townsfolk who hid from a fight come back out a while later: on a loaded machine the sim runs behind script
+    // time) the walk waits for one (kind 5) until its timeout.
+    if (walk.what == "giver") {
+      walk.kind = 5;
+      return;
+    }
     // a person by name (as rpg_test's EMB_SCRIPT_INFO lists them): walkto VIGRIMA
     for (size_t k = 1; k < game.actors.size(); k++) {
       const Actor& ac = game.actors[k];
@@ -610,6 +640,17 @@ int main(int argc, char** argv) {
     if (ok && walk.talk) { pushKey(SDL_SCANCODE_E, true); pushKey(SDL_SCANCODE_E, false); }
     walk.on = false;
   };
+  auto findGiver = [&]() {
+    int best = -1; float bd = 1e30f;
+    for (int pass = 0; pass < 2 && best < 0; pass++)   // a reward waiting first, then a job on offer
+      for (size_t k = 1; k < game.actors.size(); k++) {
+        const Actor& ac = game.actors[k];
+        if (!ac.npc || ac.st == AState::Dead || !(pass == 0 ? game.rewardWaiting(ac) : game.offersWork(ac))) continue;
+        float d = len2(ac.p - game.pl().p);
+        if (d < bd) { bd = d; best = ac.id; }
+      }
+    return best;
+  };
   auto stepWalk = [&](float dt) {
     walk.t += dt;
     if (!game.inside && (game.world.ox != walk.wox || game.world.oy != walk.woy)) {
@@ -617,6 +658,28 @@ int main(int argc, char** argv) {
       walk.tx -= game.world.ox - walk.wox; walk.ty -= game.world.oy - walk.woy;
       walk.wox = game.world.ox; walk.woy = game.world.oy;
       walk.path.clear(); walk.step = 0; walk.replanT = 0;
+    }
+    if (walk.kind == 5) {   // walkto giver: waiting for someone with work or a reward to be in play
+      const int id = findGiver();
+      if (id >= 0) { walk.kind = 2; walk.actorId = id; }
+      else if (walk.t > walk.timeout) {
+        // say where the givers of the quests waiting to be turned in are (a test that fails here needs to know)
+        for (const Quest& q : game.quests) {
+          if (q.state != QState::Complete) continue;
+          int found = 0;
+          for (size_t k = 1; k < game.actors.size(); k++) {
+            const Actor& ac = game.actors[k];
+            if (ac.name != q.giverName) continue;
+            found++;
+            std::printf("script:   giver %s of '%s': in play, %.0f tiles away, state %d, site %d bldg %d slot %d (quest: %d %d %d)\n", ac.name.c_str(),
+                        q.title.c_str(), len(ac.p - game.pl().p) / TILE, (int)ac.st, ac.site, ac.bldg, ac.slot, q.giverSite, q.giverBldg, q.giverSlot);
+          }
+          if (!found) std::printf("script:   giver %s of '%s': not in play\n", q.giverName.c_str(), q.title.c_str());
+        }
+        endWalk(false, "nobody here offers work or holds a reward");
+        return;
+      }
+      else { setMove(false, false, false, false); return; }
     }
     if (walk.t > walk.timeout) { endWalk(false, "timed out"); return; }
     if (game.mode != Mode::Play) { setMove(false, false, false, false); return; }   // a dialogue or menu is up: wait
@@ -681,6 +744,29 @@ int main(int argc, char** argv) {
     }
     setMove(false, false, false, false);   // the nearest reachable tile: wait there (an actor may still come within reach)
   };
+  // M2: commands registered through rpg/view/script_api.h. A command that returns false is retried every frame (script
+  // time stands still) until it returns true or its timeout passes.
+  struct ExtRun { const ScriptExt* e = nullptr; ScriptCmd cmd; float waited = 0; } extRun;
+  auto callExt = [&](float dt) {
+    ScriptCtx ctx{game, view, extRun.cmd.a, extRun.cmd.line, scriptT, extRun.waited, [&](const std::string& m) { fail(extRun.cmd.line, m); },
+                  [&](float x, float y) {
+                    SDL_FingerID id = nextFinger++;
+                    pushFinger(SDL_EVENT_FINGER_DOWN, id, x, y);
+                    lifts.push_back({id, x, y, scriptT + 0.08f});
+                  }};
+    if (extRun.e->fn(ctx)) { extRun.e = nullptr; return; }
+    extRun.waited += dt;
+    if (extRun.waited > extRun.e->timeout) { fail(extRun.cmd.line, std::string(extRun.e->name) + ": timed out"); extRun.e = nullptr; }
+  };
+  auto startExt = [&](const std::string& name, const ScriptCmd& c) {
+    for (const ScriptExt& e : scriptExts())
+      if (name == e.name) {
+        extRun.e = &e; extRun.cmd = c; extRun.waited = 0;
+        callExt(0);
+        return true;
+      }
+    return false;
+  };
   auto modeByName = [](const std::string& s, Mode& m) {
     static const char* n[] = {"title", "play", "dialogue", "menu", "shop", "levelup", "dead", "paused", "creator"};
     for (int i = 0; i < 9; i++) if (s == n[i]) { m = (Mode)i; return true; }
@@ -716,7 +802,7 @@ int main(int argc, char** argv) {
       startWalk(c);
     } else if (op == "talkto") {   // walkto a person, then talk in the very frame they come in reach (no one else steps in)
       startWalk(c);
-      if (walk.on && walk.kind == 2) walk.talk = true;
+      if (walk.on && (walk.kind == 2 || walk.kind == 5)) walk.talk = true;
       else if (walk.on) { walk.on = false; setMove(false, false, false, false); fail(c.line, "talkto needs a person"); }
     } else if (op == "newgame") {
       startNew(startSeed);
@@ -780,8 +866,7 @@ int main(int argc, char** argv) {
           if (M.blocked(x0 + ddx * k, y0 + ddy * k)) open = false;
         if (open) { tx = x0; ty = y0; break; }
       }
-      if (!game.world.endless) fail(c.line, "nearshift: not an endless world");
-      else { game.teleportGlobal(game.world.ox + tx, game.world.oy + ty); game.mode = Mode::Play; view.snap(game); }
+      { game.teleportGlobal(game.world.ox + tx, game.world.oy + ty); game.mode = Mode::Play; view.snap(game); }
     } else if (op == "walk") {   // M1: walk east|west|north|south SECS (a held direction key)
       static const struct { const char* n; SDL_Scancode sc; } dirs[] = {
           {"east", SDL_SCANCODE_D}, {"west", SDL_SCANCODE_A}, {"north", SDL_SCANCODE_W}, {"south", SDL_SCANCODE_S}};
@@ -906,8 +991,8 @@ int main(int argc, char** argv) {
           std::string t = rest(2);
           if (game.mode != Mode::Dialogue || game.dlg.text.find(t) == std::string::npos) fail(c.line, "dialogue text lacks '" + t + "': " + game.dlg.text);
         }
-      } else fail(c.line, "expect: unknown check '" + what + "'");
-    } else {
+      } else if (!startExt("expect:" + what, c)) fail(c.line, "expect: unknown check '" + what + "'");
+    } else if (!startExt(op, c)) {
       fail(c.line, "unknown command '" + op + "'");
     }
   };
@@ -926,9 +1011,10 @@ int main(int argc, char** argv) {
       else i++;
     }
     if (walk.on) { stepWalk(dt); return; }   // script time stands still while walking
+    if (extRun.e) { callExt(dt); return; }   // ... and while a registered command is still busy
     while (scriptNext < script.size() && script[scriptNext].t <= scriptT && running) {
       runCmd(script[scriptNext++]);
-      if (walk.on) return;
+      if (walk.on || extRun.e) return;
     }
     if (scriptNext >= script.size() && held.empty() && lifts.empty()) {
       if (scriptEndT < 0) scriptEndT = scriptT;
@@ -1062,6 +1148,12 @@ int main(int argc, char** argv) {
     in.attack |= latched.attack; in.bow |= latched.bow; in.spell |= latched.spell; in.roll |= latched.roll;
     in.interact |= latched.interact; in.potion |= latched.potion; in.swapSpell |= latched.swapSpell;
     latched = Input();
+    // EMB_TIMING: the 12 frames after a journey's fade lifts, split into sim steps, view update and draw
+    static int afterTravel = 0;
+    static bool wasTravelling = false;
+    if (wasTravelling && !game.travelling()) afterTravel = 12;
+    wasTravelling = game.travelling();
+    const Uint64 simT0 = SDL_GetPerformanceCounter();
     if (game.mode == Mode::Play) {
       acc += frameDt;
       int steps = 0;
@@ -1079,8 +1171,20 @@ int main(int argc, char** argv) {
       acc = 0;
       if (game.mode == Mode::Title) game.time += (float)frameDt;
     }
+    const Uint64 simT1 = SDL_GetPerformanceCounter();
     view.update(game, (float)frameDt);
+    const Uint64 updT1 = SDL_GetPerformanceCounter();
     view.draw(game, hasSave);
+    {
+      static const bool timing = std::getenv("EMB_TIMING") != nullptr;
+      auto ms = [&](Uint64 a, Uint64 b) { return (double)(b - a) * 1000.0 / (double)freq; };
+      const bool slow = timing && ms(work0, SDL_GetPerformanceCounter()) > 15.0;   // (and any frame over 15 ms)
+      const bool after = afterTravel > 0;
+      if (after) afterTravel--;
+      if (timing && (after || slow))
+        std::printf("%s frame %d: pre %.2f ms, sim %.2f ms, view update %.2f ms, draw %.2f ms (npc awake %d)\n", after ? "after arrival" : "slow", 12 - afterTravel,
+                    ms(work0, simT0), ms(simT0, simT1), ms(simT1, updT1), ms(updT1, SDL_GetPerformanceCounter()), game.perf.npcAwake);
+    }
     {   // the frame's CPU work: everything before the present (vsync waits) and before a test screenshot (PNG writing)
       double workMs = (double)(SDL_GetPerformanceCounter() - work0) * 1000.0 / (double)freq;
       pacc.frames++;

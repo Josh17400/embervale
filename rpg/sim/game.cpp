@@ -46,15 +46,6 @@ float Game::daylight() const {
 }
 
 // ------------------------------------------------------------------ setup
-void Game::newGame(uint64_t s, int genVer) {
-  seed = s;
-  rng_ = Rng(s ^ 0xABCDEF);
-  world.streamer.reset();   // (an endless world's prefetcher and look-ups do not apply to the island)
-  world.nearSites.clear(); world.nearDens.clear(); world.siteSpawns.clear(); world.sstats = World::StreamStats();
-  world.generate(s, genVer);
-  beginWorld();
-}
-
 void Game::newEndlessGame(uint64_t s) {
   seed = s;
   rng_ = Rng(s ^ 0xABCDEF);
@@ -83,7 +74,8 @@ void Game::resetSession() {
   perf = PerfCounters();
   prefetchT_ = 0; siteScanT_ = 0; prefetchFrom_ = Vec2();
   curSite = -1;
-  if (!world.endless) world.rebuildSiteSpawns();   // the classic island's spawns, by site (endless worlds keep it as they stream)
+  travel = Travel();
+  marks.clear();
 }
 
 // everything a new game sets up once its world exists
@@ -92,6 +84,18 @@ void Game::beginWorld() {
   lastTown = world.startSite;
   placePlayerAt(world.sites[world.startSite].r.cx(), world.sites[world.startSite].r.cy() + 1);
   const Site home = world.sites[world.startSite];   // a copy: the endless window may load more sites
+  // (M2 fixer) a fresh adventure: the hero knows the country round home (a rough disc of about 120 tiles), so the
+  // first look at the map shows land, not a blank page
+  if (world.endless) {
+    const int32_t hx = world.ox + home.ex, hy = world.oy + home.ey;
+    const int R = 120, Cl = ExploredMask::CELL;
+    for (int32_t y = hy - R; y <= hy + R; y += Cl)
+      for (int32_t x = hx - R; x <= hx + R; x += Cl) {
+        const int64_t dx = x - hx, dy = y - hy;
+        const int64_t rr = R - 6 + (int64_t)(hash2(x / Cl, y / Cl, 0xE7u) % 13u);   // a ragged edge
+        if (dx * dx + dy * dy <= rr * rr) explored.mark(x, y);
+      }
+  }
   // main quest
   Quest q;
   q.id = nextQuestId++;
@@ -290,6 +294,10 @@ void Game::prefetchTick(float dt) {
 }
 
 void Game::frameWork(double budgetMs) {
+  frameWorkCalls_++;
+  // M2: while a journey gathers its destination behind a black screen there is nothing else to draw: the web's pump
+  // may take most of the frame (natively the worker does the work and this only collects it)
+  if (travel.phase == TravelPhase::Gather && travel.t >= kTravelFadeOut) budgetMs = std::max(budgetMs, kTravelBlackBudgetMs);
   if (world.streamer) world.streamer->pump(budgetMs);
 }
 
@@ -389,6 +397,7 @@ void Game::moveActor(Actor& a, Vec2 d) {
 // ------------------------------------------------------------------ main update
 void Game::update(float dt, const Input& in) {
   if (mode != Mode::Play) return;
+  if (travel.phase != TravelPhase::None) { travelStep(dt); return; }   // M2: on the road behind the fade (travel.cpp)
   if (stFlash > 0) stFlash -= dt;
   if (hitStop > 0) { hitStop -= dt; return; }
   if (slowMo > 0) { slowMo -= dt; dt *= 0.3f; }   // perfect roll / level-up: a brief slow-motion blip
@@ -445,6 +454,8 @@ void Game::update(float dt, const Input& in) {
       if (a.player && b.npc) moveActor(b, push);
     }
   updateTownDefence(dt);
+  questTick(dt);      // M2: deliveries, escorts, the Protect night (quests.cpp)
+  waysideTick(dt);    // M2: the toll bridge (wayside.cpp)
   updateProjectiles(dt);
   updatePickups(dt);
   if (!inside) updateSpawning(dt);
@@ -796,6 +807,7 @@ void Game::kill(Actor& a, int killer) {
     return;
   }
   sfx((int)Sfx::EnemyDie, a.p, a.boss ? 0.7f : 1.0f);
+  questActorDown(a);   // M2: a farmer who asked for help, a missing person (quests.cpp)
   // only the player's own blows, arrows and fire earn XP, the kill count and hunt progress: a wolf the town guard
   // cuts down is not the player's kill
   const bool byPlayer = killer == pl().id;
@@ -1130,6 +1142,14 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
       L.tabardColor = rgba(130, 30, 40); L.cloakColor = rgba(130, 30, 40);
       a.name = "KING " + a.name;
       break;
+    // M2 wayside people (rpg/sim/wayside.cpp): colours only, after the shared draws, so every other look is unchanged
+    case Role::Hunter:
+      L.outfit = art::Outfit::Leather; L.topColor = rgba(96, 112, 64); L.bottomColor = rgba(84, 64, 44); L.weapon = 3;
+      L.hood = (hash32((uint32_t)a.slot * 977u + 13u) & 1) != 0; L.tabardColor = rgba(120, 90, 54);
+      break;
+    case Role::Fisher: L.outfit = art::Outfit::Tunic; L.topColor = rgba(74, 104, 132); L.bottomColor = rgba(70, 64, 54); break;
+    case Role::Herbalist: L.outfit = art::Outfit::Robe; L.topColor = rgba(92, 128, 76); L.tabardColor = rgba(200, 180, 110); L.hood = true; break;
+    case Role::Traveller: L.cape = true; L.tabardColor = rgba(110, 84, 60); L.topColor = rgba(140, 120, 90); L.hood = true; break;
     default: break;
   }
   // M1 kingdom identity (VISION_PLAN 15.8): guards wear their kingdom's colours; the king's cloak and the royal guard
@@ -1183,15 +1203,28 @@ int Game::spawnHuman(const Spawn& sp, Vec2 p) {
       else { a.maxHp = 420; a.hp = 420; a.dmg = 28; }
     }
     if (sp.role == Role::King) { a.maxHp = 500; a.hp = 500; a.dmg = 30; }
+    // (M2 town defence) the people of a settlement are as hardy as the country around it: a town in level-13 land has
+    // a watch that kills its wolves in two blows and folk who survive a bite, like a town at home does (the same
+    // growth per level as the beasts: applyLevel)
+    if (!inside && sp.site >= 0 && sp.site < (int)world.sites.size() && world.sites[(size_t)sp.site].settlement()) {
+      const int L = std::max(1, world.sites[(size_t)sp.site].level);
+      const float hm = 1.0f + 0.10f * (L - 1), dm = 1.0f + 0.13f * (L - 1);
+      a.maxHp *= hm; a.hp = a.maxHp; a.dmg *= dm;
+      a.armor = L * 1.5f;
+    }
     if (sp.role == Role::Child) { a.radius = 3.5f; a.look.outfit = art::Outfit::Tunic; a.look.beard = false; }
     a.level = 10;
     // (M1 economy) a merchant spawned behind a market stall's counter keeps the stall
     if (!inside && sp.role == Role::Merchant) {
       const int tx = (int)std::floor(p.x / 16.0f), ty = (int)std::floor(p.y / 16.0f);
-      const int q = world.over.propAt(tx, ty + 1);
+      // (stall facings) the stall may face any way: the keeper stands inside it against the counter, facing out
+      int vsx = tx, vsy = ty + 1, vsf = art::StallS;
+      const bool vendor = art::stallOfPost([&](int x, int y) { return world.over.propAt(x, y); }, tx, ty, world.ox, world.oy, vsx, vsy, vsf);
+      const int q = vendor ? world.over.propAt(vsx, vsy) : 0;
       if (q && art::isVendorProp((art::Prop)(q - 1))) {   // stands close behind the counter, facing the customers
-        a.stallKeeper = true; a.face = 0;
-        a.p.y = (ty + 1) * 16.0f + 2.0f;   // (the counter hides the legs)
+        const art::StallKeeperSpot ks = art::stallKeeperSpot(vsf);
+        a.stallKeeper = true; a.face = ks.face;
+        a.p = Vec2(vsx * 16.0f + ks.standX, vsy * 16.0f + ks.standY);   // (the counter hides the legs)
         // (M1 fixer round 2) behind an open table or a cloth on the paving: in the middle of its two tiles (still over
         // its west tile, the one whose closing hour the view and the keeper share), a step back from a cloth
         if (!art::isStall((art::Prop)(q - 1))) {
@@ -1382,7 +1415,25 @@ void Game::streamSitePeople(int si) {
     const Spawn& sp = world.over.spawns[(size_t)w.second];
     const bool counts = sp.npc && sp.role != Role::Guard;
     if (counts && !whole && folk >= FOLK_CAP) continue;
+    if (st.type == SiteType::Vignette && waysideSpawn(si, sp)) continue;   // M2: a troll keeper, an ambush (wayside.cpp)
     spawnHuman(sp, Vec2(sp.x * TILE + 8.0f, sp.y * TILE + 10.0f));
+    questSpawned(actors.back());   // M2: a named bandit chief (quests.cpp)
+    // M2 town defence: a town's or city's watch keeps a post on the square (where the market and the crowd are), so a
+    // big town's guards are on the spot when beasts get in, not a long run away at the walls
+    if (sp.role == Role::Guard && (st.type == SiteType::Town || st.type == SiteType::City) && actors.back().name == "GUARD") {
+      const Vec2 heart(st.ex * TILE + 8.0f, st.ey * TILE + 10.0f);
+      int posted = 0;
+      for (size_t k = 1; k + 1 < actors.size(); k++)
+        if (actors[k].site == si && actors[k].role == Role::Guard && len2(actors[k].home - heart) < (10.0f * TILE) * (10.0f * TILE)) posted++;
+      for (const Actor& o : sheltered_)
+        if (o.site == si && o.role == Role::Guard && len2(o.home - heart) < (10.0f * TILE) * (10.0f * TILE)) posted++;
+      static const int post[][2] = {{-4, 3}, {4, 3}, {0, -4}, {-6, -1}, {6, -1}};
+      if (posted < (st.type == SiteType::City ? 4 : 2) && posted < 5) {
+        Actor& g = actors.back();
+        g.p = freeSpot(st.ex + post[posted][0], st.ey + post[posted][1]);
+        g.home = g.p; g.goal = g.p;
+      }
+    }
     if (sp.npc) perf.spawnedNpcs++;
     if (counts) folk++;
   }
@@ -1434,8 +1485,6 @@ void Game::updateSpawning(float dt) {
     }
     for (auto itF = felled_.begin(); itF != felled_.end();)
       if (std::find(near.begin(), near.end(), itF->first) == near.end()) itF = felled_.erase(itF); else ++itF;
-  } else {
-    for (int si = 0; si < (int)world.sites.size(); si++) visit(si);
   }
   perf.activeSites = (int)activeSites_.size();
   // the dragon waits at its peak once the hunt is on
@@ -1522,12 +1571,9 @@ int Game::denClearedDay(int den) const {
 }
 
 void Game::updateDens(int ptx, int pty) {
-  // endless worlds: only the dens near the window (an active den that left it is put away below)
-  std::vector<int> all;
+  // only the dens near the window (an active den that left it is put away below)
   const std::vector<int>* list = &world.nearDens;
-  if (!world.endless) { all.resize(world.dens.size()); for (size_t i = 0; i < all.size(); i++) all[i] = (int)i; list = &all; }
-  else
-    for (int i : std::vector<int>(activeDens_.begin(), activeDens_.end()))
+  for (int i : std::vector<int>(activeDens_.begin(), activeDens_.end()))
       if (std::find(world.nearDens.begin(), world.nearDens.end(), i) == world.nearDens.end()) {
         activeDens_.erase(i);
         for (size_t k = 1; k < actors.size();)
@@ -1592,9 +1638,14 @@ void Game::updateLocation() {
       Site& st = world.sites[si];
       if (!st.discovered) {
         st.discovered = true;
-        emit(Ev::Discover, p.p, si, 1, st.name);
+        st.rumoured = false;   // (M2: heard of, now found)
+        const bool wonder = st.type == SiteType::Wonder;
+        emit(Ev::Discover, p.p, si, wonder ? 2.0f : 1.0f, st.name);
         sfx((int)Sfx::Discover, p.p);
-        gainXp(10);
+        if (wonder) {   // M2: a wonder of the world is worth the detour
+          emit(Ev::QuestUpdate, p.p, -1, 3, "WONDER FOUND: " + st.name);
+          gainXp(100);
+        } else gainXp(10);
         if (background == Background::Marked && (st.type == SiteType::Ruin || st.type == SiteType::DragonLair))   // marked one: a hook into M9
           emit(Ev::Notice, p.p, (int)rgba(170, 140, 255), 0, "THE MARK ON YOUR WRIST GROWS WARM");
       }
@@ -1626,6 +1677,7 @@ void Game::enterSite(int si) {
   pl().face = 1;
   exitArmed_ = false;
   loadMapActors();
+  questMapLoaded();   // M2: an heirloom's chest, a missing person (quests.cpp)
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p, 0.7f);
   say(st.name);
@@ -1646,6 +1698,7 @@ void Game::enterBuilding(int bi) {
   stairsNorth_ = false;
   stairsArrive_ = -1;
   loadMapActors();
+  questMapLoaded();   // M2: a parcel's recipient (quests.cpp)
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p);
 }
@@ -1692,6 +1745,19 @@ bool Game::debugEnterBuilding(int bi, int f) {
   return subFloor == f;
 }
 
+bool Game::debugEnterSite(int si) {
+  if (si < 0 || si >= (int)world.sites.size()) return false;
+  const Site s = world.sites[(size_t)si];   // (a copy: the teleport may load more sites; handles stay)
+  if (s.type != SiteType::Cave && s.type != SiteType::Ruin) return false;
+  if (inside) leaveSub();
+  if (!world.over.in(s.ex, s.ey) || s.ex < World::WIN_SHIFT || s.ey < World::WIN_SHIFT || s.ex >= World::WIN - World::WIN_SHIFT ||
+      s.ey >= World::WIN - World::WIN_SHIFT)
+    teleportGlobal(world.ox + s.ex, world.oy + s.ey + 1);
+  enterSite(si);
+  sleepFade = 0;
+  return inside && subSite == si;
+}
+
 void Game::leaveSub() {
   int bi = subBldg, si = subSite;
   inside = false; subBldg = -1; subSite = -1; subFloor = 0;
@@ -1712,6 +1778,7 @@ void Game::leaveSub() {
     if (tx < lo || ty < lo || tx >= hi || ty >= hi) placePlayerAt(tx, ty);   // (the door's tile: free, so exact)
   }
   pl().face = 0;
+  if (si >= 0) questLeftSite(si);   // M2: a missing person led out is safe (quests.cpp)
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p, 0.8f);
   updateLocation();

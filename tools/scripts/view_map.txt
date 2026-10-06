@@ -32,6 +32,8 @@ seed 7
 +0.5 shot map_4_panned.png
 +0.1 key W                       # the nearest discovered place
 +0.1 key S
++0.1 key S                       # (M2 fixer round 3) the next one: the nearest is the city the hero stands in, whose
+                                 # journey is refused and (now) keeps the map open
 +0.4 shot map_5_selected.png
 +0.1 key Return                  # fast travel
 +1.5 expect mode play

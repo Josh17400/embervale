@@ -1,0 +1,90 @@
+# M2 UI lane: every panel in turn, for the adaptive-layout review (owner carry-over 1: menus, shop, level-up and
+# dialogue used a fixed 480-wide layout on a ~609-wide phone safe area). Each screen is shot in the touch layout, the
+# lists and menus once more with the keyboard layout. Run it at the four review sizes (screenshots land in the working
+# directory as ui_*.png):
+#   EMB_SCREEN=fill EMB_SAFE=59,0,59,21 embervale.exe --script tools/scripts/m2_ui_screens.txt --window 2556x1179
+#   EMB_SCREEN=fill EMB_SAFE=47,0,47,21 embervale.exe --script tools/scripts/m2_ui_screens.txt --window 2532x1170
+#   EMB_SCREEN=fill embervale.exe --script tools/scripts/m2_ui_screens.txt --window 852x393
+#   embervale.exe --script tools/scripts/m2_ui_screens.txt                          (1440x810, the desktop)
+# Navigation is by keys and test commands (never fixed tap coordinates: the layout differs at every size); `touch 1`
+# then picks the touch layout for the photograph.
+seed 3
+0.6  touch 1
+0.8  shot ui_00_title.png
+1.0  key Return                  # NEW ADVENTURE -> the character creator
+1.6  expect mode creator
+1.7  touch 1
+1.9  shot ui_01_creator_looks.png
+2.0  key Tab
+2.1  touch 1
+2.3  shot ui_02_creator_name.png
+2.4  key Tab
+2.5  touch 1
+2.7  shot ui_03_creator_origin.png
+2.8  key Return                  # BEGIN
+3.2  expect mode play
+3.3  hour 11
+3.4  kit
+3.5  gear 3
+3.6  givequest bounty
+3.7  touch 1
+4.2  shot ui_04_hud.png
+# the menu, tab by tab (touch layout)
+4.4  menu 0
+4.5  touch 1
+4.7  shot ui_05_items.png
+4.8  menu 5
+5.0  shot ui_06_equip.png
+5.1  menu 1
+5.3  shot ui_07_quests.png
+5.4  menu 2
+5.8  shot ui_08_map.png
+5.9  menu 3
+6.1  shot ui_09_hero.png
+6.2  menu 4
+6.4  shot ui_10_system.png
+# SETTINGS from SYSTEM (keys), photographed in the touch layout
+6.5  key Down
+6.6  key Return
+6.7  touch 1
+6.9  shot ui_11_settings.png
+7.0  key Escape
+7.1  key Escape
+7.2  expect mode play
+# the level-up screen
+7.4  levelup
+7.5  touch 1
+7.7  shot ui_12_levelup.png
+7.8  key Escape
+# a conversation with a long line and five options, then a real one and the innkeeper's wares
+8.0  dialogue 5
+8.1  touch 1
+8.2  key Space                   # finish the typing
+8.3  touch 1
+8.5  shot ui_13_dialogue.png
+8.6  key Escape
+8.8  goto town enter
+9.0  talk 0
+9.1  key Space
+9.2  touch 1
+9.4  shot ui_14_inn_dialogue.png
+9.5  key Escape
+9.7  talk 2
+9.8  expect mode shop
+9.9  touch 1
+10.1 shot ui_15_shop.png
+10.2 key Down                    # the keyboard layout of the shop and the lists
+10.4 shot ui_16_shop_keys.png
+10.5 key Escape
+10.6 menu 0
+10.8 shot ui_17_items_keys.png
+10.9 menu 1
+11.1 shot ui_18_quests_keys.png
+11.2 menu 5
+11.4 shot ui_19_equip_keys.png
+11.5 key Escape
+# the death screen (its prompt waits 1.2 s)
+11.8 die
+11.9 touch 1
+13.6 shot ui_20_dead.png
+13.8 quit

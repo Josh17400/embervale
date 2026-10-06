@@ -180,6 +180,13 @@ struct Gen {
   void markets();                    // the market rows on the main square (or along the main street), the keepers
   void squareDress();                // the other squares: benches, trees, a lamp
   void tradeYards();                 // the specialisation's yard props round its buildings and at the edge
+  // (M2, owner note 6) no bare paved expanse: features go up in every empty paved block of 8 x 8 or more; a city's
+  // main square gets its square-goers (idlers, shoppers, a crier, children)
+  int largestEmptyPlaza(int& bx, int& by, const std::vector<uint8_t>& skip) const;
+  // (M2 fixer round 3) the largest empty paved rectangle at least minSide each way (by area): long bare bands too
+  int largestEmptyBand(int& bx, int& by, int& bw, int& bh, int minSide, const std::vector<uint8_t>& skip) const;
+  void plazaFill();
+  void squareFolk();
   void finish();
   void addSpawn(Role r, int x, int y);
 };

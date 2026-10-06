@@ -28,16 +28,32 @@ const Slot kSlots[11] = {
     {ItemKind::Bow, "BOW", art::Icon::Bow, 1, 2},          {ItemKind::Staff, "STAFF", art::Icon::Staff, 1, 3},
     {ItemKind::Ring, "RING", art::Icon::Ring, 1, 4},
 };
-constexpr int kNSlots = 11, kListRows = 5;
-constexpr float kBox = 28, kPitch = 33;
+constexpr int kNSlots = 11;
+int kListRows = 5;
+constexpr float kBox = 28;
+float kPitch = 33;
 
-// ---- layout (absolute logical coordinates; the menu panel spans 8..472 x 6..264, its tabs end at y 26)
-constexpr float kColX[2] = {18, 168};
+// ---- layout (box coordinates; at 480 x 270 the menu panel spans 8..472 x 6..264 and its tabs end at y 33). M2: the
+// box is the whole safe area, so relayout() spreads the slot columns, widens the detail column and lets the slots and
+// the stage grow with the height; at 480 x 270 it gives exactly the M0 layout the scripts tap.
+float kColX[2] = {18, 168};
 constexpr float kTopY = 36;
-constexpr float kDollCX = 110, kDollFootY = 150;
-constexpr float kDX = 206, kDW = 260;                 // detail column
+float kDollCX = 110, kDollFootY = 150, kStageH = 196;
+float kDX = 206, kDW = 260;                           // detail column
 constexpr float kListY = 112, kRowH = 24;
-constexpr float kBtnY = 238;
+float kBtnY = 238;
+void relayout(int W, int H) {
+  const int ex = std::max(0, W - 480), ey = std::max(0, H - 270);
+  kColX[1] = 168 + std::floor(ex * 0.2f);
+  kDollCX = 110 + std::floor(ex * 0.1f);
+  kPitch = std::min(40.0f, 33 + std::floor(ey / 6.0f));
+  kStageH = 196 + (float)ey;
+  kDollFootY = 150 + std::floor(ey * 0.6f);
+  kDX = kColX[1] + 38;
+  kDW = (float)W - 14 - kDX;
+  kBtnY = (float)H - 32;
+  kListRows = std::max(5, (int)((kBtnY - 8 - kListY) / kRowH));
+}
 
 struct PState { int slot = 3, cand = 0, scroll = 0, face = -1; float hold = 0; } S;
 
@@ -104,12 +120,13 @@ void pickSlot(Game& g, int i) {
 void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   (void)x; (void)y; (void)w; (void)h;
   Pix& P = *pix_;
+  relayout(Pix::W, Pix::H);
   clampCand(g);
   S.hold = std::max(0.0f, S.hold - 1.0f / 60.0f);
 
   // ---- the doll: a lit stage, the hero at 4x turning slowly, his numbers below
-  P.rect(54, kTopY, 108, 196, Color(0.03f, 0.025f, 0.04f, 0.55f));
-  P.frame(54, kTopY, 108, 196, Color(0.3f, 0.24f, 0.15f));
+  P.rect(kDollCX - 56, kTopY, 112, kStageH, Color(0.03f, 0.025f, 0.04f, 0.55f));
+  P.frame(kDollCX - 56, kTopY, 112, kStageH, Color(0.3f, 0.24f, 0.15f));
   heroStage(P, light_, kDollCX, kDollFootY, 0.8f);
   static const int order[4] = {0, 2, 1, 3};
   int face = S.face >= 0 && S.hold > 0 ? S.face : order[(int)(t_ / 1.8f) & 3];
@@ -118,8 +135,8 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   const float sc = 4;
   P.blitEx(t, frame * art::HUMAN_W, (face == 3 ? 2 : face) * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, kDollCX - art::HUMAN_W * sc / 2,
            kDollFootY - (art::HUMAN_H - 1) * sc, art::HUMAN_W * sc, art::HUMAN_H * sc, face == 3);
-  button(58, kDollFootY + 8, 28, 24, "<", false);
-  button(kDollCX + 26, kDollFootY + 8, 28, 24, ">", false);
+  button(kDollCX - 52, kDollFootY + 8, 28, 24, "<", false);
+  button(kDollCX + 24, kDollFootY + 8, 28, 24, ">", false);
   P.text(kDollCX, kDollFootY + 16, "TURN", 1, kDimC, 1);
   P.text(kDollCX, kDollFootY + 42, "ARMOR " + std::to_string((int)g.armorRating()), 1, kTextC, 1);
   P.text(kDollCX, kDollFootY + 53, "DAMAGE " + std::to_string((int)g.weaponDamage()), 1, kTextC, 1);
@@ -173,7 +190,9 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
       P.rect(kDX, ry, kDW - 28, kRowH - 2, hot ? Color(0.3f, 0.22f, 0.12f, 0.85f) : Color(0.1f, 0.085f, 0.08f, 0.6f));
       if (hot) P.frame(kDX, ry, kDW - 28, kRowH - 2, kGoldC);
       P.blit(iconTex(it.icon, it.tint), kDX + 3, ry + 3);
-      std::string nm = it.name.size() > 22 ? it.name.substr(0, 22) : it.name;
+      std::string nm = it.name;
+      const int maxC = std::max(8, (int)((kDW - 28 - 22 - 34) / 6));
+      if ((int)nm.size() > maxC) nm = nm.substr(0, (size_t)maxC);
       P.text(kDX + 22, ry + 8, nm, 1, colOf(rarityColor(it.rarity)));
       const char* unit = "";
       int v = headline(it, unit);
@@ -192,8 +211,8 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   }
   bool canAct = !c.empty();
   bool wearingHot = canAct && c[S.cand] == eq;
-  if (canAct) button(kDX, kBtnY, 124, 24, std::string(wearingHot ? "TAKE OFF" : "EQUIP") + (touchUI ? "" : " (ENT)"), true);
-  if (eq >= 0) button(kDX + 132, kBtnY, 124, 24, touchUI ? "REMOVE" : "REMOVE (X)", false);
+  if (canAct) button(kDX, kBtnY, std::floor((kDW - 12) / 2), 24, std::string(wearingHot ? "TAKE OFF" : "EQUIP") + (touchUI ? "" : " (ENT)"), true);
+  if (eq >= 0) button(kDX + std::floor((kDW - 12) / 2) + 8, kBtnY, std::floor((kDW - 12) / 2), 24, touchUI ? "REMOVE" : "REMOVE (X)", false);
 }
 
 void View::paperdollKey(Game& g, int key) {
@@ -216,11 +235,12 @@ void View::paperdollKey(Game& g, int key) {
 }
 
 void View::paperdollTap(Game& g, Vec2 p) {
+  relayout(Pix::W, Pix::H);   // (tap() has pushed the menu's box)
   clampCand(g);
   for (int i = 0; i < kNSlots; i++)
     if (inR(p, slotX(i) - 2, slotY(i) - 2, kBox + 4, kBox + 4)) { pickSlot(g, i); audio_->play(Sfx::MenuMove); return; }
-  if (inR(p, 58, kDollFootY + 8, 28, 24)) { paperdollKey(g, SDLK_LEFTBRACKET); return; }
-  if (inR(p, kDollCX + 26, kDollFootY + 8, 28, 24)) { paperdollKey(g, SDLK_RIGHTBRACKET); return; }
+  if (inR(p, kDollCX - 52, kDollFootY + 8, 28, 24)) { paperdollKey(g, SDLK_LEFTBRACKET); return; }
+  if (inR(p, kDollCX + 24, kDollFootY + 8, 28, 24)) { paperdollKey(g, SDLK_RIGHTBRACKET); return; }
   std::vector<int> c = candidates(g, kSlots[S.slot].kind);
   int eq = equippedIn(g, kSlots[S.slot].kind);
   if ((int)c.size() > kListRows) {
@@ -233,6 +253,6 @@ void View::paperdollTap(Game& g, Vec2 p) {
   }
   for (int r = 0; r < kListRows && S.scroll + r < (int)c.size(); r++)
     if (inR(p, kDX, kListY + r * kRowH, kDW - 28, kRowH)) { S.cand = S.scroll + r; g.useItem(c[S.cand]); return; }
-  if (!c.empty() && inR(p, kDX, kBtnY, 124, 24)) { g.useItem(c[S.cand]); return; }
-  if (eq >= 0 && inR(p, kDX + 132, kBtnY, 124, 24)) { g.useItem(eq); return; }
+  if (!c.empty() && inR(p, kDX, kBtnY, std::floor((kDW - 12) / 2), 24)) { g.useItem(c[S.cand]); return; }
+  if (eq >= 0 && inR(p, kDX + std::floor((kDW - 12) / 2) + 8, kBtnY, std::floor((kDW - 12) / 2), 24)) { g.useItem(eq); return; }
 }

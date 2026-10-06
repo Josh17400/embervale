@@ -259,6 +259,8 @@ int checkPalace(const Bldg& b0, const char* what) {
 std::map<std::string, std::pair<int, int>> g_stallRange;   // type -> min, max stalls
 std::map<std::string, int> g_noStall;                      // type -> settlements without a stall
 std::map<std::string, std::pair<int, int>> g_vendorRange;  // type -> min, max stalls + tables + cloths
+int g_facings[4] = {};                                      // (stall facings) stalls facing S, N, E, W
+int g_allFront = 0, g_markets3 = 0;                         // (stalls fixer round 2) markets of 3+ stalls all facing S
 int g_mineHills = 0, g_mineAdits = 0, g_pens = 0, g_herders = 0;
 int checkEconomy(const Case& c, const ew::SettlementOut& so, const char* what) {
   int bad = 0;
@@ -338,14 +340,31 @@ int checkEconomy(const Case& c, const ew::SettlementOut& so, const char* what) {
     for (int y = b.r.y; y < b.r.y + b.r.h; y++) if (m.in(sx, y) && groundWater(m.at(sx, y))) wet++;
     if (wet < 2) fail("a watermill at %d,%d without its river beside the wheel", b.r.x, b.r.y);
   }
-  // the market
-  struct St { int x, y; };
+  // the market. (stall facings) Every stall faces one of four ways (art_props.h): f, its customers' way (fx, fy) and
+  // the way its counter runs (ax, ay); its counter's three tiles are its prop and two Filler
+  struct St { int x, y, f, fx, fy, ax, ay; };
   std::vector<St> st;
+  auto propAt = [&](int x, int y) { return m.propAt(x, y); };
   for (int y = 0; y < m.h; y++)
     for (int x = 0; x < m.w; x++) {
       const int p = m.propAt(x, y);
-      if (p && art::isStall((Prop)(p - 1))) st.push_back({x, y});
+      if (!p || !art::isStall((Prop)(p - 1))) continue;
+      const int f = art::stallFacingAt(propAt, x, y, so.gx, so.gy);
+      St s{x, y, f, 0, 1, 1, 0};
+      if (f == art::StallN) { s.fy = -1; }
+      else if (f == art::StallE) { s.fx = 1; s.fy = 0; s.ax = 0; s.ay = 1; }
+      else if (f == art::StallW) { s.fx = -1; s.fy = 0; s.ax = 0; s.ay = 1; }
+      st.push_back(s);
+      g_facings[f]++;
     }
+  // (stalls fixer round 2, "some markets still face the camera only") every market of three or more stalls shows at
+  // least one stall from behind or in profile
+  if (st.size() >= 3) {
+    g_markets3++;
+    bool front = true;
+    for (const St& s : st) if (s.f != art::StallS) front = false;
+    if (front) { g_allFront++; out("note: %s: a market of %zu stalls all facing the camera (a cramped square)\n", what, st.size()); }
+  }
   // (M1 fixer round 2) the open tables and cloths: Filler on their east tile, the seller's tile behind and the two
   // rows before them open, and no two of one town selling the same goods
   int tables = 0;
@@ -382,12 +401,26 @@ int checkEconomy(const Case& c, const ew::SettlementOut& so, const char* what) {
     for (auto& [t, k] : trades) if (k > 1) { fail("%d stalls of one trade (%d)", k, t - (int)Prop::StallProduce); break; }
     if (c.type != SiteType::Village)
       for (const St& s : st) {
-        bool nb = false;
-        for (const St& o : st) if (o.y == s.y && std::abs(o.x - s.x) == 3) nb = true;
+        bool nb = false, lo = false, hi = false;
+        for (const St& o : st) {
+          if (o.f != s.f) continue;
+          // (stalls fixer round 2) a side row's stalls stand a tile apart (4 on), never touching in one column
+          const int stp = s.f >= art::StallE ? 4 : 3;
+          if (o.x == s.x - stp * s.ax && o.y == s.y - stp * s.ay) nb = lo = true;
+          if (o.x == s.x + stp * s.ax && o.y == s.y + stp * s.ay) nb = hi = true;
+        }
+        // (stalls fixer round 2) a side stall turned across a row's end (an L, a short walkway between) is no lone stall
+        if (!nb && s.f >= art::StallE)
+          for (const St& o : st)
+            if (o.f <= art::StallN && o.y >= s.y - 3 && o.y <= s.y + 1 && std::abs(o.x - s.x) <= 9) nb = true;
         if (!nb) { fail("a lone stall at %d,%d", s.x, s.y); break; }
-        const bool leftEnd = m.propAt(s.x - 3, s.y) - 1 < (int)Prop::StallProduce || m.propAt(s.x - 3, s.y) - 1 > (int)Prop::StallTimber;
-        const bool rightEnd = m.propAt(s.x + 3, s.y) - 1 < (int)Prop::StallProduce || m.propAt(s.x + 3, s.y) - 1 > (int)Prop::StallTimber;
-        if ((leftEnd && m.blocked(s.x - 3, s.y + 1)) || (rightEnd && m.blocked(s.x + 3, s.y + 1))) { fail("the run at %d,%d is shut in at an end", s.x, s.y); break; }
+        // the tile two past each end of the run, on its aisle's first row, is open ground
+        const bool ns = s.f >= art::StallE;
+        const int la = ns ? -4 : -3, ha = ns ? 2 : 3;
+        if ((!lo && m.blocked(s.x + s.ax * la + s.fx, s.y + s.ay * la + s.fy)) || (!hi && m.blocked(s.x + s.ax * ha + s.fx, s.y + s.ay * ha + s.fy))) {
+          fail("the run at %d,%d is shut in at an end", s.x, s.y);
+          break;
+        }
       }
   }
   std::string tn = c.capital ? "capital" : siteTypeName(c.type);
@@ -412,35 +445,81 @@ int checkEconomy(const Case& c, const ew::SettlementOut& so, const char* what) {
           if (grp[j] < 0 && std::abs(st[j].x - st[q[h]].x) <= 8 && std::abs(st[j].y - st[q[h]].y) <= 6) { grp[j] = ng; q.push_back(j); }
       ng++;
     }
-    for (int g = 0; g < ng; g++) {
-      std::map<int, int> ys;
-      for (size_t i = 0; i < st.size(); i++) if (grp[i] == g) ys[st[i].y]++;
-      if (ys.size() > 3) { fail("a market's stalls on %zu rows (a ring, not rows)", ys.size()); break; }
+    for (int g = 0; g < ng; g++) {   // (stall facings) a row is a line of one facing: east-west rows by y, side rows by x
+      std::map<std::pair<int, int>, int> lines;
+      for (size_t i = 0; i < st.size(); i++)
+        if (grp[i] == g) lines[{st[i].f, st[i].f >= art::StallE ? st[i].x : st[i].y}]++;
+      if (lines.size() > 3) { fail("a market's stalls on %zu rows (a ring, not rows)", lines.size()); break; }
     }
   }
-  std::map<int, std::vector<int>> rows;
-  for (const St& s : st) rows[s.y].push_back(s.x);
-  for (auto& [y, xs] : rows) {
+  std::map<std::pair<int, int>, std::vector<int>> rows;   // (facing, line) -> positions along
+  for (const St& s : st) rows[{s.f, s.f >= art::StallE ? s.x : s.y}].push_back(s.f >= art::StallE ? s.y : s.x);
+  for (auto& [ln, xs] : rows) {
     std::sort(xs.begin(), xs.end());
     for (size_t i = 1; i < xs.size(); i++) {
       const int gap = xs[i] - xs[i - 1];
-      if (gap != 3 && gap < 5) { fail("stalls on row %d at %d and %d: neither touching nor a walkway apart", y, xs[i - 1], xs[i]); break; }
+      // (stalls fixer round 2) a side row (facing E / W): a tile of ground between two stalls of a group, never touching
+      const bool sideRow = ln.first >= art::StallE;
+      if (sideRow ? (gap != 4 && gap < 5) : (gap != 3 && gap < 5)) { fail("stalls on row %d at %d and %d: neither touching nor a walkway apart", ln.second, xs[i - 1], xs[i]); break; }
     }
   }
   for (const St& s : st) {
-    if (m.propAt(s.x - 1, s.y) != (int)Prop::Filler + 1 || m.propAt(s.x + 1, s.y) != (int)Prop::Filler + 1) fail("the stall at %d,%d has no counter either side", s.x, s.y);
-    for (int dx = -1; dx <= 1; dx++)
-      for (int dy = 1; dy <= 2; dy++)
-        if (m.blocked(s.x + dx, s.y + dy) || m.propAt(s.x + dx, s.y + dy)) { fail("the stall at %d,%d: its aisle is blocked at %d,%d (prop %d)", s.x, s.y, s.x + dx, s.y + dy, m.propAt(s.x + dx, s.y + dy) - 1); dy = 3; dx = 2; }
-    if (m.blocked(s.x, s.y - 1)) fail("the stall at %d,%d: no room for its keeper", s.x, s.y);
-    for (const Bldg& b : m.bldgs) {
-      const int ax = b.doorX(), ay = b.r.y + b.r.h;
-      for (int dx = -1; dx <= 1; dx++)
-        if (std::abs(s.x + dx - ax) <= 1 && s.y >= ay && s.y <= ay + 1) { fail("the stall at %d,%d stands on the doorstep of %s", s.x, s.y, bldgTypeName(b.type)); dx = 2; }
+    // the counter: its prop and two Filler, read back as the same facing (no neighbour's Filler confuses it)
+    bool counter = true;
+    for (int i = 1; i < 3; i++) {
+      int dx, dy;
+      art::stallCounterTile(s.f, i, dx, dy);
+      if (m.propAt(s.x + dx, s.y + dy) != (int)Prop::Filler + 1) counter = false;
+    }
+    if (!counter) fail("the stall at %d,%d (facing %d) has no counter either side", s.x, s.y, s.f);
+    if (s.f >= art::StallE && m.propAt(s.x - 1, s.y) == (int)Prop::Filler + 1 && m.propAt(s.x + 1, s.y) == (int)Prop::Filler + 1)
+      fail("the side stall at %d,%d reads as an east-west one (Filler either side)", s.x, s.y);
+    // its aisle: the two tiles before every counter tile open (the stall faces walking space), the keeper's tile behind
+    for (int i = 0; i < 3; i++) {
+      int dx, dy;
+      art::stallCounterTile(s.f, i, dx, dy);
+      const int cx = s.x + dx, cy = s.y + dy;
+      for (int d = 1; d <= 2; d++) {
+        const int ax = cx + s.fx * d, ay = cy + s.fy * d;
+        if (m.blocked(ax, ay) || m.propAt(ax, ay)) { fail("the stall at %d,%d: its aisle is blocked at %d,%d (prop %d)", s.x, s.y, ax, ay, m.propAt(ax, ay) - 1); i = 3; break; }
+      }
+      for (const Bldg& b : m.bldgs) {
+        const int ax = b.doorX(), ay = b.r.y + b.r.h;
+        if (std::abs(cx - ax) <= 1 && cy >= ay && cy <= ay + 1) { fail("the stall at %d,%d stands on the doorstep of %s", s.x, s.y, bldgTypeName(b.type)); i = 3; break; }
+      }
+    }
+    const art::StallKeeperSpot k = art::stallKeeperSpot(s.f);
+    if (m.blocked(s.x + k.postDx, s.y + k.postDy)) fail("the stall at %d,%d: no room for its keeper", s.x, s.y);
+    // its keeper: a merchant posted there, who reads it back as their stall
+    bool kept = false;
+    for (const Spawn& sp : m.spawns)
+      if (sp.npc && sp.role == Role::Merchant && sp.x == s.x + k.postDx && sp.y == s.y + k.postDy) {
+        int vx, vy, vf;
+        kept = art::stallOfPost(propAt, sp.x, sp.y, so.gx, so.gy, vx, vy, vf) && vx == s.x && vy == s.y && vf == s.f;
+      }
+    if (!kept) fail("the stall at %d,%d (facing %d) has no keeper on its post", s.x, s.y, s.f);
+    // (stalls fixer round 3, owner: "why are the vendors standing on the end?") the keeper stands behind the MIDDLE
+    // counter tile, on its inside: their post is that tile's neighbour away from the customers, and the spot they
+    // stand on is on their post (or, facing S, inside the middle counter tile against its back edge); the AI finds
+    // the stall back from that spot (art::stallOfKeeper)
+    {
+      // the middle counter tile: the prop's own for S / N (Filler either side), the one north of it for E / W
+      const int mx = 0, my = s.f >= art::StallE ? -1 : 0;
+      if (k.postDx != mx - s.fx || k.postDy != my - s.fy) fail("the stall at %d,%d (facing %d): its keeper's post is not behind the counter's middle", s.x, s.y, s.f);
+      const float hx = s.x * 16.0f + k.standX, hy = s.y * 16.0f + k.standY;
+      const int tx = (int)std::floor(hx / 16.0f), ty = (int)std::floor(hy / 16.0f);
+      const bool onPost = tx == s.x + k.postDx && ty == s.y + k.postDy, inMid = s.f == art::StallS && tx == s.x + mx && ty == s.y + my;
+      if (!onPost && !inMid) fail("the stall at %d,%d (facing %d): its keeper stands off their post (%d,%d)", s.x, s.y, s.f, tx, ty);
+      int kx = -1, ky = -1, kf = -1;
+      if (!art::stallOfKeeper(propAt, hx, hy, so.gx, so.gy, kx, ky, kf) || kx != s.x || ky != s.y || kf != s.f)
+        fail("the stall at %d,%d (facing %d): its keeper's spot reads back as %d,%d facing %d", s.x, s.y, s.f, kx, ky, kf);
     }
   }
   return bad;
 }
+
+std::map<std::string, int> g_plazaMax;   // (M2) the largest empty paved block per settlement kind
+int g_squarePeople = 1 << 30;             // (M2) the fewest people round a capital's main square
 
 int checkTown(const Case& c, const ew::SitePlan& p, const ew::SettlementOut& so, const char* what) {
   int bad = 0;
@@ -561,6 +640,54 @@ int checkTown(const Case& c, const ew::SitePlan& p, const ew::SettlementOut& so,
           if (std::fabs(ew::dwrap(ew::datan2((float)(y - hy), (float)(x - hx)) - rb)) < 0.524f) { ok = true; break; }
         }
       if (!ok) fail("no street leaves within 30 degrees of the road at %.0f degrees", rb * 57.2958f);
+    }
+  }
+  // (M2, owner note 6) no bare paved expanse of 12 x 12 or more; a capital's main square holds at least 12 people
+  if (c.type != SiteType::Village) {
+    std::vector<uint16_t> dp((size_t)m.w * m.h, 0);
+    int best = 0, bx = 0, by = 0;
+    for (int y = 0; y < m.h; y++)
+      for (int x = 0; x < m.w; x++) {
+        const size_t i = (size_t)y * m.w + x;
+        if (m.at(x, y) != Ground::Plaza || m.prop[i] || m.bldgAt[i] >= 0 || m.wall[i]) continue;
+        int v = 1;
+        if (x > 0 && y > 0) v = 1 + std::min({(int)dp[i - 1], (int)dp[i - (size_t)m.w], (int)dp[i - (size_t)m.w - 1]});
+        dp[i] = (uint16_t)v;
+        if (v > best) { best = v; bx = x - v + 1; by = y - v + 1; }
+      }
+    g_plazaMax[c.capital ? "capital" : siteTypeName(c.type)] = std::max(g_plazaMax[c.capital ? "capital" : siteTypeName(c.type)], best);
+    if (best >= 12) fail("an empty paved block %dx%d at %d,%d", best, best, bx, by);
+    // (M2 fixer round 3) nor a long bare band (the square check missed a strip 20 x 6 south of a capital's market):
+    // the largest empty paved rectangle at least 5 deep, by area (a stack over each row's column heights)
+    {
+      std::vector<int> hc((size_t)m.w, 0), stk;
+      int bestA = 0, rx = 0, ry = 0, rw = 0, rh = 0;
+      for (int y = 0; y < m.h; y++) {
+        for (int x = 0; x < m.w; x++) {
+          const size_t i = (size_t)y * m.w + x;
+          const bool e = m.at(x, y) == Ground::Plaza && !m.prop[i] && m.bldgAt[i] < 0 && !m.wall[i];
+          hc[(size_t)x] = e ? hc[(size_t)x] + 1 : 0;
+        }
+        stk.clear();
+        for (int x = 0; x <= m.w; x++) {
+          const int h = x < m.w ? hc[(size_t)x] : 0;
+          while (!stk.empty() && hc[(size_t)stk.back()] >= h) {
+            const int top = stk.back();
+            stk.pop_back();
+            const int th = hc[(size_t)top], left = stk.empty() ? 0 : stk.back() + 1, w = x - left;
+            if (th >= 5 && w >= 5 && th * w > bestA) { bestA = th * w; rx = left; ry = y - th + 1; rw = w; rh = th; }
+          }
+          stk.push_back(x);
+        }
+      }
+      if (bestA >= 150) fail("an empty paved band %dx%d at %d,%d", rw, rh, rx, ry);
+    }
+    if (c.capital) {
+      int people = 0;
+      for (const Spawn& s : m.spawns)
+        if (s.npc && s.role != Role::Guard && (s.x - hx) * (s.x - hx) + (s.y - hy) * (s.y - hy) <= 16 * 16) people++;
+      g_squarePeople = std::min(g_squarePeople, people);
+      if (people < 12) fail("%d townsfolk within 16 tiles of the main square's heart (want 12)", people);
     }
   }
   // capitals inside
@@ -750,6 +877,23 @@ int cmdTowns(int argc, char** argv) {
     if (T.max > 60.0) { printf("FAIL: towns: %s build %.1f ms (budget about 25 ms native)\n", tn.c_str(), T.max); bad++; }
   }
   printf("towns: mines %d in their hill, %d bare adits; herders' pens by the tannery %d of %d\n", g_mineHills, g_mineAdits, g_pens, g_herders);
+  // (stall facings) markets mix facings: rows on the north side face south, rows across the aisle show their backs,
+  // side rows stand in profile
+  printf("towns: stalls facing south %d, north %d, east %d, west %d; markets of 3+ stalls all facing south %d of %d\n", g_facings[0], g_facings[1],
+         g_facings[2], g_facings[3], g_allFront, g_markets3);
+  // (stalls fixer round 2) every market of three or more shows a stall from behind or in profile (a square too cramped
+  // for any turned row, or an L at a row's end, may keep its fronts: at most one market in fifty)
+  if (g_allFront * 50 > g_markets3) {
+    printf("FAIL: towns: %d of %d markets of 3+ stalls show only fronts\n", g_allFront, g_markets3);
+    bad++;
+  }
+  if (g_facings[0] + g_facings[1] + g_facings[2] + g_facings[3] >= 60 && (!g_facings[1] || (!g_facings[2] && !g_facings[3]))) {
+    printf("FAIL: towns: the markets do not mix their stalls' facings\n");
+    bad++;
+  }
+  printf("towns: largest empty paved block:");
+  for (auto& kv : g_plazaMax) printf(" %s %d", kv.first.c_str(), kv.second);
+  printf(" | fewest people round a capital's square: %d\n", g_squarePeople == (1 << 30) ? 0 : g_squarePeople);
   printf("towns: %d failures\n", bad);
   return bad ? 1 : 0;
 }

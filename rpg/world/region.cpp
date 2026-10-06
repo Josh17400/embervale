@@ -423,8 +423,9 @@ void EndlessSource::Impl::makeStart() {
   }
   // 5. the first hour: a bandit camp, a wayside shrine, a cave in a real cliff and a wolf den within easy reach, so
   //    every kind of place is close to home whatever the lattices drew
+  // (M2 start guarantee) the first-hour sites lie within 120 tiles of the village's heart, beyond its fields
   auto clearOf = [&](int32_t x, int32_t y, int32_t r) {
-    if (dist2(x, y, hx, hy) < 80ll * 80ll || dist2(x, y, city.x, city.y) < 150ll * 150ll) return false;
+    if (dist2(x, y, hx, hy) < 64ll * 64ll || dist2(x, y, city.x, city.y) < 150ll * 150ll) return false;
     for (const SitePlan& f : forcedSites) if (dist2(f.ex, f.ey, x, y) < (int64_t)r * r) return false;
     return !nearSettleCand(x, y, 60);
   };
@@ -442,14 +443,14 @@ void EndlessSource::Impl::makeStart() {
   };
   {
     int32_t x, y;
-    if (ring(tag("start.camp"), 110, 180, 8, x, y)) {
+    if (ring(tag("start.camp"), 82, 116, 8, x, y)) {
       SitePlan p;
       p.type = SiteType::BanditCamp; p.w = 11; p.h = 9; p.ex = x; p.ey = y; p.gx = x - 5; p.gy = y - 4;
       p.seed = (uint32_t)(mix64(seed ^ tag("start.camp.seed")) >> 16);
       p.id = makeId(regionOf(x), regionOf(y), IdKind::Site, LOCAL_FORCED + 6);
       forcedSites.push_back(p);
     }
-    if (ring(tag("start.shrine"), 70, 160, 5, x, y)) {
+    if (ring(tag("start.shrine"), 66, 112, 5, x, y)) {
       SitePlan p;
       p.type = SiteType::Shrine; p.w = 5; p.h = 5; p.ex = x; p.ey = y; p.gx = x - 2; p.gy = y - 2;
       p.seed = (uint32_t)(mix64(seed ^ tag("start.shrine.seed")) >> 16);
@@ -459,13 +460,13 @@ void EndlessSource::Impl::makeStart() {
     // a cave: the first real south-facing cliff found walking out in rings
     bool cave = false;
     const int32_t a0 = (int32_t)(hq(mix64(seed ^ tag("start.cave"))) & 1023);
-    for (int32_t dist = 60; dist <= 190 && !cave; dist += 26)
+    for (int32_t dist = 64; dist <= 112 && !cave; dist += 12)
       for (int n = 0; n < 20 && !cave; n++) {
         int32_t a = a0 + n * 1024 / 20;
         int32_t px = hx + icosR(a, dist), py = hy + isinR(a, dist);
         int32_t cxp, cyp;
         uint32_t sd = (uint32_t)(mix64(seed ^ tag("start.cave.seed")) >> 16);
-        if (!caveSpot(px, py, sd, cxp, cyp) || !clearOf(cxp, cyp, 40) || dist2(cxp, cyp, hx, hy) > 198ll * 198ll) continue;
+        if (!caveSpot(px, py, sd, cxp, cyp) || !clearOf(cxp, cyp, 40) || dist2(cxp, cyp, hx, hy) > 118ll * 118ll) continue;
         SitePlan p;
         p.type = SiteType::Cave; p.w = 5; p.h = 4; p.ex = cxp; p.ey = cyp; p.gx = cxp - 2; p.gy = cyp - 1;
         p.seed = sd;
@@ -473,7 +474,7 @@ void EndlessSource::Impl::makeStart() {
         forcedSites.push_back(p);
         cave = true;
       }
-    if (!cave && ring(tag("start.cave2"), 90, 180, 6, x, y)) {
+    if (!cave && ring(tag("start.cave2"), 70, 116, 6, x, y)) {
       // no cliff near home: the cave opens in a rocky knoll instead (stampSite raises it)
       SitePlan p;
       p.type = SiteType::Cave; p.w = 5; p.h = 4; p.ex = x; p.ey = y; p.gx = x - 2; p.gy = y - 1;
@@ -481,7 +482,7 @@ void EndlessSource::Impl::makeStart() {
       p.id = makeId(regionOf(x), regionOf(y), IdKind::Site, LOCAL_FORCED + 8);
       forcedSites.push_back(p);
     }
-    if (ring(tag("start.den"), 80, 160, 4, x, y)) {
+    if (ring(tag("start.den"), 70, 112, 4, x, y)) {
       DenPlan d;
       d.id = makeId(regionOf(x), regionOf(y), IdKind::Den, 0x3F0);
       d.x = x; d.y = y;
@@ -495,9 +496,12 @@ void EndlessSource::Impl::makeStart() {
   for (int k = 0; k < 3; k++) sp.shards[k] = forcedSites[(size_t)k].id;
   sp.lair = forcedSites[3].id;
   sp.spawn = GTile{hx, hy + 1};
+  // 6. (M2) the start guarantee: wayside places near the village and along the road to the story city, a wonder in reach
+  forceStartPois();
   // the memos above saw no forced sites; drop what depends on them
   nodeMemo.clear();
   kcells.clear();
+  wonderMemo.clear();
   started = true;
   starting = false;
 }
@@ -781,9 +785,17 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
       const bool deepWoods = inWood && forest >= 10;
       const uint32_t coin = (n.seed >> 11) % 100u;
       Specialty sp;
+      // (M2) a mine needs ore: only a province with a strong ore (affinity 180+, geology.cpp) makes a mining town
+      const Geology geo = geology(n.x, n.y);
+      int strongest = 0;
+      for (int o = 0; o < (int)Ore::COUNT; o++) strongest = std::max(strongest, (int)geo.ore[o]);
+      const bool oreRich = strongest >= 180;
+      const bool highGround = ridge || (hill && (hb == Biome::Mountain || hb == Biome::Snow || coin < 45)) || ((ridgeMax > Q(0.2) || higher >= 3) && coin < 40);
       if (coast) sp = Specialty::Fishing;
-      else if (ridge || (hill && (hb == Biome::Mountain || hb == Biome::Snow || coin < 45)) ||
-               ((ridgeMax > Q(0.2) || higher >= 3) && coin < 40)) sp = Specialty::Mining;   // high ground over the houses
+      else if (oreRich && highGround) sp = Specialty::Mining;   // high ground over the houses
+      // (high ground without the ore: the hill woods are felled, the wetter slopes farmed)
+      else if (highGround && forest >= 4) sp = Specialty::Lumber;
+      else if (highGround && tf.m > Q(0.36)) sp = Specialty::Farming;
       else if (deepWoods && coin < 60) sp = Specialty::Lumber;
       else if (river) sp = (n.seed >> 7) & 1 ? Specialty::Fishing : Specialty::Farming;
       else if (hill || hb == Biome::Snow || hb == Biome::Desert || hb == Biome::Mountain || (tf.m < Q(0.40) && open >= 5)) sp = Specialty::Herding;
@@ -820,6 +832,10 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
   for (const SitePlan& f : forcedSites)
     if (f.ex >= x0 && f.ey >= y0 && f.ex < x1 && f.ey < y1) {
       SitePlan p = f;
+      if (p.type == SiteType::Vignette || p.type == SiteType::Wonder) {
+        add(p, p.type == SiteType::Wonder || p.kind == (uint8_t)VignetteKind::Watchtower ? natLevel(p.ex, p.ey) : -1);   // (vignettes.cpp: level land)
+        continue;
+      }
       Rng nr(p.seed ^ 0xA5A5u);
       p.name = makeDungeonName(nr, p.type, tile(p.ex, p.ey + 2).biome);
       if (p.type == SiteType::Ruin) {
@@ -843,9 +859,17 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
         R.sites.back().level = lv;
       }
     }
+  std::vector<std::pair<int32_t, int32_t>> placed;   // final POI hearts (dens keep clear)
+  // ---- (M2) the wonders of the wonder lattice whose heart lies in this region
+  for (int32_t wj = floorDiv(y0, 640); wj <= floorDiv(y1 - 1, 640); wj++)
+    for (int32_t wi = floorDiv(x0, 640); wi <= floorDiv(x1 - 1, 640); wi++) {
+      SitePlan w;
+      if (!wonderOf(wi, wj, w) || w.ex < x0 || w.ey < y0 || w.ex >= x1 || w.ey >= y1) continue;
+      add(w, natLevel(w.ex, w.ey));
+      placed.push_back({w.ex, w.ey});
+    }
   // ---- wilderness POIs: caves, ruins, bandit camps, shrines (in that order of precedence)
   const SiteType poiOrder[4] = {SiteType::Cave, SiteType::Ruin, SiteType::BanditCamp, SiteType::Shrine};
-  std::vector<std::pair<int32_t, int32_t>> placed;   // final POI hearts (dens keep clear)
   for (int oi = 0; oi < 4; oi++) {
     const SiteType t = poiOrder[oi];
     for (int32_t cy = floorDiv(y0, POI_CELL); cy <= floorDiv(y1 - 1, POI_CELL); cy++)
@@ -871,6 +895,7 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
         for (const Node& n : nodes)
           if (dist2(n.x, n.y, x, y) < (int64_t)(nominalR(n.type) + 45) * (nominalR(n.type) + 45)) { ok = false; break; }
         for (const SitePlan& f : forcedSites) if (ok && dist2(f.ex, f.ey, x, y) < 60ll * 60ll) ok = false;
+        if (ok && nearWonder(x, y, 60)) ok = false;   // (M2) a wonder keeps its clearing to itself
         // lower classes keep clear of the raw candidates of higher ones
         for (int hj = 0; hj < oi && ok; hj++)
           for (int32_t qy = floorDiv(y - 40, POI_CELL); qy <= floorDiv(y + 40, POI_CELL) && ok; qy++)
@@ -932,41 +957,6 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
       add(p, natLevel(ax, ay));
       placed.push_back({ax, ay});
     }
-  // ---- spurs: a track from every wilderness site to the nearest road within 90 tiles
-  for (const SitePlan& p : R.sites) {
-    if (isSettlement(p.type)) continue;
-    int32_t sx = p.ex, sy = p.type == SiteType::Cave ? p.ey + 2 : p.gy + p.h;
-    GTile at;
-    if (!nearestRoad(sx, sy, 90, at)) continue;
-    int32_t L = idist(sx, sy, at.x, at.y);
-    if (L < 6) continue;
-    uint64_t h = mix64(p.id ^ 0x5B0Bu);
-    int32_t side = (int32_t)(h % 41) - 20;   // percent of the length, sideways
-    int32_t mx = (sx + at.x) / 2 - (at.y - sy) * side / 100, my = (sy + at.y) / 2 + (at.x - sx) * side / 100;
-    std::vector<GTile> pts = {GTile{sx, sy}, GTile{mx, my}, GTile{at.x, at.y}};
-    chaikin(pts, 2);
-    RoadPlan rp;
-    rp.id = makeId(rx, ry, IdKind::Edge, 0x800u | (idLocal(p.id) & 0x7FFu));
-    rp.cls = 2;
-    rp.a = p.id;
-    rp.pts = std::move(pts);
-    R.roads.push_back(std::move(rp));
-  }
-  // ---- graph roads touching the region (public copy for the map and the chunks)
-  for (auto& e : D.edges) {
-    RoadPlan rp;
-    rp.id = makeId(regionOf(e->pts.front().x), regionOf(e->pts.front().y), IdKind::Edge, (uint32_t)(e->key & 0x7FF));
-    rp.cls = e->cls;
-    rp.a = e->a; rp.b = e->b;
-    rp.pts = e->pts;
-    R.roads.push_back(std::move(rp));
-  }
-  // ---- rivers and lakes (public copy)
-  {
-    std::shared_ptr<const RegionHydro> H = hydro(rx, ry);
-    for (const RiverSeg& s : H->segs) R.rivers.push_back(RiverPlan{GTile{s.x0, s.y0}, GTile{s.x1, s.y1}, s.w});
-    for (const Lake& l : H->lakes) R.lakes.push_back(LakePlan{l.x, l.y, l.r});
-  }
   // ---- dens (VISION_PLAN 2.5: about a dozen per region) on their own lattice
   for (int32_t cy = floorDiv(y0, DEN_CELL); cy <= floorDiv(y1 - 1, DEN_CELL); cy++)
     for (int32_t cx = floorDiv(x0, DEN_CELL); cx <= floorDiv(x1 - 1, DEN_CELL); cx++) {
@@ -984,6 +974,7 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
       for (const Node& n : nodes) if (dist2(n.x, n.y, x, y) < (int64_t)(nominalR(n.type) + 50) * (nominalR(n.type) + 50)) { ok = false; break; }
       for (const SitePlan& f : forcedSites) if (ok && dist2(f.ex, f.ey, x, y) < 50ll * 50ll) ok = false;
       for (auto& pp : placed) if (ok && dist2(pp.first, pp.second, x, y) < 30ll * 30ll) ok = false;
+      if (ok && nearWonder(x, y, 24)) ok = false;
       for (auto& e : near) {
         if (!ok) break;
         if (x < e->x0 - 10 || x > e->x1 + 10 || y < e->y0 - 10 || y > e->y1 + 10) continue;
@@ -1022,6 +1013,89 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
     }
   for (const DenPlan& d : forcedDens)
     if (d.x >= x0 && d.y >= y0 && d.x < x1 && d.y < y1) R.dens.push_back(d);
+  // ---- (M2) the wayside places (vignettes.cpp), clear of everything above
+  planVignettes(rx, ry, D, nodes, near);
+  // ---- spurs: a track from every wilderness site to the nearest road within 90 tiles (a wonder's reaches further,
+  //      routed round lakes; it stays within the 3 x 3 regions round its own, which the chunks read)
+  for (const SitePlan& p : R.sites) {
+    if (isSettlement(p.type)) continue;
+    // road-side places sit by their road already
+    if (p.type == SiteType::Vignette && (p.kind == (uint8_t)VignetteKind::Caravan || p.kind == (uint8_t)VignetteKind::Wayrest ||
+                                         p.kind == (uint8_t)VignetteKind::TollBridge)) continue;
+    int32_t sx = p.ex, sy = p.type == SiteType::Cave ? p.ey + 2 : p.gy + p.h;
+    GTile at;
+    const bool wonder = p.type == SiteType::Wonder;
+    if (!nearestRoad(sx, sy, 90, at)) {
+      if (!wonder) continue;
+      std::vector<std::shared_ptr<const Edge>> wide;
+      graphEdges(sx - 240, sy - 240, sx + 240, sy + 240, wide);
+      int64_t bd = 240ll * 240ll + 1;
+      bool any = false;
+      for (auto& e : wide)
+        for (const GTile& g : e->pts) {
+          if (g.x < x0 - REGION + 4 || g.y < y0 - REGION + 4 || g.x >= x1 + REGION - 4 || g.y >= y1 + REGION - 4) continue;
+          const int64_t d = dist2(g.x, g.y, sx, sy);
+          if (d < bd) { bd = d; at = g; any = true; }
+        }
+      if (!any) continue;
+    }
+    int32_t L = idist(sx, sy, at.x, at.y);
+    if (L < 6) continue;
+    std::vector<GTile> pts;
+    if (wonder && L > 60 && roadPath(sx, sy, at.x, at.y, 64, pts)) {
+      for (const GTile& g : pts)
+        if (g.x < x0 - REGION + 2 || g.y < y0 - REGION + 2 || g.x >= x1 + REGION - 2 || g.y >= y1 + REGION - 2) { pts.clear(); break; }
+    }
+    if (pts.empty()) {
+      uint64_t h = mix64(p.id ^ 0x5B0Bu);
+      int32_t side = (int32_t)(h % 41) - 20;   // percent of the length, sideways
+      int32_t mx = (sx + at.x) / 2 - (at.y - sy) * side / 100, my = (sy + at.y) / 2 + (at.x - sx) * side / 100;
+      pts = {GTile{sx, sy}, GTile{mx, my}, GTile{at.x, at.y}};
+      chaikin(pts, 2);
+    }
+    RoadPlan rp;
+    rp.id = makeId(rx, ry, IdKind::Edge, 0x800u | (idLocal(p.id) & 0x7FFu));
+    rp.cls = 2;
+    rp.a = p.id;
+    rp.pts = std::move(pts);
+    R.roads.push_back(std::move(rp));
+  }
+  // ---- (M2) a vignette another site's track runs through would lose its props to the track: it stands down
+  {
+    std::vector<Gid> drop;
+    for (const SitePlan& p : R.sites) {
+      if (p.type != SiteType::Vignette) continue;
+      bool hit = false;
+      for (const RoadPlan& rp : R.roads) {
+        if (rp.cls != 2 || rp.a == p.id || hit) continue;
+        for (size_t n = 0; n + 1 < rp.pts.size() && !hit; n++)
+          walk4(rp.pts[n].x, rp.pts[n].y, rp.pts[n + 1].x, rp.pts[n + 1].y, [&](int32_t x, int32_t y) {
+            if (x >= p.gx - 1 && y >= p.gy - 1 && x < p.gx + p.w + 1 && y < p.gy + p.h + 1) hit = true;
+          });
+      }
+      if (hit && idLocal(p.id) < LOCAL_FORCED_VIG) drop.push_back(p.id);
+    }
+    for (Gid g : drop) {
+      for (size_t k = 0; k < R.sites.size(); k++)
+        if (R.sites[k].id == g) { R.sites.erase(R.sites.begin() + (long)k); D.flatLevel.erase(D.flatLevel.begin() + (long)k); break; }
+      R.roads.erase(std::remove_if(R.roads.begin(), R.roads.end(), [&](const RoadPlan& rp) { return rp.cls == 2 && rp.a == g; }), R.roads.end());
+    }
+  }
+  // ---- graph roads touching the region (public copy for the map and the chunks)
+  for (auto& e : D.edges) {
+    RoadPlan rp;
+    rp.id = makeId(regionOf(e->pts.front().x), regionOf(e->pts.front().y), IdKind::Edge, (uint32_t)(e->key & 0x7FF));
+    rp.cls = e->cls;
+    rp.a = e->a; rp.b = e->b;
+    rp.pts = e->pts;
+    R.roads.push_back(std::move(rp));
+  }
+  // ---- rivers and lakes (public copy)
+  {
+    std::shared_ptr<const RegionHydro> H = hydro(rx, ry);
+    for (const RiverSeg& s : H->segs) R.rivers.push_back(RiverPlan{GTile{s.x0, s.y0}, GTile{s.x1, s.y1}, s.w});
+    for (const Lake& l : H->lakes) R.lakes.push_back(LakePlan{l.x, l.y, l.r});
+  }
   uint32_t fp = 2166136261u;
   for (const SitePlan& s : R.sites) {
     fp = (fp ^ (uint32_t)s.id) * 16777619u;
@@ -1029,6 +1103,19 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
     fp = (fp ^ (uint32_t)s.ey) * 16777619u;
   }
   R.fingerprint = fp;
+  R.geology = geology(x0 + REGION / 2, y0 + REGION / 2);   // M2 (geology.cpp)
+  // ---- (M2) landmarks: every wonder is labelled by its name; then the land's named features (landmarks.cpp)
+  for (const SitePlan& p : R.sites) {
+    if (p.type != SiteType::Wonder) continue;
+    LandmarkPlan l;
+    l.id = makeId(rx, ry, IdKind::Poi, 0x800u | (uint32_t)R.landmarks.size());
+    l.kind = LandmarkKind::Peak;
+    l.x = p.ex; l.y = p.ey;
+    l.size = 24;
+    l.name = p.name;
+    R.landmarks.push_back(l);
+  }
+  planLandmarks(rx, ry, D);
 }
 
 }  // namespace ew

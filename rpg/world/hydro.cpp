@@ -190,7 +190,7 @@ std::shared_ptr<const Trace> EndlessSource::Impl::trace(int32_t cx, int32_t cy) 
       for (size_t n = 0; n + 1 < pts.size(); n++) {
         const P &a = pts[n], &b = pts[n + 1];
         if (a.x == b.x && a.y == b.y) continue;
-        T->segs.push_back(RiverSeg{a.x, a.y, b.x, b.y, std::max(a.w, b.w)});
+        T->segs.push_back(RiverSeg{a.x, a.y, b.x, b.y, std::max(a.w, b.w), riverIdOf(cx, cy)});
         T->x0 = std::min({T->x0, a.x - 4, b.x - 4}); T->x1 = std::max({T->x1, a.x + 4, b.x + 4});
         T->y0 = std::min({T->y0, a.y - 4, b.y - 4}); T->y1 = std::max({T->y1, a.y + 4, b.y + 4});
       }
@@ -219,7 +219,7 @@ std::shared_ptr<const RegionHydro> EndlessSource::Impl::hydro(int32_t rx, int32_
   const int32_t x0 = rx * REGION, y0 = ry * REGION, x1 = x0 + REGION, y1 = y0 + REGION, M = 12;
   const int32_t sc0x = floorDiv(x0 - REACH, SPRING_CELL), sc1x = floorDiv(x1 + REACH, SPRING_CELL);
   const int32_t sc0y = floorDiv(y0 - REACH, SPRING_CELL), sc1y = floorDiv(y1 + REACH, SPRING_CELL);
-  std::vector<std::tuple<int32_t, int32_t, int32_t, int32_t, uint8_t>> segs;
+  std::vector<std::tuple<int32_t, int32_t, int32_t, int32_t, uint8_t, uint32_t>> segs;
   std::vector<std::tuple<int32_t, int32_t, int32_t, uint32_t>> lakes;
   for (int32_t cy = sc0y; cy <= sc1y; cy++)
     for (int32_t cx = sc0x; cx <= sc1x; cx++) {
@@ -228,7 +228,7 @@ std::shared_ptr<const RegionHydro> EndlessSource::Impl::hydro(int32_t rx, int32_
       for (const RiverSeg& s : T->segs) {
         if (std::max(s.x0, s.x1) + 3 < x0 - M || std::min(s.x0, s.x1) - 3 >= x1 + M) continue;
         if (std::max(s.y0, s.y1) + 3 < y0 - M || std::min(s.y0, s.y1) - 3 >= y1 + M) continue;
-        segs.emplace_back(s.x0, s.y0, s.x1, s.y1, s.w);
+        segs.emplace_back(s.x0, s.y0, s.x1, s.y1, s.w, s.river);
       }
       for (const Lake& L : T->lakes)
         if (L.x + L.r + 12 >= x0 - M && L.x - L.r - 12 < x1 + M && L.y + L.r + 12 >= y0 - M && L.y - L.r - 12 < y1 + M)
@@ -246,8 +246,8 @@ std::shared_ptr<const RegionHydro> EndlessSource::Impl::hydro(int32_t rx, int32_
   for (size_t n = 0; n < segs.size(); n++) {
     if (n + 1 < segs.size() && std::get<0>(segs[n]) == std::get<0>(segs[n + 1]) && std::get<1>(segs[n]) == std::get<1>(segs[n + 1]) &&
         std::get<2>(segs[n]) == std::get<2>(segs[n + 1]) && std::get<3>(segs[n]) == std::get<3>(segs[n + 1]))
-      continue;   // the next one has the same ends and a width >= this one (sorted)
-    H->segs.push_back(RiverSeg{std::get<0>(segs[n]), std::get<1>(segs[n]), std::get<2>(segs[n]), std::get<3>(segs[n]), std::get<4>(segs[n])});
+      continue;   // the next one has the same ends and a width >= this one (sorted; on a tie the larger river id)
+    H->segs.push_back(RiverSeg{std::get<0>(segs[n]), std::get<1>(segs[n]), std::get<2>(segs[n]), std::get<3>(segs[n]), std::get<4>(segs[n]), std::get<5>(segs[n])});
   }
   std::sort(lakes.begin(), lakes.end());
   lakes.erase(std::unique(lakes.begin(), lakes.end()), lakes.end());

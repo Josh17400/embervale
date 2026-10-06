@@ -1,0 +1,37 @@
+# M2 WORLD lane: every kind of wayside place (rpg/world/poi.h vignettes) and every wonder standing in the endless
+# world as the generator plans them, by day, and one by night. `gotopoi` stands just south of the nearest of a kind.
+#   embervale.exe --script tools/scripts/m2_world_vignettes.txt     (m2w_v*.png in the working directory)
+seed 3
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 gotopoi caravan
++4.0 shot m2w_v01_caravan.png
++0.1 gotopoi hunter
++4.0 shot m2w_v02_hunter.png
++0.1 gotopoi stones
++4.0 shot m2w_v03_stones.png
++0.1 gotopoi watchtower
++4.0 shot m2w_v04_watchtower.png
++0.1 gotopoi fishing
++4.0 shot m2w_v05_fishing.png
++0.1 gotopoi herbs
++4.0 shot m2w_v06_herbs.png
++0.1 gotopoi grave
++4.0 shot m2w_v07_grave.png
++0.1 gotopoi wayrest
++4.0 shot m2w_v08_wayrest.png
++0.1 gotopoi eldertree
++4.0 shot m2w_v09_eldertree.png
++0.1 gotopoi colossus
++4.0 shot m2w_v10_colossus.png
++0.1 gotopoi starfall
++4.0 shot m2w_v11_starfall.png
++0.1 gotopoi dragonbones
++4.0 shot m2w_v12_dragonbones.png
++0.1 gotopoi toll
++4.0 shot m2w_v13_toll.png
++0.1 hour 22
++0.1 gotopoi wayrest
++4.0 shot m2w_v14_wayrest_night.png
++0.3 quit

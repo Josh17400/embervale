@@ -2,9 +2,9 @@
 #include "rpg/sim/stream.h"
 #include <algorithm>
 #include <chrono>
-#include <cstdlib>
 #include <deque>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include "rpg/world/source.h"
 #ifndef __EMSCRIPTEN__
@@ -28,6 +28,8 @@ struct ChunkStreamer::Impl {
   std::unordered_map<uint64_t, std::unique_ptr<ew::ChunkData>> ready;
   std::unordered_map<uint64_t, ew::RegionPlan> readyR;
   std::deque<Key> wishLocal;   // the pump's own list (no worker)
+  std::unordered_set<uint64_t> pumpedR;   // region plans the pump built into the main source's cache (no worker)
+  double emaRegionMs = 2.0, emaChunkMs = 0.6;   // what a region plan / a chunk has cost the pump lately (no worker)
   Stats st;
   bool threaded = false;
 #ifndef __EMSCRIPTEN__
@@ -185,6 +187,22 @@ const ew::RegionPlan* ChunkStreamer::region(int32_t rx, int32_t ry) {
   return it == d_->readyR.end() ? nullptr : &it->second;
 }
 
+bool ChunkStreamer::hasRegion(int32_t rx, int32_t ry) {
+  d_->collect();
+  return d_->readyR.count(packKey(rx, ry)) > 0 || d_->pumpedR.count(packKey(rx, ry)) > 0;
+}
+
+bool ChunkStreamer::idle() {
+  d_->collect();
+#ifndef __EMSCRIPTEN__
+  if (d_->threaded) {
+    std::lock_guard<std::mutex> lk(d_->mu);
+    return d_->wish.empty() && !d_->busy && d_->doneC.empty() && d_->doneR.empty();
+  }
+#endif
+  return d_->wishLocal.empty();
+}
+
 void ChunkStreamer::trim(int32_t cx0, int32_t cy0, int32_t cx1, int32_t cy1, size_t keep) {
   if (d_->ready.size() > keep) {
     for (auto it = d_->ready.begin(); it != d_->ready.end();) {
@@ -210,13 +228,21 @@ int ChunkStreamer::pump(double budgetMs) {
   if (!d_->mainSrc) return 0;
   auto t0 = std::chrono::steady_clock::now();
   int n = 0;
+  int jobs = 0;
   while (!d_->wishLocal.empty() && msSince(t0) < budgetMs) {
     Key k = d_->wishLocal.front();
+    // (M2) a job that would likely overrun what is left of the frame waits for the next frame (a region plan cannot be
+    // cut into phases); the first job of a call always runs, so the pump never stalls
+    if (jobs > 0 && msSince(t0) + (k.region ? d_->emaRegionMs : d_->emaChunkMs) > budgetMs) break;
+    jobs++;
     d_->wishLocal.pop_front();
     auto c0 = std::chrono::steady_clock::now();
     if (k.region) {
       d_->mainSrc->region(k.x, k.y);   // warms the main source's own cache: World reads it from there
       d_->st.regionsMade++;
+      d_->emaRegionMs = d_->emaRegionMs * 0.7 + msSince(c0) * 0.3;
+      if (d_->pumpedR.size() > 512) d_->pumpedR.clear();   // (a hint only: a forgotten one is simply asked again)
+      d_->pumpedR.insert(packKey(k.x, k.y));
     } else {
       if (d_->ready.count(packKey(k.x, k.y))) continue;
       // a settlement under the chunk (a city takes tens of ms) is built a phase at a time over several frames, so
@@ -233,6 +259,7 @@ int ChunkStreamer::pump(double budgetMs) {
       d_->mainSrc->chunk(k.x, k.y, *c);
       d_->ready[packKey(k.x, k.y)] = std::move(c);
       d_->st.chunksMade++;
+      d_->emaChunkMs = d_->emaChunkMs * 0.7 + msSince(c0) * 0.3;
       n++;
     }
     double ms = msSince(c0);

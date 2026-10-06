@@ -1,15 +1,16 @@
 // Save-format checks for the CURRENT save version only (owner, 2026-10-04: old saves are not a concern; an older save
-// is refused and the title offers a new game). The SIM lane owns this file during M1.
+// is refused and the title offers a new game). M2: SAVE_VER 6 (phase A froze the layout; the SIM lane owns this file).
 //   save_test [fixtureDir]           run every check
-//   save_test --make-fixture out.bin write tests/fixtures/save_v5.bin: an endless game (seed 5150) with a created
-//                                    character, the innkeeper's job taken, bot play, a looted chest, saved outdoors.
-//                                    Regenerate it whenever the v5 layout changes on purpose (before M1 ships), and
-//                                    paste the printed FIX5 line below.
+//   save_test --make-fixture out.bin write tests/fixtures/save_v6.bin: an endless game (seed 5150) with a created
+//                                    character, the innkeeper's job taken, bot play, a looted chest, the M2 fields
+//                                    (marks, a quest's subject / flags / deadline, a rumoured site), saved outdoors.
+//                                    Regenerate it whenever the layout changes on purpose, and paste the printed FIX6
+//                                    line below.
 // What is checked:
 //   1. the fixture loads and shows the values it was made with (format-level facts only: player, inventory, character,
 //      quests, flags; never generator output, so generator work does not invalidate it)
 //   2. round trips are byte-identical: endless games after play, after a long walk (many window shifts), upstairs in an
-//      inn with a rented room; a classic island game
+//      inn with a rented room (M2 retired the classic island)
 //   3. older, newer and damaged files are refused, and saveVersion() reports what they are
 #include <chrono>
 #include <cmath>
@@ -169,11 +170,24 @@ void roundTrip(Game& g, const char* label) {
 
 // ---- the fixture
 constexpr uint64_t FIX_SEED = 5150;
+// M2 (SAVE_VER 6) fields the fixture carries: a mark, a quest's subject / flags / deadline, a rumoured site
+constexpr uint64_t FIX_MARK_KEY = 0xE2000000000000A5ull;
+constexpr int32_t FIX_MARK_VAL = 7;
+const char* const FIX_SUBJECT = "GRANDMOTHER'S SILVER RING";
+constexpr uint32_t FIX_QFLAGS = 5;
+constexpr int FIX_DEADLINE = 3;
+void addM2Facts(Game& g) {
+  g.marks[FIX_MARK_KEY] = FIX_MARK_VAL;
+  for (Quest& q : g.quests)
+    if (q.type != QType::Main) { q.subject = FIX_SUBJECT; q.flags = FIX_QFLAGS; q.deadlineDay = FIX_DEADLINE; break; }
+  if (g.world.capital >= 0 && g.world.capital != g.world.startSite) g.world.sites[(size_t)g.world.capital].rumoured = true;
+}
 int makeFixture(const char* out) {
   Game g(FIX_SEED);
   g.newEndlessGame(FIX_SEED);
   makeCharacter(g);
   play(g, FIX_SEED, 90);
+  addM2Facts(g);
   if (g.inside) { printf("the fixture must be saved outdoors\n"); return 1; }
   std::vector<uint8_t> buf;
   g.serialize(buf);
@@ -182,13 +196,13 @@ int makeFixture(const char* out) {
   fwrite(buf.data(), 1, buf.size(), f);
   fclose(f);
   printf("wrote %s (%zu bytes)\n", out, buf.size());
-  printf("constexpr Fix5 FIX5 = {%d, %d, %d, %zu, %zu, %zu, %d, %d, %.3ff, %.3ff, %d, %.3ff, %d};\n", g.plLevel, g.plXp, g.gold, g.inv.size(),
+  printf("constexpr Fix6 FIX6 = {%d, %d, %d, %zu, %zu, %zu, %d, %d, %.3ff, %.3ff, %d, %.3ff, %d};\n", g.plLevel, g.plXp, g.gold, g.inv.size(),
          g.quests.size(), g.looted.size(), g.kills, g.world.ox, g.pl().p.x, g.pl().p.y, g.world.oy, g.hour, g.day);
   return 0;
 }
 // values printed by --make-fixture (format-level facts only)
-struct Fix5 { int level, xp, gold; size_t inv, quests, looted; int kills, ox; float px, py; int oy; float hour; int day; };
-constexpr Fix5 FIX5 = {1, 69, 50, 8, 3, 1, 4, 64, 1704.000f, 1976.000f, -320, 11.049f, 1};
+struct Fix6 { int level, xp, gold; size_t inv, quests, looted; int kills, ox; float px, py; int oy; float hour; int day; };
+constexpr Fix6 FIX6 = {1, 20, 30, 6, 3, 1, 0, 0, 1096.000f, 2264.000f, -256, 11.081f, 1};
 
 }  // namespace
 
@@ -203,17 +217,17 @@ int main(int argc, char** argv) {
 
   // ---- 1. the fixture
   std::vector<uint8_t> fx;
-  if (!readFile(dir + "/save_v5.bin", fx)) check(false, "cannot read tests/fixtures/save_v5.bin");
+  if (!readFile(dir + "/save_v6.bin", fx)) check(false, "cannot read tests/fixtures/save_v6.bin");
   else {
     check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
     Game g(1);
     check(g.deserialize(fx), "fixture did not load");
     check(g.seed == FIX_SEED && g.world.endless, "fixture seed / world kind");
-    check(g.plLevel == FIX5.level && g.plXp == FIX5.xp && g.gold == FIX5.gold && g.inv.size() == FIX5.inv && g.quests.size() == FIX5.quests &&
-              g.looted.size() == FIX5.looted && g.kills == FIX5.kills, "fixture level / xp / gold / inventory / quests / looted / kills");
-    check(g.world.ox == FIX5.ox && g.world.oy == FIX5.oy && std::fabs(g.pl().p.x - FIX5.px) < 0.01f && std::fabs(g.pl().p.y - FIX5.py) < 0.01f,
+    check(g.plLevel == FIX6.level && g.plXp == FIX6.xp && g.gold == FIX6.gold && g.inv.size() == FIX6.inv && g.quests.size() == FIX6.quests &&
+              g.looted.size() == FIX6.looted && g.kills == FIX6.kills, "fixture level / xp / gold / inventory / quests / looted / kills");
+    check(g.world.ox == FIX6.ox && g.world.oy == FIX6.oy && std::fabs(g.pl().p.x - FIX6.px) < 0.01f && std::fabs(g.pl().p.y - FIX6.py) < 0.01f,
           "fixture window origin / position");
-    check(std::fabs(g.hour - FIX5.hour) < 0.01f && g.day == FIX5.day, "fixture time of day");
+    check(std::fabs(g.hour - FIX6.hour) < 0.01f && g.day == FIX6.day, "fixture time of day");
     check(g.app.name == FIX_NAME && g.app.female && g.app.skin == FIX_SKIN && g.app.hairColor == FIX_HAIRC && g.app.eyeColor == FIX_EYE &&
               g.app.topColor == FIX_TOP && g.app.bottomColor == FIX_BOTTOM && g.app.created, "fixture appearance");
     check(g.background == Background::Hunter && g.storyFlags == FIX_FLAGS, "fixture background / story flags");
@@ -223,6 +237,16 @@ int main(int argc, char** argv) {
     bool main = false, blade = false;
     for (const Quest& q : g.quests) { if (q.type == QType::Main) main = true; if (q.title == "A BLADE OF YOUR OWN") blade = true; }
     check(main && blade, "fixture quests (the main quest and the opening)");
+    // M2 fields
+    auto mk = g.marks.find(FIX_MARK_KEY);
+    // (the fixture's own mark; the play that made it may leave others, such as a quest giver's last offer)
+    check(!g.marks.empty() && mk != g.marks.end() && mk->second == FIX_MARK_VAL, "fixture marks");
+    bool subj = false;
+    for (const Quest& q : g.quests) if (q.subject == FIX_SUBJECT && q.flags == FIX_QFLAGS && q.deadlineDay == FIX_DEADLINE) subj = true;
+    check(subj, "fixture quest subject / flags / deadline");
+    int rumoured = 0;
+    for (const Site& st : g.world.sites) if (st.rumoured) rumoured++;
+    check(rumoured == 1, "fixture rumoured site");
   }
 
   // ---- 2. round trips
@@ -231,6 +255,7 @@ int main(int argc, char** argv) {
     g.newEndlessGame(s);
     makeCharacter(g);
     play(g, s, 45);
+    addM2Facts(g);
     roundTrip(g, ("endless seed " + std::to_string(s) + " after play").c_str());
     // a long walk east (many window shifts), then save far from home
     g.noWildSpawns = true;
@@ -256,13 +281,6 @@ int main(int argc, char** argv) {
                                       h.world.over.bldgs[(size_t)h.lodging.bldg].id == g.world.over.bldgs[(size_t)inn].id,
                                   "upstairs / rented room not restored");
     } else check(false, "endless seed 707: cannot go upstairs in the start inn");
-  }
-  {
-    Game g(5150);
-    g.newGame(5150, WORLDGEN_LATEST);
-    makeCharacter(g);
-    play(g, 5150, 45);
-    roundTrip(g, "classic island seed 5150");
   }
 
   // ---- 2b. the save soak (VISION_PLAN 3.3, M1 size budget: about 150 KB after long play): a long journey on the
@@ -327,12 +345,16 @@ int main(int argc, char** argv) {
     n.serialize(b);
     auto patched = [&](size_t at, uint32_t v) { std::vector<uint8_t> c = b; for (int k = 0; k < 4; k++) c[at + k] = (uint8_t)(v >> (8 * k)); return c; };
     Game x(1);
+    check(!x.deserialize(patched(4, 5)) && Game::saveVersion(patched(4, 5)) == 5, "accepted (or misread) a SAVE_VER 5 save");
     check(!x.deserialize(patched(4, 4)) && Game::saveVersion(patched(4, 4)) == 4, "accepted (or misread) a SAVE_VER 4 save");
     check(!x.deserialize(patched(4, 1)), "accepted a SAVE_VER 1 save");
     check(!x.deserialize(patched(4, 99)), "accepted a save from a newer format");
     check(!x.deserialize(patched(0, 0x12345678u)) && Game::saveVersion(patched(0, 0x12345678u)) == 0, "accepted bad magic");
     std::vector<uint8_t> cut(b.begin(), b.begin() + (std::ptrdiff_t)(b.size() / 2));
     check(!x.deserialize(cut), "accepted a truncated save");
+    std::vector<uint8_t> classic = b;
+    classic[8] = 0;   // the world kind: 0 was the retired classic island
+    check(!x.deserialize(classic), "accepted a classic island save");
     std::vector<uint8_t> genv = b;
     genv[9] = (uint8_t)(genv[9] + 1);   // the endless generator version (u32 after the u8 world kind)
     check(!x.deserialize(genv), "accepted a save from another endless generator");

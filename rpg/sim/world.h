@@ -40,11 +40,15 @@ const char* biomeName(Biome b);
 
 enum class MapKind : uint8_t { Overworld, Cave, Ruin, Interior };
 
-enum class SiteType : uint8_t { City, Town, Village, Cave, Ruin, BanditCamp, Shrine, DragonLair, COUNT };
+// M2: Vignette = a small wayside point of interest (rpg/world/poi.h ew::VignetteKind in Site::kind: an overturned
+// caravan, a hunter's camp, standing stones...); Wonder = a rare landmark of the world (ew::WonderKind in Site::kind)
+enum class SiteType : uint8_t { City, Town, Village, Cave, Ruin, BanditCamp, Shrine, DragonLair, Vignette, Wonder, COUNT };
 const char* siteTypeName(SiteType t);
 
-// World-generator versions (see the rule at the top of world.cpp). A world is always regenerated from
-// (seed, genVersion), and saves store both, so a save keeps the exact world it was made in.
+// Generator versions of the retired classic island (M2). They survive only as the interior / dungeon generator
+// version a Bldg or Site carries (Bldg::genVer, Site::genVer): the endless world builds everything with
+// WORLDGEN_LATEST, so genInterior runs the M0b rooms generator (genInteriorV4). The endless world's own version is
+// ew::ENDLESS_GEN_VER (rpg/world/source.h).
 constexpr int WORLDGEN_V1 = 1;       // the original generator: every save before SAVE_VER 2
 constexpr int WORLDGEN_V2 = 2;       // + wilderness dens (Gen::dens, own "dens" stream)
 constexpr int WORLDGEN_V3 = 3;       // M0: cluttered interiors (genInterior via Bldg::genVer) and the M0 building/wall
@@ -85,7 +89,11 @@ inline int bldgRiseTiles(art::Building t, int storeys) {
 }
 
 // King (M1): the ruler in a capital's palace (VISION_PLAN 15.8); the main quest's Jarl keeps a city's keep
-enum class Role : uint8_t { Villager, Guard, Merchant, Smith, Innkeeper, Priest, Jarl, Farmer, Child, Mage, Bandit, King, COUNT };
+// M2 wayside people (vignettes, rpg/world/poi.h): Hunter (a hunter's camp: sells pelts, gives a hunt), Fisher (a fishing
+// hut: sells fish), Herbalist (an herb garden: sells herbs and potions), Traveller (a merchant caravan or pilgrim on the
+// roads)
+enum class Role : uint8_t { Villager, Guard, Merchant, Smith, Innkeeper, Priest, Jarl, Farmer, Child, Mage, Bandit, King,
+                            Hunter, Fisher, Herbalist, Traveller, COUNT };
 
 // the name a building type goes by in the HUD ("INN", "THE KEEP", "THE PALACE"...)
 const char* bldgTypeName(art::Building t);
@@ -162,6 +170,11 @@ struct Site {
   // buy (ew::goodBit masks), for the economy (M4) and crafting (M6)
   uint8_t special = 0;
   uint32_t produces = 0, needs = 0;
+  // M2: the template of a Vignette (ew::VignetteKind) or a Wonder (ew::WonderKind); 0 for every other type
+  uint8_t kind = 0;
+  // M2 rumours (VISION_PLAN 2.11): heard of but not found yet (an innkeeper's directions, a grave's inscription). The
+  // map shows it as a "?" near where it lies; finding it sets discovered. Saved with the site flags.
+  bool rumoured = false;
   bool settlement() const { return type == SiteType::City || type == SiteType::Town || type == SiteType::Village; }
 };
 
@@ -213,6 +226,11 @@ struct Map {
                                  // the floor (stains, straw, scattered papers...). Regenerated with the map, never saved
   std::vector<int32_t> bldgAt;   // building index at tile or -1 (M1: 32-bit, an endless session's records may pass 32767)
   std::vector<uint8_t> biome;    // Biome (overworld only)
+  // M2 biome transitions (VISION_PLAN 11.6), endless overworld only (else empty): bits 0-3 the neighbouring biome
+  // (Biome) this tile blends toward, bits 4-7 its weight 0..15 (0: pure own biome, 8: half and half; never above 8, a
+  // tile past the midpoint belongs to the other biome). The generator writes it (ChunkData::blend); the view dithers
+  // the two biomes' ground and the generator ramps transition flora with it.
+  std::vector<uint8_t> blend;
   std::vector<uint8_t> height;   // M1: relief per tile (endless overworld only, else empty): bits 0..2 the level 0..7
                                  // (VISION_PLAN 11.1), HEIGHT_CLIFF a cliff face (not walkable), HEIGHT_RAMP a ramp or
                                  // stairs between levels (walkable). The view draws faces where the level steps down.
@@ -237,6 +255,7 @@ struct Map {
   int heightAt(int x, int y) const { return in(x, y) && !height.empty() ? (height[(size_t)y * w + x] & HEIGHT_LEVEL) : 0; }
   uint8_t heightBits(int x, int y) const { return in(x, y) && !height.empty() ? height[(size_t)y * w + x] : 0; }
   Biome biomeAt(int x, int y) const { return in(x, y) && !biome.empty() ? (Biome)biome[(size_t)y * w + x] : Biome::Plains; }
+  uint8_t blendAt(int x, int y) const { return in(x, y) && !blend.empty() ? blend[(size_t)y * w + x] : 0; }
   void alloc(int w_, int h_, Ground fill);
   void rebuildSolid();
 };
@@ -245,9 +264,9 @@ bool propSolid(art::Prop p);   // rpg/sim/prop_rules.cpp
 
 struct World {
   uint64_t seed = 0;
-  int genVersion = WORLDGEN_LATEST;   // generator version this world was built with
-  // over: the classic island (448x448), or in an endless world the Active Window (VISION_PLAN 2.9): a WIN x WIN tile
-  // window onto the endless land whose local (0,0) is global tile (ox, oy). Everything in World and Game keeps using
+  int genVersion = WORLDGEN_LATEST;   // the interior / dungeon generator version its records carry (M2: always latest)
+  // over: the Active Window onto the endless world (VISION_PLAN 2.9): a WIN x WIN tile window onto the endless land
+  // whose local (0,0) is global tile (ox, oy). Everything in World and Game keeps using
   // window-local tiles and pixels; shiftWindow moves the window and translates every local coordinate.
   Map over;
   std::vector<Site> sites;
@@ -258,9 +277,10 @@ struct World {
   std::vector<Den> dens;                    // empty before WORLDGEN_V2
   std::vector<IRect> wallGaps;              // every opening cut into a city wall (gates included): bookkeeping only,
                                             // recorded by every generator version, never saved (rendering and tests)
-  std::vector<Kingdom> kingdoms;            // M1: every kingdom met so far (endless) or the island's one
+  std::vector<Kingdom> kingdoms;            // M1: every kingdom met so far
 
-  // ---- M1 endless world (rpg/sim/world_endless.cpp). Classic worlds keep endless == false and ox == oy == 0.
+  // ---- M1 endless world (rpg/sim/world_endless.cpp). M2: every World is endless once generated (a default-constructed
+  // World, before generateEndless, has endless == false and no map).
   static constexpr int WIN = 256;           // window size in tiles (8 x 8 chunks)
   static constexpr int WIN_SHIFT = 64;      // the window moves in steps of this many tiles
   bool endless = false;
@@ -334,8 +354,6 @@ struct World {
     return site >= 0 && site < (int)sites.size() && sites[(size_t)site].kingdom >= 0 ? &kingdoms[(size_t)sites[(size_t)site].kingdom] : nullptr;
   }
 
-  void generate(uint64_t seed, int genVer = WORLDGEN_LATEST);
-  uint32_t fingerprint() const;   // hash of site and building identity (names, places, indices): detects a reshuffled world
   int endlessDanger(int tx, int ty) const;   // world_endless.cpp: the generator's danger at a window tile
   int siteAt(int tx, int ty, int pad = 0) const;
   int nearestSite(int tx, int ty, SiteType t, int exclude = -1) const;

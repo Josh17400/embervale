@@ -1,11 +1,9 @@
 // rpg_test lane checks: interiors (BFS validity, free floor, clutter). M0 homes lane.
 // Called once per seed after runSeed; returns failures, reports each with out("FAIL: ...").
-//  - gen-2 identity: for seeds 1..3 every pre-M0 interior (WORLDGEN_V2 world) must hash to the recorded value, so old
-//    saves keep their exact rooms.
-//  - v3 rooms: every building of the seed's v3 world plus re-seeded variants (at least 200 rooms) must be valid: the
-//    door and arrival tiles free, at least 60 % of the floor reachable from the door, every bed/chest/altar and every
-//    spawn reachable, clutter only on free floor, wall decor only on the back wall.
-//  - v7 rooms and storeys (M0b, VISION_PLAN 15.7): every floor of every building of the seed's v7 world plus
+//  M2: the classic island and its pre-M0b interiors (V2, V3) are retired; every check runs on the buildings of the seed's
+//  endless world (the start window: the start village and whatever else it holds).
+//  - v7 identity: for seeds 1..3 every floor of every building in the start window hashes to the recorded value.
+//  - v7 rooms and storeys (M0b, VISION_PLAN 15.7): every floor of every building of the seed's start window plus
 //    re-seeded variants (at least 200 buildings): no bed outside a bedroom-like room, every room and usable object
 //    reachable from the floor's way in, stairs iff 2+ storeys and lined up between floors, every doorway legal, every
 //    bed's head against a wall, and the per-type facts (inn: common room, kitchen with a fire, bar, rented rooms and
@@ -48,17 +46,29 @@ uint64_t mapHash(const Map& m, uint64_t h) {
   }
   return h;
 }
-// recorded before the M0 interiors existed (rpg_test 1..3 on the phase-A tree)
-const uint64_t kGen2Hash[4] = {0, 0x5db166e55ccd2794ull, 0x53a72aac45ef81c3ull, 0x2c2cde60b68b93dbull};
-// M0b phase A: the M0 interiors (genInteriorV3) of generator-v6 worlds, recorded before any M0b change. Saves made on
-// worlds v3..v6 rebuild exactly these rooms (looted chests and killed spawns are keyed by tile and slot).
-const uint64_t kGen6Hash[4] = {0, 0xe71669014ab8e28full, 0x09a784b14128ba17ull, 0x232c62ce948e0729ull};
 // M0b integration: the M0b interiors (genInteriorV4, every floor, with stairs and rooms) of generator-v7 worlds. Once
 // M0b ships, saves made on v7 worlds key looted chests, killed spawns and the rented room by tile, slot and room index,
 // so any later change to these rooms needs a new WORLDGEN version. Re-record (EMB_INTERIOR_V7HASH=1 prints the values)
 // only while v7 is unreleased.
 // M0b fix round 1 (stairs two tiles wide, two-tile beds, keep/hut/smithy plans, clutter, upstairs residents)
-const uint64_t kGen7Hash[4] = {0, 0x1116c859902c3633ull, 0x0692c417dc915513ull, 0xe35048232981c9e2ull};   // M1 fixer round 3 (keep throne halls swept, palace upper rooms varied); before: M1 fixer round 2
+// M2 phase A: re-recorded on the endless start window (the classic island is retired); the rooms generator is unchanged
+// M2 phase B (SIM lane): the start window's buildings change whenever the world generator does (the M2 lanes change its
+// output under ENDLESS_GEN_VER 6), which has nothing to do with the rooms generator. The hash now covers a FROZEN sample
+// of building inputs (type, footprint, storeys, hearth, biome, urban level, variant: the kinds the endless towns make,
+// taken from the start windows of seeds 1-3 on 2026-10-05), three seeds each, so only a rooms-generator change moves it.
+struct SampleBldg { int type, w, h, storeys, hearth, biome, urban, variant; };
+const SampleBldg kGen7Sample[] = {
+    {0, 3, 2, 1, 1, 2, 0, 0}, {0, 3, 2, 1, 1, 2, 3, 0}, {0, 4, 2, 2, 1, 2, 0, 0}, {0, 4, 2, 2, 1, 2, 3, 0},
+    {1, 3, 2, 1, 1, 2, 3, 0}, {1, 3, 2, 2, 1, 2, 3, 0}, {2, 5, 3, 2, 1, 2, 0, 0}, {2, 5, 3, 2, 1, 2, 3, 0},
+    {3, 5, 3, 1, 1, 2, 0, 0}, {3, 5, 3, 1, 1, 2, 3, 0}, {4, 4, 3, 1, 0, 2, 0, 0}, {4, 4, 3, 1, 0, 2, 3, 0},
+    {4, 4, 3, 1, 1, 3, 0, 0}, {4, 4, 3, 1, 1, 5, 3, 0}, {4, 4, 3, 2, 1, 2, 0, 0}, {4, 4, 3, 2, 1, 2, 3, 0},
+    {5, 7, 5, 1, 0, 2, 3, 0}, {6, 9, 4, 2, 1, 2, 3, 0}, {7, 3, 3, 3, 0, 2, 3, 0}, {8, 5, 3, 1, 1, 2, 0, 0},
+    {9, 3, 2, 1, 1, 2, 0, 0}, {9, 3, 2, 1, 1, 2, 3, 0}, {10, 15, 7, 2, 1, 2, 3, 0}, {11, 7, 4, 2, 1, 2, 3, 0},
+    {12, 4, 3, 2, 0, 2, 3, 0}, {15, 4, 3, 1, 1, 2, 3, 0}, {15, 4, 3, 2, 1, 5, 3, 0}, {16, 4, 3, 1, 1, 2, 3, 0},
+    {16, 4, 3, 2, 1, 2, 3, 0}, {17, 4, 3, 1, 1, 2, 0, 0}, {17, 4, 3, 1, 1, 2, 3, 0}, {19, 5, 3, 1, 1, 3, 0, 0},
+    {20, 5, 3, 1, 0, 5, 3, 0}, {21, 4, 3, 1, 0, 5, 3, 0}, {21, 4, 3, 1, 1, 2, 3, 0},
+};
+const uint64_t kGen7SampleHash = 0x8bfd4f0d78512e57ull;   // (EMB_INTERIOR_V7HASH=1 prints the value)
 
 uint64_t floorHash(const Map& m, uint64_t h) {
   h = mapHash(m, h);
@@ -71,71 +81,31 @@ uint64_t floorHash(const Map& m, uint64_t h) {
   return h;
 }
 
-bool wallDecor(art::Prop p) { return p >= art::Prop::Tapestry && p <= art::Prop::HolySymbol; }
-
-struct Stats { int rooms = 0, bad = 0; double freeSum = 0, freeMin = 1; int clutter = 0, decor = 0, props = 0; };
-
-// returns a failure description, or empty when the room is valid
-std::string checkRoom(const Map& m, Stats& st) {
-  const int W = m.w, H = m.h;
-  auto I = [&](int x, int y) { return (size_t)y * W + x; };
-  auto floorT = [&](int x, int y) { return m.in(x, y) && !groundSolid(m.at(x, y)); };
-  if (!floorT(m.exitX, m.exitY) || m.solid[I(m.exitX, m.exitY)]) return "door tile blocked";
-  if (m.blocked(m.exitX, m.exitY - 1)) return "arrival tile blocked";
-  std::vector<int> dist((size_t)W * H, -1);
-  std::queue<int> q;
-  dist[I(m.exitX, m.exitY)] = 0;
-  q.push((int)I(m.exitX, m.exitY));
-  while (!q.empty()) {
-    int c = q.front(); q.pop();
-    int x = c % W, y = c / W;
-    static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
-    for (int k = 0; k < 4; k++) {
-      int nx = x + dx[k], ny = y + dy[k];
-      if (!floorT(nx, ny) || m.solid[I(nx, ny)] || dist[I(nx, ny)] >= 0) continue;
-      dist[I(nx, ny)] = dist[(size_t)c] + 1;
-      q.push((int)I(nx, ny));
-    }
-  }
-  auto reached = [&](int x, int y) { return m.in(x, y) && dist[I(x, y)] >= 0; };
-  int floor = 0, free = 0;
-  char buf[160];
-  for (int y = 0; y < H; y++)
-    for (int x = 0; x < W; x++) {
-      int p = m.propAt(x, y), d = m.decoAt(x, y);
-      if (p) {
-        art::Prop pp = (art::Prop)(p - 1);
-        st.props++;
-        if (wallDecor(pp)) {
-          st.decor++;
-          if (floorT(x, y) || !floorT(x, y + 1)) { std::snprintf(buf, sizeof buf, "wall decor %d off the back wall at %d,%d", p - 1, x, y); return buf; }
-        } else if (!floorT(x, y)) { std::snprintf(buf, sizeof buf, "prop %d inside a wall at %d,%d", p - 1, x, y); return buf; }
-        if ((pp == art::Prop::Bed || pp == art::Prop::Chest || pp == art::Prop::Altar) &&
-            !(reached(x + 1, y) || reached(x - 1, y) || reached(x, y + 1) || reached(x, y - 1))) {
-          std::snprintf(buf, sizeof buf, "usable prop %d at %d,%d unreachable", p - 1, x, y);
-          return buf;
-        }
+uint64_t sampleHash() {
+  uint64_t h = 1469598103934665603ull;
+  int n = 0;
+  for (const SampleBldg& sb : kGen7Sample)
+    for (int k = 0; k < 3; k++, n++) {
+      Bldg b;
+      b.type = (art::Building)sb.type;
+      b.r = IRect{40, 40, sb.w, sb.h};
+      b.storeys = (uint8_t)sb.storeys; b.hearth = sb.hearth != 0; b.biome = (Biome)sb.biome; b.urban = (uint8_t)sb.urban; b.variant = (uint8_t)sb.variant;
+      b.seed = hash32((uint32_t)n * 2654435761u + 0x7E57u);
+      b.site = 0;
+      b.genVer = WORLDGEN_LATEST;
+      for (int f = 0; f < b.floors(); f++) {
+        Map m;
+        genInterior(m, b, b.seed, f);
+        h = floorHash(m, h);
       }
-      if (d >= (int)Deco::Basket && d <= (int)Deco::Kindling) {
-        st.clutter++;
-        if (!floorT(x, y) || p) { std::snprintf(buf, sizeof buf, "clutter %d not on free floor at %d,%d", d, x, y); return buf; }
-      }
-      if (!floorT(x, y)) continue;
-      floor++;
-      if (reached(x, y)) free++;
     }
-  for (const Spawn& s : m.spawns)
-    if (!reached(s.x, s.y)) { std::snprintf(buf, sizeof buf, "spawn role %d at %d,%d unreachable", (int)s.role, s.x, s.y); return buf; }
-  double f = floor ? (double)free / floor : 0;
-  st.freeSum += f;
-  st.freeMin = std::min(st.freeMin, f);
-  if (f < 0.6) { std::snprintf(buf, sizeof buf, "only %.0f%% of the floor reachable", f * 100); return buf; }
-  return "";
+  return h;
 }
 
-// ---------------------------------------------------------------------------------------------- v7 (M0b) checks
-using art::Building;
+bool wallDecor(art::Prop p) { return p >= art::Prop::Tapestry && p <= art::Prop::HolySymbol; }
+
 using art::Prop;
+using art::Building;
 bool isProp(const Map& m, int x, int y, Prop p) { return m.propAt(x, y) == (int)p + 1; }
 bool wallT(const Map& m, int x, int y) { return !m.in(x, y) || m.at(x, y) == Ground::InteriorWall; }
 
@@ -399,7 +369,7 @@ std::string checkBuildingV7(const Bldg& b, V7Stats& st, uint64_t& sig) {
 // innkeeper's bed is his. Driven through Game::update with the interact input, like a player.
 int lodgingChecks(uint64_t seed) {
   Game g(seed);
-  g.newGame(seed, WORLDGEN_V7);
+  g.newEndlessGame(seed);
   g.mode = Mode::Play;
   g.godMode = true;
   int inn = -1;
@@ -445,71 +415,17 @@ int lodgingChecks(uint64_t seed) {
 
 int interiorChecks(uint64_t seed) {
   int bad = 0;
-  auto t0 = std::chrono::steady_clock::now();
   if (seed <= 2) bad += lodgingChecks(seed);
-  if (seed >= 1 && seed <= 3) {
-    World w;
-    w.generate(seed, WORLDGEN_V2);
-    uint64_t h = 1469598103934665603ull;
-    for (const Bldg& b : w.over.bldgs) {
-      Map m;
-      genInterior(m, b, b.seed);
-      h = mapHash(m, h);
-    }
-    if (h != kGen2Hash[seed]) { out("FAIL: gen-2 interiors changed: hash %016llx, recorded %016llx\n", (unsigned long long)h, (unsigned long long)kGen2Hash[seed]); bad++; }
-  }
-  if (seed >= 1 && seed <= 3) {
-    World w6;
-    w6.generate(seed, WORLDGEN_V6);
-    uint64_t h = 1469598103934665603ull;
-    for (const Bldg& b : w6.over.bldgs) {
-      Map m;
-      genInterior(m, b, b.seed);
-      h = mapHash(m, h);
-    }
-    if (h != kGen6Hash[seed]) { out("FAIL: gen-6 (M0) interiors changed: hash %016llx, recorded %016llx\n", (unsigned long long)h, (unsigned long long)kGen6Hash[seed]); bad++; }
-  }
-  if (seed >= 1 && seed <= 3) {
-    World w7;
-    w7.generate(seed, WORLDGEN_V7);
-    uint64_t h = 1469598103934665603ull;
-    for (const Bldg& b : w7.over.bldgs)
-      for (int f = 0; f < b.floors(); f++) {
-        Map m;
-        genInterior(m, b, b.seed, f);
-        h = floorHash(m, h);
-      }
-    const char* rec = std::getenv("EMB_INTERIOR_V7HASH");
-    if (rec && *rec) out("gen-7 interiors hash, seed %llu: 0x%016llxull\n", (unsigned long long)seed, (unsigned long long)h);
-    else if (h != kGen7Hash[seed]) { out("FAIL: gen-7 (M0b) interiors changed: hash %016llx, recorded %016llx\n", (unsigned long long)h, (unsigned long long)kGen7Hash[seed]); bad++; }
-  }
-  World w;
-  w.generate(seed, WORLDGEN_V3);
-  Stats st;
-  const auto& B = w.over.bldgs;
-  for (int k = 0; st.rooms < 200 || k == 0; k++) {
-    for (size_t i = 0; i < B.size() && (k == 0 || st.rooms < 200); i++) {
-      Bldg b = B[i];
-      b.genVer = WORLDGEN_V3;
-      if (k > 0) b.seed = b.seed * 2654435761u + (uint32_t)k * 40503u + 17u;
-      Map m;
-      genInterior(m, b, b.seed);
-      st.rooms++;
-      std::string why = checkRoom(m, st);
-      if (!why.empty()) {
-        if (st.bad < 5) out("FAIL: interior %zu (type %d, variant %d): %s\n", i, (int)b.type, k, why.c_str());
-        st.bad++;
-      }
-    }
-    if (B.empty()) break;
-  }
-  bad += st.bad;
-  double msV3 = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-
-  // v7: rooms and storeys, every floor of every building
+  // the seed's endless start window: its buildings (the start village, and whatever else the window holds)
   auto t7 = std::chrono::steady_clock::now();
   World w7;
-  w7.generate(seed, WORLDGEN_V7);
+  w7.generateEndless(seed);
+  if (seed == 1) {   // (seed-independent: once per run)
+    const uint64_t h = sampleHash();
+    const char* rec = std::getenv("EMB_INTERIOR_V7HASH");
+    if (rec && *rec) out("gen-7 interiors sample hash: 0x%016llxull\n", (unsigned long long)h);
+    else if (h != kGen7SampleHash) { out("FAIL: gen-7 (M0b) interiors changed: sample hash %016llx, recorded %016llx\n", (unsigned long long)h, (unsigned long long)kGen7SampleHash); bad++; }
+  }
   V7Stats s7;
   const auto& B7 = w7.over.bldgs;
   if (const char* dt = std::getenv("EMB_INTERIOR_DUMP")) {
@@ -638,10 +554,7 @@ int interiorChecks(uint64_t seed) {
       "distinct layouts %d%% (%s), furnished %d%%, same layout twice in a town %d, %.0f ms\n",
       s7.bldgs, s7.floors, s7.bldgs ? (double)s7.rooms / s7.bldgs : 0, s7.beds, s7.misplacedBeds, s7.bad, s7.freeMin * 100,
       total ? distinct * 100 / total : 0, var.c_str(), total ? furnished * 100 / total : 0, twins, ms7);
-  double ms = msV3 + ms7;
-  out("interiors: %d rooms, %d invalid, free floor avg %.0f%% min %.0f%%, clutter %.1f/room, wall decor %.1f/room, props %.1f/room, %.0f ms\n",
-      st.rooms, st.bad, st.rooms ? st.freeSum / st.rooms * 100 : 0, st.freeMin * 100, st.rooms ? (double)st.clutter / st.rooms : 0,
-      st.rooms ? (double)st.decor / st.rooms : 0, st.rooms ? (double)st.props / st.rooms : 0, ms);
+  const double ms = ms7;
   if (ms > 2000) out("WARN: interiorChecks took %.0f ms (budget ~2000)\n", ms);
   return bad;
 }

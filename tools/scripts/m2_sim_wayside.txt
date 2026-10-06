@@ -1,0 +1,63 @@
+# M2 SIM lane: life at the wayside places (rpg/world/poi.h; the WORLD lane places them, the SIM lane gives them life):
+# a hunter's camp (a shop: pelts, meat, arrows), standing stones (the heart stone blesses once a day), a toll bridge
+# (the troll stops whoever steps on the bridge: pay, and another day refuse and fight), a lone grave (its inscription
+# is a rumour or an heirloom hook) and a wayfarers' rest (a traveller's free rumour). `wayside <kind>` stands at the
+# south edge of the nearest one. Screenshots land in the working directory.
+seed 5                           # (a toll bridge 240 tiles from the start: they are rare, a road over a river)
+0.3  newgame
++0.1 god
++0.1 kit
++0.1 hour 10
++0.1 gold 300
+# ---- a hunter's camp: the hunter trades
++0.3 wayside hunter
++1.2 shot m2_sim_w01_hunter_camp.png
++0.1 talkkeeper
++0.8 shot m2_sim_w02_hunter_talk.png
++0.1 choose WARES
++0.5 expect mode shop
++0.4 shot m2_sim_w03_hunter_shop.png
++0.1 key Escape
++0.2 key Escape
+# ---- standing stones: the heart stone's blessing, once a day
++0.3 wayside stones
++1.0 shot m2_sim_w04_stones.png
++0.1 waysideheart
++0.2 key E
++0.4 expect wayside blessed
++0.3 shot m2_sim_w05_stones_blessed.png
++0.2 key E
++0.4 expect heard THE STONES ARE SILENT
+# ---- a toll bridge: pay the troll, then (the next day) refuse and fight
++0.3 wayside toll
++1.0 shot m2_sim_w06_toll_bridge.png
++0.1 onbridge
++0.4 expect mode dialogue
++0.6 shot m2_sim_w07_toll_demand.png
++0.1 choose PAY
++0.2 expect wayside tollpaid
++0.3 choose FAREWELL
++0.2 onbridge
++0.4 expect mode play
++0.2 nextday
++0.3 wayside toll
++0.2 onbridge
++0.4 expect mode dialogue
++0.1 choose I WON'T PAY
++0.3 expect wayside troll hostile
++0.6 shot m2_sim_w08_toll_fight.png
+# ---- a lone grave: the inscription
++0.3 wayside grave
++1.0 shot m2_sim_w09_grave.png
++0.1 waysideheart
++0.2 key E
++0.4 expect mode dialogue
++1.5 shot m2_sim_w10_grave_read.png
++0.2 key Escape
+# ---- a wayfarers' rest: the traveller's free rumour
++0.3 wayside wayrest
++1.0 talkkeeper
++0.2 choose NEWS
++0.3 expect rumoured 1
++1.5 shot m2_sim_w11_wayrest_news.png
++0.5 quit

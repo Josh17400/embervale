@@ -6,6 +6,11 @@
 namespace art {
 
 void paintEconomyProp(Canvas& c, Prop p, int frame);   // M1 economy: rpg/art/art_market.cpp (Sacks .. WaterWheel)
+// M2 Wayfinder: rpg/art/art_wild.cpp (Peak .. DragonBones): painters and canvas sizes
+void paintWildProp(Canvas& c, Prop p, int frame);
+int wildPropW(Prop p);
+int wildPropH(Prop p);
+int wildPropFrames(Prop p);
 
 // =====================================================================================================
 // 5. props
@@ -1001,9 +1006,12 @@ void shrine(Canvas& c) {
 // ---- dungeon ----------------------------------------------------------------------------------------
 void caveEntrance(Canvas& c) {
   const int W = c.w, H = c.h;
-  rock(c, W * 0.5f, H * 0.52f, W * 0.5f, H * 0.5f, kStone, 31, 11);
-  rock(c, W * 0.16f, H * 0.7f, 8.0f, 9.0f, kStone, 32, 5);
-  rock(c, W * 0.85f, H * 0.68f, 8.0f, 9.5f, kStone, 33, 5);
+  // (M2 fixer) the warm grey-brown of the outcrop the mouth is set into (the terrain's rock palette), not the cool
+  // blue-grey of dressed stone, so the arch reads as part of the crag
+  static const Ramp kCrag = ramp5(rgba(62, 56, 54), rgba(94, 86, 78), rgba(120, 110, 98), rgba(146, 136, 120), rgba(184, 172, 150));
+  rock(c, W * 0.5f, H * 0.52f, W * 0.5f, H * 0.5f, kCrag, 31, 11);
+  rock(c, W * 0.16f, H * 0.7f, 8.0f, 9.0f, kCrag, 32, 5);
+  rock(c, W * 0.85f, H * 0.68f, 8.0f, 9.5f, kCrag, 33, 5);
   // the dark opening: arched, fading to black inside
   float ox = W * 0.5f, ow = 11.0f, top = H * 0.32f;
   for (int y = (int)top; y < H; y++)
@@ -1021,7 +1029,7 @@ void caveEntrance(Canvas& c) {
     int x = (int)ox + i * 3;
     float dx = (x + 0.5f - ox) / ow;
     int ay = (int)(top + (1 - std::sqrt(std::max(0.0f, 1 - dx * dx))) * 8.0f);
-    for (int k = 0; k < 2 + (i & 1); k++) c.set(x, ay + k, kStone[k == 0 ? 2 : 1]);
+    for (int k = 0; k < 2 + (i & 1); k++) c.set(x, ay + k, kCrag[k == 0 ? 2 : 1]);
   }
   // moss tufts on top
   for (int x = 4; x < W - 4; x += 3)
@@ -4205,7 +4213,8 @@ void paintProp(Canvas& c, Prop p, int frame) {
     case Prop::CounterR: counterSeg(c, 2); break;
     case Prop::Filler: filler(c); break;
     default:
-      if ((int)p >= (int)Prop::Sacks) paintEconomyProp(c, p, frame);
+      if (isWildProp(p)) paintWildProp(c, p, frame);
+      else if ((int)p >= (int)Prop::Sacks) paintEconomyProp(c, p, frame);
       else if ((int)p >= (int)Prop::StairsUp) m0bProp(c, p, frame);
       break;
   }
@@ -4213,9 +4222,9 @@ void paintProp(Canvas& c, Prop p, int frame) {
 
 }  // namespace
 
-int propW(Prop p) { return (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].w : 16; }
-int propH(Prop p) { return (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].h : 16; }
-int propFrames(Prop p) { return (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].frames : 1; }
+int propW(Prop p) { return isWildProp(p) ? wildPropW(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].w : 16; }
+int propH(Prop p) { return isWildProp(p) ? wildPropH(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].h : 16; }
+int propFrames(Prop p) { return isWildProp(p) ? wildPropFrames(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].frames : 1; }
 
 Canvas propSprite(Prop p) {
   if (isStall(p)) return marketStall(stallTrade(p), 0);
@@ -4224,7 +4233,7 @@ Canvas propSprite(Prop p) {
   for (int f = 0; f < n; f++) {
     Canvas cell(w, h);
     paintProp(cell, p, f);
-    if (p != Prop::Cobweb && p != Prop::Rug) outline(cell);
+    if (p != Prop::Cobweb && p != Prop::Rug && !isWildProp(p)) outline(cell);   // (M2 wild props outline themselves)
     place(sheet, cell, f, 0);
   }
   return sheet;
@@ -4234,6 +4243,73 @@ Canvas marketStallVariant(int v) {
   const int w = propW(Prop::MarketStall), h = propH(Prop::MarketStall);
   Canvas c(w, h);
   marketStallV(c, v);
+  outline(c);
+  return c;
+}
+
+// (M2 fixer round 2) the wild's commonest props in variants, so a meadow is not one tuft or one boulder cloned
+// dozens of times: a grass tuft v % 8 (blade count, height, lean, a drier or a lusher green), its foot fading into the
+// ground (no ink line along its base); a boulder v % 8 (size, facets, a mossy cap or a lichen-speckled one, a
+// two-stone pile)
+Canvas tallGrassVariant(int v) {
+  const int w = propW(Prop::TallGrass), h = propH(Prop::TallGrass);
+  Canvas c(w, h);
+  const uint32_t seed = 9400u + (uint32_t)(v & 7) * 37u;
+  const int blades = 6 + (int)(hash3(v, 0, 9401) % 5);
+  const float spread = (float)(w - 4) / (float)blades;
+  const Ramp dry = ramp5(rgba(56, 70, 34), rgba(98, 112, 48), rgba(146, 150, 64), rgba(188, 184, 92), rgba(222, 214, 140));
+  const Ramp lush = ramp5(rgba(28, 64, 40), rgba(44, 100, 50), rgba(70, 136, 58), rgba(110, 170, 70), rgba(160, 206, 104));
+  const int tone = v & 3;   // 0, 1 the common green, 2 drier, 3 lusher
+  const Ramp& R = tone == 2 ? dry : tone == 3 ? lush : kLeaf;
+  const int hmax = 6 + (int)(hash3(v, 1, 9402) % 5);
+  for (int i = 0; i < blades; i++) {
+    const float x = 2.0f + i * spread + (hashf(i, 2, seed) - 0.5f) * 1.2f;
+    const float mid = 1.0f - std::fabs((i + 0.5f) / blades - 0.5f) * 1.2f;   // taller in the middle of the clump
+    const int bh = std::max(3, (int)std::lround(hmax * (0.55f + 0.45f * mid) + (hashf(i, 3, seed) - 0.5f) * 3.0f));
+    const float lean = (hashf(i, 1, seed) - 0.5f) * 5.0f + ((v >> 3) & 1 ? 1.0f : -1.0f) * 0.8f;
+    for (int j = 0; j < bh; j++) {
+      const float t = (float)j / bh;
+      const int px2 = (int)std::floor(x + lean * t * t);
+      int k = t < 0.25f ? 1 : (t < 0.7f ? 2 : 3);
+      if (i % 3 == 0) k = std::max(1, k - 1);       // the blades behind, in shade
+      if (t > 0.85f && i % 2 == 1) k = 4;            // a few lit tips
+      c.set(px2, h - 2 - j, R[k]);
+    }
+  }
+  outline(c, 0.7f);
+  // the foot: no ink line, the lowest rows thinned into the ground
+  for (int y = h - 3; y < h; y++)
+    for (int x = 0; x < w; x++) {
+      const uint32_t q = c.get(x, y);
+      if (!(q >> 24)) continue;
+      if (luma(q) < 0.16f || bayer(x, y) < (y - (h - 3)) * 0.34f) c.set(x, y, 0);
+    }
+  return c;
+}
+Canvas boulderVariant(int v) {
+  const int w = propW(Prop::Boulder), h = propH(Prop::Boulder);
+  Canvas c(w, h);
+  const uint32_t seed = 7100u + (uint32_t)(v & 7) * 53u;
+  const float sx = 0.38f + 0.08f * hashf(v, 0, 7101), sy = 0.36f + 0.09f * hashf(v, 1, 7102);
+  const int facets = 5 + (int)(hash3(v, 2, 7103) % 5);
+  if ((v & 7) == 5) {   // a pile: a big stone and a small one leaning on it
+    rock(c, w * 0.42f, h * 0.56f, w * 0.34f, h * 0.38f, kStone, seed, facets);
+    rock(c, w * 0.76f, h * 0.70f, w * 0.20f, h * 0.24f, kStone, seed + 9, 4);
+  } else rock(c, w * (0.48f + 0.06f * (hashf(v, 3, 7104) - 0.5f)), h * 0.56f, w * sx, h * sy, kStone, seed, facets);
+  if ((v & 3) == 1) {   // a mossy cap on its lit top
+    for (int x = 0; x < w; x++)
+      for (int y = 0; y < h; y++)
+        if (solid(c, x, y)) {
+          const int d = 1 + (int)(hash3(x, 0, seed) % 3);
+          for (int k = 0; k < d; k++) if (solid(c, x, y + k) && vnoise(x / 3.0f, 0, seed) > 0.35f) c.set(x, y + k, kMoss[k == 0 ? 3 : 2]);
+          break;
+        }
+  } else if ((v & 3) == 2) {   // lichen speckles
+    for (int i = 0; i < 10; i++) {
+      const int x = (int)(hash3(i, 1, seed) % (uint32_t)w), y = (int)(hash3(i, 2, seed) % (uint32_t)h);
+      if (solid(c, x, y)) c.set(x, y, (i & 1) ? rgba(186, 178, 84) : rgba(140, 140, 62));
+    }
+  }
   outline(c);
   return c;
 }

@@ -207,7 +207,7 @@ const char* typeName(art::Building t) {
 
 void real(const std::string& dir, uint64_t seed, std::vector<Canvas>& firsts) {
   World w;
-  w.generate(seed);
+  w.generateEndless(seed);   // (M2: the start window of the endless world)
   // one building of each type (preferring ones with upper floors), every floor side by side
   int n = 0;
   // M1: the palace and the barracks stand only in endless capitals: built here from their own facts

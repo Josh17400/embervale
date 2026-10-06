@@ -1,0 +1,43 @@
+# M2 SIM lane: journeys behind the fade (owner carry-over: the ~180 ms fast-travel / respawn hitch). The map's FAST
+# TRAVEL (MAP tab, select a town, Return), a carriage from a town, a long walk to a far city, and the trip home after a
+# death all go dark first, gather the destination window across frames and arrive in one cheap step.
+#   embervale.exe --script tools/scripts/m2_sim_travel.txt --perf   (the per-second perf lines show the worst frame
+#   work during each journey; `waittravel` prints what the journey cost; screenshots land in the working directory)
+# Each journey starts on a fresh second after a quiet one, so its perf line holds the journey alone.
+seed 1
+0.3  newgame
++0.1 god
++0.1 hour 10
++0.6 shot m2_sim_travel_1_start.png
++0.1 expect quote refused CARRIAGES at town 500 carriage   # no carriage from a village
++0.1 expect quote ok town 500                              # (and the town goes on the map: discovered)
++0.2 menu 2
++0.6 mapselect town
++0.4 shot m2_sim_travel_2_map.png
++1.0 key Return                      # FAST TRAVEL
++0.12 shot m2_sim_travel_3_fade.png  # going dark
++0.1 waittravel
++0.1 expect travel done
++0.1 expect mode play
++0.3 shot m2_sim_travel_4_arrive.png # fading in
++1.4 shot m2_sim_travel_5_town.png
+# by carriage from the town back to the start village (paid)
++0.1 gold 200
++0.1 expect quote ok start carriage
++1.0 travel start carriage
++0.1 waittravel
++0.1 expect travel done
++1.5 shot m2_sim_travel_6_home.png
+# a far city on foot: a longer gather (new regions; the place is looked up a second before the journey)
++0.1 expect quote ok city 1400
++1.2 travel city 1400
++0.1 waittravel
++0.1 expect travel done
++1.6 shot m2_sim_travel_7_city.png
+# dying: the trip home is the same journey
++0.1 die
++1.6 key Return
++0.1 waittravel
++0.1 expect travel done
++1.5 shot m2_sim_travel_8_respawn.png
++0.5 quit

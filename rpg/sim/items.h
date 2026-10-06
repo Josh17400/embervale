@@ -45,9 +45,9 @@ Item makeStaff(Rng& r, int level);
 Item makeArmor(Rng& r, int level, ItemKind slot);   // Armor, Helmet, Shield, Gloves, Boots, Cloak
 Item makeJewel(Rng& r, int level);
 Item makePotion(PotionType t, int size);   // size 0 minor, 1 normal, 2 plentiful
-Item makeFood(int which);
+Item makeFood(int which);                  // 0-8 (4-8: M2 wayside fish, smoked meat, cakes)
 Item makeArrows(int n);
-Item makeMisc(int which);                  // pelts, bones, gems, ore...
+Item makeMisc(int which);                  // pelts, bones, gems, ore... (8-12: M2 hides and herbs)
 ItemKind randomArmorSlot(Rng& r);         // Armor, Helmet, Shield, Gloves, Boots or Cloak (one draw)
 Item randomLoot(Rng& r, int level, bool boss);
 

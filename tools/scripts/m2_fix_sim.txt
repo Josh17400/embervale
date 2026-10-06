@@ -1,0 +1,44 @@
+# M2 fixer round 1, SIM regressions:
+#  - a Protect night is not won by hiding indoors after the first wave (the fields fall "while you were away")
+#  - fast travel out of a cave with the found missing person completes the rescue (as walking out does)
+#  - a lone grave's inscription names the person its title names
+seed 1
+0.3  newgame
++0.1 god
++0.1 kit
++0.1 hour 10
++0.3 gotosite start
+# ---- PROTECT: hide in the inn after the first wave comes
++0.3 offerquest protect
++0.6 choose I'LL DO IT
++0.2 expect sidequest active protect
++0.2 choose FAREWELL
++0.2 questgo
++0.1 hour 21
++1.5 expect heard ARE COMING
++0.2 enter inn
++0.3 nextday 8
++0.5 expect heard WHILE YOU WERE AWAY
++0.2 walkto exit 60
+# ---- MISSING: found, then fast travel home from inside the cave
++0.3 hour 10
++0.2 gotosite start
++0.3 offerquest missing
++0.6 choose I'LL DO IT
++0.2 choose FAREWELL
++0.3 questgo
++0.8 talkquest
++0.4 choose STAY CLOSE
++0.2 killnear 30
++0.3 log cleared
++0.3 travel start
++0.1 waittravel
++0.5 expect inside 0
++0.1 expect sidequest complete missing
+# ---- a lone grave: the inscription names the title's person
++0.3 wayside grave
++0.8 waysideheart
++0.2 key E
++0.4 expect mode dialogue
++0.1 expect text HERE LIES
++0.6 key Escape

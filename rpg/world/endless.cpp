@@ -42,6 +42,7 @@ bool EndlessSource::prepareChunk(int32_t cx, int32_t cy, double budgetMs) { retu
 const KingdomPlan* EndlessSource::kingdom(Gid id) { d_->makeStart(); return d_->kingdom(id); }
 const StartPlan& EndlessSource::start() { d_->makeStart(); return d_->sp; }
 int EndlessSource::danger(int32_t gx, int32_t gy) { d_->makeStart(); return d_->danger(gx, gy); }
+uint32_t EndlessSource::landmass(int32_t gx, int32_t gy) { d_->makeStart(); return d_->landmass(gx, gy); }
 const EndlessSource::Stats& EndlessSource::stats() const { return d_->stats; }
 
 }  // namespace ew

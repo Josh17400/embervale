@@ -1,0 +1,46 @@
+# VIEW lane, M2 Wayfinder: the world map at every zoom (street, town, land, continent), its labels and markers, a rumour
+# "?", the side column's journey (FAST TRAVEL / CARRIAGE) and the geology debug view.
+#   embervale.exe --script tools/scripts/m2_view_map.txt                    (m2map_*.png in the working directory)
+#   EMB_SCREEN=fill EMB_SAFE=59,0,59,21 embervale.exe --window 2556x1179 --script tools/scripts/m2_view_map.txt
+seed 7
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 mapexplore 900
++0.1 mapreveal 14
++0.1 maprumour 3
++0.2 menu 2
++0.1 mapzoom 0
++1.2 shot m2map_0_street.png
++0.1 mapzoom 1
++1.2 shot m2map_1_street2.png
++0.1 mapzoom 2
++1.2 shot m2map_2_town.png
++0.1 mapzoom 3
++1.2 shot m2map_3_town2.png
++0.1 mapzoom 4
++1.5 shot m2map_4_land.png
++0.1 mapzoom 5
++1.5 shot m2map_5_land2.png
++0.1 mapzoom 6
++1.5 shot m2map_6_continent.png
++0.1 mapzoom 7
++1.5 shot m2map_7_continent2.png
++0.1 mapzoom 4
++0.1 mapselect rumour
++1.5 shot m2map_8_rumour.png
++0.1 mapselect village
++1.5 shot m2map_9_travel.png
++0.1 mapgeo 1
++0.1 expect mapgeo 1
++0.1 mapzoom 6
++2.0 shot m2map_10_geology.png
++0.1 key G
++0.1 expect mapgeo 0
++0.1 mapzoom 4
++0.1 mapselect cave
++1.2 shot m2map_11_cave.png
++0.1 key Return
++1.5 expect mode play
++1.0 shot m2map_12_arrived.png
++0.3 quit

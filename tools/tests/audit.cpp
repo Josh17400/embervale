@@ -11,6 +11,7 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include "rpg/world/poi.h"
 #include "tools/tests/tests.h"
 
 namespace {
@@ -22,7 +23,7 @@ bool isSettlement(SiteType t) { return t == SiteType::City || t == SiteType::Tow
 
 }  // namespace
 
-void newTestGame(Game& g, uint64_t seed);   // seed_run.cpp: endless, or the classic island under rpg_test --classic
+void newTestGame(Game& g, uint64_t seed);   // seed_run.cpp: a new endless game
 
 Audit repetitionAudit(uint64_t seed) {
   Audit au;
@@ -31,19 +32,29 @@ Audit repetitionAudit(uint64_t seed) {
   g.mode = Mode::Play;
   const World& W = g.world;
   const Map& m = W.over;
-  int sx = (int)(g.pl().p.x / TILE), sy = (int)(g.pl().p.y / TILE);
+  // distances from the start village's heart (M2: the start guarantee is about the village, wherever the player is)
+  const int sx = W.sites[(size_t)W.startSite].ex, sy = W.sites[(size_t)W.startSite].ey;
   auto distStart = [&](const Site& s) { return std::hypot((float)(s.ex - sx), (float)(s.ey - sy)); };
 
-  // 1. point-of-interest kinds near the start (today: site types; vignettes join this list in task 4)
+  // 1. point-of-interest kinds near the start: site types, vignette and wonder kinds (rpg/world/poi.h), and dens
   {
-    bool kind[(int)SiteType::COUNT] = {};
+    std::map<int, std::string> kinds, nearKinds;
     for (int si = 0; si < (int)W.sites.size(); si++) {
-      if (si == W.startSite || distStart(W.sites[si]) > 60) continue;
+      const Site& s = W.sites[(size_t)si];
+      if (si == W.startSite || distStart(s) > 120) continue;
       au.poiCount++;
-      kind[(int)W.sites[si].type] = true;
+      const int k = ew::poiKindKey(s.type, s.kind);
+      kinds[k] = ew::poiKindName(s.type, s.kind);
+      if (distStart(s) <= 60) nearKinds[k] = kinds[k];
     }
-    for (int t = 0; t < (int)SiteType::COUNT; t++)
-      if (kind[t]) { au.poiKinds++; if (!au.poiList.empty()) au.poiList += ","; au.poiList += siteTypeName((SiteType)t); }
+    for (const Den& d : W.dens) {
+      const float dd = std::hypot((float)(d.x - sx), (float)(d.y - sy));
+      if (dd <= 120) kinds[99] = "DEN";
+      if (dd <= 60) nearKinds[99] = "DEN";
+    }
+    au.poiKinds = (int)kinds.size();
+    au.poiNear = (int)nearKinds.size();
+    for (auto& kv : kinds) { if (!au.poiList.empty()) au.poiList += ","; au.poiList += kv.second; }
   }
 
   // 2. settlement layout: the "shape" (type, centrepiece, size of the paved square) and the building count.
@@ -126,7 +137,7 @@ Audit repetitionAudit(uint64_t seed) {
 }
 
 void printAudit(const Audit& a) {
-  printf("  audit: poi kinds within 60 tiles %d (%d sites: %s)\n", a.poiKinds, a.poiCount, a.poiList.c_str());
+  printf("  audit: poi kinds within 120 tiles of the start village %d, within 60: %d (%d sites: %s)\n", a.poiKinds, a.poiNear, a.poiCount, a.poiList.c_str());
   printf("  audit: settlement shapes %d distinct of %d, largest same-shape group %d (within 120 tiles: %d settlements, group %d), same building count %d\n",
          a.layoutSigs, a.settlements, a.layoutMaxGroup, a.nearSettlements, a.nearLayoutMaxGroup, a.countMaxGroup);
   printf("  audit: greetings %d distinct of %d talks in %d towns (worst %s)\n", a.greetDistinct, a.greetTalks, a.greetTowns,

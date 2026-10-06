@@ -186,7 +186,9 @@ void EndlessSource::Impl::graphEdges(int32_t x0, int32_t y0, int32_t x1, int32_t
         int64_t dx = 2 * (int64_t)nodes[c].x - mx, dy = 2 * (int64_t)nodes[c].y - my;
         if (dx * dx + dy * dy < ab2) gab = false;
       }
-      if (!gab) continue;
+      // (M2 start guarantee) the road from the start village to the story city is always built
+      const bool story = ((a.flags & SPF_START) && (b.flags & SPF_STORY)) || ((b.flags & SPF_START) && (a.flags & SPF_STORY));
+      if (!gab && !story) continue;
       std::shared_ptr<const Edge> e = edge(a, b);
       if (e->x1 < e->x0 || e->x1 < x0 || e->x0 > x1 || e->y1 < y0 || e->y0 > y1) continue;
       out.push_back(e);

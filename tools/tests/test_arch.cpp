@@ -1,5 +1,7 @@
 // rpg_test lane checks: city walls, gates, building footprints and architecture styles. M0 architecture lane.
 // Called once per seed after runSeed; returns failures, reports each with out("FAIL: ...").
+// M2: on the endless world (the classic island is retired): the start window, then the nearest city brought into the
+// window (its wall ring, gates and streets); only places lying wholly inside the window are checked.
 //   ARCH_DUMP=1 rpg_test 7     also prints every city's wall ring as ASCII (# wall, G gate, = gap, . walkable, ~ blocked)
 #include <cstdio>
 #include <cstdlib>
@@ -9,8 +11,9 @@
 
 namespace {
 
-// the town box (Town::x0..) is the site rect grown by 3, and the wall ring can reach its edge: check one tile beyond
-constexpr int MG = 4;
+// the town's buffer is the site rect grown by ew::town::MARGIN (8), and the wall ring may reach into it (where the land
+// or the ring's wobble bulges it out): check one tile beyond
+constexpr int MG = 9;
 
 int wallChecks(const World& w, int si, bool dump) {
   const Map& m = w.over;
@@ -80,7 +83,9 @@ int wallChecks(const World& w, int si, bool dump) {
       }
     }
     if (escaped) {
-      if (w.genVersion >= WORLDGEN_V3) { out("FAIL: city %d wall ring leaks (reached %d,%d)\n", si, ex, ey); bad++; }
+      // (M2: the flood stops at the town's buffer, which the ring may reach into; rpg_test --towns checks the ring
+      // exactly on the generator's own buffer)
+      if (w.genVersion >= WORLDGEN_V3) { out("FAIL: city %d %s: the wall ring flood left the town's buffer at %d,%d\n", si, s.name.c_str(), ex, ey); bad++; }
       else out("  city %d (v%d) wall ring leaks at %d,%d\n", si, w.genVersion, ex, ey);
     }
   }
@@ -97,6 +102,8 @@ int wallChecks(const World& w, int si, bool dump) {
         else if (G(x, y)) c = '=';
         else if (m.bldgAt[(size_t)y * m.w + x] >= 0) c = 'b';
         else if (m.blocked(x, y)) c = '~';
+        else if (m.at(x, y) == Ground::Road) c = 'R';
+        else if (m.at(x, y) == Ground::Plaza) c = 'P';
         line += c;
       }
       out("    %s\n", line.c_str());
@@ -110,17 +117,28 @@ int wallChecks(const World& w, int si, bool dump) {
 int archChecks(uint64_t seed) {
   int bad = 0;
   bool dump = getenv("ARCH_DUMP") != nullptr;
-  World w;
-  w.generate(seed, WORLDGEN_LATEST);
+  Game g(seed);
+  g.newEndlessGame(seed);
+  {
+    const Site& home = g.world.sites[(size_t)g.world.startSite];
+    const int city = g.world.findSiteNear(g.world.ox + home.ex, g.world.oy + home.ey, SiteType::City, 8);
+    if (city >= 0) g.teleportGlobal(g.world.ox + g.world.sites[(size_t)city].ex, g.world.oy + g.world.sites[(size_t)city].ey + 2);
+    else out("WARN: arch: no city within 8 regions of the start\n");
+  }
+  const World& w = g.world;
   const Map& m = w.over;
+  auto inWindow = [&](const IRect& r, int pad) { return m.in(r.x - pad, r.y - pad) && m.in(r.x + r.w - 1 + pad, r.y + r.h - 1 + pad); };
+  int cities = 0;
   for (int si = 0; si < (int)w.sites.size(); si++)
-    if (w.sites[si].type == SiteType::City) bad += wallChecks(w, si, dump);
-  // building footprints stay inside the map and on their own tiles
+    if (w.sites[si].type == SiteType::City && inWindow(w.sites[si].r, MG)) { bad += wallChecks(w, si, dump); cities++; }
+  if (!cities) out("WARN: arch: no city wholly inside the window\n");
+  // building footprints stay on their own tiles
   for (size_t bi = 0; bi < m.bldgs.size(); bi++) {
     const Bldg& b = m.bldgs[bi];
+    if (!inWindow(b.r, 0)) continue;
     for (int y = b.r.y; y < b.r.y + b.r.h; y++)
       for (int x = b.r.x; x < b.r.x + b.r.w; x++)
-        if (!m.in(x, y) || m.bldgAt[(size_t)y * m.w + x] != (int16_t)bi) { out("FAIL: building %zu footprint tile %d,%d not owned\n", bi, x, y); bad++; y = 1 << 20; break; }
+        if (m.bldgAt[(size_t)y * m.w + x] != (int)bi) { out("FAIL: building %zu footprint tile %d,%d not owned\n", bi, x, y); bad++; y = 1 << 20; break; }
   }
   // M0b (WORLDGEN_V7): the storeys and hearths the generator decides are ones the exterior can paint (VISION_PLAN 15.7:
   // the outside and the inside agree): inns and keeps 2, mage towers 3, houses, stone houses and shops 1 or 2 (narrow
@@ -133,6 +151,8 @@ int archChecks(uint64_t seed) {
       switch (b.type) {
         case art::Building::Inn: case art::Building::Keep: lo = hi = 2; break;
         case art::Building::Tower: lo = hi = 3; break;
+        case art::Building::Palace: case art::Building::Barracks: case art::Building::Windmill: lo = hi = 2; break;   // (M1 types)
+        case art::Building::Bakery: case art::Building::Butcher: case art::Building::Fishmonger: case art::Building::Weaver: hi = b.r.w >= 4 ? 2 : 1; break;
         case art::Building::House: hi = b.r.w >= 4 ? 2 : 1; break;
         case art::Building::StoneHouse: hi = 2; break;
         case art::Building::Shop: hi = b.r.w >= 4 ? 2 : 1; break;
@@ -152,6 +172,7 @@ int archChecks(uint64_t seed) {
     auto spriteOf = [&](const Bldg& b) { int up = w.genVersion >= WORLDGEN_V7 ? bldgRiseTiles(b.type, b.storeys) : bldgRiseTiles(b.type); return IRect{b.r.x - 1, b.r.y - up, b.r.w + 2, b.r.h + up + 1}; };
     int clashes = 0;
     for (const Site& s : w.sites) {
+      if (!inWindow(s.r, 0)) continue;
       for (int i = s.bldgFirst; i < s.bldgFirst + s.bldgCount; i++)
         for (int j = s.bldgFirst; j < s.bldgFirst + s.bldgCount; j++) {
           if (i == j) continue;
@@ -180,53 +201,101 @@ int archChecks(uint64_t seed) {
           }
     for (int si = 0; si < (int)w.sites.size(); si++) {
       const Site& s = w.sites[si];
-      if (s.type != SiteType::City) continue;
+      if (s.type != SiteType::City || !inWindow(s.r, MG)) continue;
+      // (M2) the ring only: the palace compound's own wall (a rectangle round the palace) is not the city's wall, and
+      // streets may run past it
+      IRect compound{0, 0, 0, 0};
+      for (int b = s.bldgFirst; b < s.bldgFirst + s.bldgCount; b++)
+        if (m.bldgs[(size_t)b].type == art::Building::Palace) {
+          const IRect& p = m.bldgs[(size_t)b].r;
+          compound = IRect{p.x - 6, p.y - 4, p.w + 12, 23};
+        }
+      auto ringWall = [&](int x, int y) {
+        if (!m.in(x, y) || !m.wall[(size_t)y * m.w + x]) return false;
+        return !(compound.w && x >= compound.x && y >= compound.y && x < compound.x + compound.w && y < compound.y + compound.h);
+      };
+      auto roadG = [&](int x, int y) { const Ground q = m.at(x, y); return m.in(x, y) && (q == Ground::Road || q == Ground::Bridge); };
+      auto paved = [&](int x, int y) { const Ground q = m.at(x, y); return m.in(x, y) && (q == Ground::Road || q == Ground::Bridge || q == Ground::Plaza); };
+      int heads = 0;
       for (int y = s.r.y - MG; y < s.r.y + s.r.h + MG; y++)
         for (int x = s.r.x - MG; x < s.r.x + s.r.w + MG; x++) {
-          if (!m.in(x, y) || m.wall[(size_t)y * m.w + x]) continue;
-          Ground gg = m.at(x, y);
-          if (gg != Ground::Road && gg != Ground::Bridge) continue;
-          bool touches = false, nearOpening = false;
+          if (!m.in(x, y) || m.wall[(size_t)y * m.w + x] || !roadG(x, y)) continue;
+          bool nearOpening = false;
+          for (const IRect& g : w.wallGaps) if (x >= g.x - 3 && x < g.x + g.w + 3 && y >= g.y - 3 && y < g.y + g.h + 3) nearOpening = true;
+          if (nearOpening) continue;
+          // a road that meets the ring head-on: the wall ahead, and behind it a run of road at least three tiles long
+          // that is a road (nothing paved either side of the run), not a square or a lane running along the wall's
+          // foot. Outside the ring it is an overland road that misses the gates; inside, a street that dead-ends.
           for (int k = 0; k < 4; k++) {
             static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
-            if (m.in(x + dx[k], y + dy[k]) && m.wall[(size_t)(y + dy[k]) * m.w + x + dx[k]]) touches = true;
-          }
-          for (const IRect& g : w.wallGaps) if (x >= g.x - 3 && x < g.x + g.w + 3 && y >= g.y - 3 && y < g.y + g.h + 3) nearOpening = true;
-          // (a road may run along the wall's foot; one that meets it head-on - wall ahead, road behind - dead-ends)
-          if (touches && !nearOpening) {
-            int headOn = 0;
-            for (int k = 0; k < 4; k++) {
-              static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
-              bool wallAhead = m.in(x + dx[k], y + dy[k]) && m.wall[(size_t)(y + dy[k]) * m.w + x + dx[k]];
-              Ground back = m.at(x - dx[k], y - dy[k]);
-              bool sideRoad = m.at(x + dy[k], y + dx[k]) == Ground::Road || m.at(x - dy[k], y - dx[k]) == Ground::Road;
-              if (wallAhead && (back == Ground::Road || back == Ground::Bridge) && !sideRoad) headOn++;
+            if (!ringWall(x + dx[k], y + dy[k])) continue;
+            bool run = true;
+            for (int t = 0; t < 3 && run; t++) {
+              const int bx = x - dx[k] * t, by = y - dy[k] * t;
+              if (!roadG(bx, by)) run = false;
+              else if (paved(bx + dy[k], by + dx[k]) && paved(bx - dy[k], by - dx[k])) run = false;   // as wide as a square
             }
-            if (headOn) {
-              out("FAIL: city %s: a road meets the wall head-on at %d,%d, away from any opening\n", s.name.c_str(), x, y);
-              bad++;
-              for (int oy = -4; oy <= 4; oy++) {   // # wall, R road, B bridge, ~ water, b building, . other
-                std::string row;
-                for (int ox = -6; ox <= 6; ox++) {
-                  int qx = x + ox, qy = y + oy;
-                  char ch = '.';
-                  if (!m.in(qx, qy)) ch = ' ';
-                  else if (m.wall[(size_t)qy * m.w + qx]) ch = '#';
-                  else if (m.bldgAt[(size_t)qy * m.w + qx] >= 0) ch = 'b';
-                  else if (m.at(qx, qy) == Ground::Road) ch = 'R';
-                  else if (m.at(qx, qy) == Ground::Bridge) ch = 'B';
-                  else if (groundWater(m.at(qx, qy))) ch = '~';
-                  if (ox == 0 && oy == 0) ch = '@';
-                  row += ch;
-                }
-                out("      %s\n", row.c_str());
+            // a road two tiles wide (a highway) counts as one road: its twin beside it is road too
+            if (!run) continue;
+            // a road that turns along the wall here (road on either side of its end) is no dead end
+            if (roadG(x + dy[k], y + dx[k]) || roadG(x - dy[k], y - dx[k])) {
+              bool twin = false;   // (unless that side tile is only the highway's twin lane, running into the wall too)
+              for (int sd : {1, -1}) {
+                const int sx = x + dy[k] * sd, sy = y + dx[k] * sd;
+                if (roadG(sx, sy) && ringWall(sx + dx[k], sy + dy[k]) && roadG(sx - dx[k], sy - dy[k]) && roadG(sx - 2 * dx[k], sy - 2 * dy[k])) twin = true;
               }
+              if (!twin) continue;
             }
+            bool sideRun = true;
+            for (int t = 0; t < 3 && sideRun; t++)
+              if (!paved(x - dx[k] * t + dy[k], y - dy[k] * t + dx[k]) && !paved(x - dx[k] * t - dy[k], y - dy[k] * t - dx[k])) sideRun = false;
+            (void)sideRun;
+            // a road running along the wall's foot (a ring road beside a diagonal stretch of wall touches it tile after
+            // tile, stepping like the wall does): many road tiles touch the wall round here, so this is no dead end
+            int along = 0;
+            for (int oy = -3; oy <= 3; oy++)
+              for (int ox = -3; ox <= 3; ox++) {
+                const int qx = x + ox, qy = y + oy;
+                if (!roadG(qx, qy) || m.wall[(size_t)qy * m.w + qx]) continue;
+                bool t = false;
+                for (int k2 = 0; k2 < 4 && !t; k2++) t = ringWall(qx + dx[k2], qy + dy[k2]);
+                if (t) along++;
+              }
+            if (along >= 5) continue;
+            // the edge of a wide paved expanse (a district's yards and lanes run together, a square by the wall) that
+            // brushes the wall is no road running into it either: a road is at most two tiles wide
+            int paveN = 0;
+            for (int oy = -3; oy <= 3; oy++)
+              for (int ox = -3; ox <= 3; ox++) if (paved(x + ox, y + oy)) paveN++;
+            if (paveN > 16) continue;
+            heads++;
+            out("FAIL: city %s: a road meets the wall head-on at %d,%d (global %d,%d), away from any opening\n", s.name.c_str(), x, y, w.ox + x, w.oy + y);
+            bad++;
+            for (int oy = -4; oy <= 4; oy++) {   // # wall, R road, P paving, B bridge, ~ water, b building, . other
+              std::string row;
+              for (int ox = -6; ox <= 6; ox++) {
+                int qx = x + ox, qy = y + oy;
+                char ch = '.';
+                if (!m.in(qx, qy)) ch = ' ';
+                else if (m.wall[(size_t)qy * m.w + qx]) ch = '#';
+                else if (m.bldgAt[(size_t)qy * m.w + qx] >= 0) ch = 'b';
+                else if (m.at(qx, qy) == Ground::Road) ch = 'R';
+                else if (m.at(qx, qy) == Ground::Plaza) ch = 'P';
+                else if (m.at(qx, qy) == Ground::Bridge) ch = 'B';
+                else if (groundWater(m.at(qx, qy))) ch = '~';
+                if (ox == 0 && oy == 0) ch = '@';
+                row += ch;
+              }
+              out("      %s\n", row.c_str());
+            }
+            break;
           }
         }
+      (void)heads;
     }
   }
   // settlements per biome (for screenshots: --play --seed N --goto village picks the village nearest the start)
+  if (!dump) return bad;
   const Site& home = w.sites[w.startSite];
   Biome hb = m.biomeAt(home.r.cx(), home.r.cy());
   art::ArchStyle st = art::archForBiome((int)hb, 1);

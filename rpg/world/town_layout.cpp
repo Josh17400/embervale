@@ -100,6 +100,35 @@ void Gen::land() {
   }
   // the town's biome and its ground
   bio = M.biomeAt(cx, cy);
+  {
+    // (M2 fixer) the biome most of the footprint lies in (the heart's own tile could be a mountain foot or an ecotone
+    // sliver: a capital on a snowfield was built as a plains town, thatch and bare slate on white ground)
+    int cnt[(int)Biome::COUNT] = {};
+    for (int y = 0; y < H; y += 2)
+      for (int x = 0; x < W; x += 2) {
+        const float dx = (x - cx) / std::max(1.0f, rx), dy = (y - cy) / std::max(1.0f, ry);
+        if (dx * dx + dy * dy > 1.0f) continue;
+        const int b = M.biome[I(x, y)];
+        if (b > 0 && b < (int)Biome::COUNT && b != (int)Biome::Mountain && b != (int)Biome::Beach) cnt[b]++;
+      }
+    int best = -1;
+    for (int b = 1; b < (int)Biome::COUNT; b++)
+      if (cnt[b] > 0 && (best < 0 || cnt[b] > cnt[best])) best = b;
+    if (best >= 0) bio = (Biome)best;
+    // a town on snow-covered ground (the view's snowline: taiga and snowfields from level 4, mountains from 5, or snow
+    // itself) is a snow town: snow on every roof, its greenery wintered (finish, case 12 of Gen::step)
+    int snowy = 0, all = 0;
+    for (int y = 0; y < H; y += 2)
+      for (int x = 0; x < W; x += 2) {
+        const float dx = (x - cx) / std::max(1.0f, rx), dy = (y - cy) / std::max(1.0f, ry);
+        if (dx * dx + dy * dy > 1.0f) continue;
+        const Biome b = (Biome)M.biome[I(x, y)];
+        const int lv = lvl[I(x, y)];
+        all++;
+        if (M.at(x, y) == Ground::Snow || ((b == Biome::Snow || b == Biome::Taiga) && lv >= 4) || (b == Biome::Mountain && lv >= 5)) snowy++;
+      }
+    if (all > 0 && snowy * 2 > all) bio = Biome::Snow;
+  }
   if (bio == Biome::Ocean || bio == Biome::Mountain) bio = Biome::Plains;
   pickSpecialty();
   switch (bio) {
@@ -581,10 +610,22 @@ void Gen::cityWall() {
       if (x >= r.x - d && x < r.x + r.w + d && y >= r.y - d && y < r.y + r.h + d) return true;
     return false;
   };
+  // (M2 fixer round 3) the wall ring may reach into the buffer's edge, so a gate's surroundings can lie past the
+  // buffer: there the land the chunk will have (C.base: a marsh pool, a lake shore) is asked directly, so no gatehouse
+  // stands against a pool just outside the town's own land (seeds 36 and 37)
   auto wetNear = [&](int x, int y) {
     for (int oy = -3; oy <= 3; oy++)
-      for (int ox = -3; ox <= 3; ox++)
-        if (in(x + ox, y + oy) && (water[I(x + ox, y + oy)] || M.at(x + ox, y + oy) == Ground::Bridge)) return true;
+      for (int ox = -3; ox <= 3; ox++) {
+        if (in(x + ox, y + oy)) {
+          if (water[I(x + ox, y + oy)] || M.at(x + ox, y + oy) == Ground::Bridge) return true;
+        } else if (C.base) {
+          Ground g = Ground::Grass;
+          Biome b = Biome::Plains;
+          uint8_t h = 0;
+          C.base(O.gx + x + ox, O.gy + y + oy, g, b, h);
+          if (groundWater(g) || g == Ground::Bridge) return true;
+        }
+      }
     return false;
   };
   // a straight run of five ring tiles centred on (x, y), nothing beside its middle three

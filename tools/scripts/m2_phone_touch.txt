@@ -1,0 +1,38 @@
+# M2 fixer round 3: the touch flow at the iPhone size the game ships for. The "phone" header runs the game at 2556x1179
+# with fill and the iPhone 15 Pro's safe-area insets, so taps land on the 639x294 logical canvas (the desktop's tap
+# scripts use 480x270). Talk, the hamburger, the MAP tab, a refused journey (no FAST TRAVEL button; a tap there keeps
+# the map open), then FAST TRAVEL to a cave by touch.
+#   embervale.exe --script tools/scripts/m2_phone_touch.txt          (m2_phone_touch_*.png in the working directory)
+phone
+seed 8
+0.3  newgame
++0.02 hour 10
++0.1 god 1
++0.2 touch 1
+# a conversation by touch: the first tap only finishes the typing, the second on the FAREWELL band (the panel is
+# anchored to the bottom of the safe area: its last option's band is at y 261) chooses it
++0.1 talkto giver 40
++0.15 tap 320 261
++0.3 expect mode dialogue
++0.1 shot m2_phone_touch_0_talk.png
++0.3 tap 320 261
++0.3 expect mode play
+# the menu and the map by touch
++0.3 tap 610 12                  # the hamburger, top right of the safe area
++0.4 expect mode menu
++0.1 tap 352 19                  # the MAP tab
++0.3 mapzoom 4
++0.1 mapexplore 900
++0.1 mapreveal 14
++0.1 mapselect village           # the village the hero stands in: "YOU ARE ALREADY THERE"
++1.0 shot m2_phone_touch_1_here.png
++0.1 tap 536 184                 # where FAST TRAVEL would be: there is none, the map stays open
++0.4 expect mode menu
++0.1 mapselect cave
++1.0 shot m2_phone_touch_2_cave.png
++0.1 tap 536 184                 # FAST TRAVEL
++0.2 waittravel
++0.1 expect travel done
++0.3 expect mode play
++1.0 shot m2_phone_touch_3_arrived.png
++0.3 quit

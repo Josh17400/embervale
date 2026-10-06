@@ -18,13 +18,47 @@ Color col(uint32_t c, float a = 1) { return Color((c & 255) / 255.0f, ((c >> 8) 
 Canvas paintInteriorPiece(uint64_t key) { return art::interiorPiece((uint32_t)key); }
 Canvas paintStall(uint64_t key) { return art::marketStallVariant((int)(key & 255)); }
 Canvas paintTradeStall(uint64_t key) {
-  return art::marketStallForm((int)(key & 15), (int)((key >> 4) & 15), (int)((key >> 8) & 15), ((key >> 12) & 1) != 0);
+  return art::marketStallFacing((int)(key & 15), (int)((key >> 4) & 15), (int)((key >> 8) & 15), ((key >> 12) & 1) != 0, (int)((key >> 13) & 3));
+}
+// (stall facings) the market's 3/4 models: their ground shadows and the carts
+Canvas paintStallShadow(uint64_t key) { return art::marketStallShadow((int)(key & 15), (int)((key >> 4) & 3)); }
+Canvas paintTableShadow(uint64_t key) { return art::marketTableShadow((int)(key & 15)); }
+Canvas paintClothShadow(uint64_t) { return art::groundClothShadow(); }
+Canvas paintCart(uint64_t key) { return art::marketCart((int)(key & 15)); }
+Canvas paintCartShadow(uint64_t key) { return art::marketCartShadow((int)(key & 15)); }
+// the facing of the stall whose prop stands on window tile (tx, ty) of the overworld (art_props.h StallFacing)
+int stallFacingOn(const Game& g, const Map& m, int tx, int ty) {
+  if (m.kind != MapKind::Overworld) return art::StallS;
+  return art::stallFacingAt([&](int x, int y) { return m.propAt(x, y); }, tx, ty, g.world.ox, g.world.oy);
+}
+// the stall's form (cloth booth, canvas tent, timber booth): one per row (S / N, by its global row) or column (E / W)
+int stallFormOn(const Game& g, int tx, int ty, int facing) {
+  return facing >= art::StallE ? ew::stallFormAt(0x3C00000 ^ (tx + g.world.ox)) : ew::stallFormAt(ty + g.world.oy);
+}
+// a cart's look by its global tile: its load and which way its shafts point
+int cartLook(const Game& g, int tx, int ty) {
+  uint32_t h = (uint32_t)(tx + g.world.ox) * 374761393u + (uint32_t)(ty + g.world.oy) * 668265263u + 6247u;
+  h = (h ^ (h >> 13)) * 1274126177u;
+  return (int)((h ^ (h >> 16)) % (uint32_t)art::kCartLooks);
 }
 Canvas paintMarketTable(uint64_t key) { return art::marketTable((int)(key & 15), (int)((key >> 4) & 15), ((key >> 8) & 1) != 0); }
 Canvas paintGroundCloth(uint64_t key) { return art::groundCloth((int)(key & 15), (int)((key >> 4) & 15), ((key >> 8) & 1) != 0); }
 Canvas paintMineRail(uint64_t key) { return art::mineRail((int)(key & 15)); }
 Canvas paintMineHill(uint64_t key) { return art::mineHill((int)(key & 3), (int)((key >> 2) & 3)); }
 Canvas paintRuin(uint64_t key) { return art::ruinVariant((Prop)((key >> 8) & 255), (int)(key & 255)); }
+Canvas paintTallGrass(uint64_t key) { return art::tallGrassVariant((int)(key & 15)); }
+Canvas paintBoulder(uint64_t key) { return art::boulderVariant((int)(key & 15)); }
+Canvas paintPeak(uint64_t key) { return art::peakVariant((int)(key & 7) + ((key >> 5) & 1 ? 8 : 0), (int)((key >> 3) & 3)); }
+// M2: a peak's land: snow-capped in the cold or on the highest ground, sandstone in the desert, grey rock elsewhere
+int peakLand(const Map& m, int tx, int ty) {
+  const Biome b = m.biomeAt(tx, ty);
+  if (b == Biome::Desert) return 2;
+  if (b == Biome::Snow || b == Biome::Taiga || m.heightAt(tx, ty) >= 6) return 1;
+  if (b == Biome::Mountain && m.heightAt(tx, ty) >= 5) return 1;
+  return 0;
+}
+// M2: the big wild props the hero can walk behind: they thin out like a tree crown (the ghost shows him through)
+bool tallWild(Prop p) { return p == Prop::Peak || p == Prop::GreatPeak || p == Prop::ElderTree || p == Prop::Colossus || p == Prop::WatchtowerRuin; }
 
 // M0b interiors: stairs and doors in the room's material, wall decor fitted to a partition's short face
 // (interiorPropKey, rpg/sim/deco.h). A door into a private room (a bedroom, a guest room, the stockroom) stands shut
@@ -113,7 +147,15 @@ const Tex& View::humanTex(const art::HumanLook& L) {
   humanUsed_[k] = t_;
   auto it = humans_.find(k);
   if (it != humans_.end()) return it->second;
-  return humans_[k] = pix_->bake(art::humanSheet(L));
+  const auto t0 = std::chrono::steady_clock::now();
+  const Tex& t = humans_[k] = pix_->bake(art::humanSheet(L));
+  if (std::getenv("EMB_TIMING")) {
+    static double total = 0;
+    static int n = 0;
+    total += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    std::printf("character sheet painted: %d so far, %.1f ms total\n", ++n, total);
+  }
+  return t;
 }
 
 // Least-recently-used trimming of the sprite caches (called once per frame before anything is drawn, so no reference
@@ -233,36 +275,25 @@ uint64_t View::bldgKey(const Map& m, const Bldg& b, int index) const {
   k ^= ew::mix64(((uint64_t)b.banner << 32 | b.banner2) ^ ((uint64_t)b.emblem << 56));     // M1 kingdom banner
   return k;
 }
-const Tex& View::bldgTex(const Bldg& b, int index) {
+// A building sprite and what the renderer reads off it (chimney mouths, the first opaque row, the lit-window night
+// variant and its window centres). A pure function of the building (M2: an arrival paints them on worker threads,
+// paintBldg; storeBldg turns them into textures on the main thread).
+View::BldgPaint View::paintBldg(const Bldg& b, uint64_t key) {
   static const Map empty;
-  const Map& m = bldgMap_ ? *bldgMap_ : empty;
-  uint64_t k = bldgKey(m, b, index);
-  bldgUsed_[k] = t_;
-  auto it = bldgTex_.find(k);
-  if (it != bldgTex_.end()) return it->second;
+  BldgPaint p;
+  p.key = key;
   art::BuildingInfo info;
-  auto t0 = std::chrono::steady_clock::now();
-  Canvas c = art::buildingSprite(b.type, b.r.w, b.r.h, bldgStyle(m, b), b.seed, &info, bldgFacts(b));
-  if (std::getenv("EMB_TIMING")) {
-    static double total = 0;
-    static int n = 0;
-    total += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-    std::printf("building %d painted: %d so far, %.1f ms total\n", index, ++n, total);
-  }
-  std::vector<Vec2>& smoke = bldgSmoke_[k];
-  smoke.clear();
-  for (int i = 0; i < info.smokeN; i++) smoke.push_back(Vec2((float)info.smokeX[i], (float)info.smokeY[i]));
+  p.c = art::buildingSprite(b.type, b.r.w, b.r.h, bldgStyle(empty, b), b.seed, &info, bldgFacts(b));
+  const Canvas& c = p.c;
+  for (int i = 0; i < info.smokeN; i++) p.smoke.push_back(Vec2((float)info.smokeX[i], (float)info.smokeY[i]));
   int topRow = 0;
   for (bool found = false; topRow < c.h && !found; topRow++)
     for (int x = 0; x < c.w; x++) if ((c.get(x, topRow) >> 24) > 96) { found = true; break; }
-  bldgTopRow_[k] = topRow;
+  p.topRow = topRow;
   // night: the lit-window variant and one light pool per window (centre of each connected run of panes)
-  std::vector<Vec2>& wins = bldgWin_[k];
-  wins.clear();
-  bool anyGlass = false;
-  for (uint8_t v : info.glass) if (v) { anyGlass = true; break; }
-  if (anyGlass) {
-    bldgNight_[k] = pix_->bake(art::buildingNight(c, info.glass, b.seed));
+  for (uint8_t v : info.glass) if (v) { p.anyGlass = true; break; }
+  if (p.anyGlass) {
+    p.night = art::buildingNight(c, info.glass, b.seed);
     std::vector<uint8_t> seen(info.glass.size(), 0);
     for (int y = 0; y < c.h; y++)
       for (int x = 0; x < c.w; x++) {
@@ -285,10 +316,38 @@ const Tex& View::bldgTex(const Bldg& b, int index) {
               q.push_back((int)ni);
             }
         }
-        if (q.size() >= 4) wins.push_back(Vec2(sx / q.size() + 0.5f, sy / q.size() + 0.5f));
+        if (q.size() >= 4) p.wins.push_back(Vec2(sx / q.size() + 0.5f, sy / q.size() + 0.5f));
       }
-  } else bldgNight_.erase(k);
-  return bldgTex_[k] = pix_->bake(c);
+  }
+  return p;
+}
+
+const Tex& View::storeBldg(BldgPaint& p) {
+  const uint64_t k = p.key;
+  bldgSmoke_[k] = std::move(p.smoke);
+  bldgTopRow_[k] = p.topRow;
+  bldgWin_[k] = std::move(p.wins);
+  if (p.anyGlass) bldgNight_[k] = pix_->bake(p.night);
+  else bldgNight_.erase(k);
+  return bldgTex_[k] = pix_->bake(p.c);
+}
+
+const Tex& View::bldgTex(const Bldg& b, int index) {
+  static const Map empty;
+  const Map& m = bldgMap_ ? *bldgMap_ : empty;
+  uint64_t k = bldgKey(m, b, index);
+  bldgUsed_[k] = t_;
+  auto it = bldgTex_.find(k);
+  if (it != bldgTex_.end()) return it->second;
+  auto t0 = std::chrono::steady_clock::now();
+  BldgPaint p = paintBldg(b, k);
+  if (std::getenv("EMB_TIMING")) {
+    static double total = 0;
+    static int n = 0;
+    total += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    std::printf("building %d painted: %d so far, %.1f ms total\n", index, ++n, total);
+  }
+  return storeBldg(p);
 }
 
 bool View::windowsLit(const Game& g, const Bldg& b) const {
@@ -361,9 +420,17 @@ void View::spawnParticles(const Event& e, Game& g) {
       FloatText ft; ft.p = e.p + Vec2(r.range(-4, 4), 0); ft.s = e.s; ft.c = col((uint32_t)e.a); texts_.push_back(ft);
       break;
     }
-    case Ev::Discover:
+    case Ev::Discover: {
       banner_ = "DISCOVERED"; bannerSub_ = e.s; bannerT_ = 4.0f;
+      // (M2) what was found heads the line: "DISCOVERED - HUNTER'S CAMP", "WONDER DISCOVERED - ELDER TREE" (a settlement
+      // keeps the plain word: the arrival banner adds its trade and kingdom to it in update())
+      if (e.a >= 0 && e.a < (int)g.world.sites.size()) {
+        const Site& st = g.world.sites[(size_t)e.a];
+        if (st.type == SiteType::Wonder) { banner_ = std::string("WONDER DISCOVERED  -  ") + ew::poiKindName(st.type, st.kind); bannerT_ = 5.0f; }
+        else if (!st.settlement()) banner_ = std::string("DISCOVERED  -  ") + ew::poiKindName(st.type, st.kind);
+      }
       break;
+    }
     case Ev::LevelUp:
       banner_ = "LEVEL UP"; bannerSub_ = "LEVEL " + std::to_string(e.a) + "  -  CHOOSE A STAT IN THE MENU"; bannerT_ = 4.5f;
       // a bigger moment: a layered fanfare, two rings of light and a column of rising sparks
@@ -397,6 +464,10 @@ void View::spawnParticles(const Event& e, Game& g) {
 }
 
 void View::update(Game& g, float dt) {
+  // M2: the arrival's terrain, behind the fade (M2 fixer round 2: not while paused: finishing the journey then set the
+  // fade to black with no game update to lift it)
+  if (g.travel.phase == TravelPhase::Arrive) { if (g.mode == Mode::Play) travelArrive(g); }
+  else if (arriving_) { arriving_ = false; arrival_ = Arrival(); }   // (the journey ended without us: headless, a death)
   t_ += dt;
   perfTick(dt);
   modeT_ += dt;
@@ -554,10 +625,9 @@ struct Drawable {
 };
 }  // namespace
 
-void View::drawWorld(Game& g) {
-  Pix& P = *pix_;
-  fadePaintMs_ = 0;
+uint64_t View::terrainFrame(Game& g, const Map*& mp) {
   const Map& m = g.mode == Mode::Title ? g.world.over : g.map();
+  mp = &m;
   int key = g.mode == Mode::Title ? 0 : g.mapKey();
   if (key != lastMapKey_) { lastMapKey_ = key; }
   uint64_t mapId = hash32((uint32_t)g.world.seed ^ (uint32_t)(g.world.seed >> 32)) * 2654435761ull + (uint64_t)(key + 7);
@@ -568,6 +638,16 @@ void View::drawWorld(Game& g) {
   chunkEndless_ = endlessOver;
   chunkOX_ = endlessOver ? (int)std::floor(g.world.ox / 32.0) : 0;
   chunkOY_ = endlessOver ? (int)std::floor(g.world.oy / 32.0) : 0;
+  return mapId;
+}
+
+void View::drawWorld(Game& g) {
+  Pix& P = *pix_;
+  fadePaintMs_ = arriving_ || g.travelling() ? 10.0 : 0.0;   // (M2: an arrival paints its buildings in travelArrive, within its budget)
+  const Map* mp = nullptr;
+  const uint64_t mapId = terrainFrame(g, mp);
+  const Map& m = *mp;
+  const bool endlessOver = chunkEndless_;
   Vec2 cam(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y));
   trimCaches();
   // water layer underneath the terrain (shows through translucent water pixels)
@@ -590,7 +670,7 @@ void View::drawWorld(Game& g) {
   // terrain chunks
   int c0x = (int)std::floor(cam.x / 512), c0y = (int)std::floor(cam.y / 512);
   int c1x = (int)std::floor((cam.x + Pix::W) / 512), c1y = (int)std::floor((cam.y + Pix::H) / 512);
-  bakeVisibleNow(m, mapId, c0x, c0y, c1x, c1y);
+  if (!arriving_) bakeVisibleNow(m, mapId, c0x, c0y, c1x, c1y);
   for (int cy = c0y; cy <= c1y; cy++)
     for (int cx = c0x; cx <= c1x; cx++) {
       if (cx < 0 || cy < 0 || cx * 32 >= m.w || cy * 32 >= m.h) continue;
@@ -598,7 +678,9 @@ void View::drawWorld(Game& g) {
       P.blit(t, cx * 512 - cam.x, cy * 512 - cam.y);
     }
   prefetch(m, mapId, cam);
-  pumpBake(5.0);
+  // (an arrival pumps its own budget: travelArrive; M2 fixer round 3: under an open menu, whose map paints its own
+  // tiles on the same frames, the world's bake waits its turn with a small share)
+  if (!arriving_) pumpBake(g.mode == Mode::Menu ? 1.5 : 5.0);
   // wall layout (towers, joins, gate flanks): once per map
   bldgMap_ = &m;
   // the id also carries the generator version and gate count: a new game on the same seed with another generator
@@ -655,8 +737,9 @@ void View::drawWorld(Game& g) {
   }
   // collect drawables
   std::vector<Drawable> list;
-  int tx0 = (int)std::floor(cam.x / 16) - 3, ty0 = (int)std::floor(cam.y / 16) - 2;
-  int tx1 = tx0 + Pix::W / 16 + 6, ty1 = ty0 + Pix::H / 16 + 7;
+  // (M2: the wonders are up to 7 tiles wide and 7 tall above their anchor tile: a wider margin below and aside)
+  int tx0 = (int)std::floor(cam.x / 16) - 5, ty0 = (int)std::floor(cam.y / 16) - 2;
+  int tx1 = tx0 + Pix::W / 16 + 10, ty1 = ty0 + Pix::H / 16 + 10;
   drawDeco(m, cam, std::max(0, tx0), std::max(0, ty0), std::min(m.w, tx1), std::min(m.h, ty1));
   const Actor& pl = g.pl();
   for (int ty = std::max(0, ty0); ty < std::min(m.h, ty1); ty++)
@@ -675,7 +758,11 @@ void View::drawWorld(Game& g) {
             int fr = frames > 1 ? (int)(t_ * 8 + tx * 3) % frames : 0;
             P.blitRegion(t, fr * fw, 0, fw, t.h, tx * 16 + 8 - fw / 2 - cam.x, ty * 16 + 16 - t.h - cam.y);
           }
-        } else list.push_back({ty * 16.0f + 15.0f, 0, pr - 1, tx, ty});
+        } else {
+          // (stalls fixer round 3) a stall sorts just ahead of its keeper (art::stallSortY), whichever way it faces
+          const float sy = art::isStall(p) && m.kind == MapKind::Overworld ? art::stallSortY(stallFacingOn(g, m, tx, ty)) : 15.0f;
+          list.push_back({ty * 16.0f + sy, 0, pr - 1, tx, ty});
+        }
       }
       uint32_t wk = wallKeys_.empty() ? 0u : wallKeys_[(size_t)ty * m.w + tx];
       if (wk) list.push_back({ty * 16.0f + ((wk & art::WALL_BIT_TOWER) ? 15.3f : 15.0f), 2, (int)wk, tx, ty});
@@ -687,7 +774,7 @@ void View::drawWorld(Game& g) {
   }
   // paint the sprites of buildings near the player ahead of time, at most one per frame, so walking into a town
   // never stalls on a burst of building paints
-  if (!m.bldgs.empty() && g.mode != Mode::Title) {
+  if (!m.bldgs.empty() && g.mode != Mode::Title && !g.travelling()) {   // (M2: a journey paints its arrival in travelArrive)
     for (int k = 0; k < 12; k++) {
       bldgPrefetch_ = (bldgPrefetch_ + 1) % (int)m.bldgs.size();
       const Bldg& b = m.bldgs[bldgPrefetch_];
@@ -728,6 +815,21 @@ void View::drawWorld(Game& g) {
       P.blitEx(s, 0, 0, s.w, s.h, a.p.x - s.w * sc / 2 - cam.x, a.p.y - s.h * sc / 2 - cam.y, s.w * sc, s.h * sc, false, Color(1, 1, 1, a.fly ? 0.6f : 1));
     } else if (d.kind == 0) {
       Prop p = (Prop)d.idx;
+      // (stall facings) a stall, table, cloth or cart throws its own model's shadow (soft, to the lower right)
+      if (m.kind == MapKind::Overworld && (art::isVendorProp(p) || p == Prop::Cart)) {
+        const Tex* st;
+        if (art::isStall(p)) {
+          const int fc = stallFacingOn(g, m, d.tx, d.ty);
+          st = &cachedTex(0x3Aull << 56 | (uint64_t)fc << 4 | (uint64_t)stallFormOn(g, d.tx, d.ty, fc), paintStallShadow);
+        } else if (p == Prop::MarketTable) {   // (stalls fixer round 1) a packed-up table's shade is furled: no shade's shadow
+          const bool open = g.mode == Mode::Title || ew::stallOpen(d.tx + g.world.ox, d.ty + g.world.oy, g.hour);
+          st = &cachedTex(0x3Bull << 56 | (uint64_t)(open ? ew::tableShadeAt(d.tx + g.world.ox, d.ty + g.world.oy) : 0), paintTableShadow);
+        }
+        else if (p == Prop::GroundCloth) st = &cachedTex(0x3Cull << 56, paintClothShadow);
+        else st = &cachedTex(0x3Eull << 56 | (uint64_t)cartLook(g, d.tx, d.ty), paintCartShadow);
+        P.blit(*st, d.tx * 16 + art::kVendorShadowX - cam.x, d.ty * 16 + art::kVendorShadowY - cam.y);
+        continue;
+      }
       int sh = propShadow(p);
       if (sh == 1) P.blitEx(shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - 12 - cam.x, d.ty * 16 + 11 - cam.y, 24, 8, false, Color(1, 1, 1, 0.8f));
       else if (sh == 2) P.blitEx(shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - 11 - cam.x, d.ty * 16 + 12 - cam.y, 22, 7, false, Color(1, 1, 1, 0.7f));
@@ -737,6 +839,11 @@ void View::drawWorld(Game& g) {
         P.blitEx(shadowBig_, 0, 0, 40, 12, d.tx * 16 + 1 - cam.x, d.ty * 16 + 10 - cam.y, 32, 8, false, Color(1, 1, 1, 0.6f));
       } else if (sh == 5) {   // a beast's own small shadow
         P.blitEx(shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - 9 - cam.x, d.ty * 16 + 12 - cam.y, 18, 5, false, Color(1, 1, 1, 0.6f));
+      } else if (sh >= 6) {   // (M2) a wild prop's ground shadow, as wide as its footprint, thrown a little down-right
+        int fw = 1, fh = 1;
+        art::wildFootprint(p, fw, fh);
+        const float w = fw * 16.0f * (sh == 7 ? 1.05f : 0.82f) + 6, h = std::max(6.0f, w * 0.22f);
+        P.blitEx(shadowBig_, 0, 0, 40, 12, d.tx * 16 + 8 - w / 2 + 3 - cam.x, d.ty * 16 + 15 - h * 0.6f - cam.y, w, h, false, Color(1, 1, 1, 0.75f));
       }
     } else if (d.kind == 6) {
       // the gate passage lies in the gatehouse's shade, deepest under the vault
@@ -773,13 +880,20 @@ void View::drawWorld(Game& g) {
         // booths; by the row, so a row reads as one covered run and the next row may differ); after its closing hour
         // a stall is packed up (its stock under a cover, a curtain or shutter down): the hour its keeper leaves
         const bool vendorOpen = g.mode == Mode::Title || m.kind != MapKind::Overworld || ew::stallOpen(d.tx + g.world.ox, d.ty + g.world.oy, g.hour);
+        // (stall facings) a row running north-south (side profiles) steps its cloth along the column instead
+        int stallFacing = art::StallS;
         if (art::isStall(p) && m.kind == MapKind::Overworld) {
+          stallFacing = stallFacingOn(g, m, d.tx, d.ty);
+          const bool ns = stallFacing >= art::StallE;
           const int32_t gx = d.tx + g.world.ox, gy = d.ty + g.world.oy;
-          const uint32_t row = hash2(0, gy, 6163) % (uint32_t)art::kStallAwnings;
-          const int64_t col3 = gx >= 0 ? gx / 3 : -((-(int64_t)gx + 2) / 3);   // floor(gx / 3)
+          const int32_t along = ns ? gy : gx, across = ns ? gx : gy;
+          const uint32_t row = hash2(ns ? 1 : 0, across, 6163) % (uint32_t)art::kStallAwnings;
+          const int64_t col3 = along >= 0 ? along / 3 : -((-(int64_t)along + 2) / 3);   // floor(along / 3)
           const uint32_t aw = (uint32_t)(((col3 * 5 + (int64_t)row) % art::kStallAwnings + art::kStallAwnings) % art::kStallAwnings);
-          const uint32_t form = (uint32_t)ew::stallFormAt(gy);
-          tp = &cachedTex(0x04ull << 56 | (uint64_t)(vendorOpen ? 0 : 1) << 12 | (uint64_t)form << 8 | (uint64_t)aw << 4 | (uint64_t)art::stallTrade(p), paintTradeStall);
+          const uint32_t form = (uint32_t)stallFormOn(g, d.tx, d.ty, stallFacing);
+          tp = &cachedTex(0x04ull << 56 | (uint64_t)stallFacing << 13 | (uint64_t)(vendorOpen ? 0 : 1) << 12 | (uint64_t)form << 8 | (uint64_t)aw << 4 |
+                              (uint64_t)art::stallTrade(p),
+                          paintTradeStall);
         }
         if ((p == Prop::MarketTable || p == Prop::GroundCloth) && m.kind == MapKind::Overworld) {
           const int32_t gx = d.tx + g.world.ox, gy = d.ty + g.world.oy;
@@ -815,11 +929,57 @@ void View::drawWorld(Game& g) {
         // (M1) a banner inside a kingdom's settlement flies that kingdom's colours
         if (p == Prop::Banner && m.kind == MapKind::Overworld && g.mode != Mode::Title)
           if (const Kingdom* k = g.world.kingdomOf(g.world.siteAt(d.tx, d.ty, 2))) tp = &kingdomTex(0, *k, 0);
+        // (M2) every peak of a range is one of eight shapes in its land's rock (by its global tile: never one peak cloned)
+        if ((p == Prop::Peak || p == Prop::GreatPeak) && m.kind == MapKind::Overworld) {
+          const int land = peakLand(m, d.tx, d.ty);
+          tp = &cachedTex(0x09ull << 56 | (p == Prop::GreatPeak ? 32ull : 0ull) | (uint64_t)land << 3 | (uint64_t)(hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6229) & 7u), paintPeak);
+        }
+        // (M2 fixer round 2) the wild's commonest props in variants by their global tile, some flipped
+        bool flipVar = false;
+        if ((p == Prop::TallGrass || p == Prop::Boulder) && m.kind == MapKind::Overworld) {
+          const uint32_t h = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6241);
+          tp = &cachedTex((p == Prop::TallGrass ? 0x0Aull : 0x0Bull) << 56 | (uint64_t)(h & 15u), p == Prop::TallGrass ? paintTallGrass : paintBoulder);
+          flipVar = ((h >> 5) & 1) != 0;
+        }
+        // (stall facings) the market's stalls, tables, cloths and carts are 3/4 models on canvases of their own size,
+        // placed by their origin from the prop tile; an open stall or table hangs its lantern at dusk (the light pass
+        // adds its glow); after the stall's closing hour it is dark and its keeper has gone
+        if (m.kind == MapKind::Overworld && (art::isVendorProp(p) || p == Prop::Cart)) {
+          int ox = 0, oy = 0;
+          if (art::isStall(p)) art::stallOrigin(stallFacing, ox, oy);
+          else if (p == Prop::MarketTable) art::marketTableOrigin(ox, oy);
+          else if (p == Prop::GroundCloth) art::groundClothOrigin(ox, oy);
+          else {
+            tp = &cachedTex(0x3Dull << 56 | (uint64_t)cartLook(g, d.tx, d.ty), paintCart);
+            art::marketCartOrigin(ox, oy);
+          }
+          const float x = d.tx * 16.0f + ox - cam.x, y = d.ty * 16.0f + oy - cam.y;
+          P.blit(*tp, x, y);
+          const bool lamp = g.mode != Mode::Title && g.daylight() < 0.55f && vendorOpen;
+          if (lamp && p == Prop::MarketTable) {   // a candle lantern standing at the table's far end
+            const float lx = d.tx * 16.0f + 27.0f - cam.x, ly = d.ty * 16.0f - 6.0f - cam.y;
+            P.rect(lx - 1, ly - 3, 3, 1, Color(0.32f, 0.24f, 0.16f));
+            P.rect(lx - 1, ly - 2, 3, 4, Color(1.0f, 0.78f, 0.38f));
+            P.rect(lx, ly - 1, 1, 2, Color(1.0f, 0.97f, 0.78f));
+            P.rect(lx - 1, ly + 2, 3, 1, Color(0.32f, 0.24f, 0.16f));
+          }
+          if (lamp && art::isStall(p)) {
+            int lxi, lyi;
+            art::stallLantern(stallFacing, lxi, lyi);
+            const float lx = d.tx * 16.0f + lxi - cam.x, ly = d.ty * 16.0f + lyi - cam.y;
+            P.rect(lx, ly - 5, 1, 2, Color(0.22f, 0.18f, 0.14f));       // the hook
+            P.rect(lx - 2, ly - 3, 5, 1, Color(0.32f, 0.24f, 0.16f));   // the cap
+            P.rect(lx - 2, ly - 2, 5, 4, Color(1.0f, 0.78f, 0.38f));    // the glass
+            P.rect(lx - 1, ly - 1, 3, 2, Color(1.0f, 0.97f, 0.78f));    // the flame
+            P.rect(lx - 2, ly + 2, 5, 1, Color(0.32f, 0.24f, 0.16f));   // the base
+          }
+          break;
+        }
         const Tex& t = *tp;
         int fw = art::propW(p), fh = art::propH(p);
         int frames = std::max(1, art::propFrames(p));
         int fr = frames > 1 ? (int)(t_ * 8 + d.tx * 3 + d.ty) % frames : 0;
-        bool flipP = false;
+        bool flipP = flipVar;
         if (p == Prop::Sheep || p == Prop::Cow) {   // (M1 fixer round 2) the beasts graze at their own slow pace, either way round
           const uint32_t h = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6197);
           fr = (int)(t_ * 1.6f + (float)(h % 97u) * 0.37f) % frames;
@@ -830,26 +990,11 @@ void View::drawWorld(Game& g) {
         float x = d.tx * 16 + 8 - fw / 2 + jx - cam.x, y = d.ty * 16 + 16 - fh + jy - cam.y;
         float alpha = 1;
         // a tree crown over the hero (drawn before it): the crown thins out and the hero shows through (ghost below)
-        if (treeProp(p) && pl.p.y < d.ty * 16 + 15 && pl.p.y > d.ty * 16 + 16 - fh + 8 && std::fabs(pl.p.x - (d.tx * 16 + 8 + jx)) < fw * 0.5f) {
-          alpha = 0.6f;
+        if ((treeProp(p) || tallWild(p)) && pl.p.y < d.ty * 16 + 15 && pl.p.y > d.ty * 16 + 16 - fh + 8 && std::fabs(pl.p.x - (d.tx * 16 + 8 + jx)) < fw * 0.5f) {
+          alpha = tallWild(p) ? 0.55f : 0.6f;
           ghost = true;
         }
         P.blitEx(t, fr * fw, 0, fw, fh, x, y, (float)fw, (float)fh, flipP, Color(1, 1, 1, alpha));
-        // (M1 fixer) at dusk an open stall hangs a lit lantern under its valance (the light pass adds its glow); after
-        // the stall's closing hour it is dark and its keeper has gone
-        if (p == Prop::MarketTable && m.kind == MapKind::Overworld && g.mode != Mode::Title && g.daylight() < 0.55f && vendorOpen) {
-          // an open table's candle lantern stands at its end
-          P.rect(x + 43, y + 24, 3, 1, Color(0.32f, 0.24f, 0.16f));
-          P.rect(x + 43, y + 25, 3, 4, Color(1.0f, 0.78f, 0.38f));
-          P.rect(x + 44, y + 26, 1, 2, Color(1.0f, 0.97f, 0.78f));
-        }
-        if (art::isStall(p) && m.kind == MapKind::Overworld && g.mode != Mode::Title && g.daylight() < 0.55f && vendorOpen) {
-          P.rect(x + 6, y + 16, 1, 2, Color(0.22f, 0.18f, 0.14f));   // the hook
-          P.rect(x + 4, y + 18, 5, 1, Color(0.32f, 0.24f, 0.16f));   // the cap
-          P.rect(x + 4, y + 19, 5, 4, Color(1.0f, 0.78f, 0.38f));    // the glass
-          P.rect(x + 5, y + 20, 3, 2, Color(1.0f, 0.97f, 0.78f));    // the flame
-          P.rect(x + 4, y + 23, 5, 1, Color(0.32f, 0.24f, 0.16f));   // the base
-        }
         if (p == Prop::Campfire || p == Prop::Brazier) {
           Rng r((uint32_t)(t_ * 30) + d.tx * 7);
           if (r.f() < 0.3f) { Particle q; q.p = Vec2(d.tx * 16 + 8 + r.range(-3, 3), d.ty * 16 + 6.0f); q.v = Vec2(r.range(-5, 5), r.range(-30, -15)); q.life = q.max = 0.8f; q.c = Color(1, 0.6f, 0.2f); q.size = 1; parts_.push_back(q); }
@@ -1116,13 +1261,26 @@ void View::drawLighting(Game& g) {
     amb = Color(lerpf(0.36f, 0.78f, d), lerpf(0.32f, 0.68f, d), lerpf(0.44f, 0.58f, d));
   }
   else {
-    Color night(0.12f, 0.15f, 0.30f), dusk(1.0f, 0.72f, 0.55f), noon(1, 1, 1);
+    Color night(0.12f, 0.15f, 0.30f), dusk(1.0f, 0.74f, 0.58f), noon(1, 1, 1);
+    // (M2 fixer) over snow the warm dusk multiplied the white into salmon (it read as desert): the cold lands get a
+    // cooler, rose-violet evening and a pale morning
+    bool cold = false;
+    if (g.mode != Mode::Title && !g.inside) {
+      const Map& om = g.world.over;
+      const int ptx = (int)std::floor(g.pl().p.x / 16), pty = (int)std::floor(g.pl().p.y / 16);
+      const Biome pb = om.biomeAt(ptx, pty);
+      cold = pb == Biome::Snow || om.at(ptx, pty) == Ground::Snow || (pb == Biome::Taiga && om.heightAt(ptx, pty) >= 4);
+    }
+    static float ck = -1;   // eased, so walking off the snow at dusk does not switch the light at once
+    ck = ck < 0 ? (cold ? 1.0f : 0.0f) : ck + ((cold ? 1.0f : 0.0f) - ck) * 0.02f;
+    auto mixC = [&](Color a, Color b) { return Color(lerpf(a.r, b.r, ck), lerpf(a.g, b.g, ck), lerpf(a.b, b.b, ck)); };
+    dusk = mixC(dusk, Color(0.86f, 0.76f, 0.86f));
     float h = g.hour;
     bool evening = h > 12;
     if (day >= 1) amb = noon;
     else if (day <= 0) amb = night;
     else {
-      Color mid = evening ? dusk : Color(1.0f, 0.82f, 0.7f);
+      Color mid = evening ? dusk : mixC(Color(1.0f, 0.82f, 0.7f), Color(0.90f, 0.86f, 0.90f));
       amb = day > 0.5f ? Color(lerpf(mid.r, 1, (day - 0.5f) * 2), lerpf(mid.g, 1, (day - 0.5f) * 2), lerpf(mid.b, 1, (day - 0.5f) * 2))
                        : Color(lerpf(night.r, mid.r, day * 2), lerpf(night.g, mid.g, day * 2), lerpf(night.b, mid.b, day * 2));
     }
@@ -1161,8 +1319,10 @@ void View::drawLighting(Game& g) {
         if (dark > 0.15f && m.kind == MapKind::Overworld && ew::stallOpen(tx + g.world.ox, ty + g.world.oy, g.hour)) {
           const float f = 0.9f + 0.1f * std::sin(t_ * 7 + tx * 1.3f);
           const float k = std::min(1.0f, dark * 2.2f) * f;
-          light(Vec2(tx * 16 - 9.5f, ty * 16 - 16.5f), 34, Color(1.0f, 0.86f, 0.55f), 0.95f * k);
-          light(Vec2(tx * 16 + 8.0f, ty * 16 + 4.0f), 72, Color(1.0f, 0.66f, 0.34f), 0.6f * k);
+          int lx, ly;   // (stall facings) the lantern hangs where its facing puts it, its warm pool on the ground below
+          art::stallLantern(stallFacingOn(g, m, tx, ty), lx, ly);
+          light(Vec2(tx * 16 + lx + 0.5f, ty * 16 + ly + 0.0f), 34, Color(1.0f, 0.86f, 0.55f), 0.95f * k);
+          light(Vec2(tx * 16 + lx + 0.5f, ty * 16 + ly + 18.0f), 72, Color(1.0f, 0.66f, 0.34f), 0.6f * k);
         }
         continue;
       }
@@ -1170,7 +1330,7 @@ void View::drawLighting(Game& g) {
         if (dark > 0.15f && m.kind == MapKind::Overworld && ew::stallOpen(tx + g.world.ox, ty + g.world.oy, g.hour)) {
           const float f = 0.9f + 0.1f * std::sin(t_ * 7 + tx * 1.7f);
           const float k = std::min(1.0f, dark * 2.2f) * f;
-          light(Vec2(tx * 16 + 20.5f, ty * 16 - 1.0f), 26, Color(1.0f, 0.86f, 0.55f), 0.9f * k);
+          light(Vec2(tx * 16 + 27.5f, ty * 16 - 6.0f), 26, Color(1.0f, 0.86f, 0.55f), 0.9f * k);
           light(Vec2(tx * 16 + 16.0f, ty * 16 + 6.0f), 54, Color(1.0f, 0.66f, 0.34f), 0.5f * k);
         }
         continue;

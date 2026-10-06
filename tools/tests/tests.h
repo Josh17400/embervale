@@ -29,7 +29,9 @@ uint32_t groundColor(Ground g);
 
 // ---- audit.cpp: informational numbers that later generator tasks should raise (PLAN.md task 1)
 struct Audit {
-  int poiKinds = 0, poiCount = 0;          // distinct site kinds / sites within 60 tiles of the start
+  // M2: distinct POI kinds (ew::poiKindKey: site types, vignette kinds, wonder kinds, and dens) within 120 tiles of the
+  // start village's heart, and within 60 (the M2 start guarantee: >= 8 within 120, >= 3 within 60)
+  int poiKinds = 0, poiCount = 0, poiNear = 0;
   std::string poiList;
   int settlements = 0, layoutSigs = 0, layoutMaxGroup = 0;   // settlement layout signatures (world-wide)
   int nearSettlements = 0, nearLayoutMaxGroup = 0;           // ... within 120 tiles of the start
@@ -74,5 +76,16 @@ inline int registerTestCmd(const TestCmd& c) { testCmds().push_back(c); return (
 #define RPG_TEST_CAT2(a, b) a##b
 #define RPG_TEST_CAT(a, b) RPG_TEST_CAT2(a, b)
 #define RPG_TEST_CMD(flag, help, fn) static const int RPG_TEST_CAT(rpgTestReg_, __LINE__) = registerTestCmd(TestCmd{flag, help, fn})
+// ---- M2: per-seed checks registered from any tools/tests/*.cpp; rpg_test runs them after the lane checks above, for
+//      every seed of `rpg_test N` and `rpg_test --seeds A..B` (so a FAIL fails the suite in CI):
+//        static int myChecks(uint64_t seed) { ...; return failures; }
+//        RPG_SEED_CHECK("wayfinder", myChecks);
+struct SeedCheck {
+  const char* name;
+  int (*run)(uint64_t seed);
+};
+std::vector<SeedCheck>& seedChecks();
+inline int registerSeedCheck(const SeedCheck& c) { seedChecks().push_back(c); return (int)seedChecks().size(); }
+#define RPG_SEED_CHECK(name, fn) static const int RPG_TEST_CAT(rpgSeedReg_, __LINE__) = registerSeedCheck(SeedCheck{name, fn})
 // shared argument helper: "A..B", "A-B" or a single number
 bool parseSeedRange(const char* s, uint64_t& a, uint64_t& b);

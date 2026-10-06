@@ -55,6 +55,9 @@ inline int64_t dist2(int32_t ax, int32_t ay, int32_t bx, int32_t by) {
 }
 inline int32_t idist(int32_t ax, int32_t ay, int32_t bx, int32_t by) { return (int32_t)isqrt((uint64_t)dist2(ax, ay, bx, by)); }
 inline bool isSettlement(SiteType t) { return t == SiteType::City || t == SiteType::Town || t == SiteType::Village; }
+// local ids of the start plan's sites (makeStart): settlements and first-hour sites 0xF00.., forced vignettes 0xF10..,
+// a forced wonder 0xF20
+constexpr uint32_t LOCAL_FORCED_VIG = 0xF10, LOCAL_FORCED_WONDER = 0xF20;
 
 // ---- relief levels (VISION_PLAN 11.1): H = clamp((E - H_BASE) / H_STEP, 0, 7)
 constexpr int32_t H_BASE = Q(0.335), H_STEP = Q(0.068);
@@ -91,7 +94,12 @@ struct TileF {
 };
 
 // ---- L0.5
-struct RiverSeg { int32_t x0, y0, x1, y1; uint8_t w; };
+// (M2) river: the river this piece belongs to (riverIdOf: its spring cell; where traces merge, the longest one's), for
+// names (landmarks, toll bridges)
+struct RiverSeg { int32_t x0, y0, x1, y1; uint8_t w; uint32_t river = 0; };
+inline uint32_t riverIdOf(int32_t cx, int32_t cy) { return ((uint32_t)(cx & 0xFFFF) << 16) | (uint32_t)(cy & 0xFFFF); }
+inline int32_t riverCellX(uint32_t id) { return (int32_t)(int16_t)(uint16_t)(id >> 16); }
+inline int32_t riverCellY(uint32_t id) { return (int32_t)(int16_t)(uint16_t)(id & 0xFFFF); }
 struct Lake { int32_t x = 0, y = 0, r = 0; uint32_t seed = 0; };
 struct Trace {
   std::vector<RiverSeg> segs;
@@ -210,7 +218,10 @@ struct EndlessSource::Impl {
 
   // ================================================================ L0 (macro.cpp)
   int32_t continent(int32_t x, int32_t y);                        // C, Q16
-  void plates(int32_t x, int32_t y, int32_t& ridge, int32_t& rift);  // ridge strength 0..1, rift 0..1
+  // ridge strength 0..1, rift 0..1; (M2) pair: the two nearest plate cells (a ridge system / rift is one pair), packed
+  void plates(int32_t x, int32_t y, int32_t& ridge, int32_t& rift, uint64_t* pair = nullptr);
+  struct PlatePt { int32_t x, y; uint64_t h; };
+  PlatePt platePoint(int32_t cx, int32_t cy);                       // a plate cell's point and hash
   int32_t elevation(int32_t x, int32_t y, int32_t* cOut, int32_t* ridgeOut, int hillOct = 4);   // E (Q16), no climate
   Coarse coarse(int32_t x, int32_t y);                            // all fields at a tile (pure, slow)
   std::shared_ptr<const gen::Block> block(int32_t bx, int32_t by);
@@ -283,8 +294,48 @@ struct EndlessSource::Impl {
   bool roadPath(int32_t ax, int32_t ay, int32_t bx, int32_t by, int32_t corridor, std::vector<GTile>& out);
   gen::Lru<gen::Edge> edges;
 
+  // ================================================================ M2 geology (geology.cpp)
+  Geology geology(int32_t x, int32_t y);                            // the province's (memoised per province)
+  std::unordered_map<uint64_t, Geology> geoMemo;
+  uint32_t landmass(int32_t x, int32_t y);                          // the landmass rule (geology.cpp)
+  std::unordered_map<uint64_t, uint32_t> landMemo;                  // 128-tile land cell -> landmass id
+
+  // ================================================================ M2 wayside places and wonders (vignettes.cpp)
+  // a vignette of one kind at a heart (and the layout direction the plan chose); false where the land does not take it
+  bool vignetteAt(VignetteKind k, int32_t x, int32_t y, int dir, uint32_t sd, SitePlan& out, bool relaxed);
+  bool waterAtPlan(int32_t x, int32_t y);                           // a river, lake or the sea, from the plans only
+  void planVignettes(int32_t rx, int32_t ry, gen::RegionData& D, const std::vector<gen::Node>& nodes,
+                     const std::vector<std::shared_ptr<const gen::Edge>>& near);
+  void stampVignette(const SitePlan& p, gen::Stamp& S);
+  void stampWonder(const SitePlan& p, gen::Stamp& S);
+  // the wonder of a wonder-lattice cell (pure, memoised); wonders near the start plan's forced one stand down
+  bool wonderOf(int32_t i, int32_t j, SitePlan& out);
+  bool wonderSpot(int32_t x, int32_t y, uint32_t sd, SitePlan& out);   // a wonder that fits this spot
+  bool nearWonder(int32_t x, int32_t y, int32_t r);                 // a lattice or forced wonder within r
+  std::unordered_map<uint64_t, std::pair<bool, SitePlan>> wonderMemo;
+  bool settleZone(const std::vector<gen::Node>& nodes, int32_t x, int32_t y, int32_t pad);   // inside a settlement + pad
+  void forceStartPois();                                            // makeStart: the start guarantee (VISION_PLAN 2.6)
+  std::string riverName(uint32_t river);
+  std::string vignetteTitle(VignetteKind k, int32_t x, int32_t y, uint32_t sd, uint32_t river, int instance);
+  std::string wonderTitle(WonderKind k, int32_t x, int32_t y, uint32_t sd, bool forcedOne = false);
+  // M2 landmarks (landmarks.cpp): named ranges, peaks, passes, lakes, rivers, forests, marshes, deserts, hills, seas
+  void planLandmarks(int32_t rx, int32_t ry, gen::RegionData& D);
+  struct AreaLabels;                                                // the biome areas of a landmark cell (memoised)
+  std::unordered_map<uint64_t, std::shared_ptr<AreaLabels>> areaMemo;
+  std::shared_ptr<AreaLabels> areaLabels(int32_t i, int32_t j);
+  struct RangeCrest { bool ok = false; int32_t x = 0, y = 0; int32_t e = 0; uint32_t key = 0; };
+  std::unordered_map<uint64_t, RangeCrest> crestMemo;
+  RangeCrest rangeCrest(int32_t cellX, int32_t cellY);              // the highest crest of a ridge cell
+  // M2 relief helpers
+  int32_t reliefE(int32_t x, int32_t y);                            // the warped clean elevation natLevel reads
+  Biome biomeLite(int32_t x, int32_t y);                            // tile()'s land biome without the beach / rock
+
   // ================================================================ L2 (chunkgen.cpp)
   void baseRect(int32_t x0, int32_t y0, int w, int h, gen::BaseRect& B);
+  // (M2 fixer round 3) baseRect in pieces, for the web's phase-at-a-time town build: the per-tile terrain of rows
+  // [yFrom, yTo) (yFrom 0 also sizes the rect), then the rivers, lakes and footbridges once every row is done
+  void baseRectRows(int32_t x0, int32_t y0, int w, int h, gen::BaseRect& B, int yFrom, int yTo);
+  void baseRectWater(gen::BaseRect& B);
   void chunk(int32_t cx, int32_t cy, ChunkData& out);
   std::shared_ptr<SettlementOut> town(const SitePlan& p, std::shared_ptr<const gen::RegionData> D);
   // web streaming (no threads): a settlement built a phase at a time across frames (EndlessSource::prepareChunk)

@@ -2192,3 +2192,26 @@ bridge (`rpg/world/settlement.cpp` via `classicTownStamp`) are placeholders for 
 - **Culture secrets are discoverable knowledge:** a player can learn a culture's alloy recipes and its armour and weapon
   making by earning trust and apprenticing with a master smith, from lore in ruins (journals, moulds), by slowly breaking
   down pieces at a forge, or by stealing from guarded workshops (at the cost of that culture's goodwill).
+
+### 15.12 Needs-driven citizens (owner, 2026-10-05). This upgrades section 10 for M5.
+
+The owner wants citizens with simulated lives ("needing to eat, going to work, needing a social life") to bring cities to
+life. Section 10's job schedules stay the backbone, but behaviour is now driven by **needs**:
+- **Needs per resident:** hunger, rest, social, faith/comfort and money (0-100, decaying at trait-dependent rates). Each
+  hour a resident picks the activity that best serves its most pressing need, within its job's schedule window
+  (utility scoring, deterministic per resident and hour). A hungry worker buys bread at the market on the way, a lonely one
+  goes to the tavern, a broke one works longer or begs, and a devout one stops at the temple.
+- **Food and goods are real:** residents buy meals and goods from the settlement's bakers, stalls and inn. That consumes the
+  stock the village specialisations (15.11) produce, so shortages travel along the trade links. A failed harvest means
+  hungry towns, higher prices and falling mood: the start of the M4 famine -> trade collapse -> war chain.
+- **Mood is visible:** each settlement has a mood (from its residents' needs, safety and prosperity) that the player can
+  see. Content towns have full taverns, music, festivals and children playing. Hungry or war-torn towns have beggars,
+  shuttered stalls, brawls, emigrants on the roads and higher crime. Individual NPCs show their state in barks and
+  dialogue ("haven't eaten since yesterday").
+- **Relationships:** friendships and households from shared work, tavern visits and neighbours; residents seek out friends
+  when lonely, greet them by name, and grieve when one dies.
+- **Level of detail:** residents near the player are simulated in full as actors; the rest of a settlement is simulated in
+  aggregate per hour (needs and stock as totals); far settlements update daily in the world sim. It must stay cheap on
+  iPhone web.
+- **Player hooks:** the player can feed, employ, supply or befriend residents; radiant quests come from unmet needs
+  ("the baker has no flour"), and the player's trade can rescue or starve a town.

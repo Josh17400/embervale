@@ -3,7 +3,6 @@
 # Then step away: walking back onto the stairwell takes you down.
 #   embervale.exe --script tools/scripts/m0b_stairs_tap.txt [--seed 7]      (also seeds 7, 19 desert, 10 taiga)
 # Exit code 3 if an expect/walkto fails.
-worldgen 7   # M1: written against the classic island (generator v7); new games are endless now
 seed 2
 0.3  newgame
 0.5  expect mode play

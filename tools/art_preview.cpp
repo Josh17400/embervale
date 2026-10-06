@@ -89,6 +89,9 @@ bool savePng(const Canvas& src, const std::string& path, int scale) {
   return ok;
 }
 
+// (M2 fixer round 2) a name table's entry, or the number past its end: the art enums grew past these lists and the
+// contact sheets read past them (a crash before props / buildings / icons were written)
+template <size_t N> std::string nameAt(const char* const (&a)[N], int i) { return i >= 0 && i < (int)N ? std::string(a[i]) : "#" + std::to_string(i); }
 const char* kOutfitNames[] = {"TUNIC", "DRESS", "ROBE", "LEATHER", "CHAIN", "PLATE", "ELVEN", "EBONY", "GUARD", "RAGS"};
 const char* kHairNames[] = {"BALD", "SHORT", "LONG", "PONY", "MOHAWK", "BRAIDS"};
 
@@ -113,9 +116,9 @@ art::HumanLook sampleLook(int outfit, int hair) {
 void humanCombos(const std::string& dir) {
   const int cols = 6, rows = 10, cw = 3 * art::HUMAN_W + 6, ch = art::HUMAN_H + 4;
   Board b(48 + cols * cw, 12 + rows * ch);
-  for (int h = 0; h < cols; h++) b.text(48 + h * cw + 4, 2, kHairNames[h]);
+  for (int h = 0; h < cols; h++) b.text(48 + h * cw + 4, 2, nameAt(kHairNames, h));
   for (int o = 0; o < rows; o++) {
-    b.text(2, 12 + o * ch + 9, kOutfitNames[o]);
+    b.text(2, 12 + o * ch + 9, nameAt(kOutfitNames, o));
     for (int h = 0; h < cols; h++) {
       Canvas sheet = art::humanSheet(sampleLook(o, h));
       for (int r = 0; r < 3; r++) {
@@ -180,7 +183,7 @@ void monsters(const std::string& dir) {
   for (int m = 0; m < (int)art::Monster::COUNT; m++) {
     auto mm = (art::Monster)m;
     int cw = art::monsterCellW(mm), chh = art::monsterCellH(mm);
-    b.text(4, y, std::string(kMonsterNames[m]) + " " + std::to_string(cw) + "x" + std::to_string(chh));
+    b.text(4, y, nameAt(kMonsterNames, m) + " " + std::to_string(cw) + "x" + std::to_string(chh));
     Canvas s = art::monsterSheet(mm);
     b.put(s, 4, y + 10);
     for (int f = 0; f < art::MONSTER_FRAMES; f++) b.frame(4 + f * cw, y + 10, cw, chh);
@@ -197,6 +200,10 @@ const char* kPropNames[] = {
   "STALL", "HAY", "ANVIL", "CART", "FOUNTAIN", "STATUE", "BANNER", "WOODPILE", "GRAVE", "SHRINE",
   "CAVE", "LADDER", "STALAGMITE", "CRYSTAL", "BONES", "SKULLS", "COBWEB", "BRAZIER", "COFFIN", "URN", "IRONDOOR", "ALTAR",
   "BED", "TABLE", "CHAIR", "SHELF", "FIREPLACE", "RUG", "COUNTER", "BARREL2", "PLANT", "CAULDRON", "BOOKS", "THRONE"};
+constexpr int kPropNamesN = (int)(sizeof(kPropNames) / sizeof(kPropNames[0]));
+// (M2 fixer round 2) the props appended since this list was written (M0, M0b, M1, M2) are named by their number: the
+// list ran out at 74 and the contact sheet read past its end (a crash before props.png was written)
+std::string propName(int p) { return p < kPropNamesN ? std::string(kPropNames[p]) : "P" + std::to_string(p); }
 
 void props(const std::string& dir) {
   const int maxW = 400;
@@ -207,7 +214,7 @@ void props(const std::string& dir) {
   for (int p = 0; p < (int)art::Prop::COUNT; p++) {
     auto pp = (art::Prop)p;
     int w = art::propW(pp) * art::propFrames(pp), h = art::propH(pp) + 10;
-    int cellW = std::max(w, (int)std::string(kPropNames[p]).size() * 6) + 6;
+    int cellW = std::max(w, (int)propName(p).size() * 6) + 6;
     if (x + cellW > maxW) { x = 4; y += rowH + 4; rowH = 0; }
     items.push_back({p, x, y});
     x += cellW;
@@ -216,7 +223,7 @@ void props(const std::string& dir) {
   Board b(maxW, y + rowH + 6);
   for (auto& it : items) {
     auto pp = (art::Prop)it.p;
-    b.text(it.x, it.y, kPropNames[it.p]);
+    b.text(it.x, it.y, propName(it.p));
     Canvas s = art::propSprite(pp);
     b.put(s, it.x, it.y + 9);
     for (int f = 0; f < art::propFrames(pp); f++) b.frame(it.x + f * art::propW(pp), it.y + 9, art::propW(pp), art::propH(pp));
@@ -235,7 +242,7 @@ void buildings(const std::string& dir) {
   int y = 4;
   for (int bi = 0; bi < (int)art::Building::COUNT; bi++) {
     int x = 4, rowH = 0;
-    b.text(x, y, kBuildingNames[bi]);
+    b.text(x, y, nameAt(kBuildingNames, bi));
     for (int si = 0; si < 4; si++) {
       int w = sizes[si][0], h = sizes[si][1];
       Canvas s = art::buildingSprite((art::Building)bi, w, h, 0, (uint32_t)(bi * 31 + si * 7 + 1));

@@ -49,7 +49,9 @@ int Gen::putBldg(Building type, IRect r, Role owner, int storeys) {
   b.storeys = (uint8_t)storeys;
   const uint32_t hs = hash32(P.seed ^ ((uint32_t)M.bldgs.size() * 0x9E3779B1u) ^ 0x5707EE5u);
   b.hearth = (type == Building::Palace || type == Building::Barracks) ? true : bldgHearthV7(type, storeys, hash32(hs + 77u));
-  b.biome = M.biomeAt(r.x + r.w / 2, r.y + r.h / 2);
+  // (M2 fixer) the settlement's own biome, not the tile's: a town that straddles an ecotone built half its houses in
+  // another family (bare slate, thatch and copper beside snowed roofs in a snowbound capital)
+  b.biome = bio;
   b.seed = rng.next();
   b.genVer = WORLDGEN_LATEST;
   b.urban = (uint8_t)(capital ? 3 : city ? 2 : town ? 1 : 0);
@@ -505,8 +507,8 @@ void Gen::buildCompound() {
     const int bdx = M.bldgs[(size_t)barracksIdx].doorX(), bdy = by + BAR_H;
     for (int x = std::min(bdx, gx + 1); x <= std::max(bdx, gx + 1); x++) { if (get(x, bdy) != K_SQUARE) { set(x, bdy, K_YARD); M.setG(x, bdy, Ground::Road); } }
   }
-  // gardens: flowerbeds in rows, clipped bushes along the walkway, trees in the corners, statues by the gate
-  const Biome gb = M.biomeAt(X0 + CW / 2, Y0 + CH / 2);
+  // gardens: clipped bushes along the walkway, flower beds on the lawns, trees in the corners, statues by the gate
+  const Biome gb = bio;
   const Prop tree = gb == Biome::Desert ? Prop::PalmTree : (gb == Biome::Snow || gb == Biome::Taiga ? Prop::PineTree : Prop::OakTree);
   auto lawnFree = [&](int x, int y) {
     return in(x, y) && x > X0 && x < X0 + CW - 1 && y > Y0 && y < Y0 + CH - 1 && get(x, y) == K_COMPOUND && M.bldgAt[I(x, y)] < 0 &&
@@ -516,11 +518,43 @@ void Gen::buildCompound() {
     for (int x = X0 + 2; x < X0 + CW - 2; x++) {
       if (!lawnFree(x, y) || cover[I(x, y)]) continue;
       bool byWalk = get(x - 1, y) == K_SQUARE || get(x + 1, y) == K_SQUARE;
-      if (byWalk) { if ((y & 1) == 0) M.setProp(x, y, Prop::Bush); continue; }
-      if (get(x - 2, y) == K_SQUARE || get(x + 2, y) == K_SQUARE) continue;   // a lawn strip beside the hedge
-      int gxl = x - X0;
-      if ((y - terrace) % 3 == 0 && gxl % 2 == 0) M.setProp(x, y, (gxl / 2 + y) % 3 == 0 ? Prop::Flowers1 : ((gxl / 2 + y) % 3 == 1 ? Prop::Flowers2 : Prop::Flowers3));
+      if (byWalk && (y & 1) == 0) M.setProp(x, y, Prop::Bush);
     }
+  // (M2 fixer) the flower beds: a few ragged ovals of dark soil on each lawn, each planted mostly in one colour with
+  // another mixed through it and a gap here and there (they were a rigid grid of identical tufts on bare lawn). In
+  // the snow they are clumps of evergreen shrubs on the white.
+  {
+    const bool winter = bio == Biome::Snow;
+    static const Prop fl[3] = {Prop::Flowers1, Prop::Flowers2, Prop::Flowers3};
+    Rng br(hash32(P.seed ^ 0xBED5u));   // (its own stream: the rest of the town keeps its draws)
+    for (int side = 0; side < 2; side++) {
+      const int lx0 = side == 0 ? X0 + 3 : gx + 5, lx1 = side == 0 ? gx - 3 : X0 + CW - 4;
+      const int ly0 = terrace + 3, ly1 = gy - 3;
+      if (lx1 - lx0 < 2 || ly1 - ly0 < 2) continue;
+      const int nb = 2 + br.irange(2);
+      for (int k = 0; k < nb; k++) {
+        const int bx = lx0 + br.irange(lx1 - lx0 + 1), by = ly0 + br.irange(ly1 - ly0 + 1);
+        const float rxb = 1.3f + br.f() * 1.3f, ryb = 0.9f + br.f() * 0.8f;
+        const int main = br.irange(3), accent = (main + 1 + br.irange(2)) % 3;
+        const uint32_t bs = br.next();
+        for (int y = by - 3; y <= by + 3; y++)
+          for (int x = bx - 4; x <= bx + 4; x++) {
+            if (!lawnFree(x, y) || cover[I(x, y)]) continue;
+            if (get(x - 1, y) == K_SQUARE || get(x + 1, y) == K_SQUARE || get(x - 2, y) == K_SQUARE || get(x + 2, y) == K_SQUARE) continue;
+            const uint32_t h = hash32(bs ^ ((uint32_t)x * 73856093u) ^ ((uint32_t)y * 19349663u));
+            const float ex = (x - bx) / rxb, ey = (y - by) / ryb;
+            if (ex * ex + ey * ey + (h & 255) / 255.0f * 0.45f > 1.15f) continue;
+            if (winter) {
+              if (h % 3 != 0) M.setProp(x, y, Prop::SnowBush);
+              continue;
+            }
+            M.setG(x, y, Ground::Dirt);
+            if ((h >> 8) % 6 == 0) continue;   // a gap in the planting
+            M.setProp(x, y, fl[(h >> 12) % 4 == 0 ? accent : main]);
+          }
+      }
+    }
+  }
   int corners[4][2] = {{X0 + 2, terrace + 2}, {X0 + CW - 3, terrace + 2}, {X0 + 2, gy - 2}, {X0 + CW - 3, gy - 2}};
   for (auto& c : corners) {
     int x = c[0], y = c[1];

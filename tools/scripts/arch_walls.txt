@@ -1,19 +1,19 @@
 # Architecture lane: walk up to a city gate from outside, through the passage, and look back along the wall inside;
-# then the same spot at dusk and at night. Gate coordinates come from: rpg_test 7 (archChecks prints them; WORLDGEN_V5 worlds: COLDDALE gate at 325,304).
+# then the same spot at dusk and at night. (M2: the endless world; `gate` finds the nearest gate of the city `goto city`
+# brought into view, so no seed's coordinates are pinned here.)
 # Run from a scratch directory (screenshots are written to the current directory):
 #   embervale --script tools/scripts/arch_walls.txt
 seed 7
-worldgen 6                   # written against generator-v6 worlds (coordinates, names, the M0 rooms)
 0 goto city
 0.3 god
 0.5 hour 12
-1 walkto 326 307 60
+1 gate 0 out
 +1 shot arch_s7_out.png
-+0.2 walkto 326 304
++0.2 gate 0 on
 +0.4 shot arch_s7_passage.png
-+0.2 walkto 326 301
++0.2 gate 0 in
 +1 shot arch_s7_inside.png
-+0.2 walkto 332 302
++0.2 walk east 0.8
 +1 shot arch_s7_along.png
 +0.2 hour 19
 +1.5 shot arch_s7_dusk.png

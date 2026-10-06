@@ -33,6 +33,10 @@ std::vector<TestCmd>& testCmds() {
   static std::vector<TestCmd> cmds;
   return cmds;
 }
+std::vector<SeedCheck>& seedChecks() {
+  static std::vector<SeedCheck> v;
+  return v;
+}
 bool parseSeedRange(const char* s, uint64_t& a, uint64_t& b);
 
 namespace {
@@ -55,7 +59,9 @@ namespace {
 // every lane's per-seed checks (tests.h); a crash-free 0 means "nothing to check yet"
 int laneChecks(uint64_t seed) {
   g_curSeed = seed;
-  return heroChecks(seed) + interiorChecks(seed) + defenceChecks(seed) + archChecks(seed);
+  int bad = heroChecks(seed) + interiorChecks(seed) + defenceChecks(seed) + archChecks(seed);
+  for (const SeedCheck& c : seedChecks()) bad += c.run(seed);   // M2: checks registered with RPG_SEED_CHECK
+  return bad;
 }
 }  // namespace
 
@@ -120,10 +126,10 @@ int main(int argc, char** argv) {
     if (audit) {
       Audit a = repetitionAudit(s);
       int gp = a.greetTalks ? 100 * a.greetDistinct / a.greetTalks : 100;
-      printf("  | poi %d  shapes %d/%d (grp %d, near %d, count %d)  greet %d%%  bldg grp %d", a.poiKinds, a.layoutSigs, a.settlements, a.layoutMaxGroup,
+      printf("  | poi %d/%d  shapes %d/%d (grp %d, near %d, count %d)  greet %d%%  bldg grp %d", a.poiKinds, a.poiNear, a.layoutSigs, a.settlements, a.layoutMaxGroup,
              a.nearLayoutMaxGroup, a.countMaxGroup, gp, a.bldgMaxGroup);
       n++;
-      sum.poiKinds += a.poiKinds; sum.settlements += a.settlements; sum.layoutSigs += a.layoutSigs;
+      sum.poiKinds += a.poiKinds; sum.poiNear += a.poiNear; sum.settlements += a.settlements; sum.layoutSigs += a.layoutSigs;
       sum.greetTalks += a.greetTalks; sum.greetDistinct += a.greetDistinct; sum.bldgMaxGroup += a.bldgMaxGroup;
       minPoi = std::min(minPoi, a.poiKinds); maxLayout = std::max(maxLayout, a.layoutMaxGroup);
       maxNearLayout = std::max(maxNearLayout, a.nearLayoutMaxGroup); maxCount = std::max(maxCount, a.countMaxGroup); maxBldg = std::max(maxBldg, a.bldgMaxGroup);
@@ -134,7 +140,7 @@ int main(int argc, char** argv) {
   }
   if (audit && n) {
     printf("repetition audit over %d seeds (informational):\n", n);
-    printf("  poi kinds within 60 tiles: avg %.1f, min %d (target >= 8)\n", (double)sum.poiKinds / n, minPoi);
+    printf("  poi kinds within 120 tiles of the start village: avg %.1f, min %d (target >= 8); within 60: avg %.1f (target >= 3)\n", (double)sum.poiKinds / n, minPoi, (double)sum.poiNear / n);
     printf("  settlement shapes: %.0f%% distinct, worst same-shape group %d world-wide, %d within 120 tiles (target 1), same building count %d\n",
            sum.settlements ? 100.0 * sum.layoutSigs / sum.settlements : 0.0, maxLayout, maxNearLayout, maxCount);
     printf("  greetings: %.0f%% distinct per town on average, worst seed %d%%\n", sum.greetTalks ? 100.0 * sum.greetDistinct / sum.greetTalks : 0.0, minGreetPct);

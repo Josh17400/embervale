@@ -1,26 +1,23 @@
 # The opening (M0, VISION_PLAN 15.1): everyone starts with just the shirt on their back. The tracked quest
 # "A BLADE OF YOUR OWN" leads to the start village inn, whose innkeeper (marked with a "!") hands over an old blade
-# and a draught for the road. Then the first job: a villager's boar hunt, done with the old blade, the "!" over
-# that villager outdoors by day and at night, and collecting the reward.
+# and a draught for the road. Then a first job from a villager, done with the old blade, the "!" over that villager
+# outdoors by day and at night, and collecting the reward.
+# M2: the endless world (no names or coordinates pinned): `talkto giver` finds the nearest villager with a job, the job
+# is whatever that villager offers, and `givequest hunt boar 6` adds a hunt from them that `fightquest` brings on.
 #   embervale.exe --script tools/scripts/opening.txt        (screenshots land in the working directory)
-# Seed 8 facts (EMB_SCRIPT_INFO=1 rpg_test 8, generator v5): start STONEHAVEN (spawn 242,253); OLANDIS (248,249) wants
-# 6 boars culled. Dialogue text types out: wait ~2.5 s before choosing.
-# Every step has an expect, so a stale seed fact fails the script instead of passing it.
-worldgen 7   # M1: written against the classic island (generator v7); new games are endless now
+# Every step has an expect, so a stale fact fails the script instead of passing it.
 seed 8
 0.3  newgame                     # straight into the start village (the creator is skipped: background None)
 +0.02 hour 10
 +0.3 shot opening_0_start.png    # shirt only; the HUD tracks A BLADE OF YOUR OWN; the talk label clear of the hero
 +0.1 expect tracked A BLADE OF YOUR OWN
 +0.1 expect slot weapon 0
-+0.1 talkto OLANDIS
++0.1 talkto giver 40
 +0.2 expect mode dialogue
-+2.6 expect option DO YOU NEED HELP?
-+0.1 key Return                  # DO YOU NEED HELP?
-+3.4 shot opening_1_job.png      # CULL THE BOARS
-+0.1 expect text BOARS
-+0.1 key Return                  # I'LL DO IT.
-+0.3 expect quest active CULL THE BOARS
++2.6 key Return                  # the first option asks for work
++3.4 shot opening_1_job.png      # the villager's job
++0.1 choose I'LL DO IT          # (by its label: a long offer may still be typing out)
++0.3 expect sidequest active
 +0.7 key Escape
 +0.3 menu 1
 +0.6 shot opening_2_journal.png  # the opening and the job, each with its next step
@@ -44,30 +41,31 @@ seed 8
 +0.2 walkto exit
 +1.0 expect inside 0
 +0.3 shot opening_7_outside.png  # back on the street, armed
-# --- the first job, with the old blade (god keeps the screenshots coming), out in the fields so the boars don't
-# trample the villagers (monsters hit townsfolk, and a downed OLANDIS could not pay)
+# --- a hunt from a villager, with the old blade (god keeps the screenshots coming)
 +0.2 god
-+0.2 walkto 242 268 60
-+0.2 fight boar 6
-+0.2 hold J 26
++0.1 talkto giver 40
++2.6 key Escape
++0.3 givequest hunt boar 6       # the villager in reach asks for six boars
++0.2 gotosite start              # out past the village's south edge, so the boars don't trample the villagers
++0.2 fightquest
++0.2 hold J 30
 +1.5 shot opening_8_fight.png
 +4.0 shot opening_9_fight.png
 +5.0 shot opening_10_fight.png
 +5.0 shot opening_11_fight.png
-+9.0 shot opening_12_done.png    # BOUNTY READY: RETURN TO OLANDIS IN STONEHAVEN
-+0.1 expect quest complete CULL THE BOARS
-+0.1 expect heard READY: RETURN TO OLANDIS
-# back to the village; anyone who hid comes back out ~30 s after the trouble is over
-+0.2 walkto 242 253 90
-+42  shot opening_13_day_mark.png    # the "!" over OLANDIS by day
++9.0 shot opening_12_done.png    # BOUNTY READY: RETURN TO <VILLAGER> IN <VILLAGE>
++0.1 expect sidequest complete hunt
++0.1 expect heard READY: RETURN TO
+# back to the villager; anyone who hid comes back out ~30 s after the trouble is over
++42  shot opening_13_day_mark.png    # the "!" over the villager by day
 +0.2 hour 22.5
 +1.3 shot opening_14_night_mark.png  # ... and at night
 +0.2 hour 10
-+0.2 talkto OLANDIS 30
++0.2 talkto giver 90
 +0.2 expect mode dialogue
 +2.6 expect option COLLECT
 +0.1 shot opening_15_collect.png
 +0.1 key Return
-+0.6 expect quest done CULL THE BOARS
++0.6 expect sidequest done hunt
 +0.2 key Escape
 +0.3 quit

@@ -30,8 +30,9 @@ RULES:
 - No git commands (the main session commits/pushes).
 - PC safety: never more than 3 heavy processes (builds, game runs, tests) machine-wide. If tools/slot exists, wrap every build/run in it
   (it is a counting lock); otherwise run one process at a time yourself. Never kill the owner's running game (check Get-Process).
-- Test runs never touch the owner's save. Saves must stay compatible: any save-format or generator change goes through SAVE_VER /
-  WORLDGEN versioning with fixtures (tools/save_test.cpp, tests/fixtures/).
+- Test runs never touch the owner's save. OLD SAVES ARE NOT A CONCERN (owner): no backward compatibility; bump SAVE_VER /
+  ENDLESS_GEN_VER and regenerate fixtures/goldens (tools/save_test.cpp, tests/fixtures/) when formats or generation change;
+  old saves must be refused gracefully ("start a new adventure"), never crash. Generation stays deterministic (integer/dmath only).
 - Code must compile on MSVC and clang/Emscripten: include what you use, no MSVC-only constructs, threads only outside __EMSCRIPTEN__.
 - Edit C++ with Edit/Write tools (python heredocs through Bash turn \\\\n into real newlines inside string literals).
 - Screenshots in C:\\Users\\joshu\\AppData\\Local\\Temp\\claude\\emb_${M}\\<your-name>\\ ; delete them when done. Delete your own

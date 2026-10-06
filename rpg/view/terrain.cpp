@@ -15,6 +15,17 @@
 namespace {
 constexpr int CH = 32;   // tiles per chunk side
 
+// No bake threads: the web build, or a desktop run with EMB_WEBSIM=1 (the web's bake and arrival path measured on
+// desktop: the incremental pump on the main thread, building sprites painted inline)
+bool singleThread() {
+#ifdef __EMSCRIPTEN__
+  return true;
+#else
+  static const bool on = std::getenv("EMB_WEBSIM") != nullptr;
+  return on;
+#endif
+}
+
 inline uint32_t C(int r, int g, int b, int a = 255) { return rgba(std::clamp(r, 0, 255), std::clamp(g, 0, 255), std::clamp(b, 0, 255), a); }
 inline uint32_t lerpc(uint32_t a, uint32_t b, float t) {
   int ar = a & 255, ag = (a >> 8) & 255, ab = (a >> 16) & 255, aa = (a >> 24) & 255;
@@ -62,6 +73,13 @@ bool ecoGround(Ground g) {
   }
 }
 inline float bayer(int px, int py) { return kBayer[(py & 3) * 4 + (px & 3)] / 16.0f; }
+// (M2 fixer) where rock meets the land out on the overworld, the outline is looked up through this smooth warp: a
+// small swing plus a broader, rounder one, so a crag's outline never steps along the tile grid. Its cast shadow uses
+// the same warp, so the two agree.
+inline void rockWarp(int qx, int qy, float& wx, float& wy) {
+  wx = qx + (vnoise(qx / 7.0f, qy / 7.0f, 11) - 0.5f) * 5.0f + (vnoise(qx / 15.0f, qy / 15.0f, 15) - 0.5f) * 9.0f;
+  wy = qy + (vnoise(qx / 7.0f, qy / 7.0f, 23) - 0.5f) * 5.0f + (vnoise(qx / 15.0f, qy / 15.0f, 27) - 0.5f) * 7.0f;
+}
 
 // The rock of a cliff face by biome (VISION_PLAN 11): lip (lit top edge), hi, mid, lo, dark (the foot).
 struct RockPal { uint32_t lip, hi, mid, lo, dark; bool cold; };
@@ -151,6 +169,239 @@ bool diagBridgePixel(const TM& m, int px, int py, Ground real, uint32_t& out) {
   return false;
 }
 
+// M2 ecotones (VISION_PLAN 11.6). The generator writes a blend byte per tile (Map::blend: bits 0-3 the neighbouring
+// biome, bits 4-7 its weight 0..8 of 16). Here every pixel reads the four tile centres around it, blends their biome
+// mixes bilinearly (so the ramp has no tile steps and no straight seams) and picks one biome's ground with a
+// threshold made of two octaves of value noise and a little 4x4 Bayer order: the two grounds interlock in organic
+// patches whose edges are dithered, instead of a 50 % checkerboard. Pure functions of global pixels and the snapshot
+// (blend and biomes lie within the bake margin), so chunks meet seamlessly. A map without blend bytes (the generator
+// not writing them yet) gets the same ramps derived from the biome grid: the distance to the other biome, 4 tiles out.
+inline Ground ecoGroundOf(Biome b) {
+  switch (b) {
+    case Biome::Plains: return Ground::Grass;
+    case Biome::Forest: return Ground::ForestFloor;
+    case Biome::Autumn: return Ground::Autumn;
+    case Biome::Taiga: return Ground::Tundra;
+    case Biome::Snow: return Ground::Snow;
+    case Biome::Desert: case Biome::Beach: return Ground::Sand;
+    case Biome::Swamp: return Ground::Swamp;
+    default: return Ground::Void;   // ocean, mountain: no ecotone
+  }
+}
+template <class TM>
+uint8_t derivedBlend(const TM& m, int tx, int ty) {
+  // a small direct-mapped cache (bakes run on worker threads; a pixel row reads the same few tiles over and over)
+  struct E { const void* map; int ox, oy, tx, ty; uint8_t v; };
+  thread_local E cache[64] = {};
+  E& e = cache[((unsigned)tx * 7u + (unsigned)ty * 13u) & 63u];
+  if (e.map == (const void*)m.m && e.ox == m.ox && e.oy == m.oy && e.tx == tx && e.ty == ty) return e.v;
+  const Biome own = m.biomeAt(tx, ty);
+  uint8_t v = 0;
+  if (ecoGroundOf(own) != Ground::Void) {
+    for (int r = 1; r <= 4 && !v; r++)
+      for (int oy = -r; oy <= r && !v; oy++)
+        for (int ox = -r; ox <= r; ox++) {
+          if (std::max(std::abs(ox), std::abs(oy)) != r) continue;
+          const Biome b = m.biomeAt(tx + ox, ty + oy);
+          if (b == own || ecoGroundOf(b) == Ground::Void || !natural(m.at(tx + ox, ty + oy))) continue;
+          const float dist = std::sqrt((float)(ox * ox + oy * oy));
+          const int w = std::clamp((int)std::lround(8.0f * (4.6f - dist) / 4.1f), 0, 8);
+          if (w > 0) v = (uint8_t)((w << 4) | (int)b);
+          break;
+        }
+  }
+  e = E{(const void*)m.m, m.ox, m.oy, tx, ty, v};
+  return v;
+}
+// the ground a pixel of an ecotone shows (Ground::Void: no ecotone here)
+template <class TM>
+Ground ecotonePixel(const TM& m, int px, int py, Ground g) {
+  const float fx = (px - 7.5f) / 16.0f, fy = (py - 7.5f) / 16.0f;
+  const int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
+  const float ax = fx - ix, ay = fy - iy;
+  Biome bs[8];
+  float ws[8];
+  int n = 0;
+  bool any = false;
+  auto add = [&](Biome b, float w) {
+    if (w <= 0) return;
+    for (int k = 0; k < n; k++) if (bs[k] == b) { ws[k] += w; return; }
+    if (n < 8) { bs[n] = b; ws[n] = w; n++; }
+  };
+  for (int c = 0; c < 4; c++) {
+    const int x = ix + (c & 1), y = iy + (c >> 1);
+    const float cw = ((c & 1) ? ax : 1 - ax) * ((c >> 1) ? ay : 1 - ay);
+    const Biome own = m.biomeAt(x, y);
+    const uint8_t bl = m.ecoDerive ? derivedBlend(m, x, y) : m.blendAt(x, y);
+    const int w = std::min(8, bl >> 4);
+    const Biome other = (Biome)(bl & 15);
+    if (w > 0 && ecoGroundOf(other) != Ground::Void && (int)other < (int)Biome::COUNT) {
+      any = true;
+      add(own, cw * (1 - w / 16.0f));
+      add(other, cw * (w / 16.0f));
+    } else add(own, cw);
+  }
+  if (!any) return Ground::Void;
+  // the threshold: broad patches, finer fringes, ordered dither only right at their edges
+  float t = 0.5f + (vnoise(px / 9.0f, py / 9.0f, 861) - 0.5f) * 1.25f + (vnoise(px / 3.5f, py / 3.5f, 863) - 0.5f) * 0.45f + (bayer(px, py) - 0.5f) * 0.22f;
+  t = std::clamp(t, 0.0f, 0.999f);
+  // a stable order (by biome) so neighbouring pixels agree on which biome a threshold falls in
+  for (int a = 1; a < n; a++)
+    for (int b = a; b > 0 && (int)bs[b] < (int)bs[b - 1]; b--) { std::swap(bs[b], bs[b - 1]); std::swap(ws[b], ws[b - 1]); }
+  float sum = 0;
+  for (int k = 0; k < n; k++) sum += ws[k];
+  float acc = 0;
+  Biome pick = bs[n - 1];
+  for (int k = 0; k < n; k++) {
+    acc += ws[k] / sum;
+    if (t < acc) { pick = bs[k]; break; }
+  }
+  const Ground pg = ecoGroundOf(pick);
+  if (pg == Ground::Void) return Ground::Void;
+  // the pixel's own tile keeps its own variant of its biome's ground (a meadow stays a meadow)
+  if (pick == m.biomeAt(px >> 4, py >> 4) && ecoGround(g)) return g;
+  return pg;
+}
+
+// (M2 fixer) A rock outcrop down on the low land (a cave's crag, a knoll): a heap of broken blocks under the top-left
+// light, not the massif's broad ridged smear. The body is a dome from the blurred rock mask (deep inside 1, about 0.5 at
+// the outline), so the whole heap is lit on its north-west flank and falls into shade to the south-east; on it sit
+// jittered blocks (Voronoi cells about 11 px across), each tilted its own way, bevelled (a lit lip where a crack lies
+// to its upper left, a dark one where it lies to the lower right) and parted by dark cracks. Hard quantised tones with
+// a whisper of dither, moss in the cracks of the temperate lands, snow on the lit tops in the cold.
+template <class TM>
+uint32_t outcropPixel(const TM& m, int px, int py, int sx, int sy, const RockPal& P, float cold, float hot) {
+  // the blurred rock mask at the 4 x 4 tile centres round the sample, then a bilinear dome between them
+  const int ix0 = (int)std::floor((sx - 8) / 16.0f) - 1, iy0 = (int)std::floor((sy - 8) / 16.0f) - 1;
+  float Bm[4][4];
+  for (int j = 0; j < 4; j++)
+    for (int i = 0; i < 4; i++) {
+      float s = 0;
+      for (int dy = -1; dy <= 1; dy++)
+        for (int dx = -1; dx <= 1; dx++)
+          if (m.at(ix0 + i + dx, iy0 + j + dy) == Ground::Rock) s += (dx == 0 && dy == 0) ? 4.0f : (dx == 0 || dy == 0) ? 2.0f : 1.0f;
+      Bm[j][i] = s / 16.0f;
+    }
+  auto dome = [&](float x, float y) {
+    const float fx = std::clamp((x - 8.0f) / 16.0f - ix0, 0.0f, 2.999f), fy = std::clamp((y - 8.0f) / 16.0f - iy0, 0.0f, 2.999f);
+    const int i = (int)fx, j = (int)fy;
+    const float ax = fx - i, ay = fy - j;
+    return (Bm[j][i] * (1 - ax) + Bm[j][i + 1] * ax) * (1 - ay) + (Bm[j + 1][i] * (1 - ax) + Bm[j + 1][i + 1] * ax) * ay;
+  };
+  const float D = dome((float)sx, (float)sy);
+  // the heap's own light: rising toward the south-east = facing the top-left light
+  float lit = 0.50f + (dome(sx + 4.0f, sy + 4.0f) - dome(sx - 4.0f, sy - 4.0f)) * 3.4f + (D - 0.75f) * 0.35f;
+  // (M2 fixer round 3, review: "the cave mound reads as paving laid on grass") the heap as one raised mass: how far
+  // the rock runs toward the light (up-left) against away from it (down-right). Near its north-west edge the heap
+  // rises toward the light and is lit, past its crest it falls away into shade; a soft bright crest between
+  float hUL = 0, hDR = 0;
+  {
+    auto rockPx = [&](int qx, int qy) { return m.at((int)std::floor(qx / 16.0f), (int)std::floor(qy / 16.0f)) == Ground::Rock; };
+    for (int k = 1; k <= 16; k++) { if (!rockPx(sx - k * 3, sy - k * 2)) break; hUL = (float)k; }
+    for (int k = 1; k <= 16; k++) { if (!rockPx(sx + k * 3, sy + k * 2)) break; hDR = (float)k; }
+    const float side = (hDR - hUL) / (hDR + hUL + 2.0f);   // +1 the lit north-west flank .. -1 the shaded south-east
+    lit += side * 0.42f;
+    if (std::fabs(side) < 0.12f && hUL + hDR > 8.0f) lit += 0.06f;   // the crest
+  }
+  // the blocks: the nearest and second nearest of jittered points on an 11-px grid (in pixel space: the blocks stay
+  // put however the outline is warped)
+  const int G = 18;   // (M2 fixer round 3: larger rocks, fewer cracks: 14 px cells read as flagstones)
+  const int gx = (int)std::floor(px / (float)G), gy = (int)std::floor(py / (float)G);
+  float d1 = 1e9f, d2 = 1e9f;
+  int c1x = 0, c1y = 0;
+  float p1x = 0, p1y = 0, p2x = 0, p2y = 0;
+  for (int oy = -1; oy <= 1; oy++)
+    for (int ox = -1; ox <= 1; ox++) {
+      const int cx = gx + ox, cy = gy + oy;
+      const uint32_t h = hash2(cx, cy, 931);
+      const float fx = cx * (float)G + 1.5f + (h & 255) / 255.0f * (G - 3), fy = cy * (float)G + 1.5f + ((h >> 8) & 255) / 255.0f * (G - 3);
+      const float d = std::sqrt((px + 0.5f - fx) * (px + 0.5f - fx) + (py + 0.5f - fy) * (py + 0.5f - fy) * 1.35f);   // (squat blocks: 3/4 view)
+      if (d < d1) { d2 = d1; p2x = p1x; p2y = p1y; d1 = d; c1x = cx; c1y = cy; p1x = fx; p1y = fy; }
+      else if (d < d2) { d2 = d; p2x = fx; p2y = fy; }
+    }
+  const uint32_t ch = hash2(c1x, c1y, 937);
+  // each block's tilt (toward or away from the light) and a gentle roundness within it (its upper left catches more)
+  lit += (((ch >> 4) & 255) / 255.0f - 0.5f) * 0.22f;
+  lit += -((px + 0.5f - p1x) + (py + 0.5f - p1y)) / (float)G * 0.5f;   // a rounded block: lit upper left, shaded lower right
+  float gap = d2 - d1;
+  // some neighbouring blocks are one rock (no crack between them, only the turn of the surface)
+  const bool fused = ((ch ^ hash2((int)std::floor(p2x), (int)std::floor(p2y), 951)) & 3) <= 1;
+  if (fused) gap += 3.0f;
+  // where the parting crack lies: upper left of this pixel (the block's lit lip) or lower right (its shaded edge)
+  const float toward = (p2x - p1x) + (p2y - p1y);
+  if (gap < 2.6f && gap >= 1.1f) lit += toward < 0 ? 0.26f : -0.20f;
+  lit += (bayer(px, py) - 0.5f) * 0.05f;
+  uint32_t c;
+  if (gap < 1.1f) c = toward < 0 ? P.dark : P.lo;   // the crack (its far side catches a little light)
+  else if (lit < 0.24f) c = P.dark;
+  else if (lit < 0.42f) c = P.lo;
+  else if (lit < 0.60f) c = P.mid;
+  else if (lit < 0.80f) c = P.hi;
+  else c = P.lip;
+  // chips and grit
+  const float sp = hashf(px, py, 939);
+  if (gap >= 1.1f && sp < 0.025f) c = mul(c, 0.84f);
+  // moss and grass in the cracks and on the shaded sides (temperate lands), not on the lit tops
+  const float wet = 1.0f - std::min(1.0f, cold + hot);
+  if (wet > 0.3f && gap < 1.8f && lit < 0.62f && vnoise(px / 9.0f, py / 9.0f, 941) > 0.70f - 0.06f * wet)
+    c = lit < 0.40f ? C(58, 80, 46) : vnoise(px / 2.5f, py / 2.5f, 943) > 0.5f ? C(96, 128, 58) : C(74, 104, 52);
+  // snow on the lit tops in the cold (the cold north keeps it on low crags too)
+  if (cold > 0.2f) {
+    const float sv = D * 0.6f + (lit - 0.5f) * 0.5f + (vnoise(px / 7.0f, py / 7.0f, 945) - 0.5f) * 0.2f;
+    if (sv > 0.80f - 0.30f * std::min(1.0f, cold) && gap >= 1.1f) c = lit < 0.5f ? C(186, 198, 222) : lit < 0.7f ? C(222, 230, 242) : C(244, 247, 252);
+  }
+  // the outline: a lit rim where the heap meets the land to the north and west, a dark edge on the east
+  {
+    auto rockAt = [&](int qx, int qy) { return m.at(qx >> 4, qy >> 4) == Ground::Rock; };
+    int dW = 0, dN = 0, dE = 0;
+    for (int k = 1; k <= 2 && !dW; k++) if (!rockAt(sx - k, sy)) dW = k;
+    for (int k = 1; k <= 2 && !dN; k++) if (!rockAt(sx, sy - k)) dN = k;
+    for (int k = 1; k <= 3 && !dE; k++) if (!rockAt(sx + k, sy)) dE = k;
+    if (dE == 1) c = P.dark;
+    else if (dE) c = lerpc(c, P.lo, 0.5f);
+    else if (dW == 1 || dN == 1) c = P.lip;
+    else if (dW || dN) c = lerpc(c, P.hi, 0.5f);
+  }
+  // the heap's south face where it stands on the land's own level (a cliff below is reliefPixel's): 12 px of broken
+  // rock, a lit lip, fissured blocks darkening to the foot and a crisp line where it meets the ground
+  const int ftx = sx >> 4;
+  const int lv = m.heightAt(ftx, sy >> 4);
+  // (M2 fixer round 2) broken, irregular rock: the face's height wanders (9-13 px), it is made of slabs of different
+  // sizes (a jittered grid squashed flat, each slab tilted toward or away from the light), parted by dark cracks, lit
+  // along the top: the regular 6-px columns read as the slats of a wooden palisade
+  // (M2 fixer round 3) lower toward the heap's shoulders, so its widest row reads as the slope's foot, not a ledge
+  const int FHt = std::max(4, (int)std::lround(4.0f + std::min(1.0f, (hUL + hDR) / 10.0f) * 5.0f + vnoise(px / 9.0f, 0.5f, 953) * 4.0f));
+  for (int k = 1; k <= FHt; k++) {
+    const int qy = (sy + k) >> 4;
+    if (qy == (sy >> 4)) continue;
+    const Ground below = m.at(ftx, qy);
+    if (below == Ground::Rock || m.heightAt(ftx, qy) < lv) break;
+    const float t = (FHt - k) / (float)(FHt - 1);   // 0 at the lip .. 1 at the foot
+    // the slabs: nearest of jittered points on a 9 x 5 grid in (x, depth down the face)
+    const float fx = (float)px, fy = (float)(FHt - k) + (float)(sy >> 4) * 13.0f;
+    const int gx0 = (int)std::floor(fx / 9.0f), gy0 = (int)std::floor(fy / 5.0f);
+    float d1 = 1e9f, d2 = 1e9f;
+    uint32_t sh = 0;
+    for (int oy = -1; oy <= 1; oy++)
+      for (int ox = -1; ox <= 1; ox++) {
+        const uint32_t hh = hash2(gx0 + ox, gy0 + oy, 957);
+        const float cx = (gx0 + ox + 0.15f + (hh & 255) / 255.0f * 0.7f) * 9.0f, cy = (gy0 + oy + 0.2f + ((hh >> 8) & 255) / 255.0f * 0.6f) * 5.0f;
+        const float d = std::sqrt((fx + 0.5f - cx) * (fx + 0.5f - cx) + (fy + 0.5f - cy) * (fy + 0.5f - cy) * 2.2f);
+        if (d < d1) { d2 = d1; d1 = d; sh = hh; } else if (d < d2) d2 = d;
+      }
+    const float l = 0.78f - t * 0.62f + (((sh >> 16) & 255) / 255.0f - 0.5f) * 0.30f + (bayer(px, k) - 0.5f) * 0.06f;
+    uint32_t f = l > 0.70f ? P.hi : l > 0.46f ? P.mid : l > 0.24f ? P.lo : P.dark;
+    if (d2 - d1 < 1.0f) f = t < 0.3f ? P.lo : P.dark;               // the cracks between slabs
+    else if (d2 - d1 < 1.9f && ((sh >> 24) & 1)) f = mul(f, 1.08f);  // a slab's lit edge
+    if (k == FHt) f = P.lip;                                         // the lip
+    else if (k == FHt - 1 && f != P.dark) f = lerpc(f, P.lip, 0.5f);
+    if (k == 1) f = mul(P.dark, 0.85f);                              // the foot line
+    c = f;
+    break;
+  }
+  return c;
+}
+
 // (M1) A mountain massif seen from above: the endless generator fills a range with solid Rock at the top relief
 // levels, so its inside is one flat tile class. Paint it as a range: ridged noise gives crests and gullies, lit on
 // their north-west slopes and shaded on the south-east ones (the 3/4 top-left light), quantised to a few rock tones
@@ -192,6 +443,9 @@ uint32_t mountainPixel(const TM& m, int px, int py, int sx, int sy) {
   auto mixPal = [&](uint32_t a, uint32_t cc, uint32_t hh) { return lerpc(lerpc(a, cc, std::min(1.0f, cold)), hh, std::min(1.0f, hot)); };
   const RockPal P = {mixPal(P0.lip, PC.lip, PH.lip), mixPal(P0.hi, PC.hi, PH.hi), mixPal(P0.mid, PC.mid, PH.mid), mixPal(P0.lo, PC.lo, PH.lo),
                      mixPal(P0.dark, PC.dark, PH.dark), false};
+  // a crag stamped on the land (a cave's, a lair's: its tiles keep the land's biome, a range's rock is Mountain): an
+  // outcrop of broken blocks (the massif's broad ridges smeared over a small heap)
+  if (m.biomeAt(sx >> 4, sy >> 4) != Biome::Mountain) return outcropPixel(m, px, py, sx, sy, P, cold, hot);
   uint32_t c;
   if (lit < 0.22f) c = P.dark;
   else if (lit < 0.40f) c = P.lo;
@@ -283,27 +537,53 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
     float wx = px + (vnoise(px / 7.0f, py / 7.0f, 11) - 0.5f) * amp + (hashf(px, py, 3) - 0.5f) * 1.5f;
     float wy = py + (vnoise(px / 7.0f, py / 7.0f, 23) - 0.5f) * amp + (hashf(px, py, 5) - 0.5f) * 1.5f;
     Ground w = m.at((int)std::floor(wx / 16), (int)std::floor(wy / 16));
-    if ((w == Ground::Rock) != (real == Ground::Rock)) {
-      // a rock outcrop's outline: the smooth warp only (the per-pixel jitter made rock edges a fuzzy smudge)
+    if (m.kind == MapKind::Overworld) {
+      // a rock outcrop's outline out on the land: the smooth rockWarp alone decides it (the per-pixel jitter made rock
+      // edges a fuzzy smudge, and the small swing alone left tile-stepped cuts)
+      float bx, by;
+      rockWarp(px, py, bx, by);
+      const Ground wb = m.at((int)std::floor(bx / 16), (int)std::floor(by / 16));
+      if ((wb == Ground::Rock) != (real == Ground::Rock) || (w == Ground::Rock) != (real == Ground::Rock)) { wx = bx; wy = by; w = wb; }
+    } else if ((w == Ground::Rock) != (real == Ground::Rock)) {
       wx = px + (vnoise(px / 7.0f, py / 7.0f, 11) - 0.5f) * amp;
       wy = py + (vnoise(px / 7.0f, py / 7.0f, 23) - 0.5f) * amp;
       w = m.at((int)std::floor(wx / 16), (int)std::floor(wy / 16));
     }
     if (w == Ground::Void && m.kind == MapKind::Overworld) w = Ground::DeepWater;
     if (natural(w) && !(isWall(w) != isWall(real) && m.kind != MapKind::Overworld)) { g = w; sx = (int)std::floor(wx); sy = (int)std::floor(wy); }
+    // (M2 fixer round 2) a patch of earth in paving (a ruin's floor, a square's worn spot) meets the stones along the
+    // same wobbling line, not a tile's square edge
+    else if (m.kind == MapKind::Overworld && real == Ground::Dirt && (w == Ground::Plaza || w == Ground::StoneFloor)) g = w;
     // (M1, VISION_PLAN 11.6) ecotones: soft land fades into the neighbouring soft land over a dithered band a few tiles
     // wide (a broad low-frequency warp plus an ordered dither) instead of meeting it along one wobbly line
-    if (m.kind == MapKind::Overworld && ecoGround(g)) {
+    const Ground eco = m.kind == MapKind::Overworld && ecoGround(g) ? ecotonePixel(m, px, py, g) : Ground::Void;
+    if (eco != Ground::Void) {
+      if (eco != g) { g = eco; sx = px; sy = py; }
+    } else if (m.kind == MapKind::Overworld && ecoGround(g)) {
       const float ex = px + (vnoise(px / 52.0f, py / 52.0f, 811) - 0.5f) * 64.0f + (bayer(px, py) - 0.5f) * 18.0f + (vnoise(px / 5.0f, py / 5.0f, 813) - 0.5f) * 10.0f;
       const float ey = py + (vnoise(px / 52.0f, py / 52.0f, 817) - 0.5f) * 64.0f + (bayer(px + 2, py + 1) - 0.5f) * 18.0f + (vnoise(px / 5.0f, py / 5.0f, 819) - 0.5f) * 10.0f;
       const Ground e = m.at((int)std::floor(ex / 16), (int)std::floor(ey / 16));
       if (e != g && ecoGround(e)) { g = e; sx = px; sy = py; }
     }
+  } else if (m.kind == MapKind::Overworld && (real == Ground::Plaza || real == Ground::StoneFloor)) {
+    // (M2 fixer round 2) paving gives way to the earth, the road or the other paving beside it along a wobbling edge
+    // (two octaves), so its patches and its ends are not stepped tile rectangles
+    const float wx = px + (vnoise(px / 7.0f, py / 7.0f, 11) - 0.5f) * 7.0f + (vnoise(px / 3.0f, py / 3.0f, 41) - 0.5f) * 2.0f;
+    const float wy = py + (vnoise(px / 7.0f, py / 7.0f, 23) - 0.5f) * 7.0f + (vnoise(px / 3.0f, py / 3.0f, 43) - 0.5f) * 2.0f;
+    const Ground w = m.at((int)std::floor(wx / 16), (int)std::floor(wy / 16));
+    if (w != real && (w == Ground::Dirt || w == Ground::Road || w == Ground::Plaza || w == Ground::StoneFloor)) g = w;
   } else if (real == Ground::Road || real == Ground::Farmland) {
     // roads fray a little at their edges into the surrounding soft ground
     float wx = px + (vnoise(px / 5.0f, py / 5.0f, 31) - 0.5f) * 4.0f, wy = py + (vnoise(px / 5.0f, py / 5.0f, 37) - 0.5f) * 4.0f;
     Ground w = m.at((int)std::floor(wx / 16), (int)std::floor(wy / 16));
     if (soft(w) && !groundWater(w)) g = w;
+    // (M2 fixer round 2) a street meets a square's flags along the same wobbling line the flags use (paving.. above)
+    else if (m.kind == MapKind::Overworld && real == Ground::Road) {
+      const float vx = px + (vnoise(px / 7.0f, py / 7.0f, 11) - 0.5f) * 7.0f + (vnoise(px / 3.0f, py / 3.0f, 41) - 0.5f) * 2.0f;
+      const float vy = py + (vnoise(px / 7.0f, py / 7.0f, 23) - 0.5f) * 7.0f + (vnoise(px / 3.0f, py / 3.0f, 43) - 0.5f) * 2.0f;
+      const Ground v = m.at((int)std::floor(vx / 16), (int)std::floor(vy / 16));
+      if (v == Ground::Plaza || v == Ground::StoneFloor) g = v;
+    }
   }
   // ruins and crypts (M0 round 3): the built rooms and corridors are walled in dressed stone on every side. A wall
   // tile touching the floor gets a masonry face where the floor lies south of it (lit coping lip, block courses
@@ -356,8 +636,10 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
       if (fE) { if (15 - lx < dEdge) { dEdge = 15 - lx; lit = false; } }
       if (fNW && !fN && !fW) { int d = std::max(lx, ly); if (d < dEdge) { dEdge = d; lit = true; } }
       if (fNE && !fN && !fE) { int d = std::max(15 - lx, ly); if (d < dEdge) { dEdge = d; lit = false; } }
-      if (fSW && !fS && !fW) { int d = std::max(lx, 15 - ly); if (d < dEdge) { dEdge = d; lit = true; } }
-      if (fSE && !fS && !fE) { int d = std::max(15 - lx, 15 - ly); if (d < dEdge) { dEdge = d; lit = false; } }
+      // (M2 fixer round 3) a room's top corners: the side wall's coping runs the corner tile's full height, up to the
+      // north wall's top band (which a corner cut short left a notch of bare rock beside the north wall's face)
+      if (fSW && !fS && !fW) { int d = lx; if (ly <= 15 - FH) d = std::min(d, 15 - FH - ly); if (d < dEdge) { dEdge = d; lit = true; } }
+      if (fSE && !fS && !fE) { int d = 15 - lx; if (ly <= 15 - FH) d = std::min(d, 15 - FH - ly); if (d < dEdge) { dEdge = d; lit = false; } }
       if (dEdge < RB) {
         // dressed coping stones 8 px long, a joint between them, lit on the floor-facing rim (west and north)
         bool alongX = (fN || fS) && !(fW || fE);
@@ -610,10 +892,25 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
       break;
     }
     case Ground::Plaza: {
-      int row = py / 8, shift = (row & 1) * 4, col = (px + shift) / 8;
-      bool line = ((px + shift) % 8 == 0) || (py % 8 == 0);
-      c = line ? C(112, 110, 112) : lerpc(C(160, 158, 156), C(184, 180, 174), hashf(col, row, 221));
-      if (!line && h < 0.04f) c = mul(c, 0.88f);
+      // (M2 fixer round 2) laid flags, not one regular brick grid: courses of three rows share a stone length (7-10 px),
+      // each row starts its joints where it likes, every flag has its own tone and a faint bevel (lit top edge, shaded
+      // foot), broad patches of warmer and greyer stone and of wear, moss in the joints here and there, a cracked flag
+      const int row = py / 8, fwid = 7 + (int)(hash2(py / 24, 0, 223) % 4);
+      const int shift = (int)(hash2(row, 0, 225) % (uint32_t)fwid);
+      const int u = px + shift, col = u / fwid, in = u % fwid, iy = py % 8;
+      const bool line = in == 0 || iy == 0;
+      const float tone = hashf(col, row, 221);
+      c = line ? C(112, 110, 112) : lerpc(C(158, 156, 154), C(186, 182, 176), tone);
+      if (!line) {
+        if (iy == 1 || in == 1) c = mul(c, 1.05f);             // the flag's lit edge (top-left light)
+        else if (iy == 7 || in == fwid - 1) c = mul(c, 0.93f);  // its shaded foot
+        if (h < 0.04f) c = mul(c, 0.88f);
+        if (hashf(col, row, 229) < 0.035f && ((px - py + 64) % 6) == 0) c = mul(c, 0.72f);   // a cracked flag
+      }
+      const float broad = vnoise(px / 46.0f, py / 46.0f, 227);
+      c = mul(c, 0.94f + broad * 0.12f);
+      c = lerpc(c, C(178, 160, 128), std::max(0.0f, vnoise(px / 70.0f, py / 70.0f, 233) - 0.55f) * 0.5f);   // warmer stone
+      if (line && vnoise(px / 11.0f, py / 11.0f, 231) > 0.70f) c = lerpc(c, C(78, 98, 58), 0.55f);       // moss in the joints
       // the square's rim: worn flags with earth in the joints, fading into the ground around it
       if (paveV >= 0 && paveV < 0.6f) c = line ? C(140, 116, 86) : lerpc(c, C(170, 150, 120), 0.35f);
       break;
@@ -680,7 +977,10 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
       c = gap ? C(70, 46, 30) : lerpc(C(140, 96, 56), C(160, 112, 66), hashf(a / 4, 0, 261));
       if (!gap && hashf(a / 4, (eastWest ? py : px) / 6, 263) < 0.12f) c = mul(c, 0.9f);   // a worn plank end
       // rails along the open sides (not where the deck continues into a wider bridge)
-      bool sideA = eastWest ? !isB(tx, ty - 1) : !isB(tx - 1, ty), sideB = eastWest ? !isB(tx, ty + 1) : !isB(tx + 1, ty);
+      // (M2 fixer round 2) and not where a road or path joins the deck from the side (a road crossing on a slant meets
+      // its bridge at a corner: a rail across the join read as the road running into a fence)
+      auto joins = [&](int x, int y) { const Ground q = m.at(x, y); return q == Ground::Bridge || q == Ground::Road || q == Ground::Dirt || q == Ground::Plaza; };
+      bool sideA = eastWest ? !joins(tx, ty - 1) : !joins(tx - 1, ty), sideB = eastWest ? !joins(tx, ty + 1) : !joins(tx + 1, ty);
       // (M1 round 3) a rail on posts: a dark outer edge, the lit rail with a post every 6 px, and the rail's shadow on
       // the planks inside it
       const int e = eastWest ? ly : lx, along = eastWest ? px : py;
@@ -845,9 +1145,11 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
   // (M1 round 3) a crag or massif casts its shadow down-right onto the land beside it (looked up through the same
   // smooth warp that shapes the rock's outline, so the shadow follows it)
   if (m.kind == MapKind::Overworld && m.relief() && g != Ground::Rock && !groundWater(g) &&
-      (m.at((px - 6) >> 4, (py - 4) >> 4) == Ground::Rock || m.at((px - 6) >> 4, py >> 4) == Ground::Rock || m.at(px >> 4, (py - 4) >> 4) == Ground::Rock)) {
+      (m.at((px - 13) >> 4, (py - 10) >> 4) == Ground::Rock || m.at((px - 13) >> 4, (py + 6) >> 4) == Ground::Rock ||
+       m.at((px + 3) >> 4, (py - 10) >> 4) == Ground::Rock || m.at((px + 3) >> 4, (py + 6) >> 4) == Ground::Rock)) {
     auto rockW = [&](int qx, int qy) {
-      const float wx = qx + (vnoise(qx / 7.0f, qy / 7.0f, 11) - 0.5f) * 5.0f, wy = qy + (vnoise(qx / 7.0f, qy / 7.0f, 23) - 0.5f) * 5.0f;
+      float wx, wy;
+      rockWarp(qx, qy, wx, wy);
       return m.at((int)std::floor(wx / 16), (int)std::floor(wy / 16)) == Ground::Rock;
     };
     if (rockW(px - 4, py - 3) || rockW(px - 6, py - 1)) c = lerpc(mul(c, 0.68f), C(48, 34, 92, (int)(c >> 24)), 0.16f);
@@ -873,36 +1175,65 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
   return c;
 }
 
-// Relief (M1, VISION_PLAN 11): the generator gives every tile a level 0..7; the tile on the LOWER side of a step
-// carries HEIGHT_CLIFF (or HEIGHT_RAMP where a ramp or stair climbs it). Drawn over that tile, light from the top-left,
-// 3/4 view:
-//   higher NORTH  a south-facing cliff face (the one the viewer sees): lit lip, rock courses and fissures darkening
-//                 to a wobbling foot, a contact shadow on the ground below it
-//   higher SOUTH  the north rim of the plateau beyond: a thin dark sliver along the tile's foot
-//   higher EAST   a west-facing side lip (lit), higher WEST an east-facing one (shaded) with its shadow cast east
-//   ramps         steps across the climb: stone stairs on roads, timber-edged earth steps elsewhere
-// The higher tile gets a rim highlight on edges that face the light (north, west) and a dark rim on the others; every
-// level is graded a little brighter and hazier than the one below; mountains carry snow above their snowline.
+// Relief (M1, VISION_PLAN 11; M2 readability pass): the generator gives every tile a level 0..7; the tile on the LOWER
+// side of a step carries HEIGHT_CLIFF (or HEIGHT_RAMP where a ramp or stair climbs it). Drawn over that tile, light
+// from the top-left, 3/4 view:
+//   higher NORTH  a south-facing face (the one the viewer sees), 12 px for one level and 16 for two: a lit lip with the
+//                 plateau's cover hanging over it, the face's material darkening to a crisp foot line, then a cast
+//                 shadow band on the ground below (and a soft shadow thrown south-east under a two-level face)
+//   higher SOUTH  the plateau's top reaches up over this tile (it stands higher, so it shows higher): a 2-px lit rim,
+//                 a dark outline and a thin shadow on the ground at its foot
+//   higher WEST   an east-facing 3-px side lip in shade, the shadow cast east onto the low ground
+//   higher EAST   a west-facing 3-px side lip, lit
+//   ramps         steps across the climb: stone stairs on roads, worn earth steps elsewhere
+// Every level is graded a step brighter than the one below it (snow, which cannot get brighter, is shaded darker on the
+// lower levels instead: a snowfield's steps read as steps, not as thin lines), the high ones a little hazier. The face
+// material follows the land: earth banks with strata, roots and stones on temperate low ground, granite higher up,
+// cold blue rock under snow, sandstone in the desert, dark mossy rock in the marsh.
+namespace {
+// the material of a face (VISION_PLAN 11.2): bank = soft earth layers instead of rock columns
+struct FacePal { RockPal p; bool bank; };
+FacePal facePal(Biome b, int level) {
+  switch (b) {
+    case Biome::Plains: case Biome::Forest: case Biome::Autumn: case Biome::Beach:
+      if (level <= 3) return {{C(206, 178, 126), C(170, 132, 88), C(140, 104, 70), C(108, 78, 56), C(70, 50, 44), false}, true};
+      return {{C(198, 188, 164), C(156, 146, 128), C(128, 118, 104), C(98, 90, 82), C(62, 56, 56), false}, false};
+    default: return {rockPal(b), false};
+  }
+}
+inline int luma8(uint32_t c) { return (int)((c & 255) * 0.3f + ((c >> 8) & 255) * 0.55f + ((c >> 16) & 255) * 0.15f); }
+}  // namespace
+
 uint32_t View::reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g) {
   const int tx = px >> 4, ty = py >> 4, lx = px & 15, ly = py & 15;
-  // each level a clear step brighter than the one below (the cue that says "higher" at a glance)
-  auto gradeOf = [](int lv) { return std::min(1.20f, 0.88f + 0.065f * (float)lv); };
+  // each level a clear step brighter than the one below (the cue that says "higher" at a glance); snow and ice are
+  // already as bright as paint goes, so their lower levels are shaded darker (and cooler) instead
+  const bool snowy = g == Ground::Snow || g == Ground::Ice;
+  auto gradeOf = [](int lv) { return std::min(1.22f, 0.86f + 0.075f * (float)lv); };
+  auto gradeSnow = [](int lv) { return 0.76f + 0.045f * (float)lv; };
+  auto grade = [&](int lv) { return snowy ? gradeSnow(lv) : gradeOf(lv); };
+  auto coolSnow = [](uint32_t s, int lv) {   // the lower snow lies in a cooler light
+    return lerpc(s, C(150, 168, 214, (int)(s >> 24)), 0.05f * (float)std::max(0, 5 - lv));
+  };
   const uint8_t bits = m.heightBits(tx, ty);
   const int l = bits & Map::HEIGHT_LEVEL;
-  const int lN = m.heightAt(tx, ty - 1), lS = m.heightAt(tx, ty + 1), lW = m.heightAt(tx - 1, ty);
+  const int lN = m.heightAt(tx, ty - 1), lW = m.heightAt(tx - 1, ty);
   const bool water = groundWater(g) || g == Ground::Void;
   const bool ramp = (bits & Map::HEIGHT_RAMP) != 0;
   const Biome bio = m.biomeAt(tx, ty);
-  const RockPal P = rockPal(bio);
+  const FacePal FP = facePal(bio, l);
+  RockPal P = FP.p;
   auto wob = [&](int a, int b, uint32_t seed, float amp) { return (int)std::lround((vnoise(a / 7.0f, b * 1.37f, seed) - 0.5f) * amp); };
   // the aerial grade: each level a touch brighter, the high ones a little hazier
+  bool snowCover = false;
   if (!water && g != Ground::Rock) {   // (a massif's rock paints its own light and snow: mountainPixel)
-    c = mul(c, gradeOf(l));
+    c = mul(c, grade(l));
+    if (snowy) c = coolSnow(c, l);
     if (l >= 4) c = lerpc(c, C(206, 214, 228, (int)(c >> 24)), 0.025f * (l - 3));
     // snowline: mountains and the cold north hold snow on their high ground. The snow cover is a field blended
     // between tile centres (each tile's biome and level), looked up through the same broad warp as the ecotones, so
     // its edge meanders and dithers instead of following the tile grid where a cold biome meets a mild one
-    if (g != Ground::Road && g != Ground::Plaza && g != Ground::Bridge && g != Ground::StoneFloor && g != Ground::Dirt && g != Ground::Farmland) {
+    if (g != Ground::Road && g != Ground::Plaza && g != Ground::Bridge && g != Ground::StoneFloor && g != Ground::Dirt && g != Ground::Farmland && !snowy) {
       auto snowV = [&](int x, int y) -> float {
         const Biome b = m.biomeAt(x, y);
         const int at = b == Biome::Mountain ? 5 : (b == Biome::Snow || b == Biome::Taiga) ? 4 : 99;
@@ -927,6 +1258,8 @@ uint32_t View::reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g) 
         if (k > th) {
           c = vnoise(px / 6.0f, py / 6.0f, 833) < 0.5f ? C(230, 236, 246) : C(242, 246, 252);
           if (k < th + 0.05f) c = C(204, 212, 228);   // the thin, trodden edge of the cover
+          c = coolSnow(mul(c, gradeSnow(l)), l);
+          snowCover = true;
         }
       }
     }
@@ -934,6 +1267,7 @@ uint32_t View::reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g) 
   // (M1 round 3) a bridge's deck spans the water at one height: no cliff face, rim or stair is drawn across it (the
   // faces of the banks stop at its rails and pass under it)
   if (g == Ground::Bridge) return c;
+  const bool cover = snowy || snowCover;   // the ground here (and the plateau's) is snow: its rim and lip are snow
   const uint32_t alpha = 255u << 24;
   // ---- ramps and stairs: drawn only where the cliff would be (the face, side wall or rim band found below), so a
   //      stair is cut into the cliff's own slanted shape instead of standing out as a square block. ns: climbing
@@ -953,35 +1287,36 @@ uint32_t View::reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g) 
       if (k == 0) r = mul(r, 0.55f);                                  // the riser's shadow
       else if (k == 1) r = mul(r, upIsNear ? 1.16f : 1.10f);          // the worn, lit nose of the step
     } else {
-      // (M1 round 3) a worn earth slope cut in shallow steps (the timber-edged steps read as fences lying on the
-      // grass): each step's lip of packed earth catches the light, its riser falls into shade, grass creeps in at the
-      // sides of the path
-      const uint32_t earth = lerpc(mul(c, 0.92f), C(150, 118, 82), 0.62f);
-      const int wob2 = (int)(hash2(b / 4, a / 4, 845) % 2);
+      // (M1 round 3) a worn earth slope cut in shallow steps: each step's lip of packed earth catches the light, its
+      // riser falls into shade, grass creeps in at the sides of the path
+      // (M2 fixer round 2) cut in the bank's own material and solid: packed-earth treads in the face's palette, each
+      // riser a dark line under a lit nose (a timber or stone edging), no grass tint washed through it (the steps
+      // read as a faded fence ghosted into the grass)
+      const uint32_t earth = cover ? lerpc(mul(c, 0.94f), C(176, 186, 210), 0.35f) : lerpc(P.hi, P.mid, 0.35f);
+      const int wob2 = cover ? (int)(hash2(b / 4, a / 4, 845) % 2) : (int)(hash2(b / 9, a / 4, 845) % 7 == 0);   // (a step's edge runs on)
       const int kk = (a + wob2) & 3;
-      if (kk == 0) r = lerpc(mul(earth, 0.62f), C(48, 34, 92), 0.12f);
-      else if (kk == 1) r = mul(earth, 1.14f);
-      else r = mul(earth, kk == 2 ? 0.96f : 1.0f);
+      if (kk == 0) r = cover ? lerpc(mul(earth, 0.62f), C(48, 34, 92), 0.12f) : lerpc(P.dark, C(48, 34, 92), 0.15f);
+      else if (kk == 1) r = cover ? mul(earth, 1.14f) : lerpc(P.lip, P.hi, 0.3f + 0.4f * hashf(b / 5, a / 4, 851));
+      else r = mul(earth, kk == 2 ? 0.92f : 1.0f);
       if (kk >= 2 && hashf(px, py, 847) < 0.10f) r = mul(r, 0.86f);   // pebbles in the tread
       const int eb = ns ? lx : ly;
-      if ((eb < 2 || eb > 13) && hashf(px, py, 849) < 0.55f) r = mul(c, 0.9f);   // grass at the path's edges
+      if ((eb == 0 || eb == 15) && hashf(px, py, 849) < 0.40f) r = mul(c, 0.9f);   // grass creeping in at the very edge
     }
     // the stair's cheeks: a strip of rock where the ramp meets a cliff beside it
     const bool cheekA = ns ? (m.heightBits(tx - 1, ty) & Map::HEIGHT_CLIFF) != 0 : (m.heightBits(tx, ty - 1) & Map::HEIGHT_CLIFF) != 0;
     const bool cheekB = ns ? (m.heightBits(tx + 1, ty) & Map::HEIGHT_CLIFF) != 0 : (m.heightBits(tx, ty + 1) & Map::HEIGHT_CLIFF) != 0;
     const int e = ns ? lx : ly;
-    if (cheekA && e < 3) r = e == 0 ? P.dark : e == 1 ? P.lo : P.mid;
-    if (cheekB && e > 12) r = e == 15 ? P.dark : e == 14 ? P.lo : mul(P.mid, 0.9f);
+    // (the bank's face material, not a flat strip: the cheeks read as fence posts)
+    // the west cheek faces east, into the shade; the east one faces west, into the light
+    if (cheekA && e < 2) r = e == 0 ? P.lo : lerpc(P.lo, P.mid, 0.5f);
+    if (cheekB && e > 13) r = e == 15 ? P.mid : lerpc(P.hi, P.lip, 0.3f);
     return (r & 0x00FFFFFFu) | alpha;
   };
   // ---- level steps, drawn from a smooth level field. F is the tile levels blended between tile centres, so a step
   // that the grid lays as a staircase (a contour running on a diagonal) is drawn as one slanted cliff, and corners
   // round off, instead of a row of separate one-tile rock blocks. The tiles still decide what blocks (the lower tile of
-  // every step); every drawn face lies over or right next to those tiles. 3/4 view, light from the top-left:
-  //   upper ground to the NORTH  a south-facing face hangs FH px below the contour (the lower tile, blocked)
-  //   upper ground WEST / EAST   a side wall SW px wide (east-facing in shade with its shadow; west-facing lit)
-  //   upper ground to the SOUTH  the plateau's top reaches up over the blocked tile: cover, a lit rim, a dark outline
-  // The levels of the 6x6 tiles around are cached per thread (bakes run on worker threads).
+  // every step); every drawn face lies over or right next to those tiles. The levels of the 6x6 tiles around are
+  // cached per thread (bakes run on worker threads).
   struct LvCache { const void* map = nullptr; int ox = 0, oy = 0, tx = INT32_MIN, ty = INT32_MIN; uint8_t lv[36]; };
   thread_local LvCache lc;
   if (lc.map != (const void*)m.m || lc.ox != m.ox || lc.oy != m.oy || lc.tx != tx || lc.ty != ty) {
@@ -1005,12 +1340,32 @@ uint32_t View::reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g) 
   };
   const int own = F(px, py);
   const bool rampHere = ramp && !water;
-  uint32_t out = own == l ? c : mul(c, gradeOf(own) / gradeOf(l));   // a corner of the next level reaching over
+  auto regrade = [&](uint32_t col, int to) {   // this pixel's ground as it looks on level `to`
+    uint32_t r = mul(col, grade(to) / grade(l));
+    if (snowy || cover) r = lerpc(r, C(150, 168, 214, (int)(r >> 24)), 0.05f * (float)(std::max(0, 5 - to) - std::max(0, 5 - l)));
+    return r;
+  };
+  uint32_t out = own == l ? c : regrade(c, own);   // a corner of the next level reaching over
   bool opaque = false;
-  // a cliff face: irregular vertical columns of rock (a lit left edge, a dark crack on the right, a few ledges
-  // across them) over the top-to-foot gradient t. Reads as rock, not as a laid wall.
-  auto faceRock = [&](float t) -> uint32_t {
+  // a face's material at depth t (0 the lip .. 1 the foot): rock = irregular vertical columns (a lit left edge, a dark
+  // crack on the right, a few ledges across them); bank = soft earth in wavy strata with stones and hanging roots
+  bool bank = FP.bank;   // (a bank under a rock mass is rock too)
+  auto faceRock = [&](float t, int d) -> uint32_t {
     uint32_t r = t < 0.5f ? lerpc(P.hi, P.mid, t * 2) : lerpc(P.mid, P.lo, (t - 0.5f) * 2);
+    if (bank) {
+      const int yy = py + (int)std::lround((vnoise(px / 11.0f, py / 5.0f, 905) - 0.5f) * 5.0f);
+      const int band = yy >= 0 ? yy / 3 : (yy - 2) / 3;
+      r = mul(r, 0.93f + hashf(band, px / 19, 907) * 0.13f);
+      if (((yy % 3) + 3) % 3 == 0 && hashf(px / 5, band, 909) < 0.5f) r = mul(r, 0.88f);   // the seams between layers
+      // stones bedded in the bank: lit on top, a dark edge underneath
+      const float s0 = vnoise(px / 3.2f, py / 2.6f, 911), s1 = vnoise(px / 3.2f, (py + 1) / 2.6f, 911);
+      if (s0 > 0.80f) r = s1 > 0.80f ? lerpc(r, P.hi, 0.55f) : mul(lerpc(r, P.mid, 0.4f), 0.70f);
+      // roots and grass threads hanging from the lip
+      const uint32_t rh = hash2(px, 0, 913);
+      if (d >= 3 && (rh % 7) == 0 && d <= 3 + (int)((rh >> 8) % 5)) r = mul(r, 0.66f);
+      if (hashf(px, py, 863) < 0.025f) r = mul(r, 1.12f);
+      return r;
+    }
     const int u = px + (int)std::lround((vnoise(px * 0.21f, py * 0.17f, 893) - 0.5f) * 5.0f);
     const int cw = 6;
     const int col = u >= 0 ? u / cw : (u - cw + 1) / cw;
@@ -1027,76 +1382,144 @@ uint32_t View::reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g) 
     return r;
   };
   const uint32_t outline = lerpc(P.dark, C(30, 24, 34), 0.35f);
-  // ---- the south-facing face: upper ground within FH px to the north
-  const int FH = std::clamp(14 + wob(px, 0, 851, 3.0f), 12, 16);
-  int d = 0;   // distance (px) up to the contour
-  for (int k = 1; k <= FH; k++) if (F(px, py - k) > own) { d = k; break; }
-  if (d > 0) {
-    int top = own;
-    for (int k = d; k <= FH + 2; k++) top = std::max(top, F(px, py - k));
-    const int fh = top - own >= 2 ? FH + 2 : FH;   // a two-level drop: a taller, darker face
-    const float t = (d - 1) / (float)std::max(1, fh - 1);
-    uint32_t r = faceRock(std::min(1.0f, t * (top - own >= 2 ? 1.0f : 0.95f)));
-    // the lip: a lit edge, the plateau's cover hanging over it in ragged tufts, snow on cold rock
-    const int tuft = (int)(hash2(px >> 1, (py - d) >> 4, 877) % 3) + (vnoise(px / 5.0f, (py - d) / 7.0f, 879) > 0.6f ? 1 : 0);
-    if (d == 1) r = P.lip;
-    else if (d == 2) r = lerpc(P.lip, P.hi, 0.5f);
-    if (d <= tuft) r = mul(c, 0.82f * gradeOf(top) / gradeOf(l));
-    if (P.cold && d <= 1 + (int)(hash2(px / 3, (py - d) >> 4, 861) % 2)) r = C(236, 240, 248);
-    if (d >= fh - 3) r = mul(r, 0.80f);   // into the shade at the foot
-    if (d >= fh - 1) r = outline;         // the crisp line where rock meets ground
+  auto shade = [&](uint32_t col, float k, float hue) {   // a cast shadow: darker and cooler (the palette's shadow hue)
+    return lerpc(mul(col, k), C(48, 34, 92, (int)(col >> 24)), hue);
+  };
+  // ---- which drop this pixel belongs to. Every direction is looked for (the distance in px to the contour, upward,
+  //      downward, west and east); a contour running on a diagonal is found both ways, so one treatment is chosen by
+  //      the contour's slope (the nearer way across it, the vertical one unless the contour is steep): one clean face,
+  //      rim or lip per drop, never two bands crossing into stripes.
+  const int FH = std::clamp(12 + wob(px, 0, 851, 2.0f), 11, 13);   // a one-level face
+  const int RH = std::clamp(11 + wob(px, 0, 865, 3.0f), 9, 13);    // how far a plateau to the south reaches up
+  // (M2 integration) a side wall: an east / west drop shows a real strip of rock (6 px, wavering), not a hairline
+  const int SL0 = std::clamp(6 + wob(py, 0, 869, 2.0f), 5, 7);
+  const int SLR = 3;   // a stair keeps its old 3-px cut where it meets a side drop
+  // (M2 fixer round 2) the side wall's width follows the contour's slope: full where the drop runs north-south, none
+  // where it runs on a diagonal or east-west (the face or rim band covers that), and in between it narrows smoothly, so
+  // a staircase contour shows one band and not wedges of wall wherever the grid steps. The slope is read from the
+  // unrounded level field over a wide stencil (about a tile and a half), which irons out the grid's steps.
+  auto VF = [&](int qx, int qy) -> float {
+    const float fx = (qx - bx - 8) / 16.0f, fy = (qy - by - 8) / 16.0f;
+    const int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
+    const float ax = fx - ix, ay = fy - iy;
+    return (LV(ix, iy) * (1 - ax) + LV(ix + 1, iy) * ax) * (1 - ay) + (LV(ix, iy + 1) * (1 - ax) + LV(ix + 1, iy + 1) * ax) * ay;
+  };
+  float sgx = 0, sgy = 0;
+  for (int k = -2; k <= 2; k++) {   // a 5-sample run along each way (40 px): a one-tile jog in a diagonal stays a diagonal
+    const float wgt = k == 0 ? 1.0f : (k == 1 || k == -1) ? 0.75f : 0.4f;
+    sgx += wgt * std::fabs(VF(px + 14, py + k * 10) - VF(px - 14, py + k * 10));
+    sgy += wgt * std::fabs(VF(px + k * 10, py + 14) - VF(px + k * 10, py - 14));
+  }
+  const float steep = sgx + sgy > 0.01f ? sgx / (sgx + sgy) : 1.0f;   // 1: the drop runs north-south
+  const float sideK = std::clamp((steep - 0.62f) / 0.26f, 0.0f, 1.0f);
+  const int SL = (int)std::lround(SL0 * sideK);
+  // (M2 fixer) a west-facing wall is the lit one the eye reads a drop by: 2 px wider, so a north-south drop on open
+  // grass is a bank and not a path-like ribbon
+  const int SLE = (int)std::lround((SL0 + 2) * sideK);
+  int d = 0, ds = 0, dw = 0, de = 0, up = own;
+  for (int k = 1; k <= FH + 8 && !d; k++) if (F(px, py - k) > own) d = k;
+  for (int k = 1; k <= RH + 4 && !ds; k++) { const int f2 = F(px, py + k); if (f2 > own) { ds = k; up = f2; } }
+  for (int k = 1; k <= SL + 7 && !dw; k++) if (F(px - k, py) > own) dw = k;
+  for (int k = 1; k <= SLE + 4 && !de; k++) if (F(px + k, py) > own) de = k;
+  int top = own;
+  if (d > 0) for (int k = d; k <= d + 18; k++) top = std::max(top, F(px, py - k));
+  const int fh = top - own >= 2 ? FH + 4 : FH;   // a two-level drop: a taller face
+  const bool vFace = d > 0 && d <= fh + 4, vRim = ds > 0;
+  const int vd = vFace && vRim ? std::min(d, ds) : vFace ? d : vRim ? ds : 99;
+  const bool hW = dw > 0, hE = de > 0 && de <= SLE + 4;
+  const int hd = hW && hE ? std::min(dw, de) : hW ? dw : hE ? de : 99;
+  // (M2 fixer round 2) one continuous band per drop, whatever the contour's slope. The vertical treatments (the face
+  // hanging below a higher north, the rim of a higher south) are drawn wherever the pixel lies inside their band; the
+  // side walls only fill in where the contour turns steep and the vertical band gets thinner than the wall. The old
+  // exclusive choice (sideways only when much nearer) flipped back and forth along a staircase contour and left
+  // wedge-shaped shards of side wall with gaps of shadow between them.
+  enum { NONE, FACE, RIM, LIPW, LIPE } kind = NONE;
+  const bool inFace = vFace && d <= fh, inRim = vRim && ds <= RH;
+  const bool inW = hW && dw <= SL, inE = hE && de <= SLE;
+  (void)hd;
+  if (inFace && inRim) kind = d <= ds ? FACE : RIM;
+  else if (inFace) kind = FACE;
+  else if (inRim) kind = RIM;
+  else if (inW && inE) kind = dw <= de ? LIPW : LIPE;
+  else if (inW) kind = LIPW;
+  else if (inE) kind = LIPE;
+  // nothing solid here: the nearest drop's shadow (the same order: a face's, then the rim's, then the side walls')
+  else if (vd < 99 && (hd == 99 || vd <= hd + 3)) kind = (vFace && (!vRim || d <= ds)) ? FACE : RIM;
+  else if (hd < 99) kind = (hW && (!hE || dw <= de)) ? LIPW : LIPE;
+  if (kind == FACE) {
+    if (bank && m.at(px >> 4, (py - d - 3) >> 4) == Ground::Rock) { bank = false; P = rockPal(Biome::Plains); }
     if (d <= fh) {
+      const float t = (d - 1) / (float)std::max(1, fh - 1);
+      uint32_t r = faceRock(t, d);
+      // the lip: a lit edge with the plateau's cover hanging over it in ragged tufts (grass, or a snow cornice)
+      const uint32_t lipCover = regrade(c, top);
+      const int hang = (int)(hash2(px >> 1, (py - d) >> 4, 877) % 3) + (vnoise(px / 5.0f, (py - d) / 7.0f, 879) > 0.6f ? 1 : 0);
+      if (d == 1) r = P.lip;
+      else if (d == 2) r = lerpc(P.lip, P.hi, 0.5f);
+      if (cover) {   // a snow cornice: a bright lip, a soft blue underside, icicle drips
+        const int cn = 2 + (int)(hash2(px / 3, (py - d) >> 4, 861) % 2);
+        if (d == 1) r = C(250, 252, 255);
+        else if (d <= cn) r = mul(lipCover, 0.93f);
+        else if (d == cn + 1) r = lerpc(r, C(160, 176, 214), 0.5f);
+        else if (d <= cn + 3 && (hash2(px, 0, 867) % 5) == 0) r = lerpc(r, C(214, 226, 244), 0.7f);
+      } else if (d <= hang && g != Ground::Road && g != Ground::Plaza && !water) r = mul(lipCover, 0.80f);
+      if (d >= fh - 2) r = mul(r, 0.78f);   // into the shade at the foot
+      if (d == fh) r = outline;             // the crisp line where the face meets the ground
       if (rampHere) return rampPx(true, d - 1);
       out = r; opaque = true;
+    } else if (!rampHere) {
+      // the face's cast shadow: a 4-px band on the ground at its foot, deepest against the face
+      const int s = d - fh - 1;   // 0 .. 3
+      out = shade(out, 0.58f + s * 0.09f, 0.22f - s * 0.04f);
     }
-  }
-  if (!opaque && !rampHere) {
-    // contact shadow below a face
-    for (int k = FH + 1; k <= FH + 5; k++)
-      if (F(px, py - k) > own) {
-        const int s = k - FH - 1;
-        out = lerpc(mul(out, 0.56f + s * 0.085f), C(48, 34, 92, (int)(out >> 24)), 0.20f - s * 0.04f);
-        break;
-      }
-  }
-  // ---- side walls: the upper ground west (an east-facing wall in shade, its shadow cast east) or east (lit)
-  if (!opaque) {
-    const int SWw = std::clamp(8 + wob(py, 0, 871, 4.0f), 6, 10), SWe = std::clamp(9 + wob(py, 0, 867, 4.0f), 7, 11);
-    int dw = 0, de = 0;
-    for (int k = 1; k <= SWw + 7 && !dw; k++) if (F(px - k, py) > own) dw = k;
-    for (int k = 1; k <= SWe && !de; k++) if (F(px + k, py) > own) de = k;
-    if (rampHere && ((dw && dw <= SWw) || de)) return rampPx(false, dw && dw <= SWw ? dw - 1 : SWe - de);
-    if (dw && dw <= SWw) {
-      uint32_t r = mul(faceRock(0.65f + 0.30f * (dw - 1) / (float)SWw), 0.84f);
-      if (dw == 1) r = mul(r, 1.20f);            // the plateau's edge catches a little light
-      if (dw >= SWw) r = outline;
+  } else if (kind == RIM) {
+    if (rampHere && ds <= RH) return rampPx(true, RH - ds);
+    if (ds <= RH - 3) { out = regrade(c, up); opaque = !water; }
+    else if (ds <= RH - 1) {   // the rim, catching the light (2 px)
+      const uint32_t top2 = regrade(c, up);
+      out = cover ? (ds == RH - 1 ? C(252, 253, 255) : lerpc(top2, C(255, 255, 255), 0.5f))
+                  : (ds == RH - 1 ? lerpc(P.lip, mul(top2, 1.3f), 0.45f) : mul(top2, 1.14f));
+      opaque = true;
+    } else if (ds == RH) { out = cover ? lerpc(outline, C(150, 160, 190), 0.35f) : outline; opaque = true; }
+    else if (!water) out = shade(out, 0.64f + (ds - RH - 1) * 0.09f, 0.14f);   // the thin shadow at its foot
+  } else if (kind == LIPW) {
+    if (rampHere && dw <= SLR + 2) return rampPx(false, dw - 1);
+    if (rampHere && dw <= SL) {
+    } else if (dw <= SL) {   // an east-facing side wall in shade: darker toward its foot
+      const float t = 0.45f + 0.45f * (float)(dw - 1) / (float)std::max(1, SL - 1);
+      uint32_t r = mul(faceRock(t, 6), 0.80f);
+      if (dw == 1) r = cover ? mul(regrade(c, F(px - 1, py)), 0.90f) : mul(r, 1.18f);   // the plateau's rounded edge
+      else if (dw == 2) r = cover ? lerpc(r, C(196, 206, 230), 0.45f) : mul(r, 1.06f);
+      if (dw == SL) r = outline;
       out = r; opaque = true;
-    } else if (de) {
-      uint32_t r = faceRock(0.10f + 0.30f * (SWe - de) / (float)SWe);
-      if (de == 1) r = mul(r, 1.15f);            // the lit rim
-      if (de >= SWe) r = outline;
-      else if (de == SWe - 1) r = mul(r, 0.82f);
+    } else if (!water) {
+      const int s = dw - SL - 1;   // 0 .. 6: the shadow cast east, fading
+      out = shade(out, 0.60f + s * 0.055f, 0.20f - s * 0.025f);
+    }
+  } else if (kind == LIPE) {
+    if (rampHere && de <= SLR) return rampPx(false, SLR - de);
+    if (rampHere && de <= SLE) {
+    } else if (de <= SLE) {   // a west-facing side wall, lit from the top-left: bright at the lip, into shade at the foot
+      const float t = 0.08f + 0.50f * (float)(de - 1) / (float)std::max(1, SLE - 1);
+      uint32_t r = faceRock(t, 6);
+      if (de == SLE - 1 && SLE > 3) r = mul(r, 0.82f);
+      if (de == 1) r = cover ? C(250, 252, 255) : P.lip;
+      else if (de == 2) r = cover ? lerpc(r, C(214, 224, 244), 0.55f) : lerpc(P.lip, r, 0.5f);
+      if (de == SLE) r = outline;
       out = r; opaque = true;
-    } else if (dw) {
-      out = lerpc(mul(out, 0.62f + (dw - SWw) * 0.05f), C(48, 34, 92, (int)(out >> 24)), 0.16f);   // the shadow, cast east
-    }
+    } else if (!water) out = shade(out, 0.64f + (de - SLE - 1) * 0.08f, 0.12f);   // contact shade at the wall's foot
   }
-  // ---- the upper ground to the south: its top reaches up over this (blocked) ground
-  if (!opaque) {
-    const int RH = std::clamp(10 + wob(px, 0, 865, 5.0f), 8, 13);
-    int ds = 0, up = own;
-    for (int k = 1; k <= RH + 1 && !ds; k++) { const int f2 = F(px, py + k); if (f2 > own) { ds = k; up = f2; } }
-    if (rampHere && ds && ds <= RH) return rampPx(true, RH - ds);
-    if (ds && ds <= RH - 2) { out = mul(c, gradeOf(up) / gradeOf(l)); if (ds == RH - 2) out = mul(out, 1.12f); opaque = !water; }
-    else if (ds == RH - 1) { out = lerpc(P.hi, mul(c, 1.25f), 0.35f); opaque = true; }
-    else if (ds == RH) { out = outline; opaque = true; }
-    else if (ds == RH + 1) out = mul(out, 0.84f);
-    // (M1 round 3) the lower ground right under the rim lies in the step's shade, so the step reads as a drop and not
-    // as a crack in the grass
-    if (!opaque && !ds) {
-      for (int k = RH + 2; k <= RH + 5 && !ds; k++)
-        if (F(px, py + k) > own) { ds = k; out = lerpc(mul(out, 0.70f + (k - RH - 2) * 0.07f), C(48, 34, 92, (int)(out >> 24)), 0.14f); }
-    }
+  // (M2 fixer) the plateau's own edge above a side drop: lit where the land falls away to the west (the top-left
+  // light catches the brow), shaded where it falls away to the east, so the high side reads as high
+  if (kind == NONE && !water && !rampHere) {
+    if (F(px - 1, py) < own || F(px - 2, py) < own) out = cover ? lerpc(out, C(255, 255, 255), 0.6f) : mul(out, F(px - 1, py) < own ? 1.20f : 1.10f);
+    else if (F(px + 1, py) < own) out = mul(out, 0.84f);
+  }
+  // a two-level face throws a soft shadow south-east as well (light from the top-left)
+  if (!opaque && !rampHere && !water) {
+    bool tall = false;
+    for (int k = 1; k <= 6 && !tall; k++) if (F(px - 6, py - FH - 4 - k) >= own + 2) tall = true;
+    if (tall && F(px - 6, py) <= own) out = shade(out, 0.84f, 0.08f);
   }
   if (opaque) out = (out & 0x00FFFFFFu) | alpha;   // faces are solid rock over water too
   return out;
@@ -1113,7 +1536,7 @@ void View::bakeChunk(const BakeJob& j, Canvas& c) {
 
 void View::bakeRows(const BakeJob& j, Canvas& c, int r0, int r1) {
   TMap tm;
-  tm.m = j.map.get(); tm.ox = j.ox; tm.oy = j.oy; tm.kind = j.map->kind;
+  tm.m = j.map.get(); tm.ox = j.ox; tm.oy = j.oy; tm.kind = j.map->kind; tm.ecoDerive = j.ecoDerive;
   const int x0 = j.gcx * CH * 16, y0 = j.gcy * CH * 16;
   for (int y = r0; y < r1; y++)
     for (int x = 0; x < c.w; x++) c.px[(size_t)y * c.w + x] = groundPixel(tm, x0 + x, y0 + y);
@@ -1122,6 +1545,7 @@ void View::bakeRows(const BakeJob& j, Canvas& c, int r0, int r1) {
 namespace {
 // cast shadow on the ground (light from the top-left): cool and darker, a deeper contact shade at the foot of walls
 inline uint32_t groundShade(uint32_t p, int level) {
+  if (level == 3) { uint32_t s = lerpc(p, C(48, 34, 92), 0.16f); return mul(s, 0.90f); }   // the penumbra
   uint32_t s = lerpc(p, C(48, 34, 92), level == 2 ? 0.42f : 0.30f);
   return mul(s, level == 2 ? 0.70f : 0.80f);
 }
@@ -1167,9 +1591,19 @@ static void bakeArchShadows(const Map& m, int tx0, int ty0, Canvas& c) {
             int sx = px - L * k / 8, sy = py - Ly * k / 8;
             if (sx >= fx && sx < fx + fw && sy >= fy && sy < fy + fh) l = 1;
           }
+        // (M2 fixer round 2) a soft edge: the shadow's outer two pixels are a dithered penumbra, not a hard ruled line
+        if (l == 1) {
+          int k2 = 0;   // is the shadow still there two pixels further out (down-right)?
+          for (int k = 0; k <= 8; k++) {
+            const int sx = px + 2 - L * k / 8, sy = py + 2 - Ly * k / 8;
+            if (sx >= fx && sx < fx + fw && sy >= fy && sy < fy + fh) { k2 = 1; break; }
+          }
+          if (!k2) l = 3;
+        }
         if (!l) continue;
         uint8_t& d = lv[(size_t)(py - y0) * c.w + (px - x0)];
-        d = (uint8_t)std::max<int>(d, l);
+        if (l == 3) { if (!d) d = 3; }        // (a penumbra never lightens a full shadow another building casts)
+        else if (d == 3 || l > d) d = (uint8_t)l;
         any = true;
       }
   }
@@ -1239,6 +1673,10 @@ View::BakeJob View::makeJob(const Map& m, uint64_t mapId, int cx, int cy) const 
   if (!m.wall.empty()) sub->wall.assign(n, 0);
   if (!m.biome.empty()) sub->biome.assign(n, 0);
   if (!m.height.empty()) sub->height.assign(n, 0);
+  if (!m.blend.empty()) sub->blend.assign(n, 0);
+  // M2 ecotones: a map whose generator writes no blend bytes gets them derived from its biomes (decided per map, so
+  // every chunk of it agrees)
+  j.ecoDerive = m.kind == MapKind::Overworld && !m.biome.empty() && std::none_of(m.blend.begin(), m.blend.end(), [](uint8_t v) { return v != 0; });
   for (int y = 0; y < S; y++) {
     const int sy = ly0 + y;
     if (sy < 0 || sy >= m.h) continue;
@@ -1250,6 +1688,7 @@ View::BakeJob View::makeJob(const Map& m, uint64_t mapId, int cx, int cy) const 
     if (!m.wall.empty()) std::copy_n(m.wall.begin() + si, len, sub->wall.begin() + di);
     if (!m.biome.empty()) std::copy_n(m.biome.begin() + si, len, sub->biome.begin() + di);
     if (!m.height.empty()) std::copy_n(m.height.begin() + si, len, sub->height.begin() + di);
+    if (!m.blend.empty()) std::copy_n(m.blend.begin() + si, len, sub->blend.begin() + di);
   }
   // the buildings whose footprint (or shadow, up to a tile and a half down-right) reaches the snapshot
   for (const Bldg& b : m.bldgs) {
@@ -1292,7 +1731,7 @@ void View::clearChunks() {
 
 void View::prefetch(const Map& m, uint64_t mapId, Vec2 cam) {
 #ifndef __EMSCRIPTEN__
-  if (!worker_.joinable()) {
+  if (!worker_.joinable() && !singleThread()) {
     worker_ = std::thread([this] { workerLoop(); });
     const unsigned hw = std::thread::hardware_concurrency();
     for (unsigned i = 1; i < std::min(3u, hw > 2 ? hw - 2 : 1u); i++) workers_.emplace_back([this] { workerLoop(); });
@@ -1337,6 +1776,7 @@ void View::bakeVisibleNow(const Map& m, uint64_t mapId, int c0x, int c0y, int c1
 #ifdef __EMSCRIPTEN__
   (void)m; (void)mapId; (void)c0x; (void)c0y; (void)c1x; (void)c1y;   // no threads: chunkTex bakes them one by one
 #else
+  if (singleThread()) return;
   std::vector<BakeJob> need;
   {
     std::lock_guard<std::mutex> lk(mu_);
@@ -1406,7 +1846,9 @@ Tex View::chunkTex(const Map& m, uint64_t mapId, int cx, int cy) {
         return store(d.c);
       }
   }
-  // needed right now (teleport / first frame): bake synchronously
+  // needed right now (teleport / first frame): bake synchronously. (M2) Not while an arrival bakes behind the fade:
+  // travelArrive waits for the bakers instead, so no frame stalls
+  if (arriving_) return Tex{};
   Canvas c;
   auto t0 = std::chrono::steady_clock::now();
   bakeChunk(makeJob(m, mapId, cx, cy), c);
@@ -1437,7 +1879,7 @@ void View::shutdown() {
 // Without threads (the web build) the prefetch queue is baked a few rows at a time on the main thread,
 // within a per-frame time budget, so walking into new terrain never stalls a frame.
 void View::pumpBake(double budgetMs) {
-#ifdef __EMSCRIPTEN__
+  if (!singleThread()) return;
   auto t0 = std::chrono::steady_clock::now();
   for (;;) {
     if (!incrOn_) {
@@ -1449,7 +1891,8 @@ void View::pumpBake(double budgetMs) {
       incrRow_ = 0;
       incrOn_ = true;
     }
-    int r1 = std::min(incrCanvas_.h, incrRow_ + 16);
+    // (M2 fixer round 3) four rows a step: a step of 16 rows of a rocky or built chunk ran 3-6 ms past the budget
+    int r1 = std::min(incrCanvas_.h, incrRow_ + 4);
     bakeRows(incrJob_, incrCanvas_, incrRow_, r1);
     incrRow_ = r1;
     if (incrRow_ >= incrCanvas_.h) {
@@ -1463,7 +1906,195 @@ void View::pumpBake(double budgetMs) {
     }
     if (std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count() > budgetMs) return;
   }
-#else
-  (void)budgetMs;
+}
+
+// M2 travel behind the fade (view.h, owner carry-over: the ~180 ms fast-travel hitch). The SIM lane moves the window
+// and the player in one cheap step and holds the screen black (Arrive); here, a frame at a time, the camera is snapped
+// to the arrival, the terrain chunks it shows plus one ring around them are baked (desktop: the background bakers;
+// the web: the incremental pump, about 9 ms a frame), uploaded a few per frame, and the building and wall sprites in
+// view are painted within a budget. Meanwhile chunkTex never bakes inline (arriving_). Only when all of it is ready
+// does finishTravel() lift the fade, onto a finished picture: no frame stalls and nothing pops in.
+void View::travelArrive(Game& g) {
+  using SClock = std::chrono::steady_clock;
+  auto msSince = [](SClock::time_point t) { return std::chrono::duration<double, std::milli>(SClock::now() - t).count(); };
+  auto wallMs = [] { return std::chrono::duration<double, std::milli>(SClock::now().time_since_epoch()).count(); };
+  if (!arrival_.on) {
+    arrival_ = Arrival();
+    arrival_.on = true;
+    arrival_.wall0 = wallMs();
+  }
+  arriving_ = true;
+  arrival_.frames++;
+  g.travel.viewed = true;
+  const bool st = singleThread();
+  const auto t0 = SClock::now();
+  auto spent = [&] { return msSince(t0); };
+  snap(g);
+  const Map* mp = nullptr;
+  const uint64_t mapId = terrainFrame(g, mp);
+  const Map& m = *mp;
+  const Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
+  const int v0x = (int)std::floor(cam.x / 512), v0y = (int)std::floor(cam.y / 512);
+  const int v1x = (int)std::floor((cam.x + Pix::W) / 512), v1y = (int)std::floor((cam.y + Pix::H) / 512);
+  // the chunks the fade waits for: desktop, the view and a ring round it (the background bakers are quick); without
+  // threads only what the first frames after the fade can show (the view plus 64 px); the ring is baked afterwards by
+  // the per-frame pump like any walk's prefetch
+  const int n0x = st ? (int)std::floor((cam.x - 64) / 512) : v0x - 1, n0y = st ? (int)std::floor((cam.y - 64) / 512) : v0y - 1;
+  const int n1x = st ? (int)std::floor((cam.x + Pix::W + 64) / 512) : v1x + 1, n1y = st ? (int)std::floor((cam.y + Pix::H + 64) / 512) : v1y + 1;
+  auto inMap = [&](int cx, int cy) { return cx >= 0 && cy >= 0 && cx * CH < m.w && cy * CH < m.h; };
+  if (st && arrival_.frames == 1) {
+    // without threads, bakes still queued for where the player was are dropped, or the pump works through them first
+    std::lock_guard<std::mutex> lk(mu_);
+    auto far = [&](const BakeJob& j) {
+      const int cx = j.gcx - chunkOX_, cy = j.gcy - chunkOY_;
+      return j.mapId != mapId || cx < v0x - 1 || cy < v0y - 1 || cx > v1x + 1 || cy > v1y + 1;
+    };
+    for (size_t i = 0; i < jobs_.size();) {
+      if (!far(jobs_[i])) { i++; continue; }
+      const uint64_t k = jobs_[i].key;
+      pending_.erase(std::remove(pending_.begin(), pending_.end(), k), pending_.end());
+      jobs_.erase(jobs_.begin() + (std::ptrdiff_t)i);
+    }
+    if (incrOn_ && far(incrJob_)) {
+      pending_.erase(std::remove(pending_.begin(), pending_.end(), incrJob_.key), pending_.end());
+      incrOn_ = false;
+      incrJob_.map.reset();
+    }
+  }
+  prefetch(m, mapId, cam);   // (starts the bakers; queues the half-chunk margin drawWorld keeps)
+  {
+    std::lock_guard<std::mutex> lk(mu_);
+    for (int cy = v0y - 1; cy <= v1y + 1; cy++)
+      for (int cx = v0x - 1; cx <= v1x + 1; cx++) {
+        if (!inMap(cx, cy)) continue;
+        const uint64_t k = chunkKeyFor(m, mapId, cx, cy);
+        bool have = false;
+        for (auto& ch : chunks_) if (ch.key == k) { have = true; break; }
+        if (have) continue;
+        // the visible ones first (one already queued moves to the front)
+        const bool vis = cx >= v0x && cx <= v1x && cy >= v0y && cy <= v1y;
+        if (std::find(pending_.begin(), pending_.end(), k) != pending_.end()) {
+          if (!vis) continue;
+          for (size_t i = 1; i < jobs_.size(); i++)
+            if (jobs_[i].key == k) {
+              BakeJob j = jobs_[i];
+              jobs_.erase(jobs_.begin() + (std::ptrdiff_t)i);
+              jobs_.push_front(std::move(j));
+              break;
+            }
+          continue;
+        }
+        pending_.push_back(k);
+        if (vis) jobs_.push_front(makeJob(m, mapId, cx, cy)); else jobs_.push_back(makeJob(m, mapId, cx, cy));
+      }
+  }
+  cv_.notify_all();
+  // upload finished chunks (a texture each), a few per frame, visible ones first. (M2 fixer round 2) Without threads
+  // every stage draws on one shared budget of about 12 ms a frame (the stages' own 6 + 6 + 4 + 6 ms added up past a
+  // frame, and on a phone's wasm each frame ran 2-3x that): uploads, then sprite paints (one only starts while half the
+  // budget is left: a palace cannot be split), then character sheets, then the bake pump with what is left.
+  constexpr double kArriveBudget = 12.0;
+  bool ready = true;
+  int uploads = 0;
+  const auto tu = SClock::now();
+  for (int pass = 0; pass < 2; pass++)
+    for (int cy = v0y - 1; cy <= v1y + 1; cy++)
+      for (int cx = v0x - 1; cx <= v1x + 1; cx++) {
+        if (!inMap(cx, cy)) continue;
+        const bool vis = cx >= v0x && cx <= v1x && cy >= v0y && cy <= v1y;
+        if (vis != (pass == 0)) continue;
+        const bool need = cx >= n0x && cx <= n1x && cy >= n0y && cy <= n1y;
+        const uint64_t k = chunkKeyFor(m, mapId, cx, cy);
+        bool have = false;
+        for (auto& ch : chunks_) if (ch.key == k) { have = true; ch.used = t_; break; }
+        if (have) continue;
+        bool done = false;
+        {
+          std::lock_guard<std::mutex> lk(mu_);
+          for (auto& dd : done_) if (dd.key == k) { done = true; break; }
+        }
+        if (done && uploads < 3 && (st ? spent() < kArriveBudget * 0.5 : msSince(tu) < 6.0)) { chunkTex(m, mapId, cx, cy); uploads++; continue; }
+        if (need) ready = false;
+      }
+  // the building and wall sprites the arrival shows, painted ahead within their own budget
+  const auto tb = SClock::now();
+  auto paintOver = [&] { return st ? spent() > kArriveBudget * 0.5 : spent() > 8.0; };
+  (void)tb;
+  if (m.kind == MapKind::Overworld || m.kind == MapKind::Interior) {
+    static std::vector<int> vis;
+    bldgMap_ = &m;
+    // the view, and every building drawWorld's one-a-frame prefetch would paint once the fade lifts (within 720 x 520
+    // px of the player): a palace there took 25 ms in the first frames after a city arrival
+    const Vec2 pp = g.pl().p;
+    bldgsIn(g, m, std::min(cam.x - 32, pp.x - 720), std::min(cam.y - 32, pp.y - 520), std::max(cam.x + Pix::W + 32, pp.x + 720),
+            std::max(cam.y + Pix::H + 32, pp.y + 520), vis);
+    bool painted = false;
+#ifndef __EMSCRIPTEN__
+    if (!st) {
+      painted = true;
+      // desktop: the sprites are painted on worker threads (a palace takes 25 ms) and stored here as they finish
+      for (size_t i = 0; i < bldgAsync_.size();) {
+        if (bldgAsync_[i].wait_for(std::chrono::seconds(0)) != std::future_status::ready) { i++; continue; }
+        if (paintOver()) { ready = false; break; }
+        BldgPaint p = bldgAsync_[i].get();
+        if (!bldgTex_.count(p.key)) { storeBldg(p); bldgUsed_[p.key] = t_; }
+        bldgAsync_.erase(bldgAsync_.begin() + (std::ptrdiff_t)i);
+        bldgAsyncKeys_.erase(bldgAsyncKeys_.begin() + (std::ptrdiff_t)i);
+      }
+      for (int bi : vis) {
+        const Bldg& b = m.bldgs[(size_t)bi];
+        const uint64_t k = bldgKey(m, b, bi);
+        if (bldgTex_.count(k)) continue;
+        ready = false;
+        if (std::find(bldgAsyncKeys_.begin(), bldgAsyncKeys_.end(), k) != bldgAsyncKeys_.end()) continue;
+        if (bldgAsync_.size() >= 6) continue;   // a few at a time
+        bldgAsync_.push_back(std::async(std::launch::async, [b, k] { return paintBldg(b, k); }));
+        bldgAsyncKeys_.push_back(k);
+      }
+    }
 #endif
+    if (!painted)
+      for (int bi : vis) {
+        const Bldg& b = m.bldgs[(size_t)bi];
+        if (bldgTex_.count(bldgKey(m, b, bi))) continue;
+        if (paintOver()) { ready = false; break; }
+        bldgTex(b, bi);
+      }
+    if (!wallKeys_.empty() && wallKeys_.size() == (size_t)m.w * m.h) {
+      const int tx0 = std::max(0, (int)std::floor(cam.x / 16) - 3), ty0 = std::max(0, (int)std::floor(cam.y / 16) - 2);
+      const int tx1 = std::min(m.w, tx0 + Pix::W / 16 + 7), ty1 = std::min(m.h, ty0 + Pix::H / 16 + 8);
+      bool over = false;
+      for (int ty = ty0; ty < ty1 && !over; ty++)
+        for (int tx = tx0; tx < tx1; tx++) {
+          const uint32_t wk = wallKeys_[(size_t)ty * m.w + tx];
+          if (!wk || wallTiles_.count(wk)) continue;
+          if (paintOver()) { ready = false; over = true; break; }
+          wallTileTex(wk);
+        }
+    } else if (!m.wall.empty() && arrival_.frames < 2) ready = false;   // drawWorld lays the wall keys out this frame
+  }
+  // the people the arrival shows: their character sheets painted ahead (a city square wakes thirty at once)
+  const auto th = SClock::now();
+  for (const Actor& a : g.actors) {
+    if (!a.human || a.p.x < cam.x - 96 || a.p.x > cam.x + Pix::W + 96 || a.p.y < cam.y - 96 || a.p.y > cam.y + Pix::H + 128) continue;
+    if (humans_.count(a.look.key())) continue;
+    if (st ? spent() > kArriveBudget * 0.75 : spent() > 8.0) { ready = false; break; }
+    humanTex(a.look);
+  }
+  // without threads: the incremental bake pump, last, with what is left of about 16 ms (at least 6)
+  if (st) pumpBake(std::max(2.0, kArriveBudget - spent()));
+  (void)th;
+  arrival_.ms += spent();
+  if (getenv("EMB_TIMING")) printf("arrival frame %d: %.2f ms\n", arrival_.frames, spent());
+  arrival_.t += 1.0f / 60.0f;
+  // a safety net, by the clock (a slow phone takes more frames, not more seconds): never hold the black for more
+  // than 6 s (a chunk stuck in a queue bakes inline then)
+  const double held = wallMs() - arrival_.wall0;
+  if ((ready && arrival_.frames >= 2) || held > 6000.0) {
+    if (getenv("EMB_TIMING") || getenv("EMB_PERF"))
+      printf("arrival: %d frames, %.0f ms held, %.1f ms of view work%s\n", arrival_.frames, held, arrival_.ms, ready ? "" : " (timed out)");
+    arriving_ = false;
+    arrival_ = Arrival();
+    g.finishTravel();
+  }
 }

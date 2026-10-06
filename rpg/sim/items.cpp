@@ -189,10 +189,13 @@ Item makeFood(int which) {
   Item it;
   it.kind = ItemKind::Food;
   it.sub = (uint8_t)which;
-  static const char* nm[] = {"BREAD", "VENISON", "APPLE", "CHEESE WHEEL"};
-  static const Icon ic[] = {Icon::Bread, Icon::Meat, Icon::Apple, Icon::Cheese};
-  static const int heal[] = {15, 30, 10, 20};
-  which = std::clamp(which, 0, 3);
+  // 0-3 the M0 foods; 4-8 (M2) the wayside's: a fisher's catch, a hunter's smoked meat, an herbalist's cake
+  static const char* nm[] = {"BREAD", "VENISON", "APPLE", "CHEESE WHEEL", "RIVER TROUT", "SMOKED SALMON", "EEL PIE", "SMOKED VENISON", "HONEY CAKE"};
+  static const Icon ic[] = {Icon::Bread, Icon::Meat, Icon::Apple, Icon::Cheese, Icon::Meat, Icon::Meat, Icon::Bread, Icon::Meat, Icon::Bread};
+  static const int heal[] = {15, 30, 10, 20, 18, 28, 24, 34, 16};
+  static const uint32_t tint[] = {0, 0, 0, 0, rgba(150, 170, 190), rgba(230, 130, 100), rgba(170, 130, 80), rgba(140, 70, 50), rgba(230, 190, 90)};
+  which = std::clamp(which, 0, 8);
+  it.tint = tint[which];
   it.name = nm[which]; it.icon = ic[which]; it.power = (int16_t)heal[which]; it.value = 3 + heal[which] / 3;
   return it;
 }
@@ -211,12 +214,16 @@ Item makeMisc(int which) {
   Item it;
   it.kind = ItemKind::Misc;
   it.sub = (uint8_t)which;
-  static const char* nm[] = {"WOLF PELT", "BONE MEAL", "FLAWLESS GEM", "IRON ORE", "TROLL FAT", "SPIDER SILK", "SPIRIT STONE", "MOUNTAIN HERB"};
-  static const Icon ic[] = {Icon::Pelt, Icon::Bone, Icon::Gem, Icon::Ore, Icon::Meat, Icon::Herb, Icon::Gem, Icon::Herb};
-  static const int val[] = {12, 6, 120, 8, 25, 14, 80, 10};
-  which = std::clamp(which, 0, 7);
+  // 0-7 the M0 goods; 8-12 (M2) the wayside's: a hunter's hides, an herbalist's herbs
+  static const char* nm[] = {"WOLF PELT", "BONE MEAL", "FLAWLESS GEM", "IRON ORE", "TROLL FAT", "SPIDER SILK", "SPIRIT STONE", "MOUNTAIN HERB",
+                             "DEER HIDE", "BEAR PELT", "NIGHTSHADE", "BLUE MOUNTAIN FLOWER", "LAVENDER"};
+  static const Icon ic[] = {Icon::Pelt, Icon::Bone, Icon::Gem, Icon::Ore, Icon::Meat, Icon::Herb, Icon::Gem, Icon::Herb,
+                            Icon::Pelt, Icon::Pelt, Icon::Herb, Icon::Herb, Icon::Herb};
+  static const int val[] = {12, 6, 120, 8, 25, 14, 80, 10, 18, 40, 16, 12, 8};
+  which = std::clamp(which, 0, 12);
   it.name = nm[which]; it.icon = ic[which]; it.value = val[which];
-  it.tint = which == 6 ? rgba(170, 120, 255) : 0;
+  static const uint32_t tint[] = {0, 0, 0, 0, 0, 0, rgba(170, 120, 255), 0, rgba(176, 130, 86), rgba(110, 76, 52), rgba(110, 60, 140), rgba(90, 130, 230), rgba(170, 140, 220)};
+  it.tint = tint[which];
   return it;
 }
 

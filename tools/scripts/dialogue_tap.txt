@@ -1,15 +1,14 @@
 # Touch dialogue (M0 round 3): a tap while the line is still typing only finishes the text; it never picks an option
 # the player has not read. A second tap on an option band, once the text is out, chooses it.
 #   embervale.exe --script tools/scripts/dialogue_tap.txt
-# Seed 8 facts: OLANDIS (248,249) is in the start village; his last option is FAREWELL (the band at y 262).
-worldgen 7   # M1: written against the classic island (generator v7); new games are endless now
+# (M2: the endless world) a start-village villager with a job; the last option is FAREWELL (M2 UI: the bottom-anchored panel puts its band at y 249).
 seed 8
 0.3  newgame
 +0.02 hour 10
-+0.1 talkto OLANDIS
-+0.15 tap 240 262                # the text is still typing: this tap only finishes it
++0.1 talkto giver 40              # the nearest villager with a job (M2: no names pinned)
++0.15 tap 240 249                # the text is still typing: this tap only finishes it
 +0.3 expect mode dialogue
 +0.1 shot dialogue_tap_0.png     # the whole line shown, the options lit
-+0.3 tap 240 262                 # now the FAREWELL band chooses
++0.3 tap 240 249                 # now the FAREWELL band chooses
 +0.3 expect mode play
 +0.3 quit

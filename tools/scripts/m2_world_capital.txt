@@ -1,0 +1,20 @@
+# M2 WORLD lane (owner note 6): the capital's main square by day and by night: its square-goers (idlers, shoppers, a
+# crier, children) round the fountain and the market, and the plaza features where the paving lay bare (shade trees
+# with benches, a monument between lamps, a well).
+#   embervale.exe --script tools/scripts/m2_world_capital.txt     (m2w_c*.png in the working directory)
+seed 1
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 goto capital
++4.0 shot m2w_c1_square_day.png
++0.1 walk south 2
++2.4 shot m2w_c2_square_south.png
++0.1 walk east 2
++2.4 shot m2w_c3_square_east.png
++0.1 walk west 4
++4.4 shot m2w_c4_square_west.png
++0.1 hour 21
++0.2 goto capital
++4.0 shot m2w_c5_square_night.png
++0.3 quit

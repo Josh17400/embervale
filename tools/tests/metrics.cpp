@@ -145,7 +145,7 @@ struct FightResult { bool died = false, won = false; float secs = 0, hpLeft = 0;
 FightResult arenaFight(uint64_t seed, int trial, art::Monster mon, int n, int L, float timeout, bool fleeWins, bool fists = false) {
   FightResult fr;
   Game g(seed);
-  g.newGame(seed);
+  g.newEndlessGame(seed);
   g.mode = Mode::Play;
   g.noWildSpawns = true;
   g.hour = 12;
@@ -206,7 +206,7 @@ struct ProgResult { float weapon = -1, lvl2 = -1, lvl5 = -1; int deaths = 0, pot
 ProgResult progression(uint64_t seed, float secs) {
   ProgResult pr;
   Game g(seed);
-  g.newGame(seed);
+  g.newEndlessGame(seed);
   g.mode = Mode::Play;
   Bot bot; bot.r = Rng((uint32_t)seed * 2654435761u); bot.retreat = true;
   Rng r(seed);

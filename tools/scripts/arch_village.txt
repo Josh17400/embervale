@@ -2,7 +2,6 @@
 #   embervale --script tools/scripts/arch_village.txt --seed N        (N from rpg_test N: "--goto village -> ..., biome")
 #   EMB_ARCH_BIOME=<Biome index> paints every building in that biome's style (6 snow, 7 swamp, 8 desert): a test hook
 #   for biomes no start village can be in.
-worldgen 7   # M1: written against the classic island (generator v7); new games are endless now
 0 goto village
 0.3 god
 0.5 hour 12

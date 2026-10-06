@@ -1,0 +1,17 @@
+# VIEW lane, M2 Wayfinder: biome transitions (VISION_PLAN 11.6). The ground of two biomes interlocks over the ecotone
+# band in organic patches with dithered fringes (Map::blend, or the biome grid's distances when the generator writes no
+# blend bytes), no straight seams, no 50 % checkerboard: forest -> plains, plains -> desert, taiga -> snow.
+#   embervale.exe --script tools/scripts/m2_view_ecotones.txt     (m2eco_*.png in the working directory)
+seed 7
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 gotoecotone forest plains
++1.5 shot m2eco_0_forest_plains.png
++0.1 gotoecotone plains desert
++1.5 shot m2eco_1_plains_desert.png
++0.1 gotoecotone taiga snow
++1.5 shot m2eco_2_taiga_snow.png
++0.1 gotoecotone autumn forest
++1.5 shot m2eco_3_autumn_forest.png
++0.3 quit

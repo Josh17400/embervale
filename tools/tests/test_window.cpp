@@ -11,7 +11,11 @@
 //   - sites keep their global place (Site::ex + ox is constant across shifts), buildings their footprints
 //   - the spatial look-ups (nearSites, siteAt, settlementAt) agree with a full scan of every record
 //   - fast travel to the story city recentres the window
-//   - the save round trip is byte-identical (SAVE_VER 5 with stable ids), also after walking far and reloading
+//   - the save round trip is byte-identical (SAVE_VER 6 with stable ids), also after walking far and reloading
+//   - M2: a journey behind the fade on the web's path (streamThreads off, the frame pump): no step over 16 ms, the
+//     window and the arrival right. The per-seed "travel" check (RPG_SEED_CHECK) journeys headless with the worker:
+//     the clock moves by the journey's hours, no chunk is generated on the main thread at the arrival, the carriage
+//     rules hold, and the trip home after a death is the same journey
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -35,6 +39,8 @@ struct WinOpts {
   bool verbose = false;     // --verbose: report every step over 2 ms and what it did
   bool web = false;         // --web: stream as the web build does (no worker thread; each step pumps 3 ms of work)
 };
+
+int webTravel(const Game& base, uint64_t seed);   // (M2, below)
 
 int checkWindowTiles(Game& g, const char* when) {
   int bad = 0;
@@ -259,6 +265,8 @@ int windowSeed(uint64_t seed, const WinOpts& o) {
     if (std::fabs(h.pl().p.x - g.pl().p.x) > 0.01f || h.world.ox != w.ox || h.world.oy != w.oy) fail("reload put the player somewhere else");
     bad += checkWindowTiles(h, "after reload");
   }
+  // M2: a journey behind the fade on the web's path (no worker: the frame pump gathers while the screen is black)
+  bad += webTravel(g, seed);
   // fast travel home
   w.sites[(size_t)w.capital].discovered = true;
   if (!g.fastTravel(w.capital)) fail("fast travel to the story city refused");
@@ -385,7 +393,182 @@ int cmdWindow(int argc, char** argv) {
   return bad ? 1 : 0;
 }
 
+
+// ---- M2 travel behind the fade (rpg/sim/travel.cpp). One journey of a Game: steps update (and, with `web`, the
+// web's per-frame generation budget) until it has arrived; fills the worst step. False: it never arrived.
+bool journey(Game& g, bool web, double& worstStepMs, int& steps) {
+  worstStepMs = 0;
+  steps = 0;
+  const auto t0 = std::chrono::steady_clock::now();
+  while (g.travelling()) {
+    const auto s0 = std::chrono::steady_clock::now();
+    g.update(SIM_DT, Input());
+    if (web) g.frameWork(3.0);   // the web build's per-frame budget (the game raises it while the screen is black)
+    g.events.clear();
+    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - s0).count();
+    worstStepMs = std::max(worstStepMs, ms);
+    steps++;
+    if (g.mode != Mode::Play) g.mode = Mode::Play;
+    if (std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() > 20.0) return false;
+    if (!web) {   // a real frame lasts a while: the worker gets its time (and the gather cap is real time anyway)
+      while (std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - s0).count() < 1.0) {}
+    }
+  }
+  return true;
+}
+
+// a settlement about `far` tiles east of the player (region plans), discovered so it can be travelled to
+int farSettlement(Game& g, int far) {
+  World& w = g.world;
+  const int32_t px = w.ox + (int)(g.pl().p.x / TILE), py = w.oy + (int)(g.pl().p.y / TILE);
+  // try the east first, then the other directions, for a place on the same landmass (no ship needed)
+  const int dirs[8][2] = {{6, 1}, {-6, 1}, {1, 6}, {1, -6}, {-6, -1}, {6, -1}, {-1, 6}, {-1, -6}};
+  for (const auto& d : dirs)
+    for (SiteType t : {SiteType::Town, SiteType::Village}) {
+      int s = w.findSiteNear(px + far * d[0] / 6, py + far * d[1] / 6, t, 4);
+      if (s < 0) continue;
+      const bool was = w.sites[(size_t)s].discovered;
+      w.sites[(size_t)s].discovered = true;
+      if (g.travelQuote(s).why.rfind("ACROSS THE SEA", 0) == 0) { w.sites[(size_t)s].discovered = was; continue; }
+      return s;
+    }
+  return -1;
+}
+
+// the per-seed travel check (RPG_SEED_CHECK): a journey on foot to a far town completes headless with the clock moved
+// by the journey's hours and no chunk generated on the main thread at the arrival; the carriage rules; the death trip
+int travelCheck(uint64_t seed) {
+  int bad = 0;
+  auto fail = [&](const std::string& s) { out("FAIL: travel: %s\n", s.c_str()); bad++; };
+  Game g(seed);
+  g.newEndlessGame(seed);
+  g.mode = Mode::Play;
+  g.godMode = true;
+  g.noWildSpawns = true;
+  World& w = g.world;
+  const Site home = w.sites[(size_t)w.startSite];
+  const int dest = farSettlement(g, 520);
+  if (dest < 0) { out("WARN: travel: no settlement to travel to\n"); return 0; }
+  const Site D = w.sites[(size_t)dest];
+  // before setting out: something bought from the start inn's keeper, and a room rented there (both must have run
+  // out once the journeys have taken two days: the shelf restocks every second day, the room is let until noon)
+  int inn = -1, shelf0 = -1;
+  for (int b = home.bldgFirst; b < home.bldgFirst + home.bldgCount; b++) if (w.over.bldgs[(size_t)b].type == art::Building::Inn) inn = b;
+  auto shelf = [&]() {   // the innkeeper's shelf (total items), -1 when it cannot be opened
+    if (inn < 0 || !g.debugEnterBuilding(inn, 0)) return -1;
+    int n = -1;
+    for (size_t k = 1; k < g.actors.size() && n < 0; k++) {
+      if (g.actors[k].role != Role::Innkeeper) continue;
+      g.pl().p = g.actors[k].p + Vec2(0, 20);
+      Input in; in.interact = true;
+      g.update(SIM_DT, in);
+      for (size_t o = 0; o < g.dlg.opts.size() && g.mode == Mode::Dialogue; o++)
+        if (g.dlg.opts[o].label.find("WARES") != std::string::npos) { g.dialogueChoose((int)o); break; }
+      if (g.mode == Mode::Shop) { n = 0; for (const Item& it : g.shop.stock) n += it.count; }
+    }
+    return n;
+  };
+  shelf0 = shelf();
+  const int day0 = g.day;   // the shelf restocks when day / 2 changes (game_rpg.cpp shop cache)
+  if (shelf0 > 0) {
+    g.gold = 500;
+    if (!g.buy(0)) shelf0 = -1;
+    g.lodging.bldg = inn; g.lodging.floor = 1; g.lodging.room = 0; g.lodging.untilDay = g.day;   // (until noon today)
+  }
+  g.mode = Mode::Play;
+  g.debugLeave();
+  for (int f = 0; f < 3; f++) { g.update(SIM_DT, Input()); g.events.clear(); }
+  const TravelQuote q = g.travelQuote(dest, false);
+  if (!q.ok) { fail("the quote refused a journey on foot: " + q.why); return bad; }
+  const TravelQuote qc = g.travelQuote(dest, true);
+  if (home.type == SiteType::Village && qc.ok) fail("a carriage was offered from a village");
+  if (qc.gold < 5 || std::fabs(qc.hours * 2.0f - q.hours) > 0.01f) fail("carriage quote: " + std::to_string(qc.gold) + " gold, " + std::to_string(qc.hours) + " h");
+  const float t0 = g.day * 24.0f + g.hour;
+  const int gold0 = g.gold;
+  if (!g.beginTravel(dest, false)) { fail("beginTravel refused"); return bad; }
+  if (!g.travelling() || g.travel.phase != TravelPhase::Gather) fail("the journey did not start gathering");
+  double worst = 0;
+  int steps = 0;
+  if (!journey(g, false, worst, steps)) { fail("the journey never arrived"); return bad; }
+  const float dt = g.day * 24.0f + g.hour - t0;
+  if (std::fabs(dt - q.hours) > 0.05f) fail("the clock moved " + std::to_string(dt) + " h for a " + std::to_string(q.hours) + " h journey");
+  if (g.gold != gold0) fail("a journey on foot cost gold");
+  if (g.lastTravel.syncChunks != 0) fail(std::to_string(g.lastTravel.syncChunks) + " chunks generated on the main thread at the arrival");
+  const int dh = w.siteHandle(D.id);
+  const int tx = (int)(g.pl().p.x / TILE), ty = (int)(g.pl().p.y / TILE);
+  if (dh < 0 || std::abs(tx - w.sites[(size_t)dh].ex) > 14 || std::abs(ty - w.sites[(size_t)dh].ey) > 16) fail("arrived away from " + D.name);
+  bad += checkWindowTiles(g, "after a journey");
+  if (g.sleepFade <= 0.0f) fail("no fade back in after the journey");
+  out("travel: %s, %.1f h on foot, gathered in %.0f ms (%d steps), arrival %.1f ms, worst travel step %.1f ms, %d sync chunks\n", D.name.c_str(),
+        q.hours, g.lastTravel.gatherMs, g.lastTravel.steps, g.lastTravel.arriveMs, g.lastTravel.worstStepMs, g.lastTravel.syncChunks);
+  // a carriage home from a town (not from a village); the fare is paid
+  if (D.type == SiteType::Town) {
+    for (int f = 0; f < 3; f++) { g.update(SIM_DT, Input()); g.events.clear(); }
+    const int sh = w.siteHandle(home.id);
+    g.gold = 5000;
+    const TravelQuote back = g.travelQuote(sh, true);
+    if (!back.ok) fail("no carriage from the town " + D.name + ": " + back.why);
+    else {
+      const int g1 = g.gold;
+      if (!g.beginTravel(sh, true) || !journey(g, false, worst, steps)) fail("the carriage journey failed");
+      else if (g.gold != g1 - back.gold) fail("the carriage fare was not paid");
+    }
+  }
+  // home again (on foot when the carriage did not bring us): two days have passed, the shelf is full, the room is gone
+  {
+    for (int f = 0; f < 3; f++) { g.update(SIM_DT, Input()); g.events.clear(); }
+    const int sh = w.siteHandle(home.id);
+    if (g.settlementAt(g.pl().p) != sh && (!g.beginTravel(sh, false) || !journey(g, false, worst, steps))) fail("the journey home failed");
+    // (M2 fixer round 3) the journeys take however long this seed's places are apart (seed 25: about 13 h, inside
+    // one restock period), so the clock is moved on to the next restock day before the checks, as a wait would
+    while (g.day / 2 == day0 / 2) { g.day++; g.hour = 8.0f; }
+    if (g.lodgingActive()) fail("the rented room is still let after two days on the road");
+    if (shelf0 > 0) {
+      const int shelf1 = shelf();
+      if (shelf1 != shelf0) fail("the inn's shelf did not restock after two days on the road (" + std::to_string(shelf1) + " of " + std::to_string(shelf0) + ")");
+      g.mode = Mode::Play;
+      g.debugLeave();
+    }
+  }
+  // dying far from town: the trip home is the same journey behind the fade
+  {
+    g.pl().hp = 0; g.pl().st = AState::Dead; g.mode = Mode::Dead;
+    g.respawn();
+    if (!journey(g, false, worst, steps)) fail("the death trip never arrived");
+    else if (g.pl().hp < g.pl().maxHp || g.mode != Mode::Play) fail("the death trip did not heal the player");
+  }
+  return bad;
+}
+
+// --window: the web's journey (no worker thread: the frame pump gathers the destination behind the black screen)
+int webTravel(const Game& base, uint64_t seed) {
+  int bad = 0;
+  auto fail = [&](const std::string& s) { out("FAIL: web travel: %s\n", s.c_str()); bad++; };
+  Game g = base;
+  g.world.streamer.reset();   // (the copy's own streamer: thread-less, as on the web)
+  g.streamThreads = false;
+  g.mode = Mode::Play;
+  const int dest = farSettlement(g, 900);
+  if (dest < 0) { out("WARN: web travel: no settlement 900 tiles away\n"); return 0; }
+  const Site D = g.world.sites[(size_t)dest];
+  if (!g.beginTravel(dest, false)) { fail("refused: " + g.notice); return bad; }
+  double worst = 0;
+  int steps = 0;
+  if (!journey(g, true, worst, steps)) { fail("never arrived"); return bad; }
+  const int dh = g.world.siteHandle(D.id);
+  const int tx = (int)(g.pl().p.x / TILE), ty = (int)(g.pl().p.y / TILE);
+  if (dh < 0 || std::abs(tx - g.world.sites[(size_t)dh].ex) > 14 || std::abs(ty - g.world.sites[(size_t)dh].ey) > 16) fail("arrived away from " + D.name);
+  if (tx < World::WIN_SHIFT || ty < World::WIN_SHIFT || tx >= World::WIN - World::WIN_SHIFT || ty >= World::WIN - World::WIN_SHIFT) fail("arrived off the window's middle");
+  bad += checkWindowTiles(g, "after a web journey");
+  if (g.lastTravel.syncChunks) fail(std::to_string(g.lastTravel.syncChunks) + " chunks generated at the arrival");
+  if (worst > 16.0) fail("a step of " + std::to_string(worst) + " ms (want <= 16)");
+  out("seed %llu: web travel to %s: %d steps (%.0f ms gathering), worst step %.1f ms, arrival %.1f ms, %d sync chunks\n", (unsigned long long)seed,
+      D.name.c_str(), steps, g.lastTravel.gatherMs, worst, g.lastTravel.arriveMs, g.lastTravel.syncChunks);
+  return bad;
+}
+
 }  // namespace
 
 RPG_TEST_CMD("--window", "endless Active Window: walk, shifts, prefetching, look-ups, fast travel, save round trip "
                          "[--seeds A..B] [--walk N] [--speed T/S] [--fast] [--web] [--budget MS]", cmdWindow);
+RPG_SEED_CHECK("travel", travelCheck);

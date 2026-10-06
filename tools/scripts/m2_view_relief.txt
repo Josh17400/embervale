@@ -1,0 +1,22 @@
+# VIEW lane, M2 Wayfinder: readable relief (owner note 3: "some cliff drops on open ground still read as thin lines").
+# Every south drop shows a full face (earth banks on temperate low ground, rock higher up, a snow cornice in the cold)
+# with a lit lip, a crisp foot and a cast-shadow band; east / west drops a 3-px lip with the shadow cast east; north
+# drops a 2-px lit rim and a thin shadow; a snowfield's levels are graded so its steps read as steps.
+#   embervale.exe --script tools/scripts/m2_view_relief.txt     (m2relief_*.png in the working directory)
+seed 1
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 at 239 463
++1.5 shot m2relief_0_snow_steps.png
++0.1 at 400 200
++1.5 shot m2relief_1_snow_diagonal.png
++0.1 at 300 -40
++1.5 shot m2relief_2_grass_banks.png
++0.1 at 270 -126
++1.5 shot m2relief_3_cave_knoll.png
++0.1 at 173 -67
++1.5 shot m2relief_4_ramp.png
++0.1 hour 19
++1.5 shot m2relief_5_dusk.png
++0.3 quit

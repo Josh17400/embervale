@@ -40,6 +40,11 @@ class ChunkStreamer {
   bool hasChunk(int32_t cx, int32_t cy);
   // a ready region plan (a copy made by the worker), nullptr if none. Valid until the next call into the streamer.
   const ew::RegionPlan* region(int32_t rx, int32_t ry);
+  // M2 travel: the region plan is ready for the main thread (a worker's copy, or one the pump built into the main
+  // source's cache)
+  bool hasRegion(int32_t rx, int32_t ry);
+  // M2 travel: nothing left on the wish list and nothing being made
+  bool idle();
   // forget ready chunks outside [cx0, cx1) x [cy0, cy1) (global chunk coordinates) once more than `keep` are held
   void trim(int32_t cx0, int32_t cy0, int32_t cx1, int32_t cy1, size_t keep);
   // collect finished work (native) or generate within the budget (web / no worker). Returns the chunks made this call.

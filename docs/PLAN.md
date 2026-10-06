@@ -357,3 +357,86 @@ commercial 16-bit bar.
   on the tower's top floor, round tower floors (front corners walled on a curve).
 - HUD indoors: the minimap is dropped and the location/quest column fades when the rooms run on under them.
 - kGen7Hash re-recorded (M0b is not shipped yet).
+
+## M2, "Wayfinder" (VISION_PLAN 13 M2, 15.10, 15.11; owner notes 2026-10-05)
+
+Goal: endless parity and the zoomable map, plus the M1 carry-overs: menus that use the phone's width, travel without
+a hitch, readable relief, a per-region geology, the classic island retired, livelier capitals.
+
+### Phase A (lead), 2026-10-05: done
+- **The classic island is retired** (15.10). `World::generate`, `Game::newGame`, `--classic`, `--worldgen` and the
+  scripts' `worldgen N` header are gone (a script with that header is refused); the pre-M0b interior generators (V2,
+  V3) went with it (every building is furnished by `genInteriorV4`). rpg_test's lane checks run on the endless world:
+  interiors on the start window (kGen7Hash re-recorded), defence in the nearest endless town, architecture on the
+  nearest city brought into the window, metrics arenas on endless ground. Porting them exposed M1 issues, reported as
+  WARN until a lane fixes them: 3-4 townsfolk fall before the guards of a 40-60-home town arrive (SIM lane); city
+  rings: an overland road or a paved square meeting the wall away from an opening on seeds 10, 12, 19, and the
+  ring flood leaving the footprint on seed 19 (WORLD lane).
+- **SAVE_VER 6** (`tests/fixtures/save_v6.bin`): the header drops the classic fingerprint (world kind must be 1);
+  quests gain `targetId`, `hasPos`/`tgx`/`tgy` (a global objective tile), `giverId`, `subject`, `destBldg`,
+  `deadlineDay`, `flags`; site flags gain 4 = rumoured (`Site::rumoured`); a `marks` block (`Game::marks`, u64 -> i32
+  facts keyed by stable ids). save_test checks the new fields, refuses v5 and classic saves.
+- **ENDLESS_GEN_VER 6** (goldens unchanged so far: the lanes change the output under 6 and re-record them).
+- **Contracts**: `rpg/world/poi.h` (VignetteKind x9, WonderKind x4, names, `poiKindKey`, the spawn-slot contract),
+  `SiteType::Vignette` / `Wonder`, `Site::kind` / `SitePlan::kind`, `Role::Hunter/Fisher/Herbalist/Traveller`;
+  `rpg/world/geology.h` + `EndlessSource::geology()` (first version in `rpg/world/geology.cpp`: jittered-lattice
+  provinces, rock and ore affinities) and `RegionPlan::geology`; `LandmarkPlan` / `RegionPlan::landmarks` (named
+  ranges, peaks, passes, lakes...; empty until the WORLD lane fills them); `ChunkData::blend` -> `Map::blend` (the
+  ecotone byte, zero until the WORLD lane writes it); `EndlessSource::landmass()` (stub: 1 for any land); 13 new
+  props (`Peak .. DragonBones`, frozen footprints in `art::wildFootprint`, placeholders in `rpg/art/art_wild.cpp`,
+  `art::peakVariant`); `Game::Travel` / `beginTravel` / `finishTravel` / `travelQuote` (stub: the old immediate fast
+  travel) and `View::travelArrive`; `QType` Deliver / Heirloom / Missing / NamedBandit / Protect; the MAP tab moved
+  whole into `worldmap.cpp` (`drawMapTab`, `mapTabTap`, `mapTabKey`).
+- **Tests and scripts**: `rpg/view/script_api.h` lets every lane register script commands and `expect` checks from
+  its own `rpg/view/*.cpp` (`embervale --script-help` lists them). `rpg/view/script_test.cpp` adds `gate`, `taplabel`,
+  `givequest`, `gotosite`, `fightquest`, `expect sidequest`; `walkto/talkto giver`. The classic-pinned scripts
+  (arch_walls*, bounty, opening, dialogue_tap, m0b_touch_label) were ported. The repetition audit counts POI kinds
+  (site types, vignette and wonder kinds, dens) within 120 and 60 tiles of the start village (targets 8 and 3).
+- Verified: every target builds (MSVC), rpg_test --seeds 1..20 20/20, save_test ALL OK, --golden ok, --endless and
+  --endless --golden ok, --towns and --towns --golden ok, --window ok, all 40 tools/scripts exit 0.
+
+### Phase B lanes (disjoint files; shared headers frozen, one owner each where a lane must touch one)
+- **world** (build_world): vignettes, wonders, the start guarantee, peaks, ecotones, geology, landmarks, capitals'
+  squares, relief cleanup, city-ring warnings.
+- **sim** (build_sim): travel behind the fade, the landmass rule and carriages, new quest types with a text grammar,
+  radiant targets over region plans, rumours, vignette life, town defence in big towns.
+- **view** (build_view): the zoomable map (hillshade, glyphs, labels, markers, rumours, travel panel, geology debug),
+  ecotone dithering, readable cliffs, the M2 art, the arrival bake.
+- **ui** (build_ui): menus, shop, level-up, dialogue, creator and settings that use the full logical width and safe
+  area; the script suite.
+
+### Lane results, 2026-10-05 (recorded at integration)
+- **world**: 9 vignette kinds (`rpg/world/vignettes.cpp`, avg 3.5 per land region), 4 wonders on a 640-tile lattice
+  (one forced within 400 tiles of the start), the start guarantee (poi kinds within 120 tiles of the start village:
+  avg 10.4 / min 10, target 8; within 60: 3 on every seed), peaks on ridge crests, ecotone blend bytes, geology
+  provinces (primary ore copper 22 %, tin 15 %, iron 16 %, coal 33 %, silver 9 %, rare 3 %), real `landmass()`,
+  landmarks (`rpg/world/landmarks.cpp`), capital plazas (largest empty paved block 7; at least 24 people round a
+  capital's square), relief slivers 0-3 per window (FAIL above 8), city-ring checks back to FAIL. Goldens re-recorded.
+  **Decision for the lead:** toll bridges may also stand on streams (a plank bridge instead of a ford), against the
+  Phase A rule "at least 2 tiles wide"; without it toll bridges were almost absent (now ~70 over 20 seeds).
+- **sim**: travel behind the fade (`travel.cpp`: gather over frames, cheap arrival, clock moves on), the landmass rule,
+  carriages (60 tiles/h, 0.1 gold a tile, min 5), the 5 new quest types (`quests.cpp`), rumours and wayside life
+  (`wayside.cpp`), town defence FAIL restored (big towns lose at most 1 villager to 3 wolves), capital squares.
+  `test_interiors` now hashes a frozen sample of 35 building inputs (it only changes when the rooms generator does).
+- **view**: the zoomable map (`worldmap.cpp`), geology view (G / `mapgeo 1`), ecotone dithering, one face per drop,
+  graded snow levels, the 13 M2 props, the arrival bake budgeted across frames, discovery banners.
+- **ui**: every panel uses the safe area, tab strip, wider ITEMS / QUESTS / SHOP / DIALOGUE, the HERO tab, travel
+  screen, far-quest arrow, wayside markers.
+
+### Integration, 2026-10-05: done
+- Clean build of every target (MSVC /W3: only the old int-to-float notes). A clang 22 frontend pass (clang-tidy,
+  -std=c++20 -fno-ms-compatibility -Wall -Wextra) over every rpg/, engine/ and tools/ source, plus the
+  `__EMSCRIPTEN__` paths of game, stream, travel, terrain and pix, found one hard error that MSVC only warned about
+  (C4838: a non-constant int narrowed to float in a braced list, `art_wild.cpp` graveCairn); fixed. No local emcc.
+- rpg_test --seeds 1..20: 20 passed; --golden, --endless, --endless --golden (36), --towns, --towns --golden (30),
+  --window, --wayfinder 1..20, --geology, --landmarks, --specialties 1..20, --quests 1..10, --mainquest 1..10: all 0
+  failures. save_test ALL OK. All 51 tools/scripts exit 0 (run 3 at a time through tools/slot.sh).
+- Fixes: `dialogue_tap.txt` taps the FAREWELL band at y 249 (the new bottom-anchored dialogue panel); cliffs' east /
+  west drops are a 5-7 px side wall (lit when west-facing, shaded when east-facing) instead of a 3-px hairline (stairs
+  keep their 3-px cut); the map no longer overprints two forced labels (the selected place and the quest); the HUD's
+  location line cuts long names between words and drops a dangling "ON THE"; the arrival notice says "A DAY" /
+  "TWO DAYS" by the real hours (23 h no longer reads "AFTER DAYS").
+- Open: north-facing drops on snowfields still read as a thin rim (by design in 3/4 view, but weak on white); the
+  arrival seconds of a long journey still show 27-36 ms worst frames on desktop (`m2_sim_travel.txt --perf`, target
+  25 ms); the Colossus face and the caravan are the weakest M2 props; plaza features stand on bare paving (a planter
+  sprite would help); Colossus rubble blocks read square; the level-up banner's text runs past its gold rules.

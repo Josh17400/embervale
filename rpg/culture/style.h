@@ -156,6 +156,14 @@ inline ArchStyle urbanize(ArchStyle s, int urban, uint32_t seed) {
   if (s.wall == WallMat::Log || s.wall == WallMat::Timber || urban >= 3) s.wall = walls[pick(urban >= 3 ? 4 : 6)];
   if (s.roofMat == RoofMat::Thatch) { const int r = pick(3); s.roofMat = r == 0 ? RoofMat::Slate : r == 1 ? RoofMat::ClayTile : RoofMat::Shingle; }
   if (urban >= 3 && s.roofMat == RoofMat::Shingle && pick(2) == 0) s.roofMat = RoofMat::Slate;
+  // (M2 fixer round 3, review: "rows of nearly identical gable-front houses in capital streets") a city street mixes
+  // its roofs: more eave-fronted hips than gables, the odd steep gable, so a row of same-width houses rarely shows the
+  // same gable end three times running
+  if (s.roof == RoofShape::Gable || s.roof == RoofShape::Hip) {
+    const int r = pick(20);
+    s.roof = r < 10 ? RoofShape::Hip : (r < 17 ? RoofShape::Gable : RoofShape::Steep);
+    if (s.roof == RoofShape::Steep && s.pitch < 3) s.pitch = 3;
+  }
   if (s.pitch < 2) s.pitch = 2;
   s.weather = (uint8_t)(s.weather > 1 ? 1 : s.weather);   // kept up
   s.shutters = true;

@@ -1,0 +1,102 @@
+# M2 SIM lane: the five new quest types end to end on the endless world, with their offers (the text grammar), the
+# journal line, the marker, the objective and the turn-in. `offerquest <type>` has the nearest person who can offer
+# that job open it as a dialogue; `questgo` stands at (or inside) the objective; the rest is played through talks,
+# chests and fights. Screenshots land in the working directory.
+seed 1
+0.3  newgame
++0.1 god
++0.1 kit
++0.1 hour 10
++0.2 walkto inn                  # the opening's old blade first: the new jobs then hold the journal's pin
++0.6 talkto innkeeper
++0.3 key Escape
++0.2 walkto exit
++0.3 gotosite start
+# ---- PROTECT: a villager asks for help at the fields tonight
++0.3 offerquest protect
++1.2 shot m2_sim_q01_protect_offer.png
++0.1 choose I'LL DO IT
++0.2 expect sidequest active protect
++0.2 choose FAREWELL
++3.0 menu 1
++0.6 shot m2_sim_q02_protect_journal.png
++0.1 key Escape
++0.1 questgo
++0.1 hour 21
++1.5 shot m2_sim_q03_protect_wave1.png
++0.1 killquest
++1.5 shot m2_sim_q04_protect_wave2.png
++0.1 killquest
++0.5 dawn
++0.5 expect sidequest complete protect
++0.3 shot m2_sim_q05_protect_dawn.png
++0.1 talkto giver 60
++0.4 expect option COLLECT REWARD
++0.6 shot m2_sim_q06_protect_turnin.png
++0.1 choose COLLECT REWARD
++0.2 expect sidequest done protect
++0.3 choose FAREWELL
+# ---- HEIRLOOM: a keepsake in an old chest in a named cave or ruin
++0.3 hour 10
++0.1 gotosite start
++0.5 offerquest heirloom
++1.2 shot m2_sim_q07_heirloom_offer.png
++0.1 choose I'LL DO IT
++0.2 choose FAREWELL
++0.3 questgo
++1.2 shot m2_sim_q08_heirloom_inside.png
++0.1 questchest
++0.5 key E
++0.6 shot m2_sim_q09_heirloom_found.png
++0.1 expect sidequest complete heirloom
++0.2 gotosite start
++0.3 talkto giver 60
++0.2 choose COLLECT REWARD
++0.2 expect sidequest done heirloom
++0.3 choose FAREWELL
+# ---- MISSING: a person alive in a cave, led out
++0.3 offerquest missing
++1.2 shot m2_sim_q10_missing_offer.png
++0.1 choose I'LL DO IT
++0.2 choose FAREWELL
++0.3 questgo
++0.8 talkquest
++0.8 shot m2_sim_q11_missing_found.png
++0.1 choose STAY CLOSE
++0.3 walkto exit 60
++0.5 shot m2_sim_q12_missing_out.png
++0.1 expect sidequest complete missing
++0.2 gotosite start
++0.3 talkto giver 60
++0.2 choose COLLECT REWARD
++0.2 expect sidequest done missing
++0.3 choose FAREWELL
+# ---- NAMED BANDIT: a chief with a name and a title
++0.3 offerquest named
++1.2 shot m2_sim_q13_named_offer.png
++0.1 choose I'LL DO IT
++0.2 choose FAREWELL
++0.3 questgo
++2.0 shot m2_sim_q14_named_camp.png
++0.1 killquest
++0.4 expect sidequest complete namedbandit
++0.2 gotosite start
++0.3 talkto giver 60
++0.2 choose COLLECT BOUNTY
++0.2 expect sidequest done namedbandit
++0.3 choose FAREWELL
+# ---- DELIVER: a parcel for a named innkeeper, smith or merchant in another settlement
++0.3 offerquest deliver
++1.2 shot m2_sim_q15_deliver_offer.png
++0.1 choose I'LL DO IT
++0.2 choose FAREWELL
++0.2 menu 2
++0.8 shot m2_sim_q16_deliver_map.png
++0.1 key Escape
++0.3 questgo
++0.8 talkquest
++0.8 shot m2_sim_q17_deliver_recipient.png
++0.1 choose HAND OVER THE PARCEL
++0.6 shot m2_sim_q18_deliver_paid.png
++0.1 expect sidequest done deliver
++0.5 quit

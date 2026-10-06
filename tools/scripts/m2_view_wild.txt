@@ -1,0 +1,24 @@
+# VIEW lane, M2 Wayfinder: every M2 wayside and wonder prop standing in the world (y-sorted, cast shadows, the hero
+# walking behind the tall ones), a mountain range of Peak variants, day and night. Stamped near the hero with the
+# test-only placewild command (the WORLD lane's generator places them in real play).
+#   embervale.exe --script tools/scripts/m2_view_wild.txt     (m2wild_*.png in the working directory)
+seed 7
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 walk east 3
++3.2 placewild all
++1.0 shot m2wild_0_props.png
++0.1 walk south 1.4
++1.6 shot m2wild_1_behind.png
++0.1 walk south 1.2
++1.4 shot m2wild_2_wonders.png
++0.1 walk east 6
++6.2 placewild range 0 -5
++1.0 shot m2wild_3_range.png
++0.1 hour 22
++1.5 shot m2wild_4_range_night.png
++0.1 walk west 6
++6.3 walk north 2.6
++2.8 shot m2wild_5_props_night.png
++0.3 quit

@@ -14,7 +14,7 @@ namespace {
 // the nearest site of a type to the start village (exclude: skip this one)
 int nearestOf(const Game& g, SiteType t, int exclude = -1) {
   const Site& h = g.world.sites[g.world.startSite];
-  int best = -1;
+  int best = -1;   // (among the records the session holds: the window and the regions around it)
   float bd = 1e30f;
   for (int i = 0; i < (int)g.world.sites.size(); i++) {
     const Site& s = g.world.sites[i];
@@ -67,6 +67,10 @@ bool standNear(Game& g, int si, float dist) {
 }
 
 bool enterBuilding(Game& g, int b) {
+  if (!g.world.over.in(g.world.over.bldgs[(size_t)b].doorX(), g.world.over.bldgs[(size_t)b].doorY() + 1)) {   // (M2) far away: go there first
+    const Bldg& F = g.world.over.bldgs[(size_t)b];
+    g.teleportGlobal(g.world.ox + F.doorX(), g.world.oy + F.doorY() + 1);
+  }
   const Bldg& B = g.world.over.bldgs[b];
   g.pl().p = Vec2(B.doorX() * 16 + 8.0f, B.doorY() * 16 + 10.0f);
   g.update(SIM_DT, Input());
@@ -113,7 +117,12 @@ bool eventHas(const Game& g, const char* text) {
 // the chief: the camp must count as cleared the moment the chief falls (CLEARED and BOUNTY READY / NOT YOUR TARGET
 // at once, plus a "CHIEF SLAIN - N BANDITS FIGHT ON" line when stragglers remain), not only after the last bandit.
 bool killChief(Game& g, int camp) {
-  const Site& s = g.world.sites[camp];
+  if (!g.world.over.in(g.world.sites[(size_t)camp].ex, g.world.sites[(size_t)camp].ey)) {   // (M2) bring a far camp into the window
+    const Site& f = g.world.sites[(size_t)camp];
+    g.teleportGlobal(g.world.ox + f.ex, g.world.oy + f.r.y + f.r.h + 3);
+    tick(g, 3);
+  }
+  const Site s = g.world.sites[camp];   // (a copy: streaming appends sites)
   int x, y;
   if (!freeTile(g, s.r.cx(), s.r.y + s.r.h + 2, x, y, 8)) return false;
   g.pl().p = tileCentre(x, y);
@@ -146,8 +155,15 @@ int townDefence(const Game& base, int si, bool guarded, const char* what) {
   int bad = 0;
   Game g = base;
   g.godMode = true; g.noWildSpawns = true; g.hour = 12;
-  if (!standNear(g, si, 26)) { out("WARN: defence (%s): no spot near %s\n", what, g.world.sites[si].name.c_str()); return 0; }
-  const Site& st = g.world.sites[si];
+  {   // (M2: the endless world) bring the place into the window first: settlements lie far apart
+    const Site& s0 = g.world.sites[(size_t)si];
+    if (!g.world.over.in(s0.r.x, s0.r.y) || !g.world.over.in(s0.r.x + s0.r.w - 1, s0.r.y + s0.r.h - 1)) {
+      g.teleportGlobal(g.world.ox + s0.ex, g.world.oy + s0.ey + 2);
+      tick(g, 3);
+    }
+  }
+  if (!standNear(g, si, std::max(26.0f, std::max(g.world.sites[(size_t)si].r.w, g.world.sites[(size_t)si].r.h) * 0.5f + 6.0f))) { out("WARN: defence (%s): no spot near %s\n", what, g.world.sites[si].name.c_str()); return 0; }
+  const Site st = g.world.sites[si];   // (a copy: streaming appends sites)
   int guards = 0, folk = 0, militia = 0;
   std::vector<int> spots;
   for (size_t k = 1; k < g.actors.size(); k++) {
@@ -165,6 +181,11 @@ int townDefence(const Game& base, int si, bool guarded, const char* what) {
   int lvl = std::max(1, g.world.zoneLevel(st.ex, st.ey));
   std::vector<int> wolves;
   for (int k = 0; k < 3; k++) wolves.push_back(g.debugSpawnAt(art::Monster::Wolf, at + Vec2((k - 1) * 10.0f, -4.0f), lvl));
+  if (getenv("EMB_DEF_TRACE")) {   // where the fight starts and where the watch stands
+    printf("  trace %s: wolves (level %d) at %.0f,%.0f, heart %d,%d, middle %.0f,%.0f\n", st.name.c_str(), lvl, at.x / TILE, at.y / TILE, st.ex, st.ey, mid.x / TILE, mid.y / TILE);
+    for (const Actor& a : g.actors)
+      if (a.npc && a.site == si && a.role == Role::Guard) printf("  trace   guard at %.0f,%.0f (home %.0f,%.0f)\n", a.p.x / TILE, a.p.y / TILE, a.home.x / TILE, a.home.y / TILE);
+  }
   std::set<int> downed;
   bool rang = false;
   int maxHidden = 0;
@@ -183,6 +204,8 @@ int townDefence(const Game& base, int si, bool guarded, const char* what) {
       for (const Actor& a : g.actors) if (a.id == id && a.st != AState::Dead) alive++;
     for (const Actor& a : g.actors) {
       if (!a.npc || a.site != si) continue;
+      if (a.st == AState::Dead && a.role != Role::Guard && !downed.count(a.id) && getenv("EMB_DEF_TRACE"))
+        printf("  trace %.1f s: %s down (militia %d, flee %.1f s) at %.0f,%.0f\n", f / 60.0f, a.name.c_str(), a.militia, a.fleeT, a.p.x / TILE, a.p.y / TILE);
       if (a.st == AState::Dead && a.role != Role::Guard) downed.insert(a.id);
       worstFlee = std::max(worstFlee, a.fleeT);
       if (a.role == Role::Guard && a.target >= 0 && a.st != AState::Dead) {
@@ -202,6 +225,7 @@ int townDefence(const Game& base, int si, bool guarded, const char* what) {
       what, st.name.c_str(), guards, folk, militia, rang ? "rang" : "silent", clearedAt, downed.size(), maxHidden, worstFlee);
   if (!rang) { out("FAIL: defence (%s): 3 wolves inside %s did not ring the bell\n", what, st.name.c_str()); bad++; }
   if (guarded && clearedAt < 0) { out("FAIL: defence: the guards of %s did not kill 3 wolves within 30 s\n", st.name.c_str()); bad++; }
+  // (M2: on the endless towns of 40-60 homes the watch keeps posts on the square and runs when the bell rings)
   if (guarded && downed.size() > 1) { out("FAIL: defence: %zu villagers down in %s (max 1)\n", downed.size(), st.name.c_str()); bad++; }
   if (maxHidden == 0) { out("FAIL: defence (%s): nobody in %s ran home to hide\n", what, st.name.c_str()); bad++; }
   if (worstFlee > 20) { out("FAIL: defence (%s): a townsperson ran for %.0f s without getting home (stuck or oscillating)\n", what, worstFlee); bad++; }
@@ -230,7 +254,7 @@ int bountyChecks(const Game& base) {
   int bad = 0;
   Game g = base;
   g.godMode = true; g.noWildSpawns = true; g.hour = 12;
-  const Site& home = g.world.sites[g.world.startSite];
+  const Site home = g.world.sites[g.world.startSite];   // a copy: the endless world appends sites as it streams
   int inn = -1;
   for (int b = home.bldgFirst; b < home.bldgFirst + home.bldgCount; b++) if (g.world.over.bldgs[b].type == art::Building::Inn) inn = b;
   if (inn < 0 || !enterBuilding(g, inn)) { out("FAIL: bounty: cannot enter the start inn\n"); return 1; }
@@ -470,7 +494,7 @@ static void scriptInfo(const Game& base) {
 int defenceChecks(uint64_t seed) {
   int bad = 0;
   Game base(seed);
-  base.newGame(seed);
+  base.newEndlessGame(seed);
   base.mode = Mode::Play;
   if (getenv("EMB_SCRIPT_INFO")) scriptInfo(base);
   // factions: the old `hostile` flag still means "hostile to the player"
@@ -484,8 +508,10 @@ int defenceChecks(uint64_t seed) {
   for (const Actor& a : base.actors)
     if (a.hostile != factionsHostile(a.faction, Faction::Player)) { out("FAIL: actor %s: hostile %d but faction %s\n", a.name.c_str(), a.hostile, factionName(a.faction)); bad++; }
   // town defence: the nearest guarded town (villages have no guards), then the start village (militia only)
-  int town = nearestOf(base, SiteType::Town);
-  if (town < 0) town = nearestOf(base, SiteType::City);
+  // (M2: the endless world) the nearest town in the region plans around the start (loading it into the records)
+  const Site home = base.world.sites[(size_t)base.world.startSite];
+  int town = base.world.findSiteNear(base.world.ox + home.ex, base.world.oy + home.ey, SiteType::Town, 8);
+  if (town < 0) town = base.world.findSiteNear(base.world.ox + home.ex, base.world.oy + home.ey, SiteType::City, 8);
   if (town >= 0) bad += townDefence(base, town, true, "town");
   bad += townDefence(base, base.world.startSite, base.world.sites[base.world.startSite].type != SiteType::Village, "start");
   bad += bountyChecks(base);

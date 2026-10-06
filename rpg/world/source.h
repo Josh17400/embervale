@@ -18,15 +18,20 @@
 #include "rpg/sim/world.h"
 #include "rpg/world/coords.h"
 #include "rpg/world/economy.h"
+#include "rpg/world/geology.h"
 #include "rpg/world/ids.h"
+#include "rpg/world/poi.h"
 
 namespace ew {
 
 // Bumped when the endless generator's output changes. Old saves are not kept compatible across M1 (owner rule,
 // 2026-10-04); the save stores it so a mismatch can say "this save is from an older world".
-constexpr int ENDLESS_GEN_VER = 5;   // 2: M1 round 2 (meandering relief, organic terraces, settlement water); 4: M1 fixer (markets, specialisations)
+constexpr int ENDLESS_GEN_VER = 9;   // 9: M2 fixer round 3 (no wild pool by a gatehouse, street props on paving, bare plaza bands filled, towns built a band of land rows at a time); 8: M2 fixer round 2 (massifs at named summits and range crests, toll bridges, scatter off paving and snow); 7: M2 fixer (crags above the face only, roads spare wayside props, snow towns, palace beds, peaks by a drop); 2: M1 round 2 (meandering relief, organic terraces, settlement water); 4: M1 fixer (markets, specialisations)
                                      // 3: settlement economy (specialisations, production buildings, market rows)
                                      // 5: M1 fixer round 2 (planned markets, tables and cloths, pens and their beasts, the mine hill)
+                                     // 6: M2 Wayfinder (vignettes, wonders, peaks, ecotone blend, geology, landmarks, the
+                                     //    capitals' squares). Until M2 ships, the M2 lanes change the output under 6 and
+                                     //    regenerate tests/fixtures/golden_endless.txt / golden_towns.txt; after, bump.
 
 // One sample of the macro fields (L0) at a global tile. Q16 fixed point: 65536 = 1.0.
 struct MacroSample {
@@ -67,6 +72,7 @@ struct SitePlan {
   Specialty special = Specialty::None;
   uint32_t produces = 0, needs = 0;
   art::Monster theme = art::Monster::Spider;   // dungeon inhabitants
+  uint8_t kind = 0;                            // M2: Vignette -> VignetteKind, Wonder -> WonderKind (rpg/world/poi.h)
   uint16_t bldgBase = 0, bldgCap = 0;          // building ids: makeId(rx, ry, IdKind::Bldg, bldgBase + i), i < bldgCap
   std::string name;
 };
@@ -104,6 +110,18 @@ struct LakePlan {
   int32_t x = 0, y = 0, r = 0;      // centre and mean radius (the shore is irregular)
 };
 
+// M2: a named natural feature for the world map's labels (VISION_PLAN 11.5 "named ranges and passes", 2.11 Z2 / Z3).
+// The WORLD lane decides them per region from the macro fields (one per feature: a range is named once, at its
+// highest crest in the region holding it); the VIEW lane draws the label at (x, y) at the zooms that suit its size.
+enum class LandmarkKind : uint8_t { Range, Peak, Pass, Lake, River, Forest, Marsh, Desert, Hills, Sea, COUNT };
+struct LandmarkPlan {
+  Gid id = 0;                       // makeId(rx, ry, IdKind::Poi, 0x800 | n): stable
+  LandmarkKind kind = LandmarkKind::Range;
+  int32_t x = 0, y = 0;             // where the label belongs (global tile)
+  int32_t size = 0;                 // rough extent in tiles (the view hides small ones when zoomed far out)
+  std::string name;                 // "THE GREY TEETH", "WOLFGATE PASS", "MIRRORMERE"
+};
+
 struct RegionPlan {
   int32_t rx = 0, ry = 0;
   uint16_t genVer = ENDLESS_GEN_VER;
@@ -113,6 +131,8 @@ struct RegionPlan {
   std::vector<RoadPlan> roads;      // M1: roads whose course touches the region, plus its sites' spurs
   std::vector<RiverPlan> rivers;    // M1: river pieces touching the region
   std::vector<LakePlan> lakes;      // M1: lakes touching the region
+  std::vector<LandmarkPlan> landmarks;   // M2: named features whose label point lies in this region
+  Geology geology;                  // M2: the geology at the region's centre tile (geology() has it per tile)
 };
 
 // A spawn streamed with a chunk: Spawn's x, y are GLOBAL tiles; site is unused (siteId says whose it is)
@@ -128,6 +148,7 @@ struct ChunkData {
   uint8_t ground[N] = {};           // Ground
   uint8_t prop[N] = {};             // art::Prop + 1, 0 = none
   uint8_t biome[N] = {};            // Biome
+  uint8_t blend[N] = {};            // M2 biome transitions: Map::blend (bits 0-3 the other biome, 4-7 its weight 0..8)
   uint8_t height[N] = {};           // relief (Map::height bits): level 0..7 in bits 0-2 (VISION_PLAN 11.1), Map::HEIGHT_CLIFF
                                     // = a cliff face (not walkable), Map::HEIGHT_RAMP = a ramp / stairs between levels
   uint8_t wall[N] = {};             // city wall pieces
@@ -175,6 +196,14 @@ class EndlessSource {
   const KingdomPlan* kingdom(Gid id);                      // nullptr for 0 / unknown
   const StartPlan& start();                                // computed once per seed
   int danger(int32_t gx, int32_t gy);                      // VISION_PLAN 7.1: the level of what lives here
+  // M2: the geology of the province holding a global tile (rpg/world/geology.h; pure, cheap enough per map pixel at far
+  // zooms: it reads the coarse macro fields only)
+  Geology geology(int32_t gx, int32_t gy);
+  // M2 fast travel's landmass rule (VISION_PLAN 2.11: fast travel stays on the same landmass): an id that is equal for
+  // two land tiles joined by land and differs across the sea (0: water). Coarse (judged on the macro sea field, about
+  // 16-tile cells), stable for a seed, cheap enough to ask for a journey. PHASE A STUB: 1 for any land; the WORLD lane
+  // makes islands and other continents distinct.
+  uint32_t landmass(int32_t gx, int32_t gy);
 
   // --perf / tests: what generation cost so far
   struct Stats {

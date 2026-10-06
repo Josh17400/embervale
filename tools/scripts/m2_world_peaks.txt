@@ -1,0 +1,18 @@
+# M2 WORLD lane: mountains that read as ranges (peaks on the crests, VISION_PLAN 11.3; the snow caps where it is cold),
+# the relief without slivers (owner note 3), and an ecotone band where two biomes meet (VISION_PLAN 11.6).
+#   embervale.exe --script tools/scripts/m2_world_peaks.txt     (m2w_p*.png in the working directory)
+seed 3
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 gotopoi range
++4.0 shot m2w_p1_range.png
++0.1 gotopoi peak
++4.0 shot m2w_p2_peak.png
++0.1 gotopoi snowpeak
++4.0 shot m2w_p3_snowpeak.png
++0.1 walk south 3
++3.4 shot m2w_p4_snowpeak_south.png
++0.1 gotopoi ecotone
++4.0 shot m2w_p5_ecotone.png
++0.3 quit

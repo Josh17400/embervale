@@ -40,6 +40,7 @@ uint64_t chunkHash(const ChunkData& c) {
   uint64_t h = 1469598103934665603ull;
   auto add = [&](const uint8_t* p, size_t n) { for (size_t i = 0; i < n; i++) { h ^= p[i]; h *= 1099511628211ull; } };
   add(c.ground, sizeof c.ground); add(c.prop, sizeof c.prop); add(c.biome, sizeof c.biome); add(c.height, sizeof c.height); add(c.wall, sizeof c.wall);
+  add(c.blend, sizeof c.blend);   // (M2 ecotones)
   for (const Bldg& b : c.bldgs) { uint64_t v[] = {b.id, (uint64_t)(uint32_t)b.r.x, (uint64_t)(uint32_t)b.r.y, (uint64_t)b.type}; add((const uint8_t*)v, sizeof v); }
   for (const SpawnPlan& s : c.spawns) { uint64_t v[] = {s.siteId, (uint64_t)(uint32_t)s.sp.x, (uint64_t)(uint32_t)s.sp.y, (uint64_t)s.sp.slot}; add((const uint8_t*)v, sizeof v); }
   return h;
@@ -203,6 +204,7 @@ void overviewMap(EndlessSource& A, uint64_t seed, const char* dir, int RX0, int 
 }
 
 bool g_budget = true;   // --no-budget clears it (shared CI runners)
+int g_slivers = 0;      // relief slivers counted by reachWindow (target 0)
 
 // ---- reachability over a 1024^2 window (VISION_PLAN 2.7, 11.4)
 int reachWindow(EndlessSource& A, uint64_t seed, int32_t wx0, int32_t wy0, const std::map<Gid, SitePlan>& all, const char* mapDir,
@@ -281,9 +283,12 @@ int reachWindow(EndlessSource& A, uint64_t seed, int32_t wx0, int32_t wy0, const
       nPoi++;
       bool ok = p.type == SiteType::Cave ? reached(p.ex, p.ey, p.ex + 1, p.ey + 2) : reached(p.gx - 1, p.gy - 1, p.gx + p.w + 1, p.gy + p.h + 1);
       bool story = (p.flags & SPF_MAINQUEST) || p.type == SiteType::DragonLair;
+      // (M2) the wayside places and the wonders are walked to from the road
+      const bool wayside = p.type == SiteType::Vignette || p.type == SiteType::Wonder;
       if (!ok) {
         poiMiss++;
         if (story) fail(std::string(siteTypeName(p.type)) + " " + p.name + " (story site) is not reachable from the roads");
+        else if (wayside) fail(std::string(poiKindName(p.type, p.kind)) + " " + p.name + " is not reachable from the roads");
       }
     }
   }
@@ -323,6 +328,39 @@ int reachWindow(EndlessSource& A, uint64_t seed, int32_t wx0, int32_t wy0, const
   }
   walledPlateaus = plateaus;
   if (plateaus > 0) fail(std::to_string(plateaus) + " plateaus of 24+ tiles are walled in by cliffs (no ramp)");
+  // (M2, owner note 3) relief slivers on open ground (land, no water beside it): a 1-tile-deep terrace (a level band
+  // one tile thick between a higher and a lower one), a 1-tile strip (a ridge or a channel one tile wide), or a spur /
+  // notch (a tile with three or four of its neighbours on one other side: islands, pits, 1-wide fingers)
+  // (the terraces round a settlement or a site, where the land is levelled for it, are not open ground)
+  {
+    std::vector<uint8_t> near((size_t)N * N, 0);
+    for (auto& kv : all) {
+      const SitePlan& p = kv.second;
+      const int32_t pad = isSettle(p.type) ? 70 : 40;
+      for (int32_t y = std::max(0, p.gy - pad - wy0); y < std::min(N, p.gy + p.h + pad - wy0); y++)
+        for (int32_t x = std::max(0, p.gx - pad - wx0); x < std::min(N, p.gx + p.w + pad - wx0); x++) near[(size_t)y * N + x] = 1;
+    }
+    int terr = 0, strip = 0, spur = 0, sx = 0, sy = 0;
+    auto lvA = [&](int x, int y) { return (int)(hb[(size_t)y * N + x] & Map::HEIGHT_LEVEL); };
+    auto wetA = [&](int x, int y) { return groundWater((Ground)g[(size_t)y * N + x]) || g[(size_t)y * N + x] == (uint8_t)Ground::Bridge; };
+    for (int y = 1; y < N - 1; y++)
+      for (int x = 1; x < N - 1; x++) {
+        if (near[(size_t)y * N + x] || wetA(x, y) || wetA(x, y - 1) || wetA(x, y + 1) || wetA(x - 1, y) || wetA(x + 1, y)) continue;
+        const int l = lvA(x, y), n = lvA(x, y - 1), s = lvA(x, y + 1), w = lvA(x - 1, y), e = lvA(x + 1, y);
+        const int hi = (n > l) + (s > l) + (w > l) + (e > l), lo = (n < l) + (s < l) + (w < l) + (e < l);
+        bool hit = true;
+        if ((n > l && s < l) || (n < l && s > l) || (w > l && e < l) || (w < l && e > l)) terr++;
+        else if (hi >= 3 || lo >= 3) spur++;
+        else if ((n > l && s > l) || (n < l && s < l) || (w > l && e > l) || (w < l && e < l)) strip++;
+        else hit = false;
+        if (hit && !sx) { sx = wx0 + x; sy = wy0 + y; }
+      }
+    g_slivers += terr + strip + spur;
+    // (three cleanup passes leave a handful per million tiles: long 1-wide snakes the passes shorten from both ends)
+    if (terr + strip + spur > 8) fail(std::to_string(terr + strip + spur) + " relief slivers in the window (target 0, at most 8)");
+    out("  relief slivers: %d 1-tile terraces, %d 1-tile strips, %d spurs / notches / islands%s\n", terr, strip, spur,
+        terr + strip + spur ? (" (first at " + std::to_string(sx) + "," + std::to_string(sy) + ")").c_str() : "");
+  }
   out("  reach (1024^2 at %d,%d): settlements %d (%d without roads), sites %d (%d unreached); unreached pockets: %d cliff-walled, %d islands, %d other\n",
       wx0, wy0, nSet, noRoad, nPoi, poiMiss, plateaus, islands, pockets);
   if (mapDir) {
@@ -343,6 +381,11 @@ int reachWindow(EndlessSource& A, uint64_t seed, int32_t wx0, int32_t wy0, const
 
 bool g_mapAt = false;
 int32_t g_mapX = 0, g_mapY = 0;
+
+}  // namespace
+// test_wayfinder.cpp: the M2 start guarantee on the region plans
+int startGuarantee(ew::EndlessSource& A, int& near120, int& near60, int& roadPois, double& wonderD, std::string& list);
+namespace {
 
 int endlessSeed(uint64_t seed, const char* mapDir, bool quick, bool budget) {
   int bad = 0;
@@ -405,6 +448,14 @@ int endlessSeed(uint64_t seed, const char* mapDir, bool quick, bool budget) {
       for (int k : kinds) l += std::string(" ") + (k == 100 ? "den" : siteTypeName((SiteType)k));
       fail("only " + std::to_string(kinds.size()) + " POI kinds within 200 tiles of the start:" + l);
     }
+  }
+  // ---- (M2) the start guarantee (VISION_PLAN 2.6): kinds of place near the start village, places by the story road, a wonder
+  {
+    int n120 = 0, n60 = 0, road = 0;
+    double wd = 0;
+    std::string kl;
+    bad += startGuarantee(A, n120, n60, road, wd, kl);
+    out("  start guarantee: %d kinds within 120 (%s), %d within 60, %d by the story road, wonder %.0f tiles away\n", n120, kl.c_str(), n60, road, wd);
   }
   // ---- order independence: near the start, and far away (1e5 tiles)
   for (int far = 0; far < 2; far++) {
@@ -603,6 +654,11 @@ std::map<std::string, uint64_t> computeEndlessGolden() {
           }
           for (const RiverPlan& rv : R.rivers) { fr.add(((uint64_t)(uint32_t)rv.a.x << 32) | (uint32_t)rv.a.y); fr.add(((uint64_t)(uint32_t)rv.b.x << 32) | (uint32_t)rv.b.y); fr.add(rv.width); }
           for (const LakePlan& lk : R.lakes) { fr.add((uint64_t)(uint32_t)lk.x); fr.add((uint64_t)(uint32_t)lk.y); fr.add((uint64_t)lk.r); }
+          // (M2) the wayside places' kinds, the landmarks and the geology
+          for (const SitePlan& p : R.sites) fr.add(p.kind);
+          for (const LandmarkPlan& l : R.landmarks) { fr.add(l.id); fr.add((uint64_t)l.kind); fr.add((uint64_t)(uint32_t)l.x ^ ((uint64_t)(uint32_t)l.y << 32)); fr.str(l.name); }
+          fr.add((uint64_t)R.geology.rock); fr.add(R.geology.province);
+          for (int o = 0; o < (int)Ore::COUNT; o++) fr.add(R.geology.ore[o]);
         }
       g[S + "." + pname[pl] + ".region"] = fr.h;
       // chunks across the region: settlement interiors masked out
@@ -620,7 +676,7 @@ std::map<std::string, uint64_t> computeEndlessGolden() {
             if (masked) continue;
             int i = c.at(lx, ly);
             fm.add((uint64_t)c.ground[i] | ((uint64_t)c.prop[i] << 8) | ((uint64_t)c.biome[i] << 16) | ((uint64_t)c.height[i] << 24) |
-                   ((uint64_t)(uint32_t)i << 32));
+                   ((uint64_t)(uint32_t)i << 32) | ((uint64_t)c.blend[i] << 48));   // (M2: the ecotone byte too)
             hashed++;
           }
         for (const SpawnPlan& s : c.spawns)
@@ -858,11 +914,93 @@ int cmdGroundAt(int argc, char** argv) {
   }
   MacroSample m = A.macro(gx, gy);
   printf("\nmacro at %d,%d: biome %d height %d elev %d temp %d\n", gx, gy, (int)m.biome, m.height, m.elev, m.temp);
+  {
+    int peaks = 0, blended = 0, tiles = 0;
+    for (int32_t cy = chunkOf(gy) - 2; cy <= chunkOf(gy) + 2; cy++)
+      for (int32_t cx = chunkOf(gx) - 2; cx <= chunkOf(gx) + 2; cx++) {
+        A.chunk(cx, cy, c);
+        for (int i = 0; i < ChunkData::N; i++) {
+          tiles++;
+          if (c.prop[i] == (uint8_t)((int)art::Prop::Peak + 1)) peaks++;
+          if (c.blend[i] >> 4) blended++;
+        }
+      }
+    printf("5x5 chunks round it: %d peaks, %d of %d tiles blended\n", peaks, blended, tiles);
+  }
+  return 0;
+}
+
+// rpg_test --city-png DIR [--seeds S..S]: the story city's chunks at 3 px per tile (debugging the wall ring and the roads
+// that reach it): ground colours, wall grey, gates green, wall gaps yellow, the plan's road polylines in red
+int cmdCityPng(int argc, char** argv) {
+  uint64_t a = 1, b = 1;
+  const char* dir = ".";
+  bool nearest = false;
+  for (int i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "--seeds") && i + 1 < argc) parseSeedRange(argv[++i], a, b);
+    else if (!strcmp(argv[i], "--city-png") && i + 1 < argc) dir = argv[++i];
+    else if (!strcmp(argv[i], "--nearest")) nearest = true;
+  }
+  (void)nearest;
+  for (uint64_t seed = a; seed <= b; seed++) {
+    EndlessSource A(seed);
+    const StartPlan& sp = A.start();
+    SitePlan city;
+    for (const SitePlan& p : A.region(idRx(sp.capital), idRy(sp.capital)).sites) if (p.id == sp.capital) city = p;
+    const int pad = 24, S = 3;
+    const int32_t gx0 = city.gx - pad, gy0 = city.gy - pad, W = city.w + 2 * pad, H = city.h + 2 * pad;
+    std::vector<uint32_t> px((size_t)W * S * H * S, 0xFF000000u);
+    ChunkData c;
+    std::vector<GTile> gates;
+    std::vector<IRect> gaps;
+    for (int32_t cy = chunkOf(gy0); cy <= chunkOf(gy0 + H - 1); cy++)
+      for (int32_t cx = chunkOf(gx0); cx <= chunkOf(gx0 + W - 1); cx++) {
+        A.chunk(cx, cy, c);
+        for (auto& g : c.gates) gates.push_back(g);
+        for (auto& g : c.wallGaps) gaps.push_back(g);
+        for (int ly = 0; ly < CHUNK; ly++)
+          for (int lx = 0; lx < CHUNK; lx++) {
+            const int32_t x = cx * CHUNK + lx - gx0, y = cy * CHUNK + ly - gy0;
+            if (x < 0 || y < 0 || x >= W || y >= H) continue;
+            const int i = c.at(lx, ly);
+            uint32_t col = groundColor((Ground)c.ground[i]);
+            if (c.prop[i]) col = scale(col, 70);
+            if (c.bldg[i]) col = rgb(170, 80, 60);
+            if (c.wall[i]) col = rgb(120, 120, 130);
+            if (c.height[i] & Map::HEIGHT_CLIFF) col = scale(col, 50);
+            for (int j = 0; j < S; j++)
+              for (int k = 0; k < S; k++) px[(size_t)(y * S + j) * W * S + x * S + k] = col;
+          }
+      }
+    auto mark = [&](int32_t x, int32_t y, uint32_t col) {
+      x -= gx0; y -= gy0;
+      if (x < 0 || y < 0 || x >= W || y >= H) return;
+      px[(size_t)(y * S + 1) * W * S + x * S + 1] = col;
+    };
+    for (const IRect& r : gaps) for (int y = r.y; y < r.y + r.h; y++) for (int x = r.x; x < r.x + r.w; x++) mark(x, y, rgb(255, 230, 0));
+    for (const GTile& g : gates) for (int k = 0; k < 3; k++) mark(g.x + k, g.y, rgb(0, 255, 0));
+    for (int ry = regionOf(gy0) - 1; ry <= regionOf(gy0 + H) + 1; ry++)
+      for (int rx = regionOf(gx0) - 1; rx <= regionOf(gx0 + W) + 1; rx++)
+        for (const RoadPlan& rp : A.region(rx, ry).roads)
+          for (size_t k = 0; k + 1 < rp.pts.size(); k++) {
+            const int n = std::max(std::abs(rp.pts[k + 1].x - rp.pts[k].x), std::abs(rp.pts[k + 1].y - rp.pts[k].y));
+            for (int s = 0; s <= n; s++)
+              mark(rp.pts[k].x + (n ? (rp.pts[k + 1].x - rp.pts[k].x) * s / n : 0), rp.pts[k].y + (n ? (rp.pts[k + 1].y - rp.pts[k].y) * s / n : 0), rgb(255, 0, 0));
+          }
+    // the planned footprint's outline
+    for (int x = city.gx; x < city.gx + city.w; x++) { mark(x, city.gy, rgb(0, 200, 255)); mark(x, city.gy + city.h - 1, rgb(0, 200, 255)); }
+    for (int y = city.gy; y < city.gy + city.h; y++) { mark(city.gx, y, rgb(0, 200, 255)); mark(city.gx + city.w - 1, y, rgb(0, 200, 255)); }
+    const std::string path = std::string(dir) + "/city_" + std::to_string(seed) + ".png";
+    writePng(path.c_str(), W * S, H * S, px);
+    printf("seed %llu: %s %s at %d,%d (footprint %d,%d %dx%d) -> %s\n", (unsigned long long)seed, siteTypeName(city.type), city.name.c_str(), city.ex, city.ey, city.gx, city.gy,
+           city.w, city.h, path.c_str());
+  }
   return 0;
 }
 
 }  // namespace
 
+RPG_TEST_CMD("--city-png", "the story city's chunks as a PNG (wall ring and roads debugging) --city-png DIR [--seeds A..B]", cmdCityPng);
 RPG_TEST_CMD("--specialties", "the real world's spread of settlement specialisations (none above 40 %) [--seeds A..B]", cmdSpecialties);
 RPG_TEST_CMD("--ground-at", "ASCII dump of the endless ground around a global tile [--seeds S..S] --ground-at X,Y [--r R] [--levels | --nat]", cmdGroundAt);
 RPG_TEST_CMD("--world-places", "interesting global tiles for world screenshot scripts [--seeds A..B]", cmdPlaces);

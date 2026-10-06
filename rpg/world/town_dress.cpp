@@ -721,6 +721,22 @@ void Gen::folk() {
 
 // ------------------------------------------------------------------------------------------------ the end
 void Gen::finish() {
+  // (M2 fixer round 3) a street prop (a lamp, a signpost, a banner) standing on a tile of grass in the middle of the
+  // paving showed as a green tuft round its foot: its tile takes the paving most of its neighbours have
+  for (int y = 1; y < H - 1; y++)
+    for (int x = 1; x < W - 1; x++) {
+      const int pp = M.prop[I(x, y)];
+      if (pp != (int)Prop::Lamppost + 1 && pp != (int)Prop::Signpost + 1 && pp != (int)Prop::Banner + 1) continue;
+      const Ground g = M.at(x, y);
+      if (g == Ground::Road || g == Ground::Plaza || g == Ground::Bridge || groundWater(g) || groundSolid(g)) continue;
+      int road = 0, plaza = 0;
+      for (int d = 0; d < 4; d++) {
+        const Ground n = M.at(x + D4X[d], y + D4Y[d]);
+        road += n == Ground::Road;
+        plaza += n == Ground::Plaza;
+      }
+      if (road + plaza >= 3) M.setG(x, y, plaza > road ? Ground::Plaza : Ground::Road);
+    }
   // relief: the base levels, and a ramp wherever a street steps between levels
   for (int y = 0; y < H; y++)
     for (int x = 0; x < W; x++) {
@@ -741,6 +757,12 @@ void Gen::finish() {
       if (!t) t = walled ? ins(x, y) : blob(x, y, cx, cy, rx + 1.5f, ry + 1.5f, bseed) < 1.0f;
       u[i] = t ? 1 : 0;
     }
+  // (M2 fixer round 3) the land round every gatehouse is the town's too (its drained ground, not the wild's): a wild
+  // marsh pool left just outside the wall used to hug a gate tower (seeds 36 and 37)
+  for (const auto& gt : O.gates)
+    for (int y = gt.second - 3; y <= gt.second + 3; y++)
+      for (int x = gt.first - 3; x <= gt.first + 5; x++)
+        if (in(x, y)) u[I(x, y)] = 1;
   for (int y = 0; y < H; y++)
     for (int x = 0; x < W; x++) {
       bool t = false;
@@ -796,8 +818,30 @@ bool Gen::step() {
     case 8: centrepieces(); stallsAndLamps(); archetypeDress(); break;
     case 9: yards(); tradeYards(); gardens(); break;
     case 10: fields(); banners(); signposts(); break;
-    case 11: greenery(); break;
-    case 12: folk(); finish(); return false;
+    case 11: greenery(); plazaFill(); break;
+    case 12: {
+      // (M2 fixer) a settlement in the snow: the builders' summer greenery (flower beds and tufts, leafy shrubs and
+      // trees, lawns) is wintered: evergreens and snowy shrubs stand, flowers and grass tufts are under the snow, lawns
+      // are snow (they stood on white ground as summer art pasted on a snowfield)
+      if (bio == Biome::Snow)
+        for (int y = 0; y < H; y++)
+          for (int x = 0; x < W; x++) {
+            const size_t i = I(x, y);
+            const Ground g = (Ground)M.ground[i];
+            if (g == Ground::Grass || g == Ground::Meadow || g == Ground::ForestFloor) M.ground[i] = (uint8_t)Ground::Snow;
+            const int pr = M.prop[i];
+            if (!pr) continue;
+            switch ((Prop)(pr - 1)) {
+              case Prop::Flowers1: case Prop::Flowers2: case Prop::Flowers3: case Prop::TallGrass: case Prop::Mushrooms: case Prop::Fern:
+                M.prop[i] = 0; break;
+              case Prop::Bush: case Prop::BerryBush: M.prop[i] = (uint8_t)((int)Prop::SnowBush + 1); break;
+              case Prop::OakTree: case Prop::OakTree2: case Prop::BirchTree: case Prop::AutumnTree: case Prop::WillowTree:
+              case Prop::PineTree: case Prop::PineTree2: M.prop[i] = (uint8_t)((int)Prop::SnowPine + 1); break;
+              default: break;
+            }
+          }
+      folk(); squareFolk(); finish(); return false;
+    }
     default: return false;
   }
   return true;

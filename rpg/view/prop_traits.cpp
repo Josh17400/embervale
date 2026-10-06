@@ -6,7 +6,7 @@ using art::Prop;
 bool flatProp(Prop p) {
   return p == Prop::Rug || p == Prop::LilyPad || p == Prop::Flowers1 || p == Prop::Flowers2 || p == Prop::Flowers3 || p == Prop::Bones ||
          p == Prop::SkullPile || p == Prop::Mushrooms || p == Prop::Ladder || p == Prop::Filler || p == Prop::StairsDown ||
-         p == Prop::MineRail;
+         p == Prop::MineRail || p == Prop::Bedroll;
 }
 bool natureProp(Prop p) { return (int)p <= (int)Prop::Fern; }
 bool treeProp(Prop p) {
@@ -34,6 +34,8 @@ bool propLight(Prop p, float& r, Color& c) {
     case Prop::Oven: r = 64; c = Color(1.0f, 0.55f, 0.25f); return true;
     case Prop::Candelabra: r = 52; c = Color(1.0f, 0.78f, 0.46f); return true;
     case Prop::Nightstand: r = 28; c = Color(1.0f, 0.78f, 0.46f); return true;
+    // M2: a fallen star's shards glow cold
+    case Prop::StarShard: r = 48; c = Color(0.55f, 0.75f, 1.0f); return true;
     default: return false;
   }
 }
@@ -47,5 +49,9 @@ int propShadow(Prop p) {
   if (p == Prop::PenShelter) return 3;
   if (p == Prop::MarketTable || p == Prop::GroundCloth) return 4;   // (M1 fixer round 2) two tiles wide, on the west one
   if (p == Prop::Sheep || p == Prop::Cow) return 5;
+  // M2 wayside places and wonders: a ground shadow as wide as the footprint (6), the broad crowns and spreads (7)
+  if (p == Prop::ElderTree || p == Prop::DragonBones || p == Prop::GreatPeak) return 7;
+  if (p == Prop::Peak || p == Prop::CaravanWreck || p == Prop::WatchtowerRuin || p == Prop::FishingShack || p == Prop::Colossus) return 6;
+  if (p == Prop::StandingStone || p == Prop::GraveCairn || p == Prop::TollPost) return 2;
   return 0;
 }

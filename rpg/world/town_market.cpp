@@ -3,12 +3,14 @@
 //  - the specialisation (farming, fishing, mining, lumber, herding) from the region plan, else from the archetype and
 //    the land; its production buildings (mill, granary, fishmonger, smelter, sawmill, tannery) and, in towns and
 //    cities, the full set of trades (bakery, butcher, weaver...);
-//  - the market, laid out the way real ones are: stalls in tidy rows (one or two, a grand capital three) along the
-//    square's north side and parallel to it, every counter facing the walking space with an aisle before it and its
-//    keeper behind it, the stalls touching in groups with a walkway between the groups, crates, sacks and baskets
-//    stacked at the row ends; never a ring round the fountain, never on a street, never in front of a door (every
-//    door and street the town could reach before a stall went up is still reached after). Villages get one or two
-//    stalls and a cart on the green; towns a cluster; cities a market place; capitals a grand one;
+//  - the market, laid out the way real ones are: stalls in tidy rows, every counter facing the walking space with an
+//    aisle before it and its keeper behind it (stall facings, owner 2026-10-05: a row along the north side faces south,
+//    the row across the aisle from it faces north so we see its back, a short row down a side stands in profile facing
+//    in; a street's stalls face the street; a village's face its well), the stalls touching in groups with a walkway
+//    between the groups, crates, sacks and baskets stacked at the row ends; never a ring round the fountain, never on a
+//    street, never in front of a door (every door and street the town could reach before a stall went up is still
+//    reached after). Villages get one or two stalls and a cart on the green; towns a cluster; cities a market place;
+//    capitals a grand one;
 //  - the other squares: benches, a tree, a lamp (no filler stalls);
 //  - the trades' yards: the mine and its ore carts, log piles, drying racks, hide frames, troughs, sacks.
 #include <cstdlib>
@@ -257,6 +259,7 @@ void Gen::marketLots() {
       const float d = dist(tx, y);
       if (d < 0.18f || d > maxD) return false;
     }
+    if ((O.gy + y) & 1) return false;   // (stall facings) a street's stalls face the street: south, on an even global row
     // apart from the square's own market
     return std::abs(x - S.x) > (int)(S.r * 1.25f) + 5 || std::abs(y - S.y) > (int)S.r + 6;
   };
@@ -336,7 +339,9 @@ void Gen::markets() {
   if (village) { nTrade = 1 + rng.irange(2) + (mk ? 1 : 0); nIsl = 0; maxRows = 1; }
   else if (capital) { nTrade = 7 + rng.irange(2); nIsl = 4 + rng.irange(3) + (mk ? 2 : 0); maxRows = 2; }
   else if (city) { nTrade = 5 + rng.irange(2) + (mk ? 1 : 0); nIsl = 2 + rng.irange(3) + (mk ? 2 : 0); maxRows = 2; }
-  else { nTrade = mk ? 6 + rng.irange(2) : 3 + rng.irange(3); nIsl = mk ? 3 + rng.irange(2) : rng.irange(3); maxRows = (mk || nTrade >= 5) ? 2 : 1; }
+  // (stalls fixer round 2) a town's market has four stalls or more: room for a pair seen from the front and a pair
+  // turned (from behind or in profile)
+  else { nTrade = mk ? 6 + rng.irange(2) : 4 + rng.irange(2); nIsl = mk ? 3 + rng.irange(2) : rng.irange(3); maxRows = 2; }
   nTrade = std::min(nTrade, (int)pool.size());
   // ---- the rhythm (by the town's own draw)
   const int walk = 2 + rng.irange(2);   // the walkway between two groups of a row
@@ -359,70 +364,117 @@ void Gen::markets() {
   bool relaxed = false;     // the last resort for a cramped square: only no house right past the aisle
   bool small = false;       // another (smaller) square: its well or statue keeps a smaller plaza
   int nearX = -1, nearY = -1, nearR = 0;   // mode 2: within nearR of this tile (a village: its well)
-  auto stallOk = [&](int x, int y, int mode, int qx, int qy, int lv) {
-    for (int dx = -1; dx <= 1; dx++) {
-      const int tx = x + dx;
-      if (!in(tx, y - 2) || !in(tx, y + 4)) return false;
-      const size_t i = I(tx, y);
+  // (stall facings, owner 2026-10-05) a stall faces one of four ways (art_props.h StallFacing): its frame here is F, the
+  // way to its customers (its aisle), and A, the way its counter runs on to the next stall of its row. An east-west
+  // counter (S, N) is x - 1 .. x + 1 on row y; a north-south one (E, W) is y - 2 .. y on column x (the prop on its
+  // south tile). Which of each pair by the parity of the prop's global tile (the view reads it back from the map).
+  struct Frame { int fx, fy, ax, ay; };
+  auto frameOf = [](int f) -> Frame {
+    switch (f) {
+      case art::StallN: return {0, -1, 1, 0};
+      case art::StallE: return {1, 0, 0, 1};
+      case art::StallW: return {-1, 0, 0, 1};
+      default: return {0, 1, 1, 0};
+    }
+  };
+  auto parityOk = [&](int f, int x, int y) { return art::stallFacingOf(f >= art::StallE, O.gx + x, O.gy + y) == f; };
+  // the walking space of the market (aisles and the ways round the rows' ends): a later stall's aisle may share it
+  std::vector<uint8_t> walkMk((size_t)W * H, 0);
+  std::vector<uint8_t> endMk((size_t)W * H, 0);   // the ways round a row's ends (a row grown by a stall moves them on)
+  bool extending = false;                          // a stall added to a row's end may stand on that row's end way
+  auto stallOk = [&](int x, int y, int mode, int qx, int qy, int lv, int f) {
+    if (!parityOk(f, x, y)) return false;
+    const Frame F = frameOf(f);
+    int bx0 = 1 << 30, by0 = 1 << 30, bx1 = -(1 << 30), by1 = -(1 << 30);   // the stall's box (counter, keeper's walk)
+    for (int ci = 0; ci < 3; ci++) {
+      int dx, dy;
+      art::stallCounterTile(f, ci, dx, dy);
+      const int tx = x + dx, ty = y + dy;
+      if (!in(tx - 2 * F.fx, ty - 2 * F.fy) || !in(tx + 4 * F.fx, ty + 4 * F.fy)) return false;
+      const size_t i = I(tx, ty);
       const uint8_t k = mask[i];
       if (mode == 0 ? k != K_SQUARE : (mode == 1 ? (k != K_NONE && k != K_YARD) : (k != K_NONE && k != K_YARD && k != K_SQUARE))) return false;
-      if (M.prop[i] || front[i] || cover[i] || reserved[i] || M.bldgAt[i] >= 0 || M.wall[i] || water[i] || (noBuild[i] & 3)) return false;
-      if (groundSolid(M.at(tx, y)) || M.at(tx, y) == Ground::Bridge || lvl[i] != lv) return false;
-      if (mode == 1 && (dist(tx, y) > (mk ? 0.7f : 0.5f) || inCompound(tx, y, 1))) return false;
-      if (mode == 2 && inCompound(tx, y, 1)) return false;
-      if (mode == 2 && (nearR > 0 ? std::max(std::abs(tx - nearX), std::abs(y - nearY)) > nearR : dist(tx, y) > 0.7f)) return false;
+      if (M.prop[i] || front[i] || cover[i] || (reserved[i] && !(extending && endMk[i])) || M.bldgAt[i] >= 0 || M.wall[i] || water[i] || (noBuild[i] & 3))
+        return false;
+      if (groundSolid(M.at(tx, ty)) || M.at(tx, ty) == Ground::Bridge || lvl[i] != lv) return false;
+      if (mode == 1 && (dist(tx, ty) > (mk ? 0.7f : 0.5f) || inCompound(tx, ty, 1))) return false;
+      if (mode == 2 && inCompound(tx, ty, 1)) return false;
+      if (mode == 2 && (nearR > 0 ? std::max(std::abs(tx - nearX), std::abs(ty - nearY)) > nearR : dist(tx, ty) > 0.7f)) return false;
       // the aisle: two rows of open ground before the counter (public ground on a square or a street)
-      for (int dy = 1; dy <= 2; dy++) {
-        const size_t j = I(tx, y + dy);
-        if (!walkable(tx, y + dy)) return false;
+      for (int d = 1; d <= 2; d++) {
+        const int ax = tx + F.fx * d, ay = ty + F.fy * d;
+        const size_t j = I(ax, ay);
+        if (!walkable(ax, ay)) return false;
         const uint8_t ka = mask[j];
-        const bool pub = ka == K_SQUARE || ka == K_MAIN || (mode == 0 && ka == K_LANE);
+        const bool pub = ka == K_SQUARE || ka == K_MAIN || (mode == 0 && ka == K_LANE) || (walkMk[j] && ka == K_YARD);
         if (mode == 2 ? (ka == K_FIELD || ka == K_COMPOUND || front[j]) : !pub) return false;
-        if (M.prop[j] || reserved[j] || M.bldgAt[j] >= 0 || M.wall[j] || groundSolid(M.at(tx, y + dy)) || lvl[j] != lv) return false;
-        if (mode == 1 && dy == 1 && ka != K_MAIN) return false;
+        if (M.prop[j] || (reserved[j] && !walkMk[j]) || M.bldgAt[j] >= 0 || M.wall[j] || groundSolid(M.at(ax, ay)) || lvl[j] != lv) return false;
+        if (mode == 1 && d == 1 && ka != K_MAIN) return false;
       }
       // past the aisle the counter looks out over open ground, not into the back of a house
       if (!village && mode == 0)
-        for (int dy = 3; dy <= (city ? 4 : 3); dy++) {
-          const size_t j = I(tx, y + dy);
-          if (M.bldgAt[j] >= 0 || (cover[j] && ((dy == 3 && !relaxed) || strictView)) || M.wall[j]) return false;
+        for (int d = 3; d <= (city ? 4 : 3); d++) {
+          const size_t j = I(tx + F.fx * d, ty + F.fy * d);
+          if (M.bldgAt[j] >= 0 || (cover[j] && ((d == 3 && !relaxed) || strictView)) || M.wall[j]) return false;
         }
       // behind: the keeper's walk (clear of every house's front and the apron before it, so a stall never backs onto
       // a facade), nobody's door, nobody's wall under the awning
-      for (int dy = 1; dy <= 2; dy++) {
-        const size_t j = I(tx, y - dy);
+      for (int d = 1; d <= 2; d++) {
+        const int bx = tx - F.fx * d, by = ty - F.fy * d;
+        const size_t j = I(bx, by);
         if (M.bldgAt[j] >= 0 || front[j] || M.wall[j]) return false;
-        if (dy == 1 && (M.prop[j] || cover[j] || reserved[j] || groundSolid(M.at(tx, y - 1)) || water[j])) return false;
+        if (d == 1 && (M.prop[j] || cover[j] || reserved[j] || groundSolid(M.at(bx, by)) || water[j])) return false;
+        bx0 = std::min(bx0, bx); bx1 = std::max(bx1, bx); by0 = std::min(by0, by); by1 = std::max(by1, by);
       }
+      bx0 = std::min(bx0, tx); bx1 = std::max(bx1, tx); by0 = std::min(by0, ty); by1 = std::max(by1, ty);
     }
-    // the centrepiece keeps a plaza round it: two clear tiles beside the counters, a clear row between its top and an
-    // aisle, and no awning rising over it from the south (a city's statue or great fountain wants more room)
+    // the centrepiece keeps a plaza round it: no counter, keeper's walk or roof crowding it (a city's statue or great
+    // fountain wants more room)
     if (qx >= 0) {
       // (M1 fixer round 2: a row south of it stands clear of its top, the awning never rising into the basin or the well)
       const int up = small ? 3 : (village ? 3 : (city ? 5 : 4)) - (relaxed ? 1 : 0), down = small ? 3 : 5, side = small ? 4 : (village ? 4 : (city ? 6 : 5));
-      if (y > qy - up && y < qy + down && std::abs(x - qx) < side) return false;
+      const int cx = x, cy = f >= art::StallE ? y - 1 : (f == art::StallN ? y + 1 : y);   // the stall's middle
+      if (cy > qy - up && cy < qy + down && std::abs(cx - qx) < side + (f >= art::StallE ? -1 : 0)) return false;
     }
-    // nothing tall crowding the awning (the fountain, the well, trees, banners, lamps)
-    return !tallNear(x - 2, y - 2, x + 2, y + 1);
+    // nothing tall crowding the roof (the fountain, the well, trees, banners, lamps)
+    return !tallNear(bx0 - 1, by0 - (f == art::StallS ? 0 : 1), bx1 + 1, by1 + (f == art::StallN ? 0 : 1));
   };
-  auto place = [&](int x, int y, int trade) {
+  auto place = [&](int x, int y, int trade, int f) {
+    const Frame F = frameOf(f);
+    int c[3][2];
+    for (int ci = 0; ci < 3; ci++) {
+      art::stallCounterTile(f, ci, c[ci][0], c[ci][1]);
+      c[ci][0] += x; c[ci][1] += y;
+    }
     // the counter is solid across its three tiles: each must leave the ways round it open
-    if (!putSolid(x, y, art::stallProp(trade))) return false;
-    if (!putSolid(x - 1, y, Prop::Filler)) { M.setP(x, y, 0); return false; }
-    if (!putSolid(x + 1, y, Prop::Filler)) { M.setP(x, y, 0); M.setP(x - 1, y, 0); return false; }
-    for (int dx = -1; dx <= 1; dx++) {
-      if (mask[I(x + dx, y)] == K_NONE) set(x + dx, y, K_YARD);
-      for (int dy = -1; dy <= 2; dy++) if (dy) reserved[I(x + dx, y + dy)] = 1;
-      for (int dy = 1; dy <= 2; dy++) if (mask[I(x + dx, y + dy)] == K_NONE) set(x + dx, y + dy, K_YARD);   // the trodden aisle
+    if (!putSolid(c[0][0], c[0][1], art::stallProp(trade))) return false;
+    if (!putSolid(c[1][0], c[1][1], Prop::Filler)) { M.setP(c[0][0], c[0][1], 0); return false; }
+    if (!putSolid(c[2][0], c[2][1], Prop::Filler)) { M.setP(c[0][0], c[0][1], 0); M.setP(c[1][0], c[1][1], 0); return false; }
+    for (int ci = 0; ci < 3; ci++) {
+      const int tx = c[ci][0], ty = c[ci][1];
+      if (mask[I(tx, ty)] == K_NONE) set(tx, ty, K_YARD);
+      reserved[I(tx - F.fx, ty - F.fy)] = 1;   // the keeper's walk
+      for (int d = 1; d <= 2; d++) {           // the trodden aisle
+        const size_t j = I(tx + F.fx * d, ty + F.fy * d);
+        reserved[j] = 1;
+        walkMk[j] = 1;
+        if (mask[j] == K_NONE) set(tx + F.fx * d, ty + F.fy * d, K_YARD);
+      }
     }
     stalls.push_back(Stall{x, y, trade});
     return true;
   };
+  auto facingOf = [&](const Stall& s) { return art::stallFacingAt([&](int px, int py) { return M.propAt(px, py); }, s.x, s.y, O.gx, O.gy); };
 
   // ---- a row: n stalls in groups of two or three (never one, unless n is 1), a walkway between the groups. Every
-  // start between x0 and x1 is tried; the row's ends must open onto walkable ground (a row never runs into a house or
-  // the square's edge). The best start is the one nearest prefX (a little of the town's own chance between equals).
-  auto pattern = [&](int n) {
+  // start between a0 and a1 (along the row: x for an east-west row on line y, y for a north-south one on line x) is
+  // tried; the row's ends must open onto walkable ground (a row never runs into a house or the square's edge). The best
+  // start is the one nearest prefA (a little of the town's own chance between equals).
+  // (stalls fixer round 2, "side stalls next to each other read as one tall strip") a side row's stalls never touch:
+  // a tile of open ground between each two of a group (the step along is 4, not 3), so no two side roofs merge into
+  // one column
+  auto stepOf = [](int f) { return f >= art::StallE ? 4 : 3; };
+  auto pattern = [&](int n, int f) {
     std::vector<int> g;
     switch (n) {
       case 1: g = {1}; break;
@@ -437,109 +489,336 @@ void Gen::markets() {
     std::vector<int> off;   // the stall centres from the first
     int x = 0;
     for (size_t k = 0; k < g.size(); k++) {
-      for (int i = 0; i < g[k]; i++) { off.push_back(x); x += 3; }
-      x += walk;
+      for (int i = 0; i < g[k]; i++) { off.push_back(x); x += stepOf(f); }
+      x += walk - (stepOf(f) - 3);
     }
     return off;
   };
+  auto at = [](int f, int line, int a, int& x, int& y) {
+    if (f >= art::StallE) { x = line; y = a; } else { x = a; y = line; }
+  };
   struct RowFit { int x = 0; int score = -(1 << 30); bool ok = false; };
-  auto fitRow = [&](int y, int n, int mode, int x0, int x1, int prefX, int qx, int qy, int lv, int alignX) {
+  auto fitRow = [&](int line, int n, int mode, int a0, int a1, int prefA, int qx, int qy, int lv, int alignA, int f) {
     RowFit best;
-    const std::vector<int> off = pattern(n);
+    const std::vector<int> off = pattern(n, f);
+    const Frame F = frameOf(f);
     const int span = off.back() + 1;
-    for (int s = x0 + 1; s + span - 1 <= x1 - 1; s++) {
+    for (int s = a0 + 1; s + span - 1 <= a1 - 1; s++) {
       bool ok = true;
-      for (int o : off) if (!stallOk(s + o, y, mode, qx, qy, lv)) { ok = false; break; }
+      for (int o : off) {
+        int x, y;
+        at(f, line, s + o, x, y);
+        if (!stallOk(x, y, mode, qx, qy, lv, f)) { ok = false; break; }
+      }
       if (!ok) continue;
-      // the row's ends open onto walkable ground (two tiles past each end counter), so people walk round it
-      if (n > 1 || mode != 2)
-        for (int e : {s - 3, s - 2, s + off.back() + 2, s + off.back() + 3})
-          if (!walkable(e, y) || !walkable(e, y + 1)) { ok = false; break; }
+      // the row's ends open onto walkable ground (two tiles past each end counter, beside the counter and its aisle),
+      // so people walk round it
+      if (n > 1 || mode != 2) {
+        const int lo = f >= art::StallE ? s - 2 : s - 1, hi = s + off.back() + (f >= art::StallE ? 0 : 1);   // the counters' extent along
+        for (int e : {lo - 2, lo - 1, hi + 1, hi + 2}) {
+          int x, y;
+          at(f, line, e, x, y);
+          if (!walkable(x, y) || !walkable(x + F.fx, y + F.fy)) { ok = false; break; }
+        }
+      }
       if (!ok) continue;
       const int mid = s + off.back() / 2;
-      int sc = -std::abs(mid - prefX) * 3 + (int)(hashAt(s, y, 487u) % 5u);
-      if (alignX >= 0) sc -= std::abs(mid - alignX) * 6;   // a later row centred on the first
+      int sc = -std::abs(mid - prefA) * 3 + (int)(hashAt(s, line, 487u + (uint32_t)f) % 5u);
+      if (alignA >= 0) sc -= std::abs(mid - alignA) * 6;   // a later row centred on the first
       if (sc > best.score) { best.x = s; best.score = sc; best.ok = true; }
     }
     return best;
   };
   // a whole row or nothing (a counter that would cut a way off leaves no lone stall behind: the row is taken back)
-  auto putRow = [&](int y, int s, int n) {
-    const std::vector<int> off = pattern(n);
-    const int xa = s - 2, xb = s + off.back() + 2;
+  auto putRow = [&](int line, int s, int n, int f) {
+    const std::vector<int> off = pattern(n, f);
+    const Frame F = frameOf(f);
+    const bool ns = f >= art::StallE;
+    const int lo = ns ? s - 2 : s - 1, hi = s + off.back() + (ns ? 0 : 1);
+    // the box the row may touch (counters, keepers' walk, aisles, the ways round the ends)
+    const int xa = ns ? line - 3 : lo - 3, xb = ns ? line + 3 : hi + 3, ya = ns ? lo - 3 : line - 3, yb = ns ? hi + 3 : line + 3;
     std::vector<uint8_t> keep;
-    for (int yy = y - 2; yy <= y + 3; yy++)
-      for (int xx = xa; xx <= xb; xx++) { const size_t i = I(xx, yy); keep.push_back(reserved[i]); keep.push_back(mask[i]); keep.push_back(M.prop[i]); }
+    for (int yy = ya; yy <= yb; yy++)
+      for (int xx = xa; xx <= xb; xx++) {
+        if (!in(xx, yy)) continue;
+        const size_t i = I(xx, yy);
+        keep.push_back(reserved[i]); keep.push_back(mask[i]); keep.push_back(M.prop[i]); keep.push_back(walkMk[i]); keep.push_back(endMk[i]);
+      }
     const size_t st0 = stalls.size(), t0 = nextT;
     int made = 0;
     for (int o : off) {
-      if (nextT >= pool.size() || !place(s + o, y, pool[nextT])) break;
+      int x, y;
+      at(f, line, s + o, x, y);
+      if (nextT >= pool.size() || !place(x, y, pool[nextT], f)) break;
       nextT++;
       made++;
     }
     if (made == (int)off.size()) {
       // the way round the row's ends stays open (no lamp, banner or tree may take it later)
-      for (int e : {s - 3, s + off.back() + 3}) { reserved[I(e, y)] = 1; reserved[I(e, y + 1)] = 1; }
-      reserved[I(s - 2, y + 1)] = 1;
-      reserved[I(s + off.back() + 2, y + 1)] = 1;
+      for (int e : {lo - 2, lo - 1, hi + 1, hi + 2})
+        for (int d = 0; d <= 1; d++) {
+          int x, y;
+          at(f, line, e, x, y);
+          x += F.fx * d; y += F.fy * d;
+          if (!in(x, y)) continue;
+          if (d == 1 || e == lo - 2 || e == hi + 2) { reserved[I(x, y)] = 1; walkMk[I(x, y)] = 1; endMk[I(x, y)] = 1; }
+        }
       return made;
     }
     size_t k = 0;
-    for (int yy = y - 2; yy <= y + 3; yy++)
-      for (int xx = xa; xx <= xb; xx++) { const size_t i = I(xx, yy); reserved[i] = keep[k++]; mask[i] = keep[k++]; M.prop[i] = keep[k++]; }
+    for (int yy = ya; yy <= yb; yy++)
+      for (int xx = xa; xx <= xb; xx++) {
+        if (!in(xx, yy)) continue;
+        const size_t i = I(xx, yy);
+        reserved[i] = keep[k++]; mask[i] = keep[k++]; M.prop[i] = keep[k++]; walkMk[i] = keep[k++]; endMk[i] = keep[k++];
+      }
     stalls.resize(st0);
     nextT = t0;
     return 0;
   };
-  std::vector<int> rowYs;
+  std::vector<int> rowYs;   // the market's east-west rows (their counters' row)
   // ---- the rows on one square: searched over the area A, the market's own zone Zp preferred. The first row as long as
-  // it can be (up to its share), near the zone's top; each later row a wide aisle behind or before an earlier one, its
-  // middle under the first row's middle. Returns the stalls placed.
+  // it can be (up to its share) near the zone's top, its counters facing south over its aisle; the second faces it
+  // across a wide shared aisle (its counters toward the north: from the camera we see its back), or, where that has
+  // no room, stands a wide aisle behind or before the first facing south; what is left (a grand market, or a town's
+  // draw) goes in a short row down the market's west or east side, its counters turned in toward the walking space
+  // (side profiles). Returns the stalls placed.
+  bool firstBack = false;   // (stalls fixer round 2) the retry of a market that came out all fronts: its first row turned
+  bool firstSide = false;   // (and the next retry: a side row first, its counters turned toward the centrepiece)
   auto squareRows = [&](const IRect& Zp, const IRect& A, int qx, int qy, int lv, int count, int rowsMax, int mode) {
     int placed = 0, firstMid = -1;
     std::vector<int> mine;
+    const size_t st0 = stalls.size();
     count = std::min(count, (int)(pool.size() - nextT));
     const int prefX = Zp.x + Zp.w / 2 + (int)(hashAt(Zp.x, Zp.y, 491u) % 5u) - 2;
     const int targetY0 = Zp.y + 1 + (int)(hashAt(Zp.x, Zp.y, 499u) % 2u);
-    for (int r = 0; r < rowsMax && placed < count; r++) {
-      const int left = count - placed, rowsLeft = rowsMax - r;
+    // a short row down a side: a grand market's last stalls, a third of the towns with four or more
+    // (stalls fixer round 2, "some markets still face the camera only") every market of four or more on a square
+    // tries a side row, so it never shows only fronts
+    int side = 0;
+    if (mode == 0 && count >= 4 && !village) side = 2;
+    bool turn = false;   // the last pass: a later row faces the first across the aisle (its back to us), never south
+    const int rowsCount = count - side;
+    auto rowsPass = [&](int target, int rmax) {
+    for (int r = (int)mine.size(); r < rmax && placed < target; r++) {
+      const int left = target - placed, rowsLeft = rmax - r;
       int want = (left + rowsLeft - 1) / rowsLeft;
       if (rowsLeft > 1 && left - want == 1) want++;   // never leave one stall for the last row
-      int by = -1, bx = 0, bn = 0, bs = -(1 << 30);
+      // the first row as long as it can be (stalls fixer round 2: leaving the side row its pair)
+      if (r == 0) want = std::max(want, std::min(3, target - placed));
+      int by = -1, bx = 0, bn = 0, bs = -(1 << 30), bf = art::StallS;
       for (int n = want; n >= (village ? 1 : 2); n--) {
         if (r > 0 && n < 2) break;
-        for (int y = A.y - 1; y <= A.y + A.h; y++) {
-          bool close = false;   // every row's aisle stays open (rows stand rowGap apart)
-          for (int ry : rowYs) if (std::abs(y - ry) < rowGap) close = true;
-          if (close) continue;
-          if (r > 0) {   // a wide aisle from one of this market's rows, behind it or before it
-            bool by1 = false;
-            for (int my : mine) if (std::abs(y - my) == rowGap || std::abs(y - my) == rowGap + 1) by1 = true;
-            if (!by1) continue;
+        for (int y = A.y - 1; y <= A.y + A.h; y++)
+          for (int f : {art::StallS, art::StallN}) {
+            // the first row: along the north side, facing south (or, where only the south side has room, along it
+            // facing north); a later one faces it across the walking space
+            if ((turn && r > 0 && f == art::StallS) || (firstBack && r == 0 && f == art::StallS)) continue;   // (fixer round 2) backs only
+            bool close = false;                       // every row's aisle stays open (rows stand rowGap apart)...
+            bool across = false;                      // ...but a row may face an earlier one across a shared aisle
+            // (stalls fixer round 2) the turned pass also takes a row facing back across a five-tile aisle, back to
+            // back with the first (their keepers' walks side by side), or a wide aisle behind or before it
+            const bool tp = turn && r > 0;
+            bool b2b = false;
+            for (int ry : rowYs) {
+              if (f == art::StallN && (y - ry == 5 || (tp && y - ry == 6))) across = true;
+              if (tp && f == art::StallN && ry - y == 3) b2b = true;
+            }
+            for (int ry : rowYs)
+              if (std::abs(y - ry) < rowGap && !(across && (y - ry == 5 || (tp && y - ry == 6))) && !(b2b && ry - y == 3)) close = true;
+            if (close) continue;
+            if (r > 0) {   // facing an earlier row across a shared aisle, or a wide aisle behind or before one
+              bool by1 = across || b2b;
+              for (int my : mine) if ((f == art::StallS || tp) && (std::abs(y - my) == rowGap || std::abs(y - my) == rowGap + 1)) by1 = true;
+              if (!by1) continue;
+            }
+            const RowFit fr = fitRow(y, n, mode, A.x - 2, A.x + A.w + 1, r > 0 ? firstMid : prefX, qx, qy, lv, r > 0 ? firstMid : -1, f);
+            if (!fr.ok) continue;
+            const int mid = fr.x + pattern(n, f).back() / 2;
+            int sc = fr.score + n * 40;
+            if (r == 0 && f == art::StallN) {
+              if (y <= qy + 1 && !across) continue;   // a row showing its back stands on the south side only
+              sc -= 16 + std::abs(y - (Zp.y + Zp.h - 2)) * 4 - (across ? 30 : 0);
+              if (y < Zp.y - 1 || y > Zp.y + Zp.h + 1) sc -= 40;
+              if (mid < Zp.x || mid > Zp.x + Zp.w) sc -= 30;
+            } else if (r == 0) {
+              sc -= std::abs(y - targetY0) * 4;
+              if (y < Zp.y - 1 || y > Zp.y + Zp.h) sc -= 40;   // outside the market's own part of the square
+              if (mid < Zp.x || mid > Zp.x + Zp.w) sc -= 30;
+            } else {
+              if (across) sc += 24;                              // the rows face each other over the walking space
+              if (ew::stallFormAt(O.gy + y) != ew::stallFormAt(O.gy + mine[0])) sc += 6;   // the next row built otherwise
+            }
+            if (sc > bs) { bs = sc; by = y; bx = fr.x; bn = n; bf = f; }
           }
-          const RowFit f = fitRow(y, n, mode, A.x - 2, A.x + A.w + 1, r > 0 ? firstMid : prefX, qx, qy, lv, r > 0 ? firstMid : -1);
-          if (!f.ok) continue;
-          const int mid = f.x + pattern(n).back() / 2;
-          int sc = f.score + n * 40;
-          if (r == 0) {
-            sc -= std::abs(y - targetY0) * 4;
-            if (y < Zp.y - 1 || y > Zp.y + Zp.h) sc -= 40;   // outside the market's own part of the square
-            if (mid < Zp.x || mid > Zp.x + Zp.w) sc -= 30;
-          } else if (ew::stallFormAt(O.gy + y) != ew::stallFormAt(O.gy + mine[0])) sc += 6;   // the next row built otherwise
-          if (sc > bs) { bs = sc; by = y; bx = f.x; bn = n; }
-        }
       }
       if (by < 0) break;
-      const int made = putRow(by, bx, bn);
+      const int made = putRow(by, bx, bn, bf);
       if (!made) break;
       placed += made;
       rowYs.push_back(by);
       mine.push_back(by);
-      if (firstMid < 0) firstMid = bx + pattern(bn).back() / 2;
+      if (firstMid < 0) firstMid = bx + pattern(bn, bf).back() / 2;
+    }
+    };
+    if (firstSide) {   // a short row in profile beside the centrepiece first, then the rows as ever
+      for (int n = std::min(3, count); n >= 2 && placed == 0; n--) {
+        if (count - n == 1) continue;   // never one left for the rows
+        int bl = -1, ba = 0, bs = -(1 << 30), bf = art::StallE;
+        for (int f : {art::StallE, art::StallW})
+          for (int line = A.x - 2; line <= A.x + A.w + 1; line++) {
+            if (f == art::StallE ? line >= qx : line <= qx) continue;   // its counters toward the centrepiece
+            const RowFit fr = fitRow(line, n, mode, A.y - 2, A.y + A.h + 1, qy, qx, qy, lv, -1, f);
+            if (!fr.ok) continue;
+            const int sc = fr.score - std::abs(std::abs(line - qx) - 6) * 4;
+            if (sc > bs) { bs = sc; bl = line; ba = fr.x; bf = f; }
+          }
+        if (bl >= 0) placed += putRow(bl, ba, n, bf);
+      }
+      if (!placed) return 0;
+    }
+    rowsPass(firstSide ? count : rowsCount, rowsMax);
+    // the side row: down the west side facing east, or the east side facing west, beside the rows' walking space
+    // (gapLo .. gapHi: the walkway between the rows' ends and the side row's line)
+    auto sideRow = [&](int gapLo, int gapHi) {
+    const int sideWant = std::min((int)(pool.size() - nextT), count - placed);
+    if (sideWant >= 2 && !mine.empty()) {
+      int lo = 1 << 30, hi = -(1 << 30), top = 1 << 30, bot = -(1 << 30);
+      for (const Stall& s : stalls)
+        if (std::find(mine.begin(), mine.end(), s.y) != mine.end()) { lo = std::min(lo, s.x - 1); hi = std::max(hi, s.x + 1); top = std::min(top, s.y); bot = std::max(bot, s.y); }
+      const int midY = (top + bot) / 2 + 1;
+      const bool westFirst = (hashAt(lo, top, 563u) & 1u) != 0;
+      for (int n = std::min(3, sideWant); n >= 2 && placed < count; n--) {
+        int bl = -1, ba = 0, bs = -(1 << 30), bf = art::StallE;
+        for (int f : {art::StallE, art::StallW})
+          for (int line = A.x - 2; line <= A.x + A.w + 1; line++) {
+            // beside the rows' ends: a walkway of three or four tiles between them and the side row's aisle
+            const int gap = f == art::StallE ? lo - line : line - hi;
+            if (gap < gapLo || gap > gapHi) continue;
+            const RowFit fr = fitRow(line, n, mode, A.y - 2, A.y + A.h + 1, midY, qx, qy, lv, -1, f);
+            if (!fr.ok) continue;
+            int sc = fr.score - std::abs(gap - 7) * 5 + ((f == art::StallE) == westFirst ? 4 : 0);
+            if (sc > bs) { bs = sc; bl = line; ba = fr.x; bf = f; }
+          }
+        if (bl < 0) continue;
+        const int made = putRow(bl, ba, n, bf);
+        if (made) { placed += made; break; }
+      }
+    }
+    };
+    sideRow(5, 11);
+    // (stalls fixer round 2, "some markets still face the camera only") while no stall of this square is turned, what
+    // is left first goes in a row facing the first across the aisle (its back to us), else in a side row further out
+    auto allFront = [&]() {
+      for (size_t i = st0; i < stalls.size(); i++) if (facingOf(stalls[i]) != art::StallS) return false;
+      return true;
+    };
+    if (placed < count && allFront()) {
+      turn = true;
+      rowsPass(count, rowsMax + (mine.size() >= (size_t)rowsMax ? 0 : 1));
+      turn = false;
+      if (placed < count && allFront()) sideRow(2, 16);
+    }
+    // no room down a side: what is left goes in the rows after all (a third row where the second had no room), else a
+    // pair grows into a three at whichever end has room
+    if (placed < count) rowsPass(count, rowsMax + (mine.size() >= (size_t)rowsMax ? 0 : 1));
+    for (size_t i = st0; i < stalls.size() && placed < count && nextT < pool.size(); i++) {
+      const Stall s = stalls[i];
+      const int f = facingOf(s);
+      const Frame F = frameOf(f);
+      auto stallAt = [&](int x, int y) {
+        const int q = M.propAt(x, y);
+        return q && art::isStall((Prop)(q - 1)) && facingOf(Stall{x, y, 0}) == f;
+      };
+      int gl = 0, gh = 0;
+      const int st = stepOf(f);
+      while (gl < 3 && stallAt(s.x - st * (gl + 1) * F.ax, s.y - st * (gl + 1) * F.ay)) gl++;
+      while (gh < 3 && stallAt(s.x + st * (gh + 1) * F.ax, s.y + st * (gh + 1) * F.ay)) gh++;
+      if (gl + gh + 1 != 2) continue;
+      for (int dir : {-1, 1}) {
+        if ((dir < 0 && gl) || (dir > 0 && gh)) continue;
+        const int nx = s.x + dir * st * F.ax, ny = s.y + dir * st * F.ay;
+        extending = true;
+        bool ok = stallOk(nx, ny, mode, qx, qy, lv, f);
+        extending = false;
+        // the next group stays a walkway away; the new end opens onto walkable ground
+        for (int k = 0; k <= 2 && ok; k++) if (stallAt(nx + dir * (st + k) * F.ax, ny + dir * (st + k) * F.ay)) ok = false;
+        const bool ns = f >= art::StallE;
+        const int o1 = dir < 0 ? (ns ? -3 : -2) : (ns ? 1 : 2), o2 = o1 + dir;   // past the new counter's end
+        for (int o : {o1, o2})
+          if (ok && (!walkable(nx + o * F.ax, ny + o * F.ay) || !walkable(nx + o * F.ax + F.fx, ny + o * F.ay + F.fy))) ok = false;
+        if (!ok || !place(nx, ny, pool[nextT], f)) continue;
+        nextT++;
+        placed++;
+        for (int o : {o1, o2})
+          for (int d = 0; d <= 1; d++) {
+            const int x = nx + o * F.ax + F.fx * d, y = ny + o * F.ay + F.fy * d;
+            if (!in(x, y) || (d == 0 && o == o1)) continue;
+            reserved[I(x, y)] = 1; walkMk[I(x, y)] = 1; endMk[I(x, y)] = 1;
+          }
+        break;
+      }
     }
     return placed;
   };
 
+  // (stalls fixer round 2, "some markets still face the camera only") a market of three or more that came out all
+  // fronts (a cramped square: no side row, no row across the aisle) is taken back and laid out again with its first row
+  // turned to show its back; if that leaves it smaller than two stalls or still all fronts, the first layout stands
+  auto mixedRows = [&](const IRect& Zp, const IRect& A, int qx, int qy, int lv, int count, int rowsMax, int mode) {
+    const size_t st0 = stalls.size(), t0 = nextT, ry0 = rowYs.size();
+    const std::vector<uint8_t> kR = reserved, kM = mask, kP = M.prop, kW = walkMk, kE = endMk;
+    auto restore = [&]() {
+      reserved = kR; mask = kM; M.prop = kP; walkMk = kW; endMk = kE;
+      stalls.resize(st0); nextT = t0; rowYs.resize(ry0);
+    };
+    auto allFr = [&]() {
+      for (size_t i = st0; i < stalls.size(); i++) if (facingOf(stalls[i]) != art::StallS) return false;
+      return true;
+    };
+    int got = squareRows(Zp, A, qx, qy, lv, count, rowsMax, mode);
+    if (got < 3 || village || !allFr()) return got;
+    // (the retries look over a cramped square with the view relaxed too: one open row past the aisle)
+    const bool sv = strictView;
+    for (int k = 0; k < 4; k++) {
+      restore();
+      strictView = (k & 3) < 2 ? sv : false;
+      firstBack = (k & 1) == 0;
+      firstSide = !firstBack;
+      const int got2 = squareRows(Zp, A, qx, qy, lv, count, rowsMax, mode);
+      firstBack = firstSide = false;
+      strictView = sv;
+      if (got2 >= std::min(got, 3) && !allFr()) return got2;
+    }
+    // the last resort: one row of fronts a stall shorter, and that stall at the row's end in profile, its counter
+    // turned out across the row's end a short walkway from it (an L), facing away along the row's line
+    if (got >= 3) {
+      restore();
+      const int g3 = squareRows(Zp, A, qx, qy, lv, got - 1, rowsMax, mode);
+      if (g3 == got - 1 && nextT < pool.size()) {
+        int xl = 1 << 30, xh = -(1 << 30), ry = -1;
+        bool one = true;
+        for (size_t i = st0; i < stalls.size(); i++) {
+          if (ry >= 0 && stalls[i].y != ry) one = false;
+          ry = stalls[i].y; xl = std::min(xl, stalls[i].x); xh = std::max(xh, stalls[i].x);
+        }
+        for (int k = 0; k < 4 && one; k++) {
+          const int side = k & 1, f = (k < 2) == (side == 1) ? art::StallE : art::StallW;   // out first, then in
+          for (int d = 3; d <= 8; d++) {
+            const int line = side ? xh + d : xl - d;
+            if (!parityOk(f, line, ry)) continue;
+            const bool sv0 = strictView, rl0 = relaxed;
+            strictView = k >= 2 ? false : sv0;   // (turned in: the view across the row's end relaxed)
+            const RowFit fr = fitRow(line, 1, mode, ry - 2, ry + 3, ry, qx, qy, lv, -1, f);
+            strictView = sv0; relaxed = rl0;
+            if (fr.ok && putRow(line, fr.x, 1, f)) return got;
+          }
+        }
+      }
+    }
+    restore();
+    return squareRows(Zp, A, qx, qy, lv, count, rowsMax, mode);
+  };
   const int lv0 = lvl[I(S.x, S.y)];
   const int CX = cpX >= 0 ? cpX : S.x, CY = cpX >= 0 ? cpY : S.y;   // the centrepiece
   IRect Z = mktZone.w > 0 ? mktZone : IRect{S.x - (int)S.r - 2, S.y - (int)S.r - 2, (int)S.r * 2 + 5, (int)S.r * 2 + 5};
@@ -562,18 +841,29 @@ void Gen::markets() {
       const int mode = pass == 0 ? 0 : 2;
       nearX = wx; nearY = wy; nearR = pass == 2 ? 0 : 7;
       for (int n = nTrade; n >= 1 && !got; n--) {
-        int by = -1, bx = 0, bs = -(1 << 30);
-        for (int y = wy - 7; y <= wy + 7; y++) {
-          const RowFit f = fitRow(y, n, mode, wx - 10, wx + 10, wx, wx, wy, lv0, -1);
-          if (!f.ok) continue;
-          // close to the well: across the green from it, the counters facing it (north of it, or beside it); never
-          // with the well crowding the keeper's back
-          const int mid = f.x + pattern(n).back() / 2;
-          if (y > wy - 1 && y < wy + 5 && std::abs(mid - wx) < 3 * n + 2) continue;
-          const int sc = f.score - std::abs(y - (wy - 3)) * 4 - (y < wy ? 0 : 10);
-          if (sc > bs) { bs = sc; by = y; bx = f.x; }
+        int by = -1, bx = 0, bs = -(1 << 30), bf = art::StallS;
+        // (stall facings) close to the well, across the green from it, the counters turned toward it from whichever
+        // side the stalls stand (north of it facing south, south of it showing their backs, beside it in profile);
+        // never with the well crowding the keeper's back
+        for (int f = 0; f < art::kStallFacings; f++) {
+          const bool ns = f >= art::StallE;
+          for (int line = (ns ? wx : wy) - 7; line <= (ns ? wx : wy) + 7; line++) {
+            const RowFit fr = fitRow(line, n, mode, (ns ? wy : wx) - 10, (ns ? wy : wx) + 10, ns ? wy + 1 : wx, wx, wy, lv0, -1, f);
+            if (!fr.ok) continue;
+            const Frame F = frameOf(f);
+            const int mid = fr.x + pattern(n, f).back() / 2;
+            int cx, cy;   // the middle of the row's counters
+            at(f, line, ns ? mid - 1 : mid, cx, cy);
+            const int tw = (wx - cx) * F.fx + (wy - cy) * F.fy;   // how far in front of the counters the well is
+            const int off = std::abs((wx - cx) * F.ax + (wy - cy) * F.ay);
+            if (tw > -4 && tw < 3 && off < 3 * n / 2 + 3) continue;   // the well against the counter or the keeper's back
+            const bool facing = tw >= 3 && tw <= 7 && off <= 3 * n;
+            const int sc = fr.score - std::abs(tw - 4) * (facing ? 6 : 3) - off * 2 + (facing ? 40 : 0) +
+                           (f == art::StallS ? 6 : (f == art::StallN ? 2 : 3)) + (int)(hashAt(wx, wy, 571u + (uint32_t)f) % 9u);
+            if (sc > bs) { bs = sc; by = line; bx = fr.x; bf = f; }
+          }
         }
-        if (by >= 0) { got = putRow(by, bx, n); if (got) rowYs.push_back(by); }
+        if (by >= 0) { got = putRow(by, bx, n, bf); if (got && bf <= art::StallN) rowYs.push_back(by); }
       }
     }
     nearR = 0;
@@ -620,8 +910,9 @@ void Gen::markets() {
     // stalls touching on the verge of the main street, each where a lot was kept
     int streetN = 0;
     std::vector<int> streetYs;
-    if (lotStalls > 0 && nTrade >= 4) {
-      const int want = std::min(lotStalls, mk ? 3 : 2);
+    // (stalls fixer round 2) the square keeps four of the trades (a pair from the front and a pair turned)
+    if (lotStalls > 0 && nTrade >= 6) {
+      const int want = std::min(std::min(lotStalls, mk ? 3 : 2), nTrade - 4);
       for (int pass = 0; pass < 2 && streetN < want; pass++) {
         const int n = std::min(want - streetN, 3);
         if (n < 2) break;
@@ -631,7 +922,7 @@ void Gen::markets() {
           bool close = false;
           for (int ry : streetYs) if (std::abs(y - ry) < 4) close = true;
           if (close) continue;
-          const RowFit f = fitRow(y, n, 1, S.x - span, S.x + span, S.x, CX, CY, lv0, -1);
+          const RowFit f = fitRow(y, n, 1, S.x - span, S.x + span, S.x, CX, CY, lv0, -1, art::StallS);   // facing the street
           if (!f.ok) continue;
           bool apart = true;   // its own run along the street, clear of the square's market
           for (const Stall& o : stalls) if (std::abs(o.x - f.x) <= 10 && std::abs(o.y - y) <= 6) apart = false;
@@ -640,7 +931,7 @@ void Gen::markets() {
           if (sc > bs) { bs = sc; by = y; bx = f.x; }
         }
         if (by < 0) break;
-        const int made = putRow(by, bx, n);
+        const int made = putRow(by, bx, n, art::StallS);
         if (!made) break;
         streetYs.push_back(by);
         streetN += made;
@@ -650,14 +941,14 @@ void Gen::markets() {
     // city's other market places) its other squares; then with the view relaxed; never a lone stall
     // (one market place: a later try only when no row stood at all; what does not fit sells from the tables below)
     const int onSquare = nTrade - streetN;
-    int got = squareRows(Z, all, CX, CY, lv0, onSquare, maxRows, 0);
+    int got = mixedRows(Z, all, CX, CY, lv0, onSquare, maxRows, 0);
     if (!got) {
       strictView = false;
-      got = squareRows(Z, all, CX, CY, lv0, onSquare, maxRows, 0);
+      got = mixedRows(Z, all, CX, CY, lv0, onSquare, maxRows, 0);
     }
     if (!got) {   // the last resort for a cramped square
       relaxed = true;
-      got = squareRows(Z, all, CX, CY, lv0, onSquare, maxRows, 0);
+      got = mixedRows(Z, all, CX, CY, lv0, onSquare, maxRows, 0);
       relaxed = false;
     }
     if (city && got > 0 && got < 4 && got < onSquare)   // a city's cramped square: a second block of stalls on it
@@ -712,7 +1003,11 @@ void Gen::markets() {
         if (std::abs(x - qx) <= 3 && y >= qy - 2 && y <= qy + 3) return false;   // the centrepiece's plaza
         if (std::abs(x + 1 - qx) <= 3 && y >= qy - 2 && y <= qy + 3) return false;
         if (tallNear(x - 1, y - 2, x + 2, y)) return false;
-        for (const Stall& s : stalls) if (x + 1 >= s.x - 4 && x <= s.x + 4 && std::abs(y - s.y) <= 4) return false;
+        for (const Stall& s : stalls) {   // (stall facings) clear of every stall's counter by a walkway
+          const bool ns = facingOf(s) >= art::StallE;
+          const int cx0 = ns ? s.x : s.x - 1, cx1 = ns ? s.x : s.x + 1, cy0 = ns ? s.y - 2 : s.y, cy1 = s.y;
+          if (x + 1 >= cx0 - 3 && x <= cx1 + 3 && y >= cy0 - 4 && y <= cy1 + 4) return false;
+        }
         return true;
       };
       auto putUnit = [&](int x, int y, bool cloth) {
@@ -775,7 +1070,7 @@ void Gen::markets() {
       {
         int mid = Z.x + Z.w / 2, lo = 1 << 30, hi = -(1 << 30), top = 1 << 30, bot = -(1 << 30);
         for (const Stall& s : stalls)
-          if (std::find(rowYs.begin(), rowYs.end(), s.y) != rowYs.end()) {
+          if (facingOf(s) <= art::StallN && std::find(rowYs.begin(), rowYs.end(), s.y) != rowYs.end()) {
             lo = std::min(lo, s.x); hi = std::max(hi, s.x); top = std::min(top, s.y); bot = std::max(bot, s.y);
           }
         IRect A = all;
@@ -790,7 +1085,7 @@ void Gen::markets() {
       for (size_t ri = 0; ri < rowYs.size() && need > 0; ri++) {
         const int y = rowYs[ri];
         int lo = 1 << 30, hi = -(1 << 30);
-        for (const Stall& s : stalls) if (s.y == y) { lo = std::min(lo, s.x); hi = std::max(hi, s.x); }
+        for (const Stall& s : stalls) if (s.y == y && facingOf(s) <= art::StallN) { lo = std::min(lo, s.x); hi = std::max(hi, s.x); }
         for (int x : {hi + 5, lo - 6}) {
           if (need < 1 || !unitOk(x, y, lv0, CX, CY)) continue;
           const bool cloth = (made % clothEvery) == clothEvery - 1;
@@ -811,21 +1106,27 @@ void Gen::markets() {
 
   // ---- stock stacked at the ends of each group (where the walkway between two groups is wide enough to spare a
   // tile), the traders' carts at the row ends, the keepers behind their counters
-  std::vector<std::pair<int, int>> ends;
+  // (stall facings) along a row: the tile past each end of a stall's counter, and the stall three tiles on
+  std::vector<std::pair<int, int>> ends;   // (tile index, stall)
   for (size_t i = 0; i < stalls.size(); i++) {
     const Stall& s = stalls[i];
-    bool leftN = false, rightN = false;   // a stall touching on that side
-    int leftGap = 99, rightGap = 99;
+    const int f = facingOf(s);
+    const Frame F = frameOf(f);
+    bool loN = false, hiN = false;   // a stall touching on that side
+    int loGap = 99, hiGap = 99;
     for (const Stall& o : stalls) {
-      if (o.y != s.y || &o == &s) continue;
-      if (o.x == s.x - 3) leftN = true;
-      if (o.x == s.x + 3) rightN = true;
-      if (o.x < s.x) leftGap = std::min(leftGap, s.x - o.x - 3);
-      if (o.x > s.x) rightGap = std::min(rightGap, o.x - s.x - 3);
+      if (&o == &s || facingOf(o) != f) continue;
+      const int da = (o.x - s.x) * F.ax + (o.y - s.y) * F.ay, dp = (o.x - s.x) * F.ay + (o.y - s.y) * F.ax;
+      if (dp != 0 || da == 0) continue;
+      if (da == -stepOf(f)) loN = true;
+      if (da == stepOf(f)) hiN = true;
+      if (da < 0) loGap = std::min(loGap, -da - 3);
+      if (da > 0) hiGap = std::min(hiGap, da - 3);
     }
     // (a walkway between two groups takes stock on one side only, so two tiles of it stay open)
-    if (!leftN && leftGap >= 5) ends.push_back({s.x - 2, (int)i});
-    if (!rightN && rightGap >= 3) ends.push_back({s.x + 2, (int)i});
+    const int loA = f >= art::StallE ? -3 : -2, hiA = f >= art::StallE ? 1 : 2;   // past the counter's ends
+    if (!loN && loGap >= 5) ends.push_back({(int)I(s.x + F.ax * loA, s.y + F.ay * loA), (int)i});
+    if (!hiN && hiGap >= 3) ends.push_back({(int)I(s.x + F.ax * hiA, s.y + F.ay * hiA), (int)i});
   }
   auto clutterOk = [&](int x, int y) {
     if (!in(x, y)) return false;
@@ -838,27 +1139,39 @@ void Gen::markets() {
   };
   for (auto& e : ends) {
     const Stall& s = stalls[(size_t)e.second];
-    const int x = e.first, y = s.y;
+    const Frame F = frameOf(facingOf(s));
+    const int x = e.first % W, y = e.first / W;
     if (!clutterOk(x, y) || lvl[I(x, y)] != lvl[I(s.x, s.y)]) continue;
     const uint32_t h = hashAt(x, y, 401u);
     if ((h >> 7) % 3 == 0) continue;   // not every end is stacked
     if (!putSolid(x, y, stockFor(s.trade, h))) continue;
     reserved[I(x, y)] = 1;
     // a second piece behind it at some ends
-    if ((h >> 3) % 3 != 0 && clutterOk(x, y - 1)) putSolid(x, y - 1, (h >> 5) & 1 ? Prop::Barrel : Prop::Crate);
+    if ((h >> 3) % 3 != 0 && clutterOk(x - F.fx, y - F.fy)) putSolid(x - F.fx, y - F.fy, (h >> 5) & 1 ? Prop::Barrel : Prop::Crate);
   }
-  // the traders' carts (a market town's wagons by its stalls; a village's by its stall)
+  // the traders' carts (a market town's wagons by its stalls; a village's by its stall): past a row's end, or behind it
   const int carts = mk ? 2 + rng.irange(2) : (city ? 1 + rng.irange(2) : 1);
   {
     std::vector<std::pair<int, int>> spots;
     for (const Stall& s : stalls) {
+      const int f = facingOf(s);
+      const Frame F = frameOf(f);
       bool lft = true, rgt = true;
-      for (const Stall& o : stalls) if (o.y == s.y && std::abs(o.x - s.x) <= 9) { if (o.x < s.x) lft = false; if (o.x > s.x) rgt = false; }
+      for (const Stall& o : stalls) {
+        if (&o == &s || facingOf(o) != f) continue;
+        const int da = (o.x - s.x) * F.ax + (o.y - s.y) * F.ay, dp = (o.x - s.x) * F.ay + (o.y - s.y) * F.ax;
+        if (dp == 0 && std::abs(da) <= 9) { if (da < 0) lft = false; if (da > 0) rgt = false; }
+      }
       for (int dir : {-1, 1}) {
         if ((dir < 0 && !lft) || (dir > 0 && !rgt)) continue;
-        spots.push_back({s.x + dir * 4, s.y});
-        spots.push_back({s.x + dir * 5, s.y});
-        spots.push_back({s.x + dir * 4, s.y - 1});
+        if (f <= art::StallN) {
+          spots.push_back({s.x + dir * 4, s.y});
+          spots.push_back({s.x + dir * 5, s.y});
+          spots.push_back({s.x + dir * 4, s.y - F.fy});
+        } else {   // a side row's cart stands across the column's end, by its keeper's walk
+          spots.push_back({s.x - F.fx, dir < 0 ? s.y - 4 : s.y + 2});
+          spots.push_back({s.x - 2 * F.fx, dir < 0 ? s.y - 4 : s.y + 2});
+        }
       }
     }
     std::vector<std::pair<int, int>> made;
@@ -874,8 +1187,11 @@ void Gen::markets() {
       made.push_back({x, y});
     }
   }
-  // the keepers: someone behind every counter
-  for (const Stall& s : stalls) addSpawn(Role::Merchant, s.x, s.y - 1);
+  // the keepers: someone behind every counter, on the inside of whichever way it faces
+  for (const Stall& s : stalls) {
+    const art::StallKeeperSpot k = art::stallKeeperSpot(facingOf(s));
+    addSpawn(Role::Merchant, s.x + k.postDx, s.y + k.postDy);
+  }
 
   // ---- what the place lives from, in plain sight of its market: beside the stall of its own trade, at the market's
   // edge (a village's green), never in the middle of the walking space
@@ -1360,6 +1676,171 @@ void Gen::tradeYards() {
         set(x, y, K_YARD);
         racks++;
       }
+  }
+}
+
+
+// ------------------------------------------------------------------------------------------------ (M2) the plazas
+// The side of a city's main square away from its market (and the paving round a capital's palace approach) could
+// lie bare for a dozen tiles each way (owner note 6: "a large empty plaza"). While any paved block of about 8 x 8 or
+// more holds nothing, a feature goes up at its middle, in turn: a shade tree with benches under it, a monument
+// between two lamps, a well with a bench, a planted tree ringed with flowers. Every solid piece keeps the way (no
+// door, gate or street is cut off), and nothing stands on a market's aisles, a keeper's walk or a building's front.
+int Gen::largestEmptyPlaza(int& bx, int& by, const std::vector<uint8_t>& skip) const {
+  // the largest square of empty paving (dynamic programming over the buffer)
+  std::vector<uint16_t> dp((size_t)W * H, 0);
+  int best = 0;
+  bx = by = -1;
+  for (int y = 0; y < H; y++)
+    for (int x = 0; x < W; x++) {
+      const size_t i = I(x, y);
+      const bool empty = M.at(x, y) == Ground::Plaza && !M.prop[i] && M.bldgAt[i] < 0 && !M.wall[i] && !skip[i] && !inCompound(x, y);
+      if (!empty) continue;
+      int v = 1;
+      if (x > 0 && y > 0) v = 1 + std::min({(int)dp[I(x - 1, y)], (int)dp[I(x, y - 1)], (int)dp[I(x - 1, y - 1)]});
+      dp[i] = (uint16_t)v;
+      if (v > best) { best = v; bx = x - v + 1; by = y - v + 1; }
+    }
+  return best;
+}
+
+int Gen::largestEmptyBand(int& bx, int& by, int& bw, int& bh, int minSide, const std::vector<uint8_t>& skip) const {
+  // every maximal empty rectangle is some row's bar extended left and right while the bars stay as tall (a stack over
+  // each row's column heights); the largest by area with both sides >= minSide wins
+  std::vector<int> hgt((size_t)W, 0), st;
+  int best = 0;
+  bx = by = -1; bw = bh = 0;
+  for (int y = 0; y < H; y++) {
+    for (int x = 0; x < W; x++) {
+      const size_t i = I(x, y);
+      const bool empty = M.at(x, y) == Ground::Plaza && !M.prop[i] && M.bldgAt[i] < 0 && !M.wall[i] && !skip[i] && !inCompound(x, y);
+      hgt[(size_t)x] = empty ? hgt[(size_t)x] + 1 : 0;
+    }
+    st.clear();
+    for (int x = 0; x <= W; x++) {
+      const int h = x < W ? hgt[(size_t)x] : 0;
+      while (!st.empty() && hgt[(size_t)st.back()] >= h) {
+        const int top = st.back();
+        st.pop_back();
+        const int th = hgt[(size_t)top];
+        const int left = st.empty() ? 0 : st.back() + 1, w = x - left;
+        if (th >= minSide && w >= minSide && th * w > best) { best = th * w; bx = left; by = y - th + 1; bw = w; bh = th; }
+      }
+      st.push_back(x);
+    }
+  }
+  return best;
+}
+
+void Gen::plazaFill() {
+  if (village) return;
+  const Prop shade = bio == Biome::Desert ? Prop::PalmTree : (bio == Biome::Snow || bio == Biome::Taiga ? Prop::PineTree : Prop::OakTree);
+  std::vector<uint8_t> skip((size_t)W * H, 0);
+  auto tileOk = [&](int x, int y) {
+    if (!in(x, y)) return false;
+    const size_t i = I(x, y);
+    if (M.at(x, y) != Ground::Plaza || M.prop[i] || M.bldgAt[i] >= 0 || M.wall[i] || front[i] || cover[i] || (!reserved.empty() && reserved[i])) return false;
+    return !inCompound(x, y, 1);
+  };
+  // a solid piece: the tile and its neighbours free of fronts and aisles, the way kept
+  auto solidAt = [&](int x, int y, Prop p, int rise) {
+    if (!tileOk(x, y)) return false;
+    for (int oy = -rise; oy <= 1; oy++)
+      for (int ox = -1; ox <= 1; ox++) {
+        if (!in(x + ox, y + oy)) return false;
+        const size_t j = I(x + ox, y + oy);
+        if (front[j] || (!reserved.empty() && reserved[j]) || M.bldgAt[j] >= 0) return false;
+        if (oy < 0 && M.prop[j] && propSolid((Prop)(M.prop[j] - 1))) return false;   // nothing tall under a crown
+      }
+    return putSolid(x, y, p);
+  };
+  auto low = [&](int x, int y, Prop p) { if (tileOk(x, y)) M.setProp(x, y, p); };
+  int made = 0;
+  for (int guard = 0; guard < 40; guard++) {
+    // (M2 fixer round 3, review: "a long, bare, empty paved band south of the market") not only square blocks of 8 x
+    // 8: any bare rectangle of 45 tiles or more at least 5 deep (a band 20 x 6 took nothing before), its middle first
+    int bx, by, bw, bh;
+    const int area = largestEmptyBand(bx, by, bw, bh, 5, skip);
+    if (area < 45) break;
+    const int side = std::max(bw, bh);
+    const int cx0 = bx + bw / 2, cy0 = by + bh / 2;
+    bool done = false;
+    // (M2 fixer round 3) the turn's feature first, tried on the middle of the block and then the tiles round it;
+    // where it does not fit (a tree's crown in a shallow band) the next kind; a well or a monument never repeats one
+    // standing within a dozen tiles (two wells side by side read as a copy), and the last resort is low: a pair of
+    // benches between flower beds
+    auto nearSame = [&](int x, int y, Prop p) {
+      for (int oy = -12; oy <= 12; oy++)
+        for (int ox = -12; ox <= 12; ox++)
+          if (in(x + ox, y + oy) && M.prop[I(x + ox, y + oy)] == (int)p + 1) return true;
+      return false;
+    };
+    const int first = (made + (int)(hashAt(bx, by, 911u) & 1)) % 4;
+    for (int kk = 0; kk < 5 && !done; kk++) {
+      const int kind = kk < 4 ? (first + kk) % 4 : 4;
+      for (int r = 0; r <= 2 && !done; r++)
+        for (int oy = -r; oy <= r && !done; oy++)
+          for (int ox = -r; ox <= r && !done; ox++) {
+            if (std::max(std::abs(ox), std::abs(oy)) != r) continue;
+            const int x = cx0 + ox, y = cy0 + oy;
+            switch (kind) {
+              case 0:   // a shade tree, a bench either side under it
+                if (!solidAt(x, y, shade, 3)) continue;
+                low(x - 1, y + 1, Prop::Bench); low(x + 1, y + 1, Prop::Bench);
+                break;
+              case 1:   // a monument between two lamps
+                if (nearSame(x, y, Prop::Statue) || !solidAt(x, y, Prop::Statue, 2)) continue;
+                if (tileOk(x - 2, y) && tileOk(x - 2, y - 1)) putSolid(x - 2, y, Prop::Lamppost);
+                if (tileOk(x + 2, y) && tileOk(x + 2, y - 1)) putSolid(x + 2, y, Prop::Lamppost);
+                low(x, y + 2, Prop::Bench);
+                break;
+              case 2:   // a well, a bench facing it
+                if (nearSame(x, y, Prop::Well) || !solidAt(x, y, Prop::Well, 1)) continue;
+                low(x, y + 2, Prop::Bench);
+                if (tileOk(x + 2, y) && tileOk(x + 2, y - 1)) putSolid(x + 2, y, Prop::Lamppost);
+                break;
+              case 3:   // a planted tree ringed with flowers
+                if (!solidAt(x, y, shade, 3)) continue;
+                low(x - 1, y, Prop::Flowers1); low(x + 1, y, Prop::Flowers3); low(x - 1, y + 1, Prop::Flowers2); low(x + 1, y + 1, Prop::Flowers1);
+                break;
+              default:  // two benches between flower beds (nothing solid)
+                if (!tileOk(x - 2, y) || !tileOk(x - 1, y) || !tileOk(x, y) || !tileOk(x + 1, y) || !tileOk(x + 2, y)) continue;
+                low(x - 2, y, Prop::Flowers2); low(x - 1, y, Prop::Bench); low(x, y, Prop::Flowers1); low(x + 1, y, Prop::Bench); low(x + 2, y, Prop::Flowers3);
+                break;
+            }
+            done = true;
+          }
+    }
+    if (done) made++;
+    else
+      for (int y = by; y < by + bh; y++)   // nothing fits this block (aisles, fronts): it stays as it is
+        for (int x = bx; x < bx + bw; x++) skip[I(x, y)] = 1;
+    (void)side;
+  }
+}
+
+// (M2, owner note 6) a city's main square is where the town meets: idlers, shoppers, a crier, children, on the
+// paving round the centrepiece and the market (the SIM lane keeps them lingering there by day)
+void Gen::squareFolk() {
+  if (!city || squares.empty()) return;
+  const Square& s = squares[0];
+  std::vector<std::pair<int, int>> spots;
+  for (int y = s.y - 13; y <= s.y + 13; y++)
+    for (int x = s.x - 13; x <= s.x + 13; x++) {
+      if (!in(x, y) || get(x, y) != K_SQUARE || !walkable(x, y)) continue;
+      const size_t i = I(x, y);
+      if (M.prop[i] || (!reserved.empty() && reserved[i]) || front[i]) continue;
+      if ((x - s.x) * (x - s.x) + (y - s.y) * (y - s.y) > 13 * 13) continue;
+      spots.push_back({x, y});
+    }
+  const int want = capital ? 14 : 8;
+  for (int k = 0; k < want && !spots.empty(); k++) {
+    const size_t pick = (size_t)rng.irange((int)spots.size());
+    const auto p = spots[pick];
+    spots.erase(spots.begin() + (long)pick);
+    // no two on one tile or side by side in a line: a little room round each
+    spots.erase(std::remove_if(spots.begin(), spots.end(), [&](const std::pair<int, int>& q) { return std::abs(q.first - p.first) <= 1 && std::abs(q.second - p.second) <= 1; }), spots.end());
+    addSpawn(k % 5 == 4 ? Role::Child : Role::Villager, p.first, p.second);
   }
 }
 

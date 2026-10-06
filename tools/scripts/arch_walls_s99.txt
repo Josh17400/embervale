@@ -1,19 +1,18 @@
 # Architecture lane: walk up to a city gate from outside, through the passage, and look back along the wall inside;
-# then the same spot at dusk and at night. Gate coordinates come from: rpg_test 99 (archChecks prints them; WORLDGEN_V5 worlds: SILVERHEIM gate at 61,282).
-# Run from a scratch directory (screenshots are written to the current directory):
+# then the same spot at dusk and at night. (M2: the endless world; `gate` finds the nearest gate of the city `goto city`
+# brought into view, so no seed's coordinates are pinned here.) Here the capital's gate.
 #   embervale --script tools/scripts/arch_walls_s99.txt
 seed 99
-worldgen 6                   # written against generator-v6 worlds (coordinates, names, the M0 rooms)
-0 goto city
+0 goto capital
 0.3 god
 0.5 hour 12
-1 walkto 62 285 60
+1 gate 0 out
 +1 shot arch_s99_out.png
-+0.2 walkto 62 282
++0.2 gate 0 on
 +0.4 shot arch_s99_passage.png
-+0.2 walkto 62 279
++0.2 gate 0 in
 +1 shot arch_s99_inside.png
-+0.2 walkto 66 279 20
++0.2 walk east 0.8
 +1 shot arch_s99_along.png
 +0.2 hour 19
 +1.5 shot arch_s99_dusk.png
