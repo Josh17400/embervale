@@ -1,0 +1,36 @@
+# M3 culture tour (CULTURE lane, VISION_PLAN 5.4 / 13 M3 verification): start at home, then hop across culture-family
+# borders ("gotoculture other town": the nearest town whose culture FAMILY differs from where the player stands), printing
+# each culture and taking a shot at the town's heart, then a capital by day and a town at night. Every hop must land in
+# a different civilisation: architecture, palette, layout, music.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/culture_tour.txt      (screenshots land in the cwd)
+seed 7
+0.3  newgame
++0.05 hour 12
++0.1 god 1
++0.2 goto town
++1.2 culture
++0.05 hour 12
++0.6 shot culture_01_home_town.png
++0.2 gotoculture other town
++1.4 culture
++0.05 hour 12
++0.6 shot culture_02_second.png
++0.2 gotoculture other town
++1.4 culture
++0.05 hour 12
++0.6 shot culture_03_third.png
++0.2 gotoculture other town
++1.4 culture
++0.05 hour 12
++0.6 shot culture_04_fourth.png
++0.2 gotoculture other town
++1.4 culture
++0.05 hour 12
++0.6 shot culture_05_fifth.png
++0.2 gotoculture other capital
++1.6 culture
++0.05 hour 12
++0.6 shot culture_06_capital_day.png
++0.1 hour 22
++1.2 shot culture_07_capital_night.png
++0.5 quit

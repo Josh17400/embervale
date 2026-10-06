@@ -1,7 +1,8 @@
 // Save-format checks for the CURRENT save version only (owner, 2026-10-04: old saves are not a concern; an older save
-// is refused and the title offers a new game). M2: SAVE_VER 6 (phase A froze the layout; the SIM lane owns this file).
+// is refused and the title offers a new game). M3: SAVE_VER 7 (the appearance block gained people, homeland and
+// personal heraldry; phase A froze the layout).
 //   save_test [fixtureDir]           run every check
-//   save_test --make-fixture out.bin write tests/fixtures/save_v6.bin: an endless game (seed 5150) with a created
+//   save_test --make-fixture out.bin write tests/fixtures/save_v7.bin: an endless game (seed 5150) with a created
 //                                    character, the innkeeper's job taken, bot play, a looted chest, the M2 fields
 //                                    (marks, a quest's subject / flags / deadline, a rumoured site), saved outdoors.
 //                                    Regenerate it whenever the layout changes on purpose, and paste the printed FIX6
@@ -72,6 +73,14 @@ bool readFile(const std::string& path, std::vector<uint8_t>& out) {
 constexpr uint32_t FIX_SKIN = 0xFF4A6E96u, FIX_HAIRC = 0xFF2A62D2u, FIX_EYE = 0xFF3C8C30u, FIX_TOP = 0xFF283C8Cu, FIX_BOTTOM = 0xFF203040u;
 constexpr uint32_t FIX_FLAGS = SF_CREATED | SF_FIRST_WEAPON | (1u << 9);
 const char* const FIX_NAME = "BRYNJA";
+// M3 (SAVE_VER 7) appearance facts
+constexpr uint64_t FIX_HOMELAND = 0x2001E0050003FFFEull;
+cult::Heraldry fixHeraldry() {
+  cult::Heraldry h;
+  h.field = 0xFF7A2A1Eu; h.field2 = 0xFFE8D8A0u; h.charge = 0xFF30C8F0u; h.division = 3; h.chargeKind = 1; h.emblem = 5;
+  h.glyphSeed = 0xC0FFEE11u; h.shape = 2;
+  return h;
+}
 Item fixtureWear(ItemKind k, const char* name, art::Icon icon, int power) {
   Item it;
   it.kind = k; it.name = name; it.icon = icon; it.power = (int16_t)power; it.value = power * 10; it.tint = tierTint(0);
@@ -81,6 +90,8 @@ void makeCharacter(Game& g) {
   g.app.name = FIX_NAME; g.app.female = true; g.app.build = 1; g.app.skinTone = 5; g.app.skin = FIX_SKIN;
   g.app.hair = (uint8_t)art::Hair::Braids; g.app.hairColor = FIX_HAIRC; g.app.beard = false; g.app.eyeColor = FIX_EYE;
   g.app.topColor = FIX_TOP; g.app.bottomColor = FIX_BOTTOM; g.app.created = true;
+  // M3 (SAVE_VER 7): an elf from a far homeland with her own arms
+  g.app.people = 2; g.app.homeland = FIX_HOMELAND; g.app.heraldry = fixHeraldry();
   g.background = Background::Hunter;
   g.storyFlags = FIX_FLAGS;
   g.inv.push_back(fixtureWear(ItemKind::Gloves, "LEATHER GLOVES", art::Icon::Gloves, 2));
@@ -217,7 +228,7 @@ int main(int argc, char** argv) {
 
   // ---- 1. the fixture
   std::vector<uint8_t> fx;
-  if (!readFile(dir + "/save_v6.bin", fx)) check(false, "cannot read tests/fixtures/save_v6.bin");
+  if (!readFile(dir + "/save_v7.bin", fx)) check(false, "cannot read tests/fixtures/save_v7.bin");
   else {
     check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
     Game g(1);
@@ -231,6 +242,8 @@ int main(int argc, char** argv) {
     check(g.app.name == FIX_NAME && g.app.female && g.app.skin == FIX_SKIN && g.app.hairColor == FIX_HAIRC && g.app.eyeColor == FIX_EYE &&
               g.app.topColor == FIX_TOP && g.app.bottomColor == FIX_BOTTOM && g.app.created, "fixture appearance");
     check(g.background == Background::Hunter && g.storyFlags == FIX_FLAGS, "fixture background / story flags");
+    check(g.app.people == 2 && g.app.homeland == FIX_HOMELAND && g.app.heraldry.key() == fixHeraldry().key(),
+          "fixture people / homeland / heraldry (SAVE_VER 7)");
     auto wears = [&](int e, ItemKind k, const char* nm) { return e >= 0 && e < (int)g.inv.size() && g.inv[(size_t)e].kind == k && g.inv[(size_t)e].name == nm; };
     check(wears(g.eqGloves, ItemKind::Gloves, "LEATHER GLOVES") && wears(g.eqBoots, ItemKind::Boots, "LEATHER BOOTS") &&
               wears(g.eqCloak, ItemKind::Cloak, "HUNTER'S CLOAK"), "fixture equipment");
@@ -345,6 +358,7 @@ int main(int argc, char** argv) {
     n.serialize(b);
     auto patched = [&](size_t at, uint32_t v) { std::vector<uint8_t> c = b; for (int k = 0; k < 4; k++) c[at + k] = (uint8_t)(v >> (8 * k)); return c; };
     Game x(1);
+    check(!x.deserialize(patched(4, 6)) && Game::saveVersion(patched(4, 6)) == 6, "accepted (or misread) a SAVE_VER 6 save");
     check(!x.deserialize(patched(4, 5)) && Game::saveVersion(patched(4, 5)) == 5, "accepted (or misread) a SAVE_VER 5 save");
     check(!x.deserialize(patched(4, 4)) && Game::saveVersion(patched(4, 4)) == 4, "accepted (or misread) a SAVE_VER 4 save");
     check(!x.deserialize(patched(4, 1)), "accepted a SAVE_VER 1 save");

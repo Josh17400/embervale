@@ -2,6 +2,7 @@
 #pragma once
 #include <cstdint>
 #include "engine/pix.h"
+#include "rpg/culture/style.h"
 
 namespace art {
 
@@ -89,6 +90,12 @@ enum class Prop : uint8_t {
   PenShelter,     // an open-fronted lean-to shed for the flock, hay in its rack (48x44); middle tile, Filler either side
   MineHill,       // the mine: a grassy knoll, its south face a cliff of layered rock with the timbered adit cut into its
                   // foot (80x76); stands on the adit's tile, the knoll's five-by-four footprint all Filler (mineHill)
+  // ---- M3 culture furniture (ArchStyle::furniture, VISION_PLAN 5.6 "chairs against cushions and low tables against
+  //      hammocks"). Phase A placeholders (sizes below are the canvases; the ARCHITECTURE lane paints them in 3/4 view)
+  Cushion,        // floor cushions round a low table (16x12); walk-over, like a chair
+  LowTable,       // a low table for floor seating, a tray and cups on it (20x16)
+  Hammock,        // a hammock slung between two posts / wall hooks, head to the wall (28x22)
+  SleepingMat,    // a rolled-out sleeping mat with a bolster and blanket (yurts, marsh huts) (24x14); walk-over
   // ---- M2 Wayfinder: mountains, the wayside places (rpg/world/poi.h vignettes) and the wonders. Painted in
   //      rpg/art/art_wild.cpp (phase A placeholders; the art owner paints them for real and may change canvas sizes).
   //      FOOTPRINTS ARE FROZEN (wildFootprint below): the prop stands on the bottom-centre tile of its footprint and the
@@ -239,6 +246,10 @@ bool stallOfKeeper(PropAt&& prop, float hx, float hy, int32_t ox, int32_t oy, in
 // whole model (sizes differ per facing); stallOrigin gives its top-left from the prop tile's top-left (px). The view
 // y-sorts a stall by stallSortY (against its keeper: before them facing N, after them otherwise).
 Canvas marketStallFacing(int trade, int awning, int form, bool closed, int facing);
+// M3: the same stall with the culture's awnings (PropStyle::awning: 0 striped canvas, 1 plain dyed cloth, 2 reed mat,
+// 3 a tiled lean-to (the timber booth's roof), 4 silk with tassels, 5 hide; awningA / awningB colours, else the cloth).
+// The layout, goods, keeper spots and canvas are the classic stall's; a classic style gives exactly marketStallFacing.
+Canvas marketStallStyled(int trade, int awning, int form, bool closed, int facing, const PropStyle& st);
 void stallOrigin(int facing, int& dx, int& dy);
 // (stalls fixer round 3) the y the view sorts a stall by, px from its prop tile's top. N: just north of where its keeper
 // stands (stallKeeperSpot standY), so the keeper draws after the stall. S: after them at 15 (the counter stands in
@@ -298,6 +309,8 @@ enum class Piece : uint8_t {
               // stairs: 2 the left tile / 4 the right tile of a two-tile flight); a = 4: a two-tile bed (20x48,
               // anchored on the bed's tile; b = the quilt 0..3); a = 5: a shop counter segment (b = part 0..2 | goods << 2)
   LowDecor,   // 16x32 wall decor sized for a partition's short face (bottom = the face's foot). style = Prop - Tapestry
+  Culture,    // (M3 fixer) a people's own version of a piece of furniture (cultureInteriorPiece): style = cult::Archetype,
+              // a = the Prop, b = variant (Bed: 1 the two-tile bed; Hearth: the animation frame 0..3)
   COUNT
 };
 // how a partition face ends at its left / right side (Piece::PartFace)
@@ -313,5 +326,20 @@ inline uint32_t pieceKey(Piece k, int style, int a = 0, int b = 0) {
   return (uint32_t)k | ((uint32_t)(style & 255) << 8) | ((uint32_t)(a & 255) << 16) | ((uint32_t)(b & 255) << 24);
 }
 Canvas interiorPiece(uint32_t key);
+// (M3 fixer) the peoples' furniture indoors (rpg/art/art_culture_props.cpp): whether the culture (cult::Archetype) has its
+// own hearth, shelves, bed or cabinet for prop p, and that piece (same canvas and anchor as the classic prop; a Bed is
+// 20x32, or 20x48 with variant 1 like Piece::Styled's two-tile bed; a Hearth takes the frame 0..3 as its variant)
+// (inline: the sim's interiorPropKey asks it, and the headless tests do not link the painters)
+inline bool cultureInteriorHas(int arch, Prop p) {
+  // the peoples with their own kit: Dune 4, Steppe 5, Marsh 6, Jade 7, SunTemple 9, Sylvan 10, Starspire 11 (cult::Archetype)
+  if (!(arch == 4 || arch == 5 || arch == 6 || arch == 7 || arch == 9 || arch == 10 || arch == 11)) return false;
+  switch (p) {
+    case Prop::Hearth: case Prop::Bookshelf: case Prop::Shelf: case Prop::Bed: case Prop::Dresser: case Prop::Wardrobe: case Prop::Cupboard:
+    case Prop::Painting: case Prop::Wreath:
+      return true;
+    default: return false;
+  }
+}
+Canvas cultureInteriorPiece(int arch, Prop p, int variant);
 
 }  // namespace art

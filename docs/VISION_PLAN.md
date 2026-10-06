@@ -2215,3 +2215,57 @@ life. Section 10's job schedules stay the backbone, but behaviour is now driven 
   iPhone web.
 - **Player hooks:** the player can feed, employ, supply or befriend residents; radiant quests come from unmet needs
   ("the baker has no flour"), and the player's trade can rescue or starve a town.
+
+### 15.13 M3 phase A (lead, 2026-10-06): the culture contracts
+
+Frozen for the M3 lanes (a lane that needs a change stubs locally and reports it):
+- `rpg/culture/culture.h`: the data model of section 5.2 plus the owner's additions: `People` (human, half-breed, elf;
+  every culture has a `peopleMix`), 12 archetypes (the 10 of 5.3 plus the elven **Sylvan** and **Starspire**),
+  `ArmsStyle` with silhouette dials and the culture's own `Alloy` recipes on top of the universal `Tier`s (leather,
+  bronze, iron, steel; owner 15.11; crafting reads them in M6), `TownStyle`, `PropStyle`, `Heraldry`, `MusicStyle`
+  (`engine/music_style.h`), and the `cult::Atlas` (one per `EndlessSource`, memoised, order independent). Culture ids:
+  a family per 2048-tile cell, a dialect per kingdom (the family of the cell holding its seat). Places in a kingdom
+  take its dialect; the wildlands take their cell's family.
+- `rpg/culture/style.h`: `ArchStyle` grows window, door, foundation, ornament bits, eave, wall height, furniture,
+  accents and a `variant` byte for facade variety; new roofs (Mansard, Onion, Stepped, Sweep), roof materials and wall
+  materials (including the elven Living wood and Leaf roofs); `CityWall` and `Fence` styles. Defaults = the M2 look.
+- `Bldg::arch` / `Bldg::styled`: the settlement generator stores each building's culture style
+  (`cult::buildingArch`); `bldgArch()` and the view use it. `Site::culture`, `Kingdom::culture`,
+  `SitePlan::culture`, `KingdomPlan::culture` and `heraldry`, `SettlementCtx::culture`, `World::cultureOf()`.
+- `art::HumanLook` gains people, cut, headwear, pattern, face paint, jewellery and the culture arms forms (helm, body,
+  shield, blade, ornament, pauldron, skirt, crest); 0 = the M2 pixels. `rpg/art/art_culture.h`: banners and shield
+  arms from `Heraldry`, glyphs, culture-styled props, and incremental building paints (`BuildingJob`, for the 41 ms
+  palace paint). `Map::wall` = 1 + `CityWall` (the view puts it in the wall key at `WALL_STYLE_SHIFT`).
+- `Audio::setMusic(Music, const MusicStyle*)`: the view passes the culture of the place (settlement, else land).
+- SAVE_VER 7 (the appearance block: people, homeland, personal heraldry; fixture `tests/fixtures/save_v7.bin`);
+  ENDLESS_GEN_VER 10 (culture names and arms). `Game::makeLook` moved to `rpg/sim/looks.cpp`.
+- Tests and scripts: `rpg_test --cultures [N] --seeds A..B [--report]` (5.4 thresholds; CI runs it with `--report`
+  until the engine meets them), script commands `gotoculture <archetype|other> [type] [n]`, `culture`,
+  `expect culture <archetype>`.
+
+### 15.14 M3b "Builders & Societies": two generators that partner with the culture engine (owner, 2026-10-06)
+
+M3 review showed the root problem: the culture engine decides how a people *looks*, but each building type still has its
+own hand-written painter, and any type nobody re-wired (palace, keep, gatehouse) stayed European. The owner approved two
+new generators. They sit between the culture engine and the settlement and wild generators, and **everything built in the
+world goes through them**:
+
+- **Society generator** (per culture, deterministic, data only): government (monarchy, khanate with a moving court,
+  elven high council, theocracy, merchant republic, clan elders...), classes and institutions (nobles, guilds, priesthood,
+  warrior lodges...), where people gather (tavern, mead hall, bathhouse, tea house...), law and crime, inheritance,
+  military organisation, trade attitude. It outputs **which buildings and spaces a settlement of each size must have** and
+  what the seat of power is: a khan's capital centres on a great tent court, a theocracy's on a temple complex, an elven
+  capital on a council spire or tree palace, a merchant republic's on a guildhall and exchange. M4 (kingdoms, diplomacy)
+  and M5 (needs-driven citizens, 15.12) read this data.
+- **Builder generator** (the construction grammar): assembles every building, wall, gate, tower, bridge, road, paving,
+  fence and monument from parts chosen by culture x purpose x wealth: footprint and massing (rectangle, round, L,
+  courtyard, tower, compound), storeys, roof kind (gable, hipped, dome, flat terrace, sod, tent canvas, spire, pagoda),
+  walls and materials, doors, windows, ornament, palette and signage. Each part is drawn properly in the game's high 3/4
+  top-down view with top-left light (domes with volume, flat roofs with parapets, no wall texture on roofs). Wealth sets
+  size and finery, so a poor house and a noble manor differ within one culture. Interiors derive from the same plan (a
+  round yurt has a round interior). Fortifications (walls, gatehouses, towers, palisades, earthworks) and roads (paving
+  type, width, kerbs, bridges) come from the same culture parts. Every building is assembled, never copied, so no two
+  neighbours are clones, and every new culture or building type inherits all of this.
+- Acceptance: no building kind may bypass the builder (a test enumerates every building/prop type); a repetition audit
+  over capitals of every culture; per-culture screenshot galleries judged against the owner's quality bar; performance on
+  iPhone web (incremental paints).

@@ -572,6 +572,7 @@ void EndlessSource::Impl::planVignettes(int32_t rx, int32_t ry, RegionData& D, c
     R.sites.push_back(p);
     R.sites.back().level = danger(p.ex, p.ey);
     R.sites.back().kingdom = kingdomAt(p.ex, p.ey);
+    R.sites.back().culture = cultureAt(p.ex, p.ey);   // M3
     // (the land under a wayside place was checked level, footprint and a tile round it: no terraces needed; a watchtower
     // crowns a knoll, which its flat zone levels round the tower)
     D.flatLevel.push_back({p.kind == (uint8_t)VignetteKind::Watchtower ? natLevel(p.ex, p.ey) : -1, 0});

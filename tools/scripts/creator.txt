@@ -1,8 +1,10 @@
 # Title -> NEW ADVENTURE -> the character creator: change looks with keys and taps, type and tap a name, pick a
 # background, BEGIN -> play in a shirt and trousers. Escape from the creator returns to the title.
 #   embervale.exe --script tools/scripts/creator.txt        (screenshots land in the working directory)
-# Layout (creator.cpp): tabs at y 22-46 (LOOKS x 164-261, NAME 265-362, ORIGIN 366-463); LOOKS rows every 24 px from
-# y 50; RANDOMIZE 164-310 and NEXT/BEGIN 322-468 at y 244-268.
+# Layout (creator.cpp): tabs at y 22-46 (LOOKS x 164-236, NAME 240-312, ORIGIN 316-388, HOMELAND 392-464); LOOKS rows
+# every 24 px from y 50; RANDOMIZE 164-310 and NEXT/BEGIN 322-468 at y 244-268. HOMELAND (M3): PEOPLE y 50, HOMELAND
+# y 74, then the arms DIVISION 104, FIELD 128, SECOND 152, CHARGE 176, BANNER 200; "<" at x 260-286, ">" at x 412-438
+# (people, homeland) or 358-384 (arms); tincture swatches 8 px wide from x 290; the shield preview on the right.
 seed 11
 0.6  shot creator_0_title.png
 0.8  key Return                  # title: New Adventure opens the creator
@@ -34,7 +36,7 @@ seed 11
 5.4  tap 237 256                 # RANDOMIZE
 5.8  shot creator_4_random.png
 # NAME: tap the tab, clear the suggestion with Backspace, type ASTRI, tap D on the letter grid
-6.0  tap 313 34
+6.0  tap 276 34
 6.2  shot creator_5_name.png
 6.3  key Backspace
 6.35 key Backspace
@@ -62,11 +64,26 @@ seed 11
 8.8  tap 390 116                 # EXILED NOBLE (background 6)
 9.0  expect background 6
 9.2  shot creator_8_noble.png
-9.4  tap 395 256                 # BEGIN
-9.8  expect mode play
-9.9  expect name ASTRID
-10.0 expect slot armor 0
-10.6 shot creator_9_play.png
-10.8 menu 5                      # the equip screen shows the new hero
-11.4 shot creator_10_equip.png
-11.6 quit
+9.4  tap 395 256                 # NEXT > (to HOMELAND)
+9.6  shot creator_8b_homeland.png
+# HOMELAND (M3): people by taps, the next homeland by keys, arms by taps and keys
+9.7  tap 371 62                  # PEOPLE ">": half-breed (M3 fixer r3: one arrow column)
+9.8  tap 371 62                  # ...elf
+9.9  shot creator_8c_elf.png
+10.0 key Down                    # HOMELAND row
+10.1 key Right                   # the next culture family
+10.2 shot creator_8d_homeland2.png
+10.3 tap 294 140                 # FIELD: gules
+10.4 tap 371 116                 # DIVISION ">"
+10.5 tap 371 188                 # CHARGE ">"
+10.6 shot creator_8e_arms.png
+10.7 key R                       # random arms
+10.8 shot creator_8f_random.png
+11.0 tap 395 256                 # BEGIN
+11.4 expect mode play
+11.5  expect name ASTRID
+11.6 expect slot armor 0
+12.2 shot creator_9_play.png
+12.4 menu 5                      # the equip screen shows the new hero
+13.0 shot creator_10_equip.png
+13.2 quit

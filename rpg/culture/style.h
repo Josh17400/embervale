@@ -9,9 +9,33 @@
 
 namespace art {
 
-enum class RoofShape : uint8_t { Hip, Gable, Steep, FlatParapet, Dome, Conical, Turf, Pagoda, COUNT };
-enum class RoofMat : uint8_t { Thatch, Shingle, Slate, ClayTile, Turf, Adobe, Copper, COUNT };
-enum class WallMat : uint8_t { Timber, Plaster, Stone, Brick, Log, Adobe, COUNT };
+// M3 (culture engine) appends: roofs Mansard, Onion (bulb domes), Stepped (sun-temple terraces), Sweep (elven: a long
+// curved ridge with upswept ends); materials Palm (fronds), Bark, Felt (yurts), GlazedTile (jade/blue glaze), Leaf
+// (elven living thatch); walls Rubble, Plank, Wattle, Felt (yurt lattice under felt), Ashlar (dressed, pale, fine
+// joints; Stone stays today's rough grey), Living (elven: grown timber, root buttresses).
+// Never saved (Bldg::arch is regenerated with the world): append anyway.
+enum class RoofShape : uint8_t { Hip, Gable, Steep, FlatParapet, Dome, Conical, Turf, Pagoda, Mansard, Onion, Stepped, Sweep, COUNT };
+enum class RoofMat : uint8_t { Thatch, Shingle, Slate, ClayTile, Turf, Adobe, Copper, Palm, Bark, Felt, GlazedTile, Leaf, COUNT };
+enum class WallMat : uint8_t { Timber, Plaster, Stone, Brick, Log, Adobe, Rubble, Plank, Wattle, Felt, Ashlar, Living, COUNT };
+// M3: window and door shapes, foundations (ArchStyle::window / door / foundation). Screen: a carved grille (dune
+// kingdoms); Flap: a hide door (yurts); Moon: a round moon gate (jade terraces); Platform: a raised stone dais.
+enum class WindowShape : uint8_t { Square, Arched, Slit, Round, Lattice, Pointed, Tall, Screen, COUNT };
+enum class DoorShape : uint8_t { Plank, Arched, Curtain, Double, Round, Flap, Moon, COUNT };
+enum class Foundation : uint8_t { None, Plinth, Stilts, Terrace, Platform, COUNT };
+// M3: ornament bits (ArchStyle::ornament); the painter adds what fits the roof and the building type
+enum : uint16_t {
+  ORN_CHIMNEY = 1, ORN_FINIALS = 2, ORN_CARVED_RIDGE = 4, ORN_AWNINGS = 8, ORN_CRENELS = 16, ORN_SHUTTERS = 32,
+  ORN_FLOWERBOX = 64, ORN_WINDCATCHER = 128, ORN_PRAYER_FLAGS = 256, ORN_PAINTED_BANDS = 512, ORN_ROOF_STONES = 1024,
+  ORN_PORCH_COLUMNS = 2048, ORN_DRAGON_HEADS = 4096, ORN_LANTERNS = 8192, ORN_VINES = 16384, ORN_GILDING = 32768
+};
+// M3: interior furnishing (ArchStyle::furniture): what people sit and sleep on
+enum class Furniture : uint8_t { Chairs, Benches, Cushions, Hammocks, Stools, COUNT };
+// M3: a culture's town wall and fences. A settlement writes Map::wall = 1 + CityWall on its wall tiles; the view puts
+// the style into the wallTile key at art::WALL_STYLE_SHIFT. WhiteStone: elven.
+// Talud (M3 fixer round 3): the sun temples' lime-plastered walls, their gates between square stepped pylons under a
+// corbelled arch, never the drum-towered portcullis gate of the north.
+enum class CityWall : uint8_t { Stone, Palisade, Rampart, Thorn, Adobe, WhiteStone, Jade, Talud, COUNT };   // (Jade: M3 fixer round 2)
+enum class Fence : uint8_t { Wattle, Picket, StoneDyke, Bamboo, Rope, Hedge, COUNT };
 
 struct ArchStyle {
   RoofShape roof = RoofShape::Hip;
@@ -26,6 +50,21 @@ struct ArchStyle {
   bool shutters = true;
   bool snow = false;         // snow lies on the roofs and sills
   uint8_t weather = 0;       // 0 new .. 3 old: stains, moss on the north (back) roof plane, patched shingles
+  // ---- M3 culture engine (VISION_PLAN 5.2, 5.5). Every default reproduces the M2 look exactly, so a style made by
+  //      archForBiome alone paints as before. The culture engine (cult::buildingArch) sets them.
+  WindowShape window = WindowShape::Square;
+  DoorShape door = DoorShape::Plank;
+  Foundation foundation = Foundation::None;   // (`stilts` above stays the M0 switch; Foundation::Stilts means the same)
+  uint16_t ornament = 0;     // ORN_* bits
+  uint8_t eave = 0;          // extra eave overhang px 0..3 (0: today's)
+  uint8_t wallH = 0;         // wall height: 0 today's; else 1..255 -> 0.8x .. 1.3x
+  uint8_t culture = 0;       // cult::Archetype + 1 (0: none, the biome stand-in): culture-specific details no other
+                             // field names (an elven root buttress, a yurt's crown ring, a sun-temple's stepped crest)
+  uint8_t variant = 0;       // free per-building variety bits for the painter (window rhythm, door placement, porch,
+                             // dormers): the generator draws them so a street of one culture never repeats a facade
+  Furniture furniture = Furniture::Chairs;   // interiors (genInterior reads it from Bldg::arch)
+  uint32_t accentTint = 0;   // 0 = none: painted bands, doors, shutters, awnings, flags
+  uint32_t altTint = 0;      // 0 = none: a second accent (a glaze stripe, carved trim)
   // identity for sprite caches: equal keys must paint identical pixels
   uint64_t key() const {
     uint64_t k = 1469598103934665603ull;
@@ -34,7 +73,43 @@ struct ArchStyle {
        (uint64_t)smoke << 40 | (uint64_t)awnings << 41 | (uint64_t)stilts << 42 | (uint64_t)shutters << 43 | (uint64_t)snow << 44 |
        (uint64_t)weather << 48);
     mx(roofTint); mx(wallTint); mx(trimTint);
+    mx((uint64_t)window | (uint64_t)door << 8 | (uint64_t)foundation << 16 | (uint64_t)ornament << 24 | (uint64_t)eave << 40 |
+       (uint64_t)wallH << 48 | (uint64_t)culture << 56);
+    mx((uint64_t)furniture | (uint64_t)variant << 8 | (uint64_t)accentTint << 16);
+    mx(altTint);
     return k;
+  }
+};
+
+// M3: the culture's look for the small things of a settlement (VISION_PLAN 5.5 "style-variant props"): fences, wells,
+// lamps, benches, the centrepiece, market awnings (the market LAYOUT stays as the owner approved it; only its palette
+// and awning style follow the culture), banners and shrines. The view picks the style of the site a prop stands in
+// (World::cultureOf(site)->props); wild props outside settlements use the default. Default = today's look.
+struct PropStyle {
+  uint8_t culture = 0;       // cult::Archetype + 1 (0: the classic look)
+  Fence fence = Fence::Picket;
+  uint8_t well = 0;          // 0 stone well with a roof (today), 1 open stone ring, 2 sweep (shadoof), 3 carved spring
+                             // basin, 4 tiled cistern
+  uint8_t lamp = 0;          // 0 iron lamppost (today), 1 paper lantern on a pole, 2 brazier, 3 stone lantern,
+                             // 4 glow-orb (elven), 5 torch on a post
+  uint8_t bench = 0;         // 0 plank bench (today), 1 stone bench, 2 cushions on a rug, 3 log seat
+  uint8_t centre = 0;        // centrepiece: 0 fountain (today), 1 statue, 2 well, 3 sacred tree, 4 fire bowl, 5 obelisk,
+                             // 6 standing stones
+  uint8_t awning = 0;        // market awnings: 0 striped canvas (today), 1 plain dyed cloth, 2 reed mat, 3 tiled lean-to,
+                             // 4 silk with tassels, 5 hide
+  uint32_t awningA = 0, awningB = 0;                    // awning colours (0: the trade's own, as today)
+  uint32_t wood = 0, stone = 0, metal = 0, cloth = 0;   // material tints (0: today's ramps)
+  bool classic() const { return culture == 0; }
+  uint64_t key() const {   // 0 for the classic look, so caches keyed on (prop, style key) keep their pre-M3 entries
+    if (classic()) return 0;
+    uint64_t k = 0xCBF29CE484222325ull;
+    auto mx = [&](uint64_t v) { k ^= v; k *= 0x100000001B3ull; };
+    mx((uint64_t)culture | (uint64_t)fence << 8 | (uint64_t)well << 16 | (uint64_t)lamp << 24 | (uint64_t)bench << 32 |
+       (uint64_t)centre << 40 | (uint64_t)awning << 48);
+    mx((uint64_t)awningA << 32 | awningB);
+    mx((uint64_t)wood << 32 | stone);
+    mx((uint64_t)metal << 32 | cloth);
+    return k | 1;
   }
 };
 

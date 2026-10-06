@@ -27,6 +27,10 @@ struct SettlementCtx {
   // where the roads to the neighbours leave, as bearings in radians (0 = east, +pi/2 = south, y down), strongest
   // road first. The main streets aim at these and city gates open toward them. May be empty (no roads yet).
   std::vector<float> roadBearings;
+  // M3: the settlement's culture (SitePlan::culture resolved through the source's atlas; nullptr: the classic look).
+  // It decides the architecture of every building (cult::buildingArch into Bldg::arch), the layout style, the wall and
+  // fence style, the centrepiece and the census (names, dress). Valid for the whole build.
+  const cult::Culture* culture = nullptr;
 };
 
 struct SettlementOut {

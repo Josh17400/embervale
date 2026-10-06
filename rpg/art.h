@@ -17,6 +17,7 @@
 #include "rpg/art/art_building.h"
 #include "rpg/art/art_items.h"
 #include "rpg/art/art_fx.h"
+#include "rpg/art/art_culture.h"
 
 namespace art {
 

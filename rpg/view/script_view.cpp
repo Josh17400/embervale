@@ -50,7 +50,9 @@ int nearestSite(Game& g, bool wantDiscovered, const std::string& type) {
                          (type == "landmark" && s.type == SiteType::Vignette);
       if (!match) continue;
     }
-    const float d = std::hypot(s.ex - p.x, s.ey - p.y);
+    // the place the hero stands in comes first (M3 settlements are larger: a neighbour's gate can be nearer than
+    // the home village's own)
+    const float d = g.world.siteAt((int)p.x, (int)p.y) == i ? 0.0f : std::hypot(s.ex - p.x, s.ey - p.y);
     if (d < bd && (i != g.world.startSite || type == "village" || type == "nearest")) { bd = d; best = i; }
   }
   return best;

@@ -1,0 +1,74 @@
+# M3 TOWNS lane: every people's settlements in their own layout (VISION_PLAN 5.6): for each archetype a town and a city
+# (or a capital) at noon, a shot at the heart and one a little north and east of it, the culture printed. Layouts:
+# imperial grid with its forum, steppe and sun-temple rings round the plaza, river and fjord towns strung along the
+# water, dune and highland courtyard compounds, jade terraces with stairs, marsh stilt houses over the pools.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m3_towns_tour.txt [--seed N]
+# Archetypes absent within 12 culture cells of the start fail their gotoculture (seeds 3 and 7 hold most).
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.2 gotoculture imperial city
++1.4 culture
++0.6 shot m3t_imperial_city_a.png
++0.1 walk north 2.2
++2.4 shot m3t_imperial_city_b.png
++0.2 gotoculture imperial town
++1.4 shot m3t_imperial_town_a.png
++0.1 walk east 2.2
++2.4 shot m3t_imperial_town_b.png
++0.2 gotoculture steppe any
++1.4 culture
++0.6 shot m3t_steppe_a.png
++0.1 walk north 2.2
++2.4 shot m3t_steppe_b.png
++0.2 gotoculture steppe city
++1.4 shot m3t_steppe_city_a.png
++0.2 gotoculture dune town
++1.4 culture
++0.6 shot m3t_dune_town_a.png
++0.1 walk north 2.2
++2.4 shot m3t_dune_town_b.png
++0.2 gotoculture dune city
++1.4 shot m3t_dune_city_a.png
++0.1 walk west 2.2
++2.4 shot m3t_dune_city_b.png
++0.2 gotoculture jade town
++1.4 culture
++0.6 shot m3t_jade_town_a.png
++0.1 walk north 2.2
++2.4 shot m3t_jade_town_b.png
++0.2 gotoculture jade city
++1.4 shot m3t_jade_city_a.png
++0.2 gotoculture marsh village
++1.4 culture
++0.6 shot m3t_marsh_village_a.png
++0.1 walk north 2.2
++2.4 shot m3t_marsh_village_b.png
++0.2 gotoculture marsh town
++1.4 shot m3t_marsh_town_a.png
++0.2 gotoculture river town
++1.4 culture
++0.6 shot m3t_river_town_a.png
++0.1 walk west 2.2
++2.4 shot m3t_river_town_b.png
++0.2 gotoculture fjordfolk town
++1.4 culture
++0.6 shot m3t_fjord_town_a.png
++0.2 gotoculture highland town
++1.4 culture
++0.6 shot m3t_highland_town_a.png
++0.1 walk north 2.2
++2.4 shot m3t_highland_town_b.png
++0.2 gotoculture heartland town
++1.4 shot m3t_heartland_town_a.png
++0.2 gotoculture suntemple any
++1.4 culture
++0.6 shot m3t_suntemple_a.png
++0.2 gotoculture sylvan any
++1.4 culture
++0.6 shot m3t_sylvan_a.png
++0.2 gotoculture starspire any
++1.4 culture
++0.6 shot m3t_starspire_a.png
++0.3 quit

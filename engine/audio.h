@@ -3,9 +3,30 @@
 #include <atomic>
 #include <cstdint>
 #include "engine/mathx.h"
+#include "engine/music_style.h"
 
 struct SDL_AudioStream;
 struct SDL_Mutex;
+
+namespace audio_detail {
+// One piece's parameters: the classic pieces' table (audio.cpp kStyle) or one built from a culture's MusicStyle
+// (M3). Plain data, copied into the sequencer layer that plays it.
+struct Piece {
+  float bpm;                // beats per minute (beat = spb sixteenths)
+  uint8_t beats, spb;       // beats per bar, steps per beat (4 simple, 6 compound, 2 for 7/8 eighths)
+  uint8_t chordBars;        // bars per chord
+  int8_t root;              // MIDI tonic for the bass register
+  uint8_t scale;            // Scale (engine/music_style.h): the harmony's 7-note parent and the melody's note set
+  int8_t progs[4][4];       // chord roots as scale degrees
+  int8_t melRoot;           // MIDI tonic for the melody (same pitch class as root)
+  int8_t lo, hi;            // melody range in scale degrees around melRoot
+  float busy;               // rhythmic density of motifs, 0..1
+  float density;            // chance a phrase is sung (0 = no melody)
+  float echo;               // echo send for this piece
+  bool intro;               // first section: half of it without melody
+  float level;              // overall gain, evens out loudness between pieces
+};
+}  // namespace audio_detail
 
 enum class Sfx : uint8_t {
   Swing, Hit, HitHeavy, Block, Hurt, PlayerHurt, EnemyDie, Death,
@@ -37,6 +58,10 @@ class Audio {
   void shutdown();
   void play(Sfx s, float pitch = 1.0f, float vol = 1.0f);
   void setMusic(Music m);
+  // M3: the piece in a culture's style (engine/music_style.h; nullptr = the classic piece). Town, Wild and Night take
+  // its scale, tempo, meter, instruments and ornament; Combat and Boss keep their structure but take its percussion.
+  // A new style with the same mode crossfades like a new piece (the border-crossing moment, VISION_PLAN 5.6).
+  void setMusic(Music m, const MusicStyle* style);
   void setMaster(float v) { master_.store(v); }
   void setMusicVolume(float v) { musicVol_.store(v); }
 
@@ -78,6 +103,11 @@ class Audio {
   struct Motif { int n = 0; uint8_t on[32] = {}, len[32] = {}; int8_t iv[32] = {}; };
   struct Seq {                       // one music layer; two exist so pieces can crossfade
     Music mode = Music::Silence;
+    uint64_t style = 0;              // M3: the culture style it plays (MusicStyle::pack(); 0 = the classic piece)
+    MusicStyle ms;                   // ... unpacked
+    audio_detail::Piece st{};        // the piece's parameters (the classic table's row, or built from the style)
+    uint32_t motifRng = 1;           // M3: the culture's own motif stream (its tunes are recognisably its own)
+    int percVar = 0;                 // M3: which of the meter's percussion patterns this culture plays
     float x = 0, target = 0;         // crossfade position (equal-power), moves at 0.5/s
     double t = 0, nextStep = 0;
     int step = 0, section = 0, role = 0, variant = 0, prog = 0;
@@ -106,6 +136,11 @@ class Audio {
   SDL_AudioStream* stream_ = nullptr;
   std::atomic<float> master_{0.6f}, musicVol_{0.7f};
   std::atomic<int> wantMusic_{0};
+  std::atomic<uint64_t> wantStyle_{0};
+  // (M3 fixer) a sequence lock over the pair (wantMusic_, wantStyle_): setMusic bumps it to odd, writes both, bumps it
+  // to even; updateMusic reads the pair only between two equal even counts, so it never starts a new mode in the old
+  // culture's style (or the reverse) at a border crossing
+  std::atomic<uint32_t> wantSeq_{0};   // M3: MusicStyle::pack() of the wanted style (0 none); the audio thread reads it
 
   // ---- space + master ----
   float comb_[4][1536] = {}, combLp_[4] = {}, ap_[2][640] = {};
@@ -121,10 +156,17 @@ class Audio {
   void renderBlock(float* out, int n);
   void renderVoice(Voice& v, int n, const float* layerGain, float* sfx, float* mus, float* sndS, float* sndM);
   void updateMusic(float blockSec);
-  void startSeq(Seq& s, Music m);
+  void startSeq(Seq& s, Music m, uint64_t style);
   void compose(Seq& s);
-  void genMotif(Seq& s, Motif& m);
+  void genMotif(Seq& s, Motif& m, uint32_t& rng);
   void seqStep(Seq& s, int layer, float dly);
+  void seqStepStyled(Seq& s, int layer, float dly);      // M3: Town / Wild / Night in a culture's style
   void melody(Seq& s, int layer, const MelEv& e, float stepSec, float dly);
   void inst(int layer, Inst which, int midi, float dur, float vel, float dly);
+  // M3 culture voices: a lead instrument note (with the style's ornaments), a percussion stroke of a family
+  // (0 low / open, 1 high / rim, 2 ghost), a pad chord and a bass note
+  void lead(Seq& s, int layer, LeadInst li, int midi, float dur, float vel, float dly, bool strong);
+  void perc(int layer, PercKind k, int which, float vel, float dly, int root);
+  void padChord(Seq& s, int layer, PadInst p, int chord, float dur, float vel, float dly);
+  void bassNoteStyled(int layer, BassInst b, int midi, float dur, float vel, float dly);
 };

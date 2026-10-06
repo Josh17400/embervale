@@ -330,6 +330,17 @@ struct EndlessSource::Impl {
   int32_t reliefE(int32_t x, int32_t y);                            // the warped clean elevation natLevel reads
   Biome biomeLite(int32_t x, int32_t y);                            // tile()'s land biome without the beach / rock
 
+  // ================================================================ M3 cultures (culture_map.cpp, CULTURE lane)
+  // Where each culture lives on the land, and the names it gives things. The atlas (rpg/culture) holds the cultures.
+  std::unique_ptr<cult::Atlas> atlasPtr;
+  cult::Atlas& atlas();
+  uint64_t kingdomCulture(int32_t kx, int32_t ky);                   // the dialect of a kingdom cell (0: no kingdom)
+  uint64_t cultureAt(int32_t x, int32_t y);                          // its kingdom's dialect, else its cell's family
+  std::string placeBaseName(const gen::Node& n);                     // a settlement's name before siteName de-duplicates
+  std::string kingdomBaseName(int32_t kx, int32_t ky, uint32_t seed); // a kingdom's name
+  // a cave / ruin / camp / shrine / lair's name (Rng nr: the caller's name stream, kept so the M2 names can stay)
+  std::string poiName(Rng& nr, SiteType t, int32_t x, int32_t y, Biome b);
+
   // ================================================================ L2 (chunkgen.cpp)
   void baseRect(int32_t x0, int32_t y0, int w, int h, gen::BaseRect& B);
   // (M2 fixer round 3) baseRect in pieces, for the web's phase-at-a-time town build: the per-tile terrain of rows

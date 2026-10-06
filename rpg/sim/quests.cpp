@@ -452,6 +452,7 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
         q.type = QType::Missing;
         atSite(t);
         Actor d;
+        d.site = q.giverSite;   // M3: the missing relative shares the giver's culture (name, dress); spawnEscort matches
         Rng pr = personRng(q, seed);
         makeLook(d, Role::Villager, pr);
         q.subject = d.name;
@@ -668,7 +669,9 @@ void Game::spawnEscort(Quest& q, Vec2 at) {
   spawnHuman(sp, at);
   Actor& a = actors.back();
   Rng pr = personRng(q, seed);
+  a.site = q.giverSite;   // dressed as the giver's people (the same look the quest named them with), then homeless again
   makeLook(a, Role::Villager, pr);
+  a.site = -1;
   a.name = q.subject;
   a.quest = q.id;
   a.fromMap = false; a.militia = false;
@@ -698,7 +701,10 @@ static int farTile(const Map& m, int avoid) {
   std::vector<int> qq;
   qq.push_back(sy * m.w + sx);
   dist[(size_t)qq[0]] = 0;
-  int best = -1, bd = -1;
+  // (M3 fixer) the best spot by rank, then by distance: open all round (3x3) and clear of the chest, else a free tile
+  // clear of the chest, else any free tile (a tight cave with no 3x3 opening left a Missing quest's person unplaced:
+  // seed 43, a quest that could never be finished)
+  int best = -1, bd = -1, brank = -1;
   for (size_t h = 0; h < qq.size(); h++) {
     const int cx = qq[h] % m.w, cy = qq[h] / m.w;
     static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
@@ -710,12 +716,15 @@ static int farTile(const Map& m, int avoid) {
       dist[(size_t)li] = dist[(size_t)qq[h]] + 1;
       qq.push_back(li);
     }
-    bool open = m.propAt(cx, cy) == 0;
+    bool free = m.propAt(cx, cy) == 0 && !m.blocked(cx, cy);
+    for (const Spawn& sp : m.spawns) if (sp.x == cx && sp.y == cy) free = false;
+    if (!free) continue;
+    bool open = true;
     for (int oy = -1; oy <= 1 && open; oy++)
       for (int ox = -1; ox <= 1 && open; ox++) if (m.blocked(cx + ox, cy + oy)) open = false;
-    if (avoid >= 0 && std::abs(cx - avoid % m.w) + std::abs(cy - avoid / m.w) < 6) open = false;
-    for (const Spawn& sp : m.spawns) if (sp.x == cx && sp.y == cy) open = false;
-    if (open && dist[(size_t)qq[h]] > bd) { bd = dist[(size_t)qq[h]]; best = qq[h]; }
+    const bool clear = !(avoid >= 0 && std::abs(cx - avoid % m.w) + std::abs(cy - avoid / m.w) < 6);
+    const int rank = open && clear ? 2 : (clear ? 1 : 0);
+    if (rank > brank || (rank == brank && dist[(size_t)qq[h]] > bd)) { brank = rank; bd = dist[(size_t)qq[h]]; best = qq[h]; }
   }
   return best;
 }

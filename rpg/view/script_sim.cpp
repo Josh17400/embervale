@@ -301,6 +301,13 @@ bool cmdDumpTiles(ScriptCtx& c) {
   const Map& m = g.map();
   const int r = c.a.size() > 1 ? std::atoi(c.arg(1).c_str()) : 10;
   const int px = (int)std::floor(g.pl().p.x / TILE), py = (int)std::floor(g.pl().p.y / TILE);
+  if (c.arg(2) == "p") {   // (M3 fixer round 3) the props round the player: window tile and art::Prop index
+    for (int y = py - r; y <= py + r; y++)
+      for (int x = px - r; x <= px + r; x++)
+        if (const int pr = m.propAt(x, y)) std::printf("prop %d %d = %d\n", x, y, pr - 1);
+    std::printf("player %d %d\n", px, py);
+    return true;
+  }
   for (int y = py - r; y <= py + r; y++) {
     std::string line;
     for (int x = px - r; x <= px + r; x++) {
@@ -317,7 +324,7 @@ bool cmdDumpTiles(ScriptCtx& c) {
   }
   return true;
 }
-EMB_SCRIPT_CMD("dumptiles", "dumptiles [r] [b|g]: print the levels (or biomes, or ground letters) and grounds of the tiles round the player (debug)", cmdDumpTiles);
+EMB_SCRIPT_CMD("dumptiles", "dumptiles [r] [b|g|p]: print the levels (or biomes, or ground letters) and grounds of the tiles round the player, or (p) its props (debug)", cmdDumpTiles);
 
 EMB_SCRIPT_CMD("killnear","killnear [tiles]: every hostile within that many tiles (default 20) falls", cmdKillNear);
 

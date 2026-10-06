@@ -1,0 +1,32 @@
+# PEOPLE lane, M3 "Many Peoples": the townsfolk of 12 archetypes (census looks: peoples, dress cuts, headwear,
+# patterns, skin and hair ranges, guards in their owner kingdom's arms). Noon, so the streets are full.
+#   embervale.exe --script tools/scripts/m3_people_crowds.txt     (m3crowd_*.png in the working directory)
+seed 3
+0.3  newgame
++0.02 hour 12
++0.1 god 1
++0.1 gotoculture fjordfolk any
++3.5 shot m3crowd_fjordfolk.png
++0.1 gotoculture highland any
++3.5 shot m3crowd_highland.png
++0.1 gotoculture heartland any
++3.5 shot m3crowd_heartland.png
++0.1 gotoculture imperial any
++3.5 shot m3crowd_imperial.png
++0.1 gotoculture dune any
++3.5 shot m3crowd_dune.png
++0.1 gotoculture steppe any
++3.5 shot m3crowd_steppe.png
++0.1 gotoculture marsh any
++3.5 shot m3crowd_marsh.png
++0.1 gotoculture jade any
++3.5 shot m3crowd_jade.png
++0.1 gotoculture river any
++3.5 shot m3crowd_river.png
++0.1 gotoculture suntemple any
++3.5 shot m3crowd_suntemple.png
++0.1 gotoculture sylvan any
++3.5 shot m3crowd_sylvan.png
++0.1 gotoculture starspire any
++3.5 shot m3crowd_starspire.png
++0.3 quit

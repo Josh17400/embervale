@@ -7,7 +7,8 @@ seed 7
 1.2  expect mode creator
 1.4  key Return                  # LOOKS -> NAME
 1.5  key Return                  # NAME -> ORIGIN
-1.6  key Return                  # ORIGIN: BEGIN
+1.6  key Return                  # ORIGIN -> HOMELAND (M3)
+1.7  key Return                  # HOMELAND: BEGIN
 1.8  expect mode play
 2.5  shot sim_inn_1_start.png
 2.6  walkto inn 60

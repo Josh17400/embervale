@@ -552,7 +552,10 @@ int questsSeed(uint64_t seed) {
     Site w;
     w.id = ew::makeId(0, 0, ew::IdKind::Poi, 0x7FE);
     w.type = SiteType::Wonder; w.kind = (uint8_t)ew::WonderKind::ElderTree; w.name = "THE ELDER OAK OF TEST";
-    const int px = (int)(g.pl().p.x / TILE) + 30, py = (int)(g.pl().p.y / TILE);
+    // a spot clear of every real site (M3 settlements are larger: 30 tiles east can be inside a town's pad)
+    int px = (int)(g.pl().p.x / TILE) + 30;
+    const int py = (int)(g.pl().p.y / TILE);
+    for (int k = 0; k < 40 && g.world.siteAt(px, py, 8) >= 0; k++) px += 10;
     w.r = IRect{px - 3, py - 3, 7, 7}; w.ex = px; w.ey = py;
     g.world.siteById[w.id] = (int)g.world.sites.size();
     g.world.nearSites.push_back((int)g.world.sites.size());

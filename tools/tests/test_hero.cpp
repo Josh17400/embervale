@@ -19,6 +19,15 @@
 #include "rpg/art/art_core.cpp"
 #include "rpg/art/art_human.cpp"
 #endif
+#include "rpg/culture/culture.h"
+
+// M3 (people lane): the census (rpg/sim/looks.cpp) and the hero's appearance look (rpg/sim/player.cpp)
+namespace census {
+struct Rank { bool royal = false, capital = false; };
+void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult::Culture& C, const cult::Culture& owner,
+           uint64_t seed, const Rank& rank);
+}  // namespace census
+art::HumanLook appearanceLook(const Appearance& a, const cult::Culture* home);
 
 namespace {
 
@@ -75,12 +84,30 @@ int mainField(ItemKind k) { return ownFields(k).empty() ? -1 : ownFields(k)[0]; 
 // Every cell keeps what M0 paints off its left, right and top edges, so the 1px outline always fits (the bottom
 // row is the ground line). Measured on the cells before the outline, against the same look stripped of everything M0
 // added, because a few legacy weapon poses (the axe head held low) already touch the edge and NPC looks must not change.
+int topOpaqueRow(const Canvas& c) {
+  for (int y = 0; y < c.h; y++)
+    for (int x = 0; x < c.w; x++) if (c.get(x, y) >> 24) return y;
+  return c.h;
+}
 int newEdgePixels(const art::HumanLook& L) {
   art::HumanLook B = L;
   B.helmStyle = B.armorStyle = B.gloves = B.boots = B.cloak = B.shieldStyle = B.backItem = B.build = 0;
+  // M3: the dress grammar and the culture arms are new pixels too (the people stays: an elf's body stands a pixel
+  // higher, so it is compared with an elf; its ears never reach the edges)
+  B.cut = B.headwear = B.pattern = B.facePaint = B.jewellery = 0;
+  if (L.people == 2) {   // compare with an elf of the same height (a tall hat or a helmet keeps an elf at human height)
+    art::HumanLook h = L;
+    h.people = 0;
+    const bool lifted = topOpaqueRow(art::humanCellRaw(L, 1, 0)) < topOpaqueRow(art::humanCellRaw(h, 1, 0));
+    B.people = lifted ? 2 : 0;
+    if (lifted) B.hair = art::Hair::Short;   // (a mohawk under a veil: the elf still stands tall)
+  }
+  B.helmForm = B.bodyForm = B.shieldForm = B.bladeForm = B.pauldron = B.skirt = B.crest = 0;
+  B.armsOrnament = 0;
   B.amulet = B.ring = false;
   B.eyeColor = 0;
   if (B.hair >= art::Hair::Bun) B.hair = art::Hair::Short;
+  if (B.people == 2 && B.hair == art::Hair::Mohawk) B.hair = art::Hair::Short;
   int n = 0;
   for (int row = 0; row < 3; row++)
     for (int f = 0; f < art::HUMAN_FRAMES; f++) {
@@ -122,6 +149,159 @@ art::HumanLook randomLook(Rng& r) {
   L.amulet = r.f() < 0.5f;
   L.ring = r.f() < 0.5f;
   return L;
+}
+
+// ---- M3 peoples, dress, culture arms, census looks, the creator's homeland and arms
+art::HumanLook randomM3(Rng& r) {
+  art::HumanLook L = randomLook(r);
+  L.people = (uint8_t)r.irange(3);
+  L.cut = (uint8_t)r.irange(9);
+  L.headwear = (uint8_t)r.irange(9);
+  L.headColor = r.f() < 0.5f ? 0 : rgba(r.irange(256), r.irange(256), r.irange(256));
+  L.pattern = (uint8_t)r.irange(7);
+  L.patternColor = rgba(r.irange(256), r.irange(256), r.irange(256));
+  L.facePaint = (uint8_t)r.irange(5);
+  L.jewellery = (uint8_t)r.irange(4);
+  L.helmForm = (uint8_t)r.irange(11);
+  L.bodyForm = (uint8_t)r.irange(9);
+  L.shieldForm = (uint8_t)r.irange(10);
+  L.bladeForm = (uint8_t)r.irange(10);
+  L.armsOrnament = (uint16_t)r.irange(1024);
+  L.pauldron = (uint8_t)r.irange(5);
+  L.skirt = (uint8_t)r.irange(5);
+  L.crest = (uint8_t)r.irange(5);
+  L.plumeColor = r.f() < 0.5f ? 0 : rgba(r.irange(256), r.irange(256), r.irange(256));
+  if (r.f() < 0.4f) L.outfit = art::Outfit::Guard;
+  return L;
+}
+int peopleChecks(uint64_t seed, Rng& r) {
+  int bad = 0;
+  // ---- 1. the M3 fields at 0 paint exactly what a pre-M3 look did; every M3 field changes the key
+  {
+    art::HumanLook a = randomLook(r), b = a;
+    b.people = 0; b.cut = 0; b.headwear = 0; b.pattern = 0; b.helmForm = 0; b.bodyForm = 0;
+    if (a.key() != b.key() || art::humanSheet(a).px != art::humanSheet(b).px) { out("FAIL: people: M3 zeros changed a look"); bad++; }
+    for (int f = 0; f < 15; f++) {
+      art::HumanLook L = a;
+      switch (f) {
+        case 0: L.people = 2; break;        case 1: L.cut = 3; break;           case 2: L.headwear = 3; break;
+        case 3: L.pattern = 1; break;       case 4: L.facePaint = 1; break;     case 5: L.jewellery = 1; break;
+        case 6: L.helmForm = 4; break;      case 7: L.bodyForm = 4; break;      case 8: L.shieldForm = 5; break;
+        case 9: L.bladeForm = 4; break;     case 10: L.armsOrnament = 8; break; case 11: L.pauldron = 4; break;
+        case 12: L.skirt = 3; break;        case 13: L.crest = 4; break;        default: L.headColor = 0x12345678u; break;
+      }
+      if (L.key() == a.key()) { out("FAIL: people: M3 field %d does not change key()", f); bad++; }
+    }
+  }
+  // ---- 2. peoples: elves stand a pixel taller bare-headed; elves and half-breeds paint ears the human lacks
+  {
+    art::HumanLook h;
+    h.hair = art::Hair::Short;
+    art::HumanLook e = h, hb = h;
+    e.people = 2;
+    hb.people = 1;
+    for (int row = 0; row < 3; row++) {
+      const Canvas ch = art::humanCellRaw(h, row, 0), ce = art::humanCellRaw(e, row, 0), cb = art::humanCellRaw(hb, row, 0);
+      if (topOpaqueRow(ce) != topOpaqueRow(ch) - 1) {
+        out("FAIL: people: an elf (facing %d) is not a pixel taller (%d vs %d)", row, topOpaqueRow(ce), topOpaqueRow(ch));
+        bad++;
+      }
+      // the ears: on the head's sides (front and back views: pixels the human's head lacks; side view: over the head)
+      int earsB = 0, earsE = 0;
+      for (int y = 0; y < 12; y++)
+        for (int x = 0; x < art::HUMAN_W; x++) {
+          earsB += cb.get(x, y) != ch.get(x, y) && (row == 2 || !(ch.get(x, y) >> 24));
+          earsE += (ce.get(x, y) >> 24) && (row == 2 ? x <= 7 : (x <= 2 || x >= 13));
+        }
+      if (!earsB || !earsE) { out("FAIL: people: no ears painted (facing %d: half-breed %d, elf %d)", row, earsB, earsE); bad++; }
+    }
+  }
+  // ---- 3. every M3 combination stays inside its cells (all frames and facings)
+  {
+    int n = 0;
+    for (int i = 0; i < (seed % 5 == 1 ? 120 : 30); i++) {
+      const art::HumanLook L = randomM3(r);
+      const int e = newEdgePixels(L);
+      if (e && n++ < 5)
+        out("FAIL: people: M3 look %d paints %d edge pixels (people %d cut %d hw %d helm %d body %d shield %d blade %d paul %d)", i, e,
+            L.people, L.cut, L.headwear, L.helmForm, L.bodyForm, L.shieldForm, L.bladeForm, L.pauldron);
+    }
+    bad += n;
+  }
+  // ---- 4. the census: the culture's people mix, dress, arms and names reach the look, deterministically
+  {
+    const int nA = (int)cult::Archetype::COUNT;
+    for (int a = 0; a < nA; a++) {
+      const cult::Culture C = cult::Atlas::make((cult::Archetype)a, (uint32_t)(seed * 7919u + (uint64_t)a));
+      const cult::Culture O = cult::Atlas::make((cult::Archetype)((a + 5) % nA), (uint32_t)(seed * 31u + (uint64_t)a));
+      const char* an = cult::archetypeName(C.archetype);
+      int elves = 0, total = 0, named = 0;
+      for (int i = 0; i < 60; i++) {
+        const bool female = (i & 1) != 0;
+        art::HumanLook L, L2;
+        std::string nm = "X", nm2 = "X";
+        census::dress(L, nm, Role::Villager, female, C, O, seed * 1000 + (uint64_t)i, census::Rank{});
+        census::dress(L2, nm2, Role::Villager, female, C, O, seed * 1000 + (uint64_t)i, census::Rank{});
+        if (L.key() != L2.key() || nm != nm2) { out("FAIL: census: %s is not deterministic", an); bad++; break; }
+        const int want = (int)(female ? C.dress.cutF : C.dress.cutM) + 1;
+        if (L.cut != want) { out("FAIL: census: %s villager cut %d, the culture says %d", an, L.cut, want); bad++; break; }
+        elves += L.people == 2;
+        total++;
+        named += nm != "X" && !nm.empty();
+      }
+      const int w = C.peopleMix[0] + C.peopleMix[1] + C.peopleMix[2];
+      if (w > 0 && C.peopleMix[2] * 2 > w && elves * 2 < total) { out("FAIL: census: %s is elven but only %d/%d are elves", an, elves, total); bad++; }
+      if (named < total) { out("FAIL: census: %s left %d people without a name", an, total - named); bad++; }
+      // a guard serves the owner kingdom: its helm, body, shield and blade forms, in the kingdom's colours
+      art::HumanLook G;
+      G.outfit = art::Outfit::Guard; G.helmet = true; G.shield = true; G.weapon = 1; G.tabardColor = rgba(20, 60, 160);
+      std::string gn = "GUARD";
+      census::dress(G, gn, Role::Guard, false, C, O, seed + (uint64_t)a, census::Rank{});
+      if (G.helmForm != (int)O.arms.helm[0] + 1 || G.bodyForm != (int)O.arms.body[0] + 1 || G.shieldForm != (int)O.arms.shield + 1 ||
+          G.bladeForm != (int)O.arms.blade + 1 || G.tabardColor != rgba(20, 60, 160) || gn != "GUARD") {
+        out("FAIL: census: a %s guard under %s rule does not wear the owner's arms", an, cult::archetypeName(O.archetype));
+        bad++;
+      }
+      // the bandit wears local, poor gear; the priest the faith's colours
+      art::HumanLook B;
+      B.outfit = art::Outfit::Leather; B.weapon = 1;
+      std::string bn;
+      census::dress(B, bn, Role::Bandit, false, C, O, seed + 3, census::Rank{});
+      if (B.armorStyle > 1 || B.bodyForm > (int)cult::BodyArm::Leather + 1) { out("FAIL: census: a %s bandit is too well armed", an); bad++; }
+      art::HumanLook Pr;
+      Pr.outfit = art::Outfit::Robe;
+      std::string pn;
+      census::dress(Pr, pn, Role::Priest, true, C, O, seed + 4, census::Rank{});
+      if ((C.faith.colour && Pr.topColor != (C.faith.colour | 0xFF000000u)) || pn.rfind("PRIEST ", 0) != 0) {
+        out("FAIL: census: a %s priest lost the faith's colours or title", an);
+        bad++;
+      }
+      if (seed % 5 == 1)
+        for (const art::HumanLook* l : {&G, &B, &Pr})
+          if (int e = newEdgePixels(*l)) { out("FAIL: census: a %s look paints %d edge pixels", an, e); bad++; }
+    }
+  }
+  // ---- 5. the creator's people, homeland and arms reach the hero
+  {
+    const cult::Culture H = cult::Atlas::make(cult::Archetype::Dune, (uint32_t)seed);
+    Appearance a;
+    a.people = 2;
+    a.female = true;
+    a.heraldry.field = rgba(40, 72, 160); a.heraldry.field2 = rgba(220, 172, 52); a.heraldry.charge = rgba(220, 172, 52);
+    const art::HumanLook L = appearanceLook(a, &H);
+    if (L.people != 2 || L.cut != (int)H.dress.cutF + 1 || L.tabardColor != (rgba(40, 72, 160) | 0xFF000000u)) {
+      out("FAIL: hero: the creator's people / homeland / arms did not reach the look (people %d cut %d)", L.people, L.cut);
+      bad++;
+    }
+    Bare b(seed);
+    b.g.app.people = 1;
+    b.g.app.heraldry = a.heraldry;
+    b.refresh();
+    if (b.look().people != 1 || b.look().tabardColor != (rgba(40, 72, 160) | 0xFF000000u)) { out("FAIL: hero: the player's look lost the people or the arms"); bad++; }
+    a.people = 9;   // out of range (a newer save): clamped
+    if (appearanceLook(a, nullptr).people > 2) { out("FAIL: hero: an unknown people id was not clamped"); bad++; }
+  }
+  return bad;
 }
 
 }  // namespace
@@ -305,5 +485,7 @@ int heroChecks(uint64_t seed) {
     }
     if (!got[0] || !got[1] || !got[2]) { out("FAIL: hero: loot never drops gloves/boots/cloak (%d/%d/%d)", got[0], got[1], got[2]); bad++; }
   }
+
+  bad += peopleChecks(seed, r);
   return bad;
 }

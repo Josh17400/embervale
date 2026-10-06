@@ -1,0 +1,16 @@
+# M3 architecture lane: a capital's palace in its culture's idiom, then its city wall from outside three gates (styled
+# gatehouses, wall runs and their diagonals), by day. Run from a scratch directory (screenshots go to the current
+# directory):   embervale --script tools/scripts/m3_arch_capital.txt [--seed N]
+seed 7
+0 god
+0.3 hour 11
+0.5 goto capital
++0.2 gate 0 in
++0.2 walk north 2.5
++2 shot m3cap_palace.png
++0.2 gate 1 out
++2 shot m3cap_gate1.png
++0.2 gate 2 out
++2 shot m3cap_gate2.png
++0.2 gate 3 out
++2 shot m3cap_gate3.png

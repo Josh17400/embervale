@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 #include "engine/pix.h"
+#include "rpg/culture/culture.h"
 
 struct Appearance {
   std::string name = "YOU";                 // shown in dialogue and the journal; upper case
@@ -18,4 +19,9 @@ struct Appearance {
   uint32_t topColor = rgba(70, 110, 150);   // shirt
   uint32_t bottomColor = rgba(78, 60, 44);  // trousers
   bool created = false;                     // went through the character creator (false for pre-M0 saves)
+  // ---- M3 (SAVE_VER 7): the player's people, homeland and personal arms (VISION_PLAN 13 "homeland culture and
+  //      personal heraldry added in M3", 15.6 peoples)
+  uint8_t people = 0;                       // cult::People: 0 human, 1 half-breed, 2 elf (art::HumanLook::people)
+  uint64_t homeland = 0;                    // cult::CultureId the player grew up in (0: none chosen)
+  cult::Heraldry heraldry;                  // personal arms (shield, banner, the paper doll); empty = none yet
 };

@@ -1,0 +1,158 @@
+# M3 TOWNS lane: the layouts of every people, shot round each settlement of the tour (m3_towns_tour.txt prints where
+# they are on seed 7): north, east and west of the heart at noon. Each people's settlements should read as their own
+# civilisation and stay organic (imperial grid and forum, steppe rings, dune and highland compounds, jade terraces,
+# marsh stilts and boardwalks, river and fjord towns along the water).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m3_towns_layouts.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.2 at 13 -391
++1.6 shot m3l_imperial_city_n.png
++0.2 at 43 -369
++1.6 shot m3l_imperial_city_e.png
++0.2 at -17 -361
++1.6 shot m3l_imperial_city_w.png
++0.2 at 17 -345
++1.6 shot m3l_imperial_city_s.png
++0.2 at 203 -763
++1.6 shot m3l_imperial_town_n.png
++0.2 at 223 -751
++1.6 shot m3l_imperial_town_e.png
++0.2 at 183 -743
++1.6 shot m3l_imperial_town_w.png
++0.2 at 207 -737
++1.6 shot m3l_imperial_town_s.png
++0.2 at 6222 376
++1.6 shot m3l_steppe_town_n.png
++0.2 at 6242 388
++1.6 shot m3l_steppe_town_e.png
++0.2 at 6202 396
++1.6 shot m3l_steppe_town_w.png
++0.2 at 6226 402
++1.6 shot m3l_steppe_town_s.png
++0.2 at 6324 1071
++1.6 shot m3l_steppe_city_n.png
++0.2 at 6354 1093
++1.6 shot m3l_steppe_city_e.png
++0.2 at 6294 1101
++1.6 shot m3l_steppe_city_w.png
++0.2 at 6328 1117
++1.6 shot m3l_steppe_city_s.png
++0.2 at -203 5656
++1.6 shot m3l_dune_town_n.png
++0.2 at -183 5668
++1.6 shot m3l_dune_town_e.png
++0.2 at -223 5676
++1.6 shot m3l_dune_town_w.png
++0.2 at -199 5682
++1.6 shot m3l_dune_town_s.png
++0.2 at -841 17453
++1.6 shot m3l_dune_city_n.png
++0.2 at -811 17475
++1.6 shot m3l_dune_city_e.png
++0.2 at -871 17483
++1.6 shot m3l_dune_city_w.png
++0.2 at -837 17499
++1.6 shot m3l_dune_city_s.png
++0.2 at -1024 11883
++1.6 shot m3l_jade_town_n.png
++0.2 at -1004 11895
++1.6 shot m3l_jade_town_e.png
++0.2 at -1044 11903
++1.6 shot m3l_jade_town_w.png
++0.2 at -1020 11909
++1.6 shot m3l_jade_town_s.png
++0.2 at -874 12168
++1.6 shot m3l_jade_city_n.png
++0.2 at -844 12190
++1.6 shot m3l_jade_city_e.png
++0.2 at -904 12198
++1.6 shot m3l_jade_city_w.png
++0.2 at -870 12214
++1.6 shot m3l_jade_city_s.png
++0.2 at -4205 18554
++1.6 shot m3l_marsh_village_n.png
++0.2 at -4185 18566
++1.6 shot m3l_marsh_village_e.png
++0.2 at -4225 18574
++1.6 shot m3l_marsh_village_w.png
++0.2 at -4201 18580
++1.6 shot m3l_marsh_village_s.png
++0.2 at -4748 19097
++1.6 shot m3l_marsh_town_n.png
++0.2 at -4728 19109
++1.6 shot m3l_marsh_town_e.png
++0.2 at -4768 19117
++1.6 shot m3l_marsh_town_w.png
++0.2 at -4744 19123
++1.6 shot m3l_marsh_town_s.png
++0.2 at -6550 17682
++1.6 shot m3l_river_town_n.png
++0.2 at -6530 17694
++1.6 shot m3l_river_town_e.png
++0.2 at -6570 17702
++1.6 shot m3l_river_town_w.png
++0.2 at -6546 17708
++1.6 shot m3l_river_town_s.png
++0.2 at -10508 18172
++1.6 shot m3l_fjord_town_n.png
++0.2 at -10488 18184
++1.6 shot m3l_fjord_town_e.png
++0.2 at -10528 18192
++1.6 shot m3l_fjord_town_w.png
++0.2 at -10504 18198
++1.6 shot m3l_fjord_town_s.png
++0.2 at -9668 18597
++1.6 shot m3l_highland_town_n.png
++0.2 at -9648 18609
++1.6 shot m3l_highland_town_e.png
++0.2 at -9688 18617
++1.6 shot m3l_highland_town_w.png
++0.2 at -9664 18623
++1.6 shot m3l_highland_town_s.png
++0.2 at -6532 13159
++1.6 shot m3l_heartland_town_n.png
++0.2 at -6512 13171
++1.6 shot m3l_heartland_town_e.png
++0.2 at -6552 13179
++1.6 shot m3l_heartland_town_w.png
++0.2 at -6528 13185
++1.6 shot m3l_heartland_town_s.png
++0.2 at -6073 13121
++1.6 shot m3l_suntemple_n.png
++0.2 at -6053 13133
++1.6 shot m3l_suntemple_e.png
++0.2 at -6093 13141
++1.6 shot m3l_suntemple_w.png
++0.2 at -6069 13147
++1.6 shot m3l_suntemple_s.png
++0.2 at -2737 11126
++1.6 shot m3l_sylvan_n.png
++0.2 at -2717 11138
++1.6 shot m3l_sylvan_e.png
++0.2 at -2757 11146
++1.6 shot m3l_sylvan_w.png
++0.2 at -2733 11152
++1.6 shot m3l_sylvan_s.png
++0.2 at -1691 10107
++1.6 shot m3l_starspire_n.png
++0.2 at -1671 10119
++1.6 shot m3l_starspire_e.png
++0.2 at -1711 10127
++1.6 shot m3l_starspire_w.png
++0.2 at -1687 10133
++1.6 shot m3l_starspire_s.png
++0.2 at 71 -416
++1.6 shot m3l_wall_imperial_ne.png
++0.2 at 71 -326
++1.6 shot m3l_wall_imperial_se.png
++0.2 at -45 -326
++1.6 shot m3l_wall_imperial_sw.png
++0.2 at -45 -416
++1.6 shot m3l_wall_imperial_nw.png
++0.2 at -783 17428
++1.6 shot m3l_wall_dune_ne.png
++0.2 at -899 17518
++1.6 shot m3l_wall_dune_sw.png
++0.3 quit

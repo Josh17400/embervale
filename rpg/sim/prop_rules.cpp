@@ -13,6 +13,7 @@ bool propSolid(Prop p) {
     case Prop::Flowers1: case Prop::Flowers2: case Prop::Flowers3: case Prop::TallGrass: case Prop::Reeds:
     case Prop::Mushrooms: case Prop::LilyPad: case Prop::Fern: case Prop::Bones: case Prop::SkullPile:
     case Prop::Cobweb: case Prop::Rug: case Prop::Chair: case Prop::ChestOpen: case Prop::Torch: case Prop::Ladder:
+    case Prop::Cushion: case Prop::SleepingMat:   // M3 culture furniture you step over
     case Prop::CaveEntrance: case Prop::Banner: case Prop::IronDoor:
       return false;
     // M0 (appended props): wall decor hangs on wall tiles; stools and benches are walk-through seats like chairs
@@ -215,6 +216,12 @@ art::RoomStyle interiorStyle(const Map& m) { return roomStyleOf(m); }
 
 uint32_t interiorPropKey(const Map& m, int tx, int ty, Prop p) {
   if (m.kind != MapKind::Interior) return 0;
+  // (M3 fixer round 2) a hammock slung from the wall or a sleeping mat rolled out, two tiles long like a bed
+  if ((p == Prop::Hammock || p == Prop::SleepingMat) && m.propAt(tx, ty - 1) == (int)Prop::Filler + 1)
+    return art::pieceKey(art::Piece::Styled, (int)roomStyleOf(m), p == Prop::Hammock ? 6 : 7, (int)(hash2(tx, ty, 79) & 3));
+  // (M3 fixer) a people's own furniture (Map::kit): the view adds the hearth's frame
+  if (m.kit && art::cultureInteriorHas(m.kit - 1, p) && !((p == Prop::Painting || p == Prop::Wreath) && partFace(m, tx, ty)))
+    return art::pieceKey(art::Piece::Culture, m.kit - 1, (int)p, p == Prop::Bed && m.propAt(tx, ty - 1) == (int)Prop::Filler + 1 ? 1 : 0);
   int idx = -1;
   switch (p) {
     case Prop::StairsUp: idx = 0; break;

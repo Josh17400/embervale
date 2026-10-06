@@ -1,0 +1,56 @@
+# M3 culture gallery (CULTURE lane): a town of every archetype, at noon, with the culture printed. For the art, towns and
+# people lanes' reviews: each shot should read as its own civilisation (architecture, roofs, palette, layout, dress).
+# Archetypes absent within 12 culture cells of the start fail their gotoculture (try another seed: seed 3 and 7 hold most).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m3_culture_archetypes.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.2 gotoculture fjordfolk any
++1.4 culture
++0.05 hour 12
++0.6 shot m3c_01_fjordfolk.png
++0.2 gotoculture highland any
++1.4 culture
++0.05 hour 12
++0.6 shot m3c_02_highland.png
++0.2 gotoculture heartland any
++1.4 culture
++0.05 hour 12
++0.6 shot m3c_03_heartland.png
++0.2 gotoculture imperial any
++1.4 culture
++0.05 hour 12
++0.6 shot m3c_04_imperial.png
++0.2 gotoculture dune any
++1.4 culture
++0.05 hour 12
++0.6 shot m3c_05_dune.png
++0.2 gotoculture steppe any
++1.4 culture
++0.05 hour 12
++0.6 shot m3c_06_steppe.png
++0.2 gotoculture marsh any
++1.4 culture
++0.05 hour 12
++0.6 shot m3c_07_marsh.png
++0.2 gotoculture jade any
++1.4 culture
++0.05 hour 12
++0.6 shot m3c_08_jade.png
++0.2 gotoculture river any
++1.4 culture
++0.05 hour 12
++0.6 shot m3c_09_river.png
++0.2 gotoculture suntemple any
++1.4 culture
++0.05 hour 12
++0.6 shot m3c_10_suntemple.png
++0.2 gotoculture sylvan any
++1.4 culture
++0.05 hour 12
++0.6 shot m3c_11_sylvan.png
++0.2 gotoculture starspire any
++1.4 culture
++0.05 hour 12
++0.6 shot m3c_12_starspire.png
++0.5 quit

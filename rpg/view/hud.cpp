@@ -239,7 +239,7 @@ const char* useVerb(int pr) {
     case art::Prop::Shrine: case art::Prop::Altar: return "PRAY";
     case art::Prop::BerryBush: return "PICK";
     case art::Prop::Signpost: return "READ";
-    case art::Prop::Bed: return "SLEEP";
+    case art::Prop::Bed: case art::Prop::Hammock: case art::Prop::SleepingMat: return "SLEEP";
     default: return "USE";
   }
 }
@@ -612,6 +612,17 @@ void View::drawHud(Game& g) {
           // (M1 round 3) below the column's real foot (a two-line step and a kingdom line made it taller than the old
           // fixed limit, and the arrow and its distance sat on the quest's last line)
           if (a.x > R - 160 && a.y < colBottom) { if (a.y <= T + 20) a.x = R - 160; else a.y = colBottom; }
+          // (M3 fixer round 3, review: "on the phone the quest compass draws inside the TALK button") with the touch
+          // layout on, it also slides out of the action buttons (bottom right) and the movement stick (bottom left)
+          if (touchUI) {
+            const BtnDef bw = btnPos(B_BOW), rl = btnPos(B_ROLL), at = btnPos(B_ATTACK);
+            const float cx0 = bw.x - bw.r - 24, cy0 = std::min(rl.y - rl.r, btnPos(B_SPELL).y - btnPos(B_SPELL).r) - 14;
+            const float cyB = at.y + at.r;
+            if (a.x > cx0 && a.y > cy0) { if (a.y >= cyB - 4 || a.y > B - 30) a.x = cx0; else a.y = cy0; }
+            const Vec2 st = stickRest();
+            const float sx1 = st.x + 50, sy0 = st.y - 50;
+            if (a.x < sx1 && a.y > sy0) { if (a.y > B - 30) a.x = sx1; else a.y = sy0; }
+          }
           // a filled arrowhead (dark outline first so it reads on snow and sand), gently pulsing toward the goal
           a = a + d * (std::sin(t_ * 6) * 1.5f);
           Vec2 side(-d.y, d.x);

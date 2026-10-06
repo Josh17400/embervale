@@ -113,6 +113,7 @@ int windowSeed(uint64_t seed, const WinOpts& o) {
   g.noWildSpawns = true;
   g.streamThreads = !o.web;
   World& w = g.world;
+  if (o.web) w.streamer.reset();   // (M3: natively the world starts its worker; the web's path has none: the frame pump)
   if (!w.endless) { fail("not an endless world"); return bad; }
   const Site& home = w.sites[(size_t)w.startSite];
   if (!home.settlement() || !home.start) fail("start site is not the start settlement");
@@ -207,8 +208,9 @@ int windowSeed(uint64_t seed, const WinOpts& o) {
   }
   int shifts = w.sstats.walkShifts - shifts0;
   if (shifts < 2 && o.walk >= 200) fail("the walk shifted the window only " + std::to_string(shifts) + " times");
+  // (M3 towns lane, carry-over 2) a walking shift copies only ready chunks: the prefetcher keeps up (was a WARN)
   if (!o.fast && w.sstats.syncInShifts > 0)
-    out("WARN: %d chunks were generated on the main thread during walking shifts (the prefetcher fell behind)\n", w.sstats.syncInShifts);
+    fail(std::to_string(w.sstats.syncInShifts) + " chunks were generated on the main thread during walking shifts (the prefetcher fell behind)");
   if (o.budget > 0 && worstStep > o.budget) fail("worst step " + std::to_string(worstStep) + " ms is over the budget of " + std::to_string(o.budget) + " ms");
   int moved = 0;
   for (const Gp& p : places) {

@@ -256,75 +256,206 @@ void standingStone(Canvas& c) {
   tufts(c, 1, W - 2, by + 1, 53, 0.55f);
 }
 
-// ---- CaravanWreck ------------------------------------------------------------------------------------------------
-// An overturned covered wagon on its side: the bed's planks and axles toward the viewer, one wheel up in the air (spokes,
-// iron tyre), the canvas torn from its hoops and trailing, a crate and a barrel spilled in the grass, a sack split open.
-void wheel(Canvas& c, float cx, float cy, float rx, float ry, int spokes, float rot) {
-  for (int y = (int)std::floor(cy - ry - 1); y <= (int)std::ceil(cy + ry + 1); y++)
-    for (int x = (int)std::floor(cx - rx - 1); x <= (int)std::ceil(cx + rx + 1); x++) {
-      const float dx = (x + 0.5f - cx) / rx, dy = (y + 0.5f - cy) / ry, d = std::sqrt(dx * dx + dy * dy);
-      if (d > 1.0f) continue;
-      if (d > 0.80f) { c.set(x, y, d > 0.93f ? kIron[dx + dy < 0 ? 3 : 1] : kWood[dx + dy < 0 ? 3 : 2]); continue; }
-      if (d < 0.22f) { c.set(x, y, kWoodDark[d < 0.12f ? 1 : 3]); continue; }
-      const float a = std::atan2(dy, dx) + rot;
-      if (std::fmod(a + 62.83185f, TAU / spokes) < 0.32f) c.set(x, y, kWood[dx < 0 ? 3 : 2]);
-    }
+// ---- the sculptor (M3 people lane) -------------------------------------------------------------------------------
+// Solid props with real volume are modelled as signed distance fields in a little 3D world (x east, y up, z south
+// toward the viewer, 1 unit = 1 px) and ray-marched through the game's camera: orthographic, looking down at about 40
+// degrees, so tops show and fronts are foreshortened like every building. Each pixel gets the material and the surface
+// normal of what it sees; the light comes from the top-left (north-west, above), with ambient occlusion in the creases.
+struct P3 { float x, y, z; };
+inline P3 p3(float x, float y, float z) { return P3{x, y, z}; }
+inline P3 operator+(P3 a, P3 b) { return {a.x + b.x, a.y + b.y, a.z + b.z}; }
+inline P3 operator-(P3 a, P3 b) { return {a.x - b.x, a.y - b.y, a.z - b.z}; }
+inline P3 operator*(P3 a, float k) { return {a.x * k, a.y * k, a.z * k}; }
+inline float dot3(P3 a, P3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+inline float len3(P3 a) { return std::sqrt(dot3(a, a)); }
+inline P3 nrm3(P3 a) { const float l = len3(a); return l > 1e-6f ? a * (1.0f / l) : p3(0, 1, 0); }
+inline float sdEllipsoid(P3 p, P3 r) {   // (a good approximation)
+  const float k0 = len3(p3(p.x / r.x, p.y / r.y, p.z / r.z)), k1 = len3(p3(p.x / (r.x * r.x), p.y / (r.y * r.y), p.z / (r.z * r.z)));
+  return k1 > 1e-6f ? k0 * (k0 - 1.0f) / k1 : -std::min(r.x, std::min(r.y, r.z));
 }
+inline float sdBox(P3 p, P3 b, float round = 0) {
+  const P3 q = p3(std::fabs(p.x) - b.x + round, std::fabs(p.y) - b.y + round, std::fabs(p.z) - b.z + round);
+  return len3(p3(std::max(q.x, 0.0f), std::max(q.y, 0.0f), std::max(q.z, 0.0f))) + std::min(std::max(q.x, std::max(q.y, q.z)), 0.0f) - round;
+}
+inline float sdCapsule(P3 p, P3 a, P3 b, float ra, float rb) {
+  const P3 pa = p - a, ba = b - a;
+  const float h = std::clamp(dot3(pa, ba) / std::max(1e-6f, dot3(ba, ba)), 0.0f, 1.0f);
+  return len3(pa - ba * h) - (ra + (rb - ra) * h);
+}
+// a vertical cylinder (axis y) from y0 to y1
+inline float sdCylY(P3 p, float r, float y0, float y1) {
+  const float dxz = std::sqrt(p.x * p.x + p.z * p.z) - r, dy = std::max(y0 - p.y, p.y - y1);
+  return std::min(std::max(dxz, dy), 0.0f) + len3(p3(std::max(dxz, 0.0f), std::max(dy, 0.0f), 0));
+}
+// a cylinder along x (wheels and barrels lying down are built from these after a rotation)
+inline float sdCylX(P3 p, float r, float h) { return sdCylY(p3(p.z, p.x, p.y), r, -h, h); }
+inline float smin(float a, float b, float k) {
+  const float h = std::clamp(0.5f + 0.5f * (b - a) / k, 0.0f, 1.0f);
+  return b + (a - b) * h - k * h * (1.0f - h);
+}
+struct Sd { float d; int mat; };
+inline Sd sdU(Sd a, Sd b) { return a.d < b.d ? a : b; }
+
+// what the camera sees at one pixel
+struct SculptPx { bool hit = false; int mat = 0; P3 p{}, n{}; float ao = 1; };
+constexpr float kSculptTheta = 0.70f;   // ~40 degrees down from the horizon
+// Renders scene(p) -> Sd into a buffer the size of the canvas; (cx, baseY) is where the world origin lands on screen.
+// Nothing below the ground plane (y < 0) is seen: the land is painted by the caller.
+template <class F>
+std::vector<SculptPx> sculpt(const Canvas& c, F&& scene, float cx, float baseY, float reach = 160) {
+  const float st = std::sin(kSculptTheta), ct = std::cos(kSculptTheta);
+  const P3 d = p3(0, -st, -ct), u = p3(0, ct, -st);
+  std::vector<SculptPx> out((size_t)c.w * c.h);
+  for (int py = 0; py < c.h; py++)
+    for (int px = 0; px < c.w; px++) {
+      const float X = px + 0.5f - cx, S = baseY - (py + 0.5f);
+      const P3 o = p3(X, 0, 0) + u * S - d * reach;
+      float t = 0;
+      SculptPx& r = out[(size_t)py * c.w + px];
+      for (int i = 0; i < 140 && t < reach * 2; i++) {
+        const P3 p = o + d * t;
+        if (p.y < -0.5f) break;
+        const Sd s = scene(p);
+        if (s.d < 0.04f) {
+          r.hit = true; r.mat = s.mat; r.p = p;
+          const float e = 0.35f;
+          r.n = nrm3(p3(scene(p + p3(e, 0, 0)).d - scene(p - p3(e, 0, 0)).d, scene(p + p3(0, e, 0)).d - scene(p - p3(0, e, 0)).d,
+                        scene(p + p3(0, 0, e)).d - scene(p - p3(0, 0, e)).d));
+          float occ = 0;   // ambient occlusion: how far the field opens up along the normal
+          for (int k = 1; k <= 3; k++) { const float h = 1.2f * k; occ += (h - std::min(h, scene(r.n * h + p).d)) / h; }
+          r.ao = std::clamp(1.0f - occ * 0.34f, 0.0f, 1.0f);
+          break;
+        }
+        t += std::max(0.05f, s.d * 0.9f);
+      }
+    }
+  return out;
+}
+// the top-left light in the sculptor's world (north-west and above, a little toward the viewer)
+inline float sculptLight(const SculptPx& s) {
+  const P3 L = nrm3(p3(-0.68f, 0.66f, 0.22f));
+  const float ndl = dot3(s.n, L);
+  return ndl * 1.15f + (s.ao - 1.0f) * 1.1f + 0.02f;
+}
+
+// ---- CaravanWreck ------------------------------------------------------------------------------------------------
+inline P3 rotZ(P3 p, float a) { const float cs = std::cos(a), sn = std::sin(a); return p3(cs * p.x + sn * p.y, -sn * p.x + cs * p.y, p.z); }
+inline P3 rotY(P3 p, float a) { const float cs = std::cos(a), sn = std::sin(a); return p3(cs * p.x - sn * p.z, p.y, sn * p.x + cs * p.z); }
+// a spoked wheel standing in the x-y plane (axle along z): iron tyre, felloe, hub, spokes
+inline float sdWheel(P3 p, float r, float th, int spokes, float rot) {
+  const float rr = std::sqrt(p.x * p.x + p.y * p.y), az = std::fabs(p.z) - th;
+  float ring = std::max(std::fabs(rr - (r - 0.9f)) - 0.95f, az);
+  const float hub = std::max(rr - 1.5f, std::fabs(p.z) - th - 0.8f);
+  float sp = 1e9f;
+  for (int i = 0; i < spokes; i++) {
+    const float a = rot + i * (3.14159265f / spokes);
+    const float cs = std::cos(a), sn = std::sin(a);
+    const float u = std::fabs(-sn * p.x + cs * p.y);
+    sp = std::min(sp, std::max(std::max(u - 0.45f, rr - r + 0.5f), az + 0.25f));
+  }
+  return std::min(ring, std::min(hub, sp));
+}
+// the covered wagon on a broken axle (M3 people lane, owner carry-over 5): sculpted like the Colossus. The bed tips to
+// the west where its front wheel came off (it lies flat in the grass), the canvas has torn from the front hoop and hangs
+// off the back two in folds, a crate, a barrel and a split sack spilled toward the road.
 void caravanWreck(Canvas& c) {
   const int W = c.w, H = c.h, by = H - 3;
-  // the canvas cover torn off its hoops, lying on the ground to the east in heavy folds
-  for (int y = by - 12; y <= by; y++)
-    for (int x = 30; x < W - 2; x++) {
-      const float u = (x - 30.0f) / (W - 32.0f), v = (by - y) / 12.0f;
-      const float edge = (1.0f - u * 0.7f) * (0.75f + (vnoise(x / 4.0f, 3, 61) - 0.5f) * 0.5f);
-      if (v > edge) continue;
-      if (hashf(x / 2, y / 2, 63) < 0.05f) continue;   // a rip
-      const float fold = std::sin(x * 0.75f + y * 0.2f);
-      c.set(x, y, kCloth[lightIndex(0.35f + fold * 0.35f - v * 0.2f, x, y, 0.1f)]);
+  const float cx = W * 0.5f + 1;
+  enum { kWoodM = 1, kDarkM, kIronM, kClothM, kSackM, kBarrelM };
+  auto scene = [&](P3 p) -> Sd {
+    // the bed, tipped down at its west end (the broken axle)
+    const P3 b = rotZ(p - p3(1.0f, 8.0f, -1.0f), -0.16f);
+    Sd bed{std::max(sdBox(b, p3(17.0f, 3.2f, 7.5f), 0.6f), -sdBox(b - p3(0, 2.4f, 0), p3(16.0f, 2.0f, 6.4f))), kWoodM};
+    // the hoops (the west one bare and cracked) and the canvas over the east two
+    float hoops = 1e9f;
+    for (int i = 0; i < 3; i++) {
+      const P3 q = b - p3(-11.0f + i * 11.0f, 3.0f, 0);
+      const float rr = std::sqrt(q.y * q.y + q.z * q.z);
+      float h = std::max(std::max(std::fabs(rr - 7.3f) - 0.55f, std::fabs(q.x) - 0.55f), -q.y);
+      if (i == 0) h = std::max(h, -(q.z + 2.0f));   // broken off on its north side
+      hoops = std::min(hoops, h);
     }
-  // the wagon box on its side: the floor's planks toward the viewer, the side board along the top
-  const int bx0 = 4, bx1 = 34, byt = by - 17, byb = by - 2;
-  for (int y = byt; y <= byb; y++)
-    for (int x = bx0; x <= bx1; x++) {
-      int k = 2;
-      if (y <= byt + 2) k = 3;                    // the side board's top edge catches the light
-      if (((y - byt) % 4) == 3) k = 1;            // the seams between the floor planks
-      if (x == bx0) k = std::min(4, k + 1);
-      if (x == bx1 || y == byb) k = 0;
-      if (hashf(x / 6, (y - byt) / 4, 65) < 0.2f && k == 2) k = 1;
-      c.set(x, y, kWood[k]);
-    }
-  // iron straps, the axles standing up out of the floor, and a split board
-  for (int x : {bx0 + 5, bx1 - 5}) for (int y = byt; y <= byb; y++) c.set(x, y, kIron[y == byt ? 3 : 1]);
-  line(c, 18, byt + 5, 23, byb - 2, kWoodDark[0]);
-  // the wheels on the upper side, lying flat in the air: seen from above (flattened ellipses) on their stubs
-  for (int k = 0; k < 2; k++) {
-    const float wx = k == 0 ? bx0 + 6.0f : bx1 - 6.0f, wy = byt - 3.0f;
-    vline(c, (int)wx, (int)wy, byt, kIron[1]);
-    for (int y = (int)(wy - 4); y <= (int)(wy + 4); y++)
-      for (int x = (int)(wx - 8); x <= (int)(wx + 8); x++) {
-        const float dx = (x + 0.5f - wx) / 7.5f, dy = (y + 0.5f - wy) / 3.6f, d = std::sqrt(dx * dx + dy * dy);
-        if (d > 1.0f) continue;
-        if (d > 0.78f) { c.set(x, y, dy < 0 ? kIron[3] : kIron[1]); continue; }
-        if (d < 0.2f) { c.set(x, y, kWoodDark[1]); continue; }
-        const float a = std::atan2(dy, dx) + k * 0.4f;
-        if (std::fmod(a + 62.83185f, TAU / 8) < 0.28f) c.set(x, y, kWood[dy < 0 ? 3 : 2]);
+    Sd hoop{hoops, kDarkM};
+    const P3 q = b - p3(5.5f, 3.0f, 0);
+    const float rr = std::sqrt(q.y * q.y + q.z * q.z);
+    const float tear = vnoise(q.x * 0.5f + 7, std::atan2(q.y, q.z) * 2.5f, 201);
+    float cloth = std::max(std::max(std::fabs(rr - 7.5f) - 0.45f, std::fabs(q.x) - 10.5f), -q.y - 1.5f);
+    cloth = std::max(cloth, (tear - 0.78f) * 3.0f);                 // rips
+    cloth += std::sin(q.x * 1.3f) * 0.25f;                          // folds between the hoops
+    // the torn flap hanging down the south side to the ground
+    float flap = sdBox(p - p3(9.0f, 4.5f, 8.3f), p3(6.5f, 4.5f, 0.35f), 0.2f) + std::sin(p.x * 1.6f) * 0.3f;
+    flap = std::max(flap, (vnoise(p.x * 0.6f, p.y * 0.6f, 203) - 0.8f) * 3.0f);
+    Sd canvas{std::min(cloth, flap), kClothM};
+    // wheels: three still on their axles, the fourth lying in the grass
+    Sd wheels{1e9f, kIronM};
+    const P3 w0 = rotZ(p - p3(12.5f, 6.0f, 8.4f), 0.0f), w1 = p - p3(12.5f, 6.0f, -9.6f), w2 = rotZ(p - p3(-11.0f, 5.0f, -9.6f), -0.16f);
+    wheels.d = std::min(sdWheel(w0, 6.0f, 0.7f, 4, 0.3f), std::min(sdWheel(w1, 6.0f, 0.7f, 4, 0.1f), sdWheel(w2, 6.0f, 0.7f, 4, 0.5f)));
+    const P3 lw = p - p3(-17.0f, 0.8f, 10.0f);   // flat on the ground: its axle points up
+    wheels.d = std::min(wheels.d, sdWheel(p3(lw.x, lw.z, lw.y), 5.6f, 0.7f, 4, 0.9f));
+    // spilled goods: a crate, a barrel on its side, a sack
+    Sd crate{sdBox(rotY(p - p3(-3.0f, 2.6f, 12.0f), 0.5f), p3(2.8f, 2.6f, 2.6f), 0.3f), kWoodM};
+    Sd barrel{std::max(sdCylX(rotY(p - p3(22.0f, 2.5f, 9.0f), 0.9f), 2.5f, 3.2f), -1e9f), kBarrelM};
+    Sd sack{sdEllipsoid(p - p3(4.0f, 1.5f, 12.5f), p3(3.4f, 1.8f, 2.4f)), kSackM};
+    return sdU(sdU(sdU(bed, hoop), sdU(canvas, wheels)), sdU(crate, sdU(barrel, sack)));
+  };
+  const float baseY = (float)by - 8;
+  const std::vector<SculptPx> px = sculpt(c, scene, cx, baseY);
+  const Ramp Cl = ramp5(rgba(110, 92, 84), rgba(160, 140, 118), rgba(204, 184, 150), rgba(228, 214, 182), rgba(246, 238, 212));
+  const Ramp Sk = ramp5(rgba(110, 84, 60), rgba(158, 126, 84), rgba(196, 166, 112), rgba(222, 198, 144), rgba(240, 224, 176));
+  for (int y = 0; y < H; y++)
+    for (int x = 0; x < W; x++) {
+      const SculptPx& s = px[(size_t)y * W + x];
+      if (!s.hit) continue;
+      float l = sculptLight(s);
+      int k = lightIndex(l, x, y, 0.1f);
+      uint32_t col = 0;
+      switch (s.mat) {
+        case kWoodM: {
+          // planks: seams across the bed's sides, along its floor
+          const P3 b = rotZ(s.p - p3(1.0f, 8.0f, -1.0f), -0.16f);
+          const bool seam = std::fabs(s.n.y) > 0.6f ? std::fmod(std::fabs(b.z) + 10.0f, 3.0f) < 0.45f : std::fmod(std::fabs(b.y) + 9.0f, 2.2f) < 0.4f;
+          if (seam) k = std::max(0, k - 1);
+          if (hashf(x / 4, y / 2, 205) < 0.15f) k = std::max(0, k - 1);
+          col = kWood[k];
+          break;
+        }
+        case kDarkM: col = kWoodDark[std::min(4, k + 1)]; break;
+        case kIronM: {
+          const float rr = std::sqrt(s.p.x * s.p.x + s.p.y * s.p.y);
+          (void)rr;
+          col = (s.ao < 0.95f || k <= 1) ? kWoodDark[std::min(4, k + 1)] : kWood[k];
+          break;
+        }
+        case kClothM: col = Cl[k]; break;
+        case kSackM: col = Sk[k]; break;
+        default: {   // the barrel: staves and iron hoops
+          const P3 q = rotY(s.p - p3(22.0f, 2.5f, 9.0f), 0.9f);
+          col = std::fabs(std::fabs(q.x) - 2.0f) < 0.45f ? kIron[std::min(4, k + 1)] : kWood[k];
+          break;
+        }
       }
-  }
-  // spilled goods: a stove-in crate, a barrel rolled away, a split sack of grain
-  shadedBox(c, 36, by - 7, 43, by - 1, kWood, 2);
-  line(c, 36, by - 7, 43, by - 1, kWoodDark[1]);
-  for (int y = by - 5; y <= by; y++)
-    for (int x = 45; x <= 52; x++) {
-      const float u = (y - (by - 5)) / 5.0f;
-      c.set(x, y, (x == 47 || x == 50) ? kIron[1] : kWood[u < 0.3f ? 3 : (u > 0.8f ? 1 : 2)]);
+      c.set(x, y, col);
     }
-  ellipse(c, 45, by - 2.5f, 1.5, 2.6, kWoodDark[2]);
-  ball(c, 12, by + 0.5f, 5.0f, 2.4f, ramp(rgba(200, 176, 128), 0.7f), 0.1f);
-  for (int i = 0; i < 9; i++) dot(c, 16 + (int)(hash3(i, 0, 67) % 9), by + (int)(hash3(i, 1, 67) % 2), kThatch[3]);
+  // the iron tyres: the outermost ring of each wheel reads as metal
+  for (int y = 1; y < H - 1; y++)
+    for (int x = 1; x < W - 1; x++) {
+      const SculptPx& s = px[(size_t)y * W + x];
+      if (!s.hit || s.mat != kIronM) continue;
+      bool edge = false;
+      for (int k = 0; k < 4 && !edge; k++) {
+        const int nx = x + (k == 0) - (k == 1), ny = y + (k == 2) - (k == 3);
+        const SculptPx& t = px[(size_t)ny * W + nx];
+        edge = !t.hit || t.mat != kIronM;
+      }
+      if (edge) c.set(x, y, kIron[std::clamp(lightIndex(sculptLight(s), x, y, 0.1f) + 1, 1, 4)]);
+    }
+  // grain from the split sack
+  for (int i = 0; i < 10; i++) dot(c, (int)cx + 6 + (int)(hash3(i, 0, 67) % 8), by - 1 + (int)(hash3(i, 1, 67) % 3), kThatch[3 + (i & 1)]);
   outline(c, 0.95f);
   tufts(c, 1, W - 2, by + 1, 69, 0.45f);
+  tufts(c, 4, W - 5, by - 2, 71, 0.15f);
 }
+
 // ---- WatchtowerRuin ----------------------------------------------------------------------------------------------
 // A broken round watchtower: courses of dressed stone round a cylinder (lit west, shaded east), the top broken off in
 // a jagged line with a few charred beams of the timber nest still jutting out, an arrow slit, the dark doorway, rubble
@@ -706,91 +837,121 @@ void elderTree(Canvas& c) {
 }
 
 // ---- Colossus ----------------------------------------------------------------------------------------------------
-// The weathered statue of a forgotten king, sunk to the knees in the land: a crowned bearded head, a cloak falling
-// from broad shoulders, both hands on the pommel of a greatsword standing point-down before him. Stone lit from the
-// top-left; long cracks, a broken crown point, moss on every upward surface, grass and rubble at the foot.
+// The weathered statue of a forgotten king, sunk to the thighs in the land: a crowned bearded head, a cloak falling in
+// heavy folds from broad shoulders, both hands resting on the pommel of a greatsword planted point-down before him, on
+// the broken edge of his plinth. Sculpted in 3D (the sculptor above) so the stone has real volume in the game's 3/4
+// view: lit crowns of the shoulders and head, the cloak rolling into shadow on the east, deep-set eyes; then moss on
+// every upward surface, cracks and lichen, rubble and grass where the land has swallowed him.
 void colossus(Canvas& c) {
-  const int W = c.w, H = c.h, by = H - 4;
+  const int W = c.w, H = c.h, by = H - 5;
   const float cx = W * 0.5f;
-  const Ramp S = ramp5(rgba(56, 50, 62), rgba(92, 84, 90), rgba(134, 124, 118), rgba(172, 162, 146), rgba(208, 198, 176));
-  auto put = [&](int x, int y, float nx, float ny, float extra = 0.0f) {
-    float l = lightAt(nx, ny) + extra + (vnoise(x / 3.0f, y / 3.0f, 171) - 0.5f) * 0.25f;
-    c.set(x, y, S[lightIndex(l, x, y, 0.1f)]);
+  const Ramp S = ramp5(rgba(54, 48, 64), rgba(92, 84, 92), rgba(136, 126, 120), rgba(176, 166, 148), rgba(214, 204, 180));
+  const Ramp SB = ramp5(rgba(48, 46, 62), rgba(80, 78, 90), rgba(118, 114, 116), rgba(156, 150, 140), rgba(190, 184, 166));   // the plinth
+  enum { kStone = 1, kPlinth, kBlade };
+  auto scene = [&](P3 p) -> Sd {
+    const float wob = (vnoise(p.x * 0.35f + p.z * 0.2f, p.y * 0.35f, 171) - 0.5f) * 0.55f;   // weathering
+    // the plinth's broken top, tilted a little as the land took it
+    const P3 q = p3(p.x, p.y - 3.0f + p.x * 0.03f, p.z - 1.0f);
+    Sd plinth{sdBox(q, p3(23.5f, 6.0f, 15.0f), 1.5f) + wob * 0.6f, kPlinth};
+    // the cloaked body: an elliptical column, wider at the hem, the cloak in folds
+    const float yb = std::clamp(p.y, 4.0f, 74.0f);
+    const float a = std::atan2(p.z, p.x);
+    const float fold = (p.y < 66 ? std::sin(a * 9.0f + p.y * 0.04f) * 0.85f * std::clamp((66 - p.y) / 18.0f, 0.0f, 1.0f) : 0);
+    const float rx = 15.5f - (yb - 4) * 0.045f + fold, rz = 10.0f - (yb - 4) * 0.02f + fold * 0.6f;
+    const float ell = std::sqrt((p.x / rx) * (p.x / rx) + ((p.z - 1) / rz) * ((p.z - 1) / rz));
+    float body = std::max((ell - 1.0f) * std::min(rx, rz), std::max(4.0f - p.y, p.y - 74.0f));
+    // shoulders, the neck
+    body = smin(body, sdEllipsoid(p - p3(-12.5f, 72.0f, 0.5f), p3(8.0f, 6.0f, 7.5f)), 3.0f);
+    body = smin(body, sdEllipsoid(p - p3(12.5f, 72.0f, 0.5f), p3(8.0f, 6.0f, 7.5f)), 3.0f);
+    body = smin(body, sdCylY(p - p3(0, 0, 1.5f), 4.2f, 74, 82), 2.0f);
+    // the arms down to the hands on the pommel
+    for (int sgn = -1; sgn <= 1; sgn += 2) {
+      body = smin(body, sdCapsule(p, p3(sgn * 15.5f, 71, 2.5f), p3(sgn * 12.0f, 57, 8.5f), 4.6f, 4.0f), 2.0f);
+      body = smin(body, sdCapsule(p, p3(sgn * 12.0f, 57, 8.5f), p3(sgn * 3.2f, 49, 12.5f), 4.0f, 3.4f), 2.0f);
+      body = smin(body, sdEllipsoid(p - p3(sgn * 2.7f, 49.0f, 13.0f), p3(3.3f, 3.0f, 3.4f)), 1.0f);
+    }
+    // the head, the beard in strands, the nose; the eyes carved deep
+    float head = sdEllipsoid(p - p3(0, 89.0f, 2.5f), p3(7.4f, 8.4f, 7.4f));
+    const float strands = std::sin(p.x * 1.9f) * 0.35f;
+    head = smin(head, sdEllipsoid(p - p3(0, 81.5f, 6.0f), p3(5.8f, 7.5f, 4.2f)) + strands, 2.2f);
+    head = smin(head, sdEllipsoid(p - p3(0, 87.5f, 9.0f), p3(1.3f, 2.6f, 1.7f)), 0.6f);
+    head = smin(head, sdEllipsoid(p - p3(0, 91.8f, 7.6f), p3(5.4f, 1.3f, 1.9f)), 0.8f);   // the brow
+    head = std::max(head, -sdEllipsoid(p - p3(-2.8f, 90.0f, 8.8f), p3(1.8f, 1.3f, 2.0f)));
+    head = std::max(head, -sdEllipsoid(p - p3(2.8f, 90.0f, 8.8f), p3(1.8f, 1.3f, 2.0f)));
+    // the crown: a band and six points, one broken off
+    float crown = std::max(sdCylY(p - p3(0, 0, 2.0f), 7.2f, 94.5f, 98.0f), -sdCylY(p - p3(0, 0, 2.0f), 5.6f, 93.0f, 99.5f));
+    for (int i = 0; i < 6; i++) {
+      const float an = 0.35f + i * (TAU / 6.0f);
+      const float top = i == 1 ? 99.5f : 103.0f;
+      const P3 b = p3(std::cos(an) * 6.6f, 97.5f, 2.0f + std::sin(an) * 6.6f);
+      crown = std::min(crown, sdCapsule(p, b, p3(b.x * 0.92f, top, 2.0f + (b.z - 2.0f) * 0.92f), 1.5f, 0.45f));
+    }
+    head = std::min(head, crown);
+    Sd stone{smin(body, head, 1.5f) + wob, kStone};
+    // the greatsword: pommel, grip, guard, the blade into the plinth
+    float sw = sdEllipsoid(p - p3(0, 53.0f, 13.0f), p3(2.0f, 2.0f, 2.0f));
+    sw = std::min(sw, sdCapsule(p, p3(0, 51.5f, 13.0f), p3(0, 45.0f, 13.5f), 1.3f, 1.3f));
+    sw = std::min(sw, sdBox(p - p3(0, 44.0f, 13.6f), p3(8.5f, 1.2f, 1.6f), 0.5f));
+    sw = std::min(sw, sdBox(p - p3(0, 25.0f, 14.6f), p3(2.4f, 19.0f, 0.9f), 0.3f));
+    Sd blade{sw + wob * 0.4f, kBlade};
+    return sdU(sdU(stone, blade), plinth);
   };
-  // the cloaked body: a broad trapezoid with folds
-  const int sy0 = 40, sy1 = by - 6;
-  for (int y = sy0; y <= sy1; y++) {
-    const float t = (y - sy0) / (float)(sy1 - sy0);
-    const float hw = 18.0f + t * 4.0f;
-    for (int x = (int)(cx - hw); x <= (int)(cx + hw); x++) {
-      const float u = (x + 0.5f - cx) / hw;
-      const float fold = std::sin(u * 11.0f + t * 2.0f) * 0.25f;
-      put(x, y, u * 0.85f, t < 0.08f ? -0.7f : -0.05f, fold - 0.22f);
-    }
-  }
-  // the shoulders' rounded tops
-  ball(c, cx - 13, sy0 + 2, 7, 5, S, 0.1f);
-  ball(c, cx + 13, sy0 + 2, 7, 5, S, 0.1f, -1);
-  // the arms folded down to the hands on the pommel
-  capsule(c, V(cx - 15, sy0 + 3), V(cx - 4, sy0 + 26), 4.5f, 3.5f, S, 0, 0.08f);
-  capsule(c, V(cx + 15, sy0 + 3), V(cx + 4, sy0 + 26), 4.5f, 3.5f, S, -1, 0.08f);
-  // the greatsword: pommel and grip between the hands, the guard, the blade down into the earth
-  for (int y = sy0 + 29; y <= by - 2; y++) { c.set((int)cx - 1, y, S[4]); c.set((int)cx, y, S[3]); c.set((int)cx + 1, y, S[1]); }
-  thickLine(c, cx - 8, sy0 + 30, cx + 8, sy0 + 30, 2.2f, S[3]);
-  hline(c, (int)cx - 8, (int)cx + 8, sy0 + 31, S[1]);
-  ball(c, cx, sy0 + 21, 3.0f, 3.0f, S, 0.1f);
-  ball(c, cx - 3, sy0 + 26, 3.5f, 3.0f, S, 0.1f);   // the hands
-  ball(c, cx + 3, sy0 + 26, 3.5f, 3.0f, S, 0.1f, -1);
-  // the head: beard, face, the crown
-  ball(c, cx, 29, 8.5f, 9.5f, S, 0.1f);
-  for (int y = 30; y <= 42; y++)   // the beard, in combed strands
-    for (int x = (int)cx - 6; x <= (int)cx + 6; x++) {
-      const float u = (x + 0.5f - cx) / 6.5f, v = (y - 30) / 12.0f;
-      if (std::fabs(u) > 1.0f - v * 0.65f) continue;
-      put(x, y, u * 0.6f, 0.2f, ((x & 1) ? 0.12f : -0.08f));
-    }
-  hline(c, (int)cx - 4, (int)cx - 2, 26, S[0]); hline(c, (int)cx + 2, (int)cx + 4, 26, S[0]);   // the eyes, deep set
-  vline(c, (int)cx, 27, 30, S[3]); dot(c, (int)cx + 1, 30, S[1]);                            // the nose
-  hline(c, (int)cx - 3, (int)cx + 3, 33, S[1]);                                              // the mouth under the moustache
-  // the crown: a band with five points, one broken off
-  for (int x = (int)cx - 8; x <= (int)cx + 8; x++) { c.set(x, 20, S[3]); c.set(x, 21, S[2]); c.set(x, 22, S[1]); }
-  for (int i = 0; i < 5; i++) {
-    const int px = (int)cx - 8 + i * 4;
-    const int h = i == 3 ? 2 : 5;
-    for (int k = 1; k <= h; k++) { c.set(px, 20 - k, S[3]); if (k < h) c.set(px + 1, 20 - k, S[1]); }
-  }
-  // cracks running down the stone, weathering pits
-  auto crack = [&](float x0, float y0, int n, uint32_t s) {
-    float x = x0, y = y0;
-    for (int i = 0; i < n; i++) {
-      if (solid(c, (int)x, (int)y)) { c.set((int)x, (int)y, S[0]); if (solid(c, (int)x + 1, (int)y)) c.set((int)x + 1, (int)y, S[3]); }
-      x += (hashf(i, 0, s) - 0.5f) * 2.0f; y += 1.0f;
-    }
-  };
-  crack(cx - 9, 46, 24, 173);
-  crack(cx + 6, 22, 16, 175);
-  crack(cx + 12, 60, 30, 177);
-  for (int i = 0; i < 30; i++) dotOn(c, (int)(cx - 20 + hash3(i, 1, 179) % 40), 20 + (int)(hash3(i, 2, 179) % 80), S[1]);
-  // moss on the upward surfaces: crown, shoulders, the guard, the folds
+  const std::vector<SculptPx> px = sculpt(c, scene, cx, (float)by - 11);
   for (int y = 0; y < H; y++)
     for (int x = 0; x < W; x++) {
-      if (!solid(c, x, y) || solid(c, x, y - 1)) continue;
-      if (vnoise(x / 2.5f, y / 2.5f, 181) > 0.4f) { c.set(x, y, kMoss[3]); if (solid(c, x, y + 1) && hashf(x, y, 183) < 0.6f) c.set(x, y + 1, kMoss[2]); }
+      const SculptPx& s = px[(size_t)y * W + x];
+      if (!s.hit) continue;
+      float l = sculptLight(s) + (vnoise(x / 2.2f, y / 2.2f, 172) - 0.5f) * 0.18f;
+      const Ramp& R = s.mat == kPlinth ? SB : S;
+      if (s.mat == kBlade) l += 0.06f;
+      c.set(x, y, R[lightIndex(l, x, y, 0.12f)]);
+      // moss and grass seeds gather on what faces the sky
+      if (s.n.y > 0.55f && s.mat != kBlade) {
+        const float m = vnoise(x / 2.4f, y / 2.4f, 181) + (s.n.y - 0.55f) * 0.6f - (s.p.y > 92 ? 0.25f : 0.0f);
+        if (m > 0.78f) c.set(x, y, kMoss[m > 0.9f ? 3 : 2]);
+        else if (m > 0.74f) c.set(x, y, kMoss[1]);
+      }
     }
-  lichen(c, 0, by - 30, W - 1, by, 185, 0.3f, true);
-  lichen(c, 0, 36, W - 1, 60, 187, 0.18f, false);
-  // the earth he is sunk in: a mound with rubble
-  for (int y = by - 7; y <= by; y++)
-    for (int x = (int)cx - 26; x <= (int)cx + 26; x++) {
-      const float u = (x + 0.5f - cx) / 26.0f, v = (by - y) / 7.0f;
-      if (v > (1 - u * u) * (0.8f + vnoise(x / 4.0f, 0, 189) * 0.4f)) continue;
-      c.set(x, y, kLeaf[lightIndex(0.5f - u * 0.5f - v * 0.2f + (hashf(x, y, 191) - 0.5f) * 0.4f, x, y, 0.1f)]);
+  // the face, set in by hand where the sculpted head faces the viewer: deep eyes under a lit brow, the nose's ridge,
+  // the moustache over the beard
+  {
+    const float base = (float)by - 11;
+    const int fx = (int)std::floor(cx), fy = (int)std::floor(base - (90.0f * std::cos(kSculptTheta) - 9.0f * std::sin(kSculptTheta)));
+    for (int x = fx - 4; x <= fx + 3; x++) if (solid(c, x, fy - 1)) c.set(x, fy - 1, S[x < fx ? 4 : 3]);
+    for (int x : {fx - 3, fx - 2, fx + 1, fx + 2}) if (solid(c, x, fy)) c.set(x, fy, S[0]);
+    c.set(fx - 1, fy, S[3]); c.set(fx, fy, S[2]);
+    c.set(fx - 1, fy + 1, S[3]); c.set(fx, fy + 1, S[1]); c.set(fx - 1, fy + 2, S[2]); c.set(fx, fy + 2, S[0]);
+    for (int x = fx - 3; x <= fx + 2; x++) c.set(x, fy + 3, S[x < fx - 1 ? 3 : 1]);
+    for (int x = fx - 2; x <= fx + 1; x++) c.set(x, fy + 4, S[0]);
+  }
+  // cracks running down the stone (dark seam, lit lip on its west side)
+  auto crack = [&](float x0, float y0, int n, uint32_t seed) {
+    float x = x0, y = y0;
+    for (int i = 0; i < n; i++) {
+      const int ix = (int)x, iy = (int)y;
+      if (solid(c, ix, iy) && solid(c, ix + 1, iy)) { c.set(ix, iy, S[0]); c.set(ix - 1, iy, S[3]); }
+      x += (hashf(i, 0, seed) - 0.5f) * 1.8f;
+      y += 1.0f;
     }
-  rock(c, cx - 20, by - 1, 4, 3, S, 193, 4);
-  rock(c, cx + 18, by, 5, 3, S, 195, 4);
+  };
+  crack(cx - 8, by - 62, 22, 173);
+  crack(cx + 5, by - 85, 12, 175);
+  crack(cx + 11, by - 44, 26, 177);
+  lichen(c, 0, by - 26, W - 1, by, 185, 0.14f, true);
+  lichen(c, 0, by - 70, W - 1, by - 40, 187, 0.12f, false);
+  // the land that swallowed him: a grassy mound in front of the plinth with rubble and a fallen crown point
+  for (int y = by - 6; y <= by + 2; y++)
+    for (int x = (int)cx - 27; x <= (int)cx + 27; x++) {
+      const float u = (x + 0.5f - cx) / 27.0f, v = (by + 2 - y) / 8.0f;
+      if (v > (1 - u * u) * (0.55f + vnoise(x / 3.5f, 0, 189) * 0.5f)) continue;
+      c.set(x, y, kLeaf[lightIndex(0.45f - u * 0.45f - v * 0.1f + (hashf(x, y, 191) - 0.5f) * 0.45f, x, y, 0.1f)]);
+    }
+  rock(c, cx - 21, by, 4.5f, 3, S, 193, 5);
+  rock(c, cx + 19, by + 1, 5, 3.2f, S, 195, 5);
+  rock(c, cx + 9, by + 2, 2.5f, 1.8f, S, 196, 4);
   outline(c, 0.9f);
-  tufts(c, 2, W - 3, by + 2, 197, 0.6f);
-  tufts(c, (int)cx - 22, (int)cx + 22, by - 5, 199, 0.25f);
+  tufts(c, 2, W - 3, by + 3, 197, 0.6f);
+  tufts(c, (int)cx - 24, (int)cx + 24, by - 3, 199, 0.3f);
 }
 
 // ---- StarShard ---------------------------------------------------------------------------------------------------

@@ -10,9 +10,13 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include "rpg/culture/culture.h"
 #include "rpg/view/view.h"
 
 void heroStage(Pix& P, const Tex& light, float cx, float footY, float size);   // creator.cpp
+// M3: the personal arms on a shield (creator.cpp; a View::cachedTex key and its painter)
+uint64_t creatorArmsKey(const cult::Heraldry& h, int size);
+Canvas creatorPaintArms(uint64_t key);
 
 namespace {
 const Color kGoldC(0.98f, 0.82f, 0.42f), kTextC(0.93f, 0.9f, 0.82f), kDimC(0.62f, 0.58f, 0.52f);
@@ -141,6 +145,11 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   P.text(kDollCX, kDollFootY + 42, "ARMOR " + std::to_string((int)g.armorRating()), 1, kTextC, 1);
   P.text(kDollCX, kDollFootY + 53, "DAMAGE " + std::to_string((int)g.weaponDamage()), 1, kTextC, 1);
   P.text(kDollCX, kDollFootY + 64, g.app.name, 1, kGoldC, 1);
+  if (!g.app.heraldry.empty()) {   // M3: the hero's arms beside the name, and the people they are
+    const Tex& arms = cachedTex(creatorArmsKey(g.app.heraldry, 16), creatorPaintArms);
+    P.blitEx(arms, 0, 0, arms.w, arms.h, kDollCX + 34, kDollFootY + 36, 16, 16 * (float)arms.h / std::max(1, arms.w));
+  }
+  if (g.app.people) P.text(kDollCX, kDollFootY + 75, g.app.people == 2 ? "ELF" : "HALF-BREED", 1, kDimC, 1);
 
   // ---- the slots
   for (int i = 0; i < kNSlots; i++) {
@@ -154,6 +163,10 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
       const Item& it = g.inv[eq];
       P.blitEx(iconTex(it.icon, it.tint), 0, 0, 16, 16, sx + 2, sy + 2, 24, 24);
       P.rect(sx + 2, sy + kBox - 3, kBox - 4, 1, colOf(rarityColor(it.rarity)));
+      if (kSlots[i].kind == ItemKind::Shield && !g.app.heraldry.empty()) {   // M3: the shield bears the hero's arms
+        const Tex& arms = cachedTex(creatorArmsKey(g.app.heraldry, 16), creatorPaintArms);
+        P.blitEx(arms, 0, 0, arms.w, arms.h, sx + kBox - 13, sy + kBox - 15, 11, 11 * (float)arms.h / std::max(1, arms.w));
+      }
     } else {
       P.blitEx(iconTex(kSlots[i].ghost, 0), 0, 0, 16, 16, sx + 6, sy + 6, 16, 16, false, Color(0.3f, 0.28f, 0.26f, 0.45f));
     }

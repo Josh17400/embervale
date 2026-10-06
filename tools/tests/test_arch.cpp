@@ -5,6 +5,9 @@
 //   ARCH_DUMP=1 rpg_test 7     also prints every city's wall ring as ASCII (# wall, G gate, = gap, . walkable, ~ blocked)
 #include <cstdio>
 #include <cstdlib>
+#include <algorithm>
+#include <map>
+#include <tuple>
 #include <vector>
 #include "rpg/culture/style.h"
 #include "tools/tests/tests.h"
@@ -132,6 +135,29 @@ int archChecks(uint64_t seed) {
   for (int si = 0; si < (int)w.sites.size(); si++)
     if (w.sites[si].type == SiteType::City && inWindow(w.sites[si].r, MG)) { bad += wallChecks(w, si, dump); cities++; }
   if (!cities) out("WARN: arch: no city wholly inside the window\n");
+  // M3 (owner carry-over 4): a city's same-size houses must not share one facade. rpg_test does not link the painters,
+  // so this holds the STYLES apart (ArchStyle::key, which covers the window / door shapes, the facade variant bits,
+  // ornaments and tints); arch_gallery --check paints them and holds >= 70 % of the painted sprites distinct.
+  for (int si = 0; si < (int)w.sites.size(); si++) {
+    const Site& s = w.sites[si];
+    if (s.type != SiteType::City || !inWindow(s.r, 0)) continue;
+    std::map<std::tuple<int, int, int>, std::vector<uint64_t>> groups;
+    for (int b = s.bldgFirst; b < s.bldgFirst + s.bldgCount; b++) {
+      const Bldg& B = m.bldgs[(size_t)b];
+      if (B.type != art::Building::House) continue;
+      groups[{B.r.w, B.r.h, (int)B.storeys}].push_back(bldgArch(B).key());
+    }
+    int n = 0, distinct = 0;
+    for (auto& kv : groups) {
+      if (kv.second.size() < 2) continue;
+      std::sort(kv.second.begin(), kv.second.end());
+      n += (int)kv.second.size();
+      distinct += (int)(std::unique(kv.second.begin(), kv.second.end()) - kv.second.begin());
+    }
+    if (!n) continue;
+    out("  city %d %s: %d same-size houses, %d distinct facade styles (%.0f%%)\n", si, s.name.c_str(), n, distinct, 100.0 * distinct / n);
+    if (distinct * 2 < n) { out("FAIL: city %d %s: only %d of %d same-size houses have their own facade style\n", si, s.name.c_str(), distinct, n); bad++; }
+  }
   // building footprints stay on their own tiles
   for (size_t bi = 0; bi < m.bldgs.size(); bi++) {
     const Bldg& b = m.bldgs[bi];

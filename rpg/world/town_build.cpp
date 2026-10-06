@@ -2,6 +2,7 @@
 // plots along the streets with uneven setbacks and short footpaths to the doors; and the capital's palace compound.
 // Every sprite keeps clear of its neighbours' fronts and doorsteps (the V5 rule, here on occupancy grids so a city of
 // two hundred buildings stays cheap). See rpg/world/town_gen.h.
+#include <cstdio>
 #include <cstdlib>
 #include <algorithm>
 #include <cmath>
@@ -19,6 +20,44 @@ const int D4X[4] = {0, 1, -1, 0}, D4Y[4] = {1, 0, 0, -1};
 // the royal colours of a capital whose kingdom is unknown (never in a real endless world: capitals have kingdoms)
 constexpr uint32_t kRoyalField = 0xFF8A2A2Au, kRoyalTrim = 0xFF3CC8E8u;
 }  // namespace
+
+// M3 (VISION_PLAN 5.7): how rich a building is, 0 poor .. 3 rich, for cult::buildingArch (poor: wattle and thatch
+// substitutes; rich: stone, glazing, more ornament). A city by its quarter (noble 3, the old centre 2, the crafts and
+// temple quarters 1 or 2, the poor quarter 0; a royal seat lifts its poorer quarters a step); a town by how near the
+// heart it stands; a village 0 or 1. Landmarks keep their rank (palace and keep 3, a temple 2), stone houses a step up.
+int Gen::wealthFor(Building t, const IRect& r) const {
+  switch (t) {
+    case Building::Palace: case Building::Keep: return 3;
+    case Building::Temple: return capital ? 3 : 2;
+    case Building::Barracks: case Building::Tower: return 2;
+    case Building::Hut: return 0;
+    default: break;
+  }
+  const uint32_t h = hash2(r.x, r.y, P.seed ^ 0x3EA17Bu);
+  int w = 1;
+  if (city) {
+    switch (districtAt(r.cx(), r.cy())) {
+      case District::Noble: w = 3; break;
+      case District::Centre: w = 2; break;
+      case District::Crafts: w = 1 + (int)(h & 1u); break;
+      case District::Temple: w = 1 + (int)((h >> 1) & 1u); break;
+      case District::Poor: w = 0; break;
+      default: break;
+    }
+    if (capital && w < 2) w++;
+  } else if (town) {
+    const float d = dist(r.cx(), r.cy());
+    w = d < 0.35f ? 2 : (d < 0.7f ? 1 : ((h % 3u) == 0 ? 0 : 1));
+  } else {
+    w = dist(r.cx(), r.cy()) < 0.45f ? 1 : (int)(h & 1u);
+  }
+  // the settlement's own wealth skews its houses a step either way (a rich market town's poor lane is still kept up)
+  if (townWealth >= 0) w += std::clamp(townWealth - (capital ? 3 : (city ? 2 : (town ? 1 : 0))), -1, 1);
+  if (t == Building::StoneHouse) w++;
+  if (t == Building::Inn || t == Building::Shop) w = std::max(w, 1);
+  if (t == Building::Farmhouse) w = std::min(w, 1);
+  return std::clamp(w, 0, 3);
+}
 
 void Gen::kingdomColours(Bldg& b) const {
   if (b.type != Building::Keep && b.type != Building::Palace && b.type != Building::Barracks && b.type != Building::Inn) return;
@@ -57,6 +96,19 @@ int Gen::putBldg(Building type, IRect r, Role owner, int storeys) {
   b.urban = (uint8_t)(capital ? 3 : city ? 2 : town ? 1 : 0);
   static const uint32_t roofs[] = {rgba(150, 62, 48), rgba(84, 92, 120), rgba(110, 78, 52), rgba(70, 100, 80), rgba(130, 100, 60), rgba(96, 60, 90)};
   b.roof = (type == Building::House || type == Building::StoneHouse) ? roofs[rng.irange(6)] : 0;
+  // M3: the culture's architecture for this building (VISION_PLAN 5.7), as rich as its quarter (wealthFor)
+  if (C.culture) {
+    b.arch = cult::buildingArch(*C.culture, (int)bio, b.urban, wealthFor(type, r), b.seed, b.roof);
+    b.styled = true;
+    // a house over the marsh stands on stilts whatever its people's usual foundation
+    if (stilt) {
+      bool wetFoot = false;
+      for (int y = r.y; y < r.y + r.h && !wetFoot; y++)
+        for (int x = r.x; x < r.x + r.w; x++)
+          if (in(x, y) && (M.at(x, y) == Ground::Water || M.at(x, y) == Ground::Swamp)) { wetFoot = true; break; }
+      if (wetFoot) { b.arch.foundation = art::Foundation::Stilts; b.arch.stilts = true; }
+    }
+  }
   kingdomColours(b);
   M.bldgs.push_back(b);
   const int bi = (int)M.bldgs.size() - 1;
@@ -90,9 +142,14 @@ bool Gen::fits(const IRect& r, Building type, int storeys) const {
       // from a main street instead of closing half of it (only its front may face the road directly)
       if (g == Ground::Road || g == Ground::Plaza) return false;
       if (y < r.y + r.h - 1 && (mask[I(x - 1, y)] == K_MAIN || mask[I(x + 1, y)] == K_MAIN || mask[I(x, y - 1)] == K_MAIN)) return false;
-      if (groundSolid(g) || g == Ground::Bridge || g == Ground::Swamp || water[i]) return false;
+      // (M3) a stilt town builds over its marsh pools and reeds (never over a river)
+      const bool marsh = stilt && !water[i] && (g == Ground::Water || g == Ground::Swamp);
+      if (!marsh && (groundSolid(g) || g == Ground::Bridge || g == Ground::Swamp || water[i])) return false;
       if (lvl[i] != need) return false;
       if (walled && !inside[i]) return false;
+      // (M3) on terraces nothing stands on a terrace's face (the row under a higher neighbour)
+      if (terraced)
+        for (int d = 0; d < 4; d++) if (in(x + D4X[d], y + D4Y[d]) && lvl[I(x + D4X[d], y + D4Y[d])] > lvl[i]) return false;
     }
   // the doorstep and the apron before it: dry land on the same level, nobody's wall or house
   const int dx = r.x + r.w / 2;
@@ -100,7 +157,12 @@ bool Gen::fits(const IRect& r, Building type, int storeys) const {
     for (int x = dx - 1; x <= dx + 1; x++) {
       const size_t i = I(x, y);
       if (M.bldgAt[i] >= 0 || M.wall[i]) return false;
-      if (x == dx && y == r.y + r.h && (groundSolid(M.at(x, y)) || lvl[i] != need || mask[i] == K_FIELD)) return false;
+      if (x == dx && y == r.y + r.h) {
+        const bool marsh = stilt && !water[i] && M.at(x, y) == Ground::Water;   // (a boardwalk will cross it)
+        if ((groundSolid(M.at(x, y)) && !marsh) || lvl[i] != need || mask[i] == K_FIELD) return false;
+        if (terraced)
+          for (int d = 0; d < 4; d++) if (in(x + D4X[d], y + D4Y[d]) && lvl[I(x + D4X[d], y + D4Y[d])] > lvl[i]) return false;
+      }
     }
   // the sprite (roof, eaves, steps) covers nobody's front, and stays out of the gate approaches and the compound
   for (int y = r.y - rise; y <= r.y + r.h; y++)
@@ -124,7 +186,7 @@ bool Gen::fits(const IRect& r, Building type, int storeys) const {
 }
 
 // shortest footpath from a door's apron to any street (BFS near the door)
-bool Gen::footpath(int ax, int ay, std::vector<std::pair<int, int>>& path) const {
+bool Gen::footpath(int ax, int ay, std::vector<std::pair<int, int>>& path, const IRect* own) const {
   path.clear();
   if (isStreet(ax, ay)) return true;
   const int R = 14, S = 2 * R + 1;
@@ -145,7 +207,13 @@ bool Gen::footpath(int ax, int ay, std::vector<std::pair<int, int>>& path) const
       int nx = x + D4X[d], ny = y + D4Y[d];
       if (std::abs(nx - ax) > R || std::abs(ny - ay) > R || !in(nx, ny) || prev[(size_t)id(nx, ny)] != -2) continue;
       const size_t i = I(nx, ny);
-      if (M.bldgAt[i] >= 0 || M.wall[i] || groundSolid(M.at(nx, ny)) || mask[i] == K_FIELD || mask[i] == K_COMPOUND) continue;
+      // (M3) never through the house being placed (its footprint is not in bldgAt yet: a way over the marsh round to
+      // its back looked shorter than one from its door)
+      if (own && nx >= own->x && ny >= own->y && nx < own->x + own->w && ny < own->y + own->h) continue;
+      // (M3) nor along a wall's foot (a path running into the masonry reads as a road that missed the gate)
+      if ((noBuild[i] & 1) && !isStreet(nx, ny)) continue;
+      const bool marsh = stilt && !water[i] && M.at(nx, ny) == Ground::Water;   // (M3) a boardwalk will cross it
+      if (M.bldgAt[i] >= 0 || M.wall[i] || (groundSolid(M.at(nx, ny)) && !marsh) || mask[i] == K_FIELD || mask[i] == K_COMPOUND) continue;
       if (M.prop[i] && propSolid((Prop)(M.prop[i] - 1))) continue;
       prev[(size_t)id(nx, ny)] = id(x, y);
       q.push({nx, ny});
@@ -161,14 +229,20 @@ bool Gen::tryPlace(Building type, Role owner, int bw, int bh, int ax, int ay, bo
   const int st = storeysFor(type, bw, bh, hs);
   if (!fits(r, type, st)) return false;
   std::vector<std::pair<int, int>> path;
-  if (!footpath(ax, ay, path)) return false;
+  if (!footpath(ax, ay, path, &r)) return false;
   putBldg(type, r, owner, st);
   const Ground fp = city ? Ground::Road : Ground::Dirt;
-  if (get(ax, ay) == K_NONE) { set(ax, ay, K_YARD); M.setG(ax, ay, fp); M.setP(ax, ay, 0); }
+  // (M3) in a stilt town the way over the marsh is a boardwalk
+  auto pave = [&](int x, int y) {
+    const Ground g = M.at(x, y);
+    if (stilt && !water[I(x, y)] && (g == Ground::Water || g == Ground::Swamp)) M.setG(x, y, Ground::Bridge);
+    else if (!groundWater(g) && g != Ground::Bridge) M.setG(x, y, fp);
+  };
+  if (get(ax, ay) == K_NONE) { set(ax, ay, K_YARD); if (stilt) pave(ax, ay); else M.setG(ax, ay, fp); M.setP(ax, ay, 0); }
   for (auto& p : path) {
     if (get(p.first, p.second) != K_NONE && get(p.first, p.second) != K_YARD) continue;
     set(p.first, p.second, K_YARD);
-    if (!groundWater(M.at(p.first, p.second)) && M.at(p.first, p.second) != Ground::Bridge) M.setG(p.first, p.second, fp);
+    pave(p.first, p.second);
     M.setP(p.first, p.second, 0);
   }
   return true;
@@ -188,6 +262,8 @@ bool Gen::placeBuilding(const Want& w) {
     // the sawmill, the tannery, the granary) keep to the edge
     // (M1 fixer round 2: a village's mill stands just past its houses, in sight of the green, not out at the far edge)
     if (w.b == Building::Windmill && dist(s.first, s.second) < (village ? 0.55f : 0.78f) - t / 2000.0f) continue;
+    // (M3) ... but in sight of the green: a village strung out along its spine keeps its mill within a short walk
+    if (w.b == Building::Windmill && village && std::max(std::abs(s.first - cx), std::abs(s.second - cy)) > 18 && t < tries * 9 / 10) continue;
     if ((w.b == Building::Smelter || w.b == Building::Sawmill || w.b == Building::Tanner || w.b == Building::Granary) && !city &&
         dist(s.first, s.second) < 0.5f - t / 2500.0f) continue;
     if (city && w.d != District::COUNT && districtAt(s.first, s.second) != w.d && t < tries * 6 / 10) continue;
@@ -304,6 +380,20 @@ void Gen::services() {
     if (arch == Archetype::Mining) add(Building::Smithy, Role::Smith, 5, 3, 0.8f, false, false, District::Crafts);
     if (arch == Archetype::Port || arch == Archetype::RiverCrossing) add(Building::Inn, Role::Innkeeper, 6, 3, 0.8f, false);
   }
+  // M3 radial (the steppe camp, the sun temple, the spires): the chief's hall, the temple or the keep faces the plaza
+  // from its north side, the rings round them both
+  if (style == cult::Layout::Radial && !want.empty()) {
+    const bool templeFirst = cArch == (int)cult::Archetype::SunTemple || cArch == (int)cult::Archetype::Starspire;
+    const Building lead = city ? Building::Keep : (templeFirst && town ? Building::Temple : Building::Inn);
+    const float sqR = capital ? 8.2f : (city ? 7.0f : (town ? 5.4f : 3.2f));
+    for (Want& w : want)
+      if (w.b == lead) {
+        // (beyond the market when the market fills the plaza's north side)
+        w.px = cx; w.py = mktSide == 0 && mktZone.w > 0 ? mktZone.y - 1 : cy - (int)(sqR * 1.15f) - 1;
+        w.north = false; w.d = District::COUNT;
+        break;
+      }
+  }
   // (M1 economy) the mill, the specialisation's workshop, the towns' trades; the optional ones after the homes
   {
     std::vector<Want> econ;
@@ -331,63 +421,92 @@ bool Gen::placeWant(const Want& w0) {
   return ok;
 }
 
+// (M3) homes() is built over several generator phases (homesBegin, homesSweep until it is done, homesFinish), so a
+// city's two hundred homes never cost one web frame their whole build: the sweep places the homes of a few hundred
+// street tiles per call. The sequence is the same however it is cut (run() and the web's phase-at-a-time build agree).
 void Gen::homes() {
+  homesBegin();
+  while (homesSweep()) {}
+  homesFinish();
+}
+
+void Gen::homesBegin() {
   const TownScale sc = townScale(P.type);
   homesWant = village ? 11 + rng.irange(4) : (town ? 44 + rng.irange(12) : sc.homesMin + 6 + rng.irange(24));
-  int have = 0;
-  for (const Bldg& b : M.bldgs) if (townIsHome(b.type)) have++;
+  hHave = 0;
+  for (const Bldg& b : M.bldgs) if (townIsHome(b.type)) hHave++;
   // farmhouses at the edge, among their fields (villages and towns)
   if (!city) {
     int farms = village ? (arch == Archetype::Farming ? 3 : 1 + rng.irange(2)) : (arch == Archetype::Farming ? 4 : 2);
-    for (int k = 0; k < farms && have < homesWant; k++)
-      if (placeBuilding(Want{Building::Farmhouse, Role::Farmer, 5, 3, 1.2f, false, false, District::COUNT, -1, -1})) have++;
+    for (int k = 0; k < farms && hHave < homesWant; k++)
+      if (placeBuilding(Want{Building::Farmhouse, Role::Farmer, 5, 3, 1.2f, false, false, District::COUNT, -1, -1})) hHave++;
   }
+  // M3 compound (dune courtyards, highland clans): most homes stand in walled family compounds along the lanes
+  if (style == cult::Layout::Compound) hHave += compoundHomes(homesWant - hHave);
   pathMax = city ? 5 : (town ? 7 : 9);   // homes front the streets: short footpaths, not trails across the gardens
   // the frontage sweep: every street tile once, from the heart outward (a little noise so the edge of the built-up
   // area is ragged, not a circle), a plot on its north side first (the door right on the street), then behind it,
   // then beside it; a second pass with smaller plots fills what is left
   std::vector<uint8_t> seen((size_t)W * H, 0);
-  std::vector<std::pair<float, int>> order;
+  hOrder.clear();
   for (auto& s : allStreet) {
     const size_t i = I(s.first, s.second);
     if (seen[i] || M.at(s.first, s.second) == Ground::Bridge || M.wall[i]) continue;
     seen[i] = 1;
     float d = dist(s.first, s.second);
     if (!walled && d > 1.0f) continue;
-    order.push_back({d * (city ? 0.7f : 1.0f) + hfAt(s.first, s.second, 19u) * (city ? 0.25f : 0.35f), (int)i});
+    hOrder.push_back({d * (city ? 0.7f : 1.0f) + hfAt(s.first, s.second, 19u) * (city ? 0.25f : 0.35f), (int)i});
   }
-  std::stable_sort(order.begin(), order.end(), [](const std::pair<float, int>& a, const std::pair<float, int>& b) { return a.first < b.first; });
-  for (int pass = 0; pass < 4 && have < homesWant; pass++) {
-    for (const auto& o : order) {
-      if (have >= homesWant) break;
-      const int sx = o.second % W, sy = o.second / W;
-      if (!isStreet(sx, sy)) continue;
-      const float d = dist(sx, sy);
-      // villages and towns: denser at the heart, gardens and orchards between the houses toward the edge
-      if (!city && pass < 3 && rng.f() > (village ? 1.35f : 1.3f) - d * 0.7f) continue;
-      Building t;
-      int bw, bh;
-      homeShape(districtAt(sx, sy), t, bw, bh);
-      if (pass >= 2) { bw = std::max(3, bw - 1); bh = 2; if (t == Building::StoneHouse && rng.f() < 0.5f) t = Building::House; }
-      if (pass == 3) bw = 3;   // the last pass squeezes cottages into what is left
-      const int setback = (!city && rng.irange(3) == 0) || (city && rng.irange(5) == 0) ? 1 : 0;
-      const Role owner = t == Building::Farmhouse ? Role::Farmer : Role::Villager;
-      const int j0 = rng.irange(3) - 1;
-      bool done = false;
-      // north of the street (the door on it), at an uneven setback and a little to either side; then a narrower plot
-      for (int k = 0; k < 9 && !done; k++) {
-        int wv = k < 3 ? bw : std::max(3, bw - 1);
-        int hv = k < 6 ? bh : 2;
-        int jx = j0 + (k % 3 == 1 ? 1 : (k % 3 == 2 ? -1 : 0));
-        done = tryPlace(t, owner, wv, hv, sx + jx, sy - 1 - setback, false) || tryPlace(t, owner, wv, hv, sx + jx, sy - 2 + setback, false);
-      }
-      // behind it (the back to the street, a path round), beside it
-      if (!done && pass >= 1) done = tryPlace(t, owner, bw, bh, sx + j0, sy + 1 + bh, false) || tryPlace(t, owner, bw, bh, sx + j0, sy + 2 + bh, false);
-      for (int k = 0; k < 3 && !done; k++)
-        done = tryPlace(t, owner, bw, bh, sx + 1 + bw / 2, sy + j0 + k - 1, false) || tryPlace(t, owner, bw, bh, sx - (bw - bw / 2), sy + j0 + k - 1, false);
-      if (done) have++;
+  std::stable_sort(hOrder.begin(), hOrder.end(), [](const std::pair<float, int>& a, const std::pair<float, int>& b) { return a.first < b.first; });
+  hPass = 0;
+  hIdx = 0;
+}
+
+// a slice of the frontage sweep; false once it is done
+bool Gen::homesSweep() {
+  const size_t slice = 160;
+  for (size_t n = 0; n < slice; n++) {
+    if (hPass >= 4 || hHave >= homesWant) return false;
+    if (hIdx >= hOrder.size()) { hIdx = 0; hPass++; continue; }
+    const auto& o = hOrder[hIdx++];
+    const int pass = hPass;
+    const int sx = o.second % W, sy = o.second / W;
+    if (!isStreet(sx, sy)) continue;
+    const float d = dist(sx, sy);
+    // villages and towns: denser at the heart, gardens and orchards between the houses toward the edge
+    if (!city && pass < 3 && rng.f() > (village ? 1.35f : 1.3f) - d * 0.7f / densityF) continue;   // (M3: a dense people packs closer)
+    Building t;
+    int bw, bh;
+    homeShape(districtAt(sx, sy), t, bw, bh);
+    if (pass >= 2) { bw = std::max(3, bw - 1); bh = 2; if (t == Building::StoneHouse && rng.f() < 0.5f) t = Building::House; }
+    if (pass == 3) bw = 3;   // the last pass squeezes cottages into what is left
+    int setback = (!city && rng.irange(3) == 0) || (city && rng.irange(5) == 0) ? 1 : 0;
+    // (M3) a dense people builds right on the street; a loose one stands back more often
+    if (setback && densityF > 1.25f && hfAt(sx, sy, 29u) < densityF - 1.25f) setback = 0;
+    if (!setback && densityF < 0.75f && hfAt(sx, sy, 31u) < 0.75f - densityF) setback = 1;
+    const Role owner = t == Building::Farmhouse ? Role::Farmer : Role::Villager;
+    const int j0 = rng.irange(3) - 1;
+    bool done = false;
+    // north of the street (the door on it), at an uneven setback and a little to either side; then a narrower plot
+    for (int k = 0; k < 9 && !done; k++) {
+      int wv = k < 3 ? bw : std::max(3, bw - 1);
+      int hv = k < 6 ? bh : 2;
+      int jx = j0 + (k % 3 == 1 ? 1 : (k % 3 == 2 ? -1 : 0));
+      done = tryPlace(t, owner, wv, hv, sx + jx, sy - 1 - setback, false) || tryPlace(t, owner, wv, hv, sx + jx, sy - 2 + setback, false);
     }
+    // behind it (the back to the street, a path round), beside it
+    if (!done && pass >= 1) done = tryPlace(t, owner, bw, bh, sx + j0, sy + 1 + bh, false) || tryPlace(t, owner, bw, bh, sx + j0, sy + 2 + bh, false);
+    for (int k = 0; k < 3 && !done; k++)
+      done = tryPlace(t, owner, bw, bh, sx + 1 + bw / 2, sy + j0 + k - 1, false) || tryPlace(t, owner, bw, bh, sx - (bw - bw / 2), sy + j0 + k - 1, false);
+    if (done) hHave++;
   }
+  return hPass < 4 && hHave < homesWant;
+}
+
+void Gen::homesFinish() {
+  int have = hHave;
+  hOrder.clear();
+  hOrder.shrink_to_fit();
   // still short of the scale (a river or the sea took the land, a hillside's terraces): every open tile near a street
   // becomes a candidate doorstep for a cottage, the footpaths may run a little longer
   const TownScale need = townScale(P.type);
@@ -395,15 +514,37 @@ void Gen::homes() {
   for (int round = 0; round < 2 && have < need.homesMin + 2; round++) {
     pathMax = round == 0 ? 12 : 15;
     const int reach = round == 0 ? 5 : 8;
+    // (M3) the tiles near a street, from a distance map (it was a square search round every tile: a city paid
+    // several ms for it in one web frame)
+    std::vector<uint8_t> near((size_t)W * H, 0);
+    {
+      // a street within the square of `reach` round the tile: the street mask dilated along the rows, then the columns
+      // (running counts over a sliding window)
+      std::vector<uint8_t> row((size_t)W * H, 0);
+      for (int y = 0; y < H; y++) {
+        int cnt = 0;
+        for (int x = -reach; x < W; x++) {
+          if (x + reach < W && isStreet(x + reach, y)) cnt++;
+          if (x - reach - 1 >= 0 && isStreet(x - reach - 1, y)) cnt--;
+          if (x >= 0) row[I(x, y)] = cnt > 0 ? 1 : 0;
+        }
+      }
+      for (int x = 0; x < W; x++) {
+        int cnt = 0;
+        for (int y = -reach; y < H; y++) {
+          if (y + reach < H && row[I(x, y + reach)]) cnt++;
+          if (y - reach - 1 >= 0 && row[I(x, y - reach - 1)]) cnt--;
+          if (y >= 0) near[I(x, y)] = cnt > 0 ? 1 : 0;
+        }
+      }
+    }
     std::vector<int> spots;
     for (int y = 2; y < H - 2; y++)
       for (int x = 2; x < W - 2; x++) {
         uint8_t k = get(x, y);
         if ((k != K_NONE && k != K_YARD) || M.bldgAt[I(x, y)] >= 0 || water[I(x, y)]) continue;
         if (!walled && dist(x, y) > 1.15f) continue;
-        bool near = false;
-        for (int oy = -reach; oy <= reach && !near; oy++) for (int ox = -reach; ox <= reach; ox++) if (isStreet(x + ox, y + oy)) { near = true; break; }
-        if (near) spots.push_back(y * W + x);
+        if (near[I(x, y)]) spots.push_back(y * W + x);
       }
     for (size_t i = spots.size(); i > 1; i--) std::swap(spots[i - 1], spots[(size_t)rng.irange((int)i)]);
     for (int s : spots) {
@@ -416,6 +557,124 @@ void Gen::homes() {
   // (M1 economy) the optional trades where the homes left room
   for (const Want& w : lateWants) placeWant(w);
   lateWants.clear();
+}
+
+// ------------------------------------------------------------------------------------------------ M3 compounds
+// Compound (dune courtyards, highland clan steadings): a family's houses stand along the north side of a walled court
+// (the fence art takes the culture's style: dry-stone dykes, mud-brick walls), their doors on the court, one gate in
+// the south wall onto the lane; a well or a trough and a tree in the court. Compounds sit side by side along the lanes
+// with narrow alleys between them. A compound that gets no house is taken down again. Returns the homes made.
+int Gen::compoundHomes(int want) {
+  if (want <= 0) return 0;
+  int made = 0;
+  const int target = std::max(1, want * 3 / 4);
+  const bool dune = cArch == (int)cult::Archetype::Dune;
+  const int savedMax = pathMax;
+  pathMax = 14;
+  std::vector<uint8_t> seen((size_t)W * H, 0);
+  std::vector<std::pair<float, int>> order;
+  for (auto& s : allStreet) {
+    const size_t i = I(s.first, s.second);
+    if (seen[i] || M.at(s.first, s.second) == Ground::Bridge || M.wall[i]) continue;
+    seen[i] = 1;
+    const float d = dist(s.first, s.second);
+    if (!walled && d > 0.95f) continue;
+    order.push_back({d + hfAt(s.first, s.second, 23u) * 0.3f, (int)i});
+  }
+  std::stable_sort(order.begin(), order.end(), [](const std::pair<float, int>& a, const std::pair<float, int>& b) { return a.first < b.first; });
+  // the compound's tiles: open land of the town on one level; round them a margin of one that may be a lane (a
+  // compound's back and sides may stand on the lanes), never anybody's house, wall or field
+  auto fitsC = [&](int x0, int y0, int cw, int ch, int lv) {
+    for (int y = y0 - 1; y <= y0 + ch - 1; y++)
+      for (int x = x0 - 1; x <= x0 + cw; x++) {
+        if (!in(x, y) || x < 1 || y < 1 || x >= W - 1 || y >= H - 1) return false;
+        const size_t i = I(x, y);
+        const bool margin = x < x0 || x >= x0 + cw || y < y0;
+        if (margin) {
+          if (M.bldgAt[i] >= 0 || M.wall[i] || mask[i] == K_FIELD || mask[i] == K_COMPOUND || mask[i] == K_SQUARE || front[i]) return false;
+          continue;
+        }
+        if (mask[i] != K_NONE || M.bldgAt[i] >= 0 || M.wall[i] || noBuild[i] || water[i] || M.prop[i] || front[i]) return false;
+        const Ground g = M.at(x, y);
+        if (groundSolid(g) || g == Ground::Bridge || g == Ground::Swamp || lvl[i] != lv) return false;
+        if (walled ? !inside[i] : dist(x, y) > 1.0f) return false;
+        if (!reserved.empty() && reserved[i]) return false;
+      }
+    return true;
+  };
+  struct Was { size_t i; uint8_t k, g, p; };
+  for (const auto& o : order) {
+    if (made >= target) break;
+    const int sx = o.second % W, sy = o.second / W;
+    if (!isStreet(sx, sy) || get(sx, sy) == K_SQUARE || get(sx, sy - 1) != K_NONE) continue;
+    const int y1 = sy - 1;   // the south wall, its gate right on the street
+    const uint32_t h = hashAt(sx, sy, 0xC0B1u);
+    bool built = false;
+    for (int cw : {13, 12, 11, 10}) {
+      if (built) break;
+      const int ch = (cw >= 12 ? 9 : 8) + (int)(h % 2u);
+      // the gate anywhere along the south wall but its corners (middle first, then out to either side)
+      for (int gk = 0; gk < cw - 4 && !built; gk++) {
+      const int gOff = cw / 2 + ((gk & 1) ? -(gk + 1) / 2 : gk / 2) + (int)((h >> 3) % 3u) - 1;
+      if (gOff < 2 || gOff > cw - 3) continue;
+      const int x0 = sx - gOff, y0 = y1 - ch + 1;
+      if (!fitsC(x0, y0, cw, ch, lvl[I(sx, sy)])) continue;
+      std::vector<Was> was;
+      auto mark = [&](int x, int y, uint8_t k, Ground g, int prop) {
+        const size_t i = I(x, y);
+        was.push_back(Was{i, mask[i], M.ground[i], M.prop[i]});
+        mask[i] = k;
+        M.setG(x, y, g);
+        M.prop[i] = (uint8_t)prop;
+      };
+      const int gx = x0 + gOff;
+      const Ground court = dune && wealthFor(Building::House, IRect{x0, y0, cw, ch}) >= 2 ? Ground::Plaza : Ground::Dirt;
+      for (int x = x0; x < x0 + cw; x++) {
+        mark(x, y0, K_YARD, M.at(x, y0), (int)Prop::FenceH + 1);
+        if (x == gx) mark(x, y1, K_YARD, Ground::Dirt, 0);
+        else mark(x, y1, K_YARD, M.at(x, y1), (int)Prop::FenceH + 1);
+      }
+      for (int y = y0 + 1; y < y1; y++) {
+        mark(x0, y, K_YARD, M.at(x0, y), (int)Prop::FenceV + 1);
+        mark(x0 + cw - 1, y, K_YARD, M.at(x0 + cw - 1, y), (int)Prop::FenceV + 1);
+      }
+      // the family's houses along the north wall, doors on the court
+      int n = 0;
+      const int bh = ch >= 9 ? 3 : 2;
+      for (int x = x0 + 1; x + 3 <= x0 + cw - 1;) {
+        const int room = x0 + cw - 1 - x;
+        const int bw = std::min(room, 3 + (int)(hashAt(x, y0, 0xC0B2u) % 2u));
+        const Building t = (wealthFor(Building::House, IRect{x, y0, bw, bh}) >= 2 || (cArch == (int)cult::Archetype::Highland && hashAt(x, y0, 5u) % 3u == 0))
+                               ? Building::StoneHouse : Building::House;
+        if (bw >= 3 && tryPlace(t, Role::Villager, bw, bh, x + bw / 2, y0 + 1 + bh, false)) { n++; x += bw + 1; }
+        else x++;
+      }
+      if (n == 0) {
+        for (auto it = was.rbegin(); it != was.rend(); ++it) { mask[it->i] = it->k; M.ground[it->i] = it->g; M.prop[it->i] = it->p; }
+        continue;
+      }
+      made += n;
+      for (int y = y0 + 1; y < y1; y++)
+        for (int x = x0 + 1; x < x0 + cw - 1; x++) if (M.bldgAt[I(x, y)] < 0) M.setG(x, y, court);
+      // the court: a well (the dune's cistern) or a trough, and a tree in a corner; the rest of it is the family's yard
+      const int wy = y1 - 1;
+      for (int x = gx + 2; x < x0 + cw - 1; x++) {
+        if (get(x, wy) != K_NONE || front[I(x, wy)] || M.prop[I(x, wy)]) continue;
+        if (putSolid(x, wy, dune || hashAt(x0, y0, 7u) % 2u ? Prop::Well : Prop::Trough)) break;
+      }
+      for (int cxn : {x0 + 1, x0 + cw - 2}) {
+        if (get(cxn, wy) != K_NONE || front[I(cxn, wy)] || cover[I(cxn, wy)] || M.prop[I(cxn, wy)]) continue;
+        const Prop tree = bio == Biome::Desert || dune ? Prop::PalmTree : (bio == Biome::Snow || bio == Biome::Taiga ? Prop::PineTree : Prop::OakTree);
+        if (treesF > 0.3f && putSolid(cxn, wy, tree)) break;
+      }
+      for (int y = y0 + 1; y < y1; y++)
+        for (int x = x0 + 1; x < x0 + cw - 1; x++) if (get(x, y) == K_NONE) set(x, y, K_YARD);
+      built = true;
+      }
+    }
+  }
+  pathMax = savedMax;
+  return made;
 }
 
 // ------------------------------------------------------------------------------------------------ the palace compound
@@ -439,7 +698,7 @@ void Gen::placeCompound() {
       int lo = 7, hi = 0;
       for (int y = r.y - 3; y < r.y + r.h + 3 && ok; y++)
         for (int x = r.x - 3; x < r.x + r.w + 3 && ok; x++) {
-          if (!ins(x, y) || water[I(x, y)]) { ok = false; break; }
+          if (!ins(x, y) || water[I(x, y)]) { ok = false; break; }   // (M3: a marsh pool is drained for it: its lawns)
           lo = std::min(lo, (int)lvl[I(x, y)]); hi = std::max(hi, (int)lvl[I(x, y)]);
         }
       if (ok && hi - lo > 2) ok = false;   // a palace may level a couple of steps of a hillside, not a mountain
@@ -472,8 +731,8 @@ void Gen::buildCompound() {
   for (int y = Y0; y < Y0 + CH; y++)
     for (int x = X0; x < X0 + CW; x++) { M.setG(x, y, lawn); M.setP(x, y, 0); }
   // the wall: a rectangle (the wall art puts towers on its corners); the gatehouse in the middle of the south run
-  for (int x = X0; x < X0 + CW; x++) { M.wall[I(x, Y0)] = 1; M.wall[I(x, Y0 + CH - 1)] = 1; }
-  for (int y = Y0; y < Y0 + CH; y++) { M.wall[I(X0, y)] = 1; M.wall[I(X0 + CW - 1, y)] = 1; }
+  for (int x = X0; x < X0 + CW; x++) { M.wall[I(x, Y0)] = wallByte; M.wall[I(x, Y0 + CH - 1)] = wallByte; }
+  for (int y = Y0; y < Y0 + CH; y++) { M.wall[I(X0, y)] = wallByte; M.wall[I(X0 + CW - 1, y)] = wallByte; }
   const int gx = X0 + CW / 2 - 1, gy = Y0 + CH - 1;
   for (int k = 0; k < 3; k++) { M.wall[I(gx + k, gy)] = 0; M.setG(gx + k, gy, Ground::Plaza); set(gx + k, gy, K_SQUARE); }
   O.gates.push_back({gx, gy});
@@ -594,7 +853,8 @@ void Gen::compoundApproach() {
       if (isStreet(x, y) && !inCompound(x, y)) { found = c; break; }
       for (int d = 0; d < 4; d++) {
         int nx = x + D4X[d], ny = y + D4Y[d];
-        if (!ins(nx, ny) || prev[I(nx, ny)] != -2 || wallAt(nx, ny) || inCompound(nx, ny) || groundSolid(M.at(nx, ny))) continue;
+        const bool marsh = stilt && !water[I(nx, ny)] && M.at(nx, ny) == Ground::Water;   // (M3: a boardwalk will cross it)
+        if (!ins(nx, ny) || prev[I(nx, ny)] != -2 || wallAt(nx, ny) || inCompound(nx, ny) || (groundSolid(M.at(nx, ny)) && !marsh)) continue;
         prev[I(nx, ny)] = c;
         q.push((int)I(nx, ny));
       }

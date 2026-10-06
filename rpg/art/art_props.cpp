@@ -8,6 +8,7 @@ namespace art {
 void paintEconomyProp(Canvas& c, Prop p, int frame);   // M1 economy: rpg/art/art_market.cpp (Sacks .. WaterWheel)
 // M2 Wayfinder: rpg/art/art_wild.cpp (Peak .. DragonBones): painters and canvas sizes
 void paintWildProp(Canvas& c, Prop p, int frame);
+void paintCultureFurniture(Canvas& c, Prop p, int frame);   // M3: rpg/art/art_culture_props.cpp
 int wildPropW(Prop p);
 int wildPropH(Prop p);
 int wildPropFrames(Prop p);
@@ -1285,6 +1286,97 @@ Canvas longBedPiece(int variant) {
   // the shade the bed casts on the floor along its right side
   for (int y = 22; y < 47; y++) if (!chA(c.get(19, y))) c.set(19, y, withA(rgba(34, 20, 46), 90));   // kShadowCol
   outline(c);
+  return c;
+}
+
+// (M3 fixer round 2) the hammock peoples' beds, two tiles long on the same 20x48 canvas and anchor as the long bed
+// (bottom on the foot tile, the head tile's Filler under the top half, the wall row above it). Piece::Styled 6: a
+// woven hammock hung from an iron ring in the wall to a post at its foot; 7: a reed sleeping mat rolled out on the
+// floor with a bolster and a blanket. variant: one of four weaves / blankets.
+Canvas longHammockPiece(int variant) {
+  static const uint32_t weave[4][2] = {{rgba(200, 76, 56), rgba(232, 206, 150)}, {rgba(52, 110, 140), rgba(226, 214, 176)},
+                                       {rgba(70, 120, 70), rgba(222, 196, 120)}, {rgba(150, 60, 110), rgba(236, 200, 120)}};
+  const Ramp A = ramp(weave[variant & 3][0]), B = ramp(weave[variant & 3][1]);
+  Canvas c(20, 48);
+  const float cx = 10.0f;
+  // its shadow on the floor, down and to the right of the cloth
+  for (int y = 24; y <= 44; y++)
+    for (int x = 4; x <= 18; x++) {
+      const float dx = (x + 0.5f - 12.0f) / 6.5f, dy = (y + 0.5f - 35.0f) / 9.5f;
+      if (dx * dx + dy * dy <= 1.0f) c.set(x, y, withA(rgba(34, 20, 46), 80));
+    }
+  // the ring in the wall and the ropes fanning from it to the head spreader
+  c.set(9, 12, kIron[3]); c.set(10, 12, kIron[2]); c.set(8, 13, kIron[3]); c.set(11, 13, kIron[1]); c.set(9, 14, kIron[2]); c.set(10, 14, kIron[1]);
+  for (int k = 0; k < 4; k++) {
+    const int tx = 4 + k * 4;
+    line(c, 10, 15, tx, 20, kCloth[k < 2 ? 3 : 2]);
+  }
+  // the foot post: a stout pole standing on the floor, lit on its west side, the foot ropes tied round its top
+  for (int y = 36; y <= 46; y++) { c.set(9, y, kWood[3]); c.set(10, y, kWood[1]); }
+  c.set(9, 35, kWood[4]); c.set(10, 35, kWood[2]);
+  hline(c, 8, 11, 46, kWoodDark[1]);
+  for (int k = 0; k < 4; k++) line(c, 4 + k * 4, 39, 10, 37, kCloth[2]);
+  // the spreader bars at head and foot
+  hline(c, 3, 16, 20, kWood[3]); hline(c, 3, 16, 21, kWood[1]);
+  hline(c, 3, 16, 38, kWood[3]); hline(c, 3, 16, 39, kWood[1]);
+  // the cloth: woven bands across it, sagging in the middle (narrower and darker there), its edges rolled
+  for (int y = 22; y <= 37; y++) {
+    const float t = (y - 22) / 15.0f;
+    const float sag = std::sin(t * 3.14159f);
+    const float half = 6.5f - sag * 1.5f;
+    for (int x = (int)std::floor(cx - half); x <= (int)std::ceil(cx + half) - 1; x++) {
+      const float u = (x + 0.5f - cx) / half;   // -1 west edge .. 1 east edge
+      if (u < -1.0f || u > 1.0f) continue;
+      const bool band = ((y - 22) / 3) % 2 == 0;
+      const Ramp& R = band ? A : B;
+      int k = u < -0.55f ? 4 : (u < 0.2f ? 3 : 2);   // lit on the west, the hollow in the middle, shaded east
+      if (sag > 0.7f && std::fabs(u) < 0.45f) k = std::max(1, k - 1);
+      if (u > 0.8f) k = 1;
+      c.set(x, y, R[k]);
+    }
+  }
+  // a folded blanket at the foot and a pillow at the head
+  for (int y = 23; y <= 25; y++) for (int x = 6; x <= 13; x++) c.set(x, y, y == 23 ? kWhite : kCloth[x >= 12 ? 2 : 3]);
+  for (int x = 5; x <= 14; x++) c.set(x, 34, kCloth[1]);
+  outline(c);
+  return c;
+}
+Canvas longMatPiece(int variant) {
+  static const uint32_t blanket[4] = {rgba(60, 96, 150), rgba(160, 64, 52), rgba(70, 120, 84), rgba(176, 130, 56)};
+  const Ramp Q = ramp(blanket[variant & 3]);
+  Canvas c(20, 48);
+  const int y0 = 19, y1 = 45, x0 = 2, x1 = 17;
+  // the reed mat: strips running down it, a bound edge, lit on the top-left
+  for (int y = y0; y <= y1; y++)
+    for (int x = x0; x <= x1; x++) {
+      int k = (x % 2) ? 3 : 2;
+      if ((y + x / 2) % 6 == 0) k = std::max(1, k - 1);   // the weft
+      if (x == x0 || y == y0) k = 4;
+      if (x == x1 || y == y1) k = 1;
+      c.set(x, y, kThatch[k]);
+    }
+  // a long bolster at the head, plump and lit from the top-left
+  for (int y = y0 + 1; y <= y0 + 5; y++)
+    for (int x = x0 + 1; x <= x1 - 1; x++) {
+      const float dx = (x + 0.5f - 10.0f) / 7.0f, dy = (y + 0.5f - (y0 + 3.5f)) / 2.6f;
+      if (dx * dx * dx * dx + dy * dy > 1.0f) continue;
+      const int k = lightIndex(lightAt(dx * 0.55f, dy * 0.9f), x, y, 0.0f);
+      c.set(x, y, k >= 3 ? kWhite : (k == 2 ? kCloth[4] : kCloth[3]));
+    }
+  // the blanket over the lower part, its top turned back, a woven border, folds down its length
+  for (int y = y0 + 8; y <= y1 - 1; y++)
+    for (int x = x0 + 1; x <= x1 - 1; x++) {
+      int k = 2 + (std::sin((x - 1) * 0.9f + (y - y0) * 0.3f) > 0.5f ? 1 : 0);
+      if (x <= x0 + 1) k = 4;
+      if (x >= x1 - 1) k = 1;
+      uint32_t col = Q[k];
+      if (y <= y0 + 9) col = y == y0 + 8 ? kCloth[4] : kCloth[2];                                // the turn-down
+      else if (x == x0 + 3 || x == x1 - 3) col = ((y / 2) % 2) ? kGold[3] : Q[std::min(4, k + 1)];   // the border
+      c.set(x, y, col);
+    }
+  // the mat lies on the floor: a thin shade along its east and south sides
+  for (int y = y0 + 1; y <= y1 + 1; y++) if (!chA(c.get(x1 + 1, y))) c.set(x1 + 1, y, withA(rgba(34, 20, 46), 90));
+  for (int x = x0 + 1; x <= x1 + 1; x++) if (!chA(c.get(x, y1 + 1))) c.set(x, y1 + 1, withA(rgba(34, 20, 46), 90));
   return c;
 }
 
@@ -2711,7 +2803,7 @@ Canvas capPiece(RoomStyle rs, int mask, int seed, int topFlags, int part) {
   auto room = [&](int x, int y) { return !cap(x, y) && roomPx(mask, x, y); };
   for (int y = 0; y < 16; y++)
     for (int x = 0; x < 16; x++) {
-      if (!cap(x, y)) { c.set(x, y, kVoid); continue; }
+      if (!cap(x, y)) { c.set(x, y, rgba(0, 0, 0)); continue; }   // (M3 fixer) the void: the same flat black as beyond the map
       bool along = ((mask & (CapE | CapW)) && (x >= 10 || x <= 5)) && !((mask & (CapN | CapS)) && (y <= 4 || y >= 11));
       uint32_t col = capSurface(rs, x, y, along, seed);
       // edges: room to the east/south -> a dark drop; room to the west/north -> a lit edge; void -> rim light up-left, shade down-right
@@ -3218,6 +3310,8 @@ void doorVPaint(Canvas& c, RoomStyle rs, bool open) {
 Canvas longBedPiece(int variant);
 Canvas styledPiece(RoomStyle rs, int which, int variant) {
   if (which == 4) return longBedPiece(variant);
+  if (which == 6) return longHammockPiece(variant);
+  if (which == 7) return longMatPiece(variant);
   if (which == 5) {   // a shop's counter segment: variant = part (0..2) | goods << 2
     Canvas c(propW(Prop::CounterM), propH(Prop::CounterM));
     counterSeg(c, variant & 3, (variant >> 2) & 3);
@@ -4039,6 +4133,8 @@ const PropInfo kPropInfo[(int)Prop::COUNT] = {
   {48, 44, 1}, {48, 20, 1}, {32, 60, 1}, {20, 18, 8}, {30, 24, 8}, {16, 16, 1}, {48, 44, 1},
   // MineHill
   {80, 76, 1},
+  // M3 culture furniture: Cushion LowTable Hammock SleepingMat
+  {16, 12, 1}, {20, 16, 1}, {28, 22, 1}, {24, 14, 1},
 };
 
 void m0bProp(Canvas& c, Prop p, int frame) {
@@ -4212,6 +4308,7 @@ void paintProp(Canvas& c, Prop p, int frame) {
     case Prop::CounterM: counterSeg(c, 1); break;
     case Prop::CounterR: counterSeg(c, 2); break;
     case Prop::Filler: filler(c); break;
+    case Prop::Cushion: case Prop::LowTable: case Prop::Hammock: case Prop::SleepingMat: paintCultureFurniture(c, p, frame); break;
     default:
       if (isWildProp(p)) paintWildProp(c, p, frame);
       else if ((int)p >= (int)Prop::Sacks) paintEconomyProp(c, p, frame);
@@ -4338,6 +4435,7 @@ Canvas interiorPiece(uint32_t key) {
     case Piece::Rug: return rugPiece(style, a);
     case Piece::Clutter: return clutterPiece(style);
     case Piece::Door: return doorPiece((RoomStyle)(style & 7));
+    case Piece::Culture: return cultureInteriorPiece(style, (Prop)a, b);
     default: return Canvas(1, 1);
   }
 }

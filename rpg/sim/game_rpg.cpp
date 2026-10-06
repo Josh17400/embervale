@@ -231,6 +231,7 @@ int Game::interactProp(int& otx, int& oty) const {
         bool usable = prop == Prop::Chest || prop == Prop::Shrine || prop == Prop::Altar || prop == Prop::BerryBush ||
                       ((prop == Prop::StandingStone || prop == Prop::GraveCairn) && !inside) ||   // M2 wayside (wayside.cpp)
                       (prop == Prop::Signpost && !inside && world.siteAt(tx, ty, 3) >= 0) ||
+                      ((prop == Prop::Hammock || prop == Prop::SleepingMat) && inside && subBldg >= 0) ||   // M3: cultures that sleep so
                       (prop == Prop::Bed && inside && subBldg >= 0 &&
                        (world.over.bldgs[subBldg].type != art::Building::Inn || world.over.bldgs[subBldg].genVer >= WORLDGEN_V7));
         if (!usable) continue;
@@ -274,6 +275,11 @@ void Game::interact() {
   if (prop == Prop::Signpost) {
     int si = world.siteAt(tx, ty, 3);
     if (si >= 0) say("WELCOME TO " + world.sites[si].name);
+    return;
+  }
+  if (prop == Prop::Hammock || prop == Prop::SleepingMat) {   // M3: a home's hammock or sleeping mat (inns keep beds)
+    rest(hoursToMorning(hour));
+    say("YOU SLEEP SOUNDLY.");
     return;
   }
   if (prop == Prop::Bed) {
@@ -1259,6 +1265,7 @@ bool Game::sell(int ii) {
 // travel and death: rpg/sim/travel.cpp (M2)
 
 // ------------------------------------------------------------------ save / load
+// SAVE_VER 7 (M3: the appearance block gains people, homeland and personal heraldry; nothing else moved).
 // SAVE_VER 6 (M2). Owner, 2026-10-04: old saves are not a concern, so only this version loads; an older file is refused
 // and the title offers a new game ("this save is from an older version"). The layout is frozen for M2 after phase A
 // (the lanes fill the new fields, they do not move them); any later change bumps SAVE_VER and regenerates
@@ -1269,7 +1276,7 @@ bool Game::sell(int ii) {
 // (Bldg::id, owner Site::id), map keys (looted chests, killed spawns) as (kind, id, floor). Overworld chests of an
 // endless world are keyed by global tile (Game::lootKey). M2 retired the classic island: worldKind is always 1.
 //
-//   header   magic 'EMBV', ver 6, worldKind u8 (1 endless; anything else is refused), genVer u32 (ew::ENDLESS_GEN_VER),
+//   header   magic 'EMBV', ver 7, worldKind u8 (1 endless; anything else is refused), genVer u32 (ew::ENDLESS_GEN_VER),
 //            seed u64, time f32, hour f32, day i32
 //   window   origin ox i32, oy i32 (positions below are window-local pixels)
 //   where    inside u8, subSite (site ref), subBldg (bldg ref), subFloor i32, x f32, y f32
@@ -1284,14 +1291,15 @@ bool Game::sell(int ii) {
 //   killed   count, then (map ref, n, n values: site ref + slot for overworld spawns (slot < 4096), den id + day for
 //            dens, slot otherwise)
 //   sites    count, then site id u64 + flags u8 (1 discovered, 2 cleared, 4 rumoured)
-//   char     background u8, storyFlags u32, appearance (u16 length + fields)
+//   char     background u8, storyFlags u32, appearance (u16 length + fields; v7 appends people u8, homeland u64,
+//            heraldry: field u32, field2 u32, charge u32, division u8, chargeKind u8, emblem u8, glyphSeed u32, shape u8)
 //   lodging  bldg ref, floor i32, room i32, untilDay i32
 //   explored count, then rx i32, ry i32, 128 bytes (the fog-of-war bits of one region)
 //   marks    (v6) count, then key u64 + value i32, in key order
 // refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
 // 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 6;
+static constexpr uint32_t SAVE_VER = 7;   // 7: M3 (appearance: people, homeland, personal heraldry)
 
 int Game::currentSaveVersion() { return (int)SAVE_VER; }
 int Game::saveVersion(const std::vector<uint8_t>& in) {
@@ -1317,6 +1325,10 @@ void writeAppearance(BinW& w, const Appearance& a) {
   BinW b(blk);
   b.str(a.name); b.u8(a.female ? 1 : 0); b.u8(a.build); b.u8(a.skinTone); b.u32(a.skin); b.u8(a.hair); b.u32(a.hairColor);
   b.u8(a.beard ? 1 : 0); b.u32(a.eyeColor); b.u32(a.topColor); b.u32(a.bottomColor); b.u8(a.created ? 1 : 0);
+  // v7 (M3): people, homeland, personal heraldry
+  b.u8(a.people); b.u64(a.homeland);
+  b.u32(a.heraldry.field); b.u32(a.heraldry.field2); b.u32(a.heraldry.charge); b.u8(a.heraldry.division);
+  b.u8(a.heraldry.chargeKind); b.u8(a.heraldry.emblem); b.u32(a.heraldry.glyphSeed); b.u8(a.heraldry.shape);
   w.u16((uint16_t)blk.size());
   for (uint8_t c : blk) w.u8(c);
 }
@@ -1340,6 +1352,11 @@ bool readAppearance(BinR& r, Appearance& a) {
   if (more()) d.topColor = b.u32();
   if (more()) d.bottomColor = b.u32();
   if (more()) d.created = b.u8() != 0;
+  if (more()) {   // v7 (M3)
+    d.people = b.u8(); d.homeland = b.u64();
+    d.heraldry.field = b.u32(); d.heraldry.field2 = b.u32(); d.heraldry.charge = b.u32(); d.heraldry.division = b.u8();
+    d.heraldry.chargeKind = b.u8(); d.heraldry.emblem = b.u8(); d.heraldry.glyphSeed = b.u32(); d.heraldry.shape = b.u8();
+  }
   if (b.bad) return false;
   a = d;
   return true;

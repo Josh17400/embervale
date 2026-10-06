@@ -7,7 +7,7 @@ seed 9
 0.3  newgame                     # self-starting: works with or without --play
 0.5  expect mode play
 0.6  god
-0.8  goto town                   # Amberhaven (lumber market town): the full set of a town's trades
+0.8  goto town                   # the nearest town (M3: a Marsh lumber town): a town's trades
 1.2  enter granary
 +0.3 expect inside 1
 +0.1 expect floor 0
@@ -17,8 +17,6 @@ seed 9
 +0.3 expect inside 1
 +0.3 enter tannery
 +0.3 expect inside 1
-+0.3 enter smelter
-+0.3 expect inside 1
 +0.3 enter sawmill
 +0.3 expect inside 1
 +0.3 enter weaver
@@ -27,13 +25,13 @@ seed 9
 +0.3 expect inside 1
 +0.3 floor 1                     # the millstone loft
 +0.3 expect floor 1
-+0.3 at 977 -24                  # Amberhold, a city where the river runs through: its fishmonger and its watermill
++0.3 at 977 -24                  # a Sylvan city (M3): its fishmonger and its smelter (watermills stand on real rivers only)
 +0.5 expect inside 0
 +0.3 enter fishmonger
 +0.3 expect inside 1
-+0.3 enter watermill
++0.3 enter smelter
 +0.3 expect inside 1
-+0.3 at 349 121                  # Mistwatch, a farming village on a river: the village's own watermill
++0.3 at 349 121                  # a village on a river: the village's own watermill
 +0.5 enter watermill
 +0.3 expect inside 1
 +0.3 expect mode play

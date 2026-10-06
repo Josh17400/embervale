@@ -124,7 +124,7 @@ int buildingHeight(Building b, int wTiles, int hTiles, const ArchStyle& style);
 // Each wall tile's sprite is WALL_CW x WALL_CH; the tile's top-left corner sits at canvas (WALL_OX, WALL_OY).
 // Draw it sorted with the tile's row; a tile with a tower draws just after its row's plain wall tiles.
 constexpr int WALL_H = 20;                     // height of the walkway above the ground, px
-constexpr int WALL_OX = 8, WALL_OY = 40, WALL_CW = 32, WALL_CH = 60;
+constexpr int WALL_OX = 8, WALL_OY = 40, WALL_CW = 32, WALL_CH = 64;   // (M3 fixer: 64, the bigger towers' drums)
 constexpr uint32_t WALL_BIT_N = 1u, WALL_BIT_NE = 2u, WALL_BIT_E = 4u, WALL_BIT_SE = 8u, WALL_BIT_S = 16u, WALL_BIT_SW = 32u,
                    WALL_BIT_W = 64u, WALL_BIT_NW = 128u;   // neighbours that are wall
 constexpr uint32_t WALL_BIT_TOWER = 256u;      // a round tower stands on this tile (ends, strong corners, long runs)
@@ -132,6 +132,17 @@ constexpr uint32_t WALL_BIT_TOWER_N = 512u;    // the tile to the north has a to
 constexpr int WALL_VAR_SHIFT = 12;             // 2 bits of per-tile variation (weathering) at bits 12..13
 constexpr uint32_t WALL_BIT_CULVERT = 1u << 14; // a river runs under this tile: an arched water gate with an iron
                                                // grate in the south face (the view sets it on wall tiles over water)
+// (M3 fixer) a wall opening that has no gatehouse (a side gate, a gate in a north-south run) is spanned: the wall walk
+// runs on over it on a vault. Its tiles are not wall (Map::wall stays 0, they are walked through); the view gives
+// them keys with WALL_BIT_SPAN and their place in the opening (1 first .. 3 last, west to east or north to south) at
+// WALL_SPAN_POS_SHIFT. An east-west span shows an arch in its south face (you see the road through it); a north-south
+// span carries the walk over the road, with the vault's dark mouths in the wall's flanks either side.
+constexpr uint32_t WALL_BIT_SPAN = 1u << 15;
+constexpr int WALL_SPAN_POS_SHIFT = 10;
+// M3: the wall's culture style (art::CityWall) at bits 16..19: Map::wall holds 1 + CityWall on a settlement's wall
+// tiles and the view ORs (wall - 1) << WALL_STYLE_SHIFT into each key. 0 = Stone, today's curtain wall.
+constexpr int WALL_STYLE_SHIFT = 16;
+constexpr uint32_t WALL_STYLE_MASK = 15u << WALL_STYLE_SHIFT;
 Canvas wallTile(uint32_t key);
 
 // The wall layout pass shared by the view, the gallery and the tests: for a wall grid (w x h, nonzero = wall) and the

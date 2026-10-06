@@ -20,7 +20,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <cstdlib>
+#include <unordered_set>
 #include <cstring>
 #include "rpg/sim/stream.h"
 #include "rpg/sim/world.h"
@@ -103,6 +103,13 @@ static void initEndless(World& W, uint64_t sd, const int32_t* origin) {
   W.over.blend.assign((size_t)WIN * WIN, 0);
   W.over.seed = (uint32_t)(sd ^ (sd >> 32));
   W.src = std::make_shared<ew::EndlessSource>(sd);
+#ifndef __EMSCRIPTEN__
+  // (M3 towns lane, carry-over 2) natively the prefetcher starts with the world, so its worker warms up (region plans,
+  // the ring round the first window) while this thread builds the window, instead of starting cold on the first frame
+  // with the player already walking (the first shift of a walk was where it fell behind). A headless test that
+  // streams as the web does (Game::streamThreads off) drops it and gets the frame pump instead (test_window.cpp).
+  W.streamer = std::make_shared<ChunkStreamer>(sd, W.src, true);
+#endif
   const ew::StartPlan sp = W.src->start();
   const int32_t gx = origin ? floorTo(origin[0], ew::CHUNK) : floorTo(sp.spawn.x - WIN / 2, ew::CHUNK);
   const int32_t gy = origin ? floorTo(origin[1], ew::CHUNK) : floorTo(sp.spawn.y - WIN / 2, ew::CHUNK);
@@ -183,6 +190,9 @@ void World::placeWindow(int32_t nox, int32_t noy) {
   over.bldgAt.assign(n, -1);
   const int32_t oldOx = ox, oldOy = oy;
   ox = nox; oy = noy;
+  // (M3 towns lane) a teleport, a load or a new game: the worker starts on the ring round the new window (no heading
+  // yet) while this thread builds the window itself
+  if (!walking && streamer && streamer->threaded()) prefetch(WIN / 2, WIN / 2, 0, 0);
   loadRegionsAround();
   const int nc = WIN / ew::CHUNK;
   ew::ChunkData c;
@@ -195,6 +205,12 @@ void World::placeWindow(int32_t nox, int32_t noy) {
       if (had) continue;
       if (streamer && streamer->takeChunk(gcx, gcy, c)) sstats.prefetched++;
       else {
+        if (walking && std::getenv("EMB_DEBUG_STREAM")) {
+          ChunkStreamer::Stats ps;
+          if (streamer) ps = streamer->stats();
+          std::printf("sync chunk %d,%d in a walking shift by %d,%d (window chunk %d,%d): ready %d wished %d\n", gcx, gcy, dx, dy, cx, cy,
+                      ps.readyChunks, ps.wished);
+        }
         src->chunk(gcx, gcy, c);
         sstats.syncChunks++;
         if (walking) sstats.syncInShifts++;
@@ -262,6 +278,7 @@ int World::addKingdom(ew::Gid id) {
   Kingdom k;
   k.id = kp->id; k.name = kp->name; k.color = kp->color; k.color2 = kp->color2; k.emblem = kp->emblem;
   k.capitalId = kp->capital; k.gx = kp->gx; k.gy = kp->gy;
+  k.culture = kp->culture;
   kingdomById[id] = (int)kingdoms.size();
   kingdoms.push_back(k);
   return (int)kingdoms.size() - 1;
@@ -288,6 +305,7 @@ int World::addSitePlan(const ew::SitePlan& p) {
   s.produces = p.produces;
   s.needs = p.needs;
   s.kind = p.kind;
+  s.culture = p.culture;
   s.bldgFirst = (int)over.bldgs.size();
   s.bldgCount = 0;
   int h = (int)sites.size();
@@ -388,9 +406,21 @@ void World::recycleFar() {
   rebuildSiteSpawns();
 }
 
+// (M3 towns lane, carry-over 2: the prefetcher fell behind on some seeds.) Root cause, measured with EMB_DEBUG_STREAM:
+// the misses all came in the first walking shift after a new game (or a teleport): the worker starts with a cold
+// source, and the wish list put every region plan of all four directions first, then the whole ring sorted by a
+// distance score, so the double column the first shift copies in was still being made when the player (at a run, in
+// the 30x-compressed test walk: ~120 ms of wall time) reached it. Mid-walk, a long town build (a city: 20-40 ms on a
+// cold source) right in front could do the same. Now the wish list is ordered by WHEN the work is needed:
+//   1. for the next shift (each way the player may go: the heading, else all four): the region plans that shift's
+//      loadRegionsAround needs, then exactly the chunks it copies in, nearest the player first;
+//   2. with a heading, the same for the shift after (two shifts of lookahead: the worker has twice the time);
+//   3. the rest of the ring (corners, the sides), then every other region plan a shift could ask for.
+// The ready store keeps the lookahead (the trim box reaches two shifts out), and the worker's town builds are shared
+// with the main source (chunkgen.cpp's shared settlement cache), so a city is built once per session, not per source.
 void World::prefetch(int ptx, int pty, int dirx, int diry) {
   if (!endless || !streamer) return;
-  const int nc = WIN / ew::CHUNK, RING = 2;
+  const int nc = WIN / ew::CHUNK, RING = 2, SC = WIN_SHIFT / ew::CHUNK;   // chunks per shift
   const int32_t c0x = ox >> ew::CHUNK_SHIFT, c0y = oy >> ew::CHUNK_SHIFT;
   // the region plans loadRegionsAround asks for with the window at (wx, wy)
   struct RBox { int32_t x0, y0, x1, y1; };
@@ -400,26 +430,47 @@ void World::prefetch(int ptx, int pty, int dirx, int diry) {
   auto inBox = [](const RBox& b, int32_t x, int32_t y) { return x >= b.x0 && y >= b.y0 && x <= b.x1 && y <= b.y1; };
   const RBox now = regionsAt(ox, oy);
   std::vector<ChunkStreamer::Key> keys;
+  std::unordered_set<uint64_t> seenC, seenR;
+  auto pk = [](int32_t x, int32_t y) { return ((uint64_t)(uint32_t)x << 32) | (uint32_t)y; };
   auto addRegion = [&](int32_t rx, int32_t ry) {
-    for (const auto& k : keys) if (k.region && k.x == rx && k.y == ry) return;
+    if (!seenR.insert(pk(rx, ry)).second) return;
     ChunkStreamer::Key k; k.x = rx; k.y = ry; k.region = true;
     keys.push_back(k);
   };
-  // 1. the region plans the next shift the way the player is heading will need (a row or column of a few regions):
-  //    without them the shift would plan regions on the main thread
-  {
-    std::vector<std::pair<int, int>> dirs;
-    if (dirx || diry) { if (dirx) dirs.push_back({dirx, 0}); if (diry) dirs.push_back({0, diry}); if (dirx && diry) dirs.push_back({dirx, diry}); }
-    else dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+  auto addChunk = [&](int32_t gcx, int32_t gcy) {
+    if (gcx >= c0x && gcy >= c0y && gcx < c0x + nc && gcy < c0y + nc) return;   // in the window already
+    if (!seenC.insert(pk(gcx, gcy)).second) return;
+    ChunkStreamer::Key k; k.x = gcx; k.y = gcy;
+    keys.push_back(k);
+  };
+  // the chunks a window at chunk (wcx, wcy) holds that the current one does not, nearest the player first
+  auto shiftChunks = [&](int32_t wcx, int32_t wcy) {
+    std::vector<std::pair<int32_t, std::pair<int32_t, int32_t>>> v;
+    for (int cy = 0; cy < nc; cy++)
+      for (int cx = 0; cx < nc; cx++) {
+        const int32_t gx = wcx + cx, gy = wcy + cy;
+        if (gx >= c0x && gy >= c0y && gx < c0x + nc && gy < c0y + nc) continue;
+        const int32_t ddx = (gx - c0x) * ew::CHUNK + ew::CHUNK / 2 - ptx, ddy = (gy - c0y) * ew::CHUNK + ew::CHUNK / 2 - pty;
+        v.push_back({ddx * ddx + ddy * ddy, {gx, gy}});
+      }
+    std::stable_sort(v.begin(), v.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+    for (auto& e : v) addChunk(e.second.first, e.second.second);
+  };
+  std::vector<std::pair<int, int>> dirs;
+  if (dirx || diry) { if (dirx) dirs.push_back({dirx, 0}); if (diry) dirs.push_back({0, diry}); if (dirx && diry) dirs.push_back({dirx, diry}); }
+  else dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+  const int ahead = (dirx || diry) ? 2 : 1;
+  for (int k = 1; k <= ahead; k++)
     for (auto& d : dirs) {
-      const RBox nx = regionsAt(ox + d.first * WIN_SHIFT, oy + d.second * WIN_SHIFT);
+      const int32_t wx = ox + d.first * k * WIN_SHIFT, wy = oy + d.second * k * WIN_SHIFT;
+      const RBox nx = regionsAt(wx, wy);
       for (int32_t ry = nx.y0; ry <= nx.y1; ry++)
         for (int32_t rx = nx.x0; rx <= nx.x1; rx++)
           if (!inBox(now, rx, ry)) addRegion(rx, ry);
+      shiftChunks(c0x + d.first * k * SC, c0y + d.second * k * SC);
     }
-  }
-  // 2. the ring of chunks just outside the window (what the next shifts copy in), nearest the player first, the way
-  //    they are heading before the way they came
+  // 3. the rest of the ring just outside the window, nearest the player first, the way they are heading before the
+  //    way they came; then every other region plan a shift in any direction could ask for
   std::vector<std::pair<float, ChunkStreamer::Key>> ck;
   for (int cy = -RING; cy < nc + RING; cy++)
     for (int cx = -RING; cx < nc + RING; cx++) {
@@ -431,8 +482,7 @@ void World::prefetch(int ptx, int pty, int dirx, int diry) {
       ck.push_back({d - 0.75f * along, k});
     }
   std::stable_sort(ck.begin(), ck.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
-  for (auto& c : ck) keys.push_back(c.second);
-  // 3. every other region plan a shift in any direction could ask for
+  for (auto& c : ck) addChunk(c.second.x, c.second.y);
   {
     const RBox all = regionsAt(ox - WIN_SHIFT, oy - WIN_SHIFT), all2 = regionsAt(ox + WIN_SHIFT, oy + WIN_SHIFT);
     for (int32_t ry = all.y0; ry <= all2.y1; ry++)
@@ -440,7 +490,9 @@ void World::prefetch(int ptx, int pty, int dirx, int diry) {
         if (!inBox(now, rx, ry)) addRegion(rx, ry);
   }
   streamer->want(keys);
-  streamer->trim(c0x - RING - 2, c0y - RING - 2, c0x + nc + RING + 2, c0y + nc + RING + 2, 140);
+  // keep what the lookahead made (two shifts out the way the player heads, the ring elsewhere)
+  const int M = RING + 2 * SC;
+  streamer->trim(c0x - M, c0y - M, c0x + nc + M, c0y + nc + M, 200);
 }
 
 int World::endlessDanger(int tx, int ty) const { return src ? src->danger(ox + tx, oy + ty) : 1; }

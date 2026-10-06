@@ -12,6 +12,8 @@
 #include <tuple>
 #include <vector>
 #include "rpg/world/poi.h"
+#include "rpg/world/source.h"
+#include "rpg/world/town_rules.h"
 #include "tools/tests/tests.h"
 
 namespace {
@@ -135,6 +137,102 @@ Audit repetitionAudit(uint64_t seed) {
   }
   return au;
 }
+
+// ---- M3 (VISION_PLAN 5.7): the settlement signature audit. rpg_test --town-audit [--seeds A..B] [--r REGIONS]
+// Every settlement planned in a square of REGIONS x REGIONS regions round the start (default 16: 4096 tiles across) gets
+// its signature (culture, archetype, layout, wealth): the culture it is built by (its kingdom's dialect, else its
+// cell's family), its ew::Archetype (farming, fishing, port...), the layout the generator picks for it
+// (ew::townLayoutFor; for a village its street form too, for a town its squares: ew::townForm) and its wealth
+// (ew::townWealthFor), among settlements of one type (a village is no copy of a city). The rule: no more than 2 with one signature
+// within 1500 tiles of each other. Reports the worst group, the settlements breaking the rule (fails on any), how many
+// distinct signatures, and the spread of layouts.
+namespace {
+int cmdTownAudit(int argc, char** argv) {
+  uint64_t a = 1, b = 3;
+  int R = 16;
+  std::string list;
+  for (int i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "--seeds") && i + 1 < argc) parseSeedRange(argv[++i], a, b);
+    else if (!strcmp(argv[i], "--r") && i + 1 < argc) R = std::max(2, atoi(argv[++i]));
+    else if (!strcmp(argv[i], "--list") && i + 1 < argc) list = argv[++i];   // (screenshots: where that layout stands)
+  }
+  static const char* layoutN[] = {"organic", "grid", "radial", "linear", "compound", "terraced", "stilt"};
+  int bad = 0, totalS = 0, worstAll = 0;
+  std::map<int, int> layouts;
+  for (uint64_t seed = a; seed <= b; seed++) {
+    g_curSeed = seed;
+    ew::EndlessSource src(seed);
+    const ew::StartPlan& sp = src.start();
+    const int32_t r0x = ew::regionOf(sp.spawn.x) - R / 2, r0y = ew::regionOf(sp.spawn.y) - R / 2;
+    struct S { int32_t x, y; uint64_t culture; int arch, layout, wealth; std::string name; SiteType type; };
+    std::vector<S> ss;
+    for (int32_t ry = r0y; ry < r0y + R; ry++)
+      for (int32_t rx = r0x; rx < r0x + R; rx++) {
+        const ew::RegionPlan RP = src.region(rx, ry);   // (a copy: the culture look-ups below may plan other regions)
+        for (const ew::SitePlan& p : RP.sites) {
+          if (!isSettlement(p.type)) continue;
+          const uint64_t cid = p.culture ? p.culture : src.cultureAt(p.ex, p.ey);
+          const cult::Culture& K = src.culture(cid);
+          S s;
+          s.x = p.ex; s.y = p.ey; s.culture = cid; s.arch = (int)p.archetype;
+          // (a village's layout is its style and its street form: a crossroads hamlet, a road village, a green; a
+          // town's its style and its squares)
+          s.layout = (int)ew::townLayoutFor(&K, p.type, p.seed, p.ex, p.ey) * 3 +
+                     (p.type != SiteType::City ? ew::townForm(ew::townColour(&K, p.type, p.ex, p.ey)) : 0);
+          s.wealth = ew::townWealthFor(&K, p.type, (p.flags & ew::SPF_CAPITAL) != 0, p.seed, p.ex, p.ey);
+          s.name = p.name;
+          s.type = p.type;
+          ss.push_back(s);
+          layouts[s.layout / 3]++;
+          if (!list.empty() && list == layoutN[s.layout / 3])
+            printf("  %s %s (%s, form %d, wealth %d) heart %d,%d\n", siteTypeName(p.type), p.name.c_str(), cult::archetypeName(K.archetype), s.layout % 3,
+                   s.wealth, p.ex, p.ey);
+        }
+      }
+    int worst = 0, breaking = 0, worstCA = 0;
+    std::string worstDesc;
+    std::set<std::tuple<uint64_t, int, int, int, int>> sigs;
+    for (size_t i = 0; i < ss.size(); i++) {
+      sigs.insert({ss[i].culture, ss[i].arch, ss[i].layout, ss[i].wealth, (int)ss[i].type});
+      int same = 0;
+      for (size_t j = 0; j < ss.size(); j++) {
+        if (ss[j].culture != ss[i].culture || ss[j].arch != ss[i].arch || ss[j].layout != ss[i].layout || ss[j].wealth != ss[i].wealth || ss[j].type != ss[i].type) continue;
+        const int64_t dx = ss[j].x - ss[i].x, dy = ss[j].y - ss[i].y;
+        if (dx * dx + dy * dy <= 1500ll * 1500ll) same++;
+      }
+      if (same > worst) {
+        worst = same;
+        worstDesc = ss[i].name + " (" + layoutN[ss[i].layout / 3] + " " + std::to_string(ss[i].layout % 3) + ", archetype " + std::to_string(ss[i].arch) + ", wealth " + std::to_string(ss[i].wealth) + ")";
+      }
+      if (same > 2) {
+        breaking++;
+        if (breaking <= 4)
+          out("  over 2: %s (%s, %s %d, archetype %d, wealth %d) at %d,%d\n", ss[i].name.c_str(), siteTypeName(ss[i].type), layoutN[ss[i].layout / 3],
+              ss[i].layout % 3, ss[i].arch, ss[i].wealth, ss[i].x, ss[i].y);
+      }
+      // (how many of one culture and archetype stand within 1500 tiles at all: what layout and wealth have to spread)
+      int ca = 0;
+      for (size_t j = 0; j < ss.size(); j++) {
+        if (ss[j].culture != ss[i].culture || ss[j].arch != ss[i].arch) continue;
+        const int64_t dx = ss[j].x - ss[i].x, dy = ss[j].y - ss[i].y;
+        if (dx * dx + dy * dy <= 1500ll * 1500ll) ca++;
+      }
+      worstCA = std::max(worstCA, ca);
+    }
+    totalS += (int)ss.size();
+    worstAll = std::max(worstAll, worst);
+    out("town audit seed %llu: %zu settlements in %dx%d regions, %zu signatures, worst same-signature group within 1500 tiles %d (%s), %d settlements over 2; "
+        "most of one culture and archetype within 1500 tiles %d\n",
+        (unsigned long long)seed, ss.size(), R, R, sigs.size(), worst, worstDesc.c_str(), breaking, worstCA);
+    if (breaking) { out("FAIL: town audit seed %llu: %d settlements share their signature with 2+ others within 1500 tiles\n", (unsigned long long)seed, breaking); bad++; }
+  }
+  std::string ls;
+  for (auto& kv : layouts) ls += std::string(" ") + layoutN[kv.first] + " " + std::to_string(kv.second);
+  printf("town audit: %d settlements, worst group %d (target 2), layouts:%s; %d failure(s)\n", totalS, worstAll, ls.c_str(), bad);
+  return bad ? 1 : 0;
+}
+}  // namespace
+RPG_TEST_CMD("--town-audit", "M3 repetition audit: (culture, archetype, layout, wealth) settlement signatures, no more than 2 alike within 1500 tiles [--seeds A..B] [--r REGIONS]", cmdTownAudit);
 
 void printAudit(const Audit& a) {
   printf("  audit: poi kinds within 120 tiles of the start village %d, within 60: %d (%d sites: %s)\n", a.poiKinds, a.poiNear, a.poiCount, a.poiList.c_str());

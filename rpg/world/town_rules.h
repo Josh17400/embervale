@@ -2,7 +2,9 @@
 // and its galleries (tools/preview/town_gallery.cpp). Header-only: rpg_sim, rpg_art tools and rpg_test all read it.
 #pragma once
 #include <algorithm>
+#include "rpg/culture/culture.h"
 #include "rpg/sim/world.h"
+#include "rpg/world/coords.h"
 
 namespace ew {
 
@@ -35,5 +37,54 @@ inline TownScale townScale(SiteType t) {
 
 // Kingdom banners: how many emblems art::kingdomBanner paints (emblem % count)
 constexpr int KINGDOM_EMBLEMS = 8;
+
+// M3 (VISION_PLAN 5.6, 5.7, the repetition audit): a settlement's colour on a lattice of region-sized cells (256 tiles,
+// about the spacing of settlements), turned by its culture's seed. The colour picks the settlement's layout (the
+// culture's alternate in 1 of 4), its wealth and, for a village, its street form (a crossroads hamlet, a road village,
+// a village green), so that a people's settlements next to each other come out different (no more than 2 alike within
+// 1500 tiles: rpg_test --town-audit), where independent draws per seed let three or four of a kingdom's farming
+// villages match. Villages and towns: (i + 5j) mod 24, whose nearest cells of one colour lie five cells (1300 tiles)
+// apart, every colour its own (layout, form, wealth) but for six pairs twelve colours apart (a village's form is its
+// street form, a town's whether it has a second square); cities (few, far apart): (i + 5j) mod 8, three cells apart.
+inline int townColour(const cult::Culture* c, SiteType t, int32_t gx, int32_t gy) {
+  const int32_t i = floorDiv(gx, 256), j = floorDiv(gy, 256);
+  const uint32_t r = c ? hash32(c->seed ^ 0x7A11u) : 0u;
+  return t != SiteType::City ? (int)(((uint32_t)(i + 5 * j) + r) % 24u) : (int)(((uint32_t)(i + 5 * j) + r) & 7u);
+}
+inline bool townColourAlt(SiteType t, int col) {
+  if (t != SiteType::City) return col < 12 && (col & 1) == 0;   // 6 of 24
+  return col == 0 || col == 5;                                      // 2 of 8
+}
+inline int townColourWealth(SiteType t, int col) {
+  if (t != SiteType::City) return col & 3;
+  static const int w[8] = {1, 0, 1, 2, 0, 3, 2, 3};
+  return w[col & 7];
+}
+// a village's street form (0 a crossroads hamlet, 1 a road village, 2 a village green); a town's second square (0 none,
+// 1 a small one, 2 a larger one)
+inline int townForm(int col) { return (col / 4) % 3; }
+
+// M3 (VISION_PLAN 5.6, 5.7): the layout a settlement of this culture is built in: its TownStyle::layout, or its
+// altLayout in 1 of every 4 (townColour, spread over its land); a village of a grid-planning people strings along its
+// road instead (a dozen houses make no grid). Organic without a culture. The generator and the repetition audit both
+// ask here. (gx, gy): the settlement's heart (SitePlan::ex, ey).
+inline cult::Layout townLayoutFor(const cult::Culture* c, SiteType t, uint32_t seed, int32_t gx, int32_t gy) {
+  (void)seed;
+  if (!c) return cult::Layout::Organic;
+  cult::Layout l = townColourAlt(t, townColour(c, t, gx, gy)) ? c->town.altLayout : c->town.layout;
+  if ((int)l >= (int)cult::Layout::COUNT) l = cult::Layout::Organic;
+  if (t == SiteType::Village && l == cult::Layout::Grid) l = cult::Layout::Linear;
+  return l;
+}
+
+// M3 (VISION_PLAN 5.7): a settlement's wealth, 0 poor .. 3 rich: a village or a town anywhere from a poor hamlet to a
+// prosperous one, a city at least comfortable, a royal seat rich (townColour: its neighbours differ). It skews every
+// building's wealth (cult::buildingArch) a step either way.
+inline int townWealthFor(const cult::Culture* c, SiteType t, bool capital, uint32_t seed, int32_t gx, int32_t gy) {
+  (void)seed;
+  if (capital) return 3;
+  const int w = townColourWealth(t, townColour(c, t, gx, gy));
+  return t == SiteType::City ? std::max(1, w) : w;
+}
 
 }  // namespace ew

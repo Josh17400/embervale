@@ -85,6 +85,12 @@ bool Gen::walkable(int x, int y) const {
   const size_t i = I(x, y);
   if (M.bldgAt[i] >= 0 || M.wall[i] || groundSolid(M.at(x, y))) return false;
   if (M.prop[i] && propSolid((Prop)(M.prop[i] - 1))) return false;
+  // (M3 terraced) a terrace's face (the row under a higher neighbour) is a retaining wall, unless a street climbs it
+  if (terraced && !isStreet(x, y) && get(x, y) != K_YARD)
+    for (int d = 0; d < 4; d++) {
+      static const int fx[4] = {0, 1, -1, 0}, fy[4] = {1, 0, 0, -1};
+      if (in(x + fx[d], y + fy[d]) && lvl[I(x + fx[d], y + fy[d])] > lvl[i]) return false;
+    }
   // a fountain's basin also blocks the tiles beside it and its back rim the tile above (Map::rebuildSolid)
   const int fz = (int)Prop::Fountain + 1;
   if (M.propAt(x - 1, y) == fz || M.propAt(x + 1, y) == fz || M.propAt(x, y + 1) == fz) return false;
@@ -150,7 +156,8 @@ bool Gen::placeByWater(Building type, Role owner, int bw, int bh, bool sideWater
     for (int x = 2; x < W - 2; x++) {
       if (water[I(x, y)] || dist(x, y) > 1.15f || groundSolid(M.at(x, y))) continue;
       bool ok = false;
-      auto river = [&](int tx, int ty) { return in(tx, ty) && groundWater(M.at(tx, ty)) && M.biomeAt(tx, ty) != Biome::Ocean; };
+      // (M3: the land's own river, not a stilt town's marsh pool)
+      auto river = [&](int tx, int ty) { return in(tx, ty) && water[I(tx, ty)] && groundWater(M.at(tx, ty)) && M.biomeAt(tx, ty) != Biome::Ocean; };
       if (sideWater) ok = river(x + 1, y) || river(x - 1, y);
       else
         for (int oy = -3; oy <= 3 && !ok; oy++)
@@ -163,14 +170,14 @@ bool Gen::placeByWater(Building type, Role owner, int bw, int bh, bool sideWater
     if (++tries > 400) break;
     const int x = c % W, y = c / W;
     if (sideWater) {
-      const bool east = groundWater(M.at(x + 1, y)) && M.biomeAt(x + 1, y) != Biome::Ocean;
+      const bool east = water[I(x + 1, y)] && groundWater(M.at(x + 1, y)) && M.biomeAt(x + 1, y) != Biome::Ocean;
       // the footprint's river-side column is this tile's column; try it at each height along the bank
       const int rx0 = east ? x - bw + 1 : x;
       for (int k = 0; k < bh; k++) {
         const int ry0 = y - k;
         // the wheel needs the river along at least two rows of that side
         int along = 0;
-        for (int yy = ry0; yy < ry0 + bh; yy++) if (in(east ? x + 1 : x - 1, yy) && groundWater(M.at(east ? x + 1 : x - 1, yy))) along++;
+        for (int yy = ry0; yy < ry0 + bh; yy++) if (in(east ? x + 1 : x - 1, yy) && water[I(east ? x + 1 : x - 1, yy)] && groundWater(M.at(east ? x + 1 : x - 1, yy))) along++;
         if (along < 2) continue;
         const int before = (int)M.bldgs.size();
         if (tryPlace(type, owner, bw, bh, rx0 + bw / 2, ry0 + bh, true)) {
@@ -837,9 +844,12 @@ void Gen::markets() {
     if (wx < 0) { wx = CX; wy = CY; }
     // the green first (two stalls, else one), then open ground beside the well, then anywhere near the heart
     int got = 0;
-    for (int pass = 0; pass < 3 && !got; pass++) {
+    // (M3 fixer) and last, a wider search round the well: a radial village's rings of lanes can leave no room within
+    // 7 tiles of it (seed 37's star-folk village had no stall at all)
+    for (int pass = 0; pass < 4 && !got; pass++) {
       const int mode = pass == 0 ? 0 : 2;
-      nearX = wx; nearY = wy; nearR = pass == 2 ? 0 : 7;
+      const int span = pass == 3 ? 14 : 7, reach = pass == 3 ? 18 : 10;
+      nearX = wx; nearY = wy; nearR = pass >= 2 ? 0 : 7;
       for (int n = nTrade; n >= 1 && !got; n--) {
         int by = -1, bx = 0, bs = -(1 << 30), bf = art::StallS;
         // (stall facings) close to the well, across the green from it, the counters turned toward it from whichever
@@ -847,8 +857,8 @@ void Gen::markets() {
         // never with the well crowding the keeper's back
         for (int f = 0; f < art::kStallFacings; f++) {
           const bool ns = f >= art::StallE;
-          for (int line = (ns ? wx : wy) - 7; line <= (ns ? wx : wy) + 7; line++) {
-            const RowFit fr = fitRow(line, n, mode, (ns ? wy : wx) - 10, (ns ? wy : wx) + 10, ns ? wy + 1 : wx, wx, wy, lv0, -1, f);
+          for (int line = (ns ? wx : wy) - span; line <= (ns ? wx : wy) + span; line++) {
+            const RowFit fr = fitRow(line, n, mode, (ns ? wy : wx) - reach, (ns ? wy : wx) + reach, ns ? wy + 1 : wx, wx, wy, lv0, -1, f);
             if (!fr.ok) continue;
             const Frame F = frameOf(f);
             const int mid = fr.x + pattern(n, f).back() / 2;
@@ -1101,6 +1111,26 @@ void Gen::markets() {
           const int r = (int)(Q.r * 1.25f) + 2;
           lines(IRect{Q.x - r, Q.y - r, 2 * r + 1, 2 * r + 1}, Q.x, Q.y + 3, lvl[I(Q.x, Q.y)], Q.x, Q.y, 1);
         }
+      // (M3) a market the square left short of its size (a cramped square: the houses of a strung-out river town
+      // crowd it) spills over: a line of tables on the town's second square, then single tables on whatever open
+      // paving the square still has. Only when short: a market of the right size keeps its approved layout.
+      const int minVendors = town ? 3 : (capital ? 9 : 6);
+      if ((int)stalls.size() + made < minVendors) {
+        for (size_t k = 1; k < squares.size() && (int)stalls.size() + made < minVendors; k++) {
+          const Square& Q = squares[k];
+          if (!in(Q.x, Q.y) || std::abs(Q.x - S.x) + std::abs(Q.y - S.y) > 60) continue;
+          const int r = (int)(Q.r * 1.25f) + 2;
+          need = std::max(need, minVendors - (int)stalls.size() - made);
+          lines(IRect{Q.x - r, Q.y - r, 2 * r + 1, 2 * r + 1}, Q.x, Q.y + 3, lvl[I(Q.x, Q.y)], Q.x, Q.y, 1);
+        }
+        for (int y = all.y - 4; y <= all.y + all.h + 4 && (int)stalls.size() + made < minVendors; y++)
+          for (int x = all.x - 4; x <= all.x + all.w + 4 && (int)stalls.size() + made < minVendors; x++) {
+            if (!unitOk(x, y, lv0, CX, CY)) continue;
+            const bool cloth = (made % clothEvery) == clothEvery - 1;
+            if (cloth ? usedC[ew::clothGoodsAt(O.gx + x, O.gy + y)] : usedT[ew::tableGoodsAt(O.gx + x, O.gy + y)]) continue;
+            putUnit(x, y, cloth);
+          }
+      }
     }
   }
 
@@ -1412,8 +1442,10 @@ void Gen::tradeYards() {
     for (size_t i = 0; i < M.bldgs.size(); i++) if (M.bldgs[i].type == Building::Tanner) { tb = (int)i; break; }
     if (tb >= 0) {
       const Bldg b = M.bldgs[(size_t)tb];
-      const int L = lvl[I(b.r.x, b.r.y + b.r.h - 1)];
+      const int L0 = lvl[I(b.r.x, b.r.y + b.r.h - 1)];
       auto penOk = [&](int x0, int y0, int pw, int ph) {
+        // (M3 terraced: on whichever terrace by the tannery has the room, all of it on one level)
+        const int L = terraced && in(x0, y0) ? (int)lvl[I(x0, y0)] : L0;
         for (int y = y0 - 1; y <= y0 + ph; y++)
           for (int x = x0 - 1; x <= x0 + pw; x++) {
             if (!in(x, y) || x < 1 || y < 1 || x >= W - 1 || y >= H - 1) return false;
@@ -1421,7 +1453,7 @@ void Gen::tradeYards() {
             const bool inner = x >= x0 && x < x0 + pw && y >= y0 && y < y0 + ph;
             if (M.bldgAt[i] >= 0 || M.wall[i] || front[i]) return false;   // the ring: nobody's house or door
             if (!inner) continue;
-            if (mask[i] != K_NONE || M.prop[i] || cover[i] || water[i] || noBuild[i] || lvl[i] != L || inCompound(x, y, 1)) return false;
+            if (mask[i] != K_NONE || M.prop[i] || cover[i] || water[i] || noBuild[i] || lvl[i] != L || inCompound(x, y, 1) || face(x, y)) return false;
             if (groundSolid(M.at(x, y)) || M.at(x, y) == Ground::Bridge || (!reserved.empty() && reserved[i])) return false;
           }
         return true;
@@ -1510,7 +1542,8 @@ void Gen::tradeYards() {
           if (!yardOk(x + dx, y, true) || lvl[I(x + dx, y)] != lvl[I(x, y)]) ok = false;
           for (int dy = 1; dy <= 2 && ok; dy++) if (M.bldgAt[I(x + dx, y - dy)] >= 0 || M.wall[I(x + dx, y - dy)] || front[I(x + dx, y - dy)]) ok = false;
         }
-        if (!ok || !walkable(x, y + 1) || M.prop[I(x, y + 1)] || get(x, y + 1) == K_FIELD) continue;
+        // (M3) the mouth opens onto a yard of its own, not straight onto a street (its track runs out along the path)
+        if (!ok || !walkable(x, y + 1) || M.prop[I(x, y + 1)] || get(x, y + 1) == K_FIELD || isStreet(x, y + 1)) continue;
         // (integer scores: the same order on every platform)
         const int rise = (int)lvl[I(x, y - 2)] - (int)lvl[I(x, y + 1)];
         const int d2 = (x - smx) * (x - smx) + (y - smy) * (y - smy);

@@ -1,0 +1,25 @@
+# PEOPLE lane, M3: the owner's weakest wild props and terrain (carry-overs 5 and 6): the Colossus, the caravan wreck,
+# the toll bridge (abutments and piers where the deck meets the banks) and north-facing snow cliffs.
+#   embervale.exe --script tools/scripts/m3_people_wild.txt     (m3wild_*.png in the working directory)
+seed 1
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.1 gotopoi colossus
++4.5 shot m3wild_0_colossus.png
++0.1 gotopoi caravan
++4.5 shot m3wild_1_caravan.png
++0.1 gotopoi toll
++4.5 shot m3wild_2_toll.png
++0.1 gotopoi toll 1
++4.5 shot m3wild_3_toll_b.png
++0.1 gotopoi snowpeak
++4.5 shot m3wild_4_snowpeak.png
++0.1 at 239 463
++4.5 shot m3wild_5_snow_steps.png
++0.1 at 400 200
++4.5 shot m3wild_6_snow_diagonal.png
++0.1 placewild colossus 4 -2
++0.1 placewild caravan -6 -2
++1.2 shot m3wild_7_stamped.png
++0.3 quit

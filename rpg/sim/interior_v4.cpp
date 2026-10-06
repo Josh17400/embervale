@@ -1182,7 +1182,7 @@ bool tallProp(Prop p) {
     default: return false;
   }
 }
-bool usableProp(Prop p) { return p == Prop::Bed || p == Prop::BunkBed || p == Prop::Chest || p == Prop::Altar; }
+bool usableProp(Prop p) { return p == Prop::Bed || p == Prop::BunkBed || p == Prop::Chest || p == Prop::Altar || p == Prop::Hammock; }
 
 struct Weighted { int what; int w; };
 int pickW(Rng& r, const std::vector<Weighted>& v) {
@@ -1207,6 +1207,11 @@ struct Fit {
   int groups = 0, floorTiles = 0, sx = 0, sy = 0;
   std::vector<int> dist, q, taken;
   Biome biome = Biome::Plains;
+  // M3 (VISION_PLAN 5.6): the culture's furnishing (Bldg::arch): what people sit and sleep on, the accent its rugs take,
+  // and whether its rooms are strewn with rugs (felt yurts, living-wood halls)
+  art::Furniture furn = art::Furniture::Chairs;
+  uint32_t accent = 0;
+  float rugBias = 0;
   // fix round 3: how this house seats its tables (hashed from the building, no rng draw): 0 chairs on the far side and
   // stools in front, 1 stools all round (plain homes, taverns), 2 chairs on the far side only, the ends left open
   int seatStyle = 0;
@@ -1343,7 +1348,15 @@ bool northPiece(Fit& F, int ri, Prop p, int where, int* outX = nullptr, int* out
 }
 // a bed, head to the wall, two tiles long: the head tile against the north wall holds Filler, the bed (the prop the
 // game and the tests use: RoomInfo::bedX/bedY) stands on the tile in front of it. where 1: corners first
-bool bedPiece(Fit& F, int ri, int where, int* outX, int* outY) {
+// M3: where a people sleeps in hammocks, a home's bed is a hammock slung against the north wall (a poor hut's a sleeping
+// mat rolled out by it); a rented room, a palace or a keep keeps its bed (the inn's guests sleep in theirs)
+Prop sleepPropFor(const Fit& F, RoomKind kind) {
+  if (F.furn != art::Furniture::Hammocks || kind == RoomKind::GuestRoom || kind == RoomKind::Barracks) return Prop::Bed;
+  const Building t = F.P.type;
+  if (t == Building::Palace || t == Building::Keep || t == Building::Inn) return Prop::Bed;
+  return (t == Building::Hut || F.P.wealth == 0) ? Prop::SleepingMat : Prop::Hammock;
+}
+bool bedPiece(Fit& F, int ri, int where, int* outX, int* outY, Prop piece = Prop::Bed) {
   std::vector<std::pair<int, int>> c;
   F.tiles(ri, [&](int x, int y) {
     if (!F.wallN(x, y) || !F.freeT(x, y) || !F.freeT(x, y + 1) || F.roomOf(x, y + 1) != ri) return;
@@ -1352,7 +1365,7 @@ bool bedPiece(Fit& F, int ri, int where, int* outX, int* outY) {
   F.shuffle(c);
   if (where == 1) std::stable_sort(c.begin(), c.end(), [&](const std::pair<int, int>& a, const std::pair<int, int>& b) { return F.wallSide(a.first, a.second) > F.wallSide(b.first, b.second); });
   for (auto& t : c)
-    if (F.group([&](int gid) { F.put(t.first, t.second, Prop::Filler, gid); F.put(t.first, t.second + 1, Prop::Bed, gid); return true; })) {
+    if (F.group([&](int gid) { F.put(t.first, t.second, Prop::Filler, gid); F.put(t.first, t.second + 1, piece, gid); return true; })) {
       *outX = t.first; *outY = t.second + 1;
       return true;
     }
@@ -1360,6 +1373,18 @@ bool bedPiece(Fit& F, int ri, int where, int* outX, int* outY) {
 }
 // the row of a bed's head (the wall it stands against is right above it)
 int bedHead(const Fit& F, int bx, int by) { return F.m.propAt(bx, by - 1) == (int)Prop::Filler + 1 ? by - 1 : by; }
+// (M3 fixer round 2) the last resort for a home with no room left for its bed: a sleeping mat rolled out by the back
+// wall, even on a walkway (it is stepped over), so no home is without somewhere to sleep
+bool matAnywhere(Fit& F, int ri, int* outX, int* outY) {
+  std::vector<std::pair<int, int>> c;
+  F.tiles(ri, [&](int x, int y) { if (F.wallN(x, y) && F.floorT(x, y) && !F.m.propAt(x, y)) c.push_back({x, y}); });
+  for (auto& t : c)
+    if (F.group([&](int gid) { F.put(t.first, t.second, Prop::SleepingMat, gid); return true; })) {
+      *outX = t.first; *outY = t.second;
+      return true;
+    }
+  return false;
+}
 
 // a 3-wide piece (Filler, p, Filler) against the north wall centred on cx (or anywhere when cx < 0)
 bool northWide(Fit& F, int ri, Prop p, int cx, bool outerOnly, int* outX = nullptr) {
@@ -1414,6 +1439,12 @@ bool wallPiece(Fit& F, int ri, Prop p, bool northOk = false, bool gap = true) {
 }
 // a table (1..len tiles) with seats around it, standing free in the room with the gap rule
 bool tableSet(Fit& F, int ri, int x, int y, int len, Prop single, int seats, bool benches, int gid) {
+  // M3: a people who sit on the floor eat at a low table on cushions (one table, cushions all round); a benches people
+  // seat their long tables with benches; a stools people use stools. Work tables stay work tables.
+  const bool dining = single != Prop::TableWork;
+  const bool cushions = F.furn == art::Furniture::Cushions && dining;
+  if (cushions) { len = 1; single = Prop::LowTable; benches = false; }
+  else if (F.furn == art::Furniture::Benches && dining && len >= 2) benches = true;
   int x1 = x + len - 1;
   if (!F.rectFree(x - 1, y - 1, x1 + 1, y + 1, ri) || !F.gapOk(x - 1, y - 1, x1 + 1, y + 1, gid)) return false;
   if (len == 1) F.put(x, y, single, gid);
@@ -1450,6 +1481,8 @@ bool tableSet(Fit& F, int ri, int x, int y, int len, Prop single, int seats, boo
     bool north = s.second == y - 1, south = s.second == y + 1;
     if (style == 2 && south && len >= 2) continue;          // chairs on the far side only: the near side left open
     Prop seat = style == 1 ? Prop::Stool : (north ? Prop::Chair : Prop::Stool);
+    if (cushions) seat = Prop::Cushion;
+    else if (F.furn == art::Furniture::Stools || F.furn == art::Furniture::Hammocks || F.furn == art::Furniture::Cushions) seat = Prop::Stool;   // (a work table: a stool)
     F.put(s.first, s.second, seat, gid);
     placed++;
   }
@@ -1482,6 +1515,7 @@ bool rugOk(int p) {
   switch ((Prop)(p - 1)) {
     case Prop::TableSmall: case Prop::TableMeal: case Prop::TableWork: case Prop::TableL: case Prop::TableM: case Prop::TableR:
     case Prop::Chair: case Prop::Stool: case Prop::Bench:
+    case Prop::LowTable: case Prop::Cushion:   // (M3)
       return true;
     default: return false;
   }
@@ -1531,6 +1565,17 @@ void rugCleanup(Fit& F) {
 }
 Deco rugFor(Fit& F) {
   static const Deco rugs[4] = {Deco::RugRed, Deco::RugBlue, Deco::RugGreen, Deco::RugGold};
+  // M3: most rugs in the culture's accent colour (the nearest of the four dyes)
+  if (F.accent && F.r.f() < 0.75f) {
+    static const int ref[4][3] = {{170, 40, 40}, {40, 70, 160}, {40, 120, 60}, {200, 160, 50}};
+    const int ar = (int)(F.accent & 255u), ag = (int)((F.accent >> 8) & 255u), ab = (int)((F.accent >> 16) & 255u);
+    int best = 0, bd = 1 << 30;
+    for (int k = 0; k < 4; k++) {
+      const int d = (ar - ref[k][0]) * (ar - ref[k][0]) + (ag - ref[k][1]) * (ag - ref[k][1]) + (ab - ref[k][2]) * (ab - ref[k][2]);
+      if (d < bd) { bd = d; best = k; }
+    }
+    return rugs[best];
+  }
   if (F.biome == Biome::Snow || F.biome == Biome::Taiga) return F.r.f() < 0.6f ? Deco::RugGold : Deco::RugRed;   // furs and wool
   if (F.biome == Biome::Desert) return F.r.f() < 0.5f ? Deco::RugRed : Deco::RugBlue;
   return rugs[F.r.irange(4)];
@@ -1566,7 +1611,13 @@ void furnishBedroom(Fit& F, int ri, RoomKind kind, bool child, Ctx& cx) {
   int bx = -1, by = -1;
   bool barracks = kind == RoomKind::Barracks;
   if (barracks) { if (!northPiece(F, ri, Prop::BunkBed, 1, &bx, &by)) northPiece(F, ri, Prop::BunkBed, 0, &bx, &by); }
-  else if (!bedPiece(F, ri, 1, &bx, &by) && !northPiece(F, ri, Prop::Bed, 1, &bx, &by)) northPiece(F, ri, Prop::Bed, 0, &bx, &by);
+  else if (sleepPropFor(F, kind) != Prop::Bed) {
+    // (M3 fixer round 2) two tiles long like a bed (its head on the wall tile's Filler), so it reads as the room's bed;
+    // a single-tile piece by the wall only where a room has no space for it
+    const Prop sp = sleepPropFor(F, kind);
+    if (!bedPiece(F, ri, 1, &bx, &by, sp) && !northPiece(F, ri, sp, 1, &bx, &by)) northPiece(F, ri, sp, 0, &bx, &by);
+  } else if (!bedPiece(F, ri, 1, &bx, &by) && !northPiece(F, ri, Prop::Bed, 1, &bx, &by)) northPiece(F, ri, Prop::Bed, 0, &bx, &by);
+  if (bx < 0 && !barracks) matAnywhere(F, ri, &bx, &by);
   RD.bedX = bx; RD.bedY = by;   // recorded on the map's RoomInfo by the caller
   const IRect& R = RD.r;
   if (barracks) {
@@ -1626,7 +1677,7 @@ void furnishBedroom(Fit& F, int ri, RoomKind kind, bool child, Ctx& cx) {
   }
   if (F.biome == Biome::Desert && F.r.f() < 0.6f) wallPiece(F, ri, Prop::PlantPot);
   bigRoomFill(F, ri);
-  if (F.r.f() < (kind == RoomKind::GuestRoom ? 0.45f : 0.65f) && R.h >= 3) {
+  if (F.r.f() < (kind == RoomKind::GuestRoom ? 0.45f : 0.65f) + F.rugBias && R.h >= 3) {
     if (R.w * R.h >= 30) rugFit(F, ri, 3, 2, R.cx(), R.cy(), rugFor(F));   // the middle of a big room
     else if (bx >= 0) {   // beside the bed, where you step out of it
       int s2 = F.wallT(bx + 1, by) ? -1 : 1;
@@ -1675,6 +1726,21 @@ void furnishHallish(Fit& F, int ri, RoomKind kind, Ctx& cx) {
     wallPiece(F, ri, Prop::Chest);
   }
   bool cottage = kind == RoomKind::Cottage;
+  auto placeBed = [&]() {   // one-room home: the bed in a back corner, a chest at its foot
+    int bx = -1, by = -1;
+    const Prop sp = sleepPropFor(F, kind);
+    if (bedPiece(F, ri, 1, &bx, &by, sp) || northPiece(F, ri, sp, 1, &bx, &by) || matAnywhere(F, ri, &bx, &by)) {
+      RoomDef& RD = const_cast<RoomDef&>(F.g.rooms[(size_t)ri]);
+      RD.bedX = bx; RD.bedY = by;
+      const int hy = bedHead(F, bx, by);
+      if (F.r.f() < 0.6f) F.group([&](int gid) { if (!F.freeT(bx, by + 1)) return false; F.put(bx, by + 1, Prop::Chest, gid); return true; });
+      if (F.r.f() < 0.25f) F.group([&](int gid) { int s = F.wallT(bx - 1, hy) ? 1 : -1; if (!F.freeT(bx + s, hy) || !F.wallN(bx + s, hy)) return false; F.put(bx + s, hy, Prop::Cradle, gid); return true; });
+    }
+  };
+  // (M3 fixer round 2) a hut's one small room takes its bed first: its back wall could be all hearth, leaving the
+  // family nowhere to sleep
+  const bool bedFirst = cottage && b.type == Building::Hut;
+  if (bedFirst) placeBed();
   // the hearth on the outer back wall (a home without a separate kitchen)
   int hx = -1;
   if (F.P.b->hearth && !cx.kitchenFire && F.m.floor == 0) {
@@ -1682,23 +1748,14 @@ void furnishHallish(Fit& F, int ri, RoomKind kind, Ctx& cx) {
     if (desert) northPiece(F, ri, Prop::Oven, 1, &hx, nullptr, true);
     if (hx < 0 && !northWide(F, ri, Prop::Hearth, -1, true, &hx) && F.r.f() < 0.5f) northPiece(F, ri, Prop::Oven, 1, &hx, nullptr, true);
   }
-  if (cottage) {   // one-room home: the bed in a back corner, a chest at its foot
-    int bx = -1, by = -1;
-    if (bedPiece(F, ri, 1, &bx, &by) || northPiece(F, ri, Prop::Bed, 1, &bx, &by)) {
-      RoomDef& RD = const_cast<RoomDef&>(F.g.rooms[(size_t)ri]);
-      RD.bedX = bx; RD.bedY = by;
-      const int hy = bedHead(F, bx, by);
-      if (F.r.f() < 0.6f) F.group([&](int gid) { if (!F.freeT(bx, by + 1)) return false; F.put(bx, by + 1, Prop::Chest, gid); return true; });
-      if (F.r.f() < 0.25f) F.group([&](int gid) { int s = F.wallT(bx - 1, hy) ? 1 : -1; if (!F.freeT(bx + s, hy) || !F.wallN(bx + s, hy)) return false; F.put(bx + s, hy, Prop::Cradle, gid); return true; });
-    }
-  }
+  if (cottage && !bedFirst) placeBed();
   // the table: in the middle of the hall, chairs around it, a rug under it in better homes
   bool big = R.w >= 6 && F.r.f() < 0.6f;
   Prop top = F.r.f() < 0.55f ? Prop::TableMeal : (b.owner == Role::Mage || (F.P.wealth >= 2 && F.r.f() < 0.4f) ? Prop::TableWork : Prop::TableSmall);
   int tx = -1, ty = -1;
   if (tableIn(F, ri, big ? 2 : 1, top, 2 + F.r.irange(3), false, 40, &tx, &ty) || tableIn(F, ri, 1, top, 2, false, 40, &tx, &ty)) {
     if (cx.ownerX < 0) { cx.ownerX = tx; cx.ownerY = ty + 1; }
-    if ((F.P.wealth >= 1 && F.r.f() < 0.65f) || F.biome == Biome::Desert) rugRect(F, ri, tx - 1, ty - 1, tx + (big ? 2 : 1), ty + 1, rugFor(F));
+    if ((F.P.wealth >= 1 && F.r.f() < 0.65f + F.rugBias) || F.biome == Biome::Desert || F.furn == art::Furniture::Cushions) rugRect(F, ri, tx - 1, ty - 1, tx + (big ? 2 : 1), ty + 1, rugFor(F));
   }
   if (cx.ownerX < 0 && hx >= 0) { cx.ownerX = hx; cx.ownerY = R.y + 1; }
   // storage on the walls
@@ -2488,6 +2545,12 @@ art::RoomStyle wallStyleOf(const Bldg& b, Rng& r) {
     case art::WallMat::Log: return art::RoomStyle::Log;
     case art::WallMat::Stone: case art::WallMat::Brick: return art::RoomStyle::Stone;
     case art::WallMat::Plaster: return art::RoomStyle::Plaster;
+    // M3 culture walls: dressed and rough stone are stone halls; reed and wattle are rustic log rooms on rushes;
+    // planks and living wood are timber; a yurt's felt is a light plastered look (its rugs do the rest)
+    case art::WallMat::Ashlar: case art::WallMat::Rubble: return art::RoomStyle::Stone;
+    case art::WallMat::Wattle: return art::RoomStyle::Log;
+    case art::WallMat::Plank: case art::WallMat::Living: return art::RoomStyle::Timber;
+    case art::WallMat::Felt: return art::RoomStyle::Plaster;
     default: break;
   }
   if (b.type == Building::StoneHouse) return art::RoomStyle::Stone;
@@ -2511,7 +2574,8 @@ void genInteriorRooms(Map& m, const Bldg& b, uint32_t seed, int floor) {
   // floors: stone in stone buildings, the desert's tiles, flagged kitchens; planks elsewhere
   bool stone = b.type == Building::Keep || b.type == Building::Temple || b.type == Building::Palace || b.type == Building::Barracks || b.type == Building::StoneHouse || b.type == Building::Tower ||
                b.type == Building::Smithy || b.type == Building::Smelter || b.type == Building::Windmill || b.type == Building::Watermill ||
-               b.biome == Biome::Desert;
+               b.biome == Biome::Desert ||
+               (b.styled && (b.arch.wall == art::WallMat::Ashlar || b.arch.wall == art::WallMat::Adobe));   // (M3: flags, fired tiles)
   Ground base = stone && !(floor > 0 && (b.type == Building::StoneHouse)) ? Ground::StoneFloor : Ground::WoodFloor;
   for (int y = 0; y < H; y++)
     for (int x = 0; x < W; x++) {
@@ -2549,6 +2613,13 @@ void genInteriorRooms(Map& m, const Bldg& b, uint32_t seed, int floor) {
   Geo& gg = PP.geo[(size_t)floor];
   Fit F(m, r, PP, gg);
   F.biome = b.biome;
+  {
+    const art::ArchStyle A = bldgArch(b);
+    F.furn = A.furniture;
+    F.accent = b.styled ? A.accentTint : 0;
+    m.kit = b.styled ? A.culture : 0;   // (M3 fixer) the people's own hearth, shelves, beds and chests (the view's)
+    F.rugBias = b.styled && (A.wall == art::WallMat::Felt || A.wall == art::WallMat::Living) ? 0.3f : 0.0f;
+  }
   if (floor == 0) { F.sx = m.exitX; F.sy = m.exitY; } else { F.sx = m.down.ax; F.sy = m.down.ay; }
   for (int t : gg.doorTiles) F.lane[(size_t)t] = 1;
   for (int t : gg.approach) F.lane[(size_t)t] = 1;

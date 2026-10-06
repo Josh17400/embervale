@@ -1,0 +1,77 @@
+# M3 architecture lane: a town of every archetype by day and by night (gotoculture), for the culture review.
+# Run from a scratch directory (screenshots are written to the current directory):
+#   embervale --script tools/scripts/m3_arch_tour.txt
+seed 7
+0 god
++0.5 gotoculture fjordfolk town
++0.2 hour 11
++2.5 culture
++0.1 shot m3_fjordfolk_day.png
++0.2 hour 22
++1.5 shot m3_fjordfolk_night.png
++0.5 gotoculture highland town
++0.2 hour 11
++2.5 culture
++0.1 shot m3_highland_day.png
++0.2 hour 22
++1.5 shot m3_highland_night.png
++0.5 gotoculture heartland town
++0.2 hour 11
++2.5 culture
++0.1 shot m3_heartland_day.png
++0.2 hour 22
++1.5 shot m3_heartland_night.png
++0.5 gotoculture imperial town
++0.2 hour 11
++2.5 culture
++0.1 shot m3_imperial_day.png
++0.2 hour 22
++1.5 shot m3_imperial_night.png
++0.5 gotoculture dune town
++0.2 hour 11
++2.5 culture
++0.1 shot m3_dune_day.png
++0.2 hour 22
++1.5 shot m3_dune_night.png
++0.5 gotoculture steppe town
++0.2 hour 11
++2.5 culture
++0.1 shot m3_steppe_day.png
++0.2 hour 22
++1.5 shot m3_steppe_night.png
++0.5 gotoculture marsh town
++0.2 hour 11
++2.5 culture
++0.1 shot m3_marsh_day.png
++0.2 hour 22
++1.5 shot m3_marsh_night.png
++0.5 gotoculture jade town
++0.2 hour 11
++2.5 culture
++0.1 shot m3_jade_day.png
++0.2 hour 22
++1.5 shot m3_jade_night.png
++0.5 gotoculture river town
++0.2 hour 11
++2.5 culture
++0.1 shot m3_river_day.png
++0.2 hour 22
++1.5 shot m3_river_night.png
++0.5 gotoculture suntemple town
++0.2 hour 11
++2.5 culture
++0.1 shot m3_suntemple_day.png
++0.2 hour 22
++1.5 shot m3_suntemple_night.png
++0.5 gotoculture sylvan town
++0.2 hour 11
++2.5 culture
++0.1 shot m3_sylvan_day.png
++0.2 hour 22
++1.5 shot m3_sylvan_night.png
++0.5 gotoculture starspire town
++0.2 hour 11
++2.5 culture
++0.1 shot m3_starspire_day.png
++0.2 hour 22
++1.5 shot m3_starspire_night.png

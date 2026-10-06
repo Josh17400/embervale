@@ -12,8 +12,14 @@
 #include <chrono>
 #include <cstring>
 #include <map>
+#include <tuple>
+#include "rpg/culture/culture.h"
+#include "rpg/sim/game.h"
 #include "rpg/sim/world.h"
+#include "rpg/world/town_rules.h"
 #include "tools/preview/preview_util.h"
+
+namespace art { double buildingJobWorstStepMs(const BuildingJob& j); }   // (art_building.cpp: for the M3 check)
 
 namespace {
 
@@ -273,6 +279,104 @@ int spriteRise(const Canvas& c, int hT) {
   return 0;
 }
 
+
+uint64_t hashCanvas(const Canvas& c) {
+  uint64_t h = 1469598103934665603ull;
+  for (uint32_t p : c.px) { h ^= p; h *= 1099511628211ull; }
+  return h ^ ((uint64_t)c.w << 32) ^ (uint64_t)c.h;
+}
+uint64_t hashMask(const std::vector<uint8_t>& m, int w) {
+  uint64_t h = 1469598103934665603ull;
+  for (size_t i = 0; i < m.size(); i++) if (m[i]) { h ^= (uint64_t)i; h *= 1099511628211ull; }
+  return h ^ (uint64_t)w;
+}
+
+// M3 checks of the culture painter:
+//  1. the incremental paint (art::BuildingJob in the smallest steps) gives exactly buildingSprite's pixels and facts, for
+//     a palace and an inn in every archetype's style; and no single step of a palace's paint runs longer than 4 ms
+//  2. facade variety (owner carry-over 4): among the same-size houses of the nearest city, at least 70 % distinct
+//     painted sprites; the window/door layout (the lit-pane mask) distinct ratio is reported too
+int m3Checks(int s0, int s1) {
+  int bad = 0;
+  double worstStep = 0, worstWhole = 0;
+  for (int a = 0; a < (int)cult::Archetype::COUNT; a++) {
+    const cult::Culture c = cult::Atlas::make((cult::Archetype)a, 4000u + (uint32_t)a * 131u, 2);
+    for (int k = 0; k < 2; k++) {
+      const art::Building t = k == 0 ? art::Building::Palace : art::Building::Inn;
+      const int wT = k == 0 ? 15 : 6, hT = k == 0 ? 7 : 3;
+      const uint32_t seed = 77u + (uint32_t)a * 13u + (uint32_t)k;
+      const art::ArchStyle st = cult::buildingArch(c, 2, k == 0 ? 3 : 1, k == 0 ? 3 : 1, seed);
+      art::BuildingFacts f;
+      f.storeys = 2;
+      f.banner = c.heraldry.field; f.banner2 = c.heraldry.charge; f.emblem = c.heraldry.emblem;
+      art::BuildingInfo i1, i2;
+      const auto t0 = std::chrono::steady_clock::now();
+      Canvas whole = art::buildingSprite(t, wT, hT, st, seed, &i1, f);
+      worstWhole = std::max(worstWhole, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
+      auto job = art::beginBuilding(t, wT, hT, st, seed, f);
+      int steps = 0;
+      while (!art::stepBuilding(*job, 0.0)) steps++;
+      if (k == 0) worstStep = std::max(worstStep, art::buildingJobWorstStepMs(*job));
+      Canvas inc = art::finishBuilding(*job, &i2);
+      const bool same = inc.w == whole.w && inc.h == whole.h && inc.px == whole.px && i1.glass == i2.glass && i1.height == i2.height &&
+                        i1.storeys == i2.storeys && i1.chimneys == i2.chimneys && i1.smokeN == i2.smokeN;
+      if (!same) { std::printf("FAIL: BuildingJob %s in %s: pixels differ from buildingSprite\n", k ? "inn" : "palace", cult::archetypeName((cult::Archetype)a)); bad++; }
+      else if (a == 0) std::printf("  BuildingJob: %s painted in %d steps, identical to buildingSprite\n", k ? "inn" : "palace", steps + 1);
+    }
+  }
+  std::printf("  BuildingJob: 12 palaces and 12 inns identical; worst single palace step %.2f ms (whole paint worst %.1f ms)\n", worstStep, worstWhole);
+  if (worstStep > 4.0) { std::printf("FAIL: a palace paint step took %.2f ms (> 4 ms)\n", worstStep); bad++; }
+  // facade variety
+  int groupsAll = 0, distinctAll = 0, layoutAll = 0, housesAll = 0;
+  for (int seed = s0; seed <= s1; seed++) {
+    Game g((uint64_t)seed);
+    g.newEndlessGame((uint64_t)seed);
+    const Site& home = g.world.sites[(size_t)g.world.startSite];
+    const int city = g.world.findSiteNear(g.world.ox + home.ex, g.world.oy + home.ey, SiteType::City, 8);
+    if (city < 0) continue;
+    g.teleportGlobal(g.world.ox + g.world.sites[(size_t)city].ex, g.world.oy + g.world.sites[(size_t)city].ey + 2);
+    const World& w = g.world;
+    for (int si = 0; si < (int)w.sites.size(); si++) {
+      const Site& s = w.sites[(size_t)si];
+      if (s.type != SiteType::City) continue;
+      std::map<std::tuple<int, int, int>, std::vector<int>> groups;   // (w, h, storeys) -> houses
+      for (int b = s.bldgFirst; b < s.bldgFirst + s.bldgCount; b++) {
+        const Bldg& B = w.over.bldgs[(size_t)b];
+        if (B.type != art::Building::House) continue;
+        if (!w.over.in(B.r.x, B.r.y) || !w.over.in(B.r.x + B.r.w - 1, B.r.y + B.r.h - 1)) continue;
+        groups[{B.r.w, B.r.h, (int)B.storeys}].push_back(b);
+      }
+      int n = 0, distinct = 0, layouts = 0;
+      for (auto& kv : groups) {
+        if (kv.second.size() < 2) continue;
+        std::vector<uint64_t> hs, ls;
+        for (int b : kv.second) {
+          const Bldg& B = w.over.bldgs[(size_t)b];
+          art::BuildingInfo info;
+          Canvas c = art::buildingSprite(B.type, B.r.w, B.r.h, bldgArch(B), B.seed, &info, bldgFacts(B));
+          hs.push_back(hashCanvas(c));
+          ls.push_back(hashMask(info.glass, c.w));
+        }
+        std::sort(hs.begin(), hs.end());
+        std::sort(ls.begin(), ls.end());
+        n += (int)hs.size();
+        distinct += (int)(std::unique(hs.begin(), hs.end()) - hs.begin());
+        layouts += (int)(std::unique(ls.begin(), ls.end()) - ls.begin());
+        groupsAll++;
+      }
+      if (!n) continue;
+      housesAll += n; distinctAll += distinct; layoutAll += layouts;
+      std::printf("  facades: seed %d city %s: %d same-size houses, %d distinct sprites (%.0f%%), %d distinct window layouts (%.0f%%)\n", seed, s.name.c_str(), n,
+                  distinct, 100.0 * distinct / n, layouts, 100.0 * layouts / n);
+      if (distinct * 10 < n * 7) { std::printf("FAIL: seed %d city %s: only %d of %d same-size houses have their own facade\n", seed, s.name.c_str(), distinct, n); bad++; }
+    }
+  }
+  if (housesAll)
+    std::printf("  facades: %d same-size houses in %d size groups: %.1f%% distinct sprites, %.1f%% distinct window layouts\n", housesAll, groupsAll,
+                100.0 * distinctAll / housesAll, 100.0 * layoutAll / housesAll);
+  return bad;
+}
+
 int check(int s0, int s1) {
   int bad = 0, total = 0, minSlack = 1 << 30;
   std::map<std::pair<int, int>, int> counts;   // (type, storeys) -> buildings
@@ -291,7 +395,7 @@ int check(int s0, int s1) {
       total++;
       counts[{(int)b.type, (int)b.storeys}]++;
       if (info.chimneys > 0) chim[(int)b.type]++;
-      int rise = spriteRise(c, b.r.h), budget = bldgRiseTiles(b.type, b.storeys) * 16;
+      int rise = spriteRise(c, b.r.h), budget = ew::townRiseTiles(b.type, b.storeys) * 16;   // (M3: the palace and barracks rise as the towns lane budgets them)
       int& rm = riseMax[(int)b.type * 8 + b.storeys];
       rm = std::max(rm, rise);
       minSlack = std::min(minSlack, budget - rise);
@@ -348,12 +452,13 @@ int check(int s0, int s1) {
       if (it == counts.end()) continue;
       n += it->second;
       char buf[80];
-      std::snprintf(buf, sizeof buf, "  %d-storey %4d (rise max %2d/%2d px)", st, it->second, riseMax[t * 8 + st], bldgRiseTiles((art::Building)t, st) * 16);
+      std::snprintf(buf, sizeof buf, "  %d-storey %4d (rise max %2d/%2d px)", st, it->second, riseMax[t * 8 + st], ew::townRiseTiles((art::Building)t, st) * 16);
       line += buf;
     }
     if (n) std::printf("  %-10s %4d:%s  chimneys on %d\n", kTypeNames[t], n, line.c_str(), chim[t]);
   }
   std::printf("  smallest headroom under a rise budget: %d px\n", minSlack);
+  bad += m3Checks(s0, s1);
   if (bad) std::printf("arch_gallery --check: %d FAILURES\n", bad);
   else std::printf("arch_gallery --check: ALL OK (storeys 100%%, no chimney without a hearth, every sprite within its rise budget)\n");
   return bad ? 1 : 0;

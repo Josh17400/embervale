@@ -14,6 +14,7 @@
 #include "rpg/world/coords.h"
 #include "rpg/world/ids.h"
 
+namespace cult { struct Culture; }   // rpg/culture/culture.h (M3)
 namespace ew {   // rpg/world/source.h (the endless generator, M1)
 class EndlessSource;
 struct SitePlan;
@@ -124,12 +125,18 @@ struct Bldg {
   // M1 economy: type-specific detail the exterior shows (art::BuildingFacts::variant; the watermill: bit 0 = its wheel
   // on the west side, where its river runs)
   uint8_t variant = 0;
+  // M3 culture engine: the building's architecture, decided by the settlement generator from its culture
+  // (cult::buildingArch: the family's style varied per building, VISION_PLAN 5.7). styled == false (buildings made
+  // before M3 code paths set it, wayside huts...): bldgArch falls back to the biome style. Never saved (regenerated).
+  art::ArchStyle arch;
+  bool styled = false;
   int floors() const { return genVer >= WORLDGEN_V7 ? std::max(1, (int)storeys) : 1; }
   int doorX() const { return r.x + r.w / 2; }
   int doorY() const { return r.y + r.h - 1; }
 };
 // M0b: the exterior's style (what the view paints) and its art facts, so interiors can match their outside.
 inline art::ArchStyle bldgArch(const Bldg& b) {
+  if (b.styled) return b.arch;
   return art::withRoofTint(art::urbanize(art::archForBiome((int)b.biome, b.seed), b.urban, b.seed), b.roof);
 }
 inline art::BuildingFacts bldgFacts(const Bldg& b) {
@@ -175,6 +182,8 @@ struct Site {
   // M2 rumours (VISION_PLAN 2.11): heard of but not found yet (an innkeeper's directions, a grave's inscription). The
   // map shows it as a "?" near where it lies; finding it sets discovered. Saved with the site flags.
   bool rumoured = false;
+  // M3: its culture (cult::CultureId; ew::SitePlan::culture): World::cultureOf(site) gives the Culture
+  uint64_t culture = 0;
   bool settlement() const { return type == SiteType::City || type == SiteType::Town || type == SiteType::Village; }
 };
 
@@ -188,6 +197,7 @@ struct Kingdom {
   uint8_t emblem = 0;            // the charge painted on the banner (art decides what each index looks like)
   ew::Gid capitalId = 0;         // its capital's Site id (0: none known yet)
   int32_t gx = 0, gy = 0;        // global tile of its seat (the capital, or the kingdom cell's centre)
+  uint64_t culture = 0;          // M3: its culture (a dialect; World::cultureOfKingdom)
 };
 
 // Something to populate when a map becomes active (deterministic per map).
@@ -230,6 +240,10 @@ struct Map {
   // (Biome) this tile blends toward, bits 4-7 its weight 0..15 (0: pure own biome, 8: half and half; never above 8, a
   // tile past the midpoint belongs to the other biome). The generator writes it (ChunkData::blend); the view dithers
   // the two biomes' ground and the generator ramps transition flora with it.
+  // (M3 fixer) on a settlement's own tiles (never an ecotone: town ground keeps its own look) the byte is a paving mark
+  // instead: PAVE_MARK | the culture's TownStyle::paving (0..15), or BOARDWALK_MARK | paving on a stilt town's
+  // boardwalk (a Bridge over its marsh, not a river bridge). Ecotone readers take weights 1..8 only.
+  static constexpr uint8_t PAVE_MARK = 0xF0, BOARDWALK_MARK = 0xE0;
   std::vector<uint8_t> blend;
   std::vector<uint8_t> height;   // M1: relief per tile (endless overworld only, else empty): bits 0..2 the level 0..7
                                  // (VISION_PLAN 11.1), HEIGHT_CLIFF a cliff face (not walkable), HEIGHT_RAMP a ramp or
@@ -239,6 +253,8 @@ struct Map {
                                  // floors of a building have no exit (-1)
   // M0b interiors (WORLDGEN_V7+, rooms.h): which floor of its building this map is, its stairs, and its rooms
   int floor = 0;
+  uint8_t kit = 0;               // (M3 fixer) interiors: 1 + the cult::Archetype whose own furniture the view draws
+                                 // (art::cultureInteriorPiece), 0 the classic kit. Regenerated with the map, never saved
   Stairs up, down;               // the staircase up to floor+1 / down to floor-1 (x < 0: none)
   std::vector<RoomInfo> rooms;
   std::vector<int8_t> roomAt;    // per tile: index into rooms, -1 for walls (empty for older interiors)
@@ -290,8 +306,9 @@ struct World {
   std::unordered_set<uint64_t> spawnKeys, gateKeys;   // streamed spawns (site id ^ slot) and gates already added
   int windowShifts = 0;                     // how many times the window has moved (tests, perf)
   // ---- M1 SIM lane: streaming without hitches, bounded records, spatial look-ups (world_endless.cpp)
-  // the prefetcher (stream.h): Game::prefetchTick creates it on first use (tests that never update never start a
-  // thread) and keeps its wish list current; placeWindow takes ready chunks from it and generates the rest itself
+  // the prefetcher (stream.h): natively initEndless creates it with the world so its worker warms up while the window
+  // is built (M3); on the web (and when a test drops it) Game::prefetchTick creates it on first use; prefetchTick
+  // keeps its wish list current; placeWindow takes ready chunks from it and generates the rest itself
   std::shared_ptr<ChunkStreamer> streamer;
   struct StreamStats {
     int shifts = 0;                 // window moves (shifts and recentres)
@@ -350,6 +367,11 @@ struct World {
   void loadRegionsAround();                             // site and den plans of the regions near the window
   int addSitePlan(const ew::SitePlan& p);
   int addKingdom(ew::Gid id);
+  // M3 culture engine: a site's culture (nullptr: no generator, or a culture-less site), a kingdom's, a window tile's
+  // (its kingdom's dialect, else its culture cell's family). Cheap after the first call per culture (memoised).
+  const cult::Culture* cultureOf(int site) const;
+  const cult::Culture* cultureOfKingdom(int kingdom) const;
+  const cult::Culture* cultureAtTile(int tx, int ty) const;
   const Kingdom* kingdomOf(int site) const {
     return site >= 0 && site < (int)sites.size() && sites[(size_t)site].kingdom >= 0 ? &kingdoms[(size_t)sites[(size_t)site].kingdom] : nullptr;
   }

@@ -125,7 +125,16 @@ TravelQuote Game::travelQuote(int si, bool carriage) const {
   q.hours = dist / (carriage ? kCarriageTilesPerHour : kFootTilesPerHour);
   q.gold = carriage ? std::max(5, (int)std::lround(dist * 0.1f)) : 0;
   if (travelling()) { q.why = "YOU ARE ALREADY ON THE ROAD"; return q; }
-  if (dist < 6.0f) { q.why = "YOU ARE ALREADY THERE"; return q; }
+  // (M3 integration) standing anywhere inside the place counts too: settlements grew, and a journey to the gate of
+  // the village you stand in made no sense
+  // (M3 fixer r3) indoors too: the building's own site (or the cave/ruin being explored) is "here"
+  bool insideIt = false;
+  if (!inside) insideIt = world.siteAt((int)(pl().p.x / TILE), (int)(pl().p.y / TILE)) == si;
+  else if (subBldg >= 0 && subBldg < (int)world.over.bldgs.size()) {
+    const Bldg& hb = world.over.bldgs[(size_t)subBldg];
+    insideIt = hb.site == si || world.siteAt(hb.doorX(), hb.doorY() + 1) == si;
+  } else if (subSite >= 0) insideIt = subSite == si;
+  if (dist < 6.0f || insideIt) { q.why = "YOU ARE ALREADY THERE"; return q; }
   for (const Actor& a : actors)
     if (a.hostile && a.aggro && a.st != AState::Dead && len2(a.p - pl().p) < 120 * 120) { q.why = "YOU CANNOT TRAVEL WITH ENEMIES NEARBY"; return q; }
   // the landmass rule: over the sea it is ships (M10), not a walk

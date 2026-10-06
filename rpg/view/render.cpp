@@ -63,8 +63,9 @@ bool tallWild(Prop p) { return p == Prop::Peak || p == Prop::GreatPeak || p == P
 // M0b interiors: stairs and doors in the room's material, wall decor fitted to a partition's short face
 // (interiorPropKey, rpg/sim/deco.h). A door into a private room (a bedroom, a guest room, the stockroom) stands shut
 // until someone comes near it; other doors stand open.
-uint32_t interiorPropTexKey(const Game& g, const Map& m, int tx, int ty, Prop p) {
+uint32_t interiorPropTexKey(const Game& g, const Map& m, int tx, int ty, Prop p, int frame = 0) {
   uint32_t key = interiorPropKey(m, tx, ty, p);
+  if (key && (key & 255u) == (uint32_t)art::Piece::Culture && p == Prop::Hearth) return key | ((uint32_t)(frame & 3) << 24);   // (M3 fixer)
   if (!key || (p != Prop::DoorH && p != Prop::DoorV)) return key;
   bool priv = false;
   auto side = [&](int x, int y) {
@@ -261,11 +262,13 @@ static int archBiomeOverride() {
   static int v = [] { const char* e = std::getenv("EMB_ARCH_BIOME"); return e ? std::atoi(e) : -1; }();
   return v;
 }
-// (M1) the building's own biome (Bldg::biome, where it stands), not the tile's: an endless window may not cover it
+// (M1) the building's own biome (Bldg::biome, where it stands), not the tile's: an endless window may not cover it.
+// (M3) the culture's style the settlement generator chose (Bldg::arch; bldgArch falls back to the biome style).
 static art::ArchStyle bldgStyle(const Map& m, const Bldg& b) {
   (void)m;
-  int biome = archBiomeOverride() >= 0 ? archBiomeOverride() : (int)b.biome;
-  return art::withRoofTint(art::urbanize(art::archForBiome(biome, b.seed), b.urban, b.seed), b.roof);
+  if (archBiomeOverride() >= 0)
+    return art::withRoofTint(art::urbanize(art::archForBiome(archBiomeOverride(), b.seed), b.urban, b.seed), b.roof);
+  return bldgArch(b);
 }
 uint64_t View::bldgKey(const Map& m, const Bldg& b, int index) const {
   uint64_t k = bldgStyle(m, b).key();
@@ -280,10 +283,14 @@ uint64_t View::bldgKey(const Map& m, const Bldg& b, int index) const {
 // paintBldg; storeBldg turns them into textures on the main thread).
 View::BldgPaint View::paintBldg(const Bldg& b, uint64_t key) {
   static const Map empty;
+  art::BuildingInfo info;
+  Canvas c = art::buildingSprite(b.type, b.r.w, b.r.h, bldgStyle(empty, b), b.seed, &info, bldgFacts(b));
+  return paintBldgPost(std::move(c), info, key, b.seed);
+}
+View::BldgPaint View::paintBldgPost(Canvas canvas, art::BuildingInfo& info, uint64_t key, uint32_t seed) {
   BldgPaint p;
   p.key = key;
-  art::BuildingInfo info;
-  p.c = art::buildingSprite(b.type, b.r.w, b.r.h, bldgStyle(empty, b), b.seed, &info, bldgFacts(b));
+  p.c = std::move(canvas);
   const Canvas& c = p.c;
   for (int i = 0; i < info.smokeN; i++) p.smoke.push_back(Vec2((float)info.smokeX[i], (float)info.smokeY[i]));
   int topRow = 0;
@@ -293,7 +300,7 @@ View::BldgPaint View::paintBldg(const Bldg& b, uint64_t key) {
   // night: the lit-window variant and one light pool per window (centre of each connected run of panes)
   for (uint8_t v : info.glass) if (v) { p.anyGlass = true; break; }
   if (p.anyGlass) {
-    p.night = art::buildingNight(c, info.glass, b.seed);
+    p.night = art::buildingNight(c, info.glass, seed);
     std::vector<uint8_t> seen(info.glass.size(), 0);
     for (int y = 0; y < c.h; y++)
       for (int x = 0; x < c.w; x++) {
@@ -332,6 +339,10 @@ const Tex& View::storeBldg(BldgPaint& p) {
   return bldgTex_[k] = pix_->bake(p.c);
 }
 
+// A building sprite, painted now if it is not ready (a job already under way is finished). Behind the web arrival's
+// fade (no threads) a building is never painted in one go: it advances by a step within the budget and, while it is
+// unfinished, a blank texture stands in and the arrival is held a frame longer (travelArrive lifts the fade only after
+// two frames with nothing left to paint: arrival_.frames is wound back), so a palace is spread over frames.
 const Tex& View::bldgTex(const Bldg& b, int index) {
   static const Map empty;
   const Map& m = bldgMap_ ? *bldgMap_ : empty;
@@ -339,15 +350,86 @@ const Tex& View::bldgTex(const Bldg& b, int index) {
   bldgUsed_[k] = t_;
   auto it = bldgTex_.find(k);
   if (it != bldgTex_.end()) return it->second;
-  auto t0 = std::chrono::steady_clock::now();
-  BldgPaint p = paintBldg(b, k);
-  if (std::getenv("EMB_TIMING")) {
+  if (arriving_ && pix_) {
+#ifdef __EMSCRIPTEN__
+    const bool st = true;
+#else
+    static const bool st = std::getenv("EMB_WEBSIM") != nullptr;
+#endif
+    if (!st) {
+      // desktop: behind the arrival's black the worker threads paint the buildings (travelArrive stores them as they
+      // finish, and holds the fade until every one in view is there); drawing must never paint one in the meantime
+      if (!blankTex_.t) { Canvas c(1, 1); blankTex_ = pix_->bake(c); }
+      return blankTex_;
+    }
+    if (st) {
+      // one budget per frame for every stepped paint (travelArrive and drawWorld both ask)
+      static float frameT = -1;
+      static double frameMs = 0;
+      if (frameT != t_) { frameT = t_; frameMs = 0; }
+      if (frameMs < 6.0) {
+        const auto t0 = std::chrono::steady_clock::now();
+        const bool done = bldgPaintStep(b, index, std::min(4.0, 6.0 - frameMs));
+        frameMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+        if (done) return bldgTex_[k];
+      }
+      arrival_.frames = 0;
+      if (!blankTex_.t) { Canvas c(1, 1); blankTex_ = pix_->bake(c); }
+      return blankTex_;
+    }
+  }
+  bldgPaintStep(b, index, 1e9);
+  return bldgTex_[k];
+}
+
+// Advance (or start) the paint of b's sprite by about budgetMs; true once it is stored. Several jobs may be under way
+// (one per building); a job not touched for a few seconds is dropped by the next call.
+bool View::bldgPaintStep(const Bldg& b, int index, double budgetMs) {
+  static const Map empty;
+  const Map& m = bldgMap_ ? *bldgMap_ : empty;
+  const uint64_t k = bldgKey(m, b, index);
+  if (bldgTex_.count(k)) return true;
+  using Clock = std::chrono::steady_clock;
+  const auto t0 = Clock::now();
+  BldgJob* J = nullptr;
+  for (BldgJob& j : bldgJobs_) if (j.key == k) { J = &j; break; }
+  if (!J) {
+    for (size_t i = 0; i < bldgJobs_.size();)
+      if (t_ - bldgJobs_[i].used > 5.0f) bldgJobs_.erase(bldgJobs_.begin() + (std::ptrdiff_t)i); else i++;
+    BldgJob nj;
+    nj.key = k;
+    nj.seed = b.seed;
+    nj.job = art::beginBuilding(b.type, b.r.w, b.r.h, bldgStyle(empty, b), b.seed, bldgFacts(b));
+    bldgJobs_.push_back(std::move(nj));
+    J = &bldgJobs_.back();
+  }
+  J->used = t_;
+  const bool done = art::stepBuilding(*J->job, budgetMs);
+  const double ms = std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
+  static const bool timing = std::getenv("EMB_TIMING") != nullptr;
+  if (budgetMs < 1e8) worstPaintStepMs_ = std::max(worstPaintStepMs_, ms);
+  if (!done) {
+    if (timing) std::printf("building %d: paint step %.2f ms (unfinished)\n", index, ms);
+    return false;
+  }
+  art::BuildingInfo info;
+  Canvas c = art::finishBuilding(*J->job, &info);
+  const uint32_t seed = J->seed;
+  for (size_t i = 0; i < bldgJobs_.size(); i++)
+    if (bldgJobs_[i].key == k) { bldgJobs_.erase(bldgJobs_.begin() + (std::ptrdiff_t)i); break; }
+  BldgPaint p = paintBldgPost(std::move(c), info, k, seed);
+  storeBldg(p);
+  bldgUsed_[k] = t_;
+  if (timing) {
     static double total = 0;
     static int n = 0;
-    total += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-    std::printf("building %d painted: %d so far, %.1f ms total\n", index, ++n, total);
+    const double all = std::chrono::duration<double, std::milli>(Clock::now() - t0).count();
+    total += all;
+    worstPaintStepMs_ = std::max(worstPaintStepMs_, budgetMs < 1e8 ? all : 0.0);
+    std::printf("building %d painted: %d so far, %.1f ms total (last step %.2f ms, worst stepped %.2f ms)\n", index, ++n, total, all,
+                worstPaintStepMs_);
   }
-  return storeBldg(p);
+  return true;
 }
 
 bool View::windowsLit(const Game& g, const Bldg& b) const {
@@ -379,6 +461,51 @@ const Tex& View::cachedTex(uint64_t key, Canvas (*paint)(uint64_t key)) {
   auto it = laneTex_.find(key);
   if (it != laneTex_.end()) return it->second;
   return laneTex_[key] = pix_->bake(paint(key));
+}
+
+// M3: the culture of the settlement a prop tile lies in decides its style (fences, wells, lamps, statues, stalls...).
+// The site is looked up once per 8 x 8-tile block of the world (global tiles, so a window shift keeps the cache) and
+// the style once per site; tiles outside settlements keep the classic look.
+const art::PropStyle* View::propStyleAt(const Game& g, int tx, int ty) {
+  static const art::PropStyle classic;
+  if (!g.world.endless) return &classic;
+  const uint64_t wid = (uint64_t)g.world.seed * 0x9E3779B97F4A7C15ull ^ (uint64_t)(uintptr_t)&g.world;
+  if (wid != sitePropsWorld_ || propSiteBlock_.size() > 8192) { sitePropsWorld_ = wid; siteProps_.clear(); propSiteBlock_.clear(); }
+  const int32_t gx = tx + g.world.ox, gy = ty + g.world.oy;
+  const uint64_t bk = ((uint64_t)(uint32_t)(gx >> 3) << 32) | (uint32_t)(gy >> 3);
+  int si = -1;
+  uint64_t sid = 0;
+  auto bi = propSiteBlock_.find(bk);
+  if (bi != propSiteBlock_.end()) sid = bi->second;
+  else {
+    si = g.world.siteAt(tx, ty, 2);
+    if (si >= 0 && !g.world.sites[(size_t)si].settlement()) si = -1;
+    sid = si >= 0 ? (uint64_t)g.world.sites[(size_t)si].id : 0;
+    propSiteBlock_[bk] = sid;
+  }
+  if (!sid) return &classic;
+  auto it = siteProps_.find(sid);
+  if (it != siteProps_.end()) return &it->second;
+  if (si < 0)   // the block was cached: find the settlement by its id (rare: once per settlement)
+    for (size_t k = 0; k < g.world.sites.size(); k++) if ((uint64_t)g.world.sites[k].id == sid) { si = (int)k; break; }
+  if (si < 0) return &classic;   // not in the records just now: draw it plain this frame, ask again next time
+  const cult::Culture* C = g.world.cultureOf(si);
+  return &(siteProps_[sid] = C ? C->props : classic);
+}
+const Tex& View::styledPropTex(art::Prop p, const art::PropStyle& st) {
+  const uint64_t k = ew::mix64(st.key() ^ ((uint64_t)p << 48) ^ 0x5717ull);
+  auto it = styledProps_.find(k);
+  if (it != styledProps_.end()) return it->second;
+  return styledProps_[k] = pix_->bake(art::propSprite(p, st));
+}
+// a kingdom's arms (cult::Heraldry) on a standing banner (kind 0) or a gatehouse in a wall style (kind 1)
+const Tex& View::heraldryTex(int kind, const cult::Heraldry& h, uint32_t seed, int wallStyle) {
+  const uint64_t key = ew::mix64(h.key() ^ ((uint64_t)kind << 60) ^ ((uint64_t)seed << 32) ^ ((uint64_t)wallStyle << 40) ^ 0x4E5Aull);
+  auto it = kingdomTex_.find(key);
+  if (it != kingdomTex_.end()) return it->second;
+  Canvas c = kind == 0 ? art::bannerSprite(h)
+                       : art::gateHouse(seed, h.field, h.charge, h.emblem, (art::CityWall)std::clamp(wallStyle, 0, (int)art::CityWall::COUNT - 1));
+  return kingdomTex_[key] = pix_->bake(c);
 }
 
 void View::snap(Game& g) {
@@ -591,7 +718,25 @@ void View::update(Game& g, float dt) {
     else if (g.curSite >= 0 && (g.world.sites[g.curSite].type == SiteType::City || g.world.sites[g.curSite].type == SiteType::Town || g.world.sites[g.curSite].type == SiteType::Village)) want = Music::Town;
     else if (g.isNight()) want = Music::Night;
   }
-  if (want != music_) { music_ = want; audio_->setMusic(want); }
+  // M3: the Town / Wild / Night pieces play in the culture of the place (the settlement's, else the land's: its
+  // kingdom's dialect or its culture cell's family), so crossing a border changes the music (VISION_PLAN 5.6). Looked
+  // up a few times a second; a change of style crossfades like a change of piece.
+  musicStyleT_ -= dt;
+  if (musicStyleT_ <= 0 && g.world.endless) {
+    musicStyleT_ = 0.5f;
+    const cult::Culture* C = nullptr;
+    if (g.inside && g.subBldg >= 0 && g.subBldg < (int)g.world.over.bldgs.size()) C = g.world.cultureOf(g.world.over.bldgs[(size_t)g.subBldg].site);
+    else if (!g.inside && g.curSite >= 0) C = g.world.cultureOf(g.curSite);
+    if (!C && !g.inside) C = g.world.cultureAtTile((int)(g.pl().p.x / TILE), (int)(g.pl().p.y / TILE));
+    musicStyle_ = C ? C->music.pack() : 0;
+  }
+  const uint64_t style = (want == Music::Town || want == Music::Wild || want == Music::Night || want == Music::Combat) ? musicStyle_ : 0;
+  if (want != music_ || style != musicStyleOn_) {
+    music_ = want;
+    musicStyleOn_ = style;
+    const MusicStyle ms = MusicStyle::unpack(style);
+    audio_->setMusic(want, style ? &ms : nullptr);
+  }
 
   // ambient particles
   if (g.mode != Mode::Title && !g.inside) {
@@ -686,7 +831,7 @@ void View::drawWorld(Game& g) {
   // the id also carries the generator version and gate count: a new game on the same seed with another generator
   // has the same map id but other walls
   // (M1: and the endless window's origin, as the layout is in window tiles)
-  uint64_t wallId = mapId ^ ((uint64_t)g.world.genVersion << 58) ^ ((uint64_t)g.world.gates.size() << 48);
+  uint64_t wallId = mapId ^ ((uint64_t)g.world.genVersion << 58) ^ ((uint64_t)g.world.gates.size() << 48) ^ ((uint64_t)g.world.wallGaps.size() << 36);
   if (endlessOver) wallId ^= ew::mix64(((uint64_t)(uint32_t)g.world.ox << 32) | (uint32_t)g.world.oy);
   if (wallKeysId_ != wallId) {
     wallKeysId_ = wallId;
@@ -719,6 +864,54 @@ void View::drawWorld(Game& g) {
               }
               k |= art::WALL_BIT_CULVERT;
             }
+          // M3: each settlement's wall style (Map::wall = 1 + art::CityWall)
+          for (size_t i = 0; i < wallKeys_.size(); i++)
+            if (wallKeys_[i] && m.wall[i] > 1) wallKeys_[i] |= ((uint32_t)(m.wall[i] - 1) << art::WALL_STYLE_SHIFT) & art::WALL_STYLE_MASK;
+          // (M3 fixer) an opening without a gatehouse (a side gate, a gate in a north-south run) is spanned: the wall walk
+          // runs on over it on a vault (art::WALL_BIT_SPAN), so no road runs through a bare cut between two tower stubs.
+          // The span's tiles stay walkable (Map::wall is untouched); only their sprites and their neighbours' joins change.
+          {
+            auto wallIdx = [&](int x, int y) { return (size_t)y * m.w + x; };
+            auto onSpan = [&](const IRect& r, int x, int y) { return x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h; };
+            std::vector<IRect> spans;
+            for (const IRect& r : g.world.wallGaps) {
+              if (!((r.w == 1 && r.h == 3) || (r.w == 3 && r.h == 1))) continue;
+              bool gate = false;
+              for (const auto& gt : g.world.gates) if (r.h == 1 && gt.first == r.x && gt.second == r.y) gate = true;
+              if (gate) continue;
+              const int ax = r.w == 1 ? r.x : r.x - 1, ay = r.w == 1 ? r.y - 1 : r.y;
+              const int bx = r.w == 1 ? r.x : r.x + 3, by = r.w == 1 ? r.y + 3 : r.y;
+              if (!m.in(ax, ay) || !m.in(bx, by) || !m.wall[wallIdx(ax, ay)] || !m.wall[wallIdx(bx, by)]) continue;
+              bool ok = true;
+              for (int y = r.y; y < r.y + r.h; y++)
+                for (int x = r.x; x < r.x + r.w; x++)
+                  if (!m.in(x, y) || m.wall[wallIdx(x, y)] || groundWater(m.at(x, y))) ok = false;
+              if (ok) spans.push_back(r);
+            }
+            auto spanAt = [&](int x, int y) {
+              for (const IRect& r : spans) if (onSpan(r, x, y)) return true;
+              return false;
+            };
+            auto aug = [&](int x, int y) { return m.in(x, y) && (m.wall[wallIdx(x, y)] != 0 || spanAt(x, y)); };
+            static const int ndx[8] = {0, 1, 1, 1, 0, -1, -1, -1}, ndy[8] = {-1, -1, 0, 1, 1, 1, 0, -1};
+            for (const IRect& r : spans) {
+              const int ax = r.w == 1 ? r.x : r.x - 1, ay = r.w == 1 ? r.y - 1 : r.y;
+              const uint8_t sb = m.wall[wallIdx(ax, ay)];
+              for (int y = r.y - 1; y <= r.y + r.h; y++)
+                for (int x = r.x - 1; x <= r.x + r.w; x++) {
+                  if (!aug(x, y)) continue;
+                  uint32_t nb = 0;
+                  for (int b = 0; b < 8; b++) if (aug(x + ndx[b], y + ndy[b])) nb |= 1u << b;
+                  uint32_t& k = wallKeys_[wallIdx(x, y)];
+                  if (onSpan(r, x, y)) {
+                    const int pos = 1 + (r.w == 1 ? y - r.y : x - r.x);
+                    k = nb | art::WALL_BIT_SPAN | ((uint32_t)pos << art::WALL_SPAN_POS_SHIFT) | ((uint32_t)((x * 7 + y * 13) & 3) << art::WALL_VAR_SHIFT);
+                    if (sb > 1) k |= ((uint32_t)(sb - 1) << art::WALL_STYLE_SHIFT) & art::WALL_STYLE_MASK;
+                    if (y > 0 && (wallKeys_[wallIdx(x, y - 1)] & art::WALL_BIT_TOWER)) k |= art::WALL_BIT_TOWER_N;
+                  } else if (k) k = (k & ~0xFFu) | nb;
+                }
+            }
+          }
         } else art::wallKeys(m.wall.data(), m.w, m.h, nullptr, 0, wallKeys_);
         if (wallKeyCache_.size() > 4) wallKeyCache_.clear();
         wallKeyCache_[wallId] = wallKeys_;
@@ -748,7 +941,7 @@ void View::drawWorld(Game& g) {
       if (pr) {
         Prop p = (Prop)(pr - 1);
         if (flatProp(p)) {
-          if (uint32_t ik = interiorPropTexKey(g, m, tx, ty, p)) {
+          if (uint32_t ik = interiorPropTexKey(g, m, tx, ty, p, (int)(t_ * 8 + tx * 3))) {
             const Tex& t = cachedTex(0x01ull << 56 | ik, paintInteriorPiece);
             P.blit(t, tx * 16 + 8 - t.w / 2 - cam.x, ty * 16 + 16 - t.h - cam.y);
           } else {
@@ -774,14 +967,31 @@ void View::drawWorld(Game& g) {
   }
   // paint the sprites of buildings near the player ahead of time, at most one per frame, so walking into a town
   // never stalls on a burst of building paints
+  // (M3, owner carry-over 1) in steps of about 3 ms: a palace is painted over a dozen frames instead of stalling one
   if (!m.bldgs.empty() && g.mode != Mode::Title && !g.travelling()) {   // (M2: a journey paints its arrival in travelArrive)
-    for (int k = 0; k < 12; k++) {
-      bldgPrefetch_ = (bldgPrefetch_ + 1) % (int)m.bldgs.size();
-      const Bldg& b = m.bldgs[bldgPrefetch_];
-      if (std::fabs(b.r.cx() * 16.0f - pl.p.x) > 720 || std::fabs(b.r.cy() * 16.0f - pl.p.y) > 520) continue;
-      if (bldgTex_.count(bldgKey(m, b, bldgPrefetch_))) continue;
-      bldgTex(b, bldgPrefetch_);
-      break;
+    bldgPrefetch_ %= (int)m.bldgs.size();
+    const Bldg& cur = m.bldgs[(size_t)bldgPrefetch_];
+    const uint64_t ck = bldgKey(m, cur, bldgPrefetch_);
+    bool busy = false;
+    if (!bldgTex_.count(ck))
+      for (const BldgJob& j : bldgJobs_) if (j.key == ck) { busy = true; break; }
+    if (busy) bldgPaintStep(cur, bldgPrefetch_, 3.0);
+    else {
+      // (M3 fixer round 2) the nearest unpainted building to where the hero is heading, not the next index round the
+      // list: in a capital of 200+ buildings the round-robin looked at 12 a frame and the walk reached unpainted streets
+      // first (a 120-140 ms frame of on-demand paints on the first walk after arriving)
+      const Vec2 ahead = pl.p + pl.vel * 0.6f;
+      int best = -1;
+      float bestD = 1e30f;
+      for (int i = 0; i < (int)m.bldgs.size(); i++) {
+        const Bldg& b = m.bldgs[(size_t)i];
+        const float dx = b.r.cx() * 16.0f - ahead.x, dy = b.r.cy() * 16.0f - ahead.y;
+        if (std::fabs(dx) > 720 || std::fabs(dy) > 520) continue;
+        const float d = dx * dx + dy * dy * 1.6f;
+        if (d >= bestD || bldgTex_.count(bldgKey(m, b, i))) continue;
+        best = i; bestD = d;
+      }
+      if (best >= 0) { bldgPrefetch_ = best; bldgPaintStep(m.bldgs[(size_t)best], best, 3.0); }
     }
   }
   for (int i = 0; i < (int)g.actors.size(); i++) {
@@ -861,7 +1071,7 @@ void View::drawWorld(Game& g) {
       case 0: {
         Prop p = (Prop)d.idx;
         if (m.kind == MapKind::Interior)
-          if (uint32_t ik = interiorPropTexKey(g, m, d.tx, d.ty, p)) {
+          if (uint32_t ik = interiorPropTexKey(g, m, d.tx, d.ty, p, (int)(t_ * 8 + d.tx * 3))) {
             const Tex& t = cachedTex(0x01ull << 56 | ik, paintInteriorPiece);
             P.blit(t, d.tx * 16 + 8 - t.w / 2 - cam.x, d.ty * 16 + 16 - t.h - cam.y);
             break;
@@ -891,9 +1101,16 @@ void View::drawWorld(Game& g) {
           const int64_t col3 = along >= 0 ? along / 3 : -((-(int64_t)along + 2) / 3);   // floor(along / 3)
           const uint32_t aw = (uint32_t)(((col3 * 5 + (int64_t)row) % art::kStallAwnings + art::kStallAwnings) % art::kStallAwnings);
           const uint32_t form = (uint32_t)stallFormOn(g, d.tx, d.ty, stallFacing);
-          tp = &cachedTex(0x04ull << 56 | (uint64_t)stallFacing << 13 | (uint64_t)(vendorOpen ? 0 : 1) << 12 | (uint64_t)form << 8 | (uint64_t)aw << 4 |
-                              (uint64_t)art::stallTrade(p),
-                          paintTradeStall);
+          const uint64_t sk = 0x04ull << 56 | (uint64_t)stallFacing << 13 | (uint64_t)(vendorOpen ? 0 : 1) << 12 | (uint64_t)form << 8 | (uint64_t)aw << 4 |
+                              (uint64_t)art::stallTrade(p);
+          const art::PropStyle* ps = g.mode == Mode::Title ? nullptr : propStyleAt(g, d.tx, d.ty);
+          if (ps && !ps->classic() && (ps->awning || ps->awningA || ps->cloth)) {   // (M3) the culture's awnings, the layout untouched
+            const uint64_t k2 = ew::mix64(sk ^ ps->key() ^ 0x57A11ull);
+            auto it = styledProps_.find(k2);
+            tp = it != styledProps_.end() ? &it->second
+                                          : &(styledProps_[k2] = pix_->bake(art::marketStallStyled(art::stallTrade(p), (int)aw, (int)form, !vendorOpen, stallFacing, *ps)));
+          } else
+            tp = &cachedTex(sk, paintTradeStall);
         }
         if ((p == Prop::MarketTable || p == Prop::GroundCloth) && m.kind == MapKind::Overworld) {
           const int32_t gx = d.tx + g.world.ox, gy = d.ty + g.world.oy;
@@ -927,8 +1144,30 @@ void View::drawWorld(Game& g) {
           tp = &cachedTex(0x03ull << 56 | (uint64_t)p << 8 | (uint64_t)(h % 8) | (joinN ? 8u : 0u), paintRuin);
         }
         // (M1) a banner inside a kingdom's settlement flies that kingdom's colours
-        if (p == Prop::Banner && m.kind == MapKind::Overworld && g.mode != Mode::Title)
-          if (const Kingdom* k = g.world.kingdomOf(g.world.siteAt(d.tx, d.ty, 2))) tp = &kingdomTex(0, *k, 0);
+        if (p == Prop::Banner && m.kind == MapKind::Overworld && g.mode != Mode::Title) {
+          const int bs = g.world.siteAt(d.tx, d.ty, 2);
+          if (const Kingdom* k = g.world.kingdomOf(bs)) {
+            // (M3) the kingdom's full arms where its culture gives them, else its two colours and emblem
+            const cult::Culture* kc = g.world.cultureOfKingdom(g.world.sites[(size_t)bs].kingdom);
+            tp = (kc && !kc->heraldry.empty()) ? &heraldryTex(0, kc->heraldry, 0, 0) : &kingdomTex(0, *k, 0);
+          }
+        }
+        // (M3) the settlement's culture styles its fences, wells, lamps, benches, statues, shrines and fire bowls
+        if (m.kind == MapKind::Overworld && g.mode != Mode::Title && p != Prop::Banner && !art::isStall(p) && p != Prop::MarketStall && art::propStyled(p)) {
+          const art::PropStyle* ps = propStyleAt(g, d.tx, d.ty);
+          if (!ps->classic()) tp = &styledPropTex(p, *ps);
+          // (M3 fixer round 2) a dry-stone dyke joins its neighbours: one wall of one height, closed L / T corners
+          if (!ps->classic() && ps->fence == art::Fence::StoneDyke && (p == Prop::FenceH || p == Prop::FenceV)) {
+            auto fz = [&](int x, int y) { const int q = m.propAt(x, y); return q == (int)Prop::FenceH + 1 || q == (int)Prop::FenceV + 1; };
+            int mask = (fz(d.tx, d.ty - 1) ? 1 : 0) | (fz(d.tx + 1, d.ty) ? 2 : 0) | (fz(d.tx, d.ty + 1) ? 4 : 0) | (fz(d.tx - 1, d.ty) ? 8 : 0);
+            if (!(mask & 10) && !(mask & 5)) mask = p == Prop::FenceH ? 10 : 5;   // a lone piece keeps its run's axis
+            const uint64_t k = ew::mix64(ps->key() ^ ((uint64_t)(0x40 + mask) << 48) ^ 0xD7CEull);
+            auto it = styledProps_.find(k);
+            const Tex& dt = it != styledProps_.end() ? it->second : (styledProps_[k] = pix_->bake(art::dykePiece(mask, *ps)));
+            P.blit(dt, d.tx * 16.0f - cam.x, d.ty * 16.0f + 16.0f - 24.0f - cam.y);
+            break;
+          }
+        }
         // (M2) every peak of a range is one of eight shapes in its land's rock (by its global tile: never one peak cloned)
         if ((p == Prop::Peak || p == Prop::GreatPeak) && m.kind == MapKind::Overworld) {
           const int land = peakLand(m, d.tx, d.ty);
@@ -1009,8 +1248,9 @@ void View::drawWorld(Game& g) {
         if ((g.sleepFade > 0.5f || fade_ > 0.5f) && !bldgTex_.count(bldgKey(m, b, d.idx))) {
           if (fadePaintMs_ >= 10.0) break;
           const auto t0 = std::chrono::steady_clock::now();
-          bldgTex(b, d.idx);
+          const bool done = bldgPaintStep(b, d.idx, std::max(0.5, std::min(4.0, 10.0 - fadePaintMs_)));   // (M3: in steps)
           fadePaintMs_ += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+          if (!done) break;
         }
         const Tex* tp = &bldgTex(b, d.idx);
         if (m.kind == MapKind::Overworld && g.mode != Mode::Title && windowsLit(g, b)) {
@@ -1054,7 +1294,20 @@ void View::drawWorld(Game& g) {
       case 6: {
         // (M1) the gatehouse flies the banner of the kingdom whose town it guards
         const Tex* gt = &gateTex_;
-        if (const Kingdom* k = g.world.kingdomOf(g.world.siteAt(d.tx + 1, d.ty, 3))) gt = &kingdomTex(1, *k, 7);
+        // (M3) the gate in its wall's culture style (Map::wall on the flanking tile is 1 + CityWall) and the kingdom's arms
+        int ws = 0;
+        if (m.in(d.tx - 1, d.ty) && m.wall[(size_t)d.ty * m.w + d.tx - 1] > 1) ws = m.wall[(size_t)d.ty * m.w + d.tx - 1] - 1;
+        else if (m.in(d.tx + 3, d.ty) && m.wall[(size_t)d.ty * m.w + d.tx + 3] > 1) ws = m.wall[(size_t)d.ty * m.w + d.tx + 3] - 1;
+        const int gs = g.world.siteAt(d.tx + 1, d.ty, 3);
+        if (const Kingdom* k = g.world.kingdomOf(gs)) {
+          const cult::Culture* kc = g.world.cultureOfKingdom(g.world.sites[(size_t)gs].kingdom);
+          if (kc && !kc->heraldry.empty()) gt = &heraldryTex(1, kc->heraldry, 7, ws);
+          else if (ws) { cult::Heraldry h; h.field = k->color; h.charge = k->color2; h.emblem = k->emblem; gt = &heraldryTex(1, h, 7, ws); }
+          else gt = &kingdomTex(1, *k, 7);
+        } else if (ws) {
+          cult::Heraldry h;
+          gt = &heraldryTex(1, h, 7, ws);
+        }
         P.blit(*gt, d.tx * 16.0f - art::GATE_OX - cam.x, d.ty * 16.0f - art::GATE_OY - cam.y);
         break;
       }

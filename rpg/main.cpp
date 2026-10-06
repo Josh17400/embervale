@@ -223,6 +223,9 @@ bool findPath(const Map& m, int sx, int sy, int gx, int gy, std::vector<int>& pa
     for (int k = 0; k < 4; k++) {
       int nx = x + dx[k], ny = y + dy[k];
       if (nx < x0 || ny < y0 || nx > x1 || ny > y1 || from[(size_t)id(nx, ny)] >= 0 || m.blocked(nx, ny)) continue;
+      // never path across a flight of stairs that is not the goal (stepping on it changes the floor)
+      const int pr = m.propAt(nx, ny);
+      if ((pr == (int)art::Prop::StairsDown + 1 || pr == (int)art::Prop::StairsUp + 1) && (nx != gx || ny != gy)) continue;
       from[(size_t)id(nx, ny)] = q[h];
       q.push_back(id(nx, ny));
     }
@@ -1100,6 +1103,7 @@ int main(int argc, char** argv) {
     if (newGameIn > 0 && --newGameIn == 0) {
       startNew(seed ? seed : (uint64_t)SDL_GetTicks() * 2654435761ull + 777);   // --seed / a script's seed: reproducible
       game.beginCreator();   // the character creator; the first save happens when it hands over to play
+      view.creatorPrepare(game);   // (its homeland choices read the cultures round the start: behind the card too)
       view.loadingCard.clear();
     }
     if (view.wantNewGame) {

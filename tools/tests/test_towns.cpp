@@ -31,6 +31,7 @@
 #include "rpg/sim/interior_v4.h"
 #include "rpg/world/dmath.h"
 #include "rpg/world/settlement.h"
+#include "rpg/world/town_gen.h"
 #include "rpg/world/town_rules.h"
 #include "tools/tests/tests.h"
 
@@ -81,8 +82,27 @@ struct Case {
   std::vector<float> roads;
   uint32_t seed;
   ew::Specialty spec = ew::Specialty::None;   // (M1 economy) None: the generator derives it
+  // M3: a culture (cult::Atlas::make(culture, seed) as ctx.culture; -1 none), its layout forced (-1: the culture's
+  // own), the biome of the land's open ground
+  int culture = -1, forceLayout = -1;
+  Biome bio = Biome::Plains;
 };
 
+// M3: the layout a culture case is built in (as the generator picks it)
+cult::Layout caseLayout(const Case& c, const cult::Culture& K) { return ew::townLayoutFor(&K, c.type, c.seed, 1000, -2000); }   // (buildCase's heart)
+cult::Culture caseCulture(const Case& c) {
+  cult::Culture K = cult::Atlas::make((cult::Archetype)c.culture, (uint32_t)ew::mix64(c.seed ^ 0xC17u), (int)c.bio);
+  if (c.forceLayout >= 0) K.town.layout = K.town.altLayout = (cult::Layout)c.forceLayout;
+  return K;
+}
+const char* layoutName(cult::Layout l) {
+  static const char* n[] = {"organic", "grid", "radial", "linear", "compound", "terraced", "stilt"};
+  return (int)l < 7 ? n[(int)l] : "?";
+}
+
+std::pair<double, int> g_phaseMax[3];
+double g_phaseTab[3][16] = {};   // (M3) the slowest of each phase per type
+std::pair<double, int> g_casePhase;   // (M3) this case's slowest phase   // (M3) the slowest generator phase per type (village, town, city): ms, phase
 void buildCase(const Case& c, ew::SitePlan& p, ew::KingdomPlan& k, ew::SettlementOut& so, double& ms) {
   p = ew::SitePlan();
   p.type = c.type;
@@ -99,12 +119,15 @@ void buildCase(const Case& c, ew::SitePlan& p, ew::KingdomPlan& k, ew::Settlemen
   ew::SettlementCtx ctx;
   ctx.plan = &p;
   ctx.kingdom = &k;
+  cult::Culture K;
+  if (c.culture >= 0) { K = caseCulture(c); ctx.culture = &K; }
   ctx.rx = 3; ctx.ry = -8;
   ctx.roadBearings = c.roads;
   const int cxg = 1000, cyg = -2000, hw = p.w / 2;
   const Land land = c.land;
-  ctx.base = [land, cxg, cyg, hw](int32_t gx, int32_t gy, Ground& g, Biome& bi, uint8_t& h) {
-    g = Ground::Grass; bi = Biome::Plains; h = 1;
+  const Biome open = c.bio;
+  ctx.base = [land, cxg, cyg, hw, open](int32_t gx, int32_t gy, Ground& g, Biome& bi, uint8_t& h) {
+    g = open == Biome::Desert ? Ground::Sand : (open == Biome::Snow ? Ground::Snow : Ground::Grass); bi = open; h = 1;
     int dx = gx - cxg, dy = gy - cyg;
     switch (land) {
       case Land::River: {   // a river winding north-south through the footprint, a third of the way in
@@ -125,8 +148,26 @@ void buildCase(const Case& c, ew::SitePlan& p, ew::KingdomPlan& k, ew::Settlemen
       default: break;
     }
   };
+  // (M3) built a generator phase at a time, as the web's streaming does (EndlessSource::prepareChunk): the slowest
+  // phase is what one web frame pays
   auto t0 = std::chrono::steady_clock::now();
-  ew::buildSettlement(ctx, so);
+  so = ew::SettlementOut();
+  so.gx = p.gx - ew::town::MARGIN;
+  so.gy = p.gy - ew::town::MARGIN;
+  {
+    ew::town::Gen g(ctx, so);
+    g_casePhase = {0.0, -1};
+    for (int ph = 0;; ph++) {
+      const auto s0 = std::chrono::steady_clock::now();
+      const bool more = g.step();
+      const double pms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - s0).count();
+      const int ti = c.type == SiteType::City ? 2 : (c.type == SiteType::Town ? 1 : 0);
+      if (pms > g_phaseMax[ti].first) g_phaseMax[ti] = {pms, ph};
+      if (ph < 16) g_phaseTab[ti][ph] = std::max(g_phaseTab[ti][ph], pms);
+      if (pms > g_casePhase.first) g_casePhase = {pms, ph};
+      if (!more) break;
+    }
+  }
   ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
 }
 
@@ -166,6 +207,14 @@ void dumpPng(const ew::SettlementOut& so, const std::string& path) {
   for (int y = 0; y < m.h; y++)
     for (int x = 0; x < m.w; x++) {
       uint32_t c = groundColor(m.at(x, y));
+      // (M3) relief: higher levels lighter, cliff faces dark, stairs amber
+      {
+        const int lv = m.heightAt(x, y), base = m.heightAt(so.ex - so.gx, so.ey - so.gy);
+        if (lv > base) c = art::mix(c, rgba(255, 255, 255), std::min(0.5f, 0.14f * (lv - base)));
+        if (lv < base) c = art::mix(c, rgba(0, 0, 0), std::min(0.5f, 0.14f * (base - lv)));
+        if (m.heightBits(x, y) & Map::HEIGHT_CLIFF) c = rgba(70, 52, 40);
+        if (m.heightBits(x, y) & Map::HEIGHT_RAMP) c = rgba(230, 160, 60);
+      }
       if (!so.used.empty() && !so.used[(size_t)y * m.w + x]) c = art::mix(c, rgba(0, 0, 0), 0.35f);
       int p = m.propAt(x, y);
       if (p) c = (Prop)(p - 1) == Prop::Banner ? rgba(40, 70, 220) : rgba(30, 90, 30);
@@ -417,8 +466,32 @@ int checkEconomy(const Case& c, const ew::SettlementOut& so, const char* what) {
         // the tile two past each end of the run, on its aisle's first row, is open ground
         const bool ns = s.f >= art::StallE;
         const int la = ns ? -4 : -3, ha = ns ? 2 : 3;
-        if ((!lo && m.blocked(s.x + s.ax * la + s.fx, s.y + s.ay * la + s.fy)) || (!hi && m.blocked(s.x + s.ax * ha + s.fx, s.y + s.ay * ha + s.fy))) {
-          fail("the run at %d,%d is shut in at an end", s.x, s.y);
+        // (M3) the designed L (a side stall turned across a row's end, a short walkway between: town_market.cpp): its end
+        // may meet the row's counter when the walkway before it runs on round the corner
+        auto endShut = [&](int k) {
+          const int ex = s.x + s.ax * k + s.fx, ey = s.y + s.ay * k + s.fy;
+          if (!m.blocked(ex, ey)) return false;
+          const int q = m.propAt(ex, ey);
+          const bool counter = q == (int)Prop::Filler + 1 || (q && art::isStall((Prop)(q - 1)));
+          if (!counter || !ns) return true;
+          const int sg = k < 0 ? -1 : 1, wx = ex - s.ax * sg, wy = ey - s.ay * sg;   // the walkway tile before it
+          return m.blocked(wx, wy) || m.blocked(wx - s.fx, wy - s.fy);
+        };
+        if ((!lo && endShut(la)) || (!hi && endShut(ha))) {
+          const int ex = !lo && m.blocked(s.x + s.ax * la + s.fx, s.y + s.ay * la + s.fy) ? s.x + s.ax * la + s.fx : s.x + s.ax * ha + s.fx;
+          const int ey = !lo && m.blocked(s.x + s.ax * la + s.fx, s.y + s.ay * la + s.fy) ? s.y + s.ay * la + s.fy : s.y + s.ay * ha + s.fy;
+          fail("the run at %d,%d is shut in at an end (%d,%d: prop %d, building %d, wall %d, ground %d)", s.x, s.y, ex, ey, m.propAt(ex, ey) - 1,
+               m.in(ex, ey) ? m.bldgAt[(size_t)ey * m.w + ex] : -9, m.in(ex, ey) ? (int)m.wall[(size_t)ey * m.w + ex] : -9, (int)m.at(ex, ey));
+          if (std::getenv("EMB_DEBUG_TOWNS"))   // the props round it (prop - 1, '.' none)
+            for (int y = s.y - 6; y <= s.y + 3; y++) {
+              std::string row = "  ";
+              for (int x = s.x - 6; x <= s.x + 6; x++) {
+                char b[8];
+                std::snprintf(b, sizeof b, "%4d", m.propAt(x, y) - 1);
+                row += m.propAt(x, y) ? b : "   .";
+              }
+              out("%s\n", row.c_str());
+            }
           break;
         }
       }
@@ -518,7 +591,51 @@ int checkEconomy(const Case& c, const ew::SettlementOut& so, const char* what) {
   return bad;
 }
 
+// (M3, owner note 3: "diagonal city wall runs read as a jagged staircase") the wall's irregular neighbour patterns: a
+// clean ring is one tile thick, made of straight runs and 1:1 diagonals. Counted: isolated wall tiles, spurs (a tile
+// with one wall neighbour that is no jamb of an opening), 2x2 blocks (double-thick corners and runs), and 2-tile runs
+// (the 2-1-2 jitter of a slope rasterised as a staircase). Openings' jambs and ends are not counted.
+struct WallIrr { int isolated = 0, spurs = 0, blocks = 0, jitter = 0, walls = 0, fx = -1, fy = -1; int total() const { return isolated + spurs + blocks + jitter; } };
+WallIrr g_wallIrr;
+int g_walledTowns = 0;
+WallIrr wallIrregularities(const Map& m, const std::vector<IRect>& gaps) {
+  WallIrr r;
+  auto w = [&](int x, int y) { return m.in(x, y) && m.wall[(size_t)y * m.w + x] != 0; };
+  auto nearGap = [&](int x, int y) {
+    for (const IRect& g : gaps)
+      if (x >= g.x - 1 && x <= g.x + g.w && y >= g.y - 1 && y <= g.y + g.h) return true;
+    return false;
+  };
+  for (int y = 0; y < m.h; y++)
+    for (int x = 0; x < m.w; x++) {
+      if (!w(x, y)) continue;
+      r.walls++;
+      int n = 0;
+      for (int oy = -1; oy <= 1; oy++) for (int ox = -1; ox <= 1; ox++) if ((ox || oy) && w(x + ox, y + oy)) n++;
+      const int t0 = r.total();
+      if (n == 0) r.isolated++;
+      else if (n == 1 && !nearGap(x, y)) r.spurs++;
+      if (w(x + 1, y) && w(x, y + 1) && w(x + 1, y + 1)) r.blocks++;
+      // a horizontal run of exactly two (its first tile here) on a slope: the wall goes on diagonally the same way at
+      // both its ends (up-left and down-right, or down-left and up-right: a 2-1-2 staircase); a run of two at a peak
+      // (both ends turning the same way) is a corner, not jitter. The same for a vertical run.
+      if (!w(x - 1, y) && w(x + 1, y) && !w(x + 2, y) && !nearGap(x, y) && !nearGap(x + 1, y)) {
+        const int l = w(x - 1, y - 1) ? -1 : (w(x - 1, y + 1) ? 1 : 0), rr = w(x + 2, y - 1) ? -1 : (w(x + 2, y + 1) ? 1 : 0);
+        if (l != 0 && rr == -l) r.jitter++;
+      }
+      if (!w(x, y - 1) && w(x, y + 1) && !w(x, y + 2) && !nearGap(x, y) && !nearGap(x, y + 1)) {
+        const int u = w(x - 1, y - 1) ? -1 : (w(x + 1, y - 1) ? 1 : 0), d = w(x - 1, y + 2) ? -1 : (w(x + 1, y + 2) ? 1 : 0);
+        if (u != 0 && d == -u) r.jitter++;
+      }
+      if (r.total() > t0 && r.fx < 0) { r.fx = x; r.fy = y; }
+    }
+  return r;
+}
+
 std::map<std::string, int> g_plazaMax;   // (M2) the largest empty paved block per settlement kind
+struct LayoutStat { int n = 0, homesMin = 1 << 30, homesMax = 0; double ms = 0, msMax = 0, phaseMax = 0; int phase = -1; };
+std::map<std::string, LayoutStat> g_layout;   // (M3) "layout type" -> built, homes, ms
+int g_layoutArch[7][8] = {};                 // (M3) settlements built (and checked) per layout style and ew::Archetype
 int g_squarePeople = 1 << 30;             // (M2) the fewest people round a capital's main square
 
 int checkTown(const Case& c, const ew::SitePlan& p, const ew::SettlementOut& so, const char* what) {
@@ -564,7 +681,8 @@ int checkTown(const Case& c, const ew::SitePlan& p, const ew::SettlementOut& so,
       for (int x = a.r.x; x < a.r.x + a.r.w; x++) {
         if (!m.in(x, y)) { fail("%s off the buffer", bldgTypeName(a.type)); continue; }
         if (m.bldgAt[(size_t)y * m.w + x] != (int)i) fail("%s footprint overlaps building %d", bldgTypeName(a.type), m.bldgAt[(size_t)y * m.w + x]);
-        if (groundWater(m.at(x, y)) || m.at(x, y) == Ground::Bridge) fail("%s stands on water", bldgTypeName(a.type));
+        if ((groundWater(m.at(x, y)) || m.at(x, y) == Ground::Bridge) && !(a.styled && a.arch.foundation == art::Foundation::Stilts))
+          fail("%s stands on water", bldgTypeName(a.type));
         int h = m.heightAt(x, y);
         if (lv >= 0 && h != lv) { fail("%s straddles relief levels", bldgTypeName(a.type)); y = a.r.y + a.r.h; break; }
         lv = h;
@@ -588,6 +706,24 @@ int checkTown(const Case& c, const ew::SitePlan& p, const ew::SettlementOut& so,
     int ax = b.doorX(), ay = b.r.y + b.r.h;
     if (!m.in(ax, ay) || !seen[(size_t)ay * m.w + ax]) {
       if (unreached++ < 3) fail("%s at %d,%d: door unreachable", bldgTypeName(b.type), b.r.x, b.r.y);
+      if (unreached == 1 && std::getenv("EMB_DEBUG_TOWNS")) {   // the ground round its door: # wall, B building, D door,
+        for (int y = ay - 5; y <= ay + 5; y++) {                 // = bridge, ~ water, , swamp, o solid prop, ^ cliff,
+          std::string row = "  ";                                // r ramp, * reached, . walkable but not reached
+          for (int x = ax - 9; x <= ax + 9; x++) {
+            char ch = ' ';
+            if (!m.in(x, y)) ch = ' ';
+            else if (m.wall[(size_t)y * m.w + x]) ch = '#';
+            else if (m.bldgAt[(size_t)y * m.w + x] >= 0) ch = (x == m.bldgs[(size_t)m.bldgAt[(size_t)y * m.w + x]].doorX() && y == m.bldgs[(size_t)m.bldgAt[(size_t)y * m.w + x]].doorY()) ? 'D' : 'B';
+            else if (m.heightBits(x, y) & Map::HEIGHT_CLIFF) ch = '^';
+            else if (groundWater(m.at(x, y))) ch = '~';
+            else if (m.propAt(x, y) && propSolid((Prop)(m.propAt(x, y) - 1))) ch = 'o';
+            else if (seen[(size_t)y * m.w + x]) ch = (m.heightBits(x, y) & Map::HEIGHT_RAMP) ? 'r' : m.at(x, y) == Ground::Bridge ? '=' : '*';
+            else ch = m.at(x, y) == Ground::Bridge ? '_' : (m.at(x, y) == Ground::Swamp ? ',' : '.');
+            row += ch;
+          }
+          out("%s\n", row.c_str());
+        }
+      }
     }
   }
   bool out1 = false;
@@ -603,22 +739,41 @@ int checkTown(const Case& c, const ew::SitePlan& p, const ew::SettlementOut& so,
     for (const IRect& g : so.wallGaps)
       for (int y = g.y; y < g.y + g.h; y++) for (int x = g.x; x < g.x + g.w; x++) if (m.in(x, y)) shut[(size_t)y * m.w + x] = 1;
     std::vector<uint8_t> f((size_t)m.w * m.h, 0);
+    std::vector<int> par((size_t)m.w * m.h, -1);
     std::vector<int> q{hy * m.w + hx};
     f[(size_t)hy * m.w + hx] = 1;
     bool leaked = false;
+    int leakAt = -1;
     for (size_t h = 0; h < q.size() && !leaked; h++) {
       int x = q[h] % m.w, y = q[h] / m.w;
-      if (x == 0 || y == 0 || x == m.w - 1 || y == m.h - 1) leaked = true;
+      if (x == 0 || y == 0 || x == m.w - 1 || y == m.h - 1) { leaked = true; leakAt = q[h]; }
       static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
       for (int k = 0; k < 4; k++) {
         int nx = x + dx[k], ny = y + dy[k];
         if (!m.in(nx, ny) || f[(size_t)ny * m.w + nx] || shut[(size_t)ny * m.w + nx]) continue;
         f[(size_t)ny * m.w + nx] = 1;
+        par[(size_t)ny * m.w + nx] = q[h];
         q.push_back(ny * m.w + nx);
       }
     }
-    if (leaked) fail("the city wall leaks (a flood from the heart leaves the ring with the gates shut)");
+    if (leaked) {
+      // where the flood slipped past the ring: the last tile of its way out that still had a wall beside it
+      int at = -1;
+      for (int c = leakAt; c >= 0; c = par[(size_t)c]) {
+        const int x = c % m.w, y = c / m.w;
+        bool wallNb = false;
+        for (int oy = -1; oy <= 1; oy++) for (int ox = -1; ox <= 1; ox++) if (m.in(x + ox, y + oy) && m.wall[(size_t)(y + oy) * m.w + x + ox]) wallNb = true;
+        if (wallNb) { at = c; break; }
+      }
+      fail("the city wall leaks (a flood from the heart leaves the ring with the gates shut) near %d,%d", at < 0 ? -1 : at % m.w, at < 0 ? -1 : at / m.w);
+    }
     if (so.gates.empty()) fail("no gatehouse");
+    {
+      const WallIrr wi = wallIrregularities(m, so.wallGaps);
+      g_walledTowns++;
+      g_wallIrr.isolated += wi.isolated; g_wallIrr.spurs += wi.spurs; g_wallIrr.blocks += wi.blocks; g_wallIrr.jitter += wi.jitter; g_wallIrr.walls += wi.walls;
+      if (wi.total()) fail("wall irregularities: %d isolated, %d spurs, %d 2x2 blocks, %d 2-tile runs (the first at %d,%d)", wi.isolated, wi.spurs, wi.blocks, wi.jitter, wi.fx, wi.fy);
+    }
     // gates near the roads
     for (float rb : c.roads) {
       bool ok = false;
@@ -731,9 +886,11 @@ int cmdTowns(int argc, char** argv) {
   bool verbose = false, golden = false, write = false;
   std::map<std::string, uint64_t> hashes;   // --golden: every case's town hash (the layout, the market, the props)
   int sweep = 0, pickS = -1, pickK = -1;
+  bool cultures = true;   // (M3) the culture cases too (--no-cultures: the classic cases only)
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "--golden")) { golden = true; continue; }
     if (!strcmp(argv[i], "--write")) { write = true; continue; }
+    if (!strcmp(argv[i], "--no-cultures")) { cultures = false; continue; }
     if (!strcmp(argv[i], "--pick") && i + 1 < argc) { std::sscanf(argv[++i], "%d,%d", &pickS, &pickK); continue; }
     if (!strcmp(argv[i], "--sweep") && i + 1 < argc) sweep = std::max(1, atoi(argv[++i]));
     else if (!strcmp(argv[i], "--seeds") && i + 1 < argc) parseSeedRange(argv[++i], a, b);
@@ -799,6 +956,40 @@ int cmdTowns(int argc, char** argv) {
       c.seed = (uint32_t)ew::mix64(s * 7919 + 5);
       cases.push_back(c);
     }
+    if (cultures) {
+      // M3: every culture archetype as a village, a town and a city (a capital now and then), on land that suits it
+      // (cult::Atlas::make(archetype, seed) as ctx.culture), then every layout style forced, so each style is built
+      // every seed whatever the culture tables pick
+      static const Land landOf[12] = {Land::Coast, Land::Plains, Land::Plains, Land::Plains, Land::Plains, Land::Plains,
+                                      Land::Plains, Land::Plains, Land::River, Land::Plains, Land::Plains, Land::Plains};
+      static const Biome bioOf[12] = {Biome::Taiga, Biome::Forest, Biome::Plains, Biome::Plains, Biome::Desert, Biome::Plains,
+                                      Biome::Swamp, Biome::Forest, Biome::Plains, Biome::Forest, Biome::Forest, Biome::Snow};
+      // the forced styles' peoples: organic heartland, grid imperial, radial steppe, linear river, compound dune,
+      // terraced jade, stilt marsh
+      static const int byLayout[7] = {2, 3, 5, 8, 4, 7, 6};
+      for (int pass = 0; pass < 2; pass++)
+        for (int a = 0; a < (pass == 0 ? 12 : 7); a++)
+          for (SiteType t : {SiteType::Village, SiteType::Town, SiteType::City}) {
+            Case c;
+            c.type = t;
+            c.culture = pass == 0 ? a : byLayout[a];
+            c.forceLayout = pass == 0 ? -1 : a;
+            c.arch = archs[(s + (uint64_t)a * 3 + (uint64_t)t + (uint64_t)pass * 5) % 8];
+            c.land = landOf[c.culture];
+            c.bio = bioOf[c.culture];
+            if (c.arch == ew::Archetype::Fishing || c.arch == ew::Archetype::Port) c.land = Land::Coast;
+            if (c.arch == ew::Archetype::RiverCrossing) c.land = Land::River;
+            if (c.land == Land::Coast && c.bio == Biome::Desert) c.bio = Biome::Plains;
+            c.capital = t == SiteType::City && (s + (uint64_t)a + (uint64_t)pass) % 3 == 0;
+            if ((s + (uint64_t)a + (uint64_t)t + (uint64_t)pass) % 2 == 0) {
+              int nr = t == SiteType::Village ? 1 + r.irange(2) : 2 + r.irange(t == SiteType::City ? 3 : 2);
+              float a0 = r.f() * ew::D_TAU;
+              for (int k = 0; k < nr; k++) c.roads.push_back(ew::dwrap(a0 + k * ew::D_TAU / nr + r.range(-0.4f, 0.4f)));
+            }
+            c.seed = (uint32_t)ew::mix64(s * 131 + (uint64_t)a * 17 + (uint64_t)t * 7 + (uint64_t)pass * 7777 + 99991);
+            cases.push_back(c);
+          }
+    }
     }
     for (size_t ci = 0; ci < cases.size(); ci++) {
       if (pickS >= 0 && ((int)s != pickS || (int)ci != pickK)) continue;   // --pick S,K: one case (with --png)
@@ -809,9 +1000,14 @@ int cmdTowns(int argc, char** argv) {
       double ms = 0, ms2 = 0;
       buildCase(c, p, k, so, ms);
       buildCase(c, p, k, so2, ms2);
-      char what[160];
-      std::snprintf(what, sizeof what, "seed %llu #%zu %s%s %s %s on %s%s", (unsigned long long)s, ci, c.capital ? "capital " : "", siteTypeName(c.type),
-                    archName(c.arch), ew::specialtyName(so.special), landName(c.land), c.roads.empty() ? "" : " with roads");
+      char what[220];
+      std::string cu;
+      if (c.culture >= 0) {
+        const cult::Culture K = caseCulture(c);
+        cu = std::string(" ") + cult::archetypeName((cult::Archetype)c.culture) + " " + layoutName(caseLayout(c, K));
+      }
+      std::snprintf(what, sizeof what, "seed %llu #%zu %s%s %s %s on %s%s%s", (unsigned long long)s, ci, c.capital ? "capital " : "", siteTypeName(c.type),
+                    archName(c.arch), ew::specialtyName(so.special), landName(c.land), c.roads.empty() ? "" : " with roads", cu.c_str());
       int fails = 0;
       if (townHash(so) != townHash(so2)) { out("FAIL: %s: not deterministic (two builds differ)\n", what); fails++; }
       if (golden) {   // (M1 fixer round 2) the cross-platform check: the hash only
@@ -824,6 +1020,15 @@ int cmdTowns(int argc, char** argv) {
       fails += checkTown(c, p, so, what);
       bad += fails;
       std::string tn = c.capital ? "capital" : siteTypeName(c.type);
+      if (c.culture >= 0) {   // (M3) per layout style: scale and build time
+        const cult::Culture K = caseCulture(c);
+        std::string ln = std::string(layoutName(caseLayout(c, K))) + " " + tn;
+        auto& L = g_layout[ln];
+        L.n++; L.ms += std::min(ms, ms2); L.msMax = std::max(L.msMax, std::min(ms, ms2));
+        L.homesMin = std::min(L.homesMin, so.homes); L.homesMax = std::max(L.homesMax, so.homes);
+        if (g_casePhase.first > L.phaseMax) { L.phaseMax = g_casePhase.first; L.phase = g_casePhase.second; }
+        g_layoutArch[(int)caseLayout(c, K) % 7][(int)c.arch % 8]++;
+      }
       Timing& T = times[tn];
       double best = std::min(ms, ms2);
       T.sum += best; T.n++; T.max = std::max(T.max, best);
@@ -835,7 +1040,8 @@ int cmdTowns(int argc, char** argv) {
             so.gates.size(), so.wallGaps.size(), so.buf.spawns.size(), best);
       if (!pngDir.empty()) {
         char fn[300];
-        std::snprintf(fn, sizeof fn, "%s/town_s%llu_%zu_%s_%s.png", pngDir.c_str(), (unsigned long long)s, ci, tn.c_str(), archName(c.arch));
+        std::string ln = c.culture >= 0 ? std::string("_") + cult::archetypeName((cult::Archetype)c.culture) + "_" + layoutName(caseLayout(c, caseCulture(c))) : "";
+        std::snprintf(fn, sizeof fn, "%s/town_s%llu_%zu_%s_%s%s.png", pngDir.c_str(), (unsigned long long)s, ci, tn.c_str(), archName(c.arch), ln.c_str());
         dumpPng(so, fn);
       }
     }
@@ -891,6 +1097,26 @@ int cmdTowns(int argc, char** argv) {
     printf("FAIL: towns: the markets do not mix their stalls' facings\n");
     bad++;
   }
+  for (auto& [ln, L] : g_layout)
+    printf("towns: layout %-17s %3d built, homes %d..%d, build %.1f ms avg, %.1f ms max, slowest phase %d %.1f ms\n", ln.c_str(), L.n, L.homesMin, L.homesMax, L.n ? L.ms / L.n : 0.0, L.msMax, L.phase, L.phaseMax);
+  printf("towns: slowest generator phase (one web frame's share): village %.1f ms (phase %d), town %.1f ms (phase %d), city %.1f ms (phase %d)\n",
+         g_phaseMax[0].first, g_phaseMax[0].second, g_phaseMax[1].first, g_phaseMax[1].second, g_phaseMax[2].first, g_phaseMax[2].second);
+  for (int ti = 0; ti < 3; ti++) {
+    printf("towns: %s phases (slowest ms):", ti == 0 ? "village" : (ti == 1 ? "town" : "city"));
+    for (int ph = 0; ph < 13; ph++) printf(" %.1f", g_phaseTab[ti][ph]);
+    printf("\n");
+  }
+  {   // (M3, PLAN.md task 3) every settlement archetype in every layout style
+    static const char* ln[7] = {"organic", "grid", "radial", "linear", "compound", "terraced", "stilt"};
+    printf("towns: archetypes per layout (plain farming fishing port mining river hillfort market):\n");
+    for (int l = 0; l < 7; l++) {
+      printf("towns:   %-9s", ln[l]);
+      for (int a2 = 0; a2 < 8; a2++) printf(" %3d", g_layoutArch[l][a2]);
+      printf("\n");
+    }
+  }
+  printf("towns: wall irregularities over %d walled settlements (%d wall tiles): %d isolated, %d spurs, %d 2x2 blocks, %d 2-tile runs\n",
+         g_walledTowns, g_wallIrr.walls, g_wallIrr.isolated, g_wallIrr.spurs, g_wallIrr.blocks, g_wallIrr.jitter);
   printf("towns: largest empty paved block:");
   for (auto& kv : g_plazaMax) printf(" %s %d", kv.first.c_str(), kv.second);
   printf(" | fewest people round a capital's square: %d\n", g_squarePeople == (1 << 30) ? 0 : g_squarePeople);

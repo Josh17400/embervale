@@ -1,7 +1,12 @@
 // audio_preview: renders every Sfx and 40 s of every Music mode offline (no audio device) to 16-bit WAVs and
 // prints level / spectral / musical-structure statistics so the synth can be checked without listening.
+// M3: then the culture pieces: the Town piece of each of the 12 archetypes (their MusicStyles as the culture engine's
+// priors draw them, mid-range), a Wild, a Night and a Combat in culture styles, and a border crossing (Town in one
+// style crossfading into Town in another), each checked for clipping, gaps, loudness against the classic Town, and
+// clicks at the crossing.
 //
-//   audio_preview [outDir]      default outDir: %LOCALAPPDATA%\Temp\claude\embervale_audio
+//   audio_preview [outDir] [--cultures]   default outDir: %LOCALAPPDATA%\Temp\claude\embervale_audio;
+//                                         --cultures: only the culture pieces
 #include "engine/audio.h"
 #include <algorithm>
 #include <array>
@@ -278,12 +283,117 @@ float maxStep(const std::vector<float>& x) {   // largest sample-to-sample jump:
   for (size_t i = 1; i < x.size(); i++) m = std::fmax(m, std::fabs(x[i] - x[i - 1]));
   return m;
 }
+
+// ---------------------------------------------------------------- M3 culture pieces
+struct CultureStyle { const char* name; MusicStyle ms; };
+MusicStyle mk(Scale sc, int bpm, int meter, LeadInst l, PadInst pad, BassInst bass, PercKind perc, int swing, int orn, int drone,
+              int seed) {
+  MusicStyle m;
+  m.scale = sc; m.bpm = (uint8_t)bpm; m.meter = (uint8_t)meter; m.lead = l; m.pad = pad; m.bass = bass; m.perc = perc;
+  m.swing = (uint8_t)swing; m.ornament = (uint8_t)orn; m.drone = (uint8_t)drone; m.seed = (uint16_t)seed;
+  return m;
+}
+// each archetype's style as rpg/culture/priors.cpp draws it (mid-range dials; the tool links only the engine)
+const CultureStyle kCultures[12] = {
+    {"fjordfolk", mk(Scale::Dorian, 76, 3, LeadInst::Horn, PadInst::Drone, BassInst::Drone, PercKind::Bodhran, 0, 3, 11, 101)},
+    {"highland", mk(Scale::Mixolydian, 100, 6, LeadInst::Pipes, PadInst::Drone, BassInst::Drone, PercKind::Bodhran, 0, 11, 13, 202)},
+    {"heartland", mk(Scale::Major, 92, 6, LeadInst::Lute, PadInst::Strings, BassInst::Plucked, PercKind::Frame, 0, 4, 1, 303)},
+    {"imperial", mk(Scale::Lydian, 104, 4, LeadInst::Brass, PadInst::Organ, BassInst::Horn, PercKind::Kettle, 0, 2, 0, 404)},
+    {"dune", mk(Scale::Hijaz, 106, 7, LeadInst::Oud, PadInst::Drone, BassInst::Plucked, PercKind::Hand, 0, 12, 7, 505)},
+    {"steppe", mk(Scale::PentaMinor, 114, 4, LeadInst::Voice, PadInst::Drone, BassInst::Drone, PercKind::Frame, 3, 7, 13, 606)},
+    {"marsh", mk(Scale::PentaMajor, 88, 4, LeadInst::Reed, PadInst::Bowed, BassInst::Hand, PercKind::Frame, 7, 6, 3, 707)},
+    {"jade", mk(Scale::InSen, 72, 4, LeadInst::Bells, PadInst::Shimmer, BassInst::Plucked, PercKind::Gong, 0, 8, 3, 808)},
+    {"river", mk(Scale::Major, 114, 4, LeadInst::Fiddle, PadInst::Organ, BassInst::Plucked, PercKind::Wood, 9, 4, 0, 909)},
+    {"suntemple", mk(Scale::Phrygian, 106, 5, LeadInst::Marimba, PadInst::None, BassInst::Hand, PercKind::Hand, 3, 3, 1, 1010)},
+    {"sylvan", mk(Scale::Minor, 80, 6, LeadInst::Flute, PadInst::Shimmer, BassInst::Plucked, PercKind::Bells, 0, 7, 2, 1111)},
+    {"starspire", mk(Scale::Lydian, 66, 3, LeadInst::Harp, PadInst::Choir, BassInst::Bowed, PercKind::Bells, 0, 4, 4, 1212)},
+};
+
+int culturePieces(const fs::path& dir) {
+  int problems = 0;
+  const float secs = 32.0f;
+  auto classic = std::make_unique<Audio>();
+  classic->setMusic(Music::Town);
+  const auto ref = renderFor(*classic, secs);
+  const Loud RL = loudness(ref, 3 * SR);
+  const Levels RLv = levels(ref, 3 * SR);
+  std::printf("\nCULTURE PIECES (%.0f s each; classic Town: peak %.3f, rms %.1f dB, loudest 200ms %.1f dB)\n", secs, RLv.peak,
+              db(RLv.rms), db(RL.maxWin));
+  std::printf("%-22s %7s %7s %6s %6s %8s %8s %9s %9s %8s\n", "piece", "peak", "rms dB", "vs ref", "silent", "clip", "onset/m",
+              "200ms dB", "phone dB", "pchg/m");
+  auto judge = [&](const char* name, std::vector<float> x, bool town) {
+    const Levels L = levels(x, 3 * SR);
+    const Loud ML = loudness(x, 3 * SR), MP = loudness(phoneSpeaker(x), 3 * SR);
+    const Structure S = structure(x, 3.0f);
+    const float gap = longestSilence(x, 3.0f);
+    const float vs = db(L.rms) - db(RLv.rms);
+    std::printf("%-22s %7.3f %7.1f %+6.1f %5.1fs %6d %8.0f %9.1f %9.1f %8.0f\n", name, L.peak, db(L.rms), vs, gap, L.clipped,
+                S.onsetsPerMin, db(ML.maxWin), db(MP.mean), S.pitchChangesPerMin);
+    if (L.clipped || L.peak > 0.5f || gap > 4.0f || (town && (vs > 4.0f || vs < -6.0f))) { std::printf("  ^ PROBLEM\n"); problems++; }
+    writeWav(dir / (std::string("culture_") + name + ".wav"), x);
+  };
+  for (const CultureStyle& c : kCultures) {
+    auto a = std::make_unique<Audio>();
+    a->setMusic(Music::Town, &c.ms);
+    judge((std::string("town_") + c.name).c_str(), renderFor(*a, secs), true);
+  }
+  {
+    auto a = std::make_unique<Audio>();
+    a->setMusic(Music::Wild, &kCultures[10].ms);
+    judge("wild_sylvan", renderFor(*a, secs), false);
+  }
+  {
+    auto a = std::make_unique<Audio>();
+    a->setMusic(Music::Night, &kCultures[4].ms);
+    judge("night_dune", renderFor(*a, secs), false);
+  }
+  {
+    auto a = std::make_unique<Audio>();
+    a->setMusic(Music::Combat, &kCultures[4].ms);
+    judge("combat_dune", renderFor(*a, 16.0f), false);
+  }
+  {   // the border crossing: Town in one style, then Town in another (a same-mode call must crossfade like a new piece);
+      // a same-style call must change nothing; leaving the style returns to the classic piece
+    auto a = std::make_unique<Audio>();
+    std::vector<float> all;
+    std::vector<size_t> sw;
+    struct Leg { const MusicStyle* st; float sec; };
+    const Leg legs[] = {{&kCultures[0].ms, 10}, {&kCultures[0].ms, 2}, {&kCultures[4].ms, 10}, {nullptr, 8}};
+    uint64_t prev = 0;
+    for (const Leg& l : legs) {
+      a->setMusic(Music::Town, l.st);
+      const uint64_t k = l.st ? l.st->pack() : 1;
+      if (k != prev) sw.push_back(all.size());
+      prev = k;
+      auto part = renderFor(*a, l.sec);
+      all.insert(all.end(), part.begin(), part.end());
+    }
+    float nearSwitch = 0, elsewhere = 0;
+    for (size_t i = 1; i < all.size(); i++) {
+      const float d = std::fabs(all[i] - all[i - 1]);
+      bool near = false;
+      for (size_t s0 : sw) near |= i >= s0 && i < s0 + SR / 4;
+      (near ? nearSwitch : elsewhere) = std::fmax(near ? nearSwitch : elsewhere, d);
+    }
+    std::printf("border crossing (fjordfolk town -> same again -> dune town -> classic): peak %.3f, largest jump within 250 ms "
+                "of a switch %.4f vs elsewhere %.4f, longest gap %.1fs\n", levels(all).peak, nearSwitch, elsewhere,
+                longestSilence(all, 3.0f));
+    if (nearSwitch > 1.5f * elsewhere || longestSilence(all, 3.0f) > 3.0f) { std::printf("PROBLEM: crossing artefact\n"); problems++; }
+    writeWav(dir / "culture_border_fjordfolk_to_dune.wav", all);
+  }
+  std::printf("culture pieces: %s (%d problem%s)\n", problems ? "CHECK FAILED" : "all checks passed", problems, problems == 1 ? "" : "s");
+  return problems;
+}
 }  // namespace
 
 int main(int argc, char** argv) {
   fs::path dir;
-  if (argc > 1) dir = argv[1];
-  else {
+  bool culturesOnly = false;
+  for (int i = 1; i < argc; i++) {
+    if (std::string(argv[i]) == "--cultures") culturesOnly = true;
+    else dir = argv[i];
+  }
+  if (dir.empty()) {
     const char* la = std::getenv("LOCALAPPDATA");
     dir = fs::path(la ? la : ".") / "Temp" / "claude" / "embervale_audio";
   }
@@ -292,6 +402,10 @@ int main(int argc, char** argv) {
   if (ec) { std::fprintf(stderr, "cannot create %s: %s\n", dir.string().c_str(), ec.message().c_str()); return 1; }
   std::printf("output: %s\n(levels at default master 0.6, music volume 0.7)\n\n", dir.string().c_str());
   int problems = 0;
+  if (culturesOnly) {
+    problems = culturePieces(dir);
+    return problems ? 2 : 0;
+  }
 
   // "raw" = peak the sound would reach without the limiter (rendered at half master, doubled); > 0.8 means limited
   // "200ms" = loudest 200 ms window; "phone" = the same through a 200 Hz high-pass (what a phone speaker plays)
@@ -416,6 +530,7 @@ int main(int argc, char** argv) {
     Levels B = levels(bed, 3 * SR), H = levels(hit);
     std::printf("Hit over Combat: hit-window peak %.3f vs bed peak %.3f, rms %.1f dB vs %.1f dB\n", H.peak, B.peak, db(H.rms), db(B.rms));
   }
+  problems += culturePieces(dir);
   std::printf("\n%s (%d problem%s)\n", problems ? "CHECK FAILED" : "all checks passed", problems, problems == 1 ? "" : "s");
   return problems ? 2 : 0;
 }

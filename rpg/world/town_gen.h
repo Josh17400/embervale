@@ -65,6 +65,25 @@ struct Gen {
   Biome bio = Biome::Plains;
   int layout = 0;                // villages: 0 crossroads hamlet, 1 road village, 2 village green
   int homesWant = 0;
+  // ---------------------------------------------------------------- M3: the culture's settlement (VISION_PLAN 5.6, 5.7)
+  // style: the culture's TownStyle::layout (altLayout in about 1 in 4 of its settlements, by the plan's seed);
+  // Organic without a culture. cArch: the culture's cult::Archetype (-1: none).
+  cult::Layout style = cult::Layout::Organic;
+  int cArch = -1;
+  uint8_t wallByte = 1;          // Map::wall on the town's wall tiles: 1 + the culture's art::CityWall
+  float densityF = 1.0f;         // TownStyle::density / 128: setbacks and gardens shrink as it grows
+  float treesF = 1.0f;           // TownStyle::trees / 128: street trees, orchards and gardens
+  float wander = 1.0f;           // how much streets wander (a grid's streets run straighter)
+  bool terraced = false;         // Terraced: the town cut its own terraces into lvl (cliff faces and stairs in finish)
+  bool stilt = false;            // Stilt: houses stand on stilts over the marsh, boardwalks join them
+  float spineA = 0;              // Linear: the bearing of the spine (along the shore, the river, the causeway)
+  float spineX = 0, spineY = 0;  // Linear: a point the spine runs through (the heart, or the bank beside it)
+  int gridSX = 13, gridSY = 9;   // Grid / Compound: the lattice's spacing (tiles)
+  float gridTheta = 0;           // Grid: the lattice's small tilt
+  int centreKind = -1;           // the main square's centrepiece (art::PropStyle::centre), -1: the classic choice
+  int townWealth = -1;           // the settlement's wealth 0..3 (townWealthFor), -1: no culture (no skew)
+  bool cultureIs(int a) const { return cArch == a; }
+  int wealthFor(art::Building t, const IRect& r) const;   // 0 poor .. 3 rich (district, size, capital)
 
   // ---------------------------------------------------------------- per tile
   std::vector<uint8_t> mask;     // Kind
@@ -132,8 +151,34 @@ struct Gen {
   void cityWall();                   // ring, gatehouses, side gates (port of the classic cityWallV3, plus side gates)
   void linkGates(size_t gaps0);      // lanes from each opening to the streets, stubs outside the ring removed
   void approachRoads();              // from every opening out to the buffer's edge along its bearing
-  void palisadeRing();
-  void pruneStreets();               // streets the heart cannot reach go back to the land               // hill-fort villages: a fence ring with gaps where the streets leave
+  void palisadeRing();               // hill-fort villages: a fence ring with gaps where the streets leave
+  void pruneStreets();               // streets the heart cannot reach go back to the land
+  // M3 layout styles (town_layout.cpp)
+  void pickStyle();                  // the culture's layout, wall, density, trees (in land, before anything is drawn)
+  void wallRing();                   // walled: the ring as a thin octilinear polygon (ringT) and its inside
+  void wallStreet();                 // cities: the lane along the inside of the wall
+  std::vector<uint8_t> ringT;        // the wall ring's tiles (empty: the classic ring, inside tiles touching the outside)
+  bool face(int x, int y) const {   // terraced: the row under a higher neighbour (a terrace's retaining face)
+    if (!terraced || !in(x, y)) return false;
+    static const int fx[4] = {0, 1, -1, 0}, fy[4] = {1, 0, 0, -1};
+    for (int d = 0; d < 4; d++) if (in(x + fx[d], y + fy[d]) && lvl[I(x + fx[d], y + fy[d])] > lvl[I(x, y)]) return true;
+    return false;
+  }
+  std::vector<uint8_t> ringNear;     // Chebyshev distance to the nearest ring tile, capped at 7 (wallRing)
+  bool nearRing(int x, int y, int r) const {   // a ring tile within r (Chebyshev)
+    if (ringNear.empty() || !in(x, y)) return false;
+    return ringNear[I(x, y)] <= r;
+  }
+  void cutTerraces();                // Terraced: relief terraces rising to the back of the town (land)
+  void marshWater();                 // Stilt: the marsh left standing in pools and channels (land)
+  void pickSpine();                  // Linear: the spine's bearing (along the water, else the strongest road)
+  void spineStreets();               // Linear: the spine through the heart, parallel back lanes, cross lanes
+  void gridLanes(bool compound);     // Grid / Compound: a warped lattice of lanes (the forum, courtyard blocks)
+  void radialRings();                // Radial: rings round the plaza and spokes out to the edge
+  void contourLanes();               // Terraced: a lane along each terrace's front edge, stairs between them
+  bool laneOk(int x, int y, bool ns, int px = -1, int py = -1) const;   // a lattice / ring lane may run here (not beside another street)
+  int compoundHomes(int want);       // Compound: walled family courtyards along the lanes (town_build.cpp); homes made
+  void quays();                      // Linear by the water: a paved quay along the bank (town_dress.cpp)
 
   // ---------------------------------------------------------------- town_build.cpp
   struct Want {
@@ -144,12 +189,18 @@ struct Gen {
   bool placeWant(const Want& w); // services(): one want, by the water when it asks, with the fallback for required ones
   int putBldg(art::Building type, IRect r, Role owner, int storeys);
   bool fits(const IRect& r, art::Building type, int storeys) const;
-  bool footpath(int ax, int ay, std::vector<std::pair<int, int>>& path) const;
+  bool footpath(int ax, int ay, std::vector<std::pair<int, int>>& path, const IRect* own = nullptr) const;   // own: the house to be (not walked through)
   bool tryPlace(art::Building type, Role owner, int bw, int bh, int ax, int ay, bool required);
   bool placeBuilding(const Want& w);
   void homeShape(District d, art::Building& t, int& bw, int& bh);
   void services();
-  void homes();
+  void homes();                      // homesBegin, homesSweep until done, homesFinish (the generator's phases)
+  void homesBegin();
+  bool homesSweep();                 // a slice of the frontage sweep (false: done)
+  void homesFinish();
+  std::vector<std::pair<float, int>> hOrder;   // the sweep's street tiles, heart outward
+  size_t hIdx = 0;
+  int hPass = 0, hHave = 0;
   void placeCompound();              // choose the palace compound's place (before the streets)
   void buildCompound();              // its wall, gate, palace, barracks, courtyard and gardens
   void compoundApproach();           // the paved way from its gate to the town's streets (after pruneStreets)
@@ -188,6 +239,9 @@ struct Gen {
   void plazaFill();
   void squareFolk();
   void finish();
+  // (M3 fixer) every door walkable from the heart: a quarter the river (or a marsh pool) cut off gets a way to the rest
+  // of the town, over the water on a bridge (seed 41's river town had a square, a mill and a house on the far bank)
+  void joinBanks();
   void addSpawn(Role r, int x, int y);
 };
 

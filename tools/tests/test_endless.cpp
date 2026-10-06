@@ -30,6 +30,9 @@
 #include <set>
 #include <string>
 #include <vector>
+#include "rpg/culture/culture.h"
+#include "rpg/world/coords.h"
+#include "rpg/world/ids.h"
 #include "rpg/world/source.h"
 #include "tools/tests/tests.h"
 
@@ -685,6 +688,49 @@ std::map<std::string, uint64_t> computeEndlessGolden() {
       fm.add(hashed);
       g[S + "." + pname[pl] + ".chunks"] = fm.h;
       g[S + "." + pname[pl] + ".tiles"] = hashed;
+    }
+    // (M3) the culture engine: the families of a 4 x 4 block of culture cells near the origin and far out, the dialects
+    // and arms of the kingdoms round the start, and a few buildings' architecture (integer / Q16 maths only: the
+    // maximin must pick the same cultures on every platform)
+    {
+      Fnv fc;
+      cult::Atlas& at = A.atlas();
+      auto addCulture = [&](const cult::Culture& c) {
+        fc.add(c.id); fc.add(c.seed);
+        fc.add((uint64_t)c.archetype | (uint64_t)c.archetype2 << 8 | (uint64_t)c.isolated << 16 | (uint64_t)c.homeBiome << 24);
+        fc.str(c.name); fc.str(c.adjective);
+        fc.add(c.arch.key()); fc.add((uint64_t)c.altRoof); fc.add(c.props.key()); fc.add(c.music.pack()); fc.add(c.heraldry.key());
+        for (uint32_t cl : c.dress.cloth) fc.add(cl);
+        fc.add((uint64_t)c.dress.cutM | (uint64_t)c.dress.cutF << 8 | (uint64_t)c.dress.head[0] << 16 | (uint64_t)c.dress.pattern << 24);
+        fc.add((uint64_t)c.town.layout | (uint64_t)c.town.altLayout << 8 | (uint64_t)c.town.wall << 16 | (uint64_t)c.town.fence << 24 |
+               (uint64_t)c.town.density << 32 | (uint64_t)c.town.trees << 40 | (uint64_t)c.town.paving << 48);
+        fc.add((uint64_t)c.arms.helm[0] | (uint64_t)c.arms.body[0] << 8 | (uint64_t)c.arms.shield << 16 | (uint64_t)c.arms.blade << 24 |
+               (uint64_t)c.arms.ornament << 32 | (uint64_t)(uint8_t)c.arms.favouredOre << 48);
+        for (const cult::Alloy& a : c.arms.alloys) {
+          fc.str(a.name); fc.add(a.color); fc.add((uint64_t)a.baseTier | (uint64_t)a.tierStep << 8 | (uint64_t)a.sheen << 16);
+          for (const cult::Ingredient& in : a.recipe) { fc.add((uint64_t)(uint8_t)in.ore | (uint64_t)in.parts << 8); fc.str(in.reagent); }
+        }
+        for (const std::string& n : c.faith.names) fc.str(n);
+        fc.add((uint64_t)c.faith.kind | (uint64_t)c.faith.domains << 8 | (uint64_t)c.customs.furniture << 24);
+        for (uint8_t v : c.values) fc.add(v);
+        fc.add((uint64_t)c.peopleMix[0] | (uint64_t)c.peopleMix[1] << 8 | (uint64_t)c.peopleMix[2] << 16);
+      };
+      for (int far = 0; far < 2; far++)
+        for (int j = 0; j < 4; j++)
+          for (int i = 0; i < 4; i++) {
+            const int32_t o = far ? 49 : -2;
+            const cult::Culture& c = at.family(o + i, o + j);
+            addCulture(c);
+            for (uint32_t b = 0; b < 3; b++) fc.add(cult::buildingArch(c, c.homeBiome, (int)b, (int)(3 - b), b * 977u + 5u).key());
+          }
+      for (int32_t ky = floorDiv(sp.spawn.y, KCELL) - 2; ky <= floorDiv(sp.spawn.y, KCELL) + 2; ky++)
+        for (int32_t kx = floorDiv(sp.spawn.x, KCELL) - 2; kx <= floorDiv(sp.spawn.x, KCELL) + 2; kx++) {
+          const KingdomPlan* K = A.kingdom(makeId(kx, ky, IdKind::Kingdom, 0));
+          if (!K) continue;
+          fc.str(K->name); fc.add(K->culture); fc.add(K->heraldry.key());
+          addCulture(A.culture(K->culture));
+        }
+      g[S + ".cultures"] = fc.h;
     }
     // macro samples on a coarse lattice, near and far
     Fnv fmac;

@@ -45,6 +45,7 @@ class View {
   bool touchUI = false;                  // show on-screen controls
   std::string titleNote;                 // a line under the title menu (e.g. an old save that no longer loads)
   std::string loadingCard;               // M1: a full-screen card ("FORGING THE WORLD") shown while a world is made
+  void creatorPrepare(Game& g);          // (M3 fixer round 2) the creator's homeland choices, made behind the card
   // test scripts (--script): hold a key as if it were physically down; one-shot presses go through event()
   void scriptHold(int scancode, bool down) { if (scancode >= 0 && scancode < 512) scriptKeys_[scancode] = down; }
 
@@ -171,6 +172,8 @@ class View {
   float bannerT_ = 0;
   float fade_ = 0;
   Music music_ = Music::Silence;
+  uint64_t musicStyle_ = 0, musicStyleOn_ = 0;   // M3: the culture's MusicStyle (packed) where the player is / playing
+  float musicStyleT_ = 0;
   float combatT_ = 0;
 
   // ---- input state
@@ -235,9 +238,31 @@ class View {
   // M2: a building sprite painted off the main thread (an arrival's buildings, desktop), then stored as textures
   struct BldgPaint { uint64_t key = 0; Canvas c, night; bool anyGlass = false; std::vector<Vec2> smoke, wins; int topRow = 0; };
   static BldgPaint paintBldg(const Bldg& b, uint64_t key);
+  // the facts the view reads off a painted sprite (smoke, top row, the lit-window variant and its window centres)
+  static BldgPaint paintBldgPost(Canvas c, art::BuildingInfo& info, uint64_t key, uint32_t seed);
   const Tex& storeBldg(BldgPaint& p);
   std::vector<std::future<BldgPaint>> bldgAsync_;
   std::vector<uint64_t> bldgAsyncKeys_;
+  // M3 (owner carry-over 1: the unsplittable ~41 ms palace paint): building sprites painted on the main thread go
+  // through art::BuildingJob in steps within a budget (the walk-in prefetch, paints behind a fade, the web's arrival),
+  // so a palace is spread over frames. bldgPaintStep: true once the sprite is stored.
+  struct BldgJob { uint64_t key = 0; std::shared_ptr<art::BuildingJob> job; uint32_t seed = 0; float used = 0; };
+  std::vector<BldgJob> bldgJobs_;
+  bool bldgPaintStep(const Bldg& b, int index, double budgetMs);
+  Tex blankTex_;                   // drawn for a building still being painted behind the web arrival's fade
+  double worstPaintStepMs_ = 0;    // EMB_TIMING: the longest single paint step on the main thread
+  // M3 culture-styled props: the PropStyle of the settlement a tile lies in (cached per site), and the styled
+  // textures keyed on (prop, style key, variant)
+  const art::PropStyle* propStyleAt(const Game& g, int tx, int ty);
+  // (M3 fixer) keyed by the settlement's stable id (Site::id), not its index: loading a save in the same session
+  // rebuilds World::sites in another order, and an index-keyed cache drew one town's props in another's style
+  std::unordered_map<uint64_t, art::PropStyle> siteProps_;   // Site::id -> its culture's props (classic: culture 0)
+  std::unordered_map<uint64_t, uint64_t> propSiteBlock_;     // 8 x 8-tile block (global) -> Site::id there (0: none)
+  uint64_t sitePropsWorld_ = 0;
+  std::unordered_map<uint64_t, Tex> styledProps_;
+  const Tex& styledPropTex(art::Prop p, const art::PropStyle& st);
+  // M3 heraldry: banners and gatehouses in a kingdom's arms (cult::Heraldry), cached per arms
+  const Tex& heraldryTex(int kind, const cult::Heraldry& h, uint32_t seed, int wallStyle);
 
   void drawWorld(Game& g);
   void drawLighting(Game& g);

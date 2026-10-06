@@ -714,6 +714,447 @@ const char* const kEmberHelmS[kMapRows] = {
   "...11110....",
 };
 
+// ================================================================== M3 peoples, dress and culture arms (VISION_PLAN
+// 5.5, 15.6, 15.11). Everything below is reached only through HumanLook fields that are 0 on every pre-M3 look, so the
+// M2 pixels never move (art_hash "humans").
+//
+// Extra map letters (drawMapX): p/P/q plume mid/light/dark, m mail (checkered), k/K trim dark/light (gilt when the
+// arms are gilded, else the metal's own highlights), h/H horn mid/light, r lacquer red, f fur (noisy), w white cloth.
+
+// elves: a finer face with a narrow, tapering jaw
+const char* const kElfSkinDown[kMapRows] = {
+  nullptr, nullptr, nullptr,
+  "...333332...",
+  "..33333322..",
+  "..33222221..",
+  "..32222221..",
+  "..32e22e21..",
+  "..22e22e21..",
+  "...222221...",
+  "....1111....",
+};
+const char* const kElfSkinUp[kMapRows] = {
+  nullptr, nullptr, nullptr,
+  "...333221...",
+  "..33222211..",
+  "..32222211..",
+  "..22222211..",
+  "..22222211..",
+  "..22222111..",
+  "...222111...",
+  "....1111....",
+};
+const char* const kElfSkinSide[kMapRows] = {
+  nullptr, nullptr, nullptr,
+  "...333322...",
+  "..33333222..",
+  "..33322222..",
+  "..32222222..",
+  "..322122e2..",
+  "..222122e22.",
+  "...222222...",
+  "....12221...",
+};
+
+// ---- headwear (cult::Headwear): 2 cap, 3 turban, 4 fur hat, 5 veil, 6 circlet, 7 conical hat, 8 headscarf
+// (1 hood reuses kHood*). Brims and crowns are seen from the high 3/4 camera: the top surface shows.
+const char* const kBeretD[kMapRows] = {
+  nullptr, nullptr,
+  "..2333332...",
+  ".234443332..",
+  ".2344333221.",
+  "..11111111..",
+};
+const char* const kBeretU[kMapRows] = {
+  nullptr, nullptr,
+  "...2333321..",
+  "..234433321.",
+  ".2333332221.",
+  "..11111111..",
+};
+const char* const kBeretS[kMapRows] = {
+  nullptr, nullptr,
+  ".233333.....",
+  "2344433332..",
+  ".233333321..",
+  "..1111111...",
+};
+const char* const kTurbanD[kMapRows] = {
+  nullptr,
+  "....3443....",
+  "..23444332..",
+  ".2343332342.",
+  ".2433423321.",
+  ".122g222211.",
+  "..1......1..",
+};
+const char* const kTurbanU[kMapRows] = {
+  nullptr,
+  "....3443....",
+  "..23444332..",
+  ".2343332221.",
+  ".2334222321.",
+  ".1222232211.",
+  "..12222111..",
+  "....211.....",
+};
+const char* const kTurbanS[kMapRows] = {
+  nullptr,
+  "...34432....",
+  ".23444433...",
+  ".234333423..",
+  ".2433423321.",
+  ".12222g221..",
+  "..221.......",
+  "..21........",
+};
+const char* const kFurHatD[kMapRows] = {
+  nullptr,
+  "...f3f3f2...",
+  "..ff4f4f3f..",
+  "..f4f3f3f2..",
+  ".f3f3f3f2f1.",
+  ".1f2f2f2f11.",
+};
+const char* const kFurHatU[kMapRows] = {
+  nullptr,
+  "...f3f3f2...",
+  "..ff4f4f3f..",
+  "..f3f3f2f2..",
+  ".f3f3f2f2f1.",
+  ".1f2f2f1f11.",
+  "..1f1f1f1...",
+};
+const char* const kFurHatS[kMapRows] = {
+  nullptr,
+  "..f3f3f2....",
+  ".ff4f4f3f...",
+  ".f4f3f3f2f..",
+  "f3f3f3f2f1..",
+  ".1f2f2f211..",
+  "..1f1.......",
+};
+const char* const kVeilD[kMapRows] = {
+  nullptr, nullptr,
+  "...www332...",
+  "..ww443332..",
+  ".2w3433322..",
+  ".2310000011.",
+  ".22......11.",
+  ".22......11.",
+  ".2133333310.",
+  ".2233333210.",
+  "..22332110..",
+  "...22111....",
+};
+const char* const kVeilU[kMapRows] = {
+  nullptr, nullptr,
+  "...233321...",
+  "..23443321..",
+  ".2334332211.",
+  ".2333222111.",
+  ".2332222111.",
+  ".2322221110.",
+  ".2222211110.",
+  ".1222111110.",
+  ".122211110..",
+  "..1221110...",
+  "...11.10....",
+};
+const char* const kVeilS[kMapRows] = {
+  nullptr, nullptr,
+  "...ww332....",
+  "..w344332...",
+  ".233333321..",
+  ".2333322001.",
+  ".233321.....",
+  ".23321......",
+  ".2332133332.",
+  ".223213332..",
+  ".1222133....",
+  "..112.......",
+};
+const char* const kCircletD[kMapRows] = {
+  nullptr, nullptr, nullptr, nullptr,
+  "..........",
+  "..kKKgKKk1..",
+};
+const char* const kCircletU[kMapRows] = {
+  nullptr, nullptr, nullptr, nullptr, nullptr,
+  "..kKKKkkk1..",
+};
+const char* const kCircletS[kMapRows] = {
+  nullptr, nullptr, nullptr, nullptr, nullptr,
+  "..kkKKKKg...",
+};
+const char* const kConicalD[kMapRows] = {
+  nullptr,
+  ".....43.....",
+  "...344332...",
+  ".2344433332.",
+  "234433333221",
+  ".1122222110.",
+};
+const char* const kConicalU[kMapRows] = {
+  nullptr,
+  ".....43.....",
+  "...343332...",
+  ".2344333322.",
+  "234333332221",
+  ".1122222110.",
+};
+const char* const kConicalS[kMapRows] = {
+  nullptr,
+  "....43......",
+  "..344332....",
+  "2344433332..",
+  "3443333322..",
+  ".11222221...",
+};
+const char* const kScarfD[kMapRows] = {
+  nullptr, nullptr,
+  "...233321...",
+  "..23443332..",
+  "..23433322..",
+  "..21111112..",
+  "..2......1..",
+  "..2......1..",
+  "..1......0..",
+};
+const char* const kScarfU[kMapRows] = {
+  nullptr, nullptr,
+  "...233321...",
+  "..23443321..",
+  "..23333221..",
+  "..23322211..",
+  "..22222211..",
+  "..22231111..",
+  "...12321....",
+  "....2.21....",
+  "....1..1....",
+};
+const char* const kScarfS[kMapRows] = {
+  nullptr, nullptr,
+  "...23332....",
+  "..2344332...",
+  "..23333321..",
+  "..2333211...",
+  "..2332......",
+  ".2321.......",
+  "2.21........",
+  "1..1........",
+};
+
+// ---- culture helm forms (cult::HelmForm): those the M0 bands lacked. The bands' maps serve Nasal (kIronHelm), Kettle,
+// GreatHelm, Horned (kObsHelm) and Winged (kGildHelm); Crested gets its own crest in the plume colour.
+const char* const kSpangenD[kMapRows] = {
+  nullptr,
+  "....2k32....",
+  "...23k432...",
+  "..2k44k332..",
+  "..2k333k21..",
+  ".1KKkkkkKk1.",
+  "..1v1KK1v1..",
+  "..1.1kk1.1..",
+  "...1....1...",
+};
+const char* const kSpangenU[kMapRows] = {
+  nullptr,
+  "....2k32....",
+  "...23k432...",
+  "..2k44k322..",
+  "..2k33k221..",
+  "..2k322k11..",
+  ".1KKkkkkKk1.",
+  "..1......1..",
+};
+const char* const kSpangenS[kMapRows] = {
+  nullptr,
+  "....2k3.....",
+  "...23k43....",
+  "..2k443k2...",
+  "..2k3333k1..",
+  ".1kkkkkKK1..",
+  "..2211.1v1..",
+  "..211...k1..",
+};
+const char* const kHornedD[kMapRows] = {
+  nullptr,
+  ".H........H.",
+  ".hh.2332.hh.",
+  "..h234432h..",
+  "..23444332..",
+  "..23333221..",
+  ".1222k22211.",
+  "..1..21..1..",
+  ".....21.....",
+};
+const char* const kHornedU[kMapRows] = {
+  nullptr,
+  ".H........H.",
+  ".hh.2332.hh.",
+  "..h234432h..",
+  "..23444322..",
+  "..23333221..",
+  "..23322211..",
+  ".1222k22111.",
+  "..1......1..",
+};
+const char* const kHornedS[kMapRows] = {
+  nullptr,
+  "H...........",
+  ".hh.233.....",
+  "..h23443....",
+  "..2344332...",
+  "..23333321..",
+  ".122k22221..",
+  "..2211...2..",
+  "..211....1..",
+};
+const char* const kPlumedD[kMapRows] = {
+  nullptr,
+  ".qpPpPpPpq..",
+  "..qpPPPpq...",
+  "...234432...",
+  "..23444332..",
+  ".1kkKkkkk11.",
+  "..1......1..",
+};
+const char* const kPlumedU[kMapRows] = {
+  nullptr,
+  ".qpPpPpPpq..",
+  "..qpPPPpq...",
+  "...234432...",
+  "..23444322..",
+  "..23333221..",
+  ".1kkKkkkk11.",
+  "..1......1..",
+};
+const char* const kPlumedS[kMapRows] = {
+  nullptr,
+  "qpPpP.......",
+  ".qpPPp......",
+  "..qp4432....",
+  "..2344332...",
+  "..23333321..",
+  ".1kkKkkk1...",
+  "..21........",
+};
+const char* const kAventailD[kMapRows] = {
+  nullptr,
+  ".....43.....",
+  "....3432....",
+  "...234432...",
+  "..23444332..",
+  ".1kkkKkkkk1.",
+  ".mm......mm.",
+  ".mm......mm.",
+  ".mm......mm.",
+  ".mmm....mmm.",
+  "..mmmmmmmm..",
+  "...mmmmmm...",
+};
+const char* const kAventailU[kMapRows] = {
+  nullptr,
+  ".....43.....",
+  "....3432....",
+  "...234432...",
+  "..23444322..",
+  ".1kkkKkkkk1.",
+  ".mmmmmmmmmm.",
+  ".mmmmmmmmmm.",
+  ".mmmmmmmmmm.",
+  ".mmmmmmmmmm.",
+  "..mmmmmmmm..",
+  "...mmmmmm...",
+};
+const char* const kAventailS[kMapRows] = {
+  nullptr,
+  "....43......",
+  "...3432.....",
+  "..234432....",
+  "..2344332...",
+  ".1kkkKkkk1..",
+  ".mmmm.......",
+  ".mmmm.......",
+  ".mmmmm......",
+  ".mmmmm.mmm..",
+  "..mmmmmmm...",
+  "...mmmmm....",
+};
+const char* const kMaskedD[kMapRows] = {
+  nullptr,
+  "...kK..Kk...",
+  "....kKKk....",
+  "...234432...",
+  "..23444332..",
+  ".2344433322.",
+  "122222222211",
+  "1r1......1r0",
+  ".........1..",
+  "...vvrrvv...",
+  "...vv11vv...",
+  "....vvvv....",
+};
+const char* const kMaskedU[kMapRows] = {
+  nullptr,
+  "...kK..Kk...",
+  "....kKKk....",
+  "...234432...",
+  "..23444322..",
+  ".2343332221.",
+  "122222222211",
+  "1r2222222r10",
+  "1r1111111r10",
+  ".r1111111r0.",
+};
+const char* const kMaskedS[kMapRows] = {
+  nullptr,
+  "......Kk....",
+  ".....kK.....",
+  "...23442....",
+  "..2344332...",
+  ".23444332...",
+  "12222222221.",
+  "1r22r.......",
+  "1r11r.......",
+  ".r1r....vv..",
+  "........vv1.",
+  ".......vv...",
+};
+const char* const kCrestedD[kMapRows] = {
+  nullptr,
+  "....pPPp....",
+  "...qpPPpq...",
+  "..23pPp332..",
+  "..23444332..",
+  ".1k2222k211.",
+  "..21....12..",
+  "..21....12..",
+  "...1....1...",
+};
+const char* const kCrestedU[kMapRows] = {
+  nullptr,
+  "....pPPp....",
+  "...qpPPpq...",
+  "..23pPp322..",
+  "..233pp221..",
+  "..23322211..",
+  ".1k2222k111.",
+  "..22222211..",
+  "..21111110..",
+};
+const char* const kCrestedS[kMapRows] = {
+  nullptr,
+  "..qpPPPPp...",
+  ".qpPPPPPpq..",
+  "..2344332...",
+  "..23333321..",
+  ".1k22222k1..",
+  "..2211..12..",
+  "..211...1...",
+};
+
 void drawMap(Canvas& c, Map m, int ox, int oy, const Ramp& r, uint32_t eye = kEye, uint32_t accent = 0, uint32_t visor = 0) {
   for (int row = 0; row < kMapRows; row++) {
     const char* s = m[row];
@@ -744,6 +1185,49 @@ const Ramp kCapLeather = ramp5(rgba(70, 42, 36), rgba(118, 76, 50), rgba(164, 11
 const Ramp kFur = ramp5(rgba(84, 70, 70), rgba(134, 120, 112), rgba(180, 168, 152), rgba(214, 206, 188), rgba(242, 238, 224));
 const uint32_t kEmberGlow = rgba(255, 168, 60);
 
+struct MapInk {
+  const Ramp* r = nullptr;            // the material
+  uint32_t eye = kEye, accent = 0, visor = 0;
+  const Ramp* plume = nullptr;        // p P q
+  const Ramp* trim = nullptr;         // k K (null: the material's highlights)
+  const Ramp* mail = nullptr;         // m
+  const Ramp* fur = nullptr;          // f
+};
+void drawMapX(Canvas& c, Map m, int ox, int oy, const MapInk& in) {
+  const Ramp& r = *in.r;
+  for (int row = 0; row < kMapRows; row++) {
+    const char* s = m[row];
+    if (!s) continue;
+    for (int col = 0; s[col]; col++) {
+      const char ch = s[col];
+      const int x = ox + col, y = oy + row;
+      uint32_t v = 0;
+      if (ch >= '0' && ch <= '4') v = r[ch - '0'];
+      else if (ch == 'e') v = in.eye;
+      else if (ch == 'g') v = in.accent ? in.accent : r[4];
+      else if (ch == 'v') v = in.visor ? in.visor : r[0];
+      else if (ch == 'b') v = kLeather[1];
+      else if (ch == 'p' || ch == 'P' || ch == 'q') {
+        const Ramp& p = in.plume ? *in.plume : kRed;
+        v = ch == 'P' ? p[3 + ((x + y) & 1)] : (ch == 'p' ? p[2] : p[1]);
+      } else if (ch == 'k' || ch == 'K') v = in.trim ? (*in.trim)[ch == 'K' ? 4 : 2] : r[ch == 'K' ? 4 : 3];
+      else if (ch == 'm') { const Ramp& M = in.mail ? *in.mail : kChainMail; v = M[((x + y) & 1) ? 1 : (x < 8 ? 3 : 2)]; }
+      else if (ch == 'h' || ch == 'H') v = ch == 'H' ? kBone[4] : kBone[2 + ((x + y) & 1)];
+      else if (ch == 'r') v = kRed[1 + ((y & 1) ? 1 : 0)];
+      else if (ch == 'w') v = mix(r[3], kWhite, 0.35f);
+      else if (ch == 'f') { const Ramp& F = in.fur ? *in.fur : kFur; v = F[1 + (int)(hash3(x, y, 77) % 3u)]; }
+      if (v) c.set(x, y, v);
+    }
+  }
+}
+int topRow(Map m) {
+  if (!m) return kMapRows;
+  for (int r = 0; r < kMapRows; r++)
+    if (m[r]) for (const char* q = m[r]; *q; q++) if (*q != '.' && *q != ' ') return r;
+  return kMapRows;
+}
+
+
 // material of an armour band (HumanLook: 1 leather .. 7 emberforged)
 const Ramp& bandRamp(int b) {
   switch (b) {
@@ -770,7 +1254,15 @@ uint32_t bandAccent(int b) {
 struct Rig {
   Ramp skin, hair, top, sleeve, leg, boot, trim, metal, cape, hood, belt, glove, cloak;
   uint32_t accent = 0;
+  // M3: headwear cloth, cloth pattern, plume / crest, the arms' trim (gilt or the metal), the body form's metal
+  Ramp head, pat, plume, gilt, mat;
 };
+
+// M3 garment cuts (HumanLook::cut = cult::Cut + 1) and body forms (bodyForm = cult::BodyArm + 1)
+enum { kCutTunic = 1, kCutRobe, kCutKaftan, kCutWrap, kCutCoat, kCutKilt, kCutPoncho, kCutGown };
+enum { kFormPadded = 1, kFormLeather, kFormMail, kFormScale, kFormLamellar, kFormBrigandine, kFormPlate, kFormLeaf };
+// headwear (HumanLook::headwear = cult::Headwear)
+enum { kHwHood = 1, kHwCap, kHwTurban, kHwFurHat, kHwVeil, kHwCirclet, kHwConical, kHwScarf };
 
 struct HumanPainter {
   Canvas& c;
@@ -782,18 +1274,50 @@ struct HumanPainter {
   static constexpr int kGround = 22;
   Outfit O = Outfit::Tunic;   // the outfit whose silhouette is painted (armorStyle picks one for its band)
   int armor = 0;              // L.armorStyle (0 legacy)
+  // ---- M3 (all 0 on a pre-M3 look)
+  int lift = 0;               // elves stand a pixel taller (longer legs) when nothing tall sits on the head
+  int bld = 0;                // the build painted: L.build, slimmed for elves (1) and half-breeds (3: a touch slimmer)
+  int cutK = 0;               // the garment cut when the body is cloth (armour hides it)
+  int form = 0;               // the armour's body form (bodyForm) when a torso armour is painted
+  int hw = 0;                 // culture headwear actually painted (helmets and the legacy hood win)
 
   HumanPainter(Canvas& c_, const HumanLook& l, int f, const Pose& p) : c(c_), L(l), P(p), facing(f) {
-    hy = 3 + P.bob;
-    ty = hy + 8;
-    hip = ty + 6;
     armor = L.armorStyle <= HumanLook::kBands ? L.armorStyle : 0;
     static const Outfit byBand[8] = {Outfit::Tunic, Outfit::Leather, Outfit::Chain, Outfit::Plate, Outfit::Elven, Outfit::Plate, Outfit::Ebony, Outfit::Ebony};
     O = armor ? byBand[armor] : L.outfit;
+    bld = L.build;
+    if (L.people == 1) bld = L.build == 0 ? 3 : L.build;
+    if (L.people == 2) bld = L.build == 2 ? 0 : 1;
+    const bool clothBody = !armor && (L.outfit == Outfit::Tunic || L.outfit == Outfit::Dress || L.outfit == Outfit::Robe);
+    cutK = clothBody && L.cut <= kCutGown ? L.cut : 0;
+    const bool armouredBody = armor || L.outfit == Outfit::Guard || L.outfit == Outfit::Chain || L.outfit == Outfit::Plate ||
+                              L.outfit == Outfit::Leather || L.outfit == Outfit::Elven || L.outfit == Outfit::Ebony;
+    form = armouredBody && L.bodyForm <= kFormLeaf ? L.bodyForm : 0;
+    hw = (L.helmet || L.helmStyle || L.hood) ? 0 : (L.headwear <= kHwScarf ? L.headwear : 0);
+    if (L.people == 2) {   // taller only if every facing's head stays below map row 2 (row 1 would leave the cell)
+      int top = kMapRows;
+      for (int fc = 0; fc < 3; fc++) top = std::min(top, headTopRow(fc));
+      lift = top >= 2 ? 1 : 0;
+    }
+    hy = 3 + P.bob - lift;
+    ty = hy + 8;
+    hip = ty + 6;
     buildRig();
   }
+  // the highest head-map row anything on the head uses in facing fc (hair, helmet, headwear)
+  int headTopRow(int fc) const {
+    if (L.helmet || L.helmStyle) return 0;   // every helmet uses row 1
+    int t = kMapRows;
+    if (L.hood) t = std::min(t, topRow(kHoodD));
+    else if (hw) { Map m = headwearMap(fc); t = std::min(t, topRow(m)); }
+    if (!L.hood && (!hw || hw == kHwCirclet)) t = std::min(t, topRow(hairMapF(fc)));
+    return t;
+  }
 
-  bool skirt() const { return O == Outfit::Dress || O == Outfit::Robe; }
+  bool skirt() const {
+    if (cutK) return cutK == kCutRobe || cutK == kCutGown || cutK == kCutWrap;
+    return O == Outfit::Dress || O == Outfit::Robe;
+  }
   bool metalBody() const { return O == Outfit::Plate || O == Outfit::Elven || O == Outfit::Ebony; }
   bool isStaff() const { return L.weapon == 4; }
   bool heavyHead() const { return L.weapon == 2 || L.weapon == 6; }
@@ -848,7 +1372,37 @@ struct HumanPainter {
     if (armor == 1) R.sleeve = ramp(L.topColor);   // the leather jerkin goes over the shirt: its sleeves show
     R.glove = L.gloves ? bandRamp(L.gloves) : R.skin;
     R.cloak = ramp(L.cloakColor);
+    if (L.people || L.cut || L.headwear || L.pattern || L.bodyForm || L.helmForm || L.armsOrnament || L.pauldron || L.skirt || L.crest) buildRigM3();
   }
+  void buildRigM3() {
+    R.head = ramp(L.headColor ? L.headColor : L.topColor);
+    R.pat = ramp(L.patternColor ? L.patternColor : shade(L.topColor, 0.62f));
+    R.plume = ramp(L.plumeColor ? L.plumeColor : L.tabardColor);
+    R.gilt = (L.armsOrnament & 4) ? kGold : (L.trimColor ? ramp(L.trimColor, 1.1f) : kBrass);
+    if (cutK) {   // a culture garment: the cloth is the top colour; long cuts tuck no shirt over trousers
+      R.top = ramp(L.topColor);
+      R.sleeve = R.top;
+      R.hood = R.top;
+    }
+    if (form) {
+      // the body form over the band's material: padded and leather are not metal (the band shows in studs and trim)
+      R.mat = armor ? bandRamp(armor) : (O == Outfit::Plate ? kSteelArmor : kIron);
+      if (armor == 1 && form >= kFormMail) R.mat = kIron;   // a leather band cannot be mail: plain iron
+      switch (form) {
+        case kFormPadded: R.top = ramp(L.outfit == Outfit::Guard ? L.tabardColor : L.topColor); R.sleeve = R.top; break;
+        case kFormLeather: R.top = kLeather; R.sleeve = L.outfit == Outfit::Guard ? kChainMail : ramp(L.topColor); break;
+        case kFormBrigandine: R.top = ramp(L.outfit == Outfit::Guard ? L.tabardColor : L.topColor); R.sleeve = R.mat; break;
+        default: R.top = R.mat; R.sleeve = form == kFormLamellar || form == kFormScale ? R.mat : (form == kFormMail ? R.mat : R.mat); break;
+      }
+      if (form == kFormPlate || form == kFormLeaf) {
+        R.leg = R.mat;
+        if (!L.boots) R.boot = ramp5(R.mat[0], R.mat[0], R.mat[1], R.mat[2], R.mat[3]);
+      }
+      if (form == kFormLeaf) R.accent = rgba(110, 200, 120);
+    }
+  }
+  // the body form's silhouette rules (front views use them for pauldrons and knee plates)
+  bool formMetal() const { return form >= kFormMail; }
 
   // ---------------------------------------------------------------------- legs
   // extra boot rows above the legacy 2-row shoe: leather/iron boots reach the shin, metal greaves the knee
@@ -913,6 +1467,8 @@ struct HumanPainter {
         if (y == ty && x < 10) k = std::min(4, k + 1);
         c.set(x, y, t[k]);
       }
+    if (cutK) { cutTorsoFront(back); return; }
+    if (form) { formTorsoFront(back); return; }
     switch (O) {
       case Outfit::Tunic:
         if (!back) { c.set(7, ty, R.skin[1]); c.set(8, ty, R.skin[1]); c.set(7, ty + 1, R.top[1]); }
@@ -989,11 +1545,11 @@ struct HumanPainter {
   // build: slim pinches the waist, broad deepens the chest (front/back views; called before the arms)
   void buildFront() {
     if (skirt()) return;
-    if (L.build == 1)
-      for (int y = ty + 3; y < hip; y++) { c.set(5, y, 0); c.set(10, y, 0); }
+    if (bld == 1 || bld == 3)
+      for (int y = ty + (bld == 3 ? 4 : 3); y < hip; y++) { c.set(5, y, 0); c.set(10, y, 0); }
   }
   void buildShoulders(bool lit, int x0) {   // broad: a deltoid bulge outside each arm (front/back views)
-    if (L.build != 2 || P.atk) return;
+    if (bld != 2 || P.atk) return;
     const Ramp& s = R.sleeve;
     int x = lit ? x0 - 1 : x0 + 2;
     c.set(x, ty + 1, s[lit ? 3 : 1]); c.set(x, ty + 2, s[lit ? 2 : 0]);
@@ -1009,6 +1565,15 @@ struct HumanPainter {
         if (y == ty && x < 10) k = std::min(4, k + 1);
         c.set(x + ox, y, t[k]);
       }
+    if (cutK || form) {
+      if (cutK) cutTorsoSide();
+      else formTorsoSide();
+      if (!skirt()) {
+        if (bld == 1 || bld == 3) for (int y = ty + (bld == 3 ? 4 : 3); y < hip; y++) c.set(6 + ox, y, 0);
+        if (bld == 2) for (int y = ty + 1; y <= ty + 3; y++) c.set(11 + ox, y, R.top[y == ty + 1 ? 2 : 1]);
+      }
+      return;
+    }
     switch (O) {
       case Outfit::Tunic: c.set(10 + ox, ty, R.skin[1]); beltRow(6 + ox, 10 + ox, ty + 4); break;
       case Outfit::Dress:
@@ -1051,8 +1616,8 @@ struct HumanPainter {
       c.set(10 + ox, ty + 4, kEmberGlow);
     }
     if (!skirt()) {
-      if (L.build == 1) for (int y = ty + 3; y < hip; y++) c.set(6 + ox, y, 0);
-      if (L.build == 2) for (int y = ty + 1; y <= ty + 3; y++) c.set(11 + ox, y, R.top[y == ty + 1 ? 2 : 1]);
+      if (bld == 1 || bld == 3) for (int y = ty + (bld == 3 ? 4 : 3); y < hip; y++) c.set(6 + ox, y, 0);
+      if (bld == 2) for (int y = ty + 1; y <= ty + 3; y++) c.set(11 + ox, y, R.top[y == ty + 1 ? 2 : 1]);
     }
   }
 
@@ -1073,6 +1638,7 @@ struct HumanPainter {
 
   // long skirt (dress / robe), the hem sways with the walk
   void skirtFront() {
+    if (cutK) { cutSkirtFront(); return; }
     if (!skirt()) return;
     const Ramp& r = R.top;
     int sway = (P.liftA > 0) ? -1 : (P.liftB > 0 ? 1 : 0);
@@ -1100,6 +1666,7 @@ struct HumanPainter {
     }
   }
   void skirtSide() {
+    if (cutK) { cutSkirtSide(); return; }
     if (!skirt()) return;
     const Ramp& r = R.top;
     int sway = P.stepA > 0 ? 1 : (P.stepA < 0 ? -1 : 0);
@@ -1323,16 +1890,26 @@ struct HumanPainter {
   }
 
   // ---------------------------------------------------------------------- arms
-  const Ramp& handRamp() const { return L.gloves ? R.glove : (metalBody() ? R.sleeve : R.skin); }
+  const Ramp& handRamp() const {
+    if (L.gloves) return R.glove;
+    if (form) return form == kFormPlate || form == kFormLeaf ? R.mat : R.skin;
+    return metalBody() ? R.sleeve : R.skin;
+  }
 
   // front / back arm hanging at column x0 (2 wide)
   void armFront(int x0, int swing, bool lit) {
     const Ramp& s = R.sleeve;
     int handY = ty + 5 + swing;
     int kA = lit ? 3 : 2, kB = lit ? 2 : 1;
+    if (poncho() && !P.atk) { handPx(x0, handY, lit); return; }   // the poncho covers the arm
     for (int y = ty + 1; y < handY; y++) { c.set(x0, y, s[kA]); c.set(x0 + 1, y, s[kB]); }
     c.set(lit ? x0 + 1 : x0, ty, s[kA]);
-    if (metalBody()) pauldron(lit ? x0 - 1 : x0, lit);
+    if (wideSleeve()) {   // a wide cuff flares past the wrist
+      c.set(lit ? x0 - 1 : x0 + 2, handY - 1, s[lit ? 3 : 1]);
+      if (cutK == kCutGown) c.set(lit ? x0 - 1 : x0 + 2, handY, s[lit ? 2 : 0]);
+    }
+    if (m3Pauldron()) pauldronM3(x0, lit);
+    else if (metalBody()) pauldron(lit ? x0 - 1 : x0, lit);
     if (O == Outfit::Leather || O == Outfit::Robe) {
       const Ramp& b = O == Outfit::Leather ? kLeather : R.trim;
       c.set(x0, handY - 1, b[kA]); c.set(x0 + 1, handY - 1, b[kB]);
@@ -1372,8 +1949,11 @@ struct HumanPainter {
   void armSide(bool nearArm, int swing) {
     int bias = nearArm ? 0 : -1;
     int sx = 8 + P.lean;
+    if (poncho() && !P.atk) { handAt(sx + swing, ty + 5, bias); return; }
     armLine(sx, ty + 1, sx + swing, ty + 4, bias);
-    if (nearArm && metalBody()) pauldron(sx - 2, true);
+    if (wideSleeve()) c.set(sx + swing + 1, ty + 4, R.sleeve[1 + bias + 1]);
+    if (nearArm && m3Pauldron()) pauldronM3(sx - 1, true);
+    else if (nearArm && metalBody()) pauldron(sx - 2, true);
     if (L.gloves) { c.set(sx + swing - 1, ty + 4, R.glove[4 + bias]); c.set(sx + swing, ty + 4, R.glove[2 + bias]); }
     handAt(sx + swing, ty + 5, bias);
     if (nearArm && L.ring && idle()) c.set(sx + swing, ty + 5, kGold[4]);
@@ -1394,6 +1974,19 @@ struct HumanPainter {
       put(t, o, col);
       if (diag && o != 0) c.set(hx + dx * t + px * o, hy2 + dy * t + py * o - py * (o > 0 ? 1 : -1), col);
     };
+    if (w == 1 && L.bladeForm > 1 && L.bladeForm <= 9) {   // M3 culture blades (the straight blade is the legacy sword)
+      // painted on a scratch canvas and kept off the cell's edges (the 1px outline must fit)
+      Canvas tmp(c.w, c.h);
+      auto put2 = [&](int t, int o, uint32_t col) { tmp.set(hx + dx * t + px * o, hy2 + dy * t + py * o, col); };
+      auto head2 = [&](int t, int o, uint32_t col) {
+        put2(t, o, col);
+        if (diag && o != 0) tmp.set(hx + dx * t + px * o, hy2 + dy * t + py * o - py * (o > 0 ? 1 : -1), col);
+      };
+      cultureBlade(put2, head2, diag, m);
+      for (int y = 1; y < c.h; y++)
+        for (int x = 1; x < c.w - 1; x++) if (solid(tmp, x, y)) c.set(x, y, tmp.get(x, y));
+      return;
+    }
     switch (w) {
       case 1:   // sword
         put(-1, 0, kBrass[3]);
@@ -1455,7 +2048,60 @@ struct HumanPainter {
     }
   }
 
-  bool hasShield() const { return L.shield || L.shieldStyle; }
+  // M3: the culture's blade silhouette (cult::Blade + 1). put(t, o, col): t along the blade from the hand, o across it
+  template <class Put, class Head>
+  void cultureBlade(Put& put, Head& head, bool diag, const Ramp& m) {
+    const uint32_t gold = (L.armsOrnament & 4) ? kGold[3] : kBrass[3];
+    put(-1, 0, gold);
+    switch (L.bladeForm) {
+      case 2:   // leaf: swells past the middle, then a long point
+        put(1, 1, kBrass[3]); put(1, -1, kBrass[1]); put(1, 0, kBrass[2]);
+        for (int t = 2; t <= 7; t++) put(t, 0, t == 7 ? m[4] : m[3]);
+        for (int t = 3; t <= 6; t++) head(t, 1, m[1]);
+        head(4, -1, m[4]); head(5, -1, m[3]);
+        break;
+      case 3:   // falchion: a heavy blade widening to a clipped tip
+        put(1, 0, kBrass[2]); put(1, 1, kBrass[3]); put(1, -1, kBrass[1]);
+        for (int t = 2; t <= 6; t++) { put(t, 0, m[3]); head(t, 1, m[1]); }
+        head(5, 2, m[1]); head(6, 2, m[2]); put(7, 1, m[4]); put(7, 0, m[3]);
+        break;
+      case 4:   // scimitar: a deep curve, the edge on the outside
+        put(1, 0, kBrass[2]); put(1, 1, kBrass[3]);
+        put(2, 0, m[3]); put(3, 0, m[3]); put(4, 1, m[3]); put(5, 1, m[3]); put(6, 2, m[3]); put(7, 2, m[4]);
+        head(2, 1, m[1]); head(3, 1, m[1]); head(4, 2, m[1]); head(5, 2, m[1]);
+        break;
+      case 5:   // khopesh: a short shaft, then the sickle hook
+        put(1, 0, kBrass[2]); put(1, 1, kBrass[3]);
+        for (int t = 2; t <= 3; t++) put(t, 0, m[2]);
+        head(4, 0, m[3]); head(4, 1, m[3]); head(5, 1, m[3]); head(5, 2, m[2]); head(6, 2, m[2]); head(6, 1, m[4]); head(7, 0, m[4]);
+        break;
+      case 6:   // wavy (a kris): the blade snakes
+        put(1, 0, kBrass[2]); put(1, 1, kBrass[3]); put(1, -1, kBrass[1]);
+        for (int t = 2; t <= 7; t++) { int o = (t & 1) ? 1 : 0; put(t, o, t == 7 ? m[4] : m[3]); if (!diag) put(t, o == 1 ? 0 : 1, m[1]); }
+        break;
+      case 7:   // broad: a short, very wide blade
+        put(1, 0, kBrass[2]); put(1, 1, kBrass[3]); put(1, -1, kBrass[1]); put(1, 2, kBrass[3]); put(1, -2, kBrass[1]);
+        for (int t = 2; t <= 6; t++) { put(t, 0, m[3]); head(t, 1, m[1]); head(t, -1, m[4]); }
+        put(7, 0, m[4]);
+        break;
+      case 8:   // curved (a long, slim single edge with a gentle curve and a long grip)
+        put(-2, 0, kLeather[1]); put(0, 0, kLeather[2]);
+        put(1, 0, gold); put(1, 1, kBrass[2]);
+        for (int t = 2; t <= 6; t++) put(t, 0, m[3]);
+        put(7, -1, m[4]);
+        for (int t = 2; t <= 5; t++) if (!diag) put(t, 1, m[1]);
+        break;
+      default: {   // glaive: a blade on a long shaft
+        for (int t = -6; t <= 3; t++) put(t, 0, kWood[(t & 3) == 0 ? 1 : 2]);
+        put(3, 1, gold); put(3, -1, gold);
+        for (int t = 4; t <= 7; t++) { put(t, 0, t == 7 ? m[4] : m[3]); if (t < 7) head(t, 1, m[1]); }
+        head(5, 2, m[1]);
+        break;
+      }
+    }
+  }
+
+  bool hasShield() const { return L.shieldForm != 9 && (L.shield || L.shieldStyle || L.shieldForm); }
   // M0 shield shapes (round, heater, kite, tower): r rim, f painted field (tabardColor), d gilt device, b boss, w planks
   void shieldShaped(int x0, int y0, bool edgeOn) {
     static const char* const kRound[] = {"..rrr..", ".rfffr.", "rfffwwr", "rffbwwr", "rfwwwwr", ".rwwwr.", "..rrr..", nullptr};
@@ -1463,8 +2109,19 @@ struct HumanPainter {
     static const char* const kKite[] = {".rrrr.", "rffffr", "rfddfr", "rddddr", "rfddfr", ".rffr.", ".rffr.", "..rr..", "..rr..", nullptr};
     static const char* const kTower[] = {"rrrrrrr", "rfffffr", "rffdffr", "rfdddfr", "rffdffr", "rffdffr", "rfffffr", "rfffffr", "rfffffr", "rrrrrrr", nullptr};
     static const char* const* const shapes[4] = {kRound, kHeater, kKite, kTower};
+    // M3 culture shields (cult::ShieldForm + 1): round, kite, heater, tower, crescent, oval, buckler, leaf
+    static const char* const kCrescent[] = {"rr...rr", "rfr.rfr", "rfrrrfr", "rffdffr", "rfdddfr", ".rffffr", "..rrrr.", nullptr};
+    static const char* const kOval[] = {".rrrr.", "rffffr", "rffffr", "rfdffr", "rddbdr", "rffdfr", "rffffr", "rffffr", ".rrrr.", nullptr};
+    static const char* const kBuckler[] = {".rrr.", "rfffr", "rfbfr", "rfffr", ".rrr.", nullptr};
+    static const char* const kLeafSh[] = {"..rr..", ".rffr.", "rfdffr", "rffdfr", "rfdffr", "rffdfr", "rfdffr", ".rfdr.", ".rffr.", "..rr..", nullptr};
+    static const char* const* const forms[8] = {kRound, kKite, kHeater, kTower, kCrescent, kOval, kBuckler, kLeafSh};
     int st = std::clamp((int)L.shieldStyle, 1, 4) - 1;
     const char* const* m = shapes[st];
+    if (L.shieldForm >= 1 && L.shieldForm <= 8) {
+      m = forms[L.shieldForm - 1];
+      static const int asStyle[8] = {0, 2, 1, 3, 0, 1, 0, 1};   // the edge-on look of the nearest M0 shape
+      st = asStyle[L.shieldForm - 1];
+    }
     int h = 0, w = 0;
     while (m[h]) { w = std::max(w, (int)std::strlen(m[h])); h++; }
     Ramp M = L.trimColor ? ramp(L.trimColor, 1.1f) : R.metal;
@@ -1509,7 +2166,7 @@ struct HumanPainter {
   }
   void shield(int x0, int y0, bool edgeOn) {
     if (!hasShield()) return;
-    if (L.shieldStyle) { shieldShaped(x0, y0, edgeOn); return; }
+    if (L.shieldStyle || L.shieldForm) { shieldShaped(x0, y0, edgeOn); return; }
     const Ramp& rim = R.metal;
     if (edgeOn) {
       for (int y = 0; y < 7; y++) { c.set(x0, y0 + y, rim[2]); c.set(x0 + 1, y0 + y, kWood[y < 3 ? 2 : 1]); }
@@ -1529,8 +2186,8 @@ struct HumanPainter {
   }
 
   // ---------------------------------------------------------------------- head
-  Map hairMap() const {
-    int f = facing;
+  Map hairMap() const { return hairMapF(facing); }
+  Map hairMapF(int f) const {
     switch (L.hair) {
       case Hair::Short: return f == kDown ? kHairShortD : (f == kUp ? kHairShortU : kHairShortS);
       case Hair::Long: return f == kDown ? kHairLongD : (f == kUp ? kHairLongU : kHairLongS);
@@ -1568,6 +2225,7 @@ struct HumanPainter {
   void head() {
     int ox = 2 + (facing == kSide ? P.lean : 0), oy = hy - 3;
     Map skin = facing == kDown ? kSkinDown : (facing == kUp ? kSkinUp : kSkinSide);
+    if (L.people == 2) skin = facing == kDown ? kElfSkinDown : (facing == kUp ? kElfSkinUp : kElfSkinSide);
     drawMap(c, skin, ox, oy, R.skin, L.eyeColor ? opaque(L.eyeColor) : kEye);
     if (P.hurt && facing != kUp) {   // squeezed eyes + open mouth
       uint32_t mouth = rgba(120, 40, 56);
@@ -1581,11 +2239,12 @@ struct HumanPainter {
       }
     }
     const bool helm = L.helmet || L.helmStyle;
-    bool covered = helm || L.hood;
+    bool covered = helm || L.hood || hwHidesHair();
     if (L.hair == Hair::Bald && !covered) { c.set(ox + 3, oy + 4, R.skin[4]); c.set(ox + 4, oy + 4, R.skin[4]); }
     if (L.hair == Hair::Mohawk && !covered && facing != kSide)
       for (int y = hy; y < hy + 3; y++) for (int x = 4; x <= 11; x++)
         if (((x + y) & 1) && solid(c, x, y) && (x < 6 || x > 9)) c.set(x, y, mix(c.get(x, y), R.hair[1], 0.4f));
+    facePaint();
     if (L.beard) {
       if (facing == kDown) drawMap(c, kBeardD, ox, oy, R.hair);
       else if (facing == kSide) drawMap(c, kBeardS, ox, oy, R.hair);
@@ -1601,13 +2260,634 @@ struct HumanPainter {
           for (int x = 0; x < c.w; x++)
             if (solid(tmp, x, y) && !(facing == kDown && x >= 5 && x <= 10)) c.set(x, y, tmp.get(x, y));
       }
-      drawMap(c, hm, ox, oy, *rp, kEye, accent, visor);
+      ears();
+      if (L.helmForm) helmForm(ox, oy, *rp);
+      else drawMap(c, hm, ox, oy, *rp, kEye, accent, visor);
+      if (!L.helmForm && (L.armsOrnament || L.crest)) helmExtras(ox, *rp);
     } else if (L.hood) {
       drawMap(c, facing == kDown ? kHoodD : (facing == kUp ? kHoodU : kHoodS), ox, oy, R.hood);
       if (facing == kDown) for (int x = 5; x <= 10; x++) c.set(x, hy + 3, R.skin[0]);
+    } else if (hw) {
+      if (hw == kHwCirclet) { if (Map hm = hairMap()) drawMap(c, hm, ox, oy, R.hair); }
+      else if (hw == kHwCap || hw == kHwTurban || hw == kHwFurHat || hw == kHwConical) {
+        // the hair shows below the hat's edge (never above it: no mohawk through a turban)
+        if (Map hm = hairMap()) {
+          Canvas tmp(c.w, c.h);
+          drawMap(tmp, hm, ox, oy, R.hair);
+          for (int y = hy + 2; y < c.h; y++)
+            for (int x = 0; x < c.w; x++) if (solid(tmp, x, y)) c.set(x, y, tmp.get(x, y));
+        }
+      } else flowingHair(ox, oy);
+      ears();
+      headwear(ox, oy);
     } else if (Map hm = hairMap()) {
       drawMap(c, hm, ox, oy, R.hair);
+      ears();
+    } else {
+      ears();
     }
+    earrings();
+  }
+
+  // ====================================================================== M3: peoples, dress, culture arms
+  static int rampIndex(const Ramp& r, uint32_t c) {
+    for (int k = 0; k < 5; k++) if (r[k] == c) return k;
+    return -1;
+  }
+  bool poncho() const { return cutK == kCutPoncho; }
+  bool wideSleeve() const { return cutK == kCutRobe || cutK == kCutGown || cutK == kCutKaftan; }
+
+  // ---- ears: drawn after the hair (they poke through it), before helmets and headwear (which cover their base)
+  void ears() {
+    if (!L.people || L.hood || hw == kHwHood || hw == kHwVeil || hw == kHwScarf) return;
+    const Ramp& s = R.skin;
+    const bool elf = L.people == 2;
+    if (facing == kSide) {
+      const int ox = P.lean;
+      c.set(7 + ox, hy + 4, s[2]); c.set(7 + ox, hy + 5, s[1]);
+      c.set(6 + ox, hy + 4, s[3]); c.set(6 + ox, hy + 3, s[3]);
+      if (elf) { c.set(5 + ox, hy + 3, s[2]); c.set(5 + ox, hy + 2, s[3]); c.set(4 + ox, hy + 2, s[3]); c.set(3 + ox, hy + 1, s[4]); }
+      else c.set(5 + ox, hy + 2, s[3]);
+      return;
+    }
+    const bool back = facing == kUp;
+    const int kL = back ? 2 : 3, kR = back ? 1 : 2;
+    // screen-left ear (lit) and screen-right ear (shaded), each swept up and out
+    c.set(3, hy + 4, s[kL - 1]); c.set(3, hy + 5, s[kL - 2]); c.set(2, hy + 3, s[kL]);
+    c.set(12, hy + 4, s[kR - 1]); c.set(12, hy + 5, s[0]); c.set(13, hy + 3, s[kR]);
+    if (elf) {
+      c.set(2, hy + 4, s[kL - 1]); c.set(1, hy + 2, s[kL + 1]); c.set(2, hy + 2, s[kL]);
+      c.set(13, hy + 4, s[kR - 1]); c.set(14, hy + 2, s[kR]); c.set(13, hy + 2, s[kR]);
+    }
+  }
+
+  // ---- face paint (1 stripes, 2 dots, 3 mask band, 4 sun mark) and jewellery (1 earrings, 2 torc, 3 both)
+  void facePaint() {
+    if (!L.facePaint || facing == kUp) return;
+    static const uint32_t ochre = rgba(176, 58, 40), chalk = rgba(240, 236, 220), woad = rgba(44, 60, 120);
+    const bool side = facing == kSide;
+    const int ox = side ? P.lean : 0;
+    auto on = [&](int x, int y, uint32_t col) { if (solid(c, x, y)) c.set(x, y, col); };
+    switch (L.facePaint) {
+      case 1:   // two war stripes under each eye
+        if (side) { on(9 + ox, hy + 6, ochre); on(10 + ox, hy + 6, ochre); on(9 + ox, hy + 7, shade(ochre, 0.8f)); }
+        else { on(5, hy + 6, ochre); on(6, hy + 6, ochre); on(9, hy + 6, shade(ochre, 0.85f)); on(10, hy + 6, shade(ochre, 0.85f));
+               on(5, hy + 7, shade(ochre, 0.8f)); on(10, hy + 7, shade(ochre, 0.7f)); }
+        break;
+      case 2:   // chalk dots on the cheeks and brow
+        if (side) { on(9 + ox, hy + 6, chalk); on(10 + ox, hy + 2, chalk); }
+        else { on(5, hy + 6, chalk); on(10, hy + 6, shade(chalk, 0.85f)); on(7, hy + 2, chalk); on(8, hy + 2, shade(chalk, 0.9f)); }
+        break;
+      case 3:   // a dark band across the eyes
+        if (side) { for (int x = 8; x <= 11; x++) if (x != 10) on(x + ox, hy + 4, woad); on(9 + ox, hy + 5, shade(woad, 0.8f)); }
+        else { for (int x = 4; x <= 11; x++) if (x != 6 && x != 9) on(x, hy + 4, x < 8 ? woad : shade(woad, 0.8f));
+               on(5, hy + 5, shade(woad, 0.85f)); on(10, hy + 5, shade(woad, 0.7f)); on(7, hy + 5, shade(woad, 0.9f)); on(8, hy + 5, shade(woad, 0.9f)); }
+        break;
+      default:  // a sun mark on the brow
+        if (side) { on(10 + ox, hy + 2, kGold[3]); on(11 + ox, hy + 3, kGold[2]); }
+        else { on(7, hy + 2, kGold[4]); on(8, hy + 2, kGold[3]); on(7, hy + 1, kGold[2]); on(8, hy + 3, kGold[2]); on(6, hy + 2, kGold[2]); on(9, hy + 2, kGold[1]); }
+        break;
+    }
+  }
+  void earrings() {
+    if (!(L.jewellery & 1)) return;
+    if (facing == kSide) { c.set(7 + P.lean, hy + 6, kGold[3]); return; }
+    if (!solid(c, 3, hy + 6)) c.set(3, hy + 6, kGold[facing == kUp ? 2 : 4]);
+    if (!solid(c, 12, hy + 6)) c.set(12, hy + 6, kGold[facing == kUp ? 1 : 2]);
+  }
+  void torc() {
+    if (!(L.jewellery & 2)) return;
+    if (facing == kSide) { c.set(9 + P.lean, ty, kGold[3]); c.set(10 + P.lean, ty, kGold[2]); return; }
+    const bool back = facing == kUp;
+    c.set(6, ty, kGold[back ? 2 : 4]); c.set(7, ty, kGold[3]); c.set(8, ty, kGold[back ? 1 : 3]); c.set(9, ty, kGold[back ? 1 : 2]);
+    if (!back) c.set(7, ty + 1, kGold[2]);
+  }
+
+  // ---- headwear
+  Map headwearMap(int fc) const {
+    switch (hw) {
+      case kHwHood: return fc == kDown ? kHoodD : (fc == kUp ? kHoodU : kHoodS);
+      case kHwCap: return fc == kDown ? kBeretD : (fc == kUp ? kBeretU : kBeretS);
+      case kHwTurban: return fc == kDown ? kTurbanD : (fc == kUp ? kTurbanU : kTurbanS);
+      case kHwFurHat: return fc == kDown ? kFurHatD : (fc == kUp ? kFurHatU : kFurHatS);
+      case kHwVeil: return fc == kDown ? kVeilD : (fc == kUp ? kVeilU : kVeilS);
+      case kHwCirclet: return fc == kDown ? kCircletD : (fc == kUp ? kCircletU : kCircletS);
+      case kHwConical: return fc == kDown ? kConicalD : (fc == kUp ? kConicalU : kConicalS);
+      case kHwScarf: return fc == kDown ? kScarfD : (fc == kUp ? kScarfU : kScarfS);
+      default: return nullptr;
+    }
+  }
+  bool hwHidesHair() const { return hw && hw != kHwCirclet; }
+  // long hair flows out below a hat or helmet (the face stays clear)
+  void flowingHair(int ox, int oy) {
+    if (L.hair != Hair::Long && L.hair != Hair::Braids && L.hair != Hair::Ponytail && L.hair != Hair::Curls) return;
+    Canvas tmp(c.w, c.h);
+    drawMap(tmp, hairMap(), ox, oy, R.hair);
+    for (int y = hy + 4; y < c.h; y++)
+      for (int x = 0; x < c.w; x++)
+        if (solid(tmp, x, y) && !(facing == kDown && x >= 5 && x <= 10)) c.set(x, y, tmp.get(x, y));
+  }
+  void headwear(int ox, int oy) {
+    MapInk in;
+    in.r = &R.head;
+    in.accent = hw == kHwTurban ? kGold[4] : (hw == kHwCirclet ? rgba(120, 210, 230) : 0);
+    in.trim = &kGold;
+    Ramp fur = ramp(L.headColor ? L.headColor : rgba(120, 92, 70));
+    in.fur = &fur;
+    if (hw == kHwConical) { static const Ramp straw = ramp5(rgba(96, 70, 44), rgba(150, 112, 60), rgba(196, 160, 90), rgba(226, 198, 126), rgba(244, 228, 170));
+                            in.r = L.headColor ? &R.head : &straw; }
+    drawMapX(c, headwearMap(facing), ox, oy, in);
+    if (hw == kHwConical && facing != kUp) {   // the brim's shadow falls across the brow
+      for (int x = 4; x <= 11; x++) if (solid(c, x, hy + 3) && rampIndex(R.skin, c.get(x, hy + 3)) >= 0) c.set(x, hy + 3, R.skin[1]);
+    }
+    if (hw == kHwHood && facing == kDown) for (int x = 5; x <= 10; x++) c.set(x, hy + 3, R.skin[0]);
+  }
+
+  // ---- helm forms (cult::HelmForm + 1)
+  Map helmFormMap(int fc, uint32_t& visor, uint32_t& accent) const {
+    visor = kInk; accent = 0;
+    switch (L.helmForm) {
+      case 1: return fc == kDown ? kIronHelmD : (fc == kUp ? kIronHelmU : kIronHelmS);
+      case 2: return fc == kDown ? kKettleD : (fc == kUp ? kKettleU : kKettleS);
+      case 3: return fc == kDown ? kGreatHelmD : (fc == kUp ? kGreatHelmU : kGreatHelmS);
+      case 4: return fc == kDown ? kSpangenD : (fc == kUp ? kSpangenU : kSpangenS);
+      case 5: return fc == kDown ? kHornedD : (fc == kUp ? kHornedU : kHornedS);
+      case 6: return fc == kDown ? kPlumedD : (fc == kUp ? kPlumedU : kPlumedS);
+      case 7: return fc == kDown ? kAventailD : (fc == kUp ? kAventailU : kAventailS);
+      case 8: visor = rgba(40, 20, 30); return fc == kDown ? kMaskedD : (fc == kUp ? kMaskedU : kMaskedS);
+      case 9: return fc == kDown ? kCrestedD : (fc == kUp ? kCrestedU : kCrestedS);
+      case 10: accent = rgba(120, 210, 230); return fc == kDown ? kGildHelmD : (fc == kUp ? kGildHelmU : kGildHelmS);
+      default: return nullptr;
+    }
+  }
+  void helmForm(int ox, int oy, const Ramp& mat) {
+    uint32_t visor, accent;
+    Map m = helmFormMap(facing, visor, accent);
+    if (!m) return;
+    MapInk in;
+    in.r = &mat; in.visor = visor; in.accent = accent;
+    in.plume = &R.plume;
+    in.trim = (L.armsOrnament & 4) ? &kGold : nullptr;
+    in.mail = &mat;
+    drawMapX(c, m, ox, oy, in);
+    helmExtras(ox, mat);
+  }
+  // crest dial, plumes and horse-tail on helms without a crest of their own
+  void helmExtras(int ox, const Ramp& mat) {
+    const int f = L.helmForm;
+    const bool crested = f == 6 || f == 9 || f == 8;
+    const Ramp& p = R.plume;
+    const int cx = facing == kSide ? 6 + ox - 2 : 7;
+    if (!crested && (L.crest >= 3 || (L.armsOrnament & 1))) {   // a plume tuft at the crown
+      if (facing == kSide) { c.set(cx, hy - 2, p[3]); c.set(cx - 1, hy - 2, p[2]); c.set(cx - 2, hy - 1, p[1]); c.set(cx + 1, hy - 1, p[2]); }
+      else { c.set(7, hy - 2, p[3]); c.set(8, hy - 2, p[2]); c.set(6, hy - 1, p[2]); c.set(9, hy - 1, p[1]); }
+    }
+    if ((L.armsOrnament & 8) || L.crest >= 4) {   // a horse-tail down the back
+      if (facing == kUp) for (int y = hy; y <= ty + 3; y++) { c.set(7, y, p[y & 1 ? 1 : 2]); c.set(8, y, p[1]); }
+      else if (facing == kSide) for (int y = hy; y <= ty + 2; y++) c.set(3 + ox - (y > hy + 4 ? 1 : 0), y, p[y & 1 ? 1 : 2]);
+      else { c.set(3, hy + 4, p[2]); c.set(2, hy + 5, p[1]); c.set(2, hy + 6, p[1]); }
+    }
+    (void)mat;
+  }
+
+  // ---- garment cuts (front / back view): the torso detail, then the hem below the waist
+  void cutTorsoFront(bool back) {
+    const Ramp& T = R.top;
+    const Ramp& Pt = R.pat;
+    switch (cutK) {
+      case kCutTunic:
+        if (!back) { c.set(7, ty, R.skin[1]); c.set(8, ty, R.skin[1]); c.set(7, ty + 1, T[1]); }
+        beltRow(5, 10, ty + 4);
+        break;
+      case kCutRobe:   // a crossed collar and a broad sash
+        if (!back) { c.set(6, ty, Pt[3]); c.set(7, ty + 1, Pt[3]); c.set(8, ty + 2, Pt[2]); c.set(9, ty, Pt[2]); c.set(8, ty + 1, Pt[2]); c.set(7, ty, R.skin[1]); c.set(8, ty, R.skin[0]); }
+        for (int x = 5; x <= 10; x++) { c.set(x, ty + 3, Pt[x < 8 ? 3 : 2]); c.set(x, ty + 4, Pt[x < 8 ? 2 : 1]); }
+        break;
+      case kCutKaftan:   // open down the front over the inner garment, a sash
+        if (!back) {
+          for (int y = ty + 1; y < hip; y++) { c.set(7, y, R.leg[2]); c.set(8, y, R.leg[1]); c.set(6, y, Pt[3]); c.set(9, y, Pt[2]); }
+          c.set(7, ty, R.skin[1]); c.set(8, ty, R.skin[0]);
+        }
+        for (int x = 5; x <= 10; x++) c.set(x, ty + 4, Pt[x < 8 ? 2 : 1]);
+        break;
+      case kCutWrap:   // cloth wrapped over one shoulder, the other bare
+        if (!back) {
+          c.set(5, ty, R.skin[3]); c.set(6, ty, R.skin[2]); c.set(5, ty + 1, R.skin[2]);
+          for (int i = 0; i < 4; i++) c.set(6 + i, ty + 1 + i, Pt[3 - (i >> 1)]);
+        } else { c.set(9, ty, R.skin[2]); c.set(10, ty, R.skin[1]); for (int i = 0; i < 4; i++) c.set(9 - i, ty + 1 + i, Pt[2]); }
+        for (int x = 5; x <= 10; x++) c.set(x, ty + 4, Pt[x < 8 ? 2 : 1]);
+        break;
+      case kCutCoat:   // lapels and a button line
+        if (!back) {
+          c.set(6, ty, T[4]); c.set(7, ty, R.leg[2]); c.set(8, ty, R.leg[1]); c.set(9, ty, T[1]);
+          c.set(7, ty + 1, T[4]); c.set(8, ty + 1, T[1]);
+          for (int y = ty + 2; y < hip; y += 2) c.set(8, y, kBrass[3]);
+          for (int y = ty + 2; y < hip; y++) c.set(7, y, T[std::min(4, 3)]);
+        } else for (int y = ty; y < hip; y++) c.set(7, y, T[1]);
+        for (int x = 5; x <= 10; x++) c.set(x, ty, T[x < 8 ? 4 : 2]);   // a raised collar
+        break;
+      case kCutKilt:   // a plaid sash over the shoulder, a belt with a buckle
+        for (int i = 0; i < 5; i++) {
+          int x = back ? 10 - i : 5 + i;
+          c.set(x, ty + i, Pt[3]);
+          if (x + 1 <= 10) c.set(back ? x - 1 : x + 1, ty + i, Pt[2]);
+        }
+        beltRow(5, 10, ty + 4);
+        break;
+      case kCutPoncho: break;   // ponchoFront
+      case kCutGown:   // a fitted bodice under a high waist band, a low neckline
+        if (!back) { c.set(7, ty, R.skin[2]); c.set(8, ty, R.skin[1]); c.set(6, ty, R.skin[2]); c.set(7, ty + 1, T[1]); }
+        for (int x = 5; x <= 10; x++) c.set(x, ty + 2, Pt[x < 8 ? 3 : 2]);
+        if (!back) c.set(7, ty + 2, Pt[4]);
+        break;
+      default: break;
+    }
+  }
+  // a hem layer from row y0 to y1 over (or instead of) the legs, flaring by 'flare' px per 2 rows (cap)
+  void hemFront(int y0, int y1, int cap, int split, bool sway, int baseX0 = 5, int baseX1 = 10) {
+    const Ramp& r = R.top;
+    const int sw = sway ? ((P.liftA > 0) ? -1 : (P.liftB > 0 ? 1 : 0)) : 0;
+    for (int y = y0; y <= y1; y++) {
+      const int grow = std::min(cap, (y - y0 + 1) / 2);
+      int x0 = baseX0 - grow, x1 = baseX1 + grow;
+      if (y >= y1 - 1) { x0 += sw; x1 += sw; }
+      x0 = std::max(x0, 1); x1 = std::min(x1, 14);
+      for (int x = x0; x <= x1; x++) {
+        if (split == 1 && (x == 7 || x == 8)) continue;   // open front: the legs show
+        int k = 2;
+        if (x == x0) k = 3;
+        else if (x >= x1 - 1) k = 1;
+        if (split == 2 && x == 8 && y > y0) k = 0;          // a centre vent
+        if ((x == 6 || x == 9) && y > y0 + 1 && ((y + x) & 1)) k = std::max(0, k - 1);   // folds
+        if (y == y1) k = std::max(0, k - 1);
+        c.set(x, y, r[k]);
+      }
+      if (split == 1) { c.set(6 + (y >= y1 - 1 ? sw : 0), y, R.pat[3]); c.set(9 + (y >= y1 - 1 ? sw : 0), y, R.pat[2]); }
+    }
+  }
+  void cutSkirtFront() {
+    switch (cutK) {
+      case kCutTunic: hemFront(hip, hip + 1, 1, 0, false); break;
+      case kCutCoat: hemFront(hip, hip + 3, 2, facing == kDown ? 1 : 2, true); break;
+      case kCutKaftan: hemFront(hip, kGround - 1, 2, facing == kDown ? 1 : 0, true); break;
+      case kCutKilt: {
+        const Ramp& r = R.top;
+        for (int y = hip; y <= hip + 2; y++) {
+          int x0 = 4 + (y == hip ? 1 : 0), x1 = 11 - (y == hip ? 1 : 0);
+          for (int x = x0; x <= x1; x++) {
+            int k = x == x0 ? 3 : (x >= x1 - 1 ? 1 : 2);
+            if ((x & 1) && y > hip) k = std::max(0, k - 1);   // pleats
+            if (y == hip + 2) k = std::max(0, k - 1);
+            c.set(x, y, r[k]);
+          }
+        }
+        if (facing == kDown) { c.set(7, hip + 1, kLeather[2]); c.set(8, hip + 1, kLeather[1]); c.set(7, hip, kFur[3]); c.set(8, hip, kFur[2]); }
+        for (int side = 0; side < 2; side++) {   // bare knees above the hose
+          int x0 = side == 0 ? 5 : 8, lift = side == 0 ? P.liftA : P.liftB;
+          int ky = hip + 3;
+          if (ky <= kGround - lift - 2) { c.set(x0, ky, R.skin[side ? 2 : 3]); c.set(x0 + 1, ky, R.skin[2]); c.set(x0 + 2, ky, R.skin[1]); }
+        }
+        break;
+      }
+      case kCutWrap: {
+        hemFront(hip, kGround - 2, 1, 0, true);
+        for (int x = 6; x <= 9; x++) if (solid(c, x, hip + 2 + (x - 6))) c.set(x, hip + 2 + (x - 6), R.top[1]);   // the wrap's edge
+        // bare shins and sandals
+        c.set(6, kGround - 1, R.skin[P.liftA ? 2 : 3]); c.set(9, kGround - 1, R.skin[P.liftB ? 1 : 2]);
+        c.set(6, kGround, kLeather[P.liftA ? 1 : 2]); c.set(7, kGround, kLeather[1]); c.set(8, kGround, kLeather[1]); c.set(9, kGround, kLeather[P.liftB ? 0 : 1]);
+        break;
+      }
+      case kCutRobe: {
+        hemFront(hip, kGround, 2, 0, true);
+        for (int x = 0; x < 16; x++) if (solid(c, x, kGround) && rampIndex(R.top, c.get(x, kGround)) >= 0) c.set(x, kGround, R.pat[x < 8 ? 2 : 1]);
+        break;
+      }
+      case kCutGown: {
+        const Ramp& r = R.top;
+        const int sw = (P.liftA > 0) ? -1 : (P.liftB > 0 ? 1 : 0);
+        for (int y = hip; y <= kGround; y++) {
+          int grow = std::min(3, (y - hip + 2) / 2);
+          int x0 = 5 - grow, x1 = 10 + grow;
+          if (y >= kGround - 1) { x0 += sw; x1 += sw; }
+          x0 = std::max(x0, 1); x1 = std::min(x1, 14);
+          for (int x = x0; x <= x1; x++) {
+            int k = x == x0 ? 3 : (x >= x1 - 1 ? 1 : 2);
+            if (((x - x0) % 3 == 2) && y > hip + 1) k = std::max(0, k - 1);   // long falling folds
+            if (((x - x0) % 3 == 1) && y > hip + 1 && x < x1 - 1) k = std::min(4, k + 1);
+            if (y == kGround) k = std::max(0, k - 1);
+            c.set(x, y, r[k]);
+          }
+        }
+        for (int x = 0; x < 16; x++) if (solid(c, x, kGround) && rampIndex(R.top, c.get(x, kGround)) >= 0) c.set(x, kGround, R.pat[x < 8 ? 3 : 2]);
+        break;
+      }
+      default: break;
+    }
+  }
+  // the poncho: a wide triangle over the shoulders and arms, the hands below its edge
+  void ponchoFront() {
+    if (!poncho() || P.atk) {
+      if (poncho()) for (int y = ty; y <= ty + 4; y++) for (int x = 5; x <= 10; x++) c.set(x, y, R.top[x < 8 ? 3 : 2]);
+      return;
+    }
+    const Ramp& r = R.top;
+    for (int x = 2; x <= 13; x++) {
+      const int d = x < 8 ? 7 - x : x - 8;   // distance from the centre
+      const int bottom = ty + 6 - (d + 1) / 2;
+      for (int y = ty - 1 + (d >= 5 ? 1 : 0); y <= bottom; y++) {
+        int k = x < 6 ? 3 : (x > 10 ? 1 : 2);
+        if (y == ty - 1 || (y == ty && d >= 5)) k = std::min(4, k + 1);   // the shoulders catch the light
+        if (y == bottom) k = std::max(0, k - 1);
+        c.set(x, y, r[k]);
+      }
+      // a woven band near the hem
+      const int by = bottom - 1;
+      if (by > ty) c.set(x, by, R.pat[x < 8 ? 3 : 2]);
+    }
+    if (facing == kDown) { c.set(7, ty - 1, R.skin[1]); c.set(8, ty - 1, R.skin[0]); }
+  }
+  void ponchoSide() {
+    if (!poncho() || P.atk) return;
+    const Ramp& r = R.top;
+    const int ox = P.lean;
+    for (int x = 4; x <= 12; x++) {
+      const int d = std::abs(x - 8);
+      const int bottom = ty + 5 - d / 2;
+      for (int y = ty - 1 + (d >= 4 ? 1 : 0); y <= bottom; y++) {
+        int k = x < 7 ? 3 : (x > 10 ? 1 : 2);
+        if (y == bottom) k = std::max(0, k - 1);
+        c.set(x + ox, y, r[k]);
+      }
+      if (bottom - 1 > ty) c.set(x + ox, bottom - 1, R.pat[x < 8 ? 3 : 2]);
+    }
+  }
+  void cutTorsoSide() {
+    const int ox = P.lean;
+    const Ramp& Pt = R.pat;
+    switch (cutK) {
+      case kCutTunic: c.set(10 + ox, ty, R.skin[1]); beltRow(6 + ox, 10 + ox, ty + 4); break;
+      case kCutRobe: c.set(10 + ox, ty, Pt[3]); c.set(9 + ox, ty + 1, Pt[3]); for (int x = 6; x <= 10; x++) { c.set(x + ox, ty + 3, Pt[3]); c.set(x + ox, ty + 4, Pt[2]); } break;
+      case kCutKaftan: for (int y = ty; y < hip; y++) c.set(10 + ox, y, Pt[2]); for (int x = 6; x <= 10; x++) c.set(x + ox, ty + 4, Pt[2]); break;
+      case kCutWrap: c.set(9 + ox, ty, R.skin[2]); for (int i = 0; i < 4; i++) c.set(10 + ox - i / 2, ty + 1 + i, Pt[3]); for (int x = 6; x <= 10; x++) c.set(x + ox, ty + 4, Pt[2]); break;
+      case kCutCoat: for (int x = 6; x <= 10; x++) c.set(x + ox, ty, R.top[x < 9 ? 4 : 2]); c.set(10 + ox, ty + 2, kBrass[3]); c.set(10 + ox, ty + 4, kBrass[3]); break;
+      case kCutKilt: for (int i = 0; i < 5; i++) c.set(7 + ox + (i >> 1), ty + i, Pt[3]); beltRow(6 + ox, 10 + ox, ty + 4); break;
+      case kCutGown: c.set(10 + ox, ty, R.skin[2]); for (int x = 6; x <= 10; x++) c.set(x + ox, ty + 2, Pt[x < 9 ? 3 : 2]); break;
+      default: break;
+    }
+  }
+  void hemSide(int y0, int y1, int cap, bool sway, int vent) {
+    const Ramp& r = R.top;
+    const int sw = sway ? (P.stepA > 0 ? 1 : (P.stepA < 0 ? -1 : 0)) : 0;
+    for (int y = y0; y <= y1; y++) {
+      int grow = std::min(cap, (y - y0 + 1) / 2);
+      int x0 = 6 - grow + P.lean, x1 = 10 + grow + P.lean;
+      if (y >= y1 - 1) { x0 += sw; x1 += sw; }
+      x0 = std::max(x0, 1); x1 = std::min(x1, 14);
+      for (int x = x0; x <= x1; x++) {
+        int k = x == x0 + 1 ? 3 : (x >= x1 - 1 ? 1 : 2);
+        if (vent && x == x1 - 1 - vent && y > y0 + 1) k = 0;
+        if (y == y1) k = std::max(0, k - 1);
+        c.set(x, y, r[k]);
+      }
+    }
+  }
+  void cutSkirtSide() {
+    switch (cutK) {
+      case kCutTunic: hemSide(hip, hip + 1, 1, false, 0); break;
+      case kCutCoat: hemSide(hip, hip + 3, 1, true, 0); break;
+      case kCutKaftan: hemSide(hip, kGround - 1, 2, true, 1); break;
+      case kCutKilt: {
+        for (int y = hip; y <= hip + 2; y++)
+          for (int x = 5 + P.lean; x <= 11 + P.lean; x++) {
+            int k = ((x & 1) && y > hip) ? 1 : 2;
+            if (x == 5 + P.lean) k = 3;
+            if (y == hip + 2) k = std::max(0, k - 1);
+            c.set(x, y, R.top[k]);
+          }
+        break;
+      }
+      case kCutWrap: {
+        hemSide(hip, kGround - 2, 1, true, 0);
+        const int sw = P.stepA > 0 ? 1 : (P.stepA < 0 ? -1 : 0);
+        c.set(8 + sw, kGround - 1, R.skin[2]); c.set(9 + sw, kGround - 1, R.skin[1]);
+        c.set(8 + sw, kGround, kLeather[2]); c.set(9 + sw, kGround, kLeather[1]); c.set(10 + sw, kGround, kLeather[0]);
+        break;
+      }
+      case kCutRobe:
+        hemSide(hip, kGround, 2, true, 0);
+        for (int x = 0; x < 16; x++) if (solid(c, x, kGround) && rampIndex(R.top, c.get(x, kGround)) >= 0) c.set(x, kGround, R.pat[1]);
+        break;
+      case kCutGown:
+        hemSide(hip, kGround, 3, true, 0);
+        for (int y = kGround - 2; y <= kGround; y++) c.set(3 + P.lean, y, R.top[y == kGround ? 0 : 1]);   // the train behind
+        for (int x = 0; x < 16; x++) if (solid(c, x, kGround) && rampIndex(R.top, c.get(x, kGround)) >= 0) c.set(x, kGround, R.pat[2]);
+        break;
+      default: break;
+    }
+  }
+
+  // ---- body forms (cult::BodyArm + 1): the torso's construction over the band's material
+  void formTorsoFront(bool back) {
+    const Ramp& T = R.top;
+    switch (form) {
+      case kFormPadded:   // a quilted gambeson with a thick collar
+        for (int x = 5; x <= 10; x++) c.set(x, ty, T[x < 8 ? 4 : 3]);
+        beltRow(5, 10, ty + 4);
+        break;
+      case kFormLeather:
+        for (int x = 5; x <= 10; x++) c.set(x, ty, kLeather[x < 9 ? 3 : 2]);
+        if (!back) line(c, 5, ty + 1, 9, ty + 4, kLeather[0]);
+        beltRow(5, 10, ty + 4);
+        break;
+      case kFormBrigandine:
+        for (int x = 5; x <= 10; x++) c.set(x, ty, R.mat[x < 8 ? 3 : 2]);
+        beltRow(5, 10, ty + 4);
+        break;
+      case kFormPlate:
+        if (!back) { c.set(6, ty + 1, T[4]); c.set(6, ty + 2, T[4]); c.set(9, ty + 3, T[1]); for (int y = ty + 1; y <= ty + 3; y++) c.set(7, y, T[3]); }
+        for (int x = 5; x <= 10; x++) c.set(x, ty + 4, T[x < 8 ? 1 : 0]);
+        break;
+      default:
+        for (int x = 5; x <= 10; x++) c.set(x, ty + 4, R.belt[x < 9 ? 1 : 0]);
+        if (facing == kDown) c.set(7, ty + 4, R.gilt[3]);
+        break;
+    }
+    if (L.outfit == Outfit::Guard && (form == kFormMail || form == kFormScale || form == kFormPlate || form == kFormLeaf || form == kFormLeather)) {
+      // the guard's tabard in the kingdom's colours, over the armour
+      for (int y = ty + 1; y <= hip; y++)
+        for (int x = 6; x <= 9; x++) c.set(x, y, R.trim[y == hip ? 1 : (x < 8 ? 3 : 2)]);
+      if (!back) { c.set(7, ty + 2, kGold[3]); c.set(8, ty + 2, kGold[2]); c.set(7, ty + 3, kGold[2]); }
+    }
+  }
+  void formTorsoSide() {
+    const int ox = P.lean;
+    const Ramp& T = R.top;
+    switch (form) {
+      case kFormPadded: case kFormBrigandine: case kFormLeather:
+        for (int x = 6; x <= 10; x++) c.set(x + ox, ty, (form == kFormBrigandine ? R.mat : (form == kFormLeather ? kLeather : T))[3]);
+        beltRow(6 + ox, 10 + ox, ty + 4);
+        break;
+      case kFormPlate: c.set(9 + ox, ty + 1, T[4]); for (int x = 6; x <= 10; x++) c.set(x + ox, ty + 4, T[1]); break;
+      default: for (int x = 6; x <= 10; x++) c.set(x + ox, ty + 4, R.belt[1]); break;
+    }
+    if (L.outfit == Outfit::Guard && (form == kFormMail || form == kFormScale || form == kFormPlate || form == kFormLeaf || form == kFormLeather))
+      for (int y = ty + 1; y <= hip; y++) { c.set(9 + ox, y, R.trim[2]); c.set(10 + ox, y, R.trim[1]); }
+  }
+  // the armour skirt (tassets, a mail or lamellar skirt): L.skirt - 1 rows below the waist
+  int tassetRows() const { return form && L.skirt > 1 ? std::min(3, L.skirt - 1) : 0; }
+  void tassets() {
+    const int n = tassetRows();
+    if (!n) return;
+    const Ramp& T = R.top;
+    const bool side = facing == kSide;
+    const int ox = side ? P.lean : 0;
+    for (int i = 0; i < n; i++) {
+      const int y = hip + i;
+      int x0 = side ? 5 : 4, x1 = side ? 11 : 11;
+      if (i == 0) { x0++; x1--; }
+      for (int x = x0; x <= x1; x++) {
+        int k = x == x0 ? 3 : (x >= x1 - 1 ? 1 : 2);
+        if (i == n - 1) k = std::max(0, k - 1);
+        if (!side && (x == 7 || x == 8) && i > 0 && form != kFormMail) k = 0;   // split at the front for the stride
+        if ((L.armsOrnament & 128) && i == n - 1 && ((x + (int)P.liftA) & 1)) continue;   // scalloped hem
+        c.set(x + ox, y, T[k]);
+      }
+    }
+    if (L.armsOrnament & 64) {   // tassels at the hem
+      const int y = hip + n;
+      if (side) c.set(10 + ox, y, R.plume[2]);
+      else { c.set(5, y, R.plume[3]); c.set(10, y, R.plume[1]); }
+    }
+  }
+  // the texture of the body form, over every pixel of its material in the torso, sleeves and tassets
+  void formTexture() {
+    if (!form) return;
+    const Ramp& T = R.top;
+    const int y1 = hip - 1 + tassetRows();
+    for (int y = ty; y <= y1; y++)
+      for (int x = 0; x < 16; x++) {
+        const int k = rampIndex(T, c.get(x, y));
+        if (k < 0) continue;
+        const int ry = y - ty;
+        int nk = k;
+        switch (form) {
+          case kFormPadded: if (ry > 0 && ((x % 3) == 0 || ry % 2 == 0)) nk = k - 1; break;   // quilting
+          case kFormMail: if (((x + y) & 1) == 0) nk = k - 1; else if (((x + y) & 3) == 1 && k < 4) nk = k + 1; break;
+          case kFormScale: {   // overlapping scales, lit along their upper edges
+            const int ph = (ry >> 1) & 1;
+            if ((ry & 1) == 0) nk = ((x + ph) & 1) ? k + 1 : k;
+            else nk = ((x + ph) & 1) ? k - 1 : k;
+            break;
+          }
+          case kFormLamellar:   // rows of small plates laced in the cloth colour
+            if (ry > 0 && (ry % 2) == 0) { if (x & 1) { c.set(x, y, L.outfit == Outfit::Guard ? R.trim[2] : R.plume[2]); continue; } nk = k - 1; }
+            else if (x & 1) nk = k - 1;
+            break;
+          case kFormBrigandine: if (ry > 0 && (ry & 1) && ((x + (ry >> 1)) & 1)) { c.set(x, y, R.mat[4]); continue; } break;   // rivets
+          case kFormLeaf: {   // overlapping leaf plates pointing down
+            const int ph = (ry / 2) & 1;
+            const int m = (x + ph * 2) % 4;
+            if ((ry & 1) == 0) nk = m == 1 ? k + 1 : (m == 3 ? k - 1 : k);
+            else nk = m == 2 ? k - 1 : k;
+            if (ry == 2 && (x == 7 || x == 8) && facing == kDown) { c.set(x, y, R.accent); continue; }
+            break;
+          }
+          case kFormPlate: if (y >= hip - 1 && (x & 1)) nk = k - 1; break;   // the faulds
+          default: break;
+        }
+        c.set(x, y, T[std::clamp(nk, 0, 4)]);
+      }
+    ornamentsBody();
+  }
+  void ornamentsBody() {
+    const uint16_t o = L.armsOrnament;
+    if (!o) return;
+    const bool side = facing == kSide;
+    const int ox = side ? P.lean : 0;
+    auto onBody = [&](int x, int y, uint32_t col) { if (solid(c, x, y)) c.set(x, y, col); };
+    if (o & 16) {   // studs
+      static const int sx[5] = {6, 9, 6, 9, 7}, sy[5] = {1, 1, 3, 3, 2};
+      for (int i = 0; i < 5; i++) onBody(side ? 7 + ox + (i & 1) * 2 : sx[i], ty + sy[i], kBrass[4]);
+    }
+    if ((o & 32) && !side && facing == kDown) { onBody(6, ty + 2, R.top[4]); onBody(9, ty + 2, R.top[3]); onBody(7, ty + 3, R.top[4]); onBody(8, ty + 1, R.top[4]); }   // etching
+    if ((o & 512) && facing == kDown) { onBody(6, ty + 1, kGold[3]); onBody(7, ty + 2, kGold[4]); onBody(8, ty + 2, kGold[3]); onBody(9, ty + 1, kGold[2]); }   // filigree
+    if (o & 4) {   // gilding: the waist line
+      const int y = ty + 4;
+      for (int x = 0; x < 16; x++) if (solid(c, x, y) && (x >= (side ? 6 + ox : 5)) && (x <= (side ? 10 + ox : 10))) c.set(x, y, kGold[x < 8 ? 3 : 2]);
+    }
+    if (o & 2) {   // fur trim at the collar
+      if (side) furRow(6 + ox, 10 + ox, ty);
+      else furRow(5, 10, ty);
+    }
+  }
+  void furRow(int x0, int x1, int y) { furRow(x0, x1, y, 3); }
+
+  // ---- pauldrons by the culture's dial (L.pauldron - 1: 0 none .. 3 huge)
+  bool m3Pauldron() const { return form && L.pauldron; }
+  void pauldronM3(int x0, bool lit) {
+    const int d = L.pauldron - 1;
+    if (d <= 0) return;
+    const Ramp& s = form >= kFormMail ? R.mat : (form == kFormLeather ? kLeather : R.top);
+    const bool gilt = (L.armsOrnament & 4) != 0;
+    if (d == 1) {
+      const int px = lit ? x0 - 1 : x0 + 1;
+      c.set(px, ty, s[lit ? 4 : 2]); c.set(px + 1, ty, s[lit ? 3 : 1]);
+      c.set(px, ty + 1, s[lit ? 2 : 1]); c.set(px + 1, ty + 1, s[lit ? 2 : 0]);
+    } else if (d == 2) {
+      const int px = lit ? x0 - 1 : x0;
+      for (int i = 0; i < 3; i++) { c.set(px + i, ty, s[lit ? 4 - i : 3 - i]); c.set(px + i, ty + 1, (gilt ? kGold : s)[lit ? 2 : 1]); }
+      c.set(px + 1, ty + 2, s[1]);
+    } else {
+      const int px = lit ? x0 - 2 : x0;
+      for (int i = 1; i < 4; i++) c.set(px + i - (lit ? 0 : 1), ty - 1, s[lit ? 4 : 3]);
+      for (int i = 0; i < 4; i++) { c.set(px + i, ty, s[lit ? 4 - (i >> 1) : 3 - (i >> 1)]); c.set(px + i, ty + 1, s[lit ? 2 : 1]); c.set(px + i, ty + 2, (gilt ? kGold : s)[lit ? 2 : 0]); }
+      if (L.armsOrnament & 256) c.set(px + (lit ? 1 : 2), ty, kWhite);   // a rivet
+    }
+    if (L.armsOrnament & 64) c.set(lit ? x0 - 1 : x0 + 2, ty + d + 1, R.plume[lit ? 3 : 1]);   // tassels
+  }
+
+  // ---- cloth patterns over every garment pixel (cult::Pattern: 1 stripes, 2 checks, 3 border trim, 4 dots,
+  //      5 embroidery, 6 vines); subtle at this scale
+  void clothPattern() {
+    if (!L.pattern || L.pattern > 6) return;
+    const Ramp& T = R.top;
+    const Ramp& Pt = R.pat;
+    int hem[16];   // the lowest garment pixel per column (border trim, embroidery, vines)
+    for (int x = 0; x < 16; x++) {
+      hem[x] = -1;
+      for (int y = kGround; y >= ty; y--) if (rampIndex(T, c.get(x, y)) >= 0) { hem[x] = y; break; }
+    }
+    for (int y = ty; y <= kGround; y++)
+      for (int x = 0; x < 16; x++) {
+        const int k = rampIndex(T, c.get(x, y));
+        if (k < 0) continue;
+        const int ry = y - ty;
+        uint32_t v = 0;
+        switch (L.pattern) {
+          case 1: if (ry % 3 == 1) v = Pt[k]; break;
+          case 2: {
+            const bool a = x % 3 == 0, b = ry % 3 == 0;
+            if (a && b) v = Pt[k];
+            else if (a || b) v = mix(T[k], Pt[k], 0.5f);
+            break;
+          }
+          case 3: if (y == hem[x] || y == hem[x] - 1 || ry == 0) v = Pt[std::min(4, k + (y == hem[x] ? 0 : 1))]; break;
+          case 4: if ((ry & 1) == 1 && ((x + ry) % 3) == 0) v = Pt[std::min(4, k + 1)]; break;
+          case 5:
+            if (y == hem[x] - 1 && (x & 1)) v = Pt[std::min(4, k + 1)];
+            else if (y == hem[x]) v = Pt[k];
+            else if (facing == kDown && ry >= 1 && ry <= 2 && (x == 7 || x == 8)) v = Pt[std::min(4, k + 1)];
+            break;
+          case 6: {
+            const int wave = ((x >> 1) & 1);
+            if (y == hem[x] - 1 - wave) v = Pt[std::min(4, k + 1)];
+            else if (y == hem[x] - 2 - wave && (x % 4) == 1) v = mix(Pt[k], rgba(110, 170, 90), 0.5f);
+            break;
+          }
+          default: break;
+        }
+        if (v) c.set(x, y, v);
+      }
   }
 
   // ---------------------------------------------------------------------- composition
@@ -1615,6 +2895,9 @@ struct HumanPainter {
     if (facing == kDown) paintDown();
     else if (facing == kUp) paintUp();
     else paintSide();
+    if (form) formTexture();
+    if (cutK) clothPattern();
+    if (L.jewellery) torc();
   }
 
   void paintDown() {
@@ -1625,6 +2908,8 @@ struct HumanPainter {
     torsoFront(false);
     buildFront();
     skirtFront();
+    if (form) tassets();
+    if (cutK) ponchoFront();
     armFront(11, P.swingB, false);   // off hand (screen right)
     head();
     amuletFront();
@@ -1657,6 +2942,8 @@ struct HumanPainter {
     legsFront();
     torsoFront(true);
     skirtFront();
+    if (form) tassets();
+    if (cutK) ponchoFront();
     int hx = 11, hy2 = ty + 5 + P.swingB, dx = 0, dy = isStaff() ? -1 : 1;
     if (L.weapon == 3) { dx = 1; dy = 0; }
     if (P.atk == 1) { hx = 12; hy2 = ty - 2; dx = 0; dy = -1; }
@@ -1695,6 +2982,8 @@ struct HumanPainter {
     legsSide();
     torsoSide();
     skirtSide();
+    if (form) tassets();
+    if (cutK) ponchoSide();
     if (L.cloak) cloakCollarSide();
     if (hasShield()) shield(11 + P.lean, ty + 1, true);
     head();
@@ -1764,6 +3053,14 @@ uint64_t HumanLook::key() const {
   mx((uint64_t)build | (uint64_t)helmStyle << 8 | (uint64_t)armorStyle << 16 | (uint64_t)gloves << 24 | (uint64_t)boots << 32 |
      (uint64_t)cloak << 40 | (uint64_t)shieldStyle << 48 | (uint64_t)backItem << 56);
   mx((uint64_t)amulet | (uint64_t)ring << 1);
+  // M3 peoples and cultures (mixed only when set, so every pre-M3 look keeps its key)
+  const uint64_t m3a = (uint64_t)people | (uint64_t)cut << 8 | (uint64_t)headwear << 16 | (uint64_t)pattern << 24 |
+                       (uint64_t)facePaint << 32 | (uint64_t)jewellery << 40 | (uint64_t)helmForm << 48 | (uint64_t)bodyForm << 56;
+  const uint64_t m3b = (uint64_t)shieldForm | (uint64_t)bladeForm << 8 | (uint64_t)armsOrnament << 16 | (uint64_t)pauldron << 32 |
+                       (uint64_t)skirt << 40 | (uint64_t)crest << 48;
+  if (m3a || m3b || headColor || patternColor || plumeColor) {
+    mx(m3a); mx(m3b); mx(headColor); mx(patternColor); mx(plumeColor);
+  }
   return k;
 }
 

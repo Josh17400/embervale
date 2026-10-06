@@ -18,7 +18,24 @@ namespace art {
 namespace {
 
 struct Awn { uint32_t a, b; bool striped; };
+// M3: a culture's awnings for the stall being painted (marketStallStyled); inactive: the classic cloths
+struct AwnStyle { bool on = false; int kind = 0; uint32_t a = 0, b = 0; };
+thread_local AwnStyle g_awn;
+Awn awningOfClassic(int v);
 Awn awningOf(int v) {
+  if (!g_awn.on) return awningOfClassic(v);
+  const Awn cl = awningOfClassic(v);
+  // the culture's two colours, nudged a little toward the classic cloth of this index so a row never repeats one cloth
+  const uint32_t a = mix(g_awn.a, cl.a, 0.18f), b = mix(g_awn.b, cl.b, 0.12f);
+  switch (g_awn.kind) {
+    case 1: return {a, mix(a, rgba(40, 30, 30), 0.45f), false};                  // plain dyed cloth, a darker hem
+    case 2: return {mix(rgba(198, 170, 108), a, 0.15f), rgba(120, 88, 52), false};   // reed matting
+    case 4: return {a, b, (v & 1) == 0};                                          // silk: stripes and plain by turns
+    case 5: return {mix(rgba(150, 104, 68), a, 0.12f), rgba(92, 60, 42), false};    // hide
+    default: return {a, b, true};
+  }
+}
+Awn awningOfClassic(int v) {
   static const Awn t[kStallAwnings] = {
       {rgba(184, 52, 48), rgba(238, 226, 198), true},    // red and cream
       {rgba(52, 92, 168), rgba(236, 228, 204), true},    // blue and cream
@@ -957,6 +974,9 @@ void tentRoof(M3& m, const Awn& A) {
 // gabled roof with its ridge along the counter, so from above it shows two slopes - the one turned to the light and
 // the one in shade - with a timber gable end to the south, instead of one flat panel of shingle courses. The eaves are
 // level (Geo bzf = bzb) and the ridge rises 6 px over the middle of the stall's depth.
+// (M3 fixer round 2) a culture's booth roof is its cloth (dyed, striped, matting, hide), never grey slates; a culture
+// whose stalls are tiled lean-tos (awning style 3) keeps the shingle courses, in fired-clay colours
+bool clothRoof() { return g_awn.on && g_awn.kind != 3; }
 void sideBoothRoof(M3& m, int awning, const Ramp& S) {
   const Geo g = geoOf(m.f);
   const float ve0 = g.bvf, ve1 = g.rvb, vr = (ve0 + ve1) * 0.5f, ze = g.bzf, zr = g.bzf + 6.0f;
@@ -976,6 +996,12 @@ void sideBoothRoof(M3& m, int awning, const Ramp& S) {
       if (((int)std::floor(u + row * 3.0f)) % 6 == 0 && inRow > 0.8f) ll -= 0.16f;   // the joints
       if (hashf((int)u, row + (back ? 50 : 0), 71u + (uint32_t)awning) < 0.1f) ll -= 0.07f;
       if (fromRidge < 0.9f) ll += 0.14f;                                              // the ridge catches the light
+      if (clothRoof()) {   // (M3 fixer round 2) a culture's cloth over the booth, not grey slates: soft folds, its stripes
+        const Awn A = awningOf(awning);
+        const bool alt = A.striped && (((int)std::floor(u)) / 4) % 2 == 1;
+        float lc = l + (fromRidge < 0.9f ? 0.12f : 0.0f) + (((int)std::floor(fromRidge)) % 5 == 4 ? -0.06f : 0.0f);
+        return (alt ? ramp(A.b) : ramp(A.a))[litK(lc, (int)(s * 50), (int)(t * 25))];
+      }
       return S[litK(ll, (int)(s * 50), (int)(t * 25))];
     };
   };
@@ -1007,7 +1033,8 @@ void sideBoothRoof(M3& m, int awning, const Ramp& S) {
 void boothRoof(M3& m, int awning) {
   const Geo g = geoOf(m.f);
   const bool slate = (awning % 4) == 1 || (awning % 4) == 2;
-  const Ramp& S = slate ? kStone : kWoodDark;
+  static const Ramp kClayTiles = ramp(rgba(170, 84, 56));
+  const Ramp& S = g_awn.on && g_awn.kind == 3 ? kClayTiles : (slate ? kStone : kWoodDark);
   // thick posts (every one on the ground: stallPosts) and a brace up to the eave at the front corners
   paintPosts(m, 2);
   if (g.side) { sideBoothRoof(m, awning, S); return; }
@@ -1021,6 +1048,11 @@ void boothRoof(M3& m, int awning) {
     if (((int)std::floor(u + row * 3.0f)) % 6 == 0 && inRow > 0.8f) ll -= 0.18f;   // the joints
     if (hashf((int)u, row, 71u + (uint32_t)awning) < 0.1f) ll -= 0.08f;
     if (t > 0.95f) ll += 0.1f;
+    if (clothRoof()) {   // (M3 fixer round 2) the culture's cloth, as on its awnings
+      const Awn A = awningOf(awning);
+      const bool alt = A.striped && (((int)std::floor(u)) / 4) % 2 == 1;
+      return (alt ? ramp(A.b) : ramp(A.a))[litK(l + (t > 0.95f ? 0.1f : 0.0f), (int)(s * 50), (int)(t * 25))];
+    }
     return S[litK(ll, (int)(s * 50), (int)(t * 25))];
   });
   // the fascia: boards along the eave, the ends and the back
@@ -1956,6 +1988,19 @@ Canvas marketStallFacing(int trade, int awning, int form, bool closed, int facin
                   ((form % kStallForms) + kStallForms) % kStallForms, closed);
   outline(m.c, 0.95f);
   return m.c;
+}
+
+Canvas marketStallStyled(int trade, int awning, int form, bool closed, int facing, const PropStyle& st) {
+  if (st.classic() || (st.awning == 0 && !st.awningA && !st.cloth)) return marketStallFacing(trade, awning, form, closed, facing);
+  g_awn.on = true;
+  g_awn.kind = st.awning;
+  g_awn.a = st.awningA ? st.awningA : (st.cloth ? st.cloth : rgba(184, 52, 48));
+  g_awn.b = st.awningB ? st.awningB : rgba(236, 226, 200);
+  // a tiled lean-to: the timber booth's tiled roof over the same counter (the cloth forms become booths)
+  const int f = st.awning == 3 ? 2 : form;
+  Canvas c = marketStallFacing(trade, awning, f, closed, facing);
+  g_awn = AwnStyle();
+  return c;
 }
 
 void stallOrigin(int facing, int& dx, int& dy) {

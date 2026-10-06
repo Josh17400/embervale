@@ -21,7 +21,10 @@ seed 3
 2.4  key Tab
 2.5  touch 1
 2.7  shot ui_03_creator_origin.png
-2.8  key Return                  # BEGIN
+2.75 key Tab
+2.8  touch 1
+2.85 shot ui_03b_creator_homeland.png
+2.9  key Return                  # BEGIN (on HOMELAND, the M3 fourth tab)
 3.2  expect mode play
 3.3  hour 11
 3.4  kit

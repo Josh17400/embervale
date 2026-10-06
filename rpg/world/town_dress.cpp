@@ -2,9 +2,11 @@
 // stalls, lamps, kingdom banners, signposts where the roads arrive, yards and gardens, fields and pastures thinning out
 // at the edge, the archetype's touch (quays, mine carts, palisades), old trees and flowers between the houses, the
 // townsfolk and the watch; then the relief, the used mask and the building ids. See rpg/world/town_gen.h.
+#include <cstdio>
 #include <cstdlib>
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <queue>
 #include "rpg/world/town_gen.h"
 
@@ -46,6 +48,7 @@ bool Gen::freeTile(int x, int y) const {
   const size_t i = I(x, y);
   if (mask[i] != K_NONE || M.bldgAt[i] >= 0 || M.wall[i] || M.prop[i] || front[i]) return false;
   if (!reserved.empty() && reserved[i]) return false;   // (M1 economy) a market keeper's walk or aisle
+  if (face(x, y)) return false;                          // (M3) nothing stands on a terrace's face
   Ground g = M.at(x, y);
   return !groundSolid(g) && g != Ground::Bridge && !water[i];
 }
@@ -63,7 +66,7 @@ void Gen::centrepieces() {
       centre = city ? (capital || cq < 0.45f ? Prop::Fountain : (cq < 0.72f ? Prop::MarketCross : Prop::Statue))
                     : town ? (cq < 0.35f ? Prop::Well : (cq < 0.65f || arch == Archetype::Market ? Prop::MarketCross : Prop::Fountain))
                            : Prop::Well;
-      if (village && layout == 2 && cq < 0.5f) {
+      if (village && ((layout == 2 && cq < 0.5f) || centreKind == 3)) {
         // the village green's old oak, and the well beside it
         centre = Prop::OakTree;
         if (get(s.x - 2, s.y + 1) == K_SQUARE) M.setProp(s.x - 2, s.y + 1, Prop::Well);
@@ -71,6 +74,16 @@ void Gen::centrepieces() {
         else centre = Prop::Well;
       }
       if ((bio == Biome::Desert) && centre == Prop::OakTree) centre = Prop::PalmTree;
+      // M3: the culture's centrepiece (art::PropStyle::centre): 0 fountain, 1 statue, 2 well, 3 sacred tree, 4 fire
+      // bowl, 5 obelisk (a statue the arch lane paints as one), 6 a ring of standing stones. A village keeps its well
+      // (its sacred tree stands on the green with the well beside it); a royal seat's well is a fountain
+      if (centreKind >= 0 && !village) {
+        static const Prop kCentre[7] = {Prop::Fountain, Prop::Statue, Prop::Well, Prop::OakTree, Prop::Brazier, Prop::Statue, Prop::StandingStone};
+        centre = kCentre[std::min(centreKind, 6)];
+        if (capital && centre == Prop::Well) centre = Prop::Fountain;
+      }
+      if (centre == Prop::OakTree)
+        centre = bio == Biome::Desert ? Prop::PalmTree : (bio == Biome::Snow || bio == Biome::Taiga ? Prop::PineTree : (bio == Biome::Autumn ? Prop::AutumnTree : Prop::OakTree));
     } else {
       switch (s.d) {
         case District::Temple: centre = Prop::Statue; break;
@@ -83,7 +96,7 @@ void Gen::centrepieces() {
       if ((bio == Biome::Snow || bio == Biome::Taiga) && centre == Prop::OakTree) centre = Prop::PineTree;
     }
     int px = s.x, py = s.y;
-    if (k == 0 && !(village && layout == 2 && centre == Prop::OakTree)) {
+    if (k == 0 && !(village && centre == Prop::OakTree)) {
       // (M1 economy) the market fills one side of the square: the fountain or the well stands toward the other side,
       // in a plaza of its own (M1 fixer: the market's side is mktSide)
       const int ddx = mktSide == 2 ? -1 : (mktSide == 3 ? 1 : 0), ddy = mktSide == 0 ? 1 : (mktSide == 1 ? -1 : 0);
@@ -107,7 +120,32 @@ void Gen::centrepieces() {
       }
       cpX = px; cpY = py;
     }
+    if (k == 0 && centre == Prop::StandingStone) {
+      // the ring of stones: six round the square's middle, which stays open (the gathering place)
+      // (M3 fixer round 3, review: "the hex of 2-tile-tall menhirs collapsed into two columns of three, crowding the
+      // stalls") a wider, uneven ring, every stone in its own column so the tall menhirs never stack into a pillar
+      // row, and none stands against a stall or another prop (it keeps a tile of open ground round it)
+      static const int ro[6][2] = {{-3, 0}, {-1, -2}, {2, -2}, {3, 1}, {1, 2}, {-2, 2}};
+      for (auto& o : ro) {
+        const int tx = px + o[0], ty = py + o[1];
+        if (get(tx, ty) != K_SQUARE || M.prop[I(tx, ty)] || front[I(tx, ty)]) continue;
+        bool clear = true;
+        for (int oy = -1; oy <= 1 && clear; oy++)
+          for (int ox = -1; ox <= 1; ox++) {
+            if (!in(tx + ox, ty + oy)) continue;
+            const int q = M.prop[I(tx + ox, ty + oy)];
+            if (q && q != (int)Prop::StandingStone + 1) { clear = false; break; }
+          }
+        if (clear) putSolid(tx, ty, Prop::StandingStone);
+      }
+      continue;
+    }
     M.setProp(px, py, centre);
+    // a village of a fire-keeping people keeps its fire bowl on the green beside the well (or the sacred tree)
+    if (k == 0 && village && (centreKind == 4 || centreKind == 6))
+      for (int ox : {3, -3, 2, -2})
+        if (get(px + ox, py + 1) == K_SQUARE && !M.prop[I(px + ox, py + 1)] && !front[I(px + ox, py + 1)] &&
+            putSolid(px + ox, py + 1, centreKind == 4 ? Prop::Brazier : Prop::StandingStone)) break;
   }
   // villages always have their well (VISION_PLAN 15.8)
   if (village) {
@@ -319,7 +357,7 @@ void Gen::yards() {
     if (!townIsHome(b.type) && b.type != Building::Shop) continue;   // (M1 economy) the trades' yards: tradeYards
     float q = rng.f();
     bool gardens = !city || d == District::Noble || d == District::Temple;
-    if (q < 0.35f && gardens) {
+    if (q < 0.35f * std::min(1.6f, treesF) && gardens) {   // (M3: a green-fingered people fences more gardens)
       // a fenced garden beside the house: flowers or crops behind a short fence
       int gx0 = side == b.r.x - 1 ? b.r.x - 3 : b.r.x + b.r.w;
       bool good = true;
@@ -387,7 +425,7 @@ void Gen::fields() {
         else if (lvl[i] != lvl[I(fx, fy)]) good = false;
       }
     if (!good) continue;
-    bool pasture = fh >= 4 && rng.f() < (spec == Specialty::Herding ? 0.75f : (arch == Archetype::Farming ? 0.4f : 0.3f));
+    bool pasture = fh >= 4 && rng.f() < (spec == Specialty::Herding || cArch == (int)cult::Archetype::Steppe ? 0.8f : (arch == Archetype::Farming ? 0.4f : 0.3f));
     // (M1 fixer round 2) a pasture is fenced all round, a gate on the side toward the town and its beasts inside; a
     // field of crops is open to its headland (no stray run of fence along one side)
     int gateX = -1, gateY = -1;
@@ -457,13 +495,14 @@ void Gen::gardens() {
           bool near2 = near;
           for (int oy = -2; oy <= 2 && !near2; oy++)
             for (int ox = -2; ox <= 2; ox++) if (isStreet(x + ox, y + oy)) { near2 = true; break; }
-          if (near2) { M.setG(x, y, Ground::Road); continue; }
+          // (M3) but not up against the wall: a strip of grass along its foot (no paving runs into it like a road)
+          if (near2 && !(noBuild[i] & 1)) { M.setG(x, y, Ground::Road); continue; }
         }
         if (near && vnoise(x * 0.3f, y * 0.3f, bseed + 55u) < 0.6f) M.setG(x, y, Ground::Dirt);
       }
   const Biome gb = bio;
   const Prop fruit = gb == Biome::Snow || gb == Biome::Taiga ? Prop::PineTree : (gb == Biome::Desert ? Prop::PalmTree : (gb == Biome::Autumn ? Prop::AutumnTree : Prop::OakTree));
-  const int want = city ? 60 : 8;
+  const int want = (int)((city ? 60 : 8) * treesF + 0.5f);   // (M3: TownStyle::trees)
   // every spot on a coarse lattice, in a shuffled order (so the gardens are spread, not swept from one corner)
   std::vector<int> spots;
   for (int y = 2; y < H - 8; y += 2)
@@ -528,9 +567,14 @@ void Gen::gardens() {
 
 // ------------------------------------------------------------------------------------------------ archetypes
 void Gen::archetypeDress() {
-  if (arch == Archetype::Fishing || arch == Archetype::Port || spec == Specialty::Fishing) {
+  bool anyWater = false;
+  for (size_t i = 0; i < water.size() && !anyWater; i++) anyWater = water[i] != 0;
+  const bool linearShore = style == cult::Layout::Linear && anyWater;
+  if (linearShore) quays();
+  if (arch == Archetype::Fishing || arch == Archetype::Port || spec == Specialty::Fishing || linearShore) {
     // quays: plank piers out into the water from the shore nearest the streets, crates and barrels at their roots
     int piers = arch == Archetype::Port ? 3 : 2;
+    if (linearShore) piers += city ? 2 : 1;   // (M3: a town strung along its shore or its river lives off the water)
     std::vector<std::pair<int, int>> made;
     for (int t = 0; t < 400 && (int)made.size() < piers; t++) {
       int x = 2 + rng.irange(W - 4), y = 2 + rng.irange(H - 4);
@@ -568,13 +612,21 @@ void Gen::archetypeDress() {
       }
       if (found < 0) continue;
       for (int c = prev[(size_t)found]; c >= 0; c = prev[(size_t)c]) paintStreet(c % W, c / W, K_LANE, laneG);
+      // (M3) how far it runs, and never along a watermill (no plank within two tiles of one: its wheel turns there)
       int len = 0;
+      bool nearMill = false;
       for (int k = 1; k <= 6; k++) {
-        int px = x + D4X[dir] * k, py = y + D4Y[dir] * k;
+        const int px = x + D4X[dir] * k, py = y + D4Y[dir] * k;
         if (!in(px, py) || !water[I(px, py)] || M.wall[I(px, py)]) break;
+        for (const Bldg& b : M.bldgs)
+          if (b.type == Building::Watermill && px >= b.r.x - 2 && px < b.r.x + b.r.w + 2 && py >= b.r.y - 2 && py < b.r.y + b.r.h + 2) nearMill = true;
+        len++;
+      }
+      if (nearMill) continue;
+      for (int k = 1; k <= len; k++) {
+        const int px = x + D4X[dir] * k, py = y + D4Y[dir] * k;
         M.setG(px, py, Ground::Bridge);
         set(px, py, K_LANE);
-        len++;
       }
       if (len < 2) continue;
       for (int s : {-1, 1}) {
@@ -630,9 +682,48 @@ void Gen::archetypeDress() {
   if (palisade) palisadeRing();
 }
 
+// (M3) Linear by the water: the bank where the town meets the river or the shore is a paved quay (a strip of paving one
+// tile wide along the water, where a street or a yard comes near it), with a crate, a barrel or a coil of rope now and
+// then; the piers go out from it
+void Gen::quays() {
+  int n = 0;
+  for (int y = 2; y < H - 2; y++)
+    for (int x = 2; x < W - 2; x++) {
+      const size_t i = I(x, y);
+      if (mask[i] != K_NONE || water[i] || M.bldgAt[i] >= 0 || M.wall[i] || M.prop[i] || front[i]) continue;
+      if (groundSolid(M.at(x, y)) || M.at(x, y) == Ground::Bridge) continue;
+      if (walled ? !ins(x, y) : dist(x, y) > 0.95f) continue;
+      bool bank = false;
+      for (int d = 0; d < 4; d++) if (water[I(x + D4X[d], y + D4Y[d])] && groundWater(M.at(x + D4X[d], y + D4Y[d]))) bank = true;
+      if (!bank) continue;
+      bool near = false;
+      for (int oy = -2; oy <= 2 && !near; oy++)
+        for (int ox = -2; ox <= 2; ox++) {
+          const uint8_t k = get(x + ox, y + oy);
+          if (k == K_MAIN || k == K_LANE || k == K_SQUARE || k == K_YARD) { near = true; break; }
+        }
+      if (!near) continue;
+      set(x, y, K_YARD);
+      M.setG(x, y, Ground::Plaza);
+      if ((++n % 7) == 0 && !cover[i]) putSolid(x, y, (n / 7) % 2 ? Prop::Crate : Prop::Barrel);
+    }
+}
+
 // ------------------------------------------------------------------------------------------------ greenery and people
 void Gen::greenery() {
-  float treeP = city ? 0.010f : (town ? 0.028f : 0.055f);
+  // (M3 stilt) the marsh between the stilt houses: reeds in the swamp, lily pads on the pools (both walked over or
+  // floating: nobody's way is shut)
+  if (stilt)
+    for (int y = 1; y < H - 1; y++)
+      for (int x = 1; x < W - 1; x++) {
+        const size_t i = I(x, y);
+        if (mask[i] != K_NONE || M.prop[i] || M.bldgAt[i] >= 0 || water[i] || front[i]) continue;
+        const Ground g = M.at(x, y);
+        const float r = hashf(x, y, bseed + 91u);
+        if (g == Ground::Swamp && r < 0.28f) M.setProp(x, y, Prop::Reeds);
+        else if (g == Ground::Water && r < 0.07f) M.setProp(x, y, Prop::LilyPad);
+      }
+  float treeP = (city ? 0.010f : (town ? 0.028f : 0.055f)) * treesF;   // (M3: TownStyle::trees)
   const uint32_t gs = bseed + 77u;
   for (int y = 1; y < H - 1; y++)
     for (int x = 1; x < W - 1; x++) {
@@ -720,6 +811,73 @@ void Gen::folk() {
 }
 
 // ------------------------------------------------------------------------------------------------ the end
+void Gen::joinBanks() {
+  M.rebuildSolid();
+  auto cliff = [&](int x, int y) { return !M.height.empty() && (M.height[I(x, y)] & Map::HEIGHT_CLIFF); };
+  for (int pass = 0; pass < 8; pass++) {
+    // what the heart reaches on foot
+    std::vector<uint8_t> seen((size_t)W * H, 0);
+    std::vector<int> q;
+    for (int oy = -3; oy <= 3; oy++)
+      for (int ox = -3; ox <= 3; ox++) {
+        const int x = cx + ox, y = cy + oy;
+        if (in(x, y) && !M.blocked(x, y) && !seen[I(x, y)]) { seen[I(x, y)] = 1; q.push_back((int)I(x, y)); }
+      }
+    for (size_t h = 0; h < q.size(); h++) {
+      const int x = q[h] % W, y = q[h] / W;
+      for (int d = 0; d < 4; d++) {
+        const int nx = x + D4X[d], ny = y + D4Y[d];
+        if (!in(nx, ny) || seen[I(nx, ny)] || M.blocked(nx, ny)) continue;
+        seen[I(nx, ny)] = 1;
+        q.push_back((int)I(nx, ny));
+      }
+    }
+    if (q.empty()) return;
+    // the first door it does not reach
+    int tx = -1, ty = -1;
+    for (const Bldg& b : M.bldgs) {
+      const int ax = b.doorX(), ay = b.r.y + b.r.h;
+      if (in(ax, ay) && !M.blocked(ax, ay) && !seen[I(ax, ay)]) { tx = ax; ty = ay; break; }
+    }
+    if (tx < 0) return;
+    // the cheapest way from it to the reached ground: dry land costs 1, water 3 (so a bridge goes straight across);
+    // never through a building, a wall, a cliff face or the buffer's rim
+    std::vector<int> cost((size_t)W * H, 1 << 30), prev((size_t)W * H, -1);
+    std::priority_queue<std::pair<int, int>, std::vector<std::pair<int, int>>, std::greater<std::pair<int, int>>> pq;
+    cost[I(tx, ty)] = 0;
+    pq.push({0, (int)I(tx, ty)});
+    int found = -1;
+    while (!pq.empty()) {
+      const auto [c0, i0] = pq.top();
+      pq.pop();
+      if (c0 != cost[(size_t)i0]) continue;
+      if (seen[(size_t)i0]) { found = i0; break; }
+      const int x = i0 % W, y = i0 / W;
+      for (int d = 0; d < 4; d++) {
+        const int nx = x + D4X[d], ny = y + D4Y[d];
+        if (nx < 1 || ny < 1 || nx >= W - 1 || ny >= H - 1) continue;
+        const size_t ni = I(nx, ny);
+        if (M.bldgAt[ni] >= 0 || M.wall[ni] || cliff(nx, ny)) continue;
+        const Ground g = M.at(nx, ny);
+        if (groundSolid(g) && !groundWater(g)) continue;
+        const int step = groundWater(g) ? 3 : 1;
+        if (c0 + step < cost[ni]) { cost[ni] = c0 + step; prev[ni] = i0; pq.push({c0 + step, (int)ni}); }
+      }
+    }
+    if (found < 0) return;
+    // lay it: a bridge over the water, a path on the land (whatever stood in the way is cleared)
+    for (int i = prev[(size_t)found]; i >= 0; i = prev[(size_t)i]) {
+      const int x = i % W, y = i / W;
+      const Ground g = M.at(x, y);
+      M.setP(x, y, 0);
+      if (groundWater(g)) M.setG(x, y, Ground::Bridge);
+      else if (g != Ground::Road && g != Ground::Plaza && g != Ground::Bridge && g != Ground::Dirt) M.setG(x, y, laneG);
+      if (get(x, y) == K_NONE || get(x, y) == K_FIELD) set(x, y, K_LANE);
+    }
+    M.rebuildSolid();
+  }
+}
+
 void Gen::finish() {
   // (M2 fixer round 3) a street prop (a lamp, a signpost, a banner) standing on a tile of grass in the middle of the
   // paving showed as a green tuft round its foot: its tile takes the paving most of its neighbours have
@@ -738,6 +896,34 @@ void Gen::finish() {
       if (road + plaza >= 3) M.setG(x, y, plaza > road ? Ground::Plaza : Ground::Road);
     }
   // relief: the base levels, and a ramp wherever a street steps between levels
+  // (M3 terraced) the town cut its own terraces: the row under a higher neighbour is a cliff face (the terrace's
+  // retaining wall, not walkable), stairs (a ramp) wherever a street, a path or a yard crosses it; nothing stands on
+  // a face
+  if (terraced) {
+    for (int y = 0; y < H; y++)
+      for (int x = 0; x < W; x++) {
+        const size_t i = I(x, y);
+        uint8_t h = lvl[i];
+        bool face = false;
+        for (int d = 0; d < 4; d++) if (in(x + D4X[d], y + D4Y[d]) && lvl[I(x + D4X[d], y + D4Y[d])] > lvl[i]) face = true;
+        if (face) {
+          const bool way = isStreet(x, y) || get(x, y) == K_YARD;
+          h |= way ? Map::HEIGHT_RAMP : Map::HEIGHT_CLIFF;
+          if (!way && !M.wall[i] && M.prop[i]) M.prop[i] = 0;
+        }
+        M.height[i] = h;
+      }
+    // a fence the faces cut short (a lone post left on its own) goes too
+    auto fenceAt = [&](int x, int y) { const int q = M.propAt(x, y); return q == (int)Prop::FenceH + 1 || q == (int)Prop::FenceV + 1; };
+    for (int y = 0; y < H; y++)
+      for (int x = 0; x < W; x++) {
+        if (!fenceAt(x, y)) continue;
+        bool nb = false;
+        for (int oy = -1; oy <= 1 && !nb; oy++)
+          for (int ox = -1; ox <= 1; ox++) if ((ox || oy) && fenceAt(x + ox, y + oy)) { nb = true; break; }
+        if (!nb) M.prop[I(x, y)] = 0;
+      }
+  } else
   for (int y = 0; y < H; y++)
     for (int x = 0; x < W; x++) {
       uint8_t h = lvl[I(x, y)];
@@ -770,6 +956,34 @@ void Gen::finish() {
       O.used[I(x, y)] = t ? 1 : 0;
     }
   M.rebuildSolid();
+  // (M3 fixer) the culture's paving on the town's own tiles (Map::PAVE_MARK): the view lays its squares and streets in
+  // it (sun-baked brick, packed earth, slate, moss-grown flags...). A stilt town's boardwalks over its marsh are marked
+  // as such (Map::BOARDWALK_MARK), so the view draws them as one walkway on posts, not as river bridges.
+  {
+    const uint8_t pave = (uint8_t)(C.culture ? std::min<int>(C.culture->town.paving, 15) : 0);
+    // (M3 fixer round 3, review: "oak trees grow straight out of plank boardwalk squares") where a people decks its
+    // squares and streets in planks (paving 4, the marsh), no tree stands on the deck
+    bool felled = false;
+    if (pave == 4)
+      for (size_t i = 0; i < M.prop.size(); i++) {
+        const Ground g = (Ground)M.ground[i];
+        if (g != Ground::Plaza && g != Ground::Road && g != Ground::Bridge) continue;
+        switch ((Prop)(M.prop[i] - 1)) {
+          case Prop::OakTree: case Prop::OakTree2: case Prop::BirchTree: case Prop::AutumnTree: case Prop::WillowTree:
+          case Prop::PineTree: case Prop::PineTree2: case Prop::PalmTree: case Prop::SnowPine:
+            if (M.prop[i]) { M.prop[i] = 0; felled = true; }
+            break;
+          default: break;
+        }
+      }
+    if (felled) M.rebuildSolid();
+    M.blend.assign((size_t)W * H, 0);
+    for (size_t i = 0; i < M.blend.size(); i++) {
+      if (!O.used[i]) continue;
+      const bool board = stilt && M.ground[i] == (uint8_t)Ground::Bridge && !water[i];
+      M.blend[i] = (uint8_t)((board ? Map::BOARDWALK_MARK : Map::PAVE_MARK) | pave);
+    }
+  }
   const uint32_t cap = P.bldgCap ? P.bldgCap : 4096u;
   O.homes = 0;
   for (size_t i = 0; i < M.bldgs.size(); i++) {
@@ -792,7 +1006,7 @@ void Gen::run() {
 bool Gen::step() {
   switch (phase++) {
     case 0: land(); break;
-    case 1: pickBearings(); if (city) pickDistricts(); if (capital) placeCompound(); break;
+    case 1: pickBearings(); if (city) pickDistricts(); if (walled) wallRing(); if (capital) placeCompound(); break;
     case 2: squaresPass(); mainStreets(); ringRoads(); break;
     case 3: fabric(); lanes(); break;
     case 4: if (walled) cityWall(); break;
@@ -814,12 +1028,15 @@ bool Gen::step() {
       services();
       break;
     }
-    case 7: homes(); break;
-    case 8: centrepieces(); stallsAndLamps(); archetypeDress(); break;
-    case 9: yards(); tradeYards(); gardens(); break;
-    case 10: fields(); banners(); signposts(); break;
-    case 11: greenery(); plazaFill(); break;
-    case 12: {
+    case 7: homesBegin(); break;
+    case 8: if (homesSweep()) phase--; break;   // (M3: a slice a call, until the sweep is done)
+    case 9: homesFinish(); break;
+    case 10: centrepieces(); stallsAndLamps(); archetypeDress(); break;
+    case 11: yards(); tradeYards(); gardens(); break;
+    case 12: fields(); banners(); signposts(); break;
+    case 13: greenery(); break;
+    case 14: plazaFill(); break;
+    case 15: {
       // (M2 fixer) a settlement in the snow: the builders' summer greenery (flower beds and tufts, leafy shrubs and
       // trees, lawns) is wintered: evergreens and snowy shrubs stand, flowers and grass tufts are under the snow, lawns
       // are snow (they stood on white ground as summer art pasted on a snowfield)
@@ -840,7 +1057,7 @@ bool Gen::step() {
               default: break;
             }
           }
-      folk(); squareFolk(); finish(); return false;
+      joinBanks(); folk(); squareFolk(); finish(); return false;
     }
     default: return false;
   }

@@ -84,7 +84,7 @@ std::vector<Found> findPois(Game& g, const PoiWord& pw, int R) {
           A.chunk(cx0 + dx, cy0 + dy, c);
           int n = 0, sx = 0, sy = 0;
           for (int i = 0; i < ew::ChunkData::N; i++)
-            if ((c.blend[i] >> 4) >= 2) { n++; sx += i % ew::CHUNK; sy += i / ew::CHUNK; }
+            if ((c.blend[i] >> 4) >= 2 && (c.blend[i] >> 4) <= 8) { n++; sx += i % ew::CHUNK; sy += i / ew::CHUNK; }
           if (n < 90) continue;
           Found f;
           f.x = c.cx * ew::CHUNK + sx / n; f.y = c.cy * ew::CHUNK + sy / n;

@@ -238,13 +238,14 @@ const KingdomPlan* EndlessSource::Impl::kingdom(Gid id) {
   KingdomPlan k;
   k.id = id;
   Rng r(cellSeed(seed, tag("kingdom"), kx, ky));
-  k.name = makeTownName(r);
-  static const uint32_t fields[] = {rgba(150, 32, 36), rgba(36, 64, 140), rgba(28, 100, 60), rgba(110, 40, 120),
-                                    rgba(180, 120, 30), rgba(30, 110, 120), rgba(60, 60, 64), rgba(170, 70, 30)};
-  static const uint32_t trims[] = {rgba(232, 214, 160), rgba(240, 240, 232), rgba(220, 180, 60), rgba(30, 28, 32)};
-  k.color = fields[r.irange(8)];
-  k.color2 = trims[r.irange(4)];
-  k.emblem = (uint8_t)r.irange(8);
+  // M3: the kingdom speaks its culture's dialect (culture_map.cpp): its name in that phonology, its arms the dialect's
+  // heraldry (color / color2 / emblem stay the field, the charge's colour and the charge, for the M1/M2 painters)
+  k.culture = kingdomCulture(kx, ky);
+  k.name = kingdomBaseName(kx, ky, r.next());
+  k.heraldry = atlas().get(k.culture).heraldry;
+  k.color = k.heraldry.field;
+  k.color2 = k.heraldry.charge;
+  k.emblem = (uint8_t)(k.heraldry.emblem % 8);
   k.capital = kc.id;
   k.gx = kc.x; k.gy = kc.y;
   return &kingdoms.emplace(id, k).first->second;
@@ -534,7 +535,7 @@ int EndlessSource::Impl::danger(int32_t x, int32_t y) {
 
 // ============================================================== names (unique within about 3x3 regions)
 std::string EndlessSource::Impl::siteName(const Node& n) {
-  auto base = [](const Node& m) { Rng r(m.seed ^ 0xA5A5u); return makeTownName(r); };
+  auto base = [this](const Node& m) { return placeBaseName(m); };   // M3: in the culture's own phonology
   std::string nm = base(n);
   std::vector<Node> near;
   nodesIn(n.x - 800, n.y - 800, n.x + 800, n.y + 800, near);
@@ -715,6 +716,7 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
     bldgNext += p.bldgCap;
     p.level = danger(p.ex, p.ey);
     p.kingdom = kingdomAt(p.ex, p.ey);
+    p.culture = cultureAt(p.ex, p.ey);   // M3
     R.sites.push_back(p);
     D.flatLevel.push_back({flat, 0});
   };
@@ -837,7 +839,7 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
         continue;
       }
       Rng nr(p.seed ^ 0xA5A5u);
-      p.name = makeDungeonName(nr, p.type, tile(p.ex, p.ey + 2).biome);
+      p.name = poiName(nr, p.type, p.ex, p.ey, tile(p.ex, p.ey + 2).biome);
       if (p.type == SiteType::Ruin) {
         static const Monster themes[] = {Monster::Draugr, Monster::Skeleton, Monster::Wraith};
         p.theme = themes[p.seed % 3];
@@ -924,7 +926,7 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
           default: p.w = 5; p.h = 5; p.gx = x - 2; p.gy = y - 2; break;
         }
         Rng nr(p.seed ^ 0xA5A5u);
-        p.name = makeDungeonName(nr, t, tile(x, y + 2).biome);
+        p.name = poiName(nr, t, x, y, tile(x, y + 2).biome);
         if (t == SiteType::Cave) {
           Biome b = tile(x, y + 2).biome;
           static const Monster themes[] = {Monster::Spider, Monster::Troll, Monster::Goblin, Monster::Bat, Monster::Skeleton};
@@ -953,7 +955,7 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
       p.seed = s;
       p.theme = Monster::Dragon;
       Rng nr(p.seed ^ 0xA5A5u);
-      p.name = makeDungeonName(nr, p.type, tile(ax, ay + 2).biome);
+      p.name = poiName(nr, p.type, ax, ay, tile(ax, ay + 2).biome);
       add(p, natLevel(ax, ay));
       placed.push_back({ax, ay});
     }

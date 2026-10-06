@@ -68,7 +68,7 @@ const SampleBldg kGen7Sample[] = {
     {16, 4, 3, 2, 1, 2, 3, 0}, {17, 4, 3, 1, 1, 2, 0, 0}, {17, 4, 3, 1, 1, 2, 3, 0}, {19, 5, 3, 1, 1, 3, 0, 0},
     {20, 5, 3, 1, 0, 5, 3, 0}, {21, 4, 3, 1, 0, 5, 3, 0}, {21, 4, 3, 1, 1, 2, 3, 0},
 };
-const uint64_t kGen7SampleHash = 0x8bfd4f0d78512e57ull;   // (EMB_INTERIOR_V7HASH=1 prints the value)
+const uint64_t kGen7SampleHash = 0x8948fbbcda64dbb1ull;   // (EMB_INTERIOR_V7HASH=1 prints the value)
 
 uint64_t floorHash(const Map& m, uint64_t h) {
   h = mapHash(m, h);
@@ -190,7 +190,8 @@ std::string checkFloorV7(const Map& m, const Bldg& b, int f, V7Stats& st) {
         continue;
       }
       if (!floorT(x, y)) { std::snprintf(buf, sizeof buf, "prop %d inside a wall at %d,%d", p - 1, x, y); return buf; }
-      if (pp == Prop::Bed || pp == Prop::BunkBed) {
+      // (M3: a hammock or a sleeping mat is a bed of a culture that sleeps so)
+      if (pp == Prop::Bed || pp == Prop::BunkBed || pp == Prop::Hammock || pp == Prop::SleepingMat) {
         st.beds++;
         int ri = m.roomIndexAt(x, y);
         if (ri < 0 || !roomAllowsBed(m.rooms[(size_t)ri].kind)) {
@@ -199,10 +200,10 @@ std::string checkFloorV7(const Map& m, const Bldg& b, int f, V7Stats& st) {
           return buf;
         }
         // head to the wall: a one-tile bed right under it, a two-tile bed (M0b fix round) with its head tile (Filler) there
-        bool head = wallT(m, x, y - 1) || (pp == Prop::Bed && isProp(m, x, y - 1, Prop::Filler) && wallT(m, x, y - 2));
+        bool head = wallT(m, x, y - 1) || (pp != Prop::BunkBed && isProp(m, x, y - 1, Prop::Filler) && wallT(m, x, y - 2));
         if (!head) { std::snprintf(buf, sizeof buf, "bed at %d,%d has no wall at its head", x, y); return buf; }
       }
-      if ((pp == Prop::Bed || pp == Prop::BunkBed || pp == Prop::Chest || pp == Prop::Altar) && !beside(x, y)) { std::snprintf(buf, sizeof buf, "usable prop %d at %d,%d unreachable", p - 1, x, y); return buf; }
+      if ((pp == Prop::Bed || pp == Prop::BunkBed || pp == Prop::Chest || pp == Prop::Altar || pp == Prop::Hammock) && !beside(x, y)) { std::snprintf(buf, sizeof buf, "usable prop %d at %d,%d unreachable", p - 1, x, y); return buf; }
       if (pp == Prop::DoorH) {
         bool ok = floorT(x, y - 1) && wallT(m, x - 1, y) && wallT(m, x + 1, y) && wallT(m, x - 1, y - 1) && wallT(m, x + 1, y - 1) && floorT(x, y + 1) && floorT(x, y - 2) &&
                   reached(x, y + 1) && reached(x, y - 2);
@@ -228,7 +229,9 @@ std::string checkFloorV7(const Map& m, const Bldg& b, int f, V7Stats& st) {
   for (size_t i = 0; i < m.rooms.size(); i++) {
     const RoomInfo& R = m.rooms[i];
     if (R.doorX >= 0 && !isProp(m, R.doorX, R.doorY, Prop::DoorH) && !isProp(m, R.doorX, R.doorY, Prop::DoorV)) return "room door without a door prop";
-    if (R.bedX >= 0 && !isProp(m, R.bedX, R.bedY, Prop::Bed) && !isProp(m, R.bedX, R.bedY, Prop::BunkBed)) return "room bed without a bed";
+    if (R.bedX >= 0 && !isProp(m, R.bedX, R.bedY, Prop::Bed) && !isProp(m, R.bedX, R.bedY, Prop::BunkBed) && !isProp(m, R.bedX, R.bedY, Prop::Hammock) &&
+        !isProp(m, R.bedX, R.bedY, Prop::SleepingMat))
+      return "room bed without a bed";
   }
   // per type
   auto has = [&](RoomKind k) { for (auto& R : m.rooms) if (R.kind == k) return true; return false; };
@@ -483,6 +486,72 @@ int interiorChecks(uint64_t seed) {
         s7.bad++;
       }
     }
+  }
+  // M3 (VISION_PLAN 5.6): interiors by culture. Every furnishing (chairs, benches, cushions round low tables, hammocks
+  // and sleeping mats, stools) in the homes, huts, farms, inns, shops, temples and keeps, on the culture walls (adobe,
+  // ashlar, felt, living wood, wattle, planks, rubble, logs): all the checks above, and the culture's pieces really
+  // there (a cushion people's tables are low tables with cushions; a hammock people's homes sleep in hammocks or on
+  // mats while the inn's rented rooms keep their beds)
+  {
+    static const art::Furniture furns[5] = {art::Furniture::Chairs, art::Furniture::Benches, art::Furniture::Cushions, art::Furniture::Hammocks,
+                                            art::Furniture::Stools};
+    struct T { Building t; int w, h; Role r; };
+    static const T types[] = {{Building::House, 4, 3, Role::Villager}, {Building::StoneHouse, 4, 3, Role::Villager}, {Building::Hut, 3, 2, Role::Villager},
+                              {Building::Farmhouse, 5, 3, Role::Farmer},  {Building::Inn, 6, 3, Role::Innkeeper},     {Building::Shop, 4, 3, Role::Merchant},
+                              {Building::Temple, 6, 4, Role::Priest},     {Building::Keep, 9, 4, Role::Jarl}};
+    static const art::WallMat walls[8] = {art::WallMat::Adobe, art::WallMat::Ashlar, art::WallMat::Felt, art::WallMat::Living,
+                                          art::WallMat::Wattle, art::WallMat::Plank, art::WallMat::Rubble, art::WallMat::Log};
+    static const uint32_t accents[4] = {rgba(170, 40, 40), rgba(40, 70, 160), rgba(40, 120, 60), rgba(200, 160, 50)};
+    int cul = 0, culBad = 0, hammocks = 0, mats = 0, lowT = 0, cushions = 0, homeBeds = 0, innBeds = 0, cushionChairs = 0;
+    for (int fi = 0; fi < 5; fi++)
+      for (const T& tt : types)
+        for (int k = 0; k < 3; k++) {
+          Bldg b;
+          b.type = tt.t;
+          b.r = IRect{0, 0, tt.w + (k == 2 && tt.t != Building::Hut ? 1 : 0), tt.h};
+          b.owner = tt.r;
+          const uint32_t hs = (uint32_t)(seed * 2654435761u) ^ (uint32_t)(fi * 7919 + (int)tt.t * 104729 + k * 31);
+          b.storeys = (uint8_t)bldgStoreysV7(b.type, b.r.w, b.r.h, hs);
+          b.hearth = bldgHearthV7(b.type, b.storeys, hash32(hs + 77u));
+          b.biome = k == 1 ? Biome::Desert : Biome::Plains;
+          b.seed = hash32(hs ^ 0xC17u);
+          b.genVer = WORLDGEN_LATEST;
+          b.styled = true;
+          b.arch = art::ArchStyle();
+          b.arch.furniture = furns[fi];
+          b.arch.wall = walls[(fi + (int)tt.t + k) % 8];
+          b.arch.accentTint = accents[(fi + k) % 4];
+          s7.bldgs++;
+          cul++;
+          uint64_t sig = 0;
+          std::string why = checkBuildingV7(b, s7, sig);
+          int sleeps = 0;   // (M3 fixer round 2) every home has somewhere to sleep, whatever its people sleep on
+          for (int f = 0; f < b.floors() && why.empty(); f++) {
+            Map m;
+            genInterior(m, b, b.seed, f);
+            for (int i = 0; i < m.w * m.h; i++) {
+              const int p = m.prop[(size_t)i];
+              if (!p) continue;
+              const Prop pp = (Prop)(p - 1);
+              sleeps += pp == Prop::Bed || pp == Prop::BunkBed || pp == Prop::Hammock || pp == Prop::SleepingMat;
+              hammocks += pp == Prop::Hammock; mats += pp == Prop::SleepingMat; lowT += pp == Prop::LowTable; cushions += pp == Prop::Cushion;
+              if (pp == Prop::Bed && fi == 3) { if (b.type == Building::Inn || b.type == Building::Keep) innBeds++; else homeBeds++; }
+              if (fi == 2 && (pp == Prop::TableMeal || pp == Prop::Chair)) cushionChairs++;   // (a small side table may stay)
+            }
+          }
+          const bool home = b.type == Building::House || b.type == Building::StoneHouse || b.type == Building::Hut || b.type == Building::Farmhouse;
+          if (why.empty() && home && !sleeps) why = "a home with no bed, hammock or sleeping mat";
+          if (!why.empty()) {
+            if (culBad < 6) out("FAIL: v7 culture %s (furniture %d, wall %d, variant %d): %s\n", bldgTypeName(b.type), fi, (int)b.arch.wall, k, why.c_str());
+            culBad++;
+          }
+        }
+    if (homeBeds) { out("FAIL: interiors: %d beds in the homes of a hammock people\n", homeBeds); culBad++; }
+    if (cushionChairs) { out("FAIL: interiors: %d chairs or high tables in the rooms of a cushion people\n", cushionChairs); culBad++; }
+    if (!hammocks || !lowT || !cushions || !innBeds) { out("FAIL: interiors: culture pieces missing (hammocks %d, low tables %d, cushions %d, inn beds %d)\n", hammocks, lowT, cushions, innBeds); culBad++; }
+    out("interiors: culture furnishing: %d buildings, %d invalid; hammocks %d, sleeping mats %d, low tables %d, cushions %d, the hammock people's inn and keep beds %d\n",
+        cul, culBad, hammocks, mats, lowT, cushions, innBeds);
+    s7.bad += culBad;
   }
   // M1 economy: the production buildings (VISION_PLAN 15.7: purposeful rooms). Every type on a few footprints and biomes,
   // with the generator's storeys and hearth; the rooms the trade needs: the windmill's millstones in its loft above the

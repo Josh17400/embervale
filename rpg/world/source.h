@@ -15,6 +15,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "rpg/culture/culture.h"
 #include "rpg/sim/world.h"
 #include "rpg/world/coords.h"
 #include "rpg/world/economy.h"
@@ -26,7 +27,10 @@ namespace ew {
 
 // Bumped when the endless generator's output changes. Old saves are not kept compatible across M1 (owner rule,
 // 2026-10-04); the save stores it so a mismatch can say "this save is from an older world".
-constexpr int ENDLESS_GEN_VER = 9;   // 9: M2 fixer round 3 (no wild pool by a gatehouse, street props on paving, bare plaza bands filled, towns built a band of land rows at a time); 8: M2 fixer round 2 (massifs at named summits and range crests, toll bridges, scatter off paving and snow); 7: M2 fixer (crags above the face only, roads spare wayside props, snow towns, palace beds, peaks by a drop); 2: M1 round 2 (meandering relief, organic terraces, settlement water); 4: M1 fixer (markets, specialisations)
+constexpr int ENDLESS_GEN_VER = 10;  // 10: M3 Many Peoples (cultures: names, architecture, layouts, census looks). Until
+                                     //     M3 ships, the M3 lanes change the output under 10 and regenerate the goldens
+                                     //     they own; after, bump.
+                                     // 9: M2 fixer round 3 (no wild pool by a gatehouse, street props on paving, bare plaza bands filled, towns built a band of land rows at a time); 8: M2 fixer round 2 (massifs at named summits and range crests, toll bridges, scatter off paving and snow); 7: M2 fixer (crags above the face only, roads spare wayside props, snow towns, palace beds, peaks by a drop); 2: M1 round 2 (meandering relief, organic terraces, settlement water); 4: M1 fixer (markets, specialisations)
                                      // 3: settlement economy (specialisations, production buildings, market rows)
                                      // 5: M1 fixer round 2 (planned markets, tables and cloths, pens and their beasts, the mine hill)
                                      // 6: M2 Wayfinder (vignettes, wonders, peaks, ecotone blend, geology, landmarks, the
@@ -75,6 +79,9 @@ struct SitePlan {
   uint8_t kind = 0;                            // M2: Vignette -> VignetteKind, Wonder -> WonderKind (rpg/world/poi.h)
   uint16_t bldgBase = 0, bldgCap = 0;          // building ids: makeId(rx, ry, IdKind::Bldg, bldgBase + i), i < bldgCap
   std::string name;
+  // M3: whose culture it is (cult::CultureId): its kingdom's dialect, or in the wildlands its culture cell's family.
+  // Settlements are built and peopled in it; POIs carry it for names and (M4/M12) their ruins' history.
+  uint64_t culture = 0;
 };
 
 // A wilderness den (L1b; VISION_PLAN 2.5 "Den about 12 per region")
@@ -92,6 +99,10 @@ struct KingdomPlan {
   uint8_t emblem = 0;
   Gid capital = 0;                  // its capital's SitePlan id (0: wildlands, no capital)
   int32_t gx = 0, gy = 0;           // its seat (capital or cell centre), global tile
+  // M3: its culture (the dialect of the family whose cell holds its seat) and its full arms (color / color2 / emblem
+  // above stay the field, trim and charge of the same arms, for the M1/M2 painters)
+  uint64_t culture = 0;
+  cult::Heraldry heraldry;
 };
 
 // M1 WORLD lane: roads, rivers and lakes touching a region, for the world map / minimap (the chunks already carry them
@@ -204,6 +215,12 @@ class EndlessSource {
   // 16-tile cells), stable for a seed, cheap enough to ask for a journey. PHASE A STUB: 1 for any land; the WORLD lane
   // makes islands and other continents distinct.
   uint32_t landmass(int32_t gx, int32_t gy);
+
+  // M3 culture engine (rpg/culture/culture.h): the culture of a global tile (its kingdom's dialect, else its culture
+  // cell's family) and any culture by id. Memoised in this source's own cult::Atlas (one per thread, like the source).
+  uint64_t cultureAt(int32_t gx, int32_t gy);
+  const cult::Culture& culture(uint64_t id);
+  cult::Atlas& atlas();
 
   // --perf / tests: what generation cost so far
   struct Stats {

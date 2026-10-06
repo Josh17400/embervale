@@ -14,9 +14,14 @@
 // and sites stand on one level: the land is flattened under them and terraced back to its own level around them.
 #include <algorithm>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <unordered_map>
+#ifndef __EMSCRIPTEN__
+#include <mutex>
+#endif
 #include "rpg/world/gen.h"
 #include "rpg/world/town_gen.h"
 
@@ -30,6 +35,43 @@ constexpr int BR = 2;                         // base border
 constexpr int BW = CHUNK + 2 * BR;            // 36
 constexpr int RW = CHUNK + 2;                 // relief / road grid (1-tile border): 34
 inline bool waterG(uint8_t g) { return g == (uint8_t)Ground::Water || g == (uint8_t)Ground::DeepWater; }
+
+// (M3 towns lane, carry-over 2) Settlements shared between the sources of one process. Natively the prefetcher's
+// worker has its own EndlessSource (one instance is not thread-safe), so every town near the player was built twice,
+// once per source, and the worker's first city on a cold source (20-40 ms) is what let the first shifts of a walk fall
+// behind. A finished town is immutable and a pure function of (world seed, site), so the sources hand finished ones to
+// each other through this small locked store (LRU, 24 towns). The web has one source and no threads: no store.
+#ifndef __EMSCRIPTEN__
+struct SharedTowns {
+  std::mutex mu;
+  struct E { std::shared_ptr<SettlementOut> out; uint64_t used = 0; };
+  std::unordered_map<uint64_t, E> m;
+  uint64_t clock = 0;
+};
+SharedTowns& sharedTowns() {
+  static SharedTowns s;
+  return s;
+}
+uint64_t sharedTownKey(uint64_t seed, Gid id) { return mix64(seed * 0x9E3779B97F4A7C15ull ^ id ^ 0x70A5E7ull); }
+std::shared_ptr<SettlementOut> sharedTownGet(uint64_t seed, Gid id) {
+  SharedTowns& s = sharedTowns();
+  std::lock_guard<std::mutex> lk(s.mu);
+  auto it = s.m.find(sharedTownKey(seed, id));
+  if (it == s.m.end()) return nullptr;
+  it->second.used = ++s.clock;
+  return it->second.out;
+}
+void sharedTownPut(uint64_t seed, Gid id, std::shared_ptr<SettlementOut> out) {
+  SharedTowns& s = sharedTowns();
+  std::lock_guard<std::mutex> lk(s.mu);
+  if (s.m.size() >= 24) {
+    auto oldest = s.m.begin();
+    for (auto i = s.m.begin(); i != s.m.end(); ++i) if (i->second.used < oldest->second.used) oldest = i;
+    s.m.erase(oldest);
+  }
+  s.m[sharedTownKey(seed, id)] = SharedTowns::E{std::move(out), ++s.clock};
+}
+#endif
 }  // namespace
 
 // ------------------------------------------------------------------ steps 1-2: base land, rivers, lakes
@@ -256,6 +298,7 @@ bool EndlessSource::Impl::townJobStep(TownJob& J) {
     SettlementCtx& ctx = J.ctx;
     ctx.plan = &p;
     ctx.kingdom = kingdom(p.kingdom);
+    ctx.culture = &atlas().get(p.culture ? p.culture : cultureAt(p.ex, p.ey));   // M3
     ctx.rx = J.D->plan.rx; ctx.ry = J.D->plan.ry;
     auto bi = J.D->bearings.find(p.id);
     if (bi != J.D->bearings.end()) ctx.roadBearings = bi->second;
@@ -313,10 +356,33 @@ bool EndlessSource::Impl::townJobStep(TownJob& J) {
     towns.erase(oldest);
   }
   towns[J.id] = TownEntry{J.out, ++townClock};
+#ifndef __EMSCRIPTEN__
+  sharedTownPut(seed, J.id, J.out);
+#endif
+  return false;
+}
+
+// (M3 towns lane) a town another source of this process has finished goes into this source's cache too (a template
+// on the source's Impl, so gen.h needs no new member)
+template <class ImplT>
+static bool haveTown(ImplT& S, Gid id) {
+  if (S.towns.count(id)) return true;
+#ifndef __EMSCRIPTEN__
+  if (std::shared_ptr<SettlementOut> o = sharedTownGet(S.seed, id)) {
+    if (S.towns.size() >= 24) {
+      auto oldest = S.towns.begin();
+      for (auto i = S.towns.begin(); i != S.towns.end(); ++i) if (i->second.used < oldest->second.used) oldest = i;
+      S.towns.erase(oldest);
+    }
+    S.towns[id] = {std::move(o), ++S.townClock};
+    return true;
+  }
+#endif
   return false;
 }
 
 std::shared_ptr<SettlementOut> EndlessSource::Impl::town(const SitePlan& p, std::shared_ptr<const RegionData> D) {
+  haveTown(*this, p.id);
   auto it = towns.find(p.id);
   if (it != towns.end()) { it->second.used = ++townClock; return it->second.out; }
   // (a phase-at-a-time build of this very town already under way is finished rather than started over)
@@ -336,6 +402,14 @@ bool EndlessSource::Impl::prepareChunk(int32_t cx, int32_t cy, double budgetMs) 
     if (msSince(t0) >= budgetMs) return false;   // (one region plan is one piece of work: a few ms at most)
     RD[k] = regionData(rx0 - 1 + k % 3, ry0 - 1 + k / 3);
   }
+  // (M3 fixer round 2) and the regions a lake by this chunk may ask about (lakeUnderSettlement looks ~260 tiles round
+  // a lake), so chunk() never plans a region inside itself
+  for (int32_t ry = regionOf(y0 - 336); ry <= regionOf(y0 + CHUNK + 336); ry++)
+    for (int32_t rx = regionOf(x0 - 336); rx <= regionOf(x0 + CHUNK + 336); rx++) {
+      if (regions.get(key2(rx, ry))) continue;
+      if (msSince(t0) >= budgetMs) return false;
+      regionData(rx, ry);
+    }
   // a town left half-built by an earlier call comes first (it is wanted now, or soon will be)
   if (townJob) {
     while (msSince(t0) < budgetMs)
@@ -348,7 +422,16 @@ bool EndlessSource::Impl::prepareChunk(int32_t cx, int32_t cy, double budgetMs) 
       if (!isSettlement(p.type)) continue;
       const int margin = 32;
       if (p.gx - margin >= x0 + CHUNK + 1 || p.gy - margin >= y0 + CHUNK + 1 || p.gx + p.w + margin <= x0 - 1 || p.gy + p.h + margin <= y0 - 1) continue;
-      if (towns.count(p.id)) continue;
+      if (haveTown(*this, p.id)) continue;
+      // (M3 fixer round 2) the town's land reads the lakes round it, and each lake asks lakeUnderSettlement, which plans
+      // every region within ~260 tiles of it: up to six region plans inside one unsplittable town step (14 ms on the
+      // desktop's main thread, the web's walking hitch). Plan those regions first, one budget check apiece.
+      for (int32_t ry = regionOf(p.gy - 336); ry <= regionOf(p.gy + p.h + 336); ry++)
+        for (int32_t rx = regionOf(p.gx - 336); rx <= regionOf(p.gx + p.w + 336); rx++) {
+          if (regions.get(key2(rx, ry))) continue;
+          if (msSince(t0) >= budgetMs) return false;
+          regionData(rx, ry);
+        }
       townJob = townJobFor(p, RD[k]);
       for (;;) {
         if (msSince(t0) >= budgetMs) return false;
@@ -628,6 +711,10 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
     }
   std::vector<uint8_t> reserved((size_t)ChunkData::N, 0);
   std::vector<uint8_t> used(RW * RW, 0), road(RW * RW, 0), entrance(RW * RW, 0);
+  // (M3 towns lane) a terraced town's own relief (its height byte + 1; 0: none): it cut its terraces, faces and
+  // stairs itself, so its tiles keep them (its outer band is the plan's flat level, which the land meets); every other
+  // town keeps the relief made here
+  std::vector<uint8_t> townH(RW * RW, 0);
   auto rin = [&](int32_t gx, int32_t gy) { return gx >= x0 - 1 && gy >= y0 - 1 && gx < x0 + CHUNK + 1 && gy < y0 + CHUNK + 1; };
   auto ri = [&](int32_t gx, int32_t gy) { return (size_t)(gy - (y0 - 1)) * RW + (gx - (x0 - 1)); };
   Stamp S{c, x0, y0, reserved};
@@ -643,6 +730,9 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
       if (p.gx - margin >= x0 + CHUNK + 1 || p.gy - margin >= y0 + CHUNK + 1 || p.gx + p.w + margin <= x0 - 1 || p.gy + p.h + margin <= y0 - 1) continue;
       std::shared_ptr<SettlementOut> T = town(p, RD[k]);
       const Map& b = T->buf;
+      // (M3) a terraced town (the only kind with cliff faces of its own) brings its relief along
+      bool terraced = false;
+      for (size_t q = 0; q < b.height.size() && !terraced; q++) terraced = (b.height[q] & Map::HEIGHT_CLIFF) != 0;
       for (int32_t gy = y0 - 1; gy < y0 + CHUNK + 1; gy++)
         for (int32_t gx = x0 - 1; gx < x0 + CHUNK + 1; gx++) {
           int32_t bx = gx - T->gx, by = gy - T->gy;
@@ -650,12 +740,14 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
           size_t bi = (size_t)by * b.w + bx;
           if (!T->used.empty() && !T->used[bi]) continue;   // outside the town: the wild land stays
           used[ri(gx, gy)] = 1;
+          if (terraced) townH[ri(gx, gy)] = (uint8_t)(b.height[bi] + 1);
           if (!S.in(gx, gy)) continue;
           int i = S.idx(gx, gy);
           c.ground[i] = b.ground[bi];
           c.prop[i] = b.prop[bi];
           c.wall[i] = b.wall[bi];
           if (!b.biome.empty()) c.biome[i] = b.biome[bi];
+          if (!b.blend.empty()) c.blend[i] = b.blend[bi];   // (M3 fixer) the paving / boardwalk mark (Map::PAVE_MARK)
           reserved[(size_t)i] = 1;
         }
       if (p.gx - 24 >= x0 + CHUNK || p.gy - 24 >= y0 + CHUNK || p.gx + p.w + 24 <= x0 || p.gy + p.h + 24 <= y0) continue;
@@ -991,6 +1083,8 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
       }
       bits[ri(gx, gy)] = b;
     }
+  // (M3) the towns' own relief on their tiles (the terraces of a terraced town; elsewhere identical)
+  for (size_t k = 0; k < townH.size(); k++) if (townH[k]) bits[k] = (uint8_t)(townH[k] - 1);
   for (int ly = 0; ly < CHUNK; ly++)
     for (int lx = 0; lx < CHUNK; lx++) c.height[c.at(lx, ly)] = bits[ri(x0 + lx, y0 + ly)];
   // 6b (M2): ecotones (VISION_PLAN 11.6). Along a border between two land biomes, a band 4 to 8 tiles wide (by the
@@ -1292,7 +1386,7 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
       // bushes from forest to plains, dry grass and scrub toward the desert, snow patches and dwarf pines toward the snow)
       {
         const uint8_t bl = c.blend[i];
-        const int ew = bl >> 4;
+        const int ew = (bl >> 4) <= 8 ? bl >> 4 : 0;   // (M3 fixer: above 8 a town's paving mark)
         const Biome ob = (Biome)(bl & 15);
         if (ew && g != Ground::Water && hq(tileHash(vs ^ 0x7E0u, x, y)) < ew * Q(0.125)) {
           auto wood = [](Biome q) { return q == Biome::Forest || q == Biome::Autumn || q == Biome::Taiga; };
