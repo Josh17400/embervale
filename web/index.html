@@ -55,6 +55,24 @@
     print: function (t) { console.log(t); },
     printErr: function (t) { console.warn(t); }
   };
+  // iOS reports the new innerWidth/innerHeight late after a rotation (and when a Home Screen app starts in portrait),
+  // so SDL's fill-document resize can measure a half-rotated, square window (e.g. 393x393 CSS px). Re-send the resize
+  // a few times after every rotation or viewport change until the size has settled, so the canvas re-fits.
+  (function () {
+    var timers = [];
+    function refit() {
+      timers.forEach(clearTimeout);
+      timers = [50, 150, 300, 600, 1000, 1600].map(function (ms) {
+        return setTimeout(function () { window.dispatchEvent(new Event('resize')); }, ms);
+      });
+    }
+    window.addEventListener('orientationchange', refit);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', refit);
+    if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', refit);
+    window.addEventListener('pageshow', refit);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) refit(); });
+    window.addEventListener('load', refit);
+  })();
   // iOS: stop page bounce / pinch zoom from fighting the game's touch controls
   document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
   document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
