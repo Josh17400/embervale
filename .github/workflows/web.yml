@@ -29,7 +29,7 @@ jobs:
           ./build-native/rpg_test --seeds 1..20
           for s in 7 99 12345; do ./build-native/rpg_test $s --secs 60; done
 
-      # The current save format (SAVE_VER 7) only: owner rule 2026-10-04, old saves are not carried over. The fixture
+      # The current save format (SAVE_VER 8) only: owner rule 2026-10-04, old saves are not carried over. The fixture
       # holds format-level facts only and the round trips run on this machine, so the check is platform-stable: blocking.
       - name: Save format test
         run: ./build-native/save_test
@@ -49,6 +49,13 @@ jobs:
       # no profanity, HUD lengths), complete cultures. Blocking.
       - name: Culture engine test
         run: ./build-native/rpg_test --cultures 400 --seeds 1..5
+
+      # M3b Builders & Societies (VISION_PLAN 15.14): every prop classified for the builder, every purpose x culture x
+      # wealth x form designs a valid blueprint, complete societies with their essentials, a valid blueprint for every
+      # building placed in a capital, city, town and village of every culture. Blocking, with --strict (the capital
+      # repetition audit: no neighbour clones, no look group over 3) and --society-strict (the society's buildings placed).
+      - name: Builder and society test
+        run: ./build-native/rpg_test --builder --seeds 1..12 --strict --society-strict
 
       # rpg/world integer noise/ids golden values (M1 prep): must match MSVC bit for bit (green on Linux, run 37161023299).
       - name: Endless-world golden test

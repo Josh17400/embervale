@@ -311,8 +311,8 @@ void Game::travelArriveNow() {
   if (travel.hours > 0) {
     hour += travel.hours;
     while (hour >= 24) { hour -= 24; day++; }
-    if (blessT > 0) {   // a blessing wears off on the road (a game hour is 35 s)
-      blessT = std::max(0.0f, blessT - travel.hours * 35.0f);
+    if (blessT > 0) {   // a blessing wears off on the road (a game hour is 1800/24 = 75 s on average)
+      blessT = std::max(0.0f, blessT - travel.hours * 75.0f);
       if (blessT <= 0) recalcPlayer();
     }
   }

@@ -9,6 +9,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/world/source.h"
+#include "rpg/culture/society.h"
 
 using art::Monster;
 using art::Prop;
@@ -335,6 +336,11 @@ std::string Game::greeting(const Actor& a) {
   const Kingdom* K = world.kingdomOf(homeSite);
   const std::string realm = K ? K->name : std::string();
   const bool capitalHere = homeSite >= 0 && world.sites[(size_t)homeSite].capital && K;
+  // (fix) the realm's ruler and court by its society's titles (KHAN in THE GREAT TENT, DOGE in THE GUILDHALL...)
+  cult::Society rsoc;
+  if (homeSite >= 0)
+    if (const cult::Culture* oc = world.cultureOfKingdom(world.sites[(size_t)homeSite].kingdom)) rsoc = cult::societyOf(*oc);
+  const std::string ruler = rsoc.rulerTitle, court = rsoc.seatTitle;
   std::string seat;   // the kingdom's capital by name, when known
   if (K) { int ch = world.siteHandle(K->capitalId); if (ch >= 0) seat = world.sites[(size_t)ch].name; }
   // world-aware small talk, so the same handful of lines doesn't repeat in every village
@@ -362,27 +368,27 @@ std::string Game::greeting(const Actor& a) {
     if (isNight()) local.push_back("YOU SHOULDN'T BE WANDERING THIS LATE. THAT'S WHEN THE DEAD WALK.");
     for (auto& q : quests) {
       if (q.type != QType::Main) continue;
-      if (q.stage == 0 && a.site != world.capital) local.push_back("THEY SAY THE JARL OF " + world.sites[world.capital].name + " WANTS SWORDS AGAINST THE DRAGON.");
+      if (q.stage == 0 && a.site != world.capital) local.push_back("THEY SAY THE " + lordTitleAt(world, world.capital) + " OF " + world.sites[world.capital].name + " WANTS SWORDS AGAINST THE DRAGON.");
       if (q.stage >= 1 && q.stage <= 3) local.push_back("THE WHOLE HOLD IS TALKING ABOUT YOU AND THE DRAGON. THE OLD GODS KEEP YOU.");
       if (q.state == QState::Done) local.push_back("IT'S YOU! THE ONE WHO SLEW ASHFANG! YOUR MEAD IS FREE IN " + town + ".");
     }
     if (plLevel >= 10) local.push_back("BY THE OLD GODS, YOU LOOK LIKE YOU'VE WALKED THROUGH A WAR.");
     if (K && !capitalHere) {
-      local.push_back("THIS IS " + realm + " LAND. THE KING'S TAX MEN COME EVERY AUTUMN, WHETHER THE HARVEST DOES OR NOT.");
-      if (!seat.empty()) local.push_back("THEY SAY THE KING OF " + realm + " HOLDS COURT IN " + seat + ". I'VE NEVER SEEN HIM MYSELF.");
+      local.push_back("THIS IS " + realm + " LAND. THE " + ruler + "'S TAX MEN COME EVERY AUTUMN, WHETHER THE HARVEST DOES OR NOT.");
+      if (!seat.empty()) local.push_back("THEY SAY THE " + ruler + " OF " + realm + " HOLDS COURT IN " + seat + ". I'VE NEVER SEEN THEM MYSELF.");
     }
-    if (capitalHere) local.push_back("THE KING OF " + realm + " HOLDS COURT IN THE PALACE. MIND YOUR MANNERS NEAR THE ROYAL GUARD.");
+    if (capitalHere) local.push_back("THE " + ruler + " OF " + realm + " HOLDS COURT IN " + court + ". MIND YOUR MANNERS NEAR THE ROYAL GUARD.");
   }
   auto withLocal = [&](const std::string& fixed) { return !local.empty() && r.f() < 0.5f ? local[r.irange((int)local.size())] : fixed; };
   switch (a.role) {
     case Role::Guard: {
       if (a.name == "ROYAL GUARD") {
-        static const char* rg[] = {"THE KING IS NOT TO BE TROUBLED WITHOUT CAUSE. STATE YOUR BUSINESS.",
-                                   "THE ROYAL GUARD SEES EVERYTHING IN THIS HALL. REMEMBER THAT.",
-                                   "LONG LIVE THE KING. NOW MOVE ALONG."};
-        return realm.empty() ? rg[r.irange(3)] : std::string(rg[r.irange(3)]) + " THIS IS THE COURT OF " + realm + ".";
+        const std::string rg[] = {"THE " + ruler + " IS NOT TO BE TROUBLED WITHOUT CAUSE. STATE YOUR BUSINESS.",
+                                  "THE ROYAL GUARD SEES EVERYTHING IN THIS HALL. REMEMBER THAT.",
+                                  "LONG LIVE THE " + ruler + ". NOW MOVE ALONG."};
+        return realm.empty() ? rg[r.irange(3)] : rg[r.irange(3)] + " THIS IS THE COURT OF " + realm + ".";
       }
-      if (capitalHere && r.f() < 0.4f) return "LONG LIVE THE KING OF " + realm + ". THE PALACE IS OFF LIMITS WITHOUT GOOD CAUSE, TRAVELLER.";
+      if (capitalHere && r.f() < 0.4f) return "LONG LIVE THE " + ruler + " OF " + realm + ". " + court + " IS OFF LIMITS WITHOUT GOOD CAUSE, TRAVELLER.";
       static const char* g[] = {"I WAS A SELLSWORD ONCE. NOW I WATCH A GATE AND COUNT CARTS.",
                                 "KEEP YOUR NOSE CLEAN, TRAVELLER.", "LOST SOMETHING? TRY THE INN. EVERYTHING ENDS UP AT THE INN.",
                                 "WATCH THE ROADS AT NIGHT. THE DEAD DON'T STAY BURIED HERE.", "EYES OPEN, BLADE SHARP. THAT'S THE WATCH'S WAY."};
@@ -391,9 +397,9 @@ std::string Game::greeting(const Actor& a) {
     }
     case Role::Innkeeper: {
       if (capitalHere) {   // a capital is unmistakable: its innkeepers always talk of the king
-        const std::string c[] = {"WELCOME TO " + town + ", SEAT OF THE KING OF " + realm + ". BEDS ARE 10 GOLD, AND THE COURT GOSSIP IS FREE.",
-                                 "THE KING'S OWN GUARD DRINKS HERE ON FEAST DAYS. SIT, TRAVELLER: THIS IS THE FINEST INN IN " + realm + ".",
-                                 "YOU'VE COME TO THE CAPITAL! THE KING OF " + realm + " RIDES OUT FROM THE PALACE NOW AND THEN. A ROOM IS 10 GOLD."};
+        const std::string c[] = {"WELCOME TO " + town + ", SEAT OF THE " + ruler + " OF " + realm + ". BEDS ARE 10 GOLD, AND THE COURT GOSSIP IS FREE.",
+                                 "THE " + ruler + "'S OWN GUARD DRINKS HERE ON FEAST DAYS. SIT, TRAVELLER: THIS IS THE FINEST INN IN " + realm + ".",
+                                 "YOU'VE COME TO THE CAPITAL! THE " + ruler + " OF " + realm + " RIDES OUT FROM " + court + " NOW AND THEN. A ROOM IS 10 GOLD."};
         return c[hash32((uint32_t)npcKey(a) ^ (uint32_t)day) % 3];
       }
       const std::string v[] = {"WELCOME TO THE INN OF " + town + ". A WARM BED IS 10 GOLD, AND THE MEAD IS COLD.",
@@ -416,16 +422,17 @@ std::string Game::greeting(const Actor& a) {
     }
     case Role::Priest: return "THE OLD GODS WATCH OVER YOU. SHALL I MEND YOUR WOUNDS?";
     case Role::Mage: return "MAGIC IS NOT A TOY. BUT IF YOU HAVE GOLD, I HAVE KNOWLEDGE.";
-    case Role::Jarl: return "SPEAK, STRANGER. THE JARL OF " + town + " IS LISTENING.";
+    case Role::Jarl: return "SPEAK, STRANGER. THE " + (homeSite >= 0 ? lordTitleAt(world, homeSite) : std::string("JARL")) + " OF " + town + " IS LISTENING.";
     case Role::King: {
-      std::string nm = a.name.rfind("KING ", 0) == 0 ? a.name.substr(5) : a.name;
-      std::string t = "WELCOME TO MY HALL, TRAVELLER. I AM " + nm + ", KING OF " + (realm.empty() ? town : realm) + ".";
+      const std::string pre = ruler + " ";
+      std::string nm = a.name.rfind(pre, 0) == 0 ? a.name.substr(pre.size()) : (a.name.rfind("KING ", 0) == 0 ? a.name.substr(5) : a.name);
+      std::string t = "WELCOME TO MY HALL, TRAVELLER. I AM " + nm + ", " + ruler + " OF " + (realm.empty() ? town : realm) + ".";
       for (const Quest& q : quests) {
         if (q.type != QType::Main) continue;
         if (q.state == QState::Done) t += " ALL " + (realm.empty() ? std::string("THE REALM") : realm) + " SINGS OF THE ONE WHO SLEW ASHFANG. YOU HONOUR MY HALL.";
-        else if (q.stage >= 1) t += " MY JARLS WRITE OF YOU AND THE DRAGON. THE CROWN STANDS WITH YOU.";
-        else if (homeSite == world.capital) t += " A DRAGON STIRS IN THE NORTH, THEY TELL ME. MY JARL IN THE KEEP GATHERS SWORDS AGAINST IT: GO TO HIM.";
-        else t += " A DRAGON STIRS IN THE NORTH, THEY TELL ME. THE JARL OF " + world.sites[(size_t)world.capital].name + " GATHERS SWORDS AGAINST IT.";
+        else if (q.stage >= 1) t += " MY " + lordTitleAt(world, homeSite) + "S WRITE OF YOU AND THE DRAGON. THE THRONE STANDS WITH YOU.";
+        else if (homeSite == world.capital) t += " A DRAGON STIRS IN THE NORTH, THEY TELL ME. MY " + lordTitleAt(world, homeSite) + " GATHERS SWORDS AGAINST IT: GO TO HIM.";
+        else t += " A DRAGON STIRS IN THE NORTH, THEY TELL ME. THE " + lordTitleAt(world, world.capital) + " OF " + world.sites[(size_t)world.capital].name + " GATHERS SWORDS AGAINST IT.";
       }
       return t;
     }
@@ -607,7 +614,7 @@ void Game::advanceMain(int stage) {
     switch (stage) {
       case 1:
         q.title = "THE EMBER SHARDS";
-        q.desc = "THE JARL SAYS ONLY THE EMBER CROWN CAN BIND THE DRAGON ASHFANG. ITS THREE SHARDS LIE WITH DRAUGR WARLORDS IN ANCIENT RUINS. RECOVER ALL THREE.";
+        q.desc = "THE " + lordTitleAt(world, world.capital) + " SAYS ONLY THE EMBER CROWN CAN BIND THE DRAGON ASHFANG. ITS THREE SHARDS LIE WITH DRAUGR WARLORDS IN ANCIENT RUINS. RECOVER ALL THREE.";
         q.need = 3; q.have = 0;
         for (auto& s : world.sites) if (s.mainQuest) s.discovered = true;
         emit(Ev::QuestUpdate, pl().p, q.id, 0, "MAIN QUEST: THE EMBER SHARDS");
@@ -623,8 +630,8 @@ void Game::advanceMain(int stage) {
         if (q.have >= 3) pendingMain = 2;
         break;
       case 2:
-        q.title = "RETURN TO THE JARL";
-        q.desc = "YOU HAVE ALL THREE EMBER SHARDS. BRING THEM TO THE JARL IN " + cap.name + ".";
+        q.title = "RETURN TO THE " + lordTitleAt(world, world.capital);
+        q.desc = "YOU HAVE ALL THREE EMBER SHARDS. BRING THEM TO THE " + lordTitleAt(world, world.capital) + " IN " + cap.name + ".";
         q.target = world.capital;
         emit(Ev::QuestUpdate, pl().p, q.id, 2, "ALL SHARDS FOUND! RETURN TO " + cap.name);
         sfx((int)Sfx::QuestDone, pl().p);
@@ -674,10 +681,13 @@ bool Game::questTarget(int qid, int& tx, int& ty) const {
     int t = q->stage == 3 ? world.lair : world.capital;
     if (t < 0) return false;
     if (q->stage == 0 || q->stage == 2) {
-      // the keep's door
+      // the keep's door (M3b: the city lord's seat, whatever the society built it as; a keep first, as before)
       const Site& c = world.sites[t];
-      for (int b = c.bldgFirst; b < c.bldgFirst + c.bldgCount; b++)
-        if (world.over.bldgs[b].type == art::Building::Keep) { tx = world.over.bldgs[b].doorX(); ty = world.over.bldgs[b].doorY(); return true; }
+      for (int pass = 0; pass < 2; pass++)
+        for (int b = c.bldgFirst; b < c.bldgFirst + c.bldgCount; b++) {
+          const Bldg& B = world.over.bldgs[b];
+          if (pass == 0 ? B.type == art::Building::Keep : (bldgIsSeat(B) && !bldgIsRoyalSeat(B))) { tx = B.doorX(); ty = B.doorY(); return true; }
+        }
     }
     tx = world.sites[t].ex; ty = world.sites[t].ey;
     return true;
@@ -753,7 +763,7 @@ std::string Game::questStatus(const Quest& q) const {
   if (q.type == QType::Main) {
     const std::string cap = world.sites[world.capital].name;
     switch (q.stage) {
-      case 0: return fitLine({"SPEAK TO THE JARL IN " + cap, "THE JARL IN " + cap});
+      case 0: { const std::string l = lordTitleAt(world, world.capital); return fitLine({"SPEAK TO THE " + l + " IN " + cap, "THE " + l + " IN " + cap, "SPEAK TO THE " + l}); }
       case 1: {
         int best = -1; float bd = 1e30f;
         for (int i = 0; i < (int)world.sites.size(); i++) {
@@ -768,7 +778,7 @@ std::string Game::questStatus(const Quest& q) const {
         return fitLine({n + ": " + s.name + " (" + dirTo(s.ex, s.ey, false) + ")", n + ": " + s.name + " (" + dirTo(s.ex, s.ey, true) + ")",
                         n + " (" + dirTo(s.ex, s.ey, false) + ")"});
       }
-      case 2: return fitLine({"RETURN TO THE JARL IN " + cap, "RETURN TO " + cap});
+      case 2: return fitLine({"RETURN TO THE " + lordTitleAt(world, world.capital) + " IN " + cap, "RETURN TO " + cap});
       case 3: {
         if (world.lair < 0) return "SLAY ASHFANG";
         const Site& L = world.sites[world.lair];
@@ -924,14 +934,24 @@ void Game::dialogueChoose(int oi) {
     case A_BYE: mode = Mode::Play; return;
     case A_TRADE: if (ai >= 0) openShop(actors[ai]); return;
     case A_REST: {
-      // M0b: an inn with rooms upstairs lets you one of them (until noon tomorrow) and tells you where it is
-      int inn = inside && subBldg >= 0 && world.over.bldgs[subBldg].type == art::Building::Inn && world.over.bldgs[subBldg].floors() >= 2 ? subBldg : -1;
+      // M0b: an inn lets you one of its rooms (until noon tomorrow) and tells you where it is. (M3b: a single-storey
+      // inn lets its rooms on the ground floor, behind partitions; a taller one upstairs: the rooms are on whichever
+      // floor has them, the first such floor from the ground up)
+      int inn = inside && subBldg >= 0 && world.over.bldgs[subBldg].type == art::Building::Inn && world.over.bldgs[subBldg].genVer >= WORLDGEN_V7 ? subBldg : -1;
       Map up;
       std::vector<int> guestRooms;
+      int roomFloor = -1;
       if (inn >= 0) {
         const Bldg& B = world.over.bldgs[inn];
-        genInterior(up, B, B.seed, 1);
-        for (int i = 0; i < (int)up.rooms.size(); i++) if (up.rooms[(size_t)i].kind == RoomKind::GuestRoom && up.rooms[(size_t)i].bedX >= 0) guestRooms.push_back(i);
+        // a room already rented here is on its own floor
+        const bool rented = lodgingActive() && lodging.bldg == inn && lodgingSleepHours(day, hour, lodging.untilDay) > 0;
+        for (int f = rented ? std::clamp(lodging.floor, 0, B.floors() - 1) : 0; f < B.floors() && guestRooms.empty(); f++) {
+          up = Map();
+          genInterior(up, B, B.seed, f);
+          for (int i = 0; i < (int)up.rooms.size(); i++) if (up.rooms[(size_t)i].kind == RoomKind::GuestRoom && up.rooms[(size_t)i].bedX >= 0) guestRooms.push_back(i);
+          if (!guestRooms.empty()) roomFloor = f;
+          if (rented) break;
+        }
       }
       if (inn < 0 || guestRooms.empty()) {   // an old inn: beds in the common room, sleep where you stand
         if (gold < o.arg) { dlg.text = "YOU DON'T HAVE ENOUGH GOLD."; return; }
@@ -946,13 +966,16 @@ void Game::dialogueChoose(int oi) {
         if (gold < o.arg) { dlg.text = "YOU DON'T HAVE ENOUGH GOLD."; return; }
         gold -= o.arg;
         int pickR = guestRooms[hash32((uint32_t)inn * 2654435761u ^ (uint32_t)day * 40503u) % guestRooms.size()];
-        lodging.bldg = inn; lodging.floor = 1; lodging.room = pickR; lodging.untilDay = day + 1;
+        lodging.bldg = inn; lodging.floor = roomFloor; lodging.room = pickR; lodging.untilDay = day + 1;
         sfx((int)Sfx::Coin, pl().p);
       }
       if (std::find(guestRooms.begin(), guestRooms.end(), lodging.room) == guestRooms.end()) lodging.room = guestRooms[0];
-      // where it is, as you come up the stairs: doors to the left / right of the stairwell, nearest first
+      lodging.floor = roomFloor;
+      // where it is, as you come up the stairs (or, on the ground floor, as you stand at the bar): doors to the left /
+      // right of the stairwell (the counter), nearest first
       const RoomInfo& R = up.rooms[(size_t)lodging.room];
-      int sx = up.down.valid() ? up.down.x : up.w / 2;
+      const bool ground = roomFloor == 0;
+      int sx = up.down.valid() ? up.down.x : (ground ? (int)std::floor(pl().p.x / TILE) : up.w / 2);
       // (fix round 2: left and right are counted from the middle of the flight, both of its tiles: a door in front of
       // the flight's second tile is the first one on that side, as the player sees it)
       int sx0 = sx, sx1 = sx;
@@ -978,9 +1001,9 @@ void Game::dialogueChoose(int oi) {
         where += R.doorY == minRow ? ", ON THE BACK SIDE" : ", ON THE FRONT SIDE";
       }
       std::string num = std::to_string((int)R.guest + 1);
-      dlg.text = (mine ? "YOUR ROOM IS STILL YOURS UNTIL NOON: ROOM " : "ROOM ") + num + ". UP THE STAIRS, " + where + "." +
+      dlg.text = (mine ? "YOUR ROOM IS STILL YOURS UNTIL NOON: ROOM " : "ROOM ") + num + (ground ? ". THROUGH THE HALL, " : ". UP THE STAIRS, ") + where + "." +
                  (mine ? "" : " IT'S YOURS UNTIL NOON TOMORROW.");
-      dlg.opts = {{"GO UP TO BED", A_BED, 0}, {"LATER.", A_BYE, 0}};
+      dlg.opts = {{ground ? "GO TO BED" : "GO UP TO BED", A_BED, 0}, {"LATER.", A_BYE, 0}};
       return;
     }
     case A_BED: {
@@ -1265,7 +1288,7 @@ bool Game::sell(int ii) {
 // travel and death: rpg/sim/travel.cpp (M2)
 
 // ------------------------------------------------------------------ save / load
-// SAVE_VER 7 (M3: the appearance block gains people, homeland and personal heraldry; nothing else moved).
+// SAVE_VER 8 (M3b: the layout of 7, bumped with the builder's world generation). SAVE_VER 7 (M3: the appearance block gains people, homeland and personal heraldry; nothing else moved).
 // SAVE_VER 6 (M2). Owner, 2026-10-04: old saves are not a concern, so only this version loads; an older file is refused
 // and the title offers a new game ("this save is from an older version"). The layout is frozen for M2 after phase A
 // (the lanes fill the new fields, they do not move them); any later change bumps SAVE_VER and regenerates
@@ -1299,7 +1322,9 @@ bool Game::sell(int ii) {
 // refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
 // 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 7;   // 7: M3 (appearance: people, homeland, personal heraldry)
+static constexpr uint32_t SAVE_VER = 8;   // 8: M3b Builders & Societies (the world is built by the builder: a new
+                                          //    generation, so older adventures start anew); 7: M3 (appearance: people,
+                                          //    homeland, personal heraldry)
 
 int Game::currentSaveVersion() { return (int)SAVE_VER; }
 int Game::saveVersion(const std::vector<uint8_t>& in) {

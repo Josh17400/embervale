@@ -14,7 +14,9 @@ namespace art {
 // (elven living thatch); walls Rubble, Plank, Wattle, Felt (yurt lattice under felt), Ashlar (dressed, pale, fine
 // joints; Stone stays today's rough grey), Living (elven: grown timber, root buttresses).
 // Never saved (Bldg::arch is regenerated with the world): append anyway.
-enum class RoofShape : uint8_t { Hip, Gable, Steep, FlatParapet, Dome, Conical, Turf, Pagoda, Mansard, Onion, Stepped, Sweep, COUNT };
+// M3b (BUILDER lane) appends Tent (a tent of canvas or felt: a cone on a round body, a sagging ridge on a box, both with
+// a scalloped valance) and Spire (a needle: a steep pyramid on a box, a steep cone on a round body; Volume::pitch 5..8).
+enum class RoofShape : uint8_t { Hip, Gable, Steep, FlatParapet, Dome, Conical, Turf, Pagoda, Mansard, Onion, Stepped, Sweep, Tent, Spire, COUNT };
 enum class RoofMat : uint8_t { Thatch, Shingle, Slate, ClayTile, Turf, Adobe, Copper, Palm, Bark, Felt, GlazedTile, Leaf, COUNT };
 enum class WallMat : uint8_t { Timber, Plaster, Stone, Brick, Log, Adobe, Rubble, Plank, Wattle, Felt, Ashlar, Living, COUNT };
 // M3: window and door shapes, foundations (ArchStyle::window / door / foundation). Screen: a carved grille (dune

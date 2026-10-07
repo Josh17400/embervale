@@ -137,6 +137,8 @@ bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
         int li = loc(nx, ny);
         if (navPrev_[(size_t)li] >= 0) continue;
         if (m.blocked(nx, ny) && !(nx == gx && ny == gy)) continue;
+        // (owner) a building's ways in (an open front's bays: only the pillars block there) are no street to walk along
+        if (m.kind == MapKind::Overworld && m.bldgAt[(size_t)ny * m.w + nx] >= 0 && !(nx == gx && ny == gy)) continue;
         navPrev_[(size_t)li] = q[h];
         if (nx == gx && ny == gy) { found = true; break; }
         q.push_back(li);

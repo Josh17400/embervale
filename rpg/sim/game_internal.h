@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <initializer_list>
 #include <string>
+#include "rpg/culture/society.h"
 #include "rpg/sim/game.h"
 #include "rpg/world/ids.h"
 
@@ -79,6 +80,21 @@ inline std::string dirWord(int dx, int dy, bool shortForm) {
 // the giver's town name ("" when unknown)
 inline std::string giverTown(const World& w, const Quest& q) {
   return q.giverSite >= 0 && q.giverSite < (int)w.sites.size() ? w.sites[q.giverSite].name : std::string();
+}
+// (M3b fixer) the society's titles where a site lies (the kingdom's culture, else the site's own): the lord's ("JARL",
+// "NOYAN", "EMIR", "PROVOST"...) and the ruler's ("KING", "KHAN"...). Unknown land keeps the old "JARL" / "KING".
+inline const cult::Culture* titleCulture(const World& w, int site) {
+  if (site < 0 || site >= (int)w.sites.size()) return nullptr;
+  if (const cult::Culture* c = w.cultureOfKingdom(w.sites[(size_t)site].kingdom)) return c;
+  return w.cultureOf(site);
+}
+inline std::string lordTitleAt(const World& w, int site) {
+  const cult::Culture* c = titleCulture(w, site);
+  return c ? std::string(cult::societyOf(*c).lordTitle) : std::string("JARL");
+}
+inline std::string rulerTitleAt(const World& w, int site) {
+  const cult::Culture* c = titleCulture(w, site);
+  return c ? std::string(cult::societyOf(*c).rulerTitle) : std::string("KING");
 }
 // "BOUNTY READY: RETURN TO X IN Y": shown as a notice when a radiant quest's objective is done
 inline std::string rewardReadyMsg(const World& w, const Quest& q) {

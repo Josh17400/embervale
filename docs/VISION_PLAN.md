@@ -2269,3 +2269,99 @@ world goes through them**:
 - Acceptance: no building kind may bypass the builder (a test enumerates every building/prop type); a repetition audit
   over capitals of every culture; per-culture screenshot galleries judged against the owner's quality bar; performance on
   iPhone web (incremental paints).
+
+### 15.15 M3b phase A (lead, 2026-10-06): the builder and society contracts
+
+- `rpg/culture/society.h` (`cult::Society`, `societyOf`, `requiredBuildings`, `requiredSpaces`, `seatPurpose`,
+  `seatForm`): government, seat of power, classes, institutions, gathering places, justice, inheritance, military, trade
+  attitude, titles; per settlement tier (`cult::SettleTier`) the buildings and spaces it must have. Phase A gives every
+  archetype its priors (fjordfolk jarldom and great hall, steppe khanate and tent court, sun-temple theocracy and temple
+  complex, river merchant republic and guildhall + exchange, elven high councils with the council spire / tree palace,
+  marsh elders' stilt hall...), bent by the culture's values.
+- New purposes (`art::Building`, appended): Guildhall, Exchange, MeadHall, Bathhouse, TeaHouse, Lodge, CouncilHall (names,
+  storeys, `artBase` stand-ins until the builder gives them their own massing).
+- `rpg/build/blueprint.h` (`bld::Request`, `bld::Blueprint`, `bld::design`, `bld::validate`): forms (rect, round, L,
+  courtyard, compound, tower, long, stepped, tent), volumes (shape, role, box in px, base height, wall height, storeys,
+  roof kind and material, wall material, pitch, eave, windows, door, ornament, finery, tints), signage, yard and the
+  interior shape (`InteriorShape`: floorplan, L corner, court size, floors, furniture, culture). `rpg/build/parts.h`:
+  fortification parts (`FortParts`: wall, gate form, tower form, coping), road parts (paving, bond, width, kerbs, bridge)
+  and monument parts. `rpg/build/registry.h`: every `art::Prop` classified (`bld::kindOfProp`). `rpg/build/*.cpp` build in
+  the `rpg_culture` library (precise floating point; integer maths only).
+- `Bldg::wealth / form / civic / seat`; `bldgRequest(b)` and `bldgBlueprint(b)` (`rpg/sim/world.h`).
+- The art API paints blueprints only: `art::buildingSprite(const bld::Blueprint&, BuildingInfo*)`,
+  `art::beginBuilding(const bld::Blueprint&)`, `art::buildingHeight(const bld::Blueprint&)`; `BuildingInfo::planKey`.
+  Phase A paints them through the M3 type painters (pixels unchanged). The view, the galleries and the tools all go
+  through `bld::design`.
+- The culture furniture moved to `rpg/art/art_culture_furniture.cpp` (interiors), the street furniture stays in
+  `art_culture_props.cpp`.
+- Tests: `rpg_test --builder [--strict] [--society-strict]` (registry, design matrix, societies, placed blueprints; the
+  capital repetition audit and the society's requirements placed are reported until the lanes gate them; in CI);
+  `builder_gallery --check [--props-strict]` (every building painted from its blueprint, planKey, the seats' incremental
+  paints, culture looks of every built prop) and `builder_gallery <dir> [--culture NAME] [--wealth]` (per-culture
+  galleries). SAVE_VER 8 (fixture `tests/fixtures/save_v8.bin`), ENDLESS_GEN_VER 11.
+- **M3b lanes (integrated 2026-10-06):**
+  - BUILDER: `bld::design` is the real grammar (each culture's monumental style; seats built from the culture's own
+    temple / guildhall / exchange; interior shape Round, L, Courtyard, Long, Cross). Blueprint additions: `Platform` and
+    `Tree` volume roles, a `Face` per volume (shop front, forge bay, colonnade, arcade, iwan, gate...), detail flags
+    (stilts, crenels, banners, guy ropes, steam, bell, stockade points...), dormers, gable outlines (stepped, bell,
+    clipped), sign icons, `Blueprint::seat` / `culture`; `art::RoofShape::Tent` and `Spire`; `art::riseBudgetTiles`
+    mirrors the generator's clearance. `validate` refuses a round body without a round interior, a chimney without a
+    hearth and a tent of more than one storey. The painter draws only the blueprint's volumes.
+  - TOWNS: `services()` builds what `requiredBuildings` asks (3528 of 3528 placed over `--towns --seeds 1..10`); seat
+    compounds per `cult::Seat`; every capital also keeps a lord's Keep (no seat flag) for the main quest; storeys come
+    from `bldgBlueprint(b).facts.storeys`; the region planner picks neighbouring settlements' looks together
+    (`SitePlan::kind` = 1 + look; town audit worst group 2 over seeds 1..30).
+  - FORTS: `FortParts` per culture and tier (11 gate forms, 7 tower forms, capitals' walls 3 px taller), paving bonds
+    (sun-temple crazy paving), bridges by culture, per-tile standing-stone variants, street furniture from culture
+    parts; wall keys carry a look slot in bits 29-31; building shadows cast per blueprint volume.
+  - INTERIORS: floor plans read the blueprint (round, L, courtyard, long, cross), 14 culture inn plans, plans for the
+    seven new purposes and every `cult::Seat`; a plan is refused unless every floor tile is reachable. A hall seat
+    (great hall, tent court, stilt hall, council spire, tree palace) holds council in the hall itself: no separate
+    council chamber is required there (castle and court palace keep the M1 contract).
+  - FIXER (owner rule, 2026-10-06: "no door on an open building; pillars mean an open front, you just walk on in"):
+    `bld::openFront` / `bld::openPillars` (blueprint.h) are the one contract the painter and the walking share. An
+    entrance volume with a colonnade, arcade, veranda or iwan face (or such a portico before the door column) paints
+    NO door anywhere; its pillars stand at the face's ends and on the 16 px tile boundaries, so every front-row tile with
+    a walk-in bay (>= `OPEN_MIN_BAY` 12 px clear) is an entry: `Map::rebuildSolid` opens it, `bldgEntryAt` enters by
+    it, `Game::pillarHit` blocks the body on the pillars alone. Open galleries beside a closed door are walked into the
+    same way. The ground floor opens onto the porch in matching bays (`Map::exits`, `Map::isExit`; the interior's front
+    wall shows an open threshold with the pillars' sections, `Piece::Door` a = 1); you arrive in the bay matching the
+    one you walked in by and leave by it. Raised fronts (stilts, a plinth over 6 px) keep the ladder / steps at the door
+    column. A door never stands behind another volume's pillars. Checks: `rpg_test --builder` (every design's bays,
+    every placed open front walked in and out of its interior), `builder_gallery --check` (no door painted on an open
+    entrance, painted pillars == walked pillars, no door behind a pillar), `tools/scripts/m3b_open_fronts.txt` (side bays
+    of real capitals' colonnades). Also: round rooms' back arc on the true ellipse (`Piece::RoundBack`), seat courts'
+    formal water kerbed in cut stone (`Map::POOL_MARK`, terrain.cpp `poolPixel`), road and river-footbridge decks laid
+    straight across water (chunkgen drawRoad; `rpg_test --endless` fails a deck that jogs), elven round roofs a slender
+    swept cone, L wings' roofs meeting the body's in a valley.
+  - FIXER round 2 (2026-10-06): the roofs seen under a higher eave are painted (art_building.cpp renderColumns
+    `underEave`: the stave church's upper stage, wing and tower eaves over a body's roof no longer show the ground
+    through; `builder_gallery --check` fails any see-through hole onto a volume's footprint). An open front's bays read
+    as the way in: each walk-in bay (`openWalkable`, the walking's own answer) is a dark doorway into the hall, a bay
+    part nobody can walk through (a colonnade's narrow end bays) is closed by a balustrade, and a platform's steps run
+    the width of the open bays (no door-sized step at the centre). The stave church's gallery is tall enough to show
+    its arches under its eave; the starspire tea house is its own (white ashlar, slate hip, onion lantern; no jade
+    pagoda or platform); a round room's back arc leaves the dark beyond it clear (no stepped panel). Scripts:
+    `enterseat [floor]` enters the seat of power here; `enter <type>` and `gate` only take buildings / gates within
+    160 tiles (and `gate` forgets a remembered gate once it is far); `expect bay` holds the player to floor 0 and the
+    row inside the threshold; `m3b_open_fronts.txt` walks in one tile from the bay with a short push (passes seeds 1, 3,
+    5, 7, 9, 11).
+
+### 15.15 Walkable forests and many, many biomes (owner, 2026-10-06)
+
+- **Forests must be walkable:** no two solid trees closer than one walkable tile (a person's width), checked by a BFS test;
+  forests keep their dense look through overlapping crowns and walk-through undergrowth. (Fixed right away in a side pass.)
+- **"Tons and tons of biomes"** (milestone M3c "Wildlands", after M3b). Today there are 10 (Ocean, Beach, Plains, Forest,
+  Autumn, Taiga, Snow, Swamp, Desert, Mountain). Target 30 or more, each with its own ground, flora, fauna, weather,
+  ambient sound, resources (feeds 15.11 ores, herbs, hides, timber) and blended ecotones. Candidates:
+  - **Grasslands:** meadow / flower meadow, tall-grass prairie, steppe, savanna (acacias), heath and moor, chalk downs.
+  - **Woods:** birch wood, old-growth giant forest, dark / dead forest, cherry or blossom grove, bamboo forest, jungle,
+    mushroom forest (rare, magical), elven silverwood (culture-linked).
+  - **Wet:** fen and reed marsh, peat bog, mangrove coast, flooded river forest, lake district.
+  - **Dry:** badlands / mesa, salt flats, rocky scrubland, dunes vs. stony desert, oasis.
+  - **Cold:** tundra, glacier and ice fields, alpine meadow, frozen lakes, taiga bog.
+  - **Coast:** sea cliffs and fjords, coral and white-sand coast, shingle beaches, sea stacks.
+  - **Wondrous (rare):** volcanic ash fields and lava rifts, crystal barrens, ancient petrified forest, standing-stone
+    plains, blighted land around dragon lairs.
+- Biomes come from climate (temperature, moisture, elevation, coast distance, geology), must stay deterministic, blend
+  smoothly (ecotones), and settle cultures and village specialisations naturally (fishing on coasts, mining in badlands...).

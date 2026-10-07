@@ -9,6 +9,9 @@
 //   culture_gallery --hand ...             use the gallery's own hand-built styles even if the culture engine has
 //                                           real ones (the default uses the engine's when it sets ArchStyle::culture)
 #include <chrono>
+#include "rpg/build/blueprint.h"
+#include "rpg/build/parts.h"
+#include "rpg/art/art_parts.h"
 #include <cstring>
 #include "rpg/culture/culture.h"
 #include "rpg/sim/world.h"
@@ -236,7 +239,7 @@ int putBuilding(Board& b, Building t, int wT, int hT, const ArchStyle& st, uint3
   f.banner = banner; f.banner2 = banner2; f.emblem = emblem;
   if (t == Building::Temple || t == Building::Tower) f.hearth = false;
   const auto t0 = std::chrono::steady_clock::now();
-  Canvas c = art::buildingSprite(t, wT, hT, st, seed, &info, f);
+  Canvas c = art::buildingSprite(bld::design(bld::simpleRequest(t, wT, hT, st, seed, f)), &info);
   const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
   g_paintMs += ms;
   g_worstPaint = std::max(g_worstPaint, ms);
@@ -282,6 +285,26 @@ void drawWalls(Board& b, const WallGrid& g, int ox, int oy, art::CityWall style,
       }
     for (auto& gt : g.gates)
       if (gt.second == y) b.put(art::gateHouse(7, her.field, her.charge, her.emblem, style), ox + gt.first * 16 - art::GATE_OX, oy + gt.second * 16 - art::GATE_OY);
+  }
+}
+// (M3b forts) the walls from the builder's parts: every tile and the gate in the parts' forms, the cast shadows
+void drawWallsParts(Board& b, const WallGrid& g, int ox, int oy, const bld::FortParts& f, const cult::Heraldry& her) {
+  for (int y = 0; y < g.H * 16; y++)
+    for (int x = 0; x < g.W * 16; x++) {
+      int lvl = art::wallShadeAt(g.wall.data(), g.W, g.H, x, y);
+      if (lvl) b.c.set(ox + x, oy + y, shadeGround(b.c.get(ox + x, oy + y), lvl));
+    }
+  std::vector<uint32_t> keys;
+  art::wallKeys(g.wall.data(), g.W, g.H, g.gates.data(), (int)g.gates.size(), keys);
+  for (int y = 0; y < g.H; y++) {
+    for (int pass = 0; pass < 2; pass++)
+      for (int x = 0; x < g.W; x++) {
+        uint32_t k = keys[(size_t)y * g.W + x];
+        if (!k || ((k & art::WALL_BIT_TOWER) != 0) != (pass == 1)) continue;
+        b.put(art::wallTile(k, f), ox + x * 16 - art::WALL_OX, oy + y * 16 - art::WALL_OY);
+      }
+    for (auto& gt : g.gates)
+      if (gt.second == y) b.put(art::gateHouse(7, her, f), ox + gt.first * 16 - art::GATE_OX, oy + gt.second * 16 - art::GATE_OY);
   }
 }
 // a stretch of town wall: a run along the bottom with a gate, a 1:1 diagonal (4-connected staircase) climbing to the
@@ -358,6 +381,239 @@ Canvas archetypeBoard(Archetype a, bool night) {
   return b.c;
 }
 
+// ---------------------------------------------------------------- (M3b forts) the cultures' fortifications
+const char* gateFormName(bld::GateForm g) {
+  static const char* n[] = {"DRUM TOWERS", "SQUARE TOWERS", "PYLONS", "TIMBER GATE", "IWAN", "PAIFANG", "MOON GATE", "ELVEN ARCH", "LIVING ARCH", "EARTHWORK", "HEDGE GAP"};
+  return (int)g < (int)bld::GateForm::COUNT ? n[(int)g] : "?";
+}
+const char* towerFormName(bld::TowerForm t) {
+  static const char* n[] = {"ROUND DRUM", "CONE DRUM", "SQUARE", "PAGODA", "MINARET", "BASTION", "PLATFORM"};
+  return (int)t < (int)bld::TowerForm::COUNT ? n[(int)t] : "?";
+}
+const char* wallName(art::CityWall w) {
+  static const char* n[] = {"STONE", "PALISADE", "RAMPART", "THORN", "ADOBE", "WHITESTONE", "JADE", "TALUD"};
+  return (int)w < 8 ? n[(int)w] : "?";
+}
+// a town's wall: a long run along the bottom with a gate, a corner and a run north on the left with a diagonal step,
+// a 1:1 staircase climbing north-east on the right into a run along the top
+WallGrid fortRun() {
+  WallGrid g(26, 12);
+  for (int x = 2; x < 15; x++) g.set(x, 10, 1);
+  for (int k = 0; k < 3; k++) g.set(6 + k, 10, 0);
+  g.gates.push_back({6, 10});
+  for (int y = 4; y <= 10; y++) g.set(2, y, 1);
+  g.set(3, 3, 1); g.set(4, 2, 1); g.set(5, 2, 1);   // an 8-connected diagonal step and a stub
+  int x = 14, y = 10;
+  for (int k = 0; k < 4; k++) { g.set(x + 1, y, 1); g.set(x + 1, y - 1, 1); x++; y--; }
+  for (int xx = x; xx < 24; xx++) g.set(xx, y, 1);
+  for (int yy = 1; yy <= y; yy++) g.set(23, yy, 1);
+  return g;
+}
+Canvas fortBoard(Archetype a) {
+  const uint32_t seed = 1000u + (uint32_t)a * 7919u;
+  const cult::Culture c = cult::Atlas::make(a, seed, 2);
+  const WallGrid g = fortRun();
+  const int cellW = g.W * 16 + 24, cellH = g.H * 16 + 70;
+  Board b(24 + cellW * 3, 30 + cellH);
+  b.text(8, 6, std::string(nameOf(a)) + "  FORTIFICATIONS (TOWN, CITY, CAPITAL)");
+  for (int u = 1; u <= 3; u++) {
+    const bld::FortParts f = bld::fortParts(c, u, seed + (uint32_t)u);
+    const int ox = 12 + (u - 1) * cellW, oy = 30 + 56;
+    b.text(ox, 22, std::string(u == 1 ? "TOWN: " : (u == 2 ? "CITY: " : "CAPITAL: ")) + wallName(f.wall));
+    b.text(ox, 32, std::string(gateFormName(f.gate)) + " / " + towerFormName(f.tower));
+    drawWallsParts(b, g, ox, oy, f, u == 3 ? c.heraldry : cult::Heraldry{});
+  }
+  return b.c;
+}
+// every gate form and every tower form on the walls they are built in
+Canvas formsBoard() {
+  struct G { bld::GateForm g; art::CityWall w; int cul; };
+  const G gates[] = {{bld::GateForm::DrumTowers, art::CityWall::Stone, 3}, {bld::GateForm::SquareTowers, art::CityWall::Stone, 4},
+                     {bld::GateForm::Pylons, art::CityWall::Talud, 10}, {bld::GateForm::TimberGate, art::CityWall::Palisade, 1},
+                     {bld::GateForm::Iwan, art::CityWall::Adobe, 5}, {bld::GateForm::Paifang, art::CityWall::Jade, 8},
+                     {bld::GateForm::MoonGate, art::CityWall::Jade, 8}, {bld::GateForm::ElvenArch, art::CityWall::WhiteStone, 12},
+                     {bld::GateForm::LivingArch, art::CityWall::Thorn, 11}, {bld::GateForm::Earthwork, art::CityWall::Rampart, 2},
+                     {bld::GateForm::HedgeGap, art::CityWall::Thorn, 6}, {bld::GateForm::TimberGate, art::CityWall::Palisade, 6},
+                     {bld::GateForm::SquareTowers, art::CityWall::Stone, 9}, {bld::GateForm::SquareTowers, art::CityWall::Stone, 2}};
+  const int nG = (int)(sizeof(gates) / sizeof(gates[0]));
+  const int cw = 11 * 16 + 20, ch = 120;
+  Board b(20 + 4 * cw, 20 + ((nG + 3) / 4) * ch + 8 * 110);
+  for (int i = 0; i < nG; i++) {
+    WallGrid g(11, 3);
+    for (int x = 0; x < 11; x++) g.set(x, 1, 1);
+    for (int k = 0; k < 3; k++) g.set(4 + k, 1, 0);
+    g.gates.push_back({4, 1});
+    const cult::Culture c = cult::Atlas::make((Archetype)(gates[i].cul - 1), 77u + (uint32_t)i, 2);
+    bld::FortParts f = bld::fortParts(c, 2, 5u);
+    f.wall = gates[i].w; f.gate = gates[i].g;
+    const int ox = 10 + (i % 4) * cw, oy = 10 + (i / 4) * ch + 60;
+    b.text(ox, oy - 58, std::string(gateFormName(f.gate)) + " " + wallName(f.wall));
+    drawWallsParts(b, g, ox, oy, f, cult::Heraldry{});
+  }
+  // the tower forms: a run with an end tower, a corner tower and a tower mid-run, on each material it is built in
+  struct T { bld::TowerForm t; art::CityWall w; int cul; };
+  const T towers[] = {{bld::TowerForm::RoundDrum, art::CityWall::Stone, 3}, {bld::TowerForm::RoundDrum, art::CityWall::Adobe, 5},
+                      {bld::TowerForm::RoundDrum, art::CityWall::Thorn, 11}, {bld::TowerForm::ConeDrum, art::CityWall::Palisade, 1},
+                      {bld::TowerForm::ConeDrum, art::CityWall::WhiteStone, 12}, {bld::TowerForm::ConeDrum, art::CityWall::Stone, 3},
+                      {bld::TowerForm::Square, art::CityWall::Stone, 4}, {bld::TowerForm::Square, art::CityWall::Stone, 9},
+                      {bld::TowerForm::Square, art::CityWall::Stone, 2}, {bld::TowerForm::Square, art::CityWall::Talud, 10},
+                      {bld::TowerForm::Pagoda, art::CityWall::Jade, 8}, {bld::TowerForm::Minaret, art::CityWall::Adobe, 5},
+                      {bld::TowerForm::Bastion, art::CityWall::Rampart, 2}, {bld::TowerForm::Bastion, art::CityWall::Stone, 2},
+                      {bld::TowerForm::Platform, art::CityWall::Palisade, 1}, {bld::TowerForm::Platform, art::CityWall::Thorn, 6}};
+  const int nT = (int)(sizeof(towers) / sizeof(towers[0]));
+  const int y0 = 20 + ((nG + 3) / 4) * ch;
+  for (int i = 0; i < nT; i++) {
+    WallGrid g(11, 5);
+    for (int x = 0; x < 11; x++) g.set(x, 3, 1);
+    for (int y = 1; y <= 3; y++) g.set(10, y, 1);
+    const cult::Culture c = cult::Atlas::make((Archetype)(towers[i].cul - 1), 99u + (uint32_t)i, 2);
+    bld::FortParts f = bld::fortParts(c, 2, 5u);
+    f.wall = towers[i].w; f.tower = towers[i].t;
+    const int ox = 10 + (i % 4) * cw, oy = y0 + (i / 4) * 110 + 30;
+    b.text(ox, oy - 26, std::string(towerFormName(f.tower)) + " " + wallName(f.wall));
+    drawWallsParts(b, g, ox, oy, f, cult::Heraldry{});
+  }
+  return b.c;
+}
+
+// every built street prop (signs, tents, banners, graves, crosses, work yards, tables, monuments) in the twelve
+// cultures: a row per prop, a column per archetype (classic first)
+Canvas streetPropsBoard() {
+  static const art::Prop props[] = {art::Prop::Signpost, art::Prop::TollPost, art::Prop::Tent, art::Prop::MarketStall, art::Prop::Banner,
+                                    art::Prop::Gravestone, art::Prop::GraveCairn, art::Prop::MarketCross, art::Prop::StandingStone,
+                                    art::Prop::Well, art::Prop::Lamppost, art::Prop::Bench, art::Prop::Statue, art::Prop::Fountain,
+                                    art::Prop::Shrine, art::Prop::Brazier, art::Prop::FenceH, art::Prop::DryingRack, art::Prop::HideRack,
+                                    art::Prop::Trough, art::Prop::WaterWheel, art::Prop::PenShelter, art::Prop::FishingShack, art::Prop::HerbBed,
+                                    art::Prop::MineEntrance, art::Prop::MarketTable, art::Prop::GroundCloth};
+  const int nP = (int)(sizeof(props) / sizeof(props[0]));
+  int rowH[64] = {}, y = 16;
+  for (int i = 0; i < nP; i++) { rowH[i] = std::max(24, art::propH(props[i]) + 6); y += rowH[i]; }
+  const int colW = 60;
+  Board b(110 + 13 * colW, y + 10);
+  for (int a = -1; a < 12; a++) b.text(110 + (a + 1) * colW, 4, a < 0 ? "CLASSIC" : std::string(nameOf((Archetype)a)).substr(0, 9));
+  y = 16;
+  for (int i = 0; i < nP; i++) {
+    const art::Prop p = props[i];
+    b.text(4, y + rowH[i] / 2 - 4, std::to_string((int)p));
+    for (int a = -1; a < 12; a++) {
+      art::PropStyle st;
+      if (a >= 0) st = cult::Atlas::make((Archetype)a, 300u + (uint32_t)a, 2).props;
+      const Canvas c = a < 0 ? art::propSprite(p) : art::propSprite(p, st);
+      const int fw = art::propW(p);
+      putProp(b, c, fw, 110 + (a + 1) * colW + colW / 2, y + rowH[i] - 3);
+    }
+    y += rowH[i];
+  }
+  return b.c;
+}
+
+// --check: every gate form joins its wall run on every material it can stand in, and every tower form caps its runs.
+// A run of wall with the gate (or the towers) is painted and every column of the run outside the passage must be
+// covered by the wall's own pixels from its walk down to its foot (no gap, no uncovered tile, no orphan piece left
+// floating), and the gate's flanking tiles must be covered where the runs meet them.
+int fortCheck() {
+  int bad = 0, runs = 0;
+  auto opaque = [](uint32_t p) { return (p >> 24) != 0; };
+  for (int gi = 0; gi < (int)bld::GateForm::COUNT; gi++)
+    for (int wi = 0; wi < (int)art::CityWall::COUNT; wi++) {
+      bld::FortParts f = bld::fortDefaults((art::CityWall)wi);
+      f.gate = (bld::GateForm)gi;
+      for (int cul = 0; cul <= 12; cul += 6) {
+        f.culture = (uint8_t)cul;
+        WallGrid g(13, 3);
+        for (int x = 0; x < 13; x++) g.set(x, 1, 1);
+        for (int k = 0; k < 3; k++) g.set(5 + k, 1, 0);
+        g.gates.push_back({5, 1});
+        Canvas cv(13 * 16 + 64, 3 * 16 + 96);
+        const int ox = 32, oy = 80;
+        std::vector<uint32_t> keys;
+        art::wallKeys(g.wall.data(), g.W, g.H, g.gates.data(), 1, keys);
+        auto put = [&](const Canvas& s, int x, int y) {
+          for (int j = 0; j < s.h; j++)
+            for (int i = 0; i < s.w; i++) if (opaque(s.get(i, j))) cv.set(x + i, y + j, s.get(i, j));
+        };
+        for (int x = 0; x < 13; x++) if (keys[(size_t)13 + x]) put(art::wallTile(keys[(size_t)13 + x], f), ox + x * 16 - art::WALL_OX, oy + 16 - art::WALL_OY);
+        put(art::gateHouse(7, cult::Heraldry{}, f), ox + 5 * 16 - art::GATE_OX, oy + 16 - art::GATE_OY);
+        runs++;
+        // every column of the wall outside the passage: covered from the walk's top edge to the foot
+        const int walk = art::wallWalkHeight(f);
+        int gaps = 0, firstGap = -1;
+        for (int px = 2 * 16; px < 11 * 16; px++) {
+          if (px >= 5 * 16 && px < 8 * 16) continue;
+          int n = 0;
+          for (int y = oy + 32 - walk - 2; y < oy + 32; y++) if (opaque(cv.get(ox + px, y))) n++;
+          if (n < walk - 2) { gaps++; if (firstGap < 0) firstGap = px; }
+        }
+        if (gaps) {
+          std::printf("FAIL: gate %s on %s (culture %d): %d wall columns uncovered (first at x %d)\n", gateFormName((bld::GateForm)gi), wallName((art::CityWall)wi), cul, gaps, firstGap);
+          bad++;
+        }
+      }
+    }
+  for (int ti = 0; ti < (int)bld::TowerForm::COUNT; ti++)
+    for (int wi = 0; wi < (int)art::CityWall::COUNT; wi++) {
+      bld::FortParts f = bld::fortDefaults((art::CityWall)wi);
+      f.tower = (bld::TowerForm)ti;
+      f.roof = (ti == (int)bld::TowerForm::Square) ? rgba(178, 82, 54) : 0;
+      // an L: a run east-west with its end free (an end tower), a corner tower, a run north
+      WallGrid g(14, 8);
+      for (int x = 1; x < 13; x++) g.set(x, 6, 1);
+      for (int y = 1; y <= 6; y++) g.set(12, y, 1);
+      std::vector<uint32_t> keys;
+      art::wallKeys(g.wall.data(), g.W, g.H, nullptr, 0, keys);
+      Canvas cv(14 * 16 + 64, 8 * 16 + 96);
+      const int ox = 32, oy = 80;
+      auto put = [&](const Canvas& s, int x, int y) {
+        for (int j = 0; j < s.h; j++)
+          for (int i = 0; i < s.w; i++) if (opaque(s.get(i, j))) cv.set(x + i, y + j, s.get(i, j));
+      };
+      int towersN = 0;
+      for (int y = 0; y < g.H; y++)
+        for (int pass = 0; pass < 2; pass++)
+          for (int x = 0; x < g.W; x++) {
+            const uint32_t k = keys[(size_t)y * g.W + x];
+            if (!k || ((k & art::WALL_BIT_TOWER) != 0) != (pass == 1)) continue;
+            if (k & art::WALL_BIT_TOWER) towersN++;
+            put(art::wallTile(k, f), ox + x * 16 - art::WALL_OX, oy + y * 16 - art::WALL_OY);
+          }
+      runs++;
+      // every wall tile's footprint is covered (a tower caps its tile whole) and the east-west run shows no column gap
+      int unc = 0;
+      for (int y = 0; y < g.H; y++)
+        for (int x = 0; x < g.W; x++) {
+          if (!keys[(size_t)y * g.W + x]) continue;
+          // the tile's top row on screen sits between its top (z = walk) and its foot: count covered pixels in its box
+          int n = 0;
+          for (int j = 0; j < 16; j++)
+            for (int i = 0; i < 16; i++) if (opaque(cv.get(ox + x * 16 + i, oy + y * 16 + j - 8))) n++;
+          if (n < 16 * 16 * 3 / 4) unc++;
+        }
+      const int walk = art::wallWalkHeight(f);
+      int gaps = 0, firstGap = -1;
+      for (int px = 2 * 16; px < 11 * 16; px++) {   // (the corner tile is bevelled by design)
+        int n = 0;
+        for (int y = oy + 7 * 16 - walk - 2; y < oy + 7 * 16; y++) if (opaque(cv.get(ox + px, y))) n++;
+        if (n < walk - 2) { gaps++; if (firstGap < 0) firstGap = px; }
+      }
+      if (unc || gaps || towersN < 2) {
+        std::printf("FAIL: tower %s on %s: %d uncovered tiles, %d gap columns (first x %d), %d towers\n", towerFormName((bld::TowerForm)ti), wallName((art::CityWall)wi), unc, gaps, firstGap, towersN);
+        bad++;
+      }
+    }
+  // and the cultures' own choices: every archetype x town / city / capital, its gate and towers on its walls
+  for (int a = 0; a < (int)Archetype::COUNT; a++)
+    for (int u = 0; u <= 3; u++) {
+      const cult::Culture c = cult::Atlas::make((Archetype)a, 4000u + (uint32_t)a, 2);
+      const bld::FortParts f = bld::fortParts(c, u, 11u);
+      const Canvas gh = art::gateHouse(7, c.heraldry, f);
+      bool any = false;
+      for (uint32_t p : gh.px) if (p >> 24) { any = true; break; }
+      if (!any) { std::printf("FAIL: %s urban %d: empty gate\n", nameOf((Archetype)a), u); bad++; }
+    }
+  std::printf("culture_gallery --check: %d wall runs (every gate form x wall x 3 cultures, every tower form x wall), %d failure(s)\n", runs, bad);
+  return bad ? 1 : 0;
+}
+
 // a sheet of 12 random cultures (engine archetype and seed), one street each
 Canvas randomSheet() {
   Board b(16 + 7 * 100, 16 + 12 * 110);
@@ -410,8 +666,33 @@ int lab(const std::string& dir, int argc, char** argv, int ai) {
 
 int main(int argc, char** argv) {
   int ai = 1;
+  if (argc > ai && !std::strcmp(argv[ai], "--check")) return fortCheck();
   if (argc > ai && !std::strcmp(argv[ai], "--hand")) { g_hand = true; ai++; }
   const std::string dir = argc > ai ? argv[ai] : ".";
+  // (M3b forts) culture_gallery <dir> forts [archetype]: forts_<archetype>.png (3x) + _1x, forms.png (every gate and
+  // tower form, 1x and 3x)
+  if (argc > ai + 1 && !std::strcmp(argv[ai + 1], "forts")) {
+    const std::string only = argc > ai + 2 ? argv[ai + 2] : "";
+    for (int i = 0; i < (int)Archetype::COUNT; i++) {
+      if (!only.empty() && only != std::to_string(i) && only != nameOf((Archetype)i)) continue;
+      std::string name = nameOf((Archetype)i);
+      for (char& ch : name) if (ch == '-') ch = '_';
+      const Canvas c = fortBoard((Archetype)i);
+      savePng(c, dir + "/forts_" + name + "_1x.png", 1);
+      savePng(c, dir + "/forts_" + name + ".png", 3);
+    }
+    if (only.empty() || only == "forms") {
+      const Canvas f = formsBoard();
+      savePng(f, dir + "/forms_1x.png", 1);
+      savePng(f, dir + "/forms.png", 3);
+    }
+    if (only.empty() || only == "props") {
+      const Canvas f = streetPropsBoard();
+      savePng(f, dir + "/streetprops_1x.png", 1);
+      savePng(f, dir + "/streetprops.png", 3);
+    }
+    return 0;
+  }
   if (argc > ai + 5 && !std::strcmp(argv[ai + 1], "lab")) return lab(dir, argc, argv, ai + 2);
   std::string only = argc > ai + 1 ? argv[ai + 1] : "";
   for (int i = 0; i < (int)Archetype::COUNT; i++) {

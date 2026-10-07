@@ -41,6 +41,8 @@ struct SettlementOut {
   std::vector<std::pair<int, int>> gates;    // gatehouses (local: left tile of the 3-wide opening)
   std::vector<IRect> wallGaps;               // wall openings (local)
   std::vector<uint8_t> used;                 // per buf tile: 1 = part of the town (vegetation and roads keep off)
+  std::vector<int> pools;                    // (M3b fixer) buf tiles of the grounds' formal water (a seat court's pools,
+                                             // canals and rills): cut-stone kerbs, Map::POOL_MARK (the view)
   int32_t ex = 0, ey = 0;                    // the heart (global): square or green
   // counts for rpg_test's scale checks (VISION_PLAN 15.8: villages 10-15 houses, towns 40-60, cities 160-220)
   int homes = 0;

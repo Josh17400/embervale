@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include "rpg/art/art_parts.h"
 #include "rpg/sim/deco.h"
 #include "rpg/view/prop_traits.h"
 #include "rpg/view/view.h"
@@ -48,6 +49,10 @@ Canvas paintMineHill(uint64_t key) { return art::mineHill((int)(key & 3), (int)(
 Canvas paintRuin(uint64_t key) { return art::ruinVariant((Prop)((key >> 8) & 255), (int)(key & 255)); }
 Canvas paintTallGrass(uint64_t key) { return art::tallGrassVariant((int)(key & 15)); }
 Canvas paintBoulder(uint64_t key) { return art::boulderVariant((int)(key & 15)); }
+// (M3b) a standing stone: variant (low 4 bits) in the culture (bits 8..15: archetype + 1, 0 the land's field stone)
+Canvas paintStandingStone(uint64_t key) {
+  return art::standingStoneVariant((int)(key & 15), bld::standingStoneParts((int)((key >> 8) & 255), (uint32_t)(key & 15) * 2654435761u));
+}
 Canvas paintPeak(uint64_t key) { return art::peakVariant((int)(key & 7) + ((key >> 5) & 1 ? 8 : 0), (int)((key >> 3) & 3)); }
 // M2: a peak's land: snow-capped in the cold or on the highest ground, sandstone in the desert, grey rock elsewhere
 int peakLand(const Map& m, int tx, int ty) {
@@ -243,9 +248,9 @@ void View::perfTick(float dt) {
   perf_.worstFrameMs = std::max(perf_.worstFrameMs, (double)dt * 1000.0);
   perf_.t += dt;
   if (perf_.t < 1.0f) return;
-  std::printf("perf: frame avg %.1f ms worst %.1f ms | bakes %d (+%d inline) %.1f ms, worst %.1f ms | chunks %zu, bldg tex %zu, humans %zu, wall tiles %zu\n",
+  std::printf("perf: frame avg %.1f ms worst %.1f ms | bakes %d (+%d inline) %.1f ms, worst %.1f ms | chunks %zu, bldg tex %zu, humans %zu, wall tiles %zu, styled props %zu, gates+banners %zu\n",
               perf_.frameMs / std::max(1, perf_.frames), perf_.worstFrameMs, perf_.bakes, perf_.inlineBakes, perf_.bakeMs, perf_.worstBakeMs,
-              chunks_.size(), bldgTex_.size(), humans_.size(), wallTiles_.size());
+              chunks_.size(), bldgTex_.size(), humans_.size(), wallTiles_.size(), styledProps_.size(), kingdomTex_.size());
   std::fflush(stdout);
   perf_ = Perf();
 }
@@ -270,12 +275,16 @@ static art::ArchStyle bldgStyle(const Map& m, const Bldg& b) {
     return art::withRoofTint(art::urbanize(art::archForBiome(archBiomeOverride(), b.seed), b.urban, b.seed), b.roof);
   return bldgArch(b);
 }
+// M3b: the builder's request for a building as the view paints it (the style override above applied), and its
+// blueprint: every building sprite is painted from its blueprint (rpg/build/blueprint.h)
+static bld::Request bldgViewRequest(const Map& m, const Bldg& b) {
+  bld::Request r = bldgRequest(b);
+  r.style = bldgStyle(m, b);
+  return r;
+}
 uint64_t View::bldgKey(const Map& m, const Bldg& b, int index) const {
-  uint64_t k = bldgStyle(m, b).key();
+  uint64_t k = bldgViewRequest(m, b).key();
   k ^= (uint64_t)index * 0x9E3779B97F4A7C15ull;
-  k ^= ((uint64_t)b.r.w << 8 | (uint64_t)b.r.h << 16 | (uint64_t)b.type << 24 | (uint64_t)b.seed << 32);
-  k ^= ((uint64_t)b.storeys << 1 | (uint64_t)(b.hearth ? 1 : 0)) * 0xC2B2AE3D27D4EB4Full;   // M0b facts
-  k ^= ew::mix64(((uint64_t)b.banner << 32 | b.banner2) ^ ((uint64_t)b.emblem << 56));     // M1 kingdom banner
   return k;
 }
 // A building sprite and what the renderer reads off it (chimney mouths, the first opaque row, the lit-window night
@@ -284,7 +293,7 @@ uint64_t View::bldgKey(const Map& m, const Bldg& b, int index) const {
 View::BldgPaint View::paintBldg(const Bldg& b, uint64_t key) {
   static const Map empty;
   art::BuildingInfo info;
-  Canvas c = art::buildingSprite(b.type, b.r.w, b.r.h, bldgStyle(empty, b), b.seed, &info, bldgFacts(b));
+  Canvas c = art::buildingSprite(bld::design(bldgViewRequest(empty, b)), &info);
   return paintBldgPost(std::move(c), info, key, b.seed);
 }
 View::BldgPaint View::paintBldgPost(Canvas canvas, art::BuildingInfo& info, uint64_t key, uint32_t seed) {
@@ -399,7 +408,7 @@ bool View::bldgPaintStep(const Bldg& b, int index, double budgetMs) {
     BldgJob nj;
     nj.key = k;
     nj.seed = b.seed;
-    nj.job = art::beginBuilding(b.type, b.r.w, b.r.h, bldgStyle(empty, b), b.seed, bldgFacts(b));
+    nj.job = art::beginBuilding(bld::design(bldgViewRequest(empty, b)));
     bldgJobs_.push_back(std::move(nj));
     J = &bldgJobs_.back();
   }
@@ -434,7 +443,8 @@ bool View::bldgPaintStep(const Bldg& b, int index, double budgetMs) {
 
 bool View::windowsLit(const Game& g, const Bldg& b) const {
   if (g.inside || g.daylight() > 0.55f) return false;
-  if (b.type == art::Building::Inn || b.type == art::Building::Temple || b.type == art::Building::Keep) return true;   // never all asleep
+  // never all asleep: inns, temples, keeps and (M3b) the seat of power, whatever the society builds it as
+  if (b.type == art::Building::Inn || b.type == art::Building::Temple || b.type == art::Building::Keep || bldgIsSeat(b)) return true;
   // households go to bed: fewer windows lit deep in the night, each house on its own schedule
   uint32_t h = hash32((uint32_t)(b.seed + g.day * 7919u));
   float bed = 22.0f + (h % 5);   // 22..26 (26 = past 2 o'clock)
@@ -442,10 +452,52 @@ bool View::windowsLit(const Game& g, const Bldg& b) const {
   if (hr > bed && hr < 29.5f) return false;
   return h % 4 != 0;
 }
+// (M3b) a wall tile's texture key: the key itself (M3 look), or the key without its look slot mixed with the look's
+// parts (the slot's meaning changes from window to window; the parts do not)
+uint64_t View::wallTexKey(uint32_t key) const {
+  const uint32_t slot = (key & art::WALL_LOOK_MASK) >> art::WALL_LOOK_SHIFT;
+  if (!slot || slot >= fortLooks_.size()) return key & ~art::WALL_LOOK_MASK;
+  return (ew::mix64(((uint64_t)(key & ~art::WALL_LOOK_MASK) << 20) ^ bld::fortKey(fortLooks_[slot])) | (1ull << 63));
+}
 const Tex& View::wallTileTex(uint32_t key) {
-  auto it = wallTiles_.find(key);
+  const uint64_t ck = wallTexKey(key);
+  auto it = wallTiles_.find(ck);
   if (it != wallTiles_.end()) return it->second;
-  return wallTiles_[key] = pix_->bake(art::wallTile(key));
+  const uint32_t slot = (key & art::WALL_LOOK_MASK) >> art::WALL_LOOK_SHIFT;
+  const Canvas c = slot && slot < fortLooks_.size() ? art::wallTile(key, fortLooks_[slot]) : art::wallTile(key & ~art::WALL_LOOK_MASK);
+  return wallTiles_[ck] = pix_->bake(c);
+}
+// (M3b) a settlement's fortifications from its culture (urban: village 0, town 1, city 2, capital 3)
+bool View::fortPartsOfSite(const Game& g, int site, bld::FortParts& out) const {
+  if (site < 0 || site >= (int)g.world.sites.size()) return false;
+  const Site& s = g.world.sites[(size_t)site];
+  if (!s.settlement()) return false;
+  const cult::Culture* c = g.world.cultureOf(site);
+  if (!c) return false;
+  const int urban = s.capital ? 3 : (s.type == SiteType::City ? 2 : (s.type == SiteType::Town ? 1 : 0));
+  out = bld::fortParts(*c, urban, s.seed);
+  return true;
+}
+const Tex& View::fortGateTex(const cult::Heraldry& arms, const bld::FortParts& f) {
+  const uint64_t key = ew::mix64(arms.key() ^ (bld::fortKey(f) * 0x9E3779B97F4A7C15ull) ^ 0x6A7E5ull);
+  auto it = kingdomTex_.find(key);
+  if (it != kingdomTex_.end()) return it->second;
+  return kingdomTex_[key] = pix_->bake(art::gateHouse(7, arms, f));
+}
+// (M3b) the culture of the land at a tile for the wayside's built props: its settlement's, else its region's
+const art::PropStyle* View::landStyleAt(const Game& g, int tx, int ty) {
+  static const art::PropStyle classic;
+  if (!g.world.endless) return &classic;
+  const art::PropStyle* ps = propStyleAt(g, tx, ty);
+  if (!ps->classic()) return ps;
+  const uint64_t wid = (uint64_t)g.world.seed * 0x9E3779B97F4A7C15ull ^ (uint64_t)(uintptr_t)&g.world;
+  if (wid != landStyleWorld_ || landStyle_.size() > 4096) { landStyleWorld_ = wid; landStyle_.clear(); }
+  const int32_t gx = tx + g.world.ox, gy = ty + g.world.oy;
+  const uint64_t bk = ((uint64_t)(uint32_t)(gx >> 3) << 32) | (uint32_t)(gy >> 3);
+  auto it = landStyle_.find(bk);
+  if (it != landStyle_.end()) return &it->second;
+  const cult::Culture* c = g.world.cultureAtTile(tx, ty);
+  return &(landStyle_[bk] = c ? c->props : classic);
 }
 
 // kingdom-coloured sprites, cached per kingdom look: kind 0 the standing banner, 1 the gatehouse (with its seed)
@@ -848,8 +900,12 @@ void View::drawWorld(Game& g) {
     wallKeys_.clear();
     if (any) {
       auto it = wallKeyCache_.find(wallId);
-      if (it != wallKeyCache_.end() && it->second.size() == (size_t)m.w * m.h) wallKeys_ = it->second;
-      else {
+      if (it != wallKeyCache_.end() && it->second.size() == (size_t)m.w * m.h) {
+        wallKeys_ = it->second;
+        auto fl = fortLookCache_.find(wallId);
+        fortLooks_ = fl != fortLookCache_.end() ? fl->second : std::vector<bld::FortParts>(1);
+      } else {
+        fortLooks_.assign(1, bld::FortParts{});
         if (m.kind == MapKind::Overworld) {
           art::wallKeys(m.wall.data(), m.w, m.h, g.world.gates.data(), (int)g.world.gates.size(), wallKeys_);
           // a river under the wall (WORLDGEN_V5 keeps its water there): no tower standing in it, and a water gate in
@@ -912,21 +968,60 @@ void View::drawWorld(Game& g) {
                 }
             }
           }
+          // (M3b forts) each settlement's walls in its culture's parts: a look slot per settlement in the key's bits
+          // 29..31 (art::WALL_LOOK_*), up to seven settlements per window (more: the wall style's defaults)
+          if (g.world.endless) {
+            std::unordered_map<uint64_t, int> blockSlot;   // 8 x 8-tile block -> slot (-1: none)
+            std::unordered_map<int, int> siteSlot;
+            for (int y = 0; y < m.h; y++)
+              for (int x = 0; x < m.w; x++) {
+                uint32_t& k = wallKeys_[(size_t)y * m.w + x];
+                if (!k) continue;
+                const uint64_t bk = (uint64_t)(uint32_t)(x >> 3) << 32 | (uint32_t)(y >> 3);
+                auto bi = blockSlot.find(bk);
+                int slot = -1;
+                if (bi != blockSlot.end()) slot = bi->second;
+                else {
+                  int site = -1;
+                  for (int i = 0; i < (int)g.world.sites.size() && site < 0; i++) {
+                    const Site& S = g.world.sites[(size_t)i];
+                    if (!S.settlement()) continue;
+                    const IRect& r = S.r;
+                    if (x >= r.x - 10 && y >= r.y - 10 && x < r.x + r.w + 10 && y < r.y + r.h + 10) site = i;
+                  }
+                  if (site >= 0) {
+                    auto si = siteSlot.find(site);
+                    if (si != siteSlot.end()) slot = si->second;
+                    else {
+                      bld::FortParts fp;
+                      if (fortLooks_.size() < 8 && fortPartsOfSite(g, site, fp)) { slot = (int)fortLooks_.size(); fortLooks_.push_back(fp); }
+                      siteSlot[site] = slot;
+                    }
+                  }
+                  blockSlot[bk] = slot;
+                }
+                if (slot > 0) k = (k & ~art::WALL_LOOK_MASK) | ((uint32_t)slot << art::WALL_LOOK_SHIFT);
+              }
+          }
         } else art::wallKeys(m.wall.data(), m.w, m.h, nullptr, 0, wallKeys_);
-        if (wallKeyCache_.size() > 4) wallKeyCache_.clear();
+        if (wallKeyCache_.size() > 4) { wallKeyCache_.clear(); fortLookCache_.clear(); }
         wallKeyCache_[wallId] = wallKeys_;
+        fortLookCache_[wallId] = fortLooks_;
       }
     }
     wallTodo_.clear();
+    // (M3b) the texture caches stay bounded: a long journey through many cultures repaints rather than hoards
+    if (wallTiles_.size() > 1500) wallTiles_.clear();
+    if (styledProps_.size() > 900) styledProps_.clear();
     std::unordered_map<uint32_t, bool> queued;
     for (uint32_t k : wallKeys_)
-      if (k && !wallTiles_.count(k) && !queued.count(k)) { queued[k] = true; wallTodo_.push_back(k); }
+      if (k && !wallTiles_.count(wallTexKey(k)) && !queued.count(k)) { queued[k] = true; wallTodo_.push_back(k); }
   }
   // wall tiles not seen yet are painted ahead, one per frame (the ones on screen are painted on first use anyway)
   while (!wallTodo_.empty()) {
     uint32_t k = wallTodo_.back();
     wallTodo_.pop_back();
-    if (!wallTiles_.count(k)) { wallTileTex(k); break; }
+    if (!wallTiles_.count(wallTexKey(k))) { wallTileTex(k); break; }
   }
   // collect drawables
   std::vector<Drawable> list;
@@ -1082,7 +1177,8 @@ void View::drawWorld(Game& g) {
         if (p == Prop::MarketStall && m.kind == MapKind::Overworld) {
           const int32_t gx = d.tx + (m.kind == MapKind::Overworld ? g.world.ox : 0), gy = d.ty + (m.kind == MapKind::Overworld ? g.world.oy : 0);
           const uint32_t h = hash2(gx, gy, 6151);
-          tp = &cachedTex(0x02ull << 56 | (uint64_t)(h % 36), paintStall);
+          const art::PropStyle* ps = g.mode == Mode::Title ? nullptr : propStyleAt(g, d.tx, d.ty);
+          tp = ps && !ps->classic() ? &styledPropTex(p, *ps) : &cachedTex(0x02ull << 56 | (uint64_t)(h % 36), paintStall);   // (M3b) the culture's
         }
         // (M1 economy) a trade's stall: the awning cloth steps along a row (a stall three tiles on wears the next
         // cloth, so neighbours never match), and differs between rows and squares
@@ -1115,14 +1211,28 @@ void View::drawWorld(Game& g) {
         if ((p == Prop::MarketTable || p == Prop::GroundCloth) && m.kind == MapKind::Overworld) {
           const int32_t gx = d.tx + g.world.ox, gy = d.ty + g.world.oy;
           const uint64_t k = (uint64_t)(vendorOpen ? 0 : 1) << 8;
-          if (p == Prop::MarketTable) tp = &cachedTex(0x05ull << 56 | k | (uint64_t)ew::tableShadeAt(gx, gy) << 4 | (uint64_t)ew::tableGoodsAt(gx, gy), paintMarketTable);
+          const art::PropStyle* ps = g.mode == Mode::Title ? nullptr : propStyleAt(g, d.tx, d.ty);
+          if (ps && !ps->classic()) {   // (M3b) the culture's cloths and timber, the layout and goods untouched
+            const bool table = p == Prop::MarketTable;
+            const int a1 = table ? ew::tableGoodsAt(gx, gy) : ew::clothGoodsAt(gx, gy), a2 = table ? ew::tableShadeAt(gx, gy) : ew::clothColourAt(gx, gy);
+            const uint64_t k2 = ew::mix64(ps->key() ^ ((uint64_t)(table ? 1 : 2) << 56) ^ k ^ ((uint64_t)a2 << 4) ^ (uint64_t)a1 ^ 0x7AB1Eull);
+            auto it = styledProps_.find(k2);
+            tp = it != styledProps_.end() ? &it->second
+                                          : &(styledProps_[k2] = pix_->bake(table ? art::marketTableStyled(a1, a2, !vendorOpen, *ps) : art::groundClothStyled(a1, a2, !vendorOpen, *ps)));
+          } else if (p == Prop::MarketTable) tp = &cachedTex(0x05ull << 56 | k | (uint64_t)ew::tableShadeAt(gx, gy) << 4 | (uint64_t)ew::tableGoodsAt(gx, gy), paintMarketTable);
           else tp = &cachedTex(0x06ull << 56 | k | (uint64_t)ew::clothColourAt(gx, gy) << 4 | (uint64_t)ew::clothGoodsAt(gx, gy), paintGroundCloth);
         }
         // (M1 fixer round 2) the mine hill: its shape by its tile, its top by its land (snow, dry grass or green)
         if (p == Prop::MineHill && m.kind == MapKind::Overworld) {
           const Biome bb = m.biomeAt(d.tx, d.ty);
           const int land = bb == Biome::Snow || bb == Biome::Taiga || bb == Biome::Mountain ? 1 : (bb == Biome::Desert ? 2 : 0);
-          tp = &cachedTex(0x08ull << 56 | (uint64_t)land << 2 | (uint64_t)(hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6211) & 3u), paintMineHill);
+          const uint32_t mv = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6211) & 3u;
+          const art::PropStyle* ps = g.mode == Mode::Title ? nullptr : propStyleAt(g, d.tx, d.ty);
+          if (ps && !ps->classic()) {   // (M3b) its adit timbered in the culture's wood
+            const uint64_t k2 = ew::mix64(ps->key() ^ (0x08ull << 56) ^ ((uint64_t)land << 2) ^ mv ^ 0x3111ull);
+            auto it = styledProps_.find(k2);
+            tp = it != styledProps_.end() ? &it->second : &(styledProps_[k2] = pix_->bake(art::mineHillStyled((int)mv, land, *ps)));
+          } else tp = &cachedTex(0x08ull << 56 | (uint64_t)land << 2 | (uint64_t)mv, paintMineHill);
         }
         // (M1 fixer round 2) the mine's track joins its neighbours (and runs in under the adit's frame)
         if (p == Prop::MineRail) {
@@ -1150,20 +1260,35 @@ void View::drawWorld(Game& g) {
             // (M3) the kingdom's full arms where its culture gives them, else its two colours and emblem
             const cult::Culture* kc = g.world.cultureOfKingdom(g.world.sites[(size_t)bs].kingdom);
             tp = (kc && !kc->heraldry.empty()) ? &heraldryTex(0, kc->heraldry, 0, 0) : &kingdomTex(0, *k, 0);
+          } else {   // (M3b) no kingdom: the culture's own banner
+            const art::PropStyle* ps = propStyleAt(g, d.tx, d.ty);
+            if (!ps->classic()) tp = &styledPropTex(p, *ps);
           }
         }
         // (M3) the settlement's culture styles its fences, wells, lamps, benches, statues, shrines and fire bowls
-        if (m.kind == MapKind::Overworld && g.mode != Mode::Title && p != Prop::Banner && !art::isStall(p) && p != Prop::MarketStall && art::propStyled(p)) {
-          const art::PropStyle* ps = propStyleAt(g, d.tx, d.ty);
+        if (m.kind == MapKind::Overworld && g.mode != Mode::Title && p != Prop::Banner && !art::isStall(p) && p != Prop::MarketStall &&
+            p != Prop::MarketTable && p != Prop::GroundCloth && p != Prop::MineHill && p != Prop::StandingStone && art::propStyled(p)) {
+          // (M3b) the wayside's built props (signposts, toll posts, graves) in the land's culture, the rest in their settlement's
+          const bool wayside = p == Prop::Signpost || p == Prop::TollPost || p == Prop::GraveCairn || p == Prop::Gravestone || p == Prop::Shrine;
+          const art::PropStyle* ps = wayside ? landStyleAt(g, d.tx, d.ty) : propStyleAt(g, d.tx, d.ty);
           if (!ps->classic()) tp = &styledPropTex(p, *ps);
           // (M3 fixer round 2) a dry-stone dyke joins its neighbours: one wall of one height, closed L / T corners
-          if (!ps->classic() && ps->fence == art::Fence::StoneDyke && (p == Prop::FenceH || p == Prop::FenceV)) {
+          // (M3b round 3) and so does a clipped hedge (a broken corner and a flat summer-green strip before), snow on
+          // its top in the cold where the trees carry snow
+          const bool hedge = !ps->classic() && ps->fence == art::Fence::Hedge;
+          if (!ps->classic() && (ps->fence == art::Fence::StoneDyke || hedge) && (p == Prop::FenceH || p == Prop::FenceV)) {
             auto fz = [&](int x, int y) { const int q = m.propAt(x, y); return q == (int)Prop::FenceH + 1 || q == (int)Prop::FenceV + 1; };
             int mask = (fz(d.tx, d.ty - 1) ? 1 : 0) | (fz(d.tx + 1, d.ty) ? 2 : 0) | (fz(d.tx, d.ty + 1) ? 4 : 0) | (fz(d.tx - 1, d.ty) ? 8 : 0);
             if (!(mask & 10) && !(mask & 5)) mask = p == Prop::FenceH ? 10 : 5;   // a lone piece keeps its run's axis
-            const uint64_t k = ew::mix64(ps->key() ^ ((uint64_t)(0x40 + mask) << 48) ^ 0xD7CEull);
+            bool snow = false;
+            if (hedge) {
+              const Biome hb = m.biomeAt(d.tx, d.ty);
+              snow = hb == Biome::Snow || m.at(d.tx, d.ty) == Ground::Snow || (hb == Biome::Taiga && m.heightAt(d.tx, d.ty) >= 4);
+            }
+            const uint64_t k = ew::mix64(ps->key() ^ ((uint64_t)(0x40 + mask + (hedge ? 16 : 0) + (snow ? 32 : 0)) << 48) ^ 0xD7CEull);
             auto it = styledProps_.find(k);
-            const Tex& dt = it != styledProps_.end() ? it->second : (styledProps_[k] = pix_->bake(art::dykePiece(mask, *ps)));
+            const Tex& dt = it != styledProps_.end() ? it->second
+                                                     : (styledProps_[k] = pix_->bake(hedge ? art::hedgePiece(mask, *ps, snow) : art::dykePiece(mask, *ps)));
             P.blit(dt, d.tx * 16.0f - cam.x, d.ty * 16.0f + 16.0f - 24.0f - cam.y);
             break;
           }
@@ -1175,6 +1300,13 @@ void View::drawWorld(Game& g) {
         }
         // (M2 fixer round 2) the wild's commonest props in variants by their global tile, some flipped
         bool flipVar = false;
+        // (M3b) every standing stone of a ring is its own stone (height, lean, top, lichen), in its land's culture
+        if (p == Prop::StandingStone && m.kind == MapKind::Overworld) {
+          const uint32_t h = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6257);
+          const art::PropStyle* ps = g.mode == Mode::Title ? nullptr : landStyleAt(g, d.tx, d.ty);
+          const int cul = ps ? (int)ps->culture : 0;
+          tp = &cachedTex(0x0Cull << 56 | (uint64_t)cul << 8 | (uint64_t)(h & 15u), paintStandingStone);   // (never flipped: the light)
+        }
         if ((p == Prop::TallGrass || p == Prop::Boulder) && m.kind == MapKind::Overworld) {
           const uint32_t h = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6241);
           tp = &cachedTex((p == Prop::TallGrass ? 0x0Aull : 0x0Bull) << 56 | (uint64_t)(h & 15u), p == Prop::TallGrass ? paintTallGrass : paintBoulder);
@@ -1299,7 +1431,16 @@ void View::drawWorld(Game& g) {
         if (m.in(d.tx - 1, d.ty) && m.wall[(size_t)d.ty * m.w + d.tx - 1] > 1) ws = m.wall[(size_t)d.ty * m.w + d.tx - 1] - 1;
         else if (m.in(d.tx + 3, d.ty) && m.wall[(size_t)d.ty * m.w + d.tx + 3] > 1) ws = m.wall[(size_t)d.ty * m.w + d.tx + 3] - 1;
         const int gs = g.world.siteAt(d.tx + 1, d.ty, 3);
-        if (const Kingdom* k = g.world.kingdomOf(gs)) {
+        bld::FortParts fp;
+        if (fortPartsOfSite(g, gs, fp)) {   // (M3b) the gate in its culture's form, flying its kingdom's arms
+          cult::Heraldry arms;
+          if (const Kingdom* k = g.world.kingdomOf(gs)) {
+            const cult::Culture* kc = g.world.cultureOfKingdom(g.world.sites[(size_t)gs].kingdom);
+            if (kc && !kc->heraldry.empty()) arms = kc->heraldry;
+            else { arms.field = k->color; arms.charge = k->color2; arms.emblem = k->emblem; }
+          }
+          gt = &fortGateTex(arms, fp);
+        } else if (const Kingdom* k = g.world.kingdomOf(gs)) {
           const cult::Culture* kc = g.world.cultureOfKingdom(g.world.sites[(size_t)gs].kingdom);
           if (kc && !kc->heraldry.empty()) gt = &heraldryTex(1, kc->heraldry, 7, ws);
           else if (ws) { cult::Heraldry h; h.field = k->color; h.charge = k->color2; h.emblem = k->emblem; gt = &heraldryTex(1, h, 7, ws); }
@@ -1536,6 +1677,14 @@ void View::drawLighting(Game& g) {
       Color mid = evening ? dusk : mixC(Color(1.0f, 0.82f, 0.7f), Color(0.90f, 0.86f, 0.90f));
       amb = day > 0.5f ? Color(lerpf(mid.r, 1, (day - 0.5f) * 2), lerpf(mid.g, 1, (day - 0.5f) * 2), lerpf(mid.b, 1, (day - 0.5f) * 2))
                        : Color(lerpf(night.r, mid.r, day * 2), lerpf(night.g, mid.g, day * 2), lerpf(night.b, mid.b, day * 2));
+    }
+    // (M3b round 3) the golden hour: from mid-afternoon the light warms and lowers (it stayed at full noon until 18:00
+    // and barely moved by 19:00), deepest round sunset, giving way to the dusk grade as the light goes
+    if (evening && h > 16.0f && h < 21.0f) {
+      auto sm = [](float t) { t = clampf(t, 0, 1); return t * t * (3 - 2 * t); };
+      const float w = 0.5f * sm((h - 16.0f) / 2.5f) * (1.0f - sm((h - 19.5f) / 1.5f));
+      const Color warm = mixC(Color(1.0f, 0.80f, 0.60f), Color(0.92f, 0.80f, 0.90f));
+      amb = Color(amb.r * lerpf(1, warm.r, w), amb.g * lerpf(1, warm.g, w), amb.b * lerpf(1, warm.b, w));
     }
   }
   if (amb.r > 0.99f && amb.g > 0.99f && amb.b > 0.99f) return;

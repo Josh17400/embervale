@@ -3,15 +3,17 @@
 // painted per tile with baked building and wall shadows, so layouts, walls, gates, districts and palaces can be judged
 // at 1x and zoomed without starting the game.
 //   town_gallery <outDir> [--seed N] [--type village|town|city|capital|all] [--arch NAME] [--land plains|river|hill|coast]
-//                [--night]
+//                [--night] [--culture NAME]
 //       writes <type>_<arch>_<land>_s<seed>.png (1x, the whole buffer) and ..._heart / _gate / _palace / _quarter crops
-//       (3x), plus heraldry.png (the eight charges on banners in four kingdoms' colours, gatehouses, palaces, barracks)
+//       (3x; M3b: _palace crops the royal seat, whatever its society built it as), plus heraldry.png (the eight charges on banners in four kingdoms' colours, gatehouses, palaces, barracks)
 //   town_gallery <outDir> heraldry      only the heraldry panel
 #include <algorithm>
+#include "rpg/build/blueprint.h"
 #include <chrono>
 #include <cstring>
 #include <map>
 #include <string>
+#include "rpg/culture/culture.h"
 #include "rpg/sim/world.h"
 #include "rpg/world/dmath.h"
 #include "rpg/world/settlement.h"
@@ -72,7 +74,7 @@ uint32_t groundPx(Ground g, int px, int py) {
   }
 }
 
-struct Spec { SiteType type; bool capital; ew::Archetype arch; int land; uint32_t seed; };
+struct Spec { SiteType type; bool capital; ew::Archetype arch; int land; uint32_t seed; int culture = -1; };
 const char* archNames[] = {"plain", "farming", "fishing", "port", "mining", "rivercrossing", "hillfort", "market"};
 const char* landNames[] = {"plains", "river", "hill", "coast"};
 
@@ -95,6 +97,9 @@ void build(const Spec& sp, ew::SitePlan& p, ew::KingdomPlan& k, ew::SettlementOu
   ctx.plan = &p;
   ctx.kingdom = &k;
   ctx.rx = 3; ctx.ry = -8;
+  // M3b: a culture's settlement (cult::Atlas::make, as rpg_test --towns builds its culture cases)
+  static cult::Culture K;
+  if (sp.culture >= 0) { K = cult::Atlas::make((cult::Archetype)sp.culture, (uint32_t)ew::mix64(sp.seed ^ 0xC17u), 2); ctx.culture = &K; }
   Rng r(sp.seed * 31 + 7);
   int nr = sp.type == SiteType::Village ? 2 : 3;
   float a0 = r.f() * ew::D_TAU;
@@ -136,7 +141,7 @@ Canvas render(const ew::SettlementOut& so, const ew::KingdomPlan& k, bool night)
   std::vector<art::BuildingInfo> infos(m.bldgs.size());
   for (size_t i = 0; i < m.bldgs.size(); i++) {
     const Bldg& b = m.bldgs[i];
-    sprites[i] = art::buildingSprite(b.type, b.r.w, b.r.h, bldgArch(b), b.seed, &infos[i], bldgFacts(b));
+    sprites[i] = art::buildingSprite(bldgBlueprint(b), &infos[i]);
     int fx = b.r.x * 16, fy = b.r.y * 16, fw = b.r.w * 16, fh = b.r.h * 16;
     int L = std::clamp(infos[i].height / 4, 6, 14), Ly = std::max(3, L * 3 / 5);
     for (int y = fy; y < fy + fh + Ly + 2; y++)
@@ -239,14 +244,14 @@ void town(const std::string& dir, const Spec& sp, bool night) {
   build(sp, p, k, so);
   Canvas c = render(so, k, night);
   char base[200];
-  std::snprintf(base, sizeof base, "%s/%s_%s_%s_s%u%s", dir.c_str(), sp.capital ? "capital" : siteTypeName(sp.type), archNames[(int)sp.arch],
-                landNames[sp.land], sp.seed, night ? "_night" : "");
+  std::snprintf(base, sizeof base, "%s/%s_%s_%s%s%s_s%u%s", dir.c_str(), sp.capital ? "capital" : siteTypeName(sp.type), archNames[(int)sp.arch],
+                landNames[sp.land], sp.culture >= 0 ? "_" : "", sp.culture >= 0 ? cult::archetypeName((cult::Archetype)sp.culture) : "", sp.seed, night ? "_night" : "");
   savePng(c, std::string(base) + ".png", 1);
   const int hx = (so.ex - so.gx) * 16, hy = (so.ey - so.gy) * 16;
   crop(c, hx, hy, 400, 240, std::string(base) + "_heart.png");
   if (!so.gates.empty()) crop(c, so.gates[0].first * 16 + 24, so.gates[0].second * 16, 400, 240, std::string(base) + "_gate.png");
   for (const Bldg& b : so.buf.bldgs)
-    if (b.type == Building::Palace) crop(c, b.r.cx() * 16, (b.r.y + b.r.h + 4) * 16, 520, 400, std::string(base) + "_palace.png");
+    if (bldgIsRoyalSeat(b)) crop(c, b.r.cx() * 16, (b.r.y + b.r.h + 4) * 16, 520, 400, std::string(base) + "_palace.png");
   if (sp.type == SiteType::City) {
     int qx = hx + (int)(p.w * 16 * 0.25f), qy = hy + (int)(p.h * 16 * 0.2f);
     crop(c, qx, qy, 400, 240, std::string(base) + "_quarter.png");
@@ -278,16 +283,16 @@ void heraldry(const std::string& dir) {
     uint32_t seed = 900u + (uint32_t)r * 77u;
     art::ArchStyle st = art::archForBiome(biomes[r], seed);
     art::BuildingInfo info;
-    Canvas pal = art::buildingSprite(Building::Palace, 15, 7, st, seed, &info, f);
+    Canvas pal = art::buildingSprite(bld::design(bld::simpleRequest(Building::Palace, 15, 7, st, seed, f)), &info);
     std::printf("palace biome %d: %d storeys painted, %d chimneys, height %d px\n", biomes[r], info.storeys, info.chimneys, info.height);
     int y0 = 24 + 4 * 44 + 16 + r * 220;
     b.put(pal, 16, y0 + 210 - pal.h);
-    Canvas bar = art::buildingSprite(Building::Barracks, 7, 4, st, seed + 5, &info, f);
+    Canvas bar = art::buildingSprite(bld::design(bld::simpleRequest(Building::Barracks, 7, 4, st, seed + 5, f)), &info);
     std::printf("barracks biome %d: %d storeys painted, %d chimneys\n", biomes[r], info.storeys, info.chimneys);
     b.put(bar, 16 + pal.w + 20, y0 + 210 - bar.h);
-    Canvas keep = art::buildingSprite(Building::Keep, 9, 4, st, seed + 9, &info, f);
+    Canvas keep = art::buildingSprite(bld::design(bld::simpleRequest(Building::Keep, 9, 4, st, seed + 9, f)), &info);
     b.put(keep, 16 + pal.w + bar.w + 40, y0 + 210 - keep.h);
-    Canvas inn = art::buildingSprite(Building::Inn, 6, 3, st, seed + 13, &info, f);
+    Canvas inn = art::buildingSprite(bld::design(bld::simpleRequest(Building::Inn, 6, 3, st, seed + 13, f)), &info);
     b.put(inn, 16 + pal.w + bar.w + keep.w + 60, y0 + 210 - inn.h);
   }
   savePng(b.c, dir + "/heraldry.png", 2);
@@ -303,21 +308,30 @@ int main(int argc, char** argv) {
   uint32_t seed = 7;
   std::string type = "all", archS = "plain", landS = "plains";
   bool night = false;
+  int culture = -1;
   for (int i = 2; i < argc; i++) {
     if (!std::strcmp(argv[i], "--seed") && i + 1 < argc) seed = (uint32_t)std::atoi(argv[++i]);
     else if (!std::strcmp(argv[i], "--type") && i + 1 < argc) type = argv[++i];
     else if (!std::strcmp(argv[i], "--arch") && i + 1 < argc) archS = argv[++i];
     else if (!std::strcmp(argv[i], "--land") && i + 1 < argc) landS = argv[++i];
     else if (!std::strcmp(argv[i], "--night")) night = true;
+    else if (!std::strcmp(argv[i], "--culture") && i + 1 < argc) {
+      const std::string w = argv[++i];
+      for (int a = 0; a < (int)cult::Archetype::COUNT; a++) {
+        std::string n;
+        for (const char* q = cult::archetypeName((cult::Archetype)a); *q; q++) if (*q != '-' && *q != ' ') n += (char)(*q >= 'A' && *q <= 'Z' ? *q + 32 : *q);
+        if (n == w) culture = a;
+      }
+    }
   }
   ew::Archetype arch = ew::Archetype::Plain;
   for (int a = 0; a < 8; a++) if (archS == archNames[a]) arch = (ew::Archetype)a;
   int land = 0;
   for (int l = 0; l < 4; l++) if (landS == landNames[l]) land = l;
-  if (type == "village" || type == "all") town(dir, Spec{SiteType::Village, false, arch, land, seed}, night);
-  if (type == "town" || type == "all") town(dir, Spec{SiteType::Town, false, arch, land, seed}, night);
-  if (type == "city" || type == "all") town(dir, Spec{SiteType::City, false, arch, land, seed}, night);
-  if (type == "capital" || type == "all") town(dir, Spec{SiteType::City, true, arch, land, seed}, night);
+  if (type == "village" || type == "all") town(dir, Spec{SiteType::Village, false, arch, land, seed, culture}, night);
+  if (type == "town" || type == "all") town(dir, Spec{SiteType::Town, false, arch, land, seed, culture}, night);
+  if (type == "city" || type == "all") town(dir, Spec{SiteType::City, false, arch, land, seed, culture}, night);
+  if (type == "capital" || type == "all") town(dir, Spec{SiteType::City, true, arch, land, seed, culture}, night);
   if (type == "all") heraldry(dir);
   return 0;
 }

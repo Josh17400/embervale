@@ -116,6 +116,15 @@ enum class Prop : uint8_t {
   DragonBones,    // the skull, spine and ribs of an ancient dragon bleaching in the grass (about 112x56)
   GreatPeak,      // (M2 fixer round 2) a whole mountain massif (136x140): the summit of a named peak or a range's crest,
                   // flanked by Peaks; drawn as peakVariant(8 + v, land)
+  // ---- M3b interiors (VISION_PLAN 15.14: interiors derived from the builder's blueprints). Furniture, classified as
+  //      bld::Kind::Furniture in rpg/build/registry.cpp. (Not wild props: art_props.cpp's own wild test stops at
+  //      GreatPeak.)
+  FirePitL,       // a long hearth down a hall's middle: a stone-kerbed trench of embers and low flames, west end (16x24, 4 frames)
+  FirePitM,       // its middle segments: the trench runs on east and west
+  FirePitR,       // its east end
+  Stove,          // a yurt's iron stove under the crown ring: a firebox, a kettle, the flue pipe rising (16x44, 4 frames)
+  TrainingDummy,  // a warrior lodge's straw dummy on a post, a battered shield on its arm (16x30)
+  FoldScreen,     // a folding screen of painted panels (paper, silk or reed by the room), stands on the floor (24x26)
   COUNT
 };
 // M2: the frozen tile footprint of a wayside / wonder prop (w odd, h >= 1): the prop stands on the bottom row's middle
@@ -133,7 +142,7 @@ inline void wildFootprint(Prop p, int& w, int& h) {
     default: w = 1; h = 1; return;
   }
 }
-inline bool isWildProp(Prop p) { return (int)p >= (int)Prop::Peak && (int)p < (int)Prop::COUNT; }
+inline bool isWildProp(Prop p) { return (int)p >= (int)Prop::Peak && (int)p <= (int)Prop::GreatPeak; }
 // a Peak in variant v (0..7: height, lean, ridge pattern) for its land (0 grey rock, 1 snow-capped, 2 sandstone);
 // the same canvas size and anchor as propSprite(Prop::Peak). v 8..15: a GreatPeak (propSprite(Prop::GreatPeak)'s size)
 Canvas peakVariant(int v, int land);
@@ -311,15 +320,33 @@ enum class Piece : uint8_t {
   LowDecor,   // 16x32 wall decor sized for a partition's short face (bottom = the face's foot). style = Prop - Tapestry
   Culture,    // (M3 fixer) a people's own version of a piece of furniture (cultureInteriorPiece): style = cult::Archetype,
               // a = the Prop, b = variant (Bed: 1 the two-tile bed; Hearth: the animation frame 0..3)
+  // ---- M3b (shaped floors and the new rooms). These keys carry 4-bit room / floor styles: build them with pieceKeyX
+  //      (the key's top three bits of the kind byte hold extra flags).
+  Pool,       // 16x16 a tile of a bath pool: water, its coping and the far inner side seen below the coping. style =
+              // FloorStyle of the floor round it | RoomStyle << 4; a = open-water neighbour mask (CapBits); b = tx + ty
+  ShellFace,  // 16x64 the face of a shaped floor's outer wall seen from the room (a round room's back arc, an L's inner
+              // wall), anchored on the wall tile (dy = -48): style = RoomStyle | flags << 4 (1 left end free, 2 right end
+              // free); a = tx; b = the top's rise toward the left / right neighbour in px (low / high nibble, 0..15)
+  ShellCap,   // 16x16 the top of a shaped floor's outer wall where it bends: the strip follows a curve. style = RoomStyle;
+              // a = room mask (CapBits), b = face mask (CapBits: the open neighbours that are faces); x = 1 rounded
+  RoundEdge,  // (M3b round 3) 16x16 a round room's wall top where the outline is a smooth curve (the front arc and the
+              // sides): the strip 6 px wide along the true ellipse, transparent on the room's side, black beyond.
+              // style = RoomStyle (low 3 bits; the fourth in x); a = the outward normal's angle in 64ths of a turn;
+              // b = the signed distance (px) from the tile's centre to the outline + 64
+  RoundBack,  // (M3b fixer) 16x80 a round room's back arc on the TRUE ellipse: the wall's face (and its top band) over one
+              // tile column, its foot following the curve. Anchored on the tile holding the column's lowest foot (dy =
+              // -64): style = RoomStyle (low 3 bits; the fourth in x bit 0) | 8 left end | 16 right end; x bits 1-2 =
+              // tx & 3 (the texture's run); a / b = the foot's row at the column's left / right edge, rows from the
+              // anchor tile's top + 64
   COUNT
 };
 // how a partition face ends at its left / right side (Piece::PartFace)
 enum PartEnd : uint8_t { PartEndRun = 0, PartEndWall = 1, PartEndFree = 2 };
 // M0b appends Adobe (desert: lime-washed mud brick, niches) and Plaster (whitewashed walls over a wood wainscot: inns
 // and town houses); Deco::WallAdobe / WallPlaster select them (rpg/sim/deco.h, same order).
-enum class RoomStyle : uint8_t { Timber, Log, Stone, Hall, Soot, Arcane, Adobe, Plaster, COUNT };
+enum class RoomStyle : uint8_t { Timber, Log, Stone, Hall, Soot, Arcane, Adobe, Plaster, Felt, Paper, Living, Marble, Tile, COUNT };
 // M0b appends Terracotta (fired clay tiles: Adobe rooms) and Rushes (boards strewn with rushes and straw: Log rooms).
-enum class FloorStyle : uint8_t { Planks, OldPlanks, Flagstone, Slab, Terracotta, Rushes, COUNT };
+enum class FloorStyle : uint8_t { Planks, OldPlanks, Flagstone, Slab, Terracotta, Rushes, Court, Tatami, Marble, Mosaic, Felt, Roots, Water, COUNT };
 enum CapBits : uint8_t { CapE = 1, CapW = 2, CapN = 4, CapNE = 8, CapNW = 16, CapS = 32, CapSE = 64, CapSW = 128 };
 constexpr int kClutterKinds = 18;   // Deco::Basket .. Deco::Kindling (rpg/sim/deco.h), same order
 inline uint32_t pieceKey(Piece k, int style, int a = 0, int b = 0) {
@@ -341,5 +368,20 @@ inline bool cultureInteriorHas(int arch, Prop p) {
   }
 }
 Canvas cultureInteriorPiece(int arch, Prop p, int variant);
+
+// ---------------------------------------------------------------- M3b interiors (INTERIORS lane, appended)
+// RoomStyle appends Felt (a yurt's felt over its red lattice wall), Paper (bamboo frames and paper screens: jade),
+// Living (grown living wood: sylvan), Marble (white marble: starspire, palaces), Tile (glazed tile dados: baths, dune
+// and imperial halls). FloorStyle appends Court (an open court's paving with grass in the joints), Tatami (rush mats),
+// Marble, Mosaic (glazed tile mosaic), Felt (felt carpets over the ground: yurts), Roots (living wood boards and moss),
+// Water (a bath pool). Both now need four bits: the M3b pieces and the decoders take the fourth from the key's extra
+// bits (pieceKeyX: three flag bits in the kind byte; pieceKey's layout otherwise, so every older key is unchanged).
+inline uint32_t pieceKeyX(Piece k, int x, int style, int a = 0, int b = 0) {
+  return ((uint32_t)k & 31u) | ((uint32_t)(x & 7) << 5) | ((uint32_t)(style & 255) << 8) | ((uint32_t)(a & 255) << 16) | ((uint32_t)(b & 255) << 24);
+}
+// a seat of power's high seat in the society's idiom (Piece::Styled 8: b = cult::Seat; 48x40 like the Throne, anchored
+// bottom-centre on the throne's tile): the khan's dais of cushions, the jarl's carved high seat, the high priest's
+// stone seat, the doge's chair, the elven council's white or living-wood throne
+constexpr int kStyledThrone = 8;
 
 }  // namespace art

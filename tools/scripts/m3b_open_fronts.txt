@@ -1,0 +1,51 @@
+# (owner 2026-10-06) open fronts: "there shouldn't be a door on an open building. If a building has pillars it's an open
+# front, so you just walk on in." In real capitals, walk into a colonnaded / arcaded / verandaed building through a SIDE
+# bay between its pillars (not the door column): it must enter, arrive in the matching bay inside, and walking back out
+# must leave by the same bay. Fails (exit 3) when any bay does not lead inside.
+#   embervale.exe --script tools/scripts/m3b_open_fronts.txt [--seed N]
+# (fixer r2) one tile south of the bay and a short push: entering puts you just inside the matching bay (a long hold
+# would walk on through the hall, onto stairs that may stand in that column); 'expect bay' holds you to floor 0 and the
+# row inside the threshold; then out again, held at least as long as the walk in.
+seed 3
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.2 gotoculture imperial capital
++4 gotoopen west south 1
++0.3 hold W 0.15
++1.2 expect inside 1
++0.1 expect bay side
++0.2 hold S 0.9
++1.4 expect inside 0
++0.1 expect outbay
++0.2 gotoopen east south 1
++0.3 hold W 0.15
++1.2 expect inside 1
++0.1 expect bay side
++0.2 hold S 0.9
++1.4 expect inside 0
++0.1 expect outbay
++0.2 gotoculture jade capital
++4 gotoopen west south 1
++0.3 hold W 0.15
++1.2 expect inside 1
++0.1 expect bay side
++0.2 hold S 0.9
++1.4 expect inside 0
++0.1 expect outbay
++0.2 gotoculture river capital
++4 gotoopen east south 1
++0.3 hold W 0.15
++1.2 expect inside 1
++0.1 expect bay side
++0.2 hold S 0.9
++1.4 expect inside 0
++0.1 expect outbay
++0.2 gotoculture dune capital
++4 gotoopen west south 1
++0.3 hold W 0.15
++1.2 expect inside 1
++0.1 expect bay side
++0.2 hold S 0.9
++1.4 expect inside 0
++0.1 expect outbay

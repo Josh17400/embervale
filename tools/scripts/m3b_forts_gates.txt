@@ -1,0 +1,131 @@
+# M3b FORTIFICATIONS & GROUND lane: the cultures' fortifications, paving, bridges, standing stones and markets by day.
+#  - the city gates of the twelve cultures seen from outside (gotoculture <a> city, gate out), and from further out
+#    for the wall runs (diagonal and curved stretches either side of the gate);
+#  - a square's paving at 1x in the sun temples, the jade kingdoms, the dune folk and the fjords;
+#  - a standing-stone ring; the markets of three cultures (layout unchanged, the culture's dress).
+# ("gate forget" first: the gate command remembers its last gate across teleports. Then
+# stand in the passage and step out south: the gate's face and its joins either side)
+# Run from a scratch directory (screenshots land in the current directory), with --perf for the frame and cache summary:
+#   embervale --script tools/scripts/m3b_forts_gates.txt --perf
+seed 7
+0 god
++0.3 hour 11
++0.3 gotoculture heartland city
++0.2 hour 11
++0.2 gate forget
++0.1 gate 0 on
++0.1 walk south 0.8
++5.0 shot f_gate_heartland.png
++0.2 walk east 2.5
++2.0 shot f_wall_heartland.png
++0.3 gotoculture imperial city
++0.2 hour 11
++0.2 gate forget
++0.1 gate 0 on
++0.1 walk south 0.8
++5.0 shot f_gate_imperial.png
++0.3 gotoculture river city
++0.2 hour 11
++0.2 gate forget
++0.1 gate 0 on
++0.1 walk south 0.8
++5.0 shot f_gate_river.png
++0.3 gotoculture highland city
++0.2 hour 11
++0.2 gate forget
++0.1 gate 0 on
++0.1 walk south 0.8
++5.0 shot f_gate_highland.png
++0.3 gotoculture fjordfolk city
++0.2 hour 11
++0.2 gate forget
++0.1 gate 0 on
++0.1 walk south 0.8
++5.0 shot f_gate_fjordfolk.png
++0.2 walk east 2.5
++2.0 shot f_wall_fjordfolk.png
++0.3 gotoculture steppe city
++0.2 hour 11
++0.2 gate forget
++0.1 gate 0 on
++0.1 walk south 0.8
++5.0 shot f_gate_steppe.png
++0.3 gotoculture marsh city
++0.2 hour 11
++0.2 gate forget
++0.1 gate 0 on
++0.1 walk south 0.8
++5.0 shot f_gate_marsh.png
++0.3 gotoculture dune city
++0.2 hour 11
++0.2 gate forget
++0.1 gate 0 on
++0.1 walk south 0.8
++5.0 shot f_gate_dune.png
++0.2 walk east 2.5
++2.0 shot f_wall_dune.png
++0.3 gotoculture jade city
++0.2 hour 11
++0.2 gate forget
++0.1 gate 0 on
++0.1 walk south 0.8
++5.0 shot f_gate_jade.png
++0.3 gotoculture jade town
++0.2 hour 11
+# (fixer r2) this jade town has no gate of its own on seed 3: the old "gate" walked 900 tiles to the city's; its
+# edge is shot as it is
++5.0 shot f_gate_jade_town.png
++0.3 gotoculture suntemple city
++0.2 hour 11
++0.2 gate forget
++0.1 gate 0 on
++0.1 walk south 0.8
++5.0 shot f_gate_suntemple.png
++0.3 gotoculture sylvan city
++0.2 hour 11
++0.2 gate forget
++0.1 gate 0 on
++0.1 walk south 0.8
++5.0 shot f_gate_sylvan.png
++0.3 gotoculture starspire city
++0.2 hour 11
++0.2 gate forget
++0.1 gate 0 on
++0.1 walk south 0.8
++5.0 shot f_gate_starspire.png
++0.2 walk east 2.5
++2.0 shot f_wall_starspire.png
+# the squares' paving at 1x (the heart of the city: its main square)
++0.3 gotoculture suntemple city
++0.2 hour 11
++5.0 shot f_pave_suntemple.png
++0.3 gotoculture jade city
++0.2 hour 11
++5.0 shot f_pave_jade.png
++0.3 gotoculture dune city
++0.2 hour 11
++5.0 shot f_pave_dune.png
++0.3 gotoculture fjordfolk city
++0.2 hour 11
++5.0 shot f_pave_fjordfolk.png
++0.3 gotoculture river city
++0.2 hour 11
++5.0 shot f_pave_river.png
++0.3 gotoculture starspire city
++0.2 hour 11
++5.0 shot f_pave_starspire.png
+# a standing-stone ring
++0.3 gotopoi stones
++0.2 hour 11
++5.0 shot f_stones.png
+# the markets of three cultures
++0.3 gotoculture imperial capital
++0.2 hour 11
++5.0 shot f_market_imperial.png
++0.3 gotoculture dune capital
++0.2 hour 11
++5.0 shot f_market_dune.png
++0.3 gotoculture steppe capital
++0.2 hour 11
++5.0 shot f_market_steppe.png
++1 quit

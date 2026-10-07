@@ -28,6 +28,7 @@
 #include <map>
 #include <string>
 #include <vector>
+#include "rpg/culture/society.h"
 #include "rpg/sim/interior_v4.h"
 #include "rpg/world/dmath.h"
 #include "rpg/world/settlement.h"
@@ -101,6 +102,7 @@ const char* layoutName(cult::Layout l) {
 }
 
 std::pair<double, int> g_phaseMax[3];
+int g_reqAsked = 0, g_reqMet = 0;   // (M3b) the society's required buildings asked / placed over the culture cases
 double g_phaseTab[3][16] = {};   // (M3) the slowest of each phase per type
 std::pair<double, int> g_casePhase;   // (M3) this case's slowest phase   // (M3) the slowest generator phase per type (village, town, city): ms, phase
 void buildCase(const Case& c, ew::SitePlan& p, ew::KingdomPlan& k, ew::SettlementOut& so, double& ms) {
@@ -245,7 +247,9 @@ int checkPalace(const Bldg& b0, const char* what) {
   int bad = 0;
   Bldg b = b0;
   const int floors = b.floors();
-  if (floors < 2) { out("FAIL: %s: %s has %d floor(s), want 2+\n", what, bldgTypeName(b.type), floors); return 1; }
+  // (M3b: a royal seat built as one storey (the khan's great tent) holds its court on one floor)
+  const bool oneFloor = b.form == (uint8_t)bld::Form::Tent || b.form == (uint8_t)bld::Form::Round;
+  if (floors < (oneFloor ? 1 : 2)) { out("FAIL: %s: %s has %d floor(s), want 2+\n", what, bldgTypeName(b.type), floors); return 1; }
   bool throne = false, king = false, owner = false, council = false, bunks = false, racks = false;
   int bedrooms = 0;
   Stairs prevUp;
@@ -293,12 +297,21 @@ int checkPalace(const Bldg& b0, const char* what) {
       }
     }
   }
+  // (M3b: a royal seat that is no palace (a merchant republic's guildhall) holds no throne hall: the doge sits at the
+  // head of its hall, where game.cpp seats the ruler when its interior has none)
+  // (M3b: a hall seat (the jarl's great hall, the khan's tent court, the elders' stilt hall, the council spire, the
+  // tree palace) holds council in the hall itself, round the ruler's seat: no separate council chamber; a one-floor
+  // tent court has only the ruler's own sleeping alcove. The castle and the court palace keep the full M1 contract.)
+  const int seatKind = b.seat ? (int)b.seat - 1 : -1;
+  const bool hallSeat = seatKind == (int)cult::Seat::GreatHall || seatKind == (int)cult::Seat::TentCourt ||
+                        seatKind == (int)cult::Seat::StiltHall || seatKind == (int)cult::Seat::CouncilSpire ||
+                        seatKind == (int)cult::Seat::TreePalace;
   if (b.type == Building::Palace) {
     if (!throne) { out("FAIL: %s: palace without a reachable throne in its throne hall\n", what); bad++; }
     if (!king) { out("FAIL: %s: palace without the king by the throne\n", what); bad++; }
     if (!owner) { out("FAIL: %s: palace without the royal bedchamber\n", what); bad++; }
-    if (!council) { out("FAIL: %s: palace without a council room\n", what); bad++; }
-    if (bedrooms < 1) { out("FAIL: %s: palace without bedchambers\n", what); bad++; }
+    if (!council && !hallSeat) { out("FAIL: %s: palace without a council room (%s, %d floors)\n", what, interiorTemplate(b, bldgBlueprint(b), b.seed), b.floors()); bad++; }
+    if (bedrooms < 1 && !hallSeat) { out("FAIL: %s: palace without bedchambers\n", what); bad++; }
   }
   if (b.type == Building::Barracks && (!bunks || !racks)) { out("FAIL: %s: barracks without bunks (%d) or weapon racks (%d)\n", what, (int)bunks, (int)racks); bad++; }
   return bad;
@@ -663,10 +676,30 @@ int checkTown(const Case& c, const ew::SitePlan& p, const ew::SettlementOut& so,
     if (!n[Building::Inn] || !n[Building::Shop] || !n[Building::Smithy] || !n[Building::Temple])
       fail("town services: inn %d shop %d smithy %d temple %d", n[Building::Inn], n[Building::Shop], n[Building::Smithy], n[Building::Temple]);
   } else {
-    if (n[Building::Inn] < 2 || n[Building::Shop] < 2 || !n[Building::Temple] || !n[Building::Tower] || !n[Building::Keep])
-      fail("city services: inn %d shop %d temple %d tower %d keep %d", n[Building::Inn], n[Building::Shop], n[Building::Temple], n[Building::Tower], n[Building::Keep]);
-    if (c.capital && (!n[Building::Palace] || !n[Building::Barracks])) fail("capital without palace %d / barracks %d", n[Building::Palace], n[Building::Barracks]);
-    if (!c.capital && n[Building::Palace]) fail("a palace in a city that is no capital");
+    // (M3b) the seat of power: whatever the society builds it as (a keep, a great hall, a temple, a guildhall...);
+    // a capital's ruler in its royal seat, its steward / jarl in the keep (the main quest's lord)
+    int seats = 0, royal = 0;
+    for (const Bldg& b : m.bldgs) { if (bldgIsSeat(b)) seats++; if (bldgIsRoyalSeat(b)) royal++; }
+    if (n[Building::Inn] < 2 || n[Building::Shop] < 2 || !n[Building::Temple] || !n[Building::Tower] || !seats)
+      fail("city services: inn %d shop %d temple %d tower %d seat %d", n[Building::Inn], n[Building::Shop], n[Building::Temple], n[Building::Tower], seats);
+    if (c.capital && (royal != 1 || !n[Building::Keep])) fail("capital with %d royal seats (want 1) / keep %d", royal, n[Building::Keep]);
+    if (c.capital && c.culture < 0 && !n[Building::Barracks]) fail("capital without barracks");
+    if (!c.capital && (n[Building::Palace] || royal)) fail("a palace in a city that is no capital");
+  }
+  // (M3b) the society's required buildings
+  if (c.culture >= 0) {
+    const cult::Culture K = caseCulture(c);
+    const cult::Society S = cult::societyOf(K);
+    const cult::SettleTier tier = c.capital ? cult::SettleTier::Capital : (c.type == SiteType::City ? cult::SettleTier::City : (c.type == SiteType::Town ? cult::SettleTier::Town : cult::SettleTier::Village));
+    std::string miss;
+    for (const cult::BuildingReq& q : cult::requiredBuildings(S, K, tier, (int)c.arch, c.seed)) {
+      if (!q.required) continue;
+      int have = 0;
+      for (const Bldg& b : m.bldgs) if (b.type == q.purpose && (!(q.civic & bld::CIVIC_SEAT) || (b.civic & bld::CIVIC_SEAT))) have++;
+      g_reqAsked++;
+      if (have) g_reqMet++; else miss += std::string(" ") + bldgTypeName(q.purpose);
+    }
+    if (!miss.empty()) fail("society requires%s", miss.c_str());
   }
   bad += checkEconomy(c, so, what);
   // ids unique
@@ -845,14 +878,17 @@ int checkTown(const Case& c, const ew::SitePlan& p, const ew::SettlementOut& so,
       if (people < 12) fail("%d townsfolk within 16 tiles of the main square's heart (want 12)", people);
     }
   }
-  // capitals inside
+  // capitals inside (M3b: the royal seat, whatever it is built as)
   if (c.capital)
     for (const Bldg& b : m.bldgs)
-      if (b.type == Building::Palace || b.type == Building::Barracks) bad += checkPalace(b, what);
+      if (bldgIsRoyalSeat(b) || b.type == Building::Barracks) {
+        if (std::getenv("EMB_TRACE_TOWNS")) { std::fprintf(stderr, "trace: inside %s form %d storeys %d %dx%d\n", bldgTypeName(b.type), b.form, b.storeys, b.r.w, b.r.h); std::fflush(stderr); }
+        bad += checkPalace(b, what);
+      }
   // banners where a kingdom rules
   if (c.type != SiteType::Village && !countProp(m, Prop::Banner)) fail("no kingdom banners");
   for (const Bldg& b : m.bldgs)
-    if ((b.type == Building::Keep || b.type == Building::Palace || b.type == Building::Inn || b.type == Building::Barracks) && !b.banner)
+    if ((b.type == Building::Keep || b.type == Building::Palace || b.type == Building::Inn || b.type == Building::Barracks || bldgIsSeat(b)) && !b.banner)
       { fail("%s flies no banner", bldgTypeName(b.type)); break; }
   if (!countProp(m, Prop::Signpost)) fail("no signpost at the road entrances");
   // (M1 fixer round 2) no stray piece of fence enclosing nothing: every fence tile joins another
@@ -998,8 +1034,11 @@ int cmdTowns(int argc, char** argv) {
       ew::KingdomPlan k;
       ew::SettlementOut so, so2;
       double ms = 0, ms2 = 0;
+      const bool trace = std::getenv("EMB_TRACE_TOWNS") != nullptr;   // (a crash: which case, which step)
+      if (trace) { std::fprintf(stderr, "trace: seed %llu case %zu build\n", (unsigned long long)s, ci); std::fflush(stderr); }
       buildCase(c, p, k, so, ms);
       buildCase(c, p, k, so2, ms2);
+      if (trace) { std::fprintf(stderr, "trace: check\n"); std::fflush(stderr); }
       char what[220];
       std::string cu;
       if (c.culture >= 0) {
@@ -1120,6 +1159,7 @@ int cmdTowns(int argc, char** argv) {
   printf("towns: largest empty paved block:");
   for (auto& kv : g_plazaMax) printf(" %s %d", kv.first.c_str(), kv.second);
   printf(" | fewest people round a capital's square: %d\n", g_squarePeople == (1 << 30) ? 0 : g_squarePeople);
+  printf("towns: society requirements placed %d of %d (culture cases)\n", g_reqMet, g_reqAsked);
   printf("towns: %d failures\n", bad);
   return bad ? 1 : 0;
 }

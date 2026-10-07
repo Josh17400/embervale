@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <utility>
 #include <vector>
+#include "rpg/culture/society.h"
 #include "rpg/world/dmath.h"
 #include "rpg/world/settlement.h"
 #include "rpg/world/town_rules.h"
@@ -83,6 +84,16 @@ struct Gen {
   int centreKind = -1;           // the main square's centrepiece (art::PropStyle::centre), -1: the classic choice
   int townWealth = -1;           // the settlement's wealth 0..3 (townWealthFor), -1: no culture (no skew)
   bool cultureIs(int a) const { return cArch == a; }
+  // ---------------------------------------------------------------- M3b: the society (rpg/culture/society.h)
+  // hasSoc: a culture builds this settlement, so its society decides the services, the seat of power and the spaces
+  // (services() keeps the classic lists without one); tier: the settlement's cult::SettleTier
+  cult::Society soc;
+  bool hasSoc = false;
+  cult::SettleTier tier = cult::SettleTier::Village;
+  // the builder fields of the next building putBldg makes (bld::Form, CIVIC_* bits, cult::Seat + 1); placeWant sets
+  // them for the want it places and clears them after
+  uint8_t curForm = 0, curCivic = 0, curSeat = 0;
+  int seatIdx = -1;              // the seat of power (the capital's ruler's, a city's lord's), -1: none
   int wealthFor(art::Building t, const IRect& r) const;   // 0 poor .. 3 rich (district, size, capital)
 
   // ---------------------------------------------------------------- per tile
@@ -184,9 +195,12 @@ struct Gen {
   struct Want {
     art::Building b; Role r; int w, h; float near; bool req; bool north; District d; int px, py;
     int water = 0;   // (M1 economy) 1: beside a river (the watermill's wheel), 2: by the shore (placeByWater)
+    uint8_t form = 0, civic = 0, seat = 0;   // (M3b) the builder's form, CIVIC_* bits, cult::Seat + 1
+    bool face = false;   // (M3b) its door right on the main square's edge near (px, py) first (faceSquare)
   };
   std::vector<Want> lateWants;   // (M1 economy) the optional trades, built where the homes leave room
   bool placeWant(const Want& w); // services(): one want, by the water when it asks, with the fallback for required ones
+  bool faceSquare(const Want& w);   // (M3b) a building whose door opens right onto the main square's edge, nearest (px, py)
   int putBldg(art::Building type, IRect r, Role owner, int storeys);
   bool fits(const IRect& r, art::Building type, int storeys) const;
   bool footpath(int ax, int ay, std::vector<std::pair<int, int>>& path, const IRect* own = nullptr) const;   // own: the house to be (not walked through)
@@ -194,6 +208,13 @@ struct Gen {
   bool placeBuilding(const Want& w);
   void homeShape(District d, art::Building& t, int& bw, int& bh);
   void services();
+  void classicServices();            // the M1..M3 lists (no culture)
+  void societyServices();            // (M3b) cult::requiredBuildings for the tier, the M1 economy beside them
+  void spaces();                     // (M3b) cult::requiredSpaces: moot rings, corrals, parade grounds, groves, gardens...
+  bool spaceRing(int x, int y, int r, art::Prop p, int every, bool keepSouth);   // a ring of props round (x, y)
+  bool findOpen(int w, int h, float nearD, float farD, int& ox, int& oy, uint32_t k, District d = District::COUNT) const;   // an open patch
+  int spacesMade = 0;                // (rpg_test --towns: spaces placed / asked)
+  int spacesAsked = 0;
   void homes();                      // homesBegin, homesSweep until done, homesFinish (the generator's phases)
   void homesBegin();
   bool homesSweep();                 // a slice of the frontage sweep (false: done)
@@ -203,6 +224,15 @@ struct Gen {
   int hPass = 0, hHave = 0;
   void placeCompound();              // choose the palace compound's place (before the streets)
   void buildCompound();              // its wall, gate, palace, barracks, courtyard and gardens
+  // (M3b) the seat compound by the society's seat (cult::Seat): a castle's walled palace and gardens; a court palace's
+  // walled courts and parterres; a jarl's great hall and longhouses in a stockade; the khan's great tent in a ring of
+  // court tents, banners and horse lines; a temple precinct round its court; a council spire in its gardens; a tree
+  // palace round the elder tree of its grove; the marsh elders' long hall over its pools on boardwalks. seatKind:
+  // cult::Seat (Castle without a culture); palW / palH: the seat building's footprint
+  int seatKind = 0;
+  int palW = 15, palH = 7;
+  bool compoundWalled() const;
+  void compoundGrounds(int X0, int Y0, int CW, int CH, int gx, int gy, int terrace);
   void compoundApproach();           // the paved way from its gate to the town's streets (after pruneStreets)
   void kingdomColours(Bldg& b) const;
 

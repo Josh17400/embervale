@@ -26,6 +26,8 @@
 #include <queue>
 #include <set>
 #include <string>
+#include "rpg/culture/culture.h"
+#include "rpg/culture/society.h"
 #include "rpg/sim/deco.h"
 #include "rpg/sim/interior_v4.h"
 #include "tools/tests/tests.h"
@@ -68,7 +70,7 @@ const SampleBldg kGen7Sample[] = {
     {16, 4, 3, 2, 1, 2, 3, 0}, {17, 4, 3, 1, 1, 2, 0, 0}, {17, 4, 3, 1, 1, 2, 3, 0}, {19, 5, 3, 1, 1, 3, 0, 0},
     {20, 5, 3, 1, 0, 5, 3, 0}, {21, 4, 3, 1, 0, 5, 3, 0}, {21, 4, 3, 1, 1, 2, 3, 0},
 };
-const uint64_t kGen7SampleHash = 0x8948fbbcda64dbb1ull;   // (EMB_INTERIOR_V7HASH=1 prints the value)
+const uint64_t kGen7SampleHash = 0x8f34185b15d8592cull;   // (EMB_INTERIOR_V7HASH=1 prints the value)
 
 uint64_t floorHash(const Map& m, uint64_t h) {
   h = mapHash(m, h);
@@ -107,10 +109,15 @@ bool wallDecor(art::Prop p) { return p >= art::Prop::Tapestry && p <= art::Prop:
 using art::Prop;
 using art::Building;
 bool isProp(const Map& m, int x, int y, Prop p) { return m.propAt(x, y) == (int)p + 1; }
-bool wallT(const Map& m, int x, int y) { return !m.in(x, y) || m.at(x, y) == Ground::InteriorWall; }
+bool wallT(const Map& m, int x, int y) { return !m.in(x, y) || m.at(x, y) == Ground::InteriorWall || m.at(x, y) == Ground::Void; }
 
 struct V7Stats {
   int bldgs = 0, floors = 0, rooms = 0, bad = 0, misplacedBeds = 0, beds = 0;
+  // the building being checked (reset per building): an inn's guest rooms over all its floors, the innkeeper's room
+  int innGuests = 0;
+  std::vector<int> innNums;
+  bool innOwner = false;
+  std::string tmpl;   // interiorTemplate of the building
   double freeMin = 1;
   std::map<int, std::set<uint64_t>> sigs;   // per type: distinct layouts (walls, doors, room kinds, stairs)
   std::map<int, std::set<uint64_t>> furn;   // per type: distinct furnished layouts (plus every piece of furniture)
@@ -174,7 +181,16 @@ std::string checkFloorV7(const Map& m, const Bldg& b, int f, V7Stats& st) {
       if (reached(x, y)) { freeN++; roomReached[(size_t)ri] = 1; }
     }
   for (size_t i = 0; i < m.rooms.size(); i++)
-    if (!roomReached[i]) { std::snprintf(buf, sizeof buf, "room %zu (%s) unreachable", i, roomKindName(m.rooms[i].kind)); return buf; }
+    if (!roomReached[i]) {
+      if (std::getenv("EMB_M3B_DUMP"))
+        for (int y = 0; y < H; y++) {
+          std::string row;
+          for (int x = 0; x < W; x++) row += !floorT(x, y) ? '#' : (reached(x, y) ? '*' : (m.solid[I(x, y)] ? 'o' : '.'));
+          out("    %s\n", row.c_str());
+        }
+      std::snprintf(buf, sizeof buf, "room %zu (%s) unreachable", i, roomKindName(m.rooms[i].kind));
+      return buf;
+    }
   double fr = floorN ? (double)freeN / floorN : 0;
   st.freeMin = std::min(st.freeMin, fr);
   if (fr < 0.6) { std::snprintf(buf, sizeof buf, "only %.0f%% of the floor walkable", fr * 100); return buf; }
@@ -250,28 +266,27 @@ std::string checkFloorV7(const Map& m, const Bldg& b, int f, V7Stats& st) {
     if (common < 0 || kit < 0) return "inn ground floor lacks a common room or kitchen";
     if (!propIn(kit, {Prop::Hearth, Prop::Oven})) return "inn kitchen has no hearth or oven";
     if (!propIn(common, {Prop::CounterL, Prop::CounterM, Prop::CounterR})) return "inn common room has no bar counter";
-    for (int i = 0; i < W * H; i++) if (m.prop[(size_t)i] == (int)Prop::Bed + 1) return "a bed on the inn's ground floor";
+    // (M3b: a single-storey inn lets its rooms on the ground floor, behind partitions; no bed stands in the common room)
+    for (int i = 0; i < W * H; i++)
+      if (m.prop[(size_t)i] == (int)Prop::Bed + 1 && m.roomAt[(size_t)i] >= 0 && m.rooms[(size_t)m.roomAt[(size_t)i]].kind == RoomKind::Common) return "a bed in the inn's common room";
   }
-  if (b.type == Building::Inn && f == 1) {
-    int guests = 0;
+  if (b.type == Building::Inn) {
     for (size_t i = 0; i < m.rooms.size(); i++) {
       const RoomInfo& R = m.rooms[i];
       if (R.kind != RoomKind::GuestRoom) continue;
-      guests++;
+      st.innGuests++;
+      st.innNums.push_back(R.guest);
       if (R.doorX < 0 || R.bedX < 0) return "guest room without a door or a bed";
       if (!propIn((int)i, {Prop::Chest})) return "guest room without a chest";
       if (!propIn((int)i, {Prop::Nightstand, Prop::TableSmall})) return "guest room without a nightstand or table";
     }
-    std::vector<int> nums;
-    for (const RoomInfo& R : m.rooms) if (R.kind == RoomKind::GuestRoom) nums.push_back(R.guest);
-    std::sort(nums.begin(), nums.end());
-    for (size_t k = 0; k < nums.size(); k++) if (nums[k] != (int)k) return "guest rooms not numbered 0..n-1";
-    if (guests < 2) return "fewer than 2 guest rooms upstairs";
-    if (!has(RoomKind::OwnerRoom)) return "no innkeeper's room upstairs";
+    if (has(RoomKind::OwnerRoom)) st.innOwner = true;
   }
   if (b.type == Building::Shop && f == 0) {
     int er = m.roomIndexAt(m.exitX, m.exitY - 1);
     if (er < 0 || m.rooms[(size_t)er].kind == RoomKind::Stockroom) return "shop entrance in the stockroom";
+    // (M3b) behind a front court the shop floor is the room the court's door leads into
+    for (size_t i = 0; i < m.rooms.size(); i++) if (m.rooms[i].kind == RoomKind::Shopfloor) { er = (int)i; break; }
     int cy = -1, cx0 = W, cx1 = -1;
     for (int y = 0; y < H; y++)
       for (int x = 0; x < W; x++)
@@ -282,24 +297,35 @@ std::string checkFloorV7(const Map& m, const Bldg& b, int f, V7Stats& st) {
     if (!has(RoomKind::Stockroom)) return "shop without a stockroom";
   }
   if (b.type == Building::Smithy && f == 0) {
+    // (M3b: on a shaped floor, an L's body, the forge's wall may be the wall it shares with the wing, its flue in it)
+    bool shaped = false;
+    for (int i = 0; i < W * H && !shaped; i++) shaped = m.ground[(size_t)i] == (uint8_t)Ground::Void;
     bool ok = false;
     for (int y = 0; y < H; y++)
       for (int x = 0; x < W; x++)
-        if (isProp(m, x, y, Prop::Forge) && (y == 2 || x <= 2 || x >= W - 3)) ok = true;
+        if (isProp(m, x, y, Prop::Forge) && (y == 2 || x <= 2 || x >= W - 3 || m.decoAt(x, y - 1) == (int)Deco::Shell || (shaped && wallT(m, x, y - 1)))) ok = true;
     if (!ok) return "the forge is not on an outer wall";
   }
   if (b.type == Building::Temple && f == 0 && !isProp(m, m.exitX, 2, Prop::Altar)) return "the altar is not on the temple's axis at the far wall";
   if (b.type == Building::Keep && f == 0 && !has(RoomKind::ThroneHall)) return "keep without a throne hall";
-  if (b.type == Building::Palace && f == 0) {
+  const bool castle = st.tmpl == "classic" || st.tmpl == "seat: castle";
+  if (b.type == Building::Palace && f == 0 && castle) {
     if (!has(RoomKind::ThroneHall)) return "palace without a throne hall";
     if (!isProp(m, m.exitX, 2, Prop::Throne)) return "the palace's throne is not on the axis at the far wall";
-    bool king = false;
-    for (const Spawn& s : m.spawns) if (s.role == Role::King && std::abs(s.x - m.exitX) <= 3 && s.y <= 5) king = true;
-    if (!king) return "no king by the palace's throne";
     if (!has(RoomKind::Kitchen) || !has(RoomKind::Barracks)) return "palace without its kitchen or guardroom";
   }
-  if (b.type == Building::Palace && f == 1 && (!has(RoomKind::OwnerRoom) || !has(RoomKind::Council) || !has(RoomKind::Bedroom)))
+  if (b.type == Building::Palace && f == 1 && castle && (!has(RoomKind::OwnerRoom) || !has(RoomKind::Council) || !has(RoomKind::Bedroom)))
     return "palace upstairs lacks the king's bedchamber, the council chamber or the household's bedchambers";
+  // (M3b) the royal seat, whatever the society built it as: the king on its ground floor beside his throne or dais
+  if (bldgIsRoyalSeat(b) && f == 0) {
+    int tx = -1, ty = -1;
+    for (int y = 0; y < H && tx < 0; y++)
+      for (int x = 0; x < W; x++) if (isProp(m, x, y, Prop::Throne)) { tx = x; ty = y; break; }
+    if (tx < 0) return "the royal seat has no throne or high seat on its ground floor";
+    bool king = false;
+    for (const Spawn& s : m.spawns) if (s.role == Role::King && std::abs(s.x - tx) <= 3 && std::abs(s.y - ty) <= 3) king = true;
+    if (!king) return "no king by the royal seat's throne";
+  }
   if (b.type == Building::Barracks) {
     bool bunks = false, racks = false;
     for (int i = 0; i < W * H; i++) { bunks |= m.prop[(size_t)i] == (int)Prop::BunkBed + 1; racks |= m.prop[(size_t)i] == (int)Prop::WeaponRack + 1; }
@@ -340,19 +366,26 @@ void dumpFloor(const Map& m) {
   }
 }
 
-// all floors of one building; sig: its layout signature (all floors)
-std::string checkBuildingV7(const Bldg& b, V7Stats& st, uint64_t& sig) {
+// all floors of one building; sig: its layout signature (all floors). bp: the blueprint to plan from (null: the
+// building's own, bldgBlueprint)
+std::string checkBuildingV7(const Bldg& b, V7Stats& st, uint64_t& sig, const bld::Blueprint* bp = nullptr) {
   int floors = b.floors();
   sig = 1469598103934665603ull;
   uint64_t fsig = 1469598103934665603ull;
   Stairs prevUp;
   bool owner = false;
+  const bld::Blueprint own = bp ? *bp : bldgBlueprint(b);
+  st.tmpl = interiorTemplate(b, own, b.seed);
+  st.innGuests = 0; st.innNums.clear(); st.innOwner = false;
   for (int f = 0; f < floors; f++) {
     Map m;
-    genInterior(m, b, b.seed, f);
+    genInteriorRooms(m, b, own, b.seed, f);
     st.floors++;
     std::string why = checkFloorV7(m, b, f, st);
-    if (!why.empty()) return "floor " + std::to_string(f) + ": " + why;
+    if (!why.empty()) {
+      if (std::getenv("EMB_M3B_ALL")) { out("  (%s, plan %d)\n", st.tmpl.c_str(), (int)own.interior.plan); dumpFloor(m); }
+      return "floor " + std::to_string(f) + ": " + why;
+    }
     if (f > 0 && (m.down.x != prevUp.x || m.down.y != prevUp.y)) return "floor " + std::to_string(f) + ": stairs do not line up with the floor below";
     prevUp = m.up;
     for (auto& R : m.rooms) if (R.kind == RoomKind::OwnerRoom) owner = true;
@@ -360,13 +393,313 @@ std::string checkBuildingV7(const Bldg& b, V7Stats& st, uint64_t& sig) {
     sig *= 1099511628211ull;
     fsig = fnv(fsig ^ sig, m.prop.data(), m.prop.size());
   }
-  if ((b.type == Building::Keep || b.type == Building::Palace) && !owner) return "keep or palace without the lord's quarters";
+  const bool castle = st.tmpl == "classic" || st.tmpl == "seat: castle";
+  if ((b.type == Building::Keep || b.type == Building::Palace) && castle && !owner) return "keep or palace without the lord's quarters";
+  if (b.type == Building::Inn) {   // (M3b) the rented rooms on whichever floor, numbered across the building
+    std::sort(st.innNums.begin(), st.innNums.end());
+    for (size_t k = 0; k < st.innNums.size(); k++) if (st.innNums[k] != (int)k) return "guest rooms not numbered 0..n-1 across the building";
+    if (st.innGuests < 2) return "an inn with fewer than 2 rooms to let";
+    if (!st.innOwner) return "an inn without the innkeeper's own room";
+  }
   st.sigs[(int)b.type].insert(sig);
   st.furn[(int)b.type].insert(fsig);
   st.count[(int)b.type]++;
   return "";
 }
 }  // namespace
+
+// ---- M3b (VISION_PLAN 15.14): interiors derived from the builder's blueprints ------------------------------------
+// Every purpose (all art::Building values) x the 12 cultures, on its natural blueprint (what bld::design gives for the
+// culture), with the seats of power of every society (the ruler's and the lord's), and every purpose on each forced
+// floor plan (Rect, Round, L, Courtyard, Long, Cross; the culture and the footprint rotate with the seed): every 15.7
+// check above (checkBuildingV7), plus:
+//  - a purpose with a plan of its own never falls back to the plain plan;
+//  - a Round blueprint gives a round floor: the corners of the floor area are void, the floor about a disc's share;
+//  - a Courtyard blueprint gives an open court: a Court room under the sky (Plaza ground) with rooms round it whose
+//    doors open onto it;
+//  - inns: at least 8 distinct plan templates and 8 distinct ground-floor layouts across the 12 cultures.
+namespace {
+const cult::Culture& cultureFor(int a) {
+  static std::vector<cult::Culture> cs;
+  if (cs.empty())
+    for (int k = 0; k < (int)cult::Archetype::COUNT; k++) cs.push_back(cult::Atlas::make((cult::Archetype)k, 1000u + (uint32_t)k * 7919u, 2));
+  return cs[(size_t)a];
+}
+void footprintOf(Building t, int& w, int& h) {
+  switch (t) {
+    case Building::Inn: w = 6; h = 3; return;
+    case Building::Keep: w = 9; h = 4; return;
+    case Building::Palace: w = 15; h = 7; return;
+    case Building::Barracks: w = 7; h = 4; return;
+    case Building::Temple: w = 6; h = 4; return;
+    case Building::Hut: w = 3; h = 2; return;
+    case Building::Tower: w = 3; h = 3; return;
+    case Building::Farmhouse: w = 5; h = 3; return;
+    case Building::Guildhall: case Building::MeadHall: case Building::CouncilHall: w = 7; h = 4; return;
+    case Building::Exchange: case Building::Bathhouse: case Building::Lodge: w = 6; h = 4; return;
+    case Building::TeaHouse: w = 5; h = 3; return;
+    case Building::Smithy: case Building::Smelter: case Building::Sawmill: w = 5; h = 3; return;
+    default: w = 4; h = 3; return;
+  }
+}
+Role ownerOf(Building t) {
+  switch (t) {
+    case Building::Inn: case Building::MeadHall: case Building::TeaHouse: case Building::Bathhouse: return Role::Innkeeper;
+    case Building::Shop: case Building::Bakery: case Building::Butcher: case Building::Fishmonger: case Building::Weaver: case Building::Exchange: case Building::Guildhall: return Role::Merchant;
+    case Building::Smithy: case Building::Smelter: return Role::Smith;
+    case Building::Temple: return Role::Priest;
+    case Building::Keep: return Role::Jarl;
+    case Building::Palace: return Role::King;
+    case Building::Barracks: case Building::Lodge: return Role::Guard;
+    case Building::Tower: return Role::Mage;
+    case Building::Farmhouse: case Building::Windmill: case Building::Watermill: case Building::Granary: return Role::Farmer;
+    default: return Role::Villager;
+  }
+}
+// a building of purpose t in culture a (urban 0..3, wealth 0..3), its storeys from its blueprint (what the TOWNS lane
+// writes), the seat bits when seat >= 0 (cult::Seat; royal: the capital's)
+Bldg cultureBldg(Building t, int a, uint32_t seed, int urban, int wealth, int seat, bool royal, bld::Blueprint& bp, int form = 0) {
+  Bldg b;
+  b.type = t;
+  int w, h;
+  footprintOf(t, w, h);
+  if (seat >= 0) { w = std::max(w, royal ? 13 : 9); h = std::max(h, royal ? 6 : 5); }
+  b.r = IRect{20, 20, w + (int)(seed % 2), h};
+  b.owner = ownerOf(t);
+  b.seed = hash32(seed ^ ((uint32_t)t * 2654435761u) ^ ((uint32_t)a * 40503u));
+  b.genVer = WORLDGEN_LATEST;
+  b.biome = Biome::Plains;
+  b.urban = (uint8_t)urban;
+  b.wealth = (uint8_t)wealth;
+  b.hearth = true;
+  b.site = 0;
+  b.styled = true;
+  b.arch = cult::buildingArch(cultureFor(a), 2, urban, wealth, b.seed);
+  b.storeys = (uint8_t)bldgStoreysV7(t, b.r.w, b.r.h, b.seed);
+  b.form = (uint8_t)form;
+  if (seat >= 0) { b.civic = bld::CIVIC_SEAT; b.seat = (uint8_t)(seat + 1); b.urban = royal ? 3 : 2; b.owner = royal ? Role::King : Role::Jarl; }
+  bp = bldgBlueprint(b);
+  b.storeys = (uint8_t)std::clamp((int)bp.interior.floors, 1, 3);
+  return b;
+}
+// shape audits on floor 0 of a building planned from bp
+std::string shapeCheck(const Bldg& b, const bld::Blueprint& bp, bool& court) {
+  Map m;
+  genInteriorRooms(m, b, bp, b.seed, 0);
+  court = false;
+  if (bp.interior.plan == bld::Floorplan::Round) {
+    int voids = 0, fl = 0, area = 0;
+    for (int y = 2; y <= m.h - 2; y++)
+      for (int x = 1; x <= m.w - 2; x++) { area++; fl += m.at(x, y) != Ground::Void && m.decoAt(x, y) != (int)Deco::Shell; }
+    for (auto c : {std::pair<int, int>{1, 2}, {m.w - 2, 2}, {1, m.h - 2}, {m.w - 2, m.h - 2}}) voids += m.at(c.first, c.second) == Ground::Void;
+    int anyVoid = 0;
+    for (int i = 0; i < m.w * m.h; i++) anyVoid += m.ground[(size_t)i] == (uint8_t)Ground::Void;
+    voids = 0;
+    for (auto c : {std::pair<int, int>{1, 2}, {m.w - 2, 2}, {1, m.h - 2}, {m.w - 2, m.h - 2}}) voids += groundSolid(m.at(c.first, c.second));
+    if (voids < 4 || !anyVoid) return "a round blueprint's floor has square corners";
+    if (fl * 100 < area * 66 || fl * 100 > area * 88) return "a round blueprint's floor is not a disc (" + std::to_string(fl * 100 / std::max(1, area)) + "% of its square)";
+  }
+  if (bp.interior.plan == bld::Floorplan::Courtyard) {
+    int ci = -1;
+    for (size_t i = 0; i < m.rooms.size(); i++) if (m.rooms[i].kind == RoomKind::Court) ci = (int)i;
+    if (ci < 0) return "a courtyard blueprint without an open court";
+    int open = 0, onto = 0;
+    for (int y = 0; y < m.h; y++)
+      for (int x = 0; x < m.w; x++) if (m.roomIndexAt(x, y) == ci && m.at(x, y) == Ground::Plaza) open++;
+    if (open < 6) return "the court is not open to the sky";
+    for (size_t i = 0; i < m.rooms.size(); i++) {
+      const RoomInfo& R = m.rooms[i];
+      if ((int)i == ci || R.doorX < 0) continue;
+      for (int k = 0; k < 4; k++) {
+        static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
+        if (m.roomIndexAt(R.doorX + dx[k], R.doorY + dy[k]) == ci && m.roomIndexAt(R.doorX + dx[k], R.doorY + dy[k]) != (int)i) { onto++; break; }
+      }
+    }
+    if ((int)ci != 0 || m.rooms[0].kind == RoomKind::Court) {}
+    if (onto < 1) return "no room opens onto the court";
+    court = true;
+  }
+  return "";
+}
+}  // namespace
+
+int m3bInteriorChecks(uint64_t seed, V7Stats& s7) {
+  auto t0 = std::chrono::steady_clock::now();
+  const int NA = (int)cult::Archetype::COUNT, NB = (int)Building::COUNT;
+  int n = 0, bad = 0, plainFalls = 0, rounds = 0, courts = 0;
+  std::map<std::string, int> tmplCount;
+  auto fail = [&](const char* what, const Bldg& b, int a, const std::string& why) {
+    if (bad < (std::getenv("EMB_M3B_ALL") ? 400 : 8)) out("FAIL: m3b %s %s (%s, %dx%d, %d floors, form %d): %s\n", what, bldgTypeName(b.type), cult::archetypeName((cult::Archetype)a), b.r.w, b.r.h, b.floors(), (int)b.form, why.c_str());
+    bad++;
+  };
+  // purposes whose plain fallback means a missing plan
+  auto ownPlan = [](Building t) {
+    switch (t) {
+      case Building::Inn: case Building::Guildhall: case Building::Exchange: case Building::MeadHall: case Building::Bathhouse:
+      case Building::TeaHouse: case Building::Lodge: case Building::CouncilHall: case Building::Palace: case Building::Keep:
+      case Building::Temple: case Building::Shop: case Building::Smithy: case Building::House: case Building::StoneHouse: return true;
+      default: return false;
+    }
+  };
+  // 1. every purpose x every culture on its natural blueprint (urban / wealth rotate)
+  for (int t = 0; t < NB; t++)
+    for (int a = 0; a < NA; a++) {
+      bld::Blueprint bp;
+      const int urban = (int)((seed + (uint64_t)t + (uint64_t)a) % 4), wealth = (int)((seed * 3 + (uint64_t)a) % 4);
+      Bldg b = cultureBldg((Building)t, a, (uint32_t)seed * 977u + 13u, urban, wealth, -1, false, bp);
+      // debugging aid: EMB_M3B_DUMP=<type>:<culture> prints that building's floors and its template
+      if (const char* dd = std::getenv("EMB_M3B_DUMP")) {
+        const char* c = std::strchr(dd, ':');
+        if (std::atoi(dd) == t && c && std::atoi(c + 1) == a) {
+          static int why[8192];
+          interiorWhy(why, 8192, true);
+          out("m3b %s %s: template %s, plan %d, %d floors\n", bldgTypeName(b.type), cult::archetypeName((cult::Archetype)a), interiorTemplate(b, bp, b.seed), (int)bp.interior.plan, b.floors());
+          interiorWhy(why, 8192, true);
+          std::string ws;
+          for (int i = 0; i < 8192; i++) if (why[i]) ws += " line " + std::to_string(i) + " x" + std::to_string(why[i]) + ";";
+          out("  turned down at:%s\n", ws.c_str());
+          for (int f = 0; f < b.floors(); f++) { Map m; genInteriorRooms(m, b, bp, b.seed, f); dumpFloor(m); }
+        }
+      }
+      uint64_t sig = 0;
+      std::string why = checkBuildingV7(b, s7, sig, &bp);
+      n++;
+      tmplCount[s7.tmpl]++;
+      if (why.empty() && ownPlan(b.type) && s7.tmpl == "plain") { why = "fell back to the plain plan"; plainFalls++; }
+      if (why.empty()) { bool c; why = shapeCheck(b, bp, c); rounds += bp.interior.plan == bld::Floorplan::Round; courts += c; }
+      if (!why.empty()) fail("natural", b, a, why);
+    }
+  // 2. the seats of power: every culture's society, the ruler's and the lord's
+  for (int a = 0; a < NA; a++) {
+    const cult::Society S = cult::societyOf(cultureFor(a));
+    for (int royal = 0; royal < 2; royal++) {
+      bld::Blueprint bp;
+      const Building t = cult::seatPurpose(S.seat, !royal);
+      Bldg b = cultureBldg(t, a, (uint32_t)seed * 31u + 7u, 3, 3, (int)S.seat, royal != 0, bp);
+      if (const char* dd = std::getenv("EMB_M3B_SEAT")) {   // debugging aid: EMB_M3B_SEAT=<culture>:<royal>
+        const char* c = std::strchr(dd, ':');
+        if (std::atoi(dd) == a && c && std::atoi(c + 1) == royal) {
+          static int why[8192];
+          interiorWhy(why, 8192, true);
+          out("m3b seat %s %s: template %s, plan %d, %d floors\n", bldgTypeName(b.type), cult::archetypeName((cult::Archetype)a), interiorTemplate(b, bp, b.seed), (int)bp.interior.plan, b.floors());
+          interiorWhy(why, 8192, true);
+          std::string ws;
+          for (int i = 0; i < 8192; i++) if (why[i]) ws += " line " + std::to_string(i) + " x" + std::to_string(why[i]) + ";";
+          out("  turned down at:%s\n", ws.c_str());
+          for (int f = 0; f < b.floors(); f++) { Map m; genInteriorRooms(m, b, bp, b.seed, f); dumpFloor(m); }
+        }
+      }
+      uint64_t sig = 0;
+      std::string why = checkBuildingV7(b, s7, sig, &bp);
+      n++;
+      tmplCount[s7.tmpl]++;
+      if (why.empty() && s7.tmpl.rfind("seat", 0) != 0) why = "a seat of power without a seat plan (" + s7.tmpl + ")";
+      if (!why.empty()) fail(royal ? "royal seat" : "lord's seat", b, a, why);
+    }
+  }
+  // 3. every purpose on every floor plan (the culture rotates with the seed)
+  for (int t = 0; t < NB; t++)
+    for (int fp = 0; fp < (int)bld::Floorplan::COUNT; fp++) {
+      const int a = (int)((seed + (uint64_t)t * 5 + (uint64_t)fp) % (uint64_t)NA);
+      bld::Blueprint bp;
+      Bldg b = cultureBldg((Building)t, a, (uint32_t)seed * 4099u + (uint32_t)fp, 1, 1 + fp % 3, -1, false, bp);
+      bp.interior.plan = (bld::Floorplan)fp;
+      bp.seat = 0;   // (a keep's or palace's people's seat plans in section 2: here the castle planner on every floor plan)
+      bp.interior.lCorner = (uint8_t)((seed + (uint64_t)t) % 4);
+      if (const char* dd = std::getenv("EMB_M3B_FORCED")) {   // debugging aid: EMB_M3B_FORCED=<type>:<plan>
+        const char* c = std::strchr(dd, ':');
+        if (std::atoi(dd) == t && c && std::atoi(c + 1) == fp) {
+          static int why[8192];
+          interiorWhy(why, 8192, true);
+          out("m3b forced %s %s: template %s, plan %d, %d floors\n", bldgTypeName(b.type), cult::archetypeName((cult::Archetype)a), interiorTemplate(b, bp, b.seed), fp, b.floors());
+          interiorWhy(why, 8192, true);
+          std::string ws;
+          for (int i = 0; i < 8192; i++) if (why[i]) ws += " line " + std::to_string(i) + " x" + std::to_string(why[i]) + ";";
+          out("  turned down at:%s\n", ws.c_str());
+          for (int f = 0; f < b.floors(); f++) { Map m; genInteriorRooms(m, b, bp, b.seed, f); dumpFloor(m); }
+        }
+      }
+      uint64_t sig = 0;
+      std::string why = checkBuildingV7(b, s7, sig, &bp);
+      n++;
+      tmplCount[s7.tmpl]++;
+      if (why.empty()) { bool c; why = shapeCheck(b, bp, c); rounds += fp == (int)bld::Floorplan::Round; courts += c; }
+      if (!why.empty()) fail(bld::formName((bld::Form)0), b, a, std::string("plan ") + std::to_string(fp) + ": " + why);
+    }
+  // 4. inns across the cultures: distinct plans
+  std::set<std::string> innT;
+  std::set<uint64_t> innSig;
+  for (int a = 0; a < NA; a++) {
+    bld::Blueprint bp;
+    Bldg b = cultureBldg(Building::Inn, a, 4242u, 1, 1, -1, false, bp);
+    innT.insert(interiorTemplate(b, bp, b.seed));
+    Map m;
+    genInteriorRooms(m, b, bp, b.seed, 0);
+    innSig.insert(interiorLayoutSignature(m));
+  }
+  if (innT.size() < 8 || innSig.size() < 8) { out("FAIL: m3b inns: %zu distinct plan templates, %zu distinct layouts across the 12 cultures (need 8)\n", innT.size(), innSig.size()); bad++; }
+  // 4b. (M3b fixer) the people choose the inn, the footprint only its variant: on a plain or a long body, of one storey
+  //     or two, only the fjordfolk's inn is a mead hall (a long trench of embers on a marsh stilt floor read wrong) and
+  //     only the heartland's the heartland plan (no people falls back to another's)
+  for (int a = 0; a < NA; a++)
+    for (int fp : {(int)bld::Floorplan::Rect, (int)bld::Floorplan::Long})
+      for (int st = 1; st <= 2; st++) {
+        bld::Blueprint bp;
+        Bldg b = cultureBldg(Building::Inn, a, (uint32_t)seed * 131u + (uint32_t)(fp * 7 + st), 1, 1, -1, false, bp);
+        bp.interior.plan = (bld::Floorplan)fp;
+        b.storeys = (uint8_t)st;
+        static int why0[8192];
+        if (std::getenv("EMB_INN_WHY")) interiorWhy(why0, 8192, true);
+        const std::string tn = interiorTemplate(b, bp, b.seed);
+        if (std::getenv("EMB_INN_WHY") && tn == "inn: heartland") {
+          interiorWhy(why0, 8192, true);
+          std::string ws;
+          for (int i = 0; i < 8192; i++) if (why0[i]) ws += " " + std::to_string(i) + "x" + std::to_string(why0[i]);
+          out("  inn %s plan %d %d storeys (%dx%d): turned down at%s\n", cult::archetypeName((cult::Archetype)a), fp, st, b.r.w, b.r.h, ws.c_str());
+        }
+        const cult::Archetype ar = (cult::Archetype)a;
+        std::string why;
+        if (tn == "inn: mead hall" && ar != cult::Archetype::Fjordfolk) why = "a mead hall inn";
+        if (tn == "inn: heartland" && ar != cult::Archetype::Heartland) why = "the heartland's inn";
+        if (tn == "plain" || tn == "classic") why = "no inn plan of its own (" + tn + ")";
+        if (why.empty()) { uint64_t sig = 0; why = checkBuildingV7(b, s7, sig, &bp); }
+        if (!why.empty()) fail("inn by people", b, a, std::string("plan ") + std::to_string(fp) + ", " + std::to_string(st) + " storeys: " + why);
+      }
+  // 5. (M3b fix) every purpose x every culture asked as a one-storey tent and as a round body: a barracks of one storey
+  //    (a steppe riders' barracks tent) must plan, never crash
+  for (int t = 0; t < NB; t++)
+    for (int a = 0; a < NA; a++)
+      for (int fm : {(int)bld::Form::Tent, (int)bld::Form::Round}) {
+        if ((Building)t == Building::Palace || (Building)t == Building::Keep) continue;   // (seats: section 2)
+        // (a tent is asked only of homes and halls: a barracks, a mead hall, a lodge, a house, a hut)
+        if (fm == (int)bld::Form::Tent && !((Building)t == Building::Barracks || (Building)t == Building::MeadHall || (Building)t == Building::Lodge ||
+                                            (Building)t == Building::House || (Building)t == Building::Hut)) continue;
+        bld::Blueprint bp;
+        Bldg b = cultureBldg((Building)t, a, (uint32_t)seed * 7919u + (uint32_t)fm, 1, (int)((seed + (uint64_t)a) % 4), -1, false, bp, fm);
+        uint64_t sig = 0;
+        std::string why = checkBuildingV7(b, s7, sig, &bp);
+        n++;
+        tmplCount[s7.tmpl]++;
+        if (why.empty() && (Building)t == Building::Barracks) {   // the guards sleep in bunks, keep their arms in racks
+          int bunks = 0;
+          for (int f = 0; f < b.floors(); f++) {
+            Map m;
+            genInterior(m, b, b.seed, f);
+            for (uint8_t p : m.prop) bunks += p == (int)Prop::BunkBed + 1;
+          }
+          if (!bunks) why = "a barracks without bunks (template " + s7.tmpl + ")";
+        }
+        if (!why.empty()) fail(fm == (int)bld::Form::Tent ? "tent" : "round", b, a, why);
+      }
+  const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+  std::string tl;
+  for (auto& kv : tmplCount) tl += " " + kv.first + " " + std::to_string(kv.second) + ";";
+  out("interiors m3b: %d buildings (%d purposes x %d cultures, %d seats, %d purposes x %d plans), %d invalid, %d plain fallbacks, "
+      "%d round and %d court floors checked; inns %zu templates / %zu layouts over 12 cultures; %.0f ms\n",
+      n, NB, NA, NA * 2, NB, (int)bld::Floorplan::COUNT, bad, plainFalls, rounds, courts, innT.size(), innSig.size(), ms);
+  if (std::getenv("EMB_INTERIOR_TEMPLATES")) out("  templates:%s\n", tl.c_str());
+  return bad;
+}
 
 // renting (M0b): in an inn upstairs, the rented room's bed sleeps you, every other guest bed is taken, the
 // innkeeper's bed is his. Driven through Game::update with the interact input, like a player.
@@ -375,10 +708,20 @@ int lodgingChecks(uint64_t seed) {
   g.newEndlessGame(seed);
   g.mode = Mode::Play;
   g.godMode = true;
-  int inn = -1;
-  for (size_t i = 0; i < g.world.over.bldgs.size() && inn < 0; i++)
-    if (g.world.over.bldgs[i].type == Building::Inn && g.world.over.bldgs[i].floors() >= 2) inn = (int)i;
-  if (inn < 0 || !g.debugEnterBuilding(inn, 1)) { out("FAIL: lodging: no inn to go upstairs in\n"); return 1; }
+  // (M3b) the inn's rooms may be let on any floor: the floor with two rented rooms and the innkeeper's
+  int inn = -1, lf = -1;
+  for (size_t i = 0; i < g.world.over.bldgs.size() && inn < 0; i++) {
+    const Bldg& B = g.world.over.bldgs[i];
+    if (B.type != Building::Inn) continue;
+    for (int f = 0; f < B.floors() && inn < 0; f++) {
+      Map m;
+      genInterior(m, B, B.seed, f);
+      int guests = 0, own = 0;
+      for (const RoomInfo& R : m.rooms) { guests += R.kind == RoomKind::GuestRoom && R.bedX >= 0; own += R.kind == RoomKind::OwnerRoom && R.bedX >= 0; }
+      if (guests >= 2 && own) { inn = (int)i; lf = f; }
+    }
+  }
+  if (inn < 0 || !g.debugEnterBuilding(inn, lf)) { out("FAIL: lodging: no inn with its rooms to let\n"); return 1; }
   int mine = -1, other = -1, owner = -1;
   for (int i = 0; i < (int)g.sub.rooms.size(); i++) {
     const RoomInfo& R = g.sub.rooms[(size_t)i];
@@ -387,7 +730,7 @@ int lodgingChecks(uint64_t seed) {
     if (R.kind == RoomKind::OwnerRoom) owner = i;
   }
   if (mine < 0 || other < 0 || owner < 0) { out("FAIL: lodging: the inn upstairs lacks two guest beds and the innkeeper's\n"); return 1; }
-  g.lodging.bldg = inn; g.lodging.floor = 1; g.lodging.room = mine; g.lodging.untilDay = g.day + 1;
+  g.lodging.bldg = inn; g.lodging.floor = lf; g.lodging.room = mine; g.lodging.untilDay = g.day + 1;
   g.actors.resize(1);   // the guests upstairs (M0b fix round) would take the interact press: this checks the beds
   auto useBed = [&](int ri) -> std::string {
     const RoomInfo& R = g.sub.rooms[(size_t)ri];
@@ -418,6 +761,7 @@ int lodgingChecks(uint64_t seed) {
 
 int interiorChecks(uint64_t seed) {
   int bad = 0;
+  if (std::getenv("EMB_INTERIOR_TRACE")) { std::fprintf(stderr, "interiorChecks %d\n", (int)seed); std::fflush(stderr); }
   if (seed <= 2) bad += lodgingChecks(seed);
   // the seed's endless start window: its buildings (the start village, and whatever else the window holds)
   auto t7 = std::chrono::steady_clock::now();
@@ -540,7 +884,11 @@ int interiorChecks(uint64_t seed) {
             }
           }
           const bool home = b.type == Building::House || b.type == Building::StoneHouse || b.type == Building::Hut || b.type == Building::Farmhouse;
-          if (why.empty() && home && !sleeps) why = "a home with no bed, hammock or sleeping mat";
+          if (why.empty() && home && !sleeps) {
+            why = "a home with no bed, hammock or sleeping mat";
+            if (std::getenv("EMB_M3B_ALL"))
+              for (int f = 0; f < b.floors(); f++) { Map m; genInterior(m, b, b.seed, f); out("  %s floor %d:\n", s7.tmpl.c_str(), f); dumpFloor(m); }
+          }
           if (!why.empty()) {
             if (culBad < 6) out("FAIL: v7 culture %s (furniture %d, wall %d, variant %d): %s\n", bldgTypeName(b.type), fi, (int)b.arch.wall, k, why.c_str());
             culBad++;
@@ -607,6 +955,7 @@ int interiorChecks(uint64_t seed) {
     s7.bad += econBad;
   }
   bad += s7.bad;
+  bad += m3bInteriorChecks(seed, s7);
   std::string var;
   static const char* tn[] = {"house", "stonehouse", "inn", "smithy", "shop", "temple", "keep", "tower", "farm", "hut", "palace", "barracks",
                              "windmill", "watermill", "granary", "bakery", "butcher", "tannery", "fishmonger", "smelter", "sawmill", "weaver"};

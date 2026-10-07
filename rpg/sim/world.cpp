@@ -14,7 +14,8 @@ const char* biomeName(Biome b) {
 const char* bldgTypeName(art::Building t) {
   static const char* n[] = {"HOUSE", "HOUSE", "INN", "SMITHY", "GENERAL GOODS", "TEMPLE", "THE KEEP", "MAGE TOWER", "FARMHOUSE", "HUT",
                             "THE PALACE", "BARRACKS", "WINDMILL", "WATERMILL", "GRANARY", "BAKERY", "BUTCHER", "TANNERY",
-                            "FISHMONGER", "SMELTER", "SAWMILL", "WEAVER"};
+                            "FISHMONGER", "SMELTER", "SAWMILL", "WEAVER",
+                            "GUILDHALL", "EXCHANGE", "MEAD HALL", "BATHHOUSE", "TEA HOUSE", "LODGE", "COUNCIL HALL"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)art::Building::COUNT, "a name for every building type");
   int i = (int)t;
   return i >= 0 && i < (int)art::Building::COUNT ? n[i] : "HALL";
@@ -94,6 +95,9 @@ int bldgStoreysV7(art::Building t, int wTiles, int hTiles, uint32_t h) {
     case art::Building::Bakery: case art::Building::Butcher: case art::Building::Fishmonger: case art::Building::Weaver:
       return wTiles >= 4 && f < 0.6f ? 2 : 1;
     case art::Building::Windmill: return 2;
+    // M3b purposes (the BUILDER lane may refine): the guildhall's and the tea house's upper rooms
+    case art::Building::Guildhall: case art::Building::TeaHouse: return 2;
+    case art::Building::Exchange: return wTiles >= 5 && f < 0.5f ? 2 : 1;
     default: return 1;   // smithy, temple, farmhouse, hut, watermill, granary, tannery, smelter, sawmill
   }
 }

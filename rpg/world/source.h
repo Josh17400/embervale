@@ -27,7 +27,10 @@ namespace ew {
 
 // Bumped when the endless generator's output changes. Old saves are not kept compatible across M1 (owner rule,
 // 2026-10-04); the save stores it so a mismatch can say "this save is from an older world".
-constexpr int ENDLESS_GEN_VER = 10;  // 10: M3 Many Peoples (cultures: names, architecture, layouts, census looks). Until
+constexpr int ENDLESS_GEN_VER = 11;  // 11: M3b Builders & Societies (societies, the builder: settlements ask for the
+                                     //     society's buildings, every building designed by the builder). Until M3b ships,
+                                     //     the M3b lanes change the output under 11 and regenerate the goldens they own.
+                                     // 10: M3 Many Peoples (cultures: names, architecture, layouts, census looks). Until
                                      //     M3 ships, the M3 lanes change the output under 10 and regenerate the goldens
                                      //     they own; after, bump.
                                      // 9: M2 fixer round 3 (no wild pool by a gatehouse, street props on paving, bare plaza bands filled, towns built a band of land rows at a time); 8: M2 fixer round 2 (massifs at named summits and range crests, toll bridges, scatter off paving and snow); 7: M2 fixer (crags above the face only, roads spare wayside props, snow towns, palace beds, peaks by a drop); 2: M1 round 2 (meandering relief, organic terraces, settlement water); 4: M1 fixer (markets, specialisations)

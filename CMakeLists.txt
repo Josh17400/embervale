@@ -32,7 +32,9 @@ target_link_libraries(engine PUBLIC SDL3::SDL3)
 # --- EMBERVALE: procedural open-world pixel RPG ---
 # M3: the culture engine (rpg/culture) is its own library: world generation (rpg_sim) and the painters (rpg_art) both
 # read it. Its choices are structural (which culture lives where), so it builds like rpg/world: no fast-math, no FMA.
-file(GLOB RPG_CULTURE CONFIGURE_DEPENDS rpg/culture/*.cpp)
+# M3b: the builder (rpg/build: the construction grammar and its parts) lives here too: the settlement generator, the
+# interiors and the painters all read its blueprints, and its choices are structural (deterministic, integer maths).
+file(GLOB RPG_CULTURE CONFIGURE_DEPENDS rpg/culture/*.cpp rpg/build/*.cpp)
 add_library(rpg_culture STATIC ${RPG_CULTURE})
 target_include_directories(rpg_culture PUBLIC ${CMAKE_SOURCE_DIR})   # headers only from engine/ (music_style.h): no SDL link
 if(MSVC)

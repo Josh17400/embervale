@@ -242,6 +242,8 @@ int reachWindow(EndlessSource& A, uint64_t seed, int32_t wx0, int32_t wy0, const
           }
           walk[k] = !solid;
           road[k] = c.ground[i] == (uint8_t)Ground::Road || c.ground[i] == (uint8_t)Ground::Bridge;
+          // (a stilt town's boardwalks wind over its marsh by design: not road bridges)
+          if (c.ground[i] == (uint8_t)Ground::Bridge && (c.blend[i] >> 4) == (Map::BOARDWALK_MARK >> 4)) g[k] = (uint8_t)Ground::Swamp;
         }
     }
   chunkAvg = nGen ? sum / nGen : 0;
@@ -330,6 +332,57 @@ int reachWindow(EndlessSource& A, uint64_t seed, int32_t wx0, int32_t wy0, const
     } else pockets++;
   }
   walledPlateaus = plateaus;
+  // (M3b fixer) bridges run straight: a road's deck over a pond or a lake never jogs a tile sideways mid-deck. A deck
+  // (4-connected Bridge tiles) whose rows (or columns) are not all the same span is a jog; the diagonal decks of a
+  // slanting road over a river (a staircase both ways at once) are their own look and are left out (both spans vary
+  // by more than a tile)
+  {
+    std::vector<uint8_t> seen((size_t)N * N, 0);
+    int decks = 0, jogs = 0;
+    std::vector<int> st2;
+    for (size_t s0 = 0; s0 < (size_t)N * N; s0++) {
+      if (seen[s0] || g[s0] != (uint8_t)Ground::Bridge) continue;
+      st2.clear(); st2.push_back((int)s0); seen[s0] = 1;
+      int x0 = N, y0 = N, x1 = -1, y1 = -1;
+      for (size_t h = 0; h < st2.size(); h++) {
+        const int k = st2[h], x = k % N, y = k / N;
+        x0 = std::min(x0, x); x1 = std::max(x1, x); y0 = std::min(y0, y); y1 = std::max(y1, y);
+        const int nb[4] = {x > 0 ? k - 1 : -1, x < N - 1 ? k + 1 : -1, y > 0 ? k - N : -1, y < N - 1 ? k + N : -1};
+        for (int n : nb) if (n >= 0 && !seen[(size_t)n] && g[(size_t)n] == (uint8_t)Ground::Bridge) { seen[(size_t)n] = 1; st2.push_back(n); }
+      }
+      if (st2.size() < 4) continue;
+      decks++;
+      const int bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+      if (bw <= 2 || bh <= 2) continue;   // a straight deck (one or two tiles wide)
+      // the span of each row and column of the deck
+      int rowVar = 0, colVar = 0;
+      std::vector<int> rmin((size_t)bh, N), rmax((size_t)bh, -1), cmin((size_t)bw, N), cmax((size_t)bw, -1);
+      for (int k : st2) {
+        const int x = k % N - x0, y = k / N - y0;
+        rmin[(size_t)y] = std::min(rmin[(size_t)y], x); rmax[(size_t)y] = std::max(rmax[(size_t)y], x);
+        cmin[(size_t)x] = std::min(cmin[(size_t)x], y); cmax[(size_t)x] = std::max(cmax[(size_t)x], y);
+      }
+      for (int y = 1; y < bh; y++) if (rmin[(size_t)y] != rmin[0] || rmax[(size_t)y] != rmax[0]) rowVar++;
+      for (int x = 1; x < bw; x++) if (cmin[(size_t)x] != cmin[0] || cmax[(size_t)x] != cmax[0]) colVar++;
+      // a deck the view draws as one slanting span (terrain.cpp diagBridgePixel: its tiles spread along a diagonal) is
+      // a diagonal crossing, not a jog
+      double mx = 0, my = 0;
+      for (int k : st2) { mx += k % N; my += k / N; }
+      mx /= (double)st2.size(); my /= (double)st2.size();
+      double sxx = 0, syy = 0, sxy = 0;
+      for (int k : st2) { const double ddx = k % N - mx, ddy = k / N - my; sxx += ddx * ddx; syy += ddy * ddy; sxy += ddx * ddy; }
+      const bool diagonal = std::fabs(sxy) >= 0.55 * std::sqrt(sxx * syy) && std::min(sxx, syy) >= 0.35 * std::max(sxx, syy);
+      // a long deck one way (3+ tiles) whose cross-section steps: a jog
+      const bool horiz = bw >= bh, jog = !diagonal && (horiz ? (bw >= 4 && bh == 3) : (bh >= 4 && bw == 3));
+      if (jog) {
+        jogs++;
+        if (jogs <= 4) out("  bridge jog: a %dx%d deck at (%d,%d)\n", bw, bh, wx0 + x0, wy0 + y0);
+      }
+      (void)rowVar; (void)colVar;
+    }
+    printf("  bridges: %d decks, %d jogging a tile mid-deck%s\n", decks, jogs, jogs ? " (FAIL)" : "");
+    if (jogs) fail(std::to_string(jogs) + " road bridges jog a tile mid-deck");
+  }
   if (plateaus > 0) fail(std::to_string(plateaus) + " plateaus of 24+ tiles are walled in by cliffs (no ramp)");
   // (M2, owner note 3) relief slivers on open ground (land, no water beside it): a 1-tile-deep terrace (a level band
   // one tile thick between a higher and a lower one), a 1-tile strip (a ridge or a channel one tile wide), or a spur /

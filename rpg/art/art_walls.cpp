@@ -2,6 +2,7 @@
 // See rpg/art/art_building.h for the contract.
 #include "rpg/art/art_internal.h"
 #include "rpg/art/art_heraldry.h"
+#include "rpg/art/art_parts.h"
 
 namespace art {
 
@@ -19,6 +20,8 @@ constexpr int kStairCut = 13, kStairFill = 3;   // M3: on a 1:1 diagonal: cut an
 // a tower was barely a bulge on the strip; now a drum that stands out on every run
 constexpr int kTowerR = 13;  // wall tower radius, px
 constexpr int kTowerZ = WALL_H + 11;
+// (M3b) a face colour meaning "nothing here: keep what is behind" (alpha 0, so never a real pixel)
+constexpr uint32_t kSkipPx = 0x00000001u;
 
 // a column-by-column oblique renderer for height fields. z(gx, gy) > 0 is solid; top() and face() pick colours.
 // owner(gx, gy) marks which footprint pixels belong to this sprite (the last painter of a screen pixel owns it).
@@ -42,7 +45,9 @@ void renderField(Canvas& c, std::vector<uint8_t>& own, int fx0, int fx1, int fy0
       for (int r = row + 1, v = 0; r < rowN; r++, v++) {
         int h = z - 1 - v;   // height of this face pixel above the ground
         if (h < 0) break;
-        put(r, face(fx, fy, z, h, v, zn));
+        const uint32_t col = face(fx, fy, z, h, v, zn);
+        if (col == kSkipPx) continue;   // (M3b) see through: under an eave, between a platform's posts
+        put(r, col);
       }
     }
 }
@@ -214,7 +219,26 @@ const Ramp kWallSunRed = ramp5(rgba(80, 22, 24), rgba(128, 36, 30), rgba(168, 52
 const Ramp kWallSlateBlue = ramp5(rgba(34, 40, 76), rgba(50, 64, 112), rgba(74, 96, 154), rgba(108, 134, 190), rgba(158, 182, 222));
 }  // namespace
 
-Canvas wallTile(uint32_t key) {
+namespace {
+// (M3b forts) a roof of tiles / shingles / hide seen from above on a square plan (a pyramid): its four facets lit from
+// the top-left (west facet brightest, east darkest), the hips a shade lighter, a course line every two px
+uint32_t pyramidTop(const Ramp& T, float dx, float dy, float d, bool shingle) {
+  const bool ew = std::fabs(dx) > std::fabs(dy);
+  int k = ew ? (dx < 0 ? 4 : 1) : (dy < 0 ? 3 : 2);
+  const bool hip = std::fabs(std::fabs(dx) - std::fabs(dy)) < 0.8f;
+  if (hip) k = std::min(4, k + 1);   // the hips
+  const int ring = (int)std::floor(d);
+  if (ring % 2 == 0 && !hip) k = std::max(0, k - 1);   // the courses
+  if (shingle && ((int)std::floor((ew ? dy : dx) + 64.0f) % 3 == 0) && ring % 2 == 1) k = std::max(0, k - 1);   // butt joints
+  return T[k];
+}
+const Ramp kRoofHide = ramp5(rgba(78, 52, 40), rgba(122, 88, 62), rgba(164, 126, 86), rgba(196, 162, 114), rgba(222, 196, 150));
+const Ramp kRoofReed = ramp5(rgba(84, 66, 42), rgba(128, 104, 58), rgba(170, 144, 80), rgba(204, 180, 108), rgba(230, 212, 150));
+const Ramp kRoofRedTile = ramp5(rgba(84, 30, 30), rgba(136, 52, 40), rgba(178, 82, 54), rgba(212, 120, 76), rgba(236, 164, 112));
+}  // namespace
+
+namespace {
+Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
   WallShape S(key & 255u);
   const bool tower = key & WALL_BIT_TOWER, towerN = key & WALL_BIT_TOWER_N, culvert = (key & WALL_BIT_CULVERT) && !(key & WALL_BIT_S);
   const uint32_t var = (key >> WALL_VAR_SHIFT) & 3u;
@@ -224,28 +248,138 @@ Canvas wallTile(uint32_t key) {
   const int spos = std::clamp((int)((key >> WALL_SPAN_POS_SHIFT) & 3u), 1, 3);
   const bool vSpan = span && S.cell(0, -1) && S.cell(0, 1) && !(S.cell(-1, 0) && S.cell(1, 0));
   const bool hSpan = span && !vSpan;
-  const int style = (int)((key & WALL_STYLE_MASK) >> WALL_STYLE_SHIFT);
+  // (M3b) the parts' wall material wins over the key's style bits
+  const int style = (int)F.wall;
   // (M3 fixer round 3) Talud walls take the adobe wall's form (stepped merlons, beam ends) in lime plaster
   const bool talud = style == (int)CityWall::Talud;
   const CityWall cw = talud ? CityWall::Adobe : (style < (int)CityWall::COUNT ? (CityWall)style : CityWall::Stone);
   const bool jade = cw == CityWall::Jade, ws = cw == CityWall::WhiteStone || jade;   // (jade: the white wall's form)
-  const Ramp& R = talud ? kWallLime : cw == CityWall::Adobe ? kWallAdobe : (jade ? kWallJadeBrick : (cw == CityWall::WhiteStone ? kWallWhite : (cw == CityWall::Palisade ? kWallLog : kStone)));
+  // (M3b) the culture's stone (imperial travertine, highland granite, river brick)
+  const Ramp Rtint = ramp(opaque(F.stone ? F.stone : rgba(118, 120, 134)), 0.85f);
+  const bool tinted = F.stone != 0 && cw == CityWall::Stone;
+  const bool brick = tinted && F.coping == bld::Coping::TiledHood;   // river brick: small bricks under a tiled hood
+  const Ramp& R = talud ? kWallLime : cw == CityWall::Adobe ? kWallAdobe : (jade ? kWallJadeBrick : (cw == CityWall::WhiteStone ? kWallWhite : (cw == CityWall::Palisade ? kWallLog : (tinted ? Rtint : kStone))));
   const Ramp& CONE = jade ? kWallJadeTile : kWallSlateBlue;
   const Ramp& BAND = jade ? kWallLacquer : kWallTeal;
+  const Ramp TILE = F.roof ? ramp(opaque(F.roof), 0.9f) : (jade ? kWallJadeTile : kRoofRedTile);
+  const Ramp TRIM = F.trim ? ramp(opaque(F.trim), 0.9f) : kWallTeal;
+  // (M3b) capitals stand taller (masonry walls only: the walk, its parapet and the towers rise together)
+  const int lift = 3 * (int)F.height;
   // heights of the style: the walk, the parapet's merlons and gaps, the towers
-  const int wallH = cw == CityWall::Rampart ? WALL_H - 4 : (cw == CityWall::Thorn ? WALL_H - 6 : (cw == CityWall::Palisade ? WALL_H - 2 : WALL_H));
-  const int tZ = cw == CityWall::Thorn ? kTowerZ - 6 : (cw == CityWall::Rampart ? kTowerZ - 2 : kTowerZ);
+  const int wallH = (cw == CityWall::Rampart ? WALL_H - 4 : (cw == CityWall::Thorn ? WALL_H - 6 : (cw == CityWall::Palisade ? WALL_H - 2 : WALL_H))) + lift;
+  const int tZ = (cw == CityWall::Thorn ? kTowerZ - 6 : (cw == CityWall::Rampart ? kTowerZ - 2 : kTowerZ)) + lift;
+  // (M3b) the tower's form (bld::TowerForm): RoundDrum is each material's own drum (crenellated stone, pointed adobe
+  // merlons, the thorn's great bush, the timber walls' and white walls' cones)
+  enum TK { TK_DEF, TK_CONE, TK_SQUARE, TK_PAGODA, TK_MINARET, TK_BASTION, TK_PLATFORM };
+  TK tk = TK_DEF;
+  switch (F.tower) {
+    case bld::TowerForm::ConeDrum: tk = (cw == CityWall::Stone || (cw == CityWall::Adobe && !talud)) ? TK_CONE : TK_DEF; break;
+    case bld::TowerForm::Square:
+      tk = talud || cw == CityWall::Thorn ? TK_DEF : ((cw == CityWall::Palisade || cw == CityWall::Rampart) ? TK_PLATFORM : TK_SQUARE);
+      break;
+    case bld::TowerForm::Pagoda: tk = TK_PAGODA; break;
+    case bld::TowerForm::Minaret: tk = TK_MINARET; break;
+    case bld::TowerForm::Bastion: tk = cw == CityWall::Thorn ? TK_DEF : TK_BASTION; break;
+    case bld::TowerForm::Platform: tk = TK_PLATFORM; break;
+    default: break;
+  }
+  const bool sqRoof = tk == TK_SQUARE && F.roof != 0 && cw != CityWall::Adobe;   // a square tower under a tiled pyramid
+  // the timber lookout's roof: shingles in the fjords, hides on the steppe, reed in the marsh
+  const int cul = (int)F.culture - 1;
+  const Ramp& PROOF = cul == 5 ? kRoofHide : (cul == 6 || cul == 10 ? kRoofReed : kRoofBrownW);
   // the 3x3 block plus room for heights: footprint x -16..31, y -16..31
   const int BX = 16, BY = 56, BW = 48, BH = 56 + 32 + 4;
   Canvas big(BW, BH);
   std::vector<uint8_t> own((size_t)BW * BH, 0);
+  constexpr int SQ = 11, PB = 9;   // the square tower's half size, the lookout's body half size (its roof: PB + 2)
   // the tower's height at a pixel, in the style: crenellated drums, wooden blockhouses with a plank floor, bushy
   // hedge-mounds, adobe drums with rounded merlons, white drums under a tall blue cone
-  auto towerH = [&](int gx, int gy, int cy, int& part) -> int {   // part: 0 none, 1 floor / body top, 2 rim, 3 roof
+  // part: 0 none, 1 floor / body top, 2 rim, 3 cone roof, 4 tiled roof, 5 a roof's overhanging eave, 7 a balcony,
+  // 8 a dome / the minaret's head
+  auto towerH = [&](int gx, int gy, int cy, int& part) -> int {
     part = 0;
+    const float dxs = gx + 0.5f - 8, dys = gy + 0.5f - cy, ax = std::fabs(dxs), ay = std::fabs(dys), dq = std::max(ax, ay);
+    switch (tk) {
+      case TK_SQUARE: {
+        if (sqRoof) {   // walls to tZ - 2, a pyramid of tiles with a pixel of eave
+          if (dq > SQ + 1) return 0;
+          part = dq > SQ ? 5 : 4;
+          return tZ - 2 + (int)std::lround((SQ + 1.5f - dq) * 0.95f);
+        }
+        if (dq > SQ) return 0;
+        if (dq > SQ - 2) {   // the crest: square merlons (stone) or stepped ones (adobe)
+          part = 2;
+          const int along = ((ay > ax ? gx : gy) % 8 + 8) % 8;
+          if (cw == CityWall::Adobe) { static const int alm[8] = {3, 5, 7, 7, 5, 3, 1, 1}; return tZ + alm[along]; }
+          return tZ + (along < 4 ? 5 : 2);
+        }
+        part = 1;
+        return tZ;
+      }
+      case TK_PAGODA: {   // a square tower with two tiled roofs, the lower flaring at its corners, a gilded finial
+        if (dq > 13) return 0;
+        const int zl = tZ - 3 + (int)std::lround((13.5f - dq) * 0.8f) + (ax > 10.5f && ay > 10.5f ? 2 : 0);
+        const int zu = dq <= 8.5f ? tZ + 6 + (int)std::lround(std::pow((9.0f - dq) / 9.0f, 1.3f) * 8.0f) + (ax > 6.5f && ay > 6.5f ? 1 : 0) : 0;
+        part = zu >= zl ? (dq > 6.5f ? 5 : 4) : (dq > 10.0f ? 5 : 4);
+        int z = std::max(zl, zu);
+        if (ax < 1.0f && ay < 1.0f) { part = 8; z += 3; }
+        return z;
+      }
+      case TK_MINARET: {   // a slender round shaft with a balcony and a small dome, on a crenellated drum
+        const float d = towerDist(gx, gy, 8, cy);
+        if (d > kTowerR - 1) return 0;
+        if (d <= 4.5f) {
+          part = 8;
+          return tZ + 7 + (int)std::lround(std::sqrt(std::max(0.0f, 20.25f - d * d)) * 1.15f) + (d < 1.0f ? 3 : 0);
+        }
+        if (d <= 7.0f) { part = 7; return tZ + 1; }
+        if (d > kTowerR - 3.2f) {
+          part = 2;
+          const float a = std::atan2(dys, dxs);
+          const float f = (a + PI) / TAU * 12.0f + 0.25f, fr = f - std::floor(f);
+          return wallH + 7 + (((int)std::floor(f) & 1) ? 1 : (fr > 0.3f && fr < 0.7f ? 5 : 3));
+        }
+        part = 1;
+        return wallH + 7;
+      }
+      case TK_BASTION: {   // a low round bastion a little above the walk
+        const float d = towerDist(gx, gy, 8, cy);
+        if (d > kTowerR) return 0;
+        if (cw == CityWall::Rampart) {   // (M3b round 3) a drum of stacked turf, a parapet of sods round its trodden top
+          if (d > kTowerR - 3.0f) {
+            part = 2;
+            const float a = std::atan2(dys, dxs);
+            const int seg = (int)std::floor((a + PI) / TAU * 14.0f + 0.25f);
+            return wallH + 6 + ((seg & 1) ? 0 : 2);
+          }
+          part = 1;
+          return wallH + 4;
+        }
+        if (d > kTowerR - 2.2f) {
+          part = 2;
+          const float a = std::atan2(dys, dxs);
+          const int seg = (int)std::floor((a + PI) / TAU * 16.0f + 0.25f);
+          return wallH + 5 + ((seg & 1) ? 0 : 3);
+        }
+        part = 1;
+        return wallH + 5;
+      }
+      case TK_PLATFORM: {   // a timber lookout: log walls, an open gallery on corner posts, a pyramid roof
+        if (dq > PB + 2) return 0;
+        part = dq > PB ? 5 : 4;
+        return tZ + 1 + (int)std::lround((PB + 2.5f - dq) * 0.8f);
+      }
+      case TK_CONE: {   // a stone drum under a slate cone
+        const float d = towerDist(gx, gy, 8, cy);
+        if (d > kTowerR) return 0;
+        part = 3;
+        return tZ + 1 + (int)std::lround(12.0f * (1 - d / kTowerR));
+      }
+      default: break;
+    }
     if (talud) {   // (M3 fixer round 3) a square bastion under a crest of stepped merlons
       static const int alm[8] = {3, 5, 7, 7, 5, 3, 1, 1};
-      const float ax = std::fabs(gx + 0.5f - 8), ay = std::fabs(gy + 0.5f - cy), d = std::max(ax, ay);
+      const float d = dq;
       if (d > kTowerR - 2) return 0;
       if (d > kTowerR - 4) { part = 2; const int along = ay > ax ? gx : gy; return tZ + alm[((along % 8) + 8) % 8]; }
       part = 1;
@@ -290,6 +424,7 @@ Canvas wallTile(uint32_t key) {
     if (towerN) { z = towerH(gx, gy, -8, part); if (z) return 2; }
     return 0;
   };
+  const bool smoothCope = cw == CityWall::Stone && (F.coping == bld::Coping::TiledHood || F.coping == bld::Coping::Rounded);
   // the distance (px, capped) from a footprint pixel to the wall's edge: the rampart's bank and the hedge's crown
   auto edgeDist = [&](int gx, int gy, int cap) {
     for (int r = 1; r <= cap; r++)
@@ -316,17 +451,15 @@ Canvas wallTile(uint32_t key) {
     const bool nsRun = S.in(gx, gy - 3) && S.in(gx, gy + 3) && (!S.in(gx - 3, gy) || !S.in(gx + 3, gy)) && S.in(gx - 1, gy - 3) == S.in(gx - 1, gy + 3);
     if (nsRun && (cw == CityWall::Stone || cw == CityWall::Adobe || ws)) {
       const int q = ((gy % 8) + 8) % 8;
-      if (ws) return wallH + 3;
+      if (ws || smoothCope) return wallH + 3;
       if (cw == CityWall::Adobe) return wallH + (q == 0 || q == 7 ? 2 : (q == 1 || q == 6 ? 4 : 6));
       return wallH + (q < 4 ? 6 : 2);
     }
     switch (cw) {
-      case CityWall::Rampart: {   // a bank: steep outer slopes up to a crest, a fence of stakes along the crest's middle
-        const int e = edgeDist(gx, gy, 6);
-        int z = 4 + e * 3;
-        if (z > wallH) z = wallH;
-        if (e >= 6 && ((along % 3) + 3) % 3 == 0) z = wallH + 4;   // the stakes
-        return z;
+      case CityWall::Rampart: {   // (M3b round 3) a turf dyke: stacked sods, near-sheer, a rounded grassy crest
+        const int e = edgeDist(gx, gy, 3);
+        (void)along;
+        return wallH - (e == 0 ? 2 : (e == 1 ? 1 : 0));
       }
       case CityWall::Thorn: {   // a hedge: lumpy, rounded at the edges, a few thorny sprigs
         const int e = edgeDist(gx, gy, 4);
@@ -353,12 +486,17 @@ Canvas wallTile(uint32_t key) {
         return wallH;
       }
       default: {
+        if (smoothCope) {   // (M3b) a tiled hood / a rounded coping on a stone wall (the river towns' brick)
+          if (eN || eS || eW || eE) return wallH + 3;
+          if (e2) return wallH + 2;
+          return wallH;
+        }
         // parapet along every exposed edge: a 2px band, merlons 4 on / 4 off along the edge
         if (eN || eS || eW || eE || e2) {
           bool merlon = (((along % 8) + 8) % 8) < 4;
-          return WALL_H + (merlon ? 5 : 2);
+          return wallH + (merlon ? 5 : 2);
         }
-        return WALL_H;
+        return wallH;
       }
     }
   };
@@ -378,6 +516,75 @@ Canvas wallTile(uint32_t key) {
     if (t) {
       const int cy = t == 1 ? 8 : -8;
       const float d = towerDist(gx, gy, 8, cy);
+      // (M3b) the parts' tower forms
+      const float tdx = gx + 0.5f - 8, tdy = gy + 0.5f - cy, tdq = std::max(std::fabs(tdx), std::fabs(tdy));
+      switch (tk) {
+        case TK_SQUARE: {
+          if (sqRoof) {
+            if (tdq < 1.0f) return kGold[3];
+            const uint32_t c = pyramidTop(TILE, tdx, tdy, tdq, false);
+            return part == 5 ? mix(c, TILE[4], 0.25f) : c;   // the eave's lit edge
+          }
+          if (part == 2) return R[z > tZ + 2 ? ((gx + gy) % 3 == 0 ? 3 : 4) : 2];
+          k = flagK(gx, gy, 61u) + 1;
+          if (tdq > SQ - 3.4f) k = std::max(1, k - 1);
+          if (std::abs(gx - 9) <= 1 && std::abs(gy - cy - 1) <= 1) return kWoodDark[(gx == 8) ? 3 : 1];   // hatch
+          if (Z(gx - 1, gy - 1) > z + 1) k = std::max(0, k - 1);
+          return R[k];
+        }
+        case TK_PAGODA: {
+          if (part == 8) return kGold[tdx < 0 ? 4 : 2];
+          const uint32_t c = pyramidTop(TILE, tdx, tdy, tdq, false);
+          if (part == 5 && Z(gx + (tdx > 0 ? 1 : -1), gy) < z - 1) return mix(c, TILE[4], 0.3f);   // an eave's lit edge
+          return c;
+        }
+        case TK_MINARET: {
+          if (part == 8) {   // the glazed dome, its gilded finial
+            if (d < 1.0f) return kGold[4];
+            const int kk = lightIndex(lightAt(std::clamp(tdx / 4.6f, -0.95f, 0.95f) * 0.9f, std::clamp(tdy / 4.6f, -0.95f, 0.95f) * 0.9f), gx, gy, 0.08f);
+            return TRIM[std::clamp(kk, 1, 4)];
+          }
+          if (part == 7) return R[(d > 6.0f || tdx + tdy < -6.0f) ? 4 : 3];   // the balcony's floor and its lit rail
+          if (part == 2) return R[z > wallH + 9 ? 4 : 3];
+          k = flagK(gx, gy, 67u) + 1;
+          if (Z(gx - 1, gy - 1) > z + 1) k = std::max(0, k - 2);   // the shaft's shadow on the drum's roof
+          return R[std::clamp(k, 0, 4)];
+        }
+        case TK_BASTION: {
+          if (cw == CityWall::Rampart) {
+            const float lt = (tdx + tdy) / std::max(1.0f, d);
+            const uint32_t hh = hash3(gx, gy, 87u + var);
+            if (part == 2) {   // the sods of the parapet: grass on top, lit toward the light, the gaps in shade
+              int kk = lt < -0.3f ? 4 : (lt > 0.4f ? 2 : 3);
+              if (z < wallH + 7) kk = std::max(1, kk - 2);
+              if (hh % 7 == 0) kk = std::max(1, kk - 1);
+              return kWallGrass[std::clamp(kk, 0, 4)];
+            }
+            // the trodden floor inside: bare earth worn through the grass, darker in the parapet's lee
+            int kk = (hh % 3 == 0) ? 2 : 3;
+            if (Z(gx - 1, gy - 1) > z + 1) kk = std::max(0, kk - 2);
+            return (hh % 5 < 2 ? kWallGrass : kWallEarth)[std::clamp(kk, 0, 4)];
+          }
+          if (part == 2) return R[z > wallH + 6 ? ((gx + gy) % 3 == 0 ? 3 : 4) : 2];
+          k = flagK(gx, gy, 69u) + 1;
+          if (d > kTowerR - 3.4f) k = std::max(1, k - 1);
+          if (Z(gx - 1, gy - 1) > z + 1) k = std::max(0, k - 1);
+          return R[k];
+        }
+        case TK_PLATFORM: {
+          if (tdq < 1.0f) return kWood[4];   // the roof's peak post
+          const uint32_t c = pyramidTop(PROOF, tdx, tdy, tdq, true);
+          return part == 5 && tdq > PB + 1 ? mix(c, PROOF[4], 0.2f) : c;
+        }
+        case TK_CONE: {
+          if (d < 1.2f) return kGold[4];
+          const float l = (-tdx * 0.72f - tdy * 0.5f) / std::max(1.0f, d);
+          int kk = l > 0.45f ? 4 : (l > 0.0f ? 3 : (l > -0.45f ? 2 : 1));
+          if (((int)std::floor(d)) % 3 == 0) kk = std::max(0, kk - 1);   // the courses of slates
+          return kWallSlateBlue[kk];
+        }
+        default: break;
+      }
       if (part == 3) {   // a cone: lit on the north-west, a ridge every few px
         const float dx = gx + 0.5f - 8, dy = gy + 0.5f - cy;
         const float l = (-dx * 0.72f - dy * 0.5f) / std::max(1.0f, d);
@@ -408,12 +615,23 @@ Canvas wallTile(uint32_t key) {
     }
     switch (cw) {
       case CityWall::Rampart: {
-        const int e = edgeDist(gx, gy, 6);
-        if (z > wallH) return kWood[((gx + gy) & 1) ? 3 : 2];   // stake tops
-        // the bank's slopes: lit facing north-west, shaded facing south-east
+        // (M3b round 3) the crest: tufted grass in clumps (no bands), its north-west lip lit, its south-east lip
+        // rounding away into shade, the shade of anything taller up-left
+        const int e = edgeDist(gx, gy, 3);
         const bool nw = !S.in(gx - e - 1, gy) || !S.in(gx, gy - e - 1);
-        int kk = e >= 6 ? 3 : (nw ? 3 : 1);
-        if (hash3(gx, gy, 81u + var) % 9 == 0) kk++;
+        const uint32_t hh = hash3(gx, gy, 81u + var) ^ hash3((gx + 64) / 3, (gy + 64) / 2, 83u + var);
+        // the crest is domed: lit on its north (west) half, rolling into shade toward its south (east) lip
+        auto run = [&](int dx, int dy) { int r = 0; while (r < 20 && S.in(gx + dx * (r + 1), gy + dy * (r + 1))) r++; return r; };
+        const int dN = run(0, -1), dS = run(0, 1), dW = run(-1, 0), dE = run(1, 0);
+        const float fr = (dN + dS) <= (dW + dE) ? (dN + 0.5f) / (dN + dS + 1.0f) : (dW + 0.5f) / (dW + dE + 1.0f);
+        int kk = fr < 0.3f ? 4 : (fr < 0.62f ? 3 : 2);
+        if (e == 0) kk = nw ? 4 : 1;
+        // tussocks: clumps of grass a shade apart, a dark tuft root under each
+        const float n = vnoise((gx + 64) / 2.5f, (gy + 64) / 2.0f, 91u + var);
+        if (n > 0.68f) kk = std::min(4, kk + 1);
+        else if (n < 0.28f) kk = std::max(1, kk - 1);
+        if (hh % 9 == 0) kk = std::max(1, kk - 1);
+        if (Z(gx - 1, gy - 1) > z + 1) kk = std::max(0, kk - 1);
         return kWallGrass[std::clamp(kk, 0, 4)];
       }
       case CityWall::Thorn: {
@@ -449,6 +667,10 @@ Canvas wallTile(uint32_t key) {
       else if (nsEdge && eOpen && !wOpen) k = 2;             // the east merlons, in shade
       else if (nsEdge && wOpen && !eOpen) k = 4;             // the west merlons, lit
       if (ws && z == wallH + 3) return (jade ? kWallJadeTile : kWallTeal)[nsEdge && eOpen && !wOpen ? 2 : 3];   // the coloured coping
+      if (smoothCope && z >= wallH + 2) {   // (M3b) the tiled hood: a ridge of tiles, lit on its west / north side
+        const int kk = z == wallH + 3 ? ((nsEdge && eOpen && !wOpen) ? 2 : 3) : 2;
+        return (F.coping == bld::Coping::TiledHood ? TILE : R)[(((gx + gy) & 1) && z == wallH + 3) ? kk + 1 : kk];
+      }
     } else {
       // walkway flagstones
       int row = ((gy % 4) + 4) % 4, col = (((gx + ((gy >> 2) & 1) * 2) % 5) + 5) % 5;
@@ -463,6 +685,21 @@ Canvas wallTile(uint32_t key) {
     if (zul > z + 3 && Z(gx - 2, gy - 2) > z + 3) k = std::max(0, k - 1);
     return R[k];
   };
+  // (M3b round 3) a turf dyke's face: sods stacked in courses 3 px tall in a broken bond, each a grassy top layer over
+  // its peat, dark joints between, the foot in shadow; `lit` -1 shade .. +1 light
+  auto turfFace = [&](int gx, int h, int lit) -> uint32_t {
+    if (h < 1) return kWallEarth[0];
+    const int row = h / 3, hh = h % 3;
+    const int off = (int)(hash3(row, 7, 311u + var) % 6u);
+    const int bx = gx + off + 64;
+    const int len = 5 + (int)(hash3(row, 9, 317u + var) % 3u);
+    const bool joint = bx % len == 0;
+    const uint32_t hs = hash3(bx / len, row, 313u + var);
+    if (joint && hh != 2) return kWallEarth[std::clamp(lit, 0, 4)];
+    if (hh == 2) return kWallGrass[std::clamp(2 + lit + (hs % 4 == 0 ? 1 : 0) - (joint ? 1 : 0), 0, 4)];
+    int kk = (hh == 1 ? 2 : 1) + lit + (hs % 5 == 0 ? 1 : 0) - (h < 3 ? 1 : 0);
+    return kWallEarth[std::clamp(kk + 1, 0, 4)];
+  };
   auto face = [&](int gx, int gy, int z, int h, int v, int zNext) -> uint32_t {
     int tz = 0, part = 0;
     const int t = Tw(gx, gy, tz, part);
@@ -471,6 +708,106 @@ Canvas wallTile(uint32_t key) {
       float u = (gx + 0.5f - 8) / kTowerR;
       int base = lightIndex(lightAt(std::clamp(u, -0.95f, 0.95f) * 0.95f, 0.15f), gx, h, 0.12f);
       base = std::clamp(base, 1, 3);
+      // (M3b) the parts' tower forms
+      const float fdx = gx + 0.5f - 8;
+      auto wallStone = [&](int b) -> uint32_t {   // the material's courses at height h
+        if (cw == CityWall::Adobe || ws) return R[std::clamp(b + (hash3(gx / 3, h / 3, 9u + var) % 7 == 0 ? -1 : 0), 0, 4)];
+        if (brick) {
+          const int row = h / 3, hh = h % 3, bx = gx + (row & 1) * 3;
+          int kk = (hh == 0 || ((bx % 6) + 6) % 6 == 0) ? b - 1 : (hh == 2 ? b + 1 : b);
+          if (hh != 0 && hash3(bx / 6, row, 37u + var) % 9 == 0) kk = std::max(0, kk - 1);
+          return R[std::clamp(kk, 0, 4)];
+        }
+        return R[std::clamp(masonryK(gx, h, var, b), 0, 4)];
+      };
+      switch (tk) {
+        case TK_SQUARE: {
+          const int sb = fdx < -SQ + 2.5f ? 3 : (fdx > SQ - 2.5f ? 1 : 2);
+          if (sqRoof) {
+            if (h >= tZ - 2) return TILE[v == 0 ? 3 : 1];               // the eave: the tiles' ends
+            if (h == tZ - 3) return R[0];                               // the shade under the eave
+            if (h == tZ - 4) return R[std::max(0, sb - 1)];
+          } else {
+            if (v == 0 || h >= tZ - 1) return R[std::min(4, sb + 1)];   // the merlons' fronts and the crest's lip
+            if (h == tZ - 2) return R[std::max(0, sb - 1)];
+            if (cw == CityWall::Adobe && h == tZ - 5 && (gx % 4 + 4) % 4 == 1) return kWood[1];   // beam ends
+          }
+          if (std::fabs(fdx) > SQ - 2.5f && ((h / 3) & 1) && cw != CityWall::Adobe) return R[std::min(4, sb + 1)];   // quoins
+          if (zNext == 0 && std::fabs(fdx) < 1.0f && ((h >= 10 && h <= 15) || (h >= tZ - 11 && h <= tZ - 7 && h > 17))) return kInk;   // slits
+          if (zNext == 0 && fdx >= 1.0f && fdx < 2.0f && h >= 10 && h <= 15) return R[std::max(0, sb - 1)];
+          if (h < 3) return R[std::max(0, sb - 1)];
+          if (h == 3) return R[std::min(4, sb + 1)];
+          return wallStone(sb);
+        }
+        case TK_PAGODA: {
+          const bool upper = z >= tZ + 5;
+          if (h >= z - 2 && h >= tZ - 3) return TILE[v == 0 ? 3 : 1];   // an eave's tiled edge
+          if (upper && h >= tZ + 2) {   // the upper storey under its eave: red posts, a lattice, the eave's shade
+            if (h >= z - 3) return kWallLacquer[0];
+            const bool post = std::fabs(std::fabs(fdx) - 6.0f) < 0.9f;
+            if (post) return kWallLacquer[fdx < 0 ? 3 : 2];
+            return (((h + (int)std::floor(fdx + 32.0f)) % 3) == 0) ? kWallLacquer[1] : rgba(58, 40, 46);
+          }
+          if (h >= tZ - 4) return R[0];                                   // the shade under the lower eave
+          if (h >= tZ - 7) return kWallLacquer[std::fabs(fdx) < 10.0f ? 2 : 3];   // a lacquered band
+          if (zNext == 0 && std::fabs(fdx) < 2.0f && h >= tZ - 16 && h <= tZ - 10) return std::fabs(fdx) < 1.0f ? rgba(250, 210, 120) : kWallLacquer[1];   // a window
+          if (h < 3) return R[1];
+          return wallStone(fdx < -8.0f ? 3 : (fdx > 8.0f ? 1 : 2));
+        }
+        case TK_MINARET: {
+          if (part == 8 || part == 7) {
+            const float us = std::clamp(fdx / 4.6f, -0.95f, 0.95f);
+            const int sb = std::clamp(lightIndex(lightAt(us * 0.95f, 0.1f), gx, h, 0.1f), 1, 3);
+            if (part == 8 && h > tZ + 7) return TRIM[std::clamp(sb + 1, 1, 4)];             // the dome's flank
+            if (part == 7) {
+              if (h >= tZ) return R[v == 0 ? 4 : 2];                                         // the balcony's lip
+              if (h >= tZ - 2) return R[0];                                                  // its shadow
+              return R[std::max(0, sb - 1)];                                                 // the shaft under it
+            }
+            if (h >= tZ + 5 && h <= tZ + 6) return TRIM[sb];                                 // a glazed band
+            if (zNext == 0 && std::fabs(fdx) < 1.0f && h >= tZ - 1 && h <= tZ + 3) return kInk;   // a lancet window
+            return R[sb];
+          }
+          if (v == 0 || (z > wallH + 7 && h >= wallH + 6)) return R[std::min(4, base + 1)];
+          if (h == wallH + 5) return R[std::max(0, base - 1)];
+          if (h >= wallH + 2 && h <= wallH + 3) return TRIM[base];                         // a tile band round the drum
+          if (h < 3) return R[std::max(0, base - 1)];
+          return wallStone(base);
+        }
+        case TK_BASTION: {
+          if (cw == CityWall::Rampart) {
+            if (v == 0) return kWallGrass[std::min(4, base + 1)];
+            return turfFace(gx, h, base - 2);
+          }
+          if (v == 0 || (z > wallH + 5 && h >= wallH + 4)) return R[std::min(4, base + 1)];
+          if (h == wallH + 3) return R[std::max(0, base - 1)];
+          if (h < 3) return R[std::max(0, base - 1)];
+          if (h == 3) return R[std::min(4, base + 1)];
+          if (zNext == 0 && std::fabs(fdx) < 1.0f && h >= 9 && h <= 13) return kInk;   // a gun loop
+          return wallStone(base);
+        }
+        case TK_PLATFORM: {
+          const int eave = tZ + 1;
+          if (h >= eave - 1) return PROOF[(v == 0 && h >= z - 1) ? 3 : 1];   // the roof's edge
+          if (h >= tZ - 6) {   // the open gallery: dark under the roof, corner posts and a middle post, a rail
+            const bool post = std::fabs(fdx) > PB - 1.6f || std::fabs(fdx) < 0.6f;
+            if (post) return kWallLog[fdx < -0.5f ? 3 : 2];
+            if (h == tZ - 4) return kWood[2];
+            return h >= eave - 2 ? rgba(22, 16, 26) : rgba(42, 32, 40);
+          }
+          if (h == tZ - 7) return kWood[1];                                         // the gallery floor's edge
+          if (std::fabs(fdx) > PB + 0.5f) return kSkipPx;                           // under the eave's overhang
+          const int lh = h % 3;
+          int kk = lh == 2 ? 3 : (lh == 0 ? 1 : 2);
+          if (std::fabs(fdx) > PB - 1.5f && lh != 0) kk = std::min(4, kk + 1);     // the logs' notched ends
+          if (h < 2) kk = 0;
+          return kWallLog[kk];
+        }
+        case TK_CONE:
+          if (h > tZ) return kWallSlateBlue[std::max(0, base - 1)];   // the cone's eave
+          break;
+        default: break;
+      }
       if (talud) {   // flat faces: lit west edge, shaded east edge, a red base course and a painted band under the crest
         base = u < -0.72f ? 3 : (u > 0.72f ? 1 : 2);
         if (h < 3) return kWallSunRed[std::max(0, base - 1)];
@@ -545,11 +882,11 @@ Canvas wallTile(uint32_t key) {
         if (h == wallH - 4 || h == 6) kk = std::max(0, kk - 1);   // the rails lashing them
         return kWallLog[std::clamp(kk + slant, 0, 4)];
       }
-      case CityWall::Rampart: {   // the bank's face: grass over earth, the earth showing low down
-        if (v == 0) return kWallGrass[3];
-        const uint32_t hh = hash3(gx, h, 85u + var);
-        if (h < 3 || (h < 6 && hh % 3 == 0)) return kWallEarth[slant > 0 ? 3 : 2];
-        return kWallGrass[std::clamp(2 + slant - (h < 7 ? 1 : 0) + (hh % 11 == 0 ? 1 : 0), 0, 4)];
+      case CityWall::Rampart: {   // (M3b round 3) the dyke's face: courses of stacked sods
+        if (v == 0) return kWallGrass[std::clamp(3 + slant, 0, 4)];
+        // the grass of the crest hangs over the top course in tufts
+        if (h >= wallH - 3 && hash3(gx, 3, 89u + var) % 3 != 0 && h >= wallH - 2 - (int)(hash3(gx, 5, 97u + var) % 2u)) return kWallGrass[std::clamp(2 + slant, 0, 4)];
+        return turfFace(gx, h, slant);
       }
       case CityWall::Thorn: {
         const float n = hashf(gx, h, 69u + var);
@@ -578,6 +915,10 @@ Canvas wallTile(uint32_t key) {
         return R[joint ? 1 : (ax < 0 ? 4 : 3)];                                    // voussoirs, lit from the left
       }
     }
+    if (smoothCope && h >= wallH + 1) {                       // (M3b) the tiled hood's eave (or a rounded coping)
+      const Ramp& HD = F.coping == bld::Coping::TiledHood ? TILE : R;
+      return HD[v == 0 ? 4 : (h == wallH + 1 ? 1 : std::clamp(2 + slant, 0, 4))];
+    }
     if (v == 0) return R[4];                                  // lit coping edge
     if (h >= wallH + 2) return R[std::clamp(2 + slant, 0, 4)];   // merlon fronts
     if (h == wallH + 1) return R[3];                          // cornice
@@ -600,6 +941,13 @@ Canvas wallTile(uint32_t key) {
       if (hh != 0 && hash3(bx / 6, row, 37u + var) % 9 == 0) kk = std::max(1, kk - 1);
       return R[std::clamp(kk + slant, 0, 4)];
     }
+    if (brick) {   // (M3b) the river towns' red brick in stretcher bond, pale joints
+      const int row = h / 3, hh = h % 3, bx = gx + (row & 1) * 3;
+      int kk = (hh == 0 || ((bx % 6) + 6) % 6 == 0) ? 1 : (hh == 2 ? 3 : 2);
+      if (hh != 0 && hash3(bx / 6, row, 37u + var) % 9 == 0) kk = std::max(1, kk - 1);
+      if (h <= 5 && hash3(gx + 40, h, 91u + var) % 5 == 0) kk = std::max(0, kk - 1);
+      return R[std::clamp(kk + slant, 0, 4)];
+    }
     if (cw == CityWall::WhiteStone) {   // fine ashlar: long blocks, faint joints
       const int row = h / 5, hh = h % 5, bx = gx + (row & 1) * 6;
       int kk = (hh == 0 || ((bx % 12) + 12) % 12 == 0) ? 1 : (hh == 4 ? 3 : 2);
@@ -612,7 +960,7 @@ Canvas wallTile(uint32_t key) {
       int mh = 3 + (int)(hash3((gx + 40) / 2, 3, 17u + var) % 4) - (int)(hash3((gx + 41) / 3, 4, 19u) % 3);
       if (h <= mh && hash3((gx + 40) / 5, 6, 29u + var) % 3 == 0) return kMoss[h == mh ? 2 : 1];
     }
-    if (hash3(gx + 40, 1, 33u + var) % 9 == 0 && h > 8 && h < WALL_H - 1) k = std::max(1, k - 1);
+    if (hash3(gx + 40, 1, 33u + var) % 9 == 0 && h > 8 && h < wallH - 1) k = std::max(1, k - 1);
     return R[std::clamp(k + slant, 0, 4)];
   };
   auto owner = [&](int gx, int gy) -> bool {
@@ -655,7 +1003,17 @@ Canvas wallTile(uint32_t key) {
   }
   return out;
 }
+}  // namespace
 
+Canvas wallTile(uint32_t key) {
+  const int style = (int)((key & WALL_STYLE_MASK) >> WALL_STYLE_SHIFT);
+  return wallTileImpl(key, bld::fortDefaults(style < (int)CityWall::COUNT ? (CityWall)style : CityWall::Stone));
+}
+Canvas wallTile(uint32_t key, const bld::FortParts& f) { return wallTileImpl(key & ~WALL_LOOK_MASK, f); }
+int wallWalkHeight(const bld::FortParts& f) {
+  const CityWall cw = f.wall == CityWall::Talud ? CityWall::Adobe : f.wall;
+  return (cw == CityWall::Rampart ? WALL_H - 4 : (cw == CityWall::Thorn ? WALL_H - 6 : (cw == CityWall::Palisade ? WALL_H - 2 : WALL_H))) + 3 * (int)f.height;
+}
 
 Canvas wallPiece(int mask) {
   bool n = mask & 1, e = mask & 2, s = mask & 4, w = mask & 8;
@@ -677,7 +1035,8 @@ Canvas gateHouse(uint32_t seed, uint32_t field, uint32_t trim, int emblem) { ret
 // towers under shingle cones and a log gate block (palisade, rampart), two great thorn bushes and a living arch
 // (thorn), mud-brick towers with pointed merlons and beam ends (adobe), white towers under blue cones and a pointed
 // arch (the high elves)
-Canvas gateHouse(uint32_t seed, uint32_t field, uint32_t trim, int emblem, CityWall cw) {
+namespace {
+Canvas gateHouseImpl(uint32_t seed, uint32_t field, uint32_t trim, int emblem, CityWall cw, const bld::FortParts& F) {
   // (M3 fixer round 3) the sun temples' gate: two square pylons stepping up in two tiers under a crest of stepped
   // merlons, lime plaster with red-painted bands and a step-fret frieze, the passage under a corbelled (stepped) arch;
   // the adobe gate's code paths draw the rest (beam ends, banners, lanterns)
@@ -691,19 +1050,39 @@ Canvas gateHouse(uint32_t seed, uint32_t field, uint32_t trim, int emblem, CityW
   const bool timber = cw == CityWall::Palisade || cw == CityWall::Rampart, thorn = cw == CityWall::Thorn;
   const bool jade = cw == CityWall::Jade, ws = cw == CityWall::WhiteStone || jade;
   const bool cone = timber || ws;
-  const Ramp& R = talud ? kWallLime : cw == CityWall::Adobe ? kWallAdobe : (jade ? kWallJadeBrick : (cw == CityWall::WhiteStone ? kWallWhite : (timber ? kWallLog : (thorn ? kWallThorn : kStone))));
+  // (M3b) square towers (the empire, the river towns, the highlands' granite): under a pyramid of tiles (parts' roof
+  // tint) or crenellated; the culture's stone; capitals stand taller
+  const bool square = !talud && F.gate == bld::GateForm::SquareTowers && (cw == CityWall::Stone || cw == CityWall::Adobe);
+  const bool sqRoof = square && F.roof != 0;
+  const bool tinted = F.stone != 0 && cw == CityWall::Stone;
+  const bool brick = tinted && F.coping == bld::Coping::TiledHood;
+  const Ramp Rt = ramp(opaque(F.stone ? F.stone : rgba(118, 120, 134)), 0.85f);
+  const Ramp TILE = F.roof ? ramp(opaque(F.roof), 0.9f) : kRoofRedTile;
+  const int lift = 3 * (int)F.height;
+  const Ramp& R = talud ? kWallLime : cw == CityWall::Adobe ? kWallAdobe : (jade ? kWallJadeBrick : (cw == CityWall::WhiteStone ? kWallWhite : (timber ? kWallLog : (thorn ? kWallThorn : (tinted ? Rt : kStone)))));
   const Ramp& CONE = jade ? kWallJadeTile : (cw == CityWall::WhiteStone ? kWallSlateBlue : kRoofBrownW);
   const Ramp& BAND = jade ? kWallLacquer : kWallTeal;
   const int BX = GATE_OX, BY = GATE_OY;
   Canvas c(GATE_CW, GATE_CH);
   std::vector<uint8_t> own((size_t)GATE_CW * GATE_CH, 0);
-  const int TR = 13, TZ = WALL_H + 16, BZ = WALL_H + 10;   // tower radius / height, gate block height
+  const int TR = 13, TZ = WALL_H + 16 + lift, BZ = WALL_H + 10 + lift;   // tower radius / height, gate block height
   const int t0x = -8, t1x = 56, tcy = 8;
   const int ax0 = 3, ax1 = 44, archH = 24;   // the arch opening on the front face (ground x range, height)
   // a tower's height in the style: crenellated (stone, adobe with pointed merlons), under a cone (timber, white
   // stone), or a great rounded bush (thorn)
   constexpr int PY = 12, PT = 9;   // talud pylon half-size and its upper tier's
+  constexpr int SQ = 12;           // (M3b) the square towers' half size
   auto towerAt = [&](int gx, int gy, int cx) -> int {
+    if (square) {
+      const float ax = std::fabs(gx + 0.5f - cx), ay = std::fabs(gy + 0.5f - tcy), d = std::max(ax, ay);
+      if (sqRoof) {
+        if (d > SQ + 1) return 0;
+        return TZ - 3 + (int)std::lround((SQ + 1.5f - d) * 0.95f);
+      }
+      if (d > SQ) return 0;
+      if (d > SQ - 2) { const int along = (((ay > ax ? gx : gy) % 8) + 8) % 8; return TZ + (along < 4 ? 5 : 2); }
+      return TZ;
+    }
     if (talud) {
       const float ax = std::fabs(gx + 0.5f - cx), ay = std::fabs(gy + 0.5f - tcy), d = std::max(ax, ay);
       if (d > PY) return 0;
@@ -759,6 +1138,21 @@ Canvas gateHouse(uint32_t seed, uint32_t field, uint32_t trim, int emblem, CityW
       }
       if (z > BZ) return R[4];
       return R[((gy % 4) == 3 || ((gx + (gy / 4) * 2) % 6) == 0) ? 2 : 3];
+    }
+    if (w < 2 && square) {   // (M3b) a square tower: its tiled pyramid, or its crenellated roof
+      const int cx = w == 0 ? t0x : t1x;
+      const float dx = gx + 0.5f - cx, dy = gy + 0.5f - tcy, dq = std::max(std::fabs(dx), std::fabs(dy));
+      if (sqRoof) {
+        if (dq < 1.0f) return kGold[3];
+        const uint32_t t = pyramidTop(TILE, dx, dy, dq, false);
+        return dq > SQ ? mix(t, TILE[4], 0.25f) : t;
+      }
+      if (z > TZ) return R[z > TZ + 2 ? ((gx + gy) % 3 == 0 ? 3 : 4) : 2];
+      int k = flagK(gx, gy, 62u) + 1;
+      if (dq > SQ - 3.4f) k = std::max(1, k - 1);
+      if (Z(gx - 1, gy - 1) > z + 1) k = std::max(0, k - 1);
+      if (std::abs(gx - cx - 1) <= 1 && std::abs(gy - tcy - 1) <= 1) return kWoodDark[(gx == cx) ? 3 : 1];   // the hatch
+      return R[k];
     }
     if (w < 2) {
       int cx = w == 0 ? t0x : t1x;
@@ -827,6 +1221,31 @@ Canvas gateHouse(uint32_t seed, uint32_t field, uint32_t trim, int emblem, CityW
       if (h == 3) return R[3];
       return R[std::clamp(2 + ((hash3(gx / 3, h / 3, 41u) % 9) == 0 ? -1 : 0), 0, 4)];
     }
+    if (w < 2 && square) {   // (M3b) a square tower's south face: lit west corner, quoins, slits, a plinth
+      const int cx = w == 0 ? t0x : t1x;
+      const float ux = gx + 0.5f - cx;
+      const int sb = ux < -SQ + 2.5f ? 3 : (ux > SQ - 2.5f ? 1 : 2);
+      if (sqRoof) {
+        if (h >= TZ - 3) return TILE[v == 0 ? 3 : 1];   // the eave: the tiles' ends
+        if (h == TZ - 4) return R[0];
+        if (h == TZ - 5) return R[std::max(0, sb - 1)];
+      } else {
+        if (v == 0 || h >= TZ - 1) return R[std::min(4, sb + 1)];
+        if (h == TZ - 2) return R[std::max(0, sb - 1)];
+      }
+      if (std::fabs(ux) > SQ - 2.5f && ((h / 3) & 1)) return R[std::min(4, sb + 1)];   // quoins
+      // banner-sized windows: an arrow slit low, a round-headed window high (lit inside at the top)
+      if (zNext == 0 && std::fabs(ux) < 1.0f && h >= 10 && h <= 15) return kInk;
+      if (zNext == 0 && std::fabs(ux) < 2.0f && h >= TZ - 13 && h <= TZ - 7) return (std::fabs(ux) < 1.0f || h == TZ - 7) ? rgba(40, 30, 44) : R[1];
+      if (h < 3) return R[std::max(0, sb - 1)];
+      if (h == 3) return R[std::min(4, sb + 1)];
+      if (brick) {
+        const int row = h / 3, hh = h % 3, bx = gx + (row & 1) * 3;
+        int kk = (hh == 0 || ((bx % 6) + 6) % 6 == 0) ? sb - 1 : (hh == 2 ? sb + 1 : sb);
+        return R[std::clamp(kk, 0, 4)];
+      }
+      return R[std::clamp(masonryK(gx, h, seed & 3u, sb), 0, 4)];
+    }
     if (w < 2) {
       int cx = w == 0 ? t0x : t1x;
       float u = (gx + 0.5f - cx) / TR;
@@ -875,6 +1294,10 @@ Canvas gateHouse(uint32_t seed, uint32_t field, uint32_t trim, int emblem, CityW
     if (std::abs(gx - 24) <= 1 && at >= 0 && h >= at + 3 && h <= at + 4) return R[4];   // keystone
     if (h < 3) return R[1];
     if (h == 3) return R[3];
+    if (brick) {   // (M3b) the river towns' red brick
+      const int row = h / 3, hh = h % 3, bx = gx + (row & 1) * 3;
+      return R[(hh == 0 || ((bx % 6) + 6) % 6 == 0) ? 1 : (hh == 2 ? 3 : 2)];
+    }
     return R[std::clamp(masonryK(gx, h, seed & 3u, 2), 0, 4)];
   };
   auto owner = [&](int, int) { return true; };
@@ -948,6 +1371,24 @@ Canvas gateHouse(uint32_t seed, uint32_t field, uint32_t trim, int emblem, CityW
   // the outline must not close the opening at the ground line
   for (int gx = ax0; gx <= ax1; gx++) c.set(BX + gx, BY + 16, 0);
   return c;
+}
+}  // namespace
+
+Canvas gateHouse(uint32_t seed, uint32_t field, uint32_t trim, int emblem, CityWall cw) {
+  return gateHouseImpl(seed, field, trim, emblem, cw, bld::fortDefaults(cw));
+}
+// (M3b) the gate forms other than the masonry gatehouses: rpg/art/art_parts_gates.cpp
+Canvas gateHouseForm(uint32_t seed, uint32_t field, uint32_t trim, int emblem, const bld::FortParts& f);
+Canvas gateHouse(uint32_t seed, const cult::Heraldry& arms, const bld::FortParts& f) {
+  // the kingdom's arms; else the culture's own colour with a gold charge (classic: the old red and gold)
+  const uint32_t field = !arms.empty() ? arms.field : (f.culture ? f.accent : 0);
+  const uint32_t trim = !arms.empty() ? arms.charge : (f.culture ? rgba(232, 200, 90) : 0);
+  const int emblem = !arms.empty() ? arms.emblem : (int)(f.variant % 8);
+  switch (f.gate) {
+    case bld::GateForm::DrumTowers: case bld::GateForm::Pylons: case bld::GateForm::SquareTowers:
+      return gateHouseImpl(seed, field, trim, emblem, f.wall, f);
+    default: return gateHouseForm(seed, field, trim, emblem, f);
+  }
 }
 
 Canvas gatePiece() { return gateHouse(0); }

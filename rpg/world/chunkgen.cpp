@@ -159,6 +159,10 @@ void EndlessSource::Impl::baseRectWater(BaseRect& B) {
           if (toll) continue;
         }
         int32_t px = -(s.y1 - s.y0), py = s.x1 - s.x0, reach = s.w + 2;
+        // (M3b fixer) the deck runs straight along the grid, the way nearest the river's normal (a slanted footbridge was a
+        // staircase of planks jogging a tile mid-deck); it reaches as far as the slant would have
+        if (std::abs(px) >= std::abs(py)) { px = px >= 0 ? len : -len; py = 0; reach = reach + (s.w + 1) / 2; }
+        else { py = py >= 0 ? len : -len; px = 0; reach = reach + (s.w + 1) / 2; }
         walk4(mx - px * reach / len, my - py * reach / len, mx + px * reach / len, my + py * reach / len, [&](int32_t x, int32_t y) {
           if (!B.in(x, y)) return;
           size_t i = B.at(x, y);
@@ -811,22 +815,118 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
     const Clip* cb = rp.b ? clipOf(rp.b) : nullptr;
     const uint8_t code = rp.cls == 0 ? 3 : rp.cls == 1 ? 2 : 1;
     const int hi = rp.cls == 0 ? 1 : 0;
+    // (M3b fixer) the road's raster near the chunk, in unbroken pieces, with a wide margin so a crossing is judged
+    // whole (every chunk sees the same crossing and lays the same deck)
+    const int32_t MG = 64;
+    std::vector<std::vector<GTile>> pieces;
+    bool open = false;
     for (size_t n = 0; n + 1 < rp.pts.size(); n++) {
       const GTile &a = rp.pts[n], &b = rp.pts[n + 1];
-      if (std::max(a.x, b.x) + 2 < x0 - 1 || std::min(a.x, b.x) - 2 > x0 + CHUNK || std::max(a.y, b.y) + 2 < y0 - 1 || std::min(a.y, b.y) - 2 > y0 + CHUNK) continue;
+      if (std::max(a.x, b.x) + 2 < x0 - MG || std::min(a.x, b.x) - 2 > x0 + CHUNK + MG || std::max(a.y, b.y) + 2 < y0 - MG ||
+          std::min(a.y, b.y) - 2 > y0 + CHUNK + MG) { open = false; continue; }
+      if (!open) { pieces.emplace_back(); open = true; }
+      std::vector<GTile>& P = pieces.back();
       walk4(a.x, a.y, b.x, b.y, [&](int32_t x, int32_t y) {
+        if (P.empty() || P.back().x != x || P.back().y != y) P.push_back(GTile{x, y});
+      });
+    }
+    // (M3b fixer) a bridge runs straight: where the road crosses water (a pond, a lake, a stream) on a slant, the turns
+    // are taken on dry land at the banks and the deck laid straight over the water (a staircase of deck tiles jogged
+    // mid-deck, or broke into stubs where the bank is ragged). Only where no straight line with dry banks exists does
+    // the slanting deck stay (the view draws a true diagonal as one span).
+    // the water a road meets, from the plans and the land's own ground (a marsh's pools, the sea): a pure function of
+    // the global tile, so every chunk judges a crossing alike
+    std::unordered_map<uint64_t, bool> wetMemo;
+    auto wetAt = [&](int32_t x, int32_t y) {
+      const uint64_t key = (uint64_t)(uint32_t)x << 32 | (uint32_t)y;
+      auto it = wetMemo.find(key);
+      if (it != wetMemo.end()) return it->second;
+      bool w = waterAtPlan(x, y);
+      if (!w) { const TileF f = tile(x, y); const Ground gg = groundFor(f.biome, f.e, f.t, x, y); w = gg == Ground::Water || gg == Ground::DeepWater; }
+      wetMemo.emplace(key, w);
+      return w;
+    };
+    auto dryFoot = [&](int32_t x, int32_t y) {
+      for (int oy = 0; oy <= hi; oy++)
+        for (int ox = 0; ox <= hi; ox++) if (wetAt(x + ox, y + oy)) return false;
+      return true;
+    };
+    // the deck from bank tile e to bank tile x on one line across the water, its turns on dry land (W: the tiles after
+    // e up to and including x)
+    auto crossing = [&](const GTile e, const GTile x, std::vector<GTile>& W) {
+      const int32_t dx = x.x - e.x, dy = x.y - e.y;
+      const int32_t adx = std::abs(dx), ady = std::abs(dy), sx = dx > 0 ? 1 : -1, sy = dy > 0 ? 1 : -1;
+      const bool horiz = adx >= ady;
+      // the line nearest the middle (rows between the banks for a crossing that runs east-west, columns for one that
+      // runs north-south) whose legs on both banks are dry
+      const int32_t lo = horiz ? std::min(e.y, x.y) : std::min(e.x, x.x), hiR = horiz ? std::max(e.y, x.y) : std::max(e.x, x.x);
+      const int32_t mid = lo + (hiR - lo) / 2;
+      for (int32_t off = 0; off <= hiR - lo; off++)
+        for (int side = 0; side < 2; side++) {
+          const int32_t r = side == 0 ? mid - off : mid + off + 1;
+          if (r < lo || r > hiR || (off == 0 && side == 1 && mid + 1 > hiR)) continue;
+          bool ok = true;
+          W.clear();
+          if (horiz) {
+            for (int32_t y = e.y; y != r && ok; y += r > e.y ? 1 : -1) { const int32_t ny = y + (r > e.y ? 1 : -1); ok = dryFoot(e.x, ny); W.push_back(GTile{e.x, ny}); }
+            for (int32_t k = 1; k <= adx && ok; k++) W.push_back(GTile{e.x + sx * k, r});
+            ok = ok && dryFoot(x.x, r);
+            for (int32_t y = r; y != x.y && ok; y += x.y > r ? 1 : -1) { const int32_t ny = y + (x.y > r ? 1 : -1); ok = dryFoot(x.x, ny); W.push_back(GTile{x.x, ny}); }
+          } else {
+            for (int32_t xx = e.x; xx != r && ok; xx += r > e.x ? 1 : -1) { const int32_t nx = xx + (r > e.x ? 1 : -1); ok = dryFoot(nx, e.y); W.push_back(GTile{nx, e.y}); }
+            for (int32_t k = 1; k <= ady && ok; k++) W.push_back(GTile{r, e.y + sy * k});
+            ok = ok && dryFoot(r, x.y);
+            for (int32_t xx = r; xx != x.x && ok; xx += x.x > r ? 1 : -1) { const int32_t nx = xx + (x.x > r ? 1 : -1); ok = dryFoot(nx, x.y); W.push_back(GTile{nx, x.y}); }
+          }
+          if (ok) return true;
+        }
+      return false;
+    };
+    for (std::vector<GTile>& P : pieces) {
+      for (size_t i = 1; i + 1 < P.size(); i++) {
+        if (dryFoot(P[i].x, P[i].y) || !dryFoot(P[i - 1].x, P[i - 1].y)) continue;
+        size_t j = i;
+        while (j + 1 < P.size() && !dryFoot(P[j].x, P[j].y)) j++;
+        if (!dryFoot(P[j].x, P[j].y)) break;   // no dry far bank in this piece
+        const GTile e0 = P[i - 1], x0t = P[j];   // the last dry tile before, the first dry tile after
+        const int32_t adx = std::abs(x0t.x - e0.x), ady = std::abs(x0t.y - e0.y);
+        bool straight = true;   // is the run already a straight line?
+        for (size_t k = i; k < j && straight; k++) if (P[k].x != e0.x && P[k].y != e0.y) straight = false;
+        if (straight || std::min(adx, ady) == 0) { i = j; continue; }
+        // a marsh's bank is ragged: when no line works between the banks' first dry tiles, the turns may move a few
+        // tiles further onto the land either side
+        std::vector<GTile> W;
+        size_t ia = 0, jb = 0;
+        bool found = false;
+        for (size_t ext = 0; ext <= 4 && !found; ext++) {
+          if (i - 1 < ext || j + ext >= P.size()) break;
+          ia = i - 1 - ext; jb = j + ext;
+          if (!dryFoot(P[ia].x, P[ia].y) || !dryFoot(P[jb].x, P[jb].y)) continue;
+          found = crossing(P[ia], P[jb], W);
+        }
+        if (!found) { i = j; continue; }
+        std::vector<GTile> Q(P.begin(), P.begin() + (long)ia + 1);
+        for (const GTile& t : W) if (t.x != P[jb].x || t.y != P[jb].y) Q.push_back(t);
+        const size_t resume = Q.size();
+        Q.insert(Q.end(), P.begin() + (long)jb, P.end());
+        P.swap(Q);
+        i = resume;
+      }
+    }
+    for (const std::vector<GTile>& P : pieces)
+      for (const GTile& t : P) {
+        if (t.x + 2 < x0 - 1 || t.x - 2 > x0 + CHUNK || t.y + 2 < y0 - 1 || t.y - 2 > y0 + CHUNK) continue;
         for (int oy = 0; oy <= hi; oy++)
           for (int ox = 0; ox <= hi; ox++) {
-            int32_t gx = x + ox, gy = y + oy;
+            int32_t gx = t.x + ox, gy = t.y + oy;
             if (!rin(gx, gy)) continue;
             if (ca && gx >= ca->x0 && gy >= ca->y0 && gx < ca->x1 && gy < ca->y1) continue;
             if (cb && gx >= cb->x0 && gy >= cb->y0 && gx < cb->x1 && gy < cb->y1) continue;
-            size_t i = ri(gx, gy);
-            if (used[i]) continue;
-            road[i] = std::max(road[i], code);
+            size_t ii = ri(gx, gy);
+            if (used[ii]) continue;
+            road[ii] = std::max(road[ii], code);
           }
-      });
-    }
+      }
   };
   for (int32_t gy = y0 - 1; gy < y0 + CHUNK + 1; gy++)
     for (int32_t gx = x0 - 1; gx < x0 + CHUNK + 1; gx++)
@@ -1351,7 +1451,140 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
     }
   }
   // 7: vegetation by per-tile hash (off reserved tiles, roads, cliffs, ramps and their approaches)
+  //
+  // (forest fixer, Oct 2026) "Trees shouldn't get closer than one person wide": no two solid wild props (trees, bushes,
+  // stumps, logs, rocks, cacti) ever touch, diagonals included, so there is always a free tile between two trunks and
+  // a wood can be walked through. Every tile's roll is a pure function of the tile (its hash, the base biome, the
+  // relief level, the density noise); a tile is a solid CANDIDATE when any of the branches its roll could take (the
+  // ecotone ones for every partner biome, the plain biome one) would put something solid there. A solid prop is
+  // placed only when its key beats the key of every candidate among its 8 neighbours (key: trees over the rest, then
+  // a jittered one-tile-in-four lattice preference that packs the woods tighter, then a hash). Two touching solids
+  // would each have to beat the other, so it cannot happen, and since the candidates are computed the same way from
+  // either side of a chunk edge, it holds across edges too. A suppressed tree leaves walkable undergrowth (ferns,
+  // grass, flowers, mushrooms) on its tile, so the woods keep their density; the crowns (2-3 tiles wide) still close
+  // over the gaps. The tree odds are raised to make up for the trees the rule removes.
   const uint64_t vs = mix64(seed ^ tag("veg"));
+  // the roll of one tile: eco 0 = none, 1 = the ecotone branch at the blend's odds, 2 = the ecotone branch for sure
+  auto roll = [&](int32_t x, int32_t y, int32_t dens, Biome b, int lv, int eco, int ew, Biome ob, Ground g, bool nearWater, bool river, bool& done) {
+    done = false;
+    const int32_t r = hq(tileHash(vs, x, y));
+    const int32_t q = hq(tileHash(vs ^ 0x400u, x, y));
+    const uint64_t pk = tileHash(vs ^ 0x300u, x, y);
+    auto pick = [&](std::initializer_list<Prop> l) { return *(l.begin() + (size_t)(pk % l.size())); };
+    // highland thins the woods; (M2) above the tree line (levels 6 and 7) only a few stunted trees among the rocks
+    const int32_t thin = lv >= 7 ? Q(0.16) : lv >= 6 ? Q(0.32) : lv >= 5 ? Q(0.55) : lv >= 4 ? Q(0.8) : Q_ONE;
+    Prop p = Prop::COUNT;
+    // (M2) the ecotone's flora: at the blend's odds a tile grows the transition between the two sides (lone trees and
+    // bushes from forest to plains, dry grass and scrub toward the desert, snow patches and dwarf pines toward the snow)
+    if (eco == 2 || (eco == 1 && ew && g != Ground::Water && hq(tileHash(vs ^ 0x7E0u, x, y)) < ew * Q(0.125))) {
+      auto wood = [](Biome q) { return q == Biome::Forest || q == Biome::Autumn || q == Biome::Taiga; };
+      bool set = true;
+      if (b == Biome::Plains && wood(ob)) {   // the forest's outliers: a lone tree, bushes, ferns
+        if (r < qm(Q(0.06), thin)) p = ob == Biome::Taiga ? pick({Prop::PineTree, Prop::PineTree2}) : ob == Biome::Autumn ? Prop::AutumnTree : pick({Prop::OakTree, Prop::OakTree2, Prop::BirchTree});
+        else if (r < Q(0.085)) p = pick({Prop::Bush, Prop::BerryBush, Prop::Fern});
+        else if (r < Q(0.20)) p = Prop::TallGrass;
+      } else if (wood(b) && ob == Biome::Plains) {   // the wood thins out: glades of grass and flowers
+        if (r < qm(Q(0.08), thin)) p = b == Biome::Taiga ? pick({Prop::PineTree, Prop::PineTree2}) : b == Biome::Autumn ? Prop::AutumnTree : pick({Prop::OakTree, Prop::BirchTree});
+        else if (r < Q(0.12)) p = pick({Prop::Bush, Prop::Flowers1, Prop::Flowers2});
+        else if (r < Q(0.26)) p = Prop::TallGrass;
+      } else if (b == Biome::Plains && ob == Biome::Desert) {   // dry grass and scrub
+        if (r < Q(0.010)) p = Prop::DeadTree;
+        else if (r < Q(0.045)) p = Prop::Bush;
+        else if (r < Q(0.06)) p = Prop::Rock;
+        else if (r < Q(0.22)) p = Prop::TallGrass;
+      } else if (b == Biome::Desert && ob == Biome::Plains) {   // the first grass and scrub on the sand
+        if (r < Q(0.03)) p = Prop::Bush;
+        else if (r < Q(0.11)) p = Prop::TallGrass;
+        else if (r < Q(0.115)) p = Prop::Cactus;
+      } else if (b == Biome::Taiga && ob == Biome::Snow) {   // snow patches and dwarf pines
+        if (r < qm(Q(0.08), thin)) p = Prop::SnowPine;
+        else if (r < Q(0.11)) p = pick({Prop::SnowBush, Prop::SnowRock});
+      } else if (b == Biome::Snow && ob == Biome::Taiga) {   // the last pines and the moss under the snow
+        if (r < qm(Q(0.08), thin)) p = pick({Prop::PineTree2, Prop::SnowPine});
+        else if (r < Q(0.10)) p = pick({Prop::SnowBush, Prop::MossRock});
+      } else set = false;
+      if (set) { done = true; return p; }
+    }
+    if (g == Ground::Water) {
+      if (b == Biome::Swamp && r < Q(0.12)) p = Prop::LilyPad;
+      else if (r < Q(0.025) && b != Biome::Ocean && !river) p = Prop::LilyPad;
+    } else if (groundSolid(g)) {
+      return Prop::COUNT;
+    } else if (nearWater && b != Biome::Desert && b != Biome::Snow && r < Q(0.30)) {
+      p = q < Q(0.6) ? Prop::Reeds : Prop::TallGrass;
+    } else switch (b) {
+      case Biome::Plains:
+        if (r < qm(Q(0.010) + std::max(0, (dens - Q(0.60)) / 2), thin)) p = pick({Prop::OakTree, Prop::OakTree2, Prop::BirchTree});
+        else if (r < Q(0.07)) p = pick({Prop::Flowers1, Prop::Flowers2, Prop::Flowers3});
+        else if (r < Q(0.15)) p = Prop::TallGrass;
+        else if (r < Q(0.162)) p = pick({Prop::Bush, Prop::BerryBush});
+        else if (r < Q(0.168) + (lv >= 4 ? Q(0.01) : 0)) p = pick({Prop::Rock, Prop::Boulder});
+        break;
+      // (forest fixer) the woods' tree odds are about doubled: the spacing rule keeps at most one in every few tiles
+      case Biome::Forest:
+        if (r < qm(Q(0.28) + qm(dens, Q(0.40)), thin)) p = pick({Prop::OakTree, Prop::OakTree2, Prop::OakTree, Prop::BirchTree});
+        else if (r < Q(0.70)) { if (q < Q(0.22)) p = Prop::Fern; else if (q < Q(0.25)) p = pick({Prop::Bush, Prop::Mushrooms}); else if (q < Q(0.27)) p = pick({Prop::Stump, Prop::Log, Prop::MossRock}); else if (q < Q(0.45)) p = Prop::TallGrass; }
+        break;
+      case Biome::Autumn:
+        if (r < qm(Q(0.26) + qm(dens, Q(0.38)), thin)) p = pick({Prop::AutumnTree, Prop::AutumnTree, Prop::BirchTree});
+        else if (r < Q(0.70)) { if (q < Q(0.14)) p = Prop::Fern; else if (q < Q(0.20)) p = pick({Prop::Bush, Prop::Mushrooms, Prop::Flowers3}); else if (q < Q(0.21)) p = Prop::Stump; else if (q < Q(0.30)) p = Prop::TallGrass; }
+        break;
+      case Biome::Taiga:
+        if (r < qm(Q(0.20) + qm(dens, Q(0.36)), thin)) p = pick({Prop::PineTree, Prop::PineTree2});
+        else if (r < Q(0.60)) { if (q < Q(0.07)) p = Prop::Fern; else if (q < Q(0.09)) p = pick({Prop::MossRock, Prop::Boulder, Prop::Stump}); else if (q < Q(0.16)) p = Prop::TallGrass; }
+        break;
+      case Biome::Snow:
+        if (r < qm(Q(0.04) + qm(dens, Q(0.22)), thin)) p = Prop::SnowPine;
+        else if (r < Q(0.4)) { if (q < Q(0.03)) p = Prop::SnowRock; else if (q < Q(0.05)) p = Prop::SnowBush; }
+        break;
+      case Biome::Swamp:
+        if (r < Q(0.07) + qm(dens, Q(0.16))) p = pick({Prop::WillowTree, Prop::WillowTree, Prop::DeadTree});
+        else if (r < Q(0.5)) { if (q < Q(0.2)) p = Prop::Reeds; else if (q < Q(0.24)) p = Prop::Mushrooms; else if (q < Q(0.28)) p = Prop::TallGrass; }
+        break;
+      case Biome::Desert:
+        if (r < Q(0.012)) p = Prop::Cactus;
+        else if (r < Q(0.018)) p = pick({Prop::Rock, Prop::DeadTree});
+        break;
+      case Biome::Beach:
+        if (r < Q(0.025)) p = Prop::Rock;
+        else if (r < Q(0.05)) p = Prop::Reeds;
+        break;
+      default: break;
+    }
+    // (M2) the high ground's scree: rocks and boulders strewn over the mountains' shoulders and plateaus
+    if (p == Prop::COUNT && lv >= 6 && b != Biome::Swamp && g != Ground::Water && r > Q(0.80) && r < Q(0.80) + (lv >= 7 ? Q(0.022) : Q(0.012)))
+      p = b == Biome::Snow || b == Biome::Taiga ? pick({Prop::SnowRock, Prop::SnowRock, Prop::Boulder}) : pick({Prop::Rock, Prop::Boulder, Prop::MossRock});
+    return p;
+  };
+  auto isTreeP = [](Prop p) { return (int)p <= (int)Prop::AutumnTree; };   // OakTree .. AutumnTree
+  auto solidRank = [&](Prop p) { return p == Prop::COUNT || !propSolid(p) ? 0 : isTreeP(p) ? 2 : 1; };
+  // a solid prop's key: rank (trees first), the jittered lattice slot (one tile of every 2 x 2 cell), a hash
+  auto keyOf = [&](int32_t x, int32_t y, int rank) {
+    const uint64_t cell = tileHash(vs ^ 0x5107u, x >> 1, y >> 1);
+    const bool slot = (int)(x & 1) == (int)(cell & 1) && (int)(y & 1) == (int)((cell >> 1) & 1);
+    return ((uint64_t)rank << 62) | ((uint64_t)slot << 61) | (tileHash(vs ^ 0x9A1u, x, y) >> 3);
+  };
+  // the solid candidates over the chunk and a one-tile ring (base biome, never a town's: town ground grows no scatter)
+  std::vector<uint64_t> candKey((size_t)RW * RW, 0);   // 0: not a candidate
+  std::vector<int32_t> densA((size_t)RW * RW, 0);      // the woods' density noise, worked once per tile
+  for (int32_t y = y0 - 1; y < y0 + CHUNK + 1; y++)
+    for (int32_t x = x0 - 1; x < x0 + CHUNK + 1; x++) {
+      const size_t bi = (size_t)(y - (y0 - BR)) * BW + (x - (x0 - BR));
+      const Biome b = (Biome)B.biome[bi];
+      const int lv = bits[ri(x, y)] & Map::HEIGHT_LEVEL;
+      bool done = false;
+      const int32_t dens = densA[ri(x, y)] = fbmQ(x, y, 3, 3, vs ^ 0xD3u);
+      int rank = solidRank(roll(x, y, dens, b, lv, 0, 0, b, Ground::Grass, false, false, done));
+      static const Biome partners[6] = {Biome::Plains, Biome::Forest, Biome::Autumn, Biome::Taiga, Biome::Snow, Biome::Desert};
+      for (Biome ob : partners) {
+        if (ob == b || rank == 2) continue;
+        const Prop pe = roll(x, y, dens, b, lv, 2, 8, ob, Ground::Grass, false, false, done);
+        if (done) rank = std::max(rank, solidRank(pe));
+      }
+      if (rank) candKey[ri(x, y)] = keyOf(x, y, rank);
+    }
+  // what stood before the scatter (dens, scree, vignettes): the scatter keeps its solids off those too (within the chunk)
+  std::vector<uint8_t> pre(c.prop, c.prop + ChunkData::N);
   for (int ly = 0; ly < CHUNK; ly++)
     for (int lx = 0; lx < CHUNK; lx++) {
       const int i = c.at(lx, ly);
@@ -1372,108 +1605,47 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
       if (nearRamp) continue;
       Ground g = (Ground)c.ground[i];
       if (g == Ground::Road || g == Ground::Bridge || g == Ground::Plaza || g == Ground::Farmland || g == Ground::StoneFloor || g == Ground::Dirt) continue;
-      int32_t r = hq(tileHash(vs, x, y));
-      int32_t dens = fbmQ(x, y, 3, 3, vs ^ 0xD3u);
-      int32_t q = hq(tileHash(vs ^ 0x400u, x, y));
-      uint64_t pk = tileHash(vs ^ 0x300u, x, y);
-      auto pick = [&](std::initializer_list<Prop> l) { return *(l.begin() + (size_t)(pk % l.size())); };
       const Biome b = (Biome)c.biome[i];
       const int lv = bits[ri(x, y)] & Map::HEIGHT_LEVEL;
-      // highland thins the woods; (M2) above the tree line (levels 6 and 7) only a few stunted trees among the rocks
-      const int32_t thin = lv >= 7 ? Q(0.16) : lv >= 6 ? Q(0.32) : lv >= 5 ? Q(0.55) : lv >= 4 ? Q(0.8) : Q_ONE;
-      Prop p = Prop::COUNT;
-      // (M2) the ecotone's flora: at the blend's odds a tile grows the transition between the two sides (lone trees and
-      // bushes from forest to plains, dry grass and scrub toward the desert, snow patches and dwarf pines toward the snow)
-      {
-        const uint8_t bl = c.blend[i];
-        const int ew = (bl >> 4) <= 8 ? bl >> 4 : 0;   // (M3 fixer: above 8 a town's paving mark)
-        const Biome ob = (Biome)(bl & 15);
-        if (ew && g != Ground::Water && hq(tileHash(vs ^ 0x7E0u, x, y)) < ew * Q(0.125)) {
-          auto wood = [](Biome q) { return q == Biome::Forest || q == Biome::Autumn || q == Biome::Taiga; };
-          bool set = true;
-          if (b == Biome::Plains && wood(ob)) {   // the forest's outliers: a lone tree, bushes, ferns
-            if (r < qm(Q(0.045), thin)) p = ob == Biome::Taiga ? pick({Prop::PineTree, Prop::PineTree2}) : ob == Biome::Autumn ? Prop::AutumnTree : pick({Prop::OakTree, Prop::OakTree2, Prop::BirchTree});
-            else if (r < Q(0.085)) p = pick({Prop::Bush, Prop::BerryBush, Prop::Fern});
-            else if (r < Q(0.20)) p = Prop::TallGrass;
-          } else if (wood(b) && ob == Biome::Plains) {   // the wood thins out: glades of grass and flowers
-            if (r < qm(Q(0.035), thin)) p = b == Biome::Taiga ? pick({Prop::PineTree, Prop::PineTree2}) : b == Biome::Autumn ? Prop::AutumnTree : pick({Prop::OakTree, Prop::BirchTree});
-            else if (r < Q(0.09)) p = pick({Prop::Bush, Prop::Flowers1, Prop::Flowers2});
-            else if (r < Q(0.24)) p = Prop::TallGrass;
-          } else if (b == Biome::Plains && ob == Biome::Desert) {   // dry grass and scrub
-            if (r < Q(0.010)) p = Prop::DeadTree;
-            else if (r < Q(0.045)) p = Prop::Bush;
-            else if (r < Q(0.06)) p = Prop::Rock;
-            else if (r < Q(0.22)) p = Prop::TallGrass;
-          } else if (b == Biome::Desert && ob == Biome::Plains) {   // the first grass and scrub on the sand
-            if (r < Q(0.03)) p = Prop::Bush;
-            else if (r < Q(0.11)) p = Prop::TallGrass;
-            else if (r < Q(0.115)) p = Prop::Cactus;
-          } else if (b == Biome::Taiga && ob == Biome::Snow) {   // snow patches and dwarf pines
-            if (r < qm(Q(0.05), thin)) p = Prop::SnowPine;
-            else if (r < Q(0.09)) p = pick({Prop::SnowBush, Prop::SnowRock});
-          } else if (b == Biome::Snow && ob == Biome::Taiga) {   // the last pines and the moss under the snow
-            if (r < qm(Q(0.06), thin)) p = pick({Prop::PineTree2, Prop::SnowPine});
-            else if (r < Q(0.09)) p = pick({Prop::SnowBush, Prop::MossRock});
-          } else set = false;
-          if (set) {
-            if (p == Prop::COUNT) continue;
-            if ((nearRoad || nearCliff) && propSolid(p)) continue;
-            c.prop[i] = (uint8_t)((int)p + 1);
-            continue;
-          }
-        }
-      }
-      if (g == Ground::Water) {
-        if (b == Biome::Swamp && r < Q(0.12)) p = Prop::LilyPad;
-        else if (r < Q(0.025) && (Biome)c.biome[i] != Biome::Ocean && !B.riverW[(size_t)(ly + BR) * BW + lx + BR]) p = Prop::LilyPad;
-      } else if (groundSolid(g)) {
-        continue;
-      } else if (nearWater && b != Biome::Desert && b != Biome::Snow && r < Q(0.30)) {
-        p = q < Q(0.6) ? Prop::Reeds : Prop::TallGrass;
-      } else switch (b) {
-        case Biome::Plains:
-          if (r < qm(Q(0.010) + std::max(0, (dens - Q(0.60)) / 2), thin)) p = pick({Prop::OakTree, Prop::OakTree2, Prop::BirchTree});
-          else if (r < Q(0.07)) p = pick({Prop::Flowers1, Prop::Flowers2, Prop::Flowers3});
-          else if (r < Q(0.15)) p = Prop::TallGrass;
-          else if (r < Q(0.162)) p = pick({Prop::Bush, Prop::BerryBush});
-          else if (r < Q(0.168) + (lv >= 4 ? Q(0.01) : 0)) p = pick({Prop::Rock, Prop::Boulder});
-          break;
-        case Biome::Forest:
-          if (r < qm(Q(0.10) + qm(dens, Q(0.32)), thin)) p = pick({Prop::OakTree, Prop::OakTree2, Prop::OakTree, Prop::BirchTree});
-          else if (r < Q(0.50)) { if (q < Q(0.12)) p = Prop::Fern; else if (q < Q(0.15)) p = pick({Prop::Bush, Prop::Mushrooms}); else if (q < Q(0.17)) p = pick({Prop::Stump, Prop::Log, Prop::MossRock}); else if (q < Q(0.25)) p = Prop::TallGrass; }
-          break;
-        case Biome::Autumn:
-          if (r < qm(Q(0.08) + qm(dens, Q(0.30)), thin)) p = pick({Prop::AutumnTree, Prop::AutumnTree, Prop::BirchTree});
-          else if (r < Q(0.5)) { if (q < Q(0.08)) p = Prop::Fern; else if (q < Q(0.12)) p = pick({Prop::Bush, Prop::Mushrooms, Prop::Flowers3}); else if (q < Q(0.13)) p = Prop::Stump; }
-          break;
-        case Biome::Taiga:
-          if (r < qm(Q(0.06) + qm(dens, Q(0.28)), thin)) p = pick({Prop::PineTree, Prop::PineTree2});
-          else if (r < Q(0.45)) { if (q < Q(0.04)) p = Prop::Fern; else if (q < Q(0.06)) p = pick({Prop::MossRock, Prop::Boulder, Prop::Stump}); else if (q < Q(0.1)) p = Prop::TallGrass; }
-          break;
-        case Biome::Snow:
-          if (r < qm(Q(0.03) + qm(dens, Q(0.18)), thin)) p = Prop::SnowPine;
-          else if (r < Q(0.4)) { if (q < Q(0.03)) p = Prop::SnowRock; else if (q < Q(0.05)) p = Prop::SnowBush; }
-          break;
-        case Biome::Swamp:
-          if (r < Q(0.03) + qm(dens, Q(0.10))) p = pick({Prop::WillowTree, Prop::WillowTree, Prop::DeadTree});
-          else if (r < Q(0.5)) { if (q < Q(0.2)) p = Prop::Reeds; else if (q < Q(0.24)) p = Prop::Mushrooms; else if (q < Q(0.28)) p = Prop::TallGrass; }
-          break;
-        case Biome::Desert:
-          if (r < Q(0.012)) p = Prop::Cactus;
-          else if (r < Q(0.018)) p = pick({Prop::Rock, Prop::DeadTree});
-          break;
-        case Biome::Beach:
-          if (r < Q(0.025)) p = Prop::Rock;
-          else if (r < Q(0.05)) p = Prop::Reeds;
-          break;
-        default: break;
-      }
-      // (M2) the high ground's scree: rocks and boulders strewn over the mountains' shoulders and plateaus
-      if (p == Prop::COUNT && lv >= 6 && b != Biome::Swamp && g != Ground::Water && r > Q(0.80) && r < Q(0.80) + (lv >= 7 ? Q(0.022) : Q(0.012)))
-        p = b == Biome::Snow || b == Biome::Taiga ? pick({Prop::SnowRock, Prop::SnowRock, Prop::Boulder}) : pick({Prop::Rock, Prop::Boulder, Prop::MossRock});
+      const uint8_t bl = c.blend[i];
+      const int ew = (bl >> 4) <= 8 ? bl >> 4 : 0;   // (M3 fixer: above 8 a town's paving mark)
+      bool done = false;
+      Prop p = roll(x, y, densA[ri(x, y)], b, lv, 1, ew, (Biome)(bl & 15), g, nearWater, B.riverW[(size_t)(ly + BR) * BW + lx + BR] != 0, done);
       if (p == Prop::COUNT) continue;
       // keep the road verges and cliff feet free of anything solid
       if ((nearRoad || nearCliff) && propSolid(p)) continue;
+      // (forest fixer) the spacing rule: a solid only where it outranks every solid candidate round it (and nothing
+      // solid already stands beside it)
+      const int rank = solidRank(p);
+      if (rank) {
+        const uint64_t k = keyOf(x, y, rank);
+        bool wins = true;
+        for (int oy = -1; oy <= 1 && wins; oy++)
+          for (int ox = -1; ox <= 1 && wins; ox++) {
+            if (!ox && !oy) continue;
+            const uint64_t nk = candKey[ri(x + ox, y + oy)];
+            if (nk > k || (nk == k && (oy < 0 || (oy == 0 && ox < 0)))) wins = false;   // (equal keys: the earlier tile wins)
+            const int lx2 = lx + ox, ly2 = ly + oy;
+            if (lx2 >= 0 && ly2 >= 0 && lx2 < CHUNK && ly2 < CHUNK) {
+              const int pp = pre[(size_t)c.at(lx2, ly2)];
+              if (pp && propSolid((Prop)(pp - 1))) wins = false;
+            }
+          }
+        if (!wins) {
+          // a tree that gives way leaves the undergrowth of its wood; a bush or rock leaves the ground bare
+          if (rank < 2) continue;
+          const uint32_t u = (uint32_t)(tileHash(vs ^ 0x6A3u, x, y) % 100);
+          switch (b) {
+            case Biome::Forest: p = u < 38 ? Prop::Fern : u < 66 ? Prop::TallGrass : u < 69 ? Prop::Mushrooms : u < 72 ? Prop::Flowers3 : Prop::COUNT; break;
+            case Biome::Autumn: p = u < 32 ? Prop::Fern : u < 38 ? Prop::Mushrooms : u < 48 ? Prop::Flowers3 : u < 68 ? Prop::TallGrass : Prop::COUNT; break;
+            case Biome::Taiga: p = u < 30 ? Prop::Fern : u < 50 ? Prop::TallGrass : Prop::COUNT; break;
+            case Biome::Swamp: p = u < 35 ? Prop::Reeds : u < 50 ? Prop::Mushrooms : u < 65 ? Prop::TallGrass : Prop::COUNT; break;
+            case Biome::Plains: p = u < 40 ? Prop::TallGrass : u < 55 ? Prop::Flowers1 : Prop::COUNT; break;
+            default: p = Prop::COUNT; break;
+          }
+          if (p == Prop::COUNT) continue;
+        }
+      }
       c.prop[i] = (uint8_t)((int)p + 1);
     }
   // (M2 fixer round 2) the low summer flora (grass tufts, flowers, ferns, mushrooms) never stands on paving or on snow,

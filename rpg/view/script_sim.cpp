@@ -305,7 +305,7 @@ bool cmdDumpTiles(ScriptCtx& c) {
     for (int y = py - r; y <= py + r; y++)
       for (int x = px - r; x <= px + r; x++)
         if (const int pr = m.propAt(x, y)) std::printf("prop %d %d = %d\n", x, y, pr - 1);
-    std::printf("player %d %d\n", px, py);
+    std::printf("player %d %d (px %.1f %.1f)\n", px, py, g.pl().p.x, g.pl().p.y);
     return true;
   }
   for (int y = py - r; y <= py + r; y++) {

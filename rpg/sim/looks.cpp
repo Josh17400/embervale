@@ -8,6 +8,7 @@
 #include <string>
 #include "rpg/sim/game.h"
 #include "rpg/culture/culture.h"
+#include "rpg/culture/society.h"
 #include "rpg/sim/game_internal.h"
 
 // ------------------------------------------------------------------ the census look (M3, VISION_PLAN 5.6 "NPCs")
@@ -215,9 +216,9 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
     Stream hn(seed ^ 0x6E616D65ull);   // its own stream: every bit of the person seed reaches the name
     std::string nm = cult::personName(C, hn.next(), female);
     if (!nm.empty()) {
-      if (r == Role::Jarl) nm = "JARL " + nm;
+      if (r == Role::Jarl) nm = std::string(cult::societyOf(owner).lordTitle) + " " + nm;   // (M3b fixer) the society's lord: NOYAN, EMIR, PROVOST...
       else if (r == Role::Priest) nm = "PRIEST " + nm;
-      else if (r == Role::King) nm = "KING " + nm;
+      else if (r == Role::King) nm = std::string(cult::societyOf(owner).rulerTitle) + " " + nm;   // (fix) the society's own title: KHAN, HIGH JARL, DOGE...
       name = nm;
     }
   }

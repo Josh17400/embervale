@@ -5,6 +5,7 @@
 // FOOTPRINTS are frozen in art::wildFootprint (the prop stands on the bottom-centre tile of its footprint).
 #include <cstdlib>
 #include "rpg/art/art_internal.h"
+#include "rpg/art/art_parts.h"
 
 namespace art {
 
@@ -18,7 +19,7 @@ const WildInfo kWild[] = {
     {22, 24, 1}, {30, 16, 4}, {112, 128, 1}, {56, 112, 1}, {22, 32, 4}, {120, 62, 1}, {136, 140, 1},
 };
 constexpr int kWildN = (int)(sizeof(kWild) / sizeof(kWild[0]));
-static_assert(kWildN == (int)Prop::COUNT - (int)Prop::Peak, "a size for every M2 prop");
+static_assert(kWildN == (int)Prop::GreatPeak + 1 - (int)Prop::Peak, "a size for every M2 prop (Peak .. GreatPeak)");
 inline const WildInfo& wi(Prop p) { return kWild[std::clamp((int)p - (int)Prop::Peak, 0, kWildN - 1)]; }
 
 // ---- shared bits -----------------------------------------------------------------------------------------------
@@ -254,6 +255,71 @@ void standingStone(Canvas& c) {
   lichen(c, 0, 4, W - 1, 14, 51, 0.22f, true);
   outline(c, 0.95f);
   tufts(c, 1, W - 2, by + 1, 53, 0.55f);
+}
+
+// ---- (M3b forts) a standing stone in a variant: its height, girth, taper and lean, its top (weather-rounded, cut on a
+// slant, pointed, or broken off with a notch), cracks and pits, lichen and moss; in the land's or the culture's stone,
+// a carving on some (runes, a ring mark, a spiral) in the culture's accent. Same canvas and anchor as standingStone.
+void standingStoneV(Canvas& c, int v, const bld::MonumentParts& mp) {
+  const uint32_t hv = hash3(v, (int)mp.variant, 0x5701u);
+  auto rnd = [&](int k, int n) { return (int)(hash3((int)hv, k, 0x5703u) % (uint32_t)n); };
+  // the land's weathered field stone, drawn a little toward the culture's own (a standing stone is not a dressed one)
+  const uint32_t base = mp.stone ? mix(rgba(120, 116, 120), opaque(mp.stone), 0.4f) : rgba(120, 116, 120);
+  const Ramp R = ramp(shade(base, 0.9f + rnd(1, 5) * 0.05f), 0.95f);
+  const int W = c.w, H = c.h, by = H - 3;
+  const int height = 17 + rnd(2, 15);                  // 17..31 px
+  const int y0 = by - height;
+  const float w0 = 3.4f + rnd(3, 5) * 0.45f;           // the half girth at the foot
+  const float taper = 0.55f + rnd(4, 5) * 0.1f;        // the top's girth over the foot's
+  const float lean = (rnd(5, 5) - 2) * 0.7f;           // px at the top (+ east)
+  const int topForm = rnd(6, 4);                       // 0 rounded, 1 a slanted cut, 2 pointed, 3 broken with a notch
+  const float cx = W * 0.5f - 0.5f;
+  for (int y = y0; y <= by; y++) {
+    const float t = (y - y0) / (float)std::max(1, by - y0);   // 0 top .. 1 foot
+    float hw = w0 * (taper + (1 - taper) * t) + (vnoise(v * 3.0f, y / 4.0f, 41) - 0.5f) * 1.1f;
+    const float lx = (1 - t) * lean;
+    // the top's shape
+    float cutL = 0, cutR = 0;
+    const float tt = (y - y0) / 6.0f;   // the top six rows
+    if (tt < 1) {
+      switch (topForm) {
+        case 0: hw *= std::sqrt(std::max(0.0f, 1 - (1 - tt) * (1 - tt))); break;
+        case 1: cutR = (1 - tt) * hw * 1.6f; break;
+        case 2: hw *= std::max(0.15f, tt); break;
+        default: if (tt < 0.5f && std::fabs(lx) < 9) cutL = hw * 0.9f * (1 - tt * 2); break;
+      }
+    }
+    for (int x = (int)std::floor(cx + lx - hw - 2.2f); x <= (int)std::ceil(cx + lx + hw); x++) {
+      const float u = (x + 0.5f - (cx + lx)) / std::max(1.0f, hw);
+      if (u < -1.0f + cutL / std::max(1.0f, hw) || u > 1.0f + 2.2f / std::max(1.0f, hw)) continue;
+      if (u > 1.0f - cutR / std::max(1.0f, hw) && u <= 1.0f) continue;
+      int k;
+      if (u > 1.0f) k = 1;   // its east side in shade (the slab's thickness)
+      else {
+        const float l = lightAt(u * 0.75f, tt < 1 ? -0.6f : -0.1f) + (vnoise(x / 2.0f, y / 3.0f, 43 + v) - 0.5f) * 0.35f;
+        k = lightIndex(l, x, y, 0.12f);
+        if (u > 0.82f) k = std::min(k, 2);
+      }
+      c.set(x, y, R[k]);
+    }
+  }
+  // cracks, pits
+  for (int y = y0 + 5; y < by - 2; y++) if (hashf(v, y, 45) < 0.28f) dotOn(c, (int)cx - 1 + (int)(hash3(v + 1, y / 3, 45) % 3), y, R[0]);
+  for (int i = 0; i < 5; i++) dotOn(c, (int)cx - 3 + (int)(hash3(i, v, 47) % 6), y0 + 4 + (int)(hash3(i, 3 + v, 47) % std::max(1, by - y0 - 8)), R[1]);
+  // a carving on some: a ring mark, runes, a spiral, in the culture's accent (or cut dark)
+  if (mp.finery >= 2 || rnd(7, 3) == 0) {
+    const uint32_t ink = mp.accent ? mix(opaque(mp.accent), R[1], 0.35f) : R[0];
+    const int my = y0 + height / 3;
+    switch (rnd(8, 3)) {
+      case 0: for (int a = 0; a < 10; a++) dotOn(c, (int)std::lround(cx + std::cos(a * 0.63f) * 2.0f), (int)std::lround(my + std::sin(a * 0.63f) * 2.0f), ink); break;
+      case 1: for (int y = my - 3; y <= my + 4; y++) { dotOn(c, (int)cx - 1, y, ink); if ((y - my) % 3 == 0) dotOn(c, (int)cx, y - 1, ink); } break;
+      default: for (int a = 0; a < 14; a++) { const float r = 0.5f + a * 0.2f; dotOn(c, (int)std::lround(cx + std::cos(a * 0.9f) * r), (int)std::lround(my + std::sin(a * 0.9f) * r), ink); } break;
+    }
+  }
+  lichen(c, 0, by - 14, W - 1, by, 49 + v, 0.22f + rnd(9, 4) * 0.08f, true);
+  lichen(c, 0, y0, W - 1, y0 + 9, 51 + v, 0.12f + rnd(10, 3) * 0.08f, rnd(11, 2) == 0);
+  outline(c, 0.95f);
+  tufts(c, 1, W - 2, by + 1, 53 + v, 0.55f);
 }
 
 // ---- the sculptor (M3 people lane) -------------------------------------------------------------------------------
@@ -659,33 +725,98 @@ void herbBed(Canvas& c) {
 // grave at a glance: a pale upright headstone with a rounded top and a carved cross at the north end, a long low mound
 // of turned earth before it ringed with fieldstones (the cairn), wild flowers laid at its foot; lit from the top-left,
 // the mound's south-east flank and the stone's east edge in shade.
-void graveCairn(Canvas& c) {
+// (M3b forts) arch: the culture (cult::Archetype, -1 classic) whose burial custom marks the grave: a headstone and cross
+// (heartland, river), a rune stone (fjords), a cairn heaped over it (highlands), a stele (the empire, the dune folk, the
+// sun temples, the star cities), a balbal stone over a kurgan's ring of stones (steppe), a carved post (marsh) or a
+// sapling (sylvan), a tablet under a tiled cap (jade); in the culture's stone (0: the classic grey) and accent
+void graveCairnV(Canvas& c, int arch, uint32_t stone, uint32_t accent) {
   const int W = c.w, H = c.h, by = H - 2;
-  const Ramp St = ramp5(rgba(70, 68, 80), rgba(116, 112, 118), rgba(162, 158, 156), rgba(200, 196, 186), rgba(230, 226, 214));
+  const Ramp St = stone ? ramp(opaque(stone), 0.9f) : ramp5(rgba(70, 68, 80), rgba(116, 112, 118), rgba(162, 158, 156), rgba(200, 196, 186), rgba(230, 226, 214));
+  const Ramp Ac = ramp(opaque(accent ? accent : rgba(176, 48, 40)));
   const Ramp Fs = ramp5(rgba(54, 50, 64), rgba(88, 84, 94), rgba(126, 120, 120), rgba(160, 152, 144), rgba(194, 186, 172));
   const Ramp Ea = ramp5(rgba(56, 38, 30), rgba(84, 58, 40), rgba(112, 80, 52), rgba(140, 104, 66), rgba(168, 130, 86));
   const int cx = W / 2;
-  // the headstone: a slab with a rounded top, its south face toward us, a lit top edge and west side, the east in shade
   const int sx0 = cx - 5, sx1 = cx + 4, sTop = 1, sFoot = 12;
-  for (int y = sTop; y <= sFoot; y++)
-    for (int x = sx0; x <= sx1; x++) {
-      const float dx = x + 0.5f - (sx0 + sx1 + 1) * 0.5f, r = (sx1 - sx0 + 1) * 0.5f;
-      if (y < sTop + 4) {   // the rounded top
-        const float dy = (sTop + 4) - (y + 0.5f);
-        if (dx * dx + dy * dy * 1.9f > r * r) continue;
+  auto slab = [&](int x0, int x1, int top, int foot, bool round) {   // a slab, its south face toward us, lit west, shaded east
+    for (int y = top; y <= foot; y++)
+      for (int x = x0; x <= x1; x++) {
+        const float dx = x + 0.5f - (x0 + x1 + 1) * 0.5f, r = (x1 - x0 + 1) * 0.5f;
+        if (round && y < top + 4) { const float dy = (top + 4) - (y + 0.5f); if (dx * dx + dy * dy * 1.9f > r * r) continue; }
+        int k = x == x0 ? 4 : (x == x1 ? 1 : (x == x1 - 1 ? 2 : 3));
+        if (y == top) k = std::min(4, k + 1);
+        if (y >= foot - 1) k = std::min(k, 2);
+        c.set(x, y, St[k]);
       }
-      int k = 3;
-      if (x == sx0 || (y < sTop + 4 && dx < 0 && (dx - 1) * (dx - 1) + ((sTop + 4) - (y + 0.5f)) * ((sTop + 4) - (y + 0.5f)) * 1.9f > r * r)) k = 4;
-      if (x >= sx1 - 1) k = x == sx1 ? 1 : 2;
-      if (y >= sFoot - 1) k = std::min(k, 2);
-      c.set(x, y, St[k]);
+    hline(c, x0, x1, foot, St[0]);
+  };
+  switch (arch) {
+    case 0:   // a rune stone: a tall narrow slab, runes cut in a band and painted red
+      slab(cx - 3, cx + 3, 0, sFoot, true);
+      for (int y = 3; y < sFoot - 1; y++) { if ((y & 1) == 0) c.set(cx - 2, y, Ac[2]); c.set(cx + 2, y, (y % 3) ? Ac[1] : St[1]); if (y % 4 == 1) c.set(cx, y, Ac[3]); }
+      break;
+    case 1:   // a cairn heaped over the head of the grave, a white quartz stone on its top
+      for (int k = 0; k < 7; k++) rock(c, cx - 5.0f + (k % 3) * 5.0f + (k / 3) * 1.5f, sFoot - 1.5f - (k / 3) * 3.5f, 3.0f, 2.4f, St, 211u + (uint32_t)k, 4);
+      ball(c, cx - 0.5f, sFoot - 10.5f, 1.6f, 1.3f, kBone);
+      break;
+    case 3: case 4: case 9: case 11: {   // a stele: tall, tapering, its head by the culture
+      for (int y = sTop + 2; y <= sFoot; y++) {
+        const int half = 3 + (y > sTop + 6 ? 1 : 0);
+        for (int x = cx - half; x < cx + half; x++) c.set(x, y, St[x == cx - half ? 4 : (x == cx + half - 1 ? 1 : 3)]);
+      }
+      hline(c, cx - 4, cx + 3, sFoot, St[0]);
+      if (arch == 3) { for (int k = 0; k < 3; k++) hline(c, cx - 4 + k, cx + 3 - k, sTop + 1 - k, St[4 - (k & 1)]); hline(c, cx - 2, cx + 1, sTop + 6, St[1]); hline(c, cx - 2, cx + 1, sTop + 8, St[1]); }
+      if (arch == 4) { ball(c, cx - 0.5f, sTop + 1.5f, 2.8f, 2.0f, Ac); hline(c, cx - 3, cx + 2, sTop + 3, Ac[1]); }
+      if (arch == 9) { hline(c, cx - 4, cx + 3, sTop + 4, Ac[2]); hline(c, cx - 4, cx + 3, sTop + 5, Ac[1]); c.set(cx - 1, sTop + 1, St[4]); c.set(cx, sTop + 1, St[3]); }
+      if (arch == 11) { c.set(cx - 1, sTop + 5, kWhite); c.set(cx, sTop + 4, rgba(196, 248, 226)); c.set(cx, sTop + 6, rgba(130, 220, 200)); c.set(cx + 1, sTop + 5, rgba(130, 220, 200)); c.set(cx - 1, sTop + 1, St[4]); c.set(cx, sTop, St[4]); }
+      break;
     }
-  // the carved cross on its face
-  for (int y = sTop + 3; y <= sTop + 9; y++) c.set(cx - 1, y, St[1]);
-  hline(c, cx - 3, cx + 1, sTop + 5, St[1]);
-  for (int y = sTop + 3; y <= sTop + 9; y++) c.set(cx, y, St[4]);   // the cut's lit far edge
-  // its foot sunk in the earth
-  hline(c, sx0, sx1, sFoot, St[0]);
+    case 5: {   // a balbal: a rough stone figure, a face pecked into it
+      for (int y = sTop + 1; y <= sFoot; y++) { const int half = y < sTop + 4 ? 2 : 3; for (int x = cx - half; x < cx + half; x++) c.set(x, y, St[x == cx - half ? 4 : (x == cx + half - 1 ? 1 : 2)]); }
+      c.set(cx - 1, sTop + 2, St[0]); c.set(cx + 1, sTop + 2, St[0]); hline(c, cx - 1, cx, sTop + 4, St[1]); hline(c, cx - 3, cx + 2, sTop + 6, St[1]);
+      hline(c, cx - 3, cx + 2, sFoot, St[0]);
+      break;
+    }
+    case 6: case 10: {   // a carved post (marsh: a little hood over a spirit face) or a sapling planted on the grave
+      const Ramp Wd = arch == 10 ? ramp(rgba(126, 112, 90)) : ramp(rgba(120, 92, 60));
+      for (int y = sTop + 1; y <= sFoot; y++) { c.set(cx - 1, y, Wd[3]); c.set(cx, y, Wd[2]); c.set(cx + 1, y, Wd[1]); }
+      if (arch == 6) {
+        for (int k = 0; k < 3; k++) hline(c, cx - 3 + k, cx + 3 - k, sTop + 1 - k, k == 0 ? kThatch[1] : kThatch[3]);
+        c.set(cx - 1, sTop + 4, kInk); c.set(cx + 1, sTop + 4, kInk); c.set(cx, sTop + 6, Ac[2]);
+      } else for (int k = 0; k < 10; k++) c.set(cx - 4 + (k * 5) % 9, sTop - 1 + (k * 3) % 5, kLeaf[2 + (k & 1)]);
+      break;
+    }
+    case 7: {   // a stone tablet under a tiled cap, characters cut in gold
+      slab(cx - 4, cx + 3, sTop + 3, sFoot, false);
+      const Ramp T = ramp(rgba(52, 128, 92));
+      for (int x = cx - 6; x <= cx + 5; x++) { c.set(x, sTop + 1, T[3]); c.set(x, sTop + 2, T[1]); }
+      c.set(cx - 7, sTop, T[3]); c.set(cx + 6, sTop, T[2]);
+      for (int y = sTop + 5; y < sFoot - 1; y += 2) c.set(cx - 1, y, kGold[3]);
+      break;
+    }
+    default: {
+    // the headstone: a slab with a rounded top, its south face toward us, a lit top edge and west side, the east in shade
+    for (int y = sTop; y <= sFoot; y++)
+      for (int x = sx0; x <= sx1; x++) {
+        const float dx = x + 0.5f - (sx0 + sx1 + 1) * 0.5f, r = (sx1 - sx0 + 1) * 0.5f;
+        if (y < sTop + 4) {   // the rounded top
+          const float dy = (sTop + 4) - (y + 0.5f);
+          if (dx * dx + dy * dy * 1.9f > r * r) continue;
+        }
+        int k = 3;
+        if (x == sx0 || (y < sTop + 4 && dx < 0 && (dx - 1) * (dx - 1) + ((sTop + 4) - (y + 0.5f)) * ((sTop + 4) - (y + 0.5f)) * 1.9f > r * r)) k = 4;
+        if (x >= sx1 - 1) k = x == sx1 ? 1 : 2;
+        if (y >= sFoot - 1) k = std::min(k, 2);
+        c.set(x, y, St[k]);
+      }
+    // the carved cross on its face
+    for (int y = sTop + 3; y <= sTop + 9; y++) c.set(cx - 1, y, St[1]);
+    hline(c, cx - 3, cx + 1, sTop + 5, St[1]);
+    for (int y = sTop + 3; y <= sTop + 9; y++) c.set(cx, y, St[4]);   // the cut's lit far edge
+    // its foot sunk in the earth
+    hline(c, sx0, sx1, sFoot, St[0]);
+      break;
+    }
+  }
   // the mound of turned earth before it, long and low, lit on its north-west, grass creeping over its edge
   for (int y = sFoot - 1; y <= by; y++)
     for (int x = 2; x < W - 2; x++) {
@@ -714,6 +845,8 @@ void graveCairn(Canvas& c) {
   outline(c, 0.95f);
   tufts(c, 1, W - 2, by + 1, 123, 0.5f);
 }
+
+void graveCairn(Canvas& c) { graveCairnV(c, -1, 0, 0); }
 
 // ---- Bedroll -----------------------------------------------------------------------------------------------------
 // A traveller's bedroll by a ring of fire stones: the blanket in a striped wool, a rolled pillow, a pack; the embers
@@ -1097,6 +1230,17 @@ void paintWildProp(Canvas& c, Prop p, int frame) {
     case Prop::GreatPeak: { Canvas k = peakVariant(8, 0); blit(c, k, 0, 0); break; }
     default: break;
   }
+}
+
+Canvas graveCairnSprite(int arch, uint32_t stone, uint32_t accent) {
+  Canvas c(wildPropW(Prop::GraveCairn), wildPropH(Prop::GraveCairn));
+  graveCairnV(c, arch, stone, accent);
+  return c;
+}
+Canvas standingStoneVariant(int v, const bld::MonumentParts& m) {
+  Canvas c(wildPropW(Prop::StandingStone), wildPropH(Prop::StandingStone));
+  standingStoneV(c, v, m);
+  return c;
 }
 
 Canvas peakVariant(int v, int land) {

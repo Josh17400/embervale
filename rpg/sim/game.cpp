@@ -9,6 +9,7 @@
 #include "engine/audio.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/stream.h"
+#include "rpg/culture/society.h"
 
 using art::Monster;
 using art::Prop;
@@ -107,10 +108,12 @@ void Game::beginWorld() {
   // (a capital also has the King in his palace: say plainly that the war is the Jarl's, and where he sits)
   {
     const Kingdom* K = world.kingdomOf(world.capital);
+    // (M3b fixer) the society's own titles: the khan leaves the war to his noyan, the doge to his provost
+    const std::string lord = gsim::lordTitleAt(world, world.capital), ruler = gsim::rulerTitleAt(world, world.capital);
     q.desc = "A DRAGON HAS BEEN SEEN OVER THE PEAKS. " +
-             (K && cap.capital ? "THE KING OF " + K->name + " HAS LEFT THE WAR TO HIS JARL, WHO SEEKS ANYONE BRAVE ENOUGH TO HELP. "
-                               : "THE JARL OF " + cap.name + " SEEKS ANYONE BRAVE ENOUGH TO HELP. ") +
-             "TRAVEL TO " + cap.name + " AND SPEAK WITH THE JARL IN HIS KEEP" + (K && cap.capital ? ", NOT THE KING'S PALACE." : ".");
+             (K && cap.capital ? "THE " + ruler + " OF " + K->name + " HAS LEFT THE WAR TO HIS " + lord + ", WHO SEEKS ANYONE BRAVE ENOUGH TO HELP. "
+                               : "THE " + lord + " OF " + cap.name + " SEEKS ANYONE BRAVE ENOUGH TO HELP. ") +
+             "TRAVEL TO " + cap.name + " AND SPEAK WITH THE " + lord + (K && cap.capital ? ", NOT THE " + ruler + "." : ".");
   }
   q.stage = 0;
   quests.push_back(q);
@@ -364,12 +367,43 @@ bool Game::solidAt(float x, float y, bool flying) const {
     Ground g = m.at(tx, ty);
     return g == Ground::CaveWall || g == Ground::InteriorWall || g == Ground::Void || (g == Ground::Rock && m.kind != MapKind::Overworld);
   }
-  return m.blocked(tx, ty);
+  if (m.blocked(tx, ty)) return true;
+  // (owner) a building's entry tile: an open front's pillars (and its wall beyond the open span) still block
+  if (m.kind == MapKind::Overworld) {
+    const int bi = m.bldgAt[(size_t)ty * m.w + tx];
+    if (bi >= 0 && bldgPillarSolid(m.bldgs[(size_t)bi], x, y)) return true;
+  }
+  return false;
+}
+
+// (owner 2026-10-06) an open front's pillars are thinner than a body, so the body's whole width is held against them
+// (its four corners alone would slip past a 3 px column)
+bool Game::pillarHit(float x, float y, float rx, float ry) const {
+  if (inside) return false;
+  const Map& m = world.over;
+  const int ty0 = (int)std::floor((y - ry) / TILE), ty1 = (int)std::floor((y + ry) / TILE);
+  const int tx0 = (int)std::floor((x - rx) / TILE), tx1 = (int)std::floor((x + rx) / TILE);
+  for (int ty = ty0; ty <= ty1; ty++)
+    for (int tx = tx0; tx <= tx1; tx++) {
+      if (!m.in(tx, ty)) continue;
+      const int bi = m.bldgAt[(size_t)ty * m.w + tx];
+      if (bi < 0 || m.blocked(tx, ty)) continue;
+      const Bldg& b = m.bldgs[(size_t)bi];
+      if (ty != b.doorY()) continue;
+      const Bldg::Open& o = bldgOpenFront(b);
+      const int col = tx - b.r.x;
+      if (o.raised || col < 0 || col >= 32 || !o.solid[(size_t)col]) continue;
+      const float lo = x - rx - tx * TILE, hi = x + rx - tx * TILE;
+      for (int px = std::max(0, (int)std::floor(lo)); px < std::min(TILE, (int)std::ceil(hi)); px++)
+        if ((o.solid[(size_t)col] >> px) & 1u) return true;
+    }
+  return false;
 }
 
 bool Game::bodyFree(Vec2 p, float r, bool flying) const {
   float ry = r * 0.6f;
-  return !solidAt(p.x - r, p.y - ry, flying) && !solidAt(p.x + r, p.y - ry, flying) && !solidAt(p.x - r, p.y + ry, flying) && !solidAt(p.x + r, p.y + ry, flying);
+  return !solidAt(p.x - r, p.y - ry, flying) && !solidAt(p.x + r, p.y - ry, flying) && !solidAt(p.x - r, p.y + ry, flying) && !solidAt(p.x + r, p.y + ry, flying) &&
+         (flying || !pillarHit(p.x, p.y, r, ry));
 }
 
 void Game::moveActor(Actor& a, Vec2 d) {
@@ -380,7 +414,8 @@ void Game::moveActor(Actor& a, Vec2 d) {
   bool fl = a.flying || a.fly;
   if (a.fly) { a.p += d; return; }
   auto hit = [&](float x, float y) {
-    return solidAt(x - rx, y - ry, fl) || solidAt(x + rx, y - ry, fl) || solidAt(x - rx, y + ry, fl) || solidAt(x + rx, y + ry, fl);
+    return solidAt(x - rx, y - ry, fl) || solidAt(x + rx, y - ry, fl) || solidAt(x - rx, y + ry, fl) || solidAt(x + rx, y + ry, fl) ||
+           (!fl && pillarHit(x, y, rx, ry));
   };
   for (int i = 0; i < (int)steps; i++) {
     if (!hit(a.p.x + s.x, a.p.y)) a.p.x += s.x;
@@ -403,7 +438,9 @@ void Game::update(float dt, const Input& in) {
   if (slowMo > 0) { slowMo -= dt; dt *= 0.3f; }   // perfect roll / level-up: a brief slow-motion blip
   time += dt;
   float prevHour = hour;
-  hour += dt * (24.0f / 840.0f);   // a day lasts 14 minutes
+  // (owner) daytime lasts 20 real minutes and the night 10: the 14.5 day hours (5:30-20:00, isNight) run over 1200 s,
+  // the 9.5 night hours over 600 s
+  hour += dt * (isNight() ? 9.5f / 600.0f : 14.5f / 1200.0f);
   if (hour >= 24) { hour -= 24; day++; }
   (void)prevHour;
   if (noticeT > 0) noticeT -= dt;
@@ -635,7 +672,8 @@ void Game::updatePlayer(float dt, const Input& in) {
   if (!inside) {
     if (m.in(tx, ty)) {
       int bi = m.bldgAt[(size_t)ty * m.w + tx];
-      if (bi >= 0 && m.bldgs[bi].doorX() == tx && m.bldgs[bi].doorY() == ty) { enterBuilding(bi); return; }
+      // the door, or (owner 2026-10-06) any walk-in bay of an open front
+      if (bi >= 0 && bldgEntryAt(m.bldgs[bi], tx, ty)) { enterBuilding(bi, tx); return; }
       int pr = m.propAt(tx, ty);
       if (pr == (int)Prop::CaveEntrance + 1 || pr == (int)Prop::IronDoor + 1) {
         int si = world.siteAt(tx, ty);
@@ -674,12 +712,14 @@ void Game::updatePlayer(float dt, const Input& in) {
         return;
       }
     }
-    bool onExit = tx == sub.exitX && (ty == sub.exitY || (int)std::floor(p.p.y / TILE) == sub.exitY);
+    // the door, or (owner 2026-10-06) any of an open front's bays
+    const bool exitCol = sub.isExit(tx, sub.exitY);
+    bool onExit = exitCol && (ty == sub.exitY || (int)std::floor(p.p.y / TILE) == sub.exitY);
     // leaving takes intent: walking down onto the ladder/doorway. Being knocked or staggered onto it mid-fight
     // must not throw you out of the dungeon.
     bool intent = mv.y > 0.3f && p.st != AState::Hurt && len2(p.knock) < 30.0f * 30.0f;
     if (!onExit) exitArmed_ = true;
-    else if (exitArmed_ && intent) { leaveSub(); return; }
+    else if (exitArmed_ && intent) { leaveCol_ = tx; leaveSub(); return; }
   }
 }
 
@@ -1232,7 +1272,7 @@ void Game::loadMapActors() {
     // M1: a capital's palace always has its king on the throne-hall floor (the ground floor), flanked by the royal
     // guard. The interior generator places them (TOWNS lane); until it does, or if it ever leaves them out, the king
     // holds court at the head of the hall.
-    if (B && B->type == art::Building::Palace && subFloor == 0) {
+    if (B && bldgIsRoyalSeat(*B) && subFloor == 0) {   // (M3b: the royal seat, whatever the society built it as)
       bool king = false;
       int guards = 0;
       for (size_t k = 1; k < actors.size(); k++) {
@@ -1559,8 +1599,39 @@ void Game::updateLocation() {
       const Bldg& b = world.over.bldgs[subBldg];
       // M0b: upper floors drop the town's name so the label fits the HUD ("MAGE TOWER - TOP FLOOR")
       bool top = subFloor > 0 && subFloor == b.floors() - 1 && b.floors() >= 3;
-      if (subFloor > 0) locName = std::string(bldgTypeName(b.type)) + (top ? " - TOP FLOOR" : " - UPSTAIRS");
-      else locName = (b.site >= 0 ? world.sites[b.site].name + " - " : std::string()) + bldgTypeName(b.type);
+      // (fix) the ruler's seat by its society's own name (THE GREAT TENT, THE TREE PALACE, THE GUILDHALL...), never
+      // "THE PALACE" for every people
+      std::string what = bldgTypeName(b.type);
+      if (bldgIsRoyalSeat(b) && b.site >= 0 && b.site < (int)world.sites.size()) {
+        if (const cult::Culture* oc = world.cultureOfKingdom(world.sites[(size_t)b.site].kingdom)) what = cult::societyOf(*oc).seatTitle;
+      } else if (bldgIsSeat(b) && b.styled && b.site >= 0 && b.site < (int)world.sites.size()) {
+        // (M3b fixer) a lord's seat by the lord's title and the hall his people build him (bld::design builds a
+        // lord's keep as the culture's own seat: THE NOYAN'S TENT, THE JARL'S HALL, THE PROVOST'S GUILDHALL)
+        cult::Seat st = cult::Seat::Castle;
+        if (const cult::Culture* sc = world.cultureOf(b.site)) st = cult::societyOf(*sc).seat;
+        const char* noun = "HALL";
+        switch (b.type) {
+          case art::Building::Keep: case art::Building::Palace:
+            switch (st) {
+              case cult::Seat::Castle: noun = "KEEP"; break;
+              case cult::Seat::CourtPalace: noun = "PALACE"; break;
+              case cult::Seat::TentCourt: noun = "TENT"; break;
+              case cult::Seat::TempleComplex: noun = "SANCTUM"; break;
+              case cult::Seat::GuildExchange: noun = "GUILDHALL"; break;
+              case cult::Seat::CouncilSpire: noun = "SPIRE"; break;
+              case cult::Seat::StiltHall: noun = "LONG HALL"; break;
+              default: noun = "HALL"; break;
+            }
+            break;
+          case art::Building::Temple: noun = "SANCTUM"; break;
+          case art::Building::Guildhall: noun = "GUILDHALL"; break;
+          case art::Building::CouncilHall: noun = "COUNCIL HALL"; break;
+          default: noun = "HALL"; break;
+        }
+        what = "THE " + lordTitleAt(world, b.site) + "'S " + noun;
+      }
+      if (subFloor > 0) locName = what + (top ? " - TOP FLOOR" : " - UPSTAIRS");
+      else locName = (b.site >= 0 ? world.sites[b.site].name + " - " : std::string()) + what;
     } else if (subSite >= 0) locName = world.sites[subSite].name;
     return;
   }
@@ -1616,14 +1687,34 @@ void Game::enterSite(int si) {
   say(st.name);
 }
 
-void Game::enterBuilding(int bi) {
+// (owner 2026-10-06) a building walked into between pillars: the ways in outside and the bays inside share their
+// offset from the door column (scaled when the inside is narrower: interior_v4.cpp genInteriorRooms). The bay inside
+// nearest the one walked in by, and back out.
+static int bayInside(const Map& in, int wt, int off) {
+  const int W = in.w;
+  const int want = W - 2 >= wt ? in.exitX + off : in.exitX + (off * (W - 2) + (off < 0 ? -wt / 2 : wt / 2)) / wt;
+  int best = in.exitX;
+  for (int16_t x : in.exits) if (std::abs(x - want) < std::abs(best - want)) best = x;
+  return best;
+}
+static int wayOutside(const Bldg& b, int innerW, int exitX, int x) {
+  const int wt = b.r.w, off = x - exitX;
+  const int want = b.doorX() + (innerW - 2 >= wt ? off : (off * wt + (off < 0 ? -(innerW - 2) / 2 : (innerW - 2) / 2)) / std::max(1, innerW - 2));
+  int best = b.doorX();
+  for (int c : bldgEntryColumns(b)) if (std::abs(c - want) < std::abs(best - want)) best = c;
+  return best;
+}
+
+void Game::enterBuilding(int bi, int col) {
   const Bldg& b = world.over.bldgs[bi];
   inside = true; subSite = -1; subBldg = bi; subFloor = 0;
   genInterior(sub, b, b.seed, 0);
   for (int i = 0; i < sub.w * sub.h; i++)
     if (sub.prop[(size_t)i] == (int)Prop::Chest + 1 && looted.count(((uint64_t)mapKey() << 32) | (uint32_t)i)) sub.prop[(size_t)i] = (int)Prop::ChestOpen + 1;
   sub.rebuildSolid();
-  placePlayerAt(sub.exitX, sub.exitY - 1);
+  int ix = sub.exitX;
+  if (!sub.exits.empty() && col >= 0) ix = bayInside(sub, b.r.w, col - b.doorX());   // in by a bay: the matching bay inside
+  placePlayerAt(ix, sub.exitY - 1);
   pl().face = 1;
   exitArmed_ = false;
   stairsArmed_ = true;
@@ -1693,12 +1784,21 @@ bool Game::debugEnterSite(int si) {
 
 void Game::leaveSub() {
   int bi = subBldg, si = subSite;
+  const int lc = leaveCol_;
+  leaveCol_ = -1;
+  const bool bays = subFloor == 0 && !sub.exits.empty();
+  const int innerW = sub.w, innerExit = sub.exitX;
   inside = false; subBldg = -1; subSite = -1; subFloor = 0;
   sub = Map();
   clearNonPlayer();
   if (bi >= 0) {
     const Bldg& b = world.over.bldgs[bi];
-    pl().p = Vec2(b.doorX() * TILE + 8.0f, (b.r.y + b.r.h) * TILE + 10.0f);
+    int ox = b.doorX();
+    if (lc >= 0 && bays) {   // out by a bay: onto the ground before the matching way in
+      ox = wayOutside(b, innerW, innerExit, lc);
+      if (world.over.blocked(ox, b.r.y + b.r.h)) ox = b.doorX();
+    }
+    pl().p = Vec2(ox * TILE + 8.0f, (b.r.y + b.r.h) * TILE + 10.0f);
   } else if (si >= 0) {
     const Site& st = world.sites[si];
     pl().p = Vec2(st.ex * TILE + 8.0f, (st.ey + 1) * TILE + 10.0f);

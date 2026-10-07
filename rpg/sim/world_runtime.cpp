@@ -20,6 +20,63 @@ void Map::alloc(int w_, int h_, Ground fill) {
   spawns.clear();
 }
 
+// ------------------------------------------------------------------ open fronts (owner 2026-10-06)
+namespace {
+uint64_t bldgOpenKey(const Bldg& b) {
+  uint64_t k = 0x0BE9F0u;
+  auto mx = [&](uint64_t v) { k ^= v + 0x9E3779B97F4A7C15ull + (k << 6) + (k >> 2); k *= 0xBF58476D1CE4E5B9ull; k ^= k >> 31; };
+  mx((uint64_t)b.type | (uint64_t)(uint16_t)b.r.w << 8 | (uint64_t)(uint16_t)b.r.h << 24 | (uint64_t)b.seed << 32);
+  mx((uint64_t)b.wealth | (uint64_t)b.form << 8 | (uint64_t)b.civic << 16 | (uint64_t)b.seat << 24 | (uint64_t)b.urban << 32 |
+     (uint64_t)b.storeys << 40 | (uint64_t)b.styled << 48 | (uint64_t)b.biome << 56);
+  mx((uint64_t)b.arch.culture | (uint64_t)b.arch.variant << 8 | (uint64_t)b.arch.wall << 16 | (uint64_t)b.arch.roof << 24 | (uint64_t)b.roof << 32);
+  return k | 1u;
+}
+void fillOpen(const Bldg& b, const bld::Blueprint& bp, uint64_t key) {
+  Bldg::Open& o = b.open;
+  o = Bldg::Open();
+  o.key = key;
+  const bld::OpenFront of = bld::openFront(bp);
+  const int dcol = b.r.w / 2;
+  o.open = of.open();
+  o.raised = of.raised;
+  o.mask = of.gaps | (1u << std::min(31, dcol));
+  if (b.r.w < 32) o.mask &= (1u << b.r.w) - 1u;
+  o.solid = of.solid;
+  if (!o.open) o.solid[(size_t)std::min(31, dcol)] = 0;   // a door: the whole tile
+}
+}  // namespace
+
+const Bldg::Open& bldgOpenFront(const Bldg& b) {
+  const uint64_t key = bldgOpenKey(b);
+  if (b.open.key != key) fillOpen(b, bldgBlueprint(b), key);
+  return b.open;
+}
+const Bldg::Open& bldgOpenFront(const Bldg& b, const bld::Blueprint& bp) {
+  const uint64_t key = bldgOpenKey(b);
+  if (b.open.key != key) fillOpen(b, bp, key);
+  return b.open;
+}
+bool bldgEntryAt(const Bldg& b, int x, int y) {
+  if (y != b.doorY() || x < b.r.x || x >= b.r.x + b.r.w) return false;
+  if (x == b.doorX()) return true;
+  const int c = x - b.r.x;
+  return c < 32 && ((bldgOpenFront(b).mask >> c) & 1u);
+}
+bool bldgPillarSolid(const Bldg& b, float px, float py) {
+  if ((int)std::floor(py / TILE) != b.doorY()) return false;
+  const Bldg::Open& o = bldgOpenFront(b);
+  if (o.raised) return false;
+  const int lx = (int)std::floor(px) - b.r.x * TILE;
+  if (lx < 0 || lx >= std::min(32, b.r.w) * TILE) return false;
+  return ((o.solid[(size_t)(lx / TILE)] >> (lx % TILE)) & 1u) != 0;
+}
+std::vector<int> bldgEntryColumns(const Bldg& b) {
+  std::vector<int> v;
+  const Bldg::Open& o = bldgOpenFront(b);
+  for (int c = 0; c < std::min(32, b.r.w); c++) if (((o.mask >> c) & 1u) || c == b.r.w / 2) v.push_back(b.r.x + c);
+  return v;
+}
+
 bool Map::blocked(int x, int y) const {
   if (!in(x, y)) return true;
   size_t i = (size_t)y * w + x;
@@ -50,6 +107,13 @@ void Map::rebuildSolid() {
     for (int y = y0; y < y1; y++)
       for (int x = x0; x < x1; x++) { solid[(size_t)y * w + x] = 1; bldgAt[(size_t)y * w + x] = bi; }
     if (in(b.doorX(), b.doorY())) solid[(size_t)b.doorY() * w + b.doorX()] = 0;   // the door is walkable: stepping in enters
+    // (owner) an open front: every walk-in bay of its front row too (its pillars block: Game::solidAt)
+    if (kind == MapKind::Overworld && b.doorY() >= 0 && b.doorY() < h) {
+      const Bldg::Open& o = bldgOpenFront(b);
+      if (o.mask)
+        for (int c = 0; c < std::min(32, b.r.w); c++)
+          if (((o.mask >> c) & 1u) && in(b.r.x + c, b.doorY())) solid[(size_t)b.doorY() * w + b.r.x + c] = 0;
+    }
   }
 }
 

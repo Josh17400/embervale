@@ -30,6 +30,13 @@ Gen::Gen(const SettlementCtx& c, SettlementOut& o)
   H = P.h + 2 * MARGIN;
   bseed = hash32(P.seed ^ 0xB10B5EEDu);
   wseed = hash32(P.seed ^ 0x3A11CA5Eu);
+  // M3b: the society of the culture that builds it (its services, seat of power and spaces)
+  tier = capital ? cult::SettleTier::Capital : (city ? cult::SettleTier::City : (town ? cult::SettleTier::Town : cult::SettleTier::Village));
+  if (c.culture) {
+    soc = cult::societyOf(*c.culture);
+    hasSoc = true;
+    seatKind = (int)soc.seat;
+  }
 }
 
 float Gen::dist(int x, int y) const {
@@ -63,6 +70,7 @@ void Gen::land() {
   mask.assign(n, 0); water.assign(n, 0); lvl.assign(n, 0); inside.assign(n, 0);
   noBuild.assign(n, 0); cover.assign(n, 0); front.assign(n, 0);
   O.used.assign(n, 0);
+  O.pools.clear();
   for (int y = 0; y < H; y++)
     for (int x = 0; x < W; x++) {
       Ground g = Ground::Grass;
@@ -133,7 +141,7 @@ void Gen::land() {
   if (bio == Biome::Ocean || bio == Biome::Mountain) bio = Biome::Plains;
   pickStyle();
   // (M3) a culture's village takes its street form from its colour (town_rules.h: its neighbours differ)
-  if (village && C.culture) layout = townForm(townColour(C.culture, P.type, P.ex, P.ey));
+  if (village && C.culture) layout = townForm(townColour(C.culture, P.type, P.ex, P.ey, P.kind));
   pickSpecialty();
   // (M3 fixer) the dune folk build on sand: wherever their settlement stands, its ground is the desert's (a mud-brick
   // capital in a bright meadow among oaks did not read as theirs). The meadow gives way to sand inside the outline and
@@ -188,8 +196,8 @@ void Gen::pickStyle() {
   if (!C.culture) return;
   const cult::Culture& K = *C.culture;
   cArch = (int)K.archetype;
-  style = townLayoutFor(&K, P.type, P.seed, P.ex, P.ey);   // (town_rules.h: the repetition audit asks the same)
-  townWealth = townWealthFor(&K, P.type, capital, P.seed, P.ex, P.ey);
+  style = townLayoutFor(&K, P.type, P.seed, P.ex, P.ey, P.kind);   // (town_rules.h: the repetition audit asks the same)
+  townWealth = townWealthFor(&K, P.type, capital, P.seed, P.ex, P.ey, P.kind);
   wallByte = (uint8_t)(1 + std::min((int)K.town.wall, (int)art::CityWall::COUNT - 1));
   densityF = std::clamp(K.town.density / 128.0f, 0.35f, 1.9f);
   treesF = std::clamp(K.town.trees / 128.0f, 0.1f, 1.9f);
@@ -926,7 +934,7 @@ void Gen::squaresPass() {
     // (M1 fixer) a market town always has its second square: the second market (the produce and beast market)
     // (M3) a culture's town takes it from its colour (none, a small one, a larger one: town_rules.h townForm)
     const float q = rng.f();
-    const int form = C.culture ? townForm(townColour(C.culture, P.type, P.ex, P.ey)) : -1;
+    const int form = C.culture ? townForm(townColour(C.culture, P.type, P.ex, P.ey, P.kind)) : -1;
     if (form < 0 ? (q < 0.65f || arch == Archetype::Market) : (form > 0 || arch == Archetype::Market)) {
       float a = rng.f() * D_TAU;
       int x = cx + iround(dcos(a) * rx * 0.5f), y = cy + iround(dsin(a) * ry * 0.5f);

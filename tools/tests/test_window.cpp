@@ -175,7 +175,7 @@ int windowSeed(uint64_t seed, const WinOpts& o) {
         const Map& m = g.world.over;
         int bi = m.in(fx, fy) ? m.bldgAt[(size_t)fy * m.w + fx] : -1;
         int pr = m.propAt(fx, fy);
-        bool door = bi >= 0 && m.bldgs[(size_t)bi].doorX() == fx && m.bldgs[(size_t)bi].doorY() == fy;
+        bool door = bi >= 0 && bldgEntryAt(m.bldgs[(size_t)bi], fx, fy);   // (the door, or an open front's bay)
         bool mouth = pr == (int)art::Prop::CaveEntrance + 1 || pr == (int)art::Prop::IronDoor + 1;
         if (!door && !mouth) break;
         g.pl().p += Vec2(L[0] * (float)TILE, L[1] * (float)TILE + (L[1] == 0 ? (float)TILE : 0.0f));

@@ -16,6 +16,11 @@ inline int townRiseTiles(art::Building t, int storeys) {
   switch (t) {
     case art::Building::Palace: return 7;
     case art::Building::Barracks: return 4;
+    // M3b: the society's halls (their massing is the builder's: a two-storey guildhall, a domed bathhouse, a mead hall's
+    // steep roof, a council spire)
+    case art::Building::Guildhall: case art::Building::Exchange: case art::Building::Bathhouse: case art::Building::MeadHall:
+    case art::Building::TeaHouse: case art::Building::Lodge: return 4;
+    case art::Building::CouncilHall: return 6;
     default: return bldgRiseTiles(t, storeys);
   }
 }
@@ -46,7 +51,15 @@ constexpr int KINGDOM_EMBLEMS = 8;
 // villages match. Villages and towns: (i + 5j) mod 24, whose nearest cells of one colour lie five cells (1300 tiles)
 // apart, every colour its own (layout, form, wealth) but for six pairs twelve colours apart (a village's form is its
 // street form, a town's whether it has a second square); cities (few, far apart): (i + 5j) mod 8, three cells apart.
-inline int townColour(const cult::Culture* c, SiteType t, int32_t gx, int32_t gy) {
+//
+// M3b (owner, town audit seed 22): the lattice alone let three alike stand within 1500 tiles where two colours twelve
+// apart give one look (two cells apart on the lattice). The region planner now chooses neighbouring settlements' looks
+// together (region.cpp townLookFor): it keeps the lattice colour where no nearer settlement of the same culture, type
+// and land already has that look, else picks a free look, and hands the colour to the generator in SitePlan::kind
+// (settlements only: 1 + colour; 0 = the lattice's). `planned` is that SitePlan::kind.
+constexpr int TOWN_COLOURS = 24, CITY_COLOURS = 8;
+inline int townColour(const cult::Culture* c, SiteType t, int32_t gx, int32_t gy, int planned = 0) {
+  if (planned > 0) return (planned - 1) % (t != SiteType::City ? TOWN_COLOURS : CITY_COLOURS);
   const int32_t i = floorDiv(gx, 256), j = floorDiv(gy, 256);
   const uint32_t r = c ? hash32(c->seed ^ 0x7A11u) : 0u;
   return t != SiteType::City ? (int)(((uint32_t)(i + 5 * j) + r) % 24u) : (int)(((uint32_t)(i + 5 * j) + r) & 7u);
@@ -68,10 +81,10 @@ inline int townForm(int col) { return (col / 4) % 3; }
 // altLayout in 1 of every 4 (townColour, spread over its land); a village of a grid-planning people strings along its
 // road instead (a dozen houses make no grid). Organic without a culture. The generator and the repetition audit both
 // ask here. (gx, gy): the settlement's heart (SitePlan::ex, ey).
-inline cult::Layout townLayoutFor(const cult::Culture* c, SiteType t, uint32_t seed, int32_t gx, int32_t gy) {
+inline cult::Layout townLayoutFor(const cult::Culture* c, SiteType t, uint32_t seed, int32_t gx, int32_t gy, int planned = 0) {
   (void)seed;
   if (!c) return cult::Layout::Organic;
-  cult::Layout l = townColourAlt(t, townColour(c, t, gx, gy)) ? c->town.altLayout : c->town.layout;
+  cult::Layout l = townColourAlt(t, townColour(c, t, gx, gy, planned)) ? c->town.altLayout : c->town.layout;
   if ((int)l >= (int)cult::Layout::COUNT) l = cult::Layout::Organic;
   if (t == SiteType::Village && l == cult::Layout::Grid) l = cult::Layout::Linear;
   return l;
@@ -80,11 +93,18 @@ inline cult::Layout townLayoutFor(const cult::Culture* c, SiteType t, uint32_t s
 // M3 (VISION_PLAN 5.7): a settlement's wealth, 0 poor .. 3 rich: a village or a town anywhere from a poor hamlet to a
 // prosperous one, a city at least comfortable, a royal seat rich (townColour: its neighbours differ). It skews every
 // building's wealth (cult::buildingArch) a step either way.
-inline int townWealthFor(const cult::Culture* c, SiteType t, bool capital, uint32_t seed, int32_t gx, int32_t gy) {
+inline int townWealthFor(const cult::Culture* c, SiteType t, bool capital, uint32_t seed, int32_t gx, int32_t gy, int planned = 0) {
   (void)seed;
   if (capital) return 3;
-  const int w = townColourWealth(t, townColour(c, t, gx, gy));
+  const int w = townColourWealth(t, townColour(c, t, gx, gy, planned));
   return t == SiteType::City ? std::max(1, w) : w;
+}
+
+// M3b: what the eye (and rpg_test --town-audit) tells apart between two settlements of one culture, type and land:
+// the layout (with a village's street form, a town's squares) and the wealth
+inline int townLookSig(const cult::Culture* c, SiteType t, bool capital, int32_t gx, int32_t gy, int planned) {
+  const int layout = (int)townLayoutFor(c, t, 0, gx, gy, planned) * 3 + (t != SiteType::City ? townForm(townColour(c, t, gx, gy, planned)) : 0);
+  return layout * 4 + townWealthFor(c, t, capital, 0, gx, gy, planned);
 }
 
 }  // namespace ew

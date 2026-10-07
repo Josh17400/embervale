@@ -1,6 +1,7 @@
 // World data: tile maps (overworld, caves, interiors), sites (cities, towns, caves...), buildings, generation.
 #pragma once
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -9,6 +10,7 @@
 #include <unordered_set>
 #include <vector>
 #include "rpg/art.h"
+#include "rpg/build/blueprint.h"
 #include "rpg/sim/common.h"
 #include "rpg/sim/rooms.h"
 #include "rpg/world/coords.h"
@@ -130,6 +132,26 @@ struct Bldg {
   // before M3 code paths set it, wayside huts...): bldgArch falls back to the biome style. Never saved (regenerated).
   art::ArchStyle arch;
   bool styled = false;
+  // M3b builder (VISION_PLAN 15.14): what the settlement generator asked the builder for, beyond the type, footprint,
+  // style and facts: wealth 0 poor .. 3 rich (cult::buildingArch's; size and finery), the form (bld::Form; 0 Auto: the
+  // builder picks from the culture's parts), its civic role (bld::CIVIC_* bits) and, for the seat of power, the
+  // society's seat (cult::Seat + 1). Never saved (regenerated); bldgBlueprint designs the building from these.
+  uint8_t wealth = 1;
+  uint8_t form = 0;
+  uint8_t civic = 0;
+  uint8_t seat = 0;
+  // (owner 2026-10-06) the open front (bld::openFront): an open building has no door, its front row's walk-in bays are
+  // the entrance. A cache filled by bldgOpenFront from the blueprint (never saved): entry tiles (bit i: column r.x + i
+  // of the front row r.y + r.h - 1; the door column is always one), the pillars standing on them (px from the
+  // footprint's left edge) and the open span between the outer pillars.
+  struct Open {
+    uint64_t key = 0;                    // bldgOpenKey of the inputs it was made from (0: not made)
+    uint32_t mask = 0;
+    bool open = false;                   // an open entrance (no door)
+    bool raised = false;                 // stilts / a high plinth: entered at the door column only
+    std::array<uint16_t, 32> solid{};    // per entry column: the px columns its pillars (and the wall beyond) block
+  };
+  mutable Open open;
   int floors() const { return genVer >= WORLDGEN_V7 ? std::max(1, (int)storeys) : 1; }
   int doorX() const { return r.x + r.w / 2; }
   int doorY() const { return r.y + r.h - 1; }
@@ -148,6 +170,36 @@ inline art::BuildingFacts bldgFacts(const Bldg& b) {
   f.emblem = b.emblem;
   f.variant = b.variant;
   return f;
+}
+// M3b: the builder's request for a building, and its blueprint (rpg/build/blueprint.h). Every view, interior and test
+// that needs a building's look or plan goes through these (no building bypasses the builder).
+inline bld::Request bldgRequest(const Bldg& b) {
+  bld::Request r = bld::simpleRequest(b.type, b.r.w, b.r.h, bldgArch(b), b.seed, bldgFacts(b));
+  r.wealth = b.wealth;
+  r.urban = b.urban;
+  r.form = (bld::Form)(b.form < (uint8_t)bld::Form::COUNT ? b.form : 0);
+  r.civic = b.civic;
+  r.seat = b.seat;
+  return r;
+}
+inline bld::Blueprint bldgBlueprint(const Bldg& b) { return bld::design(bldgRequest(b)); }
+// (owner 2026-10-06) open fronts: the building's entry tiles and pillars (Bldg::open, made on demand from the blueprint
+// and cached). bldgEntryAt: is tile (x, y) (the Bldg's map frame) one of its entry tiles (the door, or a walk-in bay of
+// an open front). bldgPillarSolid: on an entry tile, does the point (px, py) in map pixels hit a pillar or the wall
+// beyond the open span (the only parts of an open front that block). bldgEntryColumns: the entry columns, west to east.
+const Bldg::Open& bldgOpenFront(const Bldg& b);
+const Bldg::Open& bldgOpenFront(const Bldg& b, const bld::Blueprint& bp);
+bool bldgEntryAt(const Bldg& b, int x, int y);
+bool bldgPillarSolid(const Bldg& b, float px, float py);
+std::vector<int> bldgEntryColumns(const Bldg& b);
+// M3b: the seat of power, whatever the society builds it as (a castle keep, a great hall, a tent court, a temple
+// complex, a guildhall, a council spire...): game code finds the ruler's and the lord's seats by these, never by type.
+// The royal seat holds the king (Role::King) on its ground floor; a city's seat holds its lord (Role::Jarl).
+inline bool bldgIsSeat(const Bldg& b) {
+  return (b.civic & bld::CIVIC_SEAT) != 0 || b.type == art::Building::Palace || b.type == art::Building::Keep;
+}
+inline bool bldgIsRoyalSeat(const Bldg& b) {
+  return b.type == art::Building::Palace || ((b.civic & bld::CIVIC_SEAT) != 0 && b.urban >= 3);
 }
 // WORLDGEN_V7 decisions (rpg/sim/world.cpp), deterministic from the type, the footprint and a hash:
 int bldgStoreysV7(art::Building t, int wTiles, int hTiles, uint32_t h);
@@ -243,7 +295,9 @@ struct Map {
   // (M3 fixer) on a settlement's own tiles (never an ecotone: town ground keeps its own look) the byte is a paving mark
   // instead: PAVE_MARK | the culture's TownStyle::paving (0..15), or BOARDWALK_MARK | paving on a stilt town's
   // boardwalk (a Bridge over its marsh, not a river bridge). Ecotone readers take weights 1..8 only.
-  static constexpr uint8_t PAVE_MARK = 0xF0, BOARDWALK_MARK = 0xE0;
+  // (M3b fixer) POOL_MARK | paving on the open water of a seat's grounds laid by hand (pools, canals, rills): the view
+  // draws them in cut stone kerbs, never with a pond's organic banks.
+  static constexpr uint8_t PAVE_MARK = 0xF0, BOARDWALK_MARK = 0xE0, POOL_MARK = 0xD0;
   std::vector<uint8_t> blend;
   std::vector<uint8_t> height;   // M1: relief per tile (endless overworld only, else empty): bits 0..2 the level 0..7
                                  // (VISION_PLAN 11.1), HEIGHT_CLIFF a cliff face (not walkable), HEIGHT_RAMP a ramp or
@@ -251,6 +305,15 @@ struct Map {
   std::vector<Bldg> bldgs;
   int exitX = 0, exitY = 0;      // caves/interiors: tile you appear on when entering (and where the exit is); upper
                                  // floors of a building have no exit (-1)
+  std::vector<int16_t> exits;    // (owner 2026-10-06) a building walked into between pillars, its ground floor: the
+                                 // ways out on row exitY, west to east (exitX among them); empty: the one door at exitX
+  bool exitOpen = false;         // exitX is an open bay too (an open entrance); false: exitX is a door
+  bool isExit(int x, int y) const {
+    if (y != exitY || exitY < 0) return false;
+    if (x == exitX) return true;
+    for (int16_t e : exits) if (e == x) return true;
+    return false;
+  }
   // M0b interiors (WORLDGEN_V7+, rooms.h): which floor of its building this map is, its stairs, and its rooms
   int floor = 0;
   uint8_t kit = 0;               // (M3 fixer) interiors: 1 + the cult::Archetype whose own furniture the view draws

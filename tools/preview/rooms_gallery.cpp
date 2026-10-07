@@ -10,7 +10,10 @@
 //     real_<seed>_<n>_<type>.png   every floor of a few WORLDGEN_V7 buildings (genInterior), 3x; real_1x.png at 1x
 #include "tools/preview/preview_util.h"
 
+#include "rpg/culture/culture.h"
+#include "rpg/culture/society.h"
 #include "rpg/sim/deco.h"
+#include "rpg/sim/interior_v4.h"
 #include "rpg/sim/world.h"
 
 namespace {
@@ -135,6 +138,7 @@ Map contractMap(art::RoomStyle rs, bool stoneFloor) {
   m.setProp(14, 8, Prop::StairsUp);
   m.setProp(3, 12, Prop::StairsDown);
   for (int x = 1; x < W - 1; x++) m.deco[(size_t)(1 * W + x)] = (uint8_t)((int)Deco::WallTimber + (int)rs);
+  for (int x = 0; x < W; x++) m.deco[(size_t)x] = (uint8_t)((int)Deco::WallTimber + (int)rs);
   // a little furniture and decor, for scale and the consistency pass
   m.setProp(7, 1, Prop::Window);
   m.setProp(13, 1, Prop::Sconce);
@@ -156,8 +160,9 @@ Map contractMap(art::RoomStyle rs, bool stoneFloor) {
 }
 
 const char* styleName(art::RoomStyle rs) {
-  static const char* n[] = {"timber", "log", "stone", "hall", "soot", "arcane", "adobe", "plaster"};
-  return n[(int)rs & 7];
+  static const char* n[] = {"timber", "log", "stone", "hall", "soot", "arcane", "adobe", "plaster", "felt", "paper", "living", "marble", "tile"};
+  static_assert(sizeof(n) / sizeof(n[0]) == (size_t)art::RoomStyle::COUNT, "a name per room style");
+  return n[std::clamp((int)rs, 0, (int)art::RoomStyle::COUNT - 1)];
 }
 
 void contract(const std::string& dir) {
@@ -178,7 +183,8 @@ void contract(const std::string& dir) {
     all.push_back(open);
   }
   int cw = all[0].w, ch = all[0].h;
-  Canvas sheet(cw * 4 + 24, ch * 2 + 8);
+  const int rowsN = ((int)all.size() + 3) / 4;
+  Canvas sheet(cw * 4 + 24, ch * rowsN + 8 * (rowsN - 1));
   for (auto& p : sheet.px) p = rgba(10, 9, 13);
   for (size_t i = 0; i < all.size(); i++) {
     blitA(sheet, all[i], (int)(i % 4) * (cw + 8), (int)(i / 4) * (ch + 8));
@@ -251,11 +257,160 @@ void real(const std::string& dir, uint64_t seed, std::vector<Canvas>& firsts) {
     firsts.push_back(row);
   }
 }
+// ---- M3b boards (VISION_PLAN 15.14: interiors derived from the builder's blueprints) --------------------------------
+//   m3b_inns_1x.png / m3b_inn_<culture>.png    the twelve peoples' inns, every floor (1x sheet; 3x each)
+//   m3b_<name>.png                              the new purposes, the shapes and the seats of power, 3x; m3b_1x.png
+//   m3b_furniture.png                           every people's cabinet, wardrobe, dresser, shelf, bookshelf, bed,
+//                                               hearth and throne (the marsh cupboards against their beds), 1x and 4x
+const cult::Culture& cultureFor(int a) {
+  static std::vector<cult::Culture> cs;
+  if (cs.empty())
+    for (int k = 0; k < (int)cult::Archetype::COUNT; k++) cs.push_back(cult::Atlas::make((cult::Archetype)k, 1000u + (uint32_t)k * 7919u, 2));
+  return cs[(size_t)a];
+}
+// a building of purpose t in culture a, its storeys from its blueprint (what the settlement does); plan >= 0 forces the
+// blueprint's floor plan; seat >= 0: the society's seat (royal: the capital's)
+Bldg m3bBldg(art::Building t, int a, int w, int h, uint32_t seed, int plan, bld::Blueprint& bp, int seat = -1, bool royal = false, int storeys = 0) {
+  Bldg b;
+  b.type = t;
+  b.r = IRect{0, 0, w, h};
+  b.seed = seed;
+  b.biome = Biome::Plains;
+  b.urban = seat >= 0 ? (royal ? 3 : 2) : 1;
+  b.wealth = 2;
+  b.hearth = true;
+  b.site = 0;
+  b.styled = true;
+  b.arch = cult::buildingArch(cultureFor(a), 2, b.urban, 2, seed);
+  b.storeys = (uint8_t)(storeys ? storeys : bldgStoreysV7(t, w, h, seed));
+  b.owner = t == art::Building::Inn ? Role::Innkeeper : Role::Villager;
+  if (seat >= 0) { b.civic = bld::CIVIC_SEAT; b.seat = (uint8_t)(seat + 1); b.owner = royal ? Role::King : Role::Jarl; }
+  bp = bldgBlueprint(b);
+  if (plan >= 0) bp.interior.plan = (bld::Floorplan)plan;
+  b.storeys = (uint8_t)std::clamp((int)bp.interior.floors, 1, 3);
+  if (storeys) b.storeys = (uint8_t)storeys;
+  return b;
+}
+// every floor of b side by side with a title
+Canvas floorsRow(const Bldg& b, const bld::Blueprint& bp, const std::string& title) {
+  std::vector<Canvas> fl;
+  for (int f = 0; f < b.floors(); f++) {
+    Map m;
+    genInteriorRooms(m, b, bp, b.seed, f);
+    fl.push_back(composeRoom(m, false, {}));
+  }
+  int W = 0, H = 0;
+  for (auto& c : fl) { W += c.w + 8; H = std::max(H, c.h); }
+  Canvas row(W, H);
+  for (auto& p : row.px) p = rgba(10, 9, 13);
+  int x = 0;
+  for (size_t i = 0; i < fl.size(); i++) {
+    blitA(row, fl[i], x, 0);
+    label(row, x + 2, 2, title + (fl.size() > 1 ? " f" + std::to_string(i) : ""));
+    x += fl[i].w + 8;
+  }
+  return row;
+}
+Canvas stack(const std::vector<Canvas>& rows) {
+  int W = 0, H = 0;
+  for (auto& r : rows) { W = std::max(W, r.w); H += r.h + 8; }
+  Canvas sheet(std::max(1, W), std::max(1, H));
+  for (auto& p : sheet.px) p = rgba(10, 9, 13);
+  int y = 0;
+  for (auto& r : rows) { blitA(sheet, r, 0, y); y += r.h + 8; }
+  return sheet;
+}
+std::string lower(std::string s) { for (char& ch : s) ch = (char)std::tolower((unsigned char)ch); for (char& ch : s) if (ch == ' ' || ch == '-') ch = '_'; return s; }
+
+void m3b(const std::string& dir, const std::string& only) {
+  const int NA = (int)cult::Archetype::COUNT;
+  auto want = [&](const std::string& n) { return only.empty() || n.find(only) != std::string::npos; };
+  // the inns of the twelve peoples (one and two storeys)
+  if (want("inn")) {
+    std::vector<Canvas> rows;
+    for (int a = 0; a < NA; a++)
+      for (int st = 1; st <= 2; st++) {
+        bld::Blueprint bp;
+        Bldg b = m3bBldg(art::Building::Inn, a, 6, 3, 4242u + (uint32_t)a, -1, bp, -1, false, st);
+        const std::string nm = lower(cult::archetypeName((cult::Archetype)a));
+        static int why[8192];
+        interiorWhy(why, 8192, true);
+        const std::string tn = interiorTemplate(b, bp, b.seed);
+        interiorWhy(why, 8192, true);
+        if (std::getenv("EMB_INTERIOR_WHY")) {
+          std::string ws;
+          for (int i = 0; i < 8192; i++) if (why[i]) ws += " " + std::to_string(i) + "x" + std::to_string(why[i]);
+          std::printf("inn %s %d storeys plan %d: %s (turned down at%s)\n", nm.c_str(), st, (int)bp.interior.plan, tn.c_str(), ws.c_str());
+        }
+        Canvas row = floorsRow(b, bp, nm + " " + tn);
+        savePng(row, dir + "/m3b_inn_" + nm + "_" + std::to_string(st) + ".png", 3);
+        rows.push_back(row);
+      }
+    savePng(stack(rows), dir + "/m3b_inns_1x.png", 1);
+  }
+  // the new purposes, shapes and homes
+  struct Pick { const char* name; art::Building t; int a, w, h, plan, storeys; };
+  using B = art::Building;
+  static const Pick picks[] = {
+      {"yurt_home", B::House, 5, 3, 3, 1, 1},      {"yurt_inn", B::Inn, 5, 6, 3, 1, 1},          {"court_house", B::House, 4, 5, 4, 3, 1},
+      {"l_house", B::House, 2, 5, 3, 2, 2},        {"longhouse", B::House, 0, 6, 3, 4, 1},       {"marsh_home", B::House, 6, 4, 3, 0, 1},
+      {"bathhouse", B::Bathhouse, 3, 6, 4, 0, 1},  {"round_bath", B::Bathhouse, 4, 5, 5, 1, 1},  {"mead_hall", B::MeadHall, 0, 7, 4, 4, 1},
+      {"feast_tent", B::MeadHall, 5, 6, 6, 1, 1},  {"tea_house", B::TeaHouse, 7, 5, 3, 0, 1},    {"guildhall", B::Guildhall, 8, 7, 4, 0, 2},
+      {"exchange", B::Exchange, 8, 6, 4, 0, 1},    {"lodge", B::Lodge, 1, 6, 4, 0, 1},           {"council_hall", B::CouncilHall, 6, 7, 4, 0, 1},
+      {"cross_temple", B::Temple, 9, 6, 5, 5, 1},  {"round_temple", B::Temple, 10, 5, 5, 1, 1},  {"round_tower", B::Tower, 11, 3, 3, 1, 3},
+      {"caravanserai", B::Inn, 4, 7, 5, 3, 1},     {"jade_inn", B::Inn, 7, 6, 3, 0, 2},
+  };
+  std::vector<Canvas> all;
+  for (const Pick& p : picks) {
+    if (!want(p.name)) continue;
+    bld::Blueprint bp;
+    Bldg b = m3bBldg(p.t, p.a, p.w, p.h, 777u + (uint32_t)p.a * 31u, p.plan, bp, -1, false, p.storeys);
+    Canvas row = floorsRow(b, bp, std::string(p.name) + " " + interiorTemplate(b, bp, b.seed));
+    savePng(row, dir + "/m3b_" + p.name + ".png", 3);
+    all.push_back(row);
+  }
+  // the seats of power: every people's royal seat
+  for (int a = 0; a < NA; a++) {
+    const std::string nm = "seat_" + lower(cult::archetypeName((cult::Archetype)a));
+    if (!want(nm)) continue;
+    const cult::Society S = cult::societyOf(cultureFor(a));
+    bld::Blueprint bp;
+    Bldg b = m3bBldg(cult::seatPurpose(S.seat, false), a, 13, 6, 991u + (uint32_t)a, -1, bp, (int)S.seat, true);
+    Canvas row = floorsRow(b, bp, nm + " " + interiorTemplate(b, bp, b.seed));
+    savePng(row, dir + "/m3b_" + nm + ".png", 3);
+    all.push_back(row);
+  }
+  if (!all.empty()) savePng(stack(all), dir + "/m3b_1x.png", 1);
+  // the peoples' furniture side by side (1x and 4x): the marsh cupboards must read as cupboards, not beds
+  if (want("furniture")) {
+    using P = art::Prop;
+    static const P ps[] = {P::Cupboard, P::Wardrobe, P::Dresser, P::Shelf, P::Bookshelf, P::Bed, P::Hearth, P::Throne};
+    const int cellW = 44, cellH = 56;
+    Canvas sheet(cellW * 8 + 70, cellH * NA + 4);
+    for (auto& px : sheet.px) px = rgba(150, 128, 104);
+    for (int a = 0; a < NA; a++) {
+      label(sheet, 2, a * cellH + 20, lower(cult::archetypeName((cult::Archetype)a)).substr(0, 10));
+      for (int i = 0; i < 8; i++) {
+        Canvas s = ps[i] == P::Throne ? art::interiorPiece(art::pieceKey(art::Piece::Styled, (int)art::RoomStyle::Hall, art::kStyledThrone, a))
+                   : art::cultureInteriorHas(a, ps[i]) ? art::cultureInteriorPiece(a, ps[i], ps[i] == P::Bed ? 1 : 0)
+                                                       : art::propSprite(ps[i]);
+        const int fw = ps[i] == P::Hearth || ps[i] == P::Throne ? s.w : art::propW(ps[i]);
+        blitA(sheet, s, 66 + i * cellW + (cellW - std::min(fw, cellW)) / 2, a * cellH + cellH - 2 - s.h, 0, std::min(fw, s.w));
+      }
+    }
+    savePng(sheet, dir + "/m3b_furniture.png", 1);
+    savePng(sheet, dir + "/m3b_furniture_4x.png", 4);
+  }
+}
 }  // namespace
 
 int main(int argc, char** argv) {
   std::string dir = argc > 1 ? argv[1] : ".";
   bool onlyContract = argc > 2 && std::string(argv[2]) == "contract";
+  if (argc > 2 && std::string(argv[2]) == "m3b") {   // rooms_gallery <dir> m3b [name filter]
+    m3b(dir, argc > 3 ? argv[3] : "");
+    return 0;
+  }
   contract(dir);
   if (onlyContract) return 0;
   std::vector<Canvas> rows;

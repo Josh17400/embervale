@@ -177,9 +177,10 @@ int cmdTownAudit(int argc, char** argv) {
           s.x = p.ex; s.y = p.ey; s.culture = cid; s.arch = (int)p.archetype;
           // (a village's layout is its style and its street form: a crossroads hamlet, a road village, a green; a
           // town's its style and its squares)
-          s.layout = (int)ew::townLayoutFor(&K, p.type, p.seed, p.ex, p.ey) * 3 +
-                     (p.type != SiteType::City ? ew::townForm(ew::townColour(&K, p.type, p.ex, p.ey)) : 0);
-          s.wealth = ew::townWealthFor(&K, p.type, (p.flags & ew::SPF_CAPITAL) != 0, p.seed, p.ex, p.ey);
+          // (M3b: the look the region planner chose for it, SitePlan::kind, as the generator builds it)
+          s.layout = (int)ew::townLayoutFor(&K, p.type, p.seed, p.ex, p.ey, p.kind) * 3 +
+                     (p.type != SiteType::City ? ew::townForm(ew::townColour(&K, p.type, p.ex, p.ey, p.kind)) : 0);
+          s.wealth = ew::townWealthFor(&K, p.type, (p.flags & ew::SPF_CAPITAL) != 0, p.seed, p.ex, p.ey, p.kind);
           s.name = p.name;
           s.type = p.type;
           ss.push_back(s);

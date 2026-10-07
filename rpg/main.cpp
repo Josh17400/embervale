@@ -226,6 +226,8 @@ bool findPath(const Map& m, int sx, int sy, int gx, int gy, std::vector<int>& pa
       // never path across a flight of stairs that is not the goal (stepping on it changes the floor)
       const int pr = m.propAt(nx, ny);
       if ((pr == (int)art::Prop::StairsDown + 1 || pr == (int)art::Prop::StairsUp + 1) && (nx != gx || ny != gy)) continue;
+      // (owner) nor across a building's way in that is not the goal (an open front's bays: stepping in enters)
+      if (m.kind == MapKind::Overworld && m.bldgAt[(size_t)ny * m.w + nx] >= 0 && (nx != gx || ny != gy)) continue;
       from[(size_t)id(nx, ny)] = q[h];
       q.push_back(id(nx, ny));
     }
@@ -821,7 +823,11 @@ int main(int argc, char** argv) {
           {"windmill", art::Building::Windmill}, {"watermill", art::Building::Watermill}, {"granary", art::Building::Granary},
           {"bakery", art::Building::Bakery}, {"butcher", art::Building::Butcher}, {"tannery", art::Building::Tanner},
           {"tanner", art::Building::Tanner}, {"fishmonger", art::Building::Fishmonger}, {"smelter", art::Building::Smelter},
-          {"sawmill", art::Building::Sawmill}, {"weaver", art::Building::Weaver}};
+          {"sawmill", art::Building::Sawmill}, {"weaver", art::Building::Weaver},
+          // M3b: the society's purposes
+          {"guildhall", art::Building::Guildhall}, {"exchange", art::Building::Exchange}, {"meadhall", art::Building::MeadHall},
+          {"bathhouse", art::Building::Bathhouse}, {"teahouse", art::Building::TeaHouse}, {"lodge", art::Building::Lodge},
+          {"councilhall", art::Building::CouncilHall}};
       int want = -1;
       for (auto& e : et) if (arg(1) == e.n) want = (int)e.b;
       int fl = std::atoi(arg(2).c_str()), nth = std::atoi(arg(3).c_str());
@@ -833,8 +839,11 @@ int main(int argc, char** argv) {
       for (size_t i = 0; i < B.size(); i++)
         if ((int)B[i].type == want && fl < B[i].floors()) cand.push_back({std::hypot((float)(B[i].doorX() - px), (float)(B[i].doorY() - py)), (int)i});
       std::sort(cand.begin(), cand.end());
+      // (fixer r2) the seat of power is the settlement's own: "enter palace" never walks across the map into another
+      // realm's (enterseat enters whatever the society built here). Other types still take the nearest in the window.
+      if (want == (int)art::Building::Palace) while (!cand.empty() && cand.back().first >= 160.0f) cand.pop_back();
       if (want < 0) fail(c.line, "enter: unknown building type '" + arg(1) + "'");
-      else if (nth >= (int)cand.size()) fail(c.line, "enter " + arg(1) + ": no such building with floor " + arg(2));
+      else if (nth >= (int)cand.size()) fail(c.line, "enter " + arg(1) + ": no such building with floor " + arg(2) + (want == (int)art::Building::Palace ? " near (the seat of power here: enterseat)" : ""));
       else if (!game.debugEnterBuilding(cand[(size_t)nth].second, fl)) fail(c.line, "enter " + arg(1) + ": could not enter");
       else { game.mode = Mode::Play; view.snap(game); }
     } else if (op == "floor") {

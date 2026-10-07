@@ -2,6 +2,7 @@
 // Usage: art_preview [outDir]   (default: %TEMP%\claude\embervale_art)
 // Sprites are shown on a grass-coloured ground, scaled 3x with nearest neighbour.
 #include <SDL3/SDL.h>
+#include "rpg/build/blueprint.h"
 
 #include <algorithm>
 #include <cmath>
@@ -245,13 +246,13 @@ void buildings(const std::string& dir) {
     b.text(x, y, nameAt(kBuildingNames, bi));
     for (int si = 0; si < 4; si++) {
       int w = sizes[si][0], h = sizes[si][1];
-      Canvas s = art::buildingSprite((art::Building)bi, w, h, 0, (uint32_t)(bi * 31 + si * 7 + 1));
+      Canvas s = art::buildingSprite(bld::design(bld::classicRequest((art::Building)bi, w, h, 0, (uint32_t)(bi * 31 + si * 7 + 1))));
       b.put(s, x, y + 10);
       rowH = std::max(rowH, s.h);
       x += s.w + 8;
     }
     // one tinted variant
-    Canvas t = art::buildingSprite((art::Building)bi, 3, 2, rgba(70, 110, 160), 99);
+    Canvas t = art::buildingSprite(bld::design(bld::classicRequest((art::Building)bi, 3, 2, rgba(70, 110, 160), 99)));
     b.put(t, x, y + 10);
     y += rowH + 14;
   }
@@ -340,10 +341,10 @@ void scene(const std::string& dir) {
     for (int y = 0; y < fh; y++) for (int x = 0; x < fw; x++) c.set(x, y, sheet.get(col * fw + x, row * fh + y));
     return c;
   };
-  add(art::buildingSprite(art::Building::House, 4, 3, 0, 3), 40, 112);
-  add(art::buildingSprite(art::Building::Inn, 5, 3, 0, 4), 124, 112);
-  add(art::buildingSprite(art::Building::Smithy, 4, 3, 0, 5), 210, 112);
-  add(art::buildingSprite(art::Building::Temple, 4, 3, 0, 6), 284, 104);
+  add(art::buildingSprite(bld::design(bld::classicRequest(art::Building::House, 4, 3, 0, 3))), 40, 112);
+  add(art::buildingSprite(bld::design(bld::classicRequest(art::Building::Inn, 5, 3, 0, 4))), 124, 112);
+  add(art::buildingSprite(bld::design(bld::classicRequest(art::Building::Smithy, 4, 3, 0, 5))), 210, 112);
+  add(art::buildingSprite(bld::design(bld::classicRequest(art::Building::Temple, 4, 3, 0, 6))), 284, 104);
   add(art::propSprite(art::Prop::OakTree), 6, 136);
   add(art::propSprite(art::Prop::OakTree2), 300, 140);
   add(art::propSprite(art::Prop::PineTree), 248, 196);

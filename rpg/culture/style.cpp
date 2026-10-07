@@ -4,5 +4,5 @@
 #include "rpg/culture/style.h"
 
 namespace art {
-static_assert((int)RoofShape::COUNT == 12 && (int)RoofMat::COUNT == 12 && (int)WallMat::COUNT == 12, "style enums changed (M3): update the painters");
+static_assert((int)RoofShape::COUNT == 14 && (int)RoofMat::COUNT == 12 && (int)WallMat::COUNT == 12, "style enums changed (M3): update the painters");
 }  // namespace art

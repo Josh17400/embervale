@@ -8,6 +8,7 @@
 // Pre-M0 baseline: humans 3a7e04166da3888e monsters 861869e52656df48 props 8c9c5159f8c5843c buildings aca5bc7c4bef688c
 //                  walls cd867c5f650fd69b icons 0fd3e91f6e4dca99 fx e0ecd0fcb344c159 TOTAL 46d7a9fe07d4f7b0
 #include <cstdint>
+#include "rpg/build/blueprint.h"
 #include <cstdio>
 #include <cstring>
 #include <string>
@@ -85,7 +86,7 @@ int main(int argc, char** argv) {
     for (int s = 0; s < 4; s++)
       for (int roof = 0; roof < 2; roof++)
         (b < kBuildings ? buildings : buildingsNew)
-            .add(buildingSprite((Building)b, sizes[s][0], sizes[s][1], roof ? rgba(150, 60, 50) : 0, 1234u + s * 77u),
+            .add(buildingSprite(bld::design(bld::classicRequest((Building)b, sizes[s][0], sizes[s][1], roof ? rgba(150, 60, 50) : 0, 1234u + s * 77u))),
                  "bldg" + std::to_string(b) + "/" + std::to_string(sizes[s][0]) + "x" + std::to_string(sizes[s][1]) + (roof ? "/tint" : ""));
   }
   for (int m = 0; m < 16; m++) walls.add(wallPiece(m), "wall" + std::to_string(m));

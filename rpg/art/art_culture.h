@@ -43,15 +43,17 @@ bool propStyled(Prop p);
 // the camera sees, a cast shadow to the south-east, L / T / X corners closed with no gap or overshoot. 16x24, anchored
 // like FenceV (bottom on the tile's bottom edge, centred).
 Canvas dykePiece(int mask, const PropStyle& st);
+// (M3b round 3) a clipped hedge piece that joins its neighbours the same way (mask as dykePiece): a rounded leafy
+// mass with a lit top, a shaded face toward the camera and a cast shadow, closed corners; snow lies on its top (and
+// drips over the face's lip) when `snow`. 16x24, anchored like dykePiece.
+Canvas hedgePiece(int mask, const PropStyle& st, bool snow);
 
 // ---------------------------------------------------------------- incremental building paints (M2 carry-over)
 // The web has no threads, and a palace painted in one go cost ~41 ms on desktop (~100 ms on an iPhone): one frame.
-// A BuildingJob paints the same pixels as buildingSprite(b, w, h, style, seed, &info, facts), in steps of about
-// budgetMs each, so the view can spread a big building over frames (desktop: still on its paint workers).
-// PHASE A STUB: the first step paints everything.
+// A BuildingJob paints the same pixels as buildingSprite(bp, &info), in steps of about budgetMs each, so the view can
+// spread a big building over frames (desktop: still on its paint workers). (M3b: from the builder's blueprint.)
 struct BuildingJob;
-std::shared_ptr<BuildingJob> beginBuilding(Building b, int wTiles, int hTiles, const ArchStyle& style, uint32_t seed,
-                                           const BuildingFacts& facts);
+std::shared_ptr<BuildingJob> beginBuilding(const bld::Blueprint& bp);
 bool stepBuilding(BuildingJob& job, double budgetMs);   // true once finished
 Canvas finishBuilding(BuildingJob& job, BuildingInfo* info);   // after stepBuilding returned true
 

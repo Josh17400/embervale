@@ -1,0 +1,115 @@
+# M3b BUILDER lane: every culture's capital by day (its streets from the heart, then its seat of power from the south),
+# then a village of three cultures. Judge the builder's construction grammar against the owner's bar: each capital
+# its own civilisation, the seat in its idiom (no castle outside the heartland and highlands), no clone neighbours.
+# Archetypes absent within 12 culture cells of the start fail their gotoculture (try --seed 3).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m3b_builder_capitals.txt [--seed N]
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 hour 11
++0.2 gotoculture steppe capital
++1.6 hour 11
++0.6 shot m3b_01_steppe_streets.png
++0.1 gotoseat south 7
++1.4 society
++0.4 shot m3b_01_steppe_seat.png
++0.1 gotoseat south 1
++1.2 shot m3b_01_steppe_seatnear.png
++0.2 gotoculture dune capital
++1.6 hour 11
++0.6 shot m3b_02_dune_streets.png
++0.1 gotoseat south 7
++1.4 society
++0.4 shot m3b_02_dune_seat.png
++0.1 gotoseat south 1
++1.2 shot m3b_02_dune_seatnear.png
++0.2 gotoculture jade capital
++1.6 hour 11
++0.6 shot m3b_03_jade_streets.png
++0.1 gotoseat south 7
++1.4 society
++0.4 shot m3b_03_jade_seat.png
++0.1 gotoseat south 1
++1.2 shot m3b_03_jade_seatnear.png
++0.2 gotoculture fjordfolk capital
++1.6 hour 11
++0.6 shot m3b_04_fjordfolk_streets.png
++0.1 gotoseat south 7
++1.4 society
++0.4 shot m3b_04_fjordfolk_seat.png
++0.1 gotoseat south 1
++1.2 shot m3b_04_fjordfolk_seatnear.png
++0.2 gotoculture river capital
++1.6 hour 11
++0.6 shot m3b_05_river_streets.png
++0.1 gotoseat south 7
++1.4 society
++0.4 shot m3b_05_river_seat.png
++0.1 gotoseat south 1
++1.2 shot m3b_05_river_seatnear.png
++0.2 gotoculture suntemple capital
++1.6 hour 11
++0.6 shot m3b_06_suntemple_streets.png
++0.1 gotoseat south 7
++1.4 society
++0.4 shot m3b_06_suntemple_seat.png
++0.1 gotoseat south 1
++1.2 shot m3b_06_suntemple_seatnear.png
++0.2 gotoculture sylvan capital
++1.6 hour 11
++0.6 shot m3b_07_sylvan_streets.png
++0.1 gotoseat south 7
++1.4 society
++0.4 shot m3b_07_sylvan_seat.png
++0.1 gotoseat south 1
++1.2 shot m3b_07_sylvan_seatnear.png
++0.2 gotoculture starspire capital
++1.6 hour 11
++0.6 shot m3b_08_starspire_streets.png
++0.1 gotoseat south 7
++1.4 society
++0.4 shot m3b_08_starspire_seat.png
++0.1 gotoseat south 1
++1.2 shot m3b_08_starspire_seatnear.png
++0.2 gotoculture heartland capital
++1.6 hour 11
++0.6 shot m3b_09_heartland_streets.png
++0.1 gotoseat south 7
++1.4 society
++0.4 shot m3b_09_heartland_seat.png
++0.1 gotoseat south 1
++1.2 shot m3b_09_heartland_seatnear.png
++0.2 gotoculture imperial capital
++1.6 hour 11
++0.6 shot m3b_10_imperial_streets.png
++0.1 gotoseat south 7
++1.4 society
++0.4 shot m3b_10_imperial_seat.png
++0.1 gotoseat south 1
++1.2 shot m3b_10_imperial_seatnear.png
++0.2 gotoculture marsh capital
++1.6 hour 11
++0.6 shot m3b_11_marsh_streets.png
++0.1 gotoseat south 7
++1.4 society
++0.4 shot m3b_11_marsh_seat.png
++0.1 gotoseat south 1
++1.2 shot m3b_11_marsh_seatnear.png
++0.2 gotoculture highland capital
++1.6 hour 11
++0.6 shot m3b_12_highland_streets.png
++0.1 gotoseat south 7
++1.4 society
++0.4 shot m3b_12_highland_seat.png
++0.1 gotoseat south 1
++1.2 shot m3b_12_highland_seatnear.png
++0.2 gotoculture fjordfolk village
++1.6 hour 11
++0.6 shot m3b_v1_fjordfolk_village.png
++0.2 gotoculture dune village
++1.6 hour 11
++0.6 shot m3b_v2_dune_village.png
++0.2 gotoculture jade village
++1.6 hour 11
++0.6 shot m3b_v3_jade_village.png
++0.5 quit

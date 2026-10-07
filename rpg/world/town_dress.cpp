@@ -566,6 +566,182 @@ void Gen::gardens() {
 }
 
 // ------------------------------------------------------------------------------------------------ archetypes
+// ------------------------------------------------------------------------------------------------ M3b society spaces
+// An open patch of w x h tiles the town has left (no street, yard, house, wall, prop, water or terrace face; nobody's
+// front or sprite; one level), between nearD and farD from the heart (in a city's district d when it is given), with a
+// street within three tiles of its south side for the way in. The candidates are scanned in a hashed order (k), so two
+// spaces of one town are not stacked in one corner. Integer summed-area table: O(1) per candidate.
+bool Gen::findOpen(int w, int h, float nearD, float farD, int& ox, int& oy, uint32_t k, District d) const {
+  const int SW = W + 1;
+  std::vector<int> sat((size_t)SW * (H + 1), 0);
+  for (int y = 0; y < H; y++)
+    for (int x = 0; x < W; x++) {
+      const size_t i = I(x, y);
+      const bool open = mask[i] == K_NONE && M.bldgAt[i] < 0 && !M.wall[i] && !M.prop[i] && !front[i] && !cover[i] && !noBuild[i] && !water[i] &&
+                        !groundSolid(M.at(x, y)) && M.at(x, y) != Ground::Bridge && M.at(x, y) != Ground::Swamp && !face(x, y) &&
+                        (reserved.empty() || !reserved[i]);
+      sat[(size_t)(y + 1) * SW + x + 1] = (open ? 1 : 0) + sat[(size_t)y * SW + x + 1] + sat[(size_t)(y + 1) * SW + x] - sat[(size_t)y * SW + x];
+    }
+  auto area = [&](int x0, int y0, int x1, int y1) {   // [x0, x1) x [y0, y1)
+    return sat[(size_t)y1 * SW + x1] - sat[(size_t)y0 * SW + x1] - sat[(size_t)y1 * SW + x0] + sat[(size_t)y0 * SW + x0];
+  };
+  int best = -1;
+  uint32_t bestH = 0;
+  for (int y = 2; y + h + 2 < H; y++)
+    for (int x = 2; x + w + 2 < W; x++) {
+      const float dd = dist(x + w / 2, y + h / 2);
+      if (dd < nearD || dd > farD) continue;
+      if (city && d != District::COUNT && districtAt(x + w / 2, y + h / 2) != d) continue;
+      if (area(x - 1, y - 1, x + w + 1, y + h + 1) != (w + 2) * (h + 2)) continue;   // (a free ring round it too)
+      const int lv = lvl[I(x, y)];
+      bool flat = true;
+      for (int yy = y; yy < y + h && flat; yy++)
+        for (int xx = x; xx < x + w; xx++) if (lvl[I(xx, yy)] != lv) { flat = false; break; }
+      if (!flat) continue;
+      bool road = false;
+      for (int yy = y + h + 1; yy <= y + h + 3 && !road; yy++)
+        for (int xx = x; xx < x + w; xx++) if (isStreet(xx, yy) || get(xx, yy) == K_YARD) { road = true; break; }
+      if (!road) continue;
+      const uint32_t hh = hashAt(x, y, k);
+      if (best < 0 || hh < bestH) { best = y * W + x; bestH = hh; }
+    }
+  if (best < 0) return false;
+  ox = best % W; oy = best / W;
+  return true;
+}
+
+// a ring of props round (x, y) at radius r (every `every` steps of the circle; keepSouth: a gap at its south for the way
+// in); false when fewer than half of them found room
+bool Gen::spaceRing(int x, int y, int r, Prop p, int every, bool keepSouth) {
+  const int n = std::max(6, (int)(D_TAU * r / std::max(1, every)));
+  int put = 0, want = 0;
+  for (int k = 0; k < n; k++) {
+    const float a = D_TAU * k / n;
+    if (keepSouth && dsin(a) > 0.85f) continue;
+    const int px = x + (int)std::floor(dcos(a) * r + 0.5f), py = y + (int)std::floor(dsin(a) * r * 0.8f + 0.5f);
+    want++;
+    if (freeTile(px, py) && !cover[I(px, py)] && putSolid(px, py, p)) { set(px, py, K_YARD); put++; }
+  }
+  return put * 2 >= want;
+}
+
+// M3b (VISION_PLAN 15.14): the open spaces the society asks for (cult::requiredSpaces), made from the props the world
+// already has: a moot ring of standing stones (benches where no stone-raising people meets), the horse lines' corrals
+// (the culture's fence, beasts, troughs, hay), the parade ground's packed earth with its standards, the temple court
+// paved before the chief temple with braziers, a sacred grove's ring of old trees round its shrine. The market square,
+// the green, the quays and a capital's gardens are the layout's own (markets, the village green, quays, the seat).
+void Gen::spaces() {
+  spacesMade = spacesAsked = 0;
+  if (!hasSoc) return;
+  const std::vector<cult::SpaceReq> reqs = cult::requiredSpaces(soc, *C.culture, tier, (int)P.archetype, P.seed);
+  const bool stones = cArch == (int)cult::Archetype::Fjordfolk || cArch == (int)cult::Archetype::Highland || cArch == (int)cult::Archetype::Marsh ||
+                      cArch == (int)cult::Archetype::Steppe || cArch == (int)cult::Archetype::Sylvan;
+  const bool cold = bio == Biome::Snow || bio == Biome::Taiga;
+  const bool dry = bio == Biome::Desert || cArch == (int)cult::Archetype::Dune;
+  uint32_t k = 0x5ACEu;
+  for (const cult::SpaceReq& q : reqs) {
+    k += 0x9E37u;
+    bool made = false;
+    switch (q.space) {
+      case cult::Space::MarketSquare: made = !stalls.empty() || mktZone.w > 0 || lotStalls > 0 || !squares.empty(); break;
+      case cult::Space::Green: made = !squares.empty(); break;
+      case cult::Space::Harbour: made = arch == Archetype::Port; break;
+      case cult::Space::Gardens: made = compound.w > 0 && seatKind != (int)cult::Seat::TentCourt && seatKind != (int)cult::Seat::StiltHall; break;
+      case cult::Space::TempleCourt: {
+        if (capital && seatKind == (int)cult::Seat::TempleComplex && compound.w > 0) { made = true; break; }
+        // the court before the chief temple: its apron widened into a paved court, braziers at its corners
+        for (const Bldg& b : M.bldgs) {
+          if (b.type != Building::Temple || !(b.civic & bld::CIVIC_SACRED)) continue;
+          const int x0 = b.r.x - 1, x1 = b.r.x + b.r.w, y0 = b.r.y + b.r.h, y1 = b.r.y + b.r.h + 3;
+          int paved = 0;
+          for (int y = y0; y <= y1; y++)
+            for (int x = x0; x <= x1; x++) {
+              if (!in(x, y) || M.bldgAt[I(x, y)] >= 0 || M.wall[I(x, y)] || water[I(x, y)] || groundSolid(M.at(x, y)) || lvl[I(x, y)] != lvl[I(b.doorX(), b.doorY())]) continue;
+              const uint8_t m = get(x, y);
+              if (m != K_NONE && m != K_YARD && m != K_LANE && m != K_SQUARE) continue;
+              if (M.prop[I(x, y)] && m == K_NONE) M.setP(x, y, 0);
+              if (m == K_NONE || m == K_YARD) { set(x, y, K_SQUARE); M.setG(x, y, Ground::Plaza); }
+              paved++;
+            }
+          for (int s : {x0, x1}) if (in(s, y0 + 1) && get(s, y0 + 1) == K_SQUARE && !M.prop[I(s, y0 + 1)] && !front[I(s, y0 + 1)]) putSolid(s, y0 + 1, Prop::Brazier);
+          made = paved >= (b.r.w + 2) * 2;
+          break;
+        }
+        break;
+      }
+      case cult::Space::MootRing: {
+        int ox, oy;
+        if (findOpen(9, 7, village ? 0.45f : 0.55f, 1.2f, ox, oy, k)) {
+          const int mx = ox + 4, my = oy + 3;
+          for (int y = oy; y < oy + 7; y++) for (int x = ox; x < ox + 9; x++) if ((x - mx) * (x - mx) * 9 + (y - my) * (y - my) * 16 <= 160) M.setP(x, y, 0);
+          made = spaceRing(mx, my, 4, stones ? Prop::StandingStone : Prop::Bench, 2, !stones);
+          if (made && freeTile(mx, my)) putSolid(mx, my, stones ? Prop::StandingStone : Prop::Statue);   // the speaker's stone
+          for (int y = oy; y < oy + 7; y++) for (int x = ox; x < ox + 9; x++) if (get(x, y) == K_NONE && (x - mx) * (x - mx) * 9 + (y - my) * (y - my) * 16 <= 160) set(x, y, K_YARD);
+        }
+        break;
+      }
+      case cult::Space::SacredGrove: {
+        int ox, oy;
+        if (findOpen(11, 9, 0.35f, 1.15f, ox, oy, k, District::Temple) || findOpen(11, 9, 0.35f, 1.15f, ox, oy, k)) {
+          const int mx = ox + 5, my = oy + 4;
+          const Prop t1 = cold ? Prop::PineTree : (dry ? Prop::PalmTree : Prop::OakTree), t2 = cold ? Prop::SnowPine : (dry ? Prop::PalmTree : Prop::BirchTree);
+          int n = 0;
+          for (int a = 0; a < 10; a++) {
+            const float an = D_TAU * a / 10;
+            if (dsin(an) > 0.9f) continue;   // the way in from the south
+            const int px = mx + (int)std::floor(dcos(an) * 5 + 0.5f), py = my + (int)std::floor(dsin(an) * 4 + 0.5f);
+            if (freeTile(px, py) && !cover[I(px, py)] && putSolid(px, py, a & 1 ? t2 : t1)) n++;
+          }
+          if (n >= 6 && freeTile(mx, my)) { putSolid(mx, my, Prop::Shrine); made = true; }
+          for (int y = oy + 1; y < oy + 8; y++)
+            for (int x = ox + 1; x < ox + 10; x++) {
+              if (!freeTile(x, y) || (std::abs(x - mx) <= 1 && std::abs(y - my) <= 1)) continue;
+              const uint32_t h = hashAt(x, y, k ^ 0x6A0Fu);
+              if (h % 7u == 0) M.setProp(x, y, dry ? Prop::Flowers3 : Prop::Fern);
+              else if (h % 7u == 1) M.setProp(x, y, Prop::Flowers2);
+            }
+          for (int y = oy; y < oy + 9; y++) for (int x = ox; x < ox + 11; x++) if (get(x, y) == K_NONE) set(x, y, K_YARD);
+        }
+        break;
+      }
+      case cult::Space::Corral: {
+        int ox, oy;
+        const int cw = village ? 6 : 8, ch = village ? 5 : 6;
+        if (findOpen(cw, ch, 0.55f, 1.25f, ox, oy, k)) {
+          const int gapX = ox + cw / 2;
+          for (int x = ox; x < ox + cw; x++) {
+            M.setProp(x, oy, Prop::FenceH);
+            if (x != gapX) M.setProp(x, oy + ch - 1, Prop::FenceH);
+          }
+          for (int y = oy + 1; y < oy + ch - 1; y++) { M.setProp(ox, y, Prop::FenceV); M.setProp(ox + cw - 1, y, Prop::FenceV); }
+          for (int y = oy; y < oy + ch; y++) for (int x = ox; x < ox + cw; x++) { set(x, y, K_YARD); if (!M.prop[I(x, y)]) M.setG(x, y, Ground::Dirt); }
+          M.setProp(ox + 1, oy + 1, Prop::Trough);
+          M.setProp(ox + cw - 2, oy + 1, Prop::Haystack);
+          const Prop beast = cArch == (int)cult::Archetype::Steppe || dry ? Prop::Cow : Prop::Sheep;
+          M.setProp(ox + 2, oy + ch - 3, beast);
+          if (cw >= 8) M.setProp(ox + cw - 3, oy + ch - 3, beast);
+          made = true;
+        }
+        break;
+      }
+      case cult::Space::ParadeGround: {
+        int ox, oy;
+        const int pw = 11, ph = 7;
+        if (findOpen(pw, ph, 0.4f, 1.1f, ox, oy, k, District::Noble) || findOpen(pw, ph, 0.4f, 1.2f, ox, oy, k)) {
+          for (int y = oy; y < oy + ph; y++) for (int x = ox; x < ox + pw; x++) { set(x, y, K_YARD); M.setG(x, y, Ground::Dirt); M.setP(x, y, 0); }
+          for (int c = 0; c < 4; c++) putSolid(c & 1 ? ox + pw - 1 : ox, c & 2 ? oy + ph - 1 : oy, Prop::Banner);
+          putSolid(ox + pw / 2, oy, Prop::Banner);
+          for (int x = ox + 2; x < ox + pw - 2; x += 3) putSolid(x, oy, (x / 3) & 1 ? Prop::Crate : Prop::Barrel);
+          made = true;
+        }
+        break;
+      }
+      default: break;
+    }
+    if (q.required) { spacesAsked++; if (made) spacesMade++; }
+  }
+}
+
 void Gen::archetypeDress() {
   bool anyWater = false;
   for (size_t i = 0; i < water.size() && !anyWater; i++) anyWater = water[i] != 0;
@@ -623,6 +799,17 @@ void Gen::archetypeDress() {
         len++;
       }
       if (nearMill) continue;
+      // (fix) a jetty never runs up to the town wall (across a stream that hugs the ring it read as a street running
+      // head-on into the masonry): it must end over open water, a tile clear of any wall
+      {
+        bool wallBy = false;
+        for (int k = 1; k <= len + 1 && !wallBy; k++)
+          for (int d = 0; d < 4 && !wallBy; d++) {
+            const int px = x + D4X[dir] * k + D4X[d], py = y + D4Y[dir] * k + D4Y[d];
+            if (in(px, py) && M.wall[I(px, py)]) wallBy = true;
+          }
+        if (wallBy) continue;
+      }
       for (int k = 1; k <= len; k++) {
         const int px = x + D4X[dir] * k, py = y + D4Y[dir] * k;
         M.setG(px, py, Ground::Bridge);
@@ -841,19 +1028,23 @@ void Gen::joinBanks() {
     }
     if (tx < 0) return;
     // the cheapest way from it to the reached ground: dry land costs 1, water 3 (so a bridge goes straight across);
-    // never through a building, a wall, a cliff face or the buffer's rim
-    std::vector<int> cost((size_t)W * H, 1 << 30), prev((size_t)W * H, -1);
+    // never through a building, a wall, a cliff face or the buffer's rim. (M3b round 3) A bridge never turns over the
+    // water: the search state is the tile and the heading, and a step onto or across water keeps the heading it had,
+    // so every crossing is one straight deck (a diagonal stream was crossed by a staircase of square plank patches)
+    std::vector<int> cost((size_t)W * H * 4, 1 << 30), prev((size_t)W * H * 4, -1);
     std::priority_queue<std::pair<int, int>, std::vector<std::pair<int, int>>, std::greater<std::pair<int, int>>> pq;
-    cost[I(tx, ty)] = 0;
-    pq.push({0, (int)I(tx, ty)});
+    for (int d = 0; d < 4; d++) { cost[I(tx, ty) * 4 + (size_t)d] = 0; pq.push({0, (int)I(tx, ty) * 4 + d}); }
     int found = -1;
     while (!pq.empty()) {
-      const auto [c0, i0] = pq.top();
+      const auto [c0, s0] = pq.top();
       pq.pop();
-      if (c0 != cost[(size_t)i0]) continue;
-      if (seen[(size_t)i0]) { found = i0; break; }
+      if (c0 != cost[(size_t)s0]) continue;
+      const int i0 = s0 / 4, d0 = s0 % 4;
+      if (seen[(size_t)i0]) { found = s0; break; }
       const int x = i0 % W, y = i0 / W;
+      const bool wet = groundWater(M.at(x, y)) && !(x == tx && y == ty);
       for (int d = 0; d < 4; d++) {
+        if (wet && d != d0) continue;   // on the water: straight on only
         const int nx = x + D4X[d], ny = y + D4Y[d];
         if (nx < 1 || ny < 1 || nx >= W - 1 || ny >= H - 1) continue;
         const size_t ni = I(nx, ny);
@@ -861,13 +1052,14 @@ void Gen::joinBanks() {
         const Ground g = M.at(nx, ny);
         if (groundSolid(g) && !groundWater(g)) continue;
         const int step = groundWater(g) ? 3 : 1;
-        if (c0 + step < cost[ni]) { cost[ni] = c0 + step; prev[ni] = i0; pq.push({c0 + step, (int)ni}); }
+        const size_t ns = ni * 4 + (size_t)d;
+        if (c0 + step < cost[ns]) { cost[ns] = c0 + step; prev[ns] = s0; pq.push({c0 + step, (int)ns}); }
       }
     }
     if (found < 0) return;
     // lay it: a bridge over the water, a path on the land (whatever stood in the way is cleared)
-    for (int i = prev[(size_t)found]; i >= 0; i = prev[(size_t)i]) {
-      const int x = i % W, y = i / W;
+    for (int st = prev[(size_t)found]; st >= 0; st = prev[(size_t)st]) {
+      const int i = st / 4, x = i % W, y = i / W;
       const Ground g = M.at(x, y);
       M.setP(x, y, 0);
       if (groundWater(g)) M.setG(x, y, Ground::Bridge);
@@ -983,6 +1175,9 @@ void Gen::finish() {
       const bool board = stilt && M.ground[i] == (uint8_t)Ground::Bridge && !water[i];
       M.blend[i] = (uint8_t)((board ? Map::BOARDWALK_MARK : Map::PAVE_MARK) | pave);
     }
+    // (M3b fixer) the grounds' formal water: kerbed in cut stone (the view), not a pond's banks
+    for (int i : O.pools)
+      if (i >= 0 && (size_t)i < M.blend.size() && groundWater((Ground)M.ground[(size_t)i])) M.blend[(size_t)i] = (uint8_t)(Map::POOL_MARK | pave);
   }
   const uint32_t cap = P.bldgCap ? P.bldgCap : 4096u;
   O.homes = 0;
@@ -1031,7 +1226,7 @@ bool Gen::step() {
     case 7: homesBegin(); break;
     case 8: if (homesSweep()) phase--; break;   // (M3: a slice a call, until the sweep is done)
     case 9: homesFinish(); break;
-    case 10: centrepieces(); stallsAndLamps(); archetypeDress(); break;
+    case 10: centrepieces(); stallsAndLamps(); archetypeDress(); spaces(); break;
     case 11: yards(); tradeYards(); gardens(); break;
     case 12: fields(); banners(); signposts(); break;
     case 13: greenery(); break;

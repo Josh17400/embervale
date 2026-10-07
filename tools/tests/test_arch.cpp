@@ -9,6 +9,8 @@
 #include <map>
 #include <tuple>
 #include <vector>
+#include "rpg/build/parts.h"
+#include "rpg/culture/culture.h"
 #include "rpg/culture/style.h"
 #include "tools/tests/tests.h"
 
@@ -115,6 +117,67 @@ int wallChecks(const World& w, int si, bool dump) {
   return bad;
 }
 
+// (M3b forts) every culture's fortifications (bld::fortParts) are forms built in its wall's material (gateFitsWall /
+// towerFitsWall: the painters join every form to every material; culture_gallery --check paints and checks those joins
+// pixel by pixel), for every archetype, town to capital, in many families; and every walled settlement in the window
+// stands its gates in its culture's parts on wall tiles of that material, with the gate's flanks on the wall and no
+// orphan tile left beside the passage (the gate paints its flanks: a flank must have wall on its far side or be a
+// diagonal link the wall tile itself still draws)
+int fortChecks(const World& w) {
+  int bad = 0;
+  static bool once = false;
+  if (!once) {
+    once = true;
+    int n = 0;
+    for (int a = 0; a < (int)cult::Archetype::COUNT; a++)
+      for (uint32_t s = 0; s < 24; s++) {
+        const cult::Culture c = cult::Atlas::make((cult::Archetype)a, 7001u + s * 131u + (uint32_t)a, 2 + (int)(s % 7));
+        for (int u = 0; u <= 3; u++) {
+          const bld::FortParts f = bld::fortParts(c, u, s * 977u);
+          n++;
+          if (!bld::gateFitsWall(f.gate, f.wall) || !bld::towerFitsWall(f.tower, f.wall)) {
+            out("FAIL: forts: %s (urban %d) builds gate %d / tower %d in wall %d\n", cult::archetypeName((cult::Archetype)a), u, (int)f.gate, (int)f.tower, (int)f.wall);
+            bad++;
+          }
+          if (f.wall != c.town.wall) { out("FAIL: forts: %s parts' wall %d is not its town's wall %d\n", cult::archetypeName((cult::Archetype)a), (int)f.wall, (int)c.town.wall); bad++; }
+        }
+      }
+    out("  forts: %d culture x urban fortifications, every gate and tower form fits its wall\n", n);
+  }
+  const Map& m = w.over;
+  for (const auto& gt : w.gates) {
+    const int gx = gt.first, gy = gt.second;
+    if (!m.in(gx - 2, gy) || !m.in(gx + 4, gy)) continue;
+    int site = -1;
+    for (int i = 0; i < (int)w.sites.size() && site < 0; i++) {
+      const Site& s = w.sites[(size_t)i];
+      if (s.settlement() && gx >= s.r.x - 10 && gy >= s.r.y - 10 && gx < s.r.x + s.r.w + 10 && gy < s.r.y + s.r.h + 10) site = i;
+    }
+    if (site < 0) continue;
+    const cult::Culture* c = w.cultureOf(site);
+    if (!c) continue;
+    const Site& s = w.sites[(size_t)site];
+    const bld::FortParts f = bld::fortParts(*c, s.capital ? 3 : (s.type == SiteType::City ? 2 : (s.type == SiteType::Town ? 1 : 0)), s.seed);
+    const uint8_t ws = m.wall[(size_t)gy * m.w + gx - 1] ? m.wall[(size_t)gy * m.w + gx - 1] : m.wall[(size_t)gy * m.w + gx + 3];
+    if (ws > 1 && (int)ws - 1 != (int)f.wall) {
+      out("FAIL: forts: %s's gate at %d,%d: wall tiles in style %d, its culture builds %d\n", s.name.c_str(), gx, gy, (int)ws - 1, (int)f.wall);
+      bad++;
+    }
+    // the flanks: wall under both (gateHouse paints them), each joined to the run beyond or to a diagonal link
+    for (int side = 0; side < 2; side++) {
+      const int fx = side == 0 ? gx - 1 : gx + 3, ox = side == 0 ? -1 : 1;
+      if (!m.wall[(size_t)gy * m.w + fx]) continue;   // (wallChecks reports a flank without wall)
+      bool joined = false;
+      for (int dy = -1; dy <= 1; dy++) if (m.in(fx + ox, gy + dy) && m.wall[(size_t)(gy + dy) * m.w + fx + ox]) joined = true;
+      if (!joined && !(m.in(fx, gy - 1) && m.wall[(size_t)(gy - 1) * m.w + fx]) && !(m.in(fx, gy + 1) && m.wall[(size_t)(gy + 1) * m.w + fx])) {
+        out("FAIL: forts: %s's gate at %d,%d: its %s flank stands alone (no wall runs on from it)\n", s.name.c_str(), gx, gy, side ? "east" : "west");
+        bad++;
+      }
+    }
+  }
+  return bad;
+}
+
 }  // namespace
 
 int archChecks(uint64_t seed) {
@@ -135,6 +198,7 @@ int archChecks(uint64_t seed) {
   for (int si = 0; si < (int)w.sites.size(); si++)
     if (w.sites[si].type == SiteType::City && inWindow(w.sites[si].r, MG)) { bad += wallChecks(w, si, dump); cities++; }
   if (!cities) out("WARN: arch: no city wholly inside the window\n");
+  bad += fortChecks(w);
   // M3 (owner carry-over 4): a city's same-size houses must not share one facade. rpg_test does not link the painters,
   // so this holds the STYLES apart (ArchStyle::key, which covers the window / door shapes, the facade variant bits,
   // ornaments and tints); arch_gallery --check paints them and holds >= 70 % of the painted sprites distinct.
@@ -175,13 +239,25 @@ int archChecks(uint64_t seed) {
       const Bldg& b = m.bldgs[bi];
       int s = b.storeys, lo = 1, hi = 1;
       switch (b.type) {
-        case art::Building::Inn: case art::Building::Keep: lo = hi = 2; break;
+        case art::Building::Keep: lo = hi = 2; break;
+        // (M3b fix) a felt yurt is never stacked: the steppe's guest yurt (inn) and its riders' barracks tent stand one
+        // storey, as their blueprints paint them; everyone else's inn and barracks two
+        case art::Building::Inn: case art::Building::Barracks: lo = 1; hi = 2; break;
         case art::Building::Tower: lo = hi = 3; break;
-        case art::Building::Palace: case art::Building::Barracks: case art::Building::Windmill: lo = hi = 2; break;   // (M1 types)
+        case art::Building::Windmill: lo = hi = 2; break;   // (M1 types)
+        // (M3b) the royal seat is built as its society's seat (a tent court, a great hall, a temple complex, a council
+        // spire...): the builder paints the storeys its blueprint holds
+        case art::Building::Palace: lo = 1; hi = 3; break;
         case art::Building::Bakery: case art::Building::Butcher: case art::Building::Fishmonger: case art::Building::Weaver: hi = b.r.w >= 4 ? 2 : 1; break;
         case art::Building::House: hi = b.r.w >= 4 ? 2 : 1; break;
         case art::Building::StoneHouse: hi = 2; break;
         case art::Building::Shop: hi = b.r.w >= 4 ? 2 : 1; break;
+        // (M3b) the society's purposes: the builder paints whatever storeys their blueprints hold (bld::validate: 1..4);
+        // bldgStoreysV7 gives the guildhall and the tea house upper rooms, a wide exchange its own
+        case art::Building::Guildhall: case art::Building::TeaHouse: case art::Building::Exchange: case art::Building::MeadHall:
+        case art::Building::Bathhouse: case art::Building::Lodge: case art::Building::CouncilHall:
+          lo = 1; hi = 3;
+          break;
         default: break;
       }
       if (s < lo || s > hi) { out("FAIL: building %zu (type %d, %d wide) has %d storeys, the exterior shows %d..%d\n", bi, (int)b.type, b.r.w, s, lo, hi); bad++; }

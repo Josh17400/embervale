@@ -1,4 +1,5 @@
-build*/
+/build*/
+!rpg/build/
 site/
 *.png
 !web/*.png

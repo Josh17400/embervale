@@ -60,6 +60,16 @@ enum class RoomKind : uint8_t {
   Storeroom,      // sacks, crates, barrels, firewood
   Barn,           // a farmhouse's animal / hay end
   Council,        // M1: a palace's council chamber: the long table with the king's chair at its head, maps, banners
+  // ---- M3b (Builders & Societies): the rooms of the new purposes and shapes
+  Court,          // an open court under the sky: paving, plants, a well or a fountain, rooms round it
+  Bath,           // a bathhouse's bathing hall: pools sunk in the floor, benches, steam
+  Changing,       // a bathhouse's changing room: benches, shelves of linen, pegs
+  TeaRoom,        // a tea house's room: low tables, cushions, screens, the tea counter
+  Parlour,        // a private sitting room (a tea house's booth, an inn's parlour, a guild master's)
+  Training,       // a warrior lodge's training floor: sand, dummies, weapon racks
+  Feast,          // a mead hall's feasting hall: the long hearth, benches and tables, the high seat
+  Assembly,       // a guild's or a council's meeting hall: the long table or the ring of seats, banners
+  Trading,        // an exchange's trading floor: counters with scales, ledger desks
   COUNT
 };
 const char* roomKindName(RoomKind k);   // "COMMON ROOM", "GUEST ROOM"... (rpg/sim/rooms.cpp)
@@ -80,5 +90,7 @@ struct RoomInfo {
   IRect r;                   // bounding box in tiles (floor tiles only)
   int doorX = -1, doorY = -1;   // the doorway tile into it (-1: open to the floor's entrance room, or the entrance room itself)
   int bedX = -1, bedY = -1;     // its (first) bed, -1 none
-  int8_t guest = -1;         // GuestRoom: 0, 1, 2... the number the innkeeper hands out; -1 otherwise
+  int8_t guest = -1;         // GuestRoom: 0, 1, 2... the number the innkeeper hands out (unique across the building's
+                             // floors, M3b); -1 otherwise
+  uint8_t floorStyle = 0;    // M3b: 0 the room style's own floor, else art::FloorStyle + 1 (tatami, felt, mosaic...)
 };

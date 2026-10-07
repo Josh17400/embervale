@@ -37,7 +37,17 @@ int nearestGate(Game& g, int nth) {
   if (city >= 0 && cd < 200) p = Vec2((float)g.world.sites[(size_t)city].ex, (float)g.world.sites[(size_t)city].ey);
   for (size_t i = 0; i < g.world.gates.size(); i++) {
     const auto& gt = g.world.gates[i];
-    c.push_back({std::hypot(gt.first + 1.5f - p.x, gt.second - p.y), (int)i});
+    const float d = std::hypot(gt.first + 1.5f - p.x, gt.second - p.y);
+    if (d > 160.0f) continue;   // (fixer r2) another settlement's gate is not this one's
+    // (fixer round 3) a seat of power's compound gate (the palace forecourt's gatehouse, a few tiles before the seat's
+    // door) is no city gate: `gate out` there left the player inside the compound among its pools and statues
+    bool compound = false;
+    for (const Bldg& B : g.world.over.bldgs)
+      if ((bldgIsSeat(B) || (B.civic & bld::CIVIC_SEAT)) && std::abs(B.doorX() - (gt.first + 1)) <= 3 && gt.second - B.doorY() > 0 &&
+          gt.second - B.doorY() <= 24)
+        compound = true;
+    if (compound) continue;
+    c.push_back({d, (int)i});
   }
   std::sort(c.begin(), c.end());
   return nth < (int)c.size() ? c[(size_t)nth].second : -1;
@@ -50,13 +60,20 @@ bool cmdGate(ScriptCtx& c) {
   // the same gate for out / on / in (remembered by its global tile: the window moves under the teleports)
   static int lastN = -1;
   static int32_t lastGX = 0, lastGY = 0;
+  // (fixer round 3) `gate forget`: drop the remembered gate (the next `gate 0` picks the nearest afresh). Scripts used
+  // `gate 1 on` for that, which fails where a city has a single gate now that a seat compound's gate is no city gate
+  if (c.arg(1) == "forget") { lastN = -1; std::printf("script: gate: forgotten\n"); return true; }
   int gi = -1;
+  // (fixer r2) only while that gate is still near: after a teleport to another settlement the gate there is meant
+  const float ptx = g.pl().p.x / TILE, pty = g.pl().p.y / TILE;
   if (lastN == nth)
     for (size_t i = 0; i < g.world.gates.size(); i++)
-      if (g.world.gates[i].first + g.world.ox == lastGX && g.world.gates[i].second + g.world.oy == lastGY) gi = (int)i;
+      if (g.world.gates[i].first + g.world.ox == lastGX && g.world.gates[i].second + g.world.oy == lastGY &&
+          std::hypot(g.world.gates[i].first - ptx, g.world.gates[i].second - pty) < 120.0f)
+        gi = (int)i;
   if (gi < 0) gi = nearestGate(g, nth);
   if (gi >= 0) { lastN = nth; lastGX = g.world.gates[(size_t)gi].first + g.world.ox; lastGY = g.world.gates[(size_t)gi].second + g.world.oy; }
-  if (gi < 0) { c.fail("gate: no city gate in the window (goto city first)"); return true; }
+  if (gi < 0) { c.fail("gate: no city gate near (goto a walled city first)"); return true; }
   const int gx = g.world.gates[(size_t)gi].first + 1, gy = g.world.gates[(size_t)gi].second;
   // which side is outside: away from the city the gate belongs to
   int site = g.world.siteAt(gx, gy, 4);
@@ -76,7 +93,7 @@ bool cmdGate(ScriptCtx& c) {
   std::printf("script: gate %d %s at global %d,%d\n", nth, where.c_str(), ggx, ggy);
   return true;
 }
-EMB_SCRIPT_CMD("gate", "gate [n] out|on|in: stand outside, in the passage of, or inside the n-th nearest city gate", cmdGate);
+EMB_SCRIPT_CMD("gate", "gate [n] out|on|in: stand outside, in the passage of, or inside the n-th nearest city gate (gate forget: drop the remembered one)", cmdGate);
 
 bool cmdTapLabel(ScriptCtx& c) {
   Game& g = c.game;

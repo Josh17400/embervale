@@ -14,7 +14,7 @@ seed 7
 2.6  enter inn
 2.8  talkto innkeeper 40
 3.2  expect mode dialogue
-4.6  expect text KING
+4.6  expect text EMPEROR            # (M3b: seed 7's realm is imperial: its ruler is the society's EMPEROR)
 4.7  shot sim_kingdom_2_innkeeper.png     # the innkeeper speaks of the king
 4.8  key Escape
 5.0  enter palace
@@ -24,7 +24,7 @@ seed 7
 6.0  shot sim_kingdom_3_throne.png        # the throne hall: the king and the royal guard
 6.1  talkto king 40
 6.4  expect mode dialogue
-7.8  expect text KING OF
+7.8  expect text EMPEROR OF
 7.9  shot sim_kingdom_4_king.png
 8.0  key Escape
 8.2  quit

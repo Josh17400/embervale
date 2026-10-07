@@ -80,7 +80,7 @@ int cityPerfSeed(uint64_t seed, int people, float secs) {
       const Map& m = g.world.over;
       int fx = (int)std::floor(g.pl().p.x / TILE), fy = (int)std::floor((g.pl().p.y - 2) / TILE);
       int bi = m.in(fx, fy) ? m.bldgAt[(size_t)fy * m.w + fx] : -1;
-      if (bi >= 0 && m.bldgs[(size_t)bi].doorX() == fx && m.bldgs[(size_t)bi].doorY() == fy) g.pl().p.y += TILE;
+      if (bi >= 0 && bldgEntryAt(m.bldgs[(size_t)bi], fx, fy)) g.pl().p.y += TILE;   // (a door or an open front's bay)
     }
     if (f == frames * 2 / 3) {   // trouble: three wolves loose in the streets near the player
       for (int k = 0; k < 3; k++) {

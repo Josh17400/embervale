@@ -578,6 +578,53 @@ uint32_t boardwalkUnder(const TM& m, int px, int py, uint32_t c) {
   return 0;
 }
 
+// ---- (M3b fixer) a seat's formal water (Map::POOL_MARK on the pools, canals and rills its grounds lay by hand): a
+// sunk basin kerbed in cut stone of the people's paving, never a pond's organic bank. Seen in the high 3/4 view with
+// the light from the top left: the kerb's top lit along its outer edge, a dark joint every few stones; on the far
+// (north) side the inner face of the basin shows below the kerb, in shade; the kerbs to the north and west cast their
+// shadow down-right onto the water; the water itself deep and still, the sky glinting in it along the near side.
+template <class TM>
+bool isPoolT(const TM& m, int x, int y) { return groundWater(m.at(x, y)) && (m.blendAt(x, y) >> 4) == (Map::POOL_MARK >> 4); }
+template <class TM>
+uint32_t poolPixel(const TM& m, int px, int py) {
+  const int tx = px >> 4, ty = py >> 4, lx = px & 15, ly = py & 15;
+  // the kerb's stone by the people's paving: lit top, mid, shade, joint
+  static const uint8_t pal[10][3] = {
+      {178, 172, 160}, {170, 168, 160}, {176, 160, 128}, {214, 186, 136}, {150, 120, 84},
+      {150, 156, 140}, {226, 222, 210}, {196, 132, 92}, {120, 128, 140}, {176, 96, 72}};
+  const int pv = std::clamp(m.blendAt(tx, ty) & 15, 0, 9);
+  const uint32_t lit = C(pal[pv][0] + 22, pal[pv][1] + 22, pal[pv][2] + 20), mid = C(pal[pv][0], pal[pv][1], pal[pv][2]);
+  const uint32_t shade = mul(mid, 0.66f), joint = mul(mid, 0.48f);
+  auto open = [&](int x, int y) { return !isPoolT(m, x, y) && m.at(x, y) != Ground::Bridge; };
+  const bool oN = open(tx, ty - 1), oS = open(tx, ty + 1), oW = open(tx - 1, ty), oE = open(tx + 1, ty);
+  const int K = 3;   // the kerb's width
+  int dN = oN ? ly : 99, dS = oS ? 15 - ly : 99, dW = oW ? lx : 99, dE = oE ? 15 - lx : 99;
+  // the inner corners (the basin turns where both sides run on but the diagonal is land)
+  if (!oN && !oW && open(tx - 1, ty - 1) && lx < K && ly < K) { dN = ly; dW = lx; }
+  if (!oN && !oE && open(tx + 1, ty - 1) && lx > 15 - K && ly < K) { dN = ly; dE = 15 - lx; }
+  if (!oS && !oW && open(tx - 1, ty + 1) && lx < K && ly > 15 - K) { dS = 15 - ly; dW = lx; }
+  if (!oS && !oE && open(tx + 1, ty + 1) && lx > 15 - K && ly > 15 - K) { dS = 15 - ly; dE = 15 - lx; }
+  const int d = std::min(std::min(dN, dS), std::min(dW, dE));
+  if (d < K) {
+    const bool alongX = (d == dN || d == dS);
+    const int run = alongX ? px : py;
+    if (((run + (alongX ? ty * 5 : tx * 5)) % 11 + 11) % 11 == 0) return joint;   // the joints between the stones
+    if (d == 0) return (d == dN || d == dW) ? lit : shade;    // the outer arris: lit on the sides the light falls on
+    if (d == K - 1) return (d == dS || d == dE) ? lit : mid;  // the lip over the water
+    return hashf(px >> 1, py >> 1, 2203) < 0.12f ? mul(mid, 0.92f) : mid;
+  }
+  // the far side's inner face below its kerb (seen: it faces the viewer), in shade, with one course line
+  if (dN < K + 3) return dN == K + 2 ? mul(shade, 0.8f) : (dN == K + 1 && ((px / 7) & 1) ? mul(shade, 0.9f) : shade);
+  // the water: deep and still; darker in the kerbs' shadow (north and west), the sky glinting along the near side
+  uint32_t w = C(38, 92, 112, 214);
+  const bool shadowed = dN < K + 6 || dW < K + 3;
+  if (shadowed) w = C(26, 64, 84, 222);
+  if (!shadowed && dS < 5 && ((px + py / 2) % 9) < 4) w = C(76, 140, 160, 206);   // the sky in it, toward the viewer
+  const float g = hashf(px / 4, py, 2207);
+  if (!shadowed && g < 0.05f) w = C(168, 214, 226, 220);                                // a glint on the stillness
+  return w;
+}
+
 // the paving mark of a tile (-1: none, the classic look); a boardwalk mark reads as its culture's paving too
 template <class TM>
 int paveMatAt(const TM& m, int tx, int ty) {
@@ -593,6 +640,93 @@ int paveMatPx(const TM& m, int px, int py) {
   const float wx = px + (vnoise(px / 9.0f, py / 9.0f, 1401) - 0.5f) * 12.0f, wy = py + (vnoise(px / 9.0f, py / 9.0f, 1403) - 0.5f) * 12.0f;
   const int t = paveMatAt(m, (int)std::floor(wx / 16), (int)std::floor(wy / 16));
   return t >= 0 ? t : paveMatAt(m, px >> 4, py >> 4);
+}
+// ---- (M3b forts) the bonds the cultures lay their paving in (bld::paveBond): never a visible regular grid at 1x (owner).
+// A jittered cell pattern (Voronoi) for crazy paving and hexagonal flags: the stone's id, how far the pixel is from the
+// nearest joint (px), and which side of its stone's centre it lies on (for the top-left bevel)
+struct PaveCell { uint32_t id = 0; float edge = 99.0f; float dx = 0, dy = 0; };
+PaveCell paveCell(int px, int py, int cs, float jitter, uint32_t seed, bool hex) {
+  PaveCell r;
+  const int gy = fdiv_(py, cs);
+  float best = 1e9f, second = 1e9f;
+  for (int oy = -1; oy <= 1; oy++) {
+    const int cy = gy + oy;
+    const int shift = hex ? (cy & 1) * cs / 2 : 0;
+    const int gx = fdiv_(px - shift, cs);
+    for (int ox = -1; ox <= 1; ox++) {
+      const int cx = gx + ox;
+      const float fx = cx * cs + shift + cs * 0.5f + (hashf(cx, cy, seed) - 0.5f) * jitter * cs;
+      const float fy = cy * cs + cs * 0.5f + (hashf(cx, cy, seed + 1) - 0.5f) * jitter * cs;
+      const float ddx = px + 0.5f - fx, ddy = py + 0.5f - fy, d = ddx * ddx + ddy * ddy;
+      if (d < best) { second = best; best = d; r.id = hash2(cx, cy, seed + 2); r.dx = ddx; r.dy = ddy; }
+      else if (d < second) second = d;
+    }
+  }
+  r.edge = std::sqrt(second) - std::sqrt(best);
+  return r;
+}
+// stones along a course with jittered joints (constant time): the pixel's place in its stone, the stone's length
+struct Ashlar { uint32_t id = 0; int in = 0, iy = 0, sw = 1, rh = 1; };
+void jointsAlong(Ashlar& a, int u, int course, uint32_t seed, int P, int jit) {
+  const int v = u + (int)(hash2(course, 7, seed) % (uint32_t)P);
+  auto jx = [&](int kk) { return kk * P + (int)(hash2(course, kk, seed + 3) % (uint32_t)(2 * jit + 1)) - jit; };
+  int k = fdiv_(v, P), lo = jx(k), hi = jx(k + 1);
+  if (v < lo) { hi = lo; k--; lo = jx(k); }
+  else if (v >= hi) { k++; lo = hi; hi = jx(k + 1); }
+  a.in = v - lo;
+  a.sw = std::max(2, hi - lo);
+  a.id = hash2(course, k, seed + 5);
+}
+// irregular ashlar: courses of 6..11 px (four to a 34 px band, each band its own heights), stones about P px long
+Ashlar ashlarAt(int px, int py, uint32_t seed, int P, int jit) {
+  Ashlar a;
+  const int band = fdiv_(py, 34), by = fmod_(py, 34);
+  int h[4], sum = 0;
+  for (int i = 0; i < 4; i++) { h[i] = 6 + (int)(hash2(band, i, seed) % 5u); sum += h[i]; }
+  h[3] += 34 - sum;
+  int row = 0, y0 = 0;
+  while (row < 3 && by >= y0 + h[row]) { y0 += h[row]; row++; }
+  a.rh = std::max(3, h[row]);
+  a.iy = by - y0;
+  jointsAlong(a, px, band * 4 + row, seed, P, jit);
+  return a;
+}
+// running bond with bricks of varying length (a street's setts and bricks): course height rh
+Ashlar runningAt(int px, int py, uint32_t seed, int rh, int P, int jit) {
+  Ashlar a;
+  a.rh = rh;
+  a.iy = fmod_(py, rh);
+  jointsAlong(a, px, fdiv_(py, rh), seed, P, jit);
+  return a;
+}
+// a kerb stone along a street's edge (e: how close to the edge, 0..1): long dressed stones with a lit top and a dark
+// foot in the stone col. 0: not on the kerb
+uint32_t kerbPixel(int px, int py, float e, uint32_t col) {
+  if (e < 0.80f) return 0;
+  uint32_t c = mul(col, 0.94f + hashf(fdiv_(px + py * 3, 11), 3, 1441) * 0.12f);
+  if (e > 0.95f) c = mul(col, 0.70f);                 // its outer edge: the joint with the ground
+  else if (e < 0.84f) c = mul(col, 1.08f);            // its lit inner arris
+  if (fmod_(px + py * 3, 11) == 0) c = mul(col, 0.80f);   // the joints between the stones
+  return c;
+}
+// herringbone: bricks of two cells (cs px) at right angles in a zigzag (the river towns' squares)
+struct Herring { uint32_t id = 0; bool joint = false; int bev = 0; };
+Herring herringAt(int px, int py, int cs, uint32_t seed) {
+  const int i = fdiv_(px, cs), j = fdiv_(py, cs), lx = fmod_(px, cs), ly = fmod_(py, cs);
+  static const int off[4][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 1}, {0, 2, 1}};   // the cell's offset in its brick, vertical
+  for (int k = 0; k < 4; k++) {
+    const int ii = i - off[k][0], jj = j - off[k][1];
+    const int pp = ii + jj, qq = ii - jj;
+    if ((pp & 1) || fmod_(qq, 4) != 0) continue;
+    Herring r;
+    r.id = hash2(pp, qq * 3 + off[k][2], seed);
+    const bool vert = off[k][2] != 0, first = k == 0 || k == 2;
+    r.joint = vert ? (lx == 0 || (first && ly == 0)) : (ly == 0 || (first && lx == 0));
+    if (vert) r.bev = (lx == 1 || (first && ly == 1)) ? 1 : ((lx == cs - 1 || (!first && ly == cs - 1)) ? -1 : 0);
+    else r.bev = (ly == 1 || (first && lx == 1)) ? 1 : ((ly == cs - 1 || (!first && lx == cs - 1)) ? -1 : 0);
+    return r;
+  }
+  return Herring{};
 }
 // one pixel of paving in material mat (1..9). road: a street (narrower, worn at its edges: e is how close the pixel is
 // to the edge, 0..1); else a square (paveV >= 0 near its rim). n: the broad tone field, h: a per-pixel hash.
@@ -626,16 +760,16 @@ uint32_t pavePixel(int mat, bool road, int px, int py, float e, float paveV, flo
         if (e > 0.62f && (fmod_(px, 8) == 0 || fmod_(py, 8) == 0)) c = C(150, 142, 124);
         if (wear > 0.86f) c = lerpc(c, C(150, 128, 96), 0.5f);
       } else {
-        // the forum: big travertine slabs in long courses, crisp joints, fine pitting, a few slabs of darker marble
-        const int row = fdiv_(py, 10), sw = 16 + (int)(hash2(row, 0, 1311) % 8);
-        const int shift = (int)(hash2(row, 1, 1313) % (uint32_t)sw);
-        const int u = px + shift, col = fdiv_(u, sw), in = fmod_(u, sw), iy = fmod_(py, 10);
-        const float tone = hashf(col, row, 1315);
+        // the forum: big travertine slabs in irregular courses (M3b: no two courses alike), crisp joints, fine pitting,
+        // a few slabs of darker marble
+        const Ashlar sl = ashlarAt(px, py, 1311, 19, 6);
+        const int in = sl.in, iy = sl.iy;
+        const float tone = (sl.id >> 8) * (1.0f / 16777216.0f);
         c = lerpc(C(204, 192, 164), C(226, 216, 190), tone);
-        if (hashf(col, row, 1317) < 0.08f) c = lerpc(C(168, 172, 176), C(186, 190, 192), tone);   // a grey marble slab
+        if ((sl.id % 13u) == 0) c = lerpc(C(168, 172, 176), C(186, 190, 192), tone);   // a grey marble slab
         if (in == 0 || iy == 0) c = C(150, 138, 114);
         else if (iy == 1 || in == 1) c = mul(c, 1.05f);
-        else if (iy == 9 || in == sw - 1) c = mul(c, 0.94f);
+        else if (iy == sl.rh - 1 || in == sl.sw - 1) c = mul(c, 0.94f);
         if (h < 0.05f && in > 0 && iy > 0) c = mul(c, 0.90f);   // pits in the stone
         c = mul(c, 0.95f + broad * 0.10f);
         if (rim) c = (in == 0 || iy == 0) ? C(132, 112, 86) : lerpc(c, C(186, 168, 134), 0.35f);
@@ -657,21 +791,21 @@ uint32_t pavePixel(int mat, bool road, int px, int py, float e, float paveV, flo
       break;
     }
     case 3: {
-      // sun-baked mud brick: big square slabs on the squares (offset a half every other course), bricks in stretcher
-      // bond along the streets, sandy joints, each slab lit on its upper left, sand drifting in
-      const int sz = road ? 8 : 12, hgt = road ? 4 : 12;
-      const int row = fdiv_(py, hgt), u = px + (row & 1) * (sz / 2);
-      const int ix = fmod_(u, sz), iy = fmod_(py, hgt);
-      const bool line = ix == 0 || iy == 0;
-      const float t = hashf(fdiv_(u, sz), row, 1331);
+      // the dune folk (M3b): sun-baked brick along the streets in running courses of bricks of their own lengths, big
+      // sandstone slabs on the squares in irregular courses; sandy joints, each stone lit on its upper left, sand
+      // drifting in, the streets kerbed in pale sandstone
+      const Ashlar sl = road ? runningAt(px, py, 1331, 4, 8, 2) : ashlarAt(px, py, 1331, 15, 5);
+      const bool line = sl.in == 0 || sl.iy == 0;
+      const float t = (sl.id >> 8) * (1.0f / 16777216.0f);
       c = line ? C(170, 130, 88) : lerpc(C(196, 146, 98), C(218, 172, 118), t);
-      if (!line && (ix == 1 || iy == 1)) c = mul(c, 1.06f);
-      else if (!line && (ix == sz - 1 || iy == hgt - 1)) c = mul(c, 0.92f);
-      if (!line && !road && hashf(fdiv_(u, sz), row, 1335) < 0.06f && ((px - py) & 3) == 0) c = mul(c, 0.8f);   // a crack
+      if (!line && (sl.in == 1 || sl.iy == 1)) c = mul(c, 1.06f);
+      else if (!line && (sl.in == sl.sw - 1 || sl.iy == sl.rh - 1)) c = mul(c, 0.92f);
+      if (!line && !road && (sl.id % 17u) == 0 && ((px - py) & 3) == 0) c = mul(c, 0.8f);   // a crack
       if (!line && h < 0.05f) c = mul(c, 0.93f);
       c = mul(c, 0.95f + broad * 0.10f);
-      const float sand = vnoise(px / 9.0f, py / 9.0f, 1333) + (road ? e * 0.6f : (rim ? 0.4f : 0.0f));
+      const float sand = vnoise(px / 9.0f, py / 9.0f, 1333) + (road ? e * 0.5f : (rim ? 0.4f : 0.0f));
       if (sand > 0.80f) c = lerpc(c, C(226, 200, 150), 0.75f);   // drifted sand
+      if (road) if (const uint32_t k = kerbPixel(px, py, e, C(222, 196, 150))) c = k;
       break;
     }
     case 4: {
@@ -717,51 +851,48 @@ uint32_t pavePixel(int mat, bool road, int px, int py, float e, float paveV, flo
       break;
     }
     case 6: {
-      // the star cities: pale dressed limestone ashlar (M3 fixer round 2: the old diamond grid with blue joints read as
-      // a chain-link fence). Courses alternate tall and short on the squares, every stone has its own cool tone, a lit
-      // upper-left bevel and a shaded foot, the joints are fine grey with frost settled in them, and a few big stones
-      // carry an inlaid blue star. The streets are narrow setts of the same stone.
-      int rh, iy, row;
-      if (road) { rh = 6; row = fdiv_(py, 6); iy = fmod_(py, 6); }
-      else {
-        const int band = fmod_(py, 20);
-        row = fdiv_(py, 20) * 2 + (band >= 12);
-        rh = band >= 12 ? 8 : 12;
-        iy = band >= 12 ? band - 12 : band;
-      }
-      const int sw = road ? 8 + (int)(hash2(row, 0, 1361) % 4) : (rh == 12 ? 16 : 11) + (int)(hash2(row, 0, 1361) % 7);
-      const int u = px + (int)(hash2(row, 1, 1362) % (uint32_t)sw), col = fdiv_(u, sw), in = fmod_(u, sw);
-      const float t = hashf(col, row, 1363);
-      const bool line = in == 0 || iy == 0;
-      c = lerpc(C(198, 198, 202), C(226, 224, 224), t);
-      if (hashf(col, row, 1364) < 0.12f) c = lerpc(C(178, 186, 200), C(194, 200, 212), t);   // a blue-grey stone
-      if (line) {
-        c = C(150, 150, 156);
-        if (vnoise(px / 8.0f, py / 8.0f, 1365) > 0.58f) c = C(230, 234, 242);   // frost in the joint
+      // the star cities: pale dressed limestone. (M3b) The squares in hexagonal flags, each its own cool tone with a
+      // lit upper-left bevel and a shaded foot, fine grey joints with frost settled in them, a blue star inlaid in one
+      // in thirteen; the streets in setts of their own lengths, kerbed in white stone
+      if (road) {
+        const Ashlar sl = runningAt(px, py, 1361, 6, 9, 2);
+        const bool line = sl.in == 0 || sl.iy == 0;
+        const float t = (sl.id >> 8) * (1.0f / 16777216.0f);
+        c = line ? C(150, 150, 156) : lerpc(C(198, 198, 202), C(226, 224, 224), t);
+        if (!line && (sl.iy == 1 || sl.in == 1)) c = mul(c, 1.04f);
+        else if (!line && (sl.iy == sl.rh - 1 || sl.in == sl.sw - 1)) c = mul(c, 0.90f);
+        if (line && vnoise(px / 8.0f, py / 8.0f, 1365) > 0.58f) c = C(230, 234, 242);   // frost in the joint
       } else {
-        if (iy == 1 || in == 1) c = mul(c, 1.04f);
-        else if (iy == rh - 1 || in == sw - 1) c = mul(c, 0.90f);
-        if (h < 0.04f) c = mul(c, 0.93f);
-        if (!road && hashf(col, row, 1366) < 0.04f && ((px + py) % 5) == 0) c = mul(c, 0.82f);   // a cracked stone
-        // the inlay: a four-point star of blue stone in the middle of one big stone in thirteen
-        if (!road && rh == 12 && sw >= 18 && hash2(col, row, 1367) % 13u == 0) {
-          const int dx = std::abs(in - sw / 2), dy = std::abs(iy - 6);
-          if (dx + dy <= 1) c = C(214, 222, 240);
-          else if ((dx == 0 && dy <= 3) || (dy == 0 && dx <= 3)) c = C(84, 112, 176);
-          else if (dx == 1 && dy == 1) c = C(110, 136, 192);
+        const PaveCell sl = paveCell(px, py, 11, 0.55f, 1361, true);
+        const float t = (sl.id >> 8) * (1.0f / 16777216.0f);
+        if (sl.edge < 1.0f) {
+          c = C(150, 150, 156);
+          if (vnoise(px / 8.0f, py / 8.0f, 1365) > 0.58f) c = C(230, 234, 242);
+        } else {
+          c = lerpc(C(198, 198, 202), C(226, 224, 224), t);
+          if ((sl.id % 9u) == 0) c = lerpc(C(178, 186, 200), C(194, 200, 212), t);   // a blue-grey stone
+          if (sl.edge < 2.0f) c = mul(c, (sl.dx + sl.dy) < 0 ? 1.05f : 0.90f);      // the bevel
+          if (h < 0.04f) c = mul(c, 0.93f);
+          if (sl.id % 31u == 0) {   // the inlaid star
+            const int dx = std::abs((int)std::lround(sl.dx)), dy = std::abs((int)std::lround(sl.dy));
+            if (dx + dy <= 1) c = C(214, 222, 240);
+            else if ((dx == 0 && dy <= 3) || (dy == 0 && dx <= 3)) c = C(84, 112, 176);
+            else if (dx == 1 && dy == 1) c = C(110, 136, 192);
+          }
         }
       }
       c = mul(c, 0.95f + broad * 0.09f);
       if (wear > 0.84f) c = lerpc(c, C(176, 178, 186), 0.35f);   // trodden smooth and grey
-      if (road ? e > 0.7f : rim) c = lerpc(c, C(232, 236, 244), 0.45f);   // snow drifting in at the edges
+      if (!road && rim) c = lerpc(c, C(232, 236, 244), 0.45f);   // snow drifting in at the edges
+      if (road) if (const uint32_t k = kerbPixel(px, py, e, C(232, 234, 240))) c = k;
       break;
     }
     case 7: {
-      // the sun temples' fired terracotta (M3 fixer round 3, review: "one huge regular orange tile grid, a parking
-      // lot"): tiles in running bond (each course offset half a tile), sun-bleached in broad drifts, whole patches
-      // lost to the years where the pale lime bedding shows through, a turquoise rosette (a glazed tile and its four
-      // neighbours) set here and there, and the squares edged with a kerb of carved limestone (a step-fret) instead
-      // of strips across them
+      // the sun temples' fired terracotta (M3b, owner: "the sun-temple paving still reads as a regular grid at 1x"):
+      // the squares in crazy paving of big irregular terracotta flags, no two alike, bedded in lime; sun-bleached in
+      // broad drifts, flags lost where the bedding shows through, a turquoise- or ochre-glazed flag here and there; the
+      // streets in running courses of tiles of their own lengths, kerbed in limestone; the squares' rims a kerb of
+      // carved limestone (a step-fret)
       if (!road && rim) {
         const int k = fmod_(px + py / 4, 12), q = fmod_(py, 6);
         c = (q == 0 || q == 5) ? C(156, 140, 112) : C(206, 194, 166);
@@ -770,78 +901,94 @@ uint32_t pavePixel(int mat, bool road, int px, int py, float e, float paveV, flo
         if (h < 0.05f) c = mul(c, 0.92f);
         break;
       }
-      const int tsz = road ? 6 : 8;
-      const int row = fdiv_(py, tsz), u = px + (row & 1) * (tsz / 2), col = fdiv_(u, tsz);
-      const int ix = fmod_(u, tsz), iy = fmod_(py, tsz);
-      const bool line = ix == 0 || iy == 0;
-      const float t = hashf(col, row, 1371);
-      c = line ? C(122, 84, 60) : lerpc(C(150, 80, 56), C(180, 104, 70), t);
+      bool line;
+      float t;
+      uint32_t id;
+      int bev = 0;
+      if (road) {
+        const Ashlar sl = runningAt(px, py, 1371, 5, 7, 2);
+        line = sl.in == 0 || sl.iy == 0;
+        t = (sl.id >> 8) * (1.0f / 16777216.0f);
+        id = sl.id;
+        bev = (sl.in == 1 || sl.iy == 1) ? 1 : ((sl.in == sl.sw - 1 || sl.iy == sl.rh - 1) ? -1 : 0);
+      } else {
+        const PaveCell sl = paveCell(px, py, 10, 0.80f, 1371, false);
+        line = sl.edge < 1.0f;
+        t = (sl.id >> 8) * (1.0f / 16777216.0f);
+        id = sl.id;
+        bev = sl.edge < 2.2f ? ((sl.dx + sl.dy) < 0 ? 1 : -1) : 0;
+      }
+      c = line ? C(166, 128, 96) : lerpc(C(150, 80, 56), C(186, 108, 72), t);
       if (!line) {
         c = mul(c, 0.88f + broad * 0.22f);                                                     // trodden in broad patches
         const float bleach = vnoise(px / 56.0f, py / 56.0f, 1377);
         if (bleach > 0.55f) c = lerpc(c, C(204, 150, 104), (bleach - 0.55f) * 1.1f);          // sun-bleached drifts
-        if (ix == 1 || iy == 1) c = mul(c, 1.07f);
-        else if (ix == tsz - 1 || iy == tsz - 1) c = mul(c, 0.93f);
+        if (bev > 0) c = mul(c, 1.07f);
+        else if (bev < 0) c = mul(c, 0.92f);
         if (h < 0.04f) c = mul(c, 0.9f);
+        if (!road && id % 61u == 0) c = lerpc(C(70, 120, 112), C(88, 140, 128), t);           // a turquoise-glazed flag, worn
+        else if (!road && id % 89u == 0) c = lerpc(C(190, 150, 84), C(204, 168, 100), t);     // an ochre one
       }
-      // a rosette of glazed tiles: one in a 6x6 block of tiles in nine, the centre and its four neighbours
-      if (!road && !line) {
-        const int bx = fdiv_(col, 6), by = fdiv_(row, 6), lx = fmod_(col, 6), ly = fmod_(row, 6);
-        if (hash2(bx, by, 1373) % 9u == 0 && ((lx == 3 && ly >= 2 && ly <= 4) || (ly == 3 && lx >= 2 && lx <= 4)))
-          c = (lx == 3 && ly == 3) ? lerpc(C(214, 176, 72), C(232, 200, 96), t) : lerpc(C(40, 118, 118), C(62, 146, 136), t);
-      }
-      // tiles lost: the lime bedding shows through, gritty, the broken edges of the tiles round it darker
+      // flags lost: the lime bedding shows through, gritty, the broken edges round it darker
       const float lost = vnoise(px / 11.0f, py / 11.0f, 1375) + (road ? e * 0.25f : 0.0f);
-      if (lost > 0.87f) c = lerpc(C(170, 146, 112), C(188, 164, 128), h);   // the bedding, dusty and warm
+      if (lost > 0.87f) c = lerpc(C(170, 146, 112), C(188, 164, 128), h);
       else if (lost > 0.845f) c = mul(c, 0.84f);
       if (road && wear > 0.80f) c = lerpc(c, C(176, 140, 100), 0.6f);
+      if (road) if (const uint32_t k = kerbPixel(px, py, e, C(206, 194, 166))) c = k;
       break;
     }
     case 8: {
-      // the jade kingdoms: blue-grey fired brick in a basket weave (pairs of bricks turning each 8 px square), dark
-      // joints; the streets in long runs of the same brick
+      // the jade kingdoms: blue-grey fired brick. (M3b) The squares in a basket weave whose rows of squares are set off
+      // against each other (no line runs on across the square), every brick its own firing, the joints only a shade
+      // darker; the streets in running courses of bricks of their own lengths, kerbed in grey granite
       bool line;
-      int id;
+      uint32_t id;
       if (road) {
-        const int row = fdiv_(py, 4), u = px + (row & 1) * 5;
-        line = fmod_(py, 4) == 0 || fmod_(u, 10) == 0;
-        id = fdiv_(u, 10) * 977 + row;
+        const Ashlar sl = runningAt(px, py, 1381, 4, 10, 2);
+        line = sl.in == 0 || sl.iy == 0;
+        id = sl.id;
       } else {
-        const int bx = fdiv_(px, 8), by = fdiv_(py, 8), lx = fmod_(px, 8), ly = fmod_(py, 8);
-        const bool hz = ((bx + by) & 1) == 0;
+        const int row = fdiv_(py, 8), shift = (int)(hash2(row, 0, 1381) % 8u);
+        const int u = px + shift, bx = fdiv_(u, 8), lx = fmod_(u, 8), ly = fmod_(py, 8);
+        const bool hz = ((bx + row) & 1) == 0;
         line = lx == 0 || ly == 0 || (hz ? ly == 4 : lx == 4);
-        id = (bx * 31 + by) * 2 + (hz ? (ly >= 4) : (lx >= 4));
+        id = hash2(bx * 2 + (hz ? (ly >= 4) : (lx >= 4)), row, 1385);
       }
-      const float t = hashf(id, 8, 1381);
-      c = line ? C(78, 84, 92) : lerpc(C(116, 124, 132), C(142, 148, 154), t);
-      // (M3 fixer round 2: no more panel kerbs every 48 px: a light grid over the whole square read as bathroom tiling)
-      if (!line && hashf(id, 9, 1382) < 0.07f) c = mul(c, 0.86f);   // a darker, harder-fired brick here and there
+      const float t = (id >> 8) * (1.0f / 16777216.0f);
+      c = line ? C(94, 100, 110) : lerpc(C(114, 122, 132), C(146, 152, 158), t);
+      if (!line && (id % 14u) == 0) c = mul(c, 0.86f);   // a darker, harder-fired brick here and there
       if (!line && h < 0.05f) c = mul(c, 0.9f);
-      c = mul(c, 0.95f + broad * 0.10f);
+      c = mul(c, 0.94f + broad * 0.12f);
       if (line && vnoise(px / 9.0f, py / 9.0f, 1383) > 0.72f) c = lerpc(c, C(70, 100, 62), 0.5f);   // moss in the joints
       if (road ? wear > 0.85f : rim) c = lerpc(c, C(120, 112, 98), 0.4f);
+      if (road) if (const uint32_t k = kerbPixel(px, py, e, C(150, 154, 160))) c = k;
       break;
     }
     case 9: {
-      // the river towns: red brick in stretcher bond, a soldier course (bricks on end) every 20 px on the squares,
-      // pale sandy joints, an overfired brick here and there
+      // the river towns: red brick. (M3b) The squares in herringbone, the streets in running courses of bricks of their
+      // own lengths, kerbed in grey stone; pale sandy joints, an overfired brick here and there
       bool line;
-      int id;
-      const int band = fmod_(py, 20);
-      if (!road && band < 8) {
-        line = fmod_(px, 4) == 0 || band == 0;
-        id = fdiv_(px, 4) * 389 + fdiv_(py, 20);
+      uint32_t id;
+      int bev = 0;
+      if (road) {
+        const Ashlar sl = runningAt(px, py, 1391, 4, 8, 1);
+        line = sl.in == 0 || sl.iy == 0;
+        id = sl.id;
+        bev = sl.iy == 1 ? 1 : (sl.iy == sl.rh - 1 ? -1 : 0);
       } else {
-        const int row = fdiv_(py, 4), u = px + (row & 1) * 4;
-        line = fmod_(py, 4) == 0 || fmod_(u, 8) == 0;
-        id = fdiv_(u, 8) * 613 + row;
+        const Herring hb = herringAt(px, py, 4, 1391);
+        line = hb.joint;
+        id = hb.id;
+        bev = hb.bev;
       }
-      const float t = hashf(id, 9, 1391);
+      const float t = (id >> 8) * (1.0f / 16777216.0f);
       c = line ? C(176, 158, 132) : lerpc(C(146, 66, 52), C(176, 90, 66), t);
-      if (!line && hashf(id, 10, 1393) < 0.1f) c = mul(c, 0.82f);   // an overfired brick
+      if (!line && (id % 10u) == 0) c = mul(c, 0.82f);   // an overfired brick
+      if (!line && bev) c = mul(c, bev > 0 ? 1.06f : 0.93f);
       if (!line && h < 0.04f) c = mul(c, 0.9f);
       c = mul(c, 0.95f + broad * 0.10f);
       if (road ? wear > 0.82f : rim) c = lerpc(c, C(150, 124, 92), 0.45f);
+      if (road) if (const uint32_t k = kerbPixel(px, py, e, C(150, 148, 146))) c = k;
       break;
     }
     default: return 0;
@@ -908,6 +1055,8 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
   int tx = px >> 4, ty = py >> 4;
   Ground real = m.at(tx, ty);
   if (real == Ground::Void && m.kind == MapKind::Overworld) real = Ground::DeepWater;
+  // (M3b fixer) a seat's formal water: a kerbed basin, no organic bank
+  if (m.kind == MapKind::Overworld && groundWater(real) && isPoolT(m, tx, ty)) return poolPixel(m, px, py);
   if (m.kind == MapKind::Overworld && (real == Ground::Bridge || groundWater(real) || real == Ground::Road)) {
     uint32_t o;
     if (diagBridgePixel(m, px, py, real, o)) return o;
@@ -933,7 +1082,8 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
       w = m.at((int)std::floor(wx / 16), (int)std::floor(wy / 16));
     }
     if (w == Ground::Void && m.kind == MapKind::Overworld) w = Ground::DeepWater;
-    if (natural(w) && !(isWall(w) != isWall(real) && m.kind != MapKind::Overworld)) { g = w; sx = (int)std::floor(wx); sy = (int)std::floor(wy); }
+    if (m.kind == MapKind::Overworld && isPoolT(m, (int)std::floor(wx / 16), (int)std::floor(wy / 16))) { /* a kerbed basin: its edge is the kerb */ }
+    else if (natural(w) && !(isWall(w) != isWall(real) && m.kind != MapKind::Overworld)) { g = w; sx = (int)std::floor(wx); sy = (int)std::floor(wy); }
     // (M2 fixer round 2) a patch of earth in paving (a ruin's floor, a square's worn spot) meets the stones along the
     // same wobbling line, not a tile's square edge
     else if (m.kind == MapKind::Overworld && real == Ground::Dirt && (w == Ground::Plaza || w == Ground::StoneFloor)) g = w;
@@ -1111,6 +1261,7 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
     auto wet = [&](int x, int y) -> float {
       Ground q = m.at(x, y);
       if (q == Ground::Void) return m.kind == MapKind::Overworld ? 1.0f : 0.0f;
+      if (m.kind == MapKind::Overworld && isPoolT(m, x, y)) return 0.0f;   // (a kerbed basin keeps its own edge)
       return groundWater(q) || q == Ground::Bridge ? 1.0f : 0.0f;
     };
     float w00 = wet(ix, iy), w10 = wet(ix + 1, iy), w01 = wet(ix, iy + 1), w11 = wet(ix + 1, iy + 1);
@@ -1401,6 +1552,63 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
         else if (ee == 1) c = post ? C(164, 116, 68) : C(126, 86, 52);
         else c = post ? C(92, 60, 38) : mul(c, 0.80f);
       }
+      // (M3b forts) a settlement's bridge in its culture's form (bld::bridgeOfPaving, from the paving it lays): a stone
+      // arch's deck of setts between parapets, a causeway of great slabs with a low kerb, the elves' white bridge with a
+      // pale balustrade, the jade kingdoms' red-railed bridge, the wood elves' deck grown over with moss between living
+      // rails; the plank bridge stays the planks above
+      {
+        const int bpm = m.kind == MapKind::Overworld ? paveMatAt(m, tx, ty) : -1;
+        const bld::BridgeForm bf = bpm > 0 ? bld::bridgeOfPaving(bpm) : bld::BridgeForm::Planks;
+        int ee = (sideA && e < 3) ? e : ((sideB && e > 12) ? 15 - e : 99);   // px from an open side
+        // (M3b fixer round 3) a town's stone bridge keeps its parapet wherever the river meets its deck, on any side:
+        // a river crossing a square on a slant reached the deck's corner where the street joins it, the rail rule
+        // above left it railless, and the water seemed to stop dead at a slab of paving
+        if (bf != bld::BridgeForm::Planks) {
+          if (groundWater(m.at(tx - 1, ty))) ee = std::min(ee, lx);
+          if (groundWater(m.at(tx + 1, ty))) ee = std::min(ee, 15 - lx);
+          if (groundWater(m.at(tx, ty - 1))) ee = std::min(ee, ly);
+          if (groundWater(m.at(tx, ty + 1))) ee = std::min(ee, 15 - ly);
+        }
+        switch (bf) {
+          case bld::BridgeForm::StoneArch: case bld::BridgeForm::Causeway: {
+            static const uint32_t stoneOf[10] = {C(150, 146, 140), C(204, 192, 164), C(150, 120, 84), C(214, 176, 124), C(130, 104, 76),
+                                                 C(146, 152, 136), C(222, 222, 226), C(206, 194, 166), C(142, 148, 156), C(156, 82, 62)};
+            const uint32_t st = stoneOf[std::clamp(bpm, 0, 9)];
+            const bool cause = bf == bld::BridgeForm::Causeway;
+            const Ashlar sl = cause ? ashlarAt(eastWest ? py : px, eastWest ? px : py, 1501, 14, 4) : runningAt(eastWest ? py : px, eastWest ? px : py, 1503, 5, 6, 1);
+            c = (sl.in == 0 || sl.iy == 0) ? mul(st, 0.74f) : mul(st, 0.92f + ((sl.id >> 8) & 255) / 255.0f * 0.14f);
+            if (sl.in == 1 || sl.iy == 1) c = mul(c, 1.05f);
+            if (ee <= (cause ? 1 : 3)) {   // the parapet (a causeway: a low kerb): its outer face dark, its coping lit
+              const bool joint = ((along % 9) + 9) % 9 == 0;
+              c = ee == 0 ? mul(st, 0.52f) : (ee == 1 ? mul(st, joint ? 0.86f : 1.12f) : mul(st, joint ? 0.78f : 1.0f));
+              if (ee == 3) c = mul(st, 0.70f);   // the parapet's shadow on the deck
+            }
+            break;
+          }
+          case bld::BridgeForm::MoonArch: {   // white stone, a pale balustrade on small posts
+            const Ashlar sl = runningAt(eastWest ? py : px, eastWest ? px : py, 1505, 6, 9, 2);
+            c = (sl.in == 0 || sl.iy == 0) ? C(176, 180, 190) : mul(C(224, 226, 232), 0.94f + ((sl.id >> 8) & 255) / 255.0f * 0.08f);
+            if (ee <= 2) {
+              const bool postP = ((along % 7) + 7) % 7 < 2;
+              c = ee == 0 ? C(120, 128, 150) : (postP ? C(246, 248, 252) : (ee == 1 ? C(196, 204, 222) : C(150, 156, 176)));
+            }
+            break;
+          }
+          case bld::BridgeForm::Covered: {   // the planks between red lacquered rails on black posts
+            if (ee <= 2) {
+              const bool postP = ((along % 8) + 8) % 8 < 2;
+              c = ee == 0 ? C(60, 20, 24) : (postP ? C(40, 30, 34) : (ee == 1 ? C(196, 60, 48) : C(120, 30, 32)));
+            }
+            break;
+          }
+          case bld::BridgeForm::Living: {   // moss on the planks, living rails in leaf
+            if (vnoise(px / 6.0f, py / 6.0f, 1507) > 0.62f) c = lerpc(c, C(92, 128, 60), 0.55f);
+            if (ee <= 2) c = ee == 0 ? C(40, 52, 36) : (hash2(px, py, 1509) % 3 == 0 ? C(120, 166, 70) : (ee == 1 ? C(116, 96, 68) : C(70, 100, 52)));
+            break;
+          }
+          default: break;
+        }
+      }
       // (M3, owner carry-over 5) stone abutments where the deck lands on a bank: the last 6 px of the deck at each end
       // that meets dry land are dressed stone courses (lit on their west / north faces), a step up from the planks with
       // a dark joint, and a low parapet stone at each corner where the rails end
@@ -1563,6 +1771,15 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
       // (M1 round 3) a bridge's deck throws its shadow down-right onto the water under it
       if (m.kind == MapKind::Overworld && (m.at((px - 2) >> 4, (py - 4) >> 4) == Ground::Bridge || m.at((px - 1) >> 4, (py - 2) >> 4) == Ground::Bridge))
         c = C(18, 30, 62, 200);
+      // (M3b fixer round 3) where the river runs in under a town's stone span from the side (a deck east or west of
+      // the water), the shade of the arch's mouth darkens the water for a few px before it: the river visibly passes
+      // under the bridge instead of stopping at the paving
+      if (m.kind == MapKind::Overworld) {
+        int dEdge = 99;
+        if (m.at(tx + 1, ty) == Ground::Bridge && !isBoardwalk(m, tx + 1, ty) && paveMatAt(m, tx + 1, ty) > 0) dEdge = 15 - lx;
+        if (m.at(tx - 1, ty) == Ground::Bridge && !isBoardwalk(m, tx - 1, ty) && paveMatAt(m, tx - 1, ty) > 0) dEdge = std::min(dEdge, lx);
+        if (dEdge < 5) c = dEdge < 2 ? C(10, 18, 40, 220) : (dEdge < 4 ? C(18, 34, 70, 205) : C(28, 56, 104, 190));
+      }
       // (M3, owner carry-over 5) under an east-west deck the viewer sees its south face: the timber beam along the
       // deck's edge, and stone piers standing in the river every few paces (lit west side, a ripple at the foot)
       if (m.kind == MapKind::Overworld && m.at(tx, ty - 1) == Ground::Bridge && !isBoardwalk(m, tx, ty - 1) &&
@@ -2055,39 +2272,67 @@ static void bakeArchShadows(const Map& m, int tx0, int ty0, Canvas& c) {
   for (const Bldg& b : m.bldgs) {
     int fx = b.r.x * 16, fy = b.r.y * 16, fw = b.r.w * 16, fh = b.r.h * 16;
     if (fx > x1 + 4 || fy > y1 + 4 || fx + fw + 24 < x0 || fy + fh + 16 < y0) continue;
-    // (M1) the building's own biome, not the tile's: the same shadow in every window
-    art::ArchStyle st = bldgArch(b);
-    int hgt = art::buildingHeight(b.type, b.r.w, b.r.h, st, bldgFacts(b));
-    int L = std::clamp(hgt / 4, 6, 14), Ly = std::max(3, L * 3 / 5);
-    // (M3 fixer) a round house (a yurt, a rondavel: a cone over a drum) casts a round shadow, not a square block
-    const bool round = st.roof == art::RoofShape::Conical && b.type != art::Building::Farmhouse && b.type != art::Building::Tower &&
-                       b.type != art::Building::Temple && b.type != art::Building::Keep && b.type != art::Building::Palace;
-    const float ecx = fx + fw * 0.5f, ecy = fy + fh * 0.5f, erx = fw * 0.5f, ery = fh * 0.5f;
-    auto inFoot = [&](int x, int y) {
-      if (x < fx || x >= fx + fw || y < fy || y >= fy + fh) return false;
-      if (!round) return true;
-      const float dx = (x + 0.5f - ecx) / erx, dy = (y + 0.5f - ecy) / ery;
-      return dx * dx + dy * dy <= 1.0f;
-    };
-    for (int py = std::max(y0, fy); py < std::min(y1, fy + fh + Ly + 2); py++)
-      for (int px = std::max(x0, fx); px < std::min(x1, fx + fw + L + 2); px++) {
-        if (inFoot(px, py)) continue;   // under the building itself
-        int l = 0;
-        if (round ? (inFoot(px, py - 2) && py >= ecy) : (py >= fy + fh && py < fy + fh + 2 && px < fx + fw + 1)) l = 2;
-        else
-          for (int k = 1; k <= 8 && !l; k++) {
-            int sx = px - L * k / 8, sy = py - Ly * k / 8;
-            if (inFoot(sx, sy)) l = 1;
+    // (M3b forts) the shadow of the building's blueprint: every volume (the body, wings, towers, porches, a compound's
+    // tents and enclosure walls) cast from its own footprint (a box, a round, an octagon) and its own height, so a
+    // yurt casts a round shadow, an L its L, a tower a long one, a compound's low wall a short one; all to the lower
+    // right (light from the top-left), a contact shade along the foot of the south faces. The volumes are rasterised
+    // once into a map of shadow lengths over the building's box, then each ground pixel looks up-left along the light.
+    const bld::Blueprint bp = bldgBlueprint(b);
+    const int hx0 = fx - art::BLDG_PAD_X, hy0 = fy - 4, hw = fw + 2 * art::BLDG_PAD_X, hh = fh + 4 + art::BLDG_PAD_B;
+    std::vector<uint8_t> hm((size_t)hw * hh, 0);   // per footprint pixel: 1 + the shadow length (px) of its tallest volume
+    int Lmax = 0;
+    for (const bld::Volume& v : bp.vols) {
+      if (v.role == bld::VolRole::Chimney) continue;
+      const int dep = std::max(1, (int)v.y1 - (int)v.y0), wid = std::max(1, (int)v.x1 - (int)v.x0);
+      int roofH;
+      switch (v.roof) {
+        case art::RoofShape::FlatParapet: roofH = 3; break;
+        case art::RoofShape::Dome: case art::RoofShape::Onion: roofH = std::min(wid, dep) / 2; break;
+        case art::RoofShape::Conical: case art::RoofShape::Tent: roofH = std::min(wid, dep) / 2 + 2; break;
+        case art::RoofShape::Spire: roofH = std::min(wid, dep); break;
+        default: roofH = 4 + (int)v.pitch * std::min(wid, dep) / 8; break;
+      }
+      if (v.role == bld::VolRole::Enclosure) roofH = 0;
+      const int top = (int)v.z0 + (int)v.wallH + roofH;
+      const int L = std::clamp(top / 4, v.role == bld::VolRole::Enclosure ? 2 : 4, 16);
+      Lmax = std::max(Lmax, L);
+      const float rx = wid * 0.5f, ry = dep * 0.5f, cxv = v.x0 + rx, cyv = v.y0 + ry;
+      for (int y = std::max(0, (int)v.y0 + fy - hy0); y < std::min(hh, (int)v.y1 + fy - hy0); y++)
+        for (int x = std::max(0, (int)v.x0 + fx - hx0); x < std::min(hw, (int)v.x1 + fx - hx0); x++) {
+          if (v.shape != bld::VolShape::Box) {
+            const float dx = (x + hx0 - fx + 0.5f - cxv) / rx, dy = (y + hy0 - fy + 0.5f - cyv) / ry;
+            if (v.shape == bld::VolShape::Round ? dx * dx + dy * dy > 1.0f : std::fabs(dx) + std::fabs(dy) > 1.45f) continue;
           }
-        // (M2 fixer round 2) a soft edge: the shadow's outer two pixels are a dithered penumbra, not a hard ruled line
-        if (l == 1) {
-          int k2 = 0;   // is the shadow still there two pixels further out (down-right)?
-          for (int k = 0; k <= 8; k++) {
-            const int sx = px + 2 - L * k / 8, sy = py + 2 - Ly * k / 8;
-            if (inFoot(sx, sy)) { k2 = 1; break; }
-          }
-          if (!k2) l = 3;
+          uint8_t& q = hm[(size_t)y * hw + x];
+          q = (uint8_t)std::max<int>(q, L + 1);
         }
+    }
+    if (!Lmax) {   // (a blueprint always has its body; the footprint as a fallback)
+      Lmax = std::clamp(art::buildingHeight(bp) / 4, 6, 14);
+      for (int y = fy - hy0; y < fy - hy0 + fh; y++)
+        for (int x = fx - hx0; x < fx - hx0 + fw; x++) hm[(size_t)y * hw + x] = (uint8_t)(Lmax + 1);
+    }
+    auto H = [&](int x, int y) -> int {
+      x -= hx0; y -= hy0;
+      return x < 0 || y < 0 || x >= hw || y >= hh ? 0 : hm[(size_t)y * hw + x];
+    };
+    auto inFoot = [&](int x, int y) { return H(x, y) > 0; };
+    // 1 cast: something tall enough lies up-left along the light; 2 contact: just south of a south face
+    auto castAt = [&](int px, int py) -> int {
+      if (inFoot(px, py - 1) || inFoot(px, py - 2)) return 2;
+      for (int d = 1; d <= Lmax; d++) {
+        const int q = H(px - d, py - (d * 3 + 2) / 5);
+        if (q > d) return 1;
+      }
+      return 0;
+    };
+    const int LyMax = (Lmax * 3 + 2) / 5;
+    for (int py = std::max(y0, hy0); py < std::min(y1, hy0 + hh + LyMax + 3); py++)
+      for (int px = std::max(x0, hx0); px < std::min(x1, hx0 + hw + Lmax + 3); px++) {
+        if (inFoot(px, py)) continue;   // under the building itself
+        int l = castAt(px, py);
+        // (M2 fixer round 2) a soft edge: the shadow's outer two pixels are a dithered penumbra, not a hard ruled line
+        if (l == 1 && castAt(px + 2, py + 2) == 0 && !inFoot(px + 2, py + 2)) l = 3;
         if (!l) continue;
         uint8_t& d = lv[(size_t)(py - y0) * c.w + (px - x0)];
         if (l == 3) { if (!d) d = 3; }        // (a penumbra never lightens a full shadow another building casts)
@@ -2555,7 +2800,7 @@ void View::travelArrive(Game& g) {
       for (int ty = ty0; ty < ty1 && !over; ty++)
         for (int tx = tx0; tx < tx1; tx++) {
           const uint32_t wk = wallKeys_[(size_t)ty * m.w + tx];
-          if (!wk || wallTiles_.count(wk)) continue;
+          if (!wk || wallTiles_.count(wallTexKey(wk))) continue;
           if (paintOver()) { ready = false; over = true; break; }
           wallTileTex(wk);
         }

@@ -428,6 +428,8 @@ class Game {
   float exploreT_ = 0;
   float spawnT_ = 0;
   bool exitArmed_ = false;
+  bool pillarHit(float x, float y, float rx, float ry) const;   // (owner) a body against an open front's pillars
+  int leaveCol_ = -1;          // (owner) the interior exit column walked out by (an open front's bays: the matching bay)
   bool stairsArmed_ = false;   // M0b: the player has stepped off the stairs they arrived by
   bool stairsLatch_ = false;   // M0b: just arrived by the stairs: they stay asleep until the stick is let go or the
                                // player has walked more than a tile and a half away (no floor ping-pong while held)
@@ -508,7 +510,7 @@ class Game {
   void shootArrow();
   void castSpell();
   void enterSite(int site);
-  void enterBuilding(int bldg);
+  void enterBuilding(int bldg, int col = -1);   // col: the front-row column walked in by (an open front's bay)
   void leaveSub();
   void loadMapActors();
   void clearNonPlayer();

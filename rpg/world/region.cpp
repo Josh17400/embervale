@@ -13,7 +13,10 @@
 #include <algorithm>
 #include <cstdint>
 #include <string>
+#include <unordered_map>
+#include <vector>
 #include "rpg/world/gen.h"
+#include "rpg/world/town_rules.h"
 
 namespace ew {
 using namespace gen;
@@ -689,6 +692,153 @@ std::shared_ptr<const RegionData> EndlessSource::Impl::regionData(int32_t rx, in
   return D;
 }
 
+// ============================================================== M3b: neighbouring settlements' looks, chosen together
+// (owner, town audit seed 22) A settlement's look (its layout, street form and wealth: town_rules.h townLookSig) came
+// from a lattice colour of its 256-tile cell alone, so three of one culture, type and land could match within 1500
+// tiles. Now each settlement keeps its lattice colour only if no neighbour of higher priority (a hash of its id) among
+// those of the same culture, type and land class within 1500 tiles shows the same look; the others take, in their
+// priority order, a colour whose look neither a kept neighbour nor a higher placed neighbour shows. That is a proper
+// colouring of the neighbourhood graph (no two alike within 1500 tiles while the palette lasts), deterministic and
+// independent of the order regions are planned in: a settlement's look depends only on the world seed and the
+// settlements round it. The land class is the archetype's terrain part (coast, river, ridge, hill; the inland ones,
+// farming, market and plain, are one class: never fewer conflicts than the real archetypes). Memoised per thread (the
+// values are pure in the seed and the node).
+namespace {
+struct TownLook {
+  Node n;
+  uint64_t culture = 0;
+  int lite = -1;              // the land class (-1: not yet probed)
+  int def = 0;                // the lattice colour
+  uint32_t prio = 0;
+  int kept = -1, fin = -1;
+  bool nbDone = false;
+  std::vector<uint64_t> nb;   // the same culture, type and land class within 1500 tiles (keys)
+};
+struct TownLooks {
+  uint64_t seed = 0;
+  std::unordered_map<uint64_t, TownLook> m;
+};
+thread_local TownLooks t_looks;
+constexpr int32_t LOOK_R = 1500;
+
+uint64_t lookKey(const Node& n) { return mix64(n.id * 0x9E3779B97F4A7C15ull ^ 0x700C5u); }
+}  // namespace
+
+static TownLook& lookOf(EndlessSource::Impl& I, const Node& n) {
+  const uint64_t k = lookKey(n);
+  auto it = t_looks.m.find(k);
+  if (it != t_looks.m.end()) return it->second;
+  TownLook L;
+  L.n = n;
+  L.culture = I.cultureAt(n.x, n.y);
+  L.def = townColour(&I.atlas().get(L.culture), n.type, n.x, n.y);
+  L.prio = (uint32_t)(mix64(I.seed ^ n.id ^ 0x9A10Fu) >> 32);
+  return t_looks.m.emplace(k, L).first->second;
+}
+
+// the land class of a settlement (buildRegion's archetype tests: coast, river, ridge, hill; 0 inland)
+static int lookLite(EndlessSource::Impl& I, TownLook& L) {
+  if (L.lite >= 0) return L.lite;
+  const Node& n = L.n;
+  const int32_t R0 = nominalR(n.type);
+  bool coast = false, river = false, ridge = false;
+  for (int k = 0; k < 12 && !coast; k++) {
+    int32_t a = k * (1024 / 12);
+    if (I.tile(n.x + icosR(a, R0 + 18), n.y + isinR(a, R0 + 18)).sea) coast = true;
+  }
+  if (coast) return L.lite = 1;
+  for (int32_t dy = -R0 / 2; dy <= R0 / 2 && !river; dy += 8)
+    for (int32_t dx = -R0 / 2; dx <= R0 / 2 && !river; dx += 8)
+      if (I.riverWidthCell(n.x + dx, n.y + dy) & 7) river = true;
+  if (river) return L.lite = 2;
+  int Lc = I.natLevel(n.x, n.y), lower = 0;
+  for (int k = 0; k < 8; k++) {
+    int32_t a = k * (1024 / 8);
+    int32_t px = n.x + icosR(a, 70), py = n.y + isinR(a, 70);
+    if (I.coarse(px, py).ridge > Q(0.35)) ridge = true;
+    if (I.natLevel(px, py) < Lc) lower++;
+  }
+  if (ridge) return L.lite = 3;
+  return L.lite = lower >= 7 ? 4 : 0;
+}
+
+static bool lookHigher(const TownLook& a, const TownLook& b) { return a.prio != b.prio ? a.prio > b.prio : a.n.id > b.n.id; }
+
+static const std::vector<uint64_t>& lookNb(EndlessSource::Impl& I, uint64_t k) {
+  TownLook& L = t_looks.m.at(k);
+  if (L.nbDone) return L.nb;
+  std::vector<Node> around;
+  I.nodesIn(L.n.x - LOOK_R, L.n.y - LOOK_R, L.n.x + LOOK_R + 1, L.n.y + LOOK_R + 1, around);
+  std::vector<uint64_t> nb;
+  for (const Node& m : around) {
+    if (m.type != L.n.type || m.id == L.n.id || dist2(m.x, m.y, L.n.x, L.n.y) > (int64_t)LOOK_R * LOOK_R) continue;
+    TownLook& M = lookOf(I, m);
+    if (M.culture != L.culture) continue;
+    if (lookLite(I, M) != lookLite(I, t_looks.m.at(k))) continue;
+    nb.push_back(lookKey(m));
+  }
+  TownLook& L2 = t_looks.m.at(k);
+  L2.nb = std::move(nb);
+  L2.nbDone = true;
+  return L2.nb;
+}
+
+static int lookSigOf(EndlessSource::Impl& I, const TownLook& L, int colour) {
+  return townLookSig(&I.atlas().get(L.culture), L.n.type, (L.n.flags & SPF_CAPITAL) != 0, L.n.x, L.n.y, colour + 1);
+}
+
+static bool lookKept(EndlessSource::Impl& I, uint64_t k) {
+  if (t_looks.m.at(k).kept >= 0) return t_looks.m.at(k).kept != 0;
+  const std::vector<uint64_t> nb = lookNb(I, k);
+  const TownLook& L = t_looks.m.at(k);
+  const int sig = lookSigOf(I, L, L.def);
+  bool kept = true;
+  for (uint64_t mk : nb) {
+    const TownLook& M = t_looks.m.at(mk);
+    if (lookHigher(M, L) && lookSigOf(I, M, M.def) == sig) { kept = false; break; }
+  }
+  t_looks.m.at(k).kept = kept ? 1 : 0;
+  return kept;
+}
+
+static int lookFin(EndlessSource::Impl& I, uint64_t k) {
+  if (t_looks.m.at(k).fin >= 0) return t_looks.m.at(k).fin;
+  int fin = t_looks.m.at(k).def;
+  if (!lookKept(I, k)) {
+    const std::vector<uint64_t> nb = lookNb(I, k);
+    std::vector<int> used;
+    for (uint64_t mk : nb) {
+      if (lookKept(I, mk)) { const TownLook& M = t_looks.m.at(mk); used.push_back(lookSigOf(I, M, M.def)); continue; }
+      if (!lookHigher(t_looks.m.at(mk), t_looks.m.at(k))) continue;
+      const int c = lookFin(I, mk);
+      used.push_back(lookSigOf(I, t_looks.m.at(mk), c));
+    }
+    const TownLook& L = t_looks.m.at(k);
+    const int P = L.n.type != SiteType::City ? TOWN_COLOURS : CITY_COLOURS;
+    // the free looks, the one nearest the lattice's first (its order turned by the node, so the displaced do not all
+    // crowd onto one look); none free: the look fewest neighbours show
+    const int start = (int)(L.prio % (uint32_t)P);
+    int best = -1, bestUse = 1 << 30;
+    for (int s = 0; s < P; s++) {
+      const int c = (start + s * 7) % P;   // (7 is prime to 24 and 8: every colour once)
+      const int sig = lookSigOf(I, L, c);
+      int use = 0;
+      for (int u : used) if (u == sig) use++;
+      if (use < bestUse) { bestUse = use; best = c; if (!use) break; }
+    }
+    fin = best;
+  }
+  t_looks.m.at(k).fin = fin;
+  return fin;
+}
+
+// the colour the planner chose for a settlement (SitePlan::kind = 1 + this)
+static int townLookFor(EndlessSource::Impl& I, const Node& n) {
+  if (t_looks.seed != I.seed || t_looks.m.size() > 60000) { t_looks.m.clear(); t_looks.seed = I.seed; }
+  lookOf(I, n);
+  return lookFin(I, lookKey(n));
+}
+
 void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
   RegionPlan& R = D.plan;
   R.rx = rx; R.ry = ry;
@@ -812,6 +962,7 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
     p.gx = n.x - p.w / 2; p.gy = n.y - p.h / 2;
     p.bldgCap = n.type == SiteType::City ? 640 : n.type == SiteType::Town ? 200 : 48;
     p.name = siteName(n);
+    p.kind = (uint8_t)(1 + townLookFor(*this, n));   // (M3b: the look chosen with its neighbours')
     add(p, Lc);
     // road bearings: where each incident road leaves the footprint (strongest class first)
     std::vector<std::pair<int, float>> bs;

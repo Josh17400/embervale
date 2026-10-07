@@ -13,6 +13,7 @@
 #include "engine/audio.h"
 #include "engine/pix.h"
 #include "rpg/art.h"
+#include "rpg/build/parts.h"
 #include "rpg/sim/game.h"
 
 union SDL_Event;
@@ -220,7 +221,7 @@ class View {
   //      wall-tile / gatehouse sprites, and the chimney mouths of each building sprite (for smoke)
   std::vector<uint32_t> wallKeys_;
   uint64_t wallKeysId_ = 0;
-  std::unordered_map<uint32_t, Tex> wallTiles_;
+  std::unordered_map<uint64_t, Tex> wallTiles_;   // (M3b: keyed by wallTexKey: the key and its fort look)
   Tex gateTex_;
   std::unordered_map<uint64_t, std::vector<Vec2>> bldgSmoke_;
   std::unordered_map<uint64_t, int> bldgTopRow_;   // first opaque row of each building sprite (fade test)
@@ -234,6 +235,20 @@ class View {
   std::vector<uint32_t> wallTodo_; // wall-tile keys of the current map not painted yet (painted ahead, one per frame)
   std::unordered_map<uint64_t, std::vector<uint32_t>> wallKeyCache_;   // per map id, so leaving a house is free
   const Tex& wallTileTex(uint32_t key);
+  // ---- M3b forts (render.cpp, FORTIFICATIONS lane): each settlement's walls, towers and gate in its culture's parts
+  //      (bld::fortParts). A wall key carries a look slot (art::WALL_LOOK_*) into fortLooks_ (slot 0: the style's
+  //      defaults), rebuilt with the wall keys per window and cached with them.
+  std::vector<bld::FortParts> fortLooks_;
+  std::unordered_map<uint64_t, std::vector<bld::FortParts>> fortLookCache_;
+  uint64_t wallTexKey(uint32_t key) const;
+  // the parts of a settlement's fortifications (false: no culture known, the M3 look)
+  bool fortPartsOfSite(const Game& g, int site, bld::FortParts& out) const;
+  const Tex& fortGateTex(const cult::Heraldry& arms, const bld::FortParts& f);
+  // the culture of the land at a tile (its settlement's, else its region's: World::cultureAtTile), for the wayside's
+  // built props (signposts, toll posts, graves, standing stones), cached per 8 x 8-tile block
+  const art::PropStyle* landStyleAt(const Game& g, int tx, int ty);
+  std::unordered_map<uint64_t, art::PropStyle> landStyle_;
+  uint64_t landStyleWorld_ = 0;
   uint64_t bldgKey(const Map& m, const Bldg& b, int index) const;
   // M2: a building sprite painted off the main thread (an arrival's buildings, desktop), then stored as textures
   struct BldgPaint { uint64_t key = 0; Canvas c, night; bool anyGlass = false; std::vector<Vec2> smoke, wins; int topRow = 0; };

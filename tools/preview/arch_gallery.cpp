@@ -9,6 +9,7 @@
 //                              exactly Bldg::storeys, carry no chimney without a hearth, and keep its highest opaque pixel
 //                              within bldgRiseTiles(type, storeys) tiles above its footprint. Exit 1 on any failure.
 #include <algorithm>
+#include "rpg/build/blueprint.h"
 #include <chrono>
 #include <cstring>
 #include <map>
@@ -80,7 +81,7 @@ void buildings(const std::string& dir) {
       art::ArchStyle st = art::archForBiome(biomes[bi], seed);
       art::BuildingInfo info;
       auto t0 = std::chrono::steady_clock::now();
-      Canvas c = art::buildingSprite(t, wT, hT, st, seed, &info);
+      Canvas c = art::buildingSprite(bld::design(bld::simpleRequest(t, wT, hT, st, seed)), &info);
       ms += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
       int fx = 16 + bi * colW + 8, fy = 24 + i * 150 + 142 - hT * 16;
       placeBuilding(b, c, fx, fy, wT, hT, info.height);
@@ -105,7 +106,7 @@ void roofs(const std::string& dir) {
       st.wall = m == 5 ? art::WallMat::Adobe : (s % 3 == 0 ? art::WallMat::Timber : (s % 3 == 1 ? art::WallMat::Stone : art::WallMat::Plaster));
       st.pitch = 2;
       art::BuildingInfo info;
-      Canvas c = art::buildingSprite(art::Building::House, 4, 3, st, 77u + (uint32_t)s * 13u + (uint32_t)m, &info);
+      Canvas c = art::buildingSprite(bld::design(bld::simpleRequest(art::Building::House, 4, 3, st, 77u + (uint32_t)s * 13u + (uint32_t)m)), &info);
       placeBuilding(b, c, 16 + m * cw + 8, 24 + s * ch + ch - 8 - 48, 4, 3, info.height);
     }
   save2(b.c, dir, "roofs");
@@ -127,7 +128,7 @@ void styles(const std::string& dir) {
       if (k == 3 && r % 2) t = art::Building::Hut, wT = 3, hT = 2;
       art::ArchStyle st = art::archForBiome(biomes[r], seed);
       art::BuildingInfo info;
-      Canvas c = art::buildingSprite(t, wT, hT, st, seed, &info);
+      Canvas c = art::buildingSprite(bld::design(bld::simpleRequest(t, wT, hT, st, seed)), &info);
       placeBuilding(b, c, x + 8, 16 + r * rowH + rowH - 12 - hT * 16, wT, hT, info.height);
       x += wT * 16 + 18;
     }
@@ -268,7 +269,8 @@ void walls(const std::string& dir) {
 }
 
 // ---------------------------------------------------------------- M0b: storeys
-const char* kTypeNames[(int)art::Building::COUNT] = {"House", "StoneHouse", "Inn", "Smithy", "Shop", "Temple", "Keep", "Tower", "Farmhouse", "Hut", "Palace", "Barracks", "Windmill", "Watermill", "Granary", "Bakery", "Butcher", "Tanner", "Fishmonger", "Smelter", "Sawmill", "Weaver"};
+const char* kTypeNames[(int)art::Building::COUNT] = {"House", "StoneHouse", "Inn", "Smithy", "Shop", "Temple", "Keep", "Tower", "Farmhouse", "Hut", "Palace", "Barracks", "Windmill", "Watermill", "Granary", "Bakery", "Butcher", "Tanner", "Fishmonger", "Smelter", "Sawmill", "Weaver",
+                                                   "Guildhall", "Exchange", "MeadHall", "Bathhouse", "TeaHouse", "Lodge", "CouncilHall"};
 
 // rows of the highest opaque pixel above the footprint's top edge (what the V5 clearance test budgets)
 int spriteRise(const Canvas& c, int hT) {
@@ -311,9 +313,9 @@ int m3Checks(int s0, int s1) {
       f.banner = c.heraldry.field; f.banner2 = c.heraldry.charge; f.emblem = c.heraldry.emblem;
       art::BuildingInfo i1, i2;
       const auto t0 = std::chrono::steady_clock::now();
-      Canvas whole = art::buildingSprite(t, wT, hT, st, seed, &i1, f);
+      Canvas whole = art::buildingSprite(bld::design(bld::simpleRequest(t, wT, hT, st, seed, f)), &i1);
       worstWhole = std::max(worstWhole, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
-      auto job = art::beginBuilding(t, wT, hT, st, seed, f);
+      auto job = art::beginBuilding(bld::design(bld::simpleRequest(t, wT, hT, st, seed, f)));
       int steps = 0;
       while (!art::stepBuilding(*job, 0.0)) steps++;
       if (k == 0) worstStep = std::max(worstStep, art::buildingJobWorstStepMs(*job));
@@ -353,7 +355,7 @@ int m3Checks(int s0, int s1) {
         for (int b : kv.second) {
           const Bldg& B = w.over.bldgs[(size_t)b];
           art::BuildingInfo info;
-          Canvas c = art::buildingSprite(B.type, B.r.w, B.r.h, bldgArch(B), B.seed, &info, bldgFacts(B));
+          Canvas c = art::buildingSprite(bldgBlueprint(B), &info);
           hs.push_back(hashCanvas(c));
           ls.push_back(hashMask(info.glass, c.w));
         }
@@ -390,7 +392,7 @@ int check(int s0, int s1) {
     for (size_t bi = 0; bi < w.over.bldgs.size(); bi++) {
       const Bldg& b = w.over.bldgs[bi];
       art::BuildingInfo info;
-      Canvas c = art::buildingSprite(b.type, b.r.w, b.r.h, bldgArch(b), b.seed, &info, bldgFacts(b));
+      Canvas c = art::buildingSprite(bldgBlueprint(b), &info);
       sprites[bi] = c;
       total++;
       counts[{(int)b.type, (int)b.storeys}]++;
@@ -492,7 +494,7 @@ void storeysPanel(const std::string& dir) {
       f.storeys = cc.st;
       f.hearth = cc.t != art::Building::Temple && cc.t != art::Building::Tower;
       art::BuildingInfo info;
-      Canvas c = art::buildingSprite(cc.t, cc.wT, cc.hT, st, seed, &info, f);
+      Canvas c = art::buildingSprite(bld::design(bld::simpleRequest(cc.t, cc.wT, cc.hT, st, seed, f)), &info);
       int fx = 40 + i * colW + 8, fy = 24 + r * rowH + rowH - 10 - cc.hT * 16;
       placeBuilding(day, c, fx, fy, cc.wT, cc.hT, info.height);
       Canvas n = art::buildingNight(c, info.glass, seed);
@@ -527,7 +529,7 @@ void streets(const std::string& dir) {
       f.storeys = (wT >= 4 && (h >> 4) % 3 != 0) || (t == art::Building::StoneHouse && (h >> 6) % 3 == 0) ? 2 : 1;
       art::ArchStyle st = art::archForBiome(biomes[r], seed);
       art::BuildingInfo info;
-      Canvas c = art::buildingSprite(t, wT, hT, st, seed, &info, f);
+      Canvas c = art::buildingSprite(bld::design(bld::simpleRequest(t, wT, hT, st, seed, f)), &info);
       if (x + wT * 16 + 16 > b.c.w) break;
       placeBuilding(b, c, x + 8, 4 + r * rowH + rowH - 8 - hT * 16, wT, hT, info.height);
       x += wT * 16 + 12 + (int)((h >> 9) % 8);

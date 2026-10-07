@@ -1,0 +1,69 @@
+# M3b INTERIORS lane: interiors derived from the builder's blueprints (VISION_PLAN 15.14). The inns of six peoples
+# (the common room, then a rented room: on the ground floor behind partitions in a one-storey inn, else upstairs), a
+# steppe yurt home, a bathhouse, a mead hall, a tea house and a guildhall, two seats of power's throne rooms (a tent
+# court, a heartland castle) and a marsh home's cupboards. Purposes absent near the start fail their enter (try another
+# seed: 3 and 7 hold most peoples).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m3b_interiors.txt [--seed N]
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
+# the inns of six peoples
++0.2 gotoculture heartland town
++1.0 enter inn
++3.0 shot m3bi_inn_heartland.png
++0.2 enter inn 1
++3.0 shot m3bi_inn_heartland_rooms.png
++0.2 gotoculture fjordfolk town
++1.0 enter inn
++3.0 shot m3bi_inn_fjordfolk.png
++0.2 enter inn 1
++3.0 shot m3bi_inn_fjordfolk_rooms.png
++0.2 gotoculture dune town
++1.0 enter inn
++3.0 shot m3bi_inn_dune.png
++0.2 enter inn 1
++3.0 shot m3bi_inn_dune_rooms.png
++0.2 gotoculture steppe town
++1.0 enter inn
++3.0 shot m3bi_inn_steppe.png
++0.2 enter inn 1
++3.0 shot m3bi_inn_steppe_rooms.png
++0.2 gotoculture jade town
++1.0 enter inn
++3.0 shot m3bi_inn_jade.png
++0.2 enter inn 1
++3.0 shot m3bi_inn_jade_rooms.png
++0.2 gotoculture marsh town
++1.0 enter inn
++3.0 shot m3bi_inn_marsh.png
++0.2 enter inn 1
++3.0 shot m3bi_inn_marsh_rooms.png
+# homes: a steppe yurt, a marsh home's cupboards
++0.2 gotoculture steppe any
++1.0 enter house
++3.0 shot m3bi_yurt_home.png
++0.2 gotoculture marsh any
++1.0 enter house
++3.0 shot m3bi_marsh_home.png
+# the society's buildings
++0.2 gotoculture imperial city
++1.0 enter bathhouse
++3.0 shot m3bi_bathhouse.png
++0.2 gotoculture fjordfolk city
++1.0 enter meadhall
++3.0 shot m3bi_meadhall.png
++0.2 gotoculture jade city
++1.0 enter teahouse
++3.0 shot m3bi_teahouse.png
++0.2 gotoculture river city
++1.0 enter guildhall
++3.0 shot m3bi_guildhall.png
+# seats of power
++0.2 gotoculture steppe capital
++1.0 enterseat
++3.0 shot m3bi_seat_steppe.png
++0.2 gotoculture heartland capital
++1.0 enterseat
++3.0 shot m3bi_seat_heartland.png
++0.5 quit

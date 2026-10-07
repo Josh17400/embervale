@@ -1,0 +1,102 @@
+# M3b TOWNS lane: every culture's capital at its seat of power and its square by day (gotoculture <a> capital, then
+# gotoseat: before the seat's door, then further south over its court), a town of four cultures, and a steppe tent
+# court and a sun-temple precinct seen whole. Prints each society (government, seat, titles). Run from a scratch dir:
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m3b_towns_seats.txt [--seed N]
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.2 gotoculture fjordfolk capital
++4 gotoseat
++0.2 society
++1.6 shot m3b_seat_fjordfolk.png
++0.2 gotoseat south 12
++1.6 shot m3b_court_fjordfolk.png
++0.2 gotoculture highland capital
++4 gotoseat
++0.2 society
++1.6 shot m3b_seat_highland.png
++0.2 gotoseat south 12
++1.6 shot m3b_court_highland.png
++0.2 gotoculture heartland capital
++4 gotoseat
++0.2 society
++1.6 shot m3b_seat_heartland.png
++0.2 gotoseat south 12
++1.6 shot m3b_court_heartland.png
++0.2 gotoculture imperial capital
++4 gotoseat
++0.2 society
++1.6 shot m3b_seat_imperial.png
++0.2 gotoseat south 12
++1.6 shot m3b_court_imperial.png
++0.2 gotoculture dune capital
++4 gotoseat
++0.2 society
++1.6 shot m3b_seat_dune.png
++0.2 gotoseat south 12
++1.6 shot m3b_court_dune.png
++0.2 gotoculture steppe capital
++4 gotoseat
++0.2 society
++1.6 shot m3b_seat_steppe.png
++0.2 gotoseat south 12
++1.6 shot m3b_court_steppe.png
++0.2 gotoculture marsh capital
++4 gotoseat
++0.2 society
++1.6 shot m3b_seat_marsh.png
++0.2 gotoseat south 12
++1.6 shot m3b_court_marsh.png
++0.2 gotoculture jade capital
++4 gotoseat
++0.2 society
++1.6 shot m3b_seat_jade.png
++0.2 gotoseat south 12
++1.6 shot m3b_court_jade.png
++0.2 gotoculture river capital
++4 gotoseat
++0.2 society
++1.6 shot m3b_seat_river.png
++0.2 gotoseat south 12
++1.6 shot m3b_court_river.png
++0.2 gotoculture suntemple capital
++4 gotoseat
++0.2 society
++1.6 shot m3b_seat_suntemple.png
++0.2 gotoseat south 12
++1.6 shot m3b_court_suntemple.png
++0.2 gotoculture sylvan capital
++4 gotoseat
++0.2 society
++1.6 shot m3b_seat_sylvan.png
++0.2 gotoseat south 12
++1.6 shot m3b_court_sylvan.png
++0.2 gotoculture starspire capital
++4 gotoseat
++0.2 society
++1.6 shot m3b_seat_starspire.png
++0.2 gotoseat south 12
++1.6 shot m3b_court_starspire.png
++0.2 gotoculture fjordfolk town
++4 gotoseat
++0.2 society
++1.6 shot m3b_town_fjordfolk.png
++0.2 gotoculture dune town
++4 gotoseat
++0.2 society
++1.6 shot m3b_town_dune.png
++0.2 gotoculture jade town
++4 gotoseat
++0.2 society
++1.6 shot m3b_town_jade.png
++0.2 gotoculture sylvan town
++4 gotoseat
++0.2 society
++1.6 shot m3b_town_sylvan.png
++0.2 gotoculture steppe capital
++4 gotoseat south 8
++1.6 shot m3b_tentcourt.png
++0.2 gotoculture suntemple capital
++4 gotoseat south 8
++1.6 shot m3b_precinct.png

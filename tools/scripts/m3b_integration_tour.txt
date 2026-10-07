@@ -1,0 +1,68 @@
+# M3b integration tour: what the four lanes changed, together, on another seed and at night. Capitals' streets and
+# seats by night (lamps, windows, the builder's volumes and shadows under the night grade), seat interiors (the
+# king on his throne), culture inns, a yurt home, gates. Archetypes absent near the start fail their gotoculture
+# (try --seed 7).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m3b_integration_tour.txt [--seed N]
+seed 3
+0.3  newgame
++0.1 god 1
++0.1 hour 21
++0.2 gotoculture steppe capital
++1.6 hour 21
++0.6 shot it_steppe_night.png
++0.1 gotoseat south 6
++1.4 shot it_steppe_seat_night.png
++0.2 enterseat
++3.0 shot it_steppe_seat_inside.png
++0.2 gotoculture jade capital
++1.6 hour 21
++0.6 shot it_jade_night.png
++0.1 gotoseat south 6
++1.4 shot it_jade_seat_night.png
++0.2 enterseat
++3.0 shot it_jade_seat_inside.png
++0.2 gotoculture fjordfolk capital
++1.6 hour 21
++0.6 shot it_fjord_night.png
++0.1 gotoseat south 6
++1.4 shot it_fjord_seat_night.png
++0.2 enterseat
++3.0 shot it_fjord_seat_inside.png
++0.2 gotoculture river capital
++1.6 hour 13
++0.6 shot it_river_day.png
++0.1 gotoseat south 6
++1.4 shot it_river_seat_day.png
++0.2 gotoculture sylvan capital
++1.6 hour 13
++0.6 shot it_sylvan_day.png
++0.1 gotoseat south 6
++1.4 shot it_sylvan_seat_day.png
++0.2 enterseat
++3.0 shot it_sylvan_seat_inside.png
++0.2 gotoculture marsh town
++1.6 hour 17
++0.6 shot it_marsh_dusk.png
++0.2 enter inn
++3.0 shot it_marsh_inn.png
++0.2 gotoculture dune city
++1.6 hour 21
++0.6 shot it_dune_city_night.png
++0.2 enter inn
++3.0 shot it_dune_inn_night.png
++0.2 gotoculture steppe town
++1.6 hour 12
++0.6 shot it_steppe_town_day.png
++0.2 enter house
++3.0 shot it_steppe_house.png
++0.2 gotoculture imperial capital
++1.6 hour 12
++0.6 shot it_imperial_day.png
++0.1 gotoseat south 6
++1.4 shot it_imperial_seat_day.png
++0.2 gotoculture suntemple capital
++1.6 hour 20
++0.6 shot it_sun_night.png
++0.1 gotoseat south 6
++1.4 shot it_sun_seat_night.png
++1.0 quit

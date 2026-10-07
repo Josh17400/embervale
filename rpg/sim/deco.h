@@ -17,6 +17,11 @@ enum class Deco : uint8_t {
   // the room's wall style, set on every back-wall tile (row 1) of a v3 interior (art::RoomStyle = id - WallTimber)
   WallTimber, WallLog, WallStone, WallHall, WallSoot, WallArcane,
   WallAdobe, WallPlaster,   // M0b (art::RoomStyle::Adobe / Plaster)
+  WallFelt, WallPaper, WallLiving, WallMarble, WallTile,   // M3b (art::RoomStyle::Felt .. Tile)
+  // M3b shaped floors (rounds, Ls, crosses: the interior has Ground::Void beyond its shell): a wall tile that is the
+  // outer wall (decoLayers draws it as the shell: tall faces over the room, caps that bend with it), never a partition.
+  // In these maps the wall style sits on row 0 instead of row 1.
+  Shell,
   COUNT
 };
 
