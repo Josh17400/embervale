@@ -1,0 +1,167 @@
+# M3c LAND lane: a tour of every biome proper at noon (gotoeco), then a few at night. One screenshot per biome
+# (m3c_land_<key>.png, and m3c_land_night_<key>.png) in the working directory; crop and zoom them to judge the ground,
+# the flora and the ecotones at 1x and up close. (The mountains and the small oases are printed, not expected: the hero
+# lands on the walkable ground beside them.)
+#   embervale.exe --script tools/scripts/m3c_land_tour.txt
+seed 2
+0.3  newgame
++0.02 hour 12
++0.1 god 1
++0.2 gotoeco ocean
++2.0 eco
++0.1 shot m3c_land_ocean.png
++0.2 gotoeco sandbeach
++2.0 expect eco sandbeach
++0.1 shot m3c_land_sandbeach.png
++0.2 gotoeco shingle
++2.0 expect eco shingle
++0.1 shot m3c_land_shingle.png
++0.2 gotoeco coralcoast
++2.0 expect eco coralcoast
++0.1 shot m3c_land_coralcoast.png
++0.2 gotoeco seacliffs
++2.0 expect eco seacliffs
++0.1 shot m3c_land_seacliffs.png
++0.2 gotoeco meadow
++2.0 expect eco meadow
++0.1 shot m3c_land_meadow.png
++0.2 gotoeco flowermeadow
++2.0 expect eco flowermeadow
++0.1 shot m3c_land_flowermeadow.png
++0.2 gotoeco prairie
++2.0 expect eco prairie
++0.1 shot m3c_land_prairie.png
++0.2 gotoeco steppe
++2.0 expect eco steppe
++0.1 shot m3c_land_steppe.png
++0.2 gotoeco savanna
++2.0 expect eco savanna
++0.1 shot m3c_land_savanna.png
++0.2 gotoeco heath
++2.0 expect eco heath
++0.1 shot m3c_land_heath.png
++0.2 gotoeco chalkdowns
++2.0 expect eco chalkdowns
++0.1 shot m3c_land_chalkdowns.png
++0.2 gotoeco alpinemeadow
++2.0 expect eco alpinemeadow
++0.1 shot m3c_land_alpinemeadow.png
++0.2 gotoeco stoneplains
++2.0 expect eco stoneplains
++0.1 shot m3c_land_stoneplains.png
++0.2 gotoeco mixedforest
++2.0 expect eco mixedforest
++0.1 shot m3c_land_mixedforest.png
++0.2 gotoeco birchwood
++2.0 expect eco birchwood
++0.1 shot m3c_land_birchwood.png
++0.2 gotoeco giantforest
++2.0 expect eco giantforest
++0.1 shot m3c_land_giantforest.png
++0.2 gotoeco darkforest
++2.0 expect eco darkforest
++0.1 shot m3c_land_darkforest.png
++0.2 gotoeco blossomgrove
++2.0 expect eco blossomgrove
++0.1 shot m3c_land_blossomgrove.png
++0.2 gotoeco bamboo
++2.0 expect eco bamboo
++0.1 shot m3c_land_bamboo.png
++0.2 gotoeco jungle
++2.0 expect eco jungle
++0.1 shot m3c_land_jungle.png
++0.2 gotoeco mushroomforest
++2.0 expect eco mushroomforest
++0.1 shot m3c_land_mushroomforest.png
++0.2 gotoeco silverwood
++2.0 expect eco silverwood
++0.1 shot m3c_land_silverwood.png
++0.2 gotoeco autumnwood
++2.0 expect eco autumnwood
++0.1 shot m3c_land_autumnwood.png
++0.2 gotoeco taiga
++2.0 expect eco taiga
++0.1 shot m3c_land_taiga.png
++0.2 gotoeco taigabog
++2.0 expect eco taigabog
++0.1 shot m3c_land_taigabog.png
++0.2 gotoeco snowfield
++2.0 expect eco snowfield
++0.1 shot m3c_land_snowfield.png
++0.2 gotoeco tundra
++2.0 expect eco tundra
++0.1 shot m3c_land_tundra.png
++0.2 gotoeco glacier
++2.0 expect eco glacier
++0.1 shot m3c_land_glacier.png
++0.2 gotoeco frozenlakes
++2.0 expect eco frozenlakes
++0.1 shot m3c_land_frozenlakes.png
++0.2 gotoeco reedmarsh
++2.0 expect eco reedmarsh
++0.1 shot m3c_land_reedmarsh.png
++0.2 gotoeco peatbog
++2.0 expect eco peatbog
++0.1 shot m3c_land_peatbog.png
++0.2 gotoeco mangrove
++2.0 expect eco mangrove
++0.1 shot m3c_land_mangrove.png
++0.2 gotoeco floodedforest
++2.0 expect eco floodedforest
++0.1 shot m3c_land_floodedforest.png
++0.2 gotoeco lakedistrict
++2.0 expect eco lakedistrict
++0.1 shot m3c_land_lakedistrict.png
++0.2 gotoeco stonydesert
++2.0 expect eco stonydesert
++0.1 shot m3c_land_stonydesert.png
++0.2 gotoeco dunes
++2.0 expect eco dunes
++0.1 shot m3c_land_dunes.png
++0.2 gotoeco badlands
++2.0 expect eco badlands
++0.1 shot m3c_land_badlands.png
++0.2 gotoeco saltflats
++2.0 expect eco saltflats
++0.1 shot m3c_land_saltflats.png
++0.2 gotoeco scrubland
++2.0 expect eco scrubland
++0.1 shot m3c_land_scrubland.png
++0.2 gotoeco oasis
++2.0 eco
++0.1 shot m3c_land_oasis.png
++0.2 gotoeco mountain
++2.0 eco
++0.1 shot m3c_land_mountain.png
++0.2 gotoeco ashfields
++2.0 expect eco ashfields
++0.1 shot m3c_land_ashfields.png
++0.2 gotoeco crystalbarrens
++2.0 expect eco crystalbarrens
++0.1 shot m3c_land_crystalbarrens.png
++0.2 gotoeco petrifiedforest
++2.0 expect eco petrifiedforest
++0.1 shot m3c_land_petrifiedforest.png
++0.2 gotoeco blight
++2.0 expect eco blight
++0.1 shot m3c_land_blight.png
++0.2 hour 23
++0.2 gotoeco mushroomforest
++2.5 expect eco mushroomforest
++0.1 shot m3c_land_night_mushroomforest.png
++0.2 gotoeco ashfields
++2.5 expect eco ashfields
++0.1 shot m3c_land_night_ashfields.png
++0.2 gotoeco crystalbarrens
++2.5 expect eco crystalbarrens
++0.1 shot m3c_land_night_crystalbarrens.png
++0.2 gotoeco silverwood
++2.5 expect eco silverwood
++0.1 shot m3c_land_night_silverwood.png
++0.2 gotoeco glacier
++2.5 expect eco glacier
++0.1 shot m3c_land_night_glacier.png
++0.2 gotoeco peatbog
++2.5 expect eco peatbog
++0.1 shot m3c_land_night_peatbog.png
++0.3 quit

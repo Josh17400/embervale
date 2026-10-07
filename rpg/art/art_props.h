@@ -125,8 +125,76 @@ enum class Prop : uint8_t {
   Stove,          // a yurt's iron stove under the crown ring: a firebox, a kettle, the flue pipe rising (16x44, 4 frames)
   TrainingDummy,  // a warrior lodge's straw dummy on a post, a battered shield on its arm (16x30)
   FoldScreen,     // a folding screen of painted panels (paper, silk or reed by the room), stands on the floor (24x26)
+  // ---- M3c Wildlands flora (VISION_PLAN 15.15 / 15.16): the biomes' own plants and rocks. Painted in
+  //      rpg/art/art_flora.cpp (phase A: stand-ins; the LAND lane paints them for real in the 3/4 top-down view with
+  //      top-left light and may change the canvas sizes). The view draws floraVariant(p, v, eco) per tile (a wood is
+  //      never one tree cloned). All stand on ONE tile (a tree's crown spreads over its neighbours like the classic
+  //      trees'; the forest rule keeps a free tile between solid ones). Trees, solid:
+  AcaciaTree,     // a flat umbrella crown on a forked trunk (savanna, scrubland, oasis) (about 40x40)
+  BaobabTree,     // a swollen bottle trunk, a small crown of stubby branches (savanna) (about 36x44)
+  GiantTree,      // an old-growth giant: massive buttressed trunk, deep crown (old-growth forest) (about 48x64)
+  GnarledTree,    // a twisted near-black tree, a thin dark crown (dark forest, blight edges) (about 36x44)
+  BlossomTree,    // a cherry in full bloom, pink crown (blossom grove) (about 36x40)
+  BambooClump,    // a clump of tall jointed stems with leaf sprays (bamboo forest) (about 24x48)
+  JungleTree,     // a tall broadleaf, buttress roots, hanging vines (jungle) (about 44x56)
+  GiantMushroom,  // a mushroom the size of a tree, glowing gills at night (mushroom forest) (about 36x44)
+  SilverTree,     // a slender pale tree with silver-green leaves (silverwood) (about 32x52)
+  MangroveTree,   // a crown on arching stilt roots (mangrove coast) (about 40x40)
+  SwampCypress,   // a buttressed cypress with knees and hanging moss (flooded forest, bogs) (about 32x48)
+  PetrifiedTree,  // a stone trunk, standing or broken, banded red and grey (petrified forest) (about 24x40)
+  LarchTree,      // a golden-green larch (taiga bog, alpine meadows) (about 28x48)
+  JuniperTree,    // a low wind-bent juniper (heath, chalk downs, sea cliffs, steppe) (about 28x28)
+  //      rocks and shrubs, solid:
+  Hoodoo,         // a banded sandstone pillar with a cap rock (badlands) (about 24x44)
+  CrystalSpire,   // a cluster of tall glowing crystals (crystal barrens; a light source) (about 24x40, 4 frames)
+  BasaltColumns,  // a knot of hexagonal basalt columns (ash fields, sea cliffs) (about 28x32)
+  IceSerac,       // a blue-white ice block, its lit face cracked (glacier) (about 28x34)
+  TermiteMound,   // a tall ridged earth mound (savanna) (about 16x28)
+  AshVent,        // a smoking fissure ringed with sulphur (ash fields; a light source) (about 20x16, 4 frames)
+  Gorse,          // a thorny gorse bush, yellow flowers (heath, chalk downs) (about 18x16)
+  Thornbush,      // a grey thorn scrub (scrubland, steppe, badlands) (about 18x16)
+  //      ground cover, walked over (drawn under feet like TallGrass):
+  Heather,        // purple heather tussocks (heath and moor)
+  Wildflowers,    // a dense patch of mixed flowers (flower meadows, alpine meadows)
+  PrairieGrass,   // tall golden grass (prairie, savanna, steppe)
+  CottonGrass,    // white cotton-grass tufts (bogs, tundra)
+  Agave,          // a low spiky succulent rosette (scrubland, stony desert)
+  DryBrush,       // dry twiggy brush / tumbleweed (desert, steppe)
+  Saltbush,       // grey-blue saltbush (salt flats' rims)
+  Lichen,         // lichen and moss cushions on stones (tundra, glacier edges)
+  Wrack,          // seaweed and driftwood on the tideline (shingle, beaches)
+  Shells,         // shells and coral pieces on the sand (coral strand)
+  GlowCaps,       // a ring of small glowing mushrooms (mushroom forest; a faint light at night)
+  Blightweed,     // black thorny tendrils (blighted land)
+  SilverFern,     // pale silver ferns (silverwood)
+  JungleFern,     // big broad leaves (jungle, bamboo forest)
+  Petals,         // fallen blossom petals on the ground (blossom grove)
   COUNT
 };
+// M3c: the Wildlands flora ranges (one shared answer for every reader: the forest rule, crowns, the map, projectiles)
+inline bool isWildlandsFlora(Prop p) { return (int)p >= (int)Prop::AcaciaTree && (int)p <= (int)Prop::Petals; }
+inline bool isWildlandsSolid(Prop p) { return (int)p >= (int)Prop::AcaciaTree && (int)p <= (int)Prop::Thornbush; }
+// a tree (solid trunk, a crown the view thins when the hero walks behind it): the classic OakTree .. AutumnTree and the
+// M3c trees (ElderTree, a 5x3 wonder, is not one)
+inline bool isTreeProp(Prop p) {
+  return ((int)p >= (int)Prop::OakTree && (int)p <= (int)Prop::AutumnTree) || ((int)p >= (int)Prop::AcaciaTree && (int)p <= (int)Prop::JuniperTree);
+}
+// plants, rocks and ground cover of the wild (the classic OakTree .. Fern and the M3c flora)
+inline bool isFloraProp(Prop p) { return (int)p <= (int)Prop::Fern || isWildlandsFlora(p); }
+// a solid wild prop the forest rule spaces out (trees, bushes, stumps, logs, rocks, boulders, cacti, the M3c solids)
+inline bool isWildSolidProp(Prop p) {
+  if (isTreeProp(p) || isWildlandsSolid(p)) return true;
+  switch (p) {
+    case Prop::Bush: case Prop::BerryBush: case Prop::SnowBush: case Prop::Boulder: case Prop::Rock: case Prop::MossRock:
+    case Prop::SnowRock: case Prop::Stump: case Prop::Log: case Prop::Cactus: return true;
+    default: return false;
+  }
+}
+// M3c (rpg/art/art_flora.cpp): a Wildlands flora prop in variant v (v % floraVariants(p): size, lean, crown shape,
+// colour drift), as the land of eco (rpg/world/biomes.h Eco value) grows it (snow on it in the cold, a drier or lusher
+// tint by the biome); the same canvas size and anchor as propSprite(p). The view caches them by (p, v, eco).
+Canvas floraVariant(Prop p, int v, int eco);
+int floraVariants(Prop p);   // 1..16
 // M2: the frozen tile footprint of a wayside / wonder prop (w odd, h >= 1): the prop stands on the bottom row's middle
 // tile; every other tile of the w x h box (rows above and columns either side) holds Filler. 1 x 1 for the rest.
 inline void wildFootprint(Prop p, int& w, int& h) {
@@ -159,6 +227,9 @@ int propW(Prop p);
 int propH(Prop p);
 int propFrames(Prop p);
 Canvas propSprite(Prop p);
+// (M3c fixer round 2) a leafy tree as it stands in the snow: snow lying on the top of every clump of its crown (its
+// lit upper edges), a cool cast to the leaves; the same canvas and anchor as propSprite(p)
+Canvas winterTree(Prop p);
 Canvas marketStallVariant(int v);   // M1: a market stall with awning v % 6 and goods (v / 6) % 6 (36 looks)
 // M1 economy: a trade's market stall (trade 0..6 in StallProduce order) under awning cloth `awning` (0..7). The same
 // canvas and anchor as propSprite(stallProp(trade)) (which is awning 0).

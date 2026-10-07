@@ -119,6 +119,38 @@ art::Building roleBuilding(Role r) {
 }  // namespace
 
 namespace {
+// (M3c LIFE) a hunt's reason in the land's own terms ({M} the beasts, {H} the giver's home, {E} the biome's name);
+// nullptr where the classic lines fit (the temperate meadows and downs)
+const char* huntFlavour(Eco e, uint64_t k) {
+  static const char* const desert[] = {"THE {M} CAME OUT OF THE {E} AND STUNG A CAMEL DRIVER OUTSIDE {H}.",
+                                       "NOTHING MOVES IN THE {E} BY DAY BUT THE {M}. NOW THEY COME TO OUR WELL BY NIGHT.",
+                                       "THE CARAVANS WON'T CROSS THE {E} WHILE THE {M} ARE OUT."};
+  static const char* const grass[] = {"THE {M} CIRCLE THE HERDS OF {H} EVERY DUSK.", "YOU CAN HEAR THE {M} OUT ON THE {E} ALL NIGHT. THEY HAVE OUR SCENT.",
+                                      "WE LOST TWO GOATS TO THE {M} IN THE LONG GRASS."};
+  static const char* const cold[] = {"THE {M} CAME DOWN OFF THE {E} WITH THE BLIZZARD, AND THEY ARE STARVING.",
+                                     "TRACKS IN THE SNOW BY THE WOODPILE AGAIN. THE {M}.", "THE ICE FISHERS WON'T GO OUT WHILE THE {M} ROAM."};
+  static const char* const wet[] = {"THE {M} TOOK A NET-MENDER AT THE WATER'S EDGE BY {H}.", "NOBODY WADES THE {E} NOW. THE {M} ARE TOO MANY.",
+                                    "SOMETHING DRAGS OUR EEL TRAPS UNDER. THE {M}, THE OLD ONES SAY."};
+  static const char* const wood[] = {"THE {M} OF THE {E} ARE TAKING THE CHARCOAL BURNERS' DOGS.",
+                                     "THE WOODCUTTERS WON'T GO INTO THE {E} WHILE THE {M} ARE ABOUT.", "THE {M} HAVE THE FORAGERS TOO FRIGHTENED TO LEAVE {H}."};
+  static const char* const ash[] = {"THE {M} RUN THE {E} IN BURNING PACKS. ONE SET A BARN ALIGHT.", "THE {M} COME OUT OF THE ASH WITH EMBERS IN THEIR FUR."};
+  static const char* const blight[] = {"THE {E} SPREADS, AND THE {M} SPREAD WITH IT.", "THE {M} CAME OUT OF THE ROTTEN GROUND. THE CROPS WITHER WHERE THEY WALK."};
+  static const char* const coast[] = {"THE {M} HAVE BEEN AT THE NETS ON THE SHORE BELOW {H}.", "THE GULLS GO QUIET WHEN THE {M} COME UP THE BEACH."};
+  static const char* const eerie[] = {"LIGHTS IN THE {E} AT NIGHT, AND THE {M} AMONG THEM. A CHILD FOLLOWED ONE.",
+                                      "THE {M} OF THE {E} LEAD TRAVELLERS ASTRAY. SOME NEVER COME BACK."};
+  auto pickA = [&](const char* const* a, int n) { return a[(int)(k % (uint64_t)n)]; };
+  if (e == Eco::AshFields) return pickA(ash, 2);
+  if (e == Eco::Blight || e == Eco::DarkForest) return pickA(blight, 2);
+  if (ecoHas(e, EF_MAGIC)) return pickA(eerie, 2);
+  const Biome f = ecoFamily(e);
+  if (f == Biome::Beach) return pickA(coast, 2);
+  if (f == Biome::Desert) return pickA(desert, 3);
+  if (f == Biome::Snow || f == Biome::Taiga) return pickA(cold, 3);
+  if (f == Biome::Swamp || e == Eco::LakeDistrict) return pickA(wet, 3);
+  if (f == Biome::Forest || f == Biome::Autumn) return pickA(wood, 3);
+  if (e == Eco::Savanna || e == Eco::Steppe || e == Eco::Prairie || e == Eco::Heath) return pickA(grass, 3);
+  return nullptr;
+}
 // Protect: who comes for the fields (0 wolves, 1 goblins, 2 bandits), from the quest's person seed and the land
 int protectZone(const Quest& q, Biome b) {
   int z = (int)(((q.flags >> 16) & 0xFFFFu) % 3u);
@@ -374,15 +406,11 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
       }
       case K_HUNT: {
         q.type = QType::Hunt;
-        const Biome b = world.over.biomeAt(home.ex, home.ey);
-        Monster opts[3] = {Monster::Wolf, Monster::Boar, Monster::Spider};
-        if (b == Biome::Snow) { opts[0] = Monster::IceWolf; opts[1] = Monster::FrostSpider; opts[2] = Monster::Troll; }
-        else if (b == Biome::Taiga) { opts[1] = Monster::Bear; opts[2] = Monster::Troll; }
-        else if (b == Biome::Swamp) { opts[0] = Monster::Slime; opts[1] = Monster::Mudcrab; }
-        else if (b == Biome::Desert) { opts[0] = Monster::Sandworm; opts[1] = Monster::Goblin; opts[2] = Monster::Skeleton; }
-        else if (b == Biome::Plains) { opts[2] = Monster::Goblin; }
+        // (M3c) the beasts of the land around (rpg/world/wildlife.h)
+        Monster opts[3];
+        ew::huntTargets(world.over.ecoAt(home.ex, home.ey), opts);
         q.mon = opts[r.irange(3)];
-        q.need = (q.mon == Monster::Troll || q.mon == Monster::Bear || q.mon == Monster::Sandworm) ? 2 : 4 + r.irange(3);
+        q.need = (q.mon == Monster::Troll || q.mon == Monster::Bear || q.mon == Monster::Sandworm || q.mon == Monster::Yeti || q.mon == Monster::Lurker) ? 2 : 4 + r.irange(3);
         q.target = -1;
         V.set("M", monsterPlural(q.mon));
         V.set("n", std::to_string(q.need));
@@ -395,6 +423,18 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
                                          "HUNT {n} {M} IN THE WILDS ROUND {H}. {GIVER} PAYS ON YOUR RETURN.",
                                          "{M} PROWL CLOSE TO {H} AGAIN. BRING DOWN {n} AND {GIVER} WILL MAKE IT WORTH YOUR WHILE."};
         title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as); desc = pickN(r, de);
+        // (M3c LIFE) the land speaks in the giver's words: a reason and a title of its biome (no dice rolled: the person's
+        // key chooses, so every other draw of the offer stays as it was)
+        {
+          const Eco he = world.over.ecoAt(home.ex, home.ey);
+          const char* fl = huntFlavour(he, (key >> 21) + (uint64_t)done);
+          if (fl && ((key >> 17) & 3) != 0) {
+            std::string en = ecoName(he);
+            V.set("E", en);
+            reason = fl;
+            if (((key >> 19) & 1) != 0) title = "THE {M} OF THE {E}";
+          }
+        }
         return true;
       }
       case K_DELIVER: {

@@ -43,6 +43,15 @@ cult::Atlas& EndlessSource::Impl::atlas() {
       if (s.sea) s.coast = true;
       const Geology g = geology(x, y);
       s.temp |= (int32_t)(((uint32_t)g.primary() + 1u) << 24);
+      // (M3c) the biome proper at the centre, packed into moist's top byte as eco + 1 (culture.cpp fitOf: dune folk in
+      // the deserts, steppe folk on the steppe and savanna, marsh folk in the wetlands, sylvan in the old forests, jade
+      // in the bamboo and blossom...). The coarse eco, without the elven silverwood (no culture is asked while the
+      // atlas builds one).
+      s.moist = c.m < 0 ? 0 : c.m > 0xFFFFFF ? 0xFFFFFF : c.m;
+      if (!s.sea) {
+        const Eco e = ecoFor((Biome)s.biome, c.e, c.t, c.m, c.ridge, levelOf(c.e), x, y, false);
+        s.moist |= (int32_t)(((uint32_t)e + 1u) << 24);
+      }
       return s;
     });
   }

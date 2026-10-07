@@ -1,0 +1,65 @@
+# M3c LAND lane: the ecotones between biomes proper (gotoecoedge: two ecos of one family on the same ground too, a
+# meadow meeting a savanna, a birch wood a dark forest), one screenshot each at noon (m3c_land_eco_<a>_<b>.png in the
+# working directory): the blend must dither smoothly over a few tiles, never step along tiles or seam across chunks.
+#   embervale.exe --script tools/scripts/m3c_land_ecotones.txt
+seed 2
+0.3  newgame
++0.02 hour 12
++0.1 god 1
++0.2 gotoecoedge meadow flowermeadow
++2.0 shot m3c_land_eco_meadow_flowermeadow.png
++0.2 gotoecoedge meadow prairie
++2.0 shot m3c_land_eco_meadow_prairie.png
++0.2 gotoecoedge prairie steppe
++2.0 shot m3c_land_eco_prairie_steppe.png
++0.2 gotoecoedge meadow savanna
++2.0 shot m3c_land_eco_meadow_savanna.png
++0.2 gotoecoedge heath meadow
++2.0 shot m3c_land_eco_heath_meadow.png
++0.2 gotoecoedge chalkdowns meadow
++2.0 shot m3c_land_eco_chalkdowns_meadow.png
++0.2 gotoecoedge mixedforest birchwood
++2.0 shot m3c_land_eco_mixedforest_birchwood.png
++0.2 gotoecoedge mixedforest giantforest
++2.0 shot m3c_land_eco_mixedforest_giantforest.png
++0.2 gotoecoedge birchwood darkforest
++2.0 shot m3c_land_eco_birchwood_darkforest.png
++0.2 gotoecoedge mixedforest meadow
++2.0 shot m3c_land_eco_mixedforest_meadow.png
++0.2 gotoecoedge taiga taigabog
++2.0 shot m3c_land_eco_taiga_taigabog.png
++0.2 gotoecoedge tundra snowfield
++2.0 shot m3c_land_eco_tundra_snowfield.png
++0.2 gotoecoedge glacier tundra
++2.0 shot m3c_land_eco_glacier_tundra.png
++0.2 gotoecoedge reedmarsh peatbog
++2.0 shot m3c_land_eco_reedmarsh_peatbog.png
++0.2 gotoecoedge badlands dunes
++2.0 shot m3c_land_eco_badlands_dunes.png
++0.2 gotoecoedge scrubland stonydesert
++2.0 shot m3c_land_eco_scrubland_stonydesert.png
++0.2 gotoecoedge sandbeach shingle
++2.0 shot m3c_land_eco_sandbeach_shingle.png
++0.2 gotoecoedge sandbeach coralcoast
++2.0 shot m3c_land_eco_sandbeach_coralcoast.png
++0.2 gotoecoedge jungle bamboo
++2.0 shot m3c_land_eco_jungle_bamboo.png
++0.2 gotoecoedge savanna dunes
++2.0 shot m3c_land_eco_savanna_dunes.png
++0.2 gotoecoedge blight meadow
++2.0 shot m3c_land_eco_blight_meadow.png
++0.2 gotoecoedge silverwood mixedforest
++2.0 shot m3c_land_eco_silverwood_mixedforest.png
++0.2 gotoecoedge mushroomforest mixedforest
++2.0 shot m3c_land_eco_mushroomforest_mixedforest.png
++0.2 gotoecoedge alpinemeadow taiga
++2.0 shot m3c_land_eco_alpinemeadow_taiga.png
++0.2 gotoecoedge lakedistrict meadow
++2.0 shot m3c_land_eco_lakedistrict_meadow.png
++0.2 gotoecoedge saltflats dunes
++2.0 shot m3c_land_eco_saltflats_dunes.png
++0.2 gotoecoedge mangrove sandbeach
++2.0 shot m3c_land_eco_mangrove_sandbeach.png
++0.2 gotoecoedge floodedforest reedmarsh
++2.0 shot m3c_land_eco_floodedforest_reedmarsh.png
++0.3 quit

@@ -459,7 +459,8 @@ int main(int argc, char** argv) {
   };
   auto doFight = [&](const std::string& name, int n) {
     if (game.eqWeapon < 0) game.debugKit();   // the real start is shirt-only (M0): fights get the test kit
-    static const char* names[] = {"wolf", "boar", "bear", "slime", "spider", "bat", "skeleton", "draugr", "goblin", "troll", "wraith", "mudcrab", "icewolf", "frostspider", "sandworm", "dragon"};
+    static const char* names[] = {"wolf", "boar", "bear", "slime", "spider", "bat", "skeleton", "draugr", "goblin", "troll", "wraith", "mudcrab", "icewolf", "frostspider", "sandworm", "dragon",
+                                  "scorpion", "hyena", "lurker", "yeti", "wisp", "emberhound", "blightspawn"};   // (M3c wildlife)
     for (int m = 0; m < (int)art::Monster::COUNT && m < (int)(sizeof(names) / sizeof(names[0])); m++)
       if (name == names[m]) game.debugSpawn((art::Monster)m, n > 0 ? n : (m == (int)art::Monster::Dragon ? 1 : 3), 60);
   };

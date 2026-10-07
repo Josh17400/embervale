@@ -8,6 +8,7 @@
 //                            partition face
 //     contract_1x.png        all eight at 1x
 //     real_<seed>_<n>_<type>.png   every floor of a few WORLDGEN_V7 buildings (genInterior), 3x; real_1x.png at 1x
+#include <cctype>
 #include "tools/preview/preview_util.h"
 
 #include "rpg/culture/culture.h"

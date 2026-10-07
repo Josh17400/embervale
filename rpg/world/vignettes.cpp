@@ -498,7 +498,14 @@ void EndlessSource::Impl::planVignettes(int32_t rx, int32_t ry, RegionData& D, c
         }
         if (woods >= 2) cands[(int)VignetteKind::HunterCamp].push_back({px, py, (int)(ch & 3), (uint32_t)(ch >> 32), hscore(px, py, 2) | 0x800000u, 0});
       }
-      if (f.biome == Biome::Plains || (f.biome == Biome::Snow && (ch & 1)))
+      // (M3c) the menhirs stand on open, wind-swept land (heath and moor, the chalk downs, the steppe and tundra, the
+      // standing-stone plains above all), not in a lush meadow or the blight; hunters camp on the savanna and steppe too
+      const bool openLand = ecoHas(f.eco, EF_OPEN) && !ecoHas(f.eco, EF_HOSTILE) && f.eco != Eco::FlowerMeadow && f.eco != Eco::LakeDistrict;
+      const bool stoneLand = f.eco == Eco::StonePlains || f.eco == Eco::Heath || f.eco == Eco::ChalkDowns || f.eco == Eco::Steppe || f.eco == Eco::Tundra ||
+                             f.eco == Eco::AlpineMeadow;
+      if (!wood && openLand && (ecoInfo(f.eco).trades & TR_HUNT) && (ch & 2))
+        cands[(int)VignetteKind::HunterCamp].push_back({px, py, (int)(ch & 3), (uint32_t)(ch >> 32), hscore(px, py, 2) | 0x800000u, 0});
+      if ((f.biome == Biome::Plains || (f.biome == Biome::Snow && (ch & 1))) && openLand && (stoneLand || (ch & 4)))
         cands[(int)VignetteKind::StandingStones].push_back({px, py, 0, (uint32_t)(ch >> 32), hscore(px, py, 6), 0});
       if (f.biome != Biome::Beach && f.biome != Biome::Mountain)
         cands[(int)VignetteKind::LoneGrave].push_back({px + 7, py + 5, 0, (uint32_t)(ch >> 30), hscore(px, py, 7), 0});
@@ -592,6 +599,11 @@ bool EndlessSource::Impl::wonderSpot(int32_t x, int32_t y, uint32_t sd, SitePlan
     case Biome::Desert: case Biome::Snow: k = c ? WonderKind::Starfall : WonderKind::DragonBones; break;
     default: return false;
   }
+  // (M3c) the wondrous lands keep their own wonders: a dragon's bones in the blight and the ash, a fallen star in the
+  // crystal barrens, an elder tree in the old-growth and the silverwood
+  if (f.eco == Eco::Blight || f.eco == Eco::AshFields || f.eco == Eco::PetrifiedForest) k = WonderKind::DragonBones;
+  else if (f.eco == Eco::CrystalBarrens || f.eco == Eco::StonePlains) k = WonderKind::Starfall;
+  else if (f.eco == Eco::GiantForest || f.eco == Eco::Silverwood) k = WonderKind::ElderTree;
   const int lv = natLevel(x, y);
   // a level clearing (radius 8) with no water near
   for (int r : {4, 8})

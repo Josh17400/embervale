@@ -1,0 +1,48 @@
+# M3c LIFE: every weather kind (rpg/world/biomes.h Sky) at full strength over a land that has it, by day; the last two
+# at night (ash glow, eerie light). Then back to the land's own weather.
+#   embervale.exe --script tools/scripts/m3c_life_weather.txt     (m3c_life_w_*.png in the working directory)
+seed 3
+0.3  newgame
++0.02 hour 13
++0.1 god 1
++0.2 gotoeco meadow
++2.0 weather temperate
++2.0 shot m3c_life_w_temperate.png
++0.1 weather showery
++2.0 shot m3c_life_w_showery.png
++0.1 gotoeco peatbog
++2.0 hour 7
++0.1 weather misty
++2.0 shot m3c_life_w_misty.png
++0.1 gotoeco savanna
++2.0 hour 13
++0.1 weather dry
++2.0 shot m3c_life_w_dry.png
++0.1 gotoeco dunes
++2.0 weather arid
++2.0 shot m3c_life_w_arid.png
++0.1 gotoeco snowfield
++2.0 weather snowy
++2.0 shot m3c_life_w_snowy.png
++0.1 gotoeco glacier
++2.0 weather blizzard
++2.0 shot m3c_life_w_blizzard.png
++0.1 gotoeco jungle
++2.0 weather monsoon
++2.0 shot m3c_life_w_monsoon.png
++0.1 gotoeco ashfields
++2.0 weather ashfall
++2.0 shot m3c_life_w_ashfall.png
++0.1 hour 23
++1.0 shot m3c_life_w_ashfall_night.png
++0.1 gotoeco crystalbarrens
++2.0 hour 13
++0.1 weather eerie
++2.0 shot m3c_life_w_eerie.png
++0.1 gotoeco blossomgrove
++2.0 weather auto
++3.0 shot m3c_life_w_blossom_petals.png
++0.1 gotoeco meadow
++2.0 hour 23
++3.0 shot m3c_life_w_meadow_fireflies.png
++0.3 quit

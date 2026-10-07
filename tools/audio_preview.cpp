@@ -5,8 +5,12 @@
 // style crossfading into Town in another), each checked for clipping, gaps, loudness against the classic Town, and
 // clicks at the crossing.
 //
-//   audio_preview [outDir] [--cultures]   default outDir: %LOCALAPPDATA%\Temp\claude\embervale_audio;
-//                                         --cultures: only the culture pieces
+// M3c (LIFE lane): the 15 ambient beds (by day, then by night) and the Wild piece in each of the 11 land moods, each
+// checked for clipping, clicks (sample jumps far above the bed's own) and level, and a bed-to-bed and a mood-to-mood
+// crossfade checked for clicks.
+//
+//   audio_preview [outDir] [--cultures] [--wild]   default outDir: %LOCALAPPDATA%\Temp\claude\embervale_audio;
+//                                                  --cultures: only the culture pieces; --wild: only the beds and moods
 #include "engine/audio.h"
 #include <algorithm>
 #include <array>
@@ -384,13 +388,97 @@ int culturePieces(const fs::path& dir) {
   std::printf("culture pieces: %s (%d problem%s)\n", problems ? "CHECK FAILED" : "all checks passed", problems, problems == 1 ? "" : "s");
   return problems;
 }
+const char* kBedName[15] = {"Breeze", "Meadow", "Woods", "DeepWoods", "Jungle", "Marsh", "Surf", "Cliffs", "DesertWind",
+                            "ColdWind", "Volcanic", "Crystal", "Blight", "Bamboo", "Mystic"};
+const char* kMoodName[11] = {"Pastoral", "Woodland", "Deep", "Exotic", "Wetland", "Coastal", "Arid", "Frozen", "Highland",
+                             "Wondrous", "Ominous"};
+// the largest jump between neighbouring samples (a click is a jump far above what the bed itself does)
+float maxJump(const std::vector<float>& x, size_t from = 0) {
+  float m = 0;
+  for (size_t i = std::max<size_t>(1, from); i < x.size(); i++) m = std::fmax(m, std::fabs(x[i] - x[i - 1]));
+  return m;
+}
+int wildlands(const fs::path& dir) {
+  int problems = 0;
+  std::printf("\n%-11s %7s %8s %7s %7s %6s %9s %8s\n", "BED", "peak", "peak dB", "rms dB", "night", "clip", "jump", "200ms dB");
+  float bedMax = 0;
+  for (int b = 0; b < 15; b++) {
+    auto a = std::make_unique<Audio>();
+    a->setAmbient((uint8_t)b, 1.0f);
+    a->setDaylight(1.0f);
+    auto x = renderFor(*a, 14.0f);
+    a->setDaylight(0.0f);
+    auto y = renderFor(*a, 10.0f);
+    const Levels L = levels(x, 3 * SR), N = levels(y, 3 * SR);
+    std::vector<float> all = x;
+    all.insert(all.end(), y.begin(), y.end());
+    const Loud LL = loudness(all, 3 * SR);
+    const float jump = maxJump(all, 3 * SR);
+    std::printf("%-11s %7.3f %8.1f %7.1f %7.1f %6d %9.4f %8.1f\n", kBedName[b], std::fmax(L.peak, N.peak), db(std::fmax(L.peak, N.peak)), db(L.rms),
+                db(N.rms), L.clipped + N.clipped, jump, db(LL.maxWin));
+    bedMax = std::fmax(bedMax, LL.mean);
+    // a bed must be audible but sit well under the music and the sfx; no clipping; nothing jumps like a click
+    if (L.clipped || N.clipped || std::fmax(L.peak, N.peak) > 0.45f || L.rms < 1e-3f || jump > 0.35f) { std::printf("  ^ PROBLEM\n"); problems++; }
+    writeWav(dir / (std::string("bed_") + kBedName[b] + ".wav"), all);
+  }
+  {   // walking from the shore into the cold: Surf crossfades into ColdWind, then the player goes indoors (level 0)
+    auto a = std::make_unique<Audio>();
+    a->setAmbient(6, 1.0f);
+    auto p1 = renderFor(*a, 6.0f);
+    a->setAmbient(9, 1.0f);
+    auto p2 = renderFor(*a, 5.0f);
+    a->setAmbient(9, 0.0f);
+    auto p3 = renderFor(*a, 4.0f);
+    std::vector<float> all = p1;
+    all.insert(all.end(), p2.begin(), p2.end());
+    all.insert(all.end(), p3.begin(), p3.end());
+    float tail = 0;
+    for (size_t i = all.size() - SR; i < all.size(); i++) tail = std::fmax(tail, std::fabs(all[i]));
+    const float jSwitch = maxJump(std::vector<float>(all.begin() + 6 * SR - 1, all.begin() + 6 * SR + SR / 2)), jElse = maxJump(p1, 3 * SR);
+    std::printf("bed crossfade Surf -> ColdWind -> indoors: jump at the switch %.4f vs steady %.4f, last second peak %.5f\n", jSwitch, jElse, tail);
+    if (jSwitch > 2.0f * jElse + 0.01f || tail > 0.02f) { std::printf("PROBLEM: bed crossfade artefact\n"); problems++; }
+    writeWav(dir / "bed_crossfade.wav", all);
+  }
+  std::printf("\n%-9s %7s %8s %7s %7s %6s %8s\n", "MOOD", "peak", "peak dB", "rms dB", "silent", "clip", "onset/m");
+  for (int m = 0; m < 11; m++) {
+    auto a = std::make_unique<Audio>();
+    a->setMood((uint8_t)m);
+    a->setMusic(Music::Wild);
+    auto x = renderFor(*a, 24.0f);
+    const Levels L = levels(x, 3 * SR);
+    const Structure S = structure(x, 3.0f);
+    const float gap = longestSilence(x, 3.0f);
+    std::printf("%-9s %7.3f %8.1f %7.1f %6.1fs %6d %8.0f\n", kMoodName[m], L.peak, db(L.peak), db(L.rms), gap, L.clipped, S.onsetsPerMin);
+    if (L.clipped || gap > 6.0f || L.peak > 0.5f) { std::printf("  ^ PROBLEM\n"); problems++; }
+    writeWav(dir / (std::string("mood_wild_") + kMoodName[m] + ".wav"), x);
+  }
+  {   // a mood change mid-piece crossfades (the Pastoral meadow into the Ominous blight), with the beds under it
+    auto a = std::make_unique<Audio>();
+    a->setMood(0); a->setAmbient(1, 1.0f); a->setMusic(Music::Wild);
+    auto p1 = renderFor(*a, 8.0f);
+    a->setMood(10); a->setAmbient(12, 1.0f);
+    auto p2 = renderFor(*a, 8.0f);
+    std::vector<float> all = p1;
+    all.insert(all.end(), p2.begin(), p2.end());
+    const Levels L = levels(all, 3 * SR);
+    const float jSwitch = maxJump(std::vector<float>(all.begin() + 8 * SR - 1, all.begin() + 8 * SR + SR / 4)), jElse = maxJump(p1, 3 * SR);
+    std::printf("mood crossfade Pastoral -> Ominous (with beds): peak %.3f, jump at the switch %.4f vs steady %.4f, longest gap %.1fs\n",
+                L.peak, jSwitch, jElse, longestSilence(all, 3.0f));
+    if (jSwitch > 1.5f * jElse + 0.01f || L.clipped) { std::printf("PROBLEM: mood crossfade artefact\n"); problems++; }
+    writeWav(dir / "mood_crossfade.wav", all);
+  }
+  std::printf("wildlands audio: %s (%d problem%s); loudest bed mean %.1f dB\n", problems ? "CHECK FAILED" : "all checks passed", problems,
+              problems == 1 ? "" : "s", db(bedMax));
+  return problems;
+}
 }  // namespace
 
 int main(int argc, char** argv) {
   fs::path dir;
-  bool culturesOnly = false;
+  bool culturesOnly = false, wildOnly = false;
   for (int i = 1; i < argc; i++) {
     if (std::string(argv[i]) == "--cultures") culturesOnly = true;
+    else if (std::string(argv[i]) == "--wild") wildOnly = true;
     else dir = argv[i];
   }
   if (dir.empty()) {
@@ -402,6 +490,10 @@ int main(int argc, char** argv) {
   if (ec) { std::fprintf(stderr, "cannot create %s: %s\n", dir.string().c_str(), ec.message().c_str()); return 1; }
   std::printf("output: %s\n(levels at default master 0.6, music volume 0.7)\n\n", dir.string().c_str());
   int problems = 0;
+  if (wildOnly) {
+    problems = wildlands(dir);
+    return problems ? 2 : 0;
+  }
   if (culturesOnly) {
     problems = culturePieces(dir);
     return problems ? 2 : 0;
@@ -531,6 +623,7 @@ int main(int argc, char** argv) {
     std::printf("Hit over Combat: hit-window peak %.3f vs bed peak %.3f, rms %.1f dB vs %.1f dB\n", H.peak, B.peak, db(H.rms), db(B.rms));
   }
   problems += culturePieces(dir);
+  problems += wildlands(dir);
   std::printf("\n%s (%d problem%s)\n", problems ? "CHECK FAILED" : "all checks passed", problems, problems == 1 ? "" : "s");
   return problems ? 2 : 0;
 }

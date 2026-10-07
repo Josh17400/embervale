@@ -49,6 +49,9 @@ class View {
   void creatorPrepare(Game& g);          // (M3 fixer round 2) the creator's homeland choices, made behind the card
   // test scripts (--script): hold a key as if it were physically down; one-shot presses go through event()
   void scriptHold(int scancode, bool down) { if (scancode >= 0 && scancode < 512) scriptKeys_[scancode] = down; }
+  // (M3c) test scripts: force a weather kind (rpg/world/biomes.h Sky value, at full strength; -1 back to the land's own)
+  void scriptSky(int sky) { skyOverride_ = sky; wxInit_ = false; wxSampleT_ = 0; }
+  int scriptSkyNow() const { return skyOverride_; }
 
  private:
   Pix* pix_ = nullptr;
@@ -176,6 +179,24 @@ class View {
   uint64_t musicStyle_ = 0, musicStyleOn_ = 0;   // M3: the culture's MusicStyle (packed) where the player is / playing
   float musicStyleT_ = 0;
   float combatT_ = 0;
+  // (M3c LIFE) the weather of the land round the player (render.cpp drawWeather: what the eco's Sky makes of the day
+  // and hour, averaged over a few tiles round the player and eased, so it fades across a biome border), the land's
+  // ambient bed and music mood (update), and the first-visit biome banner (hud.cpp)
+  struct Wx {
+    float rain = 0, pour = 0, drizzle = 0, fog = 0, snow = 0, blizz = 0, sand = 0, shimmer = 0, ash = 0, eerie = 0;
+    float er = 0.7f, eg = 0.9f, eb = 1.0f;   // the eerie motes' and haze's colour
+  };
+  Wx wx_;
+  bool wxInit_ = false;
+  int skyOverride_ = -1;
+  float wxSampleT_ = 0;
+  Wx wxWant_;
+  float ambLevel_ = 0;
+  int hereEco_ = -1;            // the eco under the player (outdoors), -1 unknown
+  float ecoT_ = 0;
+  std::string biomeBanner_;     // "THE SAVANNA": shown once per biome per adventure (Game::marks, Mk::Biome)
+  float biomeBannerT_ = 0;
+  int biomeBannerEco_ = -1;     // (M3c fixer) the eco the banner names (-1: none)
 
   // ---- input state
   bool scriptKeys_[512] = {};   // indexed by SDL_Scancode (SDL_SCANCODE_COUNT is 512)
@@ -314,6 +335,15 @@ class View {
   // its map id; drawWorld and travelArrive share it. While arriving_ is set, chunkTex never bakes a chunk inline (it
   // returns an empty texture: the screen is black) and drawWorld skips bakeVisibleNow, so no frame stalls.
   uint64_t terrainFrame(Game& g, const Map*& m);
+  uint64_t mapIdFor(const Game& g, int key) const;   // the map id terrainFrame gives the map whose Game::mapKey is key
+  // (M3c integration, the seat-of-power entry hitch) while the player walks up to a door, Game::preparedInterior holds
+  // the interior entering will show: its terrain chunks are queued for the bakers under the interior's map id (prefetch
+  // keeps those jobs) and its deco pieces and interior prop pieces are painted into cachedTex a little each frame
+  // (render_deco.cpp), so the entry frame finds them ready.
+  void prepareInterior(Game& g);
+  uint64_t prepMapId_ = 0;   // the interior map id being prepared (0: none)
+  const Map* prepMap_ = nullptr;
+  size_t prepCursor_ = 0;    // the next tile whose pieces are painted
   bool arriving_ = false;
   struct Arrival { bool on = false; float t = 0; int frames = 0; double ms = 0, wall0 = 0; };
   Arrival arrival_;

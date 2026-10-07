@@ -2365,3 +2365,52 @@ world goes through them**:
     plains, blighted land around dragon lairs.
 - Biomes come from climate (temperature, moisture, elevation, coast distance, geology), must stay deterministic, blend
   smoothly (ecotones), and settle cultures and village specialisations naturally (fishing on coasts, mining in badlands...).
+
+### 15.16 M3c "Wildlands" phase A (lead, 2026-10-07): the biome contracts
+
+Frozen for the M3c lanes (a lane that needs a change to a shared file reports it; the one owner named below may edit):
+- `rpg/world/biomes.h` (WORLD lane is its only editor): `Ground` and `Biome` moved here from `rpg/sim/world.h`;
+  **`Biome` is now the family** (the 10 kinds every older reader knows, unchanged) and **`Eco` is the biome proper**:
+  46 kinds (open sea; sandy shore, shingle, coral strand, sea cliffs; meadows, flower meadows, tallgrass prairie, steppe,
+  savanna, heath and moor, chalk downs, alpine meadows, standing-stone plains; forest, birch wood, old-growth forest,
+  dark forest, blossom grove, bamboo, jungle, mushroom forest, silverwood, autumn woods; taiga, taiga bog, snowfields,
+  tundra, glacier, frozen lakes; reed marsh, peat bog, mangrove coast, flooded forest, lake district; dune sea, stony
+  desert, badlands, salt flats, scrubland, oasis; mountains; ash fields, crystal barrens, petrified forest, blighted
+  land). `ecoInfo(e)`: name, script key, family (always the tile's Biome), base ground, map colour, flags (`EF_WOODED`,
+  `EF_ROCKY`, wet, cold, hot, coast, open, rare, magic, hostile), habitability, the trades its villages lean to
+  (`TR_*`), the weather profile (`Sky`), ambient bed (`Ambience`), music mood (`Mood`), and M6 resources (herbs,
+  hides, timber, minerals, ore bias). `ecoOfFamily`, `ecoFromName`, `ecoHas`.
+- Layers: `MacroSample::eco`, `ChunkData::eco / ecoNb`, `Map::eco / ecoNb` (`Map::ecoAt`, `ecoNbAt`), copied through
+  the Active Window and the terrain bake snapshots. `Map::blend` keeps its meaning (bits 0-3 the neighbouring family);
+  `ecoNb` is the neighbouring eco with the same weight (== eco where unblended). `gen::Stamp::eco()` sets eco and family
+  together. `EndlessSource::ecoAt` (tile classifier) and `ecoFar` (far estimate from the raw macro fields).
+- Classifier: `EndlessSource::Impl::ecoFor(family, e, t, m, ridge, level, x, y)` in `macro.cpp`, called by `tile()`,
+  `biomeLite()` (the ecotone ring), `macroFar` / `ecoFar`. Phase A is a first cut inside each family (the families,
+  and so every older behaviour, are unchanged); rare ecos come from slow noise fields with high thresholds. All 46
+  appear over seeds 1..3 (`rpg_test --biomes --seeds 1..3 --strict`).
+- Flora: 37 props appended to `art::Prop` (`AcaciaTree .. Petals`: 14 trees, 8 solid rocks / shrubs, 15 walk-through
+  ground covers), painted in `rpg/art/art_flora.cpp` (stand-ins: recoloured classic sprites), drawn per tile as
+  `art::floraVariant(p, v, eco)` (render.cpp cache key 0x5E). Shared predicates in `art_props.h`: `isTreeProp`,
+  `isFloraProp`, `isWildSolidProp`, `isWildlandsFlora / Solid` (prop_traits, worldmap, town_market, game projectiles and
+  `rpg_test --forest` use them). `bld::kindOfProp` classifies them, `propSolid` lets the ground covers be walked over.
+  `peakLand` moved to `prop_traits.cpp` (0..15 lands; peak cache key widened).
+- Wildlife: 7 monsters appended after the Dragon (Scorpion, Hyena, Lurker, Yeti, Wisp, EmberHound, Blightspawn; stats,
+  names, plurals, factions, stand-in art). `rpg/world/wildlife.h`: `denOf` (the generator's dens, frozen table),
+  `roamerOf` (Game's roaming wildlife), `huntTargets` (hunt quests), `caveTheme`.
+- Audio: `Audio::setAmbient(kind, level)` and `Audio::setMood(mood)` (stored only in phase A).
+- HUD: the location line names the eco (`SAVANNA`, `PEAT BOG`...).
+- Scripts and tests: `gotoeco <biome> [n]`, `eco`, `expect eco <biome>`, `ecotour` (`rpg/view/script_eco.cpp`);
+  `rpg_test --biomes [--seeds] [--radius] [--list] [--strict]` (census, layer consistency, determinism); CI runs it with
+  `--strict` and `rpg_test --forest --seeds 1..10`. `tools/preview/flora_gallery <dir> [eco]`.
+  `tools/scripts/m3c_lead_biomes.txt`.
+- SAVE_VER 9 (fixture `tests/fixtures/save_v9.bin`, layout of 8), ENDLESS_GEN_VER 12 (goldens re-recorded).
+- (Phase B, recorded by the integrator) WORLD: `SettlementCtx` gained `eco` and `worldSeed`; culture centres pack
+  eco + 1 into the top byte of `ClimateSample.moist`; scripts `gotoecoborder <a> <b>`, `gotospecialty <trade> [n]`
+  (the family-level `gotoecotone` stays in script_view.cpp). LAND: `floragrid`, `gotoecoedge <a> <b> [n]`
+  (script_land.cpp), `EMB_BAKEBENCH=1` / `EMB_BAKE_CLASSIC=1` bake timing hooks. LIFE: `weather <kind>|auto`,
+  `Audio::setDaylight`, `heavyWindup()`, first-visit biome banners remembered in `Game::marks`. CARRY:
+  `Game::preparedInterior(int& bldg)` (the door ahead's ground floor, made ahead; map key 100000 + bldg),
+  `Game::beginTravelTo(gx, gy)`, `Game::frameGapWorstMs`, scripts `perfmark`, `pickculture`, `travelpicked`.
+  Integration: `View::prepareInterior` (render_deco.cpp) queues the prepared interior's terrain chunks under its map id
+  (prefetch keeps them) and paints its deco / interior prop pieces into cachedTex ~1.5 ms a frame; `View::mapIdFor`;
+  `Game::debugFell(id, byPlayer)`.

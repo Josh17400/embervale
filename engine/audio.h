@@ -62,6 +62,17 @@ class Audio {
   // its scale, tempo, meter, instruments and ornament; Combat and Boss keep their structure but take its percussion.
   // A new style with the same mode crossfades like a new piece (the border-crossing moment, VISION_PLAN 5.6).
   void setMusic(Music m, const MusicStyle* style);
+  // M3c Wildlands: the ambient sound bed of the land the player stands in (kind: rpg/world/biomes.h Ambience value;
+  // level 0..1, 0 = silent: inside buildings, caves, menus) and the wilderness music's mood (Mood value) that Wild and
+  // Night take on top of the culture's style. Main thread; a change crossfades over about two seconds.
+  // (LIFE lane) 15 synthesised beds (wind, birds, insects, frogs, surf, gulls, jungle, desert wind, cold wind, volcanic
+  // rumble, crystal hum and chimes, blight drone, bamboo knocks, mystic shimmer) on their own quiet bus; the mood bends
+  // the Wild and Night pieces (tempo, density, register, drone, scale for the ominous and wondrous lands) and a new mood
+  // crossfades like a new piece.
+  void setAmbient(uint8_t kind, float level) { wantAmb_.store(kind); wantAmbLevel_.store(level); }
+  void setMood(uint8_t mood) { wantMood_.store(mood); }
+  // 0 night .. 1 day: the beds' day voices (birdsong, bees) give way to the night's (crickets, owls, more frogs)
+  void setDaylight(float d) { wantDay_.store(d); }
   void setMaster(float v) { master_.store(v); }
   void setMusicVolume(float v) { musicVol_.store(v); }
 
@@ -107,6 +118,7 @@ class Audio {
     MusicStyle ms;                   // ... unpacked
     audio_detail::Piece st{};        // the piece's parameters (the classic table's row, or built from the style)
     uint32_t motifRng = 1;           // M3: the culture's own motif stream (its tunes are recognisably its own)
+    uint8_t mood = 0;                // (M3c) the land's Mood it plays in (Wild / Night only; 255 none)
     int percVar = 0;                 // M3: which of the meter's percussion patterns this culture plays
     float x = 0, target = 0;         // crossfade position (equal-power), moves at 0.5/s
     double t = 0, nextStep = 0;
@@ -135,6 +147,18 @@ class Audio {
 
   SDL_AudioStream* stream_ = nullptr;
   std::atomic<float> master_{0.6f}, musicVol_{0.7f};
+  std::atomic<uint8_t> wantAmb_{0}, wantMood_{0};   // (M3c) setAmbient / setMood
+  std::atomic<float> wantAmbLevel_{0.0f}, wantDay_{1.0f};
+  // ---- (M3c) the ambient bed (audio thread): continuous layers eased toward the bed's profile, and sparse event voices
+  struct AmbP { float wind, windCut, hiss, hissCut, howl, surf, rumble, hum, drone, insects, rustle; };
+  AmbP ambCur_{0, 400, 0, 2000, 0, 0, 0, 0, 0, 0, 0};
+  float ambLvl_ = 0, ambDay_ = 1, ambT_ = 0, ambGustEnv_ = 0, ambGustTarget_ = 0.5f;
+  float ambLp_[8] = {}, ambSv1_ = 0, ambSv2_ = 0;
+  uint32_t ambRng_ = 0x6A09E667u;
+  static constexpr int AMB_EV = 18;
+  float ambEvT_[AMB_EV] = {};
+  void renderAmbient(float* out, int n, float blockSec);
+  void ambEvent(int e, float vol);
   std::atomic<int> wantMusic_{0};
   std::atomic<uint64_t> wantStyle_{0};
   // (M3 fixer) a sequence lock over the pair (wantMusic_, wantStyle_): setMusic bumps it to odd, writes both, bumps it
@@ -156,7 +180,7 @@ class Audio {
   void renderBlock(float* out, int n);
   void renderVoice(Voice& v, int n, const float* layerGain, float* sfx, float* mus, float* sndS, float* sndM);
   void updateMusic(float blockSec);
-  void startSeq(Seq& s, Music m, uint64_t style);
+  void startSeq(Seq& s, Music m, uint64_t style, uint8_t mood = 255);
   void compose(Seq& s);
   void genMotif(Seq& s, Motif& m, uint32_t& rng);
   void seqStep(Seq& s, int layer, float dly);

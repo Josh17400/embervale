@@ -13,6 +13,7 @@
 #include "rpg/build/blueprint.h"
 #include "rpg/sim/common.h"
 #include "rpg/sim/rooms.h"
+#include "rpg/world/biomes.h"
 #include "rpg/world/coords.h"
 #include "rpg/world/ids.h"
 
@@ -25,21 +26,7 @@ struct ChunkData;
 }
 class ChunkStreamer;   // rpg/sim/stream.h (SIM lane, M1): prefetching chunks off the main thread
 
-// Ground terrain. Order matters for rendering blend priority (higher index draws over lower at edges).
-enum class Ground : uint8_t {
-  DeepWater, Water, Sand, Swamp, Grass, Meadow, ForestFloor, Autumn, Tundra, Snow, Dirt, Farmland, Road, Plaza,
-  Rock,         // mountain, solid
-  CaveFloor, CaveWall, WoodFloor, StoneFloor, InteriorWall, Bridge, Lava, Ice, Void,
-  COUNT
-};
-inline bool groundSolid(Ground g) {
-  return g == Ground::DeepWater || g == Ground::Water || g == Ground::Rock || g == Ground::CaveWall ||
-         g == Ground::InteriorWall || g == Ground::Lava || g == Ground::Void;
-}
-inline bool groundWater(Ground g) { return g == Ground::DeepWater || g == Ground::Water; }
-
-enum class Biome : uint8_t { Ocean, Beach, Plains, Forest, Autumn, Taiga, Snow, Swamp, Desert, Mountain, COUNT };
-const char* biomeName(Biome b);
+// Ground, Biome (the family) and Eco (the biome proper, M3c) live in rpg/world/biomes.h.
 
 enum class MapKind : uint8_t { Overworld, Cave, Ruin, Interior };
 
@@ -299,6 +286,10 @@ struct Map {
   // draws them in cut stone kerbs, never with a pond's organic banks.
   static constexpr uint8_t PAVE_MARK = 0xF0, BOARDWALK_MARK = 0xE0, POOL_MARK = 0xD0;
   std::vector<uint8_t> blend;
+  // M3c Wildlands (rpg/world/biomes.h), endless overworld only (else empty): eco = the biome proper (Eco; its family is
+  // the biome byte), ecoNb = the Eco this tile blends toward (with blend's weight; == eco where the weight is 0 or the
+  // byte is a PAVE / BOARDWALK / POOL mark). Written by the generator (ChunkData::eco / ecoNb), never saved.
+  std::vector<uint8_t> eco, ecoNb;
   std::vector<uint8_t> height;   // M1: relief per tile (endless overworld only, else empty): bits 0..2 the level 0..7
                                  // (VISION_PLAN 11.1), HEIGHT_CLIFF a cliff face (not walkable), HEIGHT_RAMP a ramp or
                                  // stairs between levels (walkable). The view draws faces where the level steps down.
@@ -335,6 +326,9 @@ struct Map {
   uint8_t heightBits(int x, int y) const { return in(x, y) && !height.empty() ? height[(size_t)y * w + x] : 0; }
   Biome biomeAt(int x, int y) const { return in(x, y) && !biome.empty() ? (Biome)biome[(size_t)y * w + x] : Biome::Plains; }
   uint8_t blendAt(int x, int y) const { return in(x, y) && !blend.empty() ? blend[(size_t)y * w + x] : 0; }
+  // M3c: the biome proper (a map without the layer: its family's classic eco) and the eco it blends toward
+  Eco ecoAt(int x, int y) const { return in(x, y) && !eco.empty() ? (Eco)eco[(size_t)y * w + x] : ecoOfFamily(biomeAt(x, y)); }
+  Eco ecoNbAt(int x, int y) const { return in(x, y) && !ecoNb.empty() ? (Eco)ecoNb[(size_t)y * w + x] : ecoAt(x, y); }
   void alloc(int w_, int h_, Ground fill);
   void rebuildSolid();
 };

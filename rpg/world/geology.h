@@ -13,6 +13,7 @@
 //     "rare" (the metals of the culture alloys, M3/M6) only in a few remote provinces;
 //   - every province has a primary ore with affinity >= 160, at most two others above 96, and the rest low.
 #pragma once
+#include <cstddef>
 #include <cstdint>
 
 namespace ew {

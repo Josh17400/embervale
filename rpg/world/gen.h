@@ -70,24 +70,50 @@ constexpr int CG = 1 << CG_SHIFT;            // coarse grid spacing in tiles (16
 constexpr int BLK = REGION / CG;             // 16 samples per block side (a block covers one region)
 constexpr int HC = 8, HN = REGION / HC;      // the per-region river / lake index: 8-tile cells, 32 per side
 constexpr int BS = BLK + 3;                  // stored side: samples -1 .. BLK + 1
+// (M3c) the biome classifier's slow noise channels (macro.cpp ecoChan): value noise at a few scales, sampled with the
+// coarse fields so a tile reads them bilinearly (cheap) instead of drawing its own noise. Each family's rare and
+// patchy biomes read their own channels (one channel per decision inside a family).
+enum : int { ECH_ASH, ECH_CRYSTAL, ECH_PETRIFIED, ECH_A, ECH_B, ECH_C, ECH_D, ECH_E, ECH_F, ECH_G, ECH_MESA, ECH_N };
 struct Coarse {
   int32_t e = 0;      // elevation
   int32_t c = 0;      // continentalness
   int32_t t = 0, m = 0;
   int32_t ridge = 0;  // ridge strength 0..1 (rock cores, mining, lairs)
   int32_t rock = 0;   // rockiness 0..1 (Ground::Rock where the bilinear value passes 0.5)
+  uint16_t ch[ECH_N] = {};   // (M3c) eco noise channels (block samples only; coarse() leaves them 0)
 };
+// (M3c) a dragon lair the blight spreads round (macro.cpp blightAt)
+struct LairPt { int32_t x, y; uint32_t seed; };
 struct Block {
   Coarse s[BS * BS];
   int32_t eClean[BS * BS];   // elevation with single-sample relief peaks / pits removed (relief levels read this)
+  // (M3c) lazily filled caches of pure values (one source is single-threaded): the province rock at each coarse sample
+  // (0xFF: not asked yet), and the dragon lairs within reach of the block (filled once the start plan exists)
+  int32_t bx = 0, by = 0;    // the block's coordinates (region units)
+  mutable uint8_t rockC[BS * BS];
+  mutable bool lairsReady = false;
+  mutable std::vector<LairPt> lairs;
+  Block() { for (int i = 0; i < BS * BS; i++) rockC[i] = 0xFF; }
   const Coarse& at(int i, int j) const { return s[(j + 1) * BS + (i + 1)]; }
   int32_t clean(int i, int j) const { return eClean[(j + 1) * BS + (i + 1)]; }
+};
+// (M3c) what the classifier knows about one tile: its climate fields (with their ecotone jitter), relief, the eco noise
+// channels, and where to find the slow context (rock, lairs) of its block (null for the far estimates)
+struct EcoIn {
+  int32_t e = 0, t = 0, m = 0, ridge = 0;
+  int lv = 0;
+  int32_t x = 0, y = 0;
+  int32_t ch[ECH_N] = {};
+  const Block* blk = nullptr;   // the tile's block, or null (far / coarse callers: context drawn directly)
+  int bi = 0, bj = 0;           // the coarse sample nearest the tile in blk (jittered)
+  bool far = false;             // a coarse caller (habitability, maps): no blight, no culture
 };
 
 // one tile of the base land (L0 + biome; rivers and lakes come from hydro)
 struct TileF {
   int32_t e = 0, t = 0, m = 0, ridge = 0;
   Biome biome = Biome::Plains;
+  Eco eco = Eco::Meadow;   // M3c: the biome proper (ecoFamily(eco) == biome; macro.cpp ecoFor)
   uint8_t h = 0;       // natural relief level (before any flattening)
   bool sea = false;
   bool rock = false;
@@ -184,6 +210,13 @@ struct Stamp {
   void clear(int32_t gx, int32_t gy) { if (in(gx, gy)) c.prop[idx(gx, gy)] = 0; }
   void reserve(int32_t gx, int32_t gy) { if (in(gx, gy)) reserved[(size_t)idx(gx, gy)] = 1; }
   void biome(int32_t gx, int32_t gy, Biome b) { if (in(gx, gy)) c.biome[idx(gx, gy)] = (uint8_t)b; }
+  // M3c: set a tile's eco (and its family with it, so the two layers never disagree); unblended
+  void eco(int32_t gx, int32_t gy, Eco e) {
+    if (!in(gx, gy)) return;
+    const int i = idx(gx, gy);
+    c.eco[i] = c.ecoNb[i] = (uint8_t)e;
+    c.biome[i] = (uint8_t)ecoFamily(e);
+  }
   Ground at(int32_t gx, int32_t gy) const { return in(gx, gy) ? (Ground)c.ground[idx(gx, gy)] : Ground::Void; }
 };
 
@@ -192,6 +225,7 @@ struct BaseRect {
   int32_t x0 = 0, y0 = 0;
   int w = 0, h = 0;
   std::vector<uint8_t> ground, biome, level, riverW;   // riverW: 0 none, else the river's width (water tiles)
+  std::vector<uint8_t> eco;                            // M3c: Eco per tile (ecoFamily == biome)
   std::vector<uint8_t> lake;                           // 1 = lake water
   std::vector<uint8_t> bridge;                         // 1 = a footbridge across a river
   bool in(int32_t gx, int32_t gy) const { return gx >= x0 && gy >= y0 && gx < x0 + w && gy < y0 + h; }
@@ -230,7 +264,30 @@ struct EndlessSource::Impl {
   int natLevel(int32_t x, int32_t y);                             // relief level only (fast path)
   int32_t waterE(int32_t x, int32_t y);                           // the elevation tile() decides the sea with
   Biome classify(int32_t e, int32_t t, int32_t m, int32_t x, int32_t y, bool sea);
-  Ground groundFor(Biome b, int32_t e, int32_t t, int32_t x, int32_t y);
+  // M3c: the biome proper within family fam (rpg/world/biomes.h), from the tile's climate fields: e, t, m (with their
+  // ecotone jitter), ridge, natural relief level lv, at global tile (x, y). Pure, integer maths. The result's family is
+  // always fam. (The coarse form draws its channels and context directly: maps, habitability, cultures.)
+  Eco ecoFor(Biome fam, int32_t e, int32_t t, int32_t m, int32_t ridge, int lv, int32_t x, int32_t y, bool cultures = true);
+  // M3c, the real classifier: the family (with the wondrous lands that override the climate: ash fields on basalt,
+  // crystal barrens, petrified forests) and the eco from one EcoIn
+  Biome classifyIn(const gen::EcoIn& in, bool sea);
+  Eco ecoIn(Biome fam, const gen::EcoIn& in);
+  // the far estimate (EndlessSource::ecoFar / macroFar): the coarse eco of family fam, with the dragons' blight
+  Eco ecoFar(Biome fam, const gen::Coarse& c, int32_t x, int32_t y);
+  int32_t ecoChan(int32_t x, int32_t y, int k);                    // channel k drawn at a tile (Q16)
+  void ecoChannels(gen::EcoIn& in);                                // all channels drawn at in.x, in.y (coarse callers)
+  Rock rockIn(const gen::EcoIn& in);                               // the province rock (cached per coarse sample)
+  bool blightIn(const gen::EcoIn& in);                             // inside a dragon's blight (after the start plan)
+  bool blightAt(int32_t x, int32_t y) { gen::EcoIn in; in.x = x; in.y = y; return blightIn(in); }   // (any family)
+  bool elvenAt(int32_t x, int32_t y);                              // an elven (Sylvan / Starspire) culture cell
+  std::unordered_map<uint64_t, bool> elvenMemo;
+  int mesaLift(int32_t x, int32_t y, const gen::Block& B, int i, int j, int32_t fx, int32_t fy);   // badlands mesas
+  struct Mesa { bool ok = false; int32_t x = 0, y = 0, r = 0; };
+  const Mesa& mesaCell(int32_t ci, int32_t cj);                     // the mesa of a 48-tile lattice cell (memoised)
+  std::unordered_map<uint64_t, Mesa> mesaMemo;
+  bool mesaStair(int32_t x, int32_t y);                             // on the stairway line up a mesa's south side
+  Ground groundFor(Eco e, int32_t el, int32_t t, int32_t x, int32_t y);
+  bool lavaRift(int32_t x, int32_t y);                              // an ash field's lava crack at a tile
   MacroSample macro(int32_t x, int32_t y);                        // the public sample
   gen::Lru<gen::Block> blocks;
   std::shared_ptr<const gen::Block> lastBlock;
@@ -272,6 +329,7 @@ struct EndlessSource::Impl {
   Poi poiRaw(SiteType t, int32_t cx, int32_t cy);                   // raw candidate (before roads / suppression)
   bool caveSpot(int32_t px, int32_t py, uint32_t seed, int32_t& ox, int32_t& oy);
   bool lairOf(int32_t lx, int32_t ly, int32_t& ox, int32_t& oy, uint32_t& sd);   // per 2x2 kingdom cells
+  bool nearLair(int32_t x, int32_t y, int32_t r);                   // (M3c) a lair within r (after the start plan)
   std::shared_ptr<const gen::RegionData> regionData(int32_t rx, int32_t ry);
   void buildRegion(int32_t rx, int32_t ry, gen::RegionData& D);
   std::unordered_map<uint64_t, KCell> kcells;
@@ -297,6 +355,8 @@ struct EndlessSource::Impl {
   // ================================================================ M2 geology (geology.cpp)
   Geology geology(int32_t x, int32_t y);                            // the province's (memoised per province)
   std::unordered_map<uint64_t, Geology> geoMemo;
+  Rock provinceRock(int32_t x, int32_t y);                          // (M3c) geology(x, y).rock without the ores (no kingdoms asked)
+  std::unordered_map<uint64_t, Rock> rockMemo;
   uint32_t landmass(int32_t x, int32_t y);                          // the landmass rule (geology.cpp)
   std::unordered_map<uint64_t, uint32_t> landMemo;                  // 128-tile land cell -> landmass id
 
@@ -328,7 +388,7 @@ struct EndlessSource::Impl {
   RangeCrest rangeCrest(int32_t cellX, int32_t cellY);              // the highest crest of a ridge cell
   // M2 relief helpers
   int32_t reliefE(int32_t x, int32_t y);                            // the warped clean elevation natLevel reads
-  Biome biomeLite(int32_t x, int32_t y);                            // tile()'s land biome without the beach / rock
+  Biome biomeLite(int32_t x, int32_t y, Eco* eco = nullptr);       // tile()'s land biome without the beach / rock (M3c: and its eco)
 
   // ================================================================ M3 cultures (culture_map.cpp, CULTURE lane)
   // Where each culture lives on the land, and the names it gives things. The atlas (rpg/culture) holds the cultures.

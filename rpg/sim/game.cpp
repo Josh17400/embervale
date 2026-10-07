@@ -1,6 +1,8 @@
 // EMBERVALE core simulation: player control, movement/collision, combat, AI, spawning, maps.
 #include "rpg/sim/game.h"
 #include <cstdlib>
+#include <chrono>
+#include <cstdio>
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -57,6 +59,10 @@ void Game::newEndlessGame(uint64_t s) {
 // every per-game state back to a new game's: the player alone, no quests, nothing looted (beginWorld, loading a save)
 void Game::resetSession() {
   inside = false; subSite = -1; subBldg = -1; subFloor = 0;
+  prep_ = PrepInterior(); prepBldg_ = -1; prepT_ = 0;   // (M3c carry) nothing made ahead belongs to a new world
+#ifndef __EMSCRIPTEN__
+  prepJob_.reset(); prepJobKey_ = 0;
+#endif
   lodging = Lodging();
   time = 0; hour = 8.5f; day = 1;
   quests.clear(); nextQuestId = 1; trackedQuest = -1;
@@ -298,6 +304,11 @@ void Game::prefetchTick(float dt) {
 
 void Game::frameWork(double budgetMs) {
   frameWorkCalls_++;
+  {
+    const double now = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    if (frameGapLastMs_ > 0) frameGapWorstMs = std::max(frameGapWorstMs, now - frameGapLastMs_);
+    frameGapLastMs_ = now;
+  }
   // M2: while a journey gathers its destination behind a black screen there is nothing else to draw: the web's pump
   // may take most of the frame (natively the worker does the work and this only collects it)
   if (travel.phase == TravelPhase::Gather && travel.t >= kTravelFadeOut) budgetMs = std::max(budgetMs, kTravelBlackBudgetMs);
@@ -417,15 +428,47 @@ void Game::moveActor(Actor& a, Vec2 d) {
     return solidAt(x - rx, y - ry, fl) || solidAt(x + rx, y - ry, fl) || solidAt(x - rx, y + ry, fl) || solidAt(x + rx, y + ry, fl) ||
            (!fl && pillarHit(x, y, rx, ry));
   };
+  // (M3c fixer round 2, review: "the hero stops dead on tree trunks when walking straight through dense woods") the
+  // player's slide looks up to most of a tile (14 px) to either side of the blocked axis for the nearest opening (the side
+  // probe must itself be free, so it never slides through a wall) and steers toward it at the walking speed: a trunk
+  // met head-on is walked round instead of snagging the joystick. Everyone else keeps the small corner nudge.
+  // (a wall with no opening within reach still stops him)
+  auto slide = [&](bool alongX, float st) {
+    // the small corner nudge first, exactly as before (doorways, open fronts' pillars and tile corners)
+    if (alongX) {
+      if (!hit(a.p.x + st, a.p.y - 2)) { a.p.y -= 0.6f; return; }
+      if (!hit(a.p.x + st, a.p.y + 2)) { a.p.y += 0.6f; return; }
+    } else {
+      if (!hit(a.p.x - 2, a.p.y + st)) { a.p.x -= 0.6f; return; }
+      if (!hit(a.p.x + 2, a.p.y + st)) { a.p.x += 0.6f; return; }
+    }
+    if (!a.player || inside) return;
+    // (only out in the open, 3 tiles clear of buildings and walls: by a building the wide search could hop the hero into
+    // the next bay of an open front or the next doorway, where walking straight is meant)
+    {
+      const Map& om = world.over;
+      const int tx = (int)std::floor(a.p.x / TILE), ty = (int)std::floor(a.p.y / TILE);
+      for (int oy = -3; oy <= 3; oy++)
+        for (int ox = -3; ox <= 3; ox++)
+          if (om.in(tx + ox, ty + oy) && (om.bldgAt[(size_t)(ty + oy) * om.w + tx + ox] >= 0 || om.wall[(size_t)(ty + oy) * om.w + tx + ox])) return;
+    }
+    const float sp = std::max(0.6f, std::fabs(st));
+    for (int k = 3; k <= 14; k++) {   // (most of a tile: a solid tile met off-centre is walked round)
+      const float kk = (float)k;
+      if (alongX) {
+        if (!hit(a.p.x + st, a.p.y - kk) && !hit(a.p.x, a.p.y - std::min(kk, sp))) { a.p.y -= std::min(kk, sp); return; }
+        if (!hit(a.p.x + st, a.p.y + kk) && !hit(a.p.x, a.p.y + std::min(kk, sp))) { a.p.y += std::min(kk, sp); return; }
+      } else {
+        if (!hit(a.p.x - kk, a.p.y + st) && !hit(a.p.x - std::min(kk, sp), a.p.y)) { a.p.x -= std::min(kk, sp); return; }
+        if (!hit(a.p.x + kk, a.p.y + st) && !hit(a.p.x + std::min(kk, sp), a.p.y)) { a.p.x += std::min(kk, sp); return; }
+      }
+    }
+  };
   for (int i = 0; i < (int)steps; i++) {
     if (!hit(a.p.x + s.x, a.p.y)) a.p.x += s.x;
-    else if (s.y == 0) {   // corner slide: nudge around tile corners
-      if (!hit(a.p.x + s.x, a.p.y - 2)) a.p.y -= 0.6f; else if (!hit(a.p.x + s.x, a.p.y + 2)) a.p.y += 0.6f;
-    }
+    else if (s.y == 0 || (a.player && std::fabs(s.y) < std::fabs(s.x) * 0.5f)) slide(true, s.x);   // corner slide: steer round tile corners and trunks
     if (!hit(a.p.x, a.p.y + s.y)) a.p.y += s.y;
-    else if (s.x == 0) {
-      if (!hit(a.p.x - 2, a.p.y + s.y)) a.p.x -= 0.6f; else if (!hit(a.p.x + 2, a.p.y + s.y)) a.p.x += 0.6f;
-    }
+    else if (s.x == 0 || (a.player && std::fabs(s.x) < std::fabs(s.y) * 0.5f)) slide(false, s.y);   // (a joystick is never quite straight)
   }
 }
 
@@ -447,6 +490,7 @@ void Game::update(float dt, const Input& in) {
   if (blessT > 0) { blessT -= dt; if (blessT <= 0) recalcPlayer(); }
   if (sleepFade > 0) sleepFade = std::max(0.0f, sleepFade - dt);
 
+  if (!inside) prepInteriorTick(dt);   // (M3c carry) the interior of the door ahead, before it is reached
   updatePlayer(dt, in);
   if (world.endless && !inside) { maybeRecentre(); prefetchTick(dt); }
   if (!inside && (exploreT_ -= dt) <= 0) {   // fog of war: what the screen shows around the player (global tiles)
@@ -799,7 +843,8 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
        std::to_string((int)std::ceil(dmg)) + (crit ? "!" : ""));
   if (crit) emit(Ev::Shake, v.p, 0, 3.0f);
   emit(Ev::Hit, v.p + Vec2(0, -6), 0, dmg);
-  if (v.human || v.mon == Monster::Wolf || v.mon == Monster::Bear || v.mon == Monster::Boar || v.mon == Monster::Troll || v.mon == Monster::IceWolf || v.mon == Monster::Dragon)
+  if (v.human || v.mon == Monster::Wolf || v.mon == Monster::Bear || v.mon == Monster::Boar || v.mon == Monster::Troll || v.mon == Monster::IceWolf || v.mon == Monster::Dragon ||
+      v.mon == Monster::Hyena || v.mon == Monster::Lurker || v.mon == Monster::Yeti || v.mon == Monster::EmberHound)
     emit(Ev::Blood, v.p + Vec2(0, -6));
   if (v.player) { sfx((int)Sfx::PlayerHurt, v.p); emit(Ev::Shake, v.p, 0, 3); v.iframes = 0.35f; }
   else sfx((int)(dmg > 18 ? Sfx::HitHeavy : Sfx::Hit), v.p, 0.9f + rng_.f() * 0.2f);
@@ -808,13 +853,15 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
     v.target = attacker;
     // a committed lunge or heavy slam can't be interrupted by a light hit: roll, don't trade
     bool committed = v.st == AState::Strike || (v.st == AState::Windup && (v.heavy || v.lunge) && dmg < v.maxHp * 0.3f);
-    if ((v.mon == Monster::Wolf || v.mon == Monster::IceWolf) && !v.human && dmg < v.maxHp * 0.4f) committed = true;   // wolves shrug off light cuts
+    // the wolf-like pack hunters (wolves, ice wolves, M3c hyenas and ember hounds) share the wolves' nerve rules
+    const bool wolfLike = !v.human && (v.mon == Monster::Wolf || v.mon == Monster::IceWolf || v.mon == Monster::Hyena || v.mon == Monster::EmberHound);
+    if (wolfLike && dmg < v.maxHp * 0.4f) committed = true;   // wolves shrug off light cuts
     if (!v.boss && dmg > v.maxHp * 0.12f && !committed) { v.st = AState::Hurt; v.stT = 0; v.heavy = false; v.lunge = false; }
     // goblins lose their nerve when badly hurt; so does the last wolf of a pack
     bool lastWolf = false;
     // (inside a settlement nothing flees: whatever got in fights until the guards end it, as the leash rule says)
     const bool inTownV = !inside && settlementAt(v.p) >= 0;
-    if ((v.mon == Monster::Wolf || v.mon == Monster::IceWolf) && !v.human && v.hp > 0 && v.hp < v.maxHp * 0.4f && !inTownV) {
+    if (wolfLike && v.hp > 0 && v.hp < v.maxHp * 0.4f && !inTownV) {
       lastWolf = true;
       for (const Actor& o : actors) if (o.id != v.id && o.mon == v.mon && !o.human && o.hostile && o.st != AState::Dead && len2(o.p - v.p) < 160 * 160) lastWolf = false;
     }
@@ -1016,8 +1063,9 @@ void Game::updateProjectiles(float dt) {
       int pp = m.propAt(tx, ty);
       if (pp) {
         Prop p = (Prop)(pp - 1);
-        if (p == Prop::OakTree || p == Prop::OakTree2 || p == Prop::PineTree || p == Prop::PineTree2 || p == Prop::SnowPine || p == Prop::Boulder ||
-            p == Prop::BirchTree || p == Prop::AutumnTree || p == Prop::WillowTree || p == Prop::Stalagmite) wall = true;
+        // (M3c) every tree, and the tall Wildlands rocks, stop a shot (art_props.h isTreeProp)
+        if ((art::isTreeProp(p) && p != Prop::DeadTree && p != Prop::PalmTree) || p == Prop::Boulder || p == Prop::Stalagmite ||
+            p == Prop::Hoodoo || p == Prop::CrystalSpire || p == Prop::BasaltColumns || p == Prop::IceSerac || p == Prop::TermiteMound) wall = true;
       }
       if (wall) dead = true;
     }
@@ -1222,11 +1270,11 @@ int Game::spawnHuman(const Spawn& sp, Vec2 p) {
   return a.id;
 }
 
-void Game::debugFell(int actorId) {
+void Game::debugFell(int actorId, bool byPlayer) {
   const int i = findActor(actorId);
   if (i <= 0) return;
   actors[(size_t)i].hp = 0;
-  kill(actors[(size_t)i], -1);
+  kill(actors[(size_t)i], byPlayer ? pl().id : -1);
 }
 
 void Game::clearNonPlayer() {
@@ -1504,27 +1552,17 @@ void Game::updateSpawning(float dt) {
     if (world.over.blocked(tx, ty) || world.siteAt(tx, ty, 8) >= 0) continue;
     Ground g = world.over.at(tx, ty);
     if (g == Ground::Road || g == Ground::Bridge) continue;
-    Biome b = world.over.biomeAt(tx, ty);
     bool night = isNight();
     Monster m;
     float q = rng_.f();
-    switch (b) {
-      case Biome::Plains: m = night && q < 0.35f ? Monster::Skeleton : (q < 0.4f ? Monster::Wolf : q < 0.65f ? Monster::Boar : q < 0.85f ? Monster::Slime : Monster::Goblin); break;
-      case Biome::Forest: m = q < 0.4f ? Monster::Wolf : q < 0.6f ? Monster::Spider : q < 0.8f ? Monster::Boar : Monster::Bear; break;
-      case Biome::Autumn: m = q < 0.35f ? Monster::Boar : q < 0.6f ? Monster::Spider : q < 0.8f ? Monster::Goblin : Monster::Bear; break;
-      case Biome::Taiga: m = q < 0.5f ? Monster::Wolf : q < 0.8f ? Monster::Bear : Monster::Troll; break;
-      case Biome::Snow: m = q < 0.5f ? Monster::IceWolf : q < 0.8f ? Monster::FrostSpider : Monster::Troll; break;
-      case Biome::Swamp: m = night && q < 0.3f ? Monster::Wraith : (q < 0.4f ? Monster::Slime : q < 0.7f ? Monster::Mudcrab : Monster::Spider); break;
-      case Biome::Desert: m = night && q < 0.4f ? Monster::Skeleton : (q < 0.5f ? Monster::Sandworm : Monster::Goblin); break;
-      case Biome::Beach: m = Monster::Mudcrab; break;
-      default: continue;
-    }
+    // (M3c) the biome's own wildlife (rpg/world/wildlife.cpp, LIFE lane)
+    if (!ew::roamerOf(world.over.ecoAt(tx, ty), night, q, m)) continue;
     int lvl = world.zoneLevel(tx, ty);
-    int pack = (m == Monster::Wolf || m == Monster::IceWolf || m == Monster::Goblin || m == Monster::Slime) ? 1 + rng_.irange(3) : 1;
+    int pack = (m == Monster::Wolf || m == Monster::IceWolf || m == Monster::Goblin || m == Monster::Slime || m == Monster::Hyena) ? 1 + rng_.irange(3) : 1;
     if (lvl <= 2 && pack > 2) pack = 2;
     if (haveDens) {
       pack = m == Monster::Slime ? 1 + rng_.irange(2) : 1;
-      if ((m == Monster::Troll || m == Monster::Bear) && lvl <= 3) continue;   // big brutes live in dens near home
+      if ((m == Monster::Troll || m == Monster::Bear || m == Monster::Yeti || m == Monster::Lurker) && lvl <= 3) continue;   // big brutes live in dens near home
     }
     for (int k = 0; k < pack; k++) {
       Vec2 at = sp + Vec2(rng_.range(-12, 12), rng_.range(-12, 12));
@@ -1664,7 +1702,7 @@ void Game::updateLocation() {
     }
   }
   if (curSite >= 0) locName = world.sites[curSite].name;
-  else locName = biomeName(world.over.biomeAt(tx, ty));
+  else locName = ecoName(world.over.ecoAt(tx, ty));   // (M3c) the biome proper: SAVANNA, BIRCH WOOD, PEAT BOG...
 }
 
 // ------------------------------------------------------------------ maps
@@ -1708,7 +1746,8 @@ static int wayOutside(const Bldg& b, int innerW, int exitX, int x) {
 void Game::enterBuilding(int bi, int col) {
   const Bldg& b = world.over.bldgs[bi];
   inside = true; subSite = -1; subBldg = bi; subFloor = 0;
-  genInterior(sub, b, b.seed, 0);
+  if (takePreparedInterior(b, 0, sub)) prepHits++;   // (M3c carry) made while the player walked up to the door
+  else { genInterior(sub, b, b.seed, 0); prepMisses++; }
   for (int i = 0; i < sub.w * sub.h; i++)
     if (sub.prop[(size_t)i] == (int)Prop::Chest + 1 && looted.count(((uint64_t)mapKey() << 32) | (uint32_t)i)) sub.prop[(size_t)i] = (int)Prop::ChestOpen + 1;
   sub.rebuildSolid();
@@ -1725,6 +1764,89 @@ void Game::enterBuilding(int bi, int col) {
   questMapLoaded();   // M2: a parcel's recipient (quests.cpp)
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p);
+}
+
+// (M3c carry, owner carry-over: a ~60 ms hitch walking into a seat of power) the interior of the building whose door
+// the player walks up to is made ahead, a few times a second: the nearest door within kPrepTiles. Natively a worker
+// thread makes it from a copy of the building (genInterior reads nothing else); on the web, which has no threads, it is
+// made in one go on a step where the chunk streamer has nothing to do (a couple of ms on desktop, the same work the
+// door would otherwise do in the frame it is crossed).
+namespace {
+constexpr int kPrepTiles = 9;
+}
+bool Game::takePreparedInterior(const Bldg& b, int floor, Map& out) {
+  const uint64_t key = interiorKey(b, floor);
+#ifndef __EMSCRIPTEN__
+  if (prepJob_ && prepJob_->valid() && prepJobKey_ == key) {   // still being made: wait for it (shorter than starting over)
+    prep_.map = prepJob_->get();
+    prep_.key = key;
+    prep_.ready = true;
+    prepJob_.reset();
+  }
+#endif
+  if (!prep_.ready || prep_.key != key) return false;
+  out = std::move(prep_.map);
+  prep_ = PrepInterior();
+  prepBldg_ = -1;
+  return true;
+}
+
+const Map* Game::preparedInterior(int& bldg) const {
+  bldg = prepBldg_;
+  return prep_.ready && prepBldg_ >= 0 && prepBldg_ < (int)world.over.bldgs.size() ? &prep_.map : nullptr;
+}
+
+void Game::prepInteriorTick(float dt) {
+#ifndef __EMSCRIPTEN__
+  // a finished job is collected whenever it lands
+  if (prepJob_ && prepJob_->valid() && prepJob_->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+    prep_.map = prepJob_->get();
+    prep_.key = prepJobKey_;
+    prep_.ready = true;
+    prepBldg_ = prepJobBldg_;
+    prepJob_.reset();
+  }
+#endif
+  prepT_ -= dt;
+  if (prepT_ > 0 || inside) return;
+  prepT_ = 0.15f;
+  const Map& m = world.over;
+  if (m.bldgAt.empty()) return;
+  const int px = (int)std::floor(pl().p.x / TILE), py = (int)std::floor(pl().p.y / TILE);
+  int best = -1, bestD = 1 << 30;
+  for (int y = py - kPrepTiles; y <= py + kPrepTiles; y++)
+    for (int x = px - kPrepTiles; x <= px + kPrepTiles; x++) {
+      if (!m.in(x, y)) continue;
+      const int bi = m.bldgAt[(size_t)y * m.w + x];
+      if (bi < 0 || bi == best) continue;
+      const Bldg& b = m.bldgs[(size_t)bi];
+      // the door, or the nearest way in of an open front (its whole front row is in reach)
+      const int dx = std::max(0, std::max(b.r.x - px, px - (b.r.x + b.r.w - 1))), dy = b.doorY() + 1 - py;
+      const int d = dx * dx + dy * dy * 2;
+      if (d < bestD) { bestD = d; best = bi; }
+    }
+  if (best < 0 || bestD > kPrepTiles * kPrepTiles * 2) return;
+  const Bldg& b = m.bldgs[(size_t)best];
+  const uint64_t key = interiorKey(b, 0);
+  if (prep_.key == key && prep_.ready) { prepBldg_ = best; return; }
+#ifndef __EMSCRIPTEN__
+  if (prepJob_ && prepJob_->valid()) return;   // one at a time (the one being made lands first)
+  prepJobKey_ = key;
+  prepJobBldg_ = best;
+  const Bldg copy = b;
+  prepJob_ = std::make_shared<std::future<Map>>(std::async(std::launch::async, [copy] {
+    Map out;
+    genInterior(out, copy, copy.seed, 0);
+    return out;
+  }));
+#else
+  if (world.streamer && !world.streamer->idle()) return;   // a step the streamer has no work in
+  prep_ = PrepInterior();
+  genInterior(prep_.map, b, b.seed, 0);
+  prep_.key = key;
+  prep_.ready = true;
+  prepBldg_ = best;
+#endif
 }
 
 // M0b: another floor of the current building. The new floor's map is generated like any interior (looted chests

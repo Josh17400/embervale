@@ -27,7 +27,10 @@ namespace ew {
 
 // Bumped when the endless generator's output changes. Old saves are not kept compatible across M1 (owner rule,
 // 2026-10-04); the save stores it so a mismatch can say "this save is from an older world".
-constexpr int ENDLESS_GEN_VER = 11;  // 11: M3b Builders & Societies (societies, the builder: settlements ask for the
+constexpr int ENDLESS_GEN_VER = 12;  // 12: M3c Wildlands (46 biomes: ChunkData::eco / ecoNb, eco-driven ground, flora,
+                                     //     dens, settlements and cultures). Until M3c ships, the M3c lanes change the
+                                     //     output under 12 and regenerate the goldens the WORLD lane owns.
+                                     // 11: M3b Builders & Societies (societies, the builder: settlements ask for the
                                      //     society's buildings, every building designed by the builder). Until M3b ships,
                                      //     the M3b lanes change the output under 11 and regenerate the goldens they own.
                                      // 10: M3 Many Peoples (cultures: names, architecture, layouts, census looks). Until
@@ -46,6 +49,7 @@ struct MacroSample {
   int32_t temp = 0;          // temperature (0 cold .. 1 hot)
   int32_t moist = 0;         // moisture (0 dry .. 1 wet)
   Biome biome = Biome::Plains;
+  Eco eco = Eco::Meadow;     // M3c: the biome proper (rpg/world/biomes.h); ecoFamily(eco) == biome
   uint8_t height = 0;        // relief level 0..7 (VISION_PLAN 11.1): cliffs where it steps down
   bool water = false;        // sea, lake or river
   Gid kingdom = 0;           // whose land this is (0: wildlands, nobody's)
@@ -163,6 +167,8 @@ struct ChunkData {
   uint8_t prop[N] = {};             // art::Prop + 1, 0 = none
   uint8_t biome[N] = {};            // Biome
   uint8_t blend[N] = {};            // M2 biome transitions: Map::blend (bits 0-3 the other biome, 4-7 its weight 0..8)
+  uint8_t eco[N] = {};              // M3c: Eco, the biome proper (its family is biome[]); Map::eco
+  uint8_t ecoNb[N] = {};            // M3c: the Eco this tile blends toward (blend's weight); == eco where unblended; Map::ecoNb
   uint8_t height[N] = {};           // relief (Map::height bits): level 0..7 in bits 0-2 (VISION_PLAN 11.1), Map::HEIGHT_CLIFF
                                     // = a cliff face (not walkable), Map::HEIGHT_RAMP = a ramp / stairs between levels
   uint8_t wall[N] = {};             // city wall pieces
@@ -199,6 +205,11 @@ class EndlessSource {
   // M1: a cheap far-zoom sample (world map zoomed out, overviews): the raw macro fields at one point, no tile detail,
   // no rivers or lakes (water = sea only), no relief cleanup. Builds no caches.
   MacroSample macroFar(int32_t gx, int32_t gy);
+  // M3c: the eco of a global tile as the chunks have it before settlements and stamps (tile() + the classifier: no
+  // rivers, lakes, kingdoms; cheaper than macro()). ecoFar: the far-zoom estimate from the raw macro fields (like
+  // macroFar: no warps, no beach band, no caches built), for maps and searches; ecoAt confirms.
+  Eco ecoAt(int32_t gx, int32_t gy);
+  Eco ecoFar(int32_t gx, int32_t gy);
   // M1: the road bearings handed to a settlement's generator (radians, 0 = east, y down; strongest first)
   std::vector<float> roadBearings(Gid site);
   const RegionPlan& region(int32_t rx, int32_t ry);       // cached; the reference stays valid until the next call

@@ -11,6 +11,7 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include "rpg/sim/game_internal.h"
 #include "tools/tests/tests.h"
 
 bool openingStep(Game& g, std::vector<int>& path, int& clock, Input& in);   // seed_run.cpp: the opening bot
@@ -51,7 +52,7 @@ struct Bot {
       if (!e.hostile || e.st != AState::Windup) continue;
       float d = len(e.p - p.p);
       if (d > e.range + (e.lunge ? 48 : e.heavy ? 34 : 26)) continue;
-      float wu = e.heavy ? (e.mon == art::Monster::Troll ? 0.9f : 0.8f) : e.windup;
+      float wu = e.heavy ? heavyWindup(e.mon) : e.windup;   // (game_internal.h: the brutes, the sting, the spores)
       long long key = (long long)e.id * 100000 + (long long)((g.time - e.stT) * 20);
       auto it = seen.find(key);
       if (it == seen.end()) {
@@ -343,7 +344,11 @@ int runMetrics(uint64_t A, uint64_t B, float progSecs) {
   {
     struct M { art::Monster m; const char* n; };
     const M ms[] = {{art::Monster::Wolf, "wolf"}, {art::Monster::Boar, "boar"}, {art::Monster::Goblin, "goblin"}, {art::Monster::Skeleton, "skeleton"},
-                    {art::Monster::Bear, "bear"}, {art::Monster::Troll, "troll"}};
+                    {art::Monster::Bear, "bear"}, {art::Monster::Troll, "troll"},
+                    // (M3c) the Wildlands wildlife
+                    {art::Monster::Scorpion, "scorpion"}, {art::Monster::Hyena, "hyena"}, {art::Monster::Lurker, "lurker"},
+                    {art::Monster::Yeti, "yeti"}, {art::Monster::Wisp, "wisp"}, {art::Monster::EmberHound, "emberhound"},
+                    {art::Monster::Blightspawn, "blightspawn"}};
     for (int L : {1, 3, 5}) {
       printf("METRIC hits to kill at lvl %d:", L);
       for (const M& m : ms) {
@@ -357,7 +362,7 @@ int runMetrics(uint64_t A, uint64_t B, float progSecs) {
           }
         printf("  %s %.1f (%.0fs, %.1f rolls%s)", m.n, n ? hits / n : -1.0, n ? secs / n : 0.0, n ? rolls / n : 0.0, died ? (std::string(", ") + std::to_string(died) + " died").c_str() : "");
       }
-      printf("   [target 3-4 small, 8-12 bear/troll]\n");
+      printf("   [target 3-4 small, 8-12 bear/troll/yeti/lurker, 4-6 the wild hunters]\n");
       fflush(stdout);
     }
   }

@@ -38,8 +38,7 @@ bool lowProp(Prop p) {
   }
 }
 bool treeLike(Prop p) {
-  return p == Prop::OakTree || p == Prop::OakTree2 || p == Prop::PineTree || p == Prop::PineTree2 || p == Prop::SnowPine ||
-         p == Prop::BirchTree || p == Prop::WillowTree || p == Prop::PalmTree || p == Prop::AutumnTree;
+  return art::isTreeProp(p) && p != Prop::DeadTree;   // (M3c: the Wildlands trees too)
 }
 // the stall a settlement's own trade keeps
 int tradeOf(Specialty s) {
@@ -898,7 +897,7 @@ void Gen::markets() {
         if (q && treeLike((Prop)(q - 1))) { tree = true; break; }
       }
     if (!tree) {
-      const Prop t = bio == Biome::Desert ? Prop::PalmTree : (bio == Biome::Snow || bio == Biome::Taiga ? Prop::PineTree : (bio == Biome::Autumn ? Prop::AutumnTree : Prop::OakTree));
+      const Prop t = townTree(bio, eco, 3u);
       bool done = false;
       for (int r = 3; r <= 6 && !done; r++)
         for (int oy = -r; oy <= r && !done; oy++)
@@ -1273,7 +1272,7 @@ void Gen::squareDress() {
     // every centrepiece)
     const int style = (int)(hashAt(cpX, cpY, 563u) % 3u);
     const int one = (hashAt(cpX, cpY, 569u) & 1) ? 1 : -1;
-    const Prop shade = bio == Biome::Desert ? Prop::PalmTree : (bio == Biome::Snow || bio == Biome::Taiga ? Prop::PineTree : Prop::OakTree);
+    const Prop shade = townTree(bio, eco, 5u);
     auto treeAt = [&](int x, int y) {
       bool clear = ok(x, y);
       for (int oy = -3; oy <= 1 && clear; oy++)
@@ -1332,7 +1331,7 @@ void Gen::squareDress() {
       }
     }
     // a shade tree on the square's edge, away from the centrepiece
-    const Prop tree = bio == Biome::Desert ? Prop::PalmTree : (bio == Biome::Snow || bio == Biome::Taiga ? Prop::PineTree : (bio == Biome::Autumn ? Prop::AutumnTree : Prop::OakTree));
+    const Prop tree = townTree(bio, eco, 7u);
     int trees = 0;
     for (int y = s.y - (int)s.r - 1; y <= s.y + (int)s.r + 1 && trees < 1 + (city ? 1 : 0); y++)
       for (int x = s.x - (int)(s.r * 1.25f) - 1; x <= s.x + (int)(s.r * 1.25f) + 1 && trees < 1 + (city ? 1 : 0); x++) {
@@ -1416,6 +1415,15 @@ void Gen::tradeYards() {
       for (int k = 0; k < 4; k++) {
         const int x = s.first + D4X[k] * 2, y = s.second + D4Y[k] * 2;
         if (!in(x, y) || cover[I(x, y)] || get(x + D4X[k] * -1, y + D4Y[k] * -1) == K_FIELD) continue;
+        // (M3c fixer round 3, review: "every gate gets the same haystack and boulder pressed against the right-hand
+        // gate tower") the road in leaves a walled town through its gate: the trade's pile stands well clear of the
+        // wall and its towers (3 tiles), out along the road, or not at all
+        {
+          bool nearWall = false;
+          for (int oy = -3; oy <= 3 && !nearWall; oy++)
+            for (int ox = -3; ox <= 3; ox++) if (in(x + ox, y + oy) && M.wall[I(x + ox, y + oy)]) { nearWall = true; break; }
+          if (nearWall) continue;
+        }
         if (!put(x, y, by[0])) continue;
         // its companion a step further from the road
         put(x + (D4X[k] ? D4X[k] : 1), y + D4Y[k], by[1]) || put(x + (D4X[k] ? 0 : -1), y + (D4Y[k] ? D4Y[k] : 1), by[1]);
@@ -1767,7 +1775,7 @@ int Gen::largestEmptyBand(int& bx, int& by, int& bw, int& bh, int minSide, const
 
 void Gen::plazaFill() {
   if (village) return;
-  const Prop shade = bio == Biome::Desert ? Prop::PalmTree : (bio == Biome::Snow || bio == Biome::Taiga ? Prop::PineTree : Prop::OakTree);
+  const Prop shade = townTree(bio, eco, 9u);
   std::vector<uint8_t> skip((size_t)W * H, 0);
   auto tileOk = [&](int x, int y) {
     if (!in(x, y)) return false;

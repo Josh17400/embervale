@@ -1,0 +1,24 @@
+# M3c LIFE: the maps in biome colours (minimap, the world map at the street, land and continent zooms with the biome
+# legend) and the first-visit biome banner, on the desktop canvas and at the phone's width.
+#   embervale.exe --script tools/scripts/m3c_life_maps.txt     (m3c_life_m_*.png in the working directory)
+seed 5
+0.3  newgame
++0.02 hour 12
++0.1 god 1
++0.2 gotoeco savanna
++0.6 shot m3c_life_m_banner.png
++1.6 expect eco savanna
++0.1 mapexplore 260
++0.2 menu 2
++0.3 mapzoom 2
++1.5 shot m3c_life_m_map_town.png
++0.1 mapzoom 4
++2.5 shot m3c_life_m_map_land.png
++0.1 mapzoom 6
++3.0 shot m3c_life_m_map_continent.png
++0.1 key Escape
++0.3 gotoeco badlands
++2.0 shot m3c_life_m_minimap_badlands.png
++0.2 gotoeco heath
++2.0 shot m3c_life_m_minimap_heath.png
++0.3 quit

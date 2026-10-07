@@ -1,0 +1,46 @@
+# M3c LIFE: the Wildlands wildlife in their own lands, by day and by night (god mode; each spawned a few strides off).
+#   embervale.exe --script tools/scripts/m3c_life_creatures.txt     (m3c_life_c_*.png in the working directory)
+seed 3
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 gotoeco savanna
++2.0 expect eco savanna
++0.1 fight hyena 3
++0.7 shot m3c_life_c_hyena.png
++0.2 gotoeco dunes
++2.0 expect eco dunes
++0.1 fight scorpion 2
++0.7 shot m3c_life_c_scorpion.png
++0.2 gotoeco mangrove
++2.0 fight lurker 2
++0.7 shot m3c_life_c_lurker.png
++0.2 gotoeco glacier
++2.0 expect eco glacier
++0.1 fight yeti 1
++0.8 shot m3c_life_c_yeti.png
++0.2 gotoeco ashfields
++2.0 expect eco ashfields
++0.1 fight emberhound 2
++0.7 shot m3c_life_c_emberhound.png
++0.2 gotoeco blight
++2.0 expect eco blight
++0.1 fight blightspawn 2
++0.8 shot m3c_life_c_blightspawn.png
++0.2 gotoeco mushroomforest
++2.0 expect eco mushroomforest
++0.1 fight wisp 2
++0.8 shot m3c_life_c_wisp.png
+# night: the lights of the wisps and hounds
++0.2 hour 23
++0.1 fight wisp 2
++0.8 shot m3c_life_c_wisp_night.png
++0.2 gotoeco ashfields
++2.0 hour 23
++0.1 fight emberhound 2
++0.8 shot m3c_life_c_emberhound_night.png
++0.2 gotoeco savanna
++2.0 hour 22
++0.1 fight hyena 3
++0.8 shot m3c_life_c_hyena_night.png
++0.3 quit

@@ -633,7 +633,18 @@ Canvas elvenArch(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bool
       if (((int)std::floor(d)) % 3 == 0) k = std::max(0, k - 1);
       return kGSlate[k];
     }
-    if (z > ZA + 1) return R[gx < 24 ? 4 : 3];   // the gable's slopes
+    // (M3c fixer round 3, review: "the gate is capped by a plain light-grey triangular wedge with no coping, tiles or
+    // light and shadow split") the gable is roofed in the towers' blue slate: the lit west slope and the shaded east one
+    // in courses, a gilded ridge, and a white coping along its eaves
+    if (z > ZA + 1) {
+      if (std::fabs(gx + 0.5f - 24.0f) < 1.0f) return gy % 2 ? kGold[3] : kGold[2];
+      const bool lit = gx < 24;
+      if (z <= ZA + 2) return lit ? R[4] : R[2];
+      int k = lit ? 3 : 1;
+      if (gy % 3 == 0) k = std::max(0, k - 1);
+      if (lit && gy % 3 == 1 && (gx + gy) % 4 == 0) k = 4;
+      return kGSlate[k];
+    }
     return R[(gx + gy) % 5 == 0 ? 2 : 3];
   };
   auto face = [&](int gx, int gy, int z, int h, int v, int zn) -> uint32_t {
@@ -661,7 +672,11 @@ Canvas elvenArch(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bool
       return mix(rgba(28, 30, 50), rgba(56, 60, 84), (h - (at - 6)) / 6.0f);
     }
     if (at >= 0 && h < at + 2) return h == at ? kGTeal[2] : R[4];
-    if (v == 0 || (z > ZA && h >= ZA)) return R[v == 0 ? 4 : 3];                         // the gable's lit slopes
+    if (v == 0 || (z > ZA && h >= ZA)) {   // the gable's carved front: the slate's edge over a teal moulding, white below
+      if (z > ZA + 1 && h >= z - 1) return kGSlate[gx < 24 ? 2 : 0];
+      if (z > ZA + 1 && h == z - 2) return kGTeal[gx < 24 ? 3 : 1];
+      return R[v == 0 ? 4 : (gx < 24 ? 3 : 2)];
+    }
     if (h == ZA - 1) return R[1];
     if (std::abs(gx - 24) <= 1 && h >= ZA - 6 && h <= ZA - 3) return (gx == 24 || h == ZA - 5) ? kGElfGlow[4] : kGElfGlow[2];   // a star
     if (h == ZA - 8) return kGTeal[2];

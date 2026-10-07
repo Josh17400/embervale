@@ -33,6 +33,11 @@ bool propSolid(Prop p) {
     // M2: a wayfarer's bedroll by the embers is walked over
     case Prop::Bedroll:
       return false;
+    // M3c: the Wildlands' ground cover is walked through (art_props.h: Heather .. Petals)
+    case Prop::Heather: case Prop::Wildflowers: case Prop::PrairieGrass: case Prop::CottonGrass: case Prop::Agave:
+    case Prop::DryBrush: case Prop::Saltbush: case Prop::Lichen: case Prop::Wrack: case Prop::Shells: case Prop::GlowCaps:
+    case Prop::Blightweed: case Prop::SilverFern: case Prop::JungleFern: case Prop::Petals:
+      return false;
     default: return true;
   }
 }

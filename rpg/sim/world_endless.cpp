@@ -49,6 +49,8 @@ void applyChunk(World& W, const ew::ChunkData& c, bool tiles) {
       std::memcpy(&over.biome[di], &c.biome[si], ew::CHUNK);
       std::memcpy(&over.height[di], &c.height[si], ew::CHUNK);
       std::memcpy(&over.blend[di], &c.blend[si], ew::CHUNK);
+      std::memcpy(&over.eco[di], &c.eco[si], ew::CHUNK);
+      std::memcpy(&over.ecoNb[di], &c.ecoNb[si], ew::CHUNK);
       std::memset(&over.deco[di], 0, ew::CHUNK);
     }
   }
@@ -101,6 +103,8 @@ static void initEndless(World& W, uint64_t sd, const int32_t* origin) {
   W.over.biome.assign((size_t)WIN * WIN, (uint8_t)Biome::Plains);
   W.over.height.assign((size_t)WIN * WIN, 0);
   W.over.blend.assign((size_t)WIN * WIN, 0);
+  W.over.eco.assign((size_t)WIN * WIN, (uint8_t)Eco::Meadow);
+  W.over.ecoNb.assign((size_t)WIN * WIN, (uint8_t)Eco::Meadow);
   W.over.seed = (uint32_t)(sd ^ (sd >> 32));
   W.src = std::make_shared<ew::EndlessSource>(sd);
 #ifndef __EMSCRIPTEN__
@@ -180,10 +184,11 @@ void World::placeWindow(int32_t nox, int32_t noy) {
       }
     };
     shiftLayer(over.ground); shiftLayer(over.prop); shiftLayer(over.wall); shiftLayer(over.deco); shiftLayer(over.biome);
-    shiftLayer(over.height); shiftLayer(over.blend);
+    shiftLayer(over.height); shiftLayer(over.blend); shiftLayer(over.eco); shiftLayer(over.ecoNb);
   } else {
     over.ground.assign(n, (uint8_t)Ground::Grass); over.prop.assign(n, 0); over.wall.assign(n, 0); over.deco.assign(n, 0);
     over.biome.assign(n, (uint8_t)Biome::Plains); over.height.assign(n, 0); over.blend.assign(n, 0);
+    over.eco.assign(n, (uint8_t)Eco::Meadow); over.ecoNb.assign(n, (uint8_t)Eco::Meadow);
   }
   over.w = WIN; over.h = WIN;
   over.solid.assign(n, 0);

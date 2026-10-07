@@ -1,8 +1,8 @@
 // Save-format checks for the CURRENT save version only (owner, 2026-10-04: old saves are not a concern; an older save
-// is refused and the title offers a new game). M3b: SAVE_VER 8 (the layout of 7: the appearance block with people,
-// homeland and personal heraldry; bumped with the builder's new world generation, ENDLESS_GEN_VER 11).
+// is refused and the title offers a new game). M3c: SAVE_VER 9 (the layout of 8 and 7: the appearance block with people,
+// homeland and personal heraldry; bumped with the Wildlands world generation, ENDLESS_GEN_VER 12).
 //   save_test [fixtureDir]           run every check
-//   save_test --make-fixture out.bin write tests/fixtures/save_v8.bin: an endless game (seed 5150) with a created
+//   save_test --make-fixture out.bin write tests/fixtures/save_v9.bin: an endless game (seed 5150) with a created
 //                                    character, the innkeeper's job taken, bot play, a looted chest, the M2 fields
 //                                    (marks, a quest's subject / flags / deadline, a rumoured site), saved outdoors.
 //                                    Regenerate it whenever the layout changes on purpose, and paste the printed FIX6
@@ -213,7 +213,7 @@ int makeFixture(const char* out) {
 }
 // values printed by --make-fixture (format-level facts only)
 struct Fix6 { int level, xp, gold; size_t inv, quests, looted; int kills, ox; float px, py; int oy; float hour; int day; };
-constexpr Fix6 FIX6 = {1, 30, 39, 8, 3, 2, 0, 64, 2056.000f, 1592.000f, -256, 8.083f, 2};
+constexpr Fix6 FIX6 = {1, 31, 88, 10, 3, 3, 1, 64, 1768.000f, 2328.000f, -192, 15.591f, 3};
 
 }  // namespace
 
@@ -228,7 +228,7 @@ int main(int argc, char** argv) {
 
   // ---- 1. the fixture
   std::vector<uint8_t> fx;
-  if (!readFile(dir + "/save_v8.bin", fx)) check(false, "cannot read tests/fixtures/save_v8.bin");
+  if (!readFile(dir + "/save_v9.bin", fx)) check(false, "cannot read tests/fixtures/save_v9.bin");
   else {
     check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
     Game g(1);

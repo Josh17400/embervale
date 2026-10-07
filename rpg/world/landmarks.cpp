@@ -9,6 +9,9 @@
 //     the middle of its wide reach (a tributary absorbed by a bigger river is not labelled);
 //   - forests, marshes, deserts, hills and seas: the connected areas of one kind on a 48-tile grid over a landmark
 //     cell (768 tiles, 3 x 3 regions; memoised), big enough to matter, labelled at the sample nearest the area's middle.
+//     (M3c) The area's commonest biome names it: THE ASHEN WASTE, GREYMOOR HEATH, THE SILVERWOOD, THE RED BADLANDS,
+//     THE WHISPERING BIRCHES, THE SUNKEN MANGROVES... The open grasslands (steppe, savanna, prairie, heath, chalk downs,
+//     alpine meadows, the lake country) are labelled like hills, and a dragon's blight like a waste.
 // Names are biome-flavoured and unique within any 3 x 3 block of regions: the region's (or the landmark cell's) slot
 // picks a ninth of each name pool, and a region never repeats a name. Ids: makeId(rx, ry, IdKind::Poi, 0x800 | n).
 #include <algorithm>
@@ -66,7 +69,8 @@ std::shared_ptr<EndlessSource::Impl::AreaLabels> EndlessSource::Impl::areaLabels
   auto it = areaMemo.find(key);
   if (it != areaMemo.end()) return it->second;
   auto A = std::make_shared<AreaLabels>();
-  // class per sample: 0 none, 1 forest, 2 marsh, 3 desert, 4 hills, 5 sea; flavour: the forest's biome
+  // class per sample: 0 none, 1 forest, 2 marsh, 3 desert (and waste), 4 hills (and open grassland), 5 sea; flavour: the
+  // sample's eco (M3c: the area's commonest names it)
   std::vector<uint8_t> cls((size_t)AN * AN, 0), fl((size_t)AN * AN, 0);
   const int32_t x0 = ci * ACELL, y0 = cj * ACELL;
   for (int j = 0; j < AN; j++)
@@ -76,12 +80,17 @@ std::shared_ptr<EndlessSource::Impl::AreaLabels> EndlessSource::Impl::areaLabels
       uint8_t k = 0;
       if (c.e < ELEV_SEA - Q(0.02)) k = 5;
       else if (c.e >= ELEV_SEA + Q(0.01)) {
-        const Biome b = classify(c.e, c.t, c.m, x, y, false);
+        const Biome b = c.rock > Q(0.5) ? Biome::Mountain : classify(c.e, c.t, c.m, x, y, false);
         const int lv = levelOf(c.e);
-        if (b == Biome::Forest || b == Biome::Autumn || b == Biome::Taiga) { k = 1; fl[(size_t)j * AN + i] = (uint8_t)b; }
+        const Eco e = ecoFar(b, c, x, y);
+        fl[(size_t)j * AN + i] = (uint8_t)e;
+        const bool grass = e == Eco::Steppe || e == Eco::Savanna || e == Eco::Prairie || e == Eco::Heath || e == Eco::ChalkDowns ||
+                           e == Eco::AlpineMeadow || e == Eco::LakeDistrict || e == Eco::StonePlains;
+        if (e == Eco::Blight) k = 3;
+        else if (b == Biome::Forest || b == Biome::Autumn || b == Biome::Taiga) k = 1;
         else if (b == Biome::Swamp) k = 2;
         else if (b == Biome::Desert) k = 3;
-        else if (b == Biome::Plains && (lv == 2 || lv == 3)) k = 4;
+        else if (b == Biome::Plains && (lv == 2 || lv == 3 || grass)) k = 4;
       }
       cls[(size_t)j * AN + i] = k;
     }
@@ -94,11 +103,11 @@ std::shared_ptr<EndlessSource::Impl::AreaLabels> EndlessSource::Impl::areaLabels
     q.assign(1, s0);
     seen[(size_t)s0] = 1;
     int64_t sx = 0, sy = 0;
-    int forestN[10] = {};
+    int ecoN[(int)Eco::COUNT] = {};
     for (size_t h = 0; h < q.size(); h++) {
       const int c = q[h], i = c % AN, j = c / AN;
       sx += i; sy += j;
-      forestN[fl[(size_t)c] % 10]++;
+      ecoN[fl[(size_t)c] % (int)Eco::COUNT]++;
       static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
       for (int d = 0; d < 4; d++) {
         const int ni = i + dx[d], nj = j + dy[d];
@@ -119,9 +128,9 @@ std::shared_ptr<EndlessSource::Impl::AreaLabels> EndlessSource::Impl::areaLabels
       if (d < bd) { bd = d; best = c; }
     }
     uint8_t flav = 0;
-    if (k == 1) {
+    {
       int bestN = -1;
-      for (int b = 0; b < 10; b++) if (forestN[b] > bestN) { bestN = forestN[b]; flav = (uint8_t)b; }
+      for (int b = 0; b < (int)Eco::COUNT; b++) if (ecoN[b] > bestN) { bestN = ecoN[b]; flav = (uint8_t)b; }
     }
     static const LandmarkKind kinds[6] = {LandmarkKind::Forest, LandmarkKind::Forest, LandmarkKind::Marsh, LandmarkKind::Desert, LandmarkKind::Hills, LandmarkKind::Sea};
     A->labels.push_back({kinds[k], x0 + (best % AN) * AS + AS / 2, y0 + (best / AN) * AS + AS / 2, (int32_t)q.size() * AS, flav});
@@ -303,15 +312,64 @@ void EndlessSource::Impl::planLandmarks(int32_t rx, int32_t ry, RegionData& D) {
       auto w = [&](const char* const* pool) { return std::string(pool[(size_t)cslot + 9 * ((ch + (uint64_t)kn) % 3)]); };
       std::string nm;
       const uint32_t form = (uint32_t)((((ch >> 8) % 3) + (uint64_t)(kn / 3)) % 3);
+      const Eco fe = (Eco)a.flavour;
+      auto two = [&](const std::string& p, const std::string& q) { return form == 1 ? q : p; };
       switch (a.kind) {
         case LandmarkKind::Forest:
-          if (a.flavour == (uint8_t)Biome::Taiga) nm = form == 0 ? "THE " + w(kForestA) + " PINES" : "THE " + w(kForestA) + " TAIGA";
-          else if (a.flavour == (uint8_t)Biome::Autumn) nm = form == 0 ? "THE " + w(kForestA) + " WEALD" : "THE " + w(kForestA) + " WOODS";
-          else nm = form == 0 ? "THE " + w(kForestA) + " WOOD" : form == 1 ? "THE " + w(kForestA) + " FOREST" : w(kForestA) + " FOREST";
+          // (M3c) by the wood's commonest biome
+          switch (fe) {
+            case Eco::Taiga: nm = two("THE " + w(kForestA) + " PINES", "THE " + w(kForestA) + " TAIGA"); break;
+            case Eco::TaigaBog: nm = two("THE " + w(kForestA) + " LARCHES", "THE " + w(kMarshA) + " MUSKEG"); break;
+            case Eco::AutumnWood: nm = two("THE " + w(kForestA) + " WEALD", "THE " + w(kForestA) + " WOODS"); break;
+            case Eco::BirchWood: nm = two("THE " + w(kForestA) + " BIRCHES", w(kForestA) + " BIRCHWOOD"); break;
+            case Eco::GiantForest: nm = two("THE " + w(kForestA) + " GIANTS", "THE ELDERWOOD OF " + w(kWord)); break;
+            case Eco::DarkForest: nm = two("THE " + w(kForestA) + " MIRKWOOD", "THE DARKWOOD OF " + w(kWord)); break;
+            case Eco::BlossomGrove: nm = two("THE " + w(kWord) + " BLOSSOM VALE", "THE PETAL GROVES"); break;
+            case Eco::BambooForest: nm = two("THE " + w(kForestA) + " BAMBOO", "THE " + w(kWord) + " CANEBRAKE"); break;
+            case Eco::Jungle: nm = two("THE " + w(kForestA) + " JUNGLE", "THE " + w(kWord) + " TANGLE"); break;
+            case Eco::MushroomForest: nm = two("THE " + w(kForestA) + " TOADSTOOLS", "THE GLOWCAP GROVE"); break;
+            case Eco::Silverwood: nm = two("THE SILVERWOOD", "THE " + w(kWord) + " SILVERWOOD"); break;
+            default: nm = form == 0 ? "THE " + w(kForestA) + " WOOD" : form == 1 ? "THE " + w(kForestA) + " FOREST" : w(kForestA) + " FOREST"; break;
+          }
           break;
-        case LandmarkKind::Marsh: nm = form == 0 ? "THE " + w(kMarshA) + " FEN" : form == 1 ? w(kMarshA) + " MIRE" : "THE " + w(kMarshA) + " MARSHES"; break;
-        case LandmarkKind::Desert: nm = form == 0 ? "THE " + w(kDesertA) + " WASTE" : form == 1 ? "THE " + w(kDesertA) + " SANDS" : "THE " + w(kDesertA) + " DUNES"; break;
-        case LandmarkKind::Hills: nm = form == 0 ? "THE " + w(kHillA) + " HILLS" : form == 1 ? "THE " + w(kHillA) + " DOWNS" : "THE " + w(kHillA) + " FELLS"; break;
+        case LandmarkKind::Marsh:
+          switch (fe) {
+            case Eco::PeatBog: nm = two("THE " + w(kMarshA) + " BOG", w(kMarshA) + " MOSS"); break;
+            case Eco::Mangrove: nm = two("THE " + w(kMarshA) + " MANGROVES", "THE " + w(kMarshA) + " ROOTS"); break;
+            case Eco::FloodedForest: nm = two("THE " + w(kMarshA) + " FLOODWOOD", "THE DROWNED WOOD OF " + w(kWord)); break;
+            default: nm = form == 0 ? "THE " + w(kMarshA) + " FEN" : form == 1 ? w(kMarshA) + " MIRE" : "THE " + w(kMarshA) + " MARSHES"; break;
+          }
+          break;
+        case LandmarkKind::Desert:
+          switch (fe) {
+            case Eco::AshFields: nm = two("THE ASHEN WASTE", "THE " + w(kDesertA) + " CINDERS"); break;
+            case Eco::CrystalBarrens: nm = two("THE " + w(kDesertA) + " SHARDLANDS", "THE CRYSTAL BARRENS"); break;
+            case Eco::PetrifiedForest: nm = two("THE " + w(kDesertA) + " STONEWOOD", "THE PETRIFIED GROVES"); break;
+            case Eco::Badlands: nm = two("THE " + w(kDesertA) + " BADLANDS", "THE " + w(kDesertA) + " MESAS"); break;
+            case Eco::SaltFlats: nm = two("THE " + w(kDesertA) + " SALT PAN", "THE WHITE FLATS"); break;
+            case Eco::StonyDesert: nm = two("THE " + w(kDesertA) + " STONEFIELD", "THE " + w(kDesertA) + " HAMADA"); break;
+            case Eco::Scrubland: nm = two("THE " + w(kDesertA) + " SCRUB", "THE " + w(kDesertA) + " THORNLANDS"); break;
+            case Eco::Blight: nm = two("THE " + w(kMarshA) + " BLIGHT", "THE BLIGHTED REACH"); break;
+            default: nm = form == 0 ? "THE " + w(kDesertA) + " WASTE" : form == 1 ? "THE " + w(kDesertA) + " SANDS" : "THE " + w(kDesertA) + " DUNES"; break;
+          }
+          break;
+        case LandmarkKind::Hills:
+          switch (fe) {
+            case Eco::Heath: {
+              const std::string hw = w(kHillA);   // GREYMOOR HEATH (a word with an apostrophe keeps its own: THE PIPER'S MOOR)
+              nm = form != 1 && hw.find('\'') == std::string::npos ? hw + "MOOR HEATH" : "THE " + hw + " MOOR";
+              break;
+            }
+            case Eco::ChalkDowns: nm = two("THE " + w(kHillA) + " DOWNS", "THE WHITE DOWNS"); break;
+            case Eco::AlpineMeadow: nm = two("THE " + w(kHillA) + " HIGH PASTURES", "THE " + w(kHillA) + " ALPS"); break;
+            case Eco::Steppe: nm = two("THE " + w(kDesertA) + " STEPPE", "THE " + w(kWord) + " STEPPE"); break;
+            case Eco::Savanna: nm = two("THE " + w(kDesertA) + " SAVANNA", "THE " + w(kWord) + " PLAINS"); break;
+            case Eco::Prairie: nm = two("THE " + w(kHillA) + " GRASSLANDS", "THE " + w(kWord) + " PRAIRIE"); break;
+            case Eco::LakeDistrict: nm = two("THE " + w(kLakeA) + " MERES", "THE " + w(kLakeA) + " TARNS"); break;
+            case Eco::StonePlains: nm = two("THE PLAIN OF STONES", "THE " + w(kHillA) + " MENHIRS"); break;
+            default: nm = form == 0 ? "THE " + w(kHillA) + " HILLS" : form == 1 ? "THE " + w(kHillA) + " DOWNS" : "THE " + w(kHillA) + " FELLS"; break;
+          }
+          break;
         default: nm = "THE " + w(kSeaA) + " SEA"; break;
       }
       add(a.kind, a.x, a.y, a.size, nm);

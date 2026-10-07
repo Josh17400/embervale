@@ -1,0 +1,48 @@
+# M3c CARRY lane: journeys into capitals (owner carry-over: 0.3-1.2 s teleport / fast-travel stalls in capitals).
+# Each journey goes to a capital the session has not seen yet (its town, chunks and region plans are all cold), by fast
+# travel behind the fade (travelpicked) or as a teleport behind the fade (travelpicked tile). `perfmark` prints the
+# longest whole frame since the previous mark: "journey" covers the fade out, the gather, the arrival and the bake;
+# "after" the two seconds of play that follow (the townsfolk streaming in, the next ring streaming).
+# Targets (desktop): journey <= 50 ms, after <= 33 ms.
+#   embervale.exe --script tools/scripts/m3c_carry_travel_perf.txt [--seed N] [--perf]
+seed 3
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++1.5 perfmark settle
++0.1 pickculture fjordfolk
++0.5 perfmark pick
++0.1 travelpicked
++0.1 waittravel
++0.05 perfmark journey fjordfolk capital
++0.05 expect travel done
++2 perfmark after fjordfolk capital
++0.1 pickculture sylvan
++0.5 perfmark pick
++0.1 travelpicked
++0.1 waittravel
++0.05 perfmark journey sylvan capital
++0.05 expect travel done
++2 perfmark after sylvan capital
++0.1 pickculture dune
++0.5 perfmark pick
++0.1 travelpicked tile
++0.1 waittravel
++0.05 perfmark journey dune capital (teleport)
++0.05 expect travel done
++2 perfmark after dune capital
++0.1 pickculture heartland
++0.5 perfmark pick
++0.1 travelpicked tile
++0.1 waittravel
++0.05 perfmark journey heartland capital (teleport: may lie over the sea)
++0.05 expect travel done
++2 perfmark after heartland capital
++0.1 pickculture imperial
++0.5 perfmark pick
++0.1 travelpicked tile
++0.1 waittravel
++0.05 perfmark journey imperial capital (teleport)
++0.05 expect travel done
++2 perfmark after imperial capital
++0.3 quit

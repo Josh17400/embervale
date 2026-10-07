@@ -1,0 +1,39 @@
+# M3c Wildlands (WORLD lane): borders between biomes (ecotones, rpg/world/chunkgen.cpp 6b: a band carrying the partner
+# eco in Map::ecoNb, the flora mixing at the blend's odds). Wide and soft between grasslands, middling at a wood's
+# edge, narrow at a marsh. Screenshots m3c_world_eco_<a>_<b>.png in the working directory.
+#   embervale.exe --script tools/scripts/m3c_world_ecotones.txt
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 gotoecoborder flowermeadow prairie
++2.0 eco
++0.1 shot m3c_world_eco_flowermeadow_prairie.png
++0.2 gotoecoborder meadow mixedforest
++2.0 eco
++0.1 shot m3c_world_eco_meadow_forest.png
++0.2 gotoecoborder birchwood giantforest
++2.0 eco
++0.1 shot m3c_world_eco_birch_giant.png
++0.2 gotoecoborder darkforest blossomgrove
++2.0 eco
++0.1 shot m3c_world_eco_dark_blossom.png
++0.2 gotoecoborder savanna steppe
++2.0 eco
++0.1 shot m3c_world_eco_savanna_steppe.png
++0.2 gotoecoborder heath alpinemeadow
++2.0 eco
++0.1 shot m3c_world_eco_heath_alpine.png
++0.2 gotoecoborder tundra frozenlakes
++2.0 eco
++0.1 shot m3c_world_eco_tundra_frozen.png
++0.2 gotoecoborder dunes stonydesert
++2.0 eco
++0.1 shot m3c_world_eco_dunes_stony.png
++0.2 gotoecoborder reedmarsh mixedforest
++2.0 eco
++0.1 shot m3c_world_eco_marsh_forest.png
++0.2 gotoecoborder taiga birchwood
++2.0 eco
++0.1 shot m3c_world_eco_taiga_birch.png
++0.3 quit

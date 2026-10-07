@@ -12,5 +12,5 @@ seed 7
 +2 shot m3cap_gate1.png
 +0.2 gate 2 out
 +2 shot m3cap_gate2.png
-+0.2 gate 3 out
++0.2 gate 1 out                # (M3c: the seed-7 capital has fewer gates now; the second nearest from gate 2)
 +2 shot m3cap_gate3.png

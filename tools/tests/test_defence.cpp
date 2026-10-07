@@ -8,6 +8,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include "rpg/sim/game_internal.h"
 #include "tools/tests/tests.h"
 
 namespace {
@@ -491,6 +492,72 @@ static void scriptInfo(const Game& base) {
   }
 }
 
+
+// (M3c LIFE) the Wildlands wildlife in the open: each of the seven, set on a sturdy idle player at level 1, must close
+// in and land its blows and its own move within 20 s (the scorpion's venom sting, the yeti's frost slam, the hound's
+// fire bite, the wisp's bolts, the blightspawn's spores; hyenas and the lurker their bites); nothing goes NaN
+int wildlifeChecks(const Game& base) {
+  int bad = 0;
+  const Site& h = base.world.sites[base.world.startSite];
+  int sx = -1, sy = -1;
+  for (int r = 18; r < 60 && sx < 0; r += 2)
+    for (int k = 0; k < 24 && sx < 0; k++) {
+      const int tx = h.r.cx() + (int)std::lround(std::cos(k * 0.2618f) * r), ty = h.r.cy() + (int)std::lround(std::sin(k * 0.2618f) * r);
+      if (!base.world.over.in(tx, ty) || base.world.siteAt(tx, ty, 12) >= 0) continue;
+      // a clear strip: the player at its west end, the creature at its east end, nothing solid in between (wild
+      // creatures close in straight; a tree between them is a fight of its own)
+      bool clear = true;
+      for (int y = ty - 2; y <= ty + 2 && clear; y++)
+        for (int x = tx - 2; x <= tx + 6 && clear; x++)
+          if (base.world.over.blocked(x, y) || base.world.over.propAt(x, y) != 0) clear = false;
+      if (clear) { sx = tx; sy = ty; }
+    }
+  if (sx < 0) { out("WARN: wildlife: no open ground for the creature checks\n"); return 0; }
+  using art::Monster;
+  const Monster ms[] = {Monster::Scorpion, Monster::Hyena, Monster::Lurker, Monster::Yeti, Monster::Wisp, Monster::EmberHound, Monster::Blightspawn};
+  std::string line = "wildlife:";
+  for (Monster m : ms) {
+    Game g = base;
+    g.noWildSpawns = true;
+    g.pl().p = tileCentre(sx, sy);
+    g.pl().maxHp = g.pl().hp = 5000;
+    tick(g, 2);
+    const int id = g.debugSpawnAt(m, g.pl().p + Vec2(64, 0), 1);   // (after the ticks: the window may have shifted)
+    bool special = false, nan = false;
+    float firstHit = -1, lost = 0;
+    for (int f = 0; f < (int)(20.0f / SIM_DT); f++) {
+      const float before = g.pl().hp;
+      g.update(SIM_DT, Input());
+      if (g.mode != Mode::Play) g.mode = Mode::Play;
+      if (g.pl().hp < before) { lost += before - g.pl().hp; if (firstHit < 0) firstHit = f * SIM_DT; }
+      switch (m) {
+        case Monster::Scorpion: if (eventHas(g, "VENOM")) special = true; break;
+        case Monster::Yeti: case Monster::Blightspawn: if (g.pl().slowT > 0) special = true; break;
+        case Monster::EmberHound: if (g.pl().burnT > 0) special = true; break;
+        case Monster::Wisp: for (const Projectile& pr : g.projs) if (pr.owner == id && pr.kind == ProjKind::Magic) special = true; break;
+        default: special = firstHit >= 0; break;
+      }
+      if (m == Monster::Blightspawn) for (const Projectile& pr : g.projs) if (pr.owner == id && pr.kind == ProjKind::Spit) special = true;
+      for (const Actor& a : g.actors) if (a.id == id && (!std::isfinite(a.p.x) || !std::isfinite(a.p.y))) nan = true;
+      g.events.clear();
+      if (special && firstHit >= 0 && f * SIM_DT > 8.0f) break;
+    }
+    char b[96];
+    std::snprintf(b, sizeof b, " %s first hit %.1fs lost %.0f%s;", monsterName(m), firstHit, lost, special ? "" : " NO MOVE");
+    line += b;
+    if (firstHit < 0 || !special || nan) {
+      float d = -1;
+      int st = -1, ag = -1;
+      for (const Actor& a : g.actors) if (a.id == id) { d = len(a.p - g.pl().p); st = (int)a.st; ag = a.aggro ? 1 : 0; }
+      out("FAIL: wildlife: %s: first hit %.1f s, its move %s, nan %d (at the end %.0f px off, state %d, aggro %d)\n", monsterName(m), firstHit,
+          special ? "seen" : "never seen", nan, d, st, ag);
+      bad++;
+    }
+  }
+  out("%s\n", line.c_str());
+  return bad;
+}
+
 int defenceChecks(uint64_t seed) {
   int bad = 0;
   Game base(seed);
@@ -516,6 +583,7 @@ int defenceChecks(uint64_t seed) {
   bad += townDefence(base, base.world.startSite, base.world.sites[base.world.startSite].type != SiteType::Village, "start");
   bad += bountyChecks(base);
   bad += backgroundChecks(base);
+  bad += wildlifeChecks(base);
   // (M1) a townsperson felled by a monster stays down while their town is active: the site streamer must not bring the
   // same person back at their spawn tile once the body is cleared (they return when the town next loads)
   {

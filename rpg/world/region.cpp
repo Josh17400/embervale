@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <vector>
 #include "rpg/world/gen.h"
+#include "rpg/world/wildlife.h"
 #include "rpg/world/town_rules.h"
 
 namespace ew {
@@ -45,6 +46,20 @@ int dangerBase(int32_t r) {
 const char* kPrefix[] = {"UPPER ", "LOWER ", "OLD ", "NEW ", "EAST ", "WEST ", "NORTH ", "SOUTH ", "GREAT ", "LITTLE "};
 }  // namespace
 
+// (M3c) a dragon lair (the lattice's, or the start plan's) within r tiles: after the start plan only
+bool EndlessSource::Impl::nearLair(int32_t x, int32_t y, int32_t r) {
+  if (!started) return false;
+  for (const SitePlan& f : forcedSites)
+    if (f.type == SiteType::DragonLair && dist2(f.ex, f.ey, x, y) < (int64_t)r * r) return true;
+  for (int32_t ly = floorDiv(y - r + 512, LAIR_CELL); ly <= floorDiv(y + r + 512, LAIR_CELL); ly++)
+    for (int32_t lx = floorDiv(x - r + 512, LAIR_CELL); lx <= floorDiv(x + r + 512, LAIR_CELL); lx++) {
+      int32_t ax, ay;
+      uint32_t sd;
+      if (lairOf(lx, ly, ax, ay, sd) && dist2(ax, ay, x, y) < (int64_t)r * r) return true;
+    }
+  return false;
+}
+
 // ============================================================== habitability (sparse samples; pure)
 int EndlessSource::Impl::habitability(SiteType t, int32_t x, int32_t y, int* levelOut) {
   const int32_t R = isSettlement(t) ? nominalR(t) : 8;
@@ -65,14 +80,14 @@ int EndlessSource::Impl::habitability(SiteType t, int32_t x, int32_t y, int* lev
   if (lmax - lmin > 2) return 0;
   if (lmax - lmin == 2) score = score * 55 / 100;
   else if (lmax - lmin == 1) score = score * 85 / 100;
-  switch (classify(cc.e, cc.t, cc.m, x, y, false)) {
-    case Biome::Snow: score = score * 35 / 100; break;
-    case Biome::Taiga: score = score * 70 / 100; break;
-    case Biome::Desert: score = score * 50 / 100; break;
-    case Biome::Swamp: score = score * 45 / 100; break;
-    case Biome::Beach: return 0;
-    default: break;
-  }
+  // (M3c) the biome's own habitability (biomes.h EcoInfo::habit: meadows 100, woods 80, steppe 60, deserts 10-45, the
+  // glacier and the blight 0); the coarse eco, without the elven silverwood (no cultures asked here: the cultures'
+  // capitals ask for habitability)
+  const Biome fam = classify(cc.e, cc.t, cc.m, x, y, false);
+  if (fam == Biome::Beach) return 0;
+  const int habit = ecoInfo(ecoFor(fam, cc.e, cc.t, cc.m, cc.ridge, levelOf(cc.e), x, y, false)).habit;
+  if (!habit) return 0;
+  score = score * habit / 100;
   return std::max(1, score);
 }
 
@@ -129,6 +144,8 @@ bool EndlessSource::Impl::settleNode(SiteType t, int32_t cx, int32_t cy, Node& o
           if (o.ok && dist2(o.x, o.y, c.x, c.y) < 200ll * 200ll) ok = false;
         }
     }
+    // (M3c) no settlement in a dragon's blight, nor so near a lair that the region planner would drop the lair
+    if (ok && started && (nearLair(c.x, c.y, nominalR(t) + 100) || blightAt(c.x, c.y))) ok = false;
     if (ok) {
       n.type = t;
       n.x = c.x; n.y = c.y;
@@ -200,6 +217,7 @@ EndlessSource::Impl::KCell EndlessSource::Impl::kcell(int32_t kx, int32_t ky) {
         if (!clear) continue;
         int hab = habitability(SiteType::City, x, y, nullptr);
         if (!hab) continue;
+        if (started && (nearLair(x, y, nominalR(SiteType::City) + 100) || blightAt(x, y))) continue;   // (M3c)
         int score = hab * 256 + (int)(hn >> 56);
         if (score > best) { best = score; kc.capital = true; kc.x = x; kc.y = y; kc.seed = (uint32_t)(hn >> 16); }
       }
@@ -287,7 +305,17 @@ void EndlessSource::Impl::makeStart() {
     Biome b = classify(cc.e, cc.t, cc.m, x, y, false);
     if (b != Biome::Plains && b != Biome::Forest && b != Biome::Autumn) return false;
     if (cc.t < Q(0.37) || cc.t > Q(0.66)) return false;
-    return !(cc.m > Q(0.60) && cc.e < Q(0.48));
+    if (cc.m > Q(0.60) && cc.e < Q(0.48)) return false;
+    // (M3c) pleasant land: not a hostile or wondrous biome (dark forest, bog, ash...), here or 120 tiles round
+    for (int k = 0; k < 9; k++) {
+      const int32_t px = x + (k % 3 - 1) * 120, py = y + (k / 3 - 1) * 120;
+      const Coarse c2 = k == 4 ? cc : coarse(px, py);
+      if (c2.e < ELEV_SEA) continue;
+      const Biome b2 = c2.rock > Q(0.5) ? Biome::Mountain : classify(c2.e, c2.t, c2.m, px, py, false);
+      const Eco e2 = ecoFor(b2, c2.e, c2.t, c2.m, c2.ridge, levelOf(c2.e), px, py, false);
+      if (ecoHas(e2, EF_HOSTILE) || ecoHas(e2, EF_RARE)) return false;
+    }
+    return true;
   };
   // the village candidates of the cells around the origin, then (rarely needed) of a wider ring of cells
   for (int32_t ring = 0; ring < 2 && !have; ring++)
@@ -925,14 +953,27 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
     // herds like anywhere else); a river: fishing or farming with a watermill; dry open grass, the north and the hills:
     // herding; good wet soil: farming
     {
-      int forest = 0, open = 0;
+      // (M3c) and the biomes round it (biomes.h EcoInfo::trades): fishing on the coasts and in the lake country,
+      // mining in the badlands, stony deserts, ash fields and mountains, herding on the steppe, prairie, savanna, heath
+      // and tundra, lumber in the big forests and the taiga, farming on the meadows
+      int forest = 0, open = 0, bigWood = 0, herdLand = 0, mineLand = 0, fishLand = 0, farmLand = 0;
       for (int k = 0; k < 12; k++) {
         int32_t a = k * (1024 / 12);
-        const Biome b = tile(n.x + icosR(a, R0 + 12), n.y + isinR(a, R0 + 12)).biome;
+        const gen::TileF rf = tile(n.x + icosR(a, R0 + 12), n.y + isinR(a, R0 + 12));
+        const Biome b = rf.biome;
         if (b == Biome::Forest || b == Biome::Taiga || b == Biome::Autumn) forest++;
         if (b == Biome::Plains || b == Biome::Snow || b == Biome::Desert) open++;
+        const uint8_t tr = ecoInfo(rf.eco).trades;
+        if (ecoHas(rf.eco, EF_WOODED) && (tr & TR_LUMBER) && (rf.eco == Eco::GiantForest || rf.eco == Eco::Taiga || rf.eco == Eco::MixedForest ||
+                                                              rf.eco == Eco::BirchWood || rf.eco == Eco::AutumnWood || rf.eco == Eco::BambooForest))
+          bigWood++;
+        if ((tr & TR_HERD) && !(tr & TR_FARM)) herdLand++;
+        if (tr & TR_MINE) mineLand++;
+        if ((tr & TR_FISH) && rf.eco != Eco::Ocean) fishLand++;
+        if (tr & TR_FARM) farmLand++;
       }
       const Biome hb = tf.biome;
+      const uint8_t htr = ecoInfo(tf.eco).trades;
       const bool inWood = hb == Biome::Forest || hb == Biome::Taiga || hb == Biome::Autumn;
       const bool deepWoods = inWood && forest >= 10;
       const uint32_t coin = (n.seed >> 11) % 100u;
@@ -943,13 +984,18 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
       for (int o = 0; o < (int)Ore::COUNT; o++) strongest = std::max(strongest, (int)geo.ore[o]);
       const bool oreRich = strongest >= 180;
       const bool highGround = ridge || (hill && (hb == Biome::Mountain || hb == Biome::Snow || coin < 45)) || ((ridgeMax > Q(0.2) || higher >= 3) && coin < 40);
+      const bool lakeLand = (htr & TR_FISH) && fishLand >= 5;   // the lake district, frozen lakes, the marshes
       if (coast) sp = Specialty::Fishing;
       else if (oreRich && highGround) sp = Specialty::Mining;   // high ground over the houses
+      else if ((htr & TR_MINE) && mineLand >= 6 && (strongest >= 160 || coin < 50)) sp = Specialty::Mining;   // badlands, stony desert, ash
+      else if (lakeLand && (river || coin < 70)) sp = Specialty::Fishing;
       // (high ground without the ore: the hill woods are felled, the wetter slopes farmed)
-      else if (highGround && forest >= 4) sp = Specialty::Lumber;
+      else if (highGround && forest >= 6 && coin < 70) sp = Specialty::Lumber;
       else if (highGround && tf.m > Q(0.36)) sp = Specialty::Farming;
-      else if (deepWoods && coin < 60) sp = Specialty::Lumber;
+      else if (deepWoods && ((bigWood >= 10 && coin < 70) || coin < 35)) sp = Specialty::Lumber;
       else if (river) sp = (n.seed >> 7) & 1 ? Specialty::Fishing : Specialty::Farming;
+      else if ((htr & TR_HERD) && !(htr & TR_FARM) && herdLand >= 6) sp = Specialty::Herding;   // steppe, savanna, heath, tundra
+      else if ((htr & TR_FARM) && farmLand >= 9 && coin < 75) sp = Specialty::Farming;           // meadows, the lake country
       else if (hill || hb == Biome::Snow || hb == Biome::Desert || hb == Biome::Mountain || (tf.m < Q(0.40) && open >= 5)) sp = Specialty::Herding;
       else if (inWood && forest >= 7 && coin < 20) sp = Specialty::Lumber;   // a forest village that still lives by the axe
       else if ((tf.m < Q(0.45) && coin >= 55) || coin >= 85) sp = Specialty::Herding;   // drier grass: sheep and cattle
@@ -996,9 +1042,12 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
         p.theme = themes[p.seed % 3];
       } else if (p.type == SiteType::DragonLair) p.theme = Monster::Dragon;
       else if (p.type == SiteType::Cave) {
-        Biome b = tile(p.ex, p.ey + 2).biome;
+        const gen::TileF ct = tile(p.ex, p.ey + 2);
         static const Monster themes[] = {Monster::Spider, Monster::Goblin, Monster::Bat};
-        p.theme = b == Biome::Snow ? Monster::IceWolf : b == Biome::Desert ? Monster::Sandworm : themes[p.seed % 3];
+        Monster m;
+        // (M3c) the biome's own cave beasts (wildlife.h caveTheme), else the generic ones
+        if (caveTheme(ct.eco, (int32_t)(p.seed & 0xFFFF), m)) p.theme = m;
+        else p.theme = ct.biome == Biome::Snow ? Monster::IceWolf : ct.biome == Biome::Desert ? Monster::Sandworm : themes[p.seed % 3];
       }
       SitePlan q = p;
       add(q, p.type == SiteType::Cave ? -1 : natLevel(p.ex, p.ey));
@@ -1079,9 +1128,13 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
         Rng nr(p.seed ^ 0xA5A5u);
         p.name = poiName(nr, t, x, y, tile(x, y + 2).biome);
         if (t == SiteType::Cave) {
-          Biome b = tile(x, y + 2).biome;
+          const gen::TileF ct = tile(x, y + 2);
+          const Biome b = ct.biome;
           static const Monster themes[] = {Monster::Spider, Monster::Troll, Monster::Goblin, Monster::Bat, Monster::Skeleton};
-          p.theme = b == Biome::Snow ? ((p.seed & 1) ? Monster::FrostSpider : Monster::IceWolf) : b == Biome::Desert ? Monster::Sandworm : themes[p.seed % 5];
+          Monster m;
+          // (M3c) the biome's own cave beasts (wildlife.h caveTheme): about two caves in three, else the generic ones
+          if ((p.seed >> 5) % 3 != 0 && caveTheme(ct.eco, (int32_t)((p.seed >> 8) & 0xFFFF), m)) p.theme = m;
+          else p.theme = b == Biome::Snow ? ((p.seed & 1) ? Monster::FrostSpider : Monster::IceWolf) : b == Biome::Desert ? Monster::Sandworm : themes[p.seed % 5];
         } else if (t == SiteType::Ruin) {
           static const Monster themes[] = {Monster::Draugr, Monster::Skeleton, Monster::Wraith};
           p.theme = themes[p.seed % 3];
@@ -1145,23 +1198,8 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
       d.id = makeId(rx, ry, IdKind::Den, (uint32_t)((cy - floorDiv(y0, DEN_CELL)) * 4 + (cx - floorDiv(x0, DEN_CELL))));
       d.x = x; d.y = y;
       int32_t q = hq(mix64(s ^ 0x99ull));
-      switch (m.biome) {
-        case Biome::Plains: d.mon = q < Q(0.5) ? Monster::Wolf : q < Q(0.85) ? Monster::Goblin : Monster::Skeleton; break;
-        case Biome::Forest: d.mon = q < Q(0.45) ? Monster::Wolf : q < Q(0.75) ? Monster::Spider : Monster::Bear; break;
-        case Biome::Autumn: d.mon = q < Q(0.4) ? Monster::Goblin : q < Q(0.7) ? Monster::Spider : Monster::Bear; break;
-        case Biome::Taiga: d.mon = q < Q(0.5) ? Monster::Wolf : q < Q(0.8) ? Monster::Bear : Monster::Troll; break;
-        case Biome::Snow: d.mon = q < Q(0.55) ? Monster::IceWolf : q < Q(0.8) ? Monster::FrostSpider : Monster::Troll; break;
-        case Biome::Swamp: d.mon = q < Q(0.6) ? Monster::Spider : Monster::Skeleton; break;
-        case Biome::Desert: d.mon = q < Q(0.6) ? Monster::Goblin : Monster::Skeleton; break;
-        default: continue;
-      }
-      switch (d.mon) {
-        case Monster::Wolf: case Monster::IceWolf: d.pack = (uint8_t)(3 + (q & 1)); break;
-        case Monster::Goblin: d.pack = (uint8_t)(3 + ((q >> 1) & 1)); break;
-        case Monster::Skeleton: d.pack = 3; break;
-        case Monster::Spider: case Monster::FrostSpider: d.pack = 2; break;
-        default: d.pack = 1; break;
-      }
+      // (M3c) the biome's own wildlife (rpg/world/wildlife.h: the frozen den table)
+      if (!denOf(m.eco, q, d.mon, d.pack)) continue;
       R.dens.push_back(d);
     }
   for (const DenPlan& d : forcedDens)

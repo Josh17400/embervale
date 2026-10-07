@@ -20,10 +20,12 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <initializer_list>
 #include <string>
 #include <vector>
 #include <unordered_map>
 #include <utility>
+#include "rpg/world/biomes.h"
 #include "rpg/world/coords.h"
 #include "rpg/world/ids.h"
 
@@ -91,6 +93,30 @@ int fitOf(Archetype a, const ClimateSample& cs) {
     default: break;
   }
   if (cs.coast && (a == Archetype::Fjordfolk || a == Archetype::River || a == Archetype::Imperial)) f += 40;
+  // (M3c) the biome proper at the cell's centre (culture_map.cpp packs eco + 1 into moist's top byte): each people
+  // leans to its own lands
+  const int ecoV = (int)(((uint32_t)cs.moist >> 24) & 255) - 1;
+  if (ecoV >= 0 && ecoV < (int)Eco::COUNT) {
+    const Eco e = (Eco)ecoV;
+    auto in = [&](std::initializer_list<Eco> l) { for (Eco q : l) if (q == e) return true; return false; };
+    switch (a) {
+      case Archetype::Dune: if (in({Eco::Dunes, Eco::StonyDesert, Eco::SaltFlats, Eco::Oasis, Eco::Scrubland, Eco::Badlands})) f += 60; break;
+      case Archetype::Steppe: if (in({Eco::Steppe, Eco::Savanna, Eco::Prairie})) f += 60; break;
+      case Archetype::Marsh: if (in({Eco::ReedMarsh, Eco::PeatBog, Eco::Mangrove, Eco::FloodedForest, Eco::LakeDistrict})) f += 60; break;
+      case Archetype::Fjordfolk: if (cs.coast && in({Eco::Shingle, Eco::SeaCliffs, Eco::Tundra, Eco::Taiga, Eco::SnowField, Eco::FrozenLakes})) f += 50; break;
+      case Archetype::Sylvan:
+        if (in({Eco::Silverwood, Eco::GiantForest})) f += 80;
+        else if (in({Eco::MixedForest, Eco::BirchWood, Eco::AutumnWood})) f += 25;
+        break;
+      case Archetype::Jade: if (in({Eco::BambooForest, Eco::BlossomGrove})) f += 70; break;
+      case Archetype::SunTemple: if (in({Eco::Jungle, Eco::Mangrove})) f += 50; break;
+      case Archetype::Highland: if (in({Eco::Heath, Eco::AlpineMeadow, Eco::ChalkDowns})) f += 40; break;
+      case Archetype::Starspire: if (in({Eco::AlpineMeadow, Eco::Glacier, Eco::CrystalBarrens})) f += 40; break;
+      case Archetype::Heartland: if (in({Eco::Meadow, Eco::FlowerMeadow})) f += 30; break;
+      case Archetype::River: if (in({Eco::LakeDistrict, Eco::Meadow})) f += 25; break;
+      default: break;
+    }
+  }
   return f < 0 ? 0 : f > 255 ? 255 : f;
 }
 // candidate k's archetype: the first 8 weighted by fit^2 (climate-true), the last 4 by fit + 40 (any people can settle

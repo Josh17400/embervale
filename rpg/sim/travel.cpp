@@ -172,6 +172,23 @@ bool Game::startJourney(int si, int kind, float hours, int fare) {
     gold -= fare;
     sfx((int)Sfx::Coin, pl().p);
   }
+  journeyWindow();
+  return true;
+}
+
+// (M3c carry) a teleport behind the fade: the journey's gather and arrival, to a tile
+bool Game::beginTravelTo(int32_t gx, int32_t gy) {
+  if (travelling()) return false;
+  travel = Travel();
+  travel.phase = TravelPhase::Gather;
+  travel.site = -1;
+  travel.gx = gx; travel.gy = gy;
+  journeyWindow();
+  return true;
+}
+
+// the destination window of the journey set up in `travel`, and the wish list that gathers it
+void Game::journeyWindow() {
   // the destination window: as placePlayerAt would recentre (a tile off the current window's middle moves it)
   const int lx = travel.gx - world.ox, ly = travel.gy - world.oy;
   const int lo = World::WIN_SHIFT, hi = World::WIN - World::WIN_SHIFT;
@@ -190,7 +207,6 @@ bool Game::startJourney(int si, int kind, float hours, int fare) {
 #endif
   }
   travelWant();
-  return true;
 }
 
 // the destination window's needs, most urgent first: the region plans placeWindow reads (loadRegionsAround), the 8 x 8
@@ -281,7 +297,8 @@ void Game::travelStep(float dt) {
 
 void Game::travelArriveNow() {
   const double t0 = nowMs();
-  const Site s = world.sites[(size_t)travel.site];   // a copy: moving the window loads more sites
+  const bool toSite = travel.site >= 0 && travel.site < (int)world.sites.size();
+  const Site s = toSite ? world.sites[(size_t)travel.site] : Site();   // a copy: moving the window loads more sites
   int leftSite = -1;
   if (inside) {
     // out of the building or dungeon without stepping onto its doorstep first (the screen is black)
@@ -303,7 +320,7 @@ void Game::travelArriveNow() {
   pl().vel = Vec2(); pl().knock = Vec2();
   pl().face = 0; pl().aim = Vec2(0, 1);
   pl().st = AState::Idle; pl().stT = 0;
-  arriveInOpen(s);   // (respawns too: waking north of a house hid the hero under its roof)
+  if (toSite) arriveInOpen(s);   // (respawns too: waking north of a house hid the hero under its roof)
   // a missing person found in the cave left with the player: led out, they are safe (as leaveSub does). Sites are
   // never removed, but a window move re-indexes nothing, so the index still names the cave.
   if (leftSite >= 0 && leftSite < (int)world.sites.size() && travel.kind != 2) questLeftSite(leftSite);

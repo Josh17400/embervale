@@ -29,7 +29,7 @@ jobs:
           ./build-native/rpg_test --seeds 1..20
           for s in 7 99 12345; do ./build-native/rpg_test $s --secs 60; done
 
-      # The current save format (SAVE_VER 8) only: owner rule 2026-10-04, old saves are not carried over. The fixture
+      # The current save format (SAVE_VER 9) only: owner rule 2026-10-04, old saves are not carried over. The fixture
       # holds format-level facts only and the round trips run on this machine, so the check is platform-stable: blocking.
       - name: Save format test
         run: ./build-native/save_test
@@ -56,6 +56,18 @@ jobs:
       # repetition audit: no neighbour clones, no look group over 3) and --society-strict (the society's buildings placed).
       - name: Builder and society test
         run: ./build-native/rpg_test --builder --seeds 1..12 --strict --society-strict
+
+      # M3c Wildlands (VISION_PLAN 15.15 / 15.16): every biome of rpg/world/biomes.h appears over seeds 1..5 (the tile
+      # classifier's census), none covers more than 25 % of the land, the rare wondrous lands stay under 7 % together and
+      # 2 % each; eco / family / blend layers consistent; order independent. And the forest rule (owner, 2026-10-06): no
+      # two solid trees or rocks touching, >= 98 % of the open ground still walkable, canopy floors, in every wooded and
+      # rocky biome (per biome report). The biomes drive the villages' trades: no specialty above 40 %, every one present.
+      # Blocking.
+      - name: Biomes and walkable wilds test
+        run: |
+          ./build-native/rpg_test --biomes --seeds 1..5 --strict
+          ./build-native/rpg_test --forest --seeds 1..20
+          ./build-native/rpg_test --specialties --seeds 1..20
 
       # rpg/world integer noise/ids golden values (M1 prep): must match MSVC bit for bit (green on Linux, run 37161023299).
       - name: Endless-world golden test

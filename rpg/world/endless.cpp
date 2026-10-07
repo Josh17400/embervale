@@ -28,8 +28,18 @@ MacroSample EndlessSource::macroFar(int32_t gx, int32_t gy) {
   m.water = c.e < ELEV_SEA;
   m.biome = c.rock > gen::Q(0.5) && !m.water ? Biome::Mountain : d_->classify(c.e, c.t, c.m, gx, gy, m.water);
   m.height = m.water ? 0 : (uint8_t)gen::levelOf(c.e);
+  m.eco = d_->ecoFar(m.biome, c, gx, gy);
+  if (m.eco == Eco::Blight) m.biome = Biome::Plains;
   m.kingdom = d_->kingdomAt(gx, gy);
   return m;
+}
+Eco EndlessSource::ecoAt(int32_t gx, int32_t gy) { d_->makeStart(); return d_->tile(gx, gy).eco; }
+Eco EndlessSource::ecoFar(int32_t gx, int32_t gy) {
+  d_->makeStart();
+  const gen::Coarse c = d_->coarse(gx, gy);
+  const bool water = c.e < ELEV_SEA;
+  const Biome b = c.rock > gen::Q(0.5) && !water ? Biome::Mountain : d_->classify(c.e, c.t, c.m, gx, gy, water);
+  return d_->ecoFar(b, c, gx, gy);
 }
 std::vector<float> EndlessSource::roadBearings(Gid site) {
   d_->makeStart();

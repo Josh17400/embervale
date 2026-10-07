@@ -1,0 +1,144 @@
+# M3c Wildlands (WORLD lane): a tour of every land biome at 11 o'clock, each found with gotoeco, checked with
+# expect eco and shot (the ocean is seen from its shores). Screenshots: m3c_world_tour_<key>.png in the working
+# directory (run it from a scratch folder):
+#   embervale.exe --script tools/scripts/m3c_world_tour.txt
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 gotoeco sandbeach
++2.0 expect eco sandbeach
++0.1 shot m3c_world_tour_sandbeach.png
++0.2 gotoeco shingle
++2.0 expect eco shingle
++0.1 shot m3c_world_tour_shingle.png
++0.2 gotoeco coralcoast
++2.0 expect eco coralcoast
++0.1 shot m3c_world_tour_coralcoast.png
++0.2 gotoeco seacliffs
++2.0 expect eco seacliffs
++0.1 shot m3c_world_tour_seacliffs.png
++0.2 gotoeco meadow
++2.0 expect eco meadow
++0.1 shot m3c_world_tour_meadow.png
++0.2 gotoeco flowermeadow
++2.0 expect eco flowermeadow
++0.1 shot m3c_world_tour_flowermeadow.png
++0.2 gotoeco prairie
++2.0 expect eco prairie
++0.1 shot m3c_world_tour_prairie.png
++0.2 gotoeco steppe
++2.0 expect eco steppe
++0.1 shot m3c_world_tour_steppe.png
++0.2 gotoeco savanna
++2.0 expect eco savanna
++0.1 shot m3c_world_tour_savanna.png
++0.2 gotoeco heath
++2.0 expect eco heath
++0.1 shot m3c_world_tour_heath.png
++0.2 gotoeco chalkdowns
++2.0 expect eco chalkdowns
++0.1 shot m3c_world_tour_chalkdowns.png
++0.2 gotoeco alpinemeadow
++2.0 expect eco alpinemeadow
++0.1 shot m3c_world_tour_alpinemeadow.png
++0.2 gotoeco stoneplains
++2.0 expect eco stoneplains
++0.1 shot m3c_world_tour_stoneplains.png
++0.2 gotoeco mixedforest
++2.0 expect eco mixedforest
++0.1 shot m3c_world_tour_mixedforest.png
++0.2 gotoeco birchwood
++2.0 expect eco birchwood
++0.1 shot m3c_world_tour_birchwood.png
++0.2 gotoeco giantforest
++2.0 expect eco giantforest
++0.1 shot m3c_world_tour_giantforest.png
++0.2 gotoeco darkforest
++2.0 expect eco darkforest
++0.1 shot m3c_world_tour_darkforest.png
++0.2 gotoeco blossomgrove
++2.0 expect eco blossomgrove
++0.1 shot m3c_world_tour_blossomgrove.png
++0.2 gotoeco bamboo
++2.0 expect eco bamboo
++0.1 shot m3c_world_tour_bamboo.png
++0.2 gotoeco jungle
++2.0 expect eco jungle
++0.1 shot m3c_world_tour_jungle.png
++0.2 gotoeco mushroomforest
++2.0 expect eco mushroomforest
++0.1 shot m3c_world_tour_mushroomforest.png
++0.2 gotoeco silverwood
++2.0 expect eco silverwood
++0.1 shot m3c_world_tour_silverwood.png
++0.2 gotoeco autumnwood
++2.0 expect eco autumnwood
++0.1 shot m3c_world_tour_autumnwood.png
++0.2 gotoeco taiga
++2.0 expect eco taiga
++0.1 shot m3c_world_tour_taiga.png
++0.2 gotoeco taigabog
++2.0 expect eco taigabog
++0.1 shot m3c_world_tour_taigabog.png
++0.2 gotoeco snowfield
++2.0 expect eco snowfield
++0.1 shot m3c_world_tour_snowfield.png
++0.2 gotoeco tundra
++2.0 expect eco tundra
++0.1 shot m3c_world_tour_tundra.png
++0.2 gotoeco glacier
++2.0 expect eco glacier
++0.1 shot m3c_world_tour_glacier.png
++0.2 gotoeco frozenlakes
++2.0 expect eco frozenlakes
++0.1 shot m3c_world_tour_frozenlakes.png
++0.2 gotoeco reedmarsh
++2.0 expect eco reedmarsh
++0.1 shot m3c_world_tour_reedmarsh.png
++0.2 gotoeco peatbog
++2.0 expect eco peatbog
++0.1 shot m3c_world_tour_peatbog.png
++0.2 gotoeco mangrove
++2.0 expect eco mangrove
++0.1 shot m3c_world_tour_mangrove.png
++0.2 gotoeco floodedforest
++2.0 expect eco floodedforest
++0.1 shot m3c_world_tour_floodedforest.png
++0.2 gotoeco lakedistrict
++2.0 expect eco lakedistrict
++0.1 shot m3c_world_tour_lakedistrict.png
++0.2 gotoeco dunes
++2.0 expect eco dunes
++0.1 shot m3c_world_tour_dunes.png
++0.2 gotoeco stonydesert
++2.0 expect eco stonydesert
++0.1 shot m3c_world_tour_stonydesert.png
++0.2 gotoeco badlands
++2.0 expect eco badlands
++0.1 shot m3c_world_tour_badlands.png
++0.2 gotoeco saltflats
++2.0 expect eco saltflats
++0.1 shot m3c_world_tour_saltflats.png
++0.2 gotoeco scrubland
++2.0 expect eco scrubland
++0.1 shot m3c_world_tour_scrubland.png
++0.2 gotoeco oasis
++2.0 expect eco oasis
++0.1 shot m3c_world_tour_oasis.png
++0.2 gotoeco mountain
++2.0 eco
++0.1 shot m3c_world_tour_mountain.png
++0.2 gotoeco ashfields
++2.0 expect eco ashfields
++0.1 shot m3c_world_tour_ashfields.png
++0.2 gotoeco crystalbarrens
++2.0 expect eco crystalbarrens
++0.1 shot m3c_world_tour_crystalbarrens.png
++0.2 gotoeco petrifiedforest
++2.0 expect eco petrifiedforest
++0.1 shot m3c_world_tour_petrifiedforest.png
++0.2 gotoeco blight
++2.0 expect eco blight
++0.1 shot m3c_world_tour_blight.png
++0.3 quit

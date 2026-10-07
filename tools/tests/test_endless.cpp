@@ -44,6 +44,7 @@ uint64_t chunkHash(const ChunkData& c) {
   auto add = [&](const uint8_t* p, size_t n) { for (size_t i = 0; i < n; i++) { h ^= p[i]; h *= 1099511628211ull; } };
   add(c.ground, sizeof c.ground); add(c.prop, sizeof c.prop); add(c.biome, sizeof c.biome); add(c.height, sizeof c.height); add(c.wall, sizeof c.wall);
   add(c.blend, sizeof c.blend);   // (M2 ecotones)
+  add(c.eco, sizeof c.eco); add(c.ecoNb, sizeof c.ecoNb);   // (M3c biomes)
   for (const Bldg& b : c.bldgs) { uint64_t v[] = {b.id, (uint64_t)(uint32_t)b.r.x, (uint64_t)(uint32_t)b.r.y, (uint64_t)b.type}; add((const uint8_t*)v, sizeof v); }
   for (const SpawnPlan& s : c.spawns) { uint64_t v[] = {s.siteId, (uint64_t)(uint32_t)s.sp.x, (uint64_t)(uint32_t)s.sp.y, (uint64_t)s.sp.slot}; add((const uint8_t*)v, sizeof v); }
   return h;
@@ -792,6 +793,7 @@ std::map<std::string, uint64_t> computeEndlessGolden() {
         MacroSample m = A.macroFar(x, y);
         fmac.add((uint64_t)(uint32_t)m.elev ^ ((uint64_t)(uint32_t)m.temp << 32)); fmac.add((uint64_t)(uint32_t)m.moist ^ ((uint64_t)m.biome << 32) ^ ((uint64_t)m.height << 40));
         fmac.add(m.kingdom);
+        fmac.add((uint64_t)m.eco);   // (M3c)
       }
     g[S + ".macro"] = fmac.h;
   }

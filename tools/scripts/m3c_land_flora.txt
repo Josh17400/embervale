@@ -1,0 +1,20 @@
+# M3c LAND lane: the Wildlands flora in the game (floragrid plants every one of the 37 props on a cleared stage): in a
+# temperate meadow by day and by night (the glowing crystals, vents and caps), in the snow and in the savanna's heat.
+#   embervale.exe --script tools/scripts/m3c_land_flora.txt      (m3c_land_flora_*.png in the working directory)
+seed 2
+0.3  newgame
++0.02 hour 12
++0.1 god 1
++0.2 gotoeco meadow
++1.5 floragrid
++1.5 shot m3c_land_flora_meadow.png
++0.1 hour 23
++2.0 shot m3c_land_flora_night.png
++0.1 hour 12
++0.2 gotoeco snowfield
++1.5 floragrid
++1.5 shot m3c_land_flora_snow.png
++0.2 gotoeco savanna
++1.5 floragrid
++1.5 shot m3c_land_flora_savanna.png
++0.3 quit

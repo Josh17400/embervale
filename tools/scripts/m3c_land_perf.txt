@@ -1,0 +1,57 @@
+# M3c LAND lane: terrain bake cost per biome. Run with EMB_BAKEBENCH=1 (each chunk bake alone, timed: "bakebench: <eco> <ms>")
+# and average per biome; EMB_BAKE_CLASSIC=1 paints the classic family grounds instead (the A side of an A/B on the same
+# world). Walks a little in each biome so fresh chunks bake there.
+#   EMB_BAKEBENCH=1 embervale.exe --script tools/scripts/m3c_land_perf.txt
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.3 gotoeco meadow
++1.0 walk east 7
++7.2 eco
++0.3 gotoeco savanna
++1.0 walk east 7
++7.2 eco
++0.3 gotoeco prairie
++1.0 walk east 7
++7.2 eco
++0.3 gotoeco heath
++1.0 walk east 7
++7.2 eco
++0.3 gotoeco chalkdowns
++1.0 walk east 7
++7.2 eco
++0.3 gotoeco birchwood
++1.0 walk east 7
++7.2 eco
++0.3 gotoeco giantforest
++1.0 walk east 7
++7.2 eco
++0.3 gotoeco jungle
++1.0 walk east 7
++7.2 eco
++0.3 gotoeco dunes
++1.0 walk east 7
++7.2 eco
++0.3 gotoeco badlands
++1.0 walk east 7
++7.2 eco
++0.3 gotoeco stonydesert
++1.0 walk east 7
++7.2 eco
++0.3 gotoeco glacier
++1.0 walk east 7
++7.2 eco
++0.3 gotoeco tundra
++1.0 walk east 7
++7.2 eco
++0.3 gotoeco peatbog
++1.0 walk east 7
++7.2 eco
++0.3 gotoeco shingle
++1.0 walk east 7
++7.2 eco
++0.3 gotoeco ashfields
++1.0 walk east 7
++7.2 eco
++0.5 quit

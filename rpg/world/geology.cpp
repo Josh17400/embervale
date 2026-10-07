@@ -37,6 +37,57 @@ const uint8_t kBase[(int)Rock::COUNT][(int)Ore::COUNT] = {
 };
 }  // namespace
 
+// (M3c) the province's rock alone (the biome classifier's question: chalk downs on limestone, ash fields on basalt,
+// badlands on sandstone). The same rule as geology() below, without the ore pass, which asks for the kingdoms (and
+// the kingdoms' capitals ask for the land's biomes: geology() inside the classifier would recurse). Memoised.
+Rock EndlessSource::Impl::provinceRock(int32_t x, int32_t y) {
+  int32_t ridge = 0, rift = 0;
+  uint64_t pair = 0;
+  plates(x, y, ridge, rift, &pair);
+  const bool belt = ridge > BELT_R, riftB = !belt && rift > RIFT_R;
+  uint64_t key;
+  int32_t bi = 0, bj = 0, bpx = 0, bpy = 0;
+  if (belt || riftB) key = mix64(pair ^ (belt ? 0xBE17ull : 0x21F7ull)) | 1ull;
+  else {
+    int32_t wx = x, wy = y;
+    warpQ(wx, wy, 7, 56, mix64(seed ^ tag("geo.warp")));
+    const int32_t ci = floorDiv(wx, PCELL), cj = floorDiv(wy, PCELL);
+    int64_t bd = INT64_MAX;
+    for (int dj = -1; dj <= 1; dj++)
+      for (int di = -1; di <= 1; di++) {
+        int32_t px, py;
+        provincePoint(seed, ci + di, cj + dj, px, py);
+        int64_t d = gen::dist2(wx, wy, px, py);
+        if (d < bd) { bd = d; bi = ci + di; bj = cj + dj; bpx = px; bpy = py; }
+      }
+    key = gen::key2(bi, bj) << 1;
+  }
+  auto it = rockMemo.find(key);
+  if (it != rockMemo.end()) return it->second;
+  const uint64_t h = belt || riftB ? mix64(key ^ seed ^ tag("geo.belt")) : cellSeed(seed, tag("geo.rock"), bi, bj);
+  Rock rk;
+  if (belt) { const uint32_t q = (uint32_t)(h % 10); rk = q < 5 ? Rock::Granite : q < 8 ? Rock::Slate : Rock::Marble; }
+  else if (riftB) rk = Rock::Basalt;
+  else {
+    int64_t e = 0, t = 0, m = 0, rg = 0;
+    for (int k = 0; k < 5; k++) {
+      const int32_t sx = bpx + (k == 1 ? 60 : k == 2 ? -60 : 0), sy = bpy + (k == 3 ? 60 : k == 4 ? -60 : 0);
+      const Coarse c = coarse(sx, sy);
+      e += c.e; t += c.t; m += c.m; rg += c.ridge;
+    }
+    e /= 5; t /= 5; m /= 5; rg /= 5;
+    const int lv = gen::levelOf((int32_t)e);
+    const bool sea = e < ELEV_SEA;
+    if (lv >= 3 || rg > gen::Q(0.25)) rk = m > gen::Q(0.56) ? Rock::Marble : ((h & 3) == 0 ? Rock::Slate : Rock::Granite);
+    else if (t > gen::Q(0.62) && m < gen::Q(0.40)) rk = Rock::Sandstone;
+    else if ((h >> 3) % 7 == 0 || (sea && (h & 1))) rk = Rock::Basalt;
+    else rk = m > gen::Q(0.50) ? Rock::Limestone : ((h >> 5) & 1 ? Rock::Sandstone : Rock::Limestone);
+  }
+  if (rockMemo.size() > 8192) rockMemo.clear();
+  rockMemo[key] = rk;
+  return rk;
+}
+
 Geology EndlessSource::Impl::geology(int32_t x, int32_t y) {
   // 1. a belt: the ranges and rifts of the plate boundaries
   int32_t ridge = 0, rift = 0;

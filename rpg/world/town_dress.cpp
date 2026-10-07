@@ -8,6 +8,7 @@
 #include <cmath>
 #include <functional>
 #include <queue>
+#include "rpg/world/gen.h"
 #include "rpg/world/town_gen.h"
 
 namespace ew {
@@ -73,7 +74,7 @@ void Gen::centrepieces() {
         else if (get(s.x + 2, s.y + 1) == K_SQUARE) M.setProp(s.x + 2, s.y + 1, Prop::Well);
         else centre = Prop::Well;
       }
-      if ((bio == Biome::Desert) && centre == Prop::OakTree) centre = Prop::PalmTree;
+      if (centre == Prop::OakTree) centre = townTree(bio, eco, (uint32_t)(s.x * 7 + s.y));
       // M3: the culture's centrepiece (art::PropStyle::centre): 0 fountain, 1 statue, 2 well, 3 sacred tree, 4 fire
       // bowl, 5 obelisk (a statue the arch lane paints as one), 6 a ring of standing stones. A village keeps its well
       // (its sacred tree stands on the green with the well beside it); a royal seat's well is a fountain
@@ -82,8 +83,7 @@ void Gen::centrepieces() {
         centre = kCentre[std::min(centreKind, 6)];
         if (capital && centre == Prop::Well) centre = Prop::Fountain;
       }
-      if (centre == Prop::OakTree)
-        centre = bio == Biome::Desert ? Prop::PalmTree : (bio == Biome::Snow || bio == Biome::Taiga ? Prop::PineTree : (bio == Biome::Autumn ? Prop::AutumnTree : Prop::OakTree));
+      if (centre == Prop::OakTree) centre = townTree(bio, eco, (uint32_t)(s.x * 7 + s.y));
     } else {
       switch (s.d) {
         case District::Temple: centre = Prop::Statue; break;
@@ -92,11 +92,10 @@ void Gen::centrepieces() {
         case District::Poor: centre = Prop::Well; break;
         default: centre = cq < 0.5f ? Prop::Well : Prop::Statue; break;
       }
-      if (bio == Biome::Desert && centre == Prop::OakTree) centre = Prop::PalmTree;
-      if ((bio == Biome::Snow || bio == Biome::Taiga) && centre == Prop::OakTree) centre = Prop::PineTree;
+      if (centre == Prop::OakTree) centre = townTree(bio, eco, (uint32_t)(s.x * 7 + s.y));
     }
     int px = s.x, py = s.y;
-    if (k == 0 && !(village && centre == Prop::OakTree)) {
+    if (k == 0 && !(village && art::isTreeProp(centre))) {
       // (M1 economy) the market fills one side of the square: the fountain or the well stands toward the other side,
       // in a plaza of its own (M1 fixer: the market's side is mktSide)
       const int ddx = mktSide == 2 ? -1 : (mktSide == 3 ? 1 : 0), ddy = mktSide == 0 ? 1 : (mktSide == 1 ? -1 : 0);
@@ -368,7 +367,11 @@ void Gen::yards() {
         for (int y = b.r.y; y < b.r.y + b.r.h; y++)
           for (int x = gx0; x < gx0 + 3; x++) {
             set(x, y, K_YARD);
-            const bool edgeY = y == b.r.y + b.r.h - 1 || y == b.r.y;
+            // (M3c fixer round 3, review: "solid lime-green rectangles with two dark square holes ... no volume") beside a
+            // house two tiles deep both rows were the fence's top and bottom runs, and a hedge laid two rows deep merged
+            // into a flat green slab with the pieces' inner corners as holes: there the bed is fenced only along its
+            // front and its outer side (an L against the house wall)
+            const bool edgeY = y == b.r.y + b.r.h - 1 || (y == b.r.y && b.r.h >= 3);
             if (edgeY) M.setProp(x, y, Prop::FenceH);
             else if (x == outer) M.setProp(x, y, Prop::FenceV);
             else if (hashf(x, y, ys) < 0.6f) M.setProp(x, y, hashf(x, y, ys + 1) < 0.5f ? Prop::Flowers2 : (village ? Prop::Mushrooms : Prop::Flowers3));
@@ -386,7 +389,7 @@ void Gen::yards() {
       int tx = side + (side < b.r.x ? -1 : 1), ty = b.r.y + rng.irange(b.r.h);
       if (ok(tx, ty) && ok(tx, ty + 1) && !cover[I(tx, ty)]) {
         Biome bb = M.biomeAt(tx, ty);
-        Prop tree = bb == Biome::Taiga || bb == Biome::Snow ? Prop::PineTree : (bb == Biome::Autumn ? Prop::AutumnTree : (bb == Biome::Desert ? Prop::PalmTree : Prop::OakTree));
+        Prop tree = townTree(bb, eco, (uint32_t)(tx * 13 + ty * 7));
         M.setProp(tx, ty, tree);
       }
     }
@@ -444,18 +447,40 @@ void Gen::fields() {
         else if (x == fx || x == fx + fw - 1) M.setProp(x, y, Prop::FenceV);
       }
     if (!pasture) {
-      if (freeTile(fx + fw, fy + 1)) M.setProp(fx + fw, fy + 1, Prop::Haystack);
-      if (rng.f() < 0.5f && freeTile(fx - 1, fy + fh - 1)) M.setProp(fx - 1, fy + fh - 1, Prop::Cart);
+      // (M3c fixer round 2, review: "a haystack and a pile of rocks jammed against the gate tower's foot") the field's
+      // haystack and cart stand on its headland only well clear of the town wall and its gate towers (2 tiles)
+      auto clearOfWall = [&](int x, int y) {
+        for (int oy = -2; oy <= 2; oy++)
+          for (int ox = -2; ox <= 2; ox++)
+            if (in(x + ox, y + oy) && M.wall[I(x + ox, y + oy)]) return false;
+        return true;
+      };
+      if (freeTile(fx + fw, fy + 1) && clearOfWall(fx + fw, fy + 1)) M.setProp(fx + fw, fy + 1, Prop::Haystack);
+      if (rng.f() < 0.5f && freeTile(fx - 1, fy + fh - 1) && clearOfWall(fx - 1, fy + fh - 1)) M.setProp(fx - 1, fy + fh - 1, Prop::Cart);
     } else {
-      M.setProp(fx + fw / 2, fy + 1, Prop::Haystack);
-      if (fw >= 6) M.setProp(fx + 2, fy + fh - 2, Prop::Trough);   // (M1 economy) the beasts' water
+      // (M3c fixer) the haystack stands in the inner corner farthest from the gate: on the tile just inside a north
+      // gate it sealed the pen
+      const int ix = gateX == fx ? fx + 1 : gateX == fx + fw - 1 ? fx + fw - 2 : gateX;
+      const int iy = gateY == fy ? fy + 1 : gateY == fy + fh - 1 ? fy + fh - 2 : gateY;
+      {
+        int hx = fx + 1, hy = fy + 1, best = -1;
+        const int cxs[2] = {fx + 1, fx + fw - 2}, cys[2] = {fy + 1, fy + fh - 2};
+        for (int a = 0; a < 2; a++)
+          for (int b = 0; b < 2; b++) {
+            const int d = std::abs(cxs[a] - gateX) + std::abs(cys[b] - gateY);
+            if (d > best) { best = d; hx = cxs[a]; hy = cys[b]; }
+          }
+        M.setProp(hx, hy, Prop::Haystack);
+      }
+      if (fw >= 6 && !(fx + 2 == ix && fy + fh - 2 == iy) && !M.prop[I(fx + 2, fy + fh - 2)])
+        M.setProp(fx + 2, fy + fh - 2, Prop::Trough);   // (M1 economy) the beasts' water
       // the flock or the herd grazing, never on top of one another
       const bool cows = spec != Specialty::Herding ? hashf(fx, fy, fs + 3) < 0.6f : hashf(fx, fy, fs + 3) < 0.3f;
       const int beasts = std::max(2, (fw - 2) * (fh - 2) / 5);
       int put = 0;
       for (int t = 0; t < 40 && put < beasts; t++) {
         const int x = fx + 1 + rng.irange(fw - 2), y = fy + 1 + rng.irange(fh - 2);
-        if (M.prop[I(x, y)]) continue;
+        if (M.prop[I(x, y)] || (x == ix && y == iy)) continue;   // never on the tile just inside the gate
         bool crowd = false;
         for (int oy = -1; oy <= 1; oy++)
           for (int ox = -1; ox <= 1; ox++) {
@@ -501,7 +526,7 @@ void Gen::gardens() {
         if (near && vnoise(x * 0.3f, y * 0.3f, bseed + 55u) < 0.6f) M.setG(x, y, Ground::Dirt);
       }
   const Biome gb = bio;
-  const Prop fruit = gb == Biome::Snow || gb == Biome::Taiga ? Prop::PineTree : (gb == Biome::Desert ? Prop::PalmTree : (gb == Biome::Autumn ? Prop::AutumnTree : Prop::OakTree));
+  const Prop fruit = townTree(gb, eco, 1u);
   const int want = (int)((city ? 60 : 8) * treesF + 0.5f);   // (M3: TownStyle::trees)
   // every spot on a coarse lattice, in a shuffled order (so the gardens are spread, not swept from one corner)
   std::vector<int> spots;
@@ -684,7 +709,7 @@ void Gen::spaces() {
         int ox, oy;
         if (findOpen(11, 9, 0.35f, 1.15f, ox, oy, k, District::Temple) || findOpen(11, 9, 0.35f, 1.15f, ox, oy, k)) {
           const int mx = ox + 5, my = oy + 4;
-          const Prop t1 = cold ? Prop::PineTree : (dry ? Prop::PalmTree : Prop::OakTree), t2 = cold ? Prop::SnowPine : (dry ? Prop::PalmTree : Prop::BirchTree);
+          const Prop t1 = cold ? Prop::PineTree : (dry ? Prop::PalmTree : townTree(bio, eco, 0u)), t2 = cold ? Prop::SnowPine : (dry ? Prop::PalmTree : townTree(bio, eco, 1u));
           int n = 0;
           for (int a = 0; a < 10; a++) {
             const float an = D_TAU * a / 10;
@@ -919,6 +944,15 @@ void Gen::greenery() {
       if (b > 1.0f) continue;
       if (walled && !ins(x, y) && b > 0.9f) continue;
       if (M.bldgAt[I(x, y - 1)] >= 0 || wallAt(x, y + 1) || wallAt(x, y - 1)) continue;   // keep faces and wall feet clear
+      // (M3c fixer round 3, review: "snow-capped shrubs sit on the crest of the long diagonal wall") a diagonal run's
+      // tiles touch this one at its sides and corners, and its crest stands a tile or two over them: nothing grows
+      // within a tile of a wall on any side, nor two rows under one
+      {
+        bool nearWall = false;
+        for (int oy = -1; oy <= 2 && !nearWall; oy++)
+          for (int ox = -1; ox <= 1; ox++) if (wallAt(x + ox, y + oy)) { nearWall = true; break; }
+        if (nearWall) continue;
+      }
       bool besideStreet = false;
       for (int d = 0; d < 4; d++) if (get(x + D4X[d], y + D4Y[d]) == K_MAIN) besideStreet = true;
       float r = hashf(x, y, gs);
@@ -938,7 +972,8 @@ void Gen::greenery() {
         }
       if (nearField && r < treeP + 0.03f) continue;
       if (r < treeP && !besideStreet && !nearStall && !cover[I(x, y)] && !noBuild[I(x, y)]) {
-        Prop tree = bb == Biome::Taiga ? Prop::PineTree : bb == Biome::Autumn ? Prop::AutumnTree : bb == Biome::Desert ? Prop::PalmTree
+        Prop tree = ecoFamily(eco) == bb ? townTree(bb, eco, (uint32_t)(x * 31 + y * 17))
+                  : bb == Biome::Taiga ? Prop::PineTree : bb == Biome::Autumn ? Prop::AutumnTree : bb == Biome::Desert ? Prop::PalmTree
                   : (hashf(x, y, gs + 1) < 0.3f ? Prop::BirchTree : Prop::OakTree);
         if (bb == Biome::Snow) tree = Prop::SnowPine;
         M.setProp(x, y, tree);
@@ -954,7 +989,7 @@ void Gen::greenery() {
       if (cover[I(x, y)] && tallProp((Prop)(p - 1)) && (Prop)(p - 1) != Prop::Fountain && (Prop)(p - 1) != Prop::Well && M.bldgAt[I(x, y)] < 0) {
         Prop pp = (Prop)(p - 1);
         if (pp == Prop::Banner || pp == Prop::Lamppost || pp == Prop::Signpost || pp == Prop::MarketStall || pp == Prop::Statue || pp == Prop::DryingRack || pp == Prop::HideRack ||
-            pp == Prop::OakTree || pp == Prop::BirchTree || pp == Prop::PineTree || pp == Prop::AutumnTree || pp == Prop::PalmTree || pp == Prop::SnowPine || pp == Prop::Cart)
+            art::isTreeProp(pp) || pp == Prop::Cart)
           M.setP(x, y, 0);
       }
     }
@@ -1099,12 +1134,78 @@ void Gen::finish() {
         bool face = false;
         for (int d = 0; d < 4; d++) if (in(x + D4X[d], y + D4Y[d]) && lvl[I(x + D4X[d], y + D4Y[d])] > lvl[i]) face = true;
         if (face) {
-          const bool way = isStreet(x, y) || get(x, y) == K_YARD;
+          bool way = isStreet(x, y) || get(x, y) == K_YARD;
+          // (M3c) the wild land in the town's buffer (natural relief beyond its outline) takes the chunks' ramp lattice
+          // (every 8 tiles along a face, as round any settlement's terraces), so a knoll at the town's edge is never
+          // walled in where the town's relief meets the land's
+          if (!way && get(x, y) == K_NONE && C.worldSeed) {
+            const int32_t gx = O.gx + x, gy = O.gy + y;
+            const uint64_t rs = C.worldSeed ^ tag("relief.ramp");
+            const bool ns = (in(x, y - 1) && lvl[I(x, y - 1)] > lvl[i]) || (in(x, y + 1) && lvl[I(x, y + 1)] > lvl[i]);
+            if (ns) way = ((gx + (int32_t)(ew::gen::tileHash(rs, 0, gy >> 4) & 15)) & 7) < 3;
+            else way = ((gy + (int32_t)(ew::gen::tileHash(rs, 1, gx >> 4) & 15)) & 7) < 3;
+          }
           h |= way ? Map::HEIGHT_RAMP : Map::HEIGHT_CLIFF;
           if (!way && !M.wall[i] && M.prop[i]) M.prop[i] = 0;
         }
         M.height[i] = h;
       }
+    // (M3c) every terrace reachable: a shelf no street crosses was walled in by its faces. Flood the town's walkable
+    // relief (no cliff face, no water) from its edge; a shelf left out gets stairs: the first face tile beside it (scan
+    // order) and up to one face tile either side of it along the face become a ramp, and the flood goes on from there.
+    {
+      auto passable = [&](int x, int y) {
+        const size_t i = I(x, y);
+        return !(M.height[i] & Map::HEIGHT_CLIFF) && !groundWater((Ground)M.ground[i]);
+      };
+      std::vector<uint8_t> seen((size_t)W * H, 0);
+      std::vector<int> st;
+      auto flood = [&]() {
+        for (size_t h = 0; h < st.size(); h++) {
+          const int k = st[h], x = k % W, y = k / W;
+          for (int d = 0; d < 4; d++) {
+            const int nx = x + D4X[d], ny = y + D4Y[d];
+            if (!in(nx, ny) || seen[I(nx, ny)] || !passable(nx, ny)) continue;
+            seen[I(nx, ny)] = 1;
+            st.push_back((int)I(nx, ny));
+          }
+        }
+        st.clear();
+      };
+      for (int x = 0; x < W; x++)
+        for (int y : {0, H - 1})
+          if (passable(x, y) && !seen[I(x, y)]) { seen[I(x, y)] = 1; st.push_back((int)I(x, y)); }
+      for (int y = 0; y < H; y++)
+        for (int x : {0, W - 1})
+          if (passable(x, y) && !seen[I(x, y)]) { seen[I(x, y)] = 1; st.push_back((int)I(x, y)); }
+      flood();
+      for (int guard = 0; guard < 64; guard++) {
+        // a cliff face tile beside the reached land with an unreached walkable tile beside it too
+        int fx = -1, fy = -1;
+        for (int y = 1; y < H - 1 && fx < 0; y++)
+          for (int x = 1; x < W - 1 && fx < 0; x++) {
+            if (!(M.height[I(x, y)] & Map::HEIGHT_CLIFF) || groundWater((Ground)M.ground[I(x, y)])) continue;
+            bool reached = false, cut = false;
+            for (int d = 0; d < 4; d++) {
+              const int nx = x + D4X[d], ny = y + D4Y[d];
+              if (!passable(nx, ny)) continue;
+              if (seen[I(nx, ny)]) reached = true; else cut = true;
+            }
+            if (reached && cut) { fx = x; fy = y; }
+          }
+        if (fx < 0) break;
+        // the stairs: this face tile and its face neighbours along the row (a face running east-west) or column
+        const bool ew = (M.height[I(fx - 1, fy)] & Map::HEIGHT_CLIFF) || (M.height[I(fx + 1, fy)] & Map::HEIGHT_CLIFF);
+        for (int k = -1; k <= 1; k++) {
+          const int sx = ew ? fx + k : fx, sy = ew ? fy : fy + k;
+          if (!in(sx, sy) || !(M.height[I(sx, sy)] & Map::HEIGHT_CLIFF)) continue;
+          M.height[I(sx, sy)] = (uint8_t)((M.height[I(sx, sy)] & ~Map::HEIGHT_CLIFF) | Map::HEIGHT_RAMP);
+          if (!M.wall[I(sx, sy)] && M.prop[I(sx, sy)] && M.bldgAt[I(sx, sy)] < 0) M.prop[I(sx, sy)] = 0;
+          if (!seen[I(sx, sy)]) { seen[I(sx, sy)] = 1; st.push_back((int)I(sx, sy)); }
+        }
+        flood();
+      }
+    }
     // a fence the faces cut short (a lone post left on its own) goes too
     auto fenceAt = [&](int x, int y) { const int q = M.propAt(x, y); return q == (int)Prop::FenceH + 1 || q == (int)Prop::FenceV + 1; };
     for (int y = 0; y < H; y++)
@@ -1155,18 +1256,60 @@ void Gen::finish() {
     const uint8_t pave = (uint8_t)(C.culture ? std::min<int>(C.culture->town.paving, 15) : 0);
     // (M3 fixer round 3, review: "oak trees grow straight out of plank boardwalk squares") where a people decks its
     // squares and streets in planks (paving 4, the marsh), no tree stands on the deck
+    // (M3c fixer round 3, review: "the plank boardwalks are built from axis-aligned rectangles stepped in staircase runs,
+    // with short dead-end stubs and notches") a decked town's walkways run on as one deck: the inner corner of every
+    // step (open ground with the deck on two orthogonal sides and the diagonal between them) is decked too, so a
+    // diagonal street is a continuous two-plank-wide walk with chamfered corners instead of a chain of blocks touching
+    // at their corners; a one-tile stub off a walk with nothing at its end (no door, gate or quay) is taken up
+    if (pave == 4) {
+      auto deck = [&](int x, int y) { if (!in(x, y)) return false; const Ground g = M.at(x, y); return (g == Ground::Road || g == Ground::Plaza) && !water[I(x, y)]; };
+      auto openG = [&](int x, int y) {
+        if (!in(x, y)) return false;
+        const size_t i = I(x, y);
+        const Ground g = M.at(x, y);
+        return (g == Ground::Grass || g == Ground::Meadow || g == Ground::Dirt || g == Ground::Swamp || g == Ground::Tundra || g == Ground::Sand) &&
+               !water[i] && !M.prop[i] && M.bldgAt[i] < 0 && !M.wall[i] && !front[i];
+      };
+      std::vector<int> fill;
+      for (int y = 1; y < H - 1; y++)
+        for (int x = 1; x < W - 1; x++) {
+          if (!openG(x, y)) continue;
+          for (int k = 0; k < 4; k++) {
+            const int sx = (k & 1) ? 1 : -1, sy = (k & 2) ? 1 : -1;
+            if (deck(x + sx, y) && deck(x, y + sy) && deck(x + sx, y + sy) && lvl[I(x + sx, y)] == lvl[I(x, y)] && lvl[I(x, y + sy)] == lvl[I(x, y)]) {
+              fill.push_back(y * W + x);
+              break;
+            }
+          }
+        }
+      for (int i : fill) M.setG(i % W, i / W, Ground::Road);
+      std::vector<int> stubs;
+      for (int y = 1; y < H - 1; y++)
+        for (int x = 1; x < W - 1; x++) {
+          const size_t i = I(x, y);
+          if (M.at(x, y) != Ground::Road || water[i] || front[i] || M.prop[i] || mask[i] == K_SQUARE) continue;
+          int n = 0, dir = -1;
+          for (int d = 0; d < 4; d++) if (deck(x + D4X[d], y + D4Y[d]) || M.at(x + D4X[d], y + D4Y[d]) == Ground::Bridge) { n++; dir = d; }
+          if (n != 1) continue;
+          // the tile beyond its open end: a door, a building, a gate or the water keeps it
+          const int bx = x - D4X[dir], by = y - D4Y[dir];
+          bool keep = !in(bx, by) || M.bldgAt[I(bx, by)] >= 0 || M.wall[I(bx, by)] || water[I(bx, by)] || front[I(bx, by)];
+          for (int d = 0; d < 4 && !keep; d++) if (in(x + D4X[d], y + D4Y[d]) && (M.bldgAt[I(x + D4X[d], y + D4Y[d])] >= 0 || front[I(x + D4X[d], y + D4Y[d])])) keep = true;
+          if (!keep) stubs.push_back((int)i);
+        }
+      for (int i : stubs) {
+        const int x = i % W, y = i / W;
+        Ground g = Ground::Grass;
+        for (int d = 0; d < 4; d++) if (openG(x + D4X[d], y + D4Y[d])) { g = M.at(x + D4X[d], y + D4Y[d]); break; }
+        M.setG(x, y, g);
+      }
+    }
     bool felled = false;
     if (pave == 4)
       for (size_t i = 0; i < M.prop.size(); i++) {
         const Ground g = (Ground)M.ground[i];
         if (g != Ground::Plaza && g != Ground::Road && g != Ground::Bridge) continue;
-        switch ((Prop)(M.prop[i] - 1)) {
-          case Prop::OakTree: case Prop::OakTree2: case Prop::BirchTree: case Prop::AutumnTree: case Prop::WillowTree:
-          case Prop::PineTree: case Prop::PineTree2: case Prop::PalmTree: case Prop::SnowPine:
-            if (M.prop[i]) { M.prop[i] = 0; felled = true; }
-            break;
-          default: break;
-        }
+        if (M.prop[i] && art::isTreeProp((Prop)(M.prop[i] - 1))) { M.prop[i] = 0; felled = true; }
       }
     if (felled) M.rebuildSolid();
     M.blend.assign((size_t)W * H, 0);
@@ -1245,10 +1388,12 @@ bool Gen::step() {
             if (!pr) continue;
             switch ((Prop)(pr - 1)) {
               case Prop::Flowers1: case Prop::Flowers2: case Prop::Flowers3: case Prop::TallGrass: case Prop::Mushrooms: case Prop::Fern:
+              case Prop::Wildflowers: case Prop::PrairieGrass: case Prop::Heather: case Prop::Petals: case Prop::JungleFern: case Prop::SilverFern:
                 M.prop[i] = 0; break;
               case Prop::Bush: case Prop::BerryBush: M.prop[i] = (uint8_t)((int)Prop::SnowBush + 1); break;
               case Prop::OakTree: case Prop::OakTree2: case Prop::BirchTree: case Prop::AutumnTree: case Prop::WillowTree:
-              case Prop::PineTree: case Prop::PineTree2: M.prop[i] = (uint8_t)((int)Prop::SnowPine + 1); break;
+              case Prop::PineTree: case Prop::PineTree2: case Prop::LarchTree: case Prop::BlossomTree: case Prop::SilverTree: case Prop::JuniperTree:
+              case Prop::AcaciaTree: M.prop[i] = (uint8_t)((int)Prop::SnowPine + 1); break;
               default: break;
             }
           }

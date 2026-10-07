@@ -818,7 +818,7 @@ int Gen::compoundHomes(int want) {
       }
       for (int cxn : {x0 + 1, x0 + cw - 2}) {
         if (get(cxn, wy) != K_NONE || front[I(cxn, wy)] || cover[I(cxn, wy)] || M.prop[I(cxn, wy)]) continue;
-        const Prop tree = bio == Biome::Desert || dune ? Prop::PalmTree : (bio == Biome::Snow || bio == Biome::Taiga ? Prop::PineTree : Prop::OakTree);
+        const Prop tree = dune && bio != Biome::Snow ? Prop::PalmTree : townTree(bio, eco, hashAt(cxn, wy, 31u));
         if (treesF > 0.3f && putSolid(cxn, wy, tree)) break;
       }
       for (int y = y0 + 1; y < y1; y++)

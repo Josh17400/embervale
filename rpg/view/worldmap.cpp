@@ -30,6 +30,7 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include "rpg/world/biomes.h"
 #include <vector>
 #include "rpg/view/view.h"
 #include "rpg/world/source.h"
@@ -184,6 +185,15 @@ uint32_t biomeInk(Biome b) {
     default: return C(170, 184, 122);
   }
 }
+// (M3c LIFE) a biome's ink on the parchment: its map colour (biomes.h ecoInfo rgb) toned halfway to its family's ink,
+// so the savanna, the heath and the badlands read apart without the map turning garish
+uint32_t ecoInk(Eco e) {
+  const EcoInfo& I = ecoInfo(e);
+  if (e == Eco::Ocean) return kSeaDeep;
+  // (M3c fixer, review: the wooded biomes' swatches were one green) mixed less toward the family, so the biomes of one
+  // family (forest, bamboo, jungle) stay apart on the map and in its legend
+  return mixc(mixc(biomeInk(I.family), C(I.r, I.g, I.b), ecoHas(e, EF_RARE) ? 0.88f : 0.80f), kParch, 0.12f);
+}
 // the geology view's rock colours (rpg/world/geology.h Rock order)
 uint32_t rockInk(ew::Rock r) {
   static const uint32_t k[] = {C(196, 150, 146), C(92, 96, 112), C(226, 218, 182), C(222, 160, 96), C(126, 140, 168), C(240, 238, 232)};
@@ -253,6 +263,10 @@ struct MapState {
   bool moved = false;
   float rx = 0, ry = 0, rw = 1, rh = 1;   // the map rectangle drawn last (box coordinates)
   std::vector<int> legend;                 // icons on screen this frame
+  std::vector<int> ecoLeg;                 // (M3c) the biomes of the known land in view, most widespread first
+  double ecoCx = 1e30, ecoCy = 1e30;       // ... counted for this centre and zoom
+  int ecoZi = -1;
+  uint64_t ecoSig = 0;
   int reqSel = -2;                         // a selection asked for by a script (mapselect)
   double lastPaintMs = 0, worstPaintMs = 0;
   int tilesPainted = 0;
@@ -301,9 +315,7 @@ bool seenSoft(const Game& g, int32_t gx, int32_t gy) {
 bool isTreeProp(int pr) {
   if (!pr) return false;
   const art::Prop p = (art::Prop)(pr - 1);
-  return p == art::Prop::OakTree || p == art::Prop::OakTree2 || p == art::Prop::PineTree || p == art::Prop::PineTree2 || p == art::Prop::SnowPine ||
-         p == art::Prop::BirchTree || p == art::Prop::WillowTree || p == art::Prop::AutumnTree || p == art::Prop::PalmTree || p == art::Prop::DeadTree ||
-         p == art::Prop::ElderTree;
+  return art::isTreeProp(p) || p == art::Prop::ElderTree;   // (M3c: the Wildlands trees too)
 }
 }  // namespace
 
@@ -384,8 +396,11 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         const Ground gr = m.at(lx, ly);
         s.c = groundInk(gr);
         // natural ground takes its biome's ink (tile by tile the ecotone grounds made a checkerboard at the street zoom)
-        if (!m.biome.empty() && (gr == Ground::Grass || gr == Ground::Meadow || gr == Ground::ForestFloor || gr == Ground::Autumn || gr == Ground::Tundra))
-          s.c = mixc(biomeInk(m.biomeAt(lx, ly)), groundInk(gr), z >= 1 ? 0.12f : 0.25f);
+        // (M3c fixer) the sand, marsh and snow grounds too: the badlands, salt flats, crystal barrens and ash fields lie on
+        // Sand, and drew as anonymous sand matching no legend entry
+        if (!m.biome.empty() && (gr == Ground::Grass || gr == Ground::Meadow || gr == Ground::ForestFloor || gr == Ground::Autumn || gr == Ground::Tundra ||
+                                 gr == Ground::Sand || gr == Ground::Swamp || gr == Ground::Snow))
+          s.c = mixc(ecoInk(m.ecoAt(lx, ly)), groundInk(gr), z >= 1 ? 0.12f : 0.25f);
         s.water = groundWater(gr);
         s.deep = gr == Ground::DeepWater;
         s.road = gr == Ground::Road || gr == Ground::Bridge || gr == Ground::Plaza;
@@ -433,7 +448,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         }
         if (!m.biome.empty()) s.bio = m.biomeAt(lx, ly);
       } else {
-        s.c = ms.water ? (s.deep ? kSeaDeep : kSea) : biomeInk(ms.biome);
+        s.c = ms.water ? (s.deep ? kSeaDeep : kSea) : ecoInk(ms.eco);
         if (!ms.water)
           for (const GRect& r : cores)
             if (gx >= r.x0 && gy >= r.y0 && gx < r.x1 && gy < r.y1) {
@@ -643,11 +658,13 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
   }
   // ---- glyphs: tree marks in the woods (Z1 outside the window, Z2) and snow-tipped peaks on the ridge crests (Z2, Z3).
   //      A jittered global lattice of candidates; each tile draws every glyph that reaches it (sorted north to south).
-  struct Gl { int x, y, kind, size; bool snow; };
+  struct Gl { int x, y, kind, size; bool snow; int lean = 0; };
   std::vector<Gl> gls;
   auto knownLand = [&](int x, int y) { if (x < -MG || y < -MG || x >= TS + MG || y >= TS + MG) return false; const Smp& s = at(x + MG, y + MG); return s.known && !s.water && !s.bldg && !s.road; };
   if (z >= 4) {
-    const int G = z >= 16 ? 8 : 9;
+    // (M3c fixer, review: "a heap of identical white triangles") a sparser lattice at the land zooms, a quarter of
+    // the lower crests left out, and every peak its own shape (it leans one way or the other, some broader, some taller)
+    const int G = z >= 16 ? 8 : 12;
     for (int cy = (int)std::floor((iy * TS - 7.0) / G); cy <= (int)std::floor((iy * TS + TS + 7.0) / G); cy++)
       for (int cx = (int)std::floor((ix * TS - 7.0) / G); cx <= (int)std::floor((ix * TS + TS + 7.0) / G); cx++) {
         const uint32_t h = hash2(cx, cy, 977);
@@ -660,8 +677,12 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         const bool crestX = e >= at(gx + MG - 3, gy + MG).e && e >= at(gx + MG + 3, gy + MG).e;
         const bool crestY = e >= at(gx + MG, gy + MG - 3).e && e >= at(gx + MG, gy + MG + 3).e;
         if (!crestX && !crestY && s.h < 6) continue;
+        if (((h >> 16) & 3) == 0 && s.h < 6) continue;
         const bool snow = s.h >= 6 || s.bio == Biome::Snow || s.bio == Biome::Taiga;
-        gls.push_back({gx, gy, 0, std::clamp((int)s.h - 3, 2, 4) + (z >= 16 ? 0 : 1), snow});
+        Gl pk{gx, gy, 0, std::clamp((int)s.h - 3, 2, 4) + (z >= 16 ? 0 : 1) + (int)((h >> 24) % 3u) - 1, snow};
+        pk.size = std::max(2, pk.size);
+        pk.lean = (int)((h >> 20) % 3u) - 1;
+        gls.push_back(pk);
       }
   }
   if (z >= 1 && z <= 8) {   // (M2 fixer round 3: the town zooms too, outside the window: the stipple read as halftone)
@@ -688,16 +709,17 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
   for (const Gl& q : gls) {
     if (q.kind == 0) {
       // a little peak: lit west flank, hatched east flank, inked edges, a snow tip
-      const int s = q.size, hgt = s + 2 + (s >= 4 ? 1 : 0);
+      const int s = q.size, hgt = s + 2 + (s >= 4 ? 1 : 0) + (q.lean == 0 ? 1 : 0);
+      const float kl = 1.0f + 0.4f * (float)q.lean, kr = 1.0f - 0.4f * (float)q.lean;   // the flanks' spread (a lean)
       for (int r = 0; r <= hgt; r++) {
-        const int half = (int)std::lround(r * (float)s / hgt);
+        const int halfL = (int)std::lround(r * (float)s / hgt * kl), halfR = (int)std::lround(r * (float)s / hgt * kr);
         const int y = q.y - hgt + r;
-        for (int dx = -half; dx <= half; dx++) {
+        for (int dx = -halfL; dx <= halfR; dx++) {
           const int x = q.x + dx;
           if (x < 0 || y < 0 || x >= TS || y >= TS) continue;
           uint32_t col = dx < 0 ? C(236, 226, 196) : (dx == 0 ? C(200, 186, 160) : (((x + y) & 1) ? C(150, 128, 104) : C(176, 156, 128)));
           if (q.snow && r < hgt * 0.45f) col = dx <= 0 ? C(252, 252, 248) : C(204, 212, 222);
-          if (dx == -half || dx == half) col = kInkC;
+          if (dx == -halfL || dx == halfR) col = kInkC;
           c.set(x, y, col);
         }
       }
@@ -842,6 +864,35 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
   auto toScr = [&](double gx, double gy) { return Vec2((float)(gx / z - left), (float)(gy / z - top)); };
   S.legend.clear();
   auto legendAdd = [&](int ic) { if (std::find(S.legend.begin(), S.legend.end(), ic) == S.legend.end()) S.legend.push_back(ic); };
+  // (M3c LIFE) the biomes in view: a coarse census of the known land (12 x 8 far samples, re-counted when the view
+  // moves by a tenth of its width or the zoom or the explored land changes)
+  if (g.world.endless && g.world.src && !S.geo &&
+      (S.ecoZi != S.zi || S.ecoSig != sig || std::fabs(S.ecoCx - S.cx) > w * z * 0.1 || std::fabs(S.ecoCy - S.cy) > h * z * 0.1)) {
+    S.ecoZi = S.zi; S.ecoSig = sig; S.ecoCx = S.cx; S.ecoCy = S.cy;
+    int cnt[(int)Eco::COUNT] = {};
+    // (M3c fixer round 3: 20 x 12 samples, so a biome a sixth of the view wide is not missed between them)
+    for (int j = 0; j < 12; j++)
+      for (int i = 0; i < 20; i++) {
+        const int32_t gx = (int32_t)std::floor((left + w * (i + 0.5) / 20.0) * z), gy = (int32_t)std::floor((top + h * (j + 0.5) / 12.0) * z);
+        if (!seenSoft(g, gx, gy)) continue;
+        const ew::MacroSample ms = g.world.src->macroFar(gx, gy);
+        if (ms.water) continue;
+        cnt[(int)ms.eco]++;
+      }
+    S.ecoLeg.clear();
+    for (int e = 0; e < (int)Eco::COUNT; e++) if (cnt[e] > 0 && e != (int)Eco::Ocean) S.ecoLeg.push_back(e);
+    std::sort(S.ecoLeg.begin(), S.ecoLeg.end(), [&](int a, int b) { return cnt[a] != cnt[b] ? cnt[a] > cnt[b] : a < b; });
+    // (M3c fixer round 3, review: "the legend stops at 5 entries and leaves the most visible colours unexplained")
+    // every biome that covers a visible share of the known land (at least 1 %), up to 14; the side column cuts the list
+    // to the rows it has (the places keep theirs)
+    {
+      long tot = 0;
+      for (int e : S.ecoLeg) tot += cnt[e];
+      size_t keep = 0;
+      while (keep < S.ecoLeg.size() && keep < 14 && (keep < 3 || cnt[S.ecoLeg[keep]] * 100 >= tot)) keep++;
+      S.ecoLeg.resize(keep);
+    }
+  }
   // ---- labels are placed after the markers, most important first; one that would overlap a placed label (or a
   //      marker) tries its other position and is otherwise left out
   struct Lab { int prio; float x, y, alt; std::string s; Color ink, halo; bool spaced; };
@@ -852,7 +903,7 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
   double pgx0, pgy0;
   playerG(pgx0, pgy0);
   const Vec2 hp = toScr(pgx0, pgy0);
-  taken.push_back({hp.x - 6, hp.y - 6, hp.x + 6, hp.y + 6});
+  taken.push_back({hp.x - 9, hp.y - 10, hp.x + 9, hp.y + 8});   // (M3c fixer round 3: the hero's whole marker)
   taken.push_back({0, h - 14, 110, h});            // the scale bar
   taken.push_back({w - 26, 0, w, 30});             // the compass rose
   if (g.world.endless && !S.geo) {
@@ -1006,7 +1057,13 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
       for (const Box& o : taken) if (b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0) return false;
       return true;
     };
+    // (M3c fixer round 3, review: "about 16 region names are drawn at once, several collide ... they hide the biome
+    // colours") the feature names (ranges, seas, forests, lakes: prio 6 and 7) are capped by the map's area, the
+    // greatest first, and keep a wider berth from every other label
+    const int featCap = std::max(4, (int)(w * h / 15000.0f));
+    int feats = 0;
     for (Lab l : labs) {
+      if (l.prio >= 6 && feats >= featCap) continue;
       const int gap = l.spaced ? 3 : 0;
       const float tw = (float)P.textW(l.s, 1) + gap * (float)std::max<size_t>(0, l.s.size() - 1);
       l.x = std::clamp(l.x, tw / 2 + 2, std::max(tw / 2 + 2, w - tw / 2 - 2));   // whole on the map, not cut at its edge
@@ -1047,10 +1104,11 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
         }
         Box b{l.x - tw / 2 - 1, yy - 1, l.x + tw / 2 + 1, yy + 9};
         // (M2 fixer round 2) the lesser labels keep a little air round them: names stacked touching read as one
-        const Box bp = l.prio > 0 ? Box{b.x0 - 3, b.y0 - 2, b.x1 + 3, b.y1 + 2} : b;
+        const Box bp = l.prio >= 6 ? Box{b.x0 - 8, b.y0 - 4, b.x1 + 8, b.y1 + 4} : l.prio > 0 ? Box{b.x0 - 3, b.y0 - 2, b.x1 + 3, b.y1 + 2} : b;
         if (pass < 2 && !clear(bp) && !(forcedHere && pass == 0)) continue;
         if (l.prio > 0 && (b.y0 < 0 || b.y1 > h)) continue;
         taken.push_back(b);
+        if (l.prio >= 6) feats++;
         // a parchment halo all round, then the ink (spaced capitals for the great features)
         if (!l.spaced) {
           for (int k = 0; k < 4; k++) P.text(l.x + (k == 0 ? 1.0f : k == 1 ? -1.0f : 0.0f), yy + (k == 2 ? 1.0f : k == 3 ? -1.0f : 0.0f), l.s, 1, l.halo, 1);
@@ -1344,10 +1402,14 @@ void View::drawMapTab(Game& g, float top) {
   // the legend: only what the map shows right now
   {
     float ly = L.mapY + L.mapH - 9;
-    std::vector<int> leg = S.legend;
+    std::vector<int> leg;
     float legTop = L.infoY + 60;
     if (mapSel_ >= 0 && mapSel_ < (int)g.world.sites.size()) legTop = L.carriageY + (g.travelQuote(mapSel_, true).ok ? L.tbH + 8 : 34);
     const int rows = std::max(0, (int)((ly + 9 - legTop) / 10));
+    // (M3c fixer round 3) the biomes first, then the places; the biomes take the rows the places leave (at least 3)
+    const int ecoRows = std::max(std::min(3, rows), rows - (int)S.legend.size());
+    for (int e : S.ecoLeg) if ((int)leg.size() < ecoRows) leg.push_back(-100 - e);
+    leg.insert(leg.end(), S.legend.begin(), S.legend.end());
     if ((int)leg.size() > rows) leg.resize((size_t)rows);
     for (int i = (int)leg.size() - 1; i >= 0; i--) {
       const int ic = leg[(size_t)i];
@@ -1357,6 +1419,14 @@ void View::drawMapTab(Game& g, float top) {
       } else if (ic == -2) {
         P.rect(x + 1, ly + 1, 5, 5, kGold);
         P.text(x + 12, ly, "TRACKED QUEST", 1, kDim);
+      } else if (ic <= -100) {   // (M3c) a biome: its ink swatch and its name (cut to the column at a word)
+        const Eco e = (Eco)(-100 - ic);
+        P.rect(x, ly, 8, 7, colOf(ecoInk(e)));
+        P.frame(x, ly, 8, 7, Color(0.25f, 0.18f, 0.12f));
+        std::string nm = ecoName(e);
+        const size_t fit = (size_t)std::max(4, (int)((L.colW - 12) / 6));
+        if (nm.size() > fit) { const size_t sp = nm.rfind(' ', fit); nm = sp != std::string::npos && sp > 3 ? nm.substr(0, sp) : nm.substr(0, fit); }
+        P.text(x + 12, ly, nm, 1, kDim);
       } else {
         const Tex& t = S.icons[(size_t)ic];
         P.blit(t, std::floor(x + 4 - t.w / 2.0f), std::floor(ly + 3 - t.h / 2.0f));

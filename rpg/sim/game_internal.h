@@ -7,6 +7,7 @@
 #include "rpg/culture/society.h"
 #include "rpg/sim/game.h"
 #include "rpg/world/ids.h"
+#include "rpg/world/wildlife.h"
 
 namespace gsim {
 using art::Monster;
@@ -30,12 +31,34 @@ inline const MStat& mstat(Monster m) {
       {62, 10, 52, 15, 120, 7, 0.36f, 30, true, false},    // FrostSpider
       {85, 14, 40, 18, 100, 8, 0.50f, 42, false, false},   // Sandworm
       {1500, 30, 72, 34, 320, 18, 0.60f, 1500, true, true},// Dragon
+      // M3c Wildlands wildlife (LIFE lane): fair against the classic beasts of the same depth (ai.cpp gives each its
+      // move: the scorpion's every-third heavy sting, the hyena pack's circling, the lurker's lunge from the water, the
+      // yeti's frost slam, the wisp's kited bolts, the hound's fire bite, the blightspawn's spore burst)
+      {52, 10, 48, 16, 100, 6, 0.42f, 24, false, false},   // Scorpion
+      {28, 7, 72, 13, 150, 5, 0.28f, 11, false, false},    // Hyena (packs of 3-4)
+      {78, 15, 36, 17, 70, 8, 0.50f, 32, false, false},    // Lurker (slow ashore, a fast lunge)
+      {108, 17, 46, 19, 120, 9, 0.55f, 64, false, false},  // Yeti
+      {26, 7, 58, 12, 150, 4, 0.50f, 20, true, true},      // Wisp (ranged bolts, floats)
+      {48, 11, 74, 13, 150, 5, 0.30f, 32, false, false},   // EmberHound
+      {50, 10, 40, 15, 130, 6, 0.45f, 28, false, false},   // Blightspawn
   };
+  static_assert(sizeof(t) / sizeof(t[0]) == (size_t)Monster::COUNT, "stats for every monster");
   return t[(int)m];
+}
+// the wind-up of a heavy, telegraphed blow (the brutes' slam, the scorpion's sting, the blightspawn's spore burst);
+// the view's danger ring fills over the same time
+inline float heavyWindup(Monster m) {
+  switch (m) {
+    case Monster::Troll: case Monster::Yeti: return 0.9f;
+    case Monster::Blightspawn: return 0.75f;
+    default: return 0.8f;
+  }
 }
 inline const char* monsterName(Monster m) {
   static const char* n[] = {"WOLF", "BOAR", "CAVE BEAR", "SLIME", "GIANT SPIDER", "BAT", "SKELETON", "DRAUGR", "GOBLIN", "TROLL",
-                            "WRAITH", "MUDCRAB", "ICE WOLF", "RIME SPIDER", "SANDWORM", "ASHFANG THE DRAGON"};
+                            "WRAITH", "MUDCRAB", "ICE WOLF", "RIME SPIDER", "SANDWORM", "ASHFANG THE DRAGON",
+                            "GIANT SCORPION", "HYENA", "MIRE LURKER", "YETI", "WILL-O'-WISP", "EMBER HOUND", "BLIGHTSPAWN"};
+  static_assert(sizeof(n) / sizeof(n[0]) == (size_t)Monster::COUNT, "a name for every monster");
   return n[(int)m];
 }
 inline Vec2 faceVec(int f) {
@@ -52,6 +75,7 @@ inline Faction monsterFaction(Monster m) {
   switch (m) {
     case Monster::Wolf: case Monster::Boar: case Monster::Bear: case Monster::Spider: case Monster::Bat: case Monster::Mudcrab:
     case Monster::IceWolf: case Monster::FrostSpider: case Monster::Sandworm:
+    case Monster::Scorpion: case Monster::Hyena: case Monster::Lurker: case Monster::Yeti:   // (M3c wildlife)
       return Faction::Wild;
     case Monster::Skeleton: case Monster::Draugr: case Monster::Wraith: return Faction::Undead;
     case Monster::Dragon: return Faction::Dragon;
@@ -65,7 +89,9 @@ enum DlgAct { A_BYE, A_TRADE, A_REST, A_RUMOR, A_ACCEPT, A_TURNIN, A_MAIN, A_HEA
 
 // ---- quest text helpers (game_rpg.cpp, quests.cpp, wayside.cpp)
 inline const char* monsterPlural(Monster m) {
-  static const char* mn[] = {"WOLVES", "BOARS", "BEARS", "SLIMES", "SPIDERS", "BATS", "SKELETONS", "DRAUGR", "GOBLINS", "TROLLS", "WRAITHS", "MUDCRABS", "ICE WOLVES", "RIME SPIDERS", "SANDWORMS", "DRAGONS"};
+  static const char* mn[] = {"WOLVES", "BOARS", "BEARS", "SLIMES", "SPIDERS", "BATS", "SKELETONS", "DRAUGR", "GOBLINS", "TROLLS", "WRAITHS", "MUDCRABS", "ICE WOLVES", "RIME SPIDERS", "SANDWORMS", "DRAGONS",
+                             "SCORPIONS", "HYENAS", "MIRE LURKERS", "YETIS", "WISPS", "EMBER HOUNDS", "BLIGHTSPAWN"};
+  static_assert(sizeof(mn) / sizeof(mn[0]) == (size_t)Monster::COUNT, "a plural for every monster");
   return mn[(int)m];
 }
 // compass direction of a tile offset (north is up the map): "NORTH-EAST" or, short, "NE"

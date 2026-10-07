@@ -440,3 +440,40 @@ a hitch, readable relief, a per-region geology, the classic island retired, live
   arrival seconds of a long journey still show 27-36 ms worst frames on desktop (`m2_sim_travel.txt --perf`, target
   25 ms); the Colossus face and the caravan are the weakest M2 props; plaza features stand on bare paving (a planter
   sprite would help); Colossus rubble blocks read square; the level-up banner's text runs past its gold rules.
+
+## M3c, "Wildlands" (VISION_PLAN 15.15, owner 2026-10-06: "tons and tons of biomes")
+
+### Phase A (lead), 2026-10-07: done
+- The contracts are recorded in VISION_PLAN 15.16: `rpg/world/biomes.h` (Biome = family, Eco = 46 biomes with their
+  profiles and resources), the eco layers through chunks / window / bake, the first-cut classifier, 37 flora props with
+  stand-in art and shared tree / flora predicates, 7 wildlife monsters with `rpg/world/wildlife.h`, the audio ambience /
+  mood API, `gotoeco` / `eco` / `expect eco` / `ecotour`, `rpg_test --biomes`, `flora_gallery`, SAVE_VER 9,
+  ENDLESS_GEN_VER 12.
+- Verified (MSVC, BDIR=build): every target builds; rpg_test --seeds 1..20 20/20; save_test ALL OK; --golden ok;
+  --endless --golden (39) ok; --endless 1..10, --window 1..5, --towns 1..10, --towns --golden (201), --cultures 400
+  1..5, --builder 1..12 --strict --society-strict, --forest 1..10, --biomes 1..3 --strict: 0 failures; 7 / 99 / 12345
+  --secs 60 ALL OK; builder_gallery --check 0 failures; m3c_lead_biomes.txt and m2_world_peaks.txt exit 0.
+
+### Phase B lanes (disjoint files; see the lead report for the briefs)
+- **world** (build_world): the real classifier, eco ground, eco flora placement and stamps, ecotones between ecos,
+  settlements / trades / cultures / landmarks from biomes, the forest rule over every wooded and rocky biome, goldens.
+- **land** (build_land): the eco terrain painting and ecotone dithering, the 37 flora props for real, peaks in the
+  Wildlands' rocks, prop lights, phone bake budget.
+- **life** (build_life): the 7 creatures painted, roaming wildlife and hunts, weather per eco, ambient beds and moods,
+  minimap / world-map colours and legend, biome banner.
+- **carry** (build_carry): the seat-of-power interior hitch, teleport / fast-travel stalls in capitals, the Sylvan
+  cone roofs.
+
+### Integration (2026-10-07): done
+- Clean MSVC build of every target (only the old int-to-float C4244 noise). Fixes: the `prepinterior` check raced the
+  worker thread (4000 sim steps ran in ~10 ms of wall time; it now steps slowly up to 3 s); `View::prepareInterior`
+  pre-bakes / pre-paints the door ahead's interior (seat entry 6.7-12.8 ms over the 6 capitals, was 37-63 ms);
+  hyenas / lurkers / yetis / ember hounds bleed, hyenas and ember hounds follow the wolves' nerve rules; `geology.h`
+  includes `<cstddef>`; `killquest` finishes hunts. Scripts updated for the new generation: m1_trades (fishmonger and
+  smelter by `gotospecialty`, watermill dropped), m3_arch_capital (seed 7's capital has fewer gates), sim_kingdom (a
+  KHAN now), sim_rooms (the inn's rooms are on the ground floor), towns_tour (no upper floors), opening (a pen at the
+  village's south edge).
+- Verified: rpg_test --seeds 1..20 20/20 (x6 runs); save_test ALL OK; --endless 1..10, --window 1..5, --towns 1..10,
+  --cultures 400, --builder 1..12 strict, --biomes 1..5 strict (46/46), --forest 1..10 (402 windows, 0 touching pairs),
+  --specialties 1..20, --golden, --endless --golden (39), --towns --golden (201): 0 failures; 7 / 99 / 12345 --secs 60
+  ALL OK; builder_gallery --check 0 failures; all 84 tools/scripts exit 0.

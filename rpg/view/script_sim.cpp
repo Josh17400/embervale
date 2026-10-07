@@ -29,6 +29,7 @@
 #include <cstdlib>
 #include <string>
 #include <vector>
+#include "rpg/culture/culture.h"
 #include "rpg/sim/game.h"
 #include "rpg/view/script_api.h"
 #include "rpg/view/view.h"
@@ -104,7 +105,7 @@ bool expTravel(ScriptCtx& c) {
   Game& g = c.game;
   if (c.arg(2) == "done") {
     if (g.travelling()) c.fail("still on the road");
-    else if (g.lastTravel.site < 0) c.fail("no journey has arrived");
+    else if (g.lastTravel.site < 0 && g.lastTravel.steps == 0) c.fail("no journey has arrived");   // (M3c: a journey to a tile has no site)
     else if (g.lastTravel.syncChunks > 0) c.fail(std::to_string(g.lastTravel.syncChunks) + " chunks generated on the main thread at the arrival");
   } else c.fail("expect travel done");
   return true;
@@ -275,9 +276,20 @@ bool cmdKillQuest(ScriptCtx& c) {
     if (a.st == AState::Dead || !a.hostile) continue;
     if (a.quest == q->id || (q->type == QType::NamedBandit && a.boss && a.site == q->target)) ids.push_back(a.id);
   }
-  for (int id : ids) g.debugFell(id);
+  // (M3c integration) a hunt counts any beast of its kind (Game::questKill): the nearest still needed fall, hostile or not
+  if (q->type == QType::Hunt && q->state == QState::Active && ids.empty()) {
+    std::vector<std::pair<float, int>> near;
+    for (size_t k = 1; k < g.actors.size(); k++) {
+      const Actor& a = g.actors[k];
+      if (a.st == AState::Dead || a.human || a.npc || a.mon != q->mon) continue;
+      near.push_back({len2(a.p - g.pl().p), a.id});
+    }
+    std::sort(near.begin(), near.end());
+    for (size_t i = 0; i < near.size() && (int)i < q->need - q->have; i++) ids.push_back(near[i].second);
+  }
+  for (int id : ids) g.debugFell(id, q->type == QType::Hunt);
   std::printf("script: killquest: %zu fell\n", ids.size());
-  if (ids.empty()) c.fail("killquest: nothing of the quest's to fight here");
+  if (ids.empty() && q->state == QState::Active) c.fail("killquest: nothing of the quest's to fight here");   // (none left of a finished one is fine)
   return true;
 }
 EMB_SCRIPT_CMD("killquest", "killquest: the tracked quest's raiders or named chief fall", cmdKillQuest);
@@ -484,4 +496,91 @@ bool cmdNextDay(ScriptCtx& c) {
   return true;
 }
 EMB_SCRIPT_CMD("nextday", "nextday [hour]: the next morning (default 08:00): daily things reset (tolls, blessings, news)", cmdNextDay);
+}  // namespace
+
+// ---- M3c CARRY lane: smoothness probes (the seat-of-power entry hitch, journeys into capitals)
+//   perfmark <label>            print the longest whole frame (wall clock between two frames' streaming calls: the
+//                               update, the draw and the present) since the previous perfmark, then start again
+//   pickculture <archetype> [n] find the n-th nearest kingdom capital of that culture archetype (as gotoculture
+//                               capital does) and remember it (discovered); nothing moves yet
+//   travelpicked [tile]         a journey behind the fade to the picked capital (Game::beginTravel; "tile": a journey
+//                               to its arrival tile instead, as a teleport behind the fade: Game::beginTravelTo)
+namespace {
+int g_picked = -1;
+int archetypeIndex(const std::string& w) {
+  std::string s;
+  for (char ch : w) if (ch != '-' && ch != '_') s += (char)std::tolower((unsigned char)ch);
+  for (int a = 0; a < (int)cult::Archetype::COUNT; a++) {
+    std::string n;
+    for (const char* p = cult::archetypeName((cult::Archetype)a); *p; p++)
+      if (*p != '-' && *p != ' ') n += (char)std::tolower((unsigned char)*p);
+    if (n == s) return a;
+  }
+  return -1;
+}
+bool cmdPerfMark(ScriptCtx& c) {
+  Game& g = c.game;
+  std::printf("perfmark %s: worst frame %.1f ms\n", c.rest(1).c_str(), g.frameGapWorstMs);
+  g.frameGapWorstMs = 0;
+  return true;
+}
+EMB_SCRIPT_CMD("perfmark", "perfmark <label>: print the longest whole frame since the last perfmark (M3c carry)", cmdPerfMark);
+
+bool cmdPickCulture(ScriptCtx& c) {
+  Game& g = c.game;
+  if (!g.world.src) { c.fail("pickculture: no endless world"); return true; }
+  const int want = archetypeIndex(c.arg(1));
+  if (want < 0) { c.fail("pickculture <archetype> [n]"); return true; }
+  const int nth = c.arg(2).empty() ? 0 : std::max(0, std::atoi(c.arg(2).c_str()));
+  ew::EndlessSource& S = *g.world.src;
+  int32_t px, py;
+  playerGlobal(g, px, py);
+  const int32_t ci0 = ew::floorDiv(px, ew::CCELL), cj0 = ew::floorDiv(py, ew::CCELL);
+  struct Cell { int32_t ci, cj; double d; };
+  std::vector<Cell> cells;
+  for (int32_t cj = cj0 - 12; cj <= cj0 + 12; cj++)
+    for (int32_t ci = ci0 - 12; ci <= ci0 + 12; ci++)
+      cells.push_back({ci, cj, std::hypot((double)(ci * ew::CCELL + ew::CCELL / 2 - px), (double)(cj * ew::CCELL + ew::CCELL / 2 - py))});
+  std::sort(cells.begin(), cells.end(), [](const Cell& a, const Cell& b) { return a.d < b.d; });
+  std::vector<std::pair<ew::Gid, double>> hits;
+  for (const Cell& cl : cells) {
+    if ((int)S.atlas().family(cl.ci, cl.cj).archetype != want) continue;
+    const int32_t rx0 = ew::regionOf(cl.ci * ew::CCELL), ry0 = ew::regionOf(cl.cj * ew::CCELL);
+    const int nr = ew::CCELL / ew::REGION;
+    for (int32_t ry = ry0; ry < ry0 + nr; ry++)
+      for (int32_t rx = rx0; rx < rx0 + nr; rx++) {
+        const ew::RegionPlan& P = S.region(rx, ry);
+        for (const ew::SitePlan& s : P.sites) {
+          if (s.type != SiteType::City || !s.kingdom || !s.culture) continue;
+          const ew::KingdomPlan* K = S.kingdom(s.kingdom);
+          if (!K || K->capital != s.id || (int)S.culture(s.culture).archetype != want) continue;
+          hits.push_back({s.id, std::hypot((double)(s.ex - px), (double)(s.ey - py))});
+        }
+      }
+    if ((int)hits.size() > nth) break;
+  }
+  if ((int)hits.size() <= nth) { c.fail("pickculture " + c.arg(1) + ": no capital within 12 culture cells"); return true; }
+  std::sort(hits.begin(), hits.end(), [](const std::pair<ew::Gid, double>& a, const std::pair<ew::Gid, double>& b) { return a.second < b.second; });
+  g_picked = g.world.ensureSite(hits[(size_t)nth].first);
+  if (g_picked < 0) { c.fail("pickculture: the capital could not be loaded"); return true; }
+  g.world.sites[(size_t)g_picked].discovered = true;
+  std::printf("script: pickculture %s -> %s (%.0f tiles away)\n", c.arg(1).c_str(), g.world.sites[(size_t)g_picked].name.c_str(), hits[(size_t)nth].second);
+  return true;
+}
+EMB_SCRIPT_CMD("pickculture", "pickculture <archetype> [n]: remember the n-th nearest kingdom capital of that culture (M3c carry)", cmdPickCulture);
+
+bool cmdTravelPicked(ScriptCtx& c) {
+  Game& g = c.game;
+  if (g_picked < 0 || g_picked >= (int)g.world.sites.size()) { c.fail("travelpicked: pickculture first"); return true; }
+  if (g.mode != Mode::Play && g.mode != Mode::Menu) g.mode = Mode::Play;
+  bool ok;
+  if (c.arg(1) == "tile") {
+    const Site& s = g.world.sites[(size_t)g_picked];
+    ok = g.beginTravelTo(g.world.ox + s.ex, g.world.oy + s.ey + 3);
+  } else ok = g.beginTravel(g_picked, false);
+  if (!ok) c.fail("travelpicked: refused: " + g.notice);
+  else std::printf("script: travelpicked -> %s\n", g.world.sites[(size_t)g_picked].name.c_str());
+  return true;
+}
+EMB_SCRIPT_CMD("travelpicked", "travelpicked [tile]: a journey behind the fade to the picked capital (tile: a teleport behind the fade) (M3c carry)", cmdTravelPicked);
 }  // namespace

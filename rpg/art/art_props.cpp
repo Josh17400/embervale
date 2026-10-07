@@ -20,7 +20,12 @@ int m3bPropFrames(Prop p);
 // (M3b) the wild props are Peak .. GreatPeak: art_props.h's isWildProp counts everything after Peak, which now
 // includes the M3b furniture appended after them
 inline bool wildP(Prop p) { return (int)p >= (int)Prop::Peak && (int)p <= (int)Prop::GreatPeak; }
-inline bool m3bP(Prop p) { return (int)p >= (int)Prop::FirePitL && (int)p < (int)Prop::COUNT; }
+inline bool m3bP(Prop p) { return (int)p >= (int)Prop::FirePitL && (int)p <= (int)Prop::FoldScreen; }
+// M3c Wildlands: rpg/art/art_flora.cpp (AcaciaTree .. Petals): painters and canvas sizes
+void paintFloraProp(Canvas& c, Prop p, int frame);
+int floraPropW(Prop p);
+int floraPropH(Prop p);
+int floraPropFrames(Prop p);
 
 // =====================================================================================================
 // 5. props
@@ -160,10 +165,17 @@ void pineTree(Canvas& c, const Ramp& P, uint32_t seed, int tiers, bool snow) {
         if (((x + y * 2) % 5) == 0 && k > 0) k--;                 // needle strokes
         if (y > ty1 - jag - std::fabs(rel) * 1.5f - 1.5f) k = std::max(0, k - 1);
         // snow settles on the upper part of every tier, its lower edge ragged
-        if (snow && u < (t == 0 ? 0.12f : 0.26f) + 0.25f * hashf(x / 2, t, seed) - std::fabs(rel) * 0.15f) {
-          c.set(x, y, kSnow[std::clamp(k + 1, 1, 4)]);
+        // (M3c fixer round 2, review: "snow-laden pines render hollow at night") the snow is shaded as a lump (white on
+        // the lit west, blue on the east) and sits on a dark line of needles under its ragged edge, so it keeps its
+        // shape against snowy ground when the night grade brings both whites to one tone
+        const float thr = (t == 0 ? 0.12f : 0.26f) + 0.25f * hashf(x / 2, t, seed) - std::fabs(rel) * 0.15f;
+        if (snow && u < thr) {
+          // white only on the lit west of the lump's top; its lower rows and east side in the snow's blue shade
+          const int ks = k + (rel < -0.1f ? 1 : 0) - (u > thr - 0.07f ? 1 : 0) - (rel > 0.35f ? 1 : 0);
+          c.set(x, y, kSnow[std::clamp(ks, 1, 4)]);
           continue;
         }
+        if (snow && u < thr + 0.10f) { c.set(x, y, P[0]); continue; }
         c.set(x, y, P[k]);
       }
     }
@@ -2573,38 +2585,19 @@ uint32_t floorColor(FloorStyle fs, int gx, int gy) {
       const float fib = vnoise(gx * 0.45f, gy * 0.18f, 1784) * 0.6f + vnoise(gx * 0.11f, gy * 0.11f, 1786) * 0.4f;
       uint32_t col = tone(kFeltW, 3, (fib - 0.5f) * 0.32f);
       if (hash3(gx, gy, 1788) % 11 == 0) col = mix(col, kFeltW[2], 0.35f);                 // the felt's flecks
-      const int RH = 40, row = (int)std::floor(gy / (float)RH), ry = gy - row * RH;
-      const int RW = 62, off = (int)(hash3(row, 3, 1781) % (uint32_t)RW);
-      const int cell = (int)std::floor((gx + off) / (float)RW), rx = gx + off - cell * RW;
-      const uint32_t h = hash3(cell, row, 1783);
-      if (h % 5 < 2) return col;                                                           // bare felt here
-      const int mx0 = 3 + (int)(h >> 4) % 8, mx1 = RW - 4 - (int)(h >> 7) % 9, my0 = 3 + (int)(h >> 10) % 5, my1 = RH - 4 - (int)(h >> 12) % 5;
-      if (rx < mx0 || rx > mx1 || ry < my0 || ry > my1) {
-        // the rug's soft shadow on the felt to its south-east
-        if ((rx == mx1 + 1 && ry > my0 && ry <= my1 + 1) || (ry == my1 + 1 && rx > mx0 && rx <= mx1 + 1)) return mix(col, kFeltW[1], 0.35f);
-        return col;
-      }
-      static const Ramp* const fields[4] = {&kFeltRug, &kFeltRug, &kBlueCloth, &kFeltW};
-      const Ramp& F = *fields[(h >> 14) % 4u];
-      const Ramp& Bd = (h >> 14) % 4u == 2 ? kFeltRug : ((h >> 17) % 2 ? kBlueCloth : kFeltW);
-      const int ex = std::min(rx - mx0, mx1 - rx), ey = std::min(ry - my0, my1 - ry), e = std::min(ex, ey);
-      if (e == 0) return F[1];                                                             // the seam
-      if (e <= 3) {                                                                        // the border band
-        uint32_t c2 = Bd[&Bd == &kFeltW ? 3 : 2];
-        if (e == 2 && ((rx + ry) % 3 == 0)) c2 = kFeltW[4];                                // its stitching
-        return c2;
-      }
-      const int fx = rx - mx0 - 4, fy = ry - my0 - 4;
-      uint32_t c3 = tone(F, &F == &kFeltW ? 3 : 2, (fib - 0.5f) * 0.2f);
-      // a medallion: a stepped diamond outline in the middle of the field, a boss at its heart, horns at its tips
-      const int fw = mx1 - mx0 - 8, fh = my1 - my0 - 8;
-      const float qx = std::fabs(fx - fw * 0.5f) / std::max(1.0f, fw * 0.5f), qy = std::fabs(fy - fh * 0.5f) / std::max(1.0f, fh * 0.5f);
-      const float dm = qx + qy;
-      const uint32_t motif = &F == &kFeltW ? kFeltRug[2] : kFeltW[3];
-      if (dm > 0.62f && dm < 0.74f) c3 = motif;
-      else if (dm < 0.16f) c3 = Bd[&Bd == &kFeltW ? 4 : 3];
-      else if (dm > 0.95f && (qx > 0.85f || qy > 0.85f) && ((fx + fy) & 1)) c3 = motif;   // the horns at the corners
-      return c3;
+      // (M3c fixer round 3, review: "rugs laid out on a rectangular grid and simply clipped by the circle ... about 15
+      // identical diamond rugs") the floor texture no longer stamps rugs of its own on a grid (they ran under the round
+      // wall and repeated across the whole tent): the felt is bare, laid in broad overlapping sheets (a soft darker
+      // seam where one sheet's edge lies on the next) with slow tonal drifts; the rugs are the furnishing's own, placed
+      // where the room's plan wants them
+      const float drift = vnoise(gx * 0.025f, gy * 0.03f, 1792);
+      col = tone(kFeltW, 3, (fib - 0.5f) * 0.32f + (drift - 0.5f) * 0.18f);
+      if (hash3(gx, gy, 1788) % 11 == 0) col = mix(col, kFeltW[2], 0.35f);
+      const float sheet = gx * 0.7f + gy * 0.45f + vnoise(gx * 0.05f, gy * 0.05f, 1794) * 30.0f;
+      const float sm = sheet - std::floor(sheet / 70.0f) * 70.0f;
+      if (sm < 1.0f) col = mix(col, kFeltW[1], 0.45f);
+      else if (sm < 2.0f) col = mix(col, kFeltW[4], 0.25f);
+      return col;
     }
     case FloorStyle::Roots: {
       // (M3b) living wood underfoot: wide boards grown smooth, the grain sweeping, moss in the seams
@@ -3119,9 +3112,30 @@ Canvas roundEdgePiece(RoomStyle rs, int ang, int off) {
     for (int x = 0; x < 16; x++) {
       const float px = x + 0.5f - 8.0f, py = y + 0.5f - 8.0f;
       const float d = (float)off + px * nx + py * ny;
+      const float t = -px * ny + py * nx;   // along the strip
+      if (rs == RoomStyle::Felt) {
+        // (M3c fixer round 3, review: "the tent wall is a 1-2 px line on the floor, with no lattice wall face, felt
+        // thickness or posts") the yurt's wall seen from above as a thick felt wrap, not a cream rail that vanished into
+        // the cream floor: the soft shadow it casts on the floor at its foot, a lit (or shaded) inner rim, the red lattice
+        // head under it, then the felt's thickness in banded red with a cream stitched line, a lattice post every
+        // 22 px along the curve, and a dark outer edge
+        if (d < -3.0f) continue;
+        if (d < 0.0f) { c.set(x, y, rgba(40, 18, 12, d < -1.5f ? 46 : 92)); continue; }
+        if (d >= 8.0f) { c.set(x, y, rgba(0, 0, 0)); continue; }
+        const int tt = ((int)std::floor(t + 640.0f)) % 22;
+        uint32_t col;
+        if (d < 1.0f) col = lit ? kLatticeR[4] : kLatticeR[2];
+        else if (d < 2.0f) col = kLatticeR[lit ? 2 : 1];
+        else if (d >= 7.0f) col = kFeltRug[0];
+        else if (tt < 2) col = tt == 0 ? kWoodDark[2] : kWoodDark[1];   // a post of the lattice
+        else if (d >= 4.0f && d < 5.0f) col = ((int)std::floor(t + 640.0f) % 3) ? kFeltW[3] : kFeltRug[2];   // the stitched band
+        else col = tone(kFeltRug, d < 4.0f ? 3 : 2, (vnoise(t * 0.25f, d * 0.6f, 1791) - 0.5f) * 0.3f);
+        if (!lit && d >= 2.0f && d < 7.0f && tt >= 2) col = darken(col, 0.12f);
+        c.set(x, y, col);
+        continue;
+      }
       if (d < 0.0f) continue;
       if (d >= WD) { c.set(x, y, rgba(0, 0, 0)); continue; }
-      const float t = -px * ny + py * nx;   // along the strip
       uint32_t col = partTop(rs, (int)std::floor(t + 64.0f), std::clamp((int)std::floor(d * 16.0f / WD), 0, 15), false, 7);
       if (d < 1.0f) col = lit ? R[4] : R[1];
       else if (d >= WD - 1.0f) col = lit ? R[1] : R[4];
@@ -5006,6 +5020,7 @@ void paintProp(Canvas& c, Prop p, int frame) {
     case Prop::Cushion: case Prop::LowTable: case Prop::Hammock: case Prop::SleepingMat: paintCultureFurniture(c, p, frame); break;
     default:
       if (wildP(p)) paintWildProp(c, p, frame);
+      else if (isWildlandsFlora(p)) paintFloraProp(c, p, frame);
       else if (m3bP(p)) paintInteriorM3b(c, p, frame);
       else if ((int)p >= (int)Prop::Sacks) paintEconomyProp(c, p, frame);
       else if ((int)p >= (int)Prop::StairsUp) m0bProp(c, p, frame);
@@ -5015,9 +5030,9 @@ void paintProp(Canvas& c, Prop p, int frame) {
 
 }  // namespace
 
-int propW(Prop p) { return wildP(p) ? wildPropW(p) : m3bP(p) ? m3bPropW(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].w : 16; }
-int propH(Prop p) { return wildP(p) ? wildPropH(p) : m3bP(p) ? m3bPropH(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].h : 16; }
-int propFrames(Prop p) { return wildP(p) ? wildPropFrames(p) : m3bP(p) ? m3bPropFrames(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].frames : 1; }
+int propW(Prop p) { return wildP(p) ? wildPropW(p) : isWildlandsFlora(p) ? floraPropW(p) : m3bP(p) ? m3bPropW(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].w : 16; }
+int propH(Prop p) { return wildP(p) ? wildPropH(p) : isWildlandsFlora(p) ? floraPropH(p) : m3bP(p) ? m3bPropH(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].h : 16; }
+int propFrames(Prop p) { return wildP(p) ? wildPropFrames(p) : isWildlandsFlora(p) ? floraPropFrames(p) : m3bP(p) ? m3bPropFrames(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].frames : 1; }
 
 Canvas propSprite(Prop p) {
   if (isStall(p)) return marketStall(stallTrade(p), 0);
@@ -5026,7 +5041,7 @@ Canvas propSprite(Prop p) {
   for (int f = 0; f < n; f++) {
     Canvas cell(w, h);
     paintProp(cell, p, f);
-    if (p != Prop::Cobweb && p != Prop::Rug && !wildP(p)) outline(cell);   // (M2 wild props outline themselves)
+    if (p != Prop::Cobweb && p != Prop::Rug && !wildP(p) && !isWildlandsFlora(p)) outline(cell);   // (M2 wild props and M3c flora outline themselves)
     place(sheet, cell, f, 0);
   }
   return sheet;
@@ -5189,4 +5204,52 @@ Canvas kingdomBanner(uint32_t field, uint32_t trim, int emblem) {
   }
   return sheet;
 }
+// (M3c fixer round 2, review: "leafy summer trees on snow fields in Sylvan capitals ... full green summer canopies
+// with no snow at all, beside snowed pines") the crown's clumps catch the snow: a leaf pixel at the top of a clump (the
+// pixel above it empty, or a clearly darker leaf of the clump behind) takes a cap of snow 1-3 px deep (white on top,
+// a cool shade under it), and the leaves under the snow cool toward a winter green. Trunks, roots and blossoms stay.
+Canvas winterTree(Prop p) {
+  Canvas c = propSprite(p);
+  auto leafy = [](uint32_t v) {
+    if (!chA(v)) return false;
+    const int r = (int)(v & 255), g = (int)((v >> 8) & 255), b = (int)((v >> 16) & 255);
+    return g > r + 6 && g >= b && g > 70;   // greens and yellow-greens (the leaves), not bark, ink, moss shade or stone
+  };
+  auto lum = [](uint32_t v) { return (int)(v & 255) * 3 + (int)((v >> 8) & 255) * 6 + (int)((v >> 16) & 255); };
+  const Canvas src = c;
+  for (int y = 0; y < c.h; y++)
+    for (int x = 0; x < c.w; x++) {
+      const uint32_t v = src.get(x, y);
+      if (!leafy(v)) continue;
+      // the winter green under the snow: a little cooler and duller
+      const int r = (int)(v & 255), g = (int)((v >> 8) & 255), b = (int)((v >> 16) & 255);
+      c.set(x, y, rgba((r * 3 + 40) / 4 * 9 / 10, g * 9 / 10, (b * 3 + 90) / 4));
+    }
+  int maxL = 0;
+  for (int y = 0; y < c.h; y++)
+    for (int x = 0; x < c.w; x++) if (leafy(src.get(x, y))) maxL = std::max(maxL, lum(src.get(x, y)));
+  // where snow lies: the crown's silhouette top, and the lit tops of the big clumps inside it (a bright leaf under a
+  // much darker one); single pixels are dropped so the snow lies in caps, not flecks
+  std::vector<uint8_t> snow((size_t)c.w * c.h, 0);
+  for (int x = 0; x < c.w; x++)
+    for (int y = 0; y < c.h; y++) {
+      const uint32_t v = src.get(x, y);
+      if (!leafy(v)) continue;
+      const uint32_t up = y > 0 ? src.get(x, y - 1) : 0;
+      const bool top = !chA(up) || (leafy(up) && lum(v) * 4 >= maxL * 3 && lum(up) + 240 < lum(v));
+      if (!top) continue;
+      const int d = (!chA(up) ? 2 : 1) + (int)(hash3(x, y, 77) % 2u);
+      for (int k = 0; k < d && y + k < c.h && leafy(src.get(x, y + k)); k++) snow[(size_t)(y + k) * c.w + x] = (uint8_t)(k + 1);
+    }
+  for (int y = 0; y < c.h; y++)
+    for (int x = 0; x < c.w; x++) {
+      const uint8_t k = snow[(size_t)y * c.w + x];
+      if (!k) continue;
+      const bool l = x > 0 && snow[(size_t)y * c.w + x - 1], r = x + 1 < c.w && snow[(size_t)y * c.w + x + 1];
+      if (!l && !r) continue;   // a lone fleck
+      c.set(x, y, kSnow[k == 1 ? 4 : (k == 2 ? 3 : 2)]);
+    }
+  return c;
+}
+
 }  // namespace art

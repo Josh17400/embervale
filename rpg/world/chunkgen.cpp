@@ -72,6 +72,352 @@ void sharedTownPut(uint64_t seed, Gid id, std::shared_ptr<SettlementOut> out) {
   s.m[sharedTownKey(seed, id)] = SharedTowns::E{std::move(out), ++s.clock};
 }
 #endif
+
+// ------------------------------------------------------------------ M3c Wildlands: the flora of each biome
+// What one eco grows on one tile. r (Q16, the tile's main roll) picks what grows: the solid things (trees, then rocks
+// and shrubs) always come from the low end of r, so the forest rule's candidates and the ecotones can reason about a
+// tile without knowing its neighbours. q and pk vary the pick, dens is the woods' slow density noise, thin the
+// highland thinning (1.0 in the lowlands, falling above level 4). g is the tile's ground: trees stand in the shallow
+// water of a mangrove coast or a flooded wood, lily pads float on marsh pools, nothing grows on rock, lava or deep
+// water. (x, y, vs: the few palettes that cluster their props draw a cluster noise.)
+Prop ecoFlora(Eco e, int32_t r, int32_t q, uint64_t pk, int32_t dens, int32_t thin, int lv, Ground g, bool river, int32_t x, int32_t y, uint64_t vs) {
+  auto pick = [&](std::initializer_list<Prop> l) { return *(l.begin() + (size_t)(pk % l.size())); };
+  auto tr = [&](int32_t base, int32_t dmul) { return r < qm(base + qm(dens, dmul), thin); };
+  auto open = [&](int32_t base) { return r < qm(base + std::max(0, (dens - Q(0.60)) / 2), thin); };   // lone trees on open land
+  (void)lv;
+  // (the open lands' ground covers grow in drifts, not an even sprinkle: above the solids' band (r >= 0.06) the roll is
+  // stretched where the density noise is low (bare patches) and squeezed where it is high (deep drifts of grass,
+  // heather or flowers). The woods keep r as it is: their undergrowth is picked by q.)
+  int32_t rc = r;
+  if (!ecoHas(e, EF_WOODED) && r > Q(0.06)) {
+    // (M3c fixer round 3, review: "the same golden grass tuft stamped dozens of times at even spacing ... an even
+    // sprinkle of identical clumps") a stronger swing: wider bare glades and denser drifts
+    const int32_t mod = clampi(Q_ONE + 7 * (dens - Q(0.5)), Q(0.10), Q(2.6));
+    rc = (int32_t)std::min<int64_t>(Q_ONE, Q(0.06) + ((int64_t)(r - Q(0.06)) << 16) / mod);
+  }
+  if (g == Ground::Water) {
+    switch (e) {
+      case Eco::Mangrove: if (!river && r < Q(0.20)) return Prop::MangroveTree; return Prop::COUNT;
+      case Eco::FloodedForest: if (!river && r < Q(0.17)) return Prop::SwampCypress; if (r < Q(0.32)) return Prop::LilyPad; return Prop::COUNT;
+      case Eco::ReedMarsh: case Eco::PeatBog: case Eco::TaigaBog: return rc < Q(0.14) ? Prop::LilyPad : Prop::COUNT;
+      case Eco::Oasis: return rc < Q(0.10) ? Prop::LilyPad : Prop::COUNT;
+      case Eco::Ocean: return Prop::COUNT;
+      default: return r < Q(0.025) && !river ? Prop::LilyPad : Prop::COUNT;
+    }
+  }
+  if (g == Ground::Ice) return e == Eco::Glacier && r < Q(0.012) ? Prop::IceSerac : Prop::COUNT;
+  if (groundSolid(g)) return Prop::COUNT;
+  switch (e) {
+    // ---- grasslands
+    case Eco::Meadow:
+      if (open(Q(0.010))) return pick({Prop::OakTree, Prop::OakTree2, Prop::BirchTree});
+      if (rc < Q(0.07)) return pick({Prop::Flowers1, Prop::Flowers2, Prop::Flowers3});
+      if (rc < Q(0.16)) return Prop::TallGrass;
+      if (rc < Q(0.172)) return pick({Prop::Bush, Prop::BerryBush});
+      if (rc < Q(0.178) + (lv >= 4 ? Q(0.01) : 0)) return pick({Prop::Rock, Prop::Boulder});
+      return Prop::COUNT;
+    case Eco::FlowerMeadow:
+      if (open(Q(0.006))) return pick({Prop::OakTree, Prop::BirchTree, Prop::BlossomTree});
+      if (rc < Q(0.22)) return Prop::Wildflowers;
+      if (rc < Q(0.29)) return pick({Prop::Flowers1, Prop::Flowers2, Prop::Flowers3});
+      if (rc < Q(0.35)) return Prop::TallGrass;
+      if (rc < Q(0.358)) return Prop::BerryBush;
+      return Prop::COUNT;
+    case Eco::Prairie:
+      if (open(Q(0.004))) return pick({Prop::OakTree, Prop::OakTree2});
+      if (r < Q(0.010)) return Prop::Bush;
+      if (r < Q(0.020)) return Prop::DryBrush;
+      if (rc < Q(0.29)) return Prop::PrairieGrass;
+      if (rc < Q(0.33)) return Prop::TallGrass;
+      if (rc < Q(0.35)) return pick({Prop::Flowers2, Prop::Wildflowers});
+      return Prop::COUNT;
+    case Eco::Steppe:
+      if (r < qm(Q(0.003), thin)) return Prop::JuniperTree;
+      if (r < Q(0.010)) return Prop::Thornbush;
+      if (r < Q(0.016)) return pick({Prop::Boulder, Prop::Rock});
+      if (r < Q(0.05)) return Prop::DryBrush;
+      if (rc < Q(0.19)) return Prop::PrairieGrass;
+      return Prop::COUNT;
+    case Eco::Savanna:
+      // acacias stand alone 1-3 % (a rare baobab), termite mounds, golden grass
+      if (r < qm(Q(0.012) + std::max(0, dens - Q(0.55)) / 3, thin)) return (pk % 11) == 0 ? Prop::BaobabTree : Prop::AcaciaTree;
+      if (r < Q(0.024)) return Prop::TermiteMound;
+      if (r < Q(0.040)) return Prop::Thornbush;
+      if (rc < Q(0.20)) return Prop::PrairieGrass;
+      if (rc < Q(0.23)) return Prop::DryBrush;
+      return Prop::COUNT;
+    case Eco::Heath:
+      if (r < qm(Q(0.006), thin)) return Prop::JuniperTree;
+      if (r < Q(0.026)) return Prop::Gorse;
+      if (r < Q(0.034)) return Prop::MossRock;
+      if (rc < Q(0.25)) return Prop::Heather;
+      if (rc < Q(0.31)) return Prop::TallGrass;
+      return Prop::COUNT;
+    case Eco::ChalkDowns:
+      if (r < qm(Q(0.004), thin)) return Prop::JuniperTree;
+      if (r < Q(0.016)) return Prop::Gorse;
+      if (r < Q(0.020)) return Prop::Rock;
+      if (rc < Q(0.09)) return Prop::Wildflowers;
+      if (rc < Q(0.13)) return Prop::TallGrass;
+      return Prop::COUNT;
+    case Eco::AlpineMeadow:
+      if (r < qm(Q(0.012), thin)) return Prop::LarchTree;
+      if (r < Q(0.030)) return pick({Prop::Boulder, Prop::Rock, Prop::MossRock});
+      if (rc < Q(0.20)) return Prop::Wildflowers;
+      if (rc < Q(0.28)) return Prop::Lichen;
+      if (rc < Q(0.32)) return Prop::TallGrass;
+      return Prop::COUNT;
+    case Eco::StonePlains: {
+      // standing stones in groups (rings and rows where a cluster noise peaks), long grass and heather between
+      const int32_t cl = vnoiseQ(x, y, 3, vs ^ 0x5701u);
+      const int32_t ring = cl > Q(0.70) ? Q(0.13) : Q(0.002);
+      if (r < ring) return Prop::StandingStone;
+      if (r < ring + Q(0.008)) return Prop::Boulder;
+      if (rc < Q(0.26)) return Prop::TallGrass;
+      if (rc < Q(0.30)) return pick({Prop::Heather, Prop::Lichen});
+      return Prop::COUNT;
+    }
+    case Eco::LakeDistrict:
+      if (open(Q(0.014))) return pick({Prop::BirchTree, Prop::BirchTree, Prop::OakTree});
+      if (rc < Q(0.07)) return pick({Prop::Flowers1, Prop::Flowers3, Prop::Wildflowers});
+      if (rc < Q(0.19)) return Prop::TallGrass;
+      if (rc < Q(0.20)) return Prop::Bush;
+      return Prop::COUNT;
+    case Eco::Blight:
+      if (r < qm(Q(0.05), thin)) return pick({Prop::GnarledTree, Prop::GnarledTree, Prop::DeadTree});
+      if (r < Q(0.058)) return Prop::Rock;
+      if (rc < Q(0.17)) return Prop::Blightweed;
+      if (rc < Q(0.19)) return pick({Prop::Bones, Prop::Mushrooms});
+      return Prop::COUNT;
+    // ---- woods (the tree odds are high: the spacing rule keeps at most one tree in every few tiles)
+    case Eco::MixedForest:
+      if (tr(Q(0.28), Q(0.40))) return pick({Prop::OakTree, Prop::OakTree2, Prop::OakTree, Prop::BirchTree});
+      if (r < Q(0.70)) { if (q < Q(0.22)) return Prop::Fern; if (q < Q(0.25)) return pick({Prop::Bush, Prop::Mushrooms}); if (q < Q(0.27)) return pick({Prop::Stump, Prop::Log, Prop::MossRock}); if (q < Q(0.45)) return Prop::TallGrass; }
+      return Prop::COUNT;
+    case Eco::BirchWood:
+      if (tr(Q(0.26), Q(0.38))) return pick({Prop::BirchTree, Prop::BirchTree, Prop::BirchTree, Prop::BirchTree, Prop::OakTree2});
+      if (r < Q(0.70)) { if (q < Q(0.26)) return Prop::Fern; if (q < Q(0.28)) return pick({Prop::Stump, Prop::MossRock}); if (q < Q(0.48)) return Prop::TallGrass; if (q < Q(0.54)) return pick({Prop::Flowers1, Prop::Wildflowers}); }
+      return Prop::COUNT;
+    case Eco::GiantForest:
+      // the giants stand wide apart; ferns, fallen logs and mossy stones fill the ground between
+      if (tr(Q(0.12), Q(0.14))) return (pk % 5) == 0 ? Prop::OakTree2 : Prop::GiantTree;
+      if (r < Q(0.80)) { if (q < Q(0.36)) return Prop::Fern; if (q < Q(0.39)) return pick({Prop::Log, Prop::MossRock, Prop::Stump}); if (q < Q(0.41)) return Prop::Mushrooms; if (q < Q(0.56)) return Prop::TallGrass; }
+      return Prop::COUNT;
+    case Eco::DarkForest:
+      if (tr(Q(0.26), Q(0.36))) return pick({Prop::GnarledTree, Prop::GnarledTree, Prop::GnarledTree, Prop::DeadTree});
+      if (r < Q(0.70)) { if (q < Q(0.06)) return Prop::Mushrooms; if (q < Q(0.26)) return Prop::Fern; if (q < Q(0.32)) return pick({Prop::Stump, Prop::Log}); if (q < Q(0.36)) return Prop::Bones; }
+      return Prop::COUNT;
+    case Eco::BlossomGrove:
+      if (tr(Q(0.18), Q(0.26))) return (pk % 6) == 0 ? Prop::OakTree : Prop::BlossomTree;
+      if (r < Q(0.75)) { if (q < Q(0.34)) return Prop::Petals; if (q < Q(0.46)) return Prop::Wildflowers; if (q < Q(0.60)) return Prop::TallGrass; if (q < Q(0.61)) return Prop::Bush; }
+      return Prop::COUNT;
+    case Eco::BambooForest:
+      if (tr(Q(0.32), Q(0.36))) return Prop::BambooClump;
+      if (r < Q(0.72)) { if (q < Q(0.34)) return Prop::JungleFern; if (q < Q(0.36)) return Prop::MossRock; if (q < Q(0.50)) return Prop::TallGrass; }
+      return Prop::COUNT;
+    case Eco::Jungle:
+      if (tr(Q(0.30), Q(0.40))) { const uint64_t k = pk % 8; return k < 6 ? Prop::JungleTree : k == 6 ? Prop::PalmTree : Prop::OakTree2; }
+      if (r < Q(0.85)) { if (q < Q(0.42)) return Prop::JungleFern; if (q < Q(0.52)) return Prop::Fern; if (q < Q(0.54)) return pick({Prop::Bush, Prop::BerryBush}); if (q < Q(0.66)) return Prop::TallGrass; }
+      return Prop::COUNT;
+    case Eco::MushroomForest:
+      if (tr(Q(0.22), Q(0.30))) return (pk % 7) == 0 ? Prop::GnarledTree : Prop::GiantMushroom;
+      if (r < Q(0.72)) { if (q < Q(0.26)) return Prop::GlowCaps; if (q < Q(0.42)) return Prop::Mushrooms; if (q < Q(0.56)) return Prop::Fern; }
+      return Prop::COUNT;
+    case Eco::Silverwood:
+      if (tr(Q(0.26), Q(0.36))) return (pk % 6) == 0 ? Prop::BirchTree : Prop::SilverTree;
+      if (r < Q(0.72)) { if (q < Q(0.34)) return Prop::SilverFern; if (q < Q(0.42)) return Prop::Wildflowers; if (q < Q(0.56)) return Prop::TallGrass; }
+      return Prop::COUNT;
+    case Eco::AutumnWood:
+      if (tr(Q(0.26), Q(0.38))) return pick({Prop::AutumnTree, Prop::AutumnTree, Prop::BirchTree});
+      if (r < Q(0.70)) { if (q < Q(0.14)) return Prop::Fern; if (q < Q(0.20)) return pick({Prop::Bush, Prop::Mushrooms, Prop::Flowers3}); if (q < Q(0.21)) return Prop::Stump; if (q < Q(0.30)) return Prop::TallGrass; }
+      return Prop::COUNT;
+    // ---- cold
+    case Eco::Taiga:
+      if (tr(Q(0.20), Q(0.36))) return pick({Prop::PineTree, Prop::PineTree2});
+      if (r < Q(0.60)) { if (q < Q(0.07)) return Prop::Fern; if (q < Q(0.09)) return pick({Prop::MossRock, Prop::Boulder, Prop::Stump}); if (q < Q(0.16)) return Prop::TallGrass; }
+      return Prop::COUNT;
+    case Eco::TaigaBog:
+      if (tr(Q(0.10), Q(0.16))) return pick({Prop::LarchTree, Prop::LarchTree, Prop::PineTree2});
+      if (r < Q(0.15)) return Prop::DeadTree;
+      if (r < Q(0.42)) return Prop::CottonGrass;
+      if (r < Q(0.52)) return Prop::Reeds;
+      if (r < Q(0.53)) return Prop::MossRock;
+      return Prop::COUNT;
+    case Eco::SnowField:
+      if (tr(Q(0.04), Q(0.22))) return Prop::SnowPine;
+      if (r < Q(0.4)) { if (q < Q(0.03)) return Prop::SnowRock; if (q < Q(0.05)) return Prop::SnowBush; }
+      return Prop::COUNT;
+    case Eco::Tundra:
+      if (r < qm(Q(0.004), thin)) return Prop::SnowPine;
+      if (r < Q(0.014)) return pick({Prop::SnowRock, Prop::Boulder});
+      if (r < Q(0.020)) return Prop::SnowBush;
+      if (rc < Q(0.13)) return Prop::Lichen;   // (fixer r2: thinner, so the floor is not a carpet of one stone)
+      if (rc < Q(0.24)) return Prop::CottonGrass;
+      return Prop::COUNT;
+    case Eco::Glacier:
+      if (r < Q(0.020)) return Prop::IceSerac;
+      if (r < Q(0.030)) return Prop::SnowRock;
+      return Prop::COUNT;
+    case Eco::FrozenLakes:
+      if (r < qm(Q(0.03), thin)) return Prop::SnowPine;
+      if (r < Q(0.040)) return Prop::SnowRock;
+      if (r < Q(0.050)) return Prop::SnowBush;
+      if (rc < Q(0.08)) return Prop::Lichen;
+      return Prop::COUNT;
+    // ---- wet
+    case Eco::ReedMarsh:
+      if (r < Q(0.04) + qm(dens, Q(0.06))) return pick({Prop::WillowTree, Prop::WillowTree, Prop::DeadTree});
+      if (r < Q(0.52)) { if (q < Q(0.55)) return Prop::Reeds; if (q < Q(0.60)) return Prop::Mushrooms; if (q < Q(0.75)) return Prop::TallGrass; }
+      return Prop::COUNT;
+    case Eco::PeatBog:
+      if (r < Q(0.025)) return Prop::DeadTree;
+      if (rc < Q(0.24)) return Prop::CottonGrass;
+      if (rc < Q(0.33)) return Prop::Heather;
+      if (rc < Q(0.47)) return Prop::Reeds;
+      if (rc < Q(0.49)) return Prop::Mushrooms;
+      return Prop::COUNT;
+    case Eco::Mangrove:
+      if (r < Q(0.18) + qm(dens, Q(0.10))) return Prop::MangroveTree;
+      if (r < Q(0.45)) { if (q < Q(0.40)) return Prop::Reeds; if (q < Q(0.60)) return Prop::JungleFern; }
+      return Prop::COUNT;
+    case Eco::FloodedForest:
+      if (r < Q(0.12) + qm(dens, Q(0.14))) return (pk % 5) == 0 ? Prop::WillowTree : Prop::SwampCypress;
+      if (r < Q(0.60)) { if (q < Q(0.35)) return Prop::Reeds; if (q < Q(0.45)) return Prop::Fern; if (q < Q(0.50)) return Prop::Mushrooms; }
+      return Prop::COUNT;
+    // ---- dry
+    case Eco::Dunes:
+      if (r < Q(0.002)) return Prop::Cactus;
+      if (r < Q(0.008)) return Prop::DryBrush;
+      return Prop::COUNT;
+    case Eco::StonyDesert:
+      if (r < Q(0.020)) return pick({Prop::Rock, Prop::Boulder, Prop::Rock});
+      if (r < Q(0.030)) return Prop::Cactus;
+      if (rc < Q(0.070)) return Prop::Agave;
+      if (rc < Q(0.095)) return Prop::DryBrush;
+      return Prop::COUNT;
+    case Eco::Badlands: {
+      // hoodoos in clusters, scrub between
+      const int32_t cl = vnoiseQ(x, y, 3, vs ^ 0xB0D0u);
+      const int32_t hood = cl > Q(0.62) ? Q(0.10) : Q(0.004);
+      if (r < hood) return Prop::Hoodoo;
+      if (r < hood + Q(0.016)) return Prop::Thornbush;
+      if (r < hood + Q(0.024)) return Prop::Rock;
+      if (rc < Q(0.17)) return Prop::DryBrush;
+      return Prop::COUNT;
+    }
+    case Eco::SaltFlats:
+      if (r < Q(0.003)) return Prop::Saltbush;
+      return Prop::COUNT;
+    case Eco::Scrubland:
+      if (r < qm(Q(0.010), thin)) return Prop::AcaciaTree;
+      if (r < Q(0.045)) return Prop::Thornbush;
+      if (r < Q(0.050)) return Prop::Rock;
+      if (rc < Q(0.090)) return Prop::Agave;
+      if (rc < Q(0.17)) return Prop::DryBrush;
+      if (rc < Q(0.26)) return Prop::PrairieGrass;
+      return Prop::COUNT;
+    case Eco::Oasis:
+      if (r < Q(0.14) + qm(dens, Q(0.08))) return (pk % 6) == 0 ? Prop::AcaciaTree : Prop::PalmTree;
+      if (r < Q(0.17)) return Prop::Bush;
+      if (r < Q(0.46)) return Prop::TallGrass;
+      if (r < Q(0.52)) return Prop::Reeds;
+      return Prop::COUNT;
+    case Eco::AshFields:
+      if (r < Q(0.035)) return Prop::BasaltColumns;
+      if (r < Q(0.050)) return Prop::AshVent;
+      if (r < Q(0.056)) return Prop::Rock;
+      return Prop::COUNT;
+    case Eco::CrystalBarrens:
+      if (r < Q(0.040)) return Prop::CrystalSpire;
+      if (r < Q(0.050)) return pick({Prop::Rock, Prop::Boulder});
+      if (rc < Q(0.090)) return Prop::Lichen;
+      return Prop::COUNT;
+    case Eco::PetrifiedForest:
+      if (tr(Q(0.045), Q(0.06))) return Prop::PetrifiedTree;
+      if (r < Q(0.15)) return Prop::Rock;
+      if (r < Q(0.20)) return Prop::DryBrush;
+      return Prop::COUNT;
+    // ---- coast
+    case Eco::SandBeach:
+      if (r < Q(0.020)) return Prop::Rock;
+      if (r < Q(0.045)) return Prop::Reeds;
+      if (rc < Q(0.075)) return Prop::Wrack;
+      return Prop::COUNT;
+    case Eco::Shingle:
+      if (r < Q(0.035)) return pick({Prop::Rock, Prop::Boulder, Prop::Rock});
+      if (rc < Q(0.15)) return Prop::Wrack;
+      return Prop::COUNT;
+    case Eco::CoralCoast:
+      if (r < qm(Q(0.025), thin)) return Prop::PalmTree;
+      if (rc < Q(0.10)) return Prop::Shells;
+      if (rc < Q(0.12)) return Prop::Wrack;
+      return Prop::COUNT;
+    case Eco::SeaCliffs:
+      if (r < qm(Q(0.014), thin)) return Prop::JuniperTree;
+      if (r < Q(0.030)) return Prop::BasaltColumns;
+      if (r < Q(0.050)) return pick({Prop::Rock, Prop::Boulder});
+      if (rc < Q(0.26)) return Prop::TallGrass;
+      if (rc < Q(0.32)) return Prop::Heather;
+      return Prop::COUNT;
+    default: return Prop::COUNT;
+  }
+}
+
+// the undergrowth a tree leaves when the forest rule gives its tile to a neighbour (u: 0..99)
+Prop ecoUnder(Eco e, uint32_t u) {
+  switch (e) {
+    case Eco::MixedForest: return u < 38 ? Prop::Fern : u < 66 ? Prop::TallGrass : u < 68 ? Prop::Mushrooms : u < 72 ? Prop::Flowers3 : Prop::COUNT;
+    case Eco::BirchWood: return u < 30 ? Prop::Fern : u < 60 ? Prop::TallGrass : u < 68 ? Prop::Flowers1 : Prop::COUNT;
+    case Eco::GiantForest: return u < 50 ? Prop::Fern : u < 56 ? Prop::Mushrooms : u < 70 ? Prop::TallGrass : Prop::COUNT;
+    case Eco::DarkForest: return u < 7 ? Prop::Mushrooms : u < 40 ? Prop::Fern : u < 52 ? Prop::TallGrass : Prop::COUNT;
+    case Eco::BlossomGrove: return u < 45 ? Prop::Petals : u < 60 ? Prop::Wildflowers : u < 75 ? Prop::TallGrass : Prop::COUNT;
+    case Eco::BambooForest: return u < 45 ? Prop::JungleFern : u < 65 ? Prop::TallGrass : Prop::COUNT;
+    case Eco::Jungle: return u < 55 ? Prop::JungleFern : u < 70 ? Prop::Fern : u < 80 ? Prop::TallGrass : Prop::COUNT;
+    case Eco::MushroomForest: return u < 30 ? Prop::GlowCaps : u < 55 ? Prop::Mushrooms : u < 70 ? Prop::Fern : Prop::COUNT;
+    case Eco::Silverwood: return u < 45 ? Prop::SilverFern : u < 55 ? Prop::Wildflowers : u < 70 ? Prop::TallGrass : Prop::COUNT;
+    case Eco::AutumnWood: return u < 32 ? Prop::Fern : u < 38 ? Prop::Mushrooms : u < 48 ? Prop::Flowers3 : u < 68 ? Prop::TallGrass : Prop::COUNT;
+    case Eco::Taiga: return u < 30 ? Prop::Fern : u < 50 ? Prop::TallGrass : Prop::COUNT;
+    case Eco::TaigaBog: return u < 35 ? Prop::CottonGrass : u < 50 ? Prop::Reeds : u < 60 ? Prop::TallGrass : Prop::COUNT;
+    case Eco::ReedMarsh: case Eco::PeatBog: case Eco::Mangrove: case Eco::FloodedForest:
+      return u < 35 ? Prop::Reeds : u < 50 ? Prop::Mushrooms : u < 65 ? Prop::TallGrass : Prop::COUNT;
+    case Eco::Savanna: case Eco::Prairie: case Eco::Scrubland: return u < 50 ? Prop::PrairieGrass : Prop::COUNT;
+    case Eco::Oasis: return u < 40 ? Prop::TallGrass : u < 50 ? Prop::Reeds : Prop::COUNT;
+    case Eco::Blight: return u < 40 ? Prop::Blightweed : u < 50 ? Prop::Mushrooms : Prop::COUNT;
+    case Eco::PetrifiedForest: return u < 20 ? Prop::DryBrush : Prop::COUNT;
+    case Eco::AlpineMeadow: return u < 30 ? Prop::Wildflowers : u < 50 ? Prop::Lichen : Prop::COUNT;
+    case Eco::Meadow: case Eco::FlowerMeadow: case Eco::LakeDistrict: case Eco::ChalkDowns:
+      return u < 40 ? Prop::TallGrass : u < 55 ? Prop::Flowers1 : Prop::COUNT;
+    default: return Prop::COUNT;
+  }
+}
+
+// grass and reeds by the water's edge suit the temperate and wet lands (not the deserts' sand, the snow, the coasts)
+bool watersideFlora(Eco e) {
+  switch (ecoFamily(e)) {
+    case Biome::Desert: return e == Eco::Oasis;
+    case Biome::Snow: case Biome::Ocean: case Biome::Beach: case Biome::Mountain: return false;
+    default: return e != Eco::Blight;
+  }
+}
+
+// (M3c) half the ecotone band's width (tiles) between two ecos: wide and soft between grasslands and toward the
+// deserts, narrow at marsh edges, middling between woods and open land (at most 4: the chunk's eco grid reaches 4)
+int ecoHalfW(Eco a, Eco b) {
+  const Biome fa = ecoFamily(a), fb = ecoFamily(b);
+  if (fa == Biome::Swamp || fb == Biome::Swamp) return 2;
+  const bool wa = ecoHas(a, EF_WET) && fa != Biome::Plains, wb = ecoHas(b, EF_WET) && fb != Biome::Plains;
+  if (wa || wb) return 2;
+  if (ecoHas(a, EF_RARE) || ecoHas(b, EF_RARE)) return 3;
+  const bool ga = fa == Biome::Plains, gb = fb == Biome::Plains;
+  if (ga && gb) return 4;
+  if ((ga && fb == Biome::Desert) || (gb && fa == Biome::Desert)) return 4;
+  if (fa == Biome::Desert && fb == Biome::Desert) return 3;
+  const bool woodA = ecoHas(a, EF_WOODED), woodB = ecoHas(b, EF_WOODED);
+  if (woodA && woodB) return 3;
+  if (woodA != woodB) return 3;
+  if (fa == Biome::Desert || fb == Biome::Desert) return 3;
+  return 2;
+}
 }  // namespace
 
 // ------------------------------------------------------------------ steps 1-2: base land, rivers, lakes
@@ -85,13 +431,15 @@ void EndlessSource::Impl::baseRectRows(int32_t x0, int32_t y0, int w, int h, Bas
     B.x0 = x0; B.y0 = y0; B.w = w; B.h = h;
     const size_t n = (size_t)w * h;
     B.ground.assign(n, 0); B.biome.assign(n, 0); B.level.assign(n, 0); B.riverW.assign(n, 0); B.lake.assign(n, 0); B.bridge.assign(n, 0);
+    B.eco.assign(n, 0);
   }
   for (int y = std::max(0, yFrom); y < std::min(h, yTo); y++)
     for (int x = 0; x < w; x++) {
       TileF f = tile(x0 + x, y0 + y);
       size_t i = (size_t)y * w + x;
       B.biome[i] = (uint8_t)f.biome;
-      B.ground[i] = (uint8_t)groundFor(f.biome, f.e, f.t, x0 + x, y0 + y);
+      B.eco[i] = (uint8_t)f.eco;
+      B.ground[i] = (uint8_t)groundFor(f.eco, f.e, f.t, x0 + x, y0 + y);
       B.level[i] = f.h;
     }
 }
@@ -286,7 +634,7 @@ void EndlessSource::Impl::drainDeadEndRivers(const SitePlan& p, BaseRect& B) {
           B.bridge[k] = 0;
           const Biome bio = (Biome)B.biome[k];
           B.ground[k] = (uint8_t)(bio == Biome::Swamp ? Ground::Swamp : bio == Biome::Beach ? Ground::Sand : bio == Biome::Ocean ? (Ground)B.ground[k]
-                                  : groundFor(bio, Q(0.5), Q(0.5), gx, gy));
+                                  : groundFor((Eco)B.eco[k], Q(0.5), Q(0.5), gx, gy));
         }
     });
   }
@@ -303,6 +651,8 @@ bool EndlessSource::Impl::townJobStep(TownJob& J) {
     ctx.plan = &p;
     ctx.kingdom = kingdom(p.kingdom);
     ctx.culture = &atlas().get(p.culture ? p.culture : cultureAt(p.ex, p.ey));   // M3
+    ctx.eco = tile(p.ex, p.ey).eco;                                                // M3c
+    ctx.worldSeed = seed;
     ctx.rx = J.D->plan.rx; ctx.ry = J.D->plan.ry;
     auto bi = J.D->bearings.find(p.id);
     if (bi != J.D->bearings.end()) ctx.roadBearings = bi->second;
@@ -328,12 +678,13 @@ bool EndlessSource::Impl::townJobStep(TownJob& J) {
         b = (Biome)B->biome[i];
       } else {
         TileF f = tile(gx, gy);
-        g = groundFor(f.biome, f.e, f.t, gx, gy);
+        g = groundFor(f.eco, f.e, f.t, gx, gy);
         b = f.biome;
       }
       bool inside = gx >= pp->gx - 8 && gy >= pp->gy - 8 && gx < pp->gx + pp->w + 8 && gy < pp->gy + pp->h + 8;
       h = (uint8_t)(inside ? flat : natLevel(gx, gy));
       // the town stands on dry land: marsh pools in its footprint are drained (a river still runs through, bridged)
+      if (inside && g == Ground::Lava) g = Ground::Sand;   // (M3c) nor on an ash field's lava
       if (inside && (g == Ground::Water || g == Ground::DeepWater) && b != Biome::Ocean) {
         bool river = false;
         if (gx > B->x0 && gy > B->y0 && gx < B->x0 + B->w - 1 && gy < B->y0 + B->h - 1) river = B->riverW[B->at(gx, gy)] != 0;
@@ -712,6 +1063,7 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
       size_t bi = (size_t)(ly + BR) * BW + (lx + BR);
       c.ground[c.at(lx, ly)] = B.ground[bi];
       c.biome[c.at(lx, ly)] = B.biome[bi];
+      c.eco[c.at(lx, ly)] = c.ecoNb[c.at(lx, ly)] = B.eco[bi];
     }
   std::vector<uint8_t> reserved((size_t)ChunkData::N, 0);
   std::vector<uint8_t> used(RW * RW, 0), road(RW * RW, 0), entrance(RW * RW, 0);
@@ -726,6 +1078,58 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
   std::shared_ptr<const RegionData> RD[9];
   for (int k = 0; k < 9; k++) RD[k] = regionData(rx0 - 1 + k % 3, ry0 - 1 + k / 3);
   const RegionData& own = *RD[4];
+  // (M3c fixer round 2, review: "a dune capital stands in green oak woodland while the HUD says The Dune Sea") the dune
+  // folk carry their desert with them: round a dune-culture settlement that stands in green land (plains, forest, the
+  // autumn woods), the land within about 12 tiles of its outline, with a ragged edge, is THEIR land: open sand dunes
+  // near the walls, rocky scrubland further out, meeting the woods through the ordinary ecotone. The base layers change
+  // before anything reads them (the flora, the ecotones, the HUD), so the trees round the town are the desert's.
+  // A pure function of the tile and the site plans (every chunk computes the same answer); water, rock, marsh, snow
+  // and coasts are left as they are.
+  struct DuneApron { int32_t cx, cy, rx, ry; };
+  std::vector<DuneApron> aprons;
+  for (int k = 0; k < 9; k++)
+    for (const SitePlan& p : RD[k]->plan.sites) {
+      if (!isSettlement(p.type) || !p.culture) continue;
+      const int32_t ax = p.gx + p.w / 2, ay = p.gy + p.h / 2, arx = p.w / 2 + 12, ary = p.h / 2 + 12;
+      if (ax + arx + 6 < x0 - 8 || ax - arx - 6 >= x0 + CHUNK + 8 || ay + ary + 6 < y0 - 8 || ay - ary - 6 >= y0 + CHUNK + 8) continue;
+      if (atlas().get(p.culture).archetype != cult::Archetype::Dune) continue;
+      const Biome hb = tile(p.ex, p.ey).biome;
+      if (hb == Biome::Snow || hb == Biome::Taiga) continue;   // a dune town on the snow is a snow town (town_layout)
+      aprons.push_back(DuneApron{ax, ay, std::max<int32_t>(1, arx), std::max<int32_t>(1, ary)});
+    }
+  const uint64_t apronSeed = mix64(seed ^ tag("dune.apron"));
+  // the apron's eco at (x, y) for land of family fam, or Eco::COUNT outside every apron
+  auto apronEco = [&](int32_t x, int32_t y, Biome fam) {
+    if (aprons.empty() || (fam != Biome::Plains && fam != Biome::Forest && fam != Biome::Autumn)) return Eco::COUNT;
+    for (const DuneApron& a : aprons) {
+      const int64_t dx = x - a.cx, dy = y - a.cy;
+      if (std::abs(dx) > a.rx + 6 || std::abs(dy) > a.ry + 6) continue;
+      const int64_t d = dx * dx * 1024 / ((int64_t)a.rx * a.rx) + dy * dy * 1024 / ((int64_t)a.ry * a.ry);
+      const int64_t T = 800 + (int64_t)fbmQ(x, y, 3, 2, apronSeed) * 480 / 65536;   // a ragged edge (0.80 .. 1.27)
+      if (d < T) return d < T * 2 / 5 ? Eco::Dunes : Eco::Scrubland;
+    }
+    return Eco::COUNT;
+  };
+  if (!aprons.empty()) {
+    for (int32_t y = B.y0; y < B.y0 + B.h; y++)
+      for (int32_t x = B.x0; x < B.x0 + B.w; x++) {
+        const size_t bi = B.at(x, y);
+        const Ground g = (Ground)B.ground[bi];
+        if (g != Ground::Grass && g != Ground::Meadow && g != Ground::ForestFloor && g != Ground::Autumn) continue;
+        const Eco e = apronEco(x, y, (Biome)B.biome[bi]);
+        if (e == Eco::COUNT) continue;
+        B.eco[bi] = (uint8_t)e;
+        B.biome[bi] = (uint8_t)Biome::Desert;
+        B.ground[bi] = (uint8_t)Ground::Sand;
+      }
+    for (int ly = 0; ly < CHUNK; ly++)
+      for (int lx = 0; lx < CHUNK; lx++) {
+        size_t bi = (size_t)(ly + BR) * BW + (lx + BR);
+        c.ground[c.at(lx, ly)] = B.ground[bi];
+        c.biome[c.at(lx, ly)] = B.biome[bi];
+        c.eco[c.at(lx, ly)] = c.ecoNb[c.at(lx, ly)] = B.eco[bi];
+      }
+  }
   // 3: settlement buffers
   for (int k = 0; k < 9; k++)
     for (const SitePlan& p : RD[k]->plan.sites) {
@@ -737,6 +1141,26 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
       // (M3) a terraced town (the only kind with cliff faces of its own) brings its relief along
       bool terraced = false;
       for (size_t q = 0; q < b.height.size() && !terraced; q++) terraced = (b.height[q] & Map::HEIGHT_CLIFF) != 0;
+      // (M3c fixer, review: "a near-black hole inside a brick capital") a yard or garden inside a town that lies on a
+      // harsh land (a bog, the dark forest, the blight, the ash...) is laid as the town's civic ground: the eco and
+      // family of the town's heart, or that family's classic land where the heart itself is harsh
+      auto harsh = [](Eco e) {
+        switch (e) {
+          case Eco::PeatBog: case Eco::TaigaBog: case Eco::ReedMarsh: case Eco::Mangrove: case Eco::FloodedForest: case Eco::DarkForest:
+          case Eco::Blight: case Eco::AshFields: case Eco::CrystalBarrens: case Eco::MushroomForest: case Eco::PetrifiedForest:
+          case Eco::SaltFlats: case Eco::Glacier: return true;
+          default: return false;
+        }
+      };
+      Biome civB = Biome::Plains;
+      Eco civE = Eco::COUNT;
+      {
+        const int hx = std::clamp(p.gx + p.w / 2 - T->gx, 0, b.w - 1), hy = std::clamp(p.gy + p.h / 2 - T->gy, 0, b.h - 1);
+        if (!b.biome.empty()) civB = (Biome)b.biome[(size_t)hy * b.w + hx];
+        if (!b.eco.empty()) civE = (Eco)b.eco[(size_t)hy * b.w + hx];
+        if (civB == Biome::Swamp || civB == Biome::Ocean || civB == Biome::Mountain || civB == Biome::Beach) civB = Biome::Plains;
+        if (civE == Eco::COUNT || harsh(civE) || ecoFamily(civE) != civB) civE = ecoOfFamily(civB);
+      }
       for (int32_t gy = y0 - 1; gy < y0 + CHUNK + 1; gy++)
         for (int32_t gx = x0 - 1; gx < x0 + CHUNK + 1; gx++) {
           int32_t bx = gx - T->gx, by = gy - T->gy;
@@ -751,6 +1175,15 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
           c.prop[i] = b.prop[bi];
           c.wall[i] = b.wall[bi];
           if (!b.biome.empty()) c.biome[i] = b.biome[bi];
+          // (M3c) a town buffer with its own eco layer brings it; else the land's eco stays, unless the town changed
+          // the tile's family (then that family's classic eco)
+          if (!b.eco.empty()) c.eco[i] = c.ecoNb[i] = b.eco[bi];
+          else if (ecoFamily((Eco)c.eco[i]) != (Biome)c.biome[i]) c.eco[i] = c.ecoNb[i] = (uint8_t)ecoOfFamily((Biome)c.biome[i]);
+          if (harsh((Eco)c.eco[i]) && !groundWater((Ground)c.ground[i])) {
+            c.eco[i] = c.ecoNb[i] = (uint8_t)civE;
+            c.biome[i] = (uint8_t)civB;
+            if ((Ground)c.ground[i] == Ground::Swamp) c.ground[i] = (uint8_t)Ground::Grass;
+          }
           if (!b.blend.empty()) c.blend[i] = b.blend[bi];   // (M3 fixer) the paving / boardwalk mark (Map::PAVE_MARK)
           reserved[(size_t)i] = 1;
         }
@@ -842,7 +1275,7 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
       auto it = wetMemo.find(key);
       if (it != wetMemo.end()) return it->second;
       bool w = waterAtPlan(x, y);
-      if (!w) { const TileF f = tile(x, y); const Ground gg = groundFor(f.biome, f.e, f.t, x, y); w = gg == Ground::Water || gg == Ground::DeepWater; }
+      if (!w) { const TileF f = tile(x, y); const Ground gg = groundFor(f.eco, f.e, f.t, x, y); w = gg == Ground::Water || gg == Ground::DeepWater; }
       wetMemo.emplace(key, w);
       return w;
     };
@@ -1074,6 +1507,9 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
   }
   struct Flat { int32_t cx2, cy2, hw2, hh2, rc; int lv, step; uint64_t wob; };   // centre and half sizes doubled
   std::vector<Flat> flats;
+  // (M3c) the tiles inside some flat's terraces: their faces get a ramp twice as often (every 8 tiles, not 16), so a
+  // knoll the terraces trim down to a small pocket of its old level is never left walled in by cliffs
+  std::vector<uint8_t> terr((size_t)LW * LW, 0);
   for (int k = 0; k < 9; k++) {
     const RegionData& D = *RD[k];
     for (size_t s = 0; s < D.plan.sites.size(); s++) {
@@ -1115,6 +1551,7 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
           if (d < bestD) { bestD = d; bestLv = f.lv; }
         }
         if (!any) continue;
+        terr[(size_t)y * LW + x] = 1;
         uint8_t& L = lev[(size_t)y * LW + x];
         if (lo <= hi) L = (uint8_t)std::clamp((int)L, lo, hi);
         else L = (uint8_t)bestLv;
@@ -1162,13 +1599,16 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
       if (ln > l || ls > l || lw > l || le > l) {
         bool ramp = false;
         if (!wet && !entrance[ri(gx, gy)]) {
+          const int per = terr[(size_t)(gy - (y0 - LB)) * LW + (gx - (x0 - LB))] ? 7 : 15;
           if (ln > l || ls > l) {
             int32_t off = (int32_t)(tileHash(rampSeed, 0, gy >> 4) & 15);
-            ramp = ((gx + off) & 15) < 3;
+            ramp = ((gx + off) & per) < 3;
           } else {
             int32_t off = (int32_t)(tileHash(rampSeed, 1, gx >> 4) & 15);
-            ramp = ((gy + off) & 15) < 3;
+            ramp = ((gy + off) & per) < 3;
           }
+          // (M3c) a mesa's stairway up its south side
+          if (!ramp && ln > l && mesaStair(gx, gy)) ramp = true;
           // roads and tracks climb by stairs
           if (road[ri(gx, gy)]) ramp = true;
           else
@@ -1189,40 +1629,36 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
     for (int lx = 0; lx < CHUNK; lx++) c.height[c.at(lx, ly)] = bits[ri(x0 + lx, y0 + ly)];
   // 6b (M2): ecotones (VISION_PLAN 11.6). Along a border between two land biomes, a band 4 to 8 tiles wide (by the
   // pair) carries the other biome and its weight in Map::blend: bits 0-3 the other biome, 4-7 its weight, 4 at the
-  // border falling to 0 at the band's edge, so both sides meet half and half. Read from the biome field on a grid 4
-  // tiles wider than the chunk (the base rect's biomes, then biomeLite on the outer ring), so chunk seams agree. The
-  // view dithers the ground with it; the vegetation below takes the other side's flora at the same odds.
+  // border falling to 0 at the band's edge, so both sides meet half and half. Read from the eco field on a grid 4
+  // tiles wider than the chunk (the base rect's ecos, then biomeLite on the outer ring), so chunk seams agree. The
+  // view dithers the ground with it; the vegetation takes the other side's flora at the same odds.
+  // (M3c) Between ANY two ecos, also two of one family (meadow and prairie, birch wood and the mixed forest): ecoNb is
+  // the partner eco, the blend's family nibble its family (the tile's own family for a same-family pair), and the
+  // band's width is the pair's (ecoHalfW: wide and soft between grasslands, narrow at the marsh edges).
   {
     constexpr int EB = 4, EW = CHUNK + 2 * EB;
-    // (a chunk whose base rect holds one biome has no border within 2 tiles of it: only the outermost tiles of a
+    // (a chunk whose base rect holds one eco has no border within 2 tiles of it: only the outermost tiles of a
     // neighbour's band would reach in, at weight 1, so the ring is not worth building)
     bool mixed = false;
-    for (size_t k = 1; k < B.biome.size() && !mixed; k++) if (B.biome[k] != B.biome[0]) mixed = true;
-    std::vector<uint8_t> eb;
+    for (size_t k = 1; k < B.eco.size() && !mixed; k++) if (B.eco[k] != B.eco[0]) mixed = true;
     if (mixed) {
-      eb.resize((size_t)EW * EW);
+      std::vector<uint8_t> ee((size_t)EW * EW);
       for (int y = 0; y < EW; y++)
         for (int x = 0; x < EW; x++) {
           const int32_t gx = x0 - EB + x, gy = y0 - EB + y;
-          eb[(size_t)y * EW + x] = B.in(gx, gy) ? B.biome[B.at(gx, gy)] : (uint8_t)biomeLite(gx, gy);
+          const size_t k = (size_t)y * EW + x;
+          if (B.in(gx, gy)) ee[k] = B.eco[B.at(gx, gy)];
+          else {
+            Eco e = Eco::Meadow;
+            biomeLite(gx, gy, &e);
+            const Eco ae = apronEco(gx, gy, ecoFamily(e));   // (fixer r2) a dune town's apron, as the base rect has it
+            ee[k] = (uint8_t)(ae != Eco::COUNT ? ae : e);
+          }
         }
-    }
-    if (mixed) {
-      auto eco = [](uint8_t b) {
-        const Biome q = (Biome)b;
+      // land ecos that blend (the sea, the beaches and bare mountain rock keep their hard edges, as before)
+      auto blends = [](uint8_t v) {
+        const Biome q = ecoFamily((Eco)v);
         return q == Biome::Plains || q == Biome::Forest || q == Biome::Autumn || q == Biome::Taiga || q == Biome::Snow || q == Biome::Swamp || q == Biome::Desert;
-      };
-      // half the band's width (tiles) for a pair of biomes
-      auto halfW = [](Biome a, Biome b) {
-        auto is = [&](Biome p, Biome q) { return (a == p && b == q) || (a == q && b == p); };
-        auto wood = [](Biome q) { return q == Biome::Forest || q == Biome::Autumn; };
-        if (a == Biome::Swamp || b == Biome::Swamp) return 2;
-        if (is(Biome::Plains, Biome::Desert)) return 4;
-        if ((wood(a) && b == Biome::Plains) || (wood(b) && a == Biome::Plains)) return 3;
-        if (is(Biome::Taiga, Biome::Snow) || is(Biome::Plains, Biome::Taiga) || is(Biome::Plains, Biome::Snow)) return 3;
-        if ((wood(a) && b == Biome::Taiga) || (wood(b) && a == Biome::Taiga)) return 3;
-        if (a == Biome::Desert || b == Biome::Desert) return 3;
-        return 2;
       };
       // the disc of offsets nearest first (built once; a function-local static is initialised thread-safely)
       struct Off { int dx, dy, d2; };
@@ -1236,16 +1672,19 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
       }();
       for (int ly = 0; ly < CHUNK; ly++)
         for (int lx = 0; lx < CHUNK; lx++) {
-          const uint8_t self = eb[(size_t)(ly + EB) * EW + lx + EB];
-          if (!eco(self)) continue;
+          const uint8_t self = ee[(size_t)(ly + EB) * EW + lx + EB];
+          if (!blends(self)) continue;
           if (used[ri(x0 + lx, y0 + ly)]) continue;   // town ground keeps its own look
           for (const Off& of : offs) {
-            const uint8_t o = eb[(size_t)(ly + EB + of.dy) * EW + lx + EB + of.dx];
-            if (o == self || !eco(o)) continue;
-            const int hw = halfW((Biome)self, (Biome)o);
+            const uint8_t o = ee[(size_t)(ly + EB + of.dy) * EW + lx + EB + of.dx];
+            if (o == self || !blends(o)) continue;
+            const int hw = ecoHalfW((Eco)self, (Eco)o);
             const int32_t dd = (int32_t)isqrt((uint64_t)of.d2 * 100);   // tenths of a tile
             const int32_t w = (4 * (hw * 10 - dd + 10) + hw * 5) / (hw * 10);   // 4 beside the border .. 0 past hw
-            if (w > 0) c.blend[c.at(lx, ly)] = (uint8_t)((std::min<int32_t>(w, 8) << 4) | (o & 15));
+            if (w > 0) {
+              c.blend[c.at(lx, ly)] = (uint8_t)((std::min<int32_t>(w, 8) << 4) | ((int)ecoFamily((Eco)o) & 15));
+              c.ecoNb[c.at(lx, ly)] = o;
+            }
             break;
           }
         }
@@ -1454,133 +1893,75 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
   //
   // (forest fixer, Oct 2026) "Trees shouldn't get closer than one person wide": no two solid wild props (trees, bushes,
   // stumps, logs, rocks, cacti) ever touch, diagonals included, so there is always a free tile between two trunks and
-  // a wood can be walked through. Every tile's roll is a pure function of the tile (its hash, the base biome, the
-  // relief level, the density noise); a tile is a solid CANDIDATE when any of the branches its roll could take (the
-  // ecotone ones for every partner biome, the plain biome one) would put something solid there. A solid prop is
-  // placed only when its key beats the key of every candidate among its 8 neighbours (key: trees over the rest, then
-  // a jittered one-tile-in-four lattice preference that packs the woods tighter, then a hash). Two touching solids
-  // would each have to beat the other, so it cannot happen, and since the candidates are computed the same way from
-  // either side of a chunk edge, it holds across edges too. A suppressed tree leaves walkable undergrowth (ferns,
-  // grass, flowers, mushrooms) on its tile, so the woods keep their density; the crowns (2-3 tiles wide) still close
-  // over the gaps. The tree odds are raised to make up for the trees the rule removes.
+  // a wood can be walked through. Every tile's roll is a pure function of the tile (its hash, its eco, the relief
+  // level, the density noise, its base ground); a tile is a solid CANDIDATE when its roll could put something solid
+  // there. A solid prop is placed only when its key beats the key of every candidate among its 8 neighbours (key:
+  // trees over the rest, then a jittered one-tile-in-four lattice preference that packs the woods tighter, then a
+  // hash). Two touching solids would each have to beat the other, so it cannot happen, and since the candidates are
+  // computed the same way from either side of a chunk edge, it holds across edges too. A suppressed tree leaves
+  // walkable undergrowth (ferns, grass, flowers, mushrooms) on its tile, so the woods keep their density; the crowns
+  // (2-3 tiles wide) still close over the gaps.
+  //
+  // (M3c Wildlands) The flora is the eco's own (ecoFlora). In an ecotone the tile, at the blend's odds, mixes in its
+  // partner eco's flora: a tree of the other kind where both grow trees, the open side's grass where a wood thins out,
+  // a lone tree from the wood (only from the low end of the roll: r < 0.05) on the open side, the partner's ground
+  // cover half the time. So the solids an ecotone can add are bounded whatever the partner is: a candidate is the
+  // tile's own solid roll, or, where the ecotone gate could pass (its hash < 0.5, the most any blend weight allows), a
+  // tree candidate if r < 0.05 or its own roll is solid. That needs no knowledge of the neighbour chunk's blends.
   const uint64_t vs = mix64(seed ^ tag("veg"));
-  // the roll of one tile: eco 0 = none, 1 = the ecotone branch at the blend's odds, 2 = the ecotone branch for sure
-  auto roll = [&](int32_t x, int32_t y, int32_t dens, Biome b, int lv, int eco, int ew, Biome ob, Ground g, bool nearWater, bool river, bool& done) {
-    done = false;
+  auto thinOf = [](int lv) { return lv >= 7 ? Q(0.16) : lv >= 6 ? Q(0.32) : lv >= 5 ? Q(0.55) : lv >= 4 ? Q(0.8) : Q_ONE; };
+  // the eco's own roll plus the high ground's scree (rocks and boulders strewn over the mountains' shoulders)
+  auto ownRoll = [&](int32_t x, int32_t y, Eco e, int32_t r, int32_t q, uint64_t pk, int32_t dens, int lv, Ground g, bool river) {
+    Prop p = ecoFlora(e, r, q, pk, dens, thinOf(lv), lv, g, river, x, y, vs);
+    const Biome b = ecoFamily(e);
+    if (p == Prop::COUNT && lv >= 6 && b != Biome::Swamp && g != Ground::Water && !groundSolid(g) && r > Q(0.80) && r < Q(0.80) + (lv >= 7 ? Q(0.022) : Q(0.012))) {
+      auto pick = [&](std::initializer_list<Prop> l) { return *(l.begin() + (size_t)(pk % l.size())); };
+      p = b == Biome::Snow || b == Biome::Taiga ? pick({Prop::SnowRock, Prop::SnowRock, Prop::Boulder}) : pick({Prop::Rock, Prop::Boulder, Prop::MossRock});
+    }
+    return p;
+  };
+  auto solidP = [](Prop p) { return p != Prop::COUNT && propSolid(p); };
+  auto roll = [&](int32_t x, int32_t y, int32_t dens, Eco e, int lv, int ew, Eco nb, Ground g, bool nearWater, bool river) {
     const int32_t r = hq(tileHash(vs, x, y));
     const int32_t q = hq(tileHash(vs ^ 0x400u, x, y));
     const uint64_t pk = tileHash(vs ^ 0x300u, x, y);
-    auto pick = [&](std::initializer_list<Prop> l) { return *(l.begin() + (size_t)(pk % l.size())); };
-    // highland thins the woods; (M2) above the tree line (levels 6 and 7) only a few stunted trees among the rocks
-    const int32_t thin = lv >= 7 ? Q(0.16) : lv >= 6 ? Q(0.32) : lv >= 5 ? Q(0.55) : lv >= 4 ? Q(0.8) : Q_ONE;
-    Prop p = Prop::COUNT;
-    // (M2) the ecotone's flora: at the blend's odds a tile grows the transition between the two sides (lone trees and
-    // bushes from forest to plains, dry grass and scrub toward the desert, snow patches and dwarf pines toward the snow)
-    if (eco == 2 || (eco == 1 && ew && g != Ground::Water && hq(tileHash(vs ^ 0x7E0u, x, y)) < ew * Q(0.125))) {
-      auto wood = [](Biome q) { return q == Biome::Forest || q == Biome::Autumn || q == Biome::Taiga; };
-      bool set = true;
-      if (b == Biome::Plains && wood(ob)) {   // the forest's outliers: a lone tree, bushes, ferns
-        if (r < qm(Q(0.06), thin)) p = ob == Biome::Taiga ? pick({Prop::PineTree, Prop::PineTree2}) : ob == Biome::Autumn ? Prop::AutumnTree : pick({Prop::OakTree, Prop::OakTree2, Prop::BirchTree});
-        else if (r < Q(0.085)) p = pick({Prop::Bush, Prop::BerryBush, Prop::Fern});
-        else if (r < Q(0.20)) p = Prop::TallGrass;
-      } else if (wood(b) && ob == Biome::Plains) {   // the wood thins out: glades of grass and flowers
-        if (r < qm(Q(0.08), thin)) p = b == Biome::Taiga ? pick({Prop::PineTree, Prop::PineTree2}) : b == Biome::Autumn ? Prop::AutumnTree : pick({Prop::OakTree, Prop::BirchTree});
-        else if (r < Q(0.12)) p = pick({Prop::Bush, Prop::Flowers1, Prop::Flowers2});
-        else if (r < Q(0.26)) p = Prop::TallGrass;
-      } else if (b == Biome::Plains && ob == Biome::Desert) {   // dry grass and scrub
-        if (r < Q(0.010)) p = Prop::DeadTree;
-        else if (r < Q(0.045)) p = Prop::Bush;
-        else if (r < Q(0.06)) p = Prop::Rock;
-        else if (r < Q(0.22)) p = Prop::TallGrass;
-      } else if (b == Biome::Desert && ob == Biome::Plains) {   // the first grass and scrub on the sand
-        if (r < Q(0.03)) p = Prop::Bush;
-        else if (r < Q(0.11)) p = Prop::TallGrass;
-        else if (r < Q(0.115)) p = Prop::Cactus;
-      } else if (b == Biome::Taiga && ob == Biome::Snow) {   // snow patches and dwarf pines
-        if (r < qm(Q(0.08), thin)) p = Prop::SnowPine;
-        else if (r < Q(0.11)) p = pick({Prop::SnowBush, Prop::SnowRock});
-      } else if (b == Biome::Snow && ob == Biome::Taiga) {   // the last pines and the moss under the snow
-        if (r < qm(Q(0.08), thin)) p = pick({Prop::PineTree2, Prop::SnowPine});
-        else if (r < Q(0.10)) p = pick({Prop::SnowBush, Prop::MossRock});
-      } else set = false;
-      if (set) { done = true; return p; }
+    const bool wet = g == Ground::Water || g == Ground::DeepWater;
+    Prop p;
+    if (nearWater && !wet && !groundSolid(g) && g != Ground::Ice && watersideFlora(e) && r < Q(0.30)) p = q < Q(0.6) ? Prop::Reeds : Prop::TallGrass;
+    else p = ownRoll(x, y, e, r, q, pk, dens, lv, g, river);
+    // the salt flats' rims: saltbush where the pan meets other land
+    if (e == Eco::SaltFlats && ew && r < Q(0.09)) p = Prop::Saltbush;
+    if (ew && nb != e && !wet && hq(tileHash(vs ^ 0x7E0u, x, y)) < ew * Q(0.125)) {
+      const Prop pn = ownRoll(x, y, nb, r, q, pk, dens, lv, g, river);
+      const bool so = solidP(p), sn = solidP(pn);
+      if (so) p = pn;                                  // the other wood's tree, or the open side's grass
+      else if (sn) { if (r < Q(0.05)) p = pn; }        // a lone outlier from the wood
+      else if ((pk >> 9) & 1) p = pn;                  // the partner's ground cover, half the time
     }
-    if (g == Ground::Water) {
-      if (b == Biome::Swamp && r < Q(0.12)) p = Prop::LilyPad;
-      else if (r < Q(0.025) && b != Biome::Ocean && !river) p = Prop::LilyPad;
-    } else if (groundSolid(g)) {
-      return Prop::COUNT;
-    } else if (nearWater && b != Biome::Desert && b != Biome::Snow && r < Q(0.30)) {
-      p = q < Q(0.6) ? Prop::Reeds : Prop::TallGrass;
-    } else switch (b) {
-      case Biome::Plains:
-        if (r < qm(Q(0.010) + std::max(0, (dens - Q(0.60)) / 2), thin)) p = pick({Prop::OakTree, Prop::OakTree2, Prop::BirchTree});
-        else if (r < Q(0.07)) p = pick({Prop::Flowers1, Prop::Flowers2, Prop::Flowers3});
-        else if (r < Q(0.15)) p = Prop::TallGrass;
-        else if (r < Q(0.162)) p = pick({Prop::Bush, Prop::BerryBush});
-        else if (r < Q(0.168) + (lv >= 4 ? Q(0.01) : 0)) p = pick({Prop::Rock, Prop::Boulder});
-        break;
-      // (forest fixer) the woods' tree odds are about doubled: the spacing rule keeps at most one in every few tiles
-      case Biome::Forest:
-        if (r < qm(Q(0.28) + qm(dens, Q(0.40)), thin)) p = pick({Prop::OakTree, Prop::OakTree2, Prop::OakTree, Prop::BirchTree});
-        else if (r < Q(0.70)) { if (q < Q(0.22)) p = Prop::Fern; else if (q < Q(0.25)) p = pick({Prop::Bush, Prop::Mushrooms}); else if (q < Q(0.27)) p = pick({Prop::Stump, Prop::Log, Prop::MossRock}); else if (q < Q(0.45)) p = Prop::TallGrass; }
-        break;
-      case Biome::Autumn:
-        if (r < qm(Q(0.26) + qm(dens, Q(0.38)), thin)) p = pick({Prop::AutumnTree, Prop::AutumnTree, Prop::BirchTree});
-        else if (r < Q(0.70)) { if (q < Q(0.14)) p = Prop::Fern; else if (q < Q(0.20)) p = pick({Prop::Bush, Prop::Mushrooms, Prop::Flowers3}); else if (q < Q(0.21)) p = Prop::Stump; else if (q < Q(0.30)) p = Prop::TallGrass; }
-        break;
-      case Biome::Taiga:
-        if (r < qm(Q(0.20) + qm(dens, Q(0.36)), thin)) p = pick({Prop::PineTree, Prop::PineTree2});
-        else if (r < Q(0.60)) { if (q < Q(0.07)) p = Prop::Fern; else if (q < Q(0.09)) p = pick({Prop::MossRock, Prop::Boulder, Prop::Stump}); else if (q < Q(0.16)) p = Prop::TallGrass; }
-        break;
-      case Biome::Snow:
-        if (r < qm(Q(0.04) + qm(dens, Q(0.22)), thin)) p = Prop::SnowPine;
-        else if (r < Q(0.4)) { if (q < Q(0.03)) p = Prop::SnowRock; else if (q < Q(0.05)) p = Prop::SnowBush; }
-        break;
-      case Biome::Swamp:
-        if (r < Q(0.07) + qm(dens, Q(0.16))) p = pick({Prop::WillowTree, Prop::WillowTree, Prop::DeadTree});
-        else if (r < Q(0.5)) { if (q < Q(0.2)) p = Prop::Reeds; else if (q < Q(0.24)) p = Prop::Mushrooms; else if (q < Q(0.28)) p = Prop::TallGrass; }
-        break;
-      case Biome::Desert:
-        if (r < Q(0.012)) p = Prop::Cactus;
-        else if (r < Q(0.018)) p = pick({Prop::Rock, Prop::DeadTree});
-        break;
-      case Biome::Beach:
-        if (r < Q(0.025)) p = Prop::Rock;
-        else if (r < Q(0.05)) p = Prop::Reeds;
-        break;
-      default: break;
-    }
-    // (M2) the high ground's scree: rocks and boulders strewn over the mountains' shoulders and plateaus
-    if (p == Prop::COUNT && lv >= 6 && b != Biome::Swamp && g != Ground::Water && r > Q(0.80) && r < Q(0.80) + (lv >= 7 ? Q(0.022) : Q(0.012)))
-      p = b == Biome::Snow || b == Biome::Taiga ? pick({Prop::SnowRock, Prop::SnowRock, Prop::Boulder}) : pick({Prop::Rock, Prop::Boulder, Prop::MossRock});
     return p;
   };
-  auto isTreeP = [](Prop p) { return (int)p <= (int)Prop::AutumnTree; };   // OakTree .. AutumnTree
-  auto solidRank = [&](Prop p) { return p == Prop::COUNT || !propSolid(p) ? 0 : isTreeP(p) ? 2 : 1; };
+  auto solidRank = [&](Prop p) { return p == Prop::COUNT || !propSolid(p) ? 0 : art::isTreeProp(p) ? 2 : 1; };
   // a solid prop's key: rank (trees first), the jittered lattice slot (one tile of every 2 x 2 cell), a hash
   auto keyOf = [&](int32_t x, int32_t y, int rank) {
     const uint64_t cell = tileHash(vs ^ 0x5107u, x >> 1, y >> 1);
     const bool slot = (int)(x & 1) == (int)(cell & 1) && (int)(y & 1) == (int)((cell >> 1) & 1);
     return ((uint64_t)rank << 62) | ((uint64_t)slot << 61) | (tileHash(vs ^ 0x9A1u, x, y) >> 3);
   };
-  // the solid candidates over the chunk and a one-tile ring (base biome, never a town's: town ground grows no scatter)
+  // the solid candidates over the chunk and a one-tile ring (base eco and ground, never a town's: town ground grows no
+  // scatter)
   std::vector<uint64_t> candKey((size_t)RW * RW, 0);   // 0: not a candidate
   std::vector<int32_t> densA((size_t)RW * RW, 0);      // the woods' density noise, worked once per tile
   for (int32_t y = y0 - 1; y < y0 + CHUNK + 1; y++)
     for (int32_t x = x0 - 1; x < x0 + CHUNK + 1; x++) {
       const size_t bi = (size_t)(y - (y0 - BR)) * BW + (x - (x0 - BR));
-      const Biome b = (Biome)B.biome[bi];
+      const Eco e = (Eco)B.eco[bi];
       const int lv = bits[ri(x, y)] & Map::HEIGHT_LEVEL;
-      bool done = false;
       const int32_t dens = densA[ri(x, y)] = fbmQ(x, y, 3, 3, vs ^ 0xD3u);
-      int rank = solidRank(roll(x, y, dens, b, lv, 0, 0, b, Ground::Grass, false, false, done));
-      static const Biome partners[6] = {Biome::Plains, Biome::Forest, Biome::Autumn, Biome::Taiga, Biome::Snow, Biome::Desert};
-      for (Biome ob : partners) {
-        if (ob == b || rank == 2) continue;
-        const Prop pe = roll(x, y, dens, b, lv, 2, 8, ob, Ground::Grass, false, false, done);
-        if (done) rank = std::max(rank, solidRank(pe));
-      }
+      const int32_t r = hq(tileHash(vs, x, y));
+      const Prop po = ownRoll(x, y, e, r, hq(tileHash(vs ^ 0x400u, x, y)), tileHash(vs ^ 0x300u, x, y), dens, lv, (Ground)B.ground[bi], B.riverW[bi] != 0);
+      int rank = solidRank(po);
+      const Ground bg = (Ground)B.ground[bi];
+      if (bg != Ground::Water && bg != Ground::DeepWater && hq(tileHash(vs ^ 0x7E0u, x, y)) < Q(0.5) && (r < Q(0.05) || rank)) rank = 2;
       if (rank) candKey[ri(x, y)] = keyOf(x, y, rank);
     }
   // what stood before the scatter (dens, scree, vignettes): the scatter keeps its solids off those too (within the chunk)
@@ -1600,20 +1981,42 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
         if ((nb & Map::HEIGHT_CLIFF) && k < 4) nearCliff = true;
         if (road[ri(nx, ny)]) nearRoad = true;
         size_t bi = (size_t)(ny - (y0 - BR)) * BW + (nx - (x0 - BR));
-        if (k < 4 && (B.lake[bi] || B.riverW[bi])) nearWater = true;
+        if (k < 4 && (B.lake[bi] || B.riverW[bi] || waterG(B.ground[bi]))) nearWater = true;   // (M3c: the land's own ponds too)
       }
       if (nearRamp) continue;
       Ground g = (Ground)c.ground[i];
       if (g == Ground::Road || g == Ground::Bridge || g == Ground::Plaza || g == Ground::Farmland || g == Ground::StoneFloor || g == Ground::Dirt) continue;
-      const Biome b = (Biome)c.biome[i];
+      const size_t bci = (size_t)(ly + BR) * BW + lx + BR;
+      const Eco e = (Eco)B.eco[bci];
       const int lv = bits[ri(x, y)] & Map::HEIGHT_LEVEL;
       const uint8_t bl = c.blend[i];
       const int ew = (bl >> 4) <= 8 ? bl >> 4 : 0;   // (M3 fixer: above 8 a town's paving mark)
-      bool done = false;
-      Prop p = roll(x, y, densA[ri(x, y)], b, lv, 1, ew, (Biome)(bl & 15), g, nearWater, B.riverW[(size_t)(ly + BR) * BW + lx + BR] != 0, done);
+      Prop p = roll(x, y, densA[ri(x, y)], e, lv, ew, (Eco)c.ecoNb[i], g, nearWater, B.riverW[bci] != 0);
       if (p == Prop::COUNT) continue;
       // keep the road verges and cliff feet free of anything solid
       if ((nearRoad || nearCliff) && propSolid(p)) continue;
+      // (M3c fixer round 2, review: seed 18's shingle beach only 95.67 % walkable) nor a neck of land between waters
+      // (water within 2 tiles on both sides, west and east or north and south): a boulder there sealed off the spit
+      // beyond it. The base rect's 2-tile border holds every tile looked at.
+      if (propSolid(p)) {
+        auto wB = [&](int32_t qx, int32_t qy) { const size_t q = (size_t)(qy - (y0 - BR)) * BW + (qx - (x0 - BR)); return waterG(B.ground[q]) || B.lake[q] || B.riverW[q]; };
+        // (the four axes through the tile, the diagonals too: a spit running north-east is a neck as well)
+        bool neck = false;
+        static const int ax4[4][2] = {{1, 0}, {0, 1}, {1, 1}, {1, -1}};
+        for (int k = 0; k < 4 && !neck; k++) {
+          const int dx = ax4[k][0], dy = ax4[k][1];
+          neck = (wB(x - dx, y - dy) || wB(x - 2 * dx, y - 2 * dy)) && (wB(x + dx, y + dy) || wB(x + 2 * dx, y + 2 * dy));
+        }
+        if (neck) continue;
+        // nor a boulder or bush hard against a town wall or gate tower (2 tiles clear, within the chunk)
+        bool byWall = false;
+        for (int oy = -2; oy <= 2 && !byWall; oy++)
+          for (int ox = -2; ox <= 2 && !byWall; ox++) {
+            const int lx2 = lx + ox, ly2 = ly + oy;
+            if (lx2 >= 0 && ly2 >= 0 && lx2 < CHUNK && ly2 < CHUNK && c.wall[c.at(lx2, ly2)]) byWall = true;
+          }
+        if (byWall) continue;
+      }
       // (forest fixer) the spacing rule: a solid only where it outranks every solid candidate round it (and nothing
       // solid already stands beside it)
       const int rank = solidRank(p);
@@ -1633,16 +2036,8 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
           }
         if (!wins) {
           // a tree that gives way leaves the undergrowth of its wood; a bush or rock leaves the ground bare
-          if (rank < 2) continue;
-          const uint32_t u = (uint32_t)(tileHash(vs ^ 0x6A3u, x, y) % 100);
-          switch (b) {
-            case Biome::Forest: p = u < 38 ? Prop::Fern : u < 66 ? Prop::TallGrass : u < 69 ? Prop::Mushrooms : u < 72 ? Prop::Flowers3 : Prop::COUNT; break;
-            case Biome::Autumn: p = u < 32 ? Prop::Fern : u < 38 ? Prop::Mushrooms : u < 48 ? Prop::Flowers3 : u < 68 ? Prop::TallGrass : Prop::COUNT; break;
-            case Biome::Taiga: p = u < 30 ? Prop::Fern : u < 50 ? Prop::TallGrass : Prop::COUNT; break;
-            case Biome::Swamp: p = u < 35 ? Prop::Reeds : u < 50 ? Prop::Mushrooms : u < 65 ? Prop::TallGrass : Prop::COUNT; break;
-            case Biome::Plains: p = u < 40 ? Prop::TallGrass : u < 55 ? Prop::Flowers1 : Prop::COUNT; break;
-            default: p = Prop::COUNT; break;
-          }
+          if (rank < 2 || g == Ground::Water || g == Ground::DeepWater) continue;
+          p = ecoUnder(e, (uint32_t)(tileHash(vs ^ 0x6A3u, x, y) % 100));
           if (p == Prop::COUNT) continue;
         }
       }
@@ -1651,24 +2046,42 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
   // (M2 fixer round 2) the low summer flora (grass tufts, flowers, ferns, mushrooms) never stands on paving or on snow,
   // whoever put it there (a town's dressing before its streets were paved, a vignette's sprinkle, the scatter on ground
   // the view covers with snow: taiga and snowfields from level 4, mountains from 5). A leafy bush on snow wears snow.
+  // (M3c) The Wildlands' summer covers likewise; the cold-hardy ones (lichen, cotton grass) keep to the snow.
   for (int ly = 0; ly < CHUNK; ly++)
     for (int lx = 0; lx < CHUNK; lx++) {
       const int i = c.at(lx, ly);
       const int pr = c.prop[i];
       if (!pr) continue;
       const Prop pp = (Prop)(pr - 1);
-      const bool flora = pp == Prop::Flowers1 || pp == Prop::Flowers2 || pp == Prop::Flowers3 || pp == Prop::TallGrass || pp == Prop::Fern ||
-                         pp == Prop::Mushrooms;
+      const bool summer = pp == Prop::Flowers1 || pp == Prop::Flowers2 || pp == Prop::Flowers3 || pp == Prop::TallGrass || pp == Prop::Fern ||
+                          pp == Prop::Mushrooms || pp == Prop::Wildflowers || pp == Prop::PrairieGrass || pp == Prop::Heather ||
+                          pp == Prop::JungleFern || pp == Prop::SilverFern || pp == Prop::Petals || pp == Prop::GlowCaps || pp == Prop::DryBrush ||
+                          pp == Prop::Agave || pp == Prop::Blightweed;
+      const bool hardy = pp == Prop::Lichen || pp == Prop::CottonGrass || pp == Prop::Saltbush || pp == Prop::Wrack || pp == Prop::Shells;
       const bool leafy = pp == Prop::Bush || pp == Prop::BerryBush;
-      if (!flora && !leafy) continue;
+      if (!summer && !hardy && !leafy) continue;
       const Ground g = (Ground)c.ground[i];
       const Biome b = (Biome)c.biome[i];
       const int lv = c.height[i] & Map::HEIGHT_LEVEL;
       const bool paved = g == Ground::Road || g == Ground::Plaza || g == Ground::StoneFloor || g == Ground::Bridge || g == Ground::WoodFloor;
       const bool snowy = g == Ground::Snow || g == Ground::Ice || ((b == Biome::Snow || b == Biome::Taiga) && lv >= 4) || (b == Biome::Mountain && lv >= 5);
-      if (flora && (paved || snowy)) c.prop[i] = 0;
+      if ((summer || hardy) && paved) c.prop[i] = 0;
+      else if (summer && snowy) c.prop[i] = 0;
+      else if (hardy && g == Ground::Ice) c.prop[i] = 0;
       else if (leafy && snowy) c.prop[i] = (uint8_t)((int)Prop::SnowBush + 1);
     }
+  // (M3c fixer, seed 34: a bush in a forest capital's gate passage) whoever put it there (a town's dressing, a
+  // vignette, the scatter at a town's edge), nothing solid stands in a gate's three passage tiles or on the middle
+  // tile's approaches: the gate stays a clean opening under its arch
+  for (const GTile& gt : c.gates) {
+    static const int gox[5] = {0, 1, 2, 1, 1}, goy[5] = {0, 0, 0, -1, 1};
+    for (int k = 0; k < 5; k++) {
+      const int32_t lx = gt.x + gox[k] - x0, ly = gt.y + goy[k] - y0;
+      if (lx < 0 || ly < 0 || lx >= CHUNK || ly >= CHUNK) continue;
+      const int i = c.at(lx, ly);
+      if (c.prop[i] && propSolid((Prop)(c.prop[i] - 1))) c.prop[i] = 0;
+    }
+  }
   double ms = msSince(t0) - (nestedMs - nested0);
   stats.chunks++;
   stats.chunkMs += ms;

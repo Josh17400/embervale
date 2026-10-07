@@ -1032,12 +1032,43 @@ void Audio::inst(int layer, Inst which, int midi, float dur, float vel, float dl
 }
 
 // ------------------------------------------------------------------------------------------ music: composition
-void Audio::startSeq(Seq& s, Music m, uint64_t style) {
+// (M3c) the land's Mood (rpg/world/biomes.h order: Pastoral, Woodland, Deep, Exotic, Wetland, Coastal, Arid, Frozen,
+// Highland, Wondrous, Ominous) bends a Wild or Night piece: tempo, phrase density and busyness, the melody's register,
+// the echo, the style's drone, and for the ominous and wondrous lands the harmony's mode
+static bool moodMode(Music m) { return m == Music::Wild || m == Music::Night; }
+static void applyMood(audio_detail::Piece& st, MusicStyle& ms, bool styled, uint8_t mood) {
+  auto scaleTo = [&](Scale sc) {
+    st.scale = (uint8_t)sc;
+    for (int a = 0; a < 4; a++) for (int b = 0; b < 4; b++) st.progs[a][b] = kProgs[(int)sc][a][b];
+  };
+  switch (mood) {
+    case 1: st.busy = clampf(st.busy - 0.05f, 0, 1); st.echo += 0.04f; break;                                     // Woodland
+    case 2: st.bpm *= 0.86f; st.density *= 0.75f; if (st.melRoot >= 62) st.melRoot -= 12; st.echo += 0.08f; break; // Deep
+    case 3: st.bpm *= 1.08f; st.busy = clampf(st.busy + 0.15f, 0, 1); break;                                     // Exotic
+    case 4: st.bpm *= 0.9f; st.density *= 0.85f; st.echo += 0.08f; break;                                       // Wetland
+    case 5: st.busy = clampf(st.busy - 0.05f, 0, 1); st.echo += 0.06f; break;                                    // Coastal
+    case 6: st.bpm *= 0.92f; st.density *= 0.8f; st.busy = clampf(st.busy + 0.05f, 0, 1); if (styled) ms.drone = (uint8_t)std::max<int>(ms.drone, 8); break;   // Arid
+    case 7: st.bpm *= 0.8f; st.density *= 0.7f; if (st.melRoot < 70) st.melRoot += 12; st.echo += 0.10f; break;  // Frozen
+    case 8: if (styled) ms.drone = (uint8_t)std::max<int>(ms.drone, 10); st.echo += 0.04f; break;                 // Highland
+    case 9: st.density *= 0.85f; st.busy = clampf(st.busy - 0.1f, 0, 1); st.echo += 0.12f;                       // Wondrous
+      if (st.scale == (uint8_t)Scale::Major || st.scale == (uint8_t)Scale::PentaMajor) scaleTo(Scale::Lydian);
+      break;
+    case 10: st.bpm *= 0.85f; st.density *= 0.7f; if (st.melRoot >= 62) st.melRoot -= 12; st.echo += 0.06f;     // Ominous
+      if (st.scale != (uint8_t)Scale::Phrygian && st.scale != (uint8_t)Scale::InSen && st.scale != (uint8_t)Scale::HarmonicMinor) scaleTo(Scale::Phrygian);
+      break;
+    default: break;
+  }
+  st.echo = clampf(st.echo, 0, 0.5f);
+}
+
+void Audio::startSeq(Seq& s, Music m, uint64_t style, uint8_t mood) {
   s = Seq{};
   s.mode = m;
   s.style = styleKey(m, style);
   s.ms = MusicStyle::unpack(style);
   s.st = s.style && styledMode(m) ? buildPiece(m, s.ms) : kStyle[(int)m];
+  s.mood = moodMode(m) ? mood : (uint8_t)255;
+  if (moodMode(m) && mood != 255) applyMood(s.st, s.ms, s.style != 0, mood);
   starts_++;
   s.rng = 0x9E3779B9u * (starts_ + 1u) ^ (0x85EBCA6Bu * ((uint32_t)m + 7u)) ^ rng_;
   if (s.rng == 0) s.rng = 1;
@@ -1646,11 +1677,228 @@ void Audio::seqStepStyled(Seq& s, int L, float dly) {
     }
   }
   // night: far-off glints in the culture's own scale
-  if (night && r() < 0.03f) {
+  if ((night && r() < 0.03f) || (wild && (s.mood == 9 || s.mood == 7) && r() < 0.015f)) {
     const int m = snapToScale(degMidi(st, st.melRoot + 12, (int)(xs32(s.rng) % 7)), st.melRoot, st.scale);
     inst(L, Inst::Star, m, 0, 0.5f + 0.4f * r(), dly);
   }
   s.step = (i + 1) % (8 * barSteps);
+}
+
+// ------------------------------------------------------------------------------------------ (M3c) ambient beds
+// The 15 beds (rpg/world/biomes.h Ambience order). Each is a mix of a few continuous noise layers (wind with gusts, a
+// high hiss of sand, a resonant howl, surf swells, a deep rumble, a glassy hum, a low drone, an insect chorus, rustling
+// leaves) and sparse event voices (birdsong, skylarks, owls, crickets, frogs, gulls, drips, creaks, bamboo knocks, wind
+// chimes, bubbles, crackles, vent hisses, exotic calls, bees, distant calls, flies). The layers ease toward the bed's
+// profile (about two seconds: the crossfade), the events follow the bed and the hour. All on the audio thread, no
+// allocation: a handful of one-pole filters and one state-variable filter per sample.
+namespace {
+using AmbProfile = float[11];
+// wind, windCut, hiss, hissCut, howl, surf, rumble, hum, drone, insects, rustle
+const float kBed[15][11] = {
+  {0.26f, 500, 0, 2000, 0, 0, 0, 0, 0, 0, 0.05f},          // Breeze
+  {0.15f, 450, 0, 2000, 0, 0, 0, 0, 0, 0.04f, 0.05f},      // Meadow
+  {0.12f, 400, 0, 2000, 0, 0, 0, 0, 0, 0, 0.12f},          // Woods
+  {0.09f, 260, 0, 2000, 0.03f, 0, 0, 0, 0, 0, 0.06f},      // DeepWoods
+  {0.05f, 400, 0, 2000, 0, 0, 0, 0, 0, 0.22f, 0.06f},      // Jungle
+  {0.08f, 350, 0, 2000, 0, 0, 0, 0, 0, 0.08f, 0.03f},      // Marsh
+  {0.10f, 600, 0, 2000, 0, 0.40f, 0, 0, 0, 0, 0},          // Surf
+  {0.28f, 700, 0, 2000, 0.06f, 0.25f, 0.06f, 0, 0, 0, 0},  // Cliffs
+  {0.30f, 700, 0.22f, 2600, 0, 0, 0, 0, 0, 0, 0},          // DesertWind
+  {0.30f, 520, 0.04f, 3000, 0.34f, 0, 0, 0, 0, 0, 0},      // ColdWind
+  {0.08f, 300, 0.05f, 2200, 0, 0, 0.40f, 0, 0, 0, 0},      // Volcanic
+  {0.08f, 500, 0, 2000, 0, 0, 0, 0.25f, 0, 0, 0},          // Crystal
+  {0.06f, 300, 0, 2000, 0, 0, 0, 0, 0.42f, 0, 0},          // Blight
+  {0.10f, 500, 0, 2000, 0, 0, 0, 0, 0, 0, 0.20f},          // Bamboo
+  {0.10f, 500, 0, 2000, 0, 0, 0, 0.22f, 0, 0, 0.03f},      // Mystic
+};
+// event voices: 0 chirp, 1 skylark, 2 owl, 3 cricket, 4 frog, 5 gull, 6 drip, 7 creak, 8 knock, 9 chime, 10 bubble,
+// 11 crackle, 12 vent, 13 exotic call, 14 bee, 15 distant call, 16 fly, 17 water trickle; rates per second by day / night
+struct EvRate { int8_t e; float day, night; };
+const EvRate kBedEv[15][5] = {
+  {{3, 0, 1.2f}, {0, 0.10f, 0}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}},                            // Breeze
+  {{1, 0.25f, 0}, {0, 0.35f, 0}, {14, 0.10f, 0}, {3, 0, 1.5f}, {2, 0, 0.03f}},                 // Meadow
+  {{0, 0.60f, 0}, {2, 0, 0.08f}, {3, 0, 0.6f}, {7, 0.02f, 0.02f}, {-1, 0, 0}},                 // Woods
+  {{7, 0.12f, 0.12f}, {6, 0.25f, 0.25f}, {15, 0.06f, 0.06f}, {2, 0, 0.08f}, {0, 0.10f, 0}},     // DeepWoods
+  {{13, 0.35f, 0.10f}, {4, 0.40f, 0.80f}, {0, 0.30f, 0}, {6, 0.20f, 0.20f}, {-1, 0, 0}},       // Jungle
+  {{4, 0.50f, 1.20f}, {10, 0.30f, 0.30f}, {0, 0.25f, 0}, {3, 0, 0.50f}, {-1, 0, 0}},           // Marsh
+  {{5, 0.12f, 0}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}},                              // Surf
+  {{5, 0.20f, 0.02f}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}},                          // Cliffs
+  {{-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}},                                 // DesertWind
+  {{7, 0.05f, 0.05f}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}},                          // ColdWind
+  {{11, 2.0f, 2.0f}, {12, 0.08f, 0.08f}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}},                   // Volcanic
+  {{9, 0.35f, 0.35f}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}},                          // Crystal
+  {{16, 0.25f, 0.10f}, {7, 0.03f, 0.03f}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}},                  // Blight
+  {{8, 0.50f, 0.30f}, {0, 0.15f, 0}, {17, 0.15f, 0.15f}, {3, 0, 0.4f}, {-1, 0, 0}},            // Bamboo
+  {{9, 0.20f, 0.20f}, {3, 0, 0.3f}, {-1, 0, 0}, {-1, 0, 0}, {-1, 0, 0}},                        // Mystic
+};
+constexpr float kAmbGain = 0.5f;   // the bed's overall level (calibrated with tools/audio_preview: peaks ~0.25)
+}  // namespace
+
+void Audio::ambEvent(int e, float V) {
+  const float r = rnd(0.9f, 1.1f);
+  switch (e) {
+    case 0: {   // a songbird's phrase: 2-5 quick whistled notes sliding
+      const int n = 2 + (int)(rnd() * 4);
+      const float base = rnd(2600, 4200);
+      for (int i = 0; i < n; i++)
+        add(NB(Sine, base * rnd(0.85f, 1.2f), 0.10f * V).env(0.004f, 0.05f, 0, 0.06f, 0.02f).slide(rnd(-3, 3)).send(0.25f).at(i * rnd(0.07f, 0.12f)));
+      break;
+    }
+    case 1: {   // a skylark's warble: a fast fluttering trill
+      add(NB(Fm, rnd(3000, 3800), 0.07f * V).env(0.05f, 1, 1, rnd(0.6f, 1.2f), 0.1f).fm(0.5f, 1.5f, 1).vib(1.5f, rnd(14, 22)).send(0.3f));
+      break;
+    }
+    case 2: {   // an owl: hoo... hoo-hoo
+      const float f = rnd(360, 420);
+      add(NB(Sine, f, 0.14f * V).env(0.04f, 1, 1, 0.22f, 0.12f).slide(-0.2f).breath(0.05f).send(0.45f));
+      add(NB(Sine, f * 0.97f, 0.11f * V).env(0.04f, 1, 1, 0.15f, 0.1f).slide(-0.2f).send(0.45f).at(0.55f));
+      add(NB(Sine, f * 0.95f, 0.11f * V).env(0.04f, 1, 1, 0.3f, 0.15f).slide(-0.25f).send(0.45f).at(0.8f));
+      break;
+    }
+    case 3: {   // a cricket: a pulse train
+      const float f = rnd(4200, 4900);
+      for (int i = 0; i < 4; i++) add(NB(Sine, f, 0.035f * V).env(0.003f, 0.02f, 0, 0.02f, 0.01f).send(0.15f).at(i * 0.045f));
+      break;
+    }
+    case 4: {   // a frog: a buzzing croak (or two)
+      const float f = rnd(90, 170);
+      const int n = 1 + (int)(rnd() * 2.5f);
+      for (int i = 0; i < n; i++)
+        add(NB(Saw, f * r, 0.10f * V).env(0.01f, 1, 1, rnd(0.12f, 0.22f), 0.05f).vox(rnd(500, 900), 2.5f).am(rnd(22, 34), 0.8f).send(0.25f).at(i * 0.3f));
+      break;
+    }
+    case 5: {   // a gull's cry: two falling calls
+      for (int i = 0; i < 2; i++)
+        add(NB(Saw, rnd(1100, 1400), 0.06f * V).env(0.02f, 1, 1, 0.22f, 0.08f).slide(-0.8f).bp(1500, 2.5f).vib(0.5f, 9).send(0.4f).at(i * 0.32f));
+      break;
+    }
+    case 6: add(NB(Sine, rnd(1400, 2600), 0.10f * V).perc(0.06f).slide(-2.5f).send(0.5f)); break;            // a drip
+    case 7: add(NB(Fm, rnd(140, 220), 0.06f * V).env(0.15f, 1, 1, rnd(0.4f, 0.8f), 0.2f).fm(2.1f, 2.5f, 1).slide(rnd(-0.4f, 0.4f)).lp(900, 2).send(0.35f)); break;   // a creak
+    case 8: {   // bamboo knocks: two hollow tocks
+      const float f = rnd(480, 780);
+      add(NB(Tri, f, 0.18f * V).perc(0.09f).pitch(0.5f, 0.01f).send(0.3f));
+      add(NB(Tri, f * rnd(1.1f, 1.35f), 0.13f * V).perc(0.08f).pitch(0.5f, 0.01f).send(0.3f).at(rnd(0.12f, 0.3f)));
+      break;
+    }
+    case 9: {   // wind chimes: a few bell tones of a pentatonic set
+      static const float pent[5] = {1.0f, 1.125f, 1.25f, 1.5f, 1.667f};
+      const float base = rnd() < 0.5f ? 1320.0f : 1760.0f;
+      const int n = 1 + (int)(rnd() * 3);
+      for (int i = 0; i < n; i++)
+        add(NB(Fm, base * pent[(int)(rnd() * 5) % 5], 0.06f * V).perc(rnd(1.2f, 2.0f)).fm(3.5f, 1.2f, 0.4f).send(0.55f).at(i * rnd(0.1f, 0.3f)));
+      break;
+    }
+    case 10: add(NB(Sine, rnd(260, 420), 0.07f * V).perc(0.07f).slide(rnd(2.5f, 4)).send(0.2f)); break;        // a bubble
+    case 11: add(NB(Noise, 0, 0.10f * V).perc(rnd(0.004f, 0.012f)).hp(rnd(1500, 4000))); break;                // a crackle
+    case 12: add(NB(Noise, 0, 0.06f * V).env(0.3f, 1, 1, rnd(0.8f, 1.6f), 0.5f).hp(1800).bump(0.5f).send(0.2f)); break;   // a vent's hiss
+    case 13: {  // an exotic bird's whoop
+      const float f = rnd(800, 1100);
+      add(NB(Sine, f, 0.09f * V).env(0.02f, 1, 1, 0.25f, 0.06f).slide(1.6f).send(0.35f));
+      add(NB(Sine, f * 1.6f, 0.08f * V).env(0.01f, 1, 1, 0.18f, 0.06f).slide(-2.2f).send(0.35f).at(0.27f));
+      break;
+    }
+    case 14: add(NB(Saw, rnd(200, 240), 0.025f * V).env(0.4f, 1, 1, rnd(0.8f, 1.6f), 0.4f).lp(900).vib(0.4f, 7).am(110, 0.3f)); break;   // a bee
+    case 15: add(NB(Sine, rnd(420, 560), 0.06f * V).env(0.1f, 1, 1, 0.5f, 0.4f).slide(-0.5f).vib(0.3f, 5).send(0.7f)); break;   // a distant call
+    case 16: add(NB(Saw, rnd(190, 260), 0.03f * V).env(0.1f, 1, 1, rnd(0.4f, 0.9f), 0.2f).lp(1400).vib(0.8f, 9).am(40, 0.4f)); break;   // a fly
+    case 17: for (int i = 0; i < 3; i++) add(NB(Sine, rnd(900, 1600), 0.04f * V).perc(0.04f).slide(rnd(1, 3)).at(i * rnd(0.05f, 0.12f))); break;   // trickling water
+    default: break;
+  }
+}
+
+void Audio::renderAmbient(float* out, int n, float blockSec) {
+  const int kind = wantAmb_.load(std::memory_order_relaxed);
+  const float lvlWant = clampf(wantAmbLevel_.load(std::memory_order_relaxed), 0.0f, 1.0f);
+  const float day = clampf(wantDay_.load(std::memory_order_relaxed), 0.0f, 1.0f);
+  const int k = kind < 15 ? kind : 0;
+  // ease toward the bed (about two seconds) and the level
+  const float ke = 1.0f - std::exp(-blockSec / 0.7f);
+  float* cur = &ambCur_.wind;
+  const float night = 1.0f - day;
+  for (int i = 0; i < 11; i++) {
+    float t = kBed[k][i];
+    if (i == 9 && (k == 1 || k == 4 || k == 5)) t *= 1.0f + 1.2f * night;   // insects louder at night
+    cur[i] += (t - cur[i]) * ke;
+  }
+  ambLvl_ += (lvlWant - ambLvl_) * ke;
+  ambDay_ += (day - ambDay_) * ke;
+  ambT_ += blockSec;
+  if (ambLvl_ < 1e-4f) return;
+  // events
+  for (int j = 0; j < 5; j++) {
+    const EvRate& er = kBedEv[k][j];
+    if (er.e < 0) continue;
+    const float rate = er.day * ambDay_ + er.night * (1.0f - ambDay_);
+    float& T = ambEvT_[er.e];
+    T -= blockSec;
+    if (T <= 0) {
+      if (rate > 0.001f && ambLvl_ > 0.05f && T > -5.0f) ambEvent(er.e, ambLvl_ * kAmbGain * 2.0f);
+      T = rate > 0.001f ? -std::log(std::fmax(1e-4f, rnd())) / rate : 1.0f;
+    }
+  }
+  // gusts: a slow random target the wind envelope chases
+  if (rnd() < blockSec * 0.25f) ambGustTarget_ = rnd(0.25f, 1.0f);
+  ambGustEnv_ += (ambGustTarget_ - ambGustEnv_) * (1.0f - std::exp(-blockSec / 1.5f));
+  const AmbP& A = ambCur_;
+  const float g = ambLvl_ * kAmbGain;
+  const float cw = 1.0f - std::exp(-TAU * A.windCut * (0.6f + 0.6f * ambGustEnv_) / FS);
+  const float ch = 1.0f - std::exp(-TAU * A.hissCut / FS);
+  const float cs = 1.0f - std::exp(-TAU * 900.0f / FS), cr = 1.0f - std::exp(-TAU * 70.0f / FS);
+  const float cin = 1.0f - std::exp(-TAU * 3600.0f / FS), cru = 1.0f - std::exp(-TAU * 2200.0f / FS);
+  // the howl's resonant band slides slowly (a wind whistling round rocks)
+  const float howlF = 420.0f + 260.0f * (0.5f + 0.5f * sinc(ambT_ * 0.07f)) + 120.0f * ambGustEnv_;
+  const float hg = std::tan(PI * howlF / FS), hk = 1.0f / 9.0f;
+  const float ha1 = 1.0f / (1.0f + hg * (hg + hk)), ha2 = hg * ha1, ha3 = hg * ha2;
+  // the surf's swell: a slow rise and a quicker fall, every ~8 s
+  const float sp = std::fmod(ambT_ / 8.0f, 1.0f);
+  const float swell = 0.25f + 0.75f * (sp < 0.7f ? sp / 0.7f * sp / 0.7f : 1.0f - (sp - 0.7f) / 0.3f);
+  const float rumbleAm = 0.7f + 0.3f * sinc(ambT_ * 0.31f) * sinc(ambT_ * 0.13f);
+  const float insectAm = 0.6f + 0.4f * sinc(ambT_ * 0.5f);
+  const float rustleAm = 0.3f + 0.7f * ambGustEnv_ * ambGustEnv_;
+  for (int i = 0; i < n; i++) {
+    const float t = ambT_ - blockSec + (float)i * DT;
+    const float w = white(ambRng_);
+    float y = 0;
+    // wind (two-pole low-passed noise with gusts)
+    ambLp_[0] += cw * (w - ambLp_[0]);
+    ambLp_[1] += cw * (ambLp_[0] - ambLp_[1]);
+    y += ambLp_[1] * A.wind * (0.4f + ambGustEnv_) * 3.2f;
+    // hiss (sand): what the low-pass leaves above the cut
+    ambLp_[2] += ch * (w - ambLp_[2]);
+    y += (w - ambLp_[2]) * A.hiss * (0.3f + ambGustEnv_) * 0.45f;
+    // howl
+    if (A.howl > 0.001f) {
+      const float v3 = w - ambSv2_, v1 = ha1 * ambSv1_ + ha2 * v3, v2 = ambSv2_ + ha2 * ambSv1_ + ha3 * v3;
+      ambSv1_ = 2.0f * v1 - ambSv1_;
+      ambSv2_ = 2.0f * v2 - ambSv2_;
+      y += hk * v1 * A.howl * (0.3f + ambGustEnv_) * 4.0f;
+    }
+    // surf
+    if (A.surf > 0.001f) {
+      ambLp_[3] += cs * (w - ambLp_[3]);
+      y += ambLp_[3] * A.surf * swell * 2.2f;
+    }
+    // rumble
+    if (A.rumble > 0.001f) {
+      ambLp_[4] += cr * (w - ambLp_[4]);
+      ambLp_[5] += cr * (ambLp_[4] - ambLp_[5]);
+      y += ambLp_[5] * A.rumble * rumbleAm * 14.0f;
+    }
+    // hum (crystal, mystic): beating glassy partials
+    if (A.hum > 0.001f) y += (sinc(t * 440.0f) * 0.5f + sinc(t * 441.3f) * 0.5f + sinc(t * 660.7f) * 0.35f + sinc(t * 1318.5f) * 0.12f) * A.hum * 0.11f * (0.7f + 0.3f * sinc(t * 0.21f));
+    // drone (blight): a low, sick beating
+    if (A.drone > 0.001f) y += (sinc(t * 55.0f) + 0.6f * sinc(t * 55.6f) + 0.35f * sinc(t * 82.9f) + 0.2f * sinc(t * 110.4f)) * A.drone * 0.12f;
+    // insects: the band above ~3.6 kHz, pulsing fast
+    if (A.insects > 0.001f) {
+      ambLp_[6] += cin * (w - ambLp_[6]);
+      y += (w - ambLp_[6]) * A.insects * insectAm * (0.55f + 0.45f * sinc(t * 31.0f)) * 0.5f;
+    }
+    // rustle: leaves in the gusts
+    if (A.rustle > 0.001f) {
+      ambLp_[7] += cru * (w - ambLp_[7]);
+      y += (w - ambLp_[7]) * A.rustle * rustleAm * (0.6f + 0.4f * sinc(t * 3.7f) * sinc(t * 1.3f)) * 0.5f;
+    }
+    out[i] = y * g;
+  }
 }
 
 // ------------------------------------------------------------------------------------------ mixing
@@ -1670,10 +1918,12 @@ void Audio::updateMusic(float blockSec) {
   }
   const uint64_t wantKey = got ? styleKey((Music)want, wantStyle) : seq_[fg_].style;
   Seq& cur = seq_[fg_];
-  if (want != (int)cur.mode || wantKey != cur.style) {   // a new piece, or the same mode in another culture's style
+  const uint8_t wm = wantMood_.load(std::memory_order_relaxed);
+  const uint8_t wantMood = moodMode((Music)want) ? (wm < 11 ? wm : (uint8_t)0) : (uint8_t)255;
+  if (want != (int)cur.mode || wantKey != cur.style || wantMood != cur.mood) {   // a new piece, another culture's style or another land's mood
     const int o = fg_ ^ 1;
     Seq& other = seq_[o];
-    if ((int)other.mode != want || other.style != wantKey) {
+    if ((int)other.mode != want || other.style != wantKey || other.mood != wantMood) {
       // Reusing the layer: its leftover voices (possibly still audible if a third piece is requested mid-fade)
       // get the layer gain baked in and a quick release, so the new piece never inherits them.
       const float g = std::sin(other.x * PI * 0.5f);
@@ -1690,7 +1940,7 @@ void Audio::updateMusic(float blockSec) {
             if (v.str >= 0) { strUsed_[v.str] = false; v.str = -1; }
           }
         }
-      startSeq(other, (Music)want, wantStyle);
+      startSeq(other, (Music)want, wantStyle, wantMood);
     }
     other.target = 1;
     cur.target = 0;
@@ -1715,9 +1965,10 @@ void Audio::updateMusic(float blockSec) {
 void Audio::renderBlock(float* out, int n) {
   updateMusic((float)n * DT);
   const float lg[2] = {std::sin(seq_[0].x * PI * 0.5f), std::sin(seq_[1].x * PI * 0.5f)};
-  float sfx[BLOCK] = {}, mus[BLOCK] = {}, sndS[BLOCK] = {}, sndM[BLOCK] = {};
+  float sfx[BLOCK] = {}, mus[BLOCK] = {}, sndS[BLOCK] = {}, sndM[BLOCK] = {}, amb[BLOCK] = {};
   for (Voice& v : v_)
     if (v.on) renderVoice(v, n, lg, sfx, mus, sndS, sndM);
+  renderAmbient(amb, n, (float)n * DT);
 
   static constexpr int combLen[4] = {1215, 1293, 1390, 1476}, apLen[2] = {605, 480};
   const float master = clampf(master_.load(std::memory_order_relaxed), 0.0f, 1.5f);
@@ -1728,7 +1979,7 @@ void Audio::renderBlock(float* out, int n) {
     duckEnv_ = a > duckEnv_ ? duckEnv_ + (a - duckEnv_) * 0.02f : duckEnv_ * 0.99995f;
     const float duck = 1.0f - 0.35f * clampf((duckEnv_ - 0.35f) * 2.0f, 0.0f, 1.0f);   // footsteps/UI never duck
     const float m = mus[i] * mv * duck;
-    const float send = sndS[i] + sndM[i] * mv * duck;
+    const float send = sndS[i] + sndM[i] * mv * duck + amb[i] * 0.15f;
 
     // reverb: 4 damped feedback combs + 2 allpasses (mono Freeverb)
     const float in = send * 0.22f + 1e-18f;   // tiny offset keeps the tails out of denormals
@@ -1752,7 +2003,7 @@ void Audio::renderBlock(float* out, int n) {
     echo_[echoPos_] = send * echoAmt_ + echoLp_ * 0.42f + 1e-18f;
     echoPos_ = (echoPos_ + 1) & (ECHO - 1);
 
-    float x = (sfx[i] + m + rv * 0.3f + e * 0.6f) * master;
+    float x = (sfx[i] + m + amb[i] + rv * 0.3f + e * 0.6f) * master;
     // peak limiter: instant attack, 150 ms release; output can never exceed 0.8
     const float ax = std::fabs(x);
     limEnv_ = ax > limEnv_ ? ax : limEnv_ * 0.99986f;

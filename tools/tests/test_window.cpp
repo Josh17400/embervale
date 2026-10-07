@@ -24,6 +24,9 @@
 #include <cstring>
 #include <map>
 #include <string>
+#ifndef __EMSCRIPTEN__
+#include <thread>
+#endif
 #include <vector>
 #include "rpg/sim/stream.h"
 #include "rpg/world/source.h"
@@ -569,8 +572,86 @@ int webTravel(const Game& base, uint64_t seed) {
   return bad;
 }
 
+// (M3c carry) the interior made ahead while the player walks up to a door (Game::prepInteriorTick) is the very map
+// entering makes (genInterior, bit for bit), and entering uses it: the start village's buildings and the capital's
+// seat of power, each approached from 3 tiles south of its door
+int prepInteriorCheck(uint64_t seed) {
+  int bad = 0;
+  auto fail = [&](const std::string& s) { out("FAIL: prepinterior: %s\n", s.c_str()); bad++; };
+  Game g(seed);
+  g.newEndlessGame(seed);
+  g.mode = Mode::Play;
+  g.godMode = true;
+  g.noWildSpawns = true;
+  World& w = g.world;
+  std::vector<ew::Gid> ids;
+  const Site& home = w.sites[(size_t)w.startSite];
+  for (int b = home.bldgFirst; b < home.bldgFirst + home.bldgCount && ids.size() < 5; b++) ids.push_back(w.over.bldgs[(size_t)b].id);
+  int tried = 0, hits = 0;
+  for (ew::Gid id : ids) {
+    int bi = w.bldgHandle(id);
+    if (bi < 0) continue;
+    if (g.inside) g.debugLeave();
+    {
+      const Bldg& B = w.over.bldgs[(size_t)bi];
+      g.teleportGlobal(w.ox + B.doorX(), w.oy + B.doorY() + 3);
+    }
+    bi = w.bldgHandle(id);
+    const Bldg B = w.over.bldgs[(size_t)bi];
+    if (std::abs((int)std::floor(g.pl().p.x / TILE) - B.doorX()) > 3 || std::abs((int)std::floor(g.pl().p.y / TILE) - (B.doorY() + 3)) > 3) continue;
+    const Map* pm = nullptr;
+    int pb = -1;
+    const auto t0 = std::chrono::steady_clock::now();
+    // The interior is made on a worker thread natively: a few hundred sim steps run in a few ms of wall time, far less
+    // than the thread may need to start, so after ~10 s of sim time the loop keeps stepping slowly (yielding the CPU)
+    // until the job lands or 3 s of wall time pass.
+    for (int k = 0;; k++) {
+      g.update(SIM_DT, Input());
+      g.events.clear();
+      pm = g.preparedInterior(pb);
+      if (pm && pb == bi) break;
+      if (std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() > 3.0) break;
+#ifndef __EMSCRIPTEN__
+      if (k >= 600) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+#else
+      if (k >= 4000) break;
+#endif
+    }
+    if (pm && pb != bi) continue;   // another building's door is nearer there (that one was made ahead instead)
+    tried++;
+    if (!pm || pb != bi) { fail("nothing made ahead for " + std::string(bldgTypeName(B.type)) + " 3 tiles from its door"); continue; }
+    Map fresh;
+    genInterior(fresh, B, B.seed, 0);
+    const Map& a = *pm;
+    bool same = a.w == fresh.w && a.h == fresh.h && a.ground == fresh.ground && a.prop == fresh.prop && a.deco == fresh.deco &&
+                a.exitX == fresh.exitX && a.exitY == fresh.exitY && a.exits == fresh.exits && a.roomAt == fresh.roomAt &&
+                a.rooms.size() == fresh.rooms.size() && a.spawns.size() == fresh.spawns.size() && a.up.x == fresh.up.x && a.down.x == fresh.down.x;
+    for (size_t i = 0; same && i < a.spawns.size(); i++)
+      same = a.spawns[i].x == fresh.spawns[i].x && a.spawns[i].y == fresh.spawns[i].y && a.spawns[i].slot == fresh.spawns[i].slot;
+    if (!same) {
+      std::string what;
+      if (a.w != fresh.w || a.h != fresh.h) what += " size";
+      if (a.ground != fresh.ground) what += " ground";
+      if (a.prop != fresh.prop) what += " props";
+      if (a.deco != fresh.deco) what += " deco";
+      if (a.exitX != fresh.exitX || a.exitY != fresh.exitY || a.exits != fresh.exits) what += " exits";
+      if (a.roomAt != fresh.roomAt || a.rooms.size() != fresh.rooms.size()) what += " rooms";
+      if (a.spawns.size() != fresh.spawns.size()) what += " spawns";
+      fail(std::string(bldgTypeName(B.type)) + ": the interior made ahead differs from genInterior's:" + what);
+    }
+    const int h0 = g.prepHits;
+    if (!g.debugEnterBuilding(bi, 0)) { fail("could not enter " + std::string(bldgTypeName(B.type))); continue; }
+    if (g.prepHits != h0 + 1) fail(std::string(bldgTypeName(B.type)) + ": entering made the interior again");
+    else hits++;
+  }
+  (void)hits;
+  if (tried == 0) out("WARN: prepinterior: no building to approach\n");
+  return bad;
+}
+
 }  // namespace
 
 RPG_TEST_CMD("--window", "endless Active Window: walk, shifts, prefetching, look-ups, fast travel, save round trip "
                          "[--seeds A..B] [--walk N] [--speed T/S] [--fast] [--web] [--budget MS]", cmdWindow);
 RPG_SEED_CHECK("travel", travelCheck);
+RPG_SEED_CHECK("prepinterior", prepInteriorCheck);

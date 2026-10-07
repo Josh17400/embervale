@@ -1,0 +1,58 @@
+# M3c CARRY lane: walk into the seat of power of capitals of different cultures (owner carry-over: the ~60 ms hitch
+# entering a seat of power). The hero starts 4 tiles before the door (the interior is prepared on the approach) and
+# walks in; `perfmark` prints the longest whole frame since the previous mark: "approach" is the walk up to the door,
+# "entry" the steps through it and the first second inside. Target (desktop): entry <= 16 ms.
+#   embervale.exe --script tools/scripts/m3c_carry_seat_perf.txt [--seed N] [--perf]
+seed 3
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.2 gotoculture fjordfolk capital
++4 gotoseat south 4
++1 perfmark settle
++0.1 hold W 0.4
++0.45 perfmark approach fjordfolk
++0.05 hold W 3
++3.1 expect inside 1
++0.05 perfmark entry fjordfolk
++0.1 gotoculture imperial capital
++4 gotoseat south 4
++1 perfmark settle
++0.1 hold W 0.4
++0.45 perfmark approach imperial
++0.05 hold W 3
++3.1 expect inside 1
++0.05 perfmark entry imperial
++0.1 gotoculture steppe capital
++4 gotoseat south 4
++1 perfmark settle
++0.1 hold W 0.4
++0.45 perfmark approach steppe
++0.05 hold W 3
++3.1 expect inside 1
++0.05 perfmark entry steppe
++0.1 gotoculture suntemple capital
++4 gotoseat south 4
++1 perfmark settle
++0.1 hold W 0.4
++0.45 perfmark approach suntemple
++0.05 hold W 3
++3.1 expect inside 1
++0.05 perfmark entry suntemple
++0.1 gotoculture sylvan capital
++4 gotoseat south 4
++1 perfmark settle
++0.1 hold W 0.4
++0.45 perfmark approach sylvan
++0.05 hold W 3
++3.1 expect inside 1
++0.05 perfmark entry sylvan
++0.1 gotoculture starspire capital
++4 gotoseat south 4
++1 perfmark settle
++0.1 hold W 0.4
++0.45 perfmark approach starspire
++0.05 hold W 3
++3.1 expect inside 1
++0.05 perfmark entry starspire
++0.3 quit

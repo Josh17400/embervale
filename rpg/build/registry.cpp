@@ -23,6 +23,15 @@ Kind kindOfProp(art::Prop p) {
     case Prop::Mushrooms: case Prop::LilyPad: case Prop::Fern: case Prop::Peak: case Prop::GreatPeak: case Prop::ElderTree:
     case Prop::StarShard: case Prop::DragonBones:
       return Kind::None;
+    // (M3c) the Wildlands flora: plants and rocks, never built
+    case Prop::AcaciaTree: case Prop::BaobabTree: case Prop::GiantTree: case Prop::GnarledTree: case Prop::BlossomTree:
+    case Prop::BambooClump: case Prop::JungleTree: case Prop::GiantMushroom: case Prop::SilverTree: case Prop::MangroveTree:
+    case Prop::SwampCypress: case Prop::PetrifiedTree: case Prop::LarchTree: case Prop::JuniperTree: case Prop::Hoodoo:
+    case Prop::CrystalSpire: case Prop::BasaltColumns: case Prop::IceSerac: case Prop::TermiteMound: case Prop::AshVent:
+    case Prop::Gorse: case Prop::Thornbush: case Prop::Heather: case Prop::Wildflowers: case Prop::PrairieGrass:
+    case Prop::CottonGrass: case Prop::Agave: case Prop::DryBrush: case Prop::Saltbush: case Prop::Lichen: case Prop::Wrack:
+    case Prop::Shells: case Prop::GlowCaps: case Prop::Blightweed: case Prop::SilverFern: case Prop::JungleFern: case Prop::Petals:
+      return Kind::None;
     // loose goods, creatures, camp and dungeon dressing, ruins of the ancients, the invisible filler
     case Prop::Chest: case Prop::ChestOpen: case Prop::Barrel: case Prop::Crate: case Prop::Torch: case Prop::Campfire:
     case Prop::Haystack: case Prop::Anvil: case Prop::Cart: case Prop::Woodpile: case Prop::CaveEntrance: case Prop::Ladder:

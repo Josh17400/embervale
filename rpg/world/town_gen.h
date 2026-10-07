@@ -64,6 +64,7 @@ struct Gen {
   uint32_t bseed = 0, wseed = 0; // blob seeds (town outline, wall)
   Ground base = Ground::Grass, mainG = Ground::Road, laneG = Ground::Dirt;
   Biome bio = Biome::Plains;
+  Eco eco = Eco::Meadow;         // (M3c) the town's biome proper (its family is bio): the trees it plants (townTree)
   int layout = 0;                // villages: 0 crossroads hamlet, 1 road village, 2 village green
   int homesWant = 0;
   // ---------------------------------------------------------------- M3: the culture's settlement (VISION_PLAN 5.6, 5.7)
@@ -276,4 +277,36 @@ struct Gen {
 };
 
 }  // namespace town
+
+// (M3c) the tree a settlement plants (street trees, greens, courts, orchards) in its biome: its own woods' kind where
+// it has one (acacias on the savanna, palms at an oasis, birches in a birch wood, larches in the taiga, blossom in a
+// blossom grove, silver trees in the silverwood), else the family's classic tree. h varies the pick.
+inline art::Prop townTree(Biome bio, Eco eco, uint32_t h) {
+  using art::Prop;
+  if (bio == Biome::Snow) return Prop::PineTree;
+  if (ecoFamily(eco) == bio)
+    switch (eco) {
+      case Eco::Savanna: case Eco::Scrubland: return Prop::AcaciaTree;
+      case Eco::Oasis: return h % 4 ? Prop::PalmTree : Prop::AcaciaTree;
+      case Eco::BirchWood: case Eco::LakeDistrict: return h % 4 ? Prop::BirchTree : Prop::OakTree;
+      case Eco::Taiga: case Eco::TaigaBog: return h % 3 ? Prop::LarchTree : Prop::PineTree;
+      case Eco::AlpineMeadow: return Prop::LarchTree;
+      case Eco::BlossomGrove: return h % 5 ? Prop::BlossomTree : Prop::OakTree;
+      case Eco::BambooForest: return h % 3 ? Prop::BlossomTree : Prop::BambooClump;
+      case Eco::Jungle: return h % 2 ? Prop::PalmTree : Prop::JungleTree;
+      case Eco::Silverwood: return h % 4 ? Prop::SilverTree : Prop::BirchTree;
+      case Eco::Heath: case Eco::ChalkDowns: case Eco::Steppe: return h % 3 ? Prop::JuniperTree : Prop::OakTree;
+      case Eco::ReedMarsh: case Eco::FloodedForest: case Eco::PeatBog: return Prop::WillowTree;
+      case Eco::Mangrove: return Prop::PalmTree;
+      case Eco::AutumnWood: return Prop::AutumnTree;
+      default: break;
+    }
+  switch (bio) {
+    case Biome::Desert: return Prop::PalmTree;
+    case Biome::Taiga: return Prop::PineTree;
+    case Biome::Autumn: return Prop::AutumnTree;
+    default: return Prop::OakTree;
+  }
+}
+
 }  // namespace ew

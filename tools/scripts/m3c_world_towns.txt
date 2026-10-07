@@ -1,0 +1,27 @@
+# M3c Wildlands (WORLD lane): villages living by their land (biomes.h EcoInfo::trades, region.cpp specialties): a
+# fishing, a mining, a herding and a lumber settlement, each shown in its biome (the trees it plants are its biome's:
+# town_gen.h townTree). Screenshots m3c_world_town_<trade>[2].png in the working directory.
+#   embervale.exe --script tools/scripts/m3c_world_towns.txt
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 gotospecialty fishing
++3.0 eco
++0.1 shot m3c_world_town_fishing.png
++0.2 gotospecialty mining
++3.0 eco
++0.1 shot m3c_world_town_mining.png
++0.2 gotospecialty herding
++3.0 eco
++0.1 shot m3c_world_town_herding.png
++0.2 gotospecialty herding 1
++3.0 eco
++0.1 shot m3c_world_town_herding2.png
++0.2 gotospecialty lumber
++3.0 eco
++0.1 shot m3c_world_town_lumber.png
++0.2 gotospecialty lumber 1
++3.0 eco
++0.1 shot m3c_world_town_lumber2.png
++0.3 quit

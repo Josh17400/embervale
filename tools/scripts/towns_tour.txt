@@ -23,17 +23,17 @@ seed 7
 +1.0 shot towns_08_throne_hall.png
 +0.2 walkto king
 +0.8 shot towns_09_king.png
-+0.2 floor 1
-+1.0 shot towns_10_palace_upper.png
-+0.2 floor 0
+# (M3c) the seed's capital is a steppe khanate now: its palace and barracks have no upper floor (floor 1 steps dropped)
+#+1.0 shot towns_10_palace_upper.png
+#+0.2 floor 0
 +0.3 walkto exit
 +1.2 shot towns_11_palace_door.png
 +0.1 hold S 1.2
 +1.5 shot towns_12_palace_court.png
 +0.2 enter barracks 0
 +1.0 shot towns_13_barracks.png
-+0.2 floor 1
-+1.0 shot towns_14_barracks_upper.png
+#+0.2 floor 1
+#+1.0 shot towns_14_barracks_upper.png
 +0.2 floor 0
 +0.3 walkto exit
 +0.2 hour 22

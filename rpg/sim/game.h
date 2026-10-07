@@ -1,6 +1,9 @@
 // EMBERVALE simulation: actors, combat, AI, inventory, quests, dialogue, time of day, saving. No SDL.
 #pragma once
 #include <array>
+#ifndef __EMSCRIPTEN__
+#include <future>
+#endif
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -329,6 +332,8 @@ class Game {
   bool fastTravel(int site);           // immediate (scripts, tests); the UI uses beginTravel
   // M2 travel behind the fade (Travel above). beginTravel: false (with a notice) when the journey cannot be made.
   bool beginTravel(int site, bool carriage = false);
+  // (M3c carry) a teleport behind the fade: the same journey to a GLOBAL tile (no hours, no fare, no site rules)
+  bool beginTravelTo(int32_t gx, int32_t gy);
   void finishTravel();                 // the view: the arrival's terrain is baked, fade back in
   bool travelling() const { return travel.phase != TravelPhase::None; }
   TravelQuote travelQuote(int site, bool carriage = false) const;
@@ -387,6 +392,16 @@ class Game {
 
   // M1 endless streaming and NPC level of detail (SIM lane)
   void frameWork(double budgetMs);     // once per rendered frame: the streamer's work (web: generation within the budget)
+  // (M3c carry) the interior made ahead for the building the player is walking up to (null: none ready); `bldg` is
+  // its index in world.over.bldgs, so a view can bake its terrain and paint its pieces before the door is reached
+  // (its map key is 100000 + bldg, as mapKey() will say once inside)
+  const Map* preparedInterior(int& bldg) const;
+  int prepBldg_ = -1;   // the building prep_'s ready map belongs to (index in world.over.bldgs)
+  int prepHits = 0, prepMisses = 0;   // entries that found their interior made ahead / had to make it (tests, perf)
+  // (M3c carry) the frame probe: the longest wall-clock gap between two frameWork calls (a whole rendered frame: the
+  // update, the draw and the present) since the last reset (scripts' `perfmark`), and the frame it happened in
+  double frameGapWorstMs = 0;
+  double frameGapLastMs_ = 0;
   struct PerfCounters {
     int npcAwake = 0, npcAsleep = 0;   // townsfolk in `actors` this step, by LOD
     int hostiles = 0;                  // monsters and bandits in `actors`
@@ -407,7 +422,7 @@ class Game {
   bool streamThreads = true;           // false: stream as the web build does (no worker; frameWork generates); tests
   void debugSpawn(art::Monster m, int n, float dist);
   int debugSpawnAt(art::Monster m, Vec2 at, int level);   // returns the actor id (already aggro)
-  void debugFell(int actorId);         // tests: an actor falls as if a monster struck it down (kill with no killer)
+  void debugFell(int actorId, bool byPlayer = false);   // tests: an actor falls as if a monster struck it down (no killer), or as the player's kill
   void debugKit();                     // the pre-M0 starting kit (iron sword, hunting bow, 20 arrows, 3 potions, bread),
                                        // equipped: for fight scripts and bots once the real start is shirt-only
   // M0b: go into building bi (from anywhere, leaving the current sub-level) and up to floor f; false if f is not one
@@ -530,6 +545,25 @@ class Game {
   // ---- M2 SIM lane
   // travel behind the fade (travel.cpp)
   int frameWorkCalls_ = 0;             // frameWork ran this session (else update pumps a thread-less streamer itself)
+  // (M3c carry, the seat-of-power entry hitch) the ground floor of the building the player is walking up to, made
+  // ahead (prepInteriorTick: natively on a worker thread, on the web in a frame the streamer leaves idle) and used by
+  // enterBuilding. genInterior depends on the building alone (never its window position), so the map is the one
+  // entering would make, bit for bit; it is keyed by the building's id and floor and dropped with a new world.
+  struct PrepInterior {
+    uint64_t key = 0;         // interiorKey of the map held (0: none)
+    bool ready = false;
+    Map map;
+  };
+  PrepInterior prep_;
+  float prepT_ = 0;
+#ifndef __EMSCRIPTEN__
+  std::shared_ptr<std::future<Map>> prepJob_;   // (shared: Game stays copyable)
+  uint64_t prepJobKey_ = 0;
+  int prepJobBldg_ = -1;
+#endif
+  static uint64_t interiorKey(const Bldg& b, int floor) { return (b.id ? b.id : ((uint64_t)b.seed << 20 | 0x5EA7ull)) * 31ull + (uint64_t)floor + 1; }
+  void prepInteriorTick(float dt);
+  bool takePreparedInterior(const Bldg& b, int floor, Map& out);   // false: nothing made ahead for it
   void travelStep(float dt);           // one update step of a journey (Gather / Arrive)
   void travelWant();                   // the streamer's wish list for the destination window
   bool travelReady();                  // every chunk and region plan the arrival needs is ready
@@ -538,6 +572,7 @@ class Game {
   void arriveInOpen(const Site& s);    // settlements: the nearest open tile with a free step south
   int32_t landAt(int32_t gx, int32_t gy) const;   // the landmass id at (or near) a global tile
   bool startJourney(int site, int kind, float hours, int gold);
+  void journeyWindow();                // the journey's destination window and wish list (startJourney, beginTravelTo)
   // quests (quests.cpp)
   std::string pendingPitch_;           // the spoken offer (first person) for pendingOffer_
   int pickRadiant(SiteType t, int32_t gx, int32_t gy, Rng& r, bool& danger, int exclude = -1);

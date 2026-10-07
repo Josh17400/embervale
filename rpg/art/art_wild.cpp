@@ -115,7 +115,13 @@ void peak(Canvas& c, int v, int land) {
   const Ramp Rg = ramp5(rgba(44, 40, 62), rgba(76, 72, 94), rgba(114, 108, 120), rgba(154, 146, 146), rgba(194, 186, 174));
   const Ramp Rc = ramp5(rgba(36, 38, 66), rgba(62, 68, 100), rgba(96, 104, 134), rgba(138, 146, 170), rgba(184, 192, 210));
   const Ramp Rs = ramp5(rgba(98, 50, 52), rgba(150, 84, 64), rgba(196, 124, 82), rgba(224, 164, 106), rgba(244, 206, 148));
-  const Ramp& R = land == 2 ? Rs : (land == 1 ? Rc : Rg);
+  // (M3c Wildlands, LAND lane) 3 red banded badlands sandstone, 4 black basalt, 5 glacier ice, 6 white chalk
+  const Ramp Rb = ramp5(rgba(92, 40, 42), rgba(146, 66, 50), rgba(188, 98, 64), rgba(218, 142, 92), rgba(240, 194, 140));
+  const Ramp Rcream = ramp5(rgba(120, 82, 66), rgba(174, 130, 96), rgba(214, 176, 128), rgba(234, 208, 162), rgba(250, 234, 200));
+  const Ramp Rk = ramp5(rgba(18, 18, 28), rgba(34, 34, 46), rgba(54, 54, 66), rgba(82, 82, 94), rgba(118, 118, 126));
+  const Ramp Ri = ramp5(rgba(54, 84, 146), rgba(92, 136, 196), rgba(142, 184, 226), rgba(196, 224, 244), rgba(240, 250, 255));
+  const Ramp Rw = ramp5(rgba(110, 110, 120), rgba(164, 162, 160), rgba(204, 200, 190), rgba(230, 226, 214), rgba(250, 248, 240));
+  const Ramp& R = land == 2 ? Rs : land == 1 ? Rc : land == 3 ? Rb : land == 4 ? Rk : land == 5 ? Ri : land == 6 ? Rw : Rg;
   // The mountain is a small heightfield on the ground plane (x east, z north/back), seen in the 3/4 view: a ground
   // point (x, z) at height Z shows at screen y = base - z * 0.5 - Z. Every column is drawn front to back with a
   // y-buffer, so near ridges hide the slopes behind them. Radial ridges (spurs) twist down from the summit; light comes
@@ -186,15 +192,26 @@ void peak(Canvas& c, int v, int land) {
         int k = l > 0.80f ? 4 : l > 0.62f ? 3 : l > 0.40f ? 2 : l > 0.14f ? 1 : 0;
         // strata along the contours (bold bands in sandstone)
         const float cont = h + (vnoise(x / 8.0f, z / 8.0f, seed + 9) - 0.5f) * 3.0f;
-        const float bandH = (land == 2 ? 4.5f : 6.0f) * sv;
+        const float bandH = (land == 2 ? 4.5f : land == 3 ? 3.5f : 6.0f) * sv;
         const float bf = cont / bandH - std::floor(cont / bandH);
-        if (land == 2) { if (((int)std::floor(cont / bandH)) & 1) k = std::max(0, k - 1); if (bf > 0.82f && k < 4 && lam > 0.4f) k++; }
-        else if (bf < 0.14f && hashf(x / 2, (int)(cont / bandH), seed + 11) < 0.75f && k > 0) k--;
-        uint32_t col = R[k];
+        const int bandI = (int)std::floor(cont / bandH);
+        bool cream = false;
+        if (land == 2) { if (bandI & 1) k = std::max(0, k - 1); if (bf > 0.82f && k < 4 && lam > 0.4f) k++; }
+        else if (land == 3) {   // bold red and cream beds, each bed's lit lip catching the sun
+          cream = (hashf(bandI, 1, seed + 27) < 0.34f);
+          if (bandI & 1) k = std::max(0, k - 1);
+          if (bf > 0.80f && k < 4 && lam > 0.3f) k++;
+        } else if (land == 4) {   // basalt: vertical columns, a dark joint between each
+          if (((x + (int)(hashf(x / 3, (int)(cont / 5.0f), seed + 29) * 2)) % 3) == 0 && k > 0) k--;
+        } else if (land == 5) {   // ice: smooth, a few dark crevasses across the slopes
+          if (bf < 0.05f && hashf(x / 3, bandI, seed + 31) < 0.6f) k = 0;
+        } else if (bf < 0.14f && hashf(x / 2, bandI, seed + 11) < 0.75f && k > 0) k--;
+        uint32_t col = cream ? Rcream[k] : R[k];
         // snow on the heights (land 1), thin dusting on a tall grey summit
-        const float sn = (land == 1 ? hgt * 0.50f : land == 0 && tall ? hgt * 0.84f : 1e9f) + (vnoise(x / 3.0f, z / 3.0f, seed + 13) - 0.5f) * 7.0f - ny * 4.0f;
+        const float sn = (land == 1 ? hgt * 0.50f : land == 5 ? hgt * 0.62f : (land == 0 || land == 4) && tall ? hgt * 0.84f : 1e9f) +
+                         (vnoise(x / 3.0f, z / 3.0f, seed + 13) - 0.5f) * 7.0f - ny * 4.0f;
         if (h > sn) col = kSnow[std::clamp(k + 1, 1, 4)];
-        else if (land == 1 && h > sn - 2.5f && hashf(x, y, seed + 15) < 0.45f) col = kSnow[std::clamp(k, 1, 3)];
+        else if ((land == 1 || land == 5) && h > sn - 2.5f && hashf(x, y, seed + 15) < 0.45f) col = kSnow[std::clamp(k, 1, 3)];
         c.set(x, y, col);
         zc.set(x, y, rgba(std::clamp((int)(z * 4), 0, 255), std::clamp((int)(h * 4), 0, 255), 0));
       }
@@ -212,8 +229,10 @@ void peak(Canvas& c, int v, int land) {
         else if (hf < 0.12f) c.set(x, y, R[1]);
       }
       if (h < 1.0f + vnoise(x / 4.0f, y / 2.0f, seed + 19) * 2.2f && hf < 0.7f) {   // the land creeping up the foot
-        if (land == 0 && hf < 0.5f) c.set(x, y, kLeaf[hf < 0.2f ? 3 : 2]);
+        if ((land == 0 || land == 6) && hf < 0.5f) c.set(x, y, kLeaf[hf < 0.2f ? 3 : 2]);
       }
+      // (M3c) the chalk downs' turf climbing well up the white hill
+      if (land == 6 && h < 6.0f + vnoise(x / 5.0f, y / 3.0f, seed + 33) * 6.0f) c.set(x, y, kLeaf[(vnoise(x / 2.0f, y / 2.0f, seed + 35) > 0.62f ? 3 : 2) - (x > W / 2 ? 1 : 0)]);
     }
   if (land == 0) {
     lichen(c, 0, base - 16, W - 1, base, seed + 23, 0.25f, false);
@@ -1247,7 +1266,7 @@ Canvas peakVariant(int v, int land) {
   // v 0..7 a Peak; v 8..15 a GreatPeak (the massif at a named summit or a range's crest) in shape v & 7
   const Prop p = v >= 8 ? Prop::GreatPeak : Prop::Peak;
   Canvas c(wildPropW(p), wildPropH(p));
-  peak(c, v & 7, std::clamp(land, 0, 2));
+  peak(c, v & 7, std::clamp(land, 0, 6));
   const Canvas before = c;
   outline(c, 0.92f);
   // no ink line where the mountain meets the land: its lowest rows keep their own pixels only

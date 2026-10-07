@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <initializer_list>
+#include <mutex>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -62,7 +63,8 @@ bool soft(Ground g) {
     default: return false;
   }
 }
-bool natural(Ground g) { return soft(g) || g == Ground::Rock || g == Ground::CaveWall; }
+// (M3c) lava too: an ash field's rift meets the land along an organic edge, not a tile's square
+bool natural(Ground g) { return soft(g) || g == Ground::Rock || g == Ground::CaveWall || g == Ground::Lava; }
 // soft land that blends into its neighbours across a dithered ecotone (not water, not built or worked ground)
 bool ecoGround(Ground g) {
   switch (g) {
@@ -214,53 +216,72 @@ uint8_t derivedBlend(const TM& m, int tx, int ty) {
   e = E{(const void*)m.m, m.ox, m.oy, tx, ty, v};
   return v;
 }
-// the ground a pixel of an ecotone shows (Ground::Void: no ecotone here)
+// M3c Wildlands (LAND lane): the biome proper of a tile and the one it blends toward, read straight off the snapshot
+// (a map without the eco layer gives its family's classic eco)
 template <class TM>
-Ground ecotonePixel(const TM& m, int px, int py, Ground g) {
+inline Eco ecoT(const TM& m, int x, int y) { return m.m->ecoAt(x - m.ox, y - m.oy); }
+template <class TM>
+inline Eco ecoNbT(const TM& m, int x, int y) { return m.m->ecoNbAt(x - m.ox, y - m.oy); }
+// the ground a pixel of an ecotone shows (Ground::Void: no ecotone here). (M3c) The blend is between BIOMES PROPER, not
+// families: two ecos of one family on the same ground (a meadow meeting a savanna, a birch wood a dark forest) interlock
+// the same way two families do. outE: the eco the pixel shows.
+template <class TM>
+Ground ecotonePixel(const TM& m, int px, int py, Ground g, Eco& outE) {
   const float fx = (px - 7.5f) / 16.0f, fy = (py - 7.5f) / 16.0f;
   const int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
   const float ax = fx - ix, ay = fy - iy;
-  Biome bs[8];
+  Eco es[8];
   float ws[8];
   int n = 0;
   bool any = false;
-  auto add = [&](Biome b, float w) {
+  auto add = [&](Eco e, float w) {
     if (w <= 0) return;
-    for (int k = 0; k < n; k++) if (bs[k] == b) { ws[k] += w; return; }
-    if (n < 8) { bs[n] = b; ws[n] = w; n++; }
+    for (int k = 0; k < n; k++) if (es[k] == e) { ws[k] += w; return; }
+    if (n < 8) { es[n] = e; ws[n] = w; n++; }
   };
   for (int c = 0; c < 4; c++) {
     const int x = ix + (c & 1), y = iy + (c >> 1);
     const float cw = ((c & 1) ? ax : 1 - ax) * ((c >> 1) ? ay : 1 - ay);
-    const Biome own = m.biomeAt(x, y);
+    const Eco own = ecoT(m, x, y);
     const uint8_t bl = m.ecoDerive ? derivedBlend(m, x, y) : m.blendAt(x, y);
     const int w = (bl >> 4) <= 8 ? bl >> 4 : 0;   // (M3 fixer: above 8 a settlement's paving mark, Map::PAVE_MARK)
-    const Biome other = (Biome)(bl & 15);
-    if (w > 0 && ecoGroundOf(other) != Ground::Void && (int)other < (int)Biome::COUNT) {
-      any = true;
-      add(own, cw * (1 - w / 16.0f));
-      add(other, cw * (w / 16.0f));
-    } else add(own, cw);
+    if (w > 0) {
+      const Biome of = (Biome)(bl & 15);
+      Eco nb = ecoNbT(m, x, y);
+      // a map whose blend names another family but carries no eco layer: that family's classic eco
+      if (nb == own && (int)of < (int)Biome::COUNT && of != ecoFamily(own)) nb = ecoOfFamily(of);
+      if (nb != own && ecoGroundOf(ecoFamily(nb)) != Ground::Void) {
+        any = true;
+        add(own, cw * (1 - w / 16.0f));
+        add(nb, cw * (w / 16.0f));
+        continue;
+      }
+    }
+    add(own, cw);
   }
   if (!any) return Ground::Void;
   // the threshold: broad patches, finer fringes, ordered dither only right at their edges
-  float t = 0.5f + (vnoise(px / 9.0f, py / 9.0f, 861) - 0.5f) * 1.25f + (vnoise(px / 3.5f, py / 3.5f, 863) - 0.5f) * 0.45f + (bayer(px, py) - 0.5f) * 0.22f;
+  // (M3c fixer round 2, review: "hard checkerboard grass decals on savanna ... edged in coarse 50% checker dither, like
+  // spilled paint") the fringe is a wobbling line with only a 1-2 px dither seam (the ordered dither was a quarter of
+  // the threshold's swing, so every patch edge was a band of checkerboard), and the patches are broader and softer
+  float t = 0.5f + (vnoise(px / 12.0f, py / 12.0f, 861) - 0.5f) * 1.25f + (vnoise(px / 4.0f, py / 4.0f, 863) - 0.5f) * 0.34f + (bayer(px, py) - 0.5f) * 0.07f;
   t = std::clamp(t, 0.0f, 0.999f);
-  // a stable order (by biome) so neighbouring pixels agree on which biome a threshold falls in
+  // a stable order (by eco) so neighbouring pixels agree on which eco a threshold falls in
   for (int a = 1; a < n; a++)
-    for (int b = a; b > 0 && (int)bs[b] < (int)bs[b - 1]; b--) { std::swap(bs[b], bs[b - 1]); std::swap(ws[b], ws[b - 1]); }
+    for (int b = a; b > 0 && (int)es[b] < (int)es[b - 1]; b--) { std::swap(es[b], es[b - 1]); std::swap(ws[b], ws[b - 1]); }
   float sum = 0;
   for (int k = 0; k < n; k++) sum += ws[k];
   float acc = 0;
-  Biome pick = bs[n - 1];
+  Eco pick = es[n - 1];
   for (int k = 0; k < n; k++) {
     acc += ws[k] / sum;
-    if (t < acc) { pick = bs[k]; break; }
+    if (t < acc) { pick = es[k]; break; }
   }
-  const Ground pg = ecoGroundOf(pick);
+  const Ground pg = ecoGroundOf(ecoFamily(pick));
   if (pg == Ground::Void) return Ground::Void;
+  outE = pick;
   // the pixel's own tile keeps its own variant of its biome's ground (a meadow stays a meadow)
-  if (pick == m.biomeAt(px >> 4, py >> 4) && ecoGround(g)) return g;
+  if (pick == ecoT(m, px >> 4, py >> 4) && ecoGround(g)) return g;
   return pg;
 }
 
@@ -321,9 +342,12 @@ uint32_t outcropPixel(const TM& m, int px, int py, int sx, int sy, const RockPal
       else if (d < d2) { d2 = d; p2x = fx; p2y = fy; }
     }
   const uint32_t ch = hash2(c1x, c1y, 937);
+  // (M3c fixer round 2, review: "a flat random-tone mosaic") the heap's own light, before each block's tilt: the snow
+  // and its shading follow it, so a cold crag is a snow-capped mass lit from the top-left, not a random patchwork
+  const float litHeap = lit;
   // each block's tilt (toward or away from the light) and a gentle roundness within it (its upper left catches more)
-  lit += (((ch >> 4) & 255) / 255.0f - 0.5f) * 0.22f;
-  lit += -((px + 0.5f - p1x) + (py + 0.5f - p1y)) / (float)G * 0.5f;   // a rounded block: lit upper left, shaded lower right
+  lit += (((ch >> 4) & 255) / 255.0f - 0.5f) * (cold > 0.2f ? 0.10f : 0.22f);
+  lit += -((px + 0.5f - p1x) + (py + 0.5f - p1y)) / (float)G * (cold > 0.2f ? 0.32f : 0.5f);   // a rounded block: lit upper left, shaded lower right
   float gap = d2 - d1;
   // some neighbouring blocks are one rock (no crack between them, only the turn of the surface)
   const bool fused = ((ch ^ hash2((int)std::floor(p2x), (int)std::floor(p2y), 951)) & 3) <= 1;
@@ -348,8 +372,10 @@ uint32_t outcropPixel(const TM& m, int px, int py, int sx, int sy, const RockPal
     c = lit < 0.40f ? C(58, 80, 46) : vnoise(px / 2.5f, py / 2.5f, 943) > 0.5f ? C(96, 128, 58) : C(74, 104, 52);
   // snow on the lit tops in the cold (the cold north keeps it on low crags too)
   if (cold > 0.2f) {
-    const float sv = D * 0.6f + (lit - 0.5f) * 0.5f + (vnoise(px / 7.0f, py / 7.0f, 945) - 0.5f) * 0.2f;
-    if (sv > 0.80f - 0.30f * std::min(1.0f, cold) && gap >= 1.1f) c = lit < 0.5f ? C(186, 198, 222) : lit < 0.7f ? C(222, 230, 242) : C(244, 247, 252);
+    const float sv = D * 0.6f + (litHeap - 0.5f) * 0.5f + (vnoise(px / 7.0f, py / 7.0f, 945) - 0.5f) * 0.2f;
+    const float sl = litHeap * 0.7f + lit * 0.3f + (bayer(px, py) - 0.5f) * 0.08f;
+    if (sv > 0.80f - 0.30f * std::min(1.0f, cold) && gap >= 1.1f) c = sl < 0.40f ? C(176, 190, 218) : sl < 0.55f ? C(204, 214, 234) : sl < 0.70f ? C(228, 235, 246) : C(246, 249, 253);
+    else if (c == P.dark && gap >= 1.1f) c = P.lo;   // bare rock among the snow: a tone off black
   }
   // the outline: a lit rim where the heap meets the land to the north and west, a dark edge on the east
   {
@@ -403,6 +429,66 @@ uint32_t outcropPixel(const TM& m, int px, int py, int sx, int sy, const RockPal
   return c;
 }
 
+// M3c: the rock of a cliff, crag or massif by biome proper (lip, hi, mid, lo, dark): red banded sandstone in the
+// badlands, white chalk under the downs, black basalt in the ash fields, blue ice on a glacier...
+RockPal rockPalE(Eco e) {
+  switch (e) {
+    case Eco::Badlands: return {C(238, 172, 122), C(212, 126, 84), C(182, 98, 66), C(142, 72, 54), C(98, 50, 46), false};
+    case Eco::PetrifiedForest: return {C(222, 182, 152), C(186, 140, 114), C(156, 112, 94), C(124, 88, 78), C(84, 60, 58), false};
+    case Eco::ChalkDowns: return {C(250, 248, 240), C(228, 224, 210), C(202, 198, 184), C(166, 164, 154), C(112, 112, 112), false};
+    case Eco::AshFields: return {C(126, 120, 126), C(84, 80, 88), C(62, 58, 66), C(44, 42, 50), C(26, 24, 32), false};
+    case Eco::Glacier: case Eco::FrozenLakes: return {C(242, 250, 255), C(182, 214, 240), C(142, 182, 222), C(102, 142, 194), C(64, 94, 150), true};
+    case Eco::CrystalBarrens: return {C(222, 212, 242), C(176, 162, 210), C(146, 130, 186), C(112, 98, 156), C(72, 62, 112), false};
+    case Eco::Blight: return {C(148, 132, 144), C(112, 98, 112), C(90, 78, 92), C(68, 58, 72), C(42, 36, 48), false};
+    case Eco::SeaCliffs: return {C(196, 200, 204), C(146, 152, 160), C(118, 124, 134), C(88, 94, 106), C(54, 58, 72), false};
+    case Eco::Heath: case Eco::StonePlains: case Eco::Tundra:
+      return {C(198, 192, 182), C(156, 152, 146), C(128, 124, 120), C(100, 96, 96), C(62, 60, 66), false};
+    case Eco::Jungle: case Eco::GiantForest: case Eco::MushroomForest: case Eco::DarkForest:
+      return {C(160, 160, 132), C(118, 122, 100), C(94, 98, 82), C(70, 74, 64), C(42, 46, 44), false};
+    case Eco::Mountain: return rockPal(Biome::Plains);   // (a range's own grey, as before M3c)
+    default: return rockPal(ecoFamily(e));
+  }
+}
+// M3c: the climate of the land round a massif or crag tile, read from 4 tiles 6 out (cold: snow / taiga, hot: desert)
+// and the rock it is made of (the mean of their biomes' rock), cached per tile (bakes run on worker threads)
+struct ClimPal { float col[5][3]; float cold, hot; };
+template <class TM>
+const ClimPal& climPal(const TM& m, int x, int y) {
+  struct CE { const void* map; int ox, oy, x, y; ClimPal v; };
+  thread_local CE cache[64] = {};
+  CE& e = cache[((unsigned)x * 7u + (unsigned)y * 13u) & 63u];
+  if (e.map == (const void*)m.m && e.ox == m.ox && e.oy == m.oy && e.x == x && e.y == y) return e.v;
+  ClimPal v{};
+  static const int odx[4] = {6, -6, 0, 0}, ody[4] = {0, 0, 6, -6};
+  for (int k = 0; k < 4; k++) {
+    const Biome b = m.biomeAt(x + odx[k], y + ody[k]);
+    if (b == Biome::Snow || b == Biome::Taiga) v.cold += 0.25f;
+    else if (b == Biome::Desert) v.hot += 0.25f;
+    const RockPal P = rockPalE(ecoT(m, x + odx[k], y + ody[k]));
+    const uint32_t cs[5] = {P.lip, P.hi, P.mid, P.lo, P.dark};
+    for (int i = 0; i < 5; i++) {
+      v.col[i][0] += (float)(cs[i] & 255) * 0.25f;
+      v.col[i][1] += (float)((cs[i] >> 8) & 255) * 0.25f;
+      v.col[i][2] += (float)((cs[i] >> 16) & 255) * 0.25f;
+    }
+  }
+  e.map = (const void*)m.m; e.ox = m.ox; e.oy = m.oy; e.x = x; e.y = y; e.v = v;
+  return e.v;
+}
+// the water off a coral strand: within two tiles of one (cached per tile)
+template <class TM>
+bool coralNear(const TM& m, int x, int y) {
+  struct CE { const void* map; int ox, oy, x, y; bool v; };
+  thread_local CE cache[64] = {};
+  CE& e = cache[((unsigned)x * 7u + (unsigned)y * 13u) & 63u];
+  if (e.map == (const void*)m.m && e.ox == m.ox && e.oy == m.oy && e.x == x && e.y == y) return e.v;
+  bool v = false;
+  for (int oy = -2; oy <= 2 && !v; oy += 2)
+    for (int ox = -2; ox <= 2 && !v; ox += 2) v = ecoT(m, x + ox, y + oy) == Eco::CoralCoast || ecoNbT(m, x + ox, y + oy) == Eco::CoralCoast;
+  e.map = (const void*)m.m; e.ox = m.ox; e.oy = m.oy; e.x = x; e.y = y; e.v = v;
+  return v;
+}
+
 // (M1) A mountain massif seen from above: the endless generator fills a range with solid Rock at the top relief
 // levels, so its inside is one flat tile class. Paint it as a range: ridged noise gives crests and gullies, lit on
 // their north-west slopes and shaded on the south-east ones (the 3/4 top-left light), quantised to a few rock tones
@@ -410,24 +496,26 @@ uint32_t outcropPixel(const TM& m, int px, int py, int sx, int sy, const RockPal
 // in the cold north, little in hot lands). The tile's climate comes from the land around the range.
 template <class TM>
 uint32_t mountainPixel(const TM& m, int px, int py, int sx, int sy) {
-  // the climate of the land around (cold: snow / taiga, hot: desert), blended between tile centres so it never steps
-  auto climate = [&](int x, int y, float& cd, float& ht) {
-    static const int odx[4] = {6, -6, 0, 0}, ody[4] = {0, 0, 6, -6};
-    for (int k = 0; k < 4; k++) {
-      const Biome b = m.biomeAt(x + odx[k], y + ody[k]);
-      if (b == Biome::Snow || b == Biome::Taiga) cd += 0.25f;
-      else if (b == Biome::Desert) ht += 0.25f;
-    }
-  };
+  // the climate of the land around (cold: snow / taiga, hot: desert) and (M3c) the rock its biomes are made of,
+  // blended between tile centres so it never steps
   float cold = 0, hot = 0;
+  RockPal P;
   {
     const float fx = (px - 7.5f) / 16.0f, fy = (py - 7.5f) / 16.0f;
     const int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
     const float ax = fx - ix, ay = fy - iy;
-    float c00 = 0, h00 = 0, c10 = 0, h10 = 0, c01 = 0, h01 = 0, c11 = 0, h11 = 0;
-    climate(ix, iy, c00, h00); climate(ix + 1, iy, c10, h10); climate(ix, iy + 1, c01, h01); climate(ix + 1, iy + 1, c11, h11);
-    cold = (c00 * (1 - ax) + c10 * ax) * (1 - ay) + (c01 * (1 - ax) + c11 * ax) * ay;
-    hot = (h00 * (1 - ax) + h10 * ax) * (1 - ay) + (h01 * (1 - ax) + h11 * ax) * ay;
+    const ClimPal* q[4] = {&climPal(m, ix, iy), &climPal(m, ix + 1, iy), &climPal(m, ix, iy + 1), &climPal(m, ix + 1, iy + 1)};
+    const float w[4] = {(1 - ax) * (1 - ay), ax * (1 - ay), (1 - ax) * ay, ax * ay};
+    float col[5][3] = {};
+    for (int k = 0; k < 4; k++) {
+      cold += q[k]->cold * w[k];
+      hot += q[k]->hot * w[k];
+      for (int i = 0; i < 5; i++)
+        for (int j = 0; j < 3; j++) col[i][j] += q[k]->col[i][j] * w[k];
+    }
+    uint32_t cs[5];
+    for (int i = 0; i < 5; i++) cs[i] = C((int)(col[i][0] + 0.5f), (int)(col[i][1] + 0.5f), (int)(col[i][2] + 0.5f));
+    P = {cs[0], cs[1], cs[2], cs[3], cs[4], false};
   }
   auto ridge = [](float v) { v = 1.0f - std::fabs(v * 2.0f - 1.0f); return v * v; };
   auto H2 = [&](float x, float y) {   // the broad shape: crests and gullies (two octaves, warped and turned off the grid)
@@ -435,39 +523,86 @@ uint32_t mountainPixel(const TM& m, int px, int py, int sx, int sy) {
     const float u = wx * 0.8f - wy * 0.6f, v = wx * 0.6f + wy * 0.8f;
     return ridge(vnoise(wx / 92.0f, wy / 92.0f, 901)) * 0.7f + ridge(vnoise(u / 37.0f, v / 37.0f, 903)) * 0.3f;
   };
-  const float h0 = H2((float)px, (float)py) * 0.9f + vnoise(px / 8.0f, py / 8.0f, 905) * 0.1f;
-  // light from the top-left: a slope that rises away from the light faces it
-  const float slope = H2(px + 2.0f, py + 2.0f) - H2(px - 2.0f, py - 2.0f);
-  float lit = 0.5f + slope * 11.0f + (h0 - 0.5f) * 0.3f;
-  lit += (bayer(px, py) - 0.5f) * 0.16f;
-  const RockPal P0 = rockPal(Biome::Plains), PC = rockPal(Biome::Mountain), PH = rockPal(Biome::Desert);
-  auto mixPal = [&](uint32_t a, uint32_t cc, uint32_t hh) { return lerpc(lerpc(a, cc, std::min(1.0f, cold)), hh, std::min(1.0f, hot)); };
-  const RockPal P = {mixPal(P0.lip, PC.lip, PH.lip), mixPal(P0.hi, PC.hi, PH.hi), mixPal(P0.mid, PC.mid, PH.mid), mixPal(P0.lo, PC.lo, PH.lo),
-                     mixPal(P0.dark, PC.dark, PH.dark), false};
   // a crag stamped on the land (a cave's, a lair's: its tiles keep the land's biome, a range's rock is Mountain): an
   // outcrop of broken blocks (the massif's broad ridges smeared over a small heap)
   if (m.biomeAt(sx >> 4, sy >> 4) != Biome::Mountain) return outcropPixel(m, px, py, sx, sy, P, cold, hot);
+  // (M3c fixer, review: "smooth airbrushed gradients, not pixel art") the massif is cut into facets: jittered cells
+  // about 15 px across (squat in the 3/4 view), each one flat plane of rock lit by the broad ridge field's slope at its
+  // centre plus its own tilt, so the crests and gullies read through clusters of hard-edged tones; neighbouring facets
+  // part along a crack with a lit lip on the side toward the light and a dark edge away from it (some pairs are one
+  // rock, fused, so no cobble grid shows). Snow lies facet by facet, its rim broken along the cracks.
+  const int G = 19;
+  const int gx = (int)std::floor(px / (float)G), gy = (int)std::floor(py / (float)G);
+  float d1 = 1e9f, d2 = 1e9f;
+  int c1x = 0, c1y = 0;
+  float p1x = 0, p1y = 0, p2x = 0, p2y = 0;
+  for (int oy = -1; oy <= 1; oy++)
+    for (int ox = -1; ox <= 1; ox++) {
+      const int cx = gx + ox, cy = gy + oy;
+      const uint32_t hh = hash2(cx, cy, 961);
+      const float fx = cx * (float)G + 1.5f + (hh & 255) / 255.0f * (G - 3), fy = cy * (float)G + 1.5f + ((hh >> 8) & 255) / 255.0f * (G - 3);
+      const float d = std::sqrt((px + 0.5f - fx) * (px + 0.5f - fx) + (py + 0.5f - fy) * (py + 0.5f - fy) * 1.45f);
+      if (d < d1) { d2 = d1; p2x = p1x; p2y = p1y; d1 = d; c1x = cx; c1y = cy; p1x = fx; p1y = fy; }
+      else if (d < d2) { d2 = d; p2x = fx; p2y = fy; }
+    }
+  const uint32_t ch = hash2(c1x, c1y, 967);
+  const float hc = H2(p1x, p1y);
+  const float slope = H2(p1x + 3.0f, p1y + 3.0f) - H2(p1x - 3.0f, p1y - 3.0f);
+  // (M3c fixer round 2, review: "mountain rock masses in cold lands look like a flat random-tone mosaic, with no light
+  // and no cliff depth") the light is first the MASSIF's: how far the rock runs toward the light (up-left) against away
+  // from it (down-right), so the whole mass is lit on its north-west flank and falls into shade on its south-east one
+  // (as the outcrops are); the ridges' slope only modulates that (its gain was so high that neighbouring facets jumped
+  // from the lip to the darkest step), and the facet's own tilt is a whisper
+  float side = 0;
+  {
+    auto rockPx = [&](int qx, int qy) { return m.at(qx >> 4, qy >> 4) == Ground::Rock; };
+    float hUL = 0, hDR = 0;
+    for (int k = 1; k <= 14; k++) { if (!rockPx(px - k * 3, py - k * 2)) break; hUL = (float)k; }
+    for (int k = 1; k <= 14; k++) { if (!rockPx(px + k * 3, py + k * 2)) break; hDR = (float)k; }
+    side = (hDR - hUL) / (hDR + hUL + 2.0f);   // +1 the lit north-west flank .. -1 the shaded south-east
+  }
+  const float litBase = 0.52f + std::clamp(slope * 4.0f, -0.30f, 0.30f) + (hc - 0.5f) * 0.20f + side * 0.30f;
+  float lit = litBase;
+  lit += (((ch >> 4) & 255) / 255.0f - 0.5f) * 0.06f;                         // the facet's own tilt
+  lit += -((px + 0.5f - p1x) + (py + 0.5f - p1y)) / (float)G * 0.22f;          // a turn across it (lit up-left)
+  float gap = d2 - d1;
+  const bool fused = ((ch ^ hash2((int)std::floor(p2x), (int)std::floor(p2y), 971)) & 3) <= 1;
+  if (fused) gap += 3.0f;
+  const float toward = (p2x - p1x) + (p2y - p1y);   // < 0: the crack lies up-left of the pixel (the facet's lit lip)
+  if (gap < 2.4f && gap >= 1.0f) lit += toward < 0 ? 0.24f : -0.18f;
+  lit += (bayer(px, py) - 0.5f) * 0.04f;
+  const float h0 = hc;
   uint32_t c;
-  if (lit < 0.22f) c = P.dark;
-  else if (lit < 0.40f) c = P.lo;
+  if (gap < 1.0f && toward > 0) c = lit < 0.5f ? P.dark : P.lo;   // the crack: dark on a facet's shaded lower-right edge only
+  else if (lit < 0.24f) c = P.dark;
+  else if (lit < 0.42f) c = P.lo;
   else if (lit < 0.60f) c = P.mid;
   else if (lit < 0.80f) c = P.hi;
-  else c = lerpc(P.hi, P.lip, 0.55f);
-  // strata: thin darker bands along the contours, broken up
-  const float band = h0 * 11.0f - std::floor(h0 * 11.0f);
-  if (band < 0.07f && vnoise(px / 5.0f, py / 5.0f, 907) > 0.35f) c = mul(c, 0.82f);
+  else c = P.lip;
+  // strata: a darker band across some facets along the contours
+  if (gap >= 1.0f && ((ch >> 12) & 7) == 0) {
+    const float band = (py + 0.5f - p1y) + (px + 0.5f - p1x) * 0.35f;
+    if (band > 1.0f && band < 2.6f) c = c == P.lip ? P.hi : c == P.hi ? P.mid : c == P.mid ? P.lo : P.dark;
+  }
   // scree and chips
   const float sp = hashf(px, py, 909);
-  if (sp < 0.035f) c = mul(c, 0.78f);
-  else if (sp > 0.975f) c = mul(c, 1.14f);
-  // snow on the crests and the lit high slopes
+  if (gap >= 1.0f && sp < 0.025f) c = mul(c, 0.80f);
+  // snow on the crests and the lit high slopes, facet by facet
   float snowAt = 0.66f - 0.40f * cold + 1.0f * hot;
-  const float sv = h0 + (lit - 0.5f) * 0.22f + (vnoise(px / 9.0f, py / 9.0f, 911) - 0.5f) * 0.16f + (bayer(px + 1, py + 2) - 0.5f) * 0.06f;
+  // (fixer r2) the snow follows the crests and the lit flank (the facet's random tilt no longer decides it, which made
+  // a random black-and-white patchwork), and it is shaded by the massif's light: white on the north-west flank, a cool
+  // blue shade on the south-east one, so the snowfield shows the mountain's volume
+  const float sv = h0 + (litBase - 0.5f) * 0.30f + (((ch >> 20) & 255) / 255.0f - 0.5f) * 0.04f;
   // a crag or knoll down on the low land (a cave's rock) holds no snow outside the cold north
   if (m.heightAt(sx >> 4, sy >> 4) < 5) snowAt += 0.5f * (1.0f - std::min(1.0f, cold));
   if (sv > snowAt) {
-    c = lit < 0.40f ? C(178, 190, 216) : lit < 0.62f ? C(222, 230, 242) : C(244, 247, 252);
-    if (sv < snowAt + 0.025f) c = mul(c, 0.92f);   // the snow's thin edge over the rock
+    // the snow lies smooth over the facets (a crack net drawn through it read as stained glass): only the massif's
+    // light and a soft turn, and a blue crack only where a few facets' shaded edges break through
+    const float sl = litBase - ((px + 0.5f - p1x) + (py + 0.5f - p1y)) / (float)G * 0.06f + (bayer(px, py) - 0.5f) * 0.10f;
+    if (gap < 1.0f && toward > 0 && (ch & 3) == 0) c = C(178, 190, 216);
+    else c = sl < 0.38f ? C(168, 182, 212) : sl < 0.52f ? C(196, 208, 230) : sl < 0.68f ? C(224, 232, 244) : C(246, 249, 253);
+  } else if (cold > 0.3f && c == P.dark && gap >= 1.0f) {
+    c = P.lo;   // bare rock among the snow: its shade stays a tone off black (the near-black facets read as holes)
   }
   // (M1 round 3) the outcrop's own volume at its edges (a crag on open land read as a flat pasted shape): a lit rim
   // where it meets the land to the north and west, a shaded flank falling to a dark outline on the east, so it rises
@@ -487,16 +622,23 @@ uint32_t mountainPixel(const TM& m, int px, int py, int sx, int sy) {
   // there, lit lip to dark foot (where the land drops a level, reliefPixel draws the real cliff below instead)
   const int ftx = sx >> 4;
   const int lv = m.heightAt(ftx, sy >> 4);
-  for (int k = 1; k <= 7; k++) {
+  // (fixer r2) 10-14 px tall (the mass's thickness), its height wandering, cut by fissures into columns lit on their
+  // west side, the snow's rim hanging over the lip in the cold
+  const int FHm = 10 + (int)(vnoise(px / 8.0f, 1.5f, 919) * 5.0f);
+  for (int k = 1; k <= FHm; k++) {
     const int qy = (sy + k) >> 4;
     if (qy == (sy >> 4)) continue;
     const Ground below = m.at(ftx, qy);
     if (below == Ground::Rock || m.heightAt(ftx, qy) < lv) break;
-    // k px above the rock's south edge: a face 7 px tall
-    const float t = (7 - k) / 6.0f;   // 0 at the lip .. 1 at the foot
-    uint32_t f = lerpc(P.hi, P.dark, t);
-    if (((px + (int)(hash2(px / 3, qy, 917) & 1)) % 3) == 0) f = mul(f, 0.86f);   // fissures
-    if (k == 7) f = P.lip;
+    const float t = (FHm - k) / (float)(FHm - 1);   // 0 at the lip .. 1 at the foot
+    const int cw = 4 + (int)(hash2(px / 5, 1, 921) % 3), cxp = ((px % cw) + cw) % cw;
+    float l = 0.82f - t * 0.70f + (((hash2(px / cw, qy, 917) >> 8) & 255) / 255.0f - 0.5f) * 0.16f + (bayer(px, k) - 0.5f) * 0.06f;
+    if (cxp == 0) l -= 0.26f;          // a fissure
+    else if (cxp == 1) l += 0.12f;     // a column's lit west edge
+    uint32_t f = l > 0.70f ? P.hi : l > 0.48f ? P.mid : l > 0.26f ? P.lo : P.dark;
+    if (k == FHm) f = cold > 0.4f ? C(240, 245, 252) : P.lip;
+    else if (k == FHm - 1) f = cold > 0.4f ? C(196, 208, 230) : lerpc(f, P.lip, 0.5f);
+    else if (k == 1) f = mul(P.dark, 0.85f);
     c = f;
     break;
   }
@@ -814,6 +956,14 @@ uint32_t pavePixel(int mat, bool road, int px, int py, float e, float paveV, flo
       const bool gap = fmod_(py, 4) == 0, butt = fmod_(px + joff, 24) == 0;
       const float t = hashf(fdiv_(px + joff, 24), row, 1343);
       c = gap ? C(62, 48, 36) : lerpc(C(128, 104, 76), C(152, 126, 92), t);
+      // (fixer r2) not hundreds of identical boards: a few newer, paler boards let in, some dark tarred or rain-soaked
+      // ones, and broad patches of weathering across the deck
+      if (!gap) {
+        const uint32_t bh = hash2(fdiv_(px + joff, 24), row, 1347);
+        if (bh % 23u == 0) c = lerpc(C(176, 146, 104), C(190, 160, 116), t);
+        else if (bh % 29u == 1) c = lerpc(C(92, 74, 56), C(106, 86, 64), t);
+        c = mul(c, 0.92f + vnoise(px / 30.0f, py / 22.0f, 1349) * 0.16f);
+      }
       if (butt) c = C(78, 60, 44);
       if (!gap && fmod_(py, 4) == 1) c = mul(c, 1.08f);          // the plank's lit edge
       if (!gap && (fmod_(px + joff, 24) == 2 || fmod_(px + joff, 24) == 21) && fmod_(py, 4) == 2) c = C(70, 66, 64);   // nails
@@ -1031,6 +1181,569 @@ uint32_t streetSquareSeam(const TM& m, int px, int py, int pm, bool onRoad, int&
   }
   return 0;
 }
+
+// =====================================================================================================================
+// M3c Wildlands (LAND lane): the ground of every biome proper (rpg/world/biomes.h Eco). The classic ecos (meadows,
+// forest, autumn woods, taiga, snowfields, reed marsh, the sandy shore, the sea) keep the classic grounds in
+// View::groundPixel; every other biome paints its own here: three tones picked from the shared tone field (the 16-bit
+// banding of the classic grounds), one or two cheap features (value noise and hashes only: the phone's bake budget)
+// and its own speckle. Pure functions of the global pixel (chunks meet seamlessly).
+// =====================================================================================================================
+// a jittered cell of small round stones seen from above in the 3/4 view (at most one per S px cell, wholly inside it,
+// a little flattened): 0 none, 1 its shaded lower-right, 2 its body, 3 its lit upper-left, 4 its contact shadow on the
+// ground below-right of it. id: the cell's hash (a colour pick)
+inline int stoneAt(int px, int py, int S, uint32_t seed, float prob, float rmin, float rmax, uint32_t* id = nullptr) {
+  const int cx = fdiv_(px, S), cy = fdiv_(py, S);
+  const uint32_t hh = hash2(cx, cy, seed);
+  if ((float)(hh & 1023) / 1024.0f >= prob) return 0;
+  const float r = rmin + (float)((hh >> 10) & 255) / 255.0f * (rmax - rmin);
+  const float room = std::max(0.0f, S * 0.5f - r - 1.4f);
+  const float ox = cx * S + S * 0.5f + ((float)((hh >> 18) & 31) / 31.0f - 0.5f) * 2.0f * room;
+  const float oy = cy * S + S * 0.5f + ((float)((hh >> 23) & 31) / 31.0f - 0.5f) * 2.0f * room;
+  const float dx = px + 0.5f - ox, dy = (py + 0.5f - oy) * 1.3f;
+  if (id) *id = hh;
+  const float r2 = r * r;
+  if (dx * dx + dy * dy <= r2) {
+    const float l = -(dx + dy * 1.1f) / r;
+    return l > 0.55f ? 3 : (l < -0.5f ? 1 : 2);
+  }
+  const float qx = dx - 1.2f, qy = dy - 1.7f;
+  return qx * qx + qy * qy <= r2 ? 4 : 0;
+}
+// a thin winding line along a value-noise contour (cracks, roots, veins, paths): 0 none, 1 its core, 2 the rim on its
+// lit side, 3 the rim on its shaded side (so a groove or a raised vein reads in relief under the top-left light)
+inline int ridgeLine(float v, float w) {
+  const float d = v - 0.5f, a = std::fabs(d);
+  if (a < w) return 1;
+  if (a < w * 2.2f) return d < 0 ? 2 : 3;
+  return 0;
+}
+// pebbles laid at random (a jittered cell pattern, the nearest of the 3x3 cells' seeds, so no grid shows): the pixel's
+// distance (px) to its pebble's centre and its offset from it, and the pebble's hash (its size and colour)
+struct Pebble { float d = 99.0f, dx = 0, dy = 0; uint32_t id = 0; };
+inline Pebble pebbleAt(int px, int py, int S, uint32_t seed) {
+  const int cx0 = fdiv_(px, S), cy0 = fdiv_(py, S);
+  Pebble b;
+  float bd = 1e9f;
+  for (int oy = -1; oy <= 1; oy++)
+    for (int ox = -1; ox <= 1; ox++) {
+      const uint32_t hh = hash2(cx0 + ox, cy0 + oy, seed);
+      const float sx = (cx0 + ox + 0.15f + (float)(hh & 255) / 255.0f * 0.7f) * S, sy = (cy0 + oy + 0.15f + (float)((hh >> 8) & 255) / 255.0f * 0.7f) * S;
+      const float ddx = px + 0.5f - sx, ddy = (py + 0.5f - sy) * 1.3f, d = ddx * ddx + ddy * ddy;
+      if (d < bd) { bd = d; b.dx = ddx; b.dy = ddy; b.id = hh; }
+    }
+  b.d = std::sqrt(bd);
+  return b;
+}
+// a pebble's pixel (0 none, 1 shaded lower-right, 2 body, 3 lit upper-left, 4 its contact shadow) for a pebble of radius r
+inline int pebbleShade(const Pebble& q, float r) {
+  if (q.d <= r) {
+    const float l = -(q.dx + q.dy * 1.1f) / std::max(0.5f, r);
+    return l > 0.5f ? 3 : (l < -0.45f ? 1 : 2);
+  }
+  const float sx = q.dx - 1.1f, sy = q.dy - 1.6f;
+  return sx * sx + sy * sy <= r * r ? 4 : 0;
+}
+// grass tufts in a biome's colours: a dark root pixel, lit blade tips
+inline uint32_t tufted(uint32_t c, int px, int py, uint32_t seed, float dens, float dark, float lit) {
+  const int tf = tuft(px, py, seed, dens);
+  return tf == 1 ? mul(c, dark) : tf == 2 ? mul(c, lit) : c;
+}
+// small flowers (one per 5 px cell at most): a bright petal, its shaded side and a dark leaf under it. pal: n colours
+inline bool flowered(uint32_t& c, int px, int py, uint32_t seed, float dens, const uint32_t* pal, int npal) {
+  const int cx = fdiv_(px, 5), cy = fdiv_(py, 5);
+  const uint32_t hh = hash2(cx, cy, seed);
+  if ((float)(hh & 1023) / 1024.0f >= dens) return false;
+  const int fx = cx * 5 + 1 + (int)((hh >> 10) % 3), fy = cy * 5 + 1 + (int)((hh >> 13) % 3);
+  const uint32_t pc = pal[(hh >> 16) % (uint32_t)npal];
+  if (px == fx && py == fy) { c = pc; return true; }
+  if (px == fx + 1 && py == fy) { c = mul(pc, 0.78f); return true; }
+  if (px == fx && py == fy + 1) { c = mul(c, 0.70f); return true; }
+  return false;
+}
+
+// the ground of biome e on ground g at a global pixel (n: the tone field, h: a per-pixel hash). false: paint the classic
+// ground of g (the classic ecos, and snow or marsh lying in a biome that has no look of its own for it)
+bool ecoPixel(Eco e, Ground g, int px, int py, float n, float h, uint32_t& c) {
+  if (g == Ground::Snow && e != Eco::Tundra && e != Eco::Glacier && e != Eco::FrozenLakes && e != Eco::SeaCliffs && e != Eco::Shingle) return false;
+  if (g == Ground::Swamp && ecoFamily(e) != Biome::Swamp) return false;
+  const bool lush = g == Ground::Meadow;   // a meadow patch in a grassland: a greener, flowered spot
+  switch (e) {
+    // ---- coasts
+    case Eco::SeaCliffs: {   // salt-bleached clifftop turf, the bedrock breaking through, sea pinks
+      if (g == Ground::Snow) {   // (M3c fixer) a cold clifftop: wind-scoured snow, the dark bedrock showing through in slabs
+        c = pick3(n, C(214, 222, 236), C(228, 234, 244), C(240, 244, 250));
+        const float r = vnoise(px / 13.0f, py / 13.0f, 1613) + (vnoise(px / 4.0f, py / 4.0f, 1619) - 0.5f) * 0.12f;
+        if (r > 0.66f) {
+          const float l = -((vnoise((px + 2) / 13.0f, (py + 2) / 13.0f, 1613) - vnoise((px - 2) / 13.0f, (py - 2) / 13.0f, 1613))) * 9.0f;
+          c = r < 0.69f ? C(96, 102, 116) : l > 0.15f ? C(150, 156, 168) : l < -0.15f ? C(92, 98, 112) : C(120, 126, 140);
+          if (r > 0.69f && hashf(px / 3, py, 1615) < 0.05f) c = C(78, 84, 98);   // the slab's cracks
+        } else if (h > 0.992f) c = C(196, 206, 224);
+        return true;
+      }
+      c = pick3(n, C(98, 134, 88), C(110, 146, 94), C(124, 156, 100));
+      c = mul(c, 0.94f + vnoise(px / 34.0f, py / 34.0f, 1611) * 0.12f);
+      const float r = vnoise(px / 15.0f, py / 15.0f, 1613) + (bayer(px, py) - 0.5f) * 0.10f;
+      if (r > 0.70f) {
+        c = r > 0.75f ? pick3(n, C(132, 136, 140), C(146, 150, 152), C(160, 162, 162)) : C(96, 100, 104);
+        if (r > 0.75f && hashf(px / 3, py, 1615) < 0.06f) c = C(84, 88, 94);   // the slab's cracks
+        else if (r > 0.75f && h > 0.985f) c = C(196, 190, 120);                // yellow lichen
+      } else {
+        c = tufted(c, px, py, 1617, 0.5f, 0.76f, 1.16f);
+        if (h > 0.993f) c = C(234, 132, 170);
+        else if (h > 0.990f) c = C(250, 214, 228);
+      }
+      return true;
+    }
+    case Eco::Shingle: {   // rounded flint and slate pebbles, packed, sea-grey grit in the gaps
+      const Pebble q = pebbleAt(px, py, 6, 1621);
+      const int s = pebbleShade(q, 1.7f + (float)((q.id >> 16) & 255) / 255.0f * 1.6f);
+      const uint32_t id = q.id;
+      static const uint32_t pb[6] = {C(150, 146, 140), C(170, 164, 154), C(128, 126, 126), C(188, 180, 166), C(112, 114, 120), C(160, 150, 136)};
+      const uint32_t base = mul(pb[(id >> 28) % 6], 0.95f + n * 0.1f);
+      if (g == Ground::Snow) {   // (M3c fixer) a cold shore: the same pebbles, frost-grey, snow drifted in the gaps and on their tops
+        const uint32_t cb = lerpc(base, C(120, 128, 146), 0.35f);
+        if (s == 0) c = pick3(n, C(212, 220, 234), C(226, 232, 242), C(238, 242, 250));
+        else if (s == 4) c = C(160, 170, 192);
+        else c = s == 3 ? C(240, 244, 250) : s == 1 ? mul(cb, 0.72f) : cb;
+        return true;
+      }
+      if (s == 0) c = pick3(n, C(118, 112, 102), C(128, 122, 110), C(138, 132, 118));
+      else if (s == 4) c = C(84, 80, 80);
+      else c = s == 3 ? lerpc(base, C(240, 236, 226), 0.35f) : s == 1 ? mul(base, 0.74f) : base;
+      if (h < 0.003f) c = C(240, 236, 226);   // a shell
+      return true;
+    }
+    case Eco::CoralCoast: {   // white coral sand, broken coral and shells on it
+      c = pick3(n, C(234, 226, 204), C(242, 236, 216), C(250, 246, 230));
+      const float rip = std::sin(px * 0.31f + py * 0.1f + vnoise(px / 16.0f, py / 16.0f, 171) * 8);
+      if (rip > 0.82f) c = mul(c, 0.95f);
+      if (h < 0.008f) c = C(236, 136, 132);
+      else if (h < 0.013f) c = C(248, 184, 156);
+      else if (h < 0.016f) c = C(206, 192, 170);
+      else if (h > 0.995f) c = C(255, 253, 246);
+      return true;
+    }
+    // ---- grasslands
+    case Eco::FlowerMeadow: {
+      c = pick3(n, C(102, 164, 72), C(116, 176, 80), C(130, 186, 88));
+      c = mul(c, 0.94f + vnoise(px / 40.0f, py / 40.0f, 141) * 0.12f);
+      c = tufted(c, px, py, 401, 0.5f, 0.74f, 1.16f);
+      static const uint32_t pal[6] = {C(250, 250, 238), C(250, 220, 84), C(240, 128, 168), C(164, 150, 250), C(232, 76, 64), C(250, 180, 80)};
+      const float clump = vnoise(px / 18.0f, py / 18.0f, 1625);
+      flowered(c, px, py, 1627, 0.10f + clump * clump * 0.55f, pal, 6);
+      return true;
+    }
+    case Eco::Prairie: {   // tall grass combed by the wind: long light and dark streaks the way it blows
+      c = pick3(n, C(146, 148, 70), C(160, 158, 78), C(174, 170, 88));
+      c = mul(c, 0.94f + vnoise(px / 44.0f, py / 44.0f, 1631) * 0.12f);
+      const float u = px * 0.8f + py * 0.6f, v = py * 0.8f - px * 0.6f;
+      const float st = vnoise(u / 30.0f, v / 3.2f, 1633);
+      if (st > 0.66f) c = lerpc(c, C(208, 198, 114), std::min(1.0f, (st - 0.66f) * 2.4f));
+      else if (st < 0.32f) c = mul(c, 0.86f + st * 0.3f);
+      c = tufted(c, px, py, 1635, 0.62f, 0.74f, 1.18f);
+      if (lush) c = lerpc(c, C(120, 158, 72), 0.25f);
+      if (h > 0.996f) c = C(232, 208, 92);
+      return true;
+    }
+    case Eco::Steppe: {   // pale dry grass and gravel
+      c = pick3(n, C(150, 148, 98), C(162, 158, 106), C(174, 168, 114));
+      const float gv = vnoise(px / 24.0f, py / 24.0f, 1641) + (bayer(px, py) - 0.5f) * 0.10f;
+      if (gv < 0.32f) {
+        c = lerpc(c, pick3(n, C(156, 146, 126), C(168, 158, 138), C(178, 168, 148)), std::min(1.0f, (0.32f - gv) * 8.0f));
+        const Pebble q = pebbleAt(px, py, 5, 1643);
+        const int s = pebbleShade(q, 0.6f + (float)((q.id >> 16) & 255) / 255.0f * 0.8f);
+        if (s == 4) c = mul(c, 0.86f);
+        else if (s) c = s == 3 ? C(204, 196, 178) : s == 1 ? C(112, 106, 100) : ((q.id >> 28) & 1 ? C(146, 138, 126) : C(176, 166, 150));
+      } else {
+        c = tufted(c, px, py, 1645, gv < 0.4f ? 0.25f : 0.45f, 0.78f, 1.16f);
+        if (h < 0.012f) c = C(132, 124, 112);
+      }
+      if (lush) c = lerpc(c, C(130, 150, 88), 0.22f);
+      return true;
+    }
+    case Eco::Savanna: {   // golden grass in tussocks, bare red earth between them
+      c = pick3(n, C(166, 146, 68), C(182, 162, 78), C(198, 178, 90));
+      c = mul(c, 0.93f + vnoise(px / 40.0f, py / 40.0f, 141) * 0.14f);
+      const float dry = vnoise(px / 22.0f, py / 22.0f, 1601) + (bayer(px, py) - 0.5f) * 0.08f;
+      if (dry > 0.66f) {
+        c = pick3(n, C(170, 122, 78), C(182, 134, 86), C(192, 146, 96));
+        if (h < 0.05f) c = C(148, 102, 70);
+        else if (h > 0.985f) c = C(210, 172, 122);
+      } else {
+        c = tufted(c, px, py, 1603, dry > 0.58f ? 0.25f : 0.55f, 0.72f, 1.18f);
+        if (h > 0.996f) c = C(232, 214, 130);
+      }
+      if (lush) c = lerpc(c, C(150, 158, 74), 0.25f);
+      return true;
+    }
+    case Eco::Heath: {   // heather in purple-brown tussocks on the moor, dark peat between
+      c = pick3(n, C(98, 90, 68), C(108, 98, 74), C(118, 106, 80));
+      const float hz = vnoise(px / 26.0f, py / 26.0f, 1653);
+      if (hz < 0.16f) {   // a peat hag: dark wet earth
+        c = pick3(n, C(74, 58, 48), C(82, 64, 52), C(90, 70, 56));
+        if (hz < 0.13f && h > 0.992f) c = C(132, 140, 146);
+      } else {
+        // heather: a speckle of purple bloom over the brown, thick in the clumps and thin between them (a soft,
+        // dithered texture at 1x, never hard-edged blots)
+        const float d = std::clamp((vnoise(px / 7.0f, py / 7.0f, 1651) - 0.32f) * 1.9f + hz * 0.3f, 0.0f, 1.0f);
+        if (h < d * 0.62f) c = h < d * 0.12f ? C(156, 110, 142) : h < d * 0.36f ? C(122, 82, 110) : C(92, 64, 82);
+        else c = tufted(c, px, py, 1655, 0.4f, 0.76f, 1.15f);
+        if (lush) c = lerpc(c, C(110, 130, 76), 0.2f);
+      }
+      return true;
+    }
+    case Eco::ChalkDowns: {   // short bright turf, white chalk paths and scars where it wears through
+      c = pick3(n, C(98, 162, 74), C(110, 174, 80), C(122, 184, 88));
+      c = mul(c, 0.95f + vnoise(px / 40.0f, py / 40.0f, 141) * 0.10f);
+      c = tufted(c, px, py, 1665, 0.42f, 0.78f, 1.14f);
+      // a few worn tracks of white chalk wandering over the downs (only where the broad mask lets them run)
+      const int r = vnoise(px / 110.0f, py / 110.0f, 1669) > 0.56f ? ridgeLine(vnoise(px / 52.0f, py / 52.0f, 1661), 0.009f) : 0;
+      if (r == 1) c = h < 0.10f ? C(212, 208, 192) : C(236, 234, 222);
+      else if (r) c = r == 2 ? C(170, 196, 136) : C(86, 136, 66);
+      else {
+        // chalk scars where the turf has slipped: white with flints, a shaded lip of turf round them
+        const float ch = vnoise(px / 17.0f, py / 17.0f, 1663) + (bayer(px, py) - 0.5f) * 0.03f;
+        if (ch > 0.835f) c = h < 0.04f ? C(82, 82, 92) : (ch > 0.86f ? C(240, 238, 228) : C(216, 214, 198));
+        else if (ch > 0.815f) c = mul(c, 0.84f);
+      }
+      if (lush) { static const uint32_t pal[3] = {C(250, 250, 238), C(246, 214, 80), C(190, 140, 230)}; flowered(c, px, py, 1667, 0.12f, pal, 3); }
+      return true;
+    }
+    case Eco::AlpineMeadow: {   // cool turf full of tiny flowers, grey stones
+      c = pick3(n, C(88, 150, 86), C(100, 162, 94), C(112, 172, 102));
+      c = tufted(c, px, py, 1671, 0.45f, 0.76f, 1.15f);
+      uint32_t id = 0;
+      const int s = stoneAt(px, py, 13, 1673, 0.18f, 1.6f, 3.0f, &id);
+      if (s == 4) c = mul(c, 0.70f);
+      else if (s) c = s == 3 ? C(196, 196, 190) : s == 1 ? C(108, 108, 112) : C(152, 152, 150);
+      else {
+        static const uint32_t pal[5] = {C(92, 112, 232), C(246, 246, 238), C(246, 214, 80), C(214, 92, 170), C(130, 170, 250)};
+        flowered(c, px, py, 1675, lush ? 0.38f : 0.22f, pal, 5);
+      }
+      return true;
+    }
+    case Eco::StonePlains: {   // muted grass over old flat stones, half buried and lichened
+      c = pick3(n, C(98, 138, 76), C(108, 148, 82), C(118, 158, 88));
+      c = mul(c, 0.94f + vnoise(px / 40.0f, py / 40.0f, 141) * 0.12f);
+      c = tufted(c, px, py, 1681, 0.45f, 0.76f, 1.15f);
+      uint32_t id = 0;
+      const int s = stoneAt(px, py, 15, 1683, 0.24f, 2.6f, 4.6f, &id);
+      if (s == 4) c = mul(c, 0.72f);
+      else if (s) {
+        c = s == 3 ? C(184, 182, 174) : s == 1 ? C(104, 102, 104) : C(146, 144, 138);
+        if (s == 2 && h > 0.90f) c = (id >> 30) ? C(190, 184, 110) : C(140, 146, 90);
+      } else if (h < 0.008f) c = C(150, 150, 142);
+      if (lush) c = lerpc(c, C(110, 160, 84), 0.2f);
+      return true;
+    }
+    case Eco::LakeDistrict: {   // lush blue-green grass, damp hollows with rushes
+      c = pick3(n, C(72, 144, 82), C(84, 156, 90), C(96, 168, 96));
+      c = mul(c, 0.94f + vnoise(px / 40.0f, py / 40.0f, 141) * 0.12f);
+      const float d = vnoise(px / 20.0f, py / 20.0f, 1691);
+      if (d < 0.26f) c = lerpc(c, C(64, 112, 90), 0.45f);
+      c = tufted(c, px, py, 1693, d < 0.3f ? 0.6f : 0.45f, 0.74f, 1.16f);
+      if (lush) { static const uint32_t pal[3] = {C(250, 250, 238), C(246, 214, 80), C(170, 150, 250)}; flowered(c, px, py, 1695, 0.10f, pal, 3); }
+      return true;
+    }
+    // ---- woods
+    case Eco::BirchWood: {   // light litter: yellow leaves, curls of white bark
+      c = pick3(n, C(90, 122, 62), C(102, 134, 66), C(114, 144, 72));
+      c = mul(c, 0.92f + vnoise(px / 30.0f, py / 30.0f, 151) * 0.16f);
+      if (vnoise(px / 12.0f, py / 12.0f, 1701) > 0.68f) c = lerpc(c, C(168, 150, 78), 0.35f);
+      c = tufted(c, px, py, 1703, 0.45f, 0.74f, 1.15f);
+      if (h < 0.030f) c = C(198, 178, 84);
+      else if (h < 0.045f) c = C(158, 126, 62);
+      else if (h > 0.995f) c = C(228, 224, 212);
+      return true;
+    }
+    case Eco::GiantForest: {   // deep moss over great roots
+      c = pick3(n, C(38, 80, 46), C(46, 92, 50), C(54, 104, 54));
+      const float mv = vnoise(px / 7.0f, py / 7.0f, 1711);
+      if (mv > 0.64f) c = mv > 0.74f ? C(96, 146, 66) : C(72, 124, 58);
+      // roots: short winding runs (a broad mask breaks the contour lines up), tapering where the mask fades
+      const float rm = vnoise(px / 26.0f, py / 26.0f, 1715);
+      const int r = rm > 0.52f ? ridgeLine(vnoise(px / 22.0f, py / 22.0f, 1713), 0.012f + (rm - 0.52f) * 0.06f) : 0;
+      if (r == 1) c = C(84, 62, 44);
+      else if (r == 2) c = C(116, 90, 60);
+      else if (r == 3) c = C(30, 44, 34);
+      if (!r && h < 0.010f) c = C(112, 86, 52);
+      return true;
+    }
+    case Eco::DarkForest: {   // near-black litter, roots, rot and pale fungus
+      c = pick3(n, C(48, 50, 44), C(56, 58, 50), C(64, 64, 54));
+      c = mul(c, 0.90f + vnoise(px / 24.0f, py / 24.0f, 1721) * 0.20f);
+      const float rm = vnoise(px / 24.0f, py / 24.0f, 1727);
+      const int r = rm > 0.55f ? ridgeLine(vnoise(px / 20.0f, py / 20.0f, 1723), 0.010f + (rm - 0.55f) * 0.06f) : 0;
+      if (r == 1) c = C(32, 30, 32);
+      else if (r == 2) c = C(84, 74, 64);
+      else {
+        c = tufted(c, px, py, 1725, 0.2f, 0.8f, 1.2f);
+        if (h < 0.05f) c = C(72, 58, 48);
+        else if (h < 0.07f) c = C(60, 46, 62);
+        else if (h > 0.996f) c = C(170, 168, 146);
+      }
+      return true;
+    }
+    case Eco::BlossomGrove: {   // soft grass under a carpet of fallen petals
+      c = pick3(n, C(100, 160, 84), C(112, 170, 90), C(124, 180, 96));
+      c = tufted(c, px, py, 1731, 0.45f, 0.76f, 1.15f);
+      const float carpet = vnoise(px / 16.0f, py / 16.0f, 1733);
+      const float dens = carpet * carpet * 0.55f;
+      if (h < dens) c = h < dens * 0.35f ? C(252, 228, 236) : h < dens * 0.75f ? C(244, 182, 206) : C(220, 140, 176);
+      return true;
+    }
+    case Eco::BambooForest: {   // dry yellow-green floor strewn with long slanted bamboo leaves
+      c = pick3(n, C(134, 138, 72), C(148, 150, 78), C(162, 162, 86));
+      c = mul(c, 0.94f + vnoise(px / 30.0f, py / 30.0f, 151) * 0.12f);
+      const int lxp = px - (py >> 1);
+      const int cx = fdiv_(lxp, 6), in = lxp - cx * 6;
+      if (in >= 1 && in <= 4) {
+        const uint32_t lh = hash2(cx, fdiv_(py, 2), 1741);
+        if ((py & 1) == 0 && (lh & 7) < 3) {
+          static const uint32_t lc[3] = {C(198, 186, 104), C(118, 138, 62), C(152, 122, 70)};
+          c = lc[(lh >> 3) % 3];
+          if (in == 4) c = mul(c, 0.86f);
+        } else if ((py & 1) == 1 && (lh & 7) < 3) c = mul(c, 0.84f);   // its shadow on the row below
+      }
+      return true;
+    }
+    case Eco::Jungle: {   // lush dark loam, roots, fallen leaves and flowers
+      c = pick3(n, C(42, 78, 44), C(50, 90, 48), C(58, 102, 52));
+      if (vnoise(px / 9.0f, py / 9.0f, 1751) < 0.30f) c = lerpc(c, C(76, 58, 40), 0.55f);
+      const int r = ridgeLine(vnoise(px / 18.0f, py / 18.0f, 1753), 0.020f);
+      if (r == 1) c = C(84, 62, 42);
+      else if (r == 2) c = C(118, 90, 56);
+      else if (r == 3) c = C(28, 42, 30);
+      else {
+        c = tufted(c, px, py, 1755, 0.55f, 0.72f, 1.22f);
+        if (h > 0.985f) c = C(98, 166, 62);
+        else if (h < 0.006f) c = C(206, 70, 60);
+      }
+      return true;
+    }
+    case Eco::MushroomForest: {   // violet mycelium threads through dark humus, pale spores
+      c = pick3(n, C(64, 50, 70), C(74, 58, 80), C(84, 66, 90));
+      c = mul(c, 0.92f + vnoise(px / 30.0f, py / 30.0f, 151) * 0.16f);
+      const int r = ridgeLine(vnoise(px / 9.0f, py / 9.0f, 1761), 0.017f);
+      if (r == 1) c = C(192, 170, 214);
+      else if (r == 2) c = C(132, 112, 152);
+      else if (r == 3) c = C(52, 40, 60);
+      else if (std::fabs(vnoise(px / 5.0f, py / 5.0f, 1763) - 0.5f) < 0.012f) c = C(132, 210, 204);   // the glowing threads
+      else if (h > 0.993f) c = C(228, 208, 248);
+      return true;
+    }
+    case Eco::Silverwood: {   // silver moss on pale green, glints
+      c = pick3(n, C(106, 136, 118), C(120, 150, 130), C(134, 162, 142));
+      const float mv = vnoise(px / 8.0f, py / 8.0f, 1771);
+      if (mv > 0.70f) c = mv > 0.77f ? C(156, 180, 166) : C(140, 166, 152);
+      else c = tufted(c, px, py, 1773, 0.4f, 0.78f, 1.14f);
+      if (h > 0.996f) c = C(246, 252, 250);
+      return true;
+    }
+    // ---- cold
+    case Eco::TaigaBog: {   // sphagnum in green, ochre and red cushions, dark pools, cotton-grass
+      const float mv = vnoise(px / 6.0f, py / 6.0f, 1781);
+      c = mv < 0.42f ? C(104, 122, 70) : mv < 0.62f ? C(148, 136, 80) : C(136, 92, 74);
+      c = mul(c, 0.90f + n * 0.18f);
+      const float p = vnoise(px / 11.0f, py / 11.0f, 1783) + (bayer(px, py) - 0.5f) * 0.06f;
+      if (p > 0.76f) c = p > 0.82f && h < 0.10f ? C(96, 118, 130) : C(36, 48, 56);
+      else if (p > 0.72f) c = C(70, 70, 50);
+      else if (h > 0.993f) c = C(244, 244, 236);
+      return true;
+    }
+    case Eco::Tundra: {   // lichen and moss broken into frost polygons, snow lying in the hollows
+      c = pick3(n, C(124, 130, 102), C(136, 140, 110), C(148, 150, 118));
+      const int r1 = ridgeLine(vnoise(px / 15.0f, py / 15.0f, 1791), 0.016f);
+      const int r = r1 ? r1 : ridgeLine(vnoise((px + py) / 21.0f, (py - px) / 21.0f, 1793), 0.014f);
+      const float mo = vnoise(px / 9.0f, py / 9.0f, 1797);   // moss and lichen mottling the polygons
+      if (mo > 0.66f) c = lerpc(c, C(112, 132, 84), 0.5f);
+      else if (mo < 0.30f) c = lerpc(c, C(164, 150, 102), 0.4f);
+      if (r == 1) c = mul(c, 0.80f);
+      else if (r == 2) c = mul(c, 1.10f);
+      else if (r == 3) c = mul(c, 0.90f);
+      else if (h < 0.040f) c = C(190, 186, 118);
+      else if (h < 0.055f) c = C(170, 112, 74);
+      else if (h > 0.990f) c = C(214, 216, 208);
+      if (g == Ground::Snow) {
+        const float sv = vnoise(px / 20.0f, py / 20.0f, 1795) + (bayer(px, py) - 0.5f) * 0.10f;
+        if (sv > 0.64f) c = sv > 0.69f ? pick3(n, C(220, 228, 240), C(230, 236, 246), C(240, 244, 250)) : C(196, 206, 214);
+      }
+      return true;
+    }
+    case Eco::Glacier: {   // blue-white ice under wind-cut snow, crevasses (their lit far wall, their dark depth)
+      c = pick3(n, C(194, 214, 236), C(206, 224, 242), C(218, 232, 248));
+      // (M3c fixer, review: "hard horizontal light bars lined up with the tiles") the streaks and crevasses are read
+      // through a warped, turned frame, so the wind's drifts run aslant and wander instead of stacking in grid bars
+      const float wx = px + (vnoise(px / 37.0f, py / 37.0f, 1807) - 0.5f) * 26.0f, wy = py + (vnoise(px / 37.0f, py / 37.0f, 1809) - 0.5f) * 26.0f;
+      const float u = wx * 0.92f + wy * 0.38f, v = wy * 0.92f - wx * 0.38f;
+      if (vnoise(wx / 24.0f, wy / 24.0f, 1801) > 0.70f) c = C(156, 194, 228);
+      if (vnoise(u / 30.0f, v / 6.0f, 1803) + (bayer(px, py) - 0.5f) * 0.03f > 0.66f) c = C(234, 242, 252);
+      const float d = vnoise(u / 44.0f, v / 12.0f, 1805) - 0.5f;
+      if (std::fabs(d) < 0.012f) c = C(50, 84, 146);
+      else if (d >= 0.012f && d < 0.032f) c = C(112, 154, 208);
+      else if (d <= -0.012f && d > -0.026f) c = C(244, 250, 255);
+      return true;
+    }
+    case Eco::FrozenLakes: {   // the snow between the frozen lakes, laid in drifts by the wind, dead grass poking through
+      c = pick3(n, C(212, 224, 238), C(224, 232, 244), C(236, 242, 250));
+      const float dv = vnoise(px / 36.0f, py / 10.0f, 1811);
+      if (dv > 0.64f) c = C(246, 249, 253);
+      else if (dv < 0.28f) c = C(204, 218, 236);
+      const int tf = tuft(px, py, 1813, 0.14f);
+      if (tf == 1) c = C(122, 118, 100); else if (tf == 2) c = C(168, 160, 128);
+      return true;
+    }
+    // ---- wet
+    case Eco::PeatBog: {   // dark peat, moss cushions, black pools glinting with the sky
+      c = pick3(n, C(60, 48, 40), C(68, 54, 44), C(78, 62, 48));
+      const float mv = vnoise(px / 9.0f, py / 9.0f, 1821);
+      if (mv > 0.66f) c = mv > 0.74f ? C(100, 104, 58) : C(84, 86, 52);
+      const float p = vnoise(px / 8.0f, py / 8.0f, 1823) + (bayer(px, py) - 0.5f) * 0.04f;
+      if (p > 0.77f) c = (p > 0.81f && hashf(px >> 1, py, 1825) < 0.08f) ? C(118, 132, 142) : C(26, 30, 36);
+      else if (p > 0.745f) c = C(48, 40, 34);
+      else if (h > 0.995f) c = C(240, 240, 232);
+      return true;
+    }
+    case Eco::Mangrove: {   // grey-brown tidal mud, wet sheen, root arcs, crab holes
+      c = pick3(n, C(96, 82, 62), C(106, 92, 68), C(116, 100, 74));
+      const float s = vnoise(px / 11.0f, py / 11.0f, 1831);
+      if (s > 0.72f) c = h > 0.97f ? C(170, 190, 186) : C(92, 110, 106);
+      else if (s > 0.65f) c = C(120, 116, 98);
+      const int r = ridgeLine(vnoise(px / 12.0f, py / 12.0f, 1833), 0.020f);
+      if (r == 1) c = C(70, 56, 44);
+      else if (r == 2) c = C(110, 92, 70);
+      if (!r && h < 0.008f) c = C(46, 38, 34);
+      return true;
+    }
+    case Eco::FloodedForest: {   // dark mud under a film of still water, leaves floating on it
+      c = pick3(n, C(58, 74, 54), C(66, 84, 58), C(74, 92, 62));
+      const float w = vnoise(px / 13.0f, py / 13.0f, 1841) + (bayer(px, py) - 0.5f) * 0.08f;
+      if (w > 0.63f) {
+        c = w > 0.71f ? C(64, 98, 98) : C(62, 86, 80);
+        if (h < 0.05f) c = C(112, 122, 60);
+        else if (h > 0.992f) c = C(150, 180, 184);
+      } else if (h < 0.02f) c = C(104, 84, 52);
+      return true;
+    }
+    // ---- dry
+    case Eco::Dunes: {   // a dune field: broad crests, windward faces in the light, slip faces in shade, wind ripples
+      const float d0 = vnoise((px - 3) / 58.0f, (py - 3) / 34.0f, 1851), d1 = vnoise((px + 3) / 58.0f, (py + 3) / 34.0f, 1851);
+      const float sl = (d1 - d0) * 9.0f;   // > 0: the face turned to the light (rising toward the lower right)
+      c = pick3(n + sl * 0.55f, C(206, 178, 122), C(222, 198, 140), C(236, 214, 158));
+      if (sl < -0.30f) c = mul(c, 0.88f);
+      else if (sl > 0.35f) {
+        const float rip = std::sin(px * 0.35f + py * 0.12f + vnoise(px / 16.0f, py / 16.0f, 171) * 8);
+        if (rip > 0.8f) c = mul(c, 0.94f);
+      }
+      if (h < 0.005f) c = C(180, 156, 112);
+      return true;
+    }
+    case Eco::StonyDesert: {   // reg: a pavement of wind-polished pebbles, desert varnish
+      c = pick3(n, C(190, 164, 122), C(200, 174, 130), C(210, 184, 138));
+      const Pebble q = pebbleAt(px, py, 5, 1861);
+      const uint32_t id = q.id;
+      const int s = pebbleShade(q, ((id >> 16) & 7) == 0 ? 2.2f : 0.7f + (float)((id >> 19) & 255) / 255.0f * 0.9f);
+      static const uint32_t pb[4] = {C(140, 108, 86), C(118, 94, 80), C(168, 138, 108), C(96, 78, 70)};
+      const uint32_t base = pb[(id >> 28) & 3];
+      if (s == 4) c = mul(c, 0.82f);
+      else if (s) c = s == 3 ? lerpc(base, C(240, 220, 180), 0.4f) : s == 1 ? mul(base, 0.76f) : base;
+      return true;
+    }
+    case Eco::Badlands: {   // banded red strata laid bare by erosion
+      const float yy = py + (vnoise(px / 46.0f, py / 46.0f, 1871) - 0.5f) * 44.0f + (vnoise(px / 11.0f, py / 11.0f, 1873) - 0.5f) * 4.0f;
+      const int band = (int)std::floor(yy / 6.0f);
+      static const uint32_t BAND[6] = {C(176, 94, 62), C(196, 116, 74), C(214, 142, 94), C(226, 184, 134), C(160, 80, 58), C(204, 128, 84)};
+      c = mul(BAND[hash2(band, 0, 1875) % 6], 0.94f + n * 0.12f);
+      if (h < 0.02f) c = mul(c, 0.80f);
+      else if (h > 0.99f) c = mul(c, 1.12f);
+      return true;
+    }
+    case Eco::SaltFlats: {   // a white salt crust in raised polygons
+      c = pick3(n, C(226, 224, 216), C(234, 232, 224), C(242, 240, 234));
+      if (vnoise(px / 40.0f, py / 40.0f, 1881) < 0.30f) c = lerpc(c, C(204, 198, 186), 0.45f);
+      const int r1 = ridgeLine(vnoise(px / 9.0f, py / 9.0f, 1883), 0.020f);
+      const int r = r1 ? r1 : ridgeLine(vnoise((px + py) / 12.7f, (py - px) / 12.7f, 1885), 0.018f);
+      if (r == 1) c = C(250, 250, 246);
+      else if (r == 2) c = C(255, 255, 252);
+      else if (r == 3) c = C(196, 194, 186);
+      return true;
+    }
+    case Eco::Scrubland: {   // dusty earth, patches of dry grass, stones
+      c = pick3(n, C(168, 146, 102), C(178, 156, 110), C(188, 166, 118));
+      const float gv = vnoise(px / 14.0f, py / 14.0f, 1891) + (bayer(px, py) - 0.5f) * 0.10f;
+      if (gv > 0.58f) { c = lerpc(c, C(132, 132, 76), 0.55f); c = tufted(c, px, py, 1893, 0.5f, 0.76f, 1.18f); }
+      uint32_t id = 0;
+      const int s = stoneAt(px, py, 9, 1895, 0.28f, 1.0f, 1.8f, &id);
+      if (s == 4) c = mul(c, 0.80f);
+      else if (s) c = s == 3 ? C(206, 186, 150) : s == 1 ? C(110, 92, 74) : C(150, 128, 100);
+      return true;
+    }
+    case Eco::Oasis: {   // green grass round the water, the desert sand breaking in
+      c = pick3(n, C(80, 148, 78), C(92, 160, 84), C(104, 170, 90));
+      c = tufted(c, px, py, 1901, 0.5f, 0.74f, 1.18f);
+      const float sv = vnoise(px / 18.0f, py / 18.0f, 1903) + (bayer(px, py) - 0.5f) * 0.12f;
+      if (sv < 0.30f) c = pick3(n, C(214, 190, 134), C(224, 202, 146), C(232, 212, 158));
+      else if (sv < 0.36f && h < 0.5f) c = C(176, 170, 104);
+      return true;
+    }
+    // ---- wondrous
+    case Eco::AshFields: {   // black cinder and ash, glowing cracks, sulphur stains
+      c = pick3(n, C(50, 46, 48), C(58, 54, 54), C(68, 62, 60));
+      if (vnoise(px / 30.0f, py / 30.0f, 1911) > 0.80f && h < 0.35f) c = (h < 0.12f ? C(226, 206, 92) : C(170, 152, 70));   // a sulphur crust, speckled
+      // (fixer r2) the glowing veins taper out where their field fades (a hard cut there ended them in blunt stubs)
+      const float vm = std::clamp((vnoise(px / 44.0f, py / 44.0f, 1917) - 0.44f) / 0.12f, 0.0f, 1.0f);
+      const int r = vm > 0.0f ? ridgeLine(vnoise(px / 12.0f, py / 12.0f, 1913), 0.012f * vm) : 0;
+      if (r == 1) c = (hash2(px >> 2, py >> 2, 1915) & 3) ? C(234, 98, 34) : C(255, 176, 70);
+      else if (r == 2) c = C(124, 46, 32);
+      else if (r == 3) c = C(28, 24, 28);
+      else if (h < 0.05f) c = C(88, 80, 76);
+      else if (h > 0.992f) c = C(122, 110, 100);
+      return true;
+    }
+    case Eco::CrystalBarrens: {   // violet sand, crystal shards, glints
+      c = pick3(n, C(152, 142, 182), C(166, 154, 194), C(178, 166, 204));
+      c = mul(c, 0.90f + vnoise(px / 36.0f, py / 36.0f, 1921) * 0.18f);
+      if (std::sin(px * 0.33f + py * 0.14f + vnoise(px / 16.0f, py / 16.0f, 171) * 8) > 0.82f) c = mul(c, 0.93f);   // wind ripples
+      uint32_t id = 0;
+      const int s = stoneAt(px, py, 7, 1923, 0.22f, 0.8f, 1.4f, &id);
+      if (s == 4) c = mul(c, 0.80f);
+      else if (s) c = s == 3 ? C(214, 206, 250) : s == 1 ? C(92, 76, 150) : C(130, 110, 196);
+      else if (h > 0.994f) c = C(248, 252, 255);
+      else if (h > 0.990f) c = C(176, 232, 250);
+      return true;
+    }
+    case Eco::PetrifiedForest: {   // faintly banded red-grey ground strewn with chips of stone wood
+      c = pick3(n, C(178, 142, 112), C(188, 152, 120), C(198, 162, 128));
+      const int band = (int)std::floor((py + (vnoise(px / 40.0f, py / 40.0f, 1931) - 0.5f) * 36.0f) / 7.0f);
+      if (hash2(band, 0, 1933) & 1) c = mul(c, 0.94f);
+      uint32_t id = 0;
+      const int s = stoneAt(px, py, 8, 1935, 0.30f, 0.9f, 1.6f, &id);
+      static const uint32_t pb[3] = {C(150, 86, 76), C(126, 122, 132), C(214, 172, 110)};
+      const uint32_t base = pb[(id >> 28) % 3];
+      if (s == 4) c = mul(c, 0.82f);
+      else if (s) c = s == 3 ? lerpc(base, C(250, 236, 210), 0.4f) : s == 1 ? mul(base, 0.72f) : base;
+      return true;
+    }
+    case Eco::Blight: {   // grey-purple dead soil, dark veins with a sickly sheen
+      c = pick3(n, C(84, 72, 80), C(92, 78, 86), C(100, 86, 94));
+      c = mul(c, 0.92f + vnoise(px / 30.0f, py / 30.0f, 151) * 0.16f);
+      if (vnoise(px / 22.0f, py / 22.0f, 1941) > 0.70f) c = C(70, 60, 64);
+      const int r = vnoise(px / 40.0f, py / 40.0f, 1947) > 0.40f ? ridgeLine(vnoise(px / 10.0f, py / 10.0f, 1943), 0.015f) : 0;
+      if (r == 1) c = C(46, 30, 50);
+      else if (r == 2) c = C(128, 70, 110);
+      else if (r == 3) c = C(60, 46, 62);
+      else {
+        const int tf = tuft(px, py, 1945, 0.18f);
+        if (tf == 1) c = C(66, 58, 58); else if (tf == 2) c = C(124, 112, 100);
+        else if (h > 0.996f) c = C(222, 216, 198);
+      }
+      return true;
+    }
+    default: return false;   // the classic ecos (and the sea, the mountains): the classic grounds
+  }
+}
+
 }  // namespace
 
 // Terrace height of a rock tile (0 = not rock). Limited by the distance to open ground, so edges always step down one level at a time.
@@ -1064,7 +1777,43 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
   // organic borders: look the terrain up at a warped position
   Ground g = real;
   int sx = px, sy = py;   // sample position (warped for natural terrain)
-  if (natural(real)) {
+  Eco E = Eco::COUNT;     // (M3c) the biome proper the pixel shows (COUNT: its sample tile's, read below)
+  // (M3c fixer round 2, review: "lava rifts drawn as separate square tile stamps, veins cut off at the tile edges") an
+  // ash field's rift is a smooth field over the lava tiles' centres (as the shore is over the water's), wobbled by two
+  // octaves of noise: a lone lava tile is a rounded pool, a run of them one crack whose width swells and pinches, and a
+  // crack stepping diagonally stays one channel through the shared corner. lavaV: the field (-1 away from lava).
+  float lavaV = -1;
+  Ground lavaLand = Ground::Sand;
+  if (m.kind == MapKind::Overworld && (real == Ground::Lava || (natural(real) && !groundWater(real) && real != Ground::Rock))) {
+    bool nearLava = real == Ground::Lava;
+    for (int oy = -1; oy <= 1 && !nearLava; oy++)
+      for (int ox = -1; ox <= 1 && !nearLava; ox++) nearLava = m.at(tx + ox, ty + oy) == Ground::Lava;
+    if (nearLava) {
+      const float fx = (px - 7.5f) / 16.0f, fy = (py - 7.5f) / 16.0f;
+      const int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
+      const float ax = fx - ix, ay = fy - iy;
+      auto lv = [&](int x, int y) { return m.at(x, y) == Ground::Lava ? 1.0f : 0.0f; };
+      const float w00 = lv(ix, iy), w10 = lv(ix + 1, iy), w01 = lv(ix, iy + 1), w11 = lv(ix + 1, iy + 1);
+      float v = (w00 * (1 - ax) + w10 * ax) * (1 - ay) + (w01 * (1 - ax) + w11 * ax) * ay;
+      if (w00 == w11 && w10 == w01 && w00 != w10) {
+        const float dd = w00 > 0.5f ? std::fabs(ax - ay) : std::fabs(ax + ay - 1.0f);
+        v = std::max(v, 1.0f - dd * 0.9f);
+      }
+      v += (vnoise(px / 5.0f, py / 5.0f, 1971) - 0.5f) * 0.30f + (vnoise(px / 14.0f, py / 14.0f, 1973) - 0.5f) * 0.24f;
+      lavaV = v;
+      // the land the rift cuts: the nearest tile round it that is not lava
+      float bd = 1e9f;
+      for (int oy = -1; oy <= 1; oy++)
+        for (int ox = -1; ox <= 1; ox++) {
+          const Ground q = m.at(tx + ox, ty + oy);
+          if (q == Ground::Lava || !natural(q) || groundWater(q) || q == Ground::Rock) continue;
+          const float ddx = (tx + ox) * 16 + 7.5f - px, ddy = (ty + oy) * 16 + 7.5f - py, d = ddx * ddx + ddy * ddy;
+          if (d < bd) { bd = d; lavaLand = q; }
+        }
+    }
+  }
+  if (lavaV > 0.5f) g = Ground::Lava;
+  else if (natural(real)) {
     float amp = (real == Ground::Rock || real == Ground::CaveWall) ? 5.0f : 7.0f;
     float wx = px + (vnoise(px / 7.0f, py / 7.0f, 11) - 0.5f) * amp + (hashf(px, py, 3) - 0.5f) * 1.5f;
     float wy = py + (vnoise(px / 7.0f, py / 7.0f, 23) - 0.5f) * amp + (hashf(px, py, 5) - 0.5f) * 1.5f;
@@ -1089,14 +1838,23 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
     else if (m.kind == MapKind::Overworld && real == Ground::Dirt && (w == Ground::Plaza || w == Ground::StoneFloor)) g = w;
     // (M1, VISION_PLAN 11.6) ecotones: soft land fades into the neighbouring soft land over a dithered band a few tiles
     // wide (a broad low-frequency warp plus an ordered dither) instead of meeting it along one wobbly line
-    const Ground eco = m.kind == MapKind::Overworld && ecoGround(g) ? ecotonePixel(m, px, py, g) : Ground::Void;
+    // (M3c) between biomes proper, not only families
+    Eco ee = Eco::COUNT;
+    const Ground eco = m.kind == MapKind::Overworld && ecoGround(g) ? ecotonePixel(m, px, py, g, ee) : Ground::Void;
     if (eco != Ground::Void) {
+      E = ee;
       if (eco != g) { g = eco; sx = px; sy = py; }
     } else if (m.kind == MapKind::Overworld && ecoGround(g)) {
-      const float ex = px + (vnoise(px / 52.0f, py / 52.0f, 811) - 0.5f) * 64.0f + (bayer(px, py) - 0.5f) * 18.0f + (vnoise(px / 5.0f, py / 5.0f, 813) - 0.5f) * 10.0f;
-      const float ey = py + (vnoise(px / 52.0f, py / 52.0f, 817) - 0.5f) * 64.0f + (bayer(px + 2, py + 1) - 0.5f) * 18.0f + (vnoise(px / 5.0f, py / 5.0f, 819) - 0.5f) * 10.0f;
-      const Ground e = m.at((int)std::floor(ex / 16), (int)std::floor(ey / 16));
-      if (e != g && ecoGround(e)) { g = e; sx = px; sy = py; }
+      // (fixer r2: a gentler ordered dither, 8 px of jitter instead of 18: the wide checkerboard fringe read as spilled
+      // paint; the finer noise carries the edge instead)
+      const float ex = px + (vnoise(px / 52.0f, py / 52.0f, 811) - 0.5f) * 64.0f + (bayer(px, py) - 0.5f) * 8.0f + (vnoise(px / 5.0f, py / 5.0f, 813) - 0.5f) * 14.0f;
+      const float ey = py + (vnoise(px / 52.0f, py / 52.0f, 817) - 0.5f) * 64.0f + (bayer(px + 2, py + 1) - 0.5f) * 8.0f + (vnoise(px / 5.0f, py / 5.0f, 819) - 0.5f) * 14.0f;
+      const int etx = (int)std::floor(ex / 16), ety = (int)std::floor(ey / 16);
+      const Ground e = m.at(etx, ety);
+      if (ecoGround(e)) {
+        const Eco eE = ecoT(m, etx, ety);
+        if (e != g || eE != ecoT(m, sx >> 4, sy >> 4)) { g = e; E = eE; sx = px; sy = py; }
+      }
     }
   } else if (m.kind == MapKind::Overworld && (real == Ground::Plaza || real == Ground::StoneFloor)) {
     // (M2 fixer round 2) paving gives way to the earth, the road or the other paving beside it along a wobbling edge
@@ -1105,8 +1863,8 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
     const float wy = py + (vnoise(px / 7.0f, py / 7.0f, 23) - 0.5f) * 7.0f + (vnoise(px / 3.0f, py / 3.0f, 43) - 0.5f) * 2.0f;
     const Ground w = m.at((int)std::floor(wx / 16), (int)std::floor(wy / 16));
     if (w != real && (w == Ground::Dirt || w == Ground::Road || w == Ground::Plaza || w == Ground::StoneFloor)) g = w;
-  } else if (real == Ground::Road || real == Ground::Farmland) {
-    // roads fray a little at their edges into the surrounding soft ground
+  } else if ((real == Ground::Road || real == Ground::Farmland) && !(m.kind == MapKind::Overworld && paveMatAt(m, tx, ty) == 4)) {
+    // roads fray a little at their edges into the surrounding soft ground (fixer r2: a plank deck is cut square)
     float wx = px + (vnoise(px / 5.0f, py / 5.0f, 31) - 0.5f) * 4.0f, wy = py + (vnoise(px / 5.0f, py / 5.0f, 37) - 0.5f) * 4.0f;
     Ground w = m.at((int)std::floor(wx / 16), (int)std::floor(wy / 16));
     if (soft(w) && !groundWater(w)) g = w;
@@ -1118,6 +1876,8 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
       if (v == Ground::Plaza || v == Ground::StoneFloor) g = v;
     }
   }
+  // (fixer r2) outside the rift's smooth edge the land shows, whatever tile the warp looked up
+  if (lavaV >= 0 && lavaV <= 0.5f && g == Ground::Lava) { g = lavaLand; sx = px; sy = py; }
   // ruins and crypts (M0 round 3): the built rooms and corridors are walled in dressed stone on every side. A wall
   // tile touching the floor gets a masonry face where the floor lies south of it (lit coping lip, block courses
   // darkening to the foot), a coping band along the wall top on every edge that meets the floor (west, east, north
@@ -1281,22 +2041,126 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
         // dry: take the nearest land tile's ground (never a road: built ground keeps its own edge)
         Ground land = Ground::Void;
         float bd = 1e9f;
+        int lt = 0;
         for (int oy = -1; oy <= 1; oy++)
           for (int ox = -1; ox <= 1; ox++) {
             Ground q = m.at(tx + ox, ty + oy);
             if (!soft(q) || groundWater(q)) continue;
             float ddx = (tx + ox) * 16 + 7.5f - px, ddy = (ty + oy) * 16 + 7.5f - py;
             float d = ddx * ddx + ddy * ddy;
-            if (d < bd) { bd = d; land = q; }
+            if (d < bd) { bd = d; land = q; lt = (oy + 1) * 3 + ox + 1; }
           }
-        if (land != Ground::Void) { g = land; sx = px; sy = py; }
+        if (land != Ground::Void) { g = land; sx = px; sy = py; E = ecoT(m, tx + lt % 3 - 1, ty + lt / 3 - 1); }
+      }
+    }
+  }
+  // (M3c fixer, review: "sea cliffs have no cliffs") where a sea-cliff coast meets the water, the land stands high over
+  // it: on the water south of the coast a rock face drops 17 px from a lit lip to a dark foot (fissured strata in the
+  // cliff's own rock), the surf breaking white along its foot; the clifftop carries a bright lip over the drop; a coast
+  // facing north, east or west shows its top edge as a dark drop line with the shadow on the water below it. The face
+  // follows the organic shoreline (the same smoothed wetness field), so it wanders like the coast.
+  if (m.kind == MapKind::Overworld && soft(real) && real != Ground::CaveFloor) {
+    auto cliffLand = [&](int x, int y) { const Ground q = m.at(x, y); return !groundWater(q) && q != Ground::Void && q != Ground::Bridge && ecoT(m, x, y) == Eco::SeaCliffs; };
+    // (fixer r2: the face is up to 44 px tall, so the tiles up to 3 rows below the clifftop carry it)
+    bool nearCliff = cliffLand(tx, ty + 1);
+    for (int oy = -3; oy <= 0 && !nearCliff; oy++)
+      for (int ox = -1; ox <= 1 && !nearCliff; ox++) nearCliff = cliffLand(tx + ox, ty + oy);
+    if (nearCliff) {
+      auto wetT = [&](int x, int y) -> float {
+        const Ground q = m.at(x, y);
+        if (q == Ground::Void) return 1.0f;
+        if (isPoolT(m, x, y)) return 0.0f;
+        return groundWater(q) || q == Ground::Bridge ? 1.0f : 0.0f;
+      };
+      auto field = [&](int qx, int qy) -> float {
+        const float fx = (qx - 7.5f) / 16.0f, fy = (qy - 7.5f) / 16.0f;
+        const int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
+        const float ax = fx - ix, ay = fy - iy;
+        const float w00 = wetT(ix, iy), w10 = wetT(ix + 1, iy), w01 = wetT(ix, iy + 1), w11 = wetT(ix + 1, iy + 1);
+        if (w00 == w10 && w00 == w01 && w00 == w11) return w00;
+        float v = (w00 * (1 - ax) + w10 * ax) * (1 - ay) + (w01 * (1 - ax) + w11 * ax) * ay;
+        if (w00 == w11 && w10 == w01 && w00 != w10) {
+          const float dd = w00 > 0.5f ? std::fabs(ax - ay) : std::fabs(ax + ay - 1.0f);
+          v = std::max(v, 1.0f - dd * 0.9f);
+        }
+        return v + (vnoise(qx / 6.0f, qy / 6.0f, 351) - 0.5f) * 0.30f + (vnoise(qx / 19.0f, qy / 19.0f, 353) - 0.5f) * 0.26f;
+      };
+      const RockPal R = rockPalE(Eco::SeaCliffs);
+      const bool hereWet = field(px, py) > 0.5f;
+      // (M3c fixer round 2, review: "Sea Cliffs biome has no cliffs ... reads as a grassy lakeshore") the face is two
+      // tiles tall and its height wanders along the coast (buttresses stand out, bays fall back), so the drop reads as
+      // a cliff and not a kerb; the rock is cut into vertical columns between deep fissures, each column lit on its
+      // west side and shaded on its east (top-left light), banded by strata; the turf hangs over the lip in tufts; the
+      // foot sinks into a dark wet band, the surf breaks white in broken lines, and the cliff's shadow lies on the sea
+      // below it. The east and west coasts show the cliff's side face, 7 px wide.
+      const int FH = 26 + (int)(vnoise(px / 9.0f, 3.5f, 1643) * 12.0f);   // 26 .. 37 px
+      if (hereWet) {
+        int up = 0;
+        for (int k = 1; k <= FH + 7; k++)
+          if (field(px, py - k) <= 0.5f) { up = k; break; }
+        if (up > 0 && cliffLand(px >> 4, (py - up) >> 4)) {
+          if (up <= FH) {
+            const float t = (up - 1) / (float)(FH - 1);   // 0 at the lip .. 1 at the foot
+            // columns 4-7 px wide between fissures, wandering a little down the face
+            const int sway = (int)(vnoise(px / 7.0f, up / 9.0f, 1645) * 3.0f);
+            const int cw = 4 + (int)(hash2((px + sway) / 6, 0, 1647) % 4);
+            const int cx = ((px + sway) % cw + cw) % cw;
+            // strata: courses 4-6 px deep, each its own tone
+            const int course = (up + (int)(vnoise(px / 11.0f, 0.5f, 1631) * 5.0f)) / 5;
+            const uint32_t sh = hash2((px + sway) / cw, course, 1633);
+            float l = 0.86f - t * 0.62f + (((sh >> 8) & 255) / 255.0f - 0.5f) * 0.20f + (bayer(px, up) - 0.5f) * 0.06f;
+            if (cx == 0) l -= 0.34f;                     // the fissure (deep shade)
+            else if (cx == 1) l += 0.16f;                // the column's lit west edge
+            else if (cx == cw - 1) l -= 0.12f;           // its shaded east edge
+            if ((up + (int)(hash2((px + sway) / cw, 7, 1649) % 5)) % 6 == 0) l -= 0.12f;   // a bedding seam
+            uint32_t f = l > 0.70f ? R.hi : l > 0.48f ? R.mid : l > 0.28f ? R.lo : R.dark;
+            // the lip: turf hanging over the edge in tufts, then the lit rock rim
+            const int tuft = 1 + (int)(hash2(px / 2, 3, 1651) % 3);
+            if (up <= tuft) f = up == 1 ? C(92, 120, 70) : C(70, 96, 58);
+            else if (up <= tuft + 1) f = R.lip;
+            else if (up >= FH - 2) f = mul(R.dark, 0.80f);              // the wet foot
+            else if (t > 0.72f) f = lerpc(f, mul(R.dark, 0.9f), (t - 0.72f) * 1.6f);
+            if (t > 0.6f && hashf(px, up, 1635) < 0.08f) f = C(62, 84, 66);   // weed at the foot
+            return f;
+          }
+          // below the foot: the surf breaking in broken lines, then the cliff's shadow on the sea
+          const int below = up - FH;
+          const float foam = vnoise(px / 3.0f, py / 2.0f, 1637);
+          if (below <= 2 && foam > 0.25f) return C(232, 244, 250, 235);
+          if (below <= 4 && foam > 0.55f) return C(196, 222, 236, 215);
+          if (below <= 7) return C(14, 34, 58, below <= 5 ? 120 : 70);
+        }
+        // a coast running north-south: the cliff's side face over the water, lit where it faces west (toward the light),
+        // in shade where it faces east, a dark crack line every few px down it, the surf at its foot
+        for (int k = 1; k <= 9; k++) {
+          const bool eDry = field(px + k, py) <= 0.5f && cliffLand((px + k) >> 4, py >> 4);
+          const bool wDry = field(px - k, py) <= 0.5f && cliffLand((px - k) >> 4, py >> 4);
+          if (!eDry && !wDry) continue;
+          if (k >= 8) return vnoise(px / 2.0f, py / 3.0f, 1639) > 0.35f ? C(226, 240, 248, 225) : C(160, 200, 220, 200);
+          // wDry: land to the west, the face looks east (shade); eDry: the face looks west (lit)
+          const uint32_t s = eDry ? (k <= 2 ? R.hi : k <= 5 ? R.mid : R.lo) : (k <= 1 ? R.mid : k <= 4 ? R.lo : R.dark);
+          return ((py + (int)(hash2(px / 3, py / 5, 1641) & 3)) % 6) == 0 ? mul(s, 0.80f) : s;
+        }
+      } else if (cliffLand(px >> 4, py >> 4)) {
+        // the clifftop: a bright lip over the drop to the south, a dark edge where the coast faces another way
+        if (field(px, py + 1) > 0.5f) return R.lip;
+        if (field(px, py + 2) > 0.5f) return lerpc(R.hi, R.lip, 0.5f);
+        // a coast facing north: the cliff's top edge stands over the water, a dark outline and a lit rim of rock
+        if (field(px, py - 1) > 0.5f || field(px - 1, py) > 0.5f || field(px + 1, py) > 0.5f) return R.dark;
+        if (field(px, py - 2) > 0.5f || field(px, py - 3) > 0.5f) return field(px, py - 2) > 0.5f ? R.lip : R.hi;
+        if (field(px - 2, py) > 0.5f) return R.hi;
+        if (field(px + 2, py) > 0.5f) return R.lo;
       }
     }
   }
   // paved ground (roads, squares) meets soft ground along a smoothed edge too: streets widen and narrow in soft
   // curves instead of whole-tile steps. paveV is the field (-1 away from an edge).
   float paveV = -1;
-  if (m.kind == MapKind::Overworld && (real == Ground::Road || real == Ground::Plaza || (soft(real) && !groundWater(real)))) {
+  // (M3c fixer round 2, review: "Fjordfolk towns: the whole plaza is one flat plank deck with no edge, cut by ragged snow
+  // blobs") a people that decks its streets and squares in planks (paving 4) BUILDS them: the deck keeps its tiles'
+  // straight edges (no wobbling field), and deckEdge below gives it a rim beam, a front face and a cast shadow
+  const bool deckTown = m.kind == MapKind::Overworld && paveMatAt(m, tx, ty) == 4;
+  if (m.kind == MapKind::Overworld && !deckTown && (real == Ground::Road || real == Ground::Plaza || (soft(real) && !groundWater(real)))) {
     auto paved = [&](int x, int y) -> float { Ground q = m.at(x, y); return q == Ground::Road || q == Ground::Plaza || q == Ground::Bridge ? 1.0f : 0.0f; };
     float fx = (px - 7.5f) / 16.0f, fy = (py - 7.5f) / 16.0f;
     int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
@@ -1304,7 +2168,15 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
     float p00 = paved(ix, iy), p10 = paved(ix + 1, iy), p01 = paved(ix, iy + 1), p11 = paved(ix + 1, iy + 1);
     if (!(p00 == p10 && p00 == p01 && p00 == p11)) {
       float v = (p00 * (1 - ax) + p10 * ax) * (1 - ay) + (p01 * (1 - ax) + p11 * ax) * ay;
-      v += (vnoise(px / 5.0f, py / 5.0f, 391) - 0.5f) * 0.26f + (vnoise(px / 13.0f, py / 13.0f, 393) - 0.5f) * 0.18f;
+      // (M3c fixer round 2, review: "detached paving fragments float in the snow round the Sylvan paths") a path stepping
+      // diagonally (paved tiles touching only at a corner) pinched to 0.5 at the shared corner, so the noise cut it into
+      // a chain of separate islands of a few stones: keep one band along the paved diagonal (as the streams do), and a
+      // gentler fine wobble, so the edge frays without throwing off islands
+      if (p00 == p11 && p10 == p01 && p00 != p10) {
+        const float dd = p00 > 0.5f ? std::fabs(ax - ay) : std::fabs(ax + ay - 1.0f);
+        v = std::max(v, 1.0f - dd * 0.9f);
+      }
+      v += (vnoise(px / 5.0f, py / 5.0f, 391) - 0.5f) * 0.16f + (vnoise(px / 13.0f, py / 13.0f, 393) - 0.5f) * 0.18f;
       paveV = v;
       bool pv = v > 0.5f;
       bool isPaved = g == Ground::Road || g == Ground::Plaza;
@@ -1319,7 +2191,7 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
             if (pv ? !qp : (!soft(q) || groundWater(q))) continue;
             float ddx = (tx + ox) * 16 + 7.5f - px, ddy = (ty + oy) * 16 + 7.5f - py;
             float d = ddx * ddx + ddy * ddy;
-            if (d < bd) { bd = d; want = q; }
+            if (d < bd) { bd = d; want = q; E = ecoT(m, tx + ox, ty + oy); }
           }
         if (want != Ground::Void) { g = want; sx = px; sy = py; }
       }
@@ -1329,7 +2201,12 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
   float h = hashf(px, py, 13);
   int lx = px & 15, ly = py & 15;
   uint32_t c = 0;
-  switch (g) {
+  // (M3c) the biome proper's own ground (the classic ecos fall through to the classic grounds below)
+  if (E == Eco::COUNT) E = ecoT(m, sx >> 4, sy >> 4);
+  // (EMB_BAKE_CLASSIC=1: the classic family grounds only, the A side of the bake-cost A/B in m3c_land_perf.txt)
+  static const bool classicOnly = std::getenv("EMB_BAKE_CLASSIC") != nullptr;
+  const bool ecoDone = !classicOnly && m.kind == MapKind::Overworld && ecoGround(g) && ecoPixel(E, g, px, py, n, h, c);
+  if (!ecoDone) switch (g) {
     case Ground::Grass:
     case Ground::Meadow: {
       bool meadow = g == Ground::Meadow;
@@ -1390,6 +2267,15 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
           if (h < 0.05f) c = C(226, 232, 242);
           else if (h < 0.08f) c = mul(c, 0.78f);
         }
+        // (M3c) a track across the wild takes the earth of its biome: red in the badlands, black cinder in the ash
+        // fields, pale and dusty in the dry lands, grey-violet in the blight
+        if (E == Eco::Badlands || E == Eco::PetrifiedForest) c = lerpc(c, C(180, 104, 70), 0.55f);
+        else if (E == Eco::AshFields) c = lerpc(c, C(64, 58, 58), 0.7f);
+        else if (E == Eco::Blight) c = lerpc(c, C(96, 82, 90), 0.6f);
+        else if (E == Eco::CrystalBarrens) c = lerpc(c, C(150, 138, 170), 0.5f);
+        else if (E == Eco::SaltFlats) c = lerpc(c, C(206, 200, 186), 0.6f);
+        else if (bb == Biome::Desert || E == Eco::Savanna || E == Eco::Steppe) c = lerpc(c, C(184, 154, 112), 0.4f);
+        else if (E == Eco::PeatBog || E == Eco::DarkForest) c = lerpc(c, C(70, 56, 46), 0.5f);
       }
       break;
     case Ground::Farmland: {
@@ -1767,6 +2653,18 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
       }
       if (m.kind != MapKind::Overworld) c = C(30, 60, 90, 170);
       if (shore > 0 && !deep) c = C(110, 170, 200, 140);
+      // (M3c) off a coral strand the water runs turquoise over the white sand (a smooth field between tile centres)
+      if (m.kind == MapKind::Overworld) {
+        const float fx = (px - 7.5f) / 16.0f, fy = (py - 7.5f) / 16.0f;
+        const int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
+        const float ax = fx - ix, ay = fy - iy;
+        const float c00 = coralNear(m, ix, iy), c10 = coralNear(m, ix + 1, iy), c01 = coralNear(m, ix, iy + 1), c11 = coralNear(m, ix + 1, iy + 1);
+        const float cv = (c00 * (1 - ax) + c10 * ax) * (1 - ay) + (c01 * (1 - ax) + c11 * ax) * ay;
+        if (cv > 0) {
+          const int a = (int)(c >> 24);
+          c = lerpc(c, deep ? C(30, 128, 166, a) : shore > 0 ? C(128, 228, 216, a) : C(56, 196, 200, a), cv * 0.85f);
+        }
+      }
       if (shore > 0 && shoreV < 0 && hashf(px / 2, py / 2, 341) < 0.5f) c = C(220, 240, 250, 210);
       // (M1 round 3) a bridge's deck throws its shadow down-right onto the water under it
       if (m.kind == MapKind::Overworld && (m.at((px - 2) >> 4, (py - 4) >> 4) == Ground::Bridge || m.at((px - 1) >> 4, (py - 2) >> 4) == Ground::Bridge))
@@ -1800,16 +2698,87 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
       }
       break;
     }
-    case Ground::Ice:
-      c = pick3(n, C(170, 210, 236), C(186, 222, 242), C(200, 232, 248));
-      if (h < 0.02f) c = C(255, 255, 255);
+    case Ground::Ice: {
+      // (M3c) a frozen lake: clear blue ice, the deep water showing through in darker patches, white cracks with a dark
+      // hairline on their shaded side, and snow laid over it in wind-cut drifts (a glacier's ice is bluer and cut by
+      // crevasses instead)
+      const bool glacier = m.kind == MapKind::Overworld && E == Eco::Glacier;
+      c = glacier ? pick3(n, C(132, 178, 222), C(150, 192, 230), C(168, 206, 238)) : pick3(n, C(150, 194, 226), C(166, 206, 234), C(182, 218, 242));
+      c = mul(c, 0.92f + vnoise(px / 18.0f, py / 18.0f, 1951) * 0.14f);
+      if (glacier) {
+        // (M3c fixer round 3, review: "cracked blobby ice meets the flowing crevasse texture along a straight line ...
+        // the whole field is very busy, camouflage-like") a glacier's bare ice carries the SAME crevasse field as the
+        // snow over it (ecoPixel Eco::Glacier: the warped, turned frame, seeds 1805..1809), so a crevasse runs on
+        // unbroken from the snow onto the ice and the two grounds read as one ice sheet; the frozen-lake cell cracks
+        // and the extra drifts are left to the lakes (two patterns laid over each other made the camouflage)
+        const float wx = px + (vnoise(px / 37.0f, py / 37.0f, 1807) - 0.5f) * 26.0f, wy = py + (vnoise(px / 37.0f, py / 37.0f, 1809) - 0.5f) * 26.0f;
+        const float u = wx * 0.92f + wy * 0.38f, v = wy * 0.92f - wx * 0.38f;
+        const float d = vnoise(u / 44.0f, v / 12.0f, 1805) - 0.5f;
+        if (std::fabs(d) < 0.012f) c = C(44, 76, 136);
+        else if (d >= 0.012f && d < 0.032f) c = mul(c, 0.82f);
+        else if (d <= -0.012f && d > -0.026f) c = C(236, 246, 255);
+        if (h < 0.006f) c = C(255, 255, 255);
+        break;
+      }
+      const int r = ridgeLine(vnoise(px / 13.0f, py / 13.0f, 1953), 0.016f);
+      if (r == 1) c = C(238, 248, 255);
+      else if (r == 3) c = mul(c, 0.82f);
+      if (m.kind == MapKind::Overworld) {
+        // (M3c fixer) the drifts read through a warped, turned frame (on the raw lattice they lay in rows of lozenges)
+        const float wx = px + (vnoise(px / 41.0f, py / 41.0f, 1957) - 0.5f) * 30.0f, wy = py + (vnoise(px / 41.0f, py / 41.0f, 1959) - 0.5f) * 30.0f;
+        const float d = vnoise((wx * 0.9f + wy * 0.44f) / 34.0f, (wy * 0.9f - wx * 0.44f) / 13.0f, 1955) + (bayer(px, py) - 0.5f) * 0.06f;
+        if (d > (glacier ? 0.62f : 0.68f)) c = d > (glacier ? 0.68f : 0.74f) ? C(236, 242, 250) : C(208, 222, 240);
+      }
+      if (h < 0.012f) c = C(255, 255, 255);
       break;
-    case Ground::Lava:
-      c = pick3(n, C(220, 80, 20), C(250, 130, 30), C(255, 190, 60));
+    }
+    case Ground::Lava: {
+      // (M3c) an ash field's rift: molten rock under a cooling black crust, plates parted by glowing seams that widen
+      // where the melt runs open, embers flecking the crust
+      // (fixer r2) its depth into the rift (the smooth field above): a black lip of chilled rock along the edge, then
+      // the glowing rim, the melt opening wider toward the heart of the crack
+      const float dep = lavaV >= 0 ? std::clamp((lavaV - 0.5f) / 0.40f, 0.0f, 1.0f) : 1.0f;
+      if (dep < 0.10f) { c = C(30, 22, 26); break; }
+      if (dep < 0.24f) { c = (bayer(px, py) < (dep - 0.10f) / 0.14f) ? C(150, 54, 32) : C(96, 34, 28); break; }
+      const float run = vnoise(px / 30.0f, py / 30.0f, 1961);
+      const float f = std::fabs(vnoise(px / 9.0f, py / 9.0f, 1963) - 0.5f);
+      const float open = 0.04f + run * 0.16f + dep * 0.12f;
+      if (f < open) c = f < open * 0.45f ? C(255, 220, 110) : (f < open * 0.75f ? C(252, 156, 48) : C(214, 84, 30));
+      else {
+        c = pick3(n, C(40, 28, 32), C(54, 36, 36), C(68, 44, 40));
+        if (f < open + 0.02f) c = C(116, 40, 30);   // the crust's hot edge
+        else if (h < 0.03f) c = C(150, 54, 32);
+      }
       break;
+    }
     default:
       c = C(0, 0, 0);
       break;
+  }
+  // (fixer r2) the plank deck's thickness: a dark joint and a rim beam along its edge (lit where it faces the light,
+  // north and west), the deck's front face on the ground below its south edge, and its shadow on the ground south and
+  // east of it (top-left light)
+  if (deckTown) {
+    auto deck = [&](int x, int y) { const Ground q = m.at(x, y); return q == Ground::Road || q == Ground::Plaza; };
+    const int lx2 = px & 15, ly2 = py & 15;
+    if (deck(tx, ty) && (g == Ground::Road || g == Ground::Plaza)) {
+      const int dN = deck(tx, ty - 1) ? 99 : ly2, dS = deck(tx, ty + 1) ? 99 : 15 - ly2, dW = deck(tx - 1, ty) ? 99 : lx2, dE = deck(tx + 1, ty) ? 99 : 15 - lx2;
+      const int d = std::min(std::min(dN, dS), std::min(dW, dE));
+      if (d <= 3) {
+        const bool lit = d == dN || d == dW;
+        const bool alongX = d == dN || d == dS;
+        const int run = alongX ? px : py;
+        if (d == 0) c = lit ? C(150, 122, 88) : C(70, 52, 40);
+        else if (d == 3) c = C(58, 44, 34);                                              // the joint inside the beam
+        else c = ((run % 19 + 19) % 19 == 0) ? C(66, 50, 38) : (lit ? (d == 1 ? C(170, 140, 100) : C(146, 118, 84)) : (d == 1 ? C(116, 92, 66) : C(104, 82, 60)));
+        if (d >= 1 && d <= 2 && ((run % 19 + 19) % 19) == 9 && ((alongX ? py : px) & 1)) c = C(74, 70, 66);   // a nail head
+      }
+    } else if (!deck(tx, ty) && !groundWater(real)) {
+      // below the south edge: the deck's front face (3 px of plank ends), then its shadow; east of it: the shadow
+      const bool northDeck = deck(tx, ty - 1), westDeck = deck(tx - 1, ty), nwDeck = deck(tx - 1, ty - 1);
+      if (northDeck && ly2 < 3) c = ly2 == 2 ? C(48, 36, 30) : ((px % 5 + 5) % 5 == 0 ? C(60, 46, 36) : C(92, 70, 52));
+      else if ((northDeck && ly2 < 7) || (westDeck && lx2 < 4) || (nwDeck && lx2 < 4 && ly2 < 7)) c = lerpc(mul(c, 0.70f), C(48, 34, 92, (int)(c >> 24)), 0.14f);
+    }
   }
   // (M3 fixer) the marsh under and beside a boardwalk: its south face, its posts and its shade
   if (m.kind == MapKind::Overworld && (groundWater(g) || g == Ground::Swamp) && real != Ground::Bridge) {
@@ -1872,7 +2841,9 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
 // cold blue rock under snow, sandstone in the desert, dark mossy rock in the marsh.
 namespace {
 // the material of a face (VISION_PLAN 11.2): bank = soft earth layers instead of rock columns
-struct FacePal { RockPal p; bool bank; };
+// (M3c) style: 0 rock columns (or the bank's earth layers), 1 banded strata (badlands, petrified forest), 2 blue ice
+// (glacier, frozen lakes), 3 black basalt in narrow columns (ash fields), 4 white chalk with flint bands (chalk downs)
+struct FacePal { RockPal p; bool bank; int style = 0; };
 FacePal facePal(Biome b, int level) {
   switch (b) {
     case Biome::Plains: case Biome::Forest: case Biome::Autumn: case Biome::Beach:
@@ -1880,6 +2851,19 @@ FacePal facePal(Biome b, int level) {
       return {{C(198, 188, 164), C(156, 146, 128), C(128, 118, 104), C(98, 90, 82), C(62, 56, 56), false}, false};
     default: return {rockPal(b), false};
   }
+}
+// (M3c) the face of a step by biome proper: the wondrous and rocky lands show their own rock, the rest their family's
+FacePal facePalE(Eco e, Biome b, int level) {
+  switch (e) {
+    case Eco::Badlands: case Eco::PetrifiedForest: return {rockPalE(e), false, 1};
+    case Eco::Glacier: case Eco::FrozenLakes: return {rockPalE(e), false, 2};
+    case Eco::AshFields: return {rockPalE(e), false, 3};
+    case Eco::ChalkDowns: return {rockPalE(e), false, 4};
+    case Eco::CrystalBarrens: case Eco::Blight: case Eco::SeaCliffs: return {rockPalE(e), false, 0};
+    case Eco::Heath: case Eco::StonePlains: case Eco::Tundra: if (level >= 2) return {rockPalE(e), false, 0}; break;
+    default: break;
+  }
+  return facePal(b, level);
 }
 inline int luma8(uint32_t c) { return (int)((c & 255) * 0.3f + ((c >> 8) & 255) * 0.55f + ((c >> 16) & 255) * 0.15f); }
 }  // namespace
@@ -1901,7 +2885,7 @@ uint32_t View::reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g) 
   const bool water = groundWater(g) || g == Ground::Void;
   const bool ramp = (bits & Map::HEIGHT_RAMP) != 0;
   const Biome bio = m.biomeAt(tx, ty);
-  const FacePal FP = facePal(bio, l);
+  const FacePal FP = facePalE(ecoT(m, tx, ty), bio, l);
   RockPal P = FP.p;
   auto wob = [&](int a, int b, uint32_t seed, float amp) { return (int)std::lround((vnoise(a / 7.0f, b * 1.37f, seed) - 0.5f) * amp); };
   // the aerial grade: each level a touch brighter, the high ones a little hazier
@@ -1913,10 +2897,19 @@ uint32_t View::reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g) 
     // snowline: mountains and the cold north hold snow on their high ground. The snow cover is a field blended
     // between tile centres (each tile's biome and level), looked up through the same broad warp as the ecotones, so
     // its edge meanders and dithers instead of following the tile grid where a cold biome meets a mild one
-    if (g != Ground::Road && g != Ground::Plaza && g != Ground::Bridge && g != Ground::StoneFloor && g != Ground::Dirt && g != Ground::Farmland && !snowy) {
+    // (M3c fixer round 3, review: "snow cover on city paving is a flat untextured white fill with stair-stepped edges")
+    // paving and trodden earth are no longer cut out tile by tile (their square holes were the staircase): they take the
+    // cover too, but swept: the threshold rises smoothly with a paving field blended between tile centres, so the snow
+    // thins out across the kerb onto the cobbles in a ragged drift line, and the cover itself is drawn with wind-cut
+    // drifts, blue hollows and a glitter of ice
+    if (g != Ground::Bridge && g != Ground::StoneFloor && !snowy) {
       auto snowV = [&](int x, int y) -> float {
         const Biome b = m.biomeAt(x, y);
-        const int at = b == Biome::Mountain ? 5 : (b == Biome::Snow || b == Biome::Taiga) ? 4 : 99;
+        int at = b == Biome::Mountain ? 5 : (b == Biome::Snow || b == Biome::Taiga) ? 4 : 99;
+        if (at == 4) {   // (M3c) the open tundra and the bogs keep their lichen and moss up to the high ground
+          const Eco e = ecoT(m, x, y);
+          if (e == Eco::Tundra || e == Eco::TaigaBog) at = 6;
+        }
         const int lv = m.heightAt(x, y);
         return lv >= at ? (lv - at + 1) * 0.42f : -0.6f;
       };
@@ -1934,10 +2927,27 @@ uint32_t View::reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g) 
       const float sv = (bil(wx - 12, wy - 12, any) + bil(wx + 12, wy - 12, any) + bil(wx - 12, wy + 12, any) + bil(wx + 12, wy + 12, any)) * 0.25f;
       if (any) {
         float k = std::min(sv, 1.0f) + (vnoise(px / 11.0f, py / 11.0f, 831) - 0.5f) * 0.7f + (vnoise(px / 4.0f, py / 4.0f, 835) - 0.5f) * 0.2f;
-        const float th = 0.5f + (bayer(px, py) - 0.5f) * 0.25f;
+        auto sweptT = [&](int x, int y) -> float {
+          const Ground q = m.at(x, y);
+          return q == Ground::Road || q == Ground::Plaza || q == Ground::Bridge ? 1.0f : (q == Ground::Dirt || q == Ground::Farmland) ? 0.6f : 0.0f;
+        };
+        float swept;
+        {
+          const float fx = (px - 7.5f) / 16.0f, fy = (py - 7.5f) / 16.0f;
+          const int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
+          const float ax = fx - ix, ay = fy - iy;
+          swept = (sweptT(ix, iy) * (1 - ax) + sweptT(ix + 1, iy) * ax) * (1 - ay) + (sweptT(ix, iy + 1) * (1 - ax) + sweptT(ix + 1, iy + 1) * ax) * ay;
+        }
+        const float th = 0.5f + swept * 0.55f + (bayer(px, py) - 0.5f) * 0.12f;
         if (k > th) {
-          c = vnoise(px / 6.0f, py / 6.0f, 833) < 0.5f ? C(230, 236, 246) : C(242, 246, 252);
-          if (k < th + 0.05f) c = C(204, 212, 228);   // the thin, trodden edge of the cover
+          // the cover: soft wind-cut drifts aslant (lit crests, blue hollows), a glitter of ice, and a shaded rim where
+          // it thins out
+          const float dr = vnoise((px * 0.92f + py * 0.38f) / 30.0f, (py * 0.92f - px * 0.38f) / 9.0f, 837);
+          c = dr > 0.62f ? C(246, 249, 254) : dr < 0.34f ? C(214, 224, 240) : (vnoise(px / 6.0f, py / 6.0f, 833) < 0.5f ? C(230, 236, 246) : C(236, 241, 250));
+          if (dr > 0.58f && dr <= 0.62f) c = C(222, 230, 244);   // the drift's shaded lee under its crest
+          if (hashf(px, py, 839) < 0.012f) c = C(255, 255, 255);
+          if (k < th + 0.05f) c = C(196, 206, 224);              // the thin, trodden edge of the cover
+          else if (k < th + 0.10f) c = lerpc(c, C(206, 216, 234), 0.6f);
           c = coolSnow(mul(c, gradeSnow(l)), l);
           snowCover = true;
         }
@@ -2007,6 +3017,19 @@ uint32_t View::reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g) 
   bool flatHere = true;
   for (int k = 0; k < 36; k++) if (lc.lv[k] != l) { flatHere = false; break; }
   if (flatHere) return c;
+  // (M3c fixer round 3, review: "a brown cliff ribbon runs diagonally through the middle of the lake, with water on both
+  // sides") one sheet of water may lie over tiles of two levels (a lake district's lake across a relief step): water
+  // has no cliff in it. A water pixel whose every neighbouring tile of another level is water too draws no face, rim or
+  // lip: the lake reads as one surface (a step to dry land keeps its cliff, on the land's side)
+  if (water && groundWater(m.at(tx, ty))) {
+    bool allWet = true;
+    for (int oy = -2; oy <= 1 && allWet; oy++)
+      for (int ox = -1; ox <= 1; ox++) {
+        if ((int)lc.lv[(2 + oy) * 6 + 2 + ox] == l) continue;
+        if (!groundWater(m.at(tx + ox, ty + oy))) { allWet = false; break; }
+      }
+    if (allWet) return c;
+  }
   auto LV = [&](int x, int y) -> float {   // tile level, x/y relative to (tx - 2, ty - 2), clamped to the cache
     return (float)lc.lv[std::clamp(y, 0, 5) * 6 + std::clamp(x, 0, 5)];
   };
@@ -2046,8 +3069,31 @@ uint32_t View::reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g) 
       if (hashf(px, py, 863) < 0.025f) r = mul(r, 1.12f);
       return r;
     }
+    // (M3c) the biomes' own rock faces
+    if (FP.style == 1) {   // banded strata: red, ochre and cream layers, fluted by the rain
+      const int yy = py + (int)std::lround((vnoise(px / 13.0f, py / 6.0f, 921) - 0.5f) * 4.0f);
+      const int band = yy >= 0 ? yy / 3 : (yy - 2) / 3;
+      static const uint32_t BAND[5] = {C(226, 184, 134), C(196, 112, 72), C(170, 88, 60), C(214, 146, 96), C(150, 74, 56)};
+      r = lerpc(r, mul(BAND[hash2(band, 0, 923) % 5], 0.86f + (1 - t) * 0.22f), 0.55f);
+      const int fl = px + (int)(hash2(px / 4, band / 3, 925) % 2);
+      if (fl % 5 == 0) r = mul(r, 0.84f);          // the rain's flutes
+      else if (fl % 5 == 1) r = mul(r, 1.06f);
+      return r;
+    }
+    if (FP.style == 2) {   // ice: smooth blue, vertical melt streaks, glints, a few dark cracks
+      if (hash2(px / 2, 0, 927) % 4 == 0) r = mul(r, 0.92f);
+      if (hashf(px, py, 929) < 0.025f) r = C(250, 254, 255);
+      else if (((px * 3 + py * 2) % 23) == 0 && hashf(px / 5, py / 9, 931) < 0.3f) r = lerpc(r, P.dark, 0.6f);
+      return r;
+    }
+    if (FP.style == 4) {   // chalk: soft white beds, a band of black flint nodules here and there
+      const int band = py >= 0 ? py / 4 : (py - 3) / 4;
+      r = mul(r, 0.95f + hashf(band, px / 23, 933) * 0.08f);
+      if (band % 3 == 0 && hashf(px / 2, band, 935) < 0.35f) r = C(70, 70, 82);
+      return r;
+    }
     const int u = px + (int)std::lround((vnoise(px * 0.21f, py * 0.17f, 893) - 0.5f) * 5.0f);
-    const int cw = 6;
+    const int cw = FP.style == 3 ? 4 : 6;   // (basalt stands in narrow columns)
     const int col = u >= 0 ? u / cw : (u - cw + 1) / cw;
     const int in = u - col * cw;
     r = mul(r, 0.86f + hashf(col, py / 16, 895) * 0.24f);
@@ -2224,6 +3270,25 @@ uint32_t View::reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g) 
 // global origin, in global pixels. Everything a pixel looks at (organic borders, shores, bridges, rock terraces, wall
 // and building shadows) lies within the margin, so a chunk comes out the same whichever window it was baked in.
 void View::bakeChunk(const BakeJob& j, Canvas& c) {
+  // (M3c LAND) EMB_BAKEBENCH=1: every bake runs alone (one at a time, so the bakers never share the CPU) and prints its
+  // time with the chunk's commonest biome ("bakebench: <eco key> <ms>"); the phone budget check (tools/scripts/m3c_land_perf.txt)
+  static const bool bench = std::getenv("EMB_BAKEBENCH") != nullptr;
+  if (bench) {
+    static std::mutex benchMu;
+    std::lock_guard<std::mutex> lk(benchMu);
+    const auto t0 = std::chrono::steady_clock::now();
+    c = Canvas(CH * 16, CH * 16);
+    bakeRows(j, c, 0, c.h);
+    bakeFinish(j, c);
+    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    int cnt[(int)Eco::COUNT] = {};
+    for (int y = kBakeMargin; y < kBakeMargin + CH; y += 2)
+      for (int x = kBakeMargin; x < kBakeMargin + CH; x += 2) cnt[(int)j.map->ecoAt(x, y)]++;
+    const int best = (int)(std::max_element(cnt, cnt + (int)Eco::COUNT) - cnt);
+    std::printf("bakebench: %s %.2f\n", ecoInfo((Eco)best).key, ms);
+    std::fflush(stdout);
+    return;
+  }
   c = Canvas(CH * 16, CH * 16);
   bakeRows(j, c, 0, c.h);
   bakeFinish(j, c);
@@ -2407,6 +3472,8 @@ View::BakeJob View::makeJob(const Map& m, uint64_t mapId, int cx, int cy) const 
   if (!m.biome.empty()) sub->biome.assign(n, 0);
   if (!m.height.empty()) sub->height.assign(n, 0);
   if (!m.blend.empty()) sub->blend.assign(n, 0);
+  if (!m.eco.empty()) sub->eco.assign(n, 0);       // (M3c) the biome proper and the eco it blends toward
+  if (!m.ecoNb.empty()) sub->ecoNb.assign(n, 0);
   // M2 ecotones: a map whose generator writes no blend bytes gets them derived from its biomes (decided per map, so
   // every chunk of it agrees)
   j.ecoDerive = m.kind == MapKind::Overworld && !m.biome.empty() && std::none_of(m.blend.begin(), m.blend.end(), [](uint8_t v) { return v != 0; });
@@ -2422,6 +3489,8 @@ View::BakeJob View::makeJob(const Map& m, uint64_t mapId, int cx, int cy) const 
     if (!m.biome.empty()) std::copy_n(m.biome.begin() + si, len, sub->biome.begin() + di);
     if (!m.height.empty()) std::copy_n(m.height.begin() + si, len, sub->height.begin() + di);
     if (!m.blend.empty()) std::copy_n(m.blend.begin() + si, len, sub->blend.begin() + di);
+    if (!m.eco.empty()) std::copy_n(m.eco.begin() + si, len, sub->eco.begin() + di);
+    if (!m.ecoNb.empty()) std::copy_n(m.ecoNb.begin() + si, len, sub->ecoNb.begin() + di);
   }
   // the buildings whose footprint (or shadow, up to a tile and a half down-right) reaches the snapshot
   for (const Bldg& b : m.bldgs) {
@@ -2475,7 +3544,7 @@ void View::prefetch(const Map& m, uint64_t mapId, Vec2 cam) {
   std::lock_guard<std::mutex> lk(mu_);
   // keep only jobs for the current map (the global chunk key survives window shifts, so those jobs stay)
   for (size_t i = 0; i < jobs_.size();) {
-    if (jobs_[i].mapId == mapId) { i++; continue; }
+    if (jobs_[i].mapId == mapId || (prepMapId_ && jobs_[i].mapId == prepMapId_)) { i++; continue; }   // (M3c: the door ahead's interior too)
     // forget it was pending too, or coming back to that map would wait forever and bake inline (a hitch)
     uint64_t k = jobs_[i].key;
     pending_.erase(std::remove(pending_.begin(), pending_.end(), k), pending_.end());
@@ -2483,7 +3552,7 @@ void View::prefetch(const Map& m, uint64_t mapId, Vec2 cam) {
   }
   // finished bakes nobody will collect (another map, or a chunk already baked inline) are ~1 MB each: drop them
   for (size_t i = 0; i < done_.size();) {
-    bool stale = done_[i].mapId != mapId;
+    bool stale = done_[i].mapId != mapId && !(prepMapId_ && done_[i].mapId == prepMapId_);
     for (auto& ch : chunks_) if (ch.key == done_[i].key) stale = true;
     if (stale) {
       uint64_t k = done_[i].key;

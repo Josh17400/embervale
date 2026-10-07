@@ -105,6 +105,16 @@ void Game::dropItem(int i) {
   recalcPlayer();
 }
 
+namespace {
+// (M3c LIFE) a hide or part of the Wildlands wildlife: a misc good of the base kind (8 hide, 9 pelt, 6 gem-like, 1 bone,
+// 10 herb) under its own name, value and tint
+Item wildGood(int base, const char* name, art::Icon icon, int value, uint32_t tint) {
+  Item it = makeMisc(base);
+  it.name = name; it.icon = icon; it.value = value; it.tint = tint;
+  return it;
+}
+}  // namespace
+
 void Game::dropLoot(const Actor& a) {
   if (a.npc) return;
   Rng r(hash32((uint32_t)a.id * 7919u) ^ (uint32_t)seed ^ (uint32_t)(time * 10));
@@ -128,6 +138,35 @@ void Game::dropLoot(const Actor& a) {
     case Monster::Goblin: dropGold(2 + r.irange(8)); if (r.f() < 0.2f) drop(randomLoot(r, a.level, false)); break;
     case Monster::Wraith: if (r.f() < 0.4f) drop(makeMisc(6)); break;
     case Monster::Mudcrab: if (r.f() < 0.3f) drop(makeFood(1)); break;
+    // (M3c LIFE) the Wildlands wildlife: hides and parts for M6 crafting (biomes.h HD_CHITIN, HD_SPOTTED, HD_SCALE, HD_FUR;
+    // the wisp's, the hound's and the blight's goods are the magic lands' reagents). Misc goods stack by name.
+    case Monster::Scorpion:
+      if (r.f() < (background == Background::Hunter ? 0.9f : 0.6f)) drop(wildGood(8, "SCORPION CHITIN", art::Icon::Pelt, 16, rgba(196, 140, 72)));
+      if (r.f() < 0.25f) drop(wildGood(1, "SCORPION STINGER", art::Icon::Bone, 24, rgba(120, 60, 50)));
+      break;
+    case Monster::Hyena:
+      if (r.f() < (background == Background::Hunter ? 1.0f : 0.55f)) drop(wildGood(8, "SPOTTED HIDE", art::Icon::Pelt, 12, rgba(196, 168, 110)));
+      if (r.f() < 0.2f) drop(makeFood(1));
+      break;
+    case Monster::Lurker:
+      if (r.f() < (background == Background::Hunter ? 1.0f : 0.7f)) drop(wildGood(8, "LURKER SCALES", art::Icon::Pelt, 28, rgba(84, 116, 66)));
+      if (r.f() < 0.35f) drop(makeFood(1));
+      break;
+    case Monster::Yeti:
+      drop(wildGood(9, "YETI FUR", art::Icon::Pelt, 48, rgba(226, 234, 246)));
+      if (background == Background::Hunter) drop(wildGood(9, "YETI FUR", art::Icon::Pelt, 48, rgba(226, 234, 246)));
+      if (r.f() < 0.3f) drop(makeFood(1));
+      break;
+    case Monster::Wisp: if (r.f() < 0.45f) drop(wildGood(6, "WISP ESSENCE", art::Icon::Gem, 60, rgba(120, 230, 230))); break;
+    case Monster::EmberHound:
+      if (r.f() < (background == Background::Hunter ? 0.9f : 0.5f)) drop(wildGood(9, "EMBER HIDE", art::Icon::Pelt, 36, rgba(90, 40, 34)));
+      if (r.f() < 0.2f) drop(wildGood(6, "CINDER HEART", art::Icon::Gem, 72, rgba(255, 140, 50)));
+      break;
+    case Monster::Blightspawn:
+      if (r.f() < 0.5f) drop(wildGood(10, "BLIGHTED THORN", art::Icon::Herb, 18, rgba(120, 70, 120)));
+      if (r.f() < 0.2f) drop(makeMisc(10));
+      if (r.f() < 0.15f) dropGold(4 + r.irange(10));   // (what it caught up in its roots)
+      break;
     default: break;
   }
   if (a.boss && a.mon != Monster::Dragon) { dropGold(40 + a.level * 12); drop(randomLoot(r, a.level, true)); }
@@ -1288,7 +1327,7 @@ bool Game::sell(int ii) {
 // travel and death: rpg/sim/travel.cpp (M2)
 
 // ------------------------------------------------------------------ save / load
-// SAVE_VER 8 (M3b: the layout of 7, bumped with the builder's world generation). SAVE_VER 7 (M3: the appearance block gains people, homeland and personal heraldry; nothing else moved).
+// SAVE_VER 9 (M3c: the layout of 8, bumped with the Wildlands world generation). SAVE_VER 8 (M3b: the layout of 7, bumped with the builder's world generation). SAVE_VER 7 (M3: the appearance block gains people, homeland and personal heraldry; nothing else moved).
 // SAVE_VER 6 (M2). Owner, 2026-10-04: old saves are not a concern, so only this version loads; an older file is refused
 // and the title offers a new game ("this save is from an older version"). The layout is frozen for M2 after phase A
 // (the lanes fill the new fields, they do not move them); any later change bumps SAVE_VER and regenerates
@@ -1322,7 +1361,9 @@ bool Game::sell(int ii) {
 // refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
 // 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 8;   // 8: M3b Builders & Societies (the world is built by the builder: a new
+static constexpr uint32_t SAVE_VER = 9;   // 9: M3c Wildlands (the layout of 8; the world's biomes, flora and wildlife
+                                          //    are new, ENDLESS_GEN_VER 12, so older adventures start anew);
+                                          // 8: M3b Builders & Societies (the world is built by the builder: a new
                                           //    generation, so older adventures start anew); 7: M3 (appearance: people,
                                           //    homeland, personal heraldry)
 

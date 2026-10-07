@@ -139,6 +139,7 @@ void Gen::land() {
     if (all > 0 && snowy * 2 > all) bio = Biome::Snow;
   }
   if (bio == Biome::Ocean || bio == Biome::Mountain) bio = Biome::Plains;
+  eco = ecoFamily(C.eco) == bio ? C.eco : ecoOfFamily(bio);   // (M3c)
   pickStyle();
   // (M3) a culture's village takes its street form from its colour (town_rules.h: its neighbours differ)
   if (village && C.culture) layout = townForm(townColour(C.culture, P.type, P.ex, P.ey, P.kind));
@@ -150,15 +151,17 @@ void Gen::land() {
     bio = Biome::Desert;
     for (int y = 0; y < H; y++)
       for (int x = 0; x < W; x++) {
-        const float b = blob(x, y, cx, cy, rx + 1.5f, ry + 1.5f, bseed);
-        if (b > 1.3f) continue;
+        // (M3c fixer round 2) over the whole buffer: the land round the town is the dune folk's desert apron now
+        // (chunkgen.cpp lays it about 12 tiles out), so the town's own outer ground (its gate approaches, its fields'
+        // verges) is sand too, not islands of the old meadow by the gates
         const Ground g = M.at(x, y);
         if (g != Ground::Grass && g != Ground::Meadow && g != Ground::ForestFloor && g != Ground::Autumn) continue;
-        if (b < 1.0f || (int)(hashAt(x, y, 977u) % 100u) < (int)((1.3f - b) * 300.0f)) {
-          M.setG(x, y, Ground::Sand);
-          M.biome[I(x, y)] = (uint8_t)Biome::Desert;
-        }
+        M.setG(x, y, Ground::Sand);
+        M.biome[I(x, y)] = (uint8_t)Biome::Desert;
       }
+    // (M3c fixer round 2) and the trees the town plants are the desert's too (the eco was taken from the green land
+    // before the sand was laid, so the streets and gardens of a dune capital grew oaks and autumn maples)
+    eco = ecoFamily(C.eco) == Biome::Desert ? C.eco : ecoOfFamily(Biome::Desert);
   }
   switch (bio) {
     case Biome::Snow: base = Ground::Snow; break;

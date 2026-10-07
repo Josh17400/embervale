@@ -1,0 +1,20 @@
+# M3c phase A (lead): a quick tour of a few biomes found with gotoeco (the classifier's first cut, stand-in flora).
+#   embervale.exe --script tools/scripts/m3c_lead_biomes.txt     (m3c_lead_*.png in the working directory)
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 gotoeco savanna
++2.0 eco
++0.1 expect eco savanna
++0.1 shot m3c_lead_savanna.png
++0.2 gotoeco birchwood
++2.0 expect eco birchwood
++0.1 shot m3c_lead_birchwood.png
++0.2 gotoeco badlands
++2.0 expect eco badlands
++0.1 shot m3c_lead_badlands.png
++0.2 gotoeco mushroomforest
++2.0 expect eco mushroomforest
++0.1 shot m3c_lead_mushroom.png
++0.3 quit

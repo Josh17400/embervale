@@ -171,7 +171,8 @@ void humanSheets(const std::string& dir) {
 }
 
 const char* kMonsterNames[] = {"WOLF", "BOAR", "BEAR", "SLIME", "SPIDER", "BAT", "SKELETON", "DRAUGR", "GOBLIN",
-                               "TROLL", "WRAITH", "MUDCRAB", "ICE WOLF", "FROST SPIDER", "SANDWORM", "DRAGON"};
+                               "TROLL", "WRAITH", "MUDCRAB", "ICE WOLF", "FROST SPIDER", "SANDWORM", "DRAGON", "SCORPION", "HYENA",
+                               "LURKER", "YETI", "WISP", "EMBER HOUND", "BLIGHTSPAWN"};
 
 void monsters(const std::string& dir) {
   int W = 0, H = 4;

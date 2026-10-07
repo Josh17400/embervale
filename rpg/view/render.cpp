@@ -7,8 +7,11 @@
 #include "rpg/art/art_parts.h"
 #include "rpg/sim/deco.h"
 #include "rpg/view/prop_traits.h"
+#include "rpg/view/script_api.h"
 #include "rpg/view/view.h"
+#include "rpg/world/biomes.h"
 #include "rpg/world/economy.h"
+#include "rpg/world/ids.h"
 #include "rpg/world/source.h"
 
 using art::Prop;
@@ -49,19 +52,16 @@ Canvas paintMineHill(uint64_t key) { return art::mineHill((int)(key & 3), (int)(
 Canvas paintRuin(uint64_t key) { return art::ruinVariant((Prop)((key >> 8) & 255), (int)(key & 255)); }
 Canvas paintTallGrass(uint64_t key) { return art::tallGrassVariant((int)(key & 15)); }
 Canvas paintBoulder(uint64_t key) { return art::boulderVariant((int)(key & 15)); }
+// (M3c) a Wildlands flora prop: bits 16..23 the prop, 8..15 the eco, 0..7 the variant
+Canvas paintFlora(uint64_t key) { return art::floraVariant((art::Prop)((key >> 16) & 255), (int)(key & 255), (int)((key >> 8) & 255)); }
+// (M3c fixer round 2) a leafy tree in the snow (key: the prop)
+Canvas paintWinterTree(uint64_t key) { return art::winterTree((art::Prop)(key & 255)); }
 // (M3b) a standing stone: variant (low 4 bits) in the culture (bits 8..15: archetype + 1, 0 the land's field stone)
 Canvas paintStandingStone(uint64_t key) {
   return art::standingStoneVariant((int)(key & 15), bld::standingStoneParts((int)((key >> 8) & 255), (uint32_t)(key & 15) * 2654435761u));
 }
-Canvas paintPeak(uint64_t key) { return art::peakVariant((int)(key & 7) + ((key >> 5) & 1 ? 8 : 0), (int)((key >> 3) & 3)); }
-// M2: a peak's land: snow-capped in the cold or on the highest ground, sandstone in the desert, grey rock elsewhere
-int peakLand(const Map& m, int tx, int ty) {
-  const Biome b = m.biomeAt(tx, ty);
-  if (b == Biome::Desert) return 2;
-  if (b == Biome::Snow || b == Biome::Taiga || m.heightAt(tx, ty) >= 6) return 1;
-  if (b == Biome::Mountain && m.heightAt(tx, ty) >= 5) return 1;
-  return 0;
-}
+// (M3c) key: bits 0-2 the variant, 3-6 the land (prop_traits.cpp peakLand, 0..15), bit 7 a GreatPeak
+Canvas paintPeak(uint64_t key) { return art::peakVariant((int)(key & 7) + ((key >> 7) & 1 ? 8 : 0), (int)((key >> 3) & 15)); }
 // M2: the big wild props the hero can walk behind: they thin out like a tree crown (the ghost shows him through)
 bool tallWild(Prop p) { return p == Prop::Peak || p == Prop::GreatPeak || p == Prop::ElderTree || p == Prop::Colossus || p == Prop::WatchtowerRuin; }
 
@@ -790,19 +790,158 @@ void View::update(Game& g, float dt) {
     audio_->setMusic(want, style ? &ms : nullptr);
   }
 
-  // ambient particles
-  if (g.mode != Mode::Title && !g.inside) {
-    const Actor& p = g.pl();
-    Biome b = g.world.over.biomeAt((int)(p.p.x / 16), (int)(p.p.y / 16));
+  // (M3c LIFE) the land under the player (its eco), looked up a few times a second
+  const bool outdoors = g.mode != Mode::Title && !g.inside;
+  ecoT_ -= dt;
+  if (ecoT_ <= 0) {
+    ecoT_ = 0.25f;
+    const int ptx = (int)std::floor(g.pl().p.x / 16), pty = (int)std::floor(g.pl().p.y / 16);
+    const int e = outdoors && g.map().kind == MapKind::Overworld ? (int)g.world.over.ecoAt(ptx, pty) : -1;
+    if (e != hereEco_ && e >= 0 && g.mode == Mode::Play) {
+      // the first visit to a biome this adventure: a quiet banner naming it (Game::marks keeps it with the save;
+      // the key is game_internal.h markKey(0x7E000 + eco, Mk::Biome = 8))
+      const uint64_t key = ew::mix64((0x7E000ull + (uint64_t)e) ^ (8ull * 0xD1B54A32D192ED03ull));
+      // (M3c fixer, review: a stale or wrong banner) a banner still waiting behind a big one, or not yet shown, gives
+      // way to the land the player now stands in (its biome stays unmarked, so it greets them next time)
+      if (biomeBannerT_ >= 3.9f && biomeBannerEco_ >= 0 && biomeBannerEco_ != e) {
+        g.marks.erase(ew::mix64((0x7E000ull + (uint64_t)biomeBannerEco_) ^ (8ull * 0xD1B54A32D192ED03ull)));
+        biomeBannerT_ = 0;
+        biomeBannerEco_ = -1;
+      }
+      if (!g.marks.count(key) && e != (int)Eco::Ocean) {
+        g.marks[key] = g.day;
+        biomeBanner_ = std::string("THE ") + ecoName((Eco)e);
+        biomeBannerT_ = 4.0f;
+        biomeBannerEco_ = e;
+      }
+    }
+    if (e >= 0) hereEco_ = e;
+    else if (!outdoors) hereEco_ = -1;
+    // shown only while the player is still out in that land: indoors or elsewhere it fades out at once (one still
+    // waiting is dropped and its biome unmarked)
+    if (biomeBannerT_ > 0 && biomeBannerEco_ >= 0 && (!outdoors || (e >= 0 && e != biomeBannerEco_))) {
+      if (biomeBannerT_ >= 3.9f) g.marks.erase(ew::mix64((0x7E000ull + (uint64_t)biomeBannerEco_) ^ (8ull * 0xD1B54A32D192ED03ull)));
+      biomeBannerT_ = biomeBannerT_ >= 3.9f ? 0.0f : std::min(biomeBannerT_, 0.3f);
+      if (biomeBannerT_ <= 0) biomeBannerEco_ = -1;
+    }
+  }
+  if (biomeBannerT_ > 0 && (bannerT_ <= 0 || biomeBannerT_ < 3.9f) && g.mode == Mode::Play) biomeBannerT_ -= dt;   // (it waits for a big banner)
+
+  // the weather (drawWeather paints wx_): what each nearby tile's Sky makes of this day and hour, averaged over five
+  // points round the player (so it fades in over a dozen tiles at a border) and eased over a few seconds
+  if (outdoors && g.map().kind == MapKind::Overworld) {
+    wxSampleT_ -= dt;
+    if (wxSampleT_ <= 0 || !wxInit_) {
+      wxSampleT_ = 0.5f;
+      const int slot = g.day * 8 + (int)(g.hour / 3);
+      uint32_t w = hash32((uint32_t)slot ^ (uint32_t)g.seed) % 100, w2 = hash32((uint32_t)slot * 2654435761u ^ (uint32_t)g.seed ^ 0x5EEDu) % 100;
+      if (skyOverride_ >= 0) w = w2 = 0;   // (a script's forced weather: at full strength)
+      const float h = g.hour;
+      const float hot = clampf(std::min(h - 9.5f, 17.5f - h) / 1.5f, 0, 1);    // midday heat for the shimmer
+      const float morning = clampf(1.0f - std::fabs(h - 6.5f) / 3.5f, 0, 1);  // the fogs are thickest at dawn
+      Wx want;
+      float er = 0, eg = 0, eb = 0, en = 0;
+      const int ptx = (int)std::floor(g.pl().p.x / 16), pty = (int)std::floor(g.pl().p.y / 16);
+      static const int ox[5] = {0, -7, 7, 0, 0}, oy[5] = {0, 0, 0, -6, 6};
+      for (int k = 0; k < 5; k++) {
+        const Eco e = g.world.over.ecoAt(ptx + ox[k], pty + oy[k]);
+        Wx t;
+        switch (skyOverride_ >= 0 && skyOverride_ < (int)Sky::COUNT ? (Sky)skyOverride_ : ecoInfo(e).sky) {
+          case Sky::Temperate: t.rain = w < 22 ? 1.0f : 0.0f; t.drizzle = w >= 22 && w < 30 ? 1.0f : 0.0f; t.fog = morning * (w2 < 30 ? 0.5f : 0.0f); break;
+          case Sky::Showery: t.rain = w < 45 ? 1.0f : 0.0f; t.drizzle = w >= 45 && w < 70 ? 1.0f : 0.0f; t.fog = 0.25f + morning * 0.3f; break;
+          case Sky::Misty: t.fog = 0.75f + morning * 0.25f; t.drizzle = w < 40 ? 1.0f : 0.0f; t.rain = w < 12 ? 0.6f : 0.0f; break;
+          case Sky::Dry: t.rain = w < 5 ? 0.8f : 0.0f; t.shimmer = hot * 0.7f; t.sand = w2 < 10 ? 0.35f : 0.0f; break;
+          case Sky::Arid: t.sand = w < 24 ? 1.0f : (w2 < 30 ? 0.3f : 0.0f); t.shimmer = hot; break;
+          case Sky::Snowy: t.snow = w < 55 ? 1.0f : 0.25f; t.fog = w2 < 25 ? 0.3f : 0.0f; break;
+          case Sky::Blizzard: t.blizz = w < 45 ? 1.0f : 0.0f; t.snow = w < 45 ? 0.6f : 0.8f; t.fog = 0.25f; break;
+          case Sky::Monsoon: t.pour = w < 40 ? 1.0f : 0.0f; t.rain = w >= 40 && w < 60 ? 0.8f : 0.0f; t.drizzle = w >= 60 && w < 75 ? 1.0f : 0.0f; t.fog = 0.35f + morning * 0.3f; break;
+          case Sky::Ashfall: t.ash = 0.6f + (w < 40 ? 0.4f : 0.0f); break;
+          case Sky::Eerie: t.eerie = 0.7f + (w < 40 ? 0.3f : 0.0f); t.fog = e == Eco::Blight ? 0.35f : 0.15f; break;
+          default: break;
+        }
+        if (t.eerie > 0) {
+          float r = 0.75f, gg = 0.9f, b = 1.0f;
+          if (e == Eco::MushroomForest) { r = 0.80f; gg = 0.55f; b = 1.0f; }
+          else if (e == Eco::CrystalBarrens) { r = 0.60f; gg = 0.90f; b = 1.0f; }
+          else if (e == Eco::Silverwood) { r = 0.85f; gg = 1.0f; b = 0.92f; }
+          else if (e == Eco::Blight) { r = 0.62f; gg = 0.80f; b = 0.32f; }
+          er += r; eg += gg; eb += b; en += 1;
+        }
+        const float f = k == 0 ? 0.4f : 0.15f;
+        want.rain += t.rain * f; want.pour += t.pour * f; want.drizzle += t.drizzle * f; want.fog += t.fog * f; want.snow += t.snow * f;
+        want.blizz += t.blizz * f; want.sand += t.sand * f; want.shimmer += t.shimmer * f; want.ash += t.ash * f; want.eerie += t.eerie * f;
+      }
+      if (en > 0) { want.er = er / en; want.eg = eg / en; want.eb = eb / en; } else { want.er = wx_.er; want.eg = wx_.eg; want.eb = wx_.eb; }
+      wxWant_ = want;
+      if (!wxInit_) { wx_ = want; wxInit_ = true; }
+    }
+    const float k = std::min(1.0f, dt * 0.35f);
+    auto ease = [&](float& v, float t) { v += (t - v) * k; };
+    ease(wx_.rain, wxWant_.rain); ease(wx_.pour, wxWant_.pour); ease(wx_.drizzle, wxWant_.drizzle); ease(wx_.fog, wxWant_.fog);
+    ease(wx_.snow, wxWant_.snow); ease(wx_.blizz, wxWant_.blizz); ease(wx_.sand, wxWant_.sand); ease(wx_.shimmer, wxWant_.shimmer);
+    ease(wx_.ash, wxWant_.ash); ease(wx_.eerie, wxWant_.eerie);
+    ease(wx_.er, wxWant_.er); ease(wx_.eg, wxWant_.eg); ease(wx_.eb, wxWant_.eb);
+  } else if (g.inside) wxInit_ = false;   // (back outside, the weather is simply there)
+
+  // the land's sound bed and the wilderness music's mood (engine/audio.cpp): silent indoors, in caves and the menus,
+  // softer in towns and dialogue, under a fight
+  {
+    const Eco he = hereEco_ >= 0 ? (Eco)hereEco_ : Eco::Meadow;
+    float lvl = 1.0f;
+    if (!outdoors || hereEco_ < 0) lvl = 0;
+    switch (g.mode) {
+      case Mode::Play: break;
+      case Mode::Dialogue: lvl *= 0.35f; break;
+      default: lvl = 0; break;
+    }
+    if (g.curSite >= 0 && g.curSite < (int)g.world.sites.size() && g.world.sites[(size_t)g.curSite].settlement()) lvl *= 0.4f;
+    if (combatT_ > 0) lvl *= 0.6f;
+    if (g.travel.phase != TravelPhase::None) lvl *= 0.5f;
+    ambLevel_ = lvl;
+    audio_->setAmbient((uint8_t)ecoInfo(he).amb, lvl);
+    audio_->setMood((uint8_t)ecoInfo(he).mood);
+    audio_->setDaylight(g.mode == Mode::Title ? 1.0f : clampf(g.daylight(), 0, 1));
+  }
+
+  // ambient particles (world layer): the land's own drift
+  if (outdoors && hereEco_ >= 0) {
+    const Eco e = (Eco)hereEco_;
+    const Biome b = ecoFamily(e);
     Rng r((uint32_t)(t_ * 997));
-    if (g.isNight() && (b == Biome::Plains || b == Biome::Forest || b == Biome::Swamp || b == Biome::Autumn) && r.f() < dt * 6) {
-      Particle q; q.p = cam_ + Vec2(r.range(0, Pix::W), r.range(0, Pix::H)); q.v = Vec2(r.range(-6, 6), r.range(-6, 6));
-      q.life = q.max = r.range(2, 4); q.c = Color(0.8f, 1.0f, 0.4f); q.size = 1; q.layer = 1; parts_.push_back(q);
-    }
-    if (b == Biome::Autumn && r.f() < dt * 5) {
-      Particle q; q.p = cam_ + Vec2(r.range(0, Pix::W), -4); q.v = Vec2(r.range(8, 20), r.range(14, 24));
-      q.life = q.max = 10; q.c = r.f() < 0.5f ? Color(0.85f, 0.35f, 0.15f) : Color(0.95f, 0.7f, 0.25f); q.size = 2; q.layer = 2; parts_.push_back(q);
-    }
+    auto spawn = [&](Vec2 p, Vec2 v, float life, Color c, float size, int layer) {
+      Particle q; q.p = p; q.v = v; q.life = q.max = life; q.c = c; q.size = size; q.layer = layer; parts_.push_back(q);
+    };
+    auto anywhere = [&]() { return cam_ + Vec2(r.range(0, (float)Pix::W), r.range(0, (float)Pix::H)); };
+    auto fromTop = [&]() { return cam_ + Vec2(r.range(-40, (float)Pix::W), -4); };
+    // fireflies over the meadows, the reeds and the woods on a warm night
+    const bool flies = (b == Biome::Plains && !ecoHas(e, EF_COLD) && e != Eco::Blight) || b == Biome::Forest || b == Biome::Autumn ||
+                       (b == Biome::Swamp && e != Eco::PeatBog);
+    const float flyRate = e == Eco::Jungle || e == Eco::FloodedForest || e == Eco::FlowerMeadow || e == Eco::LakeDistrict ? 10.0f : 6.0f;
+    if (g.isNight() && flies && r.f() < dt * flyRate)
+      spawn(anywhere(), Vec2(r.range(-6, 6), r.range(-6, 6)), r.range(2, 4), Color(0.8f, 1.0f, 0.4f), 1, 1);
+    // falling leaves in the autumn woods (and now and then in a broadleaf wood)
+    if ((b == Biome::Autumn && r.f() < dt * 5) || ((e == Eco::MixedForest || e == Eco::BirchWood) && r.f() < dt * 0.8f))
+      spawn(fromTop(), Vec2(r.range(8, 20), r.range(14, 24)), 10,
+            b == Biome::Autumn ? (r.f() < 0.5f ? Color(0.85f, 0.35f, 0.15f) : Color(0.95f, 0.7f, 0.25f)) : Color(0.75f, 0.78f, 0.3f), 2, 2);
+    // petals drifting down in the blossom groves
+    if (e == Eco::BlossomGrove && r.f() < dt * 7)
+      spawn(fromTop(), Vec2(r.range(10, 26), r.range(10, 18)), 12, r.f() < 0.6f ? Color(1.0f, 0.78f, 0.86f) : Color(0.98f, 0.92f, 0.95f), r.f() < 0.3f ? 2.f : 1.f, 2);
+    // embers rising off the ash fields
+    if (e == Eco::AshFields && r.f() < dt * 9)
+      spawn(cam_ + Vec2(r.range(0, (float)Pix::W), r.range(Pix::H * 0.3f, (float)Pix::H + 10)), Vec2(r.range(-8, 8), r.range(-26, -12)), r.range(1.5f, 3.0f),
+            r.f() < 0.5f ? Color(1.0f, 0.55f, 0.15f) : Color(1.0f, 0.82f, 0.35f), 1, 1);
+    // spores in the mushroom wood, glints on the crystal barrens, silver motes in the silverwood, flies over the blight
+    if (e == Eco::MushroomForest && r.f() < dt * 6)
+      spawn(anywhere(), Vec2(r.range(-4, 4), r.range(-8, -2)), r.range(3, 5), Color(0.85f, 0.6f, 1.0f), 1, 1);
+    if (e == Eco::CrystalBarrens && r.f() < dt * 5)
+      spawn(anywhere(), Vec2(0, 0), r.range(0.4f, 0.9f), Color(0.8f, 0.95f, 1.0f), 1, 1);
+    if (e == Eco::Silverwood && r.f() < dt * 5)
+      spawn(anywhere(), Vec2(r.range(-3, 3), r.range(-5, -1)), r.range(3, 5), Color(0.9f, 1.0f, 0.95f), 1, 1);
+    if (e == Eco::Blight && r.f() < dt * 6)
+      spawn(anywhere(), Vec2(r.range(-30, 30), r.range(-20, 20)), r.range(0.6f, 1.2f), Color(0.12f, 0.1f, 0.1f), 1, 0);
+    // pollen over a summer meadow by day
+    if (!g.isNight() && (e == Eco::FlowerMeadow || e == Eco::Meadow || e == Eco::AlpineMeadow) && r.f() < dt * 2)
+      spawn(anywhere(), Vec2(r.range(4, 10), r.range(-3, 3)), r.range(3, 5), Color(1.0f, 0.95f, 0.7f), 1, 1);
   }
   if (g.inside && g.subSite >= 0 && hashf((int)(t_ * 10), 0, 9) < dt * 4) {
     Rng r((uint32_t)(t_ * 331));
@@ -822,13 +961,18 @@ struct Drawable {
 };
 }  // namespace
 
+uint64_t View::mapIdFor(const Game& g, int key) const {
+  uint64_t mapId = hash32((uint32_t)g.world.seed ^ (uint32_t)(g.world.seed >> 32)) * 2654435761ull + (uint64_t)(key + 7);
+  mapId ^= (uint64_t)g.world.genVersion << 56 | (uint64_t)(g.world.endless ? 1 : 0) << 55;
+  return mapId;
+}
+
 uint64_t View::terrainFrame(Game& g, const Map*& mp) {
   const Map& m = g.mode == Mode::Title ? g.world.over : g.map();
   mp = &m;
   int key = g.mode == Mode::Title ? 0 : g.mapKey();
   if (key != lastMapKey_) { lastMapKey_ = key; }
-  uint64_t mapId = hash32((uint32_t)g.world.seed ^ (uint32_t)(g.world.seed >> 32)) * 2654435761ull + (uint64_t)(key + 7);
-  mapId ^= (uint64_t)g.world.genVersion << 56 | (uint64_t)(g.world.endless ? 1 : 0) << 55;
+  const uint64_t mapId = mapIdFor(g, key);
   // M1: an endless overworld's terrain chunks are keyed by GLOBAL chunk (the window origin in chunks plus the local
   // chunk), so a window shift keeps every chunk already baked (terrain.cpp)
   const bool endlessOver = key == 0 && g.world.endless && m.kind == MapKind::Overworld;
@@ -875,6 +1019,7 @@ void View::drawWorld(Game& g) {
       P.blit(t, cx * 512 - cam.x, cy * 512 - cam.y);
     }
   prefetch(m, mapId, cam);
+  if (!arriving_ && !g.inside && m.kind == MapKind::Overworld) prepareInterior(g);   // (M3c) the door ahead's interior
   // (an arrival pumps its own budget: travelArrive; M2 fixer round 3: under an open menu, whose map paints its own
   // tiles on the same frames, the world's bake waits its turn with a small share)
   if (!arriving_) pumpBake(g.mode == Mode::Menu ? 1.5 : 5.0);
@@ -1040,11 +1185,25 @@ void View::drawWorld(Game& g) {
             const Tex& t = cachedTex(0x01ull << 56 | ik, paintInteriorPiece);
             P.blit(t, tx * 16 + 8 - t.w / 2 - cam.x, ty * 16 + 16 - t.h - cam.y);
           } else {
-            const Tex& t = props_[(int)p];
+            const Tex* tp = &props_[(int)p];
             int fw = art::propW(p);
             int frames = std::max(1, art::propFrames(p));
             int fr = frames > 1 ? (int)(t_ * 8 + tx * 3) % frames : 0;
-            P.blitRegion(t, fr * fw, 0, fw, t.h, tx * 16 + 8 - fw / 2 - cam.x, ty * 16 + 16 - t.h - cam.y);
+            // (M3c fixer) the ground covers of the wild sat at one offset in every tile, so a meadow read as planted rows:
+            // each patch takes a sub-tile offset by its global tile (up to +-5 px across, +-4 down) and the Wildlands
+            // covers their biome's variant
+            float jx = 0, jy = 0;
+            if (m.kind == MapKind::Overworld && natureProp(p)) {
+              const uint32_t h = hash2(tx + g.world.ox, ty + g.world.oy, 6287);
+              jx = (float)((int)(h % 11u) - 5);
+              jy = (float)((int)((h >> 8) % 9u) - 4);
+              if (art::isWildlandsFlora(p)) {
+                const int nv = std::max(1, art::floraVariants(p));
+                tp = &cachedTex(0x5Eull << 56 | (uint64_t)p << 16 | (uint64_t)m.ecoAt(tx, ty) << 8 | (uint64_t)((h >> 16) % (uint32_t)nv), paintFlora);
+                fw = tp->w / frames;
+              }
+            }
+            P.blitRegion(*tp, fr * fw, 0, fw, tp->h, tx * 16 + 8 - fw / 2 + jx - cam.x, ty * 16 + 16 - tp->h + jy - cam.y);
           }
         } else {
           // (stalls fixer round 3) a stall sorts just ahead of its keeper (art::stallSortY), whichever way it faces
@@ -1296,7 +1455,7 @@ void View::drawWorld(Game& g) {
         // (M2) every peak of a range is one of eight shapes in its land's rock (by its global tile: never one peak cloned)
         if ((p == Prop::Peak || p == Prop::GreatPeak) && m.kind == MapKind::Overworld) {
           const int land = peakLand(m, d.tx, d.ty);
-          tp = &cachedTex(0x09ull << 56 | (p == Prop::GreatPeak ? 32ull : 0ull) | (uint64_t)land << 3 | (uint64_t)(hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6229) & 7u), paintPeak);
+          tp = &cachedTex(0x09ull << 56 | (p == Prop::GreatPeak ? 128ull : 0ull) | (uint64_t)(land & 15) << 3 | (uint64_t)(hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6229) & 7u), paintPeak);
         }
         // (M2 fixer round 2) the wild's commonest props in variants by their global tile, some flipped
         bool flipVar = false;
@@ -1311,6 +1470,22 @@ void View::drawWorld(Game& g) {
           const uint32_t h = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6241);
           tp = &cachedTex((p == Prop::TallGrass ? 0x0Aull : 0x0Bull) << 56 | (uint64_t)(h & 15u), p == Prop::TallGrass ? paintTallGrass : paintBoulder);
           flipVar = ((h >> 5) & 1) != 0;
+        }
+        // (M3c) the Wildlands flora: a variant by its global tile, as its biome grows it (art_flora.cpp floraVariant;
+        // the variants carry their own mirroring, so never flipped here: the light stays top-left)
+        if (art::isWildlandsFlora(p) && m.kind == MapKind::Overworld) {
+          const uint32_t h = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6271);
+          const int nv = std::max(1, art::floraVariants(p));
+          tp = &cachedTex(0x5Eull << 56 | (uint64_t)p << 16 | (uint64_t)m.ecoAt(d.tx, d.ty) << 8 | (uint64_t)(h % (uint32_t)nv), paintFlora);
+        }
+        // (M3c fixer round 2) a leafy classic tree standing in the snow (a town's oaks and willows, an elven heart tree)
+        // carries snow on its crown like the pines beside it
+        if (m.kind == MapKind::Overworld && (p == Prop::OakTree || p == Prop::OakTree2 || p == Prop::WillowTree || p == Prop::BirchTree ||
+                                             p == Prop::AutumnTree || p == Prop::ElderTree)) {
+          const Biome hb = m.biomeAt(d.tx, d.ty);
+          const int lv = m.heightAt(d.tx, d.ty);
+          if (m.at(d.tx, d.ty) == Ground::Snow || hb == Biome::Snow || (hb == Biome::Taiga && lv >= 4) || (hb == Biome::Mountain && lv >= 5))
+            tp = &cachedTex(0x5Full << 56 | (uint64_t)p, paintWinterTree);
         }
         // (stall facings) the market's stalls, tables, cloths and carts are 3/4 models on canvases of their own size,
         // placed by their origin from the prop tile; an open stall or table hangs its lantern at dusk (the light pass
@@ -1357,7 +1532,14 @@ void View::drawWorld(Game& g) {
           flipP = ((h >> 8) & 1) != 0;
         }
         float jx = 0, jy = 0;
-        if (natureProp(p) && m.kind == MapKind::Overworld) { uint32_t h = hash2(d.tx, d.ty, 55); jx = (float)((int)(h % 7) - 3); jy = (float)((int)((h >> 4) % 3) - 1); }
+        if (natureProp(p) && m.kind == MapKind::Overworld) {
+          // (M3c fixer) by the global tile (the local one moved every patch when the window recentred); the ground
+          // covers walked through (grasses, heather, ferns, brush) take a wider sub-tile offset so drifts of them never
+          // line up in rows; the solids stay close to their tile (the forest rule's spacing)
+          const uint32_t h = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 55);
+          if (art::isWildSolidProp(p)) { jx = (float)((int)(h % 7) - 3); jy = (float)((int)((h >> 4) % 3) - 1); }
+          else { jx = (float)((int)(h % 11) - 5); jy = (float)((int)((h >> 4) % 7) - 3); }
+        }
         float x = d.tx * 16 + 8 - fw / 2 + jx - cam.x, y = d.ty * 16 + 16 - fh + jy - cam.y;
         float alpha = 1;
         // a tree crown over the hero (drawn before it): the crown thins out and the hero shows through (ghost below)
@@ -1499,7 +1681,24 @@ void View::drawWorld(Game& g) {
           // a heavy windup rears back; a wolf crouches before the lunge
           if (a.st == AState::Windup && a.heavy) y -= std::min(3.0f, a.stT * 6);
           if (a.st == AState::Windup && a.lunge) y += 1;
-          P.blitEx(t, fr * cw, 0, cw, chh, x, y, (float)cw, (float)chh, flip, Color(1, a.slowT > 0 ? 0.85f : 1, a.slowT > 0 ? 1 : 1, alpha));
+          // (M3c) a lurker that hasn't seen you lies low in the shallows or the mud: only its back, eyes and snout show,
+          // with a ripple round it
+          int srcH = chh;
+          if (a.mon == Monster::Lurker && !a.aggro && a.st != AState::Dead && (a.st == AState::Idle || a.st == AState::Walk) && m.kind == MapKind::Overworld) {
+            const int ltx = (int)std::floor(a.p.x / 16), lty = (int)std::floor((a.p.y - 2) / 16);
+            bool wet = m.at(ltx, lty) == Ground::Swamp;
+            for (int k = 0; k < 4 && !wet; k++) wet = groundWater(m.at(ltx + (k == 0) - (k == 1), lty + (k == 2) - (k == 3)));
+            if (wet) {
+              srcH = chh - 6;
+              y += 6;
+              const float rp = 0.5f + 0.5f * std::sin(t_ * 2.2f + a.id);
+              P.rect(x + 4, y + srcH - 1, (float)cw - 8, 1, Color(0.75f, 0.85f, 0.85f, 0.35f + 0.2f * rp));
+              P.rect(x + 8 - rp * 2, y + srcH + 1, (float)cw - 16 + rp * 4, 1, Color(0.75f, 0.85f, 0.85f, 0.18f));
+            }
+          }
+          P.blitEx(t, fr * cw, 0, cw, srcH, x, y, (float)cw, (float)srcH, flip, Color(1, a.slowT > 0 ? 0.85f : 1, a.slowT > 0 ? 1 : 1, alpha));
+          if (a.mon == Monster::Wisp && a.st != AState::Dead)   // light: an additive pass makes it glow on any ground
+            P.blitEx(t, fr * cw, 0, cw, chh, x, y, (float)cw, (float)chh, flip, Color(0.6f, 1.0f, 1.0f, 0.55f + 0.25f * std::sin(t_ * 11 + a.id)), 1);
           if (a.slowT > 0) P.blitEx(t, fr * cw, 0, cw, chh, x, y, (float)cw, (float)chh, flip, Color(0.2f, 0.4f, 0.7f, 0.5f), 1);
           if (flash > 0) P.blitEx(t, fr * cw, 0, cw, chh, x, y, (float)cw, (float)chh, flip, Color(1, 1, 1, flash), 1);
           if (a.burnT > 0 && ((int)(t_ * 10) & 1)) P.rectAdd(x + cw * 0.3f, y + chh * 0.3f, cw * 0.4f, chh * 0.5f, Color(0.6f, 0.25f, 0.05f, 0.5f));
@@ -1522,7 +1721,8 @@ void View::drawWorld(Game& g) {
           float pulse = 0.6f + 0.4f * std::sin(t_ * 30);
           if (a.heavy) {
             // heavy slam: a ground ring that fills in as the blow comes, and a double "!!" - roll out (or through)
-            float wu = a.mon == Monster::Troll ? 0.9f : 0.8f;
+            // (the sim's heavyWindup, game_internal.h)
+            const float wu = a.mon == Monster::Troll || a.mon == Monster::Yeti ? 0.9f : a.mon == Monster::Blightspawn ? 0.75f : 0.8f;
             float k = clampf(a.stT / wu, 0, 1);
             Vec2 c = a.p + a.aim * 10.0f;
             float r = 26.0f + a.radius;
@@ -1600,10 +1800,23 @@ void View::drawWorld(Game& g) {
             break;
           }
           case ProjKind::Spit:
+            if (pr.ench == Ench::Frost && !pr.fromPlayer) {   // (M3c) a blightspawn's spore clot: a soft sickly puff
+              const float a = clampf(pr.life / 0.42f, 0, 1);
+              P.rect(x - 3, y - 2, 6, 4, Color(0.48f, 0.36f, 0.50f, 0.35f * a));
+              P.rect(x - 2, y - 3, 4, 6, Color(0.48f, 0.36f, 0.50f, 0.35f * a));
+              P.rect(x - 1, y - 1, 2, 2, Color(0.72f, 0.86f, 0.38f, 0.8f * a));
+              break;
+            }
             P.rect(x - 2, y - 2, 4, 4, Color(0.55f, 0.85f, 0.3f));
             P.rect(x - 1, y - 1, 2, 2, Color(0.8f, 1, 0.6f));
             break;
           case ProjKind::Magic:
+            if (pr.ench == Ench::None && !pr.fromPlayer) {   // (M3c) a wisp's bolt of light: cyan, with a short trail
+              for (int i = 1; i <= 3; i++) P.rectAdd(x - dir.x * i * 2 - 1, y - dir.y * i * 2 - 1, 2, 2, Color(0.4f, 0.9f, 0.9f, 0.5f - i * 0.12f));
+              P.rectAdd(x - 3, y - 3, 6, 6, Color(0.3f, 0.8f, 0.8f, 0.7f));
+              P.rect(x - 1, y - 1, 2, 2, Color(0.9f, 1, 1));
+              break;
+            }
             P.rectAdd(x - 3, y - 3, 6, 6, Color(0.4f, 0.3f, 0.9f, 0.7f));
             P.rect(x - 1, y - 1, 2, 2, Color(0.85f, 0.8f, 1));
             break;
@@ -1776,15 +1989,29 @@ void View::drawLighting(Game& g) {
     }
   for (const Projectile& pr : g.projs) {
     if (pr.kind == ProjKind::Fireball || pr.kind == ProjKind::DragonFire) light(pr.p, 60, Color(1, 0.6f, 0.25f), 0.9f);
+    else if (pr.kind == ProjKind::Magic && pr.ench == Ench::None && !pr.fromPlayer) light(pr.p, 40, Color(0.4f, 1.0f, 0.95f), 0.8f);
     else if (pr.kind == ProjKind::IceSpike || pr.kind == ProjKind::Magic) light(pr.p, 40, Color(0.5f, 0.6f, 1), 0.8f);
   }
   for (const Particle& q : parts_) if (q.kind == 1 && q.fx == (int)art::Fx::Explosion) light(q.p, 90, Color(1, 0.6f, 0.3f), q.life / q.max);
-  for (const Actor& a : g.actors) if (a.mon == Monster::Wraith && a.hostile && a.st != AState::Dead) light(a.p + Vec2(0, -10), 40, Color(0.5f, 0.5f, 1), 0.6f);
+  // (M3c) the ash fields' red-brown glow under the haze, and the magic lands' faint night light
+  if (!g.inside && g.mode != Mode::Title && dark > 0.2f && wx_.ash > 0.05f)
+    P.rectAdd(0, 0, (float)lightMap_.w, (float)lightMap_.h, Color(0.30f, 0.10f, 0.04f, wx_.ash * dark * 0.6f));
+  if (!g.inside && g.mode != Mode::Title && dark > 0.2f && wx_.eerie > 0.05f)
+    P.rectAdd(0, 0, (float)lightMap_.w, (float)lightMap_.h, Color(wx_.er * 0.12f, wx_.eg * 0.12f, wx_.eb * 0.12f, wx_.eerie * dark));
+  for (const Actor& a : g.actors) {
+    if (a.human || !a.hostile || a.st == AState::Dead) continue;
+    if (a.mon == Monster::Wraith) light(a.p + Vec2(0, -10), 40, Color(0.5f, 0.5f, 1), 0.6f);
+    // (M3c) the wisp is a light; the ember hound smoulders
+    else if (a.mon == Monster::Wisp) light(a.p + Vec2(0, -18), 56, Color(0.45f, 1.0f, 0.95f), 0.85f * (0.85f + 0.15f * std::sin(t_ * 11 + a.id)));
+    else if (a.mon == Monster::EmberHound) light(a.p + Vec2(0, -10), 38, Color(1.0f, 0.5f, 0.2f), 0.7f * (0.8f + 0.2f * std::sin(t_ * 13 + a.id)));
+  }
   for (const Pickup& k : g.pickups) if (k.gold == 0 && k.item.rarity >= Rarity::Rare) light(k.p, 24, col(rarityColor(k.item.rarity)), 0.5f);
   P.setTarget(nullptr);
   P.blitEx(lightMap_, 0, 0, lightMap_.w, lightMap_.h, 0, 0, lightMap_.w * 2.0f, lightMap_.h * 2.0f, false, Color(1, 1, 1, 1), 2);
 }
 
+// (M3c LIFE) the weather of the land: wx_ (eased in update from the eco's Sky) painted in screen space. Every layer is
+// a few dozen rects or soft blobs, sized to the canvas, so the phone's frame budget hardly notices.
 void View::drawWeather(Game& g, float dt) {
   (void)dt;
   Pix& P = *pix_;
@@ -1792,44 +2019,146 @@ void View::drawWeather(Game& g, float dt) {
     P.blitEx(vignette_, 0, 0, vignette_.w, vignette_.h, 0, 0, (float)Pix::W, (float)Pix::H, false, Color(1, 1, 1, g.inside && g.subSite >= 0 ? 1.0f : 0.6f));
     return;
   }
-  const Actor& p = g.pl();
-  Biome b = g.world.over.biomeAt((int)(p.p.x / 16), (int)(p.p.y / 16));
-  uint32_t w = hash32((uint32_t)(g.day * 8 + (int)(g.hour / 3)) ^ (uint32_t)g.seed) % 10;
-  bool cold = b == Biome::Snow || b == Biome::Mountain || b == Biome::Taiga;
-  bool rain = w < 3 && !cold && b != Biome::Desert;
-  bool snow = cold && w < 6;
-  bool fog = b == Biome::Swamp;
-  if (rain) {
-    P.rect(0, 0, Pix::W, Pix::H, Color(0.1f, 0.12f, 0.2f, 0.18f));
-    for (int i = 0; i < 90 * Pix::W / 480; i++) {
-      const float ww = Pix::W + 40.0f, wh = Pix::H + 30.0f;   // (M1) the drops wrap over the whole canvas
-      float sx = std::fmod(hashf(i, 0, 5) * 600 + t_ * 120 - cam_.x * 1.0f, ww);
-      float sy = std::fmod(hashf(i, 1, 5) * 400 + t_ * 330 - cam_.y * 1.0f, wh);
-      if (sx < 0) sx += ww;
-      if (sy < 0) sy += wh;
-      sx -= 20; sy -= 15;
-      for (int k = 0; k < 4; k++) P.rect(sx - k * 0.5f, sy - k * 1.5f, 1, 1, Color(0.7f, 0.8f, 0.95f, 0.45f - k * 0.08f));
+  const Wx& W = wx_;
+  const float sw = Pix::W / 480.0f;
+  auto wrap = [](float v, float m) { v = std::fmod(v, m); return v < 0 ? v + m : v; };
+  // the sky's weight: low cloud darkens the land under rain and downpours
+  const float gloom = W.rain * 0.20f + W.pour * 0.30f + W.drizzle * 0.08f;
+  if (gloom > 0.01f) P.rect(0, 0, (float)Pix::W, (float)Pix::H, Color(0.1f, 0.12f, 0.2f, gloom));
+  // haze: sand (tan), ash (red-brown), blizzard (white-out), eerie (the land's own tint)
+  if (W.sand > 0.01f) P.rect(0, 0, (float)Pix::W, (float)Pix::H, Color(0.80f, 0.64f, 0.40f, 0.30f * W.sand));
+  if (W.ash > 0.01f) P.rect(0, 0, (float)Pix::W, (float)Pix::H, Color(0.42f, 0.28f, 0.24f, 0.20f * W.ash));
+  if (W.eerie > 0.01f) P.rect(0, 0, (float)Pix::W, (float)Pix::H, Color(W.er * 0.6f, W.eg * 0.6f, W.eb * 0.6f, 0.06f * W.eerie));
+  // heat shimmer: a warm wash and faint wavering bands of brighter air low over the ground
+  if (W.shimmer > 0.02f) {
+    P.rect(0, 0, (float)Pix::W, (float)Pix::H, Color(1.0f, 0.86f, 0.62f, 0.05f * W.shimmer));
+    for (int i = 0; i < 7; i++) {
+      const float y = Pix::H * (0.38f + 0.09f * i) + std::sin(t_ * 1.7f + i * 1.9f) * 3.0f;
+      const float x0 = std::sin(t_ * 0.6f + i) * 40.0f - 40.0f;
+      P.rectAdd(x0, y, Pix::W + 80.0f, 1, Color(1.0f, 0.92f, 0.75f, 0.035f * W.shimmer));
+      P.rectAdd(x0 + 30, y + 2, Pix::W * 0.6f, 1, Color(1.0f, 0.92f, 0.75f, 0.02f * W.shimmer));
     }
   }
-  if (snow) {
-    for (int i = 0; i < 110 * Pix::W / 480; i++) {
-      float sp = 14 + hashf(i, 3, 7) * 18;
-      const float ww = Pix::W + 20.0f, wh = Pix::H + 20.0f;
-      float sx = std::fmod(hashf(i, 0, 7) * 600 + std::sin(t_ * 0.8f + i) * 10 - cam_.x * 1.0f + t_ * 6, ww);
-      float sy = std::fmod(hashf(i, 1, 7) * 400 + t_ * sp - cam_.y * 1.0f, wh);
-      if (sx < 0) sx += ww;
-      if (sy < 0) sy += wh;
-      sx -= 10; sy -= 10;
-      float s = hashf(i, 2, 7) < 0.3f ? 2.f : 1.f;
-      P.rect(sx, sy, s, s, Color(1, 1, 1, 0.8f));
-    }
-  }
-  if (fog) {
-    for (int i = 0; i < 6 * (Pix::W + 220) / 700 + 1; i++) {
+  // fog banks drifting across (marsh, moor, dawn mist, steam over the jungle)
+  if (W.fog > 0.02f) {
+    P.rect(0, 0, (float)Pix::W, (float)Pix::H, Color(0.84f, 0.88f, 0.88f, 0.10f * W.fog));   // the mist's pale veil
+    const int n = (int)(6 * (Pix::W + 220) / 700.0f) + 2;
+    for (int i = 0; i < n; i++) {
       float x = std::fmod(i * 140 + t_ * 8 - cam_.x * 0.3f + 7000.0f, (float)Pix::W + 220.0f) - 160;
-      P.blitEx(light_, 0, 0, 64, 64, x, 40 + i * 30 + std::sin(t_ * 0.3f + i) * 10, 260, 90, false, Color(0.75f, 0.8f, 0.75f, 0.12f));
+      P.blitEx(light_, 0, 0, 64, 64, x, 30 + i * (Pix::H / (float)n) + std::sin(t_ * 0.3f + i) * 10, 260, 90, false,
+               Color(0.82f, 0.86f, 0.84f, 0.26f * W.fog));
     }
   }
-  // falling leaves / fireflies are world particles drawn earlier; light vignette always
-  P.blitEx(vignette_, 0, 0, vignette_.w, vignette_.h, 0, 0, (float)Pix::W, (float)Pix::H, false, Color(1, 1, 1, 0.45f));
+  // rain, drizzle and downpours (the drops wrap over the whole canvas and move with the camera)
+  const float rainN = (140 * W.rain + 220 * W.pour + 80 * W.drizzle) * sw;
+  for (int i = 0; i < (int)rainN; i++) {
+    const bool heavy = i < 220 * W.pour * sw, fine = !heavy && i >= (140 * W.rain + 220 * W.pour) * sw;
+    const float ww = Pix::W + 40.0f, wh = Pix::H + 30.0f;
+    const float vy = heavy ? 420 : fine ? 170 : 330, vx = heavy ? 150 : fine ? 40 : 120;
+    float sx = wrap(hashf(i, 0, 5) * 600 + t_ * vx - cam_.x, ww) - 20;
+    float sy = wrap(hashf(i, 1, 5) * 400 + t_ * vy - cam_.y, wh) - 15;
+    const int len = heavy ? 9 : fine ? 3 : 7;
+    for (int k = 0; k < len; k++) P.rect(sx - k * (vx / vy), sy - k * 1.0f, 1, 1, Color(0.78f, 0.86f, 1.0f, (fine ? 0.35f : 0.6f) * (1.0f - k / (float)(len + 1))));
+    // a splash where a heavy drop lands
+    if (heavy && (i & 7) == 0 && std::fmod(t_ * 3 + hashf(i, 3, 5), 1.0f) < 0.15f) P.rect(sx - 1, sy + 2, 3, 1, Color(0.8f, 0.88f, 1.0f, 0.4f));
+  }
+  // rings where the rain strikes the ground (screen-fixed to the land: they ride with the camera)
+  const float ringsN = (30 * W.rain + 50 * W.pour + 10 * W.drizzle) * sw;
+  for (int i = 0; i < (int)ringsN; i++) {
+    const float ph = std::fmod(t_ * 2.2f + hashf(i, 4, 5), 1.0f);
+    const int cyc = (int)(t_ * 2.2f + hashf(i, 4, 5));
+    const float rx = wrap(hashf(i + cyc * 131, 5, 5) * 900 - cam_.x, (float)Pix::W), ry = wrap(hashf(i + cyc * 131, 6, 5) * 600 - cam_.y, (float)Pix::H);
+    const float r = 1 + ph * 3;
+    P.rect(rx - r, ry, r * 2, 1, Color(0.80f, 0.88f, 1.0f, 0.35f * (1 - ph)));
+  }
+  // steam rising off warm ground after a downpour (monsoon lands)
+  if (W.pour > 0.05f || (W.fog > 0.3f && W.rain + W.pour > 0.05f)) {
+    for (int i = 0; i < 5; i++) {
+      const float life = std::fmod(t_ * 0.12f + i * 0.2f, 1.0f);
+      const float x = wrap(hashf(i, 9, 3) * 900 - cam_.x * 0.8f, Pix::W + 120.0f) - 60;
+      const float y = Pix::H * 0.95f - life * Pix::H * 0.6f;
+      P.blitEx(light_, 0, 0, 64, 64, x, y, 90, 50, false, Color(0.9f, 0.92f, 0.95f, 0.10f * std::sin(life * 3.14159f) * std::max(W.pour, 0.5f)));
+    }
+  }
+  // snow, and the blizzard's driving snow and white-out
+  const float snowN = (110 * W.snow + 230 * W.blizz) * sw;
+  for (int i = 0; i < (int)snowN; i++) {
+    const bool drive = i < 230 * W.blizz * sw;
+    const float sp = (drive ? 60 : 14) + hashf(i, 3, 7) * (drive ? 50 : 18);
+    const float ww = Pix::W + 20.0f, wh = Pix::H + 20.0f;
+    float sx = wrap(hashf(i, 0, 7) * 600 + std::sin(t_ * 0.8f + i) * (drive ? 4 : 10) - cam_.x + t_ * (drive ? 160 : 6), ww) - 10;
+    float sy = wrap(hashf(i, 1, 7) * 400 + t_ * sp - cam_.y, wh) - 10;
+    const float s = hashf(i, 2, 7) < 0.3f ? 2.f : 1.f;
+    P.rect(sx + 1, sy + 1, drive ? s + 1 : s, s, Color(0.42f, 0.50f, 0.68f, 0.35f));   // a soft shadow: flakes read over snow too
+    P.rect(sx, sy, drive ? s + 1 : s, s, Color(1, 1, 1, drive ? 0.75f : 0.9f));
+  }
+  if (W.blizz > 0.02f) {
+    P.rect(0, 0, (float)Pix::W, (float)Pix::H, Color(0.92f, 0.95f, 1.0f, 0.38f * W.blizz));
+    for (int i = 0; i < 4; i++) {   // gusts: brighter sheets of snow sweeping past
+      const float x = wrap(t_ * 220 + i * 260 - cam_.x, Pix::W + 300.0f) - 200;
+      P.blitEx(light_, 0, 0, 64, 64, x, Pix::H * (0.15f + 0.22f * i), 320, 70, false, Color(1, 1, 1, 0.16f * W.blizz));
+    }
+  }
+  // the sandstorm: streaks of blown sand racing past, and grit
+  if (W.sand > 0.02f) {
+    const int n = (int)(80 * W.sand * sw);
+    for (int i = 0; i < n; i++) {
+      const float ww = Pix::W + 60.0f;
+      const float sx = wrap(hashf(i, 0, 11) * 900 + t_ * (240 + hashf(i, 2, 11) * 160) - cam_.x, ww) - 30;
+      const float sy = wrap(hashf(i, 1, 11) * 500 + std::sin(t_ * 2 + i) * 4 - cam_.y * 0.5f, (float)Pix::H);
+      const float len = 4 + hashf(i, 3, 11) * 12;
+      P.rect(sx, sy, len, 1, Color(0.95f, 0.82f, 0.58f, 0.35f * W.sand));
+    }
+    for (int i = 0; i < 3; i++) {   // the dust's billows
+      const float x = wrap(t_ * 140 + i * 300 - cam_.x * 0.6f, Pix::W + 300.0f) - 200;
+      P.blitEx(light_, 0, 0, 64, 64, x, Pix::H * (0.2f + 0.3f * i), 340, 110, false, Color(0.86f, 0.70f, 0.46f, 0.18f * W.sand));
+    }
+  }
+  // ashfall: grey flakes drifting down, embers glowing on the way up
+  if (W.ash > 0.02f) {
+    const int n = (int)(90 * W.ash * sw);
+    for (int i = 0; i < n; i++) {
+      const float ww = Pix::W + 20.0f, wh = Pix::H + 20.0f;
+      const float sx = wrap(hashf(i, 0, 13) * 600 + std::sin(t_ * 0.6f + i) * 12 - cam_.x + t_ * 10, ww) - 10;
+      const float sy = wrap(hashf(i, 1, 13) * 400 + t_ * (10 + hashf(i, 2, 13) * 10) - cam_.y, wh) - 10;
+      const float g0 = 0.45f + hashf(i, 4, 13) * 0.3f;
+      P.rect(sx, sy, hashf(i, 5, 13) < 0.25f ? 2.f : 1.f, 1, Color(g0, g0 * 0.95f, g0 * 0.95f, 0.75f));
+    }
+    for (int i = 0; i < (int)(26 * W.ash * sw); i++) {
+      const float sx = wrap(hashf(i, 6, 13) * 700 + std::sin(t_ * 1.3f + i) * 8 - cam_.x, Pix::W + 20.0f) - 10;
+      const float sy = wrap(hashf(i, 7, 13) * 400 - t_ * (18 + hashf(i, 8, 13) * 14) - cam_.y, Pix::H + 20.0f) - 10;
+      const float fl = 0.5f + 0.5f * std::sin(t_ * 9 + i * 2.3f);
+      P.rectAdd(sx, sy, 1, 1, Color(1.0f, 0.55f + 0.3f * fl, 0.2f, 0.5f + 0.5f * fl));
+    }
+  }
+  // the eerie lands: slow motes and glints in the land's colour
+  if (W.eerie > 0.02f) {
+    const int n = (int)(40 * W.eerie * sw);
+    for (int i = 0; i < n; i++) {
+      const float sx = wrap(hashf(i, 0, 17) * 700 + std::sin(t_ * 0.5f + i) * 14 - cam_.x * 0.9f, Pix::W + 20.0f) - 10;
+      const float sy = wrap(hashf(i, 1, 17) * 400 - t_ * (4 + hashf(i, 2, 17) * 6) - cam_.y * 0.9f, Pix::H + 20.0f) - 10;
+      const float pulse = 0.5f + 0.5f * std::sin(t_ * (1.5f + hashf(i, 3, 17) * 2) + i);
+      P.rectAdd(sx, sy, 1, 1, Color(W.er, W.eg, W.eb, 0.25f + 0.55f * pulse));
+      if (pulse > 0.93f) { P.rectAdd(sx - 1, sy, 3, 1, Color(W.er, W.eg, W.eb, 0.3f)); P.rectAdd(sx, sy - 1, 1, 3, Color(W.er, W.eg, W.eb, 0.3f)); }
+    }
+  }
+  // falling leaves / fireflies / petals / embers are world particles drawn earlier; light vignette always (heavier in
+  // a storm)
+  P.blitEx(vignette_, 0, 0, vignette_.w, vignette_.h, 0, 0, (float)Pix::W, (float)Pix::H, false,
+           Color(1, 1, 1, std::min(1.0f, 0.45f + 0.3f * (W.blizz + W.sand + W.pour))));
 }
+
+// (M3c LIFE) test scripts: force the weather (screenshots of every Sky kind)
+namespace {
+bool cmdWeather(ScriptCtx& c) {
+  static const char* names[] = {"temperate", "showery", "misty", "dry", "arid", "snowy", "blizzard", "monsoon", "ashfall", "eerie"};
+  static_assert(sizeof(names) / sizeof(names[0]) == (size_t)Sky::COUNT, "a name for every Sky");
+  const std::string w = c.arg(1);
+  if (w == "auto" || w.empty()) { c.view.scriptSky(-1); return true; }
+  for (int i = 0; i < (int)Sky::COUNT; i++)
+    if (w == names[i]) { c.view.scriptSky(i); std::printf("weather: %s\n", names[i]); return true; }
+  c.fail("weather: unknown kind " + w);
+  return true;
+}
+}  // namespace
+EMB_SCRIPT_CMD("weather", "weather temperate|showery|misty|dry|arid|snowy|blizzard|monsoon|ashfall|eerie|auto: force the weather (full strength)", cmdWeather);

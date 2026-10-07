@@ -3791,6 +3791,11 @@ bool rugFit(Fit& F, int ri, int w, int h, int cx, int cy, Deco d) {
         for (int x = x0; x < x0 + w && ok; x++)
           ok = F.inRoom(x, y, ri) && !(x == F.m.exitX && y == F.m.exitY) && F.m.decoAt(x, y) == 0 && rugOk(F.m.propAt(x, y)) &&
                !F.g.isKeep(F.I(x, y));
+      // (M3c fixer round 3) on a shaped floor (a round room) a rug keeps a tile clear of the shell: the wall is drawn
+      // on the true curve through the edge tiles, and a rug there was cut off by it
+      if (ok && F.g.shaped)
+        for (int y = y0 - 1; y <= y0 + h && ok; y++)
+          for (int x = x0 - 1; x <= x0 + w && ok; x++) ok = F.floorT(x, y);
       if (!ok) continue;
       int dx = x0 * 2 + w - 1 - cx * 2, dy = y0 * 2 + h - 1 - cy * 2;
       int sc = dx * dx + dy * dy;
@@ -4952,14 +4957,24 @@ void furnishSeatHall(Fit& F, int ri, Ctx& cx) {
     // (fix) a khan's court, not an empty floor: the felt runner from the door to the dais, the two painted roof poles
     // (bagana) either side of the stove under the crown, the court seated on cushions in a ring round the fire, the
     // feast's low tables down both sides, the horse-tail standards behind the dais, chests and racks at the lattice
-    rugRect(F, ri, ex - 1, sy + 2, ex + 1, R.y + R.h - 2, Deco::RugRed);
     centreFire(F, ri, ex, midY);
     for (int s : {-2, 2}) putNear(F, ri, Prop::Pillar, ex + s, midY - 1, 1, true);
     ringSeats(F, ri, ex, midY, 3, Prop::Cushion);
+    // (M3c fixer round 3) the runner is laid after the stove and in two lengths (door to the fire's ring, the ring to
+    // the dais): laid first, right through the stove's tile, the whole carpet was taken up again (rugCleanup)
+    rugRect(F, ri, ex - 1, midY + 3, ex + 1, R.y + R.h - 2, Deco::RugRed);
+    rugRect(F, ri, ex - 1, sy + 3, ex + 1, midY - 3, Deco::RugRed);
     for (int k = 0; k < 4; k++) rugFit(F, ri, 3, 2, ex + (k % 2 ? 5 : -5), sy + 3 + (k / 2) * 3, rugFor(F));
     const art::Furniture keep = F.furn;
     F.furn = art::Furniture::Cushions;
-    for (int k = 0; k < 3 + R.w * R.h / 90; k++) tableIn(F, ri, 1, Prop::LowTable, 3, false, 40);
+    // (M3c fixer round 3, review: "about 15 identical diamond rugs, each with the same pair of red cushions and the
+    // same low table, are spread evenly with no focal throne area") a few feast tables, not a grid of them; the dais
+    // gets a broad carpet of its own so the khan's seat is the focus at the back of the circle
+    rugRect(F, ri, ex - 2, sy + 1, ex + 2, sy + 2, Deco::RugGold);
+    for (int k = 0; k < 2 + R.w * R.h / 240; k++) {
+      int tx = -1, ty = -1;
+      if (tableIn(F, ri, 1, Prop::LowTable, 3, false, 40, &tx, &ty)) rugFit(F, ri, 3, 3, tx, ty, k % 2 ? Deco::RugBlue : rugFor(F));
+    }
     F.furn = keep;
     for (int k = 0; k < 2; k++) northPiece(F, ri, Prop::Banner, 1);
     // (M3b fixer) the khan's sleeping place and the treasury screened off with felt at the sides of the circle
@@ -5236,11 +5251,18 @@ void furnishNave(Fit& F, int ri, Ctx& cx) {
     case A::Starspire: flank = Prop::Crystal; break;
     default: break;
   }
-  F.group([&](int gid) {
+  // (M3c fixer, seed 22: an L-shaped highland kirk) where a flanking piece would wall off a pocket of the far wall (a
+  // corner behind the vestry), the altar stands with one flank or none: the altar itself always takes the axis
+  const bool altared = F.group([&](int gid) {
     F.put(ex - 1, 2, Prop::Filler, gid); F.put(ex, 2, Prop::Altar, gid); F.put(ex + 1, 2, Prop::Filler, gid);
     for (int s : {-2, 2}) if (F.freeT(ex + s, 2) && F.roomOf(ex + s, 2) == ri) F.put(ex + s, 2, flank, gid);
     return true;
   });
+  if (!altared && !F.group([&](int gid) {
+        F.put(ex - 1, 2, Prop::Filler, gid); F.put(ex, 2, Prop::Altar, gid); F.put(ex + 1, 2, Prop::Filler, gid);
+        return true;
+      }))
+    F.group([&](int gid) { F.put(ex, 2, Prop::Altar, gid); return true; });
   const bool big = W >= 17 || H >= 15;
   auto sideRows = [&](int y0, int step, int dx0, int dx1, Prop p, bool gap) {   // p either side of the aisle, dx0..dx1 out
     for (int y = y0; y <= yEnd - 2; y += step)

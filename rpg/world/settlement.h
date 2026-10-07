@@ -31,6 +31,11 @@ struct SettlementCtx {
   // It decides the architecture of every building (cult::buildingArch into Bldg::arch), the layout style, the wall and
   // fence style, the centrepiece and the census (names, dress). Valid for the whole build.
   const cult::Culture* culture = nullptr;
+  // M3c: the biome proper at the settlement's heart (rpg/world/biomes.h): the trees its streets, greens and gardens
+  // plant (acacias in a savanna town, birches in a birch wood, larches in the taiga, blossom in a blossom grove)
+  Eco eco = Eco::Meadow;
+  // M3c: the world's seed (the wild land a terraced town's buffer keeps gets its ramps on the chunks' own lattice)
+  uint64_t worldSeed = 0;
 };
 
 struct SettlementOut {

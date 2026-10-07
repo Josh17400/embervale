@@ -1,5 +1,5 @@
 // Wild gallery (M2 VIEW lane): every M2 wayside and wonder prop (rpg/art/art_wild.cpp), every Peak variant in its
-// three lands, a mountain range composed the way the game y-sorts it, and the whole board again by night.
+// lands (M3c: seven, the Wildlands' red badlands, basalt, glacier ice and chalk added), a mountain range composed the way the game y-sorts it, and the whole board again by night.
 //   wild_gallery <outDir>      writes wild_day.png, wild_night.png (3x) and wild_1x.png (day | night at 1x)
 #include "tools/preview/preview_util.h"
 
@@ -44,13 +44,14 @@ Canvas night(const Canvas& day, const std::vector<std::pair<int, int>>& lights) 
 
 int main(int argc, char** argv) {
   std::string dir = argc > 1 ? argv[1] : ".";
-  const int W = 640, H = 600;
+  constexpr int kLands = 7;
+  const int pw = art::propW(Prop::Peak), ph = art::propH(Prop::Peak);
+  const int W = 640, H = 600 + (kLands - 3) * (ph + 12);
   Board b(W, H);
   std::vector<std::pair<int, int>> lights;
-  // peaks: 8 variants x 3 lands
-  const char* lands[] = {"GREY ROCK", "SNOW-CAPPED", "SANDSTONE"};
-  const int pw = art::propW(Prop::Peak), ph = art::propH(Prop::Peak);
-  for (int land = 0; land < 3; land++) {
+  // peaks: 8 variants x 7 lands
+  const char* lands[kLands] = {"GREY ROCK", "SNOW-CAPPED", "SANDSTONE", "BADLANDS", "BASALT", "GLACIER ICE", "CHALK"};
+  for (int land = 0; land < kLands; land++) {
     b.text(4, 4 + land * (ph + 12), lands[land]);
     for (int v = 0; v < 8; v++) {
       Canvas k = art::peakVariant(v, land);
@@ -60,7 +61,7 @@ int main(int argc, char** argv) {
     }
   }
   // the other props, one each (animated ones: frame 0)
-  int x = 4, y = 12 + 3 * (ph + 12) + 4;
+  int x = 4, y = 12 + kLands * (ph + 12) + 4;
   const Prop rest[] = {Prop::StandingStone, Prop::CaravanWreck, Prop::WatchtowerRuin, Prop::FishingShack, Prop::TollPost, Prop::HerbBed,
                        Prop::GraveCairn, Prop::Bedroll, Prop::StarShard};
   int rowH = 0;

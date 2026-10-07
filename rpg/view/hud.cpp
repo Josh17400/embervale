@@ -612,15 +612,30 @@ void View::drawHud(Game& g) {
           // (M1 round 3) below the column's real foot (a two-line step and a kingdom line made it taller than the old
           // fixed limit, and the arrow and its distance sat on the quest's last line)
           if (a.x > R - 160 && a.y < colBottom) { if (a.y <= T + 20) a.x = R - 160; else a.y = colBottom; }
+          // (M3c fixer, review: "the compass distance strikes through the biome banner") while the first-visit biome
+          // banner shows at the top centre, the arrow and its distance keep out of its strip: along the top edge they
+          // slide out past its ends, lower down they drop below it
+          if (biomeBannerT_ > 0 && !biomeBanner_.empty() && bannerT_ <= 0 && g.mode == Mode::Play) {
+            const float half = std::min((float)P.textW(biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70);
+            const float by1 = T + 30 + 11 + 14;
+            const float mx = Pix::W / 2.0f;
+            if (a.y < by1 && std::fabs(a.x - mx) < half + 40) {
+              if (a.y <= T + 20) a.x = a.x < mx ? mx - half - 40 : mx + half + 40;
+              else a.y = std::max(a.y, by1);
+            }
+          }
           // (M3 fixer round 3, review: "on the phone the quest compass draws inside the TALK button") with the touch
           // layout on, it also slides out of the action buttons (bottom right) and the movement stick (bottom left)
           if (touchUI) {
             const BtnDef bw = btnPos(B_BOW), rl = btnPos(B_ROLL), at = btnPos(B_ATTACK);
-            const float cx0 = bw.x - bw.r - 24, cy0 = std::min(rl.y - rl.r, btnPos(B_SPELL).y - btnPos(B_SPELL).r) - 14;
+            // (M3c fixer round 3, review: "the quest pointer's distance sits inside the right-thumb touch cluster ... reads
+            // like another control") a wider berth round the cluster: the arrow and the distance behind it stay a
+            // thumb's width clear of ROLL, the bow and the attack button
+            const float cx0 = bw.x - bw.r - 40, cy0 = std::min(rl.y - rl.r, btnPos(B_SPELL).y - btnPos(B_SPELL).r) - 34;
             const float cyB = at.y + at.r;
             if (a.x > cx0 && a.y > cy0) { if (a.y >= cyB - 4 || a.y > B - 30) a.x = cx0; else a.y = cy0; }
             const Vec2 st = stickRest();
-            const float sx1 = st.x + 50, sy0 = st.y - 50;
+            const float sx1 = st.x + 64, sy0 = st.y - 74;   // (M3c fixer: clear of the thumb on the stick, not on its ring)
             if (a.x < sx1 && a.y > sy0) { if (a.y > B - 30) a.x = sx1; else a.y = sy0; }
           }
           // a filled arrowhead (dark outline first so it reads on snow and sand), gently pulsing toward the goal
@@ -638,7 +653,18 @@ void View::drawHud(Game& g) {
           }
           // the distance sits behind the arrowhead (further back on diagonals, where the label is widest)
           float back = 15 + 8 * std::fabs(d.x);
-          P.textS(a.x - d.x * back, a.y - d.y * back - 3, distText(dist), 1, kGold, 1);
+          const std::string dtx = distText(dist);
+          const float lx = a.x - d.x * back, ly = a.y - d.y * back - 3;
+          P.textS(lx, ly, dtx, 1, kGold, 1);
+          // (M3c fixer round 3) a small quest diamond before the number says what it counts (tiles to the tracked quest)
+          {
+            const float dx0 = lx - (float)P.textW(dtx, 1) / 2.0f - 6, dy0 = ly + 3;
+            for (int pass = 0; pass < 2; pass++)
+              for (int j = -2; j <= 2; j++) {
+                const int hw = 2 - std::abs(j) + (pass == 0 ? 1 : 0);
+                P.rect(std::floor(dx0) - hw, std::floor(dy0) + j, hw * 2 + 1, 1, pass == 0 ? Color(0.08f, 0.05f, 0.03f, 0.85f) : kGold);
+              }
+          }
         } else if (!(q->state == QState::Complete && [&] {
                      // the giver already wears the world "!" bubble (drawMarkers): don't stack a second pin on it
                      for (const Actor& a2 : g.actors)
@@ -760,6 +786,19 @@ void View::drawHud(Game& g) {
       P.textS(Pix::W / 2, ny, *L, 1, Color(1, 0.95f, 0.85f, a), 1);
       ny += 9;
     }
+  }
+  // (M3c LIFE) the first visit to a biome: its name, quietly, under the location column's height at the top centre
+  // (small type between two short gold rules; it fades in and out and waits for a big banner to finish)
+  if (biomeBannerT_ > 0 && !biomeBanner_.empty() && (bannerT_ <= 0 || g.mode == Mode::Dialogue) && g.mode == Mode::Play && !g.inside) {
+    const float a = clampf(std::min(biomeBannerT_, 4.0f - biomeBannerT_) * 1.6f, 0, 1);
+    const float y = T + 30;
+    const float tw = (float)P.textW(biomeBanner_, 1);
+    const float half = std::min(tw / 2 + 26, Pix::W / 2.0f - 70);
+    P.rect(Pix::W / 2 - half, y - 4, half * 2, 15, Color(0.03f, 0.03f, 0.05f, 0.42f * a));
+    P.rect(Pix::W / 2 - half + 6, y + 3, 12, 1, Color(kGold.r, kGold.g, kGold.b, 0.7f * a));
+    P.rect(Pix::W / 2 + half - 18, y + 3, 12, 1, Color(kGold.r, kGold.g, kGold.b, 0.7f * a));
+    P.textS(Pix::W / 2 + 1, y + 1, biomeBanner_, 1, Color(0, 0, 0, a * 0.6f), 1);
+    P.textS(Pix::W / 2, y, biomeBanner_, 1, Color(0.98f, 0.92f, 0.74f, a), 1);
   }
   // banner
   if (bannerT_ > 0 && g.mode != Mode::Dialogue) {
@@ -929,6 +968,14 @@ void View::drawMinimap(Game& g, float x, float y, int size) {
             case Ground::Tundra: k = rgba(104, 122, 96); break;
             case Ground::Swamp: k = rgba(70, 86, 56); break;
             default: k = rgba(86, 150, 66); break;
+          }
+          // (M3c LIFE) the natural ground takes its biome's colour (biomes.h ecoInfo rgb): the savanna gold, the heath
+          // mauve, the badlands rust, the blight sick violet; roads, water, rock and buildings keep theirs
+          if (m.kind == MapKind::Overworld && !m.eco.empty() &&
+              (gr == Ground::Grass || gr == Ground::Meadow || gr == Ground::ForestFloor || gr == Ground::Tundra || gr == Ground::Autumn ||
+               gr == Ground::Swamp || gr == Ground::Sand || gr == Ground::Snow)) {
+            const EcoInfo& ei = ecoInfo(m.ecoAt(tx, ty));
+            k = art::mix(k, rgba(ei.r, ei.g, ei.b), 0.7f);
           }
           // (M2 fixer) the view's snowline (terrain.cpp reliefPixel): taiga and snowfields from level 4, mountains from
           // 5 lie under snow, so the minimap shows them white as the world does

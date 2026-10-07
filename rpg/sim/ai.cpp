@@ -536,11 +536,13 @@ void Game::updateAI(Actor& a, float dt) {
     float leash = a.den >= 0 ? 18.0f * TILE : 28.0f * TILE;
     bool inTown = !inside && settlementAt(a.p) >= 0;
     if (!inTown && len(a.p - a.home) > leash && dist > 6 * TILE && !a.boss) a.aggro = false;
+    // (M3c) a lurker never strays far from its water: it slides back once the prey is out of the shallows
+    if (a.mon == Monster::Lurker && !inTown && len(a.p - a.home) > 9.0f * TILE && dist > 3 * TILE) a.aggro = false;
     if (!a.boss && !inside && dist > std::max(a.aggroR * 2.4f, 15.0f * TILE)) a.aggro = false;
     if (p.st == AState::Dead) a.aggro = false;
     if (!a.aggro) a.fleeing = false;
     if (!a.aggro && a.st != AState::Windup) {
-      if (rng_.f() < 0.25f) {
+      if (rng_.f() < 0.25f && a.mon != Monster::Lurker) {   // (a lurker lies still in the shallows)
         float r = a.wild ? 5.0f : 3.0f;
         a.goal = a.home + Vec2(rng_.range(-r, r) * TILE, rng_.range(-r, r) * TILE);
       }
@@ -601,11 +603,42 @@ void Game::updateAI(Actor& a, float dt) {
 
   // behaviour sets: wolves circle and lunge from the flank, goblins swarm and flee when hurt, bandit archers
   // kite, bears and trolls mix in a slow heavy slam you roll through
+  // (M3c LIFE) the Wildlands wildlife: hyena packs and ember hounds circle and lunge like wolves (the hound's bite
+  // sets you alight), the yeti slams like a troll (and its slam frosts you), the scorpion stings hard every third
+  // blow, the lurker lies low and lunges from close by, the wisp kites and flickers and throws bolts of light, the
+  // blightspawn shambles in and bursts spores round itself now and then
   const bool wolf = a.mon == Monster::Wolf || a.mon == Monster::IceWolf;
+  const bool pack = wolf || a.mon == Monster::Hyena || a.mon == Monster::EmberHound;
   const bool goblin = a.mon == Monster::Goblin;
-  const bool brute = a.mon == Monster::Bear || a.mon == Monster::Troll;
+  const bool brute = a.mon == Monster::Bear || a.mon == Monster::Troll || a.mon == Monster::Yeti;
   const bool archer = a.ranged && a.human;
-  const float wu = a.heavy ? (a.mon == Monster::Troll ? 0.9f : 0.8f) : a.windup;
+  const bool wisp = a.mon == Monster::Wisp;
+  const bool kite = archer || wisp;
+  const float wu = a.heavy ? heavyWindup(a.mon) : a.windup;
+  // a blow at the current target only (the hound's fire bite, the scorpion's sting): in reach and in front
+  auto hitTarget = [&](float mult, float extraReach, Ench e, float ep) -> bool {
+    const Vec2 d = p.p - a.p;
+    const float l = len(d);
+    if (l > a.range + p.radius + extraReach || (l > 4 && dot(d * (1.0f / l), a.aim) < 0.1f)) return false;
+    // (M3c fixer round 3, review: "a dodge roll does not stop the scorpion's sting venom") true only when the blow
+    // LANDED: a roll's iframes, the grace after a hit or a block drop it inside damage(), and then no rider (venom, fire)
+    const float hp0 = p.hp;
+    damage(p, a.dmg * mult * (0.9f + rng_.f() * 0.2f), a.p, a.id, e, ep);
+    return p.hp < hp0;
+  };
+  // the blightspawn's spore burst: a ring of short-lived spore clots flung out round it (they sting and slow)
+  auto sporeBurst = [&]() {
+    for (int k = 0; k < 10; k++) {
+      Projectile pr;
+      const float an = k * (TAU / 10) + rng_.f() * 0.3f;
+      pr.kind = ProjKind::Spit; pr.fromPlayer = false; pr.owner = a.id; pr.fac = a.faction;
+      pr.p = a.p + Vec2(0, -6); pr.v = Vec2(std::cos(an), std::sin(an) * 0.7f) * 105.0f;
+      pr.dmg = a.dmg * 0.6f; pr.life = 0.42f; pr.radius = 4; pr.ench = Ench::Frost; pr.enchPow = 1;
+      projs.push_back(pr);
+    }
+    for (int k = 0; k < 6; k++) emit(Ev::Dust, a.p + Vec2(std::cos(k * 1.047f) * 14, std::sin(k * 1.047f) * 9));
+    sfx((int)Sfx::Splash, a.p, 0.7f, 0.9f);
+  };
   switch (a.st) {
     case AState::Windup:
       a.face = faceOf(toP);
@@ -620,23 +653,42 @@ void Game::updateAI(Actor& a, float dt) {
           pr.p = a.p + Vec2(0, -8) + aim * 5;
           if (a.human) { pr.kind = ProjKind::Arrow; pr.v = aim * 210; pr.life = 1.0f; sfx((int)Sfx::Arrow, a.p, 0.9f); }
           else if (a.mon == Monster::Wraith) { pr.kind = ProjKind::Magic; pr.v = aim * 130; pr.life = 1.6f; pr.ench = Ench::Frost; pr.enchPow = 4; sfx((int)Sfx::Frost, a.p, 0.8f); }
+          else if (wisp) { pr.kind = ProjKind::Magic; pr.v = aim * 120; pr.life = 1.8f; pr.radius = 3; sfx((int)Sfx::Frost, a.p, 1.7f, 0.6f); }   // (a bolt of light: no frost)
           else { pr.kind = ProjKind::Spit; pr.v = aim * 150; pr.life = 1.0f; sfx((int)Sfx::Splash, a.p, 1.4f); }
           projs.push_back(pr);
           a.atkCd = 1.6f + rng_.f();
+        } else if (a.heavy && a.mon == Monster::Scorpion) {
+          // the sting: a long reach over the claws, hard, and its venom slows
+          a.aim = norm(toP);
+          if (hitTarget(1.8f, 9.0f, Ench::None, 0) && p.player && !godMode) {
+            p.slowT = std::max(p.slowT, 2.5f);
+            emit(Ev::Text, p.p + Vec2(0, -26), (int)rgba(196, 236, 96), 0, "VENOM");
+          }
+          sfx((int)Sfx::Hit, a.p, 0.6f);
+          a.vel = a.aim * 50.0f;
+          a.atkCd = 1.3f + rng_.f() * 0.5f;
+        } else if (a.heavy && a.mon == Monster::Blightspawn) {
+          sporeBurst();
+          a.atkCd = 1.2f + rng_.f() * 0.5f;
         } else if (a.heavy) {
           heavySlam(a);
           a.vel = a.aim * 30.0f;
           a.atkCd = 1.5f + rng_.f() * 0.6f;
         } else if (a.lunge) {
           a.aim = norm(toP);
-          a.vel = a.aim * 235.0f;
+          a.vel = a.aim * (a.mon == Monster::Lurker ? 260.0f : 235.0f);
           a.hitDone = false;
           a.atkCd = 0.8f + rng_.f() * 0.6f;
           sfx((int)Sfx::Swing, a.p, 0.7f);
+        } else if (a.mon == Monster::EmberHound) {
+          hitTarget(1.0f, 2.0f, Ench::Fire, 4.0f);
+          a.atkCd = 1.0f + rng_.f() * 0.6f;
+          a.vel = a.aim * 120.0f;
+          sfx((int)Sfx::Fireball, a.p, 1.6f, 0.5f);
         } else {
           meleeHit(a);
           a.atkCd = 1.0f + rng_.f() * 0.7f;
-          if (wolf || a.mon == Monster::Boar || goblin) a.vel = a.aim * 120.0f;
+          if (pack || a.mon == Monster::Boar || goblin) a.vel = a.aim * 120.0f;
           else a.vel = a.aim * 40.0f;
           sfx((int)Sfx::Swing, a.p, 0.8f);
         }
@@ -651,7 +703,8 @@ void Game::updateAI(Actor& a, float dt) {
       a.vel *= std::pow(0.01f, dt);
       if (a.lunge && !a.hitDone && len(p.p - a.p) < a.range + p.radius + 2) {   // the bite lands on contact
         a.aim = norm(p.p - a.p);
-        damage(p, a.dmg * (0.9f + rng_.f() * 0.2f), a.p, a.id);
+        const bool ember = a.mon == Monster::EmberHound;
+        damage(p, a.dmg * (a.mon == Monster::Lurker ? 1.3f : 1.0f) * (0.9f + rng_.f() * 0.2f), a.p, a.id, ember ? Ench::Fire : Ench::None, ember ? 4.0f : 0.0f);
         a.hitDone = true;
         a.vel *= 0.25f;
       }
@@ -668,6 +721,7 @@ void Game::updateAI(Actor& a, float dt) {
     a.face = faceOf(toP);
     Vec2 side(-a.aim.y, a.aim.x);
     float want = a.ranged ? 70.0f : a.range * 0.8f;
+    if (a.mon == Monster::Scorpion) want = a.range * 0.7f;
     float spd = 1.0f;
     Vec2 mv;
     if (a.fleeing) {
@@ -675,9 +729,10 @@ void Game::updateAI(Actor& a, float dt) {
       mv = a.aim * -1.0f + side * (std::sin(a.animT * 3 + a.id) * 0.5f);
       spd = 1.1f;
       if (dist > 11 * TILE) { a.aggro = false; a.fleeing = false; a.goal = a.home; }
-    } else if (wolf) {
+    } else if (pack) {
       // circle at a few strides, drifting in and out; the lunge comes from wherever the player isn't looking
-      float orbitR = 38.0f + (a.id % 3) * 5.0f;
+      // (hyenas ring wider: the pack surrounds you before one darts in)
+      float orbitR = (a.mon == Monster::Hyena ? 46.0f : 38.0f) + (a.id % 3) * 5.0f;
       float radial = clampf((dist - orbitR) / 14.0f, -1.0f, 1.0f);
       mv = a.aim * radial + side * (0.95f * a.orbitDir);
       spd = 0.85f;
@@ -688,16 +743,20 @@ void Game::updateAI(Actor& a, float dt) {
       float spread = (float)((int)(a.id % 3) - 1) * 0.75f;
       if (dist > want) mv = a.aim + side * (dist > 28 ? spread : 0.0f);
       spd = 1.05f;
-    } else if (archer) {
+    } else if (kite) {
       // keep a bow-shot away: back off when crowded, close in when far, strafe in between
       if (dist < 62) mv = a.aim * -1.0f + side * (0.5f * a.orbitDir);
       else if (dist > 115) mv = a.aim;
       else mv = side * (0.6f * a.orbitDir);
       if (rng_.f() < dt * 0.4f) a.orbitDir = (int8_t)-a.orbitDir;
     } else if (dist > want) mv = a.aim;
-    if (a.mon == Monster::Bat || a.mon == Monster::Wraith) {   // erratic flight
+    if (a.mon == Monster::Bat || a.mon == Monster::Wraith || wisp) {   // erratic flight
       float w = std::sin(a.animT * 5 + a.id) * 0.8f;
       mv = mv + side * w;
+    }
+    if (wisp && rng_.f() < dt * 0.3f) {   // the wisp flickers out and back a few strides aside
+      const Vec2 to = a.p + side * (rng_.f() < 0.5f ? 22.0f : -22.0f);
+      if (bodyFree(to, a.radius, true)) { emit(Ev::Sparkle, a.p + Vec2(0, -8)); a.p = to; emit(Ev::Sparkle, a.p + Vec2(0, -8)); }
     }
     // simple obstacle avoidance: if stuck, sidestep
     Vec2 before = a.p;
@@ -707,7 +766,7 @@ void Game::updateAI(Actor& a, float dt) {
       if (len2(a.p - before) < 0.02f * a.speed * dt) {
         Vec2 sd = side * ((a.id & 1) ? 1.0f : -1.0f);
         moveActor(a, sd * (a.speed * slow * dt));
-        if (wolf) a.orbitDir = (int8_t)-a.orbitDir;
+        if (pack) a.orbitDir = (int8_t)-a.orbitDir;
         if (a.fleeing && dist < 34) a.fleeing = false;   // cornered: fight
       }
     } else a.st = AState::Idle;
@@ -715,7 +774,7 @@ void Game::updateAI(Actor& a, float dt) {
     bool inMelee = dist < a.range + p.radius + 2;
     bool inShot = a.ranged && dist < 150 && dist > 30;
     if (a.atkCd > 0) return;
-    if (wolf) {
+    if (pack) {
       // the pack takes turns (two at once in a big pack); prefer the flank, but don't circle forever
       int busy = 0, mates = 0;
       for (const Actor& o : actors) {
@@ -725,7 +784,8 @@ void Game::updateAI(Actor& a, float dt) {
       }
       int slots = mates >= 2 ? 2 : 1;
       bool flank = dot(norm(a.p - p.p), p.aim) < 0.3f;
-      if (busy < slots && dist > 16 && dist < 48 && (flank || a.special > 0.7f)) {
+      const float lungeMax = a.mon == Monster::Hyena ? 62.0f : a.mon == Monster::EmberHound ? 54.0f : 48.0f;   // (beyond the pack's ring)
+      if (busy < slots && dist > 16 && dist < lungeMax && (flank || a.special > 0.7f)) {
         a.st = AState::Windup; a.stT = 0; a.lunge = true;
       } else if (inMelee && dist <= 16 && busy < slots) {
         a.st = AState::Windup; a.stT = 0; a.lunge = false;
@@ -735,6 +795,21 @@ void Game::updateAI(Actor& a, float dt) {
     if (brute) {
       bool heavyNow = (a.atkN % 3 == 2) || rng_.f() < 0.15f;
       if (inMelee || (heavyNow && dist < a.range + p.radius + 12)) { a.st = AState::Windup; a.stT = 0; a.heavy = heavyNow; }
+      return;
+    }
+    if (a.mon == Monster::Scorpion) {   // claws twice, then the sting (telegraphed: roll away or through it)
+      const bool sting = a.atkN % 3 == 2;
+      if (inMelee || (sting && dist < a.range + p.radius + 8)) { a.st = AState::Windup; a.stT = 0; a.heavy = sting; }
+      return;
+    }
+    if (a.mon == Monster::Lurker) {   // a short rush from a few strides, or a snap up close
+      if (dist > 18 && dist < 58) { a.st = AState::Windup; a.stT = 0; a.lunge = true; }
+      else if (inMelee) { a.st = AState::Windup; a.stT = 0; a.lunge = false; }
+      return;
+    }
+    if (a.mon == Monster::Blightspawn && a.shootCd <= 0 && dist < 44) {   // the spore burst (its ring shows the cloud)
+      a.st = AState::Windup; a.stT = 0; a.heavy = true;
+      a.shootCd = 6.0f + rng_.f() * 2.0f;
       return;
     }
     if (inMelee || (inShot && rng_.f() < dt * 2.5f)) { a.st = AState::Windup; a.stT = 0; }
@@ -757,7 +832,9 @@ void Game::heavySlam(Actor& a) {
     if (v.id == a.id || v.st == AState::Dead || v.fly) continue;
     if (!(v.player || v.npc) || !factionsHostile(a.faction, v.faction)) continue;
     if (len2(v.p - c) > (r + v.radius) * (r + v.radius)) continue;
-    damage(v, a.dmg * 2.1f * (0.9f + rng_.f() * 0.2f), a.p, a.id);
+    // (M3c) the yeti's slam is frost-bitten: it slows whoever it catches
+    const bool yeti = a.mon == Monster::Yeti;
+    damage(v, a.dmg * 2.1f * (0.9f + rng_.f() * 0.2f), a.p, a.id, yeti ? Ench::Frost : Ench::None, yeti ? 2.0f : 0.0f);
     if (v.player && v.st != AState::Roll && v.iframes <= 0.36f) v.knock = norm(v.p - a.p) * 190.0f;
   }
   emit(Ev::Shake, c, 0, 4.5f);

@@ -10,3 +10,7 @@ bool treeProp(art::Prop p);      // fades when the player walks behind it
 int propShadow(art::Prop p);     // ground shadow: 0 none, 1 tree-sized, 2 large object, 3 a market stall's awning,
                                  // 4 a two-tile table, 5 a beast, 6 / 7 (M2) a wild prop's footprint-wide shadow
 bool propLight(art::Prop p, float& radius, Color& c);   // light source: radius (px) and colour
+struct Map;
+// M2 / M3c: the land a Peak / GreatPeak at tile (tx, ty) is drawn in (art::peakVariant's land, 0..15): 0 grey rock,
+// 1 snow-capped, 2 sandstone, (M3c) 3 red banded badlands, 4 basalt, 5 glacier ice, 6 chalk (moved here from render.cpp in M3c phase A)
+int peakLand(const Map& m, int tx, int ty);

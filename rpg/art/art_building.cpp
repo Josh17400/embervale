@@ -136,6 +136,9 @@ struct Mass {
   }
 };
 
+// (M3c carry) an elven cone: the swept leaf roof, and the sylvan cultures' plain cones (bark huts, pods) drawn the same
+// way, a true cone on a foreshortened eave (massTop)
+bool elvenCone(const Mass& m);
 // M3: roofs that are a flat deck behind a parapet (a dome or an onion bulb may stand on it)
 inline bool flatShape(RoofShape r) { return r == RoofShape::FlatParapet || r == RoofShape::Dome || r == RoofShape::Onion; }
 
@@ -145,6 +148,36 @@ inline bool flatShape(RoofShape r) { return r == RoofShape::FlatParapet || r == 
 constexpr int kStepTiers = 4;
 constexpr float kStepTread = 0.14f, kStepSummit = kStepTiers * kStepTread;
 inline float stepLevel(float t) { return t >= kStepSummit ? 1.0f : std::floor(t / kStepTread) / (float)kStepTiers; }
+
+bool elvenCone(const Mass& m) {
+  return m.round && (m.shape == RoofShape::Sweep || (m.shape == RoofShape::Conical && m.cul == CU_SYLVAN && m.rmat != RoofMat::Felt));
+}
+
+// (M3c fixer round 3, review: "the round huts have a teardrop roof: convex flanks bulge wider than the drum wall below,
+// then pinch to a point ... the garlic bulb silhouette") In this view a round eave is a circle on the screen, and a cone
+// on a circle is a teardrop: the eave's round bottom and fat shoulders bulge out before the flanks run up to the point.
+// The cone now stands on a flat ELLIPSE (half as deep as it is wide, like a painter's cone in a 3/4 view) that is pushed
+// forward so its front still laps the drum's front edge by a pixel; the point stays over the drum's centre (an oblique
+// cone), and the eave overhangs the drum by a lip of ~2.5 px to the sides instead of a broad bell. Seen from the 3/4
+// view the silhouette is two straight flanks from the point to the eave's ends and a shallow lip under them.
+// coneT: the cone's gauge from its point, 0 at the point .. 1 on the eave ellipse (> 1 outside)
+struct ConeEave { float R, Ry, e; };
+inline ConeEave coneEave(const Mass& m) {
+  const float R = m.r + 2.5f;
+  const float Ry = std::max(R * 0.55f, (m.r + 1.5f) / 1.8f);
+  const float e = std::max(0.0f, m.r + 1.5f - Ry);   // the ellipse's centre in front of the point (ground px)
+  return ConeEave{R, Ry, e};
+}
+inline float coneT(const Mass& m, float x, float y) {
+  const ConeEave c = coneEave(m);
+  const float dx = x - m.cx, dy = y - m.cy;
+  // the point P + (dx, dy) / t lies on the ellipse ((X/R)^2 + ((Y - e)/Ry)^2 = 1): solve for u = 1/t
+  const float a = dx * dx / (c.R * c.R) + dy * dy / (c.Ry * c.Ry);
+  if (a < 1e-9f) return 0.0f;
+  const float b = -2.0f * c.e * dy / (c.Ry * c.Ry), cc = c.e * c.e / (c.Ry * c.Ry) - 1.0f;
+  const float u = (-b + std::sqrt(std::max(0.0f, b * b - 4.0f * a * cc))) / (2.0f * a);
+  return u > 1e-6f ? 1.0f / u : 1e9f;
+}
 
 float massTop(const Mass& m, float x, float y, Surf& surf) {
   const float zt = m.zTop();
@@ -175,17 +208,29 @@ float massTop(const Mass& m, float x, float y, Surf& surf) {
       t = t * t * 0.35f + t * 0.65f;
       return zt - 1 + m.roofH * t;
     }
-    if (m.shape == RoofShape::Sweep) {
+    if (elvenCone(m)) {
       // M3b an elven canopy roof of leaf or bark on a round hall. (fixer: the broad dome with a knop at its crown read
       // as a garlic bulb) A swept cone: its sides curve in as they climb (a concave profile, the leaves laid like a
       // fir's), so it rises to a slender point, and its eave kicks out and up a little all round
-      const float R = m.r + m.ov;
-      if (rr > R) return -1;
-      const float t = rr / R;   // 0 at the point .. 1 at the eave
-      const float u = 1 - t;
-      const float prof = u * (0.42f + 0.58f * u);          // concave: steep near the point, flattening to the eave
-      const float kick = t > 0.84f ? (t - 0.84f) / 0.16f * 1.6f : 0.0f;
-      return zt - 1 + m.roofH * prof + kick;
+      // (M3c carry, owner: "the cones still read as garlic bulbs") the concave profile left a broad, nearly flat disc
+      // round a thin spike, which in the 3/4 view is exactly a bulb. Now a TRUE cone: straight flanks from the point
+      // down to a bell-cast eave (the last fifth of the run flares out at half the pitch), so the silhouette is the
+      // eave's curve and two straight lines up to the point, a witch's hat of leaves
+      // its eave an ellipse: the full overhang to the sides, foreshortened in depth to just past the drum (a cone's
+      // round base seen from the 3/4 view; a full circle there gave the cone a bulb's fat round bottom)
+      const float t = coneT(m, x, y);   // 0 at the point .. 1 at the eave
+      if (t > 1.0f) return -1;
+      constexpr float tf = 0.86f, hf = 0.07f;   // where the flare starts, and the height left there (of roofH)
+      float prof;
+      if (t <= tf) prof = hf + (1.0f - hf) * (1.0f - t / tf);
+      else prof = hf * (1.0f - (t - tf) / (1.0f - tf));
+      // round off the knee between the cone and its flare (a 2 px blend), so no crease line rings the roof
+      const float kd = (t - tf) / 0.05f;
+      if (std::fabs(kd) < 1.0f) {
+        const float upper = (1.0f - hf) / tf, lower = hf / (1.0f - tf);
+        prof -= (upper - lower) * 0.05f * 0.25f * (1.0f - kd * kd) * (1.0f - std::fabs(kd)) ;
+      }
+      return zt - 1 + m.roofH * prof;
     }
     if (m.shape == RoofShape::Conical || m.shape == RoofShape::Steep || m.shape == RoofShape::Pagoda || m.shape == RoofShape::Spire) {
       float R = m.r + m.ov;
@@ -1261,7 +1306,9 @@ void finishRoofHeight(Mass& m) {
       case RoofShape::FlatParapet: m.roofH = 0; break;
       case RoofShape::Stepped: m.roofH = m.r * 0.6f; break;
       case RoofShape::Tent: m.roofH = (m.r + m.ov) * 0.95f; break;
-      case RoofShape::Sweep: m.roofH = (m.r + m.ov) * 1.15f; break;   // (fixer: a slender swept cone, not a low dome)
+      // (M3c carry) a true cone tall enough that its point stands well clear of the back eave (at 1.15 of the run it
+      // barely topped the eave's circle: a bulb); fitMass lowers it where the building's clearance is short
+      case RoofShape::Sweep: m.roofH = (m.r + m.ov) * 1.75f; break;
       default:
         if (m.rmat == RoofMat::Felt && m.shape == RoofShape::Conical) m.roofH = (m.r + m.ov) * (0.52f + 0.08f * (float)std::min(3, m.pitch));   // a yurt's low cone
         else m.roofH = (m.r + m.ov) * std::max(1.3f, m.slope * 1.4f);
@@ -2599,6 +2646,39 @@ uint32_t roofColor(const Plan& p, const Mass& m, int mi, float x, float y, float
   else if (l > 0.16f) k = 2;
   else if (l > -0.16f) k = 1;
   else k = 0;
+  // (M3c carry) a round cone turns smoothly round its axis: the light term dithered between the ramp steps along their
+  // seams (as the domes are), so the lit flank (west, the sun's side) rolls over into the shaded east flank instead of
+  // standing in five hard wedges; the eave flare catches a little more light than the flank above it
+  if (m.round && elvenCone(m) && !m.snow) {
+    float lv = (l + 0.30f) * 3.0f;
+    const float tq = coneT(m, x, y);
+    // (M3c fixer round 3) a clear lit-west / shaded-east split round the cone's axis (the review read the flanks as one
+    // flat green): the side of the axis the pixel lies on, as a fraction of the cone's width at its height
+    const float side = std::clamp((x - m.cx) / std::max(1.0f, (m.r + 2.5f) * tq), -1.0f, 1.0f);
+    lv -= side * 0.95f;
+    if (tq > 0.88f && tq < 0.97f) lv += 0.3f;
+    int kb = (int)std::floor(lv);
+    if (lv - kb > 0.5f + (bayer((int)std::floor(x), (int)std::floor(y - z)) - 0.5f) * 0.5f) kb++;
+    k = std::clamp(kb, 1, 4);   // (the shaded flank keeps a little bounced light: never the darkest step)
+    if (tq >= 0.97f) k = std::max(0, std::min(k, 3) - 1);   // the drip edge: a darker line where the leaves end
+  }
+  // (M3c fixer round 2, review: "snow-covered Sylvan cone roofs still read as garlic bulbs ... near-flat white teardrop,
+  // almost no light/shadow banding and no visible eave thickness") a snowed cone keeps the same light rolling round
+  // it as the bare one, on the snow's own ramp: the lit west flank white, the east flank falling through two cool blue
+  // steps into shade (so the flanks read straight and the cone turns), and at the eave the snow ends in a shaded lip
+  // over a band of the leaves / thatch under it (the roof's thickness), with a dark drip line below
+  if (m.round && elvenCone(m) && m.snow) {
+    float lv = (l + 0.42f) * 3.2f;
+    const float tq = coneT(m, x, y);
+    int kb = (int)std::floor(lv);
+    if (lv - kb > 0.5f + (bayer((int)std::floor(x), (int)std::floor(y - z)) - 0.5f) * 0.5f) kb++;
+    kb = std::clamp(kb, 0, 4);
+    if (shade) kb = std::max(0, kb - 1);
+    if (tq >= 0.965f) return R[std::clamp(kb - 2, 0, 1)];                 // the drip line
+    if (tq >= 0.90f) return R[std::clamp(kb - 1, 1, 3)];                  // the leaves / thatch under the snow
+    if (tq >= 0.86f) return kSnow[std::clamp(kb - 1, 0, 3)];              // the snow's shaded lip
+    return kSnow[kb];
+  }
   // a plane facing the viewer (south) is mid-tone, like the south walls, never in deep shade: steep front planes
   // otherwise sink to the darkest ramp step and read as a dark flat slab
   if (!m.round && ny > 0.2f && std::fabs(nx) < 0.3f) k = std::max(k, 2);
@@ -2632,6 +2712,9 @@ uint32_t roofColor(const Plan& p, const Mass& m, int mi, float x, float y, float
     if (shade) kt = std::max(0, kt - 1);
     return R[kt];
   }
+  // (M3c carry) an elven cone keeps its leaf courses as shadow lines only: the lit flecks on every scale drowned the
+  // light turning round the cone (the volume) in speckle
+  if (elvenCone(m) && t > 0) t = 0;
   // keep the strongest highlight for the ridge itself
   if (k == 4 && t > 0) t = 0;
   // hip roofs: the courses on the two end planes run at right angles to the front's, and with the same shade lines on
@@ -3244,7 +3327,16 @@ void cultureOverlays(Painter& P, AT&& at) {
   //      top-left, gold leaves and glow-motes in it, a few great boughs
   for (const Mass& m : ms) {
     if (!m.tree) continue;
-    auto base = at(m.cx, m.cy, m.zTop());
+    // (M3c carry) a trunk rising through a roof (a tree temple's cone) carries its crown above that roof's point, not
+    // stuck on its flank
+    float zc = m.zTop();
+    for (const Mass& o : ms) {
+      if (&o == &m || o.tree) continue;
+      Surf so;
+      const float zo = massTop(o, m.cx, m.cy, so);
+      if (zo > zc) zc = zo - 3.0f;
+    }
+    auto base = at(m.cx, m.cy, zc);
     const int topLim = p.sc.top - p.budget + 3;
     const int rx = (int)(m.r * 3.0f + 12), ry = (int)(m.r * 1.7f + 9);
     const int cy = std::max(topLim + ry - 2, base.second - ry / 2);

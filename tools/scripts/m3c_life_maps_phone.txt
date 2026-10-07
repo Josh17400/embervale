@@ -1,0 +1,14 @@
+# M3c LIFE: the world map's biome legend and the biome banner at the iPhone's canvas (639 x 294)
+#   embervale.exe --script tools/scripts/m3c_life_maps_phone.txt
+phone
+seed 5
+0.3  newgame
++0.02 hour 12
++0.1 god 1
++0.2 gotoeco peatbog
++0.6 shot m3c_life_m_phone_banner.png
++1.6 mapexplore 260
++0.2 menu 2
++0.3 mapzoom 4
++2.5 shot m3c_life_m_phone_map.png
++0.3 quit
