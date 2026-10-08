@@ -389,8 +389,10 @@ class Life {
   void addRefugees(const World& w, Census& c, int n);
   void evictFar(Game& g);
 };
-// build a census in slices: true when done (b.c is complete). b.site and b.phase 0 start it; budgetMs <= 0: all at once
-bool buildCensusStep(const World& w, Life::Build& b, double budgetMs);
+// build a census in slices: true when done (b.c is complete). b.site and b.phase 0 start it; budget = steps of work
+// (about a microsecond each on a desktop; CENSUS_SLICE ~ 0.45 ms), <= 0: all at once
+constexpr int CENSUS_SLICE = 450;
+bool buildCensusStep(const World& w, Life::Build& b, int budget);
 // the runtime tie index (Census::tiesOf) from Census::ties
 void tieIndex(Census& c);
 // a tie between two residents (nullptr none)

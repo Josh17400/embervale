@@ -32,6 +32,7 @@ double nowMs() {
 uint32_t h32(uint64_t a, uint64_t b) { return (uint32_t)(ew::mix64(a * 0x9E3779B97F4A7C15ull ^ ew::mix64(b + 0x9A11ull)) >> 16); }
 
 constexpr int COIN_CAP = 250;
+constexpr int HOUR_SLICE_RESIDENTS = 1500;   // the hour's aggregate per step (a capital and its neighbours)
 constexpr ew::Good FOODS[5] = {ew::Good::Bread, ew::Good::Meat, ew::Good::Fish, ew::Good::Produce, ew::Good::Grain};
 bool isFood(int g) {
   for (ew::Good f : FOODS) if ((int)f == g) return true;
@@ -1043,7 +1044,7 @@ void Life::tick(Game& g, float dt) {
       }
       if (build_.site >= 0) {
         builtNow = true;
-        const bool done = buildCensusStep(w, build_, 0.45);
+        const bool done = buildCensusStep(w, build_, CENSUS_SLICE);
         const double ms = nowMs() - bt0;
         build_.ms += ms;
         stats.worstSliceMs = std::max(stats.worstSliceMs, ms);
@@ -1058,8 +1059,9 @@ void Life::tick(Game& g, float dt) {
       queuePos_ = 0;
       queueHour_ = hourAbs;
     }
-    const double qt0 = nowMs();
-    // (one heavy job a step: a census being built this step leaves the hour's aggregate to the next one; 15.12 budget)
+    // (one heavy job a step: a census being built this step leaves the hour's aggregate to the next one; 15.12 budget,
+    // counted in residents, never on the clock, so the sim does not depend on the machine's speed)
+    int residents = 0;
     while (!builtNow && queuePos_ < queue_.size()) {
       const int si = queue_[queuePos_++];
       auto it = sites_.find(w.sites[(size_t)si].id);
@@ -1067,7 +1069,8 @@ void Life::tick(Game& g, float dt) {
       Census& c = it->second;
       c.handle = si;
       if (c.lastHour != hourAbs) hourTick(g, c, hourAbs);
-      if (nowMs() - qt0 > 0.45) break;
+      residents += (int)c.res.size();
+      if (residents >= HOUR_SLICE_RESIDENTS) break;
     }
     // a census finished this hour after the queue was made joins it
     if (queuePos_ >= queue_.size())

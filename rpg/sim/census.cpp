@@ -26,11 +26,6 @@ namespace life {
 namespace {
 
 uint32_t h32(uint64_t a, uint64_t b) { return (uint32_t)(ew::mix64(a * 0x9E3779B97F4A7C15ull ^ ew::mix64(b + 0x51D7ull)) >> 16); }
-double nowMs() {
-  using namespace std::chrono;
-  return duration<double, std::milli>(steady_clock::now().time_since_epoch()).count();
-}
-
 // how many people a home holds (VISION_PLAN 10.1: a hut 1-2, a house 2-4, a townhouse 3-5, a farmhouse 3-6), with the
 // culture's family size (pious, inward-looking peoples keep big households; merchant and scholar towns small ones)
 int homeCapacity(const Bldg& b, uint32_t h, int famBias) {
@@ -233,14 +228,12 @@ const char* festivalName(uint8_t k) {
 }
 
 // ---------------------------------------------------------------- the builder
-bool buildCensusStep(const World& w, Life::Build& b, double budgetMs) {
-  const double t0 = budgetMs > 0 ? nowMs() : 0;
+bool buildCensusStep(const World& w, Life::Build& b, int budget) {
+  // the slice is counted in steps of work (a workplace, a home, a resident, a spawn), never on the clock: how far a
+  // census gets in a frame, and so the hour it joins the sim, must not depend on the machine (determinism)
+  // (a household, phase 2, costs about twelve times the other steps)
   int ticks = 0;
-  auto outOfTime = [&]() {
-    if (budgetMs <= 0) return false;
-    if ((++ticks & 7) != 0) return false;
-    return nowMs() - t0 >= budgetMs;
-  };
+  auto outOfTime = [&](int phase) { return budget > 0 && (ticks += phase == 2 ? 12 : 1) >= budget; };
   Census& c = b.c;
   const int si = b.site;
   if (si < 0 || si >= (int)w.sites.size()) { c = Census(); return true; }
@@ -303,6 +296,7 @@ bool buildCensusStep(const World& w, Life::Build& b, double budgetMs) {
   };
 
   for (;;) {
+    const int phase = b.phase;
     switch (b.phase) {
       case 0: {   // ---- set up and sort the buildings
         c = Census();
@@ -574,7 +568,7 @@ bool buildCensusStep(const World& w, Life::Build& b, double budgetMs) {
       }
       default: return true;
     }
-    if (outOfTime()) return false;
+    if (outOfTime(phase)) return false;
   }
 }
 
