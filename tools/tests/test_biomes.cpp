@@ -31,6 +31,7 @@ using namespace ew;
 struct Census {
   std::vector<long> count = std::vector<long>((size_t)Eco::COUNT, 0);
   long agree = 0, asked = 0;
+  long shoreAt = 0, shoreFar = 0, landAsked = 0;   // (M4) shore ecos among the land points asked: ecoAt vs ecoFar
   int biggestRare = 0;   // the biggest 4-connected run of rare lattice points (48-tile spacing) of one eco
   Eco biggestEco = Eco::Ocean;
   uint64_t biggestSeed = 0;
@@ -51,7 +52,10 @@ int biomesSeed(uint64_t seed, int32_t R, Census& C, bool list) {
       C.count[(size_t)e]++;
       if ((i & 3) == 0 && (j & 3) == 0) {   // (the far estimate on every fourth point: it is the slow one)
         C.asked++;
-        if (A.ecoFar(x, y) == e) C.agree++;
+        const Eco f = A.ecoFar(x, y);
+        if (f == e) C.agree++;
+        auto shore = [](Eco q) { return q == Eco::SandBeach || q == Eco::Shingle || q == Eco::CoralCoast || q == Eco::SeaCliffs || q == Eco::Mangrove; };
+        if (e != Eco::Ocean) { C.landAsked++; if (shore(e)) C.shoreAt++; if (shore(f)) C.shoreFar++; }
       }
       if (firstX[(size_t)e] == INT32_MIN) { firstX[(size_t)e] = x; firstY[(size_t)e] = y; }
     }
@@ -164,6 +168,9 @@ int cmdBiomes(int argc, char** argv) {
   printf("biomes: rare lands %.2f %% of the land, biggest rare patch %d lattice points (~%d tiles across, %s, seed %llu); far estimate agrees %.1f %%\n",
          land ? 100.0 * rare / land : 0.0, C.biggestRare, 48 * (int)ew::isqrt((uint64_t)std::max(1, C.biggestRare)), ecoName(C.biggestEco),
          (unsigned long long)C.biggestSeed, C.asked ? 100.0 * C.agree / C.asked : 0.0);
+  // (M4) the far estimate's shore band (owner carry-over: the far map had no beaches)
+  printf("biomes: shore census (land points asked %ld): ecoAt %.2f %% shore, ecoFar %.2f %% shore\n", C.landAsked,
+         C.landAsked ? 100.0 * C.shoreAt / C.landAsked : 0.0, C.landAsked ? 100.0 * C.shoreFar / C.landAsked : 0.0);
   if (strict) {
     for (int i = 0; i < (int)Eco::COUNT; i++)
       if (!C.count[(size_t)i]) { printf("FAIL: biome %s never seen\n", ecoName((Eco)i)); bad++; }

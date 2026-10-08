@@ -1092,8 +1092,8 @@ const char* const kMaskedD[kMapRows] = {
   "122222222211",
   "1r1......1r0",
   ".........1..",
+  ".........1..",
   "...vvrrvv...",
-  "...vv11vv...",
   "....vvvv....",
 };
 const char* const kMaskedU[kMapRows] = {
@@ -1319,7 +1319,7 @@ struct HumanPainter {
     return O == Outfit::Dress || O == Outfit::Robe;
   }
   bool metalBody() const { return O == Outfit::Plate || O == Outfit::Elven || O == Outfit::Ebony; }
-  bool isStaff() const { return L.weapon == 4; }
+  bool isStaff() const { return L.weapon == 4 || L.weapon == 8 || L.weapon == 9; }   // (M4: a spear, a walking stick)
   bool heavyHead() const { return L.weapon == 2 || L.weapon == 6; }
   bool idle() const { return !P.atk && !P.hurt && !P.bob && !P.liftA && !P.liftB && !P.stepA && !P.swingA; }
 
@@ -2009,6 +2009,25 @@ struct HumanPainter {
         head(3, 3, m[4]); head(4, 3, m[3]); head(5, 3, m[3]); head(6, 3, m[3]); head(7, 3, m[2]);
         put(5, -1, m[1]);
         break;
+      case 7: {  // (M4) a herald's horn: a brass coil from the mouthpiece in the hand to a flared bell
+        put(0, 0, kBrass[1]); put(1, 0, kBrass[2]); put(2, 0, kBrass[3]); put(3, 1, kBrass[3]); put(4, 1, kBrass[2]);
+        put(5, 1, kBrass[2]); put(6, 0, kBrass[3]);
+        head(6, 1, kBrass[4]); head(7, 0, kBrass[3]); head(7, 1, kBrass[2]); head(7, 2, kBrass[1]); head(7, -1, kBrass[4]);
+        put(2, 1, kBrass[1]);   // the coil's shade below
+        break;
+      }
+      case 8: {  // (M4) a soldier's spear: an ash shaft, an iron leaf head, a socket ring
+        for (int t = -7; t <= 6; t++) put(t, 0, kWood[(t & 3) == 0 ? 1 : (t < 2 ? 2 : 3)]);
+        put(7, 0, kIron[1]);
+        head(8, 0, m[3]); head(9, 0, m[4]); head(8, 1, m[1]); head(9, 1, m[2]);
+        if (!diag) put(10, 0, m[3]);
+        break;
+      }
+      case 9: {  // (M4) a refugee's walking stick, a knot at its head
+        for (int t = -5; t <= 4; t++) put(t, 0, kWoodDark[(t & 1) ? 2 : 3]);
+        put(5, 0, kWoodDark[1]); put(5, 1, kWoodDark[2]);
+        break;
+      }
       case 6:   // hammer / pick
         for (int t = -1; t <= 5; t++) put(t, 0, kWood[t < 3 ? 2 : 1]);
         for (int o = -2; o <= 2; o++) { head(6, o, m[o < 0 ? 2 : 1]); head(7, o, m[o < 0 ? 1 : 0]); }
@@ -2264,6 +2283,7 @@ struct HumanPainter {
       if (L.helmForm) helmForm(ox, oy, *rp);
       else drawMap(c, hm, ox, oy, *rp, kEye, accent, visor);
       if (!L.helmForm && (L.armsOrnament || L.crest)) helmExtras(ox, *rp);
+      helmFace();
     } else if (L.hood) {
       drawMap(c, facing == kDown ? kHoodD : (facing == kUp ? kHoodU : kHoodS), ox, oy, R.hood);
       if (facing == kDown) for (int x = 5; x <= 10; x++) c.set(x, hy + 3, R.skin[0]);
@@ -2318,6 +2338,30 @@ struct HumanPainter {
     if (elf) {
       c.set(2, hy + 4, s[kL - 1]); c.set(1, hy + 2, s[kL + 1]); c.set(2, hy + 2, s[kL]);
       c.set(13, hy + 4, s[kR - 1]); c.set(14, hy + 2, s[kR]); c.set(13, hy + 2, s[kR]);
+    }
+  }
+
+  // (fixer M4 r3, review: "guards are faceless: the helmet leaves a dark blob") under a helmet's brim the face stays a
+  // face: the eyes get a pale white on their outer side (on a dark skin a dark eye alone vanishes), and the cheeks
+  // under them catch the light from the top-left
+  void helmFace() {
+    if (facing == kUp || P.hurt) return;
+    const uint32_t eye = L.eyeColor ? opaque(L.eyeColor) : kEye, white = rgba(226, 218, 204);
+    auto isSkin = [&](int x, int y) { return solid(c, x, y) && rampIndex(R.skin, c.get(x, y)) >= 0; };
+    const bool dark = luma(R.skin[2]) < 0.42f;
+    if (facing == kDown) {
+      if (c.get(6, hy + 4) != eye || c.get(9, hy + 4) != eye) return;   // the helm covers the eyes (a great-helm)
+      if (dark) {
+        if (isSkin(5, hy + 4)) c.set(5, hy + 4, white);
+        if (isSkin(10, hy + 4)) c.set(10, hy + 4, shade(white, 0.9f));
+      }
+      if (isSkin(7, hy + 5)) c.set(7, hy + 5, R.skin[3]);                  // the nose's lit side
+      if (isSkin(5, hy + 5)) c.set(5, hy + 5, R.skin[dark ? 4 : 3]);       // the lit cheek
+    } else {
+      const int ex = 10 + P.lean;
+      if (c.get(ex, hy + 4) != eye) return;
+      if (dark && isSkin(ex - 1, hy + 4)) c.set(ex - 1, hy + 4, white);
+      if (isSkin(ex - 2, hy + 5)) c.set(ex - 2, hy + 5, R.skin[dark ? 4 : 3]);
     }
   }
 
@@ -2712,7 +2756,7 @@ struct HumanPainter {
         if (facing == kDown) c.set(7, ty + 4, R.gilt[3]);
         break;
     }
-    if (L.outfit == Outfit::Guard && (form == kFormMail || form == kFormScale || form == kFormPlate || form == kFormLeaf || form == kFormLeather)) {
+    if (L.outfit == Outfit::Guard && (form == kFormMail || form == kFormScale || form == kFormLamellar || form == kFormPlate || form == kFormLeaf || form == kFormLeather)) {
       // the guard's tabard in the kingdom's colours, over the armour
       for (int y = ty + 1; y <= hip; y++)
         for (int x = 6; x <= 9; x++) c.set(x, y, R.trim[y == hip ? 1 : (x < 8 ? 3 : 2)]);
@@ -2730,7 +2774,7 @@ struct HumanPainter {
       case kFormPlate: c.set(9 + ox, ty + 1, T[4]); for (int x = 6; x <= 10; x++) c.set(x + ox, ty + 4, T[1]); break;
       default: for (int x = 6; x <= 10; x++) c.set(x + ox, ty + 4, R.belt[1]); break;
     }
-    if (L.outfit == Outfit::Guard && (form == kFormMail || form == kFormScale || form == kFormPlate || form == kFormLeaf || form == kFormLeather))
+    if (L.outfit == Outfit::Guard && (form == kFormMail || form == kFormScale || form == kFormLamellar || form == kFormPlate || form == kFormLeaf || form == kFormLeather))
       for (int y = ty + 1; y <= hip; y++) { c.set(9 + ox, y, R.trim[2]); c.set(10 + ox, y, R.trim[1]); }
   }
   // the armour skirt (tassets, a mail or lamellar skirt): L.skirt - 1 rows below the waist

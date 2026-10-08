@@ -75,6 +75,12 @@ Kind kindOfProp(art::Prop p) {
     case Prop::DryingRack: case Prop::HideRack: case Prop::MineEntrance: case Prop::Trough: case Prop::WaterWheel:
     case Prop::PenShelter: case Prop::MineHill: case Prop::FishingShack: case Prop::HerbBed:
       return Kind::WorkYard;
+    // (M4) the war's camp gear and debris and the lore of fallen places: placed at runtime by the war's overlays and the
+    // story engine (or in ruins), never built by a settlement
+    case Prop::WarTent: case Prop::CommandTent: case Prop::Catapult: case Prop::Palisade: case Prop::RefugeeTent:
+    case Prop::Rubble: case Prop::Ash: case Prop::Scaffold: case Prop::Barricade: case Prop::NoticeBoard:
+    case Prop::Inscription: case Prop::ToppledStatue: case Prop::Mural: case Prop::NamedGrave: case Prop::LostJournal:
+      return Kind::None;
     case Prop::COUNT: break;
   }
   return Kind::COUNT;   // unclassified: rpg_test --builder fails

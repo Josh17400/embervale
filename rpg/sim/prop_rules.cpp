@@ -38,6 +38,9 @@ bool propSolid(Prop p) {
     case Prop::DryBrush: case Prop::Saltbush: case Prop::Lichen: case Prop::Wrack: case Prop::Shells: case Prop::GlowCaps:
     case Prop::Blightweed: case Prop::SilverFern: case Prop::JungleFern: case Prop::Petals:
       return false;
+    // M4: ash is a scorch on the ground, a fallen journal lies on the floor, a mural hangs on a wall tile
+    case Prop::Ash: case Prop::LostJournal: case Prop::Mural:
+      return false;
     default: return true;
   }
 }

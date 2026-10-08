@@ -576,11 +576,41 @@ int defenceChecks(uint64_t seed) {
     if (a.hostile != factionsHostile(a.faction, Faction::Player)) { out("FAIL: actor %s: hostile %d but faction %s\n", a.name.c_str(), a.hostile, factionName(a.faction)); bad++; }
   // town defence: the nearest guarded town (villages have no guards), then the start village (militia only)
   // (M2: the endless world) the nearest town in the region plans around the start (loading it into the records)
+  // (M4) a kingdom's town keeps a watch; an independent town (the wildlands) has militia only, so the guarded check takes
+  // the nearest town a kingdom holds, and an independent one met first is checked unguarded (the bell, the hiding)
   const Site home = base.world.sites[(size_t)base.world.startSite];
   int town = base.world.findSiteNear(base.world.ox + home.ex, base.world.oy + home.ey, SiteType::Town, 8);
   if (town < 0) town = base.world.findSiteNear(base.world.ox + home.ex, base.world.oy + home.ey, SiteType::City, 8);
-  if (town >= 0) bad += townDefence(base, town, true, "town");
-  bad += townDefence(base, base.world.startSite, base.world.sites[base.world.startSite].type != SiteType::Village, "start");
+  int member = -1;
+  {
+    float bd = 1e30f;
+    for (int i = 0; i < (int)base.world.sites.size(); i++) {
+      const Site& s = base.world.sites[(size_t)i];
+      if ((s.type != SiteType::Town && s.type != SiteType::City) || s.kingdom < 0) continue;
+      const float d = std::hypot((float)(s.ex - home.ex), (float)(s.ey - home.ey));
+      if (d < bd) { bd = d; member = i; }
+    }
+  }
+  if (member >= 0) bad += townDefence(base, member, true, "town");
+  if (town >= 0 && town != member && base.world.sites[(size_t)town].kingdom < 0) bad += townDefence(base, town, false, "free town");
+  // (M4) the start village: a kingdom's village keeps a small watch (2-3), so it is held to the guarded standard too
+  bad += townDefence(base, base.world.startSite, base.world.sites[base.world.startSite].type != SiteType::Village || base.world.sites[base.world.startSite].kingdom >= 0, "start");
+  // (M4) the kingdom's watch wears its owner's colours and serves it; an independent place keeps none
+  {
+    Game g = base;
+    g.noWildSpawns = true;
+    tick(g, 30);
+    const Site& s = g.world.sites[(size_t)g.world.startSite];
+    int guards = 0, wrong = 0;
+    for (const Actor& a : g.actors) {
+      if (!a.npc || a.site != g.world.startSite || a.role != Role::Guard) continue;
+      guards++;
+      if (s.kingdom < 0 || a.realm != g.world.kingdoms[(size_t)s.kingdom].id || (a.look.tabardColor | 0xFF000000u) != (g.world.kingdoms[(size_t)s.kingdom].tabard() | 0xFF000000u)) wrong++;
+    }
+    if (s.kingdom >= 0 && guards == 0) { out("FAIL: defence: the member village %s keeps no watch\n", s.name.c_str()); bad++; }
+    if (s.kingdom < 0 && guards > 0) { out("FAIL: defence: the independent village %s has %d guards\n", s.name.c_str(), guards); bad++; }
+    if (wrong) { out("FAIL: defence: %d guards of %s do not wear or serve its owner\n", wrong, s.name.c_str()); bad++; }
+  }
   bad += bountyChecks(base);
   bad += backgroundChecks(base);
   bad += wildlifeChecks(base);

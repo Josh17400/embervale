@@ -11,6 +11,7 @@
 #include "engine/audio.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/stream.h"
+#include "rpg/sim/war.h"
 #include "rpg/culture/society.h"
 
 using art::Monster;
@@ -83,6 +84,12 @@ void Game::resetSession() {
   curSite = -1;
   travel = Travel();
   marks.clear();
+  // M4: the living world, the war's overlays and the stories belong to the world (a new game or a load starts them anew;
+  // a load then reads the saved realm and story blocks over these)
+  realm.reset(world.seed);
+  story.reset(world.seed);
+  war = WarState();
+  realmSeen_ = 0; realmSites_ = 0; realmDay_ = -1; realmLand_ = 0; realmLandKnown_ = false;
 }
 
 // everything a new game sets up once its world exists
@@ -119,7 +126,7 @@ void Game::beginWorld() {
     q.desc = "A DRAGON HAS BEEN SEEN OVER THE PEAKS. " +
              (K && cap.capital ? "THE " + ruler + " OF " + K->name + " HAS LEFT THE WAR TO HIS " + lord + ", WHO SEEKS ANYONE BRAVE ENOUGH TO HELP. "
                                : "THE " + lord + " OF " + cap.name + " SEEKS ANYONE BRAVE ENOUGH TO HELP. ") +
-             "TRAVEL TO " + cap.name + " AND SPEAK WITH THE " + lord + (K && cap.capital ? ", NOT THE " + ruler + "." : ".");
+             "THE " + lord + " HOLDS COURT IN " + cap.name + ": SPEAK WITH HIM THERE" + (K && cap.capital ? ", NOT WITH THE " + ruler + "." : ".");
   }
   q.stage = 0;
   quests.push_back(q);
@@ -337,7 +344,8 @@ void Game::collectHostiles() {
   int n = 0;
   for (size_t i = 1; i < actors.size(); i++) {
     const Actor& e = actors[i];
-    if (e.npc && !e.hostile) continue;
+    // (M4) soldiers too: a guard or a soldier of a kingdom at war fights them (warFoes)
+    if (e.npc && !e.hostile && e.faction != Faction::Army) continue;
     hostiles_.push_back((int)i);
     if (e.hostile && e.st != AState::Dead) n++;
   }
@@ -424,8 +432,14 @@ void Game::moveActor(Actor& a, Vec2 d) {
   float rx = a.radius, ry = a.radius * 0.6f;
   bool fl = a.flying || a.fly;
   if (a.fly) { a.p += d; return; }
+  // (fixer M4 r1) a besieged town's barricaded gates stop everyone but the player (never shut in or out by a siege)
+  const bool gatePass = a.player && !inside && !war.gateTiles.empty();
+  auto solidP = [&](float x, float y) {
+    if (!solidAt(x, y, fl)) return false;
+    return !(gatePass && warGatePass(*this, (int)std::floor(x / TILE), (int)std::floor(y / TILE)));
+  };
   auto hit = [&](float x, float y) {
-    return solidAt(x - rx, y - ry, fl) || solidAt(x + rx, y - ry, fl) || solidAt(x - rx, y + ry, fl) || solidAt(x + rx, y + ry, fl) ||
+    return solidP(x - rx, y - ry) || solidP(x + rx, y - ry) || solidP(x - rx, y + ry) || solidP(x + rx, y + ry) ||
            (!fl && pillarHit(x, y, rx, ry));
   };
   // (M3c fixer round 2, review: "the hero stops dead on tree trunks when walking straight through dense woods") the
@@ -537,6 +551,9 @@ void Game::update(float dt, const Input& in) {
   updateTownDefence(dt);
   questTick(dt);      // M2: deliveries, escorts, the Protect night (quests.cpp)
   waysideTick(dt);    // M2: the toll bridge (wayside.cpp)
+  realmStep(dt);      // M4: the living world (realm_game.cpp, REALM lane)
+  warStep(dt);        // M4: camps, patrols, refugees, garrisons, war damage (war_game.cpp, WARDS lane)
+  storyStep(dt);      // M4: stories, rumours, heralds, lore (rpg/story/story_game.cpp, STORY lane)
   updateProjectiles(dt);
   updatePickups(dt);
   if (!inside) updateSpawning(dt);
@@ -717,7 +734,19 @@ void Game::updatePlayer(float dt, const Input& in) {
     if (m.in(tx, ty)) {
       int bi = m.bldgAt[(size_t)ty * m.w + tx];
       // the door, or (owner 2026-10-06) any walk-in bay of an open front
-      if (bi >= 0 && bldgEntryAt(m.bldgs[bi], tx, ty)) { enterBuilding(bi, tx); return; }
+      if (bi >= 0 && bldgEntryAt(m.bldgs[bi], tx, ty)) {
+        // (M4) a burned-out shell or a conqueror's garrison tower: no way in (a step back out of the doorway)
+        if (warBarred(*this, bi)) {
+          p.p.y = std::max(p.p.y, (ty + 1) * (float)TILE + 3.0f);
+          if (war.barredSayT <= 0) {
+            say(m.bldgs[bi].charred == 2 ? "NOTHING BUT ASHES INSIDE. THE WAY IN HAS FALLEN." : "THE GARRISON'S DOOR IS BARRED.");
+            war.barredSayT = 3.0f;
+          }
+          return;
+        }
+        enterBuilding(bi, tx);
+        return;
+      }
       int pr = m.propAt(tx, ty);
       if (pr == (int)Prop::CaveEntrance + 1 || pr == (int)Prop::IronDoor + 1) {
         int si = world.siteAt(tx, ty);
@@ -785,7 +814,9 @@ void Game::meleeHit(Actor& a) {
     Actor& v = actors[i];
     if (v.id == a.id || v.st == AState::Dead) continue;
     if (v.fly) continue;   // can't reach a dragon in the air
-    bool enemy = isPl ? v.hostile : factionsHostile(a.faction, v.faction);   // monsters hit townsfolk too (M0)
+    // monsters hit townsfolk too (M0); (M4) soldiers and guards hit their kingdom's enemies, and whoever is hostile to
+    // the player hits the player (warFoes)
+    bool enemy = isPl ? v.hostile : warFoes(*this, a, v);
     if (!enemy) continue;
     Vec2 d = (v.p + Vec2(0, -4)) - origin;
     float l = len(d);
@@ -824,7 +855,7 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
   }
   if (v.npc && !v.hostile) {   // townsfolk and guards are only hurt by their enemies (never by the player's swings)
     int ai = attacker >= 0 ? findActor(attacker) : -1;
-    if (ai < 0 || !factionsHostile(actors[ai].faction, v.faction)) return;
+    if (ai < 0 || !warFoes(*this, actors[ai], v)) return;   // (M4: a kingdom's enemies too)
   }
   if (v.player) dmg = dmg * 100.0f / (100.0f + armorRating() * 1.6f);
   else dmg = dmg * 60.0f / (60.0f + v.armor);
@@ -834,6 +865,7 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
   v.hp -= dmg;
   v.flash = 0.12f;
   v.lastHitT = time;
+  if (attacker == pl().id) v.plHitT = time;
   if (v.player) lastHurtT = time;
   Vec2 dir = norm(v.p - from);
   float kb = v.boss ? 30.0f : (v.player ? 110.0f : 150.0f);
@@ -921,7 +953,11 @@ void Game::kill(Actor& a, int killer) {
     }
   }
   dropLoot(a);
-  if (byPlayer) questKill(a);
+  // (M4 integration) a hunt beast the player was fighting still counts when a guard or militia lands the last blow
+  // (WARDS guards now fight beasts in the streets); XP and the kill count stay the player's own
+  if (byPlayer || (a.plHitT > -99 && time - a.plHitT < 8.0f)) questKill(a);
+  warKill(a, killer);           // M4: siege contributions, reputation (war_game.cpp)
+  storyKill(a, byPlayer);       // M4: story objectives (rpg/story/story_game.cpp)
   if (!inside && a.site >= 0 && a.site < (int)world.sites.size() && world.sites[a.site].type == SiteType::BanditCamp) {
     // a camp is broken when its chief falls (what the bounty asks: "KILL THEIR CHIEF"), or when its last fighter
     // does (a camp whose chief is already gone). Either way the player hears about it at once: CLEARED and BOUNTY
@@ -1216,7 +1252,16 @@ int Game::spawnHuman(const Spawn& sp, Vec2 p) {
     }
   } else {
     a.npc = true; a.role = sp.role;
+    // (M4) a guard serves the settlement's CURRENT owner (Site::kingdom; its colours come from makeLook), and the king on
+    // the throne is the realm's ruler
+    const int ownSite = sp.site >= 0 ? sp.site : (a.bldg >= 0 && a.bldg < (int)world.over.bldgs.size() ? world.over.bldgs[(size_t)a.bldg].site : -1);
+    if (ownSite >= 0 && ownSite < (int)world.sites.size() && world.sites[(size_t)ownSite].kingdom >= 0)
+      if (sp.role == Role::Guard || sp.role == Role::King || sp.role == Role::Herald || sp.role == Role::Soldier || sp.role == Role::Captain)
+        a.realm = world.kingdoms[(size_t)world.sites[(size_t)ownSite].kingdom].id;
     makeLook(a, sp.role, rr);
+    if (sp.role == Role::King && a.realm)
+      if (const realm::KingdomState* K = realm.kingdom(a.realm))
+        if (!K->ruler.name.empty()) a.name = (K->ruler.title.empty() ? std::string("KING") : K->ruler.title) + " " + K->ruler.name;
     a.maxHp = 80; a.hp = 80; a.dmg = 14; a.speed = 46; a.range = 16; a.radius = 4.5f;
     if (sp.role == Role::Guard) {
       a.maxHp = 300; a.hp = 300; a.dmg = 22; a.speed = 54;
@@ -1261,10 +1306,9 @@ int Game::spawnHuman(const Spawn& sp, Vec2 p) {
     }
     // militia (M0 town defence): brave adults with a tool pick it up when monsters come. Weak, and they run when hurt.
     // (Decided by hash so the look's random stream is untouched.)
-    if (!inside && (sp.role == Role::Smith || sp.role == Role::Farmer || (sp.role == Role::Villager && hash32((uint32_t)key * 2246822519u ^ (uint32_t)seed) % 100 < 30))) {
-      a.militia = true;
-      a.dmg = 7;
-    }
+    // (M4, owner 2026-10-03) a frontier village has no kingdom's watch: more of its people arm themselves and they hit a
+    // little harder (war_game.cpp warArmMilitia: the same rule re-arms a town that changes hands)
+    if (!inside) warArmMilitia(*this, a, key);
   }
   actors.push_back(a);
   return a.id;
@@ -1414,12 +1458,40 @@ void Game::streamSitePeople(int si) {
     }
     k++;
   }
+  // (M4) kingdom guard protection (owner 2026-10-03, VISION_PLAN 10.4): the watch on a settlement's streets follows its
+  // owner's garrison and military (villages 2-3, towns 3-5, cities 7-12; warGuardsWanted), a frontier place keeps none
+  // (militia only), an abandoned or ruined one nobody. The generator's guard spawns (lowest slots first) serve up to that
+  // number; a member village (the generator posts no watch there) or a thin garrison gets the rest as runtime posts.
+  const bool settle = st.settlement();
+  const bool emptyPlace = settle && warEmpty(*this, si);
+  const int guardWant = settle ? warGuardsWanted(*this, si) : -1;
+  std::vector<int> guardSlots;
+  int genGuards = 0;
+  if (settle) {
+    for (int idx : it->second)
+      if (idx >= 0 && idx < (int)world.over.spawns.size() && world.over.spawns[(size_t)idx].site == si && world.over.spawns[(size_t)idx].role == Role::Guard &&
+          world.over.spawns[(size_t)idx].npc)
+        guardSlots.push_back(world.over.spawns[(size_t)idx].slot);
+    std::sort(guardSlots.begin(), guardSlots.end());
+    // (fixer M4 r3) a guard who gave an open quest keeps his post when the watch shrinks (a siege lifted, a place gone
+    // frontier): the bounty is handed in to him
+    std::vector<int> keep;
+    for (size_t k = (size_t)std::max(0, guardWant); k < guardSlots.size(); k++)
+      if (warKeyPerson(*this, si, guardSlots[k])) keep.push_back(guardSlots[k]);
+    if ((int)guardSlots.size() > guardWant) guardSlots.resize((size_t)std::max(0, guardWant));
+    genGuards = (int)guardSlots.size();   // generator guards serving the watch (key persons kept beyond it do not count)
+    guardSlots.insert(guardSlots.end(), keep.begin(), keep.end());
+    std::sort(guardSlots.begin(), guardSlots.end());
+  }
   // bring in the near ones, nearest first
   std::vector<std::pair<float, int>> want;
   for (int idx : it->second) {
     if (idx < 0 || idx >= (int)world.over.spawns.size()) continue;
     const Spawn& sp = world.over.spawns[(size_t)idx];
     if (sp.site != si) continue;
+    if (emptyPlace && !(sp.npc && warKeyPerson(*this, si, sp.slot))) continue;   // (fixer M4 r3) its quest givers stay
+    if (settle && sp.npc && sp.role == Role::Guard && !std::binary_search(guardSlots.begin(), guardSlots.end(), sp.slot)) continue;
+    if (settle && sp.npc && sp.role != Role::Guard && !warSpawnAllowed(*this, si, sp.x, sp.y, sp.slot)) continue;
     if (sp.slot >= 0 && (size_t)sp.slot < present.size() && present[(size_t)sp.slot]) continue;
     if (killed.count(owKillKey(si, sp.slot))) continue;
     if (felledIt != felled_.end() && felledIt->second.count(sp.slot)) continue;   // felled this visit: stays down
@@ -1458,10 +1530,34 @@ void Game::streamSitePeople(int si) {
     if (sp.npc) perf.spawnedNpcs++;
     if (counts) folk++;
   }
+  // (M4) the rest of the watch: runtime posts (slots 3900+) round the heart and on the ways in. A village's watch keeps
+  // to its green and its road ends; a town's or city's extra men stand about the square.
+  // (fixer M4 r3) a post beyond today's watch still turns out while its guard is an open quest's giver
+  const int extra = settle && !emptyPlace ? guardWant - genGuards : 0;
+  if (settle) {
+    const float hx = st.ex + 0.5f - ptx, hy = st.ey + 0.5f - pty;
+    if (whole || hx * hx + hy * hy <= (float)(guardIn * guardIn)) {
+      static const int post[12][2] = {{-3, 2}, {3, 2}, {0, -3}, {-6, 0}, {6, 0}, {0, 5}, {-4, -4}, {4, -4}, {-8, 3}, {8, 3}, {-2, 7}, {2, -7}};
+      for (int k = 0; k < 12; k++) {
+        const int slot = 3900 + k;
+        if (k >= extra && !warKeyPerson(*this, si, slot)) continue;
+        if ((size_t)slot < present.size() && present[(size_t)slot]) continue;
+        if (felledIt != felled_.end() && felledIt->second.count(slot)) continue;
+        const int tx = st.ex + post[k][0], ty = st.ey + post[k][1];
+        if (!world.over.in(tx, ty)) continue;
+        Spawn gs;
+        gs.npc = true; gs.role = Role::Guard; gs.slot = slot; gs.site = si; gs.x = tx; gs.y = ty;
+        const Vec2 at = freeSpot(tx, ty);
+        spawnHuman(gs, at);
+        perf.spawnedNpcs++;
+      }
+    }
+  }
 }
 
 void Game::updateSpawning(float dt) {
-  Actor& p = pl();
+  // a copy, not a reference: streaming people and spawning monsters push onto actors (reallocation)
+  struct { Vec2 p; } const p{pl().p};
   int ptx = (int)std::floor(p.p.x / TILE), pty = (int)std::floor(p.p.y / TILE);
   // activate settlement and camp populations near the player (distance to the site's area); an active site streams
   // its people in and out around the player (streamSitePeople)
@@ -1720,6 +1816,7 @@ void Game::enterSite(int si) {
   exitArmed_ = false;
   loadMapActors();
   questMapLoaded();   // M2: an heirloom's chest, a missing person (quests.cpp)
+  storyEntered(si, -1);   // M4: lore in ruins, story objectives (rpg/story/story_game.cpp)
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p, 0.7f);
   say(st.name);
@@ -1762,92 +1859,12 @@ void Game::enterBuilding(int bi, int col) {
   stairsArrive_ = -1;
   loadMapActors();
   questMapLoaded();   // M2: a parcel's recipient (quests.cpp)
+  storyEntered(-1, bi);   // M4 (rpg/story/story_game.cpp)
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p);
 }
 
-// (M3c carry, owner carry-over: a ~60 ms hitch walking into a seat of power) the interior of the building whose door
-// the player walks up to is made ahead, a few times a second: the nearest door within kPrepTiles. Natively a worker
-// thread makes it from a copy of the building (genInterior reads nothing else); on the web, which has no threads, it is
-// made in one go on a step where the chunk streamer has nothing to do (a couple of ms on desktop, the same work the
-// door would otherwise do in the frame it is crossed).
-namespace {
-constexpr int kPrepTiles = 9;
-}
-bool Game::takePreparedInterior(const Bldg& b, int floor, Map& out) {
-  const uint64_t key = interiorKey(b, floor);
-#ifndef __EMSCRIPTEN__
-  if (prepJob_ && prepJob_->valid() && prepJobKey_ == key) {   // still being made: wait for it (shorter than starting over)
-    prep_.map = prepJob_->get();
-    prep_.key = key;
-    prep_.ready = true;
-    prepJob_.reset();
-  }
-#endif
-  if (!prep_.ready || prep_.key != key) return false;
-  out = std::move(prep_.map);
-  prep_ = PrepInterior();
-  prepBldg_ = -1;
-  return true;
-}
-
-const Map* Game::preparedInterior(int& bldg) const {
-  bldg = prepBldg_;
-  return prep_.ready && prepBldg_ >= 0 && prepBldg_ < (int)world.over.bldgs.size() ? &prep_.map : nullptr;
-}
-
-void Game::prepInteriorTick(float dt) {
-#ifndef __EMSCRIPTEN__
-  // a finished job is collected whenever it lands
-  if (prepJob_ && prepJob_->valid() && prepJob_->wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-    prep_.map = prepJob_->get();
-    prep_.key = prepJobKey_;
-    prep_.ready = true;
-    prepBldg_ = prepJobBldg_;
-    prepJob_.reset();
-  }
-#endif
-  prepT_ -= dt;
-  if (prepT_ > 0 || inside) return;
-  prepT_ = 0.15f;
-  const Map& m = world.over;
-  if (m.bldgAt.empty()) return;
-  const int px = (int)std::floor(pl().p.x / TILE), py = (int)std::floor(pl().p.y / TILE);
-  int best = -1, bestD = 1 << 30;
-  for (int y = py - kPrepTiles; y <= py + kPrepTiles; y++)
-    for (int x = px - kPrepTiles; x <= px + kPrepTiles; x++) {
-      if (!m.in(x, y)) continue;
-      const int bi = m.bldgAt[(size_t)y * m.w + x];
-      if (bi < 0 || bi == best) continue;
-      const Bldg& b = m.bldgs[(size_t)bi];
-      // the door, or the nearest way in of an open front (its whole front row is in reach)
-      const int dx = std::max(0, std::max(b.r.x - px, px - (b.r.x + b.r.w - 1))), dy = b.doorY() + 1 - py;
-      const int d = dx * dx + dy * dy * 2;
-      if (d < bestD) { bestD = d; best = bi; }
-    }
-  if (best < 0 || bestD > kPrepTiles * kPrepTiles * 2) return;
-  const Bldg& b = m.bldgs[(size_t)best];
-  const uint64_t key = interiorKey(b, 0);
-  if (prep_.key == key && prep_.ready) { prepBldg_ = best; return; }
-#ifndef __EMSCRIPTEN__
-  if (prepJob_ && prepJob_->valid()) return;   // one at a time (the one being made lands first)
-  prepJobKey_ = key;
-  prepJobBldg_ = best;
-  const Bldg copy = b;
-  prepJob_ = std::make_shared<std::future<Map>>(std::async(std::launch::async, [copy] {
-    Map out;
-    genInterior(out, copy, copy.seed, 0);
-    return out;
-  }));
-#else
-  if (world.streamer && !world.streamer->idle()) return;   // a step the streamer has no work in
-  prep_ = PrepInterior();
-  genInterior(prep_.map, b, b.seed, 0);
-  prep_.key = key;
-  prep_.ready = true;
-  prepBldg_ = best;
-#endif
-}
+// (M3c carry) the interior made ahead of the door: rpg/sim/prep_interior.cpp (M4: its own file, VIEW lane)
 
 // M0b: another floor of the current building. The new floor's map is generated like any interior (looted chests
 // re-applied by its own mapKey); the player arrives beside the stairs that lead back where they came from.

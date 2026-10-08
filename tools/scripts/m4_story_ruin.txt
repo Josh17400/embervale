@@ -1,0 +1,26 @@
+# M4 STORY lane: lore in a ruin (owner 15.3): 3-6 lore props from the ruin's true record; reading one starts a Lost
+# History entry, reading them all completes it with a reward and a lead (a living descendant, a map fragment).
+#   embervale.exe --script tools/scripts/m4_story_ruin.txt     (m4_story_u*.png in the working directory)
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 goto ruin enter
++0.6 killnear 40
++0.3 story read
++2.5 shot m4_story_u1_read.png
++0.1 expect lore
++0.1 key Escape
++2.5 shot m4_story_u2_room.png
++0.1 story read
++0.2 key Escape
++0.1 story read
++0.2 key Escape
++0.1 story read
++0.2 key Escape
++0.1 story read
++0.2 key Escape
++0.1 story read
++2.5 shot m4_story_u3_complete.png
++0.1 expect lore complete
++0.3 quit

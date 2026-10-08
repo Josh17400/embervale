@@ -6,6 +6,7 @@
 // society's seat (cult::Seat: the khan's tent court, the jarl's great hall, the high priest's sanctum...).
 #pragma once
 #include <cstdint>
+#include <memory>
 #include "rpg/sim/world.h"
 
 // Builds floor `floor` (0 .. b.floors()-1) of building b into m (m must be empty: genInterior resets it).
@@ -15,6 +16,24 @@ void genInteriorRooms(Map& m, const Bldg& b, uint32_t seed, int floor);
 // the same from a given blueprint (genInteriorRooms passes bldgBlueprint(b)); tests and galleries use it to try every
 // floor plan on every purpose
 void genInteriorRooms(Map& m, const Bldg& b, const bld::Blueprint& bp, uint32_t seed, int floor);
+
+// (M4 VIEW lane, owner carry-over: the web's seat-of-power entry hitch) genInterior(out, b, seed, floor) as a job that
+// can be spread over frames: step() runs units (the plan, the shell, a room's furnishing...) until the budget is spent
+// and returns true once the map is done. The Map it makes is bit-identical to genInterior's (the same code, unit by
+// unit). It keeps its own copy of the building.
+class InteriorJob {
+ public:
+  InteriorJob(const Bldg& b, uint32_t seed, int floor);
+  ~InteriorJob();
+  InteriorJob(const InteriorJob&) = delete;
+  InteriorJob& operator=(const InteriorJob&) = delete;
+  bool step(double budgetMs, double* worstUnitMs = nullptr);
+  bool done() const;
+  Map& map();   // the finished map (move it out once done)
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> d_;
+};
 
 // A structural signature of one floor (walls, doors, room kinds and stairs; not the furniture), for the variety audit.
 uint64_t interiorLayoutSignature(const Map& m);

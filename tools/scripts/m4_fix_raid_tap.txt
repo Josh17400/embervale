@@ -1,0 +1,12 @@
+# (fixer M4 r3) phone: during a monster raid the action button swings, it never opens a guard's chat. Exit code 3 if an
+# expect fails.
+seed 2
+phone
+0.3  newgame
++0.1 god 1
++0.1 touch 1
++0.3 war raid wolf 3 0
++1.2 shot m4_fix_raid_tap.png
++0.1 tap 568 242
++0.3 expect mode play
++0.3 quit

@@ -27,7 +27,11 @@ namespace ew {
 
 // Bumped when the endless generator's output changes. Old saves are not kept compatible across M1 (owner rule,
 // 2026-10-04); the save stores it so a mismatch can say "this save is from an older world".
-constexpr int ENDLESS_GEN_VER = 12;  // 12: M3c Wildlands (46 biomes: ChunkData::eco / ecoNb, eco-driven ground, flora,
+constexpr int ENDLESS_GEN_VER = 13;  // 13: M4 Banners (the M3c carry-overs to the land: marsh boardwalks on diagonals,
+                                     //     heath cover, alpine flora, the far-zoom beach band). The realm itself never
+                                     //     changes generation (overlays only). Until M4 ships, the M4 lanes change the
+                                     //     output under 13 and regenerate the goldens the VIEW lane owns.
+                                     // 12: M3c Wildlands (46 biomes: ChunkData::eco / ecoNb, eco-driven ground, flora,
                                      //     dens, settlements and cultures). Until M3c ships, the M3c lanes change the
                                      //     output under 12 and regenerate the goldens the WORLD lane owns.
                                      // 11: M3b Builders & Societies (societies, the builder: settlements ask for the
@@ -110,6 +114,19 @@ struct KingdomPlan {
   // above stay the field, trim and charge of the same arms, for the M1/M2 painters)
   uint64_t culture = 0;
   cult::Heraldry heraldry;
+};
+
+// M4 Banners (rpg/sim/realm.h): a settlement as the kingdom lattice knows it, without its region plan. Every node is
+// exactly one settlement SitePlan (same id, type, heart and kingdom); the realm's genesis reads these so it can assign
+// whole kingdoms (dozens of regions) without building their region plans. name: only when asked (siteName's rule).
+struct SettlementNode {
+  Gid id = 0;
+  SiteType type = SiteType::Village;
+  int32_t x = 0, y = 0;             // heart (global tile) == SitePlan::ex / ey
+  Gid kingdom = 0;                  // == SitePlan::kingdom (0: wildlands, a frontier settlement)
+  uint16_t flags = 0;               // SPF_* the lattice knows (SPF_CAPITAL, SPF_START, SPF_STORY)
+  uint32_t seed = 0;
+  std::string name;
 };
 
 // M1 WORLD lane: roads, rivers and lakes touching a region, for the world map / minimap (the chunks already carry them
@@ -219,7 +236,19 @@ class EndlessSource {
   // cheap; false: call again next frame. The result of chunk() is the same either way.
   bool prepareChunk(int32_t cx, int32_t cy, double budgetMs);
   const KingdomPlan* kingdom(Gid id);                      // nullptr for 0 / unknown
-  const StartPlan& start();                                // computed once per seed
+  // M4: the kingdom whose seat stands in kingdom cell (kx, ky) (makeId(kx, ky, IdKind::Kingdom, 0); 0 when the cell is
+  // wildlands), and the kingdom cell of a global tile (cells are KCELL wide, centred on multiples of KCELL)
+  Gid kingdomOfCell(int32_t kx, int32_t ky);
+  static int32_t kcellOf(int32_t g) {
+    const int32_t a = g + KCELL / 2;
+    return a >= 0 ? a / KCELL : -((-a + KCELL - 1) / KCELL);
+  }
+  // M4: every settlement whose heart lies in [x0, x1) x [y0, y1) (global tiles), in id order; cheap (the lattice and the
+  // kingdom map only, memoised); withNames also gives each its name (a little dearer)
+  std::vector<SettlementNode> settlementsIn(int32_t x0, int32_t y0, int32_t x1, int32_t y1, bool withNames = false);
+  // M4: whose land a global tile is (0: wildlands) without a macro sample (== MacroSample::kingdom)
+  Gid kingdomAt(int32_t gx, int32_t gy);
+  const StartPlan& start();                               // computed once per seed
   int danger(int32_t gx, int32_t gy);                      // VISION_PLAN 7.1: the level of what lives here
   // M2: the geology of the province holding a global tile (rpg/world/geology.h; pure, cheap enough per map pixel at far
   // zooms: it reads the coarse macro fields only)

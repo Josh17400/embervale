@@ -2414,3 +2414,46 @@ Frozen for the M3c lanes (a lane that needs a change to a shared file reports it
   Integration: `View::prepareInterior` (render_deco.cpp) queues the prepared interior's terrain chunks under its map id
   (prefetch keeps them) and paints its deco / interior prop pieces into cachedTex ~1.5 ms a frame; `View::mapIdFor`;
   `Game::debugFell(id, byPlayer)`.
+
+### 15.17 M4 "Banners" phase A (lead, 2026-10-07): the realm, war and story contracts
+
+Section 15 binds M4 over section 4 where they differ: diplomacy is **slow and realistic** (15.6.3: famine -> a broken
+food deal -> border tension -> skirmishes -> war; wars rare, with causes, foreshadowed by rumours, prices, refugees and
+troop movements), not the "lively" default of 4.3. Phase A contracts (a lane may ADD to the header it owns, never rename,
+remove or change the meaning of what is listed here):
+- `rpg/sim/realm.h` (REALM lane): `realm::Realm` (Game::realm, saved): kingdoms (`KingdomState`: ruler with society
+  title, pop / wealth / military / stability / exhaustion / food, culture values, tier, rep, settlements), relations
+  (`Rel` + the `Tension` ladder + food deals), wars (with `WarCause` and a name), sieges (atk / def, the camp's tile, the
+  player's side), per-settlement `SettlementState` (owner vs genesis home, damage, garrison, food, mood, flags
+  `SS_BESIEGED / BURNED / ABANDONED / OCCUPIED / REFUGEES / FAMINE / UNREST / RUINED / FRONTIER / REBUILDING / GARRISON`),
+  the event log (`WorldEvent`, `EvType` x24, heard flags), `RuinRecord` (15.3: who built it, when and how it fell, its last
+  lord, clues), `Renown` (15.6.4 hooks: fame, a lordship, rank, sworn kingdom), `landOwner` (borders after conquests),
+  `focus` / `advanceTo` (VISION_PLAN 4.4 / 4.8), and the forcing calls every lane tests with (`forceWar / Siege / Owner
+  / Burn / Famine / Event`). Phase A's stub: genesis of the 3x3 kingdom cells round the player (from the cheap
+  `EndlessSource::settlementsIn` lattice: no region plans), forcing, occupation / siege bookkeeping, the save block.
+  The realm never changes generation (overlays only).
+- `rpg/world/source.h`: `SettlementNode`, `EndlessSource::settlementsIn(x0, y0, x1, y1, withNames)`, `kingdomOfCell`,
+  `kcellOf`, `kingdomAt`.
+- `rpg/sim/world.h`: `Site::kingdom` is the CURRENT owner, `Site::homeKingdom` the genesis one; `World::setSiteOwner`
+  (banners follow, also on buildings streamed in later), `World::addKingdomRecord` (rebel / warlord realms with no plan);
+  `Bldg::charred` (0 whole, 1 scorched, 2 burned out, 3 rebuilding) -> `art::BuildingFacts::charred` (0 keeps every key
+  and pixel); roles `Herald, Soldier, Captain, Refugee`; `Faction::Army` (soldiers; kingdom-vs-kingdom hostility is
+  `Game::warHostile` from `Actor::realm` and the realm's wars).
+- `rpg/sim/game.h`: `Game::realm`, `Game::story`, `Game::war` (WarState, rpg/sim/war.h, WARDS lane, never saved);
+  `Ev::News` / `Ev::Border`; `QType::Story` / `QType::War` (+ `QF_WAR_ATTACK`); dialogue ranges `DLG_STORY` /
+  `DLG_WAR`; hooks called from the core loop and defined in each lane's own file: `realmStep` / `realmSync`
+  (rpg/sim/realm_game.cpp), `warStep / warTalk / warChoose / warKill / warHostile / warPropKingdom`
+  (rpg/sim/war_game.cpp), `storyStep / storyTalk / storyChoose / storyKill / storyEntered / storyUseProp`
+  (rpg/story/story_game.cpp). `Game::prepInteriorTick` and friends moved to rpg/sim/prep_interior.cpp.
+- `rpg/story/story.h` (STORY lane, new library folder rpg/story built into rpg_sim): `story::Engine` (running
+  `Instance`s with cast `Binding`s and variables, the "Lost History" `LoreEntry`s, its save block) and
+  `story::newsLine(game, event, voiceCulture)`. Running stories mirror into `Game::quests` as `QType::Story`.
+- Props (art_props.h, frozen footprints `m4Footprint`): war `WarTent, CommandTent, Catapult, Palisade, RefugeeTent,
+  Rubble, Ash, Scaffold, Barricade` (rpg/art/art_war.cpp, `art::warPropSprite(p, field, trim)`), lore `NoticeBoard,
+  Inscription, ToppledStatue, Mural, NamedGrave, LostJournal` (rpg/art/art_lore.cpp); stand-in pixels.
+- Saves: SAVE_VER 10 (the realm and story blocks after marks, each length-prefixed with its own version byte; fixture
+  `tests/fixtures/save_v10.bin` carries a forced famine and a reputation); ENDLESS_GEN_VER 13 (goldens unchanged by phase
+  A; the VIEW lane's land fixes re-record them). Damaged saves can no longer stall the loader on garbage ids beyond
+  World's End (`World::ensureSite / ensureDen`).
+- Tests and scripts: `rpg_test --realm [--seeds]`; script commands `realm siege|take|burn|famine [n] | war | days N`,
+  `expect realm <state> [n]` (rpg/view/script_realm.cpp); `tools/scripts/m4_lead_realm.txt`.

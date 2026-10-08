@@ -172,6 +172,139 @@ bool diagBridgePixel(const TM& m, int px, int py, Ground real, uint32_t& out) {
   return false;
 }
 
+// (M4, owner carry-over: "marsh boardwalks still staircase on diagonals") a boardwalk (Map::BOARDWALK_MARK: a stilt
+// town's walks, and the wild marsh's road boardwalks the chunk generator marks) laid on a diagonal is a 4-connected
+// staircase of tiles; drawn tile by tile it was a chain of square platforms touching at their corners. Like the river
+// bridges above, such a stretch is read as one straight walk: the band's centre is the mean diagonal of the boardwalk
+// cells nearby, BW_HW px either side of it, its planks laid across it in the marsh boardwalk's weathered boards, an edge
+// beam along both sides with a post head every 16 px, its south face (fascia and posts) and its shadow on the marsh
+// below it. Where the stretch turns or ends the square platforms take over (the band ends a tile past the last cell).
+struct BwDiag { bool diag = false, down = false; float kc = 0, amin = 0, amax = 0; };
+template <class TM>
+BwDiag boardwalkDiagAt(const TM& m, int tx, int ty) {
+  struct Ent { const void* m; int tx, ty; BwDiag d; };
+  thread_local Ent cache[64];
+  Ent& e = cache[(unsigned)(tx * 7 + ty * 13) & 63u];
+  if (e.m == (const void*)&m && e.tx == tx && e.ty == ty) return e.d;
+  BwDiag r;
+  auto isW = [&](int x, int y) { return m.at(x, y) == Ground::Bridge && (m.blendAt(x, y) >> 4) == (Map::BOARDWALK_MARK >> 4); };
+  if (!isW(tx, ty)) return r;   // (only a boardwalk tile has a stretch)
+  int n = 0;
+  float mx = 0, my = 0;
+  int cxs[49], cys[49];
+  for (int oy = -3; oy <= 3; oy++)
+    for (int ox = -3; ox <= 3; ox++)
+      if (isW(tx + ox, ty + oy)) { cxs[n] = tx + ox; cys[n] = ty + oy; mx += (float)ox; my += (float)oy; n++; }
+  if (n >= 4) {
+    mx /= (float)n; my /= (float)n;
+    float sxx = 0, syy = 0, sxy = 0;
+    for (int k = 0; k < n; k++) {
+      const float dx = (float)(cxs[k] - tx) - mx, dy = (float)(cys[k] - ty) - my;
+      sxx += dx * dx; syy += dy * dy; sxy += dx * dy;
+    }
+    // a run along one diagonal, not a broad deck (a plaza of planks has no strong diagonal spread)
+    if (std::fabs(sxy) >= 0.62f * std::sqrt(sxx * syy) && std::min(sxx, syy) >= 0.35f * std::max(sxx, syy)) {
+      r.diag = true;
+      r.down = sxy > 0;
+      r.amin = 1e9f; r.amax = -1e9f;
+      for (int k = 0; k < n; k++) {
+        const float cx = cxs[k] * 16.0f + 8.0f, cy = cys[k] * 16.0f + 8.0f;
+        r.kc += r.down ? (cx - cy) / 16.0f : (cx + cy) / 16.0f;
+        const float a = r.down ? (cx + cy) / 16.0f : (cx - cy) / 16.0f;
+        r.amin = std::min(r.amin, a - 1.0f);
+        r.amax = std::max(r.amax, a + 1.0f);
+      }
+      r.kc /= (float)n;
+    }
+  }
+  e.m = (const void*)&m; e.tx = tx; e.ty = ty; e.d = r;
+  return r;
+}
+// 1: plank deck (out = its colour), 2: the walk's south face / shadow on the marsh (out), 0: not part of a diagonal
+// walk. `openWater` (set with 0 on a boardwalk tile outside the band): draw the marsh there instead of planks.
+template <class TM>
+int diagBoardwalkPixel(const TM& m, int px, int py, Ground real, uint32_t& out, bool& openWater) {
+  openWater = false;
+  const int tx = px >> 4, ty = py >> 4;
+  auto isW = [&](int x, int y) { return m.at(x, y) == Ground::Bridge && (m.blendAt(x, y) >> 4) == (Map::BOARDWALK_MARK >> 4); };
+  // the stretch this pixel may belong to: its own tile's, else a boardwalk tile's beside it (the band reaches into
+  // the water beside the staircase), the nearest first
+  BwDiag D;
+  bool found = false;
+  if (isW(tx, ty)) { D = boardwalkDiagAt(m, tx, ty); found = D.diag; if (!found) return 0; }
+  else {
+    static const int ord[8][2] = {{0, -1}, {-1, 0}, {1, 0}, {0, 1}, {-1, -1}, {1, -1}, {-1, 1}, {1, 1}};
+    for (int k = 0; k < 8 && !found; k++)
+      if (isW(tx + ord[k][0], ty + ord[k][1])) { D = boardwalkDiagAt(m, tx + ord[k][0], ty + ord[k][1]); found = D.diag; }
+    if (!found) return 0;
+  }
+  constexpr float BW_HW = 12.5f;
+  const float S = 16.0f * 0.70710678f;
+  auto acrossF = [&](float x, float y) { return ((D.down ? (x - y) : (x + y)) / 16.0f - D.kc) * S; };
+  auto alongF = [&](float x, float y) { return (D.down ? (x + y) : (x - y)) / 16.0f; };
+  auto inBand = [&](int qx, int qy) {
+    const float d = acrossF(qx + 0.5f, qy + 0.5f), a = alongF(qx + 0.5f, qy + 0.5f);
+    return std::fabs(d) <= BW_HW && a > D.amin && a < D.amax;
+  };
+  const float d = acrossF(px + 0.5f, py + 0.5f), ad = std::fabs(d);
+  const bool onDeckTile = real == Ground::Bridge;
+  const float a = alongF(px + 0.5f, py + 0.5f);
+  if (ad <= BW_HW && (onDeckTile || (a > D.amin && a < D.amax)) && real != Ground::Road) {
+    const int ap = D.down ? px + py : px - py;   // along the walk in px steps (the planks lie across it)
+    if (ad > BW_HW - 2.5f) {
+      // the edge beams: a dark outer line, a lit top on the side facing the light (north-west), post heads every 16 px
+      const int q = ((ap % 16) + 16) % 16;
+      const bool post = q < 3;
+      const bool litSide = D.down ? d > 0 : d < 0;   // the side toward the top-left light
+      if (ad > BW_HW - 1.0f) out = C(56, 40, 30);
+      else if (post) out = q == 0 ? C(176, 136, 90) : C(132, 98, 64);
+      else out = litSide ? C(168, 130, 86) : C(112, 82, 54);
+      return 1;
+    }
+    const int row = ((ap / 5) % 4096 + 4096) % 4096;
+    const bool gap = ((ap % 5) + 5) % 5 == 0;
+    const int alongPlank = (int)std::floor(d + 32.0f);
+    const int joff = (int)(hash2(row, 0, 1411) % 11u);
+    const bool butt = ((alongPlank + joff) % 11) == 0;
+    uint32_t c = gap ? C(58, 42, 30) : lerpc(C(124, 96, 64), C(150, 118, 80), hashf(row, (alongPlank + joff) / 11, 1413));
+    if (!gap && ((ap % 5) + 5) % 5 == 1) c = mul(c, 1.08f);   // each plank's lit edge
+    if (butt && !gap) c = C(84, 62, 42);
+    if (!gap && vnoise(px / 9.0f, py / 9.0f, 1415) > 0.68f) c = lerpc(c, C(132, 132, 116), 0.3f);   // silvered by the damp
+    out = c;
+    return 1;
+  }
+  // below the walk: its south face (the deck's edge seen from the front, 2 px), its posts down into the marsh, then its
+  // shade down-right (the light from the top-left)
+  if (inBand(px, py - 1) || inBand(px, py - 2)) {
+    out = inBand(px, py - 1) ? C(84, 60, 40) : C(60, 44, 32);
+    return 2;
+  }
+  if (inBand(px, py - 3) || inBand(px, py - 6)) {
+    const int ap = D.down ? px + py : px - py;
+    const int q = ((ap % 16) + 16) % 16;
+    if ((q == 1 || q == 2) && inBand(px, py - 6)) { out = q == 1 ? C(108, 80, 54) : C(66, 48, 34); return 2; }
+  }
+  if (onDeckTile) openWater = true;   // the staircase's corner outside the walk: the marsh shows
+  if (inBand(px - 3, py - 4) || inBand(px - 2, py - 7)) {
+    out = 0xFFFFFFFFu;   // (the caller darkens what it draws there)
+    return 3;
+  }
+  return 0;
+}
+
+// (M4) the diagonal boardwalk's deck covers this tile's centre (the view leaves the walk-through covers there undrawn)
+bool boardwalkCoversTileImpl(const Map& m, int tx, int ty) {
+  if (!m.in(tx, ty) || m.at(tx, ty) == Ground::Bridge) return false;
+  bool near = false;
+  for (int oy = -1; oy <= 1 && !near; oy++)
+    for (int ox = -1; ox <= 1; ox++)
+      if (m.at(tx + ox, ty + oy) == Ground::Bridge && (m.blendAt(tx + ox, ty + oy) >> 4) == (Map::BOARDWALK_MARK >> 4)) { near = true; break; }
+  if (!near) return false;
+  uint32_t o = 0;
+  bool ow = false;
+  return diagBoardwalkPixel(m, tx * 16 + 8, ty * 16 + 10, m.at(tx, ty), o, ow) == 1;
+}
+
 // M2 ecotones (VISION_PLAN 11.6). The generator writes a blend byte per tile (Map::blend: bits 0-3 the neighbouring
 // biome, bits 4-7 its weight 0..8 of 16). Here every pixel reads the four tile centres around it, blends their biome
 // mixes bilinearly (so the ramp has no tile steps and no straight seams) and picks one biome's ground with a
@@ -227,7 +360,12 @@ inline Eco ecoNbT(const TM& m, int x, int y) { return m.m->ecoNbAt(x - m.ox, y -
 // the same way two families do. outE: the eco the pixel shows.
 template <class TM>
 Ground ecotonePixel(const TM& m, int px, int py, Ground g, Eco& outE) {
-  const float fx = (px - 7.5f) / 16.0f, fy = (py - 7.5f) / 16.0f;
+  // (fixer M4 r2, review: "heath meets lush meadow along an almost vertical hard line") the blend is read through a
+  // broad, slow warp (about a tile and a half each way over four tiles), so a boundary the eco map lays along a tile
+  // column or row for a long way meanders like a natural edge instead of ruling a straight line across the land
+  const float wpx = px + (vnoise(px / 64.0f, py / 64.0f, 871) - 0.5f) * 48.0f;
+  const float wpy = py + (vnoise(px / 64.0f, py / 64.0f, 873) - 0.5f) * 48.0f;
+  const float fx = (wpx - 7.5f) / 16.0f, fy = (wpy - 7.5f) / 16.0f;
   const int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
   const float ax = fx - ix, ay = fy - iy;
   Eco es[8];
@@ -1378,19 +1516,45 @@ bool ecoPixel(Eco e, Ground g, int px, int py, float n, float h, uint32_t& c) {
       return true;
     }
     case Eco::Heath: {   // heather in purple-brown tussocks on the moor, dark peat between
-      c = pick3(n, C(98, 90, 68), C(108, 98, 74), C(118, 106, 80));
-      const float hz = vnoise(px / 26.0f, py / 26.0f, 1653);
-      if (hz < 0.16f) {   // a peat hag: dark wet earth
-        c = pick3(n, C(74, 58, 48), C(82, 64, 52), C(90, 70, 56));
-        if (hz < 0.13f && h > 0.992f) c = C(132, 140, 146);
-      } else {
-        // heather: a speckle of purple bloom over the brown, thick in the clumps and thin between them (a soft,
-        // dithered texture at 1x, never hard-edged blots)
-        const float d = std::clamp((vnoise(px / 7.0f, py / 7.0f, 1651) - 0.32f) * 1.9f + hz * 0.3f, 0.0f, 1.0f);
-        if (h < d * 0.62f) c = h < d * 0.12f ? C(156, 110, 142) : h < d * 0.36f ? C(122, 82, 110) : C(92, 64, 82);
-        else c = tufted(c, px, py, 1655, 0.4f, 0.76f, 1.15f);
-        if (lush) c = lerpc(c, C(110, 130, 76), 0.2f);
+      // (M4, owner carry-over: "heath ground cover reads as flat green blobs with stepped edges") the moor is a mat of
+      // heather tussocks: low rounded mounds of wiry purple-brown, each lit on its top-left and shaded at its foot to
+      // the bottom-right, the bloom thick on the crowns; between them dark peaty earth and a little moss; peat hags as
+      // wet black-brown hollows. Every edge is dithered (a 4x4 order over a soft threshold), never a hard blot.
+      const float hz = vnoise(px / 26.0f, py / 26.0f, 1653) + (vnoise(px / 6.0f, py / 6.0f, 1657) - 0.5f) * 0.05f;
+      const float dz = (bayer(px, py) - 0.5f) * 0.035f;
+      if (hz + dz < 0.15f) {   // a peat hag: dark wet earth, a sheen of water in its deepest part
+        c = pick3(n, C(62, 48, 42), C(70, 54, 46), C(78, 60, 50));
+        if (hz < 0.11f) c = lerpc(c, C(70, 78, 92), 0.35f + (hz < 0.09f ? 0.2f : 0.0f));
+        if (hz < 0.10f && h > 0.985f) c = C(150, 158, 166);
+        return true;
       }
+      // the tussocks: a clump field at two scales; inside a clump the heather, between them the earth
+      const float v = vnoise(px / 7.0f, py / 7.0f, 1651) * 0.75f + vnoise(px / 3.0f, py / 3.0f, 1659) * 0.25f;
+      // (fixer M4 r2, review: "still noisy camo") the heather covers most of the moor: the earth shows in narrower gaps
+      const float edge = 0.40f - std::min(0.10f, (hz - 0.15f) * 0.25f) + (bayer(px, py) - 0.5f) * 0.06f;
+      if (v < edge) {
+        // the earth between the clumps: peaty brown, moss here and there, in the clumps' shade on their bottom-right
+        c = pick3(n, C(80, 64, 56), C(86, 69, 60), C(92, 74, 63));   // (fixer M4 r2: nearer the heather's own value)
+        if (vnoise(px / 9.0f, py / 9.0f, 1661) > 0.62f) c = lerpc(c, C(92, 108, 62), 0.35f);
+        const float up = vnoise((px - 2) / 7.0f, (py - 2) / 7.0f, 1651) * 0.75f + vnoise((px - 2) / 3.0f, (py - 2) / 3.0f, 1659) * 0.25f;
+        if (up >= edge) c = mul(c, 0.86f);   // a clump just up-left: its shadow
+        if (h > 0.993f) c = C(150, 140, 120);   // a pale pebble
+        if (lush) c = lerpc(c, C(96, 118, 66), 0.25f);
+        return true;
+      }
+      // a clump: shaded by its slope to the top-left light, the bloom on its crown, wiry dark stems at its rim
+      const float vx = vnoise((px + 1) / 7.0f, py / 7.0f, 1651) - vnoise((px - 1) / 7.0f, py / 7.0f, 1651);
+      const float vy = vnoise(px / 7.0f, (py + 1) / 7.0f, 1651) - vnoise(px / 7.0f, (py - 1) / 7.0f, 1651);
+      // (fixer M4 r2) a gentler relief and a narrower ramp: soft rounded mats, not a high-contrast polygon pattern
+      const float lit = std::clamp(0.45f + (vx + vy) * 3.0f + (v - edge) * 0.8f + (bayer(px + 1, py + 2) - 0.5f) * 0.18f, 0.0f, 1.0f);
+      static const uint32_t ramp[5] = {C(64, 47, 54), C(78, 57, 65), C(92, 67, 77), C(106, 78, 89), C(122, 91, 103)};
+      int k = (int)(lit * 4.99f);
+      if (v - edge < 0.025f) k = std::min(k, 1);   // the rim: dark stems
+      c = ramp[std::clamp(k, 0, 4)];
+      // brown and olive in the older growth, the bloom brightest on the crowns
+      if (vnoise(px / 11.0f, py / 11.0f, 1663) > 0.55f) c = lerpc(c, C(104, 86, 60), 0.4f);
+      if (k >= 2 && h > 0.90f) c = h > 0.98f ? C(186, 138, 176) : C(150, 104, 140);
+      if (lush) c = lerpc(c, C(110, 130, 76), 0.2f);
       return true;
     }
     case Eco::ChalkDowns: {   // short bright turf, white chalk paths and scars where it wears through
@@ -1770,6 +1934,23 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
   if (real == Ground::Void && m.kind == MapKind::Overworld) real = Ground::DeepWater;
   // (M3b fixer) a seat's formal water: a kerbed basin, no organic bank
   if (m.kind == MapKind::Overworld && groundWater(real) && isPoolT(m, tx, ty)) return poolPixel(m, px, py);
+  // (M4) a diagonal boardwalk: one straight walk over the staircase of its tiles (diagBoardwalkPixel)
+  bool bwShade = false;
+  if (m.kind == MapKind::Overworld && (real == Ground::Bridge || groundWater(real) || real == Ground::Swamp)) {
+    uint32_t o;
+    bool openW = false;
+    const int r = diagBoardwalkPixel(m, px, py, real, o, openW);
+    if (r == 1 || r == 2) return o;
+    bwShade = r == 3;
+    if (openW) {   // the staircase's corner beside the walk: the marsh round it shows there
+      real = Ground::Water;
+      for (int k = 0; k < 4; k++) {
+        static const int dx4[4] = {0, -1, 1, 0}, dy4[4] = {-1, 0, 0, 1};
+        const Ground q = m.at(tx + dx4[k], ty + dy4[k]);
+        if (q == Ground::Swamp || groundWater(q)) { real = q; break; }
+      }
+    }
+  }
   if (m.kind == MapKind::Overworld && (real == Ground::Bridge || groundWater(real) || real == Ground::Road)) {
     uint32_t o;
     if (diagBridgePixel(m, px, py, real, o)) return o;
@@ -1849,7 +2030,16 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
       // paint; the finer noise carries the edge instead)
       const float ex = px + (vnoise(px / 52.0f, py / 52.0f, 811) - 0.5f) * 64.0f + (bayer(px, py) - 0.5f) * 8.0f + (vnoise(px / 5.0f, py / 5.0f, 813) - 0.5f) * 14.0f;
       const float ey = py + (vnoise(px / 52.0f, py / 52.0f, 817) - 0.5f) * 64.0f + (bayer(px + 2, py + 1) - 0.5f) * 8.0f + (vnoise(px / 5.0f, py / 5.0f, 819) - 0.5f) * 14.0f;
-      const int etx = (int)std::floor(ex / 16), ety = (int)std::floor(ey / 16);
+      int etx = (int)std::floor(ex / 16), ety = (int)std::floor(ey / 16);
+      // (M4, owner carry-over) the heath and the grass meet along a tight ragged line: the broad warp threw islands of
+      // flat bright turf deep into the dark heather (and of heather into the turf)
+      if ((ecoT(m, sx >> 4, sy >> 4) == Eco::Heath) != (ecoT(m, etx, ety) == Eco::Heath)) {
+        // (fixer M4 r2, review: "an almost vertical hard line") two octaves: a broad meander (so the edge never follows a
+        // tile column for long) under the tight ragged fringe; still no islands thrown deep across it
+        const float fx = px + (vnoise(px / 30.0f, py / 30.0f, 825) - 0.5f) * 34.0f + (vnoise(px / 9.0f, py / 9.0f, 821) - 0.5f) * 14.0f + (bayer(px, py) - 0.5f) * 3.0f;
+        const float fy = py + (vnoise(px / 30.0f, py / 30.0f, 827) - 0.5f) * 34.0f + (vnoise(px / 9.0f, py / 9.0f, 823) - 0.5f) * 14.0f + (bayer(px + 2, py + 1) - 0.5f) * 3.0f;
+        etx = (int)std::floor(fx / 16); ety = (int)std::floor(fy / 16);
+      }
       const Ground e = m.at(etx, ety);
       if (ecoGround(e)) {
         const Eco eE = ecoT(m, etx, ety);
@@ -2781,10 +2971,12 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
     }
   }
   // (M3 fixer) the marsh under and beside a boardwalk: its south face, its posts and its shade
-  if (m.kind == MapKind::Overworld && (groundWater(g) || g == Ground::Swamp) && real != Ground::Bridge) {
+  if (m.kind == MapKind::Overworld && (groundWater(g) || g == Ground::Swamp) && real != Ground::Bridge && !bwShade &&
+      !boardwalkDiagAt(m, tx, ty - 1).diag && !boardwalkDiagAt(m, tx - 1, ty).diag && !boardwalkDiagAt(m, tx - 1, ty - 1).diag) {
     const uint32_t u = boardwalkUnder(m, px, py, c);
     if (u) c = u;   // (the beam and posts are opaque; the shade keeps the water's own alpha)
   }
+  if (bwShade) c = lerpc(mul(c, 0.66f), C(30, 26, 60, (int)(c >> 24)), 0.12f);   // (M4) a diagonal walk's shade
   // (M1 round 3) a crag or massif casts its shadow down-right onto the land beside it (looked up through the same
   // smooth warp that shapes the rock's outline, so the shadow follows it)
   if (m.kind == MapKind::Overworld && m.relief() && g != Ground::Rock && !groundWater(g) &&
@@ -3900,3 +4092,6 @@ void View::travelArrive(Game& g) {
     g.finishTravel();
   }
 }
+
+// (M4) the diagonal boardwalk test for render.cpp (the painters above are file-local)
+bool boardwalkCoversTile(const Map& m, int tx, int ty) { return boardwalkCoversTileImpl(m, tx, ty); }

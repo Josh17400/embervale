@@ -477,3 +477,32 @@ a hitch, readable relief, a per-region geology, the classic island retired, live
   --cultures 400, --builder 1..12 strict, --biomes 1..5 strict (46/46), --forest 1..10 (402 windows, 0 touching pairs),
   --specialties 1..20, --golden, --endless --golden (39), --towns --golden (201): 0 failures; 7 / 99 / 12345 --secs 60
   ALL OK; builder_gallery --check 0 failures; all 84 tools/scripts exit 0.
+
+## M4, "Banners" (VISION_PLAN 13 M4, 15.3, 15.6, 15.8, 15.9, 15.12, 15.14; owner notes 2026-10-07)
+
+Goal: kingdoms and the living world v1 that a phone player can read: kingdom guards in their colours protecting member
+settlements (frontier villages: militia only), monsters raiding towns met by guards and militia, slow and realistic
+diplomacy with rare, foreshadowed wars, sieges you can join, burned villages and refugee camps, conquered towns under
+new banners, rumours and news, the quest and campaign engine with its first campaign, ruins with a true history. Plus the
+M3c carry-overs (web seat-entry hitch, boardwalk diagonals, heath cover, meadow map colours, alpine flora, far-zoom beach).
+
+### Phase A (lead), 2026-10-07: done
+- The contracts are recorded in VISION_PLAN 15.17 (realm.h, source.h settlementsIn, Site::homeKingdom /
+  World::setSiteOwner, Bldg::charred, roles and Faction::Army, Game hooks per lane file, story.h, the M4 props,
+  SAVE_VER 10 / ENDLESS_GEN_VER 13, `rpg_test --realm`, the `realm` script commands). tools/slot.sh already existed.
+- Verified (MSVC, BDIR=build): every target builds; save_test ALL OK (fixture v10; damaged-save loads no longer plan
+  regions for garbage ids beyond World's End, which had stalled the test for minutes once the layout grew); rpg_test
+  --seeds 1..20 20/20, 7 / 99 / 12345 --secs 60 ALL OK, --golden, --endless --golden (39), --towns --golden (201),
+  --endless 1..10, --window 1..5, --towns 1..10, --realm 1..10, --cultures 400 1..5, --builder 1..12 strict,
+  --biomes 1..3 strict, --forest 1..10, --specialties 1..20: 0 failures; builder_gallery --check 0 failures; all 85
+  tools/scripts exit 0 (m4_lead_realm.txt included). Realm genesis round the start costs 1.3-3.8 ms (9 kingdoms).
+
+### Phase B lanes (disjoint files; see the lead report for the briefs)
+- **realm** (build_realm): genesis at full scope, the history pre-roll and ruin records, the slow daily tick and its
+  tuning (`--history`), renown hooks, the save block and fixture.
+- **wards** (build_wards): kingdom guards and patrols, town defence, overlays (charred, garrison towers, siege and
+  refugee camps), siege quests, the war and charred-building art.
+- **story** (build_story): the quest DSL, caster and first campaign, story quests, rumours / news / heralds / notice
+  boards, lore in ruins.
+- **view** (build_view): borders, war markers, the border banner, News and Lost History in the journal, war props in
+  their colours; the M3c carry-overs and the goldens.

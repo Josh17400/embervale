@@ -29,7 +29,7 @@ const FloraInfo kFlora[] = {
     // Hoodoo, CrystalSpire, BasaltColumns, IceSerac, TermiteMound, AshVent, Gorse, Thornbush
     {26, 46, 1, 6}, {28, 42, 4, 4}, {32, 34, 1, 4}, {30, 36, 1, 4}, {20, 32, 1, 4}, {24, 18, 4, 2}, {20, 18, 1, 4}, {20, 18, 1, 4},
     // Heather, Wildflowers, PrairieGrass, CottonGrass, Agave, DryBrush, Saltbush
-    {16, 14, 1, 6}, {16, 12, 1, 8}, {16, 20, 1, 8}, {16, 14, 1, 6}, {16, 14, 1, 4}, {16, 12, 1, 4}, {16, 12, 1, 4},
+    {16, 14, 1, 6}, {16, 14, 1, 12}, {16, 20, 1, 8}, {16, 14, 1, 6}, {16, 14, 1, 4}, {16, 12, 1, 4}, {16, 12, 1, 4},
     // Lichen, Wrack, Shells, GlowCaps, Blightweed, SilverFern, JungleFern, Petals
     {16, 10, 1, 12}, {18, 10, 1, 4}, {16, 10, 1, 4}, {16, 12, 1, 4}, {16, 14, 1, 4}, {18, 14, 1, 4}, {20, 16, 1, 4},
     {16, 10, 1, 4},
@@ -1024,31 +1024,133 @@ void cushions(Canvas& c, const Ramp& R, uint32_t seed, int n, float rmin, float 
   crown(c, bl, R, seed, 0.8f, 0.7f);
 }
 
+// (M4, owner carry-over: the heath's cover read as flat lilac loaves on stalks) a heather tussock: a low, ragged mound
+// of wiry twigs, a skyline of fine spikes rather than a smooth dome, lit on its top-left and dark under its bottom-right;
+// purple-brown with the bloom in flecks on the lit crown, old brown growth at the flanks, the twigs fraying into the
+// ground at its foot (dithered, no hard edge). Variants differ in size, lean, how much is in bloom and how brown it is.
 void heather(Canvas& c, int v, const Ctx& k) {
   const uint32_t seed = 7301u + (uint32_t)v * 7u;
-  const Ramp R = tweak(ramp5(rgba(46, 28, 52), rgba(76, 46, 80), rgba(112, 70, 108), rgba(152, 102, 144), rgba(194, 148, 186)), k, v, 0.06f);
-  // the woody stems and green under the bloom, then the bloom in rounded cushions with a ragged, flowery rim
-  for (int i = 0; i < 7; i++) blade(c, 1.5f + i * 2.1f, c.h - 2, 3 + (int)(hash3(i, 0, seed) % 3), (hashf(i, 1, seed) - 0.5f) * 2.0f, kMoss, 0);
-  cushions(c, R, seed, 3 + (v % 2), 3.0f, 4.4f);
-  const Canvas s = c;
-  for (int y = 1; y < c.h - 2; y++)
-    for (int x = 1; x < c.w - 1; x++)
-      if (!solid(s, x, y) && solid(s, x, y + 1) && hash3(x, y, seed) % 3 == 0) c.set(x, y, R[3]);   // flower spikes on top
+  const int W = c.w, H = c.h;
+  const float bloom = 0.35f + 0.13f * (float)(v % 4);   // how much of it is in flower
+  const float brown = (v % 3) * 0.12f;                  // the older, browner plants
+  const Ramp P = tweak(ramp5(rgba(40, 28, 38), rgba(62, 42, 54), rgba(86, 60, 74), rgba(112, 80, 96), rgba(140, 104, 122)), k, v, 0.05f);
+  const Ramp B = ramp5(rgba(46, 36, 30), rgba(70, 54, 40), rgba(96, 76, 52), rgba(124, 100, 68), rgba(150, 126, 88));
+  const Ramp F = ramp5(rgba(110, 64, 108), rgba(140, 86, 136), rgba(168, 110, 160), rgba(194, 140, 186), rgba(220, 176, 214));
+  // the mound's height at each column: a broad hump (one or two lobes) with a ragged twiggy skyline
+  const float cx = W * 0.5f + ((int)(hash3(v, 1, seed) % 3) - 1) * 1.0f;
+  const float hw = W * (0.36f + 0.04f * (v % 3));
+  const bool twin = (v % 2) == 1;
+  std::vector<int> top((size_t)W, H);
+  for (int x = 0; x < W; x++) {
+    const float u = (x + 0.5f - cx) / hw;
+    float hgt = 1.0f - u * u;
+    if (twin) hgt = std::max(hgt * 0.8f, 0.85f - (u + 0.45f) * (u + 0.45f) * 2.2f);
+    if (hgt <= 0) continue;
+    const float base = std::sqrt(hgt) * (H - 4) * 0.92f;
+    const int jag = (int)(hash3(x, 3, seed) % 3);   // spikes of the twigs on the skyline
+    top[(size_t)x] = (H - 2) - (int)base + (x % 2 ? jag : jag / 2);
+  }
+  for (int x = 0; x < W; x++) {
+    const int t = top[(size_t)x];
+    if (t >= H - 1) continue;
+    for (int y = std::max(0, t); y < H - 1; y++) {
+      // the surface normal from the skyline's slope and the depth into the mound
+      const int tl = x > 0 ? top[(size_t)x - 1] : t + 2, tr = x + 1 < W ? top[(size_t)x + 1] : t + 2;
+      const float sx = (float)(tr - tl) * 0.18f;            // the slope across: + faces left (the light)
+      const float d = (float)(y - t) / std::max(1, H - 1 - t);   // 0 the crown .. 1 the foot
+      float l = 0.55f + sx * 0.8f - d * 0.95f + (cx - x) / W * 0.6f;
+      l += (hashf(x, y, seed) - 0.5f) * 0.35f;              // the twigs' fine broken texture
+      int ki = lightIndex(l, x, y, 0.18f);
+      if ((x + y * 3 + (int)(hash3(x, y / 2, seed) % 3)) % 4 == 0) ki = std::max(0, ki - 1);   // dark twig lines
+      uint32_t col = P[ki];
+      if (hashf(x, y, seed + 5) < brown + d * 0.35f) col = B[std::min(4, ki + 1)];   // old brown growth low down
+      if (d < 0.45f && ki >= 2 && hashf(x, y, seed + 9) < bloom * (1.0f - d)) col = F[std::min(4, ki + (hashf(x, y, seed + 11) < 0.3f ? 1 : 0))];
+      c.set(x, y, col);
+    }
+    // a twig or flower spike standing above the skyline here and there
+    if (t > 1 && hash3(x, 7, seed) % 4 == 0) { c.set(x, t - 1, hashf(x, 0, seed + 13) < bloom ? F[3] : P[2]); if (hash3(x, 8, seed) % 2) c.set(x, t - 2, P[1]); }
+  }
+  // the foot frays into the ground: the lowest rows thinned by an ordered dither, darker toward the right (its shadow)
+  for (int y = H - 4; y < H; y++)
+    for (int x = 0; x < W; x++) {
+      if (!chA(c.get(x, y))) continue;
+      if (bayer(x, y) < (y - (H - 4)) * 0.28f) { c.set(x, y, 0); continue; }
+      if (x > cx) c.set(x, y, darken(c.get(x, y), 0.18f));
+    }
   if (k.cold) frostTips(c, seed + 3);
-  finishCover(c);
+  // a soft outline on the top and the left only (the light's side keeps its crisp twiggy skyline)
+  const Canvas s = c;
+  for (int y = 1; y < H - 3; y++)
+    for (int x = 1; x < W - 1; x++)
+      if (!solid(s, x, y) && solid(s, x + 1, y + 1) && solid(s, x, y + 1) && hash3(x, y, seed + 17) % 2 == 0) c.set(x, y, rgba(40, 26, 36, 150));
 }
 
+// (M4, owner carry-over: the alpine meadow's flora repeated: every clump was the same confetti of six colours) a
+// wildflower patch is mostly ONE kind in one colour, as they grow: daisy heads, tall spikes (lupin, gentian), a low
+// cushion starred with tiny blooms (moss campion), or a loose mixed clump in two colours. The kind is v % 4, its
+// colour v / 4 from the land's own flowers (the high meadows: gentian blue, edelweiss white, alpine pink, globeflower
+// yellow; the lowland meadows: white, yellow, poppy red, cornflower blue, pink, orange). Lit from the top-left.
 void wildflowers(Canvas& c, int v, const Ctx& k) {
   const uint32_t seed = 7401u + (uint32_t)v * 7u;
-  static const uint32_t pet[6] = {rgba(250, 248, 236), rgba(250, 214, 70), rgba(236, 92, 80), rgba(120, 140, 240), rgba(236, 130, 190), rgba(250, 160, 60)};
-  for (int i = 0; i < 7; i++) blade(c, 1.5f + i * 2.0f, c.h - 2, 3 + (int)(hash3(i, 0, seed) % 4), (hashf(i, 1, seed) - 0.5f) * 3.0f, kLeaf, 1);
-  const int n = 8 + (v % 3);
-  for (int i = 0; i < n; i++) {
-    const int x = 2 + (int)(hash3(i, 2, seed) % (uint32_t)(c.w - 4)), y = 2 + (int)(hash3(i, 3, seed) % (uint32_t)(c.h - 6));
-    const Ramp pr = ramp(pet[(hash3(i, 4, seed) + v) % 6], 0.8f);
-    vline(c, x, y + 1, c.h - 2, kLeaf[1 + (i & 1)]);
-    c.set(x, y - 1, pr[3]); c.set(x - 1, y, pr[3]); c.set(x + 1, y, pr[1]); c.set(x, y + 1, pr[1]);
-    c.set(x, y, (i % 2) ? rgba(250, 226, 110) : pr[4]);
+  const int W = c.w, H = c.h;
+  const bool alpine = k.eco == (int)Eco::AlpineMeadow || k.cold;
+  static const uint32_t lowland[6] = {rgba(250, 248, 236), rgba(250, 214, 70), rgba(228, 70, 60), rgba(96, 120, 236), rgba(236, 130, 190), rgba(250, 160, 60)};
+  static const uint32_t high[4] = {rgba(70, 96, 226), rgba(246, 246, 236), rgba(228, 118, 176), rgba(246, 210, 64)};
+  const int kind = v % 4, ci = v / 4;
+  const uint32_t main = alpine ? high[(ci + v / 2) % 4] : lowland[(ci * 2 + v) % 6];
+  const uint32_t second = alpine ? high[(ci + 2) % 4] : lowland[(ci * 2 + v + 3) % 6];
+  const Ramp pr = ramp(main, 0.8f), sr = ramp(second, 0.8f);
+  auto head = [&](int x, int y, const Ramp& R, bool big) {   // a bloom: lit petals up-left, shade down-right, an eye
+    c.set(x, y - 1, R[4]); c.set(x - 1, y, R[3]); c.set(x + 1, y, R[2]); c.set(x, y + 1, R[1]);
+    if (big) { c.set(x - 1, y - 1, R[3]); c.set(x + 1, y + 1, R[1]); }
+    c.set(x, y, R[0] == R[4] ? rgba(250, 226, 110) : (main == rgba(250, 214, 70) || main == rgba(246, 210, 64) ? rgba(200, 120, 40) : rgba(250, 226, 110)));
+  };
+  switch (kind) {
+    case 0: {   // daisies: a loose spray of heads on short stems
+      for (int i = 0; i < 6; i++) blade(c, 2.0f + i * 2.3f, H - 2, 2 + (int)(hash3(i, 0, seed) % 3), (hashf(i, 1, seed) - 0.5f) * 2.0f, kLeaf, 1);
+      const int n = 4 + (int)(hash3(v, 5, seed) % 3);
+      for (int i = 0; i < n; i++) {
+        const int x = 2 + (int)(hash3(i, 2, seed) % (uint32_t)(W - 4)), y = H - 5 - (int)(hash3(i, 3, seed) % 5u);
+        vline(c, x, y + 1, H - 2, kLeaf[1 + (i & 1)]);
+        head(x, y, pr, i == 0);
+      }
+      break;
+    }
+    case 1: {   // spikes: two or three tall racemes of small florets, darker toward their foot
+      for (int i = 0; i < 5; i++) blade(c, 3.0f + i * 2.4f, H - 2, 3 + (int)(hash3(i, 0, seed) % 3), (hashf(i, 1, seed) - 0.5f) * 2.5f, kLeaf, 1);
+      const int n = 2 + (int)(hash3(v, 6, seed) % 2);
+      for (int i = 0; i < n; i++) {
+        const int x = 3 + i * 4 + (int)(hash3(i, 7, seed) % 3u), top = 1 + (int)(hash3(i, 8, seed) % 3u);
+        vline(c, x, top + 2, H - 2, kLeaf[1]);
+        for (int y = top; y < H - 5; y++) {
+          const int kk = std::clamp(4 - (y - top) * 4 / std::max(1, H - 6 - top), 1, 4);
+          c.set(x, y, pr[kk]);
+          if ((y + i) % 2 == 0) { c.set(x - 1, y, pr[std::max(1, kk - 1)]); }
+          else c.set(x + 1, y, pr[std::max(0, kk - 2)]);
+        }
+      }
+      break;
+    }
+    case 2: {   // a cushion: a low dome of fine leaves starred with tiny blooms
+      ball(c, W * 0.5f, H - 4.0f, W * 0.36f, 3.2f, kMoss, 0.12f);
+      for (int i = 0; i < 11; i++) {
+        const int x = 3 + (int)(hash3(i, 2, seed) % (uint32_t)(W - 6)), y = H - 7 + (int)(hash3(i, 3, seed) % 4u);
+        if (!solid(c, x, y)) continue;
+        c.set(x, y, x < W / 2 ? pr[4] : pr[3]);
+        if (hash3(i, 9, seed) % 3 == 0) c.set(x + 1, y, pr[2]);
+      }
+      break;
+    }
+    default: {   // a mixed clump in two colours, taller grass among it
+      for (int i = 0; i < 7; i++) blade(c, 1.5f + i * 2.0f, H - 2, 3 + (int)(hash3(i, 0, seed) % 4), (hashf(i, 1, seed) - 0.5f) * 3.0f, kLeaf, 1);
+      const int n = 5 + (v % 3);
+      for (int i = 0; i < n; i++) {
+        const int x = 2 + (int)(hash3(i, 2, seed) % (uint32_t)(W - 4)), y = 3 + (int)(hash3(i, 3, seed) % (uint32_t)(H - 7));
+        vline(c, x, y + 1, H - 2, kLeaf[1 + (i & 1)]);
+        head(x, y, (i % 3) ? pr : sr, false);
+      }
+      break;
+    }
   }
   if (k.cold) frostTips(c, seed + 3);
   finishCover(c);

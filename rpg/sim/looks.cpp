@@ -34,6 +34,10 @@ struct Stream {   // a private hash stream (never the caller's Rng)
   int pick(int n) { return n <= 1 ? 0 : (int)(next() % (uint32_t)n); }
   bool chance(int p256) { return (int)(next() & 255u) < p256; }
 };
+uint32_t blend(uint32_t a, uint32_t b, float t) {   // (M4) rgb lerp, opaque
+  auto ch = [&](int sh) { return (int)(((a >> sh) & 255) * (1 - t) + ((b >> sh) & 255) * t); };
+  return rgba(ch(0), ch(8), ch(16));
+}
 uint32_t darker(uint32_t c, float k) {
   return rgba((int)((c & 255) * k), (int)(((c >> 8) & 255) * k), (int)(((c >> 16) & 255) * k));
 }
@@ -91,9 +95,9 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
   for (uint32_t cc : D.cloth) nc += cc != 0;
   const auto cloth = [&](int i) { return nc ? (D.cloth[(size_t)(i % nc)] | 0xFF000000u) : L.topColor; };
   const bool clothRole = r == Role::Villager || r == Role::Merchant || r == Role::Innkeeper || r == Role::Farmer || r == Role::Child ||
-                         r == Role::Fisher || r == Role::Traveller;
+                         r == Role::Fisher || r == Role::Traveller || r == Role::Refugee;
   if (clothRole) {
-    if (r == Role::Villager || r == Role::Child) {
+    if (r == Role::Villager || r == Role::Child || r == Role::Refugee) {
       const int a = h.pick(std::max(1, nc));
       L.topColor = cloth(a);
       L.bottomColor = darker(cloth(a + 1 + h.pick(std::max(1, nc - 1))), 0.72f);
@@ -150,7 +154,39 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
         if (A.cape == 1) L.cape = true;
         else if (A.cape == 2) { L.cloak = 1; L.cloakColor = L.tabardColor; }
       }
-      L.beard = false;
+      // (fixer M4 r3, review: "both guards pixel-identical") the watch are townsfolk: some keep a beard
+      L.beard = !female && L.people != 2 && h.chance(100);
+      break;
+    }
+    // (M4) a kingdom's soldier: the owner culture's arms one step plainer than the town watch (the second body and helm
+    // forms of its grammar), its shield, a spear; the tabard in the kingdom's colours (set by makeLook)
+    case Role::Soldier: {
+      applyArms(A, bandOf(A.metal, 0), 1, 1);
+      L.shieldForm = (uint8_t)((int)A.shield + 1);
+      L.bladeForm = (uint8_t)((int)A.blade + 1);
+      L.plumeColor = A.plume ? (A.plume | 0xFF000000u) : 0;
+      L.gloves = L.boots = (uint8_t)std::min<int>(L.armorStyle, 2);
+      L.beard = L.beard && h.chance(90);
+      break;
+    }
+    // (M4) a captain: the best of the culture's arms (rank 1), a crest and a cloak in the kingdom's colours, a blade
+    case Role::Captain: {
+      applyArms(A, bandOf(A.metal, 1), 0, 0);
+      L.shieldForm = (uint8_t)((int)A.shield + 1);
+      L.bladeForm = (uint8_t)((int)A.blade + 1);
+      L.pauldron = (uint8_t)std::min(4, L.pauldron + 1);
+      L.crest = (uint8_t)std::min(4, L.crest + 2);
+      L.armsOrnament |= cult::ARM_PLUMES;
+      L.plumeColor = L.trimColor ? L.trimColor : (A.plume ? (A.plume | 0xFF000000u) : 0);
+      L.gloves = L.boots = 3;
+      break;
+    }
+    // (M4) a refugee: the village's own clothes, faded and patched, a headscarf or hood against the road
+    case Role::Refugee: {
+      L.topColor = blend(L.topColor, rgba(120, 108, 92), 0.45f);
+      L.bottomColor = blend(L.bottomColor, rgba(70, 60, 52), 0.4f);
+      L.pattern = 0; L.patternColor = 0; L.jewellery = 0;
+      if (h.chance(150)) { L.headwear = (uint8_t)(female ? cult::Headwear::Headscarf : cult::Headwear::Hood); L.headColor = darker(L.topColor, 0.8f); }
       break;
     }
     case Role::Bandit: {
@@ -212,13 +248,14 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
     default: break;
   }
   // ---- the name, in the culture's phonology (titles kept; guards keep theirs: the spawner names them)
-  if (r != Role::Guard) {
+  if (r != Role::Guard && r != Role::Soldier && r != Role::Herald) {
     Stream hn(seed ^ 0x6E616D65ull);   // its own stream: every bit of the person seed reaches the name
     std::string nm = cult::personName(C, hn.next(), female);
     if (!nm.empty()) {
       if (r == Role::Jarl) nm = std::string(cult::societyOf(owner).lordTitle) + " " + nm;   // (M3b fixer) the society's lord: NOYAN, EMIR, PROVOST...
       else if (r == Role::Priest) nm = "PRIEST " + nm;
       else if (r == Role::King) nm = std::string(cult::societyOf(owner).rulerTitle) + " " + nm;   // (fix) the society's own title: KHAN, HIGH JARL, DOGE...
+      else if (r == Role::Captain) nm = "CAPTAIN " + nm;
       name = nm;
     }
   }
@@ -272,17 +309,58 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
     case Role::Fisher: L.outfit = art::Outfit::Tunic; L.topColor = rgba(74, 104, 132); L.bottomColor = rgba(70, 64, 54); break;
     case Role::Herbalist: L.outfit = art::Outfit::Robe; L.topColor = rgba(92, 128, 76); L.tabardColor = rgba(200, 180, 110); L.hood = true; break;
     case Role::Traveller: L.cape = true; L.tabardColor = rgba(110, 84, 60); L.topColor = rgba(140, 120, 90); L.hood = true; break;
+    // M4 Banners (colours only, after the shared draws): the kingdoms' men-at-arms, the war's homeless, the realm's voice
+    case Role::Soldier: L.outfit = art::Outfit::Guard; L.helmet = true; L.shield = true; L.weapon = 8; L.tabardColor = rgba(150, 40, 40); a.name = "SOLDIER"; break;
+    case Role::Captain:
+      L.outfit = art::Outfit::Plate; L.helmet = true; L.shield = true; L.weapon = 1; L.shieldStyle = 2; L.cloak = 1; L.beard = !female && L.beard;
+      L.tabardColor = rgba(150, 40, 40); L.cloakColor = rgba(150, 40, 40);
+      break;
+    case Role::Refugee:
+      L.outfit = female && L.outfit == art::Outfit::Dress ? art::Outfit::Dress : art::Outfit::Rags;
+      L.weapon = (hash32((uint32_t)a.slot * 2654435761u ^ 0x5EF1u) % 3 == 0) ? 9 : 0;   // some lean on a stick
+      break;
+    case Role::Herald:
+      // a tabard in the kingdom's colours over a padded coat (no mail, no helm), a horn at the hip
+      L.outfit = art::Outfit::Guard; L.helmet = false; L.shield = false; L.weapon = 7; L.beard = false;
+      L.tabardColor = rgba(150, 40, 40); L.cape = true;
+      a.name = "HERALD";
+      break;
     default: break;
   }
   // M1 kingdom identity (VISION_PLAN 15.8): guards wear their kingdom's colours; the king's cloak and the royal guard
   // (the palace and its barracks) carry the royal banner. (Colours only: the look's random draws above are unchanged.)
   const int home = a.site >= 0 ? a.site : (a.bldg >= 0 && a.bldg < (int)world.over.bldgs.size() ? world.over.bldgs[(size_t)a.bldg].site : -1);
   census::Rank rank;
+  // (M4) the men of a kingdom (soldiers, captains, heralds) wear the arms of the kingdom they serve (Actor::realm),
+  // wherever they stand: a besieger's camp, a road patrol, a capital's square
+  const bool kingsMan = r == Role::Soldier || r == Role::Captain || r == Role::Herald;
+  int servedK = -1;
+  if (kingsMan && a.realm) { auto it = world.kingdomById.find(a.realm); if (it != world.kingdomById.end()) servedK = it->second; }
+  if (kingsMan && servedK < 0 && home >= 0 && home < (int)world.sites.size()) servedK = world.sites[(size_t)home].kingdom;
+  if (kingsMan && servedK >= 0) {
+    const Kingdom& K = world.kingdoms[(size_t)servedK];
+    L.tabardColor = K.color;
+    L.trimColor = K.color2;
+    if (r == Role::Captain) { L.cloakColor = K.color; L.shieldStyle = 2; }
+    if (r == Role::Herald) { L.headwear = (uint8_t)cult::Headwear::Cap; L.headColor = K.color2 ? (K.color2 | 0xFF000000u) : K.color; }
+    const cult::Culture* KC = world.cultureOfKingdom(servedK);
+    const cult::Culture* LC = world.cultureOf(home);
+    const cult::Culture* PC = KC ? KC : LC;   // soldiers are the kingdom's own people
+    if (PC) {
+      const uint64_t s = entry ^ ((uint64_t)(uint32_t)(a.slot + 1) << 24) ^ a.realm ^ PC->id;
+      census::dress(L, a.name, r, female, *PC, KC ? *KC : *PC, s, rank);
+      if (r == Role::Herald) { L.tabardColor = K.color; L.headwear = (uint8_t)cult::Headwear::Cap; L.headColor = K.color2 ? (K.color2 | 0xFF000000u) : K.color; L.cut = 0; L.pattern = 0; }
+    }
+    if (r == Role::Soldier) a.name = "SOLDIER";
+    if (r == Role::Herald) a.name = "HERALD";
+    return;
+  }
   if (const Kingdom* K = world.kingdomOf(home)) {
     const art::Building in = a.bldg >= 0 && a.bldg < (int)world.over.bldgs.size() ? world.over.bldgs[(size_t)a.bldg].type : art::Building::House;
     const bool royal = in == art::Building::Palace || in == art::Building::Barracks;
     if (r == Role::Guard) {
-      L.tabardColor = K->color;
+      // (fixer M4 r3, review: "the occupier's guard is grey mail with a speck of yellow") the kingdom's stronger colour
+      L.tabardColor = K->tabard();
       if (royal) {   // the royal guard: steel plate and great-helm, a heater shield with the royal field and trim
         L.outfit = art::Outfit::Plate; L.armorStyle = 3; L.helmStyle = 3; L.shieldStyle = 2; L.trimColor = K->color2;
         L.cloak = 3; L.cloakColor = K->color;

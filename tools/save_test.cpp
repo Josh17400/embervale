@@ -1,8 +1,8 @@
 // Save-format checks for the CURRENT save version only (owner, 2026-10-04: old saves are not a concern; an older save
-// is refused and the title offers a new game). M3c: SAVE_VER 9 (the layout of 8 and 7: the appearance block with people,
-// homeland and personal heraldry; bumped with the Wildlands world generation, ENDLESS_GEN_VER 12).
+// is refused and the title offers a new game). M4: SAVE_VER 10 (the layout of 9 plus the realm and story blocks after
+// the marks; ENDLESS_GEN_VER 13). The REALM lane owns this file and the fixture in M4.
 //   save_test [fixtureDir]           run every check
-//   save_test --make-fixture out.bin write tests/fixtures/save_v9.bin: an endless game (seed 5150) with a created
+//   save_test --make-fixture out.bin write tests/fixtures/save_v10.bin: an endless game (seed 5150) with a created
 //                                    character, the innkeeper's job taken, bot play, a looted chest, the M2 fields
 //                                    (marks, a quest's subject / flags / deadline, a rumoured site), saved outdoors.
 //                                    Regenerate it whenever the layout changes on purpose, and paste the printed FIX6
@@ -193,12 +193,22 @@ void addM2Facts(Game& g) {
     if (q.type != QType::Main) { q.subject = FIX_SUBJECT; q.flags = FIX_QFLAGS; q.deadlineDay = FIX_DEADLINE; break; }
   if (g.world.capital >= 0 && g.world.capital != g.world.startSite) g.world.sites[(size_t)g.world.capital].rumoured = true;
 }
+// M4 (SAVE_VER 10) facts in the realm block: a famine forced on the start village, the player's standing with its kingdom
+constexpr int FIX_REP = 12;
+void addM4Facts(Game& g) {
+  const Site& sv = g.world.sites[(size_t)g.world.startSite];
+  const ew::Gid k = sv.kingdom >= 0 ? g.world.kingdoms[(size_t)sv.kingdom].id : 0;
+  g.realm.noteSite(sv.id, k, (uint8_t)sv.type, g.world.ox + sv.ex, g.world.oy + sv.ey);
+  g.realm.forceFamine(sv.id, g.day);
+  g.realm.addRep(k, FIX_REP);
+}
 int makeFixture(const char* out) {
   Game g(FIX_SEED);
   g.newEndlessGame(FIX_SEED);
   makeCharacter(g);
   play(g, FIX_SEED, 90);
   addM2Facts(g);
+  addM4Facts(g);
   if (g.inside) { printf("the fixture must be saved outdoors\n"); return 1; }
   std::vector<uint8_t> buf;
   g.serialize(buf);
@@ -213,11 +223,12 @@ int makeFixture(const char* out) {
 }
 // values printed by --make-fixture (format-level facts only)
 struct Fix6 { int level, xp, gold; size_t inv, quests, looted; int kills, ox; float px, py; int oy; float hour; int day; };
-constexpr Fix6 FIX6 = {1, 31, 88, 10, 3, 3, 1, 64, 1768.000f, 2328.000f, -192, 15.591f, 3};
+constexpr Fix6 FIX6 = {1, 20, 71, 8, 3, 3, 0, 0, 2792.000f, 2328.000f, -192, 14.592f, 3};
 
 }  // namespace
 
 int main(int argc, char** argv) {
+  setvbuf(stdout, nullptr, _IONBF, 0);   // (M4) progress shows as it happens (CI logs, a stalled section is visible)
   if (argc >= 3 && !strcmp(argv[1], "--make-fixture")) return makeFixture(argv[2]);
 #ifdef EMB_SOURCE_DIR
   std::string dir = argc >= 2 ? argv[1] : std::string(EMB_SOURCE_DIR) + "/tests/fixtures";
@@ -228,7 +239,7 @@ int main(int argc, char** argv) {
 
   // ---- 1. the fixture
   std::vector<uint8_t> fx;
-  if (!readFile(dir + "/save_v9.bin", fx)) check(false, "cannot read tests/fixtures/save_v9.bin");
+  if (!readFile(dir + "/save_v10.bin", fx)) check(false, "cannot read tests/fixtures/save_v10.bin");
   else {
     check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
     Game g(1);
@@ -260,8 +271,16 @@ int main(int argc, char** argv) {
     int rumoured = 0;
     for (const Site& st : g.world.sites) if (st.rumoured) rumoured++;
     check(rumoured == 1, "fixture rumoured site");
+    // M4 (SAVE_VER 10): the realm block
+    const Site& sv = g.world.sites[(size_t)g.world.startSite];
+    const ew::Gid k = sv.kingdom >= 0 ? g.world.kingdoms[(size_t)sv.kingdom].id : 0;
+    const realm::SettlementState* st = g.realm.settlement(sv.id);
+    check(st && (st->flags & realm::SS_FAMINE) && st->food == 0, "fixture realm: the start village's famine (SAVE_VER 10)");
+    check(!k || g.realm.rep(k) == FIX_REP, "fixture realm: the player's standing with the start kingdom (SAVE_VER 10)");
+    check(g.story.running().empty(), "fixture story block (empty)");
   }
 
+  printf("%s\n", "2. round trips");
   // ---- 2. round trips
   for (uint64_t s : {5150ull, 7ull, 99ull}) {
     Game g(s);
@@ -269,6 +288,7 @@ int main(int argc, char** argv) {
     makeCharacter(g);
     play(g, s, 45);
     addM2Facts(g);
+    addM4Facts(g);
     roundTrip(g, ("endless seed " + std::to_string(s) + " after play").c_str());
     // a long walk east (many window shifts), then save far from home
     g.noWildSpawns = true;
@@ -296,6 +316,48 @@ int main(int argc, char** argv) {
     } else check(false, "endless seed 707: cannot go upstairs in the start inn");
   }
 
+  printf("%s\n", "2a. the realm block after long ticking");
+  // ---- 2a. (M4 REALM lane) a year and more of the living world (daily and weekly ticks), then the whole save
+  //      round-trips byte-identically; a damaged realm block is refused or loads and ticks on without a crash, fast
+  {
+    Game g(5150);
+    g.newEndlessGame(5150);
+    makeCharacter(g);
+    g.mode = Mode::Play;
+    g.noWildSpawns = true;
+    g.godMode = true;
+    for (int i = 0; i < 400 && g.realm.focusPending(); i++) g.update(SIM_DT, Input());
+    for (int d = 0; d < 120; d++) { g.day++; g.update(SIM_DT, Input()); }
+    g.day += 300;   // a long rest: weekly ticks
+    g.update(SIM_DT, Input());
+    addM4Facts(g);
+    roundTrip(g, "endless seed 5150 after 420 realm days");
+    check(g.realm.day() >= g.day - 1, "the realm did not keep up with the clock");
+    std::vector<uint8_t> blk;
+    g.realm.serialize(blk);
+    printf("realm block after %d days: %zu bytes, %zu kingdoms, %zu events\n", g.realm.day(), blk.size(), g.realm.kingdoms().size(),
+           g.realm.events().size());
+    check(blk.size() <= 64 * 1024, "the realm block is over 64 KB");
+    auto t0 = std::chrono::steady_clock::now();
+    uint64_t h = 0x5EEDull;
+    int loaded = 0;
+    for (int i = 0; i < 300; i++) {
+      std::vector<uint8_t> bad = blk;
+      h = ew::mix64(h);
+      if (i % 3 == 0) bad.resize((size_t)(h % bad.size()));
+      else for (int k = 0; k < 1 + (int)(h % 6); k++) bad[(size_t)(ew::mix64(h + k) % bad.size())] ^= (uint8_t)(1 + (h >> (8 + k)) % 255);
+      realm::Realm r;
+      if (!r.deserialize(bad)) continue;
+      loaded++;
+      r.focusNow(*g.world.src, g.world.ox + 200, g.world.oy + 200, r.day());
+      r.advanceTo(*g.world.src, r.day() + 30);
+    }
+    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    printf("damaged realm blocks: 300 tried, %d loaded and ticked 30 days, %.0f ms\n", loaded, ms);
+    check(ms < 60000, "damaged realm blocks took over a minute");
+  }
+
+  printf("%s\n", "2b. the save soak");
   // ---- 2b. the save soak (VISION_PLAN 3.3, M1 size budget: about 150 KB after long play): a long journey on the
   //      endless world (20 000 tiles walked, which marks the fog of war across many regions), every overworld chest met
   //      looted, every camp's people killed, every site met discovered, 80 quests in the journal. The save must stay
@@ -349,6 +411,7 @@ int main(int argc, char** argv) {
     roundTrip(g, "endless save soak");
   }
 
+  printf("%s\n", "3. refusals");
   // ---- 3. refusals
   {
     Game n(31);
@@ -377,6 +440,7 @@ int main(int argc, char** argv) {
     std::vector<uint8_t> oldGen = patched(9, (uint32_t)ew::ENDLESS_GEN_VER - 1);
     check(!x.deserialize(oldGen) && Game::saveFromOlderGenerator(oldGen), "an older endless generator's save is not refused as older");
   }
+  printf("%s\n", "4. damaged saves");
   // ---- 4. damaged saves never crash (unknown or missing ids, counts and values out of range): each either loads into
   //      a playable game or is refused. Bytes after the header are flipped at random, and the file is cut short.
   {

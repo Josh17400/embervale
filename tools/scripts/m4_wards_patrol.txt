@@ -1,0 +1,18 @@
+# M4 WARDS: road patrols and border checkpoints (VISION_PLAN 4.5). The player stands on a kingdom's road away from its
+# towns; a squad of two to four soldiers in the owner's colours walks the road past. Then the land goes to war: where a
+# road crosses into the warring kingdom's land a checkpoint stands, barricades striped in its colours either side of the
+# road (the way itself open) and two soldiers on watch.
+seed 2
+0.3  newgame
++0.02 hour 10
++0.1 god 1
++1.0 war goto road
++0.5 war goto patrol
++2.5 expect war patrol
++0.1 shot m4_wards_patrol.png
++3.0 shot m4_wards_patrol2.png
++0.2 realm war
++0.5 war goto border
++1.0 war goto checkpoint
++3.5 shot m4_wards_checkpoint.png
++0.3 quit

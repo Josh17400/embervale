@@ -1,0 +1,19 @@
+# M4 WARDS: a burned village and its refugees (VISION_PLAN 4.5). The start village is put to the torch: most of its
+# buildings draw charred, the burned-out ones are barred and empty, ash and rubble lie about; at night no window is lit;
+# its people shelter in a refugee camp of lean-tos outside the nearest friendly settlement.
+seed 2
+0.3  newgame
++0.02 hour 15
++0.1 god 1
++0.5 realm burn 0
++0.3 expect realm burned 0
++0.8 expect war charred 5 0
++0.1 war goto burned
++1.2 shot m4_wards_burned.png
++0.1 hour 22.5
++1.0 shot m4_wards_burned_night.png
++0.1 hour 15
++0.1 war goto refuge
++2.5 expect war refugees 3
++0.1 shot m4_wards_refuge.png
++0.3 quit

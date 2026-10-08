@@ -10,6 +10,7 @@
 #include "rpg/sim/game_internal.h"
 #include "rpg/world/source.h"
 #include "rpg/culture/society.h"
+#include "rpg/story/story.h"
 
 using art::Monster;
 using art::Prop;
@@ -199,12 +200,32 @@ void Game::openChest(int tx, int ty) {
 }
 
 // ------------------------------------------------------------------ interaction
+// (fixer M4 r3) a fight comes first: with an awake foe (a raiding wolf, a soldier of the enemy) in striking reach the
+// button is ATTACK, never TALK to the guard who came running to stand beside the hero, nor a use of a prop (phone
+// players have no other way to swing)
+bool Game::foeInReach() const {
+  const Actor& p = pl();
+  for (size_t i = 1; i < actors.size(); i++) {
+    const Actor& a = actors[i];
+    if (a.st == AState::Dead || a.asleep || a.player) continue;
+    // (a beast that is fighting: a raider at a villager, a guard's foe; an idle cave dweller beside a captive does not
+    // turn the captive's TALK into a swing)
+    const bool foe = (a.hostile && a.aggro) || (a.aggro && a.target == p.id) || (a.npc && warFoes(*this, a, p));
+    if (foe && len2(a.p - p.p) < 34.0f * 34.0f) return true;
+  }
+  return false;
+}
+
 int Game::interactTarget() const {
   const Actor& p = pl();
+  if (foeInReach()) return -1;
   int best = -1; float bd = 24 * 24;
   for (size_t i = 1; i < actors.size(); i++) {
     const Actor& a = actors[i];
     if (!a.npc || a.st == AState::Dead) continue;
+    // (M4 integration) a soldier or guard who is the player's foe, or is fighting the player, is not talked to: the
+    // tap and E attack them instead of offering TALK mid-fight
+    if ((a.aggro && a.target == p.id) || warFoes(*this, a, p)) continue;
     float d = len2(a.p - p.p);
     // shopkeepers behind counters can be reached across them
     float reach = (a.role == Role::Merchant || a.role == Role::Innkeeper || a.role == Role::Smith) ? 40.0f : 24.0f;
@@ -272,6 +293,7 @@ int Game::interactProp(int& otx, int& oty) const {
                       ((prop == Prop::StandingStone || prop == Prop::GraveCairn) && !inside) ||   // M2 wayside (wayside.cpp)
                       (prop == Prop::Signpost && !inside && world.siteAt(tx, ty, 3) >= 0) ||
                       ((prop == Prop::Hammock || prop == Prop::SleepingMat) && inside && subBldg >= 0) ||   // M3: cultures that sleep so
+                      (art::isLoreProp(prop) && (inside ? subSite >= 0 : (prop == Prop::NoticeBoard || prop == Prop::ToppledStatue))) ||   // M4 (story_game.cpp)
                       (prop == Prop::Bed && inside && subBldg >= 0 &&
                        (world.over.bldgs[subBldg].type != art::Building::Inn || world.over.bldgs[subBldg].genVer >= WORLDGEN_V7));
         if (!usable) continue;
@@ -291,7 +313,10 @@ void Game::interact() {
   if (!pr) return;
   Prop prop = (Prop)(pr - 1);
   if (prop == Prop::Chest) { openChest(tx, ty); return; }
+  // M4: a story may ask for a wayside prop (standing stones, a cairn) before its own use runs
+  if (prop == Prop::StandingStone || prop == Prop::GraveCairn) story.onUseProp(*this, (int)prop, tx, ty);
   if (useWaysideProp(prop, tx, ty)) return;
+  if (storyUseProp(prop, tx, ty)) return;   // M4: notice boards, inscriptions, graves, journals (story_game.cpp)
   if (prop == Prop::Shrine || prop == Prop::Altar) {
     static const char* bless[] = {"BLESSING OF SOLMIR", "BLESSING OF VEYNA", "BLESSING OF HALDRUN", "BLESSING OF ORISSA"};
     blessName = bless[hash2(tx, ty) % 4];
@@ -417,6 +442,33 @@ std::string Game::greeting(const Actor& a) {
       if (!seat.empty()) local.push_back("THEY SAY THE " + ruler + " OF " + realm + " HOLDS COURT IN " + seat + ". I'VE NEVER SEEN THEM MYSELF.");
     }
     if (capitalHere) local.push_back("THE " + ruler + " OF " + realm + " HOLDS COURT IN " + court + ". MIND YOUR MANNERS NEAR THE ROYAL GUARD.");
+    // M4 (STORY lane): the town's own trouble, as the realm has it (15.6.3: hardship and war are felt before they are
+    // told). Each counts twice: what a town is living through comes up more than the weather.
+    if (homeSite >= 0) {
+      const Site& hsite = world.sites[(size_t)homeSite];
+      const realm::SettlementState* st = this->realm.settlement(hsite.id);
+      const uint16_t f = st ? st->flags : 0;
+      std::vector<std::string> trouble;
+      if (f & realm::SS_FAMINE) trouble.push_back("THE GRANARY IS EMPTY AND THE PRIEST BLAMES THE SKY. I BLAME THE TAX MEN. BREAD IS DEARER THAN BEER NOW.");
+      if (f & realm::SS_BESIEGED) trouble.push_back("NOBODY GETS IN OR OUT OF " + town + " WHILE THE SIEGE LASTS. HOW DID YOU GET IN? NO. DON'T TELL ME.");
+      if (f & realm::SS_OCCUPIED) {
+        const Kingdom* ok = world.kingdomOf(homeSite);
+        trouble.push_back((ok ? ok->name : std::string("FOREIGN")) + " SOLDIERS SLEEP IN OUR BEDS NOW. SMILE AT THEM. SMILING IS FREE, AND THEY HAVE SPEARS.");
+      }
+      if (f & realm::SS_REFUGEES) trouble.push_back("THE CAMP OUTSIDE " + town + " GROWS EVERY DAY. THEY HAVE NOTHING BUT WHAT THEY CARRIED, AND THEY CARRIED THEIR DEAD.");
+      if (f & (realm::SS_BURNED | realm::SS_REBUILDING)) trouble.push_back("HALF THE STREET IS ASH. WE'LL REBUILD. WE ALWAYS DO. WE'RE JUST TIRED OF IT.");
+      if (hsite.kingdom >= 0) {
+        const ew::Gid kid = world.kingdoms[(size_t)hsite.kingdom].id;
+        for (const realm::War& w : this->realm.wars())
+          if (!w.endDay && (w.attacker == kid || w.defender == kid)) {
+            const ew::Gid foe = w.attacker == kid ? w.defender : w.attacker;
+            const realm::KingdomState* fk = this->realm.kingdom(foe);
+            trouble.push_back("THE WAR WITH " + (fk ? fk->name : std::string("THEM")) + " TOOK MY NEPHEW FOR THE LEVY. HE WRITES THAT THE FOOD IS BAD AND THE SERGEANT IS WORSE.");
+            break;
+          }
+      }
+      for (const std::string& t : trouble) { local.push_back(t); local.push_back(t); }
+    }
   }
   auto withLocal = [&](const std::string& fixed) { return !local.empty() && r.f() < 0.5f ? local[r.irange((int)local.size())] : fixed; };
   switch (a.role) {
@@ -802,7 +854,14 @@ std::string Game::questStatus(const Quest& q) const {
   if (q.type == QType::Main) {
     const std::string cap = world.sites[world.capital].name;
     switch (q.stage) {
-      case 0: { const std::string l = lordTitleAt(world, world.capital); return fitLine({"SPEAK TO THE " + l + " IN " + cap, "THE " + l + " IN " + cap, "SPEAK TO THE " + l}); }
+      case 0: {
+        const std::string l = lordTitleAt(world, world.capital);
+        // (fixer M4 r3) already in the capital: no "travel to" the place the hero stands in; the seat is here
+        const IRect& cr = world.sites[world.capital].r;
+        if (inside ? subSite == world.capital : (px >= cr.x - 2 && py >= cr.y - 2 && px < cr.x + cr.w + 2 && py < cr.y + cr.h + 2))
+          return fitLine({"YOU ARE IN " + cap + ": SEEK THE " + l + "'S HALL", "SEEK THE " + l + "'S HALL HERE", "SEEK THE " + l + " HERE"});
+        return fitLine({"SPEAK TO THE " + l + " IN " + cap, "THE " + l + " IN " + cap, "SPEAK TO THE " + l});
+      }
       case 1: {
         int best = -1; float bd = 1e30f;
         for (int i = 0; i < (int)world.sites.size(); i++) {
@@ -957,6 +1016,8 @@ void Game::talkTo(Actor& a) {
     if (!(spellsKnown & (1 << (int)Spell::Heal))) dlg.opts.push_back({"TEACH ME MEND (120 GOLD)", A_LEARN, (int)Spell::Heal});
     if (!(spellsKnown & (1 << (int)Spell::IceSpike))) dlg.opts.push_back({"TEACH ME FROST LANCE (300 GOLD)", A_LEARN, (int)Spell::IceSpike});
   }
+  warTalk(a);     // M4: the war's talk (siege commanders, guards' news of the front; war_game.cpp)
+  storyTalk(a);   // M4: story quests, gossip, the realm's news (rpg/story/story_game.cpp)
   dlg.opts.push_back({"FAREWELL.", A_BYE, 0});
   mode = Mode::Dialogue;
   sfx((int)Sfx::Talk, a.p);
@@ -1077,6 +1138,21 @@ void Game::dialogueChoose(int oi) {
     case A_RUMOR: {
       // M2 rumours (wayside.cpp): the nearest place the player has not heard of goes on the map as rumoured
       if (gold < o.arg) { dlg.text = "NO GOLD, NO GOSSIP. THE ALE ISN'T FREE EITHER."; return; }
+      // M4 (VISION_PLAN 4.6): news of the realm that has reached this inn and the player has not heard yet comes first
+      {
+        int px = 0, py = 0;
+        overworldTile(*this, px, py);
+        const uint64_t who = ai >= 0 ? npcKey(actors[(size_t)ai]) : 0;
+        const realm::WorldEvent* e = story::pickRumour(*this, world.ox + px, world.oy + py, false, who);
+        if (e && !e->heard) {
+          const int hs = ai >= 0 ? (actors[(size_t)ai].site >= 0 ? actors[(size_t)ai].site : (actors[(size_t)ai].bldg >= 0 ? world.over.bldgs[(size_t)actors[(size_t)ai].bldg].site : -1)) : -1;
+          gold -= o.arg;
+          sfx((int)Sfx::Coin, pl().p);
+          dlg.text = story::hearEvent(*this, *e, hs >= 0 ? world.sites[(size_t)hs].culture : 0);
+          for (size_t k = 0; k < dlg.opts.size(); k++) if (dlg.opts[k].action == A_RUMOR) { dlg.opts.erase(dlg.opts.begin() + (std::ptrdiff_t)k); break; }
+          return;
+        }
+      }
       const std::string line = hearRumour();
       if (line.empty()) dlg.text = "CAN'T SAY I'VE HEARD ANYTHING NEW. KEEP YOUR COIN.";
       else {
@@ -1093,8 +1169,14 @@ void Game::dialogueChoose(int oi) {
       auto it = marks.find(k);
       if (it != marks.end() && it->second == day) dlg.text = "THAT'S ALL I KNOW FOR NOW. ASK ME AGAIN TOMORROW, IF WE'RE BOTH STILL ON THE ROAD.";
       else {
-        const std::string line = hearRumour();
-        if (line.empty()) dlg.text = "THE ROADS HAVE BEEN QUIET. NOTHING WORTH THE TELLING.";
+        // M4: half the time a traveller carries the realm's news (an event the player has not heard), else directions
+        int px = 0, py = 0;
+        overworldTile(*this, px, py);
+        const realm::WorldEvent* e = (day + (int)(k & 0xFF)) % 2 == 0 ? story::pickRumour(*this, world.ox + px, world.oy + py, false, k) : nullptr;
+        const std::string line = e && !e->heard ? std::string() : hearRumour();
+        const cult::Culture* tc = world.cultureAtTile(px, py);
+        if (e && !e->heard) { marks[k] = day; dlg.text = story::hearEvent(*this, *e, tc ? tc->id : 0); }
+        else if (line.empty()) dlg.text = "THE ROADS HAVE BEEN QUIET. NOTHING WORTH THE TELLING.";
         else { marks[k] = day; dlg.text = "ON MY WAY HERE I PASSED " + line + ". MIND HOW YOU GO."; }
       }
       for (size_t k2 = 0; k2 < dlg.opts.size(); k2++) if (dlg.opts[k2].action == A_NEWS) { dlg.opts.erase(dlg.opts.begin() + (std::ptrdiff_t)k2); break; }
@@ -1187,7 +1269,12 @@ void Game::dialogueChoose(int oi) {
       dlg.opts.erase(dlg.opts.begin() + oi);
       return;
     }
-    default: mode = Mode::Play; return;
+    default:
+      // M4: the lanes' own option ranges (game.h DLG_*)
+      if (o.action >= DLG_STORY && o.action < DLG_WAR && storyChoose(o)) return;
+      if (o.action >= DLG_WAR && o.action < DLG_END && warChoose(o)) return;
+      mode = Mode::Play;
+      return;
   }
 }
 
@@ -1327,7 +1414,7 @@ bool Game::sell(int ii) {
 // travel and death: rpg/sim/travel.cpp (M2)
 
 // ------------------------------------------------------------------ save / load
-// SAVE_VER 9 (M3c: the layout of 8, bumped with the Wildlands world generation). SAVE_VER 8 (M3b: the layout of 7, bumped with the builder's world generation). SAVE_VER 7 (M3: the appearance block gains people, homeland and personal heraldry; nothing else moved).
+// SAVE_VER 10 (M4: the realm and story blocks appended after marks). SAVE_VER 9 (M3c: the layout of 8, bumped with the Wildlands world generation). SAVE_VER 8 (M3b: the layout of 7, bumped with the builder's world generation). SAVE_VER 7 (M3: the appearance block gains people, homeland and personal heraldry; nothing else moved).
 // SAVE_VER 6 (M2). Owner, 2026-10-04: old saves are not a concern, so only this version loads; an older file is refused
 // and the title offers a new game ("this save is from an older version"). The layout is frozen for M2 after phase A
 // (the lanes fill the new fields, they do not move them); any later change bumps SAVE_VER and regenerates
@@ -1358,10 +1445,13 @@ bool Game::sell(int ii) {
 //   lodging  bldg ref, floor i32, room i32, untilDay i32
 //   explored count, then rx i32, ry i32, 128 bytes (the fog-of-war bits of one region)
 //   marks    (v6) count, then key u64 + value i32, in key order
+//   realm    (v10) u32 byte length + the realm block (realm::Realm::serialize: its own version byte first)
+//   story    (v10) u32 byte length + the story block (story::Engine::serialize: its own version byte first)
 // refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
 // 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 9;   // 9: M3c Wildlands (the layout of 8; the world's biomes, flora and wildlife
+static constexpr uint32_t SAVE_VER = 10;  // 10: M4 Banners (the realm and story blocks after marks; ENDLESS_GEN_VER 13);
+                                          // 9: M3c Wildlands (the layout of 8; the world's biomes, flora and wildlife
                                           //    are new, ENDLESS_GEN_VER 12, so older adventures start anew);
                                           // 8: M3b Builders & Societies (the world is built by the builder: a new
                                           //    generation, so older adventures start anew); 7: M3 (appearance: people,
@@ -1575,6 +1665,16 @@ void Game::serialize(std::vector<uint8_t>& out) const {
   }
   w.u32((uint32_t)marks.size());   // (std::map: already in key order)
   for (auto& kv : marks) { w.u64(kv.first); w.i32(kv.second); }
+  // M4 (v10): the realm and the stories, each a length-prefixed block with its own version byte
+  {
+    std::vector<uint8_t> blk;
+    realm.serialize(blk);
+    w.u32((uint32_t)blk.size());
+    for (uint8_t c : blk) w.u8(c);
+    story.serialize(blk);
+    w.u32((uint32_t)blk.size());
+    for (uint8_t c : blk) w.u8(c);
+  }
 }
 
 bool Game::deserialize(const std::vector<uint8_t>& in) {
@@ -1653,6 +1753,7 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
     int key = 0;
     bool ok = R.mapFrom(r, key);
     uint32_t m = r.u32();
+    if (r.bad || m > (in.size() - r.p) / 12) return false;   // (M4) more records than bytes left: a damaged save
     for (uint32_t j = 0; j < m && !r.bad; j++) {
       ew::Gid id = r.u64();
       int v = r.i32();
@@ -1691,11 +1792,24 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   if (n > 1000000) return false;
   marks.clear();
   for (uint32_t i = 0; i < n && !r.bad; i++) { uint64_t k = r.u64(); marks[k] = r.i32(); }
+  // M4 (v10): the realm and story blocks (a block its owner cannot read refuses the whole save)
+  for (int blkI = 0; blkI < 2 && !r.bad; blkI++) {
+    n = r.u32();
+    if (r.bad || n > (64u << 20) || r.p + n > in.size()) return false;
+    std::vector<uint8_t> blk(in.begin() + (std::ptrdiff_t)r.p, in.begin() + (std::ptrdiff_t)(r.p + n));
+    r.p += n;
+    if (blkI == 0 ? !realm.deserialize(blk) : !story.deserialize(blk)) return false;
+  }
   if (r.bad) return false;
   // re-apply looted overworld chests (by global tile)
   world.over.rebuildSolid();
   reapplyLooted();
   recalcPlayer();
+  // (fixer M4 r1) the realm's owners on the loaded settlements before anyone is spawned: a save made inside a conquered
+  // town's building (its palace) loads with the conqueror's guards and ruler, not the generator's (realmStep waits
+  // outside). Only the states the realm already holds are applied (noting new sites here would change the realm the
+  // save holds: realmStep notes them on the first step outside, as before)
+  realmSync();
   if (ins && sb >= 0 && sb < (int)world.over.bldgs.size()) {
     enterBuilding(sb);
     if (floorIn > 0 && floorIn < world.over.bldgs[(size_t)sb].floors()) changeFloor(floorIn);

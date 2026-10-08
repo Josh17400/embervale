@@ -1,0 +1,33 @@
+# M4 REALM lane: a tour of the living world through the forcing commands (rpg/view/script_realm.cpp) and the daily
+# tick. The start village starves (its realm's granaries are empty), sixty days pass (the tick: harvests, food deals,
+# the road to war), then the realm is pushed up the ladder to skirmishes, splits in a civil war, loses its ruler, goes
+# to war and makes peace. `realm stats` prints the counts and the focus / tick costs.
+#   embervale.exe --script tools/scripts/m4_realm_tour.txt     (m4_realm_*.png in the working directory)
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.5 realm stats
++0.1 realm famine 0
++0.2 expect realm famine 0
++0.1 expect realm hunger
++0.3 shot m4_realm_famine.png
++0.1 realm days 60
++0.5 realm stats
++0.1 realm tension skirmishes
++0.1 expect realm tension
++0.1 realm days 30
++0.5 expect realm tension
++0.1 realm rebels
++0.2 expect realm rebels
++0.1 realm succession
++0.1 realm war
++0.2 expect realm war
++0.3 shot m4_realm_war.png
++0.1 realm peace
++0.2 expect realm peace
++0.1 realm harvest
++0.2 expect realm hunger
++0.1 realm days 400
++0.5 realm stats
++0.3 quit

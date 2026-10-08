@@ -160,13 +160,25 @@ Prop ecoFlora(Eco e, int32_t r, int32_t q, uint64_t pk, int32_t dens, int32_t th
       if (rc < Q(0.09)) return Prop::Wildflowers;
       if (rc < Q(0.13)) return Prop::TallGrass;
       return Prop::COUNT;
-    case Eco::AlpineMeadow:
+    case Eco::AlpineMeadow: {
+      // (M4, owner carry-over: the alpine meadow's flora repeated) the blooms grow in drifts (a slow cluster noise):
+      // thick in the drifts and among the stones, almost none on the open turf between them; the drifts mix the
+      // wildflower cushions with the classic flowers and cotton grass, lichen and moss on the stony ground
       if (r < qm(Q(0.012), thin)) return Prop::LarchTree;
-      if (r < Q(0.030)) return pick({Prop::Boulder, Prop::Rock, Prop::MossRock});
-      if (rc < Q(0.20)) return Prop::Wildflowers;
-      if (rc < Q(0.28)) return Prop::Lichen;
-      if (rc < Q(0.32)) return Prop::TallGrass;
+      if (r < Q(0.030)) return pick({Prop::Boulder, Prop::Rock, Prop::MossRock, Prop::Rock});
+      const int32_t drift = vnoiseQ(x, y, 7, vs ^ 0xA1F1u) + (vnoiseQ(x, y, 3, vs ^ 0xA1F3u) - Q(0.5)) / 3;
+      if (drift > Q(0.53)) {
+        if (rc < Q(0.26)) return Prop::Wildflowers;
+        if (rc < Q(0.34)) return pick({Prop::Flowers1, Prop::Flowers2, Prop::Flowers3});
+        if (rc < Q(0.38)) return Prop::CottonGrass;
+      } else if (drift > Q(0.38)) {
+        if (rc < Q(0.07)) return Prop::Wildflowers;
+        if (rc < Q(0.10)) return Prop::TallGrass;
+      } else if (rc < Q(0.015)) return Prop::Wildflowers;
+      if (rc < Q(0.47) && rc >= Q(0.41)) return Prop::Lichen;
+      if (rc < Q(0.50) && rc >= Q(0.47)) return Prop::TallGrass;
       return Prop::COUNT;
+    }
     case Eco::StonePlains: {
       // standing stones in groups (rings and rows where a cluster noise peaks), long grass and heather between
       const int32_t cl = vnoiseQ(x, y, 3, vs ^ 0x5701u);
@@ -408,6 +420,9 @@ int ecoHalfW(Eco a, Eco b) {
   const bool wa = ecoHas(a, EF_WET) && fa != Biome::Plains, wb = ecoHas(b, EF_WET) && fb != Biome::Plains;
   if (wa || wb) return 2;
   if (ecoHas(a, EF_RARE) || ecoHas(b, EF_RARE)) return 3;
+  // (M4, owner carry-over: the heath "read as flat green blobs") the moor meets the grass along a tighter, ragged line:
+  // a wide band scattered islands of bright turf over the dark heather
+  if (a == Eco::Heath || b == Eco::Heath) return 2;
   const bool ga = fa == Biome::Plains, gb = fb == Biome::Plains;
   if (ga && gb) return 4;
   if ((ga && fb == Biome::Desert) || (gb && fa == Biome::Desert)) return 4;
@@ -1689,6 +1704,44 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
           }
         }
     }
+  }
+  // 6a (M4, owner carry-over: the marsh boardwalks): a road or track over the open water of a marsh (the Swamp family's
+  // pools, not a river) is a boardwalk on posts, not a river bridge: its tiles carry Map::BOARDWALK_MARK with the
+  // marsh's plank paving (4), so the view draws them as the stilt towns' walks and joins them seamlessly. Where the road
+  // steps diagonally, the inner corner of each step on its south side is decked too (water with the walk to its north,
+  // to one side and on the diagonal between), so the staircase is a walk two tiles wide that the view lays as one
+  // straight diagonal deck with every part of it walkable; a turn gets its inner corner the same way. Decided from the
+  // plan's roads and the base water only (the road array and the base rect cover the chunk's 1-tile margin), so the
+  // chunks on either side of an edge agree.
+  {
+    auto marshWater = [&](int32_t gx, int32_t gy) {
+      if (!B.in(gx, gy)) return false;
+      const size_t b = B.at(gx, gy);
+      const Ground g0 = (Ground)B.ground[b];
+      return (g0 == Ground::Water || g0 == Ground::DeepWater) && ecoFamily((Eco)B.eco[b]) == Biome::Swamp && B.riverW[b] == 0 && !B.bridge[b];
+    };
+    auto deck = [&](int32_t gx, int32_t gy) { return rin(gx, gy) && road[ri(gx, gy)] && !used[ri(gx, gy)] && marshWater(gx, gy); };
+    const uint8_t mark = (uint8_t)(Map::BOARDWALK_MARK | 4);
+    for (int ly = 0; ly < CHUNK; ly++)
+      for (int lx = 0; lx < CHUNK; lx++) {
+        const int32_t gx = x0 + lx, gy = y0 + ly;
+        const int i = c.at(lx, ly);
+        if (deck(gx, gy)) {
+          if (c.ground[i] != (uint8_t)Ground::Bridge) continue;
+          c.blend[i] = mark;
+          c.ecoNb[i] = c.eco[i];
+          continue;
+        }
+        if (!rin(gx, gy) || road[ri(gx, gy)] || used[ri(gx, gy)] || !marshWater(gx, gy)) continue;
+        if (!groundWater((Ground)c.ground[i])) continue;
+        const bool fill = deck(gx, gy - 1) && ((deck(gx + 1, gy) && deck(gx + 1, gy - 1)) || (deck(gx - 1, gy) && deck(gx - 1, gy - 1)));
+        if (!fill) continue;
+        c.ground[i] = (uint8_t)Ground::Bridge;
+        c.prop[i] = 0;
+        c.blend[i] = mark;
+        c.ecoNb[i] = c.eco[i];
+        reserved[(size_t)i] = 1;
+      }
   }
   // 6b (M2 fixer round 2): massifs. Every named summit (a Peak landmark: the region's highest point) and every range's
   // labelled crest stands as a mountain you can see: a GreatPeak (7 x 3) at the label point with lesser spires on its

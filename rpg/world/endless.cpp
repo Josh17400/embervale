@@ -7,6 +7,7 @@
 //   chunkgen.cpp  L2b  the chunk pipeline (base, rivers, lakes, settlements, stamps, roads, relief, vegetation)
 // Order-independence contract (VISION_PLAN 2.3): every structural decision comes from integer maths on (seed,
 // coordinates) only; caches hold pure values. One instance is not thread-safe; two instances never share state.
+#include <algorithm>
 #include "rpg/world/gen.h"
 
 namespace ew {
@@ -50,6 +51,29 @@ std::vector<float> EndlessSource::roadBearings(Gid site) {
 void EndlessSource::chunk(int32_t cx, int32_t cy, ChunkData& out) { d_->chunk(cx, cy, out); }
 bool EndlessSource::prepareChunk(int32_t cx, int32_t cy, double budgetMs) { return d_->prepareChunk(cx, cy, budgetMs); }
 const KingdomPlan* EndlessSource::kingdom(Gid id) { d_->makeStart(); return d_->kingdom(id); }
+Gid EndlessSource::kingdomOfCell(int32_t kx, int32_t ky) {
+  d_->makeStart();
+  return d_->kcell(kx, ky).capital ? makeId(kx, ky, IdKind::Kingdom, 0) : 0;
+}
+Gid EndlessSource::kingdomAt(int32_t gx, int32_t gy) { d_->makeStart(); return d_->kingdomAt(gx, gy); }
+std::vector<SettlementNode> EndlessSource::settlementsIn(int32_t x0, int32_t y0, int32_t x1, int32_t y1, bool withNames) {
+  d_->makeStart();
+  std::vector<gen::Node> nodes;
+  d_->nodesIn(x0, y0, x1, y1, nodes);
+  std::vector<SettlementNode> out;
+  out.reserve(nodes.size());
+  for (const gen::Node& n : nodes) {
+    if (n.x < x0 || n.y < y0 || n.x >= x1 || n.y >= y1) continue;
+    SettlementNode s;
+    s.id = n.id; s.type = n.type; s.x = n.x; s.y = n.y; s.flags = n.flags; s.seed = n.seed;
+    s.kingdom = d_->kingdomAt(n.x, n.y);
+    if (withNames) s.name = d_->siteName(n);
+    out.push_back(std::move(s));
+  }
+  std::sort(out.begin(), out.end(), [](const SettlementNode& a, const SettlementNode& b) { return a.id < b.id; });
+  out.erase(std::unique(out.begin(), out.end(), [](const SettlementNode& a, const SettlementNode& b) { return a.id == b.id; }), out.end());
+  return out;
+}
 const StartPlan& EndlessSource::start() { d_->makeStart(); return d_->sp; }
 int EndlessSource::danger(int32_t gx, int32_t gy) { d_->makeStart(); return d_->danger(gx, gy); }
 uint32_t EndlessSource::landmass(int32_t gx, int32_t gy) { d_->makeStart(); return d_->landmass(gx, gy); }

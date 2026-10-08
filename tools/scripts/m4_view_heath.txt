@@ -1,0 +1,11 @@
+# M4 VIEW lane (carry-over): the heath and moor: heather tussocks on a moor of peat and moss (desktop canvas).
+#   embervale.exe --script tools/scripts/m4_view_heath.txt
+seed 3
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 gotoeco heath
++4 shot m4_view_heath.png
++0.1 gotoeco heath 1
++4 shot m4_view_heath2.png
++0.3 quit

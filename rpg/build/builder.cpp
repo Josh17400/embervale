@@ -52,6 +52,7 @@ uint64_t Request::key() const {
   k = mix(k, (uint64_t)seed);
   k = mix(k, (uint64_t)facts.storeys | (uint64_t)(facts.hearth ? 1 : 0) << 8 | (uint64_t)facts.emblem << 16 | (uint64_t)(uint32_t)facts.variant << 32);
   k = mix(k, (uint64_t)facts.banner << 32 | facts.banner2);
+  if (facts.charred) k = mix(k, 0xC4A2ull << 8 | (uint64_t)(uint32_t)facts.charred);   // (M4) 0 keeps every key as before
   return k;
 }
 

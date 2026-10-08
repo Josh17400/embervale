@@ -775,6 +775,37 @@ int interiorChecks(uint64_t seed) {
   }
   V7Stats s7;
   const auto& B7 = w7.over.bldgs;
+  // (M4 VIEW lane) the web's time-sliced interiors: InteriorJob stepped one unit at a time makes the very map genInterior
+  // makes, floor by floor, for the frozen sample and every building of the start window
+  {
+    int jobBad = 0, jobN = 0, maxUnits = 0;
+    auto check = [&](const Bldg& b) {
+      for (int f = 0; f < b.floors(); f++) {
+        Map ref;
+        genInterior(ref, b, b.seed, f);
+        InteriorJob job(b, b.seed, f);
+        int units = 1;
+        while (!job.step(0.0)) units++;
+        maxUnits = std::max(maxUnits, units);
+        jobN++;
+        if (floorHash(job.map(), 1) != floorHash(ref, 1) || job.map().spawns.size() != ref.spawns.size()) jobBad++;
+      }
+    };
+    int n = 0;
+    for (const SampleBldg& sb : kGen7Sample) {
+      Bldg b;
+      b.type = (art::Building)sb.type;
+      b.r = IRect{40, 40, sb.w, sb.h};
+      b.storeys = (uint8_t)sb.storeys; b.hearth = sb.hearth != 0; b.biome = (Biome)sb.biome; b.urban = (uint8_t)sb.urban; b.variant = (uint8_t)sb.variant;
+      b.seed = hash32((uint32_t)(n++) * 2654435761u + 0x5EA7u);
+      b.site = 0;
+      b.genVer = WORLDGEN_LATEST;
+      check(b);
+    }
+    for (size_t i = 0; i < B7.size() && i < 120; i++) check(B7[i]);
+    if (seed <= 2) out("interior jobs: %d floors stepped unit by unit (up to %d units), %d differ from genInterior\n", jobN, maxUnits, jobBad);
+    if (jobBad) { out("FAIL: InteriorJob made %d floors unlike genInterior\n", jobBad); bad += jobBad; }
+  }
   if (const char* dt = std::getenv("EMB_INTERIOR_DUMP")) {
     int want = std::atoi(dt), shown = 0, only = -1;   // "<type>" or "<type>:<building index>"
     if (const char* c = std::strchr(dt, ':')) only = std::atoi(c + 1);

@@ -1,0 +1,21 @@
+# M4 VIEW lane: the journal's NEWS and LOST HISTORY sections (the QUESTS tab's section strip). Events are forced and
+# heard, a Lost History entry is pieced together from the nearest ruin's record; the strip, the lists and the details
+# are shown on the desktop canvas.
+#   embervale.exe --script tools/scripts/m4_view_journal.txt     (m4_view_journal*.png in the working directory)
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.3 realm siege 1
++0.1 realm famine 0
++0.1 realm days 2
++0.5 realm burn 2
++0.1 hearall
++0.1 testlore
++0.2 journal quests
++0.5 shot m4_view_journal_quests.png
++0.1 journal news
++0.5 shot m4_view_journal_news.png
++0.1 journal history
++0.5 shot m4_view_journal_history.png
++0.3 quit

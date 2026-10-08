@@ -1,14 +1,14 @@
 # rpg/world endless generator golden values (rpg_test --endless --golden --write). Integer maths only: must match on
 # every platform. Settlement interiors and footprints (the towns lane's output) are masked out.
 1.cultures 56d88c0c9de9c089
-1.farneg.chunks df16092ce1a6d70e
+1.farneg.chunks c209645187abfcfe
 1.farneg.region 4d8685b9a6a37412
 1.farneg.tiles 0000000000004000
-1.farpos.chunks 931c4fc65a17fbab
+1.farpos.chunks f430efd26794938b
 1.farpos.region 263855f738775178
 1.farpos.tiles 0000000000002e74
-1.macro afe46d176945dfb0
-1.near.chunks cbdf4d18bdd40f11
+1.macro 733762eec9cf9369
+1.near.chunks d9e936097ea6b102
 1.near.region 2eb8132f45da2e8b
 1.near.tiles 0000000000001a60
 1.places 01f2fe79019afe79
@@ -27,7 +27,7 @@
 12345.places 0195fe790193fe79
 12345.start 8cb0cfc3a4123df0
 7.cultures f198c3e215d8102a
-7.farneg.chunks bee4cb29dfce3900
+7.farneg.chunks 3cf013cc81219471
 7.farneg.region 435a3cb2ec7da01f
 7.farneg.tiles 0000000000002d80
 7.farpos.chunks 95a2f060db69eab2

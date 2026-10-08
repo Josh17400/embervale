@@ -1,0 +1,24 @@
+# M4 phase A (lead): the realm contracts through the forcing commands (rpg/view/script_realm.cpp). The start village is
+# besieged by a neighbouring kingdom, then taken (its banners follow the new owner), then burned (refugees go to the
+# nearest friendly settlement); a town goes hungry. The WARDS / VIEW / STORY lanes make these states visible.
+#   embervale.exe --script tools/scripts/m4_lead_realm.txt     (m4_lead_*.png in the working directory)
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.5 realm siege 0
++0.2 expect realm besieged 0
++0.1 expect realm war
++0.3 shot m4_lead_siege.png
++0.1 realm take 0
++0.2 expect realm occupied 0
++0.1 expect kingdom
++0.3 shot m4_lead_taken.png
++0.1 realm burn 0
++0.2 expect realm burned 0
++0.1 realm famine 1
++0.2 expect realm famine 1
++0.1 realm days 3
++0.5 expect realm burned 0
++0.3 shot m4_lead_burned.png
++0.3 quit

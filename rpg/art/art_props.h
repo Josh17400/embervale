@@ -169,8 +169,48 @@ enum class Prop : uint8_t {
   SilverFern,     // pale silver ferns (silverwood)
   JungleFern,     // big broad leaves (jungle, bamboo forest)
   Petals,         // fallen blossom petals on the ground (blossom grove)
+  // ---- M4 Banners: the war made visible (VISION_PLAN 4.5). Painted in rpg/art/art_war.cpp (phase A stand-ins; the
+  //      WARDS lane paints them for real in the 3/4 top-down view with top-left light and may change the canvas
+  //      sizes). Placed at RUNTIME by the war's overlays (never by the generator). FOOTPRINTS ARE FROZEN (m4Footprint
+  //      below: the prop stands on its footprint's bottom-centre tile, Filler on the others). Colours that belong to a
+  //      kingdom (tent cloth, pennants) are drawn by the view from the owner's arms (WARDS lane, render code).
+  WarTent,        // a soldier's ridge tent in the attacker's cloth, guy ropes, a pennant (about 48x36); 3x2
+  CommandTent,    // the commander's round pavilion, a banner pole on its crown (about 52x52); 3x2
+  Catapult,       // a timber siege engine, its arm cocked, a stone in the sling (about 48x44); 3x2
+  Palisade,       // a run of sharpened stakes; joins its neighbours (16x24); solid
+  RefugeeTent,    // a patched lean-to of blankets on poles, bundles beside it (about 44x30); 3x2
+  Rubble,         // a heap of fallen stone and charred beams where a building stood (about 20x16); solid
+  Ash,            // a scorch of ash and cinders on the ground (16x16); walked over, drawn flat
+  Scaffold,       // timber scaffolding and a ladder against a wall being rebuilt (16x40); solid
+  Barricade,      // a checkpoint's barrier of crossed timbers on a bridge or road (24x22); solid
+  // ---- M4 Banners: the realm's voice and the lore of fallen places (VISION_PLAN 4.6, 15.3). Painted in
+  //      rpg/art/art_lore.cpp (phase A stand-ins; the STORY lane paints them for real). Placed at runtime (notice
+  //      boards in town squares) or by the ruin generator (dungeon.cpp, STORY lane).
+  NoticeBoard,    // a roofed timber board pinned with notices: bounties, proclamations, houses for sale (24x34); solid
+  Inscription,    // a carved standing slab in a dead culture's script (16x30); solid
+  ToppledStatue,  // a fallen statue of a named ruler, its head broken off (about 48x24); 3x1, solid
+  Mural,          // a faded painted wall in a ruin: a battle, a coronation (16x30, wall decor like Tapestry)
+  NamedGrave,     // a carved grave with a name and the year (16x22); solid
+  LostJournal,    // a satchel and a journal fallen open on the floor (14x10); walked over
   COUNT
 };
+// M4: the war's props (art_war.cpp) and the lore props (art_lore.cpp)
+inline bool isWarProp(Prop p) { return (int)p >= (int)Prop::WarTent && (int)p <= (int)Prop::Barricade; }
+inline bool isLoreProp(Prop p) { return (int)p >= (int)Prop::NoticeBoard && (int)p <= (int)Prop::LostJournal; }
+// M4: the frozen tile footprint of a war or lore prop (w odd, h >= 1): it stands on the bottom row's middle tile; the
+// rest of the w x h box holds Filler. 1 x 1 for the rest.
+inline void m4Footprint(Prop p, int& w, int& h) {
+  switch (p) {
+    case Prop::WarTent: case Prop::CommandTent: case Prop::Catapult: case Prop::RefugeeTent: w = 3; h = 2; return;
+    case Prop::ToppledStatue: w = 3; h = 1; return;
+    default: w = 1; h = 1; return;
+  }
+}
+// M4 (rpg/art/art_war.cpp, WARDS lane): a war prop in a kingdom's colours (tent cloth, pennants, the command tent's
+// banner): field and trim rgba (0: the neutral stand-in look). Same canvas size and anchor as propSprite(p) (frame 0 of
+// its sheet); the view caches it by (p, field, trim) and draws it for tiles whose camp has an owner
+// (Game::warPropKingdom).
+Canvas warPropSprite(Prop p, uint32_t field, uint32_t trim);
 // M3c: the Wildlands flora ranges (one shared answer for every reader: the forest rule, crowns, the map, projectiles)
 inline bool isWildlandsFlora(Prop p) { return (int)p >= (int)Prop::AcaciaTree && (int)p <= (int)Prop::Petals; }
 inline bool isWildlandsSolid(Prop p) { return (int)p >= (int)Prop::AcaciaTree && (int)p <= (int)Prop::Thornbush; }

@@ -17,7 +17,10 @@
 #include "rpg/sim/explored.h"
 #include "rpg/sim/factions.h"
 #include "rpg/sim/items.h"
+#include "rpg/sim/realm.h"
+#include "rpg/sim/war.h"
 #include "rpg/sim/world.h"
+#include "rpg/story/story.h"
 
 // Creator: the character creator after NEW GAME (the world exists; the player picks looks and a background).
 enum class Mode : uint8_t { Title, Play, Dialogue, Menu, Shop, LevelUp, Dead, Paused, Creator };
@@ -80,6 +83,7 @@ struct Actor {
   int atkN = 0;            // attacks made (heavy-attack cadence)
   int8_t orbitDir = 1;     // wolves: circling direction
   float lastHitT = -99;    // Game::time this actor last took damage (troll regen pauses)
+  float plHitT = -99;      // (M4 integration) Game::time the player last struck it: a hunt beast the guards finish counts
   // town defence (M0): townsfolk run home and hide, brave ones with a tool fight as militia, guards converge
   bool militia = false;    // a brave adult with a tool (smith, farmer...): fights weakly when monsters come
   bool stallKeeper = false; // (M1 economy) keeps a market stall: stands behind its counter facing the customers
@@ -98,6 +102,9 @@ struct Actor {
   // beast of a farm raid, a named bandit chief. nightHome: a square-goer gone home for the night (sheltered until dawn)
   int quest = 0;
   bool nightHome = false;
+  // M4 Banners (never saved): the kingdom this guard, soldier, captain or herald serves (0: none, a frontier militia or
+  // a civilian). Who fights whom between kingdoms is Game::warHostile (war_game.cpp), from this and the realm's wars.
+  ew::Gid realm = 0;
 };
 
 enum class ProjKind : uint8_t { Arrow, Fireball, IceSpike, Spit, Magic, DragonFire };
@@ -124,8 +131,12 @@ struct Pickup {
 // (the view moves its camera, particles and floating texts by it)
 // Discover: a = the site, s = its name, f = 1 a place found, 2 a WONDER found (M2: the view may make more of it; the
 // sim also gives 100 XP and a journal toast "WONDER FOUND: <NAME>")
+// M4 Banners: News, the player heard of a world event (a = the realm::WorldEvent id, s = its line: the view shows a
+// toast and the News journal gains it); Border, the player crossed into another kingdom's land (s = the kingdom's
+// name, a = its banner colour (rgba), f = 1 entering a kingdom, 0 leaving into the wildlands: the view's herald banner
+// "ENTERING THE KHAGANATE OF ...")
 enum class Ev : uint8_t { Sfx, Hit, Blood, Explode, Sparkle, Dust, Heal, Frost, Text, Discover, LevelUp, QuestUpdate, Shake, MapChange, Notice,
-                          WindowShift };
+                          WindowShift, News, Border };
 struct Event {
   Ev type = Ev::Sfx;
   Vec2 p;
@@ -138,7 +149,10 @@ struct Event {
 // M2 (VISION_PLAN M2 sim lane, PLAN.md task 6) appends: Deliver (a parcel to an NPC in another settlement), Heirloom
 // (retrieve a named item from a named chest in a named dungeon), Missing (find a person alive in a cave and walk them
 // out), NamedBandit (a unique chief with a title), Protect (a night wave at a settlement's farm). Saved as u8: append.
-enum class QType : uint8_t { Main, Clear, Hunt, Retrieve, Bounty, Deliver, Heirloom, Missing, NamedBandit, Protect, COUNT };
+// M4 Banners appends: Story (a running story quest or campaign stage mirrored from the story engine, rpg/story/story.h:
+// Quest::stage is the engine's Instance id), War (a siege quest, "BREAK THE SIEGE" / "JOIN THE ASSAULT", WARDS lane:
+// Quest::targetId the besieged site, Quest::stage the realm's Siege id, Quest::flags bit QF_WAR_ATTACK the side).
+enum class QType : uint8_t { Main, Clear, Hunt, Retrieve, Bounty, Deliver, Heirloom, Missing, NamedBandit, Protect, Story, War, COUNT };
 enum class QState : uint8_t { Active, Complete, Done };
 struct Quest {
   int id = 0;
@@ -170,9 +184,15 @@ constexpr uint32_t QF_WAVE2 = 1u << 4;    // Protect: the second wave came
 constexpr uint32_t QF_FAILED = 1u << 5;   // the quest ended without success (state Done, no reward)
 constexpr uint32_t QF_GRAVE = 1u << 6;    // Heirloom read on a lone grave: the item is laid on the grave (giverSlot -2)
 constexpr uint32_t QF_ESCORTED = 1u << 7; // Missing: brought out alive (complete; the reward waits with the giver)
+constexpr uint32_t QF_WAR_ATTACK = 1u << 16;   // (M4) War: with the attackers ("JOIN THE ASSAULT"); clear: the defenders
+constexpr uint32_t QF_WAR_CAPDEAD = 1u << 17;  // (M4) War, BREAK THE SIEGE: the besiegers' captain fell (saved with the quest)
 inline Role questRecipientRole(const Quest& q) { return (Role)((q.flags >> 8) & 0xFF); }
 
 struct DlgOpt { std::string label; int action = 0; int arg = 0; };
+// M4: dialogue action ranges the lanes' own files handle (Game::dialogueChoose routes them): the story engine's
+// options (rpg/story/story_game.cpp storyChoose) and the war's (rpg/sim/war_game.cpp warChoose). The built-in actions
+// (game_internal.h DlgAct) stay below DLG_STORY.
+constexpr int DLG_STORY = 1000, DLG_WAR = 2000, DLG_END = 3000;
 struct Dialogue {
   int actor = -1;
   std::string speaker, text;
@@ -339,6 +359,24 @@ class Game {
   TravelQuote travelQuote(int site, bool carriage = false) const;
   Travel travel;
   Travel lastTravel;                   // M2: the last journey that arrived (its costs: scripts, tests, --perf reports)
+  // ---- M4 Banners: the living world (rpg/sim/realm.h, REALM lane), the war's actors and overlays (rpg/sim/war.h, WARDS
+  //      lane), the story engine (rpg/story/story.h, STORY lane). realm and story are saved (their own blocks); war is
+  //      regenerated from the realm (never saved).
+  realm::Realm realm;
+  story::Engine story;
+  WarState war;
+  // apply the realm to the loaded world now (owners and banners of every loaded settlement, the news): scripts and tests
+  // call it after forcing a realm change; realmStep calls it whenever the realm changed (realm_game.cpp)
+  void realmSync();
+  // every loaded settlement not yet known to the realm noted (true: one the realm holds for another owner). realmStep
+  // calls it each step (fixer M4 r1: factored out; a load calls realmSync alone before re-entering a building)
+  bool realmNoteSites();
+  // two actors on opposite sides of a war between kingdoms (enemy soldiers, an enemy town's guards; war_game.cpp).
+  // Everything else about hostility stays factionsHostile.
+  bool warHostile(const Actor& a, const Actor& b) const;
+  // the kingdom whose camp a war prop at overworld tile (tx, ty) belongs to (0: none / not a war prop): the view draws
+  // it in that kingdom's colours (art::warPropSprite). war_game.cpp.
+  ew::Gid warPropKingdom(int tx, int ty) const;
   // M2 SIM lane: a carriage can be hired here (the player stands in a town or a city, or in one of its buildings)
   bool carriageHere() const;
   // M2 quests (rpg/sim/quests.cpp). offerFor: the offer this NPC would make when asked for work, of a given type
@@ -356,6 +394,7 @@ class Game {
   bool tollPaid(int site) const;
   void respawn();
   int interactTarget() const;          // actor id the player would talk to (-1 none)
+  bool foeInReach() const;             // (fixer M4 r3) an awake foe within striking reach: the use button attacks
   int interactProp(int& tx, int& ty) const;   // usable prop in front of the player (art::Prop + 1, 0 none)
   bool bedIsYours(int tx, int ty) const;      // M0b: a bed you may sleep in (an inn's beds are let room by room)
   bool nearDoorOrExit() const;
@@ -573,6 +612,30 @@ class Game {
   int32_t landAt(int32_t gx, int32_t gy) const;   // the landmass id at (or near) a global tile
   bool startJourney(int site, int kind, float hours, int gold);
   void journeyWindow();                // the journey's destination window and wish list (startJourney, beginTravelTo)
+  // ---- M4 hooks. Each is called from the core loop (game.cpp / game_rpg.cpp) and DEFINED in its lane's own file, so
+  //      the lanes never edit each other's files. Keep the calls where phase A put them.
+  //   REALM (rpg/sim/realm_game.cpp): once per update step; ticks the realm at a day change, focuses it on the player,
+  //   registers the settlements the window loads, applies owners (World::setSiteOwner), emits Ev::Border on crossings
+  void realmStep(float dt);
+  uint32_t realmSeen_ = 0;             // the realm's eventSerial() last applied (realm_game.cpp)
+  size_t realmSites_ = 0;              // world.sites already registered with the realm (sites is append-only)
+  int realmDay_ = -1;                  // the day the realm last advanced to
+  ew::Gid realmLand_ = 0;              // whose land the player stood on (Ev::Border when it changes)
+  bool realmLandKnown_ = false;
+  //   WARDS (rpg/sim/war_game.cpp): once per update step (siege camps, patrols, refugees, garrisons, charred overlays,
+  //   guard strength); the war's dialogue (siege commanders, guards' war talk); a kill (siege contributions, reputation)
+  void warStep(float dt);
+  void warTalk(Actor& a);              // may add options (DLG_WAR..) and set dlg.text; called by talkTo before FAREWELL
+  bool warChoose(const DlgOpt& o);     // an option in [DLG_WAR, DLG_END): true handled
+  void warKill(const Actor& victim, int killer);
+  //   STORY (rpg/story/story_game.cpp): story quests and campaigns, rumours and news, lore in ruins, notice boards,
+  //   heralds
+  void storyStep(float dt);
+  void storyTalk(Actor& a);            // may add options (DLG_STORY..) and set dlg.text; called by talkTo before FAREWELL
+  bool storyChoose(const DlgOpt& o);   // an option in [DLG_STORY, DLG_WAR): true handled
+  void storyKill(const Actor& victim, bool byPlayer);
+  void storyEntered(int site, int bldg);   // the player just entered a site's map (site >= 0) or a building (bldg >= 0)
+  bool storyUseProp(art::Prop p, int tx, int ty);   // the player used a prop (a notice board, an inscription...): true handled
   // quests (quests.cpp)
   std::string pendingPitch_;           // the spoken offer (first person) for pendingOffer_
   int pickRadiant(SiteType t, int32_t gx, int32_t gy, Rng& r, bool& danger, int exclude = -1);

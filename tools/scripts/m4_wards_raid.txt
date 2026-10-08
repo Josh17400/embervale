@@ -1,0 +1,18 @@
+# M4 WARDS: monsters raid a village (owner 2026-10-03: monsters entering towns attack villagers, villagers defend or flee,
+# guards protect). A wolf pack loosed in the street of the start village (a kingdom's watch of two) and then again once
+# it is a frontier village (militia only).
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++2.0 war raid wolf 3 0
++1.6 shot m4_wards_raid_watch.png
++2.4 shot m4_wards_raid_watch2.png
++10  killnear 30
++1.0 war free 0
+# (the villagers come back out about 30 s after the first raid)
++34 hour 11
++3.0 war raid wolf 3 0
++1.8 shot m4_wards_raid_frontier.png
++2.5 shot m4_wards_raid_frontier2.png
++0.3 quit

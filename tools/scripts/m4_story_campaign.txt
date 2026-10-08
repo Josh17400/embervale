@@ -1,0 +1,53 @@
+# M4 STORY lane: the first campaign, THE EMPTY THRONE (rpg/story/lib_campaign.cpp). A capital's herald begins it; the
+# steward, the dying ruler in the seat of power, the charter in a ruin, the heir in her village; the loyal branch to the
+# crowning (the ride back to the capital completes at once: the player never left it). Objectives are completed by `story complete` (the walk there is play, not the engine).
+#   embervale.exe --script tools/scripts/m4_story_campaign.txt     (m4_story_c*.png in the working directory)
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 goto capital
++1.0 story herald
++0.3 expect option WHAT IS IT, HERALD?
++2.5 shot m4_story_c1_herald.png
++0.1 choose WHAT IS IT, HERALD?
++0.3 expect story emptythrone herald
++2.5 shot m4_story_c2_summons.png
++0.1 choose I'LL GO TO THE STEWARD
++1.0 expect story emptythrone steward1
++0.1 story talk
++2.5 shot m4_story_c3_steward.png
++0.1 choose TELL ME OF THE HIDDEN CHILD
++2.5 shot m4_story_c4_child.png
++0.1 choose I MUST SEE THE
++0.3 expect story emptythrone audience
++0.1 story show
++2.5 shot m4_story_c5_audience.png
++0.1 choose I'LL FIND THE CHARTER
++0.3 expect story emptythrone crypt
++0.1 story complete
++0.3 expect story emptythrone charter
++0.1 story complete
++0.3 expect story emptythrone heir1
++0.1 story show
++2.5 shot m4_story_c6_heir.png
++0.1 choose YOU ARE THE
++2.5 shot m4_story_c7_truth.png
++0.1 choose WE RIDE FOR
++0.5 expect story emptythrone presented
++0.1 story show
++2.5 shot m4_story_c8_presented.png
++0.1 choose LONG LIVE THE HEIR
++0.3 story show
++2.5 shot m4_story_c9_envoy.png
++0.1 choose WILL REPAY THE GOLD
++0.3 expect story emptythrone peace_vigil
++0.1 story complete
++0.3 story show
++2.5 shot m4_story_c10_crowning.png
++0.1 choose I'LL STAY
++0.5 expect story emptythrone done
++0.1 expect news NEW
++0.1 menu 1
++2.5 shot m4_story_c11_journal.png
++0.3 quit

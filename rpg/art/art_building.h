@@ -125,6 +125,10 @@ struct BuildingFacts {
   uint32_t banner = 0, banner2 = 0;
   int emblem = 0;
   int variant = 0;      // M1 economy: type-specific detail (the watermill: bit 0 = its wheel on the west side)
+  // M4 Banners (VISION_PLAN 4.5): war damage drawn over the building (Bldg::charred): 0 whole (the classic pixels and
+  // keys), 1 scorched (soot over the windows and eaves, singed roof patches), 2 burned out (roof holed to the rafters,
+  // blackened walls, no glass lit at night), 3 being rebuilt (scaffolding and fresh timber over a scorched shell)
+  int charred = 0;
 };
 // The storeys each type showed before M0b (and still shows for worlds before WORLDGEN_V7): inns and keeps 2, mage
 // towers 3, everything else 1. Header-only: the simulation (which does not link the art) needs it.

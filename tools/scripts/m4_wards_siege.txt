@@ -1,0 +1,28 @@
+# M4 WARDS: a siege and the player's part in it (VISION_PLAN 4.5, 4.7). The start village is besieged; the camp stands
+# outside it in the attacker's colours; the defenders' captain asks the player to BREAK THE SIEGE; the besiegers turn on
+# the player; each of them slain raises the siege's def by 0.5.
+seed 2
+0.3  newgame
++0.02 hour 10
++0.1 god 1
++0.1 kit
++0.5 realm siege 0
++0.3 expect realm besieged 0
++0.5 expect war camp
++0.1 war goto camp
++0.1 war at 1 3
++4.5 shot m4_wards_siege_camp.png
++0.1 war goto captain def
++0.6 key E
++0.4 expect option BREAK THE SIEGE
++0.1 shot m4_wards_siege_captain.png
++0.1 choose BREAK THE SIEGE
++0.4 choose FAREWELL
++0.2 expect quest active BREAK THE SIEGE
++0.1 war mark
++0.2 war at 0 6
++2.5 shot m4_wards_siege_fight.png
++0.1 war kill 3
++0.5 expect siege def>
++1.5 shot m4_wards_siege_fight2.png
++0.3 quit

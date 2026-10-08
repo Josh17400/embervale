@@ -1,0 +1,32 @@
+# M4 VIEW lane: the realm on the world map. Settlements near the start are besieged, taken and burned, a famine is
+# heard of; the map is then shown at the land, town and continent zooms: borders dashed in each owner's colour (the
+# conquered land in its new owner's), crossed swords at the siege, flames at the burned place, a banner over the
+# occupied town, scrolls for the news, the legend naming them, and the side column naming the selected town's state.
+#   embervale.exe --script tools/scripts/m4_view_map.txt     (m4_view_map*.png in the working directory)
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.3 mapexplore 900
++0.1 mapreveal 12
++0.3 realm siege 1
++0.1 realm take 2
++0.1 realm burn 3
++0.1 realm famine 0
++0.1 hearall
++0.1 expect realm besieged 1
++0.1 expect realm occupied 2
++0.3 menu 2
++0.1 mapzoom 4
++0.1 mapcentre hero
++1.5 expect m4 markers 2
++0.1 expect m4 border 1
++0.1 shot m4_view_map_land.png
++0.1 mapzoom 3
++1.5 shot m4_view_map_town.png
++0.1 mapzoom 6
++1.5 shot m4_view_map_continent.png
++0.1 mapzoom 4
++0.1 mapselect nearest
++1.5 shot m4_view_map_select.png
++0.3 quit

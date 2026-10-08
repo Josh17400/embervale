@@ -660,7 +660,7 @@ void paintWallMat(Mass& m, int plinth) {
           if (hh == 0) k = std::max(0, base - 1);
           if (q == 1 && hh > 0) k = std::min(4, k + 1);
           col = R[k];
-          bool mortar = q == 0 || hh == 0 && (q == 1 || q == sw - 1);
+          bool mortar = q == 0 || (hh == 0 && (q == 1 || q == sw - 1));
           if ((q == 0 || q == sw - 1) && (hh == rh - 1)) mortar = true;   // rounded stone corners
           if (mortar) col = mix(R[0], kSoil[1], 0.3f);
           break;
@@ -978,6 +978,9 @@ void facadeWindowS(Mass& m, WindowShape ws, int u0, int v0, int ww, int wh, uint
     case WindowShape::Slit: {   // an arrow slit: a deep dark splay with a lit sill
       const int uc = u0 + ww / 2;
       for (int j = 0; j < wh; j++) { F.set(uc - 1, v0 + j, m.wR[1]); F.set(uc, v0 + j, kInk); F.set(uc + 1, v0 + j, rgba(28, 22, 36)); F.set(uc + 2, v0 + j, m.wR[0]); }
+      // (fixer M4 r1, review: "seed 5 settlements light no windows at night") the slit's dark is its pane: lamplight
+      // shows in it at night like any window (and war soot rises from it)
+      for (int j = 0; j < wh; j++) { F.markGlass(uc, v0 + j); F.markGlass(uc + 1, v0 + j); }
       for (int i = -1; i <= 2; i++) { F.set(uc + i, v0 - 1, T[4]); F.set(uc + i, v0 + wh, T[3]); }
       return;
     }
@@ -4033,6 +4036,291 @@ void outlineRows(Canvas& c, const Canvas& src, float strength, int ya, int yb) {
     }
 }
 
+// ---------------------------------------------------------------- M4 Banners: the war's mark (Bldg::charred)
+// Painted over the finished picture of the blueprint (before the outline), reading only what the painter laid down:
+// the layer map (wall, roof, overlay) and the panes. So it works for every form the builder makes, and charred 0 never
+// gets here (every key and pixel as before).
+//   1 scorched:   soot plumes rising from every window over the wall and the eave above it, singed patches on the roof
+//   2 burned out: walls blackened to charcoal and ash-grey (the light still reads on them), the windows gaping black with
+//                 an ember here and there (no glass: nothing is lit at night), the roof holed to the rafters: charred
+//                 rafters and purlins over the dark inside, the far rim of each hole showing the roof's cut edge in the
+//                 light, the near rim scorched; what is left of the roof blackened
+//   3 rebuilding: a scorched shell with its holes boarded in fresh pale planks, and timber scaffolding up its front
+//                 (poles, ledgers at the storey lines, a brace, a plank deck), lit on the left like everything else
+uint32_t burnt(uint32_t col, float amt) {
+  const float l = luma(col);
+  const uint32_t target = mix(rgba(30, 24, 30), rgba(126, 112, 104), std::clamp(l * 1.15f, 0.0f, 1.0f));
+  return mix(col, target, std::clamp(amt, 0.0f, 1.0f));
+}
+void warDamage(Painter& P, int level, uint32_t seed) {
+  Canvas& c = P.c;
+  const int W = c.w, H = c.h;
+  auto lay = [&](int x, int y) -> int { return (x < 0 || y < 0 || x >= W || y >= H) ? 0 : P.layer[(size_t)y * W + x]; };
+  // soot: plumes from the panes, rising and widening a little, fading as they climb (over walls and on onto the roof)
+  std::vector<float> S((size_t)W * H, 0.0f);
+  for (int y = H - 1; y >= 0; y--)
+    for (int x = 0; x < W; x++) {
+      const size_t i = (size_t)y * W + x;
+      if (!lay(x, y)) continue;
+      float s = P.glass[i] ? 1.0f : 0.0f;
+      if (y + 1 < H) {
+        const float b0 = S[i + (size_t)W], bl = x > 0 ? S[i + (size_t)W - 1] : 0, br = x + 1 < W ? S[i + (size_t)W + 1] : 0;
+        const float j = 0.91f + 0.06f * vnoise(x * 0.5f, y * 0.25f, seed + 41);
+        s = std::max(s, std::max(b0 * j, std::max(bl, br) * (j - 0.12f)));
+      }
+      S[i] = s;
+    }
+  const float sootK = level == 2 ? 0.85f : (level == 3 ? 0.5f : 0.8f);
+  // where the roofs are: a roof pixel's depth inside the roof (chamfer distance to anything that is not roof), and the
+  // bottom of the walls in its column (the plinth and steps below a building are no roof)
+  std::vector<int> wallBot((size_t)W, -1);
+  for (int x = 0; x < W; x++) for (int y = 0; y < H; y++) if (lay(x, y) == 1) wallBot[(size_t)x] = y;
+  std::vector<uint8_t> depth((size_t)W * H, 0);
+  for (int y = 0; y < H; y++)
+    for (int x = 0; x < W; x++) {
+      if (lay(x, y) != 2 || wallBot[(size_t)x] < 0 || y > wallBot[(size_t)x] - 3) continue;
+      int d = 1;
+      if (y > 0 && x > 0) d = 1 + std::min(depth[(size_t)(y - 1) * W + x], depth[(size_t)y * W + x - 1]);
+      depth[(size_t)y * W + x] = (uint8_t)std::min(d, 60);
+    }
+  for (int y = H - 1; y >= 0; y--)
+    for (int x = W - 1; x >= 0; x--) {
+      const size_t i = (size_t)y * W + x;
+      if (!depth[i]) continue;
+      int d = depth[i];
+      if (y + 1 < H) d = std::min(d, depth[i + (size_t)W] + 1);
+      if (x + 1 < W) d = std::min(d, depth[i + 1] + 1);
+      depth[i] = (uint8_t)d;
+    }
+  // the holes (2) or the patches boarded over (3): broad noise biased into the roof's middle (eaves, ridges and gable
+  // edges stay, so the building keeps its shape); the boarding (3) on a grid of planks, so the patches are square-cut
+  auto holeAt = [&](int x, int y) {
+    if (level == 1) return false;
+    const int d = depth[(size_t)y * W + x];
+    if (d < 3) return false;
+    const int qx = level == 3 ? (x / 5) * 5 : x, qy = level == 3 ? (y / 4) * 4 : y;
+    const float n = vnoise(qx * 0.075f, qy * 0.10f, seed + 3) * 0.7f + vnoise(qx * 0.21f, qy * 0.21f, seed + 9) * 0.3f;
+    const float bias = std::min(1.0f, (d - 3) / 7.0f) * 0.14f;
+    return n + bias > (level == 2 ? 0.58f : 0.66f);
+  };
+  std::vector<uint8_t> hole((size_t)W * H, 0);
+  for (int y = 0; y < H; y++)
+    for (int x = 0; x < W; x++) hole[(size_t)y * W + x] = holeAt(x, y) ? 1 : 0;
+  auto isHole = [&](int x, int y) { return x >= 0 && y >= 0 && x < W && y < H && hole[(size_t)y * W + x]; };
+  Canvas src = c;
+  int windowsLit = 0;
+  // soot and char in three crisp steps with an ordered dither between them (pixel art, not a smooth blur)
+  auto qz = [](float v, int x, int y) {
+    const float s = std::clamp(v, 0.0f, 1.0f) * 3.0f + (bayer(x, y) - 0.5f) * 0.45f;
+    return std::clamp(std::floor(s), 0.0f, 3.0f) / 3.0f;
+  };
+  if (level == 1) {
+    // (fixer M4 r1, review: "a flat grey checkerboard smudge") scorched, drawn along the building's own shapes: a soot
+    // streak climbing from each window (narrow, darkest at the lintel, tapering and fading as it climbs, two solid tones
+    // with dithering only where they meet), smoke-stained panes, the eave above a sooty window charred along its edge,
+    // the roof's lower edge singed in broken runs, and a few roof tiles broken through. No blotch crosses an edge.
+    std::vector<float> S1((size_t)W * H, 0.0f);
+    for (int y = H - 1; y >= 0; y--)
+      for (int x = 0; x < W; x++) {
+        const size_t i = (size_t)y * W + x;
+        const int L = lay(x, y);
+        if (!L) continue;   // (the windows' frames and shutters sit on the overlay layer: the streak starts there too)
+        float s = P.glass[i] ? 1.0f : 0.0f;
+        if (y + 1 < H && lay(x, y + 1)) {
+          const float b0 = S1[i + (size_t)W];
+          const float bl = x > 0 ? S1[i + (size_t)W - 1] : 0, br = x + 1 < W ? S1[i + (size_t)W + 1] : 0;
+          const float j = (L == 2 ? 0.62f : 0.90f) + 0.05f * vnoise(x * 0.6f, y * 0.3f, seed + 41);
+          s = std::max(s, std::max(b0 * j, std::max(bl, br) * (j - 0.22f)));
+        }
+        S1[i] = s;
+      }
+    // one scorch on the roof (two on a wide one): an irregular burnt patch well inside the roof, a dark core with a
+    // ring of singed tiles round it (never across the roof's edges: only pixels 2+ deep in the roof take it)
+    struct Scorch { int x, y; float r; };
+    std::vector<Scorch> scorch;
+    {
+      std::vector<int> cand;
+      for (int y = 0; y < H; y++)
+        for (int x = 0; x < W; x++) if (depth[(size_t)y * W + x] >= 7) cand.push_back(y * W + x);
+      const int n = cand.empty() ? 0 : (W > 70 ? 2 : 1);
+      for (int k = 0; k < n; k++) {
+        const int pick = cand[(size_t)(hash3(k, 7, seed + 67) % (uint32_t)cand.size())];
+        const int d = depth[(size_t)pick];
+        scorch.push_back({pick % W, pick / W, std::min(9.0f, 3.0f + d * 0.6f)});
+      }
+    }
+    auto q2 = [](float v, int x, int y) {   // 0, 1/2, 1: solid tones, a little dither on the boundary only
+      const float s = std::clamp(v, 0.0f, 1.0f) * 2.0f + (bayer(x, y) - 0.5f) * 0.3f;
+      return std::clamp(std::floor(s), 0.0f, 2.0f) / 2.0f;
+    };
+    for (int y = 0; y < H; y++)
+      for (int x = 0; x < W; x++) {
+        const size_t i = (size_t)y * W + x;
+        const int L = lay(x, y);
+        if (!L || L == 3) continue;
+        uint32_t col = src.get(x, y);
+        if (L == 1) {
+          if (P.glass[i]) col = darken(col, 0.4f);
+          else col = darken(col, 0.5f * q2(S1[i] * 1.15f - 0.1f, x, y));
+        } else {
+          // the eave: the roof's lowest rows above a wall
+          int eave = 0;
+          for (int k = 1; k <= 3; k++) if (lay(x, y + k) == 1) { eave = k; break; }
+          col = darken(col, 0.5f * q2(S1[i] * 1.2f - 0.08f, x, y));
+          if (eave) {
+            const float run = vnoise(x * 0.16f, 3.0f, seed + 57);   // broken runs along the edge (1-D: follows the line)
+            if (run > 0.56f && eave <= (run > 0.68f ? 2 : 1)) col = burnt(col, eave == 1 ? 0.8f : 0.55f);
+          }
+          if (depth[i] >= 2)
+            for (const Scorch& sc : scorch) {
+              const float dx = (x - sc.x) / sc.r, dy = (y - sc.y) / (sc.r * 0.75f);
+              const float dd = std::sqrt(dx * dx + dy * dy) + 0.45f * (vnoise(x * 0.35f, y * 0.35f, seed + 71) - 0.5f);
+              if (dd < 0.45f) col = mix(burnt(col, 1.0f), kInk, 0.45f);
+              else if (dd < 0.75f) col = mix(burnt(col, 0.8f), kInk, 0.15f);
+              else if (dd < 1.0f && bayer(x, y) < 0.5f) col = burnt(col, 0.3f);
+              // the core's upper rim catches the light (a shallow dish of fallen tiles), a cinder in it now and then
+              if (dd < 0.45f && hash3(x, y, seed + 73) % 19 == 0) col = rgba(150, 64, 36);
+            }
+        }
+        c.set(x, y, col);
+      }
+    return;
+  }
+  for (int y = 0; y < H; y++)
+    for (int x = 0; x < W; x++) {
+      const size_t i = (size_t)y * W + x;
+      const int L = lay(x, y);
+      if (!L) {
+        // (fixer M4 r2) paint laid outside the layer map (a door leaf, its frame): a burned-out shell's coloured woodwork
+        // chars with the rest; the plinth's stone and the shadows (unsaturated) are left alone
+        if (level != 2) continue;
+        const uint32_t q = src.get(x, y);
+        if ((q >> 24) < 200) continue;
+        const int cr = (int)(q & 255), cg = (int)((q >> 8) & 255), cb = (int)((q >> 16) & 255);
+        if (std::max({cr, cg, cb}) - std::min({cr, cg, cb}) <= 46 || (cr > cg && cg > cb)) continue;
+        c.set(x, y, burnt(q, qz(0.75f + 0.2f * vnoise(x * 0.22f, y * 0.22f, seed + 17), x, y)));
+        continue;
+      }
+      uint32_t col = src.get(x, y);
+      const float n = vnoise(x * 0.22f, y * 0.22f, seed + 17);
+      if (L == 3) {
+        // (fixer M4 r2, review: "a burned shell keeps a pristine teal door canopy") the overlay's awnings, pergolas,
+        // door frames and shutters burn with the house: charred to the same ash and charcoal (the light still reads),
+        // soot from the windows over them; a rebuilding shell's are only smoke-stained
+        if (c.get(x, y) >> 24 == 0) continue;
+        if (level == 2) col = burnt(col, qz(0.62f + 0.25f * n + 0.15f * S[i], x, y));
+        else col = burnt(col, qz(0.22f + 0.15f * n, x, y));
+        col = darken(col, sootK * 0.6f * qz(S[i], x, y));
+        c.set(x, y, col);
+        continue;
+      }
+      if (L == 1) {   // the walls
+        if (P.glass[i] && level == 2) {
+          // a gaping window: the black of a gutted room; one window in a few still holds an ember low down
+          col = mix(kInk, rgba(52, 28, 30), 0.3f);
+          const bool sill = lay(x, y + 1) == 1 && !P.glass[i + (size_t)W];
+          if (sill && hash3(x / 6, y / 6, seed) % 6 == 0 && hash3(x, y, seed) % 3 == 0 && windowsLit < 3) { col = kFire[1]; windowsLit++; }
+          P.glass[i] = 0;
+        } else if (P.glass[i]) {
+          col = darken(col, level == 3 ? 0.3f : 0.45f);   // smoke-stained panes
+        } else {
+          // the fire's heat blackens the top of a wall most, under the eaves
+          const int wb = wallBot[(size_t)x];
+          const float up = wb >= 0 ? std::clamp((wb - y) / 30.0f, 0.0f, 1.0f) : 0.0f;
+          if (level == 2) {
+            // (fixer M4 r2) painted wood (a teal door, coloured shutters) does not keep its colour through a fire
+            const int cr = (int)(col & 255), cg = (int)((col >> 8) & 255), cb = (int)((col >> 16) & 255);
+            const int sat = std::max({cr, cg, cb}) - std::min({cr, cg, cb});
+            const float paint = sat > 46 && !(cr > cg && cg > cb) ? 0.35f : 0.0f;   // (warm ochre plaster and brick keep their hue)
+            col = burnt(col, qz(0.40f + paint + 0.25f * n + 0.25f * up + 0.2f * S[i], x, y));
+          }
+          if (level == 3) col = burnt(col, qz(0.10f + 0.12f * n + 0.08f * up, x, y));
+          col = darken(col, sootK * qz(S[i] * (0.7f + 0.3f * n), x, y));
+        }
+      } else {   // the roofs
+        if (isHole(x, y)) {
+          if (level == 3) {   // boarded over: fresh planks in rows, a nail now and then, the old edge dark round them
+            const int row = (y + (int)(seed & 3)) % 4;
+            const uint32_t plank = mix(kWood[3], kStoneWarm[3], 0.35f);
+            col = row == 0 ? kWood[1] : (row == 3 ? darken(plank, 0.15f) : plank);
+            if (((x + y * 3) % 11) == 0 && row == 1) col = kIron[2];
+            if (((x * 5 + y) % 7) == 0 && row == 2) col = mix(plank, kWood[2], 0.5f);   // the grain
+            if (!isHole(x, y - 1) || !isHole(x - 1, y)) col = kWood[1];
+          } else {
+            // depth under the far rim: the first rows lie in the roof's shadow; further down the dark of the gutted room
+            int d = 0;
+            while (d < 8 && isHole(x, y - d - 1)) d++;
+            col = d < 3 ? rgba(16, 12, 18) : mix(rgba(22, 16, 22), rgba(58, 40, 36), std::min(1.0f, (d - 3) / 10.0f));
+            // charred rafters running down the slope, two pixels wide, lit on their left; a purlin across them here
+            // and there; some burned through and fallen
+            const int rx = (x + (int)(seed % 7)) % 7;
+            const bool purlin = ((y + (int)(seed % 9)) % 9) == 0 && hash3(x / 4, y, seed) % 3 != 0;
+            const bool gone = hash3(x / 7, (y + 3) / 9, seed + 5) % 5 == 0;
+            if (!gone) {
+              if (rx == 0) col = rgba(96, 70, 56);
+              else if (rx == 1) col = rgba(54, 38, 36);
+              else if (purlin) col = rgba(72, 52, 44);
+            }
+            if (rx == 1 && !gone && hash3(x, y, seed + 11) % 31 == 0) col = kFire[1];   // an ember in the char
+            // the far rim: the roof's cut edge facing the viewer, in the light
+            if (!isHole(x, y - 1)) col = lighten(burnt(src.get(x, std::max(0, y - 1)), 0.45f), 0.1f);
+          }
+        } else {
+          // the roof that is left: blackened (2) round its holes, singed patches, soot from the walls below
+          float near = 0;
+          if (level == 2)
+            for (int k = 1; k <= 4; k++)
+              if (isHole(x, y - k) || isHole(x - k, y) || isHole(x + k, y) || isHole(x, y + k)) { near = std::max(near, 1.0f - (k - 1) * 0.25f); }
+          if (level == 2) col = burnt(col, qz(0.50f + 0.25f * n + 0.25f * near, x, y));
+          if (level == 2 && isHole(x, y - 1)) col = mix(kInk, rgba(60, 34, 30), 0.35f);   // the near rim: charred
+          const float patch = vnoise(x * 0.13f, y * 0.17f, seed + 23);
+          if (patch > 0.58f) {
+            const float k = std::min(1.0f, (patch - 0.58f) / 0.25f);
+            col = mix(col, burnt(col, 0.9f), (level == 3 ? 0.45f : 0.75f) * qz(k, x, y));
+          }
+          col = darken(col, sootK * 0.7f * qz(S[i], x, y));
+        }
+      }
+      c.set(x, y, col);
+    }
+  if (level != 3) return;
+  // scaffolding up the front walls: poles at the ends and the middle, ledgers at the storey lines, a brace, a deck
+  std::vector<int> top((size_t)W, -1), bot((size_t)W, -1);
+  int xmin = W, xmax = -1;
+  for (int x = 0; x < W; x++)
+    for (int y = 0; y < H; y++)
+      if (lay(x, y) == 1) { if (top[(size_t)x] < 0) top[(size_t)x] = y; bot[(size_t)x] = y; xmin = std::min(xmin, x); xmax = std::max(xmax, x); }
+  if (xmax - xmin < 10) return;
+  std::vector<int> poles = {xmin + 1, xmax - 2};
+  if (xmax - xmin > 34) poles.insert(poles.begin() + 1, (xmin + xmax) / 2);
+  auto putS = [&](int x, int y, uint32_t col) { if (x >= 0 && x < W && y >= 0 && y < H) P.put(x, y, col, 3); };
+  for (int px : poles) {
+    if (top[(size_t)px] < 0) continue;
+    for (int y = top[(size_t)px] - 3; y <= bot[(size_t)px] + 1; y++) { putS(px, y, kWood[3]); putS(px + 1, y, kWood[1]); }
+    putS(px, top[(size_t)px] - 4, kWood[4]);
+  }
+  for (int lv = 1; lv <= 2; lv++) {
+    for (int x = poles.front() - 1; x <= poles.back() + 2; x++) {
+      if (x < 0 || x >= W || bot[(size_t)x] < 0) continue;
+      const int y = bot[(size_t)x] - lv * 11;
+      if (y < top[(size_t)x] + 1) continue;
+      putS(x, y, kWood[4]); putS(x, y + 1, kWood[2]);
+      if (lv == 1) putS(x, y + 2, kWood[1]);   // the plank deck's edge
+    }
+  }
+  {   // a diagonal brace between the first two poles, a lashing at each joint
+    const int a = poles[0], b = poles[1];
+    if (bot[(size_t)a] >= 0 && bot[(size_t)b] >= 0)
+      for (int x = a + 1; x < b; x++) {
+        const float t = (float)(x - a) / std::max(1, b - a);
+        const int y = (int)std::lround(bot[(size_t)a] - 1 - t * 10);
+        if (y > top[(size_t)x]) putS(x, y, kWood[2]);
+      }
+    for (int px : poles)
+      if (bot[(size_t)px] >= 0) for (int lv = 1; lv <= 2; lv++) { const int y = bot[(size_t)px] - lv * 11 - 1; if (y > top[(size_t)px]) putS(px, y, kCloth[1]); }
+  }
+}
+
 }  // namespace
 
 // ---------------------------------------------------------------- incremental paints (M3, owner carry-over 1)
@@ -4095,6 +4383,7 @@ bool stepUnit(BuildingJob& j) {
     }
     case 4:
       overlays(*j.P, &j.info);
+      if (j.bp.req.facts.charred) warDamage(*j.P, std::clamp(j.bp.req.facts.charred, 1, 3), j.bp.req.seed ^ 0xC4A2u);   // (M4)
       j.src = j.P->c;
       j.phase = 5; j.cursor = 0;
       return true;

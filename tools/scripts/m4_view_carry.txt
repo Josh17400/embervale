@@ -1,0 +1,30 @@
+# M4 VIEW lane: the M3c carry-overs to the land. A marsh stilt town's boardwalks (diagonal runs one straight planked
+# walk), a wild marsh road's boardwalk, the heath's heather, a full screen of alpine meadow, and the meadow / flower
+# meadow colours on the map and the minimap.
+#   embervale.exe --script tools/scripts/m4_view_carry.txt     (m4_view_carry*.png in the working directory)
+seed 3
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 gotoculture marsh town
++4 gotoboardwalk diag
++3 shot m4_view_carry_boardwalk.png
++0.1 at 1736 -369
++2 gotoboardwalk wild
++3 shot m4_view_carry_marshroad.png
++0.1 gotoeco heath
++4 shot m4_view_carry_heath.png
++0.1 gotoeco alpinemeadow
++4 shot m4_view_carry_alpine0.png
++0.1 gotoeco alpinemeadow 1
++4 shot m4_view_carry_alpine.png
++0.1 gotoecoborder meadow flowermeadow
++4 shot m4_view_carry_meadows.png
++0.1 mapexplore 500
++0.2 menu 2
++0.1 mapzoom 3
++0.1 mapcentre hero
++2 shot m4_view_carry_meadows_map.png
++0.1 mapzoom 4
++2 shot m4_view_carry_meadows_map_land.png
++0.3 quit

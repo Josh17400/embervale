@@ -1,0 +1,15 @@
+# M4 WARDS: a town taken by a kingdom of another culture (VISION_PLAN 4.5): its banners and its new watch in the
+# conqueror's colours, and a garrison tower in the conqueror's architecture over the town.
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.3 goto town
++1.5 war take 0
++0.3 expect realm occupied 0
++1.0 expect war tower
++0.1 war goto tower
++2.0 shot m4_wards_occupied_tower.png
++0.1 walkto guard 20
++0.3 shot m4_wards_occupied_guard.png
++0.3 quit

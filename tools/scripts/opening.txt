@@ -14,7 +14,7 @@ seed 8
 +0.1 expect slot weapon 0
 +0.1 talkto giver 40
 +0.2 expect mode dialogue
-+2.6 key Return                  # the first option asks for work
++2.6 choose NEED HELP             # ask for work (by its label: a story pitch can be the first option, M4)
 +3.4 shot opening_1_job.png      # the villager's job
 +0.1 choose I'LL DO IT          # (by its label: a long offer may still be typing out)
 +0.3 expect sidequest active
@@ -57,7 +57,9 @@ seed 8
 +5.0 shot opening_11_fight.png
 +0.1 fightquest                  # (and any the village's guards took when the boars ran in among the houses)
 +0.1 hold J 30
-+12.0 shot opening_12_done.png    # BOUNTY READY: RETURN TO <VILLAGER> IN <VILLAGE>
++6.0 fightquest                  # (M4: guards and militia now fight beasts in the streets; one more round for a straggler)
++0.1 hold J 30
++8.0 shot opening_12_done.png    # BOUNTY READY: RETURN TO <VILLAGER> IN <VILLAGE>
 +0.1 expect sidequest complete hunt
 +0.1 expect heard READY: RETURN TO
 # back to the villager; anyone who hid comes back out ~30 s after the trouble is over

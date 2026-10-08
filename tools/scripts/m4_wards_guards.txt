@@ -1,0 +1,16 @@
+# M4 WARDS: kingdom guards and frontier militia (owner 2026-10-03). The start village keeps a small watch in its
+# kingdom's tabard colours; once its kingdom lets it go (frontier) the watch is gone and more of its people arm
+# themselves as militia.   embervale.exe --script tools/scripts/m4_wards_guards.txt   (m4_wards_*.png in the cwd)
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++2.0 expect kingdom
++0.1 expect war guards 2 0
++0.3 shot m4_wards_guards_watch.png
++0.1 war free 0
++1.5 expect war frontier 0
++0.1 expect war guards 0 0
++0.1 expect war militia 2 0
++0.3 shot m4_wards_guards_frontier.png
++0.3 quit

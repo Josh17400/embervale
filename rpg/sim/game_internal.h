@@ -158,6 +158,12 @@ enum class Mk : uint64_t {
   HeirChest = 5,   // an Heirloom quest (quest id): the tile (y * w + x) of its chest in the dungeon map
   LastOffer = 6,   // a quest giver (npcKey): 1 + the QType of the last job they gave (the next one differs)
   Ambush = 7,      // a caravan vignette (site id): the ambush has sprung (1)
+  // M4 STORY lane (rpg/story/story_internal.h mirrors these as story::MK_*)
+  StoryGiver = 8,  // an NPC (npcKey) who started a story: the day (one story per giver, then they remember)
+  StoryMark = 9,   // a story's persistent mark (script, mark name, its giver), an event story's last event id
+  BoardTaken = 10, // a notice board notice (site id ^ entry): the day it was taken
+  // M4: the STORY lane (owner of this file in M4) appends its tags here, below 32. The WARDS lane uses tags 32..47 and
+  // the REALM lane 48..63, each defined in its own files as (Mk)(32 + n), so nobody else edits this enum.
 };
 inline uint64_t markKey(uint64_t id, Mk tag) { return ew::mix64(id ^ ((uint64_t)tag * 0xD1B54A32D192ED03ull)); }
 

@@ -638,6 +638,8 @@ bool Game::questTargetM2(const Quest& q, int& tx, int& ty) const {
     case QType::Heirloom: case QType::NamedBandit: return atSite();
     case QType::Missing: return atSite();
     case QType::Protect: return q.hasPos ? global(q.tgx, q.tgy) : atSite();
+    case QType::Story: return q.hasPos ? global(q.tgx, q.tgy) : false;   // M4: the story engine's marker (rpg/story)
+    case QType::War: return q.hasPos ? global(q.tgx, q.tgy) : atSite();   // M4: the enemy camp (relief) or the town (assault)
     default: return false;
   }
 }
@@ -668,6 +670,8 @@ std::string Game::questStatusM2(const Quest& q) const {
       return fitLine({"FIND " + q.subject + " IN " + tname + dl, "FIND " + q.subject + " IN " + tname + ds, "FIND " + q.subject + ds, tname + ds});
     case QType::NamedBandit:
       return fitLine({"KILL " + q.subject + " AT " + tname + dl, "KILL " + q.subject + ds, "KILL " + q.subject, tname + ds});
+    case QType::Story:   // M4: the story engine writes what to do next in subject ("SPEAK WITH ASTRID", "2/4 WOLVES")
+      return q.subject.empty() ? std::string() : fitLine({q.subject + dl, q.subject + ds, q.subject});
     case QType::Protect: {
       const bool night = (day == q.deadlineDay && hour >= 20.5f) || (day == q.deadlineDay + 1 && hour < 5.5f);
       const std::string home = giverTown(world, q);

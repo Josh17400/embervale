@@ -19,8 +19,7 @@ seed 7
 3.8  key E                       # talk
 4.0  expect mode dialogue
 6.0  shot inn_3_greeting.png     # the greeting has finished typing out by now
-6.2  key Down                    # option 0 is the job offer on a fresh game, 1 is the wares
-6.4  key Return
+6.2  choose YOUR WARES            # by words: story pitches and job offers can come first (M4)
 6.6  expect mode shop
 7.2  shot inn_4_shop.png
 7.4  key Return                  # buy the first item

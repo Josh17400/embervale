@@ -14,7 +14,7 @@ seed 7
 2.6  enter inn
 2.8  talkto innkeeper 40
 3.2  expect mode dialogue
-4.6  expect text KHAN               # (M3c: cultures follow the biomes; seed 7's realm is a steppe khanate now: its KHAN)
+4.6  expect option YOUR WARES       # (M4: the innkeeper's greeting may be a story pitch now, so the KHAN line is checked at the throne)
 4.7  shot sim_kingdom_2_innkeeper.png     # the innkeeper speaks of the king
 4.8  key Escape
 5.0  enter palace

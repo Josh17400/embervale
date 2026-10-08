@@ -29,7 +29,7 @@ jobs:
           ./build-native/rpg_test --seeds 1..20
           for s in 7 99 12345; do ./build-native/rpg_test $s --secs 60; done
 
-      # The current save format (SAVE_VER 9) only: owner rule 2026-10-04, old saves are not carried over. The fixture
+      # The current save format (SAVE_VER 10: M4 adds the realm and story blocks) only: owner rule 2026-10-04, old saves are not carried over. The fixture
       # holds format-level facts only and the round trips run on this machine, so the check is platform-stable: blocking.
       - name: Save format test
         run: ./build-native/save_test
@@ -42,6 +42,33 @@ jobs:
           ./build-native/rpg_test --endless --seeds 1..10 --no-budget
           ./build-native/rpg_test --window --seeds 1..5
           ./build-native/rpg_test --towns --seeds 1..10
+
+      # M4 Banners (VISION_PLAN 15.17): the living world: genesis round the start, every loaded settlement known, the
+      # forcing calls leave a consistent state (owners and banners follow a conquest), the realm block round-trips.
+      # --history: the slow-diplomacy targets (famine -> trade collapse -> war, owner 15.6). Blocking.
+      - name: Realm test
+        run: |
+          ./build-native/rpg_test --realm --seeds 1..10
+          ./build-native/rpg_test --history 2000 --seeds 1..20
+
+      # M4 WARDS: kingdom guards in their owner's colours, frontier militia, raids, sieges, overlays. Blocking.
+      - name: Wards test
+        run: ./build-native/rpg_test --wards --seeds 1..10
+
+      # M4 STORY: the quest DSL library, every path to every ending, story block round trip, lore and rumours. Blocking.
+      - name: Story test
+        run: ./build-native/rpg_test --story --seeds 1..5
+
+      # M2/M4 quests: every quest type end to end (the dialogue paths picked by text, not by position), and THE DRAGON'S
+      # SHADOW end to end by a teleporting bot (fixer M4 r3: these guard the STORY pitch path on clang too). Blocking.
+      - name: Quest and main-quest test
+        run: |
+          ./build-native/rpg_test --quests
+          ./build-native/rpg_test --mainquest
+
+      # Town goldens (tests/fixtures): every settlement layout hashes as on MSVC. Blocking.
+      - name: Town golden test
+        run: ./build-native/rpg_test --towns --golden
 
       # M3 culture engine (VISION_PLAN 5.4): neighbouring families d >= 0.45 with >= 3 headline differences, dialects
       # d >= 0.10 (from their family and from neighbouring kingdoms of the same family), neighbouring kingdoms' arms

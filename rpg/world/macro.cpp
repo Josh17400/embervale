@@ -410,11 +410,14 @@ Eco EndlessSource::Impl::ecoIn(Biome fam, const EcoIn& in) {
       if (m > Q(0.49) && lv <= 3 && ch[ECH_B] > Q(0.70)) return Eco::LakeDistrict;
       if (t > Q(0.60) && m < Q(0.54)) return Eco::Savanna;
       if (m < Q(0.385) && t < Q(0.50)) return Eco::Steppe;
+      // (M4, owner carry-over: the heath "read as flat green blobs") the heath first: where its climate holds, a
+      // limestone province's edge wandering through it (the rock is read with a fine jitter) no longer scatters islands
+      // of bright chalk turf over the moor; the downs keep the chalk country round it
+      if (t < Q(0.50) && m > Q(0.46) && (lv >= 2 || ch[ECH_C] > Q(0.58))) return Eco::Heath;
       if (lv >= 1 && m > Q(0.38) && m < Q(0.64) && t > Q(0.36) && t < Q(0.62) && ch[ECH_D] > Q(0.36)) {
         const Rock r = rockIn(in);
         if (r == Rock::Limestone || r == Rock::Marble) return Eco::ChalkDowns;
       }
-      if (t < Q(0.50) && m > Q(0.46) && (lv >= 2 || ch[ECH_C] > Q(0.58))) return Eco::Heath;
       if (m < Q(0.435)) return Eco::Prairie;
       if (ch[ECH_G] > Q(0.62)) return Eco::FlowerMeadow;
       return Eco::Meadow;
@@ -473,6 +476,23 @@ Eco EndlessSource::Impl::ecoFar(Biome fam, const Coarse& c, int32_t x, int32_t y
   EcoIn in;
   in.e = c.e; in.t = c.t; in.m = c.m; in.ridge = c.ridge; in.lv = water ? 0 : levelOf(c.e); in.x = x; in.y = y;
   ecoChannels(in);
+  // (M4, owner carry-over: the far map had no beaches) the shore band tile() lays along the sea, from the coarse field:
+  // low land within the same 3..7 tiles of the sea becomes a shore eco (sand, shingle, coral, cliffs; mangroves on warm
+  // wet shores), as ecoAt gives there. Cheap: the eight looks only on land a little above the sea.
+  if (!water && fam != Biome::Ocean && fam != Biome::Mountain && fam != Biome::Beach && c.e < ELEV_SEA + Q(0.05)) {
+    const int32_t r = 3 + (int32_t)((vnoiseQ(x, y, 4, mix64(seed ^ tag("t.beach"))) * 5) >> 16);   // 3..7 tiles
+    static const int dx[8] = {1, -1, 0, 0, 1, 1, -1, -1}, dy[8] = {0, 0, 1, -1, 1, -1, 1, -1};
+    bool shore = false;
+    for (int k = 0; k < 8 && !shore; k++) {
+      const int32_t rr = k < 4 ? r : r * 7 / 10;
+      if (coarse(x + dx[k] * rr, y + dy[k] * rr).e < ELEV_SEA) shore = true;
+    }
+    if (shore) {
+      in.e = std::max(in.e, ELEV_SEA + Q(0.011));
+      fam = in.t > Q(0.62) && in.m > Q(0.60) && in.ch[ECH_D] > Q(0.40) ? Biome::Swamp : Biome::Beach;
+      return ecoIn(fam, in);
+    }
+  }
   if ((fam == Biome::Plains || fam == Biome::Forest || fam == Biome::Autumn || fam == Biome::Taiga) && blightIn(in)) return Eco::Blight;
   return ecoIn(fam, in);
 }

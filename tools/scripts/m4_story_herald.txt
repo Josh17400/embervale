@@ -1,0 +1,18 @@
+# M4 STORY lane: a capital's herald (VISION_PLAN 4.6): spawned by the seat of power, talks of the realm; when war is
+# declared within earshot the herald proclaims it with a fanfare and the news is heard.
+#   embervale.exe --script tools/scripts/m4_story_herald.txt     (m4_story_h*.png in the working directory)
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 goto capital
++1.0 expect crier
++0.1 story herald
++2.5 shot m4_story_h1_talk.png
++0.1 choose WHAT NEWS FROM THE REALM?
++2.5 shot m4_story_h2_news.png
++0.1 key Escape
++0.2 realm war
++1.2 expect news WAR
++2.5 shot m4_story_h3_proclaim.png
++0.3 quit

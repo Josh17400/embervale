@@ -82,8 +82,12 @@ inline int bldgRiseTiles(art::Building t, int storeys) {
 // M2 wayside people (vignettes, rpg/world/poi.h): Hunter (a hunter's camp: sells pelts, gives a hunt), Fisher (a fishing
 // hut: sells fish), Herbalist (an herb garden: sells herbs and potions), Traveller (a merchant caravan or pilgrim on the
 // roads)
+// M4 Banners (rpg/sim/realm.h, VISION_PLAN 4.5 / 4.6): Herald (a capital's crier: war proclamations, a fanfare; STORY
+// lane), Soldier (a kingdom's man-at-arms: road patrols, siege camps, garrisons; WARDS lane), Captain (a siege camp's or
+// a garrison's commander: "break the siege" / "join the assault"; WARDS lane), Refugee (driven from a burned village,
+// walking to or sheltering in a refugee camp; WARDS lane). Saved only inside quest flags: append.
 enum class Role : uint8_t { Villager, Guard, Merchant, Smith, Innkeeper, Priest, Jarl, Farmer, Child, Mage, Bandit, King,
-                            Hunter, Fisher, Herbalist, Traveller, COUNT };
+                            Hunter, Fisher, Herbalist, Traveller, Herald, Soldier, Captain, Refugee, COUNT };
 
 // the name a building type goes by in the HUD ("INN", "THE KEEP", "THE PALACE"...)
 const char* bldgTypeName(art::Building t);
@@ -114,6 +118,11 @@ struct Bldg {
   // M1 economy: type-specific detail the exterior shows (art::BuildingFacts::variant; the watermill: bit 0 = its wheel
   // on the west side, where its river runs)
   uint8_t variant = 0;
+  // M4 Banners (VISION_PLAN 4.5): the war's mark on it, an overlay set at runtime from the realm's SettlementState
+  // (WARDS lane, never saved, never generated): 0 whole, 1 scorched (soot, a singed roof), 2 burned out (a roof open to
+  // the rafters, black walls: cannot be entered, its people absent), 3 being rebuilt (scaffolding). bldgFacts passes it
+  // to the painter (BuildingFacts::charred; 0 keeps every key and pixel as before).
+  uint8_t charred = 0;
   // M3 culture engine: the building's architecture, decided by the settlement generator from its culture
   // (cult::buildingArch: the family's style varied per building, VISION_PLAN 5.7). styled == false (buildings made
   // before M3 code paths set it, wayside huts...): bldgArch falls back to the biome style. Never saved (regenerated).
@@ -156,6 +165,7 @@ inline art::BuildingFacts bldgFacts(const Bldg& b) {
   f.banner2 = b.banner2;
   f.emblem = b.emblem;
   f.variant = b.variant;
+  f.charred = b.charred;
   return f;
 }
 // M3b: the builder's request for a building, and its blueprint (rpg/build/blueprint.h). Every view, interior and test
@@ -208,7 +218,11 @@ struct Site {
   int genVer = WORLDGEN_LATEST;  // generator version of the world it belongs to (gates genCave/genRuin changes)
   // M1 kingdom identity (VISION_PLAN 15.8, M4 groundwork): which kingdom holds it (World::kingdoms index, -1 none /
   // wildlands) and whether it is that kingdom's capital (the king's palace stands there)
+  // M4 Banners: `kingdom` is the CURRENT owner (the realm sim may change it: a conquest, a treaty, a fall; World::
+  // setSiteOwner keeps the banners in step), homeKingdom the genesis owner from the generator's plan (never changes).
+  // Readers that show who rules (banners, tabards, the HUD, the map) read kingdom; history and lore read homeKingdom.
   int kingdom = -1;
+  int homeKingdom = -1;
   bool capital = false;
   bool start = false;            // M1: the start village of an endless world
   uint8_t archetype = 0;         // M1: ew::Archetype (fishing, mining, farming...; rpg/world/source.h)
@@ -237,6 +251,15 @@ struct Kingdom {
   ew::Gid capitalId = 0;         // its capital's Site id (0: none known yet)
   int32_t gx = 0, gy = 0;        // global tile of its seat (the capital, or the kingdom cell's centre)
   uint64_t culture = 0;          // M3: its culture (a dialect; World::cultureOfKingdom)
+  // (fixer M4 r3) the colour its guards' tabards wear: the field, unless the field is pale (white, silver, cream: it
+  // reads as bare mail on a phone) and the charge is the stronger colour
+  uint32_t tabard() const {
+    auto sat = [](uint32_t c) { const int r = (int)(c & 255), g = (int)((c >> 8) & 255), b = (int)((c >> 16) & 255);
+                                const int mx = r > g ? (r > b ? r : b) : (g > b ? g : b), mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+                                return mx - mn; };
+    auto lum = [](uint32_t c) { return (int)(((c & 255) * 3 + ((c >> 8) & 255) * 6 + ((c >> 16) & 255)) / 10); };
+    return (color2 && sat(color) < 60 && lum(color) > 150 && sat(color2) > sat(color)) ? color2 : color;
+  }
 };
 
 // Something to populate when a map becomes active (deterministic per map).
@@ -424,6 +447,13 @@ struct World {
   void loadRegionsAround();                             // site and den plans of the regions near the window
   int addSitePlan(const ew::SitePlan& p);
   int addKingdom(ew::Gid id);
+  // M4 Banners: a realm-made kingdom that has no generator plan (a rebel realm after a civil war, a warlord's realm;
+  // VISION_PLAN 4.3 "Rise"): added (or updated) by id with its own name and arms. Returns its handle.
+  int addKingdomRecord(const Kingdom& k);
+  // M4 Banners: the site now belongs to kingdom `owner` (0: nobody, an independent / abandoned place): Site::kingdom
+  // follows, and so do the banners its buildings fly (Bldg::banner / banner2 / emblem of every building that flies
+  // one). Cheap; the realm hook (Game::realmStep) calls it when a SettlementState's owner differs from the site's.
+  void setSiteOwner(int site, ew::Gid owner);
   // M3 culture engine: a site's culture (nullptr: no generator, or a culture-less site), a kingdom's, a window tile's
   // (its kingdom's dialect, else its culture cell's family). Cheap after the first call per culture (memoised).
   const cult::Culture* cultureOf(int site) const;

@@ -1,0 +1,25 @@
+# M4 VIEW lane: the realm on the world map at the iPhone review size (639x294 logical, touch layout): borders, war
+# markers, the legend and the selected town's state in the side column.
+#   embervale.exe --script tools/scripts/m4_view_map_phone.txt
+seed 2
+phone
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.1 touch 1
++0.3 mapexplore 900
++0.1 mapreveal 12
++0.3 realm siege 1
++0.1 realm take 2
++0.1 realm burn 3
++0.1 hearall
++0.3 menu 2
++0.1 mapzoom 4
++0.1 mapcentre hero
++1.5 expect m4 markers 2
++0.1 shot m4_view_map_phone.png
++0.1 mapselect nearest
++1.5 shot m4_view_map_phone_select.png
++0.1 journal news
++0.5 shot m4_view_journal_phone.png
++0.3 quit

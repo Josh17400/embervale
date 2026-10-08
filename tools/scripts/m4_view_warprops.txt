@@ -1,0 +1,24 @@
+# M4 VIEW lane: the war in the world. A siege is laid on the start village and its camp's tents, pavilion, catapult,
+# palisade and barricade stand in the attacker's colours (art::warPropSprite from its arms); at night the tents glow
+# and the campfire burns. Then the village is burned: its buildings smoulder (smoke columns, sparks, a red glow by
+# night). warcamp / charbldgs stand in for the WARDS overlays so the drawing can be judged on its own.
+#   embervale.exe --script tools/scripts/m4_view_warprops.txt     (m4_view_warprops*.png in the working directory)
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.3 realm siege 0
++0.2 warcamp
++3.5 expect m4 owned 4
++0.1 shot m4_view_warprops_day.png
++0.1 hour 22
++1.0 expect m4 fires 2
++0.1 shot m4_view_warprops_night.png
++0.1 hour 11
++0.1 realm burn 0
++0.1 charbldgs 0 go
++4.0 expect m4 burned 3
++0.1 shot m4_view_warprops_burned.png
++0.1 hour 21
++1.5 shot m4_view_warprops_burned_night.png
++0.3 quit

@@ -8,6 +8,7 @@
 #include "rpg/sim/deco.h"
 #include "rpg/sim/interior_v4.h"
 #include "rpg/sim/world.h"
+#include "rpg/story/story_internal.h"
 
 using art::Prop;
 
@@ -228,6 +229,75 @@ void genRuin(Map& m, const Site& s, uint32_t seed) {
   // the arrival tile above the exit must always be free
   if (m.propAt(m.exitX, m.exitY - 1) == (int)Prop::Chest + 1) m.setProp(m.exitX - 1 >= 0 && !groundSolid(m.at(m.exitX - 1, m.exitY - 1)) ? m.exitX - 1 : m.exitX, m.exitY - 2, Prop::Chest);
   m.setP(m.exitX, m.exitY - 1, 0);
+  m.rebuildSolid();
+}
+
+// M4 (STORY lane, owner 15.3): the lore of a ruin (rpg/story/lore.cpp decides what each prop tells). Laid over the map
+// genRuin made, after it is loaded: the generator's own output (its goldens) is untouched, and the same key gives the
+// same tiles on every visit. A slab or a grave stands against a wall in a room (never in a corridor), a mural hangs on
+// a flat stretch of wall, a journal lies on an open floor, a toppled statue lies across a room's middle; none on the way
+// in, on a spawn, beside a chest or within four tiles of another.
+void story::placeLoreProps(Map& m, uint64_t key, const std::vector<int>& props, std::vector<story::Engine::PropRef>& out) {
+  out.clear();
+  if (m.w <= 0 || m.h <= 0) return;
+  std::vector<int> dist;
+  bfs(m, m.exitX, m.exitY, dist);
+  auto floorAt = [&](int x, int y) { return m.in(x, y) && m.at(x, y) == Ground::StoneFloor; };
+  auto wallAt = [&](int x, int y) { return !m.in(x, y) || groundSolid(m.at(x, y)); };
+  auto clearAt = [&](int x, int y) { return floorAt(x, y) && m.propAt(x, y) == 0; };
+  std::vector<std::pair<int, int>> spawns;
+  for (const Spawn& sp : m.spawns) spawns.push_back({sp.x, sp.y});
+  auto onSpawn = [&](int x, int y) {
+    for (const auto& p : spawns) if (std::abs(p.first - x) <= 1 && p.second == y) return true;
+    return false;
+  };
+  for (size_t i = 0; i < props.size(); i++) {
+    const Prop p = (Prop)props[i];
+    int bx = -1, by = -1, best = -1;
+    for (int y = 2; y < m.h - 2; y++)
+      for (int x = 2; x < m.w - 2; x++) {
+        const int d = dist[(size_t)y * m.w + x];
+        if (d < 9 || !clearAt(x, y) || onSpawn(x, y)) continue;
+        if (std::abs(x - m.exitX) <= 2 && std::abs(y - m.exitY) <= 3) continue;
+        bool nearOther = false;
+        for (const auto& o : out) if (std::abs(o.tx - x) <= 4 && std::abs(o.ty - y) <= 4) nearOther = true;
+        if (nearOther) continue;
+        bool ok = false;
+        switch (p) {
+          case Prop::Inscription: case Prop::NamedGrave:
+            ok = wallAt(x, y - 1) && clearAt(x - 1, y) && clearAt(x + 1, y) && clearAt(x, y + 1) && floorAt(x - 2, y + 1) &&
+                 floorAt(x + 2, y + 1) && floorAt(x - 1, y + 2) && floorAt(x + 1, y + 2);
+            break;
+          case Prop::Mural:
+            ok = wallAt(x - 1, y - 1) && wallAt(x, y - 1) && wallAt(x + 1, y - 1) && floorAt(x - 1, y) && floorAt(x + 1, y) && floorAt(x, y + 1);
+            break;
+          case Prop::LostJournal: {
+            ok = true;
+            for (int dy = -1; dy <= 1 && ok; dy++) for (int dx = -1; dx <= 1 && ok; dx++) ok = clearAt(x + dx, y + dy);
+            break;
+          }
+          case Prop::ToppledStatue: {
+            ok = true;
+            for (int dy = -1; dy <= 1 && ok; dy++) for (int dx = -2; dx <= 2 && ok; dx++) ok = clearAt(x + dx, y + dy) && !onSpawn(x + dx, y + dy);
+            break;
+          }
+          default: ok = true; break;
+        }
+        if (!ok) continue;
+        // a chest beside it would crowd the room
+        bool chest = false;
+        for (int dy = -2; dy <= 2; dy++) for (int dx = -2; dx <= 2; dx++) { const int q = m.propAt(x + dx, y + dy); if (q == (int)Prop::Chest + 1 || q == (int)Prop::Altar + 1) chest = true; }
+        if (chest) continue;
+        const int score = (int)(hash2(x, y, (uint32_t)(key ^ (key >> 32)) + (uint32_t)i * 7919u) % 1000) + std::min(d, 60) * 6;
+        if (score > best) { best = score; bx = x; by = y; }
+      }
+    if (best < 0) continue;
+    m.setProp(bx, by, p);
+    if (p == Prop::ToppledStatue) { m.setProp(bx - 1, by, Prop::Filler); m.setProp(bx + 1, by, Prop::Filler); }
+    story::Engine::PropRef r;
+    r.tx = bx; r.ty = by; r.clue = (int)i; r.prop = (int)p;
+    out.push_back(r);
+  }
   m.rebuildSolid();
 }
 

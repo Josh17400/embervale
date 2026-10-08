@@ -1,0 +1,15 @@
+# M4 VIEW lane: the border herald. The hero stands just inside his land's nearest border and walks across it; the
+# herald's ribbon names the realm entered in its society's word, between two shields of its arms (about 2.6 s, top
+# centre, clear of the vitals, the minimap and the thumbs), and the first-visit biome banner waits behind it.
+#   embervale.exe --script tools/scripts/m4_view_border.txt     (m4_view_border*.png in the working directory)
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.5 crossborder 0
++2.0 stepborder
++0.4 expect herald OF
++0.1 shot m4_view_border.png
++0.6 shot m4_view_border_late.png
++3.0 log the herald has gone
++0.1 quit

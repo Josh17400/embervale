@@ -18,7 +18,9 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <chrono>
 #include <initializer_list>
+#include <memory>
 #include <utility>
 #include <vector>
 #include "rpg/build/blueprint.h"
@@ -5680,7 +5682,11 @@ void spawnNear(Fit& F, Spawn& s, int x, int y, int ri, int avoidX = -1, int avoi
       if (std::find(F.taken.begin(), F.taken.end(), F.I(tx, ty)) != F.taken.end()) continue;
       if (avoidX >= 0 && std::abs(tx - avoidX) <= 3 && std::abs(ty - avoidY) <= 3) continue;
       int pr = F.m.propAt(tx, ty);
-      int d = (tx - x) * (tx - x) + (ty - y) * (ty - y) + (pr ? 3 : 0) + (ri >= 0 && F.roomOf(tx, ty) != ri ? 40 : 0);
+      // (fixer M4 r3) never right behind a tall piece (a statue, a pillar, a candle-stand): the piece in front is drawn
+      // over him and he reads as one merged sprite (seed 5's high-temple door guard stood behind a plinth statue)
+      const int prS = F.m.propAt(tx, ty + 1);
+      const bool hidden = prS && tallProp((Prop)(prS - 1));
+      int d = (tx - x) * (tx - x) + (ty - y) * (ty - y) + (pr ? 3 : 0) + (ri >= 0 && F.roomOf(tx, ty) != ri ? 40 : 0) + (hidden ? 200 : 0);
       if (d < bd) { bd = d; best = F.I(tx, ty); }
     }
   if (best < 0) {   // nothing off the lanes: any reachable free tile that is not stairs or a doorway
@@ -5801,10 +5807,35 @@ void interiorWhy(int* lines, int n, bool reset) {
   if (reset) for (int& v : gNopeLine) v = 0;
 }
 
-void genInteriorRooms(Map& m, const Bldg& b, uint32_t seed, int floor) { genInteriorRooms(m, b, bldgBlueprint(b), seed, floor); }
+namespace {
 
-void genInteriorRooms(Map& m, const Bldg& b, const bld::Blueprint& bp, uint32_t seed, int floor) {
-  Plan P = makePlan(b, bp, seed);
+// (M4 VIEW lane, the web's seat-of-power entry hitch) genInteriorRooms as a resumable job: the same statements in the
+// same order (so the same Rng draws and the same Map, bit for bit), cut into units (the blueprint, the plan, the
+// shell, each room's furnishing, each room's wall decor, the rugs, the people, each room's clutter, the finish) that a
+// caller may spread over frames (InteriorJob::step with a budget). genInteriorRooms runs every unit in one go.
+struct InteriorBuild {
+  enum Phase { PH_BP, PH_PLAN, PH_SHELL, PH_SETUP, PH_FURNISH, PH_WALLS, PH_RUGS, PH_PEOPLE, PH_CLUTTER, PH_FINISH, PH_DONE };
+  const Bldg& b;
+  bld::Blueprint bp;
+  uint32_t seed;
+  int floor;
+  Map& m;
+  Plan P;
+  Rng r;
+  int W = 0, H = 0;
+  Geo* ggp = nullptr;
+  std::unique_ptr<Fit> Fp;
+  Ctx cx;
+  std::vector<int> order;
+  bool childDone = false;
+  int phase = PH_PLAN;
+  size_t idx = 0;
+  InteriorBuild(Map& m_, const Bldg& b_, uint32_t seed_, int floor_, const bld::Blueprint* bp_)
+      : b(b_), seed(seed_), floor(floor_), m(m_) {
+    if (bp_) bp = *bp_;
+    else phase = PH_BP;
+  }
+  void shell() {
   floor = std::clamp(floor, 0, P.floors - 1);
   // (M3b fixer round 3) a nave's floor in its people's idiom: the pagoda's rush mats, the river church's red tiles,
   // the star temple's white marble, the rotunda's mosaic (the rest by the room style: the hof's boards, the kirk's and
@@ -5822,8 +5853,8 @@ void genInteriorRooms(Map& m, const Bldg& b, const bld::Blueprint& bp, uint32_t 
     if (fs != art::FloorStyle::COUNT) P.geo[0].rooms[0].floorStyle = (uint8_t)((int)fs + 1);
   }
   const Geo& g = P.geo[(size_t)floor];
-  Rng r((seed ^ 0x6C8E9CF5u) + (uint32_t)floor * 0x9E3779B9u);
-  const int W = P.W, H = P.H;
+  r = Rng((seed ^ 0x6C8E9CF5u) + (uint32_t)floor * 0x9E3779B9u);
+  W = P.W; H = P.H;
   m.kind = MapKind::Interior;
   m.seed = seed;
   m.alloc(W, H, Ground::InteriorWall);
@@ -5921,10 +5952,14 @@ void genInteriorRooms(Map& m, const Bldg& b, const bld::Blueprint& bp, uint32_t 
   m.roomAt.assign((size_t)W * H, -1);
   for (int i = 0; i < W * H; i++) if (!groundSolid((Ground)m.ground[(size_t)i])) m.roomAt[(size_t)i] = g.room[(size_t)i] >= 0 ? g.room[(size_t)i] : 0;
 
+  }
+  void setup() {
   // furnish
   Plan& PP = P;
-  Geo& gg = PP.geo[(size_t)floor];
-  Fit F(m, r, PP, gg);
+  ggp = &PP.geo[(size_t)floor];
+  Geo& gg = *ggp;
+  Fp.reset(new Fit(m, r, PP, gg));
+  Fit& F = *Fp;
   F.biome = b.biome;
   {
     const art::ArchStyle A = bldgArch(b);
@@ -5947,9 +5982,8 @@ void genInteriorRooms(Map& m, const Bldg& b, const bld::Blueprint& bp, uint32_t 
   for (int y = 2; y < H - 1; y++)
     for (int x = 1; x < W - 1; x++)
       if (gg.isFloor(x, y) && ((gg.isWall(x - 1, y) && gg.isWall(x + 1, y)) || (gg.isWall(x, y - 1) && gg.isWall(x, y + 1)))) F.setLane(x, y);
-  Ctx cx;
   // order: the rooms whose anchors decide the rest first (kitchens before halls: the hall skips its hearth then)
-  std::vector<int> order;
+  order.clear();
   for (int i = 0; i < (int)gg.rooms.size(); i++) order.push_back(i);
   auto prio = [&](int i) {
     RoomKind k = gg.rooms[(size_t)i].kind;
@@ -5960,8 +5994,10 @@ void genInteriorRooms(Map& m, const Bldg& b, const bld::Blueprint& bp, uint32_t 
     return 2;
   };
   std::stable_sort(order.begin(), order.end(), [&](int a, int c) { return prio(a) < prio(c); });
-  bool childDone = false;
-  for (int ri : order) {
+  }
+  void furnishOne(int ri) {
+    Geo& gg = *ggp;
+    Fit& F = *Fp;
     RoomKind k = gg.rooms[(size_t)ri].kind;
     switch (k) {
       case RoomKind::Bedroom: case RoomKind::GuestRoom: case RoomKind::OwnerRoom: case RoomKind::Barracks: {
@@ -6002,10 +6038,10 @@ void genInteriorRooms(Map& m, const Bldg& b, const bld::Blueprint& bp, uint32_t 
       case RoomKind::Trading: furnishTrading(F, ri, cx); break;
       default: break;
     }
-  }
-  for (int ri : order) wallDecorRoom(F, ri, gg.rooms[(size_t)ri].kind);
-  rugCleanup(F);
-
+    }
+  void people() {
+    Geo& gg = *ggp;
+    Fit& F = *Fp;
   // spawns (slots 16*floor+k): the owner at their post on the ground floor, inn patrons at the tables, the jarl's guards
   if (floor == 0) {
     Rng orr(seed ^ 0x0A11CE5u);
@@ -6106,8 +6142,9 @@ void genInteriorRooms(Map& m, const Bldg& b, const bld::Blueprint& bp, uint32_t 
       add(Role::Villager, G.cx(), G.cy(), 0);   // an apprentice at the books
     }
   }
-  for (int ri : order) clutterRoom(F, ri, gg.rooms[(size_t)ri].kind);
-
+  }
+  void finish() {
+    Geo& gg = *ggp;
   // the rooms, as the game and the tests read them
   m.rooms.clear();
   for (const RoomDef& R : gg.rooms) {
@@ -6121,7 +6158,66 @@ void genInteriorRooms(Map& m, const Bldg& b, const bld::Blueprint& bp, uint32_t 
     m.rooms.push_back(ri);
   }
   m.rebuildSolid();
+  }
+  // one unit; true once the floor is done
+  bool unit() {
+    switch (phase) {
+      case PH_BP: bp = bldgBlueprint(b); phase = PH_PLAN; return false;
+      case PH_PLAN: P = makePlan(b, bp, seed); phase = PH_SHELL; return false;
+      case PH_SHELL: shell(); phase = PH_SETUP; return false;
+      case PH_SETUP: setup(); phase = PH_FURNISH; idx = 0; return false;
+      case PH_FURNISH:
+        if (idx < order.size()) { furnishOne(order[idx++]); return false; }
+        phase = PH_WALLS; idx = 0; return false;
+      case PH_WALLS:
+        if (idx < order.size()) { const int ri = order[idx++]; wallDecorRoom(*Fp, ri, ggp->rooms[(size_t)ri].kind); return false; }
+        phase = PH_RUGS; return false;
+      case PH_RUGS: rugCleanup(*Fp); phase = PH_PEOPLE; return false;
+      case PH_PEOPLE: people(); phase = PH_CLUTTER; idx = 0; return false;
+      case PH_CLUTTER:
+        if (idx < order.size()) { const int ri = order[idx++]; clutterRoom(*Fp, ri, ggp->rooms[(size_t)ri].kind); return false; }
+        phase = PH_FINISH; return false;
+      case PH_FINISH: finish(); phase = PH_DONE; return true;
+      default: return true;
+    }
+  }
+};
+
+}  // namespace
+
+void genInteriorRooms(Map& m, const Bldg& b, uint32_t seed, int floor) { genInteriorRooms(m, b, bldgBlueprint(b), seed, floor); }
+
+void genInteriorRooms(Map& m, const Bldg& b, const bld::Blueprint& bp, uint32_t seed, int floor) {
+  InteriorBuild ib(m, b, seed, floor, &bp);
+  while (!ib.unit()) {}
 }
+
+struct InteriorJob::Impl {
+  Bldg b;
+  Map m;
+  InteriorBuild ib;
+  bool done = false;
+  Impl(const Bldg& b_, uint32_t seed, int floor) : b(b_), ib(m, b, seed, floor, nullptr) {}
+};
+InteriorJob::InteriorJob(const Bldg& b, uint32_t seed, int floor) {
+  // genInterior's contract (rpg/sim/dungeon.cpp): an empty map, the floor clamped to the building's
+  d_.reset(new Impl(b, seed, std::clamp(floor, 0, b.floors() - 1)));
+}
+InteriorJob::~InteriorJob() = default;
+bool InteriorJob::step(double budgetMs, double* worstUnitMs) {
+  if (d_->done) return true;
+  const auto t0 = std::chrono::steady_clock::now();
+  for (;;) {
+    const auto u0 = std::chrono::steady_clock::now();
+    d_->done = d_->ib.unit();
+    const auto u1 = std::chrono::steady_clock::now();
+    if (worstUnitMs) *worstUnitMs = std::max(*worstUnitMs, std::chrono::duration<double, std::milli>(u1 - u0).count());
+    if (d_->done) return true;
+    if (std::chrono::duration<double, std::milli>(u1 - t0).count() >= budgetMs) return false;
+  }
+}
+bool InteriorJob::done() const { return d_->done; }
+Map& InteriorJob::map() { return d_->m; }
 
 uint64_t interiorLayoutSignature(const Map& m) {
   uint64_t h = 1469598103934665603ull;

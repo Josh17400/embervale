@@ -26,6 +26,15 @@ void paintFloraProp(Canvas& c, Prop p, int frame);
 int floraPropW(Prop p);
 int floraPropH(Prop p);
 int floraPropFrames(Prop p);
+// M4 Banners: rpg/art/art_war.cpp (WarTent .. Barricade) and rpg/art/art_lore.cpp (NoticeBoard .. LostJournal)
+void paintWarProp(Canvas& c, Prop p, int frame);
+int warPropW(Prop p);
+int warPropH(Prop p);
+int warPropFrames(Prop p);
+void paintLoreProp(Canvas& c, Prop p, int frame);
+int lorePropW(Prop p);
+int lorePropH(Prop p);
+int lorePropFrames(Prop p);
 
 // =====================================================================================================
 // 5. props
@@ -5021,6 +5030,8 @@ void paintProp(Canvas& c, Prop p, int frame) {
     default:
       if (wildP(p)) paintWildProp(c, p, frame);
       else if (isWildlandsFlora(p)) paintFloraProp(c, p, frame);
+      else if (isWarProp(p)) paintWarProp(c, p, frame);
+      else if (isLoreProp(p)) paintLoreProp(c, p, frame);
       else if (m3bP(p)) paintInteriorM3b(c, p, frame);
       else if ((int)p >= (int)Prop::Sacks) paintEconomyProp(c, p, frame);
       else if ((int)p >= (int)Prop::StairsUp) m0bProp(c, p, frame);
@@ -5030,9 +5041,9 @@ void paintProp(Canvas& c, Prop p, int frame) {
 
 }  // namespace
 
-int propW(Prop p) { return wildP(p) ? wildPropW(p) : isWildlandsFlora(p) ? floraPropW(p) : m3bP(p) ? m3bPropW(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].w : 16; }
-int propH(Prop p) { return wildP(p) ? wildPropH(p) : isWildlandsFlora(p) ? floraPropH(p) : m3bP(p) ? m3bPropH(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].h : 16; }
-int propFrames(Prop p) { return wildP(p) ? wildPropFrames(p) : isWildlandsFlora(p) ? floraPropFrames(p) : m3bP(p) ? m3bPropFrames(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].frames : 1; }
+int propW(Prop p) { return isWarProp(p) ? warPropW(p) : isLoreProp(p) ? lorePropW(p) : wildP(p) ? wildPropW(p) : isWildlandsFlora(p) ? floraPropW(p) : m3bP(p) ? m3bPropW(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].w : 16; }
+int propH(Prop p) { return isWarProp(p) ? warPropH(p) : isLoreProp(p) ? lorePropH(p) : wildP(p) ? wildPropH(p) : isWildlandsFlora(p) ? floraPropH(p) : m3bP(p) ? m3bPropH(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].h : 16; }
+int propFrames(Prop p) { return isWarProp(p) ? warPropFrames(p) : isLoreProp(p) ? lorePropFrames(p) : wildP(p) ? wildPropFrames(p) : isWildlandsFlora(p) ? floraPropFrames(p) : m3bP(p) ? m3bPropFrames(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].frames : 1; }
 
 Canvas propSprite(Prop p) {
   if (isStall(p)) return marketStall(stallTrade(p), 0);

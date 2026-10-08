@@ -32,6 +32,8 @@
 #include <unordered_set>
 #include "rpg/world/biomes.h"
 #include <vector>
+#include "rpg/story/story.h"
+#include "rpg/view/realm_ui.h"
 #include "rpg/view/view.h"
 #include "rpg/world/source.h"
 
@@ -150,6 +152,36 @@ int siteIcon(const Site& s) {
   }
 }
 
+// (M4) the war and news markers on the map (VISION_PLAN 2.11, 4.5): crossed swords at a siege, flames at a burned
+// place, a tent at a refugee camp, a bowl at a hungry town, a scroll at a heard event; an occupied town flies a little
+// banner in its new owner's colours (drawn live, beside these)
+enum WarIcon { WI_SIEGE, WI_BURNED, WI_REFUGEES, WI_NEWS, WI_HUNGRY, WI_COUNT };
+const IconArt kWarIcons[WI_COUNT] = {
+    {"SIEGE", {"kk.....kk", "kWk...kWk", ".kWk.kWk.", "..kWkWk..", "...kWk...", "..kWkWk..", ".kbkkkbk.", "kbbk.kbbk", "kkk...kkk"}},
+    {"BURNED", {"...k....", "..kyk...", "..koyk..", ".kroyok.", ".koyWyk.", "kroyWyok", "kroyyork", ".krrrrk.", "..kkkk.."}},
+    {"REFUGEE CAMP", {"....k....", "...kwk...", "..kwbwk..", ".kwwbwwk.", "kwwkdkwwk", "kwwkdkwwk", "kkkkkkkkk"}},
+    {"NEWS HEARD", {".kkkkk.", "kwwwwwk", "kwkkkwk", "kwwwwwk", "kwkkwwk", "kwwwwwk", ".kkkkk."}},
+    {"HUNGRY", {"k.......k", "kbwwwwwbk", ".kbwwwbk.", "..kbbbk..", "...kkk..."}},
+};
+Canvas warIconCanvas(int wi) {
+  const IconArt& a = kWarIcons[wi];
+  int w = 0;
+  for (const char* r : a.rows) w = std::max(w, (int)std::char_traits<char>::length(r));
+  const int h = (int)a.rows.size(), pad = 1;
+  Canvas c(w + 2, h + 2);
+  for (int y = 0; y < h; y++)
+    for (int x = 0; x < (int)std::char_traits<char>::length(a.rows[(size_t)y]); x++) {
+      if (a.rows[(size_t)y][x] == '.') continue;
+      for (int oy = -pad; oy <= pad; oy++)
+        for (int ox = -pad; ox <= pad; ox++)
+          if (std::abs(ox) + std::abs(oy) <= pad && !(c.get(x + pad + ox, y + pad + oy) >> 24)) c.set(x + pad + ox, y + pad + oy, C(240, 226, 190, 215));
+    }
+  for (int y = 0; y < h; y++)
+    for (int x = 0; x < (int)std::char_traits<char>::length(a.rows[(size_t)y]); x++)
+      if (uint32_t col = iconCol(a.rows[(size_t)y][x])) c.set(x + pad, y + pad, col);
+  return c;
+}
+
 // ---- the colours of the land
 uint32_t groundInk(Ground gr) {
   switch (gr) {
@@ -229,6 +261,7 @@ struct MapSmp {
   uint32_t prov = 0;
   uint8_t wd = 255;            // distance (samples) to the nearest land, over water (coast ripples)
   uint32_t roofC = 0;          // (street zoom) the building's roof colour
+  uint8_t eco = 0;             // (M4) the biome proper (flower meadows are speckled with blooms)
 };
 struct MapGRect { int32_t x0, y0, x1, y1; };
 struct TileJob {
@@ -238,6 +271,8 @@ struct TileJob {
   std::vector<MapSmp> grid;
   std::vector<MapGRect> towns, cores;
   int row = 0;
+  std::unordered_set<uint64_t> moved;      // (M4) genesis kingdoms some of whose settlements another realm holds now
+  std::unordered_map<uint64_t, uint32_t> kcol;   // (M4) owner -> its border colour
 };
 
 struct MapState {
@@ -271,6 +306,13 @@ struct MapState {
   double lastPaintMs = 0, worstPaintMs = 0;
   int tilesPainted = 0;
   TileJob job;                             // the tile being painted (resumed next frame)
+  long borderPx = 0;                       // (M4) border pixels painted so far (scripts: expect m4 border)
+  int markers = 0;                         // (M4) war and news markers drawn last frame
+  std::vector<Tex> warIcons;               // (M4) the war markers (kWarIcon order)
+  // (fixer M4 r2) the news scrolls drawn last frame (event ids, screen centres) and the one tapped (0 none): a tap on a
+  // scroll shows its news in the side column
+  std::vector<std::pair<uint32_t, Vec2>> news;
+  uint32_t newsSel = 0;
 };
 MapState S;
 
@@ -338,6 +380,11 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
   const int32_t tx1 = (int32_t)std::floor(((ix + 1) * TS + MG) * z) + 8, ty1 = (int32_t)std::floor(((iy + 1) * TS + MG) * z) + 8;
   if (J.row == 0 && grid.empty()) {
     grid.assign((size_t)N * N, Smp());
+    // (M4) the realms whose land moved, and every owner's border colour
+    for (const realm::KingdomState& k : g.realm.kingdoms())
+      for (ew::Gid sid : k.settlements)
+        if (const realm::SettlementState* st = g.realm.settlement(sid))
+          if (st->home && st->home != k.id) J.moved.insert(st->home);
     if (endless)
       for (const Site& st : g.world.sites) {
         if (!st.discovered || !st.settlement()) continue;
@@ -388,8 +435,11 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
       s.h = ms.height;
       s.water = ms.water;
       s.deep = ms.water && ms.elev < ew::ELEV_SEA - 4000;
-      s.kingdom = ms.kingdom;
+      // (M4) whose land it is NOW: the realm's owner where it moved the genesis kingdom's settlements (Realm::landOwner,
+      // a Voronoi of the owned settlements inside the old realm), else the generator's kingdom
+      s.kingdom = ms.kingdom && J.moved.count(ms.kingdom) ? g.realm.landOwner(ms.kingdom, gx, gy) : ms.kingdom;
       s.bio = ms.biome;
+      s.eco = (uint8_t)ms.eco;
       if (!s.known) { grid[(size_t)j * N + i] = s; continue; }
       if (z <= 2 && m.in(lx, ly)) {
         // the real tiles of the window
@@ -447,6 +497,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
           s.roofC = bd.biome == Biome::Snow ? C(222, 228, 238) : bd.roof ? bd.roof : C(166, 90, 66);
         }
         if (!m.biome.empty()) s.bio = m.biomeAt(lx, ly);
+        if (!m.eco.empty()) s.eco = (uint8_t)m.ecoAt(lx, ly);
       } else {
         s.c = ms.water ? (s.deep ? kSeaDeep : kSea) : ecoInk(ms.eco);
         if (!ms.water)
@@ -556,6 +607,14 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
           if ((px + jx) % 3 == 0 && py % 3 == 0) k = shadec(k, 0.7f);
         }
         if (s.bio == Biome::Swamp && py % 3 == 0 && (px % 5) < 3) k = shadec(k, 0.86f);
+        // (M4, owner carry-over: the two meadows read alike) flower meadows are flecked with blooms: rose, gold, white
+        if (s.eco == (uint8_t)Eco::FlowerMeadow && !s.road && !s.bldg && !s.tree && !s.wall && z <= 16) {
+          const uint32_t fh = hash2(px, py, 919);
+          if (fh % 6u == 0) {
+            static const uint32_t bloom[3] = {C(226, 140, 164), C(242, 210, 92), C(248, 242, 228)};
+            k = mixc(k, bloom[(fh >> 8) % 3u], 0.72f);
+          }
+        }
         if (s.tree) {
           // woods seen from above: a canopy shaded in soft clumps, its edge lit on the north-west and in shade on the
           // south-east (tile by tile blobs made a plaid at the street zoom)
@@ -602,11 +661,40 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         if (((px * 3 + py * 5) & 31) == 0 && s.wd > 6) k = mixc(k, kRipple, 0.4f);   // a few wave strokes far out
         if (s.wd == 1) k = mixc(kRiver, kInkC, 0.45f);
       }
-      // kingdom borders: a dashed line where the ruler changes (between known cells, on land)
-      if (z >= 2 && !s.water && ((n.known && s.kingdom != n.kingdom && !n.water) || (w.known && s.kingdom != w.kingdom && !w.water)) && ((px + py) % 4 != 0)) {
-        uint32_t kc = C(160, 40, 44);
-        for (const Kingdom& kd : g.world.kingdoms) if (kd.id == s.kingdom && kd.color) kc = mixc(kd.color, C(90, 20, 24), 0.35f);
-        k = kc;
+      // (M4) kingdom borders at every zoom: where the owner changes (Realm::landOwner: conquests move them), a dashed line
+      // in each owner's colour on its own side (two-tone between two realms, a double-width line facing the wildlands),
+      // and a faint wash of the owner's colour a few pixels inside, so a realm reads as a shape on a phone
+      if (!s.water && s.known && s.kingdom) {
+        int bd = 9;
+        bool wildSide = false;
+        for (int r = 1; r <= 4 && bd == 9; r++)
+          for (int oy = -r; oy <= r && bd == 9; oy++)
+            for (int ox = -r; ox <= r; ox++) {
+              if (std::max(std::abs(ox), std::abs(oy)) != r) continue;
+              const Smp& o = at(i + ox, j + oy);
+              if (o.water || o.kingdom == s.kingdom) continue;
+              bd = r; wildSide = o.kingdom == 0;
+              break;
+            }
+        if (bd <= 4) {
+          auto kc = J.kcol.find(s.kingdom);
+          if (kc == J.kcol.end()) {
+            const rui::Look L = rui::look(g, s.kingdom);
+            uint32_t c0 = L.color ? L.color : C(160, 40, 44);
+            // a pale field (white, gold) reads badly as a line on parchment: its charge, else it is darkened
+            const int lum = ((int)(c0 & 255) * 3 + (int)((c0 >> 8) & 255) * 6 + (int)((c0 >> 16) & 255)) / 10;
+            if (lum > 170 && L.color2) c0 = L.color2;
+            const int lum2 = ((int)(c0 & 255) * 3 + (int)((c0 >> 8) & 255) * 6 + (int)((c0 >> 16) & 255)) / 10;
+            kc = J.kcol.emplace(s.kingdom, lum2 > 150 ? shadec(c0, 0.62f) : c0).first;
+          }
+          const uint32_t ink = kc->second;
+          const int width = wildSide ? 2 : 1;
+          if (bd <= width) {
+            const bool gap = ((px + py) / 2) % 3 == 2;   // dashes along the line, whichever way it runs
+            k = gap ? mixc(k, ink, 0.06f) : mixc(ink, kInkC, 0.18f);   // (fixer M4 r3) the gaps read as gaps
+            S.borderPx++;
+          } else k = mixc(k, ink, 0.22f - 0.04f * (float)(bd - width - 1));
+        }
       }
       // the paper shows through the paint, and the known land fades into the parchment at its edge (dithered)
       float fade = 0.14f + grain * 0.06f;
@@ -664,7 +752,10 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
   if (z >= 4) {
     // (M3c fixer, review: "a heap of identical white triangles") a sparser lattice at the land zooms, a quarter of
     // the lower crests left out, and every peak its own shape (it leans one way or the other, some broader, some taller)
-    const int G = z >= 16 ? 8 : 12;
+    // (fixer M4 r1, review: "a carpet of identical mountain glyphs buries labels" on the phone map) sparser still at the
+    // land zooms: a wider lattice, half the lower crests and a quarter of the high ones left out, so the ranges read as
+    // ranges and the labels and the realm's markers stand clear of them
+    const int G = z >= 16 ? 8 : 16;
     for (int cy = (int)std::floor((iy * TS - 7.0) / G); cy <= (int)std::floor((iy * TS + TS + 7.0) / G); cy++)
       for (int cx = (int)std::floor((ix * TS - 7.0) / G); cx <= (int)std::floor((ix * TS + TS + 7.0) / G); cx++) {
         const uint32_t h = hash2(cx, cy, 977);
@@ -677,7 +768,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         const bool crestX = e >= at(gx + MG - 3, gy + MG).e && e >= at(gx + MG + 3, gy + MG).e;
         const bool crestY = e >= at(gx + MG, gy + MG - 3).e && e >= at(gx + MG, gy + MG + 3).e;
         if (!crestX && !crestY && s.h < 6) continue;
-        if (((h >> 16) & 3) == 0 && s.h < 6) continue;
+        if ((int)((h >> 16) & 3) <= (s.h < 6 ? 1 : 0)) continue;
         const bool snow = s.h >= 6 || s.bio == Biome::Snow || s.bio == Biome::Taiga;
         Gl pk{gx, gy, 0, std::clamp((int)s.h - 3, 2, 4) + (z >= 16 ? 0 : 1) + (int)((h >> 24) % 3u) - 1, snow};
         pk.size = std::max(2, pk.size);
@@ -781,10 +872,12 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     for (int i = 0; i < IC_COUNT; i++) S.icons.push_back(pix_->bake(iconCanvas(i)));
     for (int d = 0; d < 8; d++) S.arrow[d] = pix_->bake(arrowCanvas(d));
   }
+  if (S.warIcons.empty()) for (int i = 0; i < WI_COUNT; i++) S.warIcons.push_back(pix_->bake(warIconCanvas(i)));
   static float lastDraw = -10;
   if (t_ - lastDraw > 0.5f && mapSel_ < 0 && S.reqSel == -2) playerG(S.cx, S.cy);   // the map was closed: open it on the hero
   lastDraw = t_;
-  const uint64_t sig = exploredSig(g) ^ (S.geo ? 0x5A5A5A5A5A5A5A5Aull : 0);
+  // (M4) a conquest moves the borders: the realm's owners are part of what the tiles were painted with
+  const uint64_t sig = exploredSig(g) ^ (S.geo ? 0x5A5A5A5A5A5A5A5Aull : 0) ^ (g.world.endless ? rui::signature(g) * 31 : 0);
   if (sig != S.sig) {   // the hero has seen more (or the view changed): repaint (the tiles fill back in over a few frames)
     for (auto& kv : S.tiles) pix_->destroy(kv.second.tex);
     S.tiles.clear();
@@ -907,13 +1000,28 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
   taken.push_back({0, h - 14, 110, h});            // the scale bar
   taken.push_back({w - 26, 0, w, 30});             // the compass rose
   if (g.world.endless && !S.geo) {
-    // kingdom names
+    // kingdom names (M4: in the society's word, where the realm holds its land now: the middle of its settlements; a
+    // fallen realm has none)
     if (z >= 4)
       for (const Kingdom& k : g.world.kingdoms) {
-        if (!g.explored.seen(k.gx, k.gy)) continue;
-        Vec2 s = toScr(k.gx + 0.5, k.gy + 0.5);
+        double kx = k.gx + 0.5, ky = k.gy + 0.5;
+        if (const realm::KingdomState* K = g.realm.kingdom(k.id)) {
+          if (K->fallen) continue;
+          double sx = 0, sy = 0;
+          int n = 0;
+          for (ew::Gid sid : K->settlements)
+            if (const realm::SettlementState* st = g.realm.settlement(sid)) { sx += st->gx; sy += st->gy; n++; }
+          // (its seat when it still holds it, else the middle of what it holds)
+          bool seat = false;
+          for (ew::Gid sid : K->settlements) if (sid == k.capitalId) seat = true;
+          if (n > 0 && !seat) { kx = sx / n + 0.5; ky = sy / n + 0.5; }
+        }
+        if (!g.explored.seen((int32_t)kx, (int32_t)ky)) continue;
+        Vec2 s = toScr(kx, ky);
         if (s.x < -80 || s.y < -20 || s.x > w + 80 || s.y > h + 20) continue;
-        labs.push_back({3, s.x, s.y - 16, s.y + 8, "KINGDOM OF " + k.name, colOf(k.color ? mixc(k.color, C(60, 30, 30), 0.3f) : rgba(150, 40, 44)), Color(0.95f, 0.9f, 0.8f, 0.7f), z >= 16});
+        const rui::Look L = rui::look(g, k.id);
+        const uint32_t kcol = L.color ? L.color : k.color;
+        labs.push_back({3, s.x, s.y - 16, s.y + 8, rui::realmTitle(L, false), colOf(kcol ? mixc(kcol, C(60, 30, 30), 0.3f) : rgba(150, 40, 44)), Color(0.95f, 0.9f, 0.8f, 0.7f), z >= 16});
       }
     // landmarks of the explored regions near the view (the region plans are fetched a few per frame)
     {
@@ -993,6 +1101,40 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     if (st.type == SiteType::Village && z >= 32) continue;
     marks.push_back({s.x, s.y, siteIcon(st), i});
   }
+  // (fixer M4 r3, review: "about 8 icons sit in one knot round the start on the phone") declutter: the places are
+  // taken most important first (the selected one, capitals, cities, towns, wonders, villages, the rest) and an icon
+  // that would sit mostly on one already kept, or on the hero's arrow, is left out at this zoom (zoom in to see it)
+  {
+    auto rank = [&](const Mk& m) {
+      const Site& st = g.world.sites[(size_t)m.site];
+      if (m.site == mapSel_) return 0;
+      if (st.capital) return 1;
+      if (st.type == SiteType::City) return 2;
+      if (st.type == SiteType::Town || st.type == SiteType::Wonder || st.mainQuest) return 3;
+      if (st.type == SiteType::Village) return 4;
+      return 5;
+    };
+    std::stable_sort(marks.begin(), marks.end(), [&](const Mk& a, const Mk& b) { return rank(a) < rank(b); });
+    std::vector<Mk> kept;
+    for (const Mk& m : marks) {
+      const Tex& t = S.icons[(size_t)m.ic];
+      const float hwI = t.w / 2.0f, hhI = t.h / 2.0f;
+      bool crowd = false;
+      auto over = [&](float x0, float y0, float x1, float y1) {
+        const float ox = std::min(m.x + hwI, x1) - std::max(m.x - hwI, x0), oy = std::min(m.y + hhI, y1) - std::max(m.y - hhI, y0);
+        return ox > 0 && oy > 0 && ox * oy > 0.20f * (2 * hwI) * (2 * hhI);
+      };
+      if (m.site != mapSel_) {
+        if (over(hp.x - 9, hp.y - 9, hp.x + 9, hp.y + 9)) crowd = true;
+        for (const Mk& k : kept) {   // (with a little air round each kept icon: touching icons read as one knot)
+          const Tex& kt = S.icons[(size_t)k.ic];
+          if (over(k.x - kt.w / 2.0f - 3, k.y - kt.h / 2.0f - 3, k.x + kt.w / 2.0f + 3, k.y + kt.h / 2.0f + 3)) { crowd = true; break; }
+        }
+      }
+      if (!crowd) kept.push_back(m);
+    }
+    marks.swap(kept);
+  }
   // draw the icons south last (they overlap like the land)
   std::sort(marks.begin(), marks.end(), [](const Mk& a, const Mk& b) { return a.y < b.y; });
   for (const Mk& mk : marks) {
@@ -1024,6 +1166,101 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
       labs.push_back({prio, mk.x, iy + t.h + 1, iy - (st.capital ? 15 : 10), nm, ink, Color(0.96f, 0.92f, 0.82f, 0.7f), false});
     }
   }
+  // (M4) the war on the map: a marker at each troubled settlement the hero has seen or heard of (beside its icon, up and
+  // right), a scroll at every other heard event; the side column names the state of the selected place
+  S.markers = 0;
+  std::vector<Box> warBoxes;   // (fixer M4 r3) the war's markers and the news scrolls: labels keep off them
+  if (g.world.endless && !S.geo) {
+    std::unordered_set<ew::Gid> marked;
+    auto inView = [&](const Vec2& q) { return q.x >= -12 && q.y >= -12 && q.x <= w + 12 && q.y <= h + 12; };
+    std::unordered_set<ew::Gid> heardAt;
+    for (const realm::WorldEvent& e : g.realm.events()) if (e.heard && e.site) heardAt.insert(e.site);
+    for (const realm::SettlementState* st : rui::knownStates(g)) {
+      const uint16_t f = st->flags;
+      int wi = -1;
+      bool occupied = false;
+      if (f & realm::SS_BESIEGED) wi = WI_SIEGE;
+      else if (f & (realm::SS_BURNED | realm::SS_RUINED)) wi = WI_BURNED;
+      else if (f & realm::SS_OCCUPIED) occupied = true;
+      else if (f & realm::SS_REFUGEES) wi = WI_REFUGEES;
+      else if (f & realm::SS_FAMINE) wi = WI_HUNGRY;
+      if (wi < 0 && !occupied) continue;
+      if (!g.explored.seen(st->gx, st->gy) && !heardAt.count(st->site)) continue;
+      const Vec2 q = toScr(st->gx + 0.5, st->gy + 0.5);
+      if (!inView(q)) continue;
+      // beside the settlement's icon (up and to the right) so both read
+      const float mx = std::floor(q.x + 6), my = std::floor(q.y - 9);
+      if (occupied) {
+        // a little banner on a pole in the occupier's colours
+        const rui::Look L = rui::look(g, st->owner);
+        const Color fc = colOf(L.color ? L.color : C(160, 40, 44)), tc = colOf(L.color2 ? L.color2 : C(236, 210, 120));
+        P.rect(mx - 1, my - 1, 9, 11, Color(0.94f, 0.88f, 0.74f, 0.8f));
+        P.rect(mx, my, 1, 10, kInk);
+        P.rect(mx + 1, my, 6, 6, kInk);
+        P.rect(mx + 1, my + 1, 5, 4, fc);
+        P.rect(mx + 3, my + 2, 1, 2, tc);
+        P.rect(mx + 1, my + 5, 2, 1, fc);
+        P.rect(mx + 4, my + 5, 2, 1, fc);
+        legendAdd(-5);
+      } else {
+        const Tex& t = S.warIcons[(size_t)wi];
+        P.blit(t, mx, my);
+        if (wi == WI_SIEGE) {   // a slow pulse round a siege still being fought
+          const float pr = 7 + 1.5f * (0.5f + 0.5f * std::sin(t_ * 3));
+          for (int k = 0; k < 18; k++) {
+            const float a = k / 18.0f * 6.2831853f;
+            P.rect(std::floor(mx + t.w / 2.0f + std::cos(a) * pr), std::floor(my + t.h / 2.0f + std::sin(a) * pr), 1, 1, Color(0.75f, 0.12f, 0.1f, 0.7f));
+          }
+        }
+        legendAdd(wi == WI_SIEGE ? -3 : wi == WI_BURNED ? -4 : wi == WI_REFUGEES ? -6 : -9);
+      }
+      taken.push_back({mx - 1, my - 1, mx + 11, my + 11});
+      warBoxes.push_back({mx - 1, my - 1, mx + 11, my + 11});
+      marked.insert(st->site);
+      S.markers++;
+    }
+    // the other heard events (a war declared, a famine, prices rising...): a scroll where it happened
+    // (M4 integration) newest first, only the last 90 days' news, at most 12 scrolls and never on top of another
+    // marker: after a long game the whole continent used to be papered with scrolls (unreadable on a phone)
+    {
+      const auto& evs = g.realm.events();
+      int scrolls = 0;
+      S.news.clear();
+      std::vector<Box> drawn;   // the scrolls keep off the markers and each other; labels still win over them
+      for (size_t ei = evs.size(); ei-- > 0 && scrolls < 12;) {
+        const realm::WorldEvent& e = evs[ei];
+        if (!e.heard || (e.site && marked.count(e.site))) continue;
+        if (!e.gx && !e.gy) continue;
+        if ((uint16_t)((uint16_t)g.day - e.day) > 90) continue;
+        // (fixer M4 r2) only where the map knows the land: a scroll on blank fogged parchment said nothing
+        if (!g.explored.seen(e.gx, e.gy)) continue;
+        const Vec2 q = toScr(e.gx + 0.5, e.gy + 0.5);
+        if (!inView(q)) continue;
+        const Tex& t = S.warIcons[WI_NEWS];
+        const float mx = std::floor(q.x - t.w / 2.0f), my = std::floor(q.y - t.h / 2.0f);
+        bool clash = false;
+        for (const std::vector<Box>* L : {&taken, &drawn})
+          for (const Box& b : *L)
+            if (mx < b.x1 && mx + t.w > b.x0 && my < b.y1 && my + t.h > b.y0) { clash = true; break; }
+        if (clash) continue;
+        P.blit(t, mx, my);
+        if (e.id == S.newsSel) P.frame(mx - 2, my - 2, t.w + 4, t.h + 4, Color(1, 1, 1));
+        S.news.push_back({e.id, Vec2(q.x + x, q.y + y)});
+        drawn.push_back({mx - 1, my - 1, mx + t.w + 1, my + t.h + 1});
+        warBoxes.push_back({mx - 1, my - 1, mx + t.w + 1, my + t.h + 1});
+        legendAdd(-7);
+        S.markers++;
+        scrolls++;
+        if (e.site) marked.insert(e.site);
+      }
+    }
+    // a border is on screen: say what the dashed lines are
+    legendAdd(-8);
+  }
+  // (the war's markers and the border lead the legend: the places' icons follow and are cut first)
+  std::stable_partition(S.legend.begin(), S.legend.end(), [](int ic) { return ic <= -3 && ic >= -9; });
+  m4Stats_.mapMarkers = S.markers;
+  m4Stats_.borderPx = (int)std::min<long>(S.borderPx, 1 << 30);
   // the tracked quest's destination: the objective's global tile (Quest::tgx/tgy), else the classic rule
   bool hasQ = false;
   double qgx = 0, qgy = 0;
@@ -1046,7 +1283,10 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     }
     nm = nm.empty() ? "QUEST" : nm + " (QUEST)";
     if (!onMap) nm += " >";
-    labs.push_back({0, qs.x, qs.y + 7, qs.y - 18, nm, Color(0.45f, 0.24f, 0.04f), Color(1.0f, 0.95f, 0.8f, 0.8f), false});
+    // (fixer M4 r3, review: "the QUEST label is drawn over the icons round the start") a quest at the hero's own spot
+    // keeps its diamond but no label: the label only covered the places round him
+    const bool atHero = onMap && len2(qs - hp) < 14.0f * 14.0f;
+    if (!atHero) labs.push_back({0, qs.x, qs.y + 7, qs.y - 18, nm, Color(0.45f, 0.24f, 0.04f), Color(1.0f, 0.95f, 0.8f, 0.8f), false});
     taken.push_back({qs.x - 6, qs.y - 6, qs.x + 6, qs.y + 6});
     legendAdd(-2);
   }
@@ -1055,6 +1295,7 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     const size_t labelBase = taken.size();   // the boxes from here on are labels (before: markers, the hero, the furniture)
     auto clear = [&](const Box& b) {
       for (const Box& o : taken) if (b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0) return false;
+      for (const Box& o : warBoxes) if (b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0) return false;
       return true;
     };
     // (M3c fixer round 3, review: "about 16 region names are drawn at once, several collide ... they hide the biome
@@ -1075,17 +1316,19 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
       bool forcedHere = false;
       if (l.prio == 0) {
         for (size_t k = 0; k < taken.size(); k++) if (k >= labelBase) labelOnly.push_back(taken[k]);
+        std::vector<Box> labelWar = labelOnly;   // (fixer M4 r3) round 1: over the places' icons, never over war markers
+        labelWar.insert(labelWar.end(), warBoxes.begin(), warBoxes.end());
         const float cy = (l.y + l.alt) * 0.5f;
         const float cxs[4] = {l.x, l.x, l.x + tw / 2 + 10, l.x - tw / 2 - 10};
         const float cys[4] = {l.y, l.alt, cy, cy};
         bool placed = false;
-        for (int round = 0; round < 2 && !placed; round++)
+        for (int round = 0; round < 3 && !placed; round++)
           for (int k = 0; k < 4 && !placed; k++) {
             const float x = std::clamp(cxs[k], tw / 2 + 2, std::max(tw / 2 + 2, w - tw / 2 - 2)), y = cys[k];
             if (y < 0 || y + 9 > h) continue;
             const Box b{x - tw / 2 - 1, y - 1, x + tw / 2 + 1, y + 9};
             bool ok = true;
-            for (const Box& o : (round == 0 ? taken : labelOnly)) if (b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0) { ok = false; break; }
+            for (const Box& o : (round == 0 ? taken : round == 1 ? labelWar : labelOnly)) if (b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0) { ok = false; break; }
             if (ok) { l.x = x; l.y = y; l.alt = y; placed = true; forcedHere = true; }
           }
       }
@@ -1181,6 +1424,8 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
   {
     const float tilesPer40 = 40 * z;
     std::string sc = tilesPer40 >= 1000 ? std::to_string((int)(tilesPer40 / 100) / 10.0).substr(0, 3) + "K TILES" : std::to_string((int)tilesPer40) + " TILES";
+    // (fixer M4 r1) on a parchment plate of its own: the land's glyphs never run through the scale
+    P.rect(3, h - 15, 50.0f + (float)P.textW(sc, 1) + 4, 13, Color(0.92f, 0.86f, 0.72f, 0.9f));
     P.rect(6, h - 9, 40, 2, kInk);
     P.rect(6, h - 11, 1, 4, kInk); P.rect(45, h - 11, 1, 4, kInk); P.rect(25, h - 10, 1, 2, kInk);
     P.text(50, h - 12, sc, 1, kInk);
@@ -1274,6 +1519,12 @@ bool View::worldMapPointer(int phase, uint64_t id, Vec2 p) {
 }
 
 // the discovered (or rumoured) place nearest a box point on the map (within 12 px: a finger's reach), or -1
+static const realm::WorldEvent* newsEventById(const Game& g, uint32_t id) {
+  if (!id) return nullptr;
+  for (const realm::WorldEvent& e : g.realm.events()) if (e.id == id) return &e;
+  return nullptr;
+}
+
 int View::worldMapPick(Game& g, Vec2 p) {
   const float z = kZoom[S.zi];
   const double left = S.cx / z - S.rw / 2, top = S.cy / z - S.rh / 2;
@@ -1378,9 +1629,23 @@ void View::drawMapTab(Game& g, float top) {
     std::string sub = known ? ew::poiKindName(s.type, s.kind) : "SOMEWHERE NEAR HERE";
     if (known && s.capital) sub += " - CAPITAL";
     P.text(x, iy + 20, sub, 1, kDim);
-    if (const Kingdom* k = known ? g.world.kingdomOf(mapSel_) : nullptr) P.text(x, iy + 30, k->name, 1, colOf(k->color ? k->color : rgba(200, 180, 140)));
-    else if (known) P.text(x, iy + 30, "WILDLANDS", 1, kDim);
-    if (known) P.text(x, iy + 40, "LEVEL " + std::to_string(s.level) + (s.cleared ? "  CLEARED" : ""), 1, kDim);
+    // (M4) its owner NOW in its society's word, and its state ("BESIEGED BY QIBA") where it has one (the level then
+    // moves up beside its kind)
+    uint32_t stc = 0;
+    const std::string state = known && s.settlement() ? rui::stateLine(g, s.id, &stc) : std::string();
+    const size_t fitC = (size_t)std::max(6, (int)(L.colW / 6));
+    if (const Kingdom* k = known ? g.world.kingdomOf(mapSel_) : nullptr) {
+      const rui::Look KL = rui::look(g, k->id);
+      std::string kt = rui::realmTitle(KL, false);
+      if (kt.size() > fitC) kt = KL.name;
+      P.text(x, iy + 30, kt, 1, colOf(k->color ? mixc(k->color, C(250, 240, 220), 0.25f) : rgba(200, 180, 140)));
+    } else if (known) P.text(x, iy + 30, "WILDLANDS", 1, kDim);
+    if (!state.empty()) {
+      std::string st = state;
+      if (st.size() > fitC) st = st.substr(0, fitC);
+      P.text(x, iy + 40, st, 1, colOf(stc ? stc : C(236, 120, 90)));
+      P.text(x + L.colW, iy + 20, "LV " + std::to_string(s.level), 1, kDim, 2);
+    } else if (known) P.text(x, iy + 40, "LEVEL " + std::to_string(s.level) + (s.cleared ? "  CLEARED" : ""), 1, kDim);
     // the journey
     if (known) {
       const TravelQuote qf = g.travelQuote(mapSel_), qc = g.travelQuote(mapSel_, true);
@@ -1395,6 +1660,10 @@ void View::drawMapTab(Game& g, float top) {
         wrapText(x, L.carriageY + 2, L.colW, "CARRIAGE: " + why, kDim, -1, 9);
       }
     }
+  } else if (const realm::WorldEvent* ne = newsEventById(g, S.newsSel)) {
+    // (fixer M4 r2) the tapped news scroll: what was heard, and when
+    P.text(x, iy, "NEWS HEARD", 1, kDim);
+    wrapText(x, iy + 12, L.colW, story::newsLine(g, *ne, 0), kText, -1, 9);   // (it says how long ago)
   } else {
     wrapText(x, iy, L.colW, touchUI ? "DRAG TO PAN, PINCH TO ZOOM. TAP A PLACE FOR THE JOURNEY THERE."
                                     : "DRAG OR ARROWS TO PAN, WHEEL OR Q/E TO ZOOM. CLICK A PLACE, OR W/S, THEN ENTER TO TRAVEL. G: GEOLOGY.", kDim, -1, 9);
@@ -1419,6 +1688,30 @@ void View::drawMapTab(Game& g, float top) {
       } else if (ic == -2) {
         P.rect(x + 1, ly + 1, 5, 5, kGold);
         P.text(x + 12, ly, "TRACKED QUEST", 1, kDim);
+      } else if (ic == -8) {   // (M4) the border: a dashed line in a realm's colour
+        // (fixer M4 r3, review: "the legend's red dash does not match the purple borders") in the colour the map draws
+        // the hero's own realm's border with (the same pale-field rule), dashed the same way
+        uint32_t c0 = C(160, 40, 44);
+        if (const Kingdom* K = g.lastTown >= 0 && g.lastTown < (int)g.world.sites.size() ? g.world.kingdomOf(g.lastTown) : nullptr) {
+          const rui::Look Lk = rui::look(g, K->id);
+          c0 = Lk.color ? Lk.color : (K->color ? K->color : c0);
+          const int lum = ((int)(c0 & 255) * 3 + (int)((c0 >> 8) & 255) * 6 + (int)((c0 >> 16) & 255)) / 10;
+          if (lum > 170 && Lk.color2) c0 = Lk.color2;
+          const int lum2 = ((int)(c0 & 255) * 3 + (int)((c0 >> 8) & 255) * 6 + (int)((c0 >> 16) & 255)) / 10;
+          if (lum2 > 150) c0 = shadec(c0, 0.62f);
+        }
+        const Color bc = colOf(mixc(c0, kInkC, 0.18f));
+        for (int k = 0; k < 10; k++) if (k % 6 < 4) P.rect(x + k, ly + 3, 1, 2, bc);
+        P.text(x + 12, ly, "BORDER", 1, kDim);
+      } else if (ic == -5) {   // (M4) an occupied town's banner
+        P.rect(x + 1, ly - 1, 1, 9, kText);
+        P.rect(x + 2, ly - 1, 5, 5, Color(0.70f, 0.18f, 0.16f));
+        P.text(x + 12, ly, "OCCUPIED", 1, kDim);
+      } else if (ic <= -3 && ic >= -9) {   // (M4) siege, burned, refugees, news, hungry
+        const int wi = ic == -3 ? WI_SIEGE : ic == -4 ? WI_BURNED : ic == -6 ? WI_REFUGEES : ic == -7 ? WI_NEWS : WI_HUNGRY;
+        const Tex& t = S.warIcons[(size_t)wi];
+        P.blit(t, std::floor(x + 4 - t.w / 2.0f), std::floor(ly + 3 - t.h / 2.0f));
+        P.text(x + 12, ly, kWarIcons[wi].name, 1, kDim);
       } else if (ic <= -100) {   // (M3c) a biome: its ink swatch and its name (cut to the column at a word)
         const Eco e = (Eco)(-100 - ic);
         P.rect(x, ly, 8, 7, colOf(ecoInk(e)));
@@ -1453,7 +1746,7 @@ void View::mapTabTap(Game& g, Vec2 p, float top) {
   const float x = L.colX, bw = (L.colW - 8) / 3;
   if (inR(x, L.btnY, bw, L.bh)) { worldMapZoom(-1, Vec2(-1, -1)); return; }
   if (inR(x + bw + 4, L.btnY, bw, L.bh)) { worldMapZoom(1, Vec2(-1, -1)); return; }
-  if (inR(x + 2 * (bw + 4), L.btnY, bw, L.bh)) { mapSel_ = -1; worldMapCentre(g, -1); return; }
+  if (inR(x + 2 * (bw + 4), L.btnY, bw, L.bh)) { mapSel_ = -1; S.newsSel = 0; worldMapCentre(g, -1); return; }
   const bool sel = mapSel_ >= 0 && mapSel_ < (int)g.world.sites.size() && g.world.sites[(size_t)mapSel_].discovered && !S.geo;
   if (sel && inR(x, L.travelY, L.colW, L.tbH) && g.travelQuote(mapSel_).ok) { travelTo(*this, g, mapSel_, false, &View::snap); return; }
   if (sel && inR(x, L.carriageY, L.colW, L.tbH) && g.travelQuote(mapSel_, true).ok) { travelTo(*this, g, mapSel_, true, &View::snap); return; }
@@ -1461,7 +1754,13 @@ void View::mapTabTap(Game& g, Vec2 p, float top) {
   // (M2 fixer) a near miss keeps the selection (and its FAST TRAVEL panel); only a tap on another place changes it
   if (p.x >= L.mapX && p.x < L.mapX + L.mapW && p.y >= L.mapY && p.y < L.mapY + L.mapH) {
     const int pick = worldMapPick(g, p);
-    if (pick >= 0) mapSel_ = pick;
+    if (pick >= 0) { mapSel_ = pick; S.newsSel = 0; }
+    else {   // (fixer M4 r2) a news scroll: its news in the side column
+      float bd = (touchUI ? 14.0f : 10.0f) * (touchUI ? 14.0f : 10.0f);
+      uint32_t best = 0;
+      for (const auto& nw : S.news) { const float d = len2(nw.second - p); if (d < bd) { bd = d; best = nw.first; } }
+      if (best) { S.newsSel = best; mapSel_ = -1; }
+    }
   }
 }
 

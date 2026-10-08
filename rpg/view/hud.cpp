@@ -8,6 +8,7 @@
 #include <initializer_list>
 #include <string>
 #include <vector>
+#include "rpg/view/realm_ui.h"
 #include "rpg/view/view.h"
 #include "rpg/world/poi.h"
 
@@ -47,6 +48,21 @@ int tabStep(int tab, int dir) {
 
 // The HUD's step line under the tracked quest title: the journal's "what to do next" (Game::questStatus), cut to
 // the quest column's width.
+// (fixer M4 r3) the journal opens on the tracked quest (else the newest open one), not on the first row: a quest just
+// taken is the one the player wants to read
+int journalRowOf(const Game& g) {
+  std::vector<int> order;
+  for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state != QState::Done) order.push_back(i);
+  for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state == QState::Done) order.push_back(i);
+  int newest = -1;
+  for (int r = 0; r < (int)order.size(); r++) {
+    const Quest& q = g.quests[(size_t)order[(size_t)r]];
+    if (q.id == g.trackedQuest) return r;
+    if (q.state != QState::Done) newest = r;
+  }
+  return std::max(0, newest);
+}
+
 std::string trackedStep(const Game& g, const Quest& q) {
   std::string s = g.questStatus(q);
   if (s.empty() && q.state == QState::Complete) s = "RETURN TO " + q.giverName;
@@ -130,6 +146,12 @@ std::string fitText(const std::string& s, float w) {
   if (sp != std::string::npos && (int)sp >= n - 6) t.resize(sp);
   return t;
 }
+// (fixer M4 r1) the tracked quest's title on the HUD column: whole up to 30 characters (M4's titles run long: "BREAK
+// THE SIEGE OF JARFAADARA"), longer ones cut at a word with an ellipsis (never a hard cut mid-word)
+std::string hudQuestTitle(const std::string& s) {
+  if (s.size() <= 30) return s;
+  return fitText(s, 27 * 6 - 1) + "...";
+}
 // the menu's tab strip and close button: the tabs run from x 20 to the close button at the strip's right end
 struct TabLay { float x0, tw, y, h, xX, xY, xW, xH; };
 TabLay tabLay(bool touch) {
@@ -154,6 +176,14 @@ bool questTile(const Game& g, const Quest& q, int& tx, int& ty) {
   tx = (int)std::clamp<int64_t>(lx, -1000000, 1000000);
   ty = (int)std::clamp<int64_t>(ly, -1000000, 1000000);
   return true;
+}
+// (M4, VISION_PLAN 7.1) the danger skull beside the place's name: -1 none (indoors, in a settlement, or country no
+// harder than the hero), 0 yellow (up to 4 levels past the hero), 1 red (up to 10), 2 purple (beyond)
+int dangerSkull(const Game& g) {
+  if (g.inside || g.mode == Mode::Title || !g.world.endless) return -1;
+  if (g.curSite >= 0 && g.curSite < (int)g.world.sites.size() && g.world.sites[(size_t)g.curSite].settlement()) return -1;
+  const int d = g.world.zoneLevel((int)std::floor(g.pl().p.x / TILE), (int)std::floor(g.pl().p.y / TILE)) - g.plLevel;
+  return d <= 0 ? -1 : d <= 4 ? 0 : d <= 10 ? 1 : 2;
 }
 // a distance in tiles for the edge arrow: "87", "1.4K", "23K"
 std::string distText(float d) {
@@ -217,6 +247,7 @@ std::string itemStats(const Game& g, const Item& it) {
 // a usable prop (chest, shrine, bed...) the attack button may "use" instead: only when no enemy is close,
 // so mashing attack beside a shrine in a fight still swings the sword
 int usablePropAt(const Game& g, int& tx, int& ty) {
+  if (g.mode == Mode::Play && g.foeInReach()) return 0;   // (fixer M4 r3) mid-fight the button swings
   int pr = g.interactProp(tx, ty);
   if (!pr) return 0;
   // (M0b fix round 2: another guest's bed, or the innkeeper's, stays usable: the button reads LOOK and a tap explains
@@ -518,12 +549,22 @@ void View::drawHud(Game& g) {
   // (M1) kingdom identity: in a settlement, the line under its name says whose it is (and marks a capital)
   std::string kingLine;
   Color kingCol = kDim;
-  if (g.curSite >= 0 && g.curSite < (int)g.world.sites.size() && g.world.sites[g.curSite].settlement())
+  // (M4) the owner NOW, in its society's word ("KHAGANATE OF QIBA"), and the settlement's state under it in its colour
+  std::string stateLine;
+  Color stateCol = kDim;
+  if (g.curSite >= 0 && g.curSite < (int)g.world.sites.size() && g.world.sites[g.curSite].settlement()) {
+    const Site& cs = g.world.sites[(size_t)g.curSite];
     if (const Kingdom* k = g.world.kingdomOf(g.curSite)) {
-      kingLine = (g.world.sites[g.curSite].capital ? "CAPITAL OF " : "KINGDOM OF ") + k->name;
+      const rui::Look lk = rui::look(g, k->id);
+      kingLine = cs.capital && cs.homeKingdom == cs.kingdom ? "CAPITAL OF " + lk.name : rui::realmTitle(lk, false);
       if (kingLine.size() > 26) kingLine = kingLine.substr(0, 26);
       if (k->color) kingCol = mixKing(col(k->color));
     }
+    uint32_t sc = 0;
+    stateLine = rui::stateLine(g, cs.id, &sc);
+    if (stateLine.size() > 26) stateLine = stateLine.substr(0, 26);
+    if (!stateLine.empty()) stateCol = col(sc);
+  }
   // (M2) a wayside place or a wonder: the line under its name says what it is ("HUNTER'S CAMP", "ELDER TREE"), unless
   // its name already does
   if (!g.inside && g.curSite >= 0 && g.curSite < (int)g.world.sites.size()) {
@@ -537,7 +578,8 @@ void View::drawHud(Game& g) {
       }
     }
   }
-  const float kdy = kingLine.empty() ? 0.0f : 9.0f;
+  if (kingLine.empty() && !stateLine.empty()) { kingLine = stateLine; kingCol = stateCol; stateLine.clear(); }
+  const float kdy = (kingLine.empty() ? 0.0f : 9.0f) + (stateLine.empty() ? 0.0f : 9.0f);
   float colBottom = T + 150;   // the foot of the location / quest column (the quest arrow keeps below it)
   // (M2) a dialogue panel runs under the column on a wide screen: the column's lines stop above the panel's top
   float clipY = 1e9f;
@@ -552,8 +594,9 @@ void View::drawHud(Game& g) {
     // a soft backing so the location / clock / quest column stays readable over busy roofs and snow
     const Quest* tq = g.trackedQuest >= 0 ? g.questById(g.trackedQuest) : nullptr;
     bool hasQ = tq && tq->state != QState::Done;
-    int wmax = std::max(std::max(P.textW(loc, 1), P.textW(dayStr, 1)), P.textW(kingLine, 1));
-    if (hasQ) wmax = std::max(wmax, P.textW(tq->title.size() > 22 ? tq->title.substr(0, 22) : tq->title, 1));
+    int wmax = std::max(std::max(P.textW(loc, 1), P.textW(dayStr, 1)), std::max(P.textW(kingLine, 1), P.textW(stateLine, 1)));
+    if (dangerSkull(g) >= 0) wmax = std::max(wmax, P.textW(loc, 1) + 11);
+    if (hasQ) wmax = std::max(wmax, P.textW(hudQuestTitle(tq->title), 1));
     float extra = 0;
     if (hasQ) {
       const std::string st = trackedStep(g, *tq);
@@ -572,6 +615,26 @@ void View::drawHud(Game& g) {
     for (int d = 0; d < 4; d++) P.text(R - 5 + (d == 0 ? -1.0f : d == 1 ? 1.0f : 0.0f), T + 100 + (d == 2 ? -1.0f : d == 3 ? 1.0f : 0.0f), kingLine, 1, o, 2);
     P.text(R - 4, T + 101, kingLine, 1, o, 2);
     P.text(R - 5, T + 100, kingLine, 1, fa(kingCol), 2);
+    if (!stateLine.empty() && T + 117 <= clipY) {
+      for (int d = 0; d < 4; d++) P.text(R - 5 + (d == 0 ? -1.0f : d == 1 ? 1.0f : 0.0f), T + 109 + (d == 2 ? -1.0f : d == 3 ? 1.0f : 0.0f), stateLine, 1, o, 2);
+      P.text(R - 5, T + 109, stateLine, 1, fa(stateCol), 2);
+    }
+  }
+  // (M4, VISION_PLAN 7.1) dangerous country: a skull before the place's name, coloured by how far the land's danger
+  // runs past the hero's level (yellow, red, purple); none at home or in safe country
+  {
+    const int dk = dangerSkull(g);
+    if (dk >= 0) {
+      static const char* kSkull[7] = {".xxxxx.", "xxxxxxx", "x..x..x", "x..x..x", "xxx.xxx", ".xxxxx.", ".x.x.x."};
+      const Color sc = dk == 0 ? Color(0.98f, 0.86f, 0.30f) : dk == 1 ? Color(0.96f, 0.36f, 0.26f) : Color(0.80f, 0.45f, 1.0f);
+      const float sx = R - 5 - P.textW(loc, 1) - 10, sy = T + 91;
+      for (int j = 0; j < 7; j++)
+        for (int i = 0; i < 7; i++) {
+          if (kSkull[j][i] != 'x') continue;
+          P.rect(sx + i + 1, sy + j + 1, 1, 1, Color(0, 0, 0, 0.7f * hudA));
+          P.rect(sx + i, sy + j, 1, 1, fa(sc));
+        }
+    }
   }
   colText(T + 100 + kdy, dayStr, fa(kDim));
   if (!touchUI) { P.textS(R - 24, T + 7, "TAB", 1, kDim, 1); }
@@ -587,7 +650,7 @@ void View::drawHud(Game& g) {
     const Quest* q = g.questById(g.trackedQuest);
     if (q && q->state != QState::Done) {
       const std::string obj = trackedStep(g, *q);
-      std::string t = q->title.size() > 22 ? q->title.substr(0, 22) : q->title;
+      const std::string t = hudQuestTitle(q->title);
       colText(T + 112 + kdy, t, fa(kGold));
       if (!obj.empty()) {
         const size_t nl = obj.find('\n');
@@ -601,7 +664,10 @@ void View::drawHud(Game& g) {
         Vec2 sc = tgt - Vec2(std::floor(cam_.x), std::floor(cam_.y));
         bool on = sc.x > L + 10 && sc.y > T + 10 && sc.x < R - 10 && sc.y < B - 10;
         float dist = len(tgt - p.p) / 16;
-        if (!on) {
+        // (fixer M4 r1, review: "the compass chevron draws over the dialogue panel's border") no compass while a
+        // dialogue panel is open: the panel is modal and sits above the world's markers
+        if (!on && g.mode == Mode::Dialogue) {
+        } else if (!on) {
           // the arrow rides the edge of the safe area, around its centre
           Vec2 c((L + R) / 2.0f, (T + B) / 2.0f);
           Vec2 d = norm(sc - c);
@@ -615,6 +681,13 @@ void View::drawHud(Game& g) {
           // (M3c fixer, review: "the compass distance strikes through the biome banner") while the first-visit biome
           // banner shows at the top centre, the arrow and its distance keep out of its strip: along the top edge they
           // slide out past its ends, lower down they drop below it
+          if (herald_.t > 0 && g.mode == Mode::Play) {   // (M4) and out of the herald's ribbon
+            const float half = (float)P.textW(herald_.title, 1) / 2 + 40, by1 = T + 40, mx = Pix::W / 2.0f;
+            if (a.y < by1 && std::fabs(a.x - mx) < half + 30) {
+              if (a.y <= T + 20) a.x = a.x < mx ? mx - half - 30 : mx + half + 30;
+              else a.y = std::max(a.y, by1);
+            }
+          }
           if (biomeBannerT_ > 0 && !biomeBanner_.empty() && bannerT_ <= 0 && g.mode == Mode::Play) {
             const float half = std::min((float)P.textW(biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70);
             const float by1 = T + 30 + 11 + 14;
@@ -689,6 +762,10 @@ void View::drawHud(Game& g) {
           }
           // never into the HUD: above the screen top or behind the vitals block, it sits just over the door instead
           if (pinY - 11 < T + 6 || (sc.x < L + 160 && pinY - 11 < T + 46)) pinY = sc.y - 22;
+          // (fixer M4 r1, review: "the quest diamond draws over the arrow counter") still under the HUD's top-left block
+          // (vitals, gold, arrows) or the top edge: the pin is not drawn (the target is right there on screen)
+          const bool underHud = pinY - 12 < T + 4 || (sc.x - 6 < L + 160 && pinY - 12 < T + 52) || (g.mode == Mode::Dialogue);
+          if (!underHud) {
           const int bob = (int)std::lround(std::sin(t_ * 4) * 1.2f);
           static const char* kPin[12] = {
               "....ooo....", "...oHYYo...", "..oHYYYSo..", ".oHYYYYYSo.", "oHYYYWYYYSo", "oYYYWWWYYSo",
@@ -706,6 +783,7 @@ void View::drawHud(Game& g) {
                 P.rect((float)(x0 + c), (float)(y0 + r), 1, 1,
                        ch == 'o' ? outline : ch == 'H' ? hi : ch == 'S' ? goldShade : ch == 'W' ? core : gold);
               }
+          }
         }
       }
     }
@@ -789,7 +867,7 @@ void View::drawHud(Game& g) {
   }
   // (M3c LIFE) the first visit to a biome: its name, quietly, under the location column's height at the top centre
   // (small type between two short gold rules; it fades in and out and waits for a big banner to finish)
-  if (biomeBannerT_ > 0 && !biomeBanner_.empty() && (bannerT_ <= 0 || g.mode == Mode::Dialogue) && g.mode == Mode::Play && !g.inside) {
+  if (biomeBannerT_ > 0 && !biomeBanner_.empty() && (bannerT_ <= 0 || g.mode == Mode::Dialogue) && herald_.t <= 0 && g.mode == Mode::Play && !g.inside) {
     const float a = clampf(std::min(biomeBannerT_, 4.0f - biomeBannerT_) * 1.6f, 0, 1);
     const float y = T + 30;
     const float tw = (float)P.textW(biomeBanner_, 1);
@@ -802,15 +880,24 @@ void View::drawHud(Game& g) {
   }
   // banner
   if (bannerT_ > 0 && g.mode != Mode::Dialogue) {
-    float a = clampf(std::min(bannerT_, 4.0f - bannerT_) * 2.5f, 0, 1);
+    const float a0 = clampf(std::min(bannerT_, 4.0f - bannerT_) * 2.5f, 0, 1);
+    // (fixer M4 r3, review: "a ghost of the town name stays on the ground after the plate fades") the plate fades last:
+    // the words go first (a squared), so no name ever floats over the street without its dark plate under it
+    const float plateA = std::min(1.0f, a0 * 1.6f), a = a0 * a0;
     float y = T + 56;
-    P.rect(0, y - 6, Pix::W, 34, Color(0, 0, 0, 0.45f * a));
+    P.rect(0, y - 6, Pix::W, 34, Color(0, 0, 0, 0.45f * plateA));
     P.rect(Pix::W / 2 - 90, y - 6, 180, 1, Color(kGold.r, kGold.g, kGold.b, a * 0.8f));
     P.rect(Pix::W / 2 - 90, y + 27, 180, 1, Color(kGold.r, kGold.g, kGold.b, a * 0.8f));
     P.textS(Pix::W / 2, y, banner_, 1, Color(kGold.r, kGold.g, kGold.b, a), 1);
     P.textS(Pix::W / 2 + 1, y + 11, bannerSub_, 2, Color(0, 0, 0, a * 0.5f), 1);
     P.textS(Pix::W / 2, y + 10, bannerSub_, 2, Color(1, 0.97f, 0.9f, a), 1);
+    if (!bannerState_.empty()) {   // (M4) the settlement's state under its name, in its colour
+      const Color sc = col(bannerStateCol_ ? bannerStateCol_ : rgba(236, 120, 90));
+      P.rect(0, y + 28, Pix::W, 11, Color(0, 0, 0, 0.45f * plateA));
+      P.textS(Pix::W / 2, y + 30, bannerState_, 1, Color(sc.r, sc.g, sc.b, a), 1);
+    }
   }
+  drawHerald(g);
 }
 
 // Toasts (items received, quest steps, notices): a column on the left under the vitals, clear of the thumbs (the
@@ -823,6 +910,9 @@ void View::drawToasts() {
   const int per = std::max(16, (int)((R - 166 - (L + 6)) / 6));
   const float bottom = B - (touchUI ? 86.0f : 30.0f);
   float ty = (float)Pix::ST + 92;
+  // (fixer M4 r2) the full-width banner (T+50 .. T+84, its state line to T+95) is never written over: the column
+  // starts under it while it shows
+  if (bannerT_ > 0) ty = std::max(ty, (float)Pix::ST + 56 + (bannerState_.empty() ? 30.0f : 42.0f));
   int shown = 0;
   for (int i = (int)toasts_.size() - 1; i >= 0 && shown < 5; i--, shown++) {
     const Toast& t = toasts_[i];
@@ -974,8 +1064,14 @@ void View::drawMinimap(Game& g, float x, float y, int size) {
           if (m.kind == MapKind::Overworld && !m.eco.empty() &&
               (gr == Ground::Grass || gr == Ground::Meadow || gr == Ground::ForestFloor || gr == Ground::Tundra || gr == Ground::Autumn ||
                gr == Ground::Swamp || gr == Ground::Sand || gr == Ground::Snow)) {
-            const EcoInfo& ei = ecoInfo(m.ecoAt(tx, ty));
+            const Eco te = m.ecoAt(tx, ty);
+            const EcoInfo& ei = ecoInfo(te);
             k = art::mix(k, rgba(ei.r, ei.g, ei.b), 0.7f);
+            // (M4) a flower meadow is flecked with blooms (it read as the plain meadow's green)
+            if (te == Eco::FlowerMeadow && gr != Ground::Sand && gr != Ground::Snow) {
+              const uint32_t fh = hash32((uint32_t)(tx + g.world.ox) * 73856093u ^ (uint32_t)(ty + g.world.oy) * 19349663u);
+              if (fh % 5u == 0) k = (fh >> 8) % 2u ? rgba(236, 150, 172) : rgba(244, 216, 100);
+            }
           }
           // (M2 fixer) the view's snowline (terrain.cpp reliefPixel): taiga and snowfields from level 4, mountains from
           // 5 lie under snow, so the minimap shows them white as the world does
@@ -1121,11 +1217,16 @@ void View::drawMenu(Game& g) {
       break;
     }
     case 1: {   // quests: the journal on the left, the picked quest beside it
+      // (M4) a section strip over the list: QUESTS | NEWS | HISTORY (realm_hud.cpp)
+      drawJournalStrip(questCols().lx, questCols().lw, top);
+      if (journalSec_ != 0) { drawJournalSection(g, top + journalStripH()); break; }
+      top += journalStripH();
       std::vector<int> order;
       for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state != QState::Done) order.push_back(i);
       for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state == QState::Done) order.push_back(i);
       menuSel_ = std::clamp(menuSel_, 0, std::max(0, (int)order.size() - 1));
-      const MenuLay L = menuLay(touchUI);
+      MenuLay L = menuLay(touchUI);
+      L.rows = std::max(3, L.rows - (int)std::ceil(journalStripH() / L.pitch));
       const Cols C = questCols();
       if (menuSel_ < menuScroll_) menuScroll_ = menuSel_;
       if (menuSel_ >= menuScroll_ + L.rows) menuScroll_ = menuSel_ - L.rows + 1;
@@ -1140,10 +1241,10 @@ void View::drawMenu(Game& g) {
         P.text(C.lx + 4, y, (q.id == g.trackedQuest ? "> " : "  ") + fitText(q.title, C.lw - 20), 1, c);
       }
       pager(C, L, menuScroll_, (int)order.size());
-      P.rect(C.div, top + 8, 1, Pix::H - top - 24, Color(0.4f, 0.32f, 0.2f));
+      P.rect(C.div, top - journalStripH() + 8, 1, Pix::H - (top - journalStripH()) - 24, Color(0.4f, 0.32f, 0.2f));
       if (!order.empty()) {
         const Quest& q = g.quests[order[menuSel_]];
-        float y = top + 12;
+        float y = top - journalStripH() + 12;
         const int per = std::max(10, (int)(C.dw / 6));
         for (const std::string& l : wrap(q.title, per)) { P.text(C.dx, y, l, 1, q.type == QType::Main ? kGold : kText); y += 10; }
         y += 2;
@@ -1167,7 +1268,7 @@ void View::drawMenu(Game& g) {
         if (q.type == QType::Main && q.stage == 1) { P.text(C.dx, fy, "EMBER SHARDS " + std::to_string(q.have) + "/3", 1, kGold); fy += 12; }
         if (rew) P.text(C.dx, fy, "REWARD " + std::to_string(q.gold) + " GOLD", 1, kGold);
         if (q.state != QState::Done) button(C.dx, L.trackY, std::min(C.dw, touchUI ? 140.0f : 110.0f), L.trackH, q.id == g.trackedQuest ? "TRACKED" : "TRACK", q.id == g.trackedQuest);
-      } else P.text(C.dx, top + 14, "NO QUESTS YET", 1, kDim);
+      } else P.text(C.dx, top - journalStripH() + 14, "NO QUESTS YET", 1, kDim);
       break;
     }
     case 2:   // map (worldmap.cpp, M2: the whole tab - the map, its side column, legend and travel)
@@ -1629,8 +1730,8 @@ void View::menuKey(Game& g, int key) {
     if (key == SDLK_ESCAPE || key == SDLK_TAB || key == SDLK_I) { back(); return; }
     // (M1) on the MAP tab Q / E zoom (worldMapKey); PageUp / PageDown and A / D still switch tabs there
     const bool mapQE = menuTab_ == 2 && g.mode == Mode::Menu && (key == SDLK_Q || key == SDLK_E);
-    if (!mapQE && (key == SDLK_Q || key == SDLK_PAGEUP)) { menuTab_ = tabStep(menuTab_, -1); menuSel_ = 0; audio_->play(Sfx::MenuMove); return; }
-    if (!mapQE && (key == SDLK_E || key == SDLK_PAGEDOWN)) { menuTab_ = tabStep(menuTab_, 1); menuSel_ = 0; audio_->play(Sfx::MenuMove); return; }
+    if (!mapQE && (key == SDLK_Q || key == SDLK_PAGEUP)) { menuTab_ = tabStep(menuTab_, -1); menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; audio_->play(Sfx::MenuMove); return; }
+    if (!mapQE && (key == SDLK_E || key == SDLK_PAGEDOWN)) { menuTab_ = tabStep(menuTab_, 1); menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; audio_->play(Sfx::MenuMove); return; }
     if (menuTab_ == 5 && g.mode == Mode::Menu) { paperdollKey(g, key); return; }
     if (menuTab_ == 3 && g.perkPts > 0) {
       if (key == SDLK_UP || key == SDLK_W) levelSel_ = (levelSel_ + 2) % 3;
@@ -1639,10 +1740,12 @@ void View::menuKey(Game& g, int key) {
       return;
     }
     if (menuTab_ == 2 && mapTabKey(g, key)) return;   // worldmap.cpp
+    if (menuTab_ == 1 && key == SDLK_N) { setJournalSection((journalSec_ + 1) % 3); audio_->play(Sfx::MenuMove); return; }   // (M4) the journal's sections
+    if (menuTab_ == 1 && journalSec_ != 0 && (key == SDLK_RETURN || key == SDLK_SPACE)) return;
     if (key == SDLK_UP || key == SDLK_W) { menuSel_ = std::max(0, menuSel_ - 1); audio_->play(Sfx::MenuMove); }
     if (key == SDLK_DOWN || key == SDLK_S) { menuSel_++; audio_->play(Sfx::MenuMove); }
-    if (key == SDLK_LEFT || key == SDLK_A) { menuTab_ = tabStep(menuTab_, -1); menuSel_ = 0; }
-    if (key == SDLK_RIGHT || key == SDLK_D) { menuTab_ = tabStep(menuTab_, 1); menuSel_ = 0; }
+    if (key == SDLK_LEFT || key == SDLK_A) { menuTab_ = tabStep(menuTab_, -1); menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; }
+    if (key == SDLK_RIGHT || key == SDLK_D) { menuTab_ = tabStep(menuTab_, 1); menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; }
     if (key == SDLK_RETURN || key == SDLK_SPACE) {
       if (menuTab_ == 0 && menuSel_ < (int)g.inv.size()) g.useItem(menuSel_);
       if (menuTab_ == 1) {
@@ -1651,7 +1754,7 @@ void View::menuKey(Game& g, int key) {
         if (menuSel_ < (int)order.size()) g.trackedQuest = g.quests[order[menuSel_]].id;
       }
       if (menuTab_ == 4) {
-        if (menuSel_ == 0) { wantSave = true; banner_ = "GAME SAVED"; bannerSub_ = ""; bannerT_ = 2; }
+        if (menuSel_ == 0) { wantSave = true; banner_ = "GAME SAVED"; bannerSub_ = ""; bannerState_.clear(); bannerT_ = 2; }
         if (menuSel_ == 1) { openSettings(); audio_->play(Sfx::MenuSelect); }
         if (menuSel_ == 2) touchUI = !touchUI;
         if (menuSel_ == 3) { wantSave = true; wantsQuit = true; }
@@ -1768,7 +1871,7 @@ void View::tap(Game& g, Vec2 p) {
     if (touchUI ? inR(T.xX - 2, 0, T.xW + 18, T.xY + T.xH + 6) : inR(T.xX, T.xY, T.xW, T.xH)) { g.mode = Mode::Play; return; }
     for (int i = 0; i < NTABS; i++)
       if (touchUI ? inR(T.x0 - 2 + i * T.tw, 0, T.tw, T.y + T.h + 2) : inR(T.x0 + i * T.tw, T.y, T.tw - 4, T.h)) {
-        menuTab_ = kTabOrder[i]; menuSel_ = 0; menuScroll_ = 0; mapSel_ = -1; audio_->play(Sfx::MenuMove); return;
+        menuTab_ = kTabOrder[i]; menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; menuScroll_ = 0; mapSel_ = -1; audio_->play(Sfx::MenuMove); return;
       }
     float top = 34;
     const MenuLay L = menuLay(touchUI);
@@ -1807,6 +1910,11 @@ void View::tap(Game& g, Vec2 p) {
         break;
       }
       case 1: {
+        if (journalStripTap(p, questCols().lx, questCols().lw, top)) return;
+        if (journalSec_ != 0) { journalSectionTap(g, p, top + journalStripH()); return; }
+        top += journalStripH();
+        MenuLay L = menuLay(touchUI);
+        L.rows = std::max(3, L.rows - (int)std::ceil(journalStripH() / L.pitch));
         std::vector<int> order;
         for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state != QState::Done) order.push_back(i);
         for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state == QState::Done) order.push_back(i);
@@ -1835,7 +1943,7 @@ void View::tap(Game& g, Vec2 p) {
       case 4: {
         const float sh = L.sysH, pitch = sh + 6;
         const float bw = std::clamp(std::floor(Pix::W * 0.36f), 140.0f, 220.0f), bx = std::floor((Pix::W - bw) / 2), by = sysTop(top, sh, touchUI);
-        if (inR(bx, by, bw, sh)) { menuSel_ = 0; wantSave = true; banner_ = "GAME SAVED"; bannerSub_ = ""; bannerT_ = 2; }
+        if (inR(bx, by, bw, sh)) { menuSel_ = 0; wantSave = true; banner_ = "GAME SAVED"; bannerSub_ = ""; bannerState_.clear(); bannerT_ = 2; }
         if (inR(bx, by + pitch, bw, sh)) { menuSel_ = 1; openSettings(); audio_->play(Sfx::MenuSelect); }
         if (inR(bx, by + pitch * 2, bw, sh)) { menuSel_ = 2; touchUI = !touchUI; }
         if (inR(bx, by + pitch * 3, bw, sh)) { wantSave = true; wantsQuit = true; }

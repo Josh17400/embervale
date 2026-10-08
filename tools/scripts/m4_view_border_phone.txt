@@ -1,0 +1,13 @@
+# M4 VIEW lane: the border herald at the iPhone review size (639x294 logical, notch-side safe area, touch layout).
+#   embervale.exe --script tools/scripts/m4_view_border_phone.txt
+seed 2
+phone
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.1 touch 1
++0.5 crossborder 0
++2.0 stepborder
++0.4 expect herald OF
++0.1 shot m4_view_border_phone.png
++0.3 quit

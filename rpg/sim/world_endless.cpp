@@ -67,6 +67,11 @@ void applyChunk(World& W, const ew::ChunkData& c, bool tiles) {
       Site& s = W.sites[(size_t)sh];
       if (s.bldgCount == 0) s.bldgFirst = bi;
       s.bldgCount = bi + 1 - s.bldgFirst;
+      // (M4) a site the realm gave to another kingdom flies its owner's banners on buildings streamed in later
+      if (b.banner && s.kingdom != s.homeKingdom && s.kingdom >= 0) {
+        const Kingdom& K = W.kingdoms[(size_t)s.kingdom];
+        if (K.color) { b.banner = K.color; b.banner2 = K.color2; b.emblem = K.emblem; }
+      }
     }
     W.bldgById[b.id] = bi;
     over.bldgs.push_back(b);
@@ -289,6 +294,35 @@ int World::addKingdom(ew::Gid id) {
   return (int)kingdoms.size() - 1;
 }
 
+int World::addKingdomRecord(const Kingdom& k) {
+  if (!k.id) return -1;
+  auto it = kingdomById.find(k.id);
+  if (it != kingdomById.end()) { kingdoms[(size_t)it->second] = k; return it->second; }
+  kingdomById[k.id] = (int)kingdoms.size();
+  kingdoms.push_back(k);
+  return (int)kingdoms.size() - 1;
+}
+
+void World::setSiteOwner(int site, ew::Gid owner) {
+  if (site < 0 || site >= (int)sites.size()) return;
+  Site& s = sites[(size_t)site];
+  const int kh = owner ? addKingdom(owner) : -1;
+  if (owner && kh < 0) return;   // an unknown kingdom (neither planned nor recorded by addKingdomRecord): keep the old owner
+  if (s.kingdom == kh) return;
+  s.kingdom = kh;
+  // the banners its buildings fly follow the owner (buildings without a banner keep none; an ownerless place keeps the
+  // last colours: what an abandoned place shows is the WARDS lane's overlay). Buildings streamed in later get the
+  // owner's colours as they arrive (streamChunk).
+  const Kingdom* K = kh >= 0 ? &kingdoms[(size_t)kh] : nullptr;
+  for (int i = 0; i < s.bldgCount; i++) {
+    const int bi = s.bldgFirst + i;
+    if (bi < 0 || bi >= (int)over.bldgs.size()) break;
+    Bldg& b = over.bldgs[(size_t)bi];
+    if (b.site != site || !b.banner) continue;
+    if (K) { b.banner = K->color ? K->color : b.banner; b.banner2 = K->color2; b.emblem = K->emblem; }
+  }
+}
+
 int World::addSitePlan(const ew::SitePlan& p) {
   auto it = siteById.find(p.id);
   if (it != siteById.end()) return it->second;
@@ -317,9 +351,17 @@ int World::addSitePlan(const ew::SitePlan& p) {
   siteById[p.id] = h;
   sites.push_back(s);
   sites[(size_t)h].kingdom = addKingdom(p.kingdom);
+  sites[(size_t)h].homeKingdom = sites[(size_t)h].kingdom;   // (M4) the genesis owner; the realm may change kingdom
   const IRect& r = sites[(size_t)h].r;
   if (r.x + r.w > -NEAR_MARGIN && r.y + r.h > -NEAR_MARGIN && r.x < WIN + NEAR_MARGIN && r.y < WIN + NEAR_MARGIN) nearSites.push_back(h);
   return h;
+}
+
+// (M4) an id whose region lies inside World's End (plus a margin): a damaged save's random bytes almost never do, and
+// planning their far-off regions one by one could take minutes
+static bool idInWorld(ew::Gid id) {
+  constexpr int32_t R = ew::WORLD_EDGE / ew::REGION + 8;
+  return std::abs(ew::idRx(id)) <= R && std::abs(ew::idRy(id)) <= R;
 }
 
 int World::ensureSite(ew::Gid id) {
@@ -327,6 +369,7 @@ int World::ensureSite(ew::Gid id) {
   int h = siteHandle(id);
   if (h >= 0 || !endless || !src) return h;
   if (ew::idKind(id) != ew::IdKind::Site) return -1;   // not a site id at all (a damaged save): nothing to load
+  if (!idInWorld(id)) return -1;   // (M4) beyond World's End: a damaged save's garbage id (never plan such a region)
   const ew::RegionPlan R = regionPlan(ew::idRx(id), ew::idRy(id));
   for (const ew::SitePlan& p : R.sites) if (p.id == id) return addSitePlan(p);
   return -1;
@@ -336,7 +379,7 @@ int World::ensureDen(ew::Gid id) {
   if (!id) return -1;
   auto it = denById.find(id);
   if (it != denById.end()) return it->second;
-  if (!endless || !src || ew::idKind(id) != ew::IdKind::Den) return -1;
+  if (!endless || !src || ew::idKind(id) != ew::IdKind::Den || !idInWorld(id)) return -1;
   const ew::RegionPlan R = regionPlan(ew::idRx(id), ew::idRy(id));
   for (const ew::DenPlan& dp : R.dens) {
     if (denById.count(dp.id)) continue;

@@ -7,6 +7,7 @@
 #include <vector>
 #include "engine/audio.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/war.h"
 #include "rpg/world/economy.h"
 
 using art::Monster;
@@ -77,6 +78,7 @@ int Game::homeDoor(Actor& a) {
   for (int b = s.bldgFirst; b < s.bldgFirst + s.bldgCount && b < (int)m.bldgs.size(); b++) {
     const Bldg& B = m.bldgs[b];
     if (m.blocked(B.doorX(), B.doorY() + 1)) continue;   // a door you can't stand in front of
+    if (B.charred == 2 || B.site != a.site) continue;      // (M4) a burned-out shell shelters nobody
     float d = len(tileCentre(B.doorX(), B.doorY() + 1) - a.home);
     bool home = B.type == art::Building::House || B.type == art::Building::StoneHouse || B.type == art::Building::Farmhouse || B.type == art::Building::Hut;
     if (!home) d *= 1.6f;
@@ -219,31 +221,59 @@ void Game::updateFolk(Actor& a, float dt) {
   if (town) { auto it = alarms_.find(a.site); if (it != alarms_.end()) al = &it->second; }
   const bool ringing = al && al->ringing;
   const bool hurt = a.militia && a.hp < a.maxHp * 0.4f;   // militia run when badly hurt
-  const bool guard = a.role == Role::Guard;
+  // (M4) a kingdom's soldiers and captains (road patrols, siege camps, checkpoints) fight like the watch
+  const bool soldier = a.role == Role::Soldier || a.role == Role::Captain;
+  const bool guard = a.role == Role::Guard || soldier;
   if (guard || (a.militia && !hurt)) {
-    a.thinkT -= dt;
+    // (M4) a militiaman looks for the beast on his own clock (Actor::special, unused by townsfolk): thinkT is also the
+    // stroll's timer and the flight's (fleeing pins it at 1 s), which kept militia from ever taking up arms once they
+    // had started to run, or for up to six seconds after a stroll began
+    float& thinkClock = (a.militia && !guard) ? a.special : a.thinkT;
+    thinkClock -= dt;
     if (a.unreachT > 0) a.unreachT -= dt;
-    if (a.thinkT <= 0) {
-      a.thinkT = 0.4f;
+    if (thinkClock <= 0) {
+      thinkClock = 0.4f;
       a.target = -1;
       float bd = 1e30f;
       const Site* st = town ? &world.sites[a.site] : nullptr;
-      for (int hi : hostiles_) {
-        if (hi < 0 || hi >= (int)actors.size()) continue;
-        const Actor& e = actors[(size_t)hi];
-        if (e.player || e.st == AState::Dead || e.fly || !factionsHostile(a.faction, e.faction)) continue;
-        if (e.id == a.unreach && a.unreachT > 0) continue;   // no way to it from here: leave it for someone else
+      auto consider = [&](const Actor& e) {
+        if (e.id == a.id || e.st == AState::Dead || e.fly || e.indoors || !warFoes(*this, a, e)) return;
+        if (e.id == a.unreach && a.unreachT > 0) return;   // no way to it from here: leave it for someone else
         float d2 = len2(e.p - a.p);
         bool nearMe = d2 < (guard ? 110.0f * 110.0f : 90.0f * 90.0f);
         bool inTown = false;
-        if (guard && (ringing || e.aggro) && st) {   // the bell (or a beast on the hunt in town) calls every guard: converge on anything inside the walls
+        if (a.role == Role::Guard && st) {
+          // the bell (or a beast on the hunt in town, M4: or anything hostile walking the streets) calls every guard:
+          // converge on anything inside the walls
           int tx = tileX(e.p), ty = tileY(e.p);
-          inTown = tx >= st->r.x - 4 && ty >= st->r.y - 4 && tx < st->r.x + st->r.w + 4 && ty < st->r.y + st->r.h + 4;
+          const bool inside4 = tx >= st->r.x - 4 && ty >= st->r.y - 4 && tx < st->r.x + st->r.w + 4 && ty < st->r.y + st->r.h + 4;
+          const bool inside1 = tx >= st->r.x - 1 && ty >= st->r.y - 1 && tx < st->r.x + st->r.w + 1 && ty < st->r.y + st->r.h + 1;
+          inTown = ((ringing || e.aggro) && inside4) || (inside1 && !e.npc && !e.player);
+        } else if (a.militia && st && ringing) {
+          // (M4) the bell calls the militia too: a beast in their own lanes is theirs to fight (a frontier village has
+          // no one else)
+          int tx = tileX(e.p), ty = tileY(e.p);
+          inTown = !e.npc && !e.player && tx >= st->r.x - 1 && ty >= st->r.y - 1 && tx < st->r.x + st->r.w + 1 && ty < st->r.y + st->r.h + 1;
         }
-        if (!nearMe && !inTown) continue;
-        if (a.militia && len2(e.p - a.home) > (10.0f * TILE) * (10.0f * TILE)) continue;   // militia defend their own street
+        if (soldier) nearMe = d2 < 130.0f * 130.0f;   // soldiers in the field keep a wider eye
+        if (!nearMe && !inTown) return;
+        // militia defend their own street (M4: further from home while the bell rings; in a frontier village, where no
+        // watch will come, the whole village is theirs to defend)
+        const float reachM = ringing ? (warFrontier(*this, a.site) ? 40.0f : 16.0f) : 10.0f;
+        if (a.militia && len2(e.p - a.home) > (reachM * TILE) * (reachM * TILE)) return;
+        // a guard posted at a besieged gate, or a soldier of a camp, keeps to its post against the men across the field
+        // unless they come close (the war is the realm's; the street fights are the player's to start)
+        if (e.npc && e.faction == Faction::Army && !e.hostile && !a.hostile && d2 > 70.0f * 70.0f && !inTown) return;
         if (d2 < bd) { bd = d2; a.target = e.id; }
-      }
+      };
+      for (int hi : hostiles_)
+        if (hi >= 0 && hi < (int)actors.size()) consider(actors[(size_t)hi]);
+      // the watch fights soldiers of an enemy kingdom (in hostiles_) and, when hostile to the player, the player; a
+      // soldier also fights the guards of the town it besieges (guards are no "hostiles" of the townsfolk)
+      if (a.hostile && pl().st != AState::Dead) consider(pl());
+      if (soldier || a.hostile)
+        for (size_t k = 1; k < actors.size(); k++)
+          if (actors[k].npc && actors[k].realm && !actors[k].hostile && actors[k].faction != Faction::Army) consider(actors[k]);
     }
     int ti = a.target >= 0 ? findActor(a.target) : -1;
     if (ti >= 0 && actors[ti].st != AState::Dead && !actors[ti].fly) {
@@ -266,7 +296,7 @@ void Game::updateFolk(Actor& a, float dt) {
         if (!navStep(a, t.p, chase, dt)) {
           // no path (a wall, water or a house row in between): don't grind against it; give the target up for a
           // while unless it is right there
-          if (l > 3.0f * TILE) { a.unreach = t.id; a.unreachT = 6.0f; a.target = -1; a.thinkT = 0; a.st = AState::Idle; return; }
+          if (l > 3.0f * TILE) { a.unreach = t.id; a.unreachT = 6.0f; a.target = -1; thinkClock = 0; a.st = AState::Idle; return; }
           moveActor(a, a.aim * (chase * dt));
         }
         a.st = AState::Walk;
@@ -277,17 +307,32 @@ void Game::updateFolk(Actor& a, float dt) {
     if (a.militia) a.look.weapon = calmTool(a.role);
   }
   if (talking) { a.face = faceOf(p.p - a.p); a.st = AState::Idle; return; }
+  // (M4) soldiers and refugees go where the war sends them (war_game.cpp sets a.goal each step; a.special the pace)
+  if (soldier || a.role == Role::Refugee) {
+    const Vec2 d = a.goal - a.p;
+    const float l = len(d);
+    const float pace = a.special > 0 ? a.special : 0.5f;
+    if (l > 4.0f) {
+      if (!navStep(a, a.goal, a.speed * pace, dt)) moveActor(a, d * (a.speed * pace * dt / l));
+      a.st = AState::Walk;
+    } else a.st = AState::Idle;
+    return;
+  }
   // townsfolk run home and hide from monsters on the loose (and from the bell); they come back out when it's over
   if (town && !guard) {
     const Actor* threat = nullptr;
     float td = 150.0f * 150.0f;   // (M2: from 100 px; folk start running sooner)
     // a threat is a monster on the hunt (aggro) or one right beside them; a pack dozing at its den by the
-    // fields does not send the whole street indoors
+    // fields does not send the whole street indoors. (M4) A beast walking the streets themselves is a threat however
+    // calm it looks (villagers no longer stroll past a wolf in the lane), and so are a kingdom's soldiers storming it
+    const Site& home = world.sites[a.site];
     for (int hi : hostiles_) {
       if (hi < 0 || hi >= (int)actors.size()) continue;
       const Actor& e = actors[(size_t)hi];
-      if (!e.player && e.st != AState::Dead && !e.fly && factionsHostile(a.faction, e.faction) && len2(e.p - a.p) < td &&
-          (e.aggro || len2(e.p - a.p) < 48.0f * 48.0f)) { td = len2(e.p - a.p); threat = &e; }
+      if (e.player || e.st == AState::Dead || e.fly || len2(e.p - a.p) >= td || !warFoes(*this, a, e)) continue;
+      const int ex = tileX(e.p), ey = tileY(e.p);
+      const bool inStreets = !e.npc && ex >= home.r.x && ey >= home.r.y && ex < home.r.x + home.r.w && ey < home.r.y + home.r.h;
+      if (e.aggro || inStreets || len2(e.p - a.p) < 48.0f * 48.0f) { td = len2(e.p - a.p); threat = &e; }
     }
     if (threat || ringing) {
       if (threat) alarms_[a.site].lastThreatT = time;
@@ -426,9 +471,13 @@ void Game::updateTownDefence(float dt) {
     if (!isSettlement(st.type)) continue;
     SiteAlarm& al = alarms_[si];
     int n = 0, near = 0;   // inside the footprint (the bell) / prowling at its edge (keeps folk indoors)
+    const ew::Gid ownerK = st.kingdom >= 0 ? world.kingdoms[(size_t)st.kingdom].id : 0;
     for (int hi : hostiles_) {
       const Actor& e = actors[(size_t)hi];
-      if (e.player || e.st == AState::Dead || !factionsHostile(Faction::Town, e.faction)) continue;
+      if (e.player || e.st == AState::Dead) continue;
+      // (M4) a kingdom's soldiers at war with the owner, storming its streets, ring the bell too
+      const bool enemyArmy = e.faction == Faction::Army && e.realm && ownerK && e.realm != ownerK && realm.atWar(e.realm, ownerK);
+      if (!factionsHostile(Faction::Town, e.faction) && !enemyArmy) continue;
       int tx = tileX(e.p), ty = tileY(e.p);
       bool in = tx >= st.r.x - 1 && ty >= st.r.y - 1 && tx < st.r.x + st.r.w + 1 && ty < st.r.y + st.r.h + 1;
       if (in) n++;
@@ -514,8 +563,9 @@ void Game::updateAI(Actor& a, float dt) {
   float slow = a.slowT > 0 ? 0.55f : 1.0f;
   if (a.st == AState::Hurt) { if (a.stT > 0.25f) { a.st = AState::Idle; a.stT = 0; } return; }
 
-  // ---- friendly NPCs
-  if (!a.hostile) { updateFolk(a, dt); return; }
+  // ---- friendly NPCs (M4: and the kingdoms' men-at-arms even when they are the player's enemies: a guard of a town the
+  //      player assaults, an enemy patrol, a besieger's soldier fight as soldiers, not as beasts)
+  if (!a.hostile || (a.npc && a.human && (a.role == Role::Guard || a.role == Role::Soldier || a.role == Role::Captain))) { updateFolk(a, dt); return; }
 
   // ---- hostiles: fight the nearest enemy (the player counted 1.5x closer); the leash only holds outside towns
   a.thinkT -= dt;

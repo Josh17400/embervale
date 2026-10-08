@@ -1,0 +1,24 @@
+# M4 STORY lane: rumours (VISION_PLAN 4.6). The start village is put under siege; its innkeeper sells the news first
+# (a realm event the player has not heard comes before directions), in the village's culture voice; a guard talks of
+# the war. The news is heard (the News journal, Ev::News).
+#   embervale.exe --script tools/scripts/m4_story_rumours.txt     (m4_story_r*.png in the working directory)
+seed 2
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.5 realm siege 0
++0.2 expect realm besieged 0
++0.3 enter inn
++0.3 walkto innkeeper
++0.1 key E
++0.3 expect option BUY A RUMOUR
++0.1 choose BUY A RUMOUR
++2.5 shot m4_story_r1_innkeeper.png
++0.1 expect news SIEGE
++0.1 key Escape
++0.3 walkto exit
++0.5 story speak guard
++2.5 shot m4_story_r2_guard.png
++0.1 key Escape
++0.3 expect news
++0.3 quit

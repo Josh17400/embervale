@@ -600,7 +600,7 @@ void View::spawnParticles(const Event& e, Game& g) {
       break;
     }
     case Ev::Discover: {
-      banner_ = "DISCOVERED"; bannerSub_ = e.s; bannerT_ = 4.0f;
+      banner_ = "DISCOVERED"; bannerSub_ = e.s; bannerT_ = 4.0f; bannerState_.clear();
       // (M2) what was found heads the line: "DISCOVERED - HUNTER'S CAMP", "WONDER DISCOVERED - ELDER TREE" (a settlement
       // keeps the plain word: the arrival banner adds its trade and kingdom to it in update())
       if (e.a >= 0 && e.a < (int)g.world.sites.size()) {
@@ -611,7 +611,7 @@ void View::spawnParticles(const Event& e, Game& g) {
       break;
     }
     case Ev::LevelUp:
-      banner_ = "LEVEL UP"; bannerSub_ = "LEVEL " + std::to_string(e.a) + "  -  CHOOSE A STAT IN THE MENU"; bannerT_ = 4.5f;
+      banner_ = "LEVEL UP"; bannerSub_ = "LEVEL " + std::to_string(e.a) + "  -  CHOOSE A STAT IN THE MENU"; bannerT_ = 4.5f; bannerState_.clear();
       // a bigger moment: a layered fanfare, two rings of light and a column of rising sparks
       audio_->play(Sfx::LevelUp, 0.5f, 1.2f);
       audio_->play(Sfx::QuestDone, 1.5f, 0.8f);
@@ -624,7 +624,7 @@ void View::spawnParticles(const Event& e, Game& g) {
     case Ev::QuestUpdate: {
       // the same line already showing as the centre notice (Game::say) is not repeated as a toast
       if (!(g.noticeT > 0 && g.notice == e.s)) { Toast t; t.s = e.s; t.c = e.f == 1 ? Color(1, 0.85f, 0.3f) : Color(0.9f, 0.85f, 0.7f); toasts_.push_back(t); }
-      if (e.f == 0 || e.f == 1) { banner_ = e.f == 1 ? "QUEST COMPLETE" : "NEW QUEST"; bannerSub_ = e.s.substr(e.s.find(':') == std::string::npos ? 0 : e.s.find(':') + 2); bannerT_ = 3.5f; }
+      if (e.f == 0 || e.f == 1) { bannerState_.clear(); banner_ = e.f == 1 ? "QUEST COMPLETE" : "NEW QUEST"; bannerSub_ = e.s.substr(e.s.find(':') == std::string::npos ? 0 : e.s.find(':') + 2); bannerT_ = 3.5f; }
       break;
     }
     case Ev::Notice: {
@@ -632,6 +632,8 @@ void View::spawnParticles(const Event& e, Game& g) {
       break;
     }
     case Ev::Shake: shake_ = std::max(shake_, e.f); break;
+    case Ev::Border: heraldEvent(g, e); break;   // (M4) the herald at a kingdom's border (realm_hud.cpp)
+    case Ev::News: newsEvent(g, e); break;       // (M4) a world event heard of
     case Ev::MapChange: fade_ = 1.0f; snap(g); break;
     case Ev::WindowShift:   // M1: the endless window moved; everything overworld moved by e.p pixels
       cam_ += e.p;
@@ -659,31 +661,49 @@ void View::update(Game& g, float dt) {
   for (const Event& e : g.events) spawnParticles(e, g);
   g.events.clear();
   // (M1) arriving in a settlement: a banner with its name and its kingdom (merged into DISCOVERED the first time)
+  // (M4) its CURRENT owner in its society's word and its state; shown again when either changes while the player is
+  // there (a conquest, a siege laid or broken: realm_hud.cpp arrivalText)
   if (g.mode == Mode::Play && !g.inside) {
     const int cs = g.curSite >= 0 && g.curSite < (int)g.world.sites.size() && g.world.sites[g.curSite].settlement() ? g.curSite : -1;
-    if (cs != arriveSite_) {
+    ew::Gid own = 0;
+    uint16_t flags = 0;
+    if (cs >= 0) {
+      const Site& S = g.world.sites[(size_t)cs];
+      own = S.kingdom >= 0 ? g.world.kingdoms[(size_t)S.kingdom].id : 0;
+      if (const realm::SettlementState* st = g.realm.settlement(S.id))
+        flags = st->flags & (realm::SS_BESIEGED | realm::SS_BURNED | realm::SS_OCCUPIED | realm::SS_FAMINE | realm::SS_RUINED | realm::SS_ABANDONED);
+    }
+    const bool changed = cs >= 0 && cs == arriveSite_ && (own != arriveOwner_ || flags != arriveFlags_);
+    if (cs != arriveSite_ || changed) {
       if (cs >= 0) {
-        // (M1 economy) what the place lives from heads the line: "MINING VILLAGE  -  KINGDOM OF ..."
         const Site& S = g.world.sites[(size_t)cs];
-        std::string sp = S.special ? std::string(ew::specialtyName((ew::Specialty)S.special)) + " " + siteTypeName(S.type) : std::string();
-        // (M1 fixer) a market town says so: the trading hub of its region
-        if (S.archetype == (uint8_t)ew::Archetype::Market && S.type != SiteType::Village)
-          sp = std::string("MARKET ") + siteTypeName(S.type) + (S.special ? std::string(" - ") + ew::specialtyName((ew::Specialty)S.special) : std::string());
-        const Kingdom* k = g.world.kingdomOf(cs);
-        const std::string kl = k ? (S.capital ? "CAPITAL OF THE KINGDOM OF " : "KINGDOM OF ") + k->name : std::string();
-        const std::string line = sp.empty() ? kl : (kl.empty() ? sp : sp + "  -  " + kl);
-        const bool arrival = banner_.rfind("KINGDOM", 0) == 0 || banner_.rfind("CAPITAL", 0) == 0 || banner_.find(" VILLAGE") != std::string::npos ||
+        std::string line, state;
+        uint32_t stc = 0;
+        arrivalText(g, cs, line, state, stc);
+        const bool arrival = banner_.find(" OF ") != std::string::npos || banner_.find(" VILLAGE") != std::string::npos ||
                              banner_.find(" TOWN") != std::string::npos || banner_.find(" CITY") != std::string::npos;
         if (!line.empty()) {
-          if (bannerT_ > 0 && banner_ == "DISCOVERED") banner_ = "DISCOVERED  -  " + line;
-          else if (bannerT_ <= 0 || arrival) {
-            banner_ = line; bannerSub_ = S.name; bannerT_ = 3.5f;
+          if (bannerT_ > 0 && banner_ == "DISCOVERED") { banner_ = "DISCOVERED  -  " + line; bannerState_ = state; bannerStateCol_ = stc; }
+          else if (bannerT_ <= 0 || arrival || changed) {
+            banner_ = line; bannerSub_ = S.name; bannerT_ = changed ? 4.0f : 3.5f;
+            bannerState_ = state; bannerStateCol_ = stc;
+            // (fixer M4 r1, review: three bands stacked on arrival) the arrival banner names the kingdom: the border
+            // herald's plaque gives way to it rather than stacking above it
+            herald_.t = 0;
           }
         }
+      } else if (arriveSite_ >= 0 && arriveSite_ < (int)g.world.sites.size() && bannerT_ > 0.5f &&
+                 bannerSub_ == g.world.sites[(size_t)arriveSite_].name) {
+        // (fixer M4 r2) left the place (a teleport, a quick walk out): its arrival banner fades out now instead of
+        // naming a town the hero no longer stands in
+        bannerT_ = 0.5f;
       }
       arriveSite_ = cs;
+      arriveOwner_ = own;
+      arriveFlags_ = flags;
     }
   }
+  if (herald_.t > 0 && g.mode == Mode::Play) herald_.t -= dt;
   if (toasts_.size() > 5) toasts_.erase(toasts_.begin(), toasts_.begin() + (toasts_.size() - 5));
   // camera follows with a little lead in the aim direction
   if (g.mode != Mode::Title) {
@@ -767,6 +787,7 @@ void View::update(Game& g, float dt) {
     else if (combatT_ > 0) want = Music::Combat;
     else if (g.inside && g.subBldg >= 0) want = Music::Town;
     else if (g.inside) want = Music::Cave;
+    else if (nearSiege(g)) want = Music::Wild;   // (M4) a besieged town has no jig: the land's music in the Ominous mood
     else if (g.curSite >= 0 && (g.world.sites[g.curSite].type == SiteType::City || g.world.sites[g.curSite].type == SiteType::Town || g.world.sites[g.curSite].type == SiteType::Village)) want = Music::Town;
     else if (g.isNight()) want = Music::Night;
   }
@@ -797,7 +818,10 @@ void View::update(Game& g, float dt) {
     ecoT_ = 0.25f;
     const int ptx = (int)std::floor(g.pl().p.x / 16), pty = (int)std::floor(g.pl().p.y / 16);
     const int e = outdoors && g.map().kind == MapKind::Overworld ? (int)g.world.over.ecoAt(ptx, pty) : -1;
-    if (e != hereEco_ && e >= 0 && g.mode == Mode::Play) {
+    // (fixer M4 r1, review: "THE FOREST" over a walled capital's streets) within a settlement the land's name gives way
+    // to the place's own (the arrival banner, the kingdom line): no biome banner starts there, and one showing fades
+    const bool inTown = outdoors && g.map().kind == MapKind::Overworld && g.settlementAt(g.pl().p) >= 0;
+    if (e != hereEco_ && e >= 0 && !inTown && g.mode == Mode::Play) {
       // the first visit to a biome this adventure: a quiet banner naming it (Game::marks keeps it with the save;
       // the key is game_internal.h markKey(0x7E000 + eco, Mk::Biome = 8))
       const uint64_t key = ew::mix64((0x7E000ull + (uint64_t)e) ^ (8ull * 0xD1B54A32D192ED03ull));
@@ -815,17 +839,17 @@ void View::update(Game& g, float dt) {
         biomeBannerEco_ = e;
       }
     }
-    if (e >= 0) hereEco_ = e;
+    if (e >= 0 && !inTown) hereEco_ = e;
     else if (!outdoors) hereEco_ = -1;
     // shown only while the player is still out in that land: indoors or elsewhere it fades out at once (one still
     // waiting is dropped and its biome unmarked)
-    if (biomeBannerT_ > 0 && biomeBannerEco_ >= 0 && (!outdoors || (e >= 0 && e != biomeBannerEco_))) {
+    if (biomeBannerT_ > 0 && biomeBannerEco_ >= 0 && (!outdoors || inTown || (e >= 0 && e != biomeBannerEco_))) {
       if (biomeBannerT_ >= 3.9f) g.marks.erase(ew::mix64((0x7E000ull + (uint64_t)biomeBannerEco_) ^ (8ull * 0xD1B54A32D192ED03ull)));
       biomeBannerT_ = biomeBannerT_ >= 3.9f ? 0.0f : std::min(biomeBannerT_, 0.3f);
       if (biomeBannerT_ <= 0) biomeBannerEco_ = -1;
     }
   }
-  if (biomeBannerT_ > 0 && (bannerT_ <= 0 || biomeBannerT_ < 3.9f) && g.mode == Mode::Play) biomeBannerT_ -= dt;   // (it waits for a big banner)
+  if (biomeBannerT_ > 0 && ((bannerT_ <= 0 && herald_.t <= 0) || biomeBannerT_ < 3.9f) && g.mode == Mode::Play) biomeBannerT_ -= dt;   // (it waits for a big banner)
 
   // the weather (drawWeather paints wx_): what each nearby tile's Sky makes of this day and hour, averaged over five
   // points round the player (so it fades in over a dozen tiles at a border) and eased over a few seconds
@@ -899,7 +923,7 @@ void View::update(Game& g, float dt) {
     if (g.travel.phase != TravelPhase::None) lvl *= 0.5f;
     ambLevel_ = lvl;
     audio_->setAmbient((uint8_t)ecoInfo(he).amb, lvl);
-    audio_->setMood((uint8_t)ecoInfo(he).mood);
+    audio_->setMood(nearSiege(g) ? (uint8_t)Mood::Ominous : (uint8_t)ecoInfo(he).mood);   // (M4) the Siege mood
     audio_->setDaylight(g.mode == Mode::Title ? 1.0f : clampf(g.daylight(), 0, 1));
   }
 
@@ -982,8 +1006,21 @@ uint64_t View::terrainFrame(Game& g, const Map*& mp) {
   return mapId;
 }
 
+bool boardwalkCoversTile(const Map& m, int tx, int ty);   // terrain.cpp (M4)
+
+// (fixer M4 r2) when this frame's world draw began: the ahead-of-time building painter takes only what is left of a
+// frame's budget (a fresh capital's walk drew 20 ms frames on the web path: 33 people plus a 3 ms paint step each)
+static std::chrono::steady_clock::time_point g_drawT0;
+
 void View::drawWorld(Game& g) {
   Pix& P = *pix_;
+  g_drawT0 = std::chrono::steady_clock::now();
+  {   // (M4) last frame's overlay counts for the scripts (the map's are kept from its own draw)
+    const int mk = m4Stats_.mapMarkers, bp = m4Stats_.borderPx;
+    m4Stats_ = m4Count_;
+    m4Stats_.mapMarkers = mk; m4Stats_.borderPx = bp;
+    m4Count_ = M4Stats();
+  }
   fadePaintMs_ = arriving_ || g.travelling() ? 10.0 : 0.0;   // (M2: an arrival paints its buildings in travelArrive, within its budget)
   const Map* mp = nullptr;
   const uint64_t mapId = terrainFrame(g, mp);
@@ -1178,6 +1215,8 @@ void View::drawWorld(Game& g) {
   for (int ty = std::max(0, ty0); ty < std::min(m.h, ty1); ty++)
     for (int tx = std::max(0, tx0); tx < std::min(m.w, tx1); tx++) {
       int pr = m.prop[(size_t)ty * m.w + tx];
+      // (M4) a walk-through cover (flowers, grass) under a diagonal boardwalk's deck is not drawn over the planks
+      if (pr && m.kind == MapKind::Overworld && !propSolid((Prop)(pr - 1)) && boardwalkCoversTile(m, tx, ty)) pr = 0;
       if (pr) {
         Prop p = (Prop)(pr - 1);
         if (flatProp(p)) {
@@ -1222,14 +1261,21 @@ void View::drawWorld(Game& g) {
   // paint the sprites of buildings near the player ahead of time, at most one per frame, so walking into a town
   // never stalls on a burst of building paints
   // (M3, owner carry-over 1) in steps of about 3 ms: a palace is painted over a dozen frames instead of stalling one
-  if (!m.bldgs.empty() && g.mode != Mode::Title && !g.travelling()) {   // (M2: a journey paints its arrival in travelArrive)
+  const double drawnMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - g_drawT0).count();
+  // (a heavy frame skips it, the next one paints; never more than two frames in a row, then a small step anyway, so the
+  // streets ahead are still painted before they come into view)
+  static int paintSkipped = 0;
+  double paintBudget = std::min(3.0, 10.0 - drawnMs);
+  if (paintBudget < 0.75 && ++paintSkipped > 2) paintBudget = 1.0;
+  if (paintBudget >= 0.75) paintSkipped = 0;
+  if (!m.bldgs.empty() && g.mode != Mode::Title && !g.travelling() && paintBudget >= 0.75) {   // (M2: a journey paints its arrival in travelArrive)
     bldgPrefetch_ %= (int)m.bldgs.size();
     const Bldg& cur = m.bldgs[(size_t)bldgPrefetch_];
     const uint64_t ck = bldgKey(m, cur, bldgPrefetch_);
     bool busy = false;
     if (!bldgTex_.count(ck))
       for (const BldgJob& j : bldgJobs_) if (j.key == ck) { busy = true; break; }
-    if (busy) bldgPaintStep(cur, bldgPrefetch_, 3.0);
+    if (busy) bldgPaintStep(cur, bldgPrefetch_, paintBudget);
     else {
       // (M3 fixer round 2) the nearest unpainted building to where the hero is heading, not the next index round the
       // list: in a capital of 200+ buildings the round-robin looked at 12 a frame and the walk reached unpainted streets
@@ -1245,7 +1291,7 @@ void View::drawWorld(Game& g) {
         if (d >= bestD || bldgTex_.count(bldgKey(m, b, i))) continue;
         best = i; bestD = d;
       }
-      if (best >= 0) { bldgPrefetch_ = best; bldgPaintStep(m.bldgs[(size_t)best], best, 3.0); }
+      if (best >= 0) { bldgPrefetch_ = best; bldgPaintStep(m.bldgs[(size_t)best], best, paintBudget); }
     }
   }
   for (int i = 0; i < (int)g.actors.size(); i++) {
@@ -1521,9 +1567,13 @@ void View::drawWorld(Game& g) {
           }
           break;
         }
+        // (M4) a war prop in the colours of the kingdom whose camp it belongs to (realm_render.cpp)
+        bool warSwap = false;
+        if (art::isWarProp(p) && m.kind == MapKind::Overworld && g.mode != Mode::Title)
+          if (const Tex* wt = warPropTex(g, p, d.tx, d.ty)) { tp = wt; warSwap = true; }
         const Tex& t = *tp;
         int fw = art::propW(p), fh = art::propH(p);
-        int frames = std::max(1, art::propFrames(p));
+        int frames = warSwap ? 1 : std::max(1, art::propFrames(p));
         int fr = frames > 1 ? (int)(t_ * 8 + d.tx * 3 + d.ty) % frames : 0;
         bool flipP = flipVar;
         if (p == Prop::Sheep || p == Prop::Cow) {   // (M1 fixer round 2) the beasts graze at their own slow pace, either way round
@@ -1598,6 +1648,7 @@ void View::drawWorld(Game& g) {
             q.kind = 2;
             parts_.push_back(q);
           }
+        if (b.charred && m.kind == MapKind::Overworld) burnedFx(g, m, b, d.idx, 0);   // (M4) a burned building smoulders
         break;
       }
       case 2: {
@@ -1987,6 +2038,11 @@ void View::drawLighting(Game& g) {
       light(Vec2(gt.first * 16.0f, gt.second * 16.0f - 1), 40, Color(1, 0.72f, 0.38f), 0.75f * f);
       light(Vec2(gt.first * 16.0f + 47, gt.second * 16.0f - 1), 40, Color(1, 0.72f, 0.38f), 0.75f * f);
     }
+  {   // (M4) the siege camps' tent lanterns and the red smoulder of burned-out buildings (realm_render.cpp)
+    static std::vector<LightPool> pools;
+    m4Lights(g, m, cam, dark, pools);
+    for (const LightPool& lp : pools) light(lp.p, lp.r, lp.c, lp.k);
+  }
   for (const Projectile& pr : g.projs) {
     if (pr.kind == ProjKind::Fireball || pr.kind == ProjKind::DragonFire) light(pr.p, 60, Color(1, 0.6f, 0.25f), 0.9f);
     else if (pr.kind == ProjKind::Magic && pr.ench == Ench::None && !pr.fromPlayer) light(pr.p, 40, Color(0.4f, 1.0f, 0.95f), 0.8f);
@@ -2008,6 +2064,7 @@ void View::drawLighting(Game& g) {
   for (const Pickup& k : g.pickups) if (k.gold == 0 && k.item.rarity >= Rarity::Rare) light(k.p, 24, col(rarityColor(k.item.rarity)), 0.5f);
   P.setTarget(nullptr);
   P.blitEx(lightMap_, 0, 0, lightMap_.w, lightMap_.h, 0, 0, lightMap_.w * 2.0f, lightMap_.h * 2.0f, false, Color(1, 1, 1, 1), 2);
+  m4Emissive(g, m, cam, dark);   // (fixer M4 r3) what burns glows over the dark
 }
 
 // (M3c LIFE) the weather of the land: wx_ (eased in update from the eco's Sky) painted in screen space. Every layer is

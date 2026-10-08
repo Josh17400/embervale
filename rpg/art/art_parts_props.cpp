@@ -533,8 +533,11 @@ void marketCrossStyled(Canvas& c, const M& m) {
         c.set(cx - 2, fy + 1, m.cloth[3]); c.set(cx + 1, fy + 1, m.cloth[3]);
         hline(c, cx - 1, cx, fy + 4, m.cloth2[f & 1 ? 2 : 3]);
       }
-      if (m.a == A_STEPPE) for (int i = -4; i <= 4; i++) for (int y = 3; y < 10; y++) if ((i + y) & 1) c.set(cx + i, y + std::abs(i) / 2, (y % 3) ? rgba(36, 30, 34) : rgba(84, 72, 70));
-      else if (m.a == A_SYLVAN) ball(c, cx - 0.5f, 6.0f, 7.0f, 5.0f, kLeaf);
+      // (M4 integration) braced: the else used to bind to the inner if, so fjord/marsh/sylvan poles had no crest and
+      // the steppe pole got the wings drawn over its horse tails
+      if (m.a == A_STEPPE) {
+        for (int i = -4; i <= 4; i++) for (int y = 3; y < 10; y++) if ((i + y) & 1) c.set(cx + i, y + std::abs(i) / 2, (y % 3) ? rgba(36, 30, 34) : rgba(84, 72, 70));
+      } else if (m.a == A_SYLVAN) ball(c, cx - 0.5f, 6.0f, 7.0f, 5.0f, kLeaf);
       else for (int i = 0; i < 8; i++) { c.set(cx - 4 - i, 9 - i / 2, W[3]); c.set(cx + 3 + i, 9 - i / 2, W[1]); c.set(cx - 4 - i, 10 - i / 2, m.cloth[2]); c.set(cx + 3 + i, 10 - i / 2, m.cloth[1]); }
       break;
     }

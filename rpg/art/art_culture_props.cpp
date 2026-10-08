@@ -306,9 +306,40 @@ void benchStyled(Canvas& c, int kind, const Mat& M) {
       box34(c, 1, base - 7, w - 2, 3, 2, M.stone);
       for (int s = 0; s < 2; s++) box34(c, s ? w - 5 : 2, base - 2, 3, 0, 3, M.stone);
       break;
-    case 2: {   // cushions on a rug
-      for (int y = base - 5; y <= base; y++) for (int x = 0; x < w; x++) c.set(x, y, ((x + y) % 4 == 0) ? M.cloth[1] : (y == base - 5 || y == base ? M.cloth[3] : M.cloth[2]));
-      for (int s = 0; s < 2; s++) ball(c, s ? w - 5.0f : 4.5f, base - 4.5f, 3.6f, 2.8f, s ? kPurple : M.cloth);
+    case 2: {   // (fixer M4 r3, review: "an unidentified purple-and-white crate in the old kingdom's purple") a majlis
+                // divan that reads as a seat: a dark carved frame with arms at both ends and a raised back, a striped
+                // cushion lit from the top-left in the dune's own madder and teal (never a kingdom's colours), carved
+                // slots on its shaded front, and its shadow cast down-right on the ground
+      const Ramp F = kWoodDark;
+      const Ramp T = ramp(rgba(52, 132, 138));     // dune teal (the towns' trim)
+      const Ramp R = ramp(rgba(176, 82, 52));      // madder
+      const int top = base - 10;                   // the back's top row
+      // (its cast shadow is laid down-right after the outline: divanShadow)
+      // the back: a carved rail with a bolster before it
+      for (int x = 1; x < w - 2; x++) { c.set(x, top, F[x < 4 ? 4 : 3]); c.set(x, top + 1, F[2]); }
+      for (int x = 2; x < w - 3; x++) c.set(x, top + 2, x < 5 ? R[4] : R[3]);
+      for (int x = 2; x < w - 3; x++) c.set(x, top + 3, R[1]);
+      // the seat cushion: stripes running front to back, lit top rows
+      for (int y = top + 4; y <= top + 6; y++)
+        for (int x = 2; x < w - 3; x++) {
+          const int band = (x / 2) % 3;
+          const Ramp& B = band == 0 ? M.cloth : (band == 1 ? T : M.cloth);
+          int k = y == top + 4 ? 4 : 3;
+          if (x == w - 4) k = 2;
+          c.set(x, y, band == 1 ? T[k - 1] : B[k]);
+        }
+      // the arms: blocky ends rising above the seat, lit on the left face
+      for (int y = top + 1; y <= base - 2; y++) {
+        c.set(0, y, F[y == top + 1 ? 4 : 3]); c.set(1, y, F[y == top + 1 ? 4 : 2]);
+        c.set(w - 3, y, F[y == top + 1 ? 3 : 2]); c.set(w - 2, y, F[1]);
+      }
+      // the front of the frame: shaded, carved with slots, a gold tassel at each arm
+      for (int x = 2; x < w - 3; x++) {
+        c.set(x, top + 7, F[2]);
+        c.set(x, base - 2, F[1]);
+      }
+      for (int x = 3; x < w - 4; x += 3) c.set(x, top + 7, F[0]);
+      c.set(1, top + 4, kGold[4]); c.set(w - 3, top + 4, kGold[2]);
       break;
     }
     case 3: {   // a half log on two stubs
@@ -320,6 +351,14 @@ void benchStyled(Canvas& c, int kind, const Mat& M) {
     }
     default: break;
   }
+}
+
+// the divan's cast shadow (down-right, translucent), laid on the empty pixels after the outline so it gets none
+void divanShadow(Canvas& c) {
+  const int w = c.w, base = c.h - 1;
+  auto sh = [&](int x, int y, int a) { if (x >= 0 && x < w && y >= 0 && y < c.h && !chA(c.get(x, y))) c.set(x, y, rgba(20, 14, 30, a)); };
+  for (int x = 2; x < w; x++) { sh(x, base - 1, 100); sh(x + 1, base, 56); }
+  for (int y = base - 7; y < base - 1; y++) sh(w - 1, y, 80);
 }
 
 // ---------------------------------------------------------------- statues, obelisks, totems
@@ -691,6 +730,7 @@ Canvas propSprite(Prop p, const PropStyle& st) {
       default: break;
     }
     outline(cell);
+    if (p == Prop::Bench && kind == 2) divanShadow(cell);
     place(sheet, cell, f, 0);
   }
   return sheet;

@@ -374,4 +374,50 @@ class View {
   void settingsKey(int key);
   void settingsTap(Vec2 p);                  // screen coordinates
   void drawSafeGuides();                     // corner marks at the HUD margin (shown while the settings are open)
+
+  // ---- M4 "Banners" (VIEW lane; realm_hud.cpp, realm_render.cpp): the border herald, the news, the arrival banner's
+  //      owner and state, the journal's NEWS and LOST HISTORY sections, war props in their owner's colours, the fires
+  //      of burned places and the siege camps' light
+ public:
+  int journalSection() const { return journalSec_; }
+  void setJournalSection(int s) { journalSec_ = s < 0 ? 0 : s > 2 ? 2 : s; menuSel_ = 0; menuScroll_ = 0; }
+  bool heraldShowing() const { return herald_.t > 0; }
+  const std::string& heraldTitle() const { return herald_.title; }
+  // (scripts) the last frame's counts of drawn M4 overlays: war props in an owner's colours, burned buildings smoking,
+  // siege-camp fires lit
+  struct M4Stats { int warProps = 0, warPropsOwned = 0, burned = 0, campFires = 0, mapMarkers = 0, borderPx = 0; };
+  M4Stats m4Stats() const { return m4Stats_; }
+ private:
+  struct Herald { float t = 0; std::string top, title; uint32_t color = 0; ew::Gid kingdom = 0; bool wild = false; };
+  Herald herald_;
+  M4Stats m4Stats_, m4Count_;
+  int journalSec_ = 0;                        // the QUESTS tab: 0 quests, 1 news, 2 lost history
+  ew::Gid arriveOwner_ = 0;                   // the owner and state flags the arrival banner last announced
+  uint16_t arriveFlags_ = 0;
+  std::string bannerState_;                   // a third line under the arrival banner ("OCCUPIED BY QIBA")
+  uint32_t bannerStateCol_ = 0;
+  std::unordered_map<uint64_t, Tex> armsTex_;
+  const Tex& armsTex(const cult::Heraldry& h, int size);
+  void heraldEvent(Game& g, const Event& e);
+  void newsEvent(Game& g, const Event& e);
+  void drawHerald(Game& g);
+  // the arrival banner's text for the settlement the player stands in (its trade, its current owner in its society's
+  // word, its state); refreshed when the owner or the state changes while the player is there
+  void arrivalText(Game& g, int site, std::string& line, std::string& state, uint32_t& stateCol);
+  // the QUESTS tab's section strip (QUESTS | NEWS | HISTORY) and the news / lore lists; journalTap: true when used
+  float journalStripH() const { return touchUI ? 26.0f : 16.0f; }
+  void drawJournalStrip(float lx, float lw, float top);
+  bool journalStripTap(Vec2 p, float lx, float lw, float top);
+  void drawJournalSection(Game& g, float top);
+  bool journalSectionTap(Game& g, Vec2 p, float top);
+  // the realm in the world (realm_render.cpp): a war prop's sprite in its camp's colours (nullptr: the plain one), the
+  // fire and smoke over burned buildings, the camp fires' light pools at night
+  const Tex* warPropTex(Game& g, art::Prop p, int tx, int ty);
+  std::unordered_map<uint64_t, Tex> warPropTex_;
+  void burnedFx(Game& g, const Map& m, const Bldg& b, int index, float dt);
+  float burnT_ = 0;
+  struct LightPool { Vec2 p; float r; Color c; float k; };
+  void m4Lights(Game& g, const Map& m, Vec2 cam, float dark, std::vector<LightPool>& out);
+  void m4Emissive(Game& g, const Map& m, Vec2 cam, float dark);   // (fixer M4 r3) burned shells glowing over the night
+  bool nearSiege(Game& g) const;              // the player is in or near a besieged settlement (the Siege music)
 };
