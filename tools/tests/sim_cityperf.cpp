@@ -44,12 +44,13 @@ int cityPerfSeed(uint64_t seed, int people, float secs) {
   if (!g.fastTravel(city)) { fail("cannot travel to the city"); return bad; }
   city = g.world.siteHandle(cid);
   g.world.ensureSiteRecords(city);
-  Site& C = g.world.sites[(size_t)city];
+  const Site C = g.world.sites[(size_t)city];   // (a copy: streaming appends to the sites while the walk runs)
   int own = 0;
   for (const Spawn& sp : g.world.over.spawns) if (sp.site == city && sp.npc) own++;
   // fill the city up to `people`: villagers (a guard in ten) on free tiles around its heart
   Rng r(seed * 977 + 13);
   const int cx = C.ex, cy = C.ey;
+  const int32_t gcx = g.world.ox + cx, gcy = g.world.oy + cy;   // (global: the walk moves the window)
   int added = 0;
   for (int tries = 0; tries < people * 40 && own + added < people; tries++) {
     int x = cx + r.irange(200) - 100, y = cy + r.irange(200) - 100;
@@ -133,6 +134,36 @@ int cityPerfSeed(uint64_t seed, int people, float secs) {
       "worst %.2f ms | in play max %d actors (%d townsfolk besides the watch), %d awake, %d asleep, at least %d townsfolk within 12 tiles | streamed in %d, out %d\n",
       (unsigned long long)seed, siteTypeName(C.type), C.name.c_str(), C.capital ? "capital" : "not a capital", C.r.w, C.r.h, C.bldgCount, own + added, own,
       added, run.avg, run.p99, run.worst, run.maxActors, run.maxFolk, run.maxAwake, run.maxAsleep, run.minNear == (1 << 30) ? 0 : run.minNear, in, outN);
+  // (M5 TOWNSFOLK) the census's own people at full strength: the street cap raised past 120 resident actors at the
+  // evening's comings and goings (17:30: home from work, out to the tavern), the player at the heart; the 15.12 budget
+  // is 1.5 ms per step for 120 residents (lifeStep plus every resident's lifeFolk: Game::lifeFolkStats)
+  {
+    g.lifeFolkCap = 160;
+    g.teleportGlobal(gcx, gcy + 2);
+    for (int k = 0; k < 3 && g.inside; k++) { g.debugLeave(); g.pl().p.y += 24.0f; g.update(SIM_DT, Input()); }   // (a doorstep walks in)
+    g.hour = 17.5f;
+    for (int f = 0; f < 4 * 60; f++) { g.update(SIM_DT, Input()); g.events.clear(); if (g.mode != Mode::Play) g.mode = Mode::Play; }
+    const Game::LifeFolkStats s0 = g.lifeFolkStats();
+    int minRes = 1 << 30, maxRes = 0, walking = 0;
+    double upd = 0;
+    for (int f = 0; f < 8 * 60; f++) {
+      auto s1 = std::chrono::steady_clock::now();
+      g.update(SIM_DT, Input());
+      upd += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - s1).count();
+      g.events.clear();
+      if (g.mode != Mode::Play) g.mode = Mode::Play;
+      minRes = std::min(minRes, g.lifeFolkStats().residents);
+      maxRes = std::max(maxRes, g.lifeFolkStats().residents);
+      walking = std::max(walking, g.lifeFolkStats().walking);
+    }
+    const Game::LifeFolkStats& s1 = g.lifeFolkStats();
+    const double life = (s1.sumMs - s0.sumMs) / std::max(1, s1.steps - s0.steps);
+    out("cityperf seed %llu: residents at 17:30: %d-%d resident actors (up to %d walking), townsfolk lane %.3f ms per step on average (worst %.2f), "
+        "whole step %.3f ms, paths %d (cache hits %d)\n",
+        (unsigned long long)seed, minRes, maxRes, walking, life, s1.worstMs, upd / (8 * 60), s1.pathRequests, s1.pathCacheHits);
+    if (minRes >= 120 && life > 1.5) fail("120 resident actors cost " + std::to_string(life) + " ms per step (budget 1.5)");
+    g.lifeFolkCap = 0;
+  }
   return bad;
 }
 

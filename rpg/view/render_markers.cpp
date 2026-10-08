@@ -7,6 +7,7 @@
 // Pixel art at 1x (11 x 14): a cream bubble with a near-black outline reads on grass, snow, stone and warm interior
 // wood alike; the "!" is orange-gold, lit from the top-left like every other sprite, the bubble's lower-right edge is
 // shaded, a 1 px drop shadow lifts it off the scene, and the tail points down at the giver's head.
+#include <algorithm>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -68,8 +69,84 @@ void drawEscortMark(Pix& P, const Actor& a, Vec2 cam, float t, Color outline) {
 }
 }  // namespace
 
+// (M5, VISION_PLAN 10.3) the townsfolk's speech bubbles (Actor::bubble: art::bubbleSprite, about 11 x 10, its tail at the
+// bottom centre) over their heads, drawn after the night so they read in the dark: a two-frame pop-in when one appears
+// (a 5 x 3 puff, then the bubble a pixel high, then settled), a slow one-pixel bob, a fade over its last third of a
+// second (Actor::bubbleT: the seconds it has left). Whole pixels only (crisp at 1x on the phone). Over a quest giver's
+// "!" it steps aside to the right.
+void View::drawBubbles(Game& g, Vec2 cam) {
+  Pix& P = *pix_;
+  static std::vector<int> live;
+  live.clear();
+  for (const Actor& a : g.actors) {
+    if (a.bubble == art::Bubble::None || !(a.bubbleT > 0) || a.st == AState::Dead) continue;
+    if (a.p.x < cam.x - 24 || a.p.x > cam.x + Pix::W + 24 || a.p.y < cam.y - 8 || a.p.y > cam.y + Pix::H + 48) continue;
+    live.push_back(a.id);
+    BubbleSeen& bs = bubbleSeen_[a.id];
+    if (bs.kind != (uint8_t)a.bubble || a.bubbleT > bs.maxT + 0.05f || t_ - bs.seen > 0.5f) { bs.kind = (uint8_t)a.bubble; bs.t0 = t_; bs.maxT = a.bubbleT; }
+    bs.maxT = std::min(bs.maxT, a.bubbleT);
+    bs.seen = t_;
+    const float age = t_ - bs.t0;
+    const uint64_t key = 0x4Dull << 56 | (uint64_t)a.bubble;
+    const Tex& t = cachedTex(key, [](uint64_t k) { return art::bubbleSprite((art::Bubble)(k & 255)); });
+    // the head: the standing figure's top (a seated or sleeping body sits lower: its pose's dy)
+    float dy = 0;
+    if (a.human && a.posture != art::Posture::None) dy = (float)art::postureInfo(a.posture).dy;
+    const float headY = a.p.y - (a.human ? (float)art::HUMAN_H - 3.0f : (a.critter ? (float)art::critterCellH((art::Critter)(a.critter - 1)) : 18.0f)) + dy;
+    float ax = a.p.x, hy = headY;
+    bool seatedDrawn = a.human && art::postureInfo(a.posture).seated;
+    // (fixer M5 r3) a human's bubble rides on the head as it was drawn this frame (a posture's sink or a seat's fit is
+    // applied only when the figure is drawn in it: a seated posture drawn standing put the bubble over the face)
+    if (a.human) {
+      auto dh = drawnHead_.find(a.id);
+      if (dh != drawnHead_.end() && dh->second.t == t_) {
+        ax = dh->second.x;
+        hy = dh->second.y + 1.0f;
+        seatedDrawn = seatedDrawn && hy > a.p.y - (float)art::HUMAN_H + 4.0f;   // drawn sunk: it really sits
+      }
+    }
+    int cx = (int)std::floor(ax - cam.x) + (g.rewardWaiting(a) ? 9 : 2);
+    int by = (int)std::floor(hy - cam.y) - 1 + (int)std::lround(std::sin(t_ * 2.2f + a.id * 0.9f) * 0.6f);
+    // (M5 fixer r2) a sitter with its back to us faces a table: its bubble rises beside the head, not over the tabletop
+    if (a.human && a.face == 1 && a.useX >= 0 && seatedDrawn) { cx += 9; by += 4; }
+    // a sleeper's bubble floats up from the pillow, beside the head (never over the face)
+    if (a.human && a.posture == art::Posture::Sleep && a.useX >= 0 && a.useY >= 0 && g.map().in(a.useX, a.useY)) {
+      const int pr = g.map().propAt(a.useX, a.useY);
+      const art::Berth bk = pr == (int)art::Prop::BunkBed + 1 ? art::Berth::BunkLow : pr == (int)art::Prop::Hammock + 1 ? art::Berth::Hammock :
+                            pr == (int)art::Prop::SleepingMat + 1 ? art::Berth::Mat : pr == (int)art::Prop::Bedroll + 1 ? art::Berth::Bedroll :
+                            pr ? art::Berth::Bed : art::Berth::Ground;
+      const art::BedFit bf = art::bedFit(bk, -1);
+      const float bx = a.useX * 16.0f + 8.0f - bf.w / 2.0f, btop = a.useY * 16.0f + 16.0f - bf.h;
+      cx = (int)std::floor(bx + bf.headX + 12 - cam.x);
+      by = (int)std::floor(btop + bf.headY - 8 - cam.y) + (int)std::lround(std::sin(t_ * 1.4f + a.id * 0.9f) * 0.8f);
+    }
+    const float alpha = clampf(a.bubbleT / 0.33f, 0, 1);
+    if (age < 0.05f) {   // the puff
+      P.rect((float)cx - 2, (float)by - 3, 5, 3, Color(0.09f, 0.06f, 0.08f, alpha));
+      P.rect((float)cx - 1, (float)by - 2, 3, 1, Color(1.0f, 0.97f, 0.88f, alpha));
+      m5Count_.bubbles++;
+      continue;
+    }
+    if (age < 0.11f) by -= 1;   // overshoots a pixel, then settles
+    const int x0 = cx - t.w / 2, y0 = by - t.h;
+    P.blitEx(t, 0, 0, t.w, t.h, (float)x0 + 1, (float)y0 + 1, (float)t.w, (float)t.h, false, Color(0, 0, 0, 0.30f * alpha));   // drop shadow
+    P.blitEx(t, 0, 0, t.w, t.h, (float)x0, (float)y0, (float)t.w, (float)t.h, false, Color(1, 1, 1, alpha));
+    m5Count_.bubbles++;
+  }
+  // forget the actors whose bubbles have gone
+  if (drawnHead_.size() > 512)
+    for (auto it = drawnHead_.begin(); it != drawnHead_.end();) {
+      if (t_ - it->second.t > 1.0f) it = drawnHead_.erase(it); else ++it;
+    }
+  if (bubbleSeen_.size() > live.size() + 32)
+    for (auto it = bubbleSeen_.begin(); it != bubbleSeen_.end();) {
+      if (t_ - it->second.seen > 1.0f) it = bubbleSeen_.erase(it); else ++it;
+    }
+}
+
 void View::drawMarkers(Game& g, Vec2 cam) {
   Pix& P = *pix_;
+  drawBubbles(g, cam);
   const Color outline(0.09f, 0.06f, 0.08f), paper(1.0f, 0.97f, 0.88f), paperShade(0.82f, 0.74f, 0.62f);
   const Color hi(1.0f, 0.86f, 0.38f), gold(1.0f, 0.64f, 0.10f), goldShade(0.74f, 0.33f, 0.05f);
   // the escorts: the subjects of the active Missing quests

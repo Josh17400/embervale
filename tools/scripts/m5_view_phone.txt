@@ -1,0 +1,39 @@
+# M5 "Hearth and Hall" VIEW lane review at the iPhone size (the "phone" header: a 639x294 logical canvas, the safe
+# area of a landscape iPhone): is the life of the town readable on the phone at 1x? The mood after the town's name,
+# the buff icons beside the bars, speech bubbles and a spoken line over the speakers, the village animals, a festival
+# night's strings and lanterns, the tavern with its bard.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m5_view_phone.txt     (m5p_*.png)
+seed 7
+phone
+0.3  newgame
++0.1 god 1
++0.2 gotoculture heartland town
++1.4 hour 12
++0.3 buff wellfed
++0.05 buff rested
++0.05 critter dog 1
++0.05 critter chicken 3
++0.05 critter cat 1
++0.05 bubble talk 2 8
++0.05 posture lute 1 row 0
++0.05 posture cheer 2 row 1
++0.3 say EVENING, HALLA. THE BREAD IS LATE AGAIN
++0.5 shot m5p_noon.png
++0.05 expect m5 critters 3
++0.05 expect m5 bubbles 1
++0.05 buff none
++0.05 buff hungry
++0.05 festival on
++0.05 hour 21
++0.8 shot m5p_festival_night.png
++0.05 expect m5 bunting 1
++0.05 expect m5 music tavern
++0.05 festival off
++0.05 hour 20.5
++0.2 enter inn
++0.8 seatall sitdrink
++0.05 posture lute 1
++0.8 shot m5p_tavern.png
++0.05 expect m5 music tavern
++0.05 m5stats
++0.3 quit

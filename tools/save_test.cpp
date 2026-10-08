@@ -1,8 +1,9 @@
 // Save-format checks for the CURRENT save version only (owner, 2026-10-04: old saves are not a concern; an older save
-// is refused and the title offers a new game). M4: SAVE_VER 10 (the layout of 9 plus the realm and story blocks after
-// the marks; ENDLESS_GEN_VER 13). The REALM lane owns this file and the fixture in M4.
+// is refused and the title offers a new game). M5: SAVE_VER 11 (the layout of 10 plus the life block after the story
+// block; ENDLESS_GEN_VER 14). M4: SAVE_VER 10 (the realm and story blocks after the marks). The CITIZENS lane owns this
+// file and the fixture in M5.
 //   save_test [fixtureDir]           run every check
-//   save_test --make-fixture out.bin write tests/fixtures/save_v10.bin: an endless game (seed 5150) with a created
+//   save_test --make-fixture out.bin write tests/fixtures/save_v11.bin: an endless game (seed 5150) with a created
 //                                    character, the innkeeper's job taken, bot play, a looted chest, the M2 fields
 //                                    (marks, a quest's subject / flags / deadline, a rumoured site), saved outdoors.
 //                                    Regenerate it whenever the layout changes on purpose, and paste the printed FIX6
@@ -202,6 +203,21 @@ void addM4Facts(Game& g) {
   g.realm.forceFamine(sv.id, g.day);
   g.realm.addRep(k, FIX_REP);
 }
+// M5 (SAVE_VER 11) facts in the life block: the player Well Fed and Rested, a friend among the start village's people
+constexpr float FIX_FED = 3.5f, FIX_RESTED = 6.0f;
+constexpr int FIX_FRIEND = 1;   // the census index befriended
+constexpr int FIX_DEAD = 0;     // (CITIZENS lane) the census index who died: their household grieves
+constexpr int FIX_FAMINE_DAYS = 4;
+void addM5Facts(Game& g) {
+  g.life.player.fedH = FIX_FED;
+  g.life.player.restedH = FIX_RESTED;
+  const ew::Gid sv = g.world.sites[(size_t)g.world.startSite].id;
+  if (g.life.census(g.world, g.world.startSite)) {
+    g.life.befriend(sv, FIX_FRIEND);
+    g.life.residentDied(sv, FIX_DEAD, g.day);
+    g.life.forceFamine(sv, g.day, FIX_FAMINE_DAYS);
+  }
+}
 int makeFixture(const char* out) {
   Game g(FIX_SEED);
   g.newEndlessGame(FIX_SEED);
@@ -209,6 +225,7 @@ int makeFixture(const char* out) {
   play(g, FIX_SEED, 90);
   addM2Facts(g);
   addM4Facts(g);
+  addM5Facts(g);
   if (g.inside) { printf("the fixture must be saved outdoors\n"); return 1; }
   std::vector<uint8_t> buf;
   g.serialize(buf);
@@ -239,7 +256,7 @@ int main(int argc, char** argv) {
 
   // ---- 1. the fixture
   std::vector<uint8_t> fx;
-  if (!readFile(dir + "/save_v10.bin", fx)) check(false, "cannot read tests/fixtures/save_v10.bin");
+  if (!readFile(dir + "/save_v11.bin", fx)) check(false, "cannot read tests/fixtures/save_v11.bin");
   else {
     check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
     Game g(1);
@@ -278,6 +295,18 @@ int main(int argc, char** argv) {
     check(st && (st->flags & realm::SS_FAMINE) && st->food == 0, "fixture realm: the start village's famine (SAVE_VER 10)");
     check(!k || g.realm.rep(k) == FIX_REP, "fixture realm: the player's standing with the start kingdom (SAVE_VER 10)");
     check(g.story.running().empty(), "fixture story block (empty)");
+    // M5 (SAVE_VER 11): the life block
+    check(std::fabs(g.life.player.fedH - FIX_FED) < 0.01f && std::fabs(g.life.player.restedH - FIX_RESTED) < 0.01f &&
+              (g.life.player.buffs() & (life::BUFF_WELLFED | life::BUFF_RESTED)) == (life::BUFF_WELLFED | life::BUFF_RESTED),
+          "fixture life: the player's buffs (SAVE_VER 11)");
+    const life::Census* lc = g.life.census(g.world, g.world.startSite);
+    check(lc && (int)lc->res.size() > FIX_FRIEND && (lc->res[(size_t)FIX_FRIEND].flags & life::RF_BEFRIENDED),
+          "fixture life: the befriended resident of the start village (SAVE_VER 11)");
+    int grieving = 0;
+    if (lc) for (const life::Resident& r : lc->res) grieving += (r.flags & life::RF_GRIEVING) != 0;
+    check(lc && (lc->res[(size_t)FIX_DEAD].flags & life::RF_DEAD) && grieving > 0, "fixture life: a death in the start village and its grief");
+    check(lc && lc->famineUntil == FIX6.day + FIX_FAMINE_DAYS && lc->stock[(size_t)ew::Good::Bread] == 0,
+          "fixture life: the famine felt in the start village's streets");
   }
 
   printf("%s\n", "2. round trips");
@@ -289,6 +318,7 @@ int main(int argc, char** argv) {
     play(g, s, 45);
     addM2Facts(g);
     addM4Facts(g);
+    addM5Facts(g);
     roundTrip(g, ("endless seed " + std::to_string(s) + " after play").c_str());
     // a long walk east (many window shifts), then save far from home
     g.noWildSpawns = true;
@@ -407,6 +437,28 @@ int main(int argc, char** argv) {
     printf("save soak: %d tiles walked, %zu fog regions, %d chests looted, %zu sites, %zu quests: save %zu bytes (%.1f KB), written in %.2f ms\n",
            walked, g.explored.regions.size(), chests, g.world.sites.size(), g.quests.size(), a.size(), a.size() / 1024.0, ms);
     check(a.size() <= 150 * 1024, "save soak: the save is over the 150 KB budget");
+    {
+      std::vector<uint8_t> lb;
+      g.life.serialize(lb);
+      printf("save soak: the life block %zu bytes (%d censuses built)\n", lb.size(), g.life.stats.censuses);
+      check(lb.size() <= 64 * 1024, "save soak: the life block is over 64 KB");
+      uint64_t h = 0x11FEull;
+      int loaded = 0;
+      for (int i = 0; i < 300 && !lb.empty(); i++) {
+        std::vector<uint8_t> bad = lb;
+        h = ew::mix64(h);
+        if (i % 3 == 0) bad.resize((size_t)(h % bad.size()));
+        else for (int k = 0; k < 1 + (int)(h % 6); k++) bad[(size_t)(ew::mix64(h + k) % bad.size())] ^= (uint8_t)(1 + (h >> (8 + k)) % 255);
+        life::Life L;
+        if (!L.deserialize(bad)) continue;
+        loaded++;
+        for (int si : g.world.nearSites)
+          if (si >= 0 && si < (int)g.world.sites.size() && g.world.sites[(size_t)si].settlement()) L.census(g.world, si);
+        std::vector<uint8_t> again;
+        L.serialize(again);
+      }
+      printf("damaged life blocks: 300 tried, %d loaded and rebuilt without a crash\n", loaded);
+    }
     check(ms < 50.0, "save soak: writing the save took too long");
     roundTrip(g, "endless save soak");
   }

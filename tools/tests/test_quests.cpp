@@ -586,7 +586,8 @@ int questsSeed(uint64_t seed) {
         drift = 0;
         for (size_t k = 1; k < g.actors.size(); k++) {
           const Actor& a = g.actors[k];
-          if (!a.npc || a.site != cap || a.stallKeeper || (a.role != Role::Villager && a.role != Role::Child)) continue;
+          // (M5) census residents keep their own day (their home is their door step, which may open on the square)
+          if (!a.npc || a.site != cap || a.stallKeeper || a.resident >= 0 || (a.role != Role::Villager && a.role != Role::Child)) continue;
           if (g.world.over.at((int)std::floor(a.home.x / TILE), (int)std::floor((a.home.y - 2) / TILE)) != Ground::Plaza) continue;
           n++;
           drift = std::max(drift, len(a.p - a.home) / TILE);
@@ -621,6 +622,86 @@ int questsSeed(uint64_t seed) {
   return bad;
 }
 
+// M5 (CITIZENS lane): a supply run end to end (VISION_PLAN 15.12 "the baker has no flour"): a keeper whose work is
+// starved asks for help, the goods are loaded at a settlement that has them, the giver pays and the goods reach the
+// giver's stores (life::Life::supply); a save in the middle round-trips
+int supplySeed(uint64_t seed) {
+  int bad = 0;
+  auto fail = [&](const std::string& m) { out("FAIL: quests seed %llu: supply: %s\n", (unsigned long long)seed, m.c_str()); bad++; };
+  Game g(seed);
+  g.newEndlessGame(seed);
+  g.mode = Mode::Play;
+  g.godMode = true;
+  g.noWildSpawns = true;
+  tick(g, 10);
+  const int sv = g.world.startSite;
+  life::Census* c = g.life.census(g.world, sv);
+  if (!c) { fail("no census for the start village"); return bad; }
+  const ew::Gid svId = g.world.sites[(size_t)sv].id;
+  // the workplace: the bakery, the mill, the smithy, else the inn's kitchen
+  int off = -1;
+  ew::Good good = ew::Good::Bread;
+  if (c->bakery >= 0) { off = c->bakery; good = ew::Good::Flour; }
+  else if (c->mill >= 0) { off = c->mill; good = ew::Good::Grain; }
+  else if (c->smithy >= 0) { off = c->smithy; good = ew::Good::Ingot; }
+  else if (c->inn >= 0) { off = c->inn; good = ew::Good::Bread; c->stock[(size_t)ew::Good::Meat] = 0; }
+  if (off < 0) { out("seed %llu: supply: no workplace to starve\n", (unsigned long long)seed); return bad; }
+  c->stock[(size_t)good] = 0;
+  c->use[(size_t)good] = 10;
+  // somewhere that has it: another loaded settlement's stores
+  int from = -1;
+  for (int si : g.world.nearSites) {
+    if (si == sv || si < 0 || si >= (int)g.world.sites.size() || !g.world.sites[(size_t)si].settlement()) continue;
+    if (life::Census* o = g.life.census(g.world, si)) { o->stock[(size_t)good] = 60; from = si; break; }
+  }
+  if (from < 0) { out("seed %llu: supply: no other settlement loaded\n", (unsigned long long)seed); return bad; }
+  const int bh = g.world.sites[(size_t)sv].bldgFirst + off;
+  if (!g.debugEnterBuilding(bh, 0)) { fail("cannot enter the starved workplace"); return bad; }
+  tick(g, 2);
+  int keeper = -1;
+  for (size_t k = 1; k < g.actors.size(); k++) if (g.actors[k].npc && g.actors[k].slot == 0 && g.actors[k].bldg == bh) keeper = g.actors[k].id;
+  if (keeper < 0) { fail("the keeper is not at the workplace"); return bad; }
+  if (!talk(g, keeper)) { fail("cannot talk to the keeper"); return bad; }
+  int o = optIndex(g, "HELP");
+  if (o < 0) o = optIndex(g, "WORK");
+  if (o < 0) { fail("the starved keeper offers no work"); return bad; }
+  g.dialogueChoose(o);
+  const std::string pitch = g.dlg.text;
+  o = optIndex(g, "I'LL DO IT");
+  if (o < 0) { fail("no I'LL DO IT after the ask"); return bad; }
+  g.dialogueChoose(o);
+  g.mode = Mode::Play;
+  int qid = -1;
+  for (const Quest& q : g.quests) if (q.type == QType::Supply && q.state == QState::Active) qid = q.id;
+  if (qid < 0) { fail("no supply quest was taken (the pitch: " + pitch + ")"); return bad; }
+  Quest q0 = *questOf(g, qid);
+  if (q0.stage != (int)good || q0.title.find("HAS NO") == std::string::npos) fail("the quest is not about the starved good: " + q0.title);
+  const std::string line = g.questStatus(q0);
+  if (line.find("FETCH") == std::string::npos) fail("the journal line does not say FETCH: " + line);
+  int tx = 0, ty = 0;
+  if (!g.questTarget(qid, tx, ty)) fail("no marker for the supply run");
+  std::string why;
+  if (!midSave(g, qid, why)) fail("mid-quest save: " + why);
+  // the supplier: walking into it loads the goods
+  g.debugLeave();
+  const Site T = g.world.sites[(size_t)q0.target];
+  const ew::Gid tid = T.id;
+  const int before = g.life.find(tid) ? g.life.find(tid)->stock[(size_t)good] : -1;
+  g.teleportGlobal(g.world.ox + T.ex, g.world.oy + T.ey + 2);
+  tick(g, 5);
+  Quest* q = questOf(g, qid);
+  bool item = false;
+  for (const Item& it : g.inv) if (it.kind == ItemKind::Quest && it.questId == qid) item = true;
+  if (!q || q->state != QState::Complete || !item) { fail("walking into " + T.name + " did not load the goods"); return bad; }
+  if (before >= 0 && g.life.find(tid) && g.life.find(tid)->stock[(size_t)good] != before - q0.need) fail("the supplier's stores did not give the goods up");
+  if (!turnIn(g, qid, why)) { fail("turn-in: " + why); return bad; }
+  tick(g, 2);
+  const life::Census* gc = g.life.find(svId);
+  if (!gc || gc->stock[(size_t)good] < q0.need) fail("the goods never reached the giver's stores");
+  out("seed %llu: supply: %s, %d %s from %s, %d gold\n", (unsigned long long)seed, q0.title.c_str(), q0.need, q0.subject.c_str(), T.name.c_str(), q0.gold);
+  return bad;
+}
+
 int cmdQuests(int argc, char** argv) {
   uint64_t a = 1, b = 3;
   for (int i = 1; i < argc; i++) {
@@ -632,7 +713,7 @@ int cmdQuests(int argc, char** argv) {
   int bad = 0, failedSeeds = 0;
   for (uint64_t s = a; s <= b; s++) {
     g_curSeed = s;
-    const int f = questsSeed(s);
+    const int f = questsSeed(s) + supplySeed(s);
     bad += f;
     if (f) failedSeeds++;
   }
@@ -642,8 +723,8 @@ int cmdQuests(int argc, char** argv) {
 
 }  // namespace
 
-RPG_TEST_CMD("--quests", "M2 quest types end to end (deliver, heirloom, missing, named bandit, protect), radiant targets, the "
-                         "text grammar, rumours, wonders, mid-quest saves [--seeds A..B] [--verbose]", cmdQuests);
+RPG_TEST_CMD("--quests", "M2 quest types end to end (deliver, heirloom, missing, named bandit, protect), M5 supply runs, radiant targets, "
+                         "the text grammar, rumours, wonders, mid-quest saves [--seeds A..B] [--verbose]", cmdQuests);
 
 // rpg_test --wayside-census [--seeds A..B] [--r REGIONS]: how many of each wayside place and wonder the region plans
 // hold around the start (the SIM lane's scripts need one of each kind within reach)

@@ -615,7 +615,11 @@ bool Game::debugOfferTalk(int actorId, QType t) {
   return true;
 }
 
+// M5 (CITIZENS lane): the giver's own words for an offer from life_quests.cpp
+std::string lifePitch(const Game& g, const Quest& q);
+
 Quest Game::makeOffer(const Actor& npc) {
+  { Quest lq; if (lifeOffer(npc, lq)) { pendingPitch_ = lifePitch(*this, lq); return lq; } }   // M5: an unmet need asks for help first (life_quests.cpp)
   bool ok = false;
   return offerFor(npc, QType::COUNT, ok);
 }
@@ -640,6 +644,7 @@ bool Game::questTargetM2(const Quest& q, int& tx, int& ty) const {
     case QType::Protect: return q.hasPos ? global(q.tgx, q.tgy) : atSite();
     case QType::Story: return q.hasPos ? global(q.tgx, q.tgy) : false;   // M4: the story engine's marker (rpg/story)
     case QType::War: return q.hasPos ? global(q.tgx, q.tgy) : atSite();   // M4: the enemy camp (relief) or the town (assault)
+    case QType::Supply: return (q.flags & life::QF_SUP_GOODS) ? false : atSite();   // M5: where the goods are to be had
     default: return false;
   }
 }
@@ -672,6 +677,10 @@ std::string Game::questStatusM2(const Quest& q) const {
       return fitLine({"KILL " + q.subject + " AT " + tname + dl, "KILL " + q.subject + ds, "KILL " + q.subject, tname + ds});
     case QType::Story:   // M4: the story engine writes what to do next in subject ("SPEAK WITH ASTRID", "2/4 WOLVES")
       return q.subject.empty() ? std::string() : fitLine({q.subject + dl, q.subject + ds, q.subject});
+    case QType::Supply:   // M5: fetch the goods (then the classic RETURN TO line)
+      if (q.flags & life::QF_SUP_GOODS) return "";
+      return fitLine({"FETCH " + std::to_string(q.need) + " " + q.subject + " FROM " + tname + dl, "FETCH " + q.subject + " FROM " + tname + ds,
+                      q.subject + ": " + tname + ds, tname + ds});
     case QType::Protect: {
       const bool night = (day == q.deadlineDay && hour >= 20.5f) || (day == q.deadlineDay + 1 && hour < 5.5f);
       const std::string home = giverTown(world, q);
@@ -691,6 +700,7 @@ std::string Game::turnInLine(const Quest& q) const {
     case QType::NamedBandit: return "SO " + q.subject + " IS DEAD. THE ROADS WILL BREATHE EASIER. THE BOUNTY IS " + g + " GOLD.";
     case QType::Protect: return "WE SAW THE FIELDS AT DAWN, STILL STANDING. YOU HELD THE NIGHT. " + g + " GOLD, AS PROMISED.";
     case QType::Hunt: return std::string("YOU'RE BACK, AND THE ") + monsterPlural(q.mon) + " ARE THINNED OUT. I OWE YOU " + g + " GOLD.";
+    case QType::Supply: return q.subject + "! NOW THE WORK CAN GO ON. THE WHOLE TOWN WILL THANK YOU. HERE: " + g + " GOLD.";
     default:
       return (tname.empty() ? std::string("YOU'RE BACK.") : "YOU'RE BACK! THEY SAY " + tname + " HAS GONE QUIET.") + " I OWE YOU " + g + " GOLD.";
   }
@@ -909,8 +919,71 @@ void Game::questActorDown(const Actor& a) {
 }
 
 // once per step: Deliver recipients found on arrival, the Protect night, escorts that have gone home
+// M5 (CITIZENS lane): the supply runs (goods loaded at the producer, into the giver's stores at the turn-in) and the
+// rescues of villagers carried off by raids (life_quests.cpp offers them; life_raids.cpp takes the villager)
+static art::Icon goodIcon(ew::Good g) {
+  using G = ew::Good;
+  switch (g) {
+    case G::Grain: case G::Flour: case G::Bread: return art::Icon::Bread;
+    case G::Produce: return art::Icon::Apple;
+    case G::Fish: case G::Meat: case G::Livestock: return art::Icon::Meat;
+    case G::Ore: case G::Ingot: case G::Tools: return art::Icon::Ore;
+    case G::Hides: case G::Leather: case G::Wool: return art::Icon::Pelt;
+    case G::Cloth: return art::Icon::Cloak;
+    default: return art::Icon::Letter;
+  }
+}
+
 void Game::questTick(float dt) {
   (void)dt;
+  {   // M5 (CITIZENS lane): supply runs and rescues
+  for (Quest& q : quests) {
+    if (q.type == QType::Supply) {
+      if (q.state == QState::Active && !(q.flags & life::QF_SUP_GOODS) && q.target >= 0 && q.target < (int)world.sites.size()) {
+        const Site& T = world.sites[(size_t)q.target];
+        bool there = false;
+        if (inside) there = subSite == q.target || (subBldg >= 0 && subBldg < (int)world.over.bldgs.size() && world.over.bldgs[(size_t)subBldg].site == q.target);
+        else {
+          const int tx = (int)std::floor(pl().p.x / TILE), ty = (int)std::floor(pl().p.y / TILE);
+          there = tx >= T.r.x - 2 && ty >= T.r.y - 2 && tx < T.r.x + T.r.w + 2 && ty < T.r.y + T.r.h + 2;
+        }
+        if (there) {
+          const ew::Good g = (ew::Good)std::clamp(q.stage, 0, (int)ew::Good::COUNT - 1);
+          Item it;
+          it.kind = ItemKind::Quest; it.name = std::to_string(q.need) + " " + q.subject; it.icon = goodIcon(g);
+          it.questId = q.id; it.value = 0; it.tint = rgba(200, 170, 120);
+          addItem(it, false);
+          if (life::Census* tc = life.findMut(T.id)) tc->stock[(size_t)g] = (uint16_t)std::max(0, (int)tc->stock[(size_t)g] - q.need);
+          q.flags |= life::QF_SUP_GOODS;
+          q.have = q.need;
+          q.state = QState::Complete;
+          const std::string m = "LOADED " + std::to_string(q.need) + " " + q.subject + " IN " + T.name + ". " + rewardReadyMsg(world, q);
+          emit(Ev::QuestUpdate, pl().p, q.id, 2, m);
+          say(m);
+          sfx((int)Sfx::QuestStart, pl().p, 1.1f);
+        }
+      }
+      if (q.state == QState::Done && !(q.flags & QF_FAILED) && (q.flags & life::QF_SUP_GOODS) && !(q.flags & life::QF_SUP_DONE)) {
+        life.supply(q.giverId, (ew::Good)std::clamp(q.stage, 0, (int)ew::Good::COUNT - 1), q.need);
+        q.flags |= life::QF_SUP_DONE;
+      }
+      continue;
+    }
+    if (q.type != QType::Missing || !q.giverId) continue;
+    life::Census* c = life.findMut(q.giverId);
+    if (!c || c->takenIdx < 0 || c->takenIdx >= (int)c->res.size() || c->res[(size_t)c->takenIdx].name != q.subject) continue;
+    if (c->takenQuest == 0 && q.state != QState::Done) c->takenQuest = q.id;
+    if (c->takenQuest != q.id) continue;
+    life::Resident& r = c->res[(size_t)c->takenIdx];
+    if (q.state == QState::Complete || (q.state == QState::Done && !(q.flags & QF_FAILED))) {
+      r.flags &= (uint16_t)~life::RF_AWAY;
+      c->takenIdx = -1;
+      c->takenQuest = 0;
+    } else if (q.state == QState::Done) {
+      life.residentDied(q.giverId, r.idx, day);
+    }
+  }
+  }
   for (Quest& q : quests) {
     if (q.state != QState::Active) continue;
     if (q.type == QType::Deliver && q.destBldg < 0 && q.target >= 0 && q.target < (int)world.sites.size()) {

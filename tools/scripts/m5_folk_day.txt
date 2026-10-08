@@ -1,0 +1,29 @@
+# M5 TOWNSFOLK: a day in town and in a village (the census's people as actors): the morning's comings and goings, the
+# smith at the anvil at noon, farmers in the fields, children at tag on the green, stall keepers behind their counters.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m5_folk_day.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11.5
++3.0 folk
++0.1 expect folk residents 8
++0.1 gotojob farmer
++1.5 shot m5_folk_day_farmer.png
++0.1 expect folk posture hoe 1
++0.1 gotojob child
++1.5 shot m5_folk_day_children.png
++0.2 gotoculture fjordfolk town
++0.05 hour 7.5
++6.0 folk
++0.1 expect folk walking 1
++0.1 shot m5_folk_day_morning.png
++0.05 hour 12
++3.0 folk
++0.1 expect folk residents 10
++0.1 shot m5_folk_day_noon.png
++0.2 enter smithy
++1.0 folk
++0.1 expect folk posture hammer 1
++0.1 shot m5_folk_day_smith.png
++0.2 walkto exit 20
++0.3 quit

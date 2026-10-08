@@ -506,3 +506,53 @@ M3c carry-overs (web seat-entry hitch, boardwalk diagonals, heath cover, meadow 
   boards, lore in ruins.
 - **view** (build_view): borders, war markers, the border banner, News and Lost History in the journal, war props in
   their colours; the M3c carry-overs and the goldens.
+
+## M5, "Hearth and Hall" (VISION_PLAN 13 M5, 10, 15.2, 15.12, 15.18; owner notes 2026-10-07)
+
+Goal: towns live by the clock and by their needs. Needs-driven citizens (hunger, rest, social, faith, money) choosing
+inside their job's schedule windows; residents buying food and goods from the settlement's real stock so shortages feed
+the M4 famine -> trade collapse -> war chain; a visible settlement mood (content: full taverns, music, festivals,
+children playing; hungry or war-torn: beggars, shuttered stalls, brawls, emigrants); households, friends greeted by
+name, grief; LOD (full actors near the player, hourly aggregate for the rest, the realm's daily tick far away; 120
+residents <= 1.5 ms on iPhone web); the player's hooks (feed, employ, supply, befriend; radiant quests from unmet
+needs); 15.2 hunger and sleep as light buffs (Well Fed, Rested; mild Hungry, Weary; inn beds upstairs, home, bedroll;
+Survival stubbed); interiors populated by schedule, NPCs using furniture, village animals, lamplighting, stalls
+opening and closing, window light by occupancy, the bard's tavern music in the culture's style, the alarm bell on night
+raids. Plus the leftover: the web seat-of-power entry hitch under EMB_WEBSIM=1.
+
+### Phase A (lead), 2026-10-07: done
+- The contracts are recorded in VISION_PLAN 15.18: `rpg/sim/life.h` (census, jobs, templates, needs, plans, moods,
+  player buffs, lamps, the Life store and its save block), the Game hooks and Actor fields, `QType::Supply`,
+  `DLG_LIFE`, `Realm::lifeReport`, `rpg/art/art_life.h` (postures, critters, bubbles, festival dressing; stand-ins),
+  `Music::Tavern` and four animal / crowd sounds, SAVE_VER 11 (fixture `tests/fixtures/save_v11.bin`, regenerated:
+  the stale main-quest wording of save_v10.bin is gone), ENDLESS_GEN_VER 14, `rpg_test --life` (CI), the `life`,
+  `buff`, `expect life`, `expect buff` script commands, `tools/scripts/m5_lead_life.txt`, `town_day_night.txt`.
+  tools/slot.sh already existed.
+- Verified (MSVC, BDIR=build): every target builds clean (only the old int-to-float notes); save_test ALL OK (fixture
+  v11); rpg_test --life 1..5 0 failures (start villages 34-46 residents, all asleep at 2:00, 33-40 at work at 10:00,
+  8-13 in the tavern at 20:00; census build <= 1.3 ms, a 745-resident city's included; 120 residents' plans ~0.001 ms
+  per hour); rpg_test --seeds 1..20 20/20, 7 / 99 / 12345 --secs 60 ALL OK, --golden, --endless --golden (39),
+  --towns --golden (201), --endless 1..10, --window 1..5, --towns 1..10, --realm 1..10, --history 2000 1..20, --wards
+  1..10, --story 1..5, --quests, --mainquest, --cultures 400 1..5, --builder 1..12 strict, --biomes 1..5 strict,
+  --forest 1..20, --specialties 1..20: 0 failures; builder_gallery --check 0 failures; all 109 tools/scripts exit 0
+  (m5_lead_life.txt and town_day_night.txt included).
+
+### Phase B lanes (disjoint files; see the lead report for the briefs)
+- **citizens** (build_citizens): the census for real, needs and utility scoring, the economy (purchases, production,
+  prices, shortages along trade links, the realm report), moods and their flags, festivals, relationships and grief,
+  emigrants, LOD and the 1.5 ms budget, night raids by monster pressure, Supply quests from unmet needs, the life block
+  and fixture, `--life` thresholds.
+- **townsfolk** (build_folk): the residents as actors (spawned by plan, door-to-door routes, interiors by schedule,
+  furniture and postures, tavern seating and service, the bard, chat pairs, greetings by name, barks, gossip, grief,
+  beggars, brawls, emigrants on the roads, children's tag, guards' shifts, the lamplighter, village animals), the
+  player's hooks in dialogue, the 15.2 buffs (inn beds upstairs only, bedrolls), key quest people kept reachable.
+- **art** (build_art): every posture painted on the rig (seated, eating and drinking, tools, sleeping in bed,
+  instruments by culture), the seven village animals, speech bubbles, festival dressing, life_gallery.
+- **view** (build_view): drawing postures, animals and bubbles; lamps by the lamplighter's round; stalls and festival
+  dressing by mood; window light by occupancy; the visible mood and the buff icons; the bard's tavern music, animal and
+  crowd sounds, the raid bell; the web seat-entry hitch; town_day_night.txt reviews.
+- **integration (2026-10-08)**: clean build of every target; all suites green (see VISION_PLAN 15.18 addendum); `--folk`
+  in CI; children drawn shorter; PET prompt for animals; animal voices de-duplicated. Open: art seat/bed numbers are
+  mirrored in rpg/sim/life_game.cpp (rpg_sim does not link rpg_art) and must follow art_life.cpp; occasional >16 ms
+  building-paint steps on web seat entry (art::stepBuilding); no local clang/Emscripten compile (clang frontend parse
+  via clang-tidy was clean).

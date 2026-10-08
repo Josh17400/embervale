@@ -59,6 +59,13 @@ jobs:
       - name: Story test
         run: ./build-native/rpg_test --story --seeds 1..5
 
+      # M5 Hearth and Hall (VISION_PLAN 15.12): the census, job templates, plans by the hour, the life block, the
+      # 120-residents perf budget. Blocking.
+      - name: Life test
+        run: |
+          ./build-native/rpg_test --life --seeds 1..5
+          ./build-native/rpg_test --folk --seeds 1..5
+
       # M2/M4 quests: every quest type end to end (the dialogue paths picked by text, not by position), and THE DRAGON'S
       # SHADOW end to end by a teleporting bot (fixer M4 r3: these guard the STORY pitch path on clang too). Blocking.
       - name: Quest and main-quest test

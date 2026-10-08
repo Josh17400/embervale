@@ -133,6 +133,9 @@ int litK(float l, int a, int b) {
 
 // a parallelogram p0 + s a + t b (s, t in 0..1, model space) whose outward normal is n; col(s, t, light) gives each
 // sample's colour (0 leaves a hole)
+// (fixer M5 r3, review: "market stalls in a snowy village have no snow") while a snowy prop is painted, every surface
+// that faces up at or above this height (model z) lies under snow (setMarketSnow; 1e9: none)
+thread_local float g_snowZ = 1e9f;
 template <class F>
 void quad(M3& m, float u0, float v0, float z0, float au, float av, float az, float bu, float bv, float bz, float nu, float nv, float nz, F&& col,
           float bias = 0) {
@@ -140,11 +143,23 @@ void quad(M3& m, float u0, float v0, float z0, float au, float av, float az, flo
   if (l < -1) return;
   const float la = std::sqrt(au * au + av * av + az * az), lb = std::sqrt(bu * bu + bv * bv + bz * bz);
   const int ns = std::max(1, (int)std::ceil(la * 2.6f)), nt = std::max(1, (int)std::ceil(lb * 2.6f));
+  const bool snowy = g_snowZ < 1e8f && nz > 0.42f * std::sqrt(nu * nu + nv * nv + nz * nz);
   for (int i = 0; i <= ns; i++)
     for (int j = 0; j <= nt; j++) {
       const float s = (float)i / ns, t = (float)j / nt;
-      const uint32_t cc = col(s, t, l);
+      uint32_t cc = col(s, t, l);
       if (!chA(cc)) continue;
+      if (snowy && z0 + s * az + t * bz >= g_snowZ) {
+        // the snow's lie: lit like the surface under it, a ragged thin edge where the cloth or boards show through
+        const float uu = u0 + s * au + t * bu, vv = v0 + s * av + t * bv;
+        const bool edge = s < 0.05f || s > 0.95f || t < 0.06f || t > 0.94f;
+        if (!(edge && hash3((int)std::floor(uu * 1.7f), (int)std::floor(vv * 1.7f), 7717) % 3u == 0)) {
+          // the slope's own light (the lit slope near white, the shaded one blue-grey), a soft drift texture
+          int k = std::clamp(litK(l - 0.04f, i, j), 1, 4);
+          if (k > 1 && hash3((int)std::floor(uu * 0.9f), (int)std::floor(vv * 1.3f), 7719) % 6u == 0) k--;
+          cc = kSnow[k];
+        }
+      }
       m.plot(u0 + s * au + t * bu, v0 + s * av + t * bv, z0 + s * az + t * bz, cc, bias);
     }
 }
@@ -750,6 +765,39 @@ void stallCounter(M3& m, const Awn& A, int form, int trade, bool closed) {
       if (z < 1.2f) kk = 0;          // the dark foot
       return kWood[kk];
     }
+    if (fc == 2 && form != 1) {
+      // (fixer M5 r3, review: "the counter's back is one flat brown slab") the keeper's side, seen from behind (N): a
+      // frame of posts between bays, two open shelves of stock under the top - jugs, baskets, sacks and bottles in the
+      // shade of the counter - each shelf's front lip catching a little light
+      const float z = t * CT, u = CU0 + s * (CU1 - CU0);
+      const float bu = std::fmod(u - CU0, 15.33f);
+      if (u < CU0 + 1.3f || u > CU1 - 1.3f || bu < 1.1f) return kWood[u < CU0 + 0.6f || bu < 0.5f ? 2 : 1];   // the posts
+      if (z < 1.2f) return kWood[0];                       // the dark foot
+      if (z > CT - 1.4f) return z > CT - 0.6f ? kWood[2] : kWood[1];   // the top's board, seen edge on
+      if ((z >= 1.2f && z < 2.0f) || (z >= 5.4f && z < 6.3f)) return z < 2.0f ? kWood[2] : kWood[3];   // the shelves' lips
+      // the stock: a thing per 4 px along each shelf (some gaps), its kind and colour by hash; deep shade behind it
+      const bool upper = z >= 6.3f;
+      const float z0 = upper ? 6.3f : 2.0f, hz = z - z0;
+      const int cell = (int)std::floor((u - CU0) / 4.0f);
+      const float cu = (u - CU0) - cell * 4.0f;   // 0..4 across the cell
+      const uint32_t h = hash3(cell, upper ? 7 : 3, 5381u + (uint32_t)trade * 31u);
+      const int kind = (int)(h % 6u);
+      const uint32_t shade = kWoodDark[hz > 2.6f ? 0 : 1];
+      if (kind == 5 || cu < 0.5f || cu > 3.6f) return shade;   // a gap on the shelf
+      static const uint32_t jug[3] = {rgba(112, 52, 36), rgba(160, 82, 50), rgba(196, 116, 70)};
+      static const uint32_t bas[3] = {rgba(110, 74, 38), rgba(150, 106, 56), rgba(188, 144, 80)};
+      static const uint32_t sack[3] = {rgba(120, 100, 76), rgba(164, 142, 108), rgba(204, 186, 148)};
+      static const uint32_t bot[3] = {rgba(34, 70, 52), rgba(52, 104, 72), rgba(110, 160, 118)};
+      const uint32_t* R = kind == 0 || kind == 1 ? jug : kind == 2 ? bas : kind == 3 ? sack : bot;
+      const float top = kind == 4 ? 3.0f : (kind == 2 ? 2.0f : 2.6f);   // its height on the shelf
+      if (hz > top) return shade;
+      const float cx = (cu - 2.05f) / 1.55f;   // -1..1 across it
+      if (kind == 4 && std::fabs(cx) > 0.45f && hz > 1.7f) return shade;   // a bottle's neck
+      if ((kind == 0 || kind == 1 || kind == 3) && hz > top - 0.7f && std::fabs(cx) > 0.7f) return shade;   // round shoulders
+      if (kind == 2 && hz > top - 0.6f) return bas[2];                  // the basket's rim
+      if (kind == 2 && ((int)std::floor(cu * 2.0f + hz * 2.0f) & 1)) return bas[0];   // the weave
+      return cx < -0.35f ? R[2] : (cx > 0.45f ? R[0] : R[1]);      // lit on its west side
+    }
     return c;
   });
 }
@@ -779,21 +827,36 @@ void stallGoods(M3& m, int trade, uint32_t seed) {
 
 // the keeper's corner under the roof: a stool, stacked crates, a sack (seen from behind, below the back cloth)
 void stallBackStock(M3& m, int trade, uint32_t seed) {
-  // the stool: a round seat on three legs
-  boxM(m, 6.0f, 6.8f, KV - 1.0f, KV - 0.2f, 0, 5.0f, kWoodDark);
-  boxM(m, 9.2f, 10.0f, KV - 1.0f, KV - 0.2f, 0, 5.0f, kWoodDark);
-  boxM(m, 7.6f, 8.4f, KV + 2.0f, KV + 2.8f, 0, 5.0f, kWoodDark);
-  boxM(m, 5.5f, 10.5f, KV - 1.5f, KV + 3.0f, 5.0f, 6.2f, kWood);
-  // crates, one on another, and a sack or a barrel by them
-  boxM(m, 37.0f, 45.0f, KV + 1.0f, KV + 9.0f, 0, 8.0f, kWood, [](int fc, float s, float t, int k, uint32_t c) -> uint32_t {
-    if (fc == 0) return (s < 0.08f || s > 0.92f || t < 0.1f || t > 0.9f) ? kWood[4] : kWoodDark[2];
-    if (fc == 2 || fc == 1) return (t > 0.45f && t < 0.58f) ? kWood[1] : c;
-    return c;
+  // the stool: a round seat on three splayed legs (fixer M5 r3: "crude boxes" - the seat is a thin disc of a cushion
+  // pad now, its legs thin and dark under it)
+  boxM(m, 6.2f, 6.9f, KV - 0.6f, KV + 0.1f, 0, 5.0f, kWoodDark);
+  boxM(m, 9.1f, 9.8f, KV - 0.6f, KV + 0.1f, 0, 5.0f, kWoodDark);
+  boxM(m, 7.6f, 8.3f, KV + 2.2f, KV + 2.9f, 0, 5.0f, kWoodDark);
+  boxM(m, 6.6f, 9.4f, KV + 0.8f, KV + 1.4f, 2.2f, 2.8f, kWoodDark);   // a rung
+  boxM(m, 5.4f, 10.6f, KV - 1.2f, KV + 3.4f, 5.0f, 5.9f, kWood, [](int fc, float s, float t, int k, uint32_t c) -> uint32_t {
+    if (fc == 0) {   // the round seat: its corners cut off, a lit rim on the west, worn smooth in the middle
+      const float a = (s - 0.5f) * 2.0f, b = (t - 0.5f) * 2.0f;
+      if (a * a + b * b > 1.25f) return 0;
+      return a < -0.55f || b < -0.6f ? kWood[4] : (a > 0.55f || b > 0.6f ? kWood[2] : kWood[3]);
+    }
+    return (s < 0.12f || s > 0.88f) ? 0 : c;
   });
-  boxM(m, 38.5f, 44.0f, KV + 2.5f, KV + 8.0f, 8.0f, 13.0f, kWood, [](int fc, float s, float t, int k, uint32_t c) -> uint32_t {
-    if (fc == 0) return (s < 0.1f || s > 0.9f || t < 0.12f || t > 0.88f) ? kWood[4] : kWoodDark[1];
+  // crates side by side, slatted, and a smaller one on them; a sack by them
+  auto crate = [](int fc, float s, float t, int k, uint32_t c) -> uint32_t {
+    (void)k;
+    if (fc == 0) {   // the open top: slats across, the stock's darkness between them, a lit rim
+      if (s < 0.09f || s > 0.91f || t < 0.12f || t > 0.88f) return kWood[s < 0.09f || t < 0.12f ? 4 : 3];
+      return ((int)std::floor(t * 5.0f) & 1) ? kWoodDark[1] : kWood[2];
+    }
+    // the sides: corner posts, two slats with a dark gap, the maker's brace
+    if (s < 0.1f || s > 0.9f) return kWoodDark[2];
+    if ((t > 0.44f && t < 0.56f) || t < 0.08f) return kWoodDark[1];
+    if (t > 0.9f) return kWood[3];
     return c;
-  });
+  };
+  boxM(m, 36.0f, 42.0f, KV + 2.0f, KV + 8.0f, 0, 6.5f, kWood, crate);
+  boxM(m, 42.6f, 47.0f, KV + 2.5f, KV + 7.5f, 0, 5.5f, kWood, crate);
+  boxM(m, 37.5f, 41.5f, KV + 3.0f, KV + 7.0f, 6.5f, 10.5f, kWood, crate);
   Canvas sack(7, 9);
   const bool flour = trade == 5 || trade == 0;
   ball(sack, 3.5f, 5.0f, 3.0f, 3.6f, flour ? kCloth : ramp(rgba(150, 120, 86), 0.6f), 0.05f);
@@ -1975,6 +2038,8 @@ void waterWheelProp(Canvas& c, int frame) {
 }
 
 }  // namespace
+
+void setMarketSnow(float z) { g_snowZ = z; }
 
 Canvas marketStall(int trade, int awning) { return marketStallForm(trade, awning, 0, false); }
 

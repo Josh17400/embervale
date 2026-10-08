@@ -36,6 +36,11 @@ enum class Sfx : uint8_t {
   MenuMove, MenuSelect, MenuBack,
   Roar, Splash,
   Bell,      // town alarm bell (M0 town defence): two quick strikes of a bronze bell
+  // M5 Hearth and Hall (AMBIENCE lane; phase A stand-ins): village animals and the tavern's crowd
+  Bark,      // a dog's bark (a short double woof)
+  Cluck,     // a hen's clucking
+  Meow,      // a cat
+  Cheer,     // a tavern / festival crowd's cheer and clapping (a toast, the bard's last chord)
   COUNT
 };
 
@@ -49,6 +54,12 @@ enum class Music : uint8_t {
   Cave,     // dark drones, drips
   Combat,   // driving drums, minor
   Boss,     // epic, heavy
+  // M5 Hearth and Hall: the bard's piece in the tavern, in the culture's style (setMusic(Tavern, style, festive)): its
+  // scale and lead instrument, its meter a little quicker, the bass and drums up front, a clap on the off-beats; on a
+  // festival the dance meter (a 4/4 culture turns to a 6/8 jig) and quicker still. The view picks it inside a gathering
+  // place while the bard performs, faintly outside its door at night (setMusicLevel: quieter and muffled by distance)
+  // and on the plaza on festival days.
+  Tavern,
   COUNT
 };
 
@@ -62,6 +73,14 @@ class Audio {
   // its scale, tempo, meter, instruments and ornament; Combat and Boss keep their structure but take its percussion.
   // A new style with the same mode crossfades like a new piece (the border-crossing moment, VISION_PLAN 5.6).
   void setMusic(Music m, const MusicStyle* style);
+  // M5: the same, with the tavern's festive variant (only Music::Tavern reads it; a change crossfades like a new piece)
+  void setMusic(Music m, const MusicStyle* style, bool festive);
+  // M5: the score's level (0..1, eased) and how muffled it is (0 open .. 1 heard through a wall: a low-pass): the bard's
+  // piece heard from the street outside the tavern's door. 1 / 0 everywhere else. The crowd bed goes through it too.
+  void setMusicLevel(float gain, float muffle) { wantMusGain_.store(gain); wantMuffle_.store(muffle); }
+  // M5: the murmur of a crowd indoors (0 none .. 1 a packed hall: overlapping voices, laughter, mugs set down), on its
+  // own quiet bus under the music; `lively` 0..1 (a festival night: more laughter and cheering)
+  void setCrowd(float level, float lively = 0) { wantCrowd_.store(level); wantLively_.store(lively); }
   // M3c Wildlands: the ambient sound bed of the land the player stands in (kind: rpg/world/biomes.h Ambience value;
   // level 0..1, 0 = silent: inside buildings, caves, menus) and the wilderness music's mood (Mood value) that Wild and
   // Night take on top of the culture's style. Main thread; a change crossfades over about two seconds.
@@ -120,6 +139,7 @@ class Audio {
     uint32_t motifRng = 1;           // M3: the culture's own motif stream (its tunes are recognisably its own)
     uint8_t mood = 0;                // (M3c) the land's Mood it plays in (Wild / Night only; 255 none)
     int percVar = 0;                 // M3: which of the meter's percussion patterns this culture plays
+    bool festive = false;            // (M5) Music::Tavern on a festival: the dance
     float x = 0, target = 0;         // crossfade position (equal-power), moves at 0.5/s
     double t = 0, nextStep = 0;
     int step = 0, section = 0, role = 0, variant = 0, prog = 0;
@@ -158,6 +178,19 @@ class Audio {
   static constexpr int AMB_EV = 18;
   float ambEvT_[AMB_EV] = {};
   void renderAmbient(float* out, int n, float blockSec);
+  // ---- (M5) the score's level and muffle, and the crowd bed (audio thread)
+  std::atomic<float> wantMusGain_{1.0f}, wantMuffle_{0.0f}, wantCrowd_{0.0f}, wantLively_{0.0f};
+  float musGain_ = 1, muffle_ = 0, muffLp_[2] = {}, crowdLvl_ = 0, crowdLively_ = 0, crowdT_ = 0;
+  struct Talker {                    // one voice of the murmur: a buzz through two formants, in syllables and phrases
+    float ph = 0, f0 = 150, f0t = 150, f1 = 500, f2 = 1500, env = 0, sylT = 0, phraseT = 0;
+    bool talking = false, on = false;
+    float s1a = 0, s1b = 0, s2a = 0, s2b = 0;
+  };
+  static constexpr int TALKERS = 5;
+  Talker talk_[TALKERS];
+  uint32_t crowdRng_ = 0x3C6EF372u;
+  float crowdEvT_[3] = {1, 2, 3};    // laughter, a mug set down, a chair scraped
+  void renderCrowd(float* out, int n, float blockSec);
   void ambEvent(int e, float vol);
   std::atomic<int> wantMusic_{0};
   std::atomic<uint64_t> wantStyle_{0};
@@ -193,4 +226,5 @@ class Audio {
   void perc(int layer, PercKind k, int which, float vel, float dly, int root);
   void padChord(Seq& s, int layer, PadInst p, int chord, float dur, float vel, float dly);
   void bassNoteStyled(int layer, BassInst b, int midi, float dur, float vel, float dly);
+  void clap(int layer, float vel, float dly);   // (M5) a handclap in the tavern's crowd (a few hands, not quite together)
 };

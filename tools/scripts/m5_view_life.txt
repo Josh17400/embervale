@@ -1,0 +1,102 @@
+# M5 "Hearth and Hall" VIEW lane review: what the view draws of the townsfolk's life, forced by the review commands
+# (rpg/view/script_m5view.cpp) so the shots show every piece whatever the sim decides: postures in rows (work, eat and
+# drink, music, prayer, begging), village animals, speech bubbles and spoken lines, the buff icons, the lamps before and
+# after the lamplighter's round, a festival's bunting and lanterns, a hungry town's shuttered stalls, the tavern with its
+# bard and seated drinkers, and the inn's guests asleep upstairs.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m5_view_life.txt     (m5v_*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.2 gotoculture heartland town
++1.4 hour 12
++0.6 posture hammer 3 row 0
++0.05 posture sweep 3 row 1
++0.05 posture carry 3 row 2
++0.6 shot m5v_work.png
++0.05 posture none 12
++0.05 posture siteat 2 row 0
++0.05 posture drink 2 row 1
++0.05 posture cheer 2 row 2
++0.6 shot m5v_eat.png
++0.05 posture none 12
++0.05 posture lute 1 row 0
++0.05 posture flute 1 row 0
++0.05 posture drum 1 row 1
++0.05 posture dance 2 row 2
++0.6 shot m5v_music.png
++0.05 expect m5 posed 3
++0.05 posture none 12
++0.05 posture pray 2 row 0
++0.05 posture beg 2 row 1
++0.05 posture wave 2 row 2
++0.6 shot m5v_pray.png
++0.05 posture none 12
++0.05 critter dog 2
++0.05 critter chicken 4
++0.05 critter cat 1
++0.05 critter goat 1
++0.05 critter pig 1
++0.05 critter duck 2
++0.05 critter rooster 1
++1.5 shot m5v_critters.png
++0.05 expect m5 critters 6
++0.05 bubble talk 2
++0.05 say EVENING, HALLA. THE BREAD IS LATE AGAIN
++0.4 shot m5v_bubbles.png
++0.05 expect m5 bubbles 1
++0.05 expect m5 speech 1
++0.05 buff wellfed
++0.05 buff rested
++0.3 shot m5v_buffs.png
++0.05 buff none
++0.05 buff hungry
++0.05 buff weary
++0.3 shot m5v_wants.png
++0.05 buff none
+# the lamplighter's round: every lamp dark by day and at 18:30, lit by 21:00, out again at 7:00; a lamp close up
++0.05 hour 18.5
++0.6 expect m5 lampslit 0 0
++0.05 hour 21
++0.6 expect m5 lampsdark 0 0
++0.05 hour 7
++0.6 expect m5 lampslit 0 0
++0.05 tolamp 0
++0.6 hour 12
++0.6 shot m5v_lamp_day.png
++0.05 hour 21.5
++0.6 shot m5v_lamp_night.png
++0.05 expect m5 lampslit 1
++0.2 gotoculture heartland town
++1.4 posture none 20
+# a festival: bunting by day, lanterns and the band's music by night
++0.05 festival on
++0.05 hour 15
++0.6 shot m5v_festival_day.png
++0.05 expect m5 bunting 1
++0.05 expect m5 music tavern
++0.05 hour 21
++0.8 shot m5v_festival_night.png
++0.05 expect m5 lanterns 2
++0.05 festival off
+# a hungry market town: its stalls shuttered all day
++0.1 goto market
++1.4 hour 11
++0.05 moodflags hungry shuttered
++0.6 shot m5v_hungry_market.png
++0.05 expect m5 shut 1
++0.05 festival auto
+# the inn at night: the drinkers seated, a bard playing
++0.2 hour 20.5
++0.2 enter inn
++0.8 seatall sitdrink
++0.05 posture lute 1
++0.8 shot m5v_tavern.png
++0.05 expect m5 music tavern
++0.05 m5stats
+# the guests asleep upstairs
++0.2 hour 23.5
++0.2 enter inn 1
++0.8 seatall sleep
++0.8 shot m5v_inn_beds.png
++0.05 m5stats
++0.3 quit

@@ -90,6 +90,9 @@ void Game::resetSession() {
   story.reset(world.seed);
   war = WarState();
   realmSeen_ = 0; realmSites_ = 0; realmDay_ = -1; realmLand_ = 0; realmLandKnown_ = false;
+  // M5: the census, needs and moods belong to the world too (a load reads the saved life block over this)
+  life.clear();
+  lifeRt_.reset();
 }
 
 // everything a new game sets up once its world exists
@@ -544,6 +547,20 @@ void Game::update(float dt, const Input& in) {
       if (l2 >= r * r || l2 < 1e-4f) continue;
       float l = std::sqrt(l2);
       Vec2 push = d * ((r - l) / l * 0.5f);
+      // (M5) the watch running to a fight has the right of way through the townsfolk (and through the animals): the
+      // crowd steps aside, the guard is not shoved back
+      auto fighting = [](const Actor& x) { return x.npc && x.role == Role::Guard && x.target >= 0; };
+      auto yields = [](const Actor& x) { return x.npc && !x.hostile && x.role != Role::Guard; };
+      const bool aYields = (fighting(b) && yields(a)) || (a.critter && !b.critter);
+      const bool bYields = (fighting(a) && yields(b)) || (b.critter && !a.critter);
+      // (M5 fixer) a body on furniture (seated, abed, at the anvil: Actor::useX) is not shoved off it: the other steps
+      // aside (two of them leave each other be)
+      const bool aFixed = a.npc && a.useX >= 0, bFixed = b.npc && b.useX >= 0;
+      if (aFixed && bFixed) continue;
+      if (aFixed) { if (!b.player) moveActor(b, push * 2.0f); continue; }
+      if (bFixed) { if (!a.player) moveActor(a, push * -2.0f); continue; }
+      if (aYields && !bYields) { if (!a.player) moveActor(a, push * -2.0f); continue; }
+      if (bYields && !aYields) { if (!b.player) moveActor(b, push * 2.0f); continue; }
       if (!a.player) moveActor(a, push * -1.0f);
       if (!b.player) moveActor(b, push);
       if (a.player && b.npc) moveActor(b, push);
@@ -554,6 +571,9 @@ void Game::update(float dt, const Input& in) {
   realmStep(dt);      // M4: the living world (realm_game.cpp, REALM lane)
   warStep(dt);        // M4: camps, patrols, refugees, garrisons, war damage (war_game.cpp, WARDS lane)
   storyStep(dt);      // M4: stories, rumours, heralds, lore (rpg/story/story_game.cpp, STORY lane)
+  lifeStep(dt);       // M5: the townsfolk's actors by their plans (life_game.cpp, TOWNSFOLK lane)
+  raidStep(dt);       // M5: night raids by monster pressure (life_raids.cpp, CITIZENS lane)
+  life.tick(*this, dt);   // M5: needs, plans, stock and moods in aggregate; the player's buffs (life.cpp, CITIZENS lane)
   updateProjectiles(dt);
   updatePickups(dt);
   if (!inside) updateSpawning(dt);
@@ -582,17 +602,18 @@ void Game::updatePlayer(float dt, const Input& in) {
   // regen
   bool busy = p.st == AState::Windup || p.st == AState::Strike || p.st == AState::Roll;
   const float stRegen = background == Background::Farmhand ? 1.3f : 1.0f;   // farmhand: a field worker's wind
-  if (!busy) stamina = stamina + dt * 22.0f * stRegen;
+  const float stLife = lifeStaminaRegenMul();   // M5 (15.2): Well Fed / Hungry / Weary
+  if (!busy) stamina = stamina + dt * 22.0f * stRegen * stLife;
   float mpMax = maxMp;
   for (int idx : worn()) if (idx >= 0 && inv[idx].ench == Ench::Magicka) mpMax += inv[idx].enchPow;
   float stMax = maxSt;
   for (int idx : worn()) if (idx >= 0 && inv[idx].ench == Ench::Stamina) stMax += inv[idx].enchPow;
   stamina = std::min(stamina, stMax);
-  if (!busy) stamina = std::min(stMax, stamina + dt * 4.0f * stRegen);
+  if (!busy) stamina = std::min(stMax, stamina + dt * 4.0f * stRegen * stLife);
   mp = std::min(mpMax, mp + dt * 3.2f);
   // health comes back between fights, barely during one (the potion is the in-fight heal)
   bool calm = time - lastHurtT > 6.0f;
-  p.hp = std::min(p.maxHp, p.hp + dt * (blessT > 0 ? 1.6f : calm ? 1.1f : 0.12f));
+  p.hp = std::min(p.maxHp, p.hp + dt * (blessT > 0 ? 1.6f : calm ? 1.1f : 0.12f) * lifeHealthRegenMul());
   if (p.burnT > 0) {
     p.burnT -= dt;
     if (!godMode) p.hp -= dt * 3;
@@ -958,6 +979,7 @@ void Game::kill(Actor& a, int killer) {
   if (byPlayer || (a.plHitT > -99 && time - a.plHitT < 8.0f)) questKill(a);
   warKill(a, killer);           // M4: siege contributions, reputation (war_game.cpp)
   storyKill(a, byPlayer);       // M4: story objectives (rpg/story/story_game.cpp)
+  lifeKill(a, killer);          // M5: a resident's death: grief, the census (life_game.cpp)
   if (!inside && a.site >= 0 && a.site < (int)world.sites.size() && world.sites[a.site].type == SiteType::BanditCamp) {
     // a camp is broken when its chief falls (what the bounty asks: "KILL THEIR CHIEF"), or when its last fighter
     // does (a camp whose chief is already gone). Either way the player hears about it at once: CLEARED and BOUNTY
@@ -979,6 +1001,7 @@ void Game::kill(Actor& a, int killer) {
 }
 
 void Game::gainXp(int xp) {
+  if (xp > 0) xp = std::max(1, (int)std::lround(xp * lifeXpMul()));   // M5 (15.2): Rested
   plXp += xp;
   while (plXp >= xpForNext()) {
     plXp -= xpForNext();
@@ -1353,7 +1376,7 @@ void Game::loadMapActors() {
       if ((mageUp || mageDead) && subFloor == 0 && sp.slot == 0) continue;
       if (sp.npc && B && lodgingActive() && lodging.bldg == subBldg && lodging.floor == subFloor && sub.roomIndexAt(sp.x, sp.y) == lodging.room) continue;
       Vec2 p(sp.x * TILE + 8.0f, sp.y * TILE + 10.0f);
-      if (sp.npc) { spawnHuman(sp, p); continue; }
+      if (sp.npc) { spawnHuman(sp, p); lifeSpawned(actors.back(), sp); continue; }
       if (cleared && !sp.boss && hashf(sp.x, sp.y, (uint32_t)day) < 0.6f) continue;   // cleared dungeons are mostly empty
       if (cleared && sp.boss) continue;
       int id = spawnMonster(sp.mon, p, lvl + (sp.boss ? 2 : 0), sp.boss);
@@ -1408,8 +1431,10 @@ void Game::loadMapActors() {
         for (int k = 0; k < 5; k++)
           if (sub.in(bx + dx[k], by + dy[k]) && !sub.blocked(bx + dx[k], by + dy[k])) { px = bx + dx[k]; py = by + dy[k]; break; }
         spawnHuman(sp, Vec2(px * TILE + 8.0f, py * TILE + 10.0f));
+        lifeSpawned(actors.back(), sp);
       }
     }
+    if (B) lifeInterior();   // M5: the building's people by schedule (life_game.cpp)
   }
 }
 
@@ -1492,6 +1517,7 @@ void Game::streamSitePeople(int si) {
     if (emptyPlace && !(sp.npc && warKeyPerson(*this, si, sp.slot))) continue;   // (fixer M4 r3) its quest givers stay
     if (settle && sp.npc && sp.role == Role::Guard && !std::binary_search(guardSlots.begin(), guardSlots.end(), sp.slot)) continue;
     if (settle && sp.npc && sp.role != Role::Guard && !warSpawnAllowed(*this, si, sp.x, sp.y, sp.slot)) continue;
+    if (settle && sp.npc && !lifeSpawnAllowed(si, sp)) continue;   // M5: its resident is elsewhere this hour
     if (sp.slot >= 0 && (size_t)sp.slot < present.size() && present[(size_t)sp.slot]) continue;
     if (killed.count(owKillKey(si, sp.slot))) continue;
     if (felledIt != felled_.end() && felledIt->second.count(sp.slot)) continue;   // felled this visit: stays down
@@ -1513,6 +1539,7 @@ void Game::streamSitePeople(int si) {
     questSpawned(actors.back());   // M2: a named bandit chief (quests.cpp)
     // M2 town defence: a town's or city's watch keeps a post on the square (where the market and the crowd are), so a
     // big town's guards are on the spot when beasts get in, not a long run away at the walls
+    if (sp.npc) lifeSpawned(actors.back(), sp);   // M5: bound to its resident, placed by its plan (life_game.cpp)
     if (sp.role == Role::Guard && (st.type == SiteType::Town || st.type == SiteType::City) && actors.back().name == "GUARD") {
       const Vec2 heart(st.ex * TILE + 8.0f, st.ey * TILE + 10.0f);
       int posted = 0;

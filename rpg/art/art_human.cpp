@@ -3065,6 +3065,1002 @@ struct HumanPainter {
   }
 };
 
+// ====================================================================== M5 "Hearth and Hall": postures (rpg/art/art_life.h)
+// What townsfolk do with their bodies, painted on the same rig as the standing sheet so every look (outfits, culture
+// cuts, headwear, peoples, armour) carries over: the head, the torso and the garment are the rig's own; the legs (seated
+// on a chair, cross-legged on the floor) and the arms (with the tool, the cup, the instrument) are the posture's. Same
+// camera, light and palette; the cell is outlined by the caller like the standing sheet.
+enum PzSeat { kPzStand = 0, kPzChair, kPzFloor };
+int pzSeat(Posture p) {
+  switch (p) {
+    case Posture::Sit: case Posture::SitEat: case Posture::SitDrink: return kPzChair;
+    case Posture::SitFloor: case Posture::SitFloorEat: case Posture::SitFloorDrink: case Posture::Beg: return kPzFloor;
+    default: return kPzStand;
+  }
+}
+// the body's pose for a posture frame (legs and bob; the arms are the posture's own)
+Pose posturePose(Posture p, int facing, int frame) {
+  Pose q;
+  switch (p) {
+    case Posture::Carry: q = humanPose(facing, 1 + (frame & 3)); break;
+    case Posture::Play: q = humanPose(facing, 1 + (frame & 3)); q.bob = (frame & 1) ? 0 : -1; break;   // a hop
+    case Posture::Dance: {
+      static const int lA[4] = {2, 0, 0, 0}, lB[4] = {0, 0, 2, 0}, bob[4] = {-1, 0, -1, 0};
+      q.liftA = lA[frame & 3]; q.liftB = lB[frame & 3]; q.bob = bob[frame & 3];
+      if (facing == kSide) { q.stepA = (frame & 3) == 0 ? 2 : ((frame & 3) == 2 ? -2 : 0); q.stepB = -q.stepA; q.liftA = lA[frame & 3]; q.liftB = lB[frame & 3]; }
+      break;
+    }
+    case Posture::Pray: q.bob = frame & 1; break;
+    case Posture::Hammer: case Posture::Chop: if (facing == kSide) q.lean = (frame & 1) ? 1 : 0; break;
+    case Posture::Hoe: if (facing == kSide && (frame & 1)) q.lean = 1; break;
+    case Posture::SitFloor: case Posture::SitFloorEat: case Posture::SitFloorDrink: case Posture::Beg: q.bob = 3; break;
+    default: break;
+  }
+  q.swingA = q.swingB = 0;
+  return q;
+}
+
+struct PostureRig : HumanPainter {
+  Posture pz;
+  int fr;
+  uint8_t var;
+  int seat;
+  PostureRig(Canvas& c_, const HumanLook& l, int f, const Pose& p, Posture z, int frame, uint8_t v)
+      : HumanPainter(c_, l, f, p), pz(z), fr(frame), var(v), seat(pzSeat(z)) {
+    // a hop never lifts the hat (or the hair) out of the cell: the head's top row keeps a pixel for its outline
+    const int minHy = std::max(2, 4 - headTopRow(facing));
+    if (hy < minHy) { hy = minHy; ty = hy + 8; hip = ty + 6; }
+    // busy arms: the poncho shows only its yoke and the cloak's drape keeps clear of a raised arm
+    if (pz != Posture::Sit && pz != Posture::SitFloor) P.atk = litArmHigh() ? 1 : 2;
+  }
+  bool litArmHigh() const {
+    switch (pz) {
+      case Posture::Cheer: case Posture::Wave: case Posture::Lamp: case Posture::Play: case Posture::Carry: return true;
+      case Posture::Hammer: case Posture::Chop: case Posture::Hoe: return !(fr & 1);
+      case Posture::Dance: return (fr & 3) == 0;
+      default: return false;
+    }
+  }
+
+  // ------------------------------------------------------------------ small helpers
+  // a 2-px sleeve from the shoulder through the elbow to the wrist and the hand (bias -1: the far / shaded arm)
+  void arm(int sx, int sy, int ex, int ey, int hx, int hy2, int bias, bool showHand = true) {
+    ex = std::clamp(ex, 2, 14); hx = std::clamp(hx, 2, 14);   // the sleeve and the hand keep a pixel for the outline
+    if (poncho() && !P.atk) { if (showHand) handAt(hx, hy2, bias); return; }   // the poncho covers resting arms
+    armLine(sx, sy, ex, ey, bias);
+    armLine(ex, ey, hx, hy2 + (showHand ? -1 : 0), bias);
+    if (wideSleeve() && showHand) {   // the wide cuff flares past the wrist (kept a pixel inside the cell)
+      const int fx = hx + (hx < 8 ? -2 : 1);
+      if (fx >= 1 && fx <= 14) c.set(fx, hy2 - 1, R.sleeve[std::max(0, 2 + bias)]);
+    }
+    if (showHand) handAt(hx, hy2, bias);
+  }
+  // front / back view arms from the shoulders: the lit one screen-left, the other screen-right
+  void armL(int ex, int ey, int hx, int hy2, bool hand = true) { c.set(4, ty, R.sleeve[4]); arm(4, ty + 1, ex, ey, hx, hy2, 0, hand); }
+  void armR(int ex, int ey, int hx, int hy2, bool hand = true) { c.set(11, ty, R.sleeve[2]); arm(12, ty + 1, ex, ey, hx, hy2, -1, hand); }
+  // side view: the near arm (after the body) and the far one (before it)
+  int sxS() const { return 8 + P.lean; }
+  void armNear(int ex, int ey, int hx, int hy2, bool hand = true) { arm(sxS(), ty + 1, ex, ey, hx, hy2, 0, hand); }
+  void armFar(int ex, int ey, int hx, int hy2, bool hand = true) { arm(sxS() - 1, ty + 1, ex, ey, hx, hy2, -1, hand); }
+  void restArmsFront() {   // hanging at the sides (the standing sheet's idle arms)
+    armFront(3, 0, true);
+  }
+  // a shaded straight stick (hafts, poles, rods, necks): lit on its upper-left pixel
+  void stick(float x0, float y0, float x1, float y1, const Ramp& r, int k = 2) {
+    const int n = (int)std::ceil(std::max(std::fabs(x1 - x0), std::fabs(y1 - y0)));
+    for (int i = 0; i <= n; i++) {
+      const float t = n ? (float)i / n : 0;
+      const int x = (int)std::floor(x0 + (x1 - x0) * t + 0.5f), y = (int)std::floor(y0 + (y1 - y0) * t + 0.5f);
+      c.set(x, y, r[i < n / 3 ? k + 1 : k]);
+    }
+  }
+  void mug(int x, int y, bool up) {   // a wooden tankard, 3x3 (x, y top-left), handle on the right; up: raised to drink
+    const Ramp& W = kWood;
+    if (!up) { c.set(x, y, kWhite); c.set(x + 1, y, kCloth[4]); }
+    else { c.set(x, y, W[3]); c.set(x + 1, y, W[2]); }
+    c.set(x, y + 1, W[4]); c.set(x + 1, y + 1, W[2]);
+    c.set(x, y + 2, kIron[3]); c.set(x + 1, y + 2, kIron[1]);
+    c.set(x + 2, y + 1, W[1]); c.set(x + 2, y, W[2]);
+  }
+  void bread(int x, int y) {   // a heel of bread 3x2
+    c.set(x, y, kSand[4]); c.set(x + 1, y, kSand[3]); c.set(x + 2, y, kSand[2]);
+    c.set(x, y + 1, kSand[2]); c.set(x + 1, y + 1, kSand[1]); c.set(x + 2, y + 1, kLeather[2]);
+  }
+  void bowl(int x, int y, bool coin) {   // a wooden begging bowl 4x2 seen from above
+    c.set(x, y, kWood[4]); c.set(x + 1, y, kWoodDark[0]); c.set(x + 2, y, kWoodDark[0]); c.set(x + 3, y, kWood[2]);
+    c.set(x, y + 1, kWood[2]); c.set(x + 1, y + 1, kWood[3]); c.set(x + 2, y + 1, kWood[1]); c.set(x + 3, y + 1, kWood[0]);
+    if (coin) c.set(x + 1, y, kGold[4]);
+  }
+  void book(int x0, int y0, bool turning) {   // an open book 6x3 held in both hands (x0, y0 top-left), its cover below
+    for (int x = x0; x <= x0 + 5; x++) {
+      const bool leftPage = x < x0 + 3;
+      c.set(x, y0, leftPage ? kWhite : kCloth[4]);
+      c.set(x, y0 + 1, leftPage ? kCloth[4] : kCloth[3]);
+      c.set(x, y0 + 2, kRed[x == x0 ? 3 : 2]);
+    }
+    c.set(x0 + 2, y0, kCloth[2]); c.set(x0 + 3, y0 + 1, kCloth[1]);   // the gutter
+    c.set(x0 + 1, y0 + 1, kCloth[2]); c.set(x0 + 4, y0, kCloth[2]);   // lines of writing
+    if (turning) { c.set(x0 + 3, y0 - 1, kWhite); c.set(x0 + 4, y0 - 1, kCloth[4]); c.set(x0 + 4, y0 - 2, kWhite); }
+  }
+  void flame(int x, int y) {   // a taper's flame: two pixels, the core bright
+    c.set(x, y, kFire[4]); c.set(x, y - 1, kFire[3]);
+  }
+  // tool heads
+  void hammerHead(int x, int y, bool down) {   // 3x2 iron block centred on (x, y); down: the face toward the ground
+    for (int i = -1; i <= 1; i++) { c.set(x + i, y, kIron[i < 0 ? 4 : (i == 0 ? 3 : 2)]); c.set(x + i, y + 1, kIron[i < 1 ? 2 : 1]); }
+    if (down) c.set(x, y + 1, kIron[3]);
+  }
+  void axeHead(int x, int y, int dir) {   // the bit beside the haft end (dir +1: the edge to the right, -1 left)
+    c.set(x + dir, y, kIron[3]); c.set(x + dir, y + 1, kIron[2]); c.set(x + 2 * dir, y - 1, kIron[4]); c.set(x + 2 * dir, y, kIron[4]);
+    c.set(x + 2 * dir, y + 1, kIron[3]); c.set(x + 2 * dir, y + 2, kIron[2]);
+  }
+  void broomHead(int x, int y, int dir) {   // a besom of twigs fanned out at the haft's foot (x, y), dir: the lean
+    const Ramp& S = kThatch;
+    for (int k = 0; k < 3; k++) {
+      const int yy = y + k;
+      for (int i = -1 - k / 2; i <= 1 + k / 2; i++) c.set(x + i + (k == 2 ? dir : 0), yy, S[(i + k) & 1 ? 2 : (i < 0 ? 4 : 3)]);
+    }
+    c.set(x, y - 1, kLeather[2]);   // the binding
+  }
+
+  // ------------------------------------------------------------------ the lower body when seated
+  bool longSkirt() const { return skirt() || cutK == kCutKaftan || cutK == kCutRobe || cutK == kCutGown || cutK == kCutWrap; }
+  int hemRows() const {   // a short garment's hem over the thighs
+    if (cutK == kCutTunic) return 2;
+    if (cutK == kCutCoat) return 3;
+    if (cutK == kCutKilt) return 2;
+    return tassetRows();
+  }
+  const Ramp& shinRamp(int y, int foot) const {
+    if (O == Outfit::Rags) return R.skin;
+    return y >= foot - bootExtra() ? R.boot : R.leg;
+  }
+  // chair height, facing down: the lap toward the camera, the knees apart, the shins down to the feet on the floor
+  void chairLegsFront() {
+    // the lap is wider than the hips (the thighs come toward the camera and part), the knees apart, the shins straight
+    // down under them in the lap's shade, the feet planted; between the shins the seat's front and the chair's legs show
+    const Ramp& lg = R.leg;
+    if (longSkirt()) {
+      const Ramp& T = R.top;
+      for (int y = hip; y <= hip + 4; y++)
+        for (int x = 3; x <= 12; x++) {
+          int k = x <= 4 ? 3 : (x >= 11 ? 1 : 2);
+          if (y == hip) k = std::min(4, k + 1);                            // the lap catches the light
+          if (y >= hip + 2 && (x == 7 || x == 8)) k = 1;                     // the cloth dips between the knees
+          if (y >= hip + 3 && (x == 5 || x == 10) && ((x + y) & 1)) k = std::max(0, k - 1);   // folds of the drape
+          if (y == hip + 4) k = std::max(0, k - 1);
+          c.set(x, y, T[k]);
+        }
+      for (int x : {4, 5, 10, 11}) c.set(x, kGround, R.boot[x == 4 || x == 10 ? 2 : 1]);
+      if (O == Outfit::Robe || cutK == kCutRobe) for (int x = 3; x <= 12; x++) c.set(x, hip + 4, R.trim[x < 8 ? 2 : 1]);
+      return;
+    }
+    static const int kTop[10] = {3, 4, 3, 3, 2, 3, 3, 2, 2, 1}, kBot[10] = {2, 3, 2, 2, 0, 0, 2, 2, 1, 0};
+    for (int i = 0; i < 10; i++) { c.set(3 + i, hip, lg[kTop[i]]); c.set(3 + i, hip + 1, lg[kBot[i]]); }
+    static const int kKneeL[3] = {3, 2, 1}, kKneeR[3] = {2, 1, 0};
+    for (int i = 0; i < 3; i++) { c.set(3 + i, hip + 2, lg[kKneeL[i]]); c.set(10 + i, hip + 2, lg[kKneeR[i]]); }
+    for (int y = hip + 3; y < kGround; y++) {
+      const Ramp& r = shinRamp(y, kGround);
+      c.set(4, y, r[2]); c.set(5, y, r[1]);
+      c.set(10, y, r[1]); c.set(11, y, r[0]);
+    }
+    const Ramp& ft = O == Outfit::Rags ? R.skin : R.boot;   // the feet, toes toward the camera
+    c.set(3, kGround, ft[3]); c.set(4, kGround, ft[2]); c.set(5, kGround, ft[1]);
+    c.set(10, kGround, ft[2]); c.set(11, kGround, ft[1]); c.set(12, kGround, ft[0]);
+    if (const int n = hemRows()) {   // a tunic's, coat's or kilt's hem over the lap
+      const Ramp& T = R.top;
+      for (int y = hip; y < hip + n && y <= hip + 2; y++)
+        for (int x = 3; x <= 12; x++) {
+          if (y == hip + 2 && x >= 6 && x <= 9) continue;
+          int k = x <= 4 ? 3 : (x >= 11 ? 1 : 2);
+          if (y == hip + n - 1) k = std::max(0, k - 1);
+          if (cutK == kCutCoat && (x == 7 || x == 8) && y > hip) k = 0;   // the coat parts over the knees
+          c.set(x, y, T[k]);
+        }
+      if (cutK == kCutKilt) { c.set(4, hip + 2, R.skin[3]); c.set(5, hip + 2, R.skin[2]); c.set(10, hip + 2, R.skin[2]); c.set(11, hip + 2, R.skin[1]); }
+    }
+  }
+  // chair height, side view (facing right): the thigh level from the hip to the knee, the shin down to the foot
+  void chairLegsSide() {
+    const Ramp& lg = R.leg;
+    const int ox = P.lean;
+    if (longSkirt()) {
+      const Ramp& T = R.top;
+      for (int y = hip; y <= kGround - 1; y++) {
+        const int x0 = (y <= hip + 2 ? 5 : 10) + ox, x1 = (y <= hip + 1 ? 13 : 13) + ox;
+        for (int x = x0; x <= x1; x++) {
+          int k = x == x0 ? 3 : (x >= x1 - 1 ? 1 : 2);
+          if (y == hip) k = std::min(4, k + 1);
+          if (y == kGround - 1) k = std::max(0, k - 1);
+          c.set(x, y, T[k]);
+        }
+      }
+      c.set(12 + ox, kGround, R.boot[2]); c.set(13 + ox, kGround, R.boot[1]); c.set(14 + ox, kGround, R.boot[0]);
+      return;
+    }
+    // the far leg (a step behind, in shade), then the near one
+    for (int y = hip + 2; y < kGround; y++) c.set(10 + ox, y, shinRamp(y, kGround)[0]);
+    c.set(10 + ox, kGround, R.boot[0]); c.set(11 + ox, kGround, R.boot[0]);
+    for (int x = 6; x <= 12; x++) {
+      c.set(x + ox, hip, lg[x == 12 ? 2 : 3]);
+      c.set(x + ox, hip + 1, lg[x == 6 ? 1 : (x == 12 ? 1 : 2)]);
+    }
+    c.set(13 + ox, hip, lg[2]); c.set(13 + ox, hip + 1, lg[1]);   // the knee
+    for (int y = hip + 2; y < kGround; y++) { const Ramp& r = shinRamp(y, kGround); c.set(11 + ox, y, r[3]); c.set(12 + ox, y, r[1]); }
+    const Ramp& f = O == Outfit::Rags ? R.skin : R.boot;
+    c.set(11 + ox, kGround, f[2]); c.set(12 + ox, kGround, f[2]); c.set(13 + ox, kGround, f[1]); c.set(14 + ox, kGround, f[0]);
+    if (const int n = hemRows())
+      for (int y = hip; y < hip + std::min(n, 2); y++)
+        for (int x = 6; x <= 11; x++) c.set(x + ox, y, R.top[x == 6 ? 3 : (y == hip + n - 1 ? 1 : 2)]);
+  }
+  // chair height, facing up: the seat of the trousers (or the skirt) on the seat; the legs are under the table
+  void chairLegsBack() {
+    const Ramp& r = longSkirt() || hemRows() >= 2 ? R.top : R.leg;
+    for (int y = hip; y <= hip + 1; y++)
+      for (int x = 4; x <= 11; x++) {
+        int k = x <= 5 ? 3 : (x >= 10 ? 1 : 2);
+        if (y == hip + 1) k = std::max(0, k - 1);
+        if (!longSkirt() && (x == 7 || x == 8) && y == hip + 1) k = 0;
+        c.set(x, y, r[k]);
+      }
+    if (longSkirt()) for (int x = 3; x <= 12; x++) c.set(x, hip + 2, R.top[x <= 4 ? 2 : (x >= 11 ? 0 : 1)]);   // the hem spills over the seat
+  }
+  // cross-legged on the floor (hip = ground - 2): the knees out to the sides, the crossed shins in front
+  void floorLegsFront() {
+    const Ramp& lg = longSkirt() ? R.top : R.leg;
+    for (int y = hip; y <= kGround; y++)
+      for (int x = 2; x <= 13; x++) {
+        const int d = y - hip;
+        if (d == 0 && (x == 2 || x == 13)) continue;
+        int k = x <= 4 ? 3 : (x >= 11 ? 1 : 2);
+        if (d == 0) k = std::min(4, k + 1);
+        if (d == 2) k = std::max(0, k - 1);
+        if (!longSkirt() && d >= 1 && (x == 7 || x == 8)) k = 1;   // the crossed shins
+        c.set(x, y, lg[k]);
+      }
+    if (!longSkirt()) {   // the feet tucked in under the opposite knee
+      const Ramp& f = O == Outfit::Rags ? R.skin : R.boot;
+      c.set(5, kGround, f[2]); c.set(6, kGround, f[1]); c.set(9, kGround, f[2]); c.set(10, kGround, f[1]);
+      if (const int n = hemRows()) for (int x = 4; x <= 11; x++) c.set(x, hip, R.top[x <= 5 ? 3 : (x >= 10 ? 1 : 2)]);
+    } else {
+      c.set(1, kGround, R.top[2]); c.set(14, kGround, R.top[0]);
+    }
+  }
+  void floorLegsSide() {
+    const Ramp& lg = longSkirt() ? R.top : R.leg;
+    const int ox = P.lean;
+    for (int y = hip; y <= kGround; y++)
+      for (int x = 5; x <= 13; x++) {
+        const int d = y - hip;
+        if (d == 0 && x > 12) continue;
+        if (d == 0 && x == 5) continue;
+        int k = x <= 6 ? 3 : (x >= 12 ? 1 : 2);
+        if (d == 0) k = std::min(4, k + 1);
+        if (d == 2) k = std::max(0, k - 1);
+        c.set(x + ox, y, lg[k]);
+      }
+    c.set(12 + ox, hip - 1, lg[3]); c.set(13 + ox, hip - 1, lg[2]);   // the near knee up
+    if (!longSkirt()) { const Ramp& f = O == Outfit::Rags ? R.skin : R.boot; c.set(9 + ox, kGround, f[2]); c.set(10 + ox, kGround, f[1]); c.set(11 + ox, kGround, f[0]); }
+  }
+  void floorLegsBack() {
+    const Ramp& lg = longSkirt() ? R.top : R.leg;
+    for (int y = hip; y <= kGround; y++)
+      for (int x = 3; x <= 12; x++) {
+        int k = x <= 4 ? 3 : (x >= 11 ? 1 : 2);
+        if (y == kGround) k = std::max(0, k - 1);
+        c.set(x, y, lg[k]);
+      }
+    c.set(2, hip + 1, lg[3]); c.set(2, hip + 2, lg[2]); c.set(13, hip + 1, lg[1]); c.set(13, hip + 2, lg[0]);   // knees at the sides
+  }
+
+  // ------------------------------------------------------------------ eyes shut (prayer, sleep)
+  void eyesShut() {
+    const uint32_t eye = L.eyeColor ? opaque(L.eyeColor) : kEye;
+    for (int y = hy + 2; y <= hy + 7; y++)
+      for (int x = 0; x < 16; x++)
+        if (c.get(x, y) == eye) c.set(x, y, c.get(x, y + 1) == eye ? R.skin[2] : R.skin[0]);
+  }
+  // the mouth open in song (front / side)
+  void singing() {
+    if (facing == kDown) { c.set(7, hy + 6, rgba(120, 40, 56)); c.set(8, hy + 6, rgba(96, 30, 48)); }
+    else if (facing == kSide) c.set(11 + P.lean, hy + 6, rgba(110, 36, 52));
+  }
+
+  // ------------------------------------------------------------------ composition
+  void paintPosture() {
+    if (facing == kDown) paintPD();
+    else if (facing == kUp) paintPU();
+    else paintPS();
+    if (form) formTexture();
+    if (cutK) clothPattern();
+    if (L.jewellery) torc();
+  }
+  void lowerFront() {
+    if (seat == kPzChair) { chairLegsFront(); return; }
+    if (seat == kPzFloor) { floorLegsFront(); return; }
+    legsFront();
+  }
+  void paintPD() {
+    backItems();
+    if (L.cloak) cloakFront();
+    capeFrontSliver();
+    if (seat == kPzStand) {
+      legsFront();
+      torsoFront(false);
+      buildFront();
+      skirtFront();
+      if (form) tassets();
+    } else {
+      torsoFront(false);
+      buildFront();
+      lowerFront();
+    }
+    if (cutK) ponchoFront();
+    armsD(0);
+    head();
+    if (pz == Posture::Pray) eyesShut();
+    amuletFront();
+    if (L.cloak) cloakDrapeFront();
+    armsD(1);
+  }
+  void paintPU() {
+    if (seat == kPzStand) {
+      legsFront();
+      torsoFront(true);
+      skirtFront();
+      if (form) tassets();
+    } else {
+      torsoFront(true);
+      if (seat == kPzChair) chairLegsBack();
+      else floorLegsBack();
+    }
+    if (cutK) ponchoFront();
+    armsU(0);
+    if (L.cloak) cloakBack();
+    capeBack();
+    backItems();
+    head();
+    if (L.cloak) cloakCollarBack();
+    armsU(1);
+  }
+  void paintPS() {
+    backItems();
+    if (L.cloak) cloakSide();
+    capeSide();
+    armsS(0);
+    if (seat == kPzStand) {
+      legsSide();
+      torsoSide();
+      skirtSide();
+      if (form) tassets();
+    } else {
+      torsoSide();
+      if (seat == kPzChair) chairLegsSide();
+      else floorLegsSide();
+    }
+    if (cutK) ponchoSide();
+    if (L.cloak) cloakCollarSide();
+    armsS(1);
+    head();
+    if (pz == Posture::Pray) eyesShut();
+    amuletSide();
+    armsS(2);
+  }
+
+  // ------------------------------------------------------------------ the arms and what they hold: facing down
+  // phase 0: before the head (the off arm, things behind the head); 1: after it (the lit arm, things in front)
+  void armsD(int ph) {
+    const int f = fr;
+    const bool odd = f & 1;
+    switch (pz) {
+      case Posture::Sit: case Posture::SitFloor:
+        if (ph == 0) armR(12, ty + 4, 11, seat == kPzFloor ? hip : ty + 6);
+        else armL(4, ty + 4, 5, seat == kPzFloor ? hip : ty + 6);
+        break;
+      case Posture::Eat: case Posture::SitEat: case Posture::SitFloorEat:
+        if (ph == 0) { if (seat == kPzStand) armFront(11, 0, false); else armR(12, ty + 4, 11, seat == kPzFloor ? hip : ty + 6); }
+        else if (!odd) { armL(4, ty + 4, 6, ty + 4); bread(5, ty + 2); }
+        else { armL(4, ty + 4, 7, ty + 1); bread(7, hy + 6); }
+        break;
+      case Posture::Drink: case Posture::SitDrink: case Posture::SitFloorDrink:
+        if (ph == 0) { if (seat == kPzStand) armFront(11, 0, false); else armR(12, ty + 4, 11, seat == kPzFloor ? hip : ty + 6); }
+        else if (!odd) { mug(5, ty + 1, false); armL(4, ty + 4, 6, ty + 4); }
+        else { mug(6, hy + 5, true); armL(4, ty + 3, 7, ty + 1); }
+        break;
+      case Posture::Cheer:
+        if (ph == 0) { if (odd) armR(13, ty - 1, 13, hy + 3); else armFront(11, 0, false); }
+        else { armL(2, ty - 1, 3, hy + 5); mug(1, hy + 1 - (odd ? 1 : 0), false); if (odd) c.set(2, hy - 1, kWhite); }
+        break;
+      case Posture::Wave:
+        if (ph == 0) armFront(11, 0, false);
+        else { armL(3, ty - 1, odd ? 3 : 2, hy + 2); c.set(odd ? 2 : 1, hy + 1, handRamp()[4]); }
+        break;
+      case Posture::Hammer:
+        if (ph == 0) armR(12, ty + 4, 11, ty + 5);   // the off hand at the work (tongs out of frame)
+        else if (!odd) { stick(3, hy + 6, 3, hy + 2, kWood); hammerHead(3, hy + 1, false); armL(2, ty, 3, hy + 6); }
+        else { armL(4, ty + 3, 7, ty + 5); stick(7, ty + 5, 9, ty + 7, kWood); hammerHead(10, ty + 7, true); }
+        break;
+      case Posture::Chop:
+        if (!odd) {
+          if (ph == 0) armR(9, ty + 2, 5, ty);
+          else { stick(4, ty, 3, hy + 1, kWood); axeHead(3, hy + 1, -1); armL(2, ty, 3, ty - 1); }
+        } else {
+          if (ph == 0) armR(12, ty + 3, 9, ty + 5);
+          else { stick(8, ty + 5, 8, ty + 9, kWood); axeHead(8, ty + 9, 1); armL(4, ty + 3, 7, ty + 5); }
+        }
+        break;
+      case Posture::Hoe:
+        if (!odd) {
+          if (ph == 0) armR(9, ty + 2, 5, ty + 1);
+          else { stick(4, ty + 1, 3, hy + 1, kWood); c.set(3, hy, kIron[4]); c.set(2, hy + 1, kIron[3]); c.set(2, hy + 2, kIron[2]); c.set(1, hy + 2, kIron[2]); armL(2, ty, 3, ty - 1); }
+        } else {
+          if (ph == 0) armR(12, ty + 3, 10, ty + 4);
+          else { stick(6, ty + 3, 11, kGround, kWood); for (int x = 10; x <= 13; x++) c.set(x, kGround + 1, kIron[x == 10 ? 4 : 2]); armL(4, ty + 3, 7, ty + 3); }
+        }
+        break;
+      case Posture::Sweep: {
+        const int dir = odd ? -1 : 1;   // the broom's foot swings left and right
+        const int topX = dir > 0 ? 5 : 10, footX = dir > 0 ? 11 : 4;
+        if (ph == 0) { armR(12, ty + 3, dir > 0 ? 10 : 11, dir > 0 ? ty + 5 : ty + 1); }
+        else {
+          stick(topX, ty - 1, footX, kGround - 2, kWood);
+          broomHead(footX, kGround - 1, dir);
+          armL(4, ty + 3, dir > 0 ? 6 : 5, dir > 0 ? ty + 1 : ty + 5);
+        }
+        break;
+      }
+      case Posture::Stir: {
+        static const int dx[4] = {-1, 0, 1, 0}, dy[4] = {0, 1, 0, -1};
+        const int lx = 8 + dx[f & 3], ly = ty + 8 + dy[f & 3];
+        if (ph == 0) armR(12, ty + 4, 10, ty + 5);
+        else { stick(8, ty + 5, lx, ly, kWood, 3); c.set(lx, ly + 1, kIron[3]); c.set(lx + 1, ly + 1, kIron[2]); armL(4, ty + 4, 7, ty + 5); }
+        break;
+      }
+      case Posture::Carry: {
+        const Pose wp = humanPose(facing, 1 + (f & 3));
+        if (ph == 0) armFront(11, wp.swingB, false);
+        else {
+          const Ramp S = ramp(rgba(184, 150, 104));
+          ball(c, 4.5, ty - 2.0, 3.6, 2.8, S, 0.06f);
+          c.set(4, ty - 5, kLeather[2]); c.set(5, ty - 5, kLeather[1]); c.set(3, ty - 3, S[4]);
+          armL(2, ty + 1, 2, ty - 1);
+        }
+        break;
+      }
+      case Posture::Fish: {
+        const int tipY = hy - 1 + (odd ? 1 : 0);
+        if (ph == 0) {
+          for (int y = tipY + 1; y <= kGround + 1; y++) if ((y + (odd ? 1 : 0)) % 5 != 0) c.set(14, y, withA(kWhite, 150));
+          armR(12, ty + 4, 10, ty + 4);
+        } else { stick(8, ty + 5, 14, tipY, kWood, 3); armL(4, ty + 4, 7, ty + 4); }
+        break;
+      }
+      case Posture::Lute: instrumentD(ph, f); break;
+      case Posture::Flute: windD(ph, f); break;
+      case Posture::Drum: drumD(ph, f); break;
+      case Posture::Pray:
+        if (ph == 0) armR(12, ty + 4, 9, ty + 3);
+        else { armL(4, ty + 4, 7, ty + 3); c.set(7, ty + 2, handRamp()[4]); c.set(8, ty + 2, handRamp()[2]); }
+        break;
+      case Posture::Lamp: {
+        const int up = odd ? 1 : 0;
+        if (ph == 0) armR(12, ty + 4, 9, ty + 4);
+        else {
+          stick(8, ty + 5, 3, 4 - up, kWood, 2);
+          c.set(2, 4 - up, kBrass[4]); c.set(3, 3 - up, kBrass[2]);
+          flame(2, 3 - up);
+          armL(3, ty, 4, hy + 4 - up);
+        }
+        break;
+      }
+      case Posture::Read:
+        if (ph == 0) armR(12, ty + 4, 11, ty + 4);
+        else { book(5, ty + 2, odd); armL(4, ty + 4, 5, ty + 4); }
+        break;
+      case Posture::Play: {
+        const int a = odd ? 0 : 2;
+        if (ph == 0) armR(13, ty - 1, 13, hy + 1 + (2 - a));
+        else armL(3, ty - 1, 2, hy + 1 + a);
+        break;
+      }
+      case Posture::Dance: {
+        const int s = f & 3;
+        if (ph == 0) {
+          if (s == 2) armR(13, ty - 1, 13, hy + 2);
+          else if (s == 0) armR(12, ty + 3, 10, ty + 4);   // a hand on the hip
+          else armR(13, ty + 1, 14, ty);
+        } else {
+          if (s == 0) armL(3, ty - 1, 2, hy + 2);
+          else if (s == 2) armL(4, ty + 3, 6, ty + 4);
+          else armL(2, ty + 1, 1, ty);
+        }
+        break;
+      }
+      case Posture::Beg:
+        if (ph == 0) armR(12, ty + 4, 12, hip);
+        else { armL(4, ty + 4, 7, ty + 5 - (odd ? 1 : 0)); bowl(5, ty + 4 - (odd ? 1 : 0), odd); }
+        break;
+      default:
+        if (ph == 0) armFront(11, 0, false);
+        else restArmsFront();
+        break;
+    }
+  }
+  // the bard's string instrument, facing down
+  void instrumentD(int ph, int f) {
+    const bool odd = f & 1;
+    const LeadInst li = (LeadInst)var;
+    if (li == LeadInst::Fiddle) {   // under the chin on the left shoulder (screen right), the bow in the right hand
+      if (ph == 0) armR(13, ty + 2, 12, ty + 3);
+      else {
+        ball(c, 10.5, ty + 1.5, 1.9, 2.3, kWood, 0.0f);
+        c.set(10, ty + 1, kWoodDark[0]); c.set(11, ty + 2, kWoodDark[0]);
+        stick(12, ty + 3, 13, ty + 5, kWoodDark);
+        const int hx = odd ? 7 : 5;
+        stick(hx - 1, ty + 4, hx + 6, ty + 0, kCloth, 3);   // the bow across the strings
+        armL(4, ty + 4, hx, ty + 4);
+      }
+      return;
+    }
+    if (li == LeadInst::Harp) {   // a small frame harp held upright on the left, plucked with both hands
+      if (ph == 0) armR(13, ty + 3, 12, ty + 2);
+      else {
+        stick(12, ty - 3, 12, ty + 5, kWood, 2);                  // the pillar
+        stick(8, ty - 2, 12, ty - 3, kWood, 3);                   // the neck
+        stick(8, ty - 2, 11, ty + 5, kWoodDark, 2);               // the sound box
+        for (int k = 0; k < 3; k++) stick(9 + k, ty - 2, 9 + k, ty + 2 + k, kCloth, 3);   // strings
+        armL(4, ty + 4, odd ? 9 : 10, ty + 2);
+      }
+      return;
+    }
+    const bool oud = li == LeadInst::Oud;
+    if (ph == 0) armR(13, ty + 2, 13, ty - 1);   // the fretting hand up the neck
+    else {
+      // (M5 fixer: "a few orange pixels at the chest") a lute that reads at 1x: a big pear-shaped bowl across the
+      // belly, rimmed dark, a pale soundboard lit from the top-left, the rose, the bridge, a long neck slanting up to
+      // the right shoulder and the pegbox bent back; the strumming hand moves between frames
+      const float bx = 6.0f, by = ty + 5.0f;
+      ball(c, bx, by, oud ? 4.2 : 3.8, oud ? 3.4 : 3.1, kWoodDark, 0.0f);            // the bowl's rim
+      ball(c, bx - 0.3, by - 0.4, oud ? 3.4 : 3.0, oud ? 2.7 : 2.4, kWood, 0.04f);  // the soundboard
+      c.set(6, ty + 4, kWoodDark[0]); c.set(7, ty + 4, kWoodDark[0]); c.set(6, ty + 5, kWoodDark[1]);   // the rose
+      hline(c, 4, 6, ty + 7, kWoodDark[0]);                                              // the bridge
+      if (oud) {   // the oud: a short neck bent sharply back
+        stick(9, ty + 3, 12, ty + 0, kWoodDark, 3); stick(9, ty + 4, 12, ty + 1, kWoodDark, 2);
+        c.set(13, ty + 1, kWoodDark[2]); c.set(13, ty + 2, kWoodDark[1]); c.set(12, ty + 1, kWoodDark[3]);
+      } else {
+        stick(9, ty + 3, 12, ty - 1, kWoodDark, 3); stick(9, ty + 4, 13, ty, kWoodDark, 2);
+        c.set(13, ty - 2, kWoodDark[3]); c.set(13, ty - 1, kWoodDark[2]); c.set(14, ty - 1, kWoodDark[1]);   // the pegbox
+      }
+      for (int k = 0; k < 3; k++) c.set(8 + k, ty + 4 - k, mix(kCloth[4], kWood[3], 0.4f));   // the strings
+      armL(3, ty + 4, odd ? 5 : 6, ty + 5 + (odd ? 1 : 0));
+    }
+  }
+  void windD(int ph, int f) {
+    const bool odd = f & 1;
+    const LeadInst li = (LeadInst)var;
+    switch (li) {
+      case LeadInst::Pipes:
+        if (ph == 1) {
+          for (int k = 0; k < 4; k++) stick(6 + k, hy + 6, 6 + k, hy + 6 + 3 - k, kThatch, 3);
+          armL(4, ty + 2, 6, ty);
+        } else armR(12, ty + 2, 10, ty);
+        break;
+      case LeadInst::Reed:
+        if (ph == 1) {
+          stick(7, hy + 6, 7, ty + 4, kWoodDark, 2); c.set(8, ty + 2, kWoodDark[1]); c.set(8, ty + 3, kWoodDark[1]); c.set(8, ty + 4, kWoodDark[1]);
+          c.set(6, ty + 5, kWoodDark[3]); c.set(7, ty + 5, kWoodDark[2]); c.set(8, ty + 5, kWoodDark[2]); c.set(9, ty + 5, kWoodDark[1]);
+          c.set(7, ty + 1 + (odd ? 1 : 0), kBrass[4]);
+          armL(4, ty + 3, 6, ty + 2);
+        } else armR(12, ty + 3, 9, ty + 3);
+        break;
+      case LeadInst::Horn: case LeadInst::Brass:
+        if (ph == 1) {
+          stick(7, hy + 6, 4, hy + 4, kBrass, 2);
+          ball(c, 2.5, hy + 2.5, 1.8, 2.2, kBrass, 0.0f);
+          c.set(2, hy + 2, kBrass[0]);
+          armL(3, ty + 1, 5, hy + 7);
+        } else armR(12, ty + 3, 9, ty + 1);
+        break;
+      case LeadInst::Bells:
+        if (ph == 0) { armR(13, ty, 13, hy + 4 - (odd ? 0 : 1)); c.set(14, hy + 2 - (odd ? 0 : 1), kGold[3]); c.set(14, hy + 1 - (odd ? 0 : 1), kGold[2]); }
+        else { armL(2, ty, 2, hy + 4 - (odd ? 1 : 0)); c.set(1, hy + 2 - (odd ? 1 : 0), kGold[4]); c.set(1, hy + 1 - (odd ? 1 : 0), kGold[3]); }
+        break;
+      case LeadInst::Voice:
+        if (ph == 0) armR(13, ty + 1, 13, ty - (odd ? 1 : 0));
+        else { singing(); armL(4, ty + 4, 7, ty + 2); }
+        break;
+      default:   // the transverse flute, held out to the player's right (screen left)
+        if (ph == 1) {
+          stick(1, hy + 6, 7, hy + 6, kWood, 3);
+          c.set(3, hy + 6, kWoodDark[0]); c.set(5, hy + 6, kWoodDark[0]);
+          if (odd) c.set(4, hy + 6, kWoodDark[1]);
+          armL(3, ty + 1, 3, hy + 7);
+        } else armR(12, ty + 2, 7, hy + 8);
+        break;
+    }
+  }
+  void drumD(int ph, int f) {
+    const bool odd = f & 1;
+    const PercKind pk = (PercKind)var;
+    const Ramp Skin = ramp5(rgba(140, 116, 92), rgba(196, 172, 138), rgba(226, 208, 172), rgba(242, 230, 204), rgba(252, 246, 228));
+    switch (pk) {
+      case PercKind::Taiko: case PercKind::Kettle: {   // a barrel drum on a strap at the belly, two sticks
+        if (ph == 1) {
+          for (int y = ty + 4; y <= hip + 1; y++)
+            for (int x = 5; x <= 10; x++) c.set(x, y, kRed[x == 5 ? 3 : (x >= 9 ? 1 : 2)]);
+          for (int x = 5; x <= 10; x++) { c.set(x, ty + 3, Skin[x < 8 ? 4 : 3]); c.set(x, hip + 1, kWoodDark[1]); }
+          c.set(5, ty + 5, kBrass[4]); c.set(10, ty + 5, kBrass[2]);
+          stick(4, ty + (odd ? 1 : 3), 6, ty + 3, kWood, 3);
+          stick(11, ty + (odd ? 3 : 1), 9, ty + 3, kWood, 3);
+          armL(4, ty + 3, 4, ty + (odd ? 1 : 3));
+          armR(12, ty + 3, 12, ty + (odd ? 3 : 1));
+        }
+        break;
+      }
+      case PercKind::Hand: case PercKind::Tabla: {   // a pair of small drums at the belly
+        if (ph == 1) {
+          for (int s = 0; s < 2; s++) {
+            const int x0 = s ? 9 : 4;
+            for (int y = ty + 5; y <= ty + 7; y++) for (int x = x0; x <= x0 + 2; x++) c.set(x, y, (s ? kWoodDark : kWood)[x == x0 ? 3 : (x == x0 + 2 ? 1 : 2)]);
+            c.set(x0, ty + 4, Skin[4]); c.set(x0 + 1, ty + 4, Skin[3]); c.set(x0 + 2, ty + 4, Skin[2]);
+          }
+          armL(4, ty + 3, 5, ty + 4 - (odd ? 0 : 1));
+          armR(12, ty + 3, 11, ty + 4 - (odd ? 1 : 0));
+        }
+        break;
+      }
+      case PercKind::Gong: {
+        if (ph == 0) { ball(c, 11.5, ty + 1.5, 2.6, 2.6, kBrass, 0.0f); c.set(11, ty + 1, kBrass[4]); armR(13, ty + 3, 13, ty - 1); }
+        else { stick(odd ? 6 : 8, ty + 1, odd ? 5 : 9, ty + 3, kWood, 3); c.set(odd ? 6 : 9, ty + 0, kCloth[3]); armL(4, ty + 3, odd ? 5 : 8, ty + 3); }
+        break;
+      }
+      case PercKind::Wood: {   // clappers
+        if (ph == 0) { armR(13, ty + 1, odd ? 10 : 12, ty); stick(odd ? 9 : 12, ty - 1, odd ? 9 : 13, ty - 4, kWood, 3); }
+        else { armL(3, ty + 1, odd ? 6 : 4, ty); stick(odd ? 7 : 3, ty - 1, odd ? 7 : 2, ty - 4, kWood, 3); }
+        break;
+      }
+      case PercKind::Bells: {   // a jingle ring shaken above the head
+        if (ph == 0) armFront(11, 0, false);
+        else {
+          armL(2, ty, 3, ty - 1);
+          for (int k = 0; k < 6; k++) {
+            const float a = k / 6.0f * 6.2832f + (odd ? 0.5f : 0.0f);
+            c.set((int)std::lround(3 + std::cos(a) * 1.6f), (int)std::lround(ty - 3 + std::sin(a) * 1.6f), k & 1 ? kGold[4] : kWood[3]);
+          }
+        }
+        break;
+      }
+      default: {   // a frame drum (Bodhran: larger, struck with a beater) held up in the left hand (screen right)
+        const bool bod = pk == PercKind::Bodhran;
+        const float rr = bod ? 3.5f : 3.0f;
+        if (ph == 0) {
+          armR(13, ty + 3, 12, ty + 4);
+        } else {
+          ellipse(c, 10.5, ty + 2.0, rr + 0.6, rr + 0.6, kWood[1]);
+          ball(c, 10.5, ty + 2.0, rr, rr, Skin, 0.04f);
+          if (!bod) for (int k = 0; k < 4; k++) c.set(k < 2 ? 7 : 14, ty + (k & 1 ? 3 : 0), kBrass[4 - (k & 1)]);
+          if (bod) { stick(odd ? 5 : 7, ty - 1, odd ? 4 : 8, ty + 3, kWood, 3); armL(4, ty + 3, odd ? 4 : 6, ty + 2); }
+          else armL(4, ty + 3, odd ? 5 : 7, ty + (odd ? 2 : 1));
+        }
+        break;
+      }
+    }
+  }
+
+  // ------------------------------------------------------------------ facing up (the back to the camera)
+  void armsU(int ph) {
+    const int f = fr;
+    const bool odd = f & 1;
+    auto elbowsIn = [&]() { if (ph == 0) { armL(3, ty + 3, 4, ty + 4, false); armR(12, ty + 3, 12, ty + 4, false); } };
+    switch (pz) {
+      case Posture::Sit: case Posture::SitFloor: case Posture::Stir: case Posture::Read: case Posture::Beg:
+        elbowsIn();
+        break;
+      case Posture::Pray:
+        if (ph == 0) { armL(4, ty + 3, 5, ty + 4, false); armR(11, ty + 3, 11, ty + 4, false); }
+        break;
+      case Posture::Eat: case Posture::SitEat: case Posture::SitFloorEat:
+        if (ph == 0) { armL(3, ty + 3, 4, ty + 4, false); if (!odd) armR(12, ty + 3, 12, ty + 4, false); else armR(13, ty + 2, 12, ty, false); }
+        break;
+      case Posture::Drink: case Posture::SitDrink: case Posture::SitFloorDrink:
+        if (ph == 0) { armL(3, ty + 3, 4, ty + 4, false); if (!odd) armR(12, ty + 3, 12, ty + 4, false); else armR(13, ty + 2, 12, ty, false); }
+        if (ph == 1 && odd) { c.set(13, hy + 3, kWood[2]); c.set(13, hy + 4, kIron[1]); c.set(14, hy + 3, kWood[1]); }   // the tankard's foot over the head
+        break;
+      case Posture::Cheer:
+        if (ph == 1) { armR(13, ty - 1, 13, hy + 5); mug(11, hy + 1 - (odd ? 1 : 0), false); if (odd) armL(3, ty - 1, 3, hy + 4); }
+        else if (!odd) armFront(3, 0, true);
+        break;
+      case Posture::Wave:
+        if (ph == 0) armFront(3, 0, true);
+        else { armR(13, ty - 1, odd ? 13 : 14, hy + 2); }
+        break;
+      case Posture::Hammer:
+        if (!odd) { if (ph == 1) { stick(13, hy + 6, 13, hy + 2, kWood); hammerHead(13, hy + 1, false); armR(14, ty, 13, hy + 6); } else armL(3, ty + 3, 4, ty + 4, false); }
+        else elbowsIn();
+        break;
+      case Posture::Chop:
+        if (!odd) { if (ph == 1) { stick(11, ty, 12, hy + 1, kWood); axeHead(12, hy + 1, 1); armL(6, ty + 2, 10, ty); armR(14, ty, 13, ty - 1); } }
+        else elbowsIn();
+        break;
+      case Posture::Hoe:
+        if (!odd) { if (ph == 1) { stick(9, ty + 2, 13, hy - 1, kWood); c.set(13, hy - 1, kIron[3]); c.set(14, hy, kIron[2]); armR(13, ty + 2, 11, ty + 2); } else armL(3, ty + 3, 4, ty + 4, false); }
+        else elbowsIn();
+        break;
+      case Posture::Sweep: {
+        const int dir = odd ? -1 : 1;
+        if (ph == 0) {
+          const int footX = dir > 0 ? 11 : 4;
+          stick(dir > 0 ? 9 : 6, ty + 3, footX, kGround - 2, kWood);
+          broomHead(footX, kGround - 1, dir);
+          armL(3, ty + 3, 4, ty + 4, false); armR(12, ty + 3, 12, ty + 4, false);
+        }
+        break;
+      }
+      case Posture::Carry: {
+        const Pose wp = humanPose(facing, 1 + (f & 3));
+        if (ph == 0) armFront(3, wp.swingA, true);
+        else {
+          const Ramp S = ramp(rgba(184, 150, 104));
+          ball(c, 11.5, ty - 2.0, 3.6, 2.8, S, 0.06f);
+          c.set(11, ty - 5, kLeather[2]); c.set(12, ty - 5, kLeather[1]);
+          armR(14, ty + 1, 14, ty - 1);
+        }
+        break;
+      }
+      case Posture::Fish:
+        if (ph == 0) { stick(9, ty + 3, 13, 2 + (odd ? 1 : 0), kWood, 3); elbowsIn(); }
+        break;
+      case Posture::Lute:
+        if (ph == 0) { stick(5, ty + 3, 2, ty - 2, kWoodDark, 3); c.set(1, ty - 3, kWoodDark[2]); armL(3, ty + 2, 3, ty + 1, false); armR(13, ty + 3, 12, ty + 4 - (odd ? 1 : 0), false); }
+        break;
+      case Posture::Drum:
+        if (ph == 0) { ellipse(c, 2.0, ty + 2.0, 1.2, 3.4, kWood[1]); c.set(2, ty, kWood[3]); armL(3, ty + 3, 3, ty + 3, false); armR(13, ty + 2, 12, ty + 3 - (odd ? 1 : 0), false); }
+        break;
+      case Posture::Flute:
+        if (ph == 1 && (LeadInst)var == LeadInst::Flute) stick(12, hy + 6, 14, hy + 6, kWood, 3);
+        if (ph == 0) { armL(3, ty + 2, 4, ty + 1, false); armR(13, ty + 2, 12, ty + 1, false); }
+        break;
+      case Posture::Lamp:
+        if (ph == 1) { stick(10, ty + 4, 13, 4 - (odd ? 1 : 0), kWood); c.set(13, 4 - (odd ? 1 : 0), kBrass[3]); flame(13, 3 - (odd ? 1 : 0)); armR(13, ty, 12, hy + 4 - (odd ? 1 : 0)); }
+        else armL(3, ty + 3, 4, ty + 4, false);
+        break;
+      case Posture::Play: {
+        const int a = odd ? 0 : 2;
+        if (ph == 1) { armL(3, ty - 1, 2, hy + 1 + a); armR(13, ty - 1, 13, hy + 1 + (2 - a)); }
+        break;
+      }
+      case Posture::Dance: {
+        const int s = f & 3;
+        if (ph == 1) {
+          if (s == 0) { armR(13, ty - 1, 13, hy + 2); armL(4, ty + 3, 5, ty + 4); }
+          else if (s == 2) { armL(3, ty - 1, 2, hy + 2); armR(12, ty + 3, 10, ty + 4); }
+          else { armL(2, ty + 1, 1, ty); armR(13, ty + 1, 14, ty); }
+        }
+        break;
+      }
+      default:
+        if (ph == 0) armFront(3, 0, true);
+        else armFront(11, 0, false);
+        break;
+    }
+  }
+
+  // ------------------------------------------------------------------ side view (facing right)
+  // phase 0: before the body (the far arm); 1: after the body, before the head; 2: after the head (the near arm)
+  void armsS(int ph) {
+    const int f = fr;
+    const bool odd = f & 1;
+    const int o = P.lean;
+    switch (pz) {
+      case Posture::Sit: case Posture::SitFloor:
+        if (ph == 0) armFar(8 + o, ty + 4, 10 + o, seat == kPzFloor ? hip : ty + 5);
+        if (ph == 2) armNear(8 + o, ty + 4, 11 + o, seat == kPzFloor ? hip : ty + 5);
+        break;
+      case Posture::Eat: case Posture::SitEat: case Posture::SitFloorEat:
+        if (ph == 0) armFar(8 + o, ty + 4, 10 + o, ty + 5);
+        if (ph == 2) {
+          if (!odd) { armNear(8 + o, ty + 4, 11 + o, ty + 3); bread(11 + o, ty + 1); }
+          else { armNear(9 + o, ty + 3, 11 + o, hy + 8); bread(11 + o, hy + 5); }
+        }
+        break;
+      case Posture::Drink: case Posture::SitDrink: case Posture::SitFloorDrink:
+        if (ph == 0) armFar(8 + o, ty + 4, 10 + o, ty + 5);
+        if (ph == 2) {
+          if (!odd) { mug(10 + o, ty + 1, false); armNear(8 + o, ty + 4, 11 + o, ty + 4); }
+          else { mug(11 + o, hy + 4, true); armNear(9 + o, ty + 3, 12 + o, hy + 8); }
+        }
+        break;
+      case Posture::Cheer:
+        if (ph == 0 && odd) armFar(8 + o, ty - 2, 9 + o, hy + 1);
+        if (ph == 0 && !odd) armFar(8 + o, ty + 3, 8 + o, ty + 5);
+        if (ph == 2) { armNear(10 + o, ty - 1, 12 + o, hy + 5); mug(11 + o, hy + 1 - (odd ? 1 : 0), false); }
+        break;
+      case Posture::Wave:
+        if (ph == 0) armFar(8 + o, ty + 3, 8 + o, ty + 5);
+        if (ph == 2) armNear(10 + o, ty - 1, odd ? 11 + o : 10 + o, hy + 2);
+        break;
+      case Posture::Hammer:
+        if (ph == 0) armFar(9 + o, ty + 3, 11 + o, ty + 4);
+        if (ph == 2) {
+          if (!odd) { stick(4 + o, hy + 6, 3 + o, hy + 2, kWood); hammerHead(3 + o, hy + 1, false); armNear(6 + o, ty, 4 + o, hy + 6); }
+          else { armNear(10 + o, ty + 2, 12 + o, ty + 3); stick(12 + o, ty + 3, 12 + o, ty + 6, kWood); hammerHead(12 + o, ty + 7, true); }
+        }
+        break;
+      case Posture::Chop:
+        if (!odd) {
+          if (ph == 0) armFar(7 + o, ty, 5 + o, hy + 6);
+          if (ph == 2) { stick(5 + o, hy + 5, 3 + o, hy + 1, kWood); axeHead(3 + o, hy + 1, -1); armNear(7 + o, ty, 6 + o, hy + 6); }
+        } else {
+          if (ph == 0) armFar(10 + o, ty + 3, 11 + o, ty + 5);
+          if (ph == 2) { stick(11 + o, ty + 5, 11 + o, ty + 8, kWood); axeHead(11 + o, ty + 8, 1); armNear(10 + o, ty + 3, 11 + o, ty + 5); }
+        }
+        break;
+      case Posture::Hoe:
+        if (!odd) {
+          if (ph == 0) { stick(9 + o, ty + 4, 13 + o, hy + 1, kWood); c.set(13 + o, hy + 2, kIron[3]); c.set(14 + o, hy + 2, kIron[2]); c.set(14 + o, hy + 3, kIron[1]); armFar(8 + o, ty + 3, 10 + o, ty + 2); }
+          if (ph == 2) armNear(8 + o, ty + 4, 10 + o, ty + 4);
+        } else {
+          if (ph == 0) armFar(10 + o, ty + 3, 11 + o, ty + 3);
+          if (ph == 2) { stick(10 + o, ty + 3, 13, kGround, kWood); c.set(13, kGround + 1, kIron[3]); c.set(14, kGround + 1, kIron[2]); c.set(12, kGround + 1, kIron[4]); armNear(9 + o, ty + 4, 11 + o, ty + 4); }
+        }
+        break;
+      case Posture::Sweep: {
+        const int footX = odd ? 9 : 11;
+        if (ph == 0) armFar(9 + o, ty + 3, 10 + o, ty + 2);
+        if (ph == 2) { stick(10 + o, ty, footX + o, kGround - 2, kWood); broomHead(footX + o, kGround - 1, odd ? -1 : 1); armNear(9 + o, ty + 4, odd ? 10 + o : 11 + o, ty + 4); }
+        break;
+      }
+      case Posture::Stir: {
+        static const int dx[4] = {-1, 0, 1, 0}, dy[4] = {0, 1, 0, -1};
+        const int lx = 12 + o + dx[f & 3], ly = ty + 8 + dy[f & 3];
+        if (ph == 0) armFar(9 + o, ty + 4, 11 + o, ty + 5);
+        if (ph == 2) { stick(12 + o, ty + 4, lx, ly, kWood, 3); c.set(lx, ly + 1, kIron[3]); c.set(lx + 1, ly + 1, kIron[2]); armNear(9 + o, ty + 4, 12 + o, ty + 5); }
+        break;
+      }
+      case Posture::Carry: {
+        const Pose wp = humanPose(facing, 1 + (f & 3));
+        if (ph == 0) armSide(false, wp.swingB);
+        if (ph == 2) {
+          const Ramp S = ramp(rgba(184, 150, 104));
+          ball(c, 6.5 + o, ty - 2.0, 3.4, 2.7, S, 0.06f);
+          c.set(4 + o, ty - 4, kLeather[2]); c.set(9 + o, ty - 3, S[1]);
+          armNear(9 + o, ty + 1, 9 + o, ty - 1);
+        }
+        break;
+      }
+      case Posture::Fish: {
+        const int tipY = hy - 1 + (odd ? 1 : 0);
+        if (ph == 0) { for (int y = tipY + 1; y <= kGround + 1; y++) if ((y + (odd ? 1 : 0)) % 5 != 0) c.set(14, y, withA(kWhite, 150)); armFar(9 + o, ty + 4, 11 + o, ty + 4); }
+        if (ph == 2) { stick(11 + o, ty + 4, 14, tipY, kWood, 3); armNear(9 + o, ty + 4, 11 + o, ty + 5); }
+        break;
+      }
+      case Posture::Lute: {
+        const LeadInst li = (LeadInst)var;
+        if (ph == 0) {
+          if (li == LeadInst::Fiddle) armFar(9 + o, ty, 11 + o, ty);
+          else armFar(10 + o, ty + 1, 13 + o, ty);
+        }
+        if (ph == 2) {
+          if (li == LeadInst::Fiddle) {
+            ball(c, 10.5 + o, ty + 1.0, 1.8, 2.0, kWood, 0.0f);
+            stick(11 + o, ty + 1, 14 + o, ty + 2, kWoodDark);
+            const int hx = odd ? 9 : 11;
+            stick(hx + o, ty + 4, hx + 3 + o, ty - 1, kCloth, 3);
+            armNear(8 + o, ty + 4, hx + o, ty + 4);
+          } else if (li == LeadInst::Harp) {
+            stick(14 + o, ty - 3, 14 + o, ty + 5, kWood, 2);
+            stick(11 + o, ty - 2, 14 + o, ty - 3, kWood, 3);
+            stick(11 + o, ty - 2, 13 + o, ty + 5, kWoodDark, 2);
+            stick(12 + o, ty - 1, 12 + o, ty + 3, kCloth, 3);
+            armNear(9 + o, ty + 4, odd ? 12 + o : 13 + o, ty + 2);
+          } else {
+            const bool oud = li == LeadInst::Oud;
+            ball(c, 11.0 + o, ty + 4.0, oud ? 2.8 : 2.4, oud ? 2.6 : 2.2, kWood, 0.04f);
+            c.set(11 + o, ty + 4, kWoodDark[0]);
+            stick(12 + o, ty + 2, 13 + o, ty - 1 + (oud ? 1 : 0), kWoodDark, 3);
+            c.set(14 + o, ty - 2 + (oud ? 1 : 0), kWoodDark[2]);
+            armNear(9 + o, ty + 4, 11 + o, ty + 3 + (odd ? 1 : 0));
+          }
+        }
+        break;
+      }
+      case Posture::Flute: {
+        const LeadInst li = (LeadInst)var;
+        if (ph == 0) armFar(10 + o, ty + 2, 12 + o, hy + 8);
+        if (ph == 2) {
+          if (li == LeadInst::Voice) { singing(); armNear(9 + o, ty + 2, 12 + o, ty - (odd ? 1 : 0)); }
+          else if (li == LeadInst::Reed) { stick(11 + o, hy + 6, 13 + o, ty + 4, kWoodDark, 2); c.set(13 + o, ty + 5, kWoodDark[3]); c.set(14 + o, ty + 5, kWoodDark[1]); armNear(9 + o, ty + 3, 12 + o, ty + 2); }
+          else if (li == LeadInst::Horn || li == LeadInst::Brass) { stick(11 + o, hy + 6, 13 + o, hy + 3, kBrass, 2); ball(c, 14.0 + o, hy + 2.0, 1.4, 2.0, kBrass, 0.0f); armNear(9 + o, ty + 2, 12 + o, hy + 7); }
+          else if (li == LeadInst::Pipes) { for (int k = 0; k < 3; k++) stick(11 + o + k, hy + 6, 11 + o + k, hy + 9 - k, kThatch, 3); armNear(9 + o, ty + 2, 12 + o, hy + 8); }
+          else if (li == LeadInst::Bells) { armNear(10 + o, ty, 11 + o, hy + 4 - (odd ? 1 : 0)); c.set(12 + o, hy + 2 - (odd ? 1 : 0), kGold[4]); c.set(12 + o, hy + 3 - (odd ? 1 : 0), kGold[2]); }
+          else { stick(11 + o, hy + 6, 14 + o, hy + 8, kWood, 3); if (odd) c.set(13 + o, hy + 7, kWoodDark[0]); armNear(9 + o, ty + 2, 12 + o, hy + 8); }
+        }
+        break;
+      }
+      case Posture::Drum: {
+        const PercKind pk = (PercKind)var;
+        if (pk == PercKind::Taiko || pk == PercKind::Kettle || pk == PercKind::Hand || pk == PercKind::Tabla) {
+          if (ph == 0) armFar(9 + o, ty + 3, 11 + o, ty + (odd ? 2 : 4));
+          if (ph == 2) {
+            for (int y = ty + 4; y <= hip + 1; y++) for (int x = 10; x <= 13; x++) c.set(x + o, y, kRed[x == 10 ? 3 : (x == 13 ? 1 : 2)]);
+            for (int x = 10; x <= 13; x++) c.set(x + o, ty + 3, kCloth[4]);
+            armNear(9 + o, ty + 3, 12 + o, ty + (odd ? 4 : 2));
+          }
+        } else {
+          if (ph == 0) { armFar(10 + o, ty + 2, 12 + o, ty + 2); }
+          if (ph == 2) {
+            ellipse(c, 13.0 + o, ty + 1.5, 1.4, 3.6, kWood[1]);
+            ellipse(c, 12.6 + o, ty + 1.5, 0.9, 3.0, kCloth[3]);
+            armNear(9 + o, ty + 4, odd ? 10 + o : 11 + o, ty + 2);
+          }
+        }
+        break;
+      }
+      case Posture::Pray:
+        if (ph == 0) armFar(9 + o, ty + 4, 11 + o, ty + 3);
+        if (ph == 2) { armNear(9 + o, ty + 4, 11 + o, ty + 3); c.set(11 + o, ty + 2, handRamp()[3]); c.set(12 + o, ty + 2, handRamp()[2]); }
+        break;
+      case Posture::Lamp: {
+        const int up = odd ? 1 : 0;
+        if (ph == 0) armFar(9 + o, ty + 3, 10 + o, ty + 4);
+        if (ph == 2) { stick(9 + o, ty + 5, 13, 4 - up, kWood); c.set(13, 4 - up, kBrass[3]); flame(13, 3 - up); armNear(10 + o, ty - 1, 11 + o, hy + 3 - up); }
+        break;
+      }
+      case Posture::Read:
+        if (ph == 0) armFar(9 + o, ty + 3, 11 + o, ty + 3);
+        if (ph == 2) {
+          for (int x = 10; x <= 13; x++) { c.set(x + o, ty + 1, x < 12 ? kWhite : kCloth[4]); c.set(x + o, ty + 2, kRed[x == 10 ? 3 : 2]); }
+          if (odd) c.set(12 + o, ty, kWhite);
+          armNear(9 + o, ty + 4, 11 + o, ty + 3);
+        }
+        break;
+      case Posture::Play: {
+        const int a = odd ? 0 : 2;
+        if (ph == 0) armFar(7 + o, ty - 1, 6 + o, hy + 1 + (2 - a));
+        if (ph == 2) armNear(10 + o, ty - 1, 11 + o, hy + 1 + a);
+        break;
+      }
+      case Posture::Dance: {
+        const int s = f & 3;
+        if (ph == 0) { if (s == 2) armFar(7 + o, ty - 1, 6 + o, hy + 2); else armFar(6 + o, ty + 1, 4 + o, ty); }
+        if (ph == 2) { if (s == 0) armNear(10 + o, ty - 1, 11 + o, hy + 2); else armNear(11 + o, ty + 1, 13 + o, ty); }
+        break;
+      }
+      case Posture::Beg:
+        if (ph == 0) armFar(9 + o, ty + 4, 11 + o, hip);
+        if (ph == 2) { armNear(9 + o, ty + 4, 11 + o, ty + 4 - (odd ? 1 : 0)); bowl(11 + o, ty + 3 - (odd ? 1 : 0), odd); }
+        break;
+      default:
+        if (ph == 0) armSide(false, 0);
+        if (ph == 2) armSide(true, 0);
+        break;
+    }
+  }
+};
+
+// ---- the sleeper (rpg/art/art_life.cpp sleeperSprite): the head on the pillow, face up (eyes shut, hats and helmets
+//      off), the shoulders and the hands on the turned-down blanket. Painted in a 16-wide column at (ox, 0); hy is the
+//      face's top row. The body under the blanket is the caller's.
+struct SleeperRig : HumanPainter {
+  SleeperRig(Canvas& c_, const HumanLook& l) : HumanPainter(c_, l, kDown, Pose{}) {}
+  void paintAt(int headTop, int frame) {
+    hy = headTop; ty = hy + 8; hip = ty + 6;
+    // the shoulders and the top of the night shirt just above the blanket's edge
+    for (int x = 4; x <= 11; x++) c.set(x, ty, R.top[x <= 5 ? 3 : (x >= 10 ? 1 : 2)]);
+    c.set(7, ty, R.skin[1]); c.set(8, ty, R.skin[1]);
+    head();
+    const uint32_t eye = L.eyeColor ? opaque(L.eyeColor) : kEye;
+    for (int y = hy + 2; y <= hy + 7; y++)
+      for (int x = 0; x < 16; x++)
+        if (c.get(x, y) == eye) c.set(x, y, c.get(x, y + 1) == eye ? R.skin[2] : R.skin[0]);
+    if (frame & 1) { c.set(7, hy + 6, R.skin[1]); c.set(8, hy + 6, R.skin[0]); }   // breathing out: the mouth slack
+    // the hands folded on the blanket
+    const Ramp& h = handRamp();
+    c.set(5, ty + 3, R.sleeve[3]); c.set(6, ty + 3, h[3]); c.set(7, ty + 3, h[2]);
+    c.set(10, ty + 3, R.sleeve[1]); c.set(9, ty + 3, h[2]); c.set(8, ty + 3, h[1]);
+  }
+};
+
 }  // namespace
 
 Canvas humanSheet(const HumanLook& look) {
@@ -3113,6 +4109,30 @@ Canvas humanFigureStill(const HumanLook& look, int facing) {
   HumanPainter hp(fig, look, facing, Pose{});
   hp.paint();
   return fig;
+}
+
+// ------------------------------------------------------------------ M5 postures and the sleeper (rpg/art/art_life.h)
+Canvas humanPostureCellRaw(const HumanLook& look, Posture p, uint8_t variant, int row, int frame) {
+  Canvas cell(HUMAN_W, HUMAN_H);
+  if (p == Posture::None || p == Posture::Sleep || (int)p >= (int)Posture::COUNT) {
+    if (p == Posture::None) { HumanPainter hp(cell, look, row, humanPose(row, 0)); hp.paint(); }
+    return cell;
+  }
+  PostureRig pr(cell, look, row, posturePose(p, row, frame), p, frame, variant);
+  pr.paintPosture();
+  return cell;
+}
+// (art_life.cpp) the sleeper's head and shoulders in a 16-wide column of c at x offset ox, the face's top row headTop
+void paintSleeperHead(Canvas& c, const HumanLook& look0, int ox, int headTop, int frame) {
+  HumanLook look = look0;
+  look.helmet = false; look.helmStyle = 0; look.hood = false; look.helmForm = 0; look.crest = 0;
+  look.headwear = 0; look.cloak = 0; look.cape = false; look.backItem = 0; look.shield = false; look.shieldStyle = 0;
+  look.shieldForm = 0; look.weapon = 0;
+  Canvas col(HUMAN_W, std::max(HUMAN_H, headTop + 14));
+  SleeperRig sr(col, look);
+  sr.paintAt(headTop, frame);
+  for (int y = 0; y < col.h; y++)
+    for (int x = 0; x < col.w; x++) if (chA(col.get(x, y))) c.set(ox + x, y, col.get(x, y));
 }
 
 // ------------------------------------------------------------------ humanoid monsters via the human rig

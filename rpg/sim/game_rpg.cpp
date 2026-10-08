@@ -76,6 +76,7 @@ void Game::useItem(int i) {
       break;
     }
     case ItemKind::Food: {
+      lifeAte(it);   // M5 (15.2): Well Fed
       float k = background == Background::Farmhand ? 1.5f : 1.0f;   // farmhand: plain food goes further
       pl().hp = std::min(pl().maxHp, pl().hp + it.power * k);
       stamina += it.power * k;
@@ -293,6 +294,7 @@ int Game::interactProp(int& otx, int& oty) const {
                       ((prop == Prop::StandingStone || prop == Prop::GraveCairn) && !inside) ||   // M2 wayside (wayside.cpp)
                       (prop == Prop::Signpost && !inside && world.siteAt(tx, ty, 3) >= 0) ||
                       ((prop == Prop::Hammock || prop == Prop::SleepingMat) && inside && subBldg >= 0) ||   // M3: cultures that sleep so
+                      (prop == Prop::Bedroll && !inside) ||   // M5: a wayfarer's bedroll (Life: rested, the night passes)
                       (art::isLoreProp(prop) && (inside ? subSite >= 0 : (prop == Prop::NoticeBoard || prop == Prop::ToppledStatue))) ||   // M4 (story_game.cpp)
                       (prop == Prop::Bed && inside && subBldg >= 0 &&
                        (world.over.bldgs[subBldg].type != art::Building::Inn || world.over.bldgs[subBldg].genVer >= WORLDGEN_V7));
@@ -313,6 +315,7 @@ void Game::interact() {
   if (!pr) return;
   Prop prop = (Prop)(pr - 1);
   if (prop == Prop::Chest) { openChest(tx, ty); return; }
+  if (lifeUseProp(prop, tx, ty)) return;   // M5: beds and bedrolls (Rested), the townsfolk's furniture (life_game.cpp)
   // M4: a story may ask for a wayside prop (standing stones, a cairn) before its own use runs
   if (prop == Prop::StandingStone || prop == Prop::GraveCairn) story.onUseProp(*this, (int)prop, tx, ty);
   if (useWaysideProp(prop, tx, ty)) return;
@@ -570,7 +573,8 @@ bool Game::hasOffer(const Actor& a) const {
   if (!a.npc || (a.role == Role::Guard && !noble) || a.role == Role::Child || a.role == Role::King || a.site < 0) return false;
   if (!a.human || a.quest > 0 || a.role == Role::Traveller) return false;   // M2: a troll, a missing person, a traveller
   uint64_t key = npcKey(a);
-  for (auto& q : quests) if (q.state != QState::Done && q.type != QType::Main && q.giverSite == a.site && q.giverBldg == a.bldg && q.giverSlot == a.slot) return false;
+  for (auto& q : quests) if (q.state != QState::Done && q.type != QType::Main && isGiver(q, a)) return false;
+  { Quest lq; if (lifeOffer(a, lq)) return true; }   // M5: an unmet need asks for help (life_quests.cpp)
   auto it = npcQuestsDone.find(key);
   int done = it == npcQuestsDone.end() ? 0 : it->second;
   if (a.role == Role::Jarl) return done < (noble ? 9 : 6);
@@ -938,6 +942,14 @@ void Game::giveFirstWeapon(Quest& q) {
 
 // ------------------------------------------------------------------ dialogue
 void Game::talkTo(Actor& a) {
+  // M5: a village animal is petted, not talked to (a wag, a purr, a cluck)
+  if (a.critter) {
+    a.bubble = art::Bubble::Heart; a.bubbleT = 1.6f;
+    a.face = faceOf(pl().p - a.p);
+    const art::Critter k = (art::Critter)(a.critter - 1);
+    sfx((int)(k == art::Critter::Dog ? Sfx::Bark : k == art::Critter::Cat ? Sfx::Meow : Sfx::Cluck), a.p, 1.15f, 0.6f);
+    return;
+  }
   dlg = Dialogue();
   dlg.actor = a.id;
   dlg.speaker = a.name;
@@ -1016,6 +1028,7 @@ void Game::talkTo(Actor& a) {
     if (!(spellsKnown & (1 << (int)Spell::Heal))) dlg.opts.push_back({"TEACH ME MEND (120 GOLD)", A_LEARN, (int)Spell::Heal});
     if (!(spellsKnown & (1 << (int)Spell::IceSpike))) dlg.opts.push_back({"TEACH ME FROST LANCE (300 GOLD)", A_LEARN, (int)Spell::IceSpike});
   }
+  lifeTalk(a);    // M5: greetings by name, barks of need, feed / employ / supply / befriend (life_game.cpp)
   warTalk(a);     // M4: the war's talk (siege commanders, guards' news of the front; war_game.cpp)
   storyTalk(a);   // M4: story quests, gossip, the realm's news (rpg/story/story_game.cpp)
   dlg.opts.push_back({"FAREWELL.", A_BYE, 0});
@@ -1273,6 +1286,7 @@ void Game::dialogueChoose(int oi) {
       // M4: the lanes' own option ranges (game.h DLG_*)
       if (o.action >= DLG_STORY && o.action < DLG_WAR && storyChoose(o)) return;
       if (o.action >= DLG_WAR && o.action < DLG_END && warChoose(o)) return;
+      if (o.action >= DLG_LIFE && o.action < DLG_LIFE_END && lifeChoose(o)) return;
       mode = Mode::Play;
       return;
   }
@@ -1284,6 +1298,7 @@ void Game::rest(int hours) {
   Actor& p = pl();
   p.hp = p.maxHp; mp = maxMp; stamina = maxSt;
   sleepFade = 1.5f;
+  lifeSlept(hours, true);   // M5 (15.2): every rest is in a bed, a hammock, a mat or a bedroll: Rested
   sfx((int)Sfx::Heal, p.p, 0.7f);
 }
 
@@ -1414,7 +1429,7 @@ bool Game::sell(int ii) {
 // travel and death: rpg/sim/travel.cpp (M2)
 
 // ------------------------------------------------------------------ save / load
-// SAVE_VER 10 (M4: the realm and story blocks appended after marks). SAVE_VER 9 (M3c: the layout of 8, bumped with the Wildlands world generation). SAVE_VER 8 (M3b: the layout of 7, bumped with the builder's world generation). SAVE_VER 7 (M3: the appearance block gains people, homeland and personal heraldry; nothing else moved).
+// SAVE_VER 11 (M5: the life block appended after the story block). SAVE_VER 10 (M4: the realm and story blocks appended after marks). SAVE_VER 9 (M3c: the layout of 8, bumped with the Wildlands world generation). SAVE_VER 8 (M3b: the layout of 7, bumped with the builder's world generation). SAVE_VER 7 (M3: the appearance block gains people, homeland and personal heraldry; nothing else moved).
 // SAVE_VER 6 (M2). Owner, 2026-10-04: old saves are not a concern, so only this version loads; an older file is refused
 // and the title offers a new game ("this save is from an older version"). The layout is frozen for M2 after phase A
 // (the lanes fill the new fields, they do not move them); any later change bumps SAVE_VER and regenerates
@@ -1447,10 +1462,13 @@ bool Game::sell(int ii) {
 //   marks    (v6) count, then key u64 + value i32, in key order
 //   realm    (v10) u32 byte length + the realm block (realm::Realm::serialize: its own version byte first)
 //   story    (v10) u32 byte length + the story block (story::Engine::serialize: its own version byte first)
+//   life     (v11) u32 byte length + the life block (life::Life::serialize: its own version byte first)
 // refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
 // 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 10;  // 10: M4 Banners (the realm and story blocks after marks; ENDLESS_GEN_VER 13);
+static constexpr uint32_t SAVE_VER = 11;  // 11: M5 Hearth and Hall (the life block after the story block: the census
+                                          //    deltas, settlement stock and moods, the player's buffs; ENDLESS_GEN_VER 14);
+                                          // 10: M4 Banners (the realm and story blocks after marks; ENDLESS_GEN_VER 13);
                                           // 9: M3c Wildlands (the layout of 8; the world's biomes, flora and wildlife
                                           //    are new, ENDLESS_GEN_VER 12, so older adventures start anew);
                                           // 8: M3b Builders & Societies (the world is built by the builder: a new
@@ -1674,6 +1692,9 @@ void Game::serialize(std::vector<uint8_t>& out) const {
     story.serialize(blk);
     w.u32((uint32_t)blk.size());
     for (uint8_t c : blk) w.u8(c);
+    life.serialize(blk);   // M5 (v11)
+    w.u32((uint32_t)blk.size());
+    for (uint8_t c : blk) w.u8(c);
   }
 }
 
@@ -1792,13 +1813,13 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   if (n > 1000000) return false;
   marks.clear();
   for (uint32_t i = 0; i < n && !r.bad; i++) { uint64_t k = r.u64(); marks[k] = r.i32(); }
-  // M4 (v10): the realm and story blocks (a block its owner cannot read refuses the whole save)
-  for (int blkI = 0; blkI < 2 && !r.bad; blkI++) {
+  // M4 (v10): the realm and story blocks, M5 (v11) the life block (a block its owner cannot read refuses the whole save)
+  for (int blkI = 0; blkI < 3 && !r.bad; blkI++) {
     n = r.u32();
     if (r.bad || n > (64u << 20) || r.p + n > in.size()) return false;
     std::vector<uint8_t> blk(in.begin() + (std::ptrdiff_t)r.p, in.begin() + (std::ptrdiff_t)(r.p + n));
     r.p += n;
-    if (blkI == 0 ? !realm.deserialize(blk) : !story.deserialize(blk)) return false;
+    if (blkI == 0 ? !realm.deserialize(blk) : blkI == 1 ? !story.deserialize(blk) : !life.deserialize(blk)) return false;
   }
   if (r.bad) return false;
   // re-apply looted overworld chests (by global tile)

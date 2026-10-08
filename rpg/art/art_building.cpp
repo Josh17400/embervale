@@ -3768,17 +3768,35 @@ void overlays(Painter& P, BuildingInfo* info) {
     }
     az = std::min(az, frontZ0 + (float)std::max(14, m.wallH - 3));
     const float fyc = rnd ? std::min((float)D, m.frontY((float)p.doorX + 0.5f)) : m.y1;
+    // (M5 fixer, review: "the awning is a flat, see-through checker band with no valance, thickness or shadow") the
+    // shadow it casts on the wall below it first (top-left light: down the face, a little to the right), then the
+    // canvas as a solid sloping sheet (sampled finer than a pixel row: no gaps for the window to show through), lit at
+    // its top and darker toward its front edge, then a valance hanging from the front edge with a scalloped hem
+    if (!rnd)
+      for (int x = (int)ax0 + 1; x <= (int)ax1; x++)
+        for (int j = 0; j < 5; j++) {
+          auto q = at(x + 0.5f, fyc + 0.2f, az - 4 - j);
+          if (q.first < 0 || q.second < 0 || q.first >= P.c.w || q.second >= P.c.h) continue;
+          if (P.layer[(size_t)q.second * P.c.w + q.first] != 1) continue;
+          const uint32_t w0 = P.c.get(q.first, q.second);
+          P.c.set(q.first, q.second, mix(w0, kInk, j < 3 ? 0.42f : 0.22f));
+        }
     for (int x = (int)ax0; x < (int)ax1; x++)
-      for (int k = 0; k < 6; k++) {
-        auto q = at(x + 0.5f, fyc + 0.5f + k * 0.5f, az - k);
+      for (int k = 0; k <= 20; k++) {
+        const float t = k * 0.25f;   // 0 at the wall, 5 at the front edge
+        auto q = at(x + 0.5f, fyc + 0.5f + t * 0.5f, az - t);
         bool stp = ((x / 4) & 1) == 0;
         const Ramp& R = shopfront ? (stp ? SR : kCloth) : A;
-        int kk = k == 0 ? 4 : (k < 4 ? 3 : 2);
+        int kk = t < 0.6f ? 4 : (t < 3.2f ? 3 : 2);
+        if (x == (int)ax1 - 1 && kk > 1) kk--;   // the right end in shade
         P.put(q.first, q.second, R[kk], 3);
       }
     for (int x = (int)ax0; x < (int)ax1; x++) {
-      auto q = at(x + 0.5f, fyc + 3.5f, az - 6);
-      if ((x & 3) == 1 || (x & 3) == 2) P.put(q.first, q.second, (shopfront && ((x / 4) & 1) == 0) ? SR[1] : (shopfront ? kCloth[1] : A[1]), 3);
+      const bool stp = shopfront && ((x / 4) & 1) == 0;
+      const Ramp& R = shopfront ? (stp ? SR : kCloth) : A;
+      for (int j = 0; j < 2; j++) { auto q = at(x + 0.5f, fyc + 3.0f, az - 5 - j); P.put(q.first, q.second, R[j == 0 ? 2 : 1], 3); }
+      // the hem: a scallop every four pixels, its tips dark
+      if ((x & 3) == 1 || (x & 3) == 2) { auto q = at(x + 0.5f, fyc + 3.0f, az - 7); P.put(q.first, q.second, R[0], 3); }
     }
     if (rnd)
       for (int s = 0; s < 2; s++) {

@@ -1219,6 +1219,36 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
       marked.insert(st->site);
       S.markers++;
     }
+    // (M5, 15.12) the settlements whose people the hero has seen (a census is known): a hungry one shows the bowl, a
+    // festival a little string of pennants, beside its icon like the realm's markers
+    for (int si = 0; si < (int)g.world.sites.size(); si++) {
+      const Site& s = g.world.sites[(size_t)si];
+      if (!s.settlement() || !s.discovered || marked.count(s.id) || !g.life.find(s.id)) continue;
+      const uint16_t f = g.life.moodFlags(s.id);
+      const bool fest = g.life.festival(s.id, g.day) || (f & life::MF_FESTIVAL);
+      const bool hungry = (f & (life::MF_HUNGRY | life::MF_FAMINE)) != 0;
+      if (!fest && !hungry) continue;
+      const Vec2 q = toScr(s.ex + g.world.ox + 0.5, s.ey + g.world.oy + 0.5);
+      if (!inView(q)) continue;
+      const float mx = std::floor(q.x + 6), my = std::floor(q.y - 9);
+      if (hungry) {
+        P.blit(S.warIcons[WI_HUNGRY], mx, my);
+        legendAdd(-9);
+      } else {   // the pennants: a sagging cord with three flags in red and gold
+        P.rect(mx - 1, my + 1, 11, 7, Color(0.94f, 0.88f, 0.74f, 0.8f));
+        const int sag[9] = {0, 1, 1, 2, 2, 2, 1, 1, 0};
+        for (int k = 0; k < 9; k++) P.rect(mx + k, my + 2 + sag[k], 1, 1, kInk);
+        for (int k = 0; k < 3; k++) {
+          const Color fc = (k & 1) ? Color(0.95f, 0.78f, 0.25f) : Color(0.80f, 0.20f, 0.17f);
+          const float fx = mx + 1 + k * 3, fy = my + 3 + sag[1 + k * 3];
+          P.rect(fx, fy, 2, 2, fc);
+          P.rect(fx, fy + 2, 1, 1, fc);
+        }
+      }
+      taken.push_back({mx - 1, my - 1, mx + 11, my + 11});
+      marked.insert(s.id);
+      S.markers++;
+    }
     // the other heard events (a war declared, a famine, prices rising...): a scroll where it happened
     // (M4 integration) newest first, only the last 90 days' news, at most 12 scrolls and never on top of another
     // marker: after a long game the whole continent used to be papered with scrolls (unreadable on a phone)
@@ -1644,6 +1674,13 @@ void View::drawMapTab(Game& g, float top) {
       std::string st = state;
       if (st.size() > fitC) st = st.substr(0, fitC);
       P.text(x, iy + 40, st, 1, colOf(stc ? stc : C(236, 120, 90)));
+      P.text(x + L.colW, iy + 20, "LV " + std::to_string(s.level), 1, kDim, 2);
+    } else if (known && s.settlement() && !moodWord(g, s.id, nullptr).empty()) {
+      // (M5, 15.12) a settlement whose people the hero has seen: its mood in its colour ("CONTENT", "HUNGRY", "FESTIVAL")
+      uint32_t mc = 0;
+      const std::string mw = moodWord(g, s.id, &mc);
+      P.text(x, iy + 40, "MOOD: ", 1, kDim);
+      P.text(x + P.textW("MOOD: ", 1), iy + 40, mw, 1, colOf(mc));
       P.text(x + L.colW, iy + 20, "LV " + std::to_string(s.level), 1, kDim, 2);
     } else if (known) P.text(x, iy + 40, "LEVEL " + std::to_string(s.level) + (s.cleared ? "  CLEARED" : ""), 1, kDim);
     // the journey

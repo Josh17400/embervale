@@ -2457,3 +2457,62 @@ remove or change the meaning of what is listed here):
   World's End (`World::ensureSite / ensureDen`).
 - Tests and scripts: `rpg_test --realm [--seeds]`; script commands `realm siege|take|burn|famine [n] | war | days N`,
   `expect realm <state> [n]` (rpg/view/script_realm.cpp); `tools/scripts/m4_lead_realm.txt`.
+
+### 15.18 M5 "Hearth and Hall" phase A (lead, 2026-10-07): the life contracts
+
+Section 15.12 (needs-driven citizens) and 15.2 (hunger and sleep as buffs) bind M5 over section 10 where they differ.
+Phase A contracts (a lane may ADD to the header it is named the editor of, never rename, remove or change the meaning of
+what is listed here):
+- `rpg/sim/life.h` (CITIZENS lane is its only editor): `life::Job` (24 jobs: the 10.1 list plus server, servant,
+  lamplighter, herder, labourer), `Act` (sleep, eat, work, wander, socialise, tavern, pray, patrol, play, perform, shop,
+  home, beg, bathe, light lamps, brawl, emigrate), `Place` (home, work, gathering, gathering2, plaza, temple, field,
+  gate, market, street, away), `Block` / `jobTemplate(job, shift)` (the 10.2 tables; guards' day and night shifts),
+  `Need` x5 (hunger, rest, social, faith, money; 0..100, 100 satisfied), traits `TR_*`, resident flags `RF_*`, mood flags
+  `MF_*` (content, festival, hungry, famine, war-torn, grief, brawls, emigrating, shuttered, raided), `Resident` (job,
+  age, traits, home / work as building offsets from `Site::bldgFirst`, household, spouse, parent, the generator spawn it
+  is: `keyBldg` / `keySlot`, name, needs, coin, the hour's act / place / building, mood, flags), `Tie` (friendships;
+  `PLAYER_TIE`), `Census` (residents, ties, the gathering / temple / market / seat / inn offsets, stock and prices per
+  `ew::Good`, mood and flags, hourly occupancy per building, the festival day), `npcId`, `Plan` and `Life::plan`,
+  `PlayerNeeds` (Well Fed / Rested / Hungry / Weary clocks; `survival` stub), `lampLightHour` / `lampOutHour` /
+  `lampLit` (the lamplighter's round by global tile), and `life::Life` (`census()` built on first use from the site's
+  buildings, `tick()` called by the core loop, `residentDied`, the player's hooks `feed / employ / supply / befriend`,
+  `friendsOf`, what the view reads: `mood`, `moodFlags`, `festival`, `occupants`; `resync`; the save block; stats).
+  `buildCensus` (census.cpp) and `spawnResident` (which resident a generator spawn embodies).
+- `rpg/sim/game.h` (TOWNSFOLK lane is its only editor): `Game::life`; `Actor::resident, posture, postureT, useX, useY,
+  bubble, bubbleT, critter, critterVar, lifeBits, lifeT, lifeA, lifeB`; `QType::Supply` (radiant quests from unmet
+  needs); `DLG_LIFE .. DLG_LIFE_END` (3000..4000); hooks called from the core loop and defined in each lane's own file:
+  TOWNSFOLK (rpg/sim/life_game.cpp) `lifeStep, lifeFolk, lifeSpawnAllowed, lifeSpawned, lifeInterior, lifeTalk,
+  lifeChoose, lifeKill, lifeUseProp, lifeAte, lifeSlept, lifeStaminaRegenMul, lifeHealthRegenMul, lifeXpMul` and the
+  opaque `Game::LifeRuntime`; CITIZENS `raidStep` (rpg/sim/life_raids.cpp) and `lifeOffer` (rpg/sim/life_quests.cpp,
+  asked first by hasOffer and makeOffer).
+- `rpg/sim/realm.h`: `Realm::lifeReport(site, foodDelta, mood, day)` (rpg/sim/realm_life.cpp): the residents' day folded
+  into `SettlementState::food / mood` (15.12 -> the 15.6.3 chain). Phase A never calls it.
+- `rpg/art/art_life.h` (ART lane is its only editor; included by rpg/art.h): `art::Posture` (25: sit, sit and eat, sit
+  and drink, eat, drink, cheer, hammer, hoe, sweep, chop, stir, carry, fish, sleep, wave, play, dance, lute, drum, flute,
+  pray, beg, lamp, read; named Posture because the rig has an internal Pose), `PostureInfo` / `postureInfo`,
+  `humanPostureSheet(look, posture)` (POSTURE_FRAMES x 3 facings), `Critter` (dog, cat, chicken, rooster, goat, pig,
+  duck) / `critterSheet(kind, variant)`, `Bubble` (11 speech icons) / `bubbleSprite`, `festivalBunting`,
+  `festivalLantern`. Phase A stand-ins (the standing sheet re-used, plain shaded animals).
+- Audio: `Music::Tavern` (phase A plays the Town piece), `Sfx::Bark, Cluck, Meow, Cheer` (stand-in voices).
+- Saves: SAVE_VER 11 (the life block after the story block, length-prefixed with its own version byte: the player's
+  buff clocks, then per settlement whose census was built (or loaded and not rebuilt) its mood, flags, clock, festival
+  day, stock, every resident's flags / grief day / needs / coin, and the player's friends); fixture
+  `tests/fixtures/save_v11.bin` (regenerated from current code: the main quest's wording is fresh; carries Well Fed,
+  Rested and a befriended villager). ENDLESS_GEN_VER 14 (goldens unchanged by phase A; a lane that changes generation
+  re-records them).
+- Tests and scripts: `rpg_test --life [--seeds] [--report]` (templates cover 24 h, census determinism and bounds, the
+  inn's keeper keyed, asleep at 2:00 / working at 10:00, the hourly aggregate, the life block round trip, the
+  120-resident plan budget; CI blocking); script commands `life [stats]`, `buff <state>`, `expect life residents |
+  act | mood`, `expect buff` (rpg/view/script_life.cpp); `tools/scripts/m5_lead_life.txt`, `tools/scripts/town_day_night.txt`.
+
+#### 15.18 addendum: M5 phase B/C (lanes + integration, 2026-10-08)
+- Life block version 2 (still SAVE_VER 11): at most 48 settlement records; the 8 most recent keep every resident's needs,
+  the rest sparse deltas. Fixture tests/fixtures/save_v11.bin also carries a death with grief and a famine.
+- `Realm::lifeRaid` (add-only, CITIZENS): a failed far-away night defence costs prosperity/damage and may carry off a
+  villager (QType::Missing rescue). `Realm::lifeReport` is now called once a day per simulated settlement.
+- Generation: the steppe inn is a two-storey felt guest house (guest beds upstairs only); 18 of the 201 town goldens
+  re-recorded; ENDLESS_GEN_VER stays 14.
+- CI: `rpg_test --folk --seeds 1..5` added beside `--life`.
+- Integration: children are drawn with a shortened body (rpg/view/render.cpp `childBody`: two torso rows and, unless
+  seated, two leg rows taken out of each rig cell; the head keeps its size); animals say "E: PET"/"PET"; animal idle
+  voices are the view's only (the sim sounds event barks).

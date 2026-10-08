@@ -223,7 +223,8 @@ std::string itemStats(const Game& g, const Item& it) {
     case ItemKind::Armor: case ItemKind::Helmet: case ItemKind::Shield: case ItemKind::Gloves: case ItemKind::Boots: case ItemKind::Cloak:
       s = "ARMOR " + std::to_string(it.power); break;
     case ItemKind::Potion: s = "RESTORES " + std::to_string(it.power); break;
-    case ItemKind::Food: s = "HEALS " + std::to_string(it.power); break;
+    // (fixer M5 r3, review: "nothing tells the player that food cures Hungry") food is what ends Hungry (15.2)
+    case ItemKind::Food: s = "HEALS " + std::to_string(it.power) + "\nENDS HUNGER: WELL FED"; break;
     case ItemKind::Arrows: s = "AMMUNITION"; break;
     case ItemKind::Quest: s = "QUEST ITEM"; break;
     default: s = "VALUE " + std::to_string(it.value); break;
@@ -270,7 +271,7 @@ const char* useVerb(int pr) {
     case art::Prop::Shrine: case art::Prop::Altar: return "PRAY";
     case art::Prop::BerryBush: return "PICK";
     case art::Prop::Signpost: return "READ";
-    case art::Prop::Bed: case art::Prop::Hammock: case art::Prop::SleepingMat: return "SLEEP";
+    case art::Prop::Bed: case art::Prop::Hammock: case art::Prop::SleepingMat: case art::Prop::Bedroll: return "SLEEP";
     default: return "USE";
   }
 }
@@ -299,10 +300,17 @@ struct DlgLay {
   int per;                   // characters per speech line
   std::vector<std::string> lines;
   int total = 0;             // characters to type
-  std::vector<float> optTop, optH;
+  std::vector<float> optTop, optH;   // per option (all of them); an option off this page has optH 0
   std::vector<std::vector<std::string>> optLines;
+  // (M5) a long option list pages: options [first, first + count) show, and a MORE row under them turns the page
+  int first = 0, count = 0;
+  bool more = false;
+  float moreTop = 0, moreH = 0;
+  float optsTop = 0;         // the top of the option block (the divider sits just above it)
 };
-DlgLay dlgLay(const Game& g, float rowH) {
+// The first option of the page that holds option `sel`, for a list paged from option 0 (pages are greedy, so the
+// keyboard and a tap on MORE walk the same pages).
+DlgLay dlgLay(const Game& g, float rowH, int first = 0) {
   DlgLay L;
   const Dialogue& d = g.dlg;
   L.x = 20; L.w = (float)Pix::W - 40;
@@ -323,15 +331,48 @@ DlgLay dlgLay(const Game& g, float rowH) {
     L.optH.push_back(h);
     oh += h;
   }
-  // the speech: at least two lines' room (three with a portrait), and never more than the box allows
+  const int n = (int)d.opts.size();
+  L.optTop.assign((size_t)n, -1e6f);
+  // the room the options may take: the panel stays on screen (8 px margins) with its title and two speech lines
+  const float minText = 18.0f;
+  const float avail = (float)Pix::H - 16 - 22 - minText - 10 - 6;
+  float shownH = oh;
+  if (oh <= avail) { L.first = 0; L.count = n; }
+  else {
+    L.more = true; L.moreH = rowH;
+    L.first = std::clamp(first, 0, std::max(0, n - 1));
+    float used = 0; int c = 0;
+    for (int i = L.first; i < n; i++) {
+      if (c > 0 && used + L.optH[(size_t)i] + L.moreH > avail) break;
+      used += L.optH[(size_t)i]; c++;
+    }
+    L.count = c;
+    shownH = used + L.moreH;
+  }
+  // the speech: at least two lines' room (four with a portrait), and never more than the box allows
   float textH = std::max((float)L.lines.size(), L.portrait ? 4.0f : 2.0f) * 9;
-  const float maxText = (float)Pix::H - 16 - 34 - oh;
-  textH = std::min(textH, std::max(18.0f, maxText));
-  L.h = 22 + textH + 10 + oh + 6;
-  L.y = (float)Pix::H - L.h - 8;
+  const float maxText = (float)Pix::H - 16 - 22 - 10 - 6 - shownH;
+  textH = std::min(textH, std::max(minText, maxText));
+  L.h = 22 + textH + 10 + shownH + 6;
+  L.y = std::max(8.0f, (float)Pix::H - L.h - 8);
   float top = L.y + 22 + textH + 10;
-  for (float h : L.optH) { L.optTop.push_back(top); top += h; }
+  L.optsTop = top;
+  for (int i = 0; i < n; i++) {
+    if (i < L.first || i >= L.first + L.count) { L.optH[(size_t)i] = 0; continue; }
+    L.optTop[(size_t)i] = top; top += L.optH[(size_t)i];
+  }
+  if (L.more) L.moreTop = top;
   return L;
+}
+// The first option of the page holding `sel`: walk the pages exactly as dlgLay builds them.
+int dlgPageFirst(const Game& g, float rowH, int sel) {
+  int first = 0;
+  for (int guard = 0; guard < 64; guard++) {
+    const DlgLay L = dlgLay(g, rowH, first);
+    if (!L.more || sel < L.first + L.count || L.count <= 0) return L.first;
+    first = L.first + L.count;
+  }
+  return first;
 }
 }  // namespace
 
@@ -380,6 +421,34 @@ void View::draw(Game& g, bool hasSave) {
   // floating combat text (screen)
   Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
   for (const FloatText& f : texts_) {
+    if (f.speech) {
+      // (M5) a spoken line: wrapped to ~22 characters, centred over the speaker on a dark plate with a 1 px rim, in the
+      // speaker's colour; fades in over a tenth of a second and out over its last half second; whole pixels
+      const float a = clampf(f.t / 0.1f, 0, 1) * clampf((f.life - f.t) / 0.5f, 0, 1);
+      const std::vector<std::string> ls = wrap(f.s, 22);
+      int w = 0;
+      for (const std::string& l : ls) w = std::max(w, P.textW(l, 1));
+      const float lh = 9.0f, h = ls.size() * lh + 3.0f;
+      float cx = std::floor(f.p.x - cam.x), y0 = std::floor(f.p.y - cam.y - h);
+      cx = clampf(cx, (float)Pix::SL + w / 2.0f + 4, (float)(Pix::W - Pix::SR) - w / 2.0f - 4);
+      // (M5 fixer) never under the location / quest column: slide left of it (or below it when that is nearer)
+      if (y0 < hudColBottom_ && cx + w / 2.0f + 3 > hudColLeft_) {
+        const float left = hudColLeft_ - w / 2.0f - 4;
+        if (left >= (float)Pix::SL + w / 2.0f + 4 && hudColLeft_ - (cx - w / 2.0f) < hudColBottom_ - y0 + 40) cx = left;
+        else y0 = hudColBottom_ + 2;
+      }
+      // (M5) and never over the name tag / E: TALK of the person the player faces (often the speaker): it stacks above
+      if (tagOn_ && cx + w / 2.0f + 3 > tagX0_ && cx - w / 2.0f - 3 < tagX1_ && y0 - 1 < tagY1_ && y0 + h + 1 > tagY0_)
+        y0 = std::floor(tagY0_ - 2 - h);
+      P.rect(cx - w / 2.0f - 3, y0 - 1, (float)w + 6, h + 2, Color(0.02f, 0.02f, 0.04f, 0.45f * a));
+      P.rect(cx - w / 2.0f - 2, y0, (float)w + 4, h, Color(0.06f, 0.05f, 0.08f, 0.72f * a));
+      for (size_t k = 0; k < ls.size(); k++) {
+        P.text(cx + 1, y0 + 2 + k * lh + 1, ls[k], 1, Color(0, 0, 0, a * 0.8f), 1);
+        P.text(cx, y0 + 2 + k * lh, ls[k], 1, Color(f.c.r, f.c.g, f.c.b, a), 1);
+      }
+      m5Count_.speech++;
+      continue;
+    }
     float a = clampf(1.2f - f.t, 0, 1);
     P.text(f.p.x - cam.x + 1, f.p.y - cam.y + 1, f.s, 1, Color(0, 0, 0, a * 0.7f), 1);
     P.text(f.p.x - cam.x, f.p.y - cam.y, f.s, 1, Color(f.c.r, f.c.g, f.c.b, a), 1);
@@ -492,6 +561,7 @@ void View::drawHud(Game& g) {
   bar(L + 36, T + 14, 70, g.mp, mpMax, Color(0.25f, 0.45f, 0.95f), Color(0.06f, 0.1f, 0.3f));
   bar(L + 36, T + 22, 70, g.stamina, stMax, Color(0.3f, 0.8f, 0.35f), Color(0.06f, 0.22f, 0.08f));
   if (g.stFlash > 0) P.rect(L + 35, T + 21, 72, 6, Color(1, 0.25f, 0.2f, ((int)(g.stFlash * 16) & 1) ? 0.75f : 0.3f));   // too winded to act
+  drawBuffs(g, L + 110, T + 13);   // (M5, 15.2) Well Fed, Rested, Hungry, Weary beside the shorter bars
   // xp sliver
   P.rect(L + 6, T + 14, 26, 2, Color(0.1f, 0.1f, 0.1f, 0.8f));
   P.rect(L + 6, T + 14, 26 * clampf(g.plXp / (float)g.xpForNext(), 0, 1), 2, kGold);
@@ -541,6 +611,20 @@ void View::drawHud(Game& g) {
       }
     }
   }
+  // (M5, 15.12) a settlement's mood after its name ("BJALFVA - CONTENT", "- HUNGRY", "- FESTIVAL", "- WAR-TORN"), in its
+  // colour, while its census is known (outdoors there)
+  std::string moodS;
+  Color moodC = kDim;
+  if (!g.inside && g.curSite >= 0 && g.curSite < (int)g.world.sites.size() && g.world.sites[(size_t)g.curSite].settlement()) {
+    uint32_t mc = 0;
+    moodS = moodWord(g, g.world.sites[(size_t)g.curSite].id, &mc);
+    if (!moodS.empty()) {
+      moodC = col(mc);
+      const size_t maxc = Pix::W >= 560 ? 34 : 28;
+      if (loc.size() + 3 + moodS.size() > maxc) moodS.clear();   // a long name keeps its room: the mood waits for the map
+    }
+  }
+  const std::string locSuffix = moodS.empty() ? std::string() : "  " + moodS;
   // clock
   int hh = (int)g.hour, mm = (int)((g.hour - hh) * 60);
   char clock[16];
@@ -581,12 +665,13 @@ void View::drawHud(Game& g) {
   if (kingLine.empty() && !stateLine.empty()) { kingLine = stateLine; kingCol = stateCol; stateLine.clear(); }
   const float kdy = (kingLine.empty() ? 0.0f : 9.0f) + (stateLine.empty() ? 0.0f : 9.0f);
   float colBottom = T + 150;   // the foot of the location / quest column (the quest arrow keeps below it)
+  float colLeft = R - 160;     // and its left edge (a long quest line on a phone runs further left than 160 px)
   // (M2) a dialogue panel runs under the column on a wide screen: the column's lines stop above the panel's top
   float clipY = 1e9f;
   if (g.mode == Mode::Dialogue) {
     const UiBox db = uiBox(300);
     P.pushBox(db.x, db.y, db.w, db.h);
-    clipY = db.y + dlgLay(g, dlgRowH()).y - 2;
+    clipY = db.y + dlgLay(g, dlgRowH(), dlgFirst_).y - 2;
     P.popBox();
   }
   auto colText = [&](float y, const std::string& s, Color c) { if (y + 8 <= clipY) P.textS(R - 5, y, s, 1, c, 2); };
@@ -594,8 +679,8 @@ void View::drawHud(Game& g) {
     // a soft backing so the location / clock / quest column stays readable over busy roofs and snow
     const Quest* tq = g.trackedQuest >= 0 ? g.questById(g.trackedQuest) : nullptr;
     bool hasQ = tq && tq->state != QState::Done;
-    int wmax = std::max(std::max(P.textW(loc, 1), P.textW(dayStr, 1)), std::max(P.textW(kingLine, 1), P.textW(stateLine, 1)));
-    if (dangerSkull(g) >= 0) wmax = std::max(wmax, P.textW(loc, 1) + 11);
+    int wmax = std::max(std::max(P.textW(loc + locSuffix, 1), P.textW(dayStr, 1)), std::max(P.textW(kingLine, 1), P.textW(stateLine, 1)));
+    if (dangerSkull(g) >= 0) wmax = std::max(wmax, P.textW(loc + locSuffix, 1) + 11);
     if (hasQ) wmax = std::max(wmax, P.textW(hudQuestTitle(tq->title), 1));
     float extra = 0;
     if (hasQ) {
@@ -607,8 +692,16 @@ void View::drawHud(Game& g) {
     float bh = (hasQ ? 42.0f : 21.0f) + kdy + extra;
     P.rect(R - wmax - 10, T + 88, (float)wmax + 8, std::max(0.0f, std::min(bh, clipY - (T + 88))), Color(0.03f, 0.02f, 0.05f, backA));
     colBottom = T + 88 + bh + 12;
+    colLeft = std::min(colLeft, R - wmax - 16);
+    hudColLeft_ = R - wmax - 12; hudColBottom_ = T + 88 + bh + 2;
   }
-  colText(T + 91, loc, fa(kText));
+  if (locSuffix.empty()) colText(T + 91, loc, fa(kText));
+  else if (T + 99 <= clipY) {   // the name, then the mood in its colour (a dot between)
+    const float mw = (float)P.textW(locSuffix, 1);
+    P.textS(R - 5, T + 91, moodS, 1, fa(moodC), 2);
+    P.rect(std::floor(R - 5 - mw + 3), T + 94, 2, 2, fa(Color(kDim.r, kDim.g, kDim.b, 0.9f)));
+    P.textS(R - 5 - mw, T + 91, loc, 1, fa(kText), 2);
+  }
   if (!kingLine.empty() && T + 108 <= clipY) {
     // the kingdom line in its colour, with a full dark outline (its tint sits close to the land's own colours)
     const Color o(0.02f, 0.02f, 0.04f, 0.9f * hudA);
@@ -627,7 +720,7 @@ void View::drawHud(Game& g) {
     if (dk >= 0) {
       static const char* kSkull[7] = {".xxxxx.", "xxxxxxx", "x..x..x", "x..x..x", "xxx.xxx", ".xxxxx.", ".x.x.x."};
       const Color sc = dk == 0 ? Color(0.98f, 0.86f, 0.30f) : dk == 1 ? Color(0.96f, 0.36f, 0.26f) : Color(0.80f, 0.45f, 1.0f);
-      const float sx = R - 5 - P.textW(loc, 1) - 10, sy = T + 91;
+      const float sx = R - 5 - P.textW(loc + locSuffix, 1) - 10, sy = T + 91;
       for (int j = 0; j < 7; j++)
         for (int i = 0; i < 7; i++) {
           if (kSkull[j][i] != 'x') continue;
@@ -637,6 +730,42 @@ void View::drawHud(Game& g) {
     }
   }
   colText(T + 100 + kdy, dayStr, fa(kDim));
+  // (M5 fixer, review: "nothing points to the fight") a live night raid: a red chevron at the screen's edge toward the
+  // nearest raider out of sight, pulsing, so a phone player can find (and join) the town's defence
+  if (g.life.raid.site && g.life.raid.outcome == 0 && !g.inside && g.mode == Mode::Play) {
+    const Vec2 camR(std::floor(cam_.x), std::floor(cam_.y));
+    float bd = 1e30f;
+    Vec2 best;
+    bool any = false, seen = false;
+    for (const Actor& ra : g.actors) {
+      if (std::find(g.life.raid.ids.begin(), g.life.raid.ids.end(), ra.id) == g.life.raid.ids.end()) continue;
+      if (ra.st == AState::Dead || !ra.hostile) continue;
+      const Vec2 sc = ra.p - camR;
+      if (sc.x > L && sc.y > T && sc.x < R && sc.y < B) { seen = true; break; }
+      const float d2 = len2(ra.p - g.pl().p);
+      if (d2 < bd) { bd = d2; best = sc; any = true; }
+    }
+    if (any && !seen) {
+      const Vec2 c((L + R) / 2.0f, (T + B) / 2.0f);
+      const Vec2 d = norm(best - c);
+      const float k = std::min(((R - L) / 2.0f - 26) / std::max(0.01f, std::fabs(d.x)), ((B - T) / 2.0f - 26) / std::max(0.01f, std::fabs(d.y)));
+      Vec2 a = c + d * k;
+      if (a.x > colLeft && a.y < colBottom) a.x = colLeft - 4;
+      if (a.x < L + 150 && a.y < T + 58) a.y = T + 58;
+      a = a + d * (std::sin(t_ * 8) * 2.0f);
+      const Vec2 side(-d.y, d.x);
+      for (int pass = 0; pass < 2; pass++) {
+        const Color cc = pass == 0 ? Color(0.08f, 0.02f, 0.02f, 0.9f) : Color(1.0f, 0.30f, 0.22f);
+        const float grow = pass == 0 ? 1.0f : 0.0f;
+        for (float t = 0; t <= 8.0f; t += 0.5f)
+          for (int arm = -1; arm <= 1; arm += 2) {
+            const Vec2 q2 = a - d * t + side * (t * (float)arm);
+            P.rect(std::floor(q2.x) - grow, std::floor(q2.y) - grow, 2 + grow * 2, 2 + grow * 2, cc);
+          }
+      }
+      P.textS(a.x - d.x * 22, a.y - d.y * 22 - 3, "RAID", 1, Color(1.0f, 0.36f, 0.28f), 1);
+    }
+  }
   if (!touchUI) { P.textS(R - 24, T + 7, "TAB", 1, kDim, 1); }
   else {
     const BtnDef b = btnPos(B_MENU);
@@ -677,7 +806,7 @@ void View::drawHud(Game& g) {
           if (a.x < L + 150 && a.y < T + 58) { if (a.y <= T + 20) a.x = L + 150; else a.y = T + 58; }
           // (M1 round 3) below the column's real foot (a two-line step and a kingdom line made it taller than the old
           // fixed limit, and the arrow and its distance sat on the quest's last line)
-          if (a.x > R - 160 && a.y < colBottom) { if (a.y <= T + 20) a.x = R - 160; else a.y = colBottom; }
+          if (a.x > colLeft && a.y < colBottom) { if (a.y <= T + 20) a.x = colLeft; else a.y = colBottom; }
           // (M3c fixer, review: "the compass distance strikes through the biome banner") while the first-visit biome
           // banner shows at the top centre, the arrow and its distance keep out of its strip: along the top edge they
           // slide out past its ends, lower down they drop below it
@@ -711,6 +840,10 @@ void View::drawHud(Game& g) {
             const float sx1 = st.x + 64, sy0 = st.y - 74;   // (M3c fixer: clear of the thumb on the stick, not on its ring)
             if (a.x < sx1 && a.y > sy0) { if (a.y > B - 30) a.x = sx1; else a.y = sy0; }
           }
+          // (M5 fixer, review: "the arrow and its distance overprint the quest line on the phone") the touch cluster's
+          // slide can push the arrow back up the right edge into the column: then it goes left of the column instead,
+          // with room for the distance behind it
+          if (a.x > colLeft - 4 && a.y < colBottom) a.x = colLeft - 4;
           // a filled arrowhead (dark outline first so it reads on snow and sand), gently pulsing toward the goal
           a = a + d * (std::sin(t_ * 6) * 1.5f);
           Vec2 side(-d.y, d.x);
@@ -801,6 +934,7 @@ void View::drawHud(Game& g) {
   }
 
   // NPC name / interact prompt
+  tagOn_ = false;
   int it = g.mode == Mode::Play ? g.interactTarget() : -1;
   if (it >= 0) {
     for (const Actor& a : g.actors)
@@ -810,7 +944,8 @@ void View::drawHud(Game& g) {
         float ly = g.rewardWaiting(a) ? s.y - art::HUMAN_H - 24.0f : s.y - 34.0f;
         // keep the label off the hero: when the hero's head is where the label would go, lift it clear
         const Vec2 hs = g.pl().p - Vec2(std::floor(cam_.x), std::floor(cam_.y));
-        const float labelW = (float)std::max(P.textW(a.name, 1), touchUI ? 0 : P.textW("E: TALK", 1)) * 0.5f + 6;
+        const char* verb = a.critter ? "E: PET" : "E: TALK";   // (M5) village animals are petted, not talked to
+        const float labelW = (float)std::max(P.textW(a.name, 1), touchUI ? 0 : P.textW(verb, 1)) * 0.5f + 6;
         const float labelTop = ly - (touchUI ? 2.0f : 11.0f);
         if (std::fabs(hs.x - s.x) < labelW + 6 && hs.y - 30.0f < ly + 8 && hs.y > labelTop - 4)
           ly = std::min(ly, hs.y - 38.0f);
@@ -826,7 +961,10 @@ void View::drawHud(Game& g) {
           if (lx - half < hudR && topY < hudB) ly = s.y + (touchUI ? 4.0f : 13.0f);
         }
         P.textS(lx, ly, a.name, 1, kText, 1);
-        if (!touchUI) P.textS(lx, ly - 9, "E: TALK", 1, kGold, 1);
+        if (!touchUI) P.textS(lx, ly - 9, verb, 1, kGold, 1);
+        tagOn_ = true;
+        tagX0_ = lx - labelW; tagX1_ = lx + labelW;
+        tagY0_ = ly - (touchUI ? 2.0f : 11.0f); tagY1_ = ly + 9.0f;
       }
   } else if (g.mode == Mode::Play) {
     int ptx = 0, pty = 0, pr = usablePropAt(g, ptx, pty);
@@ -983,7 +1121,11 @@ void View::drawTouch(Game& g) {
     for (int k = 0; k < 40; k++) { float a = k / 40.0f * TAU; P.rect(d.x + std::cos(a) * d.r, d.y + std::sin(a) * d.r, 1, 1, ring); }
     switch (b) {
       case B_ATTACK:
-        if (target >= 0) P.text(d.x, d.y - 3, "TALK", 1, kGold, 1);
+        if (target >= 0) {
+          const Actor* ta = nullptr;
+          for (const Actor& x : g.actors) if (x.id == target) { ta = &x; break; }
+          P.text(d.x, d.y - 3, ta && ta->critter ? "PET" : "TALK", 1, kGold, 1);
+        }
         else if (usePr) P.text(d.x, d.y - 3, useVerbAt(g, usePr, utx, uty), 1, kGold, 1);
         else if (g.eqWeapon >= 0) P.blitEx(iconTex(g.inv[g.eqWeapon].icon, g.inv[g.eqWeapon].tint), 0, 0, 16, 16, d.x - 12, d.y - 12, 24, 24);
         else {
@@ -1209,7 +1351,7 @@ void View::drawMenu(Game& g) {
           P.text(C.dx, std::max(top + 104, sy + 6), std::string("VS EQUIPPED: ") + (diff >= 0 ? "+" : "") + std::to_string(diff), 1, diff >= 0 ? Color(0.5f, 1, 0.5f) : Color(1, 0.5f, 0.45f));
         }
         bool canEquip = itemEquippable(it.kind);
-        std::string use = canEquip ? (equipped(g, menuSel_) ? "UNEQUIP" : "EQUIP") : (it.kind == ItemKind::Potion || it.kind == ItemKind::Food || it.name.rfind("SPELL TOME", 0) == 0 ? "USE" : "");
+        std::string use = canEquip ? (equipped(g, menuSel_) ? "UNEQUIP" : "EQUIP") : (it.kind == ItemKind::Food ? "EAT" : it.kind == ItemKind::Potion || it.name.rfind("SPELL TOME", 0) == 0 ? "USE" : "");
         const float bw = std::floor((C.dw - 20) / 2);
         if (!use.empty()) button(C.dx, L.btnY, bw, L.btnH, use + (touchUI ? "" : " (ENT)"), true);
         if (it.kind != ItemKind::Quest) button(C.dx + bw + 8, L.btnY, bw, L.btnH, touchUI ? "DROP" : "DROP (X)", false);
@@ -1314,6 +1456,17 @@ void View::drawMenu(Game& g) {
       stat("GOLD", std::to_string(g.gold), kGold);
       stat("KILLS", std::to_string(g.kills), kText);
       stat("DUNGEONS CLEARED", std::to_string(g.dungeonsCleared), kText);
+      {   // (M5, 15.2) the light hunger and sleep buffs by name
+        const uint8_t bf = g.life.player.buffs();
+        std::string cond;
+        Color cc = kText;
+        for (uint8_t bit : {life::BUFF_WELLFED, life::BUFF_RESTED, life::BUFF_HUNGRY, life::BUFF_WEARY})
+          if (bf & bit) { if (!cond.empty()) cond += ", "; cond += life::buffName(bit); }
+        if (cond.empty()) { cond = "FINE"; cc = kDim; }
+        else if (bf & (life::BUFF_HUNGRY | life::BUFF_WEARY)) cc = Color(0.95f, 0.66f, 0.42f);
+        else cc = Color(0.62f, 0.90f, 0.55f);
+        stat("CONDITION", cond, cc);
+      }
       y += 4;
       std::string spells;
       for (int s = 0; s < (int)Spell::COUNT; s++) if (g.spellsKnown & (1 << s)) { if (!spells.empty()) spells += ", "; spells += spellName((Spell)s); }
@@ -1371,20 +1524,28 @@ void View::drawDialogue(Game& g) {
   struct Pop { Pix& p; ~Pop() { p.popBox(); } } pop{P};
   const Dialogue& d = g.dlg;
   const float rowH = dlgRowH();
-  const DlgLay L = dlgLay(g, rowH);
-  const float x = L.x, w = L.w, y = L.y;
   int nOpt = (int)d.opts.size();
+  dlgSel_ = std::clamp(dlgSel_, 0, std::max(0, nOpt - 1));
+  {   // the page follows the selection (keyboard), and a page past the list's end starts over
+    const DlgLay L0 = dlgLay(g, rowH, dlgFirst_);
+    if (!L0.more) dlgFirst_ = 0;
+    else if (dlgFirst_ >= nOpt) dlgFirst_ = 0;
+  }
+  const DlgLay L = dlgLay(g, rowH, dlgFirst_);
+  const float x = L.x, w = L.w, y = L.y;
   panel(x, y, w, L.h, 0.94f);
   if (L.portrait) {
     // the speaker on a small lit stage, framed like the inventory's icons
-    const float px = x + 8, py = y + 8, pw = 48, ph = std::min(58.0f, L.optTop.empty() ? L.h - 16 : L.optTop[0] - py - 6);
+    const float px = x + 8, py = y + 8, pw = 48, ph = std::min(58.0f, L.optTop.empty() ? L.h - 16 : L.optsTop - py - 6);
     P.rect(px, py, pw, ph, Color(0.03f, 0.025f, 0.04f, 0.9f));
     P.blitEx(light_, 0, 0, 64, 64, px - 8, py - 6, pw + 16, ph + 10, false, Color(1, 0.72f, 0.4f, 0.22f), 1);
     for (const Actor& a : g.actors)
       if (a.id == d.actor) {
         const Tex& t = humanTex(a.look);
-        const float sc = 2.0f, hw = art::HUMAN_W * sc, hh = art::HUMAN_H * sc;
-        P.blitEx(t, art::HUMAN_W, 0, art::HUMAN_W, art::HUMAN_H, px + (pw - hw) / 2, py + ph - hh - 2, hw, hh);
+        const float sc = 2.0f, hw = art::HUMAN_W * sc;
+        // (M5) a short stage (a long option list) shows the speaker from the head down, never past the frame
+        const float srcH = std::min((float)art::HUMAN_H, std::floor((ph - 4) / sc)), hh = srcH * sc;
+        if (srcH > 4) P.blitEx(t, art::HUMAN_W, 0, art::HUMAN_W, srcH, px + (pw - hw) / 2, py + ph - hh - 2, hw, hh);
       }
     P.frame(px, py, pw, ph, Color(0.55f, 0.45f, 0.28f));
     P.frame(px + 1, py + 1, pw - 2, ph - 2, Color(0.22f, 0.18f, 0.12f));
@@ -1392,7 +1553,7 @@ void View::drawDialogue(Game& g) {
   P.text(L.tx, y + 8, d.speaker, 1, kGold);
   {   // the speech, typed out
     int shown = 0;
-    const int maxLines = std::max(2, (int)((L.optTop.empty() ? L.h - 30 : L.optTop[0] - 10 - (y + 20)) / 9));
+    const int maxLines = std::max(2, (int)((L.optTop.empty() ? L.h - 30 : L.optsTop - 10 - (y + 20)) / 9));
     for (size_t i = 0; i < L.lines.size() && (int)i < maxLines; i++) {
       if (shown >= (int)dlgChars_) break;
       std::string s = L.lines[i];
@@ -1401,11 +1562,10 @@ void View::drawDialogue(Game& g) {
       P.text(L.tx, y + 20 + i * 9, s, 1, kText);
     }
   }
-  dlgSel_ = std::clamp(dlgSel_, 0, std::max(0, nOpt - 1));
   // the options stay dimmed until the line has finished typing (a tap meanwhile only skips the text, see tap())
   const bool typing = dlgChars_ < L.total;
-  P.rect(x + 8, L.optTop.empty() ? y : L.optTop[0] - 5, w - 16, 1, Color(0.4f, 0.32f, 0.2f, 0.6f));
-  for (int i = 0; i < nOpt; i++) {
+  P.rect(x + 8, L.optTop.empty() ? y : L.optsTop - 5, w - 16, 1, Color(0.4f, 0.32f, 0.2f, 0.6f));
+  for (int i = L.first; i < L.first + L.count && i < nOpt; i++) {
     const float top = L.optTop[(size_t)i], oh = L.optH[(size_t)i];
     const bool hot = i == dlgSel_ && !typing;
     Color tc = typing ? Color(0.45f, 0.42f, 0.37f) : hot ? Color(1, 0.95f, 0.8f) : Color(0.8f, 0.75f, 0.65f);
@@ -1416,6 +1576,16 @@ void View::drawDialogue(Game& g) {
     const float ty = top + std::floor((oh - 7 - (ol.size() - 1) * 9.0f) / 2);
     for (size_t k = 0; k < ol.size(); k++) P.text(x + 26, ty + k * 9, ol[k], 1, tc);
     if (hot) P.text(x + 14, ty, ">", 1, kGold);
+  }
+  if (L.more) {   // (M5) the page turn: where the list goes on, and how far along it this page is
+    const float top = L.moreTop, oh = L.moreH;
+    const Color mc = typing ? Color(0.45f, 0.42f, 0.37f) : kGold;
+    if (touchUI) P.rect(x + 8, top + 1, w - 16, oh - 2, Color(0.10f, 0.08f, 0.05f, typing ? 0.4f : 0.7f));
+    const float ty = top + std::floor((oh - 7) / 2);
+    const bool last = L.first + L.count >= nOpt;
+    P.text(x + 26, ty, last ? "BACK TO THE START..." : "MORE...", 1, mc);
+    const std::string pg = std::to_string(L.first + 1) + "-" + std::to_string(L.first + L.count) + " OF " + std::to_string(nOpt);
+    P.text(x + w - 14, ty, pg, 1, Color(0.6f, 0.55f, 0.45f), 2);
   }
 }
 
@@ -1764,8 +1934,15 @@ void View::menuKey(Game& g, int key) {
     return;
   }
   if (g.mode == Mode::Dialogue) {
+    const int nOpt = (int)g.dlg.opts.size();
     if (key == SDLK_UP || key == SDLK_W) { dlgSel_ = std::max(0, dlgSel_ - 1); audio_->play(Sfx::MenuMove); }
-    if (key == SDLK_DOWN || key == SDLK_S) { dlgSel_++; audio_->play(Sfx::MenuMove); }
+    if (key == SDLK_DOWN || key == SDLK_S) { dlgSel_ = std::min(std::max(0, nOpt - 1), dlgSel_ + 1); audio_->play(Sfx::MenuMove); }
+    if (key == SDLK_UP || key == SDLK_W || key == SDLK_DOWN || key == SDLK_S) {   // (M5) the page follows the selection
+      const UiBox box = uiBox(300);
+      pix_->pushBox(box.x, box.y, box.w, box.h);
+      dlgFirst_ = dlgPageFirst(g, dlgRowH(), dlgSel_);
+      pix_->popBox();
+    }
     if (key == SDLK_RETURN || key == SDLK_SPACE || key == SDLK_E || key == SDLK_J) {
       int total = 0;
       {   // the same wrap as drawDialogue (its box)
@@ -1779,7 +1956,7 @@ void View::menuKey(Game& g, int key) {
       std::string before = g.dlg.text;
       g.dialogueChoose(sel);
       if (g.dlg.text != before) dlgChars_ = 0;
-      dlgSel_ = 0;
+      dlgSel_ = 0; dlgFirst_ = 0;
     }
     if (key == SDLK_ESCAPE) g.closeDialogue();
     return;
@@ -1809,20 +1986,27 @@ void View::tap(Game& g, Vec2 p) {
   P.pushBox(box.x, box.y, box.w, box.h);
   struct Pop { Pix& p; ~Pop() { p.popBox(); } } pop{P};
   if (g.mode == Mode::Dialogue) {
-    const DlgLay L = dlgLay(g, dlgRowH());
+    const DlgLay L = dlgLay(g, dlgRowH(), dlgFirst_);
     const int nOpt = (int)g.dlg.opts.size();
     // while the line is still typing, a tap anywhere only finishes it (the common "tap to skip" gesture must never
     // pick an option the player has not read yet; the keyboard path in menuKey does the same)
     if (dlgChars_ < L.total) { dlgChars_ = 9999; return; }
-    for (int i = 0; i < nOpt; i++) {
+    // (M5) the MORE row turns the page (the last row, so it reaches down to the screen edge)
+    if (L.more && inR(-1000.0f, L.moreTop, Pix::W + 2000.0f, 1000.0f)) {
+      dlgFirst_ = L.first + L.count >= nOpt ? 0 : L.first + L.count;
+      dlgSel_ = dlgFirst_;
+      audio_->play(Sfx::MenuMove);
+      return;
+    }
+    for (int i = L.first; i < L.first + L.count && i < nOpt; i++) {
       // each option owns its whole row band, the full panel width; the last one reaches down to the screen edge
       const float top = L.optTop[(size_t)i];
-      const float bh = i == nOpt - 1 ? 1000.0f : L.optH[(size_t)i];   // (M1: on past the box, to the screen's real edge)
+      const float bh = (i == nOpt - 1 && !L.more) ? 1000.0f : L.optH[(size_t)i];   // (M1: on past the box, to the screen's real edge)
       if (inR(-1000.0f, top, Pix::W + 2000.0f, bh)) {
         std::string before = g.dlg.text;
         g.dialogueChoose(i);
         if (g.dlg.text != before) dlgChars_ = 0;
-        dlgSel_ = 0;
+        dlgSel_ = 0; dlgFirst_ = 0;
         return;
       }
     }
@@ -2054,6 +2238,8 @@ void View::event(const SDL_Event& e, Game& g) {
       }
       if (g.mode != Mode::Play) { tap(g, p); break; }
       int b = buttonAt(p);
+      // (fixer M5 r3, review: "nothing explains the buff icons when tapped") a tap on the buff icons says what they do
+      if (b < 0 && buffTap(g, p)) break;
       Finger f; f.id = e.tfinger.fingerID; f.on = true; f.start = f.cur = p; f.button = b; f.t0 = SDL_GetTicks();
       if (b == B_MENU) { if (!g.travelling()) { g.mode = Mode::Menu; menuTab_ = g.perkPts > 0 ? 3 : 0; menuSel_ = 0; audio_->play(Sfx::MenuSelect); } break; }
       if (b == B_ATTACK) kAttack_ = true;
@@ -2117,4 +2303,120 @@ void View::event(const SDL_Event& e, Game& g) {
     }
     default: break;
   }
+}
+
+// ------------------------------------------------------------------ M5 "Hearth and Hall": the player's buffs, the mood
+namespace {
+// The buff icons, 11 x 11 pixel art in the HUD's frame style: a dark plate, a 1 px rim green for a boon (Well Fed,
+// Rested) and amber for a want (Hungry, Weary), the glyph lit from the top-left. Palette: 'o' outline, 'r' rim,
+// 'p' plate; glyph tones 'H' highlight, 'M' mid, 'S' shade, 'W' white glint, 'D' dark detail.
+Canvas paintBuffIcon(uint64_t key) {
+  const uint8_t bit = (uint8_t)(key & 255);
+  static const char* kWellFed[11] = {   // a crusty loaf with a scored top and a drumstick tucked behind
+      "ooooooooooo", "orrrrrrrrro", "orppppDDppo", "orppHHMDDro", "orpHWHMMSDo", "orHHMHMMSSo",
+      "orHMSMMSSSo", "orMMMMSSSDo", "orpSSSSSDpo", "orrrrrrrrro", "ooooooooooo"};
+  static const char* kRested[11] = {   // a crescent moon over a pillow
+      "ooooooooooo", "orrrrrrrrro", "orppHHpppro", "orpHWpppMro", "orpHHppppro", "orpHHMppppo",
+      "orppHMMpppo", "orpWWWWWppo", "orpMMMMMSpo", "orrrrrrrrro", "ooooooooooo"};
+  // (fixer M5 r3, review: "the Hungry icon reads as a box or crate at 1x") an empty plate seen from above between a fork
+  // and a knife: the place set and nothing on it
+  static const char* kHungry[11] = {
+      "ooooooooooo", "orrrrrrrrro", "orWpppppWro", "orDpSMSpWro", "orDSHHMSWro", "orDMHWHSDro",
+      "orDSMHMSDro", "orppSSSppro", "orpppppppro", "orrrrrrrrro", "ooooooooooo"};
+  static const char* kWeary[11] = {   // a heavy "Z"
+      "ooooooooooo", "orrrrrrrrro", "orpppppppro", "orpWHHHHpro", "orppppMSpro", "orpppMSppro",
+      "orppMSpppro", "orpHMMMSpro", "orpppppppro", "orrrrrrrrro", "ooooooooooo"};
+  const char** pat = bit == life::BUFF_WELLFED ? kWellFed : bit == life::BUFF_RESTED ? kRested : bit == life::BUFF_HUNGRY ? kHungry : kWeary;
+  const bool boon = bit == life::BUFF_WELLFED || bit == life::BUFF_RESTED;
+  uint32_t H, M, S, W = rgba(255, 250, 230), D;
+  if (bit == life::BUFF_WELLFED) { H = rgba(240, 196, 110); M = rgba(206, 140, 62); S = rgba(140, 84, 40); D = rgba(98, 54, 30); }
+  else if (bit == life::BUFF_RESTED) { H = rgba(250, 232, 150); M = rgba(150, 168, 214); S = rgba(96, 108, 160); W = rgba(232, 236, 248); D = rgba(60, 60, 100); }
+  else if (bit == life::BUFF_HUNGRY) { H = rgba(238, 232, 218); M = rgba(198, 190, 176); S = rgba(126, 118, 112); D = rgba(182, 188, 204); W = rgba(255, 255, 255); }
+  else { H = rgba(214, 206, 236); M = rgba(170, 160, 206); S = rgba(98, 88, 140); D = rgba(46, 36, 44); W = rgba(246, 242, 255); }
+  const uint32_t rim = boon ? rgba(110, 196, 96) : rgba(230, 150, 60), plate = rgba(28, 22, 32), ol = rgba(10, 8, 12);
+  Canvas c(11, 11);
+  for (int y = 0; y < 11; y++)
+    for (int x = 0; x < 11; x++) {
+      const char ch = pat[y][x];
+      uint32_t v = 0;
+      switch (ch) {
+        case 'o': v = ol; break;
+        case 'r': v = rim; break;
+        case 'p': v = plate; break;
+        case 'H': v = H; break;
+        case 'M': v = M; break;
+        case 'S': v = S; break;
+        case 'W': v = W; break;
+        case 'D': v = D; break;
+        default: break;
+      }
+      if ((x == 0 || x == 10) && (y == 0 || y == 10)) v = 0;   // rounded corners
+      c.set(x, y, v);
+    }
+  // the rim lit top-left, shaded bottom-right
+  auto shade = [](uint32_t v, float k) {   // k > 1 lighter, < 1 darker
+    auto ch = [&](int s) { const int x = (int)((v >> s) & 255); return std::min(255, (int)(k > 1 ? x + (255 - x) * (k - 1) : x * k)); };
+    return rgba(ch(0), ch(8), ch(16));
+  };
+  for (int k = 1; k < 10; k++) {
+    if (pat[1][k] == 'r') c.set(k, 1, shade(rim, 1.3f));
+    if (pat[9][k] == 'r') c.set(k, 9, shade(rim, 0.65f));
+  }
+  return c;
+}
+}  // namespace
+
+// (M5, 15.2) the player's buffs as icons in a row beside the magicka and stamina bars (readable on the phone: 11 px
+// plates); a boon about to run out (under an in-game hour) blinks
+void View::drawBuffs(Game& g, float x, float y) {
+  Pix& P = *pix_;
+  const life::PlayerNeeds& pn = g.life.player;
+  const uint8_t bf = pn.buffs();
+  if (!bf) return;
+  float cx = x;
+  for (uint8_t bit : {life::BUFF_WELLFED, life::BUFF_RESTED, life::BUFF_HUNGRY, life::BUFF_WEARY}) {
+    if (!(bf & bit)) continue;
+    const float left = bit == life::BUFF_WELLFED ? pn.fedH : bit == life::BUFF_RESTED ? pn.restedH : 99.0f;
+    const bool blink = left < 1.0f && ((int)(t_ * 3) & 1);
+    const Tex& t = cachedTex(0x4Eull << 56 | bit, paintBuffIcon);
+    P.blitEx(t, 0, 0, t.w, t.h, std::floor(cx), std::floor(y), (float)t.w, (float)t.h, false, Color(1, 1, 1, blink ? 0.45f : 1.0f));
+    cx += t.w + 2;
+  }
+}
+
+// (fixer M5 r3) a tap on the buff icons (drawBuffs at the bars' end): a toast per buff says what it does and how it ends
+bool View::buffTap(Game& g, Vec2 p) {
+  const uint8_t bf = g.life.player.buffs();
+  if (!bf) return false;
+  const float x0 = (float)Pix::SL + 108, y0 = (float)Pix::ST + 9;
+  int n = 0;
+  for (uint8_t bit : {life::BUFF_WELLFED, life::BUFF_RESTED, life::BUFF_HUNGRY, life::BUFF_WEARY}) if (bf & bit) n++;
+  if (p.x < x0 || p.x >= x0 + n * 13.0f + 6 || p.y < y0 || p.y >= y0 + 19) return false;
+  auto say = [&](const char* s, uint32_t c) { Toast t; t.s = s; t.c = col(c); toasts_.push_back(t); };
+  if (bf & life::BUFF_WELLFED) say("WELL FED: STAMINA AND HEALTH COME BACK FASTER", rgba(240, 200, 110));
+  if (bf & life::BUFF_RESTED) say("RESTED: +10% EXPERIENCE", rgba(150, 200, 255));
+  if (bf & life::BUFF_HUNGRY) say("HUNGRY: STAMINA COMES BACK SLOWER. EAT FOOD (ITEMS) OR A MEAL AT AN INN", rgba(220, 160, 110));
+  if (bf & life::BUFF_WEARY) say("WEARY: SLEEP IN A BED, A BEDROLL OR AN INN ROOM", rgba(170, 160, 200));
+  audio_->play(Sfx::MenuMove);
+  return true;
+}
+
+// (M5, 15.12) the word for a settlement's mood, as the HUD and the map show it, and its colour (rgba)
+std::string View::moodWord(const Game& g, ew::Gid site, uint32_t* color) {
+  if (!site || !g.life.find(site)) return std::string();
+  const uint16_t f = g.life.moodFlags(site);
+  const int mood = g.life.mood(site);
+  auto out = [&](const char* w, uint32_t c) { if (color) *color = c; return std::string(w); };
+  // (M5 fixer) a raid being fought right now outranks everything (the bell is ringing: never "CONTENT")
+  if (g.life.raid.site == site && g.life.raid.outcome == 0) return out("UNDER ATTACK", rgba(255, 84, 64));
+  if (g.life.festival(site, g.day) || (f & life::MF_FESTIVAL)) return out("FESTIVAL", rgba(250, 206, 92));
+  if (f & life::MF_RAIDED) return out("RAIDED", rgba(240, 96, 70));
+  if (f & life::MF_WARTORN) return out("WAR-TORN", rgba(226, 104, 80));
+  if (f & life::MF_FAMINE) return out("FAMINE", rgba(236, 120, 70));
+  if (f & life::MF_HUNGRY) return out("HUNGRY", rgba(236, 160, 84));
+  if (f & life::MF_GRIEF) return out("MOURNING", rgba(170, 180, 214));
+  if (f & life::MF_BRAWLS) return out("RESTLESS", rgba(226, 150, 96));
+  if (f & life::MF_EMIGRATING) return out("EMPTYING", rgba(200, 170, 140));
+  if ((f & life::MF_CONTENT) || mood >= 60) return out(mood >= 78 ? "THRIVING" : "CONTENT", rgba(150, 214, 120));
+  return out(mood < 35 ? "MISERABLE" : "UNEASY", rgba(214, 190, 130));
 }

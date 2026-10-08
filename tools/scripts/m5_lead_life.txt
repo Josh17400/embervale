@@ -1,0 +1,28 @@
+# M5 phase A (lead): the life contracts in the running game: the start village's census, plans by the hour, the
+# player's buff states (15.2) forced and read back; the inn's common room at 20:00.
+#   embervale.exe --script tools/scripts/m5_lead_life.txt     (m5_lead_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.02 hour 10
++1.0 life
++0.1 expect life residents 8
++0.1 expect life act work 5
++0.05 hour 2
++0.6 life
++0.1 expect life act sleep 8
++0.05 hour 20
++0.6 life
++0.1 expect buff wellfed 0
++0.1 buff wellfed
++0.1 expect buff wellfed
++0.1 buff none
++0.1 buff hungry
++0.1 expect buff hungry
++0.1 buff weary
++0.1 expect buff weary
++0.1 buff none
++0.2 enter inn
++0.6 shot m5_lead_inn.png
++0.1 life stats
++0.3 quit

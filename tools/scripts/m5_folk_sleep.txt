@@ -1,0 +1,42 @@
+# M5 TOWNSFOLK (15.2): a night at the inn and at home. A household asleep in its beds at 2:00 and at its table at
+# breakfast; the guests asleep in their rooms upstairs (never in the common room); the player rents a room from the
+# innkeeper, goes up to bed and wakes rested in the morning; a hot meal for Well Fed.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m5_folk_sleep.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 2
++0.3 enter house
++1.0 folk
++0.1 shot m5_folk_sleep_home_02.png
++0.2 leave
++0.05 hour 5.5
++0.3 enter house
++1.0 folk
++0.1 shot m5_folk_sleep_home_breakfast.png
++0.05 hour 21.5
++0.3 enter inn
++1.0 folk
++0.1 shot m5_folk_sleep_common.png
++0.1 floor 1
++0.8 folk
++0.1 expect folk posture sleep 1
++0.1 shot m5_folk_sleep_upstairs.png
++0.1 floor 0
++0.5 talkto innkeeper 30
++0.3 expect option RENT A ROOM
++0.1 choose RENT A ROOM
++0.3 choose GO UP TO BED
++2.0 expect floor 1
++0.1 expect buff rested
++0.1 expect buff weary 0
++0.2 shot m5_folk_sleep_morning.png
++0.1 floor 0
++0.8 folk
++0.2 talkto innkeeper 30
++0.2 expect option A HOT MEAL
++0.1 choose A HOT MEAL
++0.2 expect buff wellfed
++0.2 key Escape
++0.3 shot m5_folk_sleep_breakfast.png
++0.3 quit

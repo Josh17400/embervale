@@ -75,11 +75,14 @@ int Game::homeDoor(Actor& a) {
   const Map& m = world.over;
   int best = -1;
   float bd = 1e30f;
+  // (M5) a resident out on their day's business (life_game.cpp: Actor::home is their own door) makes for home when it
+  // is near, else ducks into the nearest door from where they stand
+  const Vec2 from = a.resident >= 0 && len2(a.home - a.p) > (10.0f * TILE) * (10.0f * TILE) ? a.p : a.home;
   for (int b = s.bldgFirst; b < s.bldgFirst + s.bldgCount && b < (int)m.bldgs.size(); b++) {
     const Bldg& B = m.bldgs[b];
     if (m.blocked(B.doorX(), B.doorY() + 1)) continue;   // a door you can't stand in front of
     if (B.charred == 2 || B.site != a.site) continue;      // (M4) a burned-out shell shelters nobody
-    float d = len(tileCentre(B.doorX(), B.doorY() + 1) - a.home);
+    float d = len(tileCentre(B.doorX(), B.doorY() + 1) - from);
     bool home = B.type == art::Building::House || B.type == art::Building::StoneHouse || B.type == art::Building::Farmhouse || B.type == art::Building::Hut;
     if (!home) d *= 1.6f;
     if (d < bd) { bd = d; best = b; }
@@ -159,7 +162,11 @@ bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
     Vec2 before = a.p;
     moveActor(a, dc * (std::min(speed * dt, lc) / lc));
     a.face = faceOf(dc);
-    if (len2(a.p - before) < 0.0001f) a.navT = std::min(a.navT, 0.1f);   // wedged on a corner: re-plan soon
+    if (len2(a.p - before) < 0.0001f) {
+      a.navT = std::min(a.navT, 0.1f);   // wedged on a corner: re-plan soon
+      // (M5) standing inside a solid tile (a prop the window streamed in under them): a step out to the nearest open one
+      if (m.blocked(tileX(a.p), tileY(a.p))) { a.p = freeSpot(tileX(a.p), tileY(a.p)); a.navNext = -1; }
+    }
   }
   return true;
 }
@@ -169,6 +176,8 @@ bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
 void Game::updateFolk(Actor& a, float dt) {
   Actor& p = pl();
   bool talking = mode == Mode::Dialogue && dlg.actor == a.id;
+  // M5: a village animal (Actor::critter) lives by the TOWNSFOLK lane (life_game.cpp)
+  if (!a.human && a.critter && lifeFolk(a, dt)) return;
   // M2: a beast that keeps a wayside place (the toll bridge's troll) holds its ground until it is crossed
   if (!a.human) {
     a.st = AState::Idle;
@@ -377,14 +386,21 @@ void Game::updateFolk(Actor& a, float dt) {
     if (a.fleeT > 8.0f) a.homeBldg = -1;   // the nearest-door fallback was for that alarm only: home is home again
     a.fleeT = 0;
   }
+  // M5: a resident with a plan lives it (work, meals, the tavern, sleep; life_game.cpp, TOWNSFOLK lane)
+  if (!guard && lifeFolk(a, dt)) return;
   // M2 capital square life (owner note 6): the people whose place is out on a city's square linger near it by day and
   // go home at night (indoors until morning: updateTownDefence lets them out at dawn)
   const bool squareGoer = town && !guard && !a.stallKeeper && (a.role == Role::Villager || a.role == Role::Child) &&
                           world.sites[(size_t)a.site].type == SiteType::City &&
                           world.over.at((int)std::floor(a.home.x / TILE), (int)std::floor((a.home.y - 2) / TILE)) == Ground::Plaza;
-  if (squareGoer && !talking && (hour >= 21.0f || hour < 6.0f)) {
+  // (M5) a stall's keeper goes home for the night too (back at the counter in the morning: lifeSpawnAllowed)
+  const bool keeperHome = town && a.stallKeeper && (hour >= 21.5f || hour < 6.0f);
+  if ((squareGoer || keeperHome) && !talking && (hour >= 21.0f || hour < 6.0f)) {
     const int b = homeDoor(a);
-    if (b >= 0) {
+    // (fixer M5 r3, review: "stall keepers still at closed stalls at 02:00") deep in the night they went home hours ago
+    // (still out only after a jump of the clock): indoors at once; one with no door of their own leaves the street too
+    if (b < 0 || hour >= 23.0f || hour < 5.0f) { a.indoors = true; a.nightHome = true; a.st = AState::Idle; return; }
+    {
       const Bldg& B = world.over.bldgs[(size_t)b];
       const Vec2 door = tileCentre(B.doorX(), B.doorY() + 1);
       if (len2(a.p - door) < 7.0f * 7.0f) { a.indoors = true; a.nightHome = true; a.st = AState::Idle; return; }

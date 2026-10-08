@@ -1,0 +1,16 @@
+# M5 TOWNSFOLK: village animals (dogs at the doors and at their owners' heels, cats on the doorsteps, hens and a rooster
+# in the yards, goats or pigs in a herding or farming village, ducks by the water), asleep at night.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m5_folk_animals.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 10
++2.0 folk
++0.1 expect folk critters 2
++0.1 gotocritter 0
++1.5 shot m5_folk_animals_a.png
++0.1 gotocritter 3
++1.5 shot m5_folk_animals_b.png
++0.05 hour 22.5
++1.5 shot m5_folk_animals_night.png
++0.3 quit

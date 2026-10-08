@@ -148,7 +148,9 @@ int raid(const Game& base, ew::Gid siteId, bool guarded, const char* what, uint6
     for (int id : wolves) for (const Actor& a : g.actors) if (a.id == id && a.st != AState::Dead) alive++;
     for (const Actor& a : g.actors) {
       if (!a.npc || a.site != si) continue;
-      if (a.st == AState::Dead && a.role != Role::Guard) downed.insert(a.id);
+      // (the village's dogs and hens are not villagers: a wolf taking a hen is no failed defence)
+      if (a.st == AState::Dead && a.role != Role::Guard && !a.critter && downed.insert(a.id).second && getenv("EMB_WARDS_TRACE"))
+        out("  down: %s role %d militia %d resident %d posture %d at %.1f,%.1f\n", a.name.c_str(), (int)a.role, (int)a.militia, a.resident, (int)a.posture, a.p.x / TILE, a.p.y / TILE);
       if (a.militia && a.target >= 0) armed = true;
     }
     if (!alive) { cleared = f / 60.0f; break; }

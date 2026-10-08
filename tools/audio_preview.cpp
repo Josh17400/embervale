@@ -9,8 +9,12 @@
 // checked for clipping, clicks (sample jumps far above the bed's own) and level, and a bed-to-bed and a mood-to-mood
 // crossfade checked for clicks.
 //
-//   audio_preview [outDir] [--cultures] [--wild]   default outDir: %LOCALAPPDATA%\Temp\claude\embervale_audio;
-//                                                  --cultures: only the culture pieces; --wild: only the beds and moods
+// M5 (AMBIENCE lane): the bard's tavern piece in every archetype's style and the festival dance, the crowd's murmur,
+// the bard heard from the street (--tavern; also part of the full run), and the animals' and the crowd's sfx.
+//
+//   audio_preview [outDir] [--cultures] [--wild] [--tavern]   default outDir: %LOCALAPPDATA%\Temp\claude\embervale_audio;
+//                                                  --cultures: only the culture pieces; --wild: only the beds and moods;
+//                                                  --tavern: only the tavern
 #include "engine/audio.h"
 #include <algorithm>
 #include <array>
@@ -36,8 +40,9 @@ const char* kSfxName[(int)Sfx::COUNT] = {
   "MenuMove", "MenuSelect", "MenuBack",
   "Roar", "Splash",
   "Bell",
+  "Bark", "Cluck", "Meow", "Cheer",
 };
-const char* kMusicName[(int)Music::COUNT] = {"Silence", "Title", "Wild", "Night", "Town", "Cave", "Combat", "Boss"};
+const char* kMusicName[(int)Music::COUNT] = {"Silence", "Title", "Wild", "Night", "Town", "Cave", "Combat", "Boss", "Tavern"};
 
 bool writeWav(const fs::path& path, const std::vector<float>& x) {
   FILE* f = std::fopen(path.string().c_str(), "wb");
@@ -473,11 +478,74 @@ int wildlands(const fs::path& dir) {
 }
 }  // namespace
 
+// ---------------------------------------------------------------- M5 the tavern
+// The bard's piece (Music::Tavern) in every archetype's style, the festival dance in four, the crowd's murmur at three
+// fills (a quiet room, a busy one, a packed festival night) and the bard heard from the street (setMusicLevel: quieter
+// and muffled): each checked for clipping, gaps and its level against the classic Town piece (the tavern may stand a
+// little above the street's music: it is the room's focus; the street's bleed well below it).
+int tavernPieces(const fs::path& dir) {
+  int problems = 0;
+  const float secs = 24.0f;
+  auto classic = std::make_unique<Audio>();
+  classic->setMusic(Music::Town);
+  const Levels RLv = levels(renderFor(*classic, secs), 3 * SR);
+  std::printf("\nTAVERN (%.0f s each; classic Town rms %.1f dB)\n", secs, db(RLv.rms));
+  std::printf("%-26s %7s %7s %6s %6s %6s %8s %9s\n", "piece", "peak", "rms dB", "vs ref", "silent", "clip", "onset/m", "phone dB");
+  auto judge = [&](const std::string& name, const std::vector<float>& x, float lo, float hi, bool music) {
+    const Levels L = levels(x, 3 * SR);
+    const Loud MP = loudness(phoneSpeaker(x), 3 * SR);
+    const Structure S = structure(x, 3.0f);
+    const float gap = longestSilence(x, 3.0f);
+    const float vs = db(L.rms) - db(RLv.rms);
+    std::printf("%-26s %7.3f %7.1f %+6.1f %5.1fs %6d %8.0f %9.1f\n", name.c_str(), L.peak, db(L.rms), vs, gap, L.clipped, S.onsetsPerMin,
+                db(MP.mean));
+    if (L.clipped || L.peak > 0.5f || (music && gap > 4.0f) || vs > hi || vs < lo) { std::printf("  ^ PROBLEM\n"); problems++; }
+    writeWav(dir / ("tavern_" + name + ".wav"), x);
+  };
+  for (const CultureStyle& c : kCultures) {
+    auto a = std::make_unique<Audio>();
+    a->setMusic(Music::Tavern, &c.ms, false);
+    judge(std::string("bard_") + c.name, renderFor(*a, secs), -6.0f, 5.0f, true);
+  }
+  for (int ci : {0, 3, 4, 6}) {
+    auto a = std::make_unique<Audio>();
+    a->setMusic(Music::Tavern, &kCultures[ci].ms, true);
+    judge(std::string("festival_") + kCultures[ci].name, renderFor(*a, secs), -6.0f, 6.0f, true);
+  }
+  {
+    auto a = std::make_unique<Audio>();
+    a->setMusic(Music::Tavern);
+    judge("bard_classic", renderFor(*a, secs), -6.0f, 5.0f, true);
+  }
+  const float fills[3][2] = {{0.25f, 0}, {0.6f, 0.2f}, {1.0f, 1.0f}};
+  const char* fillName[3] = {"crowd_quiet", "crowd_busy", "crowd_festival"};
+  for (int k = 0; k < 3; k++) {   // the murmur alone: a bed well under the music (-26..-4 dB vs the Town piece)
+    auto a = std::make_unique<Audio>();
+    a->setCrowd(fills[k][0], fills[k][1]);
+    judge(fillName[k], renderFor(*a, secs), -26.0f, -4.0f, false);
+  }
+  {   // the bard and a busy room together
+    auto a = std::make_unique<Audio>();
+    a->setMusic(Music::Tavern, &kCultures[2].ms, false);
+    a->setCrowd(0.7f, 0.3f);
+    judge("room_heartland", renderFor(*a, secs), -6.0f, 6.0f, true);
+  }
+  {   // from the street at night, ten tiles from the door: well below the town's own music, muffled
+    auto a = std::make_unique<Audio>();
+    a->setMusic(Music::Tavern, &kCultures[0].ms, false);
+    a->setCrowd(0.5f, 0);
+    a->setMusicLevel(0.35f, 0.75f);
+    judge("street_fjordfolk", renderFor(*a, secs), -20.0f, -5.0f, false);
+  }
+  return problems;
+}
+
 int main(int argc, char** argv) {
   fs::path dir;
-  bool culturesOnly = false, wildOnly = false;
+  bool culturesOnly = false, wildOnly = false, tavernOnly = false;
   for (int i = 1; i < argc; i++) {
     if (std::string(argv[i]) == "--cultures") culturesOnly = true;
+    else if (std::string(argv[i]) == "--tavern") tavernOnly = true;
     else if (std::string(argv[i]) == "--wild") wildOnly = true;
     else dir = argv[i];
   }
@@ -496,6 +564,10 @@ int main(int argc, char** argv) {
   }
   if (culturesOnly) {
     problems = culturePieces(dir);
+    return problems ? 2 : 0;
+  }
+  if (tavernOnly) {
+    problems = tavernPieces(dir);
     return problems ? 2 : 0;
   }
 
@@ -519,7 +591,8 @@ int main(int argc, char** argv) {
                 db(L.activeRms), T.centroid, 100.0f * T.hf, L.clipped, db(loud), db(phone));
     if (L.clipped || L.peak < 0.02f || L.activeDur < 0.02f) { std::printf("  ^ PROBLEM\n"); problems++; }
     if ((Sfx)s != Sfx::Step && (Sfx)s != Sfx::Talk && (Sfx)s != Sfx::MenuMove && (Sfx)s != Sfx::MenuSelect &&
-        (Sfx)s != Sfx::MenuBack) {
+        (Sfx)s != Sfx::MenuBack && (Sfx)s != Sfx::Bark && (Sfx)s != Sfx::Cluck && (Sfx)s != Sfx::Meow && (Sfx)s != Sfx::Cheer) {
+      // (M5) the animals and the crowd's cheer are the town's ambience, heard at a distance under the music by design
       sfxPeakMin = std::fmin(sfxPeakMin, L.peak);
       sfxLoudMin = std::fmin(sfxLoudMin, loud);
       sfxPhoneMin = std::fmin(sfxPhoneMin, phone);
@@ -623,6 +696,7 @@ int main(int argc, char** argv) {
     std::printf("Hit over Combat: hit-window peak %.3f vs bed peak %.3f, rms %.1f dB vs %.1f dB\n", H.peak, B.peak, db(H.rms), db(B.rms));
   }
   problems += culturePieces(dir);
+  problems += tavernPieces(dir);
   problems += wildlands(dir);
   std::printf("\n%s (%d problem%s)\n", problems ? "CHECK FAILED" : "all checks passed", problems, problems == 1 ? "" : "s");
   return problems ? 2 : 0;

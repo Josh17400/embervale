@@ -902,7 +902,11 @@ void firePit(Canvas& c, int part, int frame) {
       else {
         // (M3b round 3) the trench: grey ash and charcoal (a solid bed of glowing orange read as a strip of lava), the
         // fire burning only where logs are laid across it, the embers glowing round their feet
-        const float fcx = part == 1 ? 9.0f : (wEnd ? 8.0f : 7.0f);
+        // (M5 fixer) the fires burn between the places on the benches (at the segments' joins), never straight above
+        // a sitter's head: the near bench's patrons have their backs to the camera and a flame right over a head read
+        // as a head on fire (each fire is shared by the two segments either side of its join: each paints its half)
+        const float fcA = wEnd ? -99.0f : 0.0f, fcB = eEnd ? -99.0f : 16.0f;
+        const float fcx = std::fabs(x + 0.5f - fcA) < std::fabs(x + 0.5f - fcB) ? fcA : fcB;
         const float n = vnoise((x + part * 16) * 0.6f, r * 0.8f, 1603);
         const float glowD = std::fabs(x + 0.5f - fcx) + std::fabs(r - 8.0f) * 0.7f;
         col = n > 0.6f ? mix(kStone[1], kStone[2], 0.4f) : (n > 0.35f ? mix(kStone[0], kStone[1], 0.5f) : mix(kStone[0], kInk, 0.5f));
@@ -926,14 +930,17 @@ void firePit(Canvas& c, int part, int frame) {
     }
   // the flames: (fix) low licks over the embers, one per segment and set off from the next one's, so the trench reads
   // as a kerbed hearth glowing down the hall and not as a burning strip of floor
-  for (int f = 0; f < 1; f++) {
-    const float cx = (part == 1 ? 9.0f : (wEnd ? 8.0f : 7.0f)) + ((frame + f * 2) % 4 == 1 ? 0.5f : ((frame + f * 2) % 4 == 3 ? -0.5f : 0.0f));
-    const float h = 6.0f + ((frame * 3 + part) % 4) * 0.9f, base = (float)(t0 + 9);
+  for (int f = 0; f < 2; f++) {   // (the fire at the west join, then the one at the east join: half of each is ours)
+    if ((f == 0 && wEnd) || (f == 1 && eEnd)) continue;
+    const float cx = (f == 0 ? 0.0f : 16.0f) + (frame % 4 == 1 ? 0.5f : (frame % 4 == 3 ? -0.5f : 0.0f));
+    // (M5 fixer r2) low and narrow: the bench's patrons sit before it, and tall tongues between their heads read as a
+    // table on fire; a short lick over glowing logs reads as a hearth
+    const float h = 3.5f + ((frame * 3 + 1) % 4) * 0.6f, base = (float)(t0 + 9);
     for (int y = (int)(base - h); y <= (int)base; y++)
       for (int x = 0; x < 16; x++) {
         const float u = (base - y) / h;                       // 0 at the embers, 1 at the tip
-        const float wdt = 1.9f * (1.0f - u * u) + 0.3f;
-        const float sway = std::sin(u * 3.0f + frame * 1.6f + f) * 0.9f * u;
+        const float wdt = 1.5f * (1.0f - u * u) + 0.3f;
+        const float sway = std::sin(u * 3.0f + frame * 1.6f) * 0.9f * u;
         const float d = std::fabs(x + 0.5f - cx - sway);
         if (d > wdt) continue;
         const int k = u > 0.75f ? 2 : (d < wdt * 0.4f ? (u < 0.4f ? 4 : 3) : 2);

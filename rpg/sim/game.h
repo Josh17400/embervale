@@ -17,6 +17,7 @@
 #include "rpg/sim/explored.h"
 #include "rpg/sim/factions.h"
 #include "rpg/sim/items.h"
+#include "rpg/sim/life.h"
 #include "rpg/sim/realm.h"
 #include "rpg/sim/war.h"
 #include "rpg/sim/world.h"
@@ -105,6 +106,28 @@ struct Actor {
   // M4 Banners (never saved): the kingdom this guard, soldier, captain or herald serves (0: none, a frontier militia or
   // a civilian). Who fights whom between kingdoms is Game::warHostile (war_game.cpp), from this and the realm's wars.
   ew::Gid realm = 0;
+  // M5 Hearth and Hall (never saved). resident: the census index (life::Census::res) this actor embodies within its
+  // site `site` (-1: not a resident: a wayside person, a soldier, a monster). posture: what the body is doing (art::Posture;
+  // None = the standing sheet) and postureT its animation clock; useX / useY the furniture tile it is using (a chair, a
+  // bed, an anvil: no two actors take the same one; -1 none). bubble: the speech icon over its head and how long it
+  // stays (art::Bubble; a chat pair, a greeting, a bark). critter: a village animal (art::Critter + 1; 0 a person or a
+  // monster): npc, not human, Faction::Town, drawn from art::critterSheet(kind, critterVar). lifeBits / lifeT / lifeA /
+  // lifeB: per-actor scratch whose meaning the TOWNSFOLK lane defines in life_game.cpp (route steps, chat partner,
+  // the seat reserved...).
+  int resident = -1;
+  // a keyed resident's other quest identity (its street body's (bldg -1, LIFE_SLOT0 + idx) when this is the building's
+  // slot-0 keeper, the keeper's (building, slot) when this is the street body; altSlot -1: none): isGiver matches either
+  int altBldg = -2, altSlot = -1;
+  art::Posture posture = art::Posture::None;
+  float postureT = 0;
+  int useX = -1, useY = -1;
+  art::Bubble bubble = art::Bubble::None;
+  float bubbleT = 0;
+  uint8_t critter = 0;
+  uint32_t critterVar = 0;
+  uint32_t lifeBits = 0;
+  float lifeT = 0;
+  int lifeA = -1, lifeB = -1;
 };
 
 enum class ProjKind : uint8_t { Arrow, Fireball, IceSpike, Spit, Magic, DragonFire };
@@ -152,7 +175,9 @@ struct Event {
 // M4 Banners appends: Story (a running story quest or campaign stage mirrored from the story engine, rpg/story/story.h:
 // Quest::stage is the engine's Instance id), War (a siege quest, "BREAK THE SIEGE" / "JOIN THE ASSAULT", WARDS lane:
 // Quest::targetId the besieged site, Quest::stage the realm's Siege id, Quest::flags bit QF_WAR_ATTACK the side).
-enum class QType : uint8_t { Main, Clear, Hunt, Retrieve, Bounty, Deliver, Heirloom, Missing, NamedBandit, Protect, Story, War, COUNT };
+// M5 Hearth and Hall appends: Supply (a radiant quest from an unmet need, 15.12 "the baker has no flour": bring `need`
+// units of a good (Quest::stage = ew::Good) to the giver or the settlement's stores; CITIZENS lane, life_quests.cpp).
+enum class QType : uint8_t { Main, Clear, Hunt, Retrieve, Bounty, Deliver, Heirloom, Missing, NamedBandit, Protect, Story, War, Supply, COUNT };
 enum class QState : uint8_t { Active, Complete, Done };
 struct Quest {
   int id = 0;
@@ -193,6 +218,8 @@ struct DlgOpt { std::string label; int action = 0; int arg = 0; };
 // options (rpg/story/story_game.cpp storyChoose) and the war's (rpg/sim/war_game.cpp warChoose). The built-in actions
 // (game_internal.h DlgAct) stay below DLG_STORY.
 constexpr int DLG_STORY = 1000, DLG_WAR = 2000, DLG_END = 3000;
+// M5: the townsfolk's options (feed, employ, supply, befriend, the inn's meal; rpg/sim/life_game.cpp lifeChoose)
+constexpr int DLG_LIFE = 3000, DLG_LIFE_END = 4000;
 struct Dialogue {
   int actor = -1;
   std::string speaker, text;
@@ -365,6 +392,9 @@ class Game {
   realm::Realm realm;
   story::Engine story;
   WarState war;
+  // ---- M5 Hearth and Hall (rpg/sim/life.h): the census, needs, plans, moods and the player's buffs (CITIZENS lane;
+  //      saved: the life block), and the townsfolk's actors (rpg/sim/life_game.cpp, TOWNSFOLK lane)
+  life::Life life;
   // apply the realm to the loaded world now (owners and banners of every loaded settlement, the news): scripts and tests
   // call it after forcing a realm change; realmStep calls it whenever the realm changed (realm_game.cpp)
   void realmSync();
@@ -428,6 +458,9 @@ class Game {
   // M1 stable keys: an overworld chest (endless worlds key it by global tile, so it stays looted wherever the window is)
   uint64_t lootKey(int tx, int ty) const;   // (endless: by global tile)
   uint64_t npcKeyOf(int site, int bldg, int slot) const;   // npcKey's formula from handles (quest givers)
+  // (M5) resident `idx` of site `si` gave the player an open quest: it never emigrates or is carried off (life.cpp,
+  // life_raids.cpp), so the quest can always be handed in
+  bool lifeGiverOpen(int si, int idx) const;
 
   // M1 endless streaming and NPC level of detail (SIM lane)
   void frameWork(double budgetMs);     // once per rendered frame: the streamer's work (web: generation within the budget)
@@ -454,6 +487,20 @@ class Game {
   // half the view in tiles plus a margin (the platform layer sets it from the logical canvas: the VIEW lane's screen
   // fit makes it wider on phones); townsfolk beyond it may sleep
   float sleepHalfW = 22.0f, sleepHalfH = 13.0f;
+  // M5 TOWNSFOLK lane (rpg/sim/life_game.cpp): what the townsfolk's actors are doing (tests, scripts, --perf). Counts are
+  // of the actors in play this step; the ms figures time lifeStep plus every resident's lifeFolk (the 15.12 budget:
+  // 120 residents <= 1.5 ms per step on average)
+  struct LifeFolkStats {
+    int residents = 0;        // resident actors in play (Actor::resident >= 0)
+    int walking = 0, seated = 0, working = 0, sleeping = 0, critters = 0;
+    int spawned = 0, despawned = 0;          // resident actors brought in / put away so far
+    int pathRequests = 0, pathCacheHits = 0, pathFails = 0;
+    int stuck = 0;            // walkers that moved less than a tile in the last 30 s while their plan moved them
+    int steps = 0;
+    double lastMs = 0, worstMs = 0, sumMs = 0;
+  };
+  const LifeFolkStats& lifeFolkStats() const;
+  int lifeFolkCap = 0;        // tests: resident actors a settlement may put on the street at once (0: FOLK_CAP)
 
   // test helpers
   bool godMode = false;
@@ -636,6 +683,45 @@ class Game {
   void storyKill(const Actor& victim, bool byPlayer);
   void storyEntered(int site, int bldg);   // the player just entered a site's map (site >= 0) or a building (bldg >= 0)
   bool storyUseProp(art::Prop p, int tx, int ty);   // the player used a prop (a notice board, an inscription...): true handled
+  // ---- M5 hooks (VISION_PLAN 10, 15.2, 15.12). Called from the core loop (game.cpp / game_rpg.cpp / ai.cpp) and
+  //      DEFINED in the lane's own file. TOWNSFOLK (rpg/sim/life_game.cpp): the actors.
+  //   once per update step (after storyStep): residents near the player streamed in / put away by their plan, routes,
+  //   furniture, chat pairs, barks, the lamplighter, the animals
+  void lifeStep(float dt);
+  //   a friendly townsperson's behaviour this step (updateFolk, after the flight from danger and before the stroll):
+  //   true = handled (its plan drove it)
+  bool lifeFolk(Actor& a, float dt);
+  //   streamSitePeople: may this site's generator spawn come out now (false: its resident is indoors / away this hour)
+  bool lifeSpawnAllowed(int site, const Spawn& sp);
+  //   a person just came into play from a generator spawn (streamSitePeople, loadMapActors): bind it to its resident
+  //   (Actor::resident, name, look), place it where its plan has it
+  void lifeSpawned(Actor& a, const Spawn& sp);
+  //   loadMapActors finished a building interior: populate it by schedule (who is home, at the tables, asleep upstairs)
+  void lifeInterior();
+  //   talkTo: greetings by name, barks of need ("HAVEN'T EATEN SINCE YESTERDAY"), the player's hooks (feed, employ,
+  //   supply, befriend) as options in [DLG_LIFE, DLG_LIFE_END); called before warTalk / storyTalk
+  void lifeTalk(Actor& a);
+  bool lifeChoose(const DlgOpt& o);    // an option in [DLG_LIFE, DLG_LIFE_END): true handled
+  void lifeKill(const Actor& victim, int killer);   // a resident fell: grief, the census (Life::residentDied)
+  //   the player used a prop (a bed or bedroll: sleep, Rested, skip the night; a table with food...): true handled.
+  //   Called before the built-in prop handling.
+  bool lifeUseProp(art::Prop p, int tx, int ty);
+  void lifeAte(const Item& food);      // the player ate something (useItem): Well Fed (15.2)
+  void lifeSlept(int hours, bool bed); // the player slept / rested (rest()): Rested when in a bed or bedroll (15.2)
+  //   the player's buff multipliers (15.2), applied in updatePlayer / gainXp (1 = no effect)
+  float lifeStaminaRegenMul() const;
+  float lifeHealthRegenMul() const;
+  float lifeXpMul() const;
+  //   CITIZENS (rpg/sim/life_raids.cpp): night raids by monster pressure (VISION_PLAN 10.4 M5): once per update step
+  void raidStep(float dt);
+  //   CITIZENS (rpg/sim/life_quests.cpp): radiant quests from unmet needs ("THE BAKER HAS NO FLOUR"). hasOffer /
+  //   makeOffer ask it first: true = this NPC offers `q` (filled in)
+  bool lifeOffer(const Actor& npc, Quest& q) const;
+  // the TOWNSFOLK lane's own runtime state (route caches, seat reservations, chat pairs...): defined in life_game.cpp
+  // (shared: Game stays copyable; never saved)
+  struct LifeRuntime;
+  std::shared_ptr<LifeRuntime> lifeRt_;
+  friend struct LifeOps;               // M5 TOWNSFOLK: the actors' internals (life_game.cpp)
   // quests (quests.cpp)
   std::string pendingPitch_;           // the spoken offer (first person) for pendingOffer_
   int pickRadiant(SiteType t, int32_t gx, int32_t gy, Rng& r, bool& danger, int exclude = -1);

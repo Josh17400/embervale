@@ -1,0 +1,22 @@
+# M5 CITIZENS: a night raid by monster pressure (VISION_PLAN 10.4 M5). A pack and its leader come in along a road at
+# night; the bell rings (THE TOWN IS UNDER ATTACK!), guards and militia answer, and the raid is decided: driven off, or
+# the town overrun (prosperity and damage in the realm, maybe a villager carried off: a rescue quest).
+#   embervale.exe --script tools/scripts/m5_citizens_raid.txt     (m5_citizens_raid_*.png in the working directory)
+seed 3
+0.3  newgame
++0.1 god 1
++0.2 goto town
++1.2 hour 23
++0.5 life
++0.1 expect raid none
++0.1 raid now
++0.3 expect raid going
++6.0 shot m5_citizens_raid_1_coming.png
++5.0 shot m5_citizens_raid_2_bell.png
++4.0 shot m5_citizens_raid_3_fight.png
++0.1 waitraid
++0.5 expect raid over
++0.1 life
++0.1 life stats
++0.4 shot m5_citizens_raid_4_after.png
++0.3 quit

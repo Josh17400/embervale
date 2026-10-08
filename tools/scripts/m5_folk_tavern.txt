@@ -1,0 +1,15 @@
+# M5 TOWNSFOLK: an evening at the gathering place (the census's patrons at the tables, the server bringing mugs, chat
+# pairs with bubbles, the bard with the culture's instrument), then closing time and the walk home.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m5_folk_tavern.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.2 goto town
++0.05 hour 20
++0.3 entergathering
++3.0 folk
++0.1 expect folk seated 4
++0.1 shot m5_folk_tavern_20.png
++4.0 shot m5_folk_tavern_20b.png
++0.2 walkto exit 20
++0.3 quit

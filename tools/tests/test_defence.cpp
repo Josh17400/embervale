@@ -216,6 +216,26 @@ int townDefence(const Game& base, int si, bool guarded, const char* what) {
         auto it = guardBest.find(a.id);
         if (it == guardBest.end() || d < it->second - 4 || d < 30) { guardBest[a.id] = d; guardNoProgress[a.id] = 0; }
         else guardNoProgress[a.id] += SIM_DT;
+        if (getenv("EMB_DEF_TRACE") && guardNoProgress[a.id] > 3.0f && guardNoProgress[a.id] < 3.0f + SIM_DT * 1.5f) {
+          const int gx0 = (int)(a.p.x / TILE), gy0 = (int)((a.p.y - 2) / TILE);
+          for (int yy = gy0 - 3; yy <= gy0 + 3; yy++) {
+            std::string row;
+            for (int xx = gx0 - 4; xx <= gx0 + 4; xx++) {
+              const Map& mm = g.world.over;
+              char ch = mm.blocked(xx, yy) ? '#' : (mm.in(xx, yy) && mm.bldgAt[(size_t)yy * mm.w + xx] >= 0 ? 'b' : '.');
+              if (xx == gx0 && yy == gy0) { ch = ch == '#' ? 'X' : 'G'; printf("  trace tile prop %d ground %d solid %d\n", mm.propAt(xx, yy) - 1, (int)mm.at(xx, yy), (int)mm.solid[(size_t)yy * mm.w + xx]); }
+              row += ch;
+            }
+            printf("  trace map %s\n", row.c_str());
+          }
+          for (const Actor& o : g.actors)
+            if (o.id != a.id && len(o.p - a.p) < 24.0f)
+              printf("  trace near: %s id %d at %.1f,%.1f critter %d resident %d posture %d st %d npc %d hostile %d\n", o.name.c_str(), o.id, o.p.x / TILE, o.p.y / TILE,
+                     (int)o.critter, o.resident, (int)o.posture, (int)o.st, (int)o.npc, (int)o.hostile);
+        }
+        if (getenv("EMB_DEF_TRACE") && f % 30 == 0)
+          printf("  trace %.1f s: guard %d at %.1f,%.1f st %d target %d d %.0f noprog %.1f nav %d/%d asleep %d knock %.1f\n", f / 60.0f, a.id, a.p.x / TILE, a.p.y / TILE, (int)a.st, a.target, d,
+                 guardNoProgress[a.id], a.navNext, a.navGoal, (int)a.asleep, len(a.knock));
       }
     }
     if (!alive) { clearedAt = f / 60.0f; break; }

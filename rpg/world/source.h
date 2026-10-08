@@ -27,7 +27,11 @@ namespace ew {
 
 // Bumped when the endless generator's output changes. Old saves are not kept compatible across M1 (owner rule,
 // 2026-10-04); the save stores it so a mismatch can say "this save is from an older world".
-constexpr int ENDLESS_GEN_VER = 13;  // 13: M4 Banners (the M3c carry-overs to the land: marsh boardwalks on diagonals,
+constexpr int ENDLESS_GEN_VER = 14;  // 14: M5 Hearth and Hall (bumped with SAVE_VER 11 so the lanes may change
+                                     //     generation under it: inn guest rooms upstairs, village animals' coops and pens,
+                                     //     the furniture the townsfolk use; goldens re-recorded by the lane that changes
+                                     //     their output).
+                                     // 13: M4 Banners (the M3c carry-overs to the land: marsh boardwalks on diagonals,
                                      //     heath cover, alpine flora, the far-zoom beach band). The realm itself never
                                      //     changes generation (overlays only). Until M4 ships, the M4 lanes change the
                                      //     output under 13 and regenerate the goldens the VIEW lane owns.

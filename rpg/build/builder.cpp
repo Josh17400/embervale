@@ -1157,10 +1157,17 @@ void inn(Bx& c) {
         return;
       }
       break;
-    case CU_STEPPE: {   // (fix) a great guest yurt, its sleeping yurts round it (one storey: wealth is in the cluster)
-      (void)n;
-      roundHouse(c, 1, 17, true, c.W >= 80 ? 2 : (c.W >= 48 ? 1 : 0));
-      c.v[0].ornament |= art::ORN_LANTERNS;
+    case CU_STEPPE: {
+      // (M5 TOWNSFOLK, owner rule: an inn lets its beds upstairs only) the steppe road's guest house: a round timber
+      // drum of two storeys (the common room round the stove below, the felt-hung sleeping gallery above) under a wide
+      // felt cone with its crown ring, felt yurts round it for the household (a felt yurt itself is never stacked)
+      const int bi = roundHouse(c, std::max(2, n), 22, false, c.W >= 80 ? 2 : (c.W >= 48 ? 1 : 0));
+      for (Volume& x : c.v) {
+        x.roof = RoofShape::Conical; x.roofMat = RoofMat::Felt; x.window = WindowShape::Round;
+        if (x.role == VolRole::Annex) { x.wall = WallMat::Felt; x.door = DoorShape::Flap; x.eave = 0; x.feat |= VF_CROWN; }
+      }
+      c.v[(size_t)bi].feat |= VF_CROWN;
+      c.v[(size_t)bi].ornament |= art::ORN_LANTERNS;
       return;
     }
     case CU_SYLVAN: {

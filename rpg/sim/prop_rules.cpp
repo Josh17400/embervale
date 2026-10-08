@@ -75,8 +75,11 @@ bool footT(const Map& m, int x, int y) {
   return below && isWallT(m, x, y - 1);
 }
 // a partition face: an inner wall tile with floor right below it
-bool partFace(const Map& m, int x, int y) { return innerWall(m, x, y) && !isWallT(m, x, y + 1); }
-bool partCap(const Map& m, int x, int y) { return innerWall(m, x, y) && isWallT(m, x, y + 1); }
+// (M5 fixer r2) a north-south partition runs on through its doorway: the wall tile over a DoorV is the run's cap, never a
+// face (a face there read as a stack of separate blocks with a door stuck to the wall's side)
+bool doorVBelow(const Map& m, int x, int y) { return m.in(x, y + 1) && m.propAt(x, y + 1) == (int)Prop::DoorV + 1; }
+bool partFace(const Map& m, int x, int y) { return innerWall(m, x, y) && !isWallT(m, x, y + 1) && !doorVBelow(m, x, y); }
+bool partCap(const Map& m, int x, int y) { return innerWall(m, x, y) && (isWallT(m, x, y + 1) || doorVBelow(m, x, y)); }
 // a visible face of any wall (it counts as room for the wall tops around it); on shaped floors a tall shell face covers
 // its foot's tile, the one above and (its top band and the top of the face) the one above that
 bool shellFaceAt(const Map& m, int x, int y) { return footT(m, x, y) || footT(m, x, y + 1) || footT(m, x, y + 2); }

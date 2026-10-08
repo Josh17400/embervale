@@ -15,14 +15,14 @@ seed 7
 2.6  expect mode dialogue
 4.0  expect option RENT A ROOM (10 GOLD)
 4.1  choose RENT A ROOM
-4.3  expect text ROOM                # (M3c: seed 7's nearest town inn now lets its rooms on the ground floor)
+4.3  expect text ROOM                # (M5 owner rule: every inn lets its rooms upstairs, the steppe's guest house too)
 4.6  shot sim_rooms_inn_rent.png
 4.8  choose TO BED
 5.0  expect mode play
-5.1  expect floor 0
+5.1  expect floor 1
 5.2  expect heard YOU SLEEP IN YOUR ROOM
 6.4  shot sim_rooms_inn_myroom.png
-# 6.6  walkto downstairs 30   (M3c: the room is on the ground floor)
+6.6  walkto downstairs 30
 6.8  expect floor 0
 7.0  walkto exit 30
 7.2  expect inside 0

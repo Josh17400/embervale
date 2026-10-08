@@ -145,7 +145,8 @@ inline void overworldTile(const Game& g, int& x, int& y) {
 inline bool isGiver(const Quest& q, const Actor& a) {
   if (!a.npc) return false;
   if (q.giverSlot < 0) return a.role == Role::Innkeeper && a.bldg >= 0 && a.bldg == q.giverBldg;
-  return q.giverSite == a.site && q.giverBldg == a.bldg && q.giverSlot == a.slot;
+  if (q.giverSite != a.site) return false;
+  return (q.giverBldg == a.bldg && q.giverSlot == a.slot) || (a.altSlot >= 0 && q.giverBldg == a.altBldg && q.giverSlot == a.altSlot);
 }
 
 // M2 (SIM lane): Game::marks key spaces. A key is a stable id (a site's Gid, an npcKey, a quest id) mixed with a tag,

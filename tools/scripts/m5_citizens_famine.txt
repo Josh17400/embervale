@@ -1,0 +1,30 @@
+# M5 CITIZENS: a famine felt in the streets (VISION_PLAN 15.12 -> 15.6.3). The start village's food is gone and no carts
+# come: within the day MF_HUNGRY, dear bread, shuttered stalls, the mood falls; the realm hears of it (Realm::lifeReport).
+#   embervale.exe --script tools/scripts/m5_citizens_famine.txt     (m5_citizens_famine_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.02 hour 9
++1.0 life
++0.1 expect life flag famine 0
++0.1 expect life flag content 1
++0.1 expect life mood 50 100
++0.1 life mark
++0.3 shot m5_citizens_famine_0_before.png
++0.1 life famine 3
++0.1 expect life flag famine 1
++0.1 expect life flag shuttered 1
++0.1 expect life price bread 150
++0.1 expect life price produce 150
++0.1 expect life stock bread 0 0
++0.1 life hours 24
++0.6 life
++0.1 expect life flag hungry 1
++0.1 expect life flag content 0
++0.1 expect life moodfall 15
++0.3 shot m5_citizens_famine_1_hungry.png
++0.1 life stock bread 400
++0.1 life stock produce 400
++0.1 expect life price bread 40 100
++0.1 life stats
++0.3 quit

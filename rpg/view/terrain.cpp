@@ -4071,9 +4071,10 @@ void View::travelArrive(Game& g) {
   const auto th = SClock::now();
   for (const Actor& a : g.actors) {
     if (!a.human || a.p.x < cam.x - 96 || a.p.x > cam.x + Pix::W + 96 || a.p.y < cam.y - 96 || a.p.y > cam.y + Pix::H + 128) continue;
-    if (humans_.count(a.look.key())) continue;
+    const bool child = a.role == Role::Child;   // (M5) children's sheets are keyed apart (render.cpp childBody)
+    if (humans_.count(a.look.key() ^ (child ? 0xC41D0000C41Dull : 0))) continue;
     if (st ? spent() > kArriveBudget * 0.75 : spent() > 8.0) { ready = false; break; }
-    humanTex(a.look);
+    humanTex(a.look, child);
   }
   // without threads: the incremental bake pump, last, with what is left of about 16 ms (at least 6)
   if (st) pumpBake(std::max(2.0, kArriveBudget - spent()));

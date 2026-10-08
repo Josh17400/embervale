@@ -1,0 +1,33 @@
+# M5 VIEW lane perf: a capital at 20:00 with its townsfolk out (lamps lit, windows by occupancy, poses, bubbles), then
+# a festival night on its streets (strings, lanterns, the band, the crowd), then its inn's common room full. `perfmark`
+# prints the longest whole frame since the previous mark. Run with --perf (and EMB_WEBSIM=1 for the web's path).
+# Targets: worst frame <= 25 ms desktop, average well under 16 ms.
+#   embervale.exe --script tools/scripts/m5_view_perf.txt --perf
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 20
++0.2 gotoculture imperial capital
++4 perfmark settle
++0.05 hold D 3
++3.1 hold S 3
++3.1 hold A 3
++3.1 perfmark city20
++0.05 life
++0.05 m5stats
++0.05 festival on
++0.05 hour 21
++1 perfmark settle2
++0.05 hold W 3
++3.1 hold D 3
++3.1 perfmark festival
++0.05 m5stats
++0.05 festival auto
++0.05 hour 20.5
++0.2 enter inn
++2 perfmark settle3
++0.05 hold A 1.5
++1.6 hold D 1.5
++1.6 perfmark inn
++0.05 m5stats
++0.3 quit

@@ -335,6 +335,17 @@ class Realm {
   void forceHarvestFail(Gid kingdom, int day);                   // its harvest fails (granaries and food deals suffer)
   void forceTension(Gid a, Gid b, Tension t, WarCause cause, int day);   // put two realms on a rung of the ladder
 
+  // ---- M5 Hearth and Hall (rpg/sim/realm_life.cpp, CITIZENS lane; VISION_PLAN 15.12). A loaded settlement's day as
+  //      its residents lived it (life::Life::tick, once per in-game day per settlement it simulated): `foodDelta` the
+  //      change of its food stock in percent points (bought and eaten beyond what it made: negative; a surplus:
+  //      positive), `mood` its residents' mood 0..100. The realm folds them into SettlementState::food / mood, so
+  //      hunger in the streets feeds the famine -> trade collapse -> war chain (15.6.3). A site the realm has never
+  //      noted is ignored (noteSite first).
+  void lifeReport(Gid site, int foodDelta, uint8_t mood, int day);
+  // (CITIZENS lane, M5 phase B) a night raid on a loaded settlement (VISION_PLAN 10.4 M5): a failed defence costs it
+  // prosperity 10 and damage 5 (its mood suffers a little either way). A site the realm has never noted is ignored.
+  void lifeRaid(Gid site, bool failed, int day);
+
  private:
   uint64_t seed_ = 0;
   uint64_t rng_ = 0;               // the sim's own stream (saved)

@@ -1,0 +1,62 @@
+# M5 "Hearth and Hall" verification (VISION_PLAN 13 M5): a town of three cultures at 6:00, 12:00, 20:00 and 2:00, plus
+# its inn's common room at 20:00. The life the shots must show (the owner on the phone): the smith hammering at noon,
+# farmers in the fields, a full tavern at night with a bard, children playing, lamps lit at dusk, stalls opening and
+# closing, windows lit by who is home. Phase A (lead) wrote the tour; the AMBIENCE lane owns it. Checks: lamps dark at
+# noon and lit at 2:00 (the lamplighter's round), most townsfolk asleep at 2:00 and at work at noon (the census), the
+# inn's common room murmuring at 20:00, the settlement's mood known (HUD).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/town_day_night.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.2 gotoculture fjordfolk town
++1.4 culture
++0.05 hour 6
++0.8 shot m5_tdn_fjord_06.png
++0.05 hour 12
++0.8 shot m5_tdn_fjord_12.png
++0.05 expect m5 lampslit 0 0
++0.05 expect life act work 5
++0.05 life
++0.05 hour 20
++0.8 shot m5_tdn_fjord_20.png
++0.05 life
++0.05 hour 2
++0.8 shot m5_tdn_fjord_02.png
++0.05 expect m5 lampsdark 0 0
++0.05 expect life act sleep 8
++0.05 hour 20
++0.2 enter inn
++0.8 shot m5_tdn_fjord_inn20.png
++0.05 expect m5 crowd 5
++0.05 m5stats
++0.2 walkto exit 20
++0.2 gotoculture imperial town
++1.4 culture
++0.05 hour 6
++0.8 shot m5_tdn_imperial_06.png
++0.05 hour 12
++0.8 shot m5_tdn_imperial_12.png
++0.05 expect m5 lampslit 0 0
++0.05 expect life act work 5
++0.05 hour 20
++0.8 shot m5_tdn_imperial_20.png
++0.05 hour 2
++0.8 shot m5_tdn_imperial_02.png
++0.05 expect m5 lampsdark 0 0
++0.05 expect life act sleep 8
++0.2 gotoculture dune town
++1.4 culture
++0.05 hour 6
++0.8 shot m5_tdn_dune_06.png
++0.05 hour 12
++0.8 shot m5_tdn_dune_12.png
++0.05 expect m5 lampslit 0 0
++0.05 expect life act work 5
++0.05 hour 20
++0.8 shot m5_tdn_dune_20.png
++0.05 hour 2
++0.8 shot m5_tdn_dune_02.png
++0.05 expect m5 lampsdark 0 0
++0.05 expect life act sleep 8
++0.05 life stats
++0.3 quit

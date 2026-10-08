@@ -2648,15 +2648,22 @@ bool planBathhouse(Plan& P, Rng& r) {
         if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= rr * rr + rr && g0.roomOf(x, y) == 0) P.pool.push_back(g0.I(x, y));
   } else {
     P.initFloor(g0, RoomKind::Changing);
-    const int cd = 4, fw = 4;
+    // (M5 fixer r2: two capitals' bathhouses were the same plan) the furnace room's width, the pool's size and where it
+    // lies in the hall vary by the building
+    const int cd = 4, fw = 3 + r.irange(3);
     const int by = H - 2 - cd - 2;   // the bathing hall: rows 2..by
     if (by < 7) return nope(__LINE__);
     const int bath = P.carve(g0, 1, 2, W - 3 - fw, by, RoomKind::Bath);
     const int furn = P.carve(g0, W - 1 - fw, 2, W - 2, by, RoomKind::Storeroom);
     if (bath < 0 || furn < 0 || !g0.finish()) return nope(__LINE__);
     const IRect& B = g0.rooms[(size_t)bath].r;
-    const int px0 = B.x + 2, px1 = B.x + B.w - 3, py0 = B.y + 2, py1 = B.y + B.h - 3;
+    int px0 = B.x + 2, px1 = B.x + B.w - 3, py0 = B.y + 2, py1 = B.y + B.h - 3;
     if (px1 - px0 < 2 || py1 - py0 < 1) return nope(__LINE__);
+    {   // a smaller pool set off to one side, or one nearer the far wall, leaving a wider walk on the other
+      const int shrink = std::min(px1 - px0 - 2, r.irange(3));
+      if (shrink > 0) { if (r.f() < 0.5f) px0 += shrink; else px1 -= shrink; }
+      if (py1 - py0 >= 3 && r.f() < 0.5f) py1--;
+    }
     for (int y = py0; y <= py1; y++)
       for (int x = px0; x <= px1; x++) P.pool.push_back(g0.I(x, y));
     if (!g0.door(bath, 0, P.ex, by + 2, r) || !g0.door(furn, 0, g0.rooms[(size_t)furn].r.cx(), by + 2, r)) return nope(__LINE__);
@@ -4776,12 +4783,14 @@ void furnishCourt(Fit& F, int ri, Ctx& cx) {
 // the bathing hall: benches along its walls facing the pool, a statue in a niche, braziers for warmth, towels shelved
 void furnishBath(Fit& F, int ri, Ctx& cx) {
   const IRect& R = F.g.rooms[(size_t)ri].r;
-  northPiece(F, ri, Prop::Statue, 2);
+  // (M5 fixer r2) the niche holds a statue, or a brazier, or a potted palm, by the house
+  const float niche = F.r.f();
+  northPiece(F, ri, niche < 0.55f ? Prop::Statue : (niche < 0.8f ? Prop::Brazier : Prop::PlantPot), 2);
   for (int k = 0; k < 2 + R.w / 5; k++) wallPiece(F, ri, Prop::Bench, true, true);
   northPiece(F, ri, Prop::Cupboard, 1);   // the linen
   wallPiece(F, ri, Prop::Brazier);
   wallPiece(F, ri, Prop::PlantPot);
-  if (R.w * R.h >= 40) { wallPiece(F, ri, Prop::Brazier); wallPiece(F, ri, Prop::PlantPot); northPiece(F, ri, Prop::Statue, 1); }
+  if (R.w * R.h >= 40) { wallPiece(F, ri, Prop::Brazier); wallPiece(F, ri, Prop::PlantPot); if (F.r.f() < 0.6f) northPiece(F, ri, Prop::Statue, 1); }
   // bathers stand at the pool's edge
   for (int t : F.P.pool) {
     const int x = t % F.W, y = t / F.W;

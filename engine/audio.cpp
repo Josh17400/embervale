@@ -117,9 +117,11 @@ const Style kStyle[(int)Music::COUNT] = {
   {140, 4, 4, 1, 40, Aeolian, {{0, 5, 6, 0}, {0, 6, 5, 6}, {0, 3, 6, 2}, {0, 5, 2, 6}}, 64, 0, 9, 0.75f, 0.9f, 0.08f, false, 0.56f},
   // Boss: C minor, half-time heavy taiko, choir + low brass, galloping bass
   {120, 4, 4, 1, 36, Aeolian, {{0, 5, 6, 0}, {0, 3, 5, 6}, {0, 5, 2, 6}, {0, 6, 5, 4}}, 60, -2, 8, 0.45f, 0.9f, 0.12f, false, 0.52f},
+  // Tavern (M5 phase A stand-in: the Town jig a little quicker; the AMBIENCE lane gives the bard his own pieces)
+  {84, 2, 6, 1, 41, Ionian, {{0, 3, 4, 0}, {0, 5, 3, 4}, {0, 4, 5, 3}, {3, 0, 4, 0}}, 77, -4, 6, 0.6f, 0.9f, 0.08f, false, 1.15f},
 };
 
-bool styledMode(Music m) { return m == Music::Town || m == Music::Wild || m == Music::Night; }
+bool styledMode(Music m) { return m == Music::Town || m == Music::Wild || m == Music::Night || m == Music::Tavern; }
 // what a style changes in a mode (a different key crossfades to a new piece): the whole style in Town / Wild / Night,
 // only the drums in Combat / Boss, nothing elsewhere
 uint64_t styleKey(Music m, uint64_t style) {
@@ -132,9 +134,11 @@ uint64_t styleKey(Music m, uint64_t style) {
 const float kLeadNorm[(int)LeadInst::COUNT] = {1.06f, 1.0f, 0.9f, 0.95f, 0.95f, 1.08f, 1.0f, 0.95f, 0.72f, 1.0f, 0.82f, 0.95f};
 
 // the piece a culture plays in a mode
-Style buildPiece(Music m, const MusicStyle& ms) {
+Style buildPiece(Music m, const MusicStyle& ms, bool festive = false) {
   Style st = kStyle[(int)m];
-  const int meter = ms.meter ? ms.meter : 4;
+  int meter = ms.meter ? ms.meter : 4;
+  // (M5) the festival's dance: a common-time culture strikes up a 6/8 jig (3/4, 5/8 and 7/8 are dances already)
+  if (m == Music::Tavern && festive && meter == 4) meter = 6;
   switch (meter) {
     case 3: st.beats = 3; st.spb = 4; break;
     case 5: st.beats = 5; st.spb = 4; break;
@@ -145,7 +149,7 @@ Style buildPiece(Music m, const MusicStyle& ms) {
   float bpm = ms.bpm ? (float)ms.bpm : st.bpm;
   if (meter == 6) bpm *= 0.72f;          // a 6/8 beat is a dotted quarter
   if (meter == 7) bpm *= 2.0f;           // a 7/8 beat is an eighth
-  const float modeK = m == Music::Town ? 1.0f : m == Music::Wild ? 0.84f : 0.62f;
+  const float modeK = m == Music::Town ? 1.0f : m == Music::Tavern ? (festive ? 1.24f : 1.1f) : m == Music::Wild ? 0.84f : 0.62f;
   st.bpm = bpm * modeK;
   if (st.bpm < 40) st.bpm = 40;
   st.scale = (uint8_t)((int)ms.scale < (int)Scale::COUNT ? (int)ms.scale : 0);
@@ -160,16 +164,18 @@ Style buildPiece(Music m, const MusicStyle& ms) {
   st.melRoot = (int8_t)mel;
   st.lo = -3; st.hi = 7;
   if (ms.lead == LeadInst::Voice || ms.lead == LeadInst::Horn) { st.lo = -2; st.hi = 5; }
-  st.chordBars = (uint8_t)((m != Music::Town || ms.drone >= 11 || ms.scale == Scale::InSen || ms.scale == Scale::Hirajoshi) ? 2 : 1);
-  float busy = m == Music::Town ? 0.5f : m == Music::Wild ? 0.38f : 0.2f;
+  const bool townish = m == Music::Town || m == Music::Tavern;
+  st.chordBars = (uint8_t)((!townish || ms.drone >= 11 || ms.scale == Scale::InSen || ms.scale == Scale::Hirajoshi) ? 2 : 1);
+  float busy = m == Music::Town ? 0.5f : m == Music::Tavern ? (festive ? 0.7f : 0.6f) : m == Music::Wild ? 0.38f : 0.2f;
   busy += (float)ms.ornament / 60.0f;
   if (ms.lead == LeadInst::Marimba || ms.lead == LeadInst::Oud || ms.lead == LeadInst::Fiddle || ms.lead == LeadInst::Pipes) busy += 0.12f;
   if (ms.lead == LeadInst::Horn || ms.lead == LeadInst::Voice || ms.lead == LeadInst::Brass) busy -= 0.1f;
   st.busy = busy < 0.1f ? 0.1f : busy > 0.9f ? 0.9f : busy;
-  st.density = m == Music::Town ? 0.85f : m == Music::Wild ? 0.75f : 0.55f;
+  st.density = townish ? (m == Music::Tavern ? 0.92f : 0.85f) : m == Music::Wild ? 0.75f : 0.55f;
   if (ms.pad == PadInst::Shimmer || ms.pad == PadInst::Choir || ms.lead == LeadInst::Bells || ms.lead == LeadInst::Harp) st.echo += 0.06f;
-  st.intro = true;
-  st.level = (m == Music::Town ? 1.15f : m == Music::Wild ? 1.2f : 1.1f) * kLeadNorm[(int)ms.lead < (int)LeadInst::COUNT ? (int)ms.lead : 0];
+  st.intro = m != Music::Tavern;   // (M5) the bard starts on the tune (the room is already listening)
+  st.level = (townish ? (m == Music::Tavern ? 1.1f : 1.15f) : m == Music::Wild ? 1.2f : 1.1f) * kLeadNorm[(int)ms.lead < (int)LeadInst::COUNT ? (int)ms.lead : 0];
+  if (m == Music::Tavern) st.echo = std::max(0.04f, st.echo - 0.04f);   // a low-ceilinged room: drier than the street
   return st;
 }
 
@@ -351,15 +357,19 @@ void Audio::play(Sfx s, float pitch, float vol) {
   qLock_.clear(std::memory_order_release);
 }
 
-void Audio::setMusic(Music m) { setMusic(m, nullptr); }
+void Audio::setMusic(Music m) { setMusic(m, nullptr, false); }
+void Audio::setMusic(Music m, const MusicStyle* style) { setMusic(m, style, false); }
 // M3 PHASE A: the style is stored for the audio thread; the AUDIO lane makes updateMusic / compose play it (and
-// crossfade when only the style changes)
-void Audio::setMusic(Music m, const MusicStyle* style) {
+// crossfade when only the style changes). M5: the tavern's festive variant rides in bit 62 of the packed style (pack()
+// uses bits 0..59 and 63), so a festival starting crossfades like a new piece.
+void Audio::setMusic(Music m, const MusicStyle* style, bool festive) {
   if ((int)m >= (int)Music::COUNT) return;
+  uint64_t packed = style ? style->pack() : 0;
+  if (m == Music::Tavern && festive) packed |= (1ull << 62) | (1ull << 63);
   const uint32_t s = wantSeq_.load(std::memory_order_relaxed);
   wantSeq_.store(s + 1, std::memory_order_relaxed);
   std::atomic_thread_fence(std::memory_order_release);
-  wantStyle_.store(style ? style->pack() : 0, std::memory_order_relaxed);
+  wantStyle_.store(packed, std::memory_order_relaxed);
   wantMusic_.store((int)m, std::memory_order_relaxed);
   wantSeq_.store(s + 2, std::memory_order_release);
 }
@@ -598,6 +608,7 @@ const float kSfxTrim[(int)Sfx::COUNT] = {
   1.0f,  1.0f,  1.0f,                                       // MenuMove MenuSelect MenuBack
   0.67f, 1.1f,                                              // Roar Splash
   0.8f,                                                     // Bell
+  0.7f,  0.6f,  0.6f,  0.6f,                                // Bark Cluck Meow Cheer (M5 stand-ins)
 };
 
 void Audio::trigger(Sfx s, float k, float V) {
@@ -865,6 +876,49 @@ void Audio::trigger(Sfx s, float k, float V) {
       }
       break;
     }
+    // M5 (AMBIENCE lane): the village's animals and the tavern's crowd
+    case Sfx::Bark: {    // a dog: "rruf-ruf": a rough, chesty buzz through an open-mouth formant, the pitch falling off
+      const float r = k * rnd(0.92f, 1.08f);
+      const int n = rnd() < 0.35f ? 3 : 2;
+      for (int i = 0; i < n; i++) {
+        const float d = 0.19f * (float)i + rnd(0, 0.02f), a = i == 0 ? 1.0f : 0.8f, f = (i == 0 ? 330.0f : 300.0f) * r;
+        add(NB(Saw, f, 0.42f * a * V).env(0.006f, 0.07f, 0.0f, 0.06f, 0.04f).vox(760 * r, 2.4f).fenv(0.9f, 0.05f).pitch(0.5f, 0.02f).slide(-1.4f).drive(1.2f).at(d).send(0.18f));
+        add(NB(Noise, 0, 0.30f * a * V).env(0.003f, 0.05f).bp(1500 * r, 1.2f).color(0.3f).at(d));   // the breath's rasp
+        add(NB(Sine, f * 0.5f, 0.22f * a * V).env(0.004f, 0.06f).slide(-1.0f).at(d));                  // the chest
+      }
+      break;
+    }
+    case Sfx::Cluck: {   // a hen: three or four quick throaty "buk"s, the last drawn out and rising ("buk-buk-bu-KAAK")
+      const float r = k * rnd(0.94f, 1.06f);
+      const int n = 3 + (rnd() < 0.5f ? 1 : 0);
+      float d = 0;
+      for (int i = 0; i < n; i++) {
+        const bool last = i == n - 1 && rnd() < 0.6f;
+        const float f = (last ? 760.0f : 560.0f + rnd(-40, 40)) * r;
+        add(NB(Square, f, (last ? 0.30f : 0.24f) * V).pw(0.3f).env(0.003f, last ? 0.16f : 0.04f, 0.0f, last ? 0.12f : 0.03f, 0.03f)
+                .vox(1250 * r, 3.0f).pitch(last ? -0.3f : 0.6f, 0.02f).slide(last ? 0.5f : -0.8f).at(d));
+        add(NB(Noise, 0, 0.12f * V).perc(0.015f).bp(2200 * r, 2.0f).at(d));   // the beak's click
+        d += last ? 0.2f : 0.085f + rnd(0, 0.03f);
+      }
+      break;
+    }
+    case Sfx::Meow: {    // a cat: "mi-aow": the voice rises then falls while the mouth opens (the formant sweeps up and back)
+      const float r = k * rnd(0.9f, 1.12f);
+      add(NB(Saw, 560 * r, 0.30f * V).env(0.05f, 0.5f, 0.6f, 0.42f, 0.12f).vox(900 * r, 4.0f).bump(0.9f).vib(0.35f, 6.5f, 0.12f)
+              .pitch(0.25f, 0.18f).slide(-0.7f).send(0.2f));
+      add(NB(Noise, 0, 0.05f * V).env(0.05f, 0.4f).bp(3200 * r, 1.5f).at(0.02f));   // breath
+      break;
+    }
+    case Sfx::Cheer: {   // a room's cheer: a dozen voices shouting "hey!" a little apart, a wash of breath, clapping
+      const float r = k * rnd(0.96f, 1.04f);
+      for (int i = 0; i < 9; i++) {
+        const float f = rnd(150, 300) * r, d = rnd(0, 0.18f), len = rnd(0.25f, 0.6f);
+        add(NB(Saw, f, 0.075f * V).env(0.03f, len, 0.4f, len * 0.7f, 0.15f).vox(rnd(650, 1100) * r, 2.0f).pitch(0.35f, 0.08f).slide(-0.25f).vib(0.3f, 5.5f).at(d).send(0.35f));
+      }
+      add(NB(Noise, 0, 0.32f * V).env(0.06f, 0.7f).bp(1300 * r, 0.7f).am(7, 0.4f).send(0.4f));
+      for (int i = 0; i < 10; i++) add(NB(Noise, 0, rnd(0.16f, 0.26f) * V).perc(0.025f).bp(rnd(1100, 1900), 1.3f).at(0.25f + 0.12f * (float)i + rnd(0, 0.06f)).send(0.3f));
+      break;
+    }
     case Sfx::COUNT: break;
   }
 }
@@ -1066,7 +1120,8 @@ void Audio::startSeq(Seq& s, Music m, uint64_t style, uint8_t mood) {
   s.mode = m;
   s.style = styleKey(m, style);
   s.ms = MusicStyle::unpack(style);
-  s.st = s.style && styledMode(m) ? buildPiece(m, s.ms) : kStyle[(int)m];
+  s.st = s.style && styledMode(m) ? buildPiece(m, s.ms, ((style >> 62) & 1) != 0) : kStyle[(int)m];
+  s.festive = m == Music::Tavern && ((style >> 62) & 1) != 0;
   s.mood = moodMode(m) ? mood : (uint8_t)255;
   if (moodMode(m) && mood != 255) applyMood(s.st, s.ms, s.style != 0, mood);
   starts_++;
@@ -1249,7 +1304,7 @@ void Audio::melody(Seq& s, int layer, const MelEv& e, float stepSec, float dly) 
       if (s.role == 2) inst(layer, Inst::Flute, m, dur * 0.95f, vel * 0.7f, d);
       else inst(layer, Inst::Bell, m, dur, vel, d);
       break;
-    case Music::Town:
+    case Music::Town: case Music::Tavern:
       if (s.role == 2) inst(layer, Inst::Fiddle, m - 12, dur * 0.85f, vel * 1.1f, d);
       else inst(layer, Inst::Flute, m, dur * 0.92f, vel, d);
       break;
@@ -1336,7 +1391,7 @@ void Audio::seqStep(Seq& s, int L, float dly) {
       }
       break;
     }
-    case Music::Town: {
+    case Music::Town: case Music::Tavern: {   // (M5: the classic tavern plays the town jig at its own pace)
       if (chordStart)
         for (int j = 0; j < 3; j++) inst(L, Inst::Strings, chordWin(st, c, j, 60), chordSec, 0.45f, dly);
       if (sb == 0) inst(L, Inst::PluckBass, root, stepSec * 5, 1.0f, dly);
@@ -1510,6 +1565,17 @@ void Audio::perc(int L, PercKind k, int which, float vel, float dly, int root) {
   }
 }
 
+// (M5) a handclap from the tavern's crowd: three hands a few milliseconds apart, a bright noise slap with a body
+void Audio::clap(int L, float vel, float dly) {
+  vel *= seq_[L].st.level;
+  const int bus = L + 1;
+  for (int h = 0; h < 3; h++) {
+    const float d = dly + 0.004f * (float)h + 0.006f * rnd();
+    add(NB(Noise, 0, 0.30f * vel * (h == 0 ? 1.0f : 0.7f)).perc(0.022f).bp(rnd(1050, 1500), 1.4f).send(0.3f).at(d).bus(bus));
+  }
+  add(NB(Noise, 0, 0.10f * vel).perc(0.06f).bp(800, 0.8f).send(0.35f).at(dly + 0.01f).bus(bus));
+}
+
 void Audio::padChord(Seq& s, int L, PadInst p, int c, float dur, float vel, float dly) {
   const Style& st = s.st;
   switch (p) {
@@ -1580,7 +1646,8 @@ void Audio::seqStepStyled(Seq& s, int L, float dly) {
   const float stepSec = 60.0f / st.bpm / (float)st.spb;
   const float chordSec = stepSec * (float)(barSteps * st.chordBars);
   const int root = bassNote(st, c);
-  const bool town = s.mode == Music::Town, wild = s.mode == Music::Wild, night = s.mode == Music::Night;
+  const bool tavern = s.mode == Music::Tavern;
+  const bool town = s.mode == Music::Town || tavern, wild = s.mode == Music::Wild, night = s.mode == Music::Night;
   auto r = [&]() { return unit(s.rng); };
   // swing: the off-beat eighth of a simple meter is late (0..15 -> up to a third of a step... of two steps)
   auto swingAt = [&](int step) {
@@ -1675,6 +1742,16 @@ void Audio::seqStepStyled(Seq& s, int L, float dly) {
                (ms.perc == PercKind::Taiko || ms.perc == PercKind::Gong || ms.perc == PercKind::Hand || ms.perc == PercKind::Tabla)) {
       perc(L, ms.perc, 0, 0.35f, dly, root);
     }
+  }
+  // (M5) the tavern's room joins in: a clap on every other beat (on a festival on the off-beats too, and a stamp on
+  // the boards at each bar)
+  if (tavern) {
+    const int beat = st.spb;
+    const bool off = st.spb == 6 ? (sb % beat) == 3 : (sb % beat) == beat / 2;
+    const float cv = s.festive ? 0.55f : 0.32f;
+    if (!lastBar && (sb % beat) == 0 && (sb / beat) % 2 == 1) clap(L, cv * (0.85f + 0.3f * r()), dly + sw);
+    if (s.festive && !lastBar && off && r() < 0.7f) clap(L, cv * 0.6f * (0.8f + 0.4f * r()), dly + sw);
+    if (s.festive && sb == 0) perc(L, PercKind::Bodhran, 0, 0.55f, dly, root);   // a stamp on the boards
   }
   // night: far-off glints in the culture's own scale
   if ((night && r() < 0.03f) || (wild && (s.mood == 9 || s.mood == 7) && r() < 0.015f)) {
@@ -1901,6 +1978,93 @@ void Audio::renderAmbient(float* out, int n, float blockSec) {
   }
 }
 
+// ------------------------------------------------------------------------------------------ (M5) the crowd
+// A tavern's murmur: five talkers, each a glottal buzz (a saw near 100..240 Hz with a drifting intonation) through two
+// formant band-passes whose vowel changes every syllable, in phrases with pauses; overlapping, low-passed by the room.
+// Events on top: laughter (a voice's "ha-ha-ha" falling), a mug set down on wood, a chair scraped back. No allocation;
+// two state-variable filters per talker per sample (about 10 per sample in all: the phone does not notice).
+void Audio::renderCrowd(float* out, int n, float blockSec) {
+  const float want = clampf(wantCrowd_.load(std::memory_order_relaxed), 0.0f, 1.0f);
+  const float lively = clampf(wantLively_.load(std::memory_order_relaxed), 0.0f, 1.0f);
+  const float ke = 1.0f - std::exp(-blockSec / 0.8f);
+  crowdLvl_ += (want - crowdLvl_) * ke;
+  crowdLively_ += (lively - crowdLively_) * ke;
+  crowdT_ += blockSec;
+  if (crowdLvl_ < 1e-4f) return;
+  // how many are talking: a quiet room two, a packed one all five
+  const int active = 1 + (int)std::lround(crowdLvl_ * (float)(TALKERS - 1));
+  auto cr = [&]() { return unit(crowdRng_); };
+  static const float kVowel[6][2] = {{730, 1090}, {530, 1840}, {390, 2300}, {570, 840}, {440, 1020}, {660, 1700}};
+  for (int t = 0; t < TALKERS; t++) {
+    Talker& T = talk_[t];
+    T.on = t < active;
+    T.phraseT -= blockSec;
+    if (T.phraseT <= 0) {   // a phrase begins (a new speaker's voice now and then) or a pause
+      T.talking = T.on && !T.talking;
+      T.phraseT = T.talking ? 0.8f + cr() * 2.4f : 0.3f + cr() * (1.8f - crowdLvl_);
+      if (T.talking && cr() < 0.3f) T.f0t = (cr() < 0.45f ? 190.0f : 110.0f) * (0.85f + 0.35f * cr());
+      if (T.f0 <= 0) T.f0 = T.f0t;
+    }
+    T.sylT -= blockSec;
+    if (T.sylT <= 0) {   // the next syllable: a vowel, a pitch inflection
+      T.sylT = 0.09f + cr() * 0.16f;
+      const float* v = kVowel[(int)(cr() * 5.99f)];
+      T.f1 = v[0] * (0.9f + 0.2f * cr());
+      T.f2 = v[1] * (0.9f + 0.2f * cr());
+      T.f0 = T.f0t * (0.9f + 0.25f * cr());
+    }
+  }
+  // events: laughter, a mug, a chair (busier on a lively night)
+  const float evK = crowdLvl_ * (0.6f + crowdLively_);
+  const float rates[3] = {0.14f * evK, 0.35f * evK, 0.05f * evK};
+  for (int e = 0; e < 3; e++) {
+    crowdEvT_[e] -= blockSec;
+    if (crowdEvT_[e] > 0) continue;
+    crowdEvT_[e] = rates[e] > 0.001f ? -std::log(std::fmax(1e-4f, cr())) / rates[e] : 2.0f;
+    if (rates[e] <= 0.001f) continue;
+    const float V = crowdLvl_ * 0.5f;
+    if (e == 0) {   // laughter: 3-5 falling "ha"s
+      const float f = (cr() < 0.5f ? 230.0f : 140.0f) * (0.9f + 0.2f * cr());
+      const int nh = 3 + (int)(cr() * 3);
+      for (int h = 0; h < nh; h++)
+        add(NB(Saw, f * (1.0f - 0.04f * (float)h), 0.10f * V * (1.0f - 0.12f * (float)h)).env(0.01f, 0.08f, 0.0f, 0.07f, 0.04f)
+                .vox(780, 2.0f).pitch(0.3f, 0.02f).at(0.13f * (float)h).send(0.4f));
+    } else if (e == 1) {   // a mug set down: a dull knock on the board and the pewter's short ring
+      add(NB(Sine, 180 * (0.9f + 0.2f * cr()), 0.18f * V).perc(0.05f).pitch(0.8f, 0.01f).send(0.3f));
+      add(NB(Fm, 1800 * (0.9f + 0.2f * cr()), 0.05f * V).perc(0.12f).fm(1.41f, 1.5f, 0.05f).send(0.3f));
+    } else {   // a chair scraped back over the boards
+      add(NB(Noise, 0, 0.10f * V).env(0.04f, 0.25f, 0.6f, 0.22f, 0.06f).bp(900 * (0.8f + 0.4f * cr()), 3.0f).am(38, 0.6f).send(0.3f));
+    }
+  }
+  const float g = crowdLvl_ * 0.11f;
+  const float ks = 1.0f - std::exp(-DT / 0.025f);   // a syllable's onset and fall (per sample)
+  for (int t = 0; t < TALKERS; t++) {
+    Talker& T = talk_[t];
+    const float target = T.on && T.talking ? (T.sylT > 0.035f ? 1.0f : 0.25f) : 0.0f;
+    if (T.env < 1e-4f && target <= 0) { T.env = 0; continue; }
+    // per-sample SVF coefficients (formants change per syllable: computed once per block)
+    const float g1 = std::tan(PI * std::fmin(T.f1, 4000.0f) / FS), k1 = 1.0f / 4.0f;
+    const float a11 = 1.0f / (1.0f + g1 * (g1 + k1)), a12 = g1 * a11, a13 = g1 * a12;
+    const float g2 = std::tan(PI * std::fmin(T.f2, 6000.0f) / FS), k2 = 1.0f / 6.0f;
+    const float a21 = 1.0f / (1.0f + g2 * (g2 + k2)), a22 = g2 * a21, a23 = g2 * a22;
+    const float inc = T.f0 * DT;
+    for (int i = 0; i < n; i++) {
+      T.env += (target - T.env) * ks;
+      T.ph += inc;
+      if (T.ph >= 1.0f) T.ph -= 1.0f;
+      const float src = (2.0f * T.ph - 1.0f) * 0.7f + white(crowdRng_) * 0.25f;   // buzz plus breath
+      // formant 1
+      float v3 = src - T.s1b, v1 = a11 * T.s1a + a12 * v3, v2 = T.s1b + a12 * T.s1a + a13 * v3;
+      T.s1a = 2.0f * v1 - T.s1a; T.s1b = 2.0f * v2 - T.s1b;
+      const float y1 = k1 * v1;
+      v3 = src - T.s2b; v1 = a21 * T.s2a + a22 * v3; v2 = T.s2b + a22 * T.s2a + a23 * v3;
+      T.s2a = 2.0f * v1 - T.s2a; T.s2b = 2.0f * v2 - T.s2b;
+      const float y2 = k2 * v1;
+      out[i] += (y1 * 1.4f + y2 * 0.8f) * T.env * g;
+    }
+  }
+}
+
 // ------------------------------------------------------------------------------------------ mixing
 void Audio::updateMusic(float blockSec) {
   // (M3 fixer) the wanted mode and style as one consistent pair (wantSeq_); while setMusic is writing them, the piece
@@ -1965,10 +2129,17 @@ void Audio::updateMusic(float blockSec) {
 void Audio::renderBlock(float* out, int n) {
   updateMusic((float)n * DT);
   const float lg[2] = {std::sin(seq_[0].x * PI * 0.5f), std::sin(seq_[1].x * PI * 0.5f)};
-  float sfx[BLOCK] = {}, mus[BLOCK] = {}, sndS[BLOCK] = {}, sndM[BLOCK] = {}, amb[BLOCK] = {};
+  float sfx[BLOCK] = {}, mus[BLOCK] = {}, sndS[BLOCK] = {}, sndM[BLOCK] = {}, amb[BLOCK] = {}, crowd[BLOCK] = {};
   for (Voice& v : v_)
     if (v.on) renderVoice(v, n, lg, sfx, mus, sndS, sndM);
   renderAmbient(amb, n, (float)n * DT);
+  renderCrowd(crowd, n, (float)n * DT);
+  // (M5) the score's level and muffle (the bard heard from the street), eased over ~0.4 s; the crowd goes through them
+  const float blockSec = (float)n * DT, kg = 1.0f - std::exp(-blockSec / 0.4f);
+  musGain_ += (clampf(wantMusGain_.load(std::memory_order_relaxed), 0.0f, 1.0f) - musGain_) * kg;
+  muffle_ += (clampf(wantMuffle_.load(std::memory_order_relaxed), 0.0f, 1.0f) - muffle_) * kg;
+  const float mcut = 16000.0f * std::exp2(-muffle_ * 5.0f);   // 16 kHz open .. 500 Hz through a wall
+  const float mc = 1.0f - std::exp(-TAU * mcut / FS);
 
   static constexpr int combLen[4] = {1215, 1293, 1390, 1476}, apLen[2] = {605, 480};
   const float master = clampf(master_.load(std::memory_order_relaxed), 0.0f, 1.5f);
@@ -1978,8 +2149,13 @@ void Audio::renderBlock(float* out, int n) {
     const float a = std::fabs(sfx[i]);
     duckEnv_ = a > duckEnv_ ? duckEnv_ + (a - duckEnv_) * 0.02f : duckEnv_ * 0.99995f;
     const float duck = 1.0f - 0.35f * clampf((duckEnv_ - 0.35f) * 2.0f, 0.0f, 1.0f);   // footsteps/UI never duck
-    const float m = mus[i] * mv * duck;
-    const float send = sndS[i] + sndM[i] * mv * duck + amb[i] * 0.15f;
+    float m = (mus[i] * mv * duck + crowd[i]) * musGain_;
+    if (muffle_ > 0.01f) {   // two poles: the walls take the top off
+      muffLp_[0] += mc * (m - muffLp_[0]);
+      muffLp_[1] += mc * (muffLp_[0] - muffLp_[1]);
+      m = muffLp_[1] * (1.0f + muffle_ * 0.4f);   // (a little of the lost loudness back: the body of it carries)
+    } else { muffLp_[0] = muffLp_[1] = m; }
+    const float send = sndS[i] + (sndM[i] * mv * duck + crowd[i] * 0.6f) * musGain_ * (1.0f - 0.7f * muffle_) + amb[i] * 0.15f;
 
     // reverb: 4 damped feedback combs + 2 allpasses (mono Freeverb)
     const float in = send * 0.22f + 1e-18f;   // tiny offset keeps the tails out of denormals

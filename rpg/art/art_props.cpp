@@ -2587,26 +2587,75 @@ uint32_t floorColor(FloorStyle fs, int gx, int gy) {
       return mix(kTerraW, kOchre[2], 0.25f);
     }
     case FloorStyle::Felt: {
-      // (M3b round 3) the yurt's floor: undyed felt laid over the ground (soft oatmeal, a fibrous mottle, no joints at
-      // 1x) with shyrdak rugs thrown over it: oblong, each its own size and place along its row, a dark seam, a border
-      // band in the rug's second colour stitched with pale dots, a field of the rug's colour with a lattice of ram's-horn
-      // diamonds. (Before: a jittered tessellation of huge red and cream polygons that read as flagstones.)
-      const float fib = vnoise(gx * 0.45f, gy * 0.18f, 1784) * 0.6f + vnoise(gx * 0.11f, gy * 0.11f, 1786) * 0.4f;
-      uint32_t col = tone(kFeltW, 3, (fib - 0.5f) * 0.32f);
-      if (hash3(gx, gy, 1788) % 11 == 0) col = mix(col, kFeltW[2], 0.35f);                 // the felt's flecks
-      // (M3c fixer round 3, review: "rugs laid out on a rectangular grid and simply clipped by the circle ... about 15
-      // identical diamond rugs") the floor texture no longer stamps rugs of its own on a grid (they ran under the round
-      // wall and repeated across the whole tent): the felt is bare, laid in broad overlapping sheets (a soft darker
-      // seam where one sheet's edge lies on the next) with slow tonal drifts; the rugs are the furnishing's own, placed
-      // where the room's plan wants them
-      const float drift = vnoise(gx * 0.025f, gy * 0.03f, 1792);
-      col = tone(kFeltW, 3, (fib - 0.5f) * 0.32f + (drift - 0.5f) * 0.18f);
-      if (hash3(gx, gy, 1788) % 11 == 0) col = mix(col, kFeltW[2], 0.35f);
-      const float sheet = gx * 0.7f + gy * 0.45f + vnoise(gx * 0.05f, gy * 0.05f, 1794) * 30.0f;
-      const float sm = sheet - std::floor(sheet / 70.0f) * 70.0f;
-      if (sm < 1.0f) col = mix(col, kFeltW[1], 0.45f);
-      else if (sm < 2.0f) col = mix(col, kFeltW[4], 0.25f);
-      return col;
+      // (M5 fixer r3, review: "wavy lines like map contours, a blue-rimmed blob that reads as a puddle, a pink spill")
+      // the yurt's floor is laid with broad fulled felt sheets in staggered rows: undyed oatmeal mostly, some grey-brown,
+      // their seams straight and soft (a faint shadow on the near side, a faint lit lip on the far one), a fibrous nap
+      // over all. Now and then a sheet is a dyed shyrdak rug laid on top: a dark edge, a cream stitch line, a madder or
+      // indigo border band stepped with cream, a field of repeating ram's-horn curls, and a soft shadow at its foot.
+      constexpr int SW = 56, SH = 40;
+      const int row = (int)std::floor(gy / (float)SH);
+      const int shift = (int)(hash3(row, 0, 1797) % (uint32_t)SW);
+      const int ia = (int)std::floor((gx + shift) / (float)SW);
+      const int lx = (gx + shift) - ia * SW, ly = gy - row * SH;   // 0..SW-1, 0..SH-1 within the sheet
+      const uint32_t id = hash3(ia, row, 1798);
+      const uint32_t kind = id % 16u;
+      auto feltOf = [&](int k) -> uint32_t {
+        const uint32_t base = kFeltW[k];
+        if (kind >= 10 && kind < 13) return mix(base, kFur0[std::min(4, k + 1)], 0.22f);   // grey-brown
+        return base;                                                                        // undyed
+      };
+      const float nap = vnoise(gx * 0.9f, gy * 0.35f, 1784) * 0.45f + vnoise(gx * 0.3f, gy * 0.3f, 1790) * 0.3f + vnoise(gx * 0.1f, gy * 0.1f, 1786) * 0.25f;
+      const float t = (nap - 0.5f) * 0.8f + (((id >> 8) & 255) / 255.0f - 0.5f) * 0.18f;
+      uint32_t col = t > 0.12f ? mix(feltOf(3), feltOf(4), std::min(0.7f, (t - 0.12f) * 2.0f)) :
+                     t < -0.12f ? mix(feltOf(3), feltOf(2), std::min(0.6f, (-t - 0.12f) * 2.0f)) : feltOf(3);
+      if (hash3(gx, gy, 1788) % 11 == 0) col = mix(col, feltOf(2), 0.3f);    // fibre flecks
+      else if (hash3(gx >> 1, gy, 1791) % 9 == 0) col = mix(col, t > 0 ? feltOf(2) : feltOf(4), 0.25f);   // the nap's tufts
+      // the seams: the near (lower / right) edge sits under the next sheet, soft; the far (upper / left) edge a lit lip
+      if (ly == SH - 1 || lx == SW - 1) return mix(col, feltOf(1), 0.42f);
+      if (ly == SH - 2 || lx == SW - 2) col = mix(col, feltOf(2), 0.25f);
+      else if (ly == 0 || lx == 0) col = mix(col, feltOf(4), 0.35f);
+      if (kind < 13) return col;
+      // ---- a shyrdak rug on this sheet
+      constexpr int IN = 4;
+      const int rx = lx - IN, ry = ly - IN, RW = SW - 2 * IN, RH = SH - 2 * IN - 1;
+      if (rx < 0 || ry < 0 || rx >= RW || ry >= RH) {
+        if (ry >= RH && ry < RH + 2 && rx >= 1 && rx < RW + 1) col = mix(col, kInk, ry == RH ? 0.30f : 0.14f);   // its shadow
+        else if (rx >= RW && rx < RW + 1 && ry >= 1 && ry < RH) col = mix(col, kInk, 0.18f);
+        return col;
+      }
+      const bool indigo = kind == 15;
+      const Ramp& D = indigo ? kBlueCloth : kFeltRug;
+      const uint32_t cream = kFeltW[4], creamD = kFeltW[3];
+      const int e = std::min(std::min(rx, RW - 1 - rx), std::min(ry, RH - 1 - ry));   // distance in from the rug's edge
+      const bool topLit = ry <= rx && ry <= RW - 1 - rx;   // the upper rim catches the light
+      if (e == 0) return topLit ? D[2] : mix(D[0], kInk, 0.2f);
+      if (e == 1) return ((rx + ry) & 1) ? cream : creamD;   // the cream cord stitched round it
+      if (e <= 5) {
+        // the border band: dye with a stepped cream line that zigzags along it
+        const int along = (ry <= 5 || ry >= RH - 6) ? rx : ry;
+        const int ph = along % 8, stepRow = ph < 4 ? 2 + ph / 2 : 5 - (ph - 4) / 2;   // 2,2,3,3,4,4,3,3
+        if (e == stepRow + 0 && e >= 2 && e <= 5) return mix(cream, D[4], 0.25f);
+        return e == 2 ? D[3] : D[2];
+      }
+      if (e == 6) return mix(D[0], kInk, 0.1f);   // the band's inner line
+      // the field: ram's-horn curls on a 10 px repeat, in cream on the deep dye
+      static const char* kHorn[10] = {
+          "..........",
+          ".XXX..XXX.",
+          "X...XX...X",
+          "X.X.XX.X.X",
+          ".X..XX..X.",
+          "....XX....",
+          "...X..X...",
+          "..X....X..",
+          "..........",
+          ".........."};
+      const int fx = (rx - 7) % 10, fy = (ry - 7) % 10;
+      const bool motif = fx >= 0 && fy >= 0 && kHorn[fy][fx] == 'X';
+      if (motif) return mix(cream, D[4], 0.2f);
+      uint32_t f = D[1];
+      if (nap > 0.62f) f = mix(f, D[2], 0.35f);
+      return f;
     }
     case FloorStyle::Roots: {
       // (M3b) living wood underfoot: wide boards grown smooth, the grain sweeping, moss in the seams
@@ -3663,21 +3712,18 @@ void doorVPaint(Canvas& c, RoomStyle rs, bool open) {
     }
     c.set(11, 22, S.c[3]); c.set(11, bot - 6, S.c[3]);   // hinge straps catching the light
   } else {
-    // shut: the leaf in the wall's line, seen from above: planks running north-south, straps across, a ring pull
+    // shut: (M5 fixer r2) the leaf stands in the wall's line, so from above only its top edge shows: a narrow north-south
+    // slab down the middle of the doorway (lit on its west side, shaded east), the hinge straps' ends and the ring pull
+    // catching the light on its west face; the floor shows either side of it (a front-on leaf here broke the 3/4 view)
     for (int y = 18; y <= bot - 3; y++)
-      for (int x = 3; x <= 12; x++) {
-        int k = 2;
-        if (x == 3) k = 4;
-        else if (x == 4) k = 3;
-        else if (x == 12) k = 0;
-        else if (x == 11) k = 1;
-        else if ((x - 3) % 3 == 0) k = 1;   // plank seams
-        if (y == 18) k = std::max(0, k - 1);
-        uint32_t col = Lf[k];
-        if ((y == 21 || y == bot - 6) && x >= 3 && x <= 12) col = S.c[x <= 4 ? 3 : (x >= 11 ? 0 : 1)];   // straps
-        c.set(x, y, col);
+      for (int x = 6; x <= 9; x++) {
+        int k = x == 6 ? 4 : (x == 7 ? 3 : (x == 8 ? 2 : 0));
+        if (y == 18) k = std::min(4, k + 1);
+        c.set(x, y, Lf[k]);
       }
-    c.set(8, 24, S.c[4]); c.set(8, 25, S.c[2]); c.set(9, 25, S.c[1]);   // the ring pull
+    for (int y : {21, bot - 6}) { c.set(6, y, S.c[3]); c.set(9, y, S.c[0]); }   // the straps' ends
+    c.set(5, 25, S.c[4]); c.set(5, 26, S.c[2]);                                      // the ring pull on its west face
+    for (int y = 19; y <= bot - 3; y++) c.set(10, y, withA(kShadowCol, 90));        // its shadow on the floor (east)
   }
 }
 

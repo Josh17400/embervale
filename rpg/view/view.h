@@ -1,5 +1,6 @@
 // EMBERVALE presentation: sprite bank, terrain baking, world rendering, lighting, particles, HUD, menus, touch controls.
 #pragma once
+#include <chrono>
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
@@ -26,7 +27,9 @@ struct Particle {
   int fx = 0, layer = 0;
   bool world = true;
 };
-struct FloatText { Vec2 p; std::string s; Color c; float t = 0; };
+// a floating line over the world: a combat number rising and fading (0.9 s), or (M5) a spoken line (an overheard
+// remark, a greeting by name: Ev::Text of words) held over the speaker on a dark plate, wrapped, for `life` seconds
+struct FloatText { Vec2 p; std::string s; Color c; float t = 0; bool speech = false; float life = 0.9f; };
 struct Toast { std::string s; Color c; float t = 0; };
 
 class View {
@@ -71,7 +74,7 @@ class View {
   std::unordered_map<uint64_t, Tex> icons_;
   std::vector<Tex> fx_;
   Tex shadow_, shadowBig_, light_, white_, water_, vignette_;
-  const Tex& humanTex(const art::HumanLook& L);
+  const Tex& humanTex(const art::HumanLook& L, bool child = false);   // (M5) child: the body shortened (childBody)
   const Tex& iconTex(art::Icon i, uint32_t tint);
   const Tex& bldgTex(const Bldg& b, int index);
 
@@ -171,6 +174,11 @@ class View {
   // ---- effects
   std::vector<Particle> parts_;
   std::vector<FloatText> texts_;
+  // (M5 fixer) the location / quest column's box as the HUD last drew it (screen): spoken lines keep out of it
+  float hudColLeft_ = 1e9f, hudColBottom_ = 0;
+  // (M5) last frame's NPC name tag / interact prompt (drawHud): a spoken line's plate stacks above it, never over it
+  bool tagOn_ = false;
+  float tagX0_ = 0, tagY0_ = 0, tagX1_ = 0, tagY1_ = 0;
   std::vector<Toast> toasts_;
   std::string banner_, bannerSub_;
   float bannerT_ = 0;
@@ -208,7 +216,7 @@ class View {
   bool mouseDown_ = false;
   Vec2 mouse_;
   // ---- menus
-  int menuTab_ = 0, menuSel_ = 0, menuScroll_ = 0, dlgSel_ = 0, shopSide_ = 0, shopSel_ = 0, shopArm_ = -1, titleSel_ = 0, levelSel_ = 0;
+  int menuTab_ = 0, menuSel_ = 0, menuScroll_ = 0, dlgSel_ = 0, dlgFirst_ = 0, shopSide_ = 0, shopSel_ = 0, shopArm_ = -1, titleSel_ = 0, levelSel_ = 0;
   float dlgChars_ = 0;
   int mapSel_ = -1;
   float menuOpenT_ = 0;
@@ -247,6 +255,9 @@ class View {
   std::unordered_map<uint64_t, std::vector<Vec2>> bldgSmoke_;
   std::unordered_map<uint64_t, int> bldgTopRow_;   // first opaque row of each building sprite (fade test)
   std::unordered_map<uint64_t, Tex> bldgNight_;    // the same sprite with its windows lit (night, people awake)
+  // (fixer M5 r3) the panes as a half-size white mask, added into the light map at night: the glass alone is lit (a
+  // round pool per window lit the roofs in front of an upper facade, a palace portico at daylight brightness)
+  std::unordered_map<uint64_t, Tex> bldgGlow_;
   std::unordered_map<uint64_t, std::vector<Vec2>> bldgWin_;   // window centres in sprite pixels (night light pools)
   bool windowsLit(const Game& g, const Bldg& b) const;       // night, and this household is awake
   float smokeT_ = 0;
@@ -272,7 +283,7 @@ class View {
   uint64_t landStyleWorld_ = 0;
   uint64_t bldgKey(const Map& m, const Bldg& b, int index) const;
   // M2: a building sprite painted off the main thread (an arrival's buildings, desktop), then stored as textures
-  struct BldgPaint { uint64_t key = 0; Canvas c, night; bool anyGlass = false; std::vector<Vec2> smoke, wins; int topRow = 0; };
+  struct BldgPaint { uint64_t key = 0; Canvas c, night, glow; bool anyGlass = false; std::vector<Vec2> smoke, wins; int topRow = 0; };
   static BldgPaint paintBldg(const Bldg& b, uint64_t key);
   // the facts the view reads off a painted sprite (smoke, top row, the lit-window variant and its window centres)
   static BldgPaint paintBldgPost(Canvas c, art::BuildingInfo& info, uint64_t key, uint32_t seed);
@@ -420,4 +431,78 @@ class View {
   void m4Lights(Game& g, const Map& m, Vec2 cam, float dark, std::vector<LightPool>& out);
   void m4Emissive(Game& g, const Map& m, Vec2 cam, float dark);   // (fixer M4 r3) burned shells glowing over the night
   bool nearSiege(Game& g) const;              // the player is in or near a besieged settlement (the Siege music)
+
+  // ---- M5 "Hearth and Hall" (VIEW / AMBIENCE lane: render.cpp, render_markers.cpp, hud.cpp, worldmap.cpp): the
+  //      townsfolk's postures, the village animals, speech bubbles, lamps by the lamplighter's round, shuttered stalls
+  //      and festival dressing by the settlement's mood, windows lit by occupancy, the mood on the HUD and the map, the
+  //      player's buffs, and the life of the place in sound (the bard's tavern piece, the crowd, animals, the bell)
+ public:
+  // (scripts) the last frame's counts of what M5 drew
+  struct M5Stats {
+    int posed = 0, poseFallback = 0, critters = 0, bubbles = 0, lampsLit = 0, lampsDark = 0, stallsShut = 0, bunting = 0,
+        festLanterns = 0, winLit = 0, winDark = 0, poseBakes = 0, speech = 0;
+    int music = 0;            // the Music playing (its enum value)
+    float tavernLevel = 0, crowd = 0;
+  };
+  M5Stats m5Stats() const { return m5Stats_; }
+  // (scripts) force a settlement's festival dressing / shutters on or off whatever its census says (-1: its own)
+  void scriptLifeLook(int festival, int shuttered) { forceFest_ = festival; forceShut_ = shuttered; }
+  // the word and colour of a settlement's mood (life::Life::moodFlags / mood): "CONTENT", "FESTIVAL", "HUNGRY",
+  // "FAMINE", "WAR-TORN", "MOURNING"...; empty when its census is not known
+  static std::string moodWord(const Game& g, ew::Gid site, uint32_t* color);
+ private:
+  M5Stats m5Stats_, m5Count_;
+  int forceFest_ = -1, forceShut_ = -1;
+  // pose sheets (art::humanPostureSheet) by (look key x posture), baked on demand within a per-frame budget (a pose not
+  // baked yet is drawn from the standing sheet meanwhile); least-recently-used trimming with the character sheets
+  std::unordered_map<uint64_t, Tex> poseTex_;
+  std::unordered_map<uint64_t, float> poseUsed_;
+  float poseFrameT_ = -1;
+  double poseFrameMs_ = 0;
+  // variant: the bard's instrument in his people's style (art::humanPostureSheet(look, p, variant); 0 the default)
+  const Tex* poseTex(const art::HumanLook& L, art::Posture p, uint8_t variant = 0, bool child = false);   // nullptr: not baked yet
+  // a sleeper fitted to a berth (art::sleeperSprite), cached with the pose sheets and baked within the same budget
+  const Tex* sleeperTex(const art::HumanLook& L, art::Berth b, int kit, int frame);
+  bool poseBudget();         // true: another pose may be baked this frame (and starts its timing)
+  void poseSpent(std::chrono::steady_clock::time_point t0);
+  std::unordered_map<uint64_t, Tex> critterTex_;
+  const Tex& critterTex(int kind, uint32_t variant);
+  std::unordered_map<uint64_t, Tex> lampDark_;   // a lamppost by day / before the lamplighter comes (its glass dark)
+  const Tex& lampDarkTex(const art::PropStyle* ps);
+  std::unordered_map<uint64_t, Tex> festTex_;    // bunting by (width, colours), lanterns by colour
+  ew::Gid siteIdAt(const Game& g, int tx, int ty);   // the settlement a tile lies in (cached per 8 x 8-tile block; 0 none)
+  uint16_t lifeFlagsAt(const Game& g, int tx, int ty);   // its mood flags (life::MF_*; forced by scriptLifeLook)
+  bool festivalHere(const Game& g, ew::Gid site);
+  // speech bubbles: when each actor's current bubble appeared (the pop-in) by Actor::id
+  struct BubbleSeen { uint8_t kind = 0; float t0 = 0, seen = 0, maxT = 0; };
+  std::unordered_map<int, BubbleSeen> bubbleSeen_;
+  void drawBubbles(Game& g, Vec2 cam);
+  bool buffTap(Game& g, Vec2 p);   // (fixer M5 r3) a tap on the HUD's buff icons explains them (true: taken)
+  // (fixer M5 r3) where each human figure was actually drawn this frame (map px: x centre, y the cell's top; t_ when):
+  // the bubble rides on the drawn head, whatever posture or seat fit moved it
+  struct DrawnHead { float x = 0, y = 0, t = -1; };
+  std::unordered_map<int, DrawnHead> drawnHead_;
+  // festival: bunting strung between eaves across the streets of a festive settlement (drawn over the scene: it hangs
+  // overhead), paper lanterns at doors and stalls lit at night (festLights_: their glow for the light pass)
+  std::vector<Vec2> festLights_;
+  void drawFestival(Game& g, const Map& m, Vec2 cam);
+  // the festival's strings across the plaza: a run of open paving per string, a pole at each end (y-sorted with the
+  // scene: Drawable kind 7), planned once per festive settlement and window
+  struct FestSpan { int x0 = 0, x1 = 0, y = 0; uint32_t ca = 0, cb = 0, seed = 0; };
+  std::vector<FestSpan> festSpans_;
+  uint64_t festPlanKey_ = 0;
+  void festivalPlan(Game& g, const Map& m, Vec2 cam);
+  void drawFestPole(const FestSpan& s, bool right, Vec2 cam);
+  // sound: the bard's tavern piece inside the gathering place and faintly outside its door at night, festival music on
+  // the plaza, the crowd's murmur, animal voices, the alarm bell tolling through a night raid (update())
+  Music lifeMusic(Game& g, Music want, float dt, bool& festive);
+  float tollT_ = 0, critterVoiceT_ = 0, cheerT_ = 0;
+  std::unordered_map<int, uint8_t> lastPosture_;   // Actor::id -> the posture it had (a toast's cheer, a bard's last chord)
+  int bardSite_ = -1, bardBldg_ = -1;               // the gathering place a bard performs in tonight (-1 none)
+  float bardScanT_ = 0;
+  bool musicFestive_ = false;                       // the tavern piece playing is the festival's dance
+  float levelHoldT_ = 0, heldGain_ = 1, heldMuffle_ = 0;   // the street bleed's level held through a crossfade away
+  int alarmWas_ = -1;
+  // HUD: the player's buff icons (Well Fed, Rested, Hungry, Weary)
+  void drawBuffs(Game& g, float x, float y);
 };
