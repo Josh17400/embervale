@@ -1,0 +1,22 @@
+# M6 FOES: a named unique (VISION_PLAN 7.6). An innkeeper warns of the beast by name and says where its lair lies
+# (ANY BEASTS ABOUT?); out at the lair it comes for you: a culture name and title, 2-3 affixes, HP x6.
+#   embervale.exe --script tools/scripts/m6_foes_named.txt     (m6_foes_named_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 kit
++0.3 enter inn
++0.5 walkto innkeeper
++0.2 key E
++0.4 choose ANY BEASTS
++0.3 expect text THEY CALL IT
++2.5 shot m6_foes_named_1_rumour.png
++0.2 key Escape
++0.3 leave
++0.5 gotonamed
++1.5 expect foes named
++0.2 nearboss
++1.5 shot m6_foes_named_2_lair.png
++2.0 shot m6_foes_named_3_fight.png
++0.3 quit

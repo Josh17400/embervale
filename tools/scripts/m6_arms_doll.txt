@@ -1,0 +1,49 @@
+# M6 Steel (ARMS lane): culture arms on the paper doll. Four cultures' full kits (armskit, rpg/view/script_arms.cpp) in
+# their alloy, bronze, steel and leather, each on the EQUIP tab (the turning 4x preview, the culture icons in the slots,
+# the BODY detail naming maker and material), then the pack. Desktop size; m6_arms_doll_phone.txt is the phone run.
+#   embervale.exe --script tools/scripts/m6_arms_doll.txt     (m6doll_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 strip
++0.1 armskit fjordfolk mat alloy rarity 4 ilvl 30
++0.1 expect armslook
++0.1 expect armsicons
++0.1 menu 5
++0.6 shot m6doll_fjordfolk_alloy.png
++0.1 key ]
++0.4 shot m6doll_fjordfolk_turned.png
++0.1 key Escape
++0.1 armskit dune mat bronze rarity 1 ilvl 6 sword
++0.1 expect armslook
++0.1 menu 5
++0.6 shot m6doll_dune_bronze.png
++0.1 key Up
++0.1 key Up
++0.1 key Up
++0.3 shot m6doll_dune_helm.png
++0.1 key Escape
++0.1 armskit jade mat alloy rarity 3 ilvl 40
++0.1 expect armslook
++0.1 expect armsicons
++0.1 menu 5
++0.6 shot m6doll_jade_alloy.png
++0.1 key Escape
++0.1 armskit steppe mat steel rarity 2 ilvl 20 bow
++0.1 menu 5
++0.6 shot m6doll_steppe_bow.png
++0.1 key Escape
++0.1 armskit highland mat leather rarity 0 ilvl 2
++0.1 menu 5
++0.6 shot m6doll_highland_poor.png
++0.1 key Escape
++0.1 menu 0
++0.5 shot m6doll_pack.png
++0.1 key Escape
++0.1 strip
++0.1 menu 5
++0.5 shot m6doll_shirt.png
++0.1 key Escape
++0.2 expect mode play
++0.2 quit

@@ -1,0 +1,19 @@
+# rpg_test --metrics (seeds 1..5) on the M5 build (main b06174d + life.cpp fix), recorded by the M6 lead 2026-10-08.
+# M6 acceptance: the first-hour metrics stay within +-10 % of these (VISION_PLAN 13 M6).
+game-feel metrics, seeds 1..5 (bot skill 0.5: notices half the normal windups)
+  prog seed 1    weapon    8s  lvl2   144s  lvl5    -1s  final lvl 4  kills  71  deaths 1  potions 1  gold 152  dens cleared 0  killed by: WOLF@5
+  prog seed 2    weapon    9s  lvl2    -1s  lvl5    -1s  final lvl 1  kills   5  deaths 1  potions 1  gold 37  dens cleared 0  killed by: CAVE BEAR@4
+  prog seed 3    weapon    9s  lvl2    -1s  lvl5    -1s  final lvl 1  kills   3  deaths 0  potions 1  gold 30  dens cleared 0  killed by: 
+  prog seed 4    weapon    5s  lvl2   129s  lvl5    -1s  final lvl 3  kills  21  deaths 2  potions 1  gold 82  dens cleared 0  killed by: CAVE BEAR@6,CAVE BEAR@5
+  prog seed 5    weapon    7s  lvl2   295s  lvl5    -1s  final lvl 4  kills  36  deaths 2  potions 1  gold 62  dens cleared 1  killed by: WOLF@4,CAVE BEAR@9
+METRIC first weapon: avg 8 s, worst 9 s (5/5 armed)   [target <= 300 s]
+METRIC first level-up: avg 3.2 min (3/5 reached)   [target 3-5 min]
+METRIC level 5: avg -1.0 min (0/5 reached in 40 min)   [target 25-35 min]
+METRIC bot run: deaths 1.20, potions 1.00, kills 27, dens cleared 0.2 per run
+METRIC 3 wolves lvl 1, no potions: died 25% (10/40), won fights 10.6s avg, 27% hp left, 6.4 hits taken, 4.7 rolls   [target ~25%]
+METRIC 3 wolves lvl 3, no potions: died 17% (7/40), won fights 10.6s avg, 41% hp left, 5.8 hits taken, 4.5 rolls   [target ~25%]
+METRIC 3 wolves lvl 5, no potions: died 12% (5/40), won fights 11.3s avg, 35% hp left, 6.2 hits taken, 5.5 rolls   [target ~25%]
+METRIC fists at lvl 1:  wolf 5.0 hits (34s, won 9/15, died 1)  boar 6.9 hits (3s, won 15/15, died 0)  goblin 4.9 hits (9s, won 15/15, died 0)   [bare knuckles: winnable, slower than a blade]
+METRIC hits to kill at lvl 1:  wolf 3.7 (25s, 2.2 rolls)  boar 4.1 (2s, 0.0 rolls)  goblin 2.9 (4s, 0.0 rolls)  skeleton 4.3 (2s, 0.0 rolls)  bear 10.7 (7s, 1.8 rolls)  troll 11.5 (8s, 1.9 rolls)  scorpion 5.8 (3s, 0.0 rolls)  hyena 3.2 (13s, 1.2 rolls)  lurker 8.6 (6s, 1.5 rolls)  yeti 11.8 (8s, 2.1 rolls)  wisp 3.4 (22s, 0.6 rolls)  emberhound 5.0 (32s, 4.3 rolls, 2 died)  blightspawn 5.8 (4s, 0.9 rolls)   [target 3-4 small, 8-12 bear/troll/yeti/lurker, 4-6 the wild hunters]
+METRIC hits to kill at lvl 3:  wolf 4.1 (35s, 1.9 rolls)  boar 4.3 (2s, 0.0 rolls)  goblin 3.0 (2s, 0.0 rolls)  skeleton 4.7 (3s, 0.0 rolls)  bear 10.5 (7s, 1.4 rolls)  troll 11.5 (8s, 1.9 rolls)  scorpion 5.9 (3s, 0.0 rolls)  hyena 3.6 (13s, 1.3 rolls)  lurker 8.6 (6s, 1.6 rolls)  yeti 12.4 (9s, 1.9 rolls)  wisp 3.2 (20s, 0.7 rolls, 2 died)  emberhound 4.3 (14s, 1.4 rolls, 2 died)  blightspawn 5.9 (4s, 0.7 rolls)   [target 3-4 small, 8-12 bear/troll/yeti/lurker, 4-6 the wild hunters]
+METRIC hits to kill at lvl 5:  wolf 3.9 (40s, 1.4 rolls)  boar 4.3 (2s, 0.0 rolls)  goblin 2.9 (3s, 0.0 rolls)  skeleton 5.1 (3s, 0.0 rolls)  bear 11.2 (7s, 1.8 rolls)  troll 12.4 (8s, 1.9 rolls)  scorpion 6.0 (3s, 0.0 rolls)  hyena 3.7 (4s, 0.7 rolls)  lurker 8.2 (6s, 1.6 rolls)  yeti 12.4 (8s, 1.9 rolls)  wisp 3.3 (32s, 1.0 rolls, 3 died)  emberhound 5.0 (31s, 2.1 rolls, 4 died)  blightspawn 6.3 (4s, 0.7 rolls)   [target 3-4 small, 8-12 bear/troll/yeti/lurker, 4-6 the wild hunters]

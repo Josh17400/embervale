@@ -128,6 +128,8 @@ struct Mass {
   std::vector<bld::Pillar> pillars;   // (owner) an open face's pillars (bld::openPillars: the walking's), px in the frame
   float joinL = 0, joinR = 0;   // (fixer) the roof runs on this far (px) into the taller roof beside it, unhipped: the two
                                 // meet in a valley (an L's wing), not a shaded hip end wedged against the other roof
+  uint8_t noLift = 0;           // (M6 fixer) a swept (pagoda) roof's eave corners that meet another roof (bits: 1 NW, 2 NE,
+                                // 4 SW, 8 SE): they stay down in the valley instead of curling up through the other roof
   float zTop() const { return (float)(zBase + wallH); }
   float frontY(float x) const {
     if (!round) return (x >= x0 && x < x1) ? y1 - 0.5f : -1e9f;
@@ -369,6 +371,10 @@ float massTop(const Mass& m, float x, float y, Surf& surf) {
   if (m.shape == RoofShape::Pagoda) {
     prof = t * t * 0.55f + t * 0.45f;
     float cxd = std::min(x - rx0, rx1 - x), cyd = std::min(y - ry0, ry1 - y);
+    if (m.noLift) {   // the corner nearest this point meets another roof: no upswept eave there
+      const int corner = (x - rx0 < rx1 - x ? 0 : 1) | (y - ry0 < ry1 - y ? 0 : 2);
+      if (m.noLift & (1u << corner)) return ze + m.roofH * prof;
+    }
     if (m.cul == CU_NONE) {
       float c = std::max(0.0f, 5 - std::max(cxd, cyd));   // corners sweep up
       return ze + m.roofH * prof + c * 0.9f;
@@ -1473,17 +1479,50 @@ Plan planFromBlueprint(const bld::Blueprint& bp) {
     if (std::abs(g.zBase - b0.zBase) > 2) continue;
     const float ov = std::min(g.y1, b0.y1) - std::max(g.y0, b0.y0);
     if (ov < (g.y1 - g.y0) * 0.6f) continue;   // side by side along most of the wing's depth
-    // the lower roof runs on into the taller one (as far as the taller one's ridge); two of a height meet ridge to ridge
-    const float gRidge = g.zTop() - 1 + g.roofH, bRidge = b0.zTop() - 1 + b0.roofH;
     const bool west = g.x1 >= b0.x0 - 1 && g.x1 <= b0.x0 + 6 && g.x0 < b0.x0;
     const bool east = !west && g.x0 <= b0.x1 + 1 && g.x0 >= b0.x1 - 6 && g.x1 > b0.x1;
     if (!west && !east) continue;
     const float bHalf = (b0.x1 - b0.x0) * 0.5f, gHalf = (g.x1 - g.x0) * 0.5f;
     float& gj = west ? g.joinR : g.joinL;
     float& bj = west ? ms[0].joinL : ms[0].joinR;
+    // (M6 fixer, review "a lower wing roof sticks out from under the upper roof, the upper eave crosses it halfway up";
+    // "a second roof sits half under the first") a side wing is subordinate to the body: a wing a storey lower keeps its
+    // whole roof under the body's eave (its ridge runs on under the overhang, so no hip end shows against the wall), and
+    // a wing of the body's height never rises above the body's ridge (a narrow wing's ridge across its depth climbed
+    // higher than the hall it serves)
+    if (g.role == bld::VolRole::Wing && g.zTop() < b0.zTop() - 4) {
+      g.roofH = std::min(g.roofH, std::max(3.0f, (b0.zTop() - 3) - (g.zTop() - 1)));
+      gj = (float)(g.ov + 2);
+      continue;
+    }
+    if (g.role == bld::VolRole::Wing) g.roofH = std::min(g.roofH, std::max(3.0f, (b0.zTop() - 1 + b0.roofH - 2) - (g.zTop() - 1)));
+    // the lower roof runs on into the taller one (as far as the taller one's ridge); two of a height meet ridge to ridge
+    const float gRidge = g.zTop() - 1 + g.roofH, bRidge = b0.zTop() - 1 + b0.roofH;
     if (gRidge <= bRidge - 1) gj = bHalf;
     else if (bRidge <= gRidge - 1) bj = gHalf;
     else { gj = 1.0f; bj = 1.0f; }
+  }
+  // (M6 fixer, owner bar: "no broken corners") a swept pagoda eave curls up at its corners; where a corner meets another
+  // roof (a wing, a porch, a hall beside it) the curl would cut up through that roof and cross its eave, so that corner
+  // stays down and the two roofs meet in a plain valley
+  for (size_t i = 0; i < ms.size(); i++) {
+    Mass& m = ms[i];
+    if (m.round || m.shape != RoofShape::Pagoda || m.chimney || m.found || m.encl || m.tree) continue;
+    const float rx0 = m.x0 - m.ov - m.joinL, rx1 = m.x1 + m.ov + m.joinR, ry0 = m.y0 - m.ov, ry1 = m.y1 + m.ovF;
+    const float cxs[2] = {rx0 + 3.0f, rx1 - 3.0f}, cys[2] = {ry0 + 3.0f, ry1 - 3.0f};
+    for (size_t j = 0; j < ms.size(); j++) {
+      if (j == i) continue;
+      const Mass& o = ms[j];
+      if (o.chimney || o.found || o.encl || o.tree || o.role == bld::VolRole::Platform) continue;
+      if (o.zBase + o.wallH + o.roofH < m.zBase + m.wallH - 2) continue;   // well below this eave: nothing to cut through
+      float ox0, ox1, oy0, oy1;
+      if (o.round) { const float R = o.r + std::max(o.ov, 1) + 1; ox0 = o.cx - R; ox1 = o.cx + R; oy0 = o.cy - R; oy1 = o.cy + R; }
+      else { ox0 = o.x0 - o.ov - o.joinL - 2; ox1 = o.x1 + o.ov + o.joinR + 2; oy0 = o.y0 - o.ov - 2; oy1 = o.y1 + o.ovF + 2; }
+      for (int c = 0; c < 4; c++) {
+        const float px = cxs[c & 1], py = cys[c >> 1];
+        if (px >= ox0 && px < ox1 && py >= oy0 && py < oy1) m.noLift |= (uint8_t)(1u << c);
+      }
+    }
   }
   // the floor lines: a jettied upper floor on the volumes that ask for it
   for (Mass& m : ms) {
@@ -2454,10 +2493,18 @@ uint32_t roofColor(const Plan& p, const Mass& m, int mi, float x, float y, float
     // a smooth white field, drifted deeper against the parapets, blue in the parapets' shadow, a trodden path to the
     // hatch showing the deck through it here and there
     if (m.snow) {
-      const float n = vnoise(x / 5.0f, y / 3.5f, m.seed + 51);
-      int ks = n > 0.62f ? 4 : 3;
+      // (M6 finish fixer, review: "imperial snow roofs are flat white rectangles with only an outline, no volume") the
+      // wind lays the deck's snow in long aslant drifts: a lit crest, the shaded lee under it, a cool hollow between;
+      // the cover falls away a step toward the open (south and east) rims where it thins over the edge; the parapets'
+      // shadow lies blue along the west and north rims as before
+      const float dr = vnoise((x * 0.92f + y * 0.40f) / 10.0f, (y * 0.92f - x * 0.40f) / 3.2f, m.seed + 51);
+      int ks = 3;
+      if (dr > 0.64f) ks = 4;                       // a crest catching the light
+      else if (dr > 0.58f) ks = 2;                  // its lee
+      else if (dr < 0.30f) ks = 2;                  // a hollow between the drifts
+      if (!m.round && (m.x1 - x < 3.0f || m.y1 - y < 2.5f)) ks = std::min(ks, 2);   // thinning over the open rims
       if (pshadow) ks = 1;
-      else if (!m.round && (x - m.x0 < 7.0f || y - m.y0 < 6.0f)) ks = 2;
+      else if (!m.round && (x - m.x0 < 7.0f || y - m.y0 < 6.0f)) ks = std::min(ks, 2);
       if (shade) ks = std::max(1, ks - 1);
       return kSnow[ks];
     }
@@ -2734,8 +2781,14 @@ uint32_t roofColor(const Plan& p, const Mass& m, int mi, float x, float y, float
   // hip lines: the capped edges where two planes meet catch the light (brightest on the west, the side facing the
   // sun), so the roof shows its four faces and its ridge even at 1x
   if (hipRoof && m.roofH > 4) {
-    const float rx0 = m.x0 - m.ov, rx1 = m.x1 + m.ov, ry0 = m.y0 - m.ov, ry1 = m.y1 + m.ovF;
-    const float ddy = std::min(y - ry0, ry1 - y), ddx = std::min(x - rx0, rx1 - x);
+    // (M6 fixer) the same rectangle and joins as massTop: a joined end has no hip, so no hip line may be drawn there (a
+    // phantom hip line ran straight across the roof a wing joins)
+    const float rx0 = m.x0 - m.ov - m.joinL, rx1 = m.x1 + m.ov + m.joinR, ry0 = m.y0 - m.ov, ry1 = m.y1 + m.ovF;
+    const float ddy = std::min(y - ry0, ry1 - y);
+    float ddx = std::min(x - rx0, rx1 - x);
+    if (m.joinL > 0 && m.joinR > 0) ddx = 1e6f;
+    else if (m.joinR > 0) ddx = x - rx0;
+    else if (m.joinL > 0) ddx = rx1 - x;
     const float a = m.alongY ? ddx : ddy, b = m.alongY ? ddy * m.hk : ddx * m.hk;
     const float dmax = m.alongY ? (rx1 - rx0) * 0.5f : (ry1 - ry0) * 0.5f;
     if (std::fabs(a - b) < 0.75f && std::min(a, b) > 0.6f && std::min(a, b) < dmax - 0.8f) {
@@ -2875,7 +2928,7 @@ void renderColumns(Painter& P, int xa, int xb) {
       ex0[(size_t)i] = m.cx - R; ex1[(size_t)i] = m.cx + R;
       yMin = std::min(yMin, m.cy - R - 1); yMax = std::max(yMax, m.cy + R + 1);
     } else {
-      ex0[(size_t)i] = m.x0 - m.ov - 1; ex1[(size_t)i] = m.x1 + m.ov + 1;
+      ex0[(size_t)i] = m.x0 - m.ov - m.joinL - 1; ex1[(size_t)i] = m.x1 + m.ov + m.joinR + 1;
       yMin = std::min(yMin, m.y0 - m.ov - 1); yMax = std::max(yMax, m.y1 + m.ovF + 1);
     }
   }

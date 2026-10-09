@@ -26,4 +26,12 @@ int fxH(Fx f);
 int fxFrames(Fx f);
 Canvas fxSprite(Fx f);
 
+// ---------------------------------------------------------------- M6 Steel: elite auras (VISION_PLAN 7.6)
+// An elite's, a champion's or a named unique's aura in its affix colour: AURA_FRAMES frames side by side, each w x h
+// (h = w / 2 + 8): a flat ellipse of light on the ground round the feet (the bottom w / 2 rows, in the 3/4 view's
+// foreshortening) plus motes rising above it. The renderer draws it additively, the ground part under the body.
+constexpr int AURA_FRAMES = 6;
+int auraH(int w);
+Canvas auraSprite(uint32_t color, int w);
+
 }  // namespace art

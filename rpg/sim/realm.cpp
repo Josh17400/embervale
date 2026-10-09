@@ -72,7 +72,8 @@ const char* evTypeName(EvType t) {
   static const char* n[] = {"FIRST CONTACT", "TRADE DEAL", "TRADE BROKEN", "HARVEST FAILED", "FAMINE", "BORDER INCIDENT",
                             "SKIRMISH", "WAR DECLARED", "SIEGE BEGUN", "SIEGE BROKEN", "TOWN TAKEN", "TOWN BURNED",
                             "REFUGEES", "PEACE", "RULER DIED", "SUCCESSION", "CIVIL WAR", "KINGDOM FELL", "KINGDOM ROSE",
-                            "RESETTLED", "RUINED", "FESTIVAL", "TROOPS MARCHING", "PRICES RISING"};
+                            "RESETTLED", "RUINED", "FESTIVAL", "TROOPS MARCHING", "PRICES RISING",
+                            "BEAST RAID", "BEAST SLAIN"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)EvType::COUNT, "evTypeName table");
   return (size_t)t < (size_t)EvType::COUNT ? n[(size_t)t] : "?";
 }

@@ -115,6 +115,28 @@ bool cmdGotoCulture(ScriptCtx& c) {
   const ew::SitePlan& s = hits[(size_t)nth].first;
   if (g.inside) g.debugLeave();
   g.teleportGlobal(s.ex, s.ey + 3);
+  {   // (M6 fixer r2, review: "gotoculture drops the hero inside market stalls, carts and benches") stand on open ground:
+      // the nearest tile with no wall, building or prop round it (a stall, a cart, a bench, a roof's edge), nor two
+      // tiles south of it (a stall's awning, a roof's eave and a tall prop are drawn over the tiles above their own)
+    const Map& m = g.map();
+    const int tx = (int)std::floor(g.pl().p.x / TILE), ty = (int)std::floor(g.pl().p.y / TILE);
+    auto open = [&](int x, int y) {
+      for (int oy = -1; oy <= 3; oy++)
+        for (int ox = -1; ox <= 1; ox++) {
+          const int qx = x + ox, qy = y + oy;
+          if (!m.in(qx, qy) || m.blocked(qx, qy) || m.propAt(qx, qy) || m.bldgAt[(size_t)qy * m.w + qx] >= 0) return false;
+        }
+      return true;
+    };
+    bool done = false;
+    for (int r = 0; r <= 14 && !done; r++)
+      for (int oy = -r; oy <= r && !done; oy++)
+        for (int ox = -r; ox <= r && !done; ox++) {
+          if (std::max(std::abs(ox), std::abs(oy)) != r || !open(tx + ox, ty + oy)) continue;
+          g.pl().p = Vec2((tx + ox) * TILE + 8.0f, (ty + oy) * TILE + 10.0f);
+          done = true;
+        }
+  }
   g.pl().aim = Vec2(0, -1);
   g.pl().face = 1;
   g.mode = Mode::Play;

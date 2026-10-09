@@ -76,6 +76,14 @@ class View {
   Tex shadow_, shadowBig_, light_, white_, water_, vignette_;
   const Tex& humanTex(const art::HumanLook& L, bool child = false);   // (M5) child: the body shortened (childBody)
   const Tex& iconTex(art::Icon i, uint32_t tint);
+  // M6 Steel: an item's icon in its maker culture's style and metal (rpg/sim/gear_look.h gearIcon -> art::itemIconLook);
+  // use it for every Item drawn (the pack, the shop, the paper doll, pickups). iconTex stays for fixed UI icons.
+  std::unordered_map<uint64_t, Tex> itemIcons_;
+  const Tex& itemTex(const Game& g, const Item& it);
+  // M6 Steel: a monster's sheet in its variant look (Actor::overlays / bodyTint: art::monsterSheetLook); the classic
+  // sheet (monsters_) when it has none
+  std::unordered_map<uint64_t, Tex> monsterLooks_;
+  const Tex& monsterTex(const Actor& a);
   const Tex& bldgTex(const Bldg& b, int index);
 
   // ---- terrain (terrain.cpp)
@@ -176,6 +184,8 @@ class View {
   std::vector<FloatText> texts_;
   // (M5 fixer) the location / quest column's box as the HUD last drew it (screen): spoken lines keep out of it
   float hudColLeft_ = 1e9f, hudColBottom_ = 0;
+  float bossBarX0_ = 0, bossBarX1_ = 0;
+  float bossBarBottom_ = 0;   // (M6 fixer) the bottom of a world boss's top bar this frame (0: none): banners keep below it
   // (M5) last frame's NPC name tag / interact prompt (drawHud): a spoken line's plate stacks above it, never over it
   bool tagOn_ = false;
   float tagX0_ = 0, tagY0_ = 0, tagX1_ = 0, tagY1_ = 0;
@@ -321,6 +331,16 @@ class View {
   void drawMenu(Game& g);
   void drawDialogue(Game& g);
   void drawShop(Game& g);
+  // ---- M6 Steel: the forge screen (Mode::Forge; rpg/view/craft_ui.cpp, NUMBERS lane). forgeSel_ / forgeScroll_ /
+  //      forgeTab_ / forgeArm_ are its UI state (free for the lane to use as it likes)
+  int forgeSel_ = 0, forgeScroll_ = 0, forgeTab_ = 0, forgeArm_ = -1;
+  void drawForge(Game& g);
+  void forgeKey(Game& g, int key);
+  void forgeTap(Game& g, Vec2 p);
+  // ---- M6 Steel: ranked foes in the world (render.cpp, BEASTS lane): the aura sprite cache (art::auraSprite by colour
+  //      and width) and the name plates / boss bars it draws
+  std::unordered_map<uint64_t, Tex> auraTex_;
+  const Tex& auraTex(uint32_t color, int w);
   void shopDeal(Game& g);   // buy or sell the selected row (a worn item asks twice)
   void drawLevelUp(Game& g);
   void drawTitle(Game& g, bool hasSave);

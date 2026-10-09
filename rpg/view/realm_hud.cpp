@@ -162,7 +162,8 @@ void View::drawHerald(Game& g) {
   float x = std::floor(Pix::W / 2.0f - w / 2);
   const float minX = L + 136, maxX = R - 76 - w;
   if (maxX >= minX) x = std::clamp(x, minX, maxX);
-  const float y = T + 5 + slide;
+  // (M6 fixer) under a world boss's top bar, never over it (the ribbon shows exactly when the hero walks into its land)
+  const float y = std::max(T + 5, bossBarBottom_ + 3) + slide;
   const Color ink(0.03f, 0.025f, 0.04f, 0.78f * a);
   const Color kc = col(herald_.color, a);
   // the ribbon: a dark band with swallow-tail ends in the realm's colour, gold rules top and bottom

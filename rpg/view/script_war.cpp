@@ -71,7 +71,9 @@ art::Monster monsterNamed(const std::string& w) {
   for (char& ch : u) ch = (char)std::toupper((unsigned char)ch);
   for (int m = 0; m < (int)art::Monster::COUNT; m++) {
     static const char* n[] = {"WOLF", "BOAR", "BEAR", "SLIME", "SPIDER", "BAT", "SKELETON", "DRAUGR", "GOBLIN", "TROLL", "WRAITH", "MUDCRAB",
-                              "ICEWOLF", "FROSTSPIDER", "SANDWORM", "DRAGON", "SCORPION", "HYENA", "LURKER", "YETI", "WISP", "EMBERHOUND", "BLIGHTSPAWN"};
+                              "ICEWOLF", "FROSTSPIDER", "SANDWORM", "DRAGON", "SCORPION", "HYENA", "LURKER", "YETI", "WISP", "EMBERHOUND", "BLIGHTSPAWN",
+                              "HARPY", "GOLEM"};
+    static_assert(sizeof(n) / sizeof(n[0]) == (size_t)art::Monster::COUNT, "a name for every monster");
     if (u == n[m]) return (art::Monster)m;
   }
   return art::Monster::Wolf;

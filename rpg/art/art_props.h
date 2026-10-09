@@ -276,7 +276,7 @@ Canvas marketStallVariant(int v);   // M1: a market stall with awning v % 6 and 
 Canvas marketStall(int trade, int awning);
 // (fixer M5 r3) snow on the market's 3/4 models (stalls, tables, cloths, carts): while set, every up-facing surface at
 // or above model height z is painted under snow; 1e9 (the default) for none. Per thread: set, paint, reset.
-void setMarketSnow(float z);
+void setMarketSnow(float z, uint32_t seed = 0);   // seed: this stall's own drifts (neighbours differ)
 constexpr int kStallAwnings = 8;
 // (M1 fixer round 2) one stall in three looks: 0 the cloth-awning booth, 1 a peaked canvas tent over a clothed trestle,
 // 2 a timber booth under a shingle roof with a painted board. closed: packed up for the night (the goods under a

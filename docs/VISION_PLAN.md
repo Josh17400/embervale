@@ -2516,3 +2516,55 @@ what is listed here):
 - Integration: children are drawn with a shortened body (rpg/view/render.cpp `childBody`: two torso rows and, unless
   seated, two leg rows taken out of each rig cell; the head keeps its size); animals say "E: PET"/"PET"; animal idle
   voices are the view's only (the sim sounds event barks).
+
+### 15.19 M6 "Steel" phase A (lead, 2026-10-08): the arms, items, foes and forge contracts
+
+Section 7 and 15.11 bind M6 (owner M6 notes: universal tiers leather -> bronze -> iron -> steel with culture alloys on
+top; ores regional by geology and biome; each culture's arms and armour distinct; secrets learnable by trust / quests,
+apprenticeship, ruins lore or theft; a thin crafting front end on the economy's own chains; the paper doll shows every
+piece in its maker's style; the hero still starts in a shirt). Phase A contracts (a lane may ADD to the header it is
+named the editor of, never rename, remove or change the meaning of what is listed here):
+- `rpg/sim/items.h` (NUMBERS lane): `ItemKind::Material` (crafting stuff, stackable), `WeaponType::Spear` (random draws
+  keep to the classic five so the random stream is unchanged), `Mat` (None, Leather, Bronze, Iron, Steel, Alloy, Cloth,
+  Wood, Bone, Precious), `Affix` x18 + `affixInfo`, `ItemAffix`, `Unique` x33 (7.3's table) + `uniqueInfo`, `IF_*` flags,
+  and the Item fields `ilvl, mat, alloy, culture, form, seed, affix[3], unique, flags`; `tier` is the band - 1 (0..6;
+  STARMETAL added). writeItem / readItem carry them (SAVE_VER 12).
+- `rpg/sim/gear.h` (NUMBERS lane; gear.cpp): bands (`bandOf / bandLo / bandHi`), level sync (`effLevel`, `statScale`),
+  rarity (`rarityMult`, `affixSlots`, `rollRarity`, `DropSource`, `dropIlvl`), bases (`weaponBase`, `armourBase`,
+  BOW / FOCUS), `mitigation` (70 % cap), `playerDamageMul`, the gap rules, enemy scaling by D, `killXp`, `xpForNext`,
+  `attunementSlots`, POTION_COOLDOWN / POTION_CARRY, `merchantGold`, SHOP_BAND_SPREAD, DEATH_GOLD_PCT; generators
+  `makeGear`, `rollDrop`, `gearName`, `bandWord`. Phase A: the formulas exactly as 7.x writes them; the generators stub
+  the classic makers; NOTHING is wired into combat yet (the game plays as M5).
+- `rpg/sim/craft.h` (NUMBERS lane, its forge half; craft.cpp, craft_game.cpp): `Stuff` x18 (ores in ew::Ore order,
+  ingots, alloy ingots, hide, leather, timber, cloth, reagents) with `stuffInfo` (each trades as an ew::Good),
+  `makeStuff`, `oresAt` (province geology + the eco's ore bias, richest first), `Recipe` (station = art::Building as
+  ew::Recipe), `baseRecipes` (smelting copper / tin / iron / silver, bronze, steel, tanning, every piece in leather,
+  bronze, iron, steel, bows, cloaks), `cultureRecipes` (the culture's patterns in the universal metals, its alloys and
+  every piece in them; locked behind its secrets), `Secret` / `SecretKind` / `HOW_*`, `Knowledge` (skill, secrets per
+  culture FAMILY, smiths' trust; the craft block), `canMake`, `make` (leaves emptied stacks at count 0 for the caller).
+  `Game::craft`; hooks `craftTalk / craftChoose` (DLG_CRAFT 4500..5000) in rpg/sim/craft_game.cpp (no-ops).
+- `rpg/sim/foes.h` (FOES lane; foes.cpp, foes_game.cpp, realm_beasts.cpp): `Rank`, elite `Affix` x12 + `affixInfo` /
+  `auraColor`, `Variant` / `variantFor`, `NamedUnique` / `namedInRegion`, `WorldBoss` / `worldBossOf` / `worldBossAt`,
+  `Phase` / `bossPhaseFor`, Game::marks tags 64..79. Actor fields (never saved): `rank, affixes, overlays, bodyTint,
+  scalePct, bossPhase, affixT, affixT2, unique, pack, culture, dropD`. Hooks (no-ops in phase A): `foeSpawned(a, D)` (end
+  of spawnMonster and the bandit branch of spawnHuman; must not add actors), `foeStep(dt)` (after raidStep),
+  `foeHit(victim, dmg, attacker)` (damage(), after armour), `foeKilled(a, killer)` (kill(), before the loot; must not
+  add actors: queue them for foeStep), `foeTalk / foeChoose` (DLG_FOES 4000..4500). Realm (add-only):
+  `EvType::BeastRaid / BeastSlain`, `Realm::beastRaid / beastSlain` (realm_beasts.cpp), news lines in rumours.cpp.
+- `rpg/sim/gear_look.h` (ARMS lane; gear_look.cpp): `appearanceLook` (moved from player.cpp), `WornGear`,
+  `wearGear(look, worn, cultureOf)` (Game::recalcPlayer calls it; heartland pieces give the M5 pixels; culture pieces
+  set the forms, ornament, plume, alloy tint and sheen, legendary glow), `gearIcon(item, maker)`.
+- Art (rpg/art): `Monster::Harpy, Golem` (stand-ins: a recoloured bat and troll; stats, names, plurals, words in every
+  table); `MonsterLook` + `MO_*` overlays (horns, spikes, crystal, moss, rime, ember, plates, eyes, bone mask) +
+  `monsterSheetLook` (stand-in: the tint only); `Icon::Spear, Ingot` (stand-ins); `IconLook` + `itemIconLook` (stand-in:
+  the classic icon); HumanLook `polearmForm, bowForm, armourTint, armourTint2, sheen, glow, glowColor` (in key() only when
+  set: the M5 keys are unchanged; weapon 8 = the polearm); `AURA_FRAMES`, `auraH`, `auraSprite` (stand-in ring).
+- View: `View::itemTex(g, item)` (every Item icon in the pack, shop, paper doll, pickups) and `View::monsterTex(actor)`
+  (the variant sheet; render.cpp draws monsters with it).
+- Saves: SAVE_VER 12 (the item layout above; the craft block after the life block, length-prefixed, own version byte);
+  fixture `tests/fixtures/save_v12.bin` (a legendary culture spear with affixes, ore, the smith's skill, a secret, a
+  smith's trust); ENDLESS_GEN_VER 15 (goldens unchanged by phase A; the FOES lane re-records them if dens or lairs change
+  generation). `tests/fixtures/metrics_m5.txt`: the M5 `--metrics` baseline the first-hour +-10 % gate compares against.
+- Tests and scripts: `rpg_test --gear [--seeds]` (CI): the 7.x formulas, the item layout, the crafting chain and
+  secrets, regional ores, harpy / golem spawn. Script commands (rpg/view/script_gear.cpp): `gear6`, `kit6`, `stuff`,
+  `elite`, `expect gearlook`; `tools/scripts/m6_lead_gear.txt`.

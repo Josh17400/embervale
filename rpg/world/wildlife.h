@@ -1,6 +1,7 @@
 // M3c Wildlands: who lives in each biome (rpg/world/biomes.h Eco). One table for the generator's dens (deterministic,
-// integer odds) and the game's roaming wildlife and hunt quests (runtime). LIFE lane owns rpg/world/wildlife.cpp; the
-// DEN table is frozen by phase A (the WORLD lane's goldens hash the dens): a change to it is reported, not made.
+// integer odds) and the game's roaming wildlife and hunt quests (runtime). LIFE lane owns rpg/world/wildlife.cpp (M6:
+// the FOES lane added the harpy and the golem). The den table feeds the goldens (they hash the dens): a change to it
+// re-records them.
 #pragma once
 #include <cstdint>
 #include "rpg/art/art_monsters.h"

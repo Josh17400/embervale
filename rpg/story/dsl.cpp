@@ -69,7 +69,7 @@ int monsterWord(const std::string& w0) {
   const std::string w = lower(w0);
   static const char* names[] = {"wolf", "boar", "bear", "slime", "spider", "bat", "skeleton", "draugr", "goblin", "troll", "wraith",
                                 "mudcrab", "icewolf", "frostspider", "sandworm", "dragon", "scorpion", "hyena", "lurker", "yeti",
-                                "wisp", "emberhound", "blightspawn"};
+                                "wisp", "emberhound", "blightspawn", "harpy", "golem"};
   static_assert(sizeof(names) / sizeof(names[0]) == (size_t)art::Monster::COUNT, "a word for every monster");
   for (int i = 0; i < (int)art::Monster::COUNT; i++) if (w == names[i]) return i;
   if (w == "bandit" || w == "bandits") return MON_BANDIT;
@@ -128,7 +128,7 @@ int evWord(const std::string& w0) {
   static const char* names[] = {"firstcontact", "tradedeal", "tradebroken", "harvestfailed", "famine", "borderincident", "skirmish",
                                 "wardeclared", "siegebegun", "siegebroken", "towntaken", "townburned", "refugees", "peace",
                                 "ruleddied", "succession", "civilwar", "kingdomfell", "kingdomrose", "resettled", "ruined",
-                                "festival", "troopsmarching", "pricesrising"};
+                                "festival", "troopsmarching", "pricesrising", "beastraid", "beastslain"};
   static_assert(sizeof(names) / sizeof(names[0]) == (size_t)realm::EvType::COUNT, "a word for every event");
   for (int i = 0; i < (int)realm::EvType::COUNT; i++) if (w == names[i]) return i;
   if (w == "war") return (int)realm::EvType::WarDeclared;

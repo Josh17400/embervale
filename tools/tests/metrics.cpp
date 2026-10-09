@@ -12,6 +12,7 @@
 #include <tuple>
 #include <vector>
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/gear.h"
 #include "tools/tests/tests.h"
 
 bool openingStep(Game& g, std::vector<int>& path, int& clock, Input& in);   // seed_run.cpp: the opening bot
@@ -125,17 +126,19 @@ bool arenaSpot(Game& g, int& ax, int& ay, int rx, int ry) {
   return true;
 }
 
-// a level-L character: health perks every level, a weapon and (from level 3) armour of their level
+// a level-L character: health perks every level, a weapon and (from level 3) armour of their level. (M6) The pieces
+// are real item-level-L gear (gear::makeGearC, common, heartland): a sword of item level L and leather armour, so the
+// 7.2 numbers (base x statScale x rarity, level sync, mitigation) are what the bot fights with.
 void makeHero(Game& g, int L) {
   if (g.eqWeapon < 0) g.debugKit();   // the real start is shirt only (M0): arena fights use the old kit
   g.plLevel = L;
   g.perkPts = L - 1;
   for (int k = 1; k < L; k++) g.chooseLevelUp(0);
   g.mode = Mode::Play;
-  g.inv[g.eqWeapon].power = (int16_t)(8 + (L - 1) / 2);
+  Rng gr((uint64_t)L * 7919u + 3u);
+  g.inv[g.eqWeapon] = gear::makeGearC(gr, ItemKind::Weapon, (int)WeaponType::Sword, L, Rarity::Common, nullptr, Mat::Bronze);
   if (L >= 3) {
-    Item a; a.kind = ItemKind::Armor; a.power = (int16_t)(8 + L / 2); a.name = "LEATHER ARMOR"; a.icon = art::Icon::Armor; a.value = 40;
-    g.inv.push_back(a);
+    g.inv.push_back(gear::makeGearC(gr, ItemKind::Armor, 0, L, Rarity::Common, nullptr, Mat::Leather));
     g.useItem((int)g.inv.size() - 1);
   }
   g.pl().hp = g.pl().maxHp; g.stamina = g.maxSt;
@@ -253,7 +256,7 @@ ProgResult progression(uint64_t seed, float secs) {
     } else g.update(SIM_DT, in);
     g.events.clear();
     if (g.mode == Mode::Dialogue) { if (!opening) g.dialogueChoose(0); g.mode = Mode::Play; }
-    if (g.mode == Mode::Shop || g.mode == Mode::LevelUp) g.mode = Mode::Play;
+    if (g.mode == Mode::Shop || g.mode == Mode::LevelUp || g.mode == Mode::Forge) g.mode = Mode::Play;
     while (g.perkPts > 0) { g.chooseLevelUp(0); g.mode = Mode::Play; }
     if (g.mode == Mode::Dead) {
       pr.deaths++;
@@ -290,7 +293,86 @@ ProgResult progression(uint64_t seed, float secs) {
 
 }  // namespace
 
+// ---- (M6 NUMBERS) the first-hour gate: this run against tests/fixtures/metrics_m5.txt (VISION_PLAN 13 M6: within
+//      +-10 % of M5). Times and hits compare relatively (+-10 %); the wolf-fight death rates in percentage points (+-10:
+//      40 fights a level make one death 2.5 points).
+namespace {
+struct MetricsRun {
+  double weapon = -1, lvl2 = -1;
+  double wolfDied[3] = {-1, -1, -1};          // levels 1, 3, 5
+  std::map<std::string, double> hits[3];      // levels 1, 3, 5: monster -> hits to kill
+};
+MetricsRun g_run;
+int lvlSlot(int L) { return L == 1 ? 0 : L == 3 ? 1 : L == 5 ? 2 : -1; }
+bool readBaseline(MetricsRun& b) {
+  std::string path = std::string(EMB_SOURCE_DIR) + "/tests/fixtures/metrics_m5.txt";
+  FILE* f = std::fopen(path.c_str(), "rb");
+  if (!f) return false;
+  char line[4096];
+  while (std::fgets(line, sizeof line, f)) {
+    std::string l = line;
+    double v = 0;
+    int L = 0, n = 0;
+    if (std::sscanf(line, "METRIC first weapon: avg %lf", &v) == 1) b.weapon = v;
+    else if (std::sscanf(line, "METRIC first level-up: avg %lf", &v) == 1) b.lvl2 = v * 60.0;
+    else if (std::sscanf(line, "METRIC 3 wolves lvl %d, no potions: died %lf", &L, &v) == 2) { if (lvlSlot(L) >= 0) b.wolfDied[lvlSlot(L)] = v; }
+    else if (std::sscanf(line, "METRIC hits to kill at lvl %d:%n", &L, &n) == 1 && lvlSlot(L) >= 0) {
+      // "  wolf 3.7 (25s, 2.2 rolls)  boar 4.1 (..."
+      const char* p = line + n;
+      while (*p) {
+        while (*p == ' ') p++;
+        if (*p == '[' || *p == '\n' || !*p) break;
+        char name[32] = {};
+        double h = 0;
+        int used = 0;
+        if (std::sscanf(p, "%31s %lf%n", name, &h, &used) != 2) break;
+        b.hits[lvlSlot(L)][name] = h;
+        p += used;
+        while (*p && *p != ')') p++;
+        if (*p == ')') p++;
+      }
+    }
+    (void)l;
+  }
+  std::fclose(f);
+  return true;
+}
+int compareM5(const MetricsRun& now) {
+  MetricsRun m5;
+  if (!readBaseline(m5)) { printf("M5 GATE: no baseline (tests/fixtures/metrics_m5.txt)\n"); return 0; }
+  int bad = 0;
+  printf("\nM6 vs M5 (tests/fixtures/metrics_m5.txt; gate +-10 %%, death rates +-10 points)\n");
+  printf("  %-34s %9s %9s %8s  %s\n", "metric", "M5", "M6", "diff", "");
+  auto row = [&](const std::string& name, double a, double b, bool points, bool gated) {
+    if (a < 0 || b < 0) { printf("  %-34s %9.1f %9.1f %8s  %s\n", name.c_str(), a, b, "n/a", gated ? "(not measured)" : ""); return; }
+    const double d = points ? b - a : (a != 0 ? 100.0 * (b - a) / a : 0.0);
+    const bool ok = std::fabs(d) <= 10.0 + 1e-9;
+    printf("  %-34s %9.1f %9.1f %+7.1f%s  %s\n", name.c_str(), a, b, d, points ? "p" : "%", gated ? (ok ? "ok" : "OUT") : (ok ? "" : "(info)"));
+    if (gated && !ok) bad++;
+  };
+  if (now.weapon >= 0) row("first weapon (s)", m5.weapon, now.weapon, false, true);
+  if (now.lvl2 >= 0) row("first level-up (s)", m5.lvl2, now.lvl2, false, true);
+  const int Ls[3] = {1, 3, 5};
+  for (int k = 0; k < 3; k++) row("3 wolves lvl " + std::to_string(Ls[k]) + ": died %", m5.wolfDied[k], now.wolfDied[k], true, true);
+  for (int k = 0; k < 3; k++) {
+    // the gate on the mean over the beasts both runs measured; each beast shown (beyond 10 %: info, few samples)
+    double s5 = 0, s6 = 0;
+    int n = 0;
+    for (const auto& kv : m5.hits[k]) {
+      auto it = now.hits[k].find(kv.first);
+      if (it == now.hits[k].end() || kv.second < 0 || it->second < 0) continue;
+      s5 += kv.second; s6 += it->second; n++;
+      row("  hits " + kv.first + " lvl " + std::to_string(Ls[k]), kv.second, it->second, false, false);
+    }
+    if (n) row("hits to kill lvl " + std::to_string(Ls[k]) + " (mean of " + std::to_string(n) + ")", s5 / n, s6 / n, false, true);
+  }
+  printf("M5 GATE: %s (%d out of range)\n", bad ? "FAIL" : "PASS", bad);
+  return bad;
+}
+}  // namespace
+
 int runMetrics(uint64_t A, uint64_t B, float progSecs) {
+  g_run = MetricsRun();
   printf("game-feel metrics, seeds %llu..%llu (bot skill 0.5: notices half the normal windups)\n", (unsigned long long)A, (unsigned long long)B);
   // 1. progression
   if (progSecs > 0) {
@@ -306,6 +388,8 @@ int runMetrics(uint64_t A, uint64_t B, float progSecs) {
       deaths += p.deaths; pots += p.potions; kills += p.kills; dens += p.dens; n++;
     }
     printf("METRIC first weapon: avg %.0f s, worst %.0f s (%d/%d armed)   [target <= 300 s]\n", nw ? sw / nw : -1.0, (double)maxW, nw, n);
+    g_run.weapon = nw ? sw / nw : -1.0;
+    g_run.lvl2 = n2 ? s2 / n2 : -1.0;
     printf("METRIC first level-up: avg %.1f min (%d/%d reached)   [target 3-5 min]\n", n2 ? s2 / n2 / 60 : -1.0, n2, n);
     printf("METRIC level 5: avg %.1f min (%d/%d reached in %.0f min)   [target 25-35 min]\n", n5 ? s5 / n5 / 60 : -1.0, n5, n, progSecs / 60);
     printf("METRIC bot run: deaths %.2f, potions %.2f, kills %.0f, dens cleared %.1f per run\n", (double)deaths / n, (double)pots / n, (double)kills / n, (double)dens / n);
@@ -319,6 +403,7 @@ int runMetrics(uint64_t A, uint64_t B, float progSecs) {
         trials++; if (fr.died) died++; taken += fr.hitsTaken; rolls += fr.rolls;
         if (fr.won) { won++; secs += fr.secs; hp += fr.hpLeft; }
       }
+    if (lvlSlot(L) >= 0) g_run.wolfDied[lvlSlot(L)] = 100.0 * died / std::max(1, trials);
     printf("METRIC 3 wolves lvl %d, no potions: died %d%% (%d/%d), won fights %.1fs avg, %.0f%% hp left, %.1f hits taken, %.1f rolls   [target ~25%%]\n", L, 100 * died / std::max(1, trials), died, trials,
            won ? secs / won : 0.0, won ? 100 * hp / won : 0.0, (double)taken / trials, (double)rolls / trials);
     fflush(stdout);
@@ -360,11 +445,12 @@ int runMetrics(uint64_t A, uint64_t B, float progSecs) {
             if (!fr.won) continue;
             hits += fr.hits; secs += fr.secs; rolls += fr.rolls; n++;
           }
+        if (lvlSlot(L) >= 0) g_run.hits[lvlSlot(L)][m.n] = n ? hits / n : -1.0;
         printf("  %s %.1f (%.0fs, %.1f rolls%s)", m.n, n ? hits / n : -1.0, n ? secs / n : 0.0, n ? rolls / n : 0.0, died ? (std::string(", ") + std::to_string(died) + " died").c_str() : "");
       }
       printf("   [target 3-4 small, 8-12 bear/troll/yeti/lurker, 4-6 the wild hunters]\n");
       fflush(stdout);
     }
   }
-  return 0;
+  return compareM5(g_run) ? 1 : 0;
 }

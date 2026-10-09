@@ -1,0 +1,46 @@
+# M6 Steel (ARMS lane): the hero in culture arms out in the world at 1x: standing, walking (down, side, up) and
+# attacking, in eight cultures' kits (alloys, steel, bronze; spears, swords, a bow), one shot per kit and action.
+#   embervale.exe --script tools/scripts/m6_arms_world.txt     (m6world_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 strip
++0.1 armskit fjordfolk mat alloy rarity 4 ilvl 30
++0.1 expect armslook
++0.4 shot m6world_fjordfolk_stand.png
++0.1 hold D 0.5
++0.3 shot m6world_fjordfolk_walk.png
++0.1 hold J 0.3
++0.15 shot m6world_fjordfolk_attack.png
++0.4 armskit imperial mat alloy rarity 2 ilvl 30 sword
++0.1 hold S 0.5
++0.3 shot m6world_imperial_walk.png
++0.1 hold J 0.3
++0.15 shot m6world_imperial_attack.png
++0.4 armskit dune mat bronze rarity 1 ilvl 6
++0.1 hold W 0.5
++0.3 shot m6world_dune_up.png
++0.1 hold J 0.3
++0.15 shot m6world_dune_attack.png
++0.4 armskit steppe mat alloy rarity 2 ilvl 30 bow
++0.1 hold A 0.5
++0.3 shot m6world_steppe_walk.png
++0.1 key K
++0.15 shot m6world_steppe_bow.png
++0.4 armskit jade mat alloy rarity 3 ilvl 40
++0.1 hold D 0.5
++0.3 shot m6world_jade_walk.png
++0.1 hold J 0.3
++0.15 shot m6world_jade_attack.png
++0.4 armskit river mat steel rarity 1 ilvl 20
++0.1 hold S 0.4
++0.3 shot m6world_river_walk.png
++0.4 armskit sylvan mat alloy rarity 4 ilvl 40
++0.1 hold D 0.4
++0.3 shot m6world_sylvan_walk.png
++0.4 armskit starspire mat alloy rarity 2 ilvl 40 sword
++0.1 hold J 0.3
++0.15 shot m6world_starspire_attack.png
++0.3 expect mode play
++0.2 quit

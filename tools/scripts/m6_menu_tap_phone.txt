@@ -1,0 +1,29 @@
+# M6 fixer round 2: the menu opened by TOUCH at the iPhone review size (the hamburger at 581 12 on the 639x294 canvas,
+# inside the 44-px right safe inset), and the commonest early body armour, a culture's padded gambeson, worn: the doll
+# and the world show it in the maker's cloth with quilted squares, as its icon does (not the shirt in a checker).
+#   embervale.exe --script tools/scripts/m6_menu_tap_phone.txt     (m6_menutap_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.1 kit
++0.1 gear6 body ilvl 2 rarity 1 here
++0.1 touch 1
++0.3 tap 581 12
++0.3 expect mode menu
++0.2 shot m6_menutap_1_items.png
++0.1 key Escape
++0.2 expect mode play
++0.1 gear6 body ilvl 2 rarity 1 steppe mat leather equip
++0.1 expect slot armor 1
++0.1 touch 1
++0.3 tap 581 12
++0.3 expect mode menu
++0.1 menu 5
++0.05 touch 1                    # (keys switch the touch layout off: back on for the shot)
++0.5 shot m6_menutap_2_doll.png
++0.1 key Escape
++0.2 expect mode play
++0.4 shot m6_menutap_3_world.png
++0.2 quit

@@ -18,10 +18,12 @@
 //   0.5 key E                 press and release a key (SDL key names: E, Return, Escape, Tab, Space, Up, Left Shift...)
 //   2.0 hold W 1.5            hold a key down for 1.5 s
 //   phone                     header line: run at the iPhone review size (window 2556x1179 unless --window is given,
-//                             EMB_SCREEN=fill and EMB_SAFE=59,0,59,21 unless already set): a 639x294 logical canvas
+//                             EMB_SCREEN=fill and EMB_SAFE=177,0,177,63 device px, 59,0,59,21 pt at 3x, unless already set): a 639x294 logical canvas
 //   3 tap 424 222             touch tap at LOGICAL canvas coordinates. The canvas is the live logical size, which
 //                             depends on the window and screen fit: 480x270 at the 1440x810 desktop default, 639x294
-//                             with "phone" (the hamburger is at 610 12 there), so tap scripts are written for one size
+//                             with "phone" (the hamburger is at 581 12 there: the 44-px right safe inset moves it in
+//                             from the edge; tools/scripts/m6_menu_tap_phone.txt opens the menu by that tap), so tap
+//                             scripts are written for one size
 //   3 click 240 135           left mouse click at logical coordinates (same space as tap)
 //   4 shot out.png            screenshot of this frame
 //   5 walkto inn              autopilot over the tile grid, steering with held WASD: inn|shop|smithy|temple|keep|tower|
@@ -291,7 +293,7 @@ int main(int argc, char** argv) {
     if (g_scriptPhone) {   // the landscape iPhone 15 Pro: 2556x1179, fill, its safe-area insets (639x294 logical)
       if (!windowSet) { winW = 2556; winH = 1179; }
       setEnvIfUnset("EMB_SCREEN", "fill");
-      setEnvIfUnset("EMB_SAFE", "59,0,59,21");
+      setEnvIfUnset("EMB_SAFE", "177,0,177,63");   // (M6 fixer r2) device px at 3x: 59,0,59,21 points
     }
   }
   const bool scripted = scriptPath != nullptr;
@@ -460,7 +462,8 @@ int main(int argc, char** argv) {
   auto doFight = [&](const std::string& name, int n) {
     if (game.eqWeapon < 0) game.debugKit();   // the real start is shirt-only (M0): fights get the test kit
     static const char* names[] = {"wolf", "boar", "bear", "slime", "spider", "bat", "skeleton", "draugr", "goblin", "troll", "wraith", "mudcrab", "icewolf", "frostspider", "sandworm", "dragon",
-                                  "scorpion", "hyena", "lurker", "yeti", "wisp", "emberhound", "blightspawn"};   // (M3c wildlife)
+                                  "scorpion", "hyena", "lurker", "yeti", "wisp", "emberhound", "blightspawn",   // (M3c wildlife)
+                                  "harpy", "golem"};   // (M6)
     for (int m = 0; m < (int)art::Monster::COUNT && m < (int)(sizeof(names) / sizeof(names[0])); m++)
       if (name == names[m]) game.debugSpawn((art::Monster)m, n > 0 ? n : (m == (int)art::Monster::Dragon ? 1 : 3), 60);
   };
@@ -774,8 +777,8 @@ int main(int argc, char** argv) {
     return false;
   };
   auto modeByName = [](const std::string& s, Mode& m) {
-    static const char* n[] = {"title", "play", "dialogue", "menu", "shop", "levelup", "dead", "paused", "creator"};
-    for (int i = 0; i < 9; i++) if (s == n[i]) { m = (Mode)i; return true; }
+    static const char* n[] = {"title", "play", "dialogue", "menu", "shop", "levelup", "dead", "paused", "creator", "forge"};
+    for (int i = 0; i < 10; i++) if (s == n[i]) { m = (Mode)i; return true; }
     return false;
   };
   auto runCmd = [&](const ScriptCmd& c) {
@@ -937,7 +940,7 @@ int main(int argc, char** argv) {
       std::string what = arg(1), want = arg(2);
       if (what == "mode") {
         Mode m;
-        static const char* n[] = {"title", "play", "dialogue", "menu", "shop", "levelup", "dead", "paused", "creator"};
+        static const char* n[] = {"title", "play", "dialogue", "menu", "shop", "levelup", "dead", "paused", "creator", "forge"};
         if (!modeByName(want, m)) fail(c.line, "expect mode: unknown mode '" + want + "'");
         else if (game.mode != m) fail(c.line, "expected mode " + want + ", got " + n[(int)game.mode]);
       } else if (what == "gold") {
@@ -1150,6 +1153,18 @@ int main(int argc, char** argv) {
                     game.perf.npcAwake, game.perf.npcAsleep, game.perf.hostiles, game.perf.activeSites, (long long)((ch - pacc.chunks0) / fpsT),
                     ss.worstShiftMs, ss.syncInShifts, ss.worstRecentreMs, regions, settlements, game.world.ox, game.world.oy, (int)game.mode);
         pacc.chunks0 = ch;
+        // (M6 fixer) the worst step of each world subsystem this second (only the ones over 2 ms: a hitch's suspects)
+        static const char* const sysName[Game::PerfCounters::S_COUNT] = {"quests", "realm", "war", "story", "lifeStep", "raids", "foes", "lifeTick", "spawning"};
+        std::string slow;
+        for (int k = 0; k < Game::PerfCounters::S_COUNT; k++) {
+          if (game.perf.sysWorstMs[k] >= 2.0) {
+            char b[64];
+            std::snprintf(b, sizeof b, " %s %.1f", sysName[k], game.perf.sysWorstMs[k]);
+            slow += b;
+          }
+          game.perf.sysWorstMs[k] = 0;
+        }
+        if (!slow.empty()) std::printf("perf   worst step ms:%s\n", slow.c_str());
       }
       pacc.workSum = 0; pacc.workWorst = 0;
       fpsT = 0; fpsN = 0;

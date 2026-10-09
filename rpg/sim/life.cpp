@@ -575,6 +575,12 @@ void Life::addRefugees(const World& w, Census& c, int n) {
 }
 
 // ---------------------------------------------------------------- the hourly aggregate
+// GCC 12.x / 13.1-13.3 miscompile the per-resident hour loop below with -funswitch-loops (on at -O3): unswitching the
+// `switch (p.act)` computes a wrong false-edge range (GCC PR 109934 / 117100, fixed in 13.4) and drops the Act::Eat
+// case from every loop copy, so nobody eats. Unswitching is off for this one function on those compilers.
+#if defined(__GNUC__) && !defined(__clang__) && ((__GNUC__ == 12 && __GNUC_MINOR__ < 5) || (__GNUC__ == 13 && __GNUC_MINOR__ < 4))
+__attribute__((optimize("no-unswitch-loops")))
+#endif
 void Life::hourTick(Game& g, Census& c, int32_t hourAbs) {
   // (a clock set back by a script or a test counts as one hour)
   const int hours = c.lastHour < 0 || hourAbs < c.lastHour ? 1 : (int)std::min(hourAbs - c.lastHour, 24);

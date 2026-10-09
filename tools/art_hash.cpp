@@ -79,6 +79,27 @@ int main(int argc, char** argv) {
     L.hair = (Hair)h;
     humansNew.add(humanSheet(L), "hair" + std::to_string(h));
   }
+  // M6 Steel: the culture arms grammar (polearms, bows, alloy sheens, legendary glow) and the culture icons
+  for (int s = 0; s <= 8; s++) {
+    HumanLook L;
+    L.armorStyle = L.helmStyle = L.gloves = L.boots = 3;
+    L.bodyForm = (uint8_t)(1 + s % 8); L.helmForm = (uint8_t)(1 + s); L.shieldForm = (uint8_t)(1 + s % 8);
+    L.pauldron = (uint8_t)(s % 5); L.skirt = (uint8_t)((s + 2) % 5); L.crest = (uint8_t)(s % 4);
+    L.weapon = s < 3 ? 8 : (s < 6 ? 3 : 1);
+    L.polearmForm = (uint8_t)(1 + s % 3); L.bowForm = (uint8_t)(1 + s % 5); L.backItem = s >= 6 ? 1 : 0;
+    if (s) { L.armourTint = rgba(180, 150 + s * 8, 120); L.armourTint2 = rgba(70, 50, 40 + s * 6); L.sheen = (uint8_t)s; }
+    if (s == 8) { L.glow = 31; L.glowColor = rgba(140, 220, 255); L.cloak = 1; }
+    humansNew.add(humanSheet(L), "m6arms" + std::to_string(s));
+  }
+  for (int f = 0; f <= 10; f++) {
+    static const Icon ic[6] = {Icon::Helmet, Icon::Armor, Icon::Shield, Icon::Sword, Icon::Spear, Icon::Bow};
+    for (int k = 0; k < 6; k++) {
+      IconLook l;
+      l.icon = ic[k]; l.form = (uint8_t)f; l.tint = rgba(214, 156, 88); l.tint2 = rgba(104, 58, 34);
+      l.sheen = (uint8_t)(f % 9); l.ornament = (uint16_t)(f * 53 % 1024); l.accent = rgba(40, 70, 150); l.rarity = (uint8_t)(f % 5);
+      iconsNew.add(itemIconLook(l), "m6icon" + std::to_string(k) + "/" + std::to_string(f));
+    }
+  }
   for (int m = 0; m < (int)Monster::COUNT; m++) (m < kMonsters ? monsters : monstersNew).add(monsterSheet((Monster)m), "monster" + std::to_string(m));
   for (int p = 0; p < (int)Prop::COUNT; p++) (p < kProps ? props : propsNew).add(propSprite((Prop)p), "prop" + std::to_string(p));
   for (int b = 0; b < (int)Building::COUNT; b++) {

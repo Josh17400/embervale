@@ -8,6 +8,8 @@
 #include "engine/audio.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/gear.h"
+#include "rpg/culture/culture.h"
 #include "rpg/world/source.h"
 #include "rpg/culture/society.h"
 #include "rpg/story/story.h"
@@ -24,7 +26,16 @@ void Game::giveGold(int g) {
   sfx((int)Sfx::Coin, pl().p, 0.9f + rng_.f() * 0.2f);
 }
 
-void Game::addItem(const Item& it, bool announce) {
+void Game::addItem(const Item& it0, bool announce) {
+  Item it = it0;
+  // (M6, 7.5 rule 7) at most 10 potions carried: the rest is left behind
+  if (it.kind == ItemKind::Potion) {
+    int held = 0;
+    for (const Item& o : inv) if (o.kind == ItemKind::Potion) held += o.count;
+    const int room = gear::POTION_CARRY - held;
+    if (room <= 0) { if (announce) say("YOU CAN CARRY NO MORE THAN 10 POTIONS"); return; }
+    it.count = std::min(it.count, room);
+  }
   if (it.stackable()) {
     for (auto& o : inv)
       if (o.same(it)) {
@@ -36,9 +47,9 @@ void Game::addItem(const Item& it, bool announce) {
   inv.push_back(it);
   int idx = (int)inv.size() - 1;
   if (announce) { emit(Ev::Notice, pl().p, (int)rarityColor(it.rarity), 0, it.name + (it.count > 1 ? " x" + std::to_string(it.count) : "")); sfx((int)Sfx::Pickup, pl().p); }
-  // auto-equip into an empty slot
+  // auto-equip into an empty slot (a legendary only while attunement has room: 7.3)
   int* slot = equipSlot(it.kind);
-  if (slot && *slot < 0) { *slot = idx; recalcPlayer(); }
+  if (slot && *slot < 0 && (!gear::attunes(it) || craft.live.stats.legendaries < gear::attunementSlots(plLevel))) { *slot = idx; recalcPlayer(); }
 }
 
 int* Game::equipSlot(ItemKind k) {
@@ -66,12 +77,39 @@ void Game::useItem(int i) {
     recalcPlayer();
     sfx((int)Sfx::MenuSelect, pl().p);
   };
-  if (int* slot = equipSlot(it.kind)) { toggle(*slot); return; }
+  if (int* slot = equipSlot(it.kind)) {
+    // (M6, 7.3) attunement: legendaries worn at once are limited by level (1 at 10, 2 at 25, 3 at 40)
+    if (*slot != i && gear::attunes(it)) {
+      int worn = 0;
+      for (int e : {eqWeapon, eqBow, eqStaff, eqArmor, eqHelmet, eqShield, eqRing, eqAmulet, eqGloves, eqBoots, eqCloak})
+        if (e >= 0 && e < (int)inv.size() && e != *slot && gear::attunes(inv[(size_t)e])) worn++;
+      const int slots = gear::attunementSlots(plLevel);
+      if (worn >= slots) {
+        say(slots == 0 ? "A LEGENDARY ANSWERS ONLY FROM LEVEL 10: YOU CANNOT ATTUNE TO IT YET"
+                       : "ATTUNED TO " + std::to_string(worn) + (worn == 1 ? " LEGENDARY" : " LEGENDARIES") + " ALREADY (LEVEL " +
+                             std::to_string(plLevel) + " ALLOWS " + std::to_string(slots) + "): TAKE ONE OFF FIRST");
+        sfx((int)Sfx::MenuBack, pl().p);
+        return;
+      }
+    }
+    toggle(*slot);
+    return;
+  }
   switch (it.kind) {
     case ItemKind::Potion: {
-      if (it.sub == (uint8_t)PotionType::Health) { pl().hp = std::min(pl().maxHp, pl().hp + it.power); emit(Ev::Heal, pl().p); }
-      else if (it.sub == (uint8_t)PotionType::Magicka) mp += it.power;
-      else stamina += it.power;
+      // (M6, 7.5 rule 7) one shared 8 s cooldown; potion effect affixes; Lifebloom heals 10 % more over 10 s
+      gear::Live& L6 = craft.live;
+      if (L6.potionCd > 0) {
+        say("POTION READY IN " + std::to_string((int)std::ceil(L6.potionCd)) + " S");
+        sfx((int)Sfx::MenuBack, pl().p, 0.8f);
+        return;
+      }
+      const float k = 1.0f + 0.01f * (float)L6.stats.get(Affix::PotionEffect);
+      if (it.sub == (uint8_t)PotionType::Health) { pl().hp = std::min(pl().maxHp, pl().hp + it.power * k); emit(Ev::Heal, pl().p); }
+      else if (it.sub == (uint8_t)PotionType::Magicka) mp += it.power * k;
+      else stamina += it.power * k;
+      if (L6.stats.has(Unique::Lifebloom)) { L6.bloomT = 10.0f; L6.bloomRate = pl().maxHp * 0.10f / 10.0f; }
+      L6.potionCd = L6.potionCdMax = gear::POTION_COOLDOWN;
       sfx((int)Sfx::Heal, pl().p, 1.2f);
       break;
     }
@@ -85,6 +123,18 @@ void Game::useItem(int i) {
       break;
     }
     case ItemKind::Misc:
+      if (craft::isLore(it)) {   // (M6, 15.11) alloy notes or a mould from a ruin: study it (HOW_RUINS)
+        if (!world.src || !it.culture) return;
+        const cult::Culture& C = world.src->culture(it.culture);
+        const craft::SecretKind sk = (craft::SecretKind)std::min<int>(it.form, (int)craft::SecretKind::COUNT - 1);
+        const std::string what = craft::secretName(C, it.alloy, sk);
+        if (craft.knows(C.id, it.alloy, sk)) { say("YOU KNOW " + what + " ALREADY"); return; }
+        if (!craft::howAllowed(C, it.alloy, sk, craft::HOW_RUINS)) { say("THE NOTES ARE TOO WORN TO READ"); return; }
+        const bool learned = craft::learnSecret(craft, C, it.alloy, sk, craft::LORE_PROGRESS, craft::HOW_RUINS);
+        if (learned) { emit(Ev::QuestUpdate, pl().p, 0, 1, "LEARNED " + what); sfx((int)Sfx::LevelUp, pl().p, 1.2f); }
+        else say("YOU STUDY THE NOTES: " + what + " " + std::to_string(craft.progress(C.id, it.alloy, sk)) + "%");
+        break;
+      }
       if (it.name.rfind("SPELL TOME", 0) == 0) {
         spellsKnown |= (uint8_t)(1 << it.sub);
         say(std::string("LEARNED ") + spellName((Spell)it.sub));
@@ -120,13 +170,31 @@ Item wildGood(int base, const char* name, art::Icon icon, int value, uint32_t ti
 void Game::dropLoot(const Actor& a) {
   if (a.npc) return;
   Rng r(hash32((uint32_t)a.id * 7919u) ^ (uint32_t)seed ^ (uint32_t)(time * 10));
+  // (M6, 7.2 / 7.6) what a body drops is rolled by gear::rollDrop at the danger it fell at, its rank and its maker culture:
+  // a soldier's or a bandit's own (Actor::culture, the FOES lane), else the land's
+  gear::DropSource ds;
+  ds.D = std::clamp(a.dropD ? a.dropD : a.level, 1, gear::MAX_D);
+  ds.rank = a.rank;
+  ds.playerLevel = plLevel;
+  ds.culture = a.culture;
+  if (!ds.culture) {
+    if (inside && subSite >= 0) { if (const cult::Culture* c = world.cultureOf(subSite)) ds.culture = c->id; }
+    else if (const cult::Culture* c = world.cultureAtTile((int)std::floor(a.p.x / TILE), (int)std::floor(a.p.y / TILE))) ds.culture = c->id;
+  }
+  const cult::Culture* maker = ds.culture && world.src ? &world.src->culture(ds.culture) : nullptr;
+  auto loot = [&](bool boss) {
+    gear::DropSource s2 = ds;
+    if (boss && s2.rank < 4) s2.rank = 4;
+    Item it = gear::rollDropC(r, s2, maker);
+    return it;
+  };
   auto drop = [&](const Item& it) {
     Pickup k; k.p = a.p + Vec2(r.range(-8, 8), r.range(-6, 6)); k.item = it; pickups.push_back(k);
   };
   auto dropGold = [&](int g) { Pickup k; k.p = a.p + Vec2(r.range(-6, 6), r.range(-4, 4)); k.gold = g; pickups.push_back(k); };
   if (a.human) {
     dropGold(5 + r.irange(10 + a.level * 3) + (a.boss ? 60 + a.level * 10 : 0));
-    if (r.f() < 0.35f || a.boss) drop(randomLoot(r, a.level, a.boss));
+    if (r.f() < 0.35f || a.boss || a.rank >= 1) drop(loot(a.boss));
     if (a.ranged && r.f() < 0.7f) drop(makeArrows(3 + r.irange(5)));
     return;
   }
@@ -135,9 +203,9 @@ void Game::dropLoot(const Actor& a) {
     case Monster::Boar: if (r.f() < 0.6f) drop(makeFood(1)); break;
     case Monster::Bear: drop(makeMisc(0)); if (background == Background::Hunter) drop(makeMisc(0)); if (r.f() < 0.5f) drop(makeFood(1)); break;
     case Monster::Spider: case Monster::FrostSpider: if (r.f() < 0.5f) drop(makeMisc(5)); break;
-    case Monster::Skeleton: case Monster::Draugr: if (r.f() < 0.5f) drop(makeMisc(1)); if (r.f() < 0.3f) dropGold(3 + r.irange(12)); if (r.f() < 0.15f) drop(randomLoot(r, a.level, false)); break;
+    case Monster::Skeleton: case Monster::Draugr: if (r.f() < 0.5f) drop(makeMisc(1)); if (r.f() < 0.3f) dropGold(3 + r.irange(12)); if (r.f() < 0.15f) drop(loot(false)); break;
     case Monster::Troll: drop(makeMisc(4)); break;
-    case Monster::Goblin: dropGold(2 + r.irange(8)); if (r.f() < 0.2f) drop(randomLoot(r, a.level, false)); break;
+    case Monster::Goblin: dropGold(2 + r.irange(8)); if (r.f() < 0.2f) drop(loot(false)); break;
     case Monster::Wraith: if (r.f() < 0.4f) drop(makeMisc(6)); break;
     case Monster::Mudcrab: if (r.f() < 0.3f) drop(makeFood(1)); break;
     // (M3c LIFE) the Wildlands wildlife: hides and parts for M6 crafting (biomes.h HD_CHITIN, HD_SPOTTED, HD_SCALE, HD_FUR;
@@ -171,13 +239,31 @@ void Game::dropLoot(const Actor& a) {
       break;
     default: break;
   }
-  if (a.boss && a.mon != Monster::Dragon) { dropGold(40 + a.level * 12); drop(randomLoot(r, a.level, true)); }
-  if (a.mon == Monster::Dragon) {
+  // (M6) a world boss (foes::Rank::WorldBoss = 5) pays its own hoard below, never the dungeon boss's purse (every
+  // non-dragon world boss is also a.boss: FoeOps::spawnWorldBoss)
+  const bool worldBoss = a.rank == 5;
+  if (a.boss && a.mon != Monster::Dragon && !worldBoss) { dropGold(40 + a.level * 12); drop(loot(true)); }
+  if (!a.human && !a.boss && a.mon != Monster::Dragon) {
+    // (M6) ranked beasts carry more: an elite or champion often, a named unique always (Rare+, rollDrop's rules)
+    if (a.rank >= 3) drop(loot(false));
+    else if (a.rank >= 1 && r.f() < 0.5f) drop(loot(false));
+    // (M6, 15.11) hunting gives raw hides for the tanner (the hide -> leather chain)
+    const bool hideBeast = a.mon == Monster::Wolf || a.mon == Monster::IceWolf || a.mon == Monster::Bear || a.mon == Monster::Boar ||
+                           a.mon == Monster::Hyena || a.mon == Monster::Yeti || a.mon == Monster::Lurker || a.mon == Monster::EmberHound;
+    if (hideBeast && r.f() < (background == Background::Hunter ? 0.8f : 0.5f)) drop(craft::makeStuff(craft::Stuff::Hide, a.mon == Monster::Bear || a.mon == Monster::Yeti ? 2 : 1));
+  }
+  // (M6 integration) a dragon world boss (foes::Rank::WorldBoss = 5) is not Ashfang: a world boss's hoard, not the
+  // main quest's crown and greatsword
+  if (worldBoss) { dropGold(400 + a.level * 20); drop(loot(true)); drop(loot(true)); }
+  if (a.mon == Monster::Dragon && !worldBoss) {
     dropGold(1500);
-    Item crown = makeJewel(r, 30); crown.name = "EMBER CROWN"; crown.icon = art::Icon::Crown; crown.rarity = Rarity::Legendary;
-    crown.kind = ItemKind::Amulet; crown.ench = Ench::Fortify; crown.enchPow = 80; crown.value = 5000;
+    // the dragon's hoard: two legendaries of the world boss (VISION 7.6), named as the main quest tells them
+    const int il = std::clamp(a.level + 2, 10, gear::MAX_D);
+    Item crown = gear::makeGearC(r, ItemKind::Amulet, 0, il, Rarity::Legendary, nullptr);
+    crown.name = "EMBER CROWN"; crown.icon = art::Icon::Crown; crown.unique = Unique::Ward; crown.ench = Ench::Fortify; crown.enchPow = 80; crown.value = 5000;
     drop(crown);
-    Item w = makeWeapon(r, 30, (int)WeaponType::Greatsword); w.rarity = Rarity::Legendary; w.name = "DRAGONBONE GREATSWORD"; w.ench = Ench::Fire; w.enchPow = 30; w.power = 60;
+    Item w = gear::makeGearC(r, ItemKind::Weapon, (int)WeaponType::Greatsword, il, Rarity::Legendary, nullptr);
+    w.name = "DRAGONBONE GREATSWORD"; w.unique = Unique::Dragonbane; w.ench = Ench::Fire; w.enchPow = 30;
     drop(w);
   }
 }
@@ -196,8 +282,44 @@ void Game::openChest(int tx, int ty) {
   bool rich = inside && subSite >= 0;
   int n = 1 + r.irange(rich ? 3 : 2);
   Vec2 c(tx * TILE + 8.0f, ty * TILE + 18.0f);
-  for (int k = 0; k < n; k++) { Pickup p; p.p = c + Vec2(r.range(-8, 8), r.range(0, 8)); p.item = randomLoot(r, lvl, rich && k == 0 && r.f() < 0.35f); pickups.push_back(p); }
+  // (M6) the chest's loot by the place's danger (gear::rollDrop) in the make of the land's (or the dungeon's) culture
+  const cult::Culture* cc = inside && subSite >= 0 ? world.cultureOf(subSite) : (inside ? nullptr : world.cultureAtTile(tx, ty));
+  if (cc && world.src) cc = &world.src->culture(cc->id);
+  gear::DropSource ds;
+  ds.D = std::clamp(lvl, 1, gear::MAX_D); ds.chest = true; ds.playerLevel = plLevel; ds.culture = cc ? cc->id : 0;
+  for (int k = 0; k < n; k++) {
+    Pickup p; p.p = c + Vec2(r.range(-8, 8), r.range(0, 8));
+    gear::DropSource s2 = ds;
+    if (rich && k == 0 && r.f() < 0.35f) s2.rank = 4;   // the dungeon's hoard chest: a boss's roll
+    p.item = gear::rollDropC(r, s2, cc);
+    pickups.push_back(p);
+  }
   Pickup g; g.p = c; g.gold = 8 + r.irange(15 + lvl * 4) + (rich ? 20 : 0); pickups.push_back(g);
+  // (M6, 15.11) mining country's chests hold ore (the land's richest), a ruin's may hold an alloy's notes or a mould
+  if (world.src) {
+    int ptx = tx, pty = ty;
+    if (inside) overworldTile(*this, ptx, pty);
+    const int32_t gx = world.ox + ptx, gy = world.oy + pty;
+    if (!(inside && subBldg >= 0) && r.f() < 0.4f) {
+      const std::vector<craft::OreSource> ores = craft::oresAt(*world.src, gx, gy);
+      if (!ores.empty() && ores[0].richness >= 140) {
+        Pickup o; o.p = c + Vec2(r.range(-8, 8), r.range(0, 8));
+        o.item = craft::makeStuff(craft::oreStuff(ores[0].ore), 2 + r.irange(3));
+        pickups.push_back(o);
+      }
+    }
+    if (inside && subSite >= 0 && world.sites[(size_t)subSite].type == SiteType::Ruin && cc && cc->id && r.f() < 0.3f) {
+      // (M6 fixer r3) only alloys whose secret a ruin can teach (craft::howAllowed HOW_RUINS); otherwise a pattern mould
+      std::vector<uint8_t> readable;
+      for (size_t ai = 0; ai < cc->arms.alloys.size(); ai++)
+        if (craft::howAllowed(*cc, (uint8_t)(ai + 1), craft::SecretKind::AlloyRecipe, craft::HOW_RUINS)) readable.push_back((uint8_t)(ai + 1));
+      const uint8_t al = !readable.empty() && r.f() < 0.6f ? readable[(size_t)r.irange((int)readable.size())] : 0;
+      const craft::SecretKind sk = al ? craft::SecretKind::AlloyRecipe : (r.f() < 0.5f ? craft::SecretKind::WeaponPattern : craft::SecretKind::ArmourPattern);
+      Pickup o; o.p = c + Vec2(r.range(-8, 8), r.range(0, 8));
+      o.item = craft::makeLore(*cc, al, sk, r.next());
+      pickups.push_back(o);
+    }
+  }
 }
 
 // ------------------------------------------------------------------ interaction
@@ -626,9 +748,28 @@ void Game::completeQuest(Quest& q) {
   npcQuestsDone[npcKeyOf(q.giverSite, q.giverBldg, q.giverSlot)]++;
   emit(Ev::QuestUpdate, pl().p, q.id, 1, "QUEST COMPLETE: " + q.title);
   sfx((int)Sfx::QuestDone, pl().p);
-  // occasional item reward
+  // occasional item reward (M6, 7.5 rule 5): by the quest's danger, never by the player's level; Uncommon to Epic
   Rng r(hash32((uint32_t)q.id * 977u) ^ (uint32_t)seed);
-  if (r.f() < 0.5f) addItem(randomLoot(r, plLevel + 1, true));
+  if (r.f() < 0.5f) {
+    int D = 1;
+    if (q.target >= 0 && q.target < (int)world.sites.size()) D = world.sites[(size_t)q.target].level;
+    else if (q.hasPos && world.src) D = world.src->danger(q.tgx, q.tgy);
+    else if (q.giverSite >= 0 && q.giverSite < (int)world.sites.size()) D = world.sites[(size_t)q.giverSite].level;
+    if (q.giverSite >= 0 && q.giverSite < (int)world.sites.size()) D = std::max(D, world.sites[(size_t)q.giverSite].level);
+    const cult::Culture* gc = q.giverSite >= 0 && q.giverSite < (int)world.sites.size() ? world.cultureOf(q.giverSite) : nullptr;
+    if (gc && world.src) gc = &world.src->culture(gc->id);
+    gear::DropSource ds;
+    ds.D = std::clamp(D, 1, gear::MAX_D);
+    Rarity rar = gear::rollRarity(r, ds);
+    if (rar < Rarity::Uncommon) rar = Rarity::Uncommon;
+    if (rar > Rarity::Epic) rar = Rarity::Epic;
+    static const ItemKind kinds[] = {ItemKind::Weapon, ItemKind::Armor, ItemKind::Helmet, ItemKind::Shield, ItemKind::Gloves, ItemKind::Boots,
+                                     ItemKind::Cloak, ItemKind::Bow, ItemKind::Ring, ItemKind::Amulet};
+    const ItemKind k = kinds[r.irange(10)];
+    Item it = gear::makeGearC(r, k, k == ItemKind::Weapon ? r.irange(5) : 0, ds.D, rar, gc);
+    it.flags |= IF_QUESTREWARD;
+    addItem(it);
+  }
   if (trackedQuest == q.id) {
     // next: an open local job first (a nearby, level-fitting step), the main quest only when nothing else is open
     trackedQuest = -1;
@@ -922,8 +1063,9 @@ float Game::priceFactor(Role seller) const {
 // The opening: the start village innkeeper hands over an old blade (and a draught for the road) for a small favour.
 void Game::giveFirstWeapon(Quest& q) {
   Rng r(hash32((uint32_t)seed ^ 0xB1ADEu));
-  Item w = makeWeapon(r, 1, (int)WeaponType::Sword, false);
-  w.name = "OLD BLADE"; w.power = 7; w.value = 12; w.rarity = Rarity::Common; w.ench = Ench::None; w.enchPow = 0;
+  // (M6) an item-level-1 heirloom in the old heartland make: worn below a new bronze sword's 8
+  Item w = gear::makeGearC(r, ItemKind::Weapon, (int)WeaponType::Sword, 1, Rarity::Common, nullptr, Mat::Iron);
+  w.name = "OLD BLADE"; w.power = 7; w.value = 12; w.ench = Ench::None; w.enchPow = 0;
   addItem(w);
   Item pot = makePotion(PotionType::Health, 0); pot.count = 1;
   addItem(pot);
@@ -1031,6 +1173,8 @@ void Game::talkTo(Actor& a) {
   lifeTalk(a);    // M5: greetings by name, barks of need, feed / employ / supply / befriend (life_game.cpp)
   warTalk(a);     // M4: the war's talk (siege commanders, guards' news of the front; war_game.cpp)
   storyTalk(a);   // M4: story quests, gossip, the realm's news (rpg/story/story_game.cpp)
+  foeTalk(a);     // M6: warnings of named beasts and world bosses (foes_game.cpp)
+  craftTalk(a);   // M6: the forge's work and lessons (craft_game.cpp)
   dlg.opts.push_back({"FAREWELL.", A_BYE, 0});
   mode = Mode::Dialogue;
   sfx((int)Sfx::Talk, a.p);
@@ -1287,6 +1431,8 @@ void Game::dialogueChoose(int oi) {
       if (o.action >= DLG_STORY && o.action < DLG_WAR && storyChoose(o)) return;
       if (o.action >= DLG_WAR && o.action < DLG_END && warChoose(o)) return;
       if (o.action >= DLG_LIFE && o.action < DLG_LIFE_END && lifeChoose(o)) return;
+      if (o.action >= DLG_FOES && o.action < DLG_CRAFT && foeChoose(o)) return;      // M6
+      if (o.action >= DLG_CRAFT && o.action < DLG_M6_END && craftChoose(o)) return;  // M6
       mode = Mode::Play;
       return;
   }
@@ -1303,30 +1449,117 @@ void Game::rest(int hours) {
 }
 
 // ------------------------------------------------------------------ shops
+// (M6, VISION_PLAN 7.5 rule 4) shops stock by the settlement's danger (item levels D - 2 .. D + 2), NEVER by the
+// player's level; merchants top out at Rare, a capital's at Epic for a hero Honoured there (rep >= 40); legendaries are
+// never sold. Gear is made in the settlement's culture (its forms, its alloys from band 4 up). Mining settlements sell
+// their local ores and ingots (craft::oresAt), smiths iron and steel ingots, workshops their materials (tanner:
+// leather, smelter: ingots, weaver: cloth, sawmill: timber); with a census, material prices follow its stock.
+namespace {
+int siteOfActor(const World& w, const Actor& a) {
+  if (a.site >= 0 && a.site < (int)w.sites.size()) return a.site;
+  if (a.bldg >= 0 && a.bldg < (int)w.over.bldgs.size()) return w.over.bldgs[(size_t)a.bldg].site;
+  return -1;
+}
+int urbanOf(const World& w, int si) {
+  if (si < 0 || si >= (int)w.sites.size()) return 0;
+  const Site& S = w.sites[(size_t)si];
+  if (S.capital) return 3;
+  return S.type == SiteType::City ? 2 : S.type == SiteType::Town ? 1 : 0;
+}
+}  // namespace
+
 std::vector<Item> Game::shopStock(const Actor& a) {
   Rng r(hash32((uint32_t)npcKey(a)) ^ (uint32_t)(day / 2) ^ (uint32_t)seed);
   std::vector<Item> s;
-  int lvl = std::max(plLevel, a.site >= 0 ? world.sites[a.site].level : 1);
-  switch (a.role) {
-    case Role::Smith:
-      for (int i = 0; i < 4; i++) s.push_back(makeWeapon(r, lvl, -1, i > 1));
-      for (int i = 0; i < 3; i++) s.push_back(makeArmor(r, lvl, i == 0 ? ItemKind::Armor : (i == 1 ? ItemKind::Helmet : ItemKind::Shield)));
-      s.push_back(makeBow(r, lvl));
+  const int si = siteOfActor(world, a);
+  const int D = std::clamp(si >= 0 ? world.sites[(size_t)si].level : 1, 1, gear::MAX_D);
+  const cult::Culture* cc = si >= 0 ? world.cultureOf(si) : nullptr;
+  if (cc && world.src) cc = &world.src->culture(cc->id);
+  bool epicOk = false;
+  if (si >= 0 && world.sites[(size_t)si].capital) {
+    const Kingdom* K = world.kingdomOf(si);
+    epicOk = K && realm.rep(K->id) >= gear::REP_HONOURED;
+  }
+  auto gearOf = [&](ItemKind k, int sub) {
+    const int il = std::clamp(D - gear::SHOP_BAND_SPREAD + r.irange(2 * gear::SHOP_BAND_SPREAD + 1), 1, gear::MAX_D);
+    gear::DropSource ds;
+    ds.D = D;
+    Rarity rar = gear::rollRarity(r, ds);
+    const Rarity top = epicOk ? Rarity::Epic : Rarity::Rare;
+    if (rar > top) rar = top;
+    Item it = gear::makeGearC(r, k, sub, il, rar, cc);
+    it.flags |= IF_SHOP;
+    s.push_back(it);
+  };
+  auto stuff = [&](craft::Stuff st, int n) { s.push_back(craft::makeStuff(st, n)); };
+  const art::Building where = a.bldg >= 0 && a.bldg < (int)world.over.bldgs.size() ? world.over.bldgs[(size_t)a.bldg].type : art::Building::House;
+  const bool mining = si >= 0 && (world.sites[(size_t)si].special == (uint8_t)ew::Specialty::Mining || world.sites[(size_t)si].archetype == (uint8_t)ew::Archetype::Mining);
+  // the land's ores (richest first) where the settlement stands
+  std::vector<craft::OreSource> ores;
+  if (world.src && si >= 0) ores = craft::oresAt(*world.src, world.ox + world.sites[(size_t)si].ex, world.oy + world.sites[(size_t)si].ey);
+  auto localOres = [&](int kinds, int lo, int hi) {
+    int n = 0;
+    for (const craft::OreSource& o : ores) {
+      if (n >= kinds) break;
+      stuff(craft::oreStuff(o.ore), lo + r.irange(hi - lo + 1));
+      n++;
+    }
+    if (n && std::none_of(ores.begin(), ores.end(), [](const craft::OreSource& o) { return o.ore == ew::Ore::Coal; })) stuff(craft::Stuff::Coal, 3 + r.irange(4));
+  };
+  auto localIngots = [&](int kinds) {
+    int n = 0;
+    for (const craft::OreSource& o : ores) {
+      if (n >= kinds) break;
+      const craft::Stuff ig = craft::ingotOf(o.ore);
+      if (ig == craft::Stuff::COUNT || ig == craft::Stuff::AlloyIngot) continue;
+      stuff(ig, 2 + r.irange(3));
+      n++;
+    }
+  };
+  const bool workshop = a.role != Role::Smith && craft::isStation(where);
+  if (workshop) {
+    switch (where) {
+      case art::Building::Tanner: stuff(craft::Stuff::Leather, 4 + r.irange(4)); stuff(craft::Stuff::Hide, 2 + r.irange(3)); break;
+      case art::Building::Smelter: localIngots(2); stuff(craft::Stuff::BronzeIngot, 2 + r.irange(3)); stuff(craft::Stuff::Coal, 4 + r.irange(4)); break;
+      case art::Building::Weaver: stuff(craft::Stuff::Cloth, 4 + r.irange(4)); break;
+      case art::Building::Sawmill: stuff(craft::Stuff::Timber, 6 + r.irange(6)); break;
+      default: break;
+    }
+  } else switch (a.role) {
+    case Role::Smith: {
+      const bool spear = cc && cc->arms.polearm != cult::Polearm::None;
+      for (int i = 0; i < 4; i++) gearOf(ItemKind::Weapon, r.irange(spear ? 6 : 5));
+      gearOf(ItemKind::Armor, 0); gearOf(ItemKind::Helmet, 0); gearOf(ItemKind::Shield, 0);
+      gearOf(ItemKind::Bow, 0);
       s.push_back(makeArrows(25));
-      s.push_back(makeArmor(r, lvl, ItemKind::Gloves));   // M0: the new slots (appended: the items above keep their rolls)
-      s.push_back(makeArmor(r, lvl, ItemKind::Boots));
+      gearOf(ItemKind::Gloves, 0); gearOf(ItemKind::Boots, 0);
+      // the smith's metal: iron always, steel from the second band, bronze in the first; a mining town's own ores
+      stuff(craft::Stuff::IronIngot, 3 + r.irange(3));
+      if (D >= 9) stuff(craft::Stuff::SteelIngot, 2 + r.irange(2));
+      else stuff(craft::Stuff::BronzeIngot, 2 + r.irange(3));
+      stuff(craft::Stuff::Leather, 2);
+      stuff(craft::Stuff::Timber, 3);
+      if (mining) localOres(2, 4, 8);
+      // a culture alloy the player has learned: the smith sells a few ingots and its reagent
+      if (cc && cc->id)
+        for (size_t k = 0; k < cc->arms.alloys.size(); k++)
+          if (craft.knows(cc->id, (uint8_t)(k + 1), craft::SecretKind::AlloyRecipe)) {
+            s.push_back(craft::makeStuff(craft::Stuff::AlloyIngot, 1 + r.irange(2), cc->id, (uint8_t)(k + 1), cc));
+            s.push_back(craft::makeStuff(craft::Stuff::Reagent, 2, cc->id, (uint8_t)(k + 1), cc));
+          }
       break;
+    }
     case Role::Mage:
-      s.push_back(makeStaff(r, lvl));
+      gearOf(ItemKind::Staff, 0);
       s.push_back(makePotion(PotionType::Magicka, 1)); s.back().count = 4;
-      s.push_back(makeJewel(r, lvl));
-      s.push_back(makeJewel(r, lvl));
+      gearOf(r.f() < 0.5f ? ItemKind::Ring : ItemKind::Amulet, 0);
+      gearOf(r.f() < 0.5f ? ItemKind::Ring : ItemKind::Amulet, 0);
       break;
     case Role::Priest:
       s.push_back(makePotion(PotionType::Health, 0)); s.back().count = 5;
       s.push_back(makePotion(PotionType::Health, 1)); s.back().count = 3;
       s.push_back(makePotion(PotionType::Magicka, 0)); s.back().count = 3;
-      s.push_back(makeJewel(r, lvl));
+      gearOf(r.f() < 0.5f ? ItemKind::Ring : ItemKind::Amulet, 0);
       break;
     // M2 wayside traders (wayside.cpp): a hunter's pelts, meat and arrows; a fisher's catch; an herbalist's herbs and potions
     case Role::Hunter:
@@ -1336,7 +1569,8 @@ std::vector<Item> Game::shopStock(const Actor& a) {
       s.push_back(makeFood(1)); s.back().count = 4;
       s.push_back(makeFood(7)); s.back().count = 3;
       s.push_back(makeArrows(40));
-      s.push_back(makeBow(r, lvl));
+      gearOf(ItemKind::Bow, 0);
+      stuff(craft::Stuff::Hide, 3 + r.irange(3));
       break;
     case Role::Fisher:
       s.push_back(makeFood(4)); s.back().count = 6;
@@ -1365,12 +1599,23 @@ std::vector<Item> Game::shopStock(const Actor& a) {
       s.push_back(makePotion(PotionType::Stamina, 0)); s.back().count = 3;
       s.push_back(makeArrows(30));
       s.push_back(makeFood(0)); s.back().count = 4;
-      s.push_back(makeWeapon(r, lvl, (int)WeaponType::Dagger));
-      s.push_back(makeArmor(r, lvl, ItemKind::Helmet));
-      if (r.f() < 0.5f) s.push_back(makeJewel(r, lvl));
-      s.push_back(makeArmor(r, lvl, ItemKind::Cloak));   // M0: the new slots (appended: the items above keep their rolls)
-      s.push_back(makeArmor(r, lvl, r.f() < 0.5f ? ItemKind::Boots : ItemKind::Gloves));
+      gearOf(ItemKind::Weapon, (int)WeaponType::Dagger);
+      gearOf(ItemKind::Helmet, 0);
+      if (r.f() < 0.5f) gearOf(r.f() < 0.5f ? ItemKind::Ring : ItemKind::Amulet, 0);
+      gearOf(ItemKind::Cloak, 0);
+      gearOf(r.f() < 0.5f ? ItemKind::Boots : ItemKind::Gloves, 0);
+      // a mining settlement's market sells what comes out of its hills: ores and the smelter's ingots
+      if (mining) { localOres(2, 5, 10); localIngots(2); }
       break;
+  }
+  // (M5 census) material prices follow the settlement's stock of the good (price % of list: shortages raise it)
+  if (si >= 0) {
+    if (const life::Census* cs = life.census(world, si))
+      for (Item& it : s)
+        if (it.kind == ItemKind::Material) {
+          const int pct = cs->price[(size_t)craft::stuffInfo((craft::Stuff)it.sub).good];
+          if (pct > 0) it.value = std::max(1, it.value * pct / 100);
+        }
   }
   // background prices (blacksmith's child at smiths, urchin at merchants): the shelf shows what you pay
   float pf = priceFactor(a.role);
@@ -1383,6 +1628,11 @@ void Game::openShop(Actor& a) {
   shop.actor = a.id;
   shop.title = a.name;
   shop.key = npcKey(a);
+  // (M6, 7.5 rule 8) the merchant's purse: 300 (village) .. 3000 (capital) gold per restock (every 2 days)
+  {
+    auto& pu = craft.live.purse[shop.key];
+    if (pu.first != day / 2 + 1) pu = {day / 2 + 1, gear::merchantGold(urbanOf(world, siteOfActor(world, a)))};
+  }
   auto it = shopCache_.find(shop.key);
   if (it != shopCache_.end() && it->second.first == day / 2) shop.stock = it->second.second;
   else { shop.stock = shopStock(a); shopCache_[shop.key] = {day / 2, shop.stock}; }
@@ -1395,7 +1645,25 @@ bool Game::buy(int si) {
   int price = it.value * (it.kind == ItemKind::Arrows ? 1 : 1);
   if (it.stackable()) { price = it.value; it.count = it.kind == ItemKind::Arrows ? it.count : 1; if (it.kind == ItemKind::Arrows) price = it.count; }
   if (gold < price) { sfx((int)Sfx::MenuBack, pl().p); return false; }
+  if (it.kind == ItemKind::Potion) {   // (M6) the potion belt holds 10
+    int held = 0;
+    for (const Item& o : inv) if (o.kind == ItemKind::Potion) held += o.count;
+    if (held + it.count > gear::POTION_CARRY) { say("YOU CAN CARRY NO MORE THAN 10 POTIONS"); sfx((int)Sfx::MenuBack, pl().p); return false; }
+  }
   gold -= price;
+  { auto pu = craft.live.purse.find(shop.key); if (pu != craft.live.purse.end()) pu->second.second += price; }
+  // (M6, 15.11) buying from a smith grows the apprenticeship's trust
+  // (M6 fixer r3) only the smith's own work counts (gear he forged and stocked: IF_SHOP, never goods the player sold him
+  // or plain materials), and at most TRUST_BUY_CAP per restock, so a buy-and-sell-back loop cannot farm it
+  {
+    const int k = findActor(shop.actor);
+    if (k >= 0 && actors[(size_t)k].role == Role::Smith && (it.flags & IF_SHOP) && !it.stackable()) {
+      auto& tb = craft.live.trustBuy[shop.key];
+      if (tb.first != day / 2 + 1) tb = {day / 2 + 1, 0};
+      const int add = std::min(2, craft::TRUST_BUY_CAP - tb.second);
+      if (add > 0) { tb.second += add; craft.trust[shop.key] = (uint8_t)std::min(100, (int)craft.trust[shop.key] + add); }
+    }
+  }
   addItem(it, false);
   if (shop.stock[si].stackable() && shop.stock[si].kind != ItemKind::Arrows && shop.stock[si].count > 1) shop.stock[si].count--;
   else shop.stock.erase(shop.stock.begin() + si);
@@ -1408,11 +1676,23 @@ bool Game::sell(int ii) {
   if (ii < 0 || ii >= (int)inv.size()) return false;
   Item& it = inv[ii];
   if (it.kind == ItemKind::Quest) return false;
-  int price = std::max(1, it.value * 2 / 5);
-  if (it.kind == ItemKind::Arrows) price = std::max(1, it.count / 3);
+  int price = gear::sellPrice(it);
+  // (M6, 7.5 rule 8) the merchant pays from a purse that refills each restock. (M6 fixer r2) A piece worth more than he
+  // has left he takes for all he has (the shop says so on its button); with an empty purse he buys nothing.
+  auto pu = craft.live.purse.find(shop.key);
+  if (pu != craft.live.purse.end()) {
+    if (pu->second.second <= 0) {
+      say("THE MERCHANT HAS NO GOLD LEFT UNTIL HE RESTOCKS");
+      sfx((int)Sfx::MenuBack, pl().p);
+      return false;
+    }
+    price = std::min(price, pu->second.second);
+    pu->second.second -= price;
+  }
   gold += price;
   Item sold = it;
   sold.count = it.kind == ItemKind::Arrows ? it.count : 1;
+  sold.flags &= (uint8_t)~IF_SHOP;   // (M6 fixer r3) bought back, it is no longer the smith's own work (no trust)
   if (it.stackable() && it.kind != ItemKind::Arrows && it.count > 1) it.count--;
   else dropItem(ii);
   sfx((int)Sfx::Coin, pl().p);
@@ -1429,7 +1709,8 @@ bool Game::sell(int ii) {
 // travel and death: rpg/sim/travel.cpp (M2)
 
 // ------------------------------------------------------------------ save / load
-// SAVE_VER 11 (M5: the life block appended after the story block). SAVE_VER 10 (M4: the realm and story blocks appended after marks). SAVE_VER 9 (M3c: the layout of 8, bumped with the Wildlands world generation). SAVE_VER 8 (M3b: the layout of 7, bumped with the builder's world generation). SAVE_VER 7 (M3: the appearance block gains people, homeland and personal heraldry; nothing else moved).
+// SAVE_VER 12 (M6: items gain item level, material, alloy, maker culture, form, seed, affixes, unique power and flags
+// (items.cpp writeItem); the craft block appended after the life block). SAVE_VER 11 (M5: the life block appended after the story block). SAVE_VER 10 (M4: the realm and story blocks appended after marks). SAVE_VER 9 (M3c: the layout of 8, bumped with the Wildlands world generation). SAVE_VER 8 (M3b: the layout of 7, bumped with the builder's world generation). SAVE_VER 7 (M3: the appearance block gains people, homeland and personal heraldry; nothing else moved).
 // SAVE_VER 6 (M2). Owner, 2026-10-04: old saves are not a concern, so only this version loads; an older file is refused
 // and the title offers a new game ("this save is from an older version"). The layout is frozen for M2 after phase A
 // (the lanes fill the new fields, they do not move them); any later change bumps SAVE_VER and regenerates
@@ -1463,10 +1744,14 @@ bool Game::sell(int ii) {
 //   realm    (v10) u32 byte length + the realm block (realm::Realm::serialize: its own version byte first)
 //   story    (v10) u32 byte length + the story block (story::Engine::serialize: its own version byte first)
 //   life     (v11) u32 byte length + the life block (life::Life::serialize: its own version byte first)
+//   craft    (v12) u32 byte length + the craft block (craft::Knowledge::serialize: its own version byte first)
 // refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
 // 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 11;  // 11: M5 Hearth and Hall (the life block after the story block: the census
+static constexpr uint32_t SAVE_VER = 12;  // 12: M6 Steel (the item layout grows: ilvl, material, alloy, culture, form,
+                                          //    seed, 3 affixes, unique power, flags; the craft block after the life
+                                          //    block: smithing skill, secrets, trust; ENDLESS_GEN_VER 15);
+                                          // 11: M5 Hearth and Hall (the life block after the story block: the census
                                           //    deltas, settlement stock and moods, the player's buffs; ENDLESS_GEN_VER 14);
                                           // 10: M4 Banners (the realm and story blocks after marks; ENDLESS_GEN_VER 13);
                                           // 9: M3c Wildlands (the layout of 8; the world's biomes, flora and wildlife
@@ -1695,6 +1980,9 @@ void Game::serialize(std::vector<uint8_t>& out) const {
     life.serialize(blk);   // M5 (v11)
     w.u32((uint32_t)blk.size());
     for (uint8_t c : blk) w.u8(c);
+    craft.serialize(blk);  // M6 (v12)
+    w.u32((uint32_t)blk.size());
+    for (uint8_t c : blk) w.u8(c);
   }
 }
 
@@ -1813,13 +2101,15 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   if (n > 1000000) return false;
   marks.clear();
   for (uint32_t i = 0; i < n && !r.bad; i++) { uint64_t k = r.u64(); marks[k] = r.i32(); }
-  // M4 (v10): the realm and story blocks, M5 (v11) the life block (a block its owner cannot read refuses the whole save)
-  for (int blkI = 0; blkI < 3 && !r.bad; blkI++) {
+  // M4 (v10): the realm and story blocks, M5 (v11) the life block, M6 (v12) the craft block (a block its owner cannot
+  // read refuses the whole save)
+  for (int blkI = 0; blkI < 4 && !r.bad; blkI++) {
     n = r.u32();
     if (r.bad || n > (64u << 20) || r.p + n > in.size()) return false;
     std::vector<uint8_t> blk(in.begin() + (std::ptrdiff_t)r.p, in.begin() + (std::ptrdiff_t)(r.p + n));
     r.p += n;
-    if (blkI == 0 ? !realm.deserialize(blk) : blkI == 1 ? !story.deserialize(blk) : !life.deserialize(blk)) return false;
+    const bool ok = blkI == 0 ? realm.deserialize(blk) : blkI == 1 ? story.deserialize(blk) : blkI == 2 ? life.deserialize(blk) : craft.deserialize(blk);
+    if (!ok) return false;
   }
   if (r.bad) return false;
   // re-apply looted overworld chests (by global tile)

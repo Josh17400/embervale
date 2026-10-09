@@ -1,0 +1,26 @@
+# M6 phase A (lead): the Steel contracts in the running game: culture gear in the pack and on the hero (gear6 / kit6,
+# rpg/view/script_gear.cpp), the culture-styled icons (View::itemTex), crafting materials, and ranked elite foes with
+# their variant looks (View::monsterTex) and the two new families. Phase A pixels are stand-ins: the lanes replace them.
+#   embervale.exe --script tools/scripts/m6_lead_gear.txt     (m6_lead_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 strip
++0.1 kit6 here mat iron rarity 2 ilvl 8
++0.1 expect gearlook
++0.1 gear6 bow ilvl 6 here
++0.1 stuff iron ore 5
++0.1 stuff bronze ingot 3
++0.4 shot m6_lead_hero.png
++0.1 menu 5
++0.5 shot m6_lead_paperdoll.png
++0.1 key Escape
++0.1 menu 0
++0.5 shot m6_lead_pack.png
++0.1 key Escape
++0.1 elite harpy 2 elite swift
++0.1 elite golem 1 champion armoured burning
++0.1 elite wolf 2 named frostbound vampiric
++0.6 shot m6_lead_foes.png
++0.3 quit

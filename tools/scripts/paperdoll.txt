@@ -3,7 +3,7 @@
 #   embervale.exe --script tools/scripts/paperdoll.txt      (screenshots land in the working directory)
 # Layout (paperdoll.cpp): slot boxes 28 px, left column x 18 (HEAD 36, NECK 69, CLOAK 102, BODY 135, HANDS 168,
 # FEET 201), right column x 168 (WEAPON 36, SHIELD 69, BOW 102, STAFF 135, RING 168); the pack list at x 206, rows of
-# 24 px from y 112; EQUIP 206-330 and REMOVE 338-462 at y 238.
+# 24 px from y 112; EQUIP / TAKE OFF 206-330 and (another piece selected) TAKE OFF 338-462 at y 238.
 seed 7
 0.3  newgame                     # straight into play (no creator)
 0.4  hour 11
@@ -36,17 +36,21 @@ seed 7
 3.9  key Return
 4.0  key ]                       # turn the preview
 4.2  shot paperdoll_5_keys.png
-# touch: tap SHIELD, tap the first pack row (wears it), tap REMOVE, tap the CLOAK slot and its second row
+# touch: tap SHIELD, tap the first pack row (picks it) and EQUIP, tap TAKE OFF, tap the CLOAK slot, its second row, EQUIP
+# (M6 fixer r3: a row tap only picks; a second tap on the same row or the EQUIP button wears it)
 4.4  tap 182 83
-4.6  tap 300 124
+4.5  tap 300 124
+4.6  tap 260 250                 # EQUIP
 4.8  shot paperdoll_6_touch_shield.png
-5.0  tap 400 250                 # REMOVE
+5.0  tap 260 250                 # TAKE OFF (fixer r4: the worn piece selected shows one button, no REMOVE twin)
 5.2  expect slot shield 0
 5.4  shot paperdoll_7_touch_removed.png
-5.6  tap 300 124                 # wear the first shield again
+5.6  tap 300 124                 # pick the first shield again...
+5.7  tap 300 124                 # ...and a second tap on the row wears it
 5.8  expect slot shield 1
 5.9  tap 32 116                  # CLOAK
 6.1  tap 300 148                 # its second row
+6.2  tap 260 250                 # EQUIP
 6.4  shot paperdoll_8_touch_cloak.png
 6.8  key Escape
 7.0  expect mode play

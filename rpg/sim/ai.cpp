@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include "engine/audio.h"
+#include "rpg/sim/foes.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/war.h"
 #include "rpg/world/economy.h"
@@ -302,7 +303,18 @@ void Game::updateFolk(Actor& a, float dt) {
       if (l > reach) {
         // (M2) the watch runs when the bell rings: a big town's guards must reach the square before the beasts do harm
         const float chase = a.speed * (guard && ringing ? 1.6f : 1.2f);
-        if (!navStep(a, t.p, chase, dt)) {
+        const Vec2 before = a.p;
+        const bool stepped = navStep(a, t.p, chase, dt);
+        if (stepped && len2(a.p - before) < 1e-4f && l < reach + 14.0f) {
+          // (M6 fixer r2, rpg_test seed 36: two guards stood 21 px from their wolves for 30 s) wedged right beside the
+          // target: a beast standing inside a solid tile (the window streamed a prop in under it) steps out to open
+          // ground, and a target just past the reach of a guard who cannot close in is struck anyway (the step into the
+          // blow and the swing's own reach carry it)
+          const Map& mm = map();
+          if (mm.blocked(tileX(t.p), tileY(t.p))) { t.p = freeSpot(tileX(t.p), tileY(t.p)); t.navNext = -1; }
+          else if (a.atkCd <= 0) { a.st = AState::Windup; a.stT = 0; return; }
+        }
+        if (!stepped) {
           // no path (a wall, water or a house row in between): don't grind against it; give the target up for a
           // while unless it is right there
           if (l > 3.0f * TILE) { a.unreach = t.id; a.unreachT = 6.0f; a.target = -1; thinkClock = 0; a.st = AState::Idle; return; }
@@ -618,6 +630,27 @@ void Game::updateAI(Actor& a, float dt) {
   // dragon: its own dance
   if (a.mon == Monster::Dragon) {
     a.special -= dt;
+    // (M6 fixer) a world-boss dragon keeps to its territory: it gives up once the hero is well clear of its home
+    // (or once it has been drawn too far out), wings back to its roost, and only wakes again for a hero inside it.
+    // Ashfang (the story dragon) keeps the old chase.
+    if (a.rank == (uint8_t)foes::Rank::WorldBoss) {
+      const float territory = 22.0f * TILE;
+      const float pFromHome = len(p.p - a.home), meFromHome = len(a.p - a.home);
+      if (a.aggro && (pFromHome > territory || meFromHome > territory * 1.4f || p.st == AState::Dead)) a.aggro = false;
+      if (!a.aggro) {
+        if (dist < 260 && pFromHome <= territory && p.st != AState::Dead) a.aggro = true;
+        else {
+          a.fly = meFromHome > 2.0f * TILE;   // home is a short flight away
+          if (a.fly) {
+            Vec2 d = a.home - a.p;
+            a.p += norm(d) * std::min(len(d), 120.0f * dt);
+            a.face = d.x >= 0 ? 2 : 3;
+            a.st = AState::Walk;
+          } else if (a.st == AState::Walk) { a.st = AState::Idle; a.stT = 0; }
+          return;
+        }
+      }
+    }
     if (!a.aggro) { if (dist < 260) a.aggro = true; else return; }
     a.aim = norm(toP);
     a.face = toP.x >= 0 ? 2 : 3;
@@ -673,14 +706,18 @@ void Game::updateAI(Actor& a, float dt) {
   // sets you alight), the yeti slams like a troll (and its slam frosts you), the scorpion stings hard every third
   // blow, the lurker lies low and lunges from close by, the wisp kites and flickers and throws bolts of light, the
   // blightspawn shambles in and bursts spores round itself now and then
+  // (M6 FOES) the harpy circles like a pack hunter and dives on you (a swoop you roll through), and shrieks; the golem
+  // is a brute whose every second blow is the heavy ground slam
+  const bool harpy = a.mon == Monster::Harpy;
   const bool wolf = a.mon == Monster::Wolf || a.mon == Monster::IceWolf;
-  const bool pack = wolf || a.mon == Monster::Hyena || a.mon == Monster::EmberHound;
+  const bool pack = wolf || a.mon == Monster::Hyena || a.mon == Monster::EmberHound || harpy;
   const bool goblin = a.mon == Monster::Goblin;
-  const bool brute = a.mon == Monster::Bear || a.mon == Monster::Troll || a.mon == Monster::Yeti;
+  const bool golem = a.mon == Monster::Golem;
+  const bool brute = a.mon == Monster::Bear || a.mon == Monster::Troll || a.mon == Monster::Yeti || golem;
   const bool archer = a.ranged && a.human;
   const bool wisp = a.mon == Monster::Wisp;
   const bool kite = archer || wisp;
-  const float wu = a.heavy ? heavyWindup(a.mon) : a.windup;
+  const float wu = a.heavy ? heavyWindup(a.mon) : (harpy && a.lunge ? 0.5f : a.windup);   // (the harpy rises before the dive)
   // a blow at the current target only (the hound's fire bite, the scorpion's sting): in reach and in front
   auto hitTarget = [&](float mult, float extraReach, Ench e, float ep) -> bool {
     const Vec2 d = p.p - a.p;
@@ -742,7 +779,7 @@ void Game::updateAI(Actor& a, float dt) {
           a.atkCd = 1.5f + rng_.f() * 0.6f;
         } else if (a.lunge) {
           a.aim = norm(toP);
-          a.vel = a.aim * (a.mon == Monster::Lurker ? 260.0f : 235.0f);
+          a.vel = a.aim * (a.mon == Monster::Lurker ? 260.0f : harpy ? 270.0f : 235.0f);
           a.hitDone = false;
           a.atkCd = 0.8f + rng_.f() * 0.6f;
           sfx((int)Sfx::Swing, a.p, 0.7f);
@@ -798,7 +835,7 @@ void Game::updateAI(Actor& a, float dt) {
     } else if (pack) {
       // circle at a few strides, drifting in and out; the lunge comes from wherever the player isn't looking
       // (hyenas ring wider: the pack surrounds you before one darts in)
-      float orbitR = (a.mon == Monster::Hyena ? 46.0f : 38.0f) + (a.id % 3) * 5.0f;
+      float orbitR = (a.mon == Monster::Hyena ? 46.0f : harpy ? 54.0f : 38.0f) + (a.id % 3) * 5.0f;
       float radial = clampf((dist - orbitR) / 14.0f, -1.0f, 1.0f);
       mv = a.aim * radial + side * (0.95f * a.orbitDir);
       spd = 0.85f;
@@ -816,7 +853,7 @@ void Game::updateAI(Actor& a, float dt) {
       else mv = side * (0.6f * a.orbitDir);
       if (rng_.f() < dt * 0.4f) a.orbitDir = (int8_t)-a.orbitDir;
     } else if (dist > want) mv = a.aim;
-    if (a.mon == Monster::Bat || a.mon == Monster::Wraith || wisp) {   // erratic flight
+    if (a.mon == Monster::Bat || a.mon == Monster::Wraith || wisp || harpy) {   // erratic flight
       float w = std::sin(a.animT * 5 + a.id) * 0.8f;
       mv = mv + side * w;
     }
@@ -837,6 +874,15 @@ void Game::updateAI(Actor& a, float dt) {
       }
     } else a.st = AState::Idle;
     if (a.fleeing) return;
+    if (harpy && a.shootCd <= 0 && dist < 84.0f && a.st != AState::Windup) {
+      // the shriek: a scream that rattles whoever is close (a short slow); the harpy hangs in the air a moment
+      a.shootCd = 7.0f + rng_.f() * 3.0f;
+      emit(Ev::Text, a.p + Vec2(0, -24), (int)rgba(236, 200, 255), 0, "SHRIEK");
+      emit(Ev::Shake, a.p, 0, 1.5f);
+      sfx((int)Sfx::Roar, a.p, 2.3f, 0.7f);
+      if (p.player && !godMode && p.iframes <= 0) p.slowT = std::max(p.slowT, 1.4f);
+      a.atkCd = std::max(a.atkCd, 0.6f);
+    }
     bool inMelee = dist < a.range + p.radius + 2;
     bool inShot = a.ranged && dist < 150 && dist > 30;
     if (a.atkCd > 0) return;
@@ -850,7 +896,7 @@ void Game::updateAI(Actor& a, float dt) {
       }
       int slots = mates >= 2 ? 2 : 1;
       bool flank = dot(norm(a.p - p.p), p.aim) < 0.3f;
-      const float lungeMax = a.mon == Monster::Hyena ? 62.0f : a.mon == Monster::EmberHound ? 54.0f : 48.0f;   // (beyond the pack's ring)
+      const float lungeMax = a.mon == Monster::Hyena ? 62.0f : a.mon == Monster::EmberHound ? 54.0f : harpy ? 76.0f : 48.0f;   // (beyond the pack's ring)
       if (busy < slots && dist > 16 && dist < lungeMax && (flank || a.special > 0.7f)) {
         a.st = AState::Windup; a.stT = 0; a.lunge = true;
       } else if (inMelee && dist <= 16 && busy < slots) {
@@ -859,7 +905,7 @@ void Game::updateAI(Actor& a, float dt) {
       return;
     }
     if (brute) {
-      bool heavyNow = (a.atkN % 3 == 2) || rng_.f() < 0.15f;
+      bool heavyNow = golem ? (a.atkN % 2 == 1) : ((a.atkN % 3 == 2) || rng_.f() < 0.15f);
       if (inMelee || (heavyNow && dist < a.range + p.radius + 12)) { a.st = AState::Windup; a.stT = 0; a.heavy = heavyNow; }
       return;
     }
@@ -892,8 +938,10 @@ void Game::updateAI(Actor& a, float dt) {
 
 void Game::heavySlam(Actor& a) {
   // a ground slam in front of the brute: big damage and knockback, no cone check. Rolling through it is the answer.
-  Vec2 c = a.p + a.aim * 10.0f;
-  float r = 26.0f + a.radius;
+  // (M6) the golem's slam is wider: the ground cracks round its fists
+  const bool golem = a.mon == Monster::Golem;
+  Vec2 c = a.p + a.aim * (golem ? 12.0f : 10.0f);
+  float r = (golem ? 32.0f : 26.0f) + a.radius;
   for (Actor& v : actors) {
     if (v.id == a.id || v.st == AState::Dead || v.fly) continue;
     if (!(v.player || v.npc) || !factionsHostile(a.faction, v.faction)) continue;
@@ -901,9 +949,10 @@ void Game::heavySlam(Actor& a) {
     // (M3c) the yeti's slam is frost-bitten: it slows whoever it catches
     const bool yeti = a.mon == Monster::Yeti;
     damage(v, a.dmg * 2.1f * (0.9f + rng_.f() * 0.2f), a.p, a.id, yeti ? Ench::Frost : Ench::None, yeti ? 2.0f : 0.0f);
-    if (v.player && v.st != AState::Roll && v.iframes <= 0.36f) v.knock = norm(v.p - a.p) * 190.0f;
+    if (v.player && v.st != AState::Roll && v.iframes <= 0.36f) v.knock = norm(v.p - a.p) * (golem ? 230.0f : 190.0f);
   }
-  emit(Ev::Shake, c, 0, 4.5f);
+  emit(Ev::Shake, c, 0, golem ? 6.0f : 4.5f);
+  if (golem) for (int k = 0; k < 10; k++) emit(Ev::Dust, c + Vec2(std::cos(k * 0.628f) * r * 0.9f, std::sin(k * 0.628f) * r * 0.6f));
   for (int k = 0; k < 6; k++) emit(Ev::Dust, c + Vec2(std::cos(k * 1.047f) * r * 0.6f, std::sin(k * 1.047f) * r * 0.4f));
   sfx((int)Sfx::HitHeavy, a.p, 0.55f);
 }

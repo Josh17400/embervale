@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 #include "rpg/culture/culture.h"
+#include "rpg/sim/foes.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/story/story_internal.h"
@@ -187,6 +188,32 @@ std::string newsLine(const Game& g, const realm::WorldEvent& e, uint64_t voiceCu
     case EvType::Festival: core = S + " HOLDS A GREAT FESTIVAL. THE ALE RUNS IN THE STREETS"; break;
     case EvType::TroopsMarching: core = "COLUMNS OF " + A + " SOLDIERS ARE MARCHING ON THE ROADS NEAR " + S; break;
     case EvType::PricesRising: core = "PRICES ARE CLIMBING IN " + S + ": SALT, IRON, BREAD, ALL OF IT"; break;
+    // M6 Steel (FOES lane): the beast by name (its species in mag; foes::beastNameNear finds the world boss or named
+    // unique of that species that roams there)
+    case EvType::BeastRaid: case EvType::BeastSlain: {
+      // (M6 fixer r3) BeastSlain packs the rank and who killed it above the species (realm::Realm::beastSlain)
+      const bool slain = e.type == EvType::BeastSlain;
+      const int mon = slain ? (e.mag & 0xff) : e.mag;
+      const int rank = slain ? ((e.mag >> 8) & 7) : (int)foes::Rank::WorldBoss;
+      const bool byWanderer = !slain || (e.mag & 0x800) != 0;
+      std::string beast = g.world.src ? foes::beastNameNear(*g.world.src, mon, e.gx, e.gy, rank ? rank : -1) : std::string();
+      const std::string kind = mon >= 0 && mon < (int)art::Monster::COUNT ? foes::worldBossKind((art::Monster)mon) : "BEAST";
+      if (e.type == EvType::BeastRaid) {
+        if (beast.empty()) beast = std::string("A GREAT ") + kind;
+        static const char* const how[3] = {" CAME DOWN ON ", " FELL ON ", " TORE THROUGH "};
+        static const char* const after[3] = {" IN THE NIGHT AND LEFT IT BURNING", ". HALF THE ROOFS ARE GONE", ". THEY ARE STILL COUNTING THE DEAD"};
+        core = beast + how[h % 3] + S + after[(h >> 3) % 3];
+      } else {
+        const std::string where = std::string(" OUT IN THE ") + dirWord(e.gx - px, e.gy - py, false);
+        if (byWanderer)
+          core = beast.empty() ? "THEY SAY A GREAT BEAST HAS BEEN SLAIN" + where + ", AND BY A WANDERER NO LESS"
+                               : beast + " IS DEAD, SLAIN" + where + " BY A WANDERER. THEY'LL SING OF IT FOR YEARS";
+        else
+          core = beast.empty() ? "THEY SAY A GREAT BEAST HAS BEEN BROUGHT DOWN" + where + ". NOBODY KNOWS WHO DID IT"
+                               : beast + " IS DEAD, BROUGHT DOWN" + where + ". HUNTERS, SOLDIERS, NOBODY IS SURE WHO";
+      }
+      break;
+    }
     default: core = std::string(realm::evTypeName(e.type)) + " NEAR " + S; break;
   }
   const std::string when = agoWords(age);

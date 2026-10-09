@@ -609,6 +609,7 @@ const float kSfxTrim[(int)Sfx::COUNT] = {
   0.67f, 1.1f,                                              // Roar Splash
   0.8f,                                                     // Bell
   0.7f,  0.6f,  0.6f,  0.6f,                                // Bark Cluck Meow Cheer (M5 stand-ins)
+  0.78f, 0.8f,  1.2f,  0.66f,                               // HarpyShriek GolemSlam EliteSting BossRoar (M6; integration: +2 / +4 dB to clear the music by 6 dB, phone too)
 };
 
 void Audio::trigger(Sfx s, float k, float V) {
@@ -917,6 +918,45 @@ void Audio::trigger(Sfx s, float k, float V) {
       }
       add(NB(Noise, 0, 0.32f * V).env(0.06f, 0.7f).bp(1300 * r, 0.7f).am(7, 0.4f).send(0.4f));
       for (int i = 0; i < 10; i++) add(NB(Noise, 0, rnd(0.16f, 0.26f) * V).perc(0.025f).bp(rnd(1100, 1900), 1.3f).at(0.25f + 0.12f * (float)i + rnd(0, 0.06f)).send(0.3f));
+      break;
+    }
+    // M6 Steel (BEASTS lane): the new families and the ranked foes
+    case Sfx::HarpyShriek: {   // a raking scream: two buzzing voices through a high, shifting formant, wavering fast,
+                               // the pitch flung up then falling away, with a breathy rasp
+      const float r = k * rnd(0.94f, 1.06f);
+      add(NB(Saw, 860 * r, 0.26f * V).env(0.015f, 0.32f, 0.35f, 0.38f, 0.14f).vox(2300 * r, 3.2f).fenv(0.5f, 0.2f).vib(1.4f, 11.5f).pitch(0.55f, 0.07f).slide(-0.85f).drive(1.3f).send(0.35f));
+      add(NB(Square, 1290 * r, 0.11f * V).pw(0.22f).env(0.02f, 0.3f, 0.3f, 0.34f, 0.12f).vox(3200 * r, 4.0f).vib(1.8f, 13.0f).pitch(0.4f, 0.06f).slide(-1.0f).send(0.35f));
+      add(NB(Noise, 0, 0.22f * V).env(0.01f, 0.36f).bp(3300 * r, 1.8f).am(23, 0.5f).color(0.2f).send(0.3f));
+      add(NB(Saw, 430 * r, 0.10f * V).env(0.02f, 0.25f).vox(1100 * r, 2.0f).slide(-0.6f).at(0.02f));
+      break;
+    }
+    case Sfx::GolemSlam: {     // stone fists into the ground: a deep thump falling in pitch, a crunch of grinding rock,
+                               // the ground's rumble, then rubble pattering down
+      add(NB(Sine, 64 * k, 0.75f * V).env(0.002f, 0.45f).pitch(1.4f, 0.05f).slide(-0.7f));
+      add(NB(Noise, 0, 0.85f * V).env(0.003f, 0.28f).lp(760 * k, 0.9f).send(0.35f));
+      add(NB(Noise, 0, 0.9f * V).env(0.004f, 0.16f).bp(1300 * k, 1.1f).color(0.3f));   // (integration: the crunch carries on a phone)
+      add(NB(Saw, 46 * k, 0.30f * V).env(0.01f, 0.35f).lp(240, 1.0f).drive(1.6f));
+      add(NB(Sine, 34 * k, 0.3f * V).env(0.06f, 0.9f).send(0.3f));
+      for (int i = 0; i < 7; i++)
+        add(NB(Noise, 0, rnd(0.10f, 0.22f) * V).perc(0.03f).bp(rnd(1400, 3600) * k, 2.2f).at(0.10f + 0.055f * (float)i + rnd(0, 0.03f)).send(0.25f));
+      break;
+    }
+    case Sfx::EliteSting: {    // a dissonant swell (a minor second, low and dark) under a cold bell: something stronger is here
+      add(NB(Pad, 110 * k, 0.20f * V).env(0.22f, 0.7f, 0.0f, 0.55f, 0.4f).lp(900 * k, 1.3f).fenv(0.6f, 0.4f).send(0.5f));
+      add(NB(Pad, 116.5f * k, 0.17f * V).env(0.26f, 0.7f, 0.0f, 0.55f, 0.4f).lp(820 * k, 1.2f).send(0.5f));
+      add(NB(Sine, 55 * k, 0.30f * V).env(0.2f, 0.8f).send(0.3f));
+      add(NB(Fm, 880 * k, 0.11f * V).perc(1.3f).fm(3.5f, 3.0f, 0.4f).at(0.14f).send(0.6f));
+      add(NB(Fm, 932 * k, 0.06f * V).perc(1.1f).fm(2.76f, 2.0f, 0.3f).at(0.16f).send(0.6f));
+      add(NB(Noise, 0, 0.16f * V).env(0.3f, 0.4f).bp(1300 * k, 0.8f).send(0.5f));
+      break;
+    }
+    case Sfx::BossRoar: {      // a world boss: deep growling saws rising and falling, a rasping wall of breath, a sub that
+                               // drops away at the end (longer and lower than the dragon's Roar)
+      add(NB(Saw, 41 * k, 0.5f * V).env(0.22f, 1, 1, 1.8f, 0.7f).vib(3.5f, 0.3f).lp(380, 1.4f).bump(1.7f).am(24, 0.55f).drive(1.6f).slide(-0.15f).send(0.5f));
+      add(NB(Saw, 61.5f * k, 0.36f * V).env(0.25f, 1, 1, 1.75f, 0.7f).vib(3.5f, 0.3f).lp(560, 1.2f).bump(1.5f).am(29, 0.5f).drive(1.3f).send(0.5f));
+      add(NB(Saw, 83 * k, 0.42f * V).env(0.28f, 1, 1, 1.7f, 0.6f).vib(3.0f, 0.35f).vox(640 * k, 3).bump(0.9f).am(24, 0.6f).drive(1.6f).send(0.5f));
+      add(NB(Noise, 0, 0.8f * V).env(0.18f, 1, 1, 1.7f, 0.7f).bp(620 * k, 1.0f).bump(1.6f).am(19, 0.45f).color(0.75f).send(0.5f));
+      add(NB(Sine, 30 * k, 0.38f * V).env(0.25f, 1, 1, 1.7f, 0.9f).vib(3, 0.3f).slide(-0.3f));
       break;
     }
     case Sfx::COUNT: break;

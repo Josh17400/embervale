@@ -556,3 +556,98 @@ raids. Plus the leftover: the web seat-of-power entry hitch under EMB_WEBSIM=1.
   mirrored in rpg/sim/life_game.cpp (rpg_sim does not link rpg_art) and must follow art_life.cpp; occasional >16 ms
   building-paint steps on web seat entry (art::stepBuilding); no local clang/Emscripten compile (clang frontend parse
   via clang-tidy was clean).
+
+## M6, "Steel" (VISION_PLAN 13 M6, 7, 15.11, 15.19; owner notes 2026-10-08)
+
+Goal: arms, armour, items and enemies with real numbers and a strong look: item level and bands, level sync, the rarity
+budget, affixes, legendaries and attunement, mitigation, XP decay and the level-gap penalty, potion cooldown, merchant
+gold, the shop-band and quest-reward fixes; the universal tiers leather -> bronze -> iron -> steel with each culture's
+alloys on top, regional ores, crafting on the economy's own chains and learnable culture secrets; elites with affixes,
+champion packs, named uniques with rumours, boss phases, roaming world bosses that raid towns; soldiers and bandits in
+their culture's arms; harpies and golems; every culture's arms distinct on the paper doll and in the world.
+
+### Phase A (lead), 2026-10-08: done
+- The contracts are recorded in VISION_PLAN 15.19 (items.h, gear.h, craft.h, foes.h, gear_look.h, the art contracts,
+  View::itemTex / monsterTex, the Game hooks and Actor fields, SAVE_VER 12 / ENDLESS_GEN_VER 15, `rpg_test --gear`, the
+  M6 script commands). tools/slot.sh already existed. The M5 metrics baseline is tests/fixtures/metrics_m5.txt.
+
+### Phase B lanes (disjoint files; see the lead report for the briefs)
+- **numbers** (build_numbers): the 7.x numbers wired into play and tuned, shops / rewards / merchants, potions, the
+  loot audit and --power-curve, the crafting front end (forge dialogue + thin screen) and secret learning.
+- **foes** (build_foes): elites, champions, named uniques and rumours, boss phases, world bosses and raids, harpy and
+  golem behaviour and dens, soldiers and bandits in culture arms.
+- **arms** (build_arms): the ArmsStyle grammar on the rig (helms, bodies, shields, blades, polearms, bows, alloys and
+  sheens), culture item icons, the paper doll, the 10-culture armour gallery.
+- **beasts** (build_beasts): harpy and golem art, variant overlays, elite auras, the view of ranked foes (auras, name
+  plates, boss bars, scale), and the optional garrison tower / curtain wall polish.
+
+### Integration, 2026-10-09
+- Clean build of every target (MSVC, BDIR=build): 0 errors; the warnings are all C4244 int/float conversions (none
+  real). Fixes: Game::xpForNext() now returns gear::xpForNext; a dragon world boss no longer drops Ashfang's crown
+  and greatsword (a world boss's hoard instead); hud.cpp skips its bottom boss bar for world bosses (render.cpp draws
+  theirs at the top); audio_preview names the four M6 Sfx (static_assert on the table); the new Sfx clear the music by
+  6 dB on a phone (trims, midrange in BossRoar / GolemSlam); the duplicate `bossphase` script command (BEASTS and
+  FOES both registered one, so which ran depended on static-init order) is split: FOES' is now `bosshp <pct>`;
+  `kit6` / `gear6 equip` no longer leave a stale look when attunement refuses a legendary; foeStep warms named
+  uniques / world bosses one cold generator per tick (9-25 at once hitched a step by 40-80 ms); CI runs
+  --power-curve, --loot-audit, --foes 1..3 and --arms 1..3.
+- Verified: rpg_test --seeds 1..20 20/20; save_test ALL OK; goldens (8 / 39 / 201) ok; 0 failures in --endless,
+  --towns (alone; under load its 25 ms build budget trips), --window (alone), --realm, --history, --wards, --story,
+  --life, --folk, --gear, --quests, --mainquest, --cultures, --builder --strict, --biomes --strict, --forest,
+  --specialties, --foes, --arms, --power-curve, --loot-audit, 7 / 99 / 12345 --secs 60; all 131 tools/scripts exit 0;
+  audio_preview all checks passed; art_hash TOTAL dc421234dd3f2fe6 unchanged.
+- Open: `--metrics` vs M5 fails 2 of 8 lines (first level-up +35 %, level-3 wolf deaths 17 -> 5 %): an owner call on
+  the 7.x numbers (enemy damage x1.09 / +4 HP per level) or a re-recorded baseline; cold world-boss generation can
+  still cost ~35 ms in one step (far macro sampling); steel kits of Highland / Marsh / River read alike; no local
+  clang/Emscripten compile (manual portability review only).
+
+### Finish fixer (round-3 review), 2026-10-09
+- **First-hour numbers (decision).** Owner direction: a slow rags-to-riches economy, but the first hour must feel like
+  M5. The economy (prices, shops, loot bands, xpForNext from level 3 on) is untouched; two early-only dials bring the
+  `--metrics` gate back inside +-10 % of M5: `gear::earlyXpMul` (kill XP x1.35 at level 1, x1.15 at level 2, x1 after;
+  the game's kill XP and `gear::killXp` both apply it; xpForNext(1) stays 120) and the **early bite** in
+  `gear::enemyDamageMul` (+0.09 a level for the first four levels above 1, then held: D 3 x1.36, D 5 x1.72, D 50
+  x5.77 vs x5.41). Result: first level-up 204 s vs M5 192 (+6 %), 3 wolves died 25 / 12.5 / 7.5 % vs 25 / 17 / 12
+  (gate PASS); --power-curve and --loot-audit unchanged in outcome (0 failures).
+- Soldiers: every people's common soldier wears its SIGNATURE helm and body (census::dress, looks.cpp table): fjord
+  horns, highland bonnet (no helm), heartland nasal, imperial crest, dune aventail, steppe spired spangenhelm in
+  lamellar, marsh boiled-leather kettle, jade mask, river bright kettle in brigandine, sun-temple plume, sylvan crest
+  over leaf, starspire wings; dark hose so the legs part from the harness. The town watch wear the short cape (the
+  long livery cloak is the royal guard's).
+- Monster overlays: plates on an upright beast (troll, golem, yeti, the humanoids) are a mantle fitted to its own
+  outline (pauldrons, a gorget, lames parallel to the contour, its own top-left light, a cast shadow; no belly strap);
+  quadrupeds keep the saddle plates. Harpy: a pale cool skin ramp, a violet-black mane, a dark pupil, a smaller hair
+  crown so the face shows.
+- Ground and props: a mountain town's snowline cover no longer lies on swept streets and squares (only the deepest
+  cover in the truly cold lands); village dirt paths take the paved streets' organic edge; snowed flat decks lie in
+  wind drifts; plain stall cloth (booth roof and awning) shows sewn widths, billows and a sag.
+- test_gear's trust check opens the shop through the dialogue (Game::openShop is private: rpg_test did not compile).
+- Open: foeStep's worst step on a 56 s overland walk is ~10 ms native (was 18): one cold region generation per tick is
+  now the floor; a split generator would be the next step. The imperial watch's scutum still covers most of the figure
+  at 1x.
+
+### Finish fixer round 2, 2026-10-09
+- **WYRM (must).** The draw scale is always 1, so scalePct never enlarged anything: a world-boss lurker is now the
+  GREAT form (art::MO_GREAT, set by foes::variantFor): the lurker painted at 1.75x native in its own 78x30 cell
+  (art::lookCellW / lookCellH; render.cpp sizes every beast by its look), standing high on straight legs with the head
+  carried up, a keeled double crest, a pale banded belly, in a blackwater-slate hide with a bone crest, horns and burning
+  eyes (no plates or moss). The script's `beast ... worldboss` takes the game's rank scale and form (was 200%).
+- Overlays fit the body (art::overlaysFit, inline in art_monsters.h, applied by the painter and variantFor): a wisp
+  takes only ember / rime, a slime no horns, plates, spikes or mask, bat / harpy no plates or horns, the shelled
+  crawlers no horns or plates.
+- Quadruped plates are a caparison fitted to the back contour (tapered rounded ends, lames across, lit spine, rivets,
+  leather trim with brass, cast shadow, girth strap).
+- Bandits wear their people's own poor kit (looks.cpp table: fur hat, bonnet, greenwood hood, leather crest, turban,
+  leather spangenhelm, marsh hood, straw hat, bandana, plumed leather cap, circlet, cowl; padded or leather in the
+  land's cloth; their own shield or none; a few keep a looted iron helm).
+- Soldiers of dark skin with hair no lighter go clean-shaven (the sun-temple black face); the plumed helm's plume is an
+  upright fan, not a brow band.
+- Snowed stalls lie in per-stall drifts (setMarketSnow seed): a lit lip, soft mounds and hollows, a pooled sag.
+- A worn padded coat or brigandine is the maker's cloth (as its icon); quilting is vertical channels plus a waist
+  stitch, never the ramp's near-black; no studs on padding.
+- foeStep makes cold named-unique regions and world-boss cells on a worker thread with its own generator (results in
+  foes.cpp's memo); the web build keeps the one-slice-a-tick path. endless_walk --perf: foes no longer in the worst
+  steps (worst step realm 2.1 ms; was foes 16-30 ms).
+- Script header: the phone hamburger is at 581 12; tools/scripts/m6_menu_tap_phone.txt opens the menu by tap and shows
+  the worn gambeson. gear.cpp turns off FP contraction by source pragma on clang/GCC (no flag changes).
+- Open: still no clang/Emscripten compile on this machine.

@@ -14,6 +14,7 @@
 #include "rpg/sim/appearance.h"
 #include "rpg/sim/backgrounds.h"
 #include "rpg/sim/common.h"
+#include "rpg/sim/craft.h"
 #include "rpg/sim/explored.h"
 #include "rpg/sim/factions.h"
 #include "rpg/sim/items.h"
@@ -24,7 +25,8 @@
 #include "rpg/story/story.h"
 
 // Creator: the character creator after NEW GAME (the world exists; the player picks looks and a background).
-enum class Mode : uint8_t { Title, Play, Dialogue, Menu, Shop, LevelUp, Dead, Paused, Creator };
+// Forge (M6): the crafting screen at a workstation (Game::bench; rpg/view/craft_ui.cpp draws it, the NUMBERS lane).
+enum class Mode : uint8_t { Title, Play, Dialogue, Menu, Shop, LevelUp, Dead, Paused, Creator, Forge };
 
 // Game::storyFlags bits (saved, SAVE_VER 3). Bits 8..31 are free: define them next to the code that owns them,
 // with a comment here when they become permanent.
@@ -128,6 +130,24 @@ struct Actor {
   uint32_t lifeBits = 0;
   float lifeT = 0;
   int lifeA = -1, lifeB = -1;
+  // M6 Steel (never saved; rpg/sim/foes.h, FOES lane fills them in foeSpawned). rank: foes::Rank; affixes: foes::Affix
+  // bits; overlays / bodyTint / scalePct: its art::MonsterLook (variant overlays, recolour, draw scale; the view draws
+  // monsterSheetLook and the aura from these); bossPhase: dungeon-boss phases passed (0, 1 at 66 %, 2 at 33 %);
+  // affixT / affixT2: affix timers (summoner, blinking, burning trail...); unique: a named unique's or world boss's id
+  // (0 none); pack: champion pack id (members share affixes; 0 none); culture: the cult::CultureId whose arms it wears
+  // and whose make its loot is (soldiers, guards, bandits; 0 the land's own); dropD: the danger its loot rolls at (0:
+  // its level)
+  uint8_t rank = 0;
+  uint16_t affixes = 0;
+  uint16_t overlays = 0;
+  uint32_t bodyTint = 0;
+  uint8_t scalePct = 0;
+  uint8_t bossPhase = 0;
+  float affixT = 0, affixT2 = 0;
+  ew::Gid unique = 0;
+  int pack = 0;
+  uint64_t culture = 0;
+  int dropD = 0;
 };
 
 enum class ProjKind : uint8_t { Arrow, Fireball, IceSpike, Spit, Magic, DragonFire };
@@ -148,6 +168,8 @@ struct Pickup {
   int gold = 0;
   float t = 0;
   bool magnet = false;     // already flying to the player (sound played)
+  bool full = false;       // (M6 fixer r2) a potion left lying because the belt is full: no magnet until there is room
+  bool told = false;       // the "no more than 10 potions" notice was given for this approach (reset when walked away)
 };
 
 // WindowShift (M1): the endless world's Active Window moved; p is the pixel offset every overworld position just got
@@ -220,6 +242,9 @@ struct DlgOpt { std::string label; int action = 0; int arg = 0; };
 constexpr int DLG_STORY = 1000, DLG_WAR = 2000, DLG_END = 3000;
 // M5: the townsfolk's options (feed, employ, supply, befriend, the inn's meal; rpg/sim/life_game.cpp lifeChoose)
 constexpr int DLG_LIFE = 3000, DLG_LIFE_END = 4000;
+// M6 Steel: the foes' talk (innkeepers' warnings of named uniques and world bosses; rpg/sim/foes_game.cpp foeChoose) and
+// the forge's (smelting, smithing, tanning, apprenticeship, learning secrets; rpg/sim/craft_game.cpp craftChoose)
+constexpr int DLG_FOES = 4000, DLG_CRAFT = 4500, DLG_M6_END = 5000;
 struct Dialogue {
   int actor = -1;
   std::string speaker, text;
@@ -395,6 +420,10 @@ class Game {
   // ---- M5 Hearth and Hall (rpg/sim/life.h): the census, needs, plans, moods and the player's buffs (CITIZENS lane;
   //      saved: the life block), and the townsfolk's actors (rpg/sim/life_game.cpp, TOWNSFOLK lane)
   life::Life life;
+  // ---- M6 Steel: the player's smithing skill, learned culture secrets and apprenticeship trust (rpg/sim/craft.h; NUMBERS
+  //      lane; saved: the craft block, SAVE_VER 12)
+  craft::Knowledge craft;
+  craft::Bench bench;          // the forge screen's state (Mode::Forge; UI-facing, never saved)
   // apply the realm to the loaded world now (owners and banners of every loaded settlement, the news): scripts and tests
   // call it after forcing a realm change; realmStep calls it whenever the realm changed (realm_game.cpp)
   void realmSync();
@@ -431,7 +460,7 @@ class Game {
   float armorRating() const;
   float weaponDamage() const;
   // first level in ~4 min, level 5 in ~30 (PLAN.md targets; measured by rpg_test --metrics)
-  int xpForNext() const { return 120 + (plLevel - 1) * 100 + (plLevel - 1) * (plLevel - 1) * 14; }
+  int xpForNext() const { return gear::xpForNext(plLevel); }   // (M6) the tuned curve (rpg/sim/gear.cpp)
   const Quest* questById(int id) const;
   bool questTarget(int qid, int& tx, int& ty) const;   // overworld tile of the tracked quest's objective
   uint64_t npcKey(const Actor& a) const;
@@ -479,6 +508,10 @@ class Game {
     int hostiles = 0;                  // monsters and bandits in `actors`
     int activeSites = 0;               // settlements and camps whose people are streamed in
     int spawnedNpcs = 0, despawnedNpcs = 0;   // people streamed in / out so far
+    // (M6 fixer) the worst ms of each world subsystem's step since --perf last reset them (once a second): the
+    // systems a hitch can hide in (names: perfSysName)
+    enum Sys { S_QUEST, S_REALM, S_WAR, S_STORY, S_LIFESTEP, S_RAID, S_FOE, S_LIFETICK, S_SPAWN, S_COUNT };
+    double sysWorstMs[S_COUNT] = {};
   };
   PerfCounters perf;
   static constexpr int FOLK_CAP = 80;          // townsfolk streamed in at once (nearest first)
@@ -508,6 +541,8 @@ class Game {
   bool streamThreads = true;           // false: stream as the web build does (no worker; frameWork generates); tests
   void debugSpawn(art::Monster m, int n, float dist);
   int debugSpawnAt(art::Monster m, Vec2 at, int level);   // returns the actor id (already aggro)
+  // (M6 fixer r2) a free spot with every tile within `rad` of it free too (a big body: a world boss is not stood on a wall)
+  Vec2 freeSpotClear(int tx, int ty, int rad) const;
   void debugFell(int actorId, bool byPlayer = false);   // tests: an actor falls as if a monster struck it down (no killer), or as the player's kill
   void debugKit();                     // the pre-M0 starting kit (iron sword, hunting bow, 20 arrows, 3 potions, bread),
                                        // equipped: for fight scripts and bots once the real start is shirt-only
@@ -717,11 +752,40 @@ class Game {
   //   CITIZENS (rpg/sim/life_quests.cpp): radiant quests from unmet needs ("THE BAKER HAS NO FLOUR"). hasOffer /
   //   makeOffer ask it first: true = this NPC offers `q` (filled in)
   bool lifeOffer(const Actor& npc, Quest& q) const;
+  // ---- M6 Steel hooks (VISION_PLAN 7, 15.11). Called from the core loop and DEFINED in the lane's own file.
+  //   FOES (rpg/sim/foes_game.cpp): elites, champion packs, named uniques, boss phases, world bosses, soldiers' and
+  //   bandits' culture arms.
+  //   a monster or a bandit just came into play (end of spawnMonster / spawnHuman for bandits, after applyLevel): roll its
+  //   rank and affixes, set its variant look, name and stats. D: the danger it was spawned at (its level)
+  void foeSpawned(Actor& a, int D);
+  //   once per update step (after raidStep): affix behaviours (summoner, blinking, burning trail, warded, regenerating,
+  //   frenzied), boss phases, champion packs, named uniques near the player, roaming world bosses and their raids
+  void foeStep(float dt);
+  bool foeWarmedTick_ = false;   // (M6 fixer r3) foeStep generated a cold region or kingdom cell this tick (one per tick)
+  //   (M6 fixer r2) generate the named uniques' regions and the world bosses' kingdom cells round the player now (a new
+  //   game's start, behind the loading): each cold one costs a frame hitch of tens of ms when foeStep meets it in play
+  void foeWarm();
+  //   a blow is about to land on `victim` (damage(), after armour): returns the damage to apply (warded, armoured...) and
+  //   applies on-hit effects (vampiric healing, frost-bound slows, the volatile's...). attacker: actor id or -1
+  float foeHit(Actor& victim, float dmg, int attacker);
+  //   something died (kill(), before the loot drops): splitting, volatile, a named unique or world boss slain (marks,
+  //   news, the realm's BeastSlain)
+  void foeKilled(const Actor& a, int killer);
+  //   talkTo: innkeepers and guards warn of the named uniques and world bosses near (options in [DLG_FOES, DLG_CRAFT))
+  void foeTalk(Actor& a);
+  bool foeChoose(const DlgOpt& o);
+  //   NUMBERS / FORGE (rpg/sim/craft_game.cpp): the smith's, smelter's and tanner's work and lessons as dialogue options
+  //   in [DLG_CRAFT, DLG_M6_END) (smelt, forge, tan, apprentice, study a foreign piece, steal patterns), and the forge
+  //   screen they may open
+  void craftTalk(Actor& a);
+  bool craftChoose(const DlgOpt& o);
   // the TOWNSFOLK lane's own runtime state (route caches, seat reservations, chat pairs...): defined in life_game.cpp
   // (shared: Game stays copyable; never saved)
   struct LifeRuntime;
   std::shared_ptr<LifeRuntime> lifeRt_;
   friend struct LifeOps;               // M5 TOWNSFOLK: the actors' internals (life_game.cpp)
+  friend struct FoeOps;                // M6 FOES: the foes' internals (foes_game.cpp)
+  friend struct CraftOps;              // M6 NUMBERS / FORGE: crafting's internals (craft_game.cpp)
   // quests (quests.cpp)
   std::string pendingPitch_;           // the spoken offer (first person) for pendingOffer_
   int pickRadiant(SiteType t, int32_t gx, int32_t gy, Rng& r, bool& danger, int exclude = -1);

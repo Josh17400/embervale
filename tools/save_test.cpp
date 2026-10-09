@@ -1,9 +1,10 @@
 // Save-format checks for the CURRENT save version only (owner, 2026-10-04: old saves are not a concern; an older save
-// is refused and the title offers a new game). M5: SAVE_VER 11 (the layout of 10 plus the life block after the story
+// is refused and the title offers a new game). M6: SAVE_VER 12 (items gain level, material, culture, affixes, unique power;
+// the craft block after the life block; ENDLESS_GEN_VER 15). M5: SAVE_VER 11 (the layout of 10 plus the life block after the story
 // block; ENDLESS_GEN_VER 14). M4: SAVE_VER 10 (the realm and story blocks after the marks). The CITIZENS lane owns this
 // file and the fixture in M5.
 //   save_test [fixtureDir]           run every check
-//   save_test --make-fixture out.bin write tests/fixtures/save_v11.bin: an endless game (seed 5150) with a created
+//   save_test --make-fixture out.bin write tests/fixtures/save_v12.bin: an endless game (seed 5150) with a created
 //                                    character, the innkeeper's job taken, bot play, a looted chest, the M2 fields
 //                                    (marks, a quest's subject / flags / deadline, a rumoured site), saved outdoors.
 //                                    Regenerate it whenever the layout changes on purpose, and paste the printed FIX6
@@ -22,6 +23,7 @@
 #include <string>
 #include <vector>
 #include "rpg/sim/game.h"
+#include "rpg/sim/gear.h"
 #include "rpg/world/source.h"
 
 namespace {
@@ -218,6 +220,25 @@ void addM5Facts(Game& g) {
     g.life.forceFamine(sv, g.day, FIX_FAMINE_DAYS);
   }
 }
+// M6 (SAVE_VER 12): a legendary culture spear with affixes, a stack of ore, the smith's knowledge
+constexpr uint64_t FIX_CULT = (1ull << 60) | (3ull << 46) | (5ull << 32);   // cult::familyId(3, 5)
+constexpr int FIX_SKILL = 237, FIX_SECRET = 60, FIX_TRUST = 42, FIX_ORE = 7;
+constexpr uint64_t FIX_SMITH = 0xABCDEF12345ull;
+void addM6Facts(Game& g) {
+  Rng r(77);
+  Item it = gear::makeGear(r, ItemKind::Weapon, (int)WeaponType::Spear, 12, Rarity::Legendary, FIX_CULT, Mat::Steel);
+  it.name = "FIXTURE SPEAR";
+  it.affix[0] = {Affix::FireDmg, 8};
+  it.affix[1] = {Affix::CritChance, 5};
+  it.unique = Unique::ChainLightning;
+  it.form = 2;
+  it.flags = IF_CRAFTED;
+  g.inv.push_back(it);
+  g.inv.push_back(craft::makeStuff(craft::Stuff::IronOre, FIX_ORE));
+  g.craft.skill = FIX_SKILL;
+  g.craft.advance(FIX_CULT, 1, craft::SecretKind::AlloyRecipe, FIX_SECRET, craft::HOW_RUINS);
+  g.craft.trust[FIX_SMITH] = FIX_TRUST;
+}
 int makeFixture(const char* out) {
   Game g(FIX_SEED);
   g.newEndlessGame(FIX_SEED);
@@ -226,6 +247,7 @@ int makeFixture(const char* out) {
   addM2Facts(g);
   addM4Facts(g);
   addM5Facts(g);
+  addM6Facts(g);
   if (g.inside) { printf("the fixture must be saved outdoors\n"); return 1; }
   std::vector<uint8_t> buf;
   g.serialize(buf);
@@ -240,7 +262,7 @@ int makeFixture(const char* out) {
 }
 // values printed by --make-fixture (format-level facts only)
 struct Fix6 { int level, xp, gold; size_t inv, quests, looted; int kills, ox; float px, py; int oy; float hour; int day; };
-constexpr Fix6 FIX6 = {1, 20, 71, 8, 3, 3, 0, 0, 2792.000f, 2328.000f, -192, 14.592f, 3};
+constexpr Fix6 FIX6 = {1, 20, 71, 10, 3, 3, 0, 0, 2792.000f, 2328.000f, -192, 14.592f, 3};
 
 }  // namespace
 
@@ -256,7 +278,7 @@ int main(int argc, char** argv) {
 
   // ---- 1. the fixture
   std::vector<uint8_t> fx;
-  if (!readFile(dir + "/save_v11.bin", fx)) check(false, "cannot read tests/fixtures/save_v11.bin");
+  if (!readFile(dir + "/save_v12.bin", fx)) check(false, "cannot read tests/fixtures/save_v12.bin");
   else {
     check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
     Game g(1);
@@ -307,6 +329,21 @@ int main(int argc, char** argv) {
     check(lc && (lc->res[(size_t)FIX_DEAD].flags & life::RF_DEAD) && grieving > 0, "fixture life: a death in the start village and its grief");
     check(lc && lc->famineUntil == FIX6.day + FIX_FAMINE_DAYS && lc->stock[(size_t)ew::Good::Bread] == 0,
           "fixture life: the famine felt in the start village's streets");
+    // M6 (SAVE_VER 12): the item fields and the craft block
+    const Item* sp = nullptr;
+    int ore = 0;
+    for (const Item& it : g.inv) {
+      if (it.name == "FIXTURE SPEAR") sp = &it;
+      if (craft::isStuff(it, craft::Stuff::IronOre)) ore += it.count;
+    }
+    check(sp && sp->kind == ItemKind::Weapon && sp->sub == (uint8_t)WeaponType::Spear && sp->ilvl == 12 && sp->mat == Mat::Steel &&
+              sp->culture == FIX_CULT && sp->form == 2 && sp->rarity == Rarity::Legendary && sp->unique == Unique::ChainLightning &&
+              sp->affixValue(Affix::FireDmg) == 8 && sp->affixValue(Affix::CritChance) == 5 && sp->affixCount() == 2 && (sp->flags & IF_CRAFTED),
+          "fixture M6 item: level, material, culture, form, rarity, unique power, affixes, flags (SAVE_VER 12)");
+    check(ore == FIX_ORE, "fixture M6 material stack (SAVE_VER 12)");
+    check(g.craft.skill == FIX_SKILL && g.craft.progress(FIX_CULT, 1, craft::SecretKind::AlloyRecipe) == FIX_SECRET &&
+              g.craft.trust.count(FIX_SMITH) && g.craft.trust.at(FIX_SMITH) == FIX_TRUST,
+          "fixture craft block: skill, a secret's progress, a smith's trust (SAVE_VER 12)");
   }
 
   printf("%s\n", "2. round trips");
@@ -319,6 +356,7 @@ int main(int argc, char** argv) {
     addM2Facts(g);
     addM4Facts(g);
     addM5Facts(g);
+    addM6Facts(g);
     roundTrip(g, ("endless seed " + std::to_string(s) + " after play").c_str());
     // a long walk east (many window shifts), then save far from home
     g.noWildSpawns = true;
@@ -473,6 +511,7 @@ int main(int argc, char** argv) {
     n.serialize(b);
     auto patched = [&](size_t at, uint32_t v) { std::vector<uint8_t> c = b; for (int k = 0; k < 4; k++) c[at + k] = (uint8_t)(v >> (8 * k)); return c; };
     Game x(1);
+    check(!x.deserialize(patched(4, 11)) && Game::saveVersion(patched(4, 11)) == 11, "accepted (or misread) a SAVE_VER 11 (M5) save");
     check(!x.deserialize(patched(4, 7)) && Game::saveVersion(patched(4, 7)) == 7, "accepted (or misread) a SAVE_VER 7 save");
     check(!x.deserialize(patched(4, 6)) && Game::saveVersion(patched(4, 6)) == 6, "accepted (or misread) a SAVE_VER 6 save");
     check(!x.deserialize(patched(4, 5)) && Game::saveVersion(patched(4, 5)) == 5, "accepted (or misread) a SAVE_VER 5 save");

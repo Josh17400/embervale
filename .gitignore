@@ -4,3 +4,8 @@ site/
 *.png
 !web/*.png
 !assets/**/*.png
+
+# stray tool output / agent worktrees
+*.wav
+/--*/
+/.claude/worktrees/

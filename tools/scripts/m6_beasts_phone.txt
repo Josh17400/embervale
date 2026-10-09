@@ -1,0 +1,21 @@
+# M6 BEASTS lane: the ranked foes' plates and a world boss's bar at the iPhone review size with the touch layout on
+# (the bar sits between the vitals and the minimap column; plates stay clear of the HUD column and the touch cluster).
+#   embervale.exe --script tools/scripts/m6_beasts_phone.txt     (m6_beasts_phone_*.png in the working directory)
+seed 7
+phone
+0.3  newgame
++0.1 god 1
++0.05 touch 1
++0.05 hour 15
++0.1 goto ruin
++1.5 log away from town
++0.2 beast golem 1 worldboss name STONEFATHER tint crystal eyes hp 60 at 90 10
++0.1 beast wolf 3 champion swift burning still at -70 -20
++0.1 beast harpy 1 named vampiric frostbound still name SATHRA_THE_UNBOWED at 30 -60
++1.0 shot m6_beasts_phone_boss.png
++0.05 expect beasts bossbar plates 1
++0.05 bossphase 1
++0.6 shot m6_beasts_phone_phase.png
++0.05 hour 23
++0.6 shot m6_beasts_phone_night.png
++0.3 quit

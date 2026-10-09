@@ -1,0 +1,18 @@
+# M6 FOES: soldiers in their culture's arms (VISION_PLAN 7.6, 15.11). Four cultures side by side: a soldier (the
+# culture's helm, body, shield and polearm forms), a captain (its finest alloy's colour and sheen) and a bandit (the
+# poor local version: leathers, a looted helm, odd pieces). Then the watch of a far culture's own city.
+#   embervale.exe --script tools/scripts/m6_foes_soldiers.txt     (m6_foes_soldiers_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.2 gotoeco meadow
++0.8 arms4
++0.5 shot m6_foes_soldiers_1_lineup.png
++0.1 arms4 highland imperial marsh suntemple
++0.5 shot m6_foes_soldiers_2_lineup.png
++0.3 gotoculture dune city
++4.0 shot m6_foes_soldiers_3_dune_city.png
++0.3 gotoculture jade city
++4.0 shot m6_foes_soldiers_4_jade_city.png
++0.3 quit

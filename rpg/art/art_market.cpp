@@ -136,6 +136,7 @@ int litK(float l, int a, int b) {
 // (fixer M5 r3, review: "market stalls in a snowy village have no snow") while a snowy prop is painted, every surface
 // that faces up at or above this height (model z) lies under snow (setMarketSnow; 1e9: none)
 thread_local float g_snowZ = 1e9f;
+thread_local uint32_t g_snowSeed = 0;
 template <class F>
 void quad(M3& m, float u0, float v0, float z0, float au, float av, float az, float bu, float bv, float bz, float nu, float nv, float nz, F&& col,
           float bias = 0) {
@@ -144,6 +145,12 @@ void quad(M3& m, float u0, float v0, float z0, float au, float av, float az, flo
   const float la = std::sqrt(au * au + av * av + az * az), lb = std::sqrt(bu * bu + bv * bv + bz * bz);
   const int ns = std::max(1, (int)std::ceil(la * 2.6f)), nt = std::max(1, (int)std::ceil(lb * 2.6f));
   const bool snowy = g_snowZ < 1e8f && nz > 0.42f * std::sqrt(nu * nu + nv * nv + nz * nz);
+  // (M6 fixer round 2, review: "snowed stall canopies are flat white sheets, identical side by side") the snow lies as
+  // a cushion with drifts: a rounded, lit lip a little in from the edges, two or three soft mounds and hollows across
+  // the sheet (a low-frequency field over the surface, lit crests, blue-grey hollows), a sag pooling in the middle,
+  // and every stall its own (g_snowSeed); no per-pixel speckle
+  const uint32_t ss = g_snowSeed * 2654435761u + 7723u;
+  const float offS = (float)(ss & 15u) * 1.7f, offT = (float)((ss >> 4) & 15u) * 1.3f;
   for (int i = 0; i <= ns; i++)
     for (int j = 0; j <= nt; j++) {
       const float s = (float)i / ns, t = (float)j / nt;
@@ -156,8 +163,13 @@ void quad(M3& m, float u0, float v0, float z0, float au, float av, float az, flo
         if (!(edge && hash3((int)std::floor(uu * 1.7f), (int)std::floor(vv * 1.7f), 7717) % 3u == 0)) {
           // the slope's own light (the lit slope near white, the shaded one blue-grey), a soft drift texture
           int k = std::clamp(litK(l - 0.04f, i, j), 1, 4);
-          if (k > 1 && hash3((int)std::floor(uu * 0.9f), (int)std::floor(vv * 1.3f), 7719) % 6u == 0) k--;
-          cc = kSnow[k];
+          const float rim = std::min(std::min(s, 1.0f - s), std::min(t, 1.0f - t));
+          const float drift = vnoise(s * 2.6f + offS, t * 2.0f + offT, ss) * 0.75f + vnoise(s * 5.2f + offT, t * 4.1f + offS, ss + 5u) * 0.25f;
+          const float sag = (s - 0.5f) * (s - 0.5f) + (t - 0.5f) * (t - 0.5f);
+          if (rim < 0.16f && rim > 0.05f) k++;              // the rounded lip, lit
+          else if (drift > 0.60f) k++;                      // a drift's crest
+          else if (drift < 0.34f || sag < 0.018f) k--;      // a hollow, the sag pooled in the middle
+          cc = kSnow[std::clamp(k, 1, 4)];
         }
       }
       m.plot(u0 + s * au + t * bu, v0 + s * av + t * bv, z0 + s * az + t * bz, cc, bias);
@@ -889,9 +901,13 @@ void clothRoof(M3& m, const Awn& A, int awning) {
          if (!A.striped) {   // a plain cloth: sewn widths (seams down the slope) and a hem in the trim colour
            // (a side profile: the hem on the low edge only, so the long cloth never reads as a framed panel)
            if ((!g.side && (s < 0.035f || s > 0.965f)) || t < 0.08f) return RB[t < 0.04f ? 1 : 2];
-           if (((int)std::floor(u + 1.0f)) % 8 == 0) ll -= g.side ? 0.16f : 0.09f;
+           if (((int)std::floor(u + 1.0f)) % 8 == 0) ll -= g.side ? 0.16f : 0.15f;
            // (a side profile) the widths sag a little between the seams: a soft shade by each seam, the light between
-           if (g.side) ll -= 0.06f * std::fabs(std::cos((u + 1.0f) * 3.14159f / 8.0f));
+           // (M6 finish fixer, review: "the right half of a double stall's canopy is one flat tan rectangle with no
+           // stripes, folds or shading") a front-facing plain cloth billows the same way: each sewn width a soft
+           // ridge lit in its middle and shaded toward its seams, and the cloth sags deeper between the spars
+           ll -= (g.side ? 0.06f : 0.10f) * std::fabs(std::cos((u + 1.0f) * 3.14159f / 8.0f));
+           if (!g.side) ll -= std::sin(t * 3.14159f * 2.0f) * 0.05f;
          }
          return cloth(u)[t > 0.95f ? 4 : litC(ll, (int)(s * 50), (int)(t * 25))];
        });
@@ -1063,6 +1079,15 @@ void sideBoothRoof(M3& m, int awning, const Ramp& S) {
         const Awn A = awningOf(awning);
         const bool alt = A.striped && (((int)std::floor(u)) / 4) % 2 == 1;
         float lc = l + (fromRidge < 0.9f ? 0.12f : 0.0f) + (((int)std::floor(fromRidge)) % 5 == 4 ? -0.06f : 0.0f);
+        if (!A.striped) {
+          // (M6 finish fixer, review: "the right half of a double market-stall canopy is one flat tan rectangle with
+          // no stripes, folds or shading") a plain cloth shows its make: sewn widths (a shaded seam every 8 px), each
+          // width billowing (lit along its middle, shaded toward its seams), a deeper sag halfway down the slope
+          const float uu = u + 1.0f;
+          lc -= 0.11f * std::fabs(std::cos(uu * 3.14159f / 8.0f));
+          if (((int)std::floor(uu)) % 8 == 0) lc -= 0.12f;
+          lc -= 0.05f * std::sin(std::clamp(fromRidge / std::max(1.0f, len), 0.0f, 1.0f) * 3.14159f);
+        }
         return (alt ? ramp(A.b) : ramp(A.a))[litK(lc, (int)(s * 50), (int)(t * 25))];
       }
       return S[litK(ll, (int)(s * 50), (int)(t * 25))];
@@ -1114,7 +1139,18 @@ void boothRoof(M3& m, int awning) {
     if (clothRoof()) {   // (M3 fixer round 2) the culture's cloth, as on its awnings
       const Awn A = awningOf(awning);
       const bool alt = A.striped && (((int)std::floor(u)) / 4) % 2 == 1;
-      return (alt ? ramp(A.b) : ramp(A.a))[litK(l + (t > 0.95f ? 0.1f : 0.0f), (int)(s * 50), (int)(t * 25))];
+      float lc = l + (t > 0.95f ? 0.1f : 0.0f);
+      if (!A.striped) {
+        // (M6 finish fixer, review: "the right half of a double market-stall canopy is one flat tan rectangle with no
+        // stripes, folds or shading") a plain cloth shows its make: sewn widths (a shaded seam every 8 px), each width
+        // billowing (lit along its middle, shaded toward its seams), a sag halfway down the slope, a lit back edge
+        const float uu = u + 1.0f;
+        lc -= 0.13f * std::fabs(std::cos(uu * 3.14159f / 8.0f));
+        if (((int)std::floor(uu)) % 8 == 0) lc -= 0.14f;
+        lc -= 0.07f * std::sin(t * 3.14159f);
+        if (t < 0.06f) lc -= 0.12f;   // the hem over the eave
+      }
+      return (alt ? ramp(A.b) : ramp(A.a))[litK(lc, (int)(s * 50), (int)(t * 25))];
     }
     return S[litK(ll, (int)(s * 50), (int)(t * 25))];
   });
@@ -2039,7 +2075,7 @@ void waterWheelProp(Canvas& c, int frame) {
 
 }  // namespace
 
-void setMarketSnow(float z) { g_snowZ = z; }
+void setMarketSnow(float z, uint32_t seed) { g_snowZ = z; g_snowSeed = seed; }
 
 Canvas marketStall(int trade, int awning) { return marketStallForm(trade, awning, 0, false); }
 

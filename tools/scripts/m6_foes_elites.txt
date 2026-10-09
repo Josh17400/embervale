@@ -1,0 +1,26 @@
+# M6 FOES: glowing elites and a champion pack (VISION_PLAN 7.6). Elites wear the land's variant (an ASHEN wolf in the
+# ash fields, a CRYSTAL golem in the crystal barrens) and their affixes' marks (rime, ember cracks, plates, eyes); the
+# burning one leaves fire on the ground, the summoner calls its kind, the champion pack shares three affixes.
+#   embervale.exe --script tools/scripts/m6_foes_elites.txt     (m6_foes_elites_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 kit
++0.2 gotoeco ashfields
++1.0 elite wolf 3 elite swift burning
++0.1 elite emberhound 1 elite summoner
++0.1 expect foes elite 4
++0.8 shot m6_foes_elites_1_ashen.png
++3.0 shot m6_foes_elites_2_fire.png
++0.1 killnear 30
++1.0 gotoeco crystalbarrens
++1.0 elite golem 1 elite armoured regenerating
++0.1 elite harpy 2 elite frostbound
++0.8 shot m6_foes_elites_3_crystal.png
++0.1 killnear 30
++0.5 gotoeco tundra
++1.0 elite icewolf 3 champion swift vampiric warded
++0.1 expect foes champion 3
++0.8 shot m6_foes_elites_4_champions.png
++0.3 quit

@@ -176,7 +176,11 @@ struct SettlementState {
 enum class EvType : uint8_t {
   FirstContact, TradeDeal, TradeBroken, HarvestFailed, Famine, BorderIncident, Skirmish, WarDeclared, SiegeBegun,
   SiegeBroken, TownTaken, TownBurned, Refugees, Peace, RulerDied, Succession, CivilWar, KingdomFell, KingdomRose,
-  Resettled, Ruined, Festival, TroopsMarching, PricesRising, COUNT
+  Resettled, Ruined, Festival, TroopsMarching, PricesRising,
+  // M6 Steel (FOES lane): a world boss raided a settlement (a = its land's kingdom, site, mag = the boss's art::Monster);
+  // a world boss or a named unique was slain (by the player: mag = its art::Monster, gx / gy where it fell)
+  BeastRaid, BeastSlain,
+  COUNT
 };
 struct WorldEvent {
   uint32_t id = 0;         // serial, never reused
@@ -345,6 +349,14 @@ class Realm {
   // (CITIZENS lane, M5 phase B) a night raid on a loaded settlement (VISION_PLAN 10.4 M5): a failed defence costs it
   // prosperity 10 and damage 5 (its mood suffers a little either way). A site the realm has never noted is ignored.
   void lifeRaid(Gid site, bool failed, int day);
+  // ---- M6 Steel (rpg/sim/realm_beasts.cpp, FOES lane; VISION_PLAN 7.6 "World bosses ... can raid settlements as a sim
+  //      event"): a world boss raided a settlement (`damage` 0..100 added to its damage, prosperity and mood suffer; the
+  //      event BeastRaid names the boss by `mon` (art::Monster)), and a world boss / named unique fell (BeastSlain: news
+  //      across the horizon, +fame). A site the realm has never noted is ignored by beastRaid.
+  void beastRaid(Gid site, uint8_t mon, int damage, int day);
+  // (M6 fixer r3) the event's mag packs mon (bits 0-7), the foes::Rank of the beast (bits 8-10) and whether the
+  // player made the kill (bit 11), so the news names the right beast (a named unique never passes for a world boss)
+  void beastSlain(uint8_t mon, int32_t gx, int32_t gy, int day, uint8_t rank = 0, bool byPlayer = true);
 
  private:
   uint64_t seed_ = 0;

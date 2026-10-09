@@ -513,7 +513,7 @@ static void scriptInfo(const Game& base) {
 }
 
 
-// (M3c LIFE) the Wildlands wildlife in the open: each of the seven, set on a sturdy idle player at level 1, must close
+// (M3c LIFE) the Wildlands wildlife in the open (M6: and the harpy and the golem): each of the seven, set on a sturdy idle player at level 1, must close
 // in and land its blows and its own move within 20 s (the scorpion's venom sting, the yeti's frost slam, the hound's
 // fire bite, the wisp's bolts, the blightspawn's spores; hyenas and the lurker their bites); nothing goes NaN
 int wildlifeChecks(const Game& base) {
@@ -534,7 +534,9 @@ int wildlifeChecks(const Game& base) {
     }
   if (sx < 0) { out("WARN: wildlife: no open ground for the creature checks\n"); return 0; }
   using art::Monster;
-  const Monster ms[] = {Monster::Scorpion, Monster::Hyena, Monster::Lurker, Monster::Yeti, Monster::Wisp, Monster::EmberHound, Monster::Blightspawn};
+  // (M6 FOES) the harpy (its shriek slows) and the golem (its wide ground slam shakes the earth) too
+  const Monster ms[] = {Monster::Scorpion, Monster::Hyena, Monster::Lurker, Monster::Yeti, Monster::Wisp, Monster::EmberHound, Monster::Blightspawn,
+                        Monster::Harpy, Monster::Golem};
   std::string line = "wildlife:";
   for (Monster m : ms) {
     Game g = base;
@@ -554,6 +556,8 @@ int wildlifeChecks(const Game& base) {
         case Monster::Scorpion: if (eventHas(g, "VENOM")) special = true; break;
         case Monster::Yeti: case Monster::Blightspawn: if (g.pl().slowT > 0) special = true; break;
         case Monster::EmberHound: if (g.pl().burnT > 0) special = true; break;
+        case Monster::Harpy: if (eventHas(g, "SHRIEK") && g.pl().slowT > 0) special = true; break;
+        case Monster::Golem: for (const Event& ev : g.events) if (ev.type == Ev::Shake && ev.f >= 6.0f) special = true; break;
         case Monster::Wisp: for (const Projectile& pr : g.projs) if (pr.owner == id && pr.kind == ProjKind::Magic) special = true; break;
         default: special = firstHit >= 0; break;
       }

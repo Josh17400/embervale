@@ -1,0 +1,26 @@
+# M6 FOES: a world boss on its route and its raid in the news; a dungeon boss's phase change (VISION_PLAN 7.6).
+#   embervale.exe --script tools/scripts/m6_foes_boss.txt     (m6_foes_boss_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.1 kit
++0.3 gotoboss
++1.5 expect foes worldboss
++0.2 nearboss
++0.6 shot m6_foes_boss_1_world.png
++0.1 bosshp 60
++0.3 expect foes phase 1
++0.2 shot m6_foes_boss_2_phase.png
++0.1 killnear 40
++0.4 shot m6_foes_boss_2b_slain.png
++7.0 goto town
++2.5 beastraid
++0.4 shot m6_foes_boss_3_raid_news.png
++0.3 goto cave enter
++1.0 nearboss
++0.5 shot m6_foes_boss_4_dungeon.png
++0.1 bosshp 50
++0.3 expect foes phase 1
++0.2 shot m6_foes_boss_5_dungeon_phase.png
++0.3 quit

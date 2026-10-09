@@ -1,0 +1,42 @@
+# M6 NUMBERS lane: the forge by touch at the iPhone size (639x294 logical, safe insets 177 / 63 device px = 59 / 21 pt at 3x). The forge screen's
+# rows are finger-sized; the MAKE button sits at the foot of the detail column (tap 471 247 on this canvas, inside the drawn button). Ore ->
+# ingots -> bronze -> a bronze sword, all by taps on MAKE; then the potion button's cooldown sweep.
+#   embervale.exe --script tools/scripts/m6_numbers_forge_phone.txt      (m6_numbers_forge_phone_*.png)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.2 touch 1
++0.1 enter smithy
++0.4 walkto smith 20
++0.1 stuff copper ore 6
++0.05 stuff tin ore 2
++0.05 stuff leather 2
++0.1 key E
++0.8 expect mode dialogue
++0.05 touch 1                    # (fixer) the E key switched the touch layout off
++0.1 choose WORK THE FORGE
++0.3 expect mode forge
++0.1 forgepick smelt.copper
++0.3 shot m6_numbers_forge_phone_0_bench.png
++0.1 tap 471 247
++0.2 tap 471 247
++0.2 tap 471 247
++0.1 forgepick smelt.tin
++0.2 tap 471 247
++0.1 forgepick smelt.bronze
++0.2 tap 471 247
++0.1 forgepick forge.bronze.sword
++0.3 shot m6_numbers_forge_phone_1_sword.png
++0.1 tap 471 247
++0.3 shot m6_numbers_forge_phone_2_made.png
++0.1 expect crafted BRONZE
+# the close X (top right of the box)
++0.1 tap 563 20
++0.3 expect mode play
++0.1 kit
++0.2 tap 578 185                 # the potion button (bottom right of the safe area)
++0.4 expect potioncd
++0.1 shot m6_numbers_forge_phone_3_potioncd.png
++0.3 quit

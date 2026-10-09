@@ -3,13 +3,84 @@
 
 using art::Icon;
 
+// (M6: a seventh band, STARMETAL; the NUMBERS lane replaces the heartland words with each culture's, VISION_PLAN 7.2)
 const char* tierName(int t) {
-  static const char* n[] = {"IRON", "STEEL", "GILDED", "JADE", "OBSIDIAN", "EMBERFORGED"};
-  return n[std::clamp(t, 0, 5)];
+  static const char* n[] = {"IRON", "STEEL", "GILDED", "JADE", "OBSIDIAN", "EMBERFORGED", "STARMETAL"};
+  return n[std::clamp(t, 0, 6)];
 }
 uint32_t tierTint(int t) {
-  static const uint32_t c[] = {rgba(150, 150, 158), rgba(200, 208, 220), rgba(222, 186, 92), rgba(120, 214, 140), rgba(92, 70, 120), rgba(200, 52, 44)};
-  return c[std::clamp(t, 0, 5)];
+  static const uint32_t c[] = {rgba(150, 150, 158), rgba(200, 208, 220), rgba(222, 186, 92), rgba(120, 214, 140), rgba(92, 70, 120), rgba(200, 52, 44),
+                               rgba(176, 200, 255)};
+  return c[std::clamp(t, 0, 6)];
+}
+const char* matName(Mat m) {
+  static const char* n[] = {"", "LEATHER", "BRONZE", "IRON", "STEEL", "ALLOY", "CLOTH", "WOOD", "BONE", "PRECIOUS"};
+  static_assert(sizeof(n) / sizeof(n[0]) == (size_t)Mat::COUNT, "a name for every material");
+  return (int)m < (int)Mat::COUNT ? n[(int)m] : "";
+}
+const AffixInfo& affixInfo(Affix a) {
+  //                               name                   unit  weapon armour jewel
+  static const AffixInfo t[] = {{"",                      "",   false, false, false},
+                                {"FIRE DAMAGE",           "%",  true,  false, true},
+                                {"FROST DAMAGE",          "%",  true,  false, true},
+                                {"SHADOW DAMAGE",         "%",  true,  false, true},
+                                {"LIFE DRAIN",            "%",  true,  false, false},
+                                {"CRITICAL CHANCE",       "%",  true,  false, true},
+                                {"CRITICAL DAMAGE",       "%",  true,  false, true},
+                                {"STAMINA REGENERATION",  "%",  false, true,  true},
+                                {"MOVE SPEED",            "%",  false, true,  false},
+                                {"ROLL DISTANCE",         "%",  false, true,  false},
+                                {"THORNS",                "%",  false, true,  false},
+                                {"FIRE RESISTANCE",       "%",  false, true,  true},
+                                {"FROST RESISTANCE",      "%",  false, true,  true},
+                                {"SHADOW RESISTANCE",     "%",  false, true,  true},
+                                {"SPELL POWER",           "",   true,  false, true},
+                                {"MAGICKA",               "",   false, true,  true},
+                                {"POTION EFFECT",         "%",  false, true,  true},
+                                {"GOLD FIND",             "%",  false, false, true},
+                                {"HEALTH",                "",   false, true,  true}};
+  static_assert(sizeof(t) / sizeof(t[0]) == (size_t)Affix::COUNT, "an AffixInfo for every affix");
+  return t[(int)a < (int)Affix::COUNT ? (int)a : 0];
+}
+const UniqueInfo& uniqueInfo(Unique u) {
+  static const UniqueInfo t[] = {
+      {"", ""},
+      {"CHAIN LIGHTNING", "EVERY THIRD HIT CHAINS LIGHTNING TO 2 FOES"},
+      {"FIRE TRAIL", "ROLLING LEAVES A TRAIL OF FIRE"},
+      {"SPECTRAL WOLF", "KILLS RAISE A SPECTRAL WOLF FOR 10 S"},
+      {"SPLIT ARROWS", "ARROWS SPLIT IN THREE BEYOND 6 TILES"},
+      {"TIME SLOW", "BELOW 30% HEALTH TIME SLOWS FOR 2 S"},
+      {"REFLECTION", "ROLLING THROUGH A MISSILE SENDS IT BACK"},
+      {"BLOOD MAGIC", "SPELLS COST HEALTH AT +40% POWER"},
+      {"STILLNESS", "STAND STILL 1 S: THE NEXT HIT IS CRITICAL"},
+      {"EXECUTIONER", "+50% DAMAGE TO FOES BELOW 25% HEALTH"},
+      {"BULWARK", "30% LESS DAMAGE ABOVE 80% HEALTH"},
+      {"VAMPIRE", "KILLS HEAL 8% OF YOUR HEALTH"},
+      {"FROST NOVA", "BEING HIT FREEZES FOES NEARBY"},
+      {"THUNDERCLAP", "THE COMBO FINISHER STUNS FOR 1 S"},
+      {"GOLDEN TOUCH", "+25% GOLD FROM KILLS AND CHESTS"},
+      {"WINDWALKER", "+12% MOVE SPEED AND A LONGER ROLL"},
+      {"BERSERKER", "+2% DAMAGE PER 10% HEALTH MISSING"},
+      {"WARD", "A SHIELD OF 15% HEALTH OUT OF COMBAT"},
+      {"HUNTSMAN", "+30% DAMAGE TO BEASTS"},
+      {"GRAVEBANE", "+30% DAMAGE TO THE UNDEAD"},
+      {"DRAGONBANE", "+40% DAMAGE TO DRAGONS AND WORLD BOSSES"},
+      {"EMBER", "HITS BURN FOR 3 S"},
+      {"RIME", "HITS SLOW FOR 2 S"},
+      {"ECHO", "15% OF HITS STRIKE TWICE"},
+      {"SECOND WIND", "BELOW 25% HEALTH STAMINA REFILLS"},
+      {"STORMCALLER", "CRITICAL HITS CALL DOWN LIGHTNING"},
+      {"SHADOWSTEP", "A ROLL HIDES YOU FOR 1.5 S"},
+      {"THORNMAIL", "MELEE ATTACKERS TAKE 25% BACK"},
+      {"QUICKDRAW", "BOWS DRAW 30% FASTER"},
+      {"ARCANIST", "+20% SPELL POWER, -20% MAGICKA COST"},
+      {"LIFEBLOOM", "POTIONS ALSO HEAL 10% OVER 10 S"},
+      {"WARCRY", "A KILL GIVES +15% DAMAGE FOR 6 S"},
+      {"IRONHIDE", "+25% ARMOUR RATING"},
+      {"WAYFARER", "+20% STAMINA AND ITS REGENERATION"},
+  };
+  static_assert(sizeof(t) / sizeof(t[0]) == (size_t)Unique::COUNT, "a UniqueInfo for every unique power");
+  return t[(int)u < (int)Unique::COUNT ? (int)u : 0];
 }
 uint32_t rarityColor(Rarity r) {
   static const uint32_t c[] = {rgba(230, 230, 230), rgba(110, 220, 110), rgba(90, 160, 255), rgba(200, 110, 255), rgba(255, 170, 40)};
@@ -38,12 +109,14 @@ Rarity rollRarity(Rng& r, int level, bool boss) {
 Item makeWeapon(Rng& r, int level, int forceType, bool allowEnch) {
   Item it;
   it.kind = ItemKind::Weapon;
-  WeaponType wt = forceType >= 0 ? (WeaponType)forceType : (WeaponType)r.irange((int)WeaponType::COUNT);
+  // (M6 phase A: a random draw keeps to the classic five, so the random stream is unchanged; a Spear only when forced)
+  WeaponType wt = forceType >= 0 && forceType < (int)WeaponType::COUNT ? (WeaponType)forceType : (WeaponType)r.irange(5);
   it.sub = (uint8_t)wt;
   it.tier = (uint8_t)tierFor(r, level);
-  static const int base[] = {7, 8, 9, 5, 13};
-  static const char* names[] = {"SWORD", "WAR AXE", "MACE", "DAGGER", "GREATSWORD"};
-  static const Icon icons[] = {Icon::Sword, Icon::Axe, Icon::Mace, Icon::Dagger, Icon::Greatsword};
+  static const int base[] = {7, 8, 9, 5, 13, 9};
+  static const char* names[] = {"SWORD", "WAR AXE", "MACE", "DAGGER", "GREATSWORD", "SPEAR"};
+  static const Icon icons[] = {Icon::Sword, Icon::Axe, Icon::Mace, Icon::Dagger, Icon::Greatsword, Icon::Spear};
+  static_assert(sizeof(names) / sizeof(names[0]) == (size_t)WeaponType::COUNT, "a name for every weapon type");
   it.power = (int16_t)(base[(int)wt] + it.tier * (wt == WeaponType::Greatsword ? 5 : 3) + level / 3);
   it.rarity = allowEnch ? rollRarity(r, level, false) : Rarity::Common;
   it.icon = icons[(int)wt];
@@ -238,7 +311,7 @@ Item randomLoot(Rng& r, int level, bool boss) {
   }
   if (q < 0.30f) return makePotion((PotionType)r.irange(3), level > 12 ? 1 + (r.f() < 0.3f) : (level > 5 ? (r.f() < 0.5f) : 0));
   if (q < 0.42f) return makeArrows(5 + r.irange(10));
-  if (q < 0.56f) return makeMisc(r.irange(8));
+  if (q < 0.56f) { const int w = r.irange(8); return makeMisc(w == 3 ? 7 : w); }   // (M6) ore is crafting stuff (craft.h)
   if (q < 0.64f) return makeFood(r.irange(4));
   if (q < 0.78f) return makeWeapon(r, level);
   if (q < 0.90f) return makeArmor(r, level, randomArmorSlot(r));
@@ -247,21 +320,36 @@ Item randomLoot(Rng& r, int level, bool boss) {
   return makeStaff(r, level);
 }
 
+// SAVE_VER 12 (M6): the classic fields, then ilvl u8, mat u8, alloy u8, culture u64, form u8, seed u32,
+// 3 x (affix u8, value i16), unique u8, flags u8
 void writeItem(BinW& w, const Item& it) {
   w.u8((uint8_t)it.kind); w.u8(it.sub); w.u8(it.tier); w.u8((uint8_t)it.ench); w.u8((uint8_t)it.rarity);
   w.u16((uint16_t)it.power); w.u16((uint16_t)it.enchPow); w.i32(it.count); w.i32(it.value);
   w.str(it.name); w.u8((uint8_t)it.icon); w.u32(it.tint); w.i32(it.questId);
+  w.u8(it.ilvl); w.u8((uint8_t)it.mat); w.u8(it.alloy); w.u64(it.culture); w.u8(it.form); w.u32(it.seed);
+  for (const ItemAffix& a : it.affix) { w.u8((uint8_t)a.kind); w.u16((uint16_t)a.value); }
+  w.u8((uint8_t)it.unique); w.u8(it.flags);
 }
 Item readItem(BinR& r) {
   Item it;
   it.kind = (ItemKind)r.u8(); it.sub = r.u8(); it.tier = r.u8(); it.ench = (Ench)r.u8(); it.rarity = (Rarity)r.u8();
   it.power = (int16_t)r.u16(); it.enchPow = (int16_t)r.u16(); it.count = r.i32(); it.value = r.i32();
   it.name = r.str(); it.icon = (art::Icon)r.u8(); it.tint = r.u32(); it.questId = r.i32();
+  it.ilvl = r.u8(); it.mat = (Mat)r.u8(); it.alloy = r.u8(); it.culture = r.u64(); it.form = r.u8(); it.seed = r.u32();
+  for (ItemAffix& a : it.affix) {
+    a.kind = (Affix)r.u8(); a.value = (int16_t)r.u16();
+    if ((int)a.kind >= (int)Affix::COUNT) a = ItemAffix();
+  }
+  it.unique = (Unique)r.u8(); it.flags = r.u8();
+  if ((int)it.mat >= (int)Mat::COUNT) it.mat = Mat::None;
+  if ((int)it.unique >= (int)Unique::COUNT) it.unique = Unique::None;
+  if (it.ilvl > 60) it.ilvl = 60;
+  if (it.kind == ItemKind::Weapon && it.sub >= (uint8_t)WeaponType::COUNT) it.sub = 0;
   // a damaged save must not index past the tables (names, colours, icons): out-of-range values load as defaults
   if ((int)it.kind >= (int)ItemKind::COUNT) it.kind = ItemKind::Misc;
   if ((int)it.ench >= (int)Ench::COUNT) it.ench = Ench::None;
   if ((int)it.rarity > (int)Rarity::Legendary) it.rarity = Rarity::Common;
   if ((int)it.icon >= (int)art::Icon::COUNT) it.icon = art::Icon::Scroll;
-  if (it.tier > 5) it.tier = 5;
+  if (it.tier > 6) it.tier = 6;
   return it;
 }

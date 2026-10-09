@@ -41,6 +41,13 @@ enum class Sfx : uint8_t {
   Cluck,     // a hen's clucking
   Meow,      // a cat
   Cheer,     // a tavern / festival crowd's cheer and clapping (a toast, the bard's last chord)
+  // M6 Steel (BEASTS lane): the new families and the ranked foes. The view plays them from what it sees (the harpy's
+  // swoop wind-up, the golem's heavy slam, an elite or champion first coming into view, a world boss's aggro and every
+  // boss's phase change); the sim may also play them with Game::sfx.
+  HarpyShriek,   // a wavering, raking bird-woman's scream (the swoop)
+  GolemSlam,     // stone fists into the ground: a deep thump, grinding crunch, rubble pattering down
+  EliteSting,    // an ominous sting (a dissonant swell under a cold bell): something stronger is here
+  BossRoar,      // a world boss's roar: deeper and longer than the dragon's, a wall of breath and a sub drop
   COUNT
 };
 

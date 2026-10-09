@@ -1,0 +1,33 @@
+# M6 NUMBERS lane: what the numbers look like to the player. A legendary's details (its culture name, the unique
+# power, the lore line, attunement), a piece found far above the hero (SYNCED TO level + 4), and a mining village's
+# market: local ores and ingots, the merchant's purse beside your gold.
+#   embervale.exe --script tools/scripts/m6_numbers_loot.txt      (m6_numbers_loot_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 strip
++0.1 plevel 12
++0.1 gear6 sword ilvl 20 rarity 4 here equip
++0.1 packfront LEGENDARY
++0.1 menu 0
++0.5 shot m6_numbers_loot_0_legendary.png
++0.1 key Escape
++0.2 plevel 3
++0.1 gear6 body ilvl 30 rarity 2 here
++0.1 packfront SYNCED
++0.1 menu 0
++0.5 shot m6_numbers_loot_1_synced.png
++0.1 key Escape
++0.2 gomining
++1.0 enter shop
++0.4 walkto merchant 25
++0.1 key E
++0.8 expect mode dialogue
++0.1 choose WARES
++0.4 expect mode shop
++0.1 expect purse
++0.1 expect stocks ORE
++0.3 shot m6_numbers_loot_2_mining_shop.png
++0.1 key Escape
++0.3 quit

@@ -318,7 +318,7 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
       }
       g.update(SIM_DT, oin);
       g.events.clear();
-      if (g.mode == Mode::Dialogue || g.mode == Mode::Shop || g.mode == Mode::LevelUp) g.mode = Mode::Play;
+      if (g.mode == Mode::Dialogue || g.mode == Mode::Shop || g.mode == Mode::LevelUp || g.mode == Mode::Forge) g.mode = Mode::Play;
       if (g.mode == Mode::Dead) g.respawn();
     }
     out("opening: first weapon at %.1f s, back outside at %.1f s (%s)\n", armedAt, of / 60.0f, g.eqWeapon >= 0 ? g.inv[g.eqWeapon].name.c_str() : "unarmed");
@@ -356,7 +356,7 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
     evCount += (int)g.events.size();
     g.events.clear();
     if (g.mode == Mode::Dialogue) g.dialogueChoose(0), g.mode = Mode::Play;
-    if (g.mode == Mode::Shop) g.mode = Mode::Play;
+    if (g.mode == Mode::Shop || g.mode == Mode::Forge) g.mode = Mode::Play;
     if (g.mode == Mode::Dead) { deaths++; g.respawn(); }
     if (g.pl().hp < g.pl().maxHp * 0.35f && f % 30 == 0) { Input q; q.potion = true; g.update(SIM_DT, q); potions++; }
   }
@@ -389,7 +389,7 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
         else {
           out("dialogue: %s: %s\n", q.dlg.speaker.c_str(), q.dlg.text.c_str());
           for (size_t o = 0; o < q.dlg.opts.size(); o++) out("   [%zu] %s\n", o, q.dlg.opts[o].label.c_str());
-          for (size_t o = 0; o < q.dlg.opts.size(); o++) if (q.dlg.opts[o].label.find("WORK") != std::string::npos) { q.dialogueChoose((int)o); break; }
+          for (size_t o = 0; o < q.dlg.opts.size(); o++) if (q.dlg.opts[o].label.find("ANY WORK") != std::string::npos) { q.dialogueChoose((int)o); break; }
           out("offer: %s\n", q.dlg.text.c_str());
           size_t nq = q.quests.size();
           q.dialogueChoose(0);

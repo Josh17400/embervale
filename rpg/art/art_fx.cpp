@@ -216,4 +216,56 @@ Canvas fxSprite(Fx f) {
   return sheet;
 }
 
+// M6 Steel (BEASTS lane): an elite's aura. The ground part is a flat ellipse of light round the feet (half as tall as it
+// is wide: the 3/4 camera's foreshortening): a soft rim brightest just inside its edge, the near (lower) arc a touch
+// brighter as it faces the camera, a faint fill under the feet, in four dithered alpha steps (pixel-art light, no
+// smooth gradient); round the rim, glints that walk round the ellipse; above it motes of light rising and fading. Six
+// frames loop (the pulse and the glints repeat every six, each mote rises over the six). The renderer adds it.
+int auraH(int w) { return w / 2 + 8; }
+Canvas auraSprite(uint32_t color, int w) {
+  w = std::max(12, w);
+  const int h = auraH(w);
+  Canvas c(w * AURA_FRAMES, h);
+  const uint32_t base = opaque(color), hot = mix(base, kWhite, 0.45f), deep = shade(base, 0.8f);
+  const float rx = w * 0.5f - 1.0f, ry = w * 0.25f - 0.5f, cx = w * 0.5f, cy = h - w * 0.25f - 1.0f;
+  static const int kA[4] = {0, 70, 140, 215};
+  auto put = [&](int f, int x, int y, uint32_t col) { if (x >= 0 && x < w) c.set(f * w + x, y, col); };
+  for (int f = 0; f < AURA_FRAMES; f++) {
+    const float pulse = 0.86f + 0.14f * std::cos(f * TAU / AURA_FRAMES);
+    for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++) {
+        const float dx = (x + 0.5f - cx) / rx, dy = (y + 0.5f - cy) / ry, d = std::sqrt(dx * dx + dy * dy);
+        if (d > 1.0f) continue;
+        const float ring = std::exp(-((d - 0.80f) / 0.15f) * ((d - 0.80f) / 0.15f));
+        float a = (ring * 0.95f + 0.06f * (1.0f - d)) * pulse;
+        if (dy > 0) a *= 1.0f + 0.25f * dy;                       // the near arc faces the camera
+        const float q = a * 3.0f + (bayer(x, y) - 0.5f) * 0.9f;   // four dithered steps
+        const int k = std::clamp((int)std::floor(q + 0.5f), 0, 3);
+        if (!k) continue;
+        put(f, x, y, withA(k == 3 ? hot : k == 2 ? base : deep, kA[k]));
+      }
+    // glints walking round the rim
+    for (int g = 0; g < 4; g++) {
+      const float an = (g * 0.25f + f / (float)AURA_FRAMES * 0.25f) * TAU;
+      const int x = (int)std::floor(cx + std::cos(an) * rx * 0.82f), y = (int)std::floor(cy + std::sin(an) * ry * 0.82f);
+      put(f, x, y, withA(mix(base, kWhite, 0.75f), 230));
+      if (std::sin(an) > 0) { put(f, x - 1, y, withA(hot, 150)); put(f, x + 1, y, withA(hot, 150)); }
+    }
+    // motes rising off the rim, fading as they go (a short bright streak at the head of each)
+    const float rise = h - w * 0.25f - 3.0f;
+    for (int m = 0; m < 5; m++) {
+      const float ph = std::fmod((f + m * 1.37f) / AURA_FRAMES, 1.0f);
+      const float an = m * 2.39f + 0.6f;
+      const int x = (int)std::floor(cx + std::cos(an) * rx * 0.72f + std::sin(ph * TAU + m) * 0.8f);
+      const int y = (int)std::floor(cy + std::sin(an) * ry * 0.72f - ph * rise);
+      const int a = (int)(235 * (1.0f - ph) * (ph < 0.12f ? ph / 0.12f : 1.0f));
+      if (a < 20) continue;
+      put(f, x, y, withA(mix(base, kWhite, 0.6f), a));
+      put(f, x, y + 1, withA(base, a * 2 / 3));
+      put(f, x + 1, y + 1, withA(base, a / 3));
+    }
+  }
+  return c;
+}
+
 }  // namespace art

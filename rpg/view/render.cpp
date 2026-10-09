@@ -4,8 +4,14 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <initializer_list>
+#include <string>
+#include <unordered_map>
+#include <vector>
 #include "rpg/art/art_parts.h"
 #include "rpg/sim/deco.h"
+#include "rpg/sim/foes.h"
+#include "rpg/sim/gear_look.h"
 #include "rpg/view/prop_traits.h"
 #include "rpg/view/script_api.h"
 #include "rpg/view/view.h"
@@ -16,6 +22,69 @@
 
 using art::Prop;
 using art::Monster;
+
+// ---- (M6 BEASTS) the view of ranked foes: elites, champions, named uniques, bosses and world bosses ------------------
+// While the world is drawn, the monster branch queues what must show over the night's darkness (the glow sheets of
+// glowing eyes, ember cracks, crystal glints and a golem's rune; the name plates; the world boss's bar); drawWeather's
+// tail draws them after the lighting. `memo` is what the view remembers of each foe near the player between frames (its
+// last state, for the shriek and the slam; its boss phase, for the flash; whether its sting or roar has played).
+namespace beasts {
+struct Glow { const Tex* t; int sx, sw, sh; float x, y; bool flip; float a; };
+struct Plate { int idx; float x, y, d2, feet; };
+struct Memo { uint8_t st = 255, phase = 0; float flashT = 0, shriekT = 0, lastT = 0; bool seen = false, roared = false; };
+std::vector<Glow> glows;
+// (M6 fixer) the ranked foes and the flyers, drawn again as a faint ghost over everything once the world is down, so a
+// named unique in its bamboo, a world boss under the canopy or a harpy behind a ruin's wall still shows where it is
+std::vector<Glow> xray;
+std::vector<Plate> plates;
+std::unordered_map<int, Memo> memo;
+float now = 0, stingT = -10;
+bool isRank(const Actor& a, foes::Rank r) { return a.rank == (uint8_t)r; }
+// the ranks that wear an aura and a name plate
+bool marked(const Actor& a) {
+  return isRank(a, foes::Rank::Elite) || isRank(a, foes::Rank::Champion) || isRank(a, foes::Rank::Named);
+}
+// the aura's colour: the first affix's (a champion pack shares its affixes, so the pack shares one colour); a named
+// unique without affixes burns gold
+uint32_t auraOf(const Actor& a) {
+  if (!marked(a) && !isRank(a, foes::Rank::WorldBoss)) return 0;
+  uint32_t c = foes::auraColor(a.affixes);
+  if (!c) c = isRank(a, foes::Rank::WorldBoss) ? rgba(255, 70, 40) : isRank(a, foes::Rank::Named) ? rgba(255, 200, 70)
+            : isRank(a, foes::Rank::Champion) ? rgba(255, 130, 60) : rgba(220, 220, 255);
+  return c;
+}
+// Draw scale: always 1. Every 16-bit sprite on screen shares one pixel grid. (M6 fixer r4, review: "the 2x Scale2x
+// world-boss bake breaks the pixel grid and reads as mush") the world boss used to draw at 2x from an EPX bake, which
+// doubled its pixel density against the world round it and smeared its soft-shaded painting; it now draws at 1x like
+// every beast, its rank told by its own aura, a heavier shadow, the ember rim at night, its name plate and its bar.
+// (Boss-sized painted sheets, like the dragon's, are the art lane's follow-up.)
+int drawScale(const Actor&) { return 1; }
+art::MonsterLook lookOf(const Actor& a) {
+  art::MonsterLook L;
+  L.base = a.mon; L.overlays = a.overlays; L.tint = a.bodyTint; L.scale = a.scalePct;
+  return L;
+}
+// the light a golem's rune casts (its material's colour)
+Color runeLight(const Actor& a) {
+  switch (art::golemMaterial(a.bodyTint)) {
+    case 1: return Color(1.0f, 0.45f, 0.85f);
+    case 2: return Color(1.0f, 0.75f, 0.3f);
+    case 3: return Color(1.0f, 0.5f, 0.15f);
+    default: return Color(0.4f, 0.85f, 1.0f);
+  }
+}
+template <class F> struct OnExit { F f; ~OnExit() { f(); } };
+// what the last frame drew (for the scripts' `expect beasts` and the perf budget: auras + plates + glows <= 0.3 ms)
+struct Stats { int auras = 0, plates = 0, glows = 0, bossBar = 0; double ms = 0; };
+Stats cur, last;
+using Clock = std::chrono::steady_clock;
+double msSince(Clock::time_point t0) { return std::chrono::duration<double, std::milli>(Clock::now() - t0).count(); }
+}  // namespace beasts
+
+// (M6 BEASTS) the last frame's ranked-foe overlays (rpg/view/script_beasts.cpp reads them)
+void beastsViewStats(int& auras, int& plates, int& glows, int& bossBar, double& ms) {
+  auras = beasts::last.auras; plates = beasts::last.plates; glows = beasts::last.glows; bossBar = beasts::last.bossBar; ms = beasts::last.ms;
+}
 
 namespace {
 // (M5 fixer r2) a townsperson standing in a bath's pool (life_game.cpp bathe): drawn chest-deep, no floor shadow
@@ -29,7 +98,7 @@ Color col(uint32_t c, float a = 1) { return Color((c & 255) / 255.0f, ((c >> 8) 
 Canvas paintInteriorPiece(uint64_t key) { return art::interiorPiece((uint32_t)key); }
 Canvas paintStall(uint64_t key) { return art::marketStallVariant((int)(key & 255)); }
 Canvas paintTradeStall(uint64_t key) {
-  if ((key >> 16) & 1) art::setMarketSnow(13.0f);   // (fixer M5 r3) a snowy town's stalls carry snow on their roofs
+  if ((key >> 16) & 1) art::setMarketSnow(13.0f, (uint32_t)(key & 0xFFFFu));   // (fixer M5 r3) a snowy town's stalls carry snow on their roofs
   Canvas c = art::marketStallFacing((int)(key & 15), (int)((key >> 4) & 15), (int)((key >> 8) & 15), ((key >> 12) & 1) != 0, (int)((key >> 13) & 3));
   art::setMarketSnow(1e9f);
   return c;
@@ -391,6 +460,13 @@ void View::trimCaches() {
   trim(humans_, humanUsed_, 320, [](uint64_t) {});
   trim(poseTex_, poseUsed_, 160, [](uint64_t) {});   // (M5) pose sheets: a busy tavern holds a few dozen
   if (lampDark_.size() > 64) { for (auto& kv : lampDark_) pix_->destroy(kv.second); lampDark_.clear(); }
+  // (M6 BEASTS) variant monster sheets (and their glow and 2x bakes) and the auras: a few dozen at most in one place;
+  // a long journey through many lands drops them all and re-bakes what is still on screen
+  if (monsterLooks_.size() > 96) { for (auto& kv : monsterLooks_) pix_->destroy(kv.second); monsterLooks_.clear(); }
+  if (auraTex_.size() > 48) { for (auto& kv : auraTex_) pix_->destroy(kv.second); auraTex_.clear(); }
+  for (auto it = beasts::memo.begin(); it != beasts::memo.end();) {
+    if (beasts::now - it->second.lastT > 20.0f) it = beasts::memo.erase(it); else ++it;
+  }
   if (festTex_.size() > 96) { for (auto& kv : festTex_) pix_->destroy(kv.second); festTex_.clear(); }
 }
 
@@ -450,6 +526,28 @@ void View::perfTick(float dt) {
               chunks_.size(), bldgTex_.size(), humans_.size(), wallTiles_.size(), styledProps_.size(), kingdomTex_.size());
   std::fflush(stdout);
   perf_ = Perf();
+}
+const Tex& View::itemTex(const Game& g, const Item& item) {
+  const cult::Culture* maker = item.culture && g.world.src ? &g.world.src->culture(item.culture) : nullptr;
+  const art::IconLook L = gearIcon(item, maker);
+  const uint64_t k = L.key();
+  auto it = itemIcons_.find(k);
+  if (it != itemIcons_.end()) return it->second;
+  return itemIcons_[k] = pix_->bake(art::itemIconLook(L));
+}
+const Tex& View::monsterTex(const Actor& a) {
+  if (!a.overlays && !a.bodyTint) return monsters_[(int)a.mon];
+  const art::MonsterLook L = beasts::lookOf(a);
+  const uint64_t k = L.key();   // (M6 BEASTS) bit 63: the glow sheet
+  auto it = monsterLooks_.find(k);
+  if (it != monsterLooks_.end()) return it->second;
+  return monsterLooks_[k] = pix_->bake(art::monsterSheetLook(L));
+}
+const Tex& View::auraTex(uint32_t color, int w) {
+  const uint64_t k = (uint64_t)color << 16 | (uint64_t)(uint16_t)w;
+  auto it = auraTex_.find(k);
+  if (it != auraTex_.end()) return it->second;
+  return auraTex_[k] = pix_->bake(art::auraSprite(color, w));
 }
 const Tex& View::iconTex(art::Icon i, uint32_t tint) {
   uint64_t k = (uint64_t)i << 32 | tint;
@@ -1020,6 +1118,64 @@ void View::update(Game& g, float dt) {
     titleT_ += dt;
     cam_ = c0 + Vec2(titleT_ * 8.0f, titleT_ * 2.5f);
   }
+  // (M6 BEASTS) what the view hears and shows of the foes' moves: the harpy's shriek as it rears for the swoop, the
+  // golem's slam (a shake and dust), the sting when an elite or a champion first comes into view, a world boss's roar
+  // when it turns on the player, and a boss passing a phase (a roar, a shake, a white-hot flash). The sim may also play
+  // these Sfx itself (Game::sfx); the view's are keyed on what it sees, once per foe and move.
+  beasts::now += dt;
+  if (g.mode == Mode::Play) {
+    const Vec2 pp = g.pl().p;
+    for (const Actor& a : g.actors) {
+      if (a.player || a.critter > 0 || !a.hostile) continue;
+      const float d2 = len2(a.p - pp);
+      if (d2 > 360.0f * 360.0f) continue;
+      beasts::Memo& mm = beasts::memo[a.id];
+      mm.lastT = beasts::now;
+      if (mm.flashT > 0) mm.flashT -= dt;
+      if (mm.shriekT > 0) mm.shriekT -= dt;
+      const float vol = clampf(1.15f - std::sqrt(d2) / 280.0f, 0.15f, 1.0f);
+      const uint8_t st = (uint8_t)a.st;
+      if (st != mm.st && mm.st != 255 && !a.human) {
+        if (a.mon == Monster::Harpy && a.st == AState::Windup && mm.shriekT <= 0) {
+          audio_->play(Sfx::HarpyShriek, 0.92f + (a.id % 7) * 0.025f, vol);
+          mm.shriekT = 2.5f;
+        }
+        if (a.mon == Monster::Golem && a.st == AState::Strike) {
+          audio_->play(Sfx::GolemSlam, a.heavy ? 1.0f : 1.3f, vol * (a.heavy ? 1.0f : 0.55f));
+          if (a.heavy) {
+            shake_ = std::max(shake_, 3.5f * vol);
+            const Vec2 hit = a.p + a.aim * 14.0f;
+            for (int k = 0; k < 6; k++) {
+              Particle q;
+              q.p = hit + Vec2(std::cos(k * 1.05f) * 10.0f, std::sin(k * 1.05f) * 5.0f);
+              q.life = q.max = 0.4f; q.kind = 1; q.fx = (int)art::Fx::Dust;
+              parts_.push_back(q);
+            }
+          }
+        }
+      }
+      mm.st = st;
+      if (a.st == AState::Dead) continue;
+      if (!mm.seen && beasts::marked(a) && d2 < 210.0f * 210.0f) {   // an elite comes into view (a pack stings once)
+        mm.seen = true;
+        if (beasts::now - beasts::stingT > 3.0f) {
+          audio_->play(Sfx::EliteSting, beasts::isRank(a, foes::Rank::Named) ? 0.84f : 1.0f, 0.75f);
+          beasts::stingT = beasts::now;
+        }
+      }
+      if (beasts::isRank(a, foes::Rank::WorldBoss) && a.aggro && !mm.roared) {
+        mm.roared = true;
+        audio_->play(Sfx::BossRoar, 1.0f, 1.0f);
+        shake_ = std::max(shake_, 4.0f);
+      }
+      if (a.bossPhase > mm.phase) {   // a boss passed a phase mark
+        mm.phase = a.bossPhase;
+        mm.flashT = 0.45f;
+        shake_ = std::max(shake_, 4.5f);
+        audio_->play(Sfx::BossRoar, 1.12f, 0.85f);
+      }
+    }
+  }
   shake_ = std::max(0.0f, shake_ - dt * 12);
   shakeOff_ = shake_ > 0.1f ? Vec2(std::sin(t_ * 91) * shake_, std::cos(t_ * 77) * shake_ * 0.7f) : Vec2();
   for (size_t i = 0; i < parts_.size();) {
@@ -1037,7 +1193,8 @@ void View::update(Game& g, float dt) {
     if (texts_[i].t > texts_[i].life) texts_.erase(texts_.begin() + i); else i++;
   }
   // toasts wait while a dialogue or menu is open, so "OLD BLADE" is still there when the player looks up
-  const bool modal = g.mode == Mode::Dialogue || g.mode == Mode::Shop || g.mode == Mode::Menu || g.mode == Mode::LevelUp || g.mode == Mode::Paused;
+  const bool modal = g.mode == Mode::Dialogue || g.mode == Mode::Shop || g.mode == Mode::Menu || g.mode == Mode::LevelUp || g.mode == Mode::Paused ||
+                     g.mode == Mode::Forge;
   for (size_t i = 0; i < toasts_.size();) {
     if (modal) { i++; continue; }
     toasts_[i].t += dt;
@@ -1323,6 +1480,10 @@ void View::drawWorld(Game& g) {
   const bool endlessOver = chunkEndless_;
   Vec2 cam(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y));
   trimCaches();
+  beasts::glows.clear();    // (M6 BEASTS) this frame's glow sheets and name plates (drawn after the lighting)
+  beasts::plates.clear();
+  beasts::last = beasts::cur;
+  beasts::cur = beasts::Stats();
   // water layer underneath the terrain (shows through translucent water pixels)
   if (m.kind == MapKind::Overworld) {
     P.rect(0, 0, Pix::W, Pix::H, Color(0.16f, 0.36f, 0.6f));
@@ -1593,6 +1754,9 @@ void View::drawWorld(Game& g) {
     const Actor& a = g.actors[i];
     if (a.p.x < cam.x - 80 || a.p.x > cam.x + Pix::W + 80 || a.p.y < cam.y - 40 || a.p.y > cam.y + Pix::H + 80) continue;
     float sy = a.p.y + (a.fly ? 60.0f : 0.0f) - (a.st == AState::Dead ? 8.0f : 0.0f);
+    // (M6 fixer r3, review: "flying harpies draw under tree canopies and bushes") a hovering flyer is over the
+    // undergrowth and the near crowns: it sorts as if it stood almost two tiles further down
+    if (a.flying && !a.fly && a.st != AState::Dead) sy += 28.0f;
     // (M5) a body on furniture sorts by the furniture's tile (art::PostureInfo): a sleeper after its bed (the blanket over
     // it); a sitter facing down after its chair (in front of the chair back), facing up before it (the chair back hides
     // the small of the back; the table it faces, a row up, is drawn before it either way); side-on after it
@@ -1627,6 +1791,23 @@ void View::drawWorld(Game& g) {
     list.push_back({s.y * 16.0f + 13.0f, 7, i, 0, 0});
     list.push_back({s.y * 16.0f + 13.0f, 7, i, 1, 0});
   }
+  // (M6 fixer r3, review: "a diagonal curtain wall's face runs over the gate tower's base") a diagonal run leaving a
+  // gatehouse starts a row or two below the gate's own row, so it sorted after the gatehouse and its face crossed the
+  // round flanking tower: the first diagonal wall tiles beside a gate go down before the gatehouse (the tower stands in
+  // front of the wall it closes)
+  if (m.kind == MapKind::Overworld && !g.world.gates.empty())
+    for (Drawable& d : list) {
+      if (d.kind != 2) continue;
+      const uint32_t wk = (uint32_t)d.idx;
+      const bool diag = (wk & (art::WALL_BIT_NE | art::WALL_BIT_SE | art::WALL_BIT_SW | art::WALL_BIT_NW)) != 0 &&
+                        !((wk & art::WALL_BIT_E) && (wk & art::WALL_BIT_W));
+      if (!diag) continue;
+      for (const auto& gt : g.world.gates)
+        if (d.tx >= gt.first - 2 && d.tx <= gt.first + 4 && d.ty >= gt.second + 1 && d.ty <= gt.second + 2) {
+          d.y = std::min(d.y, gt.second * 16.0f + 15.5f);
+          break;
+        }
+    }
   std::sort(list.begin(), list.end(), [](const Drawable& a, const Drawable& b) { return a.y < b.y; });
 
   // shadows first (under everything standing)
@@ -1634,6 +1815,23 @@ void View::drawWorld(Game& g) {
     if (d.kind == 3) {
       const Actor& a = g.actors[d.idx];
       if (a.st == AState::Dead) continue;
+      // (M6 BEASTS) an elite's, a champion's or a named unique's aura: its ground glow round the feet, added under the
+      // body (the shadow then darkens its middle where the feet stand); a few fixed widths keep the cache small
+      if (const uint32_t ac = beasts::auraOf(a)) {
+        const auto t0 = beasts::Clock::now();
+        const int sc = beasts::drawScale(a);
+        const int aw = std::clamp((int)std::lround((a.human ? 18.0f : art::lookCellW(beasts::lookOf(a)) * 0.7f) * sc / 6.0f) * 6, 18, 72);
+        const int ah = art::auraH(aw);
+        const Tex& at = auraTex(ac, aw);
+        const int fr = (int)(t_ * 7.0f + a.id * 0.37f) % art::AURA_FRAMES;
+        const float ax = std::floor(a.p.x - aw * 0.5f - cam.x + 0.5f), ay = std::floor(a.p.y - (ah - aw * 0.25f - 1.0f) - cam.y + 0.5f);
+        // a faint normal pass lays the affix's hue on the ground (an additive red on grass alone reads yellow), the
+        // additive pass makes it light
+        P.blitEx(at, fr * aw, 0, aw, ah, ax, ay, (float)aw, (float)ah, false, Color(1, 1, 1, 0.45f));
+        P.blitEx(at, fr * aw, 0, aw, ah, ax, ay, (float)aw, (float)ah, false, Color(1, 1, 1, 0.7f), 1);
+        beasts::cur.auras++;
+        beasts::cur.ms += beasts::msSince(t0);
+      }
       if (a.critter > 0) {   // (M5) a village animal: a shadow as long as its body (wider side-on)
         const int ck = a.critter - 1;
         const float w = art::critterCellW((art::Critter)ck) * (a.face >= 2 ? 0.8f : 0.55f), h = std::max(3.0f, w * 0.32f);
@@ -1649,7 +1847,14 @@ void View::drawWorld(Game& g) {
       const Tex& s = big ? shadowBig_ : shadow_;
       float sc = big ? std::min(1.6f, a.radius / 10.0f) : 1.0f;
       if (a.mon == Monster::Dragon) sc = a.fly ? 1.8f : 2.0f;
-      P.blitEx(s, 0, 0, s.w, s.h, a.p.x - s.w * sc / 2 - cam.x, a.p.y - s.h * sc / 2 - cam.y, s.w * sc, s.h * sc, false, Color(1, 1, 1, a.fly ? 0.6f : 1));
+      if (!a.human) {   // (M6 BEASTS) a world boss throws a heavy shadow; the golem's broad feet a wider one
+        if (beasts::isRank(a, foes::Rank::WorldBoss) && a.mon != Monster::Dragon) sc = std::max(sc, 1.6f);
+        else if (a.mon == Monster::Golem) sc = std::max(sc, 1.25f);
+      }
+      // (M6 BEASTS) a flyer high off the ground (a harpy on the wing) throws a smaller, fainter shadow
+      const bool airborne = !a.human && a.flying && a.mon == Monster::Harpy;
+      if (airborne) sc *= 0.8f;
+      P.blitEx(s, 0, 0, s.w, s.h, a.p.x - s.w * sc / 2 - cam.x, a.p.y - s.h * sc / 2 - cam.y, s.w * sc, s.h * sc, false, Color(1, 1, 1, a.fly ? 0.6f : airborne ? 0.75f : 1));
     } else if (d.kind == 0) {
       Prop p = (Prop)d.idx;
       // (stall facings) a stall, table, cloth or cart throws its own model's shadow (soft, to the lower right)
@@ -1689,6 +1894,17 @@ void View::drawWorld(Game& g) {
     }
   }
   bool ghost = false;   // the hero is hidden behind a building or a tree crown: show a silhouette over it
+  // (M6 fixer r4, review: "the world boss on the overland is hidden under the jungle canopy") the ranked beasts on screen
+  // (elites up to world bosses): a tree crown in front of one thins out round it as it does round the hero, so the
+  // land's headline foes read under forest and jungle canopy; their feet (x, y) and half-width / body height
+  struct Reveal { float x, y, hw, h; };
+  std::vector<Reveal> reveals;
+  if (m.kind == MapKind::Overworld && g.mode != Mode::Title)
+    for (const Actor& a : g.actors) {
+      if (a.human || a.st == AState::Dead || a.rank < (uint8_t)foes::Rank::Elite || a.rank > (uint8_t)foes::Rank::WorldBoss) continue;
+      if (a.p.x < cam.x - 80 || a.p.x > cam.x + Pix::W + 80 || a.p.y < cam.y - 40 || a.p.y > cam.y + Pix::H + 120) continue;
+      reveals.push_back({a.p.x, a.p.y, art::lookCellW(beasts::lookOf(a)) * 0.35f, (float)art::lookCellH(beasts::lookOf(a))});
+    }
   const Tex* ghostTex = nullptr;
   int ghostFr = 0, ghostRow = 0;
   bool ghostFlip = false;
@@ -1744,7 +1960,7 @@ void View::drawWorld(Game& g) {
             auto it = styledProps_.find(k2);
             if (it != styledProps_.end()) tp = &it->second;
             else {
-              if (snowy) art::setMarketSnow(13.0f);
+              if (snowy) art::setMarketSnow(13.0f, (uint32_t)k2);
               tp = &(styledProps_[k2] = pix_->bake(art::marketStallStyled(art::stallTrade(p), (int)aw, (int)form, !vendorOpen, stallFacing, *ps)));
               art::setMarketSnow(1e9f);
             }
@@ -1954,6 +2170,15 @@ void View::drawWorld(Game& g) {
           alpha = tallWild(p) ? 0.55f : 0.6f;
           ghost = true;
         }
+        if (treeProp(p) || tallWild(p))
+          for (const Reveal& rv : reveals) {
+            const float base = d.ty * 16.0f + 16.0f, top = base - fh + 6.0f, tx = d.tx * 16 + 8 + jx;
+            // the crown stands in front (its base below the feet) and covers some of the body
+            if (rv.y < base - 1.0f && rv.y > top && rv.y - rv.h < base - 8.0f && std::fabs(rv.x - tx) < fw * 0.5f + rv.hw) {
+              alpha = std::min(alpha, 0.4f);
+              break;
+            }
+          }
         P.blitEx(t, fr * fw, 0, fw, fh, x, y, (float)fw, (float)fh, flipP, Color(1, 1, 1, alpha));
         if (lampFlameOn) {   // (M5) the lit lamp's flame, flickering on its own clock
           const Tex& ft = cachedTex(0x4Full << 56, [](uint64_t) { return art::lampFlame(0); });
@@ -2190,8 +2415,9 @@ void View::drawWorld(Game& g) {
           if (flash > 0) P.blitEx(t, fr * cw, row * chh, cw, chh, x, y, (float)cw, (float)chh, flip, Color(1, 1, 1, flash), 1);
           m5Count_.critters++;
         } else {
-          const Tex& t = monsters_[(int)a.mon];
-          int cw = art::monsterCellW(a.mon), chh = art::monsterCellH(a.mon);
+          const Tex& t = monsterTex(a);   // (M6: the variant look)
+          const int bsc = beasts::drawScale(a);   // (always 1: one pixel grid)
+          int cw = art::lookCellW(beasts::lookOf(a)) * bsc, chh = art::lookCellH(beasts::lookOf(a)) * bsc;
           int fr = 0;
           switch (a.st) {
             case AState::Walk: fr = (int)(a.animT * (a.mon == Monster::Bat ? 14 : 8)) % 4; break;
@@ -2204,16 +2430,19 @@ void View::drawWorld(Game& g) {
           if (a.fly && a.mon == Monster::Dragon) fr = (int)(a.animT * 6) % 4;
           bool flip = a.aim.x < 0;
           float lift = a.fly ? 34 + std::sin(a.animT * 3) * 3 : (a.flying && a.st != AState::Dead ? 6 + std::sin(a.animT * 6) * 2 : 0);
-          float x = a.p.x - cw / 2.0f - cam.x, y = a.p.y - chh + 2 - lift - cam.y;
+          float x = a.p.x - cw / 2.0f - cam.x, y = a.p.y - chh + 2 * bsc - lift - cam.y;
           // collapsed bones rattle harder as they are about to stand back up
           if (a.st == AState::Down && a.stT > 1.2f) x += std::sin(t_ * 60) * std::min(2.0f, (a.stT - 1.2f) * 1.5f);
           // a heavy windup rears back; a wolf crouches before the lunge
           if (a.st == AState::Windup && a.heavy) y -= std::min(3.0f, a.stT * 6);
           if (a.st == AState::Windup && a.lunge) y += 1;
           // (M3c) a lurker that hasn't seen you lies low in the shallows or the mud: only its back, eyes and snout show,
-          // with a ripple round it
+          // (M6 fixer r4) on whole pixels, like the critters: the body, its x-ray ghost, its rim and glow sheets (all
+          // floored) then land on the same pixels instead of a pixel apart (a doubled, smeared beast)
+          x = std::floor(x + 0.5f); y = std::floor(y + 0.5f);
+          // with a ripple round it. (M6 fixer r4) Never a world boss: the land's headline beast shows its whole body.
           int srcH = chh;
-          if (a.mon == Monster::Lurker && !a.aggro && a.st != AState::Dead && (a.st == AState::Idle || a.st == AState::Walk) && m.kind == MapKind::Overworld) {
+          if (a.mon == Monster::Lurker && !a.aggro && !beasts::isRank(a, foes::Rank::WorldBoss) && a.st != AState::Dead && (a.st == AState::Idle || a.st == AState::Walk) && m.kind == MapKind::Overworld) {
             const int ltx = (int)std::floor(a.p.x / 16), lty = (int)std::floor((a.p.y - 2) / 16);
             bool wet = m.at(ltx, lty) == Ground::Swamp;
             for (int k = 0; k < 4 && !wet; k++) wet = groundWater(m.at(ltx + (k == 0) - (k == 1), lty + (k == 2) - (k == 3)));
@@ -2225,12 +2454,82 @@ void View::drawWorld(Game& g) {
               P.rect(x + 8 - rp * 2, y + srcH + 1, (float)cw - 16 + rp * 4, 1, Color(0.75f, 0.85f, 0.85f, 0.18f));
             }
           }
+          // (M6 fixer, review: "the named unique is an unreadable dark-green blob in its lair") a named unique wears a
+          // crisp gold rim (its silhouette one pixel round it, pulsing softly): it reads against any undergrowth and marks
+          // it as the land's named beast before its plate is read
+          if (beasts::isRank(a, foes::Rank::Named) && a.st != AState::Dead) {
+            const art::MonsterLook SL = beasts::lookOf(a);
+            const uint64_t sk = (SL.key() ^ 0x5A11E77E5A11E77Eull) | (1ull << 61);
+            auto si = monsterLooks_.find(sk);
+            if (si == monsterLooks_.end()) {
+              Canvas sil = art::monsterSheetLook(SL);
+              for (int yy = 0; yy < sil.h; yy++)
+                for (int xx = 0; xx < sil.w; xx++) sil.set(xx, yy, (sil.get(xx, yy) >> 24) ? rgba(255, 255, 255) : 0u);
+              si = monsterLooks_.emplace(sk, pix_->bake(sil)).first;
+            }
+            const float pu = 0.75f + 0.25f * std::sin(t_ * 3.0f + (float)a.id);
+            const Color rc(1.0f, 0.80f, 0.32f, alpha * pu);
+            for (int d = 0; d < 4; d++)
+              P.blitEx(si->second, fr * cw, 0, cw, srcH, x + (float)((d == 0) - (d == 1)), y + (float)((d == 2) - (d == 3)), (float)cw, (float)srcH, flip, rc);
+          }
+          // (M6 fixer r3, review: "the world boss is nearly invisible at night") a world boss carries its own menace
+          // light: an ember-red rim round its silhouette and a faint lift of its body, both on the after-lighting list
+          // (additive, scaled by how dark the night is), so the biggest beast in the land reads as a threat in the dark
+          if (beasts::isRank(a, foes::Rank::WorldBoss) && a.st != AState::Dead && alpha > 0.05f) {
+            const float nightK = g.inside ? 0.7f : clampf(1.0f - g.daylight() * 1.4f, 0, 1);
+            if (nightK > 0.02f) {
+              const art::MonsterLook SL = beasts::lookOf(a);
+              const uint64_t sk = (SL.key() ^ 0x0B055B055B055B05ull) | (1ull << 60);
+              auto si = monsterLooks_.find(sk);
+              if (si == monsterLooks_.end()) {
+                Canvas sh = art::monsterSheetLook(SL);
+                // the rim: the clear pixels touching the beast (never its own body), within its frame
+                const int cwf = art::lookCellW(beasts::lookOf(a)) * bsc;
+                Canvas rim(sh.w, sh.h);
+                auto op = [&](int xx, int yy) { return xx >= 0 && yy >= 0 && xx < sh.w && yy < sh.h && (sh.get(xx, yy) >> 24) != 0; };
+                for (int yy = 0; yy < sh.h; yy++)
+                  for (int xx = 0; xx < sh.w; xx++) {
+                    if (op(xx, yy)) continue;
+                    const int f0 = xx / cwf * cwf;
+                    auto opf = [&](int qx, int qy) { return qx >= f0 && qx < f0 + cwf && op(qx, qy); };
+                    if (opf(xx - 1, yy) || opf(xx + 1, yy) || opf(xx, yy - 1) || opf(xx, yy + 1)) rim.set(xx, yy, rgba(255, 96, 52));
+                  }
+                si = monsterLooks_.emplace(sk, pix_->bake(rim)).first;
+              }
+              const float pu = 0.8f + 0.2f * std::sin(t_ * 2.2f + (float)a.id);
+              beasts::glows.push_back({&si->second, fr * cw, cw, srcH, std::floor(x + 0.5f), std::floor(y + 0.5f), flip, alpha * nightK * pu * 0.9f});
+              beasts::glows.push_back({&t, fr * cw, cw, srcH, std::floor(x + 0.5f), std::floor(y + 0.5f), flip, alpha * nightK * 0.32f});
+            }
+          }
           P.blitEx(t, fr * cw, 0, cw, srcH, x, y, (float)cw, (float)srcH, flip, Color(1, a.slowT > 0 ? 0.85f : 1, a.slowT > 0 ? 1 : 1, alpha));
+          if (a.st != AState::Dead && alpha > 0.5f && !g.inside &&
+              (a.flying || a.fly || (a.rank >= (uint8_t)foes::Rank::Champion && a.rank <= (uint8_t)foes::Rank::WorldBoss)))
+            beasts::xray.push_back({&t, fr * cw, cw, srcH, std::floor(x + 0.5f), std::floor(y + 0.5f), flip, 1.0f});
           if (a.mon == Monster::Wisp && a.st != AState::Dead)   // light: an additive pass makes it glow on any ground
             P.blitEx(t, fr * cw, 0, cw, chh, x, y, (float)cw, (float)chh, flip, Color(0.6f, 1.0f, 1.0f, 0.55f + 0.25f * std::sin(t_ * 11 + a.id)), 1);
           if (a.slowT > 0) P.blitEx(t, fr * cw, 0, cw, chh, x, y, (float)cw, (float)chh, flip, Color(0.2f, 0.4f, 0.7f, 0.5f), 1);
           if (flash > 0) P.blitEx(t, fr * cw, 0, cw, chh, x, y, (float)cw, (float)chh, flip, Color(1, 1, 1, flash), 1);
           if (a.burnT > 0 && ((int)(t_ * 10) & 1)) P.rectAdd(x + cw * 0.3f, y + chh * 0.3f, cw * 0.4f, chh * 0.5f, Color(0.6f, 0.25f, 0.05f, 0.5f));
+          // (M6 BEASTS) a boss passing a phase (66 %, 33 %) flashes white-hot for a moment (update() shakes the screen
+          // and plays the roar); the glowing parts of a variant look (eyes, ember cracks, crystal glints, a golem's
+          // rune) go on the after-lighting list so they burn through the night
+          {
+            auto mi = beasts::memo.find(a.id);
+            if (mi != beasts::memo.end() && mi->second.flashT > 0) {
+              const float k = clampf(mi->second.flashT / 0.45f, 0, 1) * (((int)(t_ * 24) & 1) ? 1.0f : 0.6f);
+              P.blitEx(t, fr * cw, 0, cw, chh, x, y, (float)cw, (float)chh, flip, Color(1, 0.95f, 0.8f, k), 1);
+            }
+            const art::MonsterLook L = beasts::lookOf(a);
+            if (art::monsterLookGlows(L) && alpha > 0.05f) {
+              const uint64_t gk = L.key() | (1ull << 63);
+              auto gi = monsterLooks_.find(gk);
+              if (gi == monsterLooks_.end()) {
+                Canvas gs = art::monsterGlowLook(L);
+                gi = monsterLooks_.emplace(gk, pix_->bake(gs)).first;
+              }
+              beasts::glows.push_back({&gi->second, fr * cw, cw, srcH, std::floor(x + 0.5f), std::floor(y + 0.5f), flip, alpha});
+            }
+          }
         }
         // melee slash arc
         if ((a.st == AState::Strike || (a.st == AState::Recover && a.stT < 0.05f)) && (a.player || a.human)) {
@@ -2246,12 +2545,13 @@ void View::drawWorld(Game& g) {
         }
         // attack telegraph
         if (a.hostile && a.st == AState::Windup && a.mon != Monster::Dragon) {
-          float lift = a.human ? 30.0f : art::monsterCellH(a.mon) + 6.0f;
+          float lift = a.human ? 30.0f : art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a) + 6.0f;
           float pulse = 0.6f + 0.4f * std::sin(t_ * 30);
           if (a.heavy) {
             // heavy slam: a ground ring that fills in as the blow comes, and a double "!!" - roll out (or through)
             // (the sim's heavyWindup, game_internal.h)
-            const float wu = a.mon == Monster::Troll || a.mon == Monster::Yeti ? 0.9f : a.mon == Monster::Blightspawn ? 0.75f : 0.8f;
+            const float wu = a.mon == Monster::Troll || a.mon == Monster::Yeti ? 0.9f : a.mon == Monster::Blightspawn ? 0.75f :
+                             a.mon == Monster::Golem ? 1.0f : 0.8f;   // (M6: the golem's slam, game_internal.h heavyWindup)
             float k = clampf(a.stT / wu, 0, 1);
             Vec2 c = a.p + a.aim * 10.0f;
             float r = 26.0f + a.radius;
@@ -2285,10 +2585,20 @@ void View::drawWorld(Game& g) {
             }
           }
         }
+        // (M6 BEASTS) an elite's, a champion's or a named unique's name plate (drawn after the lighting, nearest first)
+        bool plated = false;   // (its health shows on the plate)
+        if (a.hostile && a.st != AState::Dead && a.st != AState::Down && beasts::marked(a)) {
+          const float d2 = len2(a.p - g.pl().p);
+          if (a.aggro || d2 < 90.0f * 90.0f) {
+            const float top = a.human ? 28.0f : art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a) + 2.0f;
+            beasts::plates.push_back({d.idx, a.p.x, a.p.y - top - (a.fly ? 34.0f : a.flying ? 7.0f : 0.0f), d2, a.p.y});
+            plated = true;
+          }
+        }
         // health bar for damaged enemies
-        if (a.hostile && a.st != AState::Dead && a.st != AState::Down && a.hp < a.maxHp && !a.boss) {
+        if (!plated && a.hostile && a.st != AState::Dead && a.st != AState::Down && a.hp < a.maxHp && !a.boss && a.rank != (uint8_t)foes::Rank::WorldBoss) {
           float lift = a.fly ? 34 : 0;
-          float bw = 16, x = a.p.x - bw / 2 - cam.x, y = a.p.y - (a.human ? 26 : art::monsterCellH(a.mon) + 2) - lift - cam.y;
+          float bw = 16, x = a.p.x - bw / 2 - cam.x, y = a.p.y - (a.human ? 26 : art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a) + 2) - lift - cam.y;
           P.rect(x - 1, y - 1, bw + 2, 4, Color(0.05f, 0.03f, 0.05f, 0.8f));
           P.rect(x, y, bw * clampf(a.hp / a.maxHp, 0, 1), 2, Color(0.85f, 0.2f, 0.18f));
         }
@@ -2297,7 +2607,7 @@ void View::drawWorld(Game& g) {
       case 4: {
         const Pickup& k = g.pickups[d.idx];
         float bob = std::sin(t_ * 4 + d.idx) * 1.5f;
-        const Tex& t = k.gold > 0 ? iconTex(art::Icon::Gold, 0) : iconTex(k.item.icon, k.item.tint);
+        const Tex& t = k.gold > 0 ? iconTex(art::Icon::Gold, 0) : itemTex(g, k.item);
         P.blitEx(shadow_, 0, 0, 14, 6, k.p.x - 5 - cam.x, k.p.y - 2 - cam.y, 10, 4, false, Color(1, 1, 1, 0.8f));
         P.blit(t, k.p.x - 8 - cam.x, k.p.y - 16 + bob - cam.y);
         if (k.gold == 0 && k.item.rarity >= Rarity::Rare && ((int)(t_ * 3 + d.idx) % 3 == 0))
@@ -2571,6 +2881,9 @@ void View::drawLighting(Game& g) {
     // (M3c) the wisp is a light; the ember hound smoulders
     else if (a.mon == Monster::Wisp) light(a.p + Vec2(0, -18), 56, Color(0.45f, 1.0f, 0.95f), 0.85f * (0.85f + 0.15f * std::sin(t_ * 11 + a.id)));
     else if (a.mon == Monster::EmberHound) light(a.p + Vec2(0, -10), 38, Color(1.0f, 0.5f, 0.2f), 0.7f * (0.8f + 0.2f * std::sin(t_ * 13 + a.id)));
+    // (M6 BEASTS) a golem's rune lights its chest; an elite's aura lights the ground round it
+    if (a.mon == Monster::Golem) light(a.p + Vec2(0, -18.0f * beasts::drawScale(a)), 34, beasts::runeLight(a), 0.55f * (0.85f + 0.15f * std::sin(t_ * 5 + a.id)));
+    if (const uint32_t ac = beasts::auraOf(a)) light(a.p + Vec2(0, -3), 40, col(ac), 0.5f * std::min(1.0f, dark * 1.5f));
   }
   for (const Pickup& k : g.pickups) if (k.gold == 0 && k.item.rarity >= Rarity::Rare) light(k.p, 24, col(rarityColor(k.item.rarity)), 0.5f);
   P.setTarget(nullptr);
@@ -2583,6 +2896,209 @@ void View::drawLighting(Game& g) {
 void View::drawWeather(Game& g, float dt) {
   (void)dt;
   Pix& P = *pix_;
+  // (M6 BEASTS) after the weather (and after every early return below): the glowing parts of the variant looks, the
+  // name plates of the elites, champions and named uniques, and a world boss's bar
+  auto beastsOver = [&] {
+    bossBarBottom_ = 0;
+    if (g.mode == Mode::Title || g.mode == Mode::Creator) { beasts::glows.clear(); beasts::plates.clear(); beasts::xray.clear(); return; }
+    const auto t0 = beasts::Clock::now();
+    struct Tally { beasts::Clock::time_point t; ~Tally() { beasts::cur.ms += beasts::msSince(t); } } tally{t0};
+    beasts::cur.glows += (int)beasts::glows.size();
+    const Vec2 cam(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y));
+    // the glow stands out as much as the night is dark (a little by day: embers and runes still smoulder)
+    const bool dungeon = g.inside && g.subSite >= 0;
+    const float dk = dungeon ? 0.7f : g.inside ? clampf(1.0f - g.daylight(), 0, 1) * 0.6f : clampf(1.0f - g.daylight() * 1.4f, 0, 1);
+    const float ga = 0.2f + 0.8f * dk;
+    // the ghosts first (a faint silhouette over whatever stands in front of them: canopy, walls, roofs), then the glows
+    // (drawn after the lighting: dimmed by the night as the land round it is)
+    const float lk = 1.0f - 0.75f * dk;
+    for (const beasts::Glow& q : beasts::xray)
+      P.blitEx(*q.t, q.sx, 0, q.sw, q.sh, q.x, q.y, (float)q.sw, (float)q.sh, q.flip, Color(lk, lk * 0.92f, lk * 0.86f, 0.42f));
+    beasts::xray.clear();
+    for (const beasts::Glow& q : beasts::glows)
+      P.blitEx(*q.t, q.sx, 0, q.sw, q.sh, q.x, q.y, (float)q.sw, (float)q.sh, q.flip, Color(1, 1, 1, ga * q.a), 1);
+    beasts::glows.clear();
+    if (g.mode != Mode::Play) { beasts::plates.clear(); return; }
+    const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR);
+    // a world boss's bar is found first: its strip at the top is kept clear of the plates (and of the herald's ribbon
+    // and the biome banner, which read bossBarBottom_)
+    const Actor* wb = nullptr;
+    float best = 330.0f * 330.0f;
+    for (const Actor& a : g.actors) {
+      if (!beasts::isRank(a, foes::Rank::WorldBoss) || a.st == AState::Dead || !a.hostile) continue;
+      const float d2 = len2(a.p - g.pl().p);
+      if ((a.aggro || d2 < 200.0f * 200.0f) && d2 < best) { best = d2; wb = &a; }
+    }
+    bossBarBottom_ = 0;
+    // the name plates (M6 fixer, review: "plates stack on top of each other and cover the creatures"): one plate per
+    // champion pack and per crowd of like elites (with its count), the base name only (the aura tells the affixes) and
+    // the affix words in a small second line on a named unique and the nearest hunter alone; never over the hero, the
+    // boss bar or another plate; the nearest four that fit, the ones hunting the player first
+    std::sort(beasts::plates.begin(), beasts::plates.end(), [&](const beasts::Plate& x, const beasts::Plate& y) {
+      const bool ax = g.actors[(size_t)x.idx].aggro, ay = g.actors[(size_t)y.idx].aggro;
+      return ax != ay ? ax : x.d2 < y.d2;
+    });
+    const bool phone = Pix::W < 700;
+    const int maxW = phone ? 96 : 120;
+    struct Rect4 { float x0, y0, x1, y1; };
+    std::vector<Rect4> placed;
+    {   // the hero's body: plates slide off it
+      const Vec2 hp = g.pl().p - cam;
+      placed.push_back({hp.x - 8, hp.y - 26, hp.x + 8, hp.y + 2});
+    }
+    if (hudColLeft_ < 1e8f && hudColBottom_ > 0)   // (M6 fixer r2) the location / quest column (last frame's): no plate under it
+      placed.push_back({hudColLeft_, T, R, hudColBottom_});
+    if (biomeBannerT_ > 0 && !biomeBanner_.empty() && !g.inside) {   // the first-visit biome banner (hud.cpp) at the top centre
+      const float by = std::max(T + 30, (wb ? T + 21.0f : 0.0f) + 10);
+      const float half = std::min((float)P.textW(biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70);
+      placed.push_back({Pix::W / 2.0f - half, by - 4, Pix::W / 2.0f + half, by + 11});
+    }
+    if (herald_.t > 0) {   // and the herald's ribbon
+      const float hw = (float)P.textW(herald_.title, 1) / 2 + 40;
+      const float hy = std::max(T + 5, wb ? T + 24.0f : 0.0f);
+      placed.push_back({Pix::W / 2.0f - hw - 30, hy, Pix::W / 2.0f + hw + 30, hy + 28});
+    }
+    // the base name: the name without its affix words, cut to its last words until it fits
+    auto baseName = [&](const Actor& a) {
+      std::string rest = a.name;
+      for (int k = 0; k < (int)foes::Affix::COUNT; k++) {
+        const std::string an = std::string(foes::affixInfo((foes::Affix)k).name) + " ";
+        size_t at;
+        while ((at = rest.find(an)) != std::string::npos) rest.erase(at, an.size());
+      }
+      while (P.textW(rest, 1) > maxW) {
+        const size_t sp = rest.find(' ');
+        if (sp == std::string::npos) break;
+        rest = rest.substr(sp + 1);
+      }
+      return rest;
+    };
+    // (M6 fixer r2, review: "the plates overlap each other and cover the monsters under them") every plated creature's
+    // body is an obstacle for the OTHER plates too: a plate slides off the creatures round it as it does off the hero
+    std::vector<std::pair<int, Rect4>> bodies;
+    bodies.reserve(beasts::plates.size());
+    for (const beasts::Plate& pl : beasts::plates)
+      bodies.push_back({pl.idx, {std::floor(pl.x - cam.x) - 8, std::floor(pl.y - cam.y), std::floor(pl.x - cam.x) + 8, std::floor(pl.feet - cam.y) + 2}});
+    struct Shown { std::string key; float x, y; int pack, n; size_t rect; float y0; };
+    std::vector<Shown> shownV;
+    bool firstHunter = true;
+    int shown = 0;
+    for (const beasts::Plate& pl : beasts::plates) {
+      if (pl.idx < 0 || pl.idx >= (int)g.actors.size()) continue;
+      const Actor& a = g.actors[(size_t)pl.idx];
+      const bool named = beasts::isRank(a, foes::Rank::Named), champ = beasts::isRank(a, foes::Rank::Champion);
+      const std::string base = named ? a.name : baseName(a);
+      // one plate for a champion pack, and for like elites close together: the shown one counts them
+      bool merged = false;
+      for (Shown& o : shownV) {
+        const bool samePack = champ && a.pack > 0 && o.pack == a.pack;
+        const bool alike = !named && o.key == base && (pl.x - o.x) * (pl.x - o.x) + (pl.y - o.y) * (pl.y - o.y) < 90.0f * 90.0f;
+        if (samePack || alike) { o.n++; merged = true; break; }
+      }
+      if (merged || shown >= 4) continue;
+      std::string words;
+      int nw = 0;
+      for (int k = 0; k < (int)foes::Affix::COUNT; k++)
+        if (a.affixes & foes::affixBit((foes::Affix)k))
+          if (nw++ < (named ? 3 : 2)) { if (!words.empty()) words += ' '; words += foes::affixInfo((foes::Affix)k).name; }
+      std::string line1 = base;
+      if (named && P.textW(line1, 1) > maxW + 90) line1 = baseName(a);
+      // the affix words: always under a named unique; under the nearest hunting elite or champion only
+      std::string line2;
+      if (!words.empty() && (named || (firstHunter && a.aggro))) line2 = words;
+      if (P.textW(line2, 1) > maxW + 20 && line2.find(' ') != std::string::npos) line2 = line2.substr(0, line2.find(' '));
+      const uint32_t ac = beasts::auraOf(a);
+      const Color rim = named ? Color(1.0f, 0.78f, 0.3f) : col(ac ? ac : rgba(220, 220, 255));
+      const Color tc = named ? Color(1.0f, 0.84f, 0.36f) : champ ? Color(1.0f, 0.72f, 0.45f)
+                                                         : Color(0.75f + rim.r * 0.25f, 0.75f + rim.g * 0.25f, 0.75f + rim.b * 0.25f);
+      const int w = std::max(P.textW(line1, 1) + (named ? 0 : 20), line2.empty() ? 0 : P.textW(line2, 1));   // (room for " x3")
+      const bool hurt = a.hp < a.maxHp;
+      const float h = 9.0f + (line2.empty() ? 0.0f : 8.0f) + (hurt ? 3.0f : 0.0f);
+      float cx = std::floor(pl.x - cam.x), y0 = std::floor(pl.y - cam.y - h);
+      cx = clampf(cx, L + w / 2.0f + 4, R - w / 2.0f - 4);
+      if (y0 < hudColBottom_ && cx + w / 2.0f + 3 > hudColLeft_) {   // under the quest column: slide a little, or leave it out
+        const float nx = hudColLeft_ - w / 2.0f - 4;
+        if (cx - nx > 40.0f) y0 = std::floor(pl.feet - cam.y + 4.0f);   // far under it: the plate goes under the feet
+        else cx = nx;
+      }
+      const float top = T + 2 + (wb ? 22.0f : 0.0f);   // below the boss bar's strip
+      if (y0 < top) y0 = top;
+      // never over another plate, the hero, another plated creature or the quest column: its own place over the head,
+      // then under the feet, then the same a plate's width to the left or right; a crowd leaves the rest out (M6 fixer
+      // r2: stacking a plate above whatever was in the way put it over the next creature up)
+      auto clearAt = [&](float x, float y) {
+        if (y < top) return false;
+        auto hits = [&](const Rect4& o) { return x - w / 2.0f - 3 < o.x1 && x + w / 2.0f + 3 > o.x0 && y - 1 < o.y1 && y + h + 1 > o.y0; };
+        for (const Rect4& o : placed) if (hits(o)) return false;
+        for (const auto& bo : bodies) if (bo.first != pl.idx && hits(bo.second)) return false;
+        return true;
+      };
+      const float yF = std::floor(pl.feet - cam.y + 4.0f), shiftX = std::floor(w / 2.0f + 14.0f);
+      const float cxs[3] = {cx, clampf(cx - shiftX, L + w / 2.0f + 4, R - w / 2.0f - 4), clampf(cx + shiftX, L + w / 2.0f + 4, R - w / 2.0f - 4)};
+      bool clear = false;
+      for (int k = 0; k < 6 && !clear; k++) {
+        const float x = cxs[k / 2], y = (k & 1) ? yF : y0;
+        if (clearAt(x, y)) { cx = x; y0 = y; clear = true; }
+      }
+      if (!clear) continue;
+      if (a.aggro) firstHunter = false;
+      shown++;
+      beasts::cur.plates++;
+      placed.push_back({cx - w / 2.0f - 3, y0 - 1, cx + w / 2.0f + 3, y0 + h + 1});
+      shownV.push_back({base, pl.x, pl.y, champ ? a.pack : 0, 1, placed.size() - 1, y0});
+      // fainter when it is not hunting the player (a calm elite's plate is a label, not an alarm)
+      const float fa = a.aggro ? 1.0f : 0.7f;
+      const float tx = named ? cx : cx - 10.0f;   // the name a little left: its count (if any) goes to the right
+      P.rect(cx - w / 2.0f - 3, y0 - 1, (float)w + 6, h + 2, Color(0.02f, 0.02f, 0.04f, 0.42f * fa));
+      P.rect(cx - w / 2.0f - 2, y0, (float)w + 4, h, Color(0.06f, 0.05f, 0.08f, 0.72f * fa));
+      P.rect(cx - w / 2.0f - 2, y0, (float)w + 4, 1, Color(rim.r, rim.g, rim.b, 0.85f * fa));
+      P.text(tx + 1, y0 + 2 + 1, line1, 1, Color(0, 0, 0, 0.8f * fa), 1);
+      P.text(tx, y0 + 2, line1, 1, Color(tc.r, tc.g, tc.b, fa), 1);
+      if (!line2.empty()) P.text(cx, y0 + 10, line2, 1, Color(0.82f, 0.74f, 0.62f, 0.9f * fa), 1);
+      if (hurt) {
+        const float bw = (float)w, by = y0 + h - 3;
+        P.rect(cx - bw / 2.0f, by, bw, 2, Color(0.25f, 0.06f, 0.06f, 0.9f));
+        P.rect(cx - bw / 2.0f, by, bw * clampf(a.hp / a.maxHp, 0, 1), 2, Color(0.85f, 0.2f, 0.18f));
+      }
+    }
+    // the counts of the merged plates ("x3"), at the right end of their name line
+    for (const Shown& o : shownV) {
+      if (o.n < 2) continue;
+      const Rect4& r4 = placed[o.rect];
+      const std::string cnt = "x" + std::to_string(o.n);
+      P.text(r4.x1 - 4 - (float)P.textW(cnt, 1), o.y0 + 2, cnt, 1, Color(1.0f, 0.86f, 0.5f), 0);
+    }
+    beasts::plates.clear();
+    // a world boss's bar: at the top of the screen between the vitals (top-left) and the minimap / quest column
+    // (top-right): its name, its health with notches at the phase marks, a pip per phase it has passed
+    if (wb) {
+      beasts::cur.bossBar = 1;
+      const float gx0 = L + 178.0f, gx1 = std::min(R - 168.0f, hudColLeft_ < 1e8f ? hudColLeft_ - 6.0f : R - 168.0f);
+      float bw = std::min(200.0f, gx1 - gx0 - 8.0f), bx, ty;
+      if (bw >= 96.0f) { bx = std::floor((gx0 + gx1) * 0.5f - bw * 0.5f); ty = T + 3.0f; bossBarBottom_ = ty + 18.0f; bossBarX0_ = bx; bossBarX1_ = bx + bw; }
+      else { bw = 150.0f; bx = L + 6.0f; ty = T + 58.0f; }   // a narrow screen: under the vitals
+      const float k = clampf(wb->hp / std::max(1.0f, wb->maxHp), 0, 1);
+      auto mi = beasts::memo.find(wb->id);
+      const float fl = mi != beasts::memo.end() ? clampf(mi->second.flashT / 0.45f, 0, 1) : 0.0f;
+      P.textS(bx + bw * 0.5f, ty, wb->name, 1, Color(1.0f, 0.80f, 0.55f), 1);
+      const float yb = ty + 9.0f;
+      P.rect(bx - 2, yb - 2, bw + 4, 9, Color(0.03f, 0.02f, 0.04f, 0.85f));
+      P.rect(bx - 1, yb - 1, bw + 2, 7, Color(0.45f, 0.30f, 0.18f, 0.9f));   // a bronze rim
+      P.rect(bx, yb, bw, 5, Color(0.22f, 0.04f, 0.05f, 0.95f));
+      P.rect(bx, yb, std::floor(bw * k), 5, Color(0.78f + 0.2f * fl, 0.12f + 0.6f * fl, 0.10f + 0.5f * fl));
+      P.rect(bx, yb, std::floor(bw * k), 1, Color(1.0f, 0.45f, 0.35f));
+      P.rect(bx, yb + 4, std::floor(bw * k), 1, Color(0.5f, 0.06f, 0.08f));
+      for (float m : {0.66f, 0.33f}) P.rect(std::floor(bx + bw * m), yb - 1, 1, 7, Color(0.05f, 0.03f, 0.05f, 0.95f));
+      for (int i = 0; i < 3; i++) {   // the phases: lit pips for the ones passed, the current one pulsing
+        const float px = std::floor(bx + bw - 3.0f - (2 - i) * 7.0f), py = ty + 3.0f;   // (beside the name: the quest
+                                                                                          // arrow sits under the bar)
+        const bool done = i < (int)wb->bossPhase, cur = i == (int)wb->bossPhase;
+        const Color pc = done ? Color(0.95f, 0.35f, 0.2f) : cur ? Color(1.0f, 0.8f, 0.4f, 0.6f + 0.4f * std::sin(t_ * 6)) : Color(0.3f, 0.25f, 0.25f, 0.9f);
+        P.rect(px - 1, py, 3, 1, pc); P.rect(px, py - 1, 1, 3, pc);
+      }
+    }
+  };
+  beasts::OnExit<decltype(beastsOver)> beastsAfter{beastsOver};
   if (g.inside || g.mode == Mode::Title) {
     P.blitEx(vignette_, 0, 0, vignette_.w, vignette_.h, 0, 0, (float)Pix::W, (float)Pix::H, false, Color(1, 1, 1, g.inside && g.subSite >= 0 ? 1.0f : 0.6f));
     return;
@@ -2733,7 +3249,8 @@ Music View::lifeMusic(Game& g, Music want, float dt, bool& festive) {
   festive = false;
   float gain = 1, muffle = 0, crowd = 0, lively = 0;
   const bool calm = want == Music::Town || want == Music::Night || want == Music::Wild;
-  const bool playing = g.mode == Mode::Play || g.mode == Mode::Dialogue || g.mode == Mode::Menu || g.mode == Mode::Shop || g.mode == Mode::Paused;
+  const bool playing = g.mode == Mode::Play || g.mode == Mode::Dialogue || g.mode == Mode::Menu || g.mode == Mode::Shop || g.mode == Mode::Paused ||
+                       g.mode == Mode::Forge;
   int site = -1, inOff = -1;
   if (playing && g.inside && g.subBldg >= 0 && g.subSite < 0 && g.subBldg < (int)g.world.over.bldgs.size()) {
     site = g.world.over.bldgs[(size_t)g.subBldg].site;

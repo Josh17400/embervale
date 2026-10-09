@@ -4,6 +4,7 @@
 // culture work (M3) draws from its own hash streams, never from rr (it only reads rr's state on entry, which every
 // caller already makes a pure function of the person: site, building and slot, or a quest's person seed).
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <string>
 #include "rpg/sim/game.h"
@@ -127,6 +128,20 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
   // ---- roles
   const cult::ArmsStyle& A = owner.arms;   // guards serve the owner
   const cult::ArmsStyle& Al = C.arms;      // bandits are local
+  // (M6 FOES) the culture's own metal on the best-armed: its finest alloy's light and dark keys and its sheen (a royal
+  // guard's or a captain's harness); 0 keeps the band's ramp
+  auto applyAlloy = [&](const cult::ArmsStyle& S) {
+    if (S.alloys.empty()) return;
+    const cult::Alloy& al = S.alloys.back();
+    if (!al.color) return;
+    L.armourTint = al.color | 0xFF000000u;
+    L.armourTint2 = al.color2 ? (al.color2 | 0xFF000000u) : 0;
+    L.sheen = (uint8_t)((int)al.sheen + 1);
+  };
+  // (M6 FOES) the culture's polearm (weapon 8: spear, glaive, halberd) and bow (self, recurve, composite, crossbow,
+  // longbow) forms
+  auto polearmOf = [](const cult::ArmsStyle& S) -> uint8_t { return S.polearm == cult::Polearm::None ? (uint8_t)((int)cult::Polearm::Spear + 1) : (uint8_t)((int)S.polearm + 1); };
+  auto bowOf = [](const cult::ArmsStyle& S) -> uint8_t { return (uint8_t)((int)S.bow + 1); };
   auto applyArms = [&](const cult::ArmsStyle& S, int band, int bodyI, int helmI) {
     L.armorStyle = (uint8_t)band;
     L.helmStyle = (uint8_t)band;
@@ -146,27 +161,156 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
       L.shieldForm = (uint8_t)((int)A.shield + 1);
       L.bladeForm = (uint8_t)((int)A.blade + 1);
       L.weapon = 1;
-      L.plumeColor = L.trimColor ? L.trimColor : (A.plume ? (A.plume | 0xFF000000u) : 0);
+      // (M6 fixer r3) the culture's own plume colour first (an imperial red crest), else the kingdom's trim
+      L.plumeColor = A.plume ? (A.plume | 0xFF000000u) : L.trimColor;
       L.gloves = L.boots = (uint8_t)std::min<int>(L.armorStyle, 3);
       if (rk >= 1) { L.pauldron = (uint8_t)std::min(4, L.pauldron + 1); L.crest = (uint8_t)std::min(4, L.crest + 1); }
       if (rk == 2) L.armsOrnament |= cult::ARM_GILDING;
       if (!L.cloak) {   // the culture's cape in the kingdom's colours
-        if (A.cape == 1) L.cape = true;
+        // (M6 finish fixer, review: "the imperial watch is a flat lemon-yellow robed shape with no legs") a long cloak
+        // in a bright livery hid the whole harness and the legs: the watch wear the culture's short cape, the long
+        // cloak is the royal guard's
+        if (A.cape == 1 || (A.cape == 2 && rk < 2)) L.cape = true;
         else if (A.cape == 2) { L.cloak = 1; L.cloakColor = L.tabardColor; }
       }
       // (fixer M4 r3, review: "both guards pixel-identical") the watch are townsfolk: some keep a beard
       L.beard = !female && L.people != 2 && h.chance(100);
+      // (M6) the royal guard wears the realm's own alloy; every watchman's spare bow is the culture's
+      if (rk == 2) applyAlloy(A);
+      // (M6 fixer, review: "Dune and Jade city watch wear the same generic livery") the rest of the watch wear the
+      // culture's signature metal: the most colourful of its alloys (a Dune guard's bright bronze, a Jade guard's
+      // glowing jadesilver), so a far city's guards show a strange metal, not the heartland's bright steel
+      if (rk < 2) {
+        const cult::Alloy* sig = nullptr;
+        int best = -1;
+        for (const cult::Alloy& al : A.alloys) {
+          if (!al.color) continue;
+          const int r0 = al.color & 255, g0 = (al.color >> 8) & 255, b0 = (al.color >> 16) & 255;
+          const int chroma = std::max(r0, std::max(g0, b0)) - std::min(r0, std::min(g0, b0));
+          if (chroma > best) { best = chroma; sig = &al; }
+        }
+        const uint32_t mt = A.metal;
+        const int mr = mt & 255, mg = (mt >> 8) & 255, mb = (mt >> 16) & 255;
+        const int mChroma = std::max(mr, std::max(mg, mb)) - std::min(mr, std::min(mg, mb));
+        if (!(sig && best >= 40) && mt && mChroma >= 24) {
+          // (M6 fixer r3) no colourful alloy: the culture's own metal (an imperial bronze, not the gilded band's lemon)
+          auto sc = [](int v, float k) { return std::clamp((int)std::lround(v * k), 0, 255); };
+          L.armourTint = rgba(sc(mr, 0.98f), sc(mg, 0.92f), sc(mb, 0.9f));
+          L.armourTint2 = rgba(sc(mr, 0.42f), sc(mg, 0.36f), sc(mb, 0.34f));
+          L.sheen = (uint8_t)((int)cult::Sheen::Matte + 1);
+        }
+        if (sig && best >= 40) {
+          // (M6 fixer r3, review: "the imperial watch is a flat lemon-yellow robe") the watch's everyday harness: the
+          // signature metal weathered toward the culture's own (less saturated, a step darker), so plate breaks and
+          // shading read on it; the royal guard alone wears it bright
+          const uint32_t base = A.metal ? (A.metal | 0xFF000000u) : rgba(150, 150, 156);
+          L.armourTint = darker(blend(sig->color | 0xFF000000u, base, 0.5f), 0.8f);
+          L.armourTint2 = darker(sig->color2 ? blend(sig->color2 | 0xFF000000u, base, 0.3f) : L.armourTint, sig->color2 ? 0.85f : 0.5f);
+          // a polished or burnished finish is the royal guard's; the watch's harness is worn matte
+          const cult::Sheen sh = sig->sheen == cult::Sheen::Bright || sig->sheen == cult::Sheen::Burnished ? cult::Sheen::Matte : sig->sheen;
+          L.sheen = (uint8_t)((int)sh + 1);
+        }
+        // legs that read: the skirt stops above the knee and the boots are leather, so the figure is not one column
+        L.skirt = (uint8_t)std::min<int>(L.skirt, 2);
+        if (rk == 0) L.boots = 1;
+        // (M6 finish fixer, review: "no visible legs or boots: the imperial watch is one column of yellow") dark hose
+        // under the harness (a step of the livery toward leather brown), so the legs part from the armour at 1x
+        L.bottomColor = darker(blend(L.tabardColor ? L.tabardColor : rgba(90, 80, 70), rgba(70, 54, 44), 0.65f), 0.7f);
+      }
+      L.bowForm = bowOf(A);
       break;
     }
     // (M4) a kingdom's soldier: the owner culture's arms one step plainer than the town watch (the second body and helm
     // forms of its grammar), its shield, a spear; the tabard in the kingdom's colours (set by makeLook)
     case Role::Soldier: {
-      applyArms(A, bandOf(A.metal, 0), 1, 1);
+      // (M6 fixer r3, review: "the common soldier wears the same grey dome helm in 10 of 12 cultures") the rank seen
+      // most wears the culture's SIGNATURE silhouette: its first helm form (a fancy great helm or winged helm stays the
+      // captain's: the soldier takes the second), its first body form (plate is a captain's: mail instead), its own
+      // metal (bronze, brass, lacquer, green bronze: ArmsStyle::metal when it is not plain grey) and leather or metal
+      // boots by how heavy the harness is. The captain keeps the alloy, the cloak, the crest and the plumes.
+      const bool fancy = A.helm[0] == cult::HelmForm::GreatHelm || A.helm[0] == cult::HelmForm::Winged;
+      applyArms(A, bandOf(A.metal, 0), 0, fancy ? 1 : 0);
+      if (L.bodyForm == (uint8_t)((int)cult::BodyArm::Plate + 1)) L.bodyForm = (uint8_t)((int)cult::BodyArm::Mail + 1);
       L.shieldForm = (uint8_t)((int)A.shield + 1);
       L.bladeForm = (uint8_t)((int)A.blade + 1);
       L.plumeColor = A.plume ? (A.plume | 0xFF000000u) : 0;
-      L.gloves = L.boots = (uint8_t)std::min<int>(L.armorStyle, 2);
+      {
+        const uint32_t m = A.metal;
+        const int r0 = m & 255, g0 = (m >> 8) & 255, b0 = (m >> 16) & 255;
+        const int chroma = std::max(r0, std::max(g0, b0)) - std::min(r0, std::min(g0, b0));
+        const int sum = r0 + g0 + b0;
+        if (m && (chroma >= 24 || sum < 300)) {
+          // the light key a little above the culture's mid-tone metal, the dark key well below it
+          auto sc = [](int v, float k) { return std::clamp((int)std::lround(v * k), 0, 255); };
+          L.armourTint = rgba(sc(r0, 1.18f), sc(g0, 1.16f), sc(b0, 1.12f));
+          L.armourTint2 = rgba(sc(r0, 0.55f), sc(g0, 0.52f), sc(b0, 0.5f));
+          L.sheen = (uint8_t)((int)(sum < 300 ? cult::Sheen::Dark : cult::Sheen::Matte) + 1);   // blackened lacquer : matte bronze
+        } else if (!A.alloys.empty() && A.alloys.front().color) {
+          // plain grey iron is everyone's: a grey-metal culture's soldiers wear its commonest alloy's finish instead
+          const cult::Alloy& al = A.alloys.front();
+          L.armourTint = al.color | 0xFF000000u;
+          L.armourTint2 = al.color2 ? (al.color2 | 0xFF000000u) : 0;
+          L.sheen = (uint8_t)((int)al.sheen + 1);
+        }
+      }
+      // (M6 finish fixer, review must: "Highland, Marsh, River, Sylvan and Starspire soldiers cannot be told apart at
+      // 1x") ten helm forms for twelve peoples: the culture's grammar alone let Highland / Marsh / River all draw the
+      // kettle and Imperial / Sylvan / Starspire all draw the crest. The common soldier now wears its people's SIGNATURE
+      // helm (the strongest silhouette its grammar allows, never another people's), so each is tellable at 16 px:
+      // fjord horns, the highland bonnet (no helm: a clansman's blue cap over the quilted coat), the heartland nasal,
+      // the imperial crest, the dune aventail, the steppe spired spangenhelm in lamellar, the marsh's boiled-leather
+      // kettle, the jade mask, the river's bright kettle in brigandine, the sun temple's plume, the sylvan crest over
+      // leaf scales, the starspire wings. Two peoples share a form only where metal and body tell them apart.
+      {
+        using HF = cult::HelmForm;
+        using BA = cult::BodyArm;
+        struct Sig { HF helm; BA body; };
+        static const Sig kSig[(int)cult::Archetype::COUNT] = {
+            {HF::Horned, BA::Mail},             // Fjordfolk
+            {HF::Kettle, BA::Padded},           // Highland (bonnet below: no helm)
+            {HF::Nasal, BA::Mail},              // Heartland
+            {HF::Crested, BA::Scale},           // Imperial
+            {HF::ConicalAventail, BA::Mail},    // Dune
+            {HF::Spangen, BA::Lamellar},        // Steppe
+            {HF::Kettle, BA::Leather},          // Marsh
+            {HF::Masked, BA::Lamellar},         // Jade
+            {HF::Kettle, BA::Brigandine},       // River
+            {HF::Plumed, BA::Padded},           // SunTemple
+            {HF::Crested, BA::Leaf},            // Sylvan
+            {HF::Winged, BA::Scale},            // Starspire
+        };
+        const int ar = (int)owner.archetype;
+        if (ar >= 0 && ar < (int)cult::Archetype::COUNT) {
+          L.helmForm = (uint8_t)((int)kSig[ar].helm + 1);
+          L.bodyForm = (uint8_t)((int)kSig[ar].body + 1);
+          if (owner.archetype == cult::Archetype::Highland) {
+            // the clansman's bonnet: no helm, a cap in the kingdom's colour (darkened) with the culture's plume colour
+            L.helmet = false; L.helmStyle = 0; L.helmForm = 0;
+            L.headwear = (uint8_t)cult::Headwear::Cap;
+            L.headColor = darker(L.tabardColor ? L.tabardColor : rgba(52, 64, 110), 0.55f);
+          } else if (owner.archetype == cult::Archetype::Marsh) {
+            L.helmStyle = 1;   // boiled leather, not iron
+          }
+        }
+      }
+      const cult::BodyArm bf = (cult::BodyArm)std::max(0, (int)L.bodyForm - 1);
+      const bool heavy =bf == cult::BodyArm::Mail || bf == cult::BodyArm::Scale || bf == cult::BodyArm::Lamellar || bf == cult::BodyArm::Brigandine;
+      L.gloves = L.boots = (uint8_t)std::min<int>(L.armorStyle, heavy ? 2 : 1);
+      // (M6 finish fixer) dark hose between the harness and the boots, so the legs part from the armour at 1x
+      L.bottomColor = darker(blend(L.tabardColor ? L.tabardColor : rgba(90, 80, 70), rgba(70, 54, 44), 0.65f), 0.7f);
       L.beard = L.beard && h.chance(90);
+      {
+        // (M6 fixer round 2, review: "the sun-temple soldier's face is a black blob at 1x") under a helm's brow shadow a
+        // dark beard on a dark face merges with it into one black shape below the eyes: a soldier of dark skin whose
+        // hair is no lighter than it goes clean-shaven, so the mouth and jaw read
+        auto lum = [](uint32_t c) { return ((int)(c & 255) * 3 + (int)((c >> 8) & 255) * 6 + (int)((c >> 16) & 255)) / 10; };
+        const int ls = lum(L.skin), lh = lum(L.hairColor);
+        if (L.beard && ls < 130 && lh <= ls + 20) L.beard = false;
+      }
+      // (M6) the culture's polearm in hand, and one in five carries its bow slung on the back
+      L.polearmForm = polearmOf(A);
+      L.bowForm = bowOf(A);
+      if (h.chance(52)) L.backItem |= 1;
       break;
     }
     // (M4) a captain: the best of the culture's arms (rank 1), a crest and a cloak in the kingdom's colours, a blade
@@ -179,6 +323,8 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
       L.armsOrnament |= cult::ARM_PLUMES;
       L.plumeColor = L.trimColor ? L.trimColor : (A.plume ? (A.plume | 0xFF000000u) : 0);
       L.gloves = L.boots = 3;
+      applyAlloy(A);   // (M6) the captain's harness in the realm's finest metal
+      L.bowForm = bowOf(A);
       break;
     }
     // (M4) a refugee: the village's own clothes, faded and patched, a headscarf or hood against the road
@@ -199,6 +345,63 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
       if (h.chance(70) && Al.shield != cult::ShieldForm::None) { L.shieldForm = (uint8_t)((int)cult::ShieldForm::Buckler + 1); }
       L.armsOrnament = (uint16_t)(Al.ornament & (cult::ARM_FUR_TRIM | cult::ARM_STUDS | cult::ARM_TASSELS));
       L.cut = 0; L.pattern = 0;
+      // (M6) mismatched pieces taken off the dead: now and then a soldier's iron helm of the land's form over the
+      // leathers, odd gloves or boots; the local bow for the archers; never an alloy
+      if (!L.hood && h.chance(55)) { L.helmStyle = 2; L.helmForm = (uint8_t)((int)Al.helm[0] + 1); L.headwear = 0; }
+      if (h.chance(110)) L.gloves = 1;
+      if (h.chance(90)) L.boots = (uint8_t)(h.chance(60) ? 2 : 1);
+      L.bowForm = bowOf(Al);
+      L.armourTint = 0; L.armourTint2 = 0; L.sheen = 0;
+      // (M6 fixer round 2, review: "bandits look the same across cultures: a grey kettle helm, a brown jerkin and a
+      // buckler in fjordfolk, heartland, imperial, dune, marsh, jade, river and sylvan alike") each people's outlaws
+      // wear their OWN poor kit, read at 1x by the head first: a fur hat, a bonnet, the greenwood hood, a leather
+      // crested cap, a turban, a leather spangenhelm, a marsh hood, a straw hat, a bandana, a plumed leather cap, a
+      // circlet, a cowl; the coat padded or leather (never better: a bandit is poor), dyed in the land's cloth, and
+      // the shield its people's own (or none). A few still wear a soldier's iron helm taken off the dead.
+      {
+        using HF = cult::HelmForm;
+        using BA = cult::BodyArm;
+        using SF = cult::ShieldForm;
+        using HW = cult::Headwear;
+        struct Kit { int8_t helm; HW head; BA body; SF shield; uint32_t headCol; };   // helm -1: the headwear instead
+        static const Kit kKit[(int)cult::Archetype::COUNT] = {
+            {-1, HW::FurHat, BA::Leather, SF::Round, rgba(112, 80, 56)},                    // Fjordfolk
+            {-1, HW::Cap, BA::Padded, SF::None, rgba(40, 52, 96)},                          // Highland
+            {-1, HW::Hood, BA::Leather, SF::Buckler, rgba(70, 96, 52)},                     // Heartland
+            {(int8_t)HF::Crested, HW::None, BA::Leather, SF::Oval, 0},                      // Imperial
+            {-1, HW::Turban, BA::Padded, SF::None, rgba(218, 204, 170)},                    // Dune
+            {(int8_t)HF::Spangen, HW::None, BA::Leather, SF::None, 0},                      // Steppe
+            {-1, HW::Hood, BA::Padded, SF::None, rgba(86, 84, 58)},                         // Marsh
+            {-1, HW::Conical, BA::Padded, SF::None, 0},                                     // Jade
+            {-1, HW::Headscarf, BA::Leather, SF::Buckler, rgba(168, 48, 40)},               // River
+            {(int8_t)HF::Plumed, HW::None, BA::Padded, SF::Oval, 0},                        // SunTemple
+            {-1, HW::Circlet, BA::Padded, SF::Leaf, rgba(196, 170, 96)},                    // Sylvan
+            {-1, HW::Veil, BA::Padded, SF::Kite, rgba(70, 64, 104)},                        // Starspire
+        };
+        const int ar = (int)C.archetype;
+        if (ar >= 0 && ar < (int)cult::Archetype::COUNT) {
+          const Kit& K = kKit[ar];
+          const bool looted = L.helmStyle == 2 && h.chance(80);   // a third of the looted iron helms are kept
+          if (!looted) {
+            L.hood = false;
+            if (K.helm >= 0) { L.helmet = true; L.helmStyle = 1; L.helmForm = (uint8_t)(K.helm + 1); L.headwear = 0; }
+            else {
+              L.helmet = false; L.helmStyle = 0; L.helmForm = 0;
+              if (K.head == HW::Hood) { L.hood = true; L.headwear = 0; }
+              else { L.headwear = (uint8_t)K.head; }
+              L.headColor = K.headCol ? K.headCol : 0;
+            }
+          }
+          L.bodyForm = (uint8_t)((int)K.body + 1);
+          L.armorStyle = (uint8_t)std::max<int>(L.armorStyle, 1);
+          L.outfit = art::Outfit::Leather;
+          // the coat in the land's own cloth, dyed dark and worn (never the shirt's colour: it read as the same jerkin)
+          L.topColor = darker(cloth(1 + h.pick(std::max(1, nc - 1))), 0.78f);
+          if (L.hood && K.head == HW::Hood) L.bottomColor = darker(K.headCol, 0.9f);   // the hood is cut from the hose's cloth (the painter's rule)
+          L.shieldForm = K.shield == SF::None ? 0 : (uint8_t)((int)K.shield + 1);
+          if (K.shield == SF::None) L.shield = false;
+        }
+      }
       break;
     }
     case Role::Priest: {
@@ -353,6 +556,7 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
     }
     if (r == Role::Soldier) a.name = "SOLDIER";
     if (r == Role::Herald) a.name = "HERALD";
+    if (KC || PC) a.culture = KC ? KC->id : PC->id;   // (M6) whose arms they wear: their loot is that culture's make
     return;
   }
   if (const Kingdom* K = world.kingdomOf(home)) {
@@ -381,5 +585,8 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
   if (C) {
     const uint64_t s = entry ^ ((uint64_t)(uint32_t)(a.site + 1) << 40) ^ ((uint64_t)(uint32_t)(a.bldg + 1) << 20) ^ (uint64_t)(uint32_t)a.slot ^ C->id;
     census::dress(L, a.name, r, female, *C, owner ? *owner : *C, s, rank);
+    // (M6) whose arms they wear: a guard its owner's, a bandit the land's own (their loot is that culture's make)
+    if (r == Role::Guard || r == Role::King || r == Role::Jarl) a.culture = owner ? owner->id : C->id;
+    else if (r == Role::Bandit) a.culture = C->id;
   }
 }

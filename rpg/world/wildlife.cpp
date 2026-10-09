@@ -1,4 +1,6 @@
-// M3c Wildlands: the biomes' wildlife (rpg/world/wildlife.h). LIFE lane (the den table: frozen, see the header).
+// M3c Wildlands: the biomes' wildlife (rpg/world/wildlife.h). LIFE lane; M6 FOES lane: the harpy and the golem (dens on
+// the badlands and the alpine meadows / the crystal barrens, roamers on the sea cliffs and the high rock, golem caves;
+// ENDLESS_GEN_VER 15, goldens re-recorded).
 #include "rpg/world/wildlife.h"
 
 namespace ew {
@@ -25,7 +27,7 @@ const Trio& denTrio(Eco e) {
       {Monster::Hyena, 60, Monster::Goblin, 85, Monster::Scorpion},       // Savanna
       {Monster::Wolf, 50, Monster::Skeleton, 75, Monster::Goblin},        // Heath
       {Monster::Wolf, 50, Monster::Goblin, 85, Monster::Skeleton},        // ChalkDowns
-      {Monster::Wolf, 50, Monster::Troll, 75, Monster::Bear},             // AlpineMeadow
+      {Monster::Wolf, 45, Monster::Harpy, 75, Monster::Troll},            // AlpineMeadow (M6: harpies on the crags)
       {Monster::Wraith, 40, Monster::Skeleton, 80, Monster::Wolf},        // StonePlains
       {Monster::Wolf, 45, Monster::Spider, 75, Monster::Bear},            // MixedForest (the classic forest)
       {Monster::Wolf, 55, Monster::Spider, 75, Monster::Bear},            // BirchWood
@@ -50,13 +52,13 @@ const Trio& denTrio(Eco e) {
       {Monster::Wolf, 50, Monster::Goblin, 85, Monster::Lurker},          // LakeDistrict
       {Monster::Scorpion, 40, Monster::Sandworm, 70, Monster::Goblin},    // Dunes
       {Monster::Scorpion, 40, Monster::Goblin, 75, Monster::Skeleton},    // StonyDesert
-      {Monster::Goblin, 45, Monster::Scorpion, 75, Monster::Skeleton},    // Badlands
+      {Monster::Goblin, 40, Monster::Scorpion, 70, Monster::Harpy},       // Badlands (M6: harpies on the mesas)
       {Monster::Scorpion, 50, Monster::Skeleton, 100, Monster::Skeleton}, // SaltFlats
       {Monster::Hyena, 40, Monster::Scorpion, 70, Monster::Goblin},       // Scrubland
       {Monster::Goblin, 50, Monster::Scorpion, 80, Monster::Lurker},      // Oasis
       {None, 0, None, 0, None},                                           // Mountain
       {Monster::EmberHound, 60, Monster::Skeleton, 85, Monster::Troll},   // AshFields
-      {Monster::Wisp, 50, Monster::FrostSpider, 80, Monster::Slime},      // CrystalBarrens
+      {Monster::Wisp, 45, Monster::Golem, 75, Monster::FrostSpider},      // CrystalBarrens (M6: crystal golems)
       {Monster::Scorpion, 40, Monster::Skeleton, 75, Monster::Wraith},    // PetrifiedForest
       {Monster::Blightspawn, 60, Monster::Skeleton, 85, Monster::Wraith}, // Blight
   };
@@ -78,6 +80,7 @@ bool denOf(Eco e, int32_t q, Monster& mon, uint8_t& pack) {
     case Monster::Goblin: pack = (uint8_t)(3 + ((q >> 1) & 1)); break;
     case Monster::Skeleton: case Monster::Blightspawn: pack = 3; break;
     case Monster::Spider: case Monster::FrostSpider: case Monster::Scorpion: case Monster::EmberHound: case Monster::Wisp: pack = 2; break;
+    case Monster::Harpy: pack = (uint8_t)(2 + ((q >> 2) & 1)); break;   // (M6) a roost of 2-3
     default: pack = 1; break;
   }
   return true;
@@ -89,10 +92,22 @@ bool denOf(Eco e, int32_t q, Monster& mon, uint8_t& pack) {
 // on the savanna, ice wolves on the snow, ember hounds over the ash.
 bool roamerOf(Eco e, bool night, float roll, Monster& mon) {
   const Biome fam = ecoFamily(e);
-  if (fam == Biome::Ocean || fam == Biome::Mountain) return false;
+  if (fam == Biome::Ocean) return false;
+  // (M6) the high rock: harpies on the wing, by day a golem among the stones (walkable passes and saddles only: the
+  // spawner never puts anything on solid rock)
+  if (fam == Biome::Mountain) {
+    if (roll < 0.30f) { mon = Monster::Harpy; return true; }
+    if (!night && roll < 0.38f) { mon = Monster::Golem; return true; }
+    return false;
+  }
   if (fam == Biome::Beach) {
     if (e == Eco::CoralCoast && roll < 0.3f) { mon = Monster::Lurker; return true; }
-    if (e == Eco::SeaCliffs) { if (night && roll < 0.3f) { mon = Monster::Skeleton; return true; } mon = Monster::Bat; return roll < 0.5f; }
+    if (e == Eco::SeaCliffs) {
+      if (night && roll < 0.3f) { mon = Monster::Skeleton; return true; }
+      if (!night && roll < 0.25f) { mon = Monster::Harpy; return true; }   // (M6) harpies nest on the sea cliffs
+      mon = Monster::Bat;
+      return roll < 0.5f;
+    }
     mon = Monster::Mudcrab;
     return true;
   }
@@ -265,7 +280,9 @@ bool caveTheme(Eco e, int32_t q, Monster& mon) {
     case Eco::Savanna: case Eco::Scrubland: mon = Monster::Hyena; return true;
     case Eco::AshFields: mon = Monster::EmberHound; return true;
     case Eco::Jungle: case Eco::Mangrove: case Eco::FloodedForest: mon = (q & 1) ? Monster::Spider : Monster::Lurker; return true;
-    case Eco::MushroomForest: case Eco::CrystalBarrens: case Eco::Silverwood: mon = Monster::Wisp; return true;
+    case Eco::MushroomForest: case Eco::Silverwood: mon = Monster::Wisp; return true;
+    case Eco::CrystalBarrens: mon = (q & 1) ? Monster::Golem : Monster::Wisp; return true;   // (M6) crystal golems
+    case Eco::Mountain: if (q & 1) { mon = Monster::Golem; return true; } return false;       // (M6) a golem's hall
     case Eco::PeatBog: mon = (q & 1) ? Monster::Wisp : Monster::Skeleton; return true;
     case Eco::Blight: case Eco::DarkForest: mon = Monster::Blightspawn; return true;
     default: return false;

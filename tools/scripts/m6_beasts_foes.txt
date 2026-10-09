@@ -1,0 +1,49 @@
+# M6 BEASTS lane: the monster art and the view of ranked foes in the running game (rpg/view/script_beasts.cpp stages
+# them): every family in a classic line-up, then as elites wearing horns, plates and glowing eyes with their auras by
+# day and by night, the harpy and the golem fighting, a named unique with its gold plate, the golem's materials, a world
+# boss with its bar passing a phase (the flash, the shake, the roar), and an overlays line-up.
+#   embervale.exe --script tools/scripts/m6_beasts_foes.txt     (m6_beasts_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 goto ruin
++1.5 beastlineup normal
++0.8 shot m6_beasts_lineup.png
++0.05 beastclear
++0.1 beastlineup elite horns plates eyes swift
++0.8 shot m6_beasts_elites_day.png
++0.05 expect beasts auras 16 plates 1
++0.05 hour 23
++0.6 shot m6_beasts_elites_night.png
++0.05 expect beasts glows 10
++0.05 beastclear
++0.05 beastlineup elite rime crystal ember moss frostbound
++0.8 shot m6_beasts_overlays_night.png
++0.05 beastclear
++0.05 hour 11
++0.1 beast harpy 2 elite swift
++0.1 beast golem 1 champion armoured burning at 40 30
++1.2 shot m6_beasts_fight1.png
++0.9 shot m6_beasts_fight2.png
++0.05 expect beasts auras 3 plates 2
++0.05 beastclear
++0.1 beast wolf 1 named frostbound vampiric horns eyes mask still name OLD_NINEFANGS hp 70 at 40 -10
++0.1 beast golem 1 normal still tint crystal at -60 -40
++0.05 beast golem 1 normal still tint clay at -20 -40
++0.05 beast golem 1 normal still tint iron at 20 -40
++0.05 beast golem 1 normal still at 60 -40
++0.8 shot m6_beasts_named_golems.png
++0.05 expect beasts plates 1
++0.05 hour 22
++0.6 shot m6_beasts_golems_night.png
++0.05 beastclear
++0.05 hour 16
++0.1 beast troll 1 worldboss eyes horns plates name KHORVAL_THE_WHITE hp 85 at 50 40
++1.0 shot m6_beasts_worldboss.png
++0.05 expect beasts bossbar
++0.05 bossphase 1
++0.12 shot m6_beasts_phase.png
++0.6 bossphase 2
++0.5 shot m6_beasts_phase2.png
++0.3 quit

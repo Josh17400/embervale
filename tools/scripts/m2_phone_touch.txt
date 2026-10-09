@@ -18,9 +18,9 @@ seed 8
 +0.3 tap 320 261
 +0.3 expect mode play
 # the menu and the map by touch
-+0.3 tap 610 12                  # the hamburger, top right of the safe area
++0.3 tap 580 12                  # the hamburger, top right of the safe area (real 3x insets: 44 logical px)
 +0.4 expect mode menu
-+0.1 tap 352 19                  # the MAP tab
++0.1 tap 341 19                  # the MAP tab
 +0.3 mapzoom 4
 +0.1 mapexplore 900
 +0.1 mapreveal 14

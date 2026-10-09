@@ -41,7 +41,8 @@ struct HumanLook {
   bool hood = false;     // cloth hood (robes, bandits)
   bool cape = false;     // cape behind (visible esp. from behind), colour = tabardColor
   bool shield = false;   // round shield on off-hand
-  uint8_t weapon = 0;    // 0 none, 1 sword, 2 axe, 3 bow, 4 staff, 5 dagger, 6 hammer/pick — drawn in hand, swings in frames 5/6
+  uint8_t weapon = 0;    // 0 none, 1 sword, 2 axe, 3 bow, 4 staff, 5 dagger, 6 hammer/pick, (M4) 8 spear / polearm, 9 walking
+                         // stick — drawn in hand, swings in frames 5/6
   uint32_t weaponColor = rgba(200, 205, 215);   // blade/metal colour (tier tint)
 
   // ---- M0 equipment and appearance looks. Every default reproduces the pre-M0 pixels exactly (art_hash checks it),
@@ -90,11 +91,31 @@ struct HumanLook {
   uint8_t pauldron = 0, skirt = 0, crest = 0;   // cult::ArmsStyle dials + 1 (0: the band's own)
   uint32_t plumeColor = 0;  // 0 = tabardColor
 
+  // ---- M6 Steel: the rest of the culture arms grammar and the metal a piece is made of (VISION_PLAN 7.2, 15.11).
+  //      0 everywhere = the M5 look, pixel for pixel (art_hash). weapon 8 (M4) is the polearm; 9 a walking stick.
+  uint8_t polearmForm = 0;  // weapon 8: cult::Polearm + 1 (spear, glaive, halberd); 0 = the M4 spear
+  uint8_t bowForm = 0;      // weapon 3 and a bow on the back: cult::BowKind + 1 (self, recurve, composite, crossbow,
+                            // longbow); 0 = the classic bow
+  uint32_t armourTint = 0;  // 0 = each piece's material band ramp; else the metal's light key (bronze, a culture alloy)
+                            // the armour pieces (helm, body, gloves, boots, shield rim) are painted in
+  uint32_t armourTint2 = 0; // its dark key (0: derived from armourTint)
+  uint8_t sheen = 0;        // cult::Sheen + 1 of that metal (matte, bright, dark, banded, iridescent, glowing, pale,
+                            // burnished); 0 plain
+  uint8_t glow = 0;         // legendary pieces that glint (bits: 1 weapon, 2 body, 4 helm, 8 shield, 16 cloak);
+                            // the colour is glowColor
+  uint32_t glowColor = 0;
+  uint32_t shieldField = 0;  // (M6 fixer) a maker culture's shield paint: the field (0: tabardColor, the hero's arms)
+  uint32_t shieldDevice = 0; // and its device (0: gold)
+
   // Identity of the painted sheet: equal keys must mean identical sheets. The renderer caches baked sheets by it,
   // so every field that changes pixels must be mixed in here (art_human.cpp).
   uint64_t key() const;
 };
 Canvas humanSheet(const HumanLook& look);
+// M6 Steel: the 5-step metal ramp (0 deepest shadow .. 4 highlight) of an alloy's light / dark keys and its sheen
+// (HumanLook::sheen: cult::Sheen + 1; 0 plain, e.g. bronze). The armour painters and the item icons share it so a
+// piece looks the same metal on the doll and in the pack.
+void metalRampKeys(uint32_t light, uint32_t dark, uint8_t sheen, uint32_t out[5]);
 // one cell of the sheet (row = facing, frame = column) before the 1px outline: tests check what is painted where
 Canvas humanCellRaw(const HumanLook& look, int row, int frame);
 

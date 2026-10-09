@@ -1,0 +1,48 @@
+# M6 NUMBERS lane: the forge on the economy's own chain, desktop. The smith's dialogue (WORK THE FORGE, the
+# apprenticeship's COMMISSION / TEACH ME), the forge screen, ore -> copper and tin ingots -> bronze -> a bronze sword,
+# the smithing skill growing; then the shared potion cooldown on the HUD.
+#   embervale.exe --script tools/scripts/m6_numbers_forge.txt      (m6_numbers_forge_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 enter smithy
++0.4 walkto smith 20
++0.1 stuff copper ore 6
++0.05 stuff tin ore 2
++0.05 stuff leather 2
++0.1 key E
++0.8 expect mode dialogue
++0.1 expect option WORK THE FORGE
++0.1 expect option THE CRAFT
++0.1 shot m6_numbers_forge_0_talk.png
++0.1 choose THE CRAFT
++0.6 expect option COMMISSION
++0.1 shot m6_numbers_forge_0b_craft.png
++0.1 choose FAREWELL
++0.3 key E
++0.8 choose WORK THE FORGE
++0.3 expect mode forge
++0.1 forgepick smelt.copper
++0.3 shot m6_numbers_forge_1_bench.png
++0.1 key Return
++0.2 key Return
++0.2 key Return
++0.1 forgepick smelt.tin
++0.2 key Return
++0.1 forgepick smelt.bronze
++0.3 shot m6_numbers_forge_2_bronze.png
++0.1 key Return
++0.1 forgepick forge.bronze.sword
++0.3 shot m6_numbers_forge_3_sword.png
++0.1 key Return
++0.3 shot m6_numbers_forge_4_made.png
++0.1 expect crafted BRONZE
++0.1 key Escape
++0.3 expect mode play
+# the potion's shared cooldown (8 s) on the HUD
++0.1 kit
++0.1 key Q
++0.3 expect potioncd
++0.2 shot m6_numbers_forge_5_potioncd.png
++0.3 quit

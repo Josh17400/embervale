@@ -41,7 +41,9 @@ const char* kSfxName[(int)Sfx::COUNT] = {
   "Roar", "Splash",
   "Bell",
   "Bark", "Cluck", "Meow", "Cheer",
+  "HarpyShriek", "GolemSlam", "EliteSting", "BossRoar",
 };
+static_assert(sizeof(kSfxName) / sizeof(kSfxName[0]) == (size_t)Sfx::COUNT, "a name for every Sfx");
 const char* kMusicName[(int)Music::COUNT] = {"Silence", "Title", "Wild", "Night", "Town", "Cave", "Combat", "Boss", "Tavern"};
 
 bool writeWav(const fs::path& path, const std::vector<float>& x) {
@@ -547,7 +549,12 @@ int main(int argc, char** argv) {
     if (std::string(argv[i]) == "--cultures") culturesOnly = true;
     else if (std::string(argv[i]) == "--tavern") tavernOnly = true;
     else if (std::string(argv[i]) == "--wild") wildOnly = true;
-    else dir = argv[i];
+    else if (argv[i][0] == '-') {
+      // An unknown flag (e.g. --help) must never become the output directory: that once dumped 200 MB of WAVs
+      // into a folder named "--help" in the repo root.
+      std::fprintf(stderr, "usage: audio_preview [outDir] [--cultures] [--wild] [--tavern]\n");
+      return std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h" ? 0 : 2;
+    } else dir = argv[i];
   }
   if (dir.empty()) {
     const char* la = std::getenv("LOCALAPPDATA");

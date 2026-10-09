@@ -8,9 +8,13 @@
 #include <initializer_list>
 #include <string>
 #include <vector>
+#include "rpg/culture/culture.h"
+#include "rpg/sim/craft.h"
+#include "rpg/sim/gear.h"
 #include "rpg/view/realm_ui.h"
 #include "rpg/view/view.h"
 #include "rpg/world/poi.h"
+#include "rpg/world/source.h"
 
 void heroStage(Pix& P, const Tex& light, float cx, float footY, float size);   // creator.cpp
 
@@ -177,13 +181,13 @@ bool questTile(const Game& g, const Quest& q, int& tx, int& ty) {
   ty = (int)std::clamp<int64_t>(ly, -1000000, 1000000);
   return true;
 }
-// (M4, VISION_PLAN 7.1) the danger skull beside the place's name: -1 none (indoors, in a settlement, or country no
-// harder than the hero), 0 yellow (up to 4 levels past the hero), 1 red (up to 10), 2 purple (beyond)
+// (M4, VISION_PLAN 7.1; M6 the full bands) the danger skull beside the place's name: -1 none (indoors, in a settlement),
+// else by D - the hero's level: 0 green (<= 0), 1 yellow (<= 4), 2 red (<= 10), 3 purple (beyond)
 int dangerSkull(const Game& g) {
   if (g.inside || g.mode == Mode::Title || !g.world.endless) return -1;
   if (g.curSite >= 0 && g.curSite < (int)g.world.sites.size() && g.world.sites[(size_t)g.curSite].settlement()) return -1;
   const int d = g.world.zoneLevel((int)std::floor(g.pl().p.x / TILE), (int)std::floor(g.pl().p.y / TILE)) - g.plLevel;
-  return d <= 0 ? -1 : d <= 4 ? 0 : d <= 10 ? 1 : 2;
+  return d <= 0 ? 0 : d <= 4 ? 1 : d <= 10 ? 2 : 3;
 }
 // a distance in tiles for the edge arrow: "87", "1.4K", "23K"
 std::string distText(float d) {
@@ -214,22 +218,36 @@ std::vector<std::string> wrap(const std::string& s, int maxChars) {
   return lines;
 }
 
+// (M6 NUMBERS) an item's detail lines. A line may start with a colour tag: \x01 an affix (blue), \x02 the unique
+// power (orange), \x03 a warning (level sync, attunement: amber), \x04 quiet (maker, lore: dim). statLines draws them.
 std::string itemStats(const Game& g, const Item& it) {
   std::string s;
-  switch (it.kind) {
-    case ItemKind::Weapon: s = "DAMAGE " + std::to_string(it.power); break;
-    case ItemKind::Bow: s = "ARROW DAMAGE " + std::to_string(it.power); break;
-    case ItemKind::Staff: s = "SPELL POWER +" + std::to_string(it.power * 2) + "%"; break;
-    case ItemKind::Armor: case ItemKind::Helmet: case ItemKind::Shield: case ItemKind::Gloves: case ItemKind::Boots: case ItemKind::Cloak:
-      s = "ARMOR " + std::to_string(it.power); break;
-    case ItemKind::Potion: s = "RESTORES " + std::to_string(it.power); break;
-    // (fixer M5 r3, review: "nothing tells the player that food cures Hungry") food is what ends Hungry (15.2)
-    case ItemKind::Food: s = "HEALS " + std::to_string(it.power) + "\nENDS HUNGER: WELL FED"; break;
-    case ItemKind::Arrows: s = "AMMUNITION"; break;
-    case ItemKind::Quest: s = "QUEST ITEM"; break;
-    default: s = "VALUE " + std::to_string(it.value); break;
+  const bool gearItem = itemEquippable(it.kind) && it.ilvl > 0;
+  const cult::Culture* maker = it.culture && g.world.src ? &g.world.src->culture(it.culture) : nullptr;
+  const int eff = gear::effLevel(it.ilvl, g.plLevel);
+  if (gearItem) {
+    s = gear::bandWord(gear::bandOf(it.ilvl), maker) + " - ITEM LEVEL " + std::to_string((int)it.ilvl);
+    if (eff < it.ilvl) s += "\n\x03SYNCED TO " + std::to_string(eff) + " (YOUR LEVEL + 4)";
+    s += "\n";
   }
-  (void)g;
+  const int pw = (int)std::lround(gear::usePower(it, g.plLevel));
+  switch (it.kind) {
+    case ItemKind::Weapon: s += "DAMAGE " + std::to_string(pw); break;
+    case ItemKind::Bow: s += "ARROW DAMAGE " + std::to_string(pw); break;
+    case ItemKind::Staff: s += "SPELL POWER +" + std::to_string(pw * 2) + "%"; break;
+    case ItemKind::Armor: case ItemKind::Helmet: case ItemKind::Shield: case ItemKind::Gloves: case ItemKind::Boots: case ItemKind::Cloak:
+      s += "ARMOR " + std::to_string(pw); break;
+    case ItemKind::Ring: case ItemKind::Amulet: if (!gearItem) s += "JEWELLERY"; break;
+    case ItemKind::Potion: s += "RESTORES " + std::to_string(it.power) + "\n\x04SHARED COOLDOWN 8 S\n\x04" "CARRY 10 AT MOST"; break;
+    // (fixer M5 r3, review: "nothing tells the player that food cures Hungry") food is what ends Hungry (15.2)
+    case ItemKind::Food: s += "HEALS " + std::to_string(it.power) + "\nENDS HUNGER: WELL FED"; break;
+    case ItemKind::Arrows: s += "AMMUNITION"; break;
+    case ItemKind::Quest: s += "QUEST ITEM"; break;
+    case ItemKind::Material: s += "CRAFTING MATERIAL\n\x04" "FOR THE SMELTER, FORGE OR TANNERY"; break;
+    default:
+      if (craft::isLore(it)) s += "RUIN LORE\n\x04USE IT TO STUDY THE SECRET";
+      break;
+  }
   if (it.ench != Ench::None) {
     switch (it.ench) {
       case Ench::Fire: s += "\nBURNS FOR " + std::to_string(it.enchPow) + " FIRE"; break;
@@ -242,8 +260,62 @@ std::string itemStats(const Game& g, const Item& it) {
       default: break;
     }
   }
+  for (const ItemAffix& a : it.affix) {
+    if (a.kind == Affix::None) continue;
+    const AffixInfo& I = affixInfo(a.kind);
+    s += "\n\x01+" + std::to_string(gear::affixUse(it, a.kind, g.plLevel)) + I.unit + " " + I.name;
+  }
+  if (it.unique != Unique::None) s += "\n\x02" + std::string(uniqueInfo(it.unique).name) + ": " + uniqueInfo(it.unique).line;
+  if (gearItem) {
+    std::string who = maker ? maker->adjective + " WORK" : std::string("HEARTLAND WORK");
+    const std::string mw = gear::matWord(it, maker);
+    if (!mw.empty()) who += ", " + mw;
+    else if (it.mat != Mat::None) who += std::string(", ") + matName(it.mat);
+    s += "\n\x04" + who;
+    if (it.flags & IF_CRAFTED) s += "\n\x04" "CRAFTED";
+  }
+  if (it.rarity == Rarity::Legendary && gearItem) {
+    s += "\n\x04" + gear::legendaryLore(it, maker);
+    const int slots = gear::attunementSlots(g.plLevel);
+    // (M6 fixer r2, review: "'0/0' reads like a bug") below level 10 say plainly when attunement opens
+    if (slots == 0) s += "\n\x03" "ATTUNEMENT OPENS AT LEVEL 10";
+    else s += "\n\x03" "ATTUNED " + std::to_string(g.craft.live.stats.legendaries) + "/" + std::to_string(slots);
+  }
   if (it.kind != ItemKind::Quest) s += "\nVALUE " + std::to_string(it.value);
   return s;
+}
+// the colour a detail line's tag asks for (and the line without it)
+Color statColor(std::string& l, Color base) {
+  if (l.empty()) return base;
+  switch (l[0]) {
+    case '\x01': l.erase(0, 1); return Color(0.55f, 0.78f, 1.0f);
+    case '\x02': l.erase(0, 1); return Color(1.0f, 0.68f, 0.24f);
+    case '\x03': l.erase(0, 1); return Color(0.98f, 0.78f, 0.36f);
+    case '\x04': l.erase(0, 1); return Color(0.62f, 0.58f, 0.52f);
+    default: return base;
+  }
+}
+// the detail lines wrapped to `chars`, each keeping its colour: x, y the first line; stops at maxY. Returns the next y.
+float statLines(Pix& P, const Game& g, const Item& it, float x, float y, int chars, float maxY, Color base) {
+  std::string all = itemStats(g, it), line;
+  std::vector<std::string> raw;
+  for (char ch : all) { if (ch == '\n') { raw.push_back(line); line.clear(); } else line += ch; }
+  raw.push_back(line);
+  for (std::string l : raw) {
+    const Color c = statColor(l, base);
+    for (const std::string& w : wrap(l, chars)) {
+      if (y + 8 > maxY) return y;
+      P.text(x, y, w, 1, c);
+      y += 10;
+    }
+  }
+  return y;
+}
+// the plain one-line form (the narrow shop strip): tags removed
+std::string statsPlain(const Game& g, const Item& it) {
+  std::string s = itemStats(g, it), o;
+  for (char ch : s) { if (ch == '\n') o += "  "; else if ((unsigned char)ch >= 32) o += ch; }
+  return o;
 }
 // a usable prop (chest, shrine, bed...) the attack button may "use" instead: only when no enemy is close,
 // so mashing attack beside a shrine in a fight still swings the sword
@@ -458,13 +530,14 @@ void View::draw(Game& g, bool hasSave) {
   else {
     // (M1 round 3) the HUD steps away under the menu and the shop (its bars, gold, minimap and the hamburger showed
     // round the panel's edges on a wide phone)
-    if (g.mode != Mode::Menu && g.mode != Mode::Shop && g.mode != Mode::LevelUp) drawHud(g);
+    if (g.mode != Mode::Menu && g.mode != Mode::Shop && g.mode != Mode::LevelUp && g.mode != Mode::Forge) drawHud(g);
     if (touchUI && (g.mode == Mode::Play)) drawTouch(g);
     if (g.mode == Mode::Dialogue) drawDialogue(g);
     // toasts and the banner wait while a dialogue is open (render.cpp holds their timers): on a phone the touch
     // panel is tall and anything drawn over it hides the speaker and the first line
-    if (g.mode != Mode::Shop && g.mode != Mode::Menu && g.mode != Mode::Dialogue) drawToasts();
+    if (g.mode != Mode::Shop && g.mode != Mode::Menu && g.mode != Mode::Dialogue && g.mode != Mode::Forge) drawToasts();
     if (g.mode == Mode::Shop) drawShop(g);
+    if (g.mode == Mode::Forge) drawForge(g);   // M6 (craft_ui.cpp)
     if (g.mode == Mode::Menu) drawMenu(g);
     if (g.mode == Mode::LevelUp) drawLevelUp(g);
     if (g.mode == Mode::Dead) drawDead(g);
@@ -541,12 +614,13 @@ void View::drawHud(Game& g) {
   Pix& P = *pix_;
   const Actor& p = g.pl();
   // vitals
-  float mpMax = g.maxMp, stMax = g.maxSt;
+  float mpMax = g.maxMp + (float)g.craft.live.stats.get(Affix::Magicka), stMax = g.maxSt;
   for (int idx : g.worn()) {
     if (idx < 0) continue;
     if (g.inv[idx].ench == Ench::Magicka) mpMax += g.inv[idx].enchPow;
     if (g.inv[idx].ench == Ench::Stamina) stMax += g.inv[idx].enchPow;
   }
+  if (g.craft.live.stats.has(Unique::Wayfarer)) stMax *= 1.2f;
   auto bar = [&](float x, float y, float w, float v, float mx, Color c, Color dark) {
     P.rect(x - 1, y - 1, w + 2, 6, Color(0.05f, 0.04f, 0.06f, 0.85f));
     P.rect(x, y, w, 4, Color(dark.r, dark.g, dark.b, 0.9f));
@@ -564,7 +638,7 @@ void View::drawHud(Game& g) {
   drawBuffs(g, L + 110, T + 13);   // (M5, 15.2) Well Fed, Rested, Hungry, Weary beside the shorter bars
   // xp sliver
   P.rect(L + 6, T + 14, 26, 2, Color(0.1f, 0.1f, 0.1f, 0.8f));
-  P.rect(L + 6, T + 14, 26 * clampf(g.plXp / (float)g.xpForNext(), 0, 1), 2, kGold);
+  P.rect(L + 6, T + 14, 26 * clampf(g.plXp / (float)gear::xpForNext(g.plLevel), 0, 1), 2, kGold);
   // gold, arrows, spell
   int arrows = 0;
   for (auto& it : g.inv) if (it.kind == ItemKind::Arrows) arrows += it.count;
@@ -572,7 +646,19 @@ void View::drawHud(Game& g) {
   P.textS(L + 20, T + 33, std::to_string(g.gold), 1, kGold);
   P.blit(iconTex(art::Icon::Arrows, 0), L + 56, T + 28);
   P.textS(L + 72, T + 33, std::to_string(arrows), 1, kText);
-  if (g.spellsKnown & (1 << (int)g.spell)) P.textS(L + 100, T + 33, spellName(g.spell), 1, Color(0.6f, 0.75f, 1.0f));
+  float spellX = L + 100;
+  if (!touchUI) {   // (M6) the potion belt and its cooldown (touch: on the potion button)
+    int pots = 0;
+    for (const Item& it : g.inv) if (it.kind == ItemKind::Potion && it.sub == (uint8_t)PotionType::Health) pots += it.count;
+    if (pots > 0 || g.craft.live.potionCd > 0) {
+      P.blit(iconTex(art::Icon::PotionRed, 0), L + 88, T + 28);
+      const float cd = g.craft.live.potionCd, k = cd > 0 ? clampf(cd / std::max(0.1f, g.craft.live.potionCdMax), 0, 1) : 0.0f;
+      if (k > 0) P.rect(L + 90, T + 30 + 12 * (1 - k), 12, 12 * k, Color(0.02f, 0.02f, 0.05f, 0.7f));
+      P.textS(L + 104, T + 33, cd > 0 ? std::to_string((int)std::ceil(cd)) + "S" : std::to_string(pots), 1, cd > 0 ? kDim : kText);
+      spellX = L + 124;
+    }
+  }
+  if (g.spellsKnown & (1 << (int)g.spell)) P.textS(spellX, T + 33, spellName(g.spell), 1, Color(0.6f, 0.75f, 1.0f));
   if (g.perkPts > 0 && ((int)(t_ * 2) & 1)) P.textS(L + 6, T + 44, "LEVEL UP! OPEN MENU", 1, kGold);
   if (g.blessT > 0) P.textS(L + 6, T + (g.perkPts > 0 ? 54 : 44), g.blessName, 1, Color(0.7f, 0.85f, 1.0f, 0.8f));
 
@@ -592,6 +678,17 @@ void View::drawHud(Game& g) {
     if (mx1 > R - 160 && my0 < T + 130) {   // the rooms run on under the location / quest column
       backA = 0.74f;
       if (ps.x > R - 170 && ps.y < T + 160) { hudA = 0.35f; backA = 0.3f; }
+    }
+  }
+  // (M6 fixer r2, review: "the info panel is drawn over the STONEFATHER world boss") a boss standing under the location
+  // / quest column fades the column the way a hall's rooms do: the fight is what matters
+  if (!g.inside && g.mode == Mode::Play) {
+    const Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
+    for (const Actor& a : g.actors) {
+      if (!a.hostile || a.st == AState::Dead || !(a.boss || a.rank >= 4)) continue;
+      const Vec2 s = a.p - cam;
+      const float half = a.scalePct > 100 ? 8.0f * a.scalePct / 100.0f + 6.0f : 14.0f;
+      if (s.x + half > R - 180 && s.x - half < R && s.y - 3.0f * half < T + 165 && s.y > T + 60) { hudA = 0.3f; backA = 0.22f; break; }
     }
   }
   // minimap + location
@@ -719,7 +816,7 @@ void View::drawHud(Game& g) {
     const int dk = dangerSkull(g);
     if (dk >= 0) {
       static const char* kSkull[7] = {".xxxxx.", "xxxxxxx", "x..x..x", "x..x..x", "xxx.xxx", ".xxxxx.", ".x.x.x."};
-      const Color sc = dk == 0 ? Color(0.98f, 0.86f, 0.30f) : dk == 1 ? Color(0.96f, 0.36f, 0.26f) : Color(0.80f, 0.45f, 1.0f);
+      const Color sc = dk == 0 ? Color(0.45f, 0.90f, 0.42f) : dk == 1 ? Color(0.98f, 0.86f, 0.30f) : dk == 2 ? Color(0.96f, 0.36f, 0.26f) : Color(0.80f, 0.45f, 1.0f);
       const float sx = R - 5 - P.textW(loc + locSuffix, 1) - 10, sy = T + 91;
       for (int j = 0; j < 7; j++)
         for (int i = 0; i < 7; i++) {
@@ -810,8 +907,14 @@ void View::drawHud(Game& g) {
           // (M3c fixer, review: "the compass distance strikes through the biome banner") while the first-visit biome
           // banner shows at the top centre, the arrow and its distance keep out of its strip: along the top edge they
           // slide out past its ends, lower down they drop below it
+          if (bossBarBottom_ > 0) {   // (M6 fixer) and out of a world boss's top bar (its distance too)
+            // (M6 fixer r2, review: "the compass caret and its distance sit on the bar's right end" with the real
+            // iPhone insets) it drops below the bar's strip instead of squeezing past its ends into the HUD labels
+            const float x0 = bossBarX0_ - 48, x1 = bossBarX1_ + 48;
+            if (a.y < bossBarBottom_ + 14 && a.x > x0 && a.x < x1) a.y = bossBarBottom_ + 14;
+          }
           if (herald_.t > 0 && g.mode == Mode::Play) {   // (M4) and out of the herald's ribbon
-            const float half = (float)P.textW(herald_.title, 1) / 2 + 40, by1 = T + 40, mx = Pix::W / 2.0f;
+            const float half = (float)P.textW(herald_.title, 1) / 2 + 40, by1 = std::max(T + 40, bossBarBottom_ + 38), mx = Pix::W / 2.0f;
             if (a.y < by1 && std::fabs(a.x - mx) < half + 30) {
               if (a.y <= T + 20) a.x = a.x < mx ? mx - half - 30 : mx + half + 30;
               else a.y = std::max(a.y, by1);
@@ -819,7 +922,7 @@ void View::drawHud(Game& g) {
           }
           if (biomeBannerT_ > 0 && !biomeBanner_.empty() && bannerT_ <= 0 && g.mode == Mode::Play) {
             const float half = std::min((float)P.textW(biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70);
-            const float by1 = T + 30 + 11 + 14;
+            const float by1 = std::max(T + 30, bossBarBottom_ + 10) + 11 + 14;
             const float mx = Pix::W / 2.0f;
             if (a.y < by1 && std::fabs(a.x - mx) < half + 40) {
               if (a.y <= T + 20) a.x = a.x < mx ? mx - half - 40 : mx + half + 40;
@@ -925,6 +1028,7 @@ void View::drawHud(Game& g) {
   // boss bar
   for (const Actor& a : g.actors) {
     if (!a.boss || a.st == AState::Dead || !a.aggro) continue;
+    if (a.rank == 5) continue;   // (M6 integration) a world boss (foes::Rank::WorldBoss) has its bar at the top (render.cpp)
     if (len2(a.p - p.p) > 260 * 260) continue;
     float w = 200, x = (Pix::W - w) / 2, y = B - 22;
     P.textS(Pix::W / 2, y - 10, a.name, 1, Color(1, 0.75f, 0.6f), 1);
@@ -1007,7 +1111,7 @@ void View::drawHud(Game& g) {
   // (small type between two short gold rules; it fades in and out and waits for a big banner to finish)
   if (biomeBannerT_ > 0 && !biomeBanner_.empty() && (bannerT_ <= 0 || g.mode == Mode::Dialogue) && herald_.t <= 0 && g.mode == Mode::Play && !g.inside) {
     const float a = clampf(std::min(biomeBannerT_, 4.0f - biomeBannerT_) * 1.6f, 0, 1);
-    const float y = T + 30;
+    const float y = std::max(T + 30, bossBarBottom_ + 10);   // (M6 fixer) clear of a world boss's bar
     const float tw = (float)P.textW(biomeBanner_, 1);
     const float half = std::min(tw / 2 + 26, Pix::W / 2.0f - 70);
     P.rect(Pix::W / 2 - half, y - 4, half * 2, 15, Color(0.03f, 0.03f, 0.05f, 0.42f * a));
@@ -1045,7 +1149,9 @@ void View::drawHud(Game& g) {
 void View::drawToasts() {
   Pix& P = *pix_;
   const float L = (float)Pix::SL, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
-  const int per = std::max(16, (int)((R - 166 - (L + 6)) / 6));
+  // (M6 fixer r4, review: "event text is drawn right over the world boss") at most 30 characters a line, so a long
+  // notice wraps in the left column instead of running across the middle of the screen, where the hero and his foe stand
+  const int per = std::clamp((int)((R - 166 - (L + 6)) / 6), 16, 30);
   const float bottom = B - (touchUI ? 86.0f : 30.0f);
   float ty = (float)Pix::ST + 92;
   // (fixer M4 r2) the full-width banner (T+50 .. T+84, its state line to T+95) is never written over: the column
@@ -1127,7 +1233,7 @@ void View::drawTouch(Game& g) {
           P.text(d.x, d.y - 3, ta && ta->critter ? "PET" : "TALK", 1, kGold, 1);
         }
         else if (usePr) P.text(d.x, d.y - 3, useVerbAt(g, usePr, utx, uty), 1, kGold, 1);
-        else if (g.eqWeapon >= 0) P.blitEx(iconTex(g.inv[g.eqWeapon].icon, g.inv[g.eqWeapon].tint), 0, 0, 16, 16, d.x - 12, d.y - 12, 24, 24);
+        else if (g.eqWeapon >= 0) P.blitEx(itemTex(g, g.inv[g.eqWeapon]), 0, 0, 16, 16, d.x - 12, d.y - 12, 24, 24);
         else {
           // unarmed (the shirt-only start): a clenched fist, knuckles up, lit from the top-left
           static const char* kFist[] = {
@@ -1157,7 +1263,29 @@ void View::drawTouch(Game& g) {
       case B_BOW: P.blit(iconTex(art::Icon::Bow, 0), d.x - 8, d.y - 8); break;
       case B_SPELL: P.blit(iconTex(g.spell == Spell::Heal ? art::Icon::PotionGreen : (g.spell == Spell::IceSpike ? art::Icon::Gem : art::Icon::Staff), g.spell == Spell::Flames ? rgba(255, 120, 40) : rgba(120, 200, 255)), d.x - 8, d.y - 8); break;
       case B_ROLL: P.text(d.x, d.y - 3, "ROLL", 1, kText, 1); break;
-      case B_POTION: P.blit(iconTex(art::Icon::PotionRed, 0), d.x - 8, d.y - 8); break;
+      case B_POTION: {
+        P.blit(iconTex(art::Icon::PotionRed, 0), d.x - 8, d.y - 8);
+        // (M6, 7.5 rule 7) the shared cooldown as a clockwise sweep from the top, the seconds left over it
+        const float cd = g.craft.live.potionCd;
+        if (cd > 0) {
+          const float k = clampf(cd / std::max(0.1f, g.craft.live.potionCdMax), 0, 1);
+          const int R = (int)d.r - 1;
+          for (int yy = -R; yy <= R; yy++)
+            for (int xx = -R; xx <= R; xx++) {
+              if (xx * xx + yy * yy > R * R) continue;
+              float a = std::atan2((float)xx + 0.5f, -(float)yy - 0.5f);
+              if (a < 0) a += TAU;
+              if (a / TAU < 1.0f - k) continue;
+              P.rect(d.x + xx, d.y + yy, 1, 1, Color(0.02f, 0.02f, 0.05f, 0.62f));
+            }
+          P.textS(d.x, d.y - 3, std::to_string((int)std::ceil(cd)), 1, kText, 1);
+        } else {
+          int pots = 0;
+          for (const Item& it : g.inv) if (it.kind == ItemKind::Potion && it.sub == (uint8_t)PotionType::Health) pots += it.count;
+          if (pots > 0) P.textS(d.x + d.r - 2, d.y + d.r - 7, std::to_string(pots), 1, kText, 1);
+        }
+        break;
+      }
       default: break;
     }
   }
@@ -1325,7 +1453,7 @@ void View::drawMenu(Game& g) {
         if (i == menuSel_) P.rect(C.lx, rowTop, C.lw, L.pitch - (touchUI ? 1 : 0), Color(0.3f, 0.22f, 0.12f, 0.8f));
         else if (touchUI && (r & 1)) P.rect(C.lx, rowTop, C.lw, L.pitch - 1, Color(0.16f, 0.12f, 0.08f, 0.35f));
         const float isz = touchUI ? 16.0f : 12.0f;
-        P.blitEx(iconTex(it.icon, it.tint), 0, 0, 16, 16, C.lx + 2, rowTop + std::floor((L.pitch - isz) / 2), isz, isz);
+        P.blitEx(itemTex(g, it), 0, 0, 16, 16, C.lx + 2, rowTop + std::floor((L.pitch - isz) / 2), isz, isz);
         const float nx = C.lx + (touchUI ? 22.0f : 18.0f);
         std::string cnt = it.count > 1 ? " (" + std::to_string(it.count) + ")" : "";
         std::string name = fitText(it.name, C.lx + C.lw - 14 - nx - P.textW(cnt, 1)) + cnt;
@@ -1338,22 +1466,29 @@ void View::drawMenu(Game& g) {
       P.rect(C.div, top + 8, 1, Pix::H - top - 24, Color(0.4f, 0.32f, 0.2f));
       if (n > 0) {
         const Item& it = g.inv[menuSel_];
-        P.blitEx(iconTex(it.icon, it.tint), 0, 0, 16, 16, C.dx, top + 12, 32, 32);
+        P.blitEx(itemTex(g, it), 0, 0, 16, 16, C.dx, top + 12, 32, 32);
         wrapText(C.dx + 38, top + 14, C.dw - 38, it.name, col(rarityColor(it.rarity)));
         const char* rn[] = {"COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY"};
-        P.text(C.dx + 38, top + 36, rn[(int)it.rarity], 1, kDim);
-        auto lines = wrap(itemStats(g, it), std::max(10, (int)(C.dw / 6)));
-        float sy = top + 54;
-        for (size_t k = 0; k < lines.size(); k++, sy += 10) P.text(C.dx, sy, lines[k], 1, kText);
+        P.text(C.dx + 38, top + 36, rn[(int)it.rarity], 1, col(rarityColor(it.rarity), 0.85f));
+        float sy = statLines(P, g, it, C.dx, top + 54, std::max(10, (int)(C.dw / 6)), menuLay(touchUI).btnY - 14, kText);
         int eq = equippedOf(g, it.kind);
         if (eq >= 0 && eq != menuSel_ && eq < (int)g.inv.size()) {
-          int diff = it.power - g.inv[eq].power;
-          P.text(C.dx, std::max(top + 104, sy + 6), std::string("VS EQUIPPED: ") + (diff >= 0 ? "+" : "") + std::to_string(diff), 1, diff >= 0 ? Color(0.5f, 1, 0.5f) : Color(1, 0.5f, 0.45f));
+          int diff = (int)std::lround(gear::usePower(it, g.plLevel) - gear::usePower(g.inv[eq], g.plLevel));
+          if (sy + 12 < menuLay(touchUI).btnY) P.text(C.dx, sy + 2, std::string("VS EQUIPPED: ") + (diff >= 0 ? "+" : "") + std::to_string(diff), 1, diff >= 0 ? Color(0.5f, 1, 0.5f) : Color(1, 0.5f, 0.45f));
         }
         bool canEquip = itemEquippable(it.kind);
         std::string use = canEquip ? (equipped(g, menuSel_) ? "UNEQUIP" : "EQUIP") : (it.kind == ItemKind::Food ? "EAT" : it.kind == ItemKind::Potion || it.name.rfind("SPELL TOME", 0) == 0 ? "USE" : "");
+        // (M6 fixer r2, review: "tapping EQUIP on a legendary below level 10 does nothing visible") a legendary that cannot
+        // be attuned yet shows why on its button, drawn idle (the refusal notice would hide behind the open menu)
+        bool idle = false;
+        if (canEquip && !equipped(g, menuSel_) && gear::attunes(it)) {
+          const int slots = gear::attunementSlots(g.plLevel);
+          int worn = g.craft.live.stats.legendaries;
+          if (eq >= 0 && eq < (int)g.inv.size() && gear::attunes(g.inv[(size_t)eq])) worn--;
+          if (worn >= slots) { use = slots == 0 ? "FROM LEVEL 10" : "ATTUNED FULL"; idle = true; }
+        }
         const float bw = std::floor((C.dw - 20) / 2);
-        if (!use.empty()) button(C.dx, L.btnY, bw, L.btnH, use + (touchUI ? "" : " (ENT)"), true);
+        if (!use.empty()) button(C.dx, L.btnY, bw, L.btnH, use + (touchUI || idle ? "" : " (ENT)"), !idle);
         if (it.kind != ItemKind::Quest) button(C.dx + bw + 8, L.btnY, bw, L.btnH, touchUI ? "DROP" : "DROP (X)", false);
       }
       break;
@@ -1424,11 +1559,11 @@ void View::drawMenu(Game& g) {
       P.text(x, y, "LEVEL " + std::to_string(g.plLevel), 2, kGold);
       y += 18;
       {   // the XP toward the next level as a bar
-        const float bw = H.lw, k = clampf(g.plXp / (float)std::max(1, g.xpForNext()), 0, 1);
+        const float bw = H.lw, k = clampf(g.plXp / (float)std::max(1, gear::xpForNext(g.plLevel)), 0, 1);
         P.rect(x, y, bw, 5, Color(0.05f, 0.04f, 0.06f, 0.9f));
         P.rect(x + 1, y + 1, (bw - 2) * k, 3, kGold);
         P.rect(x + 1, y + 1, (bw - 2) * k, 1, Color(1, 0.95f, 0.7f));
-        P.text(x + bw, y + 8, "XP " + std::to_string(g.plXp) + " / " + std::to_string(g.xpForNext()), 1, kDim, 2);
+        P.text(x + bw, y + 8, "XP " + std::to_string(g.plXp) + " / " + std::to_string(gear::xpForNext(g.plLevel)), 1, kDim, 2);
         y += 22;
       }
       float mpMax = g.maxMp, stMax = g.maxSt;   // include enchantment bonuses, same as the HUD bars
@@ -1437,6 +1572,8 @@ void View::drawMenu(Game& g) {
         if (g.inv[idx].ench == Ench::Magicka) mpMax += g.inv[idx].enchPow;
         if (g.inv[idx].ench == Ench::Stamina) stMax += g.inv[idx].enchPow;
       }
+      mpMax += (float)g.craft.live.stats.get(Affix::Magicka);
+      if (g.craft.live.stats.has(Unique::Wayfarer)) stMax *= 1.2f;
       const float sp = Pix::H >= 285 ? 11.0f : 10.0f;
       auto stat = [&](const std::string& n, const std::string& v, Color c) { P.text(x, y, n, 1, kDim); P.text(x + H.lw, y, v, 1, c, 2); y += sp; };
       auto vital = [&](const std::string& n, float v, float mx, Color c) {
@@ -1663,6 +1800,19 @@ void View::drawShop(Game& g) {
   const std::string gs = std::to_string(g.gold);
   P.blit(iconTex(art::Icon::Gold, 0), L.xX - 14 - P.textW(gs, 1) - 18, L.xY + L.xH / 2 - 8);
   P.text(L.xX - 14, L.xY + std::floor((L.xH - 7) / 2), gs, 1, kGold, 2);
+  // (M6, 7.5 rule 8) the merchant's purse: what they can still pay for what you sell this restock
+  {
+    const auto pu = g.craft.live.purse.find(g.shop.key);
+    if (pu != g.craft.live.purse.end()) {
+      const std::string ms = "PURSE " + std::to_string(pu->second.second);
+      const float mx = L.xX - 14 - P.textW(gs, 1) - 26;
+      P.text(mx, L.xY + std::floor((L.xH - 7) / 2), ms, 1, pu->second.second < 50 ? Color(0.9f, 0.45f, 0.4f) : kDim, 2);
+    }
+  }
+  // (M6 fixer, review: "selling more than the purse holds fails with no visible feedback") what the merchant can pay:
+  // a sell price above it is red in the list and the deal button says so (-1: no purse, pays anything)
+  int purseLeft = -1;
+  { const auto pu = g.craft.live.purse.find(g.shop.key); if (pu != g.craft.live.purse.end()) purseLeft = pu->second.second; }
   button(L.xX, L.xY, L.xW, L.xH, "X", false);
   P.text(L.x0[0] + 2, 28, "BUY", 1, shopSide_ == 0 ? kGold : kDim);
   P.text(L.x0[1] + 2, 28, "SELL", 1, shopSide_ == 1 ? kGold : kDim);
@@ -1688,7 +1838,7 @@ void View::drawShop(Game& g) {
       float ty = y + std::floor((L.pitch - 8) / 2) - 2;
       if (touchUI && i != sel) P.rect(x0 - 2, y - 2, L.lw, L.pitch - 2, Color(0.16f, 0.12f, 0.08f, 0.45f));
       if (i == sel) P.rect(x0 - 2, y - 2, L.lw, L.pitch - (touchUI ? 2 : 0), Color(0.3f, 0.22f, 0.12f, 0.8f));
-      P.blitEx(iconTex(it.icon, it.tint), 0, 0, 16, 16, x0, y - 2 + std::floor((L.pitch - (touchUI ? 2 : 0) - isz) / 2), isz, isz);
+      P.blitEx(itemTex(g, it), 0, 0, 16, 16, x0, y - 2 + std::floor((L.pitch - (touchUI ? 2 : 0) - isz) / 2), isz, isz);
       int price = shopPrice(it, buying);
       const std::string ps = std::to_string(price);
       std::string suf;
@@ -1698,6 +1848,8 @@ void View::drawShop(Game& g) {
       // (M2 fixer round 2) a long name is shortened by words before it is cut: "WOOL CLOAK OF THE MAGE" becomes
       // "WOOL CLOAK OF MAGE", then "CLOAK OF MAGE" (the cut "WOOL CLOAK OF THE (E)" hid what the item is)
       const float room = px - P.textW(ps, 1) - 8 - nx - P.textW(suf, 1);
+      // (M6 fixer r2, review: "the material is the M6 selling point and it disappears") the material and the piece stay;
+      // the affix's " OF ..." goes first when the name is still too long (the detail column shows it whole)
       std::string full = it.name;
       if (P.textW(full, 1) > room) {
         const size_t ot = full.find(" OF THE ");
@@ -1705,12 +1857,15 @@ void View::drawShop(Game& g) {
       }
       if (P.textW(full, 1) > room) {
         const size_t of = full.find(" OF ");
-        const size_t sp = full.find(' ');
-        if (of != std::string::npos && sp != std::string::npos && sp < of) full = full.substr(sp + 1);
+        if (of != std::string::npos && of > 0) full = full.substr(0, of);
       }
       std::string nm = fitText(full, room) + suf;
       P.text(nx, ty, nm, 1, col(rarityColor(it.rarity)));
-      bool afford = !buying || g.gold >= price;
+      bool afford = buying ? g.gold >= price : (purseLeft < 0 || price <= purseLeft);
+      if (!buying && !afford) {   // (M6 fixer r2) what he can pay: all his purse (amber: less than it is worth)
+        P.text(px, ty, std::to_string(std::max(0, purseLeft)), 1, purseLeft > 0 ? Color(0.95f, 0.66f, 0.3f) : Color(0.55f, 0.5f, 0.45f), 2);
+        continue;
+      }
       P.text(px, ty, ps, 1, afford ? kGold : Color(0.7f, 0.3f, 0.3f), 2);
     }
     if (n == 0) P.text(x0 + 2, 44, buying ? "SOLD OUT" : "NOTHING TO SELL", 1, kDim);
@@ -1721,31 +1876,40 @@ void View::drawShop(Game& g) {
   const bool any = shopSel_ >= 0 && shopSel_ < (int)src.size();
   const bool armed = shopSide_ == 1 && shopArm_ >= 0 && shopArm_ == shopSel_;
   std::string deal;
+  bool cantPay = false;
   if (any) {
     const int price = shopPrice(src[shopSel_], shopSide_ == 0);
     deal = shopSide_ == 0 ? "BUY FOR " + std::to_string(price) + " GOLD" : armed ? "YOU WEAR IT - TAP AGAIN TO SELL" : "SELL FOR " + std::to_string(price) + " GOLD";
+    // (M6 fixer r2, review: "the purse hard-blocks good loot") he buys it for all he has (Game::sell), or has nothing left
+    if (shopSide_ == 1 && purseLeft >= 0 && price > purseLeft && !armed) {
+      if (purseLeft > 0) deal = "SELL FOR HIS LAST " + std::to_string(purseLeft) + " GOLD";
+      else { deal = "HE HAS NO GOLD LEFT"; cantPay = true; }
+    }
+    if (shopSide_ == 0 && g.gold < price) { deal = "NOT ENOUGH GOLD"; cantPay = true; }
   }
   if (L.side) {
     // the detail column: the item large, its name, rarity, numbers and the deal
     if (any) {
       const Item& it = src[shopSel_];
-      P.blitEx(iconTex(it.icon, it.tint), 0, 0, 16, 16, L.dx, L.detailY, 32, 32);
+      P.blitEx(itemTex(g, it), 0, 0, 16, 16, L.dx, L.detailY, 32, 32);
       float y = L.detailY + 2;
       for (const std::string& l : wrap(it.name, std::max(8, (int)((L.dw - 38) / 6)))) { P.text(L.dx + 38, y, l, 1, col(rarityColor(it.rarity))); y += 10; }
       const char* rn[] = {"COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY"};
-      P.text(L.dx + 38, std::max(y + 2, L.detailY + 22), rn[(int)it.rarity], 1, kDim);
+      P.text(L.dx + 38, std::max(y + 2, L.detailY + 22), rn[(int)it.rarity], 1, col(rarityColor(it.rarity), 0.85f));
       y = std::max(y + 16, L.detailY + 42);
-      for (const std::string& l : wrap(itemStats(g, it), std::max(10, (int)(L.dw / 6)))) { P.text(L.dx, y, l, 1, kText); y += 10; }
-      if (shopSide_ == 0) {
+      y = statLines(P, g, it, L.dx, y, std::max(10, (int)(L.dw / 6)), L.btnY - (touchUI ? 26.0f : 14.0f), kText);
+      if (shopSide_ == 0 && y + 14 < L.btnY - (touchUI ? 22.0f : 0.0f)) {
         const int eq = equippedOf(g, it.kind);
-        if (eq >= 0 && eq < (int)g.inv.size()) {
-          const int diff = it.power - g.inv[eq].power;
+        if (eq >= 0 && eq < (int)g.inv.size() && itemEquippable(it.kind)) {
+          const int diff = (int)std::lround(gear::usePower(it, g.plLevel) - gear::usePower(g.inv[eq], g.plLevel));
           P.text(L.dx, y + 4, std::string("VS EQUIPPED: ") + (diff >= 0 ? "+" : "") + std::to_string(diff), 1, diff >= 0 ? Color(0.5f, 1, 0.5f) : Color(1, 0.5f, 0.45f));
         }
       }
       if (touchUI) {
         if (armed) { wrapText(L.dx, L.btnY - 22, L.dw, "YOU WEAR IT - TAP AGAIN TO SELL", kGold); button(L.btnX, L.btnY, L.btnW, L.btnH, "SELL ANYWAY", true); }
-        else button(L.btnX, L.btnY, L.btnW, L.btnH, deal, true);
+        else button(L.btnX, L.btnY, L.btnW, L.btnH, deal, !cantPay);
+      } else if (cantPay) {
+        P.text(L.dx + L.dw / 2, L.btnY + 4, deal, 1, Color(0.9f, 0.45f, 0.4f), 1);
       } else {
         P.text(L.dx + L.dw / 2, L.btnY + 4, armed ? "ENTER AGAIN TO SELL" : (shopSide_ == 0 ? "ENTER TO BUY" : "ENTER TO SELL"), 1, armed ? kGold : kDim, 1);
       }
@@ -1755,12 +1919,11 @@ void View::drawShop(Game& g) {
   }
   // narrow: the detail line and the deal under the lists
   if (any) {
-    std::string s = itemStats(g, src[shopSel_]);
-    std::replace(s.begin(), s.end(), '\n', ' ');
+    const std::string s = statsPlain(g, src[shopSel_]);
     P.text(Pix::W / 2, L.detailY, fitText(s, Pix::W - 36), 1, kText, 1);
   }
   if (touchUI) {
-    if (any) button(L.btnX, L.btnY, L.btnW, L.btnH, deal, true);
+    if (any) button(L.btnX, L.btnY, L.btnW, L.btnH, deal, !cantPay);
     P.text(Pix::W / 2, L.hintY, "TAP AN ITEM, THEN THE BUTTON TO BUY OR SELL", 1, kDim, 1);
   } else {
     P.text(Pix::W / 2, L.hintY, armed ? "YOU WEAR IT - PRESS ENTER AGAIN TO SELL" : "ARROWS SELECT  ENTER BUY/SELL  LEFT/RIGHT SWITCH  ESC CLOSE", 1,
@@ -1896,6 +2059,7 @@ Input View::input(Game& g) {
 
 void View::menuKey(Game& g, int key) {
   auto back = [&]() { g.mode = Mode::Play; audio_->play(Sfx::MenuBack); };
+  if (g.mode == Mode::Forge) { forgeKey(g, key); return; }   // M6 (craft_ui.cpp)
   if (g.mode == Mode::Menu || g.mode == Mode::LevelUp) {
     if (key == SDLK_ESCAPE || key == SDLK_TAB || key == SDLK_I) { back(); return; }
     // (M1) on the MAP tab Q / E zoom (worldMapKey); PageUp / PageDown and A / D still switch tabs there
@@ -1976,6 +2140,7 @@ void View::tap(Game& g, Vec2 p) {
   if (g.mode == Mode::Title) { titleTap(p); return; }
   if (settingsOpen_) { settingsTap(p); return; }
   if (g.mode == Mode::Creator) { creatorTap(g, p); return; }
+  if (g.mode == Mode::Forge) { forgeTap(g, p); return; }   // M6 (craft_ui.cpp: it maps the tap into its own box)
   if (g.mode == Mode::Dead) { if (modeT_ > 1.2f) g.respawn(); return; }
   if (g.mode == Mode::Paused) { g.mode = Mode::Play; return; }
   // the dialogue, the shop and the menu are laid out in a 480-wide box (drawDialogue / drawShop / drawMenu): the tap

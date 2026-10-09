@@ -2351,7 +2351,10 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
   // straight edges (no wobbling field), and deckEdge below gives it a rim beam, a front face and a cast shadow
   const bool deckTown = m.kind == MapKind::Overworld && paveMatAt(m, tx, ty) == 4;
   if (m.kind == MapKind::Overworld && !deckTown && (real == Ground::Road || real == Ground::Plaza || (soft(real) && !groundWater(real)))) {
-    auto paved = [&](int x, int y) -> float { Ground q = m.at(x, y); return q == Ground::Road || q == Ground::Plaza || q == Ground::Bridge ? 1.0f : 0.0f; };
+    // (M6 finish fixer, review: "steppe village paths are blocky staircase rectangles") a village's trodden earth paths
+    // (Ground::Dirt) take the same organic edge as the paved streets: on grass they were cut tile by tile
+    auto pavedG = [](Ground q) { return q == Ground::Road || q == Ground::Plaza || q == Ground::Dirt; };
+    auto paved = [&](int x, int y) -> float { Ground q = m.at(x, y); return pavedG(q) || q == Ground::Bridge ? 1.0f : 0.0f; };
     float fx = (px - 7.5f) / 16.0f, fy = (py - 7.5f) / 16.0f;
     int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
     float ax = fx - ix, ay = fy - iy;
@@ -2369,7 +2372,7 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
       v += (vnoise(px / 5.0f, py / 5.0f, 391) - 0.5f) * 0.16f + (vnoise(px / 13.0f, py / 13.0f, 393) - 0.5f) * 0.18f;
       paveV = v;
       bool pv = v > 0.5f;
-      bool isPaved = g == Ground::Road || g == Ground::Plaza;
+      bool isPaved = pavedG(g);
       if (pv != isPaved) {
         // take the ground of the nearest tile of the other kind
         Ground want = Ground::Void;
@@ -2377,7 +2380,7 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
         for (int oy = -1; oy <= 1; oy++)
           for (int ox = -1; ox <= 1; ox++) {
             Ground q = m.at(tx + ox, ty + oy);
-            bool qp = q == Ground::Road || q == Ground::Plaza;
+            bool qp = pavedG(q);
             if (pv ? !qp : (!soft(q) || groundWater(q))) continue;
             float ddx = (tx + ox) * 16 + 7.5f - px, ddy = (ty + oy) * 16 + 7.5f - py;
             float d = ddx * ddx + ddy * ddy;
@@ -3130,7 +3133,15 @@ uint32_t View::reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g) 
           const float ax = fx - ix, ay = fy - iy;
           swept = (sweptT(ix, iy) * (1 - ax) + sweptT(ix + 1, iy) * ax) * (1 - ay) + (sweptT(ix, iy + 1) * (1 - ax) + sweptT(ix + 1, iy + 1) * ax) * ay;
         }
-        const float th = 0.5f + swept * 0.55f + (bayer(px, py) - 0.5f) * 0.12f;
+        // (M6 finish fixer, review: "snow drift blobs lie on the paving of a green, rainy imperial capital and turn into
+        // dark-blue patches at night") a mountain town's snowline cover is the high ground's, not the season's: where
+        // the land itself is not cold (a Mountain tile, not the snow lands or the taiga) the townsfolk keep their streets
+        // and squares swept, so the cover stops at the kerb in the same ragged swept line instead of lying in blobs on
+        // the flags while the gardens beside them are green; in the truly cold lands the streets are swept too, only
+        // the deepest cover (the high ground's) lies on the flags
+        const Biome hb = m.biomeAt(tx, ty);
+        const bool coldLand = hb == Biome::Snow || hb == Biome::Taiga;
+        const float th = 0.5f + swept * (coldLand ? 0.95f : 2.5f) + (bayer(px, py) - 0.5f) * 0.12f;
         if (k > th) {
           // the cover: soft wind-cut drifts aslant (lit crests, blue hollows), a glitter of ice, and a shaded rim where
           // it thins out

@@ -41,6 +41,11 @@ inline const MStat& mstat(Monster m) {
       {26, 7, 58, 12, 150, 4, 0.50f, 20, true, true},      // Wisp (ranged bolts, floats)
       {48, 11, 74, 13, 150, 5, 0.30f, 32, false, false},   // EmberHound
       {50, 10, 40, 15, 130, 6, 0.45f, 28, false, false},   // Blightspawn
+      // M6 Steel (FOES lane; ai.cpp gives each its moves): the harpy circles on the wing, dives (a swoop you roll
+      // through: it bites on contact) and shrieks (a short slow); the golem is slow stone (double armour, foes_game.cpp),
+      // every second blow its wide telegraphed ground slam, and fire and frost slide off it sooner
+      {30, 9, 72, 12, 160, 5, 0.30f, 22, false, true},     // Harpy (packs of 2-3 on the cliffs and crags)
+      {160, 19, 28, 19, 90, 9, 0.70f, 76, false, false},   // Golem (alone: crystal barrens, mountains, ruin wardens)
   };
   static_assert(sizeof(t) / sizeof(t[0]) == (size_t)Monster::COUNT, "stats for every monster");
   return t[(int)m];
@@ -51,13 +56,15 @@ inline float heavyWindup(Monster m) {
   switch (m) {
     case Monster::Troll: case Monster::Yeti: return 0.9f;
     case Monster::Blightspawn: return 0.75f;
+    case Monster::Golem: return 1.0f;
     default: return 0.8f;
   }
 }
 inline const char* monsterName(Monster m) {
   static const char* n[] = {"WOLF", "BOAR", "CAVE BEAR", "SLIME", "GIANT SPIDER", "BAT", "SKELETON", "DRAUGR", "GOBLIN", "TROLL",
                             "WRAITH", "MUDCRAB", "ICE WOLF", "RIME SPIDER", "SANDWORM", "ASHFANG THE DRAGON",
-                            "GIANT SCORPION", "HYENA", "MIRE LURKER", "YETI", "WILL-O'-WISP", "EMBER HOUND", "BLIGHTSPAWN"};
+                            "GIANT SCORPION", "HYENA", "MIRE LURKER", "YETI", "WILL-O'-WISP", "EMBER HOUND", "BLIGHTSPAWN",
+                            "HARPY", "STONE GOLEM"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)Monster::COUNT, "a name for every monster");
   return n[(int)m];
 }
@@ -90,7 +97,8 @@ enum DlgAct { A_BYE, A_TRADE, A_REST, A_RUMOR, A_ACCEPT, A_TURNIN, A_MAIN, A_HEA
 // ---- quest text helpers (game_rpg.cpp, quests.cpp, wayside.cpp)
 inline const char* monsterPlural(Monster m) {
   static const char* mn[] = {"WOLVES", "BOARS", "BEARS", "SLIMES", "SPIDERS", "BATS", "SKELETONS", "DRAUGR", "GOBLINS", "TROLLS", "WRAITHS", "MUDCRABS", "ICE WOLVES", "RIME SPIDERS", "SANDWORMS", "DRAGONS",
-                             "SCORPIONS", "HYENAS", "MIRE LURKERS", "YETIS", "WISPS", "EMBER HOUNDS", "BLIGHTSPAWN"};
+                             "SCORPIONS", "HYENAS", "MIRE LURKERS", "YETIS", "WISPS", "EMBER HOUNDS", "BLIGHTSPAWN",
+                             "HARPIES", "GOLEMS"};
   static_assert(sizeof(mn) / sizeof(mn[0]) == (size_t)Monster::COUNT, "a plural for every monster");
   return mn[(int)m];
 }
@@ -165,6 +173,7 @@ enum class Mk : uint64_t {
   BoardTaken = 10, // a notice board notice (site id ^ entry): the day it was taken
   // M4: the STORY lane (owner of this file in M4) appends its tags here, below 32. The WARDS lane uses tags 32..47 and
   // the REALM lane 48..63, each defined in its own files as (Mk)(32 + n), so nobody else edits this enum.
+  // M6: the FOES lane uses 64..79 (rpg/sim/foes.h MK_FOES_*), the NUMBERS / FORGE lane 80..95 (craft_game.cpp).
 };
 inline uint64_t markKey(uint64_t id, Mk tag) { return ew::mix64(id ^ ((uint64_t)tag * 0xD1B54A32D192ED03ull)); }
 
