@@ -10,6 +10,11 @@ endif()
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release)
 endif()
+# GCC -O3's loop unswitching/splitting/peeling changes the M5 life sim (rpg_test --life: residents stop eating);
+# MSVC and clang (the web build) -O3 agree with -O2, so the native GCC build (CI) stays at -O2
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG")
+endif()
 
 # --- the app: SDL3 platform layer + engine ---
 set(SDL_SHARED OFF CACHE BOOL "" FORCE)
