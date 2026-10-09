@@ -189,9 +189,11 @@ void Game::dropLoot(const Actor& a) {
     return it;
   };
   auto drop = [&](const Item& it) {
-    Pickup k; k.p = a.p + Vec2(r.range(-8, 8), r.range(-6, 6)); k.item = it; pickups.push_back(k);
+    // (draws sequenced: y first, as MSVC/GCC evaluate the Vec2 arguments right to left; clang goes left to right)
+    const float jy = r.range(-6, 6), jx = r.range(-8, 8);
+    Pickup k; k.p = a.p + Vec2(jx, jy); k.item = it; pickups.push_back(k);
   };
-  auto dropGold = [&](int g) { Pickup k; k.p = a.p + Vec2(r.range(-6, 6), r.range(-4, 4)); k.gold = g; pickups.push_back(k); };
+  auto dropGold = [&](int g) { const float jy = r.range(-4, 4), jx = r.range(-6, 6); Pickup k; k.p = a.p + Vec2(jx, jy); k.gold = g; pickups.push_back(k); };
   if (a.human) {
     dropGold(5 + r.irange(10 + a.level * 3) + (a.boss ? 60 + a.level * 10 : 0));
     if (r.f() < 0.35f || a.boss || a.rank >= 1) drop(loot(a.boss));
@@ -282,13 +284,15 @@ void Game::openChest(int tx, int ty) {
   bool rich = inside && subSite >= 0;
   int n = 1 + r.irange(rich ? 3 : 2);
   Vec2 c(tx * TILE + 8.0f, ty * TILE + 18.0f);
+  // a spot by the chest (draws sequenced: y first, as MSVC/GCC evaluate the Vec2 arguments right to left)
+  auto spot = [&]() { const float jy = r.range(0, 8), jx = r.range(-8, 8); return c + Vec2(jx, jy); };
   // (M6) the chest's loot by the place's danger (gear::rollDrop) in the make of the land's (or the dungeon's) culture
   const cult::Culture* cc = inside && subSite >= 0 ? world.cultureOf(subSite) : (inside ? nullptr : world.cultureAtTile(tx, ty));
   if (cc && world.src) cc = &world.src->culture(cc->id);
   gear::DropSource ds;
   ds.D = std::clamp(lvl, 1, gear::MAX_D); ds.chest = true; ds.playerLevel = plLevel; ds.culture = cc ? cc->id : 0;
   for (int k = 0; k < n; k++) {
-    Pickup p; p.p = c + Vec2(r.range(-8, 8), r.range(0, 8));
+    Pickup p; p.p = spot();
     gear::DropSource s2 = ds;
     if (rich && k == 0 && r.f() < 0.35f) s2.rank = 4;   // the dungeon's hoard chest: a boss's roll
     p.item = gear::rollDropC(r, s2, cc);
@@ -303,7 +307,7 @@ void Game::openChest(int tx, int ty) {
     if (!(inside && subBldg >= 0) && r.f() < 0.4f) {
       const std::vector<craft::OreSource> ores = craft::oresAt(*world.src, gx, gy);
       if (!ores.empty() && ores[0].richness >= 140) {
-        Pickup o; o.p = c + Vec2(r.range(-8, 8), r.range(0, 8));
+        Pickup o; o.p = spot();
         o.item = craft::makeStuff(craft::oreStuff(ores[0].ore), 2 + r.irange(3));
         pickups.push_back(o);
       }
@@ -315,7 +319,7 @@ void Game::openChest(int tx, int ty) {
         if (craft::howAllowed(*cc, (uint8_t)(ai + 1), craft::SecretKind::AlloyRecipe, craft::HOW_RUINS)) readable.push_back((uint8_t)(ai + 1));
       const uint8_t al = !readable.empty() && r.f() < 0.6f ? readable[(size_t)r.irange((int)readable.size())] : 0;
       const craft::SecretKind sk = al ? craft::SecretKind::AlloyRecipe : (r.f() < 0.5f ? craft::SecretKind::WeaponPattern : craft::SecretKind::ArmourPattern);
-      Pickup o; o.p = c + Vec2(r.range(-8, 8), r.range(0, 8));
+      Pickup o; o.p = spot();
       o.item = craft::makeLore(*cc, al, sk, r.next());
       pickups.push_back(o);
     }

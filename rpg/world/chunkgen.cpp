@@ -1026,7 +1026,9 @@ void EndlessSource::Impl::stampSite(const SitePlan& p, Stamp& S) {
       {
         Rng lr(p.seed ^ 0x1A12u);
         const int32_t ax = x, sp = 2 + lr.irange(2);
-        S.p(x - 3 - lr.irange(2), y - 2 + lr.irange(2), Prop::SkullPile); S.p(x + 3 + lr.irange(2), y + 1, Prop::Bones); S.p(x - 5, y + 2 + lr.irange(2), Prop::Bones);
+        const int32_t skY = y - 2 + lr.irange(2);   // (draws sequenced: the right argument's first, as MSVC/GCC)
+        const int32_t skX = x - 3 - lr.irange(2);
+        S.p(skX, skY, Prop::SkullPile); S.p(x + 3 + lr.irange(2), y + 1, Prop::Bones); S.p(x - 5, y + 2 + lr.irange(2), Prop::Bones);
         S.p(ax + sp, y - 4, Prop::Brazier); S.p(ax - sp, y - 4, Prop::Brazier); S.p(ax, y - 5, Prop::Altar);
       }
       break;

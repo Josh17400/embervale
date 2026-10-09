@@ -660,7 +660,10 @@ bool planInn(Plan& P, Rng& r) {
   if (!g0.door(kit, 0, P.X(2 + r.irange(std::max(1, kw - 2))), kd + 2, r)) return false;
   if (store) {
     const IRect& R = g0.rooms[(size_t)sto].r;
-    if (!g0.door(sto, 0, R.x + r.irange(R.w), r.f() < 0.5f ? kd + 2 : 3, r)) return false;
+    // (draws sequenced explicitly, right argument first as MSVC/GCC evaluate them: clang goes left to right)
+    const int sy = r.f() < 0.5f ? kd + 2 : 3;
+    const int sx = R.x + r.irange(R.w);
+    if (!g0.door(sto, 0, sx, sy, r)) return false;
   }
   // the kitchen door must open behind the counter
   int dx = g0.rooms[(size_t)kit].doorX;
@@ -1413,7 +1416,9 @@ bool planHouse(Plan& P, Rng& r) {
       int bed = P.carve(g0, 1, H - 1 - d, bw, H - 2, RoomKind::Bedroom);
       int pan = P.var == 5 ? P.carve(g0, W - 4, 2, W - 2, 4, r.f() < 0.5f ? RoomKind::Kitchen : RoomKind::Storeroom) : 0;
       if (bed < 0 || pan < 0 || !g0.finish() || g0.roomOf(P.ex, H - 2) != 0) return nope(__LINE__);
-      if (!g0.door(bed, 0, r.f() < 0.5f ? P.X(2 + r.irange(bw - 1)) : P.X(bw + 1), r.f() < 0.5f ? H - 2 - d : H - 3, r)) return nope(__LINE__);
+      const int dy = r.f() < 0.5f ? H - 2 - d : H - 3;   // (sequenced: the right argument's draw first, as MSVC/GCC)
+      const int dx = r.f() < 0.5f ? P.X(2 + r.irange(bw - 1)) : P.X(bw + 1);
+      if (!g0.door(bed, 0, dx, dy, r)) return nope(__LINE__);
       return P.var == 4 || g0.door(pan, 0, P.X(W - 3), 6, r);
     }
     if (P.var == 1) {   // a bedroom in a back corner, the hall wraps around it
@@ -1534,8 +1539,14 @@ bool planSmithy(Plan& P, Rng& r) {
     int sto = P.carve(g0, W - 1 - sw, H - 1 - sd, W - 2, H - 2, RoomKind::Storeroom);
     int bed = bedB ? P.carve(g0, 1, 2, bw, 4, RoomKind::Bedroom) : 0;
     if (sto < 0 || bed < 0 || !g0.finish()) return nope(__LINE__);
-    if (!g0.door(sto, 0, r.f() < 0.5f ? W - 2 - sw : W - 2 - r.irange(sw - 1), r.f() < 0.5f ? H - 3 : H - 2 - sd, r)) return nope(__LINE__);
-    return !bedB || g0.door(bed, 0, r.f() < 0.5f ? bw + 1 : 2 + r.irange(bw - 1), r.f() < 0.5f ? 3 : 6, r);
+    // (draws sequenced: the right argument's first, as MSVC/GCC evaluate them)
+    const int sy = r.f() < 0.5f ? H - 3 : H - 2 - sd;
+    const int sx = r.f() < 0.5f ? W - 2 - sw : W - 2 - r.irange(sw - 1);
+    if (!g0.door(sto, 0, sx, sy, r)) return nope(__LINE__);
+    if (!bedB) return true;
+    const int by = r.f() < 0.5f ? 3 : 6;
+    const int bx = r.f() < 0.5f ? bw + 1 : 2 + r.irange(bw - 1);
+    return g0.door(bed, 0, bx, by, r);
   }
   if (P.var == 5) {   // the smith sleeps in a narrow room down the whole west side
     int bw = 3 + (W >= 15 ? r.irange(2) : 0);
@@ -1548,7 +1559,9 @@ bool planSmithy(Plan& P, Rng& r) {
     int sto = P.carve(g0, 1, 2, bw, 1 + sd, RoomKind::Storeroom);
     int bed = P.carve(g0, 1, sd + 4, bw, H - 2, RoomKind::Bedroom);
     if (sto < 0 || bed < 0 || !g0.finish()) return nope(__LINE__);
-    return g0.door(sto, 0, r.f() < 0.5f ? bw + 1 : 2, r.f() < 0.5f ? 3 : sd + 3, r) && g0.door(bed, 0, bw + 1, H - 3, r);
+    const int sy = r.f() < 0.5f ? 3 : sd + 3;   // (sequenced: the right argument's draw first, as MSVC/GCC)
+    const int sx = r.f() < 0.5f ? bw + 1 : 2;
+    return g0.door(sto, 0, sx, sy, r) && g0.door(bed, 0, bw + 1, H - 3, r);
   }
   if (P.var == 3 && H < 12) P.var = 1;
   if (P.var == 3) {   // a west wing: the smith's bedroom at the back, the iron and coal store in front
@@ -1569,7 +1582,9 @@ bool planSmithy(Plan& P, Rng& r) {
     int sw = 3 + (W >= 15 ? r.irange(2) : 0), sd = 3;
     int sto = P.carve(g0, 1, H - 1 - sd, sw, H - 2, RoomKind::Storeroom);
     if (sto < 0 || !g0.finish()) return nope(__LINE__);
-    return g0.door(sto, 0, r.f() < 0.5f ? sw + 1 : 2, r.f() < 0.5f ? H - 2 : H - 2 - sd, r);
+    const int sy = r.f() < 0.5f ? H - 2 : H - 2 - sd;   // (sequenced: the right argument's draw first, as MSVC/GCC)
+    const int sx = r.f() < 0.5f ? sw + 1 : 2;
+    return g0.door(sto, 0, sx, sy, r);
   }
   return g0.finish();
 }
@@ -1682,7 +1697,9 @@ bool planTemple(Plan& P, Rng& r) {
   if (ves < 0 || bed < 0 || !g0.finish()) return nope(__LINE__);
   for (int x = P.ex - 2; x <= P.ex + 2; x++) if (g0.roomOf(x, 2) != 0) return nope(__LINE__);
   P.var = (cell ? 1 : 0) + (vw - 3) * 2;
-  if (!g0.door(ves, 0, r.f() < 0.5f ? P.X(vw + 1) : P.X(2), r.f() < 0.5f ? 3 : vd + 2, r)) return nope(__LINE__);
+  const int vy = r.f() < 0.5f ? 3 : vd + 2;   // (sequenced: the right argument's draw first, as MSVC/GCC)
+  const int vx = r.f() < 0.5f ? P.X(vw + 1) : P.X(2);
+  if (!g0.door(ves, 0, vx, vy, r)) return nope(__LINE__);
   if (cell && !g0.door(bed, 0, P.X(W - 2 - bw), vd + 2, r)) return nope(__LINE__);
   return true;
 }
@@ -1740,8 +1757,14 @@ bool planKeep(Plan& P, Rng& r) {
       int gw = 5 + r.irange(2), gd = 3 + r.irange(2);
       int grd = P.carve(g0, 1, H - 1 - gd, gw, H - 2, RoomKind::Barracks);
       bool rec = r.f() < 0.6f;
-      int other = rec ? P.carve(g0, 1, 2, 4 + r.irange(2), 4 + r.irange(2), RoomKind::Study)
-                      : P.carve(g0, W - 1 - (4 + r.irange(2)), H - 4, W - 2, H - 2, RoomKind::Storeroom);
+      int other;
+      if (rec) {   // (sequenced: the right argument's draw first, as MSVC/GCC evaluate them)
+        const int y1 = 4 + r.irange(2);
+        const int x1 = 4 + r.irange(2);
+        other = P.carve(g0, 1, 2, x1, y1, RoomKind::Study);
+      } else {
+        other = P.carve(g0, W - 1 - (4 + r.irange(2)), H - 4, W - 2, H - 2, RoomKind::Storeroom);
+      }
       if (grd < 0 || other < 0 || !g0.finish()) return nope(__LINE__);
       dq.push_back(r.f() < 0.5f ? north(grd) : east(grd));
       dq.push_back(rec ? (r.f() < 0.5f ? south(other) : east(other)) : (r.f() < 0.5f ? north(other) : east(other)));
@@ -1998,7 +2021,9 @@ bool planHut(Plan& P, Rng& r) {
     P.initFloor(g0, RoomKind::Cottage);
     int pan = P.carve(g0, W - 4, 2, W - 2, 4, RoomKind::Storeroom);
     if (pan < 0 || !g0.finish()) return nope(__LINE__);
-    return g0.door(pan, 0, r.f() < 0.5f ? P.X(W - 3) : P.X(W - 5), r.f() < 0.5f ? 6 : 3, r);
+    const int py = r.f() < 0.5f ? 6 : 3;   // (sequenced: the right argument's draw first, as MSVC/GCC)
+    const int px = r.f() < 0.5f ? P.X(W - 3) : P.X(W - 5);
+    return g0.door(pan, 0, px, py, r);
   }
   // one room for the family and a byre down one side for the goat and the hens
   P.initFloor(g0, RoomKind::Cottage);
@@ -3905,7 +3930,9 @@ void bigRoomFill(Fit& F, int ri) {
   const IRect& R = F.g.rooms[(size_t)ri].r;
   int area = R.w * R.h;
   if (area < 28) return;
-  tableIn(F, ri, 1, F.r.f() < 0.5f ? Prop::TableSmall : Prop::TableMeal, 2 + F.r.irange(2), false, 40);
+  const int seats = 2 + F.r.irange(2);   // (sequenced: the right argument's draw first, as MSVC/GCC)
+  const Prop top = F.r.f() < 0.5f ? Prop::TableSmall : Prop::TableMeal;
+  tableIn(F, ri, 1, top, seats, false, 40);
   northPiece(F, ri, F.r.f() < 0.5f ? Prop::Cupboard : Prop::Wardrobe, 0);
   // (M1) a lord's rooms are furnished, not stored: no crates or barrels in a palace's or keep's chambers
   const bool grand = F.P.wealth >= 3;
@@ -4230,7 +4257,12 @@ void furnishCorridor(Fit& F, int ri) {
   }
   if (R.h >= 3 && R.w * R.h >= 24) {   // where the corridor widens into a landing: a sitting corner
     int tx = -1, ty = -1;
-    if (tableIn(F, ri, F.r.f() < 0.5f ? 2 : 1, F.r.f() < 0.5f ? Prop::TableMeal : Prop::TableSmall, 2 + F.r.irange(2), F.r.f() < 0.3f, 40, &tx, &ty))
+    // (draws sequenced: right argument first, as MSVC/GCC evaluate them)
+    const bool cloth = F.r.f() < 0.3f;
+    const int seats = 2 + F.r.irange(2);
+    const Prop top = F.r.f() < 0.5f ? Prop::TableMeal : Prop::TableSmall;
+    const int tlen = F.r.f() < 0.5f ? 2 : 1;
+    if (tableIn(F, ri, tlen, top, seats, cloth, 40, &tx, &ty))
       rugRect(F, ri, tx - 1, ty - 1, tx + 2, ty + 1, rugFor(F));
     if (F.P.type == Building::Keep || F.P.type == Building::Palace) {
       northPiece(F, ri, Prop::Banner, 0); northPiece(F, ri, Prop::Banner, 0);
@@ -4241,7 +4273,9 @@ void furnishCorridor(Fit& F, int ri) {
         // fix round 3: the gallery's open floor below the room row: a long table for the household with its seats
         // and a runner, columns where they stand free, statues and candle-stands along the walls
         int lx = -1, ly = -1;
-        if (tableIn(F, ri, 3, Prop::TableMeal, 4 + F.r.irange(2), F.r.f() < 0.4f, 60, &lx, &ly))
+        const bool lcloth = F.r.f() < 0.4f;   // (sequenced: the right argument's draw first, as MSVC/GCC)
+        const int lseats = 4 + F.r.irange(2);
+        if (tableIn(F, ri, 3, Prop::TableMeal, lseats, lcloth, 60, &lx, &ly))
           rugRect(F, ri, lx - 1, ly - 1, lx + 3, ly + 1, rugFor(F));
         for (int k = 0; k < 2; k++) {
           std::vector<std::pair<int, int>> pc;
@@ -6231,7 +6265,11 @@ struct InteriorBuild {
     if (b.type == Building::Barracks) {
       for (int ri : rooms(RoomKind::Barracks)) if (ur.f() < 0.7f) atBed(Role::Guard, ri);   // a guard asleep off his watch
     } else if (b.type == Building::Keep || b.type == Building::Palace) {
-      add(Role::Villager, G.x + ur.irange(G.w), G.y + ur.irange(G.h), 0);   // a servant about the gallery
+      {   // a servant about the gallery (draws sequenced: the right argument's first, as MSVC/GCC evaluate them)
+        const int sy = G.y + ur.irange(G.h);
+        const int sx = G.x + ur.irange(G.w);
+        add(Role::Villager, sx, sy, 0);
+      }
       for (int ri : rooms(RoomKind::OwnerRoom)) {                            // a guard at the lord's door
         const RoomDef& R = gg.rooms[(size_t)ri];
         if (R.doorX >= 0) add(Role::Guard, R.doorX + (R.doorH ? 1 : 0), R.doorY + (R.doorH ? 1 : 0), 0);
@@ -6243,10 +6281,18 @@ struct InteriorBuild {
       F.shuffle(g);
       int n = std::min((int)g.size() - 1, 1 + ur.irange(2));
       for (int k = 0; k < n; k++) atBed(Role::Villager, g[(size_t)k]);
-      if (ur.f() < 0.6f) add(Role::Villager, G.x + ur.irange(G.w), G.y + ur.irange(G.h), 0);   // the maid on her rounds
+      if (ur.f() < 0.6f) {   // the maid on her rounds (draws sequenced: the right argument's first, as MSVC/GCC)
+        const int my = G.y + ur.irange(G.h);
+        const int mx = G.x + ur.irange(G.w);
+        add(Role::Villager, mx, my, 0);
+      }
     } else if (b.type == Building::House || b.type == Building::StoneHouse || b.type == Building::Shop) {
       std::vector<int> beds = rooms(RoomKind::Bedroom);
-      if (!beds.empty() && ur.f() < 0.7f) atBed(b.type == Building::Shop || ur.f() < 0.4f ? Role::Villager : Role::Child, beds[(size_t)ur.irange((int)beds.size())]);
+      if (!beds.empty() && ur.f() < 0.7f) {   // (sequenced: the bed's draw, then the sleeper's, as MSVC/GCC)
+        const int bed = beds[(size_t)ur.irange((int)beds.size())];
+        const Role who = b.type == Building::Shop || ur.f() < 0.4f ? Role::Villager : Role::Child;
+        atBed(who, bed);
+      }
     } else if (b.type == Building::Tower && floor < P.floors - 1 && ur.f() < 0.7f) {
       add(Role::Villager, G.cx(), G.cy(), 0);   // an apprentice at the books
     }

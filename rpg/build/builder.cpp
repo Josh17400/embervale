@@ -564,7 +564,10 @@ int roundHouse(Bx& c, int n, int base, bool felt, int annexes) {
   const int room = std::max(0, std::min(rad - 8, (c.W - 2 * rad) / 2 - 1));
   if (room > 0) cx = std::clamp(c.dc + (c.ch(128) ? 1 : -1) * c.rg(0, room), rad + 1, c.W - rad - 1);
   if (std::abs(cx - c.dc) > rad - 8) cx = c.dc;
-  Volume bo = c.rnd(VolRole::Body, cx, c.H - (c.H >= 40 ? c.pick(3) : 0), rad, felt ? 15 + c.rg(0, 2) : c.wallFor(n, base) + c.rg(-2, 2), n);
+  // (draws sequenced: the right argument's first, as MSVC/GCC evaluate them; clang goes left to right)
+  const int drumH = felt ? 15 + c.rg(0, 2) : c.wallFor(n, base) + c.rg(-2, 2);
+  const int drumY = c.H - (c.H >= 40 ? c.pick(3) : 0);
+  Volume bo = c.rnd(VolRole::Body, cx, drumY, rad, drumH, n);
   bo.doorHere = true;
   if (felt) {
     bo.wall = WallMat::Felt; bo.roofMat = RoofMat::Felt; bo.roof = RoofShape::Conical; bo.feat |= VF_CROWN; bo.pitch = (uint8_t)c.rg(1, 2); bo.window = WindowShape::Round;
@@ -581,7 +584,9 @@ int roundHouse(Bx& c, int n, int base, bool felt, int annexes) {
     const bool east = a == 0 ? (cx < c.W / 2 ? true : (cx > c.W / 2 ? false : c.ch(128))) : !(cx < c.W / 2);
     const int ar = std::max(7, std::min(rad * 2 / 3 - c.pick(3), (east ? c.W - (cx + rad) : cx - rad) + 6));
     const int ax = east ? std::min(c.W + art::BLDG_PAD_X - ar - 1, cx + rad + ar - 6) : std::max(-art::BLDG_PAD_X + ar + 1, cx - rad - ar + 6);
-    Volume an = c.rnd(VolRole::Annex, ax, c.H - c.rg(2, 6), ar, felt ? std::max(12, bo.wallH - c.rg(1, 3)) : std::max(14, bo.wallH - c.rg(4, 8)));
+    const int annH = felt ? std::max(12, bo.wallH - c.rg(1, 3)) : std::max(14, bo.wallH - c.rg(4, 8));   // (sequenced: right argument first)
+    const int annY = c.H - c.rg(2, 6);
+    Volume an = c.rnd(VolRole::Annex, ax, annY, ar, annH);
     an.wall = bo.wall; an.roof = bo.roof; an.roofMat = bo.roofMat; an.feat = bo.feat & (VF_CROWN); an.pitch = bo.pitch; an.eave = bo.eave;
     an.window = bo.window; an.door = bo.door; an.roofTint = bo.roofTint;
     c.add(an);
@@ -661,7 +666,10 @@ int courtHouse(Bx& c, int base, bool flatRoofs, int backStoreys) {
 
 // a long hall: the ridge along the length (door in the long side), annexes and porches by seed
 int longHall(Bx& c, int base, int n, int inset) {
-  Volume bo = c.vol(VolRole::Body, inset, std::max(0, c.H / 8 - 2 + c.pick(3)), c.W - inset, c.H - (c.ch(110) ? 6 : 0), c.wallFor(n, base), n);
+  // (draws sequenced: the right argument's first, as MSVC/GCC evaluate them; clang goes left to right)
+  const int hallY1 = c.H - (c.ch(110) ? 6 : 0);
+  const int hallY0 = std::max(0, c.H / 8 - 2 + c.pick(3));
+  Volume bo = c.vol(VolRole::Body, inset, hallY0, c.W - inset, hallY1, c.wallFor(n, base), n);
   bo.ridgeNS = false;
   bo.doorHere = true;
   if (bo.roof == RoofShape::Hip && c.ch(128)) bo.roof = RoofShape::Gable;
@@ -902,7 +910,10 @@ void cultureHome(Bx& c) {
         const int kind = c.pick(3);
         const int rw = std::max(20, kind == 0 ? bw * 62 / 100 : bw * (38 + c.pick(3) * 6) / 100);
         const int rx = kind == 0 ? B.x0 + (bw - rw) / 2 : (c.ch(128) ? B.x0 + 2 : B.x1 - 2 - rw);
-        Volume rr = c.vol(VolRole::Tier, rx, B.y0 + 2, rx + rw, B.y0 + 2 + std::max(12, bd * (45 + c.pick(2) * 10) / 100), 14 + c.pick(3) * 2);
+        // (draws sequenced: the right argument's first, as MSVC/GCC evaluate them; clang goes left to right)
+        const int tierH = 14 + c.pick(3) * 2;
+        const int tierY1 = B.y0 + 2 + std::max(12, bd * (45 + c.pick(2) * 10) / 100);
+        Volume rr = c.vol(VolRole::Tier, rx, B.y0 + 2, rx + rw, tierY1, tierH);
         rr.z0 = (int16_t)(B.z0 + B.wallH); flat(rr);
         c.add(rr);
       }

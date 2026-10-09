@@ -458,12 +458,14 @@ void Game::updateFolk(Actor& a, float dt) {
     if (rng_.f() < 0.45f) a.goal = a.p;
     else {
       float range = inside ? 3.0f : (squareGoer ? 3.5f : 6.0f);
-      a.goal = a.home + Vec2(rng_.range(-range, range) * TILE, rng_.range(-range * 0.4f, range * 0.4f) * TILE);
+      // (draws sequenced: y first, as MSVC/GCC evaluate the Vec2 arguments right to left; clang goes left to right)
+      auto wander = [&]() { const float gy = rng_.range(-range * 0.4f, range * 0.4f) * TILE; const float gx = rng_.range(-range, range) * TILE; return a.home + Vec2(gx, gy); };
+      a.goal = wander();
       // (M2 fixer round 3) indoors a stop keeps a few px clear of the walls and furniture: a person idling with their
       // body against a side wall was drawn half into it
       if (inside) {
         for (int k = 0; k < 4 && !bodyFree(a.goal, a.radius + 4.0f, false); k++)
-          a.goal = a.home + Vec2(rng_.range(-range, range) * TILE, rng_.range(-range * 0.4f, range * 0.4f) * TILE);
+          a.goal = wander();
         if (!bodyFree(a.goal, a.radius + 4.0f, false)) a.goal = a.p;
       }
     }
@@ -622,7 +624,9 @@ void Game::updateAI(Actor& a, float dt) {
     if (!a.aggro && a.st != AState::Windup) {
       if (rng_.f() < 0.25f && a.mon != Monster::Lurker) {   // (a lurker lies still in the shallows)
         float r = a.wild ? 5.0f : 3.0f;
-        a.goal = a.home + Vec2(rng_.range(-r, r) * TILE, rng_.range(-r, r) * TILE);
+        const float gy = rng_.range(-r, r) * TILE;   // (sequenced: y first, as MSVC/GCC evaluate the Vec2 arguments)
+        const float gx = rng_.range(-r, r) * TILE;
+        a.goal = a.home + Vec2(gx, gy);
       }
     }
   }

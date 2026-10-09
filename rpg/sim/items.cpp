@@ -93,7 +93,9 @@ const char* enchName(Ench e) {
 
 namespace {
 int tierFor(Rng& r, int level) {
-  int t = level / 5 + (r.f() < 0.25f ? 1 : 0) - (r.f() < 0.25f ? 1 : 0);
+  const int up = r.f() < 0.25f ? 1 : 0;   // (draws sequenced left to right, as MSVC evaluates them)
+  const int down = r.f() < 0.25f ? 1 : 0;
+  int t = level / 5 + up - down;
   return std::clamp(t, 0, 5);
 }
 Rarity rollRarity(Rng& r, int level, bool boss) {
@@ -309,7 +311,10 @@ Item randomLoot(Rng& r, int level, bool boss) {
     if (q < 0.9f) return makeBow(r, level + 3);
     return makeStaff(r, level + 2);
   }
-  if (q < 0.30f) return makePotion((PotionType)r.irange(3), level > 12 ? 1 + (r.f() < 0.3f) : (level > 5 ? (r.f() < 0.5f) : 0));
+  if (q < 0.30f) {   // (draws sequenced: the right argument's first, as MSVC/GCC evaluate them)
+    const int size = level > 12 ? 1 + (r.f() < 0.3f) : (level > 5 ? (r.f() < 0.5f) : 0);
+    return makePotion((PotionType)r.irange(3), size);
+  }
   if (q < 0.42f) return makeArrows(5 + r.irange(10));
   if (q < 0.56f) { const int w = r.irange(8); return makeMisc(w == 3 ? 7 : w); }   // (M6) ore is crafting stuff (craft.h)
   if (q < 0.64f) return makeFood(r.irange(4));

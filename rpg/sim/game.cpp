@@ -1910,7 +1910,9 @@ void Game::updateSpawning(float dt) {
       if ((m == Monster::Troll || m == Monster::Bear || m == Monster::Yeti || m == Monster::Lurker) && lvl <= 3) continue;   // big brutes live in dens near home
     }
     for (int k = 0; k < pack; k++) {
-      Vec2 at = sp + Vec2(rng_.range(-12, 12), rng_.range(-12, 12));
+      const float jy = rng_.range(-12, 12);   // (sequenced: y first, as MSVC/GCC evaluate the Vec2 arguments)
+      const float jx = rng_.range(-12, 12);
+      Vec2 at = sp + Vec2(jx, jy);
       if (solidAt(at.x, at.y, false)) at = sp;
       int id = spawnMonster(m, at, lvl, false);
       actors[findActor(id)].wild = true;

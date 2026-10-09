@@ -85,7 +85,8 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
     int nh = 0;
     for (uint32_t hc : D.hairCols) nh += hc != 0;
     if (nh) {
-      const int i = std::min(h.pick(nh), h.pick(4));   // the first colours are seen most
+      const int p4 = h.pick(4);   // (draws sequenced: the right argument's first, as MSVC/GCC evaluate them)
+      const int i = std::min(h.pick(nh), p4);   // the first colours are seen most
       L.hairColor = D.hairCols[std::min(i, nh - 1)] | 0xFF000000u;
     }
     L.hair = hairFor(h, D.hairStyles, female, L.hair);

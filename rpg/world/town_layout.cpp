@@ -1096,7 +1096,9 @@ void Gen::ringRoads() {
     }
   };
   if (town) {
-    ring(0.55f, rng.f() * D_TAU, 3.4f + rng.f() * 2.2f, 1, K_LANE, Ground::Road, bseed + 21);
+    const float span = 3.4f + rng.f() * 2.2f;   // (draws sequenced: the right argument's first, as MSVC/GCC)
+    const float a0 = rng.f() * D_TAU;
+    ring(0.55f, a0, span, 1, K_LANE, Ground::Road, bseed + 21);
   } else {
     ring(0.36f, rng.f() * D_TAU, D_TAU + 0.05f, 2, K_MAIN, Ground::Road, bseed + 22);
     ring(0.64f, rng.f() * D_TAU, D_TAU + 0.05f, 1, K_LANE, Ground::Road, bseed + 23);

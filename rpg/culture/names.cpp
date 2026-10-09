@@ -302,12 +302,16 @@ std::string dungeonName(const Culture& c, uint32_t seed, int siteType) {
     }
     case 4: {
       static const char* const n[] = {"BARROW", "HALLS", "TOMB", "VAULT", "CRYPT", "SPIRE"};
-      if (p.chance(80)) return "TOMB OF " + personName(c, p.next(), p.chance(100));
+      if (p.chance(80)) {   // (draws sequenced: the right argument's first, as MSVC/GCC evaluate them)
+        const bool fem = p.chance(100);
+        return "TOMB OF " + personName(c, p.next(), fem);
+      }
       return root + " " + n[p.pick(6)];
     }
     case 5: {
       static const char* const n[] = {"CAMP", "HIDEOUT", "LOOKOUT", "REDOUBT"};
-      std::string who = personName(c, p.next(), p.chance(60));
+      const bool fem = p.chance(60);   // (draws sequenced: the right argument's first, as MSVC/GCC evaluate them)
+      std::string who = personName(c, p.next(), fem);
       if (who.size() > 8) who.resize(8);
       return who + "'S " + n[p.pick(4)];
     }

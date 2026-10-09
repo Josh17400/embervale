@@ -67,7 +67,10 @@ realm::RuinRecord makeRecord(Game& g, ew::Gid site) {
   const bool fem = (nx() & 1) != 0;
   const std::string title = (nx() % 3 == 0) ? std::string(soc.rulerTitle) : std::string(soc.lordTitle);
   const std::string ttl = fem && title == "KING" ? "QUEEN" : fem && title == "LORD" ? "LADY" : fem && title == "JARL" ? "JARL" : title;
-  R.lastLord = ttl + " " + cult::personName(C, (uint32_t)nx(), fem) + " " + kLordEpithet[nx() % (sizeof(kLordEpithet) / sizeof(kLordEpithet[0]))];
+  // (draws sequenced: MSVC/GCC evaluate the right operand of the string + first, clang the left)
+  const char* const epithet = kLordEpithet[nx() % (sizeof(kLordEpithet) / sizeof(kLordEpithet[0]))];
+  const std::string lordName = cult::personName(C, (uint32_t)nx(), fem);
+  R.lastLord = ttl + " " + lordName + " " + epithet;
   R.fellYearsAgo = 60 + (int)(nx() % 340);
   R.foundedYearsAgo = R.fellYearsAgo + 120 + (int)(nx() % 500);
   const int c = (int)(nx() % 100);
@@ -76,8 +79,11 @@ realm::RuinRecord makeRecord(Game& g, ew::Gid site) {
   if (R.cause == realm::FallCause::War) R.destroyerName = "THE HOST OF " + cult::kingdomName(g.world.src->culture(cid), (uint32_t)nx());
   // the clues: an inscription, a grave, a journal, a mural, the last lord's statue, the last words
   const std::string lord = R.lastLord, old = R.oldName;
-  const std::string steward = cult::personName(C, (uint32_t)nx(), (nx() & 1) != 0);
-  const std::string child = cult::personName(C, (uint32_t)nx(), (nx() & 1) != 0);
+  // (draws sequenced: the right argument's first, as MSVC/GCC evaluate them)
+  const bool stewardFem = (nx() & 1) != 0;
+  const std::string steward = cult::personName(C, (uint32_t)nx(), stewardFem);
+  const bool childFem = (nx() & 1) != 0;
+  const std::string child = cult::personName(C, (uint32_t)nx(), childFem);
   const int built = R.foundedYearsAgo, fell = R.fellYearsAgo;
   R.clues.push_back("HERE " + R.builtBy + " RAISED THE HALL OF " + old + ", " + std::to_string(built) +
                     " WINTERS BEFORE YOUR TIME. MAY ITS DOORS OUTLAST ITS ENEMIES.");

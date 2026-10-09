@@ -70,7 +70,10 @@ std::string makeDungeonName(Rng& r, SiteType t, Biome b) {
   // the dragon's peak: a name of its own in every world
   static const char* peak[] = {"SKYFANG", "ASHCROWN", "CINDERHORN", "WYRMSPIRE", "STORMTOOTH", "EMBERCREST", "GREYFANG", "DRAKEHOLM"};
   static const char* kind[] = {"PEAK", "SPIRE", "CRAG", "PEAK"};
-  return std::string(peak[r.irange(8)]) + " " + kind[r.irange(4)];
+  // (draws sequenced: MSVC/GCC evaluate the right operand of the string + first, clang the left)
+  const char* const k = kind[r.irange(4)];
+  const char* const p = peak[r.irange(8)];
+  return std::string(p) + " " + k;
 }
 
 uint64_t genSubSeed(uint64_t seed, const char* feature) {

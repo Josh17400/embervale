@@ -613,7 +613,11 @@ Item rollDropC(Rng& r, const DropSource& s, const cult::Culture* c) {
   const bool big = s.rank >= 4;   // bosses and world bosses always drop gear
   const float q = big ? 0.99f : r.f();
   // what kind of thing: the classic loot table's shares (randomLoot), gear made with the 7.2 rules
-  if (q < 0.30f) { const int D = std::max(1, s.D); return makePotion((PotionType)r.irange(3), D > 12 ? 1 + (r.f() < 0.3f) : (D > 5 ? (r.f() < 0.5f) : 0)); }
+  if (q < 0.30f) {   // (draws sequenced: the right argument's first, as MSVC/GCC evaluate them)
+    const int D = std::max(1, s.D);
+    const int size = D > 12 ? 1 + (r.f() < 0.3f) : (D > 5 ? (r.f() < 0.5f) : 0);
+    return makePotion((PotionType)r.irange(3), size);
+  }
   if (q < 0.42f) return makeArrows(5 + r.irange(10));
   if (q < 0.56f) {
     // (M6 fixer) ore is crafting stuff now: the smelter's IRON ORE (craft::Stuff::IronOre), never the old misc good of
