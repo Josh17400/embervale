@@ -8,7 +8,7 @@
 // How: every tile a lot may not cover (anything built, walled, paved, wet, farmed, a door's front, a roof's shadow, a
 // gate's approach, another lot and its margin) is marked and summed in prefix tables, so every rectangle of the three
 // sizes (both ways round) is tested in O(1). A footpath flood from the streets the heart reaches (over open ground only,
-// up to PATH_MAX tiles) says how far each tile is from a street; a lot's gate is the border tile whose outside step is
+// up to LOT_PATH_MAX tiles) says how far each tile is from a street; a lot's gate is the border tile whose outside step is
 // nearest a street. The best lot by frontage (the street running along its gate side), outskirts, the bank, the path's
 // length and the spread round the heart wins. A lot that would cut a door off from the heart is refused.
 // Determinism: hashes of the plan's seed and the tile only (never the shared rng: the rest of the town is unchanged by
@@ -29,7 +29,7 @@ namespace {
 const int D4X[4] = {0, 1, -1, 0}, D4Y[4] = {1, 0, 0, -1};   // 0 south, 1 east, 2 west, 3 north
 // the three lot sizes (home::lotInfo: small 10x8, medium 13x10, large 16x12)
 const int LOT_W[3] = {10, 13, 16}, LOT_H[3] = {8, 10, 12};
-constexpr int PATH_MAX = 9;   // the longest footpath from a street to a lot's gate
+constexpr int LOT_PATH_MAX = 9;   // the longest footpath from a street to a lot's gate
 
 // a 2D prefix sum over a byte mask (count of set tiles in a rectangle)
 struct Sum {
@@ -193,10 +193,10 @@ void Gen::lots() {
     int nPrefix = 0, nLevel = 0, nGate = 0, nPath = 0;
     best.score = -1000000;
     bool found = false;
-    // a footpath of up to PATH_MAX tiles; where none reaches open ground big enough, a longer one (a lot behind the houses)
+    // a footpath of up to LOT_PATH_MAX tiles; where none reaches open ground big enough, a longer one (a lot behind the houses)
     // (pass 2: a track across the outskirts to open ground beyond a palisade; pass 3: the ring may pass behind a house)
     for (int pass = 0; pass < 4 && !found; pass++) {
-    pathFlood(pass == 0 ? PATH_MAX : (pass == 1 ? 2 * PATH_MAX : 5 * PATH_MAX));
+    pathFlood(pass == 0 ? LOT_PATH_MAX : (pass == 1 ? 2 * LOT_PATH_MAX : 5 * LOT_PATH_MAX));
     const Sum& RS = pass < 3 ? ringS : ringS2;
     for (int size = size0; size >= 0 && !found; size--)
       for (int orient = 0; orient < 2; orient++) {
