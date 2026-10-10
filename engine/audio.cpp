@@ -610,7 +610,9 @@ const float kSfxTrim[(int)Sfx::COUNT] = {
   0.8f,                                                     // Bell
   0.7f,  0.6f,  0.6f,  0.6f,                                // Bark Cluck Meow Cheer (M5 stand-ins)
   0.78f, 0.8f,  1.2f,  0.66f,                               // HarpyShriek GolemSlam EliteSting BossRoar (M6; integration: +2 / +4 dB to clear the music by 6 dB, phone too)
+  0.6f,                                                     // Hoof (M7: under the music, a little above a footstep)
 };
+static_assert(sizeof(kSfxTrim) / sizeof(kSfxTrim[0]) == (size_t)Sfx::COUNT, "a trim for every Sfx");
 
 void Audio::trigger(Sfx s, float k, float V) {
   V *= kSfxTrim[(int)s];
@@ -728,6 +730,14 @@ void Audio::trigger(Sfx s, float k, float V) {
       add(NB(Noise, 0, 0.75f * V).env(0.02f, 1, 1, 0.22f, 0.08f).lp(1300 * k, 0.8f).bump(0.9f).color(0.5f));
       add(NB(Sine, 95 * k, 0.40f * V).perc(0.05f).pitch(1, 0.01f).at(0.04f));
       add(NB(Sine, 85 * k, 0.32f * V).perc(0.05f).pitch(1, 0.01f).at(0.2f));
+      break;
+    }
+    case Sfx::Hoof: {     // (M7) a hoof on packed earth: a hollow tuned knock (the hoof wall), its overtone, grit, the weight
+      float r = k * rnd(0.9f, 1.1f);
+      add(NB(Sine, 380 * r, 0.42f * V).perc(0.035f).pitch(1.5f, 0.006f).send(0.04f));
+      add(NB(Tri, 760 * r, 0.14f * V).perc(0.02f).send(0.04f));
+      add(NB(Noise, 0, 0.34f * V).perc(0.022f).bp(1900 * r, 1.1f).send(0.03f));
+      add(NB(Sine, 92 * r, 0.30f * V).perc(0.05f).pitch(0.8f, 0.01f));
       break;
     }
     case Sfx::Step: {     // very soft scuff + thud; randomised so repeats never sound mechanical

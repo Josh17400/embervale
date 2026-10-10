@@ -1,0 +1,36 @@
+# (phone size) M7 HOMESTEAD: buying the start village's vacant house from the innkeeper (VISION_PLAN 8.1): the options picked by
+# their text, the deed, the FOR SALE sign gone, nobody living in it, its own chest (the Storage screen) and bed.
+#   embervale.exe --script tools/scripts/m7_homestead_buy_phone.txt     (m7_hs_buy_phone_*.png in the working directory)
+seed 2
+phone
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.3 home enter vacant
++0.4 shot m7_hs_buy_phone_vacant.png
++0.1 home leave
++0.1 home gold 4000
++0.3 enter inn
++0.5 home talk innkeeper
++0.3 expect option PROPERTY FOR SALE
++0.1 choose PROPERTY FOR SALE
++0.3 shot m7_hs_buy_phone_list.png
++0.1 home choose BUY THE
++0.3 shot m7_hs_buy_phone_deal.png
++0.1 expect home plots 1
++0.1 expect home deed
++0.1 choose FAREWELL
++0.2 home leave
++0.6 shot m7_hs_buy_phone_outside.png
++0.2 home enter house
++0.4 expect home inhouse
++0.1 home goto chest
++0.3 shot m7_hs_buy_phone_inside.png
++0.1 home use here
++0.3 expect mode build
++0.3 shot m7_hs_buy_phone_chest.png
++0.1 key Escape
++0.2 expect mode play
++0.1 home goto bed
++0.2 shot m7_hs_buy_phone_bed.png
++0.3 quit

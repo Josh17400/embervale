@@ -9,6 +9,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/gear.h"
+#include "rpg/sim/home.h"
 #include "rpg/culture/culture.h"
 #include "rpg/world/source.h"
 #include "rpg/culture/society.h"
@@ -114,7 +115,9 @@ void Game::useItem(int i) {
       break;
     }
     case ItemKind::Food: {
-      lifeAte(it);   // M5 (15.2): Well Fed
+      // M5 (15.2): a snack's Well Fed; (M7) a cooked meal's is its own, set by where it was cooked (home_game.cpp), never
+      // the snack rule's (it gave a campfire stew the hearth's hours and pips)
+      if (it.sub >= home::FOOD_MEAL) homeAte(it); else lifeAte(it);
       float k = background == Background::Farmhand ? 1.5f : 1.0f;   // farmhand: plain food goes further
       pl().hp = std::min(pl().maxHp, pl().hp + it.power * k);
       stamina += it.power * k;
@@ -347,9 +350,12 @@ int Game::interactTarget() const {
   const Actor& p = pl();
   if (foeInReach()) return -1;
   int best = -1; float bd = 24 * 24;
+  // (M7) in the player's own yard, a crop / coop / stable in front wins over a passer-by (the farm's own actors stay)
+  const bool yard = !inside && !home.plots.empty() && home::yardUseAhead(*this);
   for (size_t i = 1; i < actors.size(); i++) {
     const Actor& a = actors[i];
     if (!a.npc || a.st == AState::Dead) continue;
+    if (yard && !(a.lifeBits & LB_HOMESTEAD)) continue;
     // (M4 integration) a soldier or guard who is the player's foe, or is fighting the player, is not talked to: the
     // tap and E attack them instead of offering TALK mid-fight
     if ((a.aggro && a.target == p.id) || warFoes(*this, a, p)) continue;
@@ -399,6 +405,7 @@ static int lodgingSleepHours(int day, float hour, int untilDay) {
 static const char* kRoomDue = "IT IS NEARLY NOON: YOUR ROOM IS DUE BACK.";
 
 bool Game::bedIsYours(int tx, int ty) const {
+  if (homeBed(tx, ty)) return true;   // M7: a bed in the player's own house
   if (!inside || subBldg < 0) return true;
   const Bldg& B = world.over.bldgs[subBldg];
   if (B.type != art::Building::Inn || B.genVer < WORLDGEN_V7) return true;
@@ -422,6 +429,7 @@ int Game::interactProp(int& otx, int& oty) const {
                       ((prop == Prop::Hammock || prop == Prop::SleepingMat) && inside && subBldg >= 0) ||   // M3: cultures that sleep so
                       (prop == Prop::Bedroll && !inside) ||   // M5: a wayfarer's bedroll (Life: rested, the night passes)
                       (art::isLoreProp(prop) && (inside ? subSite >= 0 : (prop == Prop::NoticeBoard || prop == Prop::ToppledStatue))) ||   // M4 (story_game.cpp)
+                      homePropUsable(prop, tx, ty) ||   // M7: cooking places, the player's own furniture (home_game.cpp)
                       (prop == Prop::Bed && inside && subBldg >= 0 &&
                        (world.over.bldgs[subBldg].type != art::Building::Inn || world.over.bldgs[subBldg].genVer >= WORLDGEN_V7));
         if (!usable) continue;
@@ -434,12 +442,14 @@ int Game::interactProp(int& otx, int& oty) const {
 void Game::interact() {
   int t = interactTarget();
   if (t >= 0) { talkTo(actors[findActor(t)]); return; }
+  if (homeInteract()) return;   // M7: the player's own yard (till, plant, water, harvest, collect, mount; home_game.cpp)
   // chest / shrine / bed / bush in front of the player
   const Actor& p = pl();
   int tx = 0, ty = 0;
   int pr = interactProp(tx, ty);
   if (!pr) return;
   Prop prop = (Prop)(pr - 1);
+  if (homeUseProp(prop, tx, ty)) return;   // M7: the player's own stores, beds and cooking places (home_game.cpp)
   if (prop == Prop::Chest) { openChest(tx, ty); return; }
   if (lifeUseProp(prop, tx, ty)) return;   // M5: beds and bedrolls (Rested), the townsfolk's furniture (life_game.cpp)
   // M4: a story may ask for a wayside prop (standing stones, a cairn) before its own use runs
@@ -1106,6 +1116,7 @@ void Game::giveFirstWeapon(Quest& q) {
 void Game::talkTo(Actor& a) {
   // M5: a village animal is petted, not talked to (a wag, a purr, a cluck)
   if (a.critter) {
+    if (HomeOps::critterUse(*this, a)) return;   // M7: the player's own beasts (pet, groom, ride; home_actors.cpp)
     a.bubble = art::Bubble::Heart; a.bubbleT = 1.6f;
     a.face = faceOf(pl().p - a.p);
     const art::Critter k = (art::Critter)(a.critter - 1);
@@ -1195,6 +1206,7 @@ void Game::talkTo(Actor& a) {
   storyTalk(a);   // M4: story quests, gossip, the realm's news (rpg/story/story_game.cpp)
   foeTalk(a);     // M6: warnings of named beasts and world bosses (foes_game.cpp)
   craftTalk(a);   // M6: the forge's work and lessons (craft_game.cpp)
+  homeTalk(a);    // M7: deeds, builders, horses, seeds, the farmhand, recipes and cooking (home_game.cpp)
   dlg.opts.push_back({"FAREWELL.", A_BYE, 0});
   mode = Mode::Dialogue;
   sfx((int)Sfx::Talk, a.p);
@@ -1453,12 +1465,14 @@ void Game::dialogueChoose(int oi) {
       if (o.action >= DLG_LIFE && o.action < DLG_LIFE_END && lifeChoose(o)) return;
       if (o.action >= DLG_FOES && o.action < DLG_CRAFT && foeChoose(o)) return;      // M6
       if (o.action >= DLG_CRAFT && o.action < DLG_M6_END && craftChoose(o)) return;  // M6
+      if (o.action >= DLG_HOME && o.action < DLG_HOME_END && homeChoose(o)) return;  // M7
       mode = Mode::Play;
       return;
   }
 }
 
 void Game::rest(int hours) {
+  if (homeRiding()) homeDismount(home::Dismount::Sleep);   // M7
   hour += hours;
   while (hour >= 24) { hour -= 24; day++; }
   Actor& p = pl();
@@ -1628,6 +1642,7 @@ std::vector<Item> Game::shopStock(const Actor& a) {
       if (mining) { localOres(2, 5, 10); localIngots(2); }
       break;
   }
+  homeShopStock(a, s);   // M7: seeds by the culture's staples, farm tools, hay, saddlery (home_game.cpp)
   // (M5 census) material prices follow the settlement's stock of the good (price % of list: shortages raise it)
   if (si >= 0) {
     if (const life::Census* cs = life.census(world, si))
@@ -1696,7 +1711,18 @@ bool Game::sell(int ii) {
   if (ii < 0 || ii >= (int)inv.size()) return false;
   Item& it = inv[ii];
   if (it.kind == ItemKind::Quest) return false;
+  if (it.kind == ItemKind::Misc && it.sub == home::MISC_DEED) { say("A DEED IS NOT SOLD OVER A COUNTER"); return false; }   // M7
   int price = gear::sellPrice(it);
+  // M7: a crop foreign to the merchant's people fetches 25..50 % more (8.4's small trading game), and what is sold
+  // joins the settlement's stores (15.11: the census stock)
+  int homeSite = -1;
+  ew::Good homeGood = ew::Good::COUNT;
+  if (home::isHomeGood(it)) {
+    const int k = findActor(shop.actor);
+    homeSite = k >= 0 ? siteOfActor(world, actors[(size_t)k]) : -1;
+    if (homeSite >= 0) price += price * home::foreignPremiumPct(it, world.sites[(size_t)homeSite].culture, *this) / 100;
+    homeGood = home::goodOf(it);
+  }
   // (M6, 7.5 rule 8) the merchant pays from a purse that refills each restock. (M6 fixer r2) A piece worth more than he
   // has left he takes for all he has (the shop says so on its button); with an empty purse he buys nothing.
   auto pu = craft.live.purse.find(shop.key);
@@ -1710,6 +1736,8 @@ bool Game::sell(int ii) {
     pu->second.second -= price;
   }
   gold += price;
+  if (homeSite >= 0 && homeGood != ew::Good::COUNT && world.sites[(size_t)homeSite].settlement() && life.census(world, homeSite))
+    life.supply(world.sites[(size_t)homeSite].id, homeGood, 1);
   Item sold = it;
   sold.count = it.kind == ItemKind::Arrows ? it.count : 1;
   sold.flags &= (uint8_t)~IF_SHOP;   // (M6 fixer r3) bought back, it is no longer the smith's own work (no trust)
@@ -1765,10 +1793,14 @@ bool Game::sell(int ii) {
 //   story    (v10) u32 byte length + the story block (story::Engine::serialize: its own version byte first; v13: block v3)
 //   life     (v11) u32 byte length + the life block (life::Life::serialize: its own version byte first)
 //   craft    (v12) u32 byte length + the craft block (craft::Knowledge::serialize: its own version byte first)
+//   home     (v14) u32 byte length + the home block (home::Homes::serialize: its own version byte first)
 // refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
 // 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 13;  // 13: M6b Sagas (the story block's own version 3: the generated stories'
+static constexpr uint32_t SAVE_VER = 14;  // 14: M7 Home (the home block after the craft block: the player's houses, lots,
+                                          //    yards, crops, animals, stores, discovered styles, the horse ridden;
+                                          //    ENDLESS_GEN_VER 16);
+                                          // 13: M6b Sagas (the story block's own version 3: the generated stories'
                                           //    repetition guard; running sagas are saved by their spec id);
                                           // 12: M6 Steel (the item layout grows: ilvl, material, alloy, culture, form,
                                           //    seed, 3 affixes, unique power, flags; the craft block after the life
@@ -2005,6 +2037,9 @@ void Game::serialize(std::vector<uint8_t>& out) const {
     craft.serialize(blk);  // M6 (v12)
     w.u32((uint32_t)blk.size());
     for (uint8_t c : blk) w.u8(c);
+    home.serialize(blk);   // M7 (v14)
+    w.u32((uint32_t)blk.size());
+    for (uint8_t c : blk) w.u8(c);
   }
 }
 
@@ -2032,6 +2067,7 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   time = t; hour = hr; day = dy;
   bool ins = r.u8() != 0;
   int ss = R.siteFrom(r.u64());
+  const size_t sbAt = r.p;   // (M7) where the building ref lies: the player's own house is found after the home block
   int sb = R.bldgFrom(r);
   int floorIn = r.i32();
   Vec2 pp; pp.x = r.f32(); pp.y = r.f32();
@@ -2123,17 +2159,26 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   if (n > 1000000) return false;
   marks.clear();
   for (uint32_t i = 0; i < n && !r.bad; i++) { uint64_t k = r.u64(); marks[k] = r.i32(); }
-  // M4 (v10): the realm and story blocks, M5 (v11) the life block, M6 (v12) the craft block (a block its owner cannot
-  // read refuses the whole save)
-  for (int blkI = 0; blkI < 4 && !r.bad; blkI++) {
+  // M4 (v10): the realm and story blocks, M5 (v11) the life block, M6 (v12) the craft block, M7 (v14) the home block (a
+  // block its owner cannot read refuses the whole save)
+  for (int blkI = 0; blkI < 5 && !r.bad; blkI++) {
     n = r.u32();
     if (r.bad || n > (64u << 20) || r.p + n > in.size()) return false;
     std::vector<uint8_t> blk(in.begin() + (std::ptrdiff_t)r.p, in.begin() + (std::ptrdiff_t)(r.p + n));
     r.p += n;
-    const bool ok = blkI == 0 ? realm.deserialize(blk) : blkI == 1 ? story.deserialize(blk) : blkI == 2 ? life.deserialize(blk) : craft.deserialize(blk);
+    const bool ok = blkI == 0 ? realm.deserialize(blk) : blkI == 1 ? story.deserialize(blk) : blkI == 2 ? life.deserialize(blk)
+                    : blkI == 3 ? craft.deserialize(blk) : home.deserialize(blk);
     if (!ok) return false;
   }
   if (r.bad) return false;
+  homeSerial_ = world.placeSerial + 0x80000000u;   // M7: the player's plots are stamped on the first step
+  if (ins && sb < 0 && !home.plots.empty()) {      // M7: saved inside the player's own house (a Bldg the home stamps)
+    BinR rb(in);
+    rb.p = sbAt;
+    const ew::Gid hid = rb.u64();
+    home::stampWindow(*this);
+    sb = world.bldgHandle(hid);
+  }
   // re-apply looted overworld chests (by global tile)
   world.over.rebuildSolid();
   reapplyLooted();

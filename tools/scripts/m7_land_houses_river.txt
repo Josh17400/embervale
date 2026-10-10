@@ -1,0 +1,69 @@
+# M7 LAND lane: the player's houses in the river style beside DAVIJCK (seed 5): all five shells (hut, cottage,
+# longhouse, townhouse, hall) built at once on large lots in a row of open ground (rpg_test --home-places), then for
+# each an exterior shot from the lot's front, the ground floor (an empty shell: rooms, doors, windows, stairs and the
+# hearth under the chimney; no furniture, the player's to bring) and, for the two-storey shells, the upper floor.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7_land_houses_river.txt     (m7_land_river_*.png)
+seed 5
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.3 at -406 -404
++0.6 home lot large
++0.1 home build hut river instant
++0.1 expect home plots 1
++0.3 at -388 -404
++0.6 home lot large
++0.1 home build cottage river instant
++0.1 expect home plots 2
++0.3 at -370 -404
++0.6 home lot large
++0.1 home build longhouse river instant
++0.1 expect home plots 3
++0.3 at -352 -404
++0.6 home lot large
++0.1 home build townhouse river instant
++0.1 expect home plots 4
++0.3 at -334 -404
++0.6 home lot large
++0.1 home build hall river instant
++0.1 expect home plots 5
++3.5 hour 11
++0.3 at -396 -405
++1.0 shot m7_land_river_hut.png
++0.1 enter hut
++0.1 expect inside 1
++0.8 shot m7_land_river_hut_in.png
++0.2 walkto exit
++0.3 at -378 -404
++1.0 shot m7_land_river_cottage.png
++0.1 enter house
++0.1 expect inside 1
++0.8 shot m7_land_river_cottage_in.png
++0.2 walkto exit
++0.3 at -360 -404
++1.0 shot m7_land_river_longhouse.png
++0.1 enter house
++0.1 expect inside 1
++0.8 shot m7_land_river_longhouse_in.png
++0.2 walkto exit
++0.3 at -342 -404
++1.0 shot m7_land_river_townhouse.png
++0.1 enter stonehouse
++0.1 expect inside 1
++0.8 shot m7_land_river_townhouse_in.png
++0.1 floor 1
++0.1 expect floor 1
++0.8 shot m7_land_river_townhouse_up.png
++0.1 floor 0
++0.2 walkto exit
++0.3 at -324 -403
++1.0 shot m7_land_river_hall.png
++0.1 enter stonehouse
++0.1 expect inside 1
++0.8 shot m7_land_river_hall_in.png
++0.1 floor 1
++0.1 expect floor 1
++0.8 shot m7_land_river_hall_up.png
++0.1 floor 0
++0.2 walkto exit
++0.3 quit

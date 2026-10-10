@@ -112,6 +112,10 @@ art::FloorStyle floorStyleOf(const Map& m, int tx, int ty, art::RoomStyle rs) {
   if (g == Ground::Plaza) return art::FloorStyle::Court;
   const int ri = m.roomIndexAt(tx, ty);
   if (ri >= 0 && ri < (int)m.rooms.size() && m.rooms[(size_t)ri].floorStyle) return (art::FloorStyle)(m.rooms[(size_t)ri].floorStyle - 1);
+  // (M7 fix) on a shaped floor the tiles of a room with no floor of its own (and those outside every room's rectangle:
+  // the strip under a round room's back arc) take the main room's floor: they showed the room style's felt carpet as
+  // a stray blue panel beside a flagstone floor
+  if (!m.rooms.empty() && m.rooms[0].floorStyle && m.decoAt(0, 0) == (int)Deco::Shell) return (art::FloorStyle)(m.rooms[0].floorStyle - 1);
   switch (rs) {
     case art::RoomStyle::Felt: return art::FloorStyle::Felt;
     case art::RoomStyle::Living: return art::FloorStyle::Roots;
@@ -126,8 +130,8 @@ art::FloorStyle floorStyleOf(const Map& m, int tx, int ty, art::RoomStyle rs) {
   return art::FloorStyle::Planks;
 }
 // a floor key: the floor style's fourth bit in the style byte's top bit (the wall-shadow mask is bits 3..6)
-uint32_t floorKey(art::FloorStyle fs, int mask, int tx, int ty) {
-  return art::pieceKey(art::Piece::Floor, ((int)fs & 7) | mask << 3 | (((int)fs >> 3) & 1) << 7, tx, ty);
+uint32_t floorKey(art::FloorStyle fs, int mask, int tx, int ty, bool noRug = false) {
+  return art::pieceKeyX(art::Piece::Floor, noRug ? 4 : 0, ((int)fs & 7) | mask << 3 | (((int)fs >> 3) & 1) << 7, tx, ty);
 }
 
 // (M3b round 3) a round room (Plan::inShape's disc, marked by Deco::Shell at the end of row 0): the signed distance in
@@ -235,6 +239,34 @@ bool shadowOf(Prop p, int& w, int& h, int& ox, int& oy) {
 }
 }  // namespace
 
+// (M7 fix) a tile of a round room the curve of its wall, its back arc's foot or the shell itself touches
+bool roundRimTile(const Map& m, int x, int y, art::RoomStyle rs) {
+  if (!roundMap(m)) return false;
+  if (roundEdgeKey(m, x, y, rs) != 0) return true;
+  int an, a1, a2;
+  if (roundBackCol(m, x, an, a1, a2) && y <= an + 1) return true;
+  for (int oy = -1; oy <= 1; oy++)
+    for (int ox = -1; ox <= 1; ox++)
+      if ((ox || oy) && (shellT(m, x + ox, y + oy) || isVoidT(m, x + ox, y + oy))) return true;
+  return false;
+}
+// (M7 fix) a felt floor tile of a round room under a shyrdak rug sheet that reaches the rim: the rug goes (the wall's
+// curve cut it into a stray blue panel)
+bool feltRugCut(const Map& m, int tx, int ty, art::RoomStyle rs) {
+  if (!roundMap(m)) return false;
+  for (int cy = 0; cy < 2; cy++)
+    for (int cx = 0; cx < 2; cx++) {
+      int x0, y0;
+      if (!art::feltRugSheet(tx * 16 + cx * 15, ty * 16 + cy * 15, x0, y0)) continue;
+      const int t0x = art::feltFloorDiv(x0, 16), t0y = art::feltFloorDiv(y0, 16);
+      const int t1x = art::feltFloorDiv(x0 + art::FELT_SW - 1, 16), t1y = art::feltFloorDiv(y0 + art::FELT_SH - 1, 16);
+      for (int y = t0y; y <= t1y; y++)
+        for (int x = t0x; x <= t1x; x++)
+          if (!m.in(x, y) || isWallT(m, x, y) || roundRimTile(m, x, y, rs)) return true;
+    }
+  return false;
+}
+
 void decoLayers(const Map& m, int tx, int ty, std::vector<DecoLayer>& out) {
   int d = m.decoAt(tx, ty);
   auto add = [&](uint32_t key, int dx, int dy, int pass) { out.push_back(DecoLayer{key, (int16_t)dx, (int16_t)dy, (uint8_t)pass}); };
@@ -252,12 +284,12 @@ void decoLayers(const Map& m, int tx, int ty, std::vector<DecoLayer>& out) {
     if (ty < rbAnchor) {
       // the face (anchored below) paints black above its top band; under its foot the floor runs on to the curve
       if (isWallT(m, tx, ty)) {
-        if (ty >= rbAnchor - 2) add(floorKey(floorStyleOf(m, tx, rbAnchor + 1, rs), 0, tx, ty), 0, 0, 0);
+        if (ty >= rbAnchor - 2) add(floorKey(floorStyleOf(m, tx, rbAnchor + 1, rs), 0, tx, ty, true), 0, 0, 0);
         else add(rsKey(art::Piece::Cap, rs, 0, 0, 0), 0, 0, 0);
         return;
       }
     } else if (ty > rbAnchor && shellT(m, tx, ty) && !isWallT(m, tx, ty + 1)) {   // the true curve runs above: floor
-      add(floorKey(floorStyleOf(m, tx, ty + 1, rs), 0, tx, ty), 0, 0, 0);
+      add(floorKey(floorStyleOf(m, tx, ty + 1, rs), 0, tx, ty, true), 0, 0, 0);
       return;
     } else if (ty == rbAnchor) {
       int an2, l2, r2;
@@ -265,7 +297,7 @@ void decoLayers(const Map& m, int tx, int ty, std::vector<DecoLayer>& out) {
       rbKey = art::pieceKeyX(art::Piece::RoundBack, (((int)rs >> 3) & 1) | ((tx & 3) << 1), ((int)rs & 7) | ends, std::clamp(rbL, -60, 16) + 64,
                              std::clamp(rbR, -60, 16) + 64);
       if (isWallT(m, tx, ty)) {   // the foot's tile is wall: the floor runs on to the curve, the face over it
-        add(floorKey(floorStyleOf(m, tx, ty + 1, rs), 0, tx, ty), 0, 0, 0);
+        add(floorKey(floorStyleOf(m, tx, ty + 1, rs), 0, tx, ty, true), 0, 0, 0);
         add(rbKey, 0, -64, 0);
         if (innerWall(m, tx, ty + 1)) {   // a partition hangs from the face: its top rises over the face's foot
           add(rsKey(art::Piece::PartCap, rs, (int)((uint32_t)(tx * 7 + ty * 13) % 31u) << 3, art::CapN | art::CapS, art::CapN), 0, 0, 0);
@@ -302,7 +334,7 @@ void decoLayers(const Map& m, int tx, int ty, std::vector<DecoLayer>& out) {
       add(art::pieceKeyX(art::Piece::Pool, 0, ((int)around & 15) | ((int)rs & 15) << 4, wm, (tx * 7 + ty * 13) & 255), 0, 0, 0);
       return;
     }
-    add(floorKey(fs, mask, tx, ty), 0, 0, 0);
+    add(floorKey(fs, mask, tx, ty, fs == art::FloorStyle::Felt && feltRugCut(m, tx, ty, rs)), 0, 0, 0);
     if (const uint32_t re = roundEdgeKey(m, tx, ty, rs)) add(re, 0, 0, 0);   // (a round room's outline over its edge)
     if (rbKey) add(rbKey, 0, -64, 0);   // (a round room's back arc, its foot in this floor tile)
     // the way out: a door's threshold, or (owner 2026-10-06) an open front's bay: daylight and the pillars' sections
@@ -311,13 +343,18 @@ void decoLayers(const Map& m, int tx, int ty, std::vector<DecoLayer>& out) {
     // an interior doorway: a threshold across the wall's line (an E-W doorway also has its passage tile behind)
     if (pr == (int)Prop::DoorH + 1) add(art::pieceKey(art::Piece::Sill, (int)rs, 0), 0, 0, 0);
     else if (pr == (int)Prop::DoorV + 1) add(art::pieceKey(art::Piece::Sill, (int)rs, 1), 0, 0, 0);
-    if (d >= (int)Deco::RugRed && d <= (int)Deco::RugGold) {
-      int nm = (m.decoAt(tx, ty - 1) == d ? 1 : 0) | (m.decoAt(tx + 1, ty) == d ? 2 : 0) | (m.decoAt(tx, ty + 1) == d ? 4 : 0) | (m.decoAt(tx - 1, ty) == d ? 8 : 0);
+    // (M7 fix) no rug or clutter on a round room's edge tile (the curve of the wall runs through it, and pass 1 laid
+    // the rug over the wall's rim: a stray blue panel on the felt); the rug's border closes on the tiles left
+    auto rim = [&](int x, int y) { return shaped && roundRimTile(m, x, y, rs); };
+    const bool edge = rim(tx, ty);
+    if (d >= (int)Deco::RugRed && d <= (int)Deco::RugGold && !edge) {
+      auto rugAt = [&](int x, int y) { return m.decoAt(x, y) == d && !rim(x, y); };
+      int nm = (rugAt(tx, ty - 1) ? 1 : 0) | (rugAt(tx + 1, ty) ? 2 : 0) | (rugAt(tx, ty + 1) ? 4 : 0) | (rugAt(tx - 1, ty) ? 8 : 0);
       add(art::pieceKey(art::Piece::Rug, d - (int)Deco::RugRed, nm), 0, 0, 1);
     }
     int w, h, ox, oy;
     if (pr && shadowOf((Prop)(pr - 1), w, h, ox, oy)) add(art::pieceKey(art::Piece::Shadow, 0, w, h), ox, oy, 2);
-    clutter();
+    if (!edge) clutter();
     return;
   }
   // the neighbours of a wall top: open (floor or a visible face) and which of those are faces
@@ -340,7 +377,7 @@ void decoLayers(const Map& m, int tx, int ty, std::vector<DecoLayer>& out) {
         static const int ddx[4] = {0, 1, -1, 0}, ddy[4] = {-1, 0, 0, 1};
         for (int k = 0; k < 4; k++)
           if (!isWallT(m, tx + ddx[k], ty + ddy[k])) { fx = tx + ddx[k]; fy = ty + ddy[k]; break; }
-        add(floorKey(floorStyleOf(m, fx, fy, rs), 0, tx, ty), 0, 0, 0);
+        add(floorKey(floorStyleOf(m, fx, fy, rs), 0, tx, ty, true), 0, 0, 0);
         add(re, 0, 0, 0);
         return;
       }
@@ -377,7 +414,7 @@ void decoLayers(const Map& m, int tx, int ty, std::vector<DecoLayer>& out) {
       static const int ddx[4] = {0, 1, -1, 0}, ddy[4] = {-1, 0, 0, 1};
       for (int k = 0; k < 4; k++)
         if (!isWallT(m, tx + ddx[k], ty + ddy[k])) { fx = tx + ddx[k]; fy = ty + ddy[k]; break; }
-      add(floorKey(floorStyleOf(m, fx, fy, rs), 0, tx, ty), 0, 0, 0);
+      add(floorKey(floorStyleOf(m, fx, fy, rs), 0, tx, ty, true), 0, 0, 0);
       add(re, 0, 0, 0);
       return;
     }

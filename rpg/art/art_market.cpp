@@ -1126,34 +1126,59 @@ void boothRoof(M3& m, int awning) {
   // thick posts (every one on the ground: stallPosts) and a brace up to the eave at the front corners
   paintPosts(m, 2);
   if (g.side) { sideBoothRoof(m, awning, S); return; }
-  // the shingles: courses three px deep, overlapping toward the eave, the joints staggered course by course
-  const float len = std::sqrt((g.rvb - g.bvf) * (g.rvb - g.bvf) + (g.bzb - g.bzf) * (g.bzb - g.bzf));
-  quad(m, g.ru0, g.bvf, g.bzf, g.ru1 - g.ru0, 0, 0, 0, g.rvb - g.bvf, g.bzb - g.bzf, 0, -(g.bzb - g.bzf), g.rvb - g.bvf, [&](float s, float t, float l) -> uint32_t {
-    const float u = g.ru0 + s * (g.ru1 - g.ru0), d = (1 - t) * len;   // d: from the back (ridge) down the slope
+  // (M7 fixer r2, review: "the booths' roofs in a capital square are flat boards: no slope, no light / shadow side")
+  // a ridged roof: the front slope from the eave up to a ridge two thirds back, the short back slope down to the back
+  // eave, so the ridge line, the lit back slope and the front slope in the mid tone give it volume from above. The
+  // shingles: courses three px deep down each slope from the ridge, the joints staggered course by course
+  const float vr = g.bvf + (g.rvb - g.bvf) * 0.66f, zr = g.bzb + 2.0f;
+  const float lenF = std::sqrt((vr - g.bvf) * (vr - g.bvf) + (zr - g.bzf) * (zr - g.bzf));
+  const float lenB = std::sqrt((g.rvb - vr) * (g.rvb - vr) + (zr - g.bzb) * (zr - g.bzb));
+  auto shingles = [&](float d, float s, float t, float l, bool eaveEdge, bool ridgeEdge) -> uint32_t {
+    const float u = g.ru0 + s * (g.ru1 - g.ru0);
     const int row = (int)std::floor(d / 3.0f);
     const float inRow = d - row * 3.0f;
     float ll = l + (inRow < 1.0f ? 0.1f : (inRow > 2.2f ? -0.12f : 0.0f));
     if (((int)std::floor(u + row * 3.0f)) % 6 == 0 && inRow > 0.8f) ll -= 0.18f;   // the joints
     if (hashf((int)u, row, 71u + (uint32_t)awning) < 0.1f) ll -= 0.08f;
-    if (t > 0.95f) ll += 0.1f;
+    if (ridgeEdge) ll += 0.14f;    // the ridge's lit cap
+    if (eaveEdge) ll -= 0.06f;
+    (void)t;
     if (clothRoof()) {   // (M3 fixer round 2) the culture's cloth, as on its awnings
       const Awn A = awningOf(awning);
       const bool alt = A.striped && (((int)std::floor(u)) / 4) % 2 == 1;
-      float lc = l + (t > 0.95f ? 0.1f : 0.0f);
+      float lc = l + (ridgeEdge ? 0.12f : 0.0f);
       if (!A.striped) {
-        // (M6 finish fixer, review: "the right half of a double market-stall canopy is one flat tan rectangle with no
-        // stripes, folds or shading") a plain cloth shows its make: sewn widths (a shaded seam every 8 px), each width
-        // billowing (lit along its middle, shaded toward its seams), a sag halfway down the slope, a lit back edge
+        // (M6 finish fixer) a plain cloth shows its make: sewn widths (a shaded seam every 8 px), each width billowing
+        // (lit along its middle, shaded toward its seams), a sag halfway down the slope
         const float uu = u + 1.0f;
         lc -= 0.13f * std::fabs(std::cos(uu * 3.14159f / 8.0f));
         if (((int)std::floor(uu)) % 8 == 0) lc -= 0.14f;
-        lc -= 0.07f * std::sin(t * 3.14159f);
-        if (t < 0.06f) lc -= 0.12f;   // the hem over the eave
+        lc -= 0.07f * std::sin(d / std::max(1.0f, lenF) * 3.14159f);
+        if (eaveEdge) lc -= 0.12f;   // the hem over the eave
       }
-      return (alt ? ramp(A.b) : ramp(A.a))[litK(lc, (int)(s * 50), (int)(t * 25))];
+      return (alt ? ramp(A.b) : ramp(A.a))[litK(lc, (int)(s * 50), (int)(d * 8))];
     }
-    return S[litK(ll, (int)(s * 50), (int)(t * 25))];
+    return S[litK(ll, (int)(s * 50), (int)(d * 8))];
+  };
+  // the front slope (t: 0 at the eave, 1 at the ridge)
+  quad(m, g.ru0, g.bvf, g.bzf, g.ru1 - g.ru0, 0, 0, 0, vr - g.bvf, zr - g.bzf, 0, -(zr - g.bzf), vr - g.bvf, [&](float s, float t, float l) -> uint32_t {
+    return shingles((1 - t) * lenF, s, t, l, t < 0.06f, t > 0.95f);
   });
+  // the back slope (t: 0 at the ridge, 1 at the back eave), toward the light
+  quad(m, g.ru0, vr, zr, g.ru1 - g.ru0, 0, 0, 0, g.rvb - vr, g.bzb - zr, 0, zr - g.bzb, g.rvb - vr, [&](float s, float t, float l) -> uint32_t {
+    return shingles(t * lenB, s, t, l, t > 0.9f, t < 0.08f);
+  });
+  // the gable ends: the triangle of boards between the old eave line and the two slopes, at each end
+  for (int e = 0; e < 2; e++) {
+    const float u = e ? g.ru1 : g.ru0;
+    for (float v = g.bvf; v < g.rvb; v += 0.5f) {
+      const float zb = g.bzf + (g.bzb - g.bzf) * (v - g.bvf) / (g.rvb - g.bvf);
+      const float zt = v < vr ? g.bzf + (zr - g.bzf) * (v - g.bvf) / (vr - g.bvf) : zr + (g.bzb - zr) * (v - vr) / (g.rvb - vr);
+      if (zt - zb < 0.3f) continue;
+      quad(m, u, v, zb, 0, 0.5f, 0, 0, 0, zt - zb, e ? 1.0f : -1.0f, 0, 0,
+           [&](float, float tt, float l) -> uint32_t { return kWood[(l > 0.5f ? 2 : 1) + (tt > 0.85f ? 1 : 0)]; });
+    }
+  }
   // the fascia: boards along the eave, the ends and the back
   auto fascia = [&](float s, float t, float l) -> uint32_t { (void)s; return kWood[t > 0.66f ? 3 : (t > 0.33f ? 2 : 1) + (l > 0.85f ? 1 : 0)]; };
   quad(m, g.ru0, g.bvf, g.bzf - 3.0f, g.ru1 - g.ru0, 0, 0, 0, 0, 3.0f, 0, -1, 0, fascia);
@@ -1368,16 +1393,26 @@ void tableModel(M3& m, int shade, bool closed) {
     return;
   }
   for (float px : {1.5f, 29.5f}) boxM(m, TU(px), TU(px + 1.2f), TV(1.0f), TV(0.0f), 0, 31.0f, kWood);
-  quad(m, TU(-1.0f), TV(10.0f), 27.0f, 34.0f, 0, 0, 0, 18.0f, 6.0f, 0, -6.0f, 18.0f, [&](float s, float t, float l) -> uint32_t {
+  // (M7 fixer r2, review: "the stalls' shades in a capital square are flat boards: no slope, no light / shadow side,
+  // no overhang") a peaked shade: the cloth over a ridge pole across the middle, the front slope falling to its fringe in
+  // the mid tone, the short back slope toward the light, a sag between the frame's ribs, the trim round the eaves
+  const float RV = 9.0f, RZ = 4.5f;   // the ridge: 9 px back, 4.5 px above the front eave (the back eave at 2.5)
+  auto cloth = [&](float s, float t, float l, bool front) -> uint32_t {
     const float x = -1.0f + s * 34.0f;
     const bool stripe = shade == 1 && (((int)std::floor((x + 1.0f) / 4.0f)) & 1);
-    float ll = l;
-    if (t > 0.93f) ll += 0.1f;
-    if (shade != 1 && (s < 0.05f || s > 0.95f || t < 0.09f || t > 0.94f)) return T[t < 0.05f ? 1 : 2];   // the trim
-    if (shade != 1 && ((int)std::floor(x + 1.0f)) % 9 == 0) ll -= 0.09f;                                // the seams
-    const int k = litC(ll, (int)(s * 34), (int)(t * 18));
+    float ll = front ? l - 0.12f : l + 0.32f;            // the back slope turned to the light, the front in the mid tone
+    if (((int)std::floor(x + 1.0f)) % 11 == 5) ll += 0.06f;   // a rib under the cloth
+    if (front && t > 0.93f) return stripe ? T[4] : R[4];     // the ridge: one clean lit line along the pole
+    if (front && t > 0.82f) ll -= 0.1f;                      // the cloth drawn tight under it, in its own shade
+    const bool eave = front ? t < 0.09f : t > 0.9f;
+    if (shade != 1 && (s < 0.04f || s > 0.96f || eave)) return T[eave && front ? 1 : 2];   // the trim
+    if (shade != 1 && ((int)std::floor(x + 1.0f)) % 9 == 0) ll -= 0.09f;                 // the seams
+    const int k = litC(ll, (int)(s * 34), (int)(t * 18) + (front ? 0 : 40));
     return stripe ? T[k] : R[k];
-  });
+  };
+  quad(m, TU(-1.0f), TV(10.0f), 27.0f, 34.0f, 0, 0, 0, RV, RZ, 0, -RZ, RV, [&](float s, float t, float l) -> uint32_t { return cloth(s, t, l, true); });
+  quad(m, TU(-1.0f), TV(10.0f) + RV, 27.0f + RZ, 34.0f, 0, 0, 0, 18.0f - RV, 2.5f - RZ, 0, RZ - 2.5f, 18.0f - RV,
+       [&](float s, float t, float l) -> uint32_t { return cloth(s, t, l, false); });
   // the fringe along its front edge
   quad(m, TU(-1.0f), TV(10.0f) - 1.0f, 24.5f, 34.0f, 0, 0, 0, 1.0f, 2.5f, 0, -2.5f, 1.0f, [&](float s, float t, float) -> uint32_t {
     const float x = -1.0f + s * 34.0f;

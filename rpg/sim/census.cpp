@@ -17,8 +17,10 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <vector>
 #include "rpg/culture/culture.h"
 #include "rpg/culture/society.h"
+#include "rpg/sim/home.h"
 #include "rpg/sim/life.h"
 
 namespace life {
@@ -311,12 +313,16 @@ bool buildCensusStep(const World& w, Life::Build& b, int budget) {
         c.gatherKind = (uint8_t)gat;
         c.festivalKind = festivalKindOf(cu, s);
         const art::Building gatB = cult::gatheringPurpose(gat), gat2B = cult::gatheringPurpose(gat2);
+        // (M7) the vacant houses for sale stand empty (deterministic from the site: home::forSaleHouses); the player
+        // can only ever own one of these, so the player's houses stand empty too
+        const std::vector<int> vacant = home::forSaleHouses(w, si);
         for (int off = 0; off < s.bldgCount; off++) {
           const int bi = s.bldgFirst + off;
           if (bi < 0 || bi >= (int)w.over.bldgs.size()) break;
           const Bldg& B = w.over.bldgs[(size_t)bi];
           if (B.site != si) continue;
           const uint32_t h = h32(B.id ? B.id : B.seed, 0x4011Eull);
+          if (std::find(vacant.begin(), vacant.end(), bi) != vacant.end()) continue;
           if (const int cap = homeCapacity(B, h, famBias); cap > 0) {
             Life::Build::Home hm;
             hm.off = off; hm.cap = cap; hm.cx = B.r.cx(); hm.cy = B.r.cy();

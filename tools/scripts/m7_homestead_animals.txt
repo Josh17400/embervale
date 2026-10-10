@@ -1,0 +1,39 @@
+# M7 HOMESTEAD: the farm's beasts (VISION_PLAN 8.5): a coop and a pen, hens pecking about the yard and a cow before her
+# pen, a pat, eggs and milk collected at the coop and the pen, then a night raid on the unfenced yard: wolves come for
+# the pen and are fought off.
+#   embervale.exe --script tools/scripts/m7_homestead_animals.txt     (m7_hs_animals_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 10
++0.1 walk east 2.5
++0.2 home lot large
++0.1 home build cottage here instant
++0.4 expect home built
++0.1 home place coop 1 7
++0.1 home place pen 11 7
++0.1 home place trough 12 10
++0.1 home animal chicken 4
++0.1 home animal cow 1
++0.1 home animal sheep 1
++0.1 home animal dog 1
++0.1 home stand 8 9
++1.5 expect home beasts 7
++0.1 shot m7_hs_animals_yard.png
++0.1 home days 1
++0.6 home use 1 8
++0.2 home use 11 8
++0.2 shot m7_hs_animals_collect.png
++0.1 expect home animals 7
+# the night: wolves at the pen
++0.1 hour 23
++0.1 home exposed
++0.1 home stand 9 10
++0.3 home raid
++1.5 expect home beasts 7
++0.1 shot m7_hs_animals_raid.png
++0.1 home killwolves
++1.0 expect home raid 1
++0.1 expect home lost 0
++0.5 shot m7_hs_animals_after.png
++0.3 quit

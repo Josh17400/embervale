@@ -923,19 +923,67 @@ void EndlessSource::Impl::stampSite(const SitePlan& p, Stamp& S) {
         }
       S.g(dx0, wy, Ground::StoneFloor);
       S.p(dx0, wy, Prop::IronDoor);
-      // inside: two rows of columns (some standing, some snapped off, some lying in pieces), braziers by the door
+      // inside: columns (some standing, some snapped off, some lying in pieces), braziers by the door
+      // (M7 LAND, owner leftover "ruin entrances repeat across seeds") the hall is laid out its own way from the site's
+      // seed and id (every draw from its own hash, so nothing else moves): two rows of columns (the old hall), a nave of
+      // three pairs close to the aisle, pilasters engaged in the side walls, or no columns at all and a heap where the
+      // roof came down; one corner fallen in for good (the walls and the floor there gone back to earth and grass); the
+      // braziers by the door or a pair of statues; and what lies inside (graves, an urn and bones, a toppled statue,
+      // coffins and skulls, a fallen column across the floor)
+      const uint64_t ls = mix64(p.seed ^ (uint64_t)p.id * 0x9E3779B97F4A7C15ull ^ 0x7255u);
+      const uint32_t L0 = (uint32_t)(ls & 0xFFFFFFFFu), L1 = (uint32_t)(ls >> 32);
+      const int colPlan = (int)(L0 % 4u), corner = (int)((L0 >> 4) % 5u), dress = (int)((L0 >> 8) % 5u);
       const int32_t c0 = wy + 2 + rr.irange(2), c1 = c0 + 3;
-      for (int32_t cy : {c0, c1})
-        for (int32_t cx : {rx + 1, rx + 7}) {
-          const uint32_t h = (uint32_t)(tileHash(rs ^ 0x44u, cx, cy) & 255);
-          if (h < 190) S.p(cx, cy, Prop::RuinColumn);
-          else S.p(cx, cy, (h & 1) ? Prop::Rock : Prop::MossRock);
-        }
-      S.p(dx0 - 2, wy + 1, Prop::Brazier); S.p(dx0 + 2, wy + 1, Prop::Brazier);
+      auto column = [&](int32_t cx, int32_t cy) {
+        if (cx == dx0 || (std::abs(cx - dx0) == 1 && cy <= wy + 1)) return;   // never in the aisle to the door
+        const uint32_t h = (uint32_t)(tileHash(rs ^ 0x44u, cx, cy) & 255);
+        if (h < 190) S.p(cx, cy, Prop::RuinColumn);
+        else S.p(cx, cy, (h & 1) ? Prop::Rock : (h & 2) ? Prop::MossRock : Prop::Boulder);
+      };
+      if (colPlan == 0) {
+        for (int32_t cy : {c0, c1}) for (int32_t cx : {rx + 1, rx + 7}) column(cx, cy);
+      } else if (colPlan == 1) {
+        for (int32_t cy = wy + 2; cy <= hy1 - 2; cy += 2) for (int32_t cx : {dx0 - 2, dx0 + 2}) column(cx, cy);
+      } else if (colPlan == 2) {
+        for (int32_t cy = wy + 2; cy <= hy1 - 1; cy += 2) for (int32_t cx : {hx0, hx1}) column(cx, cy);
+      } else {
+        // the roof's fall: a heap of stone off the aisle and earth round it
+        const int32_t fx = (L1 & 1) ? rx + 2 : rx + 6, fy = wy + 3 + (int32_t)((L1 >> 1) % 2u);
+        for (int32_t yy = fy - 1; yy <= fy + 1; yy++)
+          for (int32_t xx = fx - 1; xx <= fx + 1; xx++) {
+            if (std::abs(xx - dx0) <= 1) continue;
+            const uint32_t h = (uint32_t)(tileHash(rs ^ 0x45u, xx, yy) & 255);
+            S.g(xx, yy, h < 128 ? Ground::Dirt : Ground::StoneFloor);
+            if (h < 150) S.p(xx, yy, (h & 1) ? Prop::Rock : (h & 2) ? Prop::Rubble : Prop::Boulder);
+          }
+      }
+      if (corner < 4) {   // a corner fallen in: its walls down, the ground taken back
+        const bool east = (corner & 1) != 0, south = (corner & 2) != 0;
+        const int32_t kx = east ? hx1 : hx0, ky = south ? hy1 : wy + 1;
+        for (int32_t yy = ky - 2; yy <= ky + 2; yy++)
+          for (int32_t xx = kx - 2; xx <= kx + 2; xx++) {
+            if (yy <= wy || yy > hy1 || xx < hx0 || xx > hx1) continue;
+            if (std::abs(xx - kx) + std::abs(yy - ky) > 3 || std::abs(xx - dx0) <= 1) continue;
+            const uint32_t h = (uint32_t)(tileHash(rs ^ 0x46u, xx, yy) & 255);
+            S.clear(xx, yy);
+            S.g(xx, yy, h < 110 ? Ground::Grass : Ground::Dirt);
+            if (h >= 210) S.p(xx, yy, (h & 1) ? Prop::MossRock : Prop::Rock);
+          }
+      }
+      if (dress == 0) { S.p(dx0 - 1, wy + 1, Prop::Statue); S.p(dx0 + 1, wy + 1, Prop::Statue); }
+      else { S.p(dx0 - 2, wy + 1, Prop::Brazier); S.p(dx0 + 2, wy + 1, Prop::Brazier); }
+      auto put = [&](int32_t xx, int32_t yy, Prop q) {   // inside the walls, off the aisle, on a free floor tile
+        if (xx <= hx0 || xx >= hx1 || yy <= wy || yy >= hy1 || std::abs(xx - dx0) <= 1) return;
+        if (S.in(xx, yy) && S.c.prop[S.idx(xx, yy)]) return;
+        S.p(xx, yy, q);
+      };
       const int layout = rr.irange(3);
-      if (layout == 0) { S.p(dx0 - 1, wy + 1, Prop::Statue); S.p(dx0 + 1, wy + 1, Prop::Statue); }
-      else if (layout == 1) { S.p(rx + 2 + rr.irange(2) * 4, hy1 - 1, Prop::Gravestone); S.p(rx, c0 + 1, Prop::Urn); S.p(rx + 8, c1 - 1, Prop::Bones); }
-      else { S.p(rx, c0 + 1, Prop::Gravestone); S.p(rx + 8, c0 + 2, Prop::Gravestone); S.p(rx + 2, c1 + 1, Prop::Coffin); S.p(rx + 6, c0 + 1, Prop::SkullPile); }
+      const int pick = (layout + dress) % 5;
+      if (pick == 0) { put(rx + 2 + (int32_t)(L1 % 2u) * 4, hy1 - 1, Prop::Gravestone); put(rx, c0 + 1, Prop::Urn); put(rx + 8, c1 - 1, Prop::Bones); }
+      else if (pick == 1) { put(rx, c0 + 1, Prop::Gravestone); put(rx + 8, c0 + 2, Prop::Gravestone); put(rx + 2, c1 + 1, Prop::Coffin); put(rx + 6, c0 + 1, Prop::SkullPile); }
+      else if (pick == 2) { put((L1 & 4) ? rx + 2 : rx + 6, c0 + 1, Prop::ToppledStatue); put((L1 & 4) ? rx + 7 : rx + 1, hy1 - 1, Prop::Urn); }
+      else if (pick == 3) { for (int32_t xx = rx + 1; xx <= rx + 3; xx++) put(xx, c1, Prop::RuinColumn); put(rx + 7, c0, Prop::Bones); }
+      else { put(rx + 1, hy1 - 1, Prop::Coffin); put(rx + 7, hy1 - 1, Prop::Coffin); put(rx + 4 + ((L1 & 8) ? 2 : -2), c0 + 1, Prop::SkullPile); }
       // the way from the fallen south wall to the door stays open
       for (int32_t yy = wy + 1; yy <= hy1 + 1; yy++)
         for (int32_t xx = dx0 - 1; xx <= dx0 + 1; xx++) {
@@ -1226,6 +1274,7 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
       }
       for (auto& gt : T->gates) c.gates.push_back(GTile{gt.first + T->gx, gt.second + T->gy});
       for (IRect r : T->wallGaps) { r.x += T->gx; r.y += T->gy; c.wallGaps.push_back(r); }
+      for (const PlotPlan& lp : T->plots) c.plots.push_back(lp);   // (M7) its lots for sale (global tiles)
     }
   // 4: site and den stamps
   for (int k = 0; k < 9; k++) {

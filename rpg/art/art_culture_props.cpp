@@ -3,6 +3,8 @@
 // shrines, fire bowls and fountains. Same canvas, anchor and frames as the classic prop; the classic style (and any prop
 // without variants) is exactly propSprite(p). (M3b: the culture furniture moved to art_culture_furniture.cpp.)
 // Everything in the game's high 3/4 view, lit from the top-left.
+#include <cmath>
+#include <vector>
 #include "rpg/art/art_internal.h"
 #include "rpg/art/art_heraldry.h"
 #include "rpg/art/art_parts.h"
@@ -143,9 +145,15 @@ void fenceStyled(Canvas& c, bool vertical, Fence f, const Mat& M) {
         for (int y = base - 5; y <= base; y++) for (int x = cx - 3; x <= cx + 2; x++) c.set(x, y, M.stone[(x == cx - 3) ? 3 : ((y % 2) ? 1 : 2)]);
         break;
       case Fence::Bamboo:
+        // (M7 integration) the canes seen end on along the run: a round band as thick as the wattle's, lit from the
+        // left, cut tops every 3 px, a node every 5, lashing ties every 8, the east side in shade (was a 2 px line)
         for (int y = 0; y <= base; y++) {
-          c.set(cx - 1, y, (y % 5 == 2) ? rgba(120, 130, 60) : rgba(188, 196, 104));
-          c.set(cx, y, (y % 5 == 2) ? rgba(100, 108, 50) : rgba(140, 150, 70));
+          const bool node = y % 5 == 2, tie = y % 8 == 4, cut = y % 3 == 0;
+          c.set(cx - 2, y, tie ? rgba(150, 116, 66) : node ? rgba(150, 160, 80) : rgba(176, 186, 98));
+          c.set(cx - 1, y, tie ? rgba(126, 96, 52) : node ? rgba(130, 140, 66) : cut ? rgba(224, 226, 154) : rgba(196, 204, 110));
+          c.set(cx, y, tie ? rgba(110, 82, 44) : node ? rgba(106, 114, 52) : rgba(146, 156, 74));
+          c.set(cx + 1, y, tie ? rgba(92, 68, 38) : rgba(104, 112, 50));
+          c.set(cx + 2, y, rgba(70, 76, 34));
         }
         break;
       case Fence::Rope:
@@ -528,21 +536,80 @@ void brazierStyled(Canvas& c, int kind, int frame, const Mat& M) {
   }
 }
 
+// ---- (M7 fix) the joined yard walls and fences (dykePiece, hedgePiece, fenceJoinPiece): the footprint of a piece
+// across its run (ground px a0..a1), its arms to the neighbours it joins (beyond the tile edges) and, toward a gateway,
+// to its own tile edge less `gateShort` px (where the gatepost stands)
+bool fenceIn(int gx, int gy, int a0, int a1, int mask, int gates, int gateShort = 0) {
+  const bool cx = gx >= a0 && gx <= a1, cy = gy >= a0 && gy <= a1;
+  if (cx && cy) return true;
+  if (cx && gy < a0) return ((mask & 1) && gy >= -16) || ((gates & 1) && gy >= gateShort);
+  if (cx && gy > a1) return ((mask & 4) && gy <= 31) || ((gates & 4) && gy <= 15 - gateShort);
+  if (cy && gx < a0) return ((mask & 8) && gx >= -16) || ((gates & 8) && gx >= gateShort);
+  if (cy && gx > a1) return ((mask & 2) && gx <= 31) || ((gates & 2) && gx <= 15 - gateShort);
+  return false;
+}
+// a post (a stone pier with `stone`, else a squared timber post with a cap) at each end of the run named by gates (at
+// the tile edge: the gateway's jamb) and ends (the run stops here: at the footprint's end). hp px tall, its ground rect
+// grown `grow` px across the run beyond a0..a1. Its top lit from the north-west, its south face toward the camera.
+void fencePosts(Canvas& c, int a0, int a1, int gates, int ends, int OY, int hp, int grow, const Ramp& R, bool stone) {
+  for (int d = 0; d < 4; d++) {
+    const int bit = 1 << d;   // 1 north, 2 east, 4 south, 8 west
+    if (!((gates | ends) & bit)) continue;
+    const bool edge = (gates & bit) != 0;
+    const int len = stone ? 4 : 3;
+    const int c0 = a0 - 1 - grow / 3, c1 = a1 + 1 + grow / 3;
+    int x0, x1, y0, y1;
+    if (bit == 1) { x0 = c0; x1 = c1; y0 = edge ? 0 : a0; y1 = y0 + len - 1; }
+    else if (bit == 4) { x0 = c0; x1 = c1; y1 = edge ? 15 : a1; y0 = y1 - len + 1; }
+    else if (bit == 8) { y0 = c0; y1 = c1; x0 = edge ? 0 : a0; x1 = x0 + len - 1; }
+    else { y0 = c0; y1 = c1; x1 = edge ? 15 : a1; x0 = x1 - len + 1; }
+    if (!stone && (bit == 1 || bit == 4)) { x0 = (a0 + a1) / 2 - 1; x1 = x0 + 2; }
+    for (int gy = y0; gy <= y1; gy++)
+      for (int gx = x0; gx <= x1; gx++) {
+        if (gx < 0 || gx >= c.w) continue;
+        const int ty = gy + OY - hp;
+        int k = gx == x0 ? 4 : (gx == x1 ? 2 : 3);
+        if (gy == y0 && gx != x1) k = 4;
+        if (!stone && gy > y0 && gy < y1 && gx > x0 && gx < x1) k = 2;   // the post's cut top, darker at its heart
+        if (ty >= 0 && ty < c.h) c.set(gx, ty, R[k]);
+        if (gy != y1) continue;
+        for (int h = hp - 1; h >= 0; h--) {   // the south face
+          const int y = gy + OY - h;
+          if (y < 0 || y >= c.h) continue;
+          int kk = gx == x0 ? 3 : (gx == x1 ? 1 : 2);
+          if (h == hp - 1) kk = 3;                                     // the cap's lip
+          if (stone && (hp - 1 - h) % 3 == 0 && h < hp - 1) kk = 1;   // the pier's courses
+          if (stone && h == hp - 2) kk = 4;                           // the cap stone's lit edge
+          if (!stone && h == hp - 3) kk = 0;                          // the groove under the post's cap
+          if (h == 0) kk = std::min(kk, 1);
+          c.set(gx, y, R[std::clamp(kk, 0, 4)]);
+        }
+      }
+  }
+}
+// the cast shadow on the ground to the south-east (the light from the top left), `reach` px, where nothing is drawn
+void fenceShadow(Canvas& c, int a0, int a1, int mask, int gates, int OY, int reach, int alpha) {
+  for (int gy = 0; gy < 16; gy++)
+    for (int gx = 0; gx < 16; gx++) {
+      if (fenceIn(gx, gy, a0, a1, mask, gates) || chA(c.get(gx, gy + OY)) != 0) continue;
+      bool sh = false;
+      for (int r = 1; r <= reach && !sh; r++)
+        sh = fenceIn(gx - r, gy, a0, a1, mask, gates) || fenceIn(gx, gy - r, a0, a1, mask, gates) || fenceIn(gx - r, gy - r, a0, a1, mask, gates) ||
+             (r > 1 && fenceIn(gx - r + 1, gy - r, a0, a1, mask, gates));
+      if (sh) c.set(gx, gy + OY, rgba(16, 22, 12, alpha));
+    }
+}
+
 }  // namespace
 
-Canvas dykePiece(int mask, const PropStyle& st) {
+Canvas dykePiece(int bits, const PropStyle& st) {
   const Mat M = matOf(st);
   const Ramp& S = M.stone;
-  const int W = 16, H = 24, OY = 8, HT = 7;   // canvas y = ground y + OY; the wall stands HT px tall
+  const int mask = bits & 15, gates = (bits >> 4) & 15, ends = (bits >> 8) & 15;
+  const int W = 16, H = 28, OY = 12, HT = 7;  // canvas y = ground y + OY; the wall stands HT px tall (room above for the piers)
   const int a0 = 5, a1 = 10;                  // the wall's width across its run (ground px a0..a1)
   auto in = [&](int gx, int gy) -> bool {     // the footprint, with the neighbours' arms beyond the tile edges
-    const bool cx = gx >= a0 && gx <= a1, cy = gy >= a0 && gy <= a1;
-    if (cx && cy) return true;
-    if (cx && gy < a0) return (mask & 1) != 0 && gy >= -16;
-    if (cx && gy > a1) return (mask & 4) != 0 && gy <= 31;
-    if (cy && gx < a0) return (mask & 8) != 0 && gx >= -16;
-    if (cy && gx > a1) return (mask & 2) != 0 && gx <= 31;
-    return false;
+    return fenceIn(gx, gy, a0, a1, mask, gates);
   };
   Canvas c(W, H);
   // ground rows from back to front: the coping (top) of each footprint pixel, then its south face where it ends
@@ -579,30 +646,21 @@ Canvas dykePiece(int mask, const PropStyle& st) {
         }
       }
     }
+  // (M7 fix) a stone pier where the dyke ends or frames a gateway (not a flat cut)
+  fencePosts(c, a0, a1, gates, ends, OY, HT + 3, 3, S, true);
   outline(c);
   // the cast shadow on the ground, to the south-east (light from the top left), where nothing else is drawn
-  for (int gy = 0; gy < 16; gy++)
-    for (int gx = 0; gx < W; gx++) {
-      if (in(gx, gy) || chA(c.get(gx, gy + OY)) != 0) continue;
-      if (in(gx - 1, gy) || in(gx - 2, gy) || in(gx - 3, gy - 1) || in(gx, gy - 1) || in(gx - 1, gy - 1) || in(gx - 2, gy - 2))
-        c.set(gx, gy + OY, rgba(16, 22, 12, 72));
-    }
+  fenceShadow(c, a0, a1, mask, gates, OY, 4, 96);
   return c;
 }
 
-Canvas hedgePiece(int mask, const PropStyle& st, bool snow) {
-  (void)st;
-  const int W = 16, H = 24, OY = 8, HT = 7;   // canvas y = ground y + OY; the hedge stands HT px tall
+Canvas hedgePiece(int bits, const PropStyle& st, bool snow) {
+  const Mat M = matOf(st);
+  const int mask = bits & 15, gates = (bits >> 4) & 15;
+  const int W = 16, H = 28, OY = 12, HT = 7;  // canvas y = ground y + OY; the hedge stands HT px tall
   const int a0 = 4, a1 = 11;                  // its width across the run (ground px a0..a1)
-  auto in = [&](int gx, int gy) -> bool {
-    const bool cx = gx >= a0 && gx <= a1, cy = gy >= a0 && gy <= a1;
-    if (cx && cy) return true;
-    if (cx && gy < a0) return (mask & 1) != 0 && gy >= -16;
-    if (cx && gy > a1) return (mask & 4) != 0 && gy <= 31;
-    if (cy && gx < a0) return (mask & 8) != 0 && gx >= -16;
-    if (cy && gx > a1) return (mask & 2) != 0 && gx <= 31;
-    return false;
-  };
+  // (a gateway's side stops a little short of the tile edge: the timber gatepost stands there)
+  auto in = [&](int gx, int gy) -> bool { return fenceIn(gx, gy, a0, a1, mask, gates, 3); };
   // seamless leaf clumps: a hash of the position modulo the tile, so a run reads as one hedge from tile to tile
   auto leaf = [&](int gx, int gy, uint32_t s) { return hash3(((gx % 16) + 16) % 16 / 2, ((gy % 16) + 16) % 16 / 2, s) ^ hash3(gx & 15, gy & 15, s + 1u); };
   const Ramp& L = kLeaf;
@@ -647,15 +705,145 @@ Canvas hedgePiece(int mask, const PropStyle& st, bool snow) {
         }
       }
     }
+  // (M7 fix) a gateway through a hedge is hung on two timber gateposts at its ends
+  (void)M;
+  fencePosts(c, a0 + 2, a1 - 2, gates, 0, OY, HT + 4, 0, kWood, false);
   outline(c, 0.85f);
-  for (int gy = 0; gy < 16; gy++)
-    for (int gx = 0; gx < W; gx++) {
-      if (in(gx, gy) || chA(c.get(gx, gy + OY)) != 0) continue;
-      if (in(gx - 1, gy) || in(gx - 2, gy) || in(gx - 3, gy - 1) || in(gx, gy - 1) || in(gx - 1, gy - 1) || in(gx - 2, gy - 2))
-        c.set(gx, gy + OY, rgba(16, 22, 12, 80));
+  fenceShadow(c, a0, a1, mask, gates, OY, 4, 104);
+  return c;
+}
+
+Canvas fieldGatePiece(bool ns) {
+  const int W = ns ? 24 : 16, H = 28, OY = 12;   // (a north-south gateway's leaf swings out over the next tile east)
+  Canvas c(W, H);
+  // the leaf in ground px: from its hinge along (dx, dy), 13 px long; rails at three heights, a stile at each end and a
+  // brace from the foot of the hinge stile to the head of the swinging one
+  const float hx = ns ? 7.5f : 0.5f, hy = ns ? 0.5f : 7.5f;
+  const float dx = ns ? 0.86f : 0.82f, dy = ns ? 0.51f : 0.57f;   // swung wide enough that its rails read apart
+  const float len = ns ? 13.5f : 14.5f;
+  const int HT = 8;
+  std::vector<uint8_t> drawn((size_t)W * H, 0);
+  auto put = [&](float gx, float gy, int h, uint32_t col) {
+    const int x = (int)std::floor(gx), y = (int)std::floor(gy) + OY - h;
+    if (x < 0 || x >= W || y < 0 || y >= H) return;
+    c.set(x, y, col);
+    drawn[(size_t)y * W + x] = 1;
+  };
+  // the shadow first (on the ground, down-right of the leaf; the light from the top left), then the wood over it
+  for (float t = 0; t <= len; t += 0.5f)
+    for (int h = 1; h <= HT; h += 2) {
+      const float gx = hx + dx * t + h * 0.45f, gy = hy + dy * t + h * 0.2f;
+      const int x = (int)std::floor(gx), y = (int)std::floor(gy) + OY;
+      if (x >= 0 && x < W && y >= 0 && y < H && !chA(c.get(x, y))) c.set(x, y, rgba(16, 22, 12, 92));
+    }
+  const Ramp& R = kWood;
+  for (int h = 0; h <= HT; h++) {   // the stiles (the hinge stile stout, a lit west face)
+    put(hx + dx * 0.0f, hy, h, R[h == HT ? 4 : 3]);
+    put(hx + dx * 1.0f, hy + dy * 1.0f, h, R[h == HT ? 3 : 1]);
+    put(hx + dx * len, hy + dy * len, h, R[h == HT ? 4 : 2]);
+  }
+  // three single-pixel rails with the ground showing between them (thicker ones read as a solid board)
+  const int rails[3] = {1, 4, HT - 1};
+  for (int r = 0; r < 3; r++)
+    for (float t = 1.0f; t < len; t += 0.34f) put(hx + dx * t, hy + dy * t, rails[r] + (r == 2 ? 1 : 0), R[r == 2 ? 4 : 3]);
+  for (float t = 1.0f; t < len; t += 0.3f) {   // the brace, rising from the hinge's foot to the far stile's head
+    const int h = 1 + (int)std::lround((t - 1.0f) / (len - 1.0f) * (HT - 3));
+    put(hx + dx * t, hy + dy * t, h + 1, R[2]);
+  }
+  // the outline round the wood
+  for (int y = 0; y < H; y++)
+    for (int x = 0; x < W; x++) {
+      if (drawn[(size_t)y * W + x]) continue;
+      bool nb = false;
+      for (int k = 0; k < 2 && !nb; k++) {   // a dark edge below and east of the wood (the light from the top left)
+        const int qx = x - (k == 0), qy = y - (k == 1);
+        nb = qx >= 0 && qy >= 0 && qx < W && qy < H && drawn[(size_t)qy * W + qx];
+      }
+      if (nb) c.set(x, y, rgba(40, 24, 26, 255));
     }
   return c;
 }
+
+Canvas fenceJoinPiece(int bits, const PropStyle& st) {
+  const Mat M = matOf(st);
+  const int mask = bits & 15, gates = (bits >> 4) & 15, ends = (bits >> 8) & 15;
+  const Fence f = st.fence;
+  const bool bamboo = f == Fence::Bamboo, rope = f == Fence::Rope;
+  const int HT = bamboo ? 11 : (rope ? 10 : 9);   // how tall it stands
+  const int W = 16, OY = HT + 5, H = 16 + OY;
+  const int a0 = rope ? 7 : 6, a1 = rope ? 8 : 9;   // its thickness across the run (a palisade of canes, a woven hurdle)
+  auto in = [&](int gx, int gy) -> bool { return fenceIn(gx, gy, a0, a1, mask, gates); };
+  // the canes' colours: a lit cut end, the cane, its shade, the dark between two canes, the lashing
+  const uint32_t bCut = rgba(226, 228, 158), bLit = rgba(194, 202, 108), bMid = rgba(150, 160, 76), bShade = rgba(110, 118, 54),
+                 bGap = rgba(72, 78, 36), bTie = rgba(128, 96, 52), bTieD = rgba(92, 66, 36);
+  Canvas c(W, H);
+  for (int gy = -HT; gy < 16; gy++)
+    for (int gx = 0; gx < W; gx++) {
+      if (!in(gx, gy)) continue;
+      const bool runNS = !(gy >= a0 && gy <= a1) || (((mask | gates) & 5) && !((mask | gates) & 10));
+      const int along = (runNS ? gy : gx) + 32;
+      const bool rimW = !in(gx - 1, gy), rimE = !in(gx + 1, gy), rimS = !in(gx, gy + 1);
+      // ---- the top, seen from above
+      uint32_t top = 0;
+      if (bamboo) {
+        // the canes' cut ends side by side along the run: a ring of light, the hollow, the dark between canes
+        const int q = along % 3;
+        top = q == 0 ? bCut : (q == 1 ? bLit : bGap);
+        if (rimW && q != 2) top = bCut;
+        if (rimE && q != 2) top = bShade;
+      } else if (rope) {
+        if (along % 8 == 2 || along % 8 == 3) top = M.wood[along % 8 == 2 ? 4 : 2];   // the post heads
+        else top = kCloth[(along & 1) ? 3 : 4];                                         // the rope's top
+      } else {   // wattle: the stake heads above the weave's top edge
+        const bool stake = along % 4 == 1;
+        int k = stake ? 4 : (((along / 2) & 1) ? 3 : 2);
+        if (rimW) k = std::min(4, k + 1);
+        if (rimE) k = std::max(1, k - 1);
+        top = M.wood[k];
+      }
+      const int ty = gy + OY - HT;
+      if (ty >= 0 && ty < H) c.set(gx, ty, top);
+      // ---- the face toward the camera (where the run ends to the south: an E-W run's whole front)
+      if (!rimS) continue;
+      for (int h = HT - 1; h >= 0; h--) {
+        const int y = gy + OY - h;
+        if (y < 0 || y >= H) continue;
+        const int depth = HT - 1 - h;
+        uint32_t col = 0;
+        if (bamboo) {
+          const int q = (gx + 30) % 3;
+          col = q == 0 ? bLit : (q == 1 ? bMid : bGap);
+          if (depth % 5 == 3 && q != 2) col = q == 0 ? bMid : bShade;   // the nodes
+          if (h == 3 || h == HT - 3) col = (gx & 1) ? bTie : bTieD;      // two lashed rails
+          if (h == 0) col = bGap;
+          if (rimW && q != 2 && h != 3 && h != HT - 3) col = bCut;
+        } else if (rope) {
+          const bool post = along % 8 == 2 || along % 8 == 3;
+          if (post) col = M.wood[along % 8 == 2 ? (depth == 0 ? 4 : 3) : 1];
+          else {
+            const float t = (float)(((along - 3) % 8 + 8) % 8) / 8.0f;
+            const int sag = (int)std::lround(std::sin(t * 3.14159f) * 2.0f);
+            if (depth == 2 + sag || depth == 6 + sag) col = kCloth[depth < 5 ? 3 : 2];
+          }
+        } else {
+          const bool stake = along % 4 == 1;
+          const int band = depth / 2;
+          const bool over = ((along / 4) + band) & 1;
+          col = stake ? M.wood[depth == 0 ? 4 : 2] : (over ? M.wood[(depth % 2) ? 2 : 3] : M.wood[(depth % 2) ? 0 : 1]);
+          if (h == 0) col = M.wood[0];
+          if (rimW && !stake) col = M.wood[3];
+        }
+        if (col) c.set(gx, y, col);
+      }
+    }
+  // posts where the run ends or frames a gateway
+  const Ramp caneR = ramp5(bGap, bShade, bMid, bLit, bCut);   // a bamboo fence's posts are thick canes
+  fencePosts(c, rope ? a0 - 1 : a0, rope ? a1 + 1 : a1, gates, ends, OY, HT + 3, 0, bamboo ? caneR : M.wood, false);
+  outline(c, rope ? 0.55f : 0.85f);
+  fenceShadow(c, a0, a1, mask, gates, OY, rope ? 2 : 4, rope ? 56 : 92);
+  return c;
+}
+
 
 bool propStyled(Prop p) {
   if (builtPropStyled(p)) return true;   // (M3b) the builder's street furniture (art_parts_props.cpp)

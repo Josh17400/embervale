@@ -1,0 +1,26 @@
+# M7 LAND lane: the settlements' lots for sale (rpg/world/town_lots.cpp, VISION_PLAN 8.2) at 1x: a village's lots by
+# the start (fenced in the culture's fence style, the gate on the street side with its footpath, the FOR SALE sign
+# inside by the gate), a town's lots, and a riverside lot on a river bank. Places from
+# `rpg_test --lots --seeds 1..1 --places` (the stand tile is just outside each gate).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7_land_lots.txt     (m7_land_lots_*.png)
+seed 1
+0.3  newgame
++0.1 god 1
++0.05 hour 11
+# the start village VOND: an 8x10 lot on its edge, its gate on the lane
++0.2 at 184 -97
++3.5 shot m7_land_lots_village.png
++0.2 at 179 -100
++0.8 shot m7_land_lots_village_gate.png
++0.2 at 140 -93
++1.0 shot m7_land_lots_village2.png
+# the town NARA: a large lot and a narrow one
++0.2 at -657 -665
++3.5 shot m7_land_lots_town.png
++0.2 at -681 -696
++1.0 shot m7_land_lots_town2.png
+# a riverside lot (TIATAI)
++0.2 at -255 -1046
++3.5 shot m7_land_lots_river.png
++0.2 expect mode play
++0.3 quit

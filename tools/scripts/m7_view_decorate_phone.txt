@@ -1,0 +1,28 @@
+# M7 VIEW lane: DECORATE inside the player's own cottage at the iPhone review size: the DECORATE pill, the furniture
+# catalogue, the ghost over the floor (green / red with the reason), a chest and a bed placed.
+#   embervale.exe --script tools/scripts/m7_view_decorate_phone.txt     (m7_view_deco_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 10
++0.1 walk east 2.5
++0.2 home lot large
++0.1 gold 99999
++0.1 home fill
++0.4 build enterhome
++0.6 expect inside 1
++0.1 touch 1
++0.3 shot m7_view_deco_1_pill.png
++0.1 tap 412 252
++0.4 expect build mode decorate
++0.3 shot m7_view_deco_2_open.png
++0.1 tap 445 34
++0.1 key Up
++0.1 touch 1
++0.5 shot m7_view_deco_3_chest.png
++0.1 tap 435 250
++0.3 shot m7_view_deco_4_placed.png
++0.1 tap 526 250
++0.3 expect mode play
++0.3 quit

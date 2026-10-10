@@ -3598,6 +3598,7 @@ static void bakeArchShadows(const Map& m, int tx0, int ty0, Canvas& c) {
           }
       }
   for (const Bldg& b : m.bldgs) {
+    if (b.home == 3) continue;   // (M7) the player's building site: stakes and a frame, no house yet to cast a shadow
     int fx = b.r.x * 16, fy = b.r.y * 16, fw = b.r.w * 16, fh = b.r.h * 16;
     if (fx > x1 + 4 || fy > y1 + 4 || fx + fw + 24 < x0 || fy + fh + 16 < y0) continue;
     // (M3b forts) the shadow of the building's blueprint: every volume (the body, wings, towers, porches, a compound's
@@ -3716,6 +3717,63 @@ uint64_t View::chunkKeyFor(const Map& m, uint64_t mapId, int cx, int cy) const {
   return (k << 1) | (partial ? 1u : 0u);
 }
 
+void View::rebakeHomeHouses(const Game& g, const Map& m, uint64_t mapId) {
+  if (m.kind != MapKind::Overworld) return;
+  std::vector<HomeHouse> now;
+  for (const Bldg& b : m.bldgs) {
+    if (b.home != 1 && b.home != 3) continue;
+    HomeHouse h;
+    h.id = b.id; h.home = b.home; h.seed = b.seed;
+    h.gx = b.r.x + (chunkEndless_ ? g.world.ox : 0); h.gy = b.r.y + (chunkEndless_ ? g.world.oy : 0);
+    h.w = b.r.w; h.h = b.r.h;
+    now.push_back(h);
+  }
+  auto same = [](const HomeHouse& a, const HomeHouse& b) {
+    return a.id == b.id && a.home == b.home && a.seed == b.seed && a.gx == b.gx && a.gy == b.gy && a.w == b.w && a.h == b.h;
+  };
+  if (mapId != homeHousesMap_) {   // another map (or the first frame): its chunks are baked from what it holds now,
+    homeHousesMap_ = mapId;        // except those baked before a house was stamped: rebake under every house once
+    homeHouses_.clear();
+  }
+  std::vector<HomeHouse> changed;
+  for (const HomeHouse& h : now) {
+    bool seen = false;
+    for (const HomeHouse& o : homeHouses_) seen = seen || same(h, o);
+    if (!seen) changed.push_back(h);
+  }
+  for (const HomeHouse& o : homeHouses_) {
+    bool still = false;
+    for (const HomeHouse& h : now) still = still || same(h, o);
+    if (!still) changed.push_back(o);
+  }
+  homeHouses_ = std::move(now);
+  if (changed.empty()) return;
+  // every chunk the house's footprint or its shadow (two tiles down-right, the sprite's pad) reaches, both its whole
+  // and its partial (window-edge) key
+  std::vector<uint64_t> keys;
+  for (const HomeHouse& h : changed) {
+    const int32_t ox = chunkEndless_ ? chunkOX_ * CH : 0, oy = chunkEndless_ ? chunkOY_ * CH : 0;
+    const int cx0 = (int)std::floor((h.gx - 2 - ox) / (double)CH), cy0 = (int)std::floor((h.gy - 2 - oy) / (double)CH);
+    const int cx1 = (int)std::floor((h.gx + h.w + 3 - ox) / (double)CH), cy1 = (int)std::floor((h.gy + h.h + 3 - oy) / (double)CH);
+    for (int cy = cy0; cy <= cy1; cy++)
+      for (int cx = cx0; cx <= cx1; cx++) {
+        if (cx < 0 || cy < 0 || cx * CH >= m.w || cy * CH >= m.h) continue;
+        const uint64_t k = chunkKeyFor(m, mapId, cx, cy) & ~1ull;
+        keys.push_back(k);
+        keys.push_back(k | 1ull);
+      }
+  }
+  auto hit = [&](uint64_t k) { return std::find(keys.begin(), keys.end(), k) != keys.end(); };
+  // a baked chunk stays on screen until its new bake is ready (chunkTex swaps it in: no frame waits on it); bakes
+  // queued or finished from the old snapshot are dropped (prefetch / chunkTex queue them again)
+  for (Chunk& ch : chunks_) if (hit(ch.key)) ch.stale = true;
+  std::lock_guard<std::mutex> lk(mu_);
+  for (size_t i = 0; i < jobs_.size();) if (hit(jobs_[i].key)) jobs_.erase(jobs_.begin() + (std::ptrdiff_t)i); else i++;
+  for (size_t i = 0; i < done_.size();) if (hit(done_[i].key)) done_.erase(done_.begin() + (std::ptrdiff_t)i); else i++;
+  pending_.erase(std::remove_if(pending_.begin(), pending_.end(), hit), pending_.end());
+  if (incrOn_ && hit(incrJob_.key)) { incrOn_ = false; incrJob_.map.reset(); }
+}
+
 // a snapshot of local chunk (cx, cy) and its margin
 View::BakeJob View::makeJob(const Map& m, uint64_t mapId, int cx, int cy) const {
   BakeJob j;
@@ -3816,7 +3874,7 @@ void View::prefetch(const Map& m, uint64_t mapId, Vec2 cam) {
   // finished bakes nobody will collect (another map, or a chunk already baked inline) are ~1 MB each: drop them
   for (size_t i = 0; i < done_.size();) {
     bool stale = done_[i].mapId != mapId && !(prepMapId_ && done_[i].mapId == prepMapId_);
-    for (auto& ch : chunks_) if (ch.key == done_[i].key) stale = true;
+    for (auto& ch : chunks_) if (ch.key == done_[i].key && !ch.stale) stale = true;   // (a stale chunk awaits it)
     if (stale) {
       uint64_t k = done_[i].key;
       pending_.erase(std::remove(pending_.begin(), pending_.end(), k), pending_.end());
@@ -3881,7 +3939,30 @@ void View::bakeVisibleNow(const Map& m, uint64_t mapId, int c0x, int c0y, int c1
 Tex View::chunkTex(const Map& m, uint64_t mapId, int cx, int cy) {
   const uint64_t key = chunkKeyFor(m, mapId, cx, cy);
   for (auto& ch : chunks_)
-    if (ch.key == key) { ch.used = t_; return ch.tex; }
+    if (ch.key == key) {
+      ch.used = t_;
+      if (ch.stale) {   // (M7) to be baked again (a player's house came or changed): swap the new bake in when ready
+        std::unique_lock<std::mutex> lk(mu_);
+        for (size_t i = 0; i < done_.size(); i++)
+          if (done_[i].key == key) {
+            BakeDone d = std::move(done_[i]);
+            done_.erase(done_.begin() + (std::ptrdiff_t)i);
+            pending_.erase(std::remove(pending_.begin(), pending_.end(), key), pending_.end());
+            lk.unlock();
+            pix_->destroy(ch.tex);
+            ch.tex = pix_->bake(d.c);
+            ch.stale = false;
+            return ch.tex;
+          }
+        if (std::find(pending_.begin(), pending_.end(), key) == pending_.end()) {
+          pending_.push_back(key);
+          jobs_.push_back(makeJob(m, mapId, cx, cy));
+          lk.unlock();
+          cv_.notify_all();
+        }
+      }
+      return ch.tex;
+    }
   auto store = [&](Canvas& c) -> Tex {
     Chunk* slot = nullptr;
     // enough for the visible chunks of a wide phone screen and the ring prefetched around them
@@ -3893,7 +3974,7 @@ Tex View::chunkTex(const Map& m, uint64_t mapId, int cx, int cy) {
       pix_->destroy(slot->tex);
     }
     slot->tex = pix_->bake(c);
-    slot->key = key; slot->used = t_;
+    slot->key = key; slot->used = t_; slot->stale = false;
     return slot->tex;
   };
   // finished in the background?

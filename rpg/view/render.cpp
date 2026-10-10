@@ -763,6 +763,15 @@ bool View::bldgPaintStep(const Bldg& b, int index, double budgetMs) {
 
 bool View::windowsLit(const Game& g, const Bldg& b) const {
   if (g.inside || g.daylight() > 0.55f) return false;
+  // (M7) the player's own house (built or bought): a lamp is left burning for the owner until midnight, and while the
+  // owner is about the farm (within ~14 tiles) the hearth glows on through the night
+  if (b.home == 1 || b.home == 2) {
+    const float hr = g.hour < 12 ? g.hour + 24 : g.hour;
+    if (hr < 24.0f) return true;
+    const float dx = g.pl().p.x / 16.0f - (b.r.x + b.r.w * 0.5f), dy = g.pl().p.y / 16.0f - (b.r.y + b.r.h * 0.5f);
+    return dx * dx + dy * dy < 14.0f * 14.0f;
+  }
+  if (b.home == 3) return false;   // a building site has no windows yet
   // never all asleep: inns, temples, keeps and (M3b) the seat of power, whatever the society builds it as
   if (b.type == art::Building::Inn || b.type == art::Building::Temple || b.type == art::Building::Keep || bldgIsSeat(b)) return true;
   // (M5) by occupancy: a household's windows are warm while someone is home and awake (the census's hourly
@@ -1001,8 +1010,10 @@ void View::spawnParticles(const Event& e, Game& g) {
       shake_ = std::max(shake_, 3.0f);
       break;
     case Ev::QuestUpdate: {
-      // the same line already showing as the centre notice (Game::say) is not repeated as a toast
-      if (!(g.noticeT > 0 && g.notice == e.s)) { Toast t; t.s = e.s; t.c = e.f == 1 ? Color(1, 0.85f, 0.3f) : Color(0.9f, 0.85f, 0.7f); toasts_.push_back(t); }
+      // the same line already showing as the centre notice (Game::say) is not repeated as a toast, nor a line the
+      // banner shows whole (M7 fix: "YOUR HOUSE IS FINISHED" twice)
+      const bool bannerWhole = (e.f == 0 || e.f == 1) && e.s.find(':') == std::string::npos;
+      if (!(g.noticeT > 0 && g.notice == e.s) && !bannerWhole) { Toast t; t.s = e.s; t.c = e.f == 1 ? Color(1, 0.85f, 0.3f) : Color(0.9f, 0.85f, 0.7f); toasts_.push_back(t); }
       if (e.f == 0 || e.f == 1) { bannerState_.clear(); banner_ = e.f == 1 ? "QUEST COMPLETE" : "NEW QUEST"; bannerSub_ = e.s.substr(e.s.find(':') == std::string::npos ? 0 : e.s.find(':') + 2); bannerT_ = 3.5f; }
       break;
     }
@@ -1088,6 +1099,26 @@ void View::update(Game& g, float dt) {
   if (g.mode != Mode::Title) {
     const Actor& p = g.pl();
     Vec2 want(p.p.x - Pix::W / 2.0f + p.aim.x * 10, p.p.y - 10 - Pix::H / 2.0f + p.aim.y * 6);
+    if (g.mode == Mode::Build) buildCamWant(g, want);   // (M7) the build ghost in view, clear of the panel
+    // (M7) the ridden horse's hooves: the walk's even four-beat, the gallop's three quick beats and a pause
+    {
+      static float strideT = 0;
+      const float sp = len(p.vel);
+      if (g.mode == Mode::Play && g.homeRiding() && !g.inside && p.st == AState::Walk && sp > 6.0f) {
+        const bool gal = sp > home::WALK_SPEED_PX * 1.3f;
+        const float stride = gal ? 0.40f : 0.62f;
+        static const float kWalk[4] = {0.0f, 0.25f, 0.5f, 0.75f}, kGal[3] = {0.0f, 0.17f, 0.32f};
+        const float before = strideT;
+        strideT = std::fmod(strideT + dt / stride, 1.0f);
+        const float* beats = gal ? kGal : kWalk;
+        const int nb = gal ? 3 : 4;
+        for (int b = 0; b < nb; b++) {
+          const float at = beats[b];
+          const bool crossed = before <= strideT ? (at > before && at <= strideT) : (at > before || at <= strideT);
+          if (crossed) audio_->play(Sfx::Hoof, 0.92f + 0.04f * (float)b + (gal ? 0.06f : 0.0f), gal ? 0.55f : 0.42f);
+        }
+      } else strideT = 0;
+    }
     cam_ += (want - cam_) * std::min(1.0f, dt * 6.0f);
     const Map& m = g.map();
     float mw = m.w * 16.0f, mh = m.h * 16.0f;
@@ -1096,7 +1127,11 @@ void View::update(Game& g, float dt) {
       // buttons bottom-right) must never hide part of a room for good. A room that fits clear of the HUD stays put
       // (centred, or centred in the free area); one that doesn't pans with the player far enough that every corner
       // can be brought out from under the HUD.
-      const float padT = 46.0f + Pix::ST, padR = 134.0f + Pix::SR, padB = (touchUI ? 48.0f : 0.0f) + Pix::SB, padL = (float)Pix::SL;
+      float padT = 46.0f + Pix::ST, padR = 134.0f + Pix::SR, padB = (touchUI ? 48.0f : 0.0f) + Pix::SB, padL = (float)Pix::SL;
+      // (M7) decorating: the HUD is away and the catalogue panel covers the right side (buildmode.cpp sideLay)
+      if (g.mode == Mode::Build && g.home.ui.mode == home::UiMode::Decorate) {
+        padT = 18.0f + Pix::ST; padB = 4.0f + Pix::SB; padR = (touchUI ? 190.0f : 176.0f) + 10.0f + Pix::SR;
+      }
       auto axis = [](float& c, float want, float lo, float hi, float scr, float pa, float pb) {
         float len = hi - lo;
         if (len <= scr - 2 * std::max(pa, pb)) c = lo - (scr - len) / 2;             // fits clear, centred
@@ -1194,7 +1229,7 @@ void View::update(Game& g, float dt) {
   }
   // toasts wait while a dialogue or menu is open, so "OLD BLADE" is still there when the player looks up
   const bool modal = g.mode == Mode::Dialogue || g.mode == Mode::Shop || g.mode == Mode::Menu || g.mode == Mode::LevelUp || g.mode == Mode::Paused ||
-                     g.mode == Mode::Forge;
+                     g.mode == Mode::Forge || g.mode == Mode::Build;
   for (size_t i = 0; i < toasts_.size();) {
     if (modal) { i++; continue; }
     toasts_[i].t += dt;
@@ -1424,7 +1459,8 @@ void View::update(Game& g, float dt) {
 namespace {
 struct Drawable {
   float y;
-  int kind;     // 0 prop, 1 building, 2 wall, 3 actor, 4 pickup, 5 projectile, 6 gate, 7 (M5) festival pole
+  int kind;     // 0 prop, 1 building, 2 wall, 3 actor, 4 pickup, 5 projectile, 6 gate, 7 (M5) festival pole,
+                //   8 (M7) a home draw (View::homeDraws_[idx]: a yard object, a crop, the building site, a ground edit)
   int idx;
   int tx, ty;
 };
@@ -1478,6 +1514,7 @@ void View::drawWorld(Game& g) {
   const uint64_t mapId = terrainFrame(g, mp);
   const Map& m = *mp;
   const bool endlessOver = chunkEndless_;
+  if (g.mode != Mode::Title) rebakeHomeHouses(g, m, mapId);   // (M7) the ground under the player's houses: their shadows
   Vec2 cam(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y));
   trimCaches();
   beasts::glows.clear();    // (M6 BEASTS) this frame's glow sheets and name plates (drawn after the lighting)
@@ -1712,7 +1749,8 @@ void View::drawWorld(Game& g) {
   {
     static std::vector<int> vis;
     bldgsIn(g, m, cam.x, cam.y, cam.x + Pix::W, cam.y + Pix::H, vis);
-    for (int bi : vis) list.push_back({(m.bldgs[bi].r.y + m.bldgs[bi].r.h) * 16.0f - 1.0f, 1, bi, 0, 0});
+    for (int bi : vis)   // (M7) a player's house under construction is drawn as its building site (homeCollect)
+      if (m.bldgs[bi].home != 3) list.push_back({(m.bldgs[bi].r.y + m.bldgs[bi].r.h) * 16.0f - 1.0f, 1, bi, 0, 0});
   }
   // paint the sprites of buildings near the player ahead of time, at most one per frame, so walking into a town
   // never stalls on a burst of building paints
@@ -1783,6 +1821,14 @@ void View::drawWorld(Game& g) {
       if ((gt.first + 5) * 16 < cam.x || (gt.first - 3) * 16 > cam.x + Pix::W || gt.second * 16 + 24 < cam.y || gt.second * 16 - 60 > cam.y + Pix::H) continue;
       list.push_back({gt.second * 16.0f + 15.6f, 6, 0, gt.first, gt.second});
     }
+  // (M7) the player's property: yard objects, crops, ground edits, the building site (kind 8: idx into homeDraws_;
+  //      collected by the VIEW lane's homeCollect, rpg/view/home_view.cpp)
+  homeDraws_.clear();
+  if (g.mode != Mode::Title) homeCollect(g, m, cam);
+  else homeLights_.clear();
+  drawHomeFlats(cam);   // the farmland and the paths lie under every shadow (the shadow pass comes next)
+  for (int i = 0; i < (int)homeDraws_.size(); i++)
+    if (!homeDraws_[(size_t)i].flat) list.push_back({homeDraws_[(size_t)i].sortY, 8, i, 0, 0});
   // (M5) a festival's poles across the plaza (kind 7: idx = span, tx = 0 west / 1 east pole)
   festivalPlan(g, m, cam);
   for (int i = 0; i < (int)festSpans_.size(); i++) {
@@ -1812,9 +1858,14 @@ void View::drawWorld(Game& g) {
 
   // shadows first (under everything standing)
   for (const Drawable& d : list) {
+    if (d.kind == 8) {   // (M7) a yard object's or a crop's ground shadow
+      if (d.idx >= 0 && d.idx < (int)homeDraws_.size()) drawHomeShadow(homeDraws_[(size_t)d.idx], cam);
+      continue;
+    }
     if (d.kind == 3) {
       const Actor& a = g.actors[d.idx];
       if (a.st == AState::Dead) continue;
+      if (a.player && g.homeRiding()) { drawMountShadow(g, a, cam); continue; }   // (M7) the horse's shadow
       // (M6 BEASTS) an elite's, a champion's or a named unique's aura: its ground glow round the feet, added under the
       // body (the shadow then darkens its middle where the feet stand); a few fixed widths keep the cache small
       if (const uint32_t ac = beasts::auraOf(a)) {
@@ -2035,20 +2086,53 @@ void View::drawWorld(Game& g) {
           // (M3b round 3) and so does a clipped hedge (a broken corner and a flat summer-green strip before), snow on
           // its top in the cold where the trees carry snow
           const bool hedge = !ps->classic() && ps->fence == art::Fence::Hedge;
-          if (!ps->classic() && (ps->fence == art::Fence::StoneDyke || hedge) && (p == Prop::FenceH || p == Prop::FenceV)) {
+          // (M7 fix) the wattle hurdles, bamboo palisades and rope fences join the same way (a lone cane per tile before,
+          // stopping short of the corner and drawn over the next run's rails), and every run's end facing a one-tile
+          // gateway gets its gatepost or pier (a bare cut before), a run that simply stops a capping post
+          const bool joined = ps->fence == art::Fence::StoneDyke || hedge || ps->fence == art::Fence::Wattle || ps->fence == art::Fence::Bamboo ||
+                              ps->fence == art::Fence::Rope;
+          if (!ps->classic() && joined && (p == Prop::FenceH || p == Prop::FenceV)) {
             auto fz = [&](int x, int y) { const int q = m.propAt(x, y); return q == (int)Prop::FenceH + 1 || q == (int)Prop::FenceV + 1; };
             int mask = (fz(d.tx, d.ty - 1) ? 1 : 0) | (fz(d.tx + 1, d.ty) ? 2 : 0) | (fz(d.tx, d.ty + 1) ? 4 : 0) | (fz(d.tx - 1, d.ty) ? 8 : 0);
             if (!(mask & 10) && !(mask & 5)) mask = p == Prop::FenceH ? 10 : 5;   // a lone piece keeps its run's axis
+            {
+              static const int DX[4] = {0, 1, 0, -1}, DY[4] = {-1, 0, 1, 0};
+              int gates = 0, ends = 0;
+              for (int k = 0; k < 4; k++) {
+                const int bit = 1 << k, back = 1 << ((k + 2) & 3);
+                const int nx = d.tx + DX[k], ny = d.ty + DY[k];
+                const int perp = (1 << ((k + 1) & 3)) | (1 << ((k + 3) & 3));
+                if (fz(nx, ny) || !(mask & back) || (mask & bit) || (mask & perp)) continue;   // joined that way, a corner, or no run that way
+                const bool open = m.in(nx, ny) && !m.propAt(nx, ny) && !m.blocked(nx, ny);
+                if (open && fz(nx + DX[k], ny + DY[k])) gates |= bit;      // a one-tile gateway: the jamb at the tile edge
+                else ends |= bit;                                           // the run stops: a post caps it
+              }
+              mask |= gates << 4 | ends << 8;
+            }
             bool snow = false;
             if (hedge) {
               const Biome hb = m.biomeAt(d.tx, d.ty);
               snow = hb == Biome::Snow || m.at(d.tx, d.ty) == Ground::Snow || (hb == Biome::Taiga && m.heightAt(d.tx, d.ty) >= 4);
             }
-            const uint64_t k = ew::mix64(ps->key() ^ ((uint64_t)(0x40 + mask + (hedge ? 16 : 0) + (snow ? 32 : 0)) << 48) ^ 0xD7CEull);
+            const uint64_t k = ew::mix64(ps->key() ^ ((uint64_t)mask << 40) ^ ((uint64_t)(0x40 + (hedge ? 16 : 0) + (snow ? 32 : 0)) << 56) ^ 0xD7CF1ull);
             auto it = styledProps_.find(k);
             const Tex& dt = it != styledProps_.end() ? it->second
-                                                     : (styledProps_[k] = pix_->bake(hedge ? art::hedgePiece(mask, *ps, snow) : art::dykePiece(mask, *ps)));
-            P.blit(dt, d.tx * 16.0f - cam.x, d.ty * 16.0f + 16.0f - 24.0f - cam.y);
+                                                     : (styledProps_[k] = pix_->bake(hedge ? art::hedgePiece(mask, *ps, snow)
+                                                                                           : ps->fence == art::Fence::StoneDyke ? art::dykePiece(mask, *ps)
+                                                                                                                                 : art::fenceJoinPiece(mask, *ps)));
+            P.blit(dt, d.tx * 16.0f - cam.x, d.ty * 16.0f + 16.0f - (float)dt.h - cam.y);
+            // (M7 fixer r2, review: "the hedge lot's gate is two loose posts, no gate leaf") a one-tile gateway east or
+            // south of this piece hangs a field gate, half open (hedges, dykes and hurdles; the piece west of / north of
+            // the gateway draws it, once)
+            const int gw = (mask >> 4) & 15;
+            if ((gw & 6) && (hedge || ps->fence == art::Fence::StoneDyke || ps->fence == art::Fence::Wattle)) {
+              const bool ns = (gw & 4) != 0;
+              const uint64_t gk = ew::mix64(0x6A7E1EAFull ^ (ns ? 1ull : 2ull));
+              auto gi = styledProps_.find(gk);
+              const Tex& gt = gi != styledProps_.end() ? gi->second : (styledProps_[gk] = pix_->bake(art::fieldGatePiece(ns)));
+              const int gx = d.tx + (ns ? 0 : 1), gy = d.ty + (ns ? 1 : 0);
+              P.blit(gt, gx * 16.0f - cam.x, gy * 16.0f + 16.0f - (float)gt.h - cam.y);
+            }
             break;
           }
         }
@@ -2277,6 +2361,13 @@ void View::drawWorld(Game& g) {
       }
       case 3: {
         const Actor& a = g.actors[d.idx];
+        if (a.player && g.homeRiding() && drawMounted(g, a, cam)) {   // (M7) the rider on the horse (home_view.cpp)
+          if (rideGhost_.t) {   // hidden behind a roof or a crown: the rider's silhouette shows through (as on foot)
+            ghostTex = rideGhost_.t; ghostFr = rideGhost_.fr; ghostRow = rideGhost_.row; ghostFlip = rideGhost_.flip;
+            ghostX = rideGhost_.x; ghostY = rideGhost_.y;
+          }
+          break;
+        }
         float flash = a.flash > 0 ? a.flash / 0.12f : 0;
         float alpha = a.st == AState::Dead ? clampf(1.0f - (a.stT - 4.0f) / 2.0f, 0, 1) : 1.0f;
         if (a.player && a.iframes > 0 && a.st != AState::Roll && ((int)(t_ * 20) & 1)) alpha *= 0.5f;
@@ -2665,6 +2756,9 @@ void View::drawWorld(Game& g) {
       case 7:   // (M5) a festival pole
         if (d.idx >= 0 && d.idx < (int)festSpans_.size()) drawFestPole(festSpans_[(size_t)d.idx], d.tx != 0, cam);
         break;
+      case 8:   // (M7) a home draw (its ground shadow went down in the shadow pass)
+        if (d.idx >= 0 && d.idx < (int)homeDraws_.size()) drawHomeDraw(homeDraws_[(size_t)d.idx], cam);
+        break;
       default: break;
     }
   }
@@ -2859,6 +2953,9 @@ void View::drawLighting(Game& g) {
       light(lp, 26, Color(1.0f, 0.80f, 0.52f), 0.9f * k);
       light(lp + Vec2(0, 16), 56, Color(1.0f, 0.58f, 0.34f), 0.42f * k);
     }
+  // (M7) the yard's lanterns and campfires (home_view.cpp homeCollect: their flame and pool)
+  if (!g.inside && dark > 0.12f)
+    for (const LightPool& lp : homeLights_) light(lp.p, lp.r, lp.c, lp.k * std::min(1.0f, dark * 2.0f));
   {   // (M4) the siege camps' tent lanterns and the red smoulder of burned-out buildings (realm_render.cpp)
     static std::vector<LightPool> pools;
     m4Lights(g, m, cam, dark, pools);
@@ -3250,7 +3347,7 @@ Music View::lifeMusic(Game& g, Music want, float dt, bool& festive) {
   float gain = 1, muffle = 0, crowd = 0, lively = 0;
   const bool calm = want == Music::Town || want == Music::Night || want == Music::Wild;
   const bool playing = g.mode == Mode::Play || g.mode == Mode::Dialogue || g.mode == Mode::Menu || g.mode == Mode::Shop || g.mode == Mode::Paused ||
-                       g.mode == Mode::Forge;
+                       g.mode == Mode::Forge || g.mode == Mode::Build;
   int site = -1, inOff = -1;
   if (playing && g.inside && g.subBldg >= 0 && g.subSite < 0 && g.subBldg < (int)g.world.over.bldgs.size()) {
     site = g.world.over.bldgs[(size_t)g.subBldg].site;

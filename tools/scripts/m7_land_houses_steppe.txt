@@ -1,0 +1,69 @@
+# M7 LAND lane: the player's houses in the steppe style beside TASE (seed 7): all five shells (hut, cottage,
+# longhouse, townhouse, hall) built at once on large lots in a row of open ground (rpg_test --home-places), then for
+# each an exterior shot from the lot's front, the ground floor (an empty shell: rooms, doors, windows, stairs and the
+# hearth under the chimney; no furniture, the player's to bring) and, for the two-storey shells, the upper floor.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7_land_houses_steppe.txt     (m7_land_steppe_*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.3 at -248 -347
++0.6 home lot large
++0.1 home build hut steppe instant
++0.1 expect home plots 1
++0.3 at -230 -347
++0.6 home lot large
++0.1 home build cottage steppe instant
++0.1 expect home plots 2
++0.3 at -212 -347
++0.6 home lot large
++0.1 home build longhouse steppe instant
++0.1 expect home plots 3
++0.3 at -194 -347
++0.6 home lot large
++0.1 home build townhouse steppe instant
++0.1 expect home plots 4
++0.3 at -176 -347
++0.6 home lot large
++0.1 home build hall steppe instant
++0.1 expect home plots 5
++3.5 hour 11
++0.3 at -238 -348
++1.0 shot m7_land_steppe_hut.png
++0.1 enter hut
++0.1 expect inside 1
++0.8 shot m7_land_steppe_hut_in.png
++0.2 walkto exit
++0.3 at -220 -347
++1.0 shot m7_land_steppe_cottage.png
++0.1 enter house
++0.1 expect inside 1
++0.8 shot m7_land_steppe_cottage_in.png
++0.2 walkto exit
++0.3 at -202 -347
++1.0 shot m7_land_steppe_longhouse.png
++0.1 enter house
++0.1 expect inside 1
++0.8 shot m7_land_steppe_longhouse_in.png
++0.2 walkto exit
++0.3 at -184 -347
++1.0 shot m7_land_steppe_townhouse.png
++0.1 enter stonehouse
++0.1 expect inside 1
++0.8 shot m7_land_steppe_townhouse_in.png
++0.1 floor 1
++0.1 expect floor 1
++0.8 shot m7_land_steppe_townhouse_up.png
++0.1 floor 0
++0.2 walkto exit
++0.3 at -166 -346
++1.0 shot m7_land_steppe_hall.png
++0.1 enter stonehouse
++0.1 expect inside 1
++0.8 shot m7_land_steppe_hall_in.png
++0.1 floor 1
++0.1 expect floor 1
++0.8 shot m7_land_steppe_hall_up.png
++0.1 floor 0
++0.2 walkto exit
++0.3 quit

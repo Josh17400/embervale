@@ -96,6 +96,9 @@ void Game::resetSession() {
   lifeRt_.reset();
   // M6: the smith's skill and secrets are the character's (a load reads the saved craft block over this)
   craft = craft::Knowledge();
+  // M7: the player's property (a load reads the saved home block over this)
+  home = home::Homes();
+  homeSerial_ = world.placeSerial + 0x80000000u;   // stamp the window on the first step
 }
 
 // everything a new game sets up once its world exists
@@ -457,7 +460,9 @@ void Game::moveActor(Actor& a, Vec2 d) {
   if (a.fly) { a.p += d; return; }
   // (fixer M4 r1) a besieged town's barricaded gates stop everyone but the player (never shut in or out by a siege)
   const bool gatePass = a.player && !inside && !war.gateTiles.empty();
+  const bool yardCheck = !home.plots.empty() && a.npc && !inside;   // (M7) townsfolk keep out of the player's yards
   auto solidP = [&](float x, float y) {
+    if (yardCheck && yardBarred(a, (int)std::floor(x / TILE), (int)std::floor(y / TILE))) return true;
     if (!solidAt(x, y, fl)) return false;
     return !(gatePass && warGatePass(*this, (int)std::floor(x / TILE), (int)std::floor(y / TILE)));
   };
@@ -601,6 +606,7 @@ void Game::update(float dt, const Input& in) {
   timed(PC::S_LIFESTEP, [&] { lifeStep(dt); }); // M5: the townsfolk's actors by their plans (life_game.cpp, TOWNSFOLK lane)
   timed(PC::S_RAID, [&] { raidStep(dt); });     // M5: night raids by monster pressure (life_raids.cpp, CITIZENS lane)
   timed(PC::S_FOE, [&] { foeStep(dt); });       // M6: elites' affixes, boss phases, named uniques, world bosses (foes_game.cpp)
+  timed(PC::S_HOME, [&] { homeStep(dt); });     // M7: the player's plots, crops, animals, building, riding (home_game.cpp)
   timed(PC::S_LIFETICK, [&] { life.tick(*this, dt); });   // M5: needs, plans, stock and moods in aggregate (life.cpp)
   updateProjectiles(dt);
   updatePickups(dt);
@@ -727,14 +733,19 @@ void Game::updatePlayer(float dt, const Input& in) {
     default: break;
   }
   bool canAct = p.st == AState::Idle || p.st == AState::Walk || (p.st == AState::Recover && p.stT > 0.06f);
-  float slow = p.slowT > 0 ? 0.6f : 1.0f;
+  // M7: on horseback any fighting move (a swing, a shot, a spell, a roll) gets the rider off first (home_game.cpp)
+  if (homeRiding() && canAct && ((in.attack && !in.interact) || in.bow || in.spell || in.roll)) homeDismount(home::Dismount::Attack);
+  float slow = (p.slowT > 0 ? 0.6f : 1.0f) * homeSpeedMul();   // M7: the horse's pace (1 on foot)
   if (p.st == AState::Idle || p.st == AState::Walk) {
     if (ml > 0.15f) {
       moveActor(p, mv * (p.speed * slow * dt));
       p.face = faceOf(mv);
       if (p.st != AState::Walk) { p.st = AState::Walk; }
       float stepPeriod = 0.29f;
-      if ((int)(p.animT / stepPeriod) != (int)((p.animT - dt) / stepPeriod)) sfx((int)Sfx::Step, p.p, 0.85f + rng_.f() * 0.3f, 0.5f);
+      if ((int)(p.animT / stepPeriod) != (int)((p.animT - dt) / stepPeriod)) {
+        const float pitch = 0.85f + rng_.f() * 0.3f;   // (drawn either way: the RNG stream does not depend on riding)
+        if (!homeRiding()) sfx((int)Sfx::Step, p.p, pitch, 0.5f);   // (M7) the horse's hoofbeats are the view's
+      }
     } else if (p.st == AState::Walk) p.st = AState::Idle;
   } else if (p.st == AState::Windup || p.st == AState::Cast) {
     if (ml > 0.15f) moveActor(p, mv * (p.speed * 0.35f * dt));
@@ -816,6 +827,11 @@ void Game::updatePlayer(float dt, const Input& in) {
             say(m.bldgs[bi].charred == 2 ? "NOTHING BUT ASHES INSIDE. THE WAY IN HAS FALLEN." : "THE GARRISON'S DOOR IS BARRED.");
             war.barredSayT = 3.0f;
           }
+          return;
+        }
+        if (m.bldgs[bi].home == 3) {   // (M7) the player's house is still being built: no way in yet
+          p.p.y = std::max(p.p.y, (ty + 1) * (float)TILE + 3.0f);
+          if (noticeT <= 0) say("THE BUILDERS ARE STILL AT WORK");
           return;
         }
         enterBuilding(bi, tx);
@@ -968,6 +984,7 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
     sfx((int)Sfx::Roll, v.p, 1.6f);
   }
   if (v.player && (v.iframes > 0 || godMode)) return;
+  if (v.player && homeRiding()) homeDismount(home::Dismount::Hurt);   // M7: a blow knocks the rider off
   if (v.st == AState::Down) {   // smashing the bones before they rise
     v.reassembled = true;
     v.hp = 0;
@@ -2054,6 +2071,7 @@ void Game::updateLocation() {
 
 // ------------------------------------------------------------------ maps
 void Game::enterSite(int si) {
+  if (homeRiding()) homeDismount(home::Dismount::Enter);   // M7: the horse waits outside
   Site& st = world.sites[si];
   st.discovered = true;
   inside = true; subSite = si; subBldg = -1; subFloor = 0;
@@ -2067,6 +2085,7 @@ void Game::enterSite(int si) {
   exitArmed_ = false;
   loadMapActors();
   questMapLoaded();   // M2: an heirloom's chest, a missing person (quests.cpp)
+  homeMapLoaded();    // M7 (home_game.cpp)
   storyEntered(si, -1);   // M4: lore in ruins, story objectives (rpg/story/story_game.cpp)
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p, 0.7f);
@@ -2092,7 +2111,11 @@ static int wayOutside(const Bldg& b, int innerW, int exitX, int x) {
 }
 
 void Game::enterBuilding(int bi, int col) {
+  const bool rode = homeRiding();
+  if (rode) homeDismount(home::Dismount::Enter);   // M7: the horse waits outside
   const Bldg& b = world.over.bldgs[bi];
+  // (M7 fix) by this building's door (the rider may have been set down at the door from afar: a journey, a script)
+  if (rode && home.horse >= 0 && !home.horseInn) { home.horseGx = world.ox + b.doorX(); home.horseGy = world.oy + b.doorY() + 1; }
   inside = true; subSite = -1; subBldg = bi; subFloor = 0;
   if (takePreparedInterior(b, 0, sub)) prepHits++;   // (M3c carry) made while the player walked up to the door
   else { genInterior(sub, b, b.seed, 0); prepMisses++; }
@@ -2110,6 +2133,7 @@ void Game::enterBuilding(int bi, int col) {
   stairsArrive_ = -1;
   loadMapActors();
   questMapLoaded();   // M2: a parcel's recipient (quests.cpp)
+  homeMapLoaded();    // M7: the player's own house: its furniture, stores and wall decor (home_game.cpp)
   storyEntered(-1, bi);   // M4 (rpg/story/story_game.cpp)
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p);
@@ -2144,6 +2168,7 @@ void Game::changeFloor(int f) {
   stairsNorth_ = false;
   stairsFrom_ = pl().p;
   loadMapActors();
+  homeMapLoaded();    // M7: the player's own house's upper floor (home_game.cpp)
   updateLocation();
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p, up ? 1.15f : 0.9f);

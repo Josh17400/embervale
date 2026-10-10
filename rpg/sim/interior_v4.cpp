@@ -5231,11 +5231,18 @@ void furnishSeatHall(Fit& F, int ri, Ctx& cx) {
 // (M3b fixer) a corner screened off without walls: two folding screens side by side in front, the pieces kept there
 // (chests, a barrel) right behind them; as near (x, y) (the screens' west tile) as it fits
 bool screenedNook(Fit& F, int ri, int x, int y, Prop a, Prop b) {
-  for (int rr = 0; rr <= 3; rr++)
+  // (M7 LAND, owner leftover "the steppe yurt temple has its wardrobe and folding screen standing in the middle of the
+  // floor") on a round or otherwise shaped floor the corner by the doors is the curving lattice: the nook stands only
+  // where its back pieces lean on the wall (the shell beside or behind them), searched a little further round; with no
+  // such place there is no nook (the priest's things are not left in the middle of the shrine)
+  const bool shaped = F.g.shaped;
+  const int reach = shaped ? 6 : 3;
+  for (int rr = 0; rr <= reach; rr++)
     for (int dy = -rr; dy <= rr; dy++)
       for (int dx = -rr; dx <= rr; dx++) {
         if (std::max(std::abs(dx), std::abs(dy)) != rr) continue;
         const int tx = x + dx, ty = y + dy;
+        if (shaped && !(F.wallN(tx, ty - 1) || F.wallN(tx + 1, ty - 1) || F.wallT(tx - 1, ty - 1) || F.wallT(tx + 2, ty - 1))) continue;
         if (F.group([&](int gid) {
               for (int k = 0; k < 2; k++)
                 for (int j = -1; j <= 0; j++) if (!F.inRoom(tx + k, ty + j, ri) || !F.freeT(tx + k, ty + j)) return false;
@@ -5634,6 +5641,8 @@ void wallDecorRoom(Fit& F, int ri, RoomKind kind) {
   auto put = [&](int t, Prop p) { F.m.prop[(size_t)t] = (uint8_t)((int)p + 1); };
   auto isFree = [&](int t) { return F.m.prop[(size_t)t] == 0; };
   bool outerWindows = kind != RoomKind::Forge && kind != RoomKind::Nave && kind != RoomKind::ThroneHall && kind != RoomKind::Storeroom && kind != RoomKind::Barn && !felt;
+  // (M7 fix r3) a paper-screen wall is its own light: no glazed sash window hung over the shoji
+  if (interiorStyle(F.m) == art::RoomStyle::Paper) outerWindows = false;
   if (kind == RoomKind::Nave && F.m.propAt(F.P.ex, 1) == 0 && F.roomOf(F.P.ex, 2) == ri) put(F.I(F.P.ex, 1), Prop::HolySymbol);   // the sun disc above the altar
   // windows on the outer back wall: one or two, never side by side
   if (outerWindows) {
@@ -6070,6 +6079,13 @@ struct InteriorBuild {
   // outer wall tiles are marked as the shell)
   Rng sr(seed ^ 0x1D2C3B4Au);
   art::RoomStyle rs = wallStyleOf(b, P, sr);
+  // (M7) the player's house is dressed inside as its body is built outside: a felt tent or ger is felt over the lattice,
+  // whatever the people's usual walls are (the steppe's long feast tent showed plank walls inside)
+  if (b.home == 1 && !bp.vols.empty() && bp.vols[0].wall == art::WallMat::Felt) rs = art::RoomStyle::Felt;
+  // (M7 fix r3, review: "jade player houses use the generic European interior") a jade house the player built is
+  // lacquer and paper screens inside under its glazed roof, whether its people dress the street face in plaster or in
+  // blue-grey brick (the brick read as a grey Western hall inside)
+  else if (b.home == 1 && P.culture == (int)cult::Archetype::Jade && rs != art::RoomStyle::Felt && rs != art::RoomStyle::Living) rs = art::RoomStyle::Paper;
   for (int x = 0; x < W; x++) m.deco[(size_t)x] = (uint8_t)((int)Deco::WallTimber + (int)rs);
   if (g.shaped) {
     for (int y = 1; y < H; y++)
@@ -6298,6 +6314,45 @@ struct InteriorBuild {
     }
   }
   }
+  // (M7 Home) the player's own house (Bldg::home 1): the shell as the builder laid it out (rooms, partitions, doors,
+  // windows, stairs, the hearth / stove / fire pit the chimney promises, the sconces and the style's walls) with NO
+  // movable furniture, rugs or clutter: the player furnishes it (the HOMESTEAD lane stamps home::Plot::inside). Run
+  // after the furnishing passes, so the layout and every draw are the generated house's (nothing else changes).
+  static bool fixedProp(Prop p) {
+    switch (p) {
+      case Prop::StairsUp: case Prop::StairsDown: case Prop::DoorH: case Prop::DoorV: case Prop::Window: case Prop::Sconce:
+      case Prop::Hearth: case Prop::Fireplace: case Prop::Oven: case Prop::Stove: case Prop::FirePitL: case Prop::FirePitM:
+      case Prop::FirePitR: case Prop::Pillar: case Prop::Fountain: case Prop::Well:
+        return true;
+      default: return art::isTreeProp(p);
+    }
+  }
+  void emptyShell() {
+    const int n = m.w * m.h;
+    std::vector<uint8_t> keep((size_t)n, 0);
+    for (int i = 0; i < n; i++) {
+      const int q = m.prop[(size_t)i];
+      if (q && q != (int)Prop::Filler + 1 && fixedProp((Prop)(q - 1))) keep[(size_t)i] = 1;
+    }
+    // a Filler belongs to its neighbour: the hearth's and the fireplace's wings (beside them on the row) stay
+    for (int i = 0; i < n; i++) {
+      if (m.prop[(size_t)i] != (int)Prop::Filler + 1) continue;
+      const int x = i % m.w;
+      for (int dx : {-1, 1}) {
+        const int nx = x + dx;
+        if (nx < 0 || nx >= m.w) continue;
+        const int q = m.prop[(size_t)(i + dx)];
+        if (q == (int)Prop::Hearth + 1 || q == (int)Prop::Fireplace + 1 || q == (int)Prop::Fountain + 1) keep[(size_t)i] = 1;
+      }
+    }
+    for (int i = 0; i < n; i++)
+      if (m.prop[(size_t)i] && !keep[(size_t)i]) m.prop[(size_t)i] = 0;
+    // rugs and floor clutter go too; the room's wall style and a shaped floor's shell stay
+    for (size_t i = 0; i < m.deco.size(); i++)
+      if (m.deco[i] >= (uint8_t)Deco::Basket && m.deco[i] <= (uint8_t)Deco::RugGold) m.deco[i] = 0;
+    m.spawns.clear();   // nobody lives here but the player (and whoever the player brings)
+    for (RoomDef& R : ggp->rooms) { R.bedX = -1; R.bedY = -1; }   // (no bed: the player's own goes where they put it)
+  }
   void finish() {
     Geo& gg = *ggp;
   // the rooms, as the game and the tests read them
@@ -6332,7 +6387,7 @@ struct InteriorBuild {
       case PH_CLUTTER:
         if (idx < order.size()) { const int ri = order[idx++]; clutterRoom(*Fp, ri, ggp->rooms[(size_t)ri].kind); return false; }
         phase = PH_FINISH; return false;
-      case PH_FINISH: finish(); phase = PH_DONE; return true;
+      case PH_FINISH: if (b.home == 1) emptyShell(); finish(); phase = PH_DONE; return true;
       default: return true;
     }
   }

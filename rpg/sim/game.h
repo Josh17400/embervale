@@ -17,6 +17,7 @@
 #include "rpg/sim/craft.h"
 #include "rpg/sim/explored.h"
 #include "rpg/sim/factions.h"
+#include "rpg/sim/home.h"
 #include "rpg/sim/items.h"
 #include "rpg/sim/life.h"
 #include "rpg/sim/realm.h"
@@ -26,7 +27,9 @@
 
 // Creator: the character creator after NEW GAME (the world exists; the player picks looks and a background).
 // Forge (M6): the crafting screen at a workstation (Game::bench; rpg/view/craft_ui.cpp draws it, the NUMBERS lane).
-enum class Mode : uint8_t { Title, Play, Dialogue, Menu, Shop, LevelUp, Dead, Paused, Creator, Forge };
+// Build (M7): the build / decorate / storage / cooking screens of the player's property (Game::home.ui; rpg/view/
+// buildmode.cpp draws it, the VIEW lane; the home:: actions apply it).
+enum class Mode : uint8_t { Title, Play, Dialogue, Menu, Shop, LevelUp, Dead, Paused, Creator, Forge, Build };
 
 // Game::storyFlags bits (saved, SAVE_VER 3). Bits 8..31 are free: define them next to the code that owns them,
 // with a comment here when they become permanent.
@@ -245,6 +248,9 @@ constexpr int DLG_LIFE = 3000, DLG_LIFE_END = 4000;
 // M6 Steel: the foes' talk (innkeepers' warnings of named uniques and world bosses; rpg/sim/foes_game.cpp foeChoose) and
 // the forge's (smelting, smithing, tanning, apprenticeship, learning secrets; rpg/sim/craft_game.cpp craftChoose)
 constexpr int DLG_FOES = 4000, DLG_CRAFT = 4500, DLG_M6_END = 5000;
+// M7 Home: the property's talk (the reeve / steward / innkeeper selling deeds, builders, stablemasters selling horses,
+// seed sellers, hiring a farmhand, an innkeeper teaching recipes and cooking; rpg/sim/home_game.cpp homeChoose)
+constexpr int DLG_HOME = 5000, DLG_HOME_END = 5500;
 struct Dialogue {
   int actor = -1;
   std::string speaker, text;
@@ -424,6 +430,9 @@ class Game {
   //      lane; saved: the craft block, SAVE_VER 12)
   craft::Knowledge craft;
   craft::Bench bench;          // the forge screen's state (Mode::Forge; UI-facing, never saved)
+  // ---- M7 Home: the player's houses, lots, yards, crops, animals, stores, discovered styles and the horse ridden
+  //      (rpg/sim/home.h; HOMESTEAD lane; saved: the home block, SAVE_VER 14). home.ui is the Mode::Build screen's state.
+  home::Homes home;
   // apply the realm to the loaded world now (owners and banners of every loaded settlement, the news): scripts and tests
   // call it after forcing a realm change; realmStep calls it whenever the realm changed (realm_game.cpp)
   void realmSync();
@@ -510,7 +519,7 @@ class Game {
     int spawnedNpcs = 0, despawnedNpcs = 0;   // people streamed in / out so far
     // (M6 fixer) the worst ms of each world subsystem's step since --perf last reset them (once a second): the
     // systems a hitch can hide in (names: perfSysName)
-    enum Sys { S_QUEST, S_REALM, S_WAR, S_STORY, S_LIFESTEP, S_RAID, S_FOE, S_LIFETICK, S_SPAWN, S_COUNT };
+    enum Sys { S_QUEST, S_REALM, S_WAR, S_STORY, S_LIFESTEP, S_RAID, S_FOE, S_LIFETICK, S_SPAWN, S_HOME, S_COUNT };   // S_HOME: M7
     double sysWorstMs[S_COUNT] = {};
   };
   PerfCounters perf;
@@ -631,6 +640,10 @@ class Game {
   void moveActor(Actor& a, Vec2 delta);
   bool solidAt(float x, float y, bool flying) const;
   bool bodyFree(Vec2 p, float r, bool flying) const;   // an actor of radius r fits here (moveActor's box)
+  // (M7 fixer r2) townsfolk keep out of the player's yards (a villager stood on the new crops and shouldered the hero off
+  // the row): true when tile (tx, ty) of the overworld lies in an owned plot that `a` (a friendly NPC that is not one of
+  // the farm's own actors) is not already in. The way out stays open to one who is in.
+  bool yardBarred(const Actor& a, int tx, int ty) const;
   void meleeHit(Actor& a);
   void damage(Actor& victim, float dmg, Vec2 from, int attacker, Ench ench = Ench::None, float enchPow = 0, bool crit = false);
   void kill(Actor& a, int killer);
@@ -779,6 +792,55 @@ class Game {
   //   screen they may open
   void craftTalk(Actor& a);
   bool craftChoose(const DlgOpt& o);
+  // ---- M7 Home hooks (VISION_PLAN 8, 15.2, 15.22). Called from the core loop (game.cpp / game_rpg.cpp) and DEFINED in
+  //      rpg/sim/home_game.cpp (HOMESTEAD lane). Keep the calls where phase A put them.
+ public:
+  //   the horse: on horseback (Homes::riding), the speed factor on the player's walking speed this step (1 on foot;
+  //   breed speed / walking speed, +RIDE_ROAD_BONUS on roads; updatePlayer multiplies by it), and getting off
+  //   (home::Dismount: why; updatePlayer calls it on an attack, a bow shot, a spell or a roll, damage() when the
+  //   player is hit, enterBuilding / enterSite, water under the hooves, sleep and travel). Public: the view and scripts
+  //   ask homeRiding(); the UI's DISMOUNT button calls homeDismount(Player).
+  bool homeRiding() const { return home.riding >= 0; }
+  float homeSpeedMul() const;
+  void homeDismount(home::Dismount why);
+ private:
+  //   once per update step (after foeStep): stamp the owned plots when World::placeSerial changed, offline catch-up of a
+  //   plot coming into the window, construction days, the farmhand, animals in their pens (critter actors), predators at
+  //   night, the troughs, taxes, discovered styles (a settlement found: its culture), riding rules (water, cliffs)
+  void homeStep(float dt);
+  uint32_t homeSerial_ = 0;            // the World::placeSerial last stamped (home_game.cpp)
+  int32_t homeDryX_ = 0, homeDryY_ = 0; // (M7 phase B) the rider's last dry tile (global): a horse balking at water waits there
+  // (M7 phase B, never saved) the home actors' clock and the night raid going on at a plot near the player (wolves
+  // at the pen: home_actors.cpp)
+  float homeActT_ = 0;
+  struct HomeRaid { int plot = -1; std::vector<int> wolves, dead; float t = 0, atPen = 0; int outcome = 0; };   // dead: the wolves seen killed
+  HomeRaid homeRaid_;
+ public:
+  const HomeRaid& homeRaid() const { return homeRaid_; }   // (tests, scripts) the live raid: outcome 1 driven off, 2 an animal taken
+ private:
+  //   interact(): a tile of an owned plot in front of the player (till, plant, water, harvest with the tool in hand;
+  //   collect from a coop; open a store; mount a horse; the FOR SALE sign): true = handled. Called before the props.
+  bool homeInteract();
+  //   the player used a prop (a cooking hearth / pot / campfire: cook; a bed of their own: sleep): true = handled.
+  //   Called first among the prop handlers (before lifeUseProp).
+  bool homeUseProp(art::Prop p, int tx, int ty);
+  //   a building interior or a site map was just made (enterBuilding / enterSite, after questMapLoaded): the player's
+  //   own house gets its furniture, stores and wall decor stamped
+  void homeMapLoaded();
+  //   talkTo: reeves, stewards, innkeepers (deeds, recipes, cooking), builders, stablemasters, seed sellers, farmhands:
+  //   options in [DLG_HOME, DLG_HOME_END); called after lifeTalk
+  void homeTalk(Actor& a);
+  bool homeChoose(const DlgOpt& o);
+  //   useItem: food eaten (a cooked meal's Well Fed, after lifeAte)
+  void homeAte(const Item& food);
+  //   shopStock: seeds (by the merchant culture's staples), tools, hay, saddles... appended to a merchant's stock
+  void homeShopStock(const Actor& merchant, std::vector<Item>& stock);
+  //   bedIsYours: a bed in the player's own house (true: sleep, respawn here)
+  bool homeBed(int tx, int ty) const;
+  //   interactProp: a prop the player may use for the home's sake (a hearth, a cooking pot, a campfire to cook at;
+  //   the player's own stores and furniture): true makes it usable (homeUseProp then handles it)
+  bool homePropUsable(art::Prop p, int tx, int ty) const;
+  friend struct HomeOps;               // M7 HOMESTEAD: the home's internals (home_game.cpp)
   // the TOWNSFOLK lane's own runtime state (route caches, seat reservations, chat pairs...): defined in life_game.cpp
   // (shared: Game stays copyable; never saved)
   struct LifeRuntime;

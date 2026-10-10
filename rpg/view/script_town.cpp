@@ -28,7 +28,8 @@ std::string lowerS(std::string s) { for (char& c : s) if (c >= 'A' && c <= 'Z') 
 
 const char* postureName(art::Posture p) {
   static const char* n[] = {"none", "sit", "siteat", "sitdrink", "eat", "drink", "cheer", "hammer", "hoe", "sweep", "chop", "stir", "carry",
-                            "fish", "sleep", "wave", "play", "dance", "lute", "drum", "flute", "pray", "beg", "lamp", "read", "sitfloor", "sitflooreat", "sitfloordrink"};
+                            "fish", "sleep", "wave", "play", "dance", "lute", "drum", "flute", "pray", "beg", "lamp", "read", "sitfloor", "sitflooreat", "sitfloordrink",
+                            "ride"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)art::Posture::COUNT, "a name for every posture");
   return (int)p < (int)art::Posture::COUNT ? n[(int)p] : "?";
 }

@@ -1,0 +1,24 @@
+# M7 ART lane: riding east, north and south past a fenced yard (the rider astride in every facing, the fence's joins
+# going by). embervale.exe --script tools/scripts/m7_art_ride.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 goto shrine
++0.5 home lot medium
++0.1 home fence
++0.1 home place stable 2 2
++0.1 home ride
++0.1 expect home riding 1
++0.1 walk north 0.8
++0.4 shot m7_art_ride_north.png
++0.5 walk east 0.8
++0.4 shot m7_art_ride_east.png
++0.5 walk south 0.8
++0.4 shot m7_art_ride_south.png
++0.5 walk west 0.8
++0.4 shot m7_art_ride_west.png
++0.5 log done
++0.1 home dismount
++0.1 expect home riding 0
++0.3 quit

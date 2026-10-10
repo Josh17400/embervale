@@ -48,6 +48,9 @@ enum class Sfx : uint8_t {
   GolemSlam,     // stone fists into the ground: a deep thump, grinding crunch, rubble pattering down
   EliteSting,    // an ominous sting (a dissonant swell under a cold bell): something stronger is here
   BossRoar,      // a world boss's roar: deeper and longer than the dragon's, a wall of breath and a sub drop
+  // M7 Home (VIEW lane): the ridden horse's hooves (the view plays them at the walk's four-beat and the gallop's
+  // three-beat cadence, pitched by the ground)
+  Hoof,          // one hoof on packed earth: a hollow, woody clop with a little grit
   COUNT
 };
 

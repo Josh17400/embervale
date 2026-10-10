@@ -1007,3 +1007,44 @@ int interiorChecks(uint64_t seed) {
   if (ms > 2000) out("WARN: interiorChecks took %.0f ms (budget ~2000)\n", ms);
   return bad;
 }
+
+// ---- M7 Home: the interior of a house the player built (Bldg::home 1), for rpg_test --builder's player-house sweep
+// (tools/tests/test_builder.cpp). Every 15.7 check of checkBuildingV7 (every room reached from the way in, stairs iff
+// two storeys and lined up, legal doorways...), plus the empty shell: no movable furniture, rugs, clutter or people on
+// any floor; the hearth, stove or fire pit the chimney promises on one of its floors; the stairs and the upper floor of
+// a two-storey shell. Returns "" or what is wrong; furnished counts the movable pieces a bought house (home 2) keeps.
+std::string playerHouseInteriorCheck(const Bldg& b, const bld::Blueprint& bp, int& rooms, int& fires) {
+  V7Stats st;
+  uint64_t sig = 0;
+  std::string why = checkBuildingV7(b, st, sig, &bp);
+  if (!why.empty()) return why;
+  rooms = st.rooms;
+  fires = 0;
+  for (int f = 0; f < b.floors(); f++) {
+    Map m;
+    genInteriorRooms(m, b, bp, b.seed, f);
+    if (!m.spawns.empty()) return "floor " + std::to_string(f) + ": someone lives in the player's house";
+    if (f + 1 < b.floors() && !m.up.valid()) return "floor " + std::to_string(f) + ": no stairs up in a two-storey house";
+    for (int i = 0; i < m.w * m.h; i++) {
+      const int q = m.prop[(size_t)i];
+      const int d = m.deco[(size_t)i];
+      if (d >= (int)Deco::Basket && d <= (int)Deco::RugGold) return "floor " + std::to_string(f) + ": a rug or clutter in the empty shell";
+      if (!q) continue;
+      const Prop p = (Prop)(q - 1);
+      switch (p) {
+        case Prop::StairsUp: case Prop::StairsDown: case Prop::DoorH: case Prop::DoorV: case Prop::Window: case Prop::Sconce:
+        case Prop::Pillar: case Prop::Fountain: case Prop::Well: case Prop::Filler:
+          break;
+        case Prop::Hearth: case Prop::Fireplace: case Prop::Oven: case Prop::Stove: case Prop::FirePitL: case Prop::FirePitM: case Prop::FirePitR:
+          fires++;
+          break;
+        default:
+          if (art::isTreeProp(p)) break;
+          return "floor " + std::to_string(f) + ": movable furniture (prop " + std::to_string((int)p) + ") at " + std::to_string(i % m.w) + "," +
+                 std::to_string(i / m.w);
+      }
+    }
+  }
+  if (b.hearth && !fires) return "no hearth, stove or fire pit under the chimney";
+  return "";
+}

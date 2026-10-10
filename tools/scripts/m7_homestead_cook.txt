@@ -1,0 +1,35 @@
+# M7 HOMESTEAD: cooking (VISION_PLAN 8.4, 15.2): the inn's kitchen and a home hearth, a culture's own recipe taught by
+# the innkeeper, the meal eaten: Well Fed.
+#   embervale.exe --script tools/scripts/m7_homestead_cook.txt     (m7_hs_cook_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.1 home gold 500
++0.3 enter inn
++0.5 home talk innkeeper
++0.2 choose TEACH ME A RECIPE
++0.3 shot m7_hs_cook_recipes.png
++0.1 home choose LEARN
++0.2 expect home recipes 1
++0.1 choose FAREWELL
++0.1 home talk innkeeper
++0.2 choose MAY I COOK IN YOUR KITCHEN
++0.3 expect mode build
++0.3 shot m7_hs_cook_kitchen.png
++0.1 key Escape
++0.1 home cook culture1 inn
++0.1 home eat
++0.1 expect home wellfed
++0.3 shot m7_hs_cook_wellfed.png
++0.1 home leave
++0.1 walk east 2.5
++0.2 home lot medium
++0.1 home build cottage here instant
++0.4 home enter house
++0.4 expect home inhouse
++0.3 shot m7_hs_cook_home.png
++0.1 home cook stew hearth
++0.1 home eat
++0.1 expect home wellfed
++0.3 quit

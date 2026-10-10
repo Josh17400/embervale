@@ -88,6 +88,10 @@ void applyChunk(World& W, const ew::ChunkData& c, bool tiles) {
     if (W.gateKeys.insert(posKey(g.x, g.y, 1)).second) W.gates.push_back({g.x - W.ox, g.y - W.oy});
   for (const IRect& r : c.wallGaps)
     if (W.gateKeys.insert(gapKeyOf(r.x, r.y, r.w, r.h)).second) W.wallGaps.push_back(IRect{r.x - W.ox, r.y - W.oy, r.w, r.h});
+  // M7: the settlements' lots (global tiles, append-only)
+  for (const ew::PlotPlan& lp : c.plots)
+    if (!W.lotById.count(lp.id)) { W.lotById[lp.id] = (int)W.lots.size(); W.lots.push_back(lp); }
+  if (tiles) W.placeSerial++;   // M7: the player's plots are stamped again (home::stampWindow)
 }
 }  // namespace
 
@@ -99,6 +103,7 @@ static void initEndless(World& W, uint64_t sd, const int32_t* origin) {
   W.endless = true;
   W.sites.clear(); W.gates.clear(); W.dens.clear(); W.wallGaps.clear(); W.kingdoms.clear();
   W.siteById.clear(); W.bldgById.clear(); W.denById.clear(); W.kingdomById.clear(); W.spawnKeys.clear(); W.gateKeys.clear();
+  W.lots.clear(); W.lotById.clear();
   W.nearSites.clear(); W.nearDens.clear(); W.siteSpawns.clear();
   W.startSite = 0; W.capital = 0; W.lair = -1;
   W.streamer.reset();   // a new seed: the old prefetcher's chunks belong to another world
@@ -244,6 +249,7 @@ void World::placeWindow(int32_t nox, int32_t noy) {
     }
   }
   over.rebuildSolid();
+  placeSerial++;   // M7: the window's tiles were rewritten (home::stampWindow stamps the player's plots again)
   if (over.spawns.size() > spawnCap || gates.size() + wallGaps.size() > spawnCap) recycleFar();
   windowShifts++;
   sstats.shifts++;

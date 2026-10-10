@@ -1,0 +1,21 @@
+# M7 VIEW lane: the farm at night: lanterns and a campfire in the yard lit (warm pools, the flame's bloom), the
+# cottage's windows glowing, the farmland and crops under the night grade.
+#   embervale.exe --script tools/scripts/m7_view_farm_night.txt     (m7_view_night_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.1 walk east 2.5
++0.2 home lot large
++0.1 gold 99999
++0.1 home fill
++0.1 home place lantern 9 10
++0.1 home place lantern 7 10
++0.1 home place campfire 12 6
++0.2 build stand 8 8
++4.5 shot m7_view_night_1_day.png
++0.1 hour 21.5
++0.8 shot m7_view_night_2_dusk.png
++0.1 hour 23.5
++0.8 shot m7_view_night_3_night.png
++0.3 quit

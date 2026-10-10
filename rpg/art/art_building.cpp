@@ -2298,7 +2298,9 @@ void buildFacades(Plan& p, int m0 = 0, int m1 = 1 << 30) {
       for (int u = 8 + off; u < w - 6; u += step) {
         int uc = u + ((w % step) / 2);
         if (uc < 6 || uc > w - 7 || uc < uLo || uc > uHi) continue;
-        if ((hasDoor || vDoor) && s == 0 && std::abs(uc - du) < 11) continue;
+        // (M7 fix) a double door (and a moon gate, a round door) is wider: a window beside it stood on its jamb
+        const int doorClear = (m.door == (uint8_t)DoorShape::Double || m.door == (uint8_t)DoorShape::Moon || m.door == (uint8_t)DoorShape::Round) ? 15 : 11;
+        if ((hasDoor || vDoor) && s == 0 && std::abs(uc - du) < doorClear) continue;
         if (m.face == bld::Face::Shopfront && s == 0 && std::abs(uc - du) < 20) {   // a wide shop window beside the door
           facadeWindow(m, uc - 5, v0 - 1, 10, 7, p.seed + u, false, false, false, shutterCol);
           shown |= 1u << s;
@@ -2963,6 +2965,12 @@ void renderColumns(Painter& P, int xa, int xb) {
       if (fy > -1e8f) evs.push_back({fy, mi});
     }
     std::sort(evs.begin(), evs.end(), [](const Ev& a, const Ev& b) { return a.y < b.y; });
+    // (M7 fix) the ground in front of the frontmost wall's foot is open ground: underEave never paints a roof there (a
+    // cross gable's or a wing's front eave flush with the body's ran the body's roof down under the facade as a flat
+    // dark slab, roof-coloured, below the plinth)
+    int footRow = INT32_MAX;
+    for (size_t k = evs.size(); k-- > 0;)
+      if (!sc.ms[(size_t)evs[k].mi].chimney) { footRow = P.rowOf(evs[k].y, (float)sc.ms[(size_t)evs[k].mi].zBase); break; }
     size_t ei = 0;
     int prevRow = INT32_MAX, prevMi = -1;
     Surf prevS = Surf::None;
@@ -2988,8 +2996,17 @@ void renderColumns(Painter& P, int xa, int xb) {
     // the lower roof it overhangs, seen below the eave, was never painted and the ground showed through the building.
     // Walk back from y along the highest of the OTHER roofs and paint the rows (fromRow, toRow] it shows, only where
     // nothing is painted yet; the first rows under the eave lie in its shade.
+    auto groundCovered = [&](float yg) {
+      for (int i : cov) {
+        const Mass& m = sc.ms[(size_t)i];
+        if (m.chimney) continue;
+        if (m.round) { const float dx = fx - m.cx, dy = yg - m.cy; if (dx * dx + dy * dy <= m.r * m.r) return true; }
+        else if (fx >= m.x0 && fx < m.x1 && yg >= m.y0 && yg < m.y1) return true;
+      }
+      return false;
+    };
     auto underEave = [&](int fromRow, int toRow, float y, int excl) {
-      int need = toRow;
+      int need = std::min(toRow, footRow);
       const int cx = P.ox + x;
       if (cx < 0 || cx >= P.c.w) return;
       for (float yb = y - step; yb > y - 48 && need > fromRow; yb -= step) {
@@ -3008,6 +3025,10 @@ void renderColumns(Painter& P, int xa, int xb) {
         const Mass& mb = sc.ms[(size_t)bm];
         for (int r = std::max(rb, fromRow + 1); r <= need; r++) {
           if (r < 0 || r >= P.c.h || chA(P.c.get(cx, r))) continue;
+          // (M7 fix) a row whose sight line comes down on open ground (no mass's footprint at its foot) shows that
+          // ground, not a roof: beside a body under a skirt roof's side eave the body's roof ran down as a strip to
+          // the plinth
+          if (!groundCovered((float)r - sc.top + 0.5f)) continue;
           const bool sh = r <= fromRow + 3 || roofShadowed(sc, nearM, fx, yb, zb, bm);
           P.put(cx, r, roofColor(p, mb, bm, fx, yb, zb, sb, sh), 2);
         }

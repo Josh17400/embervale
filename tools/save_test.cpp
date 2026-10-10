@@ -1,11 +1,13 @@
 // Save-format checks for the CURRENT save version only (owner, 2026-10-04: old saves are not a concern; an older save
-// is refused and the title offers a new game). M6b: SAVE_VER 13 (the story block v4: the sagas' repetition guard and its offers; a
+// is refused and the title offers a new game). M7: SAVE_VER 14 (the home block after the craft block: a lot with a cottage
+// in the local style, a field, a coop, a pen and a stable, chickens, a cow and a horse ridden, a chest with a harvest;
+// ENDLESS_GEN_VER 16). M6b: SAVE_VER 13 (the story block v4: the sagas' repetition guard and its offers; a
 // generated story running, saved by its spec id). M6: SAVE_VER 12 (items gain level, material, culture, affixes, unique power;
 // the craft block after the life block; ENDLESS_GEN_VER 15). M5: SAVE_VER 11 (the layout of 10 plus the life block after the story
 // block; ENDLESS_GEN_VER 14). M4: SAVE_VER 10 (the realm and story blocks after the marks). The CITIZENS lane owns this
 // file and the fixture in M5.
 //   save_test [fixtureDir]           run every check
-//   save_test --make-fixture out.bin write tests/fixtures/save_v13.bin: an endless game (seed 5150) with a created
+//   save_test --make-fixture out.bin write tests/fixtures/save_v14.bin: an endless game (seed 5150) with a created
 //                                    character, the innkeeper's job taken, bot play, a looted chest, the M2 fields
 //                                    (marks, a quest's subject / flags / deadline, a rumoured site), saved outdoors.
 //                                    Regenerate it whenever the layout changes on purpose, and paste the printed FIX6
@@ -25,6 +27,7 @@
 #include <vector>
 #include "rpg/sim/game.h"
 #include "rpg/sim/gear.h"
+#include "rpg/sim/home.h"
 #include "rpg/sim/life.h"
 #include "rpg/story/saga.h"
 #include "rpg/story/story.h"
@@ -283,16 +286,60 @@ void addM6bFacts(Game& g) {
   s.twist[0] = "rival_claim";
   g.story.guard_.noteOffer(s, FIX_OFFER_HOOK, FIX_SEEN_DAY + 1, FIX_SEEN_GX + 10, FIX_SEEN_GY);
 }
+// M7 (SAVE_VER 14): the home block: a lot by the start village with a finished cottage in the local style, a field of
+// barley, a coop with chickens, a pen with a cow, a stable with a horse being ridden, a chest with a harvest in it
+constexpr int FIX_CROPS = 4, FIX_ANIMALS = 4, FIX_STORE = 3;
+void addM7Facts(Game& g) {
+  const int goldWas = g.gold;
+  g.gold = 1000000;
+  const int32_t px = g.world.ox + (int32_t)(g.pl().p.x / TILE), py = g.world.oy + (int32_t)(g.pl().p.y / TILE);
+  const int pi = home::debugLot(g, px + 3, py - 6, home::LotSize::Large);
+  if (pi < 0) { printf("save_test: the fixture lot was refused\n"); g.gold = goldWas; return; }
+  const uint64_t cul = g.world.src->cultureAt(px, py);
+  if (cul && !g.home.knowsStyle(cul)) g.home.styles.push_back(cul);
+  std::string why;
+  if (!home::startBuild(g, pi, home::Shell::Cottage, cul, 0, 0, why)) printf("save_test: fixture build: %s\n", why.c_str());
+  home::Plot& P = g.home.plots[(size_t)pi];
+  P.buildDoneDay = (uint16_t)g.day;
+  P.state = home::PlotState::Built;
+  auto place = [&](home::Obj o) {
+    std::string w;
+    for (int y = 1; y < P.h; y++)
+      for (int x = 1; x < P.w; x++)
+        if (home::canPlaceOutside(P, o, x, y, false, w)) { home::placeObj(g, pi, o, x, y, false, false, w); return; }
+    printf("save_test: no room for a %s\n", home::objInfo(o).name);
+  };
+  place(home::Obj::Coop);
+  place(home::Obj::Pen);
+  place(home::Obj::Stable);
+  for (int k = 0; k < FIX_CROPS; k++) {
+    home::setGround(P, 2 + k, P.h - 2, 2);
+    home::CropRec c;
+    c.x = (uint8_t)(2 + k); c.y = (uint8_t)(P.h - 2); c.kind = (uint8_t)home::Crop::Barley; c.stage = 2; c.grown = 3;
+    c.plantedDay = (uint16_t)g.day; c.lastWaterDay = (uint16_t)g.day; c.lastGrowDay = (uint16_t)g.day;
+    P.crops.push_back(c);
+  }
+  home::buyAnimal(g, pi, home::Animal::Chicken, why);
+  home::buyAnimal(g, pi, home::Animal::Chicken, why);
+  home::buyAnimal(g, pi, home::Animal::Cow, why);
+  home::buyAnimal(g, pi, home::Animal::Horse, why);
+  home::Plot& Q = g.home.plots[(size_t)pi];
+  if (!Q.stores.empty()) Q.stores[0].items.push_back(home::makeCropItem(home::Crop::Barley, FIX_STORE, 2));
+  home::mount(g, pi, (int)Q.animals.size() - 1, why);
+  g.gold = goldWas;
+}
 int makeFixture(const char* out) {
   Game g(FIX_SEED);
   g.newEndlessGame(FIX_SEED);
   makeCharacter(g);
   play(g, FIX_SEED, 90);
+  if (g.inside) g.debugLeave();   // (M7 phase B) the walk may end in a doorway: the fixture is saved outdoors
   addM2Facts(g);
   addM4Facts(g);
   addM5Facts(g);
   addM6Facts(g);
   addM6bFacts(g);
+  addM7Facts(g);
   if (g.inside) { printf("the fixture must be saved outdoors\n"); return 1; }
   std::vector<uint8_t> buf;
   g.serialize(buf);
@@ -307,7 +354,7 @@ int makeFixture(const char* out) {
 }
 // values printed by --make-fixture (format-level facts only)
 struct Fix6 { int level, xp, gold; size_t inv, quests, looted; int kills, ox; float px, py; int oy; float hour; int day; };
-constexpr Fix6 FIX6 = {1, 20, 71, 10, 4, 3, 0, 0, 2792.000f, 2328.000f, -192, 14.592f, 3};
+constexpr Fix6 FIX6 = {1, 20, 30, 8, 4, 1, 0, 0, 2184.000f, 2346.000f, -256, 8.867f, 1};
 
 }  // namespace
 
@@ -323,7 +370,7 @@ int main(int argc, char** argv) {
 
   // ---- 1. the fixture
   std::vector<uint8_t> fx;
-  if (!readFile(dir + "/save_v13.bin", fx)) check(false, "cannot read tests/fixtures/save_v13.bin");
+  if (!readFile(dir + "/save_v14.bin", fx)) check(false, "cannot read tests/fixtures/save_v14.bin");
   else {
     check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
     Game g(1);
@@ -395,6 +442,20 @@ int main(int argc, char** argv) {
               sp->affixValue(Affix::FireDmg) == 8 && sp->affixValue(Affix::CritChance) == 5 && sp->affixCount() == 2 && (sp->flags & IF_CRAFTED),
           "fixture M6 item: level, material, culture, form, rarity, unique power, affixes, flags (SAVE_VER 12)");
     check(ore == FIX_ORE, "fixture M6 material stack (SAVE_VER 12)");
+    // M7 (SAVE_VER 14): the home block
+    {
+      const bool one = g.home.plots.size() == 1;
+      const home::Plot* P = one ? &g.home.plots[0] : nullptr;
+      check(P && P->kind == home::PlotKind::Lot && P->state == home::PlotState::Built && P->shell == (uint8_t)home::Shell::Cottage && P->style != 0 &&
+                g.home.knowsStyle(P->style), "fixture home: the lot and its finished cottage in a discovered style (SAVE_VER 14)");
+      check(P && (int)P->crops.size() == FIX_CROPS && P->crops[0].kind == (uint8_t)home::Crop::Barley && P->crops[0].stage == 2,
+            "fixture home: the barley field");
+      check(P && (int)P->animals.size() == FIX_ANIMALS && P->animals[2].kind == (uint8_t)home::Animal::Cow, "fixture home: the chickens, the cow, the horse");
+      check(P && !P->stores.empty() && !P->stores[0].items.empty() && P->stores[0].items[0].count == FIX_STORE, "fixture home: the chest's harvest");
+      check(g.homeRiding() && g.home.riding == FIX_ANIMALS - 1, "fixture home: the horse ridden");
+      check(g.home.horse == g.home.riding && !g.home.horseInn, "fixture home: the horse out is the one ridden (home block v2)");
+      check(!g.home.plots.empty() && g.home.plots[0].farmhandRes == 0xFFFF && g.home.plots[0].starter == 0, "fixture home: no farmhand, the starter furniture still to come (home block v2)");
+    }
     check(g.craft.skill == FIX_SKILL && g.craft.progress(FIX_CULT, 1, craft::SecretKind::AlloyRecipe) == FIX_SECRET &&
               g.craft.trust.count(FIX_SMITH) && g.craft.trust.at(FIX_SMITH) == FIX_TRUST,
           "fixture craft block: skill, a secret's progress, a smith's trust (SAVE_VER 12)");
@@ -412,6 +473,7 @@ int main(int argc, char** argv) {
     addM5Facts(g);
     addM6Facts(g);
     addM6bFacts(g);
+    addM7Facts(g);
     roundTrip(g, ("endless seed " + std::to_string(s) + " after play").c_str());
     // a long walk east (many window shifts), then save far from home
     g.noWildSpawns = true;

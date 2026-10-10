@@ -1,0 +1,32 @@
+# M7 VIEW lane: the SHELL screen at the iPhone review size: a bare large lot, the five shells as cards (footprint,
+# storeys, price, days), the house the builder designs drawn live in the chosen culture style (the styles discovered,
+# < >), BUILD: the building site goes up in the world.
+#   embervale.exe --script tools/scripts/m7_view_shell_phone.txt     (m7_view_shell_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 10
++0.1 walk east 2.5
++0.2 home lot large
++0.1 build styles 5
++0.1 gold 99999
++0.1 touch 1
++0.1 build tab shell
++0.6 expect build mode shell
++0.1 shot m7_view_shell_1_cottage.png
++0.1 tap 140 172
++0.1 build style next
++0.6 shot m7_view_shell_2_hall.png
++0.1 tap 140 30
++0.1 build style next
++0.6 shot m7_view_shell_3_hut.png
++0.1 tap 140 66
++0.1 build style 0
++0.4 shot m7_view_shell_4_cottage.png
++0.1 build place
++0.3 expect build state building
++0.1 expect mode play
++0.1 build stand 8 8
++0.6 shot m7_view_shell_5_site.png
++0.3 quit

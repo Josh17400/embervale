@@ -37,6 +37,7 @@ PostureInfo postureInfo(Posture p) {
     case Posture::Beg: i.frames = 2; i.fps = 1.2f; break;
     case Posture::Lamp: i.frames = 2; i.fps = 1.5f; break;
     case Posture::Read: i.frames = 2; i.fps = 0.4f; break;
+    case Posture::Ride: i.frames = 1; i.fps = 1; break;   // (M7) the view seats it on the horse (art::riderSeat)
     default: break;
   }
   return i;

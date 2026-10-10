@@ -1,9 +1,11 @@
 // Helpers shared by the simulation's .cpp files (game.cpp, ai.cpp, game_rpg.cpp...). Not used by the view.
 #pragma once
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <initializer_list>
 #include <string>
+#include <vector>
 #include "rpg/culture/society.h"
 #include "rpg/sim/game.h"
 #include "rpg/world/ids.h"
@@ -174,6 +176,7 @@ enum class Mk : uint64_t {
   // M4: the STORY lane (owner of this file in M4) appends its tags here, below 32. The WARDS lane uses tags 32..47 and
   // the REALM lane 48..63, each defined in its own files as (Mk)(32 + n), so nobody else edits this enum.
   // M6: the FOES lane uses 64..79 (rpg/sim/foes.h MK_FOES_*), the NUMBERS / FORGE lane 80..95 (craft_game.cpp).
+  // M7: the HOMESTEAD lane uses 96..111 (rpg/sim/home_game.cpp).
 };
 inline uint64_t markKey(uint64_t id, Mk tag) { return ew::mix64(id ^ ((uint64_t)tag * 0xD1B54A32D192ED03ull)); }
 
@@ -182,3 +185,85 @@ constexpr float kTravelFadeOut = 0.25f;
 constexpr double kTravelBlackBudgetMs = 11.0;
 }  // namespace gsim
 using namespace gsim;
+
+// ---- M7 HOMESTEAD lane: the home's internals (Game's friend). Defined in rpg/sim/home_game.cpp (the actions' helpers,
+//      riding), home_talk.cpp (deeds, taxes, builders, stables, recipes, the miller, the farmhand's hire),
+//      home_actors.cpp (farm animals, the horse, builders, the farmhand, predators) and home_interior.cpp (the player's
+//      own house: furniture, stores, beds, cooking places).
+struct HomeOps {
+  static void say(Game& g, const std::string& s) { g.say(s); }
+  static void give(Game& g, const Item& it) { g.addItem(it); }
+  static void notice(Game& g, const std::string& s, uint32_t colour) { g.emit(Ev::Notice, g.pl().p, (int)colour, 0, s); }
+  static void news(Game& g, const std::string& s) { g.emit(Ev::News, g.pl().p, 0, 1, s); }
+  static void sfx(Game& g, int s, Vec2 p, float pitch = 1, float vol = 1) { g.sfx(s, p, pitch, vol); }
+  // take n of the pack items matching pred (false, nothing taken: not enough)
+  template <class F>
+  static bool take(Game& g, int n, F&& pred) {
+    int have = 0;
+    for (const Item& it : g.inv) if (pred(it)) have += it.stackable() ? it.count : 1;
+    if (have < n) return false;
+    for (size_t i = 0; i < g.inv.size() && n > 0;) {
+      Item& it = g.inv[i];
+      if (!pred(it)) { i++; continue; }
+      const int k = std::min(n, it.stackable() ? it.count : 1);
+      n -= k;
+      it.count -= k;
+      if (it.count <= 0 || !it.stackable()) dropAt(g, (int)i);
+      else i++;
+    }
+    return true;
+  }
+  template <class F>
+  static int count(const Game& g, F&& pred) {
+    int have = 0;
+    for (const Item& it : g.inv) if (pred(it)) have += it.stackable() ? it.count : 1;
+    return have;
+  }
+  static void dropAt(Game& g, int i);
+  static bool hasTool(const Game& g, home::Tool t);
+  static int settlementOf(const Game& g, int32_t gx, int32_t gy);
+  static void restamp(Game& g) { g.homeSerial_ = g.world.placeSerial + 0x80000000u; }
+  static int nextId(Game& g) { return g.nextId_++; }
+  static int findActor(const Game& g, int id) { return g.findActor(id); }
+  static void makeLook(Game& g, Actor& a, Role r, Rng& rr) { g.makeLook(a, r, rr); }
+  static int spawnMonster(Game& g, art::Monster m, Vec2 p, int level) { return g.spawnMonster(m, p, level, false); }
+  static void moveActor(Game& g, Actor& a, Vec2 d) { g.moveActor(a, d); }
+  static bool bodyFree(const Game& g, Vec2 p, float r) { return g.bodyFree(p, r, false); }
+  static const std::vector<int>& hostiles(const Game& g) { return g.hostiles_; }
+  static void travelHomeOnRespawn(Game& g, int32_t gx, int32_t gy);
+  // the census and resident an actor embodies (false: not a resident)
+  static bool residentOf(Game& g, const Actor& a, life::Census*& c, int& idx, int& site);
+  // the settlement an actor belongs to (its site, or its building's site; -1 none)
+  static int siteOfActor(const Game& g, const Actor& a);
+  // ---- home_talk.cpp
+  static void talk(Game& g, Actor& a);
+  static bool choose(Game& g, const DlgOpt& o);
+  // ---- home_actors.cpp
+  static void actorsStep(Game& g, float dt);
+  static bool folk(Game& g, Actor& a, float dt);       // a home actor's behaviour (lifeFolk routes LB_HOMESTEAD here)
+  static bool critterUse(Game& g, Actor& a);           // talkTo on a farm animal or the waiting horse: true handled
+  static std::string critterLabel(const Game& g, const Actor& a);   // what using it does ("RIDE", "PET CLOVER")
+  static void dismounted(Game& g, home::Dismount why); // the horse stays where the rider got off (or goes home)
+  static void dayTurned(Game& g, int plot, int day);   // a new day on a plot near the player: the live raid roll
+  static void clearHomeActors(Game& g);
+  static int raidStart(Game& g, int plot);             // home::forceRaid
+  static void wakeActors(Game& g) { g.homeActT_ = 0; } // the home actors are reconciled on the next step
+  static Vec2 freeSpot(const Game& g, int tx, int ty) { return g.freeSpot(tx, ty); }
+  static void talkTo(Game& g, Actor& a) { g.talkTo(a); }   // (tests, scripts) open a conversation
+  static void interact(Game& g) { g.interact(); }           // (tests, scripts) the use button
+  // ---- home_interior.cpp
+  static void mapLoaded(Game& g);
+  static bool useProp(Game& g, art::Prop p, int tx, int ty);
+  static bool propUsable(const Game& g, art::Prop p, int tx, int ty);
+  static bool bed(const Game& g, int tx, int ty);
+  static void stampObj(Map& m, const home::PlacedObj& o, bool clear);   // one piece of furniture into / out of a map
+  static int insideObjAt(const Game& g, int plot, int tx, int ty);     // Plot::inside index at a tile of this floor
+};
+// Actor::lifeBits bit of the actors the HOMESTEAD lane spawns (farm animals, the waiting horse, builders, the
+// farmhand): lifeFolk hands them to HomeOps::folk. Actor::slot tells which (HOME_SLOT_*).
+constexpr uint32_t LB_HOMESTEAD = 1u << 20;
+constexpr int HOME_SLOT_ANIMAL = 8000;   // + plot * 64 + animal
+constexpr int HOME_SLOT_HORSE = 8999;    // the horse out of its stable, waiting
+constexpr int HOME_SLOT_BUILDER = 9000;  // + plot * 4 + k
+constexpr int HOME_SLOT_HAND = 9100;     // + plot
+

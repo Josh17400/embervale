@@ -34,7 +34,7 @@ using art::Posture;
 
 const char* const kPostureName[] = {"NONE", "SIT", "SITEAT", "SITDRNK", "EAT", "DRINK", "CHEER", "HAMMER", "HOE", "SWEEP",
                                     "CHOP", "STIR", "CARRY", "FISH", "SLEEP", "WAVE", "PLAY", "DANCE", "LUTE", "DRUM",
-                                    "FLUTE", "PRAY", "BEG", "LAMP", "READ", "SITFLR", "FLREAT", "FLRDRNK"};
+                                    "FLUTE", "PRAY", "BEG", "LAMP", "READ", "SITFLR", "FLREAT", "FLRDRNK", "RIDE"};
 static_assert(sizeof(kPostureName) / sizeof(kPostureName[0]) == (size_t)Posture::COUNT, "posture names");
 
 Canvas cellOf(const Canvas& sheet, int col, int row, int w, int h) {
@@ -256,28 +256,34 @@ void beds(const std::string& dir) {
 }
 
 // ---------------------------------------------------------------- critters, bubbles, festival
-const char* const kCritName[] = {"DOG", "CAT", "HEN", "ROOSTER", "GOAT", "PIG", "DUCK"};
+const char* const kCritName[] = {"DOG", "CAT", "HEN", "ROOSTER", "GOAT", "PIG", "DUCK", "COW", "SHEEP", "HORSE"};
+static_assert(sizeof(kCritName) / sizeof(kCritName[0]) == (size_t)art::Critter::COUNT, "critter names");
 int coatsOf(art::Critter c) {
   switch (c) {
     case art::Critter::Dog: case art::Critter::Cat: return 6;
     case art::Critter::Chicken: return 5;
-    case art::Critter::Goat: case art::Critter::Pig: return 4;
+    case art::Critter::Goat: case art::Critter::Pig: case art::Critter::Cow: case art::Critter::Horse: return 4;
+    case art::Critter::Sheep: return 6;   // (v 4, 5: shorn, by sheepVariant)
     default: return 3;
   }
 }
+// the variant shown for coat index v (sheep 4 and 5: shorn coats, variant bit 7)
+uint32_t critterVariant(art::Critter c, int v) { return c == art::Critter::Sheep && v >= 4 ? (uint32_t)(128 + v - 4) : (uint32_t)v; }
 void critters(const std::string& dir) {
   int H = 10;
   for (int k = 0; k < (int)art::Critter::COUNT; k++) H += coatsOf((art::Critter)k) * (art::critterCellH((art::Critter)k) * 3 + 4) + 10;
-  Board b(70 + 8 * 22, H);
+  int cwMax = 22;
+  for (int k = 0; k < (int)art::Critter::COUNT; k++) cwMax = std::max(cwMax, art::critterCellW((art::Critter)k));
+  Board b(70 + 8 * cwMax, H);
   int y = 6;
   for (int k = 0; k < (int)art::Critter::COUNT; k++) {
     const art::Critter cr = (art::Critter)k;
     const int cw = art::critterCellW(cr), ch = art::critterCellH(cr);
     b.text(2, y + 4, kCritName[k]);
     for (int v = 0; v < coatsOf(cr); v++) {
-      const Canvas sh = art::critterSheet(cr, (uint32_t)v);
+      const Canvas sh = art::critterSheet(cr, critterVariant(cr, v));
       for (int row = 0; row < 3; row++)
-        for (int f = 0; f < art::CRITTER_FRAMES; f++) b.put(cellOf(sh, f, row, cw, ch), 70 + f * 22, y + row * ch);
+        for (int f = 0; f < art::CRITTER_FRAMES; f++) b.put(cellOf(sh, f, row, cw, ch), 70 + f * cwMax, y + row * ch);
       y += ch * 3 + 4;
     }
     y += 10;
@@ -285,7 +291,7 @@ void critters(const std::string& dir) {
   savePng(b.c, dir + "/critters.png", 3);
   savePng(b.c, dir + "/critters_1x.png", 1);
   // the animals among people at 1x and 2x: scale check
-  Board s(260, 60);
+  Board s(380, 60);
   std::vector<Look> lk = looks();
   int x = 6;
   for (int k = 0; k < (int)art::Critter::COUNT; k++) {
@@ -462,7 +468,7 @@ void checkCritters() {
     const art::Critter cr = (art::Critter)k;
     const int cw = art::critterCellW(cr), ch = art::critterCellH(cr);
     for (int v = 0; v < coatsOf(cr); v++) {
-      const Canvas sh = art::critterSheet(cr, (uint32_t)v);
+      const Canvas sh = art::critterSheet(cr, critterVariant(cr, v));
       if (sh.w != cw * art::CRITTER_FRAMES || sh.h != ch * 3) fail(std::string(kCritName[k]) + ": sheet size");
       for (int row = 0; row < 3; row++)
         for (int f = 0; f < art::CRITTER_FRAMES; f++) {

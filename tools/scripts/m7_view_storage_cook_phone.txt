@@ -1,0 +1,35 @@
+# M7 VIEW lane: STORAGE (the pack and a store side by side, a tap moves an item) and COOK (the meals known, each
+# ingredient held / needed, the station's quality, COOK) at the iPhone review size.
+#   embervale.exe --script tools/scripts/m7_view_storage_cook_phone.txt     (m7_view_store_*.png, m7_view_cook_*.png)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 10
++0.1 walk east 2.5
++0.2 home lot large
++0.1 gold 99999
++0.1 home fill
++0.1 home place crate 12 5
++0.1 home tools
++0.1 build pantry
++0.1 touch 1
++0.1 build tab storage
++0.5 expect build mode storage
++0.1 expect build store 0
++0.2 shot m7_view_store_1.png
++0.1 tap 120 50
++0.3 expect build store 1
++0.1 tap 120 50
++0.3 expect build store 2
++0.3 shot m7_view_store_2.png
++0.1 build done
++0.2 expect mode play
++0.1 build tab cook hearth
++0.5 expect build mode cook
++0.3 shot m7_view_cook_1.png
++0.1 build sel 2
++0.1 build cook
++0.3 shot m7_view_cook_2.png
++0.1 build done
++0.3 quit

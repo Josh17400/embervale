@@ -102,7 +102,7 @@ bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
   // in plain sight: walk straight (sample the body box along the segment)
   bool clear = true;
   for (float t = 4.0f; t < l; t += 4.0f)
-    if (!bodyFree(a.p + d * (t / l), a.radius, false)) { clear = false; break; }
+    if (!bodyFree(a.p + d * (t / l), a.radius, false) || yardBarred(a, tileX(a.p + d * (t / l)), tileY(a.p + d * (t / l)))) { clear = false; break; }
   if (clear) {
     moveActor(a, d * (std::min(speed * dt, l) / l));
     a.face = faceOf(d);
@@ -143,6 +143,7 @@ bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
         int li = loc(nx, ny);
         if (navPrev_[(size_t)li] >= 0) continue;
         if (m.blocked(nx, ny) && !(nx == gx && ny == gy)) continue;
+        if (m.kind == MapKind::Overworld && yardBarred(a, nx, ny)) continue;   // (M7) not through the player's yard
         // (owner) a building's ways in (an open front's bays: only the pillars block there) are no street to walk along
         if (m.kind == MapKind::Overworld && m.bldgAt[(size_t)ny * m.w + nx] >= 0 && !(nx == gx && ny == gy)) continue;
         navPrev_[(size_t)li] = q[h];

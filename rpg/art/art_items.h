@@ -15,6 +15,26 @@ enum class Icon : uint8_t {
   Cloak,   // M0 (append only: Item::icon is saved)
   Spear,   // M6 Steel: the polearm (spear / glaive / halberd by IconLook::form)
   Ingot,   // M6 Steel: a bar of smelted metal (crafting; tint = the metal)
+  // M7 Home (lead, phase A; ART lane paints them; phase A stand-ins): tint = the crop / product colour
+  Seeds,   // a cloth seed pouch
+  Sheaf,   // a sheaf of grain (wheat, barley, oats, rye, rice, maize; flax)
+  Veg,     // a root or a head of greens (potato, turnip, cabbage, carrot, onion, beans)
+  Fruit,   // a bunch of grapes / dates
+  Egg,     // eggs in straw
+  Milk,    // a milk jug
+  Wool,    // a fleece / a skein of wool
+  Hay,     // a bale of hay
+  Flour,   // a sack of flour
+  Honey,   // a honey pot
+  Meal,    // a cooked meal in a bowl (tint = the dish)
+  Hoe,     // farm tools: hoe, watering can, sickle, grooming brush
+  WateringCan,
+  Sickle,
+  Brush,
+  Deed,    // a sealed deed to a property
+  // M7 fix round 1 (append only): the fish (raw: silver; tint = a cooked glaze) and the cook's dishes, so a meal's
+  // picture matches it (the bowl Meal stays for soups, stews and broths)
+  Fish, Pie, Roast, Cake,
   COUNT
 };
 // tint recolours the metal/main material (tiers: iron grey, steel, elven gold, glass green, ebony purple, daedric red).

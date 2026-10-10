@@ -3393,9 +3393,10 @@ struct HumanPainter {
 // cuts, headwear, peoples, armour) carries over: the head, the torso and the garment are the rig's own; the legs (seated
 // on a chair, cross-legged on the floor) and the arms (with the tool, the cup, the instrument) are the posture's. Same
 // camera, light and palette; the cell is outlined by the caller like the standing sheet.
-enum PzSeat { kPzStand = 0, kPzChair, kPzFloor };
+enum PzSeat { kPzStand = 0, kPzChair, kPzFloor, kPzRide };
 int pzSeat(Posture p) {
   switch (p) {
+    case Posture::Ride: return kPzRide;   // (M7) astride a horse
     case Posture::Sit: case Posture::SitEat: case Posture::SitDrink: return kPzChair;
     case Posture::SitFloor: case Posture::SitFloorEat: case Posture::SitFloorDrink: case Posture::Beg: return kPzFloor;
     default: return kPzStand;
@@ -3677,6 +3678,85 @@ struct PostureRig : HumanPainter {
     c.set(2, hip + 1, lg[3]); c.set(2, hip + 2, lg[2]); c.set(13, hip + 1, lg[1]); c.set(13, hip + 2, lg[0]);   // knees at the sides
   }
 
+  // ------------------------------------------------------------------ (M7) astride a horse
+  // The hips sit on the saddle at the cell's `hip` row (art::riderSeat puts that row on the saddle). Facing down or up
+  // the thighs part round the horse's barrel to the knees at the cell's sides and the shins hang along its flanks to
+  // the stirrups; the space between the thighs below the seat stays empty, so the horse's neck (facing down) or its
+  // back (facing up) shows there. Sideways only the near leg shows, bent at the knee, the foot in the stirrup.
+  void rideLegsFront(bool back) {
+    const Ramp& lg = longSkirt() ? R.top : R.leg;
+    // the seat: the lap (front) or the seat of the breeches (back) across the saddle
+    for (int x = 4; x <= 11; x++) {
+      int k = x <= 5 ? 3 : (x >= 10 ? 1 : 2);
+      if (!back && (x == 7 || x == 8)) k = std::max(0, k - 1);   // the crotch in shade over the pommel
+      c.set(x, hip, lg[back ? std::max(0, k - 1) : std::min(4, k + 1)]);
+    }
+    // the thighs out over the barrel to the knees, the shins down the flanks, boots in the stirrups
+    for (int side = 0; side < 2; side++) {
+      const int s = side == 0 ? -1 : 1;
+      const int bias = side == 0 ? 0 : -1;
+      auto X = [&](int fromCentre) { return side == 0 ? 7 - fromCentre : 8 + fromCentre; };
+      // thigh: two rows stepping outward
+      c.set(X(3), hip + 1, lg[2 + bias + (side == 0 ? 1 : 0)]); c.set(X(4), hip + 1, lg[2 + bias]);
+      c.set(X(4), hip + 2, lg[2 + bias + (side == 0 ? 1 : 0)]); c.set(X(5), hip + 2, lg[1 + bias]);
+      // the shin hanging down the horse's side, the boot in the stirrup
+      for (int y = hip + 3; y <= kGround; y++) {
+        const Ramp& r = shinRamp(y, kGround);
+        c.set(X(5), y, r[(side == 0 ? 3 : 2) + bias]);
+        c.set(X(6), y, r[1 + bias]);
+      }
+      const Ramp& f = O == Outfit::Rags ? R.skin : R.boot;
+      c.set(X(5), kGround, f[2 + bias]); c.set(X(6), kGround, f[1 + bias]);
+      if (!back) c.set(X(4), kGround, f[3 + bias]);   // the toe turned out toward the camera
+      (void)s;
+    }
+    if (longSkirt()) {   // a robe or a gown drapes over both flanks
+      const Ramp& T = R.top;
+      for (int side = 0; side < 2; side++)
+        for (int y = hip + 1; y <= hip + 4; y++) {
+          const int d = 3 + (y - hip);
+          for (int k = 3; k <= std::min(6, d); k++) {
+            const int x = side == 0 ? 7 - k : 8 + k;
+            int t = side == 0 ? 3 : 1;
+            if (y == hip + 4) t = std::max(0, t - 1);
+            c.set(x, y, T[t]);
+          }
+        }
+    } else if (const int n = hemRows()) {   // a tunic's or coat's skirts split over the thighs
+      const Ramp& T = R.top;
+      for (int y = hip; y < hip + std::min(n, 2); y++)
+        for (int x = 3; x <= 12; x++) {
+          if (y > hip && x >= 5 && x <= 10) continue;
+          c.set(x, y, T[x <= 5 ? 3 : (x >= 10 ? 1 : 2)]);
+        }
+    }
+  }
+  void rideLegsSide() {
+    const Ramp& lg = R.leg;
+    const int ox = P.lean;
+    // the near thigh forward and down over the saddle flap, the knee, the shin back to the stirrup
+    for (int x = 6; x <= 10; x++) { c.set(x + ox, hip, lg[x == 10 ? 2 : 3]); c.set(x + ox, hip + 1, lg[x == 6 ? 1 : 2]); }
+    c.set(11 + ox, hip + 1, lg[2]); c.set(11 + ox, hip + 2, lg[1]);   // the knee
+    for (int y = hip + 2; y < kGround; y++) {
+      const Ramp& r = shinRamp(y, kGround);
+      const int x = 10 + ox - (y - hip - 2) / 2;
+      c.set(x, y, r[3]); c.set(x + 1, y, r[1]);
+    }
+    const Ramp& f = O == Outfit::Rags ? R.skin : R.boot;
+    const int fx = 10 + ox - (kGround - hip - 2) / 2;
+    c.set(fx, kGround, f[2]); c.set(fx + 1, kGround, f[2]); c.set(fx + 2, kGround, f[1]);   // the foot in the stirrup, toe forward
+    if (longSkirt()) {
+      const Ramp& T = R.top;
+      for (int y = hip; y <= hip + 4; y++)
+        for (int x = 5; x <= 11 - (y > hip + 2 ? 1 : 0); x++) c.set(x + ox, y, T[x == 5 ? 3 : (y == hip + 4 || x >= 10 ? 1 : 2)]);
+    } else if (const int n = hemRows()) {
+      for (int y = hip; y < hip + std::min(n, 2); y++)
+        for (int x = 5; x <= 9; x++) c.set(x + ox, y, R.top[x == 5 ? 3 : (y == hip + n - 1 ? 1 : 2)]);
+    }
+  }
+  // the reins: a short strap from the hands toward the horse's mouth
+  void reins(int x0, int y0, int x1, int y1) { line(c, x0, y0, x1, y1, kLeather[1]); }
+
   // ------------------------------------------------------------------ eyes shut (prayer, sleep)
   void eyesShut() {
     const uint32_t eye = L.eyeColor ? opaque(L.eyeColor) : kEye;
@@ -3701,6 +3781,7 @@ struct PostureRig : HumanPainter {
     finishM6();
   }
   void lowerFront() {
+    if (seat == kPzRide) { rideLegsFront(false); return; }
     if (seat == kPzChair) { chairLegsFront(); return; }
     if (seat == kPzFloor) { floorLegsFront(); return; }
     legsFront();
@@ -3736,7 +3817,8 @@ struct PostureRig : HumanPainter {
       if (form) tassets();
     } else {
       torsoFront(true);
-      if (seat == kPzChair) chairLegsBack();
+      if (seat == kPzRide) rideLegsFront(true);
+      else if (seat == kPzChair) chairLegsBack();
       else floorLegsBack();
     }
     if (cutK) ponchoFront();
@@ -3760,7 +3842,8 @@ struct PostureRig : HumanPainter {
       if (form) tassets();
     } else {
       torsoSide();
-      if (seat == kPzChair) chairLegsSide();
+      if (seat == kPzRide) rideLegsSide();
+      else if (seat == kPzChair) chairLegsSide();
       else floorLegsSide();
     }
     if (cutK) ponchoSide();
@@ -3778,6 +3861,10 @@ struct PostureRig : HumanPainter {
     const int f = fr;
     const bool odd = f & 1;
     switch (pz) {
+      case Posture::Ride:   // both hands forward over the withers, the reins running down to the bit
+        if (ph == 0) armR(12, ty + 4, 9, ty + 6);
+        else { armL(4, ty + 4, 6, ty + 6); reins(6, ty + 7, 6, hip + 1); reins(9, ty + 7, 9, hip + 1); }
+        break;
       case Posture::Sit: case Posture::SitFloor:
         if (ph == 0) armR(12, ty + 4, 11, seat == kPzFloor ? hip : ty + 6);
         else armL(4, ty + 4, 5, seat == kPzFloor ? hip : ty + 6);
@@ -4078,7 +4165,7 @@ struct PostureRig : HumanPainter {
     const bool odd = f & 1;
     auto elbowsIn = [&]() { if (ph == 0) { armL(3, ty + 3, 4, ty + 4, false); armR(12, ty + 3, 12, ty + 4, false); } };
     switch (pz) {
-      case Posture::Sit: case Posture::SitFloor: case Posture::Stir: case Posture::Read: case Posture::Beg:
+      case Posture::Sit: case Posture::SitFloor: case Posture::Stir: case Posture::Read: case Posture::Beg: case Posture::Ride:
         elbowsIn();
         break;
       case Posture::Pray:
@@ -4177,6 +4264,10 @@ struct PostureRig : HumanPainter {
     const bool odd = f & 1;
     const int o = P.lean;
     switch (pz) {
+      case Posture::Ride:   // the reins gathered in both hands before the saddle's pommel
+        if (ph == 0) armFar(8 + o, ty + 4, 11 + o, ty + 5);
+        if (ph == 2) { armNear(9 + o, ty + 4, 12 + o, ty + 5); reins(13 + o, ty + 5, 14 + o, ty + 6); }
+        break;
       case Posture::Sit: case Posture::SitFloor:
         if (ph == 0) armFar(8 + o, ty + 4, 10 + o, seat == kPzFloor ? hip : ty + 5);
         if (ph == 2) armNear(8 + o, ty + 4, 11 + o, seat == kPzFloor ? hip : ty + 5);

@@ -1083,7 +1083,7 @@ void Gen::joinBanks() {
         const int nx = x + D4X[d], ny = y + D4Y[d];
         if (nx < 1 || ny < 1 || nx >= W - 1 || ny >= H - 1) continue;
         const size_t ni = I(nx, ny);
-        if (M.bldgAt[ni] >= 0 || M.wall[ni] || cliff(nx, ny)) continue;
+        if (M.bldgAt[ni] >= 0 || M.wall[ni] || cliff(nx, ny) || mask[ni] == K_LOT) continue;   // (M7: never through a lot)
         const Ground g = M.at(nx, ny);
         if (groundSolid(g) && !groundWater(g)) continue;
         const int step = groundWater(g) ? 3 : 1;
@@ -1369,8 +1369,10 @@ bool Gen::step() {
     case 7: homesBegin(); break;
     case 8: if (homesSweep()) phase--; break;   // (M3: a slice a call, until the sweep is done)
     case 9: homesFinish(); break;
-    case 10: centrepieces(); stallsAndLamps(); archetypeDress(); spaces(); break;
-    case 11: yards(); tradeYards(); gardens(); break;
+    // (M7) a palisaded village plans its lots before the palisade goes up (the ring then runs round them: the lot's own
+    // fence closes its stretch), every other settlement after its squares, dress and spaces
+    case 10: if (palisade) lots(); centrepieces(); stallsAndLamps(); archetypeDress(); spaces(); break;
+    case 11: if (!palisade) lots(); yards(); tradeYards(); gardens(); break;   // (M7: the lots for sale first, then the yards round them)
     case 12: fields(); banners(); signposts(); break;
     case 13: greenery(); break;
     case 14: plazaFill(); break;

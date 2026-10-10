@@ -1,0 +1,46 @@
+# M7 VIEW lane: the YARD screen by touch at the iPhone review size (639x294, safe insets). A large lot with the showcase
+# farm; the hero stands in the yard, the YARD pill (bottom right, left of the bow) opens the yard screen: the catalogue
+# by category down the right side, the ghost on the world with its footprint grid (green fits, red with the reason),
+# PLACE, ROTATE, SELL, DONE; the camera keeps the ghost in the free part of the screen.
+#   embervale.exe --script tools/scripts/m7_view_yard_phone.txt     (m7_view_yard_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 10
++0.1 walk east 2.5
++0.2 home lot large
++0.1 gold 99999
++0.1 home fill
++0.2 build stand 8 10
++0.1 touch 1
++0.4 shot m7_view_yard_1_pill.png
++0.1 tap 412 252
++0.4 expect build mode yard
++0.3 shot m7_view_yard_2_open.png
+# the ANIMAL HOMES tab, the coop's cell, the ghost onto open ground (a tap on the world), PLACE
++0.1 tap 481 34
++0.1 tap 413 69
++0.1 build ghost 11 5
++0.6 expect build fits 1
++0.1 shot m7_view_yard_3_fits.png
++0.1 tap 435 250
++0.2 expect build at 11 5 coop
+# the ghost over the house: red, with the reason
++0.1 tap 436 69
++0.1 build ghost 7 2
++0.6 expect build fits 0
++0.1 shot m7_view_yard_4_blocked.png
+# DECOR: a lantern by the gate, then sell it back (50 %)
++0.1 tap 553 34
++0.1 tap 503 69
++0.1 build ghost 9 10
++0.4 tap 435 250
++0.2 expect build at 9 10 lantern
++0.2 shot m7_view_yard_5_lantern.png
++0.1 tap 526 220
++0.2 expect build at 9 10 nothing
++0.1 tap 526 250
++0.3 expect mode play
++0.3 shot m7_view_yard_6_after.png
++0.3 quit

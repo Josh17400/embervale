@@ -1,0 +1,69 @@
+# M7 LAND lane: the player's houses in the sylvan style beside NAEWYN (seed 4): all five shells (hut, cottage,
+# longhouse, townhouse, hall) built at once on large lots in a row of open ground (rpg_test --home-places), then for
+# each an exterior shot from the lot's front, the ground floor (an empty shell: rooms, doors, windows, stairs and the
+# hearth under the chimney; no furniture, the player's to bring) and, for the two-storey shells, the upper floor.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7_land_houses_sylvan.txt     (m7_land_sylvan_*.png)
+seed 4
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.3 at 736 -683
++0.6 home lot large
++0.1 home build hut sylvan instant
++0.1 expect home plots 1
++0.3 at 754 -683
++0.6 home lot large
++0.1 home build cottage sylvan instant
++0.1 expect home plots 2
++0.3 at 772 -683
++0.6 home lot large
++0.1 home build longhouse sylvan instant
++0.1 expect home plots 3
++0.3 at 790 -683
++0.6 home lot large
++0.1 home build townhouse sylvan instant
++0.1 expect home plots 4
++0.3 at 808 -683
++0.6 home lot large
++0.1 home build hall sylvan instant
++0.1 expect home plots 5
++3.5 hour 11
++0.3 at 746 -684
++1.0 shot m7_land_sylvan_hut.png
++0.1 enter hut
++0.1 expect inside 1
++0.8 shot m7_land_sylvan_hut_in.png
++0.2 walkto exit
++0.3 at 764 -683
++1.0 shot m7_land_sylvan_cottage.png
++0.1 enter house
++0.1 expect inside 1
++0.8 shot m7_land_sylvan_cottage_in.png
++0.2 walkto exit
++0.3 at 782 -683
++1.0 shot m7_land_sylvan_longhouse.png
++0.1 enter house
++0.1 expect inside 1
++0.8 shot m7_land_sylvan_longhouse_in.png
++0.2 walkto exit
++0.3 at 800 -683
++1.0 shot m7_land_sylvan_townhouse.png
++0.1 enter stonehouse
++0.1 expect inside 1
++0.8 shot m7_land_sylvan_townhouse_in.png
++0.1 floor 1
++0.1 expect floor 1
++0.8 shot m7_land_sylvan_townhouse_up.png
++0.1 floor 0
++0.2 walkto exit
++0.3 at 818 -682
++1.0 shot m7_land_sylvan_hall.png
++0.1 enter stonehouse
++0.1 expect inside 1
++0.8 shot m7_land_sylvan_hall_in.png
++0.1 floor 1
++0.1 expect floor 1
++0.8 shot m7_land_sylvan_hall_up.png
++0.1 floor 0
++0.2 walkto exit
++0.3 quit

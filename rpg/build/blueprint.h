@@ -65,6 +65,11 @@ struct Request {
   Form form = Form::Auto;
   uint8_t civic = 0;                     // CIVIC_* bits
   uint8_t seat = 0;                      // cult::Seat + 1 for a CIVIC_SEAT building (0: none)
+  // (M7 Home) 1: a house the player builds on a lot (Bldg::home 1 built / 3 under construction; home::houseBldg). The
+  // builder honours the request exactly: the footprint, the door on the door column, the storeys asked (a people who
+  // never stack their homes, the steppe's yurts, builds the player's two-storey shell as their own two-storey house)
+  // and the form. 0 (every generated building, and a bought one: its look never changes when it is sold) as before.
+  uint8_t home = 0;
   uint64_t key() const;
 };
 

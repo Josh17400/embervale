@@ -42,11 +42,22 @@ bool propStyled(Prop p);
 // fence tiles beside it). One 3/4 wall of one height for every run: a lit coping on top, coursed stones on every face
 // the camera sees, a cast shadow to the south-east, L / T / X corners closed with no gap or overshoot. 16x24, anchored
 // like FenceV (bottom on the tile's bottom edge, centred).
-Canvas dykePiece(int mask, const PropStyle& st);
+Canvas dykePiece(int bits, const PropStyle& st);
 // (M3b round 3) a clipped hedge piece that joins its neighbours the same way (mask as dykePiece): a rounded leafy
 // mass with a lit top, a shaded face toward the camera and a cast shadow, closed corners; snow lies on its top (and
 // drips over the face's lip) when `snow`. 16x24, anchored like dykePiece.
-Canvas hedgePiece(int mask, const PropStyle& st, bool snow);
+Canvas hedgePiece(int bits, const PropStyle& st, bool snow);
+// (M7 fix) the wood and cane fences joined the same way (Fence::Wattle hurdles, Bamboo palisades, Rope on posts): one
+// run of one height, closed corners, a cast shadow. For all three (and dykePiece / hedgePiece) bits 0..3 are the joins
+// (mask), bits 4..7 the sides that face a one-tile gateway (the run reaches its tile edge and a gatepost / pier stands
+// there) and bits 8..11 the sides where the run just ends (a post caps it). 16 wide, any height (dykes and hedges 28):
+// blit it with its bottom on the tile's bottom edge.
+Canvas fenceJoinPiece(int bits, const PropStyle& st);
+// (M7 fixer r2) the field gate hung in a one-tile gateway of a hedge, dyke or hurdle run (drawn on the gateway's
+// tile): a braced timber leaf, swung half open toward the camera from its jamb so its face reads (ns: the gateway is
+// in a north-south run, hinged at its north jamb; else in an east-west run, hinged at its west jamb), its cast shadow
+// on the ground. 16x28 (ns: 24x28, the leaf over the tile east), its left edge on the gateway's, anchored like hedgePiece.
+Canvas fieldGatePiece(bool ns);
 
 // ---------------------------------------------------------------- incremental building paints (M2 carry-over)
 // The web has no threads, and a palace painted in one go cost ~41 ms on desktop (~100 ms on an iPhone): one frame.

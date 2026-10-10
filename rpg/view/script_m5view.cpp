@@ -43,8 +43,8 @@ std::string lower(std::string s) { for (char& ch : s) if (ch >= 'A' && ch <= 'Z'
 const char* kPostureNames[(int)art::Posture::COUNT] = {"none", "sit", "siteat", "sitdrink", "eat", "drink", "cheer", "hammer", "hoe",
                                                         "sweep", "chop", "stir", "carry", "fish", "sleep", "wave", "play", "dance",
                                                         "lute", "drum", "flute", "pray", "beg", "lamp", "read", "sitfloor",
-                                                        "sitflooreat", "sitfloordrink"};
-const char* kCritterNames[(int)art::Critter::COUNT] = {"dog", "cat", "chicken", "rooster", "goat", "pig", "duck"};
+                                                        "sitflooreat", "sitfloordrink", "ride"};
+const char* kCritterNames[(int)art::Critter::COUNT] = {"dog", "cat", "chicken", "rooster", "goat", "pig", "duck", "cow", "sheep", "horse"};
 const char* kBubbleNames[(int)art::Bubble::COUNT] = {"none", "talk", "exclaim", "note", "mug", "heart", "bread", "zzz", "coin", "anger", "tear", "question"};
 
 int lookup(const char* const* names, int n, const std::string& w) {

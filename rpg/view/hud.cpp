@@ -11,6 +11,7 @@
 #include "rpg/culture/culture.h"
 #include "rpg/sim/craft.h"
 #include "rpg/sim/gear.h"
+#include "rpg/sim/home.h"
 #include "rpg/view/realm_ui.h"
 #include "rpg/view/view.h"
 #include "rpg/world/poi.h"
@@ -36,6 +37,22 @@ BtnDef btnPos(int b) {
   d.x = (float)(Pix::W - Pix::SR) - (480 - d.x);
   d.y = b == B_MENU ? (float)Pix::ST + d.y : (float)(Pix::H - Pix::SB) - (270 - d.y);
   return d;
+}
+// (M7 fixer r2, review: "a villager's bark was drawn over the touch combat buttons") a label's plate (centre cx, top y0,
+// w x h) moved clear of the bottom-right touch cluster (attack, bow, spell, roll, potion with a little margin): slid
+// left of it or lifted above it, whichever moves it less
+void clearOfTouch(float& cx, float& y0, float w, float h) {
+  float x0 = 1e9f, yt = 1e9f;
+  for (int b = 0; b < B_COUNT; b++) {
+    if (b == B_MENU) continue;
+    const BtnDef d = btnPos(b);
+    x0 = std::min(x0, d.x - d.r - 4);
+    yt = std::min(yt, d.y - d.r - 4);
+  }
+  if (cx + w / 2 + 3 <= x0 || y0 + h + 1 <= yt) return;
+  const float left = x0 - w / 2 - 4, up = yt - h - 2;
+  if (cx - left <= y0 - up) cx = std::floor(left);
+  else y0 = std::floor(up);
 }
 // the resting place of the movement stick (bottom-left of the safe area)
 Vec2 stickRest() { return Vec2((float)Pix::SL + 60, (float)(Pix::H - Pix::SB) - 55); }
@@ -512,6 +529,7 @@ void View::draw(Game& g, bool hasSave) {
       // (M5) and never over the name tag / E: TALK of the person the player faces (often the speaker): it stacks above
       if (tagOn_ && cx + w / 2.0f + 3 > tagX0_ && cx - w / 2.0f - 3 < tagX1_ && y0 - 1 < tagY1_ && y0 + h + 1 > tagY0_)
         y0 = std::floor(tagY0_ - 2 - h);
+      if (touchUI && g.mode == Mode::Play) clearOfTouch(cx, y0, (float)w + 6, h + 2);
       P.rect(cx - w / 2.0f - 3, y0 - 1, (float)w + 6, h + 2, Color(0.02f, 0.02f, 0.04f, 0.45f * a));
       P.rect(cx - w / 2.0f - 2, y0, (float)w + 4, h, Color(0.06f, 0.05f, 0.08f, 0.72f * a));
       for (size_t k = 0; k < ls.size(); k++) {
@@ -530,14 +548,15 @@ void View::draw(Game& g, bool hasSave) {
   else {
     // (M1 round 3) the HUD steps away under the menu and the shop (its bars, gold, minimap and the hamburger showed
     // round the panel's edges on a wide phone)
-    if (g.mode != Mode::Menu && g.mode != Mode::Shop && g.mode != Mode::LevelUp && g.mode != Mode::Forge) drawHud(g);
+    if (g.mode != Mode::Menu && g.mode != Mode::Shop && g.mode != Mode::LevelUp && g.mode != Mode::Forge && g.mode != Mode::Build) drawHud(g);
     if (touchUI && (g.mode == Mode::Play)) drawTouch(g);
     if (g.mode == Mode::Dialogue) drawDialogue(g);
     // toasts and the banner wait while a dialogue is open (render.cpp holds their timers): on a phone the touch
     // panel is tall and anything drawn over it hides the speaker and the first line
-    if (g.mode != Mode::Shop && g.mode != Mode::Menu && g.mode != Mode::Dialogue && g.mode != Mode::Forge) drawToasts();
+    if (g.mode != Mode::Shop && g.mode != Mode::Menu && g.mode != Mode::Dialogue && g.mode != Mode::Forge && g.mode != Mode::Build) drawToasts();
     if (g.mode == Mode::Shop) drawShop(g);
     if (g.mode == Mode::Forge) drawForge(g);   // M6 (craft_ui.cpp)
+    if (g.mode == Mode::Build) drawBuild(g);   // M7 (buildmode.cpp)
     if (g.mode == Mode::Menu) drawMenu(g);
     if (g.mode == Mode::LevelUp) drawLevelUp(g);
     if (g.mode == Mode::Dead) drawDead(g);
@@ -1061,6 +1080,7 @@ void View::drawHud(Game& g) {
   // NPC name / interact prompt
   tagOn_ = false;
   int it = g.mode == Mode::Play ? g.interactTarget() : -1;
+  const std::string homeVerb = it < 0 ? home::interactLabel(g) : std::string();   // (M7) the yard's use
   if (it >= 0) {
     for (const Actor& a : g.actors)
       if (a.id == it) {
@@ -1074,7 +1094,10 @@ void View::drawHud(Game& g) {
         float ly = marked ? s.y - art::HUMAN_H - 24.0f : s.y - 34.0f;
         // keep the label off the hero: when the hero's head is where the label would go, lift it clear
         const Vec2 hs = g.pl().p - Vec2(std::floor(cam_.x), std::floor(cam_.y));
-        const char* verb = a.critter ? "E: PET" : "E: TALK";   // (M5) village animals are petted, not talked to
+        // (M5) village animals are petted, not talked to; (M7) the player's own animals say what the button does
+        // (RIDE <NAME> for the waiting horse, GROOM with a brush): home::interactLabel shares homeInteract's decision
+        std::string critterUse = a.critter ? home::interactLabel(g) : std::string();
+        const std::string verb = a.critter ? "E: " + (critterUse.empty() ? std::string("PET") : critterUse) : std::string("E: TALK");
         const float labelW = (float)std::max(P.textW(a.name, 1), touchUI ? 0 : P.textW(verb, 1)) * 0.5f + 6;
         const float labelTop = ly - (touchUI ? 2.0f : 11.0f);
         if (std::fabs(hs.x - s.x) < labelW + 6 && hs.y - 30.0f < ly + 8 && hs.y > labelTop - 4)
@@ -1090,17 +1113,50 @@ void View::drawHud(Game& g) {
           const float topY = ly - (touchUI ? 0.0f : 9.0f);
           if (lx - half < hudR && topY < hudB) ly = s.y + (touchUI ? 4.0f : 13.0f);
         }
-        P.textS(lx, ly, a.name, 1, kText, 1);
-        if (!touchUI) P.textS(lx, ly - 9, verb, 1, kGold, 1);
+        // (M7 fix) "E: RIDE DUSTY" already names her: one label, not the verb stacked over the name
+        const bool verbNames = !touchUI && !a.name.empty() && verb.size() > a.name.size() && verb.compare(verb.size() - a.name.size(), a.name.size(), a.name) == 0;
+        if (verbNames) P.textS(lx, ly, verb, 1, kGold, 1);
+        else {
+          P.textS(lx, ly, a.name, 1, kText, 1);
+          if (!touchUI) P.textS(lx, ly - 9, verb, 1, kGold, 1);
+        }
         tagOn_ = true;
         tagX0_ = lx - labelW; tagX1_ = lx + labelW;
         tagY0_ = ly - (touchUI ? 2.0f : 11.0f); tagY1_ = ly + 9.0f;
       }
+  } else if (g.mode == Mode::Play && !homeVerb.empty()) {
+    // (M7) the player's own yard: exactly what the use button will do on the tile ahead ("E: PLANT BARLEY"), over it
+    const Actor& hp = g.pl();
+    const Vec2 probe = hp.p + hp.aim * 12.0f + Vec2(0, -4);
+    const float px = std::floor(probe.x / TILE) * TILE + 8.0f, py = std::floor(probe.y / TILE) * TILE;
+    Vec2 s = Vec2(px, py - 4.0f) - Vec2(std::floor(cam_.x), std::floor(cam_.y));
+    const Vec2 hs = hp.p - Vec2(std::floor(cam_.x), std::floor(cam_.y));
+    if (std::fabs(hs.x - s.x) < 30 && s.y - 10 > hs.y - 40 && s.y - 10 < hs.y + 4) s.y = hs.y - 30;   // off the hero's head
+    const std::string lab = std::string(touchUI ? "TAP: " : "E: ") + homeVerb;
+    const float w = (float)P.textW(lab, 1) + 8;
+    // (M7 fix) clear of the toast column on the left (a need's notice ran into the prompt: "...OR AE: LOOK AT")
+    if (toastX1_ > 0 && s.x - w / 2 < toastX1_ + 4 && s.y - 13 < toastY1_ + 2 && s.y - 2 > toastY0_ - 2) s.x = toastX1_ + 4 + w / 2;
+    if (touchUI) { float ty = s.y - 13; clearOfTouch(s.x, ty, w, 11); s.y = ty + 13; }   // (M7 fixer r2)
+    P.rect(s.x - w / 2, s.y - 13, w, 11, Color(0.04f, 0.03f, 0.05f, 0.55f));
+    P.textS(s.x, s.y - 11, lab, 1, kGold, 1);
+    if (!touchUI) {   // the tile it acts on: four corner ticks
+      const float tx = px - 8 - std::floor(cam_.x), ty = py - std::floor(cam_.y);
+      const Color tc(kGold.r, kGold.g, kGold.b, 0.75f);
+      for (int k = 0; k < 4; k++) {
+        const float cx = tx + ((k & 1) ? 13.0f : 0.0f), cy = ty + ((k & 2) ? 15.0f : 0.0f);
+        P.rect(cx, cy, 3, 1, tc);
+        P.rect(cx + ((k & 1) ? 2.0f : 0.0f), cy + ((k & 2) ? -2.0f : 0.0f), 1, 3, tc);
+      }
+    }
   } else if (g.mode == Mode::Play) {
     int ptx = 0, pty = 0, pr = usablePropAt(g, ptx, pty);
     if (pr) {
       Vec2 s = Vec2(ptx * 16 + 8.0f, pty * 16 - 4.0f) - Vec2(std::floor(cam_.x), std::floor(cam_.y));
-      P.textS(s.x, s.y - 10, std::string(touchUI ? "TAP: " : "E: ") + useVerbAt(g, pr, ptx, pty), 1, kGold, 1);
+      const std::string lab = std::string(touchUI ? "TAP: " : "E: ") + useVerbAt(g, pr, ptx, pty);
+      const float w = (float)P.textW(lab, 1);
+      if (toastX1_ > 0 && s.x - w / 2 < toastX1_ + 4 && s.y - 11 < toastY1_ + 2 && s.y - 2 > toastY0_ - 2) s.x = toastX1_ + 4 + w / 2;   // (M7 fix)
+      if (touchUI) { float ty = s.y - 11; clearOfTouch(s.x, ty, w + 4, 10); s.y = ty + 11; }   // (M7 fixer r2)
+      P.textS(s.x, s.y - 10, lab, 1, kGold, 1);
     }
   }
 
@@ -1166,6 +1222,7 @@ void View::drawHud(Game& g) {
     }
   }
   drawHerald(g);
+  drawHomeHud(g);   // (M7) YARD / DECORATE, DISMOUNT (buildmode.cpp)
 }
 
 // Toasts (items received, quest steps, notices): a column on the left under the vitals, clear of the thumbs (the
@@ -1184,6 +1241,7 @@ void View::drawToasts() {
   // starts under it while it shows
   if (bannerT_ > 0) ty = std::max(ty, (float)Pix::ST + 56 + (bannerState_.empty() ? 30.0f : 42.0f));
   int shown = 0;
+  toastX1_ = 0; toastY0_ = ty - 2; toastY1_ = ty - 2;
   for (int i = (int)toasts_.size() - 1; i >= 0 && shown < 5; i--, shown++) {
     const Toast& t = toasts_[i];
     float a = clampf(4.0f - t.t, 0, 1);
@@ -1193,6 +1251,7 @@ void View::drawToasts() {
       const std::string& s = lines[k];
       float w = (float)P.textW(s, 1);
       P.rect(L + 3, ty - 2, w + 6, k + 1 < lines.size() ? 10.0f : 10.0f, Color(0.03f, 0.02f, 0.05f, 0.42f * a));
+      if (a > 0.05f) { toastX1_ = std::max(toastX1_, L + 9 + w); toastY1_ = ty + 8; }
       P.textS(L + 7, ty + 1, s, 1, Color(0, 0, 0, a * 0.6f));
       P.textS(L + 6, ty, s, 1, Color(t.c.r, t.c.g, t.c.b, a));
       ty += k + 1 < lines.size() ? 10.0f : 11.0f;
@@ -1238,7 +1297,8 @@ void View::drawTouch(Game& g) {
     }
   }
   int target = g.interactTarget();
-  int utx = 0, uty = 0, usePr = target < 0 ? usablePropAt(g, utx, uty) : 0;
+  const std::string homeUse = target < 0 ? home::interactLabel(g) : std::string();   // (M7) the yard's use
+  int utx = 0, uty = 0, usePr = target < 0 && homeUse.empty() ? usablePropAt(g, utx, uty) : 0;
   for (int b = 0; b < B_MENU; b++) {
     const BtnDef d = btnPos(b);
     bool held = false;
@@ -1256,7 +1316,22 @@ void View::drawTouch(Game& g) {
         if (target >= 0) {
           const Actor* ta = nullptr;
           for (const Actor& x : g.actors) if (x.id == target) { ta = &x; break; }
-          P.text(d.x, d.y - 3, ta && ta->critter ? "PET" : "TALK", 1, kGold, 1);
+          std::string tv = "TALK";
+          if (ta && ta->critter) {   // (M7) RIDE / GROOM for the player's own animals, else PET
+            tv = home::interactLabel(g);
+            if (tv.empty()) tv = "PET";
+            const size_t sp = tv.find(' ');
+            if (sp != std::string::npos && P.textW(tv, 1) > (int)(d.r * 2 - 4)) tv = tv.substr(0, sp);
+          }
+          P.text(d.x, d.y - 3, tv, 1, kGold, 1);
+        }
+        else if (!homeUse.empty()) {   // (M7) PLANT / WATER / HARVEST / TILL: the verb, its crop under it when it fits
+          const size_t sp = homeUse.find(' ');
+          if (sp == std::string::npos || P.textW(homeUse, 1) <= (int)(d.r * 2 - 4)) P.text(d.x, d.y - 3, homeUse, 1, kGold, 1);
+          else {
+            P.text(d.x, d.y - 7, homeUse.substr(0, sp), 1, kGold, 1);
+            P.text(d.x, d.y + 2, homeUse.substr(sp + 1, (size_t)std::max(1.0f, (d.r * 2 - 4) / 6)), 1, kText, 1);
+          }
         }
         else if (usePr) P.text(d.x, d.y - 3, useVerbAt(g, usePr, utx, uty), 1, kGold, 1);
         else if (g.eqWeapon >= 0) P.blitEx(itemTex(g, g.inv[g.eqWeapon]), 0, 0, 16, 16, d.x - 12, d.y - 12, 24, 24);
@@ -1425,6 +1500,25 @@ void View::drawMinimap(Game& g, float x, float y, int size) {
       Color c = s.type == SiteType::Cave || s.type == SiteType::Ruin ? Color(0.75f, 0.6f, 1) : s.type == SiteType::BanditCamp ? Color(1, 0.4f, 0.3f) : Color(1, 0.9f, 0.6f);
       P.rect(x + ax - 1, y + ay - 1, 3, 3, Color(0, 0, 0, 0.8f));
       P.rect(x + ax, y + ay, 1, 1, c);
+    }
+  // (M7) the player's property: its ground outlined in warm gold and a small roof glyph over its middle
+  if (!g.inside && g.world.endless)
+    for (const home::Plot& hp : g.home.plots) {
+      const int px0 = hp.gx - g.world.ox - ox, py0 = hp.gy - g.world.oy - oy;
+      if (px0 + hp.w < 0 || py0 + hp.h < 0 || px0 >= 64 || py0 >= 64) continue;
+      const float k = size / 64.0f;
+      const float rx0 = x + std::max(0, px0) * k, ry0 = y + std::max(0, py0) * k;
+      const float rx1 = x + std::min(64, px0 + (int)hp.w) * k, ry1 = y + std::min(64, py0 + (int)hp.h) * k;
+      P.rect(rx0, ry0, rx1 - rx0, ry1 - ry0, Color(0.95f, 0.78f, 0.42f, 0.28f));
+      P.frame(rx0, ry0, rx1 - rx0, ry1 - ry0, Color(0.98f, 0.82f, 0.42f, 0.9f));
+      const float cx = std::floor(x + (px0 + hp.w * 0.5f) * k), cy = std::floor(y + (py0 + hp.h * 0.5f) * k);
+      if (cx < x + 3 || cy < y + 4 || cx > x + size - 4 || cy > y + size - 3) continue;
+      // a house: a dark outline, a red roof, a pale wall
+      P.rect(cx - 3, cy - 3, 7, 7, Color(0.08f, 0.05f, 0.04f, 0.9f));
+      P.rect(cx - 2, cy - 2, 5, 1, Color(0.86f, 0.32f, 0.24f));
+      P.rect(cx - 1, cy - 3, 3, 1, Color(0.86f, 0.32f, 0.24f));
+      P.rect(cx - 2, cy - 1, 5, 3, Color(0.96f, 0.90f, 0.74f));
+      P.rect(cx, cy + 1, 1, 2, Color(0.40f, 0.26f, 0.16f));
     }
   P.rect(x + (ptx - ox) * size / 64.0f - 1, y + (pty - oy) * size / 64.0f - 1, 3, 3, Color(1, 1, 1));
   int tx, ty;
@@ -2071,14 +2165,15 @@ Input View::input(Game& g) {
     // OPEN, PRAY...) the tap is a use, and a held finger must not turn the next frame back into a swing
     for (auto& f : fingers_) {
       int hx = 0, hy = 0;
-      if (f.on && f.button == B_ATTACK && g.interactTarget() < 0 && !usablePropAt(g, hx, hy)) in.attack = true;
+      if (f.on && f.button == B_ATTACK && !f.use && g.interactTarget() < 0 && !usablePropAt(g, hx, hy) && home::interactLabel(g).empty()) in.attack = true;
     }
   }
   if (kAttack_) { in.attack = true; }
   in.bow = kBow_; in.spell = kSpell_; in.roll = kRoll_; in.interact = kUse_; in.potion = kPotion_; in.swapSpell = kSwap_;
   int utx = 0, uty = 0;
   // the attack key/button talks when someone is in reach; a tap on the world far from them stays an attack
-  if (in.attack && g.mode == Mode::Play && kAttack_ && !kTapAttack_ && (g.interactTarget() >= 0 || usablePropAt(g, utx, uty))) { in.attack = false; in.interact = true; }
+  if (in.attack && g.mode == Mode::Play && kAttack_ && !kTapAttack_ &&
+      (g.interactTarget() >= 0 || usablePropAt(g, utx, uty) || !home::interactLabel(g).empty())) { in.attack = false; in.interact = true; }
   kAttack_ = kBow_ = kSpell_ = kRoll_ = kUse_ = kPotion_ = kSwap_ = kTapAttack_ = false;
   return in;
 }
@@ -2086,6 +2181,7 @@ Input View::input(Game& g) {
 void View::menuKey(Game& g, int key) {
   auto back = [&]() { g.mode = Mode::Play; audio_->play(Sfx::MenuBack); };
   if (g.mode == Mode::Forge) { forgeKey(g, key); return; }   // M6 (craft_ui.cpp)
+  if (g.mode == Mode::Build) { buildKey(g, key); return; }   // M7 (buildmode.cpp)
   if (g.mode == Mode::Menu || g.mode == Mode::LevelUp) {
     if (key == SDLK_ESCAPE || key == SDLK_TAB || key == SDLK_I) { back(); return; }
     // (M1) on the MAP tab Q / E zoom (worldMapKey); PageUp / PageDown and A / D still switch tabs there
@@ -2167,6 +2263,7 @@ void View::tap(Game& g, Vec2 p) {
   if (settingsOpen_) { settingsTap(p); return; }
   if (g.mode == Mode::Creator) { creatorTap(g, p); return; }
   if (g.mode == Mode::Forge) { forgeTap(g, p); return; }   // M6 (craft_ui.cpp: it maps the tap into its own box)
+  if (g.mode == Mode::Build) { buildTap(g, p); return; }   // M7 (buildmode.cpp: screen coordinates; the ghost on the world)
   if (g.mode == Mode::Dead) { if (modeT_ > 1.2f) g.respawn(); return; }
   if (g.mode == Mode::Paused) { g.mode = Mode::Play; return; }
   // the dialogue, the shop and the menu are laid out in a 480-wide box (drawDialogue / drawShop / drawMenu): the tap
@@ -2346,6 +2443,7 @@ void View::event(const SDL_Event& e, Game& g) {
       if (onMap && e.wheel.y != 0) worldMapZoom(e.wheel.y > 0 ? -1 : 1, inBox(modalBox(g), mouse_));
       break;
     case SDL_EVENT_MOUSE_BUTTON_UP:
+      if (g.mode == Mode::Build && e.button.which != SDL_TOUCH_MOUSEID && e.button.button == SDL_BUTTON_LEFT) buildPointer(g, 2, logical(e.button.x, e.button.y));
       if (onMap && e.button.which != SDL_TOUCH_MOUSEID && e.button.button == SDL_BUTTON_LEFT && mapPtr(2, 1ull << 62, logical(e.button.x, e.button.y)))
         tap(g, logical(e.button.x, e.button.y));
       break;
@@ -2370,6 +2468,7 @@ void View::event(const SDL_Event& e, Game& g) {
       if (g.mode == Mode::Paused) { if (k == SDLK_ESCAPE || k == SDLK_RETURN || k == SDLK_SPACE) g.mode = Mode::Play; break; }
       if (g.mode == Mode::Creator) { creatorKey(g, (int)k); break; }
       if (g.mode != Mode::Play) { menuKey(g, k); break; }
+      if (homeHudKey(g, (int)k)) break;   // (M7) B: yard / decorate, F: dismount
       switch (k) {
         case SDLK_ESCAPE: g.mode = Mode::Paused; break;
         // (M2 fixer round 2) no menu on the road: it stopped the journey mid-gather (and its SYSTEM tab saved and quit
@@ -2389,6 +2488,7 @@ void View::event(const SDL_Event& e, Game& g) {
     }
     case SDL_EVENT_MOUSE_MOTION:
       mouse_ = logical(e.motion.x, e.motion.y);
+      if (g.mode == Mode::Build && e.motion.which != SDL_TOUCH_MOUSEID && (e.motion.state & SDL_BUTTON_LMASK)) buildPointer(g, 1, mouse_);
       if (onMap && e.motion.which != SDL_TOUCH_MOUSEID) mapPtr(1, 1ull << 62, mouse_);
       break;
     case SDL_EVENT_MOUSE_BUTTON_DOWN: {
@@ -2400,6 +2500,7 @@ void View::event(const SDL_Event& e, Game& g) {
         break;
       }
       if (g.mode == Mode::Play) {
+        if (e.button.button == SDL_BUTTON_LEFT && homeHudTap(g, p)) break;   // (M7) the home pills
         if (e.button.button == SDL_BUTTON_LEFT) kAttack_ = true;
         else if (e.button.button == SDL_BUTTON_RIGHT) kBow_ = true;
         break;
@@ -2428,12 +2529,20 @@ void View::event(const SDL_Event& e, Game& g) {
         if (bp.x >= 16 && bp.x < box.w - 164 && bp.y >= 40 && bp.y < box.h - 12) { mapPtr(0, (uint64_t)e.tfinger.fingerID, p); break; }
       }
       if (g.mode != Mode::Play) { tap(g, p); break; }
+      if (homeHudTap(g, p)) break;   // (M7) YARD / DECORATE, DISMOUNT
       int b = buttonAt(p);
       // (fixer M5 r3, review: "nothing explains the buff icons when tapped") a tap on the buff icons says what they do
       if (b < 0 && buffTap(g, p)) break;
       Finger f; f.id = e.tfinger.fingerID; f.on = true; f.start = f.cur = p; f.button = b; f.t0 = SDL_GetTicks();
       if (b == B_MENU) { if (!g.travelling()) { g.mode = Mode::Menu; menuTab_ = g.perkPts > 0 ? 3 : 0; menuSel_ = 0; audio_->play(Sfx::MenuSelect); } break; }
-      if (b == B_ATTACK) kAttack_ = true;
+      if (b == B_ATTACK) {
+        kAttack_ = true;
+        // (M7 fix r3) a touch that starts while the button reads a use verb (TALK, RIDE, OPEN...) stays a use for its
+        // whole hold: the held-finger repeat must not turn it into a swing once the verb is gone (mounting clears it,
+        // and the swing would get the rider straight off again)
+        int ux = 0, uy = 0;
+        if (g.interactTarget() >= 0 || usablePropAt(g, ux, uy) || !home::interactLabel(g).empty()) f.use = true;
+      }
       else if (b == B_BOW) kBow_ = true;
       else if (b == B_SPELL) kSpell_ = true;
       else if (b == B_ROLL) kRoll_ = true;
@@ -2449,7 +2558,7 @@ void View::event(const SDL_Event& e, Game& g) {
           for (const Actor& a : g.actors)
             if (a.id == it && (len2(p - (a.p - cam - Vec2(0, 10))) < 40.0f * 40.0f || len2(p - (g.pl().p - cam - Vec2(0, 10))) < 40.0f * 40.0f)) talk = true;
         }
-        if (talk || usablePropAt(g, utx, uty)) kUse_ = true; else { kAttack_ = true; kTapAttack_ = true; }
+        if (talk || usablePropAt(g, utx, uty) || !home::interactLabel(g).empty()) kUse_ = true; else { kAttack_ = true; kTapAttack_ = true; }
       }
       fingers_.push_back(f);
       break;
@@ -2459,11 +2568,17 @@ void View::event(const SDL_Event& e, Game& g) {
       SDL_GetWindowSize(pix_->window(), &ww, &wh);
       Vec2 p = logical(e.tfinger.x * ww, e.tfinger.y * wh);
       if (onMap) mapPtr(1, (uint64_t)e.tfinger.fingerID, p);
+      if (g.mode == Mode::Build) buildPointer(g, 1, p);   // (M7) the ghost or a list dragged
       if (stick_.on && stick_.id == e.tfinger.fingerID) stick_.cur = p;
       for (auto& f : fingers_) if (f.id == e.tfinger.fingerID) f.cur = p;
       break;
     }
     case SDL_EVENT_FINGER_UP: case SDL_EVENT_FINGER_CANCELED: {
+      if (g.mode == Mode::Build) {   // (M7) a drag ends; a still tap on a list row acts now
+        int ww, wh;
+        SDL_GetWindowSize(pix_->window(), &ww, &wh);
+        buildPointer(g, 2, logical(e.tfinger.x * ww, e.tfinger.y * wh));
+      }
       if (onMap) {
         int ww, wh;
         SDL_GetWindowSize(pix_->window(), &ww, &wh);
@@ -2571,6 +2686,13 @@ void View::drawBuffs(Game& g, float x, float y) {
     const bool blink = left < 1.0f && ((int)(t_ * 3) & 1);
     const Tex& t = cachedTex(0x4Eull << 56 | bit, paintBuffIcon);
     P.blitEx(t, 0, 0, t.w, t.h, std::floor(cx), std::floor(y), (float)t.w, (float)t.h, false, Color(1, 1, 1, blink ? 0.45f : 1.0f));
+    if (bit == life::BUFF_WELLFED && pn.mealQuality > 0) {   // (M7, 15.2) the meal's quality: gold pips under the loaf
+      for (int q = 0; q < std::min(3, (int)pn.mealQuality); q++) {
+        const float qx = std::floor(cx) + 1 + q * 3.5f, qy = std::floor(y) + t.h + 1;
+        P.rect(qx - 0.5f, qy - 0.5f, 3, 3, Color(0.05f, 0.04f, 0.04f, 0.8f));
+        P.rect(qx, qy, 2, 2, Color(0.98f, 0.82f, 0.42f, blink ? 0.45f : 1.0f));
+      }
+    }
     cx += t.w + 2;
   }
 }
@@ -2584,7 +2706,11 @@ bool View::buffTap(Game& g, Vec2 p) {
   for (uint8_t bit : {life::BUFF_WELLFED, life::BUFF_RESTED, life::BUFF_HUNGRY, life::BUFF_WEARY}) if (bf & bit) n++;
   if (p.x < x0 || p.x >= x0 + n * 13.0f + 6 || p.y < y0 || p.y >= y0 + 19) return false;
   auto say = [&](const char* s, uint32_t c) { Toast t; t.s = s; t.c = col(c); toasts_.push_back(t); };
-  if (bf & life::BUFF_WELLFED) say("WELL FED: STAMINA AND HEALTH COME BACK FASTER", rgba(240, 200, 110));
+  if (bf & life::BUFF_WELLFED) {
+    static const char* kQ[] = {"WELL FED", "WELL FED (GOOD MEAL)", "WELL FED (FINE MEAL)", "WELL FED (SUPERB MEAL)"};
+    const std::string s = std::string(kQ[std::min(3, (int)g.life.player.mealQuality)]) + ": STAMINA AND HEALTH COME BACK FASTER";
+    Toast t; t.s = s; t.c = col(rgba(240, 200, 110)); toasts_.push_back(t);
+  }
   if (bf & life::BUFF_RESTED) say("RESTED: +10% EXPERIENCE", rgba(150, 200, 255));
   if (bf & life::BUFF_HUNGRY) say("HUNGRY: STAMINA COMES BACK SLOWER. EAT FOOD (ITEMS) OR A MEAL AT AN INN", rgba(220, 160, 110));
   if (bf & life::BUFF_WEARY) say("WEARY: SLEEP IN A BED, A BEDROLL OR AN INN ROOM", rgba(170, 160, 200));

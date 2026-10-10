@@ -1,0 +1,21 @@
+# M7 VIEW lane: riding at the iPhone review size: the rider and the DISMOUNT pill (bottom right), tapped.
+#   embervale.exe --script tools/scripts/m7_view_ride_phone.txt     (m7_view_ridep_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 walk east 2.5
++0.2 home lot medium
++0.1 gold 99999
++0.1 home fill
++0.1 home ride
++0.1 touch 1
++0.1 hold D 0.6
++0.2 touch 1
++0.1 shot m7_view_ridep_1.png
++0.4 tap 412 252
++0.2 expect home riding 0
++0.1 expect home dismounts player 1
++0.3 shot m7_view_ridep_2_off.png
++0.3 quit

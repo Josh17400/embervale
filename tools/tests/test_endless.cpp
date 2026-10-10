@@ -34,6 +34,7 @@
 #include "rpg/world/coords.h"
 #include "rpg/world/ids.h"
 #include "rpg/world/source.h"
+#include "rpg/sim/game.h"
 #include "tools/tests/tests.h"
 
 namespace {
@@ -436,6 +437,308 @@ int reachWindow(EndlessSource& A, uint64_t seed, int32_t wx0, int32_t wy0, const
   return bad;
 }
 
+
+// ---- (M7 Home, VISION_PLAN 8.2) the lots for sale in the real world: every village and town within `radius` tiles of
+// the start has 1..3 lots in its chunk records (ChunkData::plots: the whole list in every chunk the settlement touches,
+// the same list in each), and each lot keeps the layout contract of rpg/world/plots.h on the chunks' final tiles
+// (after every pass of the chunk pipeline): clear ground inside (no building, wall, water, cliff or ramp, street, field;
+// one level), no prop inside but the FOR SALE sign beside the gate, the fence ring on the border with the one gap at
+// the gate, and the gate reached on foot from the settlement's heart. Optionally collects the lots (the --lots places).
+struct WorldLots { int sites = 0, lots = 0, river = 0, villages = 0, towns = 0, wetSites = 0, wetWith = 0; std::vector<std::pair<SitePlan, PlotPlan>> all; };
+int checkWorldLots(EndlessSource& A, uint64_t seed, int32_t radius, WorldLots& W) {
+  int bad = 0;
+  auto fail = [&](const std::string& s) { if (bad < 12) out("FAIL: seed %llu: lots: %s\n", (unsigned long long)seed, s.c_str()); bad++; };
+  const StartPlan& sp = A.start();
+  std::map<std::pair<int32_t, int32_t>, ChunkData> cache;
+  auto chunkAt = [&](int32_t cx, int32_t cy) -> const ChunkData& {
+    auto it = cache.find({cx, cy});
+    if (it != cache.end()) return it->second;
+    ChunkData& c = cache[{cx, cy}];
+    A.chunk(cx, cy, c);
+    return c;
+  };
+  struct T { uint8_t g, p, h, w; bool b; };
+  auto tile = [&](int32_t x, int32_t y) {
+    const ChunkData& c = chunkAt(chunkOf(x), chunkOf(y));
+    const int i = c.at(x - c.cx * CHUNK, y - c.cy * CHUNK);
+    return T{c.ground[i], c.prop[i], c.height[i], c.wall[i], c.bldg[i] != 0};
+  };
+  const int R0x = floorDiv(sp.spawn.x - radius, REGION), R1x = floorDiv(sp.spawn.x + radius, REGION);
+  const int R0y = floorDiv(sp.spawn.y - radius, REGION), R1y = floorDiv(sp.spawn.y + radius, REGION);
+  std::vector<SitePlan> sites;
+  for (int ry = R0y; ry <= R1y; ry++)
+    for (int rx = R0x; rx <= R1x; rx++)
+      for (const SitePlan& p : A.region(rx, ry).sites)
+        if (isSettle(p.type) && std::abs(p.ex - sp.spawn.x) <= radius && std::abs(p.ey - sp.spawn.y) <= radius) sites.push_back(p);
+  for (const SitePlan& p : sites) {
+    W.sites++;
+    // the lots in the records of the chunk under the heart, and the same list in a chunk at the footprint's corner
+    std::vector<PlotPlan> L, L2;
+    for (const PlotPlan& q : chunkAt(chunkOf(p.ex), chunkOf(p.ey)).plots) if (q.site == p.id) L.push_back(q);
+    for (const PlotPlan& q : chunkAt(chunkOf(p.gx + 2), chunkOf(p.gy + 2)).plots) if (q.site == p.id) L2.push_back(q);
+    if (L.size() != L2.size()) fail(p.name + ": its chunks disagree on its lots");
+    const bool vt = p.type == SiteType::Village || p.type == SiteType::Town;
+    if (p.type == SiteType::Village) W.villages++;
+    if (p.type == SiteType::Town) W.towns++;
+    if (vt && (L.empty() || L.size() > 3)) fail(p.name + " (" + siteTypeName(p.type) + "): " + std::to_string(L.size()) + " lots");
+    if (!vt && !L.empty()) fail(p.name + " (city): " + std::to_string(L.size()) + " lots");
+    if (L.empty()) continue;
+    // the heart's reach over the settlement's area (its footprint and a margin)
+    const int32_t X0 = p.gx - 16, Y0 = p.gy - 16, NW = p.w + 32, NH = p.h + 32;
+    std::vector<uint8_t> walk((size_t)NW * NH, 0), seen((size_t)NW * NH, 0);
+    bool wet = false;   // a river or a lake within the footprint (the riverside share is over these)
+    for (int y = 0; y < NH; y++)
+      for (int x = 0; x < NW; x++) {
+        const T t = tile(X0 + x, Y0 + y);
+        if (!wet && x >= 16 && y >= 16 && x < NW - 16 && y < NH - 16 && groundWater((Ground)t.g)) {
+          const ChunkData& cc = chunkAt(chunkOf(X0 + x), chunkOf(Y0 + y));
+          wet = cc.biome[cc.at(X0 + x - cc.cx * CHUNK, Y0 + y - cc.cy * CHUNK)] != (uint8_t)Biome::Ocean;
+        }
+        const bool solid = groundSolid((Ground)t.g) || t.w || (t.h & Map::HEIGHT_CLIFF) || (t.p && propSolid((art::Prop)(t.p - 1))) || t.b;
+        walk[(size_t)y * NW + x] = !solid;
+      }
+    std::vector<int> q;
+    for (int oy = -3; oy <= 3; oy++)
+      for (int ox = -3; ox <= 3; ox++) {
+        const int x = p.ex - X0 + ox, y = p.ey - Y0 + oy;
+        if (x >= 0 && y >= 0 && x < NW && y < NH && walk[(size_t)y * NW + x] && !seen[(size_t)y * NW + x]) { seen[(size_t)y * NW + x] = 1; q.push_back(y * NW + x); }
+      }
+    for (size_t h = 0; h < q.size(); h++) {
+      const int k = q[h], x = k % NW, y = k / NW;
+      const int nb[4] = {x > 0 ? k - 1 : -1, x < NW - 1 ? k + 1 : -1, y > 0 ? k - NW : -1, y < NH - 1 ? k + NW : -1};
+      for (int n : nb) if (n >= 0 && walk[(size_t)n] && !seen[(size_t)n]) { seen[(size_t)n] = 1; q.push_back(n); }
+    }
+    if (vt && wet) {
+      W.wetSites++;
+      bool any = false;
+      for (const PlotPlan& l : L) any = any || (l.flags & PLOT_RIVERSIDE);
+      W.wetWith += any;
+    }
+    for (const PlotPlan& l : L) {
+      W.lots++;
+      if (l.flags & PLOT_RIVERSIDE) W.river++;
+      W.all.push_back({p, l});
+      const std::string nm = p.name + " lot " + std::to_string(idLocal(l.id));
+      const int lv = tile(l.gateX, l.gateY).h & Map::HEIGHT_LEVEL;
+      int signs = 0;
+      for (int32_t y = l.gy; y < l.gy + l.h; y++)
+        for (int32_t x = l.gx; x < l.gx + l.w; x++) {
+          const T t = tile(x, y);
+          const Ground g = (Ground)t.g;
+          const bool border = x == l.gx || y == l.gy || x == l.gx + l.w - 1 || y == l.gy + l.h - 1;
+          if (t.b || t.w) { fail(nm + ": a building or wall at " + std::to_string(x) + "," + std::to_string(y)); continue; }
+          if (groundSolid(g) || g == Ground::Road || g == Ground::Plaza || g == Ground::Bridge || g == Ground::Farmland) { fail(nm + ": ground " + std::to_string((int)g) + " at " + std::to_string(x) + "," + std::to_string(y)); continue; }
+          if ((t.h & (Map::HEIGHT_CLIFF | Map::HEIGHT_RAMP)) || (t.h & Map::HEIGHT_LEVEL) != lv) { fail(nm + ": relief at " + std::to_string(x) + "," + std::to_string(y)); continue; }
+          if (x == l.gateX && y == l.gateY) { if (t.p) fail(nm + ": the gate is shut"); continue; }
+          if (border) {
+            const bool row = y == l.gy || y == l.gy + l.h - 1;
+            if (t.p != (int)(row ? art::Prop::FenceH : art::Prop::FenceV) + 1) fail(nm + ": the fence ring is broken at " + std::to_string(x) + "," + std::to_string(y));
+            continue;
+          }
+          if (t.p == (int)art::Prop::ForSaleSign + 1) signs++;
+          else if (t.p) fail(nm + ": prop " + std::to_string(t.p - 1) + " inside at " + std::to_string(x) + "," + std::to_string(y));
+        }
+      if (signs != 1) fail(nm + ": " + std::to_string(signs) + " FOR SALE signs");
+      const int gx = l.gateX - X0, gy = l.gateY - Y0;
+      if (gx < 0 || gy < 0 || gx >= NW || gy >= NH || !seen[(size_t)gy * NW + gx]) fail(nm + ": its gate is not reached from the heart");
+    }
+  }
+  return bad;
+}
+
+// World::lots in the running game (rpg/sim/world_endless.cpp): filled from the chunk records, deduplicated by id, the
+// same records after a teleport far away and back, after walking window shifts, and in a game loaded from a save
+// (lots are regenerated, never saved); every lot of the start village is among them, with its id handle right.
+int lotsInGame(uint64_t seed) {
+  int bad = 0;
+  auto fail = [&](const std::string& s) { out("FAIL: seed %llu: world lots: %s\n", (unsigned long long)seed, s.c_str()); bad++; };
+  Game g(seed);
+  g.newEndlessGame(seed);
+  g.mode = Mode::Play; g.godMode = true; g.noWildSpawns = true;
+  World& w = g.world;
+  auto consistent = [&](const char* when) {
+    if (w.lots.size() != w.lotById.size()) fail(std::string(when) + ": lots and their index differ in size");
+    for (size_t i = 0; i < w.lots.size(); i++)
+      if (w.lotHandle(w.lots[i].id) != (int)i) { fail(std::string(when) + ": a lot's handle is wrong"); break; }
+  };
+  const ew::Gid home = w.sites[(size_t)w.startSite].id;
+  std::vector<ew::PlotPlan> mine;
+  for (const ew::PlotPlan& l : w.lots) if (l.site == home) mine.push_back(l);
+  if (mine.empty() || mine.size() > 3) fail("the start village has " + std::to_string(mine.size()) + " lots in World::lots");
+  consistent("new game");
+  auto same = [&](const World& v, const char* when) {
+    for (const ew::PlotPlan& l : mine) {
+      const int h = v.lotHandle(l.id);
+      if (h < 0) { fail(std::string(when) + ": a lot of the start village is gone"); return; }
+      const ew::PlotPlan& m = v.lots[(size_t)h];
+      if (m.gx != l.gx || m.gy != l.gy || m.w != l.w || m.h != l.h || m.gateX != l.gateX || m.gateY != l.gateY || m.flags != l.flags || m.site != l.site)
+        fail(std::string(when) + ": a lot of the start village changed");
+    }
+  };
+  // the stamped window agrees: the sign stands inside each of the start village's lots (window tiles)
+  auto signIn = [&](const World& v, const ew::PlotPlan& l) {
+    for (int32_t y = l.gy; y < l.gy + l.h; y++)
+      for (int32_t x = l.gx; x < l.gx + l.w; x++)
+        if (v.over.propAt(x - v.ox, y - v.oy) == (int)art::Prop::ForSaleSign + 1) return true;
+    return false;
+  };
+  for (const ew::PlotPlan& l : mine) if (!signIn(w, l)) fail("new game: no FOR SALE sign in the window at a start-village lot");
+  const Vec2 start = g.pl().p;
+  const int32_t gx0 = w.ox + (int)(start.x / TILE), gy0 = w.oy + (int)(start.y / TILE);
+  const size_t n0 = w.lots.size();
+  g.teleportGlobal(gx0 + 3000, gy0 + 1200);
+  consistent("far teleport");
+  g.teleportGlobal(gx0, gy0);
+  consistent("back home");
+  same(w, "back home");
+  if (w.lots.size() < n0) fail("World::lots shrank (it is append-only)");
+  for (const ew::PlotPlan& l : mine) if (!signIn(w, l)) fail("back home: no FOR SALE sign at a start-village lot");
+  // walking: a few window shifts east and back
+  for (int t = 0; t < 240; t += 2) { g.pl().p += Vec2(2.0f * TILE, 0); g.update(SIM_DT, Input()); g.events.clear(); g.mode = Mode::Play;
+    if (g.inside) { g.inside = false; g.sub = Map(); g.subBldg = -1; g.subSite = -1; } }
+  consistent("walking");
+  same(w, "walking");
+  // a save and a load: the lots come back from the chunks (they are not in the save)
+  std::vector<uint8_t> buf;
+  g.teleportGlobal(gx0, gy0);
+  g.serialize(buf);
+  Game h(seed);
+  if (!h.deserialize(buf)) { fail("the save did not load"); return bad; }
+  consistent("loaded");
+  same(h.world, "loaded");
+  for (const ew::PlotPlan& l : mine) if (!signIn(h.world, l)) fail("loaded: no FOR SALE sign at a start-village lot");
+  out("seed %llu: world lots: %zu met at the start (the start village %zu), %zu after the travels; every check held%s\n", (unsigned long long)seed, n0, mine.size(),
+      w.lots.size(), bad ? " NOT" : "");
+  return bad;
+}
+
+// rpg_test --lots [--seeds A..B] [--radius R] [--places]: the real world's lots for sale (checkWorldLots over the
+// settlements within R tiles of the start, default 1200) and World::lots in a running game (lotsInGame); --places
+// prints, per seed, the start village's lots, the nearest town's and the nearest riverside lot with a tile to stand on
+// (just outside the gate) for screenshot scripts (tools/scripts/m7_land_lots.txt)
+int cmdLots(int argc, char** argv) {
+  uint64_t a = 1, b = 3;
+  int32_t radius = 1200;
+  bool places = false;
+  for (int i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "--seeds") && i + 1 < argc) parseSeedRange(argv[++i], a, b);
+    else if (!strcmp(argv[i], "--radius") && i + 1 < argc) radius = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--places")) places = true;
+  }
+  int bad = 0;
+  WorldLots tot;
+  for (uint64_t s = a; s <= b; s++) {
+    g_curSeed = s;
+    EndlessSource A(s);
+    WorldLots W;
+    bad += checkWorldLots(A, s, radius, W);
+    tot.sites += W.sites; tot.lots += W.lots; tot.river += W.river; tot.villages += W.villages; tot.towns += W.towns;
+    tot.wetSites += W.wetSites; tot.wetWith += W.wetWith;
+    printf("seed %llu: %d settlements (%d villages, %d towns) within %d tiles: %d lots, %d riverside\n", (unsigned long long)s, W.sites, W.villages, W.towns, radius,
+           W.lots, W.river);
+    if (places) {
+      const StartPlan& sp = A.start();
+      auto stand = [&](const PlotPlan& l, int32_t& x, int32_t& y) {   // the tile outside the gate, away from the lot
+        x = l.gateX; y = l.gateY;
+        if (l.gateY == l.gy) y--; else if (l.gateY == l.gy + l.h - 1) y++; else if (l.gateX == l.gx) x--; else x++;
+      };
+      const PlotPlan* bestRiver = nullptr;
+      double bestD = 1e18;
+      const SitePlan* town = nullptr;
+      double townD = 1e18;
+      for (auto& e : W.all) {
+        const double d = dst(e.second.gx, e.second.gy, sp.spawn.x, sp.spawn.y);
+        if ((e.second.flags & PLOT_RIVERSIDE) && d < bestD) { bestD = d; bestRiver = &e.second; }
+        if (e.first.type == SiteType::Town && d < townD) { townD = d; town = &e.first; }
+      }
+      for (auto& e : W.all) {
+        const bool startV = e.first.id == sp.village, nearTown = town && e.first.id == town->id;
+        if (!startV && !nearTown && &e.second != bestRiver) continue;
+        int32_t x, y;
+        stand(e.second, x, y);
+        printf("  %-8s %-22s lot %3u: %2dx%-2d at %d %d, gate %d %d, stand %d %d%s\n", startV ? "start" : (nearTown ? "town" : "river"), e.first.name.c_str(),
+               idLocal(e.second.id), e.second.w, e.second.h, e.second.gx, e.second.gy, e.second.gateX, e.second.gateY, x, y,
+               (e.second.flags & PLOT_RIVERSIDE) ? " RIVERSIDE" : "");
+      }
+    }
+    bad += lotsInGame(s);
+  }
+  printf("lots: %llu seeds: %d settlements (%d villages, %d towns), %d lots, %d riverside (%.0f %%); a river or lake runs through %d villages and "
+         "towns, %d of them sell a riverside lot; %d failures\n", (unsigned long long)(b - a + 1), tot.sites, tot.villages, tot.towns, tot.lots, tot.river,
+         tot.lots ? 100.0 * tot.river / tot.lots : 0.0, tot.wetSites, tot.wetWith, bad);
+  return bad ? 1 : 0;
+}
+
+
+// rpg_test --home-places [--seeds A..B] [--radius R]: for screenshot scripts of the player's houses
+// (tools/scripts/m7_land_houses_*.txt): per culture archetype, the nearest village or town of it to the start and a stand
+// tile west of a row of open ground (90 x 16 tiles: no water, cliff, ramp, street, field, building or wall; trees are
+// cleared by the plots' stamp) 30..160 tiles from its heart, where five large lots fit side by side (at X, X+18, ...)
+int cmdHomePlaces(int argc, char** argv) {
+  uint64_t a = 7, b = 7;
+  int32_t radius = 3000;
+  for (int i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "--seeds") && i + 1 < argc) parseSeedRange(argv[++i], a, b);
+    else if (!strcmp(argv[i], "--radius") && i + 1 < argc) radius = atoi(argv[++i]);
+  }
+  for (uint64_t seed = a; seed <= b; seed++) {
+    EndlessSource A(seed);
+    const StartPlan& sp = A.start();
+    std::map<std::pair<int32_t, int32_t>, ChunkData> cache;
+    auto chunkAt = [&](int32_t cx, int32_t cy) -> const ChunkData& {
+      auto it = cache.find({cx, cy});
+      if (it != cache.end()) return it->second;
+      ChunkData& c = cache[{cx, cy}];
+      A.chunk(cx, cy, c);
+      return c;
+    };
+    auto clear = [&](int32_t x, int32_t y) {
+      const ChunkData& c = chunkAt(chunkOf(x), chunkOf(y));
+      const int i = c.at(x - c.cx * CHUNK, y - c.cy * CHUNK);
+      const Ground g = (Ground)c.ground[i];
+      if (groundSolid(g) || g == Ground::Road || g == Ground::Plaza || g == Ground::Bridge || g == Ground::Farmland || g == Ground::Dirt) return false;
+      if (c.bldg[i] || c.wall[i] || (c.height[i] & (Map::HEIGHT_CLIFF | Map::HEIGHT_RAMP))) return false;
+      return true;
+    };
+    printf("seed %llu: spawn %d %d\n", (unsigned long long)seed, sp.spawn.x, sp.spawn.y);
+    const int R0x = floorDiv(sp.spawn.x - radius, REGION), R1x = floorDiv(sp.spawn.x + radius, REGION);
+    const int R0y = floorDiv(sp.spawn.y - radius, REGION), R1y = floorDiv(sp.spawn.y + radius, REGION);
+    std::vector<SitePlan> sites;
+    for (int ry = R0y; ry <= R1y; ry++)
+      for (int rx = R0x; rx <= R1x; rx++)
+        for (const SitePlan& p : A.region(rx, ry).sites)
+          if ((p.type == SiteType::Village || p.type == SiteType::Town) && p.culture) sites.push_back(p);
+    std::sort(sites.begin(), sites.end(), [&](const SitePlan& p, const SitePlan& q) {
+      return dst(p.ex, p.ey, sp.spawn.x, sp.spawn.y) < dst(q.ex, q.ey, sp.spawn.x, sp.spawn.y);
+    });
+    for (int arch = 0; arch < (int)cult::Archetype::COUNT; arch++) {
+      bool done = false;
+      for (const SitePlan& p : sites) {
+        if (done) break;
+        if ((int)A.culture(p.culture).archetype != arch) continue;
+        // a row 90 x 16 clear, its west end 30..160 tiles from the heart, on a few bearings
+        for (int r = 30; r <= 160 && !done; r += 10)
+          for (int k = 0; k < 16 && !done; k++) {
+            const double ang = k * 0.3927;
+            const int32_t x0 = p.ex + (int32_t)(std::cos(ang) * r), y0 = p.ey + (int32_t)(std::sin(ang) * r);
+            bool ok = true;
+            for (int32_t y = y0 - 8; y < y0 + 8 && ok; y++)
+              for (int32_t x = x0; x < x0 + 92 && ok; x++) ok = clear(x, y);
+            if (!ok) continue;
+            // nowhere near another settlement (the nearest house of a type must be the player's)
+            for (const SitePlan& q : sites)
+              if (q.gx - 30 < x0 + 92 && x0 < q.gx + q.w + 30 && q.gy - 30 < y0 + 8 && y0 - 8 < q.gy + q.h + 30) ok = false;
+            if (!ok) continue;
+            printf("  %-10s %-20s %-7s heart %d %d  row at %d %d\n", cult::archetypeName((cult::Archetype)arch), p.name.c_str(), siteTypeName(p.type), p.ex, p.ey, x0, y0);
+            done = true;
+          }
+      }
+      if (!done) printf("  %-10s (none found within %d tiles)\n", cult::archetypeName((cult::Archetype)arch), radius);
+    }
+  }
+  return 0;
+}
+
 bool g_mapAt = false;
 int32_t g_mapX = 0, g_mapY = 0;
 
@@ -630,6 +933,11 @@ int endlessSeed(uint64_t seed, const char* mapDir, bool quick, bool budget) {
       out("  chunks (far window): avg %.2f ms max %.2f\n", cAvg, cMax);
       if (budget && cAvg > 1.0) fail("chunks average " + std::to_string(cAvg) + " ms (budget 1)");
     }
+    // (M7) the lots for sale round the start, on the chunks' final tiles, and World::lots in a running game
+    WorldLots WL;
+    bad += checkWorldLots(A, seed, 700, WL);
+    out("  lots: %d settlements (%d villages, %d towns) within 700 tiles: %d lots, %d riverside\n", WL.sites, WL.villages, WL.towns, WL.lots, WL.river);
+    bad += lotsInGame(seed);
   }
   if (mapDir) overviewMap(A, seed, mapDir, R0, R0, R1 - R0 + 1, all, dens, "", true);
   if (mapDir && g_mapAt) {
@@ -1102,6 +1410,8 @@ int cmdCityPng(int argc, char** argv) {
 }  // namespace
 
 RPG_TEST_CMD("--city-png", "the story city's chunks as a PNG (wall ring and roads debugging) --city-png DIR [--seeds A..B]", cmdCityPng);
+RPG_TEST_CMD("--lots", "M7 lots for sale in the real world: 1..3 per village and town, the plots.h layout contract on the final chunks, World::lots across teleports, shifts and loads [--seeds A..B] [--radius R] [--places]", cmdLots);
+RPG_TEST_CMD("--home-places", "per culture archetype: a village or town and a row of open ground for five large lots (house screenshot scripts) [--seeds A..B] [--radius R]", cmdHomePlaces);
 RPG_TEST_CMD("--specialties", "the real world's spread of settlement specialisations (none above 40 %) [--seeds A..B]", cmdSpecialties);
 RPG_TEST_CMD("--ground-at", "ASCII dump of the endless ground around a global tile [--seeds S..S] --ground-at X,Y [--r R] [--levels | --nat]", cmdGroundAt);
 RPG_TEST_CMD("--world-places", "interesting global tiles for world screenshot scripts [--seeds A..B]", cmdPlaces);

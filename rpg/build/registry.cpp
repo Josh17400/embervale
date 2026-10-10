@@ -81,6 +81,10 @@ Kind kindOfProp(art::Prop p) {
     case Prop::Rubble: case Prop::Ash: case Prop::Scaffold: case Prop::Barricade: case Prop::NoticeBoard:
     case Prop::Inscription: case Prop::ToppledStatue: case Prop::Mural: case Prop::NamedGrave: case Prop::LostJournal:
       return Kind::None;
+    // (M7) the FOR SALE sign: stamped at runtime by a vacant house (home::stampWindow) or put by a lot's gate by the lot
+    // generator; painted by art_home.cpp, not by a culture's parts
+    case Prop::ForSaleSign:
+      return Kind::None;
     case Prop::COUNT: break;
   }
   return Kind::COUNT;   // unclassified: rpg_test --builder fails

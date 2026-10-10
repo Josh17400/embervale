@@ -42,6 +42,7 @@ const char* kSfxName[(int)Sfx::COUNT] = {
   "Bell",
   "Bark", "Cluck", "Meow", "Cheer",
   "HarpyShriek", "GolemSlam", "EliteSting", "BossRoar",
+  "Hoof",
 };
 static_assert(sizeof(kSfxName) / sizeof(kSfxName[0]) == (size_t)Sfx::COUNT, "a name for every Sfx");
 const char* kMusicName[(int)Music::COUNT] = {"Silence", "Title", "Wild", "Night", "Town", "Cave", "Combat", "Boss", "Tavern"};
@@ -598,7 +599,8 @@ int main(int argc, char** argv) {
                 db(L.activeRms), T.centroid, 100.0f * T.hf, L.clipped, db(loud), db(phone));
     if (L.clipped || L.peak < 0.02f || L.activeDur < 0.02f) { std::printf("  ^ PROBLEM\n"); problems++; }
     if ((Sfx)s != Sfx::Step && (Sfx)s != Sfx::Talk && (Sfx)s != Sfx::MenuMove && (Sfx)s != Sfx::MenuSelect &&
-        (Sfx)s != Sfx::MenuBack && (Sfx)s != Sfx::Bark && (Sfx)s != Sfx::Cluck && (Sfx)s != Sfx::Meow && (Sfx)s != Sfx::Cheer) {
+        (Sfx)s != Sfx::MenuBack && (Sfx)s != Sfx::Bark && (Sfx)s != Sfx::Cluck && (Sfx)s != Sfx::Meow && (Sfx)s != Sfx::Cheer &&
+        (Sfx)s != Sfx::Hoof) {
       // (M5) the animals and the crowd's cheer are the town's ambience, heard at a distance under the music by design
       sfxPeakMin = std::fmin(sfxPeakMin, L.peak);
       sfxLoudMin = std::fmin(sfxLoudMin, loud);

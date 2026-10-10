@@ -16,6 +16,7 @@
 #include "rpg/world/biomes.h"
 #include "rpg/world/coords.h"
 #include "rpg/world/ids.h"
+#include "rpg/world/plots.h"
 
 namespace cult { struct Culture; }   // rpg/culture/culture.h (M3)
 namespace ew {   // rpg/world/source.h (the endless generator, M1)
@@ -148,6 +149,13 @@ struct Bldg {
     std::array<uint16_t, 32> solid{};    // per entry column: the px columns its pillars (and the wall beyond) block
   };
   mutable Open open;
+  // M7 Home (rpg/sim/home.h): 1 a house the player built on a lot (home::houseBldg; added to over.bldgs at runtime by
+  // home::stampWindow, outside every site's bldgFirst range, Bldg::site -1): genInterior lays out its shell's rooms
+  // (stairs, doors, windows, the style's wall dressing) WITHOUT furniture, the player's own is stamped by the HOMESTEAD
+  // lane; 2 a generated house the player bought (furnished as generated until rearranged); 3 a player's house under
+  // construction (the view draws art::scaffoldSprite on its footprint instead of the building; it cannot be entered).
+  // Never saved (the home block is).
+  uint8_t home = 0;
   int floors() const { return genVer >= WORLDGEN_V7 ? std::max(1, (int)storeys) : 1; }
   int doorX() const { return r.x + r.w / 2; }
   int doorY() const { return r.y + r.h - 1; }
@@ -177,6 +185,7 @@ inline bld::Request bldgRequest(const Bldg& b) {
   r.form = (bld::Form)(b.form < (uint8_t)bld::Form::COUNT ? b.form : 0);
   r.civic = b.civic;
   r.seat = b.seat;
+  r.home = (uint8_t)(b.home == 1 || b.home == 3 ? 1 : 0);   // (M7) the player's own house (a bought one keeps its look)
   return r;
 }
 inline bld::Blueprint bldgBlueprint(const Bldg& b) { return bld::design(bldgRequest(b)); }
@@ -385,6 +394,14 @@ struct World {
   std::unordered_map<ew::Gid, int> siteById, bldgById, denById, kingdomById;   // Gid -> handle (index)
   std::unordered_set<uint64_t> spawnKeys, gateKeys;   // streamed spawns (site id ^ slot) and gates already added
   int windowShifts = 0;                     // how many times the window has moved (tests, perf)
+  // M7 Home: bumped whenever the window's tiles were (re)written from the generator (placeWindow, streamChunk with
+  // tiles): the player's plots must be stamped again (home::stampWindow, called by Game::homeStep when it changed)
+  uint32_t placeSerial = 0;
+  // M7 Home: the settlements' lots met so far (ew::PlotPlan, GLOBAL tiles; append-only, deduped by id; never saved:
+  // regenerated with their sites' chunks). lotHandle: index by id (-1 none)
+  std::vector<ew::PlotPlan> lots;
+  std::unordered_map<ew::Gid, int> lotById;
+  int lotHandle(ew::Gid id) const { auto it = lotById.find(id); return it == lotById.end() ? -1 : it->second; }
   // ---- M1 SIM lane: streaming without hitches, bounded records, spatial look-ups (world_endless.cpp)
   // the prefetcher (stream.h): natively initEndless creates it with the world so its worker warms up while the window
   // is built (M3); on the web (and when a test drops it) Game::prefetchTick creates it on first use; prefetchTick

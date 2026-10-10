@@ -266,9 +266,10 @@ Item makeFood(int which) {
   it.sub = (uint8_t)which;
   // 0-3 the M0 foods; 4-8 (M2) the wayside's: a fisher's catch, a hunter's smoked meat, an herbalist's cake
   static const char* nm[] = {"BREAD", "VENISON", "APPLE", "CHEESE WHEEL", "RIVER TROUT", "SMOKED SALMON", "EEL PIE", "SMOKED VENISON", "HONEY CAKE"};
-  static const Icon ic[] = {Icon::Bread, Icon::Meat, Icon::Apple, Icon::Cheese, Icon::Meat, Icon::Meat, Icon::Bread, Icon::Meat, Icon::Bread};
+  // (M7 fix) the fish are fish (Icon::Fish: raw trout silver, the salmon's smoked glaze), the pie a pie, the cake a cake
+  static const Icon ic[] = {Icon::Bread, Icon::Meat, Icon::Apple, Icon::Cheese, Icon::Fish, Icon::Fish, Icon::Pie, Icon::Meat, Icon::Cake};
   static const int heal[] = {15, 30, 10, 20, 18, 28, 24, 34, 16};
-  static const uint32_t tint[] = {0, 0, 0, 0, rgba(150, 170, 190), rgba(230, 130, 100), rgba(170, 130, 80), rgba(140, 70, 50), rgba(230, 190, 90)};
+  static const uint32_t tint[] = {0, 0, 0, 0, 0, rgba(210, 120, 80), rgba(150, 110, 70), rgba(140, 70, 50), rgba(230, 190, 90)};
   which = std::clamp(which, 0, 8);
   it.tint = tint[which];
   it.name = nm[which]; it.icon = ic[which]; it.power = (int16_t)heal[which]; it.value = 3 + heal[which] / 3;

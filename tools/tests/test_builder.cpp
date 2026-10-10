@@ -29,6 +29,8 @@
 #include "rpg/build/blueprint.h"
 #include "rpg/build/registry.h"
 #include "rpg/culture/society.h"
+#include "rpg/sim/home.h"
+#include "rpg/sim/interior_v4.h"
 #include "rpg/world/settlement.h"
 #include "rpg/world/town_gen.h"
 #include "tools/tests/tests.h"
@@ -108,6 +110,119 @@ std::string openFrontWhy(const bld::Blueprint& bp, const bld::OpenFront& of) {
   }
   if (of.open() && (of.solid[(size_t)dcol] & 0x0FF0u)) return "a pillar stands in the door column";
   return "";
+}
+
+}  // namespace
+
+// tools/tests/test_interiors.cpp: the interior checks of a player's house (every 15.7 check plus the empty shell)
+std::string playerHouseInteriorCheck(const Bldg& b, const bld::Blueprint& bp, int& rooms, int& fires);
+
+namespace {
+
+// ---- 7. (M7 Home) the player's houses: every archetype x every shell (home::shellInfo: hut, cottage, longhouse,
+// townhouse, hall) x 3 seeds, built as home::houseBldg builds them (the shell's purpose, footprint, storeys and form,
+// wealth 2, the culture's buildingArch, Bldg::home 1): the design is valid and honours the request (the footprint, the
+// door on the bottom row's middle, the storeys asked, the form asked), the building site (home 3) designs the same
+// blueprint (its footprint is solid in the world), and the interior passes the 15.7 checks as an empty shell (no
+// movable furniture; stairs and an upper floor for the two-storey shells; the hearth under the chimney). A generated
+// house bought by the player (home 2) keeps its look and its furniture.
+Bldg playerHouse(int arch, int shell, uint32_t seed, int home) {
+  static const Biome bioOf[12] = {Biome::Taiga, Biome::Forest, Biome::Plains, Biome::Plains, Biome::Desert, Biome::Plains,
+                                  Biome::Swamp, Biome::Forest, Biome::Plains, Biome::Forest, Biome::Forest, Biome::Snow};
+  const home::ShellInfo& si = home::shellInfo((home::Shell)shell);
+  const Biome bio = bioOf[arch % 12];
+  const cult::Culture K = cult::Atlas::make((cult::Archetype)arch, 4000u + (uint32_t)arch * 7919u + seed * 31u, (int)bio);
+  Bldg b;
+  b.id = ew::makeId(3, -8, ew::IdKind::Plot, 0xC00u | (seed & 0x3FFu));
+  b.type = si.type;
+  b.r = IRect{20, 20, si.w, si.h};
+  b.seed = hash32(seed * 2654435761u ^ (uint32_t)arch * 40503u ^ (uint32_t)shell * 0x9E37u);
+  b.site = -1;
+  b.storeys = si.storeys;
+  b.hearth = true;
+  b.form = (uint8_t)si.form;
+  b.wealth = 2;
+  b.urban = 0;
+  b.home = (uint8_t)home;
+  b.biome = bio;
+  b.genVer = WORLDGEN_LATEST;
+  b.arch = cult::buildingArch(K, (int)b.biome, b.urban, b.wealth, b.seed);
+  b.styled = true;
+  return b;
+}
+
+int playerHouseSweep(uint64_t a, uint64_t b, bool verbose) {
+  int bad = 0, n = 0, twoStorey = 0, roomsAll = 0, fires = 0, upper = 0;
+  std::map<std::string, int> forms;
+  (void)b;
+  auto fail = [&](const char* what, int arch, int shell, uint64_t seed, const std::string& why) {
+    if (bad < 24) out("FAIL: player house: %s %s seed %llu: %s: %s\n", cult::archetypeName((cult::Archetype)arch), home::shellInfo((home::Shell)shell).name,
+                      (unsigned long long)seed, what, why.c_str());
+    bad++;
+  };
+  for (uint64_t seed = a; seed < a + 3; seed++)   // three seeds from the first
+    for (int arch = 0; arch < (int)cult::Archetype::COUNT; arch++)
+      for (int shell = 0; shell < (int)home::Shell::COUNT; shell++) {
+        const home::ShellInfo& si = home::shellInfo((home::Shell)shell);
+        const Bldg h = playerHouse(arch, shell, (uint32_t)seed, 1);
+        const bld::Blueprint bp = bldgBlueprint(h);
+        n++;
+        const char* why = bld::validate(bp);
+        if (*why) { fail("design", arch, shell, seed, why); continue; }
+        if (bp.req.wTiles != si.w || bp.req.hTiles != si.h) { fail("footprint", arch, shell, seed, "the blueprint's footprint differs"); continue; }
+        if (bp.vols[0].storeys != si.storeys || bp.interior.floors != si.storeys) {
+          fail("storeys", arch, shell, seed, std::to_string(bp.vols[0].storeys) + " storeys for " + std::to_string(si.storeys) + " asked");
+          continue;
+        }
+        if (si.form != bld::Form::Auto && bp.form != si.form) { fail("form", arch, shell, seed, std::string("form ") + bld::formName(bp.form)); continue; }
+        // the door: one door volume on the door column's bottom row (bld::validate), entered at Bldg::doorX/doorY
+        if (bp.doorVol() < 0) { fail("door", arch, shell, seed, "no door volume"); continue; }
+        forms[std::string(bld::formName(bp.form))]++;
+        // the building site designs the same house (the footprint the world makes solid while it goes up)
+        const Bldg site = playerHouse(arch, shell, (uint32_t)seed, 3);
+        if (bldgBlueprint(site).key != bp.key) fail("site", arch, shell, seed, "the building site designs another house");
+        // the interior: an empty shell that passes every 15.7 check
+        int rooms = 0, fr = 0;
+        const std::string iw = playerHouseInteriorCheck(h, bp, rooms, fr);
+        if (!iw.empty()) { fail("interior", arch, shell, seed, iw); continue; }
+        roomsAll += rooms;
+        fires += fr ? 1 : 0;
+        if (si.storeys >= 2) {
+          twoStorey++;
+          Map up;
+          genInteriorRooms(up, h, bp, h.seed, 1);
+          if (up.down.valid() && !up.rooms.empty()) upper++;
+          else fail("upper floor", arch, shell, seed, "no upper-floor map reached by the stairs");
+        }
+        if (verbose) out("  %s %s seed %llu: form %s, %zu volumes, %d rooms (%s)\n", cult::archetypeName((cult::Archetype)arch), si.name, (unsigned long long)seed,
+                         bld::formName(bp.form), bp.vols.size(), rooms, interiorTemplate(h, bp, h.seed));
+      }
+  // a bought house (home 2) is the generated house: the same blueprint, its furniture kept
+  int bought = 0, boughtBad = 0;
+  for (int arch = 0; arch < (int)cult::Archetype::COUNT; arch++) {
+    ew::SettlementOut so;
+    cult::Culture K;
+    buildSite(SiteType::Village, false, arch, 77u + (uint32_t)arch * 13u, so, K);
+    for (const Bldg& x : so.buf.bldgs) {
+      if (x.type != Building::House && x.type != Building::StoneHouse && x.type != Building::Hut) continue;
+      Bldg y = x;
+      y.home = 2;
+      bought++;
+      if (bldgBlueprint(y).key != bldgBlueprint(x).key) { boughtBad++; if (boughtBad < 4) out("FAIL: a bought %s house changed its design\n", cult::archetypeName((cult::Archetype)arch)); }
+      Map m0, m1;
+      genInterior(m0, x, x.seed, 0);
+      genInterior(m1, y, y.seed, 0);
+      if (m0.prop != m1.prop || m0.deco != m1.deco) { boughtBad++; if (boughtBad < 4) out("FAIL: a bought %s house lost its furniture\n", cult::archetypeName((cult::Archetype)arch)); }
+      break;
+    }
+  }
+  bad += boughtBad;
+  std::string fl;
+  for (auto& kv : forms) fl += " " + kv.first + " " + std::to_string(kv.second);
+  printf("player houses: %d designed (%d archetypes x %d shells x 3 seeds; forms:%s), %d two-storey with an upper floor (%d), %d rooms, %d with "
+         "their fire; bought houses unchanged %d of %d; %d failures\n",
+         n, (int)cult::Archetype::COUNT, (int)home::Shell::COUNT, fl.c_str(), twoStorey, upper, roomsAll, fires, bought - boughtBad, bought, bad);
+  return bad;
 }
 
 cult::SettleTier tierOf(SiteType t, bool capital) {
@@ -327,6 +442,7 @@ int cmdBuilder(int argc, char** argv) {
       }
     }
   }
+  bad += playerHouseSweep(a, b, verbose);
   bad += placedBad + placedOpenBad;
   printf("open fronts placed: %d buildings, %d entry bays outside, %d bays inside (%d with galleries arriving by the door), %d failures\n", placedOpen, placedBays, interiorBays, galleryAtDoor, placedOpenBad);
   if (socStrict && missingTotal) bad++;

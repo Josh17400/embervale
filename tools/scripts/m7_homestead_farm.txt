@@ -1,0 +1,63 @@
+# M7 HOMESTEAD: the farming loop by the use button (VISION_PLAN 8.4): till with the hoe, plant barley, water it each
+# day, the days go by (stages 0..3), harvest; the prompt (interactLabel) always names what the button does.
+#   embervale.exe --script tools/scripts/m7_homestead_farm.txt     (m7_hs_farm_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 10
++0.1 walk east 2.5
++0.2 home lot medium
++0.1 home build cottage here instant
++0.4 expect home built
++0.1 home fence
++0.1 home tools
++0.1 home seed barley
++0.1 home use 3 6
++0.1 home use 4 6
++0.1 home use 5 6
++0.1 home use 6 6
++0.1 expect home crops 0
++0.1 home use 3 6
++0.1 home use 4 6
++0.1 home use 5 6
++0.1 home use 6 6
++0.1 expect home crops 4
++0.1 home use 3 6
++0.1 home use 4 6
++0.1 home use 5 6
++0.1 home use 6 6
++0.1 expect home stage 3 6 0
++0.3 shot m7_hs_farm_planted.png
+# a day at a time, watered each morning
++0.1 home days 1
++0.2 home use 3 6
++0.1 home use 4 6
++0.1 home use 5 6
++0.1 home use 6 6
++0.1 home days 1
++0.2 expect home stage 3 6 1
++0.1 home use 3 6
++0.1 home use 4 6
++0.1 home use 5 6
++0.1 home use 6 6
++0.3 shot m7_hs_farm_growing.png
++0.1 home days 1
++0.2 home use 3 6
++0.1 home use 4 6
++0.1 home use 5 6
++0.1 home use 6 6
++0.1 home days 1
++0.2 expect home stage 3 6 2
++0.1 home use 3 6
++0.1 home use 4 6
++0.1 home use 5 6
++0.1 home use 6 6
++0.3 shot m7_hs_farm_ripening.png
++0.1 home days 1
++0.2 expect home stage 3 6 3
++0.3 shot m7_hs_farm_ripe.png
++0.1 home use 3 6
++0.1 home use 4 6
++0.2 expect home crops 2
++0.3 shot m7_hs_farm_harvested.png
++0.3 quit

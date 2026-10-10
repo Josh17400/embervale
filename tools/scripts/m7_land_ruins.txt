@@ -1,0 +1,13 @@
+# M7 LAND lane (owner leftover): a ruin's entrance hall is laid out its own way per seed and ruin (rpg/world/chunkgen.cpp
+# stampSite: columns in two rows, a nave of pairs, pilasters in the walls or a fallen roof's heap; a corner fallen in;
+# braziers or statues by the door; graves, coffins, a toppled statue or a fallen column inside). Run with a few seeds:
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7_land_ruins.txt --seed 3     (m7_land_ruin.png; seeds 3, 7, 11 differ)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.2 goto ruin
++1.5 walk south 0.6
++0.8 shot m7_land_ruin.png
++0.2 expect mode play
++0.3 quit

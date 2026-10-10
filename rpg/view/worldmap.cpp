@@ -32,6 +32,7 @@
 #include <unordered_set>
 #include "rpg/world/biomes.h"
 #include <vector>
+#include "rpg/sim/home.h"
 #include "rpg/story/story.h"
 #include "rpg/view/realm_ui.h"
 #include "rpg/view/view.h"
@@ -1320,6 +1321,33 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     taken.push_back({qs.x - 6, qs.y - 6, qs.x + 6, qs.y + 6});
     legendAdd(-2);
   }
+  // (M7) the player's property: a little house in the HUD's gold over each plot (its ground outlined when zoomed in
+  // close enough to see it), labelled with its name
+  if (!S.geo)
+    for (const home::Plot& hp : g.home.plots) {
+      const Vec2 s = toScr(hp.gx + hp.w * 0.5, hp.gy + hp.h * 0.5);
+      if (s.x < -10 || s.y < -10 || s.x > w + 10 || s.y > h + 10) continue;
+      const float pw = (float)(hp.w / z), ph = (float)(hp.h / z);
+      if (pw >= 10) {
+        const Vec2 o = toScr(hp.gx, hp.gy);
+        P.frame(std::floor(o.x), std::floor(o.y), std::floor(pw), std::floor(ph), Color(0.55f, 0.32f, 0.08f, 0.9f));
+      }
+      const float cx = std::floor(s.x), cy = std::floor(s.y);
+      // dark outline, then a gold roof, a cream wall and a door
+      P.rect(cx - 6, cy - 6, 13, 3, kInk);
+      P.rect(cx - 4, cy - 8, 9, 2, kInk);
+      P.rect(cx - 5, cy - 3, 11, 9, kInk);
+      P.rect(cx - 2, cy - 7, 5, 1, Color(0.98f, 0.82f, 0.42f));
+      P.rect(cx - 4, cy - 6, 9, 1, Color(0.98f, 0.82f, 0.42f));
+      P.rect(cx - 5, cy - 5, 11, 1, Color(0.80f, 0.58f, 0.22f));
+      P.rect(cx - 4, cy - 2, 9, 7, Color(0.96f, 0.91f, 0.78f));
+      P.rect(cx + 2, cy - 2, 2, 7, Color(0.80f, 0.74f, 0.62f));   // the shaded east wall (light from the top-left)
+      P.rect(cx - 1, cy + 1, 3, 4, Color(0.45f, 0.27f, 0.14f));
+      taken.push_back({cx - 7, cy - 9, cx + 8, cy + 7});
+      std::string nm = hp.name;
+      if (nm.empty()) nm = "HOME";
+      labs.push_back({1, s.x, s.y + 9, s.y - 20, nm, Color(0.45f, 0.24f, 0.04f), Color(1.0f, 0.95f, 0.8f, 0.8f), false});
+    }
   {
     std::stable_sort(labs.begin(), labs.end(), [](const Lab& a, const Lab& b) { return a.prio < b.prio; });
     const size_t labelBase = taken.size();   // the boxes from here on are labels (before: markers, the hero, the furniture)

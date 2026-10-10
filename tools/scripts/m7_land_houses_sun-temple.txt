@@ -1,0 +1,69 @@
+# M7 LAND lane: the player's houses in the sun-temple style beside PUKOCOA (seed 5): all five shells (hut, cottage,
+# longhouse, townhouse, hall) built at once on large lots in a row of open ground (rpg_test --home-places), then for
+# each an exterior shot from the lot's front, the ground floor (an empty shell: rooms, doors, windows, stairs and the
+# hearth under the chimney; no furniture, the player's to bring) and, for the two-storey shells, the upper floor.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7_land_houses_sun-temple.txt     (m7_land_sun-temple_*.png)
+seed 5
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.3 at -63 124
++0.6 home lot large
++0.1 home build hut sun-temple instant
++0.1 expect home plots 1
++0.3 at -45 124
++0.6 home lot large
++0.1 home build cottage sun-temple instant
++0.1 expect home plots 2
++0.3 at -27 124
++0.6 home lot large
++0.1 home build longhouse sun-temple instant
++0.1 expect home plots 3
++0.3 at -9 124
++0.6 home lot large
++0.1 home build townhouse sun-temple instant
++0.1 expect home plots 4
++0.3 at 9 124
++0.6 home lot large
++0.1 home build hall sun-temple instant
++0.1 expect home plots 5
++3.5 hour 11
++0.3 at -53 123
++1.0 shot m7_land_sun-temple_hut.png
++0.1 enter hut
++0.1 expect inside 1
++0.8 shot m7_land_sun-temple_hut_in.png
++0.2 walkto exit
++0.3 at -35 124
++1.0 shot m7_land_sun-temple_cottage.png
++0.1 enter house
++0.1 expect inside 1
++0.8 shot m7_land_sun-temple_cottage_in.png
++0.2 walkto exit
++0.3 at -17 124
++1.0 shot m7_land_sun-temple_longhouse.png
++0.1 enter house
++0.1 expect inside 1
++0.8 shot m7_land_sun-temple_longhouse_in.png
++0.2 walkto exit
++0.3 at 1 124
++1.0 shot m7_land_sun-temple_townhouse.png
++0.1 enter stonehouse
++0.1 expect inside 1
++0.8 shot m7_land_sun-temple_townhouse_in.png
++0.1 floor 1
++0.1 expect floor 1
++0.8 shot m7_land_sun-temple_townhouse_up.png
++0.1 floor 0
++0.2 walkto exit
++0.3 at 19 125
++1.0 shot m7_land_sun-temple_hall.png
++0.1 enter stonehouse
++0.1 expect inside 1
++0.8 shot m7_land_sun-temple_hall_in.png
++0.1 floor 1
++0.1 expect floor 1
++0.8 shot m7_land_sun-temple_hall_up.png
++0.1 floor 0
++0.2 walkto exit
++0.3 quit

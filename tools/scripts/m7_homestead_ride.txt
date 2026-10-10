@@ -1,0 +1,39 @@
+# M7 HOMESTEAD: horses (VISION_PLAN 8.5): bought at the stable (she waits beside the player), ridden down the road (the
+# breed's pace, +15 % on roads), off by an attack (she waits where the rider got off), mounted again, off by going
+# indoors (she waits at the door), stabled at the inn for the night.
+#   embervale.exe --script tools/scripts/m7_homestead_ride.txt     (m7_hs_ride_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 walk east 2.5
++0.2 home lot medium
++0.1 home place stable 1 5
++0.1 walk west 2.5
++0.2 home buyhorse
++0.1 expect home horse waiting
++1.0 shot m7_hs_ride_bought.png
++0.1 home horsehere
++0.3 home use here
++0.2 expect home horse riding
++0.1 walk south 1.2
++0.3 shot m7_hs_ride_road.png
++1.0 walk west 3
++3.2 kit
++0.1 hold Space 0.3
++0.6 expect home riding 0
++0.1 expect home dismounts attack 1
++0.1 expect home horse waiting
++0.5 shot m7_hs_ride_waiting.png
++0.1 home horsehere
++0.3 home use here
++0.2 expect home horse riding
++0.1 walk east 3
++3.2 enter inn
++0.4 expect home dismounts enter 1
++0.1 expect home horse waiting
++0.1 home talk innkeeper
++0.2 choose STABLE MY HORSE
++0.2 expect home horse inn
++0.3 shot m7_hs_ride_inn.png
++0.3 quit

@@ -53,6 +53,7 @@ uint64_t Request::key() const {
   k = mix(k, (uint64_t)facts.storeys | (uint64_t)(facts.hearth ? 1 : 0) << 8 | (uint64_t)facts.emblem << 16 | (uint64_t)(uint32_t)facts.variant << 32);
   k = mix(k, (uint64_t)facts.banner << 32 | facts.banner2);
   if (facts.charred) k = mix(k, 0xC4A2ull << 8 | (uint64_t)(uint32_t)facts.charred);   // (M4) 0 keeps every key as before
+  if (home) k = mix(k, 0x4803ull << 8 | (uint64_t)home);   // (M7) 0 keeps every key as before
   return k;
 }
 
@@ -429,21 +430,40 @@ int towerVol(Bx& c, VolRole role, bool round, int x0, int y1, int w, int wallH, 
 // lift every volume standing on the ground onto a platform (plinth, terrace, dais) of height fh
 void platformUnder(Bx& c, int fh, WallMat mat, bool steps, int frontPad = 3) {
   int x0 = 1 << 20, x1 = -(1 << 20), y0 = 1 << 20, y1 = -(1 << 20);
-  for (Volume& x : c.v) {   // everything the building stands on its platform, upper tiers and cupolas too
+  // (M7 fix) a porch stands on its own step in front of the plinth: the plinth follows the house's walls (one box to
+  // the porch's front left flat slabs of plinth before the facade either side of the porch, in the eaves' shade)
+  std::vector<size_t> porches;
+  bool walls = false;
+  for (const Volume& x : c.v)
+    if (x.z0 == 0 && x.role != VolRole::Porch && x.role != VolRole::Chimney && x.role != VolRole::Enclosure && x.role != VolRole::Platform && x.role != VolRole::Tree) walls = true;
+  for (size_t i = 0; i < c.v.size(); i++) {   // everything the building stands on its platform, upper tiers and cupolas too
+    Volume& x = c.v[i];
     if (x.role == VolRole::Enclosure || x.role == VolRole::Platform || x.role == VolRole::Tree) continue;
     const bool onGround = x.z0 == 0;
     x.z0 = (int16_t)(x.z0 + fh);
     if (x.role == VolRole::Chimney || !onGround) continue;
+    if (walls && x.role == VolRole::Porch) { porches.push_back(i); continue; }
     x0 = std::min(x0, (int)x.x0); x1 = std::max(x1, (int)x.x1); y0 = std::min(y0, (int)x.y0); y1 = std::max(y1, (int)x.y1);
   }
   if (x1 <= x0) return;
-  Volume p = c.vol(VolRole::Platform, std::max(-art::BLDG_PAD_X + 1, x0 - 2), std::max(-4, y0 - 1), std::min(c.W + art::BLDG_PAD_X - 1, x1 + 2),
-                   std::min(c.H + art::BLDG_PAD_B - 1, y1 + frontPad), fh);
-  p.wall = mat;
-  p.roof = RoofShape::FlatParapet; p.roofMat = RoofMat::Adobe; p.pitch = 0;
-  p.face = Face::Blank;
-  if (steps) p.feat |= VF_STEPS;
-  c.add(p);
+  auto plat = [&](int px0, int py0, int px1, int py1, bool st) {
+    Volume p = c.vol(VolRole::Platform, std::max(-art::BLDG_PAD_X + 1, px0), std::max(-4, py0), std::min(c.W + art::BLDG_PAD_X - 1, px1),
+                     std::min(c.H + art::BLDG_PAD_B - 1, py1), fh);
+    p.wall = mat;
+    p.roof = RoofShape::FlatParapet; p.roofMat = RoofMat::Adobe; p.pitch = 0;
+    p.face = Face::Blank;
+    if (st) p.feat |= VF_STEPS;
+    c.add(p);
+  };
+  plat(x0 - 2, y0 - 1, x1 + 2, y1 + (porches.empty() ? frontPad : 2), steps && porches.empty());
+  bool stepsDone = porches.empty();
+  for (size_t i : porches) {   // (a porch reaching no further than the walls stands on the plinth: no step of its own)
+    const Volume q = c.v[i];
+    if (q.y1 + frontPad <= y1 + 2 || q.x1 <= q.x0) continue;
+    plat(q.x0 - 1, y1, q.x1 + 1, q.y1 + frontPad, steps);
+    stepsDone = true;
+  }
+  if (!stepsDone && steps) c.v.back().feat |= VF_STEPS;   // (the plinth keeps the steps then)
   c.grounded = true;
 }
 void stilts(Bx& c, int h) {
@@ -477,7 +497,10 @@ int house(Bx& c, const HouseSpec& sp) {
   } else if (c.wl == 1 && c.H >= 48 && c.ch(90)) y0 += c.rg(2, 4);
   // a wing: a lower side wing (set back), or an L (the wing forward, the body set back)
   int wing = 0, lWing = 0, ww = 0;
-  if (sp.wings && c.W >= 64 && c.ch(c.wl >= 2 ? 150 : 80)) {
+  // (M7 fix) the player's own house keeps one body (its porch, cross gable, dormers and chimneys give it depth): a side
+  // wing's joint with the body (its roof run into the body's, the plinth's step, the eave over the facade) did not
+  // meet the owner's bar on the houses the player builds and looks at every day
+  if (sp.wings && !c.r.home && c.W >= 64 && c.ch(c.wl >= 2 ? 150 : 80)) {
     ww = c.W >= 80 ? c.rg(22, 28) : c.rg(17, 20);
     wing = c.ch(128) ? 1 : -1;
     if (wing == 1 && x1 - ww < c.dc + 10) wing = 0;
@@ -505,14 +528,17 @@ int house(Bx& c, const HouseSpec& sp) {
     bo.ridgeNS = sp.ridge >= 0 ? sp.ridge == 1 : (narrow && c.pick(3) != 0);
     if (bo.roof == RoofShape::Turf && c.cul == CU_NONE) bo.ridgeNS = false;
   }
-  if (n >= 2 && sp.jetty && (bo.wall == WallMat::Timber || bo.wall == WallMat::Plaster) && pitched && c.ch(128)) bo.feat |= VF_JETTY;
+  // (M7 fix) not on the player's house: a jettied cross gable's shaded underside read as a dark slab under the facade
+  if (n >= 2 && sp.jetty && !c.r.home && (bo.wall == WallMat::Timber || bo.wall == WallMat::Plaster) && pitched && c.ch(128)) bo.feat |= VF_JETTY;
   if (sp.dormers && pitched && !bo.ridgeNS && my1 - y0 >= 44 && !c.st.snow &&
       (bo.roof == RoofShape::Gable || bo.roof == RoofShape::Hip || bo.roof == RoofShape::Steep || bo.roof == RoofShape::Mansard))
     bo.dormers = (uint8_t)c.pick(3);
   const int bi = c.add(bo);
   // the wing
   if (wing) {
-    Volume w = c.vol(VolRole::Wing, wing == 1 ? mx1 : x0, lWing ? y0 + 4 : y0 + c.rg(4, 8), wing == 1 ? x1 : mx0, y1,
+    // (M7 fix) a side wing's front is flush with the body's (a porch set the body back: the wing stood out past the
+    // facade, its roof spilling over the body's windows and its foundation leaving a notch at the joint)
+    Volume w = c.vol(VolRole::Wing, wing == 1 ? mx1 : x0, lWing ? y0 + 4 : y0 + c.rg(4, 8), wing == 1 ? x1 : mx0, lWing ? y1 : my1,
                      lWing ? c.v[(size_t)bi].wallH : std::max(16, c.wallFor(1, sp.base) - 4 - (c.k == PK::Inn ? 6 : 0)));
     w.wall = c.v[(size_t)bi].wall;
     if (lWing) {   // the L's forward wing turns its gable to the street
@@ -529,7 +555,10 @@ int house(Bx& c, const HouseSpec& sp) {
   }
   // a cross gable over a bay of a wide side-gabled body
   Volume& B = c.v[(size_t)bi];
-  if (sp.cross && pitched && !B.ridgeNS && B.x1 - B.x0 >= 72 && B.roof != RoofShape::Turf && c.ch(110)) {
+  // (M7 fixer r2, review: "the hall's cross gable meets the main roof badly": its small gable sat under the main eave,
+  // its ridge a light sliver up the main slope with no valley) not on the player's house: its dormers give the roof
+  // its depth instead
+  if (sp.cross && !c.r.home && pitched && !B.ridgeNS && B.x1 - B.x0 >= 72 && B.roof != RoofShape::Turf && c.ch(110)) {
     const int cw = c.rg(22, 28);
     const bool left = c.ch(128);
     int cx0 = left ? B.x0 + 6 : B.x1 - 6 - cw;
@@ -806,6 +835,24 @@ void cultureHome(Bx& c) {
       break;
     }
     case CU_STEPPE: {
+      if (c.r.home && n >= 2) {
+        // (M7) the player's two-storey shell, as the steppe builds its lords' winter seats: a ger of timber, two storeys
+        // under a wide felt crown (the round body the society's courts use), with a felt ger pitched beside it for the
+        // household's summer (one storey: a yurt is never stacked)
+        const int bi = roundHouse(c, n, 22, false, c.W >= 96 ? 2 : 1);
+        for (Volume& x : c.v) {
+          const bool body = &x == &c.v[(size_t)bi];
+          x.wall = body ? WallMat::Plank : WallMat::Felt;
+          roofTo(x, RoofShape::Conical, RoofMat::Felt, body ? 1 : 2, c.st.roofTint);
+          x.feat |= VF_CROWN;
+          x.eave = 0;
+          x.window = WindowShape::Round;
+          x.door = body ? DoorShape::Double : DoorShape::Flap;
+          if (!body) { x.storeys = 1; x.wallH = (int16_t)std::min<int>(x.wallH, 16); }
+        }
+        c.v[(size_t)bi].ornament |= art::ORN_PAINTED_BANDS;
+        break;
+      }
       // (fix) one storey always: a household that asked for more (a bigger, richer one) pitches a second yurt beside
       const int ann = c.W >= 64 ? (c.wl >= 2 || n >= 2 ? (c.W >= 80 ? 2 : 1) : (c.ch(120) ? 1 : 0)) : (n >= 2 && c.W >= 48 ? 1 : 0);
       const int bi = roundHouse(c, 1, 20, true, ann);
@@ -830,13 +877,19 @@ void cultureHome(Bx& c) {
         chimneys(c, bi, 1);
         return;
       }
-      sp.base = 24; sp.porchKind = c.wl >= 2 ? 2 : 0; sp.porchP = 80; sp.dormers = false; sp.cross = false; sp.jetty = false;
+      // (M7 fix r3, review: "jade player-house fronts are a thin strip under a huge roof, with no door you can see") the
+      // player's own house shows its street face as the town's homes do: the full wall, its windows and the moon door,
+      // never a veranda or a skirt-roofed gallery across the whole front (the open bays hid the door and the wall)
+      sp.base = 24; sp.porchKind = c.wl >= 2 && !c.r.home ? 2 : 0; sp.porchP = c.r.home ? 0 : 80; sp.dormers = false; sp.cross = false; sp.jetty = false;
       sp.ridge = 0;
       const int bi = house(c, sp);
       Volume& B = c.v[(size_t)bi];
-      if (B.roofMat == RoofMat::Thatch || B.roofMat == RoofMat::Palm) { B.roof = RoofShape::Gable; B.pitch = (uint8_t)std::max(3, (int)B.pitch); }
+      if (B.roofMat == RoofMat::Thatch || B.roofMat == RoofMat::Palm) {
+        B.roof = RoofShape::Gable; B.pitch = (uint8_t)std::max(3, (int)B.pitch);
+        if (c.r.home) { B.pitch = 2; B.wallH = (int16_t)(B.wallH + 4); }   // (M7 fix r3) the player's thatched hut: its wall and door clear of the eave
+      }
       else if (c.wl >= 1) { B.roof = c.ch(170) ? RoofShape::Pagoda : RoofShape::Hip; B.pitch = 2; }
-      if (n >= 2 && c.wl >= 1 && B.roof == RoofShape::Pagoda && c.v.size() == 1) {   // a double eave: a skirt roof round the ground floor
+      if (n >= 2 && c.wl >= 1 && B.roof == RoofShape::Pagoda && c.v.size() == 1 && !c.r.home) {   // a double eave: a skirt roof round the ground floor
         Volume sk = c.vol(VolRole::Porch, B.x0, B.y1 - 1, B.x1, std::min(c.H + 3, B.y1 + 6), 16);
         roofTo(sk, RoofShape::Pagoda, B.roofMat, 1, B.roofTint); sk.face = Face::Veranda; sk.doorHere = true; B.y1 = (int16_t)(B.y1 - 6); sk.y0 = (int16_t)(B.y1 - 1);
         B.doorHere = false;
@@ -1035,16 +1088,20 @@ void hut(Bx& c) {
   if (c.cul == CU_STEPPE) { roundHouse(c, 1, 18, true, 0); return; }
   if (c.cul == CU_SYLVAN) { const int bi = roundHouse(c, 1, 18, false, 0); Volume& B = c.v[(size_t)bi]; B.wall = WallMat::Living; B.roof = RoofShape::Conical; B.roofMat = RoofMat::Bark; return; }
   HouseSpec sp;
-  sp.base = 18; sp.wings = false; sp.cross = false; sp.dormers = false; sp.porchP = 0; sp.jetty = false;
+  // (M7 fix r3, review: "the jade hut is a thin strip under its thatch") the player's own hut stands a little taller in
+  // the wall under a less steep thatch, so its front wall and door read below the eave
+  sp.base = c.r.home ? 22 : 18; sp.wings = false; sp.cross = false; sp.dormers = false; sp.porchP = 0; sp.jetty = false;
   WallMat& wm = c.st.wall;
   if (wm == WallMat::Stone || wm == WallMat::Brick || wm == WallMat::Ashlar || wm == WallMat::Plaster) wm = c.cul == CU_HIGHLAND ? WallMat::Rubble : (c.cul == CU_NONE ? WallMat::Log : WallMat::Wattle);
   RoofMat& rm = c.st.roofMat;
   if (c.cul == CU_IMPERIAL || c.cul == CU_RIVER) rm = RoofMat::ClayTile;
-  else if (rm == RoofMat::Slate || rm == RoofMat::ClayTile || rm == RoofMat::Copper || rm == RoofMat::GlazedTile) rm = (c.cul == CU_SUN || c.cul == CU_MARSH) ? RoofMat::Palm : RoofMat::Thatch;
+  else if (rm == RoofMat::Slate || rm == RoofMat::ClayTile || rm == RoofMat::Copper || rm == RoofMat::GlazedTile)
+    rm = (c.cul == CU_SUN || c.cul == CU_MARSH) ? RoofMat::Palm : (c.cul == CU_DUNE ? RoofMat::Adobe : RoofMat::Thatch);   // (M7: a dune hut is mud brick)
+  if (c.cul == CU_DUNE && rm == RoofMat::Adobe) { c.st.wall = WallMat::Adobe; c.st.roof = RoofShape::FlatParapet; }
   RoofShape& rs = c.st.roof;
   if (rs == RoofShape::Dome || rs == RoofShape::Onion || rs == RoofShape::Mansard || rs == RoofShape::Stepped || rs == RoofShape::Pagoda)
     rs = rm == RoofMat::Adobe ? RoofShape::FlatParapet : RoofShape::Gable;
-  if (rs == RoofShape::Gable && (rm == RoofMat::Thatch || rm == RoofMat::Palm)) c.st.pitch = (uint8_t)std::max(3, (int)c.st.pitch);
+  if (rs == RoofShape::Gable && (rm == RoofMat::Thatch || rm == RoofMat::Palm)) c.st.pitch = (uint8_t)(c.r.home ? 2 : std::max(3, (int)c.st.pitch));
   sp.ridge = c.W < 52 ? 1 : 0;
   const int bi = house(c, sp);
   if (c.cul == CU_MARSH) stilts(c, 6);
@@ -2409,7 +2466,10 @@ void tentForm(Bx& c) {
 void ground(Bx& c) {
   if (c.grounded) return;
   for (const Volume& x : c.v) if (x.role == VolRole::Platform || (x.feat & VF_STILTS)) return;
-  const art::Foundation f = c.st.foundation;
+  art::Foundation f = c.st.foundation;
+  // (M7 fixer r2, review: "player houses stop straight on the grass") the player's own house is built properly: on a
+  // stone footing even where the culture's cottages often go without (a felt yurt and a stilt house keep their own)
+  if (c.r.home && f == art::Foundation::None && !c.st.stilts && c.cul != CU_STEPPE) f = art::Foundation::Plinth;
   if ((c.st.stilts || f == art::Foundation::Stilts) && c.k != PK::Temple && c.k != PK::Keep && c.k != PK::Palace && c.k != PK::Tower && c.k != PK::Windmill) {
     if (c.cul == CU_DUNE || c.cul == CU_STEPPE) return;
     stilts(c, 7);
@@ -2608,6 +2668,23 @@ Blueprint design(const Request& r) {
   } else if (asks == Form::Round && c.k != PK::Palace && c.k != PK::Keep && c.k != PK::Temple && c.seat == 0) {
     const int bi = roundHouse(c, c.want, 22, c.cul == CU_STEPPE, 0);
     if (c.cul == CU_SYLVAN) { c.v[(size_t)bi].wall = WallMat::Living; c.v[(size_t)bi].roof = RoofShape::Sweep; }
+  } else if (asks == Form::Long && c.cul == CU_STEPPE && r.home && c.k == PK::Home) {
+    // (M7) the player's longhouse in the steppe manner: a long feast tent of felt on its ridge poles and guy ropes (a
+    // box under a yurt's cone was no building at all), a small ger pitched against its east end
+    Volume bo = c.vol(VolRole::Body, 2, std::max(2, c.H / 8), c.W - (c.W >= 112 ? 22 : 4), c.H - 1, c.wallFor(1, 18), 1);
+    // (M7 fix) its felt pitched over a ridge pole down its length and hipped at the ends (a tent cone over so long a
+    // box read as one flat beige plane: no ridge, no lit and shaded ends)
+    roofTo(bo, RoofShape::Hip, RoofMat::Felt, 3, c.st.roofTint);
+    bo.wall = WallMat::Felt; bo.feat |= VF_ROPES; bo.doorHere = true; bo.door = DoorShape::Flap; bo.ridgeNS = false; bo.face = Face::Windows;
+    bo.ornament |= art::ORN_PAINTED_BANDS;
+    const int bi = c.add(bo);
+    if (c.W >= 112) {
+      Volume g = c.rnd(VolRole::Annex, c.W - 12, c.H - 2, 11, 13);
+      g.wall = WallMat::Felt; roofTo(g, RoofShape::Conical, RoofMat::Felt, 2, c.st.roofTint); g.feat |= VF_CROWN; g.eave = 0;
+      g.window = WindowShape::Round; g.door = DoorShape::Flap;
+      c.add(g);
+    }
+    (void)bi;
   } else if (asks == Form::Long && (c.k == PK::Home || c.k == PK::MeadHall || c.k == PK::Lodge || c.k == PK::Inn || c.k == PK::Barracks)) {
     const int bi = longHall(c, 26, c.want, 0);
     chimneys(c, bi, 2);

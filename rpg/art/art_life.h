@@ -50,6 +50,9 @@ enum class Posture : uint8_t {
   SitFloor,      // cross-legged on a cushion / mat / the ground
   SitFloorEat,   // cross-legged, eating
   SitFloorDrink, // cross-legged, a cup raised
+  // ---- M7 Home (lead, phase A; ART lane paints it): astride a horse (art::horseSheet / riderSeat): legs either side,
+  //      the reins in the hands; phase A stand-in: the seated sheet
+  Ride,
   COUNT
 };
 constexpr int POSTURE_FRAMES = 4;   // columns per pose sheet
@@ -77,6 +80,10 @@ enum class Critter : uint8_t {
   Goat,       // a tethered goat (herding villages)
   Pig,        // a pig in a sty (farming villages)
   Duck,       // ducks by ponds and rivers
+  // ---- M7 Home (lead, phase A; ART lane paints them; phase A stand-ins on the goat's body): the farm's beasts
+  Cow,        // a dairy cow (dun, black-and-white, red by variant)
+  Sheep,      // a woolly sheep (a shorn coat by variant bit 7)
+  Horse,      // a loose horse in a paddock or stable (the ridden horse is art::horseSheet)
   COUNT
 };
 // Sheet: CRITTER_FRAMES columns x 3 rows (0 facing down, 1 up, 2 right; flip for left) of critterCellW x critterCellH.

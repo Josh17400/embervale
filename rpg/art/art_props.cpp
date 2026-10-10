@@ -2457,7 +2457,7 @@ const Ramp& capRamp(art::RoomStyle s) {
   }
 }
 
-uint32_t floorColor(FloorStyle fs, int gx, int gy) {
+uint32_t floorColor(FloorStyle fs, int gx, int gy, bool noRug = false) {
   switch (fs) {
     case FloorStyle::Planks: case FloorStyle::OldPlanks: {
       const Ramp& R = fs == FloorStyle::Planks ? kFloorWood : kFloorOld;
@@ -2621,7 +2621,7 @@ uint32_t floorColor(FloorStyle fs, int gx, int gy) {
       if (ly == SH - 1 || lx == SW - 1) return mix(col, feltOf(1), 0.42f);
       if (ly == SH - 2 || lx == SW - 2) col = mix(col, feltOf(2), 0.25f);
       else if (ly == 0 || lx == 0) col = mix(col, feltOf(4), 0.35f);
-      if (kind < 13) return col;
+      if (kind < 13 || noRug) return col;
       // ---- a shyrdak rug on this sheet
       constexpr int IN = 4;
       const int rx = lx - IN, ry = ly - IN, RW = SW - 2 * IN, RH = SH - 2 * IN - 1;
@@ -2694,11 +2694,11 @@ uint32_t floorColor(FloorStyle fs, int gx, int gy) {
   }
 }
 
-Canvas floorPiece(FloorStyle fs, int mask, int tx, int ty) {
+Canvas floorPiece(FloorStyle fs, int mask, int tx, int ty, bool noRug = false) {
   Canvas c(16, 16);
   for (int y = 0; y < 16; y++)
     for (int x = 0; x < 16; x++) {
-      uint32_t col = floorColor(fs, tx * 16 + x, ty * 16 + y);
+      uint32_t col = floorColor(fs, tx * 16 + x, ty * 16 + y, noRug);
       // ambient occlusion and the shadows the walls cast (light from the top-left)
       float k = 0;
       if (mask & 1) { static const float f[6] = {0.75f, 0.58f, 0.42f, 0.28f, 0.16f, 0.07f}; if (y < 6) k = std::max(k, f[y]); }
@@ -5109,6 +5109,7 @@ void paintProp(Canvas& c, Prop p, int frame) {
       else if (isWildlandsFlora(p)) paintFloraProp(c, p, frame);
       else if (isWarProp(p)) paintWarProp(c, p, frame);
       else if (isLoreProp(p)) paintLoreProp(c, p, frame);
+      else if (isHomeProp(p)) paintHomeProp(c, p, frame);   // M7 (art_home.cpp)
       else if (m3bP(p)) paintInteriorM3b(c, p, frame);
       else if ((int)p >= (int)Prop::Sacks) paintEconomyProp(c, p, frame);
       else if ((int)p >= (int)Prop::StairsUp) m0bProp(c, p, frame);
@@ -5118,9 +5119,9 @@ void paintProp(Canvas& c, Prop p, int frame) {
 
 }  // namespace
 
-int propW(Prop p) { return isWarProp(p) ? warPropW(p) : isLoreProp(p) ? lorePropW(p) : wildP(p) ? wildPropW(p) : isWildlandsFlora(p) ? floraPropW(p) : m3bP(p) ? m3bPropW(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].w : 16; }
-int propH(Prop p) { return isWarProp(p) ? warPropH(p) : isLoreProp(p) ? lorePropH(p) : wildP(p) ? wildPropH(p) : isWildlandsFlora(p) ? floraPropH(p) : m3bP(p) ? m3bPropH(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].h : 16; }
-int propFrames(Prop p) { return isWarProp(p) ? warPropFrames(p) : isLoreProp(p) ? lorePropFrames(p) : wildP(p) ? wildPropFrames(p) : isWildlandsFlora(p) ? floraPropFrames(p) : m3bP(p) ? m3bPropFrames(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].frames : 1; }
+int propW(Prop p) { return isHomeProp(p) ? homePropW(p) : isWarProp(p) ? warPropW(p) : isLoreProp(p) ? lorePropW(p) : wildP(p) ? wildPropW(p) : isWildlandsFlora(p) ? floraPropW(p) : m3bP(p) ? m3bPropW(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].w : 16; }
+int propH(Prop p) { return isHomeProp(p) ? homePropH(p) : isWarProp(p) ? warPropH(p) : isLoreProp(p) ? lorePropH(p) : wildP(p) ? wildPropH(p) : isWildlandsFlora(p) ? floraPropH(p) : m3bP(p) ? m3bPropH(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].h : 16; }
+int propFrames(Prop p) { return isHomeProp(p) ? homePropFrames(p) : isWarProp(p) ? warPropFrames(p) : isLoreProp(p) ? lorePropFrames(p) : wildP(p) ? wildPropFrames(p) : isWildlandsFlora(p) ? floraPropFrames(p) : m3bP(p) ? m3bPropFrames(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].frames : 1; }
 
 Canvas propSprite(Prop p) {
   if (isStall(p)) return marketStall(stallTrade(p), 0);
@@ -5224,7 +5225,7 @@ Canvas interiorPiece(uint32_t key) {
   int kind = (int)(key & 31), xb = (int)((key >> 5) & 7), style = (int)((key >> 8) & 255), a = (int)((key >> 16) & 255), b = (int)((key >> 24) & 255);
   auto rs4 = [&](int lo) { return (RoomStyle)((lo & 7) | ((xb & 1) << 3)); };
   switch ((Piece)kind) {
-    case Piece::Floor: return floorPiece((FloorStyle)((style & 7) | (((style >> 7) & 1) << 3)), (style >> 3) & 15, a, b);
+    case Piece::Floor: return floorPiece((FloorStyle)((style & 7) | (((style >> 7) & 1) << 3)), (style >> 3) & 15, a, b, (xb & 4) != 0);
     case Piece::BackWall: return backWallPiece((RoomStyle)(style & 15), style & 240, a);
     case Piece::Cap: return capPiece(rs4(style), a, b & 127, (style >> 3) & 7, ((style & 64) ? 1 : 0) | ((style & 128) ? 2 : 0) | ((b & 128) ? 4 : 0), (xb & 2) != 0);
     case Piece::PartFace: return partFacePiece(rs4(style), (style >> 3) & 3, (style >> 5) & 3, a, b);

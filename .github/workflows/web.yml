@@ -87,6 +87,11 @@ jobs:
           ./build-native/rpg_test --foes --seeds 1..3
           ./build-native/rpg_test --arms --seeds 1..3
 
+      # M7 Home (VISION_PLAN 8, 15.22): crops and seasons, deterministic offline catch-up, a 1000-placement fuzz, the
+      # 4 KB plot budget and the home block, building in a culture's style, riding and the dismount triggers. Blocking.
+      - name: Home test
+        run: ./build-native/rpg_test --home --seeds 1..3
+
       # M2/M4 quests: every quest type end to end (the dialogue paths picked by text, not by position), and THE DRAGON'S
       # SHADOW end to end by a teleporting bot (fixer M4 r3: these guard the STORY pitch path on clang too). Blocking.
       - name: Quest and main-quest test

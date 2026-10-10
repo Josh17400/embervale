@@ -320,6 +320,12 @@ bool cmdDumpTiles(ScriptCtx& c) {
     std::printf("player %d %d (px %.1f %.1f)\n", px, py, g.pl().p.x, g.pl().p.y);
     return true;
   }
+  if (c.arg(2) == "d") {   // (M7 integration) the deco ids round the player (Deco, rpg/sim/deco.h)
+    for (int y = py - r; y <= py + r; y++)
+      for (int x = px - r; x <= px + r; x++)
+        if (m.in(x, y) && !m.deco.empty() && m.deco[(size_t)y * m.w + x]) std::printf("deco %d %d = %d\n", x, y, (int)m.deco[(size_t)y * m.w + x]);
+    return true;
+  }
   for (int y = py - r; y <= py + r; y++) {
     std::string line;
     for (int x = px - r; x <= px + r; x++) {
@@ -336,7 +342,7 @@ bool cmdDumpTiles(ScriptCtx& c) {
   }
   return true;
 }
-EMB_SCRIPT_CMD("dumptiles", "dumptiles [r] [b|g|p]: print the levels (or biomes, or ground letters) and grounds of the tiles round the player, or (p) its props (debug)", cmdDumpTiles);
+EMB_SCRIPT_CMD("dumptiles", "dumptiles [r] [b|g|p|d]: print the levels (or biomes, or ground letters) and grounds of the tiles round the player, (p) its props or (d) its deco ids (debug)", cmdDumpTiles);
 
 EMB_SCRIPT_CMD("killnear","killnear [tiles]: every hostile within that many tiles (default 20) falls", cmdKillNear);
 

@@ -52,6 +52,8 @@ struct SettlementOut {
   // counts for rpg_test's scale checks (VISION_PLAN 15.8: villages 10-15 houses, towns 40-60, cities 160-220)
   int homes = 0;
   Specialty special = Specialty::None;       // (M1 economy) what it lives from (the plan's, or derived when it had none)
+  // (M7) the lots for sale (rpg/world/plots.h: GLOBAL tiles, ids set, site = the plan's id): villages and towns 1 to 3
+  std::vector<PlotPlan> plots;
 };
 
 // Build one settlement. Called by the chunk pipeline (rpg/world/*.cpp) on a cache miss.

@@ -192,11 +192,16 @@ enum class Prop : uint8_t {
   Mural,          // a faded painted wall in a ruin: a battle, a coronation (16x30, wall decor like Tapestry)
   NamedGrave,     // a carved grave with a name and the year (16x22); solid
   LostJournal,    // a satchel and a journal fallen open on the floor (14x10); walked over
+  // ---- M7 Home (VISION_PLAN 8.1, 8.2): painted in rpg/art/art_home.cpp (ART lane; phase A stand-in). Placed at runtime
+  //      by home::stampWindow on lots and vacant houses for sale (or by the settlement generator on its lots).
+  ForSaleSign,    // a post with a hanging board, "FOR SALE" in the culture's letters (about 16x28); solid
   COUNT
 };
 // M4: the war's props (art_war.cpp) and the lore props (art_lore.cpp)
 inline bool isWarProp(Prop p) { return (int)p >= (int)Prop::WarTent && (int)p <= (int)Prop::Barricade; }
 inline bool isLoreProp(Prop p) { return (int)p >= (int)Prop::NoticeBoard && (int)p <= (int)Prop::LostJournal; }
+// M7: the home props (art_home.cpp)
+inline bool isHomeProp(Prop p) { return p == Prop::ForSaleSign; }
 // M4: the frozen tile footprint of a war or lore prop (w odd, h >= 1): it stands on the bottom row's middle tile; the
 // rest of the w x h box holds Filler. 1 x 1 for the rest.
 inline void m4Footprint(Prop p, int& w, int& h) {
@@ -467,6 +472,23 @@ inline uint32_t pieceKey(Piece k, int style, int a = 0, int b = 0) {
   return (uint32_t)k | ((uint32_t)(style & 255) << 8) | ((uint32_t)(a & 255) << 16) | ((uint32_t)(b & 255) << 24);
 }
 Canvas interiorPiece(uint32_t key);
+// (M7 fix) FloorStyle::Felt lays fulled felt sheets of FELT_SW x FELT_SH px in staggered rows, now and then a dyed
+// shyrdak rug: the sheet holding the floor pixel (gx, gy) (its top-left in floor px) and whether it is a rug. A Floor
+// key built with pieceKeyX's flag 4 paints no rug sheets (a rug the curve of a round room's wall would cut).
+constexpr int FELT_SW = 56, FELT_SH = 40;
+inline uint32_t feltHash(int x, int y, uint32_t s) {   // == art_internal.h hash3 (the painter's)
+  uint32_t h = (uint32_t)x * 374761393u + (uint32_t)y * 668265263u + s * 2246822519u;
+  h = (h ^ (h >> 13)) * 1274126177u;
+  return h ^ (h >> 16);
+}
+inline int feltFloorDiv(int a, int b) { return a >= 0 ? a / b : -((-a + b - 1) / b); }
+inline bool feltRugSheet(int gx, int gy, int& x0, int& y0) {
+  const int row = feltFloorDiv(gy, FELT_SH);
+  const int shift = (int)(feltHash(row, 0, 1797) % (uint32_t)FELT_SW);
+  const int ia = feltFloorDiv(gx + shift, FELT_SW);
+  x0 = ia * FELT_SW - shift; y0 = row * FELT_SH;
+  return feltHash(ia, row, 1798) % 16u >= 13u;
+}
 // (M3 fixer) the peoples' furniture indoors (rpg/art/art_culture_props.cpp): whether the culture (cult::Archetype) has its
 // own hearth, shelves, bed or cabinet for prop p, and that piece (same canvas and anchor as the classic prop; a Bed is
 // 20x32, or 20x48 with variant 1 like Piece::Styled's two-tile bed; a Hearth takes the frame 0..3 as its variant)

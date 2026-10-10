@@ -64,6 +64,10 @@ uint64_t townHash(const ew::SettlementOut& o) {
   for (const Spawn& s : m.spawns) { int v[4] = {s.x, s.y, (int)s.role, s.slot}; h = fnv(h, v, sizeof v); }
   for (auto& g : o.gates) { int v[2] = {g.first, g.second}; h = fnv(h, v, sizeof v); }
   for (auto& g : o.wallGaps) { int v[4] = {g.x, g.y, g.w, g.h}; h = fnv(h, v, sizeof v); }
+  for (const ew::PlotPlan& l : o.plots) {   // (M7) the lots for sale
+    int64_t v[8] = {(int64_t)l.id, l.gx, l.gy, l.w, l.h, l.flags, l.gateX, l.gateY};
+    h = fnv(h, v, sizeof v);
+  }
   return h;
 }
 
@@ -226,6 +230,14 @@ void dumpPng(const ew::SettlementOut& so, const std::string& path) {
       if (p && ((Prop)(p - 1) == Prop::Sheep || (Prop)(p - 1) == Prop::Cow)) c = rgba(255, 255, 255);
       if (p && ((Prop)(p - 1) == Prop::Well || (Prop)(p - 1) == Prop::Fountain || (Prop)(p - 1) == Prop::Statue)) c = rgba(0, 255, 255);
       if (m.wall[(size_t)y * m.w + x]) c = rgba(110, 110, 120);
+      if (p && ((Prop)(p - 1) == Prop::FenceH || (Prop)(p - 1) == Prop::FenceV)) c = rgba(150, 110, 60);
+      for (const ew::PlotPlan& l : so.plots) {   // (M7) the lots: the ring bright, the sign red, the gate white
+        const int lx = l.gx - so.gx, ly = l.gy - so.gy;
+        if (x < lx || y < ly || x >= lx + l.w || y >= ly + l.h) continue;
+        if (x == lx || y == ly || x == lx + l.w - 1 || y == ly + l.h - 1) c = (l.flags & ew::PLOT_RIVERSIDE) ? rgba(80, 200, 255) : rgba(255, 170, 40);
+        if (p && (Prop)(p - 1) == Prop::ForSaleSign) c = rgba(255, 0, 0);
+        if (x == l.gateX - so.gx && y == l.gateY - so.gy) c = rgba(255, 255, 255);
+      }
       int bi = m.bldgAt[(size_t)y * m.w + x];
       if (bi >= 0) {
         Building t = m.bldgs[(size_t)bi].type;
@@ -651,8 +663,122 @@ std::map<std::string, LayoutStat> g_layout;   // (M3) "layout type" -> built, ho
 int g_layoutArch[7][8] = {};                 // (M3) settlements built (and checked) per layout style and ew::Archetype
 int g_squarePeople = 1 << 30;             // (M2) the fewest people round a capital's main square
 
-int checkTown(const Case& c, const ew::SitePlan& p, const ew::SettlementOut& so, const char* what) {
+// (M7 Home, VISION_PLAN 8.2) the lots for sale: villages and towns 1..3 (cities none), each inside the buffer, one of
+// the three sizes (either way round), the layout contract of rpg/world/plots.h (clear ground: no building, wall, water,
+// cliff, street, field or other prop inside but the FOR SALE sign beside the gate; the fence ring FenceH / FenceV on
+// the lot's own border with the one gap at the gate; the gate on a street the heart reaches), no two lots overlapping,
+// a riverside flag only on a long side with a river or lake beside it. Counts per type and the riverside share.
+int g_lotSites[3] = {}, g_lotCount[3] = {}, g_lotRiver[3] = {}, g_lotSizes[3] = {}, g_riverSites = 0, g_riverLots = 0;
+int g_lotHist[4] = {};
+int g_riverSitesWith = 0;   // settlements on land with a river or lake that have a riverside lot   // settlements with 0, 1, 2, 3 lots (villages and towns)
+int checkLots(const Case& c, const ew::SettlementOut& so, const char* what) {
   int bad = 0;
+  const Map& m = so.buf;
+  auto fail = [&](const char* fmt, auto... args) {
+    char buf[300];
+    std::snprintf(buf, sizeof buf, fmt, args...);
+    out("FAIL: %s: lots: %s\n", what, buf);
+    bad++;
+  };
+  const int ti = c.type == SiteType::City ? 2 : (c.type == SiteType::Town ? 1 : 0);
+  const int nl = (int)so.plots.size();
+  g_lotSites[ti]++;
+  g_lotCount[ti] += nl;
+  if (ti < 2) g_lotHist[std::min(nl, 3)]++;
+  if (ti < 2 && (nl < 1 || nl > 3)) fail("%d lots (a village or a town has 1..3)", nl);
+  if (ti == 2 && nl) fail("%d lots in a city (none: its houses come for sale)", nl);
+  // the heart's reach (as checkTown: from the heart's square)
+  std::vector<std::pair<int, int>> from;
+  const int hx = so.ex - so.gx, hy = so.ey - so.gy;
+  for (int oy = -3; oy <= 3; oy++) for (int ox = -3; ox <= 3; ox++) from.push_back({hx + ox, hy + oy});
+  const std::vector<uint8_t> seen = reach(m, from);
+  bool riverLand = false;
+  for (size_t i = 0; i < m.ground.size(); i++) if (groundWater((Ground)m.ground[i]) && (Biome)m.biome[i] != Biome::Ocean) { riverLand = true; break; }
+  if (riverLand && ti < 2) g_riverSites++;
+  bool anyRiver = false;
+  for (const ew::PlotPlan& l : so.plots) anyRiver = anyRiver || (l.flags & ew::PLOT_RIVERSIDE);
+  if (riverLand && ti < 2 && anyRiver) g_riverSitesWith++;
+  for (int k = 0; k < nl; k++) {
+    const ew::PlotPlan& L = so.plots[(size_t)k];
+    const int x0 = L.gx - so.gx, y0 = L.gy - so.gy, w = L.w, h = L.h;
+    if (ew::idKind(L.id) != ew::IdKind::Plot || ew::idLocal(L.id) >= 0x800u) fail("lot %d: id %llx is not a generated plot id", k, (unsigned long long)L.id);
+    for (int j = 0; j < k; j++) if (so.plots[(size_t)j].id == L.id) fail("lots %d and %d share an id", j, k);
+    static const int SW[3] = {10, 13, 16}, SH[3] = {8, 10, 12};
+    if (L.size > 2 || !((w == SW[L.size] && h == SH[L.size]) || (w == SH[L.size] && h == SW[L.size]))) { fail("lot %d: size %d is %dx%d", k, L.size, w, h); continue; }
+    if (!m.in(x0, y0) || !m.in(x0 + w - 1, y0 + h - 1)) { fail("lot %d outside the buffer", k); continue; }
+    if (!(L.flags & ew::PLOT_FENCED)) fail("lot %d not fenced", k);
+    g_lotSizes[L.size]++;
+    const int gx = L.gateX - so.gx, gy = L.gateY - so.gy;
+    const bool onBorder = gx >= x0 && gx < x0 + w && gy >= y0 && gy < y0 + h && (gx == x0 || gy == y0 || gx == x0 + w - 1 || gy == y0 + h - 1);
+    if (!onBorder) { fail("lot %d: the gate (%d,%d) is not on its border", k, gx, gy); continue; }
+    if ((gx == x0 || gx == x0 + w - 1) && (gy == y0 || gy == y0 + h - 1)) fail("lot %d: the gate is a corner", k);
+    int signs = 0;
+    const int lvl0 = m.height.empty() ? 0 : (m.height[(size_t)gy * m.w + gx] & 7);
+    for (int y = y0; y < y0 + h; y++)
+      for (int x = x0; x < x0 + w; x++) {
+        const size_t i = (size_t)y * m.w + x;
+        const Ground g = m.at(x, y);
+        if (m.bldgAt[i] >= 0 || m.wall[i]) { fail("lot %d: a building or wall at (%d,%d)", k, x, y); continue; }
+        if (groundSolid(g) || groundWater(g) || g == Ground::Road || g == Ground::Plaza || g == Ground::Bridge || g == Ground::Farmland) {
+          fail("lot %d: ground %d at (%d,%d)", k, (int)g, x, y);
+          continue;
+        }
+        if (!m.height.empty() && ((m.height[i] & (Map::HEIGHT_CLIFF | Map::HEIGHT_RAMP)) || (m.height[i] & 7) != lvl0)) fail("lot %d: relief at (%d,%d)", k, x, y);
+        const bool border = x == x0 || y == y0 || x == x0 + w - 1 || y == y0 + h - 1;
+        const int pr = m.prop[i];
+        if (x == gx && y == gy) { if (pr) fail("lot %d: the gate is shut by prop %d", k, pr - 1); continue; }
+        if (border) {
+          const bool row = y == y0 || y == y0 + h - 1;
+          if (pr != (int)(row ? Prop::FenceH : Prop::FenceV) + 1) fail("lot %d: the fence ring broken at (%d,%d) (prop %d)", k, x, y, pr - 1);
+          continue;
+        }
+        if (pr == (int)Prop::ForSaleSign + 1) {
+          signs++;
+          if (std::abs(x - gx) > 2 || std::abs(y - gy) > 2) fail("lot %d: the FOR SALE sign is not by the gate", k);   // (M7 fix: two steps in, one aside)
+        } else if (pr) {
+          fail("lot %d: prop %d inside at (%d,%d)", k, pr - 1, x, y);
+        }
+      }
+    if (signs != 1) fail("lot %d: %d FOR SALE signs", k, signs);
+    // the gate: on a street (or a path to one) the heart reaches, and the lot's inside reached through it
+    if (!seen[(size_t)gy * m.w + gx]) fail("lot %d: the heart does not reach its gate", k);
+    bool street = false;
+    static const int DX[4] = {1, -1, 0, 0}, DY[4] = {0, 0, 1, -1};
+    for (int d = 0; d < 4; d++) {
+      const int nx = gx + DX[d], ny = gy + DY[d];
+      if (nx >= x0 && nx < x0 + w && ny >= y0 && ny < y0 + h) continue;
+      for (int st = 1; st <= 2 && !street; st++) {
+        const int sx = gx + DX[d] * st, sy = gy + DY[d] * st;
+        if (!m.in(sx, sy)) continue;
+        const Ground g = m.at(sx, sy);
+        if ((g == Ground::Road || g == Ground::Plaza || g == Ground::Dirt || g == Ground::Sand || g == Ground::Snow || g == Ground::Bridge) && seen[(size_t)sy * m.w + sx]) street = true;
+      }
+    }
+    if (!street) {
+      std::string gs;
+      for (int d = 0; d < 4; d++) gs += " " + std::to_string((int)m.at(gx + DX[d], gy + DY[d])) + (seen[(size_t)(gy + DY[d]) * m.w + gx + DX[d]] ? "r" : "u");
+      fail("lot %d: no street at its gate (%d,%d; ground round it%s)", k, gx, gy, gs.c_str());
+    }
+    // no overlap with another lot
+    for (int j = 0; j < k; j++) {
+      const ew::PlotPlan& o = so.plots[(size_t)j];
+      if (L.gx < o.gx + o.w && o.gx < L.gx + L.w && L.gy < o.gy + o.h && o.gy < L.gy + L.h) fail("lots %d and %d overlap", j, k);
+    }
+    if (L.flags & ew::PLOT_RIVERSIDE) {
+      g_lotRiver[ti]++;
+      if (riverLand) g_riverLots++;
+      bool wet = false;
+      for (int y = y0 - 4; y < y0 + h + 4 && !wet; y++)
+        for (int x = x0 - 4; x < x0 + w + 4; x++)
+          if (m.in(x, y) && (x < x0 || y < y0 || x >= x0 + w || y >= y0 + h) && (groundWater(m.at(x, y)) || m.at(x, y) == Ground::Bridge)) { wet = true; break; }
+      if (!wet) fail("lot %d: riverside without water beside it", k);
+    }
+  }
+  return bad;
+}
+
+int checkTown(const Case& c, const ew::SitePlan& p, const ew::SettlementOut& so, const char* what) {
+  int bad = checkLots(c, so, what);
   const Map& m = so.buf;
   auto fail = [&](const char* fmt, auto... args) {
     char buf[300];
@@ -1092,7 +1218,7 @@ int cmdTowns(int argc, char** argv) {
     if (write) {
       printf("# rpg/world settlement golden values (rpg_test --towns --golden --write; seeds %llu..%llu): every synthetic case's town\n",
              (unsigned long long)a, (unsigned long long)b);
-      printf("# hash (ground, props, walls, heights, buildings, spawns, gates). Must match on every platform.\n");
+      printf("# hash (ground, props, walls, heights, buildings, spawns, gates, M7 lots for sale). Must match on every platform.\n");
       for (auto& kv : hashes) printf("%s %016llx\n", kv.first.c_str(), (unsigned long long)kv.second);
       return bad ? 1 : 0;
     }
@@ -1160,6 +1286,15 @@ int cmdTowns(int argc, char** argv) {
   for (auto& kv : g_plazaMax) printf(" %s %d", kv.first.c_str(), kv.second);
   printf(" | fewest people round a capital's square: %d\n", g_squarePeople == (1 << 30) ? 0 : g_squarePeople);
   printf("towns: society requirements placed %d of %d (culture cases)\n", g_reqMet, g_reqAsked);
+  // (M7) the lots for sale
+  printf("towns: lots for sale: villages %d in %d, towns %d in %d, cities %d in %d; settlements with 0/1/2/3 lots %d/%d/%d/%d; sizes small %d medium %d large %d\n",
+         g_lotCount[0], g_lotSites[0], g_lotCount[1], g_lotSites[1], g_lotCount[2], g_lotSites[2], g_lotHist[0], g_lotHist[1], g_lotHist[2], g_lotHist[3],
+         g_lotSizes[0], g_lotSizes[1], g_lotSizes[2]);
+  {
+    const int all = g_lotCount[0] + g_lotCount[1], riv = g_lotRiver[0] + g_lotRiver[1];
+    printf("towns: riverside lots %d of %d (%.0f %%); on land with a river or lake: %d lots riverside, %d of %d settlements with one\n", riv, all,
+           all ? 100.0 * riv / all : 0.0, g_riverLots, g_riverSitesWith, g_riverSites);
+  }
   printf("towns: %d failures\n", bad);
   return bad ? 1 : 0;
 }

@@ -1,0 +1,32 @@
+# M7 phase A (lead): the Home contracts in the running game (rpg/view/script_home.cpp): a lot staged beside the start
+# village, a cottage in the local style going up (the building site) and finished, a fenced yard with a coop, a well,
+# a beehive, a scarecrow, a mixed field of crops at every stage, chickens and a dog; the yard screen (Mode::Build) with
+# its ghost; a horse bought and ridden, the dismount triggers. Phase A pixels are stand-ins: the lanes replace them.
+#   embervale.exe --script tools/scripts/m7_lead_home.txt     (m7_lead_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 walk east 2.5
++0.2 home lot medium
++0.1 expect home plots 1
++0.1 home build cottage here
++0.3 shot m7_lead_site.png
++0.1 home days 3
++0.4 expect home built
++0.1 home fill
++0.1 expect home crops 12
++0.6 shot m7_lead_farm.png
++0.1 home yard
++0.4 expect mode build
++0.2 shot m7_lead_yard.png
++0.1 key Escape
++0.2 expect mode play
++0.1 home ride
++0.1 expect home riding 1
++0.1 walk south 1.5
++0.3 shot m7_lead_ride.png
++0.1 home dismount
++0.1 expect home riding 0
++0.1 expect home dismounts player 1
++0.3 quit

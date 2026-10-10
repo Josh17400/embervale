@@ -1,0 +1,69 @@
+# M7 LAND lane: the player's houses in the marsh style beside WEENEE (seed 5): all five shells (hut, cottage,
+# longhouse, townhouse, hall) built at once on large lots in a row of open ground (rpg_test --home-places), then for
+# each an exterior shot from the lot's front, the ground floor (an empty shell: rooms, doors, windows, stairs and the
+# hearth under the chimney; no furniture, the player's to bring) and, for the two-storey shells, the upper floor.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7_land_houses_marsh.txt     (m7_land_marsh_*.png)
+seed 5
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.3 at 1691 -252
++0.6 home lot large
++0.1 home build hut marsh instant
++0.1 expect home plots 1
++0.3 at 1709 -252
++0.6 home lot large
++0.1 home build cottage marsh instant
++0.1 expect home plots 2
++0.3 at 1727 -252
++0.6 home lot large
++0.1 home build longhouse marsh instant
++0.1 expect home plots 3
++0.3 at 1745 -252
++0.6 home lot large
++0.1 home build townhouse marsh instant
++0.1 expect home plots 4
++0.3 at 1763 -252
++0.6 home lot large
++0.1 home build hall marsh instant
++0.1 expect home plots 5
++3.5 hour 11
++0.3 at 1701 -253
++1.0 shot m7_land_marsh_hut.png
++0.1 enter hut
++0.1 expect inside 1
++0.8 shot m7_land_marsh_hut_in.png
++0.2 walkto exit
++0.3 at 1719 -252
++1.0 shot m7_land_marsh_cottage.png
++0.1 enter house
++0.1 expect inside 1
++0.8 shot m7_land_marsh_cottage_in.png
++0.2 walkto exit
++0.3 at 1737 -252
++1.0 shot m7_land_marsh_longhouse.png
++0.1 enter house
++0.1 expect inside 1
++0.8 shot m7_land_marsh_longhouse_in.png
++0.2 walkto exit
++0.3 at 1755 -252
++1.0 shot m7_land_marsh_townhouse.png
++0.1 enter stonehouse
++0.1 expect inside 1
++0.8 shot m7_land_marsh_townhouse_in.png
++0.1 floor 1
++0.1 expect floor 1
++0.8 shot m7_land_marsh_townhouse_up.png
++0.1 floor 0
++0.2 walkto exit
++0.3 at 1773 -251
++1.0 shot m7_land_marsh_hall.png
++0.1 enter stonehouse
++0.1 expect inside 1
++0.8 shot m7_land_marsh_hall_in.png
++0.1 floor 1
++0.1 expect floor 1
++0.8 shot m7_land_marsh_hall_up.png
++0.1 floor 0
++0.2 walkto exit
++0.3 quit

@@ -1367,6 +1367,8 @@ struct LifeOps {
     life::Census* c = si >= 0 ? g.life.findMut(g.world.sites[(size_t)si].id) : nullptr;
     if (!c || a.resident < 0 || a.resident >= (int)c->res.size()) { a.lifeBits |= LB_GONE; return true; }
     life::Resident& r = c->res[(size_t)a.resident];
+    // (M7) something solid was put up where they stand (a notice board, a FOR SALE sign, a yard object): step off it
+    if (a.posture == Posture::None && g.world.over.blocked(tileX(a.p), tileY(a.p))) { a.p = snapWalk(g, a.p); a.home = a.goal = a.p; }
     RT::ARt& A = R.rt(a.id);
     RT::SiteRt* S = siteRtById(g, c->site);
     if (!S || S->plans.size() != c->res.size()) return true;
@@ -2403,7 +2405,10 @@ struct LifeOps {
       if (len2(to - a.p) < 3.0f * 3.0f || !g.navStep(a, to, a.speed * kWalk, dt)) {
         A.arrived = true;
         if (A.then == 1) { a.lifeBits |= LB_GONE; return true; }
-        a.p = A.dest; a.home = a.p; a.goal = a.p;
+        a.p = A.dest;
+        // (M7) a spot taken since it was chosen (a notice board put up, a FOR SALE sign): stand on the nearest clear tile
+        if (!g.inside && A.post == Posture::None && !g.bodyFree(a.p, a.radius, false)) a.p = snapWalk(g, a.p);
+        a.home = a.p; a.goal = a.p;
         a.posture = A.post;
         a.face = A.destFace;
         a.st = AState::Idle;
@@ -2725,6 +2730,8 @@ struct LifeOps {
     RT::ARt& A = R.rt(a.id);
     const art::Critter k = (art::Critter)(a.critter - 1);
     if (a.bubbleT > 0 && (a.bubbleT -= dt) <= 0) a.bubble = Bubble::None;
+    // (M7) a yard spot that lies under a building or a solid prop now (a lot built on, a house's footprint): off it
+    if (!g.inside && g.world.over.blocked(tileX(a.p), tileY(a.p))) { a.p = snapWalk(g, a.p); a.home = a.goal = a.p; }
     a.postureT += dt;
     A.t -= dt;
     // danger: a beast near (dogs bark at it, everyone else scatters)
@@ -2972,6 +2979,7 @@ void Game::lifeStep(float dt) {
 }
 
 bool Game::lifeFolk(Actor& a, float dt) {
+  if (a.lifeBits & LB_HOMESTEAD) return HomeOps::folk(*this, a, dt);   // (M7) the player's farm animals, horse, builders, farmhand
   if (!(a.lifeBits & (LB_LIFE | LB_CRITTER | LB_KEY | LB_GUEST))) return false;
   LifeOps::RT& R = LifeOps::rt(*this);
   const double t0 = nowMs();
@@ -3049,6 +3057,7 @@ void Game::lifeSpawned(Actor& a, const Spawn& sp) {
 
 void Game::lifeInterior() {
   if (!inside || subBldg < 0) return;
+  if (home::houseEmpty(world, this, subBldg)) return;   // (M7) nobody lives in a vacant house or the player's own
   LifeOps::populate(*this);
 }
 

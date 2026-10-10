@@ -109,7 +109,7 @@ class View {
     }
   };
   static constexpr int kBakeMargin = 8;
-  struct Chunk { Tex tex; uint64_t key = 0; float used = 0; };
+  struct Chunk { Tex tex; uint64_t key = 0; float used = 0; bool stale = false; };   // stale: (M7) to be baked again
   std::vector<Chunk> chunks_;
   int lastMapKey_ = -999;
   // background baking: the worker paints chunk Canvases from per-chunk snapshots
@@ -136,6 +136,13 @@ class View {
   void workerLoop();
   void clearChunks();
   uint64_t chunkKeyFor(const Map& m, uint64_t mapId, int cx, int cy) const;
+  // (M7 fixer r2) the player's houses appear in World::over.bldgs at runtime (home::stampWindow), after the ground
+  // around them may already be baked: the chunks under a house that appeared, changed or went are baked again, so it
+  // throws the same cast shadow as every generated building (homeHouses_: id, home, seed, global rect last seen)
+  struct HomeHouse { uint64_t id = 0; uint8_t home = 0; uint32_t seed = 0; int32_t gx = 0, gy = 0; int w = 0, h = 0; };
+  std::vector<HomeHouse> homeHouses_;
+  uint64_t homeHousesMap_ = 0;
+  void rebakeHomeHouses(const Game& g, const Map& m, uint64_t mapId);
   BakeJob makeJob(const Map& m, uint64_t mapId, int cx, int cy) const;
   void prefetch(const Map& m, uint64_t mapId, Vec2 cam);
   Tex chunkTex(const Map& m, uint64_t mapId, int cx, int cy);
@@ -220,7 +227,7 @@ class View {
   bool scriptKeys_[512] = {};   // indexed by SDL_Scancode (SDL_SCANCODE_COUNT is 512)
   bool kAttack_ = false, kBow_ = false, kSpell_ = false, kRoll_ = false, kUse_ = false, kPotion_ = false, kSwap_ = false;
   bool kTapAttack_ = false;   // this attack came from a tap on the open world (never turned into a talk)
-  struct Finger { uint64_t id = 0; bool on = false; Vec2 start, cur; int button = -1; uint64_t t0 = 0; };   // t0: SDL_GetTicks at the touch
+  struct Finger { uint64_t id = 0; bool on = false; Vec2 start, cur; int button = -1; uint64_t t0 = 0; bool use = false; };   // t0: SDL_GetTicks at the touch; use: began as a use (TALK, RIDE...)
   Finger stick_;
   std::vector<Finger> fingers_;
   bool mouseDown_ = false;
@@ -337,6 +344,37 @@ class View {
   void drawForge(Game& g);
   void forgeKey(Game& g, int key);
   void forgeTap(Game& g, Vec2 p);
+  // ---- M7 Home (rpg/view/home_view.cpp and buildmode.cpp, VIEW lane; the VIEW lane is the only editor of these and
+  //      may ADD members here). The world: drawWorld asks homeCollect for the property's draws (yard objects, crops,
+  //      ground edits, the building site, the build ghost) each frame and y-sorts them with the scene (Drawable kind 8:
+  //      drawHomeDraw blits one); the player on horseback is drawn by drawMounted (true: drawn, the standing figure is
+  //      skipped). The screens: Mode::Build (Game::home.ui: the shell, yard, decorate, storage, cooking and buy screens)
+  //      by drawBuild / buildKey / buildTap (screen coordinates; the world under the panel is the ghost's canvas).
+  struct HomeDraw {
+    float sortY = 0;                 // the y it sorts by (world px: the footprint's bottom edge)
+    const Tex* tex = nullptr;
+    int sx = 0, sy = 0, sw = 0, sh = 0;   // source rect in tex
+    float x = 0, y = 0;              // top-left on screen... in WORLD px (drawHomeDraw subtracts the camera)
+    bool flip = false;
+    Color tint = Color(1, 1, 1, 1);
+    uint8_t shadow = 0;              // 0 none, 1 a small round ground shadow under it, 2 a footprint-wide one
+    bool flat = false;               // a ground edit (drawn flat: sorts under everything standing on its row)
+    // (M7 VIEW lane) added: the ground shadow's ellipse in world px (shadow != 0; drawn in the shadow pass, under
+    // everything standing), a crop's sway (px of lean at the top in the wind, 0 none; phase from x), and UI overlays
+    // drawn as tinted rects instead of a texture (ui 1: a footprint cell of the build ghost, 2: the plot's border)
+    float shx = 0, shy = 0, shw = 0, shh = 0, shA = 0.7f;
+    float sway = 0;
+    uint8_t ui = 0;
+  };
+  std::vector<HomeDraw> homeDraws_;
+  std::unordered_map<uint64_t, Tex> homeTex_;   // the lane's sprite cache (crops, objects, horses...), keyed as it likes
+  void homeCollect(Game& g, const Map& m, Vec2 cam);
+  void drawHomeDraw(const HomeDraw& d, Vec2 cam);
+  bool drawMounted(Game& g, const Actor& a, Vec2 cam);
+  int buildSel_ = 0, buildScroll_ = 0, buildTab_ = 0;   // the Mode::Build screens' UI state (free for the lane)
+  void drawBuild(Game& g);
+  void buildKey(Game& g, int key);
+  void buildTap(Game& g, Vec2 p);
   // ---- M6 Steel: ranked foes in the world (render.cpp, BEASTS lane): the aura sprite cache (art::auraSprite by colour
   //      and width) and the name plates / boss bars it draws
   std::unordered_map<uint64_t, Tex> auraTex_;
@@ -525,4 +563,38 @@ class View {
   int alarmWas_ = -1;
   // HUD: the player's buff icons (Well Fed, Rested, Hungry, Weary)
   void drawBuffs(Game& g, float x, float y);
+
+  // ---- M7 Home, continued (VIEW lane: home_view.cpp, buildmode.cpp, render.cpp, hud.cpp). The yard's lights for
+  //      drawLighting (lanterns, campfires: collected with the home draws), the shadow and flat passes of the home draws
+  //      (drawWorld draws the flats before the shadows, so every shadow lies on the farmland and the paths), the rider's
+  //      silhouette for the hidden-hero ghost, the build screens' camera and pointer (drags), the HUD's home pills
+ public:
+  // (scripts, script_buildmode.cpp) drive the build screens: `build <words...>` / `expect build <words...>`; false with
+  // err set when refused
+  bool buildCommand(Game& g, const std::vector<std::string>& a, std::string& err);
+  bool buildExpect(Game& g, const std::vector<std::string>& a, std::string& err);
+ private:
+  std::vector<LightPool> homeLights_;
+  void drawHomeFlats(Vec2 cam);
+  void drawHomeShadow(const HomeDraw& d, Vec2 cam);
+  struct RideGhost { const Tex* t = nullptr; int fr = 0, row = 0; bool flip = false; float x = 0, y = 0; };
+  RideGhost rideGhost_;
+  void drawMountShadow(Game& g, const Actor& a, Vec2 cam);
+  bool buildCamWant(Game& g, Vec2& want);       // Mode::Build: where the camera wants to be (the ghost in view)
+  void buildPointer(Game& g, int phase, Vec2 p); // 1 move, 2 up (screen coords; the down is buildTap)
+  // the HUD's home pills (YARD / DECORATE where the player owns the ground or the house, DISMOUNT on horseback)
+  int homeHere(const Game& g, bool& indoors) const;   // the owned plot the player stands in or whose house he is in (-1)
+  void drawHomeHud(Game& g);
+  bool homeHudTap(Game& g, Vec2 p);              // true: a pill took the tap
+  bool homeHudKey(Game& g, int key);             // B: yard / decorate, F: dismount
+  void openBuild(Game& g, home::UiMode mode, int plot);
+  struct BuildDrag { bool on = false, moved = false; Vec2 start; int gx = 0, gy = 0; int list = -1; float scroll0 = 0; int zone = 0; };
+  BuildDrag buildDrag_;
+  int buildCat_ = 0, storeSel_ = 0, storeSide_ = 0, packScroll_ = 0, storeScroll_ = 0, cookScroll_ = 0;
+  std::string cookNote_;   // (M7 fix r3) the Cook screen's own "COOKED: X (HAVE n)" line (for the meal row cookNoteSel_)
+  int cookNoteSel_ = -1;
+  float cookNoteT_ = -100.0f;   // (t_ when it was set: it shows for a few seconds)
+  float toastX1_ = 0, toastY0_ = 0, toastY1_ = 0;   // (M7 fix) the toast column's extent last frame (world prompts keep clear)
+  bool buildHintDone_ = false;                       // (M7) the yard / decorate move hint was seen and used
+  int buildHintGx_ = INT32_MIN, buildHintGy_ = INT32_MIN;   // the ghost tile the hint was first shown at
 };

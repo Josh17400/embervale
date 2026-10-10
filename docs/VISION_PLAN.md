@@ -2701,3 +2701,80 @@ the meaning of what is listed here):
   `--sagas 2000 --seeds 1..5` (10,000). Script commands (rpg/view/script_saga.cpp): `saga start <arch> [twists] [vN]
   [mMOTIVE] [sSEED]`, `saga campaign <id> [arcs]`, `expect saga <stage|done|running>`; `story start` accepts spec ids;
   `tools/scripts/m6b_lead_saga.txt` (phone).
+
+### 15.22 M7 "Home" phase A (lead, 2026-10-09): the housing, farming, animal and riding contracts
+
+Section 8 and 13 M7 bind M7, with the owner's M7 notes (2026-10-09) on top: buy a cottage or a riverside plot, or build a
+house in ANY culture style the player has discovered with the M3b builder (3/4 view, depth, seamless walls; 2+ storeys
+have stairs and an upper-floor map); decorate and store; ~15 crops x 4 growth stages through the seasons; chickens,
+cows, sheep, pigs, goats with predators; a hired farmhand; cooking (15.2: Well Fed, better at hearths and inns, crops /
+livestock / fish feed it) on the economy's own goods and chains (grain -> flour -> bread, the forge) rather than
+parallel systems; horses bought, mounted and ridden on roads (dismount rules), stabling; deterministic, cheap offline
+catch-up; prices in the slow rags-to-riches curve (property is the big money sink, the M6 bands); phone-first build UI;
+<= 4 KB per farm. Every new generation and sim RNG draw is sequenced explicitly (never two draws as arguments of one call,
+one constructor or one concatenation: clang and MSVC must give the same goldens). Phase A contracts (a lane may ADD to the
+header it is named the editor of, never rename, remove or change the meaning of what is listed here):
+- `rpg/sim/home.h` (HOMESTEAD lane is its only editor): the calendar (`Season`, `seasonOf`: 4 x 28 days from day 1);
+  property (`HouseKind` / `houseInfo`: the 8.1 table; `LotSize` / `lotInfo`: 10x8 1500, 13x10 3500, 16x12 6000;
+  `Shell` / `shellInfo`: hut, cottage, longhouse, townhouse and hall with footprint, storeys, the builder's form and
+  purpose, materials and their credits, days; `priceFactor` 0.7..1.4 by prosperity); the object catalogue (`Obj` x42:
+  24 yard objects and 18 pieces of furniture, `ObjInfo` flags OBJ_* (outside / inside / solid / rotates / storage / cook /
+  bed / animals / ground / wall decor / joins), price, the furniture's art::Prop, capacity; `farmObjArt`); `PlacedObj`;
+  crops (`Crop` = art::Crop x17, `CropInfo`: days 3..8, yields 1..3, seasons, warm, perennial, paddy, its ew::Good,
+  seed price, value; `CropRec`; wilting after 2 dry days, nothing dies); animals (`Animal` x8, `AnimalInfo`: critter,
+  home, price, product and how often, hay; `AnimalRec`; `animalName`); `Product`; horses (`Breed` x6 / `breedInfo`:
+  7.2..9.2 tiles/s, sure-footed, 700..2600 gold; `breedOfCulture`; RIDE_ROAD_BONUS 15 %; `Dismount` reasons); cooking
+  (`Ingr` / `ingredientOf` over every food and good, `Station` campfire < hearth = pot < inn kitchen, `Meal` /
+  `baseMeals` (12) / `cultureMeals` (3 per culture), `makeMeal`, `mealBuff`); the item conventions (no new ItemKind:
+  Food / Misc sub ranges FOOD_CROP 64, FOOD_PRODUCT 96, FOOD_MEAL 128, MISC_CROP 64, MISC_SEED 96, MISC_PRODUCT 128,
+  MISC_TOOL 144, MISC_DEED 160; `makeCropItem`, `makeSeeds`, `makeProduct`, `makeTool`, `isSeed`, `isTool`,
+  `isHomeGood`, `goodOf`); the property record `Plot` (a bought House or a Lot: id, settlement, global rect, flags PF_*,
+  the house's shell / style / seed / footprint / build days, outside and inside objects, RLE ground edits, crops,
+  animals, stores, trough, catch-up day, tax, farmhand, name; MAX_* caps; PLOT_BYTES_BUDGET 4096, STORE_STACKS 24);
+  `Ui` (the Mode::Build screens' state: None / Shell / Yard / Decorate / Storage / Cook / Buy); `Homes` (Game::home:
+  plots, discovered styles, the horse ridden, dismount counts, ui; the home block); the pure rules (`catchUp`
+  (bounded by CATCHUP_DAYS = a year, deterministic over split spans), `rainDay`, `canPlaceOutside` / `canPlaceInside`
+  (overlap, bounds, and the gate-to-door / to-every-usable-object BFS), `gateOf`, `doorOf`, `houseBldg` (the built
+  house as a Bldg the builder designs: Bldg::home 1 built / 3 building, id IdKind::Plot 0xC00+), `forSaleHouses` (0-1 per
+  village at 40 %, 1-2 per town, 2-3 per city, deterministic), `houseKindOf`); the actions on a Game (buy a house or a
+  lot, start a build, place / remove objects, till, plant, water, harvest, buy animals, collect, hay, the farmhand,
+  cook, the stores, mount; `stampWindow`; `debugLot` for scripts and tests: the nearest clear ground).
+  Phase A implements all of it as first cuts (home.cpp, home_game.cpp).
+- `rpg/sim/game.h` (HOMESTEAD lane is its only editor): `Mode::Build`; `Game::home`; `DLG_HOME .. DLG_HOME_END`
+  (5000..5500); hooks called from the core loop and defined in rpg/sim/home_game.cpp: `homeStep` (after foeStep, timed
+  as PerfCounters::S_HOME), `homeInteract` (interact(), before props), `homeUseProp` (first prop handler),
+  `homePropUsable` (interactProp), `homeMapLoaded` (enterBuilding / enterSite / changeFloor), `homeTalk` /
+  `homeChoose` (after craftTalk; dialogueChoose routes the range), `homeAte` (useItem food), `homeShopStock`
+  (shopStock), `homeBed` (bedIsYours); public `homeRiding`, `homeSpeedMul` (updatePlayer's pace), `homeDismount`
+  (called on an attack / bow / spell / roll, a blow taken, entering a building or a site, resting; water in homeStep).
+  `HomeOps` is the lane's friend; Game::marks tags 96..111 are the HOMESTEAD lane's. A save made inside the player's
+  own house reloads inside it (the house is stamped before the building is entered). A house under construction
+  (Bldg::home 3) cannot be entered.
+- World (`rpg/sim/world.h`, `rpg/world/plots.h`, `rpg/world/source.h`; LAND lane is the only editor): `Bldg::home`
+  (0 / 1 built / 2 bought / 3 under construction: not entered, drawn as a building site), `World::placeSerial` (bumped
+  whenever the window's tiles are rewritten: the plots are stamped again), `World::lots` / `lotById` / `lotHandle`
+  (append-only, global tiles), `ew::PlotPlan` (id, settlement, rect, LotSize, PLOT_RIVERSIDE / PLOT_FENCED, the gate;
+  the layout contract in plots.h), `ChunkData::plots`. Phase A generates no lots yet.
+- Art (`rpg/art/art_home.h`, ART lane is its only editor; included by rpg/art.h): `art::Crop` x17 / `cropSprite(crop,
+  stage, variant, wilted)` (16x32), `farmlandTile` / `pathTile` (joins), `FarmObj` x22 / `FarmObjLook` (joins, turned,
+  stage, the culture's ArchStyle, the player's arms) / `farmObjW/H` / `farmObjSprite`, `scaffoldSprite(w, h, storeys,
+  progress 0..3)`, `horseSheet` (MOUNT_FRAMES 8 x 3 rows, 36x34) and `riderSeat`, `trophySprite`, `PaintingSpec` /
+  `paintingSprite` (32x24), `Prop::ForSaleSign` (homePropW/H/Frames, paintHomeProp); `Critter::Cow, Sheep, Horse`;
+  `Posture::Ride`; 16 `Icon`s (Seeds .. Deed). Phase A: stand-ins (art_home.cpp; the farm beasts on the goat's body;
+  the icons as their nearest classic icon; Ride as Sit).
+- View (`rpg/view/view.h`, VIEW lane is its only editor): `HomeDraw` / `homeDraws_` / `homeTex_`, `homeCollect`
+  (drawWorld y-sorts its draws as Drawable kind 8; a Bldg with home 3 is not drawn as a building), `drawHomeDraw`,
+  `drawMounted` (the player's figure when riding), `drawBuild` / `buildKey` / `buildTap` (Mode::Build; hud.cpp routes
+  them). Phase A: rpg/view/home_view.cpp (ground edits, crops, joined fences, objects, the building site, the ghost,
+  the horse and rider) and rpg/view/buildmode.cpp (the yard and shell screens).
+- Saves: SAVE_VER 14 (the home block after the craft block, length-prefixed, its own version byte; one length-prefixed
+  record per plot); fixture `tests/fixtures/save_v14.bin` (a large lot by the start village with a finished cottage in
+  the local style, a barley field, coop / pen / stable, chickens, a cow, a horse being ridden, a chest with a harvest).
+  ENDLESS_GEN_VER 16 (goldens unchanged by phase A; the LAND lane re-records them when lots change generation).
+- Tests and scripts: `rpg_test --home [--seeds A..B] [--fuzz N]` (CI): the tables, the calendar, growth / wilting /
+  seasons, catch-up determinism over split spans and a 1000-day catch-up under 5 ms, the 1000-placement fuzz checked by
+  an independent BFS, the 4 KB plot budget, the home block round trip and damaged blocks, and per seed a cottage built
+  in the local style (building site, finished on its day), a horse bought and ridden (x1.6+), the dismount triggers
+  (attack, a blow, entering) and a byte-identical save round trip with the farm. Script commands (rpg/view/
+  script_home.cpp): `home lot|buylot|buyhouse|build|place|fence|crop|field|animal|fill|tools|days|ride|dismount|yard|
+  shell`, `expect home plots|riding|crops|stage|built|dismounts`; `tools/scripts/m7_lead_home.txt`.

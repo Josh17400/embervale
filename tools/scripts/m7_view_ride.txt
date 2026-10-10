@@ -1,0 +1,28 @@
+# M7 VIEW lane: the rider on horseback (desktop): the horse's walk and gallop by speed, the rider seated at the saddle,
+# the draw order per facing (down: the head and chest over the rider; up: the rump over the legs; side-on), the
+# shadow, the hurt flash, the DISMOUNT pill (F).
+#   embervale.exe --script tools/scripts/m7_view_ride.txt     (m7_view_ride_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 walk east 2.5
++0.2 home lot medium
++0.1 gold 99999
++0.1 home fill
++0.1 home ride
++0.1 expect home riding 1
++0.2 shot m7_view_ride_1_idle.png
++0.1 hold S 0.6
++0.3 shot m7_view_ride_2_down.png
++0.4 hold W 0.6
++0.3 shot m7_view_ride_3_up.png
++0.4 hold D 0.8
++0.4 shot m7_view_ride_4_east.png
++0.5 hold A 0.8
++0.4 shot m7_view_ride_5_west.png
++0.6 key F
++0.2 expect home riding 0
++0.1 expect home dismounts player 1
++0.3 shot m7_view_ride_6_off.png
++0.3 quit

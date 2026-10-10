@@ -683,3 +683,77 @@ emptythrone, 10,000 composed stories walked in CI, uniqueness metrics and a writ
   tour scripts m6b_int_tour_a/b/c (inn at night, outdoors by day and dusk, temple at midnight, desktop size).
 - Fixes: piper opening over 300 characters; {%name} placeholders upper-cased by expand(); plea phrases no longer
   assume a journey; GUNSHOTS anachronism; HOLE UP typo; a misleading-indentation line in dsl.cpp.
+
+## M7, "Home" (VISION_PLAN 8, 13 M7, 15.2, 15.22; owner notes 2026-10-09)
+
+Goal: the player can buy a cottage or a (riverside) lot, build a house in any culture style they have discovered (the
+M3b builder: 3/4 view, depth, seamless walls; 2+ storeys with stairs and an upper floor), decorate and store, lay out a
+yard, farm ~17 crops in 4 stages through the seasons, keep chickens, goats, sheep, cows, pigs, ducks, a dog and horses
+(predators raid exposed farms), hire a farmhand, cook meals (15.2 Well Fed; better at hearths and inns) from crops,
+livestock, fish and the economy's goods and chains, and ride a horse down the roads (dismount rules, stabling). Offline
+catch-up deterministic and cheap; property the big money sink of the slow rags-to-riches curve; phone-first build UI;
+<= 4 KB per farm. Optional leftovers: ruin entrance layouts repeating across seeds, masonry ruin side walls without a
+top, the steppe yurt temple's screen in the middle of the floor.
+
+### Phase A (lead), 2026-10-09: done
+- The contracts are recorded in VISION_PLAN 15.22: `rpg/sim/home.h` (+ home.cpp / home_game.cpp first cuts), the Game
+  hooks, `Mode::Build`, `DLG_HOME`, the world records (`Bldg::home`, `World::placeSerial`, `World::lots`,
+  `ew::PlotPlan` in rpg/world/plots.h, `ChunkData::plots`), `rpg/art/art_home.h` (+ stand-ins), the farm Critters,
+  `Posture::Ride`, 16 Icons, `Prop::ForSaleSign`, the view's home draws / mounted rider / build screens (home_view.cpp,
+  buildmode.cpp), SAVE_VER 14 + `tests/fixtures/save_v14.bin` (save_v13.bin removed), ENDLESS_GEN_VER 16,
+  `rpg_test --home` (CI), the `home` script commands, `tools/scripts/m7_lead_home.txt`. tools/slot.sh already existed.
+
+### Phase B lanes (disjoint files; see the lead report for the briefs)
+- **homestead** (build_homestead): property sales and taxes, builders, farming rules and the economy, animals and
+  predators, the farmhand, cooking, horses and stabling, interiors' furniture, saves and --home.
+- **land** (build_land): lots for sale in generation (riverside lots), the builder's player houses in every culture and
+  shell (empty-shell interiors, upper floors), goldens, the ruin / yurt-temple leftovers.
+- **art** (build_art): crops, farmland and paths, yard objects in culture style, scaffolding, horse and rider, the farm
+  beasts, trophies, paintings, the sign, the icons, home_gallery.
+- **view** (build_view): the phone-first build / decorate / storage / cooking screens, home draws in the world, the
+  mounted rider, HUD prompts and buttons, the map's home marker.
+
+### Phase B results, 2026-10-10: done (all four lanes)
+- **homestead**: `home_talk.cpp` (deeds, taxes, re-registration, builders, stablemasters, recipes, the miller, the
+  farmhand), `home_actors.cpp` (farm animals, the waiting horse, builders, the farmhand, live wolf raids),
+  `home_interior.cpp` (furniture stamping and capture, starter bed and chest, stores, beds, cooking places);
+  `home_game.cpp` rewritten (homeInteract and interactLabel share one decision). The **home block is v2** (the plot's
+  furnished / starter / realm / farmhand / raid / tax-notice fields; v1 is refused). New FIX6 line in save_test:
+  `{1, 20, 30, 8, 4, 1, 0, 0, 2184.000f, 2346.000f, -256, 8.867f, 1}`. Selling crops foreign to the merchant's people
+  pays 25-50 % more; journeys on horseback take ~0.63x the hours; respawn at your own bed once slept in. A full farm's
+  plot record is ~2461 bytes (budget 4096). Prices: hut ~765, vacant cottage 2125-2625, large lot 6300, horses
+  700-2600; tax 5-35 a week.
+- **land**: `rpg/world/town_lots.cpp`: every village and town sells 1-3 fenced lots (a hash of the plan's seed, never
+  the shared RNG); palisaded villages place them before the palisade. Lots are **not saved** (regenerated with their
+  chunks); generated plot ids use local values below 0x800 (site slot x 8 + n). Player houses in all 12 cultures x 5
+  shells (`Request::home`), empty-shell interiors keeping the fixed parts (doors, stairs, windows, sconces, the fire);
+  steppe townhouse / hall / longhouse redesigned, dune huts mud brick. Leftovers done: ruin entrance halls vary, the
+  folding-screen nook must lean on a wall (steppe yurt temple). Goldens: towns 132 of 201 re-recorded (village / town
+  cases), endless 2 of 39 (ruin layouts); --golden unchanged. New flags `--lots`, `--home-places`.
+- **art**: `art_home.cpp` rewritten (17 crops x 4 stages + wilted, farmland and 8 paving looks, 22 yard objects in 13
+  culture styles, 7 fence kinds with every join, scaffold in 4 stages, the riding horse in 6 breeds / 3 gaits, trophies,
+  paintings, the FOR SALE sign); real Cow / Sheep / Horse critters, `Posture::Ride`, 16 farm icons (`paintFarmIcon`,
+  outside `paintIcon` so the art TOTAL hash is unchanged). `tools/preview/home_gallery.cpp` (`--check`).
+- **view**: `home_view.cpp` and `buildmode.cpp` rewritten (YARD / DECORATE / SHELL / STORAGE / COOK screens, touch
+  and keys), house windows lit at night, yard lights, hoofbeats (`Sfx::Hoof`), the minimap / world-map house marker,
+  `script_buildmode.cpp` (`build ...` / `expect build ...`).
+
+### Integration, 2026-10-10
+- Fixes: the HUD names the player's own animals' action (RIDE <NAME>, GROOM) instead of PET; the COOK screen works
+  without a plot (inn kitchens, campfires); the SHELL screen shows and charges the real price (priceFactor, the
+  materials brought: `ui.timber` / `ui.iron`); a house built on a lot keeps the builder's hearth / cook pot (adopted
+  into `Plot::inside`); `debugLot` keeps clear of generated lots; no footsteps under hoofbeats (the RNG draw is kept);
+  north-south bamboo fences (the yard's and the world's `Fence::Bamboo`) have a body; `dumptiles r d` prints deco ids (debug).
+- `m6b_fix_cast_gone.txt` kills IKHUR (the herb's old resident since vacant houses for sale stand empty).
+- Verified on one clean MSVC build: `--seeds 1..20` 20/20, `--home 1..5`, `--golden`, `--endless --golden`,
+  `--towns --golden`, `--life` / `--folk 1..5`, `--gear` / `--foes` / `--arms 1..3`, `--power-curve`, `--loot-audit`,
+  `--sagas 2000 1..5`, `--sagalib`, `--quests`, `--mainquest`, `--story 1..5`, `--builder 1..12 --strict
+  --society-strict`, `--lots`, `--endless --no-budget`, `--biomes --strict`, 7 / 99 / 12345 `--secs 60`, `--towns
+  1..10` (alone), `save_test`, `home_gallery --check`: all 0 failures; all 176 scripts exit 0; clang-tidy parse
+  (-fno-ms-compatibility -Wall -Wextra) of every M7 file: 0 diagnostics.
+- Open: `life_gallery --check` 23 failures (bare-ground seat facing up, feet leave the tile: no M7 change touches
+  it, believed older); `--window` web-travel 16 ms step noise; `--towns` city / capital build budget under load; the
+  steppe hall's round room shows a stray blue felt panel at the NE junction of the back wall and the curve (no prop
+  or deco there: a shell piece); north-south ruin wall runs have no top (`art::ruinVariant`); townsfolk can walk
+  through a yard's gate; stablemasters / millers only tested by their actions; town fields and pastures outside the
+  styled area keep plain wooden fences.

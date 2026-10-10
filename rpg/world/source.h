@@ -21,13 +21,18 @@
 #include "rpg/world/economy.h"
 #include "rpg/world/geology.h"
 #include "rpg/world/ids.h"
+#include "rpg/world/plots.h"
 #include "rpg/world/poi.h"
 
 namespace ew {
 
 // Bumped when the endless generator's output changes. Old saves are not kept compatible across M1 (owner rule,
 // 2026-10-04); the save stores it so a mismatch can say "this save is from an older world".
-constexpr int ENDLESS_GEN_VER = 15;  // 15: M6 Steel (bumped with SAVE_VER 12 so the lanes may change generation under
+constexpr int ENDLESS_GEN_VER = 16;  // 16: M7 Home (bumped with SAVE_VER 14 so the lanes may change generation under it:
+                                     //     settlements' lots for sale (ew::PlotPlan, riverside lots), the ruin-entrance
+                                     //     and masonry-ruin fixes, interiors of the player's houses; goldens
+                                     //     re-recorded by the lane that changes their output).
+                                     // 15: M6 Steel (bumped with SAVE_VER 12 so the lanes may change generation under
                                      //     it: harpy and golem dens, named uniques' lairs, world bosses' lairs, ore
                                      //     deposits; goldens re-recorded by the lane that changes their output).
                                      // 14: M5 Hearth and Hall (bumped with SAVE_VER 11 so the lanes may change
@@ -205,6 +210,7 @@ struct ChunkData {
   std::vector<SpawnPlan> spawns;
   std::vector<GTile> gates;         // city gatehouses (left tile of the 3-wide opening)
   std::vector<IRect> wallGaps;      // wall openings (global tiles)
+  std::vector<PlotPlan> plots;      // M7 (rpg/world/plots.h): the lots for sale of every settlement touching the chunk
   int at(int lx, int ly) const { return ly * CHUNK + lx; }
 };
 

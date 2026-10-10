@@ -19,6 +19,7 @@
 #include "rpg/art/art_fx.h"
 #include "rpg/art/art_culture.h"
 #include "rpg/art/art_life.h"
+#include "rpg/art/art_home.h"   // M7 Home: crops, yard objects, scaffolding, horses, trophies, paintings
 
 namespace art {
 

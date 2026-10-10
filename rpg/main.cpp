@@ -777,8 +777,8 @@ int main(int argc, char** argv) {
     return false;
   };
   auto modeByName = [](const std::string& s, Mode& m) {
-    static const char* n[] = {"title", "play", "dialogue", "menu", "shop", "levelup", "dead", "paused", "creator", "forge"};
-    for (int i = 0; i < 10; i++) if (s == n[i]) { m = (Mode)i; return true; }
+    static const char* n[] = {"title", "play", "dialogue", "menu", "shop", "levelup", "dead", "paused", "creator", "forge", "build"};
+    for (int i = 0; i < (int)(sizeof n / sizeof n[0]); i++) if (s == n[i]) { m = (Mode)i; return true; }
     return false;
   };
   auto runCmd = [&](const ScriptCmd& c) {
@@ -940,7 +940,7 @@ int main(int argc, char** argv) {
       std::string what = arg(1), want = arg(2);
       if (what == "mode") {
         Mode m;
-        static const char* n[] = {"title", "play", "dialogue", "menu", "shop", "levelup", "dead", "paused", "creator", "forge"};
+        static const char* n[] = {"title", "play", "dialogue", "menu", "shop", "levelup", "dead", "paused", "creator", "forge", "build"};
         if (!modeByName(want, m)) fail(c.line, "expect mode: unknown mode '" + want + "'");
         else if (game.mode != m) fail(c.line, "expected mode " + want + ", got " + n[(int)game.mode]);
       } else if (what == "gold") {
@@ -1154,7 +1154,7 @@ int main(int argc, char** argv) {
                     ss.worstShiftMs, ss.syncInShifts, ss.worstRecentreMs, regions, settlements, game.world.ox, game.world.oy, (int)game.mode);
         pacc.chunks0 = ch;
         // (M6 fixer) the worst step of each world subsystem this second (only the ones over 2 ms: a hitch's suspects)
-        static const char* const sysName[Game::PerfCounters::S_COUNT] = {"quests", "realm", "war", "story", "lifeStep", "raids", "foes", "lifeTick", "spawning"};
+        static const char* const sysName[Game::PerfCounters::S_COUNT] = {"quests", "realm", "war", "story", "lifeStep", "raids", "foes", "lifeTick", "spawning", "home"};
         std::string slow;
         for (int k = 0; k < Game::PerfCounters::S_COUNT; k++) {
           if (game.perf.sysWorstMs[k] >= 2.0) {

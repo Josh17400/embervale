@@ -34,7 +34,8 @@ enum Kind : uint8_t {
   K_SQUARE = 3,    // square, green, the palace walkway
   K_YARD = 4,      // footpath, doorstep, yard, garden, lamp spot
   K_FIELD = 5,     // field or pasture
-  K_COMPOUND = 6   // the palace compound's grounds (nothing else is built there)
+  K_COMPOUND = 6,  // the palace compound's grounds (nothing else is built there)
+  K_LOT = 7        // (M7) a lot for sale (rpg/world/plots.h): its fence ring and the clear ground inside (town_lots.cpp)
 };
 
 // city districts (VISION_PLAN 15.8): the old centre with the market, and four sectors around it
@@ -274,6 +275,11 @@ struct Gen {
   // of the town, over the water on a bridge (seed 41's river town had a square, a mill and a house on the far bank)
   void joinBanks();
   void addSpawn(Role r, int x, int y);
+  // ---------------------------------------------------------------- town_lots.cpp (M7 Home, VISION_PLAN 8.2)
+  // villages and towns: 1 to 3 fenced empty lots for sale on the outskirts, each beside a street that the heart reaches,
+  // its gate on that street and a FOR SALE sign inside by the gate; a lot along a river or lake bank when the land has
+  // one (PLOT_RIVERSIDE). Hash-driven (no draw from rng: the rest of the town is unchanged by the lots' choices).
+  void lots();
 };
 
 }  // namespace town

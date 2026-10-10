@@ -1,0 +1,30 @@
+# M7 fixer r3: phone touch riding. The stablemaster without a stable at home says so before anything is picked (no
+# BUY options); with a stable the horse is bought, and one tap on the action button (it reads RIDE beside her) mounts
+# her and stays mounted: the held finger of a touch that began as a use never turns into a swing that gets the rider
+# straight off again (in a yard with a stable that sent her into the stable, so she seemed to vanish).
+#   embervale.exe --script tools/scripts/m7_fix_ride_tap_phone.txt     (m7_fix_ride_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 gold 3000
++0.1 home talk stablehand
++0.2 choose HORSES FOR SALE
++3.0 shot m7_fix_ride_nostable.png
++0.1 choose FAREWELL
++0.2 walk east 2.5
++0.2 home lot medium
++0.1 home place stable 1 5
++0.1 home buyhorse
++0.1 expect home horse waiting
++0.1 home stand 6 3
++0.1 home horsehere
++0.1 touch 1
++0.4 home horsehere
++0.05 shot m7_fix_ride_pill.png
++0.05 tap 538 230
++0.6 expect home horse riding
++0.1 expect home dismounts attack 0
++0.3 shot m7_fix_ride_mounted.png
++0.3 quit

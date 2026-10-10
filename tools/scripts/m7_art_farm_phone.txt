@@ -1,0 +1,81 @@
+# M7 ART lane: the staged farm at 1x: every yard object in the local style, a joined fence (corners, a T, a gate),
+# a mixed field at every stage, the farm's animals; then the same at night (the lantern and the fire are lit by the
+# view). embervale.exe --script tools/scripts/m7_art_farm_phone.txt   (screenshots in the working directory)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 goto shrine
++0.5 home lot medium
++0.1 expect home plots 1
++0.1 walk east 1.6
++1.8 walk north 0.3
++0.5 log staged
++0.01 home place fence 0 0
++0.01 home place fence 1 0
++0.01 home place fence 2 0
++0.01 home place fence 3 0
++0.01 home place fence 4 0
++0.01 home place fence 5 0
++0.01 home place fence 6 0
++0.01 home place fence 7 0
++0.01 home place fence 8 0
++0.01 home place fence 9 0
++0.01 home place fence 10 0
++0.01 home place fence 11 0
++0.01 home place fence 12 0
++0.01 home place fence 12 1
++0.01 home place fence 12 2
++0.01 home place fence 12 3
++0.01 home place fence 12 4
++0.01 home place fence 12 5
++0.01 home place fence 12 6
++0.01 home place fence 12 7
++0.01 home place fence 12 8
++0.01 home place fence 0 9
++0.01 home place fence 1 9
++0.01 home place fence 2 9
++0.01 home place fence 3 9
++0.01 home place fence 4 9
++0.01 home place fence 5 9
++0.01 home place gate 6 9
++0.01 home place fence 7 9
++0.01 home place fence 8 9
++0.01 home place fence 9 9
++0.01 home place fence 10 9
++0.01 home place fence 11 9
++0.01 home place fence 12 9
++0.01 home place fence 0 1
++0.01 home place fence 0 8
++0.02 home place well 1 1
++0.02 home place coop 4 1
++0.02 home place stable 7 1
++0.02 home place beehive 11 1
++0.02 home place pen 1 4
++0.02 home place forge 4 4
++0.02 home place trough 6 4
++0.02 home place workbench 8 4
++0.02 home place crate 11 4
++0.02 home place woodpile 6 5
++0.02 home place hayrack 8 5
++0.02 home place flowerbed 11 5
++0.02 home place sapling 7 7
++0.02 home place scarecrow 8 7
++0.02 home place lantern 9 7
++0.02 home place statue 10 7
++0.02 home place banner 11 7
++0.02 home place campfire 8 8
++0.02 home place doghouse 9 8
++0.02 home place bench 10 8
++0.05 home field 1 7 6 2 mixed
++0.05 home animal chicken 3
++0.05 home animal cow 1
++0.05 home animal sheep 2
++0.05 home animal goat 1
++0.05 home animal horse 1
++0.05 home animal dog 1
++0.6 shot m7_art_farm_phone.png
++0.1 hour 21
++0.6 shot m7_art_farm_night_phone.png
++0.3 quit

@@ -123,6 +123,8 @@ TravelQuote Game::travelQuote(int si, bool carriage) const {
   const int32_t dx = world.ox + s.ex, dy = world.oy + s.ey;
   const float dist = std::hypot((float)(dx - px), (float)(dy - py));
   q.hours = dist / (carriage ? kCarriageTilesPerHour : kFootTilesPerHour);
+  // M7: on horseback the road goes by faster (the breed's pace over the walker's, the road bonus, rests on the way)
+  if (!carriage && homeRiding()) q.hours *= home::WALK_SPEED_PX / (home::breedInfo((home::Breed)home.ridingBreed).speed * TILE * (1.0f + home::RIDE_ROAD_BONUS)) * 1.25f;
   q.gold = carriage ? std::max(5, (int)std::lround(dist * 0.1f)) : 0;
   if (travelling()) { q.why = "YOU ARE ALREADY ON THE ROAD"; return q; }
   // (M3 integration) standing anywhere inside the place counts too: settlements grew, and a journey to the gate of
@@ -161,6 +163,9 @@ bool Game::beginTravel(int si, bool carriage) {
 bool Game::startJourney(int si, int kind, float hours, int fare) {
   if (si < 0 || si >= (int)world.sites.size()) return false;
   const Site s = world.sites[(size_t)si];
+  // M7: a rider keeps the saddle on the road; the carriage leaves the horse, and a horse left waiting walks home
+  if (kind == 1 && homeRiding()) homeDismount(home::Dismount::Travel);
+  if (home.riding < 0 && !home.horseInn) home.horse = -1;
   travel = Travel();
   travel.phase = TravelPhase::Gather;
   travel.site = si;
@@ -386,7 +391,21 @@ void Game::respawn() {
   mp = maxMp; stamina = maxSt;
   int lost = gold / 10;
   gold -= lost;
+  // M7: the player wakes in their own house when they have slept in its bed (PF_RESPAWN): at its door
+  for (const home::Plot& hp : home.plots) {
+    if (!(hp.flags & home::PF_RESPAWN) || !hp.hw) continue;
+    int dx, dy;
+    home::doorOf(hp, dx, dy);
+    if (home.riding >= 0) homeDismount(home::Dismount::Travel);
+    home.horse = home.horseInn ? home.horse : -1;   // a horse left waiting goes home
+    HomeOps::travelHomeOnRespawn(*this, hp.gx + dx, hp.gy + dy + 1);
+    say(lost > 0 ? "YOU WAKE AT HOME. LOST " + std::to_string(lost) + " GOLD." : "YOU WAKE AT HOME.");
+    return;
+  }
   const std::string name = world.sites[(size_t)si].name;
+  // (M7 fixer r2) every death ends the ride (a kill by fire or a script's die never went through damage()): the
+  // horse stays where the rider fell and, not stabled at an inn, walks home (startJourney)
+  if (home.riding >= 0) homeDismount(home::Dismount::Hurt);
   startJourney(si, 2, 0.0f, 0);
   travel.t = kTravelFadeOut;   // the death screen is already dark: no fade out
   sleepFade = 1.0f;

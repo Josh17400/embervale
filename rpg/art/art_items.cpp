@@ -421,6 +421,265 @@ void iconGlint(Canvas& c, int rarity) {
   }
 }
 
+// M7 Home: the farm's goods and tools (tint: the crop's or the product's colour; M: the tinted ramp when tinted)
+void paintFarmIcon(Canvas& c, Icon ic, bool tinted, const Ramp& M) {
+  switch (ic) {
+    case Icon::Fish: {   // a fish side-on, nose left: the back dark, the belly pale, a forked tail, a fin and an eye
+      const Ramp F = tinted ? M : ramp5(rgba(40, 56, 80), rgba(70, 98, 124), rgba(112, 146, 166), rgba(166, 196, 206), rgba(226, 236, 236));
+      ball(c, 7.0f, 8.5f, 5.6f, 3.2f, F, 0.06f);
+      poly(c, {{11.0f, 8.5f}, {15.0f, 4.5f}, {15.0f, 12.5f}}, F[2]);   // the tail
+      poly(c, {{11.0f, 8.5f}, {15.0f, 4.5f}, {13.6f, 8.5f}}, F[3]);
+      c.set(15, 4, F[1]); c.set(15, 13, F[0]); c.set(14, 8, F[1]); c.set(14, 9, F[1]);
+      for (int x = 4; x <= 9; x++) c.set(x, 5, F[x < 6 ? 2 : 1]);   // the dark back
+      for (int x = 3; x <= 10; x++) c.set(x, 11, F[4]);             // the pale belly
+      poly(c, {{6.0f, 5.5f}, {9.5f, 3.0f}, {10.0f, 5.5f}}, F[1]);    // the dorsal fin
+      c.set(7, 10, F[1]); c.set(8, 11, F[1]);                         // the pectoral fin
+      c.set(3, 7, kInk); c.set(3, 8, F[4]);                           // the eye
+      c.set(2, 9, F[0]); c.set(5, 7, F[0]); c.set(5, 9, F[0]);        // the mouth, the gill
+      if (tinted) { for (int x = 5; x <= 10; x += 2) c.set(x, 8, F[0]); }   // grill marks on a cooked fish
+      break;
+    }
+    case Icon::Pie: {   // a round pie in its tin from above-front: a domed lattice crust, steam
+      const Ramp Cr = ramp5(rgba(110, 58, 30), rgba(170, 100, 46), rgba(214, 148, 70), rgba(238, 190, 108), rgba(252, 228, 164));
+      const Ramp& Fl = tinted ? M : ramp5(rgba(80, 26, 30), rgba(128, 44, 40), rgba(170, 70, 52), rgba(204, 104, 70), rgba(230, 150, 110));
+      for (int x = 1; x <= 14; x++) for (int y = 11; y <= 13; y++) c.set(x, y, kIron[y == 11 ? 3 : (x < 4 ? 2 : 1)]);   // the tin
+      ball(c, 7.5f, 9.5f, 6.6f, 3.6f, Cr, 0.05f);
+      for (int k = 0; k < 4; k++) for (int y = 7; y <= 11; y++) { const int x = 3 + k * 3 + (y - 7) / 2; if (x < 14) c.set(x, y, Cr[4]); }   // the lattice
+      for (int x = 3; x <= 12; x++) c.set(x, 9, Cr[3]);
+      c.set(5, 8, Fl[2]); c.set(8, 10, Fl[2]); c.set(11, 8, Fl[3]); c.set(6, 10, Fl[1]);   // the filling between the strips
+      c.set(6, 4, kCloth[4]); c.set(7, 3, kCloth[3]); c.set(9, 4, kCloth[4]); c.set(10, 3, kCloth[3]);   // steam
+      break;
+    }
+    case Icon::Roast: {   // a roast on a platter: the browned joint, a crisp highlight, herbs beside it
+      const Ramp R = tinted ? M : ramp5(rgba(76, 30, 24), rgba(122, 56, 32), rgba(166, 90, 44), rgba(204, 130, 66), rgba(238, 182, 110));
+      for (int y = 11; y <= 13; y++) for (int x = 1; x <= 14; x++) {   // the platter (an oval rim)
+        const float dx = (x + 0.5f - 8.0f) / 7.0f, dy = (y + 0.5f - 12.0f) / 2.2f;
+        if (dx * dx + dy * dy <= 1.0f) c.set(x, y, kStoneWarm[y == 11 ? 4 : (y == 13 ? 2 : 3)]);
+      }
+      ball(c, 7.5f, 8.5f, 5.2f, 3.8f, R, 0.06f);
+      for (int x = 5; x <= 9; x++) c.set(x, 6, R[4]);
+      c.set(4, 7, R[4]); c.set(6, 9, R[1]); c.set(9, 10, R[0]); c.set(10, 8, R[1]);
+      capsule(c, V(11, 7), V(14, 5), 1.0f, 0.8f, kBone);   // the bone end
+      c.set(2, 10, kLeaf[3]); c.set(3, 11, kLeaf[2]); c.set(13, 10, kLeaf[3]); c.set(12, 11, kLeaf[2]);   // the herbs
+      break;
+    }
+    case Icon::Cake: {   // a round cake: two sponge layers, cream between, icing running over the top, a berry
+      const Ramp Sp = ramp5(rgba(120, 72, 38), rgba(178, 120, 60), rgba(218, 166, 92), rgba(240, 204, 132), rgba(252, 236, 186));
+      const Ramp& Ic = tinted ? M : ramp5(rgba(150, 120, 96), rgba(200, 170, 140), rgba(232, 208, 180), rgba(246, 234, 214), rgba(255, 252, 244));
+      for (int y = 7; y <= 13; y++) for (int x = 2; x <= 13; x++) c.set(x, y, Sp[x < 4 ? 3 : (x > 11 ? 1 : 2)]);
+      for (int x = 2; x <= 13; x++) { c.set(x, 10, Ic[3]); c.set(x, 13, Sp[0]); }
+      ball(c, 7.5f, 7.0f, 6.0f, 2.2f, Ic, 0.04f);   // the iced top
+      c.set(3, 8, Ic[3]); c.set(6, 8, Ic[2]); c.set(6, 9, Ic[2]); c.set(10, 8, Ic[2]); c.set(12, 8, Ic[3]); c.set(12, 9, Ic[2]);   // drips
+      ball(c, 8.0f, 5.0f, 1.3f, 1.2f, kRed);   // the berry
+      c.set(8, 3, kLeaf[3]);
+      break;
+    }
+    case Icon::Seeds: {   // a tied cloth pouch, seeds spilling from its mouth
+      const Ramp Sd = tinted ? M : ramp5(rgba(96, 62, 34), rgba(150, 102, 50), rgba(196, 146, 72), rgba(226, 190, 112), rgba(246, 226, 166));
+      ball(c, 7.5f, 10, 5.0f, 4.6f, kCloth);
+      for (int x = 5; x <= 10; x++) c.set(x, 5, kCloth[x < 7 ? 4 : 2]);
+      for (int x = 4; x <= 11; x++) c.set(x, 4, kCloth[x < 6 ? 3 : 1]);
+      c.set(6, 3, kCloth[3]); c.set(9, 3, kCloth[2]); c.set(7, 2, kCloth[4]); c.set(8, 2, kCloth[3]);
+      for (int x = 5; x <= 10; x++) c.set(x, 6, kLeather[x < 8 ? 3 : 1]);   // the drawstring
+      c.set(4, 9, kCloth[4]); c.set(5, 13, kCloth[1]);
+      static const int sp[5][2] = {{11, 13}, {13, 12}, {12, 14}, {14, 14}, {10, 14}};
+      for (auto& q : sp) { c.set(q[0], q[1], Sd[3]); c.set(q[0] + 1, q[1], Sd[1]); }
+      c.set(7, 9, Sd[2]); c.set(8, 10, Sd[3]);   // a seed printed on the cloth
+      break;
+    }
+    case Icon::Sheaf: {   // a sheaf of grain: stalks bound at the waist, the ears fanning out on top
+      const Ramp& G = tinted ? M : kGold;
+      for (int i = -3; i <= 3; i++) {
+        const int top = 5 - (i == 0 ? 1 : 0), bx = 8 + i / 2;
+        for (int y = top; y <= 14; y++) {
+          const float t = (float)(y - top) / (14 - top);
+          const int x = (int)std::lround(8 + i * (1.0f - t) * 1.3f + i * 0.4f * (y > 10 ? (y - 10) * 0.3f : 0));
+          c.set(x, y, G[(i < 0) ? 3 : (i == 0 ? 2 : 1)]);
+        }
+        (void)bx;
+        // the ear
+        const int ex = 8 + (int)std::lround(i * 1.3f), ey = top;
+        c.set(ex, ey - 1, G[4]); c.set(ex, ey - 2, G[3]); c.set(ex + (i < 0 ? -1 : 1), ey - 3, G[3]); c.set(ex, ey, G[2]);
+        if (i != 0) c.set(ex + (i < 0 ? -1 : 1), ey - 1, G[2]);
+      }
+      for (int x = 5; x <= 11; x++) { c.set(x, 10, kLeather[x < 8 ? 3 : 2]); c.set(x, 11, kLeather[1]); }   // the band
+      break;
+    }
+    case Icon::Veg: {   // a root (a turnip by default): the round bulb, its tail, a tuft of leaves
+      const Ramp Vg = tinted ? M : ramp5(rgba(88, 40, 82), rgba(138, 66, 118), rgba(184, 104, 156), rgba(226, 196, 214), rgba(248, 240, 236));
+      for (int i = -1; i <= 1; i++) capsule(c, V(8, 6), V(8 + i * 4, 1.5f), 1.2f, 0.6f, kLeaf, i < 0 ? 1 : 0);
+      ball(c, 8, 9.5f, 4.8f, 4.4f, Vg);
+      capsule(c, V(8.5f, 13), V(9.5f, 15.2f), 0.9f, 0.4f, Vg, -1);
+      c.set(6, 8, Vg[4]); c.set(5, 9, Vg[4]);
+      c.set(10, 11, Vg[1]); c.set(7, 12, Vg[1]);
+      break;
+    }
+    case Icon::Fruit: {   // a bunch of grapes on its stem with a vine leaf
+      const Ramp& F = tinted ? M : kPurple;
+      static const float g[9][2] = {{6, 6}, {9, 6}, {12, 6.5f}, {7.5f, 8.5f}, {10.5f, 8.8f}, {6, 11}, {9, 11}, {7.5f, 13.5f}, {12, 11}};
+      for (auto& q : g) ball(c, q[0], q[1], 1.8f, 1.8f, F, 0.05f);
+      for (auto& q : g) c.set((int)q[0] - 1, (int)q[1] - 1, F[4]);
+      line(c, 9, 4, 10, 1, kWood[2]);
+      ellipse(c, 12.5f, 2.8f, 2.6f, 1.6f, kLeaf[3]); c.set(12, 2, kLeaf[4]); c.set(13, 3, kLeaf[1]);
+      break;
+    }
+    case Icon::Egg: {   // eggs in a nest of straw
+      const Ramp E = tinted ? M : ramp5(rgba(150, 120, 96), rgba(206, 178, 146), rgba(236, 218, 192), rgba(248, 240, 222), rgba(255, 252, 244));
+      for (int x = 1; x <= 14; x++)
+        for (int y = 10; y <= 14; y++) {
+          const float dx = (x - 7.5f) / 7.0f, dy = (y - 11.5f) / 3.0f;
+          if (dx * dx + dy * dy > 1.0f) continue;
+          c.set(x, y, kThatch[(hash3(x, y, 21) % 3 == 0) ? 4 : (y > 12 ? 1 : 2)]);
+        }
+      ball(c, 5.5f, 8.5f, 2.6f, 3.3f, E, 0.05f);
+      ball(c, 10.0f, 8.0f, 2.6f, 3.4f, E, 0.05f);
+      ball(c, 8.0f, 10.0f, 2.5f, 3.0f, E, 0.05f);
+      c.set(7, 8, kWhite); c.set(9, 6, kWhite);
+      for (int x = 2; x <= 13; x += 2) c.set(x, 11, kThatch[3]);
+      break;
+    }
+    case Icon::Milk: {   // an earthenware jug, milk at its mouth
+      const Ramp J = tinted ? M : ramp5(rgba(92, 52, 40), rgba(148, 86, 58), rgba(190, 124, 80), rgba(222, 164, 110), rgba(244, 204, 150));
+      ball(c, 7.5f, 10, 4.8f, 4.6f, J, 0.06f);
+      for (int y = 3; y <= 6; y++) for (int x = 5; x <= 10; x++) c.set(x, y, J[x < 7 ? 3 : (x > 9 ? 1 : 2)]);
+      for (int x = 4; x <= 11; x++) c.set(x, 2, J[x < 7 ? 4 : 2]);
+      c.set(3, 3, J[3]); c.set(4, 3, J[2]);   // the lip
+      for (int x = 5; x <= 10; x++) c.set(x, 3, x < 8 ? kWhite : kCloth[4]);   // the milk
+      for (int y = 5; y <= 10; y++) c.set(13, y, J[1]);   // the handle
+      c.set(12, 4, J[2]); c.set(12, 11, J[1]);
+      for (int x = 4; x <= 11; x++) c.set(x, 8, J[1]);   // a band
+      c.set(5, 9, J[4]);
+      break;
+    }
+    case Icon::Wool: {   // a skein of wool: a ball of yarn, its loose end
+      const Ramp W = tinted ? M : ramp5(rgba(150, 140, 120), rgba(200, 190, 168), rgba(232, 224, 204), rgba(244, 238, 224), rgba(254, 252, 244));
+      ball(c, 8, 8.5f, 5.6f, 5.4f, W, 0.05f);
+      for (int k = 0; k < 4; k++) {   // the windings
+        const float a = 0.6f + k * 0.55f;
+        for (int t = -5; t <= 5; t++) {
+          const int x = (int)std::lround(8 + t * std::cos(a)), y = (int)std::lround(8.5f + t * std::sin(a) * 0.9f);
+          if (solid(c, x, y) && (t & 1)) c.set(x, y, W[1]);
+        }
+      }
+      line(c, 12, 12, 15, 14, W[2]); c.set(14, 14, W[1]);
+      c.set(5, 5, W[4]); c.set(6, 5, W[4]);
+      break;
+    }
+    case Icon::Hay: {   // a bale of hay: its lit top, the straw-ends face, two twine bands, stray stalks
+      const Ramp H = tinted ? M : ramp5(rgba(140, 104, 40), rgba(190, 150, 56), rgba(224, 188, 82), rgba(240, 214, 120), rgba(252, 238, 172));
+      for (int y = 6; y <= 13; y++)
+        for (int x = 2; x <= 13; x++) {
+          const uint32_t q = hash3(x, y, 31);
+          int k = q % 3 == 0 ? 3 : 2;
+          if (q % 7 == 0) k = 1;
+          if (x == 2) k = 3;
+          if (x == 13 || y == 13) k = 1;
+          c.set(x, y, H[k]);
+        }
+      for (int y = 3; y <= 5; y++)
+        for (int x = 3 + (5 - y); x <= 14 - (6 - y); x++) c.set(x, y, H[(hash3(x, y, 33) % 3 == 0) ? 3 : 4]);
+      for (int y = 3; y <= 13; y++) { c.set(5 + (y < 6 ? 6 - y : 0) / 2, y, kLeather[2]); c.set(10 + (y < 6 ? 6 - y : 0) / 2, y, kLeather[1]); }
+      c.set(1, 8, H[3]); c.set(14, 10, H[2]); c.set(1, 11, H[2]); c.set(6, 14, H[2]);   // stray stalks
+      break;
+    }
+    case Icon::Flour: {   // a sack of flour: the open mouth white with flour, a wheat mark
+      ball(c, 8, 10, 5.6f, 4.8f, kCloth, 0.05f);
+      for (int y = 4; y <= 7; y++) for (int x = 4; x <= 11; x++) c.set(x, y, kCloth[x < 6 ? 4 : (x > 10 ? 2 : 3)]);
+      for (int x = 4; x <= 11; x++) c.set(x, 3, x < 8 ? kWhite : rgba(236, 232, 222));
+      c.set(5, 2, kWhite); c.set(6, 2, kWhite); c.set(9, 2, rgba(236, 232, 222));
+      for (int x = 4; x <= 11; x++) c.set(x, 4, kCloth[1]);   // the turned-down rim
+      const Ramp& G = tinted ? M : kGold;
+      vline(c, 8, 8, 13, G[2]); c.set(7, 9, G[3]); c.set(9, 9, G[1]); c.set(7, 11, G[3]); c.set(9, 11, G[1]); c.set(8, 7, G[4]);
+      break;
+    }
+    case Icon::Honey: {   // a honey pot with a dipper, honey running over its lip
+      const Ramp P = ramp5(rgba(92, 52, 40), rgba(148, 86, 58), rgba(190, 124, 80), rgba(222, 164, 110), rgba(244, 204, 150));
+      const Ramp& Hn = tinted ? M : kGold;
+      ball(c, 7.5f, 10.5f, 5.2f, 4.4f, P, 0.06f);
+      for (int x = 3; x <= 12; x++) { c.set(x, 6, P[x < 6 ? 4 : 2]); c.set(x, 7, Hn[x < 7 ? 4 : 3]); }
+      c.set(4, 8, Hn[3]); c.set(4, 9, Hn[2]); c.set(10, 8, Hn[2]);   // drips
+      line(c, 9, 7, 13, 1, kWood[2]); c.set(13, 1, kWood[3]);
+      c.set(8, 6, Hn[3]); c.set(9, 6, Hn[2]);
+      c.set(5, 11, P[4]);
+      break;
+    }
+    case Icon::Meal: {   // a bowl of hot food: the stew's surface, a spoon, steam
+      const Ramp& D = tinted ? M : ramp5(rgba(96, 40, 30), rgba(150, 70, 40), rgba(196, 110, 56), rgba(226, 156, 84), rgba(246, 200, 130));
+      for (int y = 9; y <= 14; y++)
+        for (int x = 1; x <= 14; x++) {
+          const float dx = (x + 0.5f - 8.0f) / 7.0f, dy = (y + 0.5f - 9.0f) / 5.5f;
+          if (dx * dx + dy * dy > 1.0f || y < 9) continue;
+          c.set(x, y, kWood[x < 5 ? 3 : (x > 11 ? 1 : 2)]);
+        }
+      for (int x = 2; x <= 13; x++) { c.set(x, 8, D[x < 6 ? 4 : 3]); c.set(x, 9, D[2]); }
+      c.set(5, 8, kLeaf[3]); c.set(9, 9, kLeaf[2]); c.set(11, 8, rgba(240, 220, 160));
+      for (int x = 1; x <= 14; x++) c.set(x, 10, kWood[x < 4 ? 4 : 3]);
+      line(c, 10, 8, 14, 3, kWood[3]);   // the spoon
+      for (int k = 0; k < 2; k++) { c.set(5 + k * 3, 6 - k, kCloth[4]); c.set(6 + k * 3, 4 - k, kCloth[3]); c.set(5 + k * 3, 3 - k, kCloth[4]); }
+      break;
+    }
+    case Icon::Hoe: {   // a hoe: a long ash handle, the iron blade at its foot
+      diagHandle(c, 4, 13, 10, kWood);
+      const Ramp& I = tinted ? M : kIron;
+      for (int y = 10; y <= 14; y++) for (int x = 1; x <= 4; x++) if (x + (14 - y) / 2 <= 5) c.set(x, y, I[x == 1 ? 4 : (y == 14 ? 1 : 3)]);
+      c.set(4, 12, I[2]); c.set(5, 12, kIron[1]);
+      break;
+    }
+    case Icon::WateringCan: {   // a watering can: the body, the long spout and its rose, the handle
+      const Ramp& I = tinted ? M : ramp5(rgba(40, 70, 70), rgba(64, 108, 104), rgba(98, 148, 136), rgba(142, 186, 168), rgba(206, 226, 210));
+      for (int y = 6; y <= 13; y++) for (int x = 3; x <= 10; x++) c.set(x, y, I[x == 3 ? 4 : (x < 6 ? 3 : (x > 9 ? 1 : 2))]);
+      for (int x = 3; x <= 10; x++) { c.set(x, 6, I[4]); c.set(x, 13, I[0]); }
+      line(c, 10, 11, 14, 5, I[3]); line(c, 10, 12, 14, 6, I[1]);
+      c.set(14, 4, I[4]); c.set(15, 4, I[2]); c.set(15, 5, I[1]);
+      for (int x = 4; x <= 9; x++) c.set(x, 3, I[x < 6 ? 3 : 2]);
+      c.set(4, 4, I[2]); c.set(4, 5, I[2]); c.set(9, 4, I[1]); c.set(9, 5, I[1]);   // the handle
+      c.set(2, 8, I[2]); c.set(2, 9, I[2]); c.set(2, 10, I[1]);
+      c.set(13, 7, kWater[4]); c.set(15, 7, kWater[3]); c.set(14, 9, kWater[3]);   // drops
+      break;
+    }
+    case Icon::Sickle: {   // a sickle: the crescent blade, a short handle
+      const Ramp& I = tinted ? M : kIron;
+      for (int a = 0; a < 26; a++) {
+        const float t = (float)a / 25.0f;
+        const float ang = -PI * 0.15f - t * PI * 1.05f;
+        const float r = 5.6f - t * 0.6f;
+        const int x = (int)std::lround(8.5f + std::cos(ang) * r), y = (int)std::lround(7.0f + std::sin(ang) * r);
+        c.set(x, y, I[4]);
+        c.set((int)std::lround(8.5f + std::cos(ang) * (r - 1.0f)), (int)std::lround(7.0f + std::sin(ang) * (r - 1.0f)), I[t < 0.8f ? 2 : 3]);
+      }
+      for (int i = 0; i < 4; i++) { c.set(11 + i / 2, 9 + i, kWood[(i & 1) ? 2 : 3]); c.set(12 + i / 2, 9 + i, kWood[1]); }
+      c.set(13, 14, kWood[1]);
+      break;
+    }
+    case Icon::Brush: {   // a grooming brush: a wooden back, the bristles, a leather strap over it
+      const Ramp& B = tinted ? M : kWood;
+      for (int y = 5; y <= 10; y++)
+        for (int x = 2; x <= 13; x++) {
+          const float dx = (x + 0.5f - 8.0f) / 6.0f, dy = (y + 0.5f - 7.5f) / 3.0f;
+          if (dx * dx + dy * dy > 1.0f) continue;
+          c.set(x, y, B[y < 7 ? (x < 7 ? 4 : 3) : 2]);
+        }
+      for (int x = 3; x <= 12; x++) for (int y = 10; y <= 12; y++) c.set(x, y, (x & 1) ? kThatch[1] : kThatch[2]);
+      for (int x = 3; x <= 12; x++) c.set(x, 6, kLeather[x < 8 ? 3 : 2]);
+      c.set(3, 7, kLeather[1]); c.set(12, 7, kLeather[1]);
+      c.set(5, 6, kBrass[4]); c.set(10, 6, kBrass[3]);
+      break;
+    }
+    case Icon::Deed: {   // a deed: a rolled parchment tied with a ribbon, a red wax seal
+      for (int y = 4; y <= 11; y++) for (int x = 2; x <= 13; x++) c.set(x, y, kCloth[x < 4 ? 4 : (y > 9 ? 2 : 3)]);
+      for (int y = 3; y <= 12; y++) { c.set(1, y, kCloth[(y & 1) ? 3 : 4]); c.set(14, y, kCloth[(y & 1) ? 1 : 2]); }
+      for (int y = 3; y <= 12; y++) c.set(2, y, kCloth[1]);
+      for (int x = 4; x <= 11; x += 1) if (x % 4) c.set(x, 6, kCloth[0]);
+      for (int x = 4; x <= 9; x += 1) if (x % 3) c.set(x, 8, kCloth[0]);
+      const Ramp& Sl = tinted ? M : kRed;
+      vline(c, 11, 2, 14, kGold[2]); c.set(10, 14, kGold[3]); c.set(12, 14, kGold[1]);
+      ball(c, 11, 10.5f, 2.3f, 2.2f, Sl, 0.0f); c.set(10, 9, Sl[4]); c.set(11, 11, Sl[1]);
+      break;
+    }
+    default: break;
+  }
+}
+
 void paintIcon(Canvas& c, Icon ic, uint32_t tint, const Ramp* over = nullptr) {
   const bool tinted = tint != 0 || over;
   const Ramp M = over ? *over : (tinted ? ramp(tint, 1.1f) : kIron);     // metal / main material
@@ -759,6 +1018,13 @@ void paintIcon(Canvas& c, Icon ic, uint32_t tint, const Ramp* over = nullptr) {
       c.set(4, 9, kWhite);
       break;
     }
+    // ---- M7 Home: the farm's goods and tools (painted apart, so the classic icons' code is untouched)
+    case Icon::Seeds: case Icon::Sheaf: case Icon::Veg: case Icon::Fruit: case Icon::Egg: case Icon::Milk: case Icon::Wool:
+    case Icon::Hay: case Icon::Flour: case Icon::Honey: case Icon::Meal: case Icon::Hoe: case Icon::WateringCan:
+    case Icon::Sickle: case Icon::Brush: case Icon::Deed:
+    case Icon::Fish: case Icon::Pie: case Icon::Roast: case Icon::Cake:
+      paintFarmIcon(c, ic, tinted, M);
+      break;
     // ---- M6 Steel (phase A stand-ins; the ARMS lane paints them properly)
     case Icon::Spear: spearIcon(c, 1, M, 0, 0); break;
     case Icon::Ingot: ingotIcon(c, tinted ? M : kIron); break;

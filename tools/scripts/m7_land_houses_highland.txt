@@ -1,0 +1,69 @@
+# M7 LAND lane: the player's houses in the highland style beside CRAKIO (seed 6): all five shells (hut, cottage,
+# longhouse, townhouse, hall) built at once on large lots in a row of open ground (rpg_test --home-places), then for
+# each an exterior shot from the lot's front, the ground floor (an empty shell: rooms, doors, windows, stairs and the
+# hearth under the chimney; no furniture, the player's to bring) and, for the two-storey shells, the upper floor.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7_land_houses_highland.txt     (m7_land_highland_*.png)
+seed 6
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.3 at -557 -168
++0.6 home lot large
++0.1 home build hut highland instant
++0.1 expect home plots 1
++0.3 at -539 -168
++0.6 home lot large
++0.1 home build cottage highland instant
++0.1 expect home plots 2
++0.3 at -521 -168
++0.6 home lot large
++0.1 home build longhouse highland instant
++0.1 expect home plots 3
++0.3 at -503 -168
++0.6 home lot large
++0.1 home build townhouse highland instant
++0.1 expect home plots 4
++0.3 at -485 -168
++0.6 home lot large
++0.1 home build hall highland instant
++0.1 expect home plots 5
++3.5 hour 11
++0.3 at -547 -169
++1.0 shot m7_land_highland_hut.png
++0.1 enter hut
++0.1 expect inside 1
++0.8 shot m7_land_highland_hut_in.png
++0.2 walkto exit
++0.3 at -529 -168
++1.0 shot m7_land_highland_cottage.png
++0.1 enter house
++0.1 expect inside 1
++0.8 shot m7_land_highland_cottage_in.png
++0.2 walkto exit
++0.3 at -511 -168
++1.0 shot m7_land_highland_longhouse.png
++0.1 enter house
++0.1 expect inside 1
++0.8 shot m7_land_highland_longhouse_in.png
++0.2 walkto exit
++0.3 at -493 -168
++1.0 shot m7_land_highland_townhouse.png
++0.1 enter stonehouse
++0.1 expect inside 1
++0.8 shot m7_land_highland_townhouse_in.png
++0.1 floor 1
++0.1 expect floor 1
++0.8 shot m7_land_highland_townhouse_up.png
++0.1 floor 0
++0.2 walkto exit
++0.3 at -475 -167
++1.0 shot m7_land_highland_hall.png
++0.1 enter stonehouse
++0.1 expect inside 1
++0.8 shot m7_land_highland_hall_in.png
++0.1 floor 1
++0.1 expect floor 1
++0.8 shot m7_land_highland_hall_up.png
++0.1 floor 0
++0.2 walkto exit
++0.3 quit
