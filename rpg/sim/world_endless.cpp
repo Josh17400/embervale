@@ -537,6 +537,14 @@ void World::prefetch(int ptx, int pty, int dirx, int diry) {
       for (int32_t rx = all.x0; rx <= all2.x1; rx++)
         if (!inBox(now, rx, ry)) addRegion(rx, ry);
   }
+  // (fixer M6b r1) last, the story ring round the player's region, nearest first (World::storyRing)
+  if (storyRing > 0) {
+    const int32_t prx = ew::regionOf(ox + ptx), pry = ew::regionOf(oy + pty);
+    for (int ring = 1; ring <= storyRing; ring++)
+      for (int32_t ry = pry - ring; ry <= pry + ring; ry++)
+        for (int32_t rx = prx - ring; rx <= prx + ring; rx++)
+          if (std::max(std::abs(rx - prx), std::abs(ry - pry)) == ring && !inBox(now, rx, ry)) addRegion(rx, ry);
+  }
   streamer->want(keys);
   // keep what the lookahead made (two shifts out the way the player heads, the ring elsewhere)
   const int M = RING + 2 * SC;

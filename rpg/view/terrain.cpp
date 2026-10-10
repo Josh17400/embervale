@@ -192,9 +192,30 @@ BwDiag boardwalkDiagAt(const TM& m, int tx, int ty) {
   int n = 0;
   float mx = 0, my = 0;
   int cxs[49], cys[49];
-  for (int oy = -3; oy <= 3; oy++)
-    for (int ox = -3; ox <= 3; ox++)
-      if (isW(tx + ox, ty + oy)) { cxs[n] = tx + ox; cys[n] = ty + oy; mx += (float)ox; my += (float)oy; n++; }
+  // (fixer M6b r1) the cells of THIS walk only: the boardwalk cells 4-connected to the tile within 4 steps (and the
+  // 7 x 7 block). A stilt village's walks fan out close together; counting every boardwalk cell of the block mixed two
+  // or three runs, the spread showed no diagonal, and the runs fell back to square decks stepping in L-shaped
+  // staircases beside the slanted ones
+  {
+    uint8_t seen[7][7] = {};
+    int qx[49], qy[49], qd[49], qh = 0, qt = 0;
+    seen[3][3] = 1;
+    qx[qt] = 0; qy[qt] = 0; qd[qt] = 0; qt++;
+    while (qh < qt) {
+      const int ox = qx[qh], oy = qy[qh], dd = qd[qh];
+      qh++;
+      cxs[n] = tx + ox; cys[n] = ty + oy; mx += (float)ox; my += (float)oy; n++;
+      if (dd >= 4) continue;
+      static const int nb[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+      for (const auto& v : nb) {
+        const int nx = ox + v[0], ny = oy + v[1];
+        if (nx < -3 || nx > 3 || ny < -3 || ny > 3 || seen[ny + 3][nx + 3]) continue;
+        seen[ny + 3][nx + 3] = 1;
+        if (!isW(tx + nx, ty + ny)) continue;
+        qx[qt] = nx; qy[qt] = ny; qd[qt] = dd + 1; qt++;
+      }
+    }
+  }
   if (n >= 4) {
     mx /= (float)n; my /= (float)n;
     float sxx = 0, syy = 0, sxy = 0;
@@ -1943,12 +1964,19 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
     if (r == 1 || r == 2) return o;
     bwShade = r == 3;
     if (openW) {   // the staircase's corner beside the walk: the marsh round it shows there
-      real = Ground::Water;
-      for (int k = 0; k < 4; k++) {
-        static const int dx4[4] = {0, -1, 1, 0}, dy4[4] = {-1, 0, 0, 1};
-        const Ground q = m.at(tx + dx4[k], ty + dy4[k]);
-        if (q == Ground::Swamp || groundWater(q)) { real = q; break; }
-      }
+      // (fixer M6b r1) what most of the ground round it is (marsh or water, by the 8 neighbours and the next ring), not
+      // the first neighbour found: a corner in a reed bed showed as a square of open water stepping along the walk
+      int nSwamp = 0, nWater = 0;
+      Ground wq = Ground::Water;
+      for (int oy = -2; oy <= 2; oy++)
+        for (int ox = -2; ox <= 2; ox++) {
+          if (!ox && !oy) continue;
+          const Ground q = m.at(tx + ox, ty + oy);
+          const int w = (std::abs(ox) <= 1 && std::abs(oy) <= 1) ? 2 : 1;
+          if (q == Ground::Swamp) nSwamp += w;
+          else if (groundWater(q)) { nWater += w; wq = q; }
+        }
+      real = nSwamp >= nWater && nSwamp > 0 ? Ground::Swamp : wq;
     }
   }
   if (m.kind == MapKind::Overworld && (real == Ground::Bridge || groundWater(real) || real == Ground::Road)) {
@@ -2012,6 +2040,38 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
       w = m.at((int)std::floor(wx / 16), (int)std::floor(wy / 16));
     }
     if (w == Ground::Void && m.kind == MapKind::Overworld) w = Ground::DeepWater;
+    // (fixer M6b r1, review: "a ruin's and a cave's approach: square, tile-aligned dirt patches with hard stair-step
+    // edges") bare earth meeting soft land: a smooth field over the four tile centres round the pixel (a lone dirt tile
+    // a rounded patch, a staircase of them one wobbling track, an L a curve), roughened by two octaves of noise, instead
+    // of the tile's square nudged a few px by the warp
+    if (m.kind == MapKind::Overworld && (real == Ground::Dirt || w == Ground::Dirt)) {
+      const float fx = (px - 7.5f) / 16.0f, fy = (py - 7.5f) / 16.0f;
+      const int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
+      const float ax = fx - ix, ay = fy - iy;
+      const Ground q[4] = {m.at(ix, iy), m.at(ix + 1, iy), m.at(ix, iy + 1), m.at(ix + 1, iy + 1)};
+      bool pure = true, anyDirt = false, anyLand = false;
+      for (const Ground qq : q) {
+        if (qq == Ground::Dirt) anyDirt = true;
+        else if (ecoGround(qq) || qq == Ground::Plaza || qq == Ground::StoneFloor) anyLand = true;   // (a ruin's floor too)
+        else pure = false;
+      }
+      if (pure && anyDirt && anyLand) {
+        auto dv = [&](int k) { return q[k] == Ground::Dirt ? 1.0f : 0.0f; };
+        float v = (dv(0) * (1 - ax) + dv(1) * ax) * (1 - ay) + (dv(2) * (1 - ax) + dv(3) * ax) * ay;
+        v += (vnoise(px / 11.0f, py / 11.0f, 2101) - 0.5f) * 0.42f + (vnoise(px / 4.0f, py / 4.0f, 2103) - 0.5f) * 0.16f;
+        if (v > 0.5f) { w = Ground::Dirt; wx = (float)px; wy = (float)py; }
+        else {
+          // the land: the pixel's own tile's, else the nearest land corner's
+          Ground land = real;
+          if (land == Ground::Dirt) {
+            const int near = (ax < 0.5f ? 0 : 1) + (ay < 0.5f ? 0 : 2);
+            land = q[near];
+            for (int k = 0; k < 4 && land == Ground::Dirt; k++) if (q[k] != Ground::Dirt) land = q[k];
+          }
+          w = land; wx = (float)px; wy = (float)py;
+        }
+      }
+    }
     if (m.kind == MapKind::Overworld && isPoolT(m, (int)std::floor(wx / 16), (int)std::floor(wy / 16))) { /* a kerbed basin: its edge is the kerb */ }
     else if (natural(w) && !(isWall(w) != isWall(real) && m.kind != MapKind::Overworld)) { g = w; sx = (int)std::floor(wx); sy = (int)std::floor(wy); }
     // (M2 fixer round 2) a patch of earth in paving (a ruin's floor, a square's worn spot) meets the stones along the

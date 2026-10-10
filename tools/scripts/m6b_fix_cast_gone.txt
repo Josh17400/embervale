@@ -1,0 +1,26 @@
+# M6b fixer round 1: a saga whose cast census resident dies must not soft-lock, and a choice that hands the story to
+# another person must not read that person's line out in the current speaker's dialogue.
+# 1. THE UNDYING HERB (seed 7): asking about the herb hands the story to the old resident (stage herb): the open
+#    dialogue says who to see next instead of the old one's words. Then the old one dies: within a step the quest ends
+#    (failed) with a journal line saying why, instead of waiting on a dead woman forever.
+# 2. THE SHIELD WALL: "LET HIM GO" hands the story to the youngest shield: the same, and the journal keeps the context.
+#   embervale.exe --script tools/scripts/m6b_fix_cast_gone.txt     (no shots)
+seed 7
+1 newgame
++1 god 1
++1 saga start undying_herb
++1 expect mode dialogue
++0.5 choose IS THERE SUCH
++1 expect saga herb
++0.3 expect text WHO YOU MUST SEE NEXT
++0.3 key Escape
++0.5 life kill SELZEBEK
++1 life days 20
++2 expect quest done HERB
++0.5 saga start shield_wall
++1 expect mode dialogue
++0.5 choose LET
++1 expect saga release
++0.3 expect text WHO YOU MUST SEE NEXT
++0.3 key Escape
++1 quit

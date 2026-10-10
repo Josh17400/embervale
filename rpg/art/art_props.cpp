@@ -2575,16 +2575,23 @@ uint32_t floorColor(FloorStyle fs, int gx, int gy) {
       return col;
     }
     case FloorStyle::Mosaic: {
-      // (M3b) glazed tesserae in eight-pointed rosettes on a terracotta ground, a blue line every 16 px
-      const int tx2 = gx >> 1, ty2 = gy >> 1;
-      if ((gx & 1) && (gy & 1)) return mix(kLime[2], kTerraW, 0.4f);
-      const int cx = tx2 & 7, cy = ty2 & 7;
-      if (cx == 0 || cy == 0) return kGlazeW[2];
-      const int dx = std::abs(cx - 4), dy = std::abs(cy - 4);
-      if (dx + dy <= 1) return kPaperW[4];
-      if (dx + dy == 2 || (dx == 2 && dy == 2)) return kTurqW[3];
-      if (dx == 3 || dy == 3) return (cx + cy) % 2 ? kTerraW : mix(kTerraW, kOchre[3], 0.4f);
-      return mix(kTerraW, kOchre[2], 0.25f);
+      // (fixer M6b r3, review: "one high-contrast orange and teal star tile over the whole floor, characters hard to pick
+      // out") a quiet floor: large fired terracotta tiles, each its own shade, in pale lime grout, a small glazed inset
+      // (white heart, turquoise, a blue rim) where four tiles meet; the rugs and carpets carry the colour
+      const int lx = gx & 15, ly = gy & 15;
+      const float ax = lx < 8 ? lx + 0.5f : 15.5f - lx, ay = ly < 8 ? ly + 0.5f : 15.5f - ly;
+      const float dd = ax + ay;
+      if (dd <= 1.1f) return kPaperW[4];
+      if (dd <= 2.1f) return kTurqW[3];
+      if (dd <= 3.1f) return kGlazeW[1];
+      const uint32_t base = mix(kTerraW, kOchre[2], 0.30f);
+      if (lx == 0 || ly == 0) return mix(kLime[3], base, 0.35f);                          // the grout
+      const float t = (hashf(gx >> 4, gy >> 4, 1811) * 2 - 1) * 0.10f;                    // each tile its own firing
+      uint32_t col = t > 0 ? mix(base, kOchre[3], t * 2.5f) : mix(base, kInk, -t * 1.2f);
+      if (lx == 1 || ly == 1) col = mix(col, kLime[4], 0.18f);                              // a worn, lit edge
+      else if (lx == 15 || ly == 15) col = mix(col, kInk, 0.12f);
+      if (hash3(gx, gy, 1813) % 23 == 0) col = mix(col, kInk, 0.10f);                     // the clay's grain
+      return col;
     }
     case FloorStyle::Felt: {
       // (M5 fixer r3, review: "wavy lines like map contours, a blue-rimmed blob that reads as a puddle, a pink spill")
@@ -4042,17 +4049,41 @@ void pillarStyled(Canvas& c, RoomStyle rs, int v) {
       for (int k = 0; k < 4; k++) c.set(3 + (k * 3 + v) % 9, 6 + k * 9 % 30, kLeafW[4]);
       return;
     }
-    case RoomStyle::Tile: {   // glazed tile cladding in bands, a brass ring, a stone foot
-      for (int y = 0; y <= base - 4; y++)
+    case RoomStyle::Tile: {
+      // (fixer M6b r3, review: "long, flat, checkered vertical strips that read as floor stripes") a round pier: its
+      // shaft clad in level courses of glazed tile (turquoise, a white band every fourth course) shaded as a cylinder
+      // (lit west, deep east), a carved stone capital with a brass collar under it, a stepped stone foot with its shade
+      const int capB = 6;
+      for (int y = capB; y <= base - 5; y++)
         for (int x = 3; x <= W - 4; x++) {
           const float t = (x - 3 + 0.5f) / (W - 6) * 2 - 1;
-          int k = lightIndex(lightAt(t * 0.95f, 0), x, y, 0.0f);
-          uint32_t col = ((y / 4 + x / 3) % 2) ? kGlazeW[k] : mix(kGlazeW[k], kPaperW[k], 0.7f);
-          if (y % 4 == 3) col = mix(col, kInk, 0.25f);
+          const int k = std::clamp(lightIndex(lightAt(t * 0.95f, 0), x, y, 0.0f), 0, 4);
+          const int course = (y - capB) / 3;
+          uint32_t col = course % 4 == 3 ? mix(kPaperW[k], kGlazeW[k], 0.25f) : kTurqW[k];
+          if ((y - capB) % 3 == 2) col = mix(col, kInk, 0.30f);                              // the joints
+          if (y == base - 5) col = mix(col, kInk, 0.35f);                                      // the foot's shade
           c.set(x, y, col);
         }
-      hline(c, 3, W - 4, 8, kBrass[4]); hline(c, 3, W - 4, 9, kBrass[2]);
-      for (int y = base - 3; y <= base; y++) for (int x = 1; x <= W - 2; x++) c.set(x, y, kStoneWarm[y == base - 3 ? 4 : (y == base ? 0 : 2)]);
+      for (int y = 0; y < capB; y++) {   // the capital: a lit lip, a carved block wider than the shaft, the collar
+        const int in = y <= 2 ? 1 : (y == 3 ? 2 : 3);
+        for (int x = in; x <= W - 1 - in; x++) {
+          const float t = (x - in + 0.5f) / (W - 2 * in) * 2 - 1;
+          const int k = std::clamp(lightIndex(lightAt(t * 0.95f, 0), x, y, 0.0f), 0, 4);
+          uint32_t col = kStoneWarm[k];
+          if (y == 0) col = kStoneWarm[std::min(4, k + 1)];
+          if (y == 2) col = kStoneWarm[std::max(0, k - 2)];
+          if (y >= 4) col = kBrass[std::clamp(y == 4 ? k + 1 : k - 1, 0, 4)];
+          c.set(x, y, col);
+        }
+      }
+      for (int y = base - 4; y <= base; y++) {
+        const int in = y == base - 4 ? 2 : 1;
+        for (int x = in; x <= W - 1 - in; x++) {
+          const float t = (x - in + 0.5f) / (W - 2 * in) * 2 - 1;
+          const int k = std::clamp(lightIndex(lightAt(t * 0.95f, 0), x, y, 0.0f), 0, 4);
+          c.set(x, y, y == base - 4 || y == base - 2 ? kStoneWarm[std::min(4, k + 1)] : (y == base ? kStoneWarm[0] : kStoneWarm[k]));
+        }
+      }
       return;
     }
     default: {   // white marble, fluted, a silver-edged capital

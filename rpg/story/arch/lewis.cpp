@@ -1,0 +1,519 @@
+// M6b "Sagas": archetypes in the manner of C.S. Lewis: THEMES AND FEELINGS ONLY (owner rule, VISION_PLAN 15.20): no
+// names, characters, places, invented terms or beat-for-beat plots. ARCHETYPES lane. Markup: rpg/story/saga.h.
+//
+//   door_beyond     THE DOOR THAT WASN'T THERE      a child's door in a ruin's crypt to a country where years pass in an
+//                                                   afternoon; the child comes back grown inside, or does not come back
+//   warden_dies     THE ONE WHO DIED IN HIS PLACE   an old warden gives his life for a young traitor's by an old law, and
+//                                                   the law under the law
+//   long_winter     THE WINTER WITHOUT A FEAST      a regent who banned the midwinter feast and keeps the snow; the thaw
+//   traitor_mercy   THE TRAITOR AND THE MERCY       a brother who sold his kin for a captain's sash, and what mercy costs
+//   last_door       THE DOOR AT THE END             a cheat in a holy mask, the last loyal few, and an old door on a hill
+#include <vector>
+#include "rpg/story/arch/arch_tables.h"
+
+namespace story {
+namespace saga {
+namespace arch {
+
+namespace {
+
+// ---------------------------------------------------------------- the hidden door into another country
+const char* const kDoorBeyond = R"SAGA(
+title [[THE DOOR THAT WASN'T THERE|THE OTHER COUNTRY|AN AFTERNOON AND NINE YEARS]]
+hook npc any
+pitch "[[pitch=YOUR CHILD SEEMS OLDER THAN THEIR AGE.|WHERE IS YOUR LITTLE ONE?|WHY DO YOU KEEP THE DOOR BARRED?]]"
+hint "[[~pitch|THEY SAY CHILDREN MAKE THINGS UP. MINE CAME BACK SPEAKING A LANGUAGE NOBODY HAS EVER HEARD.|MY CHILD WENT OUT TO PLAY ONE AFTERNOON AND CAME HOME WITH A SCAR AND A SWORD-HAND'S CALLUSES. AND NOW THEY'RE GONE AGAIN.|MY CHILD WENT OUT TO PLAY ONE AFTERNOON AND CAME HOME WITH A SCAR AND A SWORD-HAND'S CALLUSES. AND NOW THEY'RE GONE AGAIN.]]"
+role giver giver
+role home site home
+role ruin ruin near
+role child person [[male|female]] at ruin
+var believed 0
+slot t1 -> go wonder prophecy price deceit
+slot t2 -> choosing mercy return identity world
+
+stage start
+  talk giver
+  say "MY {CHILD.SON} {CHILD} WENT TO PLAY IN {RUIN} AND CAME HOME AT SUPPER, SAYING {CHILD.HE}'D BEEN GONE [[years=NINE|SEVEN|TWELVE]] YEARS, THROUGH A DOOR IN THE CRYPT THAT'S ONLY THERE IN SNOW. WITH A SCAR. THREE DAYS AGO IT SNOWED. <<plea>>"
+  opt "I'LL GO INTO THE CRYPT." -> @t1
+  opt "DID YOU BELIEVE {CHILD.HIM}?" -> believe
+  opt "CHILDREN MAKE THINGS UP." -> refused
+
+stage refused
+  end fail
+  say "THAT'S WHAT I SAID. THAT'S EXACTLY WHAT I SAID, THE FIRST TIME. <<grief>>"
+  journal "YOU WOULD NOT LOOK FOR {CHILD} IN THE CRYPT OF {RUIN}."
+  do remember giver "IT SNOWED AGAIN LAST NIGHT. I WENT AND STOOD IN THE CRYPT. THERE WAS ONLY A WALL. I KNOCKED ON IT. I FELT A FOOL."
+
+stage believe
+  talk giver
+  say "NOT AT FIRST. BUT {CHILD.HE} SAT AT SUPPER LIKE SOMEONE WHO'D SAT AT FEASTS, AND WEPT WHEN THE SNOW STOPPED, AND CALLED ME BY A NAME I'VE NEVER HEARD, AND THEN SAID SORRY. YOU DON'T MAKE THAT UP AT [[ten=TEN|NINE|ELEVEN]]."
+  do set believed 1
+  opt "THEN I'LL FIND THE DOOR." -> @t1
+
+stage go
+  goal enter ruin
+  then threshold
+  journal "{CHILD} OF {HOME} WENT THROUGH A DOOR IN THE CRYPT OF {RUIN} THAT IS ONLY THERE WHEN IT SNOWS. FIND THE DOOR, AND {CHILD.HIM}."
+
+stage threshold
+  talk child
+  say "YOU CAME THROUGH! NOBODY FROM THE OTHER SIDE HAS EVER... SIT. WAIT. HOW LONG HAS IT BEEN, THERE? THREE DAYS? HERE IT'S BEEN [[=years]] YEARS AGAIN. I'M A WARDEN OF THE RIVER-COUNTRY NOW. THE RIVERS HERE TALK, {PLAYER}. THEY KNOW MY NAME."
+  opt "YOUR {GIVER.FATHER} IS WAITING." -> @t2
+  opt "WHAT IS THIS PLACE?" -> place
+
+stage place
+  talk child
+  say "I DON'T KNOW WHAT IT IS. I KNOW WHAT IT'S LIKE. LIKE THE SMELL OF RAIN WHEN YOU'RE SMALL, BUT ALL THE TIME. EVERYONE HERE IS MORE THEMSELVES THAN ANYONE AT HOME. AND I'M MORE MYSELF HERE THAN I'VE EVER BEEN. <<surprise>>"
+  opt "AND YOUR {GIVER.FATHER}?" -> @t2
+
+stage choosing
+  talk child
+  say "IF I GO BACK THROUGH, I'LL BE [[=ten]] AGAIN, WITH ALL THESE YEARS INSIDE ME AND NOBODY TO TELL. IF I STAY, {GIVER} WAITS FOREVER. THE DOOR IS CLOSING; THE SNOW IS STOPPING. YOU DECIDE, {PLAYER}. I CAN'T. PLEASE."
+  opt "COME HOME." -> home_end
+  opt "STAY. TELL ME WHAT TO TELL {GIVER}." -> stay_end
+  opt "I'LL BREAK THE DOOR. NO MORE." -> sealed_end
+
+stage home_end
+  end success
+  say "YOU CAME OUT OF THE CRYPT HAND IN HAND, AND {CHILD} WAS [[=ten]] AGAIN, AND CRIED ALL THE WAY HOME, AND THEN ATE THREE BOWLS OF STEW. SOMETIMES {CHILD.HE} SITS BY THE WINDOW WHEN IT SNOWS, VERY STILL."
+  journal "{CHILD} CAME HOME TO {HOME} FROM THE COUNTRY BEYOND THE DOOR IN {RUIN}, A CHILD AGAIN, WITH YEARS INSIDE."
+  do reward fair
+  do remember child "I STILL KNOW THE RIVER-SPEECH. I SAY IT TO THE BROOK BEHIND THE MILL. IT DOESN'T ANSWER. BUT IT LISTENS. I'M SURE IT LISTENS."
+  do remember giver "{CHILD.HE} TELLS ME STORIES AT NIGHT NOW, INSTEAD OF THE OTHER WAY ROUND. THEY'RE THE BEST STORIES I'VE EVER HEARD. I DON'T THINK THEY'RE STORIES."
+  do fact "THEY SAY A CHILD OF {HOME} WENT THROUGH A DOOR IN THE CRYPT OF {RUIN} AND LIVED YEARS IN ANOTHER COUNTRY, AND CAME HOME FOR SUPPER."
+  do mark through_the_door
+
+stage stay_end
+  end success
+  say "{CHILD} GAVE YOU A RIVER-STONE THAT HUMMED WHEN YOU HELD IT, AND SAID: TELL {GIVER} I'M HAPPY. TELL {GIVER.HIM} I REMEMBER THE SMELL OF THE KITCHEN. THE DOOR CLOSED BEHIND YOU LIKE A BREATH LET OUT."
+  journal "{CHILD} STAYED IN THE COUNTRY BEYOND THE DOOR IN {RUIN}. YOU CARRIED BACK A HUMMING STONE AND A MESSAGE."
+  do reward small
+  do remember giver "THE STONE HUMS WHEN IT SNOWS. I HOLD IT AND I KNOW {CHILD.HE}'S HAPPY. IT'S NOT ENOUGH. IT'S SOMETHING."
+  do fact "A CHILD OF {HOME} LIVES BEYOND A DOOR IN THE CRYPT OF {RUIN}, AND {GIVER} KEEPS A STONE THAT HUMS WHEN IT SNOWS."
+
+stage sealed_end
+  end fail
+  say "YOU PULLED {CHILD} THROUGH AND BROKE THE LINTEL WITH YOUR SHOULDER, AND THE DOOR WAS A WALL. {CHILD} WOULD NOT SPEAK TO YOU ALL THE WAY HOME, AND HAS NOT SPOKEN TO YOU SINCE."
+  journal "{CHILD} IS HOME, AND THE DOOR IN {RUIN} IS GONE FOREVER. {CHILD} WILL NOT FORGIVE YOU."
+  do remember child "YOU BROKE IT. THERE WERE PEOPLE THERE WHO NEEDED ME. THERE WAS A RIVER THAT KNEW MY NAME. GO AWAY."
+  do mark broke_the_door
+)SAGA";
+
+// ---------------------------------------------------------------- the guardian's sacrifice and return
+const char* const kWardenDies = R"SAGA(
+title [[THE ONE WHO DIED IN HIS PLACE|THE OLD LAW AND THE OLDER|THE WARDEN'S BARGAIN]]
+hook npc priest
+pitch "[[pitch=WHY IS THE WARDEN GOING TO THE CAPTAIN?|WHAT IS THE OLD LAW?|WHY IS THE YOUNG ONE CHAINED?]]"
+hint "[[~pitch|THE WARDEN HAS KEPT THE WOODS AROUND HERE SINCE BEFORE MY GRANDMOTHER. HE'S GOING TO THE CAPTAIN TONIGHT. ALONE.|THE OLD LAW SAYS A TRAITOR'S LIFE BELONGS TO THE ONE HE SOLD HIMSELF TO. IT DOESN'T SAY ANYTHING ABOUT MERCY.|THE OLD LAW SAYS A TRAITOR'S LIFE BELONGS TO THE ONE HE SOLD HIMSELF TO. IT DOESN'T SAY ANYTHING ABOUT MERCY.]]"
+role giver giver
+role home site home
+role ruin ruin near
+role camp site camp near
+role warden person male at home
+role traitor person male at home
+role foe foe male at camp
+var vigil 0
+slot t1 -> night betrayal price deceit rival
+slot t2 -> dawn wonder prophecy return
+
+stage start
+  talk giver
+  say "{TRAITOR} SOLD THE HIDING-PLACES OF THE WOOD-FOLK TO {FOE}, CAPTAIN OF {CAMP}, FOR THE PROMISE OF A CAPTAIN'S SASH. NOW {FOE} CLAIMS HIS LIFE BY THE OLD LAW. AND {WARDEN} HAS GONE TO OFFER HIS OWN INSTEAD. <<grief>>"
+  opt "THEN I'LL STOP {WARDEN}." -> warden_talk
+  opt "WHY WOULD {WARDEN} DO THAT?" -> why
+  opt "LET THE TRAITOR PAY." -> refused
+
+stage refused
+  end fail
+  say "THAT'S WHAT THE LAW SAYS. THE LAW IS VERY CLEAR. <<farewell>>"
+  journal "YOU STAYED OUT OF {WARDEN}'S BARGAIN WITH {FOE}."
+  do remember giver "THE ALTAR AT {RUIN} IS CRACKED. NOBODY KNOWS WHY. NOBODY WILL GO NEAR IT. YOU SHOULD HAVE BEEN THERE."
+
+stage why
+  talk traitor
+  say "BECAUSE I'M A FOOL. BECAUSE {FOE} PROMISED ME I'D RIDE AT THE FRONT AND MY BROTHERS WOULD SEE IT. THEY SAW, ALL RIGHT. THEY SAW ME POINT AT THE HIDING-HOLES. AND {WARDEN} SAYS IT'S FINE. IT'S NOT FINE! <<grief:shame>>"
+  opt "I'LL TALK TO {WARDEN}." -> warden_talk
+
+stage warden_talk
+  talk warden
+  say "PEACE. I KNOW THE OLD LAW; I WAS THERE WHEN IT WAS CUT INTO THE STONE. A TRAITOR'S BLOOD IS OWED. {FOE} WILL TAKE MINE INSTEAD, GLADLY. DON'T FIGHT FOR ME, {PLAYER}. I'VE CHOSEN. COME TO {RUIN} TONIGHT, IF YOU MUST. BUT ONLY TO WATCH."
+  opt "I'LL WATCH." -> @t1
+  opt "NO. I'LL FIGHT {FOE} NOW." -> fight_now
+  opt "TAKE MY LIFE INSTEAD." -> instead
+
+stage instead
+  talk warden
+  say "YOURS? YOU'RE KIND. IT'S NOT YOURS TO GIVE; IT WASN'T YOU WHO WAS SOLD TO. THE LAW KNOWS WHAT IT'S OWED, AND SO DO I. <<refusal>>"
+  opt "THEN I'LL WATCH." -> @t1
+  opt "THEN I'LL FIGHT." -> fight_now
+
+stage fight_now
+  goal slay foe
+  then early_end
+  journal "{WARDEN} FORBADE IT, BUT YOU'VE GONE TO KILL {FOE} OF {CAMP} BEFORE THE OLD LAW CAN BE PAID."
+
+stage night
+  goal goto ruin
+  then vigil
+  journal "AT NIGHT, AT THE ALTAR IN {RUIN}, {FOE} WILL TAKE {WARDEN}'S LIFE FOR {TRAITOR}'S. {WARDEN} ASKED YOU ONLY TO WATCH."
+
+stage vigil
+  talk traitor
+  say "THEY SHAVED HIS HEAD. THEY LAUGHED. HE DIDN'T SAY A WORD. AND THEN {FOE} DID IT, ON THE ALTAR, AND THEY ALL CHEERED AND WENT BACK TO {CAMP}. HE'S COLD, {PLAYER}. I CAN'T LEAVE HIM HERE ALONE."
+  do set vigil 1
+  opt "WE'LL STAY WITH HIM TILL DAWN." -> @t2
+  opt "GO HOME. I'LL STAY." -> @t2
+
+stage dawn
+  talk warden
+  say "<<surprise>> ...DID YOU HEAR THE ALTAR CRACK? THERE'S A LAW UNDER THE OLD LAW, CUT DEEPER, THAT {FOE} NEVER READ: WHEN ONE WHO OWES NOTHING DIES IN A TRAITOR'S PLACE, THE STONE BREAKS, AND DEATH GOES BACKWARDS. NOW. WHERE IS {FOE}?"
+  opt "AT {CAMP}. LET'S GO." -> war
+  opt "LET HIM HEAR IT FROM THE WIND." -> peace_end
+
+stage war
+  goal slay foe
+  then return_end
+  journal "{WARDEN} IS ALIVE. THE ALTAR AT {RUIN} IS CRACKED IN TWO. TAKE THE FIGHT TO {FOE} AT {CAMP}."
+
+stage return_end
+  end success
+  say "{FOE}'S MEN SAW {WARDEN} WALKING TOWARDS THEM IN THE MORNING LIGHT, AND THREW DOWN THEIR SPEARS, AND RAN. {TRAITOR} FOUGHT AT THE FRONT AND TOOK A WOUND MEANT FOR HIS BROTHER, AND DID NOT ASK FOR A SASH."
+  journal "{WARDEN} DIED IN {TRAITOR}'S PLACE AT {RUIN} AND ROSE AT DAWN. {FOE} IS DEAD. {TRAITOR} IS FORGIVEN, AND HAS EARNED IT."
+  do reward rich
+  do remember traitor "MY BROTHERS CALL ME BY MY NAME AGAIN. NOT TRAITOR. MY NAME. I DON'T DESERVE IT. {WARDEN} SAYS THAT'S THE POINT."
+  do remember warden "YOU WATCHED, AS I ASKED. THAT WAS THE HARDEST THING I COULD ASK. THANK YOU FOR DOING IT."
+  do fact "THEY SAY {WARDEN} OF {HOME} DIED ON THE ALTAR AT {RUIN} IN A TRAITOR'S PLACE, AND THE ALTAR CRACKED, AND HE ROSE AT DAWN."
+  do mark the_altar_cracked
+
+stage peace_end
+  end success
+  say "{FOE} HEARD BY NOON. {FOE} LEFT {CAMP} BY DUSK, AND TOOK HIS MEN WITH HIM, AND NOBODY HAS SEEN HIM SINCE. SOME SAY HE WENT TO THE ALTAR FIRST, AND STOOD THERE A LONG TIME."
+  journal "{WARDEN} ROSE AT DAWN AT {RUIN}. {FOE} FLED {CAMP} WITHOUT A FIGHT. {TRAITOR} IS FORGIVEN."
+  do reward fair
+  do remember traitor "{WARDEN} TAKES ME WALKING IN THE WOOD EVERY MORNING. HE NEVER MENTIONS IT. NOT ONCE. I THINK THAT'S HOW YOU KNOW IT'S REAL."
+  do fact "THE CRACKED ALTAR AT {RUIN} IS WHERE {WARDEN} DIED FOR A TRAITOR AND ROSE AGAIN. CHILDREN LEAVE FLOWERS IN THE CRACK."
+  do mark the_altar_cracked
+
+stage early_end
+  end success
+  say "{FOE} IS DEAD AND NO LAW WAS PAID. {WARDEN} STOOD AT THE EDGE OF {CAMP} AND LOOKED AT YOU WITH SUCH SORROW THAT YOU HAD TO LOOK AWAY. {TRAITOR} LIVES. NOBODY IN {HOME} WILL SPEAK TO HIM."
+  journal "YOU KILLED {FOE} BEFORE THE OLD LAW COULD BE PAID. {TRAITOR} LIVES, UNFORGIVEN. {WARDEN} WILL NOT SAY WHAT HE HAD MEANT TO DO."
+  do reward fair
+  do remember warden "YOU MEANT WELL. IT WASN'T WHAT WAS NEEDED. I CAN'T EXPLAIN IT ANY BETTER THAN THAT. I'M SORRY."
+  do remember traitor "THEY LOOK THROUGH ME. ALL OF THEM. I'D RATHER {FOE} HAD HAD ME. I KNOW THAT'S UNGRATEFUL."
+)SAGA";
+
+// ---------------------------------------------------------------- the winter under a false ruler
+const char* const kLongWinter = R"SAGA(
+title [[THE WINTER WITHOUT A FEAST|THE PALE REGENT|WHEN THE THAW CAME]]
+hook npc any
+pitch "[[pitch=WHY HAS NOBODY HUNG A GREEN BOUGH?|IS IT ALWAYS THIS COLD HERE?|WHEN IS THE MIDWINTER FEAST?]]"
+hint "[[~pitch|NO FEAST THIS YEAR. NO FEAST ANY YEAR. THE REGENT SAYS FEASTS ARE WASTE. THE SNOW SAYS NOTHING. IT JUST STAYS.|THE ICE ON THE MILLPOND HASN'T MOVED IN FOUR YEARS. THE CHILDREN THINK THAT'S HOW PONDS ARE.|THE ICE ON THE MILLPOND HASN'T MOVED IN FOUR YEARS. THE CHILDREN THINK THAT'S HOW PONDS ARE.]]"
+role giver giver
+role home site home
+role camp site camp near
+role regent person female at camp
+role prisoner person [[male|female]] at camp
+role pedlar person male at home
+var gifts 0
+slot t1 -> go betrayal deceit rival price
+slot t2 -> feast wonder return mercy world
+
+stage start
+  talk giver
+  say "[[winters=FOUR|FIVE|SEVEN]] WINTERS SINCE {REGENT} TOOK THE VALLEY'S REGENCY AND BANNED THE MIDWINTER FEAST. ALWAYS WINTER NOW, AND NEVER THE FEAST. THOSE WHO HUNG A GREEN BOUGH ANYWAY SIT IN THE ICE-CELLAR AT HER LODGE AT {CAMP}. <<curse>>"
+  opt "I'LL OPEN THE ICE-CELLAR." -> @t1
+  opt "WHY DOES THE SNOW STAY?" -> snow
+  opt "WINTERS END. WAIT IT OUT." -> refused
+
+stage refused
+  end fail
+  say "WE'VE WAITED [[=winters]]. <<doubt>>"
+  journal "YOU LEFT {HOME} TO ITS ENDLESS WINTER."
+  do remember giver "STILL WINTER. THE CHILDREN BUILT A SNOW REGENT AND KNOCKED ITS HEAD OFF. THEY WERE WHIPPED FOR IT. STILL WINTER."
+
+stage snow
+  talk pedlar
+  say "THE OLD SONG SAYS THE YEAR TURNS ON THE FEAST, NOT THE OTHER WAY ROUND. NO FEAST, NO TURNING. I USED TO COME EVERY MIDWINTER WITH A SACK OF GIFTS. THEY WOULDN'T LET ME THROUGH THE PASS. <<grief>>"
+  opt "THEN COME THROUGH WITH ME." -> @t1
+  opt "SONGS DON'T MAKE WEATHER." -> @t1
+
+stage go
+  goal goto camp
+  then lodge
+  journal "{REGENT}, REGENT OF {HOME}'S VALLEY, KEEPS THE MIDWINTER FEAST BANNED AND ITS KEEPERS IN THE ICE-CELLAR AT {CAMP}. GO THERE."
+
+stage lodge
+  talk regent
+  say "A FEAST? FOR A VALLEY THAT EATS ITS SEED CORN WHEN IT'S HAPPY? I KEEP THEM COLD SO THEY KEEP THEIR GRAIN. I KEEP THEM AFRAID SO THEY KEEP THEIR HEADS DOWN. EVERY WINTER I'VE KEPT THEM ALIVE. <<boast>>"
+  opt "ALIVE ISN'T LIVING." check level 4 -> softened else guards
+  opt "OPEN THE ICE-CELLAR." -> guards
+  opt "YOU'RE RIGHT. THEY'RE SAFER." -> kept_end
+
+stage softened
+  talk regent
+  say "...LIVING. MY MOTHER SAID THAT, THE LAST MIDWINTER BEFORE SHE DIED. SHE MADE ME A CROWN OF HOLLY. I THREW IT IN THE FIRE BECAUSE IT PRICKED. <<grief>> TAKE THE KEYS. GO ON. BEFORE I CHANGE MY MIND."
+  opt "COME TO THE FEAST." -> cellar
+
+stage guards
+  goal kill 4 bandit in camp
+  then cellar
+  journal "{REGENT}'S MEN GUARD THE ICE-CELLAR AT {CAMP}. GET THROUGH THEM."
+
+stage cellar
+  talk prisoner
+  say "LIGHT! IS IT... THE DOOR'S OPEN. I CAN'T FEEL MY FEET. I HUNG ONE GREEN BOUGH, {PLAYER}, ONE, OVER MY CHILD'S CRADLE. [[=winters]] WINTERS. IS IT STILL SNOWING? LISTEN. LISTEN. IS THAT WATER?"
+  opt "IT'S WATER. THE ICE IS MOVING." -> @t2
+
+stage feast
+  talk pedlar
+  say "THROUGH THE PASS AT LAST, AND THE SNOW GOING TO SLUSH UNDER MY BOOTS! I'VE GIFTS IN MY SACK, {PLAYER}: A KNIFE FOR A HUNTER, A BOTTLE OF CORDIAL FOR THE SICK, A HORN FOR ANYONE IN DANGER. AND THE REGENT, WHAT OF HER?"
+  opt "SHE SITS AT THE FEAST TOO." -> feast_end
+  opt "SHE LEAVES THE VALLEY." -> exile_end
+
+stage feast_end
+  end success
+  say "THEY HELD THE FEAST IN THE SLUSH AND THE MUD, WITH THE ICE CRACKING ON THE MILLPOND LIKE SPLITTING TIMBER. {REGENT} SAT AT THE END OF THE TABLE AND SAID NOTHING, AND SOMEBODY PUT A HOLLY CROWN ON HER, AND SHE LET THEM."
+  journal "THE FEAST CAME BACK TO {HOME} AFTER [[=winters]] WINTERS, AND THE THAW CAME WITH IT. {REGENT} SAT AT THE TABLE, CROWNED IN HOLLY."
+  do reward rich
+  do remember pedlar "I'LL COME EVERY YEAR NOW. MIDWINTER. YOU KNOW WHERE TO FIND ME. LOOK FOR THE SACK."
+  do remember giver "THE MILLPOND MOVES! THE CHILDREN THROW STICKS IN IT TO WATCH THEM GO. THEY'D NEVER SEEN WATER GO ANYWHERE."
+  do fact "AFTER [[=winters]] WINTERS THE MIDWINTER FEAST CAME BACK TO {HOME}, AND THE ICE BROKE, AND THE REGENT {REGENT} SAT AT THE TABLE IN A HOLLY CROWN."
+  do mark the_thaw
+
+stage exile_end
+  end success
+  say "{REGENT} WENT OVER THE PASS ON FOOT, IN THE MUD, WITHOUT LOOKING BACK. BEHIND HER THE VALLEY RANG WITH THE FEAST. THE THAW CAME SO FAST THE RIVER FLOODED THE LOWER FIELDS, AND NOBODY CARED."
+  journal "THE THAW CAME TO {HOME}, AND THE FEAST WITH IT. {REGENT} IS GONE OVER THE PASS, AND NOT MISSED."
+  do reward rich
+  do remember prisoner "I HUNG A GREEN BOUGH OVER THE CRADLE AGAIN. NOBODY CAME TO TAKE ME. I SAT AND WATCHED IT ALL NIGHT. MY CHILD SLEPT THROUGH THE WHOLE THING."
+  do fact "THE REGENT {REGENT} WAS DRIVEN OVER THE PASS FROM {HOME}'S VALLEY, AND THE ENDLESS WINTER ENDED WITH THE FIRST FEAST IN [[=winters]] YEARS."
+
+stage kept_end
+  end fail
+  say "{REGENT} SMILED, A THIN SMILE LIKE A CRACK IN ICE, AND HAD YOU SHOWN TO THE PASS WITH A WARM CLOAK FOR YOUR TROUBLE. IT IS STILL SNOWING IN {HOME}. IT IS ALWAYS SNOWING."
+  journal "YOU AGREED WITH {REGENT}. THE WINTER GOES ON IN {HOME}, AND THE FEAST IS STILL BANNED."
+  do remember giver "YOU WENT TO THE LODGE AND CAME BACK IN A NEW CLOAK. THE ONES IN THE ICE-CELLAR DIDN'T COME BACK AT ALL."
+)SAGA";
+
+// ---------------------------------------------------------------- the traitor redeemed by mercy
+const char* const kTraitorMercy = R"SAGA(
+title [[THE TRAITOR AND THE MERCY|THE BROTHER WHO SOLD US|A CAPTAIN'S SASH]]
+hook npc any
+pitch "[[pitch=WHY IS YOUR FAMILY SO ANGRY?|WHO ARE THEY SHOUTING ABOUT?|WHERE IS YOUR BROTHER?]]"
+hint "[[~pitch|DON'T SAY HIS NAME IN THIS HOUSE. NOT TONIGHT.|DON'T SAY HIS NAME IN THIS HOUSE. NOT TONIGHT.|MY FAMILY WANTS MY BROTHER DEAD. I WANT HIM HOME. WE HAVE THIS ARGUMENT EVERY NIGHT, OVER SUPPER, WITH HIS EMPTY CHAIR.]]"
+role giver giver
+role home site home
+role camp site camp near
+role brother person male at camp
+role kin resident kin of giver
+role foe foe male at camp
+var heard 0
+slot t1 -> go mercy betrayal identity price
+slot t2 -> table rival world return wonder
+
+stage start
+  talk giver
+  say "MY BROTHER {BROTHER} SHOWED {FOE}'S RAIDERS WHERE WE HID THE HARVEST, FOR THE PROMISE OF A CAPTAIN'S SASH. NOW {FOE} HAS NO MORE USE FOR HIM, AND HE'S A PRISONER AT {CAMP}. {KIN} SAYS LEAVE HIM. <<plea:love>>"
+  opt "I'LL BRING HIM HOME." -> @t1
+  opt "WHAT DOES {KIN} SAY?" -> kin_talk
+  opt "{KIN} IS RIGHT." -> refused
+
+stage refused
+  end fail
+  say "MAYBE. EVERYBODY IS RIGHT, AND HE'S STILL MY BROTHER. <<farewell>>"
+  journal "YOU WOULD NOT BRING {BROTHER} HOME FROM {CAMP}."
+  do remember giver "HIS CHAIR'S STILL AT THE TABLE. {KIN} WANTS TO BURN IT. I WON'T LET {KIN.HIM}."
+
+stage kin_talk
+  talk kin
+  say "LEAVE HIM. WE ATE ACORN BREAD ALL WINTER BECAUSE OF HIM. MY CHILDREN WERE HUNGRY BECAUSE HE WANTED TO RIDE AT THE FRONT IN A RED SASH. AND {GIVER} WANTS TO LAY HIM A PLACE AT SUPPER? <<curse>>"
+  do set heard 1
+  opt "I'LL BRING HIM ANYWAY." -> @t1
+  opt "THEN I'LL LEAVE HIM." -> refused
+
+stage go
+  goal goto camp
+  then found
+  journal "{BROTHER} OF {HOME} BETRAYED HIS KIN TO {FOE}'S RAIDERS AND IS NOW {FOE}'S PRISONER AT {CAMP}. BRING HIM OUT."
+
+stage found
+  talk brother
+  say "YOU'RE FROM {HOME}? THEY SENT SOMEONE? ...NO. {GIVER} SENT SOMEONE. NOBODY ELSE WOULD. I KNOW WHAT I DID. THE SASH WAS RED. I THOUGHT I'D LOOK LIKE SOMEONE IN IT. I LOOKED LIKE A FOOL IN A RED SASH. <<apology>>"
+  opt "COME HOME AND FACE THEM." -> escape
+  opt "WHY SHOULD THEY FORGIVE YOU?" -> why
+
+stage why
+  talk brother
+  say "THEY SHOULDN'T. I KNOW. I'D SAY: BECAUSE I'D DIE FOR ANY OF THEM NOW. BUT I'D HAVE SAID THAT BEFORE, TOO, AND I SOLD THEM FOR A STRIP OF CLOTH. I DON'T KNOW WHY THEY SHOULD. <<grief:shame>>"
+  opt "COME HOME ANYWAY." -> escape
+
+stage escape
+  goal slay foe
+  then homeward
+  journal "BRING {BROTHER} OUT OF {CAMP}. {FOE}, WHO BOUGHT HIS BETRAYAL WITH A SASH, STANDS IN THE WAY."
+
+stage homeward
+  goal goto home
+  then @t2
+  do moves brother home
+  journal "{BROTHER} IS GOING HOME TO {HOME} TO FACE THE KIN HE SOLD. GO WITH HIM."
+
+stage table
+  talk kin
+  say "SO HE'S HERE. SITTING IN HIS CHAIR LIKE HE NEVER LEFT. {GIVER} IS CRYING INTO THE SOUP. AND I'M SUPPOSED TO PASS HIM THE BREAD, AM I? THE BREAD WE DIDN'T HAVE ALL WINTER?"
+  opt "PASS HIM THE BREAD." -> bread_end
+  opt "SAY WHAT YOU NEED TO SAY." -> said
+  opt "HE'LL WORK OFF THE WINTER." -> work_end
+
+stage said
+  talk kin
+  say "WHAT I NEED TO SAY. ...ALL RIGHT. YOU WERE MY BROTHER AND YOU SOLD MY CHILDREN'S BREAD FOR A BIT OF CLOTH, AND I HATE YOU. THERE. AND YOU'RE STILL MY BROTHER. I HATE THAT MORE. <<grief>>"
+  opt "AND NOW?" -> bread_end
+
+stage bread_end
+  end success
+  say "{KIN} PASSED HIM THE BREAD WITHOUT LOOKING AT HIM. {BROTHER} TOOK IT LIKE IT WAS HOT, AND HELD IT, AND DIDN'T EAT IT, AND NOBODY SAID ANYTHING, AND {GIVER} LAUGHED THROUGH THE TEARS."
+  journal "{BROTHER} IS HOME IN {HOME}. HIS KIN HAVE NOT FORGOTTEN. THEY HAVE FORGIVEN, WHICH IS HARDER."
+  do reward fair
+  do befriend kin
+  do remember brother "{KIN} SAID GOOD MORNING TO ME TODAY. JUST THAT. GOOD MORNING. I HAD TO GO BEHIND THE BARN FOR A WHILE."
+  do fact "{BROTHER} OF {HOME} SOLD HIS KIN FOR A CAPTAIN'S SASH AND CAME HOME, AND THEY PASSED HIM THE BREAD."
+  do mark mercy_at_table
+
+stage work_end
+  end success
+  say "{BROTHER} PLOUGHED {KIN}'S FIELDS ALL SPRING AND SUMMER, UNPAID, BEFORE DAWN AND AFTER DUSK. AT HARVEST {KIN} BROUGHT HIM ALE IN THE FIELD AND STOOD THERE WHILE HE DRANK IT. IT WAS NOT FORGIVENESS. IT WAS ON THE ROAD THERE."
+  journal "{BROTHER} IS HOME, WORKING OFF THE WINTER HE COST HIS KIN. NOBODY HAS FORGIVEN HIM YET. NOBODY HAS SENT HIM AWAY."
+  do reward fair
+  do remember kin "HE WORKS. I'LL GIVE HIM THAT. HE WORKS LIKE A MAN TRYING TO DIG HIMSELF OUT OF SOMETHING. MAYBE HE WILL."
+  do fact "{BROTHER} OF {HOME} BETRAYED HIS KIN FOR A RED SASH. NOW HE PLOUGHS THEIR FIELDS BEFORE DAWN, UNPAID."
+)SAGA";
+
+// ---------------------------------------------------------------- the last battle and the door at the end
+const char* const kLastDoor = R"SAGA(
+title [[THE DOOR AT THE END|THE LAST STAND AT THE SHRINE|THE MASK AND THE DOOR]]
+hook npc priest
+pitch "[[pitch=WHO IS THE MASKED ONE IN THE SHRINE?|WHY DOES THE GOD SPEAK ONLY AT NIGHT?|WHY ARE YOU SO PALE, PRIEST?]]"
+hint "[[~pitch|A NEW VOICE SPEAKS IN THE OLD SHRINE ON THE HILL. IT SAYS THE GOD WANTS OUR TITHES DOUBLED AND OUR YOUNG SENT AWAY. I DON'T BELIEVE IT. NOBODY ELSE DARES NOT TO.|A NEW VOICE SPEAKS IN THE OLD SHRINE ON THE HILL. IT SAYS THE GOD WANTS OUR TITHES DOUBLED AND OUR YOUNG SENT AWAY. I DON'T BELIEVE IT. NOBODY ELSE DARES NOT TO.|I'VE SERVED THE OLD SHRINE FORTY YEARS. THE GOD NEVER WANTED GOLD BEFORE.]]"
+role giver giver
+role home site home
+role camp site camp near
+role cheat person [[male|female]] at home
+role king person male at home
+role kingdom kingdom home
+var unmasked 0
+slot t1 -> unmask betrayal deceit rival price
+slot t2 -> stand world mercy prophecy
+
+stage start
+  talk giver
+  say "A STRANGER CAME LAST SPRING WITH A MASK OF THE GOD AND A VOICE LIKE THUNDER. NOW ONLY {CHEAT} MAY GO INTO THE SHRINE ON THE HILL, AND {CHEAT} SPEAKS FOR THE GOD, AND THE GOD SELLS OUR YOUNG TO THE RAIDERS OF {CAMP}. <<curse>>"
+  opt "THEN I'LL TEAR THE MASK OFF." -> @t1
+  opt "WHO STILL STANDS AGAINST IT?" -> king_talk
+  opt "PERHAPS THE GOD HAS CHANGED." -> refused
+
+stage refused
+  end fail
+  say "PERHAPS. THAT'S WHAT THEY ALL SAY, ONE BY ONE, LOOKING AT THEIR FEET. <<grief>>"
+  journal "YOU LEFT {HOME} TO THE VOICE IN THE MASK."
+  do remember giver "THEY TOOK THE MILLER'S TWINS LAST WEEK. THE GOD WANTED THEM, {CHEAT} SAID. THE GOD. I SPAT ON THE SHRINE STEPS. I'M OLD; LET THEM COME."
+
+stage king_talk
+  talk king
+  say "ME. I WAS LORD HERE, BEFORE {KINGDOM} TOOK THE VALLEY. AN OLD MAN WITH A RUSTY SWORD AND [[loyal=SEVEN|NINE|ELEVEN]] FRIENDS. WE'LL STAND AT THE SHRINE DOOR WHEN THE RAIDERS COME FOR THE NEXT ONES. COME AND STAND WITH US, OR DON'T."
+  opt "I'LL STAND WITH YOU." -> @t2
+  opt "FIRST THE MASK." -> @t1
+
+stage unmask
+  talk cheat
+  say "YOU DARE COME INTO THE GOD'S HOUSE? THE GOD WILL STRIKE YOU... PUT THAT DOWN. PUT THE MASK DOWN. ...ALL RIGHT. ALL RIGHT! I'M A MUMMER FROM THE SOUTH. THE RAIDERS PAY ME. I THOUGHT IT WAS A JOKE AT FIRST. <<plea:fear>>"
+  do set unmasked 1
+  opt "TELL THE TOWN YOURSELF." -> confess
+  opt "THE RAIDERS COME TONIGHT?" -> @t2
+
+stage confess
+  talk cheat
+  say "THEY'LL TEAR ME APART. ...THEY SHOULD. FINE. FINE! I'LL TELL THEM. BUT THE RAIDERS COME TONIGHT FOR THE NEXT ONES, MASK OR NO MASK, AND THEY'VE BEEN PAID IN ADVANCE."
+  opt "THEN WE STAND AT THE DOOR." -> @t2
+
+stage stand
+  goal kill 6 bandit
+  then door
+  journal "THE RAIDERS OF {CAMP} COME TO THE SHRINE ON THE HILL ABOVE {HOME}. {KING} AND HIS [[=loyal]] FRIENDS STAND AT THE DOOR. STAND WITH THEM."
+
+stage door
+  talk king
+  say "WE HELD. ...I'M HIT, {PLAYER}. NO, DON'T. I KNOW. LISTEN: THE SHRINE DOOR IS OPEN BEHIND ME, AND THERE'S LIGHT IN IT, AND IT'S BIGGER INSIDE THAN THE HILL IS. I CAN SEE MY WIFE. I CAN SEE MY BOYS, WHO DIED AT THE FORD. THEY'RE WAVING."
+  opt "GO TO THEM." -> door_end
+  opt "STAY. FIGHT FOR IT. STAY." -> stay_end
+
+stage door_end
+  end success
+  say "{KING} WALKED THROUGH THE SHRINE DOOR INTO THE LIGHT WITHOUT LIMPING, AND DID NOT LOOK BACK. WHEN YOU WENT IN AFTER HIM IT WAS ONLY A SMALL DARK SHRINE WITH A BROKEN MASK ON THE FLOOR. IT SMELLED OF SUMMER."
+  ?t1 journal "THE RAIDERS OF {CAMP} WERE BROKEN AT THE SHRINE DOOR, AND THE MASK WITH THEM. {KING} WENT THROUGH THE DOOR AT THE END."
+  !t1 journal "THE RAIDERS OF {CAMP} WERE BROKEN AT THE SHRINE DOOR ABOVE {HOME}. {KING} WENT THROUGH THE DOOR AT THE END."
+  do reward rich
+  do remember giver "THE SHRINE IS SMALL AND DARK AGAIN. BUT SOMETIMES AT DUSK THE DOOR IS FULL OF LIGHT FOR A MOMENT, AND I HEAR SOMEONE LAUGHING. AN OLD MAN. HAPPY."
+  do fact "{KING}, LAST LORD OF {HOME}'S VALLEY, DIED HOLDING THE SHRINE DOOR AGAINST THE RAIDERS OF {CAMP}. THEY SAY HE WALKED THROUGH IT INTO LIGHT."
+  do mark the_door_at_the_end
+
+stage stay_end
+  end success
+  say "{KING} TURNED FROM THE LIGHT TO LOOK AT YOU, AND SMILED, AND STAYED. HE LIVED THREE MORE MONTHS, IN PAIN, TEACHING THE YOUNG OF {HOME} TO HOLD A SHIELD. ON THE LAST NIGHT HE ASKED TO BE CARRIED UP THE HILL."
+  journal "{KING} STAYED, AND TAUGHT {HOME} TO DEFEND ITSELF, AND WENT UP TO THE SHRINE DOOR AT THE END OF THE SUMMER."
+  do reward rich
+  do remember giver "HE STAYED FOR US. THREE MONTHS. THE YOUNG ONES ALL HOLD A SHIELD LIKE HIM NOW, LOW AND A BIT TO THE LEFT. LIKE A FAMILY HABIT."
+  do fact "{KING}, LAST LORD OF {HOME}'S VALLEY, HELD THE SHRINE DOOR AGAINST THE RAIDERS AND STAYED THREE MONTHS MORE TO TEACH THE YOUNG TO FIGHT."
+)SAGA";
+
+struct Def {
+  const char* id;
+  const char* name;
+  uint32_t themes;
+  uint32_t needs;
+  uint16_t motives;
+  uint32_t twists;
+  const char* body;
+};
+
+uint16_t M(Motive a) { return motiveBit(a); }
+
+}  // namespace
+
+void addLewis(std::vector<Archetype>& v) {
+  const Def defs[] = {
+      {"door_beyond", "THE DOOR THAT WASN'T THERE", TH_WONDER | TH_HOMECOMING | TH_LOVE | TH_SACRIFICE, N_RUIN,
+       (uint16_t)(M(Motive::Love) | M(Motive::Fear) | M(Motive::Hope) | M(Motive::Grief)),
+       TF_WONDER | TF_PROPHECY | TF_PRICE | TF_DECEIT | TF_MERCY | TF_RETURN | TF_IDENTITY | TF_WORLD, kDoorBeyond},
+      {"warden_dies", "THE ONE WHO DIED IN HIS PLACE", TH_SACRIFICE | TH_BETRAYAL | TH_REDEMPTION | TH_MERCY | TH_FAITH, N_RUIN | N_CAMP,
+       (uint16_t)(M(Motive::Grief) | M(Motive::Devotion) | M(Motive::Love) | M(Motive::Fear)),
+       TF_BETRAYAL | TF_PRICE | TF_DECEIT | TF_RIVAL | TF_WONDER | TF_PROPHECY | TF_RETURN, kWardenDies},
+      {"long_winter", "THE WINTER WITHOUT A FEAST", TH_FREEDOM | TH_HOSPITALITY | TH_KINGSHIP | TH_WONDER, N_CAMP,
+       (uint16_t)(M(Motive::Hope) | M(Motive::Vengeance) | M(Motive::Fear) | M(Motive::Grief)),
+       TF_BETRAYAL | TF_DECEIT | TF_RIVAL | TF_PRICE | TF_WONDER | TF_RETURN | TF_MERCY | TF_WORLD, kLongWinter},
+      {"traitor_mercy", "THE TRAITOR AND THE MERCY", TH_BETRAYAL | TH_MERCY | TH_REDEMPTION | TH_KINSHIP, N_CAMP,
+       (uint16_t)(M(Motive::Love) | M(Motive::Grief) | M(Motive::Hope) | M(Motive::Shame)),
+       TF_MERCY | TF_BETRAYAL | TF_IDENTITY | TF_PRICE | TF_RIVAL | TF_WORLD | TF_RETURN | TF_WONDER, kTraitorMercy},
+      {"last_door", "THE DOOR AT THE END", TH_DOOM | TH_FAITH | TH_LOYALTY | TH_COURAGE | TH_TRICKERY, N_CAMP | N_KINGDOM,
+       (uint16_t)(M(Motive::Devotion) | M(Motive::Fear) | M(Motive::Duty) | M(Motive::Vengeance)),
+       TF_BETRAYAL | TF_DECEIT | TF_RIVAL | TF_PRICE | TF_WORLD | TF_MERCY | TF_PROPHECY, kLastDoor},
+  };
+  for (const Def& d : defs) {
+    Archetype a;
+    a.id = d.id;
+    a.name = d.name;
+    a.source = Source::Lewis;
+    a.themes = d.themes;
+    a.needs = d.needs;
+    a.tier = 2;
+    a.motives = d.motives;
+    a.twists = d.twists;
+    a.body = d.body;
+    v.push_back(a);
+  }
+}
+
+}  // namespace arch
+}  // namespace saga
+}  // namespace story

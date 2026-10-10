@@ -1,0 +1,54 @@
+# M6b "Sagas" ARCHETYPES lane: a tour of composed stories at phone size. Begun in the start village of seed 7:
+# THE DOOR THAT WASN'T THERE with the fox-eyed woman as its first twist, met before setting out (opening, the twist's
+# dialogue, the far side
+# of the door, an ending), then the openings of four more archetypes (each refused at once, so it closes).
+# Shots wait 2.5 s after a dialogue opens so the type-on reveal has finished (judge the phone fit on them).
+#   embervale.exe --script tools/scripts/m6b_arch_tour.txt     (m6b_arch_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.05 hour 11
++0.1 god 1
++0.3 saga start door_beyond fox_eyes v7 mlove s3
++0.3 expect saga start
++2.5 shot m6b_arch_1_door_opening.png
++0.1 choose I'LL GO INTO THE CRYPT
++0.3 expect saga t1_crust
++0.1 story show
++2.5 shot m6b_arch_2_fox_twist.png
++0.1 choose TAKE THE WHOLE LOAF
++0.3 story show
++2.5 shot m6b_arch_3_fox_blessing.png
++0.1 choose THE ONE WHO SMILES FIRST
++0.3 expect saga go
++0.3 story complete
++0.3 expect saga threshold
++0.1 story show
++2.5 shot m6b_arch_4_threshold.png
++0.1 choose IS WAITING
++0.3 expect saga choosing
++0.1 story show
++2.5 shot m6b_arch_5_choosing.png
++0.1 choose COME HOME
++0.5 expect saga done
++0.3 saga start out_of_bondage v4 mhope s11
++0.3 expect saga start
++2.5 shot m6b_arch_6_bondage.png
++0.1 choose A DEBT IS A DEBT
++0.5 expect saga done
++0.3 saga start traitor_mercy v2 mgrief s5
++0.3 expect saga start
++2.5 shot m6b_arch_7_traitor.png
++0.1 choose IS RIGHT
++0.5 expect saga done
++0.3 saga start long_way_home v3 mhope s8
++0.3 expect saga start
++2.5 shot m6b_arch_8_odyssey.png
++0.1 choose LET HIM BE
++0.5 expect saga done
++0.3 saga start whispering_thing v5 mfear s9
++0.3 expect saga start
++2.5 shot m6b_arch_9_whisper.png
++0.1 choose A TRINKET
++0.5 expect saga done
++0.3 quit

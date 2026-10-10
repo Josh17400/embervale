@@ -155,6 +155,20 @@ int backgroundWord(const std::string& w0) {
   return -1;
 }
 
+int relationWord(const std::string& w0) {
+  const std::string w = lower(w0);
+  // (fixer M6b r1) child / spouse / parent / sibling: a precise relation to the `of` person (kin is any of them)
+  static const char* names[] = {"any", "kin", "friend", "mourner", "needy", "young", "old", "child", "spouse", "parent", "sibling"};
+  for (int i = 0; i < 11; i++) if (w == names[i]) return i;
+  return -1;
+}
+int rewardWord(const std::string& w0) {
+  const std::string w = lower(w0);
+  static const char* names[] = {"small", "fair", "rich", "great"};
+  for (int i = 0; i < 4; i++) if (w == names[i]) return i;
+  return -1;
+}
+
 std::vector<std::pair<std::string, std::string>> placeholders(const std::string& text) {
   std::vector<std::pair<std::string, std::string>> out;
   size_t i = 0;
@@ -332,6 +346,16 @@ bool parseEff(const std::vector<Tok>& t, EffDef& e, std::string& err) {
     if (e.args[0] != "fanfare" && e.args[0] != "bell" && e.args[0] != "quest" && e.args[0] != "roar") { err = "unknown sound '" + e.args[0] + "'"; return false; }
   } else if (w == "rumour") {
     e.type = EffType::Rumour;
+  } else if (w == "reward") {
+    if (!argc(1)) return false;
+    e.type = EffType::Reward; e.n = rewardWord(t[2].s);
+    if (e.n < 0) { err = "reward small|fair|rich|great"; return false; }
+  } else if (w == "secret") {
+    if (!argc(1)) return false;
+    e.type = EffType::Secret; e.args = {lower(t[2].s)};
+  } else if (w == "befriend") {
+    if (!argc(1)) return false;
+    e.type = EffType::Befriend; e.args = {lower(t[2].s)};
   } else if (w == "realm") {
     if (!argc(2)) return false;
     const std::string k = lower(t[2].s);
@@ -464,6 +488,18 @@ void parse(const char* text, const char* srcName, std::vector<Script>& out, std:
         r.kind = RoleKind::Event;
         r.ev = t.size() > 3 ? evWord(t[3].s) : -1;
         if (r.ev < 0) { error("event needs an event type"); continue; }
+      } else if (kind == "resident") {
+        r.kind = RoleKind::Resident;
+        r.a = t.size() > 3 ? lower(t[3].s) : std::string("any");
+        if (relationWord(r.a) < 0) { error("resident any|kin|friend|mourner|needy|young|old|child|spouse|parent|sibling"); continue; }
+        for (size_t q = 4; q + 1 < t.size(); q++) if (lower(t[q].s) == "of") r.b = lower(t[q + 1].s);
+        atArg(4);
+      } else if (kind == "beast") {
+        r.kind = RoleKind::Beast;
+        r.a = t.size() > 3 ? lower(t[3].s) : std::string("near");
+        if (r.a != "near" && r.a != "far") { error("beast near|far"); continue; }
+      } else if (kind == "boss") {
+        r.kind = RoleKind::Boss;
       } else { error("unknown role kind '" + kind + "'"); continue; }
       if (S->role(r.name) >= 0) { error("role '" + r.name + "' declared twice"); continue; }
       S->roles.push_back(r);
@@ -559,10 +595,21 @@ std::vector<std::string> validate(const Script& s) {
       else if (kindOf(r.a) != (int)RoleKind::Kingdom) bad(r.line, "role '" + r.name + "': '" + r.a + "' is not a kingdom");
     }
     if (r.kind == RoleKind::Giver && i != 0) bad(r.line, "the giver must be the first role");
+    if (r.kind == RoleKind::Resident && !r.b.empty()) {
+      if (!before(r.b)) bad(r.line, "role '" + r.name + "': '" + r.b + "' is not a role declared before it");
+      else {
+        const int k = kindOf(r.b);
+        if (k != (int)RoleKind::Giver && k != (int)RoleKind::Resident && k != (int)RoleKind::Person && k != (int)RoleKind::Npc)
+          bad(r.line, "role '" + r.name + "': a resident is kin or friend of a person, not of '" + r.b + "'");
+      }
+    }
   }
   if (s.roles.empty() || s.roles[0].kind != RoleKind::Giver) bad(s.line, "the first role must be the giver");
+  // (M6b) the engine keys spawned people on (instance, role index): 32 roles at most (story_internal.h PERSON_ROLES)
+  if (s.roles.size() > 32) bad(s.line, "more than 32 roles (" + std::to_string(s.roles.size()) + ")");
   // placeholders
-  static const std::set<std::string> personF = {"he", "him", "his", "man", "son", "lad", "brother"};
+  static const std::set<std::string> personF = {"he", "him", "his", "man", "son", "lad", "brother",
+                                                "father", "husband", "sir", "boy"};   // (M6b: father .. boy)
   auto checkText = [&](int line, const std::string& txt, size_t maxLen, const char* what) {
     size_t len = 0;
     for (const auto& ph : placeholders(txt)) {
@@ -574,8 +621,14 @@ std::vector<std::string> validate(const Script& s) {
       const RoleKind k = s.roles[(size_t)ri].kind;
       const std::string& f = ph.second;
       bool ok = false;
+      // (M6b) the culture words of anyone or anywhere with a culture
+      if ((f == "god" || f == "people") && k != RoleKind::War && k != RoleKind::Event && k != RoleKind::Ruler && k != RoleKind::Foe &&
+          k != RoleKind::Beast && k != RoleKind::Boss)
+        continue;
       switch (k) {
         case RoleKind::Person: case RoleKind::Foe: ok = personF.count(f) > 0; break;
+        case RoleKind::Resident: ok = personF.count(f) > 0 || f == "job" || f == "kin" || f == "lost"; break;
+        case RoleKind::Beast: case RoleKind::Boss: ok = f == "kind" || f == "dir" || f == "realm"; break;
         case RoleKind::Ruler: ok = personF.count(f) > 0 || f == "name" || f == "title"; break;
         case RoleKind::Site: case RoleKind::Capital: ok = f == "dir" || f == "realm"; break;
         case RoleKind::Giver: ok = f == "dir" || f == "realm" || personF.count(f) > 0; break;
@@ -620,7 +673,8 @@ std::vector<std::string> validate(const Script& s) {
       case StageKind::Talk: {
         if (!needRole(G.line, G.talk, "talk")) break;
         const int k = kindOf(G.talk);
-        if (k != (int)RoleKind::Person && k != (int)RoleKind::Npc && k != (int)RoleKind::Ruler && k != (int)RoleKind::Giver)
+        if (k != (int)RoleKind::Person && k != (int)RoleKind::Npc && k != (int)RoleKind::Ruler && k != (int)RoleKind::Giver &&
+            k != (int)RoleKind::Resident)
           bad(G.line, "stage '" + G.name + "': '" + G.talk + "' cannot be talked to");
         if (k == (int)RoleKind::Giver && !npcHook) bad(G.line, "stage '" + G.name + "': the giver of a " + std::string(s.hook == HookKind::Board ? "board" : s.hook == HookKind::Ruin ? "ruin" : "event") + " story is a place, not a person");
         if (G.say.empty()) bad(G.line, "stage '" + G.name + "': a dialogue with nothing said");
@@ -648,7 +702,12 @@ std::vector<std::string> validate(const Script& s) {
             if (!o.role.empty() && needRole(G.line, o.role, "goal") && !siteLike(o.role)) bad(G.line, "goal: '" + o.role + "' is not a place");
             if (o.type == ObjType::Kill && (o.n < 1 || o.n > 12)) bad(G.line, "kill 1..12");
             break;
-          case ObjType::Slay: needKind(G.line, o.role, RoleKind::Foe, "slay"); break;
+          case ObjType::Slay:
+            if (needRole(G.line, o.role, "slay")) {
+              const int k = kindOf(o.role);
+              if (k != (int)RoleKind::Foe && k != (int)RoleKind::Beast && k != (int)RoleKind::Boss) bad(G.line, "role '" + o.role + "' is the wrong kind for slay");
+            }
+            break;
           case ObjType::Fetch: if (needRole(G.line, o.role, "fetch") && !siteLike(o.role)) bad(G.line, "fetch: '" + o.role + "' is not a place"); break;
           case ObjType::Wait: if (o.n < 1 || o.n > 30) bad(G.line, "wait 1..30 days"); break;
           case ObjType::War: needKind(G.line, o.role, RoleKind::Kingdom, "war"); needKind(G.line, o.role2, RoleKind::Kingdom, "war"); break;
@@ -671,20 +730,25 @@ std::vector<std::string> validate(const Script& s) {
         case EffType::Remember: {
           if (!needRole(G.line, e.args[0], "remember")) break;
           const int k = kindOf(e.args[0]);
-          if (k != (int)RoleKind::Giver && k != (int)RoleKind::Person && k != (int)RoleKind::Npc) bad(G.line, "remember: '" + e.args[0] + "' cannot remember");
+          if (k != (int)RoleKind::Giver && k != (int)RoleKind::Person && k != (int)RoleKind::Npc && k != (int)RoleKind::Resident) bad(G.line, "remember: '" + e.args[0] + "' cannot remember");
           checkText(G.line, e.text, 300, "memory");
           break;
         }
         case EffType::Fact: checkText(G.line, e.text, 160, "fact"); break;
         case EffType::Notice: checkText(G.line, e.text, 60, "notice"); break;
         case EffType::Give: case EffType::Take: checkText(G.line, e.text, 32, "item"); break;
-        case EffType::Moves: needKind(G.line, e.args[0], RoleKind::Person, "moves"); if (needRole(G.line, e.args[1], "moves") && !siteLike(e.args[1])) bad(G.line, "moves: not a place"); break;
+        case EffType::Moves:
+          if (needRole(G.line, e.args[0], "moves") && kindOf(e.args[0]) != (int)RoleKind::Person && kindOf(e.args[0]) != (int)RoleKind::Resident)
+            bad(G.line, "role '" + e.args[0] + "' is the wrong kind for moves");
+          if (needRole(G.line, e.args[1], "moves") && !siteLike(e.args[1])) bad(G.line, "moves: not a place"); break;
         case EffType::Shop: needKind(G.line, e.args[0], RoleKind::Npc, "shop"); checkText(G.line, e.text, 300, "memory"); break;
         case EffType::Hide: case EffType::Show: if (needRole(G.line, e.args[0], "hide/show")) { const int k = kindOf(e.args[0]); if (k != (int)RoleKind::Person && k != (int)RoleKind::Foe) bad(G.line, "hide/show: not a person"); } break;
         case EffType::RealmWar: case EffType::RealmPeace: needKind(G.line, e.args[0], RoleKind::Kingdom, "realm"); needKind(G.line, e.args[1], RoleKind::Kingdom, "realm"); break;
         case EffType::RealmFamine: if (needRole(G.line, e.args[0], "realm famine") && !siteLike(e.args[0])) bad(G.line, "realm famine: not a place"); break;
         case EffType::RealmSuccession: needKind(G.line, e.args[0], RoleKind::Kingdom, "succession"); needKind(G.line, e.args[1], RoleKind::Person, "succession"); break;
         case EffType::RealmEvent: for (const std::string& a : e.args) needRole(G.line, a, "realm event"); break;
+        case EffType::Secret: if (needRole(G.line, e.args[0], "secret") && !siteLike(e.args[0])) bad(G.line, "secret: '" + e.args[0] + "' is not a place"); break;
+        case EffType::Befriend: needKind(G.line, e.args[0], RoleKind::Resident, "befriend"); break;
         default: break;
       }
     }
@@ -718,15 +782,23 @@ std::vector<std::string> validate(const Script& s) {
     if (G.kind == StageKind::Talk && G.opts.size() >= 2) choices++;
     for (const EffDef& e : G.effs)
       if (e.type == EffType::Remember || e.type == EffType::Fact || e.type == EffType::Moves || e.type == EffType::Shop ||
-          e.type == EffType::Mark || e.type == EffType::Rep || e.type >= EffType::RealmWar)
+          e.type == EffType::Mark || e.type == EffType::Rep || (e.type >= EffType::RealmWar && e.type <= EffType::RealmEvent) ||
+          e.type == EffType::Secret || e.type == EffType::Befriend)
         consequence = true;
   }
   if (choices == 0) bad(s.line, "no choice anywhere (a story needs at least one)");
-  if (!consequence) bad(s.line, "no persistent consequence (remember, fact, moves, shop, mark, rep or a realm effect)");
+  if (!consequence) bad(s.line, "no persistent consequence (remember, fact, moves, shop, mark, rep, secret, befriend or a realm effect)");
   return P;
 }
 
 // ---------------------------------------------------------------- the library
+void link(Script& s) {
+  for (StageDef& G : s.stages) {
+    G.thenIx = G.then.empty() ? -1 : s.stage(G.then);
+    for (OptDef& o : G.opts) { o.toIx = s.stage(o.to); o.elseIx = o.orElse.empty() ? -1 : s.stage(o.orElse); }
+  }
+}
+
 const Library& library() {
   static Library L = [] {
     Library lib;
@@ -735,11 +807,7 @@ const Library& library() {
     std::set<std::string> ids;
     for (Script& s : lib.scripts) {
       if (!ids.insert(s.id).second) lib.errors.push_back(s.source + ":" + std::to_string(s.line) + " " + s.id + ": a second script with this id");
-      // link the stage indices
-      for (StageDef& G : s.stages) {
-        G.thenIx = G.then.empty() ? -1 : s.stage(G.then);
-        for (OptDef& o : G.opts) { o.toIx = s.stage(o.to); o.elseIx = o.orElse.empty() ? -1 : s.stage(o.orElse); }
-      }
+      link(s);
       for (const std::string& p : validate(s)) lib.errors.push_back(p);
     }
     return lib;

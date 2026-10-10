@@ -5,8 +5,11 @@
 // The record comes from the realm (Realm::ruin, the REALM lane's history pre-roll). Until it has one for a site, a
 // stand-in is derived here from the site's own culture and id: a pure function, so the props and their words are the
 // same on every visit and after every load.
+// (M6b CAMPAIGNS lane) Some ruins hold the tomb of a king buried with a thing that could not be unmade: their third
+// clue is the steward's letter about it, and the campaign `burden` begins there (burdenRuin).
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -168,6 +171,23 @@ void loreNotice(Game& g, const std::string& text) {
 
 }  // namespace
 
+// (M6b CAMPAIGNS lane) a ruin whose record tells of a made thing its makers could not unmake: the hook of the campaign
+// `burden` (rpg/story/campaigns/burden.cpp; chain.cpp pickCampaign asks this). One ruin in four, and every ruin that
+// fell to a curse. A pure function of the world seed, the site and its record.
+namespace {
+bool burdenRecord(const Game& g, ew::Gid site, const realm::RuinRecord& R) {
+  return R.valid && (R.cause == realm::FallCause::Curse || ew::mix64(site ^ g.seed ^ 0xB0D3A11Full) % 4 == 0);
+}
+// the third clue of such a ruin (always among the props a ruin lays out) is the steward's last letter about it
+void burdenClue(const Game& g, ew::Gid site, realm::RuinRecord& R) {
+  if (!burdenRecord(g, site, R) || R.clues.size() < 3) return;
+  static const char* const kThing[3] = {"CROWN", "KEY", "AMULET"};
+  const char* thing = kThing[ew::mix64(site ^ 0x7417Aull) % 3];
+  R.clues[2] = std::string("JOURNAL: ") + R.lastLord + " WILL NOT LET GO OF THE " + thing +
+               ", EVEN IN SLEEP. IT WAS MADE IN THE FORGE OF AN OLDER KING, AND ONLY THAT FIRE CAN UNMAKE IT. WE WILL BURY IT IN THE TOMB, IN THOSE HANDS, AND PRAY NO ONE EVER OPENS IT.";
+}
+}  // namespace
+
 realm::RuinRecord& ruinCached(Game& g, ew::Gid site) {
   const uint64_t key = ew::mix64(site ^ g.seed);
   auto it = cache().find(key);
@@ -186,8 +206,11 @@ realm::RuinRecord& ruinCached(Game& g, ew::Gid site) {
     }
     R = S;
   }
+  burdenClue(g, site, R);
   return cache()[key] = R;
 }
+
+bool burdenRuin(Game& g, ew::Gid site) { return burdenRecord(g, site, ruinCached(g, site)); }
 
 realm::RuinRecord ruinRecordFor(Game& g, ew::Gid site) { return ruinCached(g, site); }
 
@@ -252,11 +275,11 @@ bool readLore(Game& g, int tx, int ty) {
     if (g.world.src) {
       const int32_t gx = g.world.ox + S.ex, gy = g.world.oy + S.ey;
       const ew::SettlementNode* best = nullptr;
-      double bd = 1e30;
+      int64_t bd = INT64_MAX;   // (fixer M6b r2: integer squared distance, no libm)
       const std::vector<ew::SettlementNode> near = g.world.src->settlementsIn(gx - 1500, gy - 1500, gx + 1500, gy + 1500, true);
       for (const ew::SettlementNode& nd : near) {
         if (nd.type != SiteType::City) continue;
-        const double d = std::hypot((double)(nd.x - gx), (double)(nd.y - gy));
+        const int64_t dx = (int64_t)nd.x - gx, dy = (int64_t)nd.y - gy, d = dx * dx + dy * dy;
         if (d < bd) { bd = d; best = &nd; }
       }
       if (best) {

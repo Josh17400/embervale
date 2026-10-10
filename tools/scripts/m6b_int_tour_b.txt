@@ -1,0 +1,26 @@
+# M6b "Sagas" integration tour B (phone, seed 42, day, outdoors): a library archetype with two twists started in the
+# open, its opening and a twist scene; then a campaign opening at dusk.
+#   embervale.exe --script tools/scripts/m6b_int_tour_b.txt     (m6b_intb_*.png in the working directory)
+phone
+seed 42
+0.3  newgame
+# (fixer M6b r2) the touch layout an iPhone shows: finger-sized option rows (dlgRowH 25), less room for the speech
++0.02 touch 1
++0.05 hour 10
++0.1 god 1
++1.0 saga speak
++0.3 expect saga offered
++3.5 shot m6b_intb_1_pitch_day.png
++0.1 saga accept
++0.3 expect saga running
++6.0 shot m6b_intb_2_opening_day.png
++0.1 saga step 3
++6.0 shot m6b_intb_3_mid.png
++0.1 key Escape
++0.3 hour 19
++0.3 saga campaign plague pl_sick_house pl_choir_cup pl_cistern pl_healer_bargain v4 mduty s9
++0.3 expect saga running
++6.0 shot m6b_intb_4_campaign_dusk.png
++0.1 saga step 60
++6.0 shot m6b_intb_5_campaign_end.png
++0.3 quit

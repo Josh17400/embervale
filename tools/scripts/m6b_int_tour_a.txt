@@ -1,0 +1,27 @@
+# M6b "Sagas" integration tour A (phone, seed 3, night, indoors): a scripture archetype begun in the inn at night,
+# its composed opening, the next scene, the journal, and the ending.
+#   embervale.exe --script tools/scripts/m6b_int_tour_a.txt     (m6b_inta_*.png in the working directory)
+phone
+seed 3
+0.3  newgame
+# (fixer M6b r2) the touch layout an iPhone shows: finger-sized option rows (dlgRowH 25), less room for the speech
++0.02 touch 1
++0.05 hour 21
++0.1 god 1
++0.3 enter inn
++1.0 saga start shorn_strength v5 mshame s21
++0.3 expect saga running
++3.5 shot m6b_inta_1_opening_inn_night.png
++0.3 expect saga running
++6.0 shot m6b_inta_2_opening_settled.png
++0.1 saga step
++6.0 shot m6b_inta_3_next.png
++0.1 key Escape
++0.3 menu 1
++0.5 tap 123 129
++2.0 shot m6b_inta_4_journal.png
++0.1 key Escape
++0.3 saga step 40
++6.0 shot m6b_inta_5_ending.png
++0.3 expect saga done
++0.3 quit

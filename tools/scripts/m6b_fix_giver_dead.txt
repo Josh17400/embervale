@@ -1,0 +1,25 @@
+# M6b fixer round 2: a saga whose GIVER dies must end (failed, with a journal line saying why) instead of waiting
+# forever on a `talk giver` stage; and a saga turned down at its opening is declined, not a quest in the journal.
+# 1. Seed 7: the nearest teller pitches a composed story; the player takes it and walks off before answering (the
+#    opening waits on the giver). The giver dies: within a step the story ends.
+# 2. THE SHIELD WALL told by a fresh giver: "NOT MY FORD." at the opening declines it: no journal entry stays.
+#   embervale.exe --script tools/scripts/m6b_fix_giver_dead.txt     (no shots)
+seed 7
+1 newgame
++0.05 hour 11
++1 god 1
++1.5 saga speak
++0.3 expect saga offered
++0.1 saga accept
++0.5 expect saga running
++0.3 key Escape
++0.5 life kill TERAALAI
++1 life days 20
++2 expect saga done
++0.5 saga start shield_wall
++1 expect mode dialogue
++0.3 expect quest active SHIELD
++0.5 choose NOT MY FORD
++1 expect saga done
++0.3 expect quest none SHIELD
++1 quit

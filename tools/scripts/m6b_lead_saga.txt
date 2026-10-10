@@ -1,0 +1,39 @@
+# M6b "Sagas" (lead, phase A): a composed story in play. THE BROTHER IN THE PIT (rpg/story/arch/scripture.cpp) with the
+# two phase A twists, begun in the start village: its opening dialogue, the journey's journal, the twist's dialogue,
+# the ending. (The walk home completes at once: the player never left the village.) Phone size (the iPhone review window): the composed lines must fit the dialogue panel.
+#   embervale.exe --script tools/scripts/m6b_lead_saga.txt     (m6b_lead_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.05 hour 11
++0.1 god 1
++0.3 saga start the_pit rival_claim road_omen v2 mgrief s7
++0.3 expect saga start
++2.0 shot m6b_lead_1_opening.png
++0.1 choose I'LL GO TO
++0.3 expect saga road
++0.1 menu 1
++2.0 shot m6b_lead_2_journal.png
++0.1 key Escape
++0.3 story complete
++0.3 expect saga found
++0.1 story show
++2.0 shot m6b_lead_3_found.png
++0.1 choose WATCHES THE ROAD
++0.3 story show
++0.1 choose GO
++0.3 expect saga t1_claim
++0.1 story show
++2.0 shot m6b_lead_4_twist.png
++0.1 choose WE SHARE IT
++0.3 story show
++0.1 choose LET'S BE ON
++0.6 expect saga t2_sign
++0.1 story show
++0.1 choose I DON'T BUY
++0.3 expect saga confront
++0.1 story show
++2.0 shot m6b_lead_5_confront.png
++0.1 choose FORGIVE
++0.5 expect saga done
++0.3 quit

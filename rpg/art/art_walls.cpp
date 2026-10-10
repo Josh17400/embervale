@@ -445,7 +445,12 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
     if (!S.in(gx, gy)) return 0;
     bool eN = !S.in(gx, gy - 1), eS = !S.in(gx, gy + 1), eW = !S.in(gx - 1, gy), eE = !S.in(gx + 1, gy);
     bool e2 = !S.in(gx, gy - 2) || !S.in(gx, gy + 2) || !S.in(gx - 2, gy) || !S.in(gx + 2, gy);
-    const int along = (eN || eS || (!eW && !eE && (!S.in(gx, gy - 2) || !S.in(gx, gy + 2)))) ? gx : gy;
+    // the coordinate the merlons count along. (fixer M6b r1) only a straight north-south edge counts in y: an edge pixel
+    // of a slanted (diagonal / curved) run counts in x like the pixel behind it, or the 4-on/4-off pattern scrambled
+    // into noise wherever the run turned (merlons stopped dead at the join, the slant had none)
+    const bool vEdge = (eE && !S.in(gx + 1, gy - 1) && !S.in(gx + 1, gy + 1)) || (eW && !S.in(gx - 1, gy - 1) && !S.in(gx - 1, gy + 1));
+    const bool hEdge = eN || eS;
+    const int along = hEdge ? gx : (vEdge ? gy : ((eW || eE) ? gx : ((!S.in(gx, gy - 2) || !S.in(gx, gy + 2)) ? gx : gy)));
     // (M3 fixer) a north-south run shows no face, only its top: its parapets are a pixel broader (3 px) and its merlons
     // stand taller over deeper crenels, so the run reads as a crenellated wall with a walk between, not a paved strip
     const bool nsRun = S.in(gx, gy - 3) && S.in(gx, gy + 3) && (!S.in(gx - 3, gy) || !S.in(gx + 3, gy)) && S.in(gx - 1, gy - 3) == S.in(gx - 1, gy + 3);
@@ -499,6 +504,15 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
         return wallH;
       }
     }
+  };
+  // (fixer M6b r3) a parapet pixel (the edge or the row behind it) on a slanted (diagonal) stretch of the wall's edge
+  auto slantedEdge = [&](int gx, int gy) {
+    for (int d = 0; d <= 1; d++) {
+      const int ys = gy + d, yn = gy - d;
+      if (S.in(gx, ys) && !S.in(gx, ys + 1) && S.in(gx + 1, ys + 1) != S.in(gx - 1, ys + 1)) return true;
+      if (S.in(gx, yn) && !S.in(gx, yn - 1) && S.in(gx + 1, yn - 1) != S.in(gx - 1, yn - 1)) return true;
+    }
+    return false;
   };
   auto top = [&](int gx, int gy, int z) -> uint32_t {
     int tz = 0, part = 0;
@@ -664,6 +678,8 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
       const bool wOpen = !S.in(gx - 1, gy) || !S.in(gx - 2, gy) || !S.in(gx - 3, gy), eOpen = !S.in(gx + 1, gy) || !S.in(gx + 2, gy) || !S.in(gx + 3, gy);
       const bool nsEdge = S.in(gx, gy - 3) && S.in(gx, gy + 3);
       if (nsEdge && z <= wallH + 2) k = 1;                 // the crenels between the merlons: deep notches
+      // (fixer M6b r3) a slanted run's parapet: the crenels' sills in shade, so the merlons stand out as lit blocks
+      else if (!ws && !smoothCope && z <= wallH + 2 && slantedEdge(gx, gy)) k = 1;
       else if (nsEdge && eOpen && !wOpen) k = 2;             // the east merlons, in shade
       else if (nsEdge && wOpen && !eOpen) k = 4;             // the west merlons, lit
       if (ws && z == wallH + 3) return (jade ? kWallJadeTile : kWallTeal)[nsEdge && eOpen && !wOpen ? 2 : 3];   // the coloured coping
@@ -711,6 +727,15 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
       // (M3b) the parts' tower forms
       const float fdx = gx + 0.5f - 8;
       auto wallStone = [&](int b) -> uint32_t {   // the material's courses at height h
+        // (fixer M6b r3, review: "the jade tower's body is one flat grey slab") the jade wall's fired brick in stretcher
+        // bond, dark joints, the corners dressed in long quoins
+        if (jade) {
+          const int row = h / 3, hh = h % 3, bx = gx + (row & 1) * 3;
+          if (std::fabs(fdx) > 10.5f && ((h / 6) & 1)) return R[std::clamp(b + 1, 1, 4)];
+          int kk = (hh == 0 || ((bx % 6) + 6) % 6 == 0) ? b - 1 : (hh == 2 ? b + 1 : b);
+          if (hh != 0 && hash3(bx / 6, row, 37u + var) % 9 == 0) kk = std::max(1, kk - 1);
+          return R[std::clamp(kk, 0, 4)];
+        }
         if (cw == CityWall::Adobe || ws) return R[std::clamp(b + (hash3(gx / 3, h / 3, 9u + var) % 7 == 0 ? -1 : 0), 0, 4)];
         if (brick) {
           const int row = h / 3, hh = h % 3, bx = gx + (row & 1) * 3;
@@ -838,6 +863,7 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
       if (std::abs(gx - 8) <= 0 && h >= 9 && h <= 15 && zNext == 0) return kInk;            // arrow slit
       if (gx == 9 && h >= 9 && h <= 15 && zNext == 0) return R[std::max(0, base - 1)];
       if (h < 4) return R[std::max(0, base - 1 - (h == 3 ? -1 : 0))];          // plinth
+      if (jade) return wallStone(base);
       if (cw == CityWall::Adobe || ws) return R[std::clamp(base + (hash3(gx / 3, h / 3, 9u + var) % 7 == 0 ? -1 : 0), 0, 4)];
       return R[std::clamp(masonryK(gx, h, var, base), 0, 4)];
     }
@@ -845,6 +871,19 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
     // light: a step lighter), one running up to the right faces south-east (a step darker)
     const bool slantSW = S.in(gx + 1, gy + 1) && !S.in(gx - 1, gy + 1), slantSE = S.in(gx - 1, gy + 1) && !S.in(gx + 1, gy + 1);
     const int slant = slantSW ? 1 : (slantSE ? -1 : 0);
+    // (fixer M6b r3) masonry on a slant: never lighter than the walk on top (a south-west face one step lighter read as
+    // a ramp, its merlon fronts the walk's own colour), and its courses step like a 16-bit wall's: each 8 px block of
+    // bricks lies level and the next one drops (or rises) a block's length, so the bond reads as laid stone and not as
+    // 45-degree stripes. fh: the course height level within the block; fgx staggers the bond block by block
+    const int ms = slant > 0 ? 0 : slant;
+    int fh = h, fgx = gx;
+    bool stepJoint = false;
+    if (slant) {
+      const int blk = (gx >= 0 ? gx : gx - 7) / 8, in = gx - blk * 8;
+      fh = h - slant * in + 32;
+      fgx = gx + ((blk & 1) ? 4 : 0);
+      stepJoint = in == 0;
+    }
     if (zNext > 0) {
       // inner face of the parapet above the walkway: in its own shade
       if (cw == CityWall::Palisade) return kWallLog[v == 0 ? 3 : 1];
@@ -919,8 +958,8 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
       const Ramp& HD = F.coping == bld::Coping::TiledHood ? TILE : R;
       return HD[v == 0 ? 4 : (h == wallH + 1 ? 1 : std::clamp(2 + slant, 0, 4))];
     }
-    if (v == 0) return R[4];                                  // lit coping edge
-    if (h >= wallH + 2) return R[std::clamp(2 + slant, 0, 4)];   // merlon fronts
+    if (v == 0) return R[slant && h < wallH + 2 && !ws && !smoothCope && cw != CityWall::Adobe ? 2 : 4];   // lit coping edge (a slant's crenel sill: not lit)
+    if (h >= wallH + 2) return R[std::clamp(2 + (slant ? ms - 1 : 0), 0, 4)];   // merlon fronts (a slant's: below the walk's tone)
     if (h == wallH + 1) return R[3];                          // cornice
     if (h == wallH) return R[1];                              // shadow line under the cornice
     if (ws && (h == wallH - 1 || h == wallH - 2)) return BAND[h == wallH - 1 ? 2 : 3];
@@ -936,32 +975,32 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
       return R[std::clamp((n < 0.22f ? 1 : 2) + slant, 0, 4)];
     }
     if (jade) {   // fired brick in stretcher bond, dark joints
-      const int row = h / 3, hh = h % 3, bx = gx + (row & 1) * 3;
-      int kk = (hh == 0 || ((bx % 6) + 6) % 6 == 0) ? 1 : (hh == 2 ? 3 : 2);
-      if (hh != 0 && hash3(bx / 6, row, 37u + var) % 9 == 0) kk = std::max(1, kk - 1);
-      return R[std::clamp(kk + slant, 0, 4)];
+      const int row = fh / 3, hh = fh % 3, bx = fgx + (row & 1) * 3;
+      int kk = (hh == 0 || ((bx % 6) + 6) % 6 == 0 || stepJoint) ? 1 : (hh == 2 ? 3 : 2);
+      if (hh != 0 && !slant && hash3(bx / 6, row, 37u + var) % 9 == 0) kk = std::max(1, kk - 1);
+      return R[std::clamp(kk + ms, 1, 4)];
     }
     if (brick) {   // (M3b) the river towns' red brick in stretcher bond, pale joints
-      const int row = h / 3, hh = h % 3, bx = gx + (row & 1) * 3;
-      int kk = (hh == 0 || ((bx % 6) + 6) % 6 == 0) ? 1 : (hh == 2 ? 3 : 2);
+      const int row = fh / 3, hh = fh % 3, bx = fgx + (row & 1) * 3;
+      int kk = (hh == 0 || ((bx % 6) + 6) % 6 == 0 || stepJoint) ? 1 : (hh == 2 ? 3 : 2);
       if (hh != 0 && hash3(bx / 6, row, 37u + var) % 9 == 0) kk = std::max(1, kk - 1);
       if (h <= 5 && hash3(gx + 40, h, 91u + var) % 5 == 0) kk = std::max(0, kk - 1);
-      return R[std::clamp(kk + slant, 0, 4)];
+      return R[std::clamp(kk + ms, 0, 4)];
     }
     if (cw == CityWall::WhiteStone) {   // fine ashlar: long blocks, faint joints
-      const int row = h / 5, hh = h % 5, bx = gx + (row & 1) * 6;
-      int kk = (hh == 0 || ((bx % 12) + 12) % 12 == 0) ? 1 : (hh == 4 ? 3 : 2);
-      return R[std::clamp(kk + slant, 0, 4)];
+      const int row = fh / 5, hh = fh % 5, bx = fgx + (row & 1) * 6;
+      int kk = (hh == 0 || ((bx % 12) + 12) % 12 == 0 || stepJoint) ? 1 : (hh == 4 ? 3 : 2);
+      return R[std::clamp(kk + ms, 0, 4)];
     }
-    int k = masonryK(gx, h, var, 2);
+    int k = stepJoint ? 1 : masonryK(fgx, fh, var, 2);
     // grime and moss near the ground, rain streaks from the crenels
     if (h <= 6 && hash3(gx + 40, h, 91u + var) % 4 == 0) k = std::max(0, k - 1);
     if (var >= 2) {   // moss creeping up from the foot in soft patches
       int mh = 3 + (int)(hash3((gx + 40) / 2, 3, 17u + var) % 4) - (int)(hash3((gx + 41) / 3, 4, 19u) % 3);
       if (h <= mh && hash3((gx + 40) / 5, 6, 29u + var) % 3 == 0) return kMoss[h == mh ? 2 : 1];
     }
-    if (hash3(gx + 40, 1, 33u + var) % 9 == 0 && h > 8 && h < wallH - 1) k = std::max(1, k - 1);
-    return R[std::clamp(k + slant, 0, 4)];
+    if (!slant && hash3(gx + 40, 1, 33u + var) % 9 == 0 && h > 8 && h < wallH - 1) k = std::max(1, k - 1);
+    return R[std::clamp(k + ms, 0, 4)];
   };
   auto owner = [&](int gx, int gy) -> bool {
     int tz = 0, part = 0;
@@ -1508,6 +1547,25 @@ void wallKeys(const uint8_t* wall, int W, int H, const std::pair<int, int>* gate
   std::stable_sort(cands.begin(), cands.end(), [](const Cand& p, const Cand& q) { return p.score > q.score; });
   for (const Cand& c : cands)
     if (clear(c.x, c.y, 6, 4)) place(c.x, c.y);
+  // 2b. (fixer M6b r3) where a straight run turns onto a 1:1 diagonal staircase: a tower on the run's last tile, so the
+  //     straight run's crenellated end and the slanted run meet at a drum and not at a bare vertical seam
+  for (int y = 0; y < H; y++)
+    for (int x = 0; x < W; x++) {
+      if (!at(x, y) || flank[(size_t)y * W + x] || tower[(size_t)y * W + x] || stairFull(at, x, y)) continue;
+      bool stairNb = false;
+      for (int b = 0; b < 8; b++) if (stairFull(at, x + cdx[b], y + cdy[b])) stairNb = true;
+      // the run arriving straight from one side and going on diagonally (a chain of corner-linked tiles) or down a
+      // staircase on the other
+      bool turn = false;
+      static const int odx[4] = {1, -1, 0, 0}, ody[4] = {0, 0, 1, -1};
+      for (int d = 0; d < 4 && !turn; d++) {
+        if (run(x, y, odx[d], ody[d]) < 2) continue;
+        const int ox = x - odx[d], oy = y - ody[d], px = ody[d], py = odx[d];   // the far side and its perpendicular
+        if (at(ox, oy)) { turn = stairNb; continue; }
+        if (at(ox + px, oy + py) || at(ox - px, oy - py)) turn = true;
+      }
+      if (turn && clear(x, y, 4, 5)) place(x, y);
+    }
   // 3. long runs: a tower wherever nothing stands within 9 tiles
   for (int y = 0; y < H; y++)
     for (int x = 0; x < W; x++) {

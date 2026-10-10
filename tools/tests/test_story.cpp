@@ -127,6 +127,8 @@ int walk(Game& g, uint32_t id, const std::string& script, WalkStats& ws, std::ma
     ws.endNames.insert(stName);
     bool closed = false;
     for (const Quest& q : g.quests) if (q.id == in->questId && q.type == QType::Story && q.state == QState::Done) closed = true;
+    // (fixer M6b r2) turned down at the opening: declined, the journal keeps no entry
+    if (!in->questId && in->failed) closed = true;
     if (!closed) { out("FAIL: story %s ended at %s but its journal quest is not done\n", script.c_str(), stName.c_str()); bad++; }
     if (g_verbose) out("  path %s -> %s\n", trail.c_str(), stName.c_str());
     return bad;
@@ -153,8 +155,12 @@ int walk(Game& g, uint32_t id, const std::string& script, WalkStats& ws, std::ma
   }
   const int n = g.story.optionCount(*in);
   if (n <= 0) { out("FAIL: story %s stage %s: a dialogue with no options\n", script.c_str(), stName.c_str()); visits[stName]--; return bad + 1; }
+  // (M6b fix: which options are checks is read before any branch runs: a branch moves the instance on and a restore
+  // moves it in memory, so `in` must not be read again inside the loop)
+  std::vector<uint8_t> isCheck((size_t)n, 0);
+  for (int i = 0; i < n; i++) isCheck[(size_t)i] = g.story.optionIsCheck(*in, i) ? 1 : 0;
   for (int i = 0; i < n; i++) {
-    const bool check = g.story.optionIsCheck(*in, i);
+    const bool check = isCheck[(size_t)i] != 0;
     for (int c = check ? 1 : 0; c <= (check ? 2 : 0); c++) {
       restore(g, s0);
       ws.choices++;

@@ -1,10 +1,11 @@
 // Save-format checks for the CURRENT save version only (owner, 2026-10-04: old saves are not a concern; an older save
-// is refused and the title offers a new game). M6: SAVE_VER 12 (items gain level, material, culture, affixes, unique power;
+// is refused and the title offers a new game). M6b: SAVE_VER 13 (the story block v4: the sagas' repetition guard and its offers; a
+// generated story running, saved by its spec id). M6: SAVE_VER 12 (items gain level, material, culture, affixes, unique power;
 // the craft block after the life block; ENDLESS_GEN_VER 15). M5: SAVE_VER 11 (the layout of 10 plus the life block after the story
 // block; ENDLESS_GEN_VER 14). M4: SAVE_VER 10 (the realm and story blocks after the marks). The CITIZENS lane owns this
 // file and the fixture in M5.
 //   save_test [fixtureDir]           run every check
-//   save_test --make-fixture out.bin write tests/fixtures/save_v12.bin: an endless game (seed 5150) with a created
+//   save_test --make-fixture out.bin write tests/fixtures/save_v13.bin: an endless game (seed 5150) with a created
 //                                    character, the innkeeper's job taken, bot play, a looted chest, the M2 fields
 //                                    (marks, a quest's subject / flags / deadline, a rumoured site), saved outdoors.
 //                                    Regenerate it whenever the layout changes on purpose, and paste the printed FIX6
@@ -24,6 +25,10 @@
 #include <vector>
 #include "rpg/sim/game.h"
 #include "rpg/sim/gear.h"
+#include "rpg/sim/life.h"
+#include "rpg/story/saga.h"
+#include "rpg/story/story.h"
+#include "rpg/story/story_internal.h"
 #include "rpg/world/source.h"
 
 namespace {
@@ -239,6 +244,45 @@ void addM6Facts(Game& g) {
   g.craft.advance(FIX_CULT, 1, craft::SecretKind::AlloyRecipe, FIX_SECRET, craft::HOW_RUINS);
   g.craft.trust[FIX_SMITH] = FIX_TRUST;
 }
+// M6b (SAVE_VER 13, story block v4): a generated story running (started at the start village by a census resident, its
+// first choice made), one told record and one offered record in the repetition guard
+const char* const FIX_SAGA = "saga1~the_pit~~~~v2~m2~0000a5a5";
+constexpr int32_t FIX_SEEN_DAY = 2, FIX_SEEN_GX = 4242, FIX_SEEN_GY = -777;
+constexpr uint32_t FIX_SEEN_SHAPE = 0x5A6A, FIX_OFFER_HOOK = 0x0FF3A;
+void addM6bFacts(Game& g) {
+  // the teller: a census resident of the start village (THE BROTHER IN THE PIT casts the giver's own kin), out in the
+  // street or brought into play as the life simulation does when the player comes near
+  uint32_t id = 0;
+  const int ss = g.world.startSite;
+  for (size_t k = 1; k < g.actors.size() && !id; k++) {
+    const Actor& a = g.actors[k];
+    if (!a.npc || !a.human || a.resident < 0 || story::homeSiteOf(g, a) != ss) continue;
+    id = g.story.start(g, FIX_SAGA, a.id, ss);
+  }
+  if (!id && story::host().spawnHuman)
+    if (life::Census* C = g.life.census(g.world, ss))
+      for (size_t ri = 0; ri < C->res.size() && !id; ri++) {
+        const life::Resident r = C->res[ri];
+        if ((r.flags & (life::RF_DEAD | life::RF_AWAY)) || r.age < 20 || (r.actor >= 0 && story::host().findActor(g, r.actor) >= 0)) continue;
+        Spawn sp;
+        sp.npc = true; sp.role = life::jobRole(r.job); sp.site = ss; sp.slot = 3000 + (int)ri;
+        const int aid = story::host().spawnHuman(g, sp, g.pl().p.x + 24.0f, g.pl().p.y);
+        const int ai = story::host().findActor(g, aid);
+        if (ai < 0) continue;
+        Actor& a = g.actors[(size_t)ai];
+        a.site = ss; a.bldg = -1; a.slot = 3000 + (int)ri; a.resident = (int)ri; a.name = r.name; a.fromMap = false;
+        id = g.story.start(g, FIX_SAGA, aid, ss);
+        const int ai2 = story::host().findActor(g, aid);
+        if (ai2 >= 0) g.actors.erase(g.actors.begin() + ai2);
+      }
+  if (id) g.story.choose(g, id, 0, true, 1);   // "I'LL GO TO ... AND LOOK.": the stage `road`
+  else printf("save_test: the fixture saga %s could not be cast\n", FIX_SAGA);
+  story::saga::Spec s;
+  story::saga::parseSpecId(FIX_SAGA, s);
+  g.story.guard_.note(s, FIX_SEEN_SHAPE, FIX_SEEN_DAY, FIX_SEEN_GX, FIX_SEEN_GY, {7u, 7u, 9u});
+  s.twist[0] = "rival_claim";
+  g.story.guard_.noteOffer(s, FIX_OFFER_HOOK, FIX_SEEN_DAY + 1, FIX_SEEN_GX + 10, FIX_SEEN_GY);
+}
 int makeFixture(const char* out) {
   Game g(FIX_SEED);
   g.newEndlessGame(FIX_SEED);
@@ -248,6 +292,7 @@ int makeFixture(const char* out) {
   addM4Facts(g);
   addM5Facts(g);
   addM6Facts(g);
+  addM6bFacts(g);
   if (g.inside) { printf("the fixture must be saved outdoors\n"); return 1; }
   std::vector<uint8_t> buf;
   g.serialize(buf);
@@ -262,7 +307,7 @@ int makeFixture(const char* out) {
 }
 // values printed by --make-fixture (format-level facts only)
 struct Fix6 { int level, xp, gold; size_t inv, quests, looted; int kills, ox; float px, py; int oy; float hour; int day; };
-constexpr Fix6 FIX6 = {1, 20, 71, 10, 3, 3, 0, 0, 2792.000f, 2328.000f, -192, 14.592f, 3};
+constexpr Fix6 FIX6 = {1, 20, 71, 10, 4, 3, 0, 0, 2792.000f, 2328.000f, -192, 14.592f, 3};
 
 }  // namespace
 
@@ -278,7 +323,7 @@ int main(int argc, char** argv) {
 
   // ---- 1. the fixture
   std::vector<uint8_t> fx;
-  if (!readFile(dir + "/save_v12.bin", fx)) check(false, "cannot read tests/fixtures/save_v12.bin");
+  if (!readFile(dir + "/save_v13.bin", fx)) check(false, "cannot read tests/fixtures/save_v13.bin");
   else {
     check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
     Game g(1);
@@ -316,7 +361,16 @@ int main(int argc, char** argv) {
     const realm::SettlementState* st = g.realm.settlement(sv.id);
     check(st && (st->flags & realm::SS_FAMINE) && st->food == 0, "fixture realm: the start village's famine (SAVE_VER 10)");
     check(!k || g.realm.rep(k) == FIX_REP, "fixture realm: the player's standing with the start kingdom (SAVE_VER 10)");
-    check(g.story.running().empty(), "fixture story block (empty)");
+    // M6b (SAVE_VER 13): the story block v4: a generated story by its spec id, at its stage; the repetition guard
+    check(g.story.running().size() == 1 && g.story.running()[0].script == FIX_SAGA && g.story.stageName(g.story.running()[0]) == "road",
+          "fixture story block: the running saga and its stage (SAVE_VER 13)");
+    check(g.story.guard_.seen.size() == 2 && g.story.guard_.seen[0].day == FIX_SEEN_DAY && g.story.guard_.seen[0].gx == FIX_SEEN_GX &&
+              g.story.guard_.seen[0].gy == FIX_SEEN_GY && g.story.guard_.seen[0].shape == FIX_SEEN_SHAPE && !g.story.guard_.seen[0].offered &&
+              g.story.guard_.phrases.size() == 2 && g.story.guard_.phrases.count(7u) && g.story.guard_.phrases.at(7u) == 2,
+          "fixture story block: the repetition guard (SAVE_VER 13)");
+    check(g.story.guard_.seen.size() == 2 && g.story.guard_.seen[1].offered == 1 && g.story.guard_.seen[1].hook == FIX_OFFER_HOOK &&
+              g.story.guard_.seen[1].day == FIX_SEEN_DAY + 1 && g.story.guard_.seen[1].gx == FIX_SEEN_GX + 10,
+          "fixture story block v4: an offer the guard remembers (its hook, the offered flag)");
     // M5 (SAVE_VER 11): the life block
     check(std::fabs(g.life.player.fedH - FIX_FED) < 0.01f && std::fabs(g.life.player.restedH - FIX_RESTED) < 0.01f &&
               (g.life.player.buffs() & (life::BUFF_WELLFED | life::BUFF_RESTED)) == (life::BUFF_WELLFED | life::BUFF_RESTED),
@@ -357,6 +411,7 @@ int main(int argc, char** argv) {
     addM4Facts(g);
     addM5Facts(g);
     addM6Facts(g);
+    addM6bFacts(g);
     roundTrip(g, ("endless seed " + std::to_string(s) + " after play").c_str());
     // a long walk east (many window shifts), then save far from home
     g.noWildSpawns = true;

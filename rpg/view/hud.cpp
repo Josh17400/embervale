@@ -698,13 +698,34 @@ void View::drawHud(Game& g) {
   {   // (M2 integration) long wayside names ("UNDERBRIDGE ON THE COLDBROOK"): more room on a wide screen, and a cut
       // falls between words, never mid-word
     const size_t maxc = Pix::W >= 560 ? 32 : 26;
+    // (fixer M6b r3) a building's name too long for the line drops its article first ("BAB AA - THE PROVOST'S
+    // GUILDHALL" -> "BAB AA - PROVOST'S GUILDHALL"), so the noun is not what the cut loses
+    if (loc.size() > maxc) {
+      const size_t th = loc.find(" - THE ");
+      if (th != std::string::npos) loc.erase(th + 3, 4);
+    }
+    // ... then the owner's possessive ("BAB AA - PROVOST'S GUILDHALL" -> "BAB AA - GUILDHALL")
+    if (loc.size() > maxc) {
+      const size_t dash = loc.find(" - "), ps = dash == std::string::npos ? dash : loc.find("'S ", dash);
+      if (ps != std::string::npos) {
+        const size_t w0 = loc.rfind(' ', ps);
+        if (w0 != std::string::npos && w0 >= dash + 2) loc.erase(w0 + 1, ps + 3 - (w0 + 1));
+      }
+    }
     if (loc.size() > maxc) {
       const size_t sp = loc.find_last_of(' ', maxc);
       loc.resize(sp != std::string::npos && sp >= maxc / 2 ? sp : maxc);
-      // never end on a dangling little word ("UNDERBRIDGE ON THE")
-      for (const char* w : {" THE", " ON", " OF", " IN", " AT", " BY", " AND"}) {
-        const size_t n = std::strlen(w);
-        if (loc.size() > n + 4 && loc.compare(loc.size() - n, n, w) == 0) loc.resize(loc.size() - n);
+      // never end on a dangling little word ("UNDERBRIDGE ON THE"), a possessive with nothing after it ("THE
+      // PROVOST'S") or a bare dash
+      for (int pass = 0; pass < 3; pass++) {
+        for (const char* w : {" THE", " ON", " OF", " IN", " AT", " BY", " AND", " -"}) {
+          const size_t n = std::strlen(w);
+          if (loc.size() > n + 4 && loc.compare(loc.size() - n, n, w) == 0) loc.resize(loc.size() - n);
+        }
+        if (loc.size() > 6 && loc.compare(loc.size() - 2, 2, "'S") == 0) {
+          const size_t ws = loc.find_last_of(' ');
+          if (ws != std::string::npos && ws >= 4) loc.resize(ws);
+        }
       }
     }
   }
@@ -1045,7 +1066,12 @@ void View::drawHud(Game& g) {
       if (a.id == it) {
         Vec2 s = a.p - Vec2(std::floor(cam_.x), std::floor(cam_.y));
         // a giver with a reward waiting wears the "!" bubble (drawMarkers) just above the head: the label goes over it
-        float ly = g.rewardWaiting(a) ? s.y - art::HUMAN_H - 24.0f : s.y - 34.0f;
+        // (fixer M6b r3) so do the "has a tale" scroll and the wayside "!" (drawMarkers): the label covered the scroll
+        // of the very person the player had walked up to
+        const bool wayside = a.role == Role::Hunter || a.role == Role::Fisher || a.role == Role::Herbalist || a.role == Role::Traveller;
+        const bool marked = g.rewardWaiting(a) || (wayside && g.offersWork(a)) ||
+                            (g.story.hasTale(a.id) && !(a.bubble != art::Bubble::None && a.bubbleT > 0));
+        float ly = marked ? s.y - art::HUMAN_H - 24.0f : s.y - 34.0f;
         // keep the label off the hero: when the hero's head is where the label would go, lift it clear
         const Vec2 hs = g.pl().p - Vec2(std::floor(cam_.x), std::floor(cam_.y));
         const char* verb = a.critter ? "E: PET" : "E: TALK";   // (M5) village animals are petted, not talked to
@@ -1525,7 +1551,7 @@ void View::drawMenu(Game& g) {
         const int per = std::max(10, (int)(C.dw / 6));
         for (const std::string& l : wrap(q.title, per)) { P.text(C.dx, y, l, 1, q.type == QType::Main ? kGold : kText); y += 10; }
         y += 2;
-        std::string st = q.state == QState::Done ? "COMPLETED" : q.state == QState::Complete ? "READY TO TURN IN" : "IN PROGRESS";
+        std::string st = q.state == QState::Done ? ((q.flags & QF_FAILED) ? "ENDED UNFINISHED" : "COMPLETED") : q.state == QState::Complete ? "READY TO TURN IN" : "IN PROGRESS";
         if (q.state != QState::Done) { std::string qs = g.questStatus(q); if (!qs.empty()) st = qs; }
         for (const std::string& l : wrap(st, per)) { P.text(C.dx, y, l, 1, q.state == QState::Complete ? Color(0.5f, 1, 0.5f) : kDim); y += 10; }
         y += 6;

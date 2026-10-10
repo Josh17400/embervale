@@ -67,6 +67,37 @@ void drawEscortMark(Pix& P, const Actor& a, Vec2 cam, float t, Color outline) {
         P.rect((float)(x0 + c), (float)(y0 + r), 1, 1, ch == 'o' ? outline : ch == 'H' ? hi : ch == 'L' ? lo : mid);
       }
 }
+// someone with a tale to tell (Engine::hasTale: the story scan found an offer)
+// (fixer M6b r2) "has a tale": a speech bubble the size of the work-on-offer "!" bubble (11 x 12, readable at phone 1x)
+// holding a tan scroll between two rolled ends, ink lines on it; the slow bob of the other markers
+const char* kScroll[12] = {
+    "..ooooooo..",
+    ".oWWWWWWWo.",
+    "oWHrrrrrrWo",
+    "oWWPkkkPWWo",
+    "oWWPPPPPWWo",
+    "oWWPkkPPWDo",
+    "oWWPPPPPWDo",
+    "oWrrrrrrrDo",
+    ".oDDDDDDDo.",
+    "..oooDooo..",
+    "....oDo....",
+    ".....o.....",
+};
+void drawTaleMark(Pix& P, const Actor& a, Vec2 cam, float t, Color outline, Color paper, Color paperShade) {
+  const Color hi(1.0f, 0.86f, 0.62f), ink(0.36f, 0.22f, 0.13f), roll(0.58f, 0.36f, 0.19f), parch(0.95f, 0.83f, 0.58f);
+  const int bob = (int)std::lround(std::sin(t * 3.0f) * 1.2f);
+  const int x0 = (int)std::floor(a.p.x - cam.x) - 5, y0 = (int)std::floor(a.p.y - cam.y) - art::HUMAN_H - 14 + bob;
+  for (int pass = 0; pass < 2; pass++)
+    for (int r = 0; r < 12; r++)
+      for (int c = 0; c < 11; c++) {
+        const char ch = kScroll[r][c];
+        if (ch == '.') continue;
+        if (pass == 0) { P.rect((float)(x0 + c + 1), (float)(y0 + r + 1), 1, 1, Color(0, 0, 0, 0.35f)); continue; }
+        P.rect((float)(x0 + c), (float)(y0 + r), 1, 1,
+               ch == 'o' ? outline : ch == 'H' ? hi : ch == 'D' ? paperShade : ch == 'k' ? ink : ch == 'r' ? roll : ch == 'P' ? parch : paper);
+      }
+}
 }  // namespace
 
 // (M5, VISION_PLAN 10.3) the townsfolk's speech bubbles (Actor::bubble: art::bubbleSprite, about 11 x 10, its tail at the
@@ -162,6 +193,8 @@ void View::drawMarkers(Game& g, Vec2 cam) {
     if (!g.rewardWaiting(a)) {
       const bool wayside = a.role == Role::Hunter || a.role == Role::Fisher || a.role == Role::Herbalist || a.role == Role::Traveller;
       if (wayside && g.offersWork(a)) drawOfferMark(P, a, cam, t_ + a.id * 0.57f, outline, hi, gold, goldShade);
+      else if (g.story.hasTale(a.id) && !(a.bubble != art::Bubble::None && a.bubbleT > 0) && g.mode != Mode::Dialogue)
+        drawTaleMark(P, a, cam, t_ + a.id * 0.41f, outline, paper, paperShade);
       continue;
     }
     // a slow bob snapped to whole pixels (no shimmer), each giver on their own phase

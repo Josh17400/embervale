@@ -10,6 +10,8 @@
 #include "rpg/story/dsl.h"
 #include "rpg/story/story.h"
 
+namespace cult { struct Culture; }
+
 namespace story {
 
 // Game::marks tags of the story lane (game_internal.h Mk: STORY uses tags below 32; these mirror the enum entries the
@@ -19,16 +21,35 @@ constexpr uint64_t MK_STORY_MARK = 9;    // a story's persistent mark (script id
 constexpr uint64_t MK_BOARD_TAKEN = 10;  // a notice board (site id ^ entry): the day its notice was taken
 uint64_t storyMarkKey(uint64_t id, uint64_t tag);   // == gsim::markKey(id, (Mk)tag)
 
-// actors the engine spawns carry a slot in this range (a person or foe of a running story: (instance id % 1024) * 16 +
-// its role index), or HERALD_SLOT (a capital's herald). Never fromMap: the town's streaming leaves them alone.
-constexpr int PERSON_SLOT0 = 50000, PERSON_SLOT1 = 50000 + 1024 * 16;
+// actors the engine spawns carry a slot in this range (a person or foe of a running story: (instance id % 1024) *
+// PERSON_ROLES + its role index), or HERALD_SLOT (a capital's herald). Never fromMap: the town's streaming leaves them
+// alone. (M6b) 32 roles per script (campaigns chain arcs with their own %roles); the validator refuses more.
+constexpr int PERSON_ROLES = 32;
+constexpr int PERSON_SLOT0 = 50000, PERSON_SLOT1 = 50000 + 1024 * PERSON_ROLES;
 constexpr int HERALD_SLOT = 950;
 inline bool isStoryPerson(const Actor& a) { return a.slot >= PERSON_SLOT0 && a.slot < PERSON_SLOT1; }
-inline int personSlot(uint32_t inst, int role) { return PERSON_SLOT0 + (int)(inst % 1024u) * 16 + (role & 15); }
+inline int personSlot(uint32_t inst, int role) { return PERSON_SLOT0 + (int)(inst % 1024u) * PERSON_ROLES + (role & (PERSON_ROLES - 1)); }
 
 // the library's script of an instance (nullptr: a script the library no longer has)
 const dsl::Script* scriptOf(const Instance& in);
 int scriptIndex(const std::string& id);
+// (M6b) a script by id: the library's, or a generated story's (a saga spec id: saga::script); nullptr none
+const dsl::Script* scriptById(const std::string& id);
+// (M6b) Binding::trade of a resident role bound to a real census resident (id = life::npcId(site, idx)); a resident
+// role the caster had to invent (no census there) keeps trade 0 and an invented id
+constexpr uint8_t RESIDENT_CENSUS = 0xFF;
+// FNV-1a of a string (mark keys, the repetition guard)
+uint64_t strHash64s(const std::string& s);
+// (M6b, COMPOSER lane) the census resident an actor embodies: its settlement's id and census index (false: none)
+bool residentOfActor(const Game& g, const Actor& a, ew::Gid& site, int& idx);
+// (M6b) the census index of a resident binding (RESIDENT_CENSUS; -1: an invented one, or the census is not built)
+int residentIndexOf(const Game& g, const Binding& b);
+// (M6b) what `do reward` pays at danger D (the hook settlement's level): gold and XP, and for rich / great a piece of
+// gear rolled at item level D (rich: uncommon, great: rare; never above). tier 0 small .. 3 great. Pure in its inputs.
+struct RewardRoll { int gold = 0, xp = 0; bool hasItem = false; Item item; };
+RewardRoll rewardRoll(int D, int tier, uint64_t culture, const cult::Culture* maker, uint64_t seed);
+// the danger (World site level) a story's rewards are paid at: its hook settlement's (1 when unknown)
+int storyDanger(Game& g, const Instance& in);
 const Binding* bindingOf(const Instance& in, const std::string& role);
 Binding* bindingOf(Instance& in, const std::string& role);
 

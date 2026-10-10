@@ -9,12 +9,18 @@
 // inside Game's member functions, so they may call its private helpers.
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+#include <map>
+#include <set>
 #include <string>
 #include "engine/audio.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/story/dsl.h"
 #include "rpg/story/story_internal.h"
+#include "rpg/world/coords.h"
+#include "rpg/world/source.h"
+#include "rpg/sim/stream.h"
 
 namespace {
 uint64_t strHash64(const std::string& s) {
@@ -59,6 +65,21 @@ namespace {
 // the player leaves or the story no longer needs them
 void syncPersons(Game& g) {
   using namespace story;
+  // (M6b) a resident role of a running story needs a stand-in body only while the story waits to talk to them and their
+  // own body is not in play (asleep in the aggregate, across town, a census not on the street); an invented resident (no
+  // census where they live) is met like a person of the story
+  auto residentWanted = [&](const Instance& in, const dsl::Script& s, const dsl::RoleDef& R, const Binding& b) -> bool {
+    if (b.trade != RESIDENT_CENSUS) return true;
+    const dsl::StageDef& G = s.stages[(size_t)in.stage];
+    if (G.kind != dsl::StageKind::Talk || G.talk != R.name) return false;
+    const life::Census* c = g.life.find(b.site);
+    const int ix = residentIndexOf(g, b);
+    if (!c || ix < 0) return false;
+    const life::Resident& r = c->res[(size_t)ix];
+    if (r.flags & (life::RF_DEAD | life::RF_AWAY)) return false;
+    if (r.actor >= 0 && host().findActor && host().findActor(g, r.actor) >= 0) return false;   // their own body is here
+    return true;
+  };
   // put away the ones no longer wanted
   for (size_t k = 1; k < g.actors.size();) {
     const Actor& a = g.actors[k];
@@ -73,7 +94,11 @@ void syncPersons(Game& g) {
           if (a.slot != personSlot(in.id, (int)ri)) continue;
           auto hid = in.vars.find("_hide_" + s->roles[ri].name);
           auto dead = in.vars.find("_dead_" + s->roles[ri].name);
-          const bool hidden = (hid != in.vars.end() && hid->second) || (dead != in.vars.end() && dead->second);
+          bool hidden = (hid != in.vars.end() && hid->second) || (dead != in.vars.end() && dead->second);
+          if (s->roles[ri].kind == dsl::RoleKind::Resident) {
+            const Binding* b = bindingOf(in, s->roles[ri].name);
+            if (!b || !residentWanted(in, *s, s->roles[ri], *b)) hidden = true;
+          }
           const bool talking = g.mode == Mode::Dialogue && g.dlg.actor == a.id;
           const bool near = len2(a.p - g.pl().p) < (64.0f * TILE) * (64.0f * TILE);
           keep = talking || (!hidden && near) || a.aggro;
@@ -93,12 +118,13 @@ void syncPersons(Game& g) {
     if (!s) continue;
     for (size_t ri = 0; ri < s->roles.size(); ri++) {
       const dsl::RoleDef& R = s->roles[ri];
-      if (R.kind != dsl::RoleKind::Person && R.kind != dsl::RoleKind::Foe) continue;
+      if (R.kind != dsl::RoleKind::Person && R.kind != dsl::RoleKind::Foe && R.kind != dsl::RoleKind::Resident) continue;
       const Binding* b = bindingOf(in, R.name);
       if (!b || !b->hasPos) continue;
       auto hid = in.vars.find("_hide_" + R.name);
       auto dead = in.vars.find("_dead_" + R.name);
       if ((hid != in.vars.end() && hid->second) || (dead != in.vars.end() && dead->second)) continue;
+      if (R.kind == dsl::RoleKind::Resident && !residentWanted(in, *s, R, *b)) continue;
       // foes in caves and ruins wait inside (Engine::onEntered)
       const int sh = g.world.siteHandle(b->site);
       if (R.kind == dsl::RoleKind::Foe && sh >= 0 && (g.world.sites[(size_t)sh].type == SiteType::Cave || g.world.sites[(size_t)sh].type == SiteType::Ruin)) continue;
@@ -111,7 +137,7 @@ void syncPersons(Game& g) {
       int tx = 0, ty = 0;
       if (!freeTileNear(g, b->gx - g.world.ox, b->gy - g.world.oy, tx, ty, (uint32_t)(b->id ^ (b->id >> 32)))) continue;
       Spawn sp;
-      sp.npc = R.kind == dsl::RoleKind::Person;
+      sp.npc = R.kind != dsl::RoleKind::Foe;
       sp.bandit = R.kind == dsl::RoleKind::Foe;
       sp.boss = sp.bandit;
       sp.role = Role::Villager;
@@ -141,7 +167,18 @@ void eventStories(Game& g) {
   //  their watch and their granaries)
   if (g.world.sites[(size_t)g.curSite].type != SiteType::Village) return;
   const int st = g.story.offerForPlace(g, (int)dsl::HookKind::Event, g.curSite);
-  if (st < 0) return;
+  if (st < 0) {
+    // (M6b) a generated story the news brings (saga.h offerForPlace: one a fortnight per village, fresh news only)
+    const std::string sid = saga::offerForPlace(g, (int)dsl::HookKind::Event, g.curSite);
+    if (sid.empty()) return;
+    if (const uint32_t id = g.story.start(g, sid, -1, g.curSite)) {
+      saga::Hook hk;
+      hk.kind = (int)dsl::HookKind::Event;
+      hk.site = g.curSite;
+      saga::noteTold(g, sid, id, hk);
+    }
+    return;
+  }
   const dsl::Script& s = dsl::library().scripts[(size_t)st];
   const Site& home = g.world.sites[(size_t)g.curSite];
   const int32_t hx = g.world.ox + home.ex, hy = g.world.oy + home.ey;
@@ -188,6 +225,83 @@ void Game::storyStep(float dt) {
     if (inside) crownTheKing(*this);
     story::heraldsProclaim(*this);
   }
+  story.clock_ += dt;
+  if (mode == Mode::Play && !travelling()) {
+    using namespace story;
+    // (fixer M6b r1) the composer's needs (caves, camps, ruins and fallen lords up to ~640 tiles out) and the caster read
+    // the region plans 3 regions round a hook; building the ones not yet planned in the talk frame cost 60-80 ms on a
+    // desktop. The prefetcher builds them (World::storyRing: off the main thread natively, in the pump's budget on the
+    // web); the tale scan below waits until they are ready. Without a streamer (tests) one is planned every 0.08 s here.
+    story.warmT_ += dt;
+    bool warmDone = false;
+    if (story.warmT_ >= 0.08f) {
+      story.warmT_ = 0;
+      warmDone = true;
+      if (story.warmSeed_ != seed || story.warmed_.size() > 4096) { story.warmed_.clear(); story.warmSeed_ = seed; }
+      int32_t px, py;
+      story::playerGlobal(*this, px, py);
+      const int32_t rx0 = ew::regionOf(px), ry0 = ew::regionOf(py);
+      const int32_t bx0 = ew::regionOf(world.ox - ew::REGION), by0 = ew::regionOf(world.oy - ew::REGION);
+      const int32_t bx1 = ew::regionOf(world.ox + World::WIN + ew::REGION - 1), by1 = ew::regionOf(world.oy + World::WIN + ew::REGION - 1);
+      const int R = std::max(1, std::min(3, world.storyRing));
+      for (int32_t ry = ry0 - R; ry <= ry0 + R && warmDone; ry++)
+        for (int32_t rx = rx0 - R; rx <= rx0 + R && warmDone; rx++) {
+          if (rx >= bx0 && rx <= bx1 && ry >= by0 && ry <= by1) continue;   // (loaded with the window)
+          const uint64_t k = ((uint64_t)(uint32_t)rx << 32) | (uint32_t)ry;
+          if (story.warmed_.count(k)) continue;
+          if (world.streamer && world.storyRing > 0) {
+            if (world.streamer->hasRegion(rx, ry)) story.warmed_.insert(k);
+            else warmDone = false;
+          } else {
+            story.warmed_.insert(k);
+            (void)world.regionPlan(rx, ry);
+            warmDone = false;
+          }
+        }
+    }
+    // (fixer M6b r1) who near the player has a tale to tell: one person per 0.3 s (once the regions are warm), so the
+    // talk frame finds the offer memoised, and the people with a tale carry a small marker (render_markers.cpp)
+    story.scanT_ += dt;
+    // (fixer M6b r2) the composer's world facts at the settlement the player is in (caves, camps, ruins, the coast, the
+    // census) one per warm tick once the regions are warm, so the first offer composed there costs ~3-7 ms (desktop),
+    // not 15-27 ms in the arrival frame. The scan waits until they are known. (The composer's tables: Engine::reset.)
+    saga::warmComposer();
+    bool hookWarm = true;
+    if (warmDone && curSite >= 0 && curSite < (int)world.sites.size() && world.sites[(size_t)curSite].settlement())
+      hookWarm = saga::warmHook(*this, curSite);
+    if (warmDone && hookWarm && story.scanT_ >= 0.3f) {
+      story.scanT_ = 0;
+      int best = -1;
+      float bestAt = 1e30f;
+      for (size_t i = 1; i < actors.size(); i++) {
+        const Actor& a = actors[i];
+        if (!a.npc || !a.human || a.st == AState::Dead || story::isStoryPerson(a)) continue;
+        if (len2(a.p - pl().p) > (18.0f * TILE) * (18.0f * TILE)) continue;
+        auto it = story.tales_.find(a.id);
+        const float at = it == story.tales_.end() || it->second.key != npcKey(a) ? -1.0f : it->second.at;
+        if (at >= 0 && story.clock_ - at < 12.0f) continue;
+        if (at < bestAt) { bestAt = at; best = (int)i; }
+      }
+      if (best >= 0) {
+        Actor& a = actors[(size_t)best];
+        story::Engine::TaleScan ts;
+        ts.at = story.clock_;
+        ts.key = npcKey(a);
+        bool waiting = false;   // (someone a running story waits on has the quest's own marker)
+        for (const story::Instance& in : story.running_) if (!in.done && story.talksTo(*this, in, a)) waiting = true;
+        if (!waiting) {
+          const int idx = story.offerFor(*this, a);
+          if (idx >= 0 && story.timesPlayed(dsl::library().scripts[(size_t)idx].id) == 0) ts.tale = true;
+          else {
+            const std::string sid = saga::offerFor(*this, a);
+            ts.tale = (!sid.empty() && story::scriptById(sid)) || idx >= 0;
+          }
+        }
+        if (story.tales_.size() > 256) story.tales_.clear();
+        story.tales_[a.id] = ts;
+      }
+    }
+  }
   story.placeT_ += dt;
   if (story.placeT_ >= 0.7f) {
     story.placeT_ = 0;
@@ -203,9 +317,13 @@ void Game::storyStep(float dt) {
 void Game::storyTalk(Actor& a) {
   STORY_HOST_INSTALL();
   using namespace story;
-  if (a.role == Role::Herald && a.slot == HERALD_SLOT) { heraldTalk(*this, a); return; }
+  story.sagaOffers_.clear();   // (M6b: the offers of a dialogue live as long as it)
+  story.tales_.erase(a.id);    // (fixer M6b r1: looked at again by the next scan)
+  // (fixer M6b r3) a running story bound to this actor speaks first, heralds included: a herald-hooked saga's
+  // `talk giver` stages are only reachable here, so checking the herald first left those stories stuck for good
   for (Instance& in : story.running_)
     if (!in.done && story.talksTo(*this, in, a)) { story.showDialogue(*this, in); return; }
+  if (a.role == Role::Herald && a.slot == HERALD_SLOT) { heraldTalk(*this, a); return; }
   if (isStoryPerson(a)) {
     dlg.text = kIdle[hash32((uint32_t)a.slot ^ (uint32_t)day) % 4];
     return;
@@ -213,6 +331,23 @@ void Game::storyTalk(Actor& a) {
   const bool busy = blocksGossip(dlg);
   // a story to tell
   const int idx = busy ? -1 : story.offerFor(*this, a);
+  // (M6b) the library's unplayed tales first, then a generated story (saga.h offerFor); a tale already told comes back
+  // only when no generated story fits this teller
+  if (!busy && (idx < 0 || story.timesPlayed(dsl::library().scripts[(size_t)idx].id) > 0)) {
+    const std::string sid = saga::offerFor(*this, a);
+    const dsl::Script* sc = sid.empty() ? nullptr : scriptById(sid);
+    if (sc) {
+      story.sagaOffers_.push_back(sid);
+      if (!sc->hint.empty()) dlg.text = sc->hint;
+      dlg.opts.insert(dlg.opts.begin(), {sc->pitch, DLG_STORY + SA_SAGA + (int)story.sagaOffers_.size() - 1, homeSiteOf(*this, a)});
+      saga::Hook hk;
+      hk.kind = (int)dsl::HookKind::Npc;
+      hk.actor = a.id;
+      hk.site = homeSiteOf(*this, a);
+      saga::noteOffered(*this, hk, sid);
+      return;
+    }
+  }
   if (idx >= 0) {
     const dsl::Script& s = dsl::library().scripts[(size_t)idx];
     if (!s.hint.empty()) dlg.text = s.hint;
@@ -253,21 +388,8 @@ bool Game::storyChoose(const DlgOpt& o) {
   using namespace story;
   const int k = o.action - DLG_STORY;
   if (k < SA_START) return story.choose(*this, (uint32_t)o.arg, k - SA_OPT);
-  if (k < SA_BOARD) {
-    const int idx = k - SA_START;
-    const dsl::Library& L = dsl::library();
-    if (idx < 0 || idx >= (int)L.scripts.size()) return false;
-    const dsl::Script& s = L.scripts[(size_t)idx];
-    const int ai = findActor(dlg.actor);
-    const bool npcHook = s.hook == dsl::HookKind::Npc || s.hook == dsl::HookKind::Herald;
-    std::string why;
-    const uint32_t id = story.start(*this, s.id, npcHook && ai >= 0 ? actors[(size_t)ai].id : -1, o.arg, &why);
-    for (size_t i = 0; i < dlg.opts.size(); i++) if (dlg.opts[i].action == o.action) { dlg.opts.erase(dlg.opts.begin() + (std::ptrdiff_t)i); break; }
-    if (!id) {
-      if (ai >= 0) marks[storyMarkKey(npcKey(actors[(size_t)ai]), MK_STORY_GIVER)] = day;   // (no second try from them)
-      dlg.text = npcHook ? "...NO. NO, FORGET I SAID ANYTHING. IT'S NOTHING." : "THE NOTICE IS TOO RAIN-SOAKED TO READ.";
-      return true;
-    }
+  // a story was taken up: the teller says its first lines, or points the way to whoever must say them
+  auto begun = [&](const dsl::Script& s, uint32_t id, int ai) {
     Instance* in = story.find(id);
     if (in && ai >= 0 && story.talksTo(*this, *in, actors[(size_t)ai])) {
       dlg.opts.clear();
@@ -286,6 +408,54 @@ bool Game::storyChoose(const DlgOpt& o) {
       dlg.text = say.empty() ? "YOU COMMIT IT TO MEMORY. (" + story.journalText(*this, *in) + ")" : say;
       dlg.opts = {{"FAREWELL.", A_BYE, 0}};
     }
+  };
+  auto dropOpt = [&]() {
+    for (size_t i = 0; i < dlg.opts.size(); i++) if (dlg.opts[i].action == o.action) { dlg.opts.erase(dlg.opts.begin() + (std::ptrdiff_t)i); break; }
+  };
+  if (k < SA_BOARD) {
+    const int idx = k - SA_START;
+    const dsl::Library& L = dsl::library();
+    if (idx < 0 || idx >= (int)L.scripts.size()) return false;
+    const dsl::Script& s = L.scripts[(size_t)idx];
+    const int ai = findActor(dlg.actor);
+    const bool npcHook = s.hook == dsl::HookKind::Npc || s.hook == dsl::HookKind::Herald;
+    std::string why;
+    const uint32_t id = story.start(*this, s.id, npcHook && ai >= 0 ? actors[(size_t)ai].id : -1, o.arg, &why);
+    dropOpt();
+    if (!id) {
+      if (ai >= 0) marks[storyMarkKey(npcKey(actors[(size_t)ai]), MK_STORY_GIVER)] = day;   // (no second try from them)
+      dlg.text = npcHook ? "...NO. NO, FORGET I SAID ANYTHING. IT'S NOTHING." : "THE NOTICE IS TOO RAIN-SOAKED TO READ.";
+      return true;
+    }
+    begun(s, id, ai);
+    return true;
+  }
+  if (k >= SA_SAGA && k < SA_SAGA + 100) {
+    // (M6b) a generated story offered in this dialogue (Engine::sagaOffers_; arg: the hook place)
+    const int i = k - SA_SAGA;
+    if (i < 0 || i >= (int)story.sagaOffers_.size()) return false;
+    const std::string sid = story.sagaOffers_[(size_t)i];
+    const dsl::Script* sp = scriptById(sid);
+    dropOpt();
+    if (!sp) { dlg.text = "...NO. IT'S GONE FROM ME. FORGIVE ME."; return true; }
+    const dsl::Script& s = *sp;
+    const int ai = findActor(dlg.actor);
+    const bool npcHook = s.hook == dsl::HookKind::Npc || s.hook == dsl::HookKind::Herald;
+    const int hookActor = npcHook && ai >= 0 ? actors[(size_t)ai].id : -1;
+    std::string why;
+    const uint32_t id = story.start(*this, sid, hookActor, o.arg, &why);
+    if (!id) {
+      if (ai >= 0) marks[storyMarkKey(npcKey(actors[(size_t)ai]), MK_STORY_GIVER)] = day;
+      dlg.text = npcHook ? "...NO. NO, FORGET I SAID ANYTHING. IT'S NOTHING." : "THE NOTICE IS TOO RAIN-SOAKED TO READ.";
+      return true;
+    }
+    saga::Hook hk;
+    hk.kind = (int)s.hook;
+    hk.actor = hookActor;
+    hk.site = o.arg;
+    saga::noteTold(*this, sid, id, hk);
+    // (the script pointer may not outlive the cache: look it up again)
+    if (const dsl::Script* s2 = scriptById(sid)) begun(*s2, id, ai);
     return true;
   }
   return boardChoose(*this, k, o.arg);
@@ -326,6 +496,21 @@ bool Game::storyUseProp(art::Prop p, int tx, int ty) {
         if (!marks.count(key)) {
           marks[key] = day;
           if (const uint32_t id = story.start(*this, s.id, -1, subSite)) {
+            if (const Instance* in = story.find(id)) {
+              const std::string say = story.sayText(*this, *in);
+              if (!say.empty() && dlg.text.size() + say.size() < 290) dlg.text += " " + say;
+            }
+          }
+        }
+      } else {
+        // (M6b) a generated story the ruin's words begin (saga.h offerForPlace: rare, one a fortnight here)
+        const std::string sid = saga::offerForPlace(*this, (int)dsl::HookKind::Ruin, subSite);
+        if (!sid.empty()) {
+          if (const uint32_t id = story.start(*this, sid, -1, subSite)) {
+            saga::Hook hk;
+            hk.kind = (int)dsl::HookKind::Ruin;
+            hk.site = subSite;
+            saga::noteTold(*this, sid, id, hk);
             if (const Instance* in = story.find(id)) {
               const std::string say = story.sayText(*this, *in);
               if (!say.empty() && dlg.text.size() + say.size() < 290) dlg.text += " " + say;

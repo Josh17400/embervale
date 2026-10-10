@@ -253,9 +253,101 @@ std::string hearEvent(Game& g, const realm::WorldEvent& e, uint64_t voiceCulture
   return line;
 }
 
+// ---------------------------------------------------------------- (M6b CAMPAIGNS lane) campaign news and omens
+namespace {
+
+// what the roads say while a campaign runs in a kingdom (its cast filled in; {CULT} is the campaign's composed title)
+struct CampaignNews { const char* plan; const char* lines[3]; };
+const CampaignNews kCampaignNews[] = {
+    {"burden", {"THEY SAY A STRANGER CARRIES SOMETHING OUT OF {HOME} THAT MAKES DOGS HOWL. SINCE THEN {LAND} AND {RIVAL} HAVE BEEN COUNTING SPEARS.",
+                "THE DEAD OF {HOME} WALK THE ROADS AT NIGHT NOW, LOOKING FOR SOMETHING THEY LOST. MIND THE FORDS AFTER DARK.",
+                "A SCHOLAR CALLED {SCHOLAR} WAS SEEN ON THE ROAD TO {FORGE}, TALKING TO THE AIR AND WRITING DOWN WHAT IT SAID BACK."}},
+    {"plague", {"{CULT} SINGS AT THE WELL OF {HOME} EVERY DAWN. THE QUEUE FOR THEIR BREAD IS LONGER THAN THE ONE FOR THE TEMPLE.",
+                "BLACK TONGUES IN {HOME}, AND {HEALER} THE HEALER HAS NOT SLEPT IN A WEEK. THEY SAY THE FEVER WALKS AHEAD OF A HYMN.",
+                "SOMEONE WATCHES THE WELLS OF {NEXT} AT NIGHT, THEY SAY. NOBODY KNOWS WHO. NOBODY DRINKS BEFORE NOON THERE NOW."}},
+    {"fae", {"SIX GONE FROM {HOME} SINCE MIDSUMMER, AND {POSTER} STILL ASKING EVERYONE ON THE ROAD IF THEY'VE SEEN {TAKEN}.",
+             "LIGHTS UNDER THE HILL AT {HILL} EVERY NIGHT NOW, AND A FIDDLE PLAYED LIKE IT'S UNDER WATER. KEEP IRON ABOUT YOU.",
+             "THE OLD STONES OF {STONES} WERE WARM AT DAWN, THE SHEPHERDS SAY. THE GRASS INSIDE THE RING IS GREEN IN WINTER."}},
+    {"rebellion", {"{LORD}'S TITHE-TAKER, {TAKER}, HANGED A MILLER IN {HAMLET}. THE WIDOW ISN'T QUIET, AND THE VALLEY IS LISTENING.",
+                   "THE GUARD OF {HOME} WHISPERS IN THE BARRACKS. THEY SAY CAPTAIN {CAPTAIN} HAS NOT SMILED SINCE THE TITHE WAS CRIED.",
+                   "A SACK IN THREE AND A SON IN EVERY HOUSE, FOR THE WAR ON {RIVAL}. THE CARTS GO OUT EMPTY AND NEVER COME HOME EMPTY."}},
+    {"dragon", {"{WYRM} BURNED HALF OF {HOME}, AND THE DOORS WITH THE RED EYE STILL STAND. PEOPLE ARE ASKING HOW YOU GET AN EYE.",
+                "THE ASH CAMP'S TONGUE PREACHES AT SUNDOWN: FEED THE BEAST AND IT PASSES YOU BY. MORE GO UP THE HILL EVERY WEEK.",
+                "THEY SAY {TOWN} IS IN SOMEONE'S LEDGER NOW, ONE LINE, AND A CROSS BESIDE IT. NOBODY IN {TOWN} HAS SEEN THE LEDGER."}},
+};
+
+// the omen of a campaign that has not begun yet, where its world facts hold ({K}: the kingdom)
+struct CampaignOmen { const char* plan; const char* lines[2]; };
+const CampaignOmen kCampaignOmens[] = {
+    {"burden", {"THE BARROW-DEAD HAVE BEEN SEEN WALKING IN THE HILLS OF {K}, AND NOBODY WILL ADMIT TO OPENING A TOMB.",
+                "A KING OF THE OLD TIME WAS BURIED WITH SOMETHING HE WOULD NOT LET GO OF, THEY SAY. SOMEWHERE IN {K}. DON'T DIG."}},
+    {"plague", {"GREY ROBES ON THE ROADS OF {K}, SINGING. WHEREVER THE CHOIR WALKS, THEY SAY, A FEVER WALKED THE WEEK BEFORE.",
+                "BREAD FOR NOTHING AT THE WELLS, IN A HUNGRY YEAR. MY MOTHER SAID NOTHING IS EVER FOR NOTHING. {K} WILL LEARN IT."}},
+    {"fae", {"LIGHTS ON THE HILLS OF {K} AT NIGHT, AND MUSIC. KEEP IRON IN YOUR POCKET AFTER DARK, MY GRANDMOTHER USED TO SAY.",
+             "A CHILD CAME HOME FROM THE HILL WITH GRASS IN HER HAIR AND SAID SHE'D BEEN GONE AN HOUR. IT WAS A WEEK."}},
+    {"rebellion", {"THE CROWN'S TITHE-TAKERS ARE ON THE ROADS OF {K} WITH EMPTY CARTS AGAIN. THEY NEVER GO HOME EMPTY.",
+                   "ANOTHER DECREE FROM THE PALACE OF {K}. THE HERALD READS THEM SLOWER EVERY TIME, LIKE SOMEONE HOPING TO BE INTERRUPTED."}},
+    {"dragon", {"SOMEONE HAS BEEN PAINTING A RED EYE ON DOORS IN THE VILLAGES OF {K}. NOBODY WILL SAY WHO, OR WHAT IT'S FOR.",
+                "PEDLARS IN {K} ARE SELLING SAFETY DOOR TO DOOR, THEY SAY. SAFE FROM WHAT, YOU ASK. THEY JUST POINT AT THE SKY."}},
+};
+
+std::string replaceAll(std::string s, const std::string& a, const std::string& b) {
+  for (size_t p = s.find(a); p != std::string::npos; p = s.find(a, p + b.size())) s.replace(p, a.size(), b);
+  return s;
+}
+
+std::string campaignLine(const Game& g, ew::Gid kingdom, int v, uint32_t h) {
+  // a campaign running in this kingdom: its news
+  for (const Instance& in : g.story.running()) {
+    if (in.done || in.script.find("~@") == std::string::npos) continue;
+    const Binding* land = bindingOf(in, "land");
+    if (!land || land->id != kingdom) continue;
+    saga::Spec s;
+    if (!saga::parseSpecId(in.script, s)) continue;
+    for (const CampaignNews& n : kCampaignNews) {
+      if (s.arch != n.plan) continue;
+      std::string line = n.lines[h % 3];
+      if (line.find("{CULT}") != std::string::npos) {
+        const dsl::Script* sc = saga::script(in.script);
+        line = replaceAll(line, "{CULT}", sc ? sc->title : std::string("THE CHOIR"));
+      }
+      line = fillText(g, in, line);
+      if (line.find('{') != std::string::npos) return "";   // (a role the cast does not have)
+      return upper(std::string(kOpen[v][h % 3]) + " " + line);
+    }
+  }
+  // an omen: one in three asks, of a campaign not yet told in this world whose world facts hold in the kingdom
+  if ((h >> 4) % 3 != 0) return "";
+  const realm::KingdomState* K = g.realm.kingdom(kingdom);
+  if (!K || K->fallen) return "";
+  const size_t n = sizeof(kCampaignOmens) / sizeof(kCampaignOmens[0]);
+  const CampaignOmen& o = kCampaignOmens[(h >> 7) % n];
+  const std::string pre = "saga" + std::to_string(saga::SAGA_GEN_VER) + "~@" + o.plan + "~";
+  for (const auto& kv : g.story.played_) if (kv.first.compare(0, pre.size(), pre) == 0) return "";
+  bool fits = true;
+  if (std::string(o.plan) == "plague") fits = K->food < 0.5f;   // the hungry year
+  if (std::string(o.plan) == "rebellion") { std::string rn, rt; fits = g.story.rulerOf(g, kingdom, rn, rt); }
+  if (std::string(o.plan) == "dragon") {
+    fits = false;
+    for (const realm::WorldEvent& e : g.realm.events()) if (e.type == EvType::BeastRaid && (e.a == kingdom || e.b == kingdom)) fits = true;
+  }
+  if (!fits) return "";
+  return upper(replaceAll(o.lines[(h >> 9) & 1], "{K}", K->name) + kClose[v][CAT_HARD]);
+}
+
+}  // namespace
+
 std::string foreshadowLine(const Game& g, ew::Gid kingdom, uint64_t voiceCulture, uint64_t salt) {
   if (!kingdom) return "";
   const int v = std::clamp(voiceOf(g, voiceCulture), 1, 7);
+  // (M6b) a campaign underway in this kingdom is the talk of the roads half the time; its omen, now and then
+  {
+    const uint32_t hc = hash32((uint32_t)salt ^ 0xCA3Bu);
+    if (hc & 1) {
+      const std::string c = campaignLine(g, kingdom, v, hc >> 1);
+      if (!c.empty()) return c;
+    }
+  }
   const realm::Relation* worst = nullptr;
   for (const realm::Relation& r : g.realm.relations())
     if ((r.a == kingdom || r.b == kingdom) && r.state != realm::Rel::War && r.tension != realm::Tension::Calm && (!worst || r.tension > worst->tension))

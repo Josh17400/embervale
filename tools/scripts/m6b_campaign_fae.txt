@@ -1,0 +1,66 @@
+# M6b "Sagas" (CAMPAIGNS lane): THE COURT UNDER THE HILL (rpg/story/campaigns/fae.cpp), begun from a notice board in the
+# start settlement. The opening, the arcs (the revel, the holly lady's bargain, three tasks, the hidden queen), the
+# throne under the hill and the holly lady's crowning; the journal at the end. Objectives are completed by
+# `story complete`. Phone size: every line must fit the dialogue panel after the type-on reveal.
+#   embervale.exe --script tools/scripts/m6b_campaign_fae.txt     (m6b_campaign_fae_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
+# (fixer M6b r2) the touch layout an iPhone shows: finger-sized option rows (dlgRowH 25), less room for the speech
++0.02 touch 1
++0.05 hour 11
++0.1 god 1
++0.5 saga campaign fae fa_revel fa_holly_bargain fa_three_tasks fa_true_name v7 mhope s3
++0.3 expect saga notice
++3.5 shot m6b_campaign_fae_1_opening.png
++0.1 choose TELL ME ABOUT THE LIGHTS
++0.3 choose I'LL GO TO THE HILL
++0.3 expect saga setout
++0.1 choose NOTHING EATEN
++0.3 expect saga a1_stones
++0.1 story complete
++0.3 story show
++0.1 expect saga a1_dance
++0.1 choose I'M LOOKING FOR
++0.3 choose GUEST'S HONOUR
++0.3 expect saga a2_halls
++0.1 story complete
++0.3 story show
++0.1 choose WHAT IS THE MARK
++0.3 choose MARK ME
++0.3 expect saga a2_marked
++3.5 shot m6b_campaign_fae_2_bargain.png
++0.1 choose WHAT IS THE SERVICE
++0.3 expect saga a3_court
++0.1 choose WHERE IS IT
++0.3 story complete
++0.3 story show
++0.1 expect saga a3_second
++0.1 choose ONLY EVER BEEN ME
++0.3 story complete
++0.3 story show
++0.1 expect saga a3_third
++0.1 choose I WON'T SAY IT
++0.3 expect saga a3_refuse
++3.5 shot m6b_campaign_fae_3_twist.png
++0.1 choose NOBODY
++0.3 story show
++0.1 expect saga a4_summons
++0.1 choose WHY DOES SHE HIDE IT
++0.3 story show
++0.1 choose GOOD QUEEN
++0.3 choose THEN I'LL NAME ONE
++0.3 story show
++0.1 expect saga throne
++3.5 shot m6b_campaign_fae_4_finale.png
++0.1 choose THE LADY OF THE HOLLY
++0.3 choose WHAT DOES THAT COST
++0.3 choose AT MIDSUMMER
++0.5 expect saga done
++0.3 menu 1
++0.5 tap 123 129
++2.0 shot m6b_campaign_fae_5_journal.png
++0.1 tap 176 45
++2.0 shot m6b_campaign_fae_6_news.png
++0.1 key Escape
++0.3 quit

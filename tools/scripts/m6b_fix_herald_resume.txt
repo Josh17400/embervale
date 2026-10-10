@@ -1,0 +1,27 @@
+# M6b fixer r3: a story a herald began must speak again when the herald is talked to again (the herald's own news used
+# to win, so a herald-hooked tale or saga left at its opening was stuck for good). Seed 7's capital: the M4 steward tale
+# resumes on a second talk; once it is turned down, the herald proclaims the stone-and-anvil saga, the player leaves its
+# opening with Escape, and the third talk shows that saga's opening again (not "HEAR YE!").
+#   embervale.exe --script tools/scripts/m6b_fix_herald_resume.txt     (m6b_fix_herald_*.png in the working directory)
+seed 7
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 goto capital
++1.0 story herald
++1.0 choose WHAT IS IT, HERALD
++1.0 key Escape
++0.3 story herald
++1.0 expect option HOW ILL IS THE
++0.2 choose NOT MY KINGDOM
++1.0 key Escape
++0.3 story herald
++1.0 saga accept
++1.0 expect saga start
++0.2 shot m6b_fix_herald_1_opening.png
++0.2 key Escape
++0.3 story herald
++1.0 expect text SWORD
++0.1 expect option TRY THE STONE
++0.2 shot m6b_fix_herald_2_resumed.png
++0.3 quit

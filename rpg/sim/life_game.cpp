@@ -3268,9 +3268,11 @@ bool Game::lifeGiverOpen(int si, int idx) const {
     if (q.state != QState::Done && q.type != QType::Main && q.giverSite == si && q.giverBldg == -1 && q.giverSlot == slot) return true;
   // (fixer M5 r3) a running story's giver or cast person stays too: emigration or a raid would stall its stage
   const uint64_t key = npcKeyOf(si, -1, slot);
+  // (fixer M6b r1) a saga's census resident is bound by its census id (life::npcId), not its street key
+  const uint64_t rkey = life::npcId(world.sites[(size_t)si].id, idx);
   for (const story::Instance& in : story.running()) {
     if (in.done || in.failed) continue;
-    for (const story::Binding& b : in.cast) if (b.id == key) return true;
+    for (const story::Binding& b : in.cast) if (b.id == key || b.id == rkey) return true;
   }
   return false;
 }

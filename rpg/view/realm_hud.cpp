@@ -91,6 +91,10 @@ const Tex& View::armsTex(const cult::Heraldry& h, int size) {
 void View::heraldEvent(Game& g, const Event& e) {
   // whose land the player now stands on (the event carries the name and the colour; the arms and the society's word
   // come from the realm)
+  // (fixer M6b r2) never inside a building or dungeon: the player's position there is the interior's, so the land
+  // under it is some other realm's (seed 42: "ENTERING THE REPUBLIC OF RESLE" inside a house in Qaarsir); the next
+  // crossing outdoors heralds the land properly
+  if (g.inside) return;
   ew::Gid land = 0;
   if (g.world.src && e.f > 0.5f) {
     const int32_t gx = g.world.ox + (int32_t)std::floor(g.pl().p.x / TILE), gy = g.world.oy + (int32_t)std::floor(g.pl().p.y / TILE);

@@ -8,12 +8,18 @@
 // place, so a save keeps them and the quest marker needs no loaded handle.
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <cstdlib>
 #include <set>
 #include <string>
 #include <vector>
 #include "rpg/culture/culture.h"
+#include "rpg/sim/foes.h"
 #include "rpg/sim/game.h"
+#include "rpg/sim/game_internal.h"
+#include "rpg/sim/life.h"
 #include "rpg/story/story_internal.h"
+#include "rpg/world/dmath.h"
 #include "rpg/world/source.h"
 
 namespace story {
@@ -38,16 +44,21 @@ bool findSite(Game& g, int32_t gx, int32_t gy, SiteType t, int minD, int maxD, c
               Found& out) {
   if (!g.world.src) return false;
   ew::EndlessSource& src = *g.world.src;
-  double best = 1e30;
+  // (fixer M6b r2) integer distances only (owner rule: generation is integer/dmath): squared distances for the bands, a
+  // 24.8 fixed-point distance (dmath isqrt) plus penalties for the score, so MSVC and Emscripten pick the same place
+  int64_t best = INT64_MAX;
+  const int64_t minD2 = (int64_t)minD * minD, maxD2 = (int64_t)maxD * maxD;
+  auto dist2 = [](int64_t dx, int64_t dy) { return dx * dx + dy * dy; };
+  auto fixd = [](int64_t d2) { return (int64_t)ew::isqrt((uint64_t)d2 << 16); };   // distance * 256, floor
   const bool settlement = t == SiteType::Village || t == SiteType::Town || t == SiteType::City;
   if (settlement) {
     for (const ew::SettlementNode& n : src.settlementsIn(gx - maxD, gy - maxD, gx + maxD + 1, gy + maxD + 1, true)) {
       // (a script's "town" is any market town: a city serves when no town lies near)
       if ((n.type != t && !(t == SiteType::Town && n.type == SiteType::City)) || avoid.count(n.id)) continue;
-      const double townPenalty = (t == SiteType::Town && n.type == SiteType::City) ? 300.0 : 0.0;
-      const double d = std::hypot((double)(n.x - gx), (double)(n.y - gy));
-      if (d < minD || d > maxD) continue;
-      const double score = d + townPenalty + (prefer && n.kingdom != prefer ? 4000.0 : 0.0);
+      const int64_t townPenalty = (t == SiteType::Town && n.type == SiteType::City) ? 300 : 0;
+      const int64_t d2 = dist2(n.x - gx, n.y - gy);
+      if (d2 < minD2 || d2 > maxD2) continue;
+      const int64_t score = fixd(d2) + ((townPenalty + (prefer && n.kingdom != prefer ? 4000 : 0)) << 8);
       if (score < best) { best = score; out.id = n.id; out.x = n.x; out.y = n.y; out.name = n.name; out.culture = 0; }
     }
     if (!out.id) {
@@ -56,8 +67,8 @@ bool findSite(Game& g, int32_t gx, int32_t gy, SiteType t, int minD, int maxD, c
       if (h >= 0) {
         const Site& S = g.world.sites[(size_t)h];
         const int32_t sx = g.world.ox + S.ex, sy = g.world.oy + S.ey;
-        const double d = std::hypot((double)(sx - gx), (double)(sy - gy));
-        if (!avoid.count(S.id) && d >= minD && d <= maxD) { out.id = S.id; out.x = sx; out.y = sy; }
+        const int64_t d2 = dist2(sx - gx, sy - gy);
+        if (!avoid.count(S.id) && d2 >= minD2 && d2 <= maxD2) { out.id = S.id; out.x = sx; out.y = sy; }
       }
     }
     if (out.id) {
@@ -73,9 +84,9 @@ bool findSite(Game& g, int32_t gx, int32_t gy, SiteType t, int minD, int maxD, c
       const ew::RegionPlan R = g.world.regionPlan(rx, ry);
       for (const ew::SitePlan& p : R.sites) {
         if (p.type != t || avoid.count(p.id)) continue;
-        const double d = std::hypot((double)(p.ex - gx), (double)(p.ey - gy));
-        if (d < minD || d > maxD) continue;
-        if (d < best) { best = d; out.id = p.id; out.x = p.ex; out.y = p.ey; out.name = p.name; out.culture = p.culture; }
+        const int64_t d2 = dist2(p.ex - gx, p.ey - gy);
+        if (d2 < minD2 || d2 > maxD2) continue;
+        if (d2 < best) { best = d2; out.id = p.id; out.x = p.ex; out.y = p.ey; out.name = p.name; out.culture = p.culture; }
       }
     }
   return out.id != 0;
@@ -115,6 +126,10 @@ bool castScript(Game& g, const dsl::Script& s, int hookActor, int hookSite, uint
   if (!culture) culture = g.world.src->cultureAt(hx, hy);
   const ew::Gid land = landAt(g, hx, hy);
   std::set<uint64_t> avoid = boundSites(g);
+  // (M6b) the giver as a census resident (their settlement and index), when they are one
+  ew::Gid giverResSite = 0;
+  int giverRes = -1;
+  if (A) residentOfActor(g, *A, giverResSite, giverRes);
   auto findB = [&](const std::string& n) -> const Binding* { for (const Binding& b : out) if (b.role == n) return &b; return nullptr; };
   for (size_t ri = 0; ri < s.roles.size(); ri++) {
     const dsl::RoleDef& R = s.roles[ri];
@@ -134,6 +149,10 @@ bool castScript(Game& g, const dsl::Script& s, int hookActor, int hookSite, uint
           b.name = A->name;
           b.trade = (uint8_t)A->role;
           b.female = looksFemale(*A);
+          // (M6b) a giver who is a census resident: the census knows their sex
+          if (giverRes >= 0)
+            if (const life::Census* GC = g.life.find(giverResSite))
+              if (giverRes < (int)GC->res.size()) b.female = GC->res[(size_t)giverRes].female;
           atHome();
           // a giver indoors: the marker points at the building's door
           if (A->bldg >= 0 && A->bldg < (int)g.world.over.bldgs.size()) {
@@ -179,7 +198,7 @@ bool castScript(Game& g, const dsl::Script& s, int hookActor, int hookSite, uint
             !findSite(g, hx, hy, t, far ? 300 : 24, far ? 1800 : 1400, avoid, land, f)) {
           why = "no " + R.a + " for role '" + R.name + "' (near:";
           for (const ew::SettlementNode& n : g.world.src->settlementsIn(hx - 900, hy - 900, hx + 900, hy + 900))
-            why += " " + std::to_string((int)n.type) + "@" + std::to_string((int)std::hypot((double)(n.x - hx), (double)(n.y - hy)));
+            why += " " + std::to_string((int)n.type) + "@" + std::to_string((int)ew::isqrt((uint64_t)((int64_t)(n.x - hx) * (n.x - hx) + (int64_t)(n.y - hy) * (n.y - hy))));
           why += ")";
           return false;
         }
@@ -201,13 +220,13 @@ bool castScript(Game& g, const dsl::Script& s, int hookActor, int hookSite, uint
         ew::Gid k = land;
         if (R.a == "rival") {
           k = 0;
-          double bd = 1e30;
+          int64_t bd = INT64_MAX;   // (fixer M6b r2: integer squared distance, no libm)
           const ew::KingdomPlan* hp = land ? g.world.src->kingdom(land) : nullptr;
-          const double ox = hp ? hp->gx : hx, oy = hp ? hp->gy : hy;
+          const int64_t ox = hp ? hp->gx : hx, oy = hp ? hp->gy : hy;
           for (const realm::KingdomState& K : g.realm.kingdoms()) {
             if (K.id == land || K.fallen) continue;
             const ew::KingdomPlan* kp = g.world.src->kingdom(K.id);
-            const double d = kp ? std::hypot(kp->gx - ox, kp->gy - oy) : 1e20;
+            const int64_t d = kp ? ((int64_t)kp->gx - ox) * ((int64_t)kp->gx - ox) + ((int64_t)kp->gy - oy) * ((int64_t)kp->gy - oy) : INT64_MAX - 1;
             if (d < bd) { bd = d; k = K.id; }
           }
         }
@@ -267,6 +286,177 @@ bool castScript(Game& g, const dsl::Script& s, int hookActor, int hookSite, uint
         b.name = newsLine(g, *best, 0);
         b.site = best->site; b.gx = best->gx; b.gy = best->gy; b.hasPos = best->gx || best->gy;
         if (best->site) { const int h = siteByIdLoad(g, best->site); if (h >= 0) b.extra = g.world.sites[(size_t)h].name; }
+        break;
+      }
+      case dsl::RoleKind::Resident: {
+        // (M6b, COMPOSER lane) a real resident of the M5 census of the `at` settlement (default the hook's): any adult;
+        // kin (the `of` person's household: spouse, child, parent, sibling) or friend (their life Ties); a mourner (a
+        // grieving household: .lost names their dead); someone needy (hungry or penniless); a child; an elder. The
+        // relations need the `of` person in the census too (a giver who is a census resident, or a resident role):
+        // otherwise the role fails honestly. Only `any` may invent someone where no census exists (a far hamlet).
+        ew::Gid sid = home.id;
+        int32_t sx = hx, sy = hy;
+        if (const Binding* at = placeOf(R.at)) { sid = at->site ? at->site : at->id; sx = at->gx; sy = at->gy; }
+        const int sh = siteByIdLoad(g, sid);
+        const int rel0 = dsl::relationWord(R.a);
+        // (fixer M6b r1) kin relations: 1 any kin; 7 child, 8 spouse, 9 parent, 10 sibling of the `of` person
+        const int kinRel = rel0 >= 7 ? rel0 : (rel0 == 1 ? 1 : 0);
+        const int rel = kinRel ? 1 : rel0;
+        life::Census* C = sh >= 0 && g.world.sites[(size_t)sh].settlement() ? g.life.census(g.world, sh) : nullptr;
+        // the `of` person as a census index of C (-1: not a resident of that census)
+        int ofIx = -1;
+        if (C && (rel == 1 || rel == 2)) {
+          const std::string ofName = R.b.empty() ? std::string("giver") : R.b;
+          const Binding* ob = findB(ofName);
+          const int ori = s.role(ofName);
+          if (ob && ori >= 0 && s.roles[(size_t)ori].kind == dsl::RoleKind::Giver) {
+            if (giverRes >= 0 && giverResSite == sid && giverRes < (int)C->res.size()) ofIx = giverRes;
+          } else if (ob && ob->trade == RESIDENT_CENSUS && ob->site == sid) {
+            for (const life::Resident& r : C->res) if (life::npcId(sid, r.idx) == ob->id) { ofIx = r.idx; break; }
+          }
+          if (ofIx < 0) { why = "'" + ofName + "' has no household in the census for role '" + R.name + "'"; return false; }
+        }
+        // residents the cast may not use twice: bound already, or the giver themself
+        std::set<int> used;
+        if (C) {
+          if (giverRes >= 0 && giverResSite == sid) used.insert(giverRes);
+          for (const Binding& o : out)
+            if (o.kind == (uint8_t)dsl::RoleKind::Resident && o.trade == RESIDENT_CENSUS && o.site == sid)
+              for (const life::Resident& r : C->res) if (life::npcId(sid, r.idx) == o.id) { used.insert(r.idx); break; }
+        }
+        auto usable = [&](const life::Resident& r) {
+          return !(r.flags & (life::RF_DEAD | life::RF_AWAY)) && !used.count(r.idx);
+        };
+        // what `k` is to `of` (kin words) / the dead a mourner grieves for
+        auto kinWord = [&](const life::Resident& k, const life::Resident& of) -> std::string {
+          if (k.idx == of.spouse || of.idx == k.spouse) return k.female ? "WIFE" : "HUSBAND";
+          if (k.parent == of.idx) return k.female ? "DAUGHTER" : "SON";
+          if (of.parent == k.idx) return k.female ? "MOTHER" : "FATHER";
+          if (k.parent >= 0 && k.parent == of.parent) return k.female ? "SISTER" : "BROTHER";
+          return k.female ? "KINSWOMAN" : "KINSMAN";
+        };
+        int pickIx = -1;
+        std::string kin;
+        if (C && !C->res.empty()) {
+          std::vector<int> cand;
+          if (rel == 1) {
+            const life::Resident& of = C->res[(size_t)ofIx];
+            for (const life::Resident& r : C->res)
+              if (r.idx != of.idx && usable(r) && r.age >= 8 &&
+                  (kinRel == 7   ? r.parent == of.idx
+                   : kinRel == 8 ? (r.idx == of.spouse || r.spouse == of.idx)
+                   : kinRel == 9 ? of.parent == r.idx
+                   : kinRel == 10 ? (r.parent >= 0 && r.parent == of.parent)
+                   : (r.household == of.household || r.idx == of.spouse || r.parent == of.idx || of.parent == r.idx)))
+                cand.push_back(r.idx);
+          } else if (rel == 2) {
+            for (int f : g.life.friendsOf(*C, ofIx))
+              if (f >= 0 && f < (int)C->res.size() && usable(C->res[(size_t)f]) && C->res[(size_t)f].age >= 12) cand.push_back(f);
+          } else {
+            for (const life::Resident& r : C->res) {
+              if (!usable(r)) continue;
+              bool ok = true;
+              switch (rel) {
+                case 3: ok = (r.flags & life::RF_GRIEVING) != 0 && r.age >= 14; break;                                   // mourner
+                case 4: ok = r.age >= 14 && (r.need[(size_t)life::Need::Hunger] < 35 || r.need[(size_t)life::Need::Money] < 30); break;  // needy
+                case 5: ok = r.age >= 7 && r.age < 18; break;                                                             // young
+                case 6: ok = r.age >= 60; break;                                                                          // old
+                default: ok = r.age >= 16; break;                                                                         // any
+              }
+              if (ok) cand.push_back(r.idx);
+            }
+          }
+          if (!cand.empty()) {
+            // kin and friends: the closest first (the list's order) with a little variety; others: anyone, by the key
+            const size_t n = cand.size();
+            const size_t pickAt = (rel == 1 || rel == 2) ? (size_t)(rk % std::min<size_t>(n, 2)) : (size_t)(rk % n);
+            pickIx = cand[pickAt];
+          }
+        }
+        if (pickIx >= 0) {
+          const life::Resident& r = C->res[(size_t)pickIx];
+          b.id = life::npcId(sid, r.idx);
+          b.name = r.name;
+          b.female = r.female;
+          b.trade = RESIDENT_CENSUS;
+          if (rel == 1) kin = kinWord(r, C->res[(size_t)ofIx]);
+          else if (rel == 2) kin = "FRIEND";
+          else if (rel == 5) kin = r.female ? "GIRL" : "BOY";
+          else if (rel == 6) kin = "ELDER";
+          else kin = "NEIGHBOUR";
+          std::string lost;
+          if (rel == 3) {
+            // whom they mourn: a dead member of their household, a dead spouse / parent / child, a dead friend
+            for (const life::Resident& d : C->res) {
+              if (!(d.flags & life::RF_DEAD) || d.idx == r.idx) continue;
+              if (d.household == r.household || d.idx == r.spouse || d.idx == r.parent || d.parent == r.idx) { lost = d.name; break; }
+            }
+            if (lost.empty())
+              for (int f : g.life.friendsOf(*C, r.idx))
+                if (f >= 0 && f < (int)C->res.size() && (C->res[(size_t)f].flags & life::RF_DEAD)) { lost = C->res[(size_t)f].name; break; }
+            if (lost.empty()) {
+              // (grief the census does not explain: someone of the household who died before the census was taken)
+              const bool lf = ((rk >> 13) & 1) != 0;
+              lost = personNameIn(g, culture, rk ^ 0x10571ull, lf);
+            }
+          }
+          b.extra = std::string(life::jobName(r.job)) + "|" + kin + "|" + lost;
+          // where they live: their home's door (the quest marker), else the square
+          const Site& S = g.world.sites[(size_t)sh];
+          const int bh = C->bldgHandle(S, r.home);
+          if (bh >= 0 && bh < (int)g.world.over.bldgs.size()) {
+            const Bldg& B = g.world.over.bldgs[(size_t)bh];
+            sx = g.world.ox + B.doorX(); sy = g.world.oy + B.doorY() + 1;
+          } else { sx = g.world.ox + S.ex; sy = g.world.oy + S.ey; }
+        } else if (rel == 0 && !C) {
+          // no census there (a settlement out of reach): someone invented, met like a person of the story
+          b.female = ((rk >> 9) & 1) != 0;
+          b.id = rk | 1;
+          b.name = personNameIn(g, culture, rk, b.female);
+          b.extra = "VILLAGER|NEIGHBOUR|";
+        } else {
+          static const char* const relName[] = {"", "kin", "friend", "mourning", "needy", "young", "old"};
+          why = std::string("no ") + relName[rel < 0 ? 0 : rel] + " resident for role '" + R.name + "'" + (C ? "" : " (no census there)");
+          return false;
+        }
+        b.site = sid; b.gx = sx; b.gy = sy; b.hasPos = true;
+        break;
+      }
+      case dsl::RoleKind::Beast: {
+        // (M6b) the nearest living named unique of the hook's region ring (near: the hook's region and its neighbours;
+        // far: two or three regions out). The dead stay dead: one slain (foes' mark) is never cast again.
+        const bool far = R.a == "far";
+        const int32_t rx0 = ew::regionOf(hx), ry0 = ew::regionOf(hy);
+        const int rIn = far ? 2 : 0, rOut = far ? 3 : 1;
+        std::vector<foes::NamedUnique> pool;
+        for (int32_t ry = ry0 - rOut; ry <= ry0 + rOut; ry++)
+          for (int32_t rx = rx0 - rOut; rx <= rx0 + rOut; rx++) {
+            if (std::max(std::abs(rx - rx0), std::abs(ry - ry0)) < rIn) continue;
+            for (const foes::NamedUnique& u : foes::namedInRegion(*g.world.src, rx, ry)) pool.push_back(u);
+          }
+        const foes::NamedUnique* best = nullptr;
+        int64_t bd = INT64_MAX;
+        for (const foes::NamedUnique& u : pool) {
+          bool bound = false;
+          for (const Binding& o : out) if (o.id == u.id) bound = true;
+          if (bound || g.marks.count(storyMarkKey(u.id, foes::MK_FOES_NAMED_SLAIN))) continue;
+          const int64_t dx = u.gx - hx, dy = u.gy - hy, d = dx * dx + dy * dy;
+          if (d < bd) { bd = d; best = &u; }
+        }
+        if (!best) { why = "no living named beast for role '" + R.name + "'"; return false; }
+        b.id = best->id; b.name = best->name; b.gx = best->gx; b.gy = best->gy; b.hasPos = true;
+        b.extra = upper(monsterPlural(best->mon));
+        b.trade = (uint8_t)best->mon;
+        break;
+      }
+      case dsl::RoleKind::Boss: {
+        bool ok = false;
+        const foes::WorldBoss wb = foes::worldBossOf(*g.world.src, ew::EndlessSource::kcellOf(hx), ew::EndlessSource::kcellOf(hy), ok);
+        if (!ok) { why = "no world boss for role '" + R.name + "'"; return false; }
+        if (g.marks.count(storyMarkKey(wb.id, foes::MK_FOES_BOSS_SLAIN))) { why = wb.name + " is dead (role '" + R.name + "')"; return false; }
+        b.id = wb.id; b.name = wb.name; b.gx = wb.lairX; b.gy = wb.lairY; b.hasPos = true;
+        b.extra = wb.kind.empty() ? std::string(monsterName(wb.mon)) : wb.kind;
+        b.trade = (uint8_t)wb.mon;
         break;
       }
       default: break;

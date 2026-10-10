@@ -24,12 +24,17 @@
 //   lore.cpp              ruin records (with a local stand-in until the realm fills Realm::ruin), lore props, Lost History
 //   places.cpp            notice boards and heralds (placed and spawned at runtime)
 //   story_game.cpp        Game's story hooks (talk, choose, kill, enter, use a prop, step)
+// M6b "Sagas" (saga.h): generated stories run here like the library's. Their script id is a saga spec id
+// ("saga1~..."): scriptOf() composes the script from it (saga::script). The repetition guard is saved in the story block
+// (v3). Offers of generated stories use the SA_SAGA option range (sagaOffers_ holds the offered spec ids).
 #pragma once
 #include <cstdint>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 #include "rpg/sim/realm.h"
+#include "rpg/story/saga.h"
 #include "rpg/world/ids.h"
 
 class Game;
@@ -170,6 +175,20 @@ class Engine {
   std::vector<RulerOverride> rulers_;
   std::map<std::string, int32_t> played_;   // script -> times ended
   uint32_t proclaimed_ = 0;                 // the realm event serial heralds have proclaimed up to
+  saga::Guard guard_;                       // (M6b, block v3) what generated stories the player was offered and told
+  // runtime (never saved): the spec ids of generated stories offered in the open dialogue (option DLG_STORY + SA_SAGA + i)
+  std::vector<std::string> sagaOffers_;
+  // runtime (never saved): what the last speaker asked, for the journal of a hand-off stage that has no journal line
+  std::string handCtx_;
+  // runtime (never saved, fixer M6b r1): the region plans round the player warmed a few at a time off the talk frame
+  // (the composer's needs and the caster look up to 3 regions out), and the people near the player found to have a
+  // tale to tell (actor id -> the scan's time and the answer: storyStep scans one person at a time; a marker shows it)
+  float warmT_ = 0, scanT_ = 0, clock_ = 0;
+  uint64_t warmSeed_ = 0;
+  std::set<uint64_t> warmed_;
+  struct TaleScan { float at = 0; bool tale = false; uint64_t key = 0; };
+  std::map<int, TaleScan> tales_;
+  bool hasTale(int actorId) const { auto it = tales_.find(actorId); return it != tales_.end() && it->second.tale; }
   // runtime (never saved): the lore props of the ruin map the player is in, and the actors the engine spawned
   struct PropRef { int tx = 0, ty = 0; int clue = 0; int prop = 0; };
   std::vector<PropRef> ruinProps_;
@@ -262,5 +281,6 @@ constexpr int SA_OPT = 0;        // + option index (arg: instance id)
 constexpr int SA_START = 300;    // + library script index (arg: hook site)
 constexpr int SA_BOARD = 600;    // + board entry kind (arg: entry argument)
 constexpr int SA_HERALD = 800;   // herald talk
+constexpr int SA_SAGA = 900;     // (M6b) + index into Engine::sagaOffers_ (arg: hook site): start a generated story
 
 }  // namespace story

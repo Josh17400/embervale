@@ -928,6 +928,22 @@ bool Game::questTarget(int qid, int& tx, int& ty) const {
     tx = world.sites[t].ex; ty = world.sites[t].ey;
     return true;
   }
+  // (fixer M6b r3) a story's "speak with" step points at the person themself while they are about: a census resident
+  // walks the streets, and the binding's tile is only where they stood when the step began (the marker floated over an
+  // empty tile while she stood beside the hero)
+  if (q->type == QType::Story && q->state == QState::Active && !inside) {
+    for (const story::Instance& in : story.running()) {
+      if (in.questId != qid || in.done) continue;
+      for (size_t i = 1; i < actors.size(); i++) {
+        const Actor& a = actors[i];
+        if (!a.npc || a.st == AState::Dead || !story.talksTo(*this, in, a)) continue;
+        tx = (int)std::floor(a.p.x / TILE);
+        ty = (int)std::floor(a.p.y / TILE);
+        return true;
+      }
+      break;
+    }
+  }
   if (questTargetM2(*q, tx, ty)) return true;   // M2 quest types (quests.cpp)
   // an open hunt points at the quarry: the nearest one about (outdoors), else the nearest den of its kind, else the
   // giver's home (where the beasts are said to roam)
@@ -1742,13 +1758,15 @@ bool Game::sell(int ii) {
 //   explored count, then rx i32, ry i32, 128 bytes (the fog-of-war bits of one region)
 //   marks    (v6) count, then key u64 + value i32, in key order
 //   realm    (v10) u32 byte length + the realm block (realm::Realm::serialize: its own version byte first)
-//   story    (v10) u32 byte length + the story block (story::Engine::serialize: its own version byte first)
+//   story    (v10) u32 byte length + the story block (story::Engine::serialize: its own version byte first; v13: block v3)
 //   life     (v11) u32 byte length + the life block (life::Life::serialize: its own version byte first)
 //   craft    (v12) u32 byte length + the craft block (craft::Knowledge::serialize: its own version byte first)
 // refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
 // 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 12;  // 12: M6 Steel (the item layout grows: ilvl, material, alloy, culture, form,
+static constexpr uint32_t SAVE_VER = 13;  // 13: M6b Sagas (the story block's own version 3: the generated stories'
+                                          //    repetition guard; running sagas are saved by their spec id);
+                                          // 12: M6 Steel (the item layout grows: ilvl, material, alloy, culture, form,
                                           //    seed, 3 affixes, unique power, flags; the craft block after the life
                                           //    block: smithing skill, secrets, trust; ENDLESS_GEN_VER 15);
                                           // 11: M5 Hearth and Hall (the life block after the story block: the census

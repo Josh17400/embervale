@@ -390,6 +390,10 @@ struct World {
   // is built (M3); on the web (and when a test drops it) Game::prefetchTick creates it on first use; prefetchTick
   // keeps its wish list current; placeWindow takes ready chunks from it and generates the rest itself
   std::shared_ptr<ChunkStreamer> streamer;
+  // (fixer M6b r1) the region plans this many regions round the player's are wished for too (after the window's own),
+  // so the story composer's and caster's look-ups (caves, camps, ruins up to ~640 tiles from a hook) find them ready
+  // instead of building them in the frame a teller is talked to. 0: none (tests may lower it)
+  int storyRing = 3;
   struct StreamStats {
     int shifts = 0;                 // window moves (shifts and recentres)
     int walkShifts = 0;             // ... of those, ordinary walking shifts (the rest: teleports, loads, new games)

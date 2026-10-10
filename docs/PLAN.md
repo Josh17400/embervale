@@ -651,3 +651,35 @@ their culture's arms; harpies and golems; every culture's arms distinct on the p
 - Script header: the phone hamburger is at 581 12; tools/scripts/m6_menu_tap_phone.txt opens the menu by tap and shows
   the worn gambeson. gear.cpp turns off FP contraction by source pragma on clang/GCC (no flag changes).
 - Open: still no clang/Emscripten compile on this machine.
+
+## M6b, "Sagas" (VISION_PLAN 15.20, 15.21; owner notes 2026-10-09)
+
+Goal: a generator that composes thousands of unique, genuinely well-written side quests, missions and campaigns:
+70 archetypes at ship from scripture, myth, folklore and legend retold closely plus Lewis / Tolkien / Maas / Gwynne
+THEMES (never their names, characters, places, invented terms or plots), cast from the living world (census residents,
+realm rulers / wars / ruins, named uniques, world bosses, alloy secrets), a twists library, culture x motive voice
+grammars, a deterministic composer feeding the M4 validator and engine, a repetition guard, 6 campaigns incl.
+emptythrone, 10,000 composed stories walked in CI, uniqueness metrics and a writing-quality review lens.
+
+### Phase A (lead), 2026-10-09: done
+- Contracts in VISION_PLAN 15.21 (saga.h, the template markup, the DSL additions, the engine routing of spec ids, the
+  arch tables, SAVE_VER 13 + fixture, --sagalib / --sagas, the saga script commands). tools/slot.sh already existed.
+- End to end already: THE BROTHER IN THE PIT with two twists composes, validates, casts on seeds 1..3 and walks every
+  path (300 stories, 0 failures, ~4.7 ms a story); m6b_lead_saga.txt plays it at phone size.
+
+### Phase B lanes (disjoint files; see the lead report for the briefs)
+- **archetypes** (build_archetypes): 35 archetypes (scripture, myth, legend, Lewis-like, Tolkien-like) and 24+ twists.
+- **composer** (build_composer): pick / offers in play, the full caster (kin, friends, mourners, beasts, bosses,
+  rewards in bands, secrets), the guard, the DSL and engine, saves, --sagas at 10,000, the review sampler.
+- **voice** (build_voice): the voice grammars, 35 archetypes (folk, Maas-like, Gwynne-like, world-native), the
+  quality pass on the 11 hand-written tales.
+- **campaigns** (build_campaigns): the chainer, 5 new campaigns with arcs, realm consequences, rumour and herald hooks.
+
+### Integration, 2026-10-09: done
+- Clean MSVC build of embervale / rpg_test / save_test / art_preview; the M6b files (rpg/story/**, script_saga,
+  the saga tests, save_test, game_rpg) also pass a clang front-end parse (VS clang-tidy, -std=c++20
+  -fno-ms-compatibility -Wall -Wextra) with 0 diagnostics.
+- CI saga step also runs --campaigns --seeds 1..5, --voice and --voice --lane. All 138 tools/scripts exit 0;
+  tour scripts m6b_int_tour_a/b/c (inn at night, outdoors by day and dusk, temple at midnight, desktop size).
+- Fixes: piper opening over 300 characters; {%name} placeholders upper-cased by expand(); plea phrases no longer
+  assume a journey; GUNSHOTS anachronism; HOLE UP typo; a misleading-indentation line in dsl.cpp.

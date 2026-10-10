@@ -654,7 +654,8 @@ std::string Game::questStatusM2(const Quest& q) const {
   int px, py;
   overworldTile(*this, px, py);
   int tx = 0, ty = 0;
-  const bool has = questTargetM2(q, tx, ty);
+  // (fixer M6b r3) a story's step names the direction of the live person it waits on (Game::questTarget)
+  const bool has = q.type == QType::Story ? questTarget(q.id, tx, ty) : questTargetM2(q, tx, ty);
   const std::string dl = has ? " (" + dirWord(tx - px, ty - py, false) + ")" : std::string(), ds = has ? " (" + dirWord(tx - px, ty - py, true) + ")" : std::string();
   const std::string tname = q.target >= 0 && q.target < (int)world.sites.size() ? world.sites[(size_t)q.target].name : std::string();
   if (q.state == QState::Complete && (q.flags & QF_GRAVE)) {

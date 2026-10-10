@@ -1,0 +1,700 @@
+// M6b "Sagas": archetypes in the manner of J.R.R. Tolkien: THEMES AND FEELINGS ONLY (owner rule, VISION_PLAN 15.20): no
+// names, characters, places, invented terms or beat-for-beat plots. ARCHETYPES lane. Markup: rpg/story/saga.h.
+//
+//   unused_burden   THE BURDEN NOT TO BE USED       a black lantern that could win any fight, carried to a forge to be
+//                                                   unmade, and the night it could have saved a village
+//   whispering_thing THE THING THAT WHISPERS        a found heirloom slowly eating its finder; a friend asks for help
+//   fallen_line     THE LINE OF THE FALLEN KING     the last heir of a ruined house, a broken blade, and healing hands
+//   small_one       THE SMALL ONE ON THE LONG ROAD  the great will not carry the message; a small unregarded one does
+//   deep_stirring   THE THING WAKING IN THE DEEP    miners dug too deep under a ruin; something old answered
+//   oathless_dead   THE OATH-BREAKERS' DEAD         the dead of a ruin who fled a war they swore to fight, and the call
+//   old_wood        THE FOREST THAT REMEMBERS       a woodcutter's child lost in a wood that has not forgiven the axe
+#include <vector>
+#include "rpg/story/arch/arch_tables.h"
+
+namespace story {
+namespace saga {
+namespace arch {
+
+namespace {
+
+// ---------------------------------------------------------------- a fellowship and a burden it must not use
+const char* const kUnusedBurden = R"SAGA(
+title [[THE BURDEN NOT TO BE USED|THE BLACK LANTERN|THE LIGHT THAT BURNS]]
+hook npc priest
+pitch "[[pitch=WHAT'S IN THE LEAD BOX?|WHY IS THAT BOX CHAINED?|WHO ARE THE THREE BY THE DOOR?]]"
+hint "[[~pitch|THE BOX IS LEAD BECAUSE NOTHING ELSE KEEPS IT QUIET. DON'T STAND TOO CLOSE. IT LIKES TO BE NOTICED.|THE BOX IS LEAD BECAUSE NOTHING ELSE KEEPS IT QUIET. DON'T STAND TOO CLOSE. IT LIKES TO BE NOTICED.|THREE OF THEM, AND THEY'RE AFRAID OF A BOX. I'D LAUGH IF I WASN'T AFRAID OF IT TOO.]]"
+role giver giver
+role home site home
+role far site town near
+role ruin ruin near
+role bearer person [[male|female]] at home
+role smith npc smith at far
+var lit 0
+slot t1 -> road_two betrayal rival price deceit
+slot t2 -> forge wonder world mercy prophecy
+
+stage start
+  talk giver
+  say "IN THE BOX IS A LANTERN DUG FROM {RUIN}. LIT, IT MAKES EVERY FOE WHO SEES IT KNEEL. {RUIN.LORD} LIT IT ONCE, AND {RUIN.OLD} KNELT TOO, AND NEVER STOOD UP. IT MUST BE UNMADE AT THE FORGE OF {FAR}. {BEARER} WILL CARRY IT. <<warning>>"
+  opt "I'LL WALK WITH {BEARER}." -> road
+  opt "WHY NOT USE IT, JUST ONCE?" -> once
+  opt "BURY IT AND FORGET IT." -> refused
+
+stage refused
+  end fail
+  say "IT WAS BURIED. SOMEONE DUG IT UP. THINGS LIKE THIS DON'T STAY BURIED. <<farewell>>"
+  journal "YOU WOULD NOT HELP CARRY THE BLACK LANTERN TO {FAR}."
+  do remember giver "{BEARER} WENT ALONE. I HAVEN'T HEARD. I LIGHT A CANDLE EVERY NIGHT, AN ORDINARY ONE, AND HATE IT A LITTLE."
+
+stage once
+  talk bearer
+  say "JUST ONCE. THAT'S WHAT IT WHISPERS, AT NIGHT, THROUGH THE LEAD. JUST ONCE, FOR A GOOD REASON. IT ALWAYS HAS A GOOD REASON READY. THAT'S HOW YOU KNOW. <<warning:fear>>"
+  opt "THEN WE CARRY IT. TOGETHER." -> road
+
+stage road
+  goal goto ruin
+  then @t1
+  journal "CARRY THE BLACK LANTERN FROM {HOME} TOWARDS THE FORGE OF {FAR}, WITH {BEARER}. THE ROAD PASSES {RUIN}, WHERE IT WAS DUG UP."
+
+stage road_two
+  talk bearer
+  say "<<urgency>> RAIDERS, AT THE VILLAGE BELOW THE RUIN. BURNING THE BARNS. WE COULD STOP IT, {PLAYER}. ONE FLARE OF THE LANTERN AND THEY'D ALL KNEEL. ONE. I CAN HEAR IT SAYING SO. I CAN HEAR IT."
+  opt "NO. WE FIGHT THEM WITH STEEL." -> steel
+  opt "NO. WE WALK ON." -> walk_on
+  opt "LIGHT IT. JUST THIS ONCE." -> lit
+
+stage steel
+  goal kill 4 bandit
+  then @t2
+  journal "RAIDERS ARE BURNING A VILLAGE NEAR {RUIN}. THE BLACK LANTERN WHISPERS. ANSWER THEM WITH STEEL INSTEAD."
+
+stage walk_on
+  talk bearer
+  say "WE WALK ON. AND THE BARNS BURN BEHIND US, AND I CAN HEAR THEM SHOUTING. ...I'LL HEAR IT FOREVER. BUT THE BOX IS STILL SHUT. <<grief>>"
+  opt "THE BOX IS STILL SHUT." -> @t2
+
+stage lit
+  talk bearer
+  do set lit 1
+  say "...THEY KNELT. ALL OF THEM. AND THE VILLAGERS KNELT TOO, AND WOULDN'T GET UP, AND LOOKED AT ME LIKE A GOD. I LIKED IT, {PLAYER}. FOR A MOMENT I LIKED IT. SHUT IT. SHUT IT!"
+  opt "IT'S SHUT. WALK." -> @t2
+
+stage forge
+  talk smith
+  say "SO THIS IS IT. SMALL, ISN'T IT? THEY ALWAYS ARE. PUT IT ON THE ANVIL. ...{BEARER} WON'T LET GO. LOOK AT {BEARER.HIS} KNUCKLES. YOU'LL HAVE TO HELP {BEARER.HIM}, OR THE THING WINS AT THE LAST STEP."
+  opt "OPEN YOUR HAND. I'M HERE." -> unmade_end
+  opt "TAKE IT FROM {BEARER.HIM}." check level 3 -> taken_end else claimed_end
+
+stage unmade_end
+  end success
+  say "{BEARER}'S HAND OPENED ONE FINGER AT A TIME. THE HAMMER CAME DOWN, AND THE LANTERN BROKE LIKE A BLACK EGG, AND SOMETHING SCREAMED A LONG WAY OFF. {BEARER} SLEPT FOR TWO DAYS."
+  ?tw_guide_ambush journal "THE BLACK LANTERN IS UNMADE AT {FAR}, DESPITE THE GUIDE WHO SOLD YOU. {BEARER} OPENED {BEARER.HIS} OWN HAND AT THE END."
+  !tw_guide_ambush journal "THE BLACK LANTERN IS UNMADE AT THE FORGE OF {FAR}. {BEARER} OPENED {BEARER.HIS} OWN HAND AT THE END."
+  do reward rich
+  do remember bearer "I STILL REACH FOR IT SOMETIMES, IN MY SLEEP. MY HAND CLOSES ON NOTHING. THEN I WAKE AND I'M GLAD."
+  do fact "THE BLACK LANTERN DUG FROM {RUIN}, WHICH MADE {RUIN.OLD} KNEEL FOREVER, WAS UNMADE ON THE ANVIL AT {FAR}."
+  do mark burden_unmade
+
+stage taken_end
+  end success
+  say "YOU PRISED {BEARER}'S FINGERS OFF IT ONE BY ONE WHILE {BEARER.HE} CURSED YOU, AND THE HAMMER FELL. IT'S GONE. {BEARER} THANKED YOU A WEEK LATER, AND COULDN'T LOOK AT YOU WHILE {BEARER.HE} DID."
+  journal "THE BLACK LANTERN IS UNMADE AT {FAR}. YOU HAD TO TAKE IT FROM {BEARER} BY FORCE AT THE LAST."
+  do reward fair
+  do remember bearer "YOU TOOK IT FROM ME. I'D HAVE KILLED YOU FOR IT, THAT MOMENT. I KNOW THAT ABOUT MYSELF NOW. THANK YOU. I THINK."
+  do fact "THE BLACK LANTERN OF {RUIN} WAS UNMADE ON THE ANVIL AT {FAR}, TORN FROM ITS BEARER'S HAND AT THE LAST."
+
+stage claimed_end
+  end fail
+  say "{BEARER} STEPPED BACK FROM THE ANVIL WITH THE LANTERN HELD TO {BEARER.HIS} CHEST AND A LOOK YOU DIDN'T KNOW. THEN {BEARER.HE} RAN. THE SMITH PUT DOWN THE HAMMER AND SAID: THAT'S HOW IT ALWAYS ENDS."
+  journal "{BEARER} FLED THE FORGE OF {FAR} WITH THE BLACK LANTERN. IT HAS FOUND A NEW HAND."
+  do hide bearer
+  do remember smith "THE ONE WHO LOST THE LANTERN AT MY ANVIL. I KEEP THE FIRE HOT, IN CASE. ONE DAY SOMEONE WILL BRING IT BACK."
+  do fact "THE BLACK LANTERN OF {RUIN} CAME WITHIN A HAMMER'S FALL OF BEING UNMADE AT {FAR}, AND WAS CARRIED OFF INTO THE WILD."
+)SAGA";
+
+// ---------------------------------------------------------------- the corrupting heirloom
+const char* const kWhisperingThing = R"SAGA(
+title [[THE THING THAT WHISPERS|THE FOUND BROOCH|MINE, MINE, MINE]]
+hook npc any
+pitch "[[pitch=YOUR FRIEND HASN'T BEEN OUT IN DAYS?|WHO'S BEHIND THE SHUTTERS?|WHY DO YOU KEEP KNOCKING THERE?]]"
+hint "[[~pitch|I KNOCK EVERY MORNING. EVERY MORNING THE VOICE SAYS GO AWAY, AND IT'S NEARLY MY FRIEND'S VOICE.|MY FRIEND FOUND SOMETHING IN THE RIVER MUD. SINCE THEN THE SHUTTERS STAY CLOSED AND I HEAR TALKING INSIDE. ONE VOICE. TWO SIDES.|MY FRIEND FOUND SOMETHING IN THE RIVER MUD. SINCE THEN THE SHUTTERS STAY CLOSED AND I HEAR TALKING INSIDE. ONE VOICE. TWO SIDES.]]"
+role giver giver
+role home site home
+role friend resident friend of giver
+role ruin ruin near
+var named 0
+slot t1 -> shutters deceit betrayal price mercy
+slot t2 -> river wonder return world
+
+stage start
+  talk giver
+  say "{FRIEND} FOUND A BROOCH IN THE RIVER MUD BELOW {RUIN}, GOLD WITH A STONE LIKE A CLOSED EYE. A WEEK LATER {FRIEND} STOPPED EATING WITH US. NOW {FRIEND.HE} TALKS TO IT AT NIGHT, AND IT TALKS BACK. <<plea:fear>>"
+  opt "I'LL TALK TO {FRIEND}." -> @t1
+  opt "WHERE DID THE BROOCH COME FROM?" -> origin
+  opt "A TRINKET. IT'LL PASS." -> refused
+
+stage refused
+  end fail
+  say "THAT'S WHAT I TOLD MYSELF A WEEK AGO. <<grief>>"
+  journal "YOU LEFT {FRIEND} ALONE WITH THE BROOCH FROM {RUIN}."
+  do remember giver "{FRIEND} WENT INTO THE HILLS WITH IT. WITHOUT A COAT. HE LEFT THE DOOR OPEN. I CLOSED IT."
+
+stage origin
+  goal use inscription in ruin
+  then origin_read
+  journal "THE BROOCH {FRIEND} FOUND CAME FROM {RUIN}. READ WHAT THE OLD STONES SAY OF IT."
+
+stage origin_read
+  talk giver
+  say "YOU READ IT? {RUIN.LORD} WORE A BROOCH LIKE AN EYE, AND GREW THIN, AND SUSPICIOUS, AND HANGED A STEWARD FOR LOOKING AT IT. AND THEN {RUIN.OLD} FELL. THE STONE SAYS: IT WAS NEVER THROWN AWAY, ONLY LOST. <<omen>>"
+  do set named 1
+  opt "THEN WE THROW IT AWAY." -> @t1
+
+stage shutters
+  talk friend
+  say "GO AWAY. ...OH. IT'S YOU. {GIVER} SENT YOU. {GIVER} WANTS IT. THEY ALL WANT IT. IT TOLD ME THEY WOULD. IT'S MINE, {PLAYER}. IT CAME TO ME IN THE MUD. IT CHOSE ME. NOBODY HAS EVER CHOSEN ME."
+  opt "IT'S EATING YOU. GIVE IT HERE." check level 3 -> given else clutched
+  opt "{GIVER} CHOSE YOU. YEARS AGO." -> softened
+  opt "KEEP IT, THEN." -> kept_end
+
+stage softened
+  talk friend
+  say "{GIVER}... {GIVER} SAT WITH ME WHEN MY MOTHER DIED. ALL NIGHT. I'D FORGOTTEN. IT MADE ME FORGET. ...TAKE IT. NO! DON'T. YES. TAKE IT. QUICKLY, BEFORE I SAY NO AGAIN. <<apology>>"
+  opt "I'VE GOT IT." -> @t2
+
+stage given
+  talk friend
+  say "...YOU'RE RIGHT. I CAN SEE MY OWN HANDS. LOOK AT THEM. LIKE AN OLD MAN'S. TAKE IT. DON'T LOOK AT IT. DON'T LISTEN TO IT. IT KNOWS WHAT YOU WANT, TOO."
+  opt "I WON'T LISTEN." -> @t2
+
+stage clutched
+  talk friend
+  say "NO! YOU'RE LIKE ALL THE REST! <<curse>> ...I'M SORRY. I'M SORRY. I DIDN'T SAY THAT. IT SAID THAT. TAKE IT. TAKE IT AND RUN, AND DON'T LET ME FOLLOW YOU."
+  opt "RUN, THEN." -> @t2
+
+stage river
+  goal goto ruin
+  then drown
+  journal "CARRY THE WHISPERING BROOCH BACK TO {RUIN} AND THE DEEP WATER BELOW IT. DON'T LISTEN TO WHAT IT SAYS ON THE WAY."
+
+stage drown
+  talk giver
+  say "YOU CAME BACK ALONE. YOU'VE STILL GOT IT IN YOUR HAND, HAVEN'T YOU? I CAN TELL BY YOUR FACE. IT'S TALKING TO YOU NOW. WHAT'S IT SAYING, {PLAYER}?"
+  opt "NOTHING. IT'S AT THE BOTTOM." -> drowned_end
+  opt "IT SAYS IT COULD MAKE ME RICH." -> tempted_end
+
+stage kept_end
+  end fail
+  say "{FRIEND} SMILED, AND SHUT THE SHUTTERS, AND YOU HEARD THE TWO VOICES START UP AGAIN BEFORE YOU REACHED THE GATE. ONE OF THEM WAS LAUGHING."
+  journal "YOU LEFT {FRIEND} WITH THE WHISPERING BROOCH FROM {RUIN}. THE SHUTTERS STAY CLOSED."
+  do remember giver "THE SHUTTERS ARE NAILED NOW. FROM THE INSIDE. I STILL KNOCK. NOBODY TELLS ME TO GO AWAY ANY MORE. THAT'S WORSE."
+  do mark left_the_eye_its_finder
+
+stage drowned_end
+  end success
+  say "IT SANK WITHOUT A SPLASH, AS IF THE WATER HAD BEEN EXPECTING IT. {FRIEND} SLEPT FOURTEEN HOURS, AND WOKE HUNGRY, AND ATE AT {GIVER}'S TABLE WITH THE SHUTTERS OPEN."
+  journal "THE WHISPERING BROOCH LIES AT THE BOTTOM OF THE DEEP WATER BELOW {RUIN}. {FRIEND} IS EATING AGAIN."
+  do reward fair
+  do befriend friend
+  do remember friend "I DREAM OF IT. IT'S STILL DOWN THERE, YOU KNOW. WAITING. NOT FOR ME, THOUGH. NOT ANY MORE."
+  do fact "A BROOCH LIKE A CLOSED EYE, THAT RUINED {RUIN.OLD} AND NEARLY RUINED {FRIEND} OF {HOME}, LIES IN THE DEEP WATER BELOW {RUIN}."
+  do mark brooch_drowned
+
+stage tempted_end
+  end fail
+  say "{GIVER} LOOKED AT YOU A LONG TIME. THEN {GIVER.HE} SAID: KEEP IT IN THE LEAD BOX, AND COME BACK WHEN YOU CAN LET GO. AND CLOSED THE DOOR. THE BROOCH IS WARM IN YOUR POCKET."
+  journal "YOU STILL CARRY THE WHISPERING BROOCH FROM {RUIN}. {FRIEND} IS FREE OF IT. YOU ARE NOT."
+  do mark carries_the_eye
+  do remember giver "YOU STILL HAVE IT, DON'T YOU? I CAN SEE IT IN HOW YOU STAND. COME BACK WHEN YOU DON'T."
+)SAGA";
+
+// ---------------------------------------------------------------- the return of the fallen king's line
+const char* const kFallenLine = R"SAGA(
+title [[THE LINE OF THE FALLEN KING|THE SNAPPED SWORD|THE RANGER'S BLOOD]]
+hook npc hunter
+pitch "[[pitch=WHO IS THE QUIET RANGER?|WHY DOES THE RANGER WATCH THE RUIN?|WHO WALKS THE BORDERS AT NIGHT?]]"
+hint "[[~pitch|THE RANGER HAS WATCHED OVER THIS VALLEY SINCE BEFORE I WAS BORN AND NEVER TAKES A COIN. NOBODY KNOWS WHERE THE RANGER CAME FROM.|NOBODY KNOWS WHERE THE RANGER SLEEPS. SOMEWHERE NEAR THE OLD RUIN, I'D WAGER.|THE RANGER HAS WATCHED OVER THIS VALLEY SINCE BEFORE I WAS BORN AND NEVER TAKES A COIN. NOBODY KNOWS WHERE THE RANGER CAME FROM.]]"
+role giver giver
+role home site home
+role ruin ruin near
+role heir person male at home
+role sick resident any
+role kingdom kingdom home
+var blade 0
+slot t1 -> blade_found rival deceit prophecy price
+slot t2 -> sickbed mercy identity betrayal world
+
+stage start
+  talk giver
+  say "{HEIR} HAS WALKED OUR BORDERS FOR [[years=TWENTY|THIRTY|FIFTEEN]] YEARS, AND KEPT THE WOLVES FROM US, AND NEVER ASKED A THING. LAST NIGHT, DRUNK FOR THE FIRST TIME I EVER SAW, {HEIR} SAID {RUIN.LORD} OF {RUIN.OLD} WAS HIS FOREFATHER. <<surprise>>"
+  opt "I'LL SPEAK WITH {HEIR}." -> heir_talk
+  opt "A DRUNK MAN'S BOAST." -> refused
+
+stage refused
+  end fail
+  say "PROBABLY. HE LOOKED VERY SORRY HE'D SAID IT, THOUGH. MOST BOASTERS DON'T. <<doubt>>"
+  journal "YOU PAID NO HEED TO THE RANGER'S CLAIM."
+  do remember giver "THE RANGER'S BACK ON THE BORDERS. SAYS NOTHING. WE ALL LOOK AT HIM DIFFERENTLY NOW. HE HATES IT."
+
+stage heir_talk
+  talk heir
+  say "I SAID IT. IT'S TRUE. {RUIN.OLD} FELL {RUIN.YEARS} YEARS AGO, AND MY FATHERS KEPT THE BLOOD QUIET AND THEIR SWORD HIDDEN, SNAPPED IN TWO, IN THE VAULT. ONE DAY THE LINE WOULD BE WANTED, THEY SAID. I DON'T WANT TO BE WANTED."
+  opt "THEN WE FETCH THE BLADE." -> fetch
+  opt "WHY NOT? THE LAND NEEDS IT." -> why
+
+stage why
+  talk heir
+  say "BECAUSE MY FOREFATHER HAD THE BLOOD AND THE BLADE AND {RUIN.OLD} STILL FELL. BECAUSE KINGS ARE MEN, AND MEN FAIL. ...AND BECAUSE I'M AFRAID I'D LIKE IT. <<doubt:fear>>"
+  opt "THAT FEAR IS WHY YOU SHOULD." -> fetch
+
+stage fetch
+  goal fetch "TWO HALVES OF AN OLD BLADE" in ruin
+  then @t1
+  journal "THE BROKEN BLADE OF {RUIN.LORD}'S LINE LIES HIDDEN IN THE VAULT OF {RUIN}. BRING IT OUT FOR {HEIR}."
+
+stage blade_found
+  talk heir
+  say "THE TWO HALVES. MY FATHER SHOWED THEM TO ME ONCE, BY CANDLELIGHT, AND MADE ME SWEAR NEVER TO TOUCH THEM. ...MY GRANDMOTHER SAID THE OLD KINGS OF OUR LINE COULD MEND A FEVER BY HOLDING A HAND. I ALWAYS THOUGHT IT WAS A BEDTIME STORY."
+  do set blade 1
+  opt "IS SOMEONE SICK IN {HOME}?" -> @t2
+
+stage sickbed
+  talk sick
+  say "...WHO'S THERE? THE FEVER... THE PRIEST HAS GIVEN UP. THE HERB-WIFE HAS GIVEN UP. THE RANGER? WHY IS THE RANGER HERE? WHY IS HE HOLDING MY HAND? IT'S WARM. IT'S VERY WARM."
+  opt "LET HIM TRY." -> healed
+  opt "IT'S ONLY A SAYING. COME AWAY." -> saying_end
+
+stage healed
+  talk heir
+  say "THE FEVER'S BROKEN. I DON'T... I DIDN'T DO ANYTHING. I HELD THEIR HAND. ...{PLAYER}, THE WHOLE STREET IS OUTSIDE THE DOOR. THEY'RE ON THEIR KNEES. WHAT DO I DO?"
+  opt "TELL THEM WHO YOU ARE." -> claim_end
+  opt "TELL THEM TO GET UP." -> humble_end
+  opt "FORGE THE BLADE. GO TO THE CROWN." -> crown_end
+
+stage claim_end
+  end success
+  say "{HEIR} TOLD THEM. ALL OF IT. THE BLOOD, THE BLADE, THE FEAR. AND THEN HE ASKED FOR NOTHING, AND WENT BACK TO THE BORDERS, AND {HOME} SENDS HIM BREAD NOW, AND HE TAKES IT, AND IT IS A KIND OF CROWNING."
+  journal "{HEIR} OF {RUIN.LORD}'S LINE HEALED THE SICK IN {HOME} AND TOLD THE TOWN WHO HE IS. HE STILL WALKS THE BORDERS."
+  do reward rich
+  do remember sick "THE RANGER HELD MY HAND AND THE FEVER WENT OUT OF ME LIKE A TIDE. I NAMED MY HORSE AFTER HIM. HE PRETENDS TO MIND."
+  do fact "{HEIR}, WHO WALKS {HOME}'S BORDERS, IS OF THE LINE OF {RUIN.LORD} OF {RUIN.OLD}. THEY SAY HIS HANDS HEAL."
+  do mark the_kings_hands
+
+stage humble_end
+  end success
+  say "THEY GOT UP, SLOWLY, AND {HEIR} WALKED OUT THROUGH THEM WITH HIS HOOD UP AND THE BROKEN BLADE UNDER HIS CLOAK. HE IS STILL ON THE BORDERS. BUT {HOME} KNOWS, AND HE KNOWS IT KNOWS."
+  journal "{HEIR} HEALED A FEVER IN {HOME} AND WILL NOT CLAIM HIS BLOOD. THE BROKEN BLADE STAYS BROKEN, FOR NOW."
+  do reward fair
+  do remember heir "THEY STILL BOW WHEN I PASS. I'VE ASKED THEM NOT TO. THE CHILDREN DO IT AS A GAME NOW. THAT I DON'T MIND."
+  do fact "THE RANGER OF {HOME}'S BORDERS HEALED A DYING FEVER WITH HIS HANDS, AND WILL NOT SAY WHAT HE IS."
+
+stage crown_end
+  end success
+  say "{HEIR} TOOK THE TWO HALVES TO THE SMITHS, AND THE BLADE WAS FORGED AGAIN, AND HE RODE FOR THE SEAT OF {KINGDOM} WITH THE DAWN BEHIND HIM. WHAT {KINGDOM.LORD} WILL MAKE OF HIM, NOBODY CAN SAY."
+  journal "{HEIR} HAS REFORGED THE BLADE OF {RUIN.LORD}'S LINE AND RIDDEN TO THE CROWN OF {KINGDOM}. THE OLD BLOOD IS AWAKE."
+  do reward rich
+  do rep kingdom -2
+  do remember giver "HE RODE OUT WITH THE NEW BLADE. NOBODY WALKS THE BORDERS NOW. I DIDN'T KNOW HOW SAFE I FELT TILL I DIDN'T."
+  do fact "THE BLADE OF {RUIN.LORD}'S LINE WAS FORGED AGAIN IN {HOME}, AND ITS HEIR RODE FOR THE THRONE OF {KINGDOM}."
+
+stage saying_end
+  end fail
+  say "{HEIR} LET GO OF THE HAND AND STEPPED BACK, AND YOU WALKED OUT TOGETHER. BY MORNING THE CHILD WAS DEAD OF THE FEVER. {HEIR} HAS NOT SPOKEN SINCE. THE HALVES OF THE BLADE ARE GONE FROM HIS PACK."
+  journal "YOU CALLED THE KING'S HANDS A SAYING. THE FEVER TOOK ITS VICTIM. {HEIR} WILL NOT SPEAK OF IT."
+  do remember heir "I FELT IT, IN MY HANDS, WHEN YOU SAID COME AWAY. IT WAS STARTING. I'LL NEVER KNOW. NEITHER WILL YOU."
+)SAGA";
+
+// ---------------------------------------------------------------- the small hero on the long road
+const char* const kSmallOne = R"SAGA(
+title [[THE SMALL ONE ON THE LONG ROAD|THE MESSAGE NOBODY ELSE WOULD CARRY|SHORT LEGS, LONG ROAD]]
+hook npc guard
+pitch "[[pitch=WHY WON'T ANYONE TAKE THE LETTER?|WHO WILL CARRY THE CAPTAIN'S WORD?|WHY IS THAT CHILD HOLDING A SATCHEL?]]"
+hint "[[~pitch|EVERYONE IMPORTANT HAS A REASON NOT TO GO. THE ONLY ONE WITHOUT A REASON IS NINE YEARS OLD.|THE CAPTAIN'S LETTER MUST GO TO THE TOWN BEYOND THE PASS. THE RIDERS WON'T GO. THE BIG MEN WON'T GO. THE COOK'S ONE WANTS TO GO.|EVERYONE IMPORTANT HAS A REASON NOT TO GO. THE ONLY ONE WITHOUT A REASON IS NINE YEARS OLD.]]"
+role giver giver
+role home site home
+role far site town near
+role cave site cave near
+role small person [[male|female]] at home
+role captain npc guard at far
+var alone 0
+slot t1 -> pass rival betrayal price world deceit
+slot t2 -> last_mile wonder mercy return prophecy
+
+stage start
+  talk giver
+  say "RAIDERS GATHER BEYOND THE PASS, AND {FAR} MUST BE WARNED. THE RIDERS SAY THE PASS IS WATCHED. THE ONLY ONE WHO'LL GO IS {SMALL}, THE COOK'S [[age=NINE|TEN|ELEVEN]]-YEAR-OLD, BECAUSE NOBODY WATCHES A CHILD. <<urgency>>"
+  opt "THEN I'LL GO WITH {SMALL.HIM}." -> small_talk
+  opt "SEND A RIDER ANYWAY." -> rider
+  opt "IT'S NOT A CHILD'S ERRAND." -> refused
+
+stage refused
+  end fail
+  say "NO. AND NOBODY ELSE WILL MAKE IT ONE. <<farewell>>"
+  journal "YOU WOULD NOT GO WITH {SMALL} OVER THE PASS TO {FAR}."
+  do remember small "I WENT ANYWAY. ALONE. I GOT LOST TWICE AND CRIED ONCE. I DID IT. YOU DIDN'T COME."
+
+stage rider
+  talk giver
+  say "WE SENT ONE. YESTERDAY. HIS HORSE CAME BACK. <<grief>>"
+  opt "THEN I'LL GO WITH {SMALL}." -> small_talk
+
+stage small_talk
+  talk small
+  say "YOU'RE COMING? GOOD. I'VE GOT BREAD AND CHEESE AND THE LETTER SEWN INTO MY COAT, AND A STONE FOR THROWING. I'M NOT AFRAID. ...THAT'S A LIE. I'M VERY AFRAID. MY MOTHER SAYS AFRAID IS FINE IF YOU WALK ANYWAY."
+  opt "THEN WE WALK ANYWAY." -> road
+
+stage road
+  goal enter cave
+  then @t1
+  journal "{SMALL}, THE COOK'S CHILD OF {HOME}, CARRIES THE CAPTAIN'S LETTER TO {FAR}. THE QUIET WAY OVER THE PASS RUNS THROUGH {CAVE}."
+
+stage pass
+  talk small
+  say "THE SENTRIES AT THE TOP. THEY'LL SEE YOU, {PLAYER}. YOU'RE TOO BIG. THEY WON'T SEE ME. ...I HAVE TO GO THE LAST BIT ALONE, DON'T I? I KNEW IT. I KNEW IT WHEN I SEWED IN THE LETTER."
+  opt "GO. I'LL DRAW THEM OFF." -> decoy
+  opt "NO. WE GO TOGETHER." -> together
+
+stage decoy
+  goal kill 3 bandit
+  then @t2
+  do set alone 1
+  journal "{SMALL} SLIPS OVER THE PASS ALONE WITH THE LETTER. DRAW THE SENTRIES AWAY, AND KEEP THEM AWAY."
+
+stage together
+  goal kill 5 bandit
+  then @t2
+  journal "YOU AND {SMALL} FORCE THE PASS TOGETHER. THE SENTRIES HAVE SEEN YOU BOTH."
+
+stage last_mile
+  talk captain
+  ?t2 say "A CHILD WALKED IN AT DAWN WITH A LETTER SEWN IN A COAT, AND MUD TO THE KNEES, AND WOULD NOT SIT DOWN UNTIL I'D READ IT. {FAR} IS WARNED. THE SIGNAL IS SET. WE'LL BE READY. WHO IS THAT CHILD?"
+  !t2 say "A CHILD WALKED IN AT DAWN WITH A LETTER SEWN IN A COAT AND WOULD NOT SIT DOWN UNTIL I'D READ IT. {FAR} IS WARNED. WE'LL BE READY WHEN THEY COME. WHO IS THAT CHILD?"
+  opt "THE BRAVEST ONE I KNOW." -> praise_end
+  opt "THE COOK'S CHILD. NOBODY." -> quiet_end
+
+stage praise_end
+  end success
+  say "THE CAPTAIN OF {FAR} KNELT IN THE MUD TO {SMALL} IN FRONT OF THE WHOLE GUARD. {SMALL} WENT VERY RED AND ASKED IF THERE WAS ANY BREAD, BECAUSE THE CHEESE HAD RUN OUT ON THE SECOND DAY."
+  journal "{SMALL}, THE COOK'S CHILD OF {HOME}, CARRIED THE WARNING TO {FAR} OVER THE WATCHED PASS. {FAR} IS READY."
+  do reward fair
+  do remember small "THE CAPTAIN KNELT TO ME! IN THE MUD! I'M NOT ALLOWED TO TALK ABOUT IT ANY MORE AT HOME. I TALK ABOUT IT TO THE HENS."
+  do fact "THE WARNING THAT SAVED {FAR} FROM THE RAIDERS WAS CARRIED OVER THE WATCHED PASS BY {SMALL}, A COOK'S CHILD OF {HOME}, AGED [[=age]]."
+  do mark small_messenger
+
+stage quiet_end
+  end success
+  say "NOBODY, YOU SAID, AND {SMALL} NODDED, BECAUSE THAT WAS THE TRICK OF IT: NOBODY WATCHES NOBODY. {SMALL} WALKED HOME WITH YOU AND DIDN'T SPEAK FOR A MILE, AND THEN SAID: I WAS SOMEBODY, THOUGH. FOR ONE NIGHT."
+  journal "{FAR} IS WARNED. {SMALL} CARRIED THE LETTER, AND NOBODY BUT YOU KNOWS IT."
+  do reward fair
+  do remember small "I WAS SOMEBODY. FOR ONE NIGHT. I DON'T NEED ANYONE TO KNOW. I KNOW."
+  do fact "SOMEONE CARRIED THE WARNING TO {FAR} OVER THE WATCHED PASS. THE CAPTAIN THERE SAYS IT WAS A CHILD. NOBODY BELIEVES HIM."
+)SAGA";
+
+// ---------------------------------------------------------------- the ancient evil stirring in a ruin
+const char* const kDeepStirring = R"SAGA(
+title [[THE THING WAKING IN THE DEEP|TOO DEEP|THE DRUM UNDER THE HILL]]
+hook board
+pitch "READ: MINERS WANTED"
+hint "MINERS WANTED FOR THE DEEP SHAFT UNDER THE OLD RUIN. GOOD SILVER, DOUBLE PAY. ASK AT THE PIT-HEAD. (SCRAWLED BELOW: DON'T.)"
+role giver giver
+role home site home
+role ruin ruin near
+role foreman person [[male|female]] at home
+role miner person male at ruin
+role kingdom kingdom home
+var heard 0
+slot t1 -> go wonder price betrayal world
+slot t2 -> depths prophecy mercy identity
+
+stage start
+  talk foreman
+  say "YOU READ THE BOARD? IGNORE THE SCRAWL. THE SHAFT UNDER {RUIN} HIT THE RICHEST SILVER IN {KINGDOM}. ONLY... THE MEN WON'T GO DOWN. THEY SAY THERE'S A DRUM, DEEPER THAN WE'VE DUG. [[days=SIX|NINE|FOUR]] MEN WENT DOWN THIS MONTH. ONE CAME UP."
+  opt "I'LL GO DOWN." -> @t1
+  opt "WHO CAME UP?" -> survivor
+  opt "SEAL THE SHAFT." -> sealed_early
+
+stage sealed_early
+  end fail
+  say "SEAL IT? WITH SILVER LIKE THAT IN IT? THE LORD'S AGENT WOULD HANG ME FIRST. <<refusal>>"
+  journal "YOU WOULD NOT GO DOWN THE DEEP SHAFT UNDER {RUIN}. THE DIGGING GOES ON."
+  do remember foreman "STILL DIGGING. THE DRUM'S LOUDER. WE PUT MORE MEN ON. IT'S FINE. IT'S FINE."
+
+stage survivor
+  talk miner
+  say "I DON'T TALK ABOUT IT. ...THERE'S A DOOR DOWN THERE. OLDER THAN {RUIN.OLD}, OLDER THAN ANYTHING. WE BROKE IT. WE WANTED THE SILVER BEHIND IT. AND SOMETHING ON THE OTHER SIDE TOOK A BREATH. <<warning:fear>>"
+  do set heard 1
+  opt "I'LL GO AND LOOK." -> @t1
+  opt "THEN WE SEAL IT." -> @t1
+
+stage go
+  goal enter ruin
+  then shaft
+  journal "THE MINERS UNDER {RUIN} BROKE AN ANCIENT DOOR, DEEPER THAN THE OLD HALLS. SOMETHING BEHIND IT WOKE. GO DOWN."
+
+stage shaft
+  goal kill 5 undead in ruin
+  then @t2
+  journal "THE DEAD OF {RUIN.OLD} HAVE RISEN IN THE SHAFT, AS IF CALLED. CUT A WAY THROUGH TO THE BROKEN DOOR."
+
+stage depths
+  talk miner
+  say "YOU CAME BACK UP. YOUR FACE... YOU HEARD IT, DIDN'T YOU? THE DRUM. IT'S NOT A DRUM. IT'S A HEART. IT'S SLOW BECAUSE IT'S BEEN ASLEEP SINCE BEFORE THE KINGDOMS. WHAT DID YOU DO DOWN THERE?"
+  opt "BROUGHT THE ROOF DOWN ON IT." -> sealed_end
+  opt "STRUCK IT. IT STRUCK BACK." -> fled_end
+  opt "LEFT IT. THE SILVER'S THERE." -> greed_end
+
+stage sealed_end
+  end success
+  say "THE SHAFT IS RUBBLE FROM TOP TO BOTTOM. THE FOREMAN WEPT FOR THE SILVER. AT NIGHT, IF YOU PUT YOUR EAR TO THE GROUND AT {RUIN}, YOU CAN STILL HEAR IT, VERY FAR DOWN. SLOWER. SLEEPING AGAIN."
+  journal "YOU BROUGHT THE DEEP SHAFT DOWN ON WHATEVER WOKE BELOW {RUIN}. THE SILVER IS LOST. THE DRUM SLEEPS."
+  do reward fair
+  do rep kingdom 1
+  do remember miner "I PUT MY EAR TO THE GROUND EVERY NIGHT. STILL SLOW. STILL ASLEEP. I'LL DO IT TILL I DIE, I THINK."
+  do fact "THE DEEP SHAFT UNDER {RUIN} WAS COLLAPSED ON PURPOSE. THE MINERS SAY SOMETHING OLDER THAN THE KINGDOMS SLEEPS BELOW IT."
+  do mark sealed_the_deep
+
+stage fled_end
+  end success
+  say "WHATEVER YOU STRUCK, IT WAS NOT HURT, ONLY ANNOYED. IT HAS GONE BACK DOWN, DEEPER, FOR NOW. THE MINE IS ABANDONED. THE LORD'S AGENT CALLS YOU A COWARD. THE MINERS DO NOT."
+  journal "SOMETHING ANCIENT UNDER {RUIN} WAS STRUCK, AND WITHDREW. THE MINE IS ABANDONED. IT IS NOT DEAD."
+  do reward fair
+  do remember foreman "THE MEN WON'T EVEN WALK PAST THE PIT-HEAD NOW. I CAN'T BLAME THEM. I TAKE THE LONG WAY MYSELF."
+  do fact "SOMETHING VERY OLD STIRS UNDER {RUIN}. THE SILVER MINE THERE STANDS EMPTY, AND THE MINERS WILL NOT SAY WHY."
+
+stage greed_end
+  end fail
+  say "THEY DUG ON FOR THE SILVER. THE DRUM GOT FASTER. ONE NIGHT IN AUTUMN THE PIT-HEAD WAS SIMPLY GONE, AND A HOLE WAS THERE THAT NOBODY WILL MEASURE."
+  journal "YOU LEFT THE THING UNDER {RUIN} TO THE MINERS AND THEIR SILVER. THE PIT-HEAD IS GONE."
+  do remember foreman "THE PIT-HEAD'S GONE. THE MEN TOO. I WAS AT MY SUPPER. I'M ALWAYS AT MY SUPPER WHEN IT HAPPENS."
+  do fact "THE SILVER MINE UNDER {RUIN} SWALLOWED ITS OWN PIT-HEAD ONE AUTUMN NIGHT. NOBODY DIGS THERE NOW."
+)SAGA";
+
+// ---------------------------------------------------------------- the oath-breakers' dead
+const char* const kOathlessDead = R"SAGA(
+title [[THE OATH-BREAKERS' DEAD|THE PALE COMPANY|AN OATH OWED]]
+hook npc guard
+pitch "[[pitch=WHO WALKS ON THE RUIN WALLS AT NIGHT?|WHAT ARE THE GREY LIGHTS ON THE HILL?|WHY DO YOU AVOID THE OLD ROAD?]]"
+hint "[[~pitch|GREY LIGHTS ON THE WALLS OF THE RUIN EVERY NIGHT. THEY SAY IT'S THE ONES WHO RAN. THEY'RE STILL WAITING TO BE CALLED BACK.|GREY LIGHTS ON THE WALLS OF THE RUIN EVERY NIGHT. THEY SAY IT'S THE ONES WHO RAN. THEY'RE STILL WAITING TO BE CALLED BACK.|NOBODY TAKES THE OLD ROAD AFTER DARK. THERE'S AN ARMY ON IT, AND IT'S NOT GOING ANYWHERE.]]"
+role giver giver
+role home site home
+role ruin ruin near
+role kingdom kingdom home
+role ghost person male at ruin
+role camp site camp near
+var called 0
+slot t1 -> go rival prophecy wonder
+slot t2 -> released mercy price world betrayal
+
+stage start
+  talk giver
+  say "WHEN {RUIN.OLD} STOOD, ITS MEN SWORE ON THE OLD STONES TO FIGHT FOR {RUIN.LORD}. THEY RAN INSTEAD, AND {RUIN.OLD} FELL. NOW THEY CAN'T REST. AND RAIDERS AT {CAMP} THREATEN {HOME}, AND WE HAVE TOO FEW SPEARS. <<omen>>"
+  opt "THEN I'LL CALL THE DEAD." -> @t1
+  opt "WHO CAN CALL THEM?" -> who
+  opt "LEAVE THE DEAD ALONE." -> refused
+
+stage refused
+  end fail
+  say "WE DO. WE ALWAYS HAVE. IT HASN'T HELPED THEM, AND IT WON'T HELP US. <<farewell>>"
+  journal "YOU LEFT THE DEAD OF {RUIN} TO THEIR WAITING, AND {HOME} TO ITS FEW SPEARS."
+  do remember giver "THE RAIDERS CAME. WE HELD, BARELY. THE GREY LIGHTS WATCHED FROM THE WALLS ALL NIGHT. THEY DIDN'T COME DOWN."
+
+stage who
+  talk giver
+  say "THE OLD SONG SAYS: ONE WHO STANDS IN THE PLACE OF THE LORD THEY BETRAYED. NOBODY'S TRIED. NOBODY WANTS TO STAND IN A DEAD LORD'S PLACE AND ASK AN ARMY OF GHOSTS FOR ANYTHING. <<doubt>>"
+  opt "I'LL STAND THERE." -> @t1
+
+stage go
+  goal use stones in ruin
+  then host
+  journal "THE DEAD OF {RUIN.OLD} BROKE THEIR OATH TO {RUIN.LORD} AND CANNOT REST. STAND AT THE OLD STONES IN {RUIN} AND CALL THEM."
+
+stage host
+  talk ghost
+  say "YOU STAND WHERE OUR LORD STOOD. NOBODY HAS STOOD THERE SINCE. WE RAN, LIVING ONE. WE WERE AFRAID, AND WE RAN, AND WE'VE BEEN AFRAID EVER SINCE. WHAT DO YOU WANT OF THE PALE COMPANY?"
+  opt "KEEP YOUR OATH. FIGHT FOR {HOME}." -> oath
+  opt "NOTHING. I RELEASE YOU." -> released_free
+  opt "SERVE ME, FOREVER." -> bound_end
+
+stage oath
+  talk ghost
+  say "AN OATH FULFILLED. YES. LEAD US, AND WE'LL FOLLOW, AND WHEN IT'S DONE, LET US GO. SWEAR IT ON THE STONE, AS WE DID. <<oath>>"
+  do set called 1
+  opt "I SWEAR IT." -> battle
+
+stage battle
+  goal kill 6 bandit in camp
+  then @t2
+  journal "THE PALE COMPANY OF {RUIN.OLD} FOLLOWS YOU TO {CAMP} TO FULFIL ITS OLD OATH. BREAK THE RAIDERS THERE."
+
+stage released
+  talk ghost
+  say "THE RAIDERS DIDN'T EVEN FIGHT. THEY SAW US AND THEY RAN, AS WE ONCE RAN. I UNDERSTOOD THEM. ...THE OATH IS KEPT, LIVING ONE. NOW KEEP YOURS."
+  opt "GO. YOU'RE FREE." -> freed_end
+  opt "ONE MORE BATTLE. THEN." -> bound_end
+
+stage released_free
+  talk ghost
+  say "RELEASE US? WITHOUT THE OATH KEPT? ...IT DOESN'T WORK LIKE THAT. WE CAN'T GO UNTIL WE'VE STOOD, ONCE. BUT THANK YOU. NOBODY'S EVER OFFERED US ANYTHING. <<thanks>>"
+  opt "THEN STAND FOR {HOME}." -> oath
+
+stage freed_end
+  end success
+  say "THE GREY LIGHTS ON THE WALLS OF {RUIN} WENT OUT ONE BY ONE, LIKE CANDLES AT THE END OF A FEAST. THE OLD ROAD IS QUIET AT NIGHT NOW. IT IS ALMOST LONELY."
+  journal "THE PALE COMPANY OF {RUIN.OLD} KEPT ITS OATH AT {CAMP} AND IS AT REST. {HOME} IS SAFE FROM THE RAIDERS."
+  do reward rich
+  do remember giver "NO LIGHTS ON THE RUIN NOW. I WALK THE OLD ROAD AFTER DARK SOMETIMES, JUST BECAUSE I CAN. I SAY THANK YOU OUT LOUD. FEELS RIGHT."
+  do fact "THE OATH-BREAKERS OF {RUIN.OLD}, WHO FLED {RUIN.LORD}'S LAST WAR, KEPT THEIR OATH AT LAST AGAINST THE RAIDERS OF {CAMP}, AND REST."
+  do mark oath_kept
+
+stage bound_end
+  end fail
+  say "THE PALE COMPANY LOOKED AT YOU, ALL OF IT AT ONCE, AND YOU KNEW WHAT {RUIN.LORD} MUST HAVE FELT. THEN IT WAS GONE INTO THE WALLS, AND THE LIGHTS HAVE NOT COME BACK, AND THE RUIN FEELS ANGRY NOW."
+  journal "YOU TRIED TO BIND THE DEAD OF {RUIN.OLD} TO YOU. THEY WITHDREW. THEY WILL NOT ANSWER THE STONE AGAIN."
+  do remember giver "THE LIGHTS ARE GONE AND THE RUIN IS COLD. THE DOGS WON'T GO NEAR IT. WHAT DID YOU SAY TO THEM?"
+)SAGA";
+
+// ---------------------------------------------------------------- the old forest that remembers
+const char* const kOldWood = R"SAGA(
+title [[THE FOREST THAT REMEMBERS|THE WOOD THAT HAS NOT FORGIVEN|THE AXE AND THE OAK]]
+hook npc farmer
+pitch "[[pitch=WHY WON'T ANYONE CUT THE OLD WOOD?|WHY IS YOUR AXE ON THE WALL?|WHO ARE YOU CALLING FOR?]]"
+hint "[[~pitch|DON'T CUT IN THE OLD WOOD. MY GRANDFATHER SAID IT. I DIDN'T LISTEN. NOW LOOK.|DON'T CUT IN THE OLD WOOD. MY GRANDFATHER SAID IT. I DIDN'T LISTEN. NOW LOOK.|MY CHILD WENT INTO THE OLD WOOD TO FETCH KINDLING. THE PATH CLOSED BEHIND. I HEARD IT CLOSE.]]"
+role giver giver
+role home site home
+role cave site cave near
+role lost person [[male|female]] at cave
+role elder person [[male|female]] at cave
+var promise 0
+slot t1 -> go wonder price deceit betrayal
+slot t2 -> bargain mercy prophecy world return
+
+stage start
+  talk giver
+  say "I CUT THE OLD OAKS AT THE WOOD'S EDGE THIS SPRING. GOOD TIMBER. MY GRANDFATHER SAID NEVER TO. A WEEK AGO MY {LOST.SON} {LOST} WENT IN FOR KINDLING, AND THE PATH CLOSED BEHIND {LOST.HIM} LIKE A MOUTH. <<plea:fear>>"
+  opt "I'LL GO INTO THE WOOD." -> @t1
+  opt "WHY DID YOU CUT THE OAKS?" -> why
+  opt "TREES DON'T TAKE CHILDREN." -> refused
+
+stage refused
+  end fail
+  say "NO? GO AND STAND AT THE EDGE OF IT, THEN, AND LISTEN. <<grief>>"
+  journal "YOU WOULD NOT GO INTO THE OLD WOOD FOR {LOST}."
+  do remember giver "I STAND AT THE EDGE EVERY EVENING AND SAY SORRY TO THE TREES. ALOUD. LIKE A MADMAN. NOTHING ANSWERS."
+
+stage why
+  talk giver
+  say "FOR A ROOF, FOR WINTER. FOR [[coin=TWENTY|THIRTY|FORTY]] SILVER FROM THE SHIPWRIGHT. THE OAKS WERE OLD WHEN {HOME} WAS A CLEARING. ...I SAID SORRY TO THE STUMPS. IT FELT FOOLISH. IT FEELS LESS FOOLISH NOW."
+  opt "THEN I'LL SAY SORRY FOR YOU." -> @t1
+
+stage go
+  goal enter cave
+  then heart
+  journal "THE OLD WOOD CLOSED ITS PATH BEHIND {LOST}, CHILD OF {GIVER}, WHO CUT ITS OAKS. ITS HEART LIES IN THE HOLLOW OF {CAVE}."
+
+stage heart
+  talk elder
+  say "MMM. A WALKER WHO TREADS SOFTLY, FOR ONCE. I AM VERY OLD AND I SPEAK SLOWLY AND I REMEMBER EVERY AXE. THE CHILD IS SAFE. ASLEEP IN THE ROOTS. THE WOOD WANTED SOMETHING OF {GIVER}'S, AS {GIVER} TOOK SOMETHING OF ITS."
+  opt "TAKE ME INSTEAD." -> instead
+  opt "WHAT WOULD MAKE IT RIGHT?" -> @t2
+  opt "GIVE ME THE CHILD, OR I BURN IT." -> threat
+
+stage instead
+  talk elder
+  say "YOU? YOU DIDN'T CUT ANYTHING. THE WOOD IS NOT A FOOL, WHATEVER ELSE IT IS. ...BUT IT IS INTERESTED THAT YOU OFFERED. MMM. <<surprise>>"
+  opt "THEN WHAT WOULD MAKE IT RIGHT?" -> @t2
+
+stage threat
+  talk elder
+  say "BURN IT. YES. THEY ALWAYS SAY THAT, AND SOMETIMES THEY DO. AND THEN THERE IS ASH, AND A CHILD IN THE ASH, AND NO WOOD TO REMEMBER ANYTHING. IS THAT WHAT YOU WANT? <<warning>>"
+  opt "NO. WHAT WOULD MAKE IT RIGHT?" -> @t2
+  opt "IF I MUST." -> burned_end
+
+stage bargain
+  talk elder
+  say "PLANT WHAT WAS CUT. AN ACORN FOR EVERY RING OF EVERY OAK, AND {GIVER}'S HANDS IN THE SOIL FOR ALL OF IT. IT WILL TAKE THE REST OF {GIVER.HIS} LIFE. THE WOOD IS PATIENT. IT WILL CHECK."
+  opt "{GIVER} WILL PLANT." -> planted_end
+  opt "I'LL PLANT BESIDE {GIVER.HIM}." -> together_end
+
+stage planted_end
+  end success
+  say "{LOST} CAME OUT OF THE WOOD AT DAWN, YAWNING, WITH MOSS IN {LOST.HIS} HAIR. {GIVER} PLANTS ACORNS EVERY AUTUMN NOW, ON {GIVER.HIS} KNEES, AND TALKS TO THEM. THE WOOD'S EDGE HAS STOPPED LEANING TOWARDS THE HOUSE."
+  journal "{LOST} CAME HOME FROM THE OLD WOOD. {GIVER} IS PLANTING BACK EVERY OAK {GIVER.HE} CUT, ONE ACORN AT A TIME."
+  do reward fair
+  do remember giver "FOUR HUNDRED AND TWELVE ACORNS THIS AUTUMN. MY KNEES ARE RUINED. {LOST} HELPS. THE WOOD LETS US PICK MUSHROOMS NOW."
+  do fact "THE OLD WOOD BY {HOME} TOOK A CHILD FOR ITS CUT OAKS, AND GAVE IT BACK FOR A PROMISE. THE ACORNS ARE PLANTED EVERY AUTUMN."
+  do mark peace_with_the_wood
+
+stage together_end
+  end success
+  say "YOU PLANTED THE FIRST HUNDRED WITH {GIVER}, IN THE RAIN, AND {LOST} CAME RUNNING OUT OF THE TREES BEFORE YOU'D FINISHED. THE ELDER OF THE WOOD WATCHED FROM THE EDGE, AND CREAKED, AND IT SOUNDED LIKE A LAUGH."
+  journal "{LOST} IS HOME FROM THE OLD WOOD. YOU AND {GIVER} PLANTED THE FIRST ACORNS TOGETHER. THE WOOD REMEMBERS THAT TOO."
+  do reward fair
+  do remember giver "THE WOOD REMEMBERS YOU, THE ELDER SAYS. YOU'RE SAFE IN IT. I'M NOT. NOT YET. ANOTHER TEN YEARS OF ACORNS, MAYBE."
+  do fact "A STRANGER KNELT IN THE RAIN BESIDE {GIVER} OF {HOME} TO PLANT ACORNS FOR THE OLD WOOD. THE WOOD IS SAID TO REMEMBER THEM KINDLY."
+  do mark peace_with_the_wood
+
+stage burned_end
+  end fail
+  say "THE OLD WOOD BURNED FOR THREE DAYS. YOU FOUND {LOST} IN THE ASH OF THE HOLLOW, ALIVE, COUGHING. {HOME} HAS TIMBER FOR A HUNDRED YEARS. NOTHING SINGS IN IT."
+  journal "YOU BURNED THE OLD WOOD BY {HOME} TO GET {LOST} BACK. {LOST} IS HOME. THE WOOD REMEMBERS NOTHING NOW."
+  do remember giver "I HAVE MY CHILD. I HAVE TIMBER FOR LIFE. I CAN'T WALK PAST THE ASH WITHOUT SHAKING. I DON'T KNOW WHAT I HAVE."
+  do fact "THE OLD WOOD BY {HOME} WAS BURNED TO THE ROOTS FOR A CHILD IT TOOK. NO BIRD NESTS IN THE BLACK STUMPS."
+)SAGA";
+
+struct Def {
+  const char* id;
+  const char* name;
+  uint32_t themes;
+  uint32_t needs;
+  uint16_t motives;
+  uint32_t twists;
+  const char* body;
+};
+
+uint16_t M(Motive a) { return motiveBit(a); }
+
+}  // namespace
+
+void addTolkien(std::vector<Archetype>& v) {
+  const Def defs[] = {
+      {"unused_burden", "THE BURDEN NOT TO BE USED", TH_BURDEN | TH_TEMPTATION | TH_FRIENDSHIP | TH_SACRIFICE, N_RUIN | N_TOWN | N_SMITH,
+       (uint16_t)(M(Motive::Fear) | M(Motive::Duty) | M(Motive::Devotion)),
+       TF_BETRAYAL | TF_RIVAL | TF_PRICE | TF_DECEIT | TF_WONDER | TF_WORLD | TF_MERCY | TF_PROPHECY, kUnusedBurden},
+      {"whispering_thing", "THE THING THAT WHISPERS", TH_TEMPTATION | TH_GREED | TH_FRIENDSHIP | TH_CURSE, N_RUIN | N_FRIENDS,
+       (uint16_t)(M(Motive::Fear) | M(Motive::Love) | M(Motive::Grief) | M(Motive::Hope)),
+       TF_DECEIT | TF_BETRAYAL | TF_PRICE | TF_MERCY | TF_WONDER | TF_RETURN | TF_WORLD, kWhisperingThing},
+      {"fallen_line", "THE LINE OF THE FALLEN KING", TH_KINGSHIP | TH_HOMECOMING | TH_MERCY | TH_PRIDE, N_RUIN | N_FALLEN | N_KINGDOM,
+       (uint16_t)(M(Motive::Hope) | M(Motive::Duty) | M(Motive::Devotion) | M(Motive::Pride)),
+       TF_RIVAL | TF_DECEIT | TF_PROPHECY | TF_PRICE | TF_MERCY | TF_IDENTITY | TF_BETRAYAL | TF_WORLD, kFallenLine},
+      {"small_one", "THE SMALL ONE ON THE LONG ROAD", TH_COURAGE | TH_BURDEN | TH_LOYALTY | TH_WAR, N_CAVE | N_TOWN,
+       (uint16_t)(M(Motive::Duty) | M(Motive::Fear) | M(Motive::Shame) | M(Motive::Hope)),
+       TF_RIVAL | TF_BETRAYAL | TF_PRICE | TF_WORLD | TF_DECEIT | TF_WONDER | TF_MERCY | TF_RETURN | TF_PROPHECY, kSmallOne},
+      {"deep_stirring", "THE THING WAKING IN THE DEEP", TH_DOOM | TH_GREED | TH_COURAGE | TH_WONDER, N_RUIN | N_KINGDOM,
+       (uint16_t)(M(Motive::Greed) | M(Motive::Fear) | M(Motive::Duty)),
+       TF_WONDER | TF_PRICE | TF_BETRAYAL | TF_WORLD | TF_PROPHECY | TF_MERCY | TF_IDENTITY, kDeepStirring},
+      {"oathless_dead", "THE OATH-BREAKERS' DEAD", TH_REDEMPTION | TH_LOYALTY | TH_WAR | TH_FAITH | TH_DOOM, N_RUIN | N_CAMP | N_KINGDOM,
+       (uint16_t)(M(Motive::Fear) | M(Motive::Duty) | M(Motive::Hope) | M(Motive::Vengeance)),
+       TF_RIVAL | TF_PROPHECY | TF_WONDER | TF_MERCY | TF_PRICE | TF_WORLD | TF_BETRAYAL, kOathlessDead},
+      {"old_wood", "THE FOREST THAT REMEMBERS", TH_WONDER | TH_JUDGEMENT | TH_GREED | TH_MERCY | TH_KINSHIP, N_CAVE,
+       (uint16_t)(M(Motive::Fear) | M(Motive::Love) | M(Motive::Shame) | M(Motive::Grief)),
+       TF_WONDER | TF_PRICE | TF_DECEIT | TF_BETRAYAL | TF_MERCY | TF_PROPHECY | TF_WORLD | TF_RETURN, kOldWood},
+  };
+  for (const Def& d : defs) {
+    Archetype a;
+    a.id = d.id;
+    a.name = d.name;
+    a.source = Source::Tolkien;
+    a.themes = d.themes;
+    a.needs = d.needs;
+    a.tier = 2;
+    a.motives = d.motives;
+    a.twists = d.twists;
+    a.body = d.body;
+    v.push_back(a);
+  }
+}
+
+}  // namespace arch
+}  // namespace saga
+}  // namespace story

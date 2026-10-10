@@ -1,6 +1,6 @@
 // M4 STORY lane script commands (rpg/view/script_api.h; `embervale --script-help` lists them). Test only: none of them
 // touches a save.
-//   story start <script>        begin a story here (its hook: the settlement the player is in or the start village, the
+//   story start <script>        (M6b: or a saga spec id) begin a story here (its hook: the settlement the player is in or the start village, the
 //                               nearest capital for a herald's story, the ruin the player is in); its first dialogue opens
 //   story show [script]         open the running story's current dialogue (as if its person had been talked to)
 //   story complete [script]     its current objective is done (as if the player had done it)
@@ -44,9 +44,9 @@ bool cmdStory(ScriptCtx& c) {
   const std::string what = lowerS(c.arg(1));
   if (what == "start") {
     const std::string id = lowerS(c.arg(2));
-    const int si = story::scriptIndex(id);
-    if (si < 0) { c.fail("story start: no script '" + id + "'"); return true; }
-    const story::dsl::Script& s = story::dsl::library().scripts[(size_t)si];
+    const story::dsl::Script* sp = story::scriptById(id);   // (M6b: a saga spec id composes its story)
+    if (!sp) { c.fail("story start: no script '" + id + "'"); return true; }
+    const story::dsl::Script& s = *sp;
     int32_t gx, gy;
     story::playerGlobal(g, gx, gy);
     int site = g.curSite >= 0 && g.world.sites[(size_t)g.curSite].settlement() ? g.curSite : g.world.startSite;

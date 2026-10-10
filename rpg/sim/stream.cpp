@@ -212,9 +212,10 @@ void ChunkStreamer::trim(int32_t cx0, int32_t cy0, int32_t cx1, int32_t cy1, siz
     }
   }
   // region plans: keep the ones around the kept chunk box (a region is 8 x 8 chunks)
-  const size_t keepR = 48;
+  // (fixer M6b r1) and the story ring (World::storyRing: 3 regions round the player's) a little further out
+  const size_t keepR = 96;
   if (d_->readyR.size() > keepR) {
-    int32_t rx0 = ew::floorDiv(cx0, 8) - 1, ry0 = ew::floorDiv(cy0, 8) - 1, rx1 = ew::floorDiv(cx1, 8) + 2, ry1 = ew::floorDiv(cy1, 8) + 2;
+    int32_t rx0 = ew::floorDiv(cx0, 8) - 3, ry0 = ew::floorDiv(cy0, 8) - 3, rx1 = ew::floorDiv(cx1, 8) + 4, ry1 = ew::floorDiv(cy1, 8) + 4;
     for (auto it = d_->readyR.begin(); it != d_->readyR.end();) {
       int32_t x = (int32_t)(uint32_t)(it->first >> 32), y = (int32_t)(uint32_t)it->first;
       if (x < rx0 || y < ry0 || x >= rx1 || y >= ry1) it = d_->readyR.erase(it);

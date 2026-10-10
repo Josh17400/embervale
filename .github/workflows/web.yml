@@ -59,6 +59,17 @@ jobs:
       - name: Story test
         run: ./build-native/rpg_test --story --seeds 1..5
 
+      # M6b SAGAS (VISION_PLAN 15.20, 15.21): the generated-story library lint (every archetype x voice x motive x twist
+      # composes into a valid script; banned modern names), then 10,000 composed stories (2,000 per seed) cast on real
+      # worlds with every path walked to an ending, rewards inside the M6 bands, uniqueness metrics. Blocking.
+      - name: Saga test
+        run: |
+          ./build-native/rpg_test --sagalib
+          ./build-native/rpg_test --sagas 2000 --seeds 1..5
+          ./build-native/rpg_test --campaigns --seeds 1..5
+          ./build-native/rpg_test --voice
+          ./build-native/rpg_test --voice --lane
+
       # M5 Hearth and Hall (VISION_PLAN 15.12): the census, job templates, plans by the hour, the life block, the
       # 120-residents perf budget. Blocking.
       - name: Life test

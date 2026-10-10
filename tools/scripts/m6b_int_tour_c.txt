@@ -1,0 +1,20 @@
+# M6b "Sagas" integration tour C (desktop size, seed 1234, midnight, outdoors then a temple): a priest's pitch, the
+# opening at desktop scale, the journal, and the ending with its reward notice.
+#   embervale.exe --script tools/scripts/m6b_int_tour_c.txt     (m6b_intc_*.png in the working directory)
+seed 1234
+0.3  newgame
++0.05 hour 0
++0.1 god 1
++1.0 shot m6b_intc_0_village_midnight.png
++0.3 enter temple
++1.0 saga speak priest
++3.5 shot m6b_intc_1_pitch_temple.png
++0.1 saga accept
++6.0 shot m6b_intc_2_opening.png
++0.1 key Escape
++0.3 menu 1
++2.0 shot m6b_intc_3_journal.png
++0.1 key Escape
++0.3 saga step 40
++6.0 shot m6b_intc_4_ending.png
++0.3 quit

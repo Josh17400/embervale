@@ -1,0 +1,32 @@
+# M6b "Sagas" (COMPOSER lane): a GENERATED story offered in play. In the start village of seed 7 the player steps up to
+# the nearest person who would pitch a composed story now (saga speak: the library's unplayed tale would come first, so
+# its tellers are passed over), reads the pitch, takes it, and plays it on (the first option each time, goals completed
+# as if done) to an ending. Shots: the pitch, the opening (after the type-on reveal), the next goal, the journal, the
+# ending. Phone size: the composed lines (up to 300 characters) must fit the dialogue panel, the journal entry the
+# journal.
+#   embervale.exe --script tools/scripts/m6b_composer_offer.txt     (m6b_composer_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
+# (fixer M6b r2) the touch layout an iPhone shows: finger-sized option rows (dlgRowH 25), less room for the speech
++0.02 touch 1
++0.05 hour 11
++0.1 god 1
++1.5 saga speak
++0.3 expect saga offered
++3.0 shot m6b_composer_1_pitch.png
++0.1 saga accept
++0.3 expect saga running
++6.0 shot m6b_composer_2_opening.png
++0.1 saga step
++6.0 shot m6b_composer_3_next.png
++0.1 key Escape
++0.3 menu 1
+# (the saga is the journal's third entry: select it)
++0.5 tap 123 129
++2.0 shot m6b_composer_4_journal.png
++0.1 key Escape
++0.3 saga step 40
++6.0 shot m6b_composer_5_ending.png
++0.3 expect saga done
++0.3 quit

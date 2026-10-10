@@ -70,7 +70,7 @@ const SampleBldg kGen7Sample[] = {
     {16, 4, 3, 2, 1, 2, 3, 0}, {17, 4, 3, 1, 1, 2, 0, 0}, {17, 4, 3, 1, 1, 2, 3, 0}, {19, 5, 3, 1, 1, 3, 0, 0},
     {20, 5, 3, 1, 0, 5, 3, 0}, {21, 4, 3, 1, 0, 5, 3, 0}, {21, 4, 3, 1, 1, 2, 3, 0},
 };
-const uint64_t kGen7SampleHash = 0x8f34185b15d8592cull;   // (EMB_INTERIOR_V7HASH=1 prints the value)
+const uint64_t kGen7SampleHash = 0x5bbe6f346ec55522ull;   // (EMB_INTERIOR_V7HASH=1 prints the value; fixer M6b r3: furnishing rules)
 
 uint64_t floorHash(const Map& m, uint64_t h) {
   h = mapHash(m, h);

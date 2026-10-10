@@ -2124,7 +2124,7 @@ These are binding inputs. Each is mapped onto the milestones above. Where it con
   - campaigns arrive with M4/M12, the first campaign ships as soon as the engine exists;
   - the economy pass lands with M6 (items), and its balance sim is a CI gate from then on.
 - **Story inspiration (owner):** draw on the whole world's storytelling (scripture and ancient myth, folk and fairy tales, epics,
-  classic and modern fantasy such as C.S. Lewis and Sarah J. Maas) to build a large library of **story archetypes and plot structures**.
+  classic and modern fantasy such as C.S. Lewis, J.R.R. Tolkien, Sarah J. Maas and John Gwynne; owner 2026-10-09) to build a large library of **story archetypes and plot structures**.
   Examples:
   - the prodigal's return, a betrayal by a brother, an exile and a homecoming;
   - a flood or plague as judgement, a prophecy misread, a rightful heir in hiding;
@@ -2568,3 +2568,136 @@ named the editor of, never rename, remove or change the meaning of what is liste
 - Tests and scripts: `rpg_test --gear [--seeds]` (CI): the 7.x formulas, the item layout, the crafting chain and
   secrets, regional ores, harpy / golem spawn. Script commands (rpg/view/script_gear.cpp): `gear6`, `kit6`, `stuff`,
   `elite`, `expect gearlook`; `tools/scripts/m6_lead_gear.txt`.
+
+### 15.20 M6b "Sagas": the story, mission and campaign generator (owner, 2026-10-08/09)
+
+The owner wants thousands of unique, genuinely good side quests, missions and campaigns. M4 built the engine (the DSL in
+`rpg/story/dsl.h`, the caster, the save block, `--story` path walking) but only 11 hand-written tales and one campaign
+(`emptythrone`). After a few dozen hours the player would recognise every plot. M6b adds the **generator** on top of the
+engine: stories are *composed* from a large archetype library, cast from the living world, and written in the culture's
+voice, so no two playthroughs (and no two regions) tell the same tales.
+
+**Inspiration (owner, extends 15.9):** real-world storytelling — the Bible and scripture, ancient myth (Greek, Norse,
+Celtic, Mesopotamian, Persian, Indian, East Asian), folk and fairy tales, epics and Arthurian legend, and modern fantasy
+such as **C.S. Lewis, J.R.R. Tolkien, Sarah J. Maas and John Gwynne**. **Rule (unchanged):** public-domain scripture, myth and folklore
+may be retold closely; from modern works we take only structures, themes, motifs and feelings — never their names,
+characters, places, invented terms or beat-for-beat plots.
+
+#### 1. The generator: five layers
+1. **Archetypes** (`rpg/story/arch/*.cpp`): plot skeletons as data. Each has roles (with constraints on what the caster
+   may bind), 3–9 abstract beats (`seek`, `confront`, `reveal`, `choose`, `sacrifice`, `return`...), at least one moral
+   choice with lasting consequences, 1–3 twist slots, tags (source tradition, themes: redemption, betrayal, burden,
+   bargain, exile, judgement, mercy, pride, love, kinship, the return of the king...), tier (2 story, 3 campaign arc) and
+   the world facts it needs (a war, a ruin, a famine, a fallen house, a sea...).
+2. **Cast** (the M4 caster, extended): binds roles to real entities with motives drawn from the world: the M5 census
+   (residents with jobs, households, friendships, needs, grief), M4 realm (rulers, wars, successions, ruins and their true
+   records), M6 foes (named uniques, world bosses) and items (legendaries, culture alloys, smithing secrets as rewards).
+3. **Complications and twists** (`rpg/story/twists.cpp`): a library of reusable turns (the giver lied; the monster was a
+   cursed person; the heir is someone you already met; the reward is a trap; the rival wanted the same good thing; the
+   prophecy meant someone else...) slotted where the archetype allows, with their consistency rules.
+4. **Voice** (`rpg/story/voice.cpp`): phrase grammars per culture (M3 values and dialect), per speaker motive (fear,
+   greed, grief, pride, devotion, love, duty) and per beat, plus proverbs, oaths and scripture-like sayings of each
+   people's faith. Dialogue names real places, people and history. No generic filler ("PLEASE HELP ME, ADVENTURER").
+5. **Composer** (`rpg/story/compose.cpp`): archetype + cast + twists + voice -> a DSL script, validated by the existing
+   validator, then run by the existing engine. Deterministic from (world seed, hook entity, day bucket). A **repetition
+   guard** remembers the archetypes, twists and phrase families the player has seen and steers away from them in the
+   same region and recent days.
+
+#### 2. First archetype batch (target: 70 at ship, 150+ by M12)
+Scripture and ancient myth (close retellings allowed): the prodigal's return; brothers' betrayal and the pit (Joseph);
+the giant and the shepherd (David); the loyal stranger who will not leave (Ruth); the tower of pride (Babel); the flood
+and the ark-builder mocked; the exodus out of bondage; the prophet who runs from his calling (Jonah); the wise judgement
+over a disputed child (Solomon); the strongman's secret betrayed (Samson); the plague as judgement and the intercessor;
+the hidden queen who must speak (Esther); the descent to the underworld for a loved one (Orpheus); the labours set to
+destroy the hero (Heracles); the long voyage home (Odyssey); the fire stolen from the gods (Prometheus); the doomed
+twilight battle foreseen (Ragnarök); the trickster bound (Loki); the sword in the stone and the true king; the grail
+quest and the unworthy knight; the green knight's beheading game.
+Folk and fairy tale: the cursed gift; the deal with the fae and its hidden price; the changeling; the true name
+that binds; the three tasks for a bride or groom; the youngest sibling who succeeds; the enchanted sleep; the beast who
+was a man; the piper unpaid; the wolf at the door; the woodcutter's honest axe; the stolen shadow.
+Lewis-like (themes only): the child or stranger through a hidden door into another realm; the guardian's sacrificial
+death and return; a winter that never ends under a false ruler; the traitor redeemed by mercy; the last battle and the
+door at the end.
+Tolkien-like (themes only): a fellowship carrying a burden it must not use; the corrupting artifact; the line of a
+fallen king returning; the small hero on the long road; the ancient evil stirring in a ruin; the oath-breakers' dead;
+the old forest that remembers.
+Maas-like (themes only): the court intrigue among rival fae houses; the bargain marked on the skin; enemies to allies to
+a bond; the hidden queen and the price of the crown; a curse that only love or sacrifice breaks; the trial of the
+under-mountain.
+John Gwynne-like (themes only; owner 2026-10-09): a prophesied war where both sides believe they serve the light and the
+player learns too late which champion is false; "truth and courage" — the oath-sworn warband and the shield wall that
+holds; the bond between a hero and a great beast (a wolfhound or a bear raised from a pup); the ancient feud of a
+dying elder race (giants) whose ruins and grudges still shape the kingdoms; the mentor who betrays or the betrayer who
+was right; a winged host and a fallen host fighting their old war through mortal kingdoms; the villain's own chapter
+(the player sees the enemy's reasons); the hunted band on the run through the wilds, picking up the broken and the
+outcast; vengeance that costs the avenger everything.
+Plus world-native ones (from the sims): the famine town and the hoarding lord; the deserter's choice; the refugee
+family; the guild's betrayal; the alloy secret stolen; the beast that took the village's children.
+
+#### 3. Campaigns (tier 3; 6 at ship)
+Chains of 10–30 quests built from 4–8 archetype arcs with recurring characters, factions and a world-changing ending
+(who rules, which town survives, which secret is lost or saved): the succession crisis (exists: `emptythrone`); the
+burden across kingdoms (fellowship + corrupting artifact); the plague cult; the hidden heir; the fae-court intrigue;
+the rebellion against a tyrant; the dragon cult (ties to Ashfang); the awakening of an old magic tradition (seeds M9).
+Campaigns are stumbled into anywhere via rumours, heralds, ruins and realm events, and use the realm effects
+(`realm war`, `realm succession`, `realm famine`, `realm peace`).
+
+#### 4. Quality bar and tests
+- Every generated script passes the validator; `rpg_test --sagas N --seeds A..B` composes N stories per seed (10,000 in
+  CI), walks every path to an ending headlessly, and checks: no unfilled placeholder, no broken grammar markers, every
+  bound entity exists and is reachable, rewards within the M6 bands, no two stories within 30 km share archetype+twist.
+- Uniqueness metrics: distinct (archetype, twist, cast-shape) triples per 1,000 stories; phrase-family reuse rate.
+- A writing-quality review lens reads 50 random stories per round (a reviewer agent scores specificity, voice and
+  coherence; fails the round below the bar).
+- Save block for generated stories (they are regenerated from their seed; only progress and choices are saved).
+
+#### 5. Lanes (rpg/story/* only; no conflict with M6 code)
+- **A, archetypes:** the archetype data format, the first 70 archetypes, the twists library.
+- **B, composer and cast:** composer, caster extensions (census, foes, items), repetition guard, save block, tests.
+- **C, voice:** culture and motive phrase grammars, proverbs and sayings, dialogue quality pass.
+- **D, campaigns:** the campaign chainer and 5 new campaigns, realm consequences, rumour hooks.
+
+### 15.21 M6b "Sagas" phase A (lead, 2026-10-09): the generator contracts
+
+15.20 binds M6b. Phase A contracts (a lane may ADD to the files it is named the editor of, never rename, remove or change
+the meaning of what is listed here):
+- `rpg/story/saga.h` (frozen): the five layers. `Archetype` (id, name, `Source` x9, `Theme` bits, `Need` bits, tier 2
+  story / 3 campaign arc, the giver `Motive`s that fit, the `TwistFamily` bits its slots take, the template body),
+  `Twist` (id, name, one family, needs, `roles` it requires as "name:kind/kind", `excludes`, body), the voice
+  (`VoiceCtx` voice family 0..7 x `Motive` x seed -> `Phrase` text <= 60 chars + phrase family; `voiceKeys`), the
+  composer (`Spec` -> spec id "saga1~arch~t1~t2~t3~vN~mN~seedhex", campaigns "saga1~@id~arc.arc~~~v~m~seed";
+  `expand`, `slotsOf`, `slotFamilies`, `twistFits` / `twistFitsSlot`, `compose`, `composeCampaign`, `script(id)` (the
+  cache), `trimCache`), choosing from the world (`Hook`, `pick`, `pickCampaign`, `offerFor`, `offerForPlace`), the
+  repetition `Guard` (Seen records, phrase families; GUARD_RADIUS 1024 tiles = "30 km", GUARD_DAYS 60), `report`,
+  `CampaignPlan` / `ArcSlot`. SAGA_GEN_VER 1 is inside every spec id: a running saga of another version is dropped
+  gracefully on load.
+- THE TEMPLATE MARKUP (saga.h header): DSL text from `title` on, plus `[[A|B]]`, `[[name=A|B]]` / `[[=name]]`,
+  `<<key>>` / `<<key:motive>>`, `%local` names (twists, arcs), `@t1..@t3` slot entries declared by
+  `slot tN -> <stage> [family words]`, `@out` (twists), `@next` (arcs), `?flag` / `!flag` lines (t1..t3, tw_<id>,
+  m_<motive>, v<N>, arc_<id>). Role conventions: every template declares `giver` (first) and `home`.
+- DSL additions (`rpg/story/dsl.h`; COMPOSER lane is its only editor from now on): role kinds `resident
+  any|kin|friend|mourner|needy|young|old [of <role>] [at <site>]` (M5 census), `beast near|far` (M6 named unique),
+  `boss` (M6 world boss); effects `reward small|fair|rich|great` (inside the M6 bands), `secret <site>` (craft
+  HOW_QUEST), `befriend <resident>`; placeholder fields `.job .kin` (resident), `.kind` (beast / boss), `.god .people`
+  (anyone or anywhere with a culture), `.father .husband .sir .boy` (gendered words); `dsl::link`, `relationWord`,
+  `rewardWord`. Phase A stand-ins: the caster binds residents from the census (relations kin / friend are "anyone"
+  yet), beasts from namedInRegion, bosses from worldBossOf; `reward` pays band-scaled gold / XP (+ loot for rich and
+  great); `secret` advances the place's culture's first alloy recipe by 40; `befriend` calls Life::befriend.
+- Engine (`rpg/story/story.h`, `story_internal.h`): `scriptById` resolves saga ids; `Engine::guard_` (saved),
+  `Engine::sagaOffers_` (runtime) and `SA_SAGA = 900` (DLG_STORY + SA_SAGA + i offers sagaOffers_[i], arg the hook site);
+  `RESIDENT_CENSUS` (Binding::trade of a census-bound resident, id = life::npcId(site, idx)); `strHash64s`.
+- Tables (`rpg/story/arch/arch_tables.h`, `arch/index.cpp`: frozen): one add function per file. ARCHETYPES lane:
+  arch/scripture.cpp (holds the worked example `the_pit`, THE BROTHER IN THE PIT), myth.cpp, legend.cpp, lewis.cpp,
+  tolkien.cpp, twists.cpp (the worked examples `rival_claim`, `road_omen`). VOICE lane: arch/folk.cpp, maas.cpp,
+  gwynne.cpp, world.cpp, voice.cpp (phase A: the 24-key vocabulary of saga.h with 3 stand-in lines each). CAMPAIGNS lane: rpg/story/campaigns/arcs.cpp,
+  chain.cpp (phase A: no plans). COMPOSER lane: compose.cpp (complete except pick / offers), guard.cpp (first cut).
+  CMake globs rpg/story/*/*.cpp too.
+- Saves: SAVE_VER 13 (the story block v3 = v2 + the guard; v1 / v2 blocks still load); fixture
+  `tests/fixtures/save_v13.bin` carries a running saga (`saga1~the_pit~~~~v2~m2~0000a5a5` at stage `road`) and a
+  guard record. ENDLESS_GEN_VER stays 15 (no generation change; goldens untouched).
+- Tests and scripts: `rpg_test --sagalib` (the library lint: every archetype x voice x motive x fitting twist composes
+  valid; banned modern names; voice phrases; campaign plans), `rpg_test --sagas [N] [--seeds A..B] [--sample K]`
+  (composed stories cast on real worlds, every path walked, rewards, uniqueness metrics); CI runs `--sagalib` and
+  `--sagas 2000 --seeds 1..5` (10,000). Script commands (rpg/view/script_saga.cpp): `saga start <arch> [twists] [vN]
+  [mMOTIVE] [sSEED]`, `saga campaign <id> [arcs]`, `expect saga <stage|done|running>`; `story start` accepts spec ids;
+  `tools/scripts/m6b_lead_saga.txt` (phone).

@@ -3588,10 +3588,34 @@ struct Fit {
 
 // ---- building blocks: each tries the room's free spots in a shuffled order and keeps the first group that validates
 // against the north wall (a horizontal face): beds, shelves, hearths. where: 0 any, 1 corners first, 2 the middle first
+// (fixer M6b r3) pieces whose sprite is wider than their tile: a hand cart (30 px), a haystack, a tall cabinet. They
+// spill over the tiles beside them, so nothing else stands there (two cabinets hid the table between them), and the
+// cart and the haystack keep off walls and doorways at their sides (seed 42's inn: a cart across a partition's door)
+bool wideProp(Prop p) { return p == Prop::Cart || p == Prop::Haystack || p == Prop::Cupboard || p == Prop::Wardrobe; }
+bool sideClear(const Fit& F, int x, int y, Prop p) {
+  const bool wide = wideProp(p), broad = p == Prop::Cart || p == Prop::Haystack;
+  for (int dx = -1; dx <= 1; dx += 2) {
+    const int q = F.m.propAt(x + dx, y);
+    const bool real = q && q != (int)Prop::Filler + 1;
+    if (wide && real) return false;
+    if (real && wideProp((Prop)(q - 1))) return false;
+    if (broad) {
+      if (!F.floorT(x + dx, y)) return false;
+      for (int dy = -1; dy <= 1; dy++) {   // (nor beside a doorway in the wall behind or in front of it)
+        if (!F.m.in(x + dx, y + dy)) continue;
+        const int i = F.I(x + dx, y + dy);
+        if (std::find(F.g.doorTiles.begin(), F.g.doorTiles.end(), i) != F.g.doorTiles.end()) return false;
+      }
+      if (std::abs(x + dx - F.sx) + std::abs(y - F.sy) <= 1) return false;   // nor beside the way in
+    }
+  }
+  return true;
+}
 bool northPiece(Fit& F, int ri, Prop p, int where, int* outX = nullptr, int* outY = nullptr, bool outerOnly = false) {
   std::vector<std::pair<int, int>> c;
   F.tiles(ri, [&](int x, int y) {
     if (!F.wallN(x, y) || !F.freeT(x, y) || (outerOnly && !F.outerN(x, y))) return;
+    if (!sideClear(F, x, y, p)) return;
     if (tallProp(p) && p != Prop::Bed && (!F.wallT(x - 1, y - 1) || !F.wallT(x + 1, y - 1))) return;   // a cupboard does not hide a door frame
     c.push_back({x, y});
   });
@@ -3689,6 +3713,13 @@ bool wallPiece(Fit& F, int ri, Prop p, bool northOk = false, bool gap = true) {
     bool n = F.wallN(x, y);
     if (!(F.wallSide(x, y) || F.wallS(x, y) || (northOk && n))) return;
     if (n && !northOk) return;
+    if (!sideClear(F, x, y, p)) return;
+    // (fixer M6b r3) a tall piece (a folding screen) never stands in front of another piece, nor a piece behind one:
+    // the screen hid the chests behind it
+    auto tallAt = [&](int q) { return q && q != (int)Prop::Filler + 1 && ((Prop)(q - 1) == Prop::FoldScreen || tallProp((Prop)(q - 1))); };
+    const int qN = F.m.propAt(x, y - 1), qS = F.m.propAt(x, y + 1);
+    if ((p == Prop::FoldScreen || tallProp(p)) && qN && qN != (int)Prop::Filler + 1 && qN != (int)Prop::DoorH + 1 && qN != (int)Prop::DoorV + 1) return;
+    if (tallAt(qS)) return;
     c.push_back({x, y});
   });
   F.shuffle(c);
@@ -3773,6 +3804,16 @@ bool tableIn(Fit& F, int ri, int len, Prop top, int seats, bool benches, int tri
   return false;
 }
 void rugRect(Fit& F, int ri, int x0, int y0, int x1, int y1, Deco d) {
+  // (fixer M6b r3) a rug never lies over part of another: the second one was cut into an L round the first, or its
+  // border crossed the other's (seed 7's yurt keep). One that would overlap a rug already down is left rolled up; a
+  // runner (one tile wide) passes under it as before
+  if (x0 != x1 && y0 != y1)
+  for (int y = y0; y <= y1; y++)
+    for (int x = x0; x <= x1; x++) {
+      if (!F.inRoom(x, y, ri)) continue;
+      const int k = F.m.decoAt(x, y);
+      if (k >= (int)Deco::RugRed && k <= (int)Deco::RugGold) return;
+    }
   for (int y = y0; y <= y1; y++)
     for (int x = x0; x <= x1; x++)
       if (F.inRoom(x, y, ri) && !(x == F.m.exitX && y == F.m.exitY) && F.m.decoAt(x, y) == 0) F.deco(x, y, d);
@@ -3805,6 +3846,10 @@ bool rugFit(Fit& F, int ri, int w, int h, int cx, int cy, Deco d) {
       if (ok && F.g.shaped)
         for (int y = y0 - 1; y <= y0 + h && ok; y++)
           for (int x = x0 - 1; x <= x0 + w && ok; x++) ok = F.floorT(x, y);
+      // (fixer M6b r3) nor right against a rug of its own colour: the two merged into one L-shaped rug with a notch
+      for (int y = y0 - 1; y <= y0 + h && ok; y++)
+        for (int x = x0 - 1; x <= x0 + w && ok; x++)
+          if ((y == y0 - 1 || y == y0 + h || x == x0 - 1 || x == x0 + w) && F.m.decoAt(x, y) == (int)d) ok = false;
       if (!ok) continue;
       int dx = x0 * 2 + w - 1 - cx * 2, dy = y0 * 2 + h - 1 - cy * 2;
       int sc = dx * dx + dy * dy;
@@ -4623,7 +4668,14 @@ bool putNear(Fit& F, int ri, Prop p, int x, int y, int maxR, bool gap, int* ox =
 }
 // a ring of felt or rugs round (x, y) (the fire's tile is left bare)
 void rugRing(Fit& F, int ri, int x, int y, int w) {
-  const Deco d = rugFor(F);
+  Deco d = rugFor(F);
+  // (fixer M6b r3) not the colour of a rug already beside it (the two merged into one notched rug)
+  auto nearCol = [&](Deco c) {
+    for (int dy = -2; dy <= 2; dy++)
+      for (int dx = -2; dx <= w + 1; dx++) if (F.m.decoAt(x + dx, y + dy) == (int)c) return true;
+    return false;
+  };
+  for (int k = 0; k < 4 && nearCol(d); k++) d = (Deco)((int)Deco::RugRed + ((int)d - (int)Deco::RugRed + 1) % 4);
   for (int dy = -1; dy <= 1; dy++)
     for (int dx = -1; dx <= w; dx++)
       if ((dy || dx < 0 || dx >= w) && F.inRoom(x + dx, y + dy, ri) && !F.m.propAt(x + dx, y + dy) && F.m.decoAt(x + dx, y + dy) == 0) F.deco(x + dx, y + dy, d);
@@ -5312,9 +5364,34 @@ void furnishNave(Fit& F, int ri, Ctx& cx) {
     case A::Steppe: {
       // the felt shrine: the stove under the crown in the middle, worshippers' cushions in a ring on the felt, the
       // horse-tail standards by the altar, the offerings in chests at the lattice
-      putNear(F, ri, Prop::Stove, ex, midY, 1, true);
-      rugRing(F, ri, ex, midY, 1);
-      ringSeats(F, ri, ex, midY, 3, Prop::Cushion);
+      // (fixer M6b r3, review: "the two steppe temples match") three shrines: the stove in the middle with the ring of
+      // the faithful round it; the stove drawn up before the altar with a felt runner from the door and the faithful in
+      // two arcs; the stove by the door for the herders' offerings, the altar's felt before the standards and the
+      // ancestors' cushions along the lattice
+      const int form = F.r.irange(3);
+      if (form == 1) {
+        const int sy2 = std::max(R.y + 2, midY - 2);
+        putNear(F, ri, Prop::Stove, ex, sy2, 1, true);
+        rugRing(F, ri, ex, sy2, 1);
+        rugRect(F, ri, ex, sy2 + 2, ex, yEnd, rugFor(F));
+        for (int s2 : {-1, 1}) for (int k = 0; k < 3; k++) putNear(F, ri, Prop::Cushion, ex + s2 * (2 + k), sy2 + 2 + k, 1, true);
+        for (int s2 : {-1, 1}) navePut(F, ri, ex + s2 * 2, 3, Prop::Banner);
+      } else if (form == 2) {
+        const int sy2 = std::min(yEnd - 2, midY + 1);
+        const int sx2 = ex + (F.r.f() < 0.5f ? -3 : 3);
+        int fx = sx2, fy = sy2;
+        putNear(F, ri, Prop::Stove, sx2, sy2, 1, true, &fx, &fy);
+        rugRing(F, ri, fx, fy, 1);
+        ringSeats(F, ri, fx, fy, 2, Prop::Cushion);
+        rugFit(F, ri, 3, 2, ex, R.y + 3, Deco::RugRed);
+        for (int k = 0; k < 4; k++) wallPiece(F, ri, Prop::Cushion);
+        for (int s2 : {-1, 1}) navePut(F, ri, ex + s2 * 3, R.y + 2, Prop::Banner);
+        wallPiece(F, ri, Prop::LowTable);
+      } else {
+        putNear(F, ri, Prop::Stove, ex, midY, 1, true);
+        rugRing(F, ri, ex, midY, 1);
+        ringSeats(F, ri, ex, midY, 3, Prop::Cushion);
+      }
       for (int k = 0; k < 3; k++) wallPiece(F, ri, k == 1 ? Prop::Urn : Prop::Chest);
       break;
     }
@@ -5323,10 +5400,24 @@ void furnishNave(Fit& F, int ri, Ctx& cx) {
       // neighbours alternate colour), lamps, the pulpit beside the altar
       for (int y = 4; y <= yEnd - 2; y += 3) for (int s : {-4, 4}) navePillar(F, ri, ex + s, y);
       navePut(F, ri, ex - 3, 3, Prop::Lectern);
-      for (int y = 5, row = 0; y <= yEnd - 3; y += 3, row++)
+      // (fixer M6b r3, review: "30+ identical prayer rugs in a strict grid") the ranks fill the front of the hall only
+      // (the faithful stand nearest the altar), not one rug by a pier, each rug its own colour (a fixed hash of its
+      // place, no draw), and a gap here and there where a rug is rolled away
+      for (int y = 5, row = 0; y <= yEnd - 3 && row < 2; y += 3, row++)
         for (int x = R.x + 1; x < R.x + R.w - 1; x++) {
           if (std::abs(x - ex) < 1 || !F.inRoom(x, y, ri) || !F.inRoom(x, y + 1, ri) || F.m.propAt(x, y) || F.m.propAt(x, y + 1)) continue;
-          const Deco d = ((x + row) & 1) ? Deco::RugRed : Deco::RugBlue;
+          bool pier = false;
+          for (int dy = -1; dy <= 2; dy++)
+            for (int dx = -1; dx <= 1; dx++) {
+              const int q = F.m.propAt(x + dx, y + dy);
+              if (q && tallProp((Prop)(q - 1))) pier = true;
+            }
+          if (pier) continue;
+          const uint32_t hh = ((uint32_t)(x + 31) * 2654435761u) ^ ((uint32_t)(row + 7) * 40503u) ^ (uint32_t)(F.P.ex * 977);
+          if ((hh >> 7) % 6 == 0) continue;
+          static const Deco cols[4] = {Deco::RugRed, Deco::RugBlue, Deco::RugGreen, Deco::RugGold};
+          Deco d = cols[(hh >> 11) % 4];
+          if (F.m.decoAt(x - 1, y) == (int)d) d = cols[((hh >> 11) + 1) % 4];   // (each its own rug: neighbours differ)
           F.deco(x, y, d); F.deco(x, y + 1, d);
         }
       for (int k = 0; k < 3; k++) wallPiece(F, ri, Prop::PlantPot);
@@ -5695,7 +5786,13 @@ void spawnNear(Fit& F, Spawn& s, int x, int y, int ri, int avoidX = -1, int avoi
       // over him and he reads as one merged sprite (seed 5's high-temple door guard stood behind a plinth statue)
       const int prS = F.m.propAt(tx, ty + 1);
       const bool hidden = prS && tallProp((Prop)(prS - 1));
-      int d = (tx - x) * (tx - x) + (ty - y) * (ty - y) + (pr ? 3 : 0) + (ri >= 0 && F.roomOf(tx, ty) != ri ? 40 : 0) + (hidden ? 200 : 0);
+      // (fixer M6b r3) nor right in front of a brazier, a candle-stand or a statue: its flame (or head) rose out of his
+      // helmet (seed 42's desert keep: the two guards flanking the dais wore the braziers behind them as burning hats)
+      const int prN = ty > 0 ? F.m.propAt(tx, ty - 1) : 0;
+      const bool crowned = prN && ((Prop)(prN - 1) == Prop::Brazier || (Prop)(prN - 1) == Prop::Candelabra || (Prop)(prN - 1) == Prop::Statue);
+      const bool onFire = pr && ((Prop)(pr - 1) == Prop::Brazier || (Prop)(pr - 1) == Prop::Candelabra);
+      int d = (tx - x) * (tx - x) + (ty - y) * (ty - y) + (pr ? 3 : 0) + (ri >= 0 && F.roomOf(tx, ty) != ri ? 40 : 0) + (hidden ? 200 : 0) +
+              (crowned ? 200 : 0) + (onFire ? 400 : 0);
       if (d < bd) { bd = d; best = F.I(tx, ty); }
     }
   if (best < 0) {   // nothing off the lanes: any reachable free tile that is not stairs or a doorway
@@ -5780,6 +5877,9 @@ art::RoomStyle wallStyleOf(const Bldg& b, const Plan& P, Rng& r) {
     if (cu == A::Starspire && (a.wall == art::WallMat::Ashlar || a.wall == art::WallMat::Stone)) return art::RoomStyle::Marble;
   }
   if (b.type == Building::Smithy || b.type == Building::Smelter) {   // fix round 2: the forge hall in the culture's own material, sooted where it is stone
+    // (fixer M6b r3, review: "the steppe adobe smithy has a grey cut-stone shell inside, the desert one log walls and a
+    // plank floor") the sand and steppe peoples' forges are mud-brick inside whatever their street face is dressed in
+    if (cu == A::Dune || cu == A::Steppe || cu == A::SunTemple) return art::RoomStyle::Adobe;
     switch (a.wall) {
       case art::WallMat::Adobe: return art::RoomStyle::Adobe;
       case art::WallMat::Log: return art::RoomStyle::Log;

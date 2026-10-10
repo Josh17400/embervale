@@ -1,0 +1,76 @@
+# M6b "Sagas" (CAMPAIGNS lane): THE IRON TITHE (rpg/story/campaigns/rebellion.cpp), begun by a capital's herald. The
+# opening, the arcs (tithe day, the armoury, the informer, the parley), the throne room and the widow's crowning; the
+# journal at the end. (Goals in the capital complete at once: the player stands in it.) Objectives are completed by `story complete` (the walking is play, not the engine). Phone size:
+# every line must fit the dialogue panel after the type-on reveal.
+#   embervale.exe --script tools/scripts/m6b_campaign_rebellion.txt     (m6b_campaign_rebellion_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
+# (fixer M6b r2) the touch layout an iPhone shows: finger-sized option rows (dlgRowH 25), less room for the speech
++0.02 touch 1
++0.05 hour 11
++0.1 god 1
++0.2 goto capital
++1.0 saga campaign rebellion re_tithe_day re_armoury re_informer re_parley v2 mduty s7
++0.3 expect saga whisper
++3.5 shot m6b_campaign_rebellion_1_opening.png
++0.1 choose WHO IS THE WIDOW
++0.3 expect saga whisper3
++0.1 choose I'LL GO TO
++0.3 expect saga a1_road
++0.1 story complete
++0.3 expect saga a1_meet
++0.1 story show
++0.1 choose I WON'T JUST WATCH
++0.3 expect saga a1_stand
++0.1 story complete
++0.3 story show
++0.1 choose THEN WE GO FORWARD
++0.3 expect saga a2_plan
++0.1 story show
++0.1 choose I'LL TALK TO
++0.3 expect saga a2_captain
++0.1 story show
++0.1 choose WHY HELP US
++0.3 choose THE THIRD BELL
++0.3 story complete
++0.3 expect saga a2_spears
++0.1 story show
++3.5 shot m6b_campaign_rebellion_2_arc.png
++0.1 choose NO GOING BACK
++0.3 expect saga a3_ambush
++0.1 story complete
++0.3 story show
++0.1 choose LET ME TALK TO
++0.3 story show
++0.1 expect saga a3_talk
++3.5 shot m6b_campaign_rebellion_3_twist.png
++0.1 choose BRING YOUR CHILD HOME
++0.3 choose THEN LIE WELL
++0.3 expect saga a4_flag
++0.1 story show
++0.1 choose I'LL GO
++0.3 story show
++0.1 expect saga a4_throne
++0.1 choose A TITLE, YOU SAID
++0.3 choose YOU FAILED
++0.3 story show
++0.1 expect saga a4_look
++0.1 choose THE DOORS WILL BE OPEN
++0.3 story complete
++0.3 expect saga throne
++0.1 story show
++3.5 shot m6b_campaign_rebellion_4_finale.png
++0.1 choose WILL WEAR THE CROWN
++0.3 story show
++0.1 expect saga crown_widow
++0.1 choose AND
++0.3 choose LONG LIVE
++0.5 expect saga done
++0.3 menu 1
++0.5 tap 123 129
++2.0 shot m6b_campaign_rebellion_5_journal.png
++0.1 tap 176 45
++2.0 shot m6b_campaign_rebellion_6_news.png
++0.1 key Escape
++0.3 quit

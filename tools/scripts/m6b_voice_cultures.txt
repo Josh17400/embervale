@@ -1,0 +1,41 @@
+# M6b "Sagas" (VOICE lane): one composed story told by four peoples. WHAT GREETS YOU AT THE GATE (rpg/story/arch/folk.cpp,
+# fair_bargain) begun with the same seed and motive (fear) in a fjord town (voice 1), a dune town (3), a jade town (6) and
+# a sylvan town (7): the template is the same, the giver's god and people are the town's own, and the <<voice>> phrases
+# are each people's idiom. Phone size: each opening must fit the dialogue panel once the type-on reveal is done (the
+# shots wait 4 s). Archetypes absent near the start fail their gotoculture (seed 7 holds them all).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m6b_voice_cultures.txt     (m6b_voice_*.png)
+phone
+seed 7
+0.3  newgame
++0.05 hour 11
++0.1 god 1
++0.2 gotoculture fjordfolk any
++1.4 culture
++0.3 saga start fair_bargain v1 mfear s5
++0.3 expect saga start
++4.0 shot m6b_voice_1_fjord.png
++0.1 choose WHAT WERE THE EXACT WORDS
++0.3 expect saga words
++4.0 shot m6b_voice_1b_fjord_words.png
++0.1 key Escape
++0.2 gotoculture dune any
++1.4 culture
++0.3 saga start fair_bargain v3 mfear s5
++0.3 expect saga start
++4.0 shot m6b_voice_2_dune.png
++0.1 key Escape
++0.2 gotoculture jade any
++1.4 culture
++0.3 saga start fair_bargain v6 mfear s5
++0.3 expect saga start
++4.0 shot m6b_voice_3_jade.png
++0.1 key Escape
++0.2 gotoculture sylvan any
++1.4 culture
++0.3 saga start fair_bargain v7 mfear s5
++0.3 expect saga start
++4.0 shot m6b_voice_4_sylvan.png
++0.1 choose WHAT WERE THE EXACT WORDS
++0.3 expect saga words
++4.0 shot m6b_voice_4b_sylvan_words.png
++0.3 quit

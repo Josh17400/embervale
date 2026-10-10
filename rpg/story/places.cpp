@@ -132,6 +132,7 @@ bool useBoard(Game& g, int tx, int ty) {
   }
   const Site S = g.world.sites[(size_t)si];
   g.dlg = Dialogue();
+  g.story.sagaOffers_.clear();
   g.dlg.actor = -1;
   g.dlg.speaker = "NOTICE BOARD OF " + S.name;
   g.dlg.role = Role::Villager;
@@ -179,6 +180,18 @@ bool useBoard(Game& g, int tx, int ty) {
     const dsl::Script& sc = dsl::library().scripts[(size_t)st];
     g.dlg.opts.insert(g.dlg.opts.begin(), {sc.pitch, DLG_STORY + SA_START + st, si});
     if (!sc.hint.empty()) lines.insert(lines.begin(), sc.hint);
+  } else {
+    // (M6b) a generated story pinned here (saga.h offerForPlace: a campaign first, then a story; rare)
+    const std::string sid = saga::offerForPlace(g, (int)dsl::HookKind::Board, si);
+    if (const dsl::Script* sc = sid.empty() ? nullptr : scriptById(sid)) {
+      g.story.sagaOffers_.push_back(sid);
+      g.dlg.opts.insert(g.dlg.opts.begin(), {sc->pitch, DLG_STORY + SA_SAGA + (int)g.story.sagaOffers_.size() - 1, si});
+      if (!sc->hint.empty()) lines.insert(lines.begin(), sc->hint);
+      saga::Hook hk;
+      hk.kind = (int)dsl::HookKind::Board;
+      hk.site = si;
+      saga::noteOffered(g, hk, sid);
+    }
   }
   // houses for sale: the homes of families the player's stories moved away
   for (const Fact& f : g.story.facts())
@@ -421,6 +434,18 @@ void heraldTalk(Game& g, Actor& a) {
       const dsl::Script& sc = dsl::library().scripts[(size_t)st];
       if (!sc.hint.empty()) g.dlg.text = sc.hint;
       g.dlg.opts.insert(g.dlg.opts.begin(), {sc.pitch, DLG_STORY + SA_START + st, cap});
+    } else {
+      // (M6b) the crown's own proclamation of a generated story (a campaign first: saga.h offerForPlace)
+      const std::string sid = saga::offerForPlace(g, (int)dsl::HookKind::Herald, cap);
+      if (const dsl::Script* sc = sid.empty() ? nullptr : scriptById(sid)) {
+        g.story.sagaOffers_.push_back(sid);
+        if (!sc->hint.empty()) g.dlg.text = sc->hint;
+        g.dlg.opts.insert(g.dlg.opts.begin(), {sc->pitch, DLG_STORY + SA_SAGA + (int)g.story.sagaOffers_.size() - 1, cap});
+        saga::Hook hk;
+        hk.kind = (int)dsl::HookKind::Herald;   // (the guard keys a herald's offers on the capital, like pick)
+        hk.site = cap;
+        saga::noteOffered(g, hk, sid);
+      }
     }
   }
 }
