@@ -219,10 +219,19 @@ std::string newsLine(const Game& g, const realm::WorldEvent& e, uint64_t voiceCu
   const std::string when = agoWords(age);
   std::string where;
   if (dist > 90.0f && e.site) where = ", FAR TO THE " + dirWord(e.gx - px, e.gy - py, false);
+  // (M7b) one piece of news told whole: what happened (and where), then its aftermath as a sentence of its own, then
+  // when, then the speaker's own word on it. The core's second sentence ("NOTHING GOES IN OR OUT") is never followed
+  // by the time it happened, and the time never hangs off a sentence that already ended.
+  std::string mainPart = core, tail;
+  {
+    const size_t dot = core.find(". ");
+    if (dot != std::string::npos) { mainPart = core.substr(0, dot); tail = core.substr(dot + 2); }
+  }
   const int v = voiceCulture ? std::clamp(voiceOf(g, voiceCulture), 1, 7) : 0;
-  if (v == 0) return upper(core + where + ", " + when + ".");
+  if (v == 0) return upper(mainPart + where + ", " + when + "." + (tail.empty() ? std::string() : " " + tail + "."));
   const std::string open = kOpen[v][h % 3];
-  return upper(open + " " + core + where + ", " + when + "." + kClose[v][catOf(e.type)]);
+  const std::string whenS = age <= 0 ? std::string("IT HAPPENED TODAY.") : age == 1 ? std::string("THAT WAS YESTERDAY.") : "THAT WAS " + when + ".";
+  return upper(open + " " + mainPart + where + "." + (tail.empty() ? std::string() : " " + tail + ".") + " " + whenS + kClose[v][catOf(e.type)]);
 }
 
 const realm::WorldEvent* pickRumour(const Game& g, int32_t gx, int32_t gy, bool warOnly, uint64_t salt) {

@@ -757,3 +757,117 @@ top, the steppe yurt temple's screen in the middle of the floor.
   or deco there: a shell piece); north-south ruin wall runs have no top (`art::ruinVariant`); townsfolk can walk
   through a yard's gate; stablemasters / millers only tested by their actions; town fields and pastures outside the
   styled area keep plain wooden fences.
+
+## M7b, "Cities & Voice" (VISION_PLAN 15.23, 15.24; owner notes 2026-10-10)
+
+Goal: (1) cities with real structure and order: avenues from the gates to the market and the seat, cross streets,
+lanes, continuous row-house frontages, kerbed sidewalks with gutters and corner stones in true 3/4 view, the market
+square, temple close, palace square and well-squares, tree-lined avenues, walled gardens, a park with paths and
+benches, orchards, districts with their own density and upkeep, per-culture plans (dune souks and courtyards, jade axial
+compounds, steppe tent rings, the elven city in the trees, the fjord harbour); towns only a tidier main street and
+square; VILLAGES UNCHANGED. (2) Dialogue that reads naturally: one coherent line per opening, answers that follow the
+option chosen, names introduced before they are used, a steady voice per speaker, fewer and fuller sentences, light
+culture flavour; coherence checks in --sagas / --voice and a dialogue-quality review over hundreds of real
+conversations at phone size.
+
+### Phase A (lead), 2026-10-10: done
+- Contracts in VISION_PLAN 15.24: `rpg/world/urban.h` + `Map::urb` / `ChunkData::urb` through the pipeline +
+  `town_urban.cpp` (cities' first cut), `Bldg::row` / `bld::Request::row`, nine city props + `art_city.h/.cpp`
+  stand-ins, `rpg/sim/talk.h/.cpp` (namespace `speech`: panel, propose / priorities, the talk memory, the recorder, the
+  lint), `Game::talkMem` / `talkRec`, talkTo / dialogueChoose wrappers, SAVE_VER 15 + `save_v15.bin`, ENDLESS_GEN_VER 17,
+  `rpg_test --villages` (frozen village golden), `rpg_test --dialogue`, script commands `urb` / `expect urb` /
+  `cityprops`, `m7b_lead_city.txt`, `m7b_lead_talk.txt`; CI runs --villages and --dialogue. tools/slot.sh already existed.
+
+### Phase B lanes (disjoint files; see the lead report for the briefs)
+- **city** (build_city): the city plan in rpg/world/town_*.cpp, the urban fabric, row houses, squares, parks, gardens,
+  districts, per-culture plans, the towns' tidier street; goldens; --towns timing.
+- **cityart** (build_cityart): kerbs, sidewalks, gutters, paving by upkeep (terrain.cpp), row-house terraces and window
+  boxes (builder / art_building), the city props (art_city.cpp), the souk canopy and joined garden walls / hedges in the
+  view; village art frozen.
+- **saga** (build_saga): the sagas, story quests, campaigns, heralds, notice boards, rumours and lore rewritten for flow
+  and clarity (rpg/story/**); coherence checks in --sagas / --voice.
+- **talk** (build_talk): every other spoken line (greetings, barks, radiant / life / war quests, shop, inn, smith,
+  stablemaster, guard), talkTo's composition by priority, introductions, the HUD's dialogue panel, --dialogue as the
+  full gate.
+
+### Phase B results and integration, 2026-10-10: done
+- **city**: `town_urban.cpp` plans the whole city: gates planned where `cityWall` opens them (3-wide throat); 5-wide
+  avenues (central drain, two carriageways, two sidewalks; straight with 45-degree chamfered bends) from every gate to
+  the market and one to the seat; the seat's / palace square and the temple close (kept plots, lane round); a park in
+  the rich quarter (pavilion, gravel paths, benches, trees, hedges); organic cross streets every 11-13 rows or a grid's
+  N-S lanes and E-W streets; well-squares; dirt alleys in the poor quarter; terraces of 5-9 row houses (`ROW_W` /
+  `ROW_E`, corner houses, `ROW_YARD` walled back yards, rich-quarter fruit gardens). Per culture: jade axis to the
+  seat, sylvan narrow winding avenues round preserved great trees, fjord / river harbour spines with quays, dune souk
+  canopies, steppe tent rings. Towns: a straighter 3-wide high street and a tidier square. New mask kinds `K_PARK`,
+  `K_ROWYARD`, square roles, a cheaper identical `blob` comparison, the generator places the city notice board
+  (places.cpp finds it). Urban classes used: Avenue, Gutter, Sidewalk, Street, Lane, Alley, Square, Close, Park,
+  ParkPath, Garden, Court, Quay. 135 town / city golden keys re-recorded; the 66 village keys and `--villages` unchanged.
+- **cityart**: terrain.cpp paints `Map::urb` (only where non-None): fan-laid avenue setts, cobbled lanes, worn alleys,
+  wear by upkeep, raised kerbed sidewalks with lit / shaded faces and rounded corner stones, wet gutters with grates at
+  squares, kerb-framed squares, closes with lawn beds, parks, kitchen gardens, quays; soft edges onto open ground.
+  Row houses: builder `terrace()` (party walls, flush fronts, gables, own limewash, window boxes, yard wall), roofs stop
+  flush at a party wall. The nine city props painted per culture (`cityPropStyled`), garden walls / hedges join, the
+  canopy draws over walkers and fades near the hero, tree pits on paving. `city_gallery --check`; village art frozen
+  (`tests/fixtures/golden_village_art.txt`, 65 groups).
+- **saga**: tellers and kin introduce themselves once (talk memory), spoken hand-offs instead of bracketed journal notes,
+  directions after goal stages, narrated endings shown under the tale's title, hooks by priority, news lines as whole
+  sentences, voice phrases never repeated within a story; ~40 name drops, ~25 teaser repeats, 177 ". AND" joins, ~60
+  fragments fixed; `--sagas` lints every walked conversation (hard gates at 0), `--review`, `--talk-report`.
+- **talk**: talkToInner composes the opening by priority; first meetings introduce the speaker (light culture hello),
+  later ones greet as an acquaintance; at most 6 options on a first page (services under "WHAT CAN YOU OFFER?", house
+  business under "WHAT ELSE DO YOU DO HERE?", kindnesses after "HOW ARE YOU KEEPING?"); quest pitches in order (why,
+  what happened, where, what is wanted, risk, pay), first-person reminders and accept lines, reward lines naming the
+  gear; HUD title "SUSUT, INNKEEPER" once introduced. `--dialogue` strict by default (`--lenient`, `--saga-strict`).
+- **integration**: `bldgOpenKey` mixes `Bldg::row` (stale open fronts on row houses: `--builder` 312 -> 0 failures);
+  test_arch's front-cover rule allows a row house's party-wall margin; a two-tile-thick drain band drew a channel across
+  every tile (now one channel along the band); the fan seams down an avenue softened; `speakerTitle()` shows a
+  narrated line's tale title; identical "BUY THE ... TO THE ..." labels say their distance; "THE TOMB OF X" spoken with
+  its article and named once per pitch ("THE PLACE IS..."); delivery recipients introduced by trade; word-like friend
+  names ("AND") not spoken; script `walkto giver` looks again when the giver walks off (opening.txt flake).
+
+### Fixer round 2, 2026-10-11
+- **Cities**: no terraced city (a terracing people builds its city in its usual plan, else walled compounds: the jade
+  city) so no terrain ledge crosses an avenue; radial spokes octilinear; a slanting band's walk knitted corner to corner
+  (laid without joining the street lists); avenues jog onto the heart's row instead of running a tile beside another;
+  kerbed scraps (walk with carriageway on opposite sides, runs of three or less fronting nothing) made carriageway; a
+  town's walk scraps (under six tiles) made street and its street and square kept swept (upkeep 2); one stone deck
+  where an avenue crosses a stream (`bridgeCrossings`); a harbour gate when a road meets an all-wet ring; a third mine
+  pass for planned cities; no house whose roof would hide a stream; lamps behind a walk step onto it; junction bollards
+  only where the walk runs two tiles along both streets; a capital's rich and temple-quarter houses a tile narrower, and a
+  city still short of homes lets its wide houses (six tiles or more) as two. ENDLESS_GEN_VER 19, town goldens and save_v15.bin re-recorded.
+- **City art**: marching-squares cuts (`msCut`, `kerbLine` in terrain.cpp) lay slanting kerbs, walk back edges and
+  soft paving edges on the slant; a square's edge is the kerb's return across a kerbed carriageway's mouth; the drain
+  runs straight into its grate and its joints follow a slanting channel; paving kinds meet on their built edge (no
+  dithered warp between two pavings); river cities' carriageways in grey setts; calmer park gravel; the silverwood's
+  moss blotches fade inside a city (a smooth lattice field); city decks take their rails from the water on their
+  flanks; a thorn hedge wall parts where a river runs through; the domed pavilion is a lit hemisphere on a roof slab
+  (no see-through rows); a row house's street-facing hip end carries its courses; highland / fjord pavilions thatched /
+  turfed. Villages unchanged (`--villages`, `city_gallery --check`).
+- **Voice**: cave names never double the adjective ("HOLLOW HOLLOW"); horse prices spoken, not bracketed; a parcel's
+  recipient never shares the giver's name; a giver's own home is "HERE" / "OUR" in their pitch; a giver not yet
+  introduced says who they are on accepting; beasts' lairs and a stranger's treasure hunt reworded (no phrase twice in a
+  talk); hand-offs don't repeat a way just told; `urb [r] map` prints the fabric as letters (debug); the repeat lint reads phrases within one sentence; kin words and "THEY
+  CALL IT X" count as introductions; --dialogue knows a name introduced in an earlier conversation.
+- **Phone**: m7b_talk_phone / m7b_saga_phone re-assert the touch UI before each shot; with the touch rows the dialogue's
+  options take at most half the screen (MORE pages the rest); the minimap stands down under the tall touch panel.
+
+### Fixer round 3, 2026-10-11
+- **Cities**: one build per terrace (its units share depth, storeys and kind; the first unit's roof tint, style and wealth
+  for all; the builder's `terrace()` builds only the body, chimneys, plinth and yard wall to a measure of what the units
+  share: wall height, depth, pitch, gable roof along the street, covering), each front its own by `Bldg::variant` (trim
+  paint, shutters, creeper, window boxes, limewash, numbered along the row); a rich house's own size (its case had
+  fallen through to the centre's); a split row unit keeps the row's storeys; lamps three tiles apart (two from a tree),
+  no tree on a kerb's face; an avenue's bands end on one line at its square (the drain's one grate) behind a threshold
+  course of setts; bare dirt is not a kerbed low; rich-quarter yards and compounds laid to lawn; the souk canopy one
+  cloth (sewn widths lit and shaded, a ridge, a shaded hem on poles, no per-tile outline). ENDLESS_GEN_VER 20, town
+  goldens (the 69 city keys) and save_v15.bin re-recorded; villages unchanged.
+- **Voice**: the HUD font has `;`, `[` and `]`; the lint's C_CASE fails any character the font cannot draw (and --voice
+  checks it); "I'M <TRADE>." is C_SELF; story hooks and givers' intros never name a guard, soldier or bandit by their
+  trade; an intro leaves out the town when the hint disowns it (the exile's hint reworded); a quest giver not yet met
+  says who they are before the pitch ("I NEED SOMEONE LIKE THAT"); the HUD's place / quest column shows whole above an
+  open dialogue or not at all.
+- **Tests**: `--towns` times its slowest build per type again (best of four more) before failing the 60 ms gate, and
+  takes a bare `A..B` seed range.
+- **Open**: seed 26's steppe organic city still builds 139 homes (its open ground lies in strips too narrow for a 3x2
+  house); side-facing market stalls (shared with the frozen village art) and the diagonal avenues' walk-to-lane edge
+  are unchanged.

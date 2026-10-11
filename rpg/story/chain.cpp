@@ -201,11 +201,13 @@ bool composeCampaign(const Spec& s, Composed& out) {
     y.motive = x.motive;
     y.flags = x.flags;
     y.picks = x.picks;
+    y.said = x.said;
     y.prefix = "a" + std::to_string(i + 1) + "_";
     y.targets["@next"] = nextAfter(i + 1);
     out.text += "# arc " + std::to_string(i + 1) + ": " + arcs[i]->id + "\n" + expand(arcs[i]->body, y);
     x.rng = y.rng;
     x.picks = y.picks;   // (a later part may repeat what an arc chose: [[=name]])
+    x.said = y.said;     // (M7b: and no phrase is said twice across the parts)
     for (uint32_t f : y.families) x.families.push_back(f);
     for (const std::string& e : y.errors) x.errors.push_back("arc " + std::string(arcs[i]->id) + ": " + e);
   }

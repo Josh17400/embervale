@@ -3,7 +3,7 @@
 // painted per tile with baked building and wall shadows, so layouts, walls, gates, districts and palaces can be judged
 // at 1x and zoomed without starting the game.
 //   town_gallery <outDir> [--seed N] [--type village|town|city|capital|all] [--arch NAME] [--land plains|river|hill|coast]
-//                [--night] [--culture NAME]
+//                [--night] [--culture NAME] [--layout organic|grid|radial|linear|compound|terraced|stilt]
 //       writes <type>_<arch>_<land>_s<seed>.png (1x, the whole buffer) and ..._heart / _gate / _palace / _quarter crops
 //       (3x; M3b: _palace crops the royal seat, whatever its society built it as), plus heraldry.png (the eight charges on banners in four kingdoms' colours, gatehouses, palaces, barracks)
 //   town_gallery <outDir> heraldry      only the heraldry panel
@@ -18,6 +18,7 @@
 #include "rpg/world/dmath.h"
 #include "rpg/world/settlement.h"
 #include "rpg/world/town_rules.h"
+#include "rpg/world/urban.h"
 #include "tools/preview/preview_util.h"
 
 namespace {
@@ -74,7 +75,45 @@ uint32_t groundPx(Ground g, int px, int py) {
   }
 }
 
-struct Spec { SiteType type; bool capital; ew::Archetype arch; int land; uint32_t seed; int culture = -1; };
+// (M7b) the urban fabric as the gallery hints at it (the game's terrain painter, CITYART's, does it for real): flagged
+// walks with a kerb face where a carriageway lies south of them and a lip where it lies north or beside, the drain a
+// dark channel down the avenue, the park's paths gravel, a close's paving pale
+uint32_t urbPx(const Map& m, int x, int y, int px, int py, uint32_t c) {
+  const ew::Urb u = ew::urbClass(m.urbAt(x, y));
+  const int lx = px % 16, ly = py % 16;
+  auto carr = [&](int qx, int qy) {
+    const ew::Urb v = ew::urbClass(m.urbAt(qx, qy));
+    return ew::urbCarriage(v) || v == ew::Urb::Gutter;
+  };
+  switch (u) {
+    case ew::Urb::Sidewalk: case ew::Urb::Close: {
+      const bool joint = lx == 0 || ly == 0 || (ly == 8 && (lx < 8) == ((x + y) & 1));
+      uint32_t k = ghash(x * 2 + (lx >= 8), y * 2 + (ly >= 8)) % 4 == 0 ? rgba(196, 188, 172) : rgba(208, 200, 184);
+      if (u == ew::Urb::Close) k = art::mix(k, rgba(236, 228, 214), 0.4f);
+      if (joint) k = rgba(150, 142, 132);
+      if (u == ew::Urb::Sidewalk) {
+        if (carr(x, y + 1) && ly >= 13) k = ly == 13 ? rgba(226, 220, 206) : rgba(112, 104, 100);   // the kerb's face, lit lip
+        if (carr(x, y - 1) && ly == 0) k = rgba(120, 112, 106);
+        if (carr(x - 1, y) && lx == 0) k = rgba(226, 220, 206);
+        if (carr(x + 1, y) && lx >= 14) k = rgba(112, 104, 100);
+      }
+      return k;
+    }
+    case ew::Urb::Gutter: {
+      const bool ns = ew::urbClass(m.urbAt(x, y - 1)) == ew::Urb::Gutter || ew::urbClass(m.urbAt(x, y + 1)) == ew::Urb::Gutter;
+      const int t = ns ? lx : ly;
+      if (t >= 5 && t <= 10) return (t == 5 || t == 10) ? rgba(120, 112, 108) : ((ns ? ly : lx) % 4 == 0 ? rgba(84, 80, 82) : rgba(100, 96, 96));
+      return c;
+    }
+    case ew::Urb::ParkPath: {
+      const uint32_t n = ghash(px, py) % 100;
+      return n < 20 ? rgba(196, 176, 132) : (n > 90 ? rgba(226, 210, 170) : rgba(212, 194, 150));
+    }
+    default: return c;
+  }
+}
+
+struct Spec { SiteType type; bool capital; ew::Archetype arch; int land; uint32_t seed; int culture = -1; int layout = -1; };
 const char* archNames[] = {"plain", "farming", "fishing", "port", "mining", "rivercrossing", "hillfort", "market"};
 const char* landNames[] = {"plains", "river", "hill", "coast"};
 
@@ -100,6 +139,7 @@ void build(const Spec& sp, ew::SitePlan& p, ew::KingdomPlan& k, ew::SettlementOu
   // M3b: a culture's settlement (cult::Atlas::make, as rpg_test --towns builds its culture cases)
   static cult::Culture K;
   if (sp.culture >= 0) { K = cult::Atlas::make((cult::Archetype)sp.culture, (uint32_t)ew::mix64(sp.seed ^ 0xC17u), 2); ctx.culture = &K; }
+  if (sp.culture >= 0 && sp.layout >= 0) K.town.layout = K.town.altLayout = (cult::Layout)sp.layout;   // (--layout)
   Rng r(sp.seed * 31 + 7);
   int nr = sp.type == SiteType::Village ? 2 : 3;
   float a0 = r.f() * ew::D_TAU;
@@ -123,6 +163,10 @@ void build(const Spec& sp, ew::SitePlan& p, ew::KingdomPlan& k, ew::SettlementOu
     if (g == Ground::Grass && (uint32_t)(gx * 73856093 ^ gy * 19349663) % 7 == 0 && std::abs(dx) > hw) g = Ground::ForestFloor;
   };
   auto t0 = std::chrono::steady_clock::now();
+  if (ctx.culture) {
+    static const char* ln[7] = {"organic", "grid", "radial", "linear", "compound", "terraced", "stilt"};
+    std::printf("layout %s\n", ln[(int)ew::townLayoutFor(ctx.culture, p.type, p.seed, p.ex, p.ey, p.kind) % 7]);
+  }
   ew::buildSettlement(ctx, so);
   std::printf("built %s%s %s on %s seed %u: %dx%d, %zu buildings, %d homes, %zu gates, %.1f ms\n", sp.capital ? "capital " : "", siteTypeName(sp.type),
               archNames[(int)sp.arch], landNames[sp.land], sp.seed, p.w, p.h, so.buf.bldgs.size(), so.homes, so.gates.size(),
@@ -135,7 +179,7 @@ Canvas render(const ew::SettlementOut& so, const ew::KingdomPlan& k, bool night)
   const Map& m = so.buf;
   Canvas c(m.w * 16, m.h * 16);
   for (int py = 0; py < c.h; py++)
-    for (int px = 0; px < c.w; px++) c.set(px, py, groundPx(m.at(px / 16, py / 16), px, py));
+    for (int px = 0; px < c.w; px++) c.set(px, py, urbPx(m, px / 16, py / 16, px, py, groundPx(m.at(px / 16, py / 16), px, py)));
   // building shadows (down-right, as the terrain bakes them) and the wall's shade
   std::vector<Canvas> sprites(m.bldgs.size());
   std::vector<art::BuildingInfo> infos(m.bldgs.size());
@@ -247,6 +291,40 @@ void town(const std::string& dir, const Spec& sp, bool night) {
   std::snprintf(base, sizeof base, "%s/%s_%s_%s%s%s_s%u%s", dir.c_str(), sp.capital ? "capital" : siteTypeName(sp.type), archNames[(int)sp.arch],
                 landNames[sp.land], sp.culture >= 0 ? "_" : "", sp.culture >= 0 ? cult::archetypeName((cult::Archetype)sp.culture) : "", sp.seed, night ? "_night" : "");
   savePng(c, std::string(base) + ".png", 1);
+  if (sp.type == SiteType::City) {
+    // (M7b) the plan at a glance: the urban fabric by class, the buildings (row houses dark), walls grey
+    const Map& m = so.buf;
+    Canvas u(m.w, m.h);
+    for (int y = 0; y < m.h; y++)
+      for (int x = 0; x < m.w; x++) {
+        uint32_t k = rgba(70, 110, 50);
+        switch (ew::urbClass(m.urbAt(x, y))) {
+          case ew::Urb::Avenue: k = rgba(150, 140, 128); break;
+          case ew::Urb::Gutter: k = rgba(92, 88, 84); break;
+          case ew::Urb::Sidewalk: k = rgba(222, 214, 196); break;
+          case ew::Urb::Street: k = rgba(176, 160, 132); break;
+          case ew::Urb::Lane: k = rgba(196, 172, 128); break;
+          case ew::Urb::Alley: k = rgba(150, 118, 80); break;
+          case ew::Urb::Square: k = rgba(200, 196, 186); break;
+          case ew::Urb::Close: k = rgba(214, 200, 230); break;
+          case ew::Urb::Park: k = rgba(96, 170, 70); break;
+          case ew::Urb::ParkPath: k = rgba(214, 196, 150); break;
+          case ew::Urb::Garden: k = rgba(126, 160, 70); break;
+          case ew::Urb::Court: k = rgba(160, 130, 100); break;
+          case ew::Urb::Quay: k = rgba(120, 120, 150); break;
+          default:
+            if (m.at(x, y) == Ground::Road || m.at(x, y) == Ground::Dirt) k = rgba(130, 110, 80);
+            if (groundWater(m.at(x, y))) k = rgba(60, 110, 170);
+            break;
+        }
+        const int bi = m.bldgAt[(size_t)y * m.w + x];
+        if (bi >= 0) k = m.bldgs[(size_t)bi].row ? rgba(120, 40, 34) : rgba(190, 90, 70);
+        if (bi >= 0 && (m.bldgs[(size_t)bi].row & bld::ROW_W) && x == m.bldgs[(size_t)bi].r.x) k = rgba(60, 16, 16);
+        if (m.wall[(size_t)y * m.w + x]) k = rgba(90, 90, 100);
+        u.set(x, y, k);
+      }
+    savePng(u, std::string(base) + "_urb.png", 4);
+  }
   const int hx = (so.ex - so.gx) * 16, hy = (so.ey - so.gy) * 16;
   crop(c, hx, hy, 400, 240, std::string(base) + "_heart.png");
   if (!so.gates.empty()) crop(c, so.gates[0].first * 16 + 24, so.gates[0].second * 16, 400, 240, std::string(base) + "_gate.png");
@@ -255,6 +333,28 @@ void town(const std::string& dir, const Spec& sp, bool night) {
   if (sp.type == SiteType::City) {
     int qx = hx + (int)(p.w * 16 * 0.25f), qy = hy + (int)(p.h * 16 * 0.2f);
     crop(c, qx, qy, 400, 240, std::string(base) + "_quarter.png");
+    // (M7b) the plan's places: the park, the rich and the poor quarters (their fabric's middles), an avenue halfway
+    // out to the first gate
+    const Map& m = so.buf;
+    auto centroid = [&](auto pred, int& ox, int& oy) {
+      long sx = 0, sy = 0, n = 0;
+      for (int y = 0; y < m.h; y++)
+        for (int x = 0; x < m.w; x++) if (pred(m.urbAt(x, y))) { sx += x; sy += y; n++; }
+      if (!n) return false;
+      ox = (int)(sx / n); oy = (int)(sy / n);
+      return true;
+    };
+    int ox = 0, oy = 0;
+    if (centroid([](uint8_t u) { return ew::urbClass(u) == ew::Urb::Park || ew::urbClass(u) == ew::Urb::ParkPath; }, ox, oy))
+      crop(c, ox * 16, oy * 16, 400, 240, std::string(base) + "_park.png");
+    if (centroid([](uint8_t u) { return u && ew::urbQuarter(u) == ew::Quarter::Rich && ew::urbClass(u) == ew::Urb::Sidewalk; }, ox, oy))
+      crop(c, ox * 16, oy * 16, 400, 240, std::string(base) + "_rich.png");
+    if (centroid([](uint8_t u) { return u && ew::urbQuarter(u) == ew::Quarter::Poor && ew::urbCarriage(ew::urbClass(u)); }, ox, oy))
+      crop(c, ox * 16, oy * 16, 400, 240, std::string(base) + "_poor.png");
+    if (!so.gates.empty()) {
+      const int gx = so.gates[0].first, gy = so.gates[0].second;
+      crop(c, (hx / 16 + gx) / 2 * 16, (hy / 16 + gy) / 2 * 16, 400, 240, std::string(base) + "_avenue.png");
+    }
   }
 }
 
@@ -308,8 +408,14 @@ int main(int argc, char** argv) {
   uint32_t seed = 7;
   std::string type = "all", archS = "plain", landS = "plains";
   bool night = false;
-  int culture = -1;
+  int culture = -1, layout = -1;
   for (int i = 2; i < argc; i++) {
+    if (!std::strcmp(argv[i], "--layout") && i + 1 < argc) {
+      static const char* ln[7] = {"organic", "grid", "radial", "linear", "compound", "terraced", "stilt"};
+      const std::string w = argv[++i];
+      for (int l = 0; l < 7; l++) if (w == ln[l]) layout = l;
+      continue;
+    }
     if (!std::strcmp(argv[i], "--seed") && i + 1 < argc) seed = (uint32_t)std::atoi(argv[++i]);
     else if (!std::strcmp(argv[i], "--type") && i + 1 < argc) type = argv[++i];
     else if (!std::strcmp(argv[i], "--arch") && i + 1 < argc) archS = argv[++i];
@@ -328,10 +434,10 @@ int main(int argc, char** argv) {
   for (int a = 0; a < 8; a++) if (archS == archNames[a]) arch = (ew::Archetype)a;
   int land = 0;
   for (int l = 0; l < 4; l++) if (landS == landNames[l]) land = l;
-  if (type == "village" || type == "all") town(dir, Spec{SiteType::Village, false, arch, land, seed, culture}, night);
-  if (type == "town" || type == "all") town(dir, Spec{SiteType::Town, false, arch, land, seed, culture}, night);
-  if (type == "city" || type == "all") town(dir, Spec{SiteType::City, false, arch, land, seed, culture}, night);
-  if (type == "capital" || type == "all") town(dir, Spec{SiteType::City, true, arch, land, seed, culture}, night);
+  if (type == "village" || type == "all") town(dir, Spec{SiteType::Village, false, arch, land, seed, culture, layout}, night);
+  if (type == "town" || type == "all") town(dir, Spec{SiteType::Town, false, arch, land, seed, culture, layout}, night);
+  if (type == "city" || type == "all") town(dir, Spec{SiteType::City, false, arch, land, seed, culture, layout}, night);
+  if (type == "capital" || type == "all") town(dir, Spec{SiteType::City, true, arch, land, seed, culture, layout}, night);
   if (type == "all") heraldry(dir);
   return 0;
 }

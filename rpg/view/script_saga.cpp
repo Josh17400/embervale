@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 #include "rpg/sim/game.h"
+#include "rpg/sim/game_internal.h"
 #include "rpg/story/dsl.h"
 #include "rpg/story/saga.h"
 #include "rpg/story/story.h"
@@ -80,8 +81,10 @@ bool cmdSaga(ScriptCtx& c) {
   }
   if (what == "accept") {
     if (g.mode != Mode::Dialogue) { c.fail("saga accept: no dialogue open"); return true; }
-    for (size_t o = 0; o < g.dlg.opts.size(); o++) {
-      if (!isSagaOpt(g.dlg.opts[o])) continue;
+    // (fixer M7b r1) through the option groups as the player would
+    const int reach = dlgReach(g, [&](const DlgOpt& o) { return isSagaOpt(o); }, true);
+    for (size_t o = 0; o < g.dlg.opts.size() && reach >= 0; o++) {
+      if ((int)o != reach) continue;
       const int i = g.dlg.opts[o].action - DLG_STORY - story::SA_SAGA;
       const std::string id = i >= 0 && i < (int)g.story.sagaOffers_.size() ? g.story.sagaOffers_[(size_t)i] : std::string();
       g.dialogueChoose((int)o);
@@ -101,7 +104,7 @@ bool cmdSaga(ScriptCtx& c) {
       if (g.story.isEnd(*in)) return true;
       showInst(g, *in);
       int pick = -1;
-      for (size_t o = 0; o < g.dlg.opts.size() && pick < 0; o++) if (g.dlg.opts[o].action >= DLG_STORY && g.dlg.opts[o].action < DLG_STORY + story::SA_START) pick = (int)o;
+      pick = dlgReach(g, [&](const DlgOpt& o) { return o.action >= DLG_STORY && o.action < DLG_STORY + story::SA_START; }, true);   // (fixer M7b r1)
       if (pick < 0) { c.fail("saga step: the dialogue has no story option"); return true; }
       g.dialogueChoose(pick);
     }

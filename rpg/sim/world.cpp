@@ -63,7 +63,12 @@ std::string makeDungeonName(Rng& r, SiteType t, Biome b) {
   bool cold = b == Biome::Snow || b == Biome::Taiga;
   for (int k = 0; k < 6 && a == "FROZEN" && !cold; k++) a = adj[r.irange(16)];
   if (a == "FROZEN" && !cold) a = "SILENT";
-  if (t == SiteType::Cave) return a + " " + caveN[r.irange(8)];
+  if (t == SiteType::Cave) {
+    // (fixer M7b r2, review: "MY WIFE WENT INTO HOLLOW HOLLOW") never the adjective's own word again as the noun
+    std::string nn = caveN[r.irange(8)];
+    if (nn == a) nn = "CAVE";
+    return a + " " + nn;
+  }
   if (t == SiteType::Ruin) return a + " " + ruinN[r.irange(8)];
   if (t == SiteType::BanditCamp) return a + " " + campN[r.irange(6)];
   if (t == SiteType::Shrine) { static const char* g[] = {"SHRINE OF SOLMIR", "SHRINE OF VEYNA", "SHRINE OF HALDRUN", "SHRINE OF ORISSA", "SHRINE OF KEVRAN", "SHRINE OF ILMATH", "SHRINE OF BRANNOCK", "SHRINE OF ESKARA"}; return g[r.irange(8)]; }

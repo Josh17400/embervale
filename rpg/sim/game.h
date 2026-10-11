@@ -21,6 +21,7 @@
 #include "rpg/sim/items.h"
 #include "rpg/sim/life.h"
 #include "rpg/sim/realm.h"
+#include "rpg/sim/talk.h"
 #include "rpg/sim/war.h"
 #include "rpg/sim/world.h"
 #include "rpg/story/story.h"
@@ -238,7 +239,9 @@ constexpr uint32_t QF_WAR_ATTACK = 1u << 16;   // (M4) War: with the attackers (
 constexpr uint32_t QF_WAR_CAPDEAD = 1u << 17;  // (M4) War, BREAK THE SIEGE: the besiegers' captain fell (saved with the quest)
 inline Role questRecipientRole(const Quest& q) { return (Role)((q.flags >> 8) & 0xFF); }
 
-struct DlgOpt { std::string label; int action = 0; int arg = 0; };
+// grp (M7b Voice): 0 shown on the first page; n > 0 belongs to the option group n, shown when its header (A_GROUP, arg n)
+// is chosen (Dialogue::group == n). Every option stays in Dialogue::opts, so code that picks one by its label finds it.
+struct DlgOpt { std::string label; int action = 0; int arg = 0; uint8_t grp = 0; };
 // M4: dialogue action ranges the lanes' own files handle (Game::dialogueChoose routes them): the story engine's
 // options (rpg/story/story_game.cpp storyChoose) and the war's (rpg/sim/war_game.cpp warChoose). The built-in actions
 // (game_internal.h DlgAct) stay below DLG_STORY.
@@ -256,6 +259,15 @@ struct Dialogue {
   std::string speaker, text;
   std::vector<DlgOpt> opts;
   Role role = Role::Villager;
+  // M7b Voice (rpg/sim/talk.h): the standing of what `text` says now. speech::propose replaces the line only with one of
+  // equal or higher priority (speech::Pri) and records its topic (speech::Topic), so the hooks of talkTo agree on ONE line
+  // instead of the last hook overwriting or stitching onto the others. A direct write to text leaves them as they are.
+  int pri = 0;
+  uint8_t topic = 0;
+  // (M7b) the option group on show (0: the first page; see DlgOpt::grp) and the line the first page said (A_BACK)
+  uint8_t group = 0;
+  std::string front;
+  bool shows(const DlgOpt& o) const { return group == 0 ? o.grp == 0 : (o.grp == group || o.action == 0 /* A_BYE */); }
 };
 
 // M0b: the inn room the player has rented (SAVE_VER 4). It is theirs until noon of untilDay: its bed can be slept in,
@@ -433,6 +445,16 @@ class Game {
   // ---- M7 Home: the player's houses, lots, yards, crops, animals, stores, discovered styles and the horse ridden
   //      (rpg/sim/home.h; HOMESTEAD lane; saved: the home block, SAVE_VER 14). home.ui is the Mode::Build screen's state.
   home::Homes home;
+  // ---- M7b Voice (rpg/sim/talk.h; TALK lane): who the player has met, who has introduced themselves, the lines said
+  //      lately (saved: the talk block, SAVE_VER 15). talkTo touches the record of every person spoken to.
+  speech::Memory talkMem;
+  // (M7b Voice) how the dialogue panel titles a speaker: "SUSUT, INNKEEPER" once they have introduced themselves,
+  // "THE INNKEEPER" before; a guard stays "GUARD", a grave its own words
+  std::string speakerTitle(const Actor& a) const;
+  std::string speakerTitle() const;    // the open dialogue's speaker
+  // the conversation recorder (tests, the dialogue review; never saved): when set, talkTo and dialogueChoose record
+  // every conversation turn by turn (speech::Recorder::begin / reply)
+  speech::Recorder* talkRec = nullptr;
   // apply the realm to the loaded world now (owners and banners of every loaded settlement, the news): scripts and tests
   // call it after forcing a realm change; realmStep calls it whenever the realm changed (realm_game.cpp)
   void realmSync();
@@ -653,7 +675,9 @@ class Game {
   void dropLoot(const Actor& a);
   void openChest(int tx, int ty);
   void interact();
-  void talkTo(Actor& a);
+  void talkTo(Actor& a);               // (M7b) talkToInner, then the talk memory and the recorder
+  void talkToInner(Actor& a);          // the conversation's opening (greeting, the hooks, the options)
+  void dialogueChooseInner(int optIndex);   // (M7b) dialogueChoose's body (the wrapper records the turn)
   void openShop(Actor& a);
   void rest(int hours);
   void shootArrow();
@@ -674,7 +698,9 @@ class Game {
   void acceptQuest(const Quest& q);
   void completeQuest(Quest& q);
   void advanceMain(int stage);
-  std::string greeting(const Actor& a);
+  std::string greeting(const Actor& a, int salt = 0);   // (M7b salt: another pick when the first was said lately)
+  std::string questReminder(const Quest& q) const;              // (M7b) the giver's own words while the job is under way
+  std::string acceptLine(const Quest& q) const;                 // (M7b) the giver's words when the job is taken
   std::vector<Item> shopStock(const Actor& a);
   // ---- M2 SIM lane
   // travel behind the fade (travel.cpp)

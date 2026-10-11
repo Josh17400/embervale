@@ -9,6 +9,7 @@
 #include <map>
 #include <tuple>
 #include <vector>
+#include "rpg/build/blueprint.h"
 #include "rpg/build/parts.h"
 #include "rpg/culture/culture.h"
 #include "rpg/culture/style.h"
@@ -281,7 +282,12 @@ int archChecks(uint64_t seed) {
           const Bldg& A = m.bldgs[(size_t)i];
           const Bldg& B = m.bldgs[(size_t)j];
           IRect front{B.r.x, B.r.y + B.r.h - 1, B.r.w, 1}, apron{B.doorX() - 1, B.r.y + B.r.h, 3, 2};
-          if (spriteOf(A).overlaps(front) || spriteOf(A).overlaps(apron)) {
+          // (M7b) row houses share a party wall: the sprite's one-tile side margin on a shared side is the
+          // neighbour's own wall, not an overlap
+          IRect sp = spriteOf(A);
+          if ((A.row & bld::ROW_E) && (B.row & bld::ROW_W) && B.r.x == A.r.x + A.r.w && B.r.y + B.r.h == A.r.y + A.r.h) sp.w -= 1;
+          if ((A.row & bld::ROW_W) && (B.row & bld::ROW_E) && A.r.x == B.r.x + B.r.w && B.r.y + B.r.h == A.r.y + A.r.h) { sp.x += 1; sp.w -= 1; }
+          if (sp.overlaps(front) || sp.overlaps(apron)) {
             if (clashes++ < 5) out("FAIL: %s: building %d (type %d at %d,%d) covers the front of building %d (type %d at %d,%d)\n", s.name.c_str(), i,
                                    (int)A.type, A.r.x, A.r.y, j, (int)B.type, B.r.x, B.r.y);
             bad++;

@@ -971,7 +971,7 @@ void Gen::markets() {
       for (size_t k : order) {
         if (got >= 4 || nextT + 2 > pool.size()) break;
         const Square& Q = squares[k];
-        if (!in(Q.x, Q.y)) continue;
+        if (!in(Q.x, Q.y) || Q.role == 3) continue;   // (M7b: never in the temple close)
         small = true;
         const int r = (int)Q.r + 2;
         const IRect QA{Q.x - r - 1, Q.y - r, r * 2 + 3, r * 2 + 1};
@@ -1106,7 +1106,7 @@ void Gen::markets() {
       if (city && need > 1)
         for (size_t k = 1; k < squares.size() && need > 1; k++) {
           const Square& Q = squares[k];
-          if (!in(Q.x, Q.y) || std::abs(Q.x - S.x) + std::abs(Q.y - S.y) > 60) continue;
+          if (!in(Q.x, Q.y) || std::abs(Q.x - S.x) + std::abs(Q.y - S.y) > 60 || Q.role == 3) continue;
           const int r = (int)(Q.r * 1.25f) + 2;
           lines(IRect{Q.x - r, Q.y - r, 2 * r + 1, 2 * r + 1}, Q.x, Q.y + 3, lvl[I(Q.x, Q.y)], Q.x, Q.y, 1);
         }
@@ -1117,7 +1117,7 @@ void Gen::markets() {
       if ((int)stalls.size() + made < minVendors) {
         for (size_t k = 1; k < squares.size() && (int)stalls.size() + made < minVendors; k++) {
           const Square& Q = squares[k];
-          if (!in(Q.x, Q.y) || std::abs(Q.x - S.x) + std::abs(Q.y - S.y) > 60) continue;
+          if (!in(Q.x, Q.y) || std::abs(Q.x - S.x) + std::abs(Q.y - S.y) > 60 || Q.role == 3) continue;
           const int r = (int)(Q.r * 1.25f) + 2;
           need = std::max(need, minVendors - (int)stalls.size() - made);
           lines(IRect{Q.x - r, Q.y - r, 2 * r + 1, 2 * r + 1}, Q.x, Q.y + 3, lvl[I(Q.x, Q.y)], Q.x, Q.y, 1);
@@ -1541,17 +1541,24 @@ void Gen::tradeYards() {
     for (const Bldg& b : M.bldgs) if (b.type == Building::Smelter) { smx = b.r.cx(); smy = b.r.cy(); }
     struct Cand { int x, y, score; };
     std::vector<Cand> cands;
+    // (fixer M7b r2, review: "a city mine can't be reached", "a mining city without its mine") a planned city's edge
+    // is its wall lane and terraces: when no mouth there works, a third pass looks further in (and may open onto a
+    // street)
+    float dLo = 0.85f, dHi = 1.35f;
+    bool wide = false;
+    auto gather = [&]() {
+    cands.clear();
     for (int y = 6; y < H - 3; y++)
       for (int x = 5; x < W - 5; x++) {
         const float d = dist(x, y);
-        if (d < 0.85f || d > 1.35f) continue;
+        if (d < dLo || d > dHi) continue;
         bool ok = true;
         for (int dx = -1; dx <= 1 && ok; dx++) {
           if (!yardOk(x + dx, y, true) || lvl[I(x + dx, y)] != lvl[I(x, y)]) ok = false;
           for (int dy = 1; dy <= 2 && ok; dy++) if (M.bldgAt[I(x + dx, y - dy)] >= 0 || M.wall[I(x + dx, y - dy)] || front[I(x + dx, y - dy)]) ok = false;
         }
         // (M3) the mouth opens onto a yard of its own, not straight onto a street (its track runs out along the path)
-        if (!ok || !walkable(x, y + 1) || M.prop[I(x, y + 1)] || get(x, y + 1) == K_FIELD || isStreet(x, y + 1)) continue;
+        if (!ok || !walkable(x, y + 1) || M.prop[I(x, y + 1)] || get(x, y + 1) == K_FIELD || (isStreet(x, y + 1) && !wide)) continue;
         // (integer scores: the same order on every platform)
         const int rise = (int)lvl[I(x, y - 2)] - (int)lvl[I(x, y + 1)];
         const int d2 = (x - smx) * (x - smx) + (y - smy) * (y - smy);
@@ -1561,6 +1568,8 @@ void Gen::tradeYards() {
         cands.push_back({x, y, score});
       }
     std::stable_sort(cands.begin(), cands.end(), [](const Cand& a, const Cand& b) { return a.score > b.score; });
+    };
+    gather();
     auto hillOk = [&](int x, int y, int L) {   // a tile of the hill: open ground of the town's own, a tile clear of houses
       if (!in(x, y) || x < 2 || y < 2 || x >= W - 2 || y >= H - 2) return false;
       const size_t i = I(x, y);
@@ -1576,7 +1585,8 @@ void Gen::tradeYards() {
     bool mined = false;
     // pass 0: a mouth with room for its hill; pass 1 (a crowded edge): a bare adit any path reaches, the spoil and
     // the boulders round it
-    for (int pass = 0; pass < 2 && !mined; pass++) {
+    for (int pass = 0; pass < (planned ? 3 : 2) && !mined; pass++) {
+      if (pass == 2) { dLo = 0.45f; dHi = 1.5f; wide = true; gather(); }
       int tries = 0;
       for (size_t ci = 0; ci < cands.size() && tries < (pass ? 300 : 120); ci++) {
         const int bx = cands[ci].x, by = cands[ci].y;

@@ -1,0 +1,45 @@
+# M7b CITY lane (VISION_PLAN 15.23): what the plan leaves alone. Three towns get only their slightly tidier main street
+# (straighter, three wide through the town with a walk on its fronted edge: Urb::Street and Sidewalk) and square; two
+# villages are exactly as before (no urban fabric at all: `expect urb none`; rpg_test --villages holds their layouts).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7b_city_towns.txt [--seed N]
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
+# ---- three towns: the high street and the square
++0.2 gotoculture heartland town
++1.4 culture
++0.1 urb 40
++0.1 expect urb street 30
++0.1 expect urb square 20
++0.3 shot m7b_town_heartland_heart.png
++0.1 walk east 1.6
++2.0 shot m7b_town_heartland_street.png
++0.2 gotoculture imperial town
++1.4 culture
++0.1 urb 40
++0.1 expect urb street 30
++0.1 expect urb square 20
++0.3 shot m7b_town_imperial_heart.png
++0.1 walk south 1.6
++2.0 shot m7b_town_imperial_street.png
++0.2 gotoculture dune town
++1.4 culture
++0.1 urb 40
++0.1 expect urb street 30
++0.1 expect urb square 20
++0.3 shot m7b_town_dune_heart.png
++0.1 walk west 1.6
++2.0 shot m7b_town_dune_street.png
+# ---- two villages: unchanged, no fabric
++0.2 gotoculture heartland village
++1.4 culture
++0.1 urb 30
++0.1 expect urb none
++0.3 shot m7b_village_heartland.png
++0.2 gotoculture jade village
++1.4 culture
++0.1 urb 30
++0.1 expect urb none
++0.3 shot m7b_village_jade.png
++0.3 quit

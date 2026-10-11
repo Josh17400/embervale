@@ -53,6 +53,8 @@ enum : uint8_t {
 };
 
 // ---------------------------------------------------------------- the request
+constexpr uint8_t ROW_W = 1, ROW_E = 2, ROW_YARD = 4;   // Request::row / Bldg::row bits (M7b)
+
 struct Request {
   art::Building purpose = art::Building::House;
   int wTiles = 4, hTiles = 3;            // footprint (collision box) in tiles
@@ -70,6 +72,11 @@ struct Request {
   // never stack their homes, the steppe's yurts, builds the player's two-storey shell as their own two-storey house)
   // and the form. 0 (every generated building, and a bought one: its look never changes when it is sold) as before.
   uint8_t home = 0;
+  // (M7b Cities, VISION_PLAN 15.24) a row house in a continuous frontage (Bldg::row): ROW_W / ROW_E a neighbour shares
+  // the west / east wall (the footprints abut on the same front row), ROW_YARD a walled back yard behind it. The builder
+  // drops the shared side walls and their trims, runs the eaves, ridge line and foundation on across the joint and
+  // keeps the light (top-left) consistent along the terrace; 0 (every village, every free-standing building) as before.
+  uint8_t row = 0;
   uint64_t key() const;
 };
 
@@ -137,7 +144,12 @@ enum : uint32_t {
   VF_CARVED = 1u << 20,  // carved bargeboards / a carved porch (fjords, marsh)
   VF_GARDEN = 1u << 21,  // a court laid out as a garden (trees, a pool) rather than paved
   VF_PENNANTS = 1u << 22,// strings of pennants / horse-tail standards (steppe court)
-  VF_LANTERNS = 1u << 23 // paper lanterns hung under the eaves (jade, marsh)
+  VF_LANTERNS = 1u << 23,// paper lanterns hung under the eaves (jade, marsh)
+  // ---- M7b CITYART lane (appended): a row house's party walls (Request::row). The volume's wall on that side is shared
+  // with the neighbour's: its roof stops flush on the wall (no eave overhang there, never hipped down), nothing of the
+  // sprite reaches past that edge of the footprint (no outline, no trim), so two houses abutting meet without a gap
+  VF_PARTY_W = 1u << 24,
+  VF_PARTY_E = 1u << 25
 };
 struct Volume {
   VolShape shape = VolShape::Box;

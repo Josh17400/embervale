@@ -1,0 +1,18 @@
+# M7b CITYART lane: villages must not change (owner). Three villages of the start region at noon, the same seed and
+# hour: run on the build before a change and after it and compare the shots pixel for pixel (only the people, beasts
+# and smoke may differ: the ground, the buildings and the props are the same)
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7b_art_villages.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.2 gotoculture heartland village 0
++1.6 hour 12
++0.6 shot m7b_village_a.png
++0.2 gotoculture highland village 0
++1.6 hour 12
++0.6 shot m7b_village_b.png
++0.2 gotoculture river village 0
++1.6 hour 12
++0.6 shot m7b_village_c.png
++0.3 quit

@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include "rpg/art/art_internal.h"
 #include "rpg/art/art_heraldry.h"
+#include "rpg/art/art_city.h"
 
 namespace art {
 
@@ -5110,6 +5111,7 @@ void paintProp(Canvas& c, Prop p, int frame) {
       else if (isWarProp(p)) paintWarProp(c, p, frame);
       else if (isLoreProp(p)) paintLoreProp(c, p, frame);
       else if (isHomeProp(p)) paintHomeProp(c, p, frame);   // M7 (art_home.cpp)
+      else if (isCityProp(p)) paintCityProp(c, p, frame);   // M7b (art_city.cpp)
       else if (m3bP(p)) paintInteriorM3b(c, p, frame);
       else if ((int)p >= (int)Prop::Sacks) paintEconomyProp(c, p, frame);
       else if ((int)p >= (int)Prop::StairsUp) m0bProp(c, p, frame);
@@ -5119,12 +5121,15 @@ void paintProp(Canvas& c, Prop p, int frame) {
 
 }  // namespace
 
-int propW(Prop p) { return isHomeProp(p) ? homePropW(p) : isWarProp(p) ? warPropW(p) : isLoreProp(p) ? lorePropW(p) : wildP(p) ? wildPropW(p) : isWildlandsFlora(p) ? floraPropW(p) : m3bP(p) ? m3bPropW(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].w : 16; }
-int propH(Prop p) { return isHomeProp(p) ? homePropH(p) : isWarProp(p) ? warPropH(p) : isLoreProp(p) ? lorePropH(p) : wildP(p) ? wildPropH(p) : isWildlandsFlora(p) ? floraPropH(p) : m3bP(p) ? m3bPropH(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].h : 16; }
-int propFrames(Prop p) { return isHomeProp(p) ? homePropFrames(p) : isWarProp(p) ? warPropFrames(p) : isLoreProp(p) ? lorePropFrames(p) : wildP(p) ? wildPropFrames(p) : isWildlandsFlora(p) ? floraPropFrames(p) : m3bP(p) ? m3bPropFrames(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].frames : 1; }
+int propW(Prop p) { return isCityProp(p) ? cityPropW(p) : isHomeProp(p) ? homePropW(p) : isWarProp(p) ? warPropW(p) : isLoreProp(p) ? lorePropW(p) : wildP(p) ? wildPropW(p) : isWildlandsFlora(p) ? floraPropW(p) : m3bP(p) ? m3bPropW(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].w : 16; }
+int propH(Prop p) { return isCityProp(p) ? cityPropH(p) : isHomeProp(p) ? homePropH(p) : isWarProp(p) ? warPropH(p) : isLoreProp(p) ? lorePropH(p) : wildP(p) ? wildPropH(p) : isWildlandsFlora(p) ? floraPropH(p) : m3bP(p) ? m3bPropH(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].h : 16; }
+int propFrames(Prop p) { return isCityProp(p) ? cityPropFrames(p) : isHomeProp(p) ? homePropFrames(p) : isWarProp(p) ? warPropFrames(p) : isLoreProp(p) ? lorePropFrames(p) : wildP(p) ? wildPropFrames(p) : isWildlandsFlora(p) ? floraPropFrames(p) : m3bP(p) ? m3bPropFrames(p) : (int)p < (int)Prop::COUNT ? kPropInfo[(int)p].frames : 1; }
 
 Canvas propSprite(Prop p) {
   if (isStall(p)) return marketStall(stallTrade(p), 0);
+  // (M7b) the city props outline themselves over their own ground shadows (art_city.cpp): the classic look, a lone
+  // garden wall or hedge as an east-west run
+  if (isCityProp(p)) return cityPropStyled(p, PropStyle{}, 0, (p == Prop::GardenWall || p == Prop::Hedge) ? 10 : 0, false);
   const int w = propW(p), h = propH(p), n = propFrames(p);
   Canvas sheet(w * n, h);
   for (int f = 0; f < n; f++) {

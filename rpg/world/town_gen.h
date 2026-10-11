@@ -10,9 +10,14 @@
 //   town_market.cpp  (M1 economy) the settlement's specialisation and its production buildings, the market: stalls in
 //                    tidy rows facing the walking space with their stock and keepers; the other squares' benches and
 //                    trees; the trades' yards (mine, ore carts, log piles, drying racks, hide frames, troughs)
+//   town_urban.cpp   (M7b) the planned city: gates, avenues to the market and the seat, the seat's and the temple's
+//                    precincts, the park, cross streets, lanes and alleys, well-squares, row houses with their walled
+//                    yards, the street furniture (tree pits, lamps, corner stones, planters, the souk's awnings); and
+//                    the urban fabric (Map::urb) of every city and town
 // Determinism: only the ctx inputs; one Rng seeded from the plan's seed; + - * / sqrt and ew::dsin/dcos/datan2 (no libm
 // transcendentals), so MSVC, clang and Emscripten build the same town.
 #pragma once
+#include <cmath>
 #include <cstdint>
 #include <utility>
 #include <vector>
@@ -35,7 +40,9 @@ enum Kind : uint8_t {
   K_YARD = 4,      // footpath, doorstep, yard, garden, lamp spot
   K_FIELD = 5,     // field or pasture
   K_COMPOUND = 6,  // the palace compound's grounds (nothing else is built there)
-  K_LOT = 7        // (M7) a lot for sale (rpg/world/plots.h): its fence ring and the clear ground inside (town_lots.cpp)
+  K_LOT = 7,       // (M7) a lot for sale (rpg/world/plots.h): its fence ring and the clear ground inside (town_lots.cpp)
+  K_PARK = 8,      // (M7b) a city's park or green: lawns, gravel paths, a pavilion (walked through, never built on)
+  K_ROWYARD = 9    // (M7b) a row house's walled back yard or garden (never built on, no footpath through it)
 };
 
 // city districts (VISION_PLAN 15.8): the old centre with the market, and four sectors around it
@@ -86,6 +93,7 @@ struct Gen {
   int centreKind = -1;           // the main square's centrepiece (art::PropStyle::centre), -1: the classic choice
   int townWealth = -1;           // the settlement's wealth 0..3 (townWealthFor), -1: no culture (no skew)
   bool cultureIs(int a) const { return cArch == a; }
+  bool sylvan() const { return cArch == (int)cult::Archetype::Sylvan; }   // (M7b) the elven city among its trees
   // ---------------------------------------------------------------- M3b: the society (rpg/culture/society.h)
   // hasSoc: a culture builds this settlement, so its society decides the services, the seat of power and the spaces
   // (services() keeps the classic lists without one); tier: the settlement's cult::SettleTier
@@ -108,7 +116,9 @@ struct Gen {
   std::vector<uint8_t> front;    // a building's front (foundation row, doorstep, apron): no sprite may cover it
   std::vector<std::pair<int, int>> mainTiles, allStreet;
   std::vector<float> bearings;   // where the roads leave, radians (0 east, +pi/2 south)
-  struct Square { int x, y; float r; District d; };
+  // role (M7b): 0 a classic square (the main square, a district square), 1 the square before the seat of power, 2 a
+  // well-square at a lane junction, 3 the temple close
+  struct Square { int x, y; float r; District d; uint8_t role = 0; };
   std::vector<Square> squares;
   float sector0 = 0;             // city districts: the noble sector's centre angle
   District sectorKind[4] = {District::Noble, District::Temple, District::Crafts, District::Poor};
@@ -143,6 +153,20 @@ struct Gen {
   }
   float dist(int x, int y) const;    // normalised distance from the heart (1 = the footprint's edge, no wobble)
   float blob(int x, int y, int bx, int by, float brx, float bry, uint32_t s) const;   // wobbly ellipse distance
+  // (M7b perf) where the plain ellipse already settles how blob(...) compares with t (its wobble is under 0.16 either
+  // way): -1 below, +1 above, 0 undecided (blob itself is asked). The answers are blob's own: nothing built moves.
+  int blobSide(int x, int y, int bx, int by, float brx, float bry, float t) const {
+    const float dx = (x - bx) / brx, dy = (y - by) / bry, r = std::sqrt(dx * dx + dy * dy);
+    return r < t - 0.17f ? -1 : (r > t + 0.17f ? 1 : 0);
+  }
+  bool blobLess(int x, int y, int bx, int by, float brx, float bry, uint32_t s, float t) const {   // blob(...) < t
+    const int k = blobSide(x, y, bx, by, brx, bry, t);
+    return k ? k < 0 : blob(x, y, bx, by, brx, bry, s) < t;
+  }
+  bool blobMore(int x, int y, int bx, int by, float brx, float bry, uint32_t s, float t) const {   // blob(...) > t
+    const int k = blobSide(x, y, bx, by, brx, bry, t);
+    return k ? k > 0 : blob(x, y, bx, by, brx, bry, s) > t;
+  }
   float angleOf(int x, int y) const; // bearing of a tile from the heart
   District districtAt(int x, int y) const;
   uint32_t hashAt(int x, int y, uint32_t k) const { return hash2(x, y, P.seed * 0x9E3779B1u + k); }
@@ -156,7 +180,8 @@ struct Gen {
   void squaresPass();
   void paintStreet(int x, int y, uint8_t kind, Ground g);
   void line(float x0, float y0, float x1, float y1, int width, uint8_t kind, Ground g);
-  bool walkStreet(float x, float y, float ang, float target, int maxLen, int width, uint8_t kind, Ground g, int stop);
+  bool walkStreet(float x, float y, float ang, float target, int maxLen, int width, uint8_t kind, Ground g, int stop, float* outX = nullptr,
+                  float* outY = nullptr, float* outA = nullptr);   // (out: where the walk ended, its heading)
   void mainStreets();
   void ringRoads();
   void fabric();                     // east-west lanes a house-row apart (towns and cities)
@@ -185,7 +210,8 @@ struct Gen {
   void cutTerraces();                // Terraced: relief terraces rising to the back of the town (land)
   void marshWater();                 // Stilt: the marsh left standing in pools and channels (land)
   void pickSpine();                  // Linear: the spine's bearing (along the water, else the strongest road)
-  void spineStreets();               // Linear: the spine through the heart, parallel back lanes, cross lanes
+  void spineStreets(bool band = false);   // Linear: the spine through the heart, parallel back lanes, cross lanes
+                                          // (band: the M7b city's spine is a straight avenue)
   void gridLanes(bool compound);     // Grid / Compound: a warped lattice of lanes (the forum, courtyard blocks)
   void radialRings();                // Radial: rings round the plaza and spokes out to the edge
   void contourLanes();               // Terraced: a lane along each terrace's front edge, stairs between them
@@ -280,6 +306,42 @@ struct Gen {
   // its gate on that street and a FOR SALE sign inside by the gate; a lot along a river or lake bank when the land has
   // one (PLOT_RIVERSIDE). Hash-driven (no draw from rng: the rest of the town is unchanged by the lots' choices).
   void lots();
+  // ---------------------------------------------------------------- town_urban.cpp (M7b Cities, VISION_PLAN 15.23, 15.24)
+  // the urban fabric (Map::urb, rpg/world/urban.h): every tile's street class, upkeep and quarter, written once the
+  // plan is finished (the last step of finish()); no Rng draw. Cities and towns; never a village.
+  void urbanFabric();
+  // The planned city (cities only, never a town or a village; every choice hashed from the plan's seed, no Rng draw
+  // but the buildings' own): the gates where the roads arrive, AVENUES from every gate to the market square and on to
+  // the seat of power (wide, straight, a gutter down the middle and a kerbed sidewalk either side), the square before
+  // the seat and the temple close (precincts: a plot for the building behind its square, a lane round it), the park,
+  // CROSS STREETS off the avenues at block intervals, lanes through the blocks, alleys in the poor quarter, small
+  // well-squares at lane junctions; the outskirts inside the wall stay organic. Then ROW HOUSES along the fronts
+  // (terraces sharing their side walls, Bldg::row, walled back yards), and the street furniture: tree pits, corner
+  // stones, planters, the park's paths, pavilion and benches, the souk's awnings.
+  bool planned = false;              // this city is built by the M7b plan
+  std::vector<uint8_t> plan;         // per tile: the Urb class the plan painted (avenue, gutter, sidewalk, street, lane...)
+  std::vector<uint8_t> keep;         // per tile: kept out of the street plan (a precinct's plot, the park, a great tree)
+  struct GatePlan { int x, y, dx, dy, b; bool h; };   // a planned opening: ring tile, the way in, bearing, horizontal run
+  std::vector<GatePlan> gatePlan;
+  struct Precinct { IRect plot, sq; int role; int want; };   // a seat (role 1) or temple (3): its plot north of its square
+  std::vector<Precinct> precincts;
+  IRect park;                        // the city's park (w == 0: none)
+  int blockP = 12;                   // the cross streets' spacing (rows)
+  float avenueHW = 2.5f;             // the avenues' half width (2.5: five tiles, a gutter, two carriage lanes, two walks)
+  int rowsMade = 0, terraces = 0;    // (rpg_test --towns) row houses and terraces built
+  void cityStreets();                // phase 2: gates, avenues, the seat's and the temple's precincts, the style's lattice
+  void bridgeCrossings();            // (fixer M7b r2) an avenue over a stream crosses it on one straight deck
+  void cityBlocks();                 // phase 3: the park, cross streets, lanes, alleys, well-squares, the organic edge
+  int rowHouses(int want);           // homes: terraces along the fronts, nearest the heart first (homes made)
+  void cityDress();                  // yards, the park, the close, tree pits, lamps, corner stones, planters, awnings
+  void paintBand(const std::vector<std::pair<int, int>>& pts, float hw, uint8_t cls, uint8_t kind, Ground g);
+  bool routeAvenue(int sx, int sy, int dx, int dy, int ex, int ey, float hw);
+  bool planPrecinct(int role, int bw, int bh, float a0, int& qx, int& qy);
+  bool bandFree(int x, int y) const;   // a plan street may be painted on this tile
+  void joinStreets(const std::vector<int>& from);   // a lane from a piece of the plan to the nearest other street
+  bool roofOverStreet(const IRect& r, int rise) const;   // a sprite rising rise rows over r would hide an avenue or street
+  std::vector<uint8_t> roomy;        // per tile: inside the ring, five tiles clear of it
+  void facePrecincts(std::vector<Want>& want);   // services(): the seat and the chief temple face their precincts' squares
 };
 
 }  // namespace town

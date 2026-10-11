@@ -30,6 +30,9 @@ bool propSolid(Prop p) {
     // M1 fixer round 2: the mine's track is walked over
     case Prop::MineRail:
       return false;
+    // M7b: a souk's awning is walked under
+    case Prop::Canopy:
+      return false;
     // M2: a wayfarer's bedroll by the embers is walked over
     case Prop::Bedroll:
       return false;

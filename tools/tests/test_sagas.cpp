@@ -35,6 +35,7 @@
 #include "rpg/sim/foes.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/life.h"
+#include "rpg/sim/talk.h"
 #include "rpg/story/dsl.h"
 #include "rpg/story/saga.h"
 #include "rpg/story/story.h"
@@ -108,6 +109,339 @@ std::string varsKey(const std::map<std::string, int32_t>& v) {
   return k;
 }
 
+// ---------------------------------------------------------------- (M7b) the conversations as the player hears them
+// The walker rebuilds every conversation of every path the way the dialogue shows it (the hook's line and pitch, each
+// talk stage's line and options, the answer to the option chosen: the same person talking on, a closing line, or the
+// dialogue closing) and lints it (speech::lint with the cast's names, plus the answer check below). --review FILE
+// writes a stratified sample (per archetype x hook x motive) in the phone panel's wrap for the dialogue-quality review.
+struct TalkPath {
+  speech::Conversation conv;      // the open conversation (no turns: none open)
+  std::string role;               // the role in front of the player
+  std::set<std::string> met;      // roles who have spoken to the player on this path (introduced themselves)
+  std::set<std::string> known;    // names the player heard in an earlier conversation of this path
+  bool forced = false;            // the path took an option the dialogue would have hidden (not linted from there on)
+  std::set<std::string> placesKnown;   // places an earlier conversation of this path named (and placed, or the player went)
+};
+constexpr uint32_t C_ANSWER = 1u << 20;   // (this test's own check) the answer does not take up the option chosen
+struct TalkStats {
+  long convs = 0, turns = 0, answers = 0, answerMiss = 0, placeConvs = 0, placeIssues = 0, rawName = 0, rawDouble = 0, forcedConvs = 0, talkAnswer = 0;
+  std::map<uint32_t, long> byCheck;               // conversations with at least one issue of the check
+  std::map<std::string, long> sites;              // archetype | check | the offending text: how often (--talk-report)
+  std::map<uint32_t, std::vector<std::string>> examples;
+  std::vector<std::string> placeExamples;
+  std::set<uint32_t> seenConv;                    // conversations already linted (the walker meets a prefix many times)
+  std::string reviewKey;                          // archetype|hook|motive of the story being walked
+  std::map<std::string, int> reviewTaken;
+  std::string review;
+  int reviewed = 0, reviewPer = 0;
+};
+TalkStats g_talk;
+std::vector<std::string> g_castNames, g_placeNames;   // the walked story's people and places (bound names)
+std::string g_pitch;                                  // the walked story's pitch (the hook's invitation)
+std::vector<std::string> g_allPlaces;                 // every place of the cast, the hook's home too
+std::set<std::string> g_ambiguous;                    // names that are also words or other names of the story (not judged)
+std::vector<std::pair<std::string, std::string>> g_nameRole;   // bound name -> {role} (the report folds seeds together)
+
+std::string asTemplate(std::string t) {
+  for (const auto& nr : g_nameRole)
+    for (size_t p = t.find(nr.first); p != std::string::npos; p = t.find(nr.first, p + nr.second.size())) t.replace(p, nr.first.size(), nr.second);
+  return t;
+}
+
+bool talkStop(const std::string& w) {
+  static const char* const k[] = {"THE", "A", "AN", "AND", "OF", "TO", "IN", "IS", "IT", "I", "YOU", "YOUR", "MY", "ME", "WE", "OUR", "THAT", "THIS", "ON",
+                                  "AT", "FOR", "WITH", "BE", "ARE", "WAS", "IT'S", "I'M", "BUT", "OR", "SO", "NOT", "NO", "DO", "HAVE", "HAS", "HE",
+                                  "SHE", "THEY", "THEM", "HIS", "HER", "AS", "IF", "BY", "I'LL", "WILL", "WHAT", "WHY", "WHO", "HOW", "WHERE",
+                                  "THEN", "THERE", "HERE", "YES", "AYE", "NOW", "CAN", "COULD", "WOULD", "SHOULD", "LET", "ALL", "ONE", "ANY",
+                                  "SOME", "ABOUT", "FROM", "INTO", "WHEN", "JUST", "ONLY", "TELL", "KNOW", "SEE", "GO", "COME", "GET", "TAKE",
+                                  "GIVE", "MAKE", "WANT", "NEED", "THINK", "WELL", "VERY", "MORE", "MUCH", "BACK", "OUT", "UP", "OFF", "OVER",
+                                  "DON'T", "WON'T", "CAN'T", "YOU'RE", "WE'LL", "THAT'S", "LEAVE", "ASK", "SAY", "TRY", "LOOK", "FIND", "HELP",
+                                  "SORRY", "GOOD", "MUST", "SHALL", "MAY", "THEIR", "HIM", "US", "BEEN", "BEING", "DID", "DOES", "DONE", "SURE",
+                                  "STILL", "EVEN", "AGAIN", "FIRST", "TOO", "YET", "OWN", "SUCH", "THAN", "THOSE", "THESE", "WHICH", "FAREWELL"};
+  for (const char* x : k) if (w == x) return true;
+  return false;
+}
+std::vector<std::string> talkWords(const std::string& s) {
+  std::vector<std::string> w;
+  std::string cur;
+  for (char ch : s) {
+    const bool letter = (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '\'';
+    if (letter) cur += ch;
+    else if (!cur.empty()) { w.push_back(cur); cur.clear(); }
+  }
+  if (!cur.empty()) w.push_back(cur);
+  return w;
+}
+// two words of one stem (the first five letters; a shorter word whole, or its first four letters)
+bool sameStem(const std::string& a, const std::string& b) {
+  const size_t m = std::min(a.size(), b.size());
+  if (m < 4) return a == b;
+  return a.compare(0, std::min<size_t>(5, m), b, 0, std::min<size_t>(5, m)) == 0;
+}
+// does the answer take up what the option ASKED? A question ("WHY DID ATHANAS RUN?") must be answered about its
+// subject: the reply shares a content word with it, or, when it asks after someone or something by pronoun ("WHY DID
+// HE RUN?"), the reply speaks of a person or thing of the line it asked about. A statement or a promise ("I'LL FIND
+// HIM.") is answered by a reaction, which need share nothing (the lint's C_ECHO catches a reply that ignores it). The
+// hook's own pitch is the invitation to tell the story, answered by the whole opening.
+bool answers(const std::string& opt, const std::string& reply, const std::string& prev, const std::vector<std::string>& names) {
+  if (reply == prev) return false;
+  if (opt.empty() || opt.back() != '?') return true;
+  {
+    const std::vector<std::string> ow0 = talkWords(opt);
+    bool wh = false;
+    for (const std::string& w : ow0)
+      if (w == "WHAT" || w == "WHAT'S" || w == "WHERE" || w == "WHERE'S" || w == "WHY" || w == "HOW" || w == "WHICH" || w == "WHEN" || w == "WHO" ||
+          w == "WHO'S" || w == "WHOSE")
+        wh = true;
+    if (!wh) return true;   // (a yes-or-no question is answered by a stance: "DEAD THESE TWO YEARS.")
+    const std::vector<std::string> rw0 = talkWords(reply);
+    bool replyPronoun = false;
+    for (const std::string& r : rw0)
+      if (r == "HE" || r == "SHE" || r == "HIM" || r == "HER" || r == "HIS" || r == "THEY" || r == "THEM" || r == "HE'S" || r == "SHE'S") replyPronoun = true;
+    // a question after someone by name ("WHY DID ATHANAS RUN?") answered about them ("HE SAYS HE WAS NEVER PAID.")
+    for (const std::string& n : names) if (opt.find(n) != std::string::npos && (replyPronoun || reply.find(n) != std::string::npos)) return true;
+    // what the engine says when the story moves on is no answer to a question (it must say who can answer it)
+    {
+      static const char* const canned[] = {"THANK YOU. ", "GOOD. ", "THEN GO WELL. ", "THEN YOU NEED ", "GO AND SEE ", "SPEAK WITH ", "YOU SHOULD SPEAK WITH ",
+                                           "GO AND FIND "};
+      for (const char* k : canned) if (reply.compare(0, strlen(k), k) == 0) return false;
+    }
+    // a WHERE answered with a place or a way ("CERNESES'S REDOUBT IS A SHORT WALK TO THE NORTH.")
+    for (const std::string& w : ow0)
+      if (w == "WHERE" || w == "WHERE'S") {
+        for (const std::string& r : rw0)
+          if (r == "NORTH" || r == "SOUTH" || r == "EAST" || r == "WEST" || r == "NORTH-EAST" || r == "NORTH-WEST" || r == "SOUTH-EAST" ||
+              r == "SOUTH-WEST" || r == "HERE" || r == "THERE" || r == "IN" || r == "AT" || r == "BY" || r == "UNDER" || r == "BEHIND")
+            return true;
+        for (const std::string& n : g_placeNames) if (reply.find(n) != std::string::npos) return true;
+      }
+    for (const std::string& w : ow0) {
+      // (a WHY is answered by a reason, which seldom repeats the question's words: "DEBTS. A TEMPER. A NIGHT I'M NOT
+      // PROUD OF." The echo and repeat checks still catch a reply that only restates)
+      if (w == "WHY" || w == "WHAT" || w == "WHAT'S" || w == "HOW" || w == "WHICH" || w == "WHEN") return true;
+      if (w == "WHO" || w == "WHO'S" || w == "WHOSE") {
+        for (const std::string& n : names) if (reply.find(n) != std::string::npos) return true;
+        for (const std::string& r : rw0) if (r == "I" || r == "ME" || r == "MY" || r == "HE" || r == "SHE" || r == "THEY" || r == "NOBODY" || r == "NO-ONE") return true;
+      }
+    }
+  }
+  std::vector<std::string> ow;
+  bool pronoun = false;
+  for (const std::string& w : talkWords(opt)) {
+    if (w == "HE" || w == "SHE" || w == "HIM" || w == "HER" || w == "HIS" || w == "THEY" || w == "THEM" || w == "IT" || w == "THAT" || w == "THIS" ||
+        w == "THERE" || w == "THEIR")
+      pronoun = true;
+    if (w.size() >= 3 && !talkStop(w)) ow.push_back(w);
+  }
+  const std::vector<std::string> rw = talkWords(reply);
+  for (const std::string& a : ow)
+    for (const std::string& b : rw) if (sameStem(a, b)) return true;
+  if (pronoun || ow.empty()) {
+    for (const std::string& b : rw)
+      if (b == "HE" || b == "SHE" || b == "HIM" || b == "HER" || b == "HIS" || b == "THEY" || b == "THEM" || b == "IT" || b == "IT'S" || b == "THEIR")
+        return true;
+    for (const std::string& n : names) if (reply.find(n) != std::string::npos && prev.find(n) != std::string::npos) return true;
+  }
+  return ow.empty();
+}
+
+// (the lint's introduction rule, and the forms it does not know yet, all of which say who someone is with their name:
+// a name in apposition after a noun phrase, "MY YOUNGEST, ELION," / "A TINKER FROM OVER THE BORDER, ARN,"; a title or
+// trade before it, "REEVE ARN" / "THE TINKER ARN"; a role after it, "ARN, CAPTAIN OF THE CAMP," / "ARN, CHANCELLOR TO")
+bool titleWord(const std::string& p) {
+  static const char* const k[] = {"REEVE", "STEWARD", "CHANCELLOR", "SERGEANT", "HUNTSMAN", "WARDEN", "TINKER", "PEDDLER", "HERBALIST", "HEALER",
+                                  "MILLER", "BAKER", "WEAVER", "SHEPHERD", "LADY", "LORD", "EMIR", "KHAN", "JARL", "SPEAKER", "YOUNGEST",
+                                  "ELDEST", "NEPHEW", "NIECE", "GRANDSON", "GRANDDAUGHTER", "GRANDMOTHER", "GRANDFATHER", "APPRENTICE",
+                                  "JOURNEYMAN", "MASTER", "MISTRESS", "CAPTAIN", "PRIESTESS", "PRIEST", "SMITH", "HUNTER", "FARMER", "FISHER",
+                                  "INNKEEPER", "MERCHANT", "GUARD", "SOLDIER", "WIDOW", "WIDOWER", "ELDER", "KING", "QUEEN", "PRINCE",
+                                  "PRINCESS", "REGENT", "BAILIFF", "TITHE-TAKER", "SEER", "HERMIT", "STRANGER", "NOVICE", "SQUIRE", "CHAMPION",
+                                  "NEIGHBOUR", "FRIEND", "BROTHER", "SISTER", "SON", "DAUGHTER", "MOTHER", "FATHER", "WIFE", "HUSBAND",
+                                  "UNCLE", "AUNT", "COUSIN", "OLD", "YOUNG", "LITTLE", "CALLED", "NAMED", "BOY", "GIRL", "LAD", "LASS",
+                                  "SWEETHEART", "BELOVED", "BETROTHED", "RANGER", "HUNTSMAN", "QUARRY-MASTER", "KINSMAN", "KINSWOMAN"};
+  for (const char* x : k) if (p == x) return true;
+  return false;
+}
+// 1 introduced at its first whole-word mention in `text`, 0 mentioned there without who they are, -1 not mentioned
+int introducedHere(const std::string& text, const std::string& name) {
+  // (the first whole-word mention: judged there)
+  size_t at = std::string::npos;
+  for (size_t p = text.find(name); p != std::string::npos; p = text.find(name, p + 1)) {
+    const bool l = p == 0 || !((text[p - 1] >= 'A' && text[p - 1] <= 'Z') || text[p - 1] == '\'');
+    const size_t q = p + name.size();
+    const bool r = q >= text.size() || !((text[q] >= 'A' && text[q] <= 'Z') || (text[q] == '\'' && q + 1 < text.size() && text[q + 1] != 'S'));
+    if (l && r) { at = p; break; }
+  }
+  if (at == std::string::npos) return -1;
+  const std::vector<std::string> before = talkWords(text.substr(0, at)), after = talkWords(text.substr(at + name.size()));
+  if (!before.empty() && titleWord(before.back())) return 1;
+  // apposition: ", NAME" after a noun phrase of this sentence that began with an article or a possessive
+  if (at >= 2 && text.compare(at - 2, 2, ", ") == 0) {
+    size_t cl = text.find_last_of(".!?", at);
+    const std::string clause = text.substr(cl == std::string::npos ? 0 : cl + 1, at - (cl == std::string::npos ? 0 : cl + 1));
+    for (const std::string& w : talkWords(clause))
+      if (w == "A" || w == "AN" || w == "MY" || w == "OUR" || w == "YOUR" || w == "HIS" || w == "HER" || w == "THEIR" || w == "THE") return 1;
+  }
+  // "NAME, CAPTAIN OF ..." / "NAME, CHANCELLOR TO ..." / "NAME, A WIDOW ..." / "NAME, WHO ..."
+  const size_t e = at + name.size();
+  if (e + 1 < text.size() && text[e] == ',' && after.size() >= 2 &&
+      (after[1] == "OF" || after[1] == "TO" || after[0] == "A" || after[0] == "AN" || after[0] == "THE" || after[0] == "MY" || after[0] == "WHO" ||
+       titleWord(after[0])))
+    return 1;
+  // (the lint's own rule, read at the same whole-word mention)
+  static const char* const lintBefore[] = {"MY", "OUR", "YOUR", "CALLED", "NAMED", "I'M", "AM", "IS"};
+  if (!before.empty()) for (const char* b : lintBefore) if (before.back() == b) return 1;
+  static const char* const lintAfter[] = {"THE", "MY", "OUR", "WHO", "A", "AN", "OF", "IS", "WAS"};
+  if (!after.empty()) for (const char* a : lintAfter) if (after[0] == a) return 1;
+  return 0;
+}
+
+void closeConv(TalkPath& tp) {
+  if (tp.conv.turns.empty()) return;
+  if (tp.forced) { tp.conv = speech::Conversation(); tp.role.clear(); g_talk.forcedConvs++; return; }
+  const speech::Conversation c = tp.conv;
+  tp.conv = speech::Conversation();
+  tp.role.clear();
+  const std::string fmt = speech::formatPhone(c);
+  std::string knownKey;
+  for (const std::string& n : tp.known) knownKey += n + ",";
+  // the names heard in it are known from now on (judged at their first mention: here), and the one who spoke
+  tp.known.insert(c.who);
+  std::set<std::string> placesBefore = tp.placesKnown;
+  for (const std::string& n : g_placeNames)
+    for (const speech::Turn& t : c.turns) if (t.text.find(n) != std::string::npos) { tp.placesKnown.insert(n); break; }
+  for (const std::string& n : g_castNames)
+    for (const speech::Turn& t : c.turns) if (t.text.find(n) != std::string::npos) { tp.known.insert(n); break; }
+  if (!g_talk.seenConv.insert(speech::lineHash(fmt + "|" + knownKey)).second) return;
+  g_talk.convs++;
+  g_talk.turns += (long)c.turns.size();
+  speech::LintCtx ctx;
+  ctx.names = g_castNames;
+  for (const std::string& n : g_castNames) if (knownKey.find(n + ",") != std::string::npos) ctx.known.push_back(n);
+  std::vector<speech::Issue> raw = speech::lint(c, ctx), is;
+  {   // (the TALK lane's own answer relation, reported beside this test's: speech::C_ANSWER is not in C_ALL)
+    speech::LintCtx ac;
+    ac.checks = speech::C_ANSWER;
+    if (!speech::lint(c, ac).empty()) g_talk.talkAnswer++;
+  }
+  // (two lint findings this test reads more closely: a name introduced in apposition after a possessive noun; a
+  // sentence opening on a hesitation, " ...VOND?", is not broken punctuation. Both are counted raw too.)
+  for (const speech::Issue& x : raw) {
+    if (x.check == speech::C_NAME) {
+      g_talk.rawName++;
+      bool ok = false;
+      for (const speech::Turn& t : c.turns) {
+        const int r = introducedHere(t.text, x.what);
+        if (r >= 0) { ok = r == 1; break; }
+      }
+      if (ok) continue;
+    }
+    if (x.check == speech::C_SELF && g_ambiguous.count(c.who)) continue;   // (a speaker called BOLD, and a lord "THE BOLD")
+    if (x.check == speech::C_FRAGMENT) {
+      // (one-word sentences that are whole speech: an imperative, a name said alone; the lint does not know them yet)
+      static const char* const whole[] = {"SIT.", "REST.", "DRINK.", "EAT.", "HURRY.", "RUN.", "PRAY.", "LISTEN.", "WATCH.", "SPEAK.", "BREATHE.",
+                                          "KNEEL.", "SLEEP.", "SWEAR.", "STAY.", "FIGHT.", "RIDE.", "CHOOSE.", "FORGIVE.", "REMEMBER.", "LEAVE."};
+      bool ok = false;
+      for (const char* w : whole) if (x.what == w) ok = true;
+      for (const std::string& n : g_castNames) if (x.what == n + ".") ok = true;
+      for (const std::string& n : g_allPlaces) if (x.what == n + ".") ok = true;
+      if (ok) continue;
+    }
+    if (x.check == speech::C_DOUBLE) {
+      g_talk.rawDouble++;
+      if (x.turn >= 0 && x.turn < (int)c.turns.size()) {
+        speech::Conversation one;
+        speech::Turn t = c.turns[(size_t)x.turn];
+        for (size_t p = t.text.find(" ..."); p != std::string::npos; p = t.text.find(" ...", p + 1)) t.text.replace(p, 4, " ");
+        if (t.text.compare(0, 3, "...") == 0) t.text = t.text.substr(3);
+        t.opts.clear();
+        one.turns.push_back(t);
+        speech::LintCtx dc;
+        dc.checks = speech::C_DOUBLE;
+        if (speech::lint(one, dc).empty()) continue;
+      }
+    }
+    is.push_back(x);
+  }
+  for (size_t t = 0; t + 1 < c.turns.size(); t++) {
+    const speech::Turn& T = c.turns[t];
+    if (T.chosen < 0 || T.chosen >= (int)T.opts.size()) continue;
+    if (T.opts[(size_t)T.chosen] == g_pitch) continue;
+    g_talk.answers++;
+    if (!answers(T.opts[(size_t)T.chosen], c.turns[t + 1].text, T.text, g_castNames)) {
+      g_talk.answerMiss++;
+      speech::Issue x;
+      x.check = C_ANSWER;
+      x.turn = (int)t + 1;
+      x.what = "\"" + T.opts[(size_t)T.chosen] + "\" -> " + c.turns[t + 1].text.substr(0, 100);
+      is.push_back(x);
+    }
+  }
+  {   // a place the conversation names but never says where it is (a soft measure: the journal and the map marker
+      // carry it too). Placed: a direction or "HERE" follows its name in some line ("LISTA IS A LONG WALK TO THE EAST",
+      // "IN VOND, A SHORT WALK TO THE NORTH", "HERE IN VOND")
+    g_talk.placeConvs++;
+    std::string all;
+    for (const speech::Turn& t : c.turns) all += t.text + " ";
+    for (const std::string& n : g_placeNames) {
+      if (introducedHere(all, n) < 0 || placesBefore.count(n)) continue;
+      bool placed = false;
+      for (size_t p = all.find(n); p != std::string::npos && !placed; p = all.find(n, p + 1)) {
+        const std::string after = all.substr(p + n.size(), 48);
+        if (after.find("NORTH") != std::string::npos || after.find("SOUTH") != std::string::npos || after.find(" EAST") != std::string::npos ||
+            after.find(" WEST") != std::string::npos || (p >= 8 && all.compare(p - 8, 8, "HERE IN ") == 0))
+          placed = true;
+      }
+      if (placed) continue;
+      g_talk.placeIssues++;
+      if (g_talk.placeExamples.size() < 300) g_talk.placeExamples.push_back(n + " in: " + all.substr(0, 160));
+      break;
+    }
+  }
+  uint32_t seen = 0;
+  {
+    const std::string arch = g_talk.reviewKey.substr(0, g_talk.reviewKey.find('|'));
+    for (const speech::Issue& x : is) {
+      const std::string line = x.turn >= 0 && x.turn < (int)c.turns.size() ? c.turns[(size_t)x.turn].text : std::string();
+      g_talk.sites[arch + " | " + (x.check == C_ANSWER ? "answer" : speech::checkName(x.check)) + " | " + asTemplate(x.what).substr(0, 90) + "  <<  " +
+                   asTemplate(line).substr(0, 200)]++;
+    }
+  }
+  for (const speech::Issue& x : is) {
+    if (seen & x.check) continue;
+    seen |= x.check;
+    g_talk.byCheck[x.check]++;
+    auto& ex = g_talk.examples[x.check];
+    if (ex.size() < 400) ex.push_back(c.who + " (turn " + std::to_string(x.turn) + "): " + x.what);
+    if (std::getenv("EMB_SAGADUMP") && x.check == speech::C_REPEAT) printf("---- %s\n%s", g_talk.reviewKey.c_str(), fmt.c_str());
+  }
+  if (!g_talk.reviewKey.empty() && g_talk.reviewPer > 0 && g_talk.reviewTaken[g_talk.reviewKey] < g_talk.reviewPer) {
+    g_talk.reviewTaken[g_talk.reviewKey]++;
+    g_talk.reviewed++;
+    std::string t = "#" + std::to_string(g_talk.reviewed) + " " + g_talk.reviewKey + "\n" + fmt;
+    for (const speech::Issue& x : is)
+      t += "   !! " + std::string(x.check == C_ANSWER ? "answer does not take up the option" : speech::checkName(x.check)) + " (turn " +
+           std::to_string(x.turn) + "): " + x.what + "\n";
+    g_talk.review += t + "\n";
+  }
+}
+
+// the turn as the panel shows it; optIx: each shown option's index in the stage (hidden ones are not offered)
+speech::Turn turnFor(Game& g, const story::Instance& in, const dsl::Script& sc, bool introduce, std::vector<int>& optIx) {
+  speech::Turn t;
+  const dsl::StageDef& G = sc.stages[(size_t)in.stage];
+  const story::Binding* b = story::bindingOf(in, G.talk);
+  t.speaker = b ? b->name : G.talk;
+  t.text = g.story.talkLine(g, in, introduce);
+  optIx.assign(G.opts.size(), -1);
+  for (size_t i = 0; i < G.opts.size(); i++) {
+    if (!g.story.optionShown(g, in, (int)i)) continue;
+    optIx[i] = (int)t.opts.size();
+    t.opts.push_back(story::fillText(g, in, G.opts[i].label));
+  }
+  t.opts.push_back("FAREWELL.");
+  return t;
+}
+
 struct Walk {
   int nodes = 0, ends = 0, bad = 0;
   std::set<std::string> endNames, memo;
@@ -143,12 +477,12 @@ void checkPay(Game& g, const story::Instance& in, const dsl::Script& sc, int gol
 }
 
 void walk(Game& g, uint32_t id, const dsl::Script& sc, const std::string& name, Walk& w, std::map<std::string, int>& onPath, int depth,
-          bool realmToo, int D) {
+          bool realmToo, int D, TalkPath tp) {
   story::Instance* in = g.story.find(id);
   if (!in) { out("FAIL: saga %s: the instance vanished\n", name.c_str()); w.bad++; return; }
   const std::string st = g.story.stageName(*in);
   const std::string key = st + "|" + varsKey(in->vars);
-  if (w.memo.count(key)) return;
+  if (w.memo.count(key)) { closeConv(tp); return; }
   w.nodes++;
   for (const std::string& t : g.story.stageTexts(g, *in))
     if (const char* why = unreadable(t)) { out("FAIL: saga %s stage %s: %s in: %s\n", name.c_str(), st.c_str(), why, t.c_str()); w.bad++; }
@@ -156,6 +490,7 @@ void walk(Game& g, uint32_t id, const dsl::Script& sc, const std::string& name, 
   if (say.size() > w.maxSay) { w.maxSay = say.size(); w.maxSayText = say; }
   if (say.size() > 300) w.over300++;
   if (in->done || g.story.isEnd(*in)) {
+    closeConv(tp);
     w.memo.insert(key);
     w.ends++;
     w.endNames.insert(st);
@@ -171,12 +506,13 @@ void walk(Game& g, uint32_t id, const dsl::Script& sc, const std::string& name, 
   onPath[st]++;
   const Snap s0 = snap(g, realmToo);
   if (g.story.isGoal(*in)) {
+    closeConv(tp);
     const int gold0 = g.gold;
     const size_t inv0 = g.inv.size();
     if (!g.story.debugComplete(g, id)) { out("FAIL: saga %s stage %s: the objective cannot be completed\n", name.c_str(), st.c_str()); w.bad++; }
     else {
       if (const story::Instance* in2 = g.story.find(id)) checkPay(g, *in2, sc, gold0, inv0, D, name, w);
-      walk(g, id, sc, name, w, onPath, depth + 1, realmToo, D);
+      walk(g, id, sc, name, w, onPath, depth + 1, realmToo, D, tp);
     }
     restore(g, s0);
     onPath[st]--;
@@ -187,6 +523,18 @@ void walk(Game& g, uint32_t id, const dsl::Script& sc, const std::string& name, 
   // (which options are checks: read now, before any branch moves the instance on or a restore moves it in memory)
   std::vector<uint8_t> isCheck((size_t)n, 0);
   for (int i = 0; i < n; i++) isCheck[(size_t)i] = g.story.optionIsCheck(*in, i) ? 1 : 0;
+  // (M7b) this talk stage's turn of the conversation in front of the player
+  const std::string R = in->stage >= 0 && in->stage < (int)sc.stages.size() ? sc.stages[(size_t)in->stage].talk : std::string();
+  if (!tp.conv.turns.empty() && tp.role != R) closeConv(tp);
+  if (tp.conv.turns.empty()) {
+    const story::Binding* b = story::bindingOf(*in, R);
+    tp.conv.who = b ? b->name : R;
+    tp.conv.role = R;
+    tp.role = R;
+  }
+  std::vector<int> optIx;
+  tp.conv.turns.push_back(turnFor(g, *in, sc, !tp.met.count(R), optIx));
+  tp.met.insert(R);
   bool first = true;
   for (int i = 0; i < n; i++) {
     const bool check = isCheck[(size_t)i] != 0;
@@ -198,7 +546,30 @@ void walk(Game& g, uint32_t id, const dsl::Script& sc, const std::string& name, 
       if (!g.story.choose(g, id, i, true, c)) { out("FAIL: saga %s stage %s: option %d cannot be chosen\n", name.c_str(), st.c_str(), i); w.bad++; continue; }
       if (g_trace) { const story::Instance* t2 = g.story.find(id); printf("  trace %s -[%d/%d]-> %s\n", st.c_str(), i, c, t2 ? g.story.stageName(*t2).c_str() : "?"); }
       if (const story::Instance* in2 = g.story.find(id)) checkPay(g, *in2, sc, gold0, inv0, D, name, w);
-      walk(g, id, sc, name, w, onPath, depth + 1, realmToo, D);
+      TalkPath t2 = tp;
+      if (i < (int)optIx.size() && optIx[(size_t)i] >= 0) t2.conv.turns.back().chosen = optIx[(size_t)i];
+      else t2.forced = true;
+      if (const story::Instance* in2 = g.story.find(id)) {
+        const bool talkNext = !in2->done && in2->stage >= 0 && in2->stage < (int)sc.stages.size() && sc.stages[(size_t)in2->stage].kind == dsl::StageKind::Talk;
+        const bool same = talkNext && sc.stages[(size_t)in2->stage].talk == R;
+        std::string text;
+        const int shown = t2.conv.turns.back().chosen;
+        std::string said;   // (everything said in this conversation so far, as Engine::said_ holds it)
+        for (const speech::Turn& T0 : t2.conv.turns) said += T0.text + " ";
+        const std::string heard = said + "\n" + (shown >= 0 ? t2.conv.turns.back().opts[(size_t)shown] : std::string());
+        const story::Engine::Reply rp = g.story.replyAfter(g, *in2, R, same, heard, st, text);
+        if (rp == story::Engine::Reply::Close) {
+          speech::Turn T;
+          T.speaker = t2.conv.turns.back().speaker;
+          // (an ending told as a story is shown under the tale's title: Engine::choose)
+          if (sc.stages[(size_t)in2->stage].kind == dsl::StageKind::End && story::Engine::narration(text, t2.conv.who)) T.speaker = sc.title;
+          T.text = text;
+          T.opts.push_back("FAREWELL.");
+          t2.conv.turns.push_back(T);
+          closeConv(t2);
+        } else if (rp == story::Engine::Reply::Silent) closeConv(t2);
+      }
+      walk(g, id, sc, name, w, onPath, depth + 1, realmToo, D, t2);
     }
   }
   restore(g, s0);
@@ -614,7 +985,9 @@ int sagasCmd(int argc, char** argv) {
   uint64_t A = 1, B = 3;
   int N = 40, sample = 0;
   bool play = true;
-  std::string only;
+  std::string only, review, talkReport;
+  int talkExamples = 0;
+  g_talk = TalkStats();
   for (int i = 2; i < argc; i++) {
     if (!strcmp(argv[i], "--seeds") && i + 1 < argc) parseSeedRange(argv[++i], A, B);
     else if (!strcmp(argv[i], "--verbose")) g_sverbose = true;
@@ -622,6 +995,10 @@ int sagasCmd(int argc, char** argv) {
     else if (!strcmp(argv[i], "--trace")) g_trace = true;
     else if (!strcmp(argv[i], "--only") && i + 1 < argc) only = argv[++i];
     else if (!strcmp(argv[i], "--sample") && i + 1 < argc) sample = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--review") && i + 1 < argc) review = argv[++i];
+    else if (!strcmp(argv[i], "--review-per") && i + 1 < argc) g_talk.reviewPer = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--talk-examples") && i + 1 < argc) talkExamples = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--talk-report") && i + 1 < argc) talkReport = argv[++i];
     else if (argv[i][0] >= '0' && argv[i][0] <= '9') N = atoi(argv[i]);
   }
   std::vector<const Archetype*> arch;
@@ -691,7 +1068,81 @@ int sagasCmd(int argc, char** argv) {
       auto c2t = std::chrono::steady_clock::now();
       Walk w;
       std::map<std::string, int> onPath;
-      walk(g, inst, *sc, id, w, onPath, 0, realmToo, D);
+      TalkPath tp;
+      {
+        // (M7b) the cast's names the conversations may rely on only once introduced, and the hook's own turn: the
+        // teller's line instead of a greeting and the pitch, chosen (storyTalk); the opening stage goes on from it
+        g_castNames.clear();
+        g_placeNames.clear();
+        g_allPlaces.clear();
+        g_ambiguous.clear();
+        g_nameRole.clear();
+        const story::Instance* in0 = g.story.find(inst);
+        for (size_t ri = 0; in0 && ri < in0->cast.size() && ri < sc->roles.size(); ri++) {
+          const dsl::RoleKind k = sc->roles[ri].kind;
+          const std::string& nm = in0->cast[ri].name;
+          if (nm.empty()) continue;
+          if (nm.size() >= 3) g_nameRole.push_back({nm, "{" + sc->roles[ri].name + "}"});
+          if (k == dsl::RoleKind::Giver && sc->hook != dsl::HookKind::Npc && sc->hook != dsl::HookKind::Herald) continue;
+          const bool person = k == dsl::RoleKind::Giver || k == dsl::RoleKind::Person || k == dsl::RoleKind::Foe || k == dsl::RoleKind::Npc ||
+                              k == dsl::RoleKind::Resident || k == dsl::RoleKind::Beast || k == dsl::RoleKind::Boss;
+          const bool place = k == dsl::RoleKind::Site || k == dsl::RoleKind::Ruin || k == dsl::RoleKind::Capital;
+          // (an npc bound by trade, "THE SMITH", is no proper name: nobody introduces the smith)
+          if (person && nm.compare(0, 4, "THE ") != 0 && std::find(g_castNames.begin(), g_castNames.end(), nm) == g_castNames.end()) g_castNames.push_back(nm);
+          if (place || k == dsl::RoleKind::Site) g_allPlaces.push_back(nm);
+          if (place && sc->roles[ri].name != "home" && std::find(g_placeNames.begin(), g_placeNames.end(), nm) == g_placeNames.end()) g_placeNames.push_back(nm);
+        }
+        const char* hookW = sc->hook == dsl::HookKind::Npc ? "npc" : sc->hook == dsl::HookKind::Board ? "board" : sc->hook == dsl::HookKind::Herald ? "herald"
+                            : sc->hook == dsl::HookKind::Ruin ? "ruin" : "event";
+        g_talk.reviewKey = s.arch + "|" + hookW + "|" + motiveName(s.motive);
+        g_pitch = in0 ? story::fillText(g, *in0, sc->pitch) : std::string();
+        if (in0 && sc->hook == dsl::HookKind::Npc && !in0->cast.empty() && !sc->hint.empty()) {
+          speech::Turn T;
+          T.speaker = in0->cast[0].name;
+          T.text = g.story.hookLine(g, *in0, *sc, true);
+          T.opts.push_back(story::fillText(g, *in0, sc->pitch));
+          T.opts.push_back("FAREWELL.");
+          T.chosen = 0;
+          tp.conv.who = T.speaker;
+          tp.conv.role = "giver";
+          tp.role = "giver";
+          tp.conv.turns.push_back(T);
+          tp.met.insert("giver");
+        }
+      }
+      {   // (a name the world gave twice, or that is a word of another bound name, "THE KINGDOM OF ARN" and a tinker ARN:
+          //  which one a line means cannot be told, so it is not judged)
+        const story::Instance* in1 = g.story.find(inst);
+        std::vector<std::string> keep;
+        for (const std::string& n : g_castNames) {
+          int uses = 0;
+          std::vector<std::string> others;
+          for (size_t ri = 0; in1 && ri < in1->cast.size() && ri < sc->roles.size(); ri++) {
+            others.push_back(in1->cast[ri].name);
+            if (sc->roles[ri].kind == dsl::RoleKind::Ruin)   // (a ruin's old name and its last lord are names too)
+              for (const char* f : {".old}", ".lord}", ".builder}"}) others.push_back(story::fillText(g, *in1, "{" + sc->roles[ri].name + f));
+          }
+          // (a name that is also a word the story's own text uses, a person called OLD, is not judged either)
+          {
+            std::string raw = sc->hint + " ";
+            for (const dsl::StageDef& G : sc->stages) raw += G.say + " ";
+            if (introducedHere(raw, n) >= 0) uses += 2;
+          }
+          for (const std::string& other : others) {
+            if (other == n) { uses++; continue; }
+            const size_t p = other.find(n);
+            if (p != std::string::npos && (p == 0 || other[p - 1] == ' ') && (p + n.size() == other.size() || other[p + n.size()] == ' ' || other[p + n.size()] == '\'')) uses += 2;
+          }
+          if (uses <= 1) keep.push_back(n);
+          else g_ambiguous.insert(n);
+        }
+        g_castNames = keep;
+      }
+      std::sort(g_nameRole.begin(), g_nameRole.end(), [](const std::pair<std::string, std::string>& a, const std::pair<std::string, std::string>& b) {
+        return a.first.size() != b.first.size() ? a.first.size() > b.first.size() : a.first < b.first;
+      });
+      walk(g, inst, *sc, id, w, onPath, 0, realmToo, D, tp);
+      g_talk.seenConv.clear();
       walkMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - c2t).count();
       nodes += w.nodes;
       ends += w.ends;
@@ -700,7 +1151,7 @@ int sagasCmd(int argc, char** argv) {
       over300 += w.over300;
       for (const dsl::StageDef& G : sc->stages)
         if (G.kind == dsl::StageKind::End && !w.endNames.count(G.name)) { out("FAIL: saga %s: no path reaches the ending '%s'\n", id.c_str(), G.name.c_str()); seedBad++; }
-      if (g_sverbose) out("saga seed %llu: %s cast, %d states, %d endings reached\n", (unsigned long long)seed, id.c_str(), w.nodes, (int)w.endNames.size());
+      if (g_sverbose) { out("saga seed %llu: %s cast, %d states, %d endings reached\n", (unsigned long long)seed, id.c_str(), w.nodes, (int)w.endNames.size()); fflush(stdout); }
       restore(g, s0);
       g.story.drop(inst);
       trimCache(g.story);
@@ -726,6 +1177,56 @@ int sagasCmd(int argc, char** argv) {
     if (pairsK < 300) { printf("FAIL: sagas: %.0f distinct (archetype, twists) pairs per 1,000 stories (the bar: 300)\n", pairsK); bad++; }
   } else {
     printf("  (uniqueness not gated yet: %d story archetypes of the 60 that make the library full, %d stories)\n", lr.tier2, stories);
+  }
+  {   // (M7b) the conversations' coherence
+    const long C = std::max(1L, g_talk.convs);
+    printf("sagas talk: %ld conversations (%ld turns) linted; %ld answers checked; %ld on paths only the walker takes (an option the "
+           "dialogue hides) not linted\n", g_talk.convs, g_talk.turns, g_talk.answers, g_talk.forcedConvs);
+    const uint32_t order[] = {speech::C_EMPTY, speech::C_PLACEHOLDER, speech::C_CASE, speech::C_PANEL, speech::C_OPTION, speech::C_REPEAT, speech::C_DOUBLE,
+                              speech::C_STITCH, speech::C_FRAGMENT, speech::C_NAME, speech::C_ECHO, speech::C_PUNCT, speech::C_SELF, C_ANSWER};
+    for (uint32_t c : order) {
+      const long n = g_talk.byCheck.count(c) ? g_talk.byCheck[c] : 0;
+      printf("  %-46s %6ld conversations (%5.2f %%)\n", c == C_ANSWER ? "answer does not take up the option" : speech::checkName(c), n, 100.0 * n / C);
+      if (talkExamples > 0 && g_talk.examples.count(c))
+        for (size_t k = 0; k < g_talk.examples[c].size() && (int)k < talkExamples; k++) printf("      e.g. %s\n", g_talk.examples[c][k].c_str());
+    }
+    printf("  (raw lint: %ld name findings, %ld doubled / punctuation findings, before the closer reading above)\n", g_talk.rawName, g_talk.rawDouble);
+    printf("  %-46s %6ld conversations (%5.2f %%) [soft]\n", "(speech::answers) answer does not follow", g_talk.talkAnswer, 100.0 * g_talk.talkAnswer / C);
+    printf("  %-46s %6ld conversations (%5.2f %%) [soft]\n", "a place named but never placed", g_talk.placeIssues,
+           100.0 * g_talk.placeIssues / std::max(1L, g_talk.placeConvs));
+    if (talkExamples > 0)
+      for (size_t k = 0; k < g_talk.placeExamples.size() && (int)k < talkExamples; k++) printf("      e.g. %s\n", g_talk.placeExamples[k].c_str());
+    // the gates (15.23): nothing unfilled, nothing off the panel, every answer a reply to its option, nobody naming
+    // themselves as "him", every person introduced before they are relied on, no phrase twice in one conversation
+    {
+      const uint32_t hard[] = {speech::C_EMPTY, speech::C_PLACEHOLDER, speech::C_CASE, speech::C_PANEL, speech::C_OPTION, speech::C_ECHO, speech::C_SELF,
+                               speech::C_NAME, speech::C_REPEAT, C_ANSWER};
+      for (uint32_t c : hard) {
+        const long n = g_talk.byCheck.count(c) ? g_talk.byCheck[c] : 0;
+        if (!n) continue;
+        printf("FAIL: sagas talk: %ld conversations with %s\n", n, c == C_ANSWER ? "an answer that does not take up the option" : speech::checkName(c));
+        for (size_t k = 0; g_talk.examples.count(c) && k < g_talk.examples[c].size() && k < 5; k++) printf("      e.g. %s\n", g_talk.examples[c][k].c_str());
+        bad++;
+      }
+      // the soft ones are reported (stitched sentences, one-word fragments, broken punctuation, unfinished sentences)
+      long soft = 0;
+      for (uint32_t c : {speech::C_STITCH, speech::C_FRAGMENT, speech::C_DOUBLE, speech::C_PUNCT}) soft += g_talk.byCheck.count(c) ? g_talk.byCheck[c] : 0;
+      printf("sagas talk: %ld conversations with a soft finding (stitched / fragment / punctuation)\n", soft);
+    }
+    if (!talkReport.empty()) {
+      std::vector<std::pair<long, std::string>> v;
+      for (const auto& kv : g_talk.sites) v.push_back({kv.second, kv.first});
+      std::sort(v.begin(), v.end(), [](const std::pair<long, std::string>& a, const std::pair<long, std::string>& b) { return a.first != b.first ? a.first > b.first : a.second < b.second; });
+      if (FILE* f = fopen(talkReport.c_str(), "w")) {
+        for (const auto& e : v) fprintf(f, "%6ld  %s\n", e.first, e.second.c_str());
+        fclose(f);
+      }
+    }
+    if (!review.empty()) {
+      FILE* f = fopen(review.c_str(), "w");
+      if (f) { fputs(g_talk.review.c_str(), f); fclose(f); printf("sagas: wrote %d conversations for review to %s\n", g_talk.reviewed, review.c_str()); }
+      else { printf("FAIL: sagas: cannot write %s\n", review.c_str()); bad++; }
+    }
   }
   printf("sagas: %d failures\n", bad);
   return bad ? 1 : 0;

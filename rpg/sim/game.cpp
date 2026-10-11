@@ -99,6 +99,8 @@ void Game::resetSession() {
   // M7: the player's property (a load reads the saved home block over this)
   home = home::Homes();
   homeSerial_ = world.placeSerial + 0x80000000u;   // stamp the window on the first step
+  // M7b: the people the hero has met (a load reads the saved talk block over this)
+  talkMem.clear();
 }
 
 // everything a new game sets up once its world exists
@@ -1787,7 +1789,11 @@ void Game::streamSitePeople(int si) {
       for (const Actor& o : sheltered_)
         if (o.site == si && o.role == Role::Guard && len2(o.home - heart) < (10.0f * TILE) * (10.0f * TILE)) posted++;
       static const int post[][2] = {{-4, 3}, {4, 3}, {0, -4}, {-6, -1}, {6, -1}};
-      if (posted < (st.type == SiteType::City ? 4 : 2) && posted < 5) {
+      // (fixer M7b r1) only while the square lies inside the watch's streaming ring: a guard posted beyond guardOut would
+      // be put away again on the next tick, and a big capital seen from its edge would then show no watch at all
+      const float hdx = heart.x / TILE - ptx, hdy = heart.y / TILE - pty;
+      const bool heartNear = whole || hdx * hdx + hdy * hdy <= (float)((guardOut - 4) * (guardOut - 4));
+      if (heartNear && posted < (st.type == SiteType::City ? 4 : 2) && posted < 5) {
         Actor& g = actors.back();
         g.p = freeSpot(st.ex + post[posted][0], st.ey + post[posted][1]);
         g.home = g.p; g.goal = g.p;

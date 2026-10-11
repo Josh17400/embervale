@@ -85,6 +85,16 @@ Kind kindOfProp(art::Prop p) {
     // generator; painted by art_home.cpp, not by a culture's parts
     case Prop::ForSaleSign:
       return Kind::None;
+    // (M7b CITYART) the city props (art_city.cpp cityPropStyled): the built ones take the culture's stone, cloth and forms
+    // (builder_gallery --check counts their looks across the cultures); the planted ones (a clipped hedge, a flower bed,
+    // a fruit tree) are not built
+    case Prop::Bollard: case Prop::GardenWall: return Kind::Fence;   // a kerb's bollard and a garden's wall: the street's barriers
+    case Prop::Monument: return Kind::Monument;                        // the column, obelisk, stele or runestone of a square
+    case Prop::Planter: return Kind::Bench;                            // street furniture at a door or along a walk
+    case Prop::Pavilion: return Kind::Tent;                            // a park's open shelter (bandstand, gazebo, tea pavilion)
+    case Prop::Canopy: return Kind::MarketStall;                       // the souk street's cloth cover
+    case Prop::Hedge: case Prop::FlowerBed: case Prop::FruitTree:
+      return Kind::None;
     case Prop::COUNT: break;
   }
   return Kind::COUNT;   // unclassified: rpg_test --builder fails

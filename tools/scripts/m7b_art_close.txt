@@ -1,0 +1,33 @@
+# M7b CITYART lane: close shots of the city fabric at noon (crop and zoom them 2-3x to judge): a kerb's outer corner,
+# a straight south kerb, a gutter's grate by a square, a row-house terrace, a square, a court, the props stage (garden
+# wall corner, the souk canopy, the pavilion). gotourb leaves the hero where he is when the plan has none of a kind.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7b_art_close.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.2 gotoculture heartland city
++1.4 urb
++0.1 gotourb corner
++1.0 shot m7b_close_corner.png
++0.1 gotourb kerb 3
++1.0 shot m7b_close_kerb.png
++0.1 gotourb grate
++1.0 shot m7b_close_grate.png
++0.1 gotourb terrace
++1.0 shot m7b_close_terrace.png
++0.1 gotourb square 40
++1.0 shot m7b_close_square.png
++0.1 gotourb park
++1.0 shot m7b_close_park.png
++0.1 gotourb court
++1.0 shot m7b_close_court.png
++0.2 gotoculture dune city
++1.4 gotourb corner
++1.0 shot m7b_close_dune_corner.png
++0.2 gotoculture jade city
++1.4 gotourb corner
++1.0 shot m7b_close_jade_corner.png
++0.1 cityprops
++1.0 shot m7b_close_props_jade.png
++0.3 quit

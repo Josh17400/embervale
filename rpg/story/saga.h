@@ -180,6 +180,9 @@ struct VoiceCtx {
                                  // 2 heartland/imperial, 3 dune/sun-temple, 4 steppe, 5 marsh/river, 6 jade, 7 sylvan/star)
   Motive motive = Motive::Duty;  // the speaker's
   uint64_t seed = 0;             // the choice within the grammar (the composer advances it per slot)
+  // (M7b) the phrase follows other words of the same line: no opener ("HAIL, ROAD-WALKER." belongs at the start of
+  // what someone says, never after their first sentence), only lines that stand alone (F, B, and the motive's M lines)
+  bool midLine = false;
 };
 struct Phrase {
   std::string text;              // upper case, at most 60 characters (the 300-character line budget); "" unknown key
@@ -226,6 +229,7 @@ struct Expand {
   std::set<std::string> flags;                   // ?flag / !flag
   std::map<std::string, std::string> picks;      // [[name=...]] choices, for [[=name]] (twists inherit the archetype's)
   std::vector<uint32_t> families;                // (out) phrase families used
+  std::set<std::string> said;                    // (M7b) the phrases already used in this story: never said twice
   std::vector<std::string> errors;               // (out) unknown voice keys, unclosed markup, unknown @targets
 };
 std::string expand(const std::string& body, Expand& x);

@@ -3079,58 +3079,34 @@ void Game::lifeTalk(Actor& a) {
   if (!c || a.resident < 0 || a.resident >= (int)c->res.size()) return;
   life::Resident& r = c->res[(size_t)a.resident];
   const std::string town = world.sites[(size_t)si].name;
-  // a plain townsperson's own words (never over quest talk: a reward, an offer, a parcel)
-  bool questy = false, asks = false;
-  for (const DlgOpt& o : dlg.opts) if (o.action == A_TURNIN || o.action == A_DELIVER || o.action == A_ESCORT || o.action == A_MAIN) questy = true;
+  // a plain townsperson's own words (M7b: proposed, so a reward, an offer or a parcel still speaks over them; talkTo's
+  // frame puts a stranger's introduction or an acquaintance's hello in front)
+  bool asks = false;
   for (const DlgOpt& o : dlg.opts) if (o.action == A_ASK) asks = true;
-  for (const Quest& q : quests) if (q.state != QState::Done && isGiver(q, a)) questy = true;
+  const bool friendOf = (r.flags & life::RF_BEFRIENDED) != 0;
+  const std::string hello = friendOf ? std::string(timeGreeting(hour)) + ", FRIEND! " : std::string();
+  const bool hard = (c->moodFlags & (life::MF_FAMINE | life::MF_HUNGRY | life::MF_WARTORN | life::MF_GRIEF)) != 0;
+  const bool pressing = r.need[(int)life::Need::Hunger] < 25 || (r.flags & life::RF_GRIEVING);
   // (M5) a standing offer of work (A_ASK: an innkeeper, a farmer) still voices the town's need or mood when there is
   // one: the most-visited people in a hungry town must show the famine; with nothing pressing their own line stays
-  if ((a.lifeBits & (LB_LIFE | LB_KEY)) && !questy && asks && r.job != life::Job::Beggar) {
-    const bool hard = (c->moodFlags & (life::MF_FAMINE | life::MF_HUNGRY | life::MF_WARTORN | life::MF_GRIEF)) != 0;
+  if ((a.lifeBits & (LB_LIFE | LB_KEY)) && asks && r.job != life::Job::Beggar) {
     const std::string mood = hard ? LifeOps::moodLine(*c, town) : std::string();
-    // the town's trouble first (it is what the player can help with); their own hunger or grief before it; a lesser
-    // need (rest, faith) only when the town is well
-    const bool pressing = r.need[(int)life::Need::Hunger] < 25 || (r.flags & life::RF_GRIEVING);
     const std::string need = (pressing || mood.empty()) ? LifeOps::needBark(*c, r) : std::string();
-    if (!need.empty() || !mood.empty())
-      dlg.text = std::string(timeGreeting(hour)) + ((r.flags & life::RF_BEFRIENDED) ? ", FRIEND! " : ". ") + (!need.empty() ? need : mood);
+    if (!need.empty()) speech::propose(dlg, pressing ? speech::P_NEED : speech::P_BARK, speech::Topic::Need, hello + need);
+    else if (!mood.empty()) speech::propose(dlg, speech::P_BARK, speech::Topic::Bark, hello + mood);
   }
-  if ((a.lifeBits & LB_LIFE) && !questy && !asks) {
-    const bool friendOf = (r.flags & life::RF_BEFRIENDED) != 0;
-    std::string t = std::string(timeGreeting(hour)) + (friendOf ? ", FRIEND! " : ". ");
+  if ((a.lifeBits & LB_LIFE) && !asks) {
     const std::string need = LifeOps::needBark(*c, r);
     const std::string mood = LifeOps::moodLine(*c, town);
-    if (r.job == life::Job::Beggar) t = "ALMS FOR THE POOR? A COIN, A CRUST, ANYTHING.";
-    else if (!need.empty()) t += need;
-    else if (!mood.empty()) t += mood;
-    else {
-      static const char* idle[] = {"I'M %s, THE %s. WHAT BRINGS YOU TO %s?", "%s, %s BY TRADE. FINE DAY FOR IT IN %s.",
-                                   "NAME'S %s. %s HERE IN %s, ALL MY DAYS."};
-      char buf[256];
-      const std::string job = std::string(life::jobName(r.job));
-      const std::string first = firstName(r.name);
-      const uint32_t pick3 = mixu(c->seed ^ r.idx, (uint64_t)day) % 3u;
-      switch (r.job) {
-        case life::Job::Child:
-          std::snprintf(buf, sizeof buf, pick3 ? "I'M %s! YOU'RE IT!" : "I'M %s. ARE YOU A REAL ADVENTURER?", first.c_str());
-          break;
-        case life::Job::Elder:
-          std::snprintf(buf, sizeof buf, "%s, THEY CALL ME. I'VE SEEN MORE WINTERS IN %s THAN I CARE TO COUNT.", first.c_str(), town.c_str());
-          break;
-        case life::Job::Bard:
-          std::snprintf(buf, sizeof buf, "%s, BARD OF %s. COME TO THE HALL TONIGHT: I'VE A NEW SONG.", first.c_str(), town.c_str());
-          break;
-        case life::Job::Lamplighter:
-          std::snprintf(buf, sizeof buf, "%s. I LIGHT %s'S LAMPS AT DUSK AND PUT THEM OUT AT DAWN.", first.c_str(), town.c_str());
-          break;
-        default:
-          std::snprintf(buf, sizeof buf, idle[pick3], first.c_str(), job.c_str(), town.c_str());
-          break;
-      }
-      t += buf;
-    }
-    dlg.text = t;
+    if (r.job == life::Job::Beggar) speech::propose(dlg, speech::P_NEED, speech::Topic::Need, "ALMS FOR THE POOR? A COIN, A CRUST, ANYTHING.");
+    else if (!need.empty()) speech::propose(dlg, pressing ? speech::P_NEED : speech::P_BARK, speech::Topic::Need, hello + need);
+    else if (!mood.empty() && (hard || !talkMem.saidRecently(speech::lineHash(mood), day, 0)))
+      // a good mood is said once a day in a town, not by every person in the street
+      speech::propose(dlg, hard ? speech::P_BARK : speech::P_SMALLTALK, speech::Topic::Bark, hello + mood);
+    else if (r.job == life::Job::Bard)
+      speech::propose(dlg, speech::P_SMALLTALK, speech::Topic::Smalltalk, hello + "COME TO THE HALL TONIGHT. I'VE A NEW SONG, AND IT NEEDS EARS.");
+    else if (!hello.empty())
+      speech::propose(dlg, speech::P_SMALLTALK, speech::Topic::Smalltalk, hello + "IT'S ALWAYS GOOD TO SEE YOU IN " + town + ".");
   }
   // the player's hooks (15.12)
   const int food = LifeOps::foodIndex(*this);
@@ -3147,6 +3123,15 @@ void Game::lifeTalk(Actor& a) {
   if (adult && !(r.flags & life::RF_BEFRIENDED)) {
     auto it = marks.find(LifeOps::markOf(*this, si, r.idx, 1));
     if (it == marks.end() || it->second != day) dlg.opts.push_back({"HOW ARE YOU KEEPING?", LifeOps::L_CHAT, 0});
+  }
+}
+
+int gsim::lifeOptKind(int action) {
+  switch (action) {
+    case LifeOps::L_MEAL: case LifeOps::L_SUPPLY: return 1;
+    case LifeOps::L_FEED: case LifeOps::L_COIN: case LifeOps::L_EMPLOY: return 2;
+    case LifeOps::L_CHAT: return 3;
+    default: return 0;
   }
 }
 
@@ -3209,7 +3194,7 @@ bool Game::lifeChoose(const DlgOpt& o) {
       life.feed(c->site, r.idx, q);
       LifeOps::bubble(a, Bubble::Heart, 2.0f);
       kindness(r.job == life::Job::Beggar ? 2 : 1);
-      dlg.text = r.job == life::Job::Beggar ? "BLESS YOU. BLESS YOU! THE FIRST THING I'VE EATEN IN DAYS." : "THAT'S KIND OF YOU. " + what + "! I WON'T FORGET IT.";
+      dlg.text = r.job == life::Job::Beggar ? "BLESS YOU. BLESS YOU! THE FIRST THING I'VE EATEN IN DAYS." : what + " TO SHARE? THAT'S KIND OF YOU. I WON'T FORGET IT.";
       dlg.opts = {{"FAREWELL.", A_BYE, 0}};
       return true;
     }
@@ -3258,12 +3243,36 @@ bool Game::lifeChoose(const DlgOpt& o) {
       marks[LifeOps::markOf(*this, si, r.idx, 1)] = day;
       r.need[(int)life::Need::Social] = (uint8_t)std::min(100, r.need[(int)life::Need::Social] + 20);
       kindness(1);
-      std::vector<int> fr = life.friendsOf(*c, r.idx);
-      std::string t = "OH, GETTING BY. ";
-      if (!fr.empty() && fr[0] < (int)c->res.size()) t += firstName(c->res[(size_t)fr[0]].name) + " AND I ARE OFF TO THE " + std::string(c->gathering >= 0 ? "HALL" : "SQUARE") + " LATER, IF YOU'RE ABOUT.";
-      else t += "IT'S GOOD OF YOU TO ASK. MOST FOLK DON'T.";
+      // (M7b) the answer is how they really are (their needs, the town's mood), and the ways the player could help come
+      // up with it (the kindnesses the first page left out: talkToInner groups them under this question)
+      const uint16_t mf = c->moodFlags;
+      std::string t;
+      if (r.flags & life::RF_GRIEVING) t = "NOT WELL. WE BURIED ONE OF OUR OWN THIS WEEK, AND THE HOUSE IS TOO QUIET.";
+      else if (r.need[(int)life::Need::Hunger] < 40) t = "HUNGRY, IF I'M HONEST. THERE'S LITTLE ENOUGH IN THE POT THESE DAYS.";
+      else if (mf & life::MF_FAMINE) t = "BADLY. WE WENT TO BED HUNGRY AGAIN, AND HALF THE STREET IS PACKING UP TO LEAVE.";   // (the opening said the famine)
+      else if (r.need[(int)life::Need::Money] < 30) t = "SHORT OF COIN, LIKE EVERYONE HERE. BUT I GET BY.";
+      else if (r.need[(int)life::Need::Rest] < 30) t = "TIRED. I'VE BEEN ON MY FEET SINCE BEFORE DAWN.";
+      else if (mf & life::MF_WARTORN) t = "AS WELL AS ANYONE CAN, WITH THE WAR SO CLOSE.";
+      else {
+        std::vector<int> fr = life.friendsOf(*c, r.idx);
+        t = "OH, GETTING BY. ";
+        if (!fr.empty() && fr[0] < (int)c->res.size()) {
+          // (M7b integration) a name that reads as a word ("MY FRIEND AND AND I") is not said
+          const std::string fn = firstName(c->res[(size_t)fr[0]].name);
+          static const char* const kWords[] = {"AND", "OR", "THE", "CAN", "OLD", "I", "A", "AN", "IS", "IT", "TO", "OF", "IN", "ON", "AT", "BUT", "SO", "NO", "YES", "WILL", "MAY", "MAN"};
+          bool word = fn.empty();
+          for (const char* w : kWords) if (fn == w) word = true;
+          t += (word ? std::string("A FRIEND OF MINE") : "MY FRIEND " + fn) + " AND I ARE OFF TO THE " + std::string(c->gathering >= 0 ? "HALL" : "SQUARE") +
+               " LATER, IF YOU'RE ABOUT.";
+        }
+        else t += "IT'S GOOD OF YOU TO ASK. MOST FOLK DON'T.";
+      }
       dlg.text = t;
-      dlg.opts = {{"FAREWELL.", A_BYE, 0}};
+      std::vector<DlgOpt> keep;
+      for (const DlgOpt& k : dlg.opts) if (k.grp == 2 || lifeOptKind(k.action) == 2) { DlgOpt k2 = k; k2.grp = 0; keep.push_back(k2); }
+      keep.push_back({"FAREWELL.", A_BYE, 0});
+      dlg.opts = keep;
+      dlg.group = 0;
       return true;
     }
     default: return false;

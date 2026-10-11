@@ -128,6 +128,8 @@ struct Mass {
   std::vector<bld::Pillar> pillars;   // (owner) an open face's pillars (bld::openPillars: the walking's), px in the frame
   float joinL = 0, joinR = 0;   // (fixer) the roof runs on this far (px) into the taller roof beside it, unhipped: the two
                                 // meet in a valley (an L's wing), not a shaded hip end wedged against the other roof
+  bool partyL = false, partyR = false;   // (M7b) a row house's party wall on that side (bld::VF_PARTY_*): the roof stops
+                                        // flush on it (joinL / joinR = -ov), unhipped
   uint8_t noLift = 0;           // (M6 fixer) a swept (pagoda) roof's eave corners that meet another roof (bits: 1 NW, 2 NE,
                                 // 4 SW, 8 SE): they stay down in the valley instead of curling up through the other roof
   float zTop() const { return (float)(zBase + wallH); }
@@ -320,15 +322,16 @@ float massTop(const Mass& m, float x, float y, Surf& surf) {
   // otherwise reads as one flat slab from above; the rounded corners give it the soft, bulky cottage silhouette)
   if ((m.rmat == RoofMat::Thatch || m.rmat == RoofMat::Palm) && m.shape != RoofShape::Turf && !m.gambrel) {
     const float R = 6.0f;
-    float qx = std::clamp(x, rx0 + R, rx1 - R), qy = std::clamp(y, ry0 + R, ry1 - R);
+    float qx = std::clamp(x, rx0 + (m.partyL ? 0.0f : R), rx1 - (m.partyR ? 0.0f : R)), qy = std::clamp(y, ry0 + R, ry1 - R);   // (M7b: square at a party wall)
     if ((x - qx) * (x - qx) + (y - qy) * (y - qy) > R * R) return -1;
   }
   const float ze = zt - 1;
   float dy = std::min(y - ry0, ry1 - y), dx = std::min(x - rx0, rx1 - x);
   // (fixer) a joined end is not hipped: the ridge runs on into the roof beside it
-  if (m.joinL > 0 && m.joinR > 0) dx = 1e6f;
-  else if (m.joinR > 0) dx = x - rx0;
-  else if (m.joinL > 0) dx = rx1 - x;
+  const bool pL = m.partyL && !m.alongY, pR = m.partyR && !m.alongY;   // (M7b: a gable to the street keeps its eaves down to a party wall)
+  if ((m.joinL > 0 || pL) && (m.joinR > 0 || pR)) dx = 1e6f;
+  else if (m.joinR > 0 || pR) dx = x - rx0;
+  else if (m.joinL > 0 || pL) dx = rx1 - x;
   float d, dmax;
   switch (m.shape) {
     case RoofShape::Hip: case RoofShape::Pagoda: case RoofShape::Mansard: case RoofShape::Stepped:
@@ -1501,6 +1504,13 @@ Plan planFromBlueprint(const bld::Blueprint& bp) {
     if (gRidge <= bRidge - 1) gj = bHalf;
     else if (bRidge <= gRidge - 1) bj = gHalf;
     else { gj = 1.0f; bj = 1.0f; }
+  }
+  // (M7b CITYART) a row house's party walls: the roof stops flush on the shared wall (no overhang past the footprint's
+  // edge, no hip there), so the neighbour's roof meets it without a gap or an overlap
+  for (Mass& m : ms) {
+    if (m.round || m.chimney || m.tree) continue;
+    if (m.feat & bld::VF_PARTY_W) { m.partyL = true; m.joinL = -(float)m.ov; }
+    if (m.feat & bld::VF_PARTY_E) { m.partyR = true; m.joinR = -(float)m.ov; }
   }
   // (M6 fixer, owner bar: "no broken corners") a swept pagoda eave curls up at its corners; where a corner meets another
   // roof (a wing, a porch, a hall beside it) the curl would cut up through that roof and cross its eave, so that corner
@@ -2773,7 +2783,9 @@ uint32_t roofColor(const Plan& p, const Mass& m, int mi, float x, float y, float
   // all four planes the roof reads as nested trays. The end planes stay smooth (light and shade only), so the four
   // planes read as volumes and the front plane carries the courses.
   const bool hipRoof = !m.round && (m.shape == RoofShape::Hip || m.shape == RoofShape::Pagoda || m.shape == RoofShape::Mansard);
-  const bool endPlane = hipRoof && (m.alongY ? facesY : !facesY);
+  // (fixer M7b r2, review: "a terrace's central roof is a flat, untextured brown wedge") a row house's roof running back
+  // from the street shows its hip end to the street: that plane is its front and carries the courses
+  const bool endPlane = hipRoof && (m.alongY ? facesY && !((m.partyL || m.partyR) && ny > 0.2f) : !facesY);
   if (endPlane && t < 0 && m.rmat != RoofMat::Thatch && m.rmat != RoofMat::Palm) t = 0;   // (thatch keeps its strands on every plane)
   // (M3b round 3) a tiled hip's end planes keep no lit tile lines either: the barrel tiles' crests, laid across the
   // sloping facet, read at 1x as fine diagonal hatching that beat against the front plane's courses (a moire shimmer
@@ -2788,9 +2800,10 @@ uint32_t roofColor(const Plan& p, const Mass& m, int mi, float x, float y, float
     const float rx0 = m.x0 - m.ov - m.joinL, rx1 = m.x1 + m.ov + m.joinR, ry0 = m.y0 - m.ov, ry1 = m.y1 + m.ovF;
     const float ddy = std::min(y - ry0, ry1 - y);
     float ddx = std::min(x - rx0, rx1 - x);
-    if (m.joinL > 0 && m.joinR > 0) ddx = 1e6f;
-    else if (m.joinR > 0) ddx = x - rx0;
-    else if (m.joinL > 0) ddx = rx1 - x;
+    const bool pL = m.partyL && !m.alongY, pR = m.partyR && !m.alongY;   // (M7b: a gable to the street keeps its eaves down to a party wall)
+    if ((m.joinL > 0 || pL) && (m.joinR > 0 || pR)) ddx = 1e6f;
+    else if (m.joinR > 0 || pR) ddx = x - rx0;
+    else if (m.joinL > 0 || pL) ddx = rx1 - x;
     const float a = m.alongY ? ddx : ddy, b = m.alongY ? ddy * m.hk : ddx * m.hk;
     const float dmax = m.alongY ? (rx1 - rx0) * 0.5f : (ry1 - ry0) * 0.5f;
     if (std::fabs(a - b) < 0.75f && std::min(a, b) > 0.6f && std::min(a, b) < dmax - 0.8f) {
@@ -4490,6 +4503,14 @@ bool stepUnit(BuildingJob& j) {
       Painter& P = *j.P;
       if (P.clipped && std::getenv("EMB_ARCH_CLIPLOG"))
         std::printf("buildingSprite: type %d %dx%d storeys %d: %d px cut at the rise budget\n", (int)j.bp.req.purpose, j.bp.req.wTiles, j.bp.req.hTiles, p.facts.storeys, P.clipped);
+      // (M7b CITYART) a row house draws nothing past a shared wall's edge (its outline, a sign's bracket, an eave): the
+      // neighbour's sprite meets it there, pixel to pixel
+      if (j.bp.req.row & (bld::ROW_W | bld::ROW_E)) {
+        const int xl = P.ox, xr = P.ox + p.W;
+        for (int y = 0; y < P.c.h; y++)
+          for (int x = 0; x < P.c.w; x++)
+            if (((j.bp.req.row & bld::ROW_W) && x < xl) || ((j.bp.req.row & bld::ROW_E) && x >= xr)) P.c.set(x, y, 0);
+      }
       BuildingInfo& info = j.info;
       info.planKey = j.bp.key;
       info.height = p.sc.top;

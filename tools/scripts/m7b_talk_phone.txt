@@ -1,0 +1,81 @@
+phone
+# M7b TALK lane (VISION_PLAN 15.23): conversations as the owner reads them on the iPhone. The start inn's keeper (the
+# first meeting introduces them and hands over the old blade; the second greets an acquaintance and groups the inn's
+# services under WHAT CAN YOU OFFER?), a shopkeeper, a smith, a guard, a quest giver's offer (a named bandit chief), the job taken (the
+# giver says where and when to come back) and the turn-in (the reminder while a job is under way is read by rpg_test --dialogue). One shot per turn,
+# with the touch UI the iPhone shows (re-asserted just before each shot: the scripted keys switch it off, as a
+# keyboard would; fixer M7b r2) (25-px option rows, the menu button) and once the line has finished typing out.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7b_talk_phone.txt
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 12
++0.2 enter inn
++0.2 talkto innkeeper
++1.5 expect mode dialogue
++2.90 touch 1
++0.1 shot m7b_talk_01_inn_first.png
++0.1 choose FAREWELL
++0.5 talkto innkeeper
++1.5 expect mode dialogue
++0.1 expect option WHAT CAN YOU OFFER
++2.90 touch 1
++0.1 shot m7b_talk_02_inn_again.png
++0.1 choose WHAT CAN YOU OFFER
++1.5 expect option RENT A ROOM
++2.90 touch 1
++0.1 shot m7b_talk_03_inn_offer.png
++0.1 choose BUY A RUMOUR
++2.90 touch 1
++0.1 shot m7b_talk_04_inn_rumour.png
++0.1 choose FAREWELL
++0.3 walkto exit
++0.5 enter shop
++0.2 talkto merchant
++1.5 expect mode dialogue
++2.90 touch 1
++0.1 shot m7b_talk_05_shop.png
++0.1 choose FAREWELL
++0.3 walkto exit
++0.5 enter smithy
++0.2 talkto smith
++1.5 expect mode dialogue
++2.90 touch 1
++0.1 shot m7b_talk_06_smith.png
++0.1 choose ABOUT THE CRAFT
++2.90 touch 1
++0.1 shot m7b_talk_07_smith_craft.png
++0.1 choose FAREWELL
++0.3 walkto exit
++0.5 talkto guard 60
++1.5 expect mode dialogue
++2.90 touch 1
++0.1 shot m7b_talk_08_guard.png
++0.1 choose FAREWELL
++0.3 gotosite start
++0.3 offerquest named
++1.5 expect option I'LL DO IT
++2.90 touch 1
++0.1 shot m7b_talk_09_offer.png
++0.1 choose I'LL DO IT
++2.90 touch 1
++0.1 shot m7b_talk_10_accept.png
++0.1 choose FAREWELL
++0.3 questgo
++2.0 killquest
++0.4 expect sidequest complete namedbandit
++0.2 gotosite start
++0.3 talkto giver 60
++1.5 expect option COLLECT
++2.90 touch 1
++0.1 shot m7b_talk_12_turnin.png
++0.1 choose COLLECT
++2.90 touch 1
++0.1 shot m7b_talk_13_paid.png
++0.1 choose FAREWELL
++0.3 talkto giver 60
++2.90 touch 1
++0.1 shot m7b_talk_14_thanked.png
++0.1 choose FAREWELL
++0.3 quit

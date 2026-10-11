@@ -84,6 +84,12 @@ void Gen::centrepieces() {
         if (capital && centre == Prop::Well) centre = Prop::Fountain;
       }
       if (centre == Prop::OakTree) centre = townTree(bio, eco, (uint32_t)(s.x * 7 + s.y));
+    } else if (s.role == 3) {
+      continue;   // (M7b) the temple close: its lawns and beds are the city's dress
+    } else if (s.role == 1) {
+      centre = Prop::Monument;   // (M7b) the square before the seat of power
+    } else if (s.role == 2) {
+      centre = Prop::Well;       // (M7b) a well-square at a lane junction
     } else {
       switch (s.d) {
         case District::Temple: centre = Prop::Statue; break;
@@ -424,7 +430,7 @@ void Gen::fields() {
         const size_t i = I(x, y);
         if (mask[i] != K_NONE || M.bldgAt[i] >= 0 || M.wall[i] || M.prop[i] || water[i] || groundSolid(M.at(x, y)) || M.at(x, y) == Ground::Bridge) good = false;
         else if (cover[i] || front[i]) good = false;
-        else if (walled && blob(x, y, cx, cy, rx, ry, wseed) < wallR + 0.06f) good = false;
+        else if (walled && blobLess(x, y, cx, cy, rx, ry, wseed, wallR + 0.06f)) good = false;
         else if (lvl[i] != lvl[I(fx, fy)]) good = false;
       }
     if (!good) continue;
@@ -516,7 +522,8 @@ void Gen::gardens() {
         // (M1 round 3) a capital is paved: the ground along its streets and between its houses is cobbled right up to
         // the walls (lawns and earth blotches through the paving made the king's city read as a village); the
         // gardens below still take the open plots further from the street
-        if (capital) {
+        // ((fixer M7b r1) not a planned city's poor quarter: its yards are trodden earth, never a paved block)
+        if (capital && !(planned && d == District::Poor)) {
           bool near2 = near;
           for (int oy = -2; oy <= 2 && !near2; oy++)
             for (int ox = -2; ox <= 2; ox++) if (isStreet(x + ox, y + oy)) { near2 = true; break; }
@@ -526,8 +533,8 @@ void Gen::gardens() {
         if (near && vnoise(x * 0.3f, y * 0.3f, bseed + 55u) < 0.6f) M.setG(x, y, Ground::Dirt);
       }
   const Biome gb = bio;
-  const Prop fruit = townTree(gb, eco, 1u);
-  const int want = (int)((city ? 60 : 8) * treesF + 0.5f);   // (M3: TownStyle::trees)
+  const Prop fruit = planned && gb != Biome::Snow ? Prop::FruitTree : townTree(gb, eco, 1u);   // (M7b: a city's orchards)
+  const int want = (int)((planned ? 110 : (city ? 60 : 8)) * treesF + 0.5f);   // (M3: TownStyle::trees; M7b: a planned city's blocks keep their gardens)
   // every spot on a coarse lattice, in a shuffled order (so the gardens are spread, not swept from one corner)
   std::vector<int> spots;
   for (int y = 2; y < H - 8; y += 2)
@@ -562,6 +569,12 @@ void Gen::gardens() {
         for (int x = x0; x < x0 + gw; x++) {
           M.setG(x, y, Ground::Meadow);
           bool edge = y == y0 || y == y0 + gh - 1 || x == x0 || x == x0 + gw - 1;
+          if (planned) {
+            // (M7b) a city's flower garden: a clipped hedge all round (open at its gate), kerbed beds inside
+            if (edge) { if (!(y == y0 + gh - 1 && x == x0 + gw / 2)) M.setProp(x, y, gb == Biome::Snow ? Prop::SnowBush : Prop::Hedge); }
+            else if (((x - x0) % 2 == 1) && ((y - y0) % 2 == 1)) M.setProp(x, y, gb == Biome::Snow ? Prop::SnowBush : Prop::FlowerBed);
+            continue;
+          }
           if (edge) { if (((x + y) & 1) == 0 && !(y == y0 + gh - 1 && x == x0 + gw / 2)) M.setProp(x, y, Prop::Bush); }
           else if (((x - x0) % 2 == 1) && ((y - y0) % 2 == 1)) M.setProp(x, y, (x + y) % 3 == 0 ? Prop::Flowers1 : ((x + y) % 3 == 1 ? Prop::Flowers2 : Prop::Flowers3));
         }
@@ -771,7 +784,7 @@ void Gen::archetypeDress() {
   bool anyWater = false;
   for (size_t i = 0; i < water.size() && !anyWater; i++) anyWater = water[i] != 0;
   const bool linearShore = style == cult::Layout::Linear && anyWater;
-  if (linearShore) quays();
+  if (linearShore || (planned && anyWater)) quays();   // (M7b: a planned city's banks are quays)
   if (arch == Archetype::Fishing || arch == Archetype::Port || spec == Specialty::Fishing || linearShore) {
     // quays: plank piers out into the water from the shore nearest the streets, crates and barrels at their roots
     int piers = arch == Archetype::Port ? 3 : 2;
@@ -940,9 +953,8 @@ void Gen::greenery() {
   for (int y = 1; y < H - 1; y++)
     for (int x = 1; x < W - 1; x++) {
       if (!freeTile(x, y) || inCompound(x, y, 1)) continue;
-      float b = blob(x, y, cx, cy, rx + 1.5f, ry + 1.5f, bseed);
-      if (b > 1.0f) continue;
-      if (walled && !ins(x, y) && b > 0.9f) continue;
+      if (blobMore(x, y, cx, cy, rx + 1.5f, ry + 1.5f, bseed, 1.0f)) continue;
+      if (walled && !ins(x, y) && blobMore(x, y, cx, cy, rx + 1.5f, ry + 1.5f, bseed, 0.9f)) continue;
       if (M.bldgAt[I(x, y - 1)] >= 0 || wallAt(x, y + 1) || wallAt(x, y - 1)) continue;   // keep faces and wall feet clear
       // (M3c fixer round 3, review: "snow-capped shrubs sit on the crest of the long diagonal wall") a diagonal run's
       // tiles touch this one at its sides and corners, and its crest stands a tile or two over them: nothing grows
@@ -1233,7 +1245,7 @@ void Gen::finish() {
     for (int x = 0; x < W; x++) {
       const size_t i = I(x, y);
       bool t = mask[i] != K_NONE || M.bldgAt[i] >= 0 || M.wall[i] || M.prop[i];
-      if (!t) t = walled ? ins(x, y) : blob(x, y, cx, cy, rx + 1.5f, ry + 1.5f, bseed) < 1.0f;
+      if (!t) t = walled ? ins(x, y) : blobLess(x, y, cx, cy, rx + 1.5f, ry + 1.5f, bseed, 1.0f);
       u[i] = t ? 1 : 0;
     }
   // (M2 fixer round 3) the land round every gatehouse is the town's too (its drained ground, not the wild's): a wild
@@ -1333,6 +1345,7 @@ void Gen::finish() {
   O.ex = O.gx + cx;
   O.ey = O.gy + cy;
   O.special = spec;
+  urbanFabric();   // (M7b) the street classes, upkeep and quarters of the finished plan (town_urban.cpp)
 }
 
 void Gen::run() {
@@ -1344,9 +1357,12 @@ void Gen::run() {
 bool Gen::step() {
   switch (phase++) {
     case 0: land(); break;
-    case 1: pickBearings(); if (city) pickDistricts(); if (walled) wallRing(); if (capital) placeCompound(); break;
-    case 2: squaresPass(); mainStreets(); ringRoads(); break;
-    case 3: fabric(); lanes(); break;
+    case 1:
+      pickBearings(); if (city) pickDistricts(); if (walled) wallRing(); if (capital) placeCompound();
+      planned = city && !ringT.empty();   // (M7b: the planned city; a ring the polygon could not make keeps the classic plan)
+      break;
+    case 2: squaresPass(); if (planned) cityStreets(); else { mainStreets(); ringRoads(); } break;
+    case 3: if (planned) cityBlocks(); else { fabric(); lanes(); } break;
     case 4: if (walled) cityWall(); break;
     case 5: if (capital) buildCompound(); pruneStreets(); if (capital) compoundApproach(); break;
     case 6: {
@@ -1374,7 +1390,7 @@ bool Gen::step() {
     case 10: if (palisade) lots(); centrepieces(); stallsAndLamps(); archetypeDress(); spaces(); break;
     case 11: if (!palisade) lots(); yards(); tradeYards(); gardens(); break;   // (M7: the lots for sale first, then the yards round them)
     case 12: fields(); banners(); signposts(); break;
-    case 13: greenery(); break;
+    case 13: greenery(); if (planned) cityDress(); break;
     case 14: plazaFill(); break;
     case 15: {
       // (M2 fixer) a settlement in the snow: the builders' summer greenery (flower beds and tufts, leafy shrubs and

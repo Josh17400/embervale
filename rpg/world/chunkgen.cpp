@@ -1250,6 +1250,7 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
             if ((Ground)c.ground[i] == Ground::Swamp) c.ground[i] = (uint8_t)Ground::Grass;
           }
           if (!b.blend.empty()) c.blend[i] = b.blend[bi];   // (M3 fixer) the paving / boardwalk mark (Map::PAVE_MARK)
+          if (!b.urb.empty()) c.urb[i] = b.urb[bi];         // (M7b) the urban fabric (rpg/world/urban.h)
           reserved[(size_t)i] = 1;
         }
       if (p.gx - 24 >= x0 + CHUNK || p.gy - 24 >= y0 + CHUNK || p.gx + p.w + 24 <= x0 || p.gy + p.h + 24 <= y0) continue;

@@ -388,7 +388,7 @@ int cmdBuilder(int argc, char** argv) {
               genInterior(in, x, x.seed, 0);
               const int ni = in.exits.empty() ? 1 : (int)in.exits.size();
               if (!o.open && cols.size() > 1 && in.exits.size() < 2) galleryAtDoor++;   // galleries beside a door the rooms behind can't open onto: in by the door
-              else if (!o.raised && cols.size() > 1 && in.exits.size() < 2) why = "the interior has one doorway for an open front of " + std::to_string(cols.size()) + " bays";
+              else if (!o.raised && cols.size() > 1 && in.exits.size() < 2) why = "the interior has one doorway for an open front of " + std::to_string(cols.size()) + " bays" + (x.row ? " (row " + std::to_string((int)x.row) + ")" : "");
               for (int k = 0; k < ni && why.empty(); k++) {
                 const int ex = in.exits.empty() ? in.exitX : in.exits[(size_t)k];
                 if (!in.isExit(ex, in.exitY) || groundSolid(in.at(ex, in.exitY)) || groundSolid(in.at(ex, in.exitY - 1))) why = "an interior bay does not open onto the floor";
@@ -426,8 +426,8 @@ int cmdBuilder(int argc, char** argv) {
             if (dx * dx + dy * dy <= 12 * 12) {
               clones++;
               if (std::getenv("EMB_BUILDER_CLONES"))   // debugging aid: which buildings clone a neighbour
-                out("  clone: %s %s %dx%d w%d f%d at %d,%d ~ %s %dx%d at %d,%d\n", cult::archetypeName(K.archetype), bldgTypeName(B[i].type), B[i].r.w, B[i].r.h, B[i].wealth, B[i].form,
-                    B[i].r.x, B[i].r.y, bldgTypeName(B[j].type), B[j].r.w, B[j].r.h, B[j].r.x, B[j].r.y);
+                out("  clone: %s %s %dx%d w%d f%d row %d v%d at %d,%d ~ %s %dx%d at %d,%d\n", cult::archetypeName(K.archetype), bldgTypeName(B[i].type), B[i].r.w, B[i].r.h, B[i].wealth, B[i].form,
+                    (int)B[i].row, (int)B[i].variant, B[i].r.x, B[i].r.y, bldgTypeName(B[j].type), B[j].r.w, B[j].r.h, B[j].r.x, B[j].r.y);
               break;
             }
           }

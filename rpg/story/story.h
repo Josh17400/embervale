@@ -127,6 +127,34 @@ class Engine {
   // fill g.dlg with the instance's current dialogue stage (its say and options: action DLG_STORY + option index, arg the
   // instance id); false when the stage is not a dialogue
   bool showDialogue(Game& g, Instance& in);
+  // (M7b) what the person in front of the player says after a choice moved the story on from their talk stage with
+  // role `who` (the instance is at its new stage): Continue (the same person talks on: showDialogue), Close (a closing
+  // line, `text`, then FAREWELL) or Silent (the dialogue closes; the journal carries the errand). samePerson: the new
+  // stage's talk is with the one in front of the player; heard: what the player just heard, a line break, and the
+  // option they chose (a name the speaker said is not introduced again; one either of them named may be sent to). rpg_test --sagas reads the conversation through it.
+  enum class Reply : uint8_t { Continue, Close, Silent };
+  // fromStage: the stage the choice was made in (a goal's own line, written for the speaker of its own part of the
+  // story, is not read out by someone of another part: a twist's stranger, an arc's people)
+  Reply replyAfter(const Game& g, const Instance& in, const std::string& who, bool samePerson, const std::string& heard,
+                   const std::string& fromStage, std::string& text) const;
+  // (M7b) the spoken hand-off to the next person of the story (role `role`): who they are, unless `heard` named them,
+  // and where ("GO AND SEE A WOMAN CALLED ARNA, IN VOND, A SHORT WALK TO THE NORTH. TELL HER I SENT YOU.")
+  // spoken false: a notice's words, not a person's ("THE NOTICE NAMES A WOMAN CALLED ARNA, IN VOND, ...")
+  std::string handOffLine(const Game& g, const Instance& in, const std::string& role, const std::string& heard, bool spoken = true) const;
+  // (M7b) the way to the current goal stage's place, spoken ("" none: no place, or the player is there). alone: the
+  // whole answer ("THANK YOU. VOND IS A SHORT WALK TO THE NORTH."); else a sentence to follow the goal's own line
+  std::string nextStepLine(const Game& g, const Instance& in, const std::string& heard, bool alone) const;
+  // (M7b) is a closing line an ending told as a story (no first person, or its teller named as "him") rather than
+  // speech? The dialogue then shows it under the tale's title, not the speaker's name.
+  static bool narration(const std::string& text, const std::string& speaker);
+  // (M7b) the line a talk stage opens with: its say, and first who the speaker is when `introduce` (the player has not
+  // met them: speech::Memory) and the say does not already tell it
+  std::string talkLine(const Game& g, const Instance& in, bool introduce) const;
+  // (M7b) the hook teller's line while they have the story to tell (the script's hint), who they are first when
+  // `introduce` (storyTalk; the instance is the story once begun: tests read it through a cast instance)
+  std::string hookLine(const Game& g, const Instance& in, const dsl::Script& s, bool introduce) const;
+  // ... the same before the story is begun (storyTalk: the teller `a` of settlement `home`)
+  std::string hookLineFor(const Game& g, const dsl::Script& s, const Actor& a, const std::string& home, bool introduce) const;
   // choose option `opt` of the instance's current dialogue stage (checks evaluated; effects run; the dialogue goes on
   // or closes). forceIf: ignore `if` conditions (the headless path walker); forceCheck: 0 evaluate, 1 pass, 2 fail.
   bool choose(Game& g, uint32_t inst, int opt, bool forceIf = false, int forceCheck = 0);
@@ -135,6 +163,9 @@ class Engine {
   // the options of the current dialogue stage: labels, and whether each is a check (two outcomes) (tests)
   int optionCount(const Instance& in) const;
   bool optionIsCheck(const Instance& in, int opt) const;
+  // (M7b) would the dialogue show this option now (its `if` conditions hold)? The walker forces hidden options to reach
+  // every ending; the conversation review reads only what a player could see
+  bool optionShown(const Game& g, const Instance& in, int opt) const;
   // the visible text of the current stage with the cast filled in (say, journal) (tests: no "{" may remain)
   std::string sayText(const Game& g, const Instance& in) const;
   std::string journalText(const Game& g, const Instance& in) const;
@@ -180,6 +211,9 @@ class Engine {
   std::vector<std::string> sagaOffers_;
   // runtime (never saved): what the last speaker asked, for the journal of a hand-off stage that has no journal line
   std::string handCtx_;
+  // runtime (never saved, M7b): what the story's people have said in the open dialogue so far (a name said there is
+  // not introduced again; storyTalk and the boards start it afresh)
+  std::string said_;
   // runtime (never saved, fixer M6b r1): the region plans round the player warmed a few at a time off the talk frame
   // (the composer's needs and the caster look up to 3 regions out), and the people near the player found to have a
   // tale to tell (actor id -> the scan's time and the answer: storyStep scans one person at a time; a marker shows it)

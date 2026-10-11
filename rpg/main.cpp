@@ -81,6 +81,7 @@
 #include "engine/audio.h"
 #include "engine/pix.h"
 #include "rpg/sim/game.h"
+#include "rpg/sim/game_internal.h"
 #include "rpg/view/screen.h"
 #include "rpg/view/script_api.h"
 #include "rpg/view/view.h"
@@ -420,7 +421,7 @@ int main(int argc, char** argv) {
         game.update(SIM_DT, ti);
         if (game.mode == Mode::Dialogue && step >= 1) {
           const char* want = step == 1 ? "WORK" : "WARES";
-          for (size_t o = 0; o < game.dlg.opts.size(); o++) if (game.dlg.opts[o].label.find(want) != std::string::npos) { game.dialogueChoose((int)o); break; }
+          { const int o = dlgReach(game, [&](const DlgOpt& x) { return x.label.find(want) != std::string::npos; }, true); if (o >= 0) game.dialogueChoose(o); }
         }
         break;
       }
@@ -700,6 +701,12 @@ int main(int argc, char** argv) {
     if (walk.kind == 4 && game.subFloor != walk.floor0) { endWalk(true, ""); return; }
     if (walk.kind == 2) {
       int k = findActorIdx(walk.actorId);
+      if (k < 0 && walk.what == "giver") {
+        // (M7b) the giver walked off (indoors, out of the window): look again for the nearest one until the timeout
+        walk.kind = 5; walk.actorId = -1; walk.path.clear(); walk.step = 0; walk.replanT = 0;
+        setMove(false, false, false, false);
+        return;
+      }
       if (k < 0) { endWalk(false, "they left"); return; }
       // in reach: keep closing in a moment longer (a step from the edge of reach, a wandering innkeeper or a neighbour
       // who comes nearer turns the next key press into the wrong conversation), unless already close
@@ -857,9 +864,10 @@ int main(int argc, char** argv) {
     } else if (op == "choose") {   // M0b: choose the open dialogue's option whose label contains the words
       std::string t;
       for (size_t k = 1; k < c.a.size(); k++) { if (k > 1) t += ' '; t += c.a[k]; }
+      // (fixer M7b r1) as the player would: an option on show, or the header (or SOMETHING ELSE.) that shows it tapped first
       int pickI = -1;
-      for (size_t o = 0; o < game.dlg.opts.size() && pickI < 0; o++) if (game.dlg.opts[o].label.find(t) != std::string::npos) pickI = (int)o;
-      if (game.mode != Mode::Dialogue || pickI < 0) fail(c.line, "choose: no dialogue option '" + t + "'");
+      if (game.mode == Mode::Dialogue) pickI = dlgReach(game, [&](const DlgOpt& o) { return o.label.find(t) != std::string::npos; }, true);
+      if (game.mode != Mode::Dialogue || pickI < 0) fail(c.line, "choose: no dialogue option '" + t + "' the player can reach");
       else { game.dialogueChoose(pickI); view.snap(game); }
     } else if (op == "at") {   // M1: a global tile
       game.teleportGlobal((int32_t)std::atoi(arg(1).c_str()), (int32_t)std::atoi(arg(2).c_str()));
@@ -1000,9 +1008,9 @@ int main(int argc, char** argv) {
           if (!ok) fail(c.line, "never heard '" + t + "'" + (heard.empty() ? std::string() : " (last: " + heard.back() + ")"));
         } else if (what == "option") {   // the open dialogue offers an option containing these words
           std::string t = rest(2);
-          bool ok = false;
-          for (const DlgOpt& o : game.dlg.opts) if (o.label.find(t) != std::string::npos) ok = true;
-          if (game.mode != Mode::Dialogue || !ok) fail(c.line, "no dialogue option '" + t + "'" + (game.dlg.opts.empty() ? std::string() : " (first: " + game.dlg.opts[0].label + ")"));
+          // (fixer M7b r1) on show, or behind a header the player can tap (never one no page shows)
+          const bool ok = game.mode == Mode::Dialogue && dlgReach(game, [&](const DlgOpt& o) { return o.label.find(t) != std::string::npos; }, false) >= 0;
+          if (!ok) fail(c.line, "no dialogue option '" + t + "' the player can reach" + (game.dlg.opts.empty() ? std::string() : " (first: " + game.dlg.opts[0].label + ")"));
         } else {   // text: the open dialogue's text contains these words
           std::string t = rest(2);
           if (game.mode != Mode::Dialogue || game.dlg.text.find(t) == std::string::npos) fail(c.line, "dialogue text lacks '" + t + "': " + game.dlg.text);

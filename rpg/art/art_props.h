@@ -195,6 +195,19 @@ enum class Prop : uint8_t {
   // ---- M7 Home (VISION_PLAN 8.1, 8.2): painted in rpg/art/art_home.cpp (ART lane; phase A stand-in). Placed at runtime
   //      by home::stampWindow on lots and vacant houses for sale (or by the settlement generator on its lots).
   ForSaleSign,    // a post with a hanging board, "FOR SALE" in the culture's letters (about 16x28); solid
+  // ---- M7b Cities (VISION_PLAN 15.23, 15.24): street furniture, parks, gardens and souks. Painted in rpg/art/art_city.cpp
+  //      (CITYART lane; phase A stand-ins, the lane paints them for real in the 3/4 top-down view with top-left light
+  //      and may change the canvas sizes). Placed by the settlement generator (CITY lane) in cities (a town's square at
+  //      most), NEVER in a village. FOOTPRINTS ARE FROZEN (cityFootprint below).
+  Bollard,        // a squat stone bollard / corner stone at a junction, a square's edge or a gate (about 10x16); solid
+  Planter,        // a planter box of flowers or a clipped shrub, stone in the rich quarter, timber elsewhere (16x18); solid
+  GardenWall,     // a run of low garden wall with a coping (16x24); joins its neighbours (like Palisade); solid
+  Hedge,          // a clipped hedge (16x22); joins its neighbours; solid
+  FlowerBed,      // a kerbed bed of flowers in a park, a close or a rich court (16x14); solid (walked round)
+  FruitTree,      // an orchard / courtyard fruit tree (apple, pear, orange or pomegranate by the climate) (28x34); solid
+  Monument,       // a tall column or obelisk on a stepped plinth, the seat's square (20x64); solid
+  Pavilion,       // a park's bandstand / gazebo in the culture's style (48x48); 3x2 footprint, solid
+  Canopy,         // a cloth awning strung over a souk street (16x40): walked UNDER (not solid), drawn over the walker
   COUNT
 };
 // M4: the war's props (art_war.cpp) and the lore props (art_lore.cpp)
@@ -202,6 +215,13 @@ inline bool isWarProp(Prop p) { return (int)p >= (int)Prop::WarTent && (int)p <=
 inline bool isLoreProp(Prop p) { return (int)p >= (int)Prop::NoticeBoard && (int)p <= (int)Prop::LostJournal; }
 // M7: the home props (art_home.cpp)
 inline bool isHomeProp(Prop p) { return p == Prop::ForSaleSign; }
+// M7b: the city props (art_city.cpp) and their frozen footprints (w odd, h >= 1: the prop stands on the bottom row's
+// middle tile, Filler on the rest of the box; 1 x 1 for the rest)
+inline bool isCityProp(Prop p) { return (int)p >= (int)Prop::Bollard && (int)p <= (int)Prop::Canopy; }
+inline void cityFootprint(Prop p, int& w, int& h) {
+  if (p == Prop::Pavilion) { w = 3; h = 2; return; }
+  w = 1; h = 1;
+}
 // M4: the frozen tile footprint of a war or lore prop (w odd, h >= 1): it stands on the bottom row's middle tile; the
 // rest of the w x h box holds Filler. 1 x 1 for the rest.
 inline void m4Footprint(Prop p, int& w, int& h) {
@@ -222,7 +242,8 @@ inline bool isWildlandsSolid(Prop p) { return (int)p >= (int)Prop::AcaciaTree &&
 // a tree (solid trunk, a crown the view thins when the hero walks behind it): the classic OakTree .. AutumnTree and the
 // M3c trees (ElderTree, a 5x3 wonder, is not one)
 inline bool isTreeProp(Prop p) {
-  return ((int)p >= (int)Prop::OakTree && (int)p <= (int)Prop::AutumnTree) || ((int)p >= (int)Prop::AcaciaTree && (int)p <= (int)Prop::JuniperTree);
+  return ((int)p >= (int)Prop::OakTree && (int)p <= (int)Prop::AutumnTree) || ((int)p >= (int)Prop::AcaciaTree && (int)p <= (int)Prop::JuniperTree) ||
+         p == Prop::FruitTree;   // (M7b) the orchards' and courtyards' fruit trees
 }
 // plants, rocks and ground cover of the wild (the classic OakTree .. Fern and the M3c flora)
 inline bool isFloraProp(Prop p) { return (int)p <= (int)Prop::Fern || isWildlandsFlora(p); }

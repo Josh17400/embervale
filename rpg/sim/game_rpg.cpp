@@ -529,8 +529,8 @@ const Quest* Game::questById(int id) const {
 
 // (monsterPlural, dirWord, giverTown, rewardReadyMsg, fitLine, overworldTile, isGiver: rpg/sim/game_internal.h)
 
-std::string Game::greeting(const Actor& a) {
-  Rng r(hash32((uint32_t)npcKey(a)) ^ (uint32_t)(day * 31 + (int)hour));
+std::string Game::greeting(const Actor& a, int salt) {
+  Rng r(hash32((uint32_t)npcKey(a)) ^ (uint32_t)(day * 31 + (int)hour) ^ (uint32_t)salt * 0x9E3779B9u);
   // where they live: their site, or for people indoors the site of the building they are in
   const int homeSite = a.site >= 0 ? a.site
                        : (a.bldg >= 0 && a.bldg < (int)world.over.bldgs.size() ? world.over.bldgs[(size_t)a.bldg].site : -1);
@@ -560,7 +560,9 @@ std::string Game::greeting(const Actor& a) {
     }
     if (best >= 0) {
       const Site& s = world.sites[best];
-      local.push_back("MY COUSIN WENT INTO " + s.name + " LOOKING FOR TREASURE. ALL THEY FOUND WAS " + monsterPlural(s.theme) + ".");
+      // (fixer M7b r2, review: "WENT INTO SILENT CAVE" twice in one talk: a kinsman lost there is a quest's pitch) a
+      // stranger's treasure hunt, not the speaker's family
+      local.push_back("A TREASURE-HUNTER WENT DIGGING ABOUT IN " + s.name + " LAST SPRING. ALL HE FOUND WAS " + monsterPlural(s.theme) + ".");
       local.push_back("STAY AWAY FROM " + s.name + ". NOTHING GOOD COMES OUT OF THERE.");
     }
     Biome b = world.over.biomeAt(hx, hy);
@@ -614,45 +616,60 @@ std::string Game::greeting(const Actor& a) {
     case Role::Guard: {
       if (a.name == "ROYAL GUARD") {
         const std::string rg[] = {"THE " + ruler + " IS NOT TO BE TROUBLED WITHOUT CAUSE. STATE YOUR BUSINESS.",
-                                  "THE ROYAL GUARD SEES EVERYTHING IN THIS HALL. REMEMBER THAT.",
-                                  "LONG LIVE THE " + ruler + ". NOW MOVE ALONG."};
-        return realm.empty() ? rg[r.irange(3)] : rg[r.irange(3)] + " THIS IS THE COURT OF " + realm + ".";
+                                  "THE ROYAL GUARD SEES EVERYTHING IN THIS HALL. REMEMBER THAT.", "LONG LIVE THE " + ruler + ". NOW MOVE ALONG.",
+                                  "KEEP YOUR HANDS WHERE I CAN SEE THEM IN THIS HALL.", "YOU STAND IN THE COURT OF " + (realm.empty() ? std::string("THE REALM") : realm) + ". BOW WHEN THE " + ruler + " PASSES.",
+                                  "WEAPONS STAY SHEATHED IN THIS HALL, STRANGER. NO EXCEPTIONS."};
+        return rg[(r.irange(6) + salt) % 6];
       }
       if (capitalHere && r.f() < 0.4f) return "LONG LIVE THE " + ruler + " OF " + realm + ". " + court + " IS OFF LIMITS WITHOUT GOOD CAUSE, TRAVELLER.";
       static const char* g[] = {"I WAS A SELLSWORD ONCE. NOW I WATCH A GATE AND COUNT CARTS.",
                                 "KEEP YOUR NOSE CLEAN, TRAVELLER.", "LOST SOMETHING? TRY THE INN. EVERYTHING ENDS UP AT THE INN.",
-                                "WATCH THE ROADS AT NIGHT. THE DEAD DON'T STAY BURIED HERE.", "EYES OPEN, BLADE SHARP. THAT'S THE WATCH'S WAY."};
+                                "WATCH THE ROADS AT NIGHT. THE DEAD DON'T STAY BURIED HERE.", "EYES OPEN, BLADE SHARP. THAT'S THE WATCH'S WAY.",
+                                "NO TROUBLE IN THIS TOWN, TRAVELLER. NOT ON MY WATCH.", "MOVE ALONG. SOME OF US ARE WORKING.",
+                                "MY FEET HURT, MY HELMET LEAKS, AND THE PAY IS LATE. WHAT DO YOU WANT?"};
       if (isNight() && r.f() < 0.4f) return "QUIET NIGHT. TOO QUIET. KEEP YOUR BLADE CLOSE.";
-      return g[r.irange(5)];
+      return g[(r.irange(8) + salt) % 8];
     }
     case Role::Innkeeper: {
       if (capitalHere) {   // a capital is unmistakable: its innkeepers always talk of the king
         const std::string c[] = {"WELCOME TO " + town + ", SEAT OF THE " + ruler + " OF " + realm + ". BEDS ARE 10 GOLD, AND THE COURT GOSSIP IS FREE.",
                                  "THE " + ruler + "'S OWN GUARD DRINKS HERE ON FEAST DAYS. SIT, TRAVELLER: THIS IS THE FINEST INN IN " + realm + ".",
-                                 "YOU'VE COME TO THE CAPITAL! THE " + ruler + " OF " + realm + " RIDES OUT FROM " + court + " NOW AND THEN. A ROOM IS 10 GOLD."};
-        return c[hash32((uint32_t)npcKey(a) ^ (uint32_t)day) % 3];
+                                 "THE " + ruler + " OF " + realm + " RIDES OUT FROM " + court + " NOW AND THEN. CATCH A GLIMPSE IF YOU CAN. A ROOM IS 10 GOLD."};
+        return c[(hash32((uint32_t)npcKey(a) ^ (uint32_t)day) + (uint32_t)salt) % 3];
       }
       const std::string v[] = {"WELCOME TO THE INN OF " + town + ". A WARM BED IS 10 GOLD, AND THE MEAD IS COLD.",
                                "COME IN OUT OF THE " + std::string(isNight() ? "DARK" : "ROAD DUST") + ". STEW'S ON, AND THE ROOMS ARE CLEAN ENOUGH.",
                                "ANOTHER TRAVELLER! " + town + " DOESN'T SEE MANY. SIT, DRINK, TELL ME WHERE YOU'VE BEEN.",
                                "IF YOU'RE LOOKING FOR WORK, ASK. IF YOU'RE LOOKING FOR TROUBLE, TAKE IT OUTSIDE.",
                                "BEDS UPSTAIRS, ALE DOWN HERE, AND RUMOURS ARE FREE WITH EITHER."};
-      return withLocal(v[hash32((uint32_t)npcKey(a) ^ (uint32_t)day) % 5]);
+      return withLocal(v[(hash32((uint32_t)npcKey(a) ^ (uint32_t)day) + (uint32_t)salt) % 5]);
     }
     case Role::Merchant: {
       const std::string v[] = {"COME, LOOK AT MY WARES. FINEST GOODS IN " + town + ".", "POTIONS, ARROWS, A BLADE OR TWO. GOLD TALKS, FRIEND.",
                                "BUYING OR SELLING? I DO BOTH, AND I DO THEM FAIRLY. MOSTLY.", "CARAVAN CAME IN LAST WEEK. GOOD STOCK, WHILE IT LASTS."};
-      return v[hash32((uint32_t)npcKey(a) ^ (uint32_t)day) % 4];
+      return v[(hash32((uint32_t)npcKey(a) ^ (uint32_t)day) + (uint32_t)salt) % 4];
     }
     case Role::Smith: {
       const std::string v[] = {"STEEL AND FIRE, FRIEND. IF IT CUTS OR STOPS A BLADE, I CAN SELL IT TO YOU.",
                                "MIND THE SPARKS. NEED SOMETHING SHARP, OR SOMETHING THICK?", "BEST STEEL THIS SIDE OF " + world.sites[world.capital].name + ". ASK ANYONE.",
                                "BRING ME ORE AND I'LL... WELL, I'LL BUY IT. THEN SELL YOU A SWORD."};
-      return v[hash32((uint32_t)npcKey(a) ^ (uint32_t)day) % 4];
+      return v[(hash32((uint32_t)npcKey(a) ^ (uint32_t)day) + (uint32_t)salt) % 4];
     }
-    case Role::Priest: return "THE OLD GODS WATCH OVER YOU. SHALL I MEND YOUR WOUNDS?";
-    case Role::Mage: return "MAGIC IS NOT A TOY. BUT IF YOU HAVE GOLD, I HAVE KNOWLEDGE.";
-    case Role::Jarl: return "SPEAK, STRANGER. THE " + (homeSite >= 0 ? lordTitleAt(world, homeSite) : std::string("JARL")) + " OF " + town + " IS LISTENING.";
+    case Role::Priest: {
+      const std::string v[] = {"THE OLD GODS WATCH OVER YOU. SHALL I MEND YOUR WOUNDS?", "YOU LOOK ROAD-WORN, CHILD. THE TEMPLE'S DOOR IS ALWAYS OPEN.",
+                               "PEACE IN THESE WALLS, TRAVELLER. IF YOU ARE HURT, THE GODS CAN HEAL IT."};
+      return v[(hash32((uint32_t)npcKey(a) ^ (uint32_t)day) + (uint32_t)salt) % 3];
+    }
+    case Role::Mage: {
+      const std::string v[] = {"MAGIC IS NOT A TOY. BUT IF YOU HAVE GOLD, I HAVE KNOWLEDGE.", "MIND THE CIRCLE ON THE FLOOR. IT TOOK ME A MONTH TO DRAW.",
+                               "YOU HAVE THE LOOK OF SOMEONE WHO WANTS TO LEARN. GOOD. LEARNING HAS A PRICE."};
+      return v[(hash32((uint32_t)npcKey(a) ^ (uint32_t)day) + (uint32_t)salt) % 3];
+    }
+    case Role::Jarl: {
+      const std::string v[] = {"SPEAK, STRANGER. WHAT BRINGS YOU BEFORE ME?", "SPEAK. THE PEOPLE OF " + town + " HAVE MY EAR, AND TODAY SO DO YOU.",
+                               "SPEAK QUICKLY, TRAVELLER. " + town + " DOES NOT RUN ITSELF."};
+      return v[(hash32((uint32_t)npcKey(a) ^ (uint32_t)day) + (uint32_t)salt) % 3];
+    }
     case Role::King: {
       const std::string pre = ruler + " ";
       std::string nm = a.name.rfind(pre, 0) == 0 ? a.name.substr(pre.size()) : (a.name.rfind("KING ", 0) == 0 ? a.name.substr(5) : a.name);
@@ -672,26 +689,26 @@ std::string Game::greeting(const Actor& a) {
                                "PELTS, MEAT, ARROWS. TAKE YOUR PICK, OR TAKE A BOW AND HELP ME THIN THE WOLVES.",
                                "THE TRACKS SAY THREE WOLVES PASSED AT DAWN. THE TRACKS ARE NEVER WRONG.",
                                "I SLEEP UNDER THE STARS AND EAT WHAT I CATCH. FEW TOWNSFOLK CAN SAY THE SAME."};
-      return withLocal(v[hash32((uint32_t)npcKey(a) ^ (uint32_t)day) % 4]);
+      return withLocal(v[(hash32((uint32_t)npcKey(a) ^ (uint32_t)day) + (uint32_t)salt) % 4]);
     }
     case Role::Fisher: {
       const std::string v[] = {"THE FISH ARE BITING TODAY. THEY USUALLY ARE, IF YOU'RE PATIENT.",
                                "TROUT AT DAWN, EEL AT DUSK. SMOKED, IF YOU'RE TRAVELLING FAR.",
                                "SIT A WHILE. THE WATER TELLS YOU THINGS IF YOU LISTEN."};
-      return v[hash32((uint32_t)npcKey(a) ^ (uint32_t)day) % 3];
+      return v[(hash32((uint32_t)npcKey(a) ^ (uint32_t)day) + (uint32_t)salt) % 3];
     }
     case Role::Herbalist: {
       const std::string v[] = {"MIND THE NIGHTSHADE. THE BLUE FLOWERS YOU MAY TOUCH.",
                                "EVERY HERB IN THIS GARDEN HEALS SOMETHING, OR KILLS SOMETHING. OFTEN BOTH.",
                                "A TEA FOR THE COLD, A SALVE FOR THE CUT, A DRAUGHT FOR THE ROAD. WHAT AILS YOU?"};
-      return v[hash32((uint32_t)npcKey(a) ^ (uint32_t)day) % 3];
+      return v[(hash32((uint32_t)npcKey(a) ^ (uint32_t)day) + (uint32_t)salt) % 3];
     }
     case Role::Traveller: {
       const std::string v[] = {"WARM YOURSELF BY THE FIRE, FRIEND. THE ROAD IS LONG IN BOTH DIRECTIONS.",
                                "I'VE WALKED FROM ONE END OF " + (realm.empty() ? std::string("THIS LAND") : realm) + " TO THE OTHER. ASK ME WHAT I'VE SEEN.",
                                "THE ROADS ARE QUIET TONIGHT. THAT'S WHEN I WORRY.",
                                "SIT. SHARE THE FIRE. NEWS IS THE ONLY COIN I CARRY."};
-      return v[hash32((uint32_t)npcKey(a) ^ (uint32_t)day) % 4];
+      return v[(hash32((uint32_t)npcKey(a) ^ (uint32_t)day) + (uint32_t)salt) % 4];
     }
     case Role::Child: { static const char* c[] = {"WANNA PLAY TAG?", "MY DAD SAYS DRAGONS AREN'T REAL.", "ARE YOU AN ADVENTURER? WHOA!"}; return c[r.irange(3)]; }
     default: {
@@ -1113,7 +1130,169 @@ void Game::giveFirstWeapon(Quest& q) {
 }
 
 // ------------------------------------------------------------------ dialogue
+namespace {
+const char* talkRoleName(Role r) {
+  static const char* n[] = {"VILLAGER", "GUARD", "MERCHANT", "SMITH", "INNKEEPER", "PRIEST", "JARL", "FARMER", "CHILD", "MAGE", "BANDIT", "KING",
+                            "HUNTER", "FISHER", "HERBALIST", "TRAVELLER", "HERALD", "SOLDIER", "CAPTAIN", "REFUGEE"};
+  static_assert(sizeof(n) / sizeof(n[0]) == (size_t)Role::COUNT, "a name for every role");
+  return (int)r < (int)Role::COUNT ? n[(int)r] : "?";
+}
+
+// the site a person belongs to: their own, or for people indoors the site of the building they are in
+int talkSiteOf(const Game& g, const Actor& a) {
+  if (a.site >= 0 && a.site < (int)g.world.sites.size()) return a.site;
+  if (a.bldg >= 0 && a.bldg < (int)g.world.over.bldgs.size()) {
+    const int s = g.world.over.bldgs[(size_t)a.bldg].site;
+    if (s >= 0 && s < (int)g.world.sites.size()) return s;
+  }
+  return -1;
+}
+
+// a census resident's job (Job::None for anyone else)
+life::Job talkJobOf(const Game& g, const Actor& a) {
+  const int si = talkSiteOf(g, a);
+  if (si < 0 || !g.world.sites[(size_t)si].settlement() || a.resident < 0) return life::Job::None;
+  const life::Census* c = g.life.find(g.world.sites[(size_t)si].id);
+  if (!c || a.resident >= (int)c->res.size()) return life::Job::None;
+  return c->res[(size_t)a.resident].job;
+}
+
+// a person with a name of their own (not "GUARD", "ROYAL GUARD", a soldier of the line, a herald on the road)
+bool talkNamed(const Actor& a) {
+  if (!a.npc || !a.human) return false;
+  if (a.role == Role::Guard || a.role == Role::Soldier || a.role == Role::Herald || a.role == Role::Bandit) return false;
+  if (a.name.empty() || a.name == talkRoleName(a.role) || a.name.find("GUARD") != std::string::npos) return false;
+  return true;
+}
+
+// what a person is to the player, as the panel's title says it ("INNKEEPER", "BAKER", "SPEAKER OF VOND")
+std::string talkTrade(const Game& g, const Actor& a) {
+  const life::Job j = talkJobOf(g, a);
+  if (a.role == Role::Villager && j != life::Job::None) return life::jobName(j);
+  if (a.role == Role::Jarl) {
+    const int si = talkSiteOf(g, a);
+    return si >= 0 ? lordTitleAt(g.world, si) : std::string("JARL");
+  }
+  if (a.role == Role::King) return "RULER";
+  return talkRoleName(a.role);
+}
+
+// the first words a people say to a stranger (light culture flavour, cult::Archetype order)
+const char* welcomeWord(const Game& g, int site) {
+  static const char* const w[] = {"HAIL, STRANGER.", "WELL MET, STRANGER.", "WELL MET.", "GOOD DAY TO YOU.", "PEACE BE UPON YOU.",
+                                  "THE SKY KEEP YOU, TRAVELLER.", "MIND THE MUD, STRANGER.", "BE WELCOME, HONOURED GUEST.", "WELL MET, FRIEND.",
+                                  "THE SUN SEES YOU, STRANGER.", "THE LEAVES WELCOME YOU.", "THE STARS KEEP YOU, STRANGER."};
+  static_assert(sizeof(w) / sizeof(w[0]) == (size_t)cult::Archetype::COUNT, "a welcome for every people");
+  const cult::Culture* c = site >= 0 ? g.world.cultureOf(site) : nullptr;
+  const int k = c ? (int)c->archetype : (int)cult::Archetype::Heartland;
+  return k >= 0 && k < (int)cult::Archetype::COUNT ? w[k] : "WELL MET.";
+}
+
+// a person telling the player who they are ("I'M SUSUT, AND THIS IS MY INN."); "" for those without a name of their own
+std::string introPhrase(const Game& g, const Actor& a) {
+  if (!talkNamed(a) || a.role == Role::King || a.role == Role::Captain || a.role == Role::Refugee) return "";
+  const std::string n = speech::givenName(a.name);
+  const int si = talkSiteOf(g, a);
+  const std::string town = si >= 0 ? g.world.sites[(size_t)si].name : std::string();
+  switch (a.role) {
+    case Role::Innkeeper: return "I'M " + n + ", AND THIS IS MY INN.";
+    case Role::Merchant: return "I'M " + n + ", AND THIS IS MY SHOP.";
+    case Role::Smith: return "I'M " + n + ", THE SMITH HERE.";
+    case Role::Priest: return "I AM " + n + ", PRIEST OF THIS TEMPLE.";
+    case Role::Mage: return "I AM " + n + ". I STUDY THE ARTS HERE.";
+    case Role::Jarl: return "I AM " + n + ", " + talkTrade(g, a) + (town.empty() ? std::string(".") : " OF " + town + ".");
+    case Role::Farmer: return "I'M " + n + ". I WORK THE FIELDS HERE.";
+    case Role::Hunter: return "THEY CALL ME " + n + ". I HUNT THESE WOODS.";
+    case Role::Fisher: return "I'M " + n + ". I FISH THESE WATERS.";
+    case Role::Herbalist: return "I'M " + n + ". I GROW WHAT HEALS.";
+    case Role::Traveller: return "THE NAME'S " + n + ". I'M ONLY PASSING THROUGH.";
+    case Role::Child: return "I'M " + n + "!";
+    default: break;
+  }
+  switch (talkJobOf(g, a)) {
+    case life::Job::None: return "I'M " + n + ".";
+    case life::Job::Beggar: case life::Job::Guard: return "";
+    case life::Job::Child: return "I'M " + n + "!";
+    case life::Job::Elder: return "I'M " + n + ". I'VE LIVED HERE ALL MY LIFE.";
+    case life::Job::Noble: return "I AM " + n + ", OF ONE OF THE GOOD HOUSES HERE.";
+    case life::Job::Labourer: return "I'M " + n + ". I TAKE WHATEVER WORK COMES.";
+    case life::Job::Servant: return "I'M " + n + ". I'M IN SERVICE HERE.";
+    case life::Job::Server: return "I'M " + n + ". I SERVE AT THE INN.";
+    case life::Job::Bard: return "I'M " + n + ", THE BARD" + (town.empty() ? std::string(".") : " OF " + town + ".");
+    case life::Job::Lamplighter: return "I'M " + n + ". I LIGHT THE LAMPS AT DUSK.";
+    default: {
+      const std::string j = life::jobName(talkJobOf(g, a));
+      const bool vowel = !j.empty() && std::string("AEIOU").find(j[0]) != std::string::npos;
+      return "I'M " + n + (vowel ? ", AN " : ", A ") + j + " HERE.";
+    }
+  }
+}
+
+// a line that already says who the speaker is ("I'M ARN", "NAME'S ARN", "THEY CALL ME ARN", "I AM QUAVION")
+bool introducesSelf(const std::string& text, const std::string& name) {
+  const std::string n = speech::givenName(name);
+  for (const char* lead : {"I'M ", "I AM ", "NAME'S ", "CALL ME ", "NAME IS "})
+    if (text.find(std::string(lead) + n) != std::string::npos) return true;
+  return text.find(n + ", THEY CALL ME") != std::string::npos;
+}
+
+// the line opens on a greeting of its own (no second "HELLO" in front of it)
+bool opensWithGreeting(const std::string& t) {
+  static const char* const k[] = {"WELCOME", "GOOD ", "MORNING", "EVENING", "NIGHT", "HAIL", "GREETINGS", "PEACE", "AH,", "AH.", "ANOTHER ",
+                                  "COME ", "WELL MET", "YOU'RE BACK", "BACK AGAIN", "YOU AGAIN", "IT'S YOU", "HELLO", "SPEAK,"};
+  for (const char* s : k) if (t.rfind(s, 0) == 0) return true;
+  return false;
+}
+
+// the kind of option a first page can do without: the services (grouped under one header) and the kindnesses
+// (offered once the player asks how someone is keeping)
+bool serviceOpt(const DlgOpt& o) {
+  if (o.action == A_TRADE || o.action == A_REST || o.action == A_RUMOR || o.action == A_HEAL || o.action == A_LEARN) return true;
+  if (o.action >= DLG_HOME && o.action < DLG_HOME_END) return true;    // deeds, horses, recipes, the kitchen, the mill
+  if (o.action >= DLG_CRAFT && o.action < DLG_M6_END) return true;     // the forge, the craft
+  return lifeOptKind(o.action) == 1;                                    // the inn's meal, food for the stores
+}
+}  // namespace
+
+std::string Game::speakerTitle(const Actor& a) const {
+  if (!a.npc || !a.human) return a.name;
+  const std::string trade = talkTrade(*this, a);
+  if (!talkNamed(a)) return a.name;
+  if (a.role == Role::King) return a.name;   // a ruler is known by name and title alike
+  if (talkMem.introduced(npcKey(a))) return speech::givenName(a.name) + ", " + trade;
+  return "THE " + trade;
+}
+
+std::string Game::speakerTitle() const {
+  for (const Actor& a : actors)
+    if (a.id == dlg.actor && dlg.actor >= 0) {
+      // (M7b) a line told as a story (a narrated ending) carries the tale's title as its speaker: show that, not the person
+      if (!dlg.speaker.empty() && dlg.speaker != a.name) return dlg.speaker;
+      return speakerTitle(a);
+    }
+  return dlg.speaker;
+}
+
+// M7b (rpg/sim/talk.h): the opening, then the talk memory (a person spoken to is met: the day, how often) and, in tests
+// and the dialogue review, the recorder
 void Game::talkTo(Actor& a) {
+  talkToInner(a);
+  if (mode != Mode::Dialogue || dlg.actor != a.id) return;
+  const uint64_t key = a.npc && a.human ? npcKey(a) : 0;
+  if (key) {
+    speech::Met& m = talkMem.meet(key, day);
+    m.lastTopic = dlg.topic;
+    m.lastLine = speech::lineHash(dlg.front.empty() ? dlg.text : dlg.front);
+  }
+  if (talkRec) {
+    const int hs = talkSiteOf(*this, a);
+    const bool troll = a.npc && !a.human && a.mon == Monster::Troll;
+    talkRec->begin(dlg, a.name, troll ? std::string("TROLL") : std::string(talkRoleName(a.role)),
+                   hs >= 0 ? world.sites[(size_t)hs].name : std::string(), key);
+  }
+}
+
+void Game::talkToInner(Actor& a) {
   // M5: a village animal is petted, not talked to (a wag, a purr, a cluck)
   if (a.critter) {
     if (HomeOps::critterUse(*this, a)) return;   // M7: the player's own beasts (pet, groom, ride; home_actors.cpp)
@@ -1129,61 +1308,88 @@ void Game::talkTo(Actor& a) {
   dlg.role = a.role;
   // M2: a toll bridge's troll asks its toll; a missing person found in a cave asks to be led out
   if (a.npc && !a.human && a.mon == Monster::Troll) { tollTalk(a); return; }
+  using speech::Topic;
   if (a.quest > 0) {
     const Quest* q = questById(a.quest);
     if (q && q->state == QState::Active && !(q->flags & QF_FOUND)) {
-      dlg.text = "YOU CAME FOR ME? " + q->giverName + " SENT YOU? THANK THE GODS. I CAN'T FIND THE WAY OUT, AND THERE ARE THINGS IN THE DARK.";
+      speech::propose(dlg, speech::P_URGENT, Topic::QuestActive,
+                      "YOU CAME FOR ME? " + q->giverName + " SENT YOU? THANK THE GODS. I CAN'T FIND THE WAY OUT, AND THERE ARE THINGS IN THE DARK.");
       dlg.opts.push_back({"STAY CLOSE. I'LL GET YOU OUT.", A_ESCORT, q->id});
-    } else if (q && q->state == QState::Active) dlg.text = "I'M RIGHT BEHIND YOU. JUST GET US OUT OF HERE.";
-    else dlg.text = "I'LL FIND MY OWN WAY HOME FROM HERE. TELL " + (q ? q->giverName : std::string("THEM")) + " I'M SAFE!";
+    } else if (q && q->state == QState::Active) speech::propose(dlg, speech::P_URGENT, Topic::QuestActive, "I'M RIGHT BEHIND YOU. JUST GET US OUT OF HERE.");
+    else speech::propose(dlg, speech::P_URGENT, Topic::QuestDone, "I'LL FIND MY OWN WAY HOME FROM HERE. TELL " + (q ? q->giverName : std::string("THEM")) + " I'M SAFE!");
     dlg.opts.push_back({"FAREWELL.", A_BYE, 0});
     mode = Mode::Dialogue;
     sfx((int)Sfx::Talk, a.p);
     return;
   }
-  dlg.text = greeting(a);
+  const uint64_t key = a.npc && a.human ? npcKey(a) : 0;
+  const speech::Met* met = key ? talkMem.find(key) : nullptr;
+  const bool knownBefore = met && met->times > 0;
+  // ---- 1. the greeting (never the same line the player heard from them, or from anyone, lately)
+  {
+    std::string g = greeting(a);
+    for (int salt = 1; salt <= 3; salt++) {
+      const uint32_t h = speech::lineHash(g);
+      const bool stale = talkMem.saidRecently(h, day, 1) || (met && met->lastLine == h && day - met->last <= 3);
+      if (!stale) break;
+      g = greeting(a, salt);
+    }
+    const bool trade = a.role == Role::Merchant || a.role == Role::Smith || a.role == Role::Innkeeper || a.role == Role::Priest || a.role == Role::Mage;
+    speech::propose(dlg, trade ? speech::P_SERVICE : speech::P_GREETING, trade ? Topic::Service : Topic::Greeting, g);
+  }
   // the background shows in how people talk to you (and what they charge)
   {
     bool say1 = hash32((uint32_t)npcKey(a) ^ (uint32_t)(day * 977)) % 2 == 0;
-    if (background == Background::Blacksmith && a.role == Role::Smith) dlg.text = "A SMITH'S CHILD? I CAN SEE IT IN YOUR HANDS. FOR YOU, A FAIR PRICE: A FIFTH OFF ANYTHING ON MY RACK.";
-    if (background == Background::Urchin && a.role == Role::Merchant) dlg.text = "YOU'VE GOT THE STREETS IN YOUR EYES, FRIEND. ALRIGHT, ONE OF OUR OWN: I'LL KNOCK A LITTLE OFF.";
-    if (background == Background::Noble && a.role == Role::Guard && say1) dlg.text = "FORGIVE ME, I KNOW NOBLE BEARING WHEN I SEE IT. THE WATCH COULD USE SOMEONE OF YOUR... STANDING.";
-    if (background == Background::Novice && a.role == Role::Priest) dlg.text = "A NOVICE OF THE TEMPLE! THE GODS' BLESSINGS RUN LONGER IN YOU, CHILD. SHALL I MEND YOUR WOUNDS?";
-    if (background == Background::Sailor && a.role == Role::Innkeeper && say1) dlg.text = "SEA LEGS ON DRY LAND, EH? SAILORS DRINK HERE, AND NOBODY ASKS WHAT SANK.";
-    if (background == Background::Farmhand && a.role == Role::Innkeeper && !say1) dlg.text = "A FARMHAND, BY THOSE HANDS. THEN YOU KNOW WHAT GOOD BREAD IS WORTH ON THE ROAD.";
-    if (background == Background::Hunter && a.role == Role::Villager && say1) dlg.text = "YOU WALK LIKE A HUNTER. THE WOLVES WON'T HEAR YOU COMING, WILL THEY?";
+    auto bg = [&](const char* t) { speech::propose(dlg, speech::P_SERVICE, Topic::Smalltalk, t); };
+    if (background == Background::Blacksmith && a.role == Role::Smith) bg("A SMITH'S CHILD? I CAN SEE IT IN YOUR HANDS. FOR YOU, A FAIR PRICE: A FIFTH OFF ANYTHING ON MY RACK.");
+    if (background == Background::Urchin && a.role == Role::Merchant) bg("YOU'VE GOT THE STREETS IN YOUR EYES, FRIEND. ALL RIGHT, ONE OF OUR OWN: I'LL KNOCK A LITTLE OFF.");
+    if (background == Background::Noble && a.role == Role::Guard && say1) bg("FORGIVE ME, I KNOW NOBLE BEARING WHEN I SEE IT. THE WATCH COULD USE SOMEONE OF YOUR... STANDING.");
+    if (background == Background::Novice && a.role == Role::Priest) bg("A NOVICE OF THE TEMPLE! THE GODS' BLESSINGS RUN LONGER IN YOU, CHILD. SHALL I MEND YOUR WOUNDS?");
+    if (background == Background::Sailor && a.role == Role::Innkeeper && say1) bg("SEA LEGS ON DRY LAND, EH? SAILORS DRINK HERE, AND NOBODY ASKS WHAT SANK.");
+    if (background == Background::Farmhand && a.role == Role::Innkeeper && !say1) bg("A FARMHAND, BY THOSE HANDS. THEN YOU KNOW WHAT GOOD BREAD IS WORTH ON THE ROAD.");
+    if (background == Background::Hunter && a.role == Role::Villager && say1) bg("YOU WALK LIKE A HUNTER. THE WOLVES WON'T HEAR YOU COMING, WILL THEY?");
   }
-  // a reward waiting comes first: the first option collects it
+  // ---- 2. a reward waiting comes first: the first option collects it
   for (auto& q : quests)
     if (q.state == QState::Complete && q.type != QType::Main && isGiver(q, a)) {
       bool bounty = q.type == QType::Bounty || q.type == QType::Hunt || q.type == QType::NamedBandit;
       dlg.opts.push_back({std::string(bounty ? "COLLECT BOUNTY (+" : "COLLECT REWARD (+") + std::to_string(q.gold) + " GOLD)", A_TURNIN, q.id});
-      dlg.text = turnInLine(q);
+      speech::propose(dlg, speech::P_REWARD, Topic::QuestDone, turnInLine(q));
     }
-  // main quest hooks
+  // ---- 3. the main quest's hooks (the lord of the capital)
   for (auto& q : quests) {
     if (q.type != QType::Main || a.role != Role::Jarl || a.site != world.capital) continue;
-    if (q.stage == 0) { dlg.text = "SO YOU'VE HEARD THE RUMOURS. THEY ARE TRUE: A DRAGON, ASHFANG, HAS WOKEN BENEATH " + lairName() + ". STEEL ALONE CANNOT KILL IT."; dlg.opts.push_back({"HOW CAN IT BE STOPPED?", A_MAIN, 1}); }
-    if (q.stage == 2) { dlg.text = "THE THREE EMBER SHARDS! I NEVER THOUGHT I WOULD SEE THEM WHOLE AGAIN. LET THE SMITHS FORGE THE CROWN."; dlg.opts.push_back({"I WILL HUNT THE DRAGON.", A_MAIN, 3}); }
+    if (q.stage == 0) {
+      speech::propose(dlg, speech::P_QUEST + 5, Topic::QuestOffer,
+                      "SO YOU'VE HEARD THE RUMOURS. THEY ARE TRUE: A DRAGON, ASHFANG, HAS WOKEN BENEATH " + lairName() + ". STEEL ALONE CANNOT KILL IT.");
+      dlg.opts.push_back({"HOW CAN IT BE STOPPED?", A_MAIN, 1});
+    }
+    if (q.stage == 2) {
+      speech::propose(dlg, speech::P_QUEST + 5, Topic::QuestDone, "THE THREE EMBER SHARDS! I NEVER THOUGHT I WOULD SEE THEM WHOLE AGAIN. LET THE SMITHS FORGE THE CROWN.");
+      dlg.opts.push_back({"I WILL HUNT THE DRAGON.", A_MAIN, 3});
+    }
   }
+  // ---- 4. a job of theirs under way: what is still to do, in their own words (the journal keeps q.desc)
   for (auto& q : quests)
-    if (q.state == QState::Active && q.type != QType::Main && q.type != QType::Retrieve && isGiver(q, a))
-      dlg.text = "HAVE YOU DEALT WITH IT YET? " + q.desc;
-  // the opening: the start village innkeeper hands over the old blade (VISION_PLAN 15.1)
+    if (q.state == QState::Active && q.type != QType::Main && q.type != QType::Retrieve && isGiver(q, a)) {
+      speech::propose(dlg, speech::P_QUEST, Topic::QuestActive, questReminder(q));
+      break;
+    }
+  // ---- 5. the opening: the start village innkeeper hands over the old blade (VISION_PLAN 15.1)
   for (auto& q : quests)
     if (q.type == QType::Retrieve && q.state == QState::Active && isGiver(q, a)) {
       giveFirstWeapon(q);
-      dlg.text = "THE ROAD TOOK ALL BUT YOUR SHIRT, EH? TAKE MY FATHER'S OLD BLADE FROM OVER THE HEARTH.";
+      std::string t = "THE ROAD TOOK ALL BUT YOUR SHIRT, EH? HERE, TAKE MY FATHER'S OLD BLADE FROM OVER THE HEARTH, AND A DRAUGHT FOR THE ROAD.";
       // point at the job the journal now tracks, so the advice matches the quest (not a made-up favour)
-      {
-        const Quest* nxt = nullptr;
-        for (const auto& o : quests) if (o.id == trackedQuest) nxt = &o;
-        if (nxt && nxt->type == QType::Hunt) dlg.text += std::string(" FOLK SAY THE ") + monsterPlural(nxt->mon) + " ARE BAD THIS YEAR.";
-        else dlg.text += " NOW GO EARN YOUR KEEP: SOMEONE ROUND HERE ALWAYS NEEDS A HAND.";
-      }
+      const Quest* nxt = nullptr;
+      for (const auto& o : quests) if (o.id == trackedQuest) nxt = &o;
+      if (nxt && nxt->type == QType::Hunt) t += std::string(" THEY SAY THE ") + monsterPlural(nxt->mon) + " ARE BAD THIS YEAR, IF YOU NEED WORK.";
+      else t += " IF YOU NEED WORK, ASK AROUND: SOMEONE HERE ALWAYS NEEDS A HAND.";
+      speech::propose(dlg, speech::P_URGENT, Topic::Reward, t);
       break;
     }
-  if (std::string t = questDialogue(a); !t.empty()) dlg.text = t;   // M2: a parcel's recipient (quests.cpp)
+  if (std::string t = questDialogue(a); !t.empty()) speech::propose(dlg, speech::P_REWARD, Topic::QuestDone, t);   // M2: a parcel's recipient
+  // ---- 6. the options of their trade
   if (hasOffer(a)) dlg.opts.push_back({a.role == Role::Innkeeper ? "ANY WORK GOING?" : "DO YOU NEED HELP?", A_ASK, 0});
   if (a.role == Role::Merchant || a.role == Role::Smith || a.role == Role::Mage || a.role == Role::Priest || a.role == Role::Innkeeper ||
       a.role == Role::Hunter || a.role == Role::Fisher || a.role == Role::Herbalist)
@@ -1201,12 +1407,95 @@ void Game::talkTo(Actor& a) {
     if (!(spellsKnown & (1 << (int)Spell::Heal))) dlg.opts.push_back({"TEACH ME MEND (120 GOLD)", A_LEARN, (int)Spell::Heal});
     if (!(spellsKnown & (1 << (int)Spell::IceSpike))) dlg.opts.push_back({"TEACH ME FROST LANCE (300 GOLD)", A_LEARN, (int)Spell::IceSpike});
   }
-  lifeTalk(a);    // M5: greetings by name, barks of need, feed / employ / supply / befriend (life_game.cpp)
-  warTalk(a);     // M4: the war's talk (siege commanders, guards' news of the front; war_game.cpp)
-  storyTalk(a);   // M4: story quests, gossip, the realm's news (rpg/story/story_game.cpp)
-  foeTalk(a);     // M6: warnings of named beasts and world bosses (foes_game.cpp)
-  craftTalk(a);   // M6: the forge's work and lessons (craft_game.cpp)
-  homeTalk(a);    // M7: deeds, builders, horses, seeds, the farmhand, recipes and cooking (home_game.cpp)
+  // ---- 7. the lanes' hooks, in their old order. Each proposes its line (speech::propose); a hook that still writes
+  // dlg.text directly is taken at the priority its kind of line has (and gives way to a weightier line already chosen)
+  auto hook = [&](int defPri, Topic t, auto&& fn) {
+    const std::string before = dlg.text;
+    const int bp = dlg.pri;
+    const uint8_t bt = dlg.topic;
+    fn();
+    if (dlg.text != before && dlg.pri == bp && dlg.topic == bt) {
+      if (defPri >= bp) { dlg.pri = defPri; dlg.topic = (uint8_t)t; }
+      else dlg.text = before;
+    }
+  };
+  hook(speech::P_BARK, Topic::Bark, [&] { lifeTalk(a); });   // M5: barks of need, feed / employ / supply / befriend (life_game.cpp)
+  hook(speech::P_NEWS, Topic::War, [&] { warTalk(a); });     // M4: the war's talk (siege commanders, guards' news of the front)
+  {   // M4: story quests, gossip, the realm's news (rpg/story/story_game.cpp; the SAGA lane proposes at P_STORY / P_NEWS)
+    const std::string before = dlg.text;
+    const int bp = dlg.pri;
+    const uint8_t bt = dlg.topic;
+    storyTalk(a);
+    if (dlg.text != before && dlg.pri == bp && dlg.topic == bt) {
+      bool scene = false, pitch = false;   // a running story's own scene (its choices), or a story offered (its pitch)
+      for (const DlgOpt& o : dlg.opts) {
+        if (o.action >= DLG_STORY && o.action < DLG_STORY + story::SA_START) scene = true;
+        else if (o.action >= DLG_STORY && o.action < DLG_WAR) pitch = true;
+      }
+      const int sp = scene ? speech::P_URGENT - 5 : pitch ? speech::P_STORY : speech::P_NEWS;
+      if (sp >= bp) { dlg.pri = sp; dlg.topic = (uint8_t)(scene || pitch ? Topic::Story : Topic::News); }
+      else dlg.text = before;
+    }
+  }
+  hook(speech::P_NEWS, Topic::Foe, [&] { foeTalk(a); });         // M6: warnings of named beasts and world bosses (foes_game.cpp)
+  hook(speech::P_URGENT, Topic::Craft, [&] { craftTalk(a); });   // M6: the forge's work and lessons (a thief barred: urgent)
+  hook(speech::P_SERVICE, Topic::Home, [&] { homeTalk(a); });    // M7: deeds, builders, horses, recipes and cooking
+  // ---- 8. one coherent opening: a stranger is told who this is (and gets the people's own hello), an acquaintance is
+  // greeted as one; the core line (what matters most to the speaker now) follows
+  const std::string core = dlg.text;
+  if (key && talkNamed(a)) {
+    const int hs = talkSiteOf(*this, a);
+    if (!talkMem.introduced(key)) {
+      if (introducesSelf(core, a.name)) talkMem.flag(key, speech::TM_INTRODUCED, day);
+      else if (const std::string intro = introPhrase(*this, a); !intro.empty()) {
+        const bool light = dlg.pri <= speech::P_NEED && !opensWithGreeting(core);
+        std::string t = light ? speech::joinFit(std::string(welcomeWord(*this, hs)) + " " + intro, core) : core;
+        if (t == core) t = speech::joinFit(intro, core);
+        if (t == core) t = speech::joinFit("I'M " + speech::givenName(a.name) + ".", core);
+        if (t != core) { dlg.text = t; talkMem.flag(key, speech::TM_INTRODUCED, day); }
+      }
+    } else if (knownBefore && dlg.pri <= speech::P_NEED && !opensWithGreeting(core)) {
+      const uint32_t h = hash32((uint32_t)key ^ (uint32_t)day * 2654435761u);
+      std::string hello;
+      if (met->flags & speech::TM_SLIGHTED) hello = "YOU AGAIN.";
+      else if (met->flags & speech::TM_THANKED) hello = h % 2 ? "GOOD TO SEE YOU AGAIN, FRIEND." : "MY FRIEND! I HAVEN'T FORGOTTEN WHAT YOU DID FOR US.";
+      else if (met->last == day) hello = h % 2 ? "BACK AGAIN?" : "YOU AGAIN? WELCOME BACK.";
+      else hello = h % 3 == 0 ? "GOOD TO SEE YOU AGAIN." : h % 3 == 1 ? "AH, IT'S YOU AGAIN." : "BACK IN " + (hs >= 0 ? world.sites[(size_t)hs].name : std::string("TOWN")) + ", ARE YOU?";
+      dlg.text = speech::joinFit(hello, core);
+    }
+  }
+  talkMem.said(speech::lineHash(core), day);
+  dlg.front = core;
+  // ---- 9. the first page holds about six options: the services go under one header, the kindnesses come up when the
+  // player asks how the speaker is keeping
+  {
+    auto shown = [&]() { int n = 1; for (const DlgOpt& o : dlg.opts) if (o.grp == 0) n++; return n; };   // (+ FAREWELL)
+    if (shown() > speech::FIRST_PAGE) {
+      int nserv = 0;
+      for (const DlgOpt& o : dlg.opts) if (o.grp == 0 && serviceOpt(o)) nserv++;
+      if (nserv >= 2) {
+        size_t at = dlg.opts.size();
+        for (size_t i = 0; i < dlg.opts.size(); i++)
+          if (dlg.opts[i].grp == 0 && serviceOpt(dlg.opts[i])) { if (at == dlg.opts.size()) at = i; dlg.opts[i].grp = 1; }
+        dlg.opts.insert(dlg.opts.begin() + (std::ptrdiff_t)at, DlgOpt{"WHAT CAN YOU OFFER?", A_GROUP, 1, 0});
+        // a keeper with more to offer than one page holds: the house and kitchen business gets its own header
+        int n1 = 0, nh = 0;
+        for (const DlgOpt& o : dlg.opts) if (o.grp == 1) { n1++; if (o.action >= DLG_HOME && o.action < DLG_HOME_END) nh++; }
+        if (n1 > speech::FIRST_PAGE - 1 && nh >= 2 && n1 - nh >= 2) {
+          for (DlgOpt& o : dlg.opts) if (o.grp == 1 && o.action >= DLG_HOME && o.action < DLG_HOME_END) o.grp = 3;
+          dlg.opts.insert(dlg.opts.begin() + (std::ptrdiff_t)at + 1, DlgOpt{"WHAT ELSE DO YOU DO HERE?", A_GROUP, 3, 0});
+        }
+      }
+    }
+    bool g1 = false;
+    for (const DlgOpt& o : dlg.opts) if (o.action == A_GROUP && o.arg == 1) g1 = true;
+    if (shown() > speech::FIRST_PAGE && g1)   // the keeper's word of the beasts about goes with the inn's news
+      for (DlgOpt& o : dlg.opts) if (o.grp == 0 && o.action >= DLG_FOES && o.action < DLG_CRAFT) o.grp = 1;
+    bool chat = false;
+    for (const DlgOpt& o : dlg.opts) if (o.grp == 0 && lifeOptKind(o.action) == 3) chat = true;
+    if (shown() > speech::FIRST_PAGE && chat)
+      for (DlgOpt& o : dlg.opts) if (o.grp == 0 && lifeOptKind(o.action) == 2) o.grp = 2;   // (L_CHAT shows them: lifeChoose)
+  }
   dlg.opts.push_back({"FAREWELL.", A_BYE, 0});
   mode = Mode::Dialogue;
   sfx((int)Sfx::Talk, a.p);
@@ -1216,11 +1505,56 @@ void Game::closeDialogue() { if (mode == Mode::Dialogue) mode = Mode::Play; }
 
 void Game::dialogueChoose(int oi) {
   if (oi < 0 || oi >= (int)dlg.opts.size()) return;
+  dialogueChooseInner(oi);
+  // (M7b) an option group whose options were all replaced (an answer with its own options) closes: back to the page
+  if (dlg.group) {
+    bool any = false;
+    for (const DlgOpt& o : dlg.opts) if (o.grp == dlg.group && o.action != A_BACK) any = true;
+    if (!any) {
+      dlg.group = 0;
+      dlg.opts.erase(std::remove_if(dlg.opts.begin(), dlg.opts.end(), [](const DlgOpt& o) { return o.action == A_BACK; }), dlg.opts.end());
+    }
+  }
+  if (talkRec) talkRec->reply(oi, dlg, mode == Mode::Dialogue);
+}
+
+void Game::dialogueChooseInner(int oi) {
+  if (oi < 0 || oi >= (int)dlg.opts.size()) return;
   DlgOpt o = dlg.opts[oi];
   int ai = findActor(dlg.actor);
   sfx((int)Sfx::MenuSelect, pl().p);
   switch (o.action) {
     case A_BYE: mode = Mode::Play; return;
+    case A_GROUP: {   // (M7b) the services under one header: what they are, in the speaker's words, then the options
+      dlg.group = (uint8_t)o.arg;
+      std::vector<std::string> what;
+      for (const DlgOpt& k : dlg.opts) {
+        if (k.grp != dlg.group) continue;
+        const char* w = k.action == A_REST ? "A ROOM FOR THE NIGHT" : k.action == A_RUMOR ? "WHATEVER NEWS I'VE HEARD"
+                        : k.action == A_TRADE ? (dlg.role == Role::Innkeeper ? "WHAT'S ON MY SHELF" : "MY WARES")
+                        : k.action == A_HEAL ? "THE GODS' BLESSING" : k.action == A_LEARN ? "A LESSON OR TWO"
+                        : lifeOptKind(k.action) == 1 && dlg.role == Role::Innkeeper ? "A HOT MEAL"
+                        : k.label.rfind("PROPERTY", 0) == 0 ? "THE DEEDS OF HOUSES FOR SALE" : k.label.rfind("TEACH ME A RECIPE", 0) == 0 ? "A RECIPE OR TWO"
+                        : k.label.rfind("MAY I COOK", 0) == 0 ? "THE USE OF MY KITCHEN" : k.label.rfind("HORSES", 0) == 0 ? "GOOD HORSES"
+                        : k.label.find("MY HORSE") != std::string::npos ? "A STALL FOR YOUR HORSE" : k.label.rfind("PAY MY TAXES", 0) == 0 ? "THE TAX BOOKS"
+                        : k.label.rfind("GRIND", 0) == 0 ? "THE MILLSTONES" : nullptr;
+        if (w && std::find(what.begin(), what.end(), w) == what.end()) what.push_back(w);
+      }
+      std::string list;
+      for (size_t k = 0; k < what.size() && k < 4; k++) list += (k ? (k + 1 == std::min<size_t>(what.size(), 4) ? " AND " : ", ") : "") + what[k];
+      dlg.text = list.empty() ? "HAVE A LOOK. WHAT WILL IT BE?" : (dlg.group == 3 ? "I CAN ALSO OFFER YOU " : "I CAN OFFER YOU ") + list + ". WHAT WILL IT BE?";
+      if (!speech::fitsPanel(dlg.text)) dlg.text = "HAVE A LOOK. WHAT WILL IT BE?";
+      dlg.opts.erase(std::remove_if(dlg.opts.begin(), dlg.opts.end(), [](const DlgOpt& k) { return k.action == A_BACK; }), dlg.opts.end());
+      size_t at = dlg.opts.size();
+      for (size_t k = 0; k < dlg.opts.size(); k++) if (dlg.opts[k].action == A_BYE) { at = k; break; }
+      dlg.opts.insert(dlg.opts.begin() + (std::ptrdiff_t)at, DlgOpt{"SOMETHING ELSE.", A_BACK, 0, dlg.group});
+      return;
+    }
+    case A_BACK:
+      dlg.group = 0;
+      dlg.opts.erase(std::remove_if(dlg.opts.begin(), dlg.opts.end(), [](const DlgOpt& k) { return k.action == A_BACK; }), dlg.opts.end());
+      dlg.text = "OF COURSE. WHAT ELSE CAN I DO FOR YOU?";
+      return;
     case A_TRADE: if (ai >= 0) openShop(actors[ai]); return;
     case A_REST: {
       // M0b: an inn lets you one of its rooms (until noon tomorrow) and tells you where it is. (M3b: a single-storey
@@ -1374,14 +1708,30 @@ void Game::dialogueChoose(int oi) {
     case A_ASK:
       if (ai < 0) return;
       pendingOffer_ = makeOffer(actors[ai]);
-      dlg.text = pendingPitch_.empty() ? pendingOffer_.desc + " REWARD: " + std::to_string(pendingOffer_.gold) + " GOLD." : pendingPitch_;
+      dlg.text = pendingPitch_.empty() ? "THERE IS SOMETHING. " + pendingOffer_.desc + " I'LL PAY " + std::to_string(pendingOffer_.gold) + " GOLD." : pendingPitch_;
+      // (fixer M7b r3) a giver who has not yet said who they are does so before the pitch (the title then names them)
+      if (actors[(size_t)ai].npc && actors[(size_t)ai].human && talkNamed(actors[(size_t)ai]) && actors[(size_t)ai].role != Role::King &&
+          !talkMem.introduced(npcKey(actors[(size_t)ai]))) {
+        const std::string t = speech::joinFit("I'M " + speech::givenName(actors[(size_t)ai].name) + ".", dlg.text);
+        if (t != dlg.text) { dlg.text = t; talkMem.flag(npcKey(actors[(size_t)ai]), speech::TM_INTRODUCED, day); }
+      }
       dlg.opts = {{"I'LL DO IT.", A_ACCEPT, 0}, {"NOT RIGHT NOW.", A_DECLINE, 0}};
       return;
     case A_ACCEPT:
       acceptQuest(pendingOffer_);
-      dlg.text = pendingOffer_.type == QType::Deliver ? "HERE'S THE PARCEL. KEEP IT DRY, AND KEEP IT SHUT."
-                 : pendingOffer_.type == QType::Protect ? "THEN BE AT THE FIELDS BY NIGHTFALL. THEY COME AFTER DARK."
-                 : "THANK YOU. COME BACK WHEN IT'S DONE.";
+      dlg.text = acceptLine(pendingOffer_);
+      if (ai >= 0 && actors[(size_t)ai].npc && actors[(size_t)ai].human) {
+        const Actor& ga = actors[(size_t)ai];
+        talkMem.flag(npcKey(ga), speech::TM_KNOWS_PLAYER, day);
+        // (fixer M7b r2, review: "the giver stays THE HERDER through the offer, yet the turn-in names them") a giver who
+        // has not said who they are does so now, so the journal's and the return's name is one the player has heard
+        if (talkNamed(ga) && ga.role != Role::King && !talkMem.introduced(npcKey(ga))) {
+          const bool back = dlg.text.find("COME BACK") != std::string::npos;
+          std::string t = dlg.text + " I'M " + speech::givenName(ga.name) + (back ? ", BY THE WAY." : ", BY THE WAY. ASK FOR ME WHEN YOU'RE BACK.");
+          if (!speech::fitsPanel(t)) t = dlg.text + " I'M " + speech::givenName(ga.name) + ", BY THE WAY.";
+          if (speech::fitsPanel(t)) { dlg.text = t; talkMem.flag(npcKey(ga), speech::TM_INTRODUCED, day); }
+        }
+      }
       dlg.opts = {{"FAREWELL.", A_BYE, 0}};
       return;
     case A_DECLINE: mode = Mode::Play; return;
@@ -1425,8 +1775,24 @@ void Game::dialogueChoose(int oi) {
       say("THE TROLL ROARS AND COMES FOR YOU!");
       return;
     case A_TURNIN:
-      for (auto& q : quests) if (q.id == o.arg && q.state == QState::Complete) { completeQuest(q); break; }
-      dlg.text = "YOU HAVE MY THANKS. HERE, YOU'VE EARNED THIS.";
+    {
+      // (M7b) the reward handed over, said as it is: the gold, and the piece of gear when the job brought one
+      int gold0 = 0;
+      const size_t inv0 = inv.size();
+      for (auto& q : quests)
+        if (q.id == o.arg && q.state == QState::Complete) { gold0 = q.gold; completeQuest(q); break; }
+      std::string extra;
+      for (size_t k = inv0; k < inv.size(); k++)
+        if (inv[k].flags & IF_QUESTREWARD) {
+          const std::string& n = inv[k].name;
+          const bool many = n.size() > 2 && n.back() == 'S' && n[n.size() - 2] != 'S';   // BOOTS, GAUNTLETS
+          extra = std::string(many ? " AND TAKE THESE " : " AND TAKE THIS ") + n + " AS WELL. " + (many ? "THEY" : "IT") + " SHOULD SERVE YOU BETTER THAN ME.";
+        }
+      dlg.text = gold0 > 0 ? "HERE, COUNT IT IF YOU LIKE." + (extra.empty() ? std::string(" YOU'VE EARNED EVERY COIN.") : extra)
+                           : "YOU HAVE MY THANKS. HERE, YOU'VE EARNED THIS.";
+      if (!speech::fitsPanel(dlg.text)) dlg.text = "HERE, COUNT IT IF YOU LIKE, AND TAKE A LITTLE SOMETHING MORE.";
+      if (ai >= 0 && actors[(size_t)ai].npc && actors[(size_t)ai].human) talkMem.flag(npcKey(actors[(size_t)ai]), speech::TM_THANKED | speech::TM_KNOWS_PLAYER, day);
+    }
       for (size_t k = 0; k < dlg.opts.size(); k++)   // more rewards from the same giver stay on offer
         if (k != (size_t)oi && dlg.opts[k].action == A_TURNIN) { const Quest* q2 = questById(dlg.opts[k].arg); if (q2 && q2->state == QState::Complete) { dlg.opts = {dlg.opts[k], {"FAREWELL.", A_BYE, 0}}; return; } }
       dlg.opts = {{"FAREWELL.", A_BYE, 0}};
@@ -1444,7 +1810,7 @@ void Game::dialogueChoose(int oi) {
       recalcPlayer();
       emit(Ev::Heal, pl().p);
       sfx((int)Sfx::Heal, pl().p);
-      dlg.text = "GO WITH THE OLD GODS, CHILD.";
+      dlg.text = "THERE. YOUR WOUNDS ARE MENDED, AND THE GODS' BLESSING GOES WITH YOU. WALK IN THEIR LIGHT, CHILD.";
       dlg.opts = {{"FAREWELL.", A_BYE, 0}};
       return;
     case A_LEARN: {
@@ -1794,10 +2160,14 @@ bool Game::sell(int ii) {
 //   life     (v11) u32 byte length + the life block (life::Life::serialize: its own version byte first)
 //   craft    (v12) u32 byte length + the craft block (craft::Knowledge::serialize: its own version byte first)
 //   home     (v14) u32 byte length + the home block (home::Homes::serialize: its own version byte first)
+//   talk     (v15) u32 byte length + the talk block (speech::Memory::serialize: its own version byte first)
 // refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
 // 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 14;  // 14: M7 Home (the home block after the craft block: the player's houses, lots,
+static constexpr uint32_t SAVE_VER = 15;  // 15: M7b Cities & Voice (the talk block after the home block: the people
+                                          //    met, introductions, the lines said lately; ENDLESS_GEN_VER 17: the
+                                          //    cities' plan);
+                                          // 14: M7 Home (the home block after the craft block: the player's houses, lots,
                                           //    yards, crops, animals, stores, discovered styles, the horse ridden;
                                           //    ENDLESS_GEN_VER 16);
                                           // 13: M6b Sagas (the story block's own version 3: the generated stories'
@@ -2040,6 +2410,9 @@ void Game::serialize(std::vector<uint8_t>& out) const {
     home.serialize(blk);   // M7 (v14)
     w.u32((uint32_t)blk.size());
     for (uint8_t c : blk) w.u8(c);
+    talkMem.serialize(blk);   // M7b (v15)
+    w.u32((uint32_t)blk.size());
+    for (uint8_t c : blk) w.u8(c);
   }
 }
 
@@ -2159,15 +2532,15 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   if (n > 1000000) return false;
   marks.clear();
   for (uint32_t i = 0; i < n && !r.bad; i++) { uint64_t k = r.u64(); marks[k] = r.i32(); }
-  // M4 (v10): the realm and story blocks, M5 (v11) the life block, M6 (v12) the craft block, M7 (v14) the home block (a
-  // block its owner cannot read refuses the whole save)
-  for (int blkI = 0; blkI < 5 && !r.bad; blkI++) {
+  // M4 (v10): the realm and story blocks, M5 (v11) the life block, M6 (v12) the craft block, M7 (v14) the home block,
+  // M7b (v15) the talk block (a block its owner cannot read refuses the whole save)
+  for (int blkI = 0; blkI < 6 && !r.bad; blkI++) {
     n = r.u32();
     if (r.bad || n > (64u << 20) || r.p + n > in.size()) return false;
     std::vector<uint8_t> blk(in.begin() + (std::ptrdiff_t)r.p, in.begin() + (std::ptrdiff_t)(r.p + n));
     r.p += n;
     const bool ok = blkI == 0 ? realm.deserialize(blk) : blkI == 1 ? story.deserialize(blk) : blkI == 2 ? life.deserialize(blk)
-                    : blkI == 3 ? craft.deserialize(blk) : home.deserialize(blk);
+                    : blkI == 3 ? craft.deserialize(blk) : blkI == 4 ? home.deserialize(blk) : talkMem.deserialize(blk);
     if (!ok) return false;
   }
   if (r.bad) return false;

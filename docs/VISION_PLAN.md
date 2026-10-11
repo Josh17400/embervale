@@ -2778,3 +2778,102 @@ header it is named the editor of, never rename, remove or change the meaning of 
   (attack, a blow, entering) and a byte-identical save round trip with the farm. Script commands (rpg/view/
   script_home.cpp): `home lot|buylot|buyhouse|build|place|fence|crop|field|animal|fill|tools|days|ride|dismount|yard|
   shell`, `expect home plots|riding|crops|stage|built|dismounts`; `tools/scripts/m7_lead_home.txt`.
+
+### 15.23 M7b "Cities & Voice": planned cities and natural dialogue (owner, 2026-10-10)
+
+Two owner complaints after M7, fixed before M8:
+
+**1. Cities need structure and order.** Today cities wind like overgrown villages. Villages look great and must NOT change;
+towns get only a slightly tidier main street and square; cities get a real plan (still medieval, still organic at the
+edges, every culture still building in its own style):
+- **Street hierarchy:** main avenues from each gate to the market and the seat of power (palace, temple complex, council
+  spire...), cross streets off the avenues, then lanes and alleys. Wider, straighter, paved avenues; narrower lanes.
+  Blocks of row houses that front the street (continuous frontages, shared walls, back yards), not scattered houses.
+- **Sidewalks:** raised kerbed walkways or flagged edges along house fronts on avenues and cross streets, gutters or a
+  central drain, corner stones and bollards at junctions; the paving reads in 3/4 view with depth like everything else.
+- **Squares and open space:** a market square, a temple or cathedral close, a square before the seat of power, small
+  well-squares at lane junctions; fountains, statues, a market cross.
+- **Green:** tree-lined avenues, walled gardens behind rich houses, at least one park or green with paths and benches,
+  orchards and kitchen gardens inside the walls, courtyard trees, planters and window boxes.
+- **Districts:** rich quarter (larger houses, gardens, clean paving), craft quarter (workshops, yards), market district,
+  poor quarter and outskirts (tighter, plainer, dirt lanes), each with its own density and upkeep.
+- Per culture the plan bends: the dune city of courtyard houses and covered souks, the jade city of axial avenues and
+  walled compounds, the steppe khan's tent city of radial rings, the elven city among the trees, the fjord city along the
+  harbour. Walls, gates, the economy, lots for sale (M7), the M5 census and M6 guards keep working; town goldens are
+  regenerated (ENDLESS_GEN_VER bump).
+
+**2. Dialogue must read naturally.** The owner finds dialogue choppy, unreal and at times hard to follow. A full pass over
+everything spoken: sagas and story quests (composer, voice grammars, templates), radiant and life quests, shop, inn,
+smith, stablemaster and guard talk, greetings and barks.
+- **Flow:** each line follows from the one before; people answer the option the player actually chose; no stitched
+  fragments or abrupt jumps between unrelated phrase picks.
+- **Clarity:** the player always knows who is speaking, who is being talked about, what happened, what is wanted and why,
+  and where to go next. Names and places are introduced before they are relied on.
+- **Voice:** a consistent tone per speaker (grief, greed, fear, pride, warmth) that fits their job and mood; culture
+  flavour stays light and never at the cost of being understood.
+- **Fewer, fuller lines:** prefer two or three complete natural sentences over many short fragments; cut filler.
+- **Gate:** a dialogue-quality review reads hundreds of generated conversations as a player would (a sample per
+  archetype, hook and NPC trade) and fails anything confusing, robotic or incoherent; `--sagas` and `--voice` gain
+  coherence checks (no repeated phrase within a conversation, every role introduced before use, answers match options).
+
+### 15.24 M7b "Cities & Voice" phase A (lead, 2026-10-10): the city and voice contracts
+
+15.23 binds M7b (the owner's words win on conflicts). Every new generation RNG draw is sequenced explicitly (clang and
+MSVC must give the same goldens). Phase A contracts (a lane may ADD to the file it is named the editor of, never rename,
+remove or change the meaning of what is listed here):
+- **Urban fabric** `rpg/world/urban.h` (CITY lane is its only editor; append-only): `ew::Urb` (None, Avenue, Street, Lane,
+  Alley, Sidewalk, Gutter, Square, Close, Park, ParkPath, Garden, Court, Quay), `ew::Quarter` (Centre, Rich, Craft,
+  Poor), the byte (bits 0-3 class, 4-5 upkeep 0..3, 6-7 quarter: `urbPack` / `urbClass` / `urbUpkeep` / `urbQuarter`),
+  `urbCarriage` / `urbOpen` / `urbGreen`, `urbName`. Carried as `Map::urb` / `Map::urbAt` (settlement buffers and the
+  endless window), `ChunkData::urb`, copied by chunkgen and the window (applyChunk, shifts); never saved. Written by
+  `town::Gen::urbanFabric()` (rpg/world/town_urban.cpp, the last step of finish(), no Rng draw). Phase A fills it for
+  cities from the M7 plan (main streets -> Avenue, a fronted edge of a 3-wide main street -> Sidewalk, lanes -> Lane /
+  Alley, squares -> Square, the compound's paving -> Court; quarter from the district, upkeep from the quarter and the
+  city's wealth). ALWAYS 0 in a village. Purely visual (walkability stays the ground's and the props').
+- **Row houses** `Bldg::row` / `bld::Request::row` (bits `bld::ROW_W`, `ROW_E`, `ROW_YARD`; `bldgRequest` passes it;
+  `Request::key` mixes it only when non-zero): a footprint abutting its neighbour on the same front row shares that wall
+  (the builder drops the shared side walls, runs the eaves, ridge and foundation on as one terrace), ROW_YARD a walled
+  back yard behind. Set by the CITY lane's generator (never in a village), drawn by the CITYART lane's builder / painter.
+- **City props** (rpg/art/art_props.h, after ForSaleSign; `isCityProp`, frozen `cityFootprint`): Bollard, Planter,
+  GardenWall (joins), Hedge (joins), FlowerBed, FruitTree (a tree: `isTreeProp`), Monument, Pavilion (3x2), Canopy
+  (walked under, drawn over the walker; `propSolid` false). Painted by `rpg/art/art_city.h/.cpp` (CITYART lane; phase A
+  stand-ins: `cityPropW/H/Frames`, `paintCityProp`); classified Kind::None in rpg/build/registry.cpp until their painters
+  take the culture's parts.
+- **Villages never change**: `rpg_test --villages` (tools/tests/test_villages.cpp + tests/fixtures/golden_villages.txt,
+  LEAD-owned and FROZEN, recorded before any M7b change): 183 synthetic villages (every settlement archetype x land,
+  every culture, every forced layout; seeds 1..3) and the 21 real villages of the endless world in the 5x5 regions round
+  the origin (seeds 1..3) hash as in M7, with no `Map::urb` and no `Bldg::row`. rpg_test --towns hashes `urb` / `row`
+  only where present (a village's town hash is unchanged).
+- **Voice** `rpg/sim/talk.h/.cpp`, namespace `speech` (TALK lane is its only editor; the SAGA lane uses it read-only):
+  the phone panel (`PANEL_CHARS` 70 x `PANEL_LINES` 5, `OPTION_CHARS` 66, `wrapLines`, `fitsPanel`, `fitsOption`); one
+  line at a time (`Topic`, `Pri` P_GREETING 10 .. P_URGENT 100, `propose(Dialogue&, pri, topic, text)`: replaces
+  `Dialogue::text` only at an equal or higher priority; `Dialogue::pri` / `topic` new, reset by talkTo); the talk memory
+  `Memory` (`Met`: npcKey, first / last day, times, TM_INTRODUCED / TM_KNOWS_PLAYER / TM_THANKED / TM_SLIGHTED, last
+  topic and line hash; 1024 people, the least recent forgotten; 64 recent line hashes: `saidRecently` / `said`) as
+  `Game::talkMem`; the recorder (`Turn`, `Conversation`, `Recorder`; `Game::talkRec`, null except in tests); the lint
+  (`lint(Conversation, LintCtx)`: C_EMPTY, C_PLACEHOLDER, C_CASE, C_PANEL, C_OPTION, C_REPEAT, C_DOUBLE, C_STITCH,
+  C_FRAGMENT, C_NAME, C_ECHO, C_PUNCT, C_SELF; `formatPhone`). `Game::talkTo` is now talkToInner + the memory (every
+  human spoken to is met) + the recorder; `dialogueChoose` is dialogueChooseInner + the recorder.
+- **Saves**: SAVE_VER 15 (the talk block after the home block, length-prefixed, its own version byte 1); fixture
+  `tests/fixtures/save_v15.bin` (save_v14.bin removed; a person met three times, introduced, knowing the player's name,
+  their last topic and line, a bark said lately). ENDLESS_GEN_VER 17. Town goldens: the 69 city cases re-recorded (the
+  urb layer); villages and towns unchanged.
+- **Tests and scripts**: `rpg_test --villages` and `rpg_test --dialogue [--seeds A..B] [--dump FILE] [--sample N]
+  [--strict]` (CI: real conversations in the start village, the nearest town and city, streets and the inn, shop,
+  smithy, temple and seat; every option of every opening followed a step; linted; phase A gate: placeholder / case /
+  empty only). Script commands (rpg/view/script_city.cpp): `urb [r]`, `expect urb <class|rows> <min>`, `cityprops`.
+  `tools/scripts/m7b_lead_city.txt` (a heartland city, its fabric, the props on a stage), `m7b_lead_talk.txt` (the start
+  inn's keeper at phone size). Phase A baseline of --dialogue seeds 1..3: 392 conversations with 130 people; 81 speakers
+  naming themselves in the third person ("HAVE YOU DEALT WITH IT YET? QUASEAS IN VOND NEEDS 6 MEAT." said by QUASEAS),
+  89 stitched fragments (journal notes in brackets inside speech, "AND PRAY ... KEEPS TO THE SOUTH." glued on), 27 names
+  used before they are introduced, 13 repeated phrases.
+
+### 15.25 M7b "Cities & Voice" phase B (lanes + integration, 2026-10-10)
+
+Done as specified in 15.23 / 15.24; docs/PLAN.md "M7b, Phase B results and integration" lists what each lane built.
+Contract additions: town mask kinds `K_PARK` / `K_ROWYARD` and a role per square (market, seat, close, well); the city
+generator places the notice board; `bld::VF_PARTY_W` / `VF_PARTY_E` (builder `terrace()`, only when `Request::row` is
+non-zero); `Bldg::row` is part of the open-front cache key; `art::cityPropStyled(p, style, variant, joins, snow)`;
+`DlgOpt::grp` / `Dialogue::group/front/shows()` option groups (`A_GROUP` / `A_BACK`), `speech::FIRST_PAGE` 6,
+`speech::C_ANSWER` (outside `C_ALL`); script commands `cityspot`, `expect urb none`, `gotourb`, `expect kerbs`.
+Villages: `--villages` and `city_gallery --check` (village art) unchanged. SAVE_VER 15 / ENDLESS_GEN_VER 17 stand.

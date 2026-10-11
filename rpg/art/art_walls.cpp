@@ -928,6 +928,17 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
         return turfFace(gx, h, slant);
       }
       case CityWall::Thorn: {
+        // (fixer M7b r2, review: "a stream runs under a hedge wall") the living hedge arches over a river: a dark leafy
+        // tunnel with the water sliding out of it at the foot, the arch's rim of thorn in shade
+        if (culvert && gx >= 0 && gx < 16 && gy >= 0 && gy < 16) {
+          const float ax = gx + 0.5f - 8.0f, ay = h + 0.5f - 6.0f;
+          const float rr = ax * ax + (ay > 0 ? ay * ay : 0.0f);
+          if (std::fabs(ax) < 6.0f && (ay <= 0 || rr < 36.0f)) {
+            if (h <= 1) return (gx & 1) ? rgba(92, 132, 168) : rgba(64, 100, 140);
+            return h > 5 ? rgba(14, 22, 16) : rgba(20, 34, 40);
+          }
+          if (std::fabs(ax) < 7.6f && (ay <= 0 ? std::fabs(ax) >= 6.0f : rr < 57.0f)) return kWallThorn[0];
+        }
         const float n = hashf(gx, h, 69u + var);
         if (n > 0.95f) return rgba(206, 58, 66);
         if (n > 0.9f) return kWood[1];

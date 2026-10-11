@@ -183,8 +183,28 @@ bool HomeOps::choose(Game& g, const DlgOpt& o) {
         g.dlg.opts.push_back({std::string("BUY A ") + inf.name + ((L.flags & ew::PLOT_RIVERSIDE) ? " BY THE WATER" : "") + " TO THE " +
                                   dirTo(g, L.gx + L.w / 2, L.gy + L.h / 2) + " (" + std::to_string(price) + " GOLD)", H_BUYLOT, li});
       }
+      // (M7b) two properties in the same direction read alike: say how far each one is instead
+      {
+        int tx, ty;
+        overworldTile(g, tx, ty);
+        auto paces = [&](const DlgOpt& o) {
+          int32_t gx, gy;
+          if (o.action == H_BUYHOUSE) { const Bldg& b = g.world.over.bldgs[(size_t)o.arg]; gx = g.world.ox + b.doorX(); gy = g.world.oy + b.doorY(); }
+          else { const ew::PlotPlan& L = g.world.lots[(size_t)o.arg]; gx = L.gx + L.w / 2; gy = L.gy + L.h / 2; }
+          const double dx = (double)(gx - (g.world.ox + tx)), dy = (double)(gy - (g.world.oy + ty));
+          return std::max(5, (int)std::lround(std::sqrt(dx * dx + dy * dy) / 5.0) * 5);
+        };
+        const std::vector<DlgOpt> was = g.dlg.opts;
+        for (size_t i = 0; i < g.dlg.opts.size(); i++) {
+          int same = 0;
+          for (size_t j = 0; j < was.size(); j++) if (j != i && was[j].label == was[i].label) same++;
+          const size_t at = was[i].label.find(" TO THE ");
+          if (!same || at == std::string::npos) continue;
+          g.dlg.opts[i].label = was[i].label.substr(0, at) + " " + std::to_string(paces(was[i])) + " PACES " + was[i].label.substr(at + 8);
+        }
+      }
       g.dlg.opts.push_back({"FAREWELL.", A_BYE, 0});
-      g.dlg.text = "WHAT " + g.world.sites[(size_t)si].name + " HAS FOR SALE. THE FIRST WEEK'S TAX IS IN THE PRICE.";
+      g.dlg.text = "HERE IS WHAT " + g.world.sites[(size_t)si].name + " HAS FOR SALE. THE FIRST WEEK'S TAX IS IN THE PRICE.";
       return true;
     }
     case H_BUYHOUSE:
@@ -261,10 +281,11 @@ bool HomeOps::choose(Game& g, const DlgOpt& o) {
       g.dlg.text = std::string("GOOD BEASTS, ALL OF THEM. THE ") + home::breedInfo(own).name + " IS BRED HERE" +
                    (home::breedInfo(own).sure ? ": SURE-FOOTED ON ANY SLOPE." : ".");
       if (!room) {
-        std::string prices;
-        for (size_t k = 0; k < breeds.size(); k++)
-          prices += std::string(k ? ", " : "") + home::breedInfo(breeds[k]).name + " " + std::to_string(home::breedInfo(breeds[k]).price);
-        g.dlg.text += " BUT I SELL ONLY TO A RIDER WITH A STABLE AT HOME THAT HAS ROOM FOR HER: BUILD ONE IN YOUR YARD, THEN COME BACK (" + prices + " GOLD).";
+        // (fixer M7b r2, review: "a bracketed price note inside the speech") the prices said as she would say them
+        g.dlg.text += " SHE GOES FOR " + std::to_string(home::breedInfo(own).price) + " GOLD";
+        if (breeds.size() > 1)
+          g.dlg.text += std::string(", A ") + home::breedInfo(breeds[1]).name + " FOR " + std::to_string(home::breedInfo(breeds[1]).price);
+        g.dlg.text += ". BUT I ONLY SELL TO A RIDER WITH A STABLE AT HOME THAT HAS ROOM FOR HER. BUILD ONE IN YOUR YARD AND COME BACK.";
       }
       return true;
     }

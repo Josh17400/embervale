@@ -453,8 +453,11 @@ bool cmdHomeB(ScriptCtx& c) {
   }
   if (sub == "choose") {
     const std::string want = up(c.rest(2));
-    for (size_t i = 0; i < g.dlg.opts.size(); i++)
-      if (g.dlg.opts[i].label.rfind(want, 0) == 0) { g.dialogueChoose((int)i); return true; }
+    // (fixer M7b r1) as the player would: through the header (or SOMETHING ELSE.) that shows the option
+    if (g.mode == Mode::Dialogue) {
+      const int i = dlgReach(g, [&](const DlgOpt& o) { return o.label.rfind(want, 0) == 0; }, true);
+      if (i >= 0) { g.dialogueChoose(i); return true; }
+    }
     std::string all;
     for (const DlgOpt& o : g.dlg.opts) all += " [" + o.label + "]";
     c.fail("home choose: no option '" + want + "' among" + all);

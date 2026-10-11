@@ -167,12 +167,20 @@ int townDefence(const Game& base, int si, bool guarded, const char* what) {
   const Site st = g.world.sites[si];   // (a copy: streaming appends sites)
   int guards = 0, folk = 0, militia = 0;
   std::vector<int> spots;
-  for (size_t k = 1; k < g.actors.size(); k++) {
-    const Actor& a = g.actors[k];
-    if (!a.npc || a.site != si) continue;
-    if (a.role == Role::Guard) guards++;
-    else { folk++; if (a.militia) militia++; spots.push_back((int)k); }
-  }
+  auto census = [&]() {
+    guards = folk = militia = 0;
+    spots.clear();
+    for (size_t k = 1; k < g.actors.size(); k++) {
+      const Actor& a = g.actors[k];
+      if (!a.npc || a.site != si) continue;
+      if (a.role == Role::Guard) guards++;
+      else { folk++; if (a.militia) militia++; spots.push_back((int)k); }
+    }
+  };
+  census();
+  // (fixer M7b r1) a site's people stream in on its 0.25 s scan and standNear waits only 3 frames, which catches the
+  // site's activation alone: a big capital activated from afar has no watch near this spot until the next scan
+  if (guarded && guards == 0) { tick(g, 20); census(); }
   if (folk == 0) { out("WARN: defence (%s): %s has no townsfolk out\n", what, st.name.c_str()); return 0; }
   if (guarded && guards == 0) { out("FAIL: defence: %s has no guards out\n", st.name.c_str()); return 1; }
   // three wolves in the street among the townsfolk, at whoever stands nearest the middle of town

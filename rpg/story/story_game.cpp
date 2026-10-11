@@ -16,6 +16,7 @@
 #include "engine/audio.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/talk.h"
 #include "rpg/story/dsl.h"
 #include "rpg/story/story_internal.h"
 #include "rpg/world/coords.h"
@@ -205,6 +206,19 @@ void crownTheKing(Game& g) {
   }
 }
 
+// (M7b) the teller's line while they have a story to tell: who they are first when the player has not met them
+// (speech::Memory), proposed as the story's hook (P_STORY: a lower hook's line never replaces it)
+void tellerLine(Game& g, const story::dsl::Script& s, const Actor& a) {
+  if (s.hint.empty()) return;
+  const int hs = story::homeSiteOf(g, a);
+  const std::string home = hs >= 0 && hs < (int)g.world.sites.size() ? g.world.sites[(size_t)hs].name : std::string();
+  const uint64_t key = g.npcKey(a);
+  const bool introduce = key && !g.talkMem.introduced(key);
+  const std::string line = g.story.hookLineFor(g, s, a, home, introduce);
+  g.story.said_ += line + " ";
+  if (speech::propose(g.dlg, speech::P_STORY, speech::Topic::QuestOffer, line) && introduce && line != s.hint) g.talkMem.flag(key, speech::TM_INTRODUCED, g.day);
+}
+
 bool blocksGossip(const Dialogue& d) {
   for (const DlgOpt& o : d.opts)
     if (o.action == A_TURNIN || o.action == A_DELIVER || o.action == A_ESCORT || o.action == A_MAIN || (o.action >= DLG_STORY && o.action < DLG_END))
@@ -318,6 +332,7 @@ void Game::storyTalk(Actor& a) {
   STORY_HOST_INSTALL();
   using namespace story;
   story.sagaOffers_.clear();   // (M6b: the offers of a dialogue live as long as it)
+  story.said_.clear();         // (M7b: and what was said in it)
   story.tales_.erase(a.id);    // (fixer M6b r1: looked at again by the next scan)
   // (fixer M6b r3) a running story bound to this actor speaks first, heralds included: a herald-hooked saga's
   // `talk giver` stages are only reachable here, so checking the herald first left those stories stuck for good
@@ -325,7 +340,7 @@ void Game::storyTalk(Actor& a) {
     if (!in.done && story.talksTo(*this, in, a)) { story.showDialogue(*this, in); return; }
   if (a.role == Role::Herald && a.slot == HERALD_SLOT) { heraldTalk(*this, a); return; }
   if (isStoryPerson(a)) {
-    dlg.text = kIdle[hash32((uint32_t)a.slot ^ (uint32_t)day) % 4];
+    speech::propose(dlg, speech::P_STORY, speech::Topic::Story, kIdle[hash32((uint32_t)a.slot ^ (uint32_t)day) % 4]);
     return;
   }
   const bool busy = blocksGossip(dlg);
@@ -338,7 +353,7 @@ void Game::storyTalk(Actor& a) {
     const dsl::Script* sc = sid.empty() ? nullptr : scriptById(sid);
     if (sc) {
       story.sagaOffers_.push_back(sid);
-      if (!sc->hint.empty()) dlg.text = sc->hint;
+      tellerLine(*this, *sc, a);
       dlg.opts.insert(dlg.opts.begin(), {sc->pitch, DLG_STORY + SA_SAGA + (int)story.sagaOffers_.size() - 1, homeSiteOf(*this, a)});
       saga::Hook hk;
       hk.kind = (int)dsl::HookKind::Npc;
@@ -350,7 +365,7 @@ void Game::storyTalk(Actor& a) {
   }
   if (idx >= 0) {
     const dsl::Script& s = dsl::library().scripts[(size_t)idx];
-    if (!s.hint.empty()) dlg.text = s.hint;
+    tellerLine(*this, s, a);
     dlg.opts.insert(dlg.opts.begin(), {s.pitch, DLG_STORY + SA_START + idx, homeSiteOf(*this, a)});
     return;
   }
@@ -360,7 +375,10 @@ void Game::storyTalk(Actor& a) {
   const uint64_t key = npcKey(a);
   const std::string* mem = story.memoryOf(key);
   if (!mem && hs >= 0) mem = story.memoryOf(ew::mix64(world.sites[(size_t)hs].id ^ (0x7EADull + (uint64_t)a.role)));
-  if (mem && ((hash32((uint32_t)key ^ (uint32_t)day) & 1) == 0 || story.memories().back().line == *mem)) { dlg.text = *mem; return; }
+  if (mem && ((hash32((uint32_t)key ^ (uint32_t)day) & 1) == 0 || story.memories().back().line == *mem)) {
+    speech::propose(dlg, speech::P_BARK, speech::Topic::Story, *mem);
+    return;
+  }
   // the realm's news (VISION_PLAN 4.6): innkeepers 70 %, travellers 50 %, guards 60 % (war news only), the rest 25 %
   int32_t gx, gy;
   playerGlobal(*this, gx, gy);
@@ -368,19 +386,23 @@ void Game::storyTalk(Actor& a) {
   const uint32_t roll = hash32((uint32_t)key ^ (uint32_t)(key >> 29) ^ (uint32_t)day * 7919u) % 100;
   if ((int)roll < speakerChance((int)a.role) && a.role != Role::Child) {
     if (const realm::WorldEvent* e = pickRumour(*this, gx, gy, a.role == Role::Guard, key)) {
-      if (!e->heard || roll % 3 == 0) { dlg.text = hearEvent(*this, *e, voice); return; }
+      // (M7b) only told when it is what this speaker leads with (hearing it marks it heard)
+      if ((!e->heard || roll % 3 == 0) && dlg.pri <= speech::P_NEWS) { speech::propose(dlg, speech::P_NEWS, speech::Topic::Rumour, hearEvent(*this, *e, voice)); return; }
     }
   }
   // the road to war, foreshadowed (15.6.3): prices, troops, refugees
   if (roll % 4 == 1 && hs >= 0) {
     const ew::Gid k = world.sites[(size_t)hs].kingdom >= 0 ? world.kingdoms[(size_t)world.sites[(size_t)hs].kingdom].id : 0;
     const std::string f = foreshadowLine(*this, k, voice, key ^ (uint64_t)day);
-    if (!f.empty()) { dlg.text = f; return; }
+    if (!f.empty() && speech::propose(dlg, speech::P_NEWS, speech::Topic::News, f)) return;
   }
   // the player's deeds, as the town tells them
   if (roll % 5 == 2 && hs >= 0)
     for (auto it = story.facts().rbegin(); it != story.facts().rend(); ++it)
-      if (it->site == world.sites[(size_t)hs].id && day - it->day < 40) { dlg.text = "HAVE YOU HEARD? " + it->text; return; }
+      if (it->site == world.sites[(size_t)hs].id && day - it->day < 40) {
+        speech::propose(dlg, speech::P_NEWS, speech::Topic::News, "HAVE YOU HEARD? " + it->text);
+        return;
+      }
 }
 
 bool Game::storyChoose(const DlgOpt& o) {
@@ -398,14 +420,17 @@ bool Game::storyChoose(const DlgOpt& o) {
     } else if (in && in->stage >= 0 && in->stage < (int)s.stages.size() && s.stages[(size_t)in->stage].kind == dsl::StageKind::Talk) {
       // (fixer M4 r1) the story's first words belong to someone who is not here (the mother the notice names): the
       // notice (or the teller) only points the way; the speaker says their lines when the player finds them
-      const Binding* b = nullptr;
-      for (const Binding& c : in->cast) if (c.role == s.stages[(size_t)in->stage].talk) b = &c;
-      const std::string who = b ? b->name : std::string();
-      dlg.text = (s.hint.empty() ? std::string() : s.hint + " ") + (who.empty() ? "(" + story.journalText(*this, *in) + ")" : "(SEEK OUT " + who + ".)");
+      // (M7b) said in the teller's words: who to see and where (the journal keeps the errand)
+      const std::string hand = story.handOffLine(*this, *in, s.stages[(size_t)in->stage].talk, dlg.text, ai >= 0);
+      dlg.text = hand.empty() ? std::string("YOUR JOURNAL HOLDS THE REST.") : hand;
       dlg.opts = {{"FAREWELL.", A_BYE, 0}};
     } else if (in) {
-      const std::string say = story.sayText(*this, *in);
-      dlg.text = say.empty() ? "YOU COMMIT IT TO MEMORY. (" + story.journalText(*this, *in) + ")" : say;
+      // (M7b) the goal's own line, or the way to it in the teller's words (a notice: the journal keeps the errand)
+      std::string say = story.sayText(*this, *in);
+      const std::string step = story.nextStepLine(*this, *in, dlg.text + " " + say, say.empty());
+      if (say.empty()) say = step;
+      else if (!step.empty() && speech::fitsPanel(say + " " + step)) say += " " + step;
+      dlg.text = say.empty() ? std::string("YOU COMMIT THE NOTICE TO MEMORY. YOUR JOURNAL HOLDS THE REST.") : say;
       dlg.opts = {{"FAREWELL.", A_BYE, 0}};
     }
   };

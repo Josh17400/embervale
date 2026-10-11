@@ -1,0 +1,14 @@
+# M7b CITYART lane: frame time in a capital's streets (run with --perf; compare the per-second "frame work" lines and
+# the exit summary before and after a change to the city's ground or props); about 17 s, 16 of them walking
+#   embervale.exe --perf --script <repo>/tools/scripts/m7b_art_perf.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.2 gotoculture heartland capital
+# ('walk <dir> N' holds the way for N seconds of script time: each walk waits for the one before to end)
++2.0 walk east 4
++4.2 walk south 4
++4.2 walk west 4
++4.2 walk north 4
++4.5 quit

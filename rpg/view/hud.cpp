@@ -399,6 +399,13 @@ struct DlgLay {
 };
 // The first option of the page that holds option `sel`, for a list paged from option 0 (pages are greedy, so the
 // keyboard and a tap on MORE walk the same pages).
+// (M7b) the options on show (Dialogue::shows: the first page, or the option group opened), as indices into dlg.opts
+std::vector<int> dlgShown(const Dialogue& d) {
+  std::vector<int> v;
+  for (size_t i = 0; i < d.opts.size(); i++) if (d.shows(d.opts[i])) v.push_back((int)i);
+  if (v.empty()) for (size_t i = 0; i < d.opts.size(); i++) v.push_back((int)i);   // (never a panel without a way out)
+  return v;
+}
 DlgLay dlgLay(const Game& g, float rowH, int first = 0) {
   DlgLay L;
   const Dialogue& d = g.dlg;
@@ -413,18 +420,23 @@ DlgLay dlgLay(const Game& g, float rowH, int first = 0) {
   for (auto& l : L.lines) L.total += (int)l.size();
   const int optPer = std::max(10, (int)((L.w - 40) / 6));
   float oh = 0;
-  for (const DlgOpt& o : d.opts) {
+  const std::vector<int> shown = dlgShown(d);
+  for (int oi : shown) {
+    const DlgOpt& o = d.opts[(size_t)oi];
     L.optLines.push_back(wrap(o.label, optPer));
     if (L.optLines.back().empty()) L.optLines.back().push_back("");
     const float h = rowH + (float)(L.optLines.back().size() - 1) * 9;
     L.optH.push_back(h);
     oh += h;
   }
-  const int n = (int)d.opts.size();
+  const int n = (int)shown.size();
   L.optTop.assign((size_t)n, -1e6f);
   // the room the options may take: the panel stays on screen (8 px margins) with its title and two speech lines
   const float minText = 18.0f;
-  const float avail = (float)Pix::H - 16 - 22 - minText - 10 - 6;
+  float avail = (float)Pix::H - 16 - 22 - minText - 10 - 6;
+  // (fixer M7b r2, review: "the phone's 7-option inn panel covers 85 % of the screen and hides the gold") with the
+  // finger-sized rows the options take at most about half the screen; the rest page behind MORE
+  if (rowH >= 20.0f) avail = std::min(avail, std::floor((float)Pix::H * 0.5f));
   float shownH = oh;
   if (oh <= avail) { L.first = 0; L.count = n; }
   else {
@@ -686,6 +698,9 @@ void View::drawHud(Game& g) {
   // a faint overlay (fainter still with the hero right under it) so the hearth corner and the shelves show through.
   float hudA = 1.0f, backA = 0.58f;   // (M2 fixer: 0.38 let bright paving, snow and roofs wash the lines out)
   bool showMini = true;
+  // (fixer M7b r2, review: "a tall touch-mode dialogue panel leaves the minimap's empty frame sticking out beside it")
+  // while the phone's tall talk panel is up the minimap stands down (the panel reaches the top of the screen)
+  if (g.mode == Mode::Dialogue && touchUI) showMini = false;
   if (g.inside && g.subBldg >= 0) {
     // (M1) a big hall (the palace, a keep) runs on under the minimap and the column: keep both readable over the
     // shelves and beds with a firmer backing, and step aside only while the hero is right under them
@@ -827,6 +842,9 @@ void View::drawHud(Game& g) {
       if (nl != std::string::npos) { wmax = std::max(wmax, P.textW(st.substr(nl + 1), 1)); extra = 9.0f; }
     }
     float bh = (hasQ ? 42.0f : 21.0f) + kdy + extra;
+    // (fixer M7b r3, review: "a sliver of the region box and half its skull poke out above a tall dialogue panel") the
+    // column shows whole above an open dialogue or not at all
+    if (g.mode == Mode::Dialogue && T + 88 + bh > clipY) clipY = -1e9f;
     P.rect(R - wmax - 10, T + 88, (float)wmax + 8, std::max(0.0f, std::min(bh, clipY - (T + 88))), Color(0.03f, 0.02f, 0.05f, backA));
     colBottom = T + 88 + bh + 12;
     colLeft = std::min(colLeft, R - wmax - 16);
@@ -854,7 +872,7 @@ void View::drawHud(Game& g) {
   // runs past the hero's level (yellow, red, purple); none at home or in safe country
   {
     const int dk = dangerSkull(g);
-    if (dk >= 0) {
+    if (dk >= 0 && T + 99 <= clipY) {
       static const char* kSkull[7] = {".xxxxx.", "xxxxxxx", "x..x..x", "x..x..x", "xxx.xxx", ".xxxxx.", ".x.x.x."};
       const Color sc = dk == 0 ? Color(0.45f, 0.90f, 0.42f) : dk == 1 ? Color(0.98f, 0.86f, 0.30f) : dk == 2 ? Color(0.96f, 0.36f, 0.26f) : Color(0.80f, 0.45f, 1.0f);
       const float sx = R - 5 - P.textW(loc + locSuffix, 1) - 10, sy = T + 91;
@@ -1781,7 +1799,7 @@ void View::drawDialogue(Game& g) {
   struct Pop { Pix& p; ~Pop() { p.popBox(); } } pop{P};
   const Dialogue& d = g.dlg;
   const float rowH = dlgRowH();
-  int nOpt = (int)d.opts.size();
+  int nOpt = (int)dlgShown(d).size();
   dlgSel_ = std::clamp(dlgSel_, 0, std::max(0, nOpt - 1));
   {   // the page follows the selection (keyboard), and a page past the list's end starts over
     const DlgLay L0 = dlgLay(g, rowH, dlgFirst_);
@@ -1807,7 +1825,7 @@ void View::drawDialogue(Game& g) {
     P.frame(px, py, pw, ph, Color(0.55f, 0.45f, 0.28f));
     P.frame(px + 1, py + 1, pw - 2, ph - 2, Color(0.22f, 0.18f, 0.12f));
   }
-  P.text(L.tx, y + 8, d.speaker, 1, kGold);
+  P.text(L.tx, y + 8, g.speakerTitle(), 1, kGold);   // (M7b) "SUSUT, INNKEEPER" once introduced, "THE INNKEEPER" before
   {   // the speech, typed out
     int shown = 0;
     const int maxLines = std::max(2, (int)((L.optTop.empty() ? L.h - 30 : L.optsTop - 10 - (y + 20)) / 9));
@@ -2220,7 +2238,8 @@ void View::menuKey(Game& g, int key) {
     return;
   }
   if (g.mode == Mode::Dialogue) {
-    const int nOpt = (int)g.dlg.opts.size();
+    const std::vector<int> shown = dlgShown(g.dlg);
+    const int nOpt = (int)shown.size();
     if (key == SDLK_UP || key == SDLK_W) { dlgSel_ = std::max(0, dlgSel_ - 1); audio_->play(Sfx::MenuMove); }
     if (key == SDLK_DOWN || key == SDLK_S) { dlgSel_ = std::min(std::max(0, nOpt - 1), dlgSel_ + 1); audio_->play(Sfx::MenuMove); }
     if (key == SDLK_UP || key == SDLK_W || key == SDLK_DOWN || key == SDLK_S) {   // (M5) the page follows the selection
@@ -2238,7 +2257,7 @@ void View::menuKey(Game& g, int key) {
         pix_->popBox();
       }
       if (dlgChars_ < total) { dlgChars_ = 9999; return; }
-      int sel = dlgSel_;
+      const int sel = dlgSel_ >= 0 && dlgSel_ < nOpt ? shown[(size_t)dlgSel_] : -1;
       std::string before = g.dlg.text;
       g.dialogueChoose(sel);
       if (g.dlg.text != before) dlgChars_ = 0;
@@ -2275,7 +2294,8 @@ void View::tap(Game& g, Vec2 p) {
   struct Pop { Pix& p; ~Pop() { p.popBox(); } } pop{P};
   if (g.mode == Mode::Dialogue) {
     const DlgLay L = dlgLay(g, dlgRowH(), dlgFirst_);
-    const int nOpt = (int)g.dlg.opts.size();
+    const std::vector<int> shown = dlgShown(g.dlg);
+    const int nOpt = (int)shown.size();
     // while the line is still typing, a tap anywhere only finishes it (the common "tap to skip" gesture must never
     // pick an option the player has not read yet; the keyboard path in menuKey does the same)
     if (dlgChars_ < L.total) { dlgChars_ = 9999; return; }
@@ -2292,14 +2312,14 @@ void View::tap(Game& g, Vec2 p) {
       const float bh = (i == nOpt - 1 && !L.more) ? 1000.0f : L.optH[(size_t)i];   // (M1: on past the box, to the screen's real edge)
       if (inR(-1000.0f, top, Pix::W + 2000.0f, bh)) {
         std::string before = g.dlg.text;
-        g.dialogueChoose(i);
+        g.dialogueChoose(shown[(size_t)i]);
         if (g.dlg.text != before) dlgChars_ = 0;
         dlgSel_ = 0; dlgFirst_ = 0;
         return;
       }
     }
     // a tap above the panel closes a conversation that only has one way out (FAREWELL)
-    if (nOpt == 1 && p.y < L.y) { g.dialogueChoose(0); dlgSel_ = 0; }
+    if (nOpt == 1 && p.y < L.y) { g.dialogueChoose(shown[0]); dlgSel_ = 0; }
     return;
   }
   if (g.mode == Mode::Shop) {

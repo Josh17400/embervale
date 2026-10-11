@@ -1,0 +1,87 @@
+# M7b CITYART lane: the city fabric as painted (Map::urb: avenues, kerbed sidewalks, gutters, squares, closes, parks,
+# courts, quays), row houses and the city props, in cities of eight cultures at noon, dusk and night, then the props
+# on a stage. Judge against the owner's bar (seamless kerbs and walls, 3/4 depth, top-left light, cohesive palette).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7b_artp_city.txt
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 hour 12
++0.2 gotoculture heartland city
++1.6 hour 12
++0.1 expect kerbs
++0.6 shot m7b_artp_01_heartland_noon.png
++0.1 hour 19
++0.8 shot m7b_artp_01_heartland_dusk.png
++0.1 hour 23
++0.8 shot m7b_artp_01_heartland_night.png
++0.1 hour 12
++0.2 gotoculture dune city
++1.6 hour 12
++0.1 expect kerbs any
++0.6 shot m7b_artp_02_dune_noon.png
++0.1 hour 19
++0.8 shot m7b_artp_02_dune_dusk.png
++0.1 hour 23
++0.8 shot m7b_artp_02_dune_night.png
++0.1 hour 12
++0.2 gotoculture jade city
++1.6 hour 12
++0.1 expect kerbs any
++0.6 shot m7b_artp_03_jade_noon.png
++0.1 hour 19
++0.8 shot m7b_artp_03_jade_dusk.png
++0.1 hour 23
++0.8 shot m7b_artp_03_jade_night.png
++0.1 hour 12
++0.2 gotoculture steppe city
++1.6 hour 12
++0.1 expect kerbs any
++0.6 shot m7b_artp_04_steppe_noon.png
++0.1 hour 19
++0.8 shot m7b_artp_04_steppe_dusk.png
++0.1 hour 23
++0.8 shot m7b_artp_04_steppe_night.png
++0.1 hour 12
++0.2 gotoculture sylvan city
++1.6 hour 12
++0.1 expect kerbs any
++0.6 shot m7b_artp_05_sylvan_noon.png
++0.1 hour 19
++0.8 shot m7b_artp_05_sylvan_dusk.png
++0.1 hour 23
++0.8 shot m7b_artp_05_sylvan_night.png
++0.1 hour 12
++0.2 gotoculture fjordfolk city
++1.6 hour 12
++0.1 expect kerbs any
++0.6 shot m7b_artp_06_fjordfolk_noon.png
++0.1 hour 19
++0.8 shot m7b_artp_06_fjordfolk_dusk.png
++0.1 hour 23
++0.8 shot m7b_artp_06_fjordfolk_night.png
++0.1 hour 12
++0.2 gotoculture imperial city
++1.6 hour 12
++0.1 expect kerbs any
++0.6 shot m7b_artp_07_imperial_noon.png
++0.1 hour 19
++0.8 shot m7b_artp_07_imperial_dusk.png
++0.1 hour 23
++0.8 shot m7b_artp_07_imperial_night.png
++0.1 hour 12
++0.2 gotoculture river city
++1.6 hour 12
++0.1 expect kerbs any
++0.6 shot m7b_artp_08_river_noon.png
++0.1 hour 19
++0.8 shot m7b_artp_08_river_dusk.png
++0.1 hour 23
++0.8 shot m7b_artp_08_river_night.png
++0.1 hour 12
++0.2 gotoculture heartland city
++1.4 cityprops
++1.0 shot m7b_artp_props_noon.png
++0.1 hour 23
++0.8 shot m7b_artp_props_night.png
++0.3 quit

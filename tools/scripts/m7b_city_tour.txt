@@ -1,0 +1,178 @@
+# M7b CITY lane (VISION_PLAN 15.23): the planned cities of every people at noon. For each culture's city: the urban
+# fabric round the heart (`urb`; avenues, sidewalks, squares, the park and the row houses checked), then shots along
+# an avenue, just inside a gate, in the park, in the rich and the poor quarters (the seat's square and a terrace where
+# the plan has them) and last at the heart and its market (once the arrival banner has gone); one city again at dusk.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7b_city_tour.txt [--seed N]
+# Archetypes absent within 12 culture cells of the start fail their gotoculture (seed 7 holds these).
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
+# ---- the heartland: the organic plan ordered (avenues, cross streets, terraces, the park, the precincts)
++0.2 gotoculture heartland city
++1.4 culture
++0.1 urb
++0.1 expect urb avenue 40
++0.1 expect urb sidewalk 40
++0.1 expect urb square 30
++0.1 expect urb park 20
++0.1 expect urb rows 20
++0.1 cityspot avenue
++0.6 shot m7b_city_heartland_avenue.png
++0.1 cityspot gate
++0.6 shot m7b_city_heartland_gate.png
++0.1 cityspot park
++0.6 shot m7b_city_heartland_park.png
++0.1 cityspot rich
++0.6 shot m7b_city_heartland_rich.png
++0.1 cityspot poor
++0.6 shot m7b_city_heartland_poor.png
++0.1 cityspot seat
++0.6 shot m7b_city_heartland_seat.png
++0.1 cityspot terrace
++0.6 shot m7b_city_heartland_terrace.png
++0.1 cityspot heart
++0.6 shot m7b_city_heartland_heart.png
+# ---- the imperial grid
++0.2 gotoculture imperial city
++1.4 culture
++0.1 urb
++0.1 expect urb avenue 40
++0.1 expect urb sidewalk 40
++0.1 expect urb square 30
++0.1 expect urb park 20
++0.1 expect urb rows 20
++0.1 cityspot avenue
++0.6 shot m7b_city_imperial_avenue.png
++0.1 cityspot park
++0.6 shot m7b_city_imperial_park.png
++0.1 cityspot rich
++0.6 shot m7b_city_imperial_rich.png
++0.1 cityspot poor
++0.6 shot m7b_city_imperial_poor.png
++0.1 cityspot heart
++0.6 shot m7b_city_imperial_heart.png
+# ---- the dune city: courtyard compounds, the covered souk
++0.2 gotoculture dune city
++1.4 culture
++0.1 urb
++0.1 expect urb avenue 40
++0.1 expect urb sidewalk 40
++0.1 expect urb square 30
++0.1 expect urb park 20
++0.1 cityspot avenue
++0.6 shot m7b_city_dune_souk.png
++0.1 cityspot gate
++0.6 shot m7b_city_dune_gate.png
++0.1 cityspot park
++0.6 shot m7b_city_dune_park.png
++0.1 cityspot poor
++0.6 shot m7b_city_dune_poor.png
++0.1 cityspot heart
++0.6 shot m7b_city_dune_heart.png
+# ---- the jade city: its axis up to the seat, walled compounds
++0.2 gotoculture jade city
++1.4 culture
++0.1 urb
++0.1 expect urb avenue 40
++0.1 expect urb square 30
++0.1 expect urb park 20
++0.1 cityspot seat
++0.6 shot m7b_city_jade_seat.png
++0.1 cityspot avenue
++0.6 shot m7b_city_jade_avenue.png
++0.1 cityspot park
++0.6 shot m7b_city_jade_park.png
++0.1 cityspot rich
++0.6 shot m7b_city_jade_rich.png
++0.1 cityspot heart
++0.6 shot m7b_city_jade_heart.png
+# ---- the steppe khan's tent city in its rings
++0.2 gotoculture steppe city
++1.4 culture
++0.1 urb
++0.1 expect urb avenue 40
++0.1 expect urb square 30
++0.1 expect urb park 20
++0.1 cityspot avenue
++0.6 shot m7b_city_steppe_avenue.png
++0.1 cityspot park
++0.6 shot m7b_city_steppe_park.png
++0.1 cityspot poor
++0.6 shot m7b_city_steppe_poor.png
++0.1 cityspot heart
++0.6 shot m7b_city_steppe_heart.png
+# ---- the elven city among its great trees
++0.2 gotoculture sylvan city
++1.4 culture
++0.1 urb
++0.1 expect urb avenue 30
++0.1 expect urb square 30
++0.1 expect urb park 20
++0.1 cityspot avenue
++0.6 shot m7b_city_sylvan_avenue.png
++0.1 cityspot park
++0.6 shot m7b_city_sylvan_park.png
++0.1 cityspot rich
++0.6 shot m7b_city_sylvan_rich.png
++0.1 cityspot heart
++0.6 shot m7b_city_sylvan_heart.png
+# ---- the fjord folk's harbour city along its quays
++0.2 gotoculture fjordfolk city
++1.4 culture
++0.1 urb
++0.1 expect urb avenue 40
++0.1 expect urb square 30
++0.1 expect urb park 20
++0.1 cityspot avenue
++0.6 shot m7b_city_fjordfolk_avenue.png
++0.1 cityspot gate
++0.6 shot m7b_city_fjordfolk_gate.png
++0.1 cityspot park
++0.6 shot m7b_city_fjordfolk_park.png
++0.1 cityspot heart
++0.6 shot m7b_city_fjordfolk_heart.png
+# ---- the highland clan city of steadings
++0.2 gotoculture highland city
++1.4 culture
++0.1 urb
++0.1 expect urb avenue 40
++0.1 expect urb square 30
++0.1 expect urb park 20
++0.1 cityspot avenue
++0.6 shot m7b_city_highland_avenue.png
++0.1 cityspot park
++0.6 shot m7b_city_highland_park.png
++0.1 cityspot heart
++0.6 shot m7b_city_highland_heart.png
+# ---- the river city along its banks
++0.2 gotoculture river city
++1.4 culture
++0.1 urb
++0.1 expect urb avenue 40
++0.1 expect urb square 30
++0.1 expect urb park 20
++0.1 cityspot avenue
++0.6 shot m7b_city_river_avenue.png
++0.1 cityspot park
++0.6 shot m7b_city_river_park.png
++0.1 cityspot heart
++0.6 shot m7b_city_river_heart.png
+# ---- the marsh city on its boardwalks
++0.2 gotoculture marsh city
++1.4 culture
++0.1 urb
++0.1 expect urb avenue 30
++0.1 expect urb square 20
++0.1 cityspot avenue
++0.6 shot m7b_city_marsh_avenue.png
++0.1 cityspot heart
++0.6 shot m7b_city_marsh_heart.png
+# ---- dusk: the heartland city's avenue as the lamps come on
++0.2 gotoculture heartland city
++0.05 hour 19
++1.4 cityspot heart
++0.6 shot m7b_city_heartland_dusk.png
++0.1 cityspot park
++0.6 shot m7b_city_heartland_dusk_park.png
++0.3 quit

@@ -7,6 +7,7 @@
 #include <cmath>
 #include <queue>
 #include "rpg/world/town_gen.h"
+#include "rpg/world/urban.h"
 
 namespace ew {
 namespace town {
@@ -174,18 +175,17 @@ void Gen::land() {
   // clear the outline: rock, swamp and the forest floor give way to open ground (rivers and lakes stay)
   for (int y = 0; y < H; y++)
     for (int x = 0; x < W; x++) {
-      float b = blob(x, y, cx, cy, rx + 1.5f, ry + 1.5f, bseed);
-      if (b > 1.0f) continue;
+      if (blobMore(x, y, cx, cy, rx + 1.5f, ry + 1.5f, bseed, 1.0f)) continue;
       Ground g = M.at(x, y);
       if (g == Ground::Rock || (g == Ground::Swamp && !stilt)) M.setG(x, y, base);
-      else if ((g == Ground::ForestFloor || g == Ground::Autumn || g == Ground::Tundra) && b < 0.85f) M.setG(x, y, base);
+      else if ((g == Ground::ForestFloor || g == Ground::Autumn || g == Ground::Tundra) && blobLess(x, y, cx, cy, rx + 1.5f, ry + 1.5f, bseed, 0.85f)) M.setG(x, y, base);
     }
   // the wall ring's inside (cities and hill forts): the town's outline at wallR (M3: the ring itself is rasterised in
   // wallRing once the roads are known, so its gates sit on straight runs)
   if (walled) {
     wallR = city ? 0.93f : 0.90f;
     for (int y = 1; y < H - 1; y++)
-      for (int x = 1; x < W - 1; x++) inside[I(x, y)] = blob(x, y, cx, cy, rx, ry, wseed) < wallR ? 1 : 0;
+      for (int x = 1; x < W - 1; x++) inside[I(x, y)] = blobLess(x, y, cx, cy, rx, ry, wseed, wallR) ? 1 : 0;
   }
   if (terraced) cutTerraces();
   if (stilt) marshWater();
@@ -330,8 +330,9 @@ void Gen::pickSpine() {
   const float ext = std::max(rx, ry);
   bool anyWater = false;
   for (size_t i = 0; i < water.size() && !anyWater; i++) anyWater = water[i] != 0;
-  const int maxOff = anyWater ? (int)(std::min(rx, ry) * 0.6f) : 0;
+  const int maxOff = anyWater ? (int)(std::min(rx, ry) * (planned ? 0.85f : 0.6f)) : 0;   // (M7b: a planned city's quay may lie further out)
   for (int k = 0; k < 8; k++) {
+    if (planned && (k % 4)) continue;   // (M7b: a planned city's spine runs east-west or north-south, along its quays)
     const float a = k * (D_PI / 8);
     const float ca = dcos(a), sa = dsin(a), nx = -sa, ny = ca;
     for (int o = -maxOff; o <= maxOff; o += 3) {
@@ -345,7 +346,7 @@ void Gen::pickSpine() {
           if (water[I(px, py)]) { bad++; continue; }
           dry++;
           // the bank: water 3 to 9 tiles off one side
-          for (int q = 3; q <= 9; q += 2) {
+          for (int q = 3; q <= (planned ? 5 : 9); q += 2) {   // (M7b: a planned city's harbour avenue runs right along its quays)
             const int lx = ifloor(ox + ca * t + nx * q), ly = ifloor(oy + sa * t + ny * q);
             const int rx2 = ifloor(ox + ca * t - nx * q), ry2 = ifloor(oy + sa * t - ny * q);
             if (in(lx, ly) && water[I(lx, ly)]) wl++;
@@ -372,10 +373,11 @@ void Gen::pickSpine() {
 bool Gen::laneOk(int x, int y, bool ns, int px, int py) const {
   if (!in(x, y) || x < 1 || y < 1 || x >= W - 1 || y >= H - 1) return false;
   if (inCompound(x, y, 2) || water[I(x, y)]) return false;
+  if (!keep.empty() && keep[I(x, y)]) return false;   // (M7b: a city's kept plots and park)
   if (walled) {
-    if (blob(x, y, cx, cy, rx, ry, wseed) >= wallR - 4.5f / std::min(rx, ry)) return false;
+    if (!blobLess(x, y, cx, cy, rx, ry, wseed, wallR - 4.5f / std::min(rx, ry))) return false;
     if (nearRing(x, y, 2)) return false;   // (the ring as rasterised: no lane along the wall's foot)
-  } else if (blob(x, y, cx, cy, rx, ry, bseed + 3) >= (village ? 0.95f : 0.88f)) return false;
+  } else if (!blobLess(x, y, cx, cy, rx, ry, bseed + 3, village ? 0.95f : 0.88f)) return false;
   if (terraced && groundSolid(M.at(x, y))) return false;
   if (isStreet(x, y)) return true;
   auto other = [&](int qx, int qy) { return !(qx == px && qy == py) && isStreet(qx, qy); };
@@ -390,7 +392,7 @@ bool Gen::laneOk(int x, int y, bool ns, int px, int py) const {
 // courtyard compounds and narrow winding lanes.
 void Gen::gridLanes(bool compoundStyle) {
   const uint32_t gs = bseed ^ (compoundStyle ? 0xC0A9B0u : 0x6A1D00u);
-  const float amp = compoundStyle ? 0.9f : 0.45f;
+  const float amp = planned ? 0.0f : (compoundStyle ? 0.9f : 0.45f);   // (M7b: a planned city's lattice runs straight)
   const float drop = compoundStyle ? 0.2f : 0.13f;
   const int SX = gridSX, SY = gridSY;
   // east-west lanes
@@ -448,7 +450,7 @@ void Gen::radialRings() {
       const float wob = (vnoise(dcos(a) * 1.3f + 7, dsin(a) * 1.3f + 7, s) - 0.5f) * 0.07f;
       const float x = cx + 0.5f + dcos(a) * rx * (rr + wob), y = cy + 0.5f + dsin(a) * ry * (rr + wob);
       const int ix = ifloor(x), iy = ifloor(y);
-      const bool ok = in(ix, iy) && !water[I(ix, iy)] && (!walled || (blob(ix, iy, cx, cy, rx, ry, wseed) < wallR - 4.5f / std::min(rx, ry) && !nearRing(ix, iy, 2)));
+      const bool ok = in(ix, iy) && !water[I(ix, iy)] && (!walled || (blobLess(ix, iy, cx, cy, rx, ry, wseed, wallR - 4.5f / std::min(rx, ry)) && !nearRing(ix, iy, 2)));
       if (have && ok) line(px, py, x, y, mainRing ? 2 : 1, mainRing ? K_MAIN : K_LANE, mainRing ? Ground::Road : laneG);
       px = x; py = y; have = ok;
     }
@@ -473,7 +475,7 @@ void Gen::radialRings() {
       const float fx = x0 + (x1 - x0) * t / n, fy = y0 + (y1 - y0) * t / n;
       const int ix = ifloor(fx), iy = ifloor(fy);
       if (!in(ix, iy) || water[I(ix, iy)] || inCompound(ix, iy, 2)) break;
-      if (walled && (blob(ix, iy, cx, cy, rx, ry, wseed) >= wallR - 4.5f / std::min(rx, ry) || nearRing(ix, iy, 2))) break;
+      if (walled && (!blobLess(ix, iy, cx, cy, rx, ry, wseed, wallR - 4.5f / std::min(rx, ry)) || nearRing(ix, iy, 2))) break;
       lx = fx; ly = fy;
     }
     x1 = lx; y1 = ly;
@@ -485,13 +487,23 @@ void Gen::radialRings() {
 // Linear: the spine along spineA (a main street, through the heart or along the bank beside it, joined to the heart),
 // back lanes running beside it a house-row or two off on the land side (never out over the water), and short cross
 // lanes joining them every block or so.
-void Gen::spineStreets() {
+void Gen::spineStreets(bool band) {
   const int width = village ? 1 : 2;
   const float ext = std::max(rx, ry) * 1.2f;
-  walkStreet(spineX, spineY, spineA, spineA, (int)ext, width, K_MAIN, mainG, 1);
-  walkStreet(spineX, spineY, spineA + D_PI, dwrap(spineA + D_PI), (int)ext, width, K_MAIN, mainG, 1);
-  // a spine along the bank is joined to the heart straight across
-  if (std::fabs(spineX - (cx + 0.5f)) + std::fabs(spineY - (cy + 0.5f)) > 2.0f) line(cx + 0.5f, cy + 0.5f, spineX, spineY, width, K_MAIN, mainG);
+  if (band) {
+    // (M7b) the planned city's spine: one straight avenue along the water through the spine's point, joined to the
+    // heart straight across (paintBand stops it at the ring)
+    const int ax = (int)std::floor(spineX + dcos(spineA) * ext), ay = (int)std::floor(spineY + dsin(spineA) * ext);
+    const int bx = (int)std::floor(spineX - dcos(spineA) * ext), by = (int)std::floor(spineY - dsin(spineA) * ext);
+    paintBand({{ax, ay}, {bx, by}}, avenueHW, (uint8_t)Urb::Avenue, K_MAIN, mainG);
+    if (std::fabs(spineX - (cx + 0.5f)) + std::fabs(spineY - (cy + 0.5f)) > 2.0f)
+      paintBand({{cx, cy}, {(int)std::floor(spineX), (int)std::floor(spineY)}}, avenueHW, (uint8_t)Urb::Avenue, K_MAIN, mainG);
+  } else {
+    walkStreet(spineX, spineY, spineA, spineA, (int)ext, width, K_MAIN, mainG, 1);
+    walkStreet(spineX, spineY, spineA + D_PI, dwrap(spineA + D_PI), (int)ext, width, K_MAIN, mainG, 1);
+    // a spine along the bank is joined to the heart straight across
+    if (std::fabs(spineX - (cx + 0.5f)) + std::fabs(spineY - (cy + 0.5f)) > 2.0f) line(cx + 0.5f, cy + 0.5f, spineX, spineY, width, K_MAIN, mainG);
+  }
   const float ca = dcos(spineA), sa = dsin(spineA), nx = -sa, ny = ca;
   const bool ns = std::fabs(sa) > std::fabs(ca);
   const int rowGap = village ? 7 : 9;
@@ -530,7 +542,7 @@ void Gen::spineStreets() {
       for (int st = 1; st <= rows * rowGap + 2; st++) {
         const int qx = ifloor(x + nx * side * st), qy = ifloor(y + ny * side * st);
         if (!in(qx, qy) || water[I(qx, qy)] || inCompound(qx, qy, 2) || dist(qx, qy) > 0.95f) break;
-        if (walled && (blob(qx, qy, cx, cy, rx, ry, wseed) >= wallR - 4.5f / std::min(rx, ry) || nearRing(qx, qy, 2))) break;
+        if (walled && (!blobLess(qx, qy, cx, cy, rx, ry, wseed, wallR - 4.5f / std::min(rx, ry)) || nearRing(qx, qy, 2))) break;
         if (qx != px && qy != py) paintStreet(qx, py, K_LANE, laneG);
         paintStreet(qx, qy, K_LANE, laneG);
         px = qx; py = qy;
@@ -574,7 +586,7 @@ void Gen::contourLanes() {
       for (int s = 1; s <= 24; s++) {
         const int qy = y + s;
         if (!in(x, qy) || water[I(x, qy)] || inCompound(x, qy, 2) || dist(x, qy) > 0.95f) break;
-        if (walled && (blob(x, qy, cx, cy, rx, ry, wseed) >= wallR - 4.5f / std::min(rx, ry) || nearRing(x, qy, 2))) break;
+        if (walled && (!blobLess(x, qy, cx, cy, rx, ry, wseed, wallR - 4.5f / std::min(rx, ry)) || nearRing(x, qy, 2))) break;
         const bool met = isStreet(x, qy);
         paintStreet(x, qy, K_LANE, laneG);
         if (met && s > 1) break;
@@ -846,7 +858,7 @@ void Gen::paintSquare(int x0, int y0, float r, District d) {
         const float ex = std::fabs((float)(x - x0)) / (rxs + 0.5f), ey = std::fabs((float)(y - y0)) / (rys + 0.5f);
         if (std::max(ex, ey) > 1.0f || (ex > 0.86f && ey > 0.8f)) continue;
         if (std::max(ex, ey) > 0.88f && hashf(x, y, s) < 0.3f) continue;
-      } else if (blob(x, y, x0, y0, rxs, rys, s) > 1.0f) continue;
+      } else if (blobMore(x, y, x0, y0, rxs, rys, s, 1.0f)) continue;
       if (walled && !ins(x, y)) continue;
       set(x, y, K_SQUARE);
       if (village) M.setG(x, y, layout == 1 ? Ground::Dirt : (base == Ground::Grass ? Ground::Meadow : base));
@@ -918,14 +930,14 @@ void Gen::squaresPass() {
         if (lvl[I(x, y)] != lvl[I(cx, cy)]) continue;
         const bool edgeX = x == x0 || x == x1, edgeY = y == y0 || y == y1;
         if (edgeX && edgeY) continue;                                   // rounded corners
-        if ((edgeX || edgeY) && hashf(x, y, ms) < 0.35f) continue;       // a ragged edge
+        if ((edgeX || edgeY) && hashf(x, y, ms) < (town ? 0.12f : 0.35f)) continue;   // a ragged edge (M7b: a town's tidier)
         set(x, y, K_SQUARE);
         if (village) M.setG(x, y, layout == 1 ? Ground::Dirt : (base == Ground::Grass ? Ground::Meadow : base));
         else M.setG(x, y, Ground::Plaza);
         M.setP(x, y, 0);
       }
   }
-  if (city) {
+  if (city && !planned) {
     for (int k = 0; k < 4; k++) {
       float a = sector0 + k * (D_PI / 2) + rng.range(-0.25f, 0.25f);
       float d = 0.56f + rng.range(-0.06f, 0.06f);
@@ -948,6 +960,7 @@ void Gen::squaresPass() {
 
 void Gen::paintStreet(int x, int y, uint8_t kind, Ground g) {
   if (!in(x, y) || inCompound(x, y)) return;
+  if (!keep.empty() && keep[I(x, y)]) return;   // (M7b: a city's precinct plots and park take no street)
   uint8_t cur = get(x, y);
   if (cur == K_SQUARE || cur == K_FIELD) return;
   // a lane crossing a main street leaves its paving alone (no dirt patches across the road)
@@ -978,7 +991,8 @@ void Gen::line(float x0, float y0, float x1, float y1, int width, uint8_t kind, 
 // A street that wanders: its heading drifts smoothly and is pulled back toward `target` (the road it follows), diagonal
 // steps are filled so it stays 4-connected. stop: 0 the buffer's edge, 1 the town's edge, 2 a lane (also ends where it
 // meets another street), 3 an approach road (ends at the buffer's edge, never runs back inside the wall).
-bool Gen::walkStreet(float x, float y, float ang, float target, int maxLen, int width, uint8_t kind, Ground g, int stop) {
+bool Gen::walkStreet(float x, float y, float ang, float target, int maxLen, int width, uint8_t kind, Ground g, int stop, float* outX, float* outY,
+                     float* outA) {
   float turn = 0;
   int px = ifloor(x), py = ifloor(y);
   const size_t own0 = allStreet.size(), main0 = mainTiles.size();
@@ -1053,6 +1067,9 @@ bool Gen::walkStreet(float x, float y, float ang, float target, int maxLen, int 
     }
     px = ix; py = iy;
   }
+  if (outX) *outX = x;
+  if (outY) *outY = y;
+  if (outA) *outA = ang;
   // most lanes that lead nowhere are taken back (a few cul-de-sacs stay: courts and closes)
   if (stop == 2 && !joined && rng.f() < 0.7f) {
     for (auto it = painted.rbegin(); it != painted.rend(); ++it) { set(it->x, it->y, it->k); M.ground[I(it->x, it->y)] = it->g; }
@@ -1064,8 +1081,21 @@ bool Gen::walkStreet(float x, float y, float ang, float target, int maxLen, int 
 
 void Gen::mainStreets() {
   const int width = village ? 1 : 2;
-  for (float a : bearings)
-    walkStreet(cx + 0.5f, cy + 0.5f, a + rng.range(-0.2f, 0.2f), a, W + H, width, K_MAIN, mainG, 0);
+  for (float a : bearings) {
+    const float a0 = a + rng.range(-0.2f, 0.2f);
+    if (town) {
+      // (M7b) a town's high street: straighter, three wide through the town (a walk on its fronted edge), the road
+      // two wide beyond its edge
+      const float w0 = wander;
+      wander = w0 * 0.35f;
+      float ex = cx + 0.5f, ey = cy + 0.5f, ea = a;
+      walkStreet(cx + 0.5f, cy + 0.5f, a0 * 0.5f + a * 0.5f, a, W + H, 3, K_MAIN, mainG, 1, &ex, &ey, &ea);
+      wander = w0;
+      walkStreet(ex, ey, ea, a, W + H, width, K_MAIN, mainG, 0);
+    } else {
+      walkStreet(cx + 0.5f, cy + 0.5f, a0, a, W + H, width, K_MAIN, mainG, 0);
+    }
+  }
 }
 
 void Gen::ringRoads() {
@@ -1139,7 +1169,7 @@ void Gen::wallStreet() {
     float r0 = 0.5f;
     for (float rr = 0.5f; rr < 1.2f; rr += 0.01f) {
       int x = cx + (int)std::floor(ca * rx * rr + 0.5f), y = cy + (int)std::floor(sa * ry * rr + 0.5f);
-      if (blob(x, y, cx, cy, rx, ry, wseed) >= wallR - inset) break;
+      if (!blobLess(x, y, cx, cy, rx, ry, wseed, wallR - inset)) break;
       if (nearRing(x, y, 3)) break;   // (M3: the ring as rasterised may stand a little inside the outline)
       r0 = rr;
     }
@@ -1201,8 +1231,8 @@ void Gen::fabric() {
     for (int x = 1; x < W - 1; x++) {
       int yy = y + iround(dsin(x * freq + phase) * amp);
       bool ok = in(x, yy) && !inCompound(x, yy, 2) && !water[I(x, yy)];
-      if (ok && walled) ok = blob(x, yy, cx, cy, rx, ry, wseed) < wallR - inset && !nearRing(x, yy, 2);
-      if (ok && !walled) ok = blob(x, yy, cx, cy, rx, ry, bseed + 3) < edge;
+      if (ok && walled) ok = blobLess(x, yy, cx, cy, rx, ry, wseed, wallR - inset) && !nearRing(x, yy, 2);
+      if (ok && !walled) ok = blobLess(x, yy, cx, cy, rx, ry, bseed + 3, edge);
       if (ok && city && districtAt(x, yy) == District::Noble && (band & 1)) ok = false;
       if (ok && town && hashf(x / 14, band, gs) < 0.15f) ok = false;   // towns: broken lines, closes and yards
       // never alongside another street (a double street), only across one
@@ -1434,6 +1464,15 @@ void Gen::cityWall() {
       if (!dry) continue;
       if (da < best) { best = da; bx = x; by = y; }
     }
+    // (fixer M7b r2, review: "a road arrives at the wall with no gate" on a harbour city's sea front) no dry stretch at
+    // all: a harbour gate on the ring tile nearest the road that is itself dry ground (the quay beside it)
+    if (best >= 1e8f)
+      for (auto& rt : ring) {
+        const int x = rt.first, y = rt.second;
+        const float da = std::fabs(dwrap(datan2((float)(y - cy), (float)(x - cx)) - bearings[(size_t)b]));
+        if (da > 0.50f || nearMade(x, y, 3) || water[I(x, y)]) continue;
+        if (da < best) { best = da; bx = x; by = y; }
+      }
     if (best < 1e8f) gap(IRect{bx - 1, by - 1, 3, 3}, b);
   }
   // side gates: on straight runs far from every opening, where a street runs near the inner side

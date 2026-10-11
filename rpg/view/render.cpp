@@ -8,6 +8,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "rpg/art/art_city.h"
 #include "rpg/art/art_parts.h"
 #include "rpg/sim/deco.h"
 #include "rpg/sim/foes.h"
@@ -19,6 +20,7 @@
 #include "rpg/world/economy.h"
 #include "rpg/world/ids.h"
 #include "rpg/world/source.h"
+#include "rpg/world/urban.h"
 
 using art::Prop;
 using art::Monster;
@@ -413,7 +415,9 @@ const Tex& View::lampDarkTex(const art::PropStyle* ps) {
       // its brightness kept as a little shading, the hue taken to a dusky blue-grey glass
       const float lum = (r * 0.3f + gg * 0.55f + b * 0.15f) / 255.0f;
       const float t = maxY > minY ? (float)(y - minY) / (float)(maxY - minY) : 0.5f;
-      const float k2 = 0.20f + 0.12f * lum - 0.07f * t;   // darker toward the bottom (the light comes from above)
+      // (fixer M7b r1, review: "daytime lamp posts read as bare bollards") the unlit glass is a pale, sky-grey pane that
+      // reads as a lantern head against the dark iron, not a dark blot that merges with its frame
+      const float k2 = 0.44f + 0.14f * lum - 0.12f * t;   // darker toward the bottom (the light comes from above)
       int nr = (int)(255 * k2 * 0.80f), ng = (int)(255 * k2 * 0.88f), nb = (int)(255 * k2 * 1.12f);
       // the sky caught on the glass: its top-left pixels (the light comes from the top-left)
       const bool left = x == 0 || !mask[(size_t)y * c.w + x - 1], top = y == 0 || !mask[(size_t)(y - 1) * c.w + x];
@@ -1598,6 +1602,10 @@ void View::drawWorld(Game& g) {
           // M3: each settlement's wall style (Map::wall = 1 + art::CityWall)
           for (size_t i = 0; i < wallKeys_.size(); i++)
             if (wallKeys_[i] && m.wall[i] > 1) wallKeys_[i] |= ((uint32_t)(m.wall[i] - 1) << art::WALL_STYLE_SHIFT) & art::WALL_STYLE_MASK;
+          // (fixer M7b r2, review: "a stream runs under a hedge wall") a living hedge has no arch to carry over a river:
+          // where the water runs through, the hedge parts (the tile keeps its wall: nobody walks through the stream's gap)
+          for (size_t i = 0; i < wallKeys_.size(); i++)
+            if ((wallKeys_[i] & art::WALL_BIT_CULVERT) && m.wall[i] == 1 + (int)art::CityWall::Thorn) wallKeys_[i] = 0;
           // (M3 fixer) an opening without a gatehouse (a side gate, a gate in a north-south run) is spanned: the wall walk
           // runs on over it on a vault (art::WALL_BIT_SPAN), so no road runs through a bare cut between two tower stubs.
           // The span's tiles stay walkable (Map::wall is untouched); only their sprites and their neighbours' joins change.
@@ -1739,8 +1747,23 @@ void View::drawWorld(Game& g) {
           }
         } else {
           // (stalls fixer round 3) a stall sorts just ahead of its keeper (art::stallSortY), whichever way it faces
-          const float sy = art::isStall(p) && m.kind == MapKind::Overworld ? art::stallSortY(stallFacingOn(g, m, tx, ty)) : 15.0f;
+          // (M7b CITYART) the souk's canopy hangs over whoever stands on its tile: it sorts after them (and before the
+          // people south of it, who stand in front of its hem)
+          const float sy = art::isStall(p) && m.kind == MapKind::Overworld ? art::stallSortY(stallFacingOn(g, m, tx, ty))
+                                                                            : (p == Prop::Canopy ? 15.99f : 15.0f);
           list.push_back({ty * 16.0f + sy, 0, pr - 1, tx, ty});
+          // (M7b CITYART) a street tree on a city walk or square stands in a tree pit: a kerbed square of soil under
+          // an iron grate, laid flat on the paving before anything stands on it
+          if (treeProp(p) && m.kind == MapKind::Overworld && g.mode != Mode::Title) {
+            const ew::Urb u = ew::urbClass(m.urbAt(tx, ty));
+            if (u == ew::Urb::Sidewalk || u == ew::Urb::Avenue || u == ew::Urb::Street || u == ew::Urb::Square || u == ew::Urb::Court) {
+              const art::PropStyle* ps = propStyleAt(g, tx, ty);
+              const uint64_t k = ew::mix64(ps->key() ^ 0x7EE917ull);
+              auto it = styledProps_.find(k);
+              const Tex& gt = it != styledProps_.end() ? it->second : (styledProps_[k] = pix_->bake(art::cityTreePit(*ps)));
+              P.blit(gt, tx * 16.0f + 8.0f - gt.w / 2.0f - cam.x, ty * 16.0f + 16.0f - gt.h + 1.0f - cam.y);
+            }
+          }
         }
       }
       uint32_t wk = wallKeys_.empty() ? 0u : wallKeys_[(size_t)ty * m.w + tx];
@@ -2135,6 +2158,65 @@ void View::drawWorld(Game& g) {
             }
             break;
           }
+        }
+        // (M7b CITYART) the city props in their settlement's culture and a variant by their global tile (the fruit by the
+        // climate); garden walls and hedges joined into runs (as the fences: straight, corner, T, the piers at a gateway
+        // or a run's end), the souk's canopy joined over its street (a hem and poles where it stops)
+        if (art::isCityProp(p) && m.kind == MapKind::Overworld && g.mode != Mode::Title) {
+          const art::PropStyle* ps = propStyleAt(g, d.tx, d.ty);
+          const uint32_t h = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6311);
+          int variant = 0, joins = 0;
+          const bool snow = snowyTile(m, d.tx, d.ty);
+          if (p == Prop::FruitTree) variant = art::fruitTreeKind((int)m.biomeAt(d.tx, d.ty), h);
+          else if (art::cityPropVariants(p) > 1) variant = (int)(h % (uint32_t)art::cityPropVariants(p));
+          auto same = [&](int x, int y) { return m.propAt(x, y) == (int)p + 1; };
+          // (fixer M7b r1, review: "the souk canopies are a jumbled stripy mass with a rectangular fade patch") a souk's
+          // bay is one cloth: its variant from the bay (the run along the street from its open end, across the street
+          // from its edge), not the tile; it fades whole while the hero stands under it
+          bool bayFade = false;
+          if (p == Prop::Canopy) {
+            joins = (same(d.tx, d.ty - 1) ? 1 : 0) | (same(d.tx + 1, d.ty) ? 2 : 0) | (same(d.tx, d.ty + 1) ? 4 : 0) | (same(d.tx - 1, d.ty) ? 8 : 0);
+            auto runLen = [&](int dx, int dy) { int n = 0; while (n < 10 && same(d.tx + dx * (n + 1), d.ty + dy * (n + 1))) n++; return n; };
+            const int rW = runLen(-1, 0), rE = runLen(1, 0), rN = runLen(0, -1), rS = runLen(0, 1);
+            const bool alongX = rW + rE >= rN + rS;
+            const int bx0 = d.tx - rW, bx1 = d.tx + rE, by0 = d.ty - rN, by1 = d.ty + rS;
+            const uint32_t bh = alongX ? hash2(bx0 + g.world.ox, by0 + g.world.oy, 6313) : hash2(bx0 + g.world.ox, by0 + g.world.oy, 6317);
+            variant = (int)(bh % 4u);
+            const float hx = pl.p.x / 16.0f, hy = pl.p.y / 16.0f;
+            bayFade = hx > bx0 - 0.3f && hx < bx1 + 1.3f && hy > by0 - 0.6f && hy < by1 + 1.9f;
+          }
+          if (p == Prop::GardenWall || p == Prop::Hedge) {
+            int mask = (same(d.tx, d.ty - 1) ? 1 : 0) | (same(d.tx + 1, d.ty) ? 2 : 0) | (same(d.tx, d.ty + 1) ? 4 : 0) | (same(d.tx - 1, d.ty) ? 8 : 0);
+            if (!mask) {   // a lone piece runs the way its neighbours' walls or fences do, else east-west
+              auto wallish = [&](int x, int y) { const int q = m.propAt(x, y); return q == (int)Prop::FenceH + 1 || q == (int)Prop::GardenWall + 1 || q == (int)Prop::Hedge + 1; };
+              mask = (wallish(d.tx, d.ty - 1) || wallish(d.tx, d.ty + 1)) && !(wallish(d.tx - 1, d.ty) || wallish(d.tx + 1, d.ty)) ? 5 : 10;
+            }
+            static const int DX[4] = {0, 1, 0, -1}, DY[4] = {-1, 0, 1, 0};
+            int gates = 0, ends = 0;
+            for (int k = 0; k < 4; k++) {
+              const int bit = 1 << k, back = 1 << ((k + 2) & 3);
+              const int nx = d.tx + DX[k], ny = d.ty + DY[k];
+              const int perp = (1 << ((k + 1) & 3)) | (1 << ((k + 3) & 3));
+              if (same(nx, ny) || !(mask & back) || (mask & bit) || (mask & perp)) continue;
+              const bool open = m.in(nx, ny) && !m.propAt(nx, ny) && !m.blocked(nx, ny);
+              if (open && same(nx + DX[k], ny + DY[k])) gates |= bit;
+              else ends |= bit;
+            }
+            joins = mask | gates << 4 | ends << 8;
+          }
+          const uint64_t sk = art::cityPropStyledByCulture(p) || p == Prop::Hedge ? ps->key() : 0;
+          const uint64_t k = ew::mix64(sk ^ ((uint64_t)p << 48) ^ ((uint64_t)variant << 40) ^ ((uint64_t)joins << 20) ^ (snow ? 0x51u : 0u) ^ 0xC17Aull);
+          auto it = styledProps_.find(k);
+          const Tex& ct = it != styledProps_.end() ? it->second : (styledProps_[k] = pix_->bake(art::cityPropStyled(p, *ps, variant, joins, snow)));
+          if (p == Prop::GardenWall || p == Prop::Hedge) {   // (16 wide, its bottom on the tile's bottom edge, as the fences)
+            P.blit(ct, d.tx * 16.0f - cam.x, d.ty * 16.0f + 16.0f - (float)ct.h - cam.y);
+            break;
+          }
+          if (p == Prop::Canopy) {   // drawn over the walkers under it; its bay thins while the hero is under it
+            P.blitEx(ct, 0, 0, ct.w, ct.h, d.tx * 16.0f - cam.x, d.ty * 16.0f + 16.0f - (float)ct.h - cam.y, (float)ct.w, (float)ct.h, false, Color(1, 1, 1, bayFade ? 0.5f : 1.0f));
+            break;
+          }
+          tp = &ct;
         }
         // (M2) every peak of a range is one of eight shapes in its land's rock (by its global tile: never one peak cloned)
         if ((p == Prop::Peak || p == Prop::GreatPeak) && m.kind == MapKind::Overworld) {

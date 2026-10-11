@@ -5,7 +5,9 @@
 // Pronounceable by construction: syllables are onset + nucleus (+ coda) drawn by weight (earlier = commoner), with at
 // most three consonants or three vowels in a row, no letter tripled and the culture's banned pairs avoided. Every
 // name is also screened against real-world fantasy names and profanity (rpg_test --cultures checks the same lists).
+#include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <vector>
 #include "rpg/culture/culture.h"
@@ -256,9 +258,26 @@ std::string placeName(const Culture& c, uint32_t seed) {
   });
 }
 
+namespace detail {
+namespace {
+// (fixer M7b r1, review: "census names that are English words break dialogue clarity": a resident called WENT, MEN,
+// MAN, HER or AND reads as garbled speech, "MY SON ALD WENT INTO..." or "THEN YOU NEED A MAN CALLED...", and a child
+// called NULLERT trips the placeholder check) a person's name is never a word the talk itself uses
+bool personWord(const std::string& s) {
+  if (s.find("NULL") != std::string::npos || s.find("NONE") != std::string::npos || s.find("TODO") != std::string::npos) return true;
+  static const char* const kTalk[] = {
+#include "rpg/culture/talk_words.inc"
+  };
+  const char* const* e = kTalk + sizeof(kTalk) / sizeof(kTalk[0]);
+  const char* const* it = std::lower_bound(kTalk, e, s.c_str(), [](const char* a, const char* b) { return std::strcmp(a, b) < 0; });
+  return it != e && s == *it;
+}
+}  // namespace
+}  // namespace detail
+
 std::string personName(const Culture& c, uint32_t seed, bool female) {
   const Phonology& ph = c.phon;
-  return detail::screened(ph, detail::key(c, seed, female ? 0xFE3A : 0x3A1E), 10, [&](Pk& p) {
+  return detail::screened(ph, detail::key(c, seed, female ? 0xFE3A : 0x3A1E), 10, [&](Pk& p) -> std::string {
     const int syl = ph.sylMin + p.pick(ph.sylMax - ph.sylMin + 1 > 2 ? 2 : ph.sylMax - ph.sylMin + 1);
     std::string s = detail::word(ph, p, syl < 1 ? 1 : syl);
     const std::vector<std::string>& suf = female ? ph.personSuffixF : ph.personSuffixM;
@@ -271,6 +290,8 @@ std::string personName(const Culture& c, uint32_t seed, bool female) {
         s += 'A';
       }
     }
+    if (detail::personWord(s)) return std::string();   // (drawn again: screened retries a name under three letters)
+    for (const std::string& god : c.faith.names) if (s == god) return std::string();   // (nobody shares a god's name)
     return s;
   });
 }

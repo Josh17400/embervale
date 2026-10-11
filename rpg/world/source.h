@@ -28,7 +28,23 @@ namespace ew {
 
 // Bumped when the endless generator's output changes. Old saves are not kept compatible across M1 (owner rule,
 // 2026-10-04); the save stores it so a mismatch can say "this save is from an older world".
-constexpr int ENDLESS_GEN_VER = 16;  // 16: M7 Home (bumped with SAVE_VER 14 so the lanes may change generation under it:
+constexpr int ENDLESS_GEN_VER = 20;  // 20: M7b fixer round 3 (one build per terrace: its units share depth, storeys,
+                                     //     roof and materials; the rich quarter's own houses and lawns; lamps and trees
+                                     //     spaced, no tree on a kerb's face; avenue mouths square onto their squares;
+                                     //     villages unchanged; town goldens re-recorded).
+                                     // 19: M7b fixer round 2 (no terraced cities: the jade city in walled compounds; the
+                                     //     radial spokes octilinear, slanting walks knitted, kerbed scraps dropped, one
+                                     //     deck where an avenue crosses a stream, harbour gates, a mine reached, towns
+                                     //     swept; cave names; villages unchanged; town goldens re-recorded).
+                                     // 18: M7b fixer round 1 (the cities' parks in four landscapes with ponds, the souk's
+                                     //     bays, the poor quarter's cottages, the better quarters' wider houses, the
+                                     //     stranded walks made lanes; villages unchanged; town goldens re-recorded).
+                                     // 17: M7b Cities & Voice (bumped with SAVE_VER 15 so the lanes may change generation
+                                     //     under it: the cities' plan (street hierarchy, row houses, sidewalks, squares,
+                                     //     parks, districts, per-culture plans; Map::urb), a town's tidier main street
+                                     //     and square; VILLAGES NEVER CHANGE (rpg_test --villages); town goldens
+                                     //     re-recorded by the lane that changes their output).
+                                     // 16: M7 Home (bumped with SAVE_VER 14 so the lanes may change generation under it:
                                      //     settlements' lots for sale (ew::PlotPlan, riverside lots), the ruin-entrance
                                      //     and masonry-ruin fixes, interiors of the player's houses; goldens
                                      //     re-recorded by the lane that changes their output).
@@ -201,6 +217,7 @@ struct ChunkData {
   uint8_t height[N] = {};           // relief (Map::height bits): level 0..7 in bits 0-2 (VISION_PLAN 11.1), Map::HEIGHT_CLIFF
                                     // = a cliff face (not walkable), Map::HEIGHT_RAMP = a ramp / stairs between levels
   uint8_t wall[N] = {};             // city wall pieces
+  uint8_t urb[N] = {};              // M7b: the urban fabric (Map::urb, rpg/world/urban.h); 0 outside a city's plan
   uint16_t bldg[N] = {};            // 0 = none, else 1 + index into bldgs (footprints inside this chunk)
   // Records: the WHOLE record list of every site that touches this chunk (all its buildings in the site's order, all
   // its spawns, gates and wall gaps), so a site's buildings always arrive together and World can keep them contiguous

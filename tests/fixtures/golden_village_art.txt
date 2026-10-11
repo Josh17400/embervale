@@ -1,0 +1,66 @@
+# M7b village-art fixture (tools/preview/city_gallery.cpp --village-art-write): villages never change
+bldg classic urban0 d5445d9a9673712d
+bldg classic urban1 c1cde336ac59b65d
+bldg classic urban2 45b951c4c5c504ae
+bldg classic urban3 075f1776c5b8346f
+bldg fjordfolk urban0 5d9a120f0fd23870
+bldg fjordfolk urban1 81f9965b4efc9cac
+bldg fjordfolk urban2 42206de3be969b5d
+bldg fjordfolk urban3 e90aab829781ec4f
+bldg highland urban0 cba4075704d99928
+bldg highland urban1 8d23d054bb97b72f
+bldg highland urban2 e2cae5e778c11e84
+bldg highland urban3 9b6046af8ae4da76
+bldg heartland urban0 35a75c37c775d774
+bldg heartland urban1 9e007606caea6ecc
+bldg heartland urban2 d501d51d0a47d9ff
+bldg heartland urban3 3cd078a14ca15c82
+bldg imperial urban0 3e405b56bdfd4ce5
+bldg imperial urban1 3158de49a6b2067b
+bldg imperial urban2 b671d88858ea0c9e
+bldg imperial urban3 23da3ea47ae72379
+bldg dune urban0 b7b2c6947e6e47a0
+bldg dune urban1 96f20296e0cc7d09
+bldg dune urban2 a061f2c68cf104d7
+bldg dune urban3 295f592ec05d7a3b
+bldg steppe urban0 e48704edbfdf2102
+bldg steppe urban1 52c32804cf7dc53f
+bldg steppe urban2 663940d9c9b4c231
+bldg steppe urban3 9280c3b76f3941a2
+bldg marsh urban0 95b0360c38c15378
+bldg marsh urban1 2bc3144db6e6df25
+bldg marsh urban2 e4b4a643711deddf
+bldg marsh urban3 ba685c33832f77a5
+bldg jade urban0 948a19ebbdf910f0
+bldg jade urban1 38a6effb3dea282f
+bldg jade urban2 b2b396aedf6d64e4
+bldg jade urban3 a292afb9ae2a77dc
+bldg river urban0 8cb1e6486531d510
+bldg river urban1 255d11d2dbc2895c
+bldg river urban2 c9377655b689b1df
+bldg river urban3 07a2ce51f3ece3d2
+bldg suntemple urban0 14b744c87f4f46ca
+bldg suntemple urban1 71870aa88bbd24e2
+bldg suntemple urban2 1e9d46c3dac35294
+bldg suntemple urban3 8a96a87bde2bd2b4
+bldg sylvan urban0 ee7754d3dc443760
+bldg sylvan urban1 f058f51b01833f78
+bldg sylvan urban2 818d31493ac4dc22
+bldg sylvan urban3 f671b583ba83f5c3
+bldg starspire urban0 b8d484acd0537aef
+bldg starspire urban1 8379479de29bd09c
+bldg starspire urban2 be3372ef098ad22a
+bldg starspire urban3 41cd15d6e71f9a0a
+props classic d4e1c818ff13eab1
+props fjordfolk 41574120cc0c3504
+props highland 9f2b1b498940371b
+props heartland aa35818abdb698ab
+props imperial 74dff6be16834cf1
+props dune 2dfb0e554438169c
+props steppe 5e2b1c88304f113e
+props marsh 552e3f95520cbef4
+props jade ca4b89f208dd6e2b
+props river df4f3daa73657155
+props suntemple 8a5797ab69532aeb
+props sylvan c8843cd090d27dda
+props starspire d8ec61672db53c80

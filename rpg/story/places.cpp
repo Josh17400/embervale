@@ -13,6 +13,7 @@
 #include "engine/audio.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/talk.h"
 #include "rpg/story/dsl.h"
 #include "rpg/story/story_internal.h"
 #include "rpg/world/source.h"
@@ -52,7 +53,7 @@ const char* const kFlavour[] = {
     "WRESTLING ON THE GREEN AT THE NEW MOON. THE SMITH MAY NOT ENTER.",
     "TO THE ONE WHO LEFT BREAD ON MY STEP ALL WINTER: THANK YOU. - A WIDOW",
     "NO DICE IN THE TAVERN AFTER MIDNIGHT. THIS MEANS YOU, OSWIN.",
-    "SEEKING A HUSBAND WHO CAN COOK. OR A COOK. EITHER. ASK AT THE BAKERY.",
+    "SEEKING A HUSBAND WHO CAN COOK, OR A COOK. EITHER. ASK AT THE BAKERY.",
     "THE WELL WATER IS SAFE AGAIN. THE THING IN IT HAS BEEN REMOVED.",
     "APPRENTICE WANTED BY THE TANNER. MUST HAVE NO SENSE OF SMELL.",
     "REWARD FOR THE RETURN OF MY GOOD LADDER. NO QUESTIONS ASKED. SOME GLARING."};
@@ -133,6 +134,7 @@ bool useBoard(Game& g, int tx, int ty) {
   const Site S = g.world.sites[(size_t)si];
   g.dlg = Dialogue();
   g.story.sagaOffers_.clear();
+  g.story.said_.clear();
   g.dlg.actor = -1;
   g.dlg.speaker = "NOTICE BOARD OF " + S.name;
   g.dlg.role = Role::Villager;
@@ -225,6 +227,8 @@ bool boardChoose(Game& g, int action, int arg) {
       std::sort(evs.begin(), evs.end(), [](const realm::WorldEvent* a, const realm::WorldEvent* b) { return a->id > b->id; });
       for (const realm::WorldEvent* e : evs) {
         if (n >= 2) break;
+        // (M7b) a second piece of news only when both fit the panel whole (never one cut short)
+        if (n && !speech::fitsPanel("HEAR THE NEWS OF THE REALM! " + text + " " + newsLine(g, *e, 0))) break;
         const std::string l = hearEvent(g, *e, 0);
         text += (n ? " " : "") + l;
         n++;
@@ -244,7 +248,7 @@ bool boardChoose(Game& g, int action, int arg) {
         g.dlg.text = "THE " + rt + " " + rn + " OF " + K->name + ", " + temper + ". " +
                      (rep >= 20 ? std::string("YOUR NAME HAS REACHED THE THRONE, AND KINDLY.") : rep <= -20 ? std::string("YOUR NAME IS SPOKEN AT COURT, AND NOT KINDLY.") : std::string("THE COURT DOES NOT KNOW YOUR NAME. YET."));
         const std::vector<std::string> chron = g.realm.chronicle(k);
-        if (chron.size() > 1 && g.dlg.text.size() + chron[1].size() < 290) g.dlg.text += " " + chron[1];
+        if (chron.size() > 1 && speech::fitsPanel(g.dlg.text + " " + chron[1])) g.dlg.text += " " + chron[1];
       }
     }
     for (size_t i = 0; i < g.dlg.opts.size(); i++)
@@ -411,9 +415,12 @@ void heraldTalk(Game& g, Actor& a) {
                       e.type == realm::EvType::SiegeBegun || e.type == realm::EvType::TownTaken;
     if (kind && (e.a == k || e.b == k) && g.day - (int)e.day <= 20 && (!fresh || e.id > fresh->id)) fresh = &e;
   }
-  if (fresh) g.dlg.text = "HEAR YE, HEAR YE! " + hearEvent(g, *fresh, 0) + " SO IT IS PROCLAIMED IN THE NAME OF THE " + (ruler ? rt : std::string("CROWN")) + ".";
-  else if (ruler) g.dlg.text = "HEAR YE! THE " + rt + " " + rn + " RULES " + realmName + " IN PEACE AND PLENTY, AND THE ROADS ARE KEPT. LONG MAY " + rt + " " + rn + " REIGN!";
-  else g.dlg.text = "HEAR YE! THE ROADS ARE KEPT AND THE GATES ARE OPEN. GOD SAVE THE CROWN!";
+  // (M7b) the herald's proclamation is the news (P_NEWS); a story the crown proclaims outranks it below (P_STORY)
+  std::string procl;
+  if (fresh) procl = "HEAR YE, HEAR YE! " + hearEvent(g, *fresh, 0) + " SO IT IS PROCLAIMED IN THE NAME OF THE " + (ruler ? rt : std::string("CROWN")) + ".";
+  else if (ruler) procl = "HEAR YE! THE " + rt + " " + rn + " RULES " + realmName + " IN PEACE AND PLENTY, AND THE ROADS ARE KEPT. LONG MAY THE " + rt + " REIGN!";
+  else procl = "HEAR YE! THE ROADS ARE KEPT AND THE GATES ARE OPEN. GOD SAVE THE CROWN!";
+  speech::propose(g.dlg, speech::P_NEWS, speech::Topic::News, procl);
   g.dlg.opts.push_back({"WHAT NEWS FROM THE REALM?", DLG_STORY + SA_HERALD + 0, 0});
   if (ruler) {
     std::string l = "TELL ME OF THE " + rt + ".";
@@ -432,14 +439,14 @@ void heraldTalk(Game& g, Actor& a) {
     const int st = g.story.offerForPlace(g, (int)dsl::HookKind::Herald, cap);
     if (st >= 0) {
       const dsl::Script& sc = dsl::library().scripts[(size_t)st];
-      if (!sc.hint.empty()) g.dlg.text = sc.hint;
+      if (!sc.hint.empty()) speech::propose(g.dlg, speech::P_STORY, speech::Topic::QuestOffer, sc.hint);
       g.dlg.opts.insert(g.dlg.opts.begin(), {sc.pitch, DLG_STORY + SA_START + st, cap});
     } else {
       // (M6b) the crown's own proclamation of a generated story (a campaign first: saga.h offerForPlace)
       const std::string sid = saga::offerForPlace(g, (int)dsl::HookKind::Herald, cap);
       if (const dsl::Script* sc = sid.empty() ? nullptr : scriptById(sid)) {
         g.story.sagaOffers_.push_back(sid);
-        if (!sc->hint.empty()) g.dlg.text = sc->hint;
+        if (!sc->hint.empty()) speech::propose(g.dlg, speech::P_STORY, speech::Topic::QuestOffer, sc->hint);
         g.dlg.opts.insert(g.dlg.opts.begin(), {sc->pitch, DLG_STORY + SA_SAGA + (int)g.story.sagaOffers_.size() - 1, cap});
         saga::Hook hk;
         hk.kind = (int)dsl::HookKind::Herald;   // (the guard keys a herald's offers on the capital, like pick)

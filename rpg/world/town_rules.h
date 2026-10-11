@@ -87,6 +87,12 @@ inline cult::Layout townLayoutFor(const cult::Culture* c, SiteType t, uint32_t s
   cult::Layout l = townColourAlt(t, townColour(c, t, gx, gy, planned)) ? c->town.altLayout : c->town.layout;
   if ((int)l >= (int)cult::Layout::COUNT) l = cult::Layout::Organic;
   if (t == SiteType::Village && l == cult::Layout::Grid) l = cult::Layout::Linear;
+  // (fixer M7b r2, review: "terrain-step ledges run straight through the jade city's avenues, sidewalks and kerbs") a
+  // planned city is laid out on one levelled site (VISION_PLAN 15.23: the jade city of axial avenues and walled
+  // compounds): a people that terraces its towns builds its cities in its usual plan where that is not the terraces,
+  // else in walled compounds along an ordered lattice (the jade kingdoms)
+  if (t == SiteType::City && l == cult::Layout::Terraced)
+    l = c->town.layout != cult::Layout::Terraced && (int)c->town.layout < (int)cult::Layout::COUNT ? c->town.layout : cult::Layout::Compound;
   return l;
 }
 

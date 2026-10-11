@@ -58,8 +58,10 @@ struct KeyTable {
   std::string key;
   std::vector<Line> F[VOICES], A[VOICES], B[VOICES];
   std::vector<Line> M[(int)Motive::COUNT];
-  // built: the phrases of each (voice, motive)
+  // built: the phrases of each (voice, motive); (M7b) mid: those that stand alone (no opener) for a phrase that
+  // follows other words of its line
   std::vector<Line> pool[VOICES][(int)Motive::COUNT];
+  std::vector<Line> mid[VOICES][(int)Motive::COUNT];
 };
 
 struct Tables {
@@ -159,6 +161,24 @@ const Tables& tables() {
               c.family = mm.family;
               if (!c.text.empty()) P.push_back(c);
             }
+          std::vector<Line>& Q = k.mid[v][m];
+          for (const Line& f : k.F[v]) Q.push_back(f);
+          // (fixer M7b r1, review: "saga openings end on a bare culture proverb that has nothing to do with what was just
+          // said") a proverb or a saying after other words is always framed by its lead ("THE OLD RIDERS SAY: ..."): a
+          // bare one read as a stitched fragment at the moment the player has to decide
+          const bool framed = (k.key == "proverb" || k.key == "saying") && !k.A[v].empty();
+          if (framed) {
+            for (const Line& a : k.A[v])
+              for (const Line& b : k.B[v]) {
+                Line c;
+                c.text = join(a.text, b.text);
+                c.family = b.family;
+                if (!c.text.empty()) Q.push_back(c);
+              }
+          } else {
+            for (const Line& b : k.B[v]) Q.push_back(b);
+            for (const Line& mm : k.M[m]) Q.push_back(mm);
+          }
         }
     return t;
   }();
@@ -175,7 +195,7 @@ Phrase phrase(const std::string& key, const VoiceCtx& v) {
   const KeyTable& k = T.keys[it->second];
   const int vo = v.voice < 0 || v.voice >= VOICES ? 2 : v.voice;
   const int mo = v.motive < Motive::COUNT ? (int)v.motive : (int)Motive::Duty;
-  const std::vector<Line>& P = k.pool[vo][mo];
+  const std::vector<Line>& P = v.midLine && !k.mid[vo][mo].empty() ? k.mid[vo][mo] : k.pool[vo][mo];
   if (P.empty()) return p;
   const uint64_t r = mix(v.seed ^ 0x5EEDF00Dull);
   const Line& l = P[(size_t)(r % P.size())];

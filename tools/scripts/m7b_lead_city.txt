@@ -1,0 +1,16 @@
+# M7b lead (VISION_PLAN 15.24): the phase A contracts in play. A heartland city at noon: the urban fabric the plan writes
+# (Map::urb: avenues, sidewalks, lanes, squares; the quarters' upkeep) is there, and every city prop stands on a stage
+# (the CITYART lane's stand-ins), with a shot of each.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7b_lead_city.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.2 gotoculture heartland city
++1.4 urb
++0.1 expect urb avenue 20
++0.1 expect urb square 10
++0.1 shot m7b_lead_city.png
++0.2 cityprops
++1.0 shot m7b_lead_cityprops.png
++0.3 quit

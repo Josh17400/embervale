@@ -61,13 +61,20 @@ std::string lifePitch(const Game& g, const Quest& q) {
   const std::string tname = q.target >= 0 && q.target < (int)g.world.sites.size() ? g.world.sites[(size_t)q.target].name : std::string("THE NEXT TOWN");
   if (q.type == QType::Supply) {
     const uint32_t h = hash32((uint32_t)q.giverId ^ (uint32_t)q.stage * 977u);
-    static const char* open[] = {"I'M AT MY WITS' END.", "LOOK AT THESE SHELVES. EMPTY.", "NOTHING CAME IN THIS WEEK. NOTHING."};
-    return std::string(open[h % 3u]) + " NOT A SCRAP OF " + q.subject + " LEFT, AND PEOPLE STILL COME ASKING. " + tname +
-           " HAS PLENTY. BRING ME " + std::to_string(q.need) + " " + q.subject + " AND I'LL PAY YOU " + gold + " GOLD.";
+    static const char* open[] = {"I'M AT MY WIT'S END.", "LOOK AT THESE SHELVES. EMPTY.", "NOTHING CAME IN THIS WEEK. NOTHING AT ALL."};
+    // (M7b) who, what, why, where, the pay: one keeper talking ("BRING ME SIX CUTS OF MEAT FROM CIRSAOND, SOUTH OF HERE")
+    std::string where = tname;
+    if (q.target >= 0 && q.target < (int)g.world.sites.size() && q.giverSite >= 0 && q.giverSite < (int)g.world.sites.size()) {
+      const Site& T = g.world.sites[(size_t)q.target];
+      const Site& H = g.world.sites[(size_t)q.giverSite];
+      where += ", " + dirWord(T.ex - H.ex, T.ey - H.ey, false) + " OF HERE,";
+    }
+    return std::string(open[h % 3u]) + " NOT A SCRAP OF " + q.subject + " LEFT, AND PEOPLE STILL COME ASKING. " + where + " HAS PLENTY. BRING ME " +
+           goodUnits(q.need, q.subject) + " AND I'LL PAY YOU " + gold + " GOLD.";
   }
   const bool fem = personFemaleOf(q.flags, q.type, g.seed);
-  return "THEY CAME IN THE NIGHT. " + q.subject + " WAS DRAGGED OFF TOWARD " + tname + ". BRING " + (fem ? "HER" : "HIM") +
-         " HOME, PLEASE. " + gold + " GOLD IS ALL WE HAVE.";
+  return "THEY CAME IN THE NIGHT AND TOOK " + q.subject + ". THE RAIDERS DRAGGED " + (fem ? "HER" : "HIM") + " OFF TOWARD " + tname + ". BRING " +
+         (fem ? "HER" : "HIM") + " HOME, PLEASE. " + gold + " GOLD IS ALL WE HAVE.";
 }
 
 bool Game::lifeOffer(const Actor& npc, Quest& q) const {

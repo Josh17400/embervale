@@ -762,31 +762,37 @@ void Game::warTalk(Actor& a) {
   if (a.role == Role::Captain && a.realm) {
     const bool att = (a.slot - SLOT_CAPTAIN) % 4 == 1;
     const realm::Siege* sg = findSiege(a.realm, att);
-    if (!sg) { dlg.text = "THE WAR IS A SLOW BUSINESS, FRIEND. WE WAIT FOR ORDERS."; return; }
+    if (!sg) { speech::propose(dlg, speech::P_NEWS, speech::Topic::War, "THE WAR IS A SLOW BUSINESS, FRIEND. WE WAIT FOR ORDERS."); return; }
     const int si = world.siteHandle(sg->site);
     const std::string site = si >= 0 ? world.sites[(size_t)si].name : std::string("THE TOWN");
     const std::string foe = kname(*this, att ? sg->defender : sg->attacker);
     Quest* q = activeOn(sg->id);
     if (q && q->state == QState::Active) {
-      if (((q->flags & QF_WAR_ATTACK) != 0) == att) dlg.text = "YOU'RE WITH US, THEN. " + q->desc;
-      else dlg.text = "YOU STAND WITH " + foe + "? THEN WE HAVE NOTHING TO SAY.";
+      // (M7b) what is still to do, in the captain's words (q.desc stays the journal's)
+      if (((q->flags & QF_WAR_ATTACK) != 0) == att)
+        speech::propose(dlg, speech::P_QUEST, speech::Topic::QuestActive,
+                        att ? "YOU'RE WITH US, THEN. MAKE FOR THE GATE OF " + site + " WHEN YOU'RE READY. MY MEN WILL FOLLOW YOU IN."
+                            : "YOU'RE WITH US, THEN. THEIR CAMP LIES OUTSIDE THE WALLS. KILL THEIR CAPTAIN AND THE SIEGE BREAKS.");
+      else speech::propose(dlg, speech::P_URGENT, speech::Topic::War, "YOU STAND WITH " + foe + "? THEN WE HAVE NOTHING TO SAY.");
       return;
     }
     if (q) return;   // a reward waits (the built-in COLLECT option is already there)
     char odds[64];
-    std::snprintf(odds, sizeof odds, " (%.0f MEN AGAINST %.0f)", (att ? sg->atk : sg->def) * 25, (att ? sg->def : sg->atk) * 25);
+    std::snprintf(odds, sizeof odds, "%.0f MEN AGAINST %.0f", (att ? sg->atk : sg->def) * 25, (att ? sg->def : sg->atk) * 25);
     if (att) {
-      dlg.text = "WE HAVE " + site + " IN A RING OF STEEL" + std::string(odds) + ". " + foe + " WILL OPEN ITS GATES OR WATCH THEM BURN. A SWORD LIKE YOURS WOULD BE PAID WELL.";
+      speech::propose(dlg, speech::P_URGENT, speech::Topic::War,
+                      "WE HAVE " + site + " IN A RING OF STEEL, " + std::string(odds) + ". " + foe + " WILL OPEN ITS GATES OR WATCH THEM BURN. A SWORD LIKE YOURS WOULD BE PAID WELL.");
       dlg.opts.push_back({"JOIN THE ASSAULT", DLG_ASSAULT, (int)sg->id});
     } else {
       const bool walled = si >= 0 && world.sites[(size_t)si].type != SiteType::Village;
-      dlg.text = foe + (walled ? " HAS CAMPED AT OUR WALLS" : " HAS CAMPED OUTSIDE OUR VILLAGE") + std::string(odds) + ". BREAK THEIR CAMP, KILL THEIR CAPTAIN, AND " +
-                 site + " WILL NOT FORGET YOU.";
+      speech::propose(dlg, speech::P_URGENT, speech::Topic::War,
+                      foe + (walled ? " HAS CAMPED AT OUR WALLS, " : " HAS CAMPED OUTSIDE OUR VILLAGE, ") + std::string(odds) + ". BREAK THEIR CAMP, KILL THEIR CAPTAIN, AND " +
+                          site + " WILL NOT FORGET YOU.");
       dlg.opts.push_back({"BREAK THE SIEGE", DLG_BREAK, (int)sg->id});
     }
     return;
   }
-  if (a.role == Role::Soldier) { dlg.text = soldierGreeting(*this, a); return; }
+  if (a.role == Role::Soldier) { speech::propose(dlg, speech::P_SMALLTALK, speech::Topic::War, soldierGreeting(*this, a)); return; }
   if (a.role == Role::Refugee) {
     const char* lines[3] = {"WE LOST EVERYTHING. THE ROOF CAME DOWN BEFORE WE COULD SAVE THE GRAIN.",
                             "THEY CAME AT NIGHT WITH TORCHES. WE RAN WITH WHAT WE COULD CARRY.",
@@ -797,7 +803,7 @@ void Game::warTalk(Actor& a) {
         const int fh = world.siteHandle(c.other);
         if (fh >= 0) from = world.sites[(size_t)fh].name;
       }
-    dlg.text = (from.empty() ? std::string() : "WE COME FROM " + from + ". ") + lines[hash32((uint32_t)a.id) % 3];
+    speech::propose(dlg, speech::P_NEED, speech::Topic::Need, (from.empty() ? std::string() : "WE COME FROM " + from + ". ") + lines[hash32((uint32_t)a.id) % 3]);
     return;
   }
   // a guard of a realm at war has news of the front (VISION_PLAN 4.6: guards talk war news)
@@ -806,8 +812,9 @@ void Game::warTalk(Actor& a) {
       if (w.endDay || (w.attacker != a.realm && w.defender != a.realm)) continue;
       const ew::Gid foe = w.attacker == a.realm ? w.defender : w.attacker;
       if (hash32((uint32_t)a.id ^ (uint32_t)day * 977u) % 10 < 6)
-        dlg.text = "WE'RE AT WAR WITH " + kname(*this, foe) + (w.name.empty() ? std::string(". ") : " (" + w.name + "). ") +
-                   "KEEP YOUR EYES OPEN ON THE ROADS, AND YOUR BLADE CLOSE.";
+        speech::propose(dlg, speech::P_NEWS, speech::Topic::War,
+                        "WE'RE AT WAR WITH " + kname(*this, foe) + (w.name.empty() ? std::string(". ") : ". THEY'RE CALLING IT " + w.name + ". ") +
+                            "KEEP YOUR EYES OPEN ON THE ROADS, AND YOUR BLADE CLOSE.");
       break;
     }
   }

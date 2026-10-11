@@ -1,0 +1,87 @@
+# M7b "Cities & Voice" (SAGA lane, VISION_PLAN 15.23): stories read as the owner reads them on the iPhone. Two generated
+# sagas and one campaign beat, a shot of every turn after the type-on reveal:
+#   1. a GENERATED story offered in play in the start village of seed 7 (saga speak): the teller says who they are
+#      before their teaser (speech::Memory), the pitch is taken, the opening tells who, what happened, what is wanted
+#      and why; the reply to the first option points the way in the teller's own words (no journal note in brackets)
+#   2. THE BROTHER IN THE PIT with two twists: the opening (the elder brother introduced as such), the found son, a
+#      twist's stranger, the confrontation and the ending told under the tale's title
+#   3. the opening beat of THE COURT UNDER THE HILL from a notice board
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7b_saga_phone.txt     (m7b_saga_*.png)
+phone
+seed 7
+0.3  newgame
++0.02 touch 1
++0.05 hour 11
++0.1 god 1
+# ---- 1. a generated story offered in play
++1.5 saga speak
++0.3 expect saga offered
++2.90 touch 1
++0.1 shot m7b_saga_1a_teller.png
++0.1 saga accept
++0.3 expect saga running
++5.90 touch 1
++0.1 shot m7b_saga_1b_opening.png
++0.1 saga step
++5.90 touch 1
++0.1 shot m7b_saga_1c_reply.png
++0.1 key Escape
++0.3 saga step 40
++5.90 touch 1
++0.1 shot m7b_saga_1d_ending.png
++0.3 expect saga done
++0.1 key Escape
+# ---- 2. the brother in the pit, two twists
++0.3 saga start the_pit rival_claim road_omen v2 mgrief s7
++0.3 expect saga start
++5.90 touch 1
++0.1 shot m7b_saga_2a_opening.png
++0.1 choose DID ANYONE SEE
++0.3 expect saga coat
++5.90 touch 1
++0.1 shot m7b_saga_2b_coat.png
++0.1 choose I'LL FIND OUT
++0.3 expect saga road
++5.90 touch 1
++0.1 shot m7b_saga_2c_road.png
++0.1 key Escape
++0.3 story complete
++0.3 expect saga found
++0.1 story show
++5.90 touch 1
++0.1 shot m7b_saga_2d_found.png
++0.1 choose WATCHES THE ROAD
++0.3 story show
++5.90 touch 1
++0.1 shot m7b_saga_2e_plead.png
++0.1 choose GO
++0.3 expect saga t1_claim
++0.1 story show
++5.90 touch 1
++0.1 shot m7b_saga_2f_twist.png
++0.1 choose WE SHARE IT
++0.3 story show
++0.1 choose LET'S BE ON
++0.3 expect saga homeward
++0.3 story complete
++0.6 expect saga t2_sign
++0.1 story show
++0.1 choose I DON'T BUY
++0.3 expect saga confront
++0.1 story show
++5.90 touch 1
++0.1 shot m7b_saga_2g_confront.png
++0.1 choose FORGIVE
++5.90 touch 1
++0.1 shot m7b_saga_2h_ending.png
++0.3 expect saga done
++0.1 key Escape
+# ---- 3. a campaign's opening beat
++0.5 saga campaign fae fa_revel fa_holly_bargain fa_three_tasks fa_true_name v7 mhope s3
++0.3 expect saga notice
++5.90 touch 1
++0.1 shot m7b_saga_3a_campaign.png
++0.1 choose TELL ME ABOUT THE LIGHTS
++5.90 touch 1
++0.1 shot m7b_saga_3b_lights.png
++0.3 quit

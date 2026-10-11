@@ -882,8 +882,12 @@ bool Game::foeChoose(const DlgOpt& o) {
   std::string t;
   if (best) {
     const int dist = (int)std::sqrt((double)bd);
-    const char* how = dist < 60 ? "CLOSE BY, NOT AN HOUR'S WALK" : dist < 160 ? "A FEW HOURS' WALK" : dist < 320 ? "A DAY'S WALK OR SO" : "FAR OFF";
-    t = best->rumour + " ITS LAIR LIES " + how + " TO THE " + dirWord(best->gx - pgx, best->gy - pgy, false) + ".";
+    // (fixer M7b r2, review: "A FEW HOURS' WALK" said twice in one talk: the quest pitches use that phrase) the beasts' own words for the way
+    const std::string dw = dirWord(best->gx - pgx, best->gy - pgy, false);
+    if (dist < 60) t = best->rumour + " ITS LAIR IS CLOSE BY, TO THE " + dw + ". NOT AN HOUR FROM HERE.";
+    else if (dist < 160) t = best->rumour + " ITS LAIR IS OUT TO THE " + dw + ", HALF A MORNING FROM HERE.";
+    else if (dist < 320) t = best->rumour + " ITS LAIR IS A GOOD DAY OUT TO THE " + dw + ".";
+    else t = best->rumour + " ITS LAIR IS FAR OFF TO THE " + dw + ".";
     marks[markKey(best->id, mk(foes::MK_FOES_RUMOUR))] = 1;
   }
   bool ok = false;
@@ -891,8 +895,13 @@ bool Game::foeChoose(const DlgOpt& o) {
   if (ok && !FoeOps::slainBoss(*this, b.id)) {
     int32_t bx = 0, by = 0;
     foes::worldBossAt(b, day, hour, bx, by);
-    const std::string boss = " AND PRAY " + b.name + " KEEPS TO THE " + dirWord(bx - pgx, by - pgy, false) + ". IT IS A " + b.kind + ", BIGGER THAN A BARN.";
-    t += t.empty() ? boss.substr(5) : boss;
+    // (M7b) the great beast as its own thought, said whole: what it is, where it was seen (never glued on with "AND")
+    const std::string kind = b.kind;
+    const bool vowel = !kind.empty() && std::string("AEIOU").find(kind[0]) != std::string::npos;
+    const std::string dir = dirWord(bx - pgx, by - pgy, false);
+    const std::string boss = t.empty() ? "WORSE THAN ANY WOLF: " + b.name + ", " + (vowel ? "AN " : "A ") + kind + " BIGGER THAN A BARN. IT WAS LAST SEEN TO THE " + dir + "."
+                                       : "WORSE STILL, " + b.name + " ROAMS THE " + dir + ": " + (vowel ? "AN " : "A ") + kind + " BIGGER THAN A BARN.";
+    t = t.empty() ? boss : speech::fitsPanel(t + " " + boss) ? t + " " + boss : t;
   }
   if (t.empty()) t = "NOTHING WORSE THAN WOLVES ROUND HERE, THE GODS BE THANKED.";
   dlg.text = t;

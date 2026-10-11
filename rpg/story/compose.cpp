@@ -252,6 +252,33 @@ std::map<std::string, std::string> slotsOf(const std::string& body) {
   return m;
 }
 
+// (M7b) has the story already said this phrase, or one sharing four words in a row with it ("I SAY IT ONCE. I MEAN IT
+// ALWAYS." and "YOU ARE GOOD. I SAY IT ONCE.")? A phrase is heard once a story.
+namespace {
+std::vector<std::string> phraseWords(const std::string& s) {
+  std::vector<std::string> w;
+  std::string cur;
+  for (char c : s) {
+    if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '\'' || c == '{' || c == '}' || c == '.') { if (c != '.') cur += c; else if (!cur.empty()) { w.push_back(cur); cur.clear(); } }
+    else if (!cur.empty()) { w.push_back(cur); cur.clear(); }
+  }
+  if (!cur.empty()) w.push_back(cur);
+  return w;
+}
+bool saidBefore(const std::set<std::string>& said, const std::string& text) {
+  if (said.count(text)) return true;
+  const std::vector<std::string> a = phraseWords(text);
+  if (a.size() < 4) return false;
+  for (const std::string& o : said) {
+    const std::vector<std::string> b = phraseWords(o);
+    for (size_t i = 0; i + 4 <= a.size(); i++)
+      for (size_t j = 0; j + 4 <= b.size(); j++)
+        if (a[i] == b[j] && a[i + 1] == b[j + 1] && a[i + 2] == b[j + 2] && a[i + 3] == b[j + 3]) return true;
+  }
+  return false;
+}
+}  // namespace
+
 std::string expand(const std::string& body, Expand& x) {
   std::string out;
   for (const std::string& l0 : splitLines(body)) {
@@ -348,7 +375,18 @@ std::string expand(const std::string& body, Expand& x) {
         v.voice = x.voice;
         v.motive = m;
         v.seed = step(x.rng);
-        const Phrase ph = phrase(key, v);
+        {   // (M7b) after other words of its quoted line: a phrase that stands alone, never an opener
+          const size_t q = o.rfind('"');
+          v.midLine = inQuote && q != std::string::npos && o.find_first_not_of(' ', q + 1) != std::string::npos;
+        }
+        Phrase ph = phrase(key, v);
+        // (M7b) a phrase is said once in a story: a repeat is drawn again (a few more steps of the story's own rng,
+        // so the choice stays a pure function of the spec)
+        for (int tries = 0; tries < 6 && !ph.text.empty() && saidBefore(x.said, ph.text); tries++) {
+          v.seed = step(x.rng);
+          ph = phrase(key, v);
+        }
+        if (!ph.text.empty()) x.said.insert(ph.text);
         if (ph.text.empty()) x.errors.push_back("unknown voice key <<" + key + ">>");
         else if (ph.family) x.families.push_back(ph.family);
         o += ph.text;
@@ -388,6 +426,7 @@ std::string expand(const std::string& body, Expand& x) {
 
 // ---------------------------------------------------------------- composing
 namespace {
+
 
 // parse, link and validate composed text into `s` (one script); problems into `errors`
 bool parseComposed(const std::string& text, dsl::Script& s, std::vector<std::string>& errors) {
@@ -456,10 +495,12 @@ bool compose(const Spec& s, Composed& out) {
     y.motive = x.motive;
     y.flags = x.flags;
     y.picks = x.picks;
+    y.said = x.said;
     y.prefix = sn + "_";
     y.targets["@out"] = it->second;
     out.text += "# twist " + sn + ": " + t->id + "\n" + expand(t->body, y);
     x.rng = y.rng;
+    x.said = y.said;
     for (uint32_t f : y.families) x.families.push_back(f);
     for (const std::string& e : y.errors) x.errors.push_back("twist " + std::string(t->id) + ": " + e);
   }

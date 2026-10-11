@@ -62,7 +62,7 @@ struct CraftOps {
     if (trust >= craft::TRUST_PATTERN) {
       for (craft::SecretKind k : {craft::SecretKind::WeaponPattern, craft::SecretKind::ArmourPattern})
         if (!g.craft.knows(c.id, 0, k) && craft::learnSecret(g.craft, c, 0, k, 100, craft::HOW_APPRENTICE)) {
-          said += " LEARNED " + craft::secretName(c, 0, k) + ".";
+          said += " WATCH CLOSELY: THIS IS HOW WE MAKE " + craft::secretName(c, 0, k) + ".";
           g.emit(Ev::QuestUpdate, g.pl().p, 0, 1, "LEARNED " + craft::secretName(c, 0, k));
         }
     }
@@ -72,7 +72,7 @@ struct CraftOps {
         if (g.craft.knows(c.id, al, craft::SecretKind::AlloyRecipe)) continue;
         if (!craft::howAllowed(c, al, craft::SecretKind::AlloyRecipe, craft::HOW_APPRENTICE)) continue;
         if (craft::learnSecret(g.craft, c, al, craft::SecretKind::AlloyRecipe, 100, craft::HOW_APPRENTICE)) {
-          said += " LEARNED " + craft::secretName(c, al, craft::SecretKind::AlloyRecipe) + ".";
+          said += " NOW THE SECRET OF " + craft::secretName(c, al, craft::SecretKind::AlloyRecipe) + ". TELL NO ONE.";
           g.emit(Ev::QuestUpdate, g.pl().p, 0, 1, "LEARNED " + craft::secretName(c, al, craft::SecretKind::AlloyRecipe));
           g.sfx((int)Sfx::LevelUp, g.pl().p, 1.1f);
         }
@@ -106,6 +106,11 @@ struct CraftOps {
            : t >= 30 ? "YOU ARE LEARNING. BRING ME MORE WORK."
            : "I DON'T TEACH STRANGERS. BUY FROM ME, COMMISSION A PIECE, AND WE'LL SEE.";
   }
+  // (M7b) what more trust would earn, said by the smith (the old "(TRUST 0/100...)" note read as a journal entry)
+  static std::string trustHint(int t) {
+    return t >= craft::TRUST_ALLOY ? "" : t >= craft::TRUST_PATTERN ? "A LITTLE MORE, AND I'LL TEACH YOU OUR ALLOY."
+                                                                    : "EARN MY TRUST AND I'LL SHOW YOU MY PATTERNS.";
+  }
 };
 
 // ---------------------------------------------------------------------------------------------- the dialogue
@@ -117,8 +122,10 @@ void Game::craftTalk(Actor& a) {
     const auto mb = marks.find(markKey(npcKey(a), MK_BARRED));
     if (mb != marks.end() && day <= mb->second) {
       dlg.opts.erase(std::remove_if(dlg.opts.begin(), dlg.opts.end(), [](const DlgOpt& o) { return o.action == A_TRADE; }), dlg.opts.end());
-      dlg.text = "YOU. THIEF. GET OUT OF MY FORGE BEFORE I CALL THE WATCH AGAIN. (BARRED FOR " +
-                 std::to_string(mb->second - day + 1) + (mb->second - day + 1 == 1 ? " DAY)" : " DAYS)");
+      const int left = mb->second - day + 1;
+      speech::propose(dlg, speech::P_URGENT, speech::Topic::Craft,
+                      "YOU. THIEF. GET OUT OF MY FORGE BEFORE I CALL THE WATCH AGAIN, AND DON'T SHOW YOUR FACE HERE FOR " +
+                          (left == 1 ? std::string("A DAY.") : speech::countWord(left) + " DAYS."));
       return;
     }
   }
@@ -160,8 +167,8 @@ bool Game::craftChoose(const DlgOpt& o) {
       for (const Item& it : inv) study |= CraftOps::studyable(*this, it);
       const auto mt = marks.find(markKey(key, MK_THEFT));
       const int t = craft.trust.count(key) ? craft.trust[key] : 0;
-      dlg.text = CraftOps::trustLine(t) + " (TRUST " + std::to_string(t) + "/100: PATTERNS AT " + std::to_string(craft::TRUST_PATTERN) + ", AN ALLOY AT " +
-                 std::to_string(craft::TRUST_ALLOY) + ")";
+      dlg.text = speech::joinFit(CraftOps::trustLine(t), CraftOps::trustHint(t));
+      if (t < 30) dlg.text = "I DON'T TEACH STRANGERS. BUY FROM ME, COMMISSION A PIECE, AND IN TIME I'LL SHOW YOU MY PATTERNS.";
       craftMenu(*this, study, mt == marks.end() || mt->second != day, CraftOps::commissionPrice(*this, si));
       return true;
     }
@@ -190,14 +197,15 @@ bool Game::craftChoose(const DlgOpt& o) {
       if (earns) last = day / 2 + 1;
       craft.trust[key] = (uint8_t)nt;
       std::string said = "HERE: " + it.name + ". HONEST WORK. " +
-                         (earns ? CraftOps::trustLine(nt) : std::string("TRUST IS EARNED OVER SEASONS, NOT BOUGHT IN AN AFTERNOON."));
+                         (!earns ? std::string("TRUST IS EARNED OVER SEASONS, NOT BOUGHT IN AN AFTERNOON.")
+                          : nt < 30 ? std::string("KEEP BUYING FROM ME AND WE'LL SEE ABOUT LESSONS.") : CraftOps::trustLine(nt));
       if (c) CraftOps::teach(*this, *c, nt, said);
       dlg.text = said;
       return true;
     }
     case CR_TEACH: {
       const int t = craft.trust.count(key) ? craft.trust[key] : 0;
-      std::string said = CraftOps::trustLine(t) + " (TRUST " + std::to_string(t) + "/100)";
+      std::string said = t < 30 ? std::string("NOT YET. I DON'T KNOW YOU WELL ENOUGH TO SHOW YOU MY WORK.") : speech::joinFit(CraftOps::trustLine(t), CraftOps::trustHint(t));
       if (c) CraftOps::teach(*this, *c, t, said);
       dlg.text = said;
       return true;
@@ -265,6 +273,7 @@ bool Game::craftChoose(const DlgOpt& o) {
       }
       // caught: the smith shouts, the watch comes, the kingdom remembers
       craft.trust[key] = 0;
+      if (a.npc && a.human) talkMem.flag(key, speech::TM_SLIGHTED, day);   // (M7b) the smith remembers
       if (si >= 0) if (const Kingdom* K = world.kingdomOf(si)) realm.addRep(K->id, -20);
       int guards = 0;
       for (size_t k = 1; k < actors.size(); k++) {

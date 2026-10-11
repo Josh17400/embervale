@@ -94,7 +94,65 @@ inline Faction monsterFaction(Monster m) {
 
 // dialogue option actions (DlgOpt::action). M2 appends the wayside and quest ones.
 enum DlgAct { A_BYE, A_TRADE, A_REST, A_RUMOR, A_ACCEPT, A_TURNIN, A_MAIN, A_HEAL, A_LEARN, A_CHAT, A_DECLINE, A_ASK, A_BED,
-              A_DELIVER, A_ESCORT, A_TOLLPAY, A_TOLLREFUSE, A_NEWS, A_GRAVE };
+              A_DELIVER, A_ESCORT, A_TOLLPAY, A_TOLLREFUSE, A_NEWS, A_GRAVE,
+              A_GROUP, A_BACK };   // (M7b) an option group's header (arg: the group) and the way back to the first page
+
+// (fixer M7b r1, review: "script choose can pick options hidden in a closed option group") the option a player can
+// reach by tapping: one on show now, else one behind a header on show (the header is tapped first), else one back on
+// the first page or in another group (SOMETHING ELSE. first). Test scripts choose through this, so they walk the
+// player's own way through the option groups. open: tap the way there and return the option's index once it is on
+// show; !open: only say whether it is reachable (its index, the dialogue untouched). -1: the player cannot reach it.
+template <class Match>
+inline int dlgReach(Game& g, Match match, bool open) {
+  auto shownAt = [&]() {
+    for (size_t o = 0; o < g.dlg.opts.size(); o++) if (g.dlg.shows(g.dlg.opts[o]) && match(g.dlg.opts[o])) return (int)o;
+    return -1;
+  };
+  for (int step = 0; step < 3; step++) {
+    const int k = shownAt();
+    if (k >= 0) return k;
+    int target = -1;
+    for (size_t o = 0; o < g.dlg.opts.size() && target < 0; o++) if (match(g.dlg.opts[o])) target = (int)o;
+    if (target < 0) return -1;
+    const int grp = g.dlg.opts[(size_t)target].grp;
+    int tap = -1;
+    for (size_t h = 0; h < g.dlg.opts.size() && tap < 0; h++) {
+      const DlgOpt& hd = g.dlg.opts[h];
+      if (!g.dlg.shows(hd)) continue;
+      if (hd.action == A_GROUP && hd.arg == grp) tap = (int)h;   // its header is on this page
+    }
+    for (size_t h = 0; h < g.dlg.opts.size() && tap < 0; h++) {
+      const DlgOpt& hd = g.dlg.opts[h];
+      if (g.dlg.shows(hd) && hd.action == A_BACK) tap = (int)h;   // back to the first page, then on from there
+    }
+    if (tap < 0) return -1;
+    if (!open) {   // (a dry run: its header is on the first page, or on this one)
+      if (g.dlg.opts[(size_t)tap].action == A_GROUP || grp == 0) return target;
+      for (const DlgOpt& hd : g.dlg.opts) if (hd.action == A_GROUP && hd.arg == grp && hd.grp == 0) return target;
+      return -1;
+    }
+    g.dialogueChoose(tap);
+    if (g.mode != Mode::Dialogue) return -1;
+  }
+  return -1;
+}
+
+// (M7b) the kind of a townsfolk option (life_game.cpp): 1 a service (the inn's meal, food for the stores), 2 a kindness
+// (share food, a coin, a day's hire), 3 the chat ("HOW ARE YOU KEEPING?"), 0 anything else
+int lifeOptKind(int action);
+
+// (M7b) a count of goods as people say it: "SIX CUTS OF MEAT", "FOUR SACKS OF FLOUR" (good: ew::goodName's word)
+inline std::string goodUnits(int n, const std::string& good) {
+  static const char* const k[][2] = {{"GRAIN", "SACKS OF GRAIN"}, {"FLOUR", "SACKS OF FLOUR"}, {"BREAD", "LOAVES OF BREAD"},
+                                     {"PRODUCE", "BASKETS OF PRODUCE"}, {"FISH", "BASKETS OF FISH"}, {"ORE", "LOADS OF ORE"},
+                                     {"INGOTS", "INGOTS"}, {"TOOLS", "SETS OF TOOLS"}, {"LOGS", "LOADS OF LOGS"}, {"PLANKS", "BUNDLES OF PLANKS"},
+                                     {"WOOL", "BALES OF WOOL"}, {"CLOTH", "BOLTS OF CLOTH"}, {"LIVESTOCK", "HEAD OF LIVESTOCK"},
+                                     {"MEAT", "CUTS OF MEAT"}, {"HIDES", "HIDES"}, {"LEATHER", "ROLLS OF LEATHER"}, {"POTTERY", "PIECES OF POTTERY"}};
+  static const char* const w[] = {"NO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE", "TEN", "ELEVEN", "TWELVE"};
+  const std::string num = n >= 0 && n <= 12 ? std::string(w[n]) : std::to_string(n);
+  for (const auto& e : k) if (good == e[0]) return num + " " + e[1];
+  return num + " LOADS OF " + good;
+}
 
 // ---- quest text helpers (game_rpg.cpp, quests.cpp, wayside.cpp)
 inline const char* monsterPlural(Monster m) {
@@ -182,7 +240,7 @@ inline uint64_t markKey(uint64_t id, Mk tag) { return ew::mix64(id ^ ((uint64_t)
 
 // M2 travel behind the fade (travel.cpp): the fade to black, and frameWork's generation budget once it is black
 constexpr float kTravelFadeOut = 0.25f;
-constexpr double kTravelBlackBudgetMs = 11.0;
+constexpr double kTravelBlackBudgetMs = 9.0;   // (11 let one chunk job overrun the 16 ms step on the web after M7b cities)
 }  // namespace gsim
 using namespace gsim;
 

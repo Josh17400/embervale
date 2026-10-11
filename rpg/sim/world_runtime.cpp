@@ -29,6 +29,7 @@ uint64_t bldgOpenKey(const Bldg& b) {
   mx((uint64_t)b.wealth | (uint64_t)b.form << 8 | (uint64_t)b.civic << 16 | (uint64_t)b.seat << 24 | (uint64_t)b.urban << 32 |
      (uint64_t)b.storeys << 40 | (uint64_t)b.styled << 48 | (uint64_t)b.biome << 56);
   mx((uint64_t)b.arch.culture | (uint64_t)b.arch.variant << 8 | (uint64_t)b.arch.wall << 16 | (uint64_t)b.arch.roof << 24 | (uint64_t)b.roof << 32);
+  if (b.row) mx((uint64_t)b.row | 0x0E00u);   // (M7b) a row house's party walls change its blueprint (bld::terrace)
   return k | 1u;
 }
 void fillOpen(const Bldg& b, const bld::Blueprint& bp, uint64_t key) {

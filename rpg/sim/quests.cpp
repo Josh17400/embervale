@@ -48,6 +48,12 @@ struct Vars {
   }
 };
 template <size_t N> const char* pick(Rng& r, const char* const (&a)[N]) { return a[r.irange((int)N)]; }
+// (M7b integration) a place named for what it is ("TOMB OF SHENSHA", "CAVES OF IRON") is spoken with its article:
+// "WENT INTO THE TOMB OF SHENSHA", and once named it is "THE PLACE"; a proper name ("SESAI CAVERN") is not
+std::string spokenPlace(const std::string& n) {
+  if (n.empty() || n.rfind("THE ", 0) == 0 || n.find(" OF ") == std::string::npos) return n;
+  return "THE " + n;
+}
 
 const char* walkWords(float tiles) {
   const float h = tiles / 30.0f;
@@ -56,33 +62,38 @@ const char* walkWords(float tiles) {
   if (h < 4.5f) return "A FEW HOURS' WALK";
   if (h < 9.0f) return "HALF A DAY'S WALK";
   if (h < 18.0f) return "A DAY'S WALK";
-  return "DAYS ON THE ROAD";
+  return "SEVERAL DAYS' WALK";
 }
 
-// ---- the grammar
+// ---- the grammar (M7b: each opener a whole sentence in the speaker's own trade and tone, so the pitch reads as one
+// person talking: why they ask, what happened, where, what they want, what they pay)
 const char* const kMoodAny[] = {
-    "I HATE TO ASK A STRANGER, BUT I'M OUT OF FRIENDS TO ASK.", "YOU HAVE THE LOOK OF SOMEONE WHO CAN HANDLE A BLADE.",
-    "KEEP YOUR VOICE DOWN AND LISTEN.", "BY THE OLD GODS, I'M AT MY WIT'S END.", "I'LL BE PLAIN WITH YOU.",
-    "YOU'RE NOT FROM {H}. GOOD: NOBODY HERE WILL DO IT.", "SIT A MOMENT. I NEED SOMEONE I DON'T OWE FAVOURS TO.",
-    "THE GODS MUST HAVE SENT YOU."};
-const char* const kMoodGuard[] = {"THE WATCH IS STRETCHED THIN, SO I'LL TAKE ANY BLADE I CAN GET.", "OFF THE RECORD, TRAVELLER:",
-                                  "THE CAPTAIN WON'T SPARE THE MEN. SO I'M ASKING YOU."};
-const char* const kMoodJarl[] = {"THE HOLD HAS NEED OF YOU.", "MY HOUSECARLS ARE NEEDED HERE. YOU ARE NOT.", "SERVE THE HOLD AND THE HOLD REMEMBERS."};
-const char* const kMoodInn[] = {"YOU HEAR THINGS, KEEPING AN INN.", "POUR YOURSELF A MUG. IT'S ON THE HOUSE IF YOU HEAR ME OUT.",
-                                "EVERY TRAVELLER WHO SITS AT THAT TABLE HAS THE SAME STORY LATELY."};
+    "I HATE TO ASK A STRANGER, BUT I'M OUT OF FRIENDS TO ASK.", "YOU LOOK LIKE SOMEONE WHO CAN HANDLE A BLADE, AND I NEED SOMEONE LIKE THAT.",
+    "I'LL BE PLAIN WITH YOU: I NEED HELP.", "YOU'RE NOT FROM {H}, ARE YOU? GOOD. NOBODY HERE WILL DO THIS.",
+    "IF IT'S WORK YOU'RE AFTER, I HAVE SOME.", "THE GODS MUST HAVE SENT YOU. I'M AT MY WIT'S END."};
+const char* const kMoodGuard[] = {"THE WATCH IS STRETCHED THIN, SO I'LL TAKE ANY BLADE I CAN GET.", "THIS STAYS BETWEEN US, TRAVELLER.",
+                                  "THE CAPTAIN WON'T SPARE THE MEN, SO I'M ASKING YOU."};
+const char* const kMoodJarl[] = {"{H} HAS NEED OF YOU.", "MY OWN GUARD IS NEEDED HERE, BUT YOU ARE FREE TO GO WHERE THEY CANNOT.",
+                                 "SERVE {H} WELL AND {H} WILL REMEMBER IT."};
+const char* const kMoodInn[] = {"YOU HEAR THINGS, KEEPING AN INN, AND I DON'T LIKE WHAT I'M HEARING.",
+                                "SIT DOWN A MOMENT. THE NEXT MUG IS ON THE HOUSE IF YOU HEAR ME OUT.",
+                                "EVERY TRAVELLER AT MY TABLES TELLS THE SAME STORY LATELY."};
 const char* const kMoodPriest[] = {"THE GODS ASK MUCH OF US. TODAY THEY ASK SOMETHING OF YOU.", "I PRAYED FOR HELP, AND HERE YOU STAND.",
-                                   "THERE IS A WEIGHT ON THIS TEMPLE, CHILD."};
-const char* const kMoodFarmer[] = {"IT'S BEEN A HARD SEASON, AND IT'S ABOUT TO GET HARDER.", "I'M A FARMER, NOT A FIGHTER.",
+                                   "A WEIGHT LIES ON THIS TEMPLE, CHILD."};
+const char* const kMoodFarmer[] = {"IT'S BEEN A HARD SEASON, AND IT'S ABOUT TO GET HARDER.", "I'M A FARMER, NOT A FIGHTER. YOU LOOK LIKE ONE.",
                                    "THE HARVEST WON'T WAIT, AND NEITHER WILL THIS."};
-const char* const kMoodHunter[] = {"YOU WALK QUIETER THAN MOST TOWNSFOLK.", "THE WOODS ARE TALKING, IF YOU KNOW HOW TO LISTEN."};
-const char* const kMoodTrade[] = {"BUSINESS IS BUSINESS, AND THIS IS BUSINESS.", "TIME IS COIN, SO I'LL BE QUICK.", "I'VE A JOB FOR STEADY HANDS."};
+const char* const kMoodHunter[] = {"YOU WALK QUIETER THAN MOST TOWNSFOLK. GOOD.", "THE WOODS ARE UNEASY, IF YOU KNOW HOW TO LISTEN."};
+const char* const kMoodTrade[] = {"I'VE A JOB FOR STEADY HANDS, AND IT PAYS.", "TIME IS COIN, SO I'LL BE QUICK.",
+                                  "HEAR ME OUT. I'LL MAKE IT WORTH YOUR WHILE."};
 
 const char* const kReward[] = {"THERE'S {G} GOLD IN IT FOR YOU.", "I CAN PAY {G} GOLD. IT'S ALL I HAVE.", "{G} GOLD, AND MY THANKS.",
-                               "{G} GOLD WHEN IT'S DONE. HALF OF {H} CHIPPED IN.", "DO THIS AND {G} GOLD IS YOURS.",
-                               "{G} GOLD. DON'T HAGGLE, I'M NOT A MERCHANT."};
-const char* const kRewardCrown[] = {"THE CROWN OF {K} PAYS {G} GOLD FOR WORK LIKE THIS.", "{G} GOLD FROM THE HOLD'S PURSE."};
-const char* const kDanger[] = {"BE WARNED: IT IS DANGEROUS COUNTRY. I'LL PAY HALF AGAIN FOR THE RISK.",
-                               "IT IS DANGEROUS COUNTRY OUT THERE, SO THE PRICE IS HALF AGAIN."};
+                               "{G} GOLD WHEN IT'S DONE. HALF OF US HERE CHIPPED IN.", "DO THIS AND {G} GOLD IS YOURS.",
+                               "I'LL PAY {G} GOLD WHEN YOU'RE BACK."};
+const char* const kRewardTrade[] = {"{G} GOLD, PAID THE DAY IT'S DONE.", "I'LL PAY {G} GOLD. A FAIR PRICE, AND YOU KNOW IT.",
+                                    "{G} GOLD. DON'T HAGGLE: I'M THE MERCHANT HERE."};
+const char* const kRewardCrown[] = {"THE CROWN OF {K} PAYS {G} GOLD FOR WORK LIKE THIS.", "{G} GOLD FROM THE TREASURY WHEN IT'S DONE."};
+const char* const kDanger[] = {"BE WARNED: IT'S DANGEROUS COUNTRY, SO I'LL PAY HALF AGAIN FOR THE RISK.",
+                               "IT'S DANGEROUS COUNTRY OUT THERE, SO THE PRICE IS HALF AGAIN."};
 
 const char* const kRelK[] = {"GRANDMOTHER", "GRANDFATHER", "FATHER", "MOTHER", "UNCLE", "AUNT", "BROTHER", "SISTER", "HUSBAND", "WIFE"};
 const bool kRelFemale[] = {true, false, false, true, false, true, false, true, false, true};
@@ -119,23 +130,24 @@ art::Building roleBuilding(Role r) {
 }  // namespace
 
 namespace {
-// (M3c LIFE) a hunt's reason in the land's own terms ({M} the beasts, {H} the giver's home, {E} the biome's name);
+// (M3c LIFE) a hunt's reason in the land's own terms ({M} the beasts, {E} the biome's name; (fixer M7b r2) the giver's
+// own home said as "HERE", "OUR", never by its name);
 // nullptr where the classic lines fit (the temperate meadows and downs)
 const char* huntFlavour(Eco e, uint64_t k) {
-  static const char* const desert[] = {"THE {M} CAME OUT OF THE {E} AND STUNG A CAMEL DRIVER OUTSIDE {H}.",
+  static const char* const desert[] = {"THE {M} CAME OUT OF THE {E} AND STUNG A CAMEL DRIVER JUST OUTSIDE OUR WALLS.",
                                        "NOTHING MOVES IN THE {E} BY DAY BUT THE {M}. NOW THEY COME TO OUR WELL BY NIGHT.",
                                        "THE CARAVANS WON'T CROSS THE {E} WHILE THE {M} ARE OUT."};
-  static const char* const grass[] = {"THE {M} CIRCLE THE HERDS OF {H} EVERY DUSK.", "YOU CAN HEAR THE {M} OUT ON THE {E} ALL NIGHT. THEY HAVE OUR SCENT.",
+  static const char* const grass[] = {"THE {M} CIRCLE OUR HERDS EVERY DUSK.", "YOU CAN HEAR THE {M} OUT ON THE {E} ALL NIGHT. THEY HAVE OUR SCENT.",
                                       "WE LOST TWO GOATS TO THE {M} IN THE LONG GRASS."};
   static const char* const cold[] = {"THE {M} CAME DOWN OFF THE {E} WITH THE BLIZZARD, AND THEY ARE STARVING.",
                                      "TRACKS IN THE SNOW BY THE WOODPILE AGAIN. THE {M}.", "THE ICE FISHERS WON'T GO OUT WHILE THE {M} ROAM."};
-  static const char* const wet[] = {"THE {M} TOOK A NET-MENDER AT THE WATER'S EDGE BY {H}.", "NOBODY WADES THE {E} NOW. THE {M} ARE TOO MANY.",
+  static const char* const wet[] = {"THE {M} TOOK A NET-MENDER AT THE WATER'S EDGE, A STONE'S THROW FROM HERE.", "NOBODY WADES THE {E} NOW. THE {M} ARE TOO MANY.",
                                     "SOMETHING DRAGS OUR EEL TRAPS UNDER. THE {M}, THE OLD ONES SAY."};
   static const char* const wood[] = {"THE {M} OF THE {E} ARE TAKING THE CHARCOAL BURNERS' DOGS.",
-                                     "THE WOODCUTTERS WON'T GO INTO THE {E} WHILE THE {M} ARE ABOUT.", "THE {M} HAVE THE FORAGERS TOO FRIGHTENED TO LEAVE {H}."};
+                                     "THE WOODCUTTERS WON'T GO INTO THE {E} WHILE THE {M} ARE ABOUT.", "THE {M} HAVE THE FORAGERS TOO FRIGHTENED TO LEAVE HOME."};
   static const char* const ash[] = {"THE {M} RUN THE {E} IN BURNING PACKS. ONE SET A BARN ALIGHT.", "THE {M} COME OUT OF THE ASH WITH EMBERS IN THEIR FUR."};
   static const char* const blight[] = {"THE {E} SPREADS, AND THE {M} SPREAD WITH IT.", "THE {M} CAME OUT OF THE ROTTEN GROUND. THE CROPS WITHER WHERE THEY WALK."};
-  static const char* const coast[] = {"THE {M} HAVE BEEN AT THE NETS ON THE SHORE BELOW {H}.", "THE GULLS GO QUIET WHEN THE {M} COME UP THE BEACH."};
+  static const char* const coast[] = {"THE {M} HAVE BEEN AT THE NETS ON THE SHORE BELOW US.", "THE GULLS GO QUIET WHEN THE {M} COME UP THE BEACH."};
   static const char* const eerie[] = {"LIGHTS IN THE {E} AT NIGHT, AND THE {M} AMONG THEM. A CHILD FOLLOWED ONE.",
                                       "THE {M} OF THE {E} LEAD TRAVELLERS ASTRAY. SOME NEVER COME BACK."};
   auto pickA = [&](const char* const* a, int n) { return a[(int)(k % (uint64_t)n)]; };
@@ -333,7 +345,7 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
     q.target = t; q.targetId = T.id;
     q.hasPos = true; q.tgx = world.ox + T.ex; q.tgy = world.oy + T.ey;
     targetLevel = std::max(targetLevel, T.level);
-    V.set("T", T.name);
+    V.set("T", spokenPlace(T.name));
     V.set("D", dirWord(q.tgx - hx, q.tgy - hy, false));
     V.set("W", walkWords(std::hypot((float)(q.tgx - hx), (float)(q.tgy - hy))));
     V.set("M", monsterPlural(T.theme));
@@ -379,8 +391,8 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
         if (k == K_BOUNTY) {
           q.type = QType::Bounty;
           static const char* const ti[] = {"BOUNTY: {T}", "A PRICE ON {T}", "THE OUTLAWS OF {T}"};
-          static const char* const re[] = {"BANDITS AT {T} HAVE BEEN RAIDING THE ROADS {D} OF {H}.",
-                                           "THE OUTLAWS OF {T} ROBBED A WAGON BOUND FOR {H} LAST WEEK.",
+          static const char* const re[] = {"BANDITS AT {T} HAVE BEEN RAIDING THE ROADS {D} OF HERE.",
+                                           "THE OUTLAWS OF {T} ROBBED A WAGON ON ITS WAY HERE LAST WEEK.",
                                            "THEY BURNED A FARM NEAR {N}. THE TRACKS LED TO {T}, {W} {D}."};
           static const char* const as[] = {"KILL THEIR CHIEF AND THE REST WILL SCATTER.", "CUT THE HEAD OFF THAT SNAKE: KILL THEIR CHIEF."};
           title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as);
@@ -395,7 +407,7 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
           pron(personFemale(q, seed));
           V.set("S", q.subject);
           static const char* const ti[] = {"{S}", "THE END OF {S}", "A PRICE ON {S}"};
-          static const char* const re[] = {"{S} RULES {T} NOW. {P_SUBJ} BURNED THE MILL AT {H} LAST SPRING.",
+          static const char* const re[] = {"{S} RULES {T} NOW. {P_SUBJ} BURNED OUR MILL LAST SPRING.",
                                            "THEY CALL {P_OBJ} {S}. {P_SUBJ} AND {P_POSS} CUTTHROATS HOLD {T}, {W} {D} OF HERE.",
                                            "EVERY CART ON THE ROAD PAST {N} PAYS {S} A TOLL OR BLEEDS FOR IT."};
           static const char* const as[] = {"END {S} AND THE PRICE ON {P_POSS} HEAD IS YOURS.", "BRING {S} DOWN. NOBODY ELSE WILL."};
@@ -413,9 +425,9 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
         q.need = (q.mon == Monster::Troll || q.mon == Monster::Bear || q.mon == Monster::Sandworm || q.mon == Monster::Yeti || q.mon == Monster::Lurker) ? 2 : 4 + r.irange(3);
         q.target = -1;
         V.set("M", monsterPlural(q.mon));
-        V.set("n", std::to_string(q.need));
+        V.set("n", speech::countWord(q.need));
         static const char* const ti[] = {"CULL THE {M}", "TOO MANY {M}", "THE {M} OF {H}"};
-        static const char* const re[] = {"THE {M} AROUND {H} ARE GETTING BOLD.", "{M} HAVE BEEN AT THE SHEEP AGAIN.",
+        static const char* const re[] = {"THE {M} AROUND HERE ARE GETTING BOLD.", "{M} HAVE BEEN AT THE SHEEP AGAIN.",
                                          "THE {M} CAME DOWN PAST {N} WITH THE COLD, AND THEY ARE HUNGRY.", "I LOST A GOOD DOG TO THE {M} LAST NIGHT."};
         static const char* const as[] = {"KILL {n} OF THEM.", "THIN THEM OUT: {n} SHOULD DO IT."};
         static const char* const de[] = {"THE {M} AROUND {H} ARE GETTING BOLD. KILL {n} OF THEM AND {GIVER} WILL PAY YOU.",
@@ -450,6 +462,15 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
         d.site = t;
         Rng pr = personRng(q, seed);
         makeLook(d, role, pr);
+        // (fixer M7b r2, review: "the recipient has the same name as the giver: it reads as the speaker naming
+        // herself") another person seed until the recipient's name is not the giver's (personRng keys on it everywhere)
+        for (int k = 0; k < 4 && d.name == a.name; k++) {
+          q.flags = (q.flags & 0xFFFFu) | ((((q.flags >> 16) + 1u) & 0xFFFFu) << 16);
+          d = Actor();
+          d.site = t;
+          Rng pr2 = personRng(q, seed);
+          makeLook(d, role, pr2);
+        }
         q.subject = d.name;
         pron(personFemale(q, seed));
         V.set("S", q.subject);
@@ -459,9 +480,9 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
           if (world.over.bldgs[(size_t)b].type == roleBuilding(role)) { q.destBldg = b; break; }
         static const char* const ti[] = {"A PARCEL FOR {S}", "THE ROAD TO {T}", "LETTERS FOR {T}"};
         static const char* const re[] = {"THIS PARCEL MUST REACH {S}, THE {R} OF {T}. THE ROAD RUNS {D}, {W}.",
-                                         "I PROMISED {S} IN {T} THIS PACKAGE BEFORE THE NEW MOON, AND MY LEGS ARE NOT WHAT THEY WERE.",
-                                         "{S}, THE {R} OF {T}, IS WAITING ON THESE LETTERS. IT IS {W} {D} OF HERE."};
-        static const char* const as[] = {"TAKE IT TO {P_OBJ}.", "PUT IT IN THE HANDS OF {S} AND NOBODY ELSE."};
+                                         "I PROMISED {S}, THE {R} OF {T}, THIS PARCEL BEFORE THE NEW MOON, AND MY LEGS ARE NOT WHAT THEY WERE.",
+                                         "{S}, THE {R} OF {T}, IS WAITING ON THIS BUNDLE OF LETTERS. IT IS {W} {D} OF HERE."};
+        static const char* const as[] = {"TAKE IT TO {P_OBJ}, AND TO NOBODY ELSE.", "PUT IT IN {P_POSS} OWN HANDS."};
         title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as);
         desc = "CARRY A PARCEL FROM {GIVER} TO {S}, THE {R} OF {T} ({D} OF {H}). {S} PAYS ON DELIVERY.";
         return true;
@@ -506,8 +527,8 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
         V.set("LOOK", pick(r, kLookingFor));
         static const char* const ti[] = {"MISSING: {S}", "FIND {S}", "{S} HAS NOT COME HOME"};
         static const char* const re[] = {"MY {REL2} {S} WENT INTO {T} {X} DAYS AGO AND HAS NOT COME BACK.",
-                                         "{S} WENT LOOKING FOR {LOOK} NEAR {T} AND NEVER CAME BACK. SOMEONE SAW A LIGHT IN THE CAVE.",
-                                         "{S} WAS TAKEN. THE TRACKS LEAD TO {T}, {W} {D}."};
+                                         "MY {REL2} {S} WENT LOOKING FOR {LOOK} NEAR {T} AND NEVER CAME BACK. SOMEONE SAW A LIGHT IN THE CAVE.",
+                                         "MY {REL2} {S} WAS TAKEN. THE TRACKS LEAD TO {T}, {W} {D}."};
         static const char* const as[] = {"BRING {P_OBJ} HOME ALIVE.", "FIND {P_OBJ}. PLEASE."};
         title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as);
         desc = "{S}, {GIVER}'S {REL2}, WENT MISSING IN {T} ({D} OF {H}). FIND {P_OBJ} ALIVE AND LEAD {P_OBJ} OUT.";
@@ -587,12 +608,33 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
     case Role::Merchant: case Role::Smith: mood = pick(r, kMoodTrade); break;
     default: mood = pick(r, kMoodAny); break;
   }
-  const char* reward = (K && (a.role == Role::Jarl || a.role == Role::Guard) && r.f() < 0.5f) ? pick(r, kRewardCrown) : pick(r, kReward);
-  if (made == K_DELIVER) reward = "{S} PAYS {G} GOLD WHEN IT ARRIVES.";
-  std::string pitch = std::string(mood) + " " + reason + " " + ask;
-  if (danger) pitch += std::string(" ") + pick(r, kDanger);
-  pitch += std::string(" ") + reward;
-  pendingPitch_ = V.fill(pitch);
+  const bool trade = a.role == Role::Merchant || a.role == Role::Smith || a.role == Role::Mage;
+  // (a lord or the watch pays from the purse of the realm, never "all I have")
+  const bool crown = a.role == Role::Jarl || a.role == Role::Guard;
+  const char* reward = (K && crown && r.f() < 0.5f) ? pick(r, kRewardCrown) : (trade || crown) ? pick(r, kRewardTrade) : pick(r, kReward);
+  if (made == K_DELIVER) reward = "{P_SUBJ} PAYS {G} GOLD WHEN IT ARRIVES.";
+  // (M7b) where it is, when the reason did not say: the place by name and the way there, before the ask
+  std::string where;
+  if (q.target >= 0 && made != K_PROTECT && reason.find("{D}") == std::string::npos)
+    // (named once is enough: a place the reason already named is "the place"; a delivery's town keeps its name)
+    where = reason.find("{T}") != std::string::npos && made != K_DELIVER ? "THE PLACE IS {W} {D} OF HERE." : "{T} IS {W} {D} OF HERE.";
+  const char* const dangerLine = danger ? pick(r, kDanger) : "";
+  // one person talking, in order: why they ask, what happened, where, what they want, the risk, the pay. A pitch too
+  // long for the phone panel loses its opener first, then the way there (the journal and the map have it)
+  auto compose = [&](bool withMood, bool withWhere) {
+    std::string t;
+    auto add = [&](const std::string& x) { if (!x.empty()) t += (t.empty() ? "" : " ") + x; };
+    if (withMood) add(mood);
+    add(reason);
+    if (withWhere) add(where);
+    add(ask);
+    add(dangerLine);
+    add(reward);
+    return V.fill(t);
+  };
+  pendingPitch_ = compose(true, true);
+  if (!speech::fitsPanel(pendingPitch_)) pendingPitch_ = compose(false, true);
+  if (!speech::fitsPanel(pendingPitch_)) pendingPitch_ = compose(false, false);
   q.title = V.fill(title);
   q.desc = V.fill(desc) + (danger ? " IT IS DANGEROUS COUNTRY." : "");
   return q;
@@ -610,6 +652,17 @@ bool Game::debugOfferTalk(int actorId, QType t) {
   dlg.speaker = actors[(size_t)k].name;
   dlg.role = actors[(size_t)k].role;
   dlg.text = pendingPitch_.empty() ? q.desc : pendingPitch_;
+  {   // (fixer M7b r3) a giver met for the first time says who they are before the pitch, so the panel's title is
+      // "TERAALAI, HERDER" from the first page, not "THE HERDER" and then a name on accepting
+    const Actor& ga = actors[(size_t)k];
+    const bool named = ga.npc && ga.human && ga.role != Role::Guard && ga.role != Role::Soldier && ga.role != Role::Herald && ga.role != Role::Bandit &&
+                       ga.role != Role::King && !ga.name.empty() && ga.name.find("GUARD") == std::string::npos;
+    const uint64_t key = named ? npcKey(ga) : 0;
+    if (key && !talkMem.introduced(key)) {
+      const std::string t = speech::joinFit("I'M " + speech::givenName(ga.name) + ".", dlg.text);
+      if (t != dlg.text) { dlg.text = t; talkMem.flag(key, speech::TM_INTRODUCED, day); }
+    }
+  }
   dlg.opts = {{"I'LL DO IT.", A_ACCEPT, 0}, {"NOT RIGHT NOW.", A_DECLINE, 0}};
   mode = Mode::Dialogue;
   return true;
@@ -692,18 +745,119 @@ std::string Game::questStatusM2(const Quest& q) const {
   }
 }
 
+namespace {
+// (M7b) where a quest's place lies as its giver says it: "SESAI CAVERN, NORTH-WEST OF HERE" ("" without a place)
+std::string placeFromGiver(const Game& g, const Quest& q) {
+  if (q.target < 0 || q.target >= (int)g.world.sites.size()) return "";
+  const Site& T = g.world.sites[(size_t)q.target];
+  if (q.giverSite < 0 || q.giverSite >= (int)g.world.sites.size() || q.giverSite == q.target) return spokenPlace(T.name);
+  const Site& H = g.world.sites[(size_t)q.giverSite];
+  return spokenPlace(T.name) + ", " + dirWord(T.ex - H.ex, T.ey - H.ey, false) + " OF HERE";
+}
+// the keepsake of a heirloom ("GRANDMOTHER'S SILVER RING" -> "SILVER RING")
+std::string keepsakeOf(const std::string& subject) {
+  const size_t ap = subject.find("'S ");
+  return ap == std::string::npos ? subject : subject.substr(ap + 3);
+}
+}  // namespace
+
 std::string Game::turnInLine(const Quest& q) const {
   const std::string g = std::to_string(q.gold);
-  const std::string tname = q.target >= 0 && q.target < (int)world.sites.size() ? world.sites[(size_t)q.target].name : std::string();
+  const std::string tname = q.target >= 0 && q.target < (int)world.sites.size() ? spokenPlace(world.sites[(size_t)q.target].name) : std::string();
+  const bool fem = personFemale(q, seed);
   switch (q.type) {
-    case QType::Heirloom: return "MY " + q.subject + "! I NEVER THOUGHT I WOULD HOLD IT AGAIN. HERE: " + g + " GOLD, AND MY BLESSING.";
-    case QType::Missing: return q.subject + " CAME HOME! I DON'T KNOW HOW TO THANK YOU. TAKE " + g + " GOLD. IT IS NOT ENOUGH.";
-    case QType::NamedBandit: return "SO " + q.subject + " IS DEAD. THE ROADS WILL BREATHE EASIER. THE BOUNTY IS " + g + " GOLD.";
-    case QType::Protect: return "WE SAW THE FIELDS AT DAWN, STILL STANDING. YOU HELD THE NIGHT. " + g + " GOLD, AS PROMISED.";
-    case QType::Hunt: return std::string("YOU'RE BACK, AND THE ") + monsterPlural(q.mon) + " ARE THINNED OUT. I OWE YOU " + g + " GOLD.";
-    case QType::Supply: return q.subject + "! NOW THE WORK CAN GO ON. THE WHOLE TOWN WILL THANK YOU. HERE: " + g + " GOLD.";
+    case QType::Heirloom: return "MY " + q.subject + "! I NEVER THOUGHT I WOULD HOLD IT AGAIN. I PROMISED YOU " + g + " GOLD, AND YOU HAVE MY BLESSING TOO.";
+    case QType::Missing:
+      return q.subject + " IS HOME, AND SAFE! I DON'T KNOW HOW TO THANK YOU. " + std::string(fem ? "SHE" : "HE") + " TOLD US WHAT YOU DID. THE " + g +
+             " GOLD IS YOURS.";
+    case QType::NamedBandit: return "SO " + q.subject + " IS DEAD. THE ROADS WILL BREATHE EASIER NOW. THE BOUNTY IS " + g + " GOLD, AND YOU'VE EARNED IT.";
+    case QType::Protect: return "WE SAW THE FIELDS AT DAWN, STILL STANDING. YOU HELD THE NIGHT FOR US. " + g + " GOLD, AS I PROMISED.";
+    case QType::Hunt:
+      return std::string("YOU'RE BACK, AND THE ") + monsterPlural(q.mon) + " ARE THINNED OUT. WE CAN SLEEP AGAIN. I OWE YOU " + g + " GOLD.";
+    case QType::Supply: return goodUnits(q.need, q.subject) + "! NOW THE WORK CAN GO ON. THE WHOLE TOWN WILL THANK YOU. I OWE YOU " + g + " GOLD.";
+    case QType::Bounty:
+      return tname.empty() ? "YOU'RE BACK, AND THE BANDITS' CHIEF IS DEAD. THE BOUNTY IS " + g + " GOLD."
+                           : "THEY SAY THE BANDITS OF " + tname + " HAVE SCATTERED, AND THEIR CHIEF IS DEAD. THE BOUNTY IS " + g + " GOLD.";
+    case QType::War: return "YOU FOUGHT WELL OUT THERE. THE CAPTAINS ALL SAY IT. YOUR PAY IS " + g + " GOLD.";
     default:
-      return (tname.empty() ? std::string("YOU'RE BACK.") : "YOU'RE BACK! THEY SAY " + tname + " HAS GONE QUIET.") + " I OWE YOU " + g + " GOLD.";
+      return (tname.empty() ? std::string("YOU'RE BACK, AND IT'S DONE.") : "YOU'RE BACK! THEY SAY " + tname + " HAS GONE QUIET AT LAST.") + " I OWE YOU " + g +
+             " GOLD.";
+  }
+}
+
+// M7b: what a giver says while their job is under way: what is still to do and where, in the first person (never the
+// journal's q.desc read aloud, which names the giver in the third person)
+std::string Game::questReminder(const Quest& q) const {
+  const std::string place = placeFromGiver(*this, q);
+  const std::string home = giverTown(world, q);
+  const bool fem = personFemale(q, seed);
+  const std::string obj = fem ? "HER" : "HIM", subj = fem ? "SHE" : "HE";
+  const uint32_t h = hash32((uint32_t)q.id * 2654435761u ^ (uint32_t)day);
+  switch (q.type) {
+    case QType::Hunt: {
+      const int left = std::max(0, q.need - q.have);
+      const std::string m = monsterPlural(q.mon);
+      if (q.have <= 0)
+        return h % 2 ? "NO LUCK WITH THE " + m + " YET? THEY ROAM THE WILDS ROUND " + home + ". I NEED " + speech::countWord(q.need) + " OF THEM DEAD."
+                     : "THE " + m + " ARE STILL OUT THERE, BOLDER EVERY NIGHT. KILL " + speech::countWord(q.need) + " OF THEM AND I'LL PAY WHAT I PROMISED.";
+      return "HOW GOES THE HUNT? THAT'S " + speech::countWord(q.have) + " DOWN, SO " + speech::countWord(left) + " MORE " + m + " TO GO.";
+    }
+    case QType::Clear:
+      return place.empty() ? "IT'S STILL OUT THERE. KILL WHATEVER LEADS THEM, THEN COME BACK TO ME."
+                           : "NOTHING'S CHANGED AT " + place + ". KILL WHATEVER LEADS THEM, THEN COME BACK TO ME.";
+    case QType::Bounty:
+      return place.empty() ? "THOSE BANDITS ARE STILL ON THE ROADS. KILL THEIR CHIEF AND THE BOUNTY IS YOURS."
+                           : "THE BANDITS ARE STILL RAIDING FROM " + place + ". KILL THEIR CHIEF AND THE BOUNTY IS YOURS.";
+    case QType::NamedBandit: {
+      const std::string p = fem ? "HER" : "HIS";
+      return q.subject + " STILL HOLDS " + (place.empty() ? std::string("THE CAMP") : place) + ". BRING ME WORD OF " + p + " DEATH AND THE BOUNTY IS YOURS.";
+    }
+    case QType::Deliver: {
+      const std::string r = std::string(roleWord(questRecipientRole(q)));
+      return "YOU STILL HAVE MY PARCEL? " + q.subject + ", THE " + r + (place.empty() ? std::string(", IS WAITING ON IT.") : " IN " + place + ", IS WAITING ON IT.");
+    }
+    case QType::Heirloom: {
+      const std::string k = keepsakeOf(q.subject);
+      const bool many = k.size() > 2 && k.back() == 'S' && k[k.size() - 2] != 'S';   // PRAYER BEADS
+      return "ANY SIGN OF THE " + k + "? " + (many ? "THEY" : "IT") + " SHOULD LIE IN AN OLD CHEST IN " + (place.empty() ? std::string("THAT PLACE") : place) + ".";
+    }
+    case QType::Missing:
+      if (q.flags & QF_FOUND) return "YOU FOUND " + q.subject + "? THEN BRING " + obj + " HOME, PLEASE. I CAN'T BEAR ANOTHER NIGHT OF THIS.";
+      return "PLEASE, HAVE YOU FOUND " + q.subject + "? " + subj + " IS SOMEWHERE IN " + (place.empty() ? std::string("THAT PLACE") : place) + ".";
+    case QType::Protect: {
+      static const char* const v[] = {"DON'T FORGET: THE FIELDS AT NIGHTFALL. THEY COME AFTER DARK, AND I CAN'T HOLD THEM ALONE.",
+                                       "I'LL BE AT THE FIELDS WHEN THE SUN GOES DOWN. BE THERE, OR THERE'LL BE NO HARVEST.",
+                                       "TONIGHT, THEN. I'VE SHARPENED THE PITCHFORK, FOR WHAT GOOD IT WILL DO. MEET ME AT THE FIELDS AT DUSK."};
+      return v[(hash32((uint32_t)q.giverSlot * 2654435761u ^ (uint32_t)q.giverId) + h) % 3];
+    }
+    case QType::Supply: {
+      if (q.flags & life::QF_SUP_GOODS) return "YOU HAVE THE " + q.subject + "? THEN BRING THEM IN. PEOPLE ARE WAITING.";
+      const std::string t = place.empty() ? std::string("THE NEXT TOWN") : place.find(", ") != std::string::npos ? place + "," : place;
+      return "STILL NO " + q.subject + "? " + t + " HAS PLENTY. I NEED " + goodUnits(q.need, q.subject) + ".";
+    }
+    case QType::War: return "YOU'RE WITH US, THEN. DO WHAT WE AGREED, AND COME BACK ALIVE.";
+    default: return "HAVE YOU DONE WHAT I ASKED? I'M STILL WAITING.";
+  }
+}
+
+// M7b: what a giver says as the job is taken (where to go, who pays, when to come back)
+std::string Game::acceptLine(const Quest& q) const {
+  // (the pitch said the way there: the place by its name now)
+  const std::string place = q.target >= 0 && q.target < (int)world.sites.size() && q.target != q.giverSite ? spokenPlace(world.sites[(size_t)q.target].name) : std::string();
+  // (a place spoken with its article was named in the pitch already: "THE TOMB OF SHENSHA" once is enough)
+  const std::string marked = place.empty() || place.rfind("THE ", 0) == 0 ? std::string("THE PLACE") : place;
+  switch (q.type) {
+    case QType::Deliver:
+      return "HERE'S THE PARCEL. " + q.subject + (place.empty() ? std::string(" PAYS ON DELIVERY.") : " IS IN " + place + ", AND PAYS ON DELIVERY.") +
+             " KEEP IT DRY, AND KEEP IT SHUT.";
+    case QType::Protect: return "THEN MEET ME AT THE FIELDS BY NIGHTFALL. THEY COME AFTER DARK, AND THEY DON'T GIVE UP EASILY.";
+    case QType::Hunt: return "GOOD. COME BACK TO ME WHEN " + speech::countWord(q.need) + " OF THE " + monsterPlural(q.mon) + " ARE DEAD.";
+    case QType::Missing: return "THANK YOU. GODS, THANK YOU. BRING " + q.subject + " HOME ALIVE. I'VE MARKED " + marked + " ON YOUR MAP.";
+    case QType::Heirloom: return "THANK YOU. I'VE MARKED " + marked + " ON YOUR MAP. BRING IT HOME TO ME.";
+    case QType::Supply: return "GOOD. " + (place.empty() ? std::string("THE NEXT TOWN") : place) + " HAS WHAT I NEED. COME STRAIGHT BACK WITH IT.";
+    case QType::Clear: case QType::Bounty: case QType::NamedBandit:
+      return place.empty() ? "GOOD. COME BACK TO ME WHEN IT'S DONE." : "GOOD. I'VE MARKED " + marked + " ON YOUR MAP. COME BACK TO ME WHEN IT'S DONE.";
+    default: return "THANK YOU. COME BACK WHEN IT'S DONE.";
   }
 }
 

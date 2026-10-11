@@ -1,5 +1,6 @@
 // Save-format checks for the CURRENT save version only (owner, 2026-10-04: old saves are not a concern; an older save
-// is refused and the title offers a new game). M7: SAVE_VER 14 (the home block after the craft block: a lot with a cottage
+// is refused and the title offers a new game). M7b: SAVE_VER 15 (the talk block after the home block: the people met,
+// introductions, the lines said lately; ENDLESS_GEN_VER 17). M7: SAVE_VER 14 (the home block after the craft block: a lot with a cottage
 // in the local style, a field, a coop, a pen and a stable, chickens, a cow and a horse ridden, a chest with a harvest;
 // ENDLESS_GEN_VER 16). M6b: SAVE_VER 13 (the story block v4: the sagas' repetition guard and its offers; a
 // generated story running, saved by its spec id). M6: SAVE_VER 12 (items gain level, material, culture, affixes, unique power;
@@ -7,7 +8,7 @@
 // block; ENDLESS_GEN_VER 14). M4: SAVE_VER 10 (the realm and story blocks after the marks). The CITIZENS lane owns this
 // file and the fixture in M5.
 //   save_test [fixtureDir]           run every check
-//   save_test --make-fixture out.bin write tests/fixtures/save_v14.bin: an endless game (seed 5150) with a created
+//   save_test --make-fixture out.bin write tests/fixtures/save_v15.bin: an endless game (seed 5150) with a created
 //                                    character, the innkeeper's job taken, bot play, a looted chest, the M2 fields
 //                                    (marks, a quest's subject / flags / deadline, a rumoured site), saved outdoors.
 //                                    Regenerate it whenever the layout changes on purpose, and paste the printed FIX6
@@ -328,6 +329,17 @@ void addM7Facts(Game& g) {
   home::mount(g, pi, (int)Q.animals.size() - 1, why);
   g.gold = goldWas;
 }
+// M7b (SAVE_VER 15): the talk block: a person met three times who introduced themselves and knows the player's name,
+// their last line's topic and hash, and a bark said lately
+constexpr uint64_t FIX_MET = 0x7B00C0FFEE15ull;
+constexpr uint32_t FIX_LINE = 0x5EED7B15u, FIX_BARK = 0xBA4C7B15u;
+void addM7bFacts(Game& g) {
+  for (int k = 0; k < 3; k++) g.talkMem.meet(FIX_MET, g.day);
+  g.talkMem.flag(FIX_MET, speech::TM_INTRODUCED | speech::TM_KNOWS_PLAYER, g.day);
+  speech::Met& m = g.talkMem.meet(FIX_MET, g.day);
+  m.times = 3; m.lastTopic = (uint8_t)speech::Topic::Trade; m.lastLine = FIX_LINE;
+  g.talkMem.said(FIX_BARK, g.day);
+}
 int makeFixture(const char* out) {
   Game g(FIX_SEED);
   g.newEndlessGame(FIX_SEED);
@@ -340,6 +352,7 @@ int makeFixture(const char* out) {
   addM6Facts(g);
   addM6bFacts(g);
   addM7Facts(g);
+  addM7bFacts(g);
   if (g.inside) { printf("the fixture must be saved outdoors\n"); return 1; }
   std::vector<uint8_t> buf;
   g.serialize(buf);
@@ -370,7 +383,7 @@ int main(int argc, char** argv) {
 
   // ---- 1. the fixture
   std::vector<uint8_t> fx;
-  if (!readFile(dir + "/save_v14.bin", fx)) check(false, "cannot read tests/fixtures/save_v14.bin");
+  if (!readFile(dir + "/save_v15.bin", fx)) check(false, "cannot read tests/fixtures/save_v15.bin");
   else {
     check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
     Game g(1);
@@ -456,6 +469,13 @@ int main(int argc, char** argv) {
       check(g.home.horse == g.home.riding && !g.home.horseInn, "fixture home: the horse out is the one ridden (home block v2)");
       check(!g.home.plots.empty() && g.home.plots[0].farmhandRes == 0xFFFF && g.home.plots[0].starter == 0, "fixture home: no farmhand, the starter furniture still to come (home block v2)");
     }
+    {   // M7b (SAVE_VER 15): the talk block
+      const speech::Met* m = g.talkMem.find(FIX_MET);
+      check(m && m->times == 3 && (m->flags & (speech::TM_INTRODUCED | speech::TM_KNOWS_PLAYER)) == (speech::TM_INTRODUCED | speech::TM_KNOWS_PLAYER) &&
+                m->lastTopic == (uint8_t)speech::Topic::Trade && m->lastLine == FIX_LINE && g.talkMem.introduced(FIX_MET),
+            "fixture talk block: the person met, introduced, their last line (SAVE_VER 15)");
+      check(g.talkMem.saidRecently(FIX_BARK, g.day, 1), "fixture talk block: a line said lately (SAVE_VER 15)");
+    }
     check(g.craft.skill == FIX_SKILL && g.craft.progress(FIX_CULT, 1, craft::SecretKind::AlloyRecipe) == FIX_SECRET &&
               g.craft.trust.count(FIX_SMITH) && g.craft.trust.at(FIX_SMITH) == FIX_TRUST,
           "fixture craft block: skill, a secret's progress, a smith's trust (SAVE_VER 12)");
@@ -474,6 +494,7 @@ int main(int argc, char** argv) {
     addM6Facts(g);
     addM6bFacts(g);
     addM7Facts(g);
+    addM7bFacts(g);
     roundTrip(g, ("endless seed " + std::to_string(s) + " after play").c_str());
     // a long walk east (many window shifts), then save far from home
     g.noWildSpawns = true;
@@ -628,6 +649,7 @@ int main(int argc, char** argv) {
     n.serialize(b);
     auto patched = [&](size_t at, uint32_t v) { std::vector<uint8_t> c = b; for (int k = 0; k < 4; k++) c[at + k] = (uint8_t)(v >> (8 * k)); return c; };
     Game x(1);
+    check(!x.deserialize(patched(4, 14)) && Game::saveVersion(patched(4, 14)) == 14, "accepted (or misread) a SAVE_VER 14 (M7) save");
     check(!x.deserialize(patched(4, 11)) && Game::saveVersion(patched(4, 11)) == 11, "accepted (or misread) a SAVE_VER 11 (M5) save");
     check(!x.deserialize(patched(4, 7)) && Game::saveVersion(patched(4, 7)) == 7, "accepted (or misread) a SAVE_VER 7 save");
     check(!x.deserialize(patched(4, 6)) && Game::saveVersion(patched(4, 6)) == 6, "accepted (or misread) a SAVE_VER 6 save");

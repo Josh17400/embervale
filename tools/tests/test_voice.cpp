@@ -9,6 +9,10 @@
 //   - phrase() is deterministic and its families are stable: the same context gives the same text and family, a
 //     family is never 0, and one family never covers two different line templates of different keys
 //   - the motive colours a key that has motive lines: the phrase pools of two motives differ
+//   - (M7b) coherence: every phrase reads as whole speech on the phone panel (speech::lint: no stitched AND / OR
+//     sentence, no one-word fragment, no broken punctuation, a finished last sentence), every opener + line join
+//     too; a phrase asked for after other words of its line (VoiceCtx::midLine) is never an opener, and the 24
+//     keys' phrases fit the panel after a full line of 240 characters
 // It prints the counts (keys, phrases per voice, the motive-coloured keys).
 #include <algorithm>
 #include <cstdio>
@@ -19,6 +23,7 @@
 #include <string>
 #include <vector>
 #include "rpg/story/dsl.h"
+#include "rpg/sim/talk.h"
 #include "rpg/story/saga.h"
 #include "tools/tests/tests.h"
 
@@ -156,7 +161,7 @@ int voiceCmd(int argc, char** argv) {
     return 0;
   }
   int bad = 0;
-  auto fail = [&](const std::string& m) { if (bad < 60) printf("FAIL: voice: %s\n", m.c_str()); bad++; };
+  auto fail = [&](const std::string& m) { if (bad < 200) printf("FAIL: voice: %s\n", m.c_str()); bad++; };
   for (const std::string& e : voiceTableErrors()) fail("table: " + e);
   const std::vector<std::string>& keys = voiceKeys();
   for (const char* k : kFrozen)
@@ -229,6 +234,80 @@ int voiceCmd(int argc, char** argv) {
       for (int v = 0; v < 8; v++) printf(" v%d %zu", v, voiceSet[v].size());
       printf("%s\n", motiveMatters ? "  (motive-coloured)" : "");
     }
+  }
+  // (M7b) coherence: each phrase as the panel shows it (a placeholder stands for a name)
+  {
+    long linted = 0, midChecked = 0;
+    const uint32_t checks = speech::C_EMPTY | speech::C_CASE | speech::C_DOUBLE | speech::C_STITCH | speech::C_FRAGMENT | speech::C_PUNCT;
+    std::set<std::string> done;
+    std::map<std::string, int> found;   // a finding -> the phrases it was found in (each distinct finding fails once)
+    // one-word sentences that are whole speech: imperatives and a name said alone ("SIT." "REST." "ARNA.")
+    auto wholeWord = [](const std::string& what) {
+      static const char* const k[] = {"SIT.", "REST.", "DRINK.", "EAT.", "HURRY.", "RUN.", "PRAY.", "LISTEN.", "WATCH.", "SPEAK.", "BREATHE.",
+                                      "KNEEL.", "HUSH.", "ARNA.", "ARNA!", "ARNA?", "SLEEP.", "SWEAR.", "FLY.", "RIDE.", "FIGHT.", "STAY."};
+      for (const char* x : k) if (what == x) return true;
+      return false;
+    };
+    auto lintOne = [&](const std::string& k, const std::string& t) {
+      if (!done.insert(t).second) return;
+      linted++;
+      // a phrase may stand after any sentence of a line, or alone: it never leans on what came before it
+      if (t.compare(0, 4, "AND ") == 0 || t.compare(0, 3, "OR ") == 0) fail("<<" + k + ">> '" + t + "': opens on AND / OR (it cannot stand alone)");
+      std::string shown = t;
+      for (size_t a = shown.find('{'); a != std::string::npos; a = shown.find('{')) {
+        const size_t e = shown.find('}', a);
+        if (e == std::string::npos) break;
+        shown.replace(a, e - a + 1, "ARNA");
+      }
+      speech::Conversation c;
+      speech::Turn T;
+      T.text = shown;
+      c.turns.push_back(T);
+      speech::LintCtx ctx;
+      ctx.checks = checks;
+      for (const speech::Issue& x : speech::lint(c, ctx)) {
+        if (x.check == speech::C_FRAGMENT && wholeWord(x.what)) continue;
+        found[std::string(speech::checkName(x.check)) + ": " + x.what + "   e.g. <<" + k + ">> " + t]++;
+      }
+    };
+    for (const std::string& k : keys)
+      for (int v = 0; v < 8; v++)
+        for (int m = 0; m < (int)Motive::COUNT; m++) {
+          for (const std::string& t : voicePool(k, v, m)) lintOne(k, t);
+          // mid-line: never an opener (its pick is a whole F, B or M line of the tables)
+          std::set<std::string> whole;
+          // (fixer M7b r1) a proverb or a saying mid-line is always framed by its lead: an F line or a lead + B line,
+          // never a bare B line (a sentence-final bare proverb read as a stitched fragment)
+          const bool framed = (k == "proverb" || k == "saying") && !voiceLines(k, v, 'A').empty();
+          if (framed) {
+            for (const std::string& l : voiceLines(k, v, 'F')) whole.insert(l);
+            const std::vector<std::string> pool = voicePool(k, v, m);
+            const std::vector<std::string> bare = voiceLines(k, v, 'B');
+            for (const std::string& l : pool)
+              if (std::find(bare.begin(), bare.end(), l) == bare.end()) whole.insert(l);
+          } else {
+            for (char kind : {'F', 'B'}) for (const std::string& l : voiceLines(k, v, kind)) whole.insert(l);
+            for (const std::string& l : voiceLines(k, m, 'M')) whole.insert(l);
+          }
+          for (uint64_t sd = 0; sd < 8; sd++) {
+            VoiceCtx c;
+            c.voice = v;
+            c.motive = (Motive)m;
+            c.seed = sd * 0x2545F4914F6CDD1Dull + (uint64_t)(v * 17 + m);
+            c.midLine = true;
+            const Phrase ph = phrase(k, c);
+            midChecked++;
+            if (!whole.count(ph.text)) fail("<<" + k + ">> voice " + std::to_string(v) + (framed ? ": a mid-line proverb without its lead: " : ": a mid-line phrase with an opener: ") + ph.text);
+          }
+        }
+    {   // each distinct finding once (the example is its first phrase)
+      std::map<std::string, int> byWhat;
+      for (const auto& kv : found) {
+        const std::string what = kv.first.substr(0, kv.first.find("   e.g."));
+        if (byWhat[what]++ == 0) fail(kv.first);
+      }
+    }
+    printf("voice coherence: %ld distinct phrases linted, %ld mid-line picks checked\n", linted, midChecked);
   }
   // proverbs: at least 12 of each people's own
   for (int v = 0; v < 8; v++) {

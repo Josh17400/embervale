@@ -54,6 +54,7 @@ uint64_t Request::key() const {
   k = mix(k, (uint64_t)facts.banner << 32 | facts.banner2);
   if (facts.charred) k = mix(k, 0xC4A2ull << 8 | (uint64_t)(uint32_t)facts.charred);   // (M4) 0 keeps every key as before
   if (home) k = mix(k, 0x4803ull << 8 | (uint64_t)home);   // (M7) 0 keeps every key as before
+  if (row) k = mix(k, 0x7B0Aull << 8 | (uint64_t)row);     // (M7b) 0 keeps every key as before
   return k;
 }
 
@@ -2482,6 +2483,171 @@ void ground(Bx& c) {
   platformUnder(c, fh, fm, true, f == art::Foundation::Terrace ? 4 : (f == art::Foundation::Platform ? 3 : 2));
 }
 
+// (M7b CITYART) a row house in a continuous frontage (Request::row, VISION_PLAN 15.23): the body runs to the footprint's
+// edge on each shared side (bld::ROW_W / ROW_E) and carries the party bit there (VF_PARTY_*: the painter stops its roof
+// flush on the shared wall, unhipped, and draws nothing past that edge), its foundation runs on to the same edge, and
+// whatever stood out on a shared side (a side wing, an annex, a porch, a stair turret) is not built: the neighbour's
+// house stands there. Hipped and swept roofs with the ridge along the street become gables of the same material (their
+// ridge and eaves run on along the terrace); a jettied upper floor keeps its jetty only on a free-standing house (the
+// ground floor's inset left a notch at every joint). Each house of a terrace keeps its own facade colour (a limewash
+// or a paint of its people's by its seed), and in a rich quarter window boxes and shutters. ROW_YARD: a low wall along
+// the back of the plot (the yard behind is walled by the city's garden walls). No draw from the builder's stream: a
+// pure function of the request, so every other choice (and every free-standing building) is unchanged.
+void terrace(Bx& c) {
+  const uint8_t row = c.r.row;
+  if (!row || c.v.empty() || c.v[0].shape != VolShape::Box) return;
+  const bool pw = (row & ROW_W) != 0, pe = (row & ROW_E) != 0;
+  const int bx0 = c.v[0].x0, bx1 = c.v[0].x1, by1 = c.v[0].y1;
+  // what stands out on a shared side goes (never the door's volume, the body, a chimney or the foundation)
+  std::vector<Volume> keep;
+  keep.reserve(c.v.size());
+  for (size_t i = 0; i < c.v.size(); i++) {
+    const Volume& x = c.v[i];
+    const bool side = (pw && x.x1 <= bx0 + 2) || (pe && x.x0 >= bx1 - 2) || (pw && x.x0 < 0) || (pe && x.x1 > c.W);
+    const bool removable = i > 0 && x.role != VolRole::Chimney && x.role != VolRole::Platform && x.role != VolRole::Body;
+    if ((side && removable && !x.doorHere) || (x.role == VolRole::Porch && i > 0)) continue;   // (a row's door opens on the walk)
+    keep.push_back(x);
+  }
+  c.v.swap(keep);
+  // (fixer M7b r3, review: "the eave jumps 1-2 px at every party wall, the courses don't line up, hipped units alternate
+  // with ridged ones, two-tone halves") a terrace is one roof: only the body (and its chimneys, foundation and yard
+  // wall) is built, to a measure that is a function of what the units of one terrace share (the people's style, the
+  // depth, the storeys; never the house's own seed): the same wall height, depth, pitch, roof form and covering, so the
+  // eave line, the ridge and the tile courses run straight on from house to house
+  {
+    std::vector<Volume> one;
+    one.reserve(c.v.size());
+    for (size_t i = 0; i < c.v.size(); i++) {
+      const Volume& x = c.v[i];
+      if (i == 0 || x.role == VolRole::Chimney || x.role == VolRole::Platform || x.role == VolRole::Enclosure) one.push_back(x);
+    }
+    c.v.swap(one);
+    Volume& B0 = c.v[0];
+    B0.doorHere = true;
+    B0.x0 = 0;
+    B0.x1 = (int16_t)c.W;
+    B0.y0 = (int16_t)(c.H >= 48 ? 8 : 2);
+    B0.y1 = (int16_t)c.H;
+    const int n = std::clamp((int)B0.storeys, 1, 4);
+    B0.wallH = (int16_t)c.wallFor(n, c.wl >= 2 ? 26 : 24);
+    B0.eave = 0;
+    B0.gable = 0;
+    B0.feat &= ~(uint32_t)(VF_JETTY | VF_STILTS);
+    if (pitchedRoof(B0.roof)) {
+      B0.roof = RoofShape::Gable;
+      B0.ridgeNS = false;
+      B0.pitch = (uint8_t)std::clamp((int)c.st.pitch, 1, 4);
+      B0.roofMat = c.st.roofMat;
+      B0.roofTint = 0;
+    } else {
+      B0.roof = RoofShape::FlatParapet;
+      B0.pitch = 0;
+    }
+    if (B0.dormers && (B0.y1 - B0.y0) < 44) B0.dormers = 0;
+    // its chimneys stand in the body's depth (a stack left where a wing stood floated behind the roof)
+    for (Volume& x : c.v)
+      if (x.role == VolRole::Chimney && (x.y0 < B0.y0 || x.y1 > B0.y1)) {
+        const int d = x.y1 - x.y0;
+        x.y0 = (int16_t)std::max((int)B0.y0, std::min((int)x.y0, (int)B0.y1 - d));
+        x.y1 = (int16_t)(x.y0 + d);
+      }
+    // the foundation under the whole front: one plinth, as deep as the body
+    for (Volume& x : c.v)
+      if (x.role == VolRole::Platform) {
+        x.x0 = (int16_t)std::min((int)x.x0, (int)B0.x0); x.x1 = (int16_t)std::max((int)x.x1, (int)B0.x1);
+        x.y0 = (int16_t)std::min((int)x.y0, (int)B0.y0);
+      }
+  }
+  const uint32_t h = mix32(c.r.seed * 0x9E3779B1u ^ 0x7E44ACEu);
+  const uint32_t look = c.r.facts.variant ? (uint32_t)(c.r.facts.variant - 1) : (h >> 8);   // the house's front in its row
+  for (Volume& x : c.v) {
+    const bool body = &x == &c.v[0] || (x.role == VolRole::Body);
+    if (x.role == VolRole::Chimney) {   // inside the plot (a stack on the party wall stands just within it)
+      const int w = x.x1 - x.x0;
+      if (pw && x.x0 < 0) { x.x0 = 0; x.x1 = (int16_t)w; }
+      if (pe && x.x1 > c.W) { x.x1 = (int16_t)c.W; x.x0 = (int16_t)(c.W - w); }
+      continue;
+    }
+    if (x.role == VolRole::Platform) {   // the foundation runs on along the terrace
+      if (pw && x.x0 <= bx0 + 1) x.x0 = 0;
+      if (pe && x.x1 >= bx1 - 1) x.x1 = (int16_t)c.W;
+      if (pw) x.feat |= VF_PARTY_W;
+      if (pe) x.feat |= VF_PARTY_E;
+      continue;
+    }
+    // a row's front is a closed facade on the walk (a door, windows, a shop's front): a veranda or a colonnade along a
+    // terrace would open bays the rooms behind it (one doorway between two party walls) cannot answer
+    if (openFaceKind(x.face)) x.face = Face::Windows;
+    if (!body && !(x.y1 >= by1 - 2 && ((pw && x.x0 <= bx0) || (pe && x.x1 >= bx1)))) continue;
+    if (pw && x.x0 <= bx0 + 1) { x.x0 = 0; x.feat |= VF_PARTY_W; }
+    if (pe && x.x1 >= bx1 - 1) { x.x1 = (int16_t)c.W; x.feat |= VF_PARTY_E; }
+    x.feat &= ~VF_JETTY;
+    // a city row never thatches (the fire would run the length of the street): shingles or tiles of the people's own
+    if (x.roofMat == RoofMat::Thatch || x.roofMat == RoofMat::Palm) x.roofMat = (c.cul == CU_DUNE || c.cul == CU_SUN || c.cul == CU_IMPERIAL || c.cul == CU_RIVER) ? RoofMat::ClayTile : RoofMat::Shingle;
+    if ((!x.ridgeNS && x.roof == RoofShape::Hip) || x.roof == RoofShape::Pagoda || x.roof == RoofShape::Sweep) x.roof = RoofShape::Gable;   // (a swept eave's horns would rise through the neighbour's roof)
+  }
+  Volume& B = c.v[0];
+  // the frontage runs flush along the street: the body's front on the plot's front edge (a porch set it back: the
+  // neighbours' fronts then stood forward of it, a notch of open ground at each joint), and the door is in it
+  if (B.y1 < c.H) {
+    const int d = c.H - B.y1;
+    for (Volume& x : c.v)
+      if (x.role == VolRole::Chimney && x.y1 <= B.y1 + 1 && x.y0 >= B.y0 - 1) { x.y0 = (int16_t)(x.y0 + d); x.y1 = (int16_t)(x.y1 + d); }
+    B.y1 = (int16_t)c.H;
+    for (Volume& x : c.v)   // (and its plinth with it: the wall never stands past its foundation)
+      if (x.role == VolRole::Platform && x.y1 < B.y1 + 2) x.y1 = (int16_t)std::min(c.H + art::BLDG_PAD_B - 1, B.y1 + 2);
+  }
+  bool door = false;
+  for (const Volume& x : c.v) if (x.doorHere) door = true;
+  if (!door) B.doorHere = true;
+  // its own colour in the row: the people's limewashes and paints on plaster, timber and adobe (stone and brick keep
+  // their own), a darker or lighter firing of the brick
+  static const uint32_t wash[12][4] = {
+      {RGB(222, 210, 180), RGB(196, 120, 90), RGB(206, 196, 150), RGB(180, 190, 196)},   // fjordfolk: ochre, red, cream, grey
+      {RGB(226, 220, 204), RGB(214, 196, 160), RGB(200, 204, 196), RGB(230, 210, 190)},   // highland
+      {RGB(236, 224, 196), RGB(226, 196, 150), RGB(214, 178, 170), RGB(196, 206, 214)},   // heartland: cream, ochre, pink, pale blue
+      {RGB(232, 214, 186), RGB(220, 170, 130), RGB(226, 200, 160), RGB(214, 150, 120)},   // imperial: the warm washes
+      {RGB(240, 232, 214), RGB(226, 200, 156), RGB(232, 216, 186), RGB(210, 176, 130)},   // dune: white, sand
+      {RGB(214, 196, 166), RGB(200, 176, 140), RGB(224, 210, 180), RGB(190, 166, 130)},   // steppe
+      {RGB(200, 184, 150), RGB(180, 170, 130), RGB(214, 200, 166), RGB(170, 150, 120)},   // marsh
+      {RGB(220, 216, 206), RGB(206, 202, 194), RGB(232, 228, 216), RGB(196, 194, 186)},   // jade: the pale greys
+      {RGB(232, 220, 196), RGB(226, 200, 170), RGB(210, 214, 206), RGB(220, 190, 150)},   // river
+      {RGB(240, 230, 210), RGB(226, 196, 150), RGB(232, 210, 176), RGB(214, 180, 140)},   // sun temples
+      {RGB(220, 226, 206), RGB(206, 216, 196), RGB(230, 232, 214), RGB(196, 206, 186)},   // sylvan
+      {RGB(236, 238, 242), RGB(222, 226, 236), RGB(232, 232, 226), RGB(214, 220, 232)}};  // starspire
+  if (B.wall == WallMat::Plaster || B.wall == WallMat::Timber || B.wall == WallMat::Adobe || B.wall == WallMat::Wattle) {
+    const int ci = c.cul >= 1 && c.cul <= 12 ? c.cul - 1 : 2;
+    const uint32_t col = wash[ci][(look / 32u + (c.r.facts.variant ? 0u : h)) % 4u];
+    for (Volume& x : c.v) if ((x.feat & (VF_PARTY_W | VF_PARTY_E)) && x.role != VolRole::Platform && x.wall == B.wall) x.wallTint = col;
+  }
+  if (c.wl >= 3) B.ornament |= (uint16_t)(art::ORN_FLOWERBOX | art::ORN_SHUTTERS);   // a rich quarter's window boxes and shutters
+  else if (c.wl <= 0) B.ornament &= (uint16_t)~(art::ORN_FLOWERBOX | art::ORN_VINES);
+  // (fixer M7b r3) one roof, but each house its own front: its door and window frames painted (the people's own trim
+  // or one of three paints), shutters or none, a creeper or none, by its place in the terrace (Bldg::variant, which the
+  // generator numbers along the row so no two houses near each other share a front)
+  {
+    static const uint32_t trims[4] = {0, RGB(72, 60, 48), RGB(118, 44, 38), RGB(54, 72, 90)};
+    const uint32_t tr = trims[look % 4u];
+    B.trimTint = tr;
+    auto setOrn = [&](uint16_t bit, bool on) { B.ornament = (uint16_t)(on ? (B.ornament | bit) : (B.ornament & ~bit)); };
+    if (c.wl < 3) setOrn((uint16_t)art::ORN_SHUTTERS, ((look / 4u) & 1u) != 0);
+    if (c.wl > 0) setOrn((uint16_t)art::ORN_VINES, ((look / 8u) & 1u) != 0);
+    if (c.wl > 0 && c.wl < 3) setOrn((uint16_t)art::ORN_FLOWERBOX, ((look / 16u) & 1u) != 0);
+  }
+  if (row & ROW_YARD) {   // the yard's low back wall along the back of the plot, the house set a little forward of it
+    const int back = std::min(8, std::max(0, (int)B.y1 - (int)B.y0 - 32));
+    if (back >= 4) {
+      for (Volume& x : c.v) if (x.role == VolRole::Body && x.y0 < back) x.y0 = (int16_t)back;
+      Volume wv = c.vol(VolRole::Enclosure, pw ? 0 : 2, 0, pe ? c.W : c.W - 2, 3, 9);
+      wv.wall = B.wall == WallMat::Timber || B.wall == WallMat::Plaster ? WallMat::Stone : B.wall;
+      wv.roof = RoofShape::FlatParapet; wv.roofMat = RoofMat::Adobe; wv.pitch = 0; wv.face = Face::Blank;
+      if (pw) wv.feat |= VF_PARTY_W;
+      if (pe) wv.feat |= VF_PARTY_E;
+      c.add(wv);
+    }
+  }
+}
+
 // keep every volume under the rise budget: spires and towers lose pitch, then wall height (never below their storeys)
 void fitAll(Bx& c) {
   for (Volume& x : c.v) {
@@ -2545,6 +2711,7 @@ void finish(Bx& c) {
     x.storeys = (uint8_t)std::clamp((int)x.storeys, 1, 4);
   }
   ground(c);
+  terrace(c);
   fitAll(c);
   const Volume& bo = c.v[0];
   b.facts.storeys = bo.storeys;

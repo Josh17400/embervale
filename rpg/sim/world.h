@@ -156,6 +156,12 @@ struct Bldg {
   // construction (the view draws art::scaffoldSprite on its footprint instead of the building; it cannot be entered).
   // Never saved (the home block is).
   uint8_t home = 0;
+  // M7b Cities (VISION_PLAN 15.24): a row house's party walls (bld::ROW_* bits). ROW_W: the footprint abuts its western
+  // neighbour's (same front row, shared wall: no gap, no side wall of its own shown there); ROW_E likewise to the east;
+  // ROW_YARD: a walled back yard behind it (the rows above the footprint, kept free by the generator). The
+  // settlement generator sets it (cities; never a village); bldgRequest passes it to the builder (bld::Request::row),
+  // which drops the shared side walls and runs the eaves, ridge and frontage on as one terrace. Never saved.
+  uint8_t row = 0;
   int floors() const { return genVer >= WORLDGEN_V7 ? std::max(1, (int)storeys) : 1; }
   int doorX() const { return r.x + r.w / 2; }
   int doorY() const { return r.y + r.h - 1; }
@@ -186,6 +192,7 @@ inline bld::Request bldgRequest(const Bldg& b) {
   r.civic = b.civic;
   r.seat = b.seat;
   r.home = (uint8_t)(b.home == 1 || b.home == 3 ? 1 : 0);   // (M7) the player's own house (a bought one keeps its look)
+  r.row = b.row;                                            // (M7b) a row house's party walls
   return r;
 }
 inline bld::Blueprint bldgBlueprint(const Bldg& b) { return bld::design(bldgRequest(b)); }
@@ -325,6 +332,11 @@ struct Map {
   std::vector<uint8_t> height;   // M1: relief per tile (endless overworld only, else empty): bits 0..2 the level 0..7
                                  // (VISION_PLAN 11.1), HEIGHT_CLIFF a cliff face (not walkable), HEIGHT_RAMP a ramp or
                                  // stairs between levels (walkable). The view draws faces where the level steps down.
+  // M7b Cities (rpg/world/urban.h): the urban fabric per tile (endless overworld and settlement buffers only, else
+  // empty): the street class (avenue, street, lane, alley, sidewalk, gutter, square, close, park, garden, court, quay),
+  // the upkeep and the quarter. Written by the settlement generator (cities; a town's main street and square), always
+  // 0 in villages; the view draws kerbs, sidewalks, drains and the quarters' paving from it. Regenerated, never saved.
+  std::vector<uint8_t> urb;
   std::vector<Bldg> bldgs;
   int exitX = 0, exitY = 0;      // caves/interiors: tile you appear on when entering (and where the exit is); upper
                                  // floors of a building have no exit (-1)
@@ -358,6 +370,7 @@ struct Map {
   uint8_t heightBits(int x, int y) const { return in(x, y) && !height.empty() ? height[(size_t)y * w + x] : 0; }
   Biome biomeAt(int x, int y) const { return in(x, y) && !biome.empty() ? (Biome)biome[(size_t)y * w + x] : Biome::Plains; }
   uint8_t blendAt(int x, int y) const { return in(x, y) && !blend.empty() ? blend[(size_t)y * w + x] : 0; }
+  uint8_t urbAt(int x, int y) const { return in(x, y) && !urb.empty() ? urb[(size_t)y * w + x] : 0; }   // M7b (rpg/world/urban.h)
   // M3c: the biome proper (a map without the layer: its family's classic eco) and the eco it blends toward
   Eco ecoAt(int x, int y) const { return in(x, y) && !eco.empty() ? (Eco)eco[(size_t)y * w + x] : ecoOfFamily(biomeAt(x, y)); }
   Eco ecoNbAt(int x, int y) const { return in(x, y) && !ecoNb.empty() ? (Eco)ecoNb[(size_t)y * w + x] : ecoAt(x, y); }

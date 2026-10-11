@@ -26,6 +26,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include "rpg/art/art_city.h"
 #include "rpg/build/blueprint.h"
 #include "rpg/build/registry.h"
 #include "rpg/culture/society.h"
@@ -210,7 +211,9 @@ int check(bool propsStrict, double budget) {
     std::set<uint64_t> looks;
     for (int c = 0; c < (int)cult::Archetype::COUNT; c++) {
       const cult::Culture K = cult::Atlas::make((cult::Archetype)c, 300u + (uint32_t)c, 2);
-      looks.insert(canvasHash(art::propSprite((art::Prop)p, K.props)));
+      // (M7b) the city props are styled by their own painter (art_city.h), the joined ones as a straight run
+      const art::Prop pp = (art::Prop)p;
+      looks.insert(canvasHash(art::isCityProp(pp) ? art::cityPropStyled(pp, K.props, 0, art::cityPropJoins(pp) ? 10 : 0) : art::propSprite(pp, K.props)));
     }
     if (looks.size() < 3) {
       weak++;

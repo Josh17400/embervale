@@ -42,6 +42,9 @@ class View {
   void update(Game& g, float dt);        // consumes g.events, animates UI
   void draw(Game& g, bool hasSave);
   void snap(Game& g);                    // snap camera (after load/teleport)
+  // (M7b CITYART, tests) the kerbs within r tiles of the hero: every walk with a carriageway south of it shows a face
+  // (its rows below the lit arris darker than the walk's top); returns the walks without one, faces = the walks checked
+  int urbKerbCheck(const Game& g, int r, int& faces);
   Vec2 camera() const { return cam_; }   // M2: top-left of the view in world pixels (scripts tap world things)
   void openMenu(Game& g, int tab) { g.mode = Mode::Menu; menuTab_ = tab; menuSel_ = 0; }
   bool wantsQuit = false;
@@ -102,6 +105,7 @@ class View {
     int heightAt(int x, int y) const { return m->heightAt(x - ox, y - oy); }
     bool relief() const { return !m->height.empty(); }
     uint8_t blendAt(int x, int y) const { return m->blendAt(x - ox, y - oy); }   // M2 ecotones (Map::blend)
+    uint8_t urbAt(int x, int y) const { return m->urbAt(x - ox, y - oy); }       // M7b the urban fabric (rpg/world/urban.h)
     bool ecoDerive = false;   // M2: the map carries no blend bytes: the view derives ecotones from the biomes
     bool wallAt(int x, int y) const {   // a city wall piece stands on the tile
       const int lx = x - ox, ly = y - oy;
@@ -160,7 +164,7 @@ class View {
   bool incrOn_ = false;
   uint32_t groundPixel(const TMap& m, int px, int py);   // px, py: global pixels
   int rockLevel(const TMap& m, int tx, int ty);
-  uint32_t reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g);   // cliff faces, lips, ramps, grade
+  uint32_t reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g, bool flat = false);   // cliff faces, lips, ramps, grade (flat: the grade alone, smoothed: a city's paving over a walkable step)
   // EMB_PERF: bake time and texture counts, printed once a second
   struct Perf { double bakeMs = 0, worstBakeMs = 0, worstFrameMs = 0, frameMs = 0; int bakes = 0, inlineBakes = 0, frames = 0; float t = 0; };
   Perf perf_;
