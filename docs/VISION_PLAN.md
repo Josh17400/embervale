@@ -2877,3 +2877,49 @@ non-zero); `Bldg::row` is part of the open-front cache key; `art::cityPropStyled
 `DlgOpt::grp` / `Dialogue::group/front/shows()` option groups (`A_GROUP` / `A_BACK`), `speech::FIRST_PAGE` 6,
 `speech::C_ANSWER` (outside `C_ALL`); script commands `cityspot`, `expect urb none`, `gotourb`, `expect kerbs`.
 Villages: `--villages` and `city_gallery --check` (village art) unchanged. SAVE_VER 15 / ENDLESS_GEN_VER 17 stand.
+
+### 15.M7c "Order of Streets": one settlement planner for villages, towns and cities (owner, 2026-10-11)
+
+M7b gave cities avenues, sidewalks, parks and terraces, but the streets branching off the avenues are still the old
+winding lanes, so cities do not yet read as planned. The owner's concept image (`docs/ref/m7c_city_concept.png`,
+generated with ChatGPT: "closer, not exact") shows the PRINCIPLE: a walled city where the main avenues AND the streets
+off them are real streets forming regular blocks, a central plaza with the seat of power, districts, gardens, orchards
+and fields set in blocks, a harbour on the lake. It is a principle, not a template: every city must be unique.
+
+**One planner, an order dial.** Replace the separate village/town/city street logic with ONE settlement planner that
+shares its vocabulary everywhere (road hierarchy main road > street > lane > footpath; frontage: houses face a road;
+junctions and squares; the edge rule: built-up core loosening into outskirts and then fields), driven by an order
+level from settlement size and culture:
+- **Village (low order):** one spine road through the middle, houses scattered around it and loosely facing it,
+  paths wandering to the well, mill and fields. It must keep the organic charm the owner loves (review compares
+  before/after shots of the same villages; any village that looks worse fails). The byte-identical `--villages`
+  lock is replaced by a village-character check (low structure score, organic placement, one spine).
+- **Town (mid order):** a real main street and square, a few structured side streets with proper frontage, loosening
+  into scattered houses and yards at the edges.
+- **City (high order), inside the walls:** a full street network, not just avenues: avenues from each gate to the
+  central plaza and seat; streets off them laid as a real grid of blocks (row houses fronting every street around
+  shared back yards and gardens); intersections, corners and continuous frontages everywhere; whole blocks given a
+  role (seat or temple precinct, market block, park, orchard and kitchen-garden blocks, craft yards). Not graph
+  paper: grid sections may tilt where an avenue changes direction, streets bend gently along a river, lakeshore or
+  hill, a few run diagonal where walls or terrain demand; but every street is clearly a street, never leftover space.
+- **City, outside the walls:** faubourgs ribboning along each approach road (inns, smithies, stables, houses) dense
+  near the gate and sparser further out, sporadic away from the road; then farmland (fields, orchards, pasture)
+  organic like the countryside.
+
+**Every city unique** (a generator, not a template): wall outline (round, oval, polygonal, squeezed along a river or
+coast, following the land), 2-5 avenues at their own angles from that city's gates, block sizes, tilted grid
+sections, rivers with bridges and quays or a lake harbour or none, where and how big the plaza and seat are (one
+square or a chain), the district mix and where the park, orchards and temple precinct fall, culture plan types
+(jade: strict axial plan with walled compounds; dune: courtyard blocks and covered souk streets; steppe: rings round
+the khan's court; fjord: terraces along the harbour; heartland: market grid round a cathedral close; others by
+their culture data), and age and size (an old capital denser and more layered than a young frontier city).
+
+**Checks:**
+- A structure score per settlement (share of buildings fronting a straight-ish street, block regularity, dead ends,
+  street connectivity): cities clearly above towns, towns clearly above villages, every city above a floor.
+- A uniqueness check: city plans across many seeds must not be near-duplicates (layout similarity metric).
+- Review agents compare the city map view and street-level shots against the concept principle, and villages
+  before/after; commercial 16-bit quality, 3/4 view, seamless walls and paving.
+- Everything that works today keeps working: walls and gates, the economy and markets, M7 lots for sale, the M5
+  census and life, M6 guards, interiors, sagas casting places; capital build-time budget (`--towns` gates);
+  regenerate goldens and bump ENDLESS_GEN_VER.
