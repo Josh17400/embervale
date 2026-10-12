@@ -385,6 +385,8 @@ void Gen::cityStreets() {
     for (int x = 0; x < W; x++) roomy[I(x, y)] = (!walled || (inside[I(x, y)] && !nearRing(x, y, 5))) ? 1 : 0;
   avenueHW = (sylvan() || stilt) ? 1.5f : 2.5f;
   blockP = densityF > 1.2f ? 11 : (densityF < 0.8f ? 13 : 12);
+  cityPick();   // (M7c: the city's kind of plan and its block pitches; town_city_grid.cpp)
+  cityMade.assign(n, 0);
   if (sylvan()) laneG = Ground::Dirt;   // (the elven city: little paving off its avenues)
   // --- the seat: a capital's palace square before the compound gate; any other city's seat precinct in the noble
   // quarter (a radial city's seat faces its plaza, a merchant republic's its market square)
@@ -404,6 +406,21 @@ void Gen::cityStreets() {
     squares.push_back(Square{gx + 1, gy + 4, 3.0f, District::Noble, 1});
     precincts.push_back(Precinct{compound, IRect{sx0, gy + 1, 13, 6}, 1, 0});
     seatX = gx + 1; seatY = gy + 7;
+    // (M7c) a lane round the palace grounds' walls, two tiles off them (the blocks round the compound meet a street, not
+    // its blank wall), joined to the palace square on either side
+    {
+      const int x0 = compound.x - 2, x1 = compound.x + compound.w + 1, y0 = compound.y - 2, y1 = compound.y + compound.h + 1;
+      const Ground lg = laneG == Ground::Dirt ? Ground::Road : laneG;
+      paintBand({{x0, y1}, {x0, y0}, {x1, y0}, {x1, y1}}, 0.5f, (uint8_t)Urb::Lane, K_LANE, lg);
+      for (int x = x0; x <= x1; x++) {   // (the south side: from each corner along to the square)
+        if (in(x, y1) && get(x, y1) == K_SQUARE) break;
+        paintBand({{x0, y1}, {x, y1}}, 0.5f, (uint8_t)Urb::Lane, K_LANE, lg);
+      }
+      for (int x = x1; x >= x0; x--) {
+        if (in(x, y1) && get(x, y1) == K_SQUARE) break;
+        paintBand({{x1, y1}, {x, y1}}, 0.5f, (uint8_t)Urb::Lane, K_LANE, lg);
+      }
+    }
   } else if (style != cult::Layout::Radial && !(hasSoc && soc.seat == cult::Seat::GuildExchange)) {
     int bw = 9, bh = 4;
     if (hasSoc)
@@ -574,15 +591,12 @@ void Gen::cityStreets() {
     for (int xx = pc.plot.x - 1; xx <= pc.plot.x + pc.plot.w; xx++) if (in(xx, pc.plot.y - 1) && isStreet(xx, pc.plot.y - 1)) from.push_back((int)I(xx, pc.plot.y - 1));
     joinStreets(from);
   }
-  // --- the style's own lattice, ordered by the avenues (the organic and stilt plans get theirs in cityBlocks)
-  switch (style) {
-    case cult::Layout::Grid: break;   // (the planned grid's streets and lanes: cityBlocks)
-    case cult::Layout::Compound: gridLanes(true); break;
-    case cult::Layout::Radial: radialRings(); break;
-    case cult::Layout::Linear: pickSpine(); spineStreets(true); break;
-    default: break;
-  }
-  wallStreet();
+  // --- (M7c) the plan's own frame before the lattice (cityBlocks): the rings, the spine along the water, the lane round
+  // the inside of the wall, a lane along every bank (town_city_grid.cpp)
+  if (cp.kind == CK_RINGS) cityRingStreets();
+  if (cp.kind == CK_HARBOUR || cp.kind == CK_RIVER) citySpine();
+  cityWallLane();
+  cityBankStreets();
   bridgeCrossings();
 }
 
@@ -654,6 +668,15 @@ void Gen::facePrecincts(std::vector<Want>& want) {
 
 // ------------------------------------------------------------------------------------------------ phase 3: the blocks
 void Gen::cityBlocks() {
+  if (cp.kind != CK_LEGACY) {
+    // (M7c) the street network: every section's block streets and lanes, the role blocks (town_city_grid.cpp); then the
+    // elves' great trees and the well-squares at the lanes' feet as before
+    cityGrid();
+    cityRiverLinks();   // (M7c fixer: a far bank cut off by the river gets its bridge)
+    cityTrees();
+    cityWells(cityFeet);
+    return;
+  }
   if (style == cult::Layout::Terraced) { contourLanes(); }
   // the grid (imperial, and others' alternate): straight north-south lanes a block apart first, then its cross streets
   // with their walks between them; the organic plan: cross streets off the avenues, its lanes through the blocks after
@@ -816,8 +839,13 @@ void Gen::cityBlocks() {
       walkStreet(s.first + 0.5f, s.second + 0.5f, a, a, len, 1, K_LANE, laneG, 2);
     }
   }
-  // the elven city: its great trees stand where they grew, between the lanes (no house, roof or crown over another's
-  // front: the trunk, its crown's reach and a tile round them are kept clear of building)
+  cityTrees();
+  cityWells(laneFoot);
+}
+
+// the elven city: its great trees stand where they grew, between the lanes (no house, roof or crown over another's front:
+// the trunk, its crown's reach and a tile round them are kept clear of building)
+void Gen::cityTrees() {
   if (sylvan()) {
     for (int y = 6; y < H - 6; y += 9)
       for (int x = 6; x < W - 6; x += 11) {
@@ -837,7 +865,10 @@ void Gen::cityBlocks() {
           for (int ox = -1; ox <= 1; ox++) noBuild[I(tx + ox, ty + oy)] |= 2;
       }
   }
-  // well-squares at some of the block lanes' feet (not in the rich quarter; a dozen tiles apart at least)
+}
+
+// well-squares at some of the block lanes' feet (not in the rich quarter; a dozen tiles apart at least)
+void Gen::cityWells(const std::vector<std::pair<int, int>>& laneFoot) {
   {
     std::vector<std::pair<int, int>> made;
     for (const auto& f : laneFoot) {
@@ -889,7 +920,9 @@ void Gen::cityBlocks() {
 int Gen::rowHouses(int want) {
   if (want <= 0) return 0;
   const bool cottages = cultureIs((int)cult::Archetype::Steppe) || sylvan() || stilt;
-  if (cottages) return 0;   // (tents, the elves' houses among the trees, stilt houses: no terraces)
+  // (tents, the elves' houses among the trees, stilt houses: no terraces) (M7c) but in rows all the same: each its own
+  // house a tile from the next along the street's front, no party wall, no walled yard
+  const bool detached = cottages;
   struct Run { int y, xa, xb; float d; };
   std::vector<Run> runs;
   auto frontOk = [&](int x, int y) {
@@ -899,6 +932,8 @@ int Gen::rowHouses(int want) {
     if (mask[j] != K_NONE || M.bldgAt[j] >= 0 || keep[j] || noBuild[j]) return false;
     if (walled && !ins(x, y - 1)) return false;
     // ((fixer M7b r1) the poor quarter's cottages crowd on out to the wall's lanes)
+    // ((M7c) the street network runs out to the wall lane: every block street inside it is fronted)
+    if (cp.kind != CK_LEGACY) return true;
     return dist(x, y) < (districtAt(x, y - 1) == District::Poor ? 0.95f : 0.86f);
   };
   for (int y = 3; y < H - 3; y++) {
@@ -932,7 +967,8 @@ int Gen::rowHouses(int want) {
         if (!foot) continue;
         if (mask[i] != K_NONE || keep[i] || M.prop[i] || front[i] || water[i]) return false;
         const Ground g = M.at(x, y);
-        if (g == Ground::Road || g == Ground::Plaza || g == Ground::Bridge || g == Ground::Swamp || groundSolid(g)) return false;
+        const bool marsh = stilt && !water[i] && (g == Ground::Water || g == Ground::Swamp);   // ((M7c) a stilt house over the pools)
+        if (g == Ground::Road || g == Ground::Plaza || g == Ground::Bridge || ((g == Ground::Swamp || groundSolid(g)) && !marsh)) return false;
         if (lvl[i] != need || (walled && !inside[i]) || (!reserved.empty() && reserved[i])) return false;
         if (terraced)
           for (int d = 0; d < 4; d++) if (in(x + D4X[d], y + D4Y[d]) && lvl[I(x + D4X[d], y + D4Y[d])] > lvl[i]) return false;
@@ -978,7 +1014,30 @@ int Gen::rowHouses(int want) {
       // build: every unit takes the first one's roof, materials and wealth (its own facade wash, windows, door and
       // foundation stay its own), so the eave, the ridge and the roof's courses run on across every party wall
       const Bldg lead = M.bldgs[first];
-      const uint32_t off = hashAt(lead.r.x, lead.r.y, 0x7E48u) % 128u;   // (the row's first front, by its place)
+      uint32_t off = hashAt(lead.r.x, lead.r.y, 0x7E48u) % 128u;   // (the row's first front, by its place)
+      // (M7c integration, rpg_test --builder: two rows a street apart drew the same fronts, clones across the street)
+      // the row's numbering steps on until none of its fronts repeats one of an earlier row's houses of the same size
+      // within 14 tiles (the builder's 32 paints: variant - 1 mod 32); no draw, the hash's own walk
+      {
+        int bestBad = 1 << 30;
+        uint32_t bestOff = off;
+        for (uint32_t t = 0; t < 32u && bestBad > 0; t++) {
+          const uint32_t o2 = (off + t * 37u) % 128u;
+          int badN = 0;
+          for (size_t k = 0; k < units.size(); k++) {
+            const IRect& ur = M.bldgs[first + k].r;
+            const uint32_t v = (o2 + (uint32_t)k * 5u) % 32u;
+            for (size_t j = 0; j < first; j++) {
+              const Bldg& o = M.bldgs[j];
+              if (!o.variant || o.r.w != ur.w || o.r.h != ur.h || (uint32_t)(o.variant - 1) % 32u != v) continue;
+              const int dx = o.r.cx() - ur.cx(), dy = o.r.cy() - ur.cy();
+              if (dx * dx + dy * dy <= 14 * 14) badN++;
+            }
+          }
+          if (badN < bestBad) { bestBad = badN; bestOff = o2; }
+        }
+        off = bestOff;
+      }
       for (size_t k = 0; k < units.size(); k++) {
         Bldg& b = M.bldgs[first + k];
         if (k > 0) b.row |= bld::ROW_W;
@@ -1004,7 +1063,7 @@ int Gen::rowHouses(int want) {
     for (size_t k = 0; k < units.size(); k++) {
       Bldg& b = M.bldgs[first + k];
       const District q = districtAt(b.r.cx(), b.r.y);
-      const int maxY = terraced ? 0 : (q == District::Noble ? 8 : (q == District::Poor ? 3 : 5));   // (a terrace keeps its narrow shelf for houses)
+      const int maxY = terraced || detached ? 0 : (q == District::Noble ? 8 : (q == District::Poor ? 3 : 5));   // (a terrace keeps its narrow shelf for houses)
       int depth = 0;
       for (int t = 1; t <= maxY; t++) {
         const int y = b.r.y - t;
@@ -1054,6 +1113,12 @@ int Gen::rowHouses(int want) {
       // (fixer M7b r3) one terrace is one build: its depth, storeys and kind are its first unit's (only the widths
       // vary), so the eave and ridge run level along it (corner houses no longer step up a storey at the ends)
       if (!units.empty()) { t = tp.t; st = tp.st; hh = tp.hh; }
+      if (detached) {   // (M7c) the cottage peoples' houses: their own size, one storey (the elves' a little larger)
+        t = Building::House;
+        w = sylvan() ? 4 + (int)(h % 2u) : 3 + (int)(h % 2u);
+        hh = sylvan() && (h >> 6) % 3u == 0 ? 3 : 2;
+        st = 1;
+      }
       w = std::min(w, R.xb - x + 1);
       if (w < 3) break;
       if (t == Building::Hut) { w = 3; hh = 2; st = 1; }
@@ -1070,8 +1135,13 @@ int Gen::rowHouses(int want) {
         continue;
       }
       const IRect r{x, R.y - hh, w, hh};
-      if (unitOk(r)) { if (units.empty()) tp = TP{t, st, hh}; units.push_back(Unit{r, t, st}); x += w; len++; }
-      else { flush(); len = 0; x++; }
+      if (unitOk(r)) {
+        if (units.empty()) tp = TP{t, st, hh};
+        units.push_back(Unit{r, t, st});
+        x += w;
+        len++;
+        if (detached) { flush(); len = 0; x += 1; }   // (a tile to the next house)
+      } else { flush(); len = 0; x++; }
     }
     flush();
   }
@@ -1530,6 +1600,21 @@ void Gen::cityDress() {
       if (!byWalk) continue;
       M.setP(x, y, 0);
       if (wx >= 0) putSolid(wx, wy, Prop::Lamppost);
+      // (M7c fixer, review: "yellow-green diamond patches by lamp posts") the lamp's old tile was the scrap of turf it
+      // stood on, one tile among the paved yards behind the walk: it drew as a lone green diamond on the paving. It
+      // takes the paving round it (two paved sides or more)
+      {
+        const Ground g0 = M.at(x, y);
+        if (g0 != Ground::Road && g0 != Ground::Plaza && !water[I(x, y)] && M.bldgAt[I(x, y)] < 0 && !M.wall[I(x, y)]) {
+          int nRoad = 0, nPlaza = 0;
+          for (int d = 0; d < 4; d++) {
+            const Ground q = M.at(x + D4X[d], y + D4Y[d]);
+            if (q == Ground::Road) nRoad++;
+            else if (q == Ground::Plaza) nPlaza++;
+          }
+          if (nRoad + nPlaza >= 2) M.setG(x, y, nPlaza > nRoad ? Ground::Plaza : Ground::Road);
+        }
+      }
     }
   // (fixer M7b r3) no two street lamps of a walk within three tiles of each other (the town's own lamps, moved onto a
   // walk above, met the avenue's: two posts stacked one tile apart)
@@ -1821,6 +1906,119 @@ void Gen::urbanFabric() {
       if (!changed) break;
     }
   }
+}
+
+// ------------------------------------------------------------------------------------------------ M7c: the homes' hooks
+// (M7c phase A: moved here unchanged from Gen::homesBegin / homesFinish, now rpg/world/town_homes.cpp, so the planned
+// city's homes are the CITY lane's and the shared sweep the EDGE lane's)
+
+// (fixer M7b r1) a planned city aims a little higher (its poor quarter packed with cottages), within the scale and the
+// buildings' cap (the services and works already standing, a margin for what is still to come)
+void Gen::cityHomesWant() {
+  const TownScale sc = townScale(P.type);
+  const int others = (int)M.bldgs.size() - hHave;
+  homesWant = std::max(homesWant, std::min({sc.homesMax - 6, homesWant + 14, sc.bldgMax - 12 - others}));
+}
+
+// (M7b) the planned city: the jade city's walled family compounds among its terraces, then the row houses along every
+// front (the frontage sweep fills in after them: the outskirts, the lanes, the odd corners). (M7c) the faubourgs' share
+// (faubourgWant, the EDGE lane's) is left for outside the walls.
+int Gen::plannedHomes() {
+  int made = 0;
+  if (cultureIs((int)cult::Archetype::Jade) && !terraced && style != cult::Layout::Compound) made += compoundHomes((homesWant - hHave) / 3);   // (a terrace is too narrow for a court; (fixer M7b r2) a compound city has laid its compounds already)
+  made += rowHouses(homesWant - (hHave + made) - 6 - faubourgWant);
+  return made;
+}
+
+// (M7b) a planned city's wide streets: only the tiles open land borders can front a house; ((fixer M7b r1) a planned
+// city's poor quarter is its densest: its plots come before the outskirts of the others)
+bool Gen::cityFront(int x, int y, float& weight) const {
+  bool open = false;
+  for (int oy = -2; oy <= 2 && !open; oy++)
+    for (int ox = -1; ox <= 1; ox++) if (get(x + ox, y + oy) == K_NONE) { open = true; break; }
+  if (!open) return false;
+  weight = districtAt(x, y) == District::Poor ? 0.62f : 1.0f;
+  return true;
+}
+
+// (M7b) a planned city still short after two top-up rounds: its row houses give up their back yards for cottages
+void Gen::cityHomesRound(int round) {
+  if (round != 2) return;
+  for (Bldg& b : M.bldgs) {
+    if (!(b.row & bld::ROW_YARD)) continue;
+    b.row = (uint8_t)(b.row & ~bld::ROW_YARD);
+    for (int y = b.r.y - 10; y < b.r.y; y++)
+      for (int x = b.r.x; x < b.r.x + b.r.w; x++) if (get(x, y) == K_ROWYARD) set(x, y, K_NONE);
+  }
+}
+
+// (fixer M7b r2, review: "cities under the housing floor on seeds past CI's") a planned city still short: its wide row
+// houses (six tiles or more along the street) are let as two, a narrow house of three tiles and the rest, each with its
+// own door on the street and a party wall between them (the terrace runs on); no new ground is taken. homesNow: the
+// homes standing (as rpg_test --towns counts them). Returns the homes made.
+int Gen::cityHomesLast(int homesNow) {
+  const TownScale need = townScale(P.type);
+  int made = 0;
+  if (homesNow < need.homesMin + 5) {
+    const size_t nb = M.bldgs.size();
+    for (size_t bi = 0; bi < nb && homesNow < need.homesMin + 5; bi++) {
+      const Bldg b0 = M.bldgs[bi];
+      if (!townIsHome(b0.type) || b0.r.w < 6 || b0.type == Building::Hut) continue;
+      const IRect left{b0.r.x, b0.r.y, 3, b0.r.h}, right{b0.r.x + 3, b0.r.y, b0.r.w - 3, b0.r.h};
+      const int fy = b0.r.y + b0.r.h, ldx = left.x + left.w / 2, rdx = right.x + right.w / 2;
+      // (a detached house: both new doorsteps walkable ground the old one's way reaches, beside its own)
+      auto step = [&](int x) {
+        if (!in(x, fy) || M.bldgAt[I(x, fy)] >= 0 || M.wall[I(x, fy)] || water[I(x, fy)] || groundSolid(M.at(x, fy)) || get(x, fy) == K_FIELD) return false;
+        if (M.prop[I(x, fy)] && propSolid((Prop)(M.prop[I(x, fy)] - 1))) return false;
+        return isStreet(x, fy) || get(x, fy) == K_YARD;
+      };
+      if (!step(ldx) || !step(rdx)) continue;
+      // and no other building's sprite over the new doorsteps and aprons (the V5 rule)
+      bool covered = false;
+      for (size_t oj = 0; oj < M.bldgs.size() && !covered; oj++) {
+        if (oj == bi) continue;
+        const Bldg& o = M.bldgs[oj];
+        const int orise = townRiseTiles(o.type, o.storeys);
+        // (a terrace neighbour across the shared wall: its sprite stops at its own footprint on that side)
+        const bool joinW = (o.row & bld::ROW_E) && (b0.row & bld::ROW_W) && o.r.x + o.r.w == b0.r.x && o.r.y + o.r.h == fy;
+        const bool joinE = (b0.row & bld::ROW_E) && (o.row & bld::ROW_W) && o.r.x == b0.r.x + b0.r.w && o.r.y + o.r.h == fy;
+        const int sx0 = o.r.x - (joinE ? 0 : 1), sx1 = o.r.x + o.r.w - (joinW ? 1 : 0);
+        for (int dx : {ldx, rdx})
+          for (int y = fy; y <= fy + 1 && !covered; y++)
+            for (int x = dx - 1; x <= dx + 1; x++)
+              if (x >= sx0 && x <= sx1 && y >= o.r.y - orise && y <= o.r.y + o.r.h) { covered = true; break; }
+      }
+      if (covered) continue;
+      // the left unit keeps the building (narrowed), the right one is a new house beside it
+      Bldg& L = M.bldgs[bi];
+      L.r = left;
+      L.row = (uint8_t)(b0.row | bld::ROW_E);
+      // (fixer M7b r3) a terrace's unit keeps the terrace's storeys (its eave runs level with the neighbours'): a
+      // narrow house that would paint one storey is built in stone instead
+      const bool inRow = (b0.row & (bld::ROW_W | bld::ROW_E)) != 0;
+      if (L.type == Building::House) {
+        if (inRow && L.storeys >= 2) L.type = Building::StoneHouse;
+        else L.storeys = 1;   // (a narrow house paints one storey: test_arch)
+      }
+      // (two halves of one width are told apart: the right one in the other kind of house, so no twin stands beside it)
+      Building rt = right.w == left.w ? (b0.type == Building::StoneHouse ? Building::House : Building::StoneHouse) : b0.type;
+      if (inRow && rt == Building::House && right.w < 4 && b0.storeys >= 2) rt = Building::StoneHouse;
+      const int st = (rt == Building::House && right.w < 4) ? 1 : (int)b0.storeys;
+      const int ri = putBldg(rt, right, b0.owner, st);
+      M.bldgs[(size_t)ri].row = (uint8_t)((b0.row & ~bld::ROW_W) | bld::ROW_W);
+      if (inRow) {   // one terrace, one roof: the new unit takes its neighbour's roof, materials and wealth
+        Bldg& Rb = M.bldgs[(size_t)ri];
+        const uint8_t variant = Rb.arch.variant;
+        Rb.roof = b0.roof; Rb.wealth = b0.wealth; Rb.arch = b0.arch; Rb.styled = b0.styled; Rb.arch.variant = variant;
+      }
+      for (int y = fy; y <= fy + 1; y++)
+        for (int x = ldx - 1; x <= ldx + 1; x++) if (in(x, y)) front[I(x, y)] = 1;
+      made++;
+      homesNow++;
+      rowsMade++;
+    }
+  }
+  return made;
 }
 
 }  // namespace town

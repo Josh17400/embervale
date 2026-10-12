@@ -1,0 +1,209 @@
+# M7c CITY lane: every people's CAPITAL on seed 7 (an old seat: denser, more layered than a young city), its plan,
+# its structure gate and its heart, the river city (bridges and quays along the banks), and the world map's plan of
+# each at the town zoom (menu 2, MAP tab, mapzoom 2) next to the concept's principle (docs/ref/m7c_city_concept.png).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7c_city_cultures.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
+# ---- heartland capital
++0.2 gotoculture heartland capital
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_cap_heartland_heart.png
++0.1 cityspot seat
++0.8 shot m7c_cap_heartland_seat.png
++0.1 menu 2
++0.1 mapzoom 2
++0.1 mapcity
++0.1 mapwaitplans mark
++1.2 shot m7c_cap_heartland_map.png
++0.1 key Escape
++0.3 hour 12
+# ---- imperial capital
++0.2 gotoculture imperial capital
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_cap_imperial_heart.png
++0.1 cityspot seat
++0.8 shot m7c_cap_imperial_seat.png
++0.1 menu 2
++0.1 mapzoom 2
++0.1 mapcity
++0.1 mapwaitplans mark
++1.2 shot m7c_cap_imperial_map.png
++0.1 key Escape
++0.3 hour 12
+# ---- jade capital
++0.2 gotoculture jade capital
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_cap_jade_heart.png
++0.1 cityspot seat
++0.8 shot m7c_cap_jade_seat.png
++0.1 menu 2
++0.1 mapzoom 2
++0.1 mapcity
++0.1 mapwaitplans mark
++1.2 shot m7c_cap_jade_map.png
++0.1 key Escape
++0.3 hour 12
+# ---- dune capital
++0.2 gotoculture dune capital
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_cap_dune_heart.png
++0.1 cityspot seat
++0.8 shot m7c_cap_dune_seat.png
++0.1 menu 2
++0.1 mapzoom 2
++0.1 mapcity
++0.1 mapwaitplans mark
++1.2 shot m7c_cap_dune_map.png
++0.1 key Escape
++0.3 hour 12
+# ---- steppe capital
++0.2 gotoculture steppe capital
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_cap_steppe_heart.png
++0.1 cityspot seat
++0.8 shot m7c_cap_steppe_seat.png
++0.1 menu 2
++0.1 mapzoom 2
++0.1 mapcity
++0.1 mapwaitplans mark
++1.2 shot m7c_cap_steppe_map.png
++0.1 key Escape
++0.3 hour 12
+# ---- fjordfolk capital
++0.2 gotoculture fjordfolk capital
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_cap_fjordfolk_heart.png
++0.1 cityspot seat
++0.8 shot m7c_cap_fjordfolk_seat.png
++0.1 menu 2
++0.1 mapzoom 2
++0.1 mapcity
++0.1 mapwaitplans mark
++1.2 shot m7c_cap_fjordfolk_map.png
++0.1 key Escape
++0.3 hour 12
+# ---- highland capital
++0.2 gotoculture highland capital
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_cap_highland_heart.png
++0.1 cityspot seat
++0.8 shot m7c_cap_highland_seat.png
++0.1 menu 2
++0.1 mapzoom 2
++0.1 mapcity
++0.1 mapwaitplans mark
++1.2 shot m7c_cap_highland_map.png
++0.1 key Escape
++0.3 hour 12
+# ---- marsh capital
++0.2 gotoculture marsh capital
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_cap_marsh_heart.png
++0.1 cityspot seat
++0.8 shot m7c_cap_marsh_seat.png
++0.1 menu 2
++0.1 mapzoom 2
++0.1 mapcity
++0.1 mapwaitplans mark
++1.2 shot m7c_cap_marsh_map.png
++0.1 key Escape
++0.3 hour 12
+# ---- river capital
++0.2 gotoculture river capital
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_cap_river_heart.png
++0.1 cityspot seat
++0.8 shot m7c_cap_river_seat.png
++0.1 menu 2
++0.1 mapzoom 2
++0.1 mapcity
++0.1 mapwaitplans mark
++1.2 shot m7c_cap_river_map.png
++0.1 key Escape
++0.3 hour 12
+# ---- starspire capital
++0.2 gotoculture starspire capital
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_cap_starspire_heart.png
++0.1 cityspot seat
++0.8 shot m7c_cap_starspire_seat.png
++0.1 menu 2
++0.1 mapzoom 2
++0.1 mapcity
++0.1 mapwaitplans mark
++1.2 shot m7c_cap_starspire_map.png
++0.1 key Escape
++0.3 hour 12
+# ---- suntemple capital
++0.2 gotoculture suntemple capital
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_cap_suntemple_heart.png
++0.1 cityspot seat
++0.8 shot m7c_cap_suntemple_seat.png
++0.1 menu 2
++0.1 mapzoom 2
++0.1 mapcity
++0.1 mapwaitplans mark
++1.2 shot m7c_cap_suntemple_map.png
++0.1 key Escape
++0.3 hour 12
+# ---- sylvan capital
++0.2 gotoculture sylvan capital
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_cap_sylvan_heart.png
++0.1 cityspot seat
++0.8 shot m7c_cap_sylvan_seat.png
++0.1 menu 2
++0.1 mapzoom 2
++0.1 mapcity
++0.1 mapwaitplans mark
++1.2 shot m7c_cap_sylvan_map.png
++0.1 key Escape
++0.3 hour 12
+# ---- the river city: its banks and quays
++0.2 gotoculture river city
++1.5 planmark
++0.1 plan
++0.1 cityspot avenue 1
++0.8 shot m7c_city_river_avenue.png
++0.1 cityspot heart
++0.8 shot m7c_city_river_heart.png
++0.3 quit

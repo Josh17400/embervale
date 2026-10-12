@@ -28,6 +28,7 @@
 #include <vector>
 #include "rpg/build/blueprint.h"
 #include "rpg/build/registry.h"
+#include "rpg/culture/culture.h"
 #include "rpg/culture/society.h"
 #include "rpg/sim/home.h"
 #include "rpg/sim/interior_v4.h"
@@ -228,6 +229,68 @@ int playerHouseSweep(uint64_t a, uint64_t b, bool verbose) {
 cult::SettleTier tierOf(SiteType t, bool capital) {
   if (capital) return cult::SettleTier::Capital;
   return t == SiteType::City ? cult::SettleTier::City : (t == SiteType::Town ? cult::SettleTier::Town : cult::SettleTier::Village);
+}
+
+// (M7c ART, VISION_PLAN 15.M7c) a row house's street faces (Request::row ROW_SIDE_W / ROW_SIDE_E / ROW_BACK): for every
+// people x wealth x {house, shop} x {2, 3 storeys}, as an inner unit (party walls both sides), each corner unit, a lone
+// corner unit with both sides on streets, and an inner unit backing onto a street:
+//   keys    every row value its own Request::key and Blueprint::key (the sprite and open-front caches part them;
+//           bldgOpenKey mixes Bldg::row the same way);
+//   valid   bld::validate() passes;
+//   side    a street side is never a party wall: no volume of a corner unit carries VF_PARTY_W / _E on its street side;
+//   back    a back on a street stands its body on the plot's back line (y0 0).
+// The painted faces (no blank street side, the corner lit from the top left) are checked on the sprites by
+// city_gallery --check (rpg_test does not link the painter).
+int streetFaceChecks() {
+  int units = 0, keys = 0, invalid = 0, backs = 0, party = 0;
+  const int NA = (int)cult::Archetype::COUNT;
+  for (int c = -1; c < NA; c++)
+    for (int w = 0; w < 4; w++)
+      for (int t = 0; t < 2; t++)
+        for (int n = 2; n <= 3; n++) {
+          const uint32_t seed = 7000u + (uint32_t)(c + 1) * 131u + (uint32_t)w * 17u + (uint32_t)t * 5u + (uint32_t)n;
+          const art::ArchStyle st = c < 0 ? art::urbanize(art::archForBiome(2, seed), 2, seed)
+                                          : cult::buildingArch(cult::Atlas::make((cult::Archetype)c, 4242u + (uint32_t)c * 7u, 2), 2, 2, w, seed);
+          art::BuildingFacts f;
+          f.storeys = n;
+          f.variant = (uint8_t)(1 + (seed % 7u));
+          bld::Request r = bld::simpleRequest(t ? Building::Shop : Building::House, 3, 3, st, seed, f);
+          r.wealth = (uint8_t)w;
+          r.urban = 2;
+          static const uint8_t rows[5] = {bld::ROW_W | bld::ROW_E, bld::ROW_SIDE_W | bld::ROW_E, bld::ROW_W | bld::ROW_SIDE_E,
+                                          bld::ROW_SIDE_W | bld::ROW_SIDE_E, bld::ROW_W | bld::ROW_E | bld::ROW_BACK};
+          bld::Blueprint bp[5];
+          uint64_t rk[5];
+          for (int k = 0; k < 5; k++) {
+            r.row = rows[k];
+            rk[k] = r.key();
+            bp[k] = bld::design(r);
+            const char* why = bld::validate(bp[k]);
+            if (*why) { if (invalid < 6) out("FAIL: street face: style %d wealth %d row %d: %s\n", c, w, (int)rows[k], why); invalid++; }
+          }
+          units++;
+          for (int i = 0; i < 5; i++)
+            for (int j = i + 1; j < 5; j++)
+              if (rk[i] == rk[j] || bp[i].key == bp[j].key) keys++;
+          if (bp[0].vols.empty() || bp[0].vols[0].shape != bld::VolShape::Box) continue;   // a round house is never a row
+          for (int k = 1; k <= 3; k++)
+            for (const bld::Volume& v : bp[k].vols) {
+              const bool sw = (rows[k] & bld::ROW_SIDE_W) && (v.feat & bld::VF_PARTY_W), se = (rows[k] & bld::ROW_SIDE_E) && (v.feat & bld::VF_PARTY_E);
+              if (sw || se) {
+                if (party < 6) out("FAIL: street face: style %d wealth %d row %d: a party wall on the street side (%s)\n", c, w, (int)rows[k], sw ? "west" : "east");
+                party++;
+                break;
+              }
+            }
+          if (bp[4].vols[0].y0 != 0) {
+            if (backs < 6) out("FAIL: street face: style %d wealth %d: a back on a street stands at y0 %d\n", c, w, (int)bp[4].vols[0].y0);
+            backs++;
+          }
+        }
+  if (keys) out("FAIL: street face: %d row values share a request or blueprint key\n", keys);
+  printf("street faces (M7c): %d units x 5 row kinds, %d invalid, %d party walls on a street side, %d backs off the line, %d shared keys\n",
+         units, invalid, party, backs, keys);
+  return invalid + party + backs + (keys ? 1 : 0);
 }
 
 int cmdBuilder(int argc, char** argv) {
@@ -443,6 +506,7 @@ int cmdBuilder(int argc, char** argv) {
     }
   }
   bad += playerHouseSweep(a, b, verbose);
+  bad += streetFaceChecks();
   bad += placedBad + placedOpenBad;
   printf("open fronts placed: %d buildings, %d entry bays outside, %d bays inside (%d with galleries arriving by the door), %d failures\n", placedOpen, placedBays, interiorBays, galleryAtDoor, placedOpenBad);
   if (socStrict && missingTotal) bad++;

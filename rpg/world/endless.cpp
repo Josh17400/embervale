@@ -50,6 +50,13 @@ std::vector<float> EndlessSource::roadBearings(Gid site) {
 }
 void EndlessSource::chunk(int32_t cx, int32_t cy, ChunkData& out) { d_->chunk(cx, cy, out); }
 bool EndlessSource::prepareChunk(int32_t cx, int32_t cy, double budgetMs) { return d_->prepareChunk(cx, cy, budgetMs); }
+std::shared_ptr<const SettlementOut> EndlessSource::settlement(Gid site) {
+  d_->makeStart();
+  std::shared_ptr<const gen::RegionData> D = d_->regionData(idRx(site), idRy(site));
+  for (const SitePlan& p : D->plan.sites)
+    if (p.id == site && (p.type == SiteType::Village || p.type == SiteType::Town || p.type == SiteType::City)) return d_->town(p, D);
+  return nullptr;
+}
 const KingdomPlan* EndlessSource::kingdom(Gid id) { d_->makeStart(); return d_->kingdom(id); }
 Gid EndlessSource::kingdomOfCell(int32_t kx, int32_t ky) {
   d_->makeStart();

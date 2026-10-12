@@ -1,0 +1,37 @@
+# M7c ART lane: every junction kind of the M7c street network on one synthetic stage (terrain.cpp `urbstage`), in a
+# city's own style (its row houses and paving), at noon; then the heartland stage at night. Judge: kerb returns and
+# corner stones at junctions, crossings, the drain through the crossing, slanted kerbs on the 1:1 and 1:2 streets,
+# the square framed, bridges and quays, corner houses' street faces (ROW_SIDE), backs on a street (ROW_BACK).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7c_art_stage.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 hour 12
++0.2 gotoculture heartland city
++1.5 urbstage build
++2.5 hour 12
++0.5 shot m7c_art_stage_cross.png
++0.1 urbstage go street
++1.2 shot m7c_art_stage_street.png
++0.1 urbstage go tee
++1.2 shot m7c_art_stage_tee.png
++0.1 urbstage go corner
++1.2 shot m7c_art_stage_corner.png
++0.1 urbstage go mews
++1.2 shot m7c_art_stage_mews.png
++0.1 urbstage go diag
++1.2 shot m7c_art_stage_diag.png
++0.1 urbstage go tilt
++1.2 shot m7c_art_stage_tilt.png
++0.1 urbstage go square
++1.2 shot m7c_art_stage_square.png
++0.1 urbstage go bridge
++1.2 shot m7c_art_stage_bridge.png
++0.1 urbstage go back
++1.2 shot m7c_art_stage_back.png
++0.1 urbstage go yard
++1.2 shot m7c_art_stage_yard.png
++0.1 urbstage go cross
++0.1 hour 21
++1.0 shot m7c_art_stage_cross_night.png
++0.3 quit

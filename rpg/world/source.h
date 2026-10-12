@@ -26,9 +26,15 @@
 
 namespace ew {
 
+struct SettlementOut;   // rpg/world/settlement.h
+
 // Bumped when the endless generator's output changes. Old saves are not kept compatible across M1 (owner rule,
 // 2026-10-04); the save stores it so a mismatch can say "this save is from an older world".
-constexpr int ENDLESS_GEN_VER = 20;  // 20: M7b fixer round 3 (one build per terrace: its units share depth, storeys,
+constexpr int ENDLESS_GEN_VER = 21;  // 21: M7c Order of Streets (bumped in phase A so the lanes may change generation
+                                     //     under it: one settlement planner with an order dial, a city's full street
+                                     //     network of blocks, faubourgs and farmland, towns' side streets, villages'
+                                     //     spine; SettlementOut's rank / role layers and traits; goldens re-recorded).
+                                     // 20: M7b fixer round 3 (one build per terrace: its units share depth, storeys,
                                      //     roof and materials; the rich quarter's own houses and lawns; lamps and trees
                                      //     spaced, no tree on a kerb's face; avenue mouths square onto their squares;
                                      //     villages unchanged; town goldens re-recorded).
@@ -265,6 +271,10 @@ class EndlessSource {
   // plans, then each settlement it touches, built a generator phase at a time and cached). True once chunk(cx, cy) is
   // cheap; false: call again next frame. The result of chunk() is the same either way.
   bool prepareChunk(int32_t cx, int32_t cy, double budgetMs);
+  // (M7c) a settlement's whole build (rpg/world/settlement.h: the local buffer, the rank and role layers, the plan's
+  // traits) for its site id: from the source's cache, else built now (a capital costs tens of ms: the world map asks
+  // for discovered places one at a time). nullptr when the id is no settlement.
+  std::shared_ptr<const SettlementOut> settlement(Gid site);
   const KingdomPlan* kingdom(Gid id);                      // nullptr for 0 / unknown
   // M4: the kingdom whose seat stands in kingdom cell (kx, ky) (makeId(kx, ky, IdKind::Kingdom, 0); 0 when the cell is
   // wildlands), and the kingdom cell of a global tile (cells are KCELL wide, centred on multiples of KCELL)

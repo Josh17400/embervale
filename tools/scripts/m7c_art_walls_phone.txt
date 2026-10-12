@@ -1,0 +1,82 @@
+# (the iPhone review size: the "phone" header line; the same shots as m7c_art_walls.txt)
+# M7c ART lane (VISION_PLAN 15.M7c "new wall outlines: round, oval, polygonal, squeezed along rivers or coasts,
+# following the land; gates on diagonal and polygon runs"): the city walls of every culture's city at noon, at a
+# vertex (a polygon's corner, a straight run turning onto a diagonal), on a diagonal run, at a gate on a diagonal run
+# and where the wall meets water; the heartland vertex again at night. Judge: no gaps, orphan pieces or broken corners,
+# towers at vertices, the gatehouse joining its slanted curtains, the wall meeting the water cleanly, the cast shadow.
+# (`wallspot` fails the script where a city has no such place: the city's outline is the EDGE lane's choice.)
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7c_art_walls_phone.txt
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 hour 12
++0.2 gotoculture heartland city
++1.6 hour 12
++0.1 wallspot vertex
++1.0 shot m7c_art_wl_heartland_vertex_phone.png
++0.1 wallspot vertex 1
++1.0 shot m7c_art_wl_heartland_vertex1_phone.png
++0.1 wallspot diag
++1.0 shot m7c_art_wl_heartland_diag_phone.png
++0.1 wallspot gate
++1.0 shot m7c_art_wl_heartland_gate_phone.png
++0.1 wallspot vertex
++0.1 hour 21
++0.8 shot m7c_art_wl_heartland_vertex_night_phone.png
++0.1 hour 12
++0.2 gotoculture imperial city
++1.6 hour 12
++0.1 wallspot vertex
++1.0 shot m7c_art_wl_imperial_vertex_phone.png
++0.1 wallspot gate
++1.0 shot m7c_art_wl_imperial_gate_phone.png
++0.2 gotoculture river city
++1.6 hour 12
++0.1 wallspot any   # (M7c integration: this seed's ring meets no water; the marsh city shows it)
++1.0 shot m7c_art_wl_river_water_phone.png
++0.1 wallspot vertex
++1.0 shot m7c_art_wl_river_vertex_phone.png
++0.2 gotoculture dune city
++1.6 hour 12
++0.1 wallspot vertex
++1.0 shot m7c_art_wl_dune_vertex_phone.png
++0.1 wallspot diag
++1.0 shot m7c_art_wl_dune_diag_phone.png
++0.2 gotoculture jade city
++1.6 hour 12
++0.1 wallspot vertex
++1.0 shot m7c_art_wl_jade_vertex_phone.png
++0.2 gotoculture fjordfolk city
++1.6 hour 12
++0.1 wallspot any   # (M7c integration: this seed's ring meets no water; the marsh city shows it)
++1.0 shot m7c_art_wl_fjord_water_phone.png
++0.1 wallspot vertex
++1.0 shot m7c_art_wl_fjord_vertex_phone.png
++0.2 gotoculture highland city
++1.6 hour 12
++0.1 wallspot vertex
++1.0 shot m7c_art_wl_highland_vertex_phone.png
++0.1 wallspot gate
++1.0 shot m7c_art_wl_highland_gate_phone.png
++0.2 gotoculture starspire city
++1.6 hour 12
++0.1 wallspot vertex
++1.0 shot m7c_art_wl_star_vertex_phone.png
++0.2 gotoculture suntemple city
++1.6 hour 12
++0.1 wallspot vertex
++1.0 shot m7c_art_wl_sun_vertex_phone.png
++0.2 gotoculture marsh city
++1.6 hour 12
++0.1 wallspot water
++1.0 shot m7c_art_wl_marsh_water_phone.png
++0.2 gotoculture steppe city
++1.6 hour 12
++0.1 wallspot vertex
++1.0 shot m7c_art_wl_steppe_vertex_phone.png
++0.2 gotoculture sylvan city
++1.6 hour 12
++0.1 wallspot vertex
++1.0 shot m7c_art_wl_sylvan_vertex_phone.png
++0.3 quit

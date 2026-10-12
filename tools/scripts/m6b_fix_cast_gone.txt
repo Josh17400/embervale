@@ -7,6 +7,8 @@
 # 2. THE SHIELD WALL: "LET HIM GO" hands the story to the youngest shield: the same, and the journal keeps the context.
 #   embervale.exe --script tools/scripts/m6b_fix_cast_gone.txt     (no shots)
 # (M7 integration) the herb's old resident is IKHUR since vacant houses for sale stand empty (the census changed).
+# (M7c integration) and BETAI THE MINER since the M7c villages (the census changed again); (M7c fixer r2) VECKEN THE
+# FARMER since the faubourgs keep off the waste land and the station posts are reachable.
 seed 7
 1 newgame
 +1 god 1
@@ -16,7 +18,7 @@ seed 7
 +1 expect saga herb
 +0.3 expect text YOU'LL FIND
 +0.3 key Escape
-+0.5 life kill IKHUR
++0.5 life kill VECKEN
 +1 life days 20
 +2 expect quest done HERB
 +0.5 saga start shield_wall

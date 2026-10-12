@@ -160,7 +160,8 @@ struct Bldg {
   // neighbour's (same front row, shared wall: no gap, no side wall of its own shown there); ROW_E likewise to the east;
   // ROW_YARD: a walled back yard behind it (the rows above the footprint, kept free by the generator). The
   // settlement generator sets it (cities; never a village); bldgRequest passes it to the builder (bld::Request::row),
-  // which drops the shared side walls and runs the eaves, ridge and frontage on as one terrace. Never saved.
+  // which drops the shared side walls and runs the eaves, ridge and frontage on as one terrace. (M7c) ROW_SIDE_W /
+  // ROW_SIDE_E / ROW_BACK: a side or the back looks onto a street (rpg/build/blueprint.h). Never saved.
   uint8_t row = 0;
   int floors() const { return genVer >= WORLDGEN_V7 ? std::max(1, (int)storeys) : 1; }
   int doorX() const { return r.x + r.w / 2; }

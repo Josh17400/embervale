@@ -1650,6 +1650,23 @@ void View::drawWorld(Game& g) {
                   } else if (k) k = (k & ~0xFFu) | nb;
                 }
             }
+            // (M7c fixer, review: "the approach road runs into a tower, not through the opening") a north-south span's
+            // south jamb tower rose two tiles over the passage in the 3/4 view and hid the road's way through: the vault's
+            // mouths showed above the road, the tower stood on it. The south tower steps one tile down the run (where the
+            // run goes on straight), so the road meets the mouths in the flanks with the roof over them
+            for (const IRect& r : spans) {
+              if (r.w != 1) continue;
+              const int sx = r.x, sy = r.y + 3;
+              if (!m.in(sx - 1, sy) || !m.in(sx + 1, sy + 3) || !(wallKeys_[wallIdx(sx, sy)] & art::WALL_BIT_TOWER)) continue;
+              // the run below straight (one tile wide) for k tiles: the tower goes two tiles down when it can, else one
+              auto plain = [&](int y) { return m.wall[wallIdx(sx, y)] && wallKeys_[wallIdx(sx, y)] && !m.wall[wallIdx(sx - 1, y)] && !m.wall[wallIdx(sx + 1, y)]; };
+              const int to = plain(sy + 1) && plain(sy + 2) && plain(sy + 3) ? sy + 2 : (plain(sy + 1) && plain(sy + 2) ? sy + 1 : -1);
+              if (to < 0) continue;
+              wallKeys_[wallIdx(sx, sy)] &= ~art::WALL_BIT_TOWER;
+              wallKeys_[wallIdx(sx, sy + 1)] &= ~art::WALL_BIT_TOWER_N;
+              wallKeys_[wallIdx(sx, to)] |= art::WALL_BIT_TOWER;
+              wallKeys_[wallIdx(sx, to + 1)] |= art::WALL_BIT_TOWER_N;
+            }
           }
           // (M3b forts) each settlement's walls in its culture's parts: a look slot per settlement in the key's bits
           // 29..31 (art::WALL_LOOK_*), up to seven settlements per window (more: the wall style's defaults)
@@ -2439,6 +2456,11 @@ void View::drawWorld(Game& g) {
           gt = &heraldryTex(1, h, 7, ws);
         }
         P.blit(*gt, d.tx * 16.0f - art::GATE_OX - cam.x, d.ty * 16.0f - art::GATE_OY - cam.y);
+        // (M7c fixer r3, review: "the hero almost disappears inside a gatehouse passage": every city entry on foot
+        // passes through this frame) a hero under the gatehouse's vault (sorted before it, inside its span) shows
+        // through as the same clear silhouette a roof or a crown gives
+        if (!g.inside && pl.p.x > d.tx * 16.0f - 4.0f && pl.p.x < d.tx * 16.0f + 52.0f && pl.p.y <= d.ty * 16.0f + 15.6f && pl.p.y > d.ty * 16.0f - 34.0f)
+          ghost = true;
         break;
       }
       case 3: {

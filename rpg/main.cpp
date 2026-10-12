@@ -589,7 +589,7 @@ int main(int argc, char** argv) {
     static const struct { const char* n; Role r; } rt[] = {
         {"innkeeper", Role::Innkeeper}, {"merchant", Role::Merchant}, {"smith", Role::Smith}, {"priest", Role::Priest},
         {"jarl", Role::Jarl}, {"guard", Role::Guard}, {"villager", Role::Villager}, {"mage", Role::Mage}, {"farmer", Role::Farmer},
-        {"king", Role::King}};
+        {"king", Role::King}, {"captain", Role::Captain}};
     if (tiles) { walk.kind = 0; walk.tx = std::atoi(a[0].c_str()); walk.ty = std::atoi(a[1].c_str()); return; }
     if (walk.what == "upstairs" || walk.what == "downstairs") {
       bool up = walk.what == "upstairs";
@@ -691,7 +691,23 @@ int main(int argc, char** argv) {
       }
       else { setMove(false, false, false, false); return; }
     }
-    if (walk.t > walk.timeout) { endWalk(false, "timed out"); return; }
+    if (walk.t > walk.timeout) {
+      // (M7c integration) where it stuck: the player (@), the target (T), blocked tiles (#) round the target
+      {
+        int qx, qy;
+        plTile(qx, qy);
+        const Map& mm = game.map();
+        std::printf("script:   walk stuck at %d,%d, target %d,%d\n", qx, qy, walk.tx, walk.ty);
+        for (int y = walk.ty - 6; y <= walk.ty + 6; y++) {
+          std::string row = "script:   ";
+          for (int x = walk.tx - 12; x <= walk.tx + 12; x++)
+            row += (x == qx && y == qy) ? '@' : (x == walk.tx && y == walk.ty) ? 'T' : !mm.in(x, y) ? ' ' : mm.blocked(x, y) ? '#' : '.';
+          std::printf("%s\n", row.c_str());
+        }
+      }
+      endWalk(false, "timed out");
+      return;
+    }
     if (game.mode != Mode::Play) { setMove(false, false, false, false); return; }   // a dialogue or menu is up: wait
     int px, py;
     plTile(px, py);

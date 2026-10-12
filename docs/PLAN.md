@@ -871,3 +871,51 @@ conversations at phone size.
 - **Open**: seed 26's steppe organic city still builds 139 homes (its open ground lies in strips too narrow for a 3x2
   house); side-facing market stalls (shared with the frozen village art) and the diagonal avenues' walk-to-lane edge
   are unchanged.
+
+## M7c, "Order of Streets" (VISION_PLAN 15.M7c, 15.M7c-A; owner notes 2026-10-11)
+
+Goal: ONE settlement planner with an order dial. Villages (low): one spine road, houses scattered round it and loosely
+facing it, the organic charm kept (before / after review of the same villages). Towns (mid): a real main street and
+square, a few structured side streets with frontage, loosening at the edges. Cities (high): inside the walls a full
+street network of real blocks (avenues gate -> plaza -> seat, streets off them, row houses fronting every street,
+blocks with roles, gentle tilts / bends / diagonals where land or walls demand); outside the walls faubourgs along the
+approach roads, sporadic houses away from them, organic farmland. Every city unique. Concept: docs/ref/m7c_city_concept.png
+(the principle, not a template). Runs in the worktree tailspin-m7c (branch m7c) beside M8; merged after M8.
+
+### Phase A (lead), 2026-10-11: done
+- Contracts in VISION_PLAN 15.M7c-A: `rpg/world/town_plan.h` (Rank, BlockRole, orderFor / cityAge, PlanTraits, the
+  checks and their targets), `SettlementOut::rank / role / traits` + `Gen::rankLayer` (town_plan.cpp),
+  `rpg/world/town_metrics.cpp` (structure score, plan signature / similarity, village character),
+  `EndlessSource::settlement(Gid)`, `bld::ROW_SIDE_W / ROW_SIDE_E / ROW_BACK`, the homes split into town_homes.cpp
+  with the planned city's part behind CITY hooks (byte-identical), `Gen::cityAfter(phase)` (town_city.cpp), EDGE hooks
+  `edgeBegin` / `outskirts` + `Gen::edge` (town_edge.cpp / .h), `rpg_test --structure / --city-unique / --plan`,
+  `--villages` as the village-character check (M7b hashes only report changes), script `plan` / `expect structure`,
+  review scripts `m7c_villages_review_s1..3.txt`, `m7c_lead_plan.txt`; ENDLESS_GEN_VER 21, save_v15.bin re-recorded.
+- The pre-M7c binaries for the before / after reviews: `%TEMP%\claude\emb_M7c\before_bin\` (embervale.exe,
+  rpg_test.exe, city_gallery.exe; static SDL). tools/slot.sh already existed (machine-wide, shared with M8).
+
+### Phase B lanes (disjoint files; see the lead report for the briefs)
+- **city** (build_city): the planned city inside the walls: the street network of blocks, row houses on every
+  street (corner / side / back faces), block roles, per-culture plan types, tilted sections, water and hills bending
+  the grid, plazas and the seat, age and size, PlanTraits; uniqueness.
+- **edge** (build_edge): the order dial's low and mid end and every settlement's edge: villages' spine and charm,
+  towns' main street, square and side streets, the city's wall outline (round / oval / polygonal / squeezed by river
+  or coast / following the land) and gates, the faubourg belt, faubourgs, outskirts and farmland.
+- **art** (build_art): the streets, junctions and paving of the new network in 3/4 view, the row houses' new faces and
+  corners, faubourg buildings, walls seamless on every new outline and gate join, the quality bar across all sprites.
+- **survey** (build_survey): the world map's city plans (the concept's map view, from the real build), the checks
+  (structure, uniqueness, village character) hardened against gaming, the review packs (villages before / after, city
+  maps and street shots across seeds and cultures), --towns upkeep.
+
+### Integration, 2026-10-11
+- CI runs the M7c checks strict: `--villages --strict`, `--structure --strict`, `--city-unique --strict`, `--plan-controls`.
+- The structure score takes a walled place's frontage over the ring's box only (the faubourgs outside the gates are
+  organic by design). Row houses: a terrace's numbering steps on until none of its fronts repeats a same-size house
+  of an earlier row within 14 tiles; stone / brick fronts get a lighter or darker quarrying by the house's seed
+  (`--builder --strict` clones). A planned city's notice board comes down when a later step crowds it (places.cpp
+  stands it at runtime). Pens keep their herders' spots reachable from the gate (`Gen::penOpen`), and finish() opens
+  any pocket sealed by movable clutter (a quest giver was boxed into a pen's corner, m2_sim_quests). No one idles on
+  a burned-out shell's doorstep (life_game spotOk). A bought house whose own furniture has no chest (a hut) gets one
+  that can be reached (home_interior). Scripts whose seed now has one gatehouse use `gate 0`; the kerb-face check
+  skips the two tiles where a kerb eases off a slant (M7c ART stairEdge); walkto knows `captain`.
+- Goldens (towns, endless) and save_v15.bin re-recorded once; SAVE_VER stays 15, ENDLESS_GEN_VER 21.

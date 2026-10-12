@@ -1,0 +1,18 @@
+# M7c lead (VISION_PLAN 15.M7c-A): the planner's contracts in play on seed 3: the start village, a town and the river
+# capital, each with its plan line (order, age, traits, structure score, ranks, block roles) and a shot; the structure
+# gates a review script can put on a place (expect structure min [max]).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7c_lead_plan.txt
+seed 3
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.3 at -121 -131
++2.2 plan
++0.1 expect structure 0 60
++0.1 shot m7c_lead_village.png
+# (M7c fixer r2) the capital's own heart (the start capital moved off its old tile 45,-221 with the faubourg belt)
++0.3 goto capital
++2.5 plan
++0.1 expect structure 40
++0.1 shot m7c_lead_city.png
++0.3 quit

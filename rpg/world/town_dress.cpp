@@ -9,6 +9,7 @@
 #include <functional>
 #include <queue>
 #include "rpg/world/gen.h"
+#include "rpg/world/town_edge.h"
 #include "rpg/world/town_gen.h"
 
 namespace ew {
@@ -403,6 +404,8 @@ void Gen::yards() {
 }
 
 void Gen::fields() {
+  // (M7c) a city's farmland spreads over its belt round the faubourgs (town_edge.cpp)
+  if (city && edge && edge->belt > 0) { edgeFarmland(*this); return; }
   int fields = city ? 8 + rng.irange(4) : (town ? 6 + rng.irange(3) : 4 + rng.irange(3));
   if (arch == Archetype::Farming || spec == Specialty::Farming) fields += village ? 4 : 5;
   if (spec == Specialty::Herding) fields += village ? 2 : 3;
@@ -430,7 +433,7 @@ void Gen::fields() {
         const size_t i = I(x, y);
         if (mask[i] != K_NONE || M.bldgAt[i] >= 0 || M.wall[i] || M.prop[i] || water[i] || groundSolid(M.at(x, y)) || M.at(x, y) == Ground::Bridge) good = false;
         else if (cover[i] || front[i]) good = false;
-        else if (walled && blobLess(x, y, cx, cy, rx, ry, wseed, wallR + 0.06f)) good = false;
+        else if (walled && edgeInWall(*this, x, y, -0.06f)) good = false;
         else if (lvl[i] != lvl[I(fx, fy)]) good = false;
       }
     if (!good) continue;
@@ -486,7 +489,7 @@ void Gen::fields() {
       int put = 0;
       for (int t = 0; t < 40 && put < beasts; t++) {
         const int x = fx + 1 + rng.irange(fw - 2), y = fy + 1 + rng.irange(fh - 2);
-        if (M.prop[I(x, y)] || (x == ix && y == iy)) continue;   // never on the tile just inside the gate
+        if (M.prop[I(x, y)] || std::abs(x - ix) + std::abs(y - iy) <= 1) continue;   // never on or beside the tile just inside the gate (a herder by them seals it)
         bool crowd = false;
         for (int oy = -1; oy <= 1; oy++)
           for (int ox = -1; ox <= 1; ox++) {
@@ -495,6 +498,9 @@ void Gen::fields() {
           }
         if (crowd) continue;
         M.setProp(x, y, cows && (t & 1) == 0 ? Prop::Cow : Prop::Sheep);
+        // (M7c integration, review: "a herder boxed in a pen's corner by the haystack and a ewe") the pen's open
+        // ground stays one piece, all of it reachable from the gate: a beast that would cut off a pocket grazes elsewhere
+        if (!penOpen(fx, fy, fw, fh, ix, iy)) { M.setP(x, y, 0); continue; }
         put++;
       }
     }
@@ -1007,6 +1013,44 @@ void Gen::greenery() {
     }
 }
 
+bool Gen::penOpen(int fx, int fy, int fw, int fh, int ix, int iy) const {
+  const int x0 = fx + 1, y0 = fy + 1, x1 = fx + fw - 2, y1 = fy + fh - 2;
+  if (x1 < x0 || y1 < y0) return true;
+  auto open = [&](int x, int y) { return x >= x0 && x <= x1 && y >= y0 && y <= y1 && in(x, y) && !M.prop[I(x, y)] && M.bldgAt[I(x, y)] < 0; };
+  if (!open(ix, iy)) return false;
+  const int w = x1 - x0 + 1, h = y1 - y0 + 1;
+  std::vector<uint8_t> seen((size_t)w * h, 0);
+  std::vector<std::pair<int, int>> st{{ix, iy}};
+  seen[(size_t)(iy - y0) * w + (ix - x0)] = 1;
+  int reached = 0;
+  while (!st.empty()) {
+    const std::pair<int, int> p = st.back();
+    st.pop_back();
+    reached++;
+    static const int d4[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    for (const auto& d : d4) {
+      const int nx = p.first + d[0], ny = p.second + d[1];
+      if (!open(nx, ny) || seen[(size_t)(ny - y0) * w + (nx - x0)]) continue;
+      seen[(size_t)(ny - y0) * w + (nx - x0)] = 1;
+      st.push_back({nx, ny});
+    }
+  }
+  // a pocket cut off is harmless unless someone would stand in it: life_game's herders stand by the beasts, the lean-to,
+  // the trough and the hay (its pasture spots, any open tile beside one of those)
+  (void)reached;
+  auto herdSpot = [&](int x, int y) {
+    for (int k = 0; k < 4; k++) {
+      const int q = M.propAt(x + D4X[k], y + D4Y[k]);
+      if (q == (int)Prop::Sheep + 1 || q == (int)Prop::Cow + 1 || q == (int)Prop::PenShelter + 1 || q == (int)Prop::Trough + 1 || q == (int)Prop::Haystack + 1) return true;
+    }
+    return false;
+  };
+  for (int y = y0; y <= y1; y++)
+    for (int x = x0; x <= x1; x++)
+      if (open(x, y) && !seen[(size_t)(y - y0) * w + (x - x0)] && herdSpot(x, y)) return false;
+  return true;
+}
+
 void Gen::folk() {
   std::vector<std::pair<int, int>> spots;
   for (auto& s : allStreet)
@@ -1132,8 +1176,7 @@ void Gen::finish() {
         road += n == Ground::Road;
         plaza += n == Ground::Plaza;
       }
-      if (road + plaza >= 3) M.setG(x, y, plaza > road ? Ground::Plaza : Ground::Road);
-    }
+      if (road + plaza >= 3) M.setG(x, y, plaza > road ? Ground::Plaza : Ground::Road);    }
   // relief: the base levels, and a ramp wherever a street steps between levels
   // (M3 terraced) the town cut its own terraces: the row under a higher neighbour is a cliff face (the terrace's
   // retaining wall, not walkable), stairs (a ramp) wherever a street, a path or a yard crosses it; nothing stands on
@@ -1261,11 +1304,75 @@ void Gen::finish() {
       O.used[I(x, y)] = t ? 1 : 0;
     }
   M.rebuildSolid();
+  // (M7c integration, review: "a quest giver boxed into a corner of a pen by a haystack and a ewe", m2_sim_quests) no
+  // open ground is sealed off by the yard's clutter or the beasts: flood the walkable land from the edge of the map; a
+  // pocket left out loses the movable thing (a haystack, a trough, barrels, crates...) between it and the reached
+  // land, and the flood goes on from there. Fences, hedges, walls and houses stay where they are; the beasts are kept
+  // from sealing their pens where they are put out (Gen::penOpen).
+  {
+    auto clutter = [](int p) {
+      switch ((Prop)(p - 1)) {
+        case Prop::Haystack: case Prop::Trough: case Prop::Barrel: case Prop::Crate:
+        case Prop::Sacks: case Prop::Baskets: case Prop::Woodpile: case Prop::LogPile: case Prop::Cart: return true;
+        default: return false;
+      }
+    };
+    auto open = [&](int x, int y) { return in(x, y) && !M.blocked(x, y) && M.bldgAt[I(x, y)] < 0; };
+    std::vector<uint8_t> seen((size_t)W * H, 0);
+    std::vector<int> st;
+    auto flood = [&]() {
+      while (!st.empty()) {
+        const int k = st.back();
+        st.pop_back();
+        const int x = k % W, y = k / W;
+        for (int d = 0; d < 4; d++) {
+          const int nx = x + D4X[d], ny = y + D4Y[d];
+          if (!open(nx, ny) || seen[I(nx, ny)]) continue;
+          seen[I(nx, ny)] = 1;
+          st.push_back((int)I(nx, ny));
+        }
+      }
+    };
+    for (int y = 0; y < H; y++)
+      for (int x = 0; x < W; x++)
+        if ((x == 0 || y == 0 || x == W - 1 || y == H - 1) && open(x, y) && !seen[I(x, y)]) { seen[I(x, y)] = 1; st.push_back((int)I(x, y)); }
+    flood();
+    for (int guard = 0; guard < 64; guard++) {
+      bool opened = false;
+      for (int y = 1; y < H - 1; y++)
+        for (int x = 1; x < W - 1; x++) {
+          const size_t i = I(x, y);
+          if (!M.prop[i] || !clutter(M.prop[i]) || M.wall[i] || M.bldgAt[i] >= 0 || groundSolid(M.at(x, y)) || (M.height[i] & Map::HEIGHT_CLIFF)) continue;
+          bool reached = false, cut = false;
+          for (int d = 0; d < 4; d++) {
+            const int nx = x + D4X[d], ny = y + D4Y[d];
+            if (!open(nx, ny)) continue;
+            if (seen[I(nx, ny)]) reached = true; else cut = true;
+          }
+          if (!reached || !cut) continue;
+          M.setP(x, y, 0);
+          M.solid[i] = 0;
+          seen[i] = 1;
+          st.push_back((int)i);
+          flood();
+          opened = true;
+        }
+      if (!opened) break;
+    }
+  }
   // (M3 fixer) the culture's paving on the town's own tiles (Map::PAVE_MARK): the view lays its squares and streets in
   // it (sun-baked brick, packed earth, slate, moss-grown flags...). A stilt town's boardwalks over its marsh are marked
   // as such (Map::BOARDWALK_MARK), so the view draws them as one walkway on posts, not as river bridges.
   {
-    const uint8_t pave = (uint8_t)(C.culture ? std::min<int>(C.culture->town.paving, 15) : 0);
+    uint8_t pave = (uint8_t)(C.culture ? std::min<int>(C.culture->town.paving, 15) : 0);
+    // (M7c fixer, review: "fjordfolk cities: streets, pavements, yards and house walls are one sea of identical
+    // planks") a planned city of a plank-paving people on dry land (the fjords; never the marsh's stilt boardwalks)
+    // lays its carriageways in grey fieldstone setts, its raised walks in planks and its yards in trodden gravel
+    // (paving 10, the view's timber-walk city): the street network reads against the log walls and turf roofs
+    if (pave == 4 && planned && !stilt) pave = 10;
+    // (and the river people's planned city keeps its brick for the streets and walks: its yards are trodden earth,
+    // paving 11, so the brick houses do not stand in one brick field)
+    if (pave == 9 && planned) pave = 11;
     // (M3 fixer round 3, review: "oak trees grow straight out of plank boardwalk squares") where a people decks its
     // squares and streets in planks (paving 4, the marsh), no tree stands on the deck
     // (M3c fixer round 3, review: "the plank boardwalks are built from axis-aligned rectangles stepped in staircase runs,
@@ -1346,6 +1453,7 @@ void Gen::finish() {
   O.ey = O.gy + cy;
   O.special = spec;
   urbanFabric();   // (M7b) the street classes, upkeep and quarters of the finished plan (town_urban.cpp)
+  rankLayer();     // (M7c) the road hierarchy, block roles and the plan's traits into SettlementOut (town_plan.cpp)
 }
 
 void Gen::run() {
@@ -1354,17 +1462,26 @@ void Gen::run() {
 
 // One phase of the build per call (false once the town is finished). The order is run()'s and must never change: the
 // phases share one Rng, so the web's phase-at-a-time build (EndlessSource::prepareChunk) makes the same town.
+// (M7c) a planned city's own work after each phase goes in the CITY lane's cityAfter(phase) (town_city.cpp): after
+// phases 0..14 (phase 8 once per sweep slice), and in phase 15 just before finish()
 bool Gen::step() {
+  const int ph = phase;
+  bool more = true;
   switch (phase++) {
     case 0: land(); break;
     case 1:
       pickBearings(); if (city) pickDistricts(); if (walled) wallRing(); if (capital) placeCompound();
       planned = city && !ringT.empty();   // (M7b: the planned city; a ring the polygon could not make keeps the classic plan)
+      edgeBegin();                        // (M7c: the faubourg belt; EDGE lane, town_edge.cpp)
       break;
     case 2: squaresPass(); if (planned) cityStreets(); else { mainStreets(); ringRoads(); } break;
     case 3: if (planned) cityBlocks(); else { fabric(); lanes(); } break;
     case 4: if (walled) cityWall(); break;
-    case 5: if (capital) buildCompound(); pruneStreets(); if (capital) compoundApproach(); break;
+    case 5:
+      if (capital) buildCompound(); pruneStreets(); if (capital) compoundApproach();
+      if (village) villageLoops(*this);   // (M7c: a village is no grid; town_edge_order.cpp)
+      if (town) townStreets(*this);       // (M7c: a town's structured side streets ranked)
+      break;
     case 6: {
       // nothing is built on a wall's foot (one tile round every wall piece, the compound's too)
       for (int y = 0; y < H; y++)
@@ -1384,7 +1501,11 @@ bool Gen::step() {
     }
     case 7: homesBegin(); break;
     case 8: if (homesSweep()) phase--; break;   // (M3: a slice a call, until the sweep is done)
-    case 9: homesFinish(); break;
+    case 9:   // (M7c: the faubourgs and outskirts before the top-up; town_edge.cpp)
+      // ((M7c fixer) a part a call: the outskirts, then homesFinish a round a call; a linear capital paid 13 ms here)
+      if (!hfOut) { outskirts(); hfOut = true; phase--; }
+      else if (homesFinishStep()) phase--;
+      break;
     // (M7) a palisaded village plans its lots before the palisade goes up (the ring then runs round them: the lot's own
     // fence closes its stretch), every other settlement after its squares, dress and spaces
     case 10: if (palisade) lots(); centrepieces(); stallsAndLamps(); archetypeDress(); spaces(); break;
@@ -1393,6 +1514,17 @@ bool Gen::step() {
     case 13: greenery(); if (planned) cityDress(); break;
     case 14: plazaFill(); break;
     case 15: {
+      // ((M7c fixer) in up to three calls: the folk, the planned city's last work, then finish(); a capital paid 6 ms
+      // in one)
+      if (finTail == 1) {
+        finTail = 2;
+        if (planned) { cityAfter(15); phase--; return true; }
+      }
+      if (finTail == 2) {
+        finTail = 0;
+        finish();
+        return false;
+      }
       // (M2 fixer) a settlement in the snow: the builders' summer greenery (flower beds and tufts, leafy shrubs and
       // trees, lawns) is wintered: evergreens and snowy shrubs stand, flowers and grass tufts are under the snow, lawns
       // are snow (they stood on white ground as summer art pasted on a snowfield)
@@ -1415,11 +1547,17 @@ bool Gen::step() {
               default: break;
             }
           }
-      joinBanks(); folk(); squareFolk(); finish(); return false;
+      joinBanks();
+      if (village) villageLoops(*this);   // (M7c: the bridges and quays laid since phase 5 close no new loop)
+      folk(); squareFolk();
+      finTail = 1;
+      phase--;
+      return true;   // (no cityAfter here: phase 15's comes with finish, in the next call)
     }
-    default: return false;
+    default: more = false; break;
   }
-  return true;
+  if (more && planned) cityAfter(ph);
+  return more;
 }
 
 }  // namespace town

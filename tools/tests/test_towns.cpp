@@ -121,6 +121,11 @@ struct GenStat { int rows = 0, terraces = 0, parks = 0, sqSeat = 0, sqWell = 0, 
 GenStat g_gen;
 int g_reqAsked = 0, g_reqMet = 0;   // (M3b) the society's required buildings asked / placed over the culture cases
 double g_phaseTab[3][16] = {};   // (M3) the slowest of each phase per type
+// ((M7c fixer) the per-phase budget: the web builds one generator phase a frame on the main thread, so no phase may
+// cost much more than the M7b city's slowest (4.8 ms native; about 2-3x that in wasm on an iPhone)
+constexpr double PHASE_BUDGET_MS = 8.0;
+struct PhaseGate { double ms = 0; int phase = -1, seed = 0, ci = -1; };
+PhaseGate g_phaseGate;
 std::pair<double, int> g_casePhase;   // (M3) this case's slowest phase   // (M3) the slowest generator phase per type (village, town, city): ms, phase
 void buildCase(const Case& c, ew::SitePlan& p, ew::KingdomPlan& k, ew::SettlementOut& so, double& ms) {
   p = ew::SitePlan();
@@ -178,12 +183,13 @@ void buildCase(const Case& c, ew::SitePlan& p, ew::KingdomPlan& k, ew::Settlemen
     g_casePhase = {0.0, -1};
     for (int ph = 0;; ph++) {
       const auto s0 = std::chrono::steady_clock::now();
+      const int gph = g.phase;
       const bool more = g.step();
       const double pms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - s0).count();
       const int ti = c.type == SiteType::City ? 2 : (c.type == SiteType::Town ? 1 : 0);
       if (pms > g_phaseMax[ti].first) g_phaseMax[ti] = {pms, ph};
       if (ph < 16) g_phaseTab[ti][ph] = std::max(g_phaseTab[ti][ph], pms);
-      if (ti == 2 && std::getenv("EMB_PHASES")) std::printf("phase %d %.2f ms\n", ph, pms);
+      if (std::getenv("EMB_PHASES")) std::printf("phase %d (gen phase %d) %.2f ms (type %d)\n", ph, gph, pms, ti);
       if (pms > g_casePhase.first) g_casePhase = {pms, ph};
       if (!more) break;
     }
@@ -405,10 +411,13 @@ int checkEconomy(const Case& c, const ew::SettlementOut& so, const char* what) {
       // (M1 fixer round 2) a village's mill is found from its heart: within a short walk (24 tiles)
       if (c.type == SiteType::Village) {
         int best = 1 << 30;
+        bool wheel = false;
         for (const Bldg& b : m.bldgs)
-          if (b.type == Building::Windmill || b.type == Building::Watermill)
-            best = std::min(best, std::max(std::abs(b.r.cx() - (so.ex - so.gx)), std::abs(b.r.cy() - (so.ey - so.gy))));
-        if (best > 24) fail("the village's mill stands %d tiles from its heart (want 24 or less)", best);
+          if (b.type == Building::Windmill || b.type == Building::Watermill) {
+            const int d = std::max(std::abs(b.r.cx() - (so.ex - so.gx)), std::abs(b.r.cy() - (so.ey - so.gy)));
+            if (d < best) { best = d; wheel = b.type == Building::Watermill; }
+          }
+        if (best > 24) fail("the village's %s stands %d tiles from its heart (want 24 or less)", wheel ? "watermill" : "windmill", best);
       }
       if (!n[Building::Granary]) fail("a farming settlement without a granary");
       break;
@@ -1299,7 +1308,21 @@ int cmdTowns(int argc, char** argv) {
       const bool trace = std::getenv("EMB_TRACE_TOWNS") != nullptr;   // (a crash: which case, which step)
       if (trace) { std::fprintf(stderr, "trace: seed %llu case %zu build\n", (unsigned long long)s, ci); std::fflush(stderr); }
       buildCase(c, p, k, so, ms);
+      const std::pair<double, int> ph1 = g_casePhase;
       buildCase(c, p, k, so2, ms2);
+      {   // ((M7c fixer) the per-phase gate: one generator phase is one web frame; the best of the builds, timed again
+          // up to five more times when it is over the budget)
+        double casePh = std::min(ph1.first, g_casePhase.first);
+        for (int rt = 0; rt < 5 && casePh > PHASE_BUDGET_MS; rt++) {
+          ew::SitePlan p3;
+          ew::KingdomPlan k3;
+          ew::SettlementOut so3;
+          double ms3 = 0;
+          buildCase(c, p3, k3, so3, ms3);
+          casePh = std::min(casePh, g_casePhase.first);
+        }
+        if (casePh > g_phaseGate.ms) g_phaseGate = PhaseGate{casePh, g_casePhase.second, (int)s, (int)ci};
+      }
       if (trace) { std::fprintf(stderr, "trace: check\n"); std::fflush(stderr); }
       char what[220];
       std::string cu;
@@ -1435,6 +1458,9 @@ int cmdTowns(int argc, char** argv) {
     printf("towns: layout %-17s %3d built, homes %d..%d, build %.1f ms avg, %.1f ms max, slowest phase %d %.1f ms\n", ln.c_str(), L.n, L.homesMin, L.homesMax, L.n ? L.ms / L.n : 0.0, L.msMax, L.phase, L.phaseMax);
   printf("towns: slowest generator phase (one web frame's share): village %.1f ms (phase %d), town %.1f ms (phase %d), city %.1f ms (phase %d)\n",
          g_phaseMax[0].first, g_phaseMax[0].second, g_phaseMax[1].first, g_phaseMax[1].second, g_phaseMax[2].first, g_phaseMax[2].second);
+  printf("towns: per-phase gate: slowest phase %.1f ms (step %d, seed %d case %d), budget %.0f ms native\n", g_phaseGate.ms, g_phaseGate.phase,
+         g_phaseGate.seed, g_phaseGate.ci, PHASE_BUDGET_MS);
+  if (g_phaseGate.ms > PHASE_BUDGET_MS) { printf("FAIL: towns: a generator phase costs %.1f ms (budget %.0f ms: one web frame)\n", g_phaseGate.ms, PHASE_BUDGET_MS); bad++; }
   for (int ti = 0; ti < 3; ti++) {
     printf("towns: %s phases (slowest ms):", ti == 0 ? "village" : (ti == 1 ? "town" : "city"));
     for (int ph = 0; ph < 13; ph++) printf(" %.1f", g_phaseTab[ti][ph]);

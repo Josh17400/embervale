@@ -1,0 +1,29 @@
+# M7c village before / after review (VISION_PLAN 15.M7c: "any village that looks worse fails"), seed 1: the real villages
+# round the origin (rpg_test --villages --review-pack 1), each shot at noon from its heart. Shoot it with the pre-M7c binary
+# (%TEMP%\claude\emb_M7c\before_bin\embervale.exe) into a 'before' folder and with the new build into an 'after' folder, then
+# compare pair by pair (rpg_test --villages names the villages whose build changed since M7b and their shots):
+#   cd <shots>/before && <before_bin>/embervale.exe --script <repo>/tools/scripts/m7c_villages_review_s1.txt
+#   cd <shots>/after  && <bdir>/embervale.exe --script <repo>/tools/scripts/m7c_villages_review_s1.txt
+seed 1
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.3 at 91 -366
++2.3 shot m7c_village_s1_1.png
++0.3 at 162 -107
++2.3 shot m7c_village_s1_2.png
++0.3 at 679 691
++2.3 shot m7c_village_s1_3.png
++0.3 at 691 -380
++2.3 shot m7c_village_s1_4.png
++0.3 at -412 607
++2.3 shot m7c_village_s1_5.png
++0.3 at -392 -380
++2.3 shot m7c_village_s1_6.png
++0.3 at -423 -137
++2.3 shot m7c_village_s1_7.png
++0.3 at -163 639
++2.3 shot m7c_village_s1_8.png
++0.3 at -133 -142
++2.3 shot m7c_village_s1_9.png
++0.3 quit

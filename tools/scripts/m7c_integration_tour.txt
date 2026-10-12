@@ -1,0 +1,98 @@
+# M7c integration tour (VISION_PLAN 15.M7c): everything "Order of Streets" changed, in one run, at noon and at night,
+# outside and inside: planned cities of several peoples (heart, block street, junction, gate inside and outside, the
+# faubourg on an approach road, the map at town zoom), a row house's interior, a town's main street and a village.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7c_integration_tour.txt
+# REVIEWER GUIDE: streets form real blocks fronted by row houses; walls and gates seamless; faubourgs ribbon along the
+# road then farmland; villages keep their organic charm; one light from the top left; no gap or orphan piece.
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
+# ---- heartland city: day
++0.2 gotoculture heartland city
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7ci_heart_day.png
++0.1 planspot street
++0.8 shot m7ci_street_day.png
++0.1 planspot junction
++0.8 shot m7ci_junction_day.png
++0.2 planspot gate in
++1.2 shot m7ci_gatein_day.png
++0.2 planspot gate out
++1.2 shot m7ci_gateout_day.png
++0.2 planspot faubourg
++1.2 shot m7ci_faubourg_day.png
+# ---- the same city at night
++0.1 hour 22
++0.2 cityspot heart
++1.0 shot m7ci_heart_night.png
++0.1 planspot street
++1.0 shot m7ci_street_night.png
++0.2 planspot gate out
++1.2 shot m7ci_gateout_night.png
+# (the capture is deferred and a teleport's frames run long: the clock goes back only once it is taken)
++2.0 hour 12
+# ---- inside a row house of the block street
++0.1 planspot street
++0.5 enter house
++1.2 shot m7ci_rowhouse_inside.png
++0.3 walkto exit 30
++0.8 shot m7ci_rowhouse_out.png
+# ---- the map at town zoom
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7ci_map_heartland.png
++0.1 key Escape
+# ---- jade capital (axial plan, compounds)
++0.2 gotoculture jade capital
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7ci_jade_heart.png
++0.1 planspot junction
++0.8 shot m7ci_jade_junction.png
++0.2 planspot gate out
++1.2 shot m7ci_jade_gateout.png
+# ---- dune city (courtyard blocks)
++0.2 gotoculture dune city
++1.5 planmark
++0.1 plan
++0.1 planspot street
++0.8 shot m7ci_dune_street.png
++0.1 hour 21
++0.2 cityspot heart
++1.0 shot m7ci_dune_heart_night.png
+# (the capture is deferred and a teleport's frames run long: the clock goes back only once it is taken)
++2.0 hour 12
+# ---- fjordfolk city (terraces along the harbour)
++0.2 gotoculture fjordfolk city
++1.5 planmark
++0.1 plan
++0.1 planspot street
++0.8 shot m7ci_fjord_street.png
++0.2 planspot faubourg
++1.2 shot m7ci_fjord_faubourg.png
+# ---- steppe city (rings round the khan's court)
++0.2 gotoculture steppe city
++1.5 planmark
++0.1 plan
++0.1 planspot junction
++0.8 shot m7ci_steppe_junction.png
+# ---- a town and a village
++0.2 gotoculture heartland town
++1.5 planmark
++0.1 plan
++0.1 planspot street
++0.8 shot m7ci_town_street.png
++0.2 gotoculture heartland village
++1.5 shot m7ci_village.png
++0.1 hour 22
++1.0 shot m7ci_village_night.png
++0.5 quit

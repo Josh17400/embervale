@@ -1,0 +1,175 @@
+# M7c CITY lane (VISION_PLAN 15.M7c, docs/ref/m7c_city_concept.png): the planned city inside its walls, per people.
+# For each people's city on seed 7: its plan line and structure gate, the heart (the plaza and the seat), a block street
+# with row houses fronting it both sides (cityspot terrace), a junction of block streets (planspot junction), the
+# avenue toward a gate (where a section's lattice turns with it), at noon; the heart again at night.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7c_city_tour.txt
+# REVIEWER GUIDE: streets off the avenues form real blocks (no winding lanes, no stubs, no lane beside a lane, no
+# leftover slivers); row houses front every street and turn their side and back faces to the streets they flank;
+# whole blocks hold a role (orchards in rows, kitchen gardens, craft yards, compounds); the wall ring seamless; light
+# from the top left on every sprite. FAIL on any gap, orphan piece, boxy repetition or a city that reads unplanned.
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
+# ---- heartland
++0.2 gotoculture heartland city
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_city_heartland_heart.png
++0.1 planspot street
++0.8 shot m7c_city_heartland_street.png
++0.1 planspot junction
++0.8 shot m7c_city_heartland_junction.png
++0.1 cityspot avenue 1
++0.8 shot m7c_city_heartland_avenue.png
+# ---- imperial
++0.2 gotoculture imperial city
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_city_imperial_heart.png
++0.1 planspot street
++0.8 shot m7c_city_imperial_street.png
++0.1 planspot junction
++0.8 shot m7c_city_imperial_junction.png
++0.1 cityspot avenue 1
++0.8 shot m7c_city_imperial_avenue.png
+# ---- jade
++0.2 gotoculture jade city
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_city_jade_heart.png
++0.1 planspot street
++0.8 shot m7c_city_jade_street.png
++0.1 planspot junction
++0.8 shot m7c_city_jade_junction.png
++0.1 cityspot avenue 1
++0.8 shot m7c_city_jade_avenue.png
+# ---- dune
++0.2 gotoculture dune city
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_city_dune_heart.png
++0.1 planspot street
++0.8 shot m7c_city_dune_street.png
++0.1 planspot junction
++0.8 shot m7c_city_dune_junction.png
++0.1 cityspot avenue 1
++0.8 shot m7c_city_dune_avenue.png
+# ---- steppe
++0.2 gotoculture steppe city
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_city_steppe_heart.png
++0.1 planspot street
++0.8 shot m7c_city_steppe_street.png
++0.1 planspot junction
++0.8 shot m7c_city_steppe_junction.png
++0.1 cityspot avenue 1
++0.8 shot m7c_city_steppe_avenue.png
+# ---- fjordfolk
++0.2 gotoculture fjordfolk city
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_city_fjordfolk_heart.png
++0.1 planspot street
++0.8 shot m7c_city_fjordfolk_street.png
++0.1 planspot junction
++0.8 shot m7c_city_fjordfolk_junction.png
++0.1 cityspot avenue 1
++0.8 shot m7c_city_fjordfolk_avenue.png
+# ---- highland
++0.2 gotoculture highland city
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_city_highland_heart.png
++0.1 planspot street
++0.8 shot m7c_city_highland_street.png
++0.1 planspot junction
++0.8 shot m7c_city_highland_junction.png
++0.1 cityspot avenue 1
++0.8 shot m7c_city_highland_avenue.png
+# ---- marsh
++0.2 gotoculture marsh city
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_city_marsh_heart.png
++0.1 planspot street
++0.8 shot m7c_city_marsh_street.png
++0.1 planspot junction
++0.8 shot m7c_city_marsh_junction.png
++0.1 cityspot avenue 1
++0.8 shot m7c_city_marsh_avenue.png
+# ---- river
++0.2 gotoculture river city
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_city_river_heart.png
++0.1 planspot street
++0.8 shot m7c_city_river_street.png
++0.1 planspot junction
++0.8 shot m7c_city_river_junction.png
++0.1 cityspot avenue 1
++0.8 shot m7c_city_river_avenue.png
+# ---- starspire
++0.2 gotoculture starspire city
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_city_starspire_heart.png
++0.1 planspot street
++0.8 shot m7c_city_starspire_street.png
++0.1 planspot junction
++0.8 shot m7c_city_starspire_junction.png
++0.1 cityspot avenue 1
++0.8 shot m7c_city_starspire_avenue.png
+# ---- suntemple
++0.2 gotoculture suntemple city
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_city_suntemple_heart.png
++0.1 planspot street
++0.8 shot m7c_city_suntemple_street.png
++0.1 planspot junction
++0.8 shot m7c_city_suntemple_junction.png
++0.1 cityspot avenue 1
++0.8 shot m7c_city_suntemple_avenue.png
+# ---- sylvan
++0.2 gotoculture sylvan city
++1.5 planmark
++0.1 plan
++0.1 expect structure 68
++0.1 cityspot heart
++0.8 shot m7c_city_sylvan_heart.png
++0.1 planspot street
++0.8 shot m7c_city_sylvan_street.png
++0.1 planspot junction
++0.8 shot m7c_city_sylvan_junction.png
++0.1 cityspot avenue 1
++0.8 shot m7c_city_sylvan_avenue.png
+# ---- night: the heartland heart under its lamps
++0.2 gotoculture heartland city
++1.5 hour 20
++0.1 cityspot heart
++1.0 shot m7c_city_heartland_night.png
++0.3 quit

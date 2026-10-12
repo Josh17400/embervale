@@ -1,7 +1,9 @@
-# M6b "Sagas" integration tour C (desktop size, seed 1234, midnight, outdoors then a temple): a priest's pitch, the
+# M6b "Sagas" integration tour C (desktop size, seed 2, midnight, outdoors then a temple): a priest's pitch, the
 # opening at desktop scale, the journal, and the ending with its reward notice.
 #   embervale.exe --script tools/scripts/m6b_int_tour_c.txt     (m6b_intc_*.png in the working directory)
-seed 1234
+# (M7c fixer r2) seed 2: seed 1234's temple priest (BIBULAK) now has an M4 tale to tell first, which `saga speak`
+# leaves to the tale (the M7c villages changed who serves there); seed 2's priest pitches a generated story at once.
+seed 2
 0.3  newgame
 +0.05 hour 0
 +0.1 god 1

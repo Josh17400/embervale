@@ -20,6 +20,15 @@
 //   - a geology debug view (key G, script `mapgeo 1`): provinces coloured by rock, the primary ore's initial, borders
 // The map is painted in 64 x 64-pixel tiles cached per zoom level (a quadtree-like cache keyed by zoom and tile), a
 // few per frame within a time budget, so the phone never stalls; tiles not painted yet show plain parchment.
+// (M7c SURVEY, VISION_PLAN 15.M7c: "the city map view", docs/ref/m7c_city_concept.png) a discovered settlement is drawn
+// from its REAL plan at every zoom, in and out of the Active Window: EndlessSource::settlement's build is copied into a
+// compact PlanRaster (ground, street class and rank, block role, walls with towers and gates, trees, hedges, buildings
+// with their roof colours), one place a frame through the source's prepare path (a capital is built a generator phase
+// at a time, never in one frame), cached (LRU) and shared by every zoom. Streets read by rank (pale avenues and squares,
+// streets, lanes, dirt tracks), blocks of roofs in their own colours lit from the north-west with a cast shade to the
+// south-east, the wall a stone band with towers and gatehouses, parks, gardens in rows, orchards, furrowed fields,
+// water and quays. Until a place's plan is ready its old roof lattice stands in; the tiles over it repaint in place
+// (no flash of parchment) once it is.
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <chrono>
@@ -30,13 +39,18 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include "rpg/world/biomes.h"
+#include <memory>
 #include <vector>
 #include "rpg/sim/home.h"
 #include "rpg/story/story.h"
 #include "rpg/view/realm_ui.h"
 #include "rpg/view/view.h"
+#include "rpg/world/biomes.h"
+#include "rpg/world/coords.h"
+#include "rpg/world/settlement.h"
 #include "rpg/world/source.h"
+#include "rpg/world/town_plan.h"
+#include "rpg/world/urban.h"
 
 namespace {
 constexpr int TS = 64;   // map pixels per cached tile side
@@ -263,14 +277,39 @@ struct MapSmp {
   uint8_t wd = 255;            // distance (samples) to the nearest land, over water (coast ripples)
   uint32_t roofC = 0;          // (street zoom) the building's roof colour
   uint8_t eco = 0;             // (M4) the biome proper (flower meadows are speckled with blooms)
+  // (M7c SURVEY) a settlement's plan: the building's identity (row houses read as separate roofs), its height (the
+  // length of its shade), a wall tower, a hedge or garden wall, and that the sample comes from a plan (the region
+  // plans' road and river lines and the wood glyphs keep off it)
+  int32_t bi = -1;
+  uint8_t tall = 1;
+  bool tower = false, hedge = false, plan = false;
+  uint8_t hedgeKind = 0;       // (hedgeProp: 1 hedge, 2 fence, 3 garden wall)
 };
 struct MapGRect { int32_t x0, y0, x1, y1; };
+
+// ---- (M7c SURVEY) a settlement's real plan, compact (about 6 bytes a tile: a capital's ~300 x 300 buffer is ~0.5 MB)
+enum : uint8_t { PF_WALL = 1, PF_TOWER = 2, PF_GATE = 4, PF_TREE = 8, PF_HEDGE = 16, PF_USED = 32, PF_FENCE = 64, PF_STONE = 128 };
+struct PlanRaster {
+  ew::Gid id = 0;
+  int32_t gx = 0, gy = 0;          // the global tile of (0, 0)
+  int w = 0, h = 0;
+  std::vector<uint8_t> g, u, f, r; // per tile: Ground, urb class, PF_* flags, Rank | BlockRole << 3
+  std::vector<int16_t> b;          // per tile: the building (index into roof / tall) or -1
+  std::vector<uint32_t> roof;      // per building: its roof colour
+  std::vector<uint8_t> tall;       // per building: its storeys
+  float used = 0;                  // (LRU)
+  bool in(int32_t x, int32_t y) const { return x >= gx && y >= gy && x < gx + w && y < gy + h; }
+  size_t I(int32_t x, int32_t y) const { return (size_t)(y - gy) * (size_t)w + (size_t)(x - gx); }
+};
+
 struct TileJob {
   bool on = false;
   int zi = 0, ix = 0, iy = 0;
   bool geo = false;
   std::vector<MapSmp> grid;
   std::vector<MapGRect> towns, cores;
+  std::vector<std::shared_ptr<const PlanRaster>> plans;   // (M7c) the settlement plans ready over this tile
+  std::vector<uint8_t> corePlanned;                        // ... per core: its plan is ready (no stand-in lattice)
   int row = 0;
   std::unordered_set<uint64_t> moved;      // (M4) genesis kingdoms some of whose settlements another realm holds now
   std::unordered_map<uint64_t, uint32_t> kcol;   // (M4) owner -> its border colour
@@ -283,7 +322,7 @@ struct MapState {
   int zi = 4;
   uint64_t sig = 0;              // the explored mask's signature the tiles were painted with
   bool geo = false;              // the geology debug view
-  struct T { Tex tex; float used = 0, born = -10; };
+  struct T { Tex tex; float used = 0, born = -10; bool stale = false; };   // stale: shown until its repaint is done
   Tex blank;                     // (M2 fixer) a tile of bare parchment (grain and hatching) under tiles still painting
   bool blankOn = false;
   std::unordered_map<uint64_t, T> tiles;
@@ -314,6 +353,18 @@ struct MapState {
   // scroll shows its news in the side column
   std::vector<std::pair<uint32_t, Vec2>> news;
   uint32_t newsSel = 0;
+  // (M7c SURVEY) the settlement plans (LRU), the places that have none, and what making them cost
+  std::unordered_map<ew::Gid, std::shared_ptr<PlanRaster>> plans;
+  std::unordered_set<ew::Gid> noPlan;
+  ew::Gid planBusy = 0;                    // the place being prepared (its build spans frames)
+  double planWorstMs = 0, planLastMs = 0;  // the worst frame's plan work, the last one's
+  int plansMade = 0;
+  bool forcePlan = false;                  // (scripts: mapplan 1) the plan even inside the Active Window
+  // (M7c) the region plans the tiles have asked for (a hint: the source caches them), the frame counter, and the frame
+  // the last one was made in (one a frame)
+  std::unordered_set<uint64_t> regSeen;
+  uint64_t frame = 0, regFrame = ~0ull;
+  double regWorstMs = 0, finishWorstMs = 0;   // the worst region plan a tile asked for, the worst tile's last pass
 };
 MapState S;
 
@@ -360,6 +411,288 @@ bool isTreeProp(int pr) {
   const art::Prop p = (art::Prop)(pr - 1);
   return art::isTreeProp(p) || p == art::Prop::ElderTree;   // (M3c: the Wildlands trees too)
 }
+
+// ---- (M7c SURVEY) the settlement plans ------------------------------------------------------------------------------
+// the field and garden boundaries a map draws (0 none, 1 a hedge, 2 a fence or palisade, 3 a low garden wall)
+int hedgeProp(int pr) {
+  if (!pr) return 0;
+  const art::Prop p = (art::Prop)(pr - 1);
+  return p == art::Prop::Hedge ? 1 : (p == art::Prop::FenceH || p == art::Prop::FenceV || p == art::Prop::Palisade) ? 2 : p == art::Prop::GardenWall ? 3 : 0;
+}
+bool naturalGround(Ground gr) {
+  return gr == Ground::Grass || gr == Ground::Meadow || gr == Ground::ForestFloor || gr == Ground::Autumn || gr == Ground::Tundra ||
+         gr == Ground::Sand || gr == Ground::Swamp || gr == Ground::Snow;
+}
+// a roof's colour on the map (under snow its own colour still shows through: white roofs vanished on the snowfields)
+uint32_t roofOf(const Bldg& bd) {
+  const uint32_t r = bd.roof ? bd.roof : C(166, 90, 66);
+  return bd.biome == Biome::Snow ? mixc(r, C(236, 240, 246), 0.5f) : r;
+}
+
+// a settlement's build, copied into the map's compact raster; the wall's towers placed (about one every 12 tiles of the
+// ring, the tile nearest each 12 x 12 cell's middle, and one either side of every opening)
+std::shared_ptr<PlanRaster> makePlanRaster(const ew::SettlementOut& o, ew::Gid id) {
+  auto P = std::make_shared<PlanRaster>();
+  const Map& m = o.buf;
+  P->id = id; P->gx = o.gx; P->gy = o.gy; P->w = m.w; P->h = m.h;
+  const size_t n = (size_t)m.w * (size_t)m.h;
+  if (m.ground.size() != n) return P;
+  P->g = m.ground;
+  P->u.assign(n, 0); P->f.assign(n, 0); P->r.assign(n, 0); P->b.assign(n, -1);
+  const bool hasU = m.urb.size() == n, hasR = o.rank.size() == n, hasRole = o.role.size() == n, hasUsed = o.used.size() == n;
+  const bool hasW = m.wall.size() == n, hasP = m.prop.size() == n, hasB = m.bldgAt.size() == n;
+  for (size_t i = 0; i < n; i++) {
+    if (hasU) P->u[i] = (uint8_t)ew::urbClass(m.urb[i]);
+    uint8_t f = 0;
+    if (hasW && m.wall[i]) f |= PF_WALL;
+    if (hasP && isTreeProp(m.prop[i])) f |= PF_TREE;
+    if (hasP) {
+      const int hp = hedgeProp(m.prop[i]);
+      f |= hp == 1 ? PF_HEDGE : hp == 2 ? PF_FENCE : hp == 3 ? PF_STONE : 0;
+    }
+    if (hasUsed && o.used[i]) f |= PF_USED;
+    P->f[i] = f;
+    P->r[i] = (uint8_t)((hasR ? std::min<int>(o.rank[i], 7) : 0) | ((hasRole ? std::min<int>(o.role[i], 31) : 0) << 3));
+    if (hasB && m.bldgAt[i] >= 0 && m.bldgAt[i] < 32767) P->b[i] = (int16_t)m.bldgAt[i];
+  }
+  P->roof.reserve(m.bldgs.size());
+  for (const Bldg& bd : m.bldgs) { P->roof.push_back(roofOf(bd)); P->tall.push_back(bd.storeys); }
+  // a building seen from above covers its footprint AND the tiles its roof rises over (the 3/4 view: the footprint is
+  // the wall face, the roof stands on the tiles north of it). Only the footprint drew a row house as a thin strip of
+  // wall with an empty yard behind it, so the blocks read hollow; the roof now fills the tiles it covers in the game
+  // (the generator's rise less one: the rise is generous on purpose), never over another building, a wall or water.
+  for (size_t bi = 0; bi < m.bldgs.size() && bi < 32767; bi++) {
+    const Bldg& bd = m.bldgs[bi];
+    const int rise = std::clamp(bldgRiseTiles(bd.type, bd.storeys) - 1, 1, 4);
+    for (int y = bd.r.y - 1; y >= bd.r.y - rise && y >= 0; y--)
+      for (int x = std::max(0, bd.r.x); x < std::min(m.w, bd.r.x + bd.r.w); x++) {
+        const size_t i = (size_t)y * m.w + x;
+        if (P->b[i] >= 0 || (P->f[i] & PF_WALL) || groundWater((Ground)P->g[i])) continue;
+        P->b[i] = (int16_t)bi;
+      }
+  }
+  // the openings, and a tower either side of each
+  auto wallAt = [&](int x, int y) { return x >= 0 && y >= 0 && x < m.w && y < m.h && (P->f[(size_t)y * m.w + x] & PF_WALL); };
+  std::vector<std::pair<int, int>> towers;
+  for (const IRect& r : o.wallGaps) {
+    for (int y = r.y; y < r.y + r.h; y++)
+      for (int x = r.x; x < r.x + r.w; x++) if (x >= 0 && y >= 0 && x < m.w && y < m.h) P->f[(size_t)y * m.w + x] |= PF_GATE;
+    for (int y = r.y - 1; y <= r.y + r.h; y++)
+      for (int x = r.x - 1; x <= r.x + r.w; x++) {
+        const bool side = x == r.x - 1 || x == r.x + r.w || y == r.y - 1 || y == r.y + r.h;
+        const bool corner = (x == r.x - 1 || x == r.x + r.w) && (y == r.y - 1 || y == r.y + r.h);
+        if (side && !corner && wallAt(x, y)) towers.push_back({x, y});
+      }
+  }
+  auto nearGap = [&](int x, int y) {
+    for (const IRect& r : o.wallGaps)
+      if (x >= r.x - 5 && y >= r.y - 5 && x < r.x + r.w + 5 && y < r.y + r.h + 5) return true;
+    return false;
+  };
+  constexpr int TC = 12;
+  for (int cy = 0; cy * TC < m.h; cy++)
+    for (int cx = 0; cx * TC < m.w; cx++) {
+      const int mx = cx * TC + TC / 2, my = cy * TC + TC / 2;
+      int best = 1 << 30, bx = -1, by = -1;
+      for (int y = cy * TC; y < std::min(m.h, cy * TC + TC); y++)
+        for (int x = cx * TC; x < std::min(m.w, cx * TC + TC); x++) {
+          if (!wallAt(x, y)) continue;
+          const int d = (x - mx) * (x - mx) + (y - my) * (y - my);
+          if (d < best) { best = d; bx = x; by = y; }
+        }
+      if (bx >= 0 && !nearGap(bx, by)) towers.push_back({bx, by});
+    }
+  for (const auto& t : towers)
+    for (int y = t.second - 1; y <= t.second + 1; y++)
+      for (int x = t.first - 1; x <= t.first + 1; x++)
+        if (x >= 0 && y >= 0 && x < m.w && y < m.h && !(P->f[(size_t)y * m.w + x] & PF_GATE) && P->b[(size_t)y * m.w + x] < 0)
+          P->f[(size_t)y * m.w + x] |= PF_TOWER;
+  return P;
+}
+
+// the ink of a plan's ground (not a building, wall or tree): the streets by their class (or rank, where a place has no
+// street classes: villages and towns), squares, greens, gardens in rows, furrowed fields. False for plain natural
+// ground (the caller's land ink). road: paving or a track (no wood glyphs, a lit edge on the buildings beside it).
+// The palette is the parchment map's: pale warm stone for the streets (palest the avenues and squares), dirt for the
+// tracks, muted greens, wheat and fallow for the fields.
+bool planGroundInk(Ground gr, ew::Urb u, ew::Rank rk, ew::BlockRole role, int32_t gx, int32_t gy, float z, uint32_t& col, bool& road) {
+  using ew::Urb;
+  road = false;
+  switch (u) {
+    case Urb::Avenue: col = C(222, 210, 180); road = true; return true;
+    case Urb::Street: case Urb::Gutter: col = C(212, 198, 166); road = true; return true;
+    case Urb::Lane: col = C(202, 186, 152); road = true; return true;
+    case Urb::Alley: col = C(186, 164, 128); road = true; return true;
+    case Urb::Sidewalk: col = C(204, 194, 170); road = true; return true;
+    case Urb::Square: col = C(228, 216, 186); road = true; return true;
+    case Urb::Close: col = C(220, 210, 184); road = true; return true;
+    case Urb::Court: col = C(208, 194, 164); road = true; return true;
+    case Urb::Quay: col = C(184, 176, 160); road = true; return true;
+    case Urb::Park: col = C(134, 168, 92); return true;
+    case Urb::ParkPath: col = C(210, 196, 158); road = true; return true;
+    case Urb::Garden: break;   // (by its role below: kitchen-garden rows, an orchard's grass)
+    default: break;
+  }
+  if (gr == Ground::Bridge) { col = C(176, 146, 108); road = true; return true; }
+  if (gr == Ground::Plaza || rk == ew::Rank::Square) { col = C(220, 204, 170); road = true; return true; }
+  if (gr == Ground::Road || ew::rankStreet(rk) || rk == ew::Rank::Footpath) {
+    col = rk == ew::Rank::Main ? C(200, 176, 134) : rk == ew::Rank::Street ? C(196, 174, 134) : rk == ew::Rank::Footpath ? C(184, 162, 122) : C(190, 166, 126);
+    road = true;
+    return true;
+  }
+  const bool rows = z <= 1.0f && (gy & 1);   // (a furrow every other tile row at the town zoom and closer)
+  if (role == ew::BlockRole::KitchenGarden || (u == Urb::Garden && role != ew::BlockRole::Orchard && role != ew::BlockRole::Park)) {
+    col = rows ? C(132, 112, 76) : C(112, 150, 74);
+    return true;
+  }
+  if (u == Urb::Garden || role == ew::BlockRole::Orchard) { col = C(146, 170, 94); return true; }
+  if (role == ew::BlockRole::Park) { col = C(134, 168, 92); return true; }
+  if (gr == Ground::Farmland) {
+    // fields in organic patches of wheat, green barley and fallow (a slow noise, not a grid), furrowed
+    const float v = vnoise(gx / 17.0f, gy / 13.0f, 1201) + (vnoise(gx / 6.0f, gy / 6.0f, 1203) - 0.5f) * 0.25f;
+    const uint32_t base = v > 0.62f ? C(210, 184, 108) : v > 0.42f ? C(164, 178, 96) : v > 0.26f ? C(196, 170, 112) : C(178, 150, 106);
+    col = rows ? shadec(base, 0.88f) : base;
+    return true;
+  }
+  if (gr == Ground::Dirt) { col = C(182, 158, 116); return true; }
+  return false;
+}
+
+// one map sample from a plan over the tiles [x0, x0 + n) x [y0, y0 + n) (global; every step-th tile; n = 1 at the
+// town zoom and closer; fx, fy the sample's exact tile position for the street zoom's round tree crowns). land: the
+// macro ink of the natural ground there. False where the plan holds nothing of its own (plain countryside the
+// settlement left alone: the land's own ink, wood glyphs and lines draw there as before).
+bool planSample(const PlanRaster& P, int slot, int32_t x0, int32_t y0, int n, int step, float z, float fx, float fy, uint32_t land, MapSmp& s) {
+  constexpr int32_t MGN = 8;   // (the buffer's margin round the footprint, town::MARGIN)
+  const int32_t inX0 = P.gx + MGN, inY0 = P.gy + MGN, inX1 = P.gx + P.w - MGN, inY1 = P.gy + P.h - MGN;
+  auto owned = [&](size_t i, int32_t x, int32_t y) {
+    const uint8_t f = P.f[i];
+    if (f & (PF_USED | PF_WALL | PF_TOWER | PF_GATE) || P.b[i] >= 0 || P.u[i] || (P.r[i] & 7)) return true;
+    if ((f & (PF_HEDGE | PF_FENCE | PF_STONE)) && z <= 1) return true;   // (a field's fence: drawn close up, not a ring of plan round open land further out)
+    const Ground gr = (Ground)P.g[i];
+    if (groundWater(gr)) return x >= inX0 && y >= inY0 && x < inX1 && y < inY1;
+    return !naturalGround(gr);
+  };
+  auto treeNear = [&](int32_t x, int32_t y) {   // trees in the 5 x 5 round a tile (a lone tree is left out)
+    int k = 0;
+    for (int oy = -2; oy <= 2; oy++)
+      for (int ox = -2; ox <= 2; ox++)
+        if (P.in(x + ox, y + oy) && (P.f[P.I(x + ox, y + oy)] & PF_TREE)) k++;
+    return k;
+  };
+  auto groundOf = [&](size_t i, int32_t x, int32_t y, uint32_t& col, bool& road) {
+    const Ground gr = (Ground)P.g[i];
+    if (groundWater(gr)) { col = gr == Ground::DeepWater ? kSeaDeep : kSea; road = false; return; }
+    if (!planGroundInk(gr, (ew::Urb)P.u[i], (ew::Rank)(P.r[i] & 7), (ew::BlockRole)(P.r[i] >> 3), x, y, z, col, road)) {
+      col = mixc(land, groundInk(gr), 0.25f);
+      // the yards and greens inside the place one even garden green (the biome's patches made districts that are none)
+      if ((P.f[i] & PF_USED) && (gr == Ground::Grass || gr == Ground::Meadow || gr == Ground::ForestFloor || gr == Ground::Autumn || gr == Ground::Tundra))
+        col = mixc(C(146, 168, 100), land, 0.22f);
+    }
+  };
+  if (n <= 1) {
+    if (!P.in(x0, y0)) return false;
+    const size_t i = P.I(x0, y0);
+    if (!owned(i, x0, y0)) return false;
+    const uint8_t f = P.f[i];
+    s.plan = true;
+    s.road = false;
+    if (f & (PF_WALL | PF_TOWER)) {
+      s.wall = true;
+      s.tower = (f & PF_TOWER) != 0;
+      s.c = C(150, 142, 128);
+      return true;
+    }
+    if (P.b[i] >= 0) {
+      const int b = P.b[i];
+      s.bldg = true;
+      s.bi = (slot + 1) << 20 | b;
+      s.roofC = (size_t)b < P.roof.size() ? P.roof[(size_t)b] : C(166, 90, 66);
+      s.tall = (size_t)b < P.tall.size() ? P.tall[(size_t)b] : 1;
+      s.c = s.roofC;
+      return true;
+    }
+    groundOf(i, x0, y0, s.c, s.road);
+    s.water = groundWater((Ground)P.g[i]);
+    s.deep = (Ground)P.g[i] == Ground::DeepWater;
+    if (f & PF_GATE) { s.road = true; s.c = C(214, 200, 168); }
+    s.hedgeKind = (f & PF_HEDGE) ? 1 : (f & PF_FENCE) ? 2 : (f & PF_STONE) ? 3 : 0;
+    s.hedge = s.hedgeKind != 0;
+    if (z < 1) {
+      // the street zoom: a crown about a tile and a half across round each tree
+      for (int oy = -1; oy <= 1 && !s.tree; oy++)
+        for (int ox = -1; ox <= 1; ox++) {
+          const int32_t qx = x0 + ox, qy = y0 + oy;
+          if (!P.in(qx, qy) || !(P.f[P.I(qx, qy)] & PF_TREE)) continue;
+          const float dx = fx - (qx + 0.5f), dy = fy - (qy + 0.15f);
+          if (dx * dx + dy * dy < 0.62f) { s.tree = true; break; }
+        }
+    } else if ((f & PF_TREE) && treeNear(x0, y0) >= 2) s.tree = true;
+    return true;
+  }
+  // a block of tiles (the town zoom's 2 tiles a sample and further out): a wall anywhere in it stays (the ring must
+  // stay closed), else water or paving over half of it, else roofs over a third, else trees, else the ground's mean
+  int cnt = 0, nOwned = 0, wall = 0, tower = 0, water = 0, way = 0, bld = 0, tree = 0, deep = 0;
+  int bIds[8], bCnt[8], nb = 0;
+  int bestWay = -1;
+  uint32_t wayCol = 0;
+  float rS = 0, gS = 0, bS = 0;
+  int gN = 0;
+  for (int32_t y = y0; y < y0 + n; y += step)
+    for (int32_t x = x0; x < x0 + n; x += step) {
+      cnt++;
+      if (!P.in(x, y)) continue;
+      const size_t i = P.I(x, y);
+      if (!owned(i, x, y)) continue;
+      nOwned++;
+      const uint8_t f = P.f[i];
+      if (f & (PF_WALL | PF_TOWER)) { wall++; if (f & PF_TOWER) tower++; continue; }
+      if (P.b[i] >= 0) {
+        bld++;
+        int k = 0;
+        while (k < nb && bIds[k] != P.b[i]) k++;
+        if (k == nb && nb < 8) { bIds[nb] = P.b[i]; bCnt[nb] = 0; nb++; }
+        if (k < nb) bCnt[k]++;
+        continue;
+      }
+      const Ground gr = (Ground)P.g[i];
+      if (groundWater(gr)) { water++; if (gr == Ground::DeepWater) deep++; continue; }
+      if (f & PF_TREE) tree++;
+      uint32_t col;
+      bool road;
+      groundOf(i, x, y, col, road);
+      if (f & PF_GATE) { road = true; col = C(214, 200, 168); }
+      if (road) {
+        way++;
+        const ew::Urb u = (ew::Urb)P.u[i];
+        const int pr = u == ew::Urb::Square || u == ew::Urb::Avenue ? 3 : (P.r[i] & 7) == (int)ew::Rank::Main ? 2 : u == ew::Urb::Street ? 1 : 0;
+        if (pr > bestWay) { bestWay = pr; wayCol = col; }
+      } else { rS += (float)(col & 255); gS += (float)((col >> 8) & 255); bS += (float)((col >> 16) & 255); gN++; }
+    }
+  if (nOwned * 2 < cnt) return false;   // (mostly the countryside: the land draws it)
+  s.plan = true;
+  s.road = false;
+  if (wall) { s.wall = true; s.tower = tower * 2 >= wall; s.c = C(150, 142, 128); return true; }
+  if (water * 2 >= cnt) { s.water = true; s.deep = deep * 2 >= water; s.c = s.deep ? kSeaDeep : kSea; return true; }
+  if (way * 2 >= cnt) { s.road = true; s.c = wayCol; return true; }
+  if (bld * 3 >= cnt && nb) {
+    int k = 0;
+    for (int q = 1; q < nb; q++) if (bCnt[q] > bCnt[k]) k = q;
+    const int b = bIds[k];
+    s.bldg = true;
+    s.bi = (slot + 1) << 20 | b;
+    s.roofC = (size_t)b < P.roof.size() ? P.roof[(size_t)b] : C(166, 90, 66);
+    s.tall = (size_t)b < P.tall.size() ? P.tall[(size_t)b] : 1;
+    s.c = s.roofC;
+    return true;
+  }
+  if (tree * 3 >= cnt) s.tree = true;
+  if (way * 4 >= cnt && !gN) { s.road = true; s.c = wayCol; return true; }
+  if (gN) s.c = C((int)(rS / gN), (int)(gS / gN), (int)(bS / gN));
+  else if (way) { s.road = true; s.c = wayCol; }
+  else s.c = land;
+  return true;
+}
 }  // namespace
 
 // ---- one cached tile -------------------------------------------------------------------------------------------
@@ -379,6 +712,22 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
   std::vector<GRect>& cores = J.cores;   // ... and their built area
   const int32_t tx0 = (int32_t)std::floor((ix * TS - MG) * z) - 8, ty0 = (int32_t)std::floor((iy * TS - MG) * z) - 8;
   const int32_t tx1 = (int32_t)std::floor(((ix + 1) * TS + MG) * z) + 8, ty1 = (int32_t)std::floor(((iy + 1) * TS + MG) * z) + 8;
+  // (M7c SURVEY, the web's frame budget) the explored region plans this tile's road and river lines read are made at
+  // most one a frame before it starts (a region plan is a few ms of unsplittable work: two or three of them inside one
+  // tile were the map's worst frames when panning)
+  if (endless && !geo && J.row == 0 && grid.empty() && z >= 1 && z <= 8) {
+    for (int32_t ry = ew::regionOf(ty0); ry <= ew::regionOf(ty1); ry++)
+      for (int32_t rx = ew::regionOf(tx0); rx <= ew::regionOf(tx1); rx++) {
+        const uint64_t key = ExploredMask::key(rx, ry);
+        if (!g.explored.regions.count(key) || S.regSeen.count(key)) continue;
+        if (S.regFrame == S.frame) return false;   // (one this frame already: the next frame goes on)
+        S.regFrame = S.frame;
+        const auto r0 = std::chrono::steady_clock::now();
+        g.world.src->region(rx, ry);
+        S.regWorstMs = std::max(S.regWorstMs, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - r0).count());
+        S.regSeen.insert(key);
+      }
+  }
   if (J.row == 0 && grid.empty()) {
     grid.assign((size_t)N * N, Smp());
     // (M4) the realms whose land moved, and every owner's border colour
@@ -393,6 +742,14 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         if (r.x1 < tx0 || r.y1 < ty0 || r.x0 > tx1 || r.y0 > ty1) continue;
         towns.push_back(r);
         cores.push_back(GRect{r.x0 + 6, r.y0 + 6, r.x1 - 6, r.y1 - 6});
+        J.corePlanned.push_back(S.plans.count(st.id) ? 1 : 0);
+      }
+    // (M7c) the settlement plans ready over this tile (they hold their own boxes: the footprint and its margin)
+    if (endless)
+      for (auto& kv : S.plans) {
+        const PlanRaster& P = *kv.second;
+        if (P.gx + P.w < tx0 || P.gy + P.h < ty0 || P.gx > tx1 || P.gy > ty1) continue;
+        J.plans.push_back(kv.second);
       }
   }
   for (int j = J.row; j < N; j++) {
@@ -442,7 +799,27 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
       s.bio = ms.biome;
       s.eco = (uint8_t)ms.eco;
       if (!s.known) { grid[(size_t)j * N + i] = s; continue; }
-      if (z <= 2 && m.in(lx, ly)) {
+      // (M7c) a settlement's real plan where it is ready: at the town zoom and further out everywhere (one plan reads
+      // as one plan across the window's edge), at the street zoom outside the window (inside it the live tiles show
+      // what the hero sees: lots built on, fires)
+      bool planned = false;
+      if (!J.plans.empty() && (z >= 1 || !m.in(lx, ly) || S.forcePlan)) {
+        const uint32_t land = ms.water ? kSea : ecoInk(ms.eco);
+        const int nb = z <= 1 ? 1 : (int)z, step = std::max(1, nb / 8);
+        const int32_t bx = z <= 1 ? gx : (int32_t)std::floor(mpx * z), by = z <= 1 ? gy : (int32_t)std::floor(mpy * z);
+        for (const auto& P : J.plans)
+          if (P->in(gx, gy) && planSample(*P, (int)(ew::mix64(P->id) & 1023), bx, by, nb, step, z, (mpx + 0.5f) * z, (mpy + 0.5f) * z, land, s)) {
+            planned = true;
+            break;
+          }
+      }
+      if (planned) {
+        if (m.in(lx, ly)) {
+          if (!m.biome.empty()) s.bio = m.biomeAt(lx, ly);
+          if (!m.eco.empty()) s.eco = (uint8_t)m.ecoAt(lx, ly);
+          s.h = (uint8_t)m.heightAt(lx, ly);
+        }
+      } else if (z <= 2 && m.in(lx, ly)) {
         // the real tiles of the window
         const Ground gr = m.at(lx, ly);
         s.c = groundInk(gr);
@@ -455,6 +832,25 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         s.water = groundWater(gr);
         s.deep = gr == Ground::DeepWater;
         s.road = gr == Ground::Road || gr == Ground::Bridge || gr == Ground::Plaza;
+        {   // (M7c) the plan's palette on the live tiles too: streets by class and rank, greens, gardens, fields, towers
+          const size_t wi = (size_t)ly * m.w + lx;
+          const ew::Urb u = m.urb.size() == m.ground.size() ? ew::urbClass(m.urb[wi]) : ew::Urb::None;
+          ew::Rank rk = ew::Rank::None;
+          ew::BlockRole role = ew::BlockRole::None;
+          for (const auto& P : J.plans)
+            if (P->in(gx, gy)) {
+              const size_t pi = P->I(gx, gy);
+              rk = (ew::Rank)(P->r[pi] & 7);
+              role = (ew::BlockRole)(P->r[pi] >> 3);
+              s.tower = (P->f[pi] & PF_TOWER) != 0 && !m.wall.empty() && m.wall[wi];
+              break;
+            }
+          uint32_t col;
+          bool road = false;
+          if (!groundWater(gr) && planGroundInk(gr, u, rk, role, gx, gy, z, col, road)) { s.c = col; s.road = s.road || road; }
+          s.hedgeKind = (uint8_t)hedgeProp(m.prop[wi]);
+          s.hedge = s.hedgeKind != 0;
+        }
         s.h = (uint8_t)m.heightAt(lx, ly);
         s.wall = !m.wall.empty() && m.wall[(size_t)ly * m.w + lx] != 0;
         s.tree = isTreeProp(m.prop[(size_t)ly * m.w + lx]);
@@ -495,14 +891,18 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         }
         if (s.bldg) {
           const Bldg& bd = m.bldgs[(size_t)bAt];
-          s.roofC = bd.biome == Biome::Snow ? C(222, 228, 238) : bd.roof ? bd.roof : C(166, 90, 66);
+          s.roofC = roofOf(bd);
+          s.bi = bAt;
+          s.tall = bd.storeys;
         }
         if (!m.biome.empty()) s.bio = m.biomeAt(lx, ly);
         if (!m.eco.empty()) s.eco = (uint8_t)m.ecoAt(lx, ly);
       } else {
         s.c = ms.water ? (s.deep ? kSeaDeep : kSea) : ecoInk(ms.eco);
         if (!ms.water)
-          for (const GRect& r : cores)
+          for (size_t ci = 0; ci < cores.size(); ci++) {
+            const GRect& r = cores[ci];
+            if (ci < J.corePlanned.size() && J.corePlanned[ci]) continue;   // (M7c: its real plan draws it)
             if (gx >= r.x0 && gy >= r.y0 && gx < r.x1 && gy < r.y1) {
               // a discovered settlement's built area: blocks of roofs between its streets
               const bool street = ((gx - r.x0) % 9) < 2 || ((gy - r.y0) % 8) < 2;
@@ -511,6 +911,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
               s.road = street;
               break;
             }
+          }
       }
       // (M2 fixer) the view's snowline: taiga and snowfields from level 4 lie under snow (a snowbound
       // capital was drawn on green-grey land)
@@ -521,6 +922,11 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
     }
   }
   J.row = N;
+  const auto fin0 = std::chrono::steady_clock::now();
+  struct FinTime {   // (the tile's last pass, timed for mapstats)
+    std::chrono::steady_clock::time_point t;
+    ~FinTime() { S.finishWorstMs = std::max(S.finishWorstMs, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t).count()); }
+  } finTime{fin0};
   auto at = [&](int i, int j) -> Smp& { return grid[(size_t)std::clamp(j, 0, N - 1) * N + std::clamp(i, 0, N - 1)]; };
   // water distance to the land (4-neighbour, a few steps): the ripple lines that follow a coast offshore
   {
@@ -599,7 +1005,9 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
           else if ((int)w.h > (int)s.h) hs = std::max(0.0f, hs - 0.16f);
           else if ((int)at(i, j + 1).h < (int)s.h || (int)at(i + 1, j).h < (int)s.h) hs = std::min(1.0f, hs + 0.12f);
         } else if (z <= 2) hs = std::clamp(hs + ((int)at(i - 1, j - 1).h - (int)s.h) * 0.16f - ((int)at(i + 1, j + 1).h - (int)s.h) * 0.10f, 0.0f, 1.0f);
-        k = shadec(k, 0.74f + hs * 0.52f);
+        // (M7c SURVEY) a plan's paving, roofs and walls take the relief gently (the macro slope's full strength mottled
+        // the streets into blotches at the street zoom: paving is laid level)
+        k = s.plan && (s.road || s.bldg || s.wall) ? shadec(k, 0.93f + hs * 0.14f) : shadec(k, 0.74f + hs * 0.52f);
         // faint contours every two relief levels (Z1, Z2)
         if (z >= 1 && z <= 8 && (n.h / 2 != s.h / 2 || w.h / 2 != s.h / 2) && !n.water && !w.water) k = mixc(k, kInkSoft, 0.28f);
         // woods stippled at the town zoom outside the window (the land zoom gets tree marks)
@@ -623,35 +1031,63 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
           k = v > 0.62f ? C(92, 136, 70) : v > 0.36f ? C(62, 104, 58) : C(44, 80, 50);
           if (!n.tree || !w.tree) k = C(104, 148, 78);
           else if (!at(i + 1, j + 1).tree) k = C(34, 62, 44);
+          // (M7c) a tree standing alone in a plan (an orchard's row, a square's plane tree): one crown, not a lit speck
+          if (s.plan && !n.tree && !w.tree && !at(i + 1, j).tree && !at(i, j + 1).tree) k = C(80, 124, 62);
+        } else if (s.hedge && !s.bldg && !s.wall && z <= 1) {
+          // (M7c) a hedge dark green, a fence a thin line of weathered wood over the ground, a garden wall pale stone
+          k = s.hedgeKind == 2 ? mixc(k, C(120, 92, 64), 0.55f) : s.hedgeKind == 3 ? C(176, 166, 146) : C(76, 110, 60);
         }
+        // (M7c) a building's own roof: the samples of the same building (row houses read as separate roofs)
+        auto same = [&](const Smp& q) { return q.bldg && q.bi == s.bi; };
         if (s.bldg) {
           // a roof seen from above: its south edge (the wall) darker, the north slope lit, the west edge lit, an
           // ink line round it; the house throws a short shade on the ground to its south-east
-          const bool southEdge = !at(i, j + 1).bldg, northEdge = !n.bldg, westEdge = !w.bldg, eastEdge = !at(i + 1, j).bldg;
-          const uint32_t rc = s.roofC ? s.roofC : C(166, 90, 66);
-          if (z < 1) {
+          const bool southEdge = !same(at(i, j + 1)), northEdge = !same(n), westEdge = !same(w), eastEdge = !same(at(i + 1, j));
+          uint32_t rc = s.roofC ? s.roofC : C(166, 90, 66);
+          // (M7c SURVEY) a pale roof (lime-washed flat roofs, snow) kept a step below the pale paving round it, so the
+          // house reads as a house and not as an empty yard
+          const int rlum = ((int)(rc & 255) * 3 + (int)((rc >> 8) & 255) * 6 + (int)((rc >> 16) & 255)) / 10;
+          if (rlum > 176) rc = shadec(rc, 176.0f / (float)rlum * 0.97f);
+          if (z <= 1) {
             // (M2 fixer) the street zoom: the roof in its own colour, the north slope lit and the south one in shade
             // either side of a ridge line, the wall a dark band along the south edge, an ink outline
+            // (M7c) the town zoom too (a house four or five pixels deep): lit slope, ridge, shaded slope, wall
             int up = 0, down = 0;
-            for (int q = 1; q < 16 && at(i, j - q).bldg; q++) up = q;
-            for (int q = 1; q < 16 && at(i, j + q).bldg; q++) down = q;
+            for (int q = 1; q < 16 && same(at(i, j - q)); q++) up = q;
+            for (int q = 1; q < 16 && same(at(i, j + q)); q++) down = q;
             const int tot = up + down + 1, wallR = std::max(1, tot / 4), roofR = tot - wallR;
             if (down < wallR) k = southEdge ? shadec(rc, 0.40f) : shadec(rc, 0.55f);   // the wall under the eaves
             else if (up == roofR / 2) k = shadec(rc, 1.28f);                            // the ridge
             else k = up < roofR / 2 ? shadec(rc, 1.10f) : shadec(rc, 0.80f);            // lit north slope, shaded south
             if (westEdge && !southEdge) k = shadec(k, 1.08f);
             if (eastEdge && !southEdge) k = shadec(k, 0.8f);
-            if (northEdge || westEdge || eastEdge) k = mixc(k, kInkC, 0.45f);
+            if (northEdge || westEdge || eastEdge) k = mixc(k, kInkC, z < 1 ? 0.45f : 0.30f);
           } else if (s.roofC) {
             // (M2 fixer round 3) the town zoom: each house a block of its own roof colour, lit on its north and west
             // edges, its wall a dark line on the south, an ink line round it
             k = southEdge ? shadec(rc, 0.45f) : northEdge ? mixc(shadec(rc, 1.2f), kInkC, 0.25f) : westEdge ? shadec(rc, 1.12f) : eastEdge ? shadec(rc, 0.72f) : rc;
           } else {
             k = southEdge ? C(96, 56, 48) : northEdge ? C(204, 126, 92) : westEdge ? C(186, 108, 80) : eastEdge ? C(132, 72, 58) : C(166, 90, 66);
-            if (z <= 0.5f && !southEdge && !northEdge && at(i, j + 2).bldg && !at(i, j - 2).bldg) k = C(214, 140, 102);   // the ridge
           }
-        } else if (at(i - 1, j - 1).bldg && z <= 1) k = shadec(k, 0.78f);
-        if (s.wall) k = (!n.wall || !w.wall) ? C(176, 168, 152) : C(126, 118, 108);
+        } else if (!s.wall && z <= 2) {
+          // the shade a building or the wall throws on the ground to the south-east (longer from a tall building at
+          // the street zoom)
+          const Smp& nw = at(i - 1, j - 1);
+          if (nw.bldg || (s.plan && nw.wall)) k = shadec(k, s.plan && nw.wall && !nw.bldg ? 0.82f : 0.78f);
+          else if (z < 1 && at(i - 2, j - 2).bldg && at(i - 2, j - 2).tall >= 3) k = shadec(k, 0.84f);
+          else if (s.plan && z <= 1 && !s.tree && at(i - 1, j - 1).tree) k = shadec(k, 0.86f);
+        }
+        if (s.wall) {
+          if (s.tower) {
+            // (M7c) a wall tower: a square of dressed stone, its top lit on the north-west, its faces in shade
+            const bool tn = n.wall && n.tower, tw = w.wall && w.tower, ts = at(i, j + 1).wall && at(i, j + 1).tower, te = at(i + 1, j).wall && at(i + 1, j).tower;
+            k = !ts ? C(88, 80, 74) : !te ? C(112, 104, 96) : (!tn || !tw) ? C(184, 176, 158) : C(148, 140, 126);
+          } else if (s.plan) {
+            // (M7c) the curtain wall: its walk lit, its outer face in shade
+            // (a tile a pixel or less: one even line of dark stone, the ring the same on every side)
+            k = z >= 1 ? C(108, 100, 92) : !at(i, j + 1).wall ? C(92, 84, 78) : (!n.wall || !w.wall) ? C(168, 160, 144) : C(126, 118, 108);
+          } else k = (!n.wall || !w.wall) ? C(176, 168, 152) : C(126, 118, 108);
+        }
       } else {
         // water: darker offshore, a ripple line following the coast, an inked shore
         k = s.deep ? kSeaDeep : kSea;
@@ -722,6 +1158,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         const int lx = (int)std::floor((ix * TS + x + 0.5f) * z) - g.world.ox, ly = (int)std::floor((iy * TS + y + 0.5f) * z) - g.world.oy;
         if (m.in(lx, ly)) continue;
       }
+      if (at(x + MG, y + MG).plan) continue;   // (M7c: a settlement's plan draws its own streets and water)
       if (at(x + MG, y + MG).water && col != kRiver) { c.set(x, y, mixc(c.get(x, y), col, 0.5f)); continue; }
       c.set(x, y, mixc(col, kParch, 0.12f));
     }
@@ -749,7 +1186,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
   //      A jittered global lattice of candidates; each tile draws every glyph that reaches it (sorted north to south).
   struct Gl { int x, y, kind, size; bool snow; int lean = 0; };
   std::vector<Gl> gls;
-  auto knownLand = [&](int x, int y) { if (x < -MG || y < -MG || x >= TS + MG || y >= TS + MG) return false; const Smp& s = at(x + MG, y + MG); return s.known && !s.water && !s.bldg && !s.road; };
+  auto knownLand = [&](int x, int y) { if (x < -MG || y < -MG || x >= TS + MG || y >= TS + MG) return false; const Smp& s = at(x + MG, y + MG); return s.known && !s.water && !s.bldg && !s.road && !s.plan; };
   if (z >= 4) {
     // (M3c fixer, review: "a heap of identical white triangles") a sparser lattice at the land zooms, a quarter of
     // the lower crests left out, and every peak its own shape (it leans one way or the other, some broader, some taller)
@@ -846,6 +1283,15 @@ void worldMapCentreTile(double gx, double gy) { S.cx = gx; S.cy = gy; }
 void worldMapRequestSelect(int site) { S.reqSel = site; }
 int worldMapLegendCount() { return (int)S.legend.size(); }
 double worldMapWorstPaintMs() { return S.worstPaintMs; }
+// (M7c SURVEY: rpg/view/script_plan.cpp) the settlement plans on the map
+void worldMapForcePlan(bool on) { S.forcePlan = on; for (auto& kv : S.tiles) kv.second.stale = true; }
+int worldMapPlanCount() { return (int)S.plans.size(); }
+bool worldMapHasPlan(uint64_t site) { return S.plans.count(site) != 0; }
+int worldMapPlansMade() { return S.plansMade; }
+double worldMapPlanWorstMs() { return S.planWorstMs; }
+void worldMapResetWorst() { S.planWorstMs = 0; S.worstPaintMs = 0; S.regWorstMs = 0; S.finishWorstMs = 0; }
+double worldMapRegionWorstMs() { return S.regWorstMs; }
+double worldMapFinishWorstMs() { return S.finishWorstMs; }
 
 // ---- drawing -----------------------------------------------------------------------------------------------------
 void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
@@ -865,6 +1311,7 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     S.tiles.clear();
     S.lms.clear();
     S.job = TileJob();
+    S.plans.clear(); S.noPlan.clear(); S.planBusy = 0; S.regSeen.clear();
     S.init = true; S.world = wid;
     playerG(S.cx, S.cy);
     S.zi = g.world.endless ? 3 : 2;   // (M2 fixer: the town zoom first, where the known country round home fills the map)
@@ -886,6 +1333,8 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     S.sig = sig;
   }
   S.rx = x; S.ry = y; S.rw = w; S.rh = h;
+  S.frame++;
+  if (S.regSeen.size() > 4096) S.regSeen.clear();
   const float z = kZoom[S.zi];
   P.rect(x, y, w, h, colOf(kParch));
   // the tiles in view, painted within a per-frame budget (nearest the centre first)
@@ -910,6 +1359,7 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
       const float sx = (float)std::floor(ix * TS - left), sy = (float)std::floor(iy * TS - top);
       if (it == S.tiles.end()) { P.blit(S.blank, sx, sy); todo.push_back({ix, iy}); continue; }
       it->second.used = t_;
+      if (it->second.stale) todo.push_back({ix, iy});   // (M7c: a plan came in over it: repainted, shown till then)
       const float a = std::clamp((t_ - it->second.born) / 0.18f, 0.0f, 1.0f);
       if (a < 1.0f) {
         P.blit(S.blank, sx, sy);
@@ -927,7 +1377,11 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
   const auto deadline = t0 + std::chrono::microseconds(5000);
   for (size_t qi = 0;;) {
     if (!S.job.on) {
-      while (qi < todo.size() && S.tiles.count(tileKey(S.zi, todo[qi].first, todo[qi].second) ^ geoBit)) qi++;
+      while (qi < todo.size()) {
+        auto f = S.tiles.find(tileKey(S.zi, todo[qi].first, todo[qi].second) ^ geoBit);
+        if (f == S.tiles.end() || f->second.stale) break;
+        qi++;
+      }
       if (qi >= todo.size()) break;
       S.job = TileJob();
       S.job.on = true; S.job.zi = S.zi; S.job.ix = todo[qi].first; S.job.iy = todo[qi].second; S.job.geo = S.geo;
@@ -942,12 +1396,71 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     t.tex = pix_->bake(cv);
     t.used = t_;
     t.born = t_;   // (drawn from the next frame, fading in over the blank parchment already drawn here)
+    {
+      auto old = S.tiles.find(tileKey(S.zi, S.job.ix, S.job.iy) ^ geoBit);
+      if (old != S.tiles.end()) { pix_->destroy(old->second.tex); t.born = -10; }   // (a repaint: no fade)
+    }
     S.tiles[tileKey(S.zi, S.job.ix, S.job.iy) ^ geoBit] = t;
     S.tilesPainted++;
     S.job = TileJob();
     if (std::chrono::steady_clock::now() > deadline) break;
   }
   S.worstPaintMs = std::max(S.worstPaintMs, S.lastPaintMs);
+  // (M7c) the real plans of the discovered settlements in and near the view: one place at a time, built through the
+  // source's prepare path (a generator phase at a time) within what is left of the frame's few milliseconds
+  if (g.world.endless && g.world.src && !S.geo) {
+    const auto p0 = std::chrono::steady_clock::now();
+    const double vx0 = (left - w * 0.5) * z, vy0 = (top - h * 0.5) * z, vx1 = (left + w * 1.5) * z, vy1 = (top + h * 1.5) * z;
+    const Site* want = nullptr;
+    double wantD = 1e300;
+    for (const Site& st : g.world.sites) {
+      if (!st.discovered || !st.settlement()) continue;
+      const double sx0 = g.world.ox + st.r.x, sy0 = g.world.oy + st.r.y, sx1 = sx0 + st.r.w, sy1 = sy0 + st.r.h;
+      if (sx1 < vx0 || sy1 < vy0 || sx0 > vx1 || sy0 > vy1) continue;
+      auto pl = S.plans.find(st.id);
+      if (pl != S.plans.end()) { pl->second->used = t_; continue; }
+      if (S.noPlan.count(st.id) || z >= 16) continue;
+      const double dx = g.world.ox + st.ex - S.cx, dy = g.world.oy + st.ey - S.cy, d = st.id == S.planBusy ? -1 : dx * dx + dy * dy;
+      if (d < wantD) { wantD = d; want = &st; }
+    }
+    const double spent = std::chrono::duration<double, std::milli>(p0 - t0).count();
+    S.planLastMs = 0;
+    if (want && spent < 7.0) {
+      const int32_t hx = g.world.ox + want->ex, hy = g.world.oy + want->ey;
+      S.planBusy = want->id;
+      if (g.world.src->prepareChunk(ew::chunkOf(hx), ew::chunkOf(hy), std::clamp(7.5 - spent, 0.8, 3.0))) {
+        std::shared_ptr<const ew::SettlementOut> o = g.world.src->settlement(want->id);
+        S.planBusy = 0;
+        if (!o) S.noPlan.insert(want->id);
+        else {
+          std::shared_ptr<PlanRaster> PR = makePlanRaster(*o, want->id);
+          PR->used = t_;
+          S.plans[want->id] = PR;
+          S.plansMade++;
+          // the cached tiles over it repaint (shown as they are until then), at every zoom
+          for (int zz = 0; zz < NZOOM; zz++) {
+            const float zf = kZoom[zz];
+            const int ax0 = (int)std::floor((PR->gx / zf - MG) / TS) - 1, ay0 = (int)std::floor((PR->gy / zf - MG) / TS) - 1;
+            const int ax1 = (int)std::floor(((PR->gx + PR->w) / zf + MG) / TS) + 1, ay1 = (int)std::floor(((PR->gy + PR->h) / zf + MG) / TS) + 1;
+            for (int ty = ay0; ty <= ay1; ty++)
+              for (int tx = ax0; tx <= ax1; tx++) {
+                auto it = S.tiles.find(tileKey(zz, tx, ty));
+                if (it != S.tiles.end()) it->second.stale = true;
+              }
+          }
+          if (S.job.on) S.job = TileJob();
+          // bound the cache: the plans longest out of view go
+          while (S.plans.size() > 16) {
+            auto oldest = S.plans.begin();
+            for (auto i = S.plans.begin(); i != S.plans.end(); ++i) if (i->second->used < oldest->second->used) oldest = i;
+            S.plans.erase(oldest);
+          }
+        }
+      }
+      S.planLastMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - p0).count();
+      S.planWorstMs = std::max(S.planWorstMs, S.planLastMs);
+    }
+  }
   // bound the cache (the oldest tiles go)
   if (S.tiles.size() > 192) {
     std::vector<std::pair<float, uint64_t>> age;
@@ -1053,6 +1566,17 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
           if (!seenNear) continue;
           const Vec2 s = toScr(lm.x + 0.5, lm.y + 0.5);
           if (s.x < -100 || s.y < -20 || s.x > w + 100 || s.y > h + 20) continue;
+          // ((M7c fixer, review: "BLACKHORN, drawn on the city's east wall, reads as the city's name") at the zooms that
+          // draw a settlement's plan, a landmark's name never sits on a discovered town or city: the plan is the place)
+          if (z <= 4.0f) {
+            bool onTown = false;
+            for (const Site& st : g.world.sites) {
+              if (!st.discovered || (st.type != SiteType::City && st.type != SiteType::Town)) continue;
+              const int32_t hw = st.type == SiteType::City ? 104 : 50, hh = st.type == SiteType::City ? 84 : 40;
+              if (std::abs(lm.x - (st.ex + g.world.ox)) <= hw && std::abs(lm.y - (st.ey + g.world.oy)) <= hh) { onTown = true; break; }
+            }
+            if (onTown) continue;
+          }
           Color ink(0.36f, 0.24f, 0.14f);
           switch (lm.kind) {
             case ew::LandmarkKind::Lake: case ew::LandmarkKind::River: case ew::LandmarkKind::Sea: ink = Color(0.16f, 0.30f, 0.52f); break;
@@ -1071,7 +1595,7 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
   }
   // ---- markers: rumoured places, discovered places (icons), the tracked quest, the hero
   struct Mk { float x, y; int ic; int site; };
-  std::vector<Mk> marks;
+  std::vector<Mk> marks, heroTown;
   for (int i = 0; i < (int)g.world.sites.size() && !S.geo; i++) {
     const Site& st = g.world.sites[(size_t)i];
     if (st.rumoured && !st.discovered) {
@@ -1117,6 +1641,7 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     };
     std::stable_sort(marks.begin(), marks.end(), [&](const Mk& a, const Mk& b) { return rank(a) < rank(b); });
     std::vector<Mk> kept;
+    heroTown.clear();
     for (const Mk& m : marks) {
       const Tex& t = S.icons[(size_t)m.ic];
       const float hwI = t.w / 2.0f, hhI = t.h / 2.0f;
@@ -1126,7 +1651,13 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
         return ox > 0 && oy > 0 && ox * oy > 0.20f * (2 * hwI) * (2 * hhI);
       };
       if (m.site != mapSel_) {
-        if (over(hp.x - 9, hp.y - 9, hp.x + 9, hp.y + 9)) crowd = true;
+        if (over(hp.x - 9, hp.y - 9, hp.x + 9, hp.y + 9)) {
+          crowd = true;
+          // ((M7c fixer) the town or city the hero stands in keeps its name on the map (only its icon gives way to
+          // the hero's arrow): at town zoom a nameless planned city read as the nearest landmark's)
+          const Site& hs = g.world.sites[(size_t)m.site];
+          if (hs.type == SiteType::City || hs.type == SiteType::Town || (hs.settlement() && z <= 8)) heroTown.push_back(m);
+        }
         for (const Mk& k : kept) {   // (with a little air round each kept icon: touching icons read as one knot)
           const Tex& kt = S.icons[(size_t)k.ic];
           if (over(k.x - kt.w / 2.0f - 3, k.y - kt.h / 2.0f - 3, k.x + kt.w / 2.0f + 3, k.y + kt.h / 2.0f + 3)) { crowd = true; break; }
@@ -1166,6 +1697,11 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
       const Color ink = st.type == SiteType::Wonder ? Color(0.50f, 0.30f, 0.06f) : kInk;
       labs.push_back({prio, mk.x, iy + t.h + 1, iy - (st.capital ? 15 : 10), nm, ink, Color(0.96f, 0.92f, 0.82f, 0.7f), false});
     }
+  }
+  for (const Mk& mk : heroTown) {
+    const Site& st = g.world.sites[(size_t)mk.site];
+    const Tex& t = S.icons[(size_t)mk.ic];
+    labs.push_back({1, mk.x, std::floor(mk.y + t.h / 2.0f) + 11, std::floor(mk.y - t.h / 2.0f) - 12, st.name, kInk, Color(0.96f, 0.92f, 0.82f, 0.7f), false});
   }
   // (M4) the war on the map: a marker at each troubled settlement the hero has seen or heard of (beside its icon, up and
   // right), a scroll at every other heard event; the side column names the state of the selected place

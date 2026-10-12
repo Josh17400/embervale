@@ -130,6 +130,8 @@ struct Mass {
                                 // meet in a valley (an L's wing), not a shaded hip end wedged against the other roof
   bool partyL = false, partyR = false;   // (M7b) a row house's party wall on that side (bld::VF_PARTY_*): the roof stops
                                         // flush on it (joinL / joinR = -ov), unhipped
+  bool streetL = false, streetR = false, streetB = false;   // (M7c ART) this side (west, east, the back) looks onto a
+                                        // street (Request::row ROW_SIDE_W / ROW_SIDE_E / ROW_BACK): dressed as an elevation
   uint8_t noLift = 0;           // (M6 fixer) a swept (pagoda) roof's eave corners that meet another roof (bits: 1 NW, 2 NE,
                                 // 4 SW, 8 SE): they stay down in the valley instead of curling up through the other roof
   float zTop() const { return (float)(zBase + wallH); }
@@ -364,7 +366,13 @@ float massTop(const Mass& m, float x, float y, Surf& surf) {
       // side-gabled roofs (ridge across the view) are clipped at both ends into a half-hip: in the 3/4 view their
       // gable triangles face east and west and are never seen, so without the clipped ends the roof is one flat
       // front plane (a featureless slab). The small end facets catch the light (west) and fall into shade (east).
-      if (!m.alongY && !m.gambrel) d = std::min(d, dx * 1.1f + dmax * 0.32f);
+      // (M7c ART) the end turned to a side street is hipped right down (the roof's end faces the street as a full
+      // plane, lit on the west, in shade on the east), a free end elsewhere keeps its half-hip
+      if (!m.alongY && !m.gambrel) {
+        const float dxL = x - rx0, dxR = rx1 - x;
+        if (!(m.joinL > 0 || pL)) d = std::min(d, m.streetL ? dxL * 0.95f : dxL * 1.1f + dmax * 0.32f);
+        if (!(m.joinR > 0 || pR)) d = std::min(d, m.streetR ? dxR * 0.95f : dxR * 1.1f + dmax * 0.32f);
+      }
       if (m.alongY && m.backHip > 0) d = std::min(d, (y - ry0) * m.backHip);
       break;
   }
@@ -1512,6 +1520,18 @@ Plan planFromBlueprint(const bld::Blueprint& bp) {
     if (m.feat & bld::VF_PARTY_W) { m.partyL = true; m.joinL = -(float)m.ov; }
     if (m.feat & bld::VF_PARTY_E) { m.partyR = true; m.joinR = -(float)m.ov; }
   }
+  // (M7c ART) the street faces of a row house (Request::row): the volumes standing on that edge of the footprint
+  {
+    const uint8_t rw = bp.req.row;
+    if (rw & (bld::ROW_SIDE_W | bld::ROW_SIDE_E | bld::ROW_BACK))
+      for (Mass& m : ms) {
+        // (an oriel or a turret set on an upper floor is not a street face; the body raised on its plinth or deck is)
+        if (m.round || m.chimney || m.tree || m.found || m.encl || (m.zBase > 0 && !m.body)) continue;
+        if ((rw & bld::ROW_SIDE_W) && m.x0 <= 1.0f && !m.partyL) m.streetL = true;
+        if ((rw & bld::ROW_SIDE_E) && m.x1 >= (float)p.W - 1.0f && !m.partyR) m.streetR = true;
+        if ((rw & bld::ROW_BACK) && m.y0 <= 1.0f) m.streetB = true;
+      }
+  }
   // (M6 fixer, owner bar: "no broken corners") a swept pagoda eave curls up at its corners; where a corner meets another
   // roof (a wing, a porch, a hall beside it) the curl would cut up through that roof and cross its eave, so that corner
   // stays down and the two roofs meet in a plain valley
@@ -2023,6 +2043,45 @@ void buildFacades(Plan& p, int m0 = 0, int m1 = 1 << 30) {
           }
       continue;
     }
+    // (M7c ART) a street side's corner: long and short dressed quoins up the corner the side street sees (stone on
+    // plaster, brick and stone walls; a heavier corner post on timber, its brackets at the floor lines), lit on the
+    // west corner, in shade on the east, so the corner house turns its corner as an elevation, never a party wall's
+    // blank end
+    if ((m.streetL || m.streetR) && !m.round && w >= 16) {
+      const bool tim = m.wall == WallKind::Timber || m.wall == WallKind::Wattle || m.wall == WallKind::Planks;
+      const bool skip = m.wall == WallKind::Log || m.wall == WallKind::Felt || m.wall == WallKind::Living;
+      const Ramp& Q = (m.wall == WallKind::Ashlar || m.wall == WallKind::Stone) ? m.wR : kStoneWarm;
+      for (int side = 0; side < 2 && !skip; side++) {
+        if (side == 0 ? !m.streetL : !m.streetR) continue;
+        const int top = m.wallH - 1;
+        for (int v = plinth; v <= top; v++) {
+          if (tim) {
+            for (int i = 0; i < 3; i++) {
+              const int u = side == 0 ? i : w - 1 - i;
+              m.f.set(u, v, side == 0 ? kBeam[i == 0 ? 4 : (i == 1 ? 3 : 1)] : kBeam[i == 0 ? 0 : (i == 1 ? 1 : 2)]);
+            }
+            continue;
+          }
+          const int blk = ((v - plinth) / 5) & 1, len = blk ? 4 : 7, cv = (v - plinth) % 5;
+          for (int i = 0; i < len && i < w / 3; i++) {
+            const int u = side == 0 ? i : w - 1 - i;
+            uint32_t c = side == 0 ? Q[i == 0 ? 4 : 3] : Q[i == 0 ? 1 : 2];
+            if (cv == 4) c = side == 0 ? Q[1] : Q[0];                       // the joint under each block
+            else if (i == len - 1) c = side == 0 ? Q[2] : Q[1];             // the block's inner end
+            else if (cv == 3 && side == 0) c = Q[4];                         // its lit top arris
+            m.f.set(u, v, c);
+          }
+        }
+        if (tim)   // the dragon brackets at the floor lines
+          for (int k = 1; k < m.storeys; k++) {
+            const int F = floorLine(m, k);
+            for (int j = 0; j < 4; j++) {
+              const int u = side == 0 ? 3 + j : w - 4 - j;
+              m.f.set(u, F - j, kBeam[side == 0 ? 3 : 1]);
+            }
+          }
+      }
+    }
     // a crow-stepped gable's copings, a bell gable's lit rim
     if (gableFront && (m.gable == 1 || m.gable == 2))
       for (int u = 0; u < w; u++) { m.f.set(u, tops[(size_t)u], m.tR[4]); if (tops[(size_t)u] > hTop + 1) m.f.set(u, tops[(size_t)u] - 1, m.tR[2]); }
@@ -2367,6 +2426,26 @@ void buildFacades(Plan& p, int m0 = 0, int m1 = 1 << 30) {
         const int wx = ws == WindowShape::Round ? 6 : 5, wy = ws == WindowShape::Round ? 6 : std::max(4, wh0 - 1);
         if (uc - wx / 2 >= 2 && uc + wx / 2 < w - 2) { facadeWindowS(m, ws, uc - wx / 2, v0, wx, wy, p.seed + 31u * (uint32_t)s, false, false, shutterCol); shown |= 1u << s; }
       }
+      // (M7c ART) a street side's end bay: a window on every storey next to the corner the side street sees (the
+      // facade's rhythm left the end bay blank on many fronts: from the side street a blind corner)
+      if ((m.streetL || m.streetR) && !m.round && !feltWall && m.face != bld::Face::Blank && w >= 28) {
+        for (int side = 0; side < 2; side++) {
+          if (side == 0 ? !m.streetL : !m.streetR) continue;
+          const int lo = side == 0 ? 7 : w - 19, hi = side == 0 ? 19 : w - 7;
+          bool has = false;
+          for (int uu = lo; uu < hi && !has; uu++)
+            for (int vv = v0; vv < v0 + wh0 && !has; vv++) has = m.f.isGlass(uu, vv);
+          const int uc = side == 0 ? 12 : w - 13;
+          if (has || ((hasDoor || vDoor) && s == 0 && std::abs(uc - du) < 12)) continue;
+          const WindowShape ws = p.cul ? (WindowShape)m.win : WindowShape::Square;
+          const int wx = ws == WindowShape::Round ? 6 : (ws == WindowShape::Tall || ws == WindowShape::Pointed ? 5 : winW);
+          const int wy = ws == WindowShape::Round ? 6 : std::max(4, wh0);
+          const bool sh = (st.shutters || (st.ornament & ORN_SHUTTERS) || (m.orn & ORN_SHUTTERS)) && ws != WindowShape::Screen && ws != WindowShape::Slit && m.wall != WallKind::Adobe;
+          const bool fl = !st.snow && (m.orn & ORN_FLOWERBOX) && s > 0;
+          facadeWindowS(m, ws, uc - wx / 2, v0, wx, wy, p.seed + 57u * (uint32_t)(s + 1) + (uint32_t)side, sh, fl, p.shutterCol ? p.shutterCol : shutterCol);
+          shown |= 1u << s;
+        }
+      }
     }
     // adobe: wooden beam ends (vigas) poking out under the roofline, and a rain spout
     if (m.wall == WallKind::Adobe && !m.round) {
@@ -2574,38 +2653,90 @@ uint32_t roofColor(const Plan& p, const Mass& m, int mi, float x, float y, float
       }
       return A[k];
     }
-    // (M3 fixer round 3, review: "flat roofs use wall-brick texture") a paved roof terrace, not a wall face: big
-    // flagstones of uneven length in staggered courses, each slab its own tone, fine joints lit on their far (south)
-    // lip, the deck a touch brighter toward the sunlit back where the parapet shadow ends. Plastered and dressed-stone
-    // buildings pave it in their own pale stone; the rest in grey flags.
+    // (M7c fixer r3, review: "flat roofs render as blank, volume-less slabs: no parapet thickness, no inner shadow, no
+    // light/shade split and no roof furniture") a roof terrace sunk inside its parapet: a screed of small square tiles in
+    // the building's stone dulled toward grey, a step darker than the parapet's lit coping so the rim reads as a wall
+    // round the deck; the parapet's shadow lies deep along its west and north feet and fades over a few px; the deck
+    // falls to a gutter along its front (a darker band); the household's things stand on it (a stair hatch, potted
+    // plants along the front, a water cistern), each house its own by seed, each casting its shadow down-right.
     const bool pale = m.wall == WallKind::Ashlar || m.wall == WallKind::Plaster || m.wall == WallKind::Brick;
-    const Ramp& D = pale ? m.wR : kStone;
+    const Ramp& W = pale ? m.wR : kStone;
+    auto D = [&](int kk) { kk = std::clamp(kk, 0, 4); return pale ? mix(W[kk], kStoneWarm[std::min(4, kk + 1)], 0.40f) : W[kk]; };
     const int gx = (int)std::floor(x), gy = (int)std::floor(y);
-    const int row = (gy + 64) / 5, pr = (gy + 64) % 5;
-    const int off = (int)(hash3(row, 3, m.seed) % 9);
-    int sx = gx + 64 + off, sl = 0, slab = 0;
-    {
-      int acc = 0;
-      for (int s = 0; s < 40; s++) {
-        const int len = 7 + (int)(hash3(row, s, m.seed + 5) % 6);
-        if (sx < acc + len) { slab = s; sl = sx - acc; break; }
-        acc += len;
+    // square tiles laid on a straight grid (never the wall's running bond), 6 x 5 px
+    const int row = (gy + 256) / 5, iy = (gy + 256) % 5;
+    const int ux = gx + 256, col = ux / 6, ix = ux % 6;
+    const uint32_t hs = hash3(row, col, m.seed + 9);
+    k = 2;
+    float lit = (hs % 4u == 0) ? 0.40f : ((hs % 7u == 1) ? -0.30f : ((row + col) & 1 ? 0.18f : 0.02f));   // each tile its own tone
+    uint32_t c = lit >= 0 ? mix(D(k), D(k + 1), lit) : mix(D(k), D(k - 1), -lit);
+    if (iy == 0 || ix == 0) c = mix(c, D(k - 1), 0.60f);                       // the joints
+    else if (iy == 1 || ix == 1) c = mix(c, D(k + 1), 0.22f);                  // each tile's lit upper-left lip
+    // weathering: broad damp patches and lichen
+    const float wv = vnoise(x / 9.0f, y / 6.0f, m.seed + 71);
+    if (wv > 0.72f) c = mix(c, D(k - 1), 0.30f);
+    if (m.round) {   // a round tower's top: the parapet's shadow round its north-west quarter
+      if (pshadow) c = mix(c, D(0), 0.5f);
+      if (shade) c = mix(c, D(0), 0.35f);
+      return c;
+    }
+    const float fx = x - m.x0, fy = y - m.y0, bx = m.x1 - x, by = m.y1 - y;
+    // the deck's furniture (a big enough deck; the dome's drum leaves no room)
+    if (m.shape == RoofShape::FlatParapet && m.x1 - m.x0 >= 20 && m.y1 - m.y0 >= 12 && !shade) {
+      const uint32_t hf = hash3((int)m.x0, (int)m.y0, m.seed + 23);
+      // a wooden stair hatch in the back half, left or right
+      const float hx0 = (hf & 1) ? m.x1 - 13.0f - (float)((hf >> 1) % 4) : m.x0 + 6.0f + (float)((hf >> 1) % 4), hy0 = m.y0 + 5.0f;
+      if (x >= hx0 && x < hx0 + 8 && y >= hy0 && y < hy0 + 6) {
+        const int lx = (int)(x - hx0), ly = (int)(y - hy0);
+        if (lx == 0 || ly == 0) return kWood[3];
+        if (lx == 7 || ly == 5) return kWood[0];
+        if (lx == 4) return kWood[1];
+        return (ly == 2 && (lx == 2 || lx == 5)) ? kIron[2] : kWood[2];
+      }
+      if ((x >= hx0 + 8 && x < hx0 + 9.5f && y >= hy0 + 1 && y < hy0 + 7) || (y >= hy0 + 6 && y < hy0 + 7.5f && x >= hx0 + 1 && x < hx0 + 9.5f)) return mix(c, D(0), 0.5f);
+      // a cistern: a lidded water tank, its lid lit, its south face dark (on half the decks, the side away from the hatch)
+      if ((hf >> 4) & 1) {
+        const float cx0 = (hf & 1) ? m.x0 + 6.0f : m.x1 - 13.0f, cy0 = m.y0 + 4.0f;
+        if (x >= cx0 && x < cx0 + 7 && y >= cy0 && y < cy0 + 6) {
+          const int lx = (int)(x - cx0), ly = (int)(y - cy0);
+          if (ly >= 4) return ly == 5 ? kStone[0] : kStone[1];                  // its front face
+          if (lx == 0 || ly == 0) return kStone[4];
+          if (lx == 6) return kStone[1];
+          return (lx == 3 && ly == 2) ? kIron[1] : kStone[3];
+        }
+        if ((x >= cx0 + 7 && x < cx0 + 8.5f && y >= cy0 + 1 && y < cy0 + 7) || (y >= cy0 + 6 && y < cy0 + 7.5f && x >= cx0 + 1 && x < cx0 + 8.5f)) return mix(c, D(0), 0.5f);
+      }
+      // potted plants along the front parapet: a clay pot, a lit bush over it, its shadow down-right
+      const int np = 1 + (int)((hf >> 6) % 3u);
+      for (int j = 0; j < np; j++) {
+        const float pcx = m.x0 + 8.0f + (float)(((hf >> (9 + j * 3)) % 5u) + (uint32_t)j * 10u), pcy = m.y1 - 6.0f;
+        if (pcx > m.x1 - 6.0f) break;
+        const float dx = x - pcx, dy = y - pcy;
+        if (dy >= -0.5f && dy < 2.5f && std::fabs(dx) < 2.1f - (dy > 1.5f ? 0.6f : 0.0f))                 // the pot
+          return dy < 0.5f ? kClay[4] : (dx < -0.8f ? kClay[3] : (dx > 1.0f ? kClay[1] : kClay[2]));
+        const float ly = dy + 3.0f, r2 = dx * dx * 0.8f + ly * ly * 1.1f;
+        if (r2 < 9.0f) {                                                                                   // the plant
+          const uint32_t hl = hash3(gx, gy, m.seed + 41 + (uint32_t)j);
+          if (dx < -0.4f && ly < -0.4f) return kLeaf[(hl & 3u) == 0 ? 3 : 4];
+          if (r2 > 6.0f && (dx > 0.6f || ly > 0.6f)) return kLeaf[1];
+          return kLeaf[(hl % 3u) == 0 ? 3 : 2];
+        }
+        if (dx > 0.8f && dx < 4.6f && dy > -2.4f && dy < 3.4f) return mix(c, D(0), 0.45f);
       }
     }
-    const uint32_t hs = hash3(row, slab, m.seed + 9);
-    k = pale ? 3 : 2;
-    if (hs % 5 == 0) k--;
-    else if (hs % 7 == 0 && k < 4) k++;
-    if (pr == 0) k = std::max(0, k - 1);                // the joint between courses
-    else if (pr == 4 && sl > 0) k = std::min(4, k + (pale ? 0 : 1) );   // the lit lip of the slab before it
-    if (sl == 0 && pr != 0) k = std::max(0, k - 1);     // the joint between slabs
-    if (shade) k = std::max(0, k - 1);
-    if (pshadow) return mix(D[k], D[0], 0.42f);
-    // (fix) the deck is a top face in the full light: a step brighter and softer than the same stone's wall face below
-    // it, so a set-back upper storey's front wall reads as a wall and not as more roof
-    const float lift = shade ? 0.12f : 0.32f;
-    if (hash3(gx, gy, m.seed + 13) % 23 == 0) return mix(D[std::max(0, k - 1)], D[4], lift);   // wear
-    return mix(D[k], D[4], lift);
+    // the gutter along the front: the deck falls to it (a darker band, a step before the parapet)
+    if (by < 4.0f && by >= 2.6f) c = mix(c, D(0), 0.30f);
+    else if (by < 5.2f && by >= 4.0f) c = mix(c, D(k - 1), 0.25f);
+    // the parapet's shadow along its west and north feet (light from the top-left), deepest at the foot
+    const float sw = fx - 2.0f, sn = (fy - 2.0f) * 1.25f;
+    const float sd = std::min(sw, sn);
+    if (sd < 1.5f) c = mix(c, D(0), 0.66f);
+    else if (sd < 4.0f) c = mix(c, D(0), 0.46f);
+    else if (sd < 6.5f) c = mix(c, D(0), 0.22f);
+    // the east parapet's inner foot catches a little reflected light; the deck's sunlit far side a touch brighter
+    else if (bx < 3.0f) c = mix(c, D(4), 0.12f);
+    if (shade) c = mix(c, D(0), 0.35f);
+    return c;
   }
   // (fix) a stepped pyramid's terraces, coloured from where the point lies on its tier (never from the height field's
   // gradient, which smeared each riser into a soft band): the tread's top lit from the top-left, its outer edge a
@@ -2878,8 +3009,10 @@ uint32_t roofColor(const Plan& p, const Mass& m, int mi, float x, float y, float
     if (ny > 0.2f && v <= 2 && rx >= 0 && rx <= 2) return kStone[rx == 0 ? 4 : (rx == 1 ? 3 : 1)];
     if (rx == 1 && ny > -0.2f) return mix(R[std::max(0, k - 1)], kCloth[1], 0.5f);
   }
-  // M3 a gilded ridge (ORN_GILDING)
-  if ((m.orn & ORN_GILDING) && !m.round && m.shape != RoofShape::Turf && z > m.zTop() - 1 + m.roofH - 1.2f) return kGold[x < (m.x0 + m.x1) * 0.5f ? 4 : 3];
+  // M3 a gilded ridge (ORN_GILDING). (M7c fixer, review: "jade building: a bright cream dashed bar floating on a side
+  // roof") only the main roof's ridge and its tiers' are gilded: a lower wing's short ridge, half hidden by the main
+  // roof, read as a stray bar of cream and gold matching no roof element
+  if ((m.orn & ORN_GILDING) && (m.body || m.tier) && !m.round && m.shape != RoofShape::Turf && z > m.zTop() - 1 + m.roofH - 1.2f) return kGold[x < (m.x0 + m.x1) * 0.5f ? 4 : 3];
   // moss on the north (back) plane and the damp lower courses of old roofs
   if (m.moss >= 2 && (m.rmat == RoofMat::Thatch || m.rmat == RoofMat::Shingle || m.rmat == RoofMat::Slate)) {
     bool north = ny < -0.2f;
@@ -2921,10 +3054,33 @@ uint32_t roofColor(const Plan& p, const Mass& m, int mi, float x, float y, float
     if (v == 1) return (hg % 3 == 0) ? R[std::max(1, k - 1)] : mix(kSoil[2], kSoil[1], 0.5f);
     if (v == 2) return mix(R[std::max(0, k - 1)], kSoil[1], 0.35f);
   }
+  // (M7c ART, owner: "no boxy repetition along long frontages") each house of a terrace keeps its own roof: the party
+  // wall rises through the roof as a stone coping from the eave to the ridge (its west face lit, its east face in
+  // shade: the west unit's last column, the east unit's first), so a row reads as houses side by side under one eave
+  // line, not one slab. A back on a street: a lead gutter along the back eave.
+  if (!m.round && !flatShape(m.shape) && m.shape != RoofShape::Turf && s == Surf::Roof) {
+    // (M7c fixer, review: "the party walls read as pipes or poles, not separate houses") the coping is a firewall two
+    // pixels a side: its lit west flank and top on the west house, the top and the shaded east flank on the east house
+    // ((M7c fixer r3, review: "the dividers draw as 2-3px light-grey vertical bars from ridge to eave, posts stuck
+    // through the roof") no stone stripe: the two roofs simply meet in a seam, the west house's last course a touch
+    // lighter (its own batch catching the light), the east house's first in the seam's shadow, so the houses part
+    // by a change of shade along a fine line)
+    if (m.partyR && x >= m.x1 - 1.0f) return mix(R[k], R[std::min(4, k + 1)], 0.35f);
+    if (m.partyL && x < m.x0 + 1.0f) return mix(R[k], R[0], 0.45f);
+    if (m.streetB && y < m.y0 - m.ov + 1.0f && ny < 0.2f) return x < (m.x0 + m.x1) * 0.5f ? rgba(96, 98, 108) : rgba(78, 80, 90);
+  }
   // the lowest courses sit in the gloom under the next roof edge; the eave line darkens a little
   if (!m.round && v <= 1 && k > 1 && !endPlane) k--;
   if (shade) k = std::max(0, k - 1);
   (void)p; (void)mi;
+  // (M7c fixer, review: "the roof has a single ridge band, with no change per house") each house of a terrace roofs
+  // in its own batch of tiles or slates: a touch warmer and lighter, darker and older, or as laid, by its seed (the
+  // courses and the eave stay level along the row)
+  if ((m.partyL || m.partyR) && !m.round && !flatShape(m.shape) && s == Surf::Roof) {
+    const uint32_t hb = hash3(7, 3, m.seed + 0x51u) % 3u;
+    if (hb == 1) return mix(R[k], R[std::min(4, k + 1)], 0.42f);
+    if (hb == 2) return mix(R[k], R[std::max(0, k - 1)], 0.38f);
+  }
   return R[k];
 }
 
@@ -4103,6 +4259,48 @@ void overlays(Painter& P, BuildingInfo* info) {
       auto q = at(cx, cy, massTop(m, cx, cy, s));
       for (int k = 1; k < 6; k++) P.put(q.first, q.second - k, kGold[k == 3 || k == 5 ? 4 : 2], 3);
       P.put(q.first - 1, q.second - 4, kGold[3], 3); P.put(q.first + 1, q.second - 4, kGold[1], 3);
+    }
+  }
+  // (M7c ART) a street side's bracket: a wrought-iron arm out from the corner over the side street at the first floor,
+  // the trade's board hanging from it (a shop, a workshop, an inn) or a lantern (a house), the board facing the
+  // street's walkers (south) with its west edge lit, so the side street sees the house as one of its own
+  {
+    const Mass& m0 = ms[0];
+    const bool turret = std::any_of(ms.begin(), ms.end(), [](const Mass& o) { return o.round && o.role == bld::VolRole::Tower && o.zBase > 0; });
+    if ((m0.streetL || m0.streetR) && !m0.round && m0.wallH >= 26 && !p.open.open() && !turret) {
+      const bool east = m0.streetR;
+      const int dir = east ? 1 : -1;
+      const float bx = east ? m0.x1 : m0.x0, by = m0.y1 - 1.5f;
+      const float bz = (float)std::min(m0.wallH - 6, (m0.floorV > 0 ? m0.floorV : 18) + 7);
+      auto q = at(bx + (east ? 0.0f : -1.0f), by, bz);
+      // the arm and its stay
+      for (int k = 0; k <= 6; k++) P.put(q.first + dir * k, q.second, kIron[k == 0 ? 2 : 1], 3);
+      for (int k = 1; k <= 3; k++) P.put(q.first + dir * k, q.second + 4 - k, kIron[0], 3);
+      P.put(q.first + dir * 6, q.second - 1, kIron[2], 3);   // the curl
+      const int icon = p.sign.icon;
+      const bool trade = icon != 0 && b != Building::House;
+      const int hx = q.first + dir * 4 - 2;   // the hanger's left column
+      if (trade) {   // a board on two short chains
+        P.put(hx, q.second + 1, kIron[1], 3); P.put(hx + 4, q.second + 1, kIron[1], 3);
+        for (int j = 0; j < 6; j++)
+          for (int i = -1; i < 6; i++) {
+            const bool edge = i == -1 || i == 5 || j == 0 || j == 5;
+            uint32_t c = edge ? (i == -1 || j == 0 ? kWood[3] : kWoodDark[1]) : kWood[2];
+            P.put(hx + i, q.second + 2 + j, c, 3);
+          }
+        auto putO = [&](int x, int y, uint32_t c) { P.put(x, y, c, 3); };
+        drawIcon(putO, hx + 1, q.second + 3, icon);
+      } else {       // a lantern: a cap, the glass lit from within at night, a finial below
+        P.put(hx + 1, q.second + 1, kIron[1], 3); P.put(hx + 2, q.second + 1, kIron[2], 3);
+        for (int i = 0; i < 4; i++) P.put(hx + i, q.second + 2, kIron[i == 0 ? 2 : 0], 3);
+        for (int j = 0; j < 4; j++)
+          for (int i = 0; i < 4; i++) {
+            const bool frame = i == 0 || i == 3;
+            P.put(hx + i, q.second + 3 + j, frame ? kIron[i == 0 ? 2 : 0] : (j < 2 ? kGlass[4] : kGlass[3]), 3, !frame);
+          }
+        for (int i = 0; i < 4; i++) P.put(hx + i, q.second + 7, kIron[i == 0 ? 2 : 0], 3);
+        P.put(hx + 1, q.second + 8, kIron[1], 3); P.put(hx + 2, q.second + 8, kIron[0], 3);
+      }
     }
   }
   // chimney mouths that smoke

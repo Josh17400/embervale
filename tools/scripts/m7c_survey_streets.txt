@@ -1,0 +1,128 @@
+# M7c SURVEY: street-level review of the planned cities (VISION_PLAN 15.M7c): in each city the plaza, a block street,
+# a junction, the gate from inside and from outside, and the faubourg road outside the walls, at noon.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7c_survey_streets.txt [--seed N]
+# planspot (rpg/view/script_plan.cpp) finds each spot from the planmark city's own plan layers (rank, role, wall gaps),
+# so the same lines work on every lane's build; `plan` prints the plan's traits and structure score beside the shots.
+# REVIEWER GUIDE. PASS when: row houses front every street on both sides (no blank backs on a street), streets run
+# straight or gently curved and meet in real junctions, the plaza reads as the city's heart, the gate joins the wall
+# seamlessly from both sides, the faubourg is a ribbon of houses along the road (not a grid outside the walls), and
+# every sprite has the 3/4 depth and top-left light of the owner's bar. FAIL on gaps or orphan wall pieces, a street
+# ending in a blank wall, a block of identical houses, or the city reading like a town.
+# BEFORE / AFTER: the pre-M7c binary has no planspot; its city streets come from m7b_city_tour.txt.
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
+# ---- heartland city
++0.2 gotoculture heartland city
++1.2 planmark
++0.1 plan
++0.1 planspot plaza
++1.0 shot m7c_survey_st_heartland_plaza.png
++0.1 planspot street
++1.0 shot m7c_survey_st_heartland_street.png
++0.1 planspot junction
++1.0 shot m7c_survey_st_heartland_junction.png
++0.1 planspot gate in
++1.0 shot m7c_survey_st_heartland_gate_in.png
++0.1 planspot gate out
++1.0 shot m7c_survey_st_heartland_gate_out.png
++0.1 planspot faubourg
++1.0 shot m7c_survey_st_heartland_faubourg.png
+# ---- imperial capital
++0.2 gotoculture imperial capital
++1.2 planmark
++0.1 plan
++0.1 planspot plaza
++1.0 shot m7c_survey_st_imperial_capital_plaza.png
++0.1 planspot street
++1.0 shot m7c_survey_st_imperial_capital_street.png
++0.1 planspot junction
++1.0 shot m7c_survey_st_imperial_capital_junction.png
++0.1 planspot gate in
++1.0 shot m7c_survey_st_imperial_capital_gate_in.png
++0.1 planspot gate out
++1.0 shot m7c_survey_st_imperial_capital_gate_out.png
++0.1 planspot faubourg
++1.0 shot m7c_survey_st_imperial_capital_faubourg.png
+# ---- dune city
++0.2 gotoculture dune city
++1.2 planmark
++0.1 plan
++0.1 planspot plaza
++1.0 shot m7c_survey_st_dune_plaza.png
++0.1 planspot street
++1.0 shot m7c_survey_st_dune_street.png
++0.1 planspot junction
++1.0 shot m7c_survey_st_dune_junction.png
++0.1 planspot gate in
++1.0 shot m7c_survey_st_dune_gate_in.png
++0.1 planspot gate out
++1.0 shot m7c_survey_st_dune_gate_out.png
++0.1 planspot faubourg
++1.0 shot m7c_survey_st_dune_faubourg.png
+# ---- jade city
++0.2 gotoculture jade city
++1.2 planmark
++0.1 plan
++0.1 planspot plaza
++1.0 shot m7c_survey_st_jade_plaza.png
++0.1 planspot street
++1.0 shot m7c_survey_st_jade_street.png
++0.1 planspot junction
++1.0 shot m7c_survey_st_jade_junction.png
++0.1 planspot gate in
++1.0 shot m7c_survey_st_jade_gate_in.png
++0.1 planspot gate out
++1.0 shot m7c_survey_st_jade_gate_out.png
++0.1 planspot faubourg
++1.0 shot m7c_survey_st_jade_faubourg.png
+# ---- fjordfolk city
++0.2 gotoculture fjordfolk city
++1.2 planmark
++0.1 plan
++0.1 planspot plaza
++1.0 shot m7c_survey_st_fjordfolk_plaza.png
++0.1 planspot street
++1.0 shot m7c_survey_st_fjordfolk_street.png
++0.1 planspot junction
++1.0 shot m7c_survey_st_fjordfolk_junction.png
++0.1 planspot gate in
++1.0 shot m7c_survey_st_fjordfolk_gate_in.png
++0.1 planspot gate out
++1.0 shot m7c_survey_st_fjordfolk_gate_out.png
++0.1 planspot faubourg
++1.0 shot m7c_survey_st_fjordfolk_faubourg.png
+# ---- river city
++0.2 gotoculture river city
++1.2 planmark
++0.1 plan
++0.1 planspot plaza
++1.0 shot m7c_survey_st_river_plaza.png
++0.1 planspot street
++1.0 shot m7c_survey_st_river_street.png
++0.1 planspot junction
++1.0 shot m7c_survey_st_river_junction.png
++0.1 planspot gate in
++1.0 shot m7c_survey_st_river_gate_in.png
++0.1 planspot gate out
++1.0 shot m7c_survey_st_river_gate_out.png
++0.1 planspot faubourg
++1.0 shot m7c_survey_st_river_faubourg.png
+# ---- steppe city
++0.2 gotoculture steppe city
++1.2 planmark
++0.1 plan
++0.1 planspot plaza
++1.0 shot m7c_survey_st_steppe_plaza.png
++0.1 planspot street
++1.0 shot m7c_survey_st_steppe_street.png
++0.1 planspot junction
++1.0 shot m7c_survey_st_steppe_junction.png
++0.1 planspot gate in
++1.0 shot m7c_survey_st_steppe_gate_in.png
++0.1 planspot gate out
++1.0 shot m7c_survey_st_steppe_gate_out.png
++0.1 planspot faubourg
++1.0 shot m7c_survey_st_steppe_faubourg.png
++0.2 quit

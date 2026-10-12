@@ -251,7 +251,10 @@ Canvas earthworkGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, 
   auto face = [&](int gx, int gy, int z, int h, int v, int zn) -> uint32_t {
     (void)gy; (void)zn;
     if (z > zd + 6) return kWood[gx == -3 || gx == 49 ? 3 : 1];               // the posts
-    if (z > zd) return kWood[v == 0 ? 3 : 2];                                   // a stake
+    // ((M7c fixer, review: "the wooden grille reaches the ground, so the main road looks blocked") a stake of the
+    // breastwork stands on the deck: below the deck's edge it is the beam and then the open road, not a stake to the
+    // ground)
+    if (z > zd && h >= zd) return kWood[v == 0 ? 3 : 2];                       // a stake
     if (h >= zd - 3) return kWood[v == 0 ? 3 : (h == zd - 3 ? 0 : 2)];          // the deck's edge beam
     if (h >= zd - 6 && ((gx >= 3 && gx <= 6) || (gx >= 41 && gx <= 44))) return kWood[1];   // braces
     return kSkip;                                                               // the road under the deck

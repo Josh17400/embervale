@@ -8,9 +8,11 @@ seed 7
 +0.2 gate 0 in
 +0.2 walk north 2.5
 +2 shot m3cap_palace.png
-+0.2 gate 1 out
+# (M7c) the planned seed-7 capital has one gatehouse (its other gates open on vertical runs of the ring as plain
+# openings between towers): the gatehouse from outside, on its passage and from inside
++0.2 gate 0 out
 +2 shot m3cap_gate1.png
-+0.2 gate 2 out
++0.2 gate 0 on
 +2 shot m3cap_gate2.png
-+0.2 gate 1 out                # (M3c: the seed-7 capital has fewer gates now; the second nearest from gate 2)
++0.2 gate 0 in
 +2 shot m3cap_gate3.png

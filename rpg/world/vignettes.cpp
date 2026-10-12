@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <string>
 #include "rpg/world/gen.h"
+#include "rpg/world/settlement.h"
 
 namespace ew {
 using namespace gen;
@@ -35,9 +36,11 @@ constexpr int32_t VIG_MARGIN = 14;      // vignette hearts keep this far inside 
 constexpr int32_t WCELL = 640, WM = 110; // the wonder lattice and its margin (wonders >= 220 apart)
 constexpr int DX4[4] = {1, 0, -1, 0}, DY4[4] = {0, 1, 0, -1};   // 0 east, 1 south, 2 west, 3 north
 
-// the largest footprint half-sizes a settlement class may have (settlementFootprint plus archetype extras)
+// the largest footprint half-sizes a settlement class may have (settlementFootprint plus archetype extras; (M7c) a
+// city's faubourg belt of up to CITY_BELT_MAX tiles a side included)
+constexpr int32_t CITY_BELT_MAX = 18;   // settlement.cpp settlementBelt's deepest belt
 void nodeHalf(SiteType t, int32_t& hw, int32_t& hh) {
-  if (t == SiteType::City) { hw = 100; hh = 80; }
+  if (t == SiteType::City) { hw = 100 + CITY_BELT_MAX; hh = 80 + CITY_BELT_MAX; }
   else if (t == SiteType::Town) { hw = 56; hh = 44; }
   else { hw = 33; hh = 25; }
 }
@@ -154,6 +157,14 @@ bool EndlessSource::Impl::settleZone(const std::vector<Node>& nodes, int32_t x, 
   for (const Node& n : nodes) {
     int32_t hw, hh;
     nodeHalf(n.type, hw, hh);
+    // (M7c) a city: its own footprint (its seed's size and faubourg belt, the widest archetype's extra) with the
+    // class's margin, never past the class's largest
+    if (n.type == SiteType::City) {
+      int w = 0, h = 0;
+      settlementFootprint(SiteType::City, Archetype::Port, n.seed, w, h);
+      hw = std::min(hw, w / 2 + 6);
+      hh = std::min(hh, h / 2 + 4);
+    }
     const int64_t ox = std::max(0, std::abs(x - n.x) - hw), oy = std::max(0, std::abs(y - n.y) - hh);
     if (ox * ox + oy * oy < (int64_t)pad * pad) return true;
   }
@@ -763,10 +774,11 @@ void EndlessSource::Impl::forceStartPois() {
       if (f.type == SiteType::Vignette && (f.kind == (uint8_t)VignetteKind::Wayrest || f.kind == (uint8_t)VignetteKind::Caravan)) byRoad++;
     // (M2 fixer round 2: a second, wider look when the first finds no room: the road's first 260 tiles, 5-21 off it,
     // closer spacing; seeds 27, 33, 39 and 52 had only one place by the story road)
-    for (int wide = 0; wide < 2 && byRoad < 2; wide++)
+    // ((M7c) a third, widest look: a city's faubourg belt keeps the road's last stretch; the first 290 tiles, 4-24 off)
+    for (int wide = 0; wide < 3 && byRoad < 2; wide++)
       for (VignetteKind k : {VignetteKind::LoneGrave, VignetteKind::Watchtower, VignetteKind::HunterCamp, VignetteKind::StandingStones, VignetteKind::HerbGarden}) {
         if (byRoad >= 2) break;
-        if (haveKind(k)) continue;
+        if (haveKind(k) && wide < 2) continue;   // ((M7c) the widest look may set a second of a kind by the road)
         bool done = false;
         for (size_t q = 1; q + 1 < np && !done; q += wide ? 1 : 2) {
           const GTile& g = story->pts[startIsA ? q : np - 1 - q];
@@ -774,14 +786,14 @@ void EndlessSource::Impl::forceStartPois() {
           const GTile& gn = story->pts[startIsA ? q + 1 : np - 2 - q];
           const int32_t d = idist(g.x, g.y, hx, hy);
           if (d < (wide ? 24 : 40)) continue;
-          if (d > (wide ? 260 : 200)) break;
+          if (d > (wide == 2 ? 290 : wide ? 260 : 200)) break;
           const int along = dir4(gn.x - gp.x, gn.y - gp.y);
           for (int s = 0; s < 2 && !done; s++)
-            for (int32_t off = wide ? 5 : 7; off <= (wide ? 21 : 18) && !done; off += wide ? 2 : 4) {
+            for (int32_t off = wide == 2 ? 4 : wide ? 5 : 7; off <= (wide == 2 ? 24 : wide ? 21 : 18) && !done; off += wide ? 2 : 4) {
               const int side = s ? (along + 1) & 3 : (along + 3) & 3;
               SitePlan p;
               const uint32_t sd = (uint32_t)(mix64(seed ^ tag("start.vig.road2") ^ (uint64_t)((int)k * 7919 + (int)q * 31 + off + wide * 0x5151)) >> 16);
-              if (!vignetteAt(k, g.x + DX4[side] * off, g.y + DY4[side] * off, side, sd, p, true) || !clearOf(p, wide ? 2 : 3, wide ? 16 : 20)) continue;
+              if (!vignetteAt(k, g.x + DX4[side] * off, g.y + DY4[side] * off, side, sd, p, true) || !clearOf(p, wide ? 2 : 3, wide == 2 ? 12 : wide ? 16 : 20)) continue;
               addForced(p, k, 0);
               byRoad++;
               done = true;

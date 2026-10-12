@@ -2923,3 +2923,52 @@ their culture data), and age and size (an old capital denser and more layered th
 - Everything that works today keeps working: walls and gates, the economy and markets, M7 lots for sale, the M5
   census and life, M6 guards, interiors, sagas casting places; capital build-time budget (`--towns` gates);
   regenerate goldens and bump ENDLESS_GEN_VER.
+
+### 15.M7c-A "Order of Streets" phase A (lead, 2026-10-11): the planner contracts
+
+15.M7c binds M7c (the owner's words win on conflicts). Every new generation RNG draw is sequenced explicitly (clang and
+MSVC must give the same goldens); integer / dmath maths only. Phase A contracts (LEAD-frozen unless a lane is named the
+header's editor; a lane may ADD to a file it owns, never rename, remove or change the meaning of what is listed here):
+- **The planner's vocabulary** `rpg/world/town_plan.h` (frozen): `ew::Rank` (None, Main, Street, Lane, Footpath,
+  Square; `rankStreet` / `rankWay`), `ew::BlockRole` (Homes, Seat, Temple, Market, Park, Orchard, KitchenGarden,
+  CraftYard, Compound, Barracks, Harbour, Faubourg, Farm), the order dial `orderFor(type, cArch, capital, age)`
+  (villages 10..25, towns 40..60, cities 70..100; the culture bends it) and `cityAge(seed, capital)` (0 young .. 3
+  ancient), `PlanTraits` (order, age, layout, planKind, WallShape, WaterKind, gates, avenues and their bearings,
+  block size, tilted grid sections, plazas, the seat's offset, blocks per role, faubourgs).
+- **SettlementOut** (rpg/world/settlement.h): `rank` and `role` (one byte per buffer tile: Rank, BlockRole) and
+  `traits`. Written by `Gen::rankLayer()` (rpg/world/town_plan.cpp, the last step of finish(), no Rng draw): every
+  street tile a planner did not rank itself (`Gen::setRank`) takes its rank from the city plan's class (avenue,
+  gutter and sidewalk: their carriageway's) or the mask (main street Main, lane Lane, square Square). Never saved,
+  never in the chunks. `Gen::order` / `Gen::age` set in land() after pickStyle.
+- **The checks** `rpg/world/town_metrics.cpp` (read-only on SettlementOut): `structureScore` (0..100 = 30 frontage +
+  20 straightness + 20 regularity + 10 dead ends + 20 connectivity, over the wall ring's box or the buildings'),
+  `planSignature` / `planSimilarity` (32 x 32 cells of the core: Jaccard of the street cells and of the building
+  cells, the wall's radial profile, the aspect; best of the 8 rotations and mirrors), `villageCharacter` (structure,
+  main-road arms through the heart, setback spread, houses in rows, blocks, city fabric). Targets (town_plan.h):
+  every city >= 68, cities' mean >= 78, towns' mean 35..62, every village <= 40 and their mean <= 28, gaps of 15;
+  no two cities >= 0.70 alike, the mean <= 0.48.
+- **Baseline (M7b, seeds 1..3 + the real settlements in the 5 x 5 regions round the origin)**: villages mean 28.7
+  (radial / grid villages up to 63), towns 42.2, cities 70.7 (min 44.5: the steppe rings; imperial 89, river 85,
+  starspire / steppe / sun-temple / marsh 56..61); city plans mean similarity 0.39, most alike 0.52.
+- **Tests** (tools/tests/test_plan.cpp): `rpg_test --structure [--strict]`, `--city-unique [--strict]`, `--plan`
+  (one line per settlement: where, order, traits, ranks, structure). `rpg_test --villages` is now the village-character
+  check (a plain run fails city fabric in a village; `--strict` every character rule); the frozen M7b village hashes
+  only REPORT which villages changed, for the before / after review. The plain runs report the phase B targets; CI
+  turns on `--strict` at integration.
+- **Generator split and hooks** (byte-identical: `--towns --golden` 201 hashes and `--villages` unchanged before the
+  bump): the homes moved from town_build.cpp to `rpg/world/town_homes.cpp`; the planned city's part of them moved
+  into CITY hooks in town_urban.cpp (`cityHomesWant`, `plannedHomes` (now leaves `faubourgWant` for outside the
+  walls), `cityFront`, `cityHomesRound`, `cityHomesLast`); `Gen::cityAfter(phase)` (town_city.cpp) runs after every
+  step() phase of a planned city (phase 15: just before finish); EDGE hooks `edgeBegin()` (phase 1, after the wall
+  ring) and `outskirts()` (phase 9, before the top-up rounds) in `rpg/world/town_edge.cpp`; the EDGE lane's own state
+  `Gen::edge` (`EdgeData`, rpg/world/town_edge.h).
+- **Row-house faces** (rpg/build/blueprint.h): `bld::ROW_SIDE_W` / `ROW_SIDE_E` (a side wall looks onto a street:
+  dressed as an elevation, never a blank party wall) and `ROW_BACK` (the back looks onto a street); the door stays in
+  the front wall (interiors unchanged). Set by the CITY lane, drawn by the ART lane; 0 in every village.
+- **World**: `EndlessSource::settlement(Gid)` returns a site's whole build (cached, else built now): the checks over
+  real settlements, the world map's city plans, the `plan` script command.
+- **Scripts** (rpg/view/script_plan.cpp): `plan` (the settlement here: order, traits, structure, ranks, roles) and
+  `expect structure <min> [max]`. Review scripts `tools/scripts/m7c_villages_review_s1..3.txt` (the same villages shot
+  before and after: the pre-M7c binaries are kept in `%TEMP%\claude\emb_M7c\before_bin\`) and `m7c_lead_plan.txt`.
+- **Versions**: ENDLESS_GEN_VER 21 (so the lanes may change generation under it); SAVE_VER 15 unchanged
+  (save_v15.bin re-recorded for the generator version).

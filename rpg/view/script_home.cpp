@@ -442,7 +442,13 @@ bool cmdHomeB(ScriptCtx& c) {
         return true;
       }
     }
-    c.fail("home goto: no reachable " + w);
+    {
+      int n = 0;
+      std::string at;
+      for (const home::PlacedObj& o : g.home.plots[(size_t)pi].inside)
+        if ((home::Obj)o.kind == want && o.floor() == g.subFloor) { n++; at += " " + std::to_string(o.x) + "," + std::to_string(o.y); }
+      c.fail("home goto: no reachable " + w + " (" + std::to_string(n) + " on this floor:" + at + ", room " + std::to_string(g.sub.w) + "x" + std::to_string(g.sub.h) + ")");
+    }
     return true;
   }
   if (sub == "talk") {

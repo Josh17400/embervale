@@ -822,6 +822,7 @@ inline int fdiv_(int a, int b) { return a >= 0 ? a / b : -((-a + b - 1) / b); }
 // Its fascia, posts and shadow fall on the marsh south and east of it (boardwalkUnder).
 template <class TM>
 bool isBoardwalk(const TM& m, int x, int y) { return m.at(x, y) == Ground::Bridge && (m.blendAt(x, y) >> 4) == (Map::BOARDWALK_MARK >> 4); }
+uint32_t pavePixel(int mat, bool road, int px, int py, float e, float paveV, float h, float n);
 template <class TM>
 uint32_t boardwalkPixel(const TM& m, int px, int py) {
   const int tx = px >> 4, ty = py >> 4, lx = px & 15, ly = py & 15;
@@ -832,7 +833,14 @@ uint32_t boardwalkPixel(const TM& m, int px, int py) {
       if (isBoardwalk(m, tx + ox + 1, ty + oy)) hl++;
       if (isBoardwalk(m, tx + ox, ty + oy + 1)) vl++;
     }
-  const bool eastWest = hl >= vl;   // the way you walk: planks lie across it
+  bool eastWest = hl >= vl;   // the way you walk: planks lie across it
+  // (M7c fixer r3, review: "planks running in alternating directions") in a plank city (its fabric within 3 tiles) the
+  // boardwalk is the city's deck run on over the marsh: the deck's boards, laid its way (a village keeps its walks)
+  bool cityDeck = false;
+  if (!m.m->urb.empty())
+    for (int oy = -3; oy <= 3 && !cityDeck; oy++)
+      for (int ox = -3; ox <= 3; ox++) if (m.urbAt(tx + ox, ty + oy)) { cityDeck = true; break; }
+  if (cityDeck) eastWest = false;
   auto wetAt = [&](int x, int y) { const Ground q = m.at(x, y); return groundWater(q) || q == Ground::Swamp || q == Ground::Void; };
   const int a = eastWest ? px : py, along = eastWest ? py : px;
   const int row = ((a >> 2) % 4096 + 4096) % 4096;
@@ -842,6 +850,7 @@ uint32_t boardwalkPixel(const TM& m, int px, int py) {
   if (!gap && (a & 3) == 1) c = mul(c, 1.08f);   // each plank's lit edge
   if (butt && !gap) c = C(84, 62, 42);
   if (!gap && vnoise(px / 9.0f, py / 9.0f, 1415) > 0.68f) c = lerpc(c, C(132, 132, 116), 0.3f);   // silvered by the damp
+  if (cityDeck) c = pavePixel(4, true, px, py, 0.0f, -1.0f, hashf(px, py, 1417), 0.5f);
   // the open sides: an edge beam (dark outer line, lit top), a post head at each corner
   const bool oN = wetAt(tx, ty - 1), oS = wetAt(tx, ty + 1), oW = wetAt(tx - 1, ty), oE = wetAt(tx + 1, ty);
   auto beam = [&](int d) -> uint32_t { return d == 0 ? C(56, 40, 30) : (d == 1 ? C(168, 130, 86) : C(112, 82, 54)); };
@@ -858,7 +867,7 @@ uint32_t boardwalkPixel(const TM& m, int px, int py) {
     if (dx * dx + dy * dy <= 2) c = (dx <= 0 && dy <= 0) ? C(150, 112, 72) : C(70, 50, 34);   // the post's top, lit up-left
   }
   // where it lands on dry ground: the last plank ends in a dark joint against the bank
-  auto landAt = [&](int x, int y) { const Ground q = m.at(x, y); return q != Ground::Bridge && !wetAt(x, y) && !groundSolid(q); };
+  auto landAt = [&](int x, int y) { const Ground q = m.at(x, y); return q != Ground::Bridge && !wetAt(x, y) && !groundSolid(q) && !(cityDeck && (q == Ground::Road || q == Ground::Plaza)); };
   if ((eastWest && ((landAt(tx - 1, ty) && lx == 0) || (landAt(tx + 1, ty) && lx == 15))) ||
       (!eastWest && ((landAt(tx, ty - 1) && ly == 0) || (landAt(tx, ty + 1) && ly == 15))))
     c = C(70, 52, 36);
@@ -896,7 +905,8 @@ uint32_t poolPixel(const TM& m, int px, int py) {
   static const uint8_t pal[10][3] = {
       {178, 172, 160}, {170, 168, 160}, {176, 160, 128}, {214, 186, 136}, {150, 120, 84},
       {150, 156, 140}, {226, 222, 210}, {196, 132, 92}, {120, 128, 140}, {176, 96, 72}};
-  const int pv = std::clamp(m.blendAt(tx, ty) & 15, 0, 9);
+  const int pv0 = m.blendAt(tx, ty) & 15;   // (M7c fixer: the fjord city's 10 kerbs in fieldstone, the river city's 11 in brick)
+  const int pv = std::clamp(pv0 == 10 ? 2 : (pv0 == 11 ? 9 : pv0), 0, 9);
   const uint32_t lit = C(pal[pv][0] + 22, pal[pv][1] + 22, pal[pv][2] + 20), mid = C(pal[pv][0], pal[pv][1], pal[pv][2]);
   const uint32_t shade = mul(mid, 0.66f), joint = mul(mid, 0.48f);
   auto open = [&](int x, int y) { return !isPoolT(m, x, y) && m.at(x, y) != Ground::Bridge; };
@@ -1301,6 +1311,40 @@ uint32_t pavePixel(int mat, bool road, int px, int py, float e, float paveV, flo
       c = mul(c, 0.95f + broad * 0.10f);
       if (road ? wear > 0.82f : rim) c = lerpc(c, C(150, 124, 92), 0.45f);
       if (road) if (const uint32_t k = kerbPixel(px, py, e, C(150, 148, 146))) c = k;
+      break;
+    }
+    case 10: {
+      // (M7c fixer) the fjord's timber-walk city (town_dress: a planned city of a plank-paving people on dry land) off
+      // its street fabric: yards and doorsteps of trodden grey shore gravel, cooler and paler than the log walls, with
+      // flat stones bedded in it and grass at the edges (the walks themselves are planks, the streets setts: the fabric)
+      c = pick3(n, C(132, 128, 118), C(144, 140, 128), C(156, 150, 136));
+      const float tr = vnoise(px / 13.0f, py / 13.0f, 1361);
+      if (tr > 0.64f) c = lerpc(c, C(150, 126, 94), 0.35f);   // trodden earth showing through
+      if (tr < 0.22f) c = mul(c, 1.05f);
+      const PaveCell s = paveCell(px, py, 9, 0.8f, 1363, false);
+      if ((s.id % 7u) == 0 && s.edge > 1.2f) c = mul(lerpc(c, C(170, 168, 160), 0.6f), s.dx + s.dy < 0 ? 1.06f : 0.94f);   // a bedded stone
+      if (h < 0.10f) c = mul(c, 0.86f);
+      else if (h > 0.93f) c = mul(c, 1.10f);   // grit
+      if ((road ? e > 0.6f : rim) && vnoise(px / 4.0f, py / 4.0f, 1365) > 0.6f) c = lerpc(c, C(96, 126, 64), 0.6f);   // grass
+      break;
+    }
+    case 11: {
+      // (M7c fixer, review: "the paving is a large featureless brick field"; "block interiors paved in the same red brick
+      // as the house walls") the river people's planned city (town_dress: paving 9 in a planned city) off its street
+      // fabric: its yards, doorsteps and back courts of trodden earth with a scatter of cobbles and broken brick, so the
+      // brick streets, walks and houses read against the ground (the fabric itself draws as the river towns' 9)
+      c = pick3(n, C(138, 118, 92), C(148, 128, 98), C(158, 138, 106));
+      const float tr = vnoise(px / 12.0f, py / 12.0f, 1371);
+      if (tr > 0.64f) c = mul(c, 0.91f);
+      if (tr < 0.24f) c = lerpc(c, C(170, 154, 124), 0.35f);
+      const PaveCell s = paveCell(px, py, 5, 0.8f, 1373, false);
+      if (s.edge > 1.6f && s.dx * s.dx + s.dy * s.dy < 2.6f) {
+        const uint32_t k = s.id % 19u;
+        if (k == 0 || k == 7) c = mul(C(156, 150, 140), s.dx + s.dy < 0 ? 1.06f : 0.90f);   // a bedded cobble
+        else if (k == 3) c = mul(C(144, 88, 68), s.dx + s.dy < 0 ? 1.04f : 0.90f);        // a brick end
+      }
+      if (h < 0.05f) c = mul(c, 0.86f);
+      if ((road ? e > 0.6f : rim) && vnoise(px / 4.0f, py / 4.0f, 1375) > 0.62f) c = lerpc(c, C(98, 128, 62), 0.6f);   // grass
       break;
     }
     default: return 0;
@@ -1965,6 +2009,8 @@ UrbPal urbPal(int pm) {
     case 7: return {C(206, 190, 156), C(216, 204, 176), C(178, 108, 76)};    // the sun temples: limestone, terracotta
     case 8: return {C(150, 156, 162), C(170, 174, 180), C(126, 132, 142)};   // the jade kingdoms: grey granite
     case 9: return {C(170, 162, 152), C(180, 178, 174), C(162, 84, 64)};     // the river towns: grey stone, red brick
+    case 10: return {C(158, 156, 148), C(98, 76, 54), C(122, 122, 120)};     // the fjord city: plank walks on a tarred
+                                                                             // timber kerb, grey fieldstone setts
     default: return {C(182, 172, 154), C(196, 190, 178), C(138, 138, 142)};  // the heartland: warm flags, grey setts
   }
 }
@@ -2054,10 +2100,12 @@ inline uint32_t carriagePx(int pm, Urb u, int up, int px, int py) {
   if (u == Urb::Alley) up = std::min(up, 1);
   const float n = toneField(px, py, 2721), h = hashf(px, py, 2723);
   if (pm == 4) c = pavePixel(4, true, px, py, 0.0f, -1.0f, h, n);
-  else if ((u == Urb::Avenue || u == Urb::Street) && pm == 9) {
+  else if ((u == Urb::Avenue || u == Urb::Street) && (pm == 9 || pm == 8)) {
     // (fixer M7b r2, review: "red-brick cities: the road, the plots and the house walls are all the same brick") the
     // river towns lay their carriageways in dark grey setts: the street reads against the brick of the plots and walls
-    const uint32_t gs = C(116, 112, 114);
+    // ((M7c fixer, review: "jade city: carriageway, pavement and plaza share one grey brick") the jade kingdoms' roads
+    // likewise: dark slate-blue granite setts between the pale granite walks and the squares' herringbone)
+    const uint32_t gs = pm == 8 ? C(98, 104, 116) : C(116, 112, 114);
     if (u == Urb::Avenue) c = fanPx(px, py, gs, 2735, joint);
     else { c = settPx(px, py, gs, 4, 5, 2731, joint); if (joint) c = mul(gs, 0.76f); }
     c = mul(c, 0.96f + vnoise(px / 40.0f, py / 40.0f, 2733) * 0.08f);
@@ -2075,7 +2123,8 @@ inline uint32_t carriagePx(int pm, Urb u, int up, int px, int py) {
     }
     c = mul(c, 0.96f + vnoise(px / 40.0f, py / 40.0f, 2733) * 0.08f);
   } else {
-    if (pm == 3 || pm == 7 || pm == 8 || pm == 9) c = pavePixel(pm, true, px, py, 0.0f, -1.0f, h, n);
+    if (pm == 3 || pm == 7 || pm == 9) c = pavePixel(pm, true, px, py, 0.0f, -1.0f, h, n);
+    else if (pm == 8) c = cobblePx(px, py, C(108, 114, 124), 2741, joint);   // ((M7c fixer) the jade lanes: dark cobbles)
     else c = cobblePx(px, py, P.sett, 2741, joint);
     c = mul(c, 0.94f);
   }
@@ -2105,9 +2154,32 @@ inline uint32_t kerbPx(const UrbPal& P, int side, int d, int along, int up, uint
     default: return mul(flagC, 0.72f);
   }
 }
+// (M7c fixer r3, review: "a shadowed ledge seam where they meet, so one street reads as a quilt of separate rafts") in
+// a plank town the walk is the same deck one board higher than the carriageway: a step a board thick (a dark foot, the
+// board's edge, its lit arris), not a timber kerb beam
+inline uint32_t deckStepPx(int side, int d, uint32_t fl) {
+  if (side == 0) return d == 0 ? mul(fl, 0.50f) : (d == 1 ? mul(fl, 0.70f) : (d == 2 ? mul(fl, 1.10f) : fl));
+  const bool lit = side != 3;
+  return d == 0 ? mul(fl, lit ? 0.72f : 0.60f) : (d == 1 ? mul(fl, lit ? 1.08f : 0.88f) : fl);
+}
+// (M7c fixer r3, review: "rough-cobble footpaths cut through the kerbs in jade cities: where a doorway path meets a
+// kerbed street it should end in a dropped kerb") a lane tile that crosses the line of a walk (walk on both its sides,
+// the kerbed carriageway at one end) is laid as the walk with a dropped kerb at the street: the walk's flags and kerb
+// line run on across the lane's mouth, the kerb stone there laid flush, and the lane begins behind the walk
+template <class TM>
+inline bool droppedLane(const TM& m, int x, int y) {
+  const Urb u = ucls(m, x, y);
+  if (u != Urb::Lane && u != Urb::Alley) return false;
+  auto walk = [&](int a, int b) { return ucls(m, a, b) == Urb::Sidewalk; };
+  auto carr = [&](int a, int b) { const Urb q = ucls(m, a, b); return q == Urb::Avenue || q == Urb::Street || q == Urb::Gutter; };
+  if (walk(x - 1, y) && walk(x + 1, y) && (carr(x, y - 1) != carr(x, y + 1))) return true;
+  if (walk(x, y - 1) && walk(x, y + 1) && (carr(x - 1, y) != carr(x + 1, y))) return true;
+  return false;
+}
 // what a raised walk counts as lower than (its kerb shows there)
 template <class TM>
 inline bool urbLow(const TM& m, int x, int y) {
+  if (droppedLane(m, x, y)) return false;
   const Urb u = ucls(m, x, y);
   if (ew::urbCarriage(u) || u == Urb::Gutter) return true;
   if (u != Urb::None) return false;
@@ -2135,7 +2207,8 @@ template <class TM>
 inline int urbMat(const TM& m, int tx, int ty) {
   int pm = paveMatAt(m, tx, ty);
   if (pm < 0) for (int k = 0; k < 4 && pm < 0; k++) pm = paveMatAt(m, tx + (k == 0) - (k == 1), ty + (k == 2) - (k == 3));
-  return std::clamp(pm, 0, 9);
+  pm = std::clamp(pm, 0, 11);
+  return pm == 11 ? 9 : pm;   // (M7c fixer: the river city's fabric is the river towns')
 }
 // distance in px from the pixel to the edge of the run of tiles that pass `in` (looked up to 3 tiles each way), and
 // the side it is nearest (0 S, 1 N, 2 W, 3 E)
@@ -2234,24 +2307,42 @@ inline uint32_t pondBankPx(int px, int py, float v, Biome b) {
 // centre averaged with the gutter tiles in its 3x3 (a two-tile band's middle, a staircase's diagonal); the line: the
 // links between the nodes of 8-neighbouring gutter tiles round the pixel's tile. Cached per tile and thread.
 template <class TM>
-inline void gutterChannel(const TM& m, int tx, int ty, int px, int py, float& cd, float& cs, float& cal) {
+inline void gutterChannel(const TM& m, int tx, int ty, int px, int py, float& cd, float& cs, float& cal, bool* slant = nullptr) {
   struct Seg { float ax, ay, bx, by; };
   struct Cache { const void* map = nullptr; int ox = 0, oy = 0, tx = INT32_MIN, ty = INT32_MIN; int n = 0; Seg s[40]; };
   thread_local Cache cc;
   if (cc.map != (const void*)m.m || cc.ox != m.ox || cc.oy != m.oy || cc.tx != tx || cc.ty != ty) {
     cc.map = (const void*)m.m; cc.ox = m.ox; cc.oy = m.oy; cc.tx = tx; cc.ty = ty; cc.n = 0;
+    // ((M7c fixer, review: "the gutter of the diagonal street is a chain of 1-tile stair steps") the nodes are smoothed
+    // twice: each the mean of the gutter tiles round it, then the mean of its gutter neighbours' nodes, so a staircase
+    // of tiles at any slope becomes one straight channel (a straight run and a bend keep their line)
+    bool G9[9][9];
+    for (int j = 0; j < 9; j++)
+      for (int i = 0; i < 9; i++) G9[j][i] = ucls(m, tx - 4 + i, ty - 4 + j) == Urb::Gutter;
     bool g[7][7];
     for (int j = 0; j < 7; j++)
-      for (int i = 0; i < 7; i++) g[j][i] = ucls(m, tx - 3 + i, ty - 3 + j) == Urb::Gutter;
-    float nx[5][5], ny[5][5];
-    for (int j = 0; j < 5; j++)
-      for (int i = 0; i < 5; i++) {
+      for (int i = 0; i < 7; i++) g[j][i] = G9[j + 1][i + 1];
+    float n1x[7][7], n1y[7][7];
+    for (int j = 0; j < 7; j++)
+      for (int i = 0; i < 7; i++) {
         float sx = 0, sy = 0; int k = 0;
         for (int oy = -1; oy <= 1; oy++)
           for (int ox = -1; ox <= 1; ox++)
-            if (g[j + 1 + oy][i + 1 + ox]) { sx += (float)ox; sy += (float)oy; k++; }
-        nx[j][i] = (tx - 2 + i) * 16.0f + 7.5f + (k ? sx / (float)k : 0.0f) * 16.0f;
-        ny[j][i] = (ty - 2 + j) * 16.0f + 7.5f + (k ? sy / (float)k : 0.0f) * 16.0f;
+            if (G9[j + 1 + oy][i + 1 + ox]) { sx += (float)ox; sy += (float)oy; k++; }
+        n1x[j][i] = (tx - 3 + i) * 16.0f + 7.5f + (k ? sx / (float)k : 0.0f) * 16.0f;
+        n1y[j][i] = (ty - 3 + j) * 16.0f + 7.5f + (k ? sy / (float)k : 0.0f) * 16.0f;
+      }
+    float nx[5][5], ny[5][5];
+    for (int j = 0; j < 5; j++)
+      for (int i = 0; i < 5; i++) {
+        float sx = n1x[j + 1][i + 1], sy = n1y[j + 1][i + 1];
+        int k = 1;
+        if (g[j + 1][i + 1])
+          for (int oy = -1; oy <= 1; oy++)
+            for (int ox = -1; ox <= 1; ox++)
+              if ((ox || oy) && g[j + 1 + oy][i + 1 + ox]) { sx += n1x[j + 1 + oy][i + 1 + ox]; sy += n1y[j + 1 + oy][i + 1 + ox]; k++; }
+        nx[j][i] = sx / (float)k;
+        ny[j][i] = sy / (float)k;
       }
     // links among the 3x3 round the tile and out to their 8 neighbours (each pair once)
     for (int j = 1; j <= 3; j++)
@@ -2288,8 +2379,29 @@ inline void gutterChannel(const TM& m, int tx, int ty, int px, int py, float& cd
       if (nX + nY > 0) { nX = -nX; nY = -nY; }
       cs = (ex * nX + ey * nY) >= 0 ? 1.0f : -1.0f;
       cal = (std::fabs(dx) < 0.01f || std::fabs(dy) < 0.01f) ? (std::fabs(dx) >= std::fabs(dy) ? qx : qy) : (qx * std::fabs(dx) + qy * std::fabs(dy) * (dx * dy > 0 ? 1.0f : -1.0f)) / std::sqrt(L2);   // (fixer M7b r2: joints across a slanting channel)
+      if (slant) *slant = !(std::fabs(dx) < 0.01f || std::fabs(dy) < 0.01f);
     }
   }
+}
+// the drain's channel at a pixel cd px from its line (cs: which side, cal: along it): its wet floor and its two lips (0:
+// not on the channel). (M7c fixer r3, review: "diagonal avenue gutters still draw as a stair-stepped dashed strip") on
+// a slant the channel is one smooth wet runnel shaded across its width, no joints across it (joints laid across a
+// slanting line broke it into a chain of square blocks on the pixel grid)
+inline uint32_t chanPx(uint32_t chanS, float cd, float cs, float cal, bool slant, int px, int py) {
+  if (cd <= 2.5f) {
+    const bool cj = !slant && fmod_((int)std::floor(cal), 4) == 0;
+    uint32_t c = mul(chanS, cj ? 0.42f : (slant ? (cd < 1.3f ? 0.54f : 0.64f) : 0.60f));
+    c = lerpc(c, C(56, 72, 80), 0.28f);                                                   // wet
+    if (vnoise(px / 7.0f, py / 7.0f, 2801) > 0.62f) c = lerpc(c, C(62, 82, 56), 0.35f);   // water-stained, mossy
+    if (!cj && cs > 1.0f && hashf(px, py, 2803) < 0.22f) c = lerpc(c, C(150, 172, 184), 0.35f);   // a glint
+    return c;
+  }
+  if (cd <= 4.0f) {
+    uint32_t c = mul(chanS, cs > 0 ? 1.02f : 0.74f);                                      // the channel's sides
+    if (!slant && fmod_((int)std::floor(cal), 6) == 0) c = mul(c, 0.8f);
+    return c;
+  }
+  return 0;
 }
 // (fixer M7b r2, review: "paving edges are tile-aligned staircases", "the diagonal avenue's sidewalks are a sawtooth of
 // square kerb blocks") marching squares over the tile grid. The quad of four tiles round a tile corner: when one of them
@@ -2416,6 +2528,185 @@ inline bool kerbLine(const TM& m, int tx, int ty, int px, int py, float& dist, f
   }
   return true;
 }
+// (M7c ART, VISION_PLAN 15.M7c: "grid sections may tilt", "a few run diagonal") the staircase edge of a set of tiles
+// drawn as one straight line on ANY slope, not only 1:1 (msCut / kerbLine cut 1:1 steps; a 1:2 or 1:3 tilted street
+// came out as a sawtooth of short slants and flats). The set's boundary within 5 tiles of the tile is traced as chains
+// of unit edges (the set on the left), compressed into straight runs; a corner is a STAIR corner when a one-tile run
+// beside it turns the other way at its far end (a step of a staircase of any tread length, a one-tile jog), else a
+// built corner kept square (a block's corner, a T's mouth, a walk's end). The line runs through the middles of the runs
+// at stair corners (at most two tiles from the corner) and through the corner itself elsewhere, so a regular staircase
+// of treads n and risers 1 becomes one straight line of slope 1:n, and junction corners keep their corner stones.
+// Saddles (two set tiles touching at a corner): `win` joins the set's tiles. Cached per tile and call site.
+struct StairCache {
+  const void* map = nullptr;
+  int ox = 0, oy = 0, tx = INT32_MIN, ty = INT32_MIN;
+  bool any = false;
+  int np = 0, nc = 0;
+  float px[192], py[192];
+  int cs[24], ce[24];   // chain c: points [cs, ce)
+  bool closed[24];
+};
+template <class TM, class F>
+bool stairEdge(const TM& m, F mem, bool win, int tx, int ty, float qx, float qy, StairCache& cc, float& sd, float& nX, float& nY) {
+  constexpr int R = 5, N = 2 * R + 1;
+  if (cc.map != (const void*)m.m || cc.ox != m.ox || cc.oy != m.oy || cc.tx != tx || cc.ty != ty) {
+    cc.map = (const void*)m.m; cc.ox = m.ox; cc.oy = m.oy; cc.tx = tx; cc.ty = ty;
+    cc.any = false; cc.np = 0; cc.nc = 0;
+    bool in[N][N];
+    for (int j = 0; j < N; j++)
+      for (int i = 0; i < N; i++) in[j][i] = mem(tx - R + i, ty - R + j);
+    // directed unit edges (0 E, 1 S, 2 W, 3 N) from each lattice vertex (N + 1 by N + 1), the set on their left
+    uint8_t outN[N + 1][N + 1] = {}, outD[N + 1][N + 1][2] = {}, inN[N + 1][N + 1] = {};
+    bool used[N + 1][N + 1][4] = {};
+    auto addE = [&](int vx, int vy, int d) {
+      if (outN[vy][vx] < 2) outD[vy][vx][outN[vy][vx]++] = (uint8_t)d;
+      static const int DX[4] = {1, 0, -1, 0}, DY[4] = {0, 1, 0, -1};
+      inN[vy + DY[d]][vx + DX[d]]++;
+    };
+    for (int vj = 1; vj < N; vj++)
+      for (int i = 0; i < N; i++)
+        if (in[vj - 1][i] != in[vj][i]) { if (in[vj - 1][i]) addE(i, vj, 0); else addE(i + 1, vj, 2); }
+    for (int vi = 1; vi < N; vi++)
+      for (int j = 0; j < N; j++)
+        if (in[j][vi - 1] != in[j][vi]) { if (in[j][vi]) addE(vi, j, 1); else addE(vi, j + 1, 3); }
+    static const int DX[4] = {1, 0, -1, 0}, DY[4] = {0, 1, 0, -1};
+    auto pick = [&](int vx, int vy, int din) -> int {   // the outgoing edge taken after arriving along din (-1: none)
+      int best = -1;
+      for (int k = 0; k < outN[vy][vx]; k++) {
+        const int d = outD[vy][vx][k];
+        if (used[vy][vx][d]) continue;
+        if (best < 0) best = d;
+        if (din >= 0 && outN[vy][vx] == 2 && d == (win ? (din + 1) & 3 : (din + 3) & 3)) best = d;
+      }
+      return best;
+    };
+    // trace: chains that enter from the window's border first, then the closed loops
+    for (int pass = 0; pass < 2; pass++)
+      for (int sy = 0; sy <= N; sy++)
+        for (int sx = 0; sx <= N; sx++) {
+          if (pass == 0 && inN[sy][sx] != 0) continue;
+          for (;;) {
+            int d0 = pick(sx, sy, -1);
+            if (d0 < 0 || cc.nc >= 24) break;
+            // the runs of this chain
+            int runD[96], runL[96], nr = 0;
+            int vx = sx, vy = sy, d = d0;
+            bool closedLoop = false;
+            while (d >= 0) {
+              used[vy][vx][d] = true;
+              if (nr > 0 && runD[nr - 1] == d) runL[nr - 1]++;
+              else if (nr < 96) { runD[nr] = d; runL[nr] = 1; nr++; }
+              vx += DX[d]; vy += DY[d];
+              if (vx == sx && vy == sy) { closedLoop = true; break; }
+              d = pick(vx, vy, d);
+            }
+            if (nr == 0) break;
+            int s0x = sx, s0y = sy;
+            if (closedLoop && nr > 1 && runD[0] == runD[nr - 1]) {   // a loop: start it at a corner
+              runL[0] += runL[nr - 1];
+              s0x -= DX[runD[0]] * runL[nr - 1]; s0y -= DY[runD[0]] * runL[nr - 1];
+              nr--;
+            }
+            // the corners (corner k: between run k and run k + 1, wrapping on a loop); turn +1 right, -1 left
+            auto turnAt = [&](int k) -> int {   // k in [0, nr) for a loop, [0, nr - 1) for an open chain; else 0
+              if (!closedLoop && (k < 0 || k >= nr - 1)) return 0;
+              const int a = runD[((k % nr) + nr) % nr], b = runD[(((k + 1) % nr) + nr) % nr];
+              return b == ((a + 1) & 3) ? 1 : (b == ((a + 3) & 3) ? -1 : 0);
+            };
+            auto partial = [&](int k) { return !closedLoop && (k == 0 || k == nr - 1); };
+            auto stair = [&](int k) {   // corner k is a step
+              const int t = turnAt(k);
+              if (!t) return false;
+              const int a = ((k % nr) + nr) % nr, b = (((k + 1) % nr) + nr) % nr;
+              if (runL[a] == 1 && !partial(a) && turnAt(k - 1) == -t) return true;
+              if (runL[b] == 1 && !partial(b) && turnAt(k + 1) == -t) return true;
+              return false;
+            };
+            const float X0 = (tx - R) * 16.0f, Y0 = (ty - R) * 16.0f;
+            int cx = s0x, cy = s0y;
+            const int first = cc.np;
+            auto push = [&](float x, float y) {
+              if (cc.np > first && std::fabs(cc.px[cc.np - 1] - x) < 0.01f && std::fabs(cc.py[cc.np - 1] - y) < 0.01f) return;
+              if (cc.np < 192) { cc.px[cc.np] = x; cc.py[cc.np] = y; cc.np++; }
+            };
+            for (int k = 0; k < nr; k++) {
+              const float sxp = X0 + cx * 16.0f, syp = Y0 + cy * 16.0f;
+              const float ux = (float)DX[runD[k]], uy = (float)DY[runD[k]];
+              const float L = runL[k] * 16.0f, h = std::min(L * 0.5f, 32.0f);
+              const bool st0 = (closedLoop || k > 0) && stair(k - 1), st1 = (closedLoop || k < nr - 1) && stair(k);
+              if (st0 || st1) {
+                const int vxk = cx, vyk = cy;
+                if (vxk >= R - 1 && vxk <= R + 2 && vyk >= R - 1 && vyk <= R + 2) cc.any = true;
+                const int ex = cx + DX[runD[k]] * runL[k], ey = cy + DY[runD[k]] * runL[k];
+                if (ex >= R - 1 && ex <= R + 2 && ey >= R - 1 && ey <= R + 2) cc.any = true;
+              }
+              if (!st0) push(sxp, syp);
+              else push(sxp + ux * h, syp + uy * h);
+              if (st1 && (!st0 || L - h > h + 0.01f)) push(sxp + ux * (L - h), syp + uy * (L - h));
+              cx += DX[runD[k]] * runL[k]; cy += DY[runD[k]] * runL[k];
+              if (!closedLoop && k == nr - 1) push(X0 + cx * 16.0f, Y0 + cy * 16.0f);
+            }
+            cc.cs[cc.nc] = first; cc.ce[cc.nc] = cc.np; cc.closed[cc.nc] = closedLoop; cc.nc++;
+          }
+        }
+  }
+  if (!cc.any) return false;
+  // the nearest segment; the side by the segment's left normal (at a shared end point: both segments' sides, joined by
+  // the turn: a convex corner of the set is inside both, a concave one inside either)
+  float best = 1e9f;
+  int bc = -1, bs = -1;
+  float bt = 0;
+  for (int c2 = 0; c2 < cc.nc; c2++) {
+    const int a0 = cc.cs[c2], a1 = cc.ce[c2], n = a1 - a0;
+    const int segs = cc.closed[c2] ? n : n - 1;
+    for (int s = 0; s < segs; s++) {
+      const int i0 = a0 + s, i1 = a0 + (s + 1) % n;
+      const float ax = cc.px[i0], ay = cc.py[i0], dx = cc.px[i1] - ax, dy = cc.py[i1] - ay, L2 = dx * dx + dy * dy;
+      float t = L2 > 1e-4f ? ((qx - ax) * dx + (qy - ay) * dy) / L2 : 0.0f;
+      t = std::clamp(t, 0.0f, 1.0f);
+      const float ex = qx - (ax + dx * t), ey = qy - (ay + dy * t), d2 = ex * ex + ey * ey;
+      if (d2 < best) { best = d2; bc = c2; bs = s; bt = t; }
+    }
+  }
+  if (bc < 0) return false;
+  const int a0 = cc.cs[bc], n = cc.ce[bc] - a0;
+  auto segDir = [&](int s, float& dx, float& dy) {
+    const int i0 = a0 + ((s % n) + n) % n, i1 = a0 + (((s + 1) % n) + n) % n;
+    dx = cc.px[i1] - cc.px[i0]; dy = cc.py[i1] - cc.py[i0];
+    const float l = std::sqrt(dx * dx + dy * dy);
+    if (l > 1e-4f) { dx /= l; dy /= l; }
+  };
+  auto sideOf = [&](int s) {   // + on the segment's left (the set's side)
+    float dx, dy;
+    segDir(s, dx, dy);
+    const int i0 = a0 + ((s % n) + n) % n;
+    return (qx - cc.px[i0]) * dy - (qy - cc.py[i0]) * dx;
+  };
+  float dx, dy;
+  segDir(bs, dx, dy);
+  nX = dy; nY = -dx;
+  const float d = std::sqrt(best);
+  bool inside = sideOf(bs) > 0;
+  const int segs = cc.closed[bc] ? n : n - 1;
+  int other = -1;
+  if (bt <= 0.0f && (cc.closed[bc] || bs > 0)) other = bs - 1;
+  else if (bt >= 1.0f && (cc.closed[bc] || bs < segs - 1)) other = bs + 1;
+  if (other >= 0 || (other < 0 && cc.closed[bc] && (bt <= 0.0f || bt >= 1.0f))) {
+    if (other < 0) other = bt <= 0.0f ? bs - 1 : bs + 1;
+    float d1x, d1y, d2x, d2y;
+    const int s1 = bt <= 0.0f ? other : bs, s2 = bt <= 0.0f ? bs : other;
+    segDir(s1, d1x, d1y); segDir(s2, d2x, d2y);
+    const bool leftTurn = d1x * d2y - d1y * d2x < 0;   // (y down: a left turn bends toward the set: a convex corner of it)
+    const bool a = sideOf(s1) > 0, b = sideOf(s2) > 0;
+    inside = leftTurn ? (a && b) : (a || b);
+    // the normal of a corner: the mean of its two segments'
+    nX = (d1y + d2y) * 0.5f; nY = -(d1x + d2x) * 0.5f;
+    const float l = std::sqrt(nX * nX + nY * nY);
+    if (l > 1e-4f) { nX /= l; nY /= l; }
+  }
+  sd = inside ? d : -d;
+  return true;
+}
 // one pixel of the fabric (tile class u from byte ub)
 template <class TM>
 uint32_t urbPixel(const TM& m, int px, int py, uint8_t ub, int tx, int ty) {
@@ -2441,21 +2732,27 @@ uint32_t urbPixel(const TM& m, int px, int py, uint8_t ub, int tx, int ty) {
   // squares (msCut / kerbLine), the walk's flags and its kerb (the face where the road lies south of it, the lit or the
   // shaded arris where it lies north, west or east) laid along the cut line, the road's setts below it
   bool handled = false;
-  if ((u == Urb::Sidewalk || ew::urbCarriage(u)) && (px >> 4) == tx && (py >> 4) == ty) {
-    float kd = 99.0f, nX = 0.0f, nY = 1.0f;
-    if (kerbLine(m, tx, ty, px, py, kd, nX, nY)) {
+  if ((u == Urb::Sidewalk || ew::urbCarriage(u)) && (px >> 4) == tx && (py >> 4) == ty && !droppedLane(m, tx, ty)) {
+    float kd = 99.0f, nX = 0.0f, nY = 1.0f, sd = 0.0f;
+    auto lowF = [&](int x, int y) { const Urb q = ucls(m, x, y); return (ew::urbCarriage(q) || q == Urb::Gutter) && !droppedLane(m, x, y); };
+    // (M7c ART) the walk / carriageway edge on any slope (stairEdge); a carriageway tile is cut only where a walk is
+    // beside it (a lane against the open ground keeps its soft edge)
+    bool walkNear = u == Urb::Sidewalk;
+    for (int oy = -1; oy <= 1 && !walkNear; oy++)
+      for (int ox = -1; ox <= 1; ox++) if (urbRaised(m, tx + ox, ty + oy)) { walkNear = true; break; }
+    thread_local StairCache kerbSC;
+    if (walkNear && stairEdge(m, lowF, true, tx, ty, px + 0.5f, py + 0.5f, kerbSC, sd, nX, nY)) {
       handled = true;
-      auto lowF = [&](int x, int y) { const Urb q = ucls(m, x, y); return ew::urbCarriage(q) || q == Urb::Gutter; };
-      int ctx = tx, cty = ty;
-      const bool cut = msCut(lowF, px + 0.5f, py + 0.5f, true, true, ctx, cty);
-      const bool isLow = cut ? lowF(ctx, cty) : ew::urbCarriage(u);
+      kd = std::fabs(sd);
+      const bool isLow = sd > 0.0f;
+      int ctx = (int)std::floor((px + 0.5f + nX * (kd + 1.0f)) / 16.0f), cty = (int)std::floor((py + 0.5f + nY * (kd + 1.0f)) / 16.0f);
       if (isLow) {
         const Urb cq = ucls(m, ctx, cty);
         const Urb cu = ew::urbCarriage(u) ? u : (ew::urbCarriage(cq) ? cq : nearCarriage(m, tx, ty));
         c = carriagePx(pm, cu, up, px, py);
         if (kd < 2.0f && (nY > 0.3f || nX > 0.3f)) c = mul(c, kd < 1.0f ? 0.72f : 0.87f);   // the kerb's cast shadow
       } else {
-        uint32_t fl = pm == 4 ? pavePixel(4, true, px, py, 0.0f, -1.0f, hashf(px, py, 2791), 0.5f)
+        uint32_t fl = (pm == 4 || pm == 10) ? pavePixel(4, true, px, py, 0.0f, -1.0f, hashf(px, py, 2791), 0.5f)
                               : flagPx(px, py, P.flag, 2793, up >= 3 ? 14 : 11, joint);
         fl = urbWear(fl, up, px, py, joint);
         c = fl;
@@ -2463,13 +2760,52 @@ uint32_t urbPixel(const TM& m, int px, int py, uint8_t ub, int tx, int ty) {
         if (nY >= 0.38f) { side = 0; dd = (int)std::floor(kd / nY); lim = 6; }
         else if (nY <= -0.75f) { side = 1; dd = (int)kd; lim = 4; }
         else { side = nX < 0 ? 2 : 3; dd = (int)kd; lim = 4; }
-        if (dd < lim) c = kerbPx(P, side, dd, side <= 1 ? px : py, up, fl);
+        if (dd < lim) c = pm == 4 ? deckStepPx(side, dd, fl) : kerbPx(P, side, dd, side <= 1 ? px : py, up, fl);
       }
     }
+  }
+  if (!handled && droppedLane(m, tx, ty) && (px >> 4) == tx && (py >> 4) == ty && pm != 4) {
+    uint32_t fl = pm == 10 ? pavePixel(4, true, px, py, 0.0f, -1.0f, hashf(px, py, 2791), 0.5f) : flagPx(px, py, P.flag, 2793, up >= 3 ? 14 : 11, joint);
+    c = urbWear(fl, up, px, py, joint);
+    auto carr = [&](int a, int b) { const Urb q = ucls(m, a, b); return q == Urb::Avenue || q == Urb::Street || q == Urb::Gutter; };
+    int d = 99, side = -1;
+    if (carr(tx, ty + 1)) { d = 15 - ly; side = 0; }
+    else if (carr(tx, ty - 1)) { d = ly; side = 1; }
+    else if (carr(tx - 1, ty)) { d = lx; side = 2; }
+    else if (carr(tx + 1, ty)) { d = 15 - lx; side = 3; }
+    if (side >= 0 && d <= 3) {   // the dropped kerb: the kerb stone laid flush, a fine joint, a lit chamfer
+      const int along = side <= 1 ? px : py;
+      const uint32_t st = mul(P.kerb, 0.95f + ((hash2(fdiv_(along, 12), side, 2751) >> 8) & 255) / 255.0f * 0.10f);
+      c = d == 0 ? mul(st, 0.62f) : (d == 1 ? mul(st, side == 3 ? 0.86f : 1.04f) : (d == 2 ? mul(st, 0.94f) : mul(fl, 0.72f)));
+      if (fmod_(along, 12) == 0) c = mul(c, 0.82f);
+    }
+    // the walk's own kerb on its far side runs on across the mouth too, a step down to the lane behind it
+    if (side >= 0) {
+      const int os = side == 0 ? 1 : (side == 1 ? 0 : (side == 2 ? 3 : 2));
+      const int ox = os == 2 ? -1 : (os == 3 ? 1 : 0), oy = os == 0 ? 1 : (os == 1 ? -1 : 0);
+      const int od = os == 0 ? 15 - ly : (os == 1 ? ly : (os == 2 ? lx : 15 - lx));
+      if (urbLow(m, tx + ox, ty + oy) && od < (os == 0 ? 6 : 4)) c = kerbPx(P, os, od, os <= 1 ? px : py, up, fl);
+    }
+    return c;
   }
   if (!handled) switch (u) {
     case Urb::Avenue: case Urb::Street: case Urb::Lane: case Urb::Alley: {
       c = carriagePx(pm, u, up, px, py);
+      // (M7c fixer r3, review: "diagonal avenue gutters still draw as a stair-stepped dashed strip", "the centre gutter
+      // of a curved branch breaks into separate dark segments") the drain's channel is one smooth line through the
+      // staircase of its tiles (gutterChannel), so on a slant or a bend it crosses the carriageway tiles beside the
+      // staircase too: they draw their part of it, and the channel runs on unbroken
+      {
+        bool gNear = false;
+        for (int oy = -1; oy <= 1 && !gNear; oy++)
+          for (int ox = -1; ox <= 1; ox++) if ((ox || oy) && ucls(m, tx + ox, ty + oy) == Urb::Gutter) { gNear = true; break; }
+        if (gNear && (px >> 4) == tx && (py >> 4) == ty) {
+          float cd, cs, cal;
+          bool sl = false;
+          gutterChannel(m, tx, ty, px, py, cd, cs, cal, &sl);
+          if (const uint32_t k = chanPx(pm == 9 ? C(116, 112, 114) : P.sett, cd, cs, cal, sl, px, py)) { c = k; break; }
+        }
+      }
       // the raised walks beside it: the kerb's cast shadow (light from the top-left: on the road south of a walk, under
       // its face, and east of a walk's east kerb)
       const bool rN = urbRaised(m, tx, ty - 1), rW = urbRaised(m, tx - 1, ty);
@@ -2480,7 +2816,7 @@ uint32_t urbPixel(const TM& m, int px, int py, uint8_t ub, int tx, int ty) {
     }
     case Urb::Sidewalk: {
       // the walk's own flags (planks in the marsh)
-      uint32_t fl = pm == 4 ? pavePixel(4, true, px, py, 0.0f, -1.0f, hashf(px, py, 2791), 0.5f)
+      uint32_t fl = (pm == 4 || pm == 10) ? pavePixel(4, true, px, py, 0.0f, -1.0f, hashf(px, py, 2791), 0.5f)
                             : flagPx(px, py, P.flag, 2793, up >= 3 ? 14 : 11, joint);
       fl = urbWear(fl, up, px, py, joint);
       c = fl;
@@ -2510,7 +2846,7 @@ uint32_t urbPixel(const TM& m, int px, int py, uint8_t ub, int tx, int ty) {
       }
       if (side >= 0) {
         const int along = (side <= 1) ? px : py;
-        c = kerbPx(P, side, d, along, up, fl);
+        c = pm == 4 ? deckStepPx(side, d, fl) : kerbPx(P, side, d, along, up, fl);
         // a corner stone: where two kerbs meet at an outer corner, one squarer stone (a joint across each band)
         if (((lS || lN) && (lE || lW)) && ((side <= 1 && (lx == (lE ? 10 : 5))) || (side >= 2 && ly == (lS ? 9 : 5))) && d >= 1) c = mul(c, 0.78f);
         if (up == 0 && hashf(px >> 1, py >> 1, 2795) < 0.08f) c = mul(c, 0.84f);   // chipped
@@ -2535,31 +2871,28 @@ uint32_t urbPixel(const TM& m, int px, int py, uint8_t ub, int tx, int ty) {
       // middle of a two-tile band, a staircase's diagonal smoothed), and the channel follows the links between
       // neighbouring nodes, so it runs on unbroken through bends, chamfers and junctions
       float cd, cs, cal;
-      gutterChannel(m, tx, ty, px, py, cd, cs, cal);
+      bool gSlant = false;
+      gutterChannel(m, tx, ty, px, py, cd, cs, cal, &gSlant);
+      // (M7c ART) where the drain stops in the street (a block street crossing the avenue, the abutment of a bridge, the
+      // walk at a dead end) it ends in an iron grate as it does at a square, not in a cut-off slot
+      auto gEnd = [&](int x, int y, int qx2, int qy2) { return !isG(x, y) && !isG(x + qx2, y + qy2) && !isG(x - qx2, y - qy2); };
+      const bool gEndA = horiz ? gEnd(tx - 1, ty, 0, 1) : gEnd(tx, ty - 1, 1, 0);
+      const bool gEndB = horiz ? gEnd(tx + 1, ty, 0, 1) : gEnd(tx, ty + 1, 1, 0);
       {
         // (fixer M7b r2, review: "the grate sits a few pixels from where the channel ends") at a square the channel runs
         // straight on along the band's middle into its grate
-        const bool sA = horiz ? urbPaved(m, tx - 1, ty) : urbPaved(m, tx, ty - 1), sB = horiz ? urbPaved(m, tx + 1, ty) : urbPaved(m, tx, ty + 1);
+        const bool sA = gEndA || (horiz ? urbPaved(m, tx - 1, ty) : urbPaved(m, tx, ty - 1)), sB = gEndB || (horiz ? urbPaved(m, tx + 1, ty) : urbPaved(m, tx, ty + 1));
         const int al0 = horiz ? lx : ly;
         if ((sA && !sB && al0 <= 12) || (sB && !sA && al0 >= 3)) {
           const float st = std::fabs(ac);
-          if (st < cd) { cd = st; cs = ac < 0 ? 1.0f : -1.0f; cal = (float)along; }
+          if (st < cd) { cd = st; cs = ac < 0 ? 1.0f : -1.0f; cal = (float)along; gSlant = false; }
         }
       }
       const uint32_t chanS = pm == 9 ? C(116, 112, 114) : P.sett;   // (fixer M7b r2: the river towns' grey setts)
-      if (cd <= 2.5f) {
-        const bool cj = fmod_((int)std::floor(cal), 4) == 0;
-        c = mul(chanS, cj ? 0.42f : 0.60f);
-        c = lerpc(c, C(56, 72, 80), 0.28f);                                                   // wet
-        if (vnoise(px / 7.0f, py / 7.0f, 2801) > 0.62f) c = lerpc(c, C(62, 82, 56), 0.35f);   // water-stained, mossy
-        if (!cj && cs > 1.0f && hashf(px, py, 2803) < 0.22f) c = lerpc(c, C(150, 172, 184), 0.35f);   // a glint
-      } else if (cd <= 4.0f) {
-        c = mul(chanS, cs > 0 ? 1.02f : 0.74f);                                               // the channel's sides
-        if (fmod_((int)std::floor(cal), 6) == 0) c = mul(c, 0.8f);
-      }
+      if (const uint32_t k = chanPx(chanS, cd, cs, cal, gSlant && cd < 90.0f, px, py)) c = k;
       // an iron grate where the channel meets a square
-      const bool sqA = horiz ? urbPaved(m, tx - 1, ty) : urbPaved(m, tx, ty - 1);
-      const bool sqB = horiz ? urbPaved(m, tx + 1, ty) : urbPaved(m, tx, ty + 1);
+      const bool sqA = gEndA || (horiz ? urbPaved(m, tx - 1, ty) : urbPaved(m, tx, ty - 1));
+      const bool sqB = gEndB || (horiz ? urbPaved(m, tx + 1, ty) : urbPaved(m, tx, ty + 1));
       const int al = horiz ? lx : ly;
       if ((sqA && al <= 9) || (sqB && al >= 6)) {
         if (std::fabs(ac) <= 4.0f && al >= (sqA ? 1 : 6) && al <= (sqA ? 9 : 14)) {
@@ -2573,7 +2906,7 @@ uint32_t urbPixel(const TM& m, int px, int py, uint8_t ub, int tx, int ty) {
     case Urb::Square: case Urb::Court: case Urb::Close: {
       const float n = toneField(px, py, 2811), h = hashf(px, py, 2813);
       if (u == Urb::Close) c = flagPx(px, py, P.flag, 2815, 13, joint);
-      else if (pm == 4 && u == Urb::Square) {
+      else if ((pm == 4 && u == Urb::Square) || (pm == 10 && (u == Urb::Square || u == Urb::Court))) {
         // (fixer M7b r1, review: "the fjord city is one unbroken plank boardwalk, squares included") the plank towns
         // lay their market and their squares in weathered grey stone: the boardwalks lead into a paved square
         c = flagPx(px, py, C(152, 150, 140), 2818, 12, joint);
@@ -2646,7 +2979,7 @@ uint32_t urbPixel(const TM& m, int px, int py, uint8_t ub, int tx, int ty) {
         const bool nearLow = lowQ(tx, ty + 1) || lowQ(tx + 1, ty) || lowQ(tx - 1, ty) || lowQ(tx, ty - 1);
         for (int oy = -2; oy <= 2 && nearLow && !kerbed; oy++)
           for (int ox = -2; ox <= 2; ox++) if (urbRaised(m, tx + ox, ty + oy)) { kerbed = true; break; }
-        if (side >= 0 && kerbed) c = kerbPx(P, side, d, side <= 1 ? px : py, up, c);
+        if (side >= 0 && kerbed) c = pm == 4 ? deckStepPx(side, d, c) : kerbPx(P, side, d, side <= 1 ? px : py, up, c);
         // (fixer M7b r3, review: "avenues stop at squares with a hard straight cut and no edge treatment") behind the
         // kerb's return a threshold course: a band of setts laid across the mouth, edged by a dark joint toward the
         // square's flags, so the avenue enters its square through an edging as a commercial tileset would lay it
@@ -2760,6 +3093,48 @@ uint32_t urbPixel(const TM& m, int px, int py, uint8_t ub, int tx, int ty) {
     }
     default: return 0;
   }
+  // (M7c ART, "crossings where a block street meets an avenue") where a line of walk runs on across a carriageway (the
+  // walks of a block street either side of the avenue it crosses), a crossing course of big pale slabs is laid across
+  // the road, level with it, joints across the way of the walk, a lit leading edge and a dark joint to the setts on
+  // either side; the drain passes under it. Avenues and streets only (a lane is crossed anywhere).
+  if (!handled && (u == Urb::Avenue || u == Urb::Street || u == Urb::Gutter) && (px >> 4) == tx && (py >> 4) == ty) {
+    auto carrT = [&](int x, int y) { const Urb q = ucls(m, x, y); return ew::urbCarriage(q) || q == Urb::Gutter; };
+    auto walkT = [&](int x, int y) { const Ground q = m.at(x, y); return ucls(m, x, y) == Urb::Sidewalk && !groundWater(q) && q != Ground::Bridge; };
+    auto across = [&](int dx, int dy) {   // the walk line runs along (dx, dy) across this carriageway
+      int a = 1, b = 1;
+      // (M7c fixer, review: "an orphan pavement slab floating in the carriageway" at a diagonal junction's mouth) every
+      // tile of a crossing sees the same run (up to five tiles each way, five across in all), so a crossing is laid
+      // from kerb to kerb or not at all: with four each way the run's end tile saw too far and dropped out
+      while (a <= 5 && carrT(tx - dx * a, ty - dy * a)) a++;
+      while (b <= 5 && carrT(tx + dx * b, ty + dy * b)) b++;
+      if (a > 5 || b > 5 || a + b - 1 > 5) return false;
+      // and only over a straight stretch of carriageway: the road runs on either side of the crossing's whole width
+      // (at a junction's mouth or a slanting kerb the walks of a crossing street meet no straight band to lay it on)
+      for (int k = -(a - 1); k <= b - 1; k++) {
+        const int qx = tx + dx * k, qy = ty + dy * k;
+        if (!carrT(qx + dy, qy + dx) || !carrT(qx - dy, qy - dx)) return false;
+      }
+      return walkT(tx - dx * a, ty - dy * a) && walkT(tx - dx * (a + 1), ty - dy * (a + 1)) && walkT(tx + dx * b, ty + dy * b) &&
+             walkT(tx + dx * (b + 1), ty + dy * (b + 1));
+    };
+    const bool cxing = across(1, 0), cying = !cxing && across(0, 1);
+    if (cxing || cying) {
+      const Urb cu = ew::urbCarriage(u) ? u : nearCarriage(m, tx, ty);
+      if (cu == Urb::Avenue || cu == Urb::Street) {
+        const int w = cxing ? ly : lx;          // across the band (0..15)
+        const int al = cxing ? px : py;         // along the way of the walk
+        if (w >= 2 && w <= 13) {
+          const int sj = fmod_(al, 8);
+          const uint32_t st = mul(lerpc(P.flag, P.sett, 0.30f), 0.94f + ((hash2(fdiv_(al, 8), (cxing ? ty : tx), 2871) >> 8) & 255) / 255.0f * 0.10f);
+          bool jt = sj == 0 || w == 7 + (fdiv_(al, 8) & 1);   // the slabs: two courses, staggered
+          uint32_t k = jt ? mul(st, 0.72f) : st;
+          if (!jt && (sj == 1 || w == 2 || w == 8 + (fdiv_(al, 8) & 1))) k = mul(k, 1.07f);   // lit upper / left edges
+          else if (!jt && (sj == 7 || w == 13)) k = mul(k, 0.90f);
+          c = urbWear(k, std::max(1, up), px, py, jt);
+        } else if (w == 1 || w == 14) c = mul(c, 0.70f);   // the joint to the setts
+      }
+    }
+  }
   // a paved tile that meets open water (not a quay): a coping band along it (the face shows on the water below)
   if (u != Urb::Quay && !ew::urbGreen(u) && c) {
     if (water(tx, ty + 1) && ly >= 14) c = ly == 15 ? mul(P.kerb, 0.86f) : mul(P.kerb, 1.10f);
@@ -2781,9 +3156,12 @@ inline void urbWarp(int px, int py, int& wtx, int& wty) {
   const float wy = py + (vnoise(px / 7.0f, py / 7.0f, 2905) - 0.5f) * 10.0f + (vnoise(px / 3.0f, py / 3.0f, 2907) - 0.5f) * 3.0f;
   wtx = (int)std::floor(wx / 16.0f); wty = (int)std::floor(wy / 16.0f);
 }
+// ((M7c fixer r3, review: "paving-to-dirt transitions in planned cities have torn, sawtooth edges") the fine 3-px
+// octave is gone and the swing halved: a planned city's lane meets the open ground along a gently wavering laid edge,
+// not a torn, dithered one)
 inline void urbWarpF(int px, int py, float& wx, float& wy) {
-  wx = px + (vnoise(px / 7.0f, py / 7.0f, 2901) - 0.5f) * 10.0f + (vnoise(px / 3.0f, py / 3.0f, 2903) - 0.5f) * 3.0f;
-  wy = py + (vnoise(px / 7.0f, py / 7.0f, 2905) - 0.5f) * 10.0f + (vnoise(px / 3.0f, py / 3.0f, 2907) - 0.5f) * 3.0f;
+  wx = px + (vnoise(px / 9.0f, py / 9.0f, 2901) - 0.5f) * 6.0f;
+  wy = py + (vnoise(px / 9.0f, py / 9.0f, 2905) - 0.5f) * 6.0f;
 }
 // the ground under the fabric is painted by it (a surface: not water, a bridge, rock or a wall)
 inline bool urbSurface(Ground g) {
@@ -2797,6 +3175,89 @@ inline bool urbSurface(Ground g) {
 // a tile painted by the fabric
 template <class TM>
 inline bool urbPainted(const TM& m, int x, int y) { return ucls(m, x, y) != Urb::None && urbSurface(m.at(x, y)); }
+
+// (M7c fixer r3, review: "marsh city boardwalks look like a patchwork of tiles, not continuous decks") a people that
+// decks its ways in planks (paving 4) lays ONE deck: its streets, squares, bridges and the city's fabric (walks,
+// carriageways, lanes, squares) are one plank floor with one rim beam round its outer edge, never a beam, a face and a
+// shadow between two of its own pieces. The deck's edge runs on the slant where its tiles staircase (stairEdge), so a
+// diagonal lane is one straight deck, not a zig-zag of tile steps.
+template <class TM>
+inline bool plankDeckT(const TM& m, int x, int y) {
+  const Ground q = m.at(x, y);
+  if (q == Ground::Bridge) return true;   // (any bridge: a deck runs on over it; it keeps its own rails)
+  const Urb u = ucls(m, x, y);
+  if (u != Urb::None && !ew::urbGreen(u) && urbSurface(q)) return urbMat(m, x, y) == 4;
+  if (q != Ground::Road && q != Ground::Plaza) return false;
+  return paveMatAt(m, x, y) == 4;
+}
+// a pixel near a plank deck's edge: is it on the deck, how far from the edge (px) and the edge's outward normal
+struct DeckEdge { bool in = false; float d = 99.0f, ox = 0.0f, oy = 0.0f; };
+template <class TM>
+DeckEdge deckEdgeAt(const TM& m, int px, int py) {
+  DeckEdge r;
+  const int tx = px >> 4, ty = py >> 4, lx = px & 15, ly = py & 15;
+  auto mem = [&](int x, int y) { return plankDeckT(m, x, y); };
+  const bool here = mem(tx, ty);
+  r.in = here;
+  thread_local StairCache deckSC;
+  float sd = 0.0f, nX = 0.0f, nY = 0.0f;
+  if (stairEdge(m, mem, true, tx, ty, px + 0.5f, py + 0.5f, deckSC, sd, nX, nY)) {
+    r.in = sd > 0.0f;
+    r.d = std::fabs(sd);
+    r.ox = -nX; r.oy = -nY;   // (the normal points into the deck)
+    return r;
+  }
+  auto cand = [&](bool edge, int d, float ox, float oy) { if (edge && (float)d < r.d) { r.d = (float)d; r.ox = ox; r.oy = oy; } };
+  if (here) {
+    cand(!mem(tx, ty - 1), ly, 0.0f, -1.0f);
+    cand(!mem(tx, ty + 1), 15 - ly, 0.0f, 1.0f);
+    cand(!mem(tx - 1, ty), lx, -1.0f, 0.0f);
+    cand(!mem(tx + 1, ty), 15 - lx, 1.0f, 0.0f);
+  } else {
+    // (only the decks north and west of it matter off the deck: its front face and its shadow fall south and east)
+    cand(mem(tx, ty - 1), ly, 0.0f, 1.0f);
+    cand(mem(tx - 1, ty), lx, 1.0f, 0.0f);
+    if (r.d > 90.0f && mem(tx - 1, ty - 1)) cand(true, std::max(lx, ly), 0.7071f, 0.7071f);
+  }
+  return r;
+}
+// the deck's rim beam (on it) or its front face and cast shadow (off it); c unchanged elsewhere
+inline uint32_t deckRimPx(const DeckEdge& e, int px, int py, uint32_t c) {
+  const int di = (int)std::floor(e.d);
+  if (e.in) {
+    if (di > 3) return c;
+    const bool lit = e.oy < -0.5f || e.ox < -0.5f;   // the rim facing north or west catches the light
+    const bool alongX = std::fabs(e.oy) >= std::fabs(e.ox);
+    const int run = alongX ? px : py;
+    const int rj = ((run % 19) + 19) % 19;
+    if (di == 0) return lit ? C(150, 122, 88) : C(70, 52, 40);
+    if (di == 3) return C(58, 44, 34);                                              // the joint inside the beam
+    uint32_t k = rj == 0 ? C(66, 50, 38) : (lit ? (di == 1 ? C(170, 140, 100) : C(146, 118, 84)) : (di == 1 ? C(116, 92, 66) : C(104, 82, 60)));
+    if (rj == 9 && (((alongX ? py : px) & 1) != 0)) k = C(74, 70, 66);              // a nail head
+    return k;
+  }
+  if (e.oy > 0.38f && e.d < 3.0f / std::max(0.38f, e.oy)) {   // below the south edge: the deck's front face (plank ends)
+    const int fd = (int)std::floor(e.d * e.oy);
+    return fd >= 2 ? C(48, 36, 30) : ((((px + py) % 5 + 5) % 5) == 0 ? C(60, 46, 36) : C(92, 70, 52));
+  }
+  if ((e.oy > 0.38f && e.d < 7.0f) || (e.ox > 0.38f && e.d < 4.0f)) return lerpc(mul(c, 0.70f), C(48, 34, 92, (int)(c >> 24)), 0.14f);
+  return c;
+}
+// a pixel is in reach of a plank deck's edge (cheap test before deckEdgeAt): a plank town's tile or one beside a deck
+template <class TM>
+inline bool plankZone(const TM& m, int tx, int ty) {
+  const bool here = plankDeckT(m, tx, ty);
+  for (int oy = -1; oy <= 1; oy++)
+    for (int ox = -1; ox <= 1; ox++)
+      if ((ox || oy) && plankDeckT(m, tx + ox, ty + oy) != here) {
+        // (a bridge alone is no plank town: some deck of the planking people must be near)
+        for (int qy = -1; qy <= 1; qy++)
+          for (int qx = -1; qx <= 1; qx++)
+            if (plankDeckT(m, tx + qx, ty + qy) && m.at(tx + qx, ty + qy) != Ground::Bridge) return true;
+        return false;
+      }
+  return false;
+}
 
 }  // namespace
 
@@ -2857,6 +3318,44 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
   // copings and border courses meet it along clean edges
   bool nearUrb = false;
   Ground urbYield = Ground::Void;   // (M7b) a fabric pixel the land's ground takes over at a soft edge
+  // (M7c fixer r3) a plank town's one deck (plankDeckT): near its edge the pixel's side of the (slanted) edge line, the
+  // rim beam on it and the front face and shadow off it (deckRimPx); the fabric's soft edges stay off its planks
+  DeckEdge deckE;
+  bool deckZ = false;
+  Ground deckYield = Ground::Void;   // a deck tile's pixel the slanted edge gives to the ground beside it
+  if (m.kind == MapKind::Overworld && real != Ground::Bridge && plankZone(m, tx, ty)) {
+    deckZ = true;
+    deckE = deckEdgeAt(m, px, py);
+    const bool hereDeck = plankDeckT(m, tx, ty);
+    // the tile a step along (sx, sy) of the larger component of the normal (or the other axis)
+    auto stepT = [&](float vx, float vy, bool wantDeck, int& ox, int& oy) {
+      const int ax = vx > 0.2f ? 1 : (vx < -0.2f ? -1 : 0), ay = vy > 0.2f ? 1 : (vy < -0.2f ? -1 : 0);
+      const int c1x = std::fabs(vx) >= std::fabs(vy) ? ax : 0, c1y = std::fabs(vx) >= std::fabs(vy) ? 0 : ay;
+      const int c2x = c1x ? 0 : ax, c2y = c1x ? ay : 0;
+      if ((c1x || c1y) && plankDeckT(m, tx + c1x, ty + c1y) == wantDeck) { ox = tx + c1x; oy = ty + c1y; return true; }
+      if ((c2x || c2y) && plankDeckT(m, tx + c2x, ty + c2y) == wantDeck) { ox = tx + c2x; oy = ty + c2y; return true; }
+      if (ax && ay && plankDeckT(m, tx + ax, ty + ay) == wantDeck) { ox = tx + ax; oy = ty + ay; return true; }
+      return false;
+    };
+    if (deckE.in && !hereDeck) {
+      // a step of the staircase the deck's slanted edge takes in: the planks of the deck tile beside it
+      int dx = tx, dy = ty;
+      uint32_t c = 0;
+      if (stepT(-deckE.ox, -deckE.oy, true, dx, dy) && urbPainted(m, dx, dy)) c = urbPixel(m, px, py, m.urbAt(dx, dy), dx, dy);
+      if (!c) c = pavePixel(4, true, px, py, 0.0f, -1.0f, hashf(px, py, 2791), 0.5f);
+      c = deckRimPx(deckE, px, py, c);
+      if (m.relief()) c = reliefPixel(m, px, py, c, Ground::Road, true);
+      return c;
+    }
+    if (!deckE.in && hereDeck) {
+      int gx = tx, gy = ty;
+      if (stepT(deckE.ox, deckE.oy, false, gx, gy)) {
+        const Ground q = m.at(gx, gy);
+        if (q != Ground::Void && q != Ground::Bridge && !isWall(q)) deckYield = q;
+      }
+      if (deckYield == Ground::Void) deckE.in = true;   // (nothing to yield to: the deck keeps the pixel)
+    }
+  }
   if (m.kind == MapKind::Overworld && !m.m->urb.empty()) {
     const uint8_t ub = m.urbAt(tx, ty);
     // the soft edges: a pixel near the line takes its look from the tile the warp points at (the land's ground over a
@@ -2870,19 +3369,42 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
                           (m.urbAt(tx + eqx, ty) != ub || m.urbAt(tx, ty + eqy) != ub || m.urbAt(tx + eqx, ty + eqy) != ub);
     // (fixer M7b r2) the fabric as a set (for the marching-squares cut of its staircases against the open ground)
     auto fabT = [&](int x, int y) { return urbPainted(m, x, y); };
-    bool walkCut = false;
-    if (nearEdge && ((mine && ew::urbClass(ub) == ew::Urb::Sidewalk) || (!ub && soft(real) && !groundWater(real)))) {
+    bool walkCut = false, greenCut = false;
+    float cutD = 99.0f;   // (M7c) px from the slanted line
+    const bool greenHere = mine && ew::urbGreen(ew::urbClass(ub));
+    // ((M7c fixer, review: "steppe city: paving meets dirt in a square notched edge") the plan-less beaten earth round a
+    // walk (Ground::Road with no fabric class: the steppe's, a town's yards) is open ground for the cut too)
+    auto openG = [&](Ground q) { return (soft(q) && !groundWater(q)) || q == Ground::Road; };
+    if (!deckZ && nearEdge && ((mine && ew::urbClass(ub) == ew::Urb::Sidewalk) || greenHere || (!ub && openG(real)))) {
       // (fixer M7b r2, review: "the grass beside a slanting walk breaks into hard square tile blocks") the back edge of a
       // walk on the slant: the steps of its staircase cut on the line (the walk's flags into the notch, the ground over
-      // the step), no wobble (a built edge)
-      int ctx = tx, cty = ty;
-      if (msCut(fabT, px + 0.5f, py + 0.5f, true, true, ctx, cty)) {
-        const uint8_t wb = m.urbAt(ctx, cty);
-        if (mine && !wb && soft(m.at(ctx, cty)) && !groundWater(m.at(ctx, cty))) urbYield = m.at(ctx, cty);
-        else if (!ub && ew::urbClass(wb) == ew::Urb::Sidewalk) walkCut = true, otx = ctx, oty = cty, ob = wb;
+      // the step), no wobble (a built edge). (M7c ART) on any slope (stairEdge over the hard fabric: walks, streets,
+      // squares, courts, quays), and against a park's lawn or a garden as against the land's own ground
+      auto hardT = [&](int x, int y) { return urbPainted(m, x, y) && !ew::urbGreen(ew::urbClass(m.urbAt(x, y))); };
+      thread_local StairCache edgeSC;
+      float sd = 0.0f, nX = 0.0f, nY = 0.0f;
+      if (stairEdge(m, hardT, true, tx, ty, px + 0.5f, py + 0.5f, edgeSC, sd, nX, nY)) {
+        const bool hereHard = hardT(tx, ty);
+        if (hereHard != (sd > 0.0f)) {
+          // the pixel belongs across the line: the tile beside it that way (the normal points into the hard set)
+          const float k = std::fabs(sd) + 1.5f, s = sd > 0.0f ? 1.0f : -1.0f;
+          int ctx = (int)std::floor((px + 0.5f + nX * k * s) / 16.0f), cty = (int)std::floor((py + 0.5f + nY * k * s) / 16.0f);
+          if (ctx == tx && cty == ty) {   // (the corner of the tile: the 4-neighbour on the far side)
+            if (std::fabs(nX) >= std::fabs(nY)) ctx += (nX * s > 0) ? 1 : -1; else cty += (nY * s > 0) ? 1 : -1;
+          }
+          const uint8_t wb = m.urbAt(ctx, cty);
+          const ew::Urb wu = ew::urbClass(wb);
+          if (hereHard && ew::urbClass(ub) == ew::Urb::Sidewalk) {
+            if (!wb && openG(m.at(ctx, cty))) urbYield = m.at(ctx, cty);
+            else if (ew::urbGreen(wu) && urbSurface(m.at(ctx, cty))) { greenCut = true; otx = ctx; oty = cty; ob = wb; cutD = std::fabs(sd); }
+          } else if (!hereHard && wu == ew::Urb::Sidewalk && urbSurface(m.at(ctx, cty))) {
+            walkCut = true; otx = ctx; oty = cty; ob = wb;
+          }
+        }
       }
     }
-    if (!walkCut && urbYield == Ground::Void && nearEdge && ((mine && urbSoftEdge(ew::urbClass(ub))) || (!ub && soft(real) && !groundWater(real)))) {
+    if (deckYield != Ground::Void && mine) urbYield = deckYield;   // (M7c fixer r3) the plank deck's slanted edge
+    if (!deckZ && !walkCut && !greenCut && urbYield == Ground::Void && nearEdge && ((mine && urbSoftEdge(ew::urbClass(ub))) || (!ub && openG(real)))) {
       int wtx, wty;
       float wfx, wfy;
       urbWarpF(px, py, wfx, wfy);
@@ -2898,14 +3420,14 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
         // paving meet along their built edge; only two greens blend
         const bool fabFab = ub != 0 && !(ew::urbGreen(wu) && ew::urbGreen(ew::urbClass(ub)));
         if (wu != ew::Urb::None && urbSurface(m.at(wtx, wty)) && urbSoftEdge(wu) && !fabFab) { otx = wtx; oty = wty; ob = wb; }
-        else if (mine && wu == ew::Urb::None && soft(m.at(wtx, wty)) && !groundWater(m.at(wtx, wty))) urbYield = m.at(wtx, wty);
+        else if (mine && wu == ew::Urb::None && openG(m.at(wtx, wty))) urbYield = m.at(wtx, wty);
       }
     }
     if (walkCut) {
       const UrbPal P = urbPal(urbMat(m, otx, oty));
       bool jt = false;
       const int up = ew::urbUpkeep(ob), pm = urbMat(m, otx, oty);
-      uint32_t c = pm == 4 ? pavePixel(4, true, px, py, 0.0f, -1.0f, hashf(px, py, 2791), 0.5f) : flagPx(px, py, P.flag, 2793, up >= 3 ? 14 : 11, jt);
+      uint32_t c = (pm == 4 || pm == 10) ? pavePixel(4, true, px, py, 0.0f, -1.0f, hashf(px, py, 2791), 0.5f) : flagPx(px, py, P.flag, 2793, up >= 3 ? 14 : 11, jt);
       c = urbWear(c, up, px, py, jt);
       if (m.relief()) c = reliefPixel(m, px, py, c, real, true);
       return c;
@@ -2922,6 +3444,22 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
     }
     if ((mine || ob != ub) && urbYield == Ground::Void) {
       if (uint32_t c = urbPixel(m, px, py, ob, otx, oty)) {
+        if (deckZ && deckE.in && plankDeckT(m, otx, oty)) c = deckRimPx(deckE, px, py, c);   // (M7c fixer r3) the deck's rim
+        // (M7c fixer r3) a paved lane's or square's laid edge against the open ground: its last stones sit a touch
+        // lower in the earth (a soft contact shade along the wavering line), so the edge reads as laid, not torn
+        else if (nearEdge && !deckZ && ob == ub && urbSoftEdge(ew::urbClass(ub)) && !ew::urbGreen(ew::urbClass(ub))) {
+          bool openBy = false;
+          static const int EX[4] = {2, -2, 0, 0}, EY[4] = {0, 0, 2, -2};
+          for (int k = 0; k < 4 && !openBy; k++) {
+            float wfx, wfy;
+            urbWarpF(px + EX[k], py + EY[k], wfx, wfy);
+            const int qx = (int)std::floor(wfx / 16.0f), qy = (int)std::floor(wfy / 16.0f);
+            if ((qx != tx || qy != ty) && !m.urbAt(qx, qy) && openG(m.at(qx, qy)) && m.at(qx, qy) != Ground::Road) openBy = true;
+          }
+          if (openBy) c = mul(c, 0.84f);
+        }
+        // (M7c) a kitchen garden cut on the slant by a walk: its bed's plank edging runs along the line too
+        if (greenCut && ew::urbClass(ob) == ew::Urb::Garden && cutD < 2.0f) c = cutD < 1.0f ? C(96, 72, 46) : C(140, 106, 68);
         auto nsRun = [&](int wx, int wy) {   // a north-south run of city wall casts its shade east (as below)
           return m.wallAt(wx, wy) && (m.wallAt(wx, wy - 1) || m.wallAt(wx, wy + 1)) && !m.wallAt(wx - 1, wy) && !m.wallAt(wx + 1, wy);
         };
@@ -3050,8 +3588,13 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
     } else if (m.kind == MapKind::Overworld && ecoGround(g)) {
       // (fixer r2: a gentler ordered dither, 8 px of jitter instead of 18: the wide checkerboard fringe read as spilled
       // paint; the finer noise carries the edge instead)
-      const float ex = px + (vnoise(px / 52.0f, py / 52.0f, 811) - 0.5f) * 64.0f + (bayer(px, py) - 0.5f) * 8.0f + (vnoise(px / 5.0f, py / 5.0f, 813) - 0.5f) * 14.0f;
-      const float ey = py + (vnoise(px / 52.0f, py / 52.0f, 817) - 0.5f) * 64.0f + (bayer(px + 2, py + 1) - 0.5f) * 8.0f + (vnoise(px / 5.0f, py / 5.0f, 819) - 0.5f) * 14.0f;
+      // ((M7c fixer, review: "the sand/ash and sand/grass edges are a coarse 50% checkerboard dither with stray
+      // isolated pixels" round a city's civic ground) the ordered jitter is down to 2 px: the edge is a ragged line
+      // drawn by the fine noise, with at most a pixel's dither seam, never a band of checkerboard)
+      const float ex = px + (vnoise(px / 52.0f, py / 52.0f, 811) - 0.5f) * 64.0f + (bayer(px, py) - 0.5f) * 2.0f + (vnoise(px / 5.0f, py / 5.0f, 813) - 0.5f) * 14.0f +
+                       (vnoise(px / 2.5f, py / 2.5f, 814) - 0.5f) * 4.0f;
+      const float ey = py + (vnoise(px / 52.0f, py / 52.0f, 817) - 0.5f) * 64.0f + (bayer(px + 2, py + 1) - 0.5f) * 2.0f + (vnoise(px / 5.0f, py / 5.0f, 819) - 0.5f) * 14.0f +
+                       (vnoise(px / 2.5f, py / 2.5f, 820) - 0.5f) * 4.0f;
       int etx = (int)std::floor(ex / 16), ety = (int)std::floor(ey / 16);
       // (M4, owner carry-over) the heath and the grass meet along a tight ragged line: the broad warp threw islands of
       // flat bright turf deep into the dark heather (and of heather into the turf)
@@ -3091,6 +3634,14 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
   // (fixer r2) outside the rift's smooth edge the land shows, whatever tile the warp looked up
   if (lavaV >= 0 && lavaV <= 0.5f && g == Ground::Lava) { g = lavaLand; sx = px; sy = py; }
   if (nearUrb || urbYield != Ground::Void) { g = urbYield != Ground::Void ? urbYield : real; sx = px; sy = py; E = Eco::COUNT; }   // (M7b) the fabric's edge
+  if (deckYield != Ground::Void && urbYield == Ground::Void) { g = deckYield; sx = px; sy = py; E = Eco::COUNT; }   // (M7c fixer r3) the deck's slant
+  // (M7c fixer r3, review: "brown wedges stick up over the stone edge of a town square") a plank town's lone street
+  // tile let into its stone square's lip (the square on three sides of it) is the square's own paving, not an orphan
+  // patch of deck
+  if (m.kind == MapKind::Overworld && real == Ground::Road && g == Ground::Road && paveMatAt(m, tx, ty) == 4) {
+    const int nP = (m.at(tx - 1, ty) == Ground::Plaza) + (m.at(tx + 1, ty) == Ground::Plaza) + (m.at(tx, ty - 1) == Ground::Plaza) + (m.at(tx, ty + 1) == Ground::Plaza);
+    if (nP >= 3) g = Ground::Plaza;
+  }
   // ruins and crypts (M0 round 3): the built rooms and corridors are walled in dressed stone on every side. A wall
   // tile touching the floor gets a masonry face where the floor lies south of it (lit coping lip, block courses
   // darkening to the foot), a coping band along the wall top on every edge that meets the floor (west, east, north
@@ -3373,7 +3924,7 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
   // blobs") a people that decks its streets and squares in planks (paving 4) BUILDS them: the deck keeps its tiles'
   // straight edges (no wobbling field), and deckEdge below gives it a rim beam, a front face and a cast shadow
   const bool deckTown = m.kind == MapKind::Overworld && paveMatAt(m, tx, ty) == 4;
-  if (m.kind == MapKind::Overworld && !deckTown && (real == Ground::Road || real == Ground::Plaza || (soft(real) && !groundWater(real)))) {
+  if (m.kind == MapKind::Overworld && !deckTown && !deckZ && (real == Ground::Road || real == Ground::Plaza || (soft(real) && !groundWater(real)))) {
     // (M6 finish fixer, review: "steppe village paths are blocky staircase rectangles") a village's trodden earth paths
     // (Ground::Dirt) take the same organic edge as the paved streets: on grass they were cut tile by tile
     auto pavedG = [](Ground q) { return q == Ground::Road || q == Ground::Plaza || q == Ground::Dirt; };
@@ -3627,6 +4178,7 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
       // it, and the rails run along both open sides. Deciding per tile from the water beside it made L-shaped decks
       // with planks turning at the river's edge.
       auto isB = [&](int x, int y) { return m.at(x, y) == Ground::Bridge; };
+      bool plankBridge = false;
       int hl = 1, vl = 1;
       for (int k = 1; k < 8 && isB(tx - k, ty); k++) hl++;
       for (int k = 1; k < 8 && isB(tx + k, ty); k++) hl++;
@@ -3641,15 +4193,22 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
       // came out as two blocks with their planks turned against each other. The deck's extent (flood over its tiles,
       // cached per tile: bakes run on worker threads) gives the way across.
       {
-        struct DeckCache { const void* map = nullptr; int ox = 0, oy = 0, tx = INT32_MIN, ty = INT32_MIN; int dir = 0; };
+        struct DeckCache { const void* map = nullptr; int ox = 0, oy = 0, tx = INT32_MIN, ty = INT32_MIN; int dir = 0; bool plank = false; };
         thread_local DeckCache dc;
         if (dc.map != (const void*)m.m || dc.ox != m.ox || dc.oy != m.oy || dc.tx != tx || dc.ty != ty) {
           dc.map = (const void*)m.m; dc.ox = m.ox; dc.oy = m.oy; dc.tx = tx; dc.ty = ty;
           int x0 = tx, x1 = tx, y0 = ty, y1 = ty;
           int wEW = 0, wNS = 0;   // (fixer M7b r2) the water beside the deck's tiles: east / west of them, north / south
+          dc.plank = false;
           auto wcount = [&](int x, int y) {
             wEW += groundWater(m.at(x - 1, y)) + groundWater(m.at(x + 1, y));
             wNS += groundWater(m.at(x, y - 1)) + groundWater(m.at(x, y + 1));
+            // (M7c fixer r3) a bridge of a plank town's deck (a street of planks runs onto it)
+            if (!dc.plank && m.kind == MapKind::Overworld)
+              for (int k = 0; k < 4; k++) {
+                const int qx = x + (k == 0) - (k == 1), qy = y + (k == 2) - (k == 3);
+                if (m.at(qx, qy) != Ground::Bridge && plankDeckT(m, qx, qy)) { dc.plank = true; break; }
+              }
           };
           wcount(tx, ty);
           std::vector<std::pair<int, int>> todo{{tx, ty}}, seen{{tx, ty}};
@@ -3678,11 +4237,15 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
             dc.dir = wEW > wNS ? 2 : 1;
         }
         if (dc.dir) eastWest = dc.dir == 1;
+        plankBridge = dc.plank;
       }
       int a = eastWest ? px : py;   // across the planks
       bool gap = ((a % 4) + 4) % 4 == 0;
       c = gap ? C(70, 46, 30) : lerpc(C(140, 96, 56), C(160, 112, 66), hashf(a / 4, 0, 261));
       if (!gap && hashf(a / 4, (eastWest ? py : px) / 6, 263) < 0.12f) c = mul(c, 0.9f);   // a worn plank end
+      // (M7c fixer r3, review: "planks running in alternating directions: horizontal, then vertical, then horizontal
+      // again") a plank town's bridge is its deck run on over the water: the same boards, laid the same way
+      if (plankBridge) c = pavePixel(4, true, px, py, 0.0f, -1.0f, h, n);
       // rails along the open sides (not where the deck continues into a wider bridge)
       // (M2 fixer round 2) and not where a road or path joins the deck from the side (a road crossing on a slant meets
       // its bridge at a corner: a rail across the join read as the road running into a fence)
@@ -3759,7 +4322,8 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
       // that meets dry land are dressed stone courses (lit on their west / north faces), a step up from the planks with
       // a dark joint, and a low parapet stone at each corner where the rails end
       if (m.kind == MapKind::Overworld) {
-        auto land = [&](int x, int y) { const Ground q = m.at(x, y); return q != Ground::Bridge && !groundWater(q) && q != Ground::Void; };
+        // ((M7c fixer r3) not where a plank town's deck runs on from the bridge: one floor)
+        auto land = [&](int x, int y) { const Ground q = m.at(x, y); return q != Ground::Bridge && !groundWater(q) && q != Ground::Void && !(plankBridge && plankDeckT(m, x, y)); };
         const int across = eastWest ? ly : lx;
         int endD = 99;   // px from the end of the deck that sits on land
         if (eastWest) { if (land(tx - 1, ty)) endD = lx; if (land(tx + 1, ty)) endD = std::min(endD, 15 - lx); }
@@ -4018,28 +4582,9 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
   // (fixer r2) the plank deck's thickness: a dark joint and a rim beam along its edge (lit where it faces the light,
   // north and west), the deck's front face on the ground below its south edge, and its shadow on the ground south and
   // east of it (top-left light)
-  if (deckTown) {
-    auto deck = [&](int x, int y) { const Ground q = m.at(x, y); return q == Ground::Road || q == Ground::Plaza; };
-    const int lx2 = px & 15, ly2 = py & 15;
-    if (deck(tx, ty) && (g == Ground::Road || g == Ground::Plaza)) {
-      const int dN = deck(tx, ty - 1) ? 99 : ly2, dS = deck(tx, ty + 1) ? 99 : 15 - ly2, dW = deck(tx - 1, ty) ? 99 : lx2, dE = deck(tx + 1, ty) ? 99 : 15 - lx2;
-      const int d = std::min(std::min(dN, dS), std::min(dW, dE));
-      if (d <= 3) {
-        const bool lit = d == dN || d == dW;
-        const bool alongX = d == dN || d == dS;
-        const int run = alongX ? px : py;
-        if (d == 0) c = lit ? C(150, 122, 88) : C(70, 52, 40);
-        else if (d == 3) c = C(58, 44, 34);                                              // the joint inside the beam
-        else c = ((run % 19 + 19) % 19 == 0) ? C(66, 50, 38) : (lit ? (d == 1 ? C(170, 140, 100) : C(146, 118, 84)) : (d == 1 ? C(116, 92, 66) : C(104, 82, 60)));
-        if (d >= 1 && d <= 2 && ((run % 19 + 19) % 19) == 9 && ((alongX ? py : px) & 1)) c = C(74, 70, 66);   // a nail head
-      }
-    } else if (!deck(tx, ty) && !groundWater(real)) {
-      // below the south edge: the deck's front face (3 px of plank ends), then its shadow; east of it: the shadow
-      const bool northDeck = deck(tx, ty - 1), westDeck = deck(tx - 1, ty), nwDeck = deck(tx - 1, ty - 1);
-      if (northDeck && ly2 < 3) c = ly2 == 2 ? C(48, 36, 30) : ((px % 5 + 5) % 5 == 0 ? C(60, 46, 36) : C(92, 70, 52));
-      else if ((northDeck && ly2 < 7) || (westDeck && lx2 < 4) || (nwDeck && lx2 < 4 && ly2 < 7)) c = lerpc(mul(c, 0.70f), C(48, 34, 92, (int)(c >> 24)), 0.14f);
-    }
-  }
+  // (M7c fixer r3) one rim round the whole plank deck (deckEdgeAt / deckRimPx: streets, squares, bridges and the
+  // city's fabric are one floor; the edge on the slant where its tiles staircase)
+  if (deckZ && (deckE.in ? (g == Ground::Road || g == Ground::Plaza) : !groundWater(g))) c = deckRimPx(deckE, px, py, c);
   // (M3 fixer) the marsh under and beside a boardwalk: its south face, its posts and its shade
   if (m.kind == MapKind::Overworld && (groundWater(g) || g == Ground::Swamp) && real != Ground::Bridge && !bwShade &&
       !boardwalkDiagAt(m, tx, ty - 1).diag && !boardwalkDiagAt(m, tx - 1, ty).diag && !boardwalkDiagAt(m, tx - 1, ty - 1).diag) {
@@ -5350,6 +5895,17 @@ int View::urbKerbCheck(const Game& g, int r, int& faces) {
       const ew::Urb s = cls(x, y + 1);
       if (!(ew::urbCarriage(s) || s == ew::Urb::Gutter)) continue;
       if (cls(x - 1, y) != ew::Urb::Sidewalk || cls(x + 1, y) != ew::Urb::Sidewalk) continue;
+      // (M7c integration) a straight run: the carriageway south of the neighbours too (where the walk steps along a
+      // tilted street the kerb slants across the tile, M7c ART stairEdge, and its face is not on these rows)
+      // (two tiles either side: the slant's own tile and the one it eases into)
+      {
+        bool straightRun = true;
+        for (int k = -2; k <= 2 && straightRun; k++) {
+          const ew::Urb q = cls(x + k, y + 1);
+          if (!(ew::urbCarriage(q) || q == ew::Urb::Gutter) || cls(x + k, y) != ew::Urb::Sidewalk) straightRun = false;
+        }
+        if (!straightRun) continue;
+      }
       const int gx = (x + tm.ox) * 16, gy = (y + tm.oy) * 16;
       float top = 0, face = 0;
       for (int lx = 3; lx < 13; lx++) {
@@ -5358,7 +5914,10 @@ int View::urbKerbCheck(const Game& g, int r, int& faces) {
       }
       top /= 20.0f; face /= 20.0f;
       faces++;
-      if (face > top * 0.80f) bad++;
+      if (face > top * 0.80f) {
+        if (bad < 4) std::printf("urbKerbCheck: no face at global %d,%d (top %.0f face %.0f; south %d)\n", x + tm.ox, y + tm.oy, top, face, (int)s);
+        bad++;
+      }
     }
   return bad;
 }
@@ -5372,4 +5931,370 @@ bool expKerbs(ScriptCtx& c) {
   return true;
 }
 EMB_SCRIPT_CMD("expect:kerbs", "expect kerbs [any]: every straight south kerb within 40 tiles shows its face (darker than the walk); any: none is no failure (M7b CITYART)", expKerbs);
+}  // namespace
+
+// ---------------------------------------------------------------- (M7c ART) test only: a street-network stage
+//   urbstage build [far]      in a city: keep its look (the nearest row house's style, the paving), go to open land
+//                             `far` (default 420) tiles south of here and lay a synthetic planned quarter round the
+//                             hero: two crossing avenues with central drains, block streets with kerbed walks crossing
+//                             them, a mews lane and a lane meeting the walks in T junctions, a 1:1 diagonal and a 1:2
+//                             tilted street with their walks, a framed square, a river with quays and bridges, row
+//                             houses fronting the streets with corner units (ROW_SIDE_W / _E) and backs on a street
+//                             (ROW_BACK). Every junction kind of the M7c network on one stage, judged at street zoom.
+//   urbstage go <spot>        stand at a spot of the stage: cross, street, tee, lane, corner, mews, diag, tilt,
+//                             square, bridge, quay, back, east, yard
+namespace {
+struct UrbStage {
+  bool have = false, built = false;
+  Bldg tmpl;
+  int pm = 0;
+  Biome biome = Biome::Plains;
+  int x0 = 0, y0 = 0;          // the stage's local origin in the window it was built in
+  int32_t gox = 0, goy = 0;    // the window's global origin then
+};
+UrbStage g_stage;
+constexpr int kStW = 60, kStH = 44;
+enum StK : uint8_t { ST_OPEN, ST_WATER, ST_BRIDGE, ST_CARR, ST_WALK, ST_GUT, ST_SQUARE, ST_PARK, ST_GARDEN, ST_QUAY, ST_HOUSE };
+struct StT { StK k = ST_OPEN; Urb u = Urb::None; int up = 3; };
+
+bool cmdUrbStage(ScriptCtx& c) {
+  Game& g = c.game;
+  const std::string sub = c.arg(1);
+  if (sub == "go") {
+    if (!g_stage.built) { c.fail("urbstage go: no stage (urbstage build first)"); return true; }
+    static const struct { const char* n; int x, y; } spots[] = {
+        {"cross", 29, 24}, {"street", 12, 24}, {"tee", 38, 25}, {"lane", 38, 28}, {"corner", 14, 11}, {"mews", 20, 16},
+        {"diag", 19, 28}, {"tilt", 53, 27}, {"square", 38, 15}, {"bridge", 4, 23}, {"quay", 6, 12}, {"back", 20, 37},
+        {"east", 47, 21}, {"yard", 54, 15}};
+    const std::string w = c.arg(2);
+    for (const auto& s : spots)
+      if (w == s.n) {
+        const int lx = g_stage.x0 + s.x + (g_stage.gox - g.world.ox), ly = g_stage.y0 + s.y + (g_stage.goy - g.world.oy);
+        g.pl().p = Vec2(lx * (float)TILE + 8, ly * (float)TILE + 8);
+        c.view.snap(g);
+        std::printf("urbstage go %s: local %d,%d\n", s.n, lx, ly);
+        return true;
+      }
+    c.fail("urbstage go: unknown spot " + w);
+    return true;
+  }
+  if (sub != "build") { c.fail("urbstage build [far] | urbstage go <spot>"); return true; }
+  if (g.inside) { c.fail("urbstage: indoors"); return true; }
+  {
+    // the city's look: its nearest row house (else any city house) and the paving of its walks
+    Map& m = g.world.over;
+    const int px = (int)std::floor(g.pl().p.x / TILE), py = (int)std::floor(g.pl().p.y / TILE);
+    int best = -1, bd = 1 << 30;
+    for (int i = 0; i < (int)m.bldgs.size(); i++) {
+      const Bldg& b = m.bldgs[(size_t)i];
+      if (b.urban < 2 || b.type != art::Building::House || b.home) continue;
+      const int d = std::abs(b.r.x - px) + std::abs(b.r.y - py) + (b.row ? 0 : 400);
+      if (d < bd) { bd = d; best = i; }
+    }
+    if (best < 0) { c.fail("urbstage build: no city house here"); return true; }
+    g_stage.tmpl = m.bldgs[(size_t)best];
+    int pm = -1;
+    for (int r = 0; r < 40 && pm < 0; r++)
+      for (int oy = -r; oy <= r && pm < 0; oy++)
+        for (int ox = -r; ox <= r; ox++) {
+          const int x = g_stage.tmpl.r.x + ox, y = g_stage.tmpl.r.y + oy;
+          const uint8_t bl = m.blendAt(x, y);
+          if ((bl >> 4) == (Map::PAVE_MARK >> 4) && ew::urbClass(m.urbAt(x, y)) != Urb::None) { pm = bl & 15; break; }
+        }
+    g_stage.pm = std::max(0, pm);
+    g_stage.biome = m.biomeAt(g_stage.tmpl.r.x, g_stage.tmpl.r.y);
+    g_stage.have = true;
+  }
+  const int far = c.arg(2).empty() ? 420 : std::max(200, std::atoi(c.arg(2).c_str()));
+  g.teleportGlobal(g.world.ox + (int)std::floor(g.pl().p.x / TILE), g.world.oy + (int)std::floor(g.pl().p.y / TILE) + far);
+  g.mode = Mode::Play;
+  Map& m = g.world.over;
+  const int hx = (int)std::floor(g.pl().p.x / TILE), hy = (int)std::floor(g.pl().p.y / TILE);
+  const int X0 = hx - 30, Y0 = hy - 22;
+  g_stage.x0 = X0; g_stage.y0 = Y0; g_stage.gox = g.world.ox; g_stage.goy = g.world.oy;
+  // ---- the plan, in stage tiles
+  using K = StK;
+  using T = StT;
+  std::vector<T> P((size_t)kStW * kStH);
+  auto at = [&](int x, int y) -> T* { return (x >= 0 && y >= 0 && x < kStW && y < kStH) ? &P[(size_t)y * kStW + x] : nullptr; };
+  auto put = [&](int x, int y, K k, Urb u, int up) { if (T* t = at(x, y)) { t->k = k; t->u = u; t->up = up; } };
+  auto rect = [&](int ax, int ay, int bx, int by, K k, Urb u, int up) { for (int y = ay; y <= by; y++) for (int x = ax; x <= bx; x++) put(x, y, k, u, up); };
+  auto carr = [&](int x, int y) { const T* t = at(x, y); return t && (t->k == ST_CARR || t->k == ST_GUT); };
+  // walks first (the carriageways overwrite them where they cross), then the carriageways
+  rect(0, 18, kStW - 1, 18, ST_WALK, Urb::Sidewalk, 3); rect(0, 22, kStW - 1, 22, ST_WALK, Urb::Sidewalk, 3);   // the E-W avenue's walks
+  rect(27, 0, 27, kStH - 1, ST_WALK, Urb::Sidewalk, 3); rect(31, 0, 31, kStH - 1, ST_WALK, Urb::Sidewalk, 3);   // the N-S avenue's
+  rect(0, 6, kStW - 1, 6, ST_WALK, Urb::Sidewalk, 2); rect(0, 9, kStW - 1, 9, ST_WALK, Urb::Sidewalk, 2);       // block streets
+  rect(0, 32, kStW - 1, 32, ST_WALK, Urb::Sidewalk, 1); rect(0, 35, kStW - 1, 35, ST_WALK, Urb::Sidewalk, 1);
+  rect(10, 0, 10, kStH - 1, ST_WALK, Urb::Sidewalk, 2); rect(13, 0, 13, kStH - 1, ST_WALK, Urb::Sidewalk, 2);
+  rect(45, 0, 45, kStH - 1, ST_WALK, Urb::Sidewalk, 2); rect(48, 0, 48, kStH - 1, ST_WALK, Urb::Sidewalk, 2);
+  rect(0, 19, kStW - 1, 21, ST_CARR, Urb::Avenue, 3);
+  rect(28, 0, 30, kStH - 1, ST_CARR, Urb::Avenue, 3); rect(29, 0, 29, kStH - 1, ST_GUT, Urb::Gutter, 3);
+  rect(0, 20, kStW - 1, 20, ST_GUT, Urb::Gutter, 3);
+  rect(0, 7, kStW - 1, 8, ST_CARR, Urb::Street, 2); rect(0, 33, kStW - 1, 34, ST_CARR, Urb::Street, 1);
+  rect(11, 0, 12, kStH - 1, ST_CARR, Urb::Street, 2); rect(46, 0, 47, kStH - 1, ST_CARR, Urb::Street, 2);
+  rect(28, 19, 30, 21, ST_CARR, Urb::Avenue, 3); rect(29, 19, 29, 21, ST_GUT, Urb::Gutter, 3); rect(28, 20, 30, 20, ST_GUT, Urb::Gutter, 3);
+  rect(14, 14, 26, 14, ST_CARR, Urb::Lane, 2);    // a mews lane between two rows of backs
+  rect(38, 23, 38, 31, ST_CARR, Urb::Lane, 1);    // a lane off the avenue to the south street
+  rect(32, 10, 44, 17, ST_SQUARE, Urb::Square, 3);
+  // a 1:1 diagonal street (two tiles wide) across the block x 14..26, y 23..31, kerbed walks either side
+  rect(14, 23, 26, 31, ST_PARK, Urb::Park, 3);
+  for (int k = 0; k <= 8; k++) { put(14 + k, 31 - k, ST_CARR, Urb::Street, 2); put(15 + k, 31 - k, ST_CARR, Urb::Street, 2); }
+  // a 1:2 tilted street across the block x 49..59, y 23..31
+  rect(49, 23, kStW - 1, 31, ST_GARDEN, Urb::Garden, 2);
+  for (int k = 0; k <= 10; k++) { const int y = 29 - k / 2; put(49 + k, y, ST_CARR, Urb::Street, 2); put(49 + k, y + 1, ST_CARR, Urb::Street, 2); }
+  for (int y = 23; y <= 31; y++)
+    for (int x = 14; x < kStW; x++) {
+      if (x > 26 && x < 49) continue;
+      T* t = at(x, y);
+      if (!t || t->k == ST_CARR) continue;
+      bool nbr = false;
+      for (int oy = -1; oy <= 1; oy++)
+        for (int ox = -1; ox <= 1; ox++) {
+          if (!(ox || oy) || !carr(x + ox, y + oy)) continue;
+          const T* q = at(x + ox, y + oy);
+          if (q && q->u == Urb::Street) nbr = true;
+        }
+      if (nbr) { t->k = ST_WALK; t->u = Urb::Sidewalk; t->up = 2; }
+    }
+  // the river: water cols 3..5, quays on both banks, bridges where the streets cross
+  for (int y = 0; y < kStH; y++) {
+    const bool span = (y >= 6 && y <= 9) || (y >= 18 && y <= 22) || (y >= 32 && y <= 35);
+    for (int x = 3; x <= 5; x++) put(x, y, span ? ST_BRIDGE : ST_WATER, Urb::None, 3);
+    if (!span) { put(2, y, ST_QUAY, Urb::Quay, 2); put(6, y, ST_QUAY, Urb::Quay, 2); }
+  }
+  rect(7, 10, 9, 13, ST_GARDEN, Urb::Garden, 2);
+  rect(7, 23, 9, 31, ST_GARDEN, Urb::Garden, 2);
+  // ---- write the tiles
+  const int lvl = m.heightAt(hx, hy);
+  if (m.urb.empty()) m.urb.assign((size_t)m.w * m.h, 0);
+  for (int y = -6; y < kStH + 6; y++)
+    for (int x = -6; x < kStW + 6; x++) {
+      const int mx = X0 + x, my = Y0 + y;
+      if (!m.in(mx, my)) continue;
+      const size_t i = (size_t)my * m.w + mx;
+      const T* t = at(x, y);
+      Ground gr = Ground::Grass;
+      uint8_t ub = 0;
+      if (t) {
+        switch (t->k) {
+          case ST_WATER: gr = Ground::Water; break;
+          case ST_BRIDGE: gr = Ground::Bridge; break;
+          case ST_CARR: case ST_GUT: gr = Ground::Road; break;
+          case ST_WALK: case ST_SQUARE: case ST_QUAY: gr = Ground::Plaza; break;
+          default: gr = Ground::Grass; break;
+        }
+        if (t->u != Urb::None) ub = ew::urbPack(t->u, t->up, ew::Quarter::Centre);
+      }
+      m.ground[i] = (uint8_t)gr;
+      if (!m.prop.empty()) m.prop[i] = 0;
+      if (!m.deco.empty()) m.deco[i] = 0;
+      if (!m.wall.empty()) m.wall[i] = 0;
+      if (!m.biome.empty()) m.biome[i] = (uint8_t)g_stage.biome;
+      if (!m.eco.empty()) m.eco[i] = (uint8_t)ecoOfFamily(g_stage.biome);
+      if (!m.ecoNb.empty()) m.ecoNb[i] = (uint8_t)ecoOfFamily(g_stage.biome);
+      if (!m.height.empty()) m.height[i] = (uint8_t)lvl;
+      if (!m.blend.empty()) m.blend[i] = t ? (uint8_t)(Map::PAVE_MARK | g_stage.pm) : 0;
+      m.urb[i] = ub;
+    }
+  // buildings standing on the stage (a farm of the land) are moved off the map
+  for (Bldg& b : m.bldgs)
+    if (b.r.x + b.r.w > X0 - 6 && b.r.x < X0 + kStW + 6 && b.r.y + b.r.h > Y0 - 6 && b.r.y < Y0 + kStH + 6) b.r.x = -100000;
+  // ---- the row houses: runs along a front, widths 2..3, the party walls between, the street faces at the ends / back
+  auto streetish = [&](int x, int y) { const T* t = at(x, y); return t && (t->k == ST_CARR || t->k == ST_GUT || t->k == ST_WALK || t->k == ST_SQUARE || t->k == ST_QUAY); };
+  int nb = 0;
+  auto run = [&](int ax, int bx, int y0, int h, bool yard, uint32_t salt) {
+    std::vector<int> ws;
+    int left = bx - ax + 1;
+    uint32_t hs = hash2((int)salt, 77, 9101);
+    while (left > 0) {
+      int w = 2 + (int)(hs & 1u);
+      hs = hash2((int)hs, 0x51, 9103);
+      if (left - w == 1) w = left >= 4 ? 2 : 3;
+      if (w > left) w = left;
+      ws.push_back(w);
+      left -= w;
+    }
+    const uint8_t storeys = (uint8_t)(2 + hash2((int)salt, 3, 9105) % 2u);
+    int x = ax;
+    for (size_t k = 0; k < ws.size(); k++) {
+      const int w = ws[k];
+      Bldg b = g_stage.tmpl;
+      b.id = 0; b.site = -1; b.home = 0; b.charred = 0;
+      b.open = Bldg::Open();
+      b.r = IRect{X0 + x, Y0 + y0, w, h};
+      b.seed = hash2((int)salt * 131, (int)k * 977 + 5, 9107);
+      b.storeys = storeys;
+      b.type = (k == 1 && ws.size() >= 4) ? art::Building::Shop : art::Building::House;
+      b.variant = (uint8_t)(1 + (k * 3 + salt) % 7);
+      uint8_t row = 0;
+      if (k > 0) row |= bld::ROW_W;
+      if (k + 1 < ws.size()) row |= bld::ROW_E;
+      if (k == 0 && streetish(x - 1, y0 + h - 1)) row |= bld::ROW_SIDE_W;
+      if (k + 1 == ws.size() && streetish(x + w, y0 + h - 1)) row |= bld::ROW_SIDE_E;
+      if (streetish(x + w / 2, y0 - 1)) row |= bld::ROW_BACK;
+      if (yard && !(row & bld::ROW_BACK)) row |= bld::ROW_YARD;
+      b.row = row;
+      for (int yy = y0; yy < y0 + h; yy++) for (int xx = x; xx < x + w; xx++) put(xx, yy, ST_HOUSE, Urb::None, 0);
+      m.bldgs.push_back(b);
+      nb++;
+      x += w;
+    }
+  };
+  run(7, 9, 2, 4, false, 1); run(14, 26, 2, 4, false, 2); run(32, 44, 2, 4, false, 3); run(49, kStW - 1, 2, 4, false, 4);
+  run(14, 26, 10, 4, false, 5); run(14, 26, 15, 3, false, 6);        // the mews: backs on the block street and the lane
+  run(49, kStW - 1, 13, 5, true, 7);                                  // yards behind
+  run(7, 9, 14, 4, false, 8);                                         // a corner house between the garden and a street
+  run(32, 37, 23, 3, false, 9); run(39, 44, 23, 3, false, 10);        // backs on the avenue's walk, the lane beside
+  run(32, 37, 27, 5, false, 11); run(39, 44, 27, 5, false, 12);
+  run(14, 26, 36, 4, false, 13); run(32, 44, 36, 4, false, 14); run(49, kStW - 1, 36, 4, false, 15);   // backs on the south street
+  m.rebuildSolid();
+  g_stage.built = true;
+  g.pl().p = Vec2((X0 + 29) * (float)TILE + 8, (Y0 + 24) * (float)TILE + 8);
+  c.view.snap(g);
+  std::printf("urbstage: built at local %d,%d (global %d,%d), paving %d, %d row houses\n", X0, Y0, X0 + g.world.ox, Y0 + g.world.oy, g_stage.pm, nb);
+  return true;
+}
+EMB_SCRIPT_CMD("urbstage", "urbstage build [far] | go <spot>: test only: a synthetic M7c street network with row houses (M7c ART)", cmdUrbStage);
+
+// ---------------------------------------------------------------- (M7c ART) test only: the city wall's places
+//   wallspot <vertex|diag|gate|water|any> [n]   stand the hero by the nth (nearest first) place of that kind on the
+//                                               city wall within 90 tiles: a vertex (the run turns by 30 degrees or
+//                                               more: a polygon's corner, a straight run onto a diagonal), a diagonal
+//                                               run, a gate whose curtains leave it on the slant, the wall meeting water
+// The run's direction at a wall tile is read from the wall tiles on the square ring 4 tiles out (two clusters: the run
+// arriving and leaving).
+// tilescan <dx0> <dy0> <dx1> <dy1>: debug: print what lies on the tiles of that box round the hero (ground, prop, deco,
+// wall, building) (M7c fixer r3)
+bool cmdTileScan(ScriptCtx& c) {
+  Game& g = c.game;
+  const Map& m = g.world.over;
+  const int hx = (int)(g.pl().p.x / TILE), hy = (int)(g.pl().p.y / TILE);
+  const int x0 = hx + std::atoi(c.arg(1).c_str()), y0 = hy + std::atoi(c.arg(2).c_str()), x1 = hx + std::atoi(c.arg(3).c_str()), y1 = hy + std::atoi(c.arg(4).c_str());
+  for (int y = y0; y <= y1; y++)
+    for (int x = x0; x <= x1; x++) {
+      if (!m.in(x, y)) continue;
+      const size_t i = (size_t)y * m.w + x;
+      const int pr = m.prop.empty() ? 0 : m.prop[i], dc = m.deco.empty() ? 0 : m.deco[i], wl = m.wall.empty() ? 0 : m.wall[i];
+      const int bi = m.bldgAt.empty() ? -1 : m.bldgAt[i];
+      if (!pr && !dc && !wl && bi < 0) continue;
+      std::printf("tilescan %d,%d: ground %d prop %d deco %d wall %d bldg %d", x, y, (int)m.ground[i], pr - 1, dc, wl, bi);
+      if (bi >= 0 && bi < (int)m.bldgs.size()) { const Bldg& b = m.bldgs[(size_t)bi]; std::printf(" (type %d rect %d,%d %dx%d home %d)", (int)b.type, b.r.x, b.r.y, b.r.w, b.r.h, (int)b.home); }
+      std::printf("\n");
+    }
+  if (c.arg(5) == "h")
+    for (int y = y0; y <= y1; y++) {
+      std::printf("tilescan h %d:", y);
+      for (int x = x0; x <= x1; x++) std::printf(" %2d", (int)m.heightBits(x, y));
+      std::printf("\n");
+    }
+  for (size_t k = 0; k < m.bldgs.size(); k++) {
+    const Bldg& b = m.bldgs[k];
+    if (b.r.x > x1 || b.r.y > y1 || b.r.x + b.r.w < x0 || b.r.y + b.r.h < y0) continue;
+    std::printf("tilescan bldg %zu: type %d rect %d,%d %dx%d home %d site %d\n", k, (int)b.type, b.r.x, b.r.y, b.r.w, b.r.h, (int)b.home, b.site);
+  }
+  return true;
+}
+EMB_SCRIPT_CMD("tilescan", "tilescan <dx0> <dy0> <dx1> <dy1>: debug: what lies on the tiles of that box round the hero (M7c fixer r3)", cmdTileScan);
+bool cmdWallSpot(ScriptCtx& c) {
+  Game& g = c.game;
+  const Map& m = g.world.over;
+  const std::string what = c.arg(1);
+  const int nth = c.arg(2).empty() ? 0 : std::atoi(c.arg(2).c_str());
+  const int hx = (int)(g.pl().p.x / TILE), hy = (int)(g.pl().p.y / TILE);
+  auto wallAt = [&](int x, int y) { return m.in(x, y) && !m.wall.empty() && m.wall[(size_t)y * m.w + x] != 0; };
+  // the two directions of the run at (x, y): false where the ring does not show exactly two runs
+  auto dirs = [&](int x, int y, float& ax, float& ay, float& bx, float& by) {
+    constexpr int R = 4;
+    std::vector<std::pair<int, int>> ring;
+    for (int i = -R; i < R; i++) ring.push_back({i, -R});
+    for (int j = -R; j < R; j++) ring.push_back({R, j});
+    for (int i = R; i > -R; i--) ring.push_back({i, R});
+    for (int j = R; j > -R; j--) ring.push_back({-R, j});
+    const int n = (int)ring.size();
+    int start = -1;
+    for (int k = 0; k < n; k++) if (!wallAt(x + ring[(size_t)k].first, y + ring[(size_t)k].second)) { start = k; break; }
+    if (start < 0) return false;
+    float sx[3] = {0, 0, 0}, sy[3] = {0, 0, 0};
+    int cnt[3] = {0, 0, 0}, nc = 0;
+    bool in = false;
+    for (int k = 1; k <= n; k++) {
+      const auto& q = ring[(size_t)((start + k) % n)];
+      const bool w = wallAt(x + q.first, y + q.second);
+      if (w && !in) { if (nc == 3) return false; nc++; }
+      in = w;
+      if (w) { sx[nc - 1] += (float)q.first; sy[nc - 1] += (float)q.second; cnt[nc - 1]++; }
+    }
+    if (nc != 2) return false;
+    ax = sx[0] / cnt[0]; ay = sy[0] / cnt[0]; bx = sx[1] / cnt[1]; by = sy[1] / cnt[1];
+    return true;
+  };
+  auto turnDeg = [](float ax, float ay, float bx, float by) {
+    const float d = (ax * bx + ay * by) / std::max(1e-3f, std::sqrt((ax * ax + ay * ay) * (bx * bx + by * by)));
+    return 180.0f - std::acos(std::clamp(d, -1.0f, 1.0f)) * 57.2958f;   // 0: straight on
+  };
+  auto slanted = [](float ax, float ay) { const float r = std::fabs(ax) / std::max(1e-3f, std::fabs(ax) + std::fabs(ay)); return r > 0.3f && r < 0.7f; };
+  struct Cand { int d, x, y; };
+  std::vector<Cand> cs;
+  constexpr int RR = 90;
+  if (what == "gate") {
+    for (const auto& gt : g.world.gates) {
+      const int gx = gt.first, gy = gt.second;
+      if (std::abs(gx - hx) > RR || std::abs(gy - hy) > RR) continue;
+      bool sl = false;
+      for (int side = 0; side < 2 && !sl; side++) {
+        const int px = side ? gx + 6 : gx - 4;
+        float ax, ay, bx, by;
+        for (int oy = -2; oy <= 2 && !sl; oy++)
+          for (int ox = -1; ox <= 1 && !sl; ox++)
+            if (wallAt(px + ox, gy + oy) && dirs(px + ox, gy + oy, ax, ay, bx, by) && (slanted(ax, ay) || slanted(bx, by))) sl = true;
+      }
+      if (sl) cs.push_back({std::abs(gx - hx) + std::abs(gy - hy), gx + 1, gy});
+    }
+  } else {
+    for (int y = std::max(0, hy - RR); y < std::min(m.h, hy + RR); y++)
+      for (int x = std::max(0, hx - RR); x < std::min(m.w, hx + RR); x++) {
+        if (!wallAt(x, y)) continue;
+        bool ok = what == "any";
+        if (what == "water") {
+          for (int oy = -1; oy <= 1 && !ok; oy++)
+            for (int ox = -1; ox <= 1 && !ok; ox++) ok = m.in(x + ox, y + oy) && groundWater(m.at(x + ox, y + oy));
+        } else if (what == "vertex" || what == "diag") {
+          float ax, ay, bx, by;
+          if (!dirs(x, y, ax, ay, bx, by)) continue;
+          const float t = turnDeg(ax, ay, bx, by);
+          ok = what == "vertex" ? t >= 30.0f : (t < 12.0f && slanted(ax, ay) && slanted(bx, by));
+          for (const auto& gt : g.world.gates)   // (a gate's opening reads as a turn: never a vertex)
+            if (ok && std::abs(gt.first + 1 - x) <= 7 && std::abs(gt.second - y) <= 5) ok = false;
+        } else if (what != "any") {
+          c.fail("wallspot: unknown place " + what + " (vertex|diag|gate|water|any)");
+          return true;
+        }
+        if (ok) cs.push_back({std::abs(x - hx) + std::abs(y - hy), x, y});
+      }
+  }
+  // one place per 12-tile cell (a vertex is a cluster of tiles), nearest first
+  std::stable_sort(cs.begin(), cs.end(), [](const Cand& a, const Cand& b) { return a.d < b.d; });
+  std::vector<Cand> one;
+  for (const Cand& q : cs) {
+    bool near = false;
+    for (const Cand& o : one) if (std::abs(o.x - q.x) < 12 && std::abs(o.y - q.y) < 12) { near = true; break; }
+    if (!near) one.push_back(q);
+  }
+  if (one.empty()) { c.fail("wallspot: no " + what + " on a wall here"); return true; }
+  const Cand p = one[(size_t)nth % one.size()];
+  // stand on open ground a few tiles south of it (the wall's face is its south side)
+  int tx = p.x, ty = p.y + 3;
+  bool found = false;
+  for (int r = 0; r <= 8 && !found; r++)
+    for (int oy = -r; oy <= r && !found; oy++)
+      for (int ox = -r; ox <= r && !found; ox++) {
+        const int x = p.x + ox, y = p.y + 3 + oy;
+        if (std::max(std::abs(ox), std::abs(oy)) == r && m.in(x, y) && !m.blocked(x, y) && !groundWater(m.at(x, y))) { tx = x; ty = y; found = true; }
+      }
+  g.pl().p = Vec2(tx * (float)TILE + 8, ty * (float)TILE + 8);
+  c.view.snap(g);
+  std::printf("wallspot %s %d of %zu: wall %d,%d, hero %d,%d\n", what.c_str(), nth, one.size(), p.x, p.y, tx, ty);
+  return true;
+}
+EMB_SCRIPT_CMD("wallspot", "wallspot <vertex|diag|gate|water|any> [n]: test only: stand by that place of the city wall (M7c ART)", cmdWallSpot);
 }  // namespace

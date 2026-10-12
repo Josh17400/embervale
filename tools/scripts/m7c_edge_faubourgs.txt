@@ -1,0 +1,58 @@
+# M7c EDGE (VISION_PLAN 15.M7c, the edge rule): a city's faubourgs and farmland outside its walls. For two peoples'
+# cities and a capital: the gate seen from outside (the gatehouse in the wall, the inn and smithy by the road), the
+# ribbon of houses along the approach road (dense by the gate, sparser out), the farmland beyond (fields, pastures,
+# orchards, hay meadows), the world map at the town zoom (the walled core, the ribbons along every road, the fields).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7c_edge_faubourgs.txt
+# REVIEW: the wall joins its gatehouse seamlessly; the faubourg houses face their road (doors on it or a path round),
+# never a straight terrace; the fields are a patchwork of different sizes and kinds, not boxes in a grid; nothing
+# stands on the road or across the wall's foot; light from the top left.
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
+# ---- heartland city
++0.2 gotoculture heartland city
++1.2 planmark
++0.1 plan
++0.1 expect structure 68
++0.2 planspot gate out
++1.5 shot m7c_edge_faub_heartland_gate.png
++0.2 planspot faubourg
++1.5 shot m7c_edge_faub_heartland_road.png
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_edge_faub_heartland_map.png
++0.1 key Escape
+# ---- steppe city
++0.2 gotoculture steppe city
++1.2 planmark
++0.1 plan
++0.2 planspot gate out
++1.5 shot m7c_edge_faub_steppe_gate.png
++0.2 planspot faubourg
++1.5 shot m7c_edge_faub_steppe_road.png
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_edge_faub_steppe_map.png
++0.1 key Escape
+# ---- a capital (the river folk's)
++0.2 gotoculture river capital
++1.2 planmark
++0.1 plan
++0.2 planspot gate out
++1.5 shot m7c_edge_faub_capital_gate.png
++0.2 planspot faubourg
++1.5 shot m7c_edge_faub_capital_road.png
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_edge_faub_capital_map.png
++0.1 key Escape

@@ -1,0 +1,26 @@
+# M7c CITY lane: the tour at the iPhone review size (phone header): a block street and the heart of three cities.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7c_city_phone.txt
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.2 gotoculture heartland city
++1.5 planmark
++0.1 planspot street
++0.8 shot m7c_phone_heartland_street.png
++0.1 cityspot heart
++0.8 shot m7c_phone_heartland_heart.png
++0.2 gotoculture dune city
++1.5 planmark
++0.1 planspot street
++0.8 shot m7c_phone_dune_street.png
++0.1 cityspot heart
++0.8 shot m7c_phone_dune_heart.png
++0.2 gotoculture jade city
++1.5 planmark
++0.1 planspot street
++0.8 shot m7c_phone_jade_street.png
++0.1 cityspot heart
++0.8 shot m7c_phone_jade_heart.png
++0.3 quit

@@ -19,7 +19,8 @@ seed 7
 +3.3 shot towns_06_city_east.png
 +0.2 goto capital
 +1.2 shot towns_07_capital_heart.png
-+0.2 enter palace 0
+# (M7c fixer r2) the start capital is VANT now, a republic whose seat is its guildhall: enterseat
++0.2 enterseat 0
 +1.0 shot towns_08_throne_hall.png
 +0.2 walkto king
 +0.8 shot towns_09_king.png

@@ -165,7 +165,16 @@ bool Gen::placeByWater(Building type, Role owner, int bw, int bh, bool sideWater
     }
   for (size_t i = cand.size(); i > 1; i--) std::swap(cand[i - 1], cand[(size_t)rng.irange((int)i)]);
   int tries = 0;
-  for (int c : cand) {
+  // ((M7c fixer) a village's watermill is found from its heart: the banks within a short walk first (its body within
+  // 24 tiles), the far ones only when none of those takes it; seed 48's steppe river village had it 25 out)
+  std::vector<int> far;
+  for (size_t ci = 0; ci < cand.size() + far.size(); ci++) {
+    const bool nearPass = ci < cand.size();
+    const int c = nearPass ? cand[ci] : far[ci - cand.size()];
+    if (nearPass && village && type == Building::Watermill && std::max(std::abs(c % W - cx), std::abs(c / W - cy)) > 24 - std::max(bw, bh)) {
+      far.push_back(c);
+      continue;
+    }
     if (++tries > 400) break;
     const int x = c % W, y = c / W;
     if (sideWater) {
@@ -1524,6 +1533,21 @@ void Gen::tradeYards() {
               }
               if (crowd) continue;
               M.setProp(x, y, cows && beasts == 1 ? Prop::Cow : Prop::Sheep);   // (inside the fence: no way runs through)
+              // (M7c integration) nor one that walls off a corner of the pen from its gate
+              if (!penOpen(x0, y0, pw, ph, west ? gx - 1 : gx + 1, gy)) { M.setP(x, y, 0); continue; }
+              beasts++;
+            }
+          // (a pen too small to keep its corners open for two still holds a pair: a herding village's flock)
+          for (int y = y0 + 2; y < y0 + ph - 1 && beasts < 2; y++)
+            for (int x = x0 + 1; x < x0 + pw - 1 && beasts < 2; x++) {
+              if (M.prop[I(x, y)] || (x == (west ? gx - 1 : gx + 1) && y == gy)) continue;
+              bool crowd = false;
+              for (int k = 0; k < 4; k++) {
+                const int q = M.propAt(x + D4X[k], y + D4Y[k]);
+                if (q == (int)Prop::Sheep + 1 || q == (int)Prop::Cow + 1) crowd = true;
+              }
+              if (crowd) continue;
+              M.setProp(x, y, Prop::Sheep);
               beasts++;
             }
           done = true;
@@ -1583,8 +1607,32 @@ void Gen::tradeYards() {
       return true;
     };
     bool mined = false;
+    // (M7c) the streets joined to the heart (a planned city's scrap of wall lane cut off by a compound or a precinct is
+    // no way to the mine): the mine's path ends on one of these
+    std::vector<uint8_t> joined;
+    if (planned) {
+      joined.assign((size_t)W * H, 0);
+      std::vector<int> st;
+      for (int oy = -3; oy <= 3; oy++)
+        for (int ox = -3; ox <= 3; ox++)
+          if (in(cx + ox, cy + oy) && isStreet(cx + ox, cy + oy) && !joined[I(cx + ox, cy + oy)]) { joined[I(cx + ox, cy + oy)] = 1; st.push_back((int)I(cx + ox, cy + oy)); }
+      while (!st.empty()) {
+        const int c = st.back();
+        st.pop_back();
+        const int px = c % W, py = c / W;
+        for (int d = 0; d < 4; d++) {
+          const int nx = px + D4X[d], ny = py + D4Y[d];
+          if (!in(nx, ny) || joined[I(nx, ny)] || !isStreet(nx, ny) || M.wall[I(nx, ny)]) continue;
+          joined[I(nx, ny)] = 1;
+          st.push_back((int)I(nx, ny));
+        }
+      }
+    }
     // pass 0: a mouth with room for its hill; pass 1 (a crowded edge): a bare adit any path reaches, the spoil and
     // the boulders round it
+    // (M7c) the search's map is kept between the tries (only the tiles a try touched are reset): a crowded city edge
+    // tries hundreds of mouths
+    std::vector<int> prev((size_t)W * H, -2), touched;
     for (int pass = 0; pass < (planned ? 3 : 2) && !mined; pass++) {
       if (pass == 2) { dLo = 0.45f; dHi = 1.5f; wide = true; gather(); }
       int tries = 0;
@@ -1607,21 +1655,24 @@ void Gen::tradeYards() {
         }
         tries++;
         // the path from its mouth to the streets (searched first: no path, no mine here)
-        std::vector<int> prev((size_t)W * H, -2);
+        for (int t : touched) prev[(size_t)t] = -2;
+        touched.clear();
         std::queue<int> q;
         prev[I(bx, by + 1)] = -1;
+        touched.push_back((int)I(bx, by + 1));
         q.push((int)I(bx, by + 1));
         int found = -1;
         while (!q.empty() && found < 0) {
           const int c = q.front(); q.pop();
           const int px = c % W, py = c / W;
-          if (isStreet(px, py)) { found = c; break; }
+          if (isStreet(px, py) && (joined.empty() || joined[(size_t)c])) { found = c; break; }
           if (std::abs(px - bx) + std::abs(py - by) > 40) continue;
           for (int d = 0; d < 4; d++) {
             const int nx = px + D4X[d], ny = py + D4Y[d];
-            if (!in(nx, ny) || prev[I(nx, ny)] != -2 || !walkable(nx, ny) || get(nx, ny) == K_FIELD) continue;
+            if (!in(nx, ny) || prev[I(nx, ny)] != -2 || !walkable(nx, ny) || get(nx, ny) == K_FIELD || get(nx, ny) == K_ROWYARD) continue;   // ((M7c) never through a row house's walled back yard)
             if (ny <= by && std::abs(nx - bx) <= 2) continue;   // not back through the mouth's or the hill's tiles
             prev[I(nx, ny)] = c;
+            touched.push_back((int)I(nx, ny));
             q.push((int)I(nx, ny));
           }
         }

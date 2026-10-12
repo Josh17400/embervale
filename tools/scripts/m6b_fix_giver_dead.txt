@@ -4,6 +4,7 @@
 #    opening waits on the giver). The giver dies: within a step the story ends.
 # 2. THE SHIELD WALL told by a fresh giver: "NOT MY FORD." at the opening declines it: no journal entry stays.
 #   embervale.exe --script tools/scripts/m6b_fix_giver_dead.txt     (no shots)
+# (M7c fixer r2) the nearest teller is BAU since the M7c villages (was TERAALAI).
 seed 7
 1 newgame
 +0.05 hour 11
@@ -13,7 +14,7 @@ seed 7
 +0.1 saga accept
 +0.5 expect saga running
 +0.3 key Escape
-+0.5 life kill TERAALAI
++0.5 life kill BAU
 +1 life days 20
 +2 expect saga done
 +0.5 saga start shield_wall

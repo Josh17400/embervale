@@ -235,6 +235,8 @@ uint32_t pyramidTop(const Ramp& T, float dx, float dy, float d, bool shingle) {
 const Ramp kRoofHide = ramp5(rgba(78, 52, 40), rgba(122, 88, 62), rgba(164, 126, 86), rgba(196, 162, 114), rgba(222, 196, 150));
 const Ramp kRoofReed = ramp5(rgba(84, 66, 42), rgba(128, 104, 58), rgba(170, 144, 80), rgba(204, 180, 108), rgba(230, 212, 150));
 const Ramp kRoofRedTile = ramp5(rgba(84, 30, 30), rgba(136, 52, 40), rgba(178, 82, 54), rgba(212, 120, 76), rgba(236, 164, 112));
+// (M7c fixer) the highland rampart's drystone (its face, capstones and drums)
+const Ramp kDry = ramp5(rgba(54, 52, 60), rgba(88, 84, 88), rgba(122, 116, 112), rgba(154, 148, 136), rgba(186, 180, 164));
 }  // namespace
 
 namespace {
@@ -433,10 +435,18 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
   };
   // (M3 fixer) a north-south span is roofed: a gabled roof over the passage between the two jamb towers (ridge north-
   // south, the west slope lit), so the gate reads as a covered gate passage and not as the wall run on unbroken
+  // ((M7c fixer, review: "on a vertical run the gate is two towers with a 1-tile-wide red ridge-tile strip between
+  // them: no gatehouse mass") the passage's roof is as broad as the jamb towers (gx -4..19: it overhangs the road on
+  // both sides of the wall, a gatehouse block between the drums, its eaves' fascia lit on the west, the road running in
+  // under it), and it runs a few px into the towers' cells so it meets their drums with no gap
+  constexpr int SPAN_HW = 12;
   auto spanRoof = [&](int gx, int gy) -> int {
-    if (!vSpan || gx < 0 || gx > 15 || gy < -16 || gy > 31) return 0;
-    const float d = std::fabs(gx + 0.5f - 8.0f);
-    return wallH + 3 + (int)std::lround((8.0f - d) * 1.1f);
+    if (!vSpan || gx < 8 - SPAN_HW || gx > 7 + SPAN_HW) return 0;
+    // (placed in the whole opening, as the horizontal span's arch: every span tile paints its neighbours' halves too)
+    const int Y = (spos - 1) * 16 + gy;
+    if (Y < -4 || Y > 49 || gy < -16 || gy > 31) return 0;
+    const float d = std::fabs(gx + 0.5f - 8.0f), endD = (float)std::min(Y + 4, 49 - Y) + 0.5f;
+    return wallH + 6 + (int)std::lround(std::min(SPAN_HW - d, endD) * 0.55f);   // hipped at the drums (over the merlons)
   };
   auto Z = [&](int gx, int gy) -> int {
     int tz = 0, part = 0;
@@ -523,7 +533,8 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
       const float d = gx + 0.5f - 8.0f;
       int kk = d < -0.6f ? 3 : (d > 0.6f ? 1 : 4);   // lit west slope, shaded east slope, the ridge
       if (((gy % 3) + 3) % 3 == 0 && std::fabs(d) > 0.6f) kk = std::max(0, kk - 1);   // the courses
-      if (gx == 0 || gx == 15) kk = std::max(0, kk - 1);                            // the eaves
+      if (gx == 8 - SPAN_HW || gx == 7 + SPAN_HW) kk = std::max(0, kk - 1);          // the eaves
+      if (std::fabs(d) < 0.6f && ((gy % 6) + 6) % 6 == 0) kk = 3;                      // the ridge tiles' joints
       if (std::fabs(d) > 0.6f && hash3(gx / 2, gy / 3, 47u + var) % 9 == 0) kk = std::min(4, kk + 1);
       return RR[kk];
     }
@@ -568,11 +579,11 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
           if (cw == CityWall::Rampart) {
             const float lt = (tdx + tdy) / std::max(1.0f, d);
             const uint32_t hh = hash3(gx, gy, 87u + var);
-            if (part == 2) {   // the sods of the parapet: grass on top, lit toward the light, the gaps in shade
+            if (part == 2) {   // ((M7c fixer) the parapet's capstones: drystone, lit toward the light, the gaps in shade)
               int kk = lt < -0.3f ? 4 : (lt > 0.4f ? 2 : 3);
               if (z < wallH + 7) kk = std::max(1, kk - 2);
               if (hh % 7 == 0) kk = std::max(1, kk - 1);
-              return kWallGrass[std::clamp(kk, 0, 4)];
+              return kDry[std::clamp(kk, 0, 4)];
             }
             // the trodden floor inside: bare earth worn through the grass, darker in the parapet's lee
             int kk = (hh % 3 == 0) ? 2 : 3;
@@ -639,7 +650,15 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
         const int dN = run(0, -1), dS = run(0, 1), dW = run(-1, 0), dE = run(1, 0);
         const float fr = (dN + dS) <= (dW + dE) ? (dN + 0.5f) / (dN + dS + 1.0f) : (dW + 0.5f) / (dW + dE + 1.0f);
         int kk = fr < 0.3f ? 4 : (fr < 0.62f ? 3 : 2);
-        if (e == 0) kk = nw ? 4 : 1;
+        // ((M7c fixer) the capstones of the drystone face along both lips: the run reads as a wall's top from above,
+        // a walk of turf between stone edges, never a hedge's crown)
+        if (e <= 1) {
+          const int along = (dN + dS) <= (dW + dE) ? gy : gx;
+          const bool jt = ((along + 64) % 5) == 0;
+          if (jt) return kDry[1];
+          return kDry[std::clamp((nw ? 4 : 2) - (e == 1 ? 1 : 0) - (int)(hh % 3u == 0), 1, 4)];
+        }
+        if (e == 2) kk = std::max(1, kk - 1);   // the turf in the capstones' lee
         // tussocks: clumps of grass a shade apart, a dark tuft root under each
         const float n = vnoise((gx + 64) / 2.5f, (gy + 64) / 2.0f, 91u + var);
         if (n > 0.68f) kk = std::min(4, kk + 1);
@@ -660,6 +679,19 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
         return kWallThorn[std::clamp(kk, 0, 4)];
       }
       case CityWall::Palisade: {
+        {
+          // ((M7c fixer r3, review: "the corner's vertical run is drawn as a horizontally planked column, like a
+          // ladder") a north-south run seen from above is all stake heads, as its slanted stretches read: packed round
+          // log ends in staggered rows, each lit on its north-west, the gaps between them dark; no rails and rungs)
+          auto run = [&](int dx, int dy) { int r = 0; while (r < 20 && S.in(gx + dx * (r + 1), gy + dy * (r + 1))) r++; return r; };
+          if (run(0, -1) + run(0, 1) >= 30 && run(-1, 0) + run(1, 0) <= 18) {
+            const int col = (gx + 64) / 4, lx = (gx + 64) % 4, ly = (gy + 64 + (col & 1) * 2) % 4;
+            if (lx == 3 || ly == 3) return kWallLog[0];
+            if (lx == 0 && ly == 0) return kWallLog[4];
+            if (lx <= 1 && ly <= 1) return kWallLog[3];
+            return kWallLog[2];
+          }
+        }
         if (z > wallH) {   // the log ends, cut to points: lit on the west of each point
           const int q = (((S.in(gx, gy - 1) && S.in(gx, gy + 1)) ? gy : gx) % 3 + 3) % 3;
           return kWallLog[q == 0 ? 4 : (q == 1 ? 3 : 1)];
@@ -703,22 +735,45 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
   };
   // (M3b round 3) a turf dyke's face: sods stacked in courses 3 px tall in a broken bond, each a grassy top layer over
   // its peat, dark joints between, the foot in shadow; `lit` -1 shade .. +1 light
+  // ((M7c fixer, review: "highland city wall reads as a garden hedge") the highland rampart is faced in drystone: rough
+  // courses of fieldstone, dark joints, each stone lit on its upper left, a stone in a few with moss; the turf only
+  // caps it (the crest) and hangs over its top course
   auto turfFace = [&](int gx, int h, int lit) -> uint32_t {
     if (h < 1) return kWallEarth[0];
-    const int row = h / 3, hh = h % 3;
-    const int off = (int)(hash3(row, 7, 311u + var) % 6u);
-    const int bx = gx + off + 64;
-    const int len = 5 + (int)(hash3(row, 9, 317u + var) % 3u);
-    const bool joint = bx % len == 0;
-    const uint32_t hs = hash3(bx / len, row, 313u + var);
-    if (joint && hh != 2) return kWallEarth[std::clamp(lit, 0, 4)];
-    if (hh == 2) return kWallGrass[std::clamp(2 + lit + (hs % 4 == 0 ? 1 : 0) - (joint ? 1 : 0), 0, 4)];
-    int kk = (hh == 1 ? 2 : 1) + lit + (hs % 5 == 0 ? 1 : 0) - (h < 3 ? 1 : 0);
-    return kWallEarth[std::clamp(kk + 1, 0, 4)];
+    {
+      // courses 3 or 4 px tall (by the course's hash), stones 4..8 px long, staggered per course
+      int row = 0, base = 0, rh = 3;
+      for (int k = 0; k < 16; k++) {
+        rh = 3 + (int)(hash3(k, 1, 331u + var) % 2u);
+        if (h < base + rh) { row = k; break; }
+        base += rh;
+        row = k + 1;
+      }
+      const int hh = h - base;
+      const int off = (int)(hash3(row, 7, 337u + var) % 7u);
+      const int len = 4 + (int)(hash3(row, 9, 347u + var) % 5u);
+      const int bx = gx + off + 64, in = bx % len;
+      const uint32_t hs = hash3(bx / len, row, 353u + var);
+      if (hh == rh - 1 || in == 0) return kDry[0];                               // the joints (the bed below, the perpend)
+      int kk = 2 + (hh == rh - 2 ? 1 : 0) + (in == 1 ? 1 : 0) - (in == len - 1 ? 1 : 0) + lit + (int)(hs % 3u) - 1;
+      if (h < 3) kk--;                                                           // the foot in the bank's shade
+      if (hs % 11 == 0 && hh == rh - 2) return kWallGrass[std::clamp(1 + lit, 0, 3)];   // moss on a stone's top
+      return kDry[std::clamp(kk, 1, 4)];
+    }
   };
   auto face = [&](int gx, int gy, int z, int h, int v, int zNext) -> uint32_t {
     int tz = 0, part = 0;
     const int t = Tw(gx, gy, tz, part);
+    // ((M7c fixer) the gate roof's eave over the road: a fascia two px deep, then the road seen under it)
+    if (!t && spanRoof(gx, gy)) {
+      (void)h;
+      const Ramp& RR = ws ? CONE : (cw == CityWall::Thorn ? kWallThorn : (cw == CityWall::Palisade || cw == CityWall::Rampart ? kRoofBrownW : kBrick));
+      // the hip's slope toward the south drum: the rows between its courses are roof too (in the slope's shade)
+      if (zNext > 0 && spanRoof(gx, gy + 1)) return RR[gx < 8 ? 2 : 1];
+      if (v == 0) return RR[gx < 8 ? 2 : 1];
+      if (v == 1) return RR[0];
+      if (gx < 0 || gx > 15 || !S.in(gx, gy)) return kSkipPx;
+    }
     if (t) {
       // round tower: cylinder light across, its courses (or logs, or leaves), an arrow slit facing out
       float u = (gx + 0.5f - 8) / kTowerR;
@@ -801,7 +856,7 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
         }
         case TK_BASTION: {
           if (cw == CityWall::Rampart) {
-            if (v == 0) return kWallGrass[std::min(4, base + 1)];
+            if (v == 0) return kDry[std::min(4, base + 1)];
             return turfFace(gx, h, base - 2);
           }
           if (v == 0 || (z > wallH + 5 && h >= wallH + 4)) return R[std::min(4, base + 1)];
