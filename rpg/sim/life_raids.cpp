@@ -124,6 +124,10 @@ void Game::raidStep(float dt) {
     if (!outcome) return;
     R.outcome = outcome;
     life.lastRaidOutcome = outcome;
+    // (M8 FELLOWS) a night defence won with the player in the fight: the companions saw the town held
+    if (outcome == 1 && !inside && !travelling() && !party.empty() &&
+        len(pl().p - Vec2(s.ex * TILE + 8.0f, s.ey * TILE + 8.0f)) < (float)(std::max(s.r.w, s.r.h) / 2 + 12) * TILE)
+      deed(party::Deed::DefendedTown, s.id);
     const std::string taken = raidOutcome(*this, si, *c, outcome == 2, R.night);
     if (outcome == 2) life.stats.raidsFailed++;
     // whoever is left of the party leaves

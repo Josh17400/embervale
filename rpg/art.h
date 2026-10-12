@@ -20,6 +20,7 @@
 #include "rpg/art/art_culture.h"
 #include "rpg/art/art_life.h"
 #include "rpg/art/art_home.h"   // M7 Home: crops, yard objects, scaffolding, horses, trophies, paintings
+#include "rpg/art/art_party.h"  // M8 Fellowship: party portraits, the bonded hound, graves of the fallen
 
 namespace art {
 

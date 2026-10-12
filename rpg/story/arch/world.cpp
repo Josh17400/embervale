@@ -91,6 +91,7 @@ stage raided_end
   journal "{HOME} TOOK THE STEWARD'S GRAIN AND SHARED IT OPENLY. THE LORD'S RIDERS FOUND NOBODY TO HANG."
   do reward fair
   do mark took_the_lords_grain
+  do deed stole
   do remember giver "THEY ASKED WHO LED IT. THE WHOLE SQUARE SAID ME. EVERY ONE OF US. <<boast:pride>>"
   do fact "IN THE HUNGRY YEAR {HOME} TOOK THE LORD'S GRAIN AND SIGNED FOR EVERY BOWL. THE LEDGER HANGS IN THE INN."
 
@@ -101,6 +102,7 @@ stage hidden_end
   do reward small
   do hide steward
   do mark outlaw_of_the_hungry_year
+  do deed stole
   do remember giver "WE EAT. QUIETLY. NOBODY TALKS ABOUT THE STEWARD. NOBODY TALKS ABOUT YOU, EITHER, IF ANYONE ASKS."
 
 stage fair_end
@@ -594,6 +596,7 @@ stage cubs
 
 stage drowned_end
   end success
+  do deed cruelty
   say "THE HUNTRESS DID IT AT THE MILLPOND AND CAME BACK WITH WET SLEEVES AND DID NOT SPEAK AT SUPPER. THE CHILDREN OF {HOME} PLAY AT THE EDGE OF THE FIELDS AGAIN. ONE OF THEM STILL HOWLS AT NIGHT."
   journal "YOU KILLED {BEAST} AND BROUGHT {HOME}'S CHILDREN HOME. ITS YOUNG WERE DROWNED."
   do reward rich
@@ -617,6 +620,7 @@ stage freed_end
   do reward fair
   do befriend kin
   do mark freed_the_beasts_young
+  do deed mercy
   do remember kin "YOU LET THEM GO. GOOD. I COULDN'T HAVE KILLED THEM EITHER. THAT'S WHY I CAME BACK WITHOUT THE SPEAR."
   do fact "THE YOUNG OF {BEAST} RUN WILD SOMEWHERE FAR FROM {HOME}. ONE DAY ONE OF THEM WILL BE AS GREAT AS ITS MOTHER."
 )SAGA";

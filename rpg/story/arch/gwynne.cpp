@@ -207,6 +207,7 @@ stage captives
 
 stage hanged_end
   end success
+  do deed cruelty
   say "THE POSTS AT THE FORD CREAK IN THE WIND NOW. NO RAIDER HAS CROSSED SINCE. THE [[=band]] DRINK TO YOU, AND DO NOT SING."
   journal "THE [[=band]] HELD THE FORD AT {FORD}, AND HANGED THEIR PRISONERS THERE AS A WARNING."
   do reward fair
@@ -738,11 +739,13 @@ stage hanged_end
   do reward fair
   do hide chief
   do mark hanged_the_raider
+  do deed bandits
   do remember giver "IT'S DONE. IT'S DONE. I SAY IT EVERY NIGHT NOW INSTEAD OF HIS NAME."
   do fact "A RAIDER WAS HANGED AT THE CROSSROADS OF {HOME}. HIS PEOPLE SAY {HOME}'S LEVY BURNED THEM FIRST."
 
 stage freed_end
   end success
+  do deed mercy
   say "{GIVER} OPENED THE GATE. {CHIEF} BOWED, AND WENT, AND THE HORSES CAME BACK A WEEK LATER WITH NOBODY LEADING THEM, AND A SACK OF SEED CORN TIED TO EACH SADDLE."
   journal "{GIVER} LET {CHIEF} GO HOME. THE HORSES CAME BACK WITH SEED CORN."
   do reward fair
@@ -906,6 +909,7 @@ stage hunt_alone
 
 stage burn
   goal goto village
+  do deed cruelty
   then burned_talk
   do set burned 1
   journal "{GIVER} WANTS {SISTER}'S BARN IN {VILLAGE} BURNED TO DRAW {FOE} OUT OF {CAMP}."

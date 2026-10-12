@@ -3155,6 +3155,7 @@ bool Game::lifeChoose(const DlgOpt& o) {
     gold -= o.arg;
     sfx((int)Sfx::Coin, pl().p);
     if (mc) LifeOps::takeFood(*mc);
+    deed(party::Deed::Tavern, mc ? mc->site : 0);   // M8: a meal at the inn (the companions eat too)
     life::PlayerNeeds& n = life.player;
     n.sinceMealH = 0;
     n.mealQuality = 3;
@@ -3177,6 +3178,7 @@ bool Game::lifeChoose(const DlgOpt& o) {
     k += amount;
     if (k >= 3 && !(r.flags & life::RF_BEFRIENDED) && life.befriend(c->site, r.idx)) {
       emit(Ev::Notice, pl().p, (int)rgba(240, 150, 170), 0, "YOU HAVE A FRIEND IN " + world.sites[(size_t)si].name + ": " + r.name);
+      deed(party::Deed::Befriended, life::npcId(c->site, r.idx));   // M8
       LifeOps::bubble(a, Bubble::Heart, 2.5f);
     }
   };
@@ -3192,6 +3194,8 @@ bool Game::lifeChoose(const DlgOpt& o) {
           if (*s > fi) (*s)--;
       }
       life.feed(c->site, r.idx, q);
+      if (r.flags & life::RF_REFUGEE) deed(party::Deed::HelpedRefugees, c->site, 2);   // M8 (FELLOWS): the war's homeless fed
+      else deed(party::Deed::Charity, c->site, r.job == life::Job::Beggar ? 2 : 1);   // M8
       LifeOps::bubble(a, Bubble::Heart, 2.0f);
       kindness(r.job == life::Job::Beggar ? 2 : 1);
       dlg.text = r.job == life::Job::Beggar ? "BLESS YOU. BLESS YOU! THE FIRST THING I'VE EATEN IN DAYS." : what + " TO SHARE? THAT'S KIND OF YOU. I WON'T FORGET IT.";
@@ -3202,6 +3206,7 @@ bool Game::lifeChoose(const DlgOpt& o) {
       if (gold < o.arg) { dlg.text = "YOU HAVE NOTHING TO GIVE."; return true; }
       gold -= o.arg;
       r.coin = (uint16_t)std::min(60000, r.coin + o.arg);
+      deed((r.flags & life::RF_REFUGEE) ? party::Deed::HelpedRefugees : party::Deed::Charity, c->site);   // M8
       r.need[(int)life::Need::Money] = (uint8_t)std::min(100, r.need[(int)life::Need::Money] + 15);
       sfx((int)Sfx::Coin, a.p, 1.2f);
       LifeOps::bubble(a, Bubble::Coin, 2.0f);
@@ -3369,4 +3374,72 @@ float Game::lifeXpMul() const { return (life.player.buffs() & life::BUFF_RESTED)
 const Game::LifeFolkStats& Game::lifeFolkStats() const {
   static const LifeFolkStats none;
   return lifeRt_ ? lifeRt_->stats : none;
+}
+
+// (M8 lead) a census resident's street look on any actor (a companion recruited from the census keeps the face, the dress
+// and the name the town knew): the TOWNSFOLK rules of spawnResident / dressResident, without spawning anyone
+bool Game::dressAsResident(Actor& a, ew::Gid site, int idx) {
+  const int si = world.siteHandle(site);
+  const life::Census* c = si >= 0 ? life.find(site) : nullptr;
+  if (!c || idx < 0 || idx >= (int)c->res.size()) return false;
+  const life::Resident& r = c->res[(size_t)idx];
+  const int keepSite = a.site, keepSlot = a.slot, keepBldg = a.bldg;
+  a.site = si;   // makeLook dresses by the site's culture
+  // (M8 integration) the street body's identity (spawnResident: bldg -1, slot LIFE_SLOT0 + idx): the culture dress is
+  // seeded by them, so without it a recruit's face, people and hat changed the moment they joined
+  a.slot = LIFE_SLOT0 + idx;
+  a.bldg = -1;
+  a.role = life::jobRole(r.job);
+  if (a.role == Role::Guard) a.role = Role::Villager;
+  LifeOps::dressResident(*this, a, r);
+  a.site = keepSite; a.slot = keepSlot; a.bldg = keepBldg;
+  return true;
+}
+
+// ================================================================= (M8 FELLOWS) a companion's body on the furniture
+// of the player's own house (game_internal.h): the TOWNSFOLK fit rules (the head on the pillow, the seat line on the
+// seat), without the townsfolk's seat reservations (nobody of the census lives in the player's house)
+bool lifeLayInBed(Game& g, Actor& a, int x, int y) {
+  if (!g.inside || !g.sub.in(x, y)) return false;
+  const int pr = g.sub.propAt(x, y);
+  if (!pr) return false;
+  const Prop b = (Prop)(pr - 1);
+  if (b != Prop::Bed && b != Prop::BunkBed && b != Prop::SleepingMat && b != Prop::Bedroll && b != Prop::Hammock) return false;
+  const bool longBed = g.sub.propAt(x, y - 1) == (int)Prop::Filler + 1;
+  a.p = Vec2(x * TILE + 8.0f, y * TILE + 16.0f + (float)sleepAy(b, longBed, LifeOps::kitOf(g)));
+  a.home = a.p; a.goal = a.p;
+  a.face = 0;
+  a.st = AState::Idle;
+  a.posture = Posture::Sleep;
+  a.postureT = 0;
+  a.useX = x; a.useY = y;
+  return true;
+}
+
+bool lifeSitOn(Game& g, Actor& a, int x, int y, Posture post) {
+  if (!g.inside || !g.sub.in(x, y)) return false;
+  const int pr = g.sub.propAt(x, y);
+  if (!pr) return false;
+  const Prop s = (Prop)(pr - 1);
+  if (s != Prop::Chair && s != Prop::Stool && s != Prop::Bench && s != Prop::Cushion) return false;
+  // facing the table beside it when there is one
+  int pref = 0;
+  const int tbl = (int)Prop::Table + 1;
+  if (g.sub.propAt(x, y - 1) == tbl) pref = 1;
+  else if (g.sub.propAt(x + 1, y) == tbl) pref = 2;
+  else if (g.sub.propAt(x - 1, y) == tbl) pref = 3;
+  const int faces[4] = {pref, 0, 2, 3};
+  for (int f : faces) {
+    int ax = 0, ay = 0;
+    if (!seatAt(s, f, ax, ay)) continue;
+    a.p = Vec2(x * TILE + 8.0f + (float)ax, y * TILE + 16.0f + (float)ay);
+    a.home = a.p; a.goal = a.p;
+    a.face = f;
+    a.st = AState::Idle;
+    a.posture = seatedPost(s, post);
+    a.postureT = (float)(hash32((uint32_t)a.id * 7u) % 100u) * 0.01f;
+    a.useX = x; a.useY = y;
+    return true;
+  }
+  return false;
 }

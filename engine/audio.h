@@ -51,6 +51,10 @@ enum class Sfx : uint8_t {
   // M7 Home (VIEW lane): the ridden horse's hooves (the view plays them at the walk's four-beat and the gallop's
   // three-beat cadence, pitched by the ground)
   Hoof,          // one hoof on packed earth: a hollow, woody clop with a little grit
+  // M8 Fellowship (lead, phase A stand-ins; the ART lane, owner of the generated audio in M8, voices them)
+  Revive,        // a friend's wounds bound: cloth drawn tight, a caught breath, a warm rising swell
+  Knell,         // a companion has died: one slow, low funeral bell over a hushed choir
+  Howl,          // the bonded hound's or wolf's howl (a rising, wavering call)
   COUNT
 };
 

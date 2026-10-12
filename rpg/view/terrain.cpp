@@ -1066,17 +1066,26 @@ uint32_t pavePixel(int mat, bool road, int px, int py, float e, float paveV, flo
       } else {
         // the forum: big travertine slabs in irregular courses (M3b: no two courses alike), crisp joints, fine pitting,
         // a few slabs of darker marble
-        const Ashlar sl = ashlarAt(px, py, 1311, 19, 6);
+        // (fixer M8 r3, review: "pavers about the size of a head, random blue-grey tiles, flat") slabs of a person's stride, not a head's height; each slab dished a little (its lit top-left lip, its
+        // shaded foot two pixels deep), a rare warm-grey marble one instead of blue tiles, broad wear trodden darker
+        // down the middle of the square; at the rim a dark worn edge stone where the square meets the ground
+        const Ashlar sl = ashlarAt(px, py, 1311, 13, 4);
         const int in = sl.in, iy = sl.iy;
         const float tone = (sl.id >> 8) * (1.0f / 16777216.0f);
-        c = lerpc(C(204, 192, 164), C(226, 216, 190), tone);
-        if ((sl.id % 13u) == 0) c = lerpc(C(168, 172, 176), C(186, 190, 192), tone);   // a grey marble slab
-        if (in == 0 || iy == 0) c = C(150, 138, 114);
+        c = lerpc(C(196, 184, 156), C(220, 208, 180), tone);
+        if ((sl.id % 29u) == 0) c = lerpc(C(176, 170, 160), C(190, 184, 172), tone);   // a weathered marble slab
+        const bool jt = in == 0 || iy == 0;
+        if (jt) c = C(142, 128, 104);
         else if (iy == 1 || in == 1) c = mul(c, 1.05f);
-        else if (iy == sl.rh - 1 || in == sl.sw - 1) c = mul(c, 0.94f);
-        if (h < 0.05f && in > 0 && iy > 0) c = mul(c, 0.90f);   // pits in the stone
-        c = mul(c, 0.95f + broad * 0.10f);
-        if (rim) c = (in == 0 || iy == 0) ? C(132, 112, 86) : lerpc(c, C(186, 168, 134), 0.35f);
+        else if (iy == sl.rh - 1 || in == sl.sw - 1) c = mul(c, 0.90f);
+        else if (iy == sl.rh - 2 && sl.rh > 4) c = mul(c, 0.96f);
+        if (h < 0.05f && !jt) c = mul(c, 0.90f);   // pits in the stone
+        c = mul(c, 0.92f + broad * 0.12f);
+        c = lerpc(c, C(170, 150, 120), std::max(0.0f, vnoise(px / 24.0f, py / 24.0f, 1313) - 0.6f) * 0.6f);   // trodden wear
+        if (rim) {
+          if (paveV < 0.53f) c = jt ? C(96, 82, 62) : lerpc(C(150, 132, 104), C(164, 146, 116), tone);   // the worn edge stone
+          else c = jt ? C(124, 104, 78) : mul(lerpc(c, C(184, 164, 130), 0.4f), 0.94f);                // earth in the joints
+        }
       }
       break;
     }
@@ -3047,6 +3056,42 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
     if (eco != Ground::Void) {
       E = ee;
       if (eco != g) { g = eco; sx = px; sy = py; }
+    } else if (m.kind == MapKind::Overworld && ecoGround(g) && ecoGround(real) && [&]() {
+      // (fixer M8 r2, review: "the grass patches by the yurts are hard-edged rectangles") two grounds of ONE biome (a
+      // village's trodden grass left in its wood's forest floor, a clearing): a smooth field over the four tile centres
+      // round a gently meandered point (a lone tile a rounded patch, a staircase one wobbling edge, a long straight run
+      // a soft meander), roughened by two octaves of noise. The broad warp below only slid their tile rectangles about.
+      const float mx = px + (vnoise(px / 37.0f, py / 37.0f, 2141) - 0.5f) * 22.0f;
+      const float my = py + (vnoise(px / 37.0f, py / 37.0f, 2143) - 0.5f) * 22.0f;
+      const float fx = (mx - 7.5f) / 16.0f, fy = (my - 7.5f) / 16.0f;
+      const int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
+      const float ax = fx - ix, ay = fy - iy;
+      const Eco own = ecoT(m, tx, ty);
+      const Ground q[4] = {m.at(ix, iy), m.at(ix + 1, iy), m.at(ix, iy + 1), m.at(ix + 1, iy + 1)};
+      Ground A = Ground::Void, B = Ground::Void;
+      for (int k = 0; k < 4; k++) {
+        if (!ecoGround(q[k]) || ecoT(m, ix + (k & 1), iy + (k >> 1)) != own) return false;
+        if (A == Ground::Void || q[k] == A) A = q[k];
+        else if (B == Ground::Void || q[k] == B) B = q[k];
+        else return false;   // three grounds: the warp's own edges
+      }
+      if (B == Ground::Void) {   // the meandered point lies wholly in one ground
+        if (A == real && A == g) return false;   // (the plain inside of a patch: nothing to decide)
+        g = A; sx = px; sy = py; E = own;
+        return true;
+      }
+      if ((int)B < (int)A) std::swap(A, B);
+      auto av = [&](int k) { return q[k] == A ? 1.0f : 0.0f; };
+      float v = (av(0) * (1 - ax) + av(1) * ax) * (1 - ay) + (av(2) * (1 - ax) + av(3) * ax) * ay;
+      if (av(0) == av(3) && av(1) == av(2) && av(0) != av(1)) {   // a diagonal step: one band through the corner
+        const float dd = av(0) > 0.5f ? std::fabs(ax - ay) : std::fabs(ax + ay - 1.0f);
+        v = std::max(v, 1.0f - dd * 0.9f);
+      }
+      v += (vnoise(px / 10.0f, py / 10.0f, 2145) - 0.5f) * 0.40f + (vnoise(px / 4.0f, py / 4.0f, 2147) - 0.5f) * 0.18f;
+      g = v > 0.5f ? A : B; sx = px; sy = py; E = own;
+      return true;
+    }()) {
+      // (the field above decided the pixel)
     } else if (m.kind == MapKind::Overworld && ecoGround(g)) {
       // (fixer r2: a gentler ordered dither, 8 px of jitter instead of 18: the wide checkerboard fringe read as spilled
       // paint; the finer noise carries the edge instead)
@@ -3065,7 +3110,9 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
       const Ground e = m.at(etx, ety);
       if (ecoGround(e)) {
         const Eco eE = ecoT(m, etx, ety);
-        if (e != g || eE != ecoT(m, sx >> 4, sy >> 4)) { g = e; E = eE; sx = px; sy = py; }
+        // (fixer M8 r2) another ground of the SAME biome is the field's above (this broad warp slid its tile squares)
+        const bool sameEco = eE == ecoT(m, sx >> 4, sy >> 4);
+        if (!sameEco) { g = e; E = eE; sx = px; sy = py; }
       }
     }
   } else if (m.kind == MapKind::Overworld && (real == Ground::Plaza || real == Ground::StoneFloor)) {

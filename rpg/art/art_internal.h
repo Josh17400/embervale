@@ -393,5 +393,22 @@ enum Species { kHuman = 0, kSkeletonSp, kDraugrSp, kGoblinSp };
 Canvas humanoidCell(Species sp, int frame);
 // one standing human figure (HUMAN_W x HUMAN_H, idle pose, not outlined): statues and other props reuse the rig
 Canvas humanFigureStill(const HumanLook& look, int facing);
+// (M8) the rig's resolved colours and pieces of a look (art_human.cpp), so painters at other scales (the party
+// portraits, art_party.cpp) wear exactly what the sheet wears: each ramp is 5 steps, 0 deepest shadow .. 4 highlight
+struct LookKit {
+  uint32_t skin[5], hair[5], top[5], sleeve[5], trim[5], cloak[5], head[5], plume[5], helm[5], gilt[5], hood[5], pat[5];
+  uint32_t eye = 0, helmAccent = 0, helmVisor = 0, accent = 0;
+  int outfit = 0;          // the Outfit whose silhouette the body is painted in (an armour band picks one)
+  int armor = 0;           // HumanLook::armorStyle as painted (0 legacy)
+  int form = 0;            // the armour's body form (cult::BodyArm + 1) as painted
+  int cut = 0;             // the garment cut as painted (0: the outfit's)
+  int hw = 0;              // the culture headwear as painted (helmets and the legacy hood win)
+  bool worn = false;       // a helmet is worn (helmStyle, or the legacy helmet flag)
+  int helmShape = 0;       // the helm's silhouette: 1 cap, 2 nasal, 3 kettle, 4 great helm, 5 spangen, 6 horned, 7 plumed,
+                           // 8 aventail, 9 masked, 10 crested, 11 winged, 12 elven, 13 obsidian horns, 14 ember crown
+  bool metalBody = false;  // plate-like torso (pauldrons)
+  bool mail = false;       // a mail shirt / the guard's mail shows at the collar
+};
+void lookKit(const HumanLook& look, LookKit& k);
 
 }  // namespace art

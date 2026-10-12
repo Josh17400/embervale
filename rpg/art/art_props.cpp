@@ -4864,6 +4864,76 @@ void ruinWall(Canvas& c, int v) {
   }
 }
 
+// (M8 ART) A tile of a ruin wall that runs north-south (another wall tile north or south of it: joins bits 1 N, 2 E,
+// 4 S, 8 W). The whole run stands at one height (a 16 px face), so each tile's top sits exactly over the face of the
+// tile north of it and the run reads as one continuous wall top seen from above: long dressed blocks laid along the
+// run in two staggered columns, the west rim lit, the east rim turned into shade, chips knocked out of both rims and
+// moss in the joints by variant; the north end of a run is broken off in a stepped profile, its south end shows the
+// coursed face. Tiles without a north / south neighbour are the east-west painter's (ruinWall).
+void ruinWallRun(Canvas& c, int v, int joins) {
+  const int W = c.w, H = c.h;
+  const int FH = 16, faceY = H - FH, capY = faceY - 16;
+  const Ramp& R = kStone;
+  v &= 7;
+  const uint32_t sd = 1931u + (uint32_t)v * 53u;
+  const bool openN = !(joins & 1);
+  // the run's broken north end: whole blocks gone in a stepped edge
+  int lost[16] = {};
+  if (openN) {
+    int cur = 2 + (int)(hash3(v, 5, sd) % 3);
+    for (int x = 0; x < W;) {
+      const int bw = 3 + (int)(hash3(x, v, sd + 2) % 4);
+      cur = std::clamp(cur + (int)(hash3(x, v, sd + 3) % 5) - 2, 0, 7);
+      for (int k = 0; k < bw && x < W; k++, x++) lost[x] = cur;
+    }
+  }
+  for (int y = capY; y < faceY; y++)
+    for (int x = 0; x < W; x++) {
+      const int ty = y - capY;
+      if (ty < lost[x]) continue;
+      // rim chips: a pixel or two knocked off the west / east edge here and there
+      const bool chipW = x == 0 && hash3(ty, v, sd + 4) % 7 == 0, chipE = x == W - 1 && hash3(ty, v, sd + 5) % 6 == 0;
+      if (chipW || chipE) continue;
+      const int colm = x < 8 ? 0 : 1, off = colm ? 4 : 0;
+      const int by = (ty + off) % 8, bx = x % 8;
+      const int block = (ty + off) / 8;
+      uint32_t col = mix(R[3], R[4], 0.12f + hashf(colm, block + v * 3, sd + 6) * 0.3f);
+      if (by == 0 || bx == 0) col = R[2];                               // the joints
+      else if (bx == 1) col = mix(R[3], R[4], 0.6f);                    // each block's lit west edge
+      else if (bx == 7 || by == 7) col = mix(R[2], R[3], 0.55f);
+      if (hashf(x, y, sd + 10) < 0.06f) col = R[2];                     // pitting
+      if (x == 0) col = R[4];                                           // the wall's west rim in the light
+      if (x == W - 1) col = mix(R[1], R[2], 0.5f);                      // the east rim turning away
+      if (openN && ty == lost[x]) col = ty > 0 ? R[2] : R[4];           // the broken edge
+      c.set(x, y, col);
+    }
+  // the face (seen only at the run's south end, or where the next tile has fallen lower): coursed masonry
+  for (int y = faceY; y < H; y++)
+    for (int x = 0; x < W; x++) {
+      const int fy = y - faceY;
+      const int course = fy / 5, off = (course & 1) ? 3 : 0;
+      const int bx = (x + off) % 7, by = fy % 5;
+      int k = (by == 0 || bx == 0) ? 0 : 1;
+      if (k == 1 && hashf((x + off) / 7, course, sd + 4) < 0.35f) k = 2;
+      uint32_t col = R[k];
+      if (k && by == 1) col = mix(col, R[2], 0.5f);
+      if (fy == 0) col = R[3];
+      if (y >= H - 3) col = darken(col, 0.35f);
+      if (y == H - 1) col = R[0];
+      c.set(x, y, col);
+    }
+  // moss in the top's joints and creeping up the face
+  const int moss = v % 3;
+  for (int x = 0; x < W; x++) {
+    if (moss && hashf(x / 3, 4, sd + 7) < 0.2f * moss) {
+      const int top = capY + lost[x] + (int)(hash3(x / 3, 1, sd + 8) % 14);
+      for (int y = top; y < std::min(faceY, top + 2); y++) if (solid(c, x, y)) c.set(x, y, kMoss[2 + (y == top)]);
+    }
+    const int up = (int)(hash3(x, 2, sd + 9) % (moss + 3));
+    for (int k = 0; k < up; k++) c.set(x, H - 2 - k, kMoss[k == up - 1 ? 2 : 1]);
+  }
+}
+
 // A column snapped off: plinth, moulded base, a fluted drum broken at a ragged height (the break seen from above,
 // lit), a fallen piece at its foot.
 void ruinColumn(Canvas& c, int v) {
@@ -5222,6 +5292,15 @@ Canvas ruinVariant(Prop p, int v) {
   else if (p == Prop::RuinColumn) ruinColumn(c, v & 7);
   else paintProp(c, p, 0);
   outline(c);
+  return c;
+}
+Canvas ruinVariantRun(Prop p, int v, int joins) {
+  if (p != Prop::RuinWall || !(joins & 5)) return ruinVariant(p, (v & 7) | ((joins & 1) ? 8 : 0));
+  Canvas c(propW(p), propH(p));
+  ruinWallRun(c, v, joins);
+  outline(c);
+  // joined to the north: the row over its top lies on the north tile's own top (no outline seam across the run)
+  if (joins & 1) for (int x = 0; x < c.w; x++) c.set(x, c.h - 33, 0);
   return c;
 }
 

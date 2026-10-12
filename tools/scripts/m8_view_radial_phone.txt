@@ -1,0 +1,53 @@
+phone
+# M8 VIEW lane: the command radial on the phone. A finger held on a companion's card opens it round the card (staged
+# hold), slides onto ATTACK (the wedge lights, the caption says what it means) and lets go: the order is given and the
+# radial closes. A tap on the selected card opens it for taps; USE SKILL while the bond is too young is refused (the
+# wedge flashes, the caption and the card say why); the two people and the hound at level 20.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_view_radial_phone.txt     (m8v_radial_*.png)
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 11
++0.1 partyview level 20
++0.2 party recruit
++0.1 party recruit 1
++0.1 partyview hound
++0.1 walk east 1.0
++0.5 touch 1
++0.2 partyview hold 0
++0.2 expect partyview radial open
++0.1 shot m8v_radial_01_held.png
++0.1 partyview slide attack
++0.1 expect partyview hot attack
++0.1 shot m8v_radial_02_attack.png
++0.1 partyview release
++0.1 expect partyview radial closed
++0.2 partyview select 1
++0.1 partyview radial 1
++0.2 expect partyview radial open
++0.1 partyview choose skill
++0.1 expect partyview deny
++0.1 expect partyview radial open
++0.1 shot m8v_radial_03_refused.png
++0.1 party bond 55 1
++0.1 partyview choose defend
++0.1 expect partyview radial closed
++0.1 partyview radial 1
++0.2 partyview slide skill
++0.1 shot m8v_radial_04_skill_ready.png
++0.1 partyview close
++0.1 partyview radial 2
++0.3 shot m8v_radial_05_hound.png
++0.1 partyview close
+# (fixer M8 r3) the two people told to wait: their small busts stand a touch cell apart, and the ring opened on a
+# waiting one lights no wedge (its caption says they are waiting)
++0.1 party cmd wait 0
++0.1 party cmd wait 1
++0.4 expect partyview cards 3
++0.1 shot m8v_radial_06_waiting_busts.png
++0.1 partyview radial 1
++0.2 expect partyview hot none
++0.1 shot m8v_radial_07_waiting_ring.png
++0.1 partyview close
++0.2 quit

@@ -43,6 +43,7 @@ const char* kSfxName[(int)Sfx::COUNT] = {
   "Bark", "Cluck", "Meow", "Cheer",
   "HarpyShriek", "GolemSlam", "EliteSting", "BossRoar",
   "Hoof",
+  "Revive", "Knell", "Howl",
 };
 static_assert(sizeof(kSfxName) / sizeof(kSfxName[0]) == (size_t)Sfx::COUNT, "a name for every Sfx");
 const char* kMusicName[(int)Music::COUNT] = {"Silence", "Title", "Wild", "Night", "Town", "Cave", "Combat", "Boss", "Tavern"};

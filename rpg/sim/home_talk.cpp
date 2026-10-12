@@ -29,6 +29,7 @@ enum : int {
   H_RECIPES = DLG_HOME + 50, H_LEARN, H_COOK = DLG_HOME + 55,
   H_MILL = DLG_HOME + 60,
   H_HIRE = DLG_HOME + 70,
+  H_COMPHORSE = DLG_HOME + 80, H_PUP = DLG_HOME + 85,   // (M8 FELLOWS) a companion's horse; a pup from the dogs
 };
 
 bool isGrain(const Item& it) { return it.kind == ItemKind::Misc && home::ingredientOf(it) == home::Ingr::Grain; }
@@ -120,6 +121,13 @@ void HomeOps::talk(Game& g, Actor& a) {
   bool steppe = false;
   if (const cult::Culture* cu = si >= 0 ? g.world.cultureOf(si) : nullptr) steppe = cu->archetype == cult::Archetype::Steppe;
   if (job == life::Job::Stablehand || (job == life::Job::Herder && steppe)) g.dlg.opts.push_back({"HORSES FOR SALE...", H_HORSES, 0});
+  // (M8 FELLOWS) a pup from the yard's dogs: a stablehand's, or a farmer's or herder's who keeps dogs (one in two)
+  if (c && idx >= 0 && (job == life::Job::Stablehand || ((job == life::Job::Farmer || job == life::Job::Herder) && (hash32((uint32_t)life::npcId(c->site, idx) ^ 0xD065u) & 1u) == 0))) {
+    bool animal = false;
+    for (const party::Member& m : g.party.members) animal |= m.voc == party::Vocation::Hound;
+    if (!animal && !g.marks.count(markKey(life::npcId(c->site, idx), (Mk)PartyOps::MK_PUP)))
+      g.dlg.opts.push_back({"COULD I HAVE ONE OF YOUR PUPS? (" + std::to_string(party::PUP_PRICE) + " GOLD)", H_PUP, idx});
+  }
   // the innkeeper: the stable, recipes, the kitchen
   if (a.role == Role::Innkeeper && si >= 0) {
     const ew::Gid sid = g.world.sites[(size_t)si].id;
@@ -277,6 +285,13 @@ bool HomeOps::choose(Game& g, const DlgOpt& o) {
       if (room)
         for (home::Breed b : breeds)
           g.dlg.opts.push_back({std::string("BUY A ") + home::breedInfo(b).name + " (" + std::to_string(home::breedInfo(b).price) + " GOLD)", H_BUYHORSE, (int)b});
+      // (M8 FELLOWS) a horse of the breed bred here for a companion on foot (they keep it with them: it needs no stable)
+      for (size_t mi = 0; mi < g.party.members.size() && mi < 8; mi++) {
+        const party::Member& m = g.party.members[mi];
+        if (m.state != party::State::With || m.horse || m.voc == party::Vocation::Hound) continue;
+        const int price = home::breedInfo(own).price * party::HORSE_FOR_COMPANION_PCT / 100;
+        g.dlg.opts.push_back({"A HORSE FOR " + m.name + " (" + std::to_string(price) + " GOLD)", H_COMPHORSE, (int)mi * 16 + (int)own});
+      }
       g.dlg.opts.push_back({"FAREWELL.", A_BYE, 0});
       g.dlg.text = std::string("GOOD BEASTS, ALL OF THEM. THE ") + home::breedInfo(own).name + " IS BRED HERE" +
                    (home::breedInfo(own).sure ? ": SURE-FOOTED ON ANY SLOPE." : ".");
@@ -287,6 +302,26 @@ bool HomeOps::choose(Game& g, const DlgOpt& o) {
           g.dlg.text += std::string(", A ") + home::breedInfo(breeds[1]).name + " FOR " + std::to_string(home::breedInfo(breeds[1]).price);
         g.dlg.text += ". BUT I ONLY SELL TO A RIDER WITH A STABLE AT HOME THAT HAS ROOM FOR HER. BUILD ONE IN YOUR YARD AND COME BACK.";
       }
+      return true;
+    }
+    case H_COMPHORSE: {
+      const int mi = o.arg / 16, breed = o.arg % 16;
+      if (!g.partyBuyHorse(mi, breed, why)) done(g, why + ".");
+      else done(g, "SHE'S GENTLE AND STEADY. " + g.party.members[(size_t)mi].name + " WILL RIDE BESIDE YOU WHEREVER YOU GO NOW.");
+      return true;
+    }
+    case H_PUP: {
+      if (g.gold < party::PUP_PRICE) { done(g, "SIXTY GOLD, AND NOT A COIN LESS. THEY EAT LIKE WOLVES, THESE ONES."); return true; }
+      life::Census* c = nullptr;
+      int idx = -1, rsite = -1;
+      (void)jobOf(g, a, c, idx, rsite);
+      const uint32_t seed = c ? hash32((uint32_t)life::npcId(c->site, idx) ^ (uint32_t)g.day ^ 0x9F7u) : 0x9F7u;
+      const int mi = g.partyAdoptAnimal(0, seed, a.p + Vec2(10, 6), why);
+      if (mi < 0) { done(g, "YOU HAVE A DOG ALREADY. ONE IS ENOUGH TO FEED ON THE ROAD."); return true; }
+      g.gold -= party::PUP_PRICE;
+      g.party.members[(size_t)mi].female = false;
+      if (c) g.marks[markKey(life::npcId(c->site, idx), (Mk)PartyOps::MK_PUP)] = g.day;
+      done(g, "THIS ONE. THE OTHERS PUSH HIM AWAY FROM THE BOWL, BUT HE NEVER GIVES UP. HE'LL GROW. BE GOOD TO HIM.");
       return true;
     }
     case H_BUYHORSE:

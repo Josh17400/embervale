@@ -34,7 +34,7 @@ using art::Posture;
 
 const char* const kPostureName[] = {"NONE", "SIT", "SITEAT", "SITDRNK", "EAT", "DRINK", "CHEER", "HAMMER", "HOE", "SWEEP",
                                     "CHOP", "STIR", "CARRY", "FISH", "SLEEP", "WAVE", "PLAY", "DANCE", "LUTE", "DRUM",
-                                    "FLUTE", "PRAY", "BEG", "LAMP", "READ", "SITFLR", "FLREAT", "FLRDRNK", "RIDE"};
+                                    "FLUTE", "PRAY", "BEG", "LAMP", "READ", "SITFLR", "FLREAT", "FLRDRNK", "RIDE", "DOWNED", "KNEEL"};
 static_assert(sizeof(kPostureName) / sizeof(kPostureName[0]) == (size_t)Posture::COUNT, "posture names");
 
 Canvas cellOf(const Canvas& sheet, int col, int row, int w, int h) {
@@ -114,8 +114,9 @@ void postureSheets(const std::string& dir) {
       {Posture::Eat, Posture::Drink, Posture::Cheer, Posture::Wave, Posture::Pray, Posture::Read, Posture::Play, Posture::Dance},
       {Posture::Hammer, Posture::Hoe, Posture::Sweep, Posture::Chop, Posture::Stir, Posture::Carry, Posture::Fish, Posture::Lamp},
       {Posture::Lute, Posture::Drum, Posture::Flute, Posture::Sleep},
+      {Posture::Downed, Posture::Kneel},   // (M8) the fellowship's: bleeding out, binding a wound (party_gallery: mourning)
   };
-  const char* gname[] = {"seated", "social", "work", "music"};
+  const char* gname[] = {"seated", "social", "work", "music", "fellow"};
   for (size_t gi = 0; gi < groups.size(); gi++) {
     const auto& G = groups[gi];
     // columns: per posture, 3 facings x its frames; rows: looks
@@ -373,6 +374,7 @@ void checkPostures() {
       std::vector<uint8_t> vars = {0};
       if (P == Posture::Lute) vars = {(uint8_t)LeadInst::Lute, (uint8_t)LeadInst::Oud, (uint8_t)LeadInst::Fiddle, (uint8_t)LeadInst::Harp};
       if (P == Posture::Flute) vars = {(uint8_t)LeadInst::Flute, (uint8_t)LeadInst::Pipes, (uint8_t)LeadInst::Reed, (uint8_t)LeadInst::Horn, (uint8_t)LeadInst::Bells, (uint8_t)LeadInst::Voice};
+      if (P == Posture::Kneel) vars = {0, 1};   // (M8) binding a wound, mourning at a grave
       if (P == Posture::Drum) vars = {(uint8_t)PercKind::Frame, (uint8_t)PercKind::Bodhran, (uint8_t)PercKind::Taiko, (uint8_t)PercKind::Tabla, (uint8_t)PercKind::Gong, (uint8_t)PercKind::Wood, (uint8_t)PercKind::Bells};
       for (uint8_t v : vars) {
         const Canvas shv = art::humanPostureSheet(lk[li].L, P, v);

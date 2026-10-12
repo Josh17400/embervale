@@ -1,0 +1,25 @@
+# M8 FELLOWS: a companion living at the player's house: asleep in a bed at night, at the table by day, out in the yard
+# by daylight, and asked along again.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_fellows_house.txt     (m8_fellows_house*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 hour 11
++0.2 party recruit
++0.2 party house
++0.2 party cmd home
++0.1 expect party state home
++0.3 home enter house
++0.2 hour 23
++0.8 shot m8_fellows_house_night.png
++0.2 hour 12.3
++0.8 shot m8_fellows_house_meal.png
++0.2 hour 15
++0.8 shot m8_fellows_house_day.png
++0.2 home leave
++0.8 shot m8_fellows_house_yard.png
++0.2 party cmd follow
++0.1 expect party state with
++0.2 walk south 1.5
++2.0 expect party near 6
++0.2 quit

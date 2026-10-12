@@ -54,15 +54,41 @@ int Game::pickTarget(const Actor& a) const {
   int best = 0;
   float bs = 1e30f;
   if (p.st != AState::Dead && factionsHostile(a.faction, p.faction)) bs = len(p.p - a.p) / 1.5f * (a.target == p.id ? 0.8f : 1.0f);
-  if (inside || a.mon == Monster::Dragon) return 0;
+  // (M8) inside a cave, a ruin or a building only the player's companions share the player's danger
+  if ((inside && party.empty()) || a.mon == Monster::Dragon) return 0;
+  // (M8) with companions about, a pack spreads over the party: a body two foes already crowd draws the next one less
+  // (only while a party is in play, so the solo fight is as it was)
+  bool spread = false;   // (a companion in the fight: one holding back is no one to spread to)
+  for (const party::Member& m : party.members) spread |= m.state == party::State::With && m.stance != party::Cmd::Passive;
+  auto crowd = [&](const Actor& t) {
+    int n = 0;
+    for (int hi : hostiles_) {
+      if (hi <= 0 || hi >= (int)actors.size()) continue;
+      const Actor& o = actors[(size_t)hi];
+      if (o.id == a.id || !o.hostile || !o.aggro || o.st == AState::Dead || o.target != t.id) continue;
+      if (len2(o.p - t.p) < (5.0f * TILE) * (5.0f * TILE)) n++;
+    }
+    // (no room left at that body: the next foe looks elsewhere) the player holds two before the pack spreads, a
+    // companion one
+    if (t.player) return n < 2 ? 0.0f : 6.0f * TILE * (float)(n - 1);
+    return 4.0f * TILE * (float)n;
+  };
+  if (spread && bs < 1e29f) bs += crowd(p);
   float reach = a.aggroR * (a.aggro ? 1.4f : 1.0f);
   for (size_t i = 1; i < actors.size(); i++) {
     const Actor& e = actors[i];
     if (e.id == a.id || !e.npc || e.st == AState::Dead || e.fly || e.indoors) continue;
+    if (inside && !e.comp) continue;
     if (!factionsHostile(a.faction, e.faction)) continue;
     float d = len(e.p - a.p);
     if (d > reach) continue;
     float sc = d * (a.target == e.id ? 0.8f : 1.0f);
+    if (e.comp) {   // M8: a taunt pulls, a downed or passive companion is let be (party_game.cpp partyAggro)
+      const float m = partyAggro(a, e);
+      if (m <= 0) continue;
+      sc *= m;
+      if (spread) sc += crowd(e);
+    }
     if (sc < bs) { bs = sc; best = (int)i; }
   }
   return best;
@@ -180,6 +206,8 @@ void Game::updateFolk(Actor& a, float dt) {
   bool talking = mode == Mode::Dialogue && dlg.actor == a.id;
   // M5: a village animal (Actor::critter) lives by the TOWNSFOLK lane (life_game.cpp)
   if (!a.human && a.critter && lifeFolk(a, dt)) return;
+  // M8: a sellsword for hire at an inn, a body walking home out of sight (party_recruit.cpp)
+  if (a.partyTag && partyFolk(a, dt)) return;
   // M2: a beast that keeps a wayside place (the toll bridge's troll) holds its ground until it is crossed
   if (!a.human) {
     a.st = AState::Idle;

@@ -47,7 +47,9 @@ std::string givenName(const std::string& shownName);
 // ---------------------------------------------------------------- 2. one line at a time
 enum class Topic : uint8_t {
   None, Greeting, Intro, Smalltalk, Bark, Trade, Service, Need, Rumour, News, War, Story, QuestOffer, QuestActive,
-  QuestDone, Reward, Warning, Home, Craft, Foe, COUNT
+  QuestDone, Reward, Warning, Home, Craft, Foe,
+  Companion,   // (M8) a companion speaks, or someone speaks of the party (recruiting, kin, the fallen)
+  COUNT
 };
 const char* topicName(Topic t);
 // priorities (higher wins; ties: the later proposal wins, like the old overwrite order)

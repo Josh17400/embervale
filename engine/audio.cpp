@@ -611,6 +611,7 @@ const float kSfxTrim[(int)Sfx::COUNT] = {
   0.7f,  0.6f,  0.6f,  0.6f,                                // Bark Cluck Meow Cheer (M5 stand-ins)
   0.78f, 0.8f,  1.2f,  0.66f,                               // HarpyShriek GolemSlam EliteSting BossRoar (M6; integration: +2 / +4 dB to clear the music by 6 dB, phone too)
   0.6f,                                                     // Hoof (M7: under the music, a little above a footstep)
+  1.75f, 0.95f, 0.7f,                                       // Revive Knell Howl (M8 ART; calibrated with tools/audio_preview)
 };
 static_assert(sizeof(kSfxTrim) / sizeof(kSfxTrim[0]) == (size_t)Sfx::COUNT, "a trim for every Sfx");
 
@@ -967,6 +968,50 @@ void Audio::trigger(Sfx s, float k, float V) {
       add(NB(Saw, 83 * k, 0.42f * V).env(0.28f, 1, 1, 1.7f, 0.6f).vib(3.0f, 0.35f).vox(640 * k, 3).bump(0.9f).am(24, 0.6f).drive(1.6f).send(0.5f));
       add(NB(Noise, 0, 0.8f * V).env(0.18f, 1, 1, 1.7f, 0.7f).bp(620 * k, 1.0f).bump(1.6f).am(19, 0.45f).color(0.75f).send(0.5f));
       add(NB(Sine, 30 * k, 0.38f * V).env(0.25f, 1, 1, 1.7f, 0.9f).vib(3, 0.3f).slide(-0.3f));
+      break;
+    }
+    // M8 Fellowship (ART lane)
+    case Sfx::Revive: {   // a friend's wounds bound: linen torn and wound round (two swishes), drawn tight with a creak,
+                          // a caught breath as they come round, then a warm major swell rising under a soft shimmer
+      const float r = k * rnd(0.96f, 1.04f);
+      add(NB(Noise, 0, 0.55f * V).env(0.02f, 1, 1, 0.12f, 0.05f).bp(2300 * r, 1.4f).bump(0.8f).color(0.5f));            // the tear
+      add(NB(Noise, 0, 0.42f * V).env(0.03f, 1, 1, 0.16f, 0.06f).bp(1500 * r, 1.2f).bump(-0.6f).color(0.6f).at(0.16f));  // wound round
+      add(NB(Noise, 0, 0.50f * V).env(0.01f, 1, 1, 0.07f, 0.03f).bp(3100 * r, 2.4f).at(0.34f));                           // pulled tight
+      add(NB(Saw, 190 * r, 0.10f * V).env(0.005f, 0.06f).vox(1200 * r, 3.0f).slide(0.6f).at(0.34f));                     // the knot's creak
+      add(NB(Noise, 0, 0.36f * V).env(0.07f, 1, 1, 0.16f, 0.12f).vox(1100 * r, 2.2f).bump(0.7f).color(0.4f).at(0.46f));   // the caught breath
+      const float ch[4] = {261.6f, 329.6f, 392.0f, 523.3f};
+      for (int i = 0; i < 4; i++)
+        add(NB(Pad, ch[i] * r, 0.11f * V).detune(0.005f).env(0.35f, 1, 1, 0.45f, 0.7f).slide(0.08f).lp(1800 * r, 0.9f).fslide(0.8f).send(0.5f).at(0.55f + 0.06f * (float)i));
+      add(NB(Sine, 1046.5f * r, 0.06f * V).env(0.2f, 1, 1, 0.3f, 0.5f).vib(0.2f, 6).send(0.6f).at(0.8f));
+      add(NB(Sine, 1568.0f * r, 0.04f * V).env(0.25f, 1, 1, 0.25f, 0.5f).vib(0.2f, 7).send(0.6f).at(0.9f));
+      break;
+    }
+    case Sfx::Knell: {    // a companion has died: one slow, low funeral bell (its partials ringing out long, the hum last)
+                          // over a hushed choir that breathes in after the strike and fades with the bell
+      const float f0 = 110.0f * k;
+      static const float part[7][3] = {   // ratio, level, decay (s)
+          {0.5f, 0.34f, 5.5f}, {1.0f, 0.30f, 4.0f}, {1.19f, 0.18f, 3.0f}, {1.5f, 0.10f, 2.2f}, {2.0f, 0.16f, 2.0f}, {2.52f, 0.06f, 1.0f}, {3.0f, 0.04f, 0.6f}};
+      for (auto& pt : part) add(NB(Sine, f0 * pt[0], pt[1] * V).perc(pt[2]).send(0.55f));
+      add(NB(Fm, f0 * 2.0f, 0.06f * V).perc(1.6f).fm(2.76f, 2.0f, 0.6f).send(0.6f));
+      add(NB(Noise, 0, 0.22f * V).perc(0.03f).bp(1500 * k, 1.2f));                 // the clapper's strike, muffled
+      add(NB(Sine, f0 * 0.25f, 0.20f * V).perc(0.12f).pitch(0.5f, 0.03f));
+      const float choir[4] = {146.8f, 174.6f, 220.0f, 293.7f};   // D minor, low and soft
+      for (int i = 0; i < 4; i++)
+        add(NB(Pad, choir[i] * k, 0.07f * V).detune(0.007f).env(0.9f, 1, 1, 1.6f, 1.8f).vox(i < 2 ? 650.0f : 900.0f, 1.3f).vib(0.12f, 4.6f, 0.6f)
+                .send(0.65f).at(0.25f + 0.08f * (float)i));
+      add(NB(Noise, 0, 0.05f * V).env(0.9f, 1, 1, 1.4f, 1.6f).bp(900, 0.7f).send(0.6f).at(0.3f));   // the breath of the voices
+      break;
+    }
+    case Sfx::Howl: {     // the bonded hound's or wolf's howl: a breathy "oo" voice rising into a long wavering call that
+                          // sinks away at its end; k is the pitch (the view raises it for a pup, whose howl breaks up high)
+      const float r = k * rnd(0.97f, 1.03f);
+      const bool young = k > 1.25f;
+      add(NB(Saw, 330 * r, 0.30f * V).env(0.12f, 1, 1, 0.5f, 0.06f).vox(700 * r, 3.0f).slide(0.6f).vib(0.15f, 5.0f).send(0.45f));          // the rise
+      add(NB(Saw, 500 * r, 0.32f * V).env(0.04f, 1, 1, young ? 0.5f : 1.0f, 0.35f).vox(820 * r, 3.0f).vib(0.35f, 5.5f, 0.15f).slide(-0.5f)
+              .fslide(-0.4f).send(0.5f).at(0.48f));                                                                                     // the long call
+      add(NB(Sine, 1000 * r, 0.07f * V).env(0.05f, 1, 1, young ? 0.45f : 0.9f, 0.3f).vib(0.35f, 5.5f, 0.15f).slide(-0.5f).send(0.5f).at(0.5f));   // its ring
+      add(NB(Noise, 0, 0.12f * V).env(0.1f, 1, 1, young ? 0.9f : 1.4f, 0.3f).bp(900 * r, 1.4f).am(5.5f, 0.3f).send(0.4f));                // breath
+      if (young) add(NB(Saw, 620 * r, 0.16f * V).env(0.02f, 0.18f).vox(950 * r, 3.0f).slide(0.4f).at(1.0f).send(0.4f));                 // the voice breaking
       break;
     }
     case Sfx::COUNT: break;

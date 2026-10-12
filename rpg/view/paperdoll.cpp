@@ -6,10 +6,13 @@
 // (tap a worn item to take it off), the arrows turn the preview and scroll the list.
 #include <SDL3/SDL.h>
 #include <algorithm>
+#include <array>
+#include <map>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <initializer_list>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -377,4 +380,523 @@ void View::paperdollTap(Game& g, Vec2 p) {
     }
   if (!c.empty() && inR(p, kDX, kBtnY, std::floor((kDW - 12) / 2), 24)) { paperdollKey(g, SDLK_RETURN); S.armed = -1; return; }
   if (eq >= 0 && !(!c.empty() && c[S.cand] == eq) && inR(p, kDX + std::floor((kDW - 12) / 2) + 8, kBtnY, std::floor((kDW - 12) / 2), 24)) { g.useItem(eq); return; }
+}
+
+// ================================================================ M8 Fellowship: the PARTY page (VIEW lane)
+// The menu's PARTY tab (View::kPartyTab), in the EQUIP tab's style. A row of the companions' faces at the top (tap one;
+// [ and ] on the keyboard), REMEMBERED at its right end (N). The page: the companion turning slowly on a lit stage in
+// their own look, every worn piece in its maker culture's style (Game::partyLook, the human sheet), their eleven slots
+// round it (party::Slot) and SUPPLIES (potions and food to keep). Beside it STORY (name, vocation, origin, approval and
+// bond with the SKILL_BOND marks, the three bond skills with SkillInfo::what, party::aboutLine, days together, kills)
+// or, once a slot is picked, GEAR: what they wear there (TAKE BACK: Game::partyUnequip) and the pack's pieces for it
+// (a tap hands one over and they put it on: Game::partyEquip; supplies: Game::partyGive). REMEMBERED: the fallen
+// (Party::fallen) with their cause, day, epitaph and where the grave lies.
+// Keys: [ ] the companion, W / S a slot (STORY above the first), A / D the pack's row, Enter gives, X takes back,
+// N REMEMBERED (W / S its rows there).
+namespace {
+std::vector<std::string> wrapD(const std::string& s, int maxChars) {
+  std::vector<std::string> lines;
+  std::string line, word;
+  auto flush = [&]() {
+    if (word.empty()) return;
+    if (!line.empty() && (int)(line.size() + 1 + word.size()) > maxChars) { lines.push_back(line); line.clear(); }
+    if (!line.empty()) line += ' ';
+    line += word;
+    word.clear();
+  };
+  for (char c : s) {
+    if (c == ' ') flush();
+    else word += c;
+  }
+  flush();
+  if (!line.empty()) lines.push_back(line);
+  return lines;
+}
+std::string fitTextD(const std::string& s, float w) {
+  const int n = std::max(1, (int)((w + 1) / 6));
+  if ((int)s.size() <= n) return s;
+  std::string t = s.substr(0, (size_t)n);
+  const size_t sp = t.find_last_of(' ');
+  if (sp != std::string::npos && (int)sp >= n - 6) t.resize(sp);
+  return t;
+}
+// the companion's slots round the figure: the body on the left, what is held (and the supplies) on the right
+struct PSlot { int slot; ItemKind kind; const char* name; art::Icon ghost; int col, row; };
+constexpr int kSupplies = party::SLOTS;   // the pseudo-slot of potions and food
+const PSlot kPSlots[12] = {
+    {party::S_HELMET, ItemKind::Helmet, "HEAD", art::Icon::Helmet, 0, 0},   {party::S_AMULET, ItemKind::Amulet, "NECK", art::Icon::Amulet, 0, 1},
+    {party::S_CLOAK, ItemKind::Cloak, "CLOAK", art::Icon::Cloak, 0, 2},     {party::S_ARMOR, ItemKind::Armor, "BODY", art::Icon::Armor, 0, 3},
+    {party::S_GLOVES, ItemKind::Gloves, "HANDS", art::Icon::Gloves, 0, 4},  {party::S_BOOTS, ItemKind::Boots, "FEET", art::Icon::Boots, 0, 5},
+    {party::S_WEAPON, ItemKind::Weapon, "WEAPON", art::Icon::Sword, 1, 0},  {party::S_SHIELD, ItemKind::Shield, "SHIELD", art::Icon::Shield, 1, 1},
+    {party::S_BOW, ItemKind::Bow, "BOW", art::Icon::Bow, 1, 2},             {party::S_STAFF, ItemKind::Staff, "STAFF", art::Icon::Staff, 1, 3},
+    {party::S_RING, ItemKind::Ring, "RING", art::Icon::Ring, 1, 4},         {kSupplies, ItemKind::Potion, "SUPPLIES", art::Icon::PotionRed, 1, 5},
+};
+constexpr int kNPSlots = 12;
+struct PartyLay {
+  float chipY, chipS, chipPitch, remX, remW;
+  float slotX[2], slotTop, box, pitch, stageX, stageW, stageY, stageH, figCX, figFootY, figScale;
+  float dX, dW, dTop, btnY, rowH;
+};
+PartyLay partyLay(int W, int H, bool touch) {
+  PartyLay L;
+  L.chipY = 38; L.chipS = 26; L.chipPitch = 30;
+  L.remW = 92; L.remX = (float)W - 18 - L.remW;
+  const int ey = std::max(0, H - 270);
+  L.box = 24; L.pitch = std::min(32.0f, 27.0f + std::floor(ey / 6.0f));
+  L.slotTop = 72;
+  L.slotX[0] = 18;
+  L.stageX = L.slotX[0] + L.box + 6;
+  L.stageW = std::floor(92 + std::max(0, W - 480) * 0.08f);
+  L.slotX[1] = L.stageX + L.stageW + 6;
+  L.stageY = L.slotTop; L.stageH = 6 * L.pitch - 4;
+  L.figCX = std::floor(L.stageX + L.stageW / 2);
+  L.figScale = L.stageH >= 4 * art::HUMAN_H + 30 ? 4.0f : 3.0f;
+  L.figFootY = std::floor(L.stageY + L.stageH - 20);
+  L.dX = L.slotX[1] + L.box + 14;
+  L.dW = (float)W - 18 - L.dX;
+  L.dTop = 72;
+  L.rowH = touch ? 24.0f : 18.0f;
+  L.btnY = (float)H - 32;
+  return L;
+}
+float pslotX(const PartyLay& L, int i) { return L.slotX[kPSlots[i].col]; }
+float pslotY(const PartyLay& L, int i) { return L.slotTop + kPSlots[i].row * L.pitch; }
+// the pack's items that fit a slot (supplies: potions and food); what the hero wears stays on the hero
+std::vector<int> packFor(Game& g, int slot) {
+  std::vector<int> v;
+  for (int i = 0; i < (int)g.inv.size(); i++) {
+    const ItemKind k = g.inv[(size_t)i].kind;
+    if (slot == kSupplies ? (k == ItemKind::Potion || k == ItemKind::Food) : party::slotOf(k) == slot) {
+      if (int* e = g.equipSlot(k); e && *e == i) continue;
+      v.push_back(i);
+    }
+  }
+  return v;
+}
+const Item* wornBy(const party::Member& m, int slot) {
+  if (slot < 0 || slot >= party::SLOTS) return nullptr;
+  const int e = m.eq[(size_t)slot];
+  return e >= 0 && e < (int)m.inv.size() ? &m.inv[(size_t)e] : nullptr;
+}
+std::string partyNote;          // the page's last word ("ASTRID PUTS ON THE IRON HELM", or why not)
+Color partyNoteC;
+float partyNoteT = -100;
+const Color kAppC(0.95f, 0.78f, 0.36f), kBondC(0.52f, 0.78f, 1.0f);
+// a bar from lo to hi filled from `zero` to v, with tick marks (approval -100..100 and its thresholds; bond 0..100
+// and the skills' marks)
+void meter(Pix& P, float x, float y, float w, float v, float lo, float hi, Color c, std::initializer_list<float> marks, float zero) {
+  P.rect(x - 1, y - 1, w + 2, 7, Color(0.03f, 0.02f, 0.04f, 0.95f));
+  P.rect(x, y, w, 5, Color(0.14f, 0.11f, 0.10f));
+  const auto at = [&](float q) { return x + (q - lo) / (hi - lo) * w; };
+  const float z = at(zero), vv = at(std::clamp(v, lo, hi));
+  const float a = std::min(z, vv), b = std::max(z, vv);
+  const Color cc = v < zero ? Color(0.86f, 0.30f, 0.24f) : c;
+  P.rect(a, y, b - a, 5, cc);
+  P.rect(a, y, b - a, 1, Color(std::min(1.0f, cc.r + 0.25f), std::min(1.0f, cc.g + 0.25f), std::min(1.0f, cc.b + 0.25f)));
+  for (float mk : marks) P.rect(std::floor(at(mk)), y - 2, 1, 9, Color(0.95f, 0.9f, 0.8f, 0.8f));
+}
+int suppliesOf(const party::Member& m) {
+  int n = 0;
+  for (const Item& x : m.inv) if (x.kind == ItemKind::Potion || x.kind == ItemKind::Food) n += std::max(1, (int)x.count);
+  return n;
+}
+}  // namespace
+
+void View::drawPartyPage(Game& g) {
+  Pix& P = *pix_;
+  const PartyLay L = partyLay(Pix::W, Pix::H, touchUI);
+  const int n = (int)g.party.members.size();
+  if (n == 0 && !g.party.fallen.empty()) partyPage_ = 1;
+  if (g.party.fallen.empty()) partyPage_ = 0;
+  partySel_ = std::clamp(partySel_, 0, std::max(0, n - 1));
+  // ---- the faces row and REMEMBERED
+  for (int i = 0; i < n; i++) {
+    const party::Member& m = g.party.members[(size_t)i];
+    const float x = 18 + i * L.chipPitch, y = L.chipY;
+    const bool sel = partyPage_ == 0 && i == partySel_;
+    P.rect(x, y, L.chipS, L.chipS, sel ? Color(0.30f, 0.22f, 0.12f, 0.95f) : Color(0.10f, 0.085f, 0.08f, 0.95f));
+    const bool dim = m.state == party::State::Waiting || m.state == party::State::Home || m.state == party::State::Left;
+    const Tex& pt = portraitTex(g, m, m.state == party::State::Downed ? 2 : 0);
+    P.blitEx(pt, 0, 0, art::PORTRAIT_W, art::PORTRAIT_H, x + 1, y + 1, (float)art::PORTRAIT_W, (float)art::PORTRAIT_H, false,
+             dim ? Color(0.6f, 0.6f, 0.66f, 0.85f) : Color(1, 1, 1, 1));
+    P.frame(x, y, L.chipS, L.chipS, sel ? kGoldC : Color(0.42f, 0.34f, 0.22f));
+  }
+  if (n == 0) P.text(18, L.chipY + 9, "NO ONE TRAVELS WITH YOU NOW", 1, kDimC);
+  else if (partyPage_ == 0) {   // the picked one's name and how they stand, beside the faces
+    const party::Member& m = g.party.members[(size_t)partySel_];
+    const float nx = 18 + n * L.chipPitch + 6;
+    if (nx + 120 < L.remX) {
+      P.textS(nx, L.chipY + 4, m.name, 1, kGoldC);
+      P.text(nx, L.chipY + 15, party::stateName(m.state), 1, m.state == party::State::Downed ? Color(1, 0.45f, 0.38f) : kDimC);
+    }
+  }
+  if (!g.party.fallen.empty()) button(L.remX, L.chipY + 2, L.remW, 22, "REMEMBERED", partyPage_ == 1);
+  P.rect(16, L.chipY + L.chipS + 4, (float)Pix::W - 32, 1, Color(0.4f, 0.32f, 0.2f));
+  const float noteA = clampf(2.5f - (t_ - partyNoteT), 0, 1);
+
+  if (partyPage_ == 1) {
+    // ---- REMEMBERED: the fallen, the newest first; the picked one's stone beside the list
+    const int nf = (int)g.party.fallen.size();
+    partyScroll_ = std::clamp(partyScroll_, 0, std::max(0, nf - 1));
+    const float lx = 18, lw = std::floor(std::min(220.0f, (Pix::W - 36) * 0.42f)), top = L.dTop;
+    const float rh = touchUI ? 24.0f : 18.0f;
+    const int rows = std::max(3, (int)((Pix::H - 20 - top) / rh));
+    const int first = std::clamp(partyScroll_ - rows + 1, 0, std::max(0, nf - rows));
+    for (int r = 0; r < rows && first + r < nf; r++) {
+      const int k = first + r;
+      const party::Fallen& f = g.party.fallen[(size_t)(nf - 1 - k)];
+      const float y = top + r * rh;
+      P.rect(lx, y, lw, rh - 2, k == partyScroll_ ? Color(0.30f, 0.22f, 0.12f, 0.85f) : Color(0.10f, 0.085f, 0.08f, 0.6f));
+      if (k == partyScroll_) P.frame(lx, y, lw, rh - 2, kGoldC);
+      const float gx = lx + 5, gy = y + std::floor((rh - 2 - 10) / 2);   // a small headstone, lit from the left
+      P.rect(gx, gy + 1, 7, 9, Color(0.08f, 0.06f, 0.06f));
+      P.rect(gx + 1, gy, 5, 1, Color(0.08f, 0.06f, 0.06f));
+      P.rect(gx + 1, gy + 1, 5, 8, Color(0.74f, 0.74f, 0.78f));
+      P.rect(gx + 4, gy + 1, 2, 8, Color(0.52f, 0.52f, 0.58f));
+      P.rect(gx + 2, gy + 3, 3, 1, Color(0.4f, 0.4f, 0.46f));
+      P.text(lx + 18, y + std::floor((rh - 2 - 7) / 2), fitTextD(f.name, lw - 66), 1, kTextC);
+      P.text(lx + lw - 5, y + std::floor((rh - 2 - 7) / 2), "DAY " + std::to_string(f.day), 1, kDimC, 2);
+    }
+    if (nf > 0) {
+      const party::Fallen& f = g.party.fallen[(size_t)(nf - 1 - partyScroll_)];
+      const float dx = lx + lw + 16, dw = (float)Pix::W - 18 - dx;
+      float y = top;
+      const int per = std::max(12, (int)(dw / 6));
+      P.text(dx, y, f.name, P.textW(f.name, 2) <= dw ? 2 : 1, kGoldC);
+      y += 18;
+      P.text(dx, y, std::string(party::vocationName(f.voc)) + "  -  " + party::originName(f.origin), 1, kDimC);
+      y += 12;
+      for (const std::string& l : wrapD(f.cause.empty() ? std::string("FELL ON THE ROAD") : f.cause, per)) { P.text(dx, y, l, 1, Color(0.95f, 0.66f, 0.56f)); y += 10; }
+      P.text(dx, y, "DIED ON DAY " + std::to_string(f.day) + ",  " + std::to_string(f.days) + (f.days == 1 ? " DAY" : " DAYS") + " TOGETHER", 1, kTextC);
+      y += 10;
+      if (f.kills) { P.text(dx, y, std::to_string(f.kills) + (f.kills == 1 ? " FOE FELL TO THEM" : " FOES FELL TO THEM"), 1, kTextC); y += 10; }
+      y += 6;
+      // the epitaph as carved: its lines centred between two rules
+      const std::string ep = party::epitaph(g, f);
+      std::vector<std::string> el;
+      size_t s0 = 0;
+      while (s0 <= ep.size()) {
+        const size_t s1 = ep.find(" / ", s0);
+        const std::string part = ep.substr(s0, s1 == std::string::npos ? std::string::npos : s1 - s0);
+        for (const std::string& l : wrapD(part, per - 2)) el.push_back(l);
+        if (s1 == std::string::npos) break;
+        s0 = s1 + 3;
+      }
+      P.rect(dx + 10, y, dw - 20, 1, Color(0.55f, 0.45f, 0.28f));
+      y += 6;
+      for (const std::string& l : el) { if (y > Pix::H - 46) break; P.text(dx + dw / 2, y, l, 1, Color(0.86f, 0.84f, 0.78f), 1); y += 10; }
+      P.rect(dx + 10, y + 1, dw - 20, 1, Color(0.55f, 0.45f, 0.28f));
+      y += 10;
+      // where the stone stands, from here
+      if (!g.inside && y < Pix::H - 30) {
+        const Actor& pl = g.pl();
+        const double hx = (double)g.world.ox + pl.p.x / 16.0, hy = (double)g.world.oy + pl.p.y / 16.0;
+        const double ddx = f.gx - hx, ddy = f.gy - hy, d = std::sqrt(ddx * ddx + ddy * ddy);
+        std::string where;
+        if (d < 6) where = "THEIR GRAVE IS HERE";
+        else {
+          static const char* dirs[8] = {"EAST", "SOUTH-EAST", "SOUTH", "SOUTH-WEST", "WEST", "NORTH-WEST", "NORTH", "NORTH-EAST"};
+          const int o = ((int)std::lround(std::atan2(ddy, ddx) / 0.785398) % 8 + 8) % 8;
+          where = "THEIR GRAVE LIES " + std::to_string((int)d) + " PACES " + dirs[o];
+        }
+        P.text(dx, y, where, 1, kDimC);
+        y += 10;
+      }
+      std::string marks;
+      if (f.graveFlags & party::GF_FLOWERS) marks = "FLOWERS LAID";
+      if (f.graveFlags & party::GF_KEEPSAKE) marks += marks.empty() ? "A KEEPSAKE TAKEN" : ",  A KEEPSAKE TAKEN";
+      if (!marks.empty() && y < Pix::H - 20) P.text(dx, y, marks, 1, Color(0.62f, 0.86f, 0.6f));
+    }
+    return;
+  }
+  if (n == 0) return;
+
+  // ---- the companion on the stage
+  party::Member& m = g.party.members[(size_t)partySel_];
+  const bool hound = m.voc == party::Vocation::Hound;
+  P.rect(L.stageX, L.stageY, L.stageW, L.stageH, Color(0.03f, 0.025f, 0.04f, 0.55f));
+  P.frame(L.stageX, L.stageY, L.stageW, L.stageH, Color(0.3f, 0.24f, 0.15f));
+  heroStage(P, light_, L.figCX, L.figFootY, 0.62f);
+  // (fixer M8 r2, review: "a crude upscaled walk frame, side-on mid-stride, changing between the tabs") the doll stands
+  // still, facing the player, in the idle pose (every layer of their gear readable), and turns only on < TURN >
+  const int turn = partyDollTurn_ & 3;
+  if (hound) {
+    const Tex& ht = houndTex(m, g);
+    static const int rowOf[4] = {2, 0, 2, 1};   // (r3) in profile first: an animal reads as itself side-on, then front, other side, back
+    const int fr = art::HF_IDLE + ((int)(t_ * 2) & 1);
+    // (fixer M8 r3, review: "a tiny sprite low in an empty panel, under a glow not centred on it") the animal scaled
+    // by its own drawn size (a pup fills a third of its cell), an integer scale for crisp pixels, as big as the stage
+    // allows; its feet on the stage's floor disc, the body in the glow
+    static std::map<uint64_t, std::array<int, 4>> boxes;   // look key -> the idle frames' opaque box (x0, y0, x1, y1)
+    const art::HoundLook hl = houndLookOf(m, g);
+    auto bit = boxes.find(hl.key());
+    if (bit == boxes.end()) {
+      const Canvas sh = art::houndSheet(hl);
+      std::array<int, 4> bb{{art::HOUND_W, art::HOUND_H, -1, -1}};
+      for (int row = 0; row < 3; row++)
+        for (int f2 = art::HF_IDLE; f2 <= art::HF_IDLE + 1; f2++)
+          for (int y = 0; y < art::HOUND_H; y++)
+            for (int x = 0; x < art::HOUND_W; x++)
+              if ((sh.get(f2 * art::HOUND_W + x, row * art::HOUND_H + y) >> 24) > 0) {
+                bb[0] = std::min(bb[0], x); bb[1] = std::min(bb[1], y); bb[2] = std::max(bb[2], x); bb[3] = std::max(bb[3], y);
+              }
+      if (bb[2] < 0) bb = {{0, 0, art::HOUND_W - 1, art::HOUND_H - 1}};
+      bit = boxes.emplace(hl.key(), bb).first;
+    }
+    const std::array<int, 4>& bb = bit->second;
+    const float bw = (float)(bb[2] - bb[0] + 1), bh = (float)(bb[3] - bb[1] + 1);
+    const float sc = std::clamp(std::floor(std::min((L.stageW - 10.0f) / bw, (L.figFootY - L.stageY - 40.0f) / bh)), 3.0f, 8.0f);
+    const float hx = L.figCX - ((bb[0] + bb[2] + 1) * 0.5f) * sc, hy = L.figFootY + 1 - (bb[3] + 1) * sc;
+    P.blitEx(ht, fr * art::HOUND_W, rowOf[turn] * art::HOUND_H, art::HOUND_W, art::HOUND_H, turn == 2 ? L.figCX - (art::HOUND_W - (bb[0] + bb[2] + 1) * 0.5f) * sc : hx, hy,
+             art::HOUND_W * sc, art::HOUND_H * sc, turn == 2);
+  } else {
+    // their own figure in what they wear (their street look dressed in their gear, each piece in its makers' style)
+    const int ai = partySel_ < (int)partyActor_.size() ? partyActor_[(size_t)partySel_] : -1;
+    const art::HumanLook look = ai > 0 ? g.actors[(size_t)ai].look : g.partyLook(m);
+    static const int order[4] = {0, 2, 1, 3};
+    const int face = order[turn];
+    const int frame = 0;   // idle: standing, both feet on the stage
+    const Tex& t = dollTex(*pix_, look);
+    const float sc = L.figScale;
+    P.blitEx(t, frame * art::HUMAN_W, (face == 3 ? 2 : face) * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, L.figCX - art::HUMAN_W * sc / 2,
+             L.figFootY - (art::HUMAN_H - 1) * sc, art::HUMAN_W * sc, art::HUMAN_H * sc, face == 3);
+  }
+  P.text(L.figCX, L.figFootY + 8, "LEVEL " + std::to_string(party::levelFor(g.plLevel)), 1, kDimC, 1);
+  {   // (fixer M8 r2) < TURN > at the stage's foot, and what their gear makes of them at its head (as the hero's EQUIP)
+    const float bw = 16, bh = 13, by = L.figFootY + 5;
+    button(L.stageX + 3, by, bw, bh, "<", false);
+    button(L.stageX + L.stageW - bw - 3, by, bw, bh, ">", false);
+    const int ai = partySel_ < (int)partyActor_.size() ? partyActor_[(size_t)partySel_] : -1;
+    const party::Body b = party::bodyFor(m, g.plLevel);
+    const float armor = ai > 0 ? g.actors[(size_t)ai].armor : b.armor, dmg = ai > 0 ? g.actors[(size_t)ai].dmg : b.dmg;
+    const float hp = ai > 0 ? g.actors[(size_t)ai].maxHp : b.maxHp;
+    P.text(L.figCX, L.stageY + 4, "ARMOR " + std::to_string((int)std::lround(armor)), 1, kTextC, 1);
+    P.text(L.figCX, L.stageY + 14, "DAMAGE " + std::to_string((int)std::lround(dmg)), 1, kTextC, 1);
+    P.text(L.figCX, L.stageY + 24, "HEALTH " + std::to_string((int)std::lround(hp)), 1, kDimC, 1);
+  }
+  // ---- the slots
+  partySlot_ = std::clamp(partySlot_, -1, kNPSlots - 1);
+  for (int i = 0; i < kNPSlots; i++) {
+    if (hound && kPSlots[i].slot != kSupplies) continue;
+    const float sx = pslotX(L, i), sy = pslotY(L, i);
+    const bool sel = partyFocus_ == 1 && i == partySlot_;
+    P.rect(sx, sy, L.box, L.box, sel ? Color(0.3f, 0.22f, 0.12f, 0.95f) : Color(0.1f, 0.085f, 0.08f, 0.95f));
+    P.frame(sx, sy, L.box, L.box, sel ? kGoldC : Color(0.42f, 0.34f, 0.22f));
+    P.rect(sx + 1, sy + 1, L.box - 2, 1, Color(1, 1, 1, 0.06f));
+    const Item* it = wornBy(m, kPSlots[i].slot);
+    if (kPSlots[i].slot == kSupplies) {
+      const int sup = suppliesOf(m);
+      P.blitEx(iconTex(art::Icon::PotionRed, 0), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16, false, sup ? Color(1, 1, 1, 1) : Color(0.3f, 0.28f, 0.26f, 0.45f));
+      if (sup) P.textS(sx + L.box - 2, sy + L.box - 9, std::to_string(sup), 1, kTextC, 2);
+    } else if (it) {
+      P.blitEx(itemTex(g, *it), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16);
+      P.rect(sx + 2, sy + L.box - 3, L.box - 4, 1, colOf(rarityColor(it->rarity)));
+    } else {
+      P.blitEx(iconTex(kPSlots[i].ghost, 0), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16, false, Color(0.3f, 0.28f, 0.26f, 0.45f));
+    }
+  }
+  // ---- the detail column: STORY or GEAR
+  const float dx = L.dX, dw = L.dW;
+  const float tabH = touchUI ? 22.0f : 16.0f;
+  button(dx, L.dTop - 2, 58, tabH, "STORY", partyFocus_ == 0);
+  button(dx + 62, L.dTop - 2, 52, tabH, "GEAR", partyFocus_ == 1);
+  float y = L.dTop + tabH + 6;
+  const int per = std::max(12, (int)(dw / 6));
+  if (partyFocus_ == 0) {
+    P.text(dx, y, std::string(party::vocationName(m.voc)) + "  -  " + party::originName(m.origin), 1, kTextC);
+    y += 10;
+    std::string st = party::stateName(m.state);
+    if (m.flags & party::MF_WOUNDED) st += "  -  WOUNDED";
+    P.text(dx, y, st, 1, m.state == party::State::Downed ? Color(1, 0.45f, 0.38f) : kDimC);
+    y += 13;
+    const float bw = std::min(dw - 82, 150.0f);
+    P.text(dx, y, "APPROVAL", 1, kDimC);
+    meter(P, dx + 56, y + 1, bw, (float)m.approval, -100, 100, kAppC, {(float)party::APPROVAL_LEAVE, (float)party::APPROVAL_COMPLAIN, (float)party::APPROVAL_QUEST}, 0);
+    P.text(dx + 62 + bw, y, std::to_string(m.approval), 1, m.approval < party::APPROVAL_COMPLAIN ? Color(1, 0.5f, 0.42f) : kTextC);
+    y += 11;
+    P.text(dx, y, "BOND", 1, kDimC);
+    meter(P, dx + 56, y + 1, bw, (float)m.bond, 0, 100, kBondC, {(float)party::SKILL_BOND[0], (float)party::SKILL_BOND[1], (float)party::SKILL_BOND[2]}, 0);
+    P.text(dx + 62 + bw, y, std::to_string(m.bond), 1, kTextC);
+    y += 14;
+    // the three bond skills: a lit diamond when it is theirs
+    const auto sk = party::skillsOf(m.voc);
+    const uint8_t un = party::unlockedSkills(m);
+    const float foot = (float)Pix::H - 22;
+    for (int k = 0; k < 3; k++) {
+      const party::SkillInfo& si = party::skillInfo(sk[(size_t)k]);
+      const bool on = (un >> k) & 1;
+      const Color dc = on ? kBondC : Color(0.32f, 0.3f, 0.3f);
+      for (int j = -2; j <= 2; j++) P.rect(dx + 3 - (2 - std::abs(j)), y + 3 + j, (float)(2 * (2 - std::abs(j)) + 1), 1, dc);
+      P.text(dx + 10, y, si.name, 1, on ? Color(0.75f, 0.88f, 1.0f) : kDimC);
+      if (!on) P.text(dx + dw, y, "BOND " + std::to_string((int)si.bond), 1, kDimC, 2);
+      else if (m.skillCd[k] > 0) P.text(dx + dw, y, std::to_string((int)std::ceil(m.skillCd[k])) + "S", 1, kDimC, 2);
+      y += 9;
+      const auto wl = wrapD(si.what, per - 2);
+      for (size_t q = 0; q < wl.size() && q < 2 && y + 9 <= foot - 10; q++) { P.text(dx + 10, y, wl[q], 1, on ? kTextC : Color(0.5f, 0.47f, 0.43f)); y += 9; }
+      y += 2;
+    }
+    y += 3;
+    // their own story (VOICE: party::aboutLine), as much as the room allows
+    const auto al = wrapD(party::aboutLine(g, m), per);
+    for (size_t q = 0; q < al.size() && y + 9 <= foot - 4; q++) { P.text(dx, y, al[q], 1, Color(0.86f, 0.80f, 0.68f)); y += 9; }
+    P.text(dx, foot, std::to_string(m.days) + (m.days == 1 ? " DAY" : " DAYS") + " TOGETHER   KILLS " + std::to_string(m.kills) +
+           (m.downs ? "   DOWNED " + std::to_string(m.downs) : std::string()), 1, kDimC);
+  } else {
+    // GEAR: the picked slot, what they wear in it and the pack's pieces for it
+    if (partySlot_ < 0) partySlot_ = hound ? kNPSlots - 1 : 3;
+    const PSlot& ps = kPSlots[partySlot_];
+    P.text(dx, y, ps.name, 1, kGoldC);
+    const Item* it = wornBy(m, ps.slot);
+    if (ps.slot == kSupplies) {
+      int pots = 0, food = 0;
+      for (const Item& x : m.inv) { if (x.kind == ItemKind::Potion) pots += std::max(1, (int)x.count); else if (x.kind == ItemKind::Food) food += std::max(1, (int)x.count); }
+      P.text(dx + 60, y, std::to_string(pots) + (pots == 1 ? " POTION, " : " POTIONS, ") + std::to_string(food) + " FOOD", 1, kTextC);
+      y += 10;
+      P.text(dx, y, fitTextD("THEY DRINK A POTION BELOW A QUARTER HEALTH", dw), 1, kDimC);
+      y += 4;
+    } else if (it) {
+      P.blitEx(itemTex(g, *it), 0, 0, 16, 16, dx, y + 9, 16, 16);
+      P.text(dx + 20, y + 10, fitTextD(it->name, dw - 20 - 92), 1, colOf(rarityColor(it->rarity)));
+      const std::string made = makerLine(g, *it);
+      if (!made.empty()) P.text(dx + 20, y + 19, fitTextD(made, dw - 20 - 92), 1, Color(0.78f, 0.7f, 0.56f));
+      button(dx + dw - 86, y + 8, 86, touchUI ? 22.0f : 18.0f, touchUI ? "TAKE BACK" : "TAKE BACK (X)", false);
+      y += 12;
+    } else {
+      P.text(dx + 60, y, "NOTHING WORN", 1, kDimC);
+    }
+    y += 22;
+    P.rect(dx, y - 4, dw, 1, Color(0.4f, 0.32f, 0.2f));
+    const std::vector<int> c = packFor(g, ps.slot);
+    if (c.empty()) P.text(dx + 4, y + 4, ps.slot == kSupplies ? "NO POTIONS OR FOOD IN YOUR PACK" : "NOTHING IN YOUR PACK FOR IT", 1, kDimC);
+    const int rows = std::max(2, (int)(((float)Pix::H - 14 - y) / L.rowH));
+    partyPack_ = std::clamp(partyPack_, 0, std::max(0, (int)c.size() - 1));
+    const int first = std::clamp(partyPack_ - rows + 1, 0, std::max(0, (int)c.size() - rows));
+    for (int r = 0; r < rows && first + r < (int)c.size(); r++) {
+      const int k = first + r;
+      const Item& pi = g.inv[(size_t)c[(size_t)k]];
+      const float ry = y + r * L.rowH;
+      const bool hot = k == partyPack_;
+      P.rect(dx, ry, dw, L.rowH - 2, hot ? Color(0.3f, 0.22f, 0.12f, 0.85f) : Color(0.1f, 0.085f, 0.08f, 0.6f));
+      if (hot) P.frame(dx, ry, dw, L.rowH - 2, kGoldC);
+      const float isz = touchUI ? 16.0f : 12.0f;
+      P.blitEx(itemTex(g, pi), 0, 0, 16, 16, dx + 3, ry + std::floor((L.rowH - 2 - isz) / 2), isz, isz);
+      const std::string nm = pi.name + (pi.count > 1 ? " (" + std::to_string(pi.count) + ")" : std::string());
+      P.text(dx + 22, ry + std::floor((L.rowH - 2 - 7) / 2), fitTextD(nm, dw - 22 - 44), 1, colOf(rarityColor(pi.rarity)));
+      P.text(dx + dw - 4, ry + std::floor((L.rowH - 2 - 7) / 2), ps.slot == kSupplies ? "GIVE" : "EQUIP", 1, hot ? kGoldC : kDimC, 2);
+    }
+    if ((int)c.size() > rows) P.text(dx + dw, y - 14, std::to_string(partyPack_ + 1) + "/" + std::to_string(c.size()), 1, kDimC, 2);
+  }
+  if (noteA > 0 && !partyNote.empty()) {
+    const float w = (float)P.textW(partyNote, 1) + 10, nx = std::max(12.0f, std::floor(L.figCX - w / 2));
+    const float ny = (float)Pix::H - 21;
+    P.rect(nx, ny, w, 12, Color(0.05f, 0.04f, 0.06f, 0.92f * noteA));
+    P.frame(nx, ny, w, 12, Color(partyNoteC.r, partyNoteC.g, partyNoteC.b, 0.8f * noteA));
+    P.text(nx + 5, ny + 3, partyNote, 1, Color(partyNoteC.r, partyNoteC.g, partyNoteC.b, noteA));
+  }
+}
+
+void View::partyPageKey(Game& g, int key) {
+  const int n = (int)g.party.members.size();
+  auto mv = [&]() { audio_->play(Sfx::MenuMove); };
+  if (key == SDLK_N && !g.party.fallen.empty()) { partyPage_ ^= 1; partyScroll_ = 0; mv(); return; }
+  if (partyPage_ == 1) {
+    const int nf = (int)g.party.fallen.size();
+    if (key == SDLK_UP || key == SDLK_W) { partyScroll_ = std::max(0, partyScroll_ - 1); mv(); }
+    if (key == SDLK_DOWN || key == SDLK_S) { partyScroll_ = std::min(std::max(0, nf - 1), partyScroll_ + 1); mv(); }
+    if ((key == SDLK_LEFTBRACKET || key == SDLK_RIGHTBRACKET) && n > 0) { partyPage_ = 0; mv(); }
+    return;
+  }
+  if (n == 0) return;
+  partySel_ = std::clamp(partySel_, 0, n - 1);
+  if (key == SDLK_LEFTBRACKET) { partySel_ = (partySel_ + n - 1) % n; partyPack_ = 0; mv(); return; }
+  if (key == SDLK_RIGHTBRACKET) { partySel_ = (partySel_ + 1) % n; partyPack_ = 0; mv(); return; }
+  const bool hound = g.party.members[(size_t)partySel_].voc == party::Vocation::Hound;
+  if (key == SDLK_UP || key == SDLK_W || key == SDLK_DOWN || key == SDLK_S) {
+    const int dir = key == SDLK_UP || key == SDLK_W ? -1 : 1;
+    if (hound) { partyFocus_ = dir > 0 ? 1 : 0; partySlot_ = kNPSlots - 1; mv(); return; }
+    if (partyFocus_ == 0) { if (dir > 0) { partyFocus_ = 1; partySlot_ = 0; } }
+    else if (partySlot_ + dir < 0) partyFocus_ = 0;
+    else partySlot_ = std::min(kNPSlots - 1, partySlot_ + dir);
+    partyPack_ = 0;
+    mv();
+    return;
+  }
+  if (partyFocus_ != 1 || partySlot_ < 0) return;
+  const PSlot& ps = kPSlots[partySlot_];
+  const std::vector<int> c = packFor(g, ps.slot);
+  if (key == SDLK_LEFT || key == SDLK_A) { if (!c.empty()) { partyPack_ = (partyPack_ + (int)c.size() - 1) % (int)c.size(); mv(); } return; }
+  if (key == SDLK_RIGHT || key == SDLK_D) { if (!c.empty()) { partyPack_ = (partyPack_ + 1) % (int)c.size(); mv(); } return; }
+  const std::string who = g.party.members[(size_t)partySel_].name;
+  if ((key == SDLK_RETURN || key == SDLK_SPACE || key == SDLK_KP_ENTER) && !c.empty()) {
+    const int idx = c[(size_t)std::clamp(partyPack_, 0, (int)c.size() - 1)];
+    const std::string nm = g.inv[(size_t)idx].name;
+    const bool ok = ps.slot == kSupplies ? g.partyGive(partySel_, idx) : g.partyEquip(partySel_, idx);
+    partyNote = ok ? (ps.slot == kSupplies ? who + " TAKES THE " + nm : who + " PUTS ON THE " + nm) : who + " CANNOT USE THAT";
+    if (partyNote.size() > 46) partyNote = ok ? (ps.slot == kSupplies ? who + " TAKES IT" : who + " PUTS IT ON") : who + " CANNOT USE THAT";
+    partyNoteC = ok ? Color(0.6f, 0.95f, 0.6f) : Color(1, 0.55f, 0.48f);
+    partyNoteT = t_;
+    audio_->play(ok ? Sfx::Buy : Sfx::MenuBack);
+    return;
+  }
+  if ((key == SDLK_X || key == SDLK_BACKSPACE) && ps.slot != kSupplies && wornBy(g.party.members[(size_t)partySel_], ps.slot)) {
+    const std::string nm = wornBy(g.party.members[(size_t)partySel_], ps.slot)->name;
+    const bool ok = g.partyUnequip(partySel_, ps.slot);
+    partyNote = ok ? "YOU TAKE BACK THE " + nm : who + " KEEPS IT FOR NOW";
+    if (partyNote.size() > 46) partyNote = ok ? "YOU TAKE IT BACK" : who + " KEEPS IT FOR NOW";
+    partyNoteC = ok ? kTextC : Color(1, 0.55f, 0.48f);
+    partyNoteT = t_;
+    audio_->play(ok ? Sfx::Pickup : Sfx::MenuBack);
+  }
+}
+
+void View::partyPageTap(Game& g, Vec2 p) {
+  const PartyLay L = partyLay(Pix::W, Pix::H, touchUI);
+  const int n = (int)g.party.members.size();
+  for (int i = 0; i < n; i++)
+    if (inR(p, 18 + i * L.chipPitch - 2, L.chipY - 2, L.chipS + 4, L.chipS + 4)) { partySel_ = i; partyPage_ = 0; partyPack_ = 0; audio_->play(Sfx::MenuMove); return; }
+  if (!g.party.fallen.empty() && inR(p, L.remX, L.chipY, L.remW, 26)) { partyPage_ ^= 1; partyScroll_ = 0; audio_->play(Sfx::MenuMove); return; }
+  if (partyPage_ == 1) {
+    const int nf = (int)g.party.fallen.size();
+    const float lw = std::floor(std::min(220.0f, (Pix::W - 36) * 0.42f)), rh = touchUI ? 24.0f : 18.0f;
+    const int rows = std::max(3, (int)((Pix::H - 20 - L.dTop) / rh));
+    const int first = std::clamp(partyScroll_ - rows + 1, 0, std::max(0, nf - rows));
+    for (int r = 0; r < rows && first + r < nf; r++)
+      if (inR(p, 18, L.dTop + r * rh, lw, rh)) { partyScroll_ = first + r; audio_->play(Sfx::MenuMove); return; }
+    return;
+  }
+  if (n == 0) return;
+  partySel_ = std::clamp(partySel_, 0, n - 1);
+  const bool hound = g.party.members[(size_t)partySel_].voc == party::Vocation::Hound;
+  {   // (fixer M8 r2) the doll's < TURN > (a finger-sized reach round the small buttons)
+    const float by = L.figFootY + 5;
+    if (inR(p, L.stageX, by - 5, 24, 24)) { partyDollTurn_ = (partyDollTurn_ + 3) & 3; audio_->play(Sfx::MenuMove); return; }
+    if (inR(p, L.stageX + L.stageW - 24, by - 5, 24, 24)) { partyDollTurn_ = (partyDollTurn_ + 1) & 3; audio_->play(Sfx::MenuMove); return; }
+  }
+  for (int i = 0; i < kNPSlots; i++) {
+    if (hound && kPSlots[i].slot != kSupplies) continue;
+    if (inR(p, pslotX(L, i) - 2, pslotY(L, i) - 2, L.box + 4, L.box + 4)) {
+      // a tap on the worn slot already picked takes its piece back
+      if (partyFocus_ == 1 && partySlot_ == i && kPSlots[i].slot != kSupplies && wornBy(g.party.members[(size_t)partySel_], kPSlots[i].slot)) { partyPageKey(g, SDLK_X); return; }
+      partyFocus_ = 1; partySlot_ = i; partyPack_ = 0;
+      audio_->play(Sfx::MenuMove);
+      return;
+    }
+  }
+  const float tabH = touchUI ? 22.0f : 16.0f;
+  if (inR(p, L.dX, L.dTop - 4, 58, tabH + 4)) { partyFocus_ = 0; audio_->play(Sfx::MenuMove); return; }
+  if (inR(p, L.dX + 62, L.dTop - 4, 52, tabH + 4)) { partyFocus_ = 1; if (partySlot_ < 0) partySlot_ = hound ? kNPSlots - 1 : 3; audio_->play(Sfx::MenuMove); return; }
+  if (partyFocus_ != 1 || partySlot_ < 0) return;
+  const PSlot& ps = kPSlots[partySlot_];
+  float y = L.dTop + tabH + 6;
+  if (ps.slot == kSupplies) y += 4 + 10;
+  else if (wornBy(g.party.members[(size_t)partySel_], ps.slot)) {
+    if (inR(p, L.dX + L.dW - 86, y + 6, 86, (touchUI ? 22.0f : 18.0f) + 4)) { partyPageKey(g, SDLK_X); return; }
+    y += 12;
+  }
+  y += 22;
+  const std::vector<int> c = packFor(g, ps.slot);
+  const int rows = std::max(2, (int)(((float)Pix::H - 14 - y) / L.rowH));
+  const int first = std::clamp(partyPack_ - rows + 1, 0, std::max(0, (int)c.size() - rows));
+  for (int r = 0; r < rows && first + r < (int)c.size(); r++)
+    if (inR(p, L.dX, y + r * L.rowH, L.dW, L.rowH)) { partyPack_ = first + r; partyPageKey(g, SDLK_RETURN); return; }
 }

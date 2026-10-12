@@ -1,0 +1,51 @@
+# M8 integration tour (seed 3): the companion in a town by day and at night, inside the inn, at a ruin (its walls'
+# runs) and inside a cave, a fight, downed and bound, the bonded pup, a real grave sited by the sim (and its talk).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_integ_tour_s3.txt     (m8i_s3_*.png)
+seed 3
+0.3  newgame
++0.1 god 1
++0.1 hour 10
++0.2 party recruit
++0.1 expect party with 1
++0.1 walk east 2.0
++0.6 shot m8i_s3_01_town_day.png
++0.1 hour 22
++0.6 shot m8i_s3_02_town_night.png
++0.1 walkto inn 60
++0.8 expect inside 1
++0.1 shot m8i_s3_03_inn_night.png
++0.1 walkto exit 60
++0.5 hour 11
++0.1 goto ruin
++1.0 expect party near 30
++0.4 shot m8i_s3_04_ruin_day.png
++0.1 walk north 1.2
++0.4 shot m8i_s3_05_ruin_walls.png
++0.1 goto cave enter
++1.2 expect party near 30
++0.2 shot m8i_s3_06_cave_inside.png
++0.1 walkto exit 60
++0.5 hour 20
++0.2 fight wolf 3
++1.5 shot m8i_s3_07_fight_dusk.png
++4.0 party down
++0.3 shot m8i_s3_08_downed.png
++0.1 party bind
++0.6 shot m8i_s3_09_binding.png
++2.4 expect party state with
++0.1 hour 11
++0.1 party pup
++0.1 walk west 1.5
++0.5 shot m8i_s3_10_pup.png
++0.1 party kill 0
++0.6 expect party fallen 1
++0.1 expect party grave
++0.2 party grave
++0.8 shot m8i_s3_11_grave.png
++0.2 key E
++0.6 expect mode dialogue
++0.1 shot m8i_s3_12_grave_talk.png
++0.1 key Escape
++0.2 party grave flowers
++0.6 shot m8i_s3_13_grave_flowers.png
++0.2 quit

@@ -1,0 +1,42 @@
+phone
+# M8 VIEW lane: the party in the world at phone size. The bonded hound as a pup running beside the player, grown and at
+# rest, a wolf; at night (the howl); a fallen companion's grave with flowers (its name, VISIT THE GRAVE, its talk); the
+# minimap's friendly markers and the grave's stone; a companion riding beside the player on their own horse.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_view_world_phone.txt     (m8v_world_*.png)
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 11
++0.1 partyview level 20
++0.2 partyview hound
++0.1 walk east 1.5
++0.1 touch 1
++0.1 shot m8v_world_01_pup_run.png
++0.6 touch 1
++0.1 shot m8v_world_02_pup_idle.png
++0.1 partyview grown
++0.1 partyview hound wolf
++0.1 walk east 1.0
++0.8 touch 1
++0.1 shot m8v_world_03_grown_wolf.png
++0.1 hour 23
++0.6 touch 1
++0.1 shot m8v_world_04_night.png
++0.1 hour 11
++0.1 partyview grave flowers
++0.6 touch 1
++0.1 shot m8v_world_05_grave.png
++0.1 walk east 0.25
++0.4 touch 1
++0.1 shot m8v_world_06_grave_visit.png
++0.1 key E
++1.0 expect mode dialogue
++2.0 touch 1
++0.1 shot m8v_world_07_grave_talk.png
++0.1 key Escape
++0.3 partyview page 0 remembered
++0.5 touch 1
++0.1 shot m8v_world_08_remembered.png
++0.1 key Escape
++0.2 quit

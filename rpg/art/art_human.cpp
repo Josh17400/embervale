@@ -3393,12 +3393,13 @@ struct HumanPainter {
 // cuts, headwear, peoples, armour) carries over: the head, the torso and the garment are the rig's own; the legs (seated
 // on a chair, cross-legged on the floor) and the arms (with the tool, the cup, the instrument) are the posture's. Same
 // camera, light and palette; the cell is outlined by the caller like the standing sheet.
-enum PzSeat { kPzStand = 0, kPzChair, kPzFloor, kPzRide };
+enum PzSeat { kPzStand = 0, kPzChair, kPzFloor, kPzRide, kPzKneel };
 int pzSeat(Posture p) {
   switch (p) {
     case Posture::Ride: return kPzRide;   // (M7) astride a horse
     case Posture::Sit: case Posture::SitEat: case Posture::SitDrink: return kPzChair;
     case Posture::SitFloor: case Posture::SitFloorEat: case Posture::SitFloorDrink: case Posture::Beg: return kPzFloor;
+    case Posture::Downed: case Posture::Kneel: return kPzKneel;   // (M8) down on one knee
     default: return kPzStand;
   }
 }
@@ -3417,7 +3418,14 @@ Pose posturePose(Posture p, int facing, int frame) {
     case Posture::Pray: q.bob = frame & 1; break;
     case Posture::Hammer: case Posture::Chop: if (facing == kSide) q.lean = (frame & 1) ? 1 : 0; break;
     case Posture::Hoe: if (facing == kSide && (frame & 1)) q.lean = 1; break;
-    case Posture::SitFloor: case Posture::SitFloorEat: case Posture::SitFloorDrink: case Posture::Beg: q.bob = 3; break;
+    case Posture::SitFloor: case Posture::SitFloorEat: case Posture::SitFloorDrink: case Posture::Beg:
+      // (M8 fixer) facing up the cross-legged sitter rests two rows higher in its cell: seen from behind only the seat
+      // and the knees show, and on a cushion before a low table (seatFit facing up sits back on its south edge) the
+      // feet stay on the cushion's own tile
+      q.bob = facing == kUp ? 1 : 3;
+      break;
+    case Posture::Kneel: q.bob = 3; break;                                        // (M8) down on one knee
+    case Posture::Downed: q.bob = 3; if (facing == kSide) q.lean = 1; break;      // (M8) slumped forward over the knee
     default: break;
   }
   q.swingA = q.swingB = 0;
@@ -3437,7 +3445,11 @@ struct PostureRig : HumanPainter {
     if (hy < minHy) { hy = minHy; ty = hy + 8; hip = ty + 6; }
     // busy arms: the poncho shows only its yoke and the cloak's drape keeps clear of a raised arm
     if (pz != Posture::Sit && pz != Posture::SitFloor) P.atk = litArmHigh() ? 1 : 2;
+    // (M8) the head hangs low: a downed companion's sinks with each laboured breath; a mourner bows it
+    if (pz == Posture::Downed) hy += 1 + (frame & 1);
+    else if (pz == Posture::Kneel) hy += v == 1 ? 2 : 1;
   }
+  bool mourning() const { return pz == Posture::Kneel && var == 1; }
   bool litArmHigh() const {
     switch (pz) {
       case Posture::Cheer: case Posture::Wave: case Posture::Lamp: case Posture::Play: case Posture::Carry: return true;
@@ -3669,13 +3681,117 @@ struct PostureRig : HumanPainter {
   }
   void floorLegsBack() {
     const Ramp& lg = longSkirt() ? R.top : R.leg;
-    for (int y = hip; y <= kGround; y++)
+    const int bot = hip + 2;   // (M8 fixer) the seat's lowest row (the figure rests higher facing up: posturePose)
+    for (int y = hip; y <= bot; y++)
       for (int x = 3; x <= 12; x++) {
         int k = x <= 4 ? 3 : (x >= 11 ? 1 : 2);
-        if (y == kGround) k = std::max(0, k - 1);
+        if (y == bot) k = std::max(0, k - 1);
         c.set(x, y, lg[k]);
       }
     c.set(2, hip + 1, lg[3]); c.set(2, hip + 2, lg[2]); c.set(13, hip + 1, lg[1]); c.set(13, hip + 2, lg[0]);   // knees at the sides
+  }
+
+  // ------------------------------------------------------------------ (M8) down on one knee (hip = ground - 2)
+  // Kneel and Downed: one knee up with its foot planted, the other knee on the ground, its shin running back under the
+  // body. Facing down the raised knee is the screen-left one (toward the light), side-on the near one.
+  void kneelLegsFront() {
+    const Ramp& lg = R.leg;
+    const Ramp& ft = O == Outfit::Rags ? R.skin : R.boot;
+    if (longSkirt()) {   // the robe or the gown falls over both knees, the raised one lifting the cloth
+      const Ramp& T = R.top;
+      for (int y = hip; y <= kGround; y++)
+        for (int x = 3; x <= 12; x++) {
+          const int d = y - hip;
+          if (d == 0 && (x == 3 || x == 12)) continue;
+          int k = x <= 4 ? 3 : (x >= 11 ? 1 : 2);
+          if (d == 0 && x >= 4 && x <= 6) k = 4;                 // the raised knee lifts the cloth into the light
+          if (d >= 1 && (x == 7 || x == 8)) k = 1;                 // the fold between the knees
+          if (d == 2) k = std::max(0, k - 1);
+          c.set(x, y, T[k]);
+        }
+      if (O == Outfit::Robe || cutK == kCutRobe) for (int x = 4; x <= 11; x++) c.set(x, kGround, R.trim[x < 8 ? 2 : 1]);
+      c.set(2, kGround, ft[2]); c.set(3, kGround, ft[1]);           // the planted foot's toe peeks out
+      return;
+    }
+    for (int x = 4; x <= 11; x++) c.set(x, hip, lg[x <= 5 ? 3 : (x >= 10 ? 1 : 2)]);   // the hips
+    // the raised knee: the thigh toward the camera, the knee cap catching the light, the shin straight down, the foot flat
+    c.set(4, hip, lg[4]); c.set(5, hip, lg[4]); c.set(6, hip, lg[3]);
+    for (int y = hip + 1; y < kGround; y++) {
+      const Ramp& r = shinRamp(y, kGround);
+      c.set(4, y, r[3]); c.set(5, y, r[2]); c.set(6, y, r[1]);
+    }
+    c.set(3, kGround, ft[3]); c.set(4, kGround, ft[2]); c.set(5, kGround, ft[2]); c.set(6, kGround, ft[1]);
+    // the kneeling leg: the thigh down to the knee on the ground (its shin hidden behind it), in the body's shade
+    for (int y = hip + 1; y <= kGround; y++) { c.set(9, y, lg[y == kGround ? 1 : 2]); c.set(10, y, lg[1]); c.set(11, y, lg[0]); }
+    c.set(12, kGround, ft[0]);                                     // the tucked toe behind the knee
+    c.set(7, hip + 1, lg[0]); c.set(8, hip + 1, lg[1]);             // the crotch's shadow between the thighs
+    if ((O == Outfit::Plate || O == Outfit::Elven) && (!form || form == kFormPlate || form == kFormLeaf)) {   // knee plates
+      c.set(4, hip, R.leg[4]); c.set(5, hip + 1, R.leg[3]); c.set(9, kGround - 1, R.leg[3]);
+    }
+    if (const int n = hemRows()) {   // a tunic's, coat's or kilt's hem over the thighs
+      for (int y = hip; y < hip + std::min(n, 2); y++)
+        for (int x = 4; x <= 11; x++) {
+          if (y > hip && x >= 6 && x <= 8) continue;
+          int k = x <= 5 ? 3 : (x >= 10 ? 1 : 2);
+          if (y == hip + std::min(n, 2) - 1) k = std::max(0, k - 1);
+          c.set(x, y, R.top[k]);
+        }
+      if (cutK == kCutKilt) { c.set(4, hip + 1, R.skin[4]); c.set(5, hip + 1, R.skin[3]); c.set(9, hip + 2, R.skin[2]); c.set(10, hip + 2, R.skin[1]); }
+    }
+  }
+  void kneelLegsSide() {
+    const Ramp& lg = R.leg;
+    const Ramp& ft = O == Outfit::Rags ? R.skin : R.boot;
+    const int ox = P.lean;
+    if (longSkirt()) {   // the skirt over the raised knee in front and the kneeling leg behind, the toes peeking out
+      const Ramp& T = R.top;
+      for (int y = hip; y <= kGround; y++) {
+        const int x0 = y == hip ? 6 : 4, x1 = y == hip ? 11 : 12;
+        for (int x = x0; x <= x1; x++) {
+          int k = x == x0 ? 3 : (x >= x1 - 1 ? 1 : 2);
+          if (y == hip) k = std::min(4, k + 1);
+          if (y == kGround) k = std::max(0, k - 1);
+          c.set(x + ox, y, T[k]);
+        }
+      }
+      c.set(std::min(14, 13 + ox), kGround, ft[2]); c.set(3 + ox, kGround, ft[0]);
+      return;
+    }
+    // the far leg kneeling (in shade): the thigh down to the knee on the ground, the shin back along it, the toes tucked
+    for (int y = hip; y <= kGround; y++) { c.set(8 + ox, y, lg[1]); c.set(9 + ox, y, lg[0]); }
+    for (int x = 4; x <= 7; x++) c.set(x + ox, kGround, shinRamp(kGround - (7 - x) / 2, kGround)[x == 4 ? 0 : 1]);
+    c.set(3 + ox, kGround, ft[0]); c.set(3 + ox, kGround - 1, ft[1]);
+    // the near leg: the thigh level forward to the knee, the shin straight down, the foot flat on the ground
+    for (int x = 7; x <= 11; x++) { c.set(x + ox, hip, lg[x == 11 ? 2 : 3]); c.set(x + ox, hip + 1, lg[x == 7 ? 0 : 1]); }
+    c.set(12 + ox, hip, lg[2]); c.set(12 + ox, hip + 1, lg[1]);     // the knee
+    { const Ramp& r = shinRamp(hip + 1, kGround); c.set(11 + ox, hip + 1, r[2]); c.set(12 + ox, hip + 1, r[1]); }
+    c.set(11 + ox, kGround, ft[2]); c.set(12 + ox, kGround, ft[2]); c.set(std::min(14, 13 + ox), kGround, ft[1]);
+    if (!ox) c.set(14, kGround, ft[0]);
+    if ((O == Outfit::Plate || O == Outfit::Elven) && (!form || form == kFormPlate || form == kFormLeaf)) c.set(12 + ox, hip, R.leg[4]);
+    if (const int n = hemRows())
+      for (int y = hip; y < hip + std::min(n, 2); y++)
+        for (int x = 6; x <= 10; x++) c.set(x + ox, y, R.top[x == 6 ? 3 : (y == hip + std::min(n, 2) - 1 ? 1 : 2)]);
+    if (cutK == kCutKilt) { c.set(11 + ox, hip + 1, R.skin[3]); c.set(12 + ox, hip + 1, R.skin[2]); }
+  }
+  void kneelLegsBack() {
+    const Ramp& lg = longSkirt() ? R.top : R.leg;
+    const Ramp& ft = O == Outfit::Rags ? R.skin : R.boot;
+    for (int y = hip; y <= hip + 1; y++)   // the seat over the heel of the kneeling leg
+      for (int x = 4; x <= 11; x++) {
+        int k = x <= 5 ? 3 : (x >= 10 ? 1 : 2);
+        if (y == hip + 1) k = std::max(0, k - 1);
+        if (!longSkirt() && (x == 7 || x == 8) && y == hip + 1) k = 0;
+        c.set(x, y, lg[k]);
+      }
+    // the planted foot of the raised leg (its heel toward the camera) and the sole of the kneeling one
+    c.set(4, kGround, ft[2]); c.set(5, kGround, ft[1]); c.set(6, kGround, ft[1]);
+    c.set(9, kGround, ft[1]); c.set(10, kGround, ft[0]); c.set(9, kGround - 1, ft[2]); c.set(10, kGround - 1, ft[1]);
+    if (longSkirt()) for (int x = 3; x <= 12; x++) c.set(x, hip + 2, R.top[x <= 4 ? 2 : (x >= 11 ? 0 : 1)]);   // the hem on the ground
+  }
+  // (M8) the wound: blood soaking the cloth round the hand pressed to it
+  void wound(int x, int y) {
+    c.set(x, y, kRed[1]); c.set(x + 1, y, kRed[0]); c.set(x, y + 1, kRed[0]);
+    if (fr & 1) c.set(x + 1, y + 1, kRed[1]);
   }
 
   // ------------------------------------------------------------------ (M7) astride a horse
@@ -3779,11 +3895,23 @@ struct PostureRig : HumanPainter {
     if (cutK) clothPattern();
     if (L.jewellery) torc();
     finishM6();
+    if (seat == kPzFloor && facing == kUp)   // (M8 fixer) seen from behind the floor sitter ends at its seat (a cloak's hem too)
+      for (int y = hip + 3; y < c.h; y++) for (int x = 0; x < c.w; x++) c.set(x, y, 0);
+    if (pz == Posture::Downed && facing != kSide) {   // (M8) slumped: the head and the shoulders sag toward the braced arm
+      const int dir = facing == kDown ? 1 : -1;
+      bool room = true;   // (long elven ears, wide hats: no room to sag without leaving the cell)
+      for (int y = 0; y <= ty + 2; y++) if (solid(c, dir > 0 ? 14 : 1, y)) room = false;
+      for (int y = 0; y <= ty + 2 && room; y++) {
+        if (dir > 0) for (int x = 15; x >= 1; x--) c.set(x, y, c.get(x - 1, y));
+        else for (int x = 0; x <= 14; x++) c.set(x, y, c.get(x + 1, y));
+      }
+    }
   }
   void lowerFront() {
     if (seat == kPzRide) { rideLegsFront(false); return; }
     if (seat == kPzChair) { chairLegsFront(); return; }
     if (seat == kPzFloor) { floorLegsFront(); return; }
+    if (seat == kPzKneel) { kneelLegsFront(); return; }
     legsFront();
   }
   void paintPD() {
@@ -3804,7 +3932,7 @@ struct PostureRig : HumanPainter {
     if (cutK) ponchoFront();
     armsD(0);
     head();
-    if (pz == Posture::Pray) eyesShut();
+    if (pz == Posture::Pray || pz == Posture::Downed || pz == Posture::Kneel) eyesShut();
     amuletFront();
     if (L.cloak) cloakDrapeFront();
     armsD(1);
@@ -3819,6 +3947,7 @@ struct PostureRig : HumanPainter {
       torsoFront(true);
       if (seat == kPzRide) rideLegsFront(true);
       else if (seat == kPzChair) chairLegsBack();
+      else if (seat == kPzKneel) kneelLegsBack();
       else floorLegsBack();
     }
     if (cutK) ponchoFront();
@@ -3844,13 +3973,14 @@ struct PostureRig : HumanPainter {
       torsoSide();
       if (seat == kPzRide) rideLegsSide();
       else if (seat == kPzChair) chairLegsSide();
+      else if (seat == kPzKneel) kneelLegsSide();
       else floorLegsSide();
     }
     if (cutK) ponchoSide();
     if (L.cloak) cloakCollarSide();
     armsS(1);
     head();
-    if (pz == Posture::Pray) eyesShut();
+    if (pz == Posture::Pray || pz == Posture::Downed || pz == Posture::Kneel) eyesShut();
     amuletSide();
     armsS(2);
   }
@@ -3991,6 +4121,24 @@ struct PostureRig : HumanPainter {
       case Posture::Beg:
         if (ph == 0) armR(12, ty + 4, 12, hip);
         else { armL(4, ty + 4, 7, ty + 5 - (odd ? 1 : 0)); bowl(5, ty + 4 - (odd ? 1 : 0), odd); }
+        break;
+      case Posture::Downed:   // (M8) braced on the right hand beside the knee, the left pressed to the wound
+        if (ph == 0) armR(13, ty + 4, 13, kGround);
+        else { wound(8, ty + 3); armL(4, ty + 3, 7, ty + 3); }
+        break;
+      case Posture::Kneel:
+        if (mourning()) {   // (M8) at a grave: a hand on the raised knee, the other on the thigh
+          if (ph == 0) armR(12, ty + 4, 10, hip + (odd ? 1 : 0));
+          else armL(3, ty + 4, 5, hip - 1);
+        } else {            // (M8) binding a wound: both hands low before the knees, the linen wound between them
+          if (ph == 0) armR(12, ty + 4, odd ? 11 : 10, hip + 1 - (odd ? 1 : 0));
+          else {
+            armL(4, ty + 4, odd ? 5 : 6, hip + 1);
+            const int bx = odd ? 6 : 7;
+            c.set(bx, hip + 1, kWhite); c.set(bx + 1, hip + 1, kCloth[3]); c.set(bx + 1, hip + 2, kCloth[2]);
+            if (odd) c.set(bx + 2, hip, kCloth[4]);
+          }
+        }
         break;
       default:
         if (ph == 0) armFront(11, 0, false);
@@ -4170,6 +4318,13 @@ struct PostureRig : HumanPainter {
         break;
       case Posture::Pray:
         if (ph == 0) { armL(4, ty + 3, 5, ty + 4, false); armR(11, ty + 3, 11, ty + 4, false); }
+        break;
+      case Posture::Downed:   // (M8) hunched: one arm braced on the ground, the other hugging the wound out of sight
+        if (ph == 0) armL(4, ty + 3, 5, ty + 4, false);
+        else armR(13, ty + 3, 13, kGround);
+        break;
+      case Posture::Kneel:   // (M8) the hands are before the body (binding a wound, resting on the knee)
+        if (ph == 0) { armL(3, ty + 3, 4, ty + 4 + (mourning() ? 1 : 0), false); armR(12, ty + 3, 12, ty + 4 + (odd && !mourning() ? 1 : 0), false); }
         break;
       case Posture::Eat: case Posture::SitEat: case Posture::SitFloorEat:
         if (ph == 0) { armL(3, ty + 3, 4, ty + 4, false); if (!odd) armR(12, ty + 3, 12, ty + 4, false); else armR(13, ty + 2, 12, ty, false); }
@@ -4446,6 +4601,22 @@ struct PostureRig : HumanPainter {
         if (ph == 0) armFar(9 + o, ty + 4, 11 + o, hip);
         if (ph == 2) { armNear(9 + o, ty + 4, 11 + o, ty + 4 - (odd ? 1 : 0)); bowl(11 + o, ty + 3 - (odd ? 1 : 0), odd); }
         break;
+      case Posture::Downed:   // (M8) the far arm braced on the ground ahead, the near hand pressed to the wound
+        if (ph == 0) armFar(10 + o, ty + 3, 13, kGround);
+        if (ph == 2) { wound(9 + o, ty + 3); armNear(8 + o, ty + 3, 9 + o, ty + 3); }
+        break;
+      case Posture::Kneel:
+        if (mourning()) {   // (M8) the near hand on the raised knee, the far one on the thigh
+          if (ph == 0) armFar(9 + o, ty + 4, 10 + o, hip + (odd ? 1 : 0));
+          if (ph == 2) armNear(9 + o, ty + 4, 12 + o, hip - 1);
+        } else {            // (M8) both hands down before the knee, winding the linen
+          if (ph == 0) armFar(10 + o, ty + 4, 13, hip + (odd ? 0 : 1));
+          if (ph == 2) {
+            armNear(9 + o, ty + 4, 13, hip + (odd ? 1 : 0));
+            c.set(14, hip + (odd ? 0 : 1), kWhite); c.set(14, hip + 2, kCloth[2]);
+          }
+        }
+        break;
       default:
         if (ph == 0) armSide(false, 0);
         if (ph == 2) armSide(true, 0);
@@ -4478,6 +4649,55 @@ struct SleeperRig : HumanPainter {
 };
 
 }  // namespace
+
+// (M8) the rig's resolved colours and pieces (art_internal.h LookKit): the party portraits wear what the sheet wears
+void lookKit(const HumanLook& look, LookKit& k) {
+  Canvas scratch(HUMAN_W, HUMAN_H);
+  HumanPainter hp(scratch, look, kDown, Pose{});
+  const Rig& R = hp.R;
+  auto put = [](uint32_t* d, const Ramp& r) { for (int i = 0; i < 5; i++) d[i] = r[i]; };
+  put(k.skin, R.skin); put(k.hair, R.hair); put(k.top, R.top); put(k.sleeve, R.sleeve); put(k.trim, R.trim);
+  put(k.cloak, R.cloak); put(k.hood, R.hood);
+  put(k.head, (look.headColor || hp.hw) ? ramp(look.headColor ? look.headColor : look.topColor) : R.top);
+  put(k.plume, ramp(look.plumeColor ? look.plumeColor : look.tabardColor));
+  put(k.gilt, (look.armsOrnament & 4) ? kGold : (look.trimColor ? ramp(look.trimColor, 1.1f) : kBrass));
+  put(k.pat, ramp(look.patternColor ? look.patternColor : shade(look.topColor, 0.62f)));
+  k.eye = look.eyeColor ? opaque(look.eyeColor) : kEye;
+  k.accent = R.accent;
+  k.outfit = (int)hp.O; k.armor = hp.armor; k.form = hp.form; k.cut = hp.cutK; k.hw = hp.hw;
+  k.metalBody = hp.metalBody() || hp.form == kFormPlate || hp.form == kFormLeaf;
+  k.mail = hp.O == Outfit::Chain || hp.O == Outfit::Guard || hp.form == kFormMail;
+  k.worn = look.helmet || look.helmStyle;
+  k.helmShape = 0; k.helmAccent = 0; k.helmVisor = 0;
+  if (k.worn) {
+    uint32_t accent = 0, visor = 0;
+    const Ramp* rp = &kLeather;
+    hp.helmetMap(accent, rp, visor);
+    if (R.tinted && look.helmStyle >= 2) rp = &R.alloy;   // M6: the helm in the armour's metal
+    put(k.helm, *rp);
+    k.helmAccent = accent; k.helmVisor = visor;
+    static const int byForm[11] = {0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    static const int byStyle[8] = {0, 1, 2, 4, 11, 10, 13, 14};
+    if (look.helmForm >= 1 && look.helmForm <= 10) {
+      k.helmShape = byForm[look.helmForm];
+      if (look.helmForm == 8) k.helmVisor = rgba(40, 20, 30);
+      if (look.helmForm == 10) k.helmAccent = rgba(120, 210, 230);
+    } else if (look.helmStyle >= 1 && look.helmStyle <= 7) {
+      k.helmShape = byStyle[look.helmStyle];
+    } else {
+      switch (hp.O) {
+        case Outfit::Chain: k.helmShape = 2; break;
+        case Outfit::Guard: k.helmShape = 3; break;
+        case Outfit::Plate: k.helmShape = 4; break;
+        case Outfit::Elven: k.helmShape = 12; break;
+        case Outfit::Ebony: k.helmShape = 13; break;
+        default: k.helmShape = 1; break;
+      }
+    }
+  } else {
+    for (int i = 0; i < 5; i++) k.helm[i] = kIron[i];
+  }
+}
 
 Canvas humanSheet(const HumanLook& look) {
   Canvas sheet(HUMAN_W * HUMAN_FRAMES, HUMAN_H * 3);

@@ -1348,6 +1348,11 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
       if (nm.empty()) nm = "HOME";
       labs.push_back({1, s.x, s.y + 9, s.y - 20, nm, Color(0.45f, 0.24f, 0.04f), Color(1.0f, 0.95f, 0.8f, 0.8f), false});
     }
+  // (M8) the party: companions waiting out in the land, the graves of the fallen (party_view.cpp)
+  if (!S.geo && (!g.party.members.empty() || !g.party.fallen.empty())) {
+    auto scr = [](void* c, double x, double y) { return (*static_cast<decltype(toScr)*>(c))(x, y); };
+    drawPartyWorldMap(g, scr, &toScr, w, h);
+  }
   {
     std::stable_sort(labs.begin(), labs.end(), [](const Lab& a, const Lab& b) { return a.prio < b.prio; });
     const size_t labelBase = taken.size();   // the boxes from here on are labels (before: markers, the hero, the furniture)

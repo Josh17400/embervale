@@ -890,6 +890,7 @@ void Game::spawnEscort(Quest& q, Vec2 at) {
 void Game::questFail(Quest& q, const std::string& why) {
   q.state = QState::Done;
   q.flags |= QF_FAILED;
+  partyQuest(q, false);   // M8: the companions saw it fail (party_game.cpp)
   for (int i = (int)inv.size() - 1; i >= 0; i--) if (inv[(size_t)i].kind == ItemKind::Quest && inv[(size_t)i].questId == q.id) dropItem(i);
   emit(Ev::QuestUpdate, pl().p, q.id, 3, "QUEST FAILED: " + q.title);
   say(why);

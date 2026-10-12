@@ -428,6 +428,11 @@ Canvas mineRail(int joins);
 Canvas mineHill(int variant, int land);
 Canvas ruinVariant(Prop p, int v);   // M1: RuinWall / RuinColumn variant v % 8 (height, broken top, moss); a RuinWall
                                      // with v & 8 joins a wall tile north of it (its top runs on unbroken)
+// (M8 ART) the ruin wall tile knowing its run: joins = the RuinWall neighbours (bits 1 N, 2 E, 4 S, 8 W). A tile with a
+// wall north or south of it is part of a north-south run: one height for the run and a continuous wall top seen from
+// above (blocks laid along it, the west rim lit, the north end broken); any other tile is ruinVariant(p, v | N-join).
+// Same canvas (16x36) and anchor as propSprite(RuinWall).
+Canvas ruinVariantRun(Prop p, int v, int joins);
 // M1 kingdom identity (VISION_PLAN 15.8): a standing banner in a kingdom's colours (field / trim rgba, emblem 0..7), the
 // same canvas size and anchor as propSprite(Prop::Banner). The view draws Prop::Banner tiles that belong to a kingdom's
 // settlement with this (field == 0 gives the plain banner).

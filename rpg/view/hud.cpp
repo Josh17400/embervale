@@ -18,6 +18,7 @@
 #include "rpg/world/source.h"
 
 void heroStage(Pix& P, const Tex& light, float cx, float footY, float size);   // creator.cpp
+int partyUseHere(const Game& g, int& idx);   // (M8) party_view.cpp: 1 a grave in reach, 2 a downed companion, 0 none
 
 namespace {
 Color col(uint32_t c, float a = 1) { return Color((c & 255) / 255.0f, ((c >> 8) & 255) / 255.0f, ((c >> 16) & 255) / 255.0f, a); }
@@ -58,13 +59,18 @@ void clearOfTouch(float& cx, float& y0, float w, float h) {
 Vec2 stickRest() { return Vec2((float)Pix::SL + 60, (float)(Pix::H - Pix::SB) - 55); }
 
 // menuTab_ ids are stable (scripts and --menu use them); EQUIP (M0) is id 5 but shows second
-const char* kTabs[] = {"ITEMS", "QUESTS", "MAP", "HERO", "SYSTEM", "EQUIP"};
-constexpr int NTABS = 6;
-const int kTabOrder[NTABS] = {0, 5, 1, 2, 3, 4};
+// (M8) PARTY (id 6, View::kPartyTab) shows third, after EQUIP, while there is a party or a grave (g_partyTab: set by the
+// menu's draw, keys and taps from View::partyTabShown); without one the strip is the M7 strip, tap for tap
+const char* kTabs[] = {"ITEMS", "QUESTS", "MAP", "HERO", "SYSTEM", "EQUIP", "PARTY"};
+bool g_partyTab = false;
+const int kTabOrder6[6] = {0, 5, 1, 2, 3, 4}, kTabOrder7[7] = {0, 5, 6, 1, 2, 3, 4};
+int nTabs() { return g_partyTab ? 7 : 6; }
+int tabAt(int i) { return g_partyTab ? kTabOrder7[i] : kTabOrder6[i]; }
 int tabStep(int tab, int dir) {
   int at = 0;
-  for (int i = 0; i < NTABS; i++) if (kTabOrder[i] == tab) at = i;
-  return kTabOrder[(at + dir + NTABS) % NTABS];
+  const int n = nTabs();
+  for (int i = 0; i < n; i++) if (tabAt(i) == tab) at = i;
+  return tabAt((at + dir + n) % n);
 }
 
 // The HUD's step line under the tracked quest title: the journal's "what to do next" (Game::questStatus), cut to
@@ -184,7 +190,7 @@ TabLay tabLay(bool touch) {
   t.xX = (float)Pix::W - 18 - t.xW;
   t.xY = t.y;
   t.x0 = 20;
-  t.tw = (t.xX - 4 - t.x0) / 6.0f;
+  t.tw = (t.xX - 4 - t.x0) / (float)nTabs();
   return t;
 }
 
@@ -517,10 +523,16 @@ void View::draw(Game& g, bool hasSave) {
   drawLighting(g);
   drawWeather(g, 0);
   // quest-giver markers after the night/weather pass so the "!" stays readable in the dark
-  if (g.mode != Mode::Title && g.mode != Mode::Creator)
+  if (g.mode != Mode::Title && g.mode != Mode::Creator) {
     drawMarkers(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));
+    companionOverlays(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M8) the wound, the binding
+  }
   // floating combat text (screen)
   Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
+  // (fixer M8 r1) every spoken plate this frame keeps clear of the HUD's bands and of the plates placed before it
+  plateBoxes_.clear();
+  std::vector<PlateBox> speechBands;
+  if (g.mode == Mode::Play) hudBands(g, speechBands);
   for (const FloatText& f : texts_) {
     if (f.speech) {
       // (M5) a spoken line: wrapped to ~22 characters, centred over the speaker on a dark plate with a 1 px rim, in the
@@ -542,6 +554,17 @@ void View::draw(Game& g, bool hasSave) {
       if (tagOn_ && cx + w / 2.0f + 3 > tagX0_ && cx - w / 2.0f - 3 < tagX1_ && y0 - 1 < tagY1_ && y0 + h + 1 > tagY0_)
         y0 = std::floor(tagY0_ - 2 - h);
       if (touchUI && g.mode == Mode::Play) clearOfTouch(cx, y0, (float)w + 6, h + 2);
+      // (M8) and never over the party's portraits at the left edge
+      if (partyColR_ > 0 && cx - w / 2.0f - 3 < partyColR_ && y0 < partyColB_) cx = std::floor(partyColR_ + w / 2.0f + 5);
+      if (g.mode == Mode::Play) {   // (fixer M8 r1) never over another plate or the banner ("EVEVENING, XOTZIXA")
+        std::vector<PlateBox> avoid = speechBands;
+        avoid.insert(avoid.end(), plateBoxes_.begin(), plateBoxes_.end());
+        float px0 = cx - w / 2.0f - 3, py0 = y0 - 1;
+        clearPlate(px0, py0, (float)w + 6, h + 2, avoid, (float)Pix::SL, (float)Pix::ST, (float)(Pix::W - Pix::SR), (float)(Pix::H - Pix::SB));
+        cx = std::floor(px0 + w / 2.0f + 3); y0 = std::floor(py0 + 1);
+        PlateBox pb; pb.x0 = cx - w / 2.0f - 3; pb.y0 = y0 - 1; pb.x1 = pb.x0 + (float)w + 6; pb.y1 = pb.y0 + h + 2;
+        plateBoxes_.push_back(pb);
+      }
       P.rect(cx - w / 2.0f - 3, y0 - 1, (float)w + 6, h + 2, Color(0.02f, 0.02f, 0.04f, 0.45f * a));
       P.rect(cx - w / 2.0f - 2, y0, (float)w + 4, h, Color(0.06f, 0.05f, 0.08f, 0.72f * a));
       for (size_t k = 0; k < ls.size(); k++) {
@@ -555,6 +578,7 @@ void View::draw(Game& g, bool hasSave) {
     P.text(f.p.x - cam.x + 1, f.p.y - cam.y + 1, f.s, 1, Color(0, 0, 0, a * 0.7f), 1);
     P.text(f.p.x - cam.x, f.p.y - cam.y, f.s, 1, Color(f.c.r, f.c.g, f.c.b, a), 1);
   }
+  if (g.mode == Mode::Play) drawBanter(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M8) party_hud.cpp
   if (g.mode == Mode::Title) { drawTitle(g, hasSave); }
   else if (g.mode == Mode::Creator) { drawCreator(g); }
   else {
@@ -562,10 +586,11 @@ void View::draw(Game& g, bool hasSave) {
     // round the panel's edges on a wide phone)
     if (g.mode != Mode::Menu && g.mode != Mode::Shop && g.mode != Mode::LevelUp && g.mode != Mode::Forge && g.mode != Mode::Build) drawHud(g);
     if (touchUI && (g.mode == Mode::Play)) drawTouch(g);
+    if (g.mode == Mode::Play) drawPartyRadial(g);   // (M8) the companions' orders, over the whole HUD (party_hud.cpp)
     if (g.mode == Mode::Dialogue) drawDialogue(g);
     // toasts and the banner wait while a dialogue is open (render.cpp holds their timers): on a phone the touch
     // panel is tall and anything drawn over it hides the speaker and the first line
-    if (g.mode != Mode::Shop && g.mode != Mode::Menu && g.mode != Mode::Dialogue && g.mode != Mode::Forge && g.mode != Mode::Build) drawToasts();
+    if (g.mode != Mode::Shop && g.mode != Mode::Menu && g.mode != Mode::Dialogue && g.mode != Mode::Forge && g.mode != Mode::Build && !(radial_.open && g.mode == Mode::Play)) drawToasts();
     if (g.mode == Mode::Shop) drawShop(g);
     if (g.mode == Mode::Forge) drawForge(g);   // M6 (craft_ui.cpp)
     if (g.mode == Mode::Build) drawBuild(g);   // M7 (buildmode.cpp)
@@ -1005,6 +1030,8 @@ void View::drawHud(Game& g) {
           // slide can push the arrow back up the right edge into the column: then it goes left of the column instead,
           // with room for the distance behind it
           if (a.x > colLeft - 4 && a.y < colBottom) a.x = colLeft - 4;
+          // (M8) and off the party's portraits down the left edge (the distance sits behind it: room for it too)
+          if (partyColR_ > 0 && a.x < partyColR_ + 30 && a.y < partyColB_ + 6 && a.y > T + 40) a.x = partyColR_ + 30;
           // a filled arrowhead (dark outline first so it reads on snow and sand), gently pulsing toward the goal
           a = a + d * (std::sin(t_ * 6) * 1.5f);
           Vec2 side(-d.y, d.x);
@@ -1098,10 +1125,41 @@ void View::drawHud(Game& g) {
   // NPC name / interact prompt
   tagOn_ = false;
   int it = g.mode == Mode::Play ? g.interactTarget() : -1;
-  const std::string homeVerb = it < 0 ? home::interactLabel(g) : std::string();   // (M7) the yard's use
-  if (it >= 0) {
+  // (M8) the party's use comes first, as Game::partyInteract takes it: a grave of the fallen in reach (VISIT), a downed
+  // companion (BIND WOUNDS instead of TALK; also mid-fight, when no one else may be talked to)
+  int partyIdx = -1;
+  const int partyUse = g.mode == Mode::Play ? partyUseHere(g, partyIdx) : 0;
+  if (partyUse == 1) it = -1;
+  if (partyUse == 2) {
+    const int mi = partyIdx;
+    it = -1;
+    for (const Actor& a : g.actors)
+      if (a.comp == mi + 1 && a.st != AState::Dead) { it = a.id; break; }
+  }
+  const std::string homeVerb = it < 0 && !partyUse ? home::interactLabel(g) : std::string();   // (M7) the yard's use
+  if (partyUse == 1 && partyIdx >= 0 && partyIdx < (int)g.party.fallen.size()) {
+    // the grave: "E: VISIT" over the stone (its name shows by the stone itself, party_view.cpp)
+    const party::Fallen& f = g.party.fallen[(size_t)partyIdx];
+    Vec2 s = Vec2((f.gx - g.world.ox) * 16.0f + 8.0f, (f.gy - g.world.oy) * 16.0f - 24.0f) - Vec2(std::floor(cam_.x), std::floor(cam_.y));
+    std::string lab = std::string(touchUI ? "TAP: " : "E: ") + "VISIT " + f.name + "'S GRAVE";
+    if (lab.size() > 30) lab = std::string(touchUI ? "TAP: " : "E: ") + "VISIT THE GRAVE";
+    const float w = (float)P.textW(lab, 1) + 8;
+    if (touchUI) { float ty = s.y - 13; clearOfTouch(s.x, ty, w, 11); s.y = ty + 13; }
+    P.rect(s.x - w / 2, s.y - 13, w, 11, Color(0.04f, 0.03f, 0.05f, 0.55f));
+    P.textS(s.x, s.y - 11, lab, 1, kGold, 1);
+    tagOn_ = true;
+    tagX0_ = s.x - w / 2; tagX1_ = s.x + w / 2; tagY0_ = s.y - 13; tagY1_ = s.y - 2;
+  } else if (it >= 0) {
     for (const Actor& a : g.actors)
       if (a.id == it) {
+        // (fixer M8 r1, review: "a pup always at heel puts a permanent E: TALK prompt over the player's head") a
+        // companion at heel is always the nearest person: their tag shows only while the player stands still (the
+        // bonded animal's never; the touch button still says TALK, the portrait card opens their orders)
+        if (a.comp && partyUse != 2 && a.comp <= g.party.members.size() && g.party.members[(size_t)a.comp - 1].state == party::State::With &&
+            (!a.human || g.pl().st != AState::Idle || len2(g.pl().vel) > 4.0f))
+          break;
+        // (fixer M8 r2) while the wounds are being bound the ring over them says it all: no name or verb over it
+        if (partyUse == 2 && partyIdx >= 0 && partyIdx < (int)g.party.members.size() && g.party.members[(size_t)partyIdx].reviveT > 0) break;
         Vec2 s = a.p - Vec2(std::floor(cam_.x), std::floor(cam_.y));
         // a giver with a reward waiting wears the "!" bubble (drawMarkers) just above the head: the label goes over it
         // (fixer M6b r3) so do the "has a tale" scroll and the wayside "!" (drawMarkers): the label covered the scroll
@@ -1110,12 +1168,14 @@ void View::drawHud(Game& g) {
         const bool marked = g.rewardWaiting(a) || (wayside && g.offersWork(a)) ||
                             (g.story.hasTale(a.id) && !(a.bubble != art::Bubble::None && a.bubbleT > 0));
         float ly = marked ? s.y - art::HUMAN_H - 24.0f : s.y - 34.0f;
+        if (partyUse == 2) ly -= 16.0f;   // (M8) over the wound mark and the binding ring (fixer M8 r2: clear of it)
         // keep the label off the hero: when the hero's head is where the label would go, lift it clear
         const Vec2 hs = g.pl().p - Vec2(std::floor(cam_.x), std::floor(cam_.y));
         // (M5) village animals are petted, not talked to; (M7) the player's own animals say what the button does
         // (RIDE <NAME> for the waiting horse, GROOM with a brush): home::interactLabel shares homeInteract's decision
         std::string critterUse = a.critter ? home::interactLabel(g) : std::string();
-        const std::string verb = a.critter ? "E: " + (critterUse.empty() ? std::string("PET") : critterUse) : std::string("E: TALK");
+        std::string verb = a.critter ? "E: " + (critterUse.empty() ? std::string("PET") : critterUse) : std::string("E: TALK");
+        if (partyUse == 2) verb = "E: BIND WOUNDS";   // (M8) a downed companion
         const float labelW = (float)std::max(P.textW(a.name, 1), touchUI ? 0 : P.textW(verb, 1)) * 0.5f + 6;
         const float labelTop = ly - (touchUI ? 2.0f : 11.0f);
         if (std::fabs(hs.x - s.x) < labelW + 6 && hs.y - 30.0f < ly + 8 && hs.y > labelTop - 4)
@@ -1130,6 +1190,10 @@ void View::drawHud(Game& g) {
           const float half = labelW - 6;
           const float topY = ly - (touchUI ? 0.0f : 9.0f);
           if (lx - half < hudR && topY < hudB) ly = s.y + (touchUI ? 4.0f : 13.0f);
+          // (fixer M8 r3, review: "the HUNGRY hint box overlaps E: TALK / A GUARD") clear of the toast column on the
+          // left, as the yard's and the props' prompts keep (M7 fix): the label steps right of the notices
+          const float ly0 = ly - (touchUI ? 2.0f : 11.0f), ly1 = ly + 9.0f;
+          if (toastX1_ > 0 && lx - labelW < toastX1_ + 4 && ly0 < toastY1_ + 2 && ly1 > toastY0_ - 2) lx = toastX1_ + 4 + labelW;
         }
         // (M7 fix) "E: RIDE DUSTY" already names her: one label, not the verb stacked over the name
         const bool verbNames = !touchUI && !a.name.empty() && verb.size() > a.name.size() && verb.compare(verb.size() - a.name.size(), a.name.size(), a.name) == 0;
@@ -1209,7 +1273,10 @@ void View::drawHud(Game& g) {
   }
   // (M3c LIFE) the first visit to a biome: its name, quietly, under the location column's height at the top centre
   // (small type between two short gold rules; it fades in and out and waits for a big banner to finish)
-  if (biomeBannerT_ > 0 && !biomeBanner_.empty() && (bannerT_ <= 0 || g.mode == Mode::Dialogue) && herald_.t <= 0 && g.mode == Mode::Play && !g.inside) {
+  // (fixer M8 r3, review: "radial labels run into the region banner: WAIT LLAGE") the title cards, the herald and the
+  // toasts step away while the companions' order ring is open (their clocks run on; the ring is a moment's choice)
+  const bool ringOpen = radial_.open && g.mode == Mode::Play;
+  if (!ringOpen && biomeBannerT_ > 0 && !biomeBanner_.empty() && (bannerT_ <= 0 || g.mode == Mode::Dialogue) && herald_.t <= 0 && g.mode == Mode::Play && !g.inside) {
     const float a = clampf(std::min(biomeBannerT_, 4.0f - biomeBannerT_) * 1.6f, 0, 1);
     const float y = std::max(T + 30, bossBarBottom_ + 10);   // (M6 fixer) clear of a world boss's bar
     const float tw = (float)P.textW(biomeBanner_, 1);
@@ -1221,7 +1288,7 @@ void View::drawHud(Game& g) {
     P.textS(Pix::W / 2, y, biomeBanner_, 1, Color(0.98f, 0.92f, 0.74f, a), 1);
   }
   // banner
-  if (bannerT_ > 0 && g.mode != Mode::Dialogue) {
+  if (bannerT_ > 0 && g.mode != Mode::Dialogue && !ringOpen) {
     const float a0 = clampf(std::min(bannerT_, 4.0f - bannerT_) * 2.5f, 0, 1);
     // (fixer M4 r3, review: "a ghost of the town name stays on the ground after the plate fades") the plate fades last:
     // the words go first (a squared), so no name ever floats over the street without its dark plate under it
@@ -1239,8 +1306,9 @@ void View::drawHud(Game& g) {
       P.textS(Pix::W / 2, y + 30, bannerState_, 1, Color(sc.r, sc.g, sc.b, a), 1);
     }
   }
-  drawHerald(g);
+  if (!ringOpen) drawHerald(g);
   drawHomeHud(g);   // (M7) YARD / DECORATE, DISMOUNT (buildmode.cpp)
+  drawPartyHud(g);  // (M8) the companions' portraits and alerts (party_hud.cpp)
 }
 
 // Toasts (items received, quest steps, notices): a column on the left under the vitals, clear of the thumbs (the
@@ -1249,7 +1317,10 @@ void View::drawHud(Game& g) {
 // onto a second line, and the column stops above the touch stick.
 void View::drawToasts() {
   Pix& P = *pix_;
-  const float L = (float)Pix::SL, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
+  // (M8) with a party the column of portraits stands at the left edge under the vitals: the toasts step right of it
+  // (fixer M8 r1, review: "WEARY: FIND A BED reads as the hound's label") a clear gap from the cards and a firmer plate
+  const float L = partyColR_ > 0 ? std::max((float)Pix::SL, partyColR_ + 6) : (float)Pix::SL, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
+  const float plateA = partyColR_ > 0 ? 0.7f : 0.42f;
   // (M6 fixer r4, review: "event text is drawn right over the world boss") at most 30 characters a line, so a long
   // notice wraps in the left column instead of running across the middle of the screen, where the hero and his foe stand
   const int per = std::clamp((int)((R - 166 - (L + 6)) / 6), 16, 30);
@@ -1268,7 +1339,8 @@ void View::drawToasts() {
     for (size_t k = 0; k < lines.size(); k++) {
       const std::string& s = lines[k];
       float w = (float)P.textW(s, 1);
-      P.rect(L + 3, ty - 2, w + 6, k + 1 < lines.size() ? 10.0f : 10.0f, Color(0.03f, 0.02f, 0.05f, 0.42f * a));
+      P.rect(L + 3, ty - 2, w + 6, k + 1 < lines.size() ? 10.0f : 10.0f, Color(0.03f, 0.02f, 0.05f, plateA * a));
+      if (partyColR_ > 0) P.rect(L + 3, ty - 2, 1, 10.0f, Color(t.c.r * 0.7f, t.c.g * 0.7f, t.c.b * 0.7f, 0.8f * a));   // (its own rule: no card's)
       if (a > 0.05f) { toastX1_ = std::max(toastX1_, L + 9 + w); toastY1_ = ty + 8; }
       P.textS(L + 7, ty + 1, s, 1, Color(0, 0, 0, a * 0.6f));
       P.textS(L + 6, ty, s, 1, Color(t.c.r, t.c.g, t.c.b, a));
@@ -1331,7 +1403,10 @@ void View::drawTouch(Game& g) {
     for (int k = 0; k < 40; k++) { float a = k / 40.0f * TAU; P.rect(d.x + std::cos(a) * d.r, d.y + std::sin(a) * d.r, 1, 1, ring); }
     switch (b) {
       case B_ATTACK:
-        if (target >= 0) {
+        if (int pidx = -1, pu = partyUseHere(g, pidx); pu) {   // (M8) BIND a downed companion, VISIT a grave
+          P.text(d.x, d.y - 3, pu == 2 ? "BIND" : "VISIT", 1, kGold, 1);
+        }
+        else if (target >= 0) {
           const Actor* ta = nullptr;
           for (const Actor& x : g.actors) if (x.id == target) { ta = &x; break; }
           std::string tv = "TALK";
@@ -1538,6 +1613,7 @@ void View::drawMinimap(Game& g, float x, float y, int size) {
       P.rect(cx - 2, cy - 1, 5, 3, Color(0.96f, 0.90f, 0.74f));
       P.rect(cx, cy + 1, 1, 2, Color(0.40f, 0.26f, 0.16f));
     }
+  drawPartyMinimap(g, x, y, size, ox, oy);   // (M8) companions, the waiting ones, graves (party_view.cpp)
   P.rect(x + (ptx - ox) * size / 64.0f - 1, y + (pty - oy) * size / 64.0f - 1, 3, 3, Color(1, 1, 1));
   int tx, ty;
   const Quest* mq = g.trackedQuest >= 0 ? g.questById(g.trackedQuest) : nullptr;
@@ -1557,8 +1633,10 @@ void View::drawMenu(Game& g) {
   struct Pop { Pix& p; ~Pop() { p.popBox(); } } pop{P};
   panel(8, 6, Pix::W - 16, Pix::H - 12);
   // tabs, and the close X at the strip's right end (finger-sized on touch)
+  g_partyTab = partyTabShown(g);
+  if (!g_partyTab && menuTab_ == kPartyTab) menuTab_ = 5;
   const TabLay T = tabLay(touchUI);
-  for (int i = 0; i < NTABS; i++) button(T.x0 + i * T.tw, T.y, T.tw - 4, T.h, kTabs[kTabOrder[i]], kTabOrder[i] == menuTab_);
+  for (int i = 0; i < nTabs(); i++) button(T.x0 + i * T.tw, T.y, T.tw - 4, T.h, kTabs[tabAt(i)], tabAt(i) == menuTab_);
   button(T.xX, T.xY, T.xW, T.xH, "X", false);
   float top = 34;
   // a touch list's page buttons and its "1-8 OF 15" count (keyboard: the count alone, under the list)
@@ -1787,6 +1865,9 @@ void View::drawMenu(Game& g) {
     }
     case 5:   // equip (paperdoll.cpp)
       drawPaperdoll(g, 8, 30, Pix::W - 16, Pix::H - 36);
+      break;
+    case kPartyTab:   // (M8) the companions' paper doll and the remembered (paperdoll.cpp)
+      drawPartyPage(g);
       break;
   }
 }
@@ -2183,16 +2264,24 @@ Input View::input(Game& g) {
     // OPEN, PRAY...) the tap is a use, and a held finger must not turn the next frame back into a swing
     for (auto& f : fingers_) {
       int hx = 0, hy = 0;
-      if (f.on && f.button == B_ATTACK && !f.use && g.interactTarget() < 0 && !usablePropAt(g, hx, hy) && home::interactLabel(g).empty()) in.attack = true;
+      int pidx = -1;
+      if (f.on && f.button == B_ATTACK && !f.use && g.interactTarget() < 0 && !usablePropAt(g, hx, hy) && home::interactLabel(g).empty() && !partyUseHere(g, pidx)) in.attack = true;
     }
   }
   if (kAttack_) { in.attack = true; }
   in.bow = kBow_; in.spell = kSpell_; in.roll = kRoll_; in.interact = kUse_; in.potion = kPotion_; in.swapSpell = kSwap_;
-  int utx = 0, uty = 0;
+  int utx = 0, uty = 0, pidx = -1;
   // the attack key/button talks when someone is in reach; a tap on the world far from them stays an attack
+  // (M8) and binds a downed companion's wounds or visits a grave
   if (in.attack && g.mode == Mode::Play && kAttack_ && !kTapAttack_ &&
-      (g.interactTarget() >= 0 || usablePropAt(g, utx, uty) || !home::interactLabel(g).empty())) { in.attack = false; in.interact = true; }
+      (partyUseHere(g, pidx) || g.interactTarget() >= 0 || usablePropAt(g, utx, uty) || !home::interactLabel(g).empty())) { in.attack = false; in.interact = true; }
   kAttack_ = kBow_ = kSpell_ = kRoll_ = kUse_ = kPotion_ = kSwap_ = kTapAttack_ = false;
+  // (M8) while the companions' radial is open the keyboard is its own (the stick still steers)
+  if (radial_.open && g.mode == Mode::Play) {
+    Input keep;
+    if (stick_.on) keep.move = in.move;
+    in = keep;
+  }
   return in;
 }
 
@@ -2201,12 +2290,14 @@ void View::menuKey(Game& g, int key) {
   if (g.mode == Mode::Forge) { forgeKey(g, key); return; }   // M6 (craft_ui.cpp)
   if (g.mode == Mode::Build) { buildKey(g, key); return; }   // M7 (buildmode.cpp)
   if (g.mode == Mode::Menu || g.mode == Mode::LevelUp) {
+    g_partyTab = partyTabShown(g);
     if (key == SDLK_ESCAPE || key == SDLK_TAB || key == SDLK_I) { back(); return; }
     // (M1) on the MAP tab Q / E zoom (worldMapKey); PageUp / PageDown and A / D still switch tabs there
     const bool mapQE = menuTab_ == 2 && g.mode == Mode::Menu && (key == SDLK_Q || key == SDLK_E);
     if (!mapQE && (key == SDLK_Q || key == SDLK_PAGEUP)) { menuTab_ = tabStep(menuTab_, -1); menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; audio_->play(Sfx::MenuMove); return; }
     if (!mapQE && (key == SDLK_E || key == SDLK_PAGEDOWN)) { menuTab_ = tabStep(menuTab_, 1); menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; audio_->play(Sfx::MenuMove); return; }
     if (menuTab_ == 5 && g.mode == Mode::Menu) { paperdollKey(g, key); return; }
+    if (menuTab_ == kPartyTab && g.mode == Mode::Menu) { partyPageKey(g, key); return; }   // (M8) paperdoll.cpp
     if (menuTab_ == 3 && g.perkPts > 0) {
       if (key == SDLK_UP || key == SDLK_W) levelSel_ = (levelSel_ + 2) % 3;
       if (key == SDLK_DOWN || key == SDLK_S) levelSel_ = (levelSel_ + 1) % 3;
@@ -2358,12 +2449,13 @@ void View::tap(Game& g, Vec2 p) {
     return;
   }
   if (g.mode == Mode::Menu || g.mode == Mode::LevelUp) {
+    g_partyTab = partyTabShown(g);
     const TabLay T = tabLay(touchUI);
     // the close X first (on touch its tap box reaches a little past it, into the panel's corner)
     if (touchUI ? inR(T.xX - 2, 0, T.xW + 18, T.xY + T.xH + 6) : inR(T.xX, T.xY, T.xW, T.xH)) { g.mode = Mode::Play; return; }
-    for (int i = 0; i < NTABS; i++)
+    for (int i = 0; i < nTabs(); i++)
       if (touchUI ? inR(T.x0 - 2 + i * T.tw, 0, T.tw, T.y + T.h + 2) : inR(T.x0 + i * T.tw, T.y, T.tw - 4, T.h)) {
-        menuTab_ = kTabOrder[i]; menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; menuScroll_ = 0; mapSel_ = -1; audio_->play(Sfx::MenuMove); return;
+        menuTab_ = tabAt(i); menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; menuScroll_ = 0; mapSel_ = -1; audio_->play(Sfx::MenuMove); return;
       }
     float top = 34;
     const MenuLay L = menuLay(touchUI);
@@ -2432,6 +2524,9 @@ void View::tap(Game& g, Vec2 p) {
       case 5:
         paperdollTap(g, p);
         break;
+      case kPartyTab:   // (M8) paperdoll.cpp
+        partyPageTap(g, p);
+        break;
       case 4: {
         const float sh = L.sysH, pitch = sh + 6;
         const float bw = std::clamp(std::floor(Pix::W * 0.36f), 140.0f, 220.0f), bx = std::floor((Pix::W - bw) / 2), by = sysTop(top, sh, touchUI);
@@ -2463,6 +2558,8 @@ void View::event(const SDL_Event& e, Game& g) {
       if (onMap && e.wheel.y != 0) worldMapZoom(e.wheel.y > 0 ? -1 : 1, inBox(modalBox(g), mouse_));
       break;
     case SDL_EVENT_MOUSE_BUTTON_UP:
+      if (g.mode == Mode::Play && e.button.which != SDL_TOUCH_MOUSEID && e.button.button == SDL_BUTTON_LEFT)
+        partyPointer(g, 2, 1ull << 62, logical(e.button.x, e.button.y), true);   // (M8) a card clicked / the radial's wedge
       if (g.mode == Mode::Build && e.button.which != SDL_TOUCH_MOUSEID && e.button.button == SDL_BUTTON_LEFT) buildPointer(g, 2, logical(e.button.x, e.button.y));
       if (onMap && e.button.which != SDL_TOUCH_MOUSEID && e.button.button == SDL_BUTTON_LEFT && mapPtr(2, 1ull << 62, logical(e.button.x, e.button.y)))
         tap(g, logical(e.button.x, e.button.y));
@@ -2488,6 +2585,7 @@ void View::event(const SDL_Event& e, Game& g) {
       if (g.mode == Mode::Paused) { if (k == SDLK_ESCAPE || k == SDLK_RETURN || k == SDLK_SPACE) g.mode = Mode::Play; break; }
       if (g.mode == Mode::Creator) { creatorKey(g, (int)k); break; }
       if (g.mode != Mode::Play) { menuKey(g, k); break; }
+      if (partyKey(g, (int)k)) break;     // (M8) C: the companions' orders (the radial takes every key while open)
       if (homeHudKey(g, (int)k)) break;   // (M7) B: yard / decorate, F: dismount
       switch (k) {
         case SDLK_ESCAPE: g.mode = Mode::Paused; break;
@@ -2508,6 +2606,7 @@ void View::event(const SDL_Event& e, Game& g) {
     }
     case SDL_EVENT_MOUSE_MOTION:
       mouse_ = logical(e.motion.x, e.motion.y);
+      if (g.mode == Mode::Play && e.motion.which != SDL_TOUCH_MOUSEID) partyPointer(g, 1, 1ull << 62, mouse_, true);   // (M8) the radial's hover
       if (g.mode == Mode::Build && e.motion.which != SDL_TOUCH_MOUSEID && (e.motion.state & SDL_BUTTON_LMASK)) buildPointer(g, 1, mouse_);
       if (onMap && e.motion.which != SDL_TOUCH_MOUSEID) mapPtr(1, 1ull << 62, mouse_);
       break;
@@ -2520,6 +2619,14 @@ void View::event(const SDL_Event& e, Game& g) {
         break;
       }
       if (g.mode == Mode::Play) {
+        // (M8) a click on a companion's card selects it (a second click, or a right click, opens the radial)
+        if (e.button.button == SDL_BUTTON_LEFT && partyPointer(g, 0, 1ull << 62, p, true)) break;
+        if (e.button.button == SDL_BUTTON_RIGHT && !radial_.open && partyPointer(g, 0, 1ull << 62, p, true)) {
+          const int mi = partyPress_.member;
+          partyPress_.on = false;
+          radialOpen(g, mi, false, 0);
+          break;
+        }
         if (e.button.button == SDL_BUTTON_LEFT && homeHudTap(g, p)) break;   // (M7) the home pills
         if (e.button.button == SDL_BUTTON_LEFT) kAttack_ = true;
         else if (e.button.button == SDL_BUTTON_RIGHT) kBow_ = true;
@@ -2549,6 +2656,7 @@ void View::event(const SDL_Event& e, Game& g) {
         if (bp.x >= 16 && bp.x < box.w - 164 && bp.y >= 40 && bp.y < box.h - 12) { mapPtr(0, (uint64_t)e.tfinger.fingerID, p); break; }
       }
       if (g.mode != Mode::Play) { tap(g, p); break; }
+      if (partyPointer(g, 0, (uint64_t)e.tfinger.fingerID, p, false)) break;   // (M8) a companion's card: tap selects, hold orders
       if (homeHudTap(g, p)) break;   // (M7) YARD / DECORATE, DISMOUNT
       int b = buttonAt(p);
       // (fixer M5 r3, review: "nothing explains the buff icons when tapped") a tap on the buff icons says what they do
@@ -2589,11 +2697,19 @@ void View::event(const SDL_Event& e, Game& g) {
       Vec2 p = logical(e.tfinger.x * ww, e.tfinger.y * wh);
       if (onMap) mapPtr(1, (uint64_t)e.tfinger.fingerID, p);
       if (g.mode == Mode::Build) buildPointer(g, 1, p);   // (M7) the ghost or a list dragged
+      if (g.mode == Mode::Play) partyPointer(g, 1, (uint64_t)e.tfinger.fingerID, p, false);   // (M8) the held radial
       if (stick_.on && stick_.id == e.tfinger.fingerID) stick_.cur = p;
       for (auto& f : fingers_) if (f.id == e.tfinger.fingerID) f.cur = p;
       break;
     }
     case SDL_EVENT_FINGER_UP: case SDL_EVENT_FINGER_CANCELED: {
+      if (g.mode == Mode::Play) {   // (M8) a card let go of: a tap selects; the held radial gives the order under the finger
+        int ww, wh;
+        SDL_GetWindowSize(pix_->window(), &ww, &wh);
+        const Vec2 p = logical(e.tfinger.x * ww, e.tfinger.y * wh);
+        if (e.type == SDL_EVENT_FINGER_CANCELED) { if (radial_.drag && radial_.finger == (uint64_t)e.tfinger.fingerID) radial_.open = false; partyPress_.on = false; }
+        else partyPointer(g, 2, (uint64_t)e.tfinger.fingerID, p, false);
+      }
       if (g.mode == Mode::Build) {   // (M7) a drag ends; a still tap on a list row acts now
         int ww, wh;
         SDL_GetWindowSize(pix_->window(), &ww, &wh);

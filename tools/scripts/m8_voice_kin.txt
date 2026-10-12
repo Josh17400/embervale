@@ -1,0 +1,31 @@
+phone
+# M8 VOICE lane: the people round a companion. Their kin asks the player to look after them while they travel; after the
+# companion dies for good, the kin remember them, and the grave's epitaph in their people's rite and the words said there.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_voice_kin.txt     (m8_voice_kin_*.png)
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 11
++0.2 voice recruit-kin
++0.4 voice kin
++1.5 expect mode dialogue
++2.90 touch 1
++0.1 shot m8_voice_kin_1_lookafter.png
++0.1 key Escape
++0.3 party kill
++0.6 expect party members 0
++0.2 expect party fallen 1
++0.3 voice kin fallen
++1.5 expect mode dialogue
++2.90 touch 1
++0.1 shot m8_voice_kin_2_grief.png
++0.1 key Escape
++0.3 voice grave
++1.5 expect mode dialogue
++2.90 touch 1
++0.1 shot m8_voice_kin_3_grave.png
++0.1 choose SAY A FEW WORDS
++2.90 touch 1
++0.1 shot m8_voice_kin_4_words.png
++0.2 quit

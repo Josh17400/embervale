@@ -2877,3 +2877,74 @@ non-zero); `Bldg::row` is part of the open-front cache key; `art::cityPropStyled
 `DlgOpt::grp` / `Dialogue::group/front/shows()` option groups (`A_GROUP` / `A_BACK`), `speech::FIRST_PAGE` 6,
 `speech::C_ANSWER` (outside `C_ALL`); script commands `cityspot`, `expect urb none`, `gotourb`, `expect kerbs`.
 Villages: `--villages` and `city_gallery --check` (village art) unchanged. SAVE_VER 15 / ENDLESS_GEN_VER 17 stand.
+
+### 15.26 M8 "Fellowship" phase A (lead, 2026-10-11): the companion contracts
+
+Section 9, 13 M8 and the owner's 15.6.2 bind M8, with the owner's M8 notes (2026-10-11) on top: companions can die
+PERMANENTLY (the player cannot), with deep bonding; they are recruited from the living world (tavern regulars and other
+M5 census residents with their own job, home, family, friends, needs and history; mercenaries; people rescued in sagas)
+and each has a personality, culture, background, opinions and a stake in the world (their burned home village, a war, a
+lost kin); roles, commands (follow, wait, attack, defend, use skill), a phone-first command radial, the companion paper
+doll with visible culture gear, party portraits; downed -> recovery window -> death if not saved, with grief in their
+family and friends and a grave; approval and the deeds bus reacting to real choices (sagas, war, crime, mercy); bond
+skills unlocked by trust; banter (culture borders, weather, places, each other) and personal quests GENERATED through
+the M6b saga composer from their real history, all at the M7b speech bar; an optional bonded hound or wolf raised from
+a pup; companions take 25-40 % of the damage across three bands, are never stuck more than 30 tiles behind, path through
+cities, ramps and doors, ride with the M7 horse and can live at the player's house; villages unchanged. Every new RNG
+draw is sequenced explicitly. Phase A contracts (a lane may ADD to the file it is named the editor of, never rename,
+remove or change the meaning of what is listed here):
+- **`rpg/sim/party.h`** (FELLOWS lane is its only editor; rules in party.cpp): `party::Vocation` (Warrior, Archer, Mage,
+  Healer, Rogue, Hound), `Origin` (Tavern, Resident, Mercenary, Rescued, Saga, Animal), `State` (With, Downed, Waiting,
+  Home, Left, Dead), `Cmd` (the radial: Follow, Wait, Attack, Defend, Skill, Passive, Home), `Hook` / `Stake` (the stake
+  in the world: burned home, lost kin, war, revenge, heirloom, debt, exile, faith, ambition, love, with the site, kin,
+  foe, kingdom and ruin ids), `Personality` (four axes -2..2, likes / dislikes as Deed bits), the deeds bus's `Deed` x24
+  + `DeedInfo` (axis weights, DF_HOME, DF_LOUD) + `approvalDelta` (-15..15; a war against the homeland is a betrayal),
+  `Skill` x18 (three per vocation at bond 20 / 50 / 80) + `SkillInfo` / `skillsOf` / `unlockedSkills`, `Slot` (the
+  player's eleven), the tuning constants (MAX_RECORDS 8, PARTY_PEOPLE 1 / 2 from LEADERSHIP_LEVEL 20, APPROVAL_COMPLAIN
+  -40 / LEAVE -70 / QUEST 50, DOWNED_SECS 30, REVIVE_SECS 2, REVIVE_HP_PCT 30, LOW_HP_PCT 35, FOLLOW_TILES 1.5,
+  CATCH_UP_TILES 30, BANTER_GAP_SECS 90, wages 30..120, SHARE_LO/HI_PCT 25 / 40), `Memory` (deeds remembered), the
+  `Member` record (identity from the census: npcId, site, census index, name, job, culture, look seed; personality,
+  stake; approval, bond, MF_* flags; health, the bleeding-out clock, wounds; their own pack and eleven slots; horse,
+  wage; where they wait or live (global tile or building / site map, the player's plot); their record together; the
+  VOICE fields: personal quest spec and instance, talk bits, last line), `Fallen` (the grave: name, census identity,
+  global tile, day, cause, epitaph seed, belongings, GF_* flags), `Stats` (damage taken / dealt by player and party, the
+  worst lag, catch-ups, downs, revives, deaths, deeds, banter), `Party` (members, fallen, nextId, the pending deeds,
+  the banter clock; the party block, its own VERSION 1, records length-prefixed), `capacity`, `levelFor`, `Body` /
+  `bodyFor` (the balance knobs), `vocationFor` / `personalityFor`, the names; and the VOICE lane's entry points
+  `banterStep`, `deedLine`, `cryLine`, `epitaph`, `aboutLine` (rpg/sim/banter.cpp).
+- **`rpg/sim/game.h`** (FELLOWS lane is its only editor): `Game::party`; `Actor::comp` (members index + 1) and
+  `Actor::partyTag` (the lane's scratch); `Ev::Banter` (a member speaks) and `Ev::PartyAlert` (low health, downed,
+  revived, died, joined, left, complains, a skill learned); `DLG_PARTY .. DLG_PARTY_END` (5500..6000);
+  `PerfCounters::S_PARTY`; the public API (rpg/sim/party_game.cpp): `deed` (the bus), `PartyOffer` / `partyOffer`,
+  `partyRecruit`, `partyCommand`, `partyEquip` / `partyUnequip` / `partyGive`, `partyDismiss`, `partySay`, `partyLook`,
+  and `dressAsResident` (rpg/sim/life_game.cpp: a census resident's street look on any actor); the hooks called from
+  the core loop: `partyStep` (after homeStep, timed), `partyActor` (updateActor: a companion's whole behaviour),
+  `partyFell` (kill(), first: downed instead of dead), `partyHit` (damage(), after foeHit), `partyKilled` (kill(),
+  after foeKilled), `partyAggro` (pickTarget; inside caves, ruins and buildings hostiles now consider companions too),
+  `partyQuest` (completeQuest / questFail), `partyRested` (rest()), `partyInteract` (interact(), first), and the VOICE
+  lane's `partyTalk` (talkToInner, right after the reset), `partyFolkTalk` (a section-7 hook, Topic::Companion) and
+  `partyChoose` (rpg/sim/party_talk.cpp); `PartyOps` / `PartyTalkOps` friends. Deeds wired in phase A: kills
+  (partyKilled), quests done and failed, a smith's patterns stolen, a war's side joined, feeding / giving coin to /
+  befriending townsfolk, the inn's meal, a shrine's blessing, the first time into a ruin or a cave. A downed companion
+  is not smashed like a skeleton's bones; `sleepy` never puts a companion to sleep; speakerTitle names a companion.
+- **Life** (`rpg/sim/life.h`): `RF_COMPANION` (512, saved; always with RF_AWAY while they travel; RF_AWAY alone is cleared
+  when they go home so their census life resumes there).
+- **Speech** (`rpg/sim/talk.h`): `speech::Topic::Companion`.
+- **Art** (`rpg/art/art_party.h`, ART lane is its only editor; included by rpg/art.h): `portraitSprite(look, mood)`
+  (PORTRAIT_W/H 24), `HoundLook` / `houndSheet` (HOUND_W/H 28x22, HOUND_FRAMES 10: idle 2, run 4, bite 2, down 1, sit 1)
+  / `houndPortrait`, `GraveLook` / `graveSprite` (GRAVE_RITES 5, 24x28); `Posture::Downed`, `Posture::Kneel`
+  (art_life.h). Phase A: stand-ins (a crop of the standing sheet; a plain shaded beast; the NamedGrave prop).
+- **Audio** (engine/audio.h): `Sfx::Revive`, `Knell`, `Howl` (stand-ins on Heal, Bell, Bark).
+- **Saves**: SAVE_VER 16 (the party block after the talk block, length-prefixed, its own version byte 1); fixture
+  `tests/fixtures/save_v16.bin` (save_v15.bin removed: a census resident of the start village travelling with the
+  player with approval 37, bond 23, their own gear, a remembered deed and the VOICE fields; a fallen mercenary's grave
+  with belongings; the census knows them away). ENDLESS_GEN_VER 21 (no generation change: goldens untouched).
+- **Tests and scripts**: `rpg_test --companion [--seeds A..B] [--strict-share]` (CI): tables, approval bounds and the
+  homeland rule, the party block round trip and 400 damaged blocks, per seed a census recruit (away in the census)
+  following a 90-tile walk and the inn's door, deeds applied as approvalDelta says, downed -> bound in REVIVE_SECS -> 30 %
+  health, the save round trip with a party, downed and left -> dead for good with a grave record and the census's death;
+  the damage share in bands D 3 / 12 / 25 (reported; a FAIL with --strict-share until FELLOWS tunes it: phase A measures
+  0 / 0 / 20 %). `rpg_test --banter [--seeds]` (CI): the VOICE entry points' lines through speech::lint and the phone
+  panel, a banter line on a night road. Script commands (rpg/view/script_party.cpp): `party recruit|cmd|deed|down|kill|
+  revive|near|talk|approval|bond|stats`, `expect party members|with|fallen|state|approval|near|banter|share`;
+  `tools/scripts/m8_lead_party.txt`.

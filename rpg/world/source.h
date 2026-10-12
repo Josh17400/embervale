@@ -28,7 +28,9 @@ namespace ew {
 
 // Bumped when the endless generator's output changes. Old saves are not kept compatible across M1 (owner rule,
 // 2026-10-04); the save stores it so a mismatch can say "this save is from an older world".
-constexpr int ENDLESS_GEN_VER = 20;  // 20: M7b fixer round 3 (one build per terrace: its units share depth, storeys,
+constexpr int ENDLESS_GEN_VER = 21;  // 21: M8 Fellowship phase A (no generation change yet: a fresh start for the
+                                     //     companions; goldens unchanged).
+                                     // 20: M7b fixer round 3 (one build per terrace: its units share depth, storeys,
                                      //     roof and materials; the rich quarter's own houses and lawns; lamps and trees
                                      //     spaced, no tree on a kerb's face; avenue mouths square onto their squares;
                                      //     villages unchanged; town goldens re-recorded).

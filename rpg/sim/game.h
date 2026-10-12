@@ -20,6 +20,7 @@
 #include "rpg/sim/home.h"
 #include "rpg/sim/items.h"
 #include "rpg/sim/life.h"
+#include "rpg/sim/party.h"
 #include "rpg/sim/realm.h"
 #include "rpg/sim/talk.h"
 #include "rpg/sim/war.h"
@@ -152,6 +153,12 @@ struct Actor {
   int pack = 0;
   uint64_t culture = 0;
   int dropD = 0;
+  // M8 Fellowship (never saved; rpg/sim/party.h). comp: party::Party::members index + 1 of the companion this actor
+  // embodies (0: not a companion). A companion is npc, human (the hound is not), Faction::Player, never hostile; its
+  // behaviour is the FELLOWS lane's (partyActor). partyTag: the FELLOWS lane's per-actor scratch (a mercenary for hire
+  // at an inn, a grave's mourner...), meaning defined in party_game.cpp
+  uint8_t comp = 0;
+  uint8_t partyTag = 0;
 };
 
 enum class ProjKind : uint8_t { Arrow, Fireball, IceSpike, Spit, Magic, DragonFire };
@@ -185,7 +192,12 @@ struct Pickup {
 // name, a = its banner colour (rgba), f = 1 entering a kingdom, 0 leaving into the wildlands: the view's herald banner
 // "ENTERING THE KHAGANATE OF ...")
 enum class Ev : uint8_t { Sfx, Hit, Blood, Explode, Sparkle, Dust, Heal, Frost, Text, Discover, LevelUp, QuestUpdate, Shake, MapChange, Notice,
-                          WindowShift, News, Border };
+                          WindowShift, News, Border,
+                          Banter, PartyAlert };
+// M8 Fellowship: Banter, a companion speaks (a = party::Party::members index, s = the line, f = seconds to show; the
+// view shows it by their portrait and over their head; rpg/sim/banter.cpp through Game::partySay). PartyAlert: what the
+// HUD must make plain (a = members index, f = the kind: 1 low health, 2 downed (bleeding out), 3 revived, 4 died, 5
+// joined, 6 left, 7 complains, 8 a skill unlocked; s = the line to show)
 struct Event {
   Ev type = Ev::Sfx;
   Vec2 p;
@@ -193,6 +205,8 @@ struct Event {
   float f = 1;        // pitch / magnitude
   std::string s;
   float vol = 1;      // Sfx volume
+  uint32_t id = 0;    // (M8) Ev::Banter / Ev::PartyAlert: the speaker's party::Member::id (a, their members index, can
+                      // be stale by the time the view reads it: a member who dies that step is gone from the list)
 };
 
 // M2 (VISION_PLAN M2 sim lane, PLAN.md task 6) appends: Deliver (a parcel to an NPC in another settlement), Heirloom
@@ -254,6 +268,9 @@ constexpr int DLG_FOES = 4000, DLG_CRAFT = 4500, DLG_M6_END = 5000;
 // M7 Home: the property's talk (the reeve / steward / innkeeper selling deeds, builders, stablemasters selling horses,
 // seed sellers, hiring a farmhand, an innkeeper teaching recipes and cooking; rpg/sim/home_game.cpp homeChoose)
 constexpr int DLG_HOME = 5000, DLG_HOME_END = 5500;
+// M8 Fellowship: the companions' talk (recruiting, a companion's own conversation, orders, gear, their story and personal
+// quest, the kin and friends who speak of them; rpg/sim/party_talk.cpp partyChoose, VOICE lane)
+constexpr int DLG_PARTY = 5500, DLG_PARTY_END = 6000;
 struct Dialogue {
   int actor = -1;
   std::string speaker, text;
@@ -448,6 +465,9 @@ class Game {
   // ---- M7b Voice (rpg/sim/talk.h; TALK lane): who the player has met, who has introduced themselves, the lines said
   //      lately (saved: the talk block, SAVE_VER 15). talkTo touches the record of every person spoken to.
   speech::Memory talkMem;
+  // ---- M8 Fellowship (rpg/sim/party.h; FELLOWS lane): the companions, the fallen and their graves, the deeds bus's
+  //      queue (saved: the party block, SAVE_VER 16)
+  party::Party party;
   // (M7b Voice) how the dialogue panel titles a speaker: "SUSUT, INNKEEPER" once they have introduced themselves,
   // "THE INNKEEPER" before; a guard stays "GUARD", a grave its own words
   std::string speakerTitle(const Actor& a) const;
@@ -541,7 +561,7 @@ class Game {
     int spawnedNpcs = 0, despawnedNpcs = 0;   // people streamed in / out so far
     // (M6 fixer) the worst ms of each world subsystem's step since --perf last reset them (once a second): the
     // systems a hitch can hide in (names: perfSysName)
-    enum Sys { S_QUEST, S_REALM, S_WAR, S_STORY, S_LIFESTEP, S_RAID, S_FOE, S_LIFETICK, S_SPAWN, S_HOME, S_COUNT };   // S_HOME: M7
+    enum Sys { S_QUEST, S_REALM, S_WAR, S_STORY, S_LIFESTEP, S_RAID, S_FOE, S_LIFETICK, S_SPAWN, S_HOME, S_PARTY, S_COUNT };   // S_HOME: M7, S_PARTY: M8
     double sysWorstMs[S_COUNT] = {};
   };
   PerfCounters perf;
@@ -829,7 +849,71 @@ class Game {
   bool homeRiding() const { return home.riding >= 0; }
   float homeSpeedMul() const;
   void homeDismount(home::Dismount why);
+  // ---- M8 Fellowship (rpg/sim/party.h). Public: the UI (the radial, the paper doll, the portraits), the companions'
+  //      talk (VOICE, party_talk.cpp), scripts and tests. DEFINED in rpg/sim/party_game.cpp (FELLOWS lane) unless named.
+  //   the deeds bus: a deed of the player's (party::Deed; about: its subject's stable id: a site, a kingdom, a person;
+  //   weight 1 normal, 2 a grave one). Queued; partyStep turns it into each member's approval, memory and reactions.
+  void deed(party::Deed d, ew::Gid about = 0, int weight = 1);
+  //   whether this person would join the player now, and on what terms (a tavern regular's willingness, a mercenary's
+  //   wage, the party full...). why: the reason when not, said in the person's voice by the talk ("" when ok)
+  struct PartyOffer {
+    bool ok = false;
+    party::Origin origin = party::Origin::Tavern;
+    party::Vocation voc = party::Vocation::Warrior;
+    int wage = 0;
+    std::string why;
+  };
+  PartyOffer partyOffer(const Actor& a) const;
+  //   they join: their census resident is marked RF_AWAY | RF_COMPANION and their street actor becomes the companion.
+  //   Returns the new Party::members index, -1 when they would not
+  int partyRecruit(Actor& a, party::Origin origin);
+  //   someone who is no census resident joins (a mercenary, a saga's rescued or sworn ally: the VOICE lane's DSL
+  //   `recruit` effect, the M2 missing person led home): a generated member of that culture and look seed, standing at
+  //   `at` (map pixels). Returns the members index, -1 when the party is full
+  int partyRecruitStranger(const std::string& name, bool female, uint64_t culture, uint32_t lookSeed, party::Origin origin, Vec2 at);
+  //   a fallen companion's grave (Party::fallen index): 1 lay flowers (GF_FLOWERS), 2 take one keepsake from the
+  //   belongings into the pack (GF_KEEPSAKE), 3 visited (GF_VISITED). false: nothing to do
+  bool partyGraveAct(int fallen, int act);
+  //   a member's order (the radial): false when it makes no sense now (a downed member cannot wait...)
+  bool partyCommand(int member, party::Cmd c);
+  // (fixer M8 r1) a member waiting or at home can be called to follow only where they are: their body in play within
+  // CATCH_UP_TILES of the player (or their census street body is); else the player goes and fetches them
+  bool partyCanCall(int member) const;
+  //   the companion's paper doll: an item of the player's pack (inv index) handed over and put on; a worn slot
+  //   (party::Slot) taken back into the pack; a potion or food given to keep (they drink potions below 25 % health)
+  bool partyEquip(int member, int invIndex);
+  bool partyUnequip(int member, int slot);
+  bool partyGive(int member, int invIndex);
+  //   parting for good: a census person goes home (their census life resumes), a mercenary simply leaves
+  void partyDismiss(int member);
+  //   a member says a line now (banter, a cry): Ev::Banter, the speech memory, Party::lastBanter
+  void partySay(int member, const std::string& line, float secs = 4.0f);
+  //   the companion's look: their census look (or their generated one) dressed in their gear in its makers' styles
+  art::HumanLook partyLook(const party::Member& m) const;
+  //   (M8 lead; rpg/sim/life_game.cpp) a census resident's street look on any actor, as the TOWNSFOLK rules dress them:
+  //   the look, the name and the role the census gives them. false: no such resident
+  bool dressAsResident(Actor& a, ew::Gid site, int idx);
+  // ---- M8 phase B (FELLOWS lane; rpg/sim/party_*.cpp). What VIEW draws from (party.h "how VIEW draws the companions")
+  //   the look of a fallen companion's grave (Party::fallen index): their people's rite, the weapon laid on it, fresh
+  //   earth for 3 days, flowers once laid (GF_FLOWERS)
+  art::GraveLook partyGraveLook(int fallen) const;
+  //   the bonded animal's look (Party::members index of a Vocation::Hound member): species, age (pup / half grown /
+  //   grown by the days since it was taken in), coat from its seed, the player's collar
+  art::HoundLook partyHoundLook(int member) const;
+  //   the fallen companion whose grave stands on this LOCAL overworld tile (-1 none; only GF_SITED graves)
+  int partyGraveAt(int tx, int ty) const;
+  //   the tavern regulars of a settlement (census indices; VISION_PLAN 9: one in 40 % of towns, two in a city, none in a
+  //   village): adults, no key people, whose evening plan is Act::Tavern at the inn. Deterministic; cached per session
+  std::vector<int> partyRegulars(int site);
+  //   a horse of a breed (home::Breed) bought for a member at a stablemaster (the breed's price; MF_MOUNTED, Member::horse)
+  bool partyBuyHorse(int member, int breed, std::string& why);
+  //   the bonded animal taken in as a pup (species 0 a hound from a farmer, a herder or a stablemaster; 1 a wolf pup at a
+  //   cleared wolf den), standing at `at` (map pixels). Returns the members index, -1 with why ("ANIMAL", "FULL")
+  int partyAdoptAnimal(uint8_t species, uint32_t seed, Vec2 at, std::string& why);
  private:
+  //   (ai.cpp updateFolk) an actor the FELLOWS lane put in the world that is not a companion (a sellsword at an inn:
+  //   Actor::partyTag): true = handled
+  bool partyFolk(Actor& a, float dt);
   //   once per update step (after foeStep): stamp the owned plots when World::placeSerial changed, offline catch-up of a
   //   plot coming into the window, construction days, the farmhand, animals in their pens (critter actors), predators at
   //   night, the troughs, taxes, discovered styles (a settlement found: its culture), riding rules (water, cliffs)
@@ -867,6 +951,48 @@ class Game {
   //   the player's own stores and furniture): true makes it usable (homeUseProp then handles it)
   bool homePropUsable(art::Prop p, int tx, int ty) const;
   friend struct HomeOps;               // M7 HOMESTEAD: the home's internals (home_game.cpp)
+  // ---- M8 Fellowship hooks (VISION_PLAN 9, 15.6.2, 15.26). Called from the core loop (game.cpp, game_rpg.cpp, ai.cpp,
+  //      quests.cpp) and DEFINED in rpg/sim/party_game.cpp (FELLOWS lane) unless named otherwise. Keep the calls where
+  //      phase A put them. Each must cost next to nothing while Game::party is empty.
+  //   once per update step (after homeStep, timed as PerfCounters::S_PARTY): the pending deeds, members brought into
+  //   play beside the player after any map change (a door, stairs, a journey, a load, a respawn), the catch-up rule,
+  //   bleeding out, bond by the day, wages, the waiting and the at-home, graves stamped into the window, banter
+  //   (party::banterStep, VOICE) last
+  void partyStep(float dt);
+  //   a companion actor's whole behaviour this step (updateActor, after knock-back, before the skeleton's Down rule):
+  //   true = handled. Following, fighting by vocation and stance, skills, downed, mounted
+  bool partyActor(Actor& a, float dt);
+  //   kill() of a companion actor, first thing: true = handled (downed instead of dead); false lets the death happen
+  //   (the lane then makes it permanent: the grave, the grief)
+  bool partyFell(Actor& a, int killer);
+  //   damage(), after foeHit: the blow about to land on anyone: the damage to apply (shield wall, defend) and the
+  //   share statistics (Party::stats)
+  float partyHit(Actor& victim, float dmg, int attacker);
+  //   kill(), after foeKilled: deeds from what died (an innocent, a guard, bandits, a named beast) by the player's or
+  //   a companion's hand; a companion's kill count
+  void partyKilled(const Actor& victim, int killer);
+  //   pickTarget: how much closer a hostile counts a companion (1 = as is; taunting < 1; downed or passive > 1;
+  //   0 = never: not a target at all)
+  float partyAggro(const Actor& hostile, const Actor& member) const;
+  //   completeQuest / questFail: the deeds of a quest's end
+  void partyQuest(const Quest& q, bool success);
+  //   rest(): the members with the player rest too (health, the wounded healed)
+  void partyRested(int hours);
+  //   interact(), before homeInteract: a downed companion in reach (bind their wounds), a grave of the fallen (read
+  //   it, lay flowers, take a keepsake): true = handled
+  bool partyInteract();
+  //   the companions' talk (rpg/sim/party_talk.cpp, VOICE lane). partyTalk: talkToInner, right after the dialogue is
+  //   reset: a companion's own conversation (true = handled: it set dlg and mode). partyFolkTalk: a talkToInner
+  //   section-7 hook: what anyone else says of the party (a tavern regular's or a mercenary's offer to join, the kin
+  //   and friends of a companion or of the fallen); options in [DLG_PARTY, DLG_PARTY_END). partyChoose: those options.
+  bool partyTalk(Actor& a);
+  void partyFolkTalk(Actor& a);
+  bool partyChoose(const DlgOpt& o);
+  //   (VOICE, party_talk.cpp) the player stands at a fallen companion's grave (partyInteract found it): the epitaph and
+  //   what can be done there as a dialogue (its options call partyGraveAct)
+  void partyGraveTalk(int fallen);
+  friend struct PartyOps;              // M8 FELLOWS: the companions' internals (party_game.cpp)
+  friend struct PartyTalkOps;          // M8 VOICE: the companions' talk (party_talk.cpp, banter.cpp)
   // the TOWNSFOLK lane's own runtime state (route caches, seat reservations, chat pairs...): defined in life_game.cpp
   // (shared: Game stays copyable; never saved)
   struct LifeRuntime;

@@ -53,6 +53,11 @@ enum class Posture : uint8_t {
   // ---- M7 Home (lead, phase A; ART lane paints it): astride a horse (art::horseSheet / riderSeat): legs either side,
   //      the reins in the hands; phase A stand-in: the seated sheet
   Ride,
+  // ---- M8 Fellowship (lead, phase A; ART lane paints them; stand-ins: the floor-seated and the praying sheets)
+  Downed,     // a companion at 0 HP, bleeding out: slumped on one knee, a hand pressed to the wound, the head low
+  Kneel,      // kneeling on one knee: binding a friend's wounds, mourning at a grave (ART phase B: variant 0 binds the
+              //   wounds, both hands low before the knee winding linen; variant 1 mourns, the head bowed, a hand on the
+              //   raised knee: humanPostureSheet(look, Kneel, 1) at a grave)
   COUNT
 };
 constexpr int POSTURE_FRAMES = 4;   // columns per pose sheet

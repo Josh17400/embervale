@@ -371,6 +371,13 @@ int Game::interactTarget() const {
     // someone with a reward waiting or work to offer wins over a bystander about as close (two villagers side by
     // side: the prompt and the tap go to the one with something to say)
     if (rewardWaiting(a) || hasOffer(a)) d *= 0.45f;
+    // (fixer M8 r2, review: "E: TALK <companion> follows them everywhere") a companion at heel is always the nearest
+    // person: they take the prompt only when the player turns to them, and anyone else about as near comes first
+    if (a.comp && a.comp <= party.members.size() && party.members[(size_t)a.comp - 1].state == party::State::With) {
+      const Vec2 to = a.p - p.p;
+      if (to.x * p.aim.x + to.y * p.aim.y < 0.35f * std::sqrt(std::max(1.0f, d))) continue;
+      d = std::min(d * 2.5f, 24.0f * 24.0f - 1.0f);
+    }
     if (d < bd + (reach * reach - 24 * 24)) { bd = d; best = a.id; }
   }
   return best;
@@ -440,6 +447,7 @@ int Game::interactProp(int& otx, int& oty) const {
 }
 
 void Game::interact() {
+  if (partyInteract()) return;   // M8: bind a downed companion's wounds, a grave of the fallen (party_game.cpp)
   int t = interactTarget();
   if (t >= 0) { talkTo(actors[findActor(t)]); return; }
   if (homeInteract()) return;   // M7: the player's own yard (till, plant, water, harvest, collect, mount; home_game.cpp)
@@ -462,6 +470,7 @@ void Game::interact() {
     int si = inside ? -1 : world.siteAt(tx, ty, 1);   // a wayside shrine blesses in its own god's name
     if (si >= 0 && world.sites[si].type == SiteType::Shrine && world.sites[si].name.rfind("SHRINE OF ", 0) == 0)
       blessName = "BLESSING OF " + world.sites[si].name.substr(10);
+    deed(party::Deed::Prayed, si >= 0 ? world.sites[(size_t)si].id : 0);   // M8: the companions see it
     blessT = blessingSecs();
     pl().hp = pl().maxHp;
     recalcPlayer();
@@ -777,6 +786,7 @@ void Game::completeQuest(Quest& q) {
   giveGold(q.gold);
   gainXp(q.xp);
   npcQuestsDone[npcKeyOf(q.giverSite, q.giverBldg, q.giverSlot)]++;
+  partyQuest(q, true);   // M8: the companions' view of the job done (party_game.cpp)
   emit(Ev::QuestUpdate, pl().p, q.id, 1, "QUEST COMPLETE: " + q.title);
   sfx((int)Sfx::QuestDone, pl().p);
   // occasional item reward (M6, 7.5 rule 5): by the quest's danger, never by the player's level; Uncommon to Epic
@@ -1255,6 +1265,7 @@ bool serviceOpt(const DlgOpt& o) {
 }  // namespace
 
 std::string Game::speakerTitle(const Actor& a) const {
+  if (a.comp) return a.name;   // (M8) a companion is known by name (the VOICE lane may add their calling)
   if (!a.npc || !a.human) return a.name;
   const std::string trade = talkTrade(*this, a);
   if (!talkNamed(a)) return a.name;
@@ -1306,6 +1317,7 @@ void Game::talkToInner(Actor& a) {
   dlg.actor = a.id;
   dlg.speaker = a.name;
   dlg.role = a.role;
+  if (a.comp && partyTalk(a)) return;   // M8: a companion's own conversation (party_talk.cpp, VOICE lane)
   // M2: a toll bridge's troll asks its toll; a missing person found in a cave asks to be led out
   if (a.npc && !a.human && a.mon == Monster::Troll) { tollTalk(a); return; }
   using speech::Topic;
@@ -1440,6 +1452,7 @@ void Game::talkToInner(Actor& a) {
   hook(speech::P_NEWS, Topic::Foe, [&] { foeTalk(a); });         // M6: warnings of named beasts and world bosses (foes_game.cpp)
   hook(speech::P_URGENT, Topic::Craft, [&] { craftTalk(a); });   // M6: the forge's work and lessons (a thief barred: urgent)
   hook(speech::P_SERVICE, Topic::Home, [&] { homeTalk(a); });    // M7: deeds, builders, horses, recipes and cooking
+  hook(speech::P_SERVICE, Topic::Companion, [&] { partyFolkTalk(a); });   // M8: offers to join, kin of companions and the fallen
   // ---- 8. one coherent opening: a stranger is told who this is (and gets the people's own hello), an acquaintance is
   // greeted as one; the core line (what matters most to the speaker now) follows
   const std::string core = dlg.text;
@@ -1832,6 +1845,7 @@ void Game::dialogueChooseInner(int oi) {
       if (o.action >= DLG_FOES && o.action < DLG_CRAFT && foeChoose(o)) return;      // M6
       if (o.action >= DLG_CRAFT && o.action < DLG_M6_END && craftChoose(o)) return;  // M6
       if (o.action >= DLG_HOME && o.action < DLG_HOME_END && homeChoose(o)) return;  // M7
+      if (o.action >= DLG_PARTY && o.action < DLG_PARTY_END && partyChoose(o)) return;  // M8 (party_talk.cpp)
       mode = Mode::Play;
       return;
   }
@@ -1845,6 +1859,7 @@ void Game::rest(int hours) {
   p.hp = p.maxHp; mp = maxMp; stamina = maxSt;
   sleepFade = 1.5f;
   lifeSlept(hours, true);   // M5 (15.2): every rest is in a bed, a hammock, a mat or a bedroll: Rested
+  partyRested(hours);       // M8: the companions rest too (party_game.cpp)
   sfx((int)Sfx::Heal, p.p, 0.7f);
 }
 
@@ -2161,10 +2176,16 @@ bool Game::sell(int ii) {
 //   craft    (v12) u32 byte length + the craft block (craft::Knowledge::serialize: its own version byte first)
 //   home     (v14) u32 byte length + the home block (home::Homes::serialize: its own version byte first)
 //   talk     (v15) u32 byte length + the talk block (speech::Memory::serialize: its own version byte first)
+//   party    (v16) u32 byte length + the party block (party::Party::serialize: its own version byte first)
 // refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
 // 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 15;  // 15: M7b Cities & Voice (the talk block after the home block: the people
+static constexpr uint32_t SAVE_VER = 18;  // 18: fixer M8 r3 (party block v4: the fallen's gender);
+                                          // 17: fixer M8 r1 (party block v3: a companion's look fixed when they join);
+                                          // 16: M8 Fellowship (the party block after the talk block: the companions,
+                                          //    their approval, bond, gear and memories, the fallen and their graves;
+                                          //    ENDLESS_GEN_VER 21);
+                                          // 15: M7b Cities & Voice (the talk block after the home block: the people
                                           //    met, introductions, the lines said lately; ENDLESS_GEN_VER 17: the
                                           //    cities' plan);
                                           // 14: M7 Home (the home block after the craft block: the player's houses, lots,
@@ -2413,6 +2434,9 @@ void Game::serialize(std::vector<uint8_t>& out) const {
     talkMem.serialize(blk);   // M7b (v15)
     w.u32((uint32_t)blk.size());
     for (uint8_t c : blk) w.u8(c);
+    party.serialize(blk);     // M8 (v16)
+    w.u32((uint32_t)blk.size());
+    for (uint8_t c : blk) w.u8(c);
   }
 }
 
@@ -2533,14 +2557,15 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   marks.clear();
   for (uint32_t i = 0; i < n && !r.bad; i++) { uint64_t k = r.u64(); marks[k] = r.i32(); }
   // M4 (v10): the realm and story blocks, M5 (v11) the life block, M6 (v12) the craft block, M7 (v14) the home block,
-  // M7b (v15) the talk block (a block its owner cannot read refuses the whole save)
-  for (int blkI = 0; blkI < 6 && !r.bad; blkI++) {
+  // M7b (v15) the talk block, M8 (v16) the party block (a block its owner cannot read refuses the whole save)
+  for (int blkI = 0; blkI < 7 && !r.bad; blkI++) {
     n = r.u32();
     if (r.bad || n > (64u << 20) || r.p + n > in.size()) return false;
     std::vector<uint8_t> blk(in.begin() + (std::ptrdiff_t)r.p, in.begin() + (std::ptrdiff_t)(r.p + n));
     r.p += n;
     const bool ok = blkI == 0 ? realm.deserialize(blk) : blkI == 1 ? story.deserialize(blk) : blkI == 2 ? life.deserialize(blk)
-                    : blkI == 3 ? craft.deserialize(blk) : blkI == 4 ? home.deserialize(blk) : talkMem.deserialize(blk);
+                    : blkI == 3 ? craft.deserialize(blk) : blkI == 4 ? home.deserialize(blk) : blkI == 5 ? talkMem.deserialize(blk)
+                    : party.deserialize(blk);
     if (!ok) return false;
   }
   if (r.bad) return false;

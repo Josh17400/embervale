@@ -35,6 +35,8 @@
 #include "rpg/sim/foes.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/life.h"
+#include "rpg/sim/party.h"
+#include "rpg/sim/party_voice.h"
 #include "rpg/sim/talk.h"
 #include "rpg/story/dsl.h"
 #include "rpg/story/saga.h"
@@ -64,17 +66,34 @@ struct Snap {
   std::vector<Item> inv;
   std::map<uint64_t, int32_t> marks;
   std::vector<Quest> quests;
+  party::Party party;   // (M8: companion stories change the party: recruits, fates, approval)
 };
 Snap snap(const Game& g, bool realmToo) {
   Snap s;
   s.st = g.story; s.gold = g.gold; s.plXp = g.plXp; s.plLevel = g.plLevel; s.nextQuestId = g.nextQuestId;
   s.trackedQuest = g.trackedQuest; s.inv = g.inv; s.marks = g.marks; s.quests = g.quests; s.day = g.day;
+  s.party = g.party;
   if (realmToo) { s.rm = g.realm; s.hasRealm = true; }
   return s;
 }
 void restore(Game& g, const Snap& s) {
   g.story = s.st; g.gold = s.gold; g.plXp = s.plXp; g.plLevel = s.plLevel; g.nextQuestId = s.nextQuestId;
   g.trackedQuest = s.trackedQuest; g.inv = s.inv; g.marks = s.marks; g.quests = s.quests; g.day = s.day;
+  // (census people who joined on a path the snapshot did not take are free again: RF_COMPANION would otherwise leak
+  // across thousands of walks until no adult of the town is left to stage)
+  for (const party::Member& m : g.party.members) {
+    bool had = false;
+    for (const party::Member& o : s.party.members) if (o.id == m.id) { had = true; break; }
+    if (had || !m.site || m.res < 0) continue;
+    if (life::Census* c = g.life.findMut(m.site))
+      if (m.res < (int)c->res.size()) c->res[(size_t)m.res].flags = (uint16_t)(c->res[(size_t)m.res].flags & ~(life::RF_AWAY | life::RF_COMPANION));
+  }
+  g.party.members = s.party.members;
+  g.party.fallen = s.party.fallen;
+  g.party.nextId = s.party.nextId;
+  g.party.pending.clear();
+  // (actors embodying members the snapshot did not have stop being companions)
+  for (Actor& a : g.actors) if (a.comp > g.party.members.size()) a.comp = 0;
   if (s.hasRealm) g.realm = s.rm;
   g.events.clear();
   g.mode = Mode::Play;
@@ -705,6 +724,85 @@ bool tradeFits(int trade, Role r) {
   return trade == (int)r;
 }
 
+// (M8) the staged companion of a companion story: every member parted first, then a census adult of `site` recruited
+// with the stake the archetype needs. The kin of a "kindead" story is marked dead in the census (dropCompanions
+// restores it)
+struct Staged { ew::Gid site = 0; int deadIdx = -1; uint16_t deadFlags = 0; int resIdx = -1, resActor = -1; };
+Staged g_staged;
+void dropCompanions(Game& g) {
+  for (int i = (int)g.party.members.size() - 1; i >= 0; i--) g.partyDismiss(i);
+  g.party.fallen.clear();
+  if (g_staged.deadIdx >= 0)
+    if (life::Census* c = g.life.findMut(g_staged.site))
+      if (g_staged.deadIdx < (int)c->res.size()) c->res[(size_t)g_staged.deadIdx].flags = g_staged.deadFlags;
+  if (g_staged.resIdx >= 0)   // (the staged resident's own street body is theirs again)
+    if (life::Census* c = g.life.findMut(g_staged.site))
+      if (g_staged.resIdx < (int)c->res.size() && c->res[(size_t)g_staged.resIdx].actor < 0 && g_staged.resActor >= 0 &&
+          story::host().findActor && story::host().findActor(g, g_staged.resActor) >= 0)
+        c->res[(size_t)g_staged.resIdx].actor = g_staged.resActor;
+  g_staged = Staged();
+}
+uint32_t startCompanion(Game& g, const std::string& id, const dsl::Script& sc, int site, std::string& why) {
+  dropCompanions(g);
+  if (site < 0 || site >= (int)g.world.sites.size() || !g.world.sites[(size_t)site].settlement()) { why = "no settlement"; return 0; }
+  life::Census* C = g.life.census(g.world, site);
+  if (!C) { why = "no census at " + g.world.sites[(size_t)site].name; return 0; }
+  const ew::Gid sid = g.world.sites[(size_t)site].id;
+  const int fact = sc.hookEv;
+  int tries = 0;
+  for (size_t ri = 0; ri < C->res.size() && tries < 12; ri++) {
+    C = g.life.census(g.world, site);
+    if (!C || ri >= C->res.size()) break;
+    const life::Resident r = C->res[ri];
+    if ((r.flags & (life::RF_DEAD | life::RF_AWAY | life::RF_KEY | life::RF_COMPANION)) || r.age < 18 || r.age > 60 || r.job == life::Job::Child) continue;
+    // (the town's tellers keep their posts: no priest, keeper, smith, merchant or guard is staged as the companion)
+    if (r.job == life::Job::Priest || r.job == life::Job::Innkeeper || r.job == life::Job::Smith || r.job == life::Job::Merchant ||
+        r.job == life::Job::Guard || r.job == life::Job::Noble)
+      continue;
+    // the household kin the stake is about
+    int kin = -1;
+    for (const life::Resident& o : C->res)
+      if (o.idx != r.idx && o.household == r.household && !(o.flags & (life::RF_DEAD | life::RF_AWAY | life::RF_COMPANION | life::RF_KEY)) &&
+          o.job != life::Job::Priest && o.job != life::Job::Innkeeper && o.job != life::Job::Smith && o.job != life::Job::Merchant &&
+          o.job != life::Job::Guard && o.job != life::Job::Noble) { kin = o.idx; break; }
+    if (fact == dsl::COMPANION_KIN_DEAD && kin < 0) continue;
+    tries++;
+    Actor a;
+    a.id = -97; a.npc = true; a.human = true; a.site = site; a.resident = r.idx; a.p = g.pl().p + Vec2(18, 0); a.name = r.name;
+    g_staged.site = sid; g_staged.resIdx = r.idx; g_staged.resActor = r.actor;
+    const int mi = g.partyRecruit(a, party::Origin::Tavern);
+    if (mi < 0) { why = "the recruit failed"; return 0; }
+    party::Member& m = g.party.members[(size_t)mi];
+    m.stake = party::Stake();
+    m.stake.hook = (party::Hook)sc.hookTrade;
+    m.stake.site = sid;
+    m.stake.seed = (uint32_t)(r.lookSeed | 1u);
+    if (fact == dsl::COMPANION_VETERAN) m.p.brave = 1;
+    if (fact == dsl::COMPANION_DESERTER) m.p.brave = -1;
+    m.stake.day = g.day - 400;
+    const Site& S = g.world.sites[(size_t)site];
+    if (S.kingdom >= 0) m.stake.kingdom = g.world.kingdoms[(size_t)S.kingdom].id;
+    const int rh = g.world.findSiteNear(g.world.ox + S.ex, g.world.oy + S.ey, SiteType::Ruin, 3);
+    if (rh >= 0) m.stake.ruin = g.world.sites[(size_t)rh].id;
+    if (kin >= 0 && (fact == dsl::COMPANION_KIN_ALIVE || fact == dsl::COMPANION_KIN_DEAD || m.stake.hook == party::Hook::Love)) {
+      m.stake.kin = life::npcId(sid, kin);
+      if (fact == dsl::COMPANION_KIN_DEAD) {
+        g_staged.deadIdx = kin; g_staged.deadFlags = C->res[(size_t)kin].flags;
+        C->res[(size_t)kin].flags |= life::RF_DEAD;
+      }
+    }
+    m.approval = 60;
+    m.bond = 40;
+    std::string w;
+    const uint32_t inst = g.story.start(g, id, m.actor, site, &w);
+    if (inst) return inst;
+    why = w;
+    dropCompanions(g);
+  }
+  if (why.empty()) why = "no adult to stage as a companion in " + g.world.sites[(size_t)site].name;
+  return 0;
+}
+
 // cast `id` at a hook place of this world that has what it needs; the instance id (0: none fits, why says so)
 uint32_t startAtFittingHook(Game& g, const std::string& id, const dsl::Script& sc, uint32_t needs, std::string& why) {
   const int32_t gx = g.world.ox + (int32_t)std::floor(g.pl().p.x / TILE), gy = g.world.oy + (int32_t)std::floor(g.pl().p.y / TILE);
@@ -734,6 +832,28 @@ uint32_t startAtFittingHook(Game& g, const std::string& id, const dsl::Script& s
   why = "no hook place";
   std::vector<std::string> reasons;
   auto keep = [&]() { if (why != "no hook place" && reasons.size() < 3 && (reasons.empty() || reasons.back() != why)) reasons.push_back(why); };
+  if (sc.hook == dsl::HookKind::Companion) {
+    // (M8) a companion's own story: a census resident of the hook settlement recruited, their stake made to fit the
+    // archetype's (its kin of the household, alive or dead as the fact says; their kingdom; the nearest ruin)
+    // (where the run stands: the settlement here and the nearest of each kind too, the start village may be out of reach)
+    add(g.curSite >= 0 && g.curSite < (int)g.world.sites.size() && g.world.sites[(size_t)g.curSite].settlement() ? g.curSite : -1);
+    add(g.world.findSiteNear(gx, gy, SiteType::Village, 3));
+    add(g.world.findSiteNear(gx, gy, SiteType::Town, 3));
+    add(g.world.findSiteNear(gx, gy, SiteType::City, 4));
+    why = "no settlement near to stage a companion in";
+    for (int site : sites)
+      if (const uint32_t inst = startCompanion(g, id, sc, site, why)) return inst;
+    // (nowhere here holds a census in reach: back to the start village, whose census is always there)
+    const int home = g.world.startSite;
+    if (home >= 0 && home < (int)g.world.sites.size()) {
+      g.world.sites[(size_t)home].discovered = true;
+      if (g.fastTravel(home)) {
+        steps(g, 60);
+        if (const uint32_t inst = startCompanion(g, id, sc, g.world.startSite, why)) return inst;
+      }
+    }
+    return 0;
+  }
   for (int site : sites) {
     keep();
     Hook hk;
@@ -821,7 +941,7 @@ uint32_t startAnywhere(Game& g, const std::string& id, uint32_t needs, std::stri
   const std::string first = why;
   int moves = 0;
   for (const ew::SettlementNode& T : towns) {
-    if (moves >= 5) break;
+    if (moves >= 9) break;   // (M8: nine towns: a priest-told tale of grief needs both in one place)
     const int64_t d2 = (int64_t)(T.x - px) * (T.x - px) + (int64_t)(T.y - py) * (T.y - py);
     if (d2 < 200 * 200) continue;   // (in the window already)
     moves++;
@@ -1002,7 +1122,9 @@ int sagasCmd(int argc, char** argv) {
     else if (argv[i][0] >= '0' && argv[i][0] <= '9') N = atoi(argv[i]);
   }
   std::vector<const Archetype*> arch;
-  for (const Archetype& a : archetypes()) if (a.tier == 2 && (only.empty() || only == a.id)) arch.push_back(&a);
+  const bool noComp = std::getenv("EMB_SAGAS_NOCOMP") != nullptr;   // (debug: the library without the companions' own stories)
+  for (const Archetype& a : archetypes())
+    if (a.tier == 2 && (only.empty() || only == a.id) && !(noComp && std::string(a.body).find("hook companion") != std::string::npos)) arch.push_back(&a);
   if (arch.empty()) { printf("FAIL: sagas: no story archetypes\n"); return 1; }
   int bad = 0, stories = 0, cast = 0, nodes = 0, ends = 0;
   size_t maxSay = 0, over300 = 0;
@@ -1047,9 +1169,20 @@ int sagasCmd(int argc, char** argv) {
       const Snap s0 = snap(g, true);
       auto c1 = std::chrono::steady_clock::now();
       std::string why;
+      // (M8) a companion's own story is staged where the run stands; when it had to travel to find its places, the run
+      // goes back afterwards, so the companions' stories do not move the other archetypes' hook places
+      const int32_t comeX = g.world.ox + (int32_t)std::floor(g.pl().p.x / TILE), comeY = g.world.oy + (int32_t)std::floor(g.pl().p.y / TILE);
+      const bool compStory = sc->hook == dsl::HookKind::Companion;
+      auto comeBack = [&]() {
+        if (!compStory) return;
+        const int32_t nx = g.world.ox + (int32_t)std::floor(g.pl().p.x / TILE), ny = g.world.oy + (int32_t)std::floor(g.pl().p.y / TILE);
+        if ((int64_t)(nx - comeX) * (nx - comeX) + (int64_t)(ny - comeY) * (ny - comeY) < 120 * 120) return;
+        g.teleportGlobal(comeX, comeY);
+        steps(g, 30);
+      };
       const uint32_t inst = startAnywhere(g, id, needsOf(s), why);
       castMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - c1).count();
-      if (!inst) { out("FAIL: saga %s cannot be cast: %s\n", id.c_str(), why.c_str()); seedBad++; restore(g, s0); continue; }
+      if (!inst) { out("FAIL: saga %s cannot be cast: %s\n", id.c_str(), why.c_str()); seedBad++; restore(g, s0); dropCompanions(g); comeBack(); continue; }
       cast++;
       sc = script(id);   // (the game ran while the hook was sought: the cache may have moved)
       if (!sc) { out("FAIL: saga %s: lost from the cache while it runs\n", id.c_str()); seedBad++; restore(g, s0); continue; }
@@ -1093,7 +1226,7 @@ int sagasCmd(int argc, char** argv) {
           if (place && sc->roles[ri].name != "home" && std::find(g_placeNames.begin(), g_placeNames.end(), nm) == g_placeNames.end()) g_placeNames.push_back(nm);
         }
         const char* hookW = sc->hook == dsl::HookKind::Npc ? "npc" : sc->hook == dsl::HookKind::Board ? "board" : sc->hook == dsl::HookKind::Herald ? "herald"
-                            : sc->hook == dsl::HookKind::Ruin ? "ruin" : "event";
+                            : sc->hook == dsl::HookKind::Ruin ? "ruin" : sc->hook == dsl::HookKind::Companion ? "companion" : "event";
         g_talk.reviewKey = s.arch + "|" + hookW + "|" + motiveName(s.motive);
         g_pitch = in0 ? story::fillText(g, *in0, sc->pitch) : std::string();
         if (in0 && sc->hook == dsl::HookKind::Npc && !in0->cast.empty() && !sc->hint.empty()) {
@@ -1151,9 +1284,17 @@ int sagasCmd(int argc, char** argv) {
       over300 += w.over300;
       for (const dsl::StageDef& G : sc->stages)
         if (G.kind == dsl::StageKind::End && !w.endNames.count(G.name)) { out("FAIL: saga %s: no path reaches the ending '%s'\n", id.c_str(), G.name.c_str()); seedBad++; }
-      if (g_sverbose) { out("saga seed %llu: %s cast, %d states, %d endings reached\n", (unsigned long long)seed, id.c_str(), w.nodes, (int)w.endNames.size()); fflush(stdout); }
+      if (g_sverbose) {
+        int priests = 0;
+        for (const Actor& pa : g.actors) if (pa.npc && pa.human && pa.role == Role::Priest && story::homeSiteOf(g, pa) == g.world.startSite) priests++;
+        out("saga seed %llu: %s cast, %d states, %d endings reached (%d priests at home, %zu members)\n", (unsigned long long)seed, id.c_str(), w.nodes,
+            (int)w.endNames.size(), priests, g.party.members.size());
+        fflush(stdout);
+      }
       restore(g, s0);
       g.story.drop(inst);
+      dropCompanions(g);
+      comeBack();
       trimCache(g.story);
     }
     printf("sagas seed %llu: %d stories, %d failures\n", (unsigned long long)seed, N, seedBad);

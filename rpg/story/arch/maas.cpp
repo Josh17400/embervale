@@ -544,6 +544,7 @@ stage mercy_trial
 
 stage freed
   talk queen
+  do deed mercy
   say "YOU REFUSED. EVERY MORTAL BEFORE YOU STABBED. ...OH, THE THIRD TRIAL WAS NEVER THE STABBING. IT WAS THE REFUSING. TAKE YOUR {KIN}. TAKE THAT ONE TOO, AND NOW I MAKE YOU AN OFFER."
   do set spared 1
   opt "WHAT OFFER?" -> @t2

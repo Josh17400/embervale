@@ -18,6 +18,8 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/life.h"
+#include "rpg/sim/party.h"
+#include "rpg/sim/party_voice.h"
 #include "rpg/story/story_internal.h"
 #include "rpg/world/dmath.h"
 #include "rpg/world/source.h"
@@ -118,6 +120,11 @@ bool castScript(Game& g, const dsl::Script& s, int hookActor, int hookSite, uint
     const int ai = host().findActor ? host().findActor(g, hookActor) : -1;
     if (ai >= 0) A = &g.actors[(size_t)ai];
   }
+  // (M8) a companion's own story: the companion is the giver, their home the hook place, their stake its cast
+  const party::Member* CM = nullptr;
+  if (A && A->comp && (int)A->comp - 1 < (int)g.party.members.size()) CM = &g.party.members[(size_t)(A->comp - 1)];
+  if (s.hook == dsl::HookKind::Companion && !CM) { why = "a companion's own story needs the companion as its giver"; return false; }
+  if (hookSite < 0 && CM && CM->site) hookSite = siteByIdLoad(g, CM->site);
   if (hookSite < 0 && A) hookSite = homeSiteOf(g, *A);
   if (hookSite < 0 || hookSite >= (int)g.world.sites.size()) { why = "no hook place"; return false; }
   const Site home = g.world.sites[(size_t)hookSite];   // (a copy: casting loads more sites)
@@ -144,7 +151,15 @@ bool castScript(Game& g, const dsl::Script& s, int hookActor, int hookSite, uint
     auto atHome = [&]() { b.site = home.id; b.gx = hx; b.gy = hy; b.hasPos = true; };
     switch (R.kind) {
       case dsl::RoleKind::Giver:
-        if (A) {
+        if (CM) {
+          // (M8) the companion: known by name, with the player wherever they are (no marker of their own)
+          b.id = party::companionKey(CM->id);
+          b.name = CM->name;
+          b.female = CM->female;
+          b.trade = (uint8_t)Role::Villager;
+          atHome();
+          b.hasPos = false;
+        } else if (A) {
           b.id = g.npcKey(*A);
           b.name = A->name;
           b.trade = (uint8_t)A->role;
@@ -175,6 +190,17 @@ bool castScript(Game& g, const dsl::Script& s, int hookActor, int hookSite, uint
         b.name = nm;
         if (const Binding* at = placeOf(R.at)) { b.site = at->site; b.gx = at->gx; b.gy = at->gy; b.hasPos = at->hasPos; }
         else atHome();
+        if (R.stake && CM) {
+          // (M8) the companion's own kin, named and sexed as the census knows them; .kin: what they are to the companion
+          const party::voice::Bio cb = party::voice::bio(g, *CM);
+          if (!cb.stakeKin.name.empty()) {
+            b.name = cb.stakeKin.name;
+            b.female = cb.stakeKin.female;
+            b.extra = "|" + cb.stakeKin.word;
+          } else {
+            b.extra = std::string("|") + (b.female ? "SISTER" : "BROTHER");
+          }
+        }
         break;
       }
       case dsl::RoleKind::Npc: {
@@ -186,6 +212,20 @@ bool castScript(Game& g, const dsl::Script& s, int hookActor, int hookSite, uint
         break;
       }
       case dsl::RoleKind::Site: {
+        if (R.stake && CM && CM->stake.site == home.id && home.settlement()) {
+          b.id = home.id; b.site = home.id; b.name = home.name; atHome();   // (their stake happened at home)
+          break;
+        }
+        if (R.stake && CM && CM->stake.site && CM->stake.site != home.id) {
+          // (M8) the place the companion's stake happened (their burned village, where the kin was last seen)
+          const int sh2 = siteByIdLoad(g, CM->stake.site);
+          if (sh2 >= 0) {
+            const Site& T = g.world.sites[(size_t)sh2];
+            b.id = T.id; b.site = T.id; b.name = T.name; b.gx = g.world.ox + T.ex; b.gy = g.world.oy + T.ey; b.hasPos = true;
+            avoid.insert(T.id);
+            break;
+          }
+        }
         if (R.a == "home") {
           if (!home.settlement() && s.hook != dsl::HookKind::Ruin) { why = "the hook is not a settlement"; return false; }
           b.id = home.id; b.name = home.name; atHome();
@@ -207,6 +247,16 @@ bool castScript(Game& g, const dsl::Script& s, int hookActor, int hookSite, uint
         break;
       }
       case dsl::RoleKind::Ruin: {
+        if (R.stake && CM && CM->stake.ruin) {
+          // (M8) the ruin of the companion's stake (the heirloom lost there)
+          const int rh = siteByIdLoad(g, CM->stake.ruin);
+          if (rh >= 0 && g.world.sites[(size_t)rh].type == SiteType::Ruin) {
+            const Site& T = g.world.sites[(size_t)rh];
+            b.id = T.id; b.site = T.id; b.name = T.name; b.gx = g.world.ox + T.ex; b.gy = g.world.oy + T.ey; b.hasPos = true;
+            avoid.insert(T.id);
+            break;
+          }
+        }
         Found f;
         if (!findSite(g, hx, hy, SiteType::Ruin, 30, 640, avoid, 0, f) && !findSite(g, hx, hy, SiteType::Ruin, 16, 1200, avoid, 0, f)) {
           why = "no ruin for role '" + R.name + "'";
@@ -218,6 +268,13 @@ bool castScript(Game& g, const dsl::Script& s, int hookActor, int hookSite, uint
       }
       case dsl::RoleKind::Kingdom: {
         ew::Gid k = land;
+        if (R.stake && CM && CM->stake.kingdom && (g.realm.kingdom(CM->stake.kingdom) || g.world.src->kingdom(CM->stake.kingdom))) {
+          // (M8) the kingdom of the companion's stake (the war they fought, the land that cast them out)
+          b.id = CM->stake.kingdom;
+          b.name = kingdomName(g, b.id);
+          if (const ew::KingdomPlan* kp = g.world.src->kingdom(b.id)) { b.gx = kp->gx; b.gy = kp->gy; b.hasPos = true; b.site = kp->capital; }
+          break;
+        }
         if (R.a == "rival") {
           k = 0;
           int64_t bd = INT64_MAX;   // (fixer M6b r2: integer squared distance, no libm)
@@ -436,7 +493,17 @@ bool castScript(Game& g, const dsl::Script& s, int hookActor, int hookSite, uint
           }
         const foes::NamedUnique* best = nullptr;
         int64_t bd = INT64_MAX;
+        std::vector<foes::NamedUnique> stakePool;
+        if (R.stake && CM && CM->stake.foe) {
+          // (M8) the companion's own foe (the named beast of their stake), when it still lives within four regions
+          for (int32_t ry = ry0 - 4; ry <= ry0 + 4 && stakePool.empty(); ry++)
+            for (int32_t rx = rx0 - 4; rx <= rx0 + 4 && stakePool.empty(); rx++)
+              for (const foes::NamedUnique& u : foes::namedInRegion(*g.world.src, rx, ry))
+                if (u.id == CM->stake.foe && !g.marks.count(storyMarkKey(u.id, foes::MK_FOES_NAMED_SLAIN))) stakePool.push_back(u);
+          if (!stakePool.empty()) best = &stakePool.front();
+        }
         for (const foes::NamedUnique& u : pool) {
+          if (!stakePool.empty()) break;
           bool bound = false;
           for (const Binding& o : out) if (o.id == u.id) bound = true;
           if (bound || g.marks.count(storyMarkKey(u.id, foes::MK_FOES_NAMED_SLAIN))) continue;
