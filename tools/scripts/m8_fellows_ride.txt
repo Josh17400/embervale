@@ -1,0 +1,21 @@
+# M8 FELLOWS: a companion with their own horse rides beside the mounted player (Actor::posture Ride + Member::horse)
+# and gets down with them.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_fellows_ride.txt     (m8_fellows_ride*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 hour 11
++0.2 party recruit
++0.2 home lot
++0.2 home ride
++0.2 expect home riding 1
++0.1 party horse
++0.4 walk west 3.0
++1.5 expect party mounted
++0.1 shot m8_fellows_ride.png
++1.6 walk south 1.5
++0.8 shot m8_fellows_ride2.png
++1.0 home dismount
++0.4 expect party posture none
++0.1 shot m8_fellows_ride_down.png
++0.2 quit

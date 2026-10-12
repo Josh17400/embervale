@@ -20,6 +20,7 @@
 // and empty lines, the phase A gate).
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -29,6 +30,9 @@
 #include <vector>
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/life.h"
+#include "rpg/sim/party.h"
+#include "rpg/sim/party_voice.h"
 #include "rpg/sim/talk.h"
 #include "tools/tests/tests.h"
 
@@ -256,6 +260,198 @@ int nearestOfType(const Game& g, SiteType t) {
   return best;
 }
 
+// ---------------------------------------------------------------- (M8 VOICE) the companions' talk
+// A census companion recruited in the start village and in the nearest town (the recruit flow as a player meets it: a
+// friend's offer, the pitch, their story), every page of their own conversation (orders, their story and its
+// follow-ups, the deeds they remember, how they are keeping, their gear, what they think of the player, their personal
+// quest's offer, a grievance), a member at home asked back, one who left and the amends another day, their kin's word
+// while they travel, and after a death: the kin and the innkeeper of their home, and the grave.
+int actorOfResident(const Game& g, int site, int idx) {
+  for (size_t k = 1; k < g.actors.size(); k++) {
+    const Actor& a = g.actors[k];
+    if (a.resident == idx && a.site == site && a.npc && a.human && !a.comp && a.st != AState::Dead) return a.id;
+  }
+  return -1;
+}
+bool destructive(const std::string& l) {
+  return l == "WAIT HERE FOR ME." || l.rfind("GO HOME", 0) == 0 || l.rfind("GO TO MY HOUSE", 0) == 0 || l == "WE PART WAYS HERE." ||
+         l == "IF YOU DON'T LIKE IT, GO.";
+}
+// the first page, each of its options, and each option of the page that opens (one step further where it goes on)
+void companionPaths(Game& g, int id, int& convs) {
+  if (!open(g, id)) return;
+  convs++;
+  std::vector<std::string> front;
+  for (int k : shown(g)) if (!farewell(g.dlg.opts[(size_t)k].label)) front.push_back(g.dlg.opts[(size_t)k].label);
+  g.mode = Mode::Play;
+  for (const std::string& f : front) {
+    if (!open(g, id)) return;
+    convs++;
+    const int k = shownByLabel(g, f);
+    if (k < 0) { after(g); continue; }
+    choose(g, k);
+    if (g.mode != Mode::Dialogue) { after(g); continue; }
+    std::vector<std::string> inner;
+    for (int i : shown(g)) {
+      const std::string& l = g.dlg.opts[(size_t)i].label;
+      if (!farewell(l) && !destructive(l)) inner.push_back(l);
+    }
+    // (the story's own choices move the quest on: the first is followed, the rest only shown)
+    bool story = false;
+    for (int i : shown(g)) if (storyOpt(g.dlg.opts[(size_t)i])) story = true;
+    if (story) { stepOn(g); after(g); continue; }
+    after(g);
+    for (size_t i = 0; i < inner.size() && i < 7; i++) {
+      if (!open(g, id)) return;
+      convs++;
+      const int h = shownByLabel(g, f);
+      if (h < 0) { after(g); continue; }
+      choose(g, h);
+      const int j = shownByLabel(g, inner[i]);
+      if (j >= 0) { choose(g, j); stepOn(g); }
+      after(g);
+    }
+  }
+}
+// someone with the companion's quest offer, a grievance, the orders that change their state (last)
+int sampleCompanions(Game& g, int& convs) {
+  int people = 0;
+  for (int i = (int)g.party.members.size() - 1; i >= 0; i--) g.partyDismiss(i);
+  g.party.fallen.clear();
+  g.plLevel = std::max(g.plLevel, party::LEADERSHIP_LEVEL);   // (two people may travel with the player)
+  const int sites[2] = {g.world.startSite, nearestOfType(g, SiteType::Town)};
+  for (int pass = 0; pass < 2; pass++) {
+    const int si = sites[pass];
+    if (si < 0 || si >= (int)g.world.sites.size() || !g.fastTravel(si)) continue;
+    g.hour = 12;
+    settle(g, 60);
+    const ew::Gid sid = g.world.sites[(size_t)si].id;
+    life::Census* C = g.life.census(g.world, si);
+    if (!C) continue;
+    // ---- a friend in the street: their offer, their pitch, their story; they join
+    int who = -1, res = -1;
+    for (size_t k = 1; k < g.actors.size() && who < 0; k++) {
+      const Actor& a = g.actors[k];
+      if (!a.npc || !a.human || a.comp || a.resident < 0 || a.site != si || a.role == Role::Guard || a.role == Role::Child) continue;
+      const life::Resident& r = C->res[(size_t)a.resident];
+      if ((r.flags & (life::RF_DEAD | life::RF_KEY | life::RF_AWAY)) || r.age < 18 || r.age > 60 || r.job == life::Job::Child) continue;
+      who = a.id; res = a.resident;
+    }
+    if (who < 0) continue;
+    g.life.befriend(sid, res);
+    const size_t before = g.party.members.size();
+    talkPaths(g, who, convs);
+    people++;
+    int mi = -1;
+    for (size_t k = 0; k < g.party.members.size(); k++) if (g.party.members[k].npc == life::npcId(sid, res)) mi = (int)k;
+    if (mi < 0 && g.party.members.size() == before) {
+      const int ai = findById(g, who);
+      if (ai > 0) mi = g.partyRecruit(g.actors[(size_t)ai], party::Origin::Resident);
+    }
+    if (mi < 0) { out("FAIL: dialogue: seed %llu: no companion recruited in %s\n", (unsigned long long)g_curSeed, g.world.sites[(size_t)si].name.c_str()); continue; }
+    settle(g, 5);
+    // ---- their own conversation: plain, then with memories, a quest to offer, a grievance
+    auto comp = [&]() { return mi < (int)g.party.members.size() ? g.party.members[(size_t)mi].actor : -1; };
+    companionPaths(g, comp(), convs);
+    g.deed(party::Deed::Mercy, sid);
+    g.deed(party::Deed::ClearedBandits, sid);
+    g.deed(party::Deed::Stole, sid);
+    settle(g, 3);
+    companionPaths(g, comp(), convs);
+    {
+      party::Member& m = g.party.members[(size_t)mi];
+      m.approval = 60; m.bond = 40;
+      if (m.stake.hook == party::Hook::None) m.stake.hook = party::Hook::Ambition;
+    }
+    companionPaths(g, comp(), convs);
+    {
+      party::Member& m = g.party.members[(size_t)mi];
+      if (m.questInst) g.story.drop(m.questInst);
+      m.questInst = 0; m.questState = 0; m.flags = (uint16_t)(m.flags & ~(party::MF_QUEST_OFFERED | party::MF_QUEST_DONE));
+      for (size_t q = 0; q < g.quests.size();) { if (g.quests[q].type == QType::Story) g.quests.erase(g.quests.begin() + (std::ptrdiff_t)q); else q++; }
+      m.approval = -50;
+    }
+    companionPaths(g, comp(), convs);
+    g.party.members[(size_t)mi].approval = 30;
+    // ---- their kin, while they travel
+    const party::voice::Bio b = party::voice::bio(g, g.party.members[(size_t)mi]);
+    std::vector<int> kinIds;
+    for (const party::voice::Kin& k : b.household) if (!k.dead && !k.away) { const int id = actorOfResident(g, si, k.idx); if (id >= 0) kinIds.push_back(id); }
+    for (size_t k = 0; k < kinIds.size() && k < 2; k++) { talkPaths(g, kinIds[k], convs); people++; }
+    // ---- the orders that change their state, each as its own talk; then home, asked back; then left, and amends
+    companionPaths(g, comp(), convs);
+    for (const char* order : {"WAIT HERE FOR ME.", "FOLLOW ME."}) {
+      if (!open(g, comp())) break;
+      convs++;
+      const int o = shownByLabel(g, "I HAVE ORDERS FOR YOU.");
+      if (o >= 0) { choose(g, o); const int w = shownByLabel(g, order); if (w >= 0) choose(g, w); }
+      after(g);
+    }
+    if (g.partyCommand(mi, party::Cmd::Home)) {
+      settle(g, 90);
+      const int body = actorOfResident(g, si, res);
+      if (body >= 0) talkPaths(g, body, convs);
+    }
+    if (g.party.members[(size_t)mi].state != party::State::With) g.partyCommand(mi, party::Cmd::Follow);
+    if (g.partyCommand(mi, party::Cmd::Home)) {
+      party::Member& m = g.party.members[(size_t)mi];
+      m.state = party::State::Left;
+      m.flags |= party::MF_LEFT_ONCE;
+      m.approval = -75;
+      m.mem.push_back({party::Deed::KilledInnocent, -12, g.day, sid});
+      settle(g, 60);
+      for (int dayStep = 0; dayStep < 2; dayStep++) {
+        const int body = actorOfResident(g, si, res);
+        if (body >= 0) talkPaths(g, body, convs);
+        g.day++;
+        settle(g, 5);
+      }
+    }
+    // ---- a death: the kin and the innkeeper remember, and the grave
+    if (pass == 1 && mi < (int)g.party.members.size()) {
+      const party::Member m = g.party.members[(size_t)mi];
+      party::Fallen f;
+      f.id = m.id; f.name = m.name; f.voc = m.voc; f.origin = m.origin; f.culture = m.culture; f.npc = m.npc; f.site = m.site;
+      f.gx = g.world.ox + (int32_t)std::floor(g.pl().p.x / TILE); f.gy = g.world.oy + (int32_t)std::floor(g.pl().p.y / TILE);
+      f.day = g.day; f.cause = "FELL TO A WOLF PACK ON THE HIGH ROAD"; f.seed = 77; f.days = 40; f.kills = 12; f.bond = 55;
+      f.belongings = m.inv;
+      g.partyDismiss(mi);
+      g.life.residentDied(sid, res, g.day);
+      g.party.fallen.push_back(f);
+      settle(g, 30);
+      for (int d = 0; d < 4; d++) {
+        for (size_t k = 0; k < kinIds.size() && k < 2; k++) talkPaths(g, kinIds[k], convs);
+        g.day++;
+        settle(g, 5);
+      }
+      const Site S = g.world.sites[(size_t)si];
+      for (int bi = S.bldgFirst; bi < S.bldgFirst + S.bldgCount && bi < (int)g.world.over.bldgs.size(); bi++) {
+        if (g.world.over.bldgs[(size_t)bi].type != art::Building::Inn || !g.debugEnterBuilding(bi)) continue;
+        settle(g, 20);
+        for (int d = 0; d < 3; d++) {
+          for (int id : peopleHere(g, -1, 4)) { const int ai = findById(g, id); if (ai > 0 && g.actors[(size_t)ai].role == Role::Innkeeper) talkPaths(g, id, convs); }
+          g.day++;
+        }
+        g.debugLeave();
+        settle(g, 5);
+        break;
+      }
+      // the grave: the epitaph, then each thing to do there
+      const size_t n0 = g.party.fallen.size();
+      for (int opt = 0; opt < 4 && n0; opt++) {
+        PartyTalkOps::graveTalk(g, 0);
+        if (g.mode != Mode::Dialogue) break;
+        if (g.talkRec) g.talkRec->begin(g.dlg, g.dlg.speaker, "GRAVE", S.name, 0);
+        convs++;
+        const std::vector<int> sh = shown(g);
+        if (opt < (int)sh.size() && !farewell(g.dlg.opts[(size_t)sh[(size_t)opt]].label)) { choose(g, sh[(size_t)opt]); stepOn(g); }
+        after(g);
+      }
+    }
+  }
+  return people;
+}
+
 // the review lens over one seed's conversations (beyond the lint): a crowded first page, a chorus of one line, the
 // journal read aloud
 void review(const std::vector<speech::Conversation>& convs, const std::vector<std::string>& journal, std::vector<std::vector<speech::Issue>>& out) {
@@ -320,6 +516,7 @@ int cmdDialogue(int argc, char** argv) {
     people += sampleSite(g, nearestOfType(g, SiteType::Town), maxPeople, c0);
     people += sampleSite(g, nearestOfType(g, SiteType::City), maxPeople, c0);
     people += sampleStates(g, c0);
+    people += sampleCompanions(g, c0);   // (M8 VOICE)
     g.talkRec = nullptr;
     // the names the conversations may rely on only once introduced: everyone met here
     speech::LintCtx ctx;

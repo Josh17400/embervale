@@ -739,6 +739,7 @@ stage face
 
 stage bought
   talk leader
+  do deed bribed
   do gold -40
   do set bond 1
   say "HE TOOK IT. HE TORE OUT THE PAGE AND HANDED IT TO ME, AND LAUGHED, AND SAID WE'D BE BACK. MAYBE WE WILL. NOT TODAY."
@@ -751,6 +752,7 @@ stage run
 
 stage freed
   talk leader
+  do deed rescued
   say "THE LEDGER'S ASH. THE GATE'S OPEN. LOOK AT THEM, {PLAYER}, STANDING AT THE GATE LIKE IT MIGHT BITE. THEY'VE FORGOTTEN HOW TO WALK THROUGH A DOOR WITHOUT BEING TOLD."
   opt "WALK THROUGH IT. ALL OF YOU." -> @t1
 
@@ -792,6 +794,7 @@ stage home_end
   do remember leader "WE KEEP A FEAST FOR THE NIGHT WE CAME OUT. WE EAT STANDING UP, WITH OUR SHOES ON. THE CHILDREN ASK WHY. WE TELL THEM."
   do fact "THE PEOPLE OF {HOME} HELD IN DEBT AT THE QUARRY OF {CAMP} CAME HOME, AND KEEP A FEAST FOR THE NIGHT THEY WALKED OUT."
   do mark led_out_of_bondage
+  do deed rescued
 
 stage split_end
   end success
@@ -891,6 +894,7 @@ stage mercy_end
   do remember seer "I'M STILL ANGRY. I'M ANGRY AND I'M GLAD. I DIDN'T KNOW YOU COULD BE BOTH."
   do fact "A NOVICE OF {HOME} WARNED {FAR} OF HEAVEN'S ANGER. {FAR} REPENTED, AND SENT GRAIN TO {HOME} AFTER [[=forty]] YEARS OF HATE."
   do mark ninefold_mercy
+  do deed mercy
 
 stage sulk_end
   end success
@@ -979,6 +983,7 @@ stage law_end
   do remember first "HE'S WALKING NOW. HE WALKS LIKE A DRUNK SAILOR. I KEEP TELLING HIM ABOUT YOU. HE DOESN'T CARE. HE WILL."
   do fact "THEY SAY A STRANGER JUDGED BETWEEN TWO MOTHERS IN {HOME}, AND FOUND THE TRUE ONE BY THE ONE WHO WOULD GIVE HER CHILD UP."
   do mark wise_judgement
+  do deed mercy
 
 stage mercy_end
   end success
@@ -988,6 +993,7 @@ stage mercy_end
   do remember second "SHE LETS ME HOLD HIM SOMETIMES. I DON'T DESERVE IT. I HOLD HIM VERY CAREFULLY, AND THEN I GIVE HIM BACK."
   do fact "A STRANGER JUDGED BETWEEN TWO MOTHERS IN {HOME}, AND GAVE THE LIVING CHILD TO THE TRUE ONE, AND MERCY TO THE OTHER."
   do mark wise_judgement
+  do deed mercy
 
 stage wrong_end
   end fail
@@ -1088,6 +1094,7 @@ stage freed_end
   do remember giver "{CHAMP} SITS IN THE BIG CHAIR AND TELLS THE CHILDREN STORIES. HE DOESN'T LIFT OXEN NOW. HE DOESN'T NEED TO."
   do fact "{CHAMP} OF {HOME}, SHORN AND BLINDED BY THE BANDITS OF {CAMP}, WAS BROUGHT HOME ALIVE, AND {FOE} WAS SLAIN."
   do mark brought_the_strongman_home
+  do deed rescued
 
 stage pillars_end
   end success

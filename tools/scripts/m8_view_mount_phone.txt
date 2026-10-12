@@ -1,0 +1,23 @@
+phone
+# M8 VIEW lane: a companion riding beside the player on their own horse (MF_MOUNTED staged while FELLOWS wires it; the
+# horse's breed from Member::horse), facing east and south.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_view_mount_phone.txt     (m8v_mount_*.png)
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 11
++0.1 walk east 2.5
++0.2 home lot medium
++0.1 home ride
++0.1 expect home riding 1
++0.1 party recruit
++0.1 partyview mount 0 1
++0.1 walk east 1.5
++0.1 touch 1
++0.1 shot m8v_mount_01_east.png
++0.1 walk south 1.2
++0.1 touch 1
++0.1 shot m8v_mount_02_south.png
++0.1 home dismount
++0.2 quit

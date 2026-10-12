@@ -1,0 +1,39 @@
+phone
+# M8 VIEW lane: the party column at phone size. One companion, then two people and the hound at level 20
+# (LEADERSHIP_LEVEL), a card selected (its name tag), one of them hurt (the low-health pulse), a banter line over the
+# speaker and an alert ribbon, the column with the toasts beside it.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_view_party_phone.txt     (m8v_party_*.png)
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 11
++0.2 party recruit
++0.1 expect party with 1
++0.1 walk east 1.2
++0.4 touch 1
++0.1 expect partyview cards 1
++0.1 shot m8v_party_01_one.png
++0.1 partyview level 20
++0.1 party recruit 1
++0.1 partyview hound
++0.1 expect party with 3
++0.1 walk west 1.0
++0.6 touch 1
++0.1 expect partyview cards 3
++0.1 shot m8v_party_02_three.png
++0.1 partyview select 1
++0.1 partyview hp 22 0
++0.4 touch 1
++0.1 shot m8v_party_03_tag_lowhp.png
++0.1 partyview banter THE ROAD IS QUIET TODAY. I DON'T TRUST IT.
++0.1 partyview alert 8 SKILL LEARNED: SHIELD WALL
++0.5 touch 1
++0.1 expect partyview banter
++0.1 expect partyview alert
++0.1 shot m8v_party_04_banter_alert.png
++0.1 party cmd wait 1
++0.1 expect party state waiting 1
++0.3 touch 1
++0.1 shot m8v_party_05_waiting.png
++0.2 quit

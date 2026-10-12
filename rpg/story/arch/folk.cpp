@@ -147,6 +147,7 @@ stage sold
   do take "[[=gift]]"
   do reward small
   do mark sold_a_curse
+  do deed lied
   do remember kin "THEY SAY THE [[=usurer]] TALKS TO SOMETHING AT NIGHT. I KNOW WHAT. I TRY TO PITY HIM."
   do fact "THE [[=usurer]] OF {HOME} BOUGHT A PRETTY THING CHEAP AND HAS NOT SLEPT SINCE."
 )SAGA";
@@ -312,6 +313,7 @@ stage hearth
 
 stage burned
   end fail
+  do deed cruelty grave
   say "{GIVER} HELD THE CHILD OVER THE HEARTH A LONG MOMENT, AND THEN SAT DOWN ON THE FLOOR WITH IT AND WEPT. NEITHER OF THEM SCREAMED."
   journal "YOU TOLD {GIVER} TO PUT A CHILD ON THE HEARTH. {GIVER.HE} COULD NOT DO IT, AND WILL NOT FORGIVE YOU FOR ASKING."
   do remember giver "YOU. YOU SAID BURN IT. GET OUT OF MY SIGHT."
@@ -377,6 +379,7 @@ stage swap_end
 
 stage mercy_end
   end success
+  do deed mercy
   say "ON THE THIRD NIGHT THE OLD ONE STOPPED HUMMING. {GIVER} BURIED IT UNDER THE APPLE TREE. AT DAWN THERE WAS A BABY ON THE DOORSTEP, WRAPPED IN MOSS, ASLEEP."
   journal "{GIVER} LET THE OLD ONE OF {HILL} DIE LOVED, AND THE HILL GAVE BACK THE BABY WITH A GIFT IN ITS FIST."
   do reward rich
@@ -560,6 +563,7 @@ stage wrong
 
 stage bribed
   talk elder
+  do deed bribed
   say "COIN? HM. I'LL ALLOW IT, SINCE MOST WATER COMES TO ME THROUGH A TAX MAN ANYWAY. I'LL THINK LESS OF YOU BOTH."
   do gold -15
   opt "THINK WHAT YOU LIKE." -> @t2
@@ -906,6 +910,7 @@ stage lie_end
   journal "YOU KILLED THE WILD THING OF {DEN} AND LET {GIVER} BELIEVE IT WAS A WOLF."
   do reward fair
   do mark kept_a_grave_secret
+  do deed lied
   do remember wise "SHE STILL WAITS FOR HIM TO COME HOME. YOU LET HER. I LET HER. WE'LL BOTH ANSWER FOR IT."
 
 stage keep_end
@@ -1198,6 +1203,7 @@ stage liar_end
   journal "YOU LIED TO THE LADY OF THE DROWNED POOL AT {RUIN}. {GREEDY} IS STILL UNDER THE WATER."
   do gold -20
   do mark lied_to_the_pool
+  do deed lied
   do remember giver "YOU SAID YES? TO HER? OH, YOU FOOL. YOU FOOL. AT LEAST YOU CAME BACK."
 
 stage axe_end
@@ -1283,6 +1289,7 @@ stage won
 
 stage bought
   talk grey
+  do deed bribed
   say "COIN? HOW ORDINARY. VERY WELL. IT'S THE ONE TRYING TO HOLD HANDS WITH THE OTHERS."
   do gold -25
   opt "I'LL TAKE IT." -> @t2
@@ -1316,6 +1323,7 @@ stage asked_end
 
 stage freed_end
   end success
+  do deed mercy
   say "THE SHADOW SLID OUT UNDER THE DOOR AND WAS GONE INTO THE EVENING. {KIN} STOOD IN THE LAMPLIGHT, SHADOWLESS, AND LAUGHED, AND COULD NOT SAY WHY."
   journal "YOU LET {KIN}'S SHADOW GO FREE. {KIN} WILL LIVE WITHOUT ONE."
   do reward small
@@ -1397,6 +1405,7 @@ stage burned_end
   do take "A CLOAK OF WHITE FEATHERS"
   do reward small
   do mark burned_the_cloak
+  do deed cruelty
   do remember wife "YOU. I KNOW WHAT YOU SAID TO HIM. I KNOW. <<curse>>"
   do fact "A WOMAN OF {HOME} STANDS IN THE SHALLOWS AT DUSK AND WATCHES THE WHITE BIRDS. SHE NO LONGER WEEPS. SHE NO LONGER SINGS."
 )SAGA";

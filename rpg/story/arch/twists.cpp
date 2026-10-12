@@ -177,6 +177,7 @@ stage %ring
   talk twmourner
   say "THANK YOU. I'LL CARVE THE STONE MYSELF. I'VE HAD [[=cursed]] YEARS TO THINK WHAT TO PUT ON IT. <<thanks>>"
   do mark promised_the_cursed_a_grave
+  do deed mercy
   do remember twmourner "YOU BROUGHT ME THE RING. MY CHILD HAS A STONE WITH A TRUE NAME ON IT NOW. I SIT THERE MOST EVENINGS."
   do fact "THEY SAY {FOE} WAS ONCE A CHILD OF {HOME}, CURSED [[=cursed]] YEARS AGO, AND HAS A GRAVE NOW UNDER ITS TRUE NAME."
   opt "UNDER ITS TRUE NAME." -> @out
@@ -389,6 +390,7 @@ stage %lie
   say "GUARD {HOME}? ...THAT'S EVEN BETTER. THAT'S MORE IMPORTANT, ISN'T IT? NOBODY GETS PAST ME. <<oath>>"
   do remember twchosen "STILL GUARDING {HOME}! NOBODY'S GOT PAST ME. WELL, A GOAT. ONCE. IT DOESN'T COUNT."
   do mark a_kind_lie
+  do deed lied
   opt "NOBODY GETS PAST YOU." -> @out
 )SAGA";
 
@@ -468,6 +470,7 @@ stage %warden
   say "THE SECOND TIME. IT'S THE SECOND TIME. THEY'LL TAKE THE HAND. <<curse>>"
   do remember twthief "ONE HAND. I'M QUICK WITH THE OTHER. YOU SHOULD KNOW THAT, IF YOU EVER SLEEP NEAR ME."
   do mark gave_thief_to_warden
+  do deed cruelty
   opt "THE LAW IS THE LAW." -> @out
 stage %work
   talk twthief
@@ -495,6 +498,7 @@ stage %home
   say "<<thanks>> IF ANYONE ASKS, YOU SAW A MAN IN A BYRE AND HE WAS A SHEPHERD. I WAS A SHEPHERD ONCE. IT'S NEARLY TRUE."
   do remember twrunner "THE SHEPHERD FROM THE BYRE. I'M HOME. THE CHILD DIDN'T KNOW ME. SHE DOES NOW."
   do mark spared_a_deserter
+  do deed mercy
   opt "A SHEPHERD. YES." -> @out
 stage %oath
   talk twrunner
@@ -514,6 +518,7 @@ stage %coin
   say "SILVER? FOR A RUNNER? ...YOU'RE A STRANGE ONE. I'LL BUY A BOAT-PASSAGE AND NEVER SEE A SERGEANT AGAIN. <<blessing>>"
   do remember twrunner "THE SILVER FROM THE BYRE BOUGHT A BOAT AND A NEW NAME. I FISH NOW. I'M A BAD FISHER. I'M ALIVE."
   do mark spared_a_deserter
+  do deed mercy
   opt "FISH WELL." -> @out
 )SAGA";
 
@@ -633,6 +638,7 @@ stage %after
   opt "THE WARDEN WILL HEAR OF THIS." -> %warden
 stage %forgive
   talk twguide
+  do deed mercy
   say "YOU'D... I'LL FIND THEM, AND IF I EVER LEAD ANYONE ANYWHERE AGAIN, IT'LL BE THE LONG WAY. <<vow>>"
   do remember twguide "I FOUND THEM ALIVE. I DON'T GUIDE NOW. I CAN'T LOOK AT A GULLY WITHOUT SWEATING."
   opt "THE LONG WAY." -> @out
@@ -785,6 +791,7 @@ stage %shared
   talk twfox
   say "THE WHOLE LOAF. HOW LONG SINCE ANYONE... LISTEN: WHERE YOU'RE GOING, THE ONE WHO SMILES FIRST IS NOT YOUR FRIEND, AND WHEN THE WIND DROPS, RUN. <<blessing>>"
   do mark fed_the_fox_woman
+  do deed charity
   do remember twfox "THE ONE WITH THE WHOLE LOAF! I REMEMBER. FOXES ALWAYS REMEMBER. WE'RE TERRIBLE AT FORGIVING, AND WONDERFUL AT THANKS."
   opt "THE ONE WHO SMILES FIRST." -> @out
 stage %seen
@@ -841,6 +848,7 @@ stage %spoil
   talk twhuntsman
   say "YOU... YOU STEPPED ON A STICK ON PURPOSE. I SAW YOU. A YEAR'S BREAD, GONE INTO THE BIRCHES. <<curse>> ...AND YET. DID YOU SEE IT LOOK BACK AT YOU?"
   do mark spared_the_white_hart
+  do deed mercy
   do remember twhuntsman "THE STICK-STEPPER. I'VE NOT SEEN THE HART SINCE. I'VE HAD GOOD HUNTING, THOUGH. STRANGE, THAT."
   opt "IT LOOKED BACK." -> @out
 stage %loose
@@ -855,6 +863,7 @@ stage %bought
   do gold -10
   say "TEN SILVER FOR A DEER YOU DON'T EVEN WANT? ...TAKE YOUR HART, THEN. IT'S ALREADY GONE. <<doubt>>"
   do mark spared_the_white_hart
+  do deed mercy
   do remember twhuntsman "THE ONE WHO BOUGHT A WHITE HART AND LET IT RUN. I TELL THAT IN EVERY ALEHOUSE. NOBODY BELIEVES ME."
   opt "IT'S ALREADY GONE." -> @out
 )SAGA";
@@ -912,6 +921,7 @@ stage %bribe
   say "THE QUOTA BOOK THANKS YOU. THE QUOTA BOOK HAS NEVER SEEN YOU. <<doubt>>"
   do remember twsarge "I NEVER SAW YOU. I'VE A SHARP MEMORY FOR THE FACES I NEVER SAW."
   do mark bought_off_the_levy
+  do deed bribed
   opt "NEVER SEEN ME." -> @out
 stage %errand
   talk twsarge

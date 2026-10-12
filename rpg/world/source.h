@@ -30,10 +30,11 @@ struct SettlementOut;   // rpg/world/settlement.h
 
 // Bumped when the endless generator's output changes. Old saves are not kept compatible across M1 (owner rule,
 // 2026-10-04); the save stores it so a mismatch can say "this save is from an older world".
-constexpr int ENDLESS_GEN_VER = 21;  // 21: M7c Order of Streets (bumped in phase A so the lanes may change generation
-                                     //     under it: one settlement planner with an order dial, a city's full street
-                                     //     network of blocks, faubourgs and farmland, towns' side streets, villages'
-                                     //     spine; SettlementOut's rank / role layers and traits; goldens re-recorded).
+constexpr int ENDLESS_GEN_VER = 22;  // 22: M7c Order of Streets merged with M8 Fellowship (one settlement planner with
+                                     //     an order dial, a city's full street network of blocks, faubourgs and
+                                     //     farmland, towns' side streets, villages' spine; SettlementOut's rank / role
+                                     //     layers and traits; companions; goldens re-recorded on the merge).
+                                     // 21: M7c phase A on its branch / M8 Fellowship phase A on main (both bumped 21).
                                      // 20: M7b fixer round 3 (one build per terrace: its units share depth, storeys,
                                      //     roof and materials; the rich quarter's own houses and lawns; lamps and trees
                                      //     spaced, no tree on a kerb's face; avenue mouths square onto their squares;

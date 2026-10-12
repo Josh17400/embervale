@@ -141,7 +141,8 @@ Canvas paintMarketTable(uint64_t key) { return art::marketTable((int)(key & 15),
 Canvas paintGroundCloth(uint64_t key) { return art::groundCloth((int)(key & 15), (int)((key >> 4) & 15), ((key >> 8) & 1) != 0); }
 Canvas paintMineRail(uint64_t key) { return art::mineRail((int)(key & 15)); }
 Canvas paintMineHill(uint64_t key) { return art::mineHill((int)(key & 3), (int)((key >> 2) & 3)); }
-Canvas paintRuin(uint64_t key) { return art::ruinVariant((Prop)((key >> 8) & 255), (int)(key & 255)); }
+// (M8 ART) a ruin piece knowing its run: key low bits = variant (0..7) | RuinWall neighbours (N1 E2 S4 W8) << 4
+Canvas paintRuin(uint64_t key) { return art::ruinVariantRun((Prop)((key >> 8) & 255), (int)(key & 7), (int)((key >> 4) & 15)); }
 Canvas paintTallGrass(uint64_t key) { return art::tallGrassVariant((int)(key & 15)); }
 // (fixer M5 r3) a floor cushion under someone sitting cross-legged on the bare floor (a low table's or a hearth's
 // place): a plump square in one of four dyes, its top face lit from the upper left, a darker front side, a piped edge,
@@ -1028,6 +1029,7 @@ void View::spawnParticles(const Event& e, Game& g) {
     case Ev::Shake: shake_ = std::max(shake_, e.f); break;
     case Ev::Border: heraldEvent(g, e); break;   // (M4) the herald at a kingdom's border (realm_hud.cpp)
     case Ev::News: newsEvent(g, e); break;       // (M4) a world event heard of
+    case Ev::Banter: case Ev::PartyAlert: partyEvent(g, e); break;   // (M8) a companion speaks / an alert (party_hud.cpp)
     case Ev::MapChange: fade_ = 1.0f; snap(g); break;
     case Ev::WindowShift:   // M1: the endless window moved; everything overworld moved by e.p pixels
       cam_ += e.p;
@@ -1054,6 +1056,7 @@ void View::update(Game& g, float dt) {
   }
   for (const Event& e : g.events) spawnParticles(e, g);
   g.events.clear();
+  partyUpdate(g, dt);   // (M8) the party's portraits, radial, alerts, banter and the hound's howl (party_hud.cpp)
   // (M1) arriving in a settlement: a banner with its name and its kingdom (merged into DISCOVERED the first time)
   // (M4) its CURRENT owner in its society's word and its state; shown again when either changes while the player is
   // there (a conquest, a siege laid or broken: realm_hud.cpp arrivalText)
@@ -1463,7 +1466,7 @@ void View::update(Game& g, float dt) {
 namespace {
 struct Drawable {
   float y;
-  int kind;     // 0 prop, 1 building, 2 wall, 3 actor, 4 pickup, 5 projectile, 6 gate, 7 (M5) festival pole,
+  int kind;     // 0 prop, 1 building, 2 wall, 3 actor, 4 pickup, 5 projectile, 6 gate, 7 (M5) festival pole, 9 (M8) a grave,
                 //   8 (M7) a home draw (View::homeDraws_[idx]: a yard object, a crop, the building site, a ground edit)
   int idx;
   int tx, ty;
@@ -1849,6 +1852,13 @@ void View::drawWorld(Game& g) {
     }
     list.push_back({sy, 3, i, 0, 0});
   }
+  // (M8) the graves of the fallen companions in view (kind 9: idx = Party::fallen index; party_view.cpp)
+  {
+    std::vector<int> graves;
+    graveDraws(g, m, cam, graves);
+    for (int fi : graves)
+      list.push_back({(float)(g.party.fallen[(size_t)fi].gy - g.world.oy) * 16.0f + 15.5f, 9, fi, 0, 0});
+  }
   for (int i = 0; i < (int)g.pickups.size(); i++) list.push_back({g.pickups[i].p.y - 4, 4, i, 0, 0});
   // projectiles fly at chest height: sort them by the ground point beneath (arrows, spells, spit, dragon fire)
   for (int i = 0; i < (int)g.projs.size(); i++) {
@@ -1902,10 +1912,16 @@ void View::drawWorld(Game& g) {
       if (d.idx >= 0 && d.idx < (int)homeDraws_.size()) drawHomeShadow(homeDraws_[(size_t)d.idx], cam);
       continue;
     }
+    if (d.kind == 9) { drawGrave(g, d.idx, cam, true); continue; }   // (M8) a grave's shadow
     if (d.kind == 3) {
       const Actor& a = g.actors[d.idx];
       if (a.st == AState::Dead) continue;
       if (a.player && g.homeRiding()) { drawMountShadow(g, a, cam); continue; }   // (M7) the horse's shadow
+      if (a.comp) {   // (M8) the hound's, a rider's horse's, the blood under the downed (party_view.cpp)
+        bool done = false;
+        drawCompanionShadow(g, a, cam, done);
+        if (done) continue;
+      }
       // (M6 BEASTS) an elite's, a champion's or a named unique's aura: its ground glow round the feet, added under the
       // body (the shadow then darkens its middle where the feet stand); a few fixed widths keep the cache small
       if (const uint32_t ac = beasts::auraOf(a)) {
@@ -2100,8 +2116,15 @@ void View::drawWorld(Game& g) {
         // (M1) every piece of a ruin's walls and columns has its own broken top (by its global tile)
         if ((p == Prop::RuinWall || p == Prop::RuinColumn) && m.kind == MapKind::Overworld) {
           const uint32_t h = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6173);
-          const bool joinN = p == Prop::RuinWall && m.propAt(d.tx, d.ty - 1) == (int)Prop::RuinWall + 1;
-          tp = &cachedTex(0x03ull << 56 | (uint64_t)p << 8 | (uint64_t)(h % 8) | (joinN ? 8u : 0u), paintRuin);
+          int joins = 0;   // (M8) the wall's run: a north-south run shows one continuous wall top
+          if (p == Prop::RuinWall) {
+            const int rw = (int)Prop::RuinWall + 1;
+            if (m.propAt(d.tx, d.ty - 1) == rw) joins |= 1;
+            if (m.propAt(d.tx + 1, d.ty) == rw) joins |= 2;
+            if (m.propAt(d.tx, d.ty + 1) == rw) joins |= 4;
+            if (m.propAt(d.tx - 1, d.ty) == rw) joins |= 8;
+          }
+          tp = &cachedTex(0x03ull << 56 | (uint64_t)p << 8 | (uint64_t)(h % 8) | (uint64_t)joins << 4, paintRuin);
         }
         // (M1) a banner inside a kingdom's settlement flies that kingdom's colours
         if (p == Prop::Banner && m.kind == MapKind::Overworld && g.mode != Mode::Title) {
@@ -2475,7 +2498,9 @@ void View::drawWorld(Game& g) {
         float flash = a.flash > 0 ? a.flash / 0.12f : 0;
         float alpha = a.st == AState::Dead ? clampf(1.0f - (a.stT - 4.0f) / 2.0f, 0, 1) : 1.0f;
         if (a.player && a.iframes > 0 && a.st != AState::Roll && ((int)(t_ * 20) & 1)) alpha *= 0.5f;
-        if (a.human) {
+        if (a.comp && drawCompanionBody(g, a, cam, alpha, flash)) {
+          // (M8) the bonded hound, a companion on their horse (party_view.cpp)
+        } else if (a.human) {
           const bool child = a.role == Role::Child;   // (M5) a shorter body (childBody)
           const Tex* tp = &humanTex(a.look, child);
           int row = a.face == 0 ? 0 : a.face == 1 ? 1 : 2;
@@ -2497,8 +2522,10 @@ void View::drawWorld(Game& g) {
           Vec2 at = a.p;   // where the figure's feet are drawn (a seat's fit moves it onto the seat)
           bool drawn = false;
           bool floorSeat = false;   // (fixer M5 r3) sat on the bare floor: a cushion goes under them
-          if (a.posture != art::Posture::None && (a.st == AState::Idle || a.st == AState::Walk)) {
-            art::Posture pz = a.posture;
+          // (M8) a downed companion lies in Posture::Downed, the player binding them kneels (party_view.cpp partyPosture)
+          const art::Posture pzA = (a.comp || a.player) ? partyPosture(g, a) : a.posture;
+          if (pzA != art::Posture::None && (a.st == AState::Idle || a.st == AState::Walk || ((a.st == AState::Down || a.st == AState::Dead) && pzA == art::Posture::Downed))) {
+            art::Posture pz = pzA;
             const art::PostureInfo pi = art::postureInfo(pz);
             const int nf = std::clamp((int)pi.frames, 1, art::POSTURE_FRAMES);
             const bool stride = a.st == AState::Walk && (pz == art::Posture::Carry || pz == art::Posture::Play || pz == art::Posture::Dance);
@@ -2862,6 +2889,9 @@ void View::drawWorld(Game& g) {
         break;
       case 8:   // (M7) a home draw (its ground shadow went down in the shadow pass)
         if (d.idx >= 0 && d.idx < (int)homeDraws_.size()) drawHomeDraw(homeDraws_[(size_t)d.idx], cam);
+        break;
+      case 9:   // (M8) a fallen companion's grave
+        drawGrave(g, d.idx, cam, false);
         break;
       default: break;
     }

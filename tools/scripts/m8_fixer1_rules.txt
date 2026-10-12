@@ -1,0 +1,26 @@
+# M8 fixer round 1: the companions' rules the review found broken, each in a fresh game on seed 7.
+#   (a companion's kill counting toward a hunt quest is checked by hand: the wolves' staging is not reliable on wall time)
+#   1. a companion sent home who dies in their census life is dead for good: a Fallen record, nobody to call back
+#   2. a sellsword bleeding out when the wage falls due is not paid off and does not get up and walk away
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_fixer1_rules.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.2 party recruit
++0.1 party cmd home
++0.5 life kill companion
++0.6 expect party fallen 1
++0.1 expect party members 0
++0.3 newgame
++0.1 god 1
++0.1 goto town
++0.3 enter inn
++0.3 party merc
++0.3 walkto exit
++0.5 party down
++0.1 expect party state downed
++0.1 gold 0
++0.1 realm days 1
++0.5 expect party members 1
++0.1 expect party state downed
++0.2 quit

@@ -19,6 +19,7 @@ const std::vector<Archetype>& archetypes() {
     arch::addGwynne(a);
     arch::addWorld(a);
     arch::addArcs(a);
+    arch::addCompanion(a);   // (M8 Fellowship: the companions' own stories, offered only by a companion)
     return a;
   }();
   return v;

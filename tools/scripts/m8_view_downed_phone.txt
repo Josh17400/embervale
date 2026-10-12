@@ -1,0 +1,25 @@
+phone
+# M8 VIEW lane: a companion downed at phone size: their Downed posture, the blood under them, the pulsing wound over
+# them, the card's fuse burning down with the seconds left; the player beside them reads BIND WOUNDS (the touch button
+# BIND); the binding: the player kneels, the gold ring fills over them and on the card; back on their feet.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_view_downed_phone.txt     (m8v_down_*.png)
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 11
++0.2 party recruit
++0.1 walk east 1.2
++0.4 party down
++0.2 expect party state downed
++0.1 partyview downt 13
++0.1 party near
++0.5 touch 1
++0.1 shot m8v_down_01_downed.png
++0.1 key E
++1.0 touch 1
++0.1 shot m8v_down_02_binding.png
++1.5 expect party state with
++0.3 touch 1
++0.1 shot m8v_down_03_revived.png
++0.2 quit

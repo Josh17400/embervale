@@ -1,5 +1,10 @@
 // Save-format checks for the CURRENT save version only (owner, 2026-10-04: old saves are not a concern; an older save
-// is refused and the title offers a new game). M7b: SAVE_VER 15 (the talk block after the home block: the people met,
+// is refused and the title offers a new game). Fixer M8 r3: SAVE_VER 18 (party block v4: the fallen's gender). Fixer M8 r1: SAVE_VER 17 (party block v3: each companion's look, fixed
+// when they join, so it never changes when their census is put away). M8: SAVE_VER 16 (the party block after the talk block: a census
+// companion with approval, bond, gear and a memory, and a fallen companion's grave with belongings; ENDLESS_GEN_VER 21;
+// M8 phase B, party block v2: the stake, a second census companion waiting in the start inn, a third living at the
+// player's house, a sellsword with wages, the bonded wolf pup, the grave stamped with its rite and weapon).
+// M7b: SAVE_VER 15 (the talk block after the home block: the people met,
 // introductions, the lines said lately; ENDLESS_GEN_VER 17). M7: SAVE_VER 14 (the home block after the craft block: a lot with a cottage
 // in the local style, a field, a coop, a pen and a stable, chickens, a cow and a horse ridden, a chest with a harvest;
 // ENDLESS_GEN_VER 16). M6b: SAVE_VER 13 (the story block v4: the sagas' repetition guard and its offers; a
@@ -8,7 +13,7 @@
 // block; ENDLESS_GEN_VER 14). M4: SAVE_VER 10 (the realm and story blocks after the marks). The CITIZENS lane owns this
 // file and the fixture in M5.
 //   save_test [fixtureDir]           run every check
-//   save_test --make-fixture out.bin write tests/fixtures/save_v15.bin: an endless game (seed 5150) with a created
+//   save_test --make-fixture out.bin write tests/fixtures/save_v18.bin: an endless game (seed 5150) with a created
 //                                    character, the innkeeper's job taken, bot play, a looted chest, the M2 fields
 //                                    (marks, a quest's subject / flags / deadline, a rumoured site), saved outdoors.
 //                                    Regenerate it whenever the layout changes on purpose, and paste the printed FIX6
@@ -30,6 +35,7 @@
 #include "rpg/sim/gear.h"
 #include "rpg/sim/home.h"
 #include "rpg/sim/life.h"
+#include "rpg/sim/party.h"
 #include "rpg/story/saga.h"
 #include "rpg/story/story.h"
 #include "rpg/story/story_internal.h"
@@ -340,6 +346,76 @@ void addM7bFacts(Game& g) {
   m.times = 3; m.lastTopic = (uint8_t)speech::Topic::Trade; m.lastLine = FIX_LINE;
   g.talkMem.said(FIX_BARK, g.day);
 }
+// M8 (SAVE_VER 16): the party block: a census resident of the start village travelling with the player (approval, bond,
+// a gift of gear put on, a remembered deed) and a fallen companion's grave with their belongings
+constexpr int FIX_APPROVAL = 37, FIX_BOND = 23;
+const char* const FIX_FALLEN = "OSWIN THE FALLEN";
+constexpr int32_t FIX_GRAVE_GX = 4321, FIX_GRAVE_GY = -1234;
+constexpr ew::Gid FIX_WAS_AT = 0x7A5A7ull;
+constexpr int32_t FIX_WAIT_X = 5, FIX_WAIT_Y = 6;
+constexpr int FIX_WAGE = 54;
+const char* const FIX_MERC = "HALDOR SELLSWORD";
+int addM8Facts(Game& g) {
+  const life::Census* c = g.life.census(g.world, g.world.startSite);
+  int idx = -1;
+  if (c)
+    for (const life::Resident& r : c->res)
+      if (!(r.flags & (life::RF_DEAD | life::RF_KEY | life::RF_AWAY)) && r.job != life::Job::Child && r.job != life::Job::Elder && r.age >= 18) { idx = r.idx; break; }
+  if (idx < 0) { printf("save_test: no resident to recruit in the start village\n"); return -1; }
+  Actor a;
+  a.id = -77; a.npc = true; a.human = true; a.site = g.world.startSite; a.resident = idx; a.p = g.pl().p + Vec2(16, 0);
+  const int mi = g.partyRecruit(a, party::Origin::Tavern);
+  if (mi < 0) { printf("save_test: the recruit failed\n"); return -1; }
+  party::Member& m = g.party.members[(size_t)mi];
+  m.approval = (int8_t)FIX_APPROVAL; m.bond = (uint8_t)FIX_BOND;
+  m.mem.push_back({party::Deed::Rescued, 6, g.day, 0xFEEDull});
+  m.quest = "saga1~the_pit~~~~v2~m2~0000a5a5"; m.talkBits = 0x5u;
+  party::Fallen f;
+  f.id = g.party.nextId++; f.name = FIX_FALLEN; f.voc = party::Vocation::Archer; f.origin = party::Origin::Mercenary;
+  f.gx = FIX_GRAVE_GX; f.gy = FIX_GRAVE_GY; f.day = g.day; f.cause = "FELL TO WOLVES ON THE HIGH ROAD"; f.days = 12; f.kills = 9; f.bond = 31;
+  f.belongings.push_back(makeArrows(14));
+  // (M8 phase B, party block v2) the grave stamped into the world in their people's rite, the bow laid on it
+  f.graveFlags = party::GF_SITED | party::GF_HOME | party::GF_FLOWERS; f.rite = 2; f.weapon = 3; f.species = 0xFF; f.wasAt = FIX_WAS_AT;
+  f.female = true;   // (fixer M8 r3, party block v4)
+  g.party.fallen.push_back(f);
+  // ---- M8 phase B: a second census person waiting in the start inn, a third living at the player's house, a sellsword
+  //      with wages (waiting on the road), and the bonded pup
+  int more[2] = {-1, -1}, n = 0;
+  if (c)
+    for (const life::Resident& r : c->res)
+      if (r.idx != idx && !(r.flags & (life::RF_DEAD | life::RF_KEY | life::RF_AWAY)) && r.job != life::Job::Child && r.job != life::Job::Elder && r.age >= 18 && n < 2) more[n++] = r.idx;
+  if (n < 2) { printf("save_test: not enough residents for the party fixture\n"); return -1; }
+  auto census = [&](int res, party::State st) {
+    party::Member x;
+    x.id = g.party.nextId++;
+    x.origin = party::Origin::Resident; x.voc = party::Vocation::Healer; x.state = st;
+    x.site = c->site; x.res = (int16_t)res; x.npc = life::npcId(c->site, res);
+    x.name = c->res[(size_t)res].name; x.female = c->res[(size_t)res].female; x.lookSeed = c->res[(size_t)res].lookSeed;
+    x.stake = party::stakeFor(g, g.world.startSite, res);
+    x.joinedDay = g.day; x.lastDay = g.day;
+    life::Census* mc = g.life.findMut(c->site);
+    if (mc) mc->res[(size_t)res].flags |= life::RF_AWAY | life::RF_COMPANION;
+    return x;
+  };
+  party::Member w = census(more[0], party::State::Waiting);
+  const int inn = startInn(g);
+  w.mapKind = 2; w.mapId = inn >= 0 ? g.world.over.bldgs[(size_t)inn].id : 0; w.floor = 0; w.gx = FIX_WAIT_X; w.gy = FIX_WAIT_Y;
+  g.party.members.push_back(w);
+  party::Member h = census(more[1], party::State::Home);
+  h.homePlot = g.home.plots.empty() ? 0 : (uint32_t)g.home.plots[0].id;
+  g.party.members.push_back(h);
+  party::Member s;
+  s.id = g.party.nextId++;
+  s.origin = party::Origin::Mercenary; s.voc = party::Vocation::Warrior; s.state = party::State::Waiting;
+  s.name = FIX_MERC; s.lookSeed = 0x5E11u; s.culture = g.world.sites[(size_t)g.world.startSite].culture;
+  s.wage = FIX_WAGE; s.paidUntil = g.day; s.hiredAt = 0x1E1Full; s.mercSlot = 1;
+  s.mapKind = 0; s.gx = FIX_GRAVE_GX + 3; s.gy = FIX_GRAVE_GY; s.joinedDay = g.day; s.lastDay = g.day;
+  s.stake.hook = party::Hook::Debt;
+  g.party.members.push_back(s);
+  std::string why;
+  if (g.partyAdoptAnimal(1, 0xB0B5u, g.pl().p + Vec2(-14, 0), why) < 0) { printf("save_test: the pup: %s\n", why.c_str()); return -1; }
+  return idx;
+}
 int makeFixture(const char* out) {
   Game g(FIX_SEED);
   g.newEndlessGame(FIX_SEED);
@@ -353,6 +429,7 @@ int makeFixture(const char* out) {
   addM6bFacts(g);
   addM7Facts(g);
   addM7bFacts(g);
+  if (addM8Facts(g) < 0) return 1;
   if (g.inside) { printf("the fixture must be saved outdoors\n"); return 1; }
   std::vector<uint8_t> buf;
   g.serialize(buf);
@@ -383,7 +460,7 @@ int main(int argc, char** argv) {
 
   // ---- 1. the fixture
   std::vector<uint8_t> fx;
-  if (!readFile(dir + "/save_v15.bin", fx)) check(false, "cannot read tests/fixtures/save_v15.bin");
+  if (!readFile(dir + "/save_v18.bin", fx)) check(false, "cannot read tests/fixtures/save_v18.bin");
   else {
     check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
     Game g(1);
@@ -478,6 +555,48 @@ int main(int argc, char** argv) {
             "fixture talk block: the person met, introduced, their last line (SAVE_VER 15)");
       check(g.talkMem.saidRecently(FIX_BARK, g.day, 1), "fixture talk block: a line said lately (SAVE_VER 15)");
     }
+    {   // M8 (SAVE_VER 16): the party block
+      const party::Member* m = g.party.members.size() == 5 ? &g.party.members[0] : nullptr;
+      check(m && m->state == party::State::With && m->origin == party::Origin::Tavern && m->approval == FIX_APPROVAL && m->bond == FIX_BOND &&
+                m->site == g.world.sites[(size_t)g.world.startSite].id && m->res >= 0 && !m->name.empty(),
+            "fixture party block: the companion from the start village, approval and bond (SAVE_VER 16)");
+      check(m && m->hasLook && m->look.hair < art::Hair::COUNT && m->look.outfit < art::Outfit::COUNT, "fixture party block: the companion's look, fixed when they joined (SAVE_VER 17)");
+      check(m && m->mem.size() == 1 && m->mem[0].deed == party::Deed::Rescued && m->mem[0].delta == 6 && m->mem[0].about == 0xFEEDull &&
+                m->quest == "saga1~the_pit~~~~v2~m2~0000a5a5" && m->talkBits == 0x5u,
+            "fixture party block: a remembered deed, the VOICE fields");
+      // (fixer M8 r1) the kit is the trade's (a mage or a healer keeps their own dress: boots, no armour)
+      check(m && m->eq[party::S_BOOTS] + m->eq[party::S_ARMOR] > -2 &&
+                ((m->eq[party::S_ARMOR] >= 0 && m->eq[party::S_ARMOR] < (int)m->inv.size() && m->inv[(size_t)m->eq[party::S_ARMOR]].kind == ItemKind::Armor) ||
+                 (m->eq[party::S_BOOTS] >= 0 && m->eq[party::S_BOOTS] < (int)m->inv.size() && m->inv[(size_t)m->eq[party::S_BOOTS]].kind == ItemKind::Boots)),
+            "fixture party block: the companion's own gear");
+      const life::Census* lc = g.life.census(g.world, g.world.startSite);
+      check(m && lc && m->res < (int)lc->res.size() && (lc->res[(size_t)m->res].flags & (life::RF_AWAY | life::RF_COMPANION)) == (life::RF_AWAY | life::RF_COMPANION),
+            "fixture party block: the census knows the companion is away with the player");
+      const party::Fallen* f = g.party.fallen.size() == 1 ? &g.party.fallen[0] : nullptr;
+      check(f && f->name == FIX_FALLEN && f->gx == FIX_GRAVE_GX && f->gy == FIX_GRAVE_GY && f->kills == 9 && f->bond == 31 && f->belongings.size() == 1 &&
+                f->belongings[0].kind == ItemKind::Arrows && f->belongings[0].count == 14,
+            "fixture party block: the grave of the fallen and their belongings");
+      // (M8 phase B, party block v2)
+      check(f && (f->graveFlags & (party::GF_SITED | party::GF_HOME | party::GF_FLOWERS)) == (party::GF_SITED | party::GF_HOME | party::GF_FLOWERS) && f->rite == 2 &&
+                f->weapon == 3 && f->species == 0xFF && f->wasAt == FIX_WAS_AT,
+            "fixture party block: the grave stamped in the world, its rite, the weapon laid on it (party block v2)");
+      check(f && f->female, "fixture party block: the fallen's gender kept with the grave (party block v4)");
+      check(m && m->stake.hook != party::Hook::None && m->stake.site == m->site, "fixture party block: the companion's stake in the world");
+      const party::Member* w = g.party.members.size() == 5 ? &g.party.members[1] : nullptr;
+      const int inn = startInn(g);
+      check(w && w->state == party::State::Waiting && w->mapKind == 2 && inn >= 0 && w->mapId == g.world.over.bldgs[(size_t)inn].id && w->gx == FIX_WAIT_X &&
+                w->gy == FIX_WAIT_Y && w->floor == 0,
+            "fixture party block: a companion waiting in the start inn");
+      const party::Member* h = g.party.members.size() == 5 ? &g.party.members[2] : nullptr;
+      check(h && h->state == party::State::Home && !g.home.plots.empty() && h->homePlot == (uint32_t)g.home.plots[0].id,
+            "fixture party block: a companion living at the player's house");
+      const party::Member* s = g.party.members.size() == 5 ? &g.party.members[3] : nullptr;
+      check(s && s->origin == party::Origin::Mercenary && s->wage == FIX_WAGE && s->hiredAt == 0x1E1Full && s->mercSlot == 1 && s->name == FIX_MERC,
+            "fixture party block: a sellsword with wages");
+      const party::Member* p = g.party.members.size() == 5 ? &g.party.members[4] : nullptr;
+      check(p && p->origin == party::Origin::Animal && p->voc == party::Vocation::Hound && (p->flags & party::MF_PUP) && p->species == 1 && g.party.animalDay == p->joinedDay,
+            "fixture party block: the bonded wolf pup");
+    }
     check(g.craft.skill == FIX_SKILL && g.craft.progress(FIX_CULT, 1, craft::SecretKind::AlloyRecipe) == FIX_SECRET &&
               g.craft.trust.count(FIX_SMITH) && g.craft.trust.at(FIX_SMITH) == FIX_TRUST,
           "fixture craft block: skill, a secret's progress, a smith's trust (SAVE_VER 12)");
@@ -498,6 +617,8 @@ int main(int argc, char** argv) {
     addM6bFacts(g);
     addM7Facts(g);
     addM7bFacts(g);
+    addM8Facts(g);
+    for (int f = 0; f < 120; f++) { g.update(SIM_DT, Input()); g.events.clear(); }   // (the companion follows a while)
     roundTrip(g, ("endless seed " + std::to_string(s) + " after play").c_str());
     // a long walk east (many window shifts), then save far from home
     g.noWildSpawns = true;
@@ -652,6 +773,7 @@ int main(int argc, char** argv) {
     n.serialize(b);
     auto patched = [&](size_t at, uint32_t v) { std::vector<uint8_t> c = b; for (int k = 0; k < 4; k++) c[at + k] = (uint8_t)(v >> (8 * k)); return c; };
     Game x(1);
+    check(!x.deserialize(patched(4, 15)) && Game::saveVersion(patched(4, 15)) == 15, "accepted (or misread) a SAVE_VER 15 (M7b) save");
     check(!x.deserialize(patched(4, 14)) && Game::saveVersion(patched(4, 14)) == 14, "accepted (or misread) a SAVE_VER 14 (M7) save");
     check(!x.deserialize(patched(4, 11)) && Game::saveVersion(patched(4, 11)) == 11, "accepted (or misread) a SAVE_VER 11 (M5) save");
     check(!x.deserialize(patched(4, 7)) && Game::saveVersion(patched(4, 7)) == 7, "accepted (or misread) a SAVE_VER 7 save");

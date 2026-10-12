@@ -315,6 +315,7 @@ stage %third
   opt "I WON'T SAY IT." -> %refuse
 stage %lie
   talk lady
+  do deed lied
   say "...THE MARK STUNG YOU, DIDN'T IT? OR YOUR CONSCIENCE DID, WHICH IS A POORER SORT OF HOLLY. THE COURT HEARD YOU. THEY ALWAYS HEAR. I WILL NOT FORGET THIS, MORTAL. NOR, I THINK, WILL YOU."
   do set holly 0
   do add bargain 1

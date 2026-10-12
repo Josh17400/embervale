@@ -853,6 +853,7 @@ bool Game::warChoose(const DlgOpt& o) {
   if (const WarCamp* c = warCampOf(*this, sg->id)) { q.hasPos = true; q.tgx = assault ? world.ox + (si >= 0 ? world.sites[(size_t)si].ex : 0) : c->gx; q.tgy = assault ? world.oy + (si >= 0 ? world.sites[(size_t)si].ey : 0) : c->gy; }
   acceptQuest(q);
   trackedQuest = quests.back().id;   // (fixer M4 r1) the war the player just joined leads the HUD and the compass
+  deed(party::Deed::JoinedWar, assault ? sg->defender : sg->attacker);   // M8: the side fought against
   war.runs.push_back(WarQuestRun{quests.back().id, false, sg->id});
   // the defenders let their champion in by the nearest gate; the besiegers storm with the player (warStep)
   if (!assault && si >= 0 && std::find(war.gatesOpen.begin(), war.gatesOpen.end(), sg->site) == war.gatesOpen.end()) {

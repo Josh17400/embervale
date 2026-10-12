@@ -291,6 +291,7 @@ stage %talk
   opt "YOU NEARLY GOT US KILLED." -> %judge
 stage %mercy
   talk %informer
+  do deed mercy
   say "...YOU WOULD? AFTER... THEN LET ME BE USEFUL FOR ONCE. I'LL KEEP TELLING {TAKER} THINGS. THE THINGS YOU WANT HIM TO HEAR. HE'LL NEVER KNOW THE DIFFERENCE. HE THINKS WE'RE ALL TOO STUPID TO LIE."
   do add rising 1
   do befriend %informer

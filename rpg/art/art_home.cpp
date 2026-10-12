@@ -654,11 +654,22 @@ Canvas yardGroundTile(uint8_t joins, int tone, int32_t tileX, int32_t tileY) {
   const int ox = (int)(((int64_t)tileX * 16) % 8192 + 8192) % 8192, oy = (int)(((int64_t)tileY * 16) % 8192 + 8192) % 8192;
   for (int y = 0; y < 16; y++)
     for (int x = 0; x < 16; x++) {
-      // the fade toward a side that is not yard: pixels dropped by a 2 px ordered dither
-      const EdgeDist e = edgeDist(x, y, joins);
-      const int dm = std::min(std::min(e.n, e.e), std::min(e.s, e.w));
-      if ((dm == 0 && kB[y & 3][x & 3] < 11) || (dm == 1 && kB[y & 3][x & 3] < 5)) continue;
+      // (fixer M8 r2, review: "the grass patches by the yurts are hard-edged rectangles") the kept grass gives way to
+      // the wild along a ragged, wandering line 1..12 px inside a side that is not yard (world-pixel noise, so the
+      // tiles along one side agree), its outer corners rounded off, with a 1-2 px ordered-dither fringe: a worn
+      // patch of turf, not a rectangle laid on the ground
       const int gx = ox + x, gy = oy + y;
+      const EdgeDist e = edgeDist(x, y, joins);
+      float dm = (float)std::min(std::min(e.n, e.e), std::min(e.s, e.w));
+      {
+        constexpr float R = 11.0f;   // the outer corners' radius
+        const float dy = (float)std::min(e.n, e.s), dx = (float)std::min(e.e, e.w);
+        if (dx < R && dy < R) dm = std::min(dm, R - std::hypot(R - dx, R - dy));
+      }
+      if (dm < 16.0f) {
+        const float t = 1.0f + vnoise(gx / 9.0f, gy / 9.0f, 921u) * 8.0f + vnoise(gx / 3.5f, gy / 3.5f, 923u) * 3.0f;
+        if (dm < t || (dm < t + 1.6f && kB[y & 3][x & 3] < 8)) continue;
+      }
       const float n = vnoise(gx / 11.0f, gy / 9.0f, 913u) * 0.7f + vnoise(gx / 4.0f, gy / 4.0f, 917u) * 0.3f;
       const float wear = vnoise(gx / 23.0f, gy / 19.0f, 919u);
       const int k = n > 0.62f ? 2 : (n < 0.38f ? 0 : 1);

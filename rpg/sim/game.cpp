@@ -101,6 +101,8 @@ void Game::resetSession() {
   homeSerial_ = world.placeSerial + 0x80000000u;   // stamp the window on the first step
   // M7b: the people the hero has met (a load reads the saved talk block over this)
   talkMem.clear();
+  // M8: the companions and the fallen (a load reads the saved party block over this)
+  party.clear();
 }
 
 // everything a new game sets up once its world exists
@@ -310,6 +312,7 @@ void Game::windowMoved(int dx, int dy) {
   for (Actor& a : sheltered_) move(a);
   for (Projectile& pr : projs) pr.p += d;
   for (Pickup& pk : pickups) pk.p += d;
+  for (Vec2& t : party.trail) t += d;   // (M8) the player's footsteps the companions follow (party_move.cpp)
   // the heading reference moves with the window too, or the next wish list reads the shift as a walk backwards
   if (len2(prefetchFrom_) > 1e-6f) prefetchFrom_ += d;
   reapplyLooted();
@@ -353,7 +356,7 @@ void Game::frameWork(double budgetMs) {
 // NPC LOD: a townsperson well off screen (beyond sleepHalfW tiles across or sleepHalfH up and down: half the view plus
 // four tiles) with nothing to react to: no alarm at their town, not talking, not fighting or fleeing
 bool Game::sleepy(const Actor& a) const {
-  if (inside || !a.npc || a.hostile || a.st == AState::Dead) return false;
+  if (inside || !a.npc || a.hostile || a.comp || a.st == AState::Dead) return false;   // (M8: a companion never sleeps)
   const Vec2 d = a.p - pl().p;
   if (std::fabs(d.x) < sleepHalfW * TILE && std::fabs(d.y) < sleepHalfH * TILE) return false;   // on screen or nearly
   if (a.target >= 0 || a.aggro || a.fleeT > 0 || a.fleeing || a.indoors || len2(a.knock) > 1.0f) return false;
@@ -609,6 +612,7 @@ void Game::update(float dt, const Input& in) {
   timed(PC::S_RAID, [&] { raidStep(dt); });     // M5: night raids by monster pressure (life_raids.cpp, CITIZENS lane)
   timed(PC::S_FOE, [&] { foeStep(dt); });       // M6: elites' affixes, boss phases, named uniques, world bosses (foes_game.cpp)
   timed(PC::S_HOME, [&] { homeStep(dt); });     // M7: the player's plots, crops, animals, building, riding (home_game.cpp)
+  timed(PC::S_PARTY, [&] { partyStep(dt); });   // M8: companions, deeds, the downed, graves, banter (party_game.cpp)
   timed(PC::S_LIFETICK, [&] { life.tick(*this, dt); });   // M5: needs, plans, stock and moods in aggregate (life.cpp)
   updateProjectiles(dt);
   updatePickups(dt);
@@ -987,7 +991,7 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
   }
   if (v.player && (v.iframes > 0 || godMode)) return;
   if (v.player && homeRiding()) homeDismount(home::Dismount::Hurt);   // M7: a blow knocks the rider off
-  if (v.st == AState::Down) {   // smashing the bones before they rise
+  if (v.st == AState::Down && !v.comp) {   // smashing the bones before they rise (M8: a downed companion is the lane's)
     v.reassembled = true;
     v.hp = 0;
     emit(Ev::Hit, v.p + Vec2(0, -4), 0, dmg);
@@ -1028,6 +1032,7 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
     if (S6.has(Unique::Bulwark) && v.hp > v.maxHp * 0.8f) dmg *= 0.7f;
   } else dmg *= 1.0f - gear::mitigation(v.armor, atkLevel);   // (M6) a foe's armour (1.5 D) by the same rule
   dmg = foeHit(v, dmg, attacker);   // M6: warded / armoured / vampiric / frost-bound (foes_game.cpp)
+  dmg = partyHit(v, dmg, attacker);  // M8: shield wall, defend, the damage-share statistics (party_game.cpp)
   if (byPl && elemental > 0) {
     dmg *= 1.0f + elemental;
     if (S6.get(Affix::FireDmg) > 0) { v.burnT = std::max(v.burnT, 2.0f); v.regen = 0; }
@@ -1121,6 +1126,7 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
 }
 
 void Game::kill(Actor& a, int killer) {
+  if (a.comp && partyFell(a, killer)) return;   // M8: a companion is downed, not dead, until the lane says (party_game.cpp)
   if (a.mon == Monster::Skeleton && !a.human && !a.boss && !a.reassembled && a.st != AState::Down && rng_.f() < 0.4f) {
     // the bones collapse... and may stand back up (see updateActor). Another blow while it is down finishes it.
     a.reassembled = true;
@@ -1171,13 +1177,16 @@ void Game::kill(Actor& a, int killer) {
       }
     }
   }
+  partyKilled(a, killer);   // M8: the deeds of a death, a companion's kill (party_game.cpp)
   foeKilled(a, killer);   // M6: splitting, volatile, named beasts and world bosses slain (foes_game.cpp; queues new actors)
   dropLoot(a);
   // (M4 integration) a hunt beast the player was fighting still counts when a guard or militia lands the last blow
   // (WARDS guards now fight beasts in the streets); XP and the kill count stay the player's own
-  if (byPlayer || (a.plHitT > -99 && time - a.plHitT < 8.0f)) questKill(a);
+  // (fixer M8 r1) a companion's kill is the party's: it counts toward hunt quests and saga Kill goals like the player's
+  const bool byParty = byPlayer || (killer >= 0 && party.indexOfActor(killer) >= 0);
+  if (byParty || (a.plHitT > -99 && time - a.plHitT < 8.0f)) questKill(a);
   warKill(a, killer);           // M4: siege contributions, reputation (war_game.cpp)
-  storyKill(a, byPlayer);       // M4: story objectives (rpg/story/story_game.cpp)
+  storyKill(a, byParty);        // M4: story objectives (rpg/story/story_game.cpp)
   lifeKill(a, killer);          // M5: a resident's death: grief, the census (life_game.cpp)
   if (!inside && a.site >= 0 && a.site < (int)world.sites.size() && world.sites[a.site].type == SiteType::BanditCamp) {
     // a camp is broken when its chief falls (what the bounty asks: "KILL THEIR CHIEF"), or when its last fighter
@@ -1429,6 +1438,7 @@ void Game::updateActor(Actor& a, float dt) {
   if (a.atkCd > 0) a.atkCd -= dt;
   if (a.shootCd > 0) a.shootCd -= dt;
   if (a.st == AState::Dead) return;
+  if (a.burnT > 0 && a.comp && a.posture == art::Posture::Downed) a.burnT = 0;   // (fixer M8 r2) the downed bleed, they do not burn
   if (a.burnT > 0) {
     a.burnT -= dt;
     a.hp -= dt * (3 + a.level * 0.6f);
@@ -1438,6 +1448,7 @@ void Game::updateActor(Actor& a, float dt) {
   // troll regeneration pauses for a moment after every wound (and fire stops it, see damage())
   if (a.regen > 0 && a.hp < a.maxHp && time - a.lastHitT > 3.0f) a.hp = std::min(a.maxHp, a.hp + a.regen * dt);
   if (len2(a.knock) > 0.01f) { moveActor(a, a.knock * dt); a.knock *= std::pow(0.0005f, dt); }
+  if (a.comp && partyActor(a, dt)) return;   // M8: a companion lives by the FELLOWS lane (party_game.cpp)
   if (a.st == AState::Down) {
     // a collapsed skeleton rattles back together unless it is struck again
     if (a.stT > 2.8f) {
@@ -2079,6 +2090,10 @@ void Game::updateLocation() {
 void Game::enterSite(int si) {
   if (homeRiding()) homeDismount(home::Dismount::Enter);   // M7: the horse waits outside
   Site& st = world.sites[si];
+  if (!party.empty() && !st.cleared && (st.type == SiteType::Ruin || st.type == SiteType::Cave) && !marks.count(st.id ^ 0xD8E0000000000001ull)) {
+    marks[st.id ^ 0xD8E0000000000001ull] = day;   // (M8) the first time in: the companions remember who led them down
+    deed(party::Deed::ExploredRuin, st.id);
+  }
   st.discovered = true;
   inside = true; subSite = si; subBldg = -1; subFloor = 0;
   if (st.type == SiteType::Ruin) genRuin(sub, st, st.seed); else genCave(sub, st, st.seed);

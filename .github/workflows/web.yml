@@ -92,6 +92,14 @@ jobs:
       - name: Home test
         run: ./build-native/rpg_test --home --seeds 1..3
 
+      # M8 Fellowship (VISION_PLAN 9, 15.6.2, 15.26): the companions' tables and approval, the party block, a census
+      # recruit following through a walk and the inn's door, deeds, downed / bound / dead for good with the census's
+      # grief, the save with a party, and the damage share in three bands. Blocking.
+      - name: Companion test
+        run: |
+          ./build-native/rpg_test --companion --seeds 1..3
+          ./build-native/rpg_test --banter --seeds 1..3
+
       # M2/M4 quests: every quest type end to end (the dialogue paths picked by text, not by position), and THE DRAGON'S
       # SHADOW end to end by a teleporting bot (fixer M4 r3: these guard the STORY pitch path on clang too). Blocking.
       - name: Quest and main-quest test

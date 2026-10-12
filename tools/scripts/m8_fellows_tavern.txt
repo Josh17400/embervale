@@ -1,0 +1,23 @@
+# M8 FELLOWS: a tavern regular recruited at the city inn of an evening (VISION_PLAN 9: two regulars a city). The
+# regular sits at the inn's tables at night; their offer opens there, they join and stand beside the player.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_fellows_tavern.txt     (m8_fellows_tavern*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 goto city
++0.6 hour 20.5
++0.3 enter inn
++1.5 shot m8_fellows_tavern_room.png
++0.2 party regular
++0.2 expect party members 1
++0.1 expect party with 1
++0.6 shot m8_fellows_tavern.png
++0.2 party talk
++0.4 expect mode dialogue
++0.1 shot m8_fellows_tavern_talk.png
++0.1 key Escape
++0.2 walkto exit
++0.6 expect party near 6
++0.2 shot m8_fellows_tavern_out.png
++0.2 party stats
++0.2 quit

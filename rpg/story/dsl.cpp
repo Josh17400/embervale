@@ -162,6 +162,27 @@ int relationWord(const std::string& w0) {
   for (int i = 0; i < 11; i++) if (w == names[i]) return i;
   return -1;
 }
+int companionHookWord(const std::string& w0) {
+  const std::string w = lower(w0);
+  static const char* names[] = {"burned", "lostkin", "war", "revenge", "heirloom", "debt", "exile", "faith", "ambition", "love"};
+  for (int i = 0; i < 10; i++) if (w == names[i]) return i + 1;
+  return -1;
+}
+int companionFactWord(const std::string& w0) {
+  const std::string w = lower(w0);
+  static const char* names[] = {"any", "kinalive", "kindead", "veteran", "deserter"};
+  for (int i = 0; i < 5; i++) if (w == names[i]) return i;
+  return -1;
+}
+int deedWord(const std::string& w0) {
+  const std::string w = lower(w0);
+  // (party::Deed order)
+  static const char* names[] = {"questdone", "failed", "rescued", "refugees", "charity", "befriended", "mercy", "cruelty", "innocent", "guard",
+                                "stole", "bandits", "beast", "monster", "war", "defended", "ruin", "tavern", "prayed", "bribed", "lied",
+                                "oathbreak", "grave", "abandoned"};
+  for (int i = 0; i < 24; i++) if (w == names[i]) return i;
+  return -1;
+}
 int rewardWord(const std::string& w0) {
   const std::string w = lower(w0);
   static const char* names[] = {"small", "fair", "rich", "great"};
@@ -356,6 +377,26 @@ bool parseEff(const std::vector<Tok>& t, EffDef& e, std::string& err) {
   } else if (w == "befriend") {
     if (!argc(1)) return false;
     e.type = EffType::Befriend; e.args = {lower(t[2].s)};
+  } else if (w == "deed") {
+    if (!argc(1)) return false;
+    e.type = EffType::Deed; e.n = deedWord(t[2].s); e.ev = 1;
+    if (e.n < 0) { err = "unknown deed '" + t[2].s + "'"; return false; }
+    if (t.size() >= 4) { if (lower(t[3].s) != "grave") { err = "deed <word> [grave]"; return false; } e.ev = 2; }
+  } else if (w == "recruit") {
+    if (!argc(1)) return false;
+    e.type = EffType::Recruit; e.args = {lower(t[2].s)};
+    if (t.size() >= 4) {
+      const std::string how = lower(t[3].s);
+      if (how != "rescued" && how != "sworn") { err = "recruit <role> [rescued|sworn]"; return false; }
+      e.n = how == "sworn" ? 1 : 0;
+    }
+  } else if (w == "approve" || w == "bond") {
+    if (!argc(1)) return false;
+    e.type = w == "approve" ? EffType::Approve : EffType::Bond; e.n = num(t[2].s, ok);
+  } else if (w == "fate") {
+    if (!argc(1)) return false;
+    e.type = EffType::Fate; e.args = {lower(t[2].s)};
+    if (e.args[0] != "home" && e.args[0] != "part") { err = "fate home|part"; return false; }
   } else if (w == "realm") {
     if (!argc(2)) return false;
     const std::string k = lower(t[2].s);
@@ -428,6 +469,12 @@ void parse(const char* text, const char* srcName, std::vector<Script>& out, std:
         S->hook = HookKind::Npc;
         S->hookTrade = t.size() > 2 ? tradeWord(t[2].s) : -2;
         if (S->hookTrade == -1) error("unknown trade '" + (t.size() > 2 ? t[2].s : std::string()) + "'");
+      } else if (h == "companion") {
+        S->hook = HookKind::Companion;
+        S->hookTrade = t.size() > 2 ? companionHookWord(t[2].s) : -1;
+        S->hookEv = t.size() > 3 ? companionFactWord(t[3].s) : COMPANION_ANY;
+        if (S->hookTrade < 0) error("hook companion needs a stake (burned lostkin war revenge heirloom debt exile faith ambition love)");
+        if (S->hookEv < 0) error("hook companion: unknown fact '" + (t.size() > 3 ? t[3].s : std::string()) + "'");
       } else if (h == "board") S->hook = HookKind::Board;
       else if (h == "herald") S->hook = HookKind::Herald;
       else if (h == "ruin") S->hook = HookKind::Ruin;
@@ -448,6 +495,9 @@ void parse(const char* text, const char* srcName, std::vector<Script>& out, std:
     if (k == "role") {
       if (t.size() < 3) { error("role <name> <kind> ..."); continue; }
       RoleDef r;
+      // (M8) `stake` anywhere after the kind: bound from a companion's stake
+      for (size_t q = 3; q < t.size(); q++)
+        if (!t[q].quoted && lower(t[q].s) == "stake") { r.stake = true; t.erase(t.begin() + (std::ptrdiff_t)q); break; }
       r.name = lower(t[1].s);
       r.line = lineNo;
       const std::string kind = lower(t[2].s);
@@ -568,7 +618,8 @@ std::vector<std::string> validate(const Script& s) {
   if (s.stages.empty()) { bad(s.line, "no stages"); return P; }
   if (s.pitch.empty()) bad(s.line, "no pitch (the hook's option)");
   if (s.pitch.size() > 40) bad(s.line, "the pitch is longer than 40 characters");
-  const bool npcHook = s.hook == HookKind::Npc || s.hook == HookKind::Herald;
+  const bool npcHook = s.hook == HookKind::Npc || s.hook == HookKind::Herald || s.hook == HookKind::Companion;
+  const bool companion = s.hook == HookKind::Companion;
   auto kindOf = [&](const std::string& r) -> int { const int i = s.role(r); return i < 0 ? -1 : (int)s.roles[(size_t)i].kind; };
   auto siteLike = [&](const std::string& r) {
     const int k = kindOf(r);
@@ -595,6 +646,10 @@ std::vector<std::string> validate(const Script& s) {
       else if (kindOf(r.a) != (int)RoleKind::Kingdom) bad(r.line, "role '" + r.name + "': '" + r.a + "' is not a kingdom");
     }
     if (r.kind == RoleKind::Giver && i != 0) bad(r.line, "the giver must be the first role");
+    if (r.stake && !companion) bad(r.line, "role '" + r.name + "': 'stake' belongs to a companion's own story (hook companion)");
+    if (r.stake && r.kind != RoleKind::Person && r.kind != RoleKind::Beast && r.kind != RoleKind::Kingdom && r.kind != RoleKind::Ruin &&
+        r.kind != RoleKind::Site)
+      bad(r.line, "role '" + r.name + "': a stake binds a person, beast, kingdom, ruin or site");
     if (r.kind == RoleKind::Resident && !r.b.empty()) {
       if (!before(r.b)) bad(r.line, "role '" + r.name + "': '" + r.b + "' is not a role declared before it");
       else {
@@ -626,7 +681,7 @@ std::vector<std::string> validate(const Script& s) {
           k != RoleKind::Beast && k != RoleKind::Boss)
         continue;
       switch (k) {
-        case RoleKind::Person: case RoleKind::Foe: ok = personF.count(f) > 0; break;
+        case RoleKind::Person: case RoleKind::Foe: ok = personF.count(f) > 0 || (f == "kin" && s.roles[(size_t)ri].stake); break;
         case RoleKind::Resident: ok = personF.count(f) > 0 || f == "job" || f == "kin" || f == "lost"; break;
         case RoleKind::Beast: case RoleKind::Boss: ok = f == "kind" || f == "dir" || f == "realm"; break;
         case RoleKind::Ruler: ok = personF.count(f) > 0 || f == "name" || f == "title"; break;
@@ -749,6 +804,15 @@ std::vector<std::string> validate(const Script& s) {
         case EffType::RealmEvent: for (const std::string& a : e.args) needRole(G.line, a, "realm event"); break;
         case EffType::Secret: if (needRole(G.line, e.args[0], "secret") && !siteLike(e.args[0])) bad(G.line, "secret: '" + e.args[0] + "' is not a place"); break;
         case EffType::Befriend: needKind(G.line, e.args[0], RoleKind::Resident, "befriend"); break;
+        case EffType::Recruit:
+          if (needRole(G.line, e.args[0], "recruit") && kindOf(e.args[0]) != (int)RoleKind::Person && kindOf(e.args[0]) != (int)RoleKind::Resident)
+            bad(G.line, "recruit: '" + e.args[0] + "' is not a person or a resident");
+          break;
+        case EffType::Approve: case EffType::Bond:
+          if (!companion) bad(G.line, "approve / bond belong to a companion's own story (hook companion)");
+          if (e.n < -30 || e.n > 30) bad(G.line, "approve / bond -30..30");
+          break;
+        case EffType::Fate: if (!companion) bad(G.line, "fate belongs to a companion's own story (hook companion)"); break;
         default: break;
       }
     }
@@ -783,7 +847,8 @@ std::vector<std::string> validate(const Script& s) {
     for (const EffDef& e : G.effs)
       if (e.type == EffType::Remember || e.type == EffType::Fact || e.type == EffType::Moves || e.type == EffType::Shop ||
           e.type == EffType::Mark || e.type == EffType::Rep || (e.type >= EffType::RealmWar && e.type <= EffType::RealmEvent) ||
-          e.type == EffType::Secret || e.type == EffType::Befriend)
+          e.type == EffType::Secret || e.type == EffType::Befriend || e.type == EffType::Recruit || e.type == EffType::Approve ||
+          e.type == EffType::Bond || e.type == EffType::Fate)
         consequence = true;
   }
   if (choices == 0) bad(s.line, "no choice anywhere (a story needs at least one)");

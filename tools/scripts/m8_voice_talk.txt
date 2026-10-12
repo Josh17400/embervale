@@ -1,0 +1,40 @@
+phone
+# M8 VOICE lane: a companion's own conversation, page by page, at phone size: the first page, their story and what
+# drives them, the deeds they remember and what they made of them, the orders, how they are keeping.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_voice_talk.txt     (m8_voice_talk_*.png)
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 11
++0.2 party recruit
++0.2 voice deeds
++0.5 party talk
++1.5 expect mode dialogue
++2.90 touch 1
++0.1 shot m8_voice_talk_1_front.png
++0.1 choose TELL ME ABOUT YOURSELF
++2.90 touch 1
++0.1 shot m8_voice_talk_2_about.png
++0.1 choose WHAT REALLY DRIVES YOU
++2.90 touch 1
++0.1 shot m8_voice_talk_3_stake.png
++0.1 choose SOMETHING ELSE
++0.3 choose WHAT DID YOU THINK OF WHAT WE DID
++2.90 touch 1
++0.1 shot m8_voice_talk_4_deeds.png
++0.1 choose WHAT ABOUT
++2.90 touch 1
++0.1 shot m8_voice_talk_5_opinion.png
++0.1 choose SOMETHING ELSE
++0.3 choose I HAVE ORDERS FOR YOU
++2.90 touch 1
++0.1 shot m8_voice_talk_6_orders.png
++0.1 choose SOMETHING ELSE
++0.3 choose HOW ARE YOU HOLDING UP
++2.90 touch 1
++0.1 shot m8_voice_talk_7_status.png
++0.1 choose WHAT DO YOU MAKE OF ME
++2.90 touch 1
++0.1 shot m8_voice_talk_8_feel.png
++0.2 quit

@@ -17,6 +17,8 @@
 #include "rpg/sim/foes.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/life.h"
+#include "rpg/sim/party.h"
+#include "rpg/sim/party_voice.h"
 #include "rpg/sim/talk.h"
 #include "rpg/story/saga.h"
 #include "rpg/sim/common.h"
@@ -461,6 +463,13 @@ int hookLevel(const Game& g, const Instance& in) {
 
 }  // namespace
 
+// (M8) the party member whose own story this is (its giver: party::companionKey), -1 none
+static int companionOf(const Game& g, const Instance& in) {
+  if (in.cast.empty()) return -1;
+  for (size_t i = 0; i < g.party.members.size(); i++) if (party::companionKey(g.party.members[i].id) == in.cast[0].id) return (int)i;
+  return -1;
+}
+
 void runEffect1(Game& g, Engine& E, Instance& in, const dsl::EffDef& e);
 // a realm effect the player's story caused is news the player hears at once (the News journal, the toast)
 void runEffect(Game& g, Engine& E, Instance& in, const dsl::EffDef& e) {
@@ -619,6 +628,63 @@ void runEffect1(Game& g, Engine& E, Instance& in, const dsl::EffDef& e) {
       }
       break;
     }
+    case EffType::Deed: {
+      // (M8) the player's deed on the companions' deeds bus, about the story's hook place
+      const Binding* hb = bindingOf(in, "home");
+      const ew::Gid about = hb ? (hb->site ? hb->site : hb->id) : (in.cast.empty() ? 0 : in.cast[0].site);
+      g.deed((party::Deed)e.n, about, std::max(1, e.ev));
+      break;
+    }
+    case EffType::Recruit: {
+      // (M8) a rescued or sworn person of the story joins the party: a census resident with their census identity, anyone
+      // else as a stranger of the hook's culture standing where the story's person stood
+      const Binding* b = bindingOf(in, e.args[0]);
+      const dsl::Script* sc = scriptOf(in);
+      if (!b || !sc) break;
+      const int ri = sc->role(e.args[0]);
+      Vec2 at = g.pl().p + Vec2(14.0f, 0.0f);
+      for (const Actor& a : g.actors) if (ri >= 0 && isStoryPerson(a) && a.slot == personSlot(in.id, ri)) at = a.p;
+      const party::Origin origin = e.n == 1 ? party::Origin::Saga : party::Origin::Rescued;
+      int mi = -1;
+      const int ix = residentIndexOf(g, *b);
+      if (ix >= 0) {
+        const int sh = siteByIdLoad(g, b->site);
+        life::Census* c = sh >= 0 ? g.life.census(g.world, sh) : nullptr;
+        int ai = -1;
+        if (c && ix < (int)c->res.size() && c->res[(size_t)ix].actor >= 0 && host().findActor) ai = host().findActor(g, c->res[(size_t)ix].actor);
+        if (ai > 0) mi = g.partyRecruit(g.actors[(size_t)ai], origin);
+        else if (sh >= 0) {
+          Actor tmp;
+          tmp.id = -98; tmp.npc = true; tmp.human = true; tmp.site = sh; tmp.resident = ix; tmp.p = at; tmp.name = b->name;
+          mi = g.partyRecruit(tmp, origin);
+        }
+      } else {
+        uint64_t cu = 0;
+        const int hh = in.cast.empty() ? -1 : g.world.siteHandle(in.cast[0].site);
+        if (hh >= 0) cu = g.world.sites[(size_t)hh].culture;
+        mi = g.partyRecruitStranger(b->name, b->female, cu, (uint32_t)(b->id ^ (b->id >> 32)), origin, at);
+      }
+      if (mi >= 0) in.vars["_hide_" + e.args[0]] = 1;
+      else notice(g, b->name + " WOULD HAVE COME WITH YOU, BUT YOUR COMPANY IS FULL.");
+      break;
+    }
+    case EffType::Approve: case EffType::Bond: {
+      const int mi = companionOf(g, in);
+      if (mi < 0) break;
+      party::Member& m = g.party.members[(size_t)mi];
+      if (e.type == EffType::Approve) m.approval = (int8_t)std::clamp((int)m.approval + e.n, -100, 100);
+      else m.bond = (uint8_t)std::clamp((int)m.bond + e.n, 0, 100);
+      break;
+    }
+    case EffType::Fate: {
+      const int mi = companionOf(g, in);
+      if (mi < 0) break;
+      party::Member& m = g.party.members[(size_t)mi];
+      m.flags |= party::MF_QUEST_DONE;
+      if (e.args[0] == "home") g.partyCommand(mi, party::Cmd::Home);
+      else g.partyDismiss(mi);
+      break;
+    }
     case EffType::RealmEvent: {
       ew::Gid a = 0, b = 0, site = 0;
       int32_t ex = px, ey = py;
@@ -655,6 +721,11 @@ void Engine::finish(Game& g, Instance& in, bool success) {
   in.failed = !success;
   played_[in.script]++;
   const dsl::Script* s = scriptOf(in);
+  // (M8) a tale seen through or let drop is a deed the companions weigh (not one turned down at the start)
+  if (in.vars.find("_quiet") == in.vars.end() && !in.cast.empty()) {
+    if (const int mi = companionOf(g, in); mi >= 0) g.party.members[(size_t)mi].flags |= party::MF_QUEST_DONE;
+    g.deed(success ? party::Deed::QuestDone : party::Deed::QuestFailed, in.cast[0].site);
+  }
   // (fixer M6b r2) turned down at the opening (still quiet: never committed): declined, not a quest the journal keeps
   auto qv = in.vars.find("_quiet");
   if (qv != in.vars.end()) {
@@ -859,7 +930,10 @@ bool Engine::talksTo(const Game& g, const Instance& in, const Actor& a) const {
   const Binding* b = bindingOf(in, G.talk);
   if (!b || ri < 0) return false;
   switch ((RoleKind)b->kind) {
-    case RoleKind::Giver: return !isStoryPerson(a) && g.npcKey(a) == b->id;
+    case RoleKind::Giver:
+      // (M8) a companion's own story: the companion, wherever they are
+      if (a.comp) return (int)a.comp - 1 < (int)g.party.members.size() && party::companionKey(g.party.members[(size_t)(a.comp - 1)].id) == b->id;
+      return !isStoryPerson(a) && g.npcKey(a) == b->id;
     case RoleKind::Npc: {
       if ((int)a.role != (int)b->trade || isStoryPerson(a)) return false;
       const int h = homeSiteOf(g, a);
@@ -1183,6 +1257,13 @@ bool Engine::choose(Game& g, uint32_t instId, int opt, bool forceIf, int forceCh
   std::string text;
   const Reply r = replyAfter(g, *in, who, samePerson, heard, G.name, text);
   if (r == Reply::Continue) {
+    if (!samePerson && s->hook == dsl::HookKind::Companion) {   // (M8) the companion takes up the talk
+      const int mi = companionOf(g, *in);
+      if (mi >= 0 && g.party.members[(size_t)mi].actor >= 0) {
+        g.dlg.actor = g.party.members[(size_t)mi].actor;
+        g.dlg.speaker = g.party.members[(size_t)mi].name;
+      }
+    }
     g.dlg.opts.clear();
     showDialogue(g, *in);
     g.dlg.opts.push_back(bye);
@@ -1222,6 +1303,8 @@ std::string Engine::handOffLine(const Game& g, const Instance& in, const std::st
     where = here ? "HERE IN " + place : "IN " + pw;
     // (fixer M7b r2, review: "IN DAR QUR, A SHORT WALK..." twice in one turn) the way there just told is not told again
     if (!here && heard.find(pw) != std::string::npos) where.clear();
+    // (M8 VOICE: "HERE IN BAB MINZI" said twice in one talk, the speaker's own intro and the hand-off) once is enough
+    if (here && heard.find("HERE IN " + place) != std::string::npos) where = "HERE";
   }
   std::string t;
   if (!spoken) t = where.empty() ? "THE NOTICE ASKS YOU TO FIND {W}." : "THE NOTICE ASKS YOU TO FIND {W}, {WHERE}.";
@@ -1325,6 +1408,10 @@ Engine::Reply Engine::replyAfter(const Game& g, const Instance& in, const std::s
   const dsl::Script* s = scriptOf(in);
   if (!s || in.stage < 0 || in.stage >= (int)s->stages.size()) return Reply::Silent;
   const dsl::StageDef& T = s->stages[(size_t)in.stage];
+  // (M8) a companion's own story: when the companion speaks next, they are at the player's side and speak at once
+  // (Engine::choose hands the dialogue to them), whoever spoke before
+  if (s->hook == dsl::HookKind::Companion && T.kind == StageKind::Talk && !in.done && !samePerson && !s->roles.empty() && T.talk == s->roles[0].name)
+    return Reply::Continue;
   if (samePerson && !in.done) return Reply::Continue;
   // (fixer M6b r1) a talk stage that belongs to someone else is never read out here: its words are theirs (the
   // player hears them from that person); only a goal's or an ending's lines close this conversation
@@ -1445,6 +1532,17 @@ bool killMatches(const Actor& v, int m) {
 void Engine::step(Game& g) {
   // (M6b) generated scripts nobody runs any more leave the cache (no Script pointer is held across steps)
   if (saga::cacheSize() > 48) saga::trimCache(*this);
+  // (M8) a companion's own story ends when the companion is gone from the party (dead, or parted for good)
+  for (size_t i = 0; i < running_.size(); i++) {
+    Instance& in = running_[i];
+    if (in.done) continue;
+    const dsl::Script* s = scriptOf(in);
+    if (!s || s->hook != dsl::HookKind::Companion || companionOf(g, in) >= 0) continue;
+    in.vars.erase("_quiet");
+    finish(g, in, false);
+    for (Quest& q : g.quests)
+      if (q.id == in.questId && in.questId) q.desc = "THE ROAD PARTED YOU FROM " + (in.cast.empty() ? std::string("YOUR COMPANION") : in.cast[0].name) + ", AND THEIR STORY ENDS UNTOLD.";
+  }
   for (size_t i = 0; i < running_.size(); i++) {
     Instance& in = running_[i];
     if (in.done) continue;

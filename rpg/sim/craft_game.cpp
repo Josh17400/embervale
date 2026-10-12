@@ -248,6 +248,7 @@ bool Game::craftChoose(const DlgOpt& o) {
     }
     case CR_STEAL: {
       marks[markKey(key, MK_THEFT)] = day;
+      deed(party::Deed::Stole, key);   // M8: the companions see the theft
       if (!c || !c->id) { dlg.text = "THERE'S NOTHING HERE WORTH STEALING."; return true; }
       // the patterns first (whichever is less known), then an alloy that can be taken by theft
       craft::SecretKind sk = craft.progress(c->id, 0, craft::SecretKind::WeaponPattern) <= craft.progress(c->id, 0, craft::SecretKind::ArmourPattern)

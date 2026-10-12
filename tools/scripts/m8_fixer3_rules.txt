@@ -1,0 +1,48 @@
+# M8 fixer round 3: the rules the third review found broken.
+#   1. a sellsword who dies stays dead: a week on (and more), their inn has one sellsword fewer, never the dead man again
+#   2. the grave's words say SHE for a woman who was no census resident (a saga's archer), and a heavy blow's death reads
+#      as one sentence ("SHE WAS STRUCK DOWN WHERE SHE LAY"), never "SHE STRUCK DOWN WHERE THEY LAY"
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_fixer3_rules.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 goto city
++0.3 hour 12
++0.2 enter inn
+# (M7c merge) the merged city's inn keeps one sellsword (PartyOps::mercsAt hashes the inn's id): 1, then 0
++0.5 expect party mercs 1 exact
++0.1 party merc
++0.1 expect party with 1
++0.1 party kill 0
++3.0 expect party fallen 1
++0.1 leave
++0.3 nextday
++0.2 nextday
++0.2 nextday
++0.2 nextday
++0.2 nextday
++0.2 nextday
++0.2 nextday
++0.2 nextday
++0.2 hour 12
++0.2 enter inn
++0.5 expect party mercs 0 exact
++0.1 party stats
+# 2. the grave of a saga's archer (a woman), struck down where she lay
++0.3 newgame
++0.1 god 1
++0.1 goto town
++0.3 party ally warrior
++0.2 party ally archer
++0.3 party kill 0
++3.0 expect party fallen 1
++0.1 party down 0
++0.1 party kill 0
++3.0 expect party fallen 2
++0.1 party stats
++0.2 party grave 1
++0.6 key E
++1.0 expect mode dialogue
++0.2 choose SAY A FEW WORDS
++0.5 expect voice text IN THE END SHE BLED OUT
++0.1 quit

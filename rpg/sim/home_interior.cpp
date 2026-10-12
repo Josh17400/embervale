@@ -168,6 +168,37 @@ void HomeOps::mapLoaded(Game& g) {
           m.rebuildSolid();
           chest = true;
         }
+    // (fixer M8 r2, review: "the yurt is a large empty floor with only a stove, a bed and a chest") a lived-in start:
+    // a rug laid before the fire, a low table and a stool at it (where a meal is taken; a companion living here sits
+    // there), each on the free floor nearest its wanted spot (the fire in the middle of a round room, else the room's)
+    int fx = m.w / 2, fy = m.h / 2;
+    for (int y = 0; y < m.h; y++)
+      for (int x = 0; x < m.w; x++) {
+        const int pr = m.propAt(x, y);
+        if (pr == (int)art::Prop::Hearth + 1 || pr == (int)art::Prop::Stove + 1 || pr == (int)art::Prop::Fireplace + 1 || pr == (int)art::Prop::Cauldron + 1) { fx = x; fy = y; }
+      }
+    auto placeNear = [&](Obj o, int wx, int wy, int minFire) {
+      int bxk = -1, byk = -1, bd = 1 << 30;
+      for (int y = 1; y < m.h - 1; y++)
+        for (int x = 1; x < m.w - 1; x++) {
+          if (y >= m.exitY - 1 || std::abs(x - fx) + std::abs(y - fy) < minFire) continue;
+          if (std::abs(x - fx) <= 1 && y < fy) continue;   // (never under a stove's flue or behind the hearth)
+          const int d = std::abs(x - wx) * 3 + std::abs(y - wy) * 2;
+          if (d >= bd || !home::canPlaceInside(p, m, o, x, y, false, why)) continue;
+          bd = d; bxk = x; byk = y;
+        }
+      if (bxk < 0) return false;
+      PlacedObj po;
+      po.kind = (uint8_t)o; po.x = (uint8_t)bxk; po.y = (uint8_t)byk; po.flags = (uint8_t)(fl << 4);
+      p.inside.push_back(po);
+      stampObj(m, po, false);
+      m.rebuildSolid();
+      return true;
+    };
+    if (bed) {
+      placeNear(Obj::Rug, fx, fy + 2, 2);
+      if (placeNear(Obj::Table, fx + 3, fy + 1, 3)) placeNear(Obj::Stool, fx + 3, fy + 2, 3);
+    }
     p.starter = 1;
   }
   // (M7c integration, m7_homestead_buy) a bought house whose own furniture holds no chest (a hut's one room: the M7c
@@ -209,6 +240,35 @@ void HomeOps::mapLoaded(Game& g) {
   for (const PlacedObj& o : p.inside)
     if (o.floor() == fl) stampObj(m, o, false);
   m.rebuildSolid();
+  // (fixer M8 r2, review: "nothing shows the companion living there: no second bedroll") each member living at this
+  // house has their own sleeping mat rolled out on the floor by the fire (not furniture of the player's: laid fresh
+  // on every entry from who lives here, so it goes with them); party_move's homeLife sleeps them on it
+  if (fl == 0) {
+    int fx = m.w / 2, fy = m.h / 2;
+    for (int y = 0; y < m.h; y++)
+      for (int x = 0; x < m.w; x++) {
+        const int pr = m.propAt(x, y);
+        if (pr == (int)art::Prop::Hearth + 1 || pr == (int)art::Prop::Stove + 1 || pr == (int)art::Prop::Fireplace + 1) { fx = x; fy = y; }
+      }
+    int laid = 0;
+    for (const party::Member& mem : g.party.members) {
+      if (mem.state != party::State::Home || mem.homePlot != (uint32_t)p.id) continue;
+      int best = -1, bd = 1 << 30;
+      for (int y = 1; y < m.h - 1; y++)
+        for (int x = 1; x < m.w - 2; x++) {
+          // a mat lies across two tiles: both free floor, no piece on them, clear of the door's row and the fire
+          if (y >= m.exitY - 1 || m.blocked(x, y) || m.blocked(x + 1, y) || m.propAt(x, y) || m.propAt(x + 1, y)) continue;
+          if (std::abs(x - fx) + std::abs(y - fy) < 2 || std::abs(x + 1 - fx) + std::abs(y - fy) < 2 || (std::abs(x - fx) <= 2 && y < fy)) continue;
+          if (m.propAt(x, y - 1) == (int)art::Prop::SleepingMat + 1 || m.propAt(x - 1, y) == (int)art::Prop::SleepingMat + 1 || m.propAt(x - 2, y) == (int)art::Prop::SleepingMat + 1) continue;
+          const int d = std::abs(x - (fx - 3)) * 2 + std::abs(y - fy) * 3;
+          if (d < bd) { bd = d; best = y * m.w + x; }
+        }
+      if (best < 0) break;
+      m.setProp(best % m.w, best / m.w, art::Prop::SleepingMat);
+      laid++;
+    }
+    if (laid) m.rebuildSolid();
+  }
 }
 
 bool HomeOps::propUsable(const Game& g, art::Prop p, int tx, int ty) {

@@ -1,0 +1,54 @@
+# M8 fixer round 2: the companions' rules the second review found broken, each in a fresh game on seed 7 (2 for the war).
+#   1. a companion downed while burning keeps the whole bleeding-out window (the burn no longer kills the downed)
+#   2. (the war: m8_fixer2_war.txt)
+#   3. one told to wait, downed and bound, gets back up to waiting (not into a full party)
+#   4. a stranger (a saga's ally) who leaves in anger is gone: no record kept that could never be reached
+#   5. one who left in anger stays Left (the Home order is refused them: radialWhy says THEY HAVE LEFT YOU)
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_fixer2_rules.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 hour 11
++0.2 walk east 1
++1.4 hour 11
++0.3 party ally warrior 0
++0.3 party burn
++0.05 party down
++0.05 party burn
++3.0 expect party state downed
++0.1 expect party fallen 0
++0.1 party stats
+# 3. waiting, downed, bound
++0.3 newgame
++0.1 god 1
++0.1 hour 11
++0.2 walk east 1
++1.4 hour 11
++0.3 party ally warrior 0
++0.1 party cmd wait 0
++0.1 party ally archer 0
++0.2 party down 0
++0.1 expect party with 1
++0.1 party bind 0
++3.5 expect party with 1
++0.1 expect party state waiting 0
++0.1 party stats
+# 4. a stranger who leaves in anger
++0.3 newgame
++0.1 god 1
++0.2 party ally warrior 0
++0.1 party approval -69
++0.1 party deed cruelty 3
++0.3 expect party members 0
+# 5. home refused to one who left (a census resident: their record stays for amends)
++0.3 newgame
++0.1 god 1
++0.2 party recruit
++0.1 party approval -69
++0.1 party deed cruelty 3
++0.3 expect party state left
++0.1 party house
++0.3 party cmd home 0 refused
++0.5 party stats
++0.1 expect party state left
++0.2 quit

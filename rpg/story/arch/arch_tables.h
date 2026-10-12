@@ -6,6 +6,7 @@
 //                    lewis.cpp, tolkien.cpp (themes only), twists.cpp (the twists library)
 //   VOICE lane:      folk.cpp (folk and fairy tale), maas.cpp, gwynne.cpp (themes only), world.cpp (world-native)
 //   CAMPAIGNS lane:  rpg/story/campaigns/arcs.cpp (tier-3 campaign arcs)
+//   (M8 VOICE lane)  companion.cpp (the companions' personal quests: `hook companion`)
 // MSVC caps one string literal near 16 KB: give every template its own raw literal R"SAGA(...)SAGA".
 #pragma once
 #include <vector>
@@ -25,6 +26,7 @@ void addMaas(std::vector<Archetype>& v);
 void addGwynne(std::vector<Archetype>& v);
 void addWorld(std::vector<Archetype>& v);
 void addArcs(std::vector<Archetype>& v);
+void addCompanion(std::vector<Archetype>& v);   // (M8)
 void addTwists(std::vector<Twist>& v);
 
 }  // namespace arch

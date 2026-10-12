@@ -1,0 +1,19 @@
+# M8 FELLOWS: a companion downed and bleeding out, the player kneeling to bind their wounds (Posture::Downed on the
+# companion, Posture::Kneel on the player), and back on their feet.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_fellows_downed.txt     (m8_fellows_downed*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 hour 11
++0.2 party recruit
++0.2 walk east 2.0
++2.4 party down
++0.3 expect party state downed
++0.1 expect party posture downed
++0.2 shot m8_fellows_downed.png
++0.1 party bind
++0.6 expect party kneel
++0.1 shot m8_fellows_binding.png
++2.2 expect party state with
++0.3 shot m8_fellows_bound.png
++0.2 quit

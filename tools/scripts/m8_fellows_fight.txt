@@ -1,0 +1,31 @@
+# M8 FELLOWS: each vocation in a fight (party ally <vocation> <bond>): a warrior and an archer, then a mage and a
+# healer, then a rogue and a hound against wolves. Positions, facing and the shots must read right.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_fellows_fight.txt     (m8_fellows_fight*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 kit
++0.1 hour 11
++0.2 walk east 3.0
++0.3 party ally warrior 80
++0.1 party ally archer 80
++0.1 expect party with 2
++0.5 fight wolf 3
++1.2 shot m8_fellows_fight_warrior_archer.png
++3.0 shot m8_fellows_fight_warrior_archer2.png
++6.0 party dismiss 1
++0.1 party dismiss 0
++0.1 party ally mage 80
++0.1 party ally healer 80
++0.5 fight wolf 3
++1.4 shot m8_fellows_fight_mage_healer.png
++3.0 shot m8_fellows_fight_mage_healer2.png
++6.0 party dismiss 1
++0.1 party dismiss 0
++0.1 party ally rogue 80
++0.1 party ally hound 50
++0.5 fight wolf 3
++1.4 shot m8_fellows_fight_rogue_hound.png
++3.0 shot m8_fellows_fight_rogue_hound2.png
++4.0 party stats
++0.2 quit

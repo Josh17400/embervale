@@ -7,9 +7,13 @@
 //   title <words>                    the journal title ("THE PRODIGAL'S RETURN")
 //   archetype <words>                the story archetype it is built on (reports, tests)
 //   tier 2|3                         2: a story quest, 3: a campaign
-//   hook npc <trade>|board|herald|ruin|event <evtype>
+//   hook npc <trade>|board|herald|ruin|event <evtype>|companion <stake> [<fact>]
 //                                    where it starts: an NPC of that trade (innkeeper, priest, smith, merchant, guard,
-//                                    farmer, hunter, villager, any), a notice board, a herald, a ruin, a realm event
+//                                    farmer, hunter, villager, any), a notice board, a herald, a ruin, a realm event,
+//                                    (M8) a companion's own story from their stake (burned lostkin war revenge
+//                                    heirloom debt exile faith ambition love), the fact their history must hold
+//                                    (kinalive kindead veteran deserter; default any). The giver is the companion.
+//   role ... stake                   (M8, companion quests) the role is bound from the companion's stake
 //   pitch "<option label>"           the option the hook offers ("YOU LOOK TROUBLED.") or the board's notice line
 //   hint "<line>"                    what the hook speaker says instead of their greeting while they have the story
 //   role <name> <kind> [args]        a role the caster binds to a real entity:
@@ -56,7 +60,13 @@
 //               realm peace <k> <k> | realm succession <k> <person> | realm event <evtype> <k> [<k>] [<site>] |
 //               (M6b) reward small|fair|rich|great (gold, XP and for rich / great a piece of gear, all inside the M6
 //               band of the hook's danger: slow rags to riches) | secret <site> (progress toward a smithing secret of
-//               that place's culture: craft HOW_QUEST) | befriend <resident> (the resident becomes the player's friend)
+//               that place's culture: craft HOW_QUEST) | befriend <resident> (the resident becomes the player's friend) |
+//               (M8 Fellowship) deed <word> [grave] (a deed of the player's on the companions' deeds bus, Game::deed:
+//               questdone failed rescued refugees charity befriended mercy cruelty innocent guard stole bandits beast
+//               monster war defended ruin tavern prayed bribed lied oathbreak grave abandoned) | recruit <role> (a
+//               rescued or sworn person or resident joins the party) | approve <n> / bond <n> (companion quests: the
+//               companion's approval / bond change) | fate home|part (companion quests: they go home to stay a while /
+//               part from the player for good, their life resumed)
 //   placeholders: {role} its name; person/foe/ruler .he .him .his .man .son .lad .brother (M6b: .father .husband .sir
 //               .boy: MOTHER, WIFE, LADY, GIRL for a woman); site .dir (from the player) .realm;
 //               kingdom .lord; ruler .name .title; npc .town; ruin .old .lord .builder .years .cause .clue;
@@ -76,12 +86,15 @@ namespace dsl {
 enum class RoleKind : uint8_t { Giver, Person, Foe, Npc, Site, Capital, Kingdom, Ruler, Ruin, War, Event,
                                 Resident, Beast, Boss,   // M6b (saga.h)
                                 COUNT };
-enum class HookKind : uint8_t { Npc, Board, Herald, Ruin, Event, COUNT };
+enum class HookKind : uint8_t { Npc, Board, Herald, Ruin, Event,
+                                Companion,   // (M8) a companion's own personal quest: `hook companion <stake> [<fact>]`
+                                COUNT };
 enum class CondType : uint8_t { Gold, Level, Bg, Rep, Fame, Var, NoVar, Have, Mark, NoMark, Female, War, COUNT };
 enum class ObjType : uint8_t { None, Goto, Enter, Kill, Slay, Fetch, Use, Wait, War, Famine, Rep, Have, COUNT };
 enum class EffType : uint8_t { Gold, Xp, Give, Take, Loot, Rep, Fame, Set, Add, Mark, Remember, Fact, Moves, Shop, Hide, Show,
                                Notice, Sound, Rumour, RealmWar, RealmFamine, RealmPeace, RealmSuccession, RealmEvent,
                                Reward, Secret, Befriend,   // M6b (saga.h)
+                               Deed, Recruit, Approve, Bond, Fate,   // M8 Fellowship (companions)
                                COUNT };
 enum class StageKind : uint8_t { None, Talk, Goal, End };
 
@@ -108,6 +121,8 @@ struct EffDef {
   int icon = 0;                     // art::Icon for give
   int ev = 0;                       // realm::EvType for realm event
                                     // (M6b) reward: n = 0 small, 1 fair, 2 rich, 3 great
+                                    // (M8) deed: n = party::Deed, ev = its weight (1, or 2 for `grave`); approve /
+                                    // bond: n the change; fate: args[0] home|part; recruit: args[0] the role
 };
 struct OptDef {
   std::string label;
@@ -141,13 +156,17 @@ struct RoleDef {
   int trade = 0;                    // npc: Role
   int ev = 0;                       // event: realm::EvType
   int line = 0;
+  bool stake = false;               // (M8) companion quests: bound from the companion's own stake (party::Stake) when it
+                                    // has one (person: the stake's kin, named as the census knows them; beast: the
+                                    // stake's foe; kingdom: the stake's kingdom; ruin: the stake's ruin; site: the
+                                    // stake's place), else as the kind says
 };
 struct Script {
   std::string id, title, archetype;
   int tier = 2;
   HookKind hook = HookKind::Npc;
   int hookTrade = -1;               // npc hooks: Role (-1 any trade that talks)
-  int hookEv = 0;                   // event hooks: realm::EvType
+  int hookEv = 0;                   // event hooks: realm::EvType; (M8) companion hooks: the stake fact (COMPANION_*)
   std::string pitch, hint;
   std::vector<RoleDef> roles;
   std::map<std::string, int> vars;
@@ -157,6 +176,15 @@ struct Script {
   int role(const std::string& n) const { for (size_t i = 0; i < roles.size(); i++) if (roles[i].name == n) return (int)i; return -1; }
   int stage(const std::string& n) const { for (size_t i = 0; i < stages.size(); i++) if (stages[i].name == n) return (int)i; return -1; }
 };
+
+// (M8) companion hooks: Script::hookTrade is the stake (party::Hook 1..10, companionHookWord), hookEv the fact the
+// companion's history must hold for the quest to fit
+constexpr int COMPANION_ANY = 0, COMPANION_KIN_ALIVE = 1, COMPANION_KIN_DEAD = 2, COMPANION_VETERAN = 3, COMPANION_DESERTER = 4;
+int companionHookWord(const std::string& w);           // "burned" "lostkin" "war" "revenge" "heirloom" "debt" "exile" "faith"
+                                                       // "ambition" "love" -> 1..10, -1 unknown
+int companionFactWord(const std::string& w);           // "any" "kinalive" "kindead" "veteran" "deserter" -> COMPANION_*, -1
+// (M8) the deed words of `do deed <word> [grave]`: party::Deed or -1
+int deedWord(const std::string& w);
 
 struct Library {
   std::vector<Script> scripts;

@@ -75,6 +75,9 @@ constexpr uint8_t TR_SOCIABLE = 1, TR_DEVOUT = 2, TR_THRIFTY = 4, TR_LAZY = 8, T
 // Resident::flags (runtime and saved deltas)
 constexpr uint16_t RF_DEAD = 1, RF_AWAY = 2, RF_BEFRIENDED = 4, RF_EMPLOYED = 8, RF_GRIEVING = 16, RF_FED = 32,
                    RF_HOMELESS = 64, RF_REFUGEE = 128, RF_KEY = 256;   // RF_KEY: a key person (a spawn with a quest identity)
+// (M8) RF_COMPANION: travelling with the player as a companion (party.h; always with RF_AWAY, so the census keeps them
+// off the streets and out of their home; cleared with RF_AWAY when they come home for good)
+constexpr uint16_t RF_COMPANION = 512;
 
 // ---------------------------------------------------------------- the census (VISION_PLAN 10.1)
 struct Resident {
@@ -114,7 +117,7 @@ struct Resident {
 };
 constexpr uint8_t ORIGIN_NATIVE = 0, ORIGIN_REFUGEE = 1;
 // Resident::flags bits that are saved deltas (the rest, RF_KEY / RF_HOMELESS / RF_REFUGEE, the census derives)
-constexpr uint16_t RF_SAVED = RF_DEAD | RF_AWAY | RF_BEFRIENDED | RF_EMPLOYED | RF_GRIEVING | RF_FED;
+constexpr uint16_t RF_SAVED = RF_DEAD | RF_AWAY | RF_BEFRIENDED | RF_EMPLOYED | RF_GRIEVING | RF_FED | RF_COMPANION;
 
 // a friendship / bond (both ways). bond 0..100; kin ties are households, not Ties. b == PLAYER_TIE: a friend of the
 // player's (Life::befriend; saved)

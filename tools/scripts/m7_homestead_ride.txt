@@ -26,7 +26,9 @@ seed 7
 +0.1 expect home horse waiting
 +0.5 shot m7_hs_ride_waiting.png
 +0.1 home horsehere
-+0.3 home use here
+# (M7c merge) turned to her: a passer-by about as near no longer takes the RIDE (Game::interactTarget)
++0.1 home face east
++0.2 home use here
 +0.2 expect home horse riding
 +0.1 walk east 3
 +3.2 enter inn

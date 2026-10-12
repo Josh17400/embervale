@@ -1,0 +1,27 @@
+phone
+# M8 VOICE lane: a tavern regular's pitch at the inn at night, at phone size. The regular (a census resident who drinks
+# here of an evening) is asked to travel along: their pitch from their real history (their trade, home, why the road
+# calls), their own story when asked, and the yes.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_voice_regular.txt     (m8_voice_regular_*.png)
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 21
++0.2 enter inn
++1.0 voice regular
++1.5 expect mode dialogue
++0.1 expect option WOULD YOU TRAVEL WITH ME
++2.90 touch 1
++0.1 shot m8_voice_regular_1_open.png
++0.1 choose WOULD YOU TRAVEL WITH ME
++2.90 touch 1
++0.1 shot m8_voice_regular_2_pitch.png
++0.1 choose TELL ME MORE ABOUT YOURSELF
++2.90 touch 1
++0.1 shot m8_voice_regular_3_about.png
++0.1 choose THEN COME WITH ME
++2.90 touch 1
++0.1 shot m8_voice_regular_4_joined.png
++0.1 expect party members 1
++0.2 quit

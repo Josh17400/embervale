@@ -235,6 +235,7 @@ enum class Mk : uint64_t {
   // the REALM lane 48..63, each defined in its own files as (Mk)(32 + n), so nobody else edits this enum.
   // M6: the FOES lane uses 64..79 (rpg/sim/foes.h MK_FOES_*), the NUMBERS / FORGE lane 80..95 (craft_game.cpp).
   // M7: the HOMESTEAD lane uses 96..111 (rpg/sim/home_game.cpp).
+  // M8: the FELLOWS lane uses 112..127 (rpg/sim/party_*.cpp: PartyOps::MK_*).
 };
 inline uint64_t markKey(uint64_t id, Mk tag) { return ew::mix64(id ^ ((uint64_t)tag * 0xD1B54A32D192ED03ull)); }
 
@@ -325,3 +326,74 @@ constexpr int HOME_SLOT_HORSE = 8999;    // the horse out of its stable, waiting
 constexpr int HOME_SLOT_BUILDER = 9000;  // + plot * 4 + k
 constexpr int HOME_SLOT_HAND = 9100;     // + plot
 
+// ---- M8 FELLOWS lane: the companions' internals (Game's friend). Defined across rpg/sim/party_game.cpp (records,
+//      the hooks' bodies, deeds, downed and death), party_ai.cpp (fighting by vocation and stance, the bond skills,
+//      potions), party_move.cpp (following, the trail, the catch-up, waiting, living at the player's house, riding,
+//      the carry), party_recruit.cpp (offers, recruits, tavern regulars, sellswords, the rescued, the animal, the
+//      stake from the real world) and party_graves.cpp (graves sited, stamped and visited; the looks VIEW reads).
+struct PartyOps {
+  // Game::marks tags (Mk 112..127)
+  static constexpr uint64_t MK_HIRED = 112;   // a sellsword (inn Bldg id * 4 + slot): the day they were hired (gone a while)
+  static constexpr int32_t MERC_FALLEN = 2147483647;   // MK_HIRED's value once that sellsword died: the slot stays empty
+  static constexpr uint64_t MK_PUP = 113;     // a wolf den (Den id) whose pup was taken / a seller's pup (npcKey): 1
+  static constexpr uint8_t PT_WALKOFF = 16;   // Actor::partyTag: a body walking home out of sight (left, dismissed, sent home)
+  // ---- records (party_game.cpp)
+  static party::Member* of(Game& g, const Actor& a);
+  static int indexOf(const Game& g, const party::Member& m) { return (int)(&m - g.party.members.data()); }
+  static ew::Gid homeland(const Game& g, const party::Member& m);
+  static int actorOf(Game& g, int mi);                 // actors index of member mi (-1 not in play)
+  static void removeMember(Game& g, int mi);
+  static void dropActor(Game& g, int mi);              // the member's body leaves play (the record stays)
+  static life::Resident* resident(Game& g, const party::Member& m);
+  static void alert(Game& g, int mi, int kind, const std::string& s);
+  static void kit(Game& g, party::Member& m, int level);
+  static void body(Game& g, const party::Member& m, Actor& a);
+  static bool baseLook(Game& g, const party::Member& m, art::HumanLook& out);   // (fixer M8 r1) street look, before gear
+  static void fixLook(Game& g, party::Member& m);      // Member::look fixed once their census has dressed them
+  static int spawn(Game& g, int mi, Vec2 at);          // the member's actor at `at` (map pixels): its Actor::id
+  static void dieForGood(Game& g, int mi, const std::string& cause);
+  static void censusDeaths(Game& g);                   // (fixer M8 r1) members who died in their census life: Fallen
+  static void applyDeed(Game& g, const party::Party::Pending& d);
+  static void daily(Game& g);
+  static void downedStep(Game& g, float dt);           // bleeding out, the binding, the player's kneel
+  static void revive(Game& g, int mi, Actor& a, bool fromAfar);
+  static bool actorStep(Game& g, Actor& a, float dt);  // Game::partyActor
+  static void leave(Game& g, int mi, bool angry);      // Left (angry) or dismissed: the body walks home out of sight
+  // ---- fighting (party_ai.cpp)
+  static int pickFoe(Game& g, const Actor& a, const party::Member& m);
+  static bool fight(Game& g, Actor& a, party::Member& m, int mi, float dt);   // true: the fight drove the body this step
+  static bool useSkill(Game& g, Actor& a, party::Member& m, int k, bool ordered);   // skill k of skillsOf(voc) now
+  static void autoSkills(Game& g, Actor& a, party::Member& m, int mi);
+  static void potion(Game& g, Actor& a, party::Member& m);
+  static void heal(Game& g, Actor& a, party::Member& m, int mi);   // the healer's mend (base and Mend)
+  static float tauntT(const party::Member& m);         // > 0 while the warrior's taunt holds
+  static bool ranged(const party::Member& m) { return m.voc == party::Vocation::Archer || m.voc == party::Vocation::Mage; }
+  static void strike(Game& g, Actor& a, party::Member& m);         // the blow / the shot at the end of a windup
+  // ---- moving (party_move.cpp)
+  static Vec2 slotBehind(const Game& g, int mi);
+  static Vec2 spotBehind(Game& g, int mi);
+  static void trailStep(Game& g);                      // the player's footsteps (Party::trail)
+  static bool moveTo(Game& g, Actor& a, party::Member& m, Vec2 goal, float speed, float dt);   // navStep, else the trail
+  static void follow(Game& g, Actor& a, party::Member& m, int mi, float dt);
+  static Vec2 outOfSight(Game& g, int mi, int& crumb); // where a catch-up lands: behind the player, off the screen
+  static void keepUp(Game& g, float dt);               // members with the player brought into play, the catch-up
+  static void placesStep(Game& g);                     // waiting members and those at the player's house in and out of play
+  static void homeLife(Game& g, Actor& a, party::Member& m, float dt);   // a member at the player's house: their day
+  static int homePlotOf(const Game& g, const party::Member& m);         // Homes::plots index of Member::homePlot (-1)
+  static float riderSpeed(const Game& g);              // the player's pace on horseback (px/s)
+  // ---- recruiting (party_recruit.cpp)
+  static void mapChanged(Game& g);                     // a new map: sellswords at an inn
+  static int mercsAt(const Game& g, int bldg);         // sellswords an inn keeps (0..MERC_MAX)
+  static int mercWage(const Game& g, int site);        // gold a day by the place's danger
+  static party::Vocation mercVoc(uint32_t seed);
+  static bool folk(Game& g, Actor& a, float dt);       // Game::partyFolk
+  static bool denInteract(Game& g);                    // a cleared wolf den's pup (interact)
+  // ---- graves (party_graves.cpp)
+  static void siteGrave(Game& g, party::Fallen& f);   // into their home's temple yard / graveyard, or where they fell
+  static void gravesStep(Game& g);                     // unsited graves sited when their home loads; stamping
+  static int graveNear(const Game& g, Vec2 p, float r);   // a sited grave within r px of p (Party::fallen index, -1)
+};
+// (M8 FELLOWS, life_game.cpp) a companion's body laid in the bed at interior tile (x, y) / sat on the seat there (the
+// TOWNSFOLK rules' fit: the head on the pillow, the seat line on the seat), or false when that prop is no bed / seat
+bool lifeLayInBed(Game& g, Actor& a, int x, int y);
+bool lifeSitOn(Game& g, Actor& a, int x, int y, art::Posture post);

@@ -1,0 +1,20 @@
+phone
+# M8 VOICE lane: banter on screen. A companion remarks on the land of another people (the culture border), and on the
+# night road. The banter panel itself is the VIEW lane's (until it lands the line shows only as Ev::Banter).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_voice_border.txt     (m8_voice_border_*.png)
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 11
++0.2 party recruit
++0.3 walk east 1.0
++4.0 voice banter border
++0.4 expect voice banter THE
++0.1 touch 1
++0.1 shot m8_voice_border_1.png
++1.5 hour 22
++0.2 voice banter night
++0.4 touch 1
++0.1 shot m8_voice_border_2_night.png
++0.2 quit

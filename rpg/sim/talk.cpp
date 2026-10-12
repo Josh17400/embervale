@@ -54,7 +54,7 @@ std::string givenName(const std::string& shown) {
 // ---------------------------------------------------------------- 2. one line at a time
 const char* topicName(Topic t) {
   static const char* n[] = {"none", "greeting", "intro", "smalltalk", "bark", "trade", "service", "need", "rumour", "news", "war",
-                            "story", "quest offer", "quest active", "quest done", "reward", "warning", "home", "craft", "foe"};
+                            "story", "quest offer", "quest active", "quest done", "reward", "warning", "home", "craft", "foe", "companion"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)Topic::COUNT, "a name for every topic");
   return (int)t < (int)Topic::COUNT ? n[(int)t] : "?";
 }

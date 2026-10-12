@@ -38,6 +38,8 @@ PostureInfo postureInfo(Posture p) {
     case Posture::Lamp: i.frames = 2; i.fps = 1.5f; break;
     case Posture::Read: i.frames = 2; i.fps = 0.4f; break;
     case Posture::Ride: i.frames = 1; i.fps = 1; break;   // (M7) the view seats it on the horse (art::riderSeat)
+    case Posture::Downed: i.frames = 2; i.fps = 0.8f; break;   // (M8) slumped on one knee: two laboured breaths
+    case Posture::Kneel: i.frames = 2; i.fps = 1.0f; break;    // (M8) on one knee: winding the linen (variant 1: bowed, breathing)
     default: break;
   }
   return i;
@@ -169,7 +171,8 @@ SeatFit seatFit(Prop seat, int kit, int facing) {
       f.ok = true; f.seatY = 4; f.ay = -7;
       break;
     case Prop::Cushion:
-      f.ok = true; f.seatY = 9; f.ay = (int8_t)(fc == 0 ? -6 : (fc == 1 ? 1 : -4)); f.sit = Posture::SitFloor;   // (M5 fixer r2: see seatAt)
+      // (M5 fixer r2: see seatAt) facing up the sitter sits back on the cushion's south edge (M8 fixer: seatY says so)
+      f.ok = true; f.seatY = (int8_t)(fc == 1 ? 13 : 9); f.ay = (int8_t)(fc == 0 ? -6 : (fc == 1 ? 1 : -4)); f.sit = Posture::SitFloor;
       break;
     case Prop::SleepingMat: case Prop::Bedroll: case Prop::Rug: case Prop::LowTable: case Prop::COUNT:
       f.ok = seat != Prop::LowTable; f.seatY = 12; f.ay = -3; f.sit = Posture::SitFloor;

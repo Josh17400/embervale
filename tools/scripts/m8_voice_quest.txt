@@ -1,0 +1,19 @@
+phone
+# M8 VOICE lane: a companion's personal quest, generated through the M6b saga composer from their real history, offered
+# in their own conversation (their line, the pitch), and its first beat.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_voice_quest.txt     (m8_voice_quest_*.png)
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 11
++0.2 party recruit
++0.2 voice quest
++0.5 party talk
++1.5 expect mode dialogue
++2.90 touch 1
++0.1 shot m8_voice_quest_1_offer.png
++0.1 voice choose 1
++2.90 touch 1
++0.1 shot m8_voice_quest_2_story.png
++0.2 quit

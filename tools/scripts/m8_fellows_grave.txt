@@ -1,0 +1,21 @@
+# M8 FELLOWS: a companion dead for good is buried in their home village's temple yard; the player stands at the
+# grave, the grave talk opens, flowers are laid.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_fellows_grave.txt     (m8_fellows_grave*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 hour 11
++0.2 party recruit
++0.3 party kill
++0.4 expect party members 0
++0.1 expect party fallen 1
++0.1 expect party grave home
++0.2 party grave
++0.6 shot m8_fellows_grave.png
++0.2 key E
++0.4 expect mode dialogue
++0.1 shot m8_fellows_grave_talk.png
++0.1 key Escape
++0.2 party grave flowers
++0.5 shot m8_fellows_grave_flowers.png
++0.2 quit

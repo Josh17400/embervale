@@ -1,0 +1,23 @@
+# M8 fixer round 2: killing a siege's besiegers is war, not KILLED A GUARD over and over: a lawful companion sworn in a
+# tale does not walk off over a siege fought (the review's repro: approval 25 fell to -71 and they left).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_fixer2_war.txt
+seed 2
+0.3  newgame
++0.1 god 1
++0.1 kit
++0.2 realm siege 0
++0.3 war goto camp
++0.3 party ally warrior 0
++0.2 war at 0 6
++0.6 war kill 1
++0.6 war kill 1
++0.6 war kill 1
++0.6 war kill 1
++0.6 war kill 1
++0.6 war kill 1
++0.6 war kill 1
++0.6 war kill 1
++0.3 party stats
++0.1 expect party state with
++0.1 expect party approval 10 100
++0.2 quit

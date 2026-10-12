@@ -382,7 +382,7 @@ std::string expand(const std::string& body, Expand& x) {
         Phrase ph = phrase(key, v);
         // (M7b) a phrase is said once in a story: a repeat is drawn again (a few more steps of the story's own rng,
         // so the choice stays a pure function of the spec)
-        for (int tries = 0; tries < 6 && !ph.text.empty() && saidBefore(x.said, ph.text); tries++) {
+        for (int tries = 0; tries < 32 && !ph.text.empty() && saidBefore(x.said, ph.text); tries++) {   // (32: a key of three lines must not repeat by chance)
           v.seed = step(x.rng);
           ph = phrase(key, v);
         }
@@ -578,6 +578,7 @@ const ArchHook& archHookOf(const Archetype& a) {
     else if (w[1] == "herald") h.kind = (int)dsl::HookKind::Herald;
     else if (w[1] == "ruin") h.kind = (int)dsl::HookKind::Ruin;
     else if (w[1] == "event") { h.kind = (int)dsl::HookKind::Event; h.ev = w.size() > 2 ? dsl::evWord(w[2]) : -1; if (h.ev < 0) h.kind = -1; }
+    else if (w[1] == "companion") h.kind = (int)dsl::HookKind::Companion;   // (M8: told only by the companion: party_voice.h questFor)
     break;
   }
   return memo.emplace(a.id, h).first->second;

@@ -611,6 +611,7 @@ stage freed_end
   do remember wife "HE WENT. HE DIDN'T EVEN SAY GOODBYE. I KNEW HE WOULDN'T. I KEPT THE BOWL. I DON'T KNOW WHY."
   do fact "{JESTER}, WHO TRICKED A BLIND HAND INTO KILLING {HOME}'S BRIGHTEST CHILD, WAS FREED FROM {CAVE}. THE OLD ONES SAY HE'LL BE BACK AT THE END."
   do mark trickster_unbound
+  do deed mercy
 
 stage bowl_end
   end success

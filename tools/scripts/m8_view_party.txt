@@ -1,0 +1,38 @@
+# M8 VIEW lane: the party column at the desktop size (480 x 270): one companion, then two people and the hound at
+# level 20, the selected card's tag, the radial opened with C, an order given with a number key, a refused one.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_view_party.txt     (m8v_desk_*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.2 party recruit
++0.1 walk east 1.2
++0.4 shot m8v_desk_01_one.png
++0.1 partyview level 20
++0.1 party recruit 1
++0.1 partyview hound
++0.1 walk west 1.0
++0.6 expect partyview cards 3
++0.1 partyview select 0
++0.2 shot m8v_desk_02_three.png
++0.1 key C
++0.3 expect partyview radial open
++0.1 key D
++0.1 key D
++0.2 expect partyview hot attack
++0.1 shot m8v_desk_03_radial.png
++0.1 key 4
++0.2 expect partyview radial closed
++0.1 key C
++0.2 key 5
++0.2 expect partyview deny
++0.1 shot m8v_desk_04_refused.png
++0.1 key Escape
++0.2 expect partyview radial closed
++0.1 partyview page 0
++0.6 expect partyview tab
++0.1 shot m8v_desk_05_doll.png
++0.1 partyview page 0 gear 6
++0.4 shot m8v_desk_06_doll_gear.png
++0.1 key Escape
++0.2 quit

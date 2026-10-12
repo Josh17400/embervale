@@ -1,0 +1,37 @@
+phone
+# M8 VIEW lane: the menu's PARTY page at phone size: the companion's paper doll (their figure in their own gear, each
+# piece in its makers' style; the eleven slots and SUPPLIES), STORY (approval, bond with its marks, the bond skills,
+# their own story), GEAR (what they wear, the pack's pieces for it; a piece handed over and put on, one taken back,
+# a potion given), the hound's page.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8_view_doll_phone.txt     (m8v_doll_*.png)
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 11
++0.1 kit
++0.1 gear 3 axe
++0.1 strip
++0.1 partyview level 20
++0.2 party recruit
++0.1 party bond 55 0
++0.1 party approval 42 0
++0.1 partyview hound
++0.2 partyview page 0
++0.6 touch 1
++0.1 expect partyview tab
++0.1 shot m8v_doll_01_story.png
++0.1 partyview page 0 gear 4
++0.4 touch 1
++0.1 shot m8v_doll_02_gear_hands.png
++0.1 partyview page 0 gear 6
++0.4 touch 1
++0.1 shot m8v_doll_03_gear_weapon.png
++0.1 partyview page 0 gear 11
++0.4 touch 1
++0.1 shot m8v_doll_04_supplies.png
++0.1 partyview page 1
++0.4 touch 1
++0.1 shot m8v_doll_05_hound.png
++0.1 key Escape
++0.2 quit
