@@ -20,6 +20,7 @@
 #include "rpg/sim/home.h"
 #include "rpg/sim/life.h"
 #include "rpg/sim/party.h"
+#include "rpg/sim/power_ops.h"
 #include "rpg/sim/realm.h"
 #include "rpg/world/source.h"
 
@@ -88,8 +89,17 @@ void PartyOps::kit(Game& g, Member& m, int level) {
   if (m.voc == party::Vocation::Hound) return;
   Rng gr(hash32(m.lookSeed ^ 0x6EA2u) ^ (uint32_t)g.seed);
   const int il = std::clamp(level, 1, gear::MAX_D);
+  // (M8b, 15.27.5 "companions use the same rules") each piece's rarity is rolled as a find of their level is
+  // (LootSrc::Companion: the NUMBERS lane's gate; Common at low levels), its affixes and power made by makeGear
+  gear::DropSource src;
+  src.D = il; src.playerLevel = il; src.src = gear::LootSrc::Companion; src.culture = m.culture;
   auto put = [&](ItemKind k, int sub, int slot, Mat mat = Mat::None) {
-    Item it = gear::makeGear(gr, k, sub, il, Rarity::Common, m.culture, mat);
+    Rarity rar = gear::rollRarity(gr, src);
+    // (M8b fix) a companion's kit rolls only affixes and powers that work for a companion (gear::CompanionRolls); a
+    // Mythic of a kind with no companion-working Mythic power is made a Legendary (never a Mythic with a dead power)
+    gear::CompanionRolls only;
+    if (rar == Rarity::Mythic && gear::mythicPowersFor(k).empty()) rar = Rarity::Legendary;
+    Item it = gear::makeGear(gr, k, sub, il, rar, m.culture, mat);
     m.inv.push_back(it);
     m.eq[(size_t)slot] = (int16_t)(m.inv.size() - 1);
   };
@@ -121,11 +131,17 @@ void PartyOps::body(Game& g, const Member& m, Actor& a) {
     const int e = m.eq[(size_t)s];
     if (e >= 0 && e < (int)m.inv.size()) armor += gear::usePower(m.inv[(size_t)e], L) * 0.5f;
   }
+  // (M8b) their worn affixes and powers, by the player's rules: + health, Ironhide and "+N% ARMOUR"
+  const gear::GearStats gs = PowerOps::memberStats(g, m);
+  if (gs.has(Unique::Ironhide)) armor *= 1.25f;
+  if (gs.get(Affix::ArmourPct) > 0) armor *= 1.0f + 0.01f * (float)gs.get(Affix::ArmourPct);
   const int w = m.voc == party::Vocation::Archer ? m.eq[party::S_BOW] : m.voc == party::Vocation::Mage ? m.eq[party::S_STAFF] : m.eq[party::S_WEAPON];
   const bool shoots = m.voc == party::Vocation::Archer || m.voc == party::Vocation::Mage;
   if (w >= 0 && w < (int)m.inv.size()) dmg = std::max(dmg, gear::usePower(m.inv[(size_t)w], L) * (shoots ? 0.7f : 0.85f));
   const float frac = a.maxHp > 0 ? a.hp / a.maxHp : 1.0f;
-  a.maxHp = b.maxHp; a.dmg = dmg; a.armor = armor; a.speed = b.speed; a.range = b.range; a.aggroR = b.aggroR;
+  a.maxHp = b.maxHp + (float)std::max(0, gs.get(Affix::Health)); a.dmg = dmg; a.armor = armor; a.speed = b.speed; a.range = b.range; a.aggroR = b.aggroR;
+  if (gs.get(Affix::MoveSpeed) > 0 || gs.has(Unique::Windwalker))   // (as the hero's move speed)
+    a.speed *= 1.0f + 0.01f * (float)gs.get(Affix::MoveSpeed) + (gs.has(Unique::Windwalker) ? 0.12f : 0.0f);
   a.level = L;
   a.hp = m.hp < 0 ? a.maxHp * std::clamp(frac, 0.0f, 1.0f) : std::min(m.hp, a.maxHp);
 }

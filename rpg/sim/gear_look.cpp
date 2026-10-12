@@ -15,6 +15,7 @@
 #include <string>
 #include <initializer_list>
 #include "rpg/culture/culture.h"
+#include "rpg/sim/gear.h"
 
 namespace {
 // an armour piece's M5 material band (art::HumanLook): 1 leather, 2 iron, 3 steel, 4 gilded, 5 jade, 6 obsidian, 7 ember
@@ -89,7 +90,7 @@ struct Metal {
   uint32_t light = 0, dark = 0;
   uint8_t sheen = 0;   // cult::Sheen + 1
 };
-Metal metalOf(const Item& it, const cult::Culture* c) {
+Metal metalBase(const Item& it, const cult::Culture* c) {
   Metal m;
   if (it.mat == Mat::Leather || it.name.rfind("LEATHER", 0) == 0) { m.band = 1; return m; }
   if (it.mat == Mat::Bronze) { m.band = 2; m.light = kBronzeLight; m.dark = kBronzeDark; return m; }
@@ -113,6 +114,21 @@ Metal metalOf(const Item& it, const cult::Culture* c) {
     return m;
   }
   m.band = bandOf(it);   // the heartland's (and a classic item's) band: the M5 look
+  return m;
+}
+// (M8b fixer r3, review: "'Bloodmantle' is drawn as blue steel chain mail"; "the equipped Mythic sword is not visible")
+// a Mythic metal piece is ember-tempered: its metal runs a third of the way from what it is made of to a forge-hot
+// red-orange over a blood-dark shadow, polished bright, so the piece matches its flame (icon, doll and the world sprite
+// alike: every look reads this) and a Mythic blade stands out from the clothes beside it
+Metal metalOf(const Item& it, const cult::Culture* c) {
+  Metal m = metalBase(it, c);
+  if (it.rarity != Rarity::Mythic || m.band < 2 || it.kind == ItemKind::Ring || it.kind == ItemKind::Amulet || it.kind == ItemKind::Cloak) return m;
+  const bool steel = m.band >= 3;
+  const uint32_t l0 = m.light ? m.light : (steel ? rgba(208, 214, 226) : rgba(150, 152, 160));
+  const uint32_t d0 = m.dark ? m.dark : (steel ? rgba(78, 84, 100) : rgba(54, 54, 62));
+  m.light = mixc(l0, rgba(240, 104, 52), 0.62f) | 0xFF000000u;
+  m.dark = mixc(d0, rgba(86, 18, 16), 0.6f) | 0xFF000000u;
+  m.sheen = (uint8_t)((int)cult::Sheen::Bright + 1);
   return m;
 }
 // a poor piece: a bandit's or a beginner's (no ornament, no crest, small pauldrons)
@@ -163,7 +179,8 @@ uint16_t ornamentOf(const Item& it, const cult::ArmsStyle& A) {
   if (poorOf(it)) o &= (uint16_t)(cult::ARM_FUR_TRIM | cult::ARM_STUDS | cult::ARM_TASSELS);
   if ((it.rarity >= Rarity::Epic || it.mat == Mat::Alloy) && it.mat != Mat::Leather) o |= cult::ARM_ETCHING;
   if (it.mat == Mat::Alloy) o |= cult::ARM_RIVETS;
-  if (it.rarity == Rarity::Legendary && it.mat != Mat::Leather) o |= cult::ARM_FILIGREE;
+  // (M8b) a Mythic piece is worked as finely as a Legendary: etched and filigreed
+  if (it.rarity >= Rarity::Legendary && it.mat != Mat::Leather) o |= cult::ARM_FILIGREE;
   return o;
 }
 // a culture shield comes painted in its maker's colours (an alloy one is faced in its metal); 0 = the hero's own arms
@@ -296,6 +313,11 @@ void wearGear(art::HumanLook& L, const WornGear& g, const CultureLookup& culture
       L.sheen = m.sheen;
     }
   }
+  // (M8b fixer r3, review: "the equipped Mythic sword is not visible") a Mythic blade in hand is white-hot steel (the flame's
+  // core): it reads against the ember aura and the tempered armour round it, where an ember-red blade would melt into both
+  if (g.weapon && g.weapon->rarity == Rarity::Mythic && L.weapon != 3 && L.weapon != 4) L.weaponColor = rgba(236, 242, 255);
+  // (M8b fixer r3) a Mythic body of cloth or leather (no metal to temper) is dyed a deep ember red
+  if (g.armor && g.armor->rarity == Rarity::Mythic && metal(g.armor).band < 2) L.topColor = mixc(L.topColor ? L.topColor : rgba(170, 150, 120), rgba(150, 30, 26), 0.78f) | 0xFF000000u;
   // legendaries glint, in their alloy's light (else a warm gold)
   const Item* glowing[5] = {g.weapon, g.armor, g.helmet, g.shield, g.cloak};
   for (int i = 0; i < 5; i++)
@@ -306,12 +328,26 @@ void wearGear(art::HumanLook& L, const WornGear& g, const CultureLookup& culture
         L.glowColor = m.sheen ? m.light : rgba(255, 190, 80);
       }
     }
+  // (M8b) Mythic pieces glint too, in a living red-orange flame (kMythicGlow wins over a legendary's colour: the view
+  // reads it to raise the wearer's embers)
+  for (int i = 0; i < 5; i++)
+    if (glowing[i] && glowing[i]->rarity == Rarity::Mythic) {
+      L.glow |= (uint8_t)(1u << i);
+      L.glowColor = kMythicGlow;
+    }
 }
 
 art::IconLook gearIcon(const Item& it, const cult::Culture* maker) {
   art::IconLook l;
   l.icon = it.icon;
   l.tint = it.tint;
+  // (M8b fixer r2, review: "Steel Plate and Obsidian Plate share one white icon") a heartland steel piece above band 3
+  // is named GILDED / OBSIDIAN / EMBERFORGED / STARMETAL (gear.cpp matWord): its icon takes that metal's colour
+  if (!maker && it.mat == Mat::Steel && it.kind != ItemKind::Ring && it.kind != ItemKind::Amulet && it.kind != ItemKind::Cloak) {
+    static const uint32_t heart[4] = {rgba(222, 186, 92), rgba(104, 82, 136), rgba(200, 64, 48), rgba(176, 200, 255)};
+    const int band = gear::bandOf(std::max(1, (int)it.ilvl));
+    if (band >= 4) l.tint = heart[std::min(band, 7) - 4];
+  }
   const bool m6 = maker || it.mat == Mat::Bronze || it.mat == Mat::Alloy || it.rarity >= Rarity::Epic;
   if (!m6 || it.kind == ItemKind::Material) return l;   // the classic icon (crafting stuff keeps its own)
   l.rarity = (uint8_t)it.rarity;

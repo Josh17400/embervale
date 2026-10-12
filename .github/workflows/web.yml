@@ -29,7 +29,7 @@ jobs:
           ./build-native/rpg_test --seeds 1..20
           for s in 7 99 12345; do ./build-native/rpg_test $s --secs 60; done
 
-      # The current save format (SAVE_VER 15: M7b adds the talk block after the home block) only: owner rule 2026-10-04, old saves are not carried over. The fixture
+      # The current save format (SAVE_VER 19: M8b items carry 4 affix slots, the Mythic rarity and its power) only: owner rule 2026-10-04, old saves are not carried over. The fixture
       # holds format-level facts only and the round trips run on this machine, so the check is platform-stable: blocking.
       - name: Save format test
         run: ./build-native/save_test
@@ -86,6 +86,15 @@ jobs:
           ./build-native/rpg_test --loot-audit
           ./build-native/rpg_test --foes --seeds 1..3
           ./build-native/rpg_test --arms --seeds 1..3
+
+      # M8b Treasure (VISION_PLAN 15.27, 15.28): the loot overhaul. The rarity ladder gated by level, every non-Common
+      # piece with a working visible affix from every source, the power curves (the iron / bronze example), determinism;
+      # every affix and power that may roll works in play. Blocking.
+      - name: Loot test
+        run: |
+          ./build-native/rpg_test --loot
+          ./build-native/rpg_test --loot-sources --seeds 1..3
+          ./build-native/rpg_test --powers
 
       # M7 Home (VISION_PLAN 8, 15.22): crops and seasons, deterministic offline catch-up, a 1000-placement fuzz, the
       # 4 KB plot budget and the home block, building in a culture's style, riding and the dismount triggers. Blocking.

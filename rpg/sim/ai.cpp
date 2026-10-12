@@ -8,6 +8,7 @@
 #include "engine/audio.h"
 #include "rpg/sim/foes.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/power_ops.h"
 #include "rpg/sim/war.h"
 #include "rpg/world/economy.h"
 
@@ -640,6 +641,8 @@ void Game::updateAI(Actor& a, float dt) {
     float sense = a.aggroR * (isNight() && !inside ? 0.8f : 1.0f);
     if (p.player && background == Background::Hunter && a.faction == Faction::Wild) sense *= 0.7f;   // the hunter's quiet step
     if (p.st != AState::Dead && !a.fleeing && dist < sense) a.aggro = true;
+    // (M8b) Shadowstep: the hero rolled out of sight; nothing that hunts the hero sees them while it lasts
+    if (p.player && PowerOps::unseen(*this) && a.mon != Monster::Dragon) { a.aggro = false; a.target = -1; }
     // packs are tied to their den: past the leash (or once the prey is long gone) they give up and go home.
     // Inside a settlement the leash doesn't hold: whatever got in fights until the guards end it.
     float leash = a.den >= 0 ? 18.0f * TILE : 28.0f * TILE;

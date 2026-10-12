@@ -133,7 +133,12 @@ struct Bench {
 bool canMake(const Recipe& r, const std::vector<Item>& inv, const Knowledge& k, std::string* why = nullptr);
 // consume the inputs and make the output (gear at item level `ilvl`; its rarity from the skill and the rng). False
 // (nothing consumed) when canMake fails. `c`: the recipe's culture (for names and alloys), may be null.
-bool make(const Recipe& r, std::vector<Item>& inv, Knowledge& k, Rng& rng, int ilvl, const cult::Culture* c, Item& out);
+// (M8b, 15.27.4: LootSrc::Forge) playerLevel: the smith's own level; the skill's roll never passes the rarity gate
+// (gear::rarityFloorLevel: Rare from about 5, Epic from about 12; the forge makes no Legendary). The default (the level
+// cap) leaves only the skill's roll (tests of the recipes).
+bool make(const Recipe& r, std::vector<Item>& inv, Knowledge& k, Rng& rng, int ilvl, const cult::Culture* c, Item& out, int playerLevel = 50);
+// (M8b) the forge's rarity: the skill above the recipe's (`over`, points) and one draw q in [0, 1), capped by the gate
+Rarity forgeRarity(int over, float q, int playerLevel);
 
 // =====================================================================================================================
 // NUMBERS lane additions (M6 phase B). Added only; nothing above changed meaning.

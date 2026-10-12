@@ -1,0 +1,30 @@
+# M8b VIEW lane: a shop with the compare (VISION_PLAN 15.27): the buy and sell lists in their rarity colours and cells;
+# a stocked Epic sword selected: its card and the compare against the worn Uncommon sword (at 480 the card floats over
+# the list not being browsed; at phone size it is the detail column); the sell side: a worn piece (WORN).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8b_view_shop.txt     (m8bv_shop_*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 plevel 12
++0.1 gear6 sword ilvl 10 rarity 1 equip
++0.1 gear6 body ilvl 10 rarity 2 equip
++0.1 gear6 sword ilvl 12 rarity 3
++0.1 enter smithy
++0.4 walkto smith 20
++0.1 shopat smith
++0.4 expect mode shop
++0.1 lootstock sword rarity 3 ilvl 12
++0.1 lootstock body rarity 2 ilvl 12
++0.1 lootstock helmet rarity 4 ilvl 14
++0.1 lootsel shop buy 2
++0.4 expect lootcard rarity epic compare verdict up
++0.1 shot m8bv_shop_buy.png
++0.1 lootsel shop buy 0
++0.4 expect lootcard rarity legendary compare power
++0.1 shot m8bv_shop_buy_legendary.png
++0.1 lootsel shop sell 1
++0.4 expect lootcard worn
++0.1 shot m8bv_shop_sell.png
++0.1 key Escape
++0.3 quit

@@ -1023,18 +1023,20 @@ void View::spawnParticles(const Event& e, Game& g) {
       break;
     }
     case Ev::Notice: {
-      if (!(g.noticeT > 0 && g.notice == e.s)) { Toast t; t.s = e.s; t.c = col((uint32_t)e.a); toasts_.push_back(t); }
+      if (!(g.noticeT > 0 && g.notice == e.s)) { Toast t; t.s = e.s; t.c = col((uint32_t)e.a); lootNotice(g, e, t); toasts_.push_back(t); }
       break;
     }
     case Ev::Shake: shake_ = std::max(shake_, e.f); break;
     case Ev::Border: heraldEvent(g, e); break;   // (M4) the herald at a kingdom's border (realm_hud.cpp)
     case Ev::News: newsEvent(g, e); break;       // (M4) a world event heard of
     case Ev::Banter: case Ev::PartyAlert: partyEvent(g, e); break;   // (M8) a companion speaks / an alert (party_hud.cpp)
+    case Ev::Power: powerEvent(g, e); break;                         // (M8b) a worn power fired (render_powers.cpp)
     case Ev::MapChange: fade_ = 1.0f; snap(g); break;
     case Ev::WindowShift:   // M1: the endless window moved; everything overworld moved by e.p pixels
       cam_ += e.p;
       for (Particle& q : parts_) if (q.world) q.p += e.p;
       for (FloatText& ft : texts_) ft.p += e.p;
+      for (PowerFx& f : powerFx_) { f.p += e.p; f.q += e.p; }   // (M8b) a burst, star mark or arc in flight moves too
       break;
     default: break;
   }
@@ -1057,6 +1059,8 @@ void View::update(Game& g, float dt) {
   for (const Event& e : g.events) spawnParticles(e, g);
   g.events.clear();
   partyUpdate(g, dt);   // (M8) the party's portraits, radial, alerts, banter and the hound's howl (party_hud.cpp)
+  powerUpdate(g, dt);   // (M8b) the powers' effects age (render_powers.cpp)
+  lootUpdate(g, dt);    // (M8b) the loot chime for a fine piece in view, a Mythic wearer's embers (loot_ui.cpp)
   // (M1) arriving in a settlement: a banner with its name and its kingdom (merged into DISCOVERED the first time)
   // (M4) its CURRENT owner in its society's word and its state; shown again when either changes while the player is
   // there (a conquest, a siege laid or broken: realm_hud.cpp arrivalText)
@@ -2562,6 +2566,7 @@ void View::drawWorld(Game& g) {
               bob += (float)art::postureInfo(pz).dy;
             }
           }
+          const bool standSheet = !child && tp == &humanTex(a.look, child);   // (M8b fixer r3) the aura fits this sheet only
           const Tex& t = *tp;
           float x = at.x - art::HUMAN_W / 2.0f - cam.x, y = at.y - art::HUMAN_H + 2 + bob - cam.y;
           if (a.st == AState::Dead) y += 3;
@@ -2586,6 +2591,18 @@ void View::drawWorld(Game& g) {
                                       paintFloorCushion);
             P.blitEx(ct, 0, 0, ct.w, ct.h, std::floor(at.x - 9.0f - cam.x + 0.5f), std::floor(at.y - 5.0f - cam.y + 0.5f), (float)ct.w, (float)ct.h,
                      false, Color(1, 1, 1, alpha));
+          }
+          // (M8b fixer r3, review: "a Mythic-geared hero looks plain in the world") a Mythic wearer stands in a flickering
+          // flame that hugs the whole silhouette and licks upward (loot_ui.cpp mythicAuraTex): behind the body here, and
+          // again additively after the lighting (beasts::glows), so it burns by night as well as reading by day
+          if (!drawn && standSheet && a.look.glow && a.look.glowColor == kMythicGlow && a.st != AState::Dead) {
+            if (const Tex* au = mythicAuraTex(a.look)) {
+              const int v = (int)(t_ * 11.0f + (float)(a.id % 7) * 0.37f) % AURA_V;
+              const int sx = ((row * art::HUMAN_FRAMES + fr) * AURA_V + v) * AURA_CW;
+              const float ax = x - AURA_PAD, ay = y - AURA_PAD;
+              P.blitEx(*au, sx, 0, AURA_CW, AURA_CH, ax, ay, (float)AURA_CW, (float)AURA_CH, flip, Color(1, 1, 1, 0.92f * alpha));
+              beasts::glows.push_back({au, sx, AURA_CW, AURA_CH, ax, ay, flip, 0.7f * alpha});
+            }
           }
           if (!drawn) P.blitEx(t, fr * art::HUMAN_W, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, x, y, (float)art::HUMAN_W, (float)art::HUMAN_H, flip, Color(1, 1, 1, alpha));
           if (!drawn) drawnHead_[a.id] = DrawnHead{at.x, y + cam.y, t_};
@@ -2807,11 +2824,7 @@ void View::drawWorld(Game& g) {
       case 4: {
         const Pickup& k = g.pickups[d.idx];
         float bob = std::sin(t_ * 4 + d.idx) * 1.5f;
-        const Tex& t = k.gold > 0 ? iconTex(art::Icon::Gold, 0) : itemTex(g, k.item);
-        P.blitEx(shadow_, 0, 0, 14, 6, k.p.x - 5 - cam.x, k.p.y - 2 - cam.y, 10, 4, false, Color(1, 1, 1, 0.8f));
-        P.blit(t, k.p.x - 8 - cam.x, k.p.y - 16 + bob - cam.y);
-        if (k.gold == 0 && k.item.rarity >= Rarity::Rare && ((int)(t_ * 3 + d.idx) % 3 == 0))
-          P.rectAdd(k.p.x - 1 - cam.x, k.p.y - 18 + bob - cam.y, 2, 2, col(rarityColor(k.item.rarity), 0.8f));
+        drawLootGround(g, k, d.idx, cam, bob);   // (M8b) its rarity's glint, beam or pillar (loot_ui.cpp)
         break;
       }
       case 5: {
@@ -3094,7 +3107,7 @@ void View::drawLighting(Game& g) {
     if (a.mon == Monster::Golem) light(a.p + Vec2(0, -18.0f * beasts::drawScale(a)), 34, beasts::runeLight(a), 0.55f * (0.85f + 0.15f * std::sin(t_ * 5 + a.id)));
     if (const uint32_t ac = beasts::auraOf(a)) light(a.p + Vec2(0, -3), 40, col(ac), 0.5f * std::min(1.0f, dark * 1.5f));
   }
-  for (const Pickup& k : g.pickups) if (k.gold == 0 && k.item.rarity >= Rarity::Rare) light(k.p, 24, col(rarityColor(k.item.rarity)), 0.5f);
+  lootLights(g, light);   // (M8b) the loot's beams and pools, a Mythic wearer's smoulder (loot_ui.cpp)
   P.setTarget(nullptr);
   P.blitEx(lightMap_, 0, 0, lightMap_.w, lightMap_.h, 0, 0, lightMap_.w * 2.0f, lightMap_.h * 2.0f, false, Color(1, 1, 1, 1), 2);
   m4Emissive(g, m, cam, dark);   // (fixer M4 r3) what burns glows over the dark

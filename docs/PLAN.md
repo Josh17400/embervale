@@ -921,3 +921,45 @@ pathing through cities, ramps and doors, riding with the M7 horse, living at the
   Game::dressAsResident seeds the dress like the street body (slot LIFE_SLOT0 + idx, bldg -1), so a recruit keeps
   their face. New script pair `tools/scripts/m8_integ_tour_s3.txt` / `_s12.txt`.
 - CI candidate (needs SDL in the native job): `party_gallery --check`.
+
+## M8b, "Treasure" (VISION_PLAN 15.27, 15.28; owner notes 2026-10-12)
+
+Goal: the loot overhaul in the owner's words: "items need to have effects if they have a rarity ... we dont over
+saturate the player with a bunch of rare equipment right off the bat." A six-step ladder (Common white, Uncommon green,
+Rare blue, Epic purple, Legendary gold, Mythic flaming red-orange and animated) drawn in its colours everywhere; every
+step above Common has real, scaled, working affixes in plain words in the tooltip and the compare panel (Mythic: a
+named power with a gameplay effect); every item source audited; item level from the player's level and the source's
+danger, base power by item level and material, the affix budget by item level (a level-10 Common iron sword about a
+level-2 Uncommon / Rare bronze one); rarity gated by player level (Rare ~5, Epic ~12, Legendary ~20, Mythic ~30) with
+boosted or guaranteed rolls from exploration, bosses, missions and saga / campaign finales; companions by the same
+rules; saved; every balance gate green. M7c (city planner) runs alongside in tailspin-m7c: M8b stays out of rpg/world,
+rpg/build, view/terrain.cpp, view/worldmap.cpp, art/art_building.cpp and never bumps ENDLESS_GEN_VER.
+
+### Phase A (lead), 2026-10-12: done
+- The contracts are recorded in VISION_PLAN 15.28 (items.h: Mythic, the eight M8b affixes and Mythic powers,
+  affixText, rarityName / rarityColorAt, four affix slots; gear.h: LootSrc and the DropSource rules, the gate and odds,
+  item level, lootValid, affixConflicts, adoptClassic, powerScore, Live::fx; powers.h + powers.cpp: what works;
+  Ev::Power, Event::q, Actor scratch, PowerOps / LootOps; the view's power-effects block + render_powers.cpp; Sfx Zap /
+  Rebirth / LootChime), SAVE_VER 19 + `tests/fixtures/save_v19.bin`, `--loot`, `--loot-sources`, `--powers` (CI), the
+  loot script commands and `tools/scripts/m8b_lead_loot.txt`. tools/slot.sh already existed (shared with M7c).
+- Measured: ordinary drops at levels 1-4 are 54.7 / 28.4 / 12.2 / 4.7 % Common / Uncommon / Rare / Epic: the
+  saturation the owner reported (NUMBERS replaces it). 727 real items (524 above Common) audited on seeds 1..3: all
+  valid (the M6 generator already rolls affixes; the classic makers, randomLoot and some reward paths still give
+  rarity without them: NUMBERS / SOURCES).
+- Verified (MSVC, BDIR=build): rpg_test --seeds 1..20 20/20; save_test ALL OK; --loot, --loot-sources 1..3, --powers,
+  --loot-audit, --power-curve, --gear 1..3, --foes 1..3, --arms 1..3, --companion 1..3, --villages 0 failures;
+  --metrics M5 GATE PASS; audio_preview all checks passed; m8b_lead_loot.txt 0 failures.
+
+### Phase B lanes (disjoint files; see the lead report for the briefs)
+- **numbers** (build_numbers): the ladder, the level gate and the source rules, item level, base power by item level and
+  material, affix budgets and conflicts, Mythic naming, the classic makers routed through gear, `--loot` as the gate,
+  --loot-audit / --gear / --power-curve / --metrics updated and green.
+- **sources** (build_sources): every item source names itself (LootSrc) with its boost / floor / cap: bodies, chests
+  and hoards, exploration, bosses and world bosses, shops and merchants, quests, sagas and finales, campaign finales,
+  the forge, the start weapon; `--loot-sources` covering every source in real games.
+- **powers** (build_powers): every M8b affix, the M6 TODO powers and the eight Mythic powers working in combat for the
+  player and for companions (whose kits roll by the same rules), their effects and sounds at the 16-bit bar,
+  `--powers` A/B fights as the gate, the time-to-kill bands green.
+- **view** (build_view): the ladder drawn everywhere (names, frames, icon borders, loot beams, notices, paper dolls,
+  shop, forge; Mythic animated), the tooltip with item level and plain-word affixes, the compare panel with green / red
+  arrows (desktop and phone), the loot gallery and the screenshots.

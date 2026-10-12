@@ -15,10 +15,12 @@
 #include <initializer_list>
 #include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 #include "rpg/culture/culture.h"
 #include "rpg/sim/craft.h"
 #include "rpg/sim/gear.h"
+#include "rpg/sim/gear_look.h"
 #include "rpg/view/view.h"
 #include "rpg/world/source.h"
 
@@ -68,8 +70,12 @@ void relayout(int W, int H) {
   kListRows = std::max(5, (int)((kBtnY - 8 - kListY) / kRowH));
 }
 
-struct PState { int slot = 3, cand = 0, scroll = 0, face = -1, armed = -1; float hold = 0; } S;   // armed: the row a tap picked
+// armed: the row a tap picked; (M8b) peek: a pack piece was picked by hand (a key or a tap), so its card and the compare
+// against the worn piece float over the doll until the slot changes
+struct PState { int slot = 3, cand = 0, scroll = 0, face = -1, armed = -1; float hold = 0; bool peek = false; } S;
 
+std::vector<std::string> wrapD(const std::string& s, int maxChars);   // (below, with the PARTY page)
+std::string fitTextD(const std::string& s, float w);
 Color colOf(uint32_t c) { return Color((c & 255) / 255.0f, ((c >> 8) & 255) / 255.0f, ((c >> 16) & 255) / 255.0f); }
 bool inR(Vec2 p, float x, float y, float w, float h) { return p.x >= x && p.y >= y && p.x < x + w && p.y < y + h; }
 float slotX(int i) { return kColX[kSlots[i].col]; }
@@ -150,17 +156,39 @@ void pickSlot(Game& g, int i) {
   for (int k = 0; k < (int)c.size(); k++) if (c[k] == eq) S.cand = k;
   S.scroll = 0;
   S.armed = -1;
+  S.peek = false;
   clampCand(g);
+}
+// (M8b fixer r2, review: "a worn Legendary's gold frame looks like the selection highlight") the picked slot's cue is
+// never a rarity's colour: white corner brackets three pixels outside the slot (clear of a Mythic's ember rim and
+// flame fringe), breathing, each with a dark drop shadow so they read over any frame
+void selCursor(Pix& P, float t, float x, float y, float w, float h) {
+  const float a = 0.72f + 0.28f * std::sin(t * 5.0f);
+  const Color c(1.0f, 1.0f, 1.0f, a), sh(0.02f, 0.01f, 0.03f, 0.8f);
+  const float x0 = x - 3, y0 = y - 3, x1 = x + w + 2, y1 = y + h + 2, L = 6;
+  for (int pass = 0; pass < 2; pass++) {
+    const float o = pass == 0 ? 1.0f : 0.0f;
+    const Color k = pass == 0 ? sh : c;
+    P.rect(x0 + o, y0 + o, L, 1, k); P.rect(x0 + o, y0 + o, 1, L, k);
+    P.rect(x1 - L + 1 + o, y0 + o, L, 1, k); P.rect(x1 + o, y0 + o, 1, L, k);
+    P.rect(x0 + o, y1 + o, L, 1, k); P.rect(x0 + o, y1 - L + 1 + o, 1, L, k);
+    P.rect(x1 - L + 1 + o, y1 + o, L, 1, k); P.rect(x1 + o, y1 - L + 1 + o, 1, L, k);
+  }
 }
 // (M6 fixer) the doll's sheet: the hero's own sheet with every held piece (the weapon, the shield, the bow or staff on
 // the back) parted from the body by a line of ink. At 4x the painter's pieces are all there, but a spear head in the
 // armour's own alloy beside the helm, or a shield in that metal against the mail, melt into the figure; the ink line
 // is what a hand-drawn doll would give them. One sheet is kept (rebaked when the look changes).
-const Tex& dollTex(Pix& P, const art::HumanLook& L) {
+// (M8b fixer r2/r3, review: "the Mythic aura is a ring of loose orange squares") the doll's sheet is baked without the
+// Mythic glint; the flame is the world's own aura cell (View::mythicAuraTex) scaled with the figure, behind it.
+const Tex& dollTex(Pix& P, const art::HumanLook& Lw) {
   static uint64_t key = 0;
   static Tex tex;
-  const uint64_t k = L.key() ^ 0xD0115EEDull;
+  const uint64_t k = Lw.key() ^ 0xD0115EEDull;
   if (tex.t && key == k) return tex;
+  const bool mythic = Lw.glow && Lw.glowColor == kMythicGlow;
+  art::HumanLook L = Lw;
+  if (mythic) { L.glow = 0; L.glowColor = 0; }
   Canvas full = art::humanSheet(L);
   art::HumanLook bare = L;
   bare.weapon = 0; bare.shield = false; bare.shieldStyle = 0; bare.shieldForm = 0; bare.backItem = 0;
@@ -220,7 +248,12 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   int face = S.face >= 0 && S.hold > 0 ? S.face : order[(int)(t_ / 1.8f) & 3];
   int frame = 1 + ((int)(t_ * 5.0f) & 3);
   const Tex& t = dollTex(*pix_, g.pl().look);
-  const float sc = 4;
+  // (M8b fixer r3, review: "the portrait is blown up to ~10 screen px per sprite pixel and reads as muddy noise") 3x:
+  // nearer the icons' scale beside it, the figure's pixels stay readable, with a drop shadow under the feet
+  const float sc = 3;
+  P.rect(std::floor(kDollCX - 13), kDollFootY, 26, 2, Color(0.02f, 0.01f, 0.03f, 0.55f));
+  P.rect(std::floor(kDollCX - 9), kDollFootY + 2, 18, 1, Color(0.02f, 0.01f, 0.03f, 0.35f));
+  mythicAuraAt(g.pl().look, frame, face == 3 ? 2 : face, face == 3, kDollCX - art::HUMAN_W * sc / 2, kDollFootY - (art::HUMAN_H - 1) * sc, sc);
   P.blitEx(t, frame * art::HUMAN_W, (face == 3 ? 2 : face) * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, kDollCX - art::HUMAN_W * sc / 2,
            kDollFootY - (art::HUMAN_H - 1) * sc, art::HUMAN_W * sc, art::HUMAN_H * sc, face == 3);
   button(kDollCX - 52, kDollFootY + 8, 28, 24, "<", false);
@@ -236,17 +269,23 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   if (g.app.people) P.text(kDollCX, kDollFootY + 75, g.app.people == 2 ? "ELF" : "HALF-BREED", 1, kDimC, 1);
 
   // ---- the slots
+  // (M8b fixer r2, review: "ember licks show through above the item card") the compare card covers the doll's side:
+  // a covered slot's burning frame (its flame fringe rises above the slot, past the card's top edge) is not drawn
+  const bool cardOpen = S.peek && !candidates(g, kSlots[S.slot].kind).empty();
   for (int i = 0; i < kNSlots; i++) {
     float sx = slotX(i), sy = slotY(i);
     bool sel = i == S.slot;
     int eq = equippedIn(g, kSlots[i].kind);
+    if (cardOpen && sx + kBox <= kDX - 10) continue;   // both slot columns sit under the card
     P.rect(sx, sy, kBox, kBox, sel ? Color(0.3f, 0.22f, 0.12f, 0.95f) : Color(0.1f, 0.085f, 0.08f, 0.95f));
-    P.frame(sx, sy, kBox, kBox, sel ? kGoldC : Color(0.42f, 0.34f, 0.22f));
+    // (M8b) the slot's frame is the worn piece's rarity (a Mythic's burns); an empty slot keeps the quiet frame
+    if (eq >= 0) rarityFrame(sx, sy, kBox, kBox, g.inv[eq].rarity, false);
+    else P.frame(sx, sy, kBox, kBox, Color(0.42f, 0.34f, 0.22f));
     P.rect(sx + 1, sy + 1, kBox - 2, 1, Color(1, 1, 1, 0.06f));
+    if (sel) selCursor(P, t_, sx, sy, kBox, kBox);
     if (eq >= 0) {
       const Item& it = g.inv[eq];
       P.blitEx(itemTex(g, it), 0, 0, 16, 16, sx + 2, sy + 2, 24, 24);
-      P.rect(sx + 2, sy + kBox - 3, kBox - 4, 1, colOf(rarityColor(it.rarity)));
       if (kSlots[i].kind == ItemKind::Shield && !g.app.heraldry.empty()) {   // M3: the shield bears the hero's arms
         const Tex& arms = cachedTex(creatorArmsKey(g.app.heraldry, 16), creatorPaintArms);
         P.blitEx(arms, 0, 0, arms.w, arms.h, sx + kBox - 13, sy + kBox - 15, 11, 11 * (float)arms.h / std::max(1, arms.w));
@@ -262,8 +301,21 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   P.text(kDX, kTopY + 2, sl.name, 1, kGoldC);
   if (eq >= 0) {
     const Item& it = g.inv[eq];
+    P.rect(kDX - 1, kTopY + 13, 34, 34, Color(0.04f, 0.03f, 0.05f, 0.6f));
+    rarityFrame(kDX - 1, kTopY + 13, 34, 34, it.rarity);
     P.blitEx(itemTex(g, it), 0, 0, 16, 16, kDX, kTopY + 14, 32, 32);
-    wrapText(kDX + 38, kTopY + 15, kDW - 40, it.name, colOf(rarityColor(it.rarity)));
+    {   // (M8b) the name in its ladder colour (a Mythic's in the flame), wrapped to two lines, the rarity after it
+      const auto nl = wrapD(it.name, std::max(8, (int)((kDW - 40) / 6)));
+      for (size_t q = 0; q < nl.size() && q < 2; q++) rarityText(kDX + 38, kTopY + 15 + (float)q * 9, nl[q], it.rarity);
+      if (nl.size() < 2) {   // RARITY  ITEM LEVEL N (15.27.3: the item level shows wherever the piece is described)
+        float rx = kDX + 38;
+        {   // (M8b fixer r2) COMMON too, as the item card says it
+          rarityText(rx, kTopY + 24, rarityName(it.rarity), it.rarity, 0.85f);
+          rx += (float)P.textW(rarityName(it.rarity), 1) + 6;
+        }
+        if (it.ilvl) P.text(rx, kTopY + 24, "ITEM LEVEL " + std::to_string((int)it.ilvl), 1, kDimC);
+      }
+    }
     const char* unit = "";
     int v = headline(it, unit, g.plLevel);
     std::string line = it.kind == ItemKind::Staff ? "SPELL POWER +" + std::to_string(v) + "%" : std::string(unitName(unit)) + " " + std::to_string(v);
@@ -272,14 +324,27 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
       line += "  (" + std::to_string(it.power) + " AT ILVL " + std::to_string(it.ilvl) + ")";
     std::string en = enchLine(it);
     if (it.kind == ItemKind::Ring || it.kind == ItemKind::Amulet) line = en, en = "";
-    P.text(kDX + 38, kTopY + 37, line, 1, kTextC);
+    if (line.empty() && it.affixCount()) line = affixText(it.affix[0].kind, gear::affixUse(it, it.affix[0].kind, g.plLevel));
+    P.text(kDX + 38, kTopY + 37, line, 1, line.rfind("ARMOR", 0) == 0 || line.rfind("DAMAGE", 0) == 0 || line.rfind("SPELL", 0) == 0 ? kTextC : Color(0.62f, 0.80f, 1.0f));
     if (!en.empty()) P.text(kDX + 38, kTopY + 47, en, 1, Color(0.6f, 0.75f, 1.0f));
-    // M6: who made it and of what (the maker culture's word, the material or its alloy), as the HUD tooltip names them
-    std::string made = makerLine(g, it);
-    if (!made.empty()) {
-      const int maxC = std::max(8, (int)((kDW - 40) / 6));
-      if ((int)made.size() > maxC) made = made.substr(0, (size_t)maxC);
-      P.text(kDX + 38, kTopY + (en.empty() ? 47 : 57), made, 1, Color(0.78f, 0.7f, 0.56f));
+    // (M8b) its affixes and power in plain words, as many as the two lines hold; the rest on its card (pick the row)
+    const int maxC = std::max(8, (int)((kDW - 40) / 6));
+    std::vector<std::string> extra;
+    for (const ItemAffix& a : it.affix)
+      if (a.kind != Affix::None && affixText(a.kind, gear::affixUse(it, a.kind, g.plLevel)) != line)
+        extra.push_back(affixText(a.kind, gear::affixUse(it, a.kind, g.plLevel)));
+    if (it.unique != Unique::None) extra.push_back(std::string(uniqueInfo(it.unique).name));
+    if (!extra.empty() && en.empty()) {
+      P.text(kDX + 38, kTopY + 47, extra[0].substr(0, (size_t)maxC), 1, extra.size() == 1 && it.unique != Unique::None ? Color(1.0f, 0.70f, 0.28f) : Color(0.62f, 0.80f, 1.0f));
+      if (extra.size() == 2) P.text(kDX + 38, kTopY + 57, extra[1].substr(0, (size_t)maxC), 1, it.unique != Unique::None ? Color(1.0f, 0.70f, 0.28f) : Color(0.62f, 0.80f, 1.0f));
+      else if (extra.size() > 2) P.text(kDX + 38, kTopY + 57, fitTextD("+" + std::to_string(extra.size() - 1) + " MORE: PICK ITS ROW", (float)maxC * 6), 1, kDimC);
+    } else {
+      // M6: who made it and of what (the maker culture's word, the material or its alloy), as the HUD tooltip names them
+      std::string made = makerLine(g, it);
+      if (!made.empty()) {
+        if ((int)made.size() > maxC) made = made.substr(0, (size_t)maxC);
+        P.text(kDX + 38, kTopY + (en.empty() ? 47 : 57), made, 1, Color(0.78f, 0.7f, 0.56f));
+      }
     }
   } else {
     P.text(kDX, kTopY + 20, "NOTHING WORN", 1, kDimC);
@@ -296,19 +361,21 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
       bool hot = k == S.cand, worn = idx == eq;
       P.rect(kDX, ry, kDW - 28, kRowH - 2, hot ? Color(0.3f, 0.22f, 0.12f, 0.85f) : Color(0.1f, 0.085f, 0.08f, 0.6f));
       if (hot) P.frame(kDX, ry, kDW - 28, kRowH - 2, kGoldC);
-      P.blit(itemTex(g, it), kDX + 3, ry + 3);
+      rarityIcon(g, it, kDX + 3, ry + 3, 16);   // (M8b) in its rarity's cell
       std::string nm = it.name;
-      const int maxC = std::max(8, (int)((kDW - 28 - 22 - 34) / 6));
+      const int maxC = std::max(8, (int)((kDW - 28 - 22 - 40) / 6));
       if ((int)nm.size() > maxC) nm = nm.substr(0, (size_t)maxC);
-      P.text(kDX + 22, ry + 8, nm, 1, colOf(rarityColor(it.rarity)));
+      rarityText(kDX + 22, ry + 8, nm, it.rarity);
       const char* unit = "";
       int v = headline(it, unit, g.plLevel);
       if (worn) P.text(kDX + kDW - 32, ry + 8, "WORN", 1, kGoldC, 2);
       else if (!attuneBlock(g, idx, eq).empty()) P.text(kDX + kDW - 32, ry + 8, "LV10", 1, kDown, 2);
       else {
+        // (M8b) the headline's change as a number and the overall verdict (gear::powerScore) as a pixel arrow
         int d = eq >= 0 ? v - headline(g.inv[eq], unit, g.plLevel) : v;
         std::string ds = (d > 0 ? "+" : "") + std::to_string(d);
-        P.text(kDX + kDW - 32, ry + 8, ds, 1, d > 0 ? kUp : (d < 0 ? kDown : kDimC), 2);
+        P.text(kDX + kDW - 40, ry + 8, ds, 1, d > 0 ? kUp : (d < 0 ? kDown : kDimC), 2);
+        cmpArrow(kDX + kDW - 38, ry + 8, cmpVerdict(g, it, eq >= 0 ? &g.inv[(size_t)eq] : nullptr));
       }
     }
     if ((int)c.size() > kListRows) {
@@ -325,6 +392,29 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   if (!blocked.empty()) P.text(kDX, kBtnY - 11, blocked == "ATTUNED FULL" ? "NO ATTUNEMENT SLOT FREE" : "ATTUNEMENT OPENS AT LEVEL 10", 1, kDown);
   // (M6 fixer r4) the worn piece selected: the main button already says TAKE OFF, so no second button doing the same
   if (eq >= 0 && !wearingHot) button(kDX + std::floor((kDW - 12) / 2) + 8, kBtnY, std::floor((kDW - 12) / 2), 24, touchUI ? "TAKE OFF" : "TAKE OFF (X)", false);
+  // (M8b) a pack piece picked by hand: its card and the compare against the worn piece (the worn piece: its card, WORN),
+  // over the doll's side of the screen (the list and the buttons stay in view; a tap on a slot under it picks that
+  // slot, which closes it; a tap on the card puts it away)
+  if (S.peek && canAct) {
+    const float px = 12, py = kTopY - 2, pw = kDX - 10 - px, ph = (float)Pix::H - 10 - py;
+    P.rect(px, py, pw, ph, Color(0.05f, 0.04f, 0.06f, 1.0f));
+    P.frame(px, py, pw, ph, Color(0.55f, 0.45f, 0.28f));
+    P.rect(px + 1, py + 1, pw - 2, 1, Color(1, 1, 1, 0.05f));
+    // a notch pointing at the picked row
+    const float ny = std::clamp(kListY + (float)(S.cand - S.scroll) * kRowH + 6, py + 6, py + ph - 14);
+    for (int k = 0; k < 4; k++) P.rect(px + pw + (float)k, ny + (float)k, 1, 9 - 2.0f * (float)k, Color(0.55f, 0.45f, 0.28f));
+    itemCard(g, g.inv[(size_t)c[S.cand]], px + 7, py + 7, pw - 14, py + ph - 5, true, eq >= 0 && !wearingHot ? &g.inv[(size_t)eq] : nullptr, wearingHot);
+  }
+}
+
+// (M8b scripts) the slot and pack row picked by hand, as the arrow keys do: the compare card shows
+void View::paperdollPeek(Game& g, int slot, int cand) {
+  relayout(Pix::W, Pix::H);
+  pickSlot(g, slot);
+  const int n = (int)candidates(g, kSlots[S.slot].kind).size();
+  S.cand = std::clamp(cand, 0, std::max(0, n - 1));
+  S.peek = true;
+  clampCand(g);
 }
 
 void View::paperdollKey(Game& g, int key) {
@@ -333,8 +423,8 @@ void View::paperdollKey(Game& g, int key) {
   std::vector<int> c = candidates(g, kSlots[S.slot].kind);
   if (key == SDLK_UP || key == SDLK_W) { pickSlot(g, S.slot - 1); move(); return; }
   if (key == SDLK_DOWN || key == SDLK_S) { pickSlot(g, S.slot + 1); move(); return; }
-  if (key == SDLK_LEFT || key == SDLK_A) { if (!c.empty()) { S.cand = (S.cand + (int)c.size() - 1) % (int)c.size(); clampCand(g); move(); } return; }
-  if (key == SDLK_RIGHT || key == SDLK_D) { if (!c.empty()) { S.cand = (S.cand + 1) % (int)c.size(); clampCand(g); move(); } return; }
+  if (key == SDLK_LEFT || key == SDLK_A) { if (!c.empty()) { S.cand = (S.cand + (int)c.size() - 1) % (int)c.size(); S.peek = true; clampCand(g); move(); } return; }
+  if (key == SDLK_RIGHT || key == SDLK_D) { if (!c.empty()) { S.cand = (S.cand + 1) % (int)c.size(); S.peek = true; clampCand(g); move(); } return; }
   if (key == SDLK_RETURN || key == SDLK_SPACE || key == SDLK_KP_ENTER) {
     if (c.empty()) return;
     if (!attuneBlock(g, c[S.cand], equippedIn(g, kSlots[S.slot].kind)).empty()) { audio_->play(Sfx::MenuBack); return; }
@@ -356,6 +446,11 @@ void View::paperdollTap(Game& g, Vec2 p) {
   clampCand(g);
   for (int i = 0; i < kNSlots; i++)
     if (inR(p, slotX(i) - 2, slotY(i) - 2, kBox + 4, kBox + 4)) { pickSlot(g, i); audio_->play(Sfx::MenuMove); return; }
+  // (M8b) a tap on the compare card (not on a slot under it) puts it away
+  if (S.peek && inR(p, 12, kTopY - 2, kDX - 22, (float)Pix::H - 10 - (kTopY - 2))) {
+    const std::vector<int> cc = candidates(g, kSlots[S.slot].kind);
+    if (!cc.empty()) { S.peek = false; audio_->play(Sfx::MenuMove); return; }
+  }
   if (inR(p, kDollCX - 52, kDollFootY + 8, 28, 24)) { paperdollKey(g, SDLK_LEFTBRACKET); return; }
   if (inR(p, kDollCX + 24, kDollFootY + 8, 28, 24)) { paperdollKey(g, SDLK_RIGHTBRACKET); return; }
   std::vector<int> c = candidates(g, kSlots[S.slot].kind);
@@ -374,6 +469,7 @@ void View::paperdollTap(Game& g, Vec2 p) {
       // tap-slot, tap-item, tap-EQUIP flow no longer takes the piece straight off again
       const bool again = S.armed == S.scroll + r;
       S.cand = S.armed = S.scroll + r;
+      S.peek = true;
       if (again && c[S.cand] != eq) { paperdollKey(g, SDLK_RETURN); S.armed = -1; }
       else audio_->play(Sfx::MenuMove);
       return;
@@ -658,6 +754,7 @@ void View::drawPartyPage(Game& g) {
     const int frame = 0;   // idle: standing, both feet on the stage
     const Tex& t = dollTex(*pix_, look);
     const float sc = L.figScale;
+    mythicAuraAt(look, frame, face == 3 ? 2 : face, face == 3, L.figCX - art::HUMAN_W * sc / 2, L.figFootY - (art::HUMAN_H - 1) * sc, sc);
     P.blitEx(t, frame * art::HUMAN_W, (face == 3 ? 2 : face) * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, L.figCX - art::HUMAN_W * sc / 2,
              L.figFootY - (art::HUMAN_H - 1) * sc, art::HUMAN_W * sc, art::HUMAN_H * sc, face == 3);
   }
@@ -681,16 +778,18 @@ void View::drawPartyPage(Game& g) {
     const float sx = pslotX(L, i), sy = pslotY(L, i);
     const bool sel = partyFocus_ == 1 && i == partySlot_;
     P.rect(sx, sy, L.box, L.box, sel ? Color(0.3f, 0.22f, 0.12f, 0.95f) : Color(0.1f, 0.085f, 0.08f, 0.95f));
-    P.frame(sx, sy, L.box, L.box, sel ? kGoldC : Color(0.42f, 0.34f, 0.22f));
-    P.rect(sx + 1, sy + 1, L.box - 2, 1, Color(1, 1, 1, 0.06f));
     const Item* it = wornBy(m, kPSlots[i].slot);
+    // (M8b) the companion's slots framed in their worn pieces' rarity, as the hero's are
+    if (it && kPSlots[i].slot != kSupplies) rarityFrame(sx, sy, L.box, L.box, it->rarity, false);
+    else P.frame(sx, sy, L.box, L.box, Color(0.42f, 0.34f, 0.22f));
+    P.rect(sx + 1, sy + 1, L.box - 2, 1, Color(1, 1, 1, 0.06f));
+    if (sel) selCursor(P, t_, sx, sy, L.box, L.box);
     if (kPSlots[i].slot == kSupplies) {
       const int sup = suppliesOf(m);
       P.blitEx(iconTex(art::Icon::PotionRed, 0), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16, false, sup ? Color(1, 1, 1, 1) : Color(0.3f, 0.28f, 0.26f, 0.45f));
       if (sup) P.textS(sx + L.box - 2, sy + L.box - 9, std::to_string(sup), 1, kTextC, 2);
     } else if (it) {
       P.blitEx(itemTex(g, *it), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16);
-      P.rect(sx + 2, sy + L.box - 3, L.box - 4, 1, colOf(rarityColor(it->rarity)));
     } else {
       P.blitEx(iconTex(kPSlots[i].ghost, 0), 0, 0, 16, 16, sx + 4, sy + 4, 16, 16, false, Color(0.3f, 0.28f, 0.26f, 0.45f));
     }
@@ -755,12 +854,24 @@ void View::drawPartyPage(Game& g) {
       P.text(dx, y, fitTextD("THEY DRINK A POTION BELOW A QUARTER HEALTH", dw), 1, kDimC);
       y += 4;
     } else if (it) {
-      P.blitEx(itemTex(g, *it), 0, 0, 16, 16, dx, y + 9, 16, 16);
-      P.text(dx + 20, y + 10, fitTextD(it->name, dw - 20 - 92), 1, colOf(rarityColor(it->rarity)));
+      rarityIcon(g, *it, dx, y + 9, 16);
+      rarityText(dx + 20, y + 10, fitTextD(it->name, dw - 20 - 92), it->rarity);
       const std::string made = makerLine(g, *it);
       if (!made.empty()) P.text(dx + 20, y + 19, fitTextD(made, dw - 20 - 92), 1, Color(0.78f, 0.7f, 0.56f));
       button(dx + dw - 86, y + 8, 86, touchUI ? 22.0f : 18.0f, touchUI ? "TAKE BACK" : "TAKE BACK (X)", false);
       y += 12;
+      // (M8b fix, 15.27.2 "show in plain words") what the piece does for them: its affixes and power, a hero-only one
+      // (it works only on the hero: gear::affixWorksForCompanion) marked so
+      std::vector<std::pair<std::string, bool>> lines;
+      for (const ItemAffix& a : it->affix)
+        if (a.kind != Affix::None) lines.push_back({affixText(a.kind, gear::affixUse(*it, a.kind, g.plLevel)), gear::affixWorksForCompanion(a.kind)});
+      if (it->unique != Unique::None) lines.push_back({uniqueInfo(it->unique).name, gear::uniqueWorksForCompanion(it->unique)});
+      for (size_t q = 0; q < lines.size() && q < 3; q++) {
+        std::string s = lines[q].first + (lines[q].second ? "" : " (HERO ONLY)");
+        if (q == 2 && lines.size() > 3) s = "+" + std::to_string(lines.size() - 2) + " MORE";
+        P.text(dx + 20, y + 19, fitTextD(s, dw - 20), 1, lines[q].second || (q == 2 && lines.size() > 3) ? Color(0.62f, 0.80f, 1.0f) : kDimC);
+        y += 9;
+      }
     } else {
       P.text(dx + 60, y, "NOTHING WORN", 1, kDimC);
     }
@@ -779,10 +890,13 @@ void View::drawPartyPage(Game& g) {
       P.rect(dx, ry, dw, L.rowH - 2, hot ? Color(0.3f, 0.22f, 0.12f, 0.85f) : Color(0.1f, 0.085f, 0.08f, 0.6f));
       if (hot) P.frame(dx, ry, dw, L.rowH - 2, kGoldC);
       const float isz = touchUI ? 16.0f : 12.0f;
-      P.blitEx(itemTex(g, pi), 0, 0, 16, 16, dx + 3, ry + std::floor((L.rowH - 2 - isz) / 2), isz, isz);
+      rarityIcon(g, pi, dx + 3, ry + std::floor((L.rowH - 2 - isz) / 2), isz);
       const std::string nm = pi.name + (pi.count > 1 ? " (" + std::to_string(pi.count) + ")" : std::string());
-      P.text(dx + 22, ry + std::floor((L.rowH - 2 - 7) / 2), fitTextD(nm, dw - 22 - 44), 1, colOf(rarityColor(pi.rarity)));
+      rarityText(dx + 22, ry + std::floor((L.rowH - 2 - 7) / 2), fitTextD(nm, dw - 22 - 52), pi.rarity);
       P.text(dx + dw - 4, ry + std::floor((L.rowH - 2 - 7) / 2), ps.slot == kSupplies ? "GIVE" : "EQUIP", 1, hot ? kGoldC : kDimC, 2);
+      // (M8b) better or worse than what they wear there (gear::powerScore at their level: the hero's, as Game::partyEquip)
+      if (ps.slot != kSupplies && itemEquippable(pi.kind))
+        cmpArrow(dx + dw - 4 - (float)P.textW("EQUIP", 1) - 10, ry + std::floor((L.rowH - 2 - 7) / 2), cmpVerdict(g, pi, it));
     }
     if ((int)c.size() > rows) P.text(dx + dw, y - 14, std::to_string(partyPack_ + 1) + "/" + std::to_string(c.size()), 1, kDimC, 2);
   }

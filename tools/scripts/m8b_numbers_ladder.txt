@@ -1,0 +1,31 @@
+# M8b NUMBERS: the level-gated ladder on the ground at a glance. 24 rolled gear drops (an ordinary body at D = the
+# hero's level, gear only) at levels 3, 12 and 30, each in a fresh game, each audited (expect lootvalid: every piece
+# above Common has a working affix in plain words). Level 3: white with a little green; level 12: green, a few blue;
+# level 30: blue and purple appear, gold very rarely.
+#   embervale.exe --script tools/scripts/m8b_numbers_ladder.txt     (m8b_numbers_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 plevel 3
++0.1 lootroll 24 level 3
++0.1 expect lootpickups 24
++0.1 expect lootvalid
++0.5 shot m8b_numbers_l3.png
++0.2 newgame
++0.1 god 1
++0.05 hour 11
++0.1 plevel 12
++0.1 lootroll 24 level 12
++0.1 expect lootpickups 24
++0.1 expect lootvalid
++0.5 shot m8b_numbers_l12.png
++0.2 newgame
++0.1 god 1
++0.05 hour 11
++0.1 plevel 30
++0.1 lootroll 24 level 30
++0.1 expect lootpickups 24
++0.1 expect lootvalid
++0.5 shot m8b_numbers_l30.png
++0.3 quit

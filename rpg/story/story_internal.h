@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include "rpg/sim/game.h"
+#include "rpg/sim/gear.h"
 #include "rpg/story/dsl.h"
 #include "rpg/story/story.h"
 
@@ -45,9 +46,21 @@ bool residentOfActor(const Game& g, const Actor& a, ew::Gid& site, int& idx);
 // (M6b) the census index of a resident binding (RESIDENT_CENSUS; -1: an invented one, or the census is not built)
 int residentIndexOf(const Game& g, const Binding& b);
 // (M6b) what `do reward` pays at danger D (the hook settlement's level): gold and XP, and for rich / great a piece of
-// gear rolled at item level D (rich: uncommon, great: rare; never above). tier 0 small .. 3 great. Pure in its inputs.
+// gear. tier 0 small .. 3 great. Pure in its inputs.
+// (M8b Treasure, 15.27.4) the piece is rolled by the gear rules (gear::rollRarity + makeGearC at gear::itemLevelFor)
+// from rewardSource: by the story's danger and the finder's level gate. src: LootSrc::Saga (a stage on the way:
+// Uncommon to Rare, great boosted a step), SagaFinale (a tale's success ending: Uncommon or better, boosted one step,
+// great two), CampaignFinale (a campaign's success ending: the main way to an early Legendary or Mythic: Legendary
+// guaranteed, ungated; great boosted a step). A hard story (D >= the player's level + 3) is boosted one step more.
 struct RewardRoll { int gold = 0, xp = 0; bool hasItem = false; Item item; };
-RewardRoll rewardRoll(int D, int tier, uint64_t culture, const cult::Culture* maker, uint64_t seed);
+gear::DropSource rewardSource(int D, int tier, uint64_t culture, int playerLevel, gear::LootSrc src);
+RewardRoll rewardRoll(int D, int tier, uint64_t culture, const cult::Culture* maker, uint64_t seed, int playerLevel = 1,
+                      gear::LootSrc src = gear::LootSrc::Saga);
+// (M8b) the reward source of a stage of a script: a success ending is a finale (a campaign's: tier 3), else Saga
+gear::LootSrc rewardSrcOf(const dsl::Script& s, const dsl::StageDef& G);
+// (M8b) `do loot` (the M4 tales' random find; no library script uses it now): a piece of gear by the gear rules at
+// danger D, as a Saga reward (a finale's when `finale`)
+Item storyLoot(int D, int playerLevel, uint64_t seed, bool finale);
 // the danger (World site level) a story's rewards are paid at: its hook settlement's (1 when unknown)
 int storyDanger(Game& g, const Instance& in);
 const Binding* bindingOf(const Instance& in, const std::string& role);

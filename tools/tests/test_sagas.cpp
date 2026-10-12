@@ -473,11 +473,16 @@ void checkPay(Game& g, const story::Instance& in, const dsl::Script& sc, int gol
   if (in.stage < 0 || in.stage >= (int)sc.stages.size()) return;
   const dsl::StageDef& G = sc.stages[(size_t)in.stage];
   int allowGold = 0, items = 0;
+  // (M8b, 15.27.4) the gear a reward may give: a stage on the way Uncommon to Rare (the M6b rule), a success ending
+  // (a finale) more: Uncommon or better for a tale, Epic / Legendary or better for a campaign (story::rewardSource)
+  const gear::LootSrc src = story::rewardSrcOf(sc, G);
+  int tierMax = 0;
   for (const dsl::EffDef& e : G.effs) {
     if (e.type == dsl::EffType::Reward) {
       const story::RewardRoll R = story::rewardRoll(D, e.n, 0, nullptr, 1);
       allowGold += R.gold;
       if (e.n >= 2) items++;
+      tierMax = std::max(tierMax, e.n);
     }
     if (e.type == dsl::EffType::Gold && e.n > 0) allowGold += e.n;
     if (e.type == dsl::EffType::Give) items++;
@@ -489,8 +494,12 @@ void checkPay(Game& g, const story::Instance& in, const dsl::Script& sc, int gol
     const Item& it = g.inv[i];
     if (it.kind == ItemKind::Quest) continue;
     newItems++;
-    if ((int)it.rarity > (int)Rarity::Rare) { out("FAIL: saga %s stage %s gives a %d-rarity piece (rare at most)\n", name.c_str(), G.name.c_str(), (int)it.rarity); w.bad++; }
-    if (it.ilvl && gear::bandOf(it.ilvl) != gear::bandOf(D)) { out("FAIL: saga %s stage %s gives item level %d at danger %d (out of band)\n", name.c_str(), G.name.c_str(), it.ilvl, D); w.bad++; }
+    const gear::DropSource ds = story::rewardSource(D, tierMax, 0, g.plLevel, src);
+    if ((int)it.rarity > (int)ds.atMost) { out("FAIL: saga %s stage %s gives a %s piece (%s at most)\n", name.c_str(), G.name.c_str(), rarityName(it.rarity), rarityName(ds.atMost)); w.bad++; }
+    if ((int)it.rarity < (int)ds.atLeast) { out("FAIL: saga %s stage %s (%s) gives a %s piece (%s at least)\n", name.c_str(), G.name.c_str(), gear::lootSrcName(src), rarityName(it.rarity), rarityName(ds.atLeast)); w.bad++; }
+    std::string why;
+    if (!gear::lootValid(it, &why)) { out("FAIL: saga %s stage %s: %s\n", name.c_str(), G.name.c_str(), why.c_str()); w.bad++; }
+    if (it.ilvl && gear::bandOf(it.ilvl) != gear::bandOf(gear::itemLevelFor(ds))) { out("FAIL: saga %s stage %s gives item level %d at danger %d (out of band)\n", name.c_str(), G.name.c_str(), it.ilvl, D); w.bad++; }
   }
   if (newItems > items) { out("FAIL: saga %s stage %s gives %d pieces (its rewards allow %d)\n", name.c_str(), G.name.c_str(), newItems, items); w.bad++; }
 }

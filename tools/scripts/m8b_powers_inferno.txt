@@ -1,0 +1,19 @@
+# M8b POWERS lane: the Mythic power INFERNO staged on a level-30 hero with a Mythic sword against three wolves, with shots
+# mid-effect (desktop). Run: embervale.exe --script tools/scripts/m8b_powers_inferno.txt  (m8b_powers_inferno_*.png in the cwd)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 plevel 30
++0.1 gear6 sword ilvl 30 rarity 5 equip
++0.1 power give inferno
++0.1 expect power inferno
++0.1 power arena
++3.6 power foes wolf 3 30 tough
++0.6 walk east 1.6
++0.8 shot m8b_powers_inferno_1.png
++0.9 shot m8b_powers_inferno_2.png
++0.2 hold J 1.5
++0.6 shot m8b_powers_inferno_3.png
++0.1 expect powerfx firepatch 6
++0.5 quit

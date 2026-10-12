@@ -9,6 +9,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 #include "rpg/art.h"
 #include "rpg/sim/appearance.h"
@@ -17,6 +18,7 @@
 #include "rpg/sim/craft.h"
 #include "rpg/sim/explored.h"
 #include "rpg/sim/factions.h"
+#include "rpg/sim/gear.h"
 #include "rpg/sim/home.h"
 #include "rpg/sim/items.h"
 #include "rpg/sim/life.h"
@@ -159,6 +161,18 @@ struct Actor {
   // at an inn, a grave's mourner...), meaning defined in party_game.cpp
   uint8_t comp = 0;
   uint8_t partyTag = 0;
+  // M8b Treasure (never saved; rpg/sim/powers.h, the POWERS lane's scratch, meaning defined in powers.cpp / game.cpp):
+  // powTag a per-actor mark (a summoned spectral wolf, an actor already struck by this chain...), powT its timer,
+  // powBy the actor id that caused it (whose power burns / summoned it)
+  uint8_t powTag = 0;
+  float powT = 0;
+  uint32_t powBy = 0;
+  // (M8b POWERS, never saved) Affix::Burn's own fire: burnDps damage a second while burnDpsT lasts, set by burnBy's
+  // blows (the classic burnT stays the fire enchantment's / Ember's); powCd a worn power's cooldown on this body (a
+  // companion's Tempest / Starfall), powRegenT / powAuraT a companion's HealthRegen and BrambleCrown clocks
+  float burnDps = 0, burnDpsT = 0;
+  int burnBy = -1;
+  float powCd = 0, powRegenT = 0, powAuraT = 0;
 };
 
 enum class ProjKind : uint8_t { Arrow, Fireball, IceSpike, Spit, Magic, DragonFire };
@@ -171,7 +185,12 @@ struct Projectile {
   Ench ench = Ench::None;
   float enchPow = 0;
   Faction fac = Faction::Player;   // who fired it: it hits whatever that faction is hostile to (factionsHostile)
+  // (M8b POWERS, never saved) where it was loosed (SplitArrows splits past 6 tiles from here) and PJ_* bits
+  Vec2 from;
+  uint8_t powFlags = 0;
 };
+constexpr uint8_t PJ_SPLIT = 1;      // (M8b) already split (or a split's child): never splits again
+constexpr uint8_t PJ_REFLECTED = 2;  // (M8b) turned back by ReflectBlock
 
 struct Pickup {
   Vec2 p;
@@ -181,6 +200,7 @@ struct Pickup {
   bool magnet = false;     // already flying to the player (sound played)
   bool full = false;       // (M6 fixer r2) a potion left lying because the belt is full: no magnet until there is room
   bool told = false;       // the "no more than 10 potions" notice was given for this approach (reset when walked away)
+  bool sighted = false;    // (M8b fixer r3) view only: an Epic+ piece already chimed for (stable across pulls and window shifts)
 };
 
 // WindowShift (M1): the endless world's Active Window moved; p is the pixel offset every overworld position just got
@@ -193,7 +213,9 @@ struct Pickup {
 // "ENTERING THE KHAGANATE OF ...")
 enum class Ev : uint8_t { Sfx, Hit, Blood, Explode, Sparkle, Dust, Heal, Frost, Text, Discover, LevelUp, QuestUpdate, Shake, MapChange, Notice,
                           WindowShift, News, Border,
-                          Banter, PartyAlert };
+                          Banter, PartyAlert, Power };
+// M8b Treasure: Power, a worn power or affix fired (a = powers::Fx, p = from, q = to, f = magnitude, id = the actor it
+// follows or 0): the view draws it (View::powerEvent, rpg/view/render_powers.cpp; POWERS lane)
 // M8 Fellowship: Banter, a companion speaks (a = party::Party::members index, s = the line, f = seconds to show; the
 // view shows it by their portrait and over their head; rpg/sim/banter.cpp through Game::partySay). PartyAlert: what the
 // HUD must make plain (a = members index, f = the kind: 1 low health, 2 downed (bleeding out), 3 revived, 4 died, 5
@@ -207,6 +229,7 @@ struct Event {
   float vol = 1;      // Sfx volume
   uint32_t id = 0;    // (M8) Ev::Banter / Ev::PartyAlert: the speaker's party::Member::id (a, their members index, can
                       // be stale by the time the view reads it: a member who dies that step is gone from the list)
+  Vec2 q;             // (M8b) Ev::Power: the second point (a lightning arc's end, a falling star's mark)
 };
 
 // M2 (VISION_PLAN M2 sim lane, PLAN.md task 6) appends: Deliver (a parcel to an NPC in another settlement), Heirloom
@@ -1000,6 +1023,13 @@ class Game {
   friend struct LifeOps;               // M5 TOWNSFOLK: the actors' internals (life_game.cpp)
   friend struct FoeOps;                // M6 FOES: the foes' internals (foes_game.cpp)
   friend struct CraftOps;              // M6 NUMBERS / FORGE: crafting's internals (craft_game.cpp)
+  friend struct LootOps;               // M8b SOURCES: the loot internals for the tests (rpg/sim/loot_ops.h)
+  friend struct PowerOps;              // M8b POWERS: the worn powers' internals (defined by the POWERS lane in powers.cpp)
+  // (M8b POWERS, never saved) > 0 while a power's own damage is being dealt: procs never fire from proc damage (a
+  // Tempest arc never chains again, a star never calls a star); compStats_: each companion in play's worn gear summed
+  // (actor id, stats), refreshed every step by PowerOps::step
+  int powDepth_ = 0;
+  std::vector<std::pair<int, gear::GearStats>> compStats_;
   // quests (quests.cpp)
   std::string pendingPitch_;           // the spoken offer (first person) for pendingOffer_
   int pickRadiant(SiteType t, int32_t gx, int32_t gy, Rng& r, bool& danger, int exclude = -1);

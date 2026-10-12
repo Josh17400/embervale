@@ -1,0 +1,33 @@
+# M8b POWERS lane: every Mythic power's effect at the iPhone review size (the phone header), one after another, a level-30
+# hero with a Mythic sword against three wolves. Run: embervale.exe --script tools/scripts/m8b_powers_phone.txt
+seed 7
+phone
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 plevel 30
++0.1 gear6 sword ilvl 30 rarity 5 equip
++0.1 power give tempest
++0.1 power arena
++3.6 power foes wolf 3 30 tough
++1.0 power proc tempest
++0.03 shot m8b_powers_phone_tempest.png
++0.3 power give inferno
++0.1 walk east 1.2
++1.3 shot m8b_powers_phone_inferno.png
++0.1 power give bramblecrown
++0.1 power proc bramblecrown
++0.06 shot m8b_powers_phone_bramble.png
++0.3 power proc soulfeast
++0.2 shot m8b_powers_phone_soulfeast.png
++0.3 power proc chronos
++0.15 shot m8b_powers_phone_chronos.png
++3.2 power give phoenix
++0.1 power proc phoenix
++0.15 shot m8b_powers_phone_phoenix.png
++0.6 power proc starfall
++0.15 shot m8b_powers_phone_starfall.png
++0.4 power proc wolfking
++0.4 shot m8b_powers_phone_wolfking.png
++0.1 expect wolves 1
++0.5 quit

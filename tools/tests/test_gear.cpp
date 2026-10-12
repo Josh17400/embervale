@@ -30,14 +30,23 @@ int formulas() {
   for (int b = 1; b <= 7; b++)
     for (int l = lo[b - 1]; l <= hi[b - 1]; l++) if (gear::bandOf(l) != b) { fail("bandOf disagrees with the 7.2 table"); b = 8; break; }
   if (gear::effLevel(30, 8) != 12 || gear::effLevel(5, 8) != 5) fail("level sync (eff = min(iLvl, level + 4))");
-  if (std::fabs(gear::rarityMult(Rarity::Legendary) - 1.20f) > 1e-4f || gear::affixSlots(Rarity::Epic) != 3) fail("rarity budget");
+  // (M8b NUMBERS, 15.27.2) the budget: 0 / 1 / 2 / 3 / 3 + a unique / 4 + a Mythic power; power rising with every step
+  {
+    static const int slots[] = {0, 1, 2, 3, 3, 4};
+    for (int k = 0; k < RARITIES; k++) {
+      if (gear::affixSlots((Rarity)k) != slots[k]) fail("rarity budget (affixSlots)");
+      if (k && gear::rarityMult((Rarity)k) <= gear::rarityMult((Rarity)(k - 1))) fail("rarityMult does not rise with rarity");
+    }
+    if (gear::rarityMult(Rarity::Common) != 1.0f) fail("Common is not x1");
+    for (int e = 2; e <= gear::MAX_D; e++) if (gear::statScale(e) <= gear::statScale(e - 1)) { fail("statScale not rising"); break; }
+  }
   if (gear::mitigation(1e6f, 1) > 0.7001f || gear::mitigation(0, 5) != 0) fail("mitigation cap 70 % / none without armour");
   if (std::fabs(gear::gapPlayerDamage(10, 30) - 0.4f) > 1e-4f || gear::gapPlayerDamage(10, 14) != 1.0f) fail("level-gap damage floor 0.4");
   if (gear::killXp(100, 1, 30) != 5) fail("XP decay: the start zone at level 30 earns 5 %");
   if (gear::attunementSlots(9) != 0 || gear::attunementSlots(10) != 1 || gear::attunementSlots(25) != 2 || gear::attunementSlots(40) != 3)
     fail("attunement 1 / 2 / 3 at 10 / 25 / 40");
   if (gear::merchantGold(0) != 300 || gear::merchantGold(3) != 3000) fail("merchant gold 300 .. 3000");
-  // a legendary never below D 10, never from a plain foe
+  // (M8b) the gate: no legendary for a level-1 finder, whatever the rank or the place (a world boss gives Rare at most)
   Rng r(12345);
   gear::DropSource s;
   s.D = 9; s.rank = 5;
@@ -68,7 +77,7 @@ int itemLayout() {
   std::vector<uint8_t> dmg = buf;
   const size_t tail = dmg.size();
   dmg[tail - 2] = 250;   // unique
-  dmg[tail - 2 - 3 * 3] = 200;   // the first affix kind (3 affixes of 3 bytes before unique, flags)
+  dmg[tail - 2 - 3 * kItemAffixes] = 200;   // the first affix kind (kItemAffixes affixes of 3 bytes before unique, flags)
   BinR rd2(dmg);
   const Item c = readItem(rd2);
   if (c.unique != Unique::None || c.affix[0].kind != Affix::None) { out("FAIL: gear: out-of-range unique / affix ids were not cleared\n"); bad++; }
@@ -188,13 +197,16 @@ int generation() {
                             ItemKind::Gloves, ItemKind::Boots, ItemKind::Cloak, ItemKind::Ring, ItemKind::Amulet};
   for (int il : {1, 4, 8, 12, 20, 28, 40, 50, 60})
     for (ItemKind k : kinds)
-      for (int rar = 0; rar <= 4; rar++)
+      for (int rar = 0; rar < RARITIES; rar++)
         for (const cult::Culture* c : {(const cult::Culture*)nullptr, (const cult::Culture*)&C}) {
           const Item it = gear::makeGearC(r, k, k == ItemKind::Weapon ? (il % 6) : 0, il, (Rarity)rar, c);
           if (it.ilvl != il || it.tier != gear::bandOf(il) - 1) fail("item level / band tier of " + it.name);
           if (it.name.empty()) fail("an unnamed piece");
           if (it.affixCount() != gear::affixSlots(it.rarity)) fail("affix budget of " + it.name);
-          if (it.rarity == Rarity::Legendary && !gear::uniqueImplemented(it.unique)) fail("legendary without a working power: " + it.name);
+          {
+            std::string why;
+            if (!gear::lootValid(it, &why)) fail(why);
+          }
           if ((k == ItemKind::Ring || k == ItemKind::Amulet) && it.rarity < Rarity::Uncommon) fail("a common ring");
           if (c && it.culture != c->id) fail("maker culture lost on " + it.name);
           if (gear::bandOf(il) >= 4 && c && !c->arms.alloys.empty() && k == ItemKind::Weapon &&
@@ -204,14 +216,17 @@ int generation() {
           if (c && k == ItemKind::Helmet && it.form != (uint8_t)C.arms.helm[0] + 1 && it.form != (uint8_t)C.arms.helm[1] + 1) fail("helmet form outside the culture's options");
           if (!c && it.form != 0) fail("a heartland piece with a culture form");
           if (k == ItemKind::Weapon || k == ItemKind::Armor) {
-            const float base = k == ItemKind::Weapon ? gear::weaponBase((WeaponType)it.sub) : gear::armourBase(k) * (it.mat == Mat::Leather ? 0.92f : 1.0f);
-            const float want = base * gear::statScale(il) * gear::rarityMult(it.rarity);
+            // (M8b) base x item level x material x rarity
+            const float base = k == ItemKind::Weapon ? gear::weaponBase((WeaponType)it.sub) : gear::armourBase(k);
+            const float want = base * gear::statScale(il) * gear::matMult(it, c) * gear::rarityMult(it.rarity);
+            if (std::fabs(gear::nominalPower(it, c) - want) > 0.01f) fail("nominalPower of " + it.name);
             if (std::fabs(it.power - want) > 0.6f) fail("power of " + it.name + " " + std::to_string(it.power) + " != " + std::to_string(want));
           }
         }
   // level sync at use: an item level 30 sword at level 8 works as item level 12
   Item s30 = gear::makeGearC(r, ItemKind::Weapon, 0, 30, Rarity::Common, nullptr);
-  const float want = gear::weaponBase(WeaponType::Sword) * gear::statScale(12);   // common: the exact 7.2 number at eff 12
+  // common: the exact number at eff 12 (its material stays its own: level sync scales the level only)
+  const float want = gear::weaponBase(WeaponType::Sword) * gear::statScale(12) * gear::matMult(s30, nullptr);
   if (std::fabs(gear::usePower(s30, 8) - want) > 0.01f || std::fabs(gear::usePower(s30, 40) - s30.power) > 0.51f) fail("usePower level sync");
   Item hand = s30;
   hand.power = 7;   // a power set by hand scales from what it holds

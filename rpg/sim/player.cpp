@@ -65,6 +65,8 @@ float Game::armorRating() const {
     if (idx >= 0 && idx < (int)inv.size() && inv[idx].ench == Ench::Fortify) a += inv[idx].enchPow * 0.5f;
   if (blessT > 0) a += 15;
   if (craft.live.stats.has(Unique::Ironhide)) a *= 1.25f;
+  // (M8b) Affix::ArmourPct: "+N% ARMOUR"
+  if (const int ap = craft.live.stats.get(Affix::ArmourPct)) if (ap > 0) a *= 1.0f + 0.01f * (float)ap;
   return a;
 }
 // (M6, 7.2 / 7.4) the weapon's power at eff (level sync) x +1.5 % a level; bare fists 4

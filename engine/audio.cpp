@@ -612,6 +612,7 @@ const float kSfxTrim[(int)Sfx::COUNT] = {
   0.78f, 0.8f,  1.2f,  0.66f,                               // HarpyShriek GolemSlam EliteSting BossRoar (M6; integration: +2 / +4 dB to clear the music by 6 dB, phone too)
   0.6f,                                                     // Hoof (M7: under the music, a little above a footstep)
   1.75f, 0.95f, 0.7f,                                       // Revive Knell Howl (M8 ART; calibrated with tools/audio_preview)
+  1.0f,  1.25f, 1.3f,                                       // Zap Rebirth LootChime (M8b POWERS; calibrated with tools/audio_preview: clear of the music on a phone, the rebirth under the limiter)
 };
 static_assert(sizeof(kSfxTrim) / sizeof(kSfxTrim[0]) == (size_t)Sfx::COUNT, "a trim for every Sfx");
 
@@ -1012,6 +1013,46 @@ void Audio::trigger(Sfx s, float k, float V) {
       add(NB(Sine, 1000 * r, 0.07f * V).env(0.05f, 1, 1, young ? 0.45f : 0.9f, 0.3f).vib(0.35f, 5.5f, 0.15f).slide(-0.5f).send(0.5f).at(0.5f));   // its ring
       add(NB(Noise, 0, 0.12f * V).env(0.1f, 1, 1, young ? 0.9f : 1.4f, 0.3f).bp(900 * r, 1.4f).am(5.5f, 0.3f).send(0.4f));                // breath
       if (young) add(NB(Saw, 620 * r, 0.16f * V).env(0.02f, 0.18f).vox(950 * r, 3.0f).slide(0.4f).at(1.0f).send(0.4f));                 // the voice breaking
+      break;
+    }
+    // M8b Treasure (POWERS lane)
+    case Sfx::Zap: {      // chain lightning / a star's strike: a white crack, a buzzing arc that snaps downward, a
+                          // crackling sizzle that dies off, and a faint thunder roll under it
+      const float r = k * rnd(0.94f, 1.06f);
+      add(NB(Noise, 0, 0.85f * V).perc(0.012f).hp(2600 * r, 0.8f));                                              // the crack
+      add(NB(Saw, 1650 * r, 0.20f * V).env(0.002f, 0.16f).slide(-2.2f).am(90, 0.8f).bp(2400 * r, 1.4f).drive(1.4f).send(0.35f));   // the arc
+      add(NB(Square, 220 * r, 0.12f * V).env(0.003f, 0.14f).am(120, 0.9f).lp(3000 * r, 1.2f).drive(1.2f));       // its buzz
+      add(NB(Noise, 0, 0.32f * V).env(0.005f, 1, 1, 0.12f, 0.12f).hp(5200).am(43, 0.9f).send(0.4f).at(0.02f));   // the sizzle
+      add(NB(Noise, 0, 0.28f * V).env(0.03f, 1, 1, 0.12f, 0.45f).lp(260, 0.9f).send(0.5f).at(0.04f));            // the far roll
+      add(NB(Sine, 90 * r, 0.30f * V).perc(0.09f).pitch(2.0f, 0.02f));
+      break;
+    }
+    case Sfx::Rebirth: {  // the phoenix: a deep whoomph, a roaring rush of fire rising in pitch, crackle, then a bright
+                          // major chord blooming over it with a high shimmer (death refused)
+      const float r = k * rnd(0.98f, 1.02f);
+      add(NB(Sine, 55 * r, 0.85f * V).perc(0.45f).pitch(0.4f, 0.06f).drive(0.4f));                                // the whoomph
+      add(NB(Noise, 0, 0.55f * V).env(0.05f, 1, 1, 0.55f, 0.35f).bp(500 * r, 0.9f).fslide(1.6f).bump(1.2f).color(0.7f).send(0.4f));   // the rush
+      add(NB(Noise, 0, 0.22f * V).env(0.02f, 1, 1, 0.75f, 0.3f).hp(3500).am(23, 0.85f).send(0.3f));               // the crackle
+      const float ch[4] = {293.7f, 370.0f, 440.0f, 587.3f};   // D major
+      for (int i = 0; i < 4; i++)
+        add(NB(Saw, ch[i] * r, 0.07f * V).detune(0.006f).env(0.08f, 1, 1, 0.7f, 0.6f).lp(1500 * r, 1.1f).fenv(1.2f, 0.25f)
+                .slide(0.05f).send(0.55f).at(0.32f + 0.05f * (float)i));
+      add(NB(Pad, 146.8f * r, 0.12f * V).detune(0.006f).env(0.12f, 1, 1, 0.8f, 0.7f).lp(1200).send(0.55f).at(0.32f));
+      add(NB(Fm, 1174.7f * r, 0.08f * V).perc(1.0f).fm(3.0f, 1.4f, 0.4f).send(0.7f).at(0.5f));
+      add(NB(Sine, 1760.0f * r, 0.05f * V).env(0.1f, 1, 1, 0.4f, 0.5f).vib(0.3f, 7).send(0.7f).at(0.6f));
+      break;
+    }
+    case Sfx::LootChime: {   // a fine piece found: a glassy rising arpeggio of bell partials (k the pitch: the VIEW lane
+                             // raises it by rarity), a fifth note for the brightest finds (k >= 1.2), a soft air shimmer
+      const float r = k;
+      const float run[5] = {659.3f, 830.6f, 987.8f, 1318.5f, 1661.2f};   // E major, rising
+      const int n = k >= 1.2f ? 5 : 4;
+      for (int i = 0; i < n; i++) {
+        const float t = 0.07f * (float)i;
+        add(NB(Fm, run[i] * r, 0.12f * V).perc(0.55f + 0.1f * (float)i).fm(3.5f, 1.1f, 0.25f).send(0.65f).at(t));    // glass
+        add(NB(Sine, run[i] * 2.0f * r, 0.04f * V).perc(0.3f).send(0.7f).at(t + 0.004f));                         // its ring
+      }
+      add(NB(Noise, 0, 0.05f * V).env(0.15f, 1, 1, 0.25f, 0.3f).hp(7000).send(0.6f));
       break;
     }
     case Sfx::COUNT: break;

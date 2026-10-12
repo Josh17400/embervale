@@ -296,7 +296,12 @@ void bodyIcon(Canvas& c, int form, const Ramp& M, const Ramp& acc) {
         case 2: break;
         case 3: { const int q = (x + 2 * y) & 3; if (q == 0) k--; else if (q == 2) k++; break; }            // mail rings
         case 4: { const int ph = (ry >> 1) & 1; k += (ry & 1) == 0 ? (((x + ph) & 1) ? 1 : 0) : (((x + ph) & 1) ? -1 : 0); break; }   // scales
-        case 5: if (ry > 0 && ry % 3 == 0) { c.set(x, y, acc[(x & 1) ? 3 : 1]); continue; } if (x & 1) k--; break;   // laced plates
+        case 5:   // laced plates: (M8b fix) 3 x 3 plates with a lit top, a shadowed seam and one lace knot each, never a
+                  // full row of alternating lace pixels (it read as a red-and-yellow checker on alloy pieces)
+          if (ry > 0 && ry % 3 == 0) { if (x % 3 == 1) { c.set(x, y, mix(acc[1], base[1], 0.45f)); continue; } k--; }
+          else if (x % 3 == 0) k--;
+          else if (ry % 3 == 1) k++;
+          break;
         case 6: if (ry > 0 && (ry % 3) == 1 && ((x + ry) & 1)) { c.set(x, y, M[4]); continue; } break;     // rivets
         case 7: if (y >= 12 && y <= 13 && ((y - 12) == 0)) k--; break;                                     // faulds
         case 8: { const int ph = (ry / 2) & 1, m = (x + ph * 2) % 4; k += (ry & 1) == 0 ? (m == 1 ? 1 : (m == 3 ? -1 : 0)) : (m == 2 ? -1 : 0); break; }
@@ -373,7 +378,12 @@ void iconSheen(Canvas& c, const Ramp& A, int sheen) {
       if (k < 0) continue;
       int nk = k;
       if (sheen == 4) { const int b = (x + 2 * y + ((x >> 2) & 1)) % 5; nk = b == 0 ? k - 1 : (b == 2 ? k + 1 : k); }
-      else if (sheen == 6) { if (k == 0 && (y & 1) == 0) { c.set(x, y, lighten(A[3], 0.6f)); continue; } }
+      else if (sheen == 6) {   // (M8b fix) lit seam lines under the plates, not every other row
+        if (k == 0) {
+          const int ku = idx(src.get(x, y - 1)), kl = idx(src.get(x - 1, y));
+          if (ku >= 2 || kl >= 2) { c.set(x, y, mix(lighten(A[3], 0.6f), A[0], 0.35f)); continue; }
+        }
+      }
       else if (sheen == 8) { if (k == 3 && ((x + y) & 3) == 0) nk = 4; }
       else if (sheen == 2) { if (k == 4 && (idx(src.get(x - 1, y)) < 0 || idx(src.get(x, y - 1)) < 0)) { c.set(x, y, mix(A[4], kWhite, 0.6f)); continue; } }
       if (nk != k) c.set(x, y, A[std::clamp(nk, 0, 4)]);
@@ -384,15 +394,25 @@ void iconOrnament(Canvas& c, const Ramp& A, uint16_t o, Icon ic) {
   if (!o) return;
   const Canvas src = c;
   auto isA = [&](int x, int y) { const uint32_t v = src.get(x, y); for (int k = 0; k < 5; k++) if (A[k] == v) return true; return false; };
+  // (M8b fix) at 16 px every dot lattice is noise when several stack (an alloy Legendary carried studs, rivets, etching
+  // and filigree at once: confetti). The rim may be gilded; the face carries ONE motif (filigree > studs > rivets >
+  // etching), sparse and set on the lit plates only, so the piece's shape and shading always read first.
+  const uint16_t face = (o & 512) ? 512 : (o & 16) ? 16 : (o & 256) ? 256 : (o & 32) ? 32 : 0;
+  auto kOf = [&](int x, int y) { const uint32_t v = src.get(x, y); for (int k = 0; k < 5; k++) if (A[k] == v) return k; return -1; };
   for (int y = 0; y < ICON; y++)
     for (int x = 0; x < ICON; x++) {
       if (!isA(x, y)) continue;
       const bool edge = !(src.get(x - 1, y) >> 24) || !(src.get(x, y - 1) >> 24) || !(src.get(x + 1, y) >> 24) || !(src.get(x, y + 1) >> 24);
-      if ((o & 4) && edge) c.set(x, y, kGold[(!(src.get(x - 1, y) >> 24) || !(src.get(x, y - 1) >> 24)) ? 4 : 2]);
-      else if ((o & 16) && !edge && (x % 3) == 1 && (y % 3) == 1) c.set(x, y, kBrass[4]);
-      else if ((o & 256) && !edge && (x % 4) == 2 && (y % 4) == 0) c.set(x, y, kWhite);
-      else if ((o & 32) && !edge && ((x * 2 + y) % 7) == 0) c.set(x, y, A[4]);
-      else if ((o & 512) && !edge && ((x + y * 3) % 9) == 0) c.set(x, y, kGold[4]);
+      if ((o & 4) && edge) { c.set(x, y, kGold[(!(src.get(x - 1, y) >> 24) || !(src.get(x, y - 1) >> 24)) ? 4 : 2]); continue; }
+      if (edge || !face) continue;
+      const int k = kOf(x, y);
+      // never on the shadow steps, and only on a flat plate (all four neighbours the same step): a textured form (laced
+      // plates, scales, rings) already carries its own pattern and a motif over it is speckle
+      if (k < 2 || kOf(x - 1, y) != k || kOf(x + 1, y) != k || kOf(x, y - 1) != k || kOf(x, y + 1) != k) continue;
+      if (face == 512 && ((x + y * 3) % 11) == 0) c.set(x, y, kGold[k >= 3 ? 4 : 3]);
+      else if (face == 16 && (x % 4) == 1 && (y % 4) == 2) c.set(x, y, kBrass[4]);
+      else if (face == 256 && (x % 5) == 2 && (y % 4) == 1) c.set(x, y, mix(A[4], kWhite, 0.5f));
+      else if (face == 32 && ((x * 2 + y) % 9) == 0 && k == 2) c.set(x, y, A[3]);
     }
   if ((o & 2) && (ic == Icon::Armor || ic == Icon::Helmet || ic == Icon::Cloak)) {   // fur trim along the bottom edge / collar
     const int fy = ic == Icon::Armor ? 3 : 12;
@@ -413,6 +433,15 @@ void iconGlint(Canvas& c, int rarity) {
       if (s > best) { best = s; bx = x; by = y; }
     }
   if (bx < 0) return;
+  if (rarity >= 5) {   // (M8b) a Mythic's flame glint: a hot white-yellow heart, orange arms, an ember tongue above
+    c.set(bx, by, rgba(255, 246, 200));
+    for (int d = 0; d < 4; d++) {
+      const int nx = bx + (d == 0) - (d == 1), ny = by + (d == 2) - (d == 3);
+      if (c.get(nx, ny) >> 24) c.set(nx, ny, mix(c.get(nx, ny), d == 3 ? rgba(255, 200, 90) : rgba(255, 120, 40), 0.75f));
+    }
+    if (by >= 2 && (c.get(bx, by - 2) >> 24)) c.set(bx, by - 2, mix(c.get(bx, by - 2), rgba(232, 60, 28), 0.6f));
+    return;
+  }
   const uint32_t g = rarity >= 4 ? rgba(255, 226, 140) : rgba(220, 236, 255);
   c.set(bx, by, kWhite);
   for (int d = 0; d < 4; d++) {
@@ -1080,11 +1109,20 @@ Canvas itemIconLook(const IconLook& l) {
   iconGlint(c, l.rarity);
   const Canvas raw = c;
   outline(c);
-  if (l.rarity >= 4) {   // a legendary's outline warms toward gold
+  if (l.rarity == 4) {   // a legendary's outline warms toward gold
     for (int y = 0; y < ICON; y++)
       for (int x = 0; x < ICON; x++) {
         const uint32_t v = c.get(x, y);
         if ((v >> 24) && !(raw.get(x, y) >> 24)) c.set(x, y, mix(v, rgba(255, 190, 80), 0.45f));
+      }
+  } else if (l.rarity >= 5) {   // (M8b) a mythic's burns red-orange: hotter along the top, ember-dark along the foot
+    for (int y = 0; y < ICON; y++)
+      for (int x = 0; x < ICON; x++) {
+        const uint32_t v = c.get(x, y);
+        if (!(v >> 24) || (raw.get(x, y) >> 24)) continue;
+        const float u = (float)y / (float)(ICON - 1);
+        const uint32_t fc = u < 0.4f ? rgba(255, 150, 60) : u < 0.75f ? rgba(255, 96, 36) : rgba(196, 44, 24);
+        c.set(x, y, mix(v, fc, 0.55f));
       }
   }
   return c;

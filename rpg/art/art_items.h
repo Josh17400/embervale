@@ -53,7 +53,8 @@ struct IconLook {
   uint8_t sheen = 0;        // cult::Sheen + 1 (matte, bright, dark, banded, iridescent, glowing, pale, burnished; 0 plain)
   uint16_t ornament = 0;    // cult::ARM_* bits (gilding, studs, fur trim, etching, filigree...)
   uint32_t accent = 0;      // the culture's cloth / leather / plume colour on grips, straps and crests (0: classic)
-  uint8_t rarity = 0;       // Rarity (0 common .. 4 legendary): an epic or legendary piece may glint (the slot frame
+  uint8_t rarity = 0;       // Rarity (0 common .. 4 legendary, (M8b) 5 mythic): an epic or legendary piece glints, a
+                            // mythic one carries a flame glint and a red-orange outline (the slot frame
                             // colour is the HUD's)
   uint8_t mat = 0;          // Mat (rpg/sim/items.h) as int: leather and cloth paint differently from metal
   uint64_t key() const {    // identity for the view's icon cache: equal keys paint identical pixels

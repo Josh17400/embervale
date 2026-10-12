@@ -1,0 +1,25 @@
+# M8b VIEW lane: the rarity ladder on the ground (VISION_PLAN 15.27): one sword and one body armour of each rarity
+# (Common .. Mythic) lying north of the hero, by day and at night (hour 22): Uncommon's glint, Rare's short blue beam,
+# Epic's purple beam and sparkles, Legendary's gold pillar and motes, Mythic's living flame pillar and embers; the
+# pools and the light they carry into the dark; the chime for the Epic and better finds coming into view.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8b_view_ladder.txt     (m8bv_ladder_*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 goto shrine
++0.05 hour 11
++0.1 plevel 32
++0.1 lootladder sword ilvl 32 dy -84
++0.1 lootladder body ilvl 32 dy -54
++0.1 expect lootpickups 12
++0.1 expect lootvalid
++4.5 expect lootbeams mythic 2
++0.05 expect lootbeams uncommon 2
++0.05 expect lootchimes 1
++0.1 shot m8bv_ladder_day.png
++0.37 shot m8bv_ladder_day_b.png
++0.1 hour 22
++0.8 shot m8bv_ladder_night.png
++0.29 shot m8bv_ladder_night_b.png
++0.1 expect lootbeams legendary 2
++0.3 quit

@@ -1,0 +1,17 @@
+# M8b POWERS lane: the Mythic power CHRONOS staged on a level-30 hero with a Mythic sword against three wolves, with shots
+# mid-effect (desktop). Run: embervale.exe --script tools/scripts/m8b_powers_chronos.txt  (m8b_powers_chronos_*.png in the cwd)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 plevel 30
++0.1 gear6 sword ilvl 30 rarity 5 equip
++0.1 power give chronos
++0.1 expect power chronos
++0.1 power arena
++3.6 power foes wolf 3 30 tough
++1.0 power proc chronos
++0.12 shot m8b_powers_chronos_1.png
++1.0 shot m8b_powers_chronos_2.png
++0.1 expect powerfx timeslow 1
++0.5 quit

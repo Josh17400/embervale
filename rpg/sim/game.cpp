@@ -11,6 +11,8 @@
 #include "engine/audio.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/gear.h"
+#include "rpg/sim/power_ops.h"
+#include "rpg/sim/powers.h"
 #include "rpg/sim/stream.h"
 #include "rpg/sim/war.h"
 #include "rpg/culture/society.h"
@@ -310,9 +312,13 @@ void Game::windowMoved(int dx, int dy) {
   };
   for (Actor& a : actors) move(a);
   for (Actor& a : sheltered_) move(a);
-  for (Projectile& pr : projs) pr.p += d;
+  for (Projectile& pr : projs) {
+    pr.p += d;
+    if (len2(pr.from) > 0) pr.from += d;   // (M8b) SplitArrows measures from the loosing point (zero = not recorded)
+  }
   for (Pickup& pk : pickups) pk.p += d;
   for (Vec2& t : party.trail) t += d;   // (M8) the player's footsteps the companions follow (party_move.cpp)
+  PowerOps::shift(*this, d);            // (M8b) fire patches, falling stars, wolves to call
   // the heading reference moves with the window too, or the next wish list reads the shift as a walk backwards
   if (len2(prefetchFrom_) > 1e-6f) prefetchFrom_ += d;
   reapplyLooted();
@@ -539,6 +545,7 @@ void Game::update(float dt, const Input& in) {
 
   if (!inside) prepInteriorTick(dt);   // (M3c carry) the interior of the door ahead, before it is reached
   updatePlayer(dt, in);
+  PowerOps::step(*this, dt);   // M8b: the worn powers' clocks, fire patches, auras, stars, spectral wolves (powers.cpp)
   if (world.endless && !inside) { maybeRecentre(); prefetchTick(dt); }
   if (!inside && (exploreT_ -= dt) <= 0) {   // fog of war: what the screen shows around the player (global tiles)
     exploreT_ = 0.25f;
@@ -547,6 +554,7 @@ void Game::update(float dt, const Input& in) {
   }
   collectHostiles();
   perf.npcAwake = perf.npcAsleep = 0;
+  const float foeK = PowerOps::foeScale(*this);   // (M8b) Chronos: the hero's foes move at a third of the pace
   for (size_t i = 1; i < actors.size(); i++) {
     Actor& a = actors[i];
     // NPC level of detail (VISION_PLAN 4.4): townsfolk far off screen with nothing to react to think a few times a
@@ -563,7 +571,7 @@ void Game::update(float dt, const Input& in) {
     }
     if (a.npc) perf.npcAwake++;
     if (a.asleep) { a.asleep = false; a.lodAcc = 0; }
-    updateActor(a, dt);
+    updateActor(a, a.hostile ? dt * foeK : dt);
   }
   // separation between bodies
   for (size_t i = 0; i < actors.size(); i++)
@@ -631,6 +639,10 @@ void Game::update(float dt, const Input& in) {
 
 void Game::updatePlayer(float dt, const Input& in) {
   Actor& p = pl();
+  // (M8b) Affix::AttackSpeed: the swing's windup, strike and recovery run that much faster (a +20 % piece swings 1.2x
+  // as often)
+  if (const int asp = craft.live.stats.get(Affix::AttackSpeed))
+    if (asp > 0 && (p.st == AState::Windup || p.st == AState::Strike || p.st == AState::Recover)) p.stT += dt * 0.01f * (float)asp;
   p.stT += dt;
   p.animT += dt;
   if (p.flash > 0) p.flash -= dt;
@@ -660,7 +672,7 @@ void Game::updatePlayer(float dt, const Input& in) {
   if (!busy) stamina = stamina + dt * 22.0f * stRegen * stLife;
   float mpMax = maxMp + (float)S6.get(Affix::Magicka);
   for (int idx : worn()) if (idx >= 0 && inv[idx].ench == Ench::Magicka) mpMax += inv[idx].enchPow;
-  float stMax = maxSt;
+  float stMax = maxSt + (float)S6.get(Affix::Stamina);   // (M8b) Affix::Stamina: + max stamina
   for (int idx : worn()) if (idx >= 0 && inv[idx].ench == Ench::Stamina) stMax += inv[idx].enchPow;
   if (S6.has(Unique::Wayfarer)) stMax *= 1.2f;
   stamina = std::min(stamina, stMax);
@@ -767,6 +779,7 @@ void Game::updatePlayer(float dt, const Input& in) {
     p.st = AState::Roll; p.stT = 0; p.iframes = 0.3f;
     p.face = faceOf(d);
     sfx((int)Sfx::Roll, p.p);
+    PowerOps::rollStarted(*this);   // (M8b) Chronos' dodge window, Shadowstep
     return;
   }
   // a use (talk, sleep, open, pray) wins over a swing given in the same step: on touch the use tap and the held
@@ -919,8 +932,10 @@ void Game::meleeHit(Actor& a) {
     if (l > reach + v.radius) continue;
     if (l > 4 && dot(d * (1.0f / l), a.aim) < cone) continue;
     // (M6) crits: 12 % for x1.8 plus the affixes; Stillness makes the hit after a second standing still a sure crit
-    const gear::GearStats& S = craft.live.stats;
-    bool crit = isPl && rng_.f() < gear::CRIT_CHANCE + 0.01f * (float)S.get(Affix::CritChance);
+    // (M8b, 15.27.5 "companions use the same rules") a companion's blows crit by the player's rule and their own gear
+    const gear::GearStats* WS = isPl ? &craft.live.stats : a.comp ? PowerOps::statsOf(*this, a) : nullptr;
+    const gear::GearStats& S = WS ? *WS : craft.live.stats;
+    bool crit = WS && rng_.f() < gear::CRIT_CHANCE + 0.01f * (float)S.get(Affix::CritChance);
     if (isPl && S.has(Unique::StillCrit) && craft.live.stillT >= 1.0f) { crit = true; craft.live.stillT = 0; emit(Ev::Text, v.p + Vec2(0, -30), (int)rgba(200, 230, 255), 0, "STILLNESS"); }
     const float cm = gear::CRIT_MULT + 0.01f * (float)S.get(Affix::CritDmg);
     const float hit = dmg * (0.9f + rng_.f() * 0.2f) * (crit ? cm : 1.0f);
@@ -929,6 +944,8 @@ void Game::meleeHit(Actor& a) {
     any = true;
     if (isPl) {
       // (M6 uniques) the blow's echoes: Stormcaller's lightning on a crit, Echo's second strike, Thunderclap's stun
+      // ((M8b) a power's own damage: no procs from it)
+      powDepth_++;
       auto alive = [&](int id) -> Actor* { const int k = findActor(id); return k >= 0 && actors[(size_t)k].st != AState::Dead ? &actors[(size_t)k] : nullptr; };
       if (crit && S.has(Unique::Stormcaller)) if (Actor* t = alive(vid)) {
         emit(Ev::Sparkle, t->p + Vec2(0, -14)); emit(Ev::Shake, t->p, 0, 2.0f);
@@ -943,6 +960,7 @@ void Game::meleeHit(Actor& a) {
         t->st = AState::Hurt; t->stT = -0.85f; t->heavy = t->lunge = false; t->atkCd = std::max(t->atkCd, 1.0f);
         emit(Ev::Text, t->p + Vec2(0, -30), (int)rgba(255, 230, 120), 0, "STUNNED");
       }
+      powDepth_--;
     }
   }
   if (isPl && any) {
@@ -968,7 +986,11 @@ void Game::meleeHit(Actor& a) {
         emit(Ev::Sparkle, t.p + Vec2(0, -10));
         if (n > 0) {
           emit(Ev::Text, t.p + Vec2(0, -30), (int)rgba(160, 200, 255), 0, "CHAIN");
+          PowerOps::emitPower(*this, powers::Fx::Lightning, a.p + Vec2(0, -8), t.p + Vec2(0, -8), 0.7f, 0);
+          powDepth_++;
           damage(t, weaponDamage() * 0.5f, a.p, a.id, Ench::None, 0, false);
+          powDepth_--;
+          craft.live.fx.chained++;
         }
         n++;
       }
@@ -984,10 +1006,11 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
     // rolled through a blow that would have landed: a slow-motion blip and a little stamina back
     perfectRoll_ = true;
     slowMo = 0.4f;
-    stamina = std::min(stamina + 12.0f, maxSt);
+    stamina += 12.0f;   // (updatePlayer keeps it under the worn maximum: (M8b) the Stamina affix raises it)
     emit(Ev::Sparkle, v.p + Vec2(0, -8));
     emit(Ev::Text, v.p + Vec2(0, -22), (int)rgba(150, 220, 255), 0, "DODGE");
     sfx((int)Sfx::Roll, v.p, 1.6f);
+    PowerOps::dodged(*this);   // (M8b) Chronos: a perfect dodge at the roll's start slows time
   }
   if (v.player && (v.iframes > 0 || godMode)) return;
   if (v.player && homeRiding()) homeDismount(home::Dismount::Hurt);   // M7: a blow knocks the rider off
@@ -1009,18 +1032,30 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
   const int atkLevel = atkI == 0 || atkI < 0 ? std::max(1, plLevel) : actors[(size_t)atkI].level;   // (the hero's Actor::level is not kept)
   const gear::GearStats& S6 = craft.live.stats;
   const bool byPl = attacker == pl().id && !v.player;
+  // (M8b, 15.27.5) the striker's worn gear: the hero's, or a companion's (the same rules); nullptr for anyone else
+  const gear::GearStats* AS = byPl ? &S6 : (atkI > 0 && !v.player && !v.comp && actors[(size_t)atkI].comp) ? PowerOps::statsOf(*this, actors[(size_t)atkI]) : nullptr;
+  // (M8b) a companion struck: their own resistances
+  const gear::GearStats* VS = v.comp ? PowerOps::statsOf(*this, v) : nullptr;
   float elemental = 0;   // the gear's elemental share of this blow (fire / frost / shadow damage affixes)
-  if (byPl) {
-    dmg *= gear::gapPlayerDamage(plLevel, v.level);
-    if (S6.has(Unique::Executioner) && v.hp < v.maxHp * 0.25f) dmg *= 1.5f;
-    if (S6.has(Unique::Berserker)) dmg *= 1.0f + 0.02f * std::floor(10.0f * (1.0f - pl().hp / std::max(1.0f, pl().maxHp)));
-    const bool undead = !v.human && (v.mon == Monster::Skeleton || v.mon == Monster::Draugr || v.mon == Monster::Wraith);
-    const bool beast = !v.human && !undead && v.mon != Monster::Dragon && v.mon != Monster::Golem && v.mon != Monster::Wisp;
-    if (S6.has(Unique::Huntsman) && beast) dmg *= 1.3f;
-    if (S6.has(Unique::Gravebane) && undead) dmg *= 1.3f;
-    if (S6.has(Unique::Dragonbane) && (v.mon == Monster::Dragon || v.rank >= 5)) dmg *= 1.4f;
-    if (craft.live.warcryT > 0) dmg *= 1.15f;
-    elemental = 0.01f * (float)(S6.get(Affix::FireDmg) + S6.get(Affix::FrostDmg) + S6.get(Affix::ShadowDmg));
+  const bool undead = !v.human && (v.mon == Monster::Skeleton || v.mon == Monster::Draugr || v.mon == Monster::Wraith);
+  const bool beast = !v.human && !undead && v.mon != Monster::Dragon && v.mon != Monster::Golem && v.mon != Monster::Wisp;
+  if (AS) {
+    const gear::GearStats& A = *AS;
+    const Actor& wearer = byPl ? pl() : actors[(size_t)atkI];
+    if (byPl) dmg *= gear::gapPlayerDamage(plLevel, v.level);
+    if (A.has(Unique::Executioner) && v.hp < v.maxHp * 0.25f) dmg *= 1.5f;
+    if (A.has(Unique::Berserker)) dmg *= 1.0f + 0.02f * std::floor(10.0f * (1.0f - wearer.hp / std::max(1.0f, wearer.maxHp)));
+    if (A.has(Unique::Huntsman) && beast) dmg *= 1.3f;
+    if (A.has(Unique::Gravebane) && undead) dmg *= 1.3f;
+    if (A.has(Unique::Dragonbane) && (v.mon == Monster::Dragon || v.rank >= 5)) dmg *= 1.4f;
+    // (M8b) the plain-word slayer affixes: "+12% DAMAGE VS BEASTS / UNDEAD / PEOPLE" (people: bandits, soldiers, raiders)
+    int vs = 0;
+    if (beast) vs += A.get(Affix::VsBeasts);
+    if (undead) vs += A.get(Affix::VsUndead);
+    if (v.human) vs += A.get(Affix::VsPeople);
+    if (vs > 0) dmg *= 1.0f + 0.01f * (float)vs;
+    if (byPl && craft.live.warcryT > 0) dmg *= 1.15f;
+    elemental = 0.01f * (float)(A.get(Affix::FireDmg) + A.get(Affix::FrostDmg) + A.get(Affix::ShadowDmg));
   }
   if (v.player) {
     // mitigation AR / (AR + 10 attacker level + 30), capped at 70 %; a foe far above the hero hits harder
@@ -1030,20 +1065,49 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
                     : (ench == Ench::Drain || shadowFoe) ? S6.get(Affix::ResShadow) : 0;
     if (res > 0) dmg *= 1.0f - 0.01f * (float)std::min(res, 75);
     if (S6.has(Unique::Bulwark) && v.hp > v.maxHp * 0.8f) dmg *= 0.7f;
-  } else dmg *= 1.0f - gear::mitigation(v.armor, atkLevel);   // (M6) a foe's armour (1.5 D) by the same rule
+  } else {
+    dmg *= 1.0f - gear::mitigation(v.armor, atkLevel);   // (M6) a foe's armour (1.5 D) by the same rule
+    if (VS) {   // (M8b) a companion's resistances and Bulwark, as the hero's
+      const bool shadowFoe = atkI >= 0 && actors[(size_t)atkI].mon == Monster::Wraith && !actors[(size_t)atkI].human;
+      const int res = ench == Ench::Fire ? VS->get(Affix::ResFire) : ench == Ench::Frost ? VS->get(Affix::ResFrost)
+                      : (ench == Ench::Drain || shadowFoe) ? VS->get(Affix::ResShadow) : 0;
+      if (res > 0) dmg *= 1.0f - 0.01f * (float)std::min(res, 75);
+      if (VS->has(Unique::Bulwark) && v.hp > v.maxHp * 0.8f) dmg *= 0.7f;
+    }
+  }
   dmg = foeHit(v, dmg, attacker);   // M6: warded / armoured / vampiric / frost-bound (foes_game.cpp)
   dmg = partyHit(v, dmg, attacker);  // M8: shield wall, defend, the damage-share statistics (party_game.cpp)
-  if (byPl && elemental > 0) {
+  if (AS && elemental > 0) {
     dmg *= 1.0f + elemental;
-    if (S6.get(Affix::FireDmg) > 0) { v.burnT = std::max(v.burnT, 2.0f); v.regen = 0; }
-    if (S6.get(Affix::FrostDmg) > 0) v.slowT = std::max(v.slowT, 1.5f);
+    if (AS->get(Affix::FireDmg) > 0) { v.burnT = std::max(v.burnT, 2.0f); v.regen = 0; }
+    if (AS->get(Affix::FrostDmg) > 0) v.slowT = std::max(v.slowT, 1.5f);
   }
-  if (byPl && S6.has(Unique::Ember)) { v.burnT = std::max(v.burnT, 3.0f); v.regen = 0; }
-  if (byPl && S6.has(Unique::Rime)) { if (v.slowT < 0.1f) emit(Ev::Frost, v.p); v.slowT = std::max(v.slowT, 2.0f); }
+  if (AS && AS->has(Unique::Ember)) { v.burnT = std::max(v.burnT, 3.0f); v.regen = 0; }
+  if (AS && AS->has(Unique::Rime)) { if (v.slowT < 0.1f) emit(Ev::Frost, v.p); v.slowT = std::max(v.slowT, 2.0f); }
+  // (M8b) Affix::Burn: "BURNS FOES FOR N DMG/S": N damage a second for 3 s (updateActor; the strongest burn holds)
+  if (AS && AS->get(Affix::Burn) > 0) {
+    const float n = (float)AS->get(Affix::Burn);
+    if (v.burnDpsT <= 0 || n >= v.burnDps) { v.burnDps = n; v.burnBy = attacker; }
+    v.burnDpsT = powers::BURN_SECS;
+    v.regen = 0;
+  }
   if (ench == Ench::Fire) { v.burnT = 3.0f; v.regen = 0; dmg += ep * 0.4f; }
   if (ench == Ench::Frost) { v.slowT = 3.0f; dmg += ep * 0.5f; emit(Ev::Frost, v.p); }
   if (ench == Ench::Drain && attacker == pl().id) { pl().hp = std::min(pl().maxHp, pl().hp + ep * 0.5f); dmg += ep * 0.3f; }
-  if (byPl && S6.get(Affix::LifeDrain) > 0) pl().hp = std::min(pl().maxHp, pl().hp + dmg * 0.01f * (float)S6.get(Affix::LifeDrain));
+  if (AS && (AS->get(Affix::LifeDrain) > 0 || AS->has(Unique::Soulfeast))) {
+    // life drain (N % of the blow) and (M8b) Soulfeast's 6 %: the striker heals (a companion heals themselves)
+    Actor& w = byPl ? pl() : actors[(size_t)atkI];
+    const float pct = (float)AS->get(Affix::LifeDrain) + (AS->has(Unique::Soulfeast) ? powers::SOULFEAST_PCT : 0.0f);
+    const float before = w.hp;
+    w.hp = std::min(w.maxHp, w.hp + dmg * 0.01f * pct);
+    if (AS->has(Unique::Soulfeast) && w.hp > before) {
+      craft.live.fx.healed += w.hp - before;
+      if (time - craft.live.fx.lastHealFx > 0.25f || craft.live.fx.lastHealFx > time) {   // (one mote stream a quarter second)
+        craft.live.fx.lastHealFx = time;
+        PowerOps::emitPower(*this, powers::Fx::Lifesteal, v.p + Vec2(0, -8), w.p + Vec2(0, -8), std::min(1.5f, (w.hp - before) / 6.0f), (uint32_t)w.id);
+      }
+    }
+  }
   if (v.player && craft.live.ward > 0) {   // Ward: the shield takes the blow first
     const float soak = std::min(craft.live.ward, dmg);
     craft.live.ward -= soak;
@@ -1095,8 +1159,9 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
        std::to_string((int)std::ceil(dmg)) + (crit ? "!" : ""));
   if (crit) emit(Ev::Shake, v.p, 0, 3.0f);
   emit(Ev::Hit, v.p + Vec2(0, -6), 0, dmg);
-  if (v.human || v.mon == Monster::Wolf || v.mon == Monster::Bear || v.mon == Monster::Boar || v.mon == Monster::Troll || v.mon == Monster::IceWolf || v.mon == Monster::Dragon ||
-      v.mon == Monster::Hyena || v.mon == Monster::Lurker || v.mon == Monster::Yeti || v.mon == Monster::EmberHound)
+  if (v.powTag != powers::PT_WOLF &&   // ((M8b) a spectral wolf does not bleed)
+      (v.human || v.mon == Monster::Wolf || v.mon == Monster::Bear || v.mon == Monster::Boar || v.mon == Monster::Troll || v.mon == Monster::IceWolf || v.mon == Monster::Dragon ||
+       v.mon == Monster::Hyena || v.mon == Monster::Lurker || v.mon == Monster::Yeti || v.mon == Monster::EmberHound))
     emit(Ev::Blood, v.p + Vec2(0, -6));
   if (v.player) { sfx((int)Sfx::PlayerHurt, v.p); emit(Ev::Shake, v.p, 0, 3); v.iframes = 0.35f; }
   else sfx((int)(dmg > 18 ? Sfx::HitHeavy : Sfx::Hit), v.p, 0.9f + rng_.f() * 0.2f);
@@ -1122,10 +1187,30 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
       emit(Ev::Text, v.p + Vec2(0, -20), (int)rgba(255, 230, 120), 0, "!");
     }
   } else if (v.st != AState::Roll && dmg > 8) { v.st = AState::Hurt; v.stT = 0; }
+  // (M8b) the striker's on-hit powers (Tempest, Starfall), never from a power's own damage; read before the kill (the
+  // victim's place and id)
+  const bool procs = AS && powDepth_ == 0 && v.hostile && dmg > 0;
+  const int vid = v.id;
+  const Vec2 vat = v.p;
   if (v.hp <= 0) kill(v, attacker);
+  if (procs) PowerOps::afterHit(*this, attacker, vid, vat, dmg, crit);
 }
 
 void Game::kill(Actor& a, int killer) {
+  if (a.player && PowerOps::phoenix(*this)) return;   // (M8b) Phoenix: a fatal blow leaves the hero at 30 % instead
+  if (a.powTag == powers::PT_WOLF) {   // (M8b) a spectral wolf fades: no body, no loot, no kill, no deeds, no quests
+    a.hp = 0; a.st = AState::Dead; a.stT = 99.0f;
+    PowerOps::emitPower(*this, powers::Fx::Wolf, a.p, a.p, 0.0f, (uint32_t)a.id);
+    return;
+  }
+  // (M8b fixer r2) a spectral wolf's kill is its summoner's: XP, the kill count, den clears, hunts and saga Kill goals
+  // credit the hero (or the companion) who wears the power. The powers themselves still see the wolf as the striker
+  // (PowerOps::onKill below), so a wolf's kill never calls more wolves or feeds Soulfeast.
+  const int striker = killer;
+  if (killer >= 0) {
+    const int ki = findActor(killer);
+    if (ki >= 0 && actors[(size_t)ki].powTag == powers::PT_WOLF && actors[(size_t)ki].powBy) killer = (int)actors[(size_t)ki].powBy;
+  }
   if (a.comp && partyFell(a, killer)) return;   // M8: a companion is downed, not dead, until the lane says (party_game.cpp)
   if (a.mon == Monster::Skeleton && !a.human && !a.boss && !a.reassembled && a.st != AState::Down && rng_.f() < 0.4f) {
     // the bones collapse... and may stand back up (see updateActor). Another blow while it is down finishes it.
@@ -1159,6 +1244,7 @@ void Game::kill(Actor& a, int killer) {
     if (S6.has(Unique::Vampire)) { pl().hp = std::min(pl().maxHp, pl().hp + pl().maxHp * 0.08f); emit(Ev::Heal, pl().p); }
     if (S6.has(Unique::Warcry)) { if (craft.live.warcryT <= 0) emit(Ev::Text, pl().p + Vec2(0, -30), (int)rgba(255, 150, 90), 0, "WARCRY"); craft.live.warcryT = 6.0f; }
   }
+  PowerOps::onKill(*this, a, striker);   // (M8b) Soulfeast's kill heal, Wolfking's call (the hero's and a companion's)
   // townsfolk felled by monsters are back on their feet when the town next loads (only enemies stay dead)
   if (a.fromMap && !a.npc) killedSlots[mapKey()].insert(!inside && a.site >= 0 ? owKillKey(a.site, a.slot) : a.slot);
   if (a.fromMap && a.npc && !inside && a.site >= 0 && a.slot >= 0) felled_[a.site].insert(a.slot);   // not back this visit
@@ -1271,7 +1357,10 @@ void Game::shootArrow() {
   pr.fromPlayer = true; pr.owner = p.id; pr.kind = ProjKind::Arrow; pr.life = 0.9f;
   projs.push_back(pr);
   p.aim = aim; p.face = faceOf(aim);
-  p.st = AState::Cast; p.stT = 0; p.shootCd = craft.live.stats.has(Unique::Quickdraw) ? 0.42f * 0.7f : 0.42f;
+  projs.back().from = pr.p;   // (M8b SplitArrows: where it was loosed)
+  // (M8b) Affix::AttackSpeed draws the bow that much faster too
+  p.st = AState::Cast; p.stT = 0;
+  p.shootCd = (craft.live.stats.has(Unique::Quickdraw) ? 0.42f * 0.7f : 0.42f) / (1.0f + 0.01f * (float)std::max(0, craft.live.stats.get(Affix::AttackSpeed)));
   sfx((int)Sfx::Arrow, p.p);
 }
 
@@ -1322,12 +1411,31 @@ void Game::castSpell() {
   p.st = AState::Cast; p.stT = 0; p.shootCd = 0.35f;
 }
 
-void Game::updateProjectiles(float dt) {
+void Game::updateProjectiles(float dt0) {
+  // (M8b) SplitArrows' new arrows join after the pass (never pushed while `pr` is held)
+  std::vector<Projectile> born;
+  const bool split = craft.live.stats.has(Unique::SplitArrows);
+  const bool reflect = craft.live.stats.has(Unique::ReflectBlock);
   for (size_t i = 0; i < projs.size();) {
     Projectile& pr = projs[i];
+    const float dt = pr.fromPlayer ? dt0 : dt0 * PowerOps::foeScale(*this);   // (M8b) Chronos slows the foes' missiles
     pr.life -= dt;
     Vec2 prev = pr.p;
     pr.p += pr.v * dt;
+    // (M8b) SplitArrows: past 6 tiles the hero's arrow splits in three (a 12-degree fan; the children never split again)
+    if (split && pr.kind == ProjKind::Arrow && pr.owner == pl().id && !(pr.powFlags & PJ_SPLIT) && len2(pr.from) > 0 &&
+        len2(pr.p - pr.from) > powers::SPLIT_RANGE * powers::SPLIT_RANGE) {
+      pr.powFlags |= PJ_SPLIT;
+      for (int k = -1; k <= 1; k += 2) {
+        Projectile c = pr;
+        const float an = 0.21f * (float)k, cs = std::cos(an), sn = std::sin(an);
+        c.v = Vec2(pr.v.x * cs - pr.v.y * sn, pr.v.x * sn + pr.v.y * cs);
+        c.dmg = pr.dmg * 0.6f;
+        born.push_back(c);
+      }
+      PowerOps::emitPower(*this, powers::Fx::Proc, pr.p, pr.p + pr.v * 0.05f, 0.5f, 0);
+      craft.live.fx.procs[(int)powers::Fx::Proc]++;
+    }
     bool dead = pr.life <= 0;
     // (M6 fixer) a foe's fire on the ground (an inert Fireball: still, from no player, of the Player faction; foes_game
     // dropFire) only fades: it never bursts, even when a step grows past foeStep's quiet-removal margin (slow-mo ends)
@@ -1360,6 +1468,19 @@ void Game::updateProjectiles(float dt) {
         Vec2 c = a.p + Vec2(0, a.fly ? -28.0f : -7.0f);
         float r = a.radius + pr.radius + (a.mon == Monster::Dragon ? 10 : 2);
         if (len2(c - pr.p) < r * r) {
+          // (M8b) ReflectBlock: a missile met mid-roll turns back on whoever loosed it, the hero's now
+          if (a.player && reflect && a.st == AState::Roll && pr.kind != ProjKind::DragonFire && !(pr.powFlags & PJ_REFLECTED)) {
+            pr.v = pr.v * -1.2f;
+            pr.fromPlayer = true; pr.owner = a.id; pr.fac = Faction::Player;
+            pr.powFlags |= PJ_REFLECTED;
+            pr.life = std::max(pr.life, 0.8f);
+            pr.p = c + norm(pr.v) * (r + 1.0f);
+            PowerOps::emitPower(*this, powers::Fx::Proc, c, c + norm(pr.v) * 10.0f, 1.0f, 0);
+            craft.live.fx.procs[(int)powers::Fx::Proc]++;
+            emit(Ev::Text, a.p + Vec2(0, -26), (int)rgba(200, 230, 255), 0, "REFLECT");
+            sfx((int)Sfx::Block, a.p, 1.3f);
+            break;
+          }
           damage(a, pr.dmg, prev, pr.owner, pr.ench, pr.enchPow);
           dead = true;
           if (pr.kind == ProjKind::Arrow) sfx((int)Sfx::ArrowHit, pr.p);
@@ -1383,6 +1504,7 @@ void Game::updateProjectiles(float dt) {
       projs.erase(projs.begin() + i);
     } else i++;
   }
+  for (Projectile& b : born) projs.push_back(b);
 }
 
 void Game::updatePickups(float dt) {
@@ -1444,10 +1566,27 @@ void Game::updateActor(Actor& a, float dt) {
     a.hp -= dt * (3 + a.level * 0.6f);
     if (a.hp <= 0) { kill(a, pl().id); return; }
   }
+  // (M8b) Affix::Burn: exactly burnDps damage a second while it lasts (the last step only for its share of the second)
+  if (a.burnDpsT > 0) {
+    if (a.comp && a.posture == art::Posture::Downed) a.burnDpsT = 0;
+    const float k = std::min(dt, a.burnDpsT);
+    a.burnDpsT -= dt;
+    a.hp -= a.burnDps * k;
+    if (a.hp <= 0) { kill(a, a.burnBy >= 0 && findActor(a.burnBy) >= 0 ? a.burnBy : pl().id); return; }
+  }
   if (a.slowT > 0) a.slowT -= dt;
+  if (a.powCd > 0) a.powCd -= dt;
+  // (M8b) a companion's Affix::AttackSpeed: their swing and its cooldown run that much faster
+  if (a.comp) if (const gear::GearStats* cs = PowerOps::statsOf(*this, a)) if (const int asp = cs->get(Affix::AttackSpeed)) if (asp > 0) {
+    const float x = dt * 0.01f * (float)asp;
+    if (a.atkCd > 0) a.atkCd -= x;
+    if (a.shootCd > 0) a.shootCd -= x;
+    if (a.st == AState::Windup || a.st == AState::Strike || a.st == AState::Recover) a.stT += x;
+  }
   // troll regeneration pauses for a moment after every wound (and fire stops it, see damage())
   if (a.regen > 0 && a.hp < a.maxHp && time - a.lastHitT > 3.0f) a.hp = std::min(a.maxHp, a.hp + a.regen * dt);
   if (len2(a.knock) > 0.01f) { moveActor(a, a.knock * dt); a.knock *= std::pow(0.0005f, dt); }
+  if (a.powTag == powers::PT_WOLF && PowerOps::wolfStep(*this, a, dt)) return;   // (M8b) a spectral wolf (powers.cpp)
   if (a.comp && partyActor(a, dt)) return;   // M8: a companion lives by the FELLOWS lane (party_game.cpp)
   if (a.st == AState::Down) {
     // a collapsed skeleton rattles back together unless it is struck again
@@ -1598,6 +1737,7 @@ void Game::debugFell(int actorId, bool byPlayer) {
 
 void Game::clearNonPlayer() {
   actors.resize(1);
+  PowerOps::clearMap(*this);   // (M8b) the map's fire patches, falling stars and wolves to call
   projs.clear();
   pickups.clear();
   activeSites_.clear();

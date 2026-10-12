@@ -4,6 +4,7 @@
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <future>
 #include <memory>
 #include <mutex>
@@ -16,6 +17,7 @@
 #include "rpg/art.h"
 #include "rpg/build/parts.h"
 #include "rpg/sim/game.h"
+#include "rpg/view/loot_paint.h"
 
 union SDL_Event;
 
@@ -30,7 +32,7 @@ struct Particle {
 // a floating line over the world: a combat number rising and fading (0.9 s), or (M5) a spoken line (an overheard
 // remark, a greeting by name: Ev::Text of words) held over the speaker on a dark plate, wrapped, for `life` seconds
 struct FloatText { Vec2 p; std::string s; Color c; float t = 0; bool speech = false; float life = 0.9f; };
-struct Toast { std::string s; Color c; float t = 0; };
+struct Toast { std::string s; Color c; float t = 0; int rarity = -1; };   // (M8b) rarity: an item notice (its name in the ladder colour)
 
 class View {
  public:
@@ -686,4 +688,70 @@ class View {
   void drawPartyPage(Game& g);
   void partyPageKey(Game& g, int key);
   void partyPageTap(Game& g, Vec2 p);
+
+  // ---- M8b Treasure (VIEW lane; rpg/view/loot_ui.cpp, VISION_PLAN 15.27): every rarity-coloured surface draws through
+  //      these. rarityText: a name in its ladder colour (Mythic: letter by letter in the animated flame, rarityColorAt);
+  //      rarityFrame: a slot / icon frame (Common a quiet frame, Uncommon..Legendary a lit bevel in the colour,
+  //      Legendary corner gems, Mythic a moving flame gradient with ember licks); itemCard: the tooltip (name, rarity and
+  //      item level, the base stat, every affix in plain words, the power, lore, value) with the compare against the
+  //      worn piece (green / red pixel arrows per line and an overall verdict from gear::powerScore); the loot on the
+  //      ground (beams by rarity, their lights, the chime) and the Mythic wearer's embers.
+ public:
+  struct LootStats {
+    int beams[6] = {};        // pickups drawn last frame with their rarity's ground presence (index: rarity)
+    int cards = 0, compares = 0, mythicText = 0, frames = 0;   // item cards, compare panels, Mythic names, rarity frames
+    int chimes = 0;           // LootChime plays so far
+    int embers = 0;           // Mythic wearers drawn with their flame (embers spawned so far)
+  };
+  LootStats lootStats() const { return lootShown_; }
+  // (scripts, script_loot.cpp) `lootsel menu <i|last>`, `lootsel shop <buy|sell> <i|last>`, `lootsel doll <slot> <cand>`:
+  // put the cursor on a row the way the keys do (the doll's pick opens its compare card); false with err when refused
+  bool lootSelect(Game& g, const std::vector<std::string>& a, std::string& err);
+  void paperdollPeek(Game& g, int slot, int cand);   // paperdoll.cpp: the slot, the pack row, and the compare card shown
+  // (scripts) what the last item card drew (`expect lootcard ...`, script_loot.cpp)
+  using CardInfo = lootp::CardInfo;
+  CardInfo lastCard() const { return lastCard_; }
+ private:
+  LootStats lootShown_, lootCount_;
+  CardInfo lastCard_;
+  float lootChimeT_ = -100;                        // t_ of the last chime (a pickup right after its sighting stays quiet)
+  float emberT_ = 0;
+  Tex beamTex_;                                    // a soft vertical gradient (white; tinted additively per rarity)
+  const Tex& beamTex();                            // (baked on first use: loot_paint.h beamProfile)
+  // (M8b fixer r3) a Mythic wearer's flame aura sheet (loot_ui.cpp mythicAuraTex), by look; render.cpp draws a cell of it
+  // behind the standing body and again additively after the lighting
+ public:
+  static constexpr int AURA_PAD = 4, AURA_CW = art::HUMAN_W + 2 * AURA_PAD, AURA_CH = art::HUMAN_H + 2 * AURA_PAD, AURA_V = 4;
+  const Tex* mythicAuraTex(const art::HumanLook& L);
+  // the aura cell for a Mythic look (nothing for any other) at the figure's top-left (x, y), sc screen px per sprite px
+  void mythicAuraAt(const art::HumanLook& L, int frame, int row, bool flip, float x, float y, float sc);
+ private:
+  std::unordered_map<uint64_t, Tex> mythicAura_;
+  struct LootPainter;                              // the Pix painter loot_paint.h's templates draw with (loot_ui.cpp)
+  void rarityText(float x, float y, const std::string& s, Rarity r, float alpha = 1, int align = 0, bool shadow = false);
+  void rarityFrame(float x, float y, float w, float h, Rarity r, bool hot = false, bool small = false);
+  void rarityIcon(const Game& g, const Item& it, float x, float y, float size);   // the icon in its rarity cell
+  void cmpArrow(float x, float y, int dir);        // 1 up (green), -1 down (red), 0 even (a grey dash)
+  // the item card at (x, y) w wide down to maxY; cmp: compare against `vs` (nullptr: the slot is empty); worn: the
+  // piece is the one worn (a WORN tag instead of the compare). Returns the y under it.
+  float itemCard(const Game& g, const Item& it, float x, float y, float w, float maxY, bool cmp, const Item* vs, bool worn, bool bigIcon = true);
+  const Item* wornFor(const Game& g, const Item& it, int selfIndex, bool& isWorn) const;   // the slot's worn piece
+  int cmpVerdict(const Game& g, const Item& it, const Item* vs) const;                     // 1 better, -1 worse, 0 even
+  int attuneWhy(const Game& g, const Item& it, const Item* vs, std::string* name = nullptr) const;   // 0 / 1 lv10 / 2 full
+  void packUse(Game& g, int i);   // the pack's EQUIP / USE (a great piece that cannot be worn: the reason blinks)
+  float lootBlockFlash_ = 0;   // (M8b fixer r2) a tap on a disabled EQUIP: the card's reason line blinks a moment
+  void drawLootGround(Game& g, const Pickup& k, int idx, Vec2 cam, float bob);   // the sorted pass (case 4)
+  void lootLights(Game& g, const std::function<void(Vec2, float, Color, float)>& light);
+  void lootUpdate(Game& g, float dt);              // chimes for Epic+ coming into view, the Mythic wearers' embers
+  void lootNotice(Game& g, const Event& e, Toast& t);   // an item pickup notice: its rarity, the chime
+
+  // ---- M8b Treasure (POWERS lane; rpg/view/render_powers.cpp). The worn powers' effects in the world: a lightning arc,
+  //      a fire patch, a burn, the thorns aura, the time-slow tint, a lifesteal mote, the phoenix's rebirth, a falling
+  //      star, a spectral wolf's shimmer (Ev::Power: a = powers::Fx, p / q / f / id). The POWERS lane owns these members
+  //      (it may add more state inside PowerFx); every other M8b view change belongs to the VIEW lane.
+  struct PowerFx { int kind = 0; Vec2 p, q; float t = 0, life = 0.4f, mag = 1; uint32_t follow = 0; uint32_t seed = 0; };
+  std::vector<PowerFx> powerFx_;
+  void powerEvent(Game& g, const Event& e);    // Ev::Power (update's event pass)
+  void powerUpdate(Game& g, float dt);         // age the effects (update, after partyUpdate)
+  void drawPowerFx(Game& g, Vec2 cam);         // world space, after the lighting (draw, with companionOverlays)
 };

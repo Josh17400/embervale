@@ -55,6 +55,12 @@ enum class Sfx : uint8_t {
   Revive,        // a friend's wounds bound: cloth drawn tight, a caught breath, a warm rising swell
   Knell,         // a companion has died: one slow, low funeral bell over a hushed choir
   Howl,          // the bonded hound's or wolf's howl (a rising, wavering call)
+  // M8b Treasure (lead, phase A stand-ins). Zap and Rebirth: the POWERS lane voices them (a power's crackle / the
+  // phoenix); LootChime: the VIEW lane plays it when an Epic or better piece drops or is picked up (k: the pitch by
+  // rarity), the POWERS lane voices it (it owns engine/audio.* in M8b)
+  Zap,           // chain lightning / a falling star's strike: a bright electric crack and a sizzle
+  Rebirth,       // the phoenix: a rush of fire rising into a bright chord
+  LootChime,     // a fine piece found: a glassy rising arpeggio (higher and longer for Legendary and Mythic)
   COUNT
 };
 

@@ -1,6 +1,6 @@
 // M6 Steel script commands (lead, phase A): stage gear, materials and elite foes for screenshots and checks. Lanes add
 // their own commands in their own script_*.cpp files.
-//   gear6 <kind> [ilvl N] [rarity 0-4] [here|none|<archetype>] [mat leather|bronze|iron|steel|alloy] [alloy N] [form N]
+//   gear6 <kind> [ilvl N] [rarity 0-5] [here|none|<archetype>] [mat leather|bronze|iron|steel|alloy] [alloy N] [form N]
 //        [equip]: a piece of gear in the pack (kind: sword axe mace dagger greatsword spear bow staff body helmet shield
 //        gloves boots cloak ring amulet); `here` = the culture where the player stands, an archetype name = the nearest
 //        settlement culture of that archetype within the loaded window's sites, none = heartland (default here)
@@ -73,7 +73,7 @@ GearArgs parseArgs(const ScriptCtx& c, size_t from) {
   for (size_t i = from; i < c.a.size(); i++) {
     const std::string w = low(c.a[i]);
     if (w == "ilvl" && i + 1 < c.a.size()) A.ilvl = std::atoi(c.a[++i].c_str());
-    else if (w == "rarity" && i + 1 < c.a.size()) A.rar = (Rarity)std::clamp(std::atoi(c.a[++i].c_str()), 0, 4);
+    else if (w == "rarity" && i + 1 < c.a.size()) A.rar = (Rarity)std::clamp(std::atoi(c.a[++i].c_str()), 0, RARITIES - 1);   // (M8b) 5 = Mythic
     else if (w == "mat" && i + 1 < c.a.size()) A.mat = matOf(low(c.a[++i]));
     else if (w == "alloy" && i + 1 < c.a.size()) A.alloy = std::atoi(c.a[++i].c_str());
     else if (w == "form" && i + 1 < c.a.size()) A.form = std::atoi(c.a[++i].c_str());
@@ -107,7 +107,7 @@ bool cmdGear(ScriptCtx& c) {
   giveGear(c.game, k, sub, parseArgs(c, 2));
   return true;
 }
-EMB_SCRIPT_CMD("gear6", "gear6 <kind> [ilvl N] [rarity 0-4] [here|none|<archetype>] [mat m] [alloy N] [form N] [equip]: a piece of gear (M6)", cmdGear);
+EMB_SCRIPT_CMD("gear6", "gear6 <kind> [ilvl N] [rarity 0-5] [here|none|<archetype>] [mat m] [alloy N] [form N] [equip]: a piece of gear (M6)", cmdGear);
 
 bool cmdKit6(ScriptCtx& c) {
   GearArgs A = parseArgs(c, 1);

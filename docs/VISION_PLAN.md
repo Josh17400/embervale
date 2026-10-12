@@ -2991,3 +2991,53 @@ The owner, in their words: "items need to have effects if they have a rarity. im
    - Affixes and item level are saved (bump SAVE_VER and regenerate the fixtures; old items load as item level from the player's level at load).
    - Companions use the same rules.
    - Balance gates (`--metrics`, `--power-curve`, `--foes`, `--arms`, `--companion`) stay green. Item power must not break the time-to-kill bands.
+
+### 15.28 M8b "Treasure" phase A (lead, 2026-10-12): the loot contracts
+
+15.27 binds M8b (the owner's words win). Phase A contracts (a lane may ADD to a file it is the editor of, never rename,
+remove or change the meaning of what is listed here):
+- **`rpg/sim/items.h`** (NUMBERS lane is its only editor; items.cpp): `Rarity::Mythic` (5) and `Rarity::COUNT`,
+  `RARITIES`, `rarityName`; `rarityColor` is the 15.27 ladder (white, green, blue, purple, gold, Mythic's flaming red-
+  orange) and `rarityColorAt(r, t, phase)` its animated form (Mythic shimmers ember -> orange -> hot yellow; phase runs
+  it along a name or a frame). Eight appended affixes, rolled only once the POWERS lane makes them work: `VsBeasts`,
+  `VsUndead`, `VsPeople`, `Burn` (dmg/s), `AttackSpeed`, `ArmourPct`, `HealthRegen` (every 5 s), `Stamina`.
+  `affixText(a, value)`: the plain words every surface shows ("+12% DAMAGE VS BEASTS", "BURNS FOES FOR 6 DMG/S").
+  Eight appended Mythic powers (`Unique::Tempest, Inferno, Soulfeast, BrambleCrown, Chronos, Phoenix, Starfall,
+  Wolfking`; `uniqueIsMythic`). `kItemAffixes` 4 (Mythic carries four strong affixes and its power). The Item layout
+  is frozen at SAVE_VER 19 for M8b (no new Item fields).
+- **`rpg/sim/gear.h`** (NUMBERS lane; gear.cpp): `LootSrc` (Body, Chest, Hoard, Explore, Boss, WorldBoss, Shop,
+  Merchant, Quest, Saga, SagaFinale, CampaignFinale, Forge, Companion, Debug) and `lootSrcName`; `DropSource` gains
+  `src`, `boost` (rarity luck steps), `atLeast` (a guaranteed floor), `atMost` (a cap), and `playerLevel` now counts
+  (15.27.3: the item level and the gate read it); `rarityFloorLevel` (1, 1, 5, 12, 20, 30), `rarityOdds(s, pct[6])`
+  (rollRarity draws exactly these, one draw), `itemLevelFor(s)` (dropIlvl = it); `rarityMult` / `affixSlots` for six
+  steps; `attunes` counts Mythic; `affixImplemented` and `uniqueImplemented` (DEFINED in rpg/sim/powers.cpp by the
+  POWERS lane: only what works rolls; rollAffixes filters by it); `mythicPowersFor(kind)`; `affixConflicts(a, b)`
+  (rollAffixes never puts two conflicting affixes on one piece); `lootValid(it, why)` (the 15.27.2 audit: above Common
+  an item level, at least one affix, each allowed, working, worded, none in conflict; Legendary / Mythic a working
+  power, a Mythic one on a Mythic); `adoptClassic(it, playerLevel)` (a classic ilvl-0 piece made M6 gear with the
+  affixes its rarity owes: Game::addItem applies it to everything that enters the pack, the safety net under every
+  source); `powerScore(it, playerLevel)` (one comparable worth for the compare panel's arrow and the iron / bronze
+  example); `Live::fx` (powers::State). Phase A keeps the M6 numbers (55 / 28 / 12 / 4 / 1 %, never Mythic from a roll)
+  plus the floor and cap: the NUMBERS lane replaces them.
+- **`rpg/sim/powers.h`** (POWERS lane; powers.cpp): `affixWorks`, `uniqueWorks` (phase A: the 18 M6 affixes and the 28
+  M6 powers that had code; none of the M8b ones), `State` (Inferno trail, Bramble aura, regen, time slow, Chronos and
+  Phoenix cooldowns, the dodge window, hits, the Wolfking summon), `Fx` (Lightning, FirePatch, Burn, Thorns, TimeSlow,
+  Lifesteal, Phoenix, Star, Wolf, Proc).
+- **`rpg/sim/game.h`** (POWERS lane is its only editor): `Ev::Power` (a = powers::Fx, p, the new `Event::q`, f, id),
+  `Actor::powTag / powT / powBy` (never saved), `friend struct PowerOps`, `friend struct LootOps`
+  (rpg/sim/loot_ops.h, SOURCES lane: dropLoot / openChest for the audit).
+- **View** (`rpg/view/view.h`, VIEW lane is its only editor except the M8b POWERS block: `PowerFx`, `powerFx_`,
+  `powerEvent`, `powerUpdate`, `drawPowerFx`, defined in rpg/view/render_powers.cpp; render.cpp calls the first two,
+  View::draw the last, after companionOverlays). hud.cpp's item lines use `affixText` and `rarityName`.
+- **Audio** (engine/audio.h, POWERS lane): `Sfx::Zap`, `Rebirth`, `LootChime` (stand-ins on Frost, LevelUp, Discover;
+  the VIEW lane plays LootChime for Epic and better finds).
+- **Saves**: SAVE_VER 19 (items write kItemAffixes = 4 affix pairs; the Mythic rarity): fixture
+  `tests/fixtures/save_v19.bin` (save_v18.bin removed; a Mythic ring with four affixes, the fourth an M8b one, and the
+  Phoenix power). ENDLESS_GEN_VER unchanged (M7c owns generation).
+- **Tests and scripts**: `rpg_test --loot` (NUMBERS: every rarity x kind x item level valid, the odds, determinism, the
+  spread by level band printed: phase A measures 54.7 / 28.4 / 12.2 / 4.7 % at levels 1-4, the saturation the owner
+  felt), `--loot-sources [--seeds]` (SOURCES: real bodies of every rank and every shop in real games through
+  lootValid), `--powers` (POWERS: which affixes and powers work; phase A 18 / 28 / 0 Mythic), all three in CI ("Loot
+  test"). Script commands (rpg/view/script_loot.cpp): `lootdrop <kind> [rarity N|name] [ilvl N] [n K]`, `lootroll <n>
+  [level L] [D d] [rank r] [src s]` (pieces laid outside the pickup pull), `expect lootvalid`, `expect lootpickups
+  <n>`; `gear6` takes rarity 0-5; `tools/scripts/m8b_lead_loot.txt`.

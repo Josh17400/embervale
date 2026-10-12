@@ -10,6 +10,7 @@
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/home.h"
+#include "rpg/sim/loot_ops.h"
 #include "rpg/culture/culture.h"
 #include "rpg/world/source.h"
 #include "rpg/culture/society.h"
@@ -29,6 +30,9 @@ void Game::giveGold(int g) {
 
 void Game::addItem(const Item& it0, bool announce) {
   Item it = it0;
+  // (M8b, 15.27.2 / 15.27.5) the safety net under every source: a classic piece (item level 0, from an older maker)
+  // becomes M6 gear at the player's level, with the affixes its rarity owes, so nothing above Common does nothing
+  if (itemEquippable(it.kind) && it.ilvl == 0) gear::adoptClassic(it, plLevel);
   // (M6, 7.5 rule 7) at most 10 potions carried: the rest is left behind
   if (it.kind == ItemKind::Potion) {
     int held = 0;
@@ -86,8 +90,10 @@ void Game::useItem(int i) {
         if (e >= 0 && e < (int)inv.size() && e != *slot && gear::attunes(inv[(size_t)e])) worn++;
       const int slots = gear::attunementSlots(plLevel);
       if (worn >= slots) {
-        say(slots == 0 ? "A LEGENDARY ANSWERS ONLY FROM LEVEL 10: YOU CANNOT ATTUNE TO IT YET"
-                       : "ATTUNED TO " + std::to_string(worn) + (worn == 1 ? " LEGENDARY" : " LEGENDARIES") + " ALREADY (LEVEL " +
+        // (M8b integration) Mythic pieces attune too: the notice names the piece's own rarity, and counts "great pieces"
+        const std::string kindWord = it.rarity == Rarity::Mythic ? "A MYTHIC" : "A LEGENDARY";
+        say(slots == 0 ? kindWord + " ANSWERS ONLY FROM LEVEL 10: YOU CANNOT ATTUNE TO IT YET"
+                       : "ATTUNED TO " + std::to_string(worn) + (worn == 1 ? " GREAT PIECE" : " GREAT PIECES") + " ALREADY (LEVEL " +
                              std::to_string(plLevel) + " ALLOWS " + std::to_string(slots) + "): TAKE ONE OFF FIRST");
         sfx((int)Sfx::MenuBack, pl().p);
         return;
@@ -185,9 +191,16 @@ void Game::dropLoot(const Actor& a) {
     else if (const cult::Culture* c = world.cultureAtTile((int)std::floor(a.p.x / TILE), (int)std::floor(a.p.y / TILE))) ds.culture = c->id;
   }
   const cult::Culture* maker = ds.culture && world.src ? &world.src->culture(ds.culture) : nullptr;
+  // (M8b, 15.27.4) the source by how hard the foe was: a world boss's hoard is Epic or better, a dungeon boss's drop is
+  // boosted a step, a named unique's is Rare or better (7.6), every other body an ordinary roll (an elite's +1 roll is
+  // rollDrop's own)
   auto loot = [&](bool boss) {
     gear::DropSource s2 = ds;
     if (boss && s2.rank < 4) s2.rank = 4;
+    if (s2.rank >= 5) { s2.src = gear::LootSrc::WorldBoss; s2.atLeast = Rarity::Epic; }
+    else if (s2.rank == 4) { s2.src = gear::LootSrc::Boss; s2.boost = 1; }
+    else if (s2.rank == 3) { s2.src = gear::LootSrc::Body; s2.atLeast = Rarity::Rare; }
+    else s2.src = gear::LootSrc::Body;
     Item it = gear::rollDropC(r, s2, maker);
     return it;
   };
@@ -286,22 +299,56 @@ void Game::openChest(int tx, int ty) {
   Rng r(world.endless ? (uint32_t)ew::mix64(lk ^ seed) : hash2(tx, ty, (uint32_t)seed + mapKey()));
   bool rich = inside && subSite >= 0;
   int n = 1 + r.irange(rich ? 3 : 2);
-  Vec2 c(tx * TILE + 8.0f, ty * TILE + 18.0f);
+  // (M8b) the find is laid out in a small fan on the open floor before the chest (its front, else a free side), each
+  // piece in its own place, never piled on the lid or on the wall behind
+  int fdx = 0, fdy = 1;
+  {
+    static const int sides[4][2] = {{0, 1}, {-1, 0}, {1, 0}, {0, -1}};
+    for (const auto& s : sides)
+      if (!m.blocked(tx + s[0], ty + s[1])) { fdx = s[0]; fdy = s[1]; break; }
+  }
+  // (a piece's sprite stands above its point: in front of the chest the point lies nearly two tiles down, so the
+  // 16 px icon stands clear of the chest's front face)
+  // (M8b fixer r2, review: "the hoard's sword, gold and amulet sit in one overlapping stack against the chest") the
+  // fan is wider (icons 18 px apart, rows 14 px apart), the gold takes its own place in it, and a place on a blocked
+  // tile moves on to the next one
+  Vec2 c(tx * TILE + 8.0f + (float)fdx * 20.0f, ty * TILE + 8.0f + (fdy > 0 ? 28.0f : fdy < 0 ? -14.0f : 6.0f));
+  int slot = 0;
+  auto place = [&](float jx, float jy) {
+    static const float fan[10][2] = {{0, 0}, {-18, 0}, {18, 0}, {-9, 14}, {9, 14}, {-27, 10}, {27, 10}, {0, 26}, {-18, 26}, {18, 26}};
+    Vec2 first;
+    for (int tries = 0; tries < 10; tries++) {
+      const float* f = fan[slot++ % 10];
+      // along the free side: forward is (fdx, fdy), across is (-fdy, fdx)
+      const float ax = f[0] + jx * 0.12f, fw = f[1] + jy * 0.12f;
+      const Vec2 q = c + Vec2(-(float)fdy * ax + (float)fdx * fw, (float)fdx * ax + (float)fdy * fw);
+      if (tries == 0) first = q;
+      if (!m.blocked((int)std::floor(q.x / TILE), (int)std::floor(q.y / TILE))) return q;
+    }
+    return first;
+  };
   // a spot by the chest (draws sequenced: y first, as MSVC/GCC evaluate the Vec2 arguments right to left)
-  auto spot = [&]() { const float jy = r.range(0, 8), jx = r.range(-8, 8); return c + Vec2(jx, jy); };
+  auto spot = [&]() {
+    const float jy = r.range(0, 8), jx = r.range(-8, 8);
+    return place(jx, jy);
+  };
   // (M6) the chest's loot by the place's danger (gear::rollDrop) in the make of the land's (or the dungeon's) culture
   const cult::Culture* cc = inside && subSite >= 0 ? world.cultureOf(subSite) : (inside ? nullptr : world.cultureAtTile(tx, ty));
   if (cc && world.src) cc = &world.src->culture(cc->id);
-  gear::DropSource ds;
-  ds.D = std::clamp(lvl, 1, gear::MAX_D); ds.chest = true; ds.playerLevel = plLevel; ds.culture = cc ? cc->id : 0;
+  // (M8b, 15.27.4) what kind of find it is (a dungeon's hoard, an exploration cache, a plain chest): LootOps::chestSource
+  gear::DropSource ds = LootOps::chestSource(*this, tx, ty);
+  ds.culture = cc ? cc->id : 0;
+  const bool hoard = ds.src == gear::LootSrc::Hoard;
   for (int k = 0; k < n; k++) {
     Pickup p; p.p = spot();
     gear::DropSource s2 = ds;
-    if (rich && k == 0 && r.f() < 0.35f) s2.rank = 4;   // the dungeon's hoard chest: a boss's roll
+    // a dungeon chest's first piece may be a boss's roll; the hoard by the boss always is (the draw is kept either way)
+    const bool bossRoll = rich && k == 0 && r.f() < 0.35f;
+    if (bossRoll || (hoard && k == 0)) s2.rank = 4;
     p.item = gear::rollDropC(r, s2, cc);
     pickups.push_back(p);
   }
-  Pickup g; g.p = c; g.gold = 8 + r.irange(15 + lvl * 4) + (rich ? 20 : 0); pickups.push_back(g);
+  Pickup g; g.p = place(0, 0); g.gold = 8 + r.irange(15 + lvl * 4) + (rich ? 20 : 0); pickups.push_back(g);
   // (M6, 15.11) mining country's chests hold ore (the land's richest), a ruin's may hold an alloy's notes or a mould
   if (world.src) {
     int ptx = tx, pty = ty;
@@ -327,6 +374,49 @@ void Game::openChest(int tx, int ty) {
       pickups.push_back(o);
     }
   }
+}
+
+gear::DropSource LootOps::chestSource(const Game& g, int tx, int ty) {
+  gear::DropSource ds;
+  const bool dungeon = g.inside && g.subSite >= 0 && g.subSite < (int)g.world.sites.size() && g.subBldg < 0;
+  const int lvl = g.inside && g.subSite >= 0 && g.subSite < (int)g.world.sites.size() ? g.world.sites[(size_t)g.subSite].level : g.world.zoneLevel(tx, ty);
+  ds.D = std::clamp(lvl, 1, gear::MAX_D);
+  ds.chest = true;
+  ds.playerLevel = g.plLevel;
+  ds.src = gear::LootSrc::Chest;
+  if (dungeon) {
+    // the hoard: the chest the dungeon's boss guards (a cave's lair chest beside it, a ruin's by the altar of its
+    // room): the nearest chest to a boss's spawn, within 8 tiles
+    const Map& m = g.map();
+    bool byBoss = false;
+    for (const Spawn& s : m.spawns) {
+      if (!s.boss) continue;
+      const int d2 = (s.x - tx) * (s.x - tx) + (s.y - ty) * (s.y - ty);
+      if (d2 > 64) continue;
+      bool nearer = false;
+      for (int y = std::max(0, s.y - 8); y <= std::min(m.h - 1, s.y + 8) && !nearer; y++)
+        for (int x = std::max(0, s.x - 8); x <= std::min(m.w - 1, s.x + 8); x++) {
+          if (x == tx && y == ty) continue;
+          const int p = m.propAt(x, y);
+          if (p != (int)Prop::Chest + 1 && p != (int)Prop::ChestOpen + 1) continue;
+          if ((s.x - x) * (s.x - x) + (s.y - y) * (s.y - y) < d2) { nearer = true; break; }
+        }
+      if (!nearer) { byBoss = true; break; }
+    }
+    const SiteType st = g.world.sites[(size_t)g.subSite].type;
+    if (byBoss) { ds.src = gear::LootSrc::Hoard; ds.boost = 1; }
+    else if (st == SiteType::Ruin || st == SiteType::Shrine) { ds.src = gear::LootSrc::Explore; ds.boost = 1; }   // a ruin's cache
+    // a harder dungeon (beyond the hero: 15.27.4) pays a step more
+    if (ds.D >= g.plLevel + 3) ds.boost = (int8_t)(ds.boost + 1);
+  } else if (!g.inside) {
+    // off the road: a chest at a wayside place (the watchtower's foot, the caravan), a wonder, a ruin or a shrine
+    const int si = g.world.siteAt(tx, ty, 2);
+    if (si >= 0) {
+      const SiteType st = g.world.sites[(size_t)si].type;
+      if (st == SiteType::Vignette || st == SiteType::Wonder || st == SiteType::Ruin || st == SiteType::Shrine) { ds.src = gear::LootSrc::Explore; ds.boost = 1; }
+    }
+  }
+  return ds;
 }
 
 // ------------------------------------------------------------------ interaction
@@ -799,15 +889,23 @@ void Game::completeQuest(Quest& q) {
     if (q.giverSite >= 0 && q.giverSite < (int)world.sites.size()) D = std::max(D, world.sites[(size_t)q.giverSite].level);
     const cult::Culture* gc = q.giverSite >= 0 && q.giverSite < (int)world.sites.size() ? world.cultureOf(q.giverSite) : nullptr;
     if (gc && world.src) gc = &world.src->culture(gc->id);
+    // (M8b, 15.27.4) a quest's reward: Uncommon to Epic by its danger and the finder's level gate; a hard mission (the
+    // target well beyond the hero, or a war's) is boosted a step
     gear::DropSource ds;
     ds.D = std::clamp(D, 1, gear::MAX_D);
-    Rarity rar = gear::rollRarity(r, ds);
-    if (rar < Rarity::Uncommon) rar = Rarity::Uncommon;
-    if (rar > Rarity::Epic) rar = Rarity::Epic;
+    ds.src = gear::LootSrc::Quest;
+    ds.playerLevel = plLevel;
+    ds.culture = gc ? gc->id : 0;
+    ds.atLeast = Rarity::Uncommon;
+    ds.atMost = Rarity::Epic;
+    const bool hard = ds.D >= plLevel + 3 || (q.flags & QF_DANGER);
+    ds.boost = (int8_t)((hard ? 1 : 0) + (q.type == QType::War ? 1 : 0));
+    const Rarity rar = gear::rollRarity(r, ds);
     static const ItemKind kinds[] = {ItemKind::Weapon, ItemKind::Armor, ItemKind::Helmet, ItemKind::Shield, ItemKind::Gloves, ItemKind::Boots,
                                      ItemKind::Cloak, ItemKind::Bow, ItemKind::Ring, ItemKind::Amulet};
     const ItemKind k = kinds[r.irange(10)];
-    Item it = gear::makeGearC(r, k, k == ItemKind::Weapon ? r.irange(5) : 0, ds.D, rar, gc);
+    const int sub = k == ItemKind::Weapon ? r.irange(5) : 0;
+    Item it = gear::makeGearC(r, k, sub, gear::itemLevelFor(ds), rar, gc);
     it.flags |= IF_QUESTREWARD;
     addItem(it);
   }
@@ -1897,11 +1995,15 @@ std::vector<Item> Game::shopStock(const Actor& a) {
   }
   auto gearOf = [&](ItemKind k, int sub) {
     const int il = std::clamp(D - gear::SHOP_BAND_SPREAD + r.irange(2 * gear::SHOP_BAND_SPREAD + 1), 1, gear::MAX_D);
+    // (M8b) a shop's or a merchant's shelf: capped at Rare (Epic in a capital at Honoured), and gated by the
+    // settlement's band, never by the player's level (7.5 rule 4): the shelf's "finder" is the settlement
     gear::DropSource ds;
     ds.D = D;
-    Rarity rar = gear::rollRarity(r, ds);
-    const Rarity top = epicOk ? Rarity::Epic : Rarity::Rare;
-    if (rar > top) rar = top;
+    ds.src = LootOps::shopSrc(a.role);
+    ds.playerLevel = D;
+    ds.culture = cc ? cc->id : 0;
+    ds.atMost = epicOk ? Rarity::Epic : Rarity::Rare;
+    const Rarity rar = gear::rollRarity(r, ds);
     Item it = gear::makeGearC(r, k, sub, il, rar, cc);
     it.flags |= IF_SHOP;
     s.push_back(it);
@@ -2180,7 +2282,9 @@ bool Game::sell(int ii) {
 // refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
 // 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 18;  // 18: fixer M8 r3 (party block v4: the fallen's gender);
+static constexpr uint32_t SAVE_VER = 19;  // 19: M8b Treasure (items carry 4 affix slots, the Mythic rarity and
+                                          //    powers; ENDLESS_GEN_VER unchanged);
+                                          // 18: fixer M8 r3 (party block v4: the fallen's gender);
                                           // 17: fixer M8 r1 (party block v3: a companion's look fixed when they join);
                                           // 16: M8 Fellowship (the party block after the talk block: the companions,
                                           //    their approval, bond, gear and memories, the fallen and their graves;

@@ -4,8 +4,9 @@
 //                   the time a pack of three trash beasts takes to kill a hero who never dodges, the XP a kill is worth.
 //                   FAIL when same-band trash (D = L) falls outside 3-5 hits or same-band death time outside 6-20 s.
 //                   Then the pacing model behind gear::xpForNext (the 1.4 hours table).
-//   --loot-audit    10,000 gear drops per band: rarity within +-2 points of 55 / 28 / 12 / 4 / 1 %, no legendary below
-//                   D 10 (every rank), every affix inside its eff range and allowed on its kind, the item level and the
+//   --loot-audit    10,000 gear drops per band (champions, the finder at the band's level): rarity within +-2 points of
+//                   the M8b ladder's odds (gear::rarityOdds), nothing past the gate + one step (every rank, level and D),
+//                   every affix inside its eff range and allowed on its kind, the item level and the
 //                   material by band; and 200+ real shops (Game::shopStock via craft::stockOf, with the hero at level 50):
 //                   nothing above the settlement's band + 2, nothing above Rare (Epic only in an honouring capital), never
 //                   a legendary.
@@ -24,18 +25,35 @@
 
 namespace {
 
-// ---- the model hero and foe (the same rules game.cpp applies)
+// ---- the model hero and foe (the same rules game.cpp applies). (M8b NUMBERS) the hero's kit is REAL items
+//      (gear::makeGearC, heartland, item level L: bronze / leather in band 1, iron, steel, the band words above), read
+//      through usePower, so the model follows statScale, the materials and the rarity multipliers as the game does.
 struct Cell { int L, D; float hitsTrash, hitsBrute, deathSecs; int xp; };
-float heroHit(int L, int D) {
-  // a common sword of item level L at eff L, +1.5 % a level, against armour 1.5 D (mitigated by the hero's level), the gap
-  const float w = gear::weaponBase(WeaponType::Sword) * gear::statScale(L) * gear::playerDamageMul(L);
+// the sword of item level L and a rarity; elemental: its top-of-band elemental damage (the "best" row's one damage affix)
+float heroSword(int L, Rarity rar, bool elemental) {
+  Rng r(0x5A0Du + (uint32_t)L * 977u);
+  const Item sw = gear::makeGearC(r, ItemKind::Weapon, (int)WeaponType::Sword, L, rar, nullptr);
+  float w = gear::usePower(sw, L);
+  if (elemental && rar > Rarity::Common) {
+    int lo, hi;
+    gear::affixRange(Affix::FireDmg, L, lo, hi);
+    float qlo, qhi;
+    gear::affixQuality(rar, qlo, qhi);
+    w *= 1.0f + 0.01f * (float)(lo + (int)std::lround((float)(hi - lo) * qhi));
+  }
+  return w;
+}
+float heroHit(int L, int D, Rarity rar = Rarity::Common, bool elemental = false) {
+  // the sword at eff L, +1.5 % a level, against armour 1.5 D (mitigated by the hero's level), the gap
+  const float w = heroSword(L, rar, elemental) * gear::playerDamageMul(L);
   return w * (1.0f - gear::mitigation(gear::enemyArmour(D), L)) * gear::gapPlayerDamage(L, D);
 }
 float heroHp(int L) { return 100.0f + 12.0f * (float)(L - 1) + gear::levelHp(L); }   // every level-up into health
 float heroAr(int L) {
   float a = 0;
+  Rng r(0xA12Au + (uint32_t)L * 131u);
   for (ItemKind k : {ItemKind::Armor, ItemKind::Helmet, ItemKind::Shield, ItemKind::Gloves, ItemKind::Boots, ItemKind::Cloak})
-    a += gear::armourBase(k) * gear::statScale(L);
+    a += gear::usePower(gear::makeGearC(r, k, 0, L, Rarity::Common, nullptr), L);
   return a;
 }
 Cell cell(int L, int D) {
@@ -75,6 +93,31 @@ int powerCurve(int argc, char** argv) {
         if (c.hitsTrash < 3.0f || c.hitsTrash > 5.0f) { out("FAIL: power-curve: level %d same-band trash takes %.1f hits (3-5)\n", L, c.hitsTrash); bad++; }
         if (c.deathSecs < 6.0f || c.deathSecs > 20.0f) { out("FAIL: power-curve: level %d same-band death in %.1f s (6-20)\n", L, c.deathSecs); bad++; }
       }
+    }
+    printf("\n");
+  }
+  // (M8b NUMBERS) the best rarity the ordinary gate allows at each level (an ordinary body at D = L may roll it), with
+  // its one top-of-band elemental affix: still >= 2.5 hits on same-band trash; then a boss's one step past the gate
+  {
+    const gsim::MStat& wolf = gsim::mstat(art::Monster::Wolf);
+    printf("  best rarity the gate allows (trash hits at D = L, the sword's rarity x its top elemental affix):");
+    for (int L : Ls) {
+      gear::DropSource s;
+      s.D = L; s.playerLevel = L;
+      float p[RARITIES];
+      gear::rarityOdds(s, p);
+      int best = 0;
+      for (int k = 0; k < RARITIES; k++) if (p[k] > 0) best = k;
+      const float h = wolf.hp * gear::enemyHpMul(L) / heroHit(L, L, (Rarity)best, true);
+      printf("  L%d %s %.1f", L, rarityName((Rarity)best), h);
+      if (h < 2.5f) { out("\nFAIL: power-curve: level %d %s gear kills same-band trash in %.1f hits (>= 2.5)\n", L, rarityName((Rarity)best), h); bad++; }
+    }
+    printf("\n  a boss's one step past the gate:");
+    for (int L : Ls) {
+      gear::DropSource s;
+      s.D = L; s.playerLevel = L; s.rank = 4; s.src = gear::LootSrc::Boss;
+      const int top = (int)gear::rarityAllowedTop(s);
+      printf("  L%d %s %.1f", L, rarityName((Rarity)top), wolf.hp * gear::enemyHpMul(L) / heroHit(L, L, (Rarity)top, true));
     }
     printf("\n");
   }
@@ -126,26 +169,33 @@ int lootAudit(int argc, char** argv) {
     cultures.push_back(cult::Atlas::make((cult::Archetype)a, 4100u + (uint32_t)a));
     cultures.back().id = cult::familyId(a, 3);
   }
-  const float want[5] = {55, 28, 12, 4, 1};
   Rng r(0xA0D17u);
-  printf("loot audit: 10,000 gear drops per band (champion sources; rarity %% common / uncommon / rare / epic / legendary)\n");
+  printf("loot audit: 10,000 gear drops per band (champion sources, the finder at D; rarity %% common / uncommon / rare / epic / legendary / mythic, odds in brackets)\n");
   for (int band = 1; band <= gear::BANDS; band++) {
-    int n = 0, cnt[5] = {}, drops = 0, affixes = 0;
+    int n = 0, cnt[RARITIES] = {}, drops = 0, affixes = 0, tot = 0;
+    float want[RARITIES] = {};
     while (n < 10000) {
       const int D = gear::bandLo(band) + (drops % (gear::bandHi(band) - gear::bandLo(band) + 1));
       const cult::Culture* c = (drops % 3) ? &cultures[(size_t)(drops % cultures.size())] : nullptr;
       gear::DropSource s;
-      s.D = D; s.rank = 2; s.culture = c ? c->id : 0;
+      s.D = D; s.rank = 2; s.culture = c ? c->id : 0; s.playerLevel = std::min(D, gear::LEVEL_CAP);
       drops++;
       const Item it = gear::rollDropC(r, s, c);
       if (!itemEquippable(it.kind)) continue;
       n++;
       // jewellery is never common (a ring is worth its stone): count the table on the rest
       const bool jewel = it.kind == ItemKind::Ring || it.kind == ItemKind::Amulet;
-      if (!jewel) cnt[(int)it.rarity]++;
-      if (it.ilvl != gear::dropIlvl(s)) fail("item level " + std::to_string(it.ilvl) + " != the source's D " + std::to_string(D));
-      if (it.rarity == Rarity::Legendary && D < 10) fail("a legendary below D 10");
-      if (it.rarity == Rarity::Legendary && !gear::uniqueImplemented(it.unique)) fail("a legendary without a working unique power: " + it.name);
+      if (!jewel) {
+        cnt[(int)it.rarity]++;
+        tot++;
+        float p[RARITIES];
+        gear::rarityOdds(s, p);
+        for (int k = 0; k < RARITIES; k++) want[k] += p[k];
+      }
+      std::string why;
+      if (!gear::lootValid(it, &why)) fail(why);
+      if (it.ilvl != gear::dropIlvl(s)) fail("item level " + std::to_string(it.ilvl) + " != dropIlvl " + std::to_string(gear::dropIlvl(s)));
+      if ((int)it.rarity > (int)gear::rarityAllowedTop(s)) fail("a drop past the gate: " + it.name);
       if (it.affixCount() != gear::affixSlots(it.rarity)) fail("affix count " + std::to_string(it.affixCount()) + " for rarity " + std::to_string((int)it.rarity) + ": " + it.name);
       for (const ItemAffix& a : it.affix) {
         if (a.kind == Affix::None) continue;
@@ -155,42 +205,41 @@ int lootAudit(int argc, char** argv) {
         if (a.value < lo || a.value > hi) fail(std::string("affix ") + affixInfo(a.kind).name + " " + std::to_string(a.value) + " outside " + std::to_string(lo) + ".." + std::to_string(hi));
         if (!gear::affixAllowed(a.kind, it.kind)) fail(std::string("affix ") + affixInfo(a.kind).name + " on a kind that may not carry it");
       }
-      // the material by band: the universal tiers first, a culture's alloys from band 4
+      // the material by band (of its item level): the universal tiers first, a culture's alloys from band 4
+      const int ib = gear::bandOf(it.ilvl);
       const bool metal = it.kind == ItemKind::Weapon || it.kind == ItemKind::Armor || it.kind == ItemKind::Helmet || it.kind == ItemKind::Shield ||
                          it.kind == ItemKind::Gloves || it.kind == ItemKind::Boots;
       if (metal) {
-        const bool okMat = band == 1 ? (it.mat == Mat::Leather || it.mat == Mat::Bronze)
-                           : band == 2 ? it.mat == Mat::Iron
-                           : band == 3 ? it.mat == Mat::Steel
+        const bool okMat = ib == 1 ? (it.mat == Mat::Leather || it.mat == Mat::Bronze)
+                           : ib == 2 ? it.mat == Mat::Iron
+                           : ib == 3 ? it.mat == Mat::Steel
                            : (c && !c->arms.alloys.empty() ? it.mat == Mat::Alloy : it.mat == Mat::Steel);
-        if (!okMat) fail(std::string("band ") + std::to_string(band) + " piece in " + matName(it.mat) + ": " + it.name);
+        if (!okMat) fail(std::string("band ") + std::to_string(ib) + " piece in " + matName(it.mat) + ": " + it.name);
         if (it.kind != ItemKind::Armor && it.kind != ItemKind::Helmet && it.kind != ItemKind::Gloves && it.kind != ItemKind::Boots && it.kind != ItemKind::Shield &&
             it.mat == Mat::Leather) fail("a leather weapon");
       }
       if (it.name.empty() || it.power < 0 || it.value <= 0) fail("an unnamed or valueless item");
     }
-    int tot = 0;
-    for (int k = 0; k < 5; k++) tot += cnt[k];
     printf("  band %d (D %d-%d): ", band, gear::bandLo(band), gear::bandHi(band));
-    for (int k = 0; k < 5; k++) {
-      const float pct = 100.0f * cnt[k] / std::max(1, tot);
-      printf("%5.1f ", pct);
-      // band 1 cannot give a legendary (D < 10): its 1 % rolls epic
-      const float w = band == 1 ? (k == 3 ? 5.0f : k == 4 ? 0.0f : want[k]) : want[k];
-      if (std::fabs(pct - w) > 2.0f) fail("band " + std::to_string(band) + " rarity " + std::to_string(k) + " at " + std::to_string(pct) + " %");
+    for (int k = 0; k < RARITIES; k++) {
+      const float pct = 100.0f * cnt[k] / std::max(1, tot), w = want[k] / (float)std::max(1, tot);
+      printf("%5.1f (%4.1f) ", pct, w);
+      if (std::fabs(pct - w) > 2.0f) fail("band " + std::to_string(band) + " rarity " + std::to_string(k) + " at " + std::to_string(pct) + " % (odds " + std::to_string(w) + ")");
     }
     printf("  (%d drops, %d affixes)\n", drops, affixes);
   }
-  // no legendary below D 10 from any source, and never from a plain foe
+  // nothing past the gate + one step from any rank, at any level and place (a world boss at level 8: Epic at most)
   for (int rank = 0; rank <= 5; rank++)
-    for (int D = 1; D <= 60; D++) {
-      gear::DropSource s;
-      s.D = D; s.rank = (uint8_t)rank;
-      for (int i = 0; i < 300; i++) {
-        const Item it = gear::rollDropC(r, s, nullptr);
-        if (it.rarity == Rarity::Legendary && (D < 10 || rank < 2)) { fail("a legendary from rank " + std::to_string(rank) + " at D " + std::to_string(D)); break; }
+    for (int L = 1; L <= gear::LEVEL_CAP; L += 7)
+      for (int D = 1; D <= 60; D += 6) {
+        gear::DropSource s;
+        s.D = D; s.rank = (uint8_t)rank; s.playerLevel = L;
+        const int top = std::min((int)gear::rarityGateTop(L) + 1, RARITIES - 1);
+        for (int i = 0; i < 120; i++) {
+          const Item it = gear::rollDropC(r, s, nullptr);
+          if ((int)it.rarity > top) { fail(std::string("a ") + rarityName(it.rarity) + " from rank " + std::to_string(rank) + " at level " + std::to_string(L) + " D " + std::to_string(D)); break; }
+        }
       }
-    }
   // ---- the shops: real ones (Game::shopStock), the hero at level 50 so a leak of the player's level shows at once
   {
     int shops = 0, items = 0, worst = 0;
@@ -219,7 +268,7 @@ int lootAudit(int argc, char** argv) {
               worst = std::max(worst, gear::bandOf(it.ilvl) - gear::bandOf(D));
               if (gear::bandOf(it.ilvl) > gear::bandOf(D) + 2) fail("a shop item above its settlement's band + 2: " + it.name);
               if (it.ilvl > D + gear::SHOP_BAND_SPREAD) fail("a shop item above D + 2 (the player's level leaked?): " + it.name + " ilvl " + std::to_string(it.ilvl) + " at D " + std::to_string(D));
-              if (it.rarity == Rarity::Legendary) fail("a legendary for sale: " + it.name);
+              if (it.rarity >= Rarity::Legendary) fail("a legendary or mythic for sale: " + it.name);
               if (it.rarity == Rarity::Epic && !g.world.sites[(size_t)si].capital) fail("an epic outside a capital: " + it.name);
             }
           }
@@ -236,4 +285,4 @@ int lootAudit(int argc, char** argv) {
 }  // namespace
 
 RPG_TEST_CMD("--power-curve", "M6: the 7.4 power table (hits to kill, death time, XP) and the XP pacing model; FAIL outside 3-5 hits / 6-20 s same-band", powerCurve);
-RPG_TEST_CMD("--loot-audit", "M6: 10,000 drops per band (rarity, legendaries, affix ranges, materials) and 200 shops (band + 2, Rare cap)", lootAudit);
+RPG_TEST_CMD("--loot-audit", "M6/M8b: 10,000 drops per band (the ladder's odds, the gate, affix ranges, materials) and 200 shops (band + 2, Rare cap)", lootAudit);

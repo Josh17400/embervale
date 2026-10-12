@@ -1,0 +1,19 @@
+# M8b POWERS lane: the Mythic power TEMPEST staged on a level-30 hero with a Mythic sword against three wolves, with shots
+# mid-effect (desktop). Run: embervale.exe --script tools/scripts/m8b_powers_tempest.txt  (m8b_powers_tempest_*.png in the cwd)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 plevel 30
++0.1 gear6 sword ilvl 30 rarity 5 equip
++0.1 power give tempest
++0.1 expect power tempest
++0.1 power arena
++3.6 power foes wolf 3 30 tough
++1.0 hold J 2.5
++0.4 shot m8b_powers_tempest_1.png
++0.6 shot m8b_powers_tempest_2.png
++0.1 power proc tempest
++0.03 shot m8b_powers_tempest_3.png
++0.1 expect powerfx lightning 3
++0.5 quit

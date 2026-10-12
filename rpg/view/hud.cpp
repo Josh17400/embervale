@@ -283,10 +283,10 @@ std::string itemStats(const Game& g, const Item& it) {
       default: break;
     }
   }
+  // (M8b) every affix in plain words (items.h affixText: "+12% DAMAGE VS BEASTS", "BURNS FOES FOR 6 DMG/S")
   for (const ItemAffix& a : it.affix) {
     if (a.kind == Affix::None) continue;
-    const AffixInfo& I = affixInfo(a.kind);
-    s += "\n\x01+" + std::to_string(gear::affixUse(it, a.kind, g.plLevel)) + I.unit + " " + I.name;
+    s += "\n\x01" + affixText(a.kind, gear::affixUse(it, a.kind, g.plLevel));
   }
   if (it.unique != Unique::None) s += "\n\x02" + std::string(uniqueInfo(it.unique).name) + ": " + uniqueInfo(it.unique).line;
   if (gearItem) {
@@ -297,7 +297,7 @@ std::string itemStats(const Game& g, const Item& it) {
     s += "\n\x04" + who;
     if (it.flags & IF_CRAFTED) s += "\n\x04" "CRAFTED";
   }
-  if (it.rarity == Rarity::Legendary && gearItem) {
+  if (it.rarity >= Rarity::Legendary && gearItem) {
     s += "\n\x04" + gear::legendaryLore(it, maker);
     const int slots = gear::attunementSlots(g.plLevel);
     // (M6 fixer r2, review: "'0/0' reads like a bug") below level 10 say plainly when attunement opens
@@ -526,6 +526,7 @@ void View::draw(Game& g, bool hasSave) {
   if (g.mode != Mode::Title && g.mode != Mode::Creator) {
     drawMarkers(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));
     companionOverlays(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M8) the wound, the binding
+    drawPowerFx(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M8b) the worn powers' effects
   }
   // floating combat text (screen)
   Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
@@ -1320,7 +1321,9 @@ void View::drawToasts() {
   // (M8) with a party the column of portraits stands at the left edge under the vitals: the toasts step right of it
   // (fixer M8 r1, review: "WEARY: FIND A BED reads as the hound's label") a clear gap from the cards and a firmer plate
   const float L = partyColR_ > 0 ? std::max((float)Pix::SL, partyColR_ + 6) : (float)Pix::SL, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
-  const float plateA = partyColR_ > 0 ? 0.7f : 0.42f;
+  // (M8b fixer r3, review: "IRON MAIL floats at the left edge with no backing panel") a firm plate and a rule for every
+  // toast, so a find's name reads as a notice on its strip, not a stray label over a dark floor
+  const float plateA = partyColR_ > 0 ? 0.7f : 0.66f;
   // (M6 fixer r4, review: "event text is drawn right over the world boss") at most 30 characters a line, so a long
   // notice wraps in the left column instead of running across the middle of the screen, where the hero and his foe stand
   const int per = std::clamp((int)((R - 166 - (L + 6)) / 6), 16, 30);
@@ -1340,10 +1343,16 @@ void View::drawToasts() {
       const std::string& s = lines[k];
       float w = (float)P.textW(s, 1);
       P.rect(L + 3, ty - 2, w + 6, k + 1 < lines.size() ? 10.0f : 10.0f, Color(0.03f, 0.02f, 0.05f, plateA * a));
-      if (partyColR_ > 0) P.rect(L + 3, ty - 2, 1, 10.0f, Color(t.c.r * 0.7f, t.c.g * 0.7f, t.c.b * 0.7f, 0.8f * a));   // (its own rule: no card's)
+      P.rect(L + 3, ty - 2, 1, 10.0f, Color(t.c.r * 0.7f, t.c.g * 0.7f, t.c.b * 0.7f, 0.8f * a));   // (its own rule: no card's)
+      P.rect(L + 4, ty + 8, w + 5, 1, Color(0, 0, 0, 0.35f * a));   // a hairline under the plate: it sits on the screen
       if (a > 0.05f) { toastX1_ = std::max(toastX1_, L + 9 + w); toastY1_ = ty + 8; }
       P.textS(L + 7, ty + 1, s, 1, Color(0, 0, 0, a * 0.6f));
-      P.textS(L + 6, ty, s, 1, Color(t.c.r, t.c.g, t.c.b, a));
+      if (t.rarity > 0) {   // (M8b) a find: its name in the ladder colour (a Mythic's in the flame), a rule in it
+        P.rect(L + 3, ty - 2, 1, 10.0f, Color(t.c.r, t.c.g, t.c.b, 0.9f * a));
+        rarityText(L + 6, ty, s, (Rarity)t.rarity, a, 0, true);
+      } else {
+        P.textS(L + 6, ty, s, 1, Color(t.c.r, t.c.g, t.c.b, a));
+      }
       ty += k + 1 < lines.size() ? 10.0f : 11.0f;
     }
   }
@@ -1669,12 +1678,20 @@ void View::drawMenu(Game& g) {
         if (i == menuSel_) P.rect(C.lx, rowTop, C.lw, L.pitch - (touchUI ? 1 : 0), Color(0.3f, 0.22f, 0.12f, 0.8f));
         else if (touchUI && (r & 1)) P.rect(C.lx, rowTop, C.lw, L.pitch - 1, Color(0.16f, 0.12f, 0.08f, 0.35f));
         const float isz = touchUI ? 16.0f : 12.0f;
-        P.blitEx(itemTex(g, it), 0, 0, 16, 16, C.lx + 2, rowTop + std::floor((L.pitch - isz) / 2), isz, isz);
+        rarityIcon(g, it, C.lx + 2, rowTop + std::floor((L.pitch - isz) / 2), isz);   // (M8b) in its rarity's cell
         const float nx = C.lx + (touchUI ? 22.0f : 18.0f);
         std::string cnt = it.count > 1 ? " (" + std::to_string(it.count) + ")" : "";
         std::string name = fitText(it.name, C.lx + C.lw - 14 - nx - P.textW(cnt, 1)) + cnt;
-        P.text(nx, y, name, 1, col(rarityColor(it.rarity)));
+        rarityText(nx, y, name, it.rarity);
         if (equipped(g, i)) P.text(C.lx + C.lw - 6, y, "E", 1, kGold, 2);
+        else if (itemEquippable(it.kind)) {   // (M8b) an unworn piece: is it better than what that slot wears?
+          bool w = false;
+          const Item* vs = wornFor(g, it, i, w);
+          // (M8b fixer r2) a great piece that cannot be worn now: why, in red, never an upgrade arrow
+          const int why = attuneWhy(g, it, vs);
+          if (why) P.text(C.lx + C.lw - 4, y, why == 1 ? "LV10" : "FULL", 1, Color(1.0f, 0.42f, 0.36f), 2);
+          else cmpArrow(C.lx + C.lw - 11, y, cmpVerdict(g, it, vs));
+        }
       }
       if (n == 0) P.text(30, top + 14, "YOUR PACK IS EMPTY", 1, kDim);
       pager(C, L, menuScroll_, n);
@@ -1682,15 +1699,13 @@ void View::drawMenu(Game& g) {
       P.rect(C.div, top + 8, 1, Pix::H - top - 24, Color(0.4f, 0.32f, 0.2f));
       if (n > 0) {
         const Item& it = g.inv[menuSel_];
-        P.blitEx(itemTex(g, it), 0, 0, 16, 16, C.dx, top + 12, 32, 32);
-        wrapText(C.dx + 38, top + 14, C.dw - 38, it.name, col(rarityColor(it.rarity)));
-        const char* rn[] = {"COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY"};
-        P.text(C.dx + 38, top + 36, rn[(int)it.rarity], 1, col(rarityColor(it.rarity), 0.85f));
-        float sy = statLines(P, g, it, C.dx, top + 54, std::max(10, (int)(C.dw / 6)), menuLay(touchUI).btnY - 14, kText);
         int eq = equippedOf(g, it.kind);
-        if (eq >= 0 && eq != menuSel_ && eq < (int)g.inv.size()) {
-          int diff = (int)std::lround(gear::usePower(it, g.plLevel) - gear::usePower(g.inv[eq], g.plLevel));
-          if (sy + 12 < menuLay(touchUI).btnY) P.text(C.dx, sy + 2, std::string("VS EQUIPPED: ") + (diff >= 0 ? "+" : "") + std::to_string(diff), 1, diff >= 0 ? Color(0.5f, 1, 0.5f) : Color(1, 0.5f, 0.45f));
+        // (M8b) the item card: its name in the ladder colour, rarity and item level, every affix in plain words, the
+        // power, and the compare against what that slot wears (green / red arrows; an empty slot is an upgrade)
+        {
+          bool isWorn = false;
+          const Item* vs = wornFor(g, it, menuSel_, isWorn);
+          itemCard(g, it, C.dx + 1, top + 13, C.dw - 1, menuLay(touchUI).btnY - 6, true, vs, isWorn);
         }
         bool canEquip = itemEquippable(it.kind);
         std::string use = canEquip ? (equipped(g, menuSel_) ? "UNEQUIP" : "EQUIP") : (it.kind == ItemKind::Food ? "EAT" : it.kind == ItemKind::Potion || it.name.rfind("SPELL TOME", 0) == 0 ? "USE" : "");
@@ -2057,7 +2072,7 @@ void View::drawShop(Game& g) {
       float ty = y + std::floor((L.pitch - 8) / 2) - 2;
       if (touchUI && i != sel) P.rect(x0 - 2, y - 2, L.lw, L.pitch - 2, Color(0.16f, 0.12f, 0.08f, 0.45f));
       if (i == sel) P.rect(x0 - 2, y - 2, L.lw, L.pitch - (touchUI ? 2 : 0), Color(0.3f, 0.22f, 0.12f, 0.8f));
-      P.blitEx(itemTex(g, it), 0, 0, 16, 16, x0, y - 2 + std::floor((L.pitch - (touchUI ? 2 : 0) - isz) / 2), isz, isz);
+      rarityIcon(g, it, x0, y - 2 + std::floor((L.pitch - (touchUI ? 2 : 0) - isz) / 2), isz);   // (M8b) in its rarity's cell
       int price = shopPrice(it, buying);
       const std::string ps = std::to_string(price);
       std::string suf;
@@ -2079,7 +2094,7 @@ void View::drawShop(Game& g) {
         if (of != std::string::npos && of > 0) full = full.substr(0, of);
       }
       std::string nm = fitText(full, room) + suf;
-      P.text(nx, ty, nm, 1, col(rarityColor(it.rarity)));
+      rarityText(nx, ty, nm, it.rarity);
       bool afford = buying ? g.gold >= price : (purseLeft < 0 || price <= purseLeft);
       if (!buying && !afford) {   // (M6 fixer r2) what he can pay: all his purse (amber: less than it is worth)
         P.text(px, ty, std::to_string(std::max(0, purseLeft)), 1, purseLeft > 0 ? Color(0.95f, 0.66f, 0.3f) : Color(0.55f, 0.5f, 0.45f), 2);
@@ -2110,20 +2125,11 @@ void View::drawShop(Game& g) {
     // the detail column: the item large, its name, rarity, numbers and the deal
     if (any) {
       const Item& it = src[shopSel_];
-      P.blitEx(itemTex(g, it), 0, 0, 16, 16, L.dx, L.detailY, 32, 32);
-      float y = L.detailY + 2;
-      for (const std::string& l : wrap(it.name, std::max(8, (int)((L.dw - 38) / 6)))) { P.text(L.dx + 38, y, l, 1, col(rarityColor(it.rarity))); y += 10; }
-      const char* rn[] = {"COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY"};
-      P.text(L.dx + 38, std::max(y + 2, L.detailY + 22), rn[(int)it.rarity], 1, col(rarityColor(it.rarity), 0.85f));
-      y = std::max(y + 16, L.detailY + 42);
-      y = statLines(P, g, it, L.dx, y, std::max(10, (int)(L.dw / 6)), L.btnY - (touchUI ? 26.0f : 14.0f), kText);
-      if (shopSide_ == 0 && y + 14 < L.btnY - (touchUI ? 22.0f : 0.0f)) {
-        const int eq = equippedOf(g, it.kind);
-        if (eq >= 0 && eq < (int)g.inv.size() && itemEquippable(it.kind)) {
-          const int diff = (int)std::lround(gear::usePower(it, g.plLevel) - gear::usePower(g.inv[eq], g.plLevel));
-          P.text(L.dx, y + 4, std::string("VS EQUIPPED: ") + (diff >= 0 ? "+" : "") + std::to_string(diff), 1, diff >= 0 ? Color(0.5f, 1, 0.5f) : Color(1, 0.5f, 0.45f));
-        }
-      }
+      // (M8b) the item card with its compare: on the BUY side against what that slot wears; on the SELL side the
+      // piece itself (a worn one says so)
+      bool isWorn = false;
+      const Item* vs = wornFor(g, it, shopSide_ == 1 ? shopSel_ : -1, isWorn);
+      itemCard(g, it, L.dx + 1, L.detailY + 1, L.dw - 1, L.btnY - (touchUI && armed ? 26.0f : 6.0f), true, vs, isWorn);
       if (touchUI) {
         if (armed) { wrapText(L.dx, L.btnY - 22, L.dw, "YOU WEAR IT - TAP AGAIN TO SELL", kGold); button(L.btnX, L.btnY, L.btnW, L.btnH, "SELL ANYWAY", true); }
         else button(L.btnX, L.btnY, L.btnW, L.btnH, deal, !cantPay);
@@ -2138,8 +2144,32 @@ void View::drawShop(Game& g) {
   }
   // narrow: the detail line and the deal under the lists
   if (any) {
-    const std::string s = statsPlain(g, src[shopSel_]);
-    P.text(Pix::W / 2, L.detailY, fitText(s, Pix::W - 36), 1, kText, 1);
+    // (M8b) a piece of gear: its whole card and the compare float over the other list (the one not being browsed), and
+    // the strip under the lists names the deal; anything else keeps the one-line detail
+    const Item& it = src[shopSel_];
+    if (!itemEquippable(it.kind)) {
+      const std::string s = statsPlain(g, src[shopSel_]);
+      P.text(Pix::W / 2, L.detailY, fitText(s, Pix::W - 36), 1, kText, 1);
+    } else if (!touchUI) {   // (touch: the deal button below says it)
+      P.text(Pix::W / 2, L.detailY, deal, 1, cantPay ? Color(0.9f, 0.45f, 0.4f) : kGold, 1);
+    }
+    if (itemEquippable(it.kind)) {
+      const float cx = L.x0[1 - shopSide_] - 6, cw = L.lw + 2, cy0r = std::max(25.0f, L.xY + L.xH + 3), cy0 = cy0r > 26.0f ? 37.0f : cy0r, cy1 = 40 + L.rows * L.pitch;
+      // (M8b fixer r2, review: "the card for a stocked BUY item appears under the SELL heading") the card covers the
+      // other list's heading too: a tab over it says which side is being dealt, pointing at the list browsed
+      const bool tab = cy0 >= 36;
+      const float ty0 = tab ? 25.0f : cy0;
+      P.rect(cx, ty0, cw, cy1 - ty0, Color(0.05f, 0.04f, 0.06f, 1.0f));
+      P.frame(cx, ty0, cw, cy1 - ty0, Color(0.55f, 0.45f, 0.28f));
+      if (tab) {
+        P.text(cx + cw / 2, ty0 + 3, shopSide_ == 0 ? "< BUYING FROM THE STALL" : "SELLING FROM YOUR PACK >", 1, kGold, 1);
+        P.rect(cx + 4, cy0 - 1, cw - 8, 1, Color(0.4f, 0.32f, 0.2f));
+      }
+      P.rect(cx + 1, ty0 + 1, cw - 2, 1, Color(1, 1, 1, 0.05f));
+      bool isWorn = false;
+      const Item* vs = wornFor(g, it, shopSide_ == 1 ? shopSel_ : -1, isWorn);
+      itemCard(g, it, cx + 6, cy0 + 6, cw - 12, cy1 - 4, true, vs, isWorn);
+    }
   }
   if (touchUI) {
     if (any) button(L.btnX, L.btnY, L.btnW, L.btnH, deal, !cantPay);
@@ -2312,7 +2342,7 @@ void View::menuKey(Game& g, int key) {
     if (key == SDLK_LEFT || key == SDLK_A) { menuTab_ = tabStep(menuTab_, -1); menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; }
     if (key == SDLK_RIGHT || key == SDLK_D) { menuTab_ = tabStep(menuTab_, 1); menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; }
     if (key == SDLK_RETURN || key == SDLK_SPACE) {
-      if (menuTab_ == 0 && menuSel_ < (int)g.inv.size()) g.useItem(menuSel_);
+      if (menuTab_ == 0 && menuSel_ < (int)g.inv.size()) packUse(g, menuSel_);
       if (menuTab_ == 1) {
         std::vector<int> order;
         for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state != QState::Done) order.push_back(i);
@@ -2479,14 +2509,14 @@ void View::tap(Game& g, Vec2 p) {
         for (int r = 0; r < L.rows && menuScroll_ + r < n; r++) {
           if (inR(C.lx, top + 10 + r * L.pitch, C.lw, L.pitch)) {
             int i = menuScroll_ + r;
-            if (i == menuSel_) g.useItem(i);
+            if (i == menuSel_) packUse(g, i);
             menuSel_ = i;
             return;
           }
         }
         if (paged(C, n)) return;
         const float bw = std::floor((C.dw - 20) / 2);
-        if (n > 0 && inR(C.dx, L.btnY, bw, L.btnH)) g.useItem(menuSel_);
+        if (n > 0 && inR(C.dx, L.btnY, bw, L.btnH)) packUse(g, menuSel_);   // (M8b fixer r2) an idle button says why
         if (n > 0 && inR(C.dx + bw + 8, L.btnY, bw, L.btnH) && g.inv[menuSel_].kind != ItemKind::Quest) g.dropItem(menuSel_);
         // keyboard / mouse: scroll by clicking the list edges
         if (!touchUI && inR(C.lx, top + 4, C.lw, 6)) menuScroll_ = std::max(0, menuScroll_ - 5), menuSel_ = std::max(0, menuSel_ - 5);

@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "rpg/sim/gear.h"
 #include "tools/tests/tests.h"
 
 // rpg_test links only rpg_sim (headless), but these checks need the human painter and HumanLook::key(). Until the
@@ -54,7 +55,7 @@ struct Bare {
   const art::HumanLook& look() const { return g.pl().look; }
 };
 
-Item itemOf(ItemKind k, Rng& r, int level) {
+Item itemOfAny(ItemKind k, Rng& r, int level) {
   switch (k) {
     case ItemKind::Weapon: return makeWeapon(r, level);
     case ItemKind::Bow: return makeBow(r, level);
@@ -62,6 +63,13 @@ Item itemOf(ItemKind k, Rng& r, int level) {
     case ItemKind::Ring: case ItemKind::Amulet: { Item j = makeJewel(r, level); j.kind = k; return j; }
     default: return makeArmor(r, level, k);
   }
+}
+// (M8b) the classic makers give M6 gear now, and a Legendary / Mythic takes an attunement slot the level-1 test hero
+// does not have: re-roll those (the look checks are about kinds, not rarity)
+Item itemOf(ItemKind k, Rng& r, int level) {
+  Item it = itemOfAny(k, r, level);
+  while (gear::attunes(it)) it = itemOfAny(k, r, level);
+  return it;
 }
 
 // which look fields an equipped kind may change (its own field plus its colour)
@@ -364,6 +372,7 @@ int heroChecks(uint64_t seed) {
     for (int t = 0; t <= 5; t++)
       for (ItemKind k : {ItemKind::Armor, ItemKind::Helmet, ItemKind::Gloves, ItemKind::Boots}) {
         Item it = makeArmor(r, 1, k);
+        it.ilvl = 0; it.mat = Mat::None; it.form = 0;   // (M8b) a classic piece: the makers give M6 gear now
         it.tier = (uint8_t)t;
         it.name = std::string(t == 0 ? "IRON" : tierName(t)) + " PIECE";
         int idx = b.add(it);
@@ -374,7 +383,7 @@ int heroChecks(uint64_t seed) {
         b.g.dropItem(idx);
       }
     Item lea = makeArmor(r, 1, ItemKind::Boots);
-    lea.tier = 0; lea.name = "LEATHER BOOTS";
+    lea.tier = 0; lea.name = "LEATHER BOOTS"; lea.ilvl = 0; lea.mat = Mat::None; lea.form = 0;
     int idx = b.add(lea);
     b.g.useItem(idx);
     if (b.look().boots != 1) { out("FAIL: hero: leather boots should be band 1"); bad++; }

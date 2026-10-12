@@ -59,6 +59,9 @@
 //   6 expect heard NOT YOUR TARGET  some notice since the script began contained the words
 //   6 expect option COLLECT BOUNTY  the open dialogue offers an option containing the words (expect text: its text)
 //   6 choose RENT A ROOM      (M0b) choose the open dialogue's option whose label contains the words
+//   6 chestgo [hoard|explore|chest]   (M8b) stand beside the nearest closed chest (of that loot source), facing it:
+//                             `key e` then opens it through the real Game::openChest; chestaway then steps 4 tiles
+//                             clear of it (outside the pickups' pull) so a shot shows the find on the floor
 // New Game from the title opens the character creator (Mode::Creator); --play and the newgame command skip it.
 // M2: lanes register more commands (and expect checks) from rpg/view/*.cpp through rpg/view/script_api.h;
 // `embervale --script-help` lists them.
@@ -82,6 +85,8 @@
 #include "engine/pix.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/gear.h"
+#include "rpg/sim/loot_ops.h"
 #include "rpg/view/screen.h"
 #include "rpg/view/script_api.h"
 #include "rpg/view/view.h"
@@ -426,10 +431,13 @@ int main(int argc, char** argv) {
         break;
       }
   };
-  // test helper: a full armour set of one band (1 leather .. 7 emberforged), equipped, plus a weapon and a bow
+  // test helper: a full armour set of one band (1 leather .. 7 emberforged), equipped, plus a weapon and a bow.
+  // (M8b, LootSrc::Debug) made by the gear rules at the band's middle item level (never the classic makers): the armour,
+  // weapon and bow Common, the ring and amulet Uncommon (a jewel's worth is its affix), so every piece passes lootValid
+  int lastChestX = -1, lastChestY = -1;   // (M8b) the chest the script's chestgo stood at (chestaway steps clear of it)
   auto giveGear = [&](int band, const std::string& weaponName) {
     band = std::clamp(band, 1, 7);
-    int tier = band <= 2 ? 0 : band - 2;
+    const int il = (gear::bandLo(band) + gear::bandHi(band)) / 2;
     Rng r(game.seed * 31 + (uint64_t)band);
     auto wear = [&](Item it) {
       game.inv.push_back(it);
@@ -437,28 +445,15 @@ int main(int argc, char** argv) {
       int* e = game.equipSlot(it.kind);
       if (e && *e != idx) game.useItem(idx);
     };
-    std::string pre = band == 1 ? "LEATHER " : (band == 2 ? "IRON " : std::string(tierName(tier)) + " ");
-    static const char* suffix[] = {"ARMOR", "HELMET", "GAUNTLETS", "BOOTS", "", "SHIELD"};
     const ItemKind kinds[] = {ItemKind::Armor, ItemKind::Helmet, ItemKind::Gloves, ItemKind::Boots, ItemKind::Cloak, ItemKind::Shield};
-    for (int k = 0; k < 6; k++) {
-      Item it = makeArmor(r, 1 + tier * 5, kinds[k]);
-      it.tier = (uint8_t)tier;
-      it.ench = Ench::None; it.enchPow = 0; it.rarity = Rarity::Common;
-      if (kinds[k] != ItemKind::Cloak) {
-        it.name = pre + suffix[k];
-        it.tint = band == 1 ? rgba(150, 100, 62) : tierTint(tier);
-      }
-      wear(it);
-    }
+    for (int k = 0; k < 6; k++) wear(gear::makeGearC(r, kinds[k], 0, il, Rarity::Common, nullptr, band == 1 && kinds[k] != ItemKind::Cloak ? Mat::Leather : Mat::None));
     static const char* wn[] = {"sword", "axe", "mace", "dagger", "greatsword"};
     int wt = 0;
     for (int i = 0; i < 5; i++) if (weaponName == wn[i]) wt = i;
-    Item w = makeWeapon(r, 1 + tier * 5, wt, false);
-    w.tier = (uint8_t)tier; w.tint = tierTint(tier);
-    wear(w);
-    wear(makeBow(r, 1 + tier * 5));
-    Item j = makeJewel(r, 5); j.kind = ItemKind::Amulet; j.icon = art::Icon::Amulet; wear(j);
-    Item ring = makeJewel(r, 5); ring.kind = ItemKind::Ring; ring.icon = art::Icon::Ring; wear(ring);
+    wear(gear::makeGearC(r, ItemKind::Weapon, wt, il, Rarity::Common, nullptr));
+    wear(gear::makeGearC(r, ItemKind::Bow, 0, il, Rarity::Common, nullptr));
+    wear(gear::makeGearC(r, ItemKind::Amulet, 0, il, Rarity::Uncommon, nullptr));
+    wear(gear::makeGearC(r, ItemKind::Ring, 0, il, Rarity::Uncommon, nullptr));
   };
   auto doFight = [&](const std::string& name, int n) {
     if (game.eqWeapon < 0) game.debugKit();   // the real start is shirt-only (M0): fights get the test kit
@@ -910,6 +905,63 @@ int main(int argc, char** argv) {
       game.debugKit();
     } else if (op == "gear") {
       giveGear(std::atoi(arg(1).c_str()), arg(2));
+    } else if (op == "chestgo") {
+      // (M8b SOURCES) chestgo [hoard|explore|chest]: stand beside the nearest closed chest of the current map (of that
+      // loot source: LootOps::chestSource), facing it, so `key e` opens it through the real Game::openChest
+      const std::string want = arg(1);
+      Map& m = game.map();
+      const Vec2 pp = game.pl().p;
+      int bx = -1, by = -1;
+      float best = 1e30f;
+      for (int y = 0; y < m.h; y++)
+        for (int x = 0; x < m.w; x++) {
+          if (m.propAt(x, y) != (int)art::Prop::Chest + 1) continue;
+          const gear::LootSrc s = LootOps::chestSource(game, x, y).src;
+          if (want == "hoard" && s != gear::LootSrc::Hoard) continue;
+          if (want == "explore" && s != gear::LootSrc::Explore) continue;
+          if (want == "chest" && s != gear::LootSrc::Chest) continue;
+          const float dx = x * TILE + 8.0f - pp.x, dy = y * TILE + 8.0f - pp.y;
+          float d = dx * dx + dy * dy;
+          // one well inside the map first (the camera stops at the map's edge, where the HUD panels cover a find)
+          if (x < 10 || y < 7 || x >= m.w - 10 || y >= m.h - 7) d += 1e9f;
+          if (d < best) { best = d; bx = x; by = y; }
+        }
+      bool placed = false;
+      if (bx >= 0) {
+        static const int sides[4][2] = {{0, 1}, {-1, 0}, {1, 0}, {0, -1}};
+        for (auto& s : sides) {
+          if (m.blocked(bx + s[0], by + s[1])) continue;
+          game.pl().p = Vec2((bx + s[0]) * TILE + 8.0f, (by + s[1]) * TILE + 10.0f);
+          game.pl().aim = Vec2((float)-s[0], (float)-s[1]);
+          game.pl().face = s[1] > 0 ? 1 : s[1] < 0 ? 0 : (s[0] > 0 ? 3 : 2);
+          view.snap(game);
+          placed = true;
+          std::printf("script: chestgo: a %s chest at %d %d\n", gear::lootSrcName(LootOps::chestSource(game, bx, by).src), bx, by);
+          break;
+        }
+      }
+      if (!placed) fail(c.line, "chestgo " + want + ": no reachable closed chest here");
+      else { lastChestX = bx; lastChestY = by; }
+    } else if (op == "chestaway") {
+      // (M8b SOURCES) chestaway: right after `key e`, step 4 tiles clear of the chest chestgo found (outside the
+      // pickups' 40 px pull), toward the map's middle, so a shot shows the find lying on the floor
+      Map& m = game.map();
+      bool moved = false;
+      std::vector<std::pair<int, int>> dirs = {{0, 1}, {1, 0}, {-1, 0}, {0, -1}, {1, 1}, {-1, 1}, {1, -1}, {-1, -1}};
+      const int cx = m.w / 2 - lastChestX, cy = m.h / 2 - lastChestY;
+      std::stable_sort(dirs.begin(), dirs.end(), [&](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+        return a.first * cx + a.second * cy > b.first * cx + b.second * cy;
+      });
+      for (int dist = 4; dist <= 6 && !moved && lastChestX >= 0; dist++)
+        for (const auto& d : dirs) {
+          const int x = lastChestX + d.first * dist, y = lastChestY + d.second * dist;
+          if (m.blocked(x, y)) continue;
+          game.pl().p = Vec2(x * TILE + 8.0f, y * TILE + 10.0f);
+          game.pl().aim = Vec2((float)-d.first, (float)-d.second);
+          moved = true;
+          break;
+        }
+      if (!moved) fail(c.line, "chestaway: no free tile 4-6 tiles from the chest");
     } else if (op == "strip") {
       for (ItemKind k : {ItemKind::Weapon, ItemKind::Bow, ItemKind::Staff, ItemKind::Armor, ItemKind::Helmet, ItemKind::Shield,
                          ItemKind::Ring, ItemKind::Amulet, ItemKind::Gloves, ItemKind::Boots, ItemKind::Cloak})

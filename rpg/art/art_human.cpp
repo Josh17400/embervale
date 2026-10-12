@@ -3030,9 +3030,12 @@ struct HumanPainter {
             else nk = col == 1 ? k - 2 : k - 1;
             break;
           }
-          case kFormLamellar:   // rows of small plates laced in the cloth colour
-            if (ry > 0 && (ry % 2) == 0) { if (x & 1) { c.set(x, y, L.outfit == Outfit::Guard ? R.trim[2] : R.plume[2]); continue; } nk = k - 1; }
-            else if (x & 1) nk = k - 1;
+          case kFormLamellar:   // rows of small plates laced in the cloth colour. (M8b fix) 3 x 3 plates (a lit top row,
+                                // a seam column, one lace knot per plate): the old every-other-pixel lacing was a 1x
+                                // checker, worst on the high-contrast alloys
+            if (ry > 0 && (ry % 3) == 0) { if (x % 3 == 1) { c.set(x, y, L.outfit == Outfit::Guard ? R.trim[2] : R.plume[2]); continue; } nk = std::max(1, k - 1); }
+            else if (x % 3 == 0) nk = std::max(1, k - 1);
+            else if (ry % 3 == 1) nk = k + 1;
             break;
           case kFormBrigandine: if (ry > 0 && (ry & 1) && ((x + (ry >> 1)) & 1)) { c.set(x, y, R.mat[4]); continue; } break;   // rivets
           case kFormLeaf: {   // overlapping leaf plates pointing down: a lit midrib, dark edges closing to the tip
@@ -3175,7 +3178,8 @@ struct HumanPainter {
         int nk = k;
         switch (sh) {
           case 2:   // bright: the lit rims flash white
-            if (k >= 3 && (!isA(x - 1, y) || !isA(x, y - 1)) && ((x + y) & 1)) { c.set(x, y, mix(A[4], kWhite, 0.6f)); continue; }
+            // (M8b fix) a continuous lit rim on the brightest step, not every other pixel (that read as a dither)
+            if (k >= 4 && (!isA(x - 1, y) || !isA(x, y - 1))) { c.set(x, y, mix(A[4], kWhite, 0.5f)); continue; }
             break;
           case 4: {   // banded (pattern-welded): wavy diagonal bands of dark and light
             const int b = (x + 2 * y + ((x >> 2) & 1)) % 5;
@@ -3183,9 +3187,13 @@ struct HumanPainter {
             else if (b == 2 && k == 2) nk = 3;
             break;
           }
-          case 6:   // glowing: the seams (the darkest steps) are lit from within
-            if (k == 0 && (y & 1) == 0) { c.set(x, y, R.seam); continue; }
-            if (k == 0) { c.set(x, y, mix(R.seam, A[0], 0.6f)); continue; }
+          case 6:   // glowing: the seams (the darkest steps under a lit plate) are lit from within; (M8b fix) whole seam
+                    // lines, never every other row (that read as speckle)
+            if (k == 0) {
+              const int ku = rampIndex(A, src.get(x, y - 1)), kl = rampIndex(A, src.get(x - 1, y));
+              c.set(x, y, ku >= 2 || kl >= 2 ? mix(R.seam, A[0], 0.35f) : mix(R.seam, A[0], 0.8f));
+              continue;
+            }
             break;
           case 8:   // burnished: polish streaks on the lit faces
             if (k == 3 && ((x + y) & 3) == 0) nk = 4;
@@ -3212,6 +3220,8 @@ struct HumanPainter {
     return (g & 2) ? 2 : 0;
   }
   uint32_t glowCol() const { return L.glowColor ? opaque(L.glowColor) : rgba(255, 190, 80); }
+  // (M8b) a Mythic piece's flame glow (rpg/sim/gear_look.h kMythicGlow; the art layer keeps its own copy of the key)
+  bool mythic() const { return L.glowColor == 0xFF2868FFu; }
   // a legendary piece's glint: one bright point travelling over the piece frame by frame (never a blob)
   void glowPass() {
     const Canvas src = c;
@@ -3223,6 +3233,17 @@ struct HumanPainter {
         for (int x = 1; x < c.w - 1 && n < 96; x++)
           if (pieceAt(src, x, y) == bit && luma(src.get(x, y)) >= 0.35f) { pts[n][0] = x; pts[n][1] = y; n++; }
       if (!n) continue;
+      if (mythic()) {   // (M8b fix) a Mythic piece burns along its top edges (flame licking up the silhouette at 1x),
+                        // the brightest licks stepping along it frame by frame; the glint below rides on top
+        for (int y = 0; y < c.h; y++)
+          for (int x = 0; x < c.w; x++) {
+            // the outer silhouette only (open air above): inner plate edges stay the metal's own, never orange flecks
+            if (pieceAt(src, x, y) != bit || (src.get(x, y - 1) >> 24) != 0) continue;
+            const bool lick = ((x + frameNo) % 3) == 0;
+            c.set(x, y, mix(src.get(x, y), lick ? rgba(255, 196, 92) : gc, lick ? 0.70f : 0.48f));
+            if (lick && pieceAt(src, x, y + 1) == bit) c.set(x, y + 1, mix(src.get(x, y + 1), gc, 0.32f));
+          }
+      }
       const int i = (frameNo * 7 + bit * 3) % n;
       const int x = pts[i][0], y = pts[i][1];
       c.set(x, y, mix(gc, kWhite, 0.55f));
@@ -3238,13 +3259,45 @@ struct HumanPainter {
   void glowRim(Canvas& out, const Canvas& raw) const {
     if (!L.glow) return;
     const uint32_t gc = glowCol();
+    // (M8b fix) a Mythic piece's outline burns: near-full flame, flickering between red-orange and a hotter orange
+    const bool my = mythic();
+    if (my) { mythicRim(out, raw); return; }
     const float a = (frameNo & 1) ? 0.62f : 0.38f;
+    const uint32_t gc2 = gc;
     for (int y = 0; y < out.h; y++)
       for (int x = 0; x < out.w; x++) {
         if ((raw.get(x, y) >> 24) || !(out.get(x, y) >> 24)) continue;
         bool near = false;
         for (int d = 0; d < 4 && !near; d++) near = pieceAt(raw, x + (d == 0) - (d == 1), y + (d == 2) - (d == 3)) != 0;
-        if (near) out.set(x, y, mix(out.get(x, y), gc, a));
+        if (near) out.set(x, y, mix(out.get(x, y), gc2, a));
+      }
+  }
+
+  // (M8b fixer r2, review: "the Mythic glint is a rectangular 1px debug outline round the torso") a Mythic wearer's
+  // outline is never one solid colour: sparse flame pixels flicker on it frame by frame, following the whole alpha
+  // silhouette (head and helm too), thick round the Mythic piece itself and only a scattered few elsewhere. The upper
+  // edges burn hot (yellow-orange, the flame rising), the sides and lower edges a deep red-orange; the rest of the
+  // outline stays the dark outline, so the sprite keeps its shape and never reads as a box.
+  void mythicRim(Canvas& out, const Canvas& raw) const {
+    const uint32_t hot = rgba(255, 206, 96), mid = rgba(255, 128, 44), deep = opaque(0xFF2868FFu);
+    auto solid = [&](int x, int y) { return x >= 0 && y >= 0 && x < raw.w && y < raw.h && (raw.get(x, y) >> 24) != 0; };
+    for (int y = 0; y < out.h; y++)
+      for (int x = 0; x < out.w; x++) {
+        if (solid(x, y) || !(out.get(x, y) >> 24)) continue;
+        bool body = false, piece = false;
+        for (int d = 0; d < 4; d++) {
+          const int nx = x + (d == 0) - (d == 1), ny = y + (d == 2) - (d == 3);
+          if (solid(nx, ny)) { body = true; if (pieceAt(raw, nx, ny)) piece = true; }
+        }
+        if (!body) continue;
+        uint32_t h = (uint32_t)(x * 73856093) ^ (uint32_t)(y * 19349663);
+        h ^= h >> 13; h *= 0x5bd1e995u; h ^= h >> 15;
+        const int ph = (int)((h + (uint32_t)frameNo * 3u + (uint32_t)y) % 6u);   // the flicker walks up the edge
+        const bool top = solid(x, y + 1);                                       // open air above the body: an upper edge
+        const bool lit = piece ? ph < (top ? 3 : 2) : ph == 0 && (h & 16u);
+        if (!lit) continue;
+        const uint32_t c = top ? (ph == 0 ? hot : mid) : (ph == 0 ? mid : deep);
+        out.set(x, y, mix(out.get(x, y), c, piece ? 0.9f : 0.7f));
       }
   }
 
@@ -4743,9 +4796,11 @@ void metalRampKeys(uint32_t light, uint32_t dark, uint8_t sheen, uint32_t out[5]
       k[0] = darken(dark, 0.85f); k[1] = darken(dark, 0.3f); k[2] = mix(dark, light, 0.32f); k[3] = mix(dark, light, 0.68f);
       k[4] = mix(light, rgba(176, 200, 240), 0.45f);
       break;
-    case 5:   // iridescent: the hue turns across the ramp (violet shadows, teal body, gold-green light, rose highlights)
-      k[0] = mix(k[0], rgba(70, 30, 110), 0.5f); k[1] = mix(k[1], rgba(40, 70, 150), 0.45f); k[2] = mix(k[2], rgba(40, 150, 150), 0.4f);
-      k[3] = mix(k[3], rgba(180, 226, 140), 0.38f); k[4] = mix(k[4], rgba(255, 214, 240), 0.45f);
+    case 5:   // iridescent: the hue turns gently across the ramp (violet shadows, a cool body, a warm pale highlight). (M8b
+              // fix) the turn is a tint, not a new colour per step: adjacent steps stay close in hue so the shading reads
+              // as one metal at 16 px, never a checkerboard of blue, white, purple and yellow
+      k[0] = mix(k[0], rgba(54, 30, 90), 0.30f); k[1] = mix(k[1], rgba(52, 62, 128), 0.22f); k[2] = mix(k[2], rgba(70, 120, 150), 0.16f);
+      k[3] = mix(k[3], rgba(176, 210, 200), 0.14f); k[4] = mix(k[4], rgba(250, 232, 240), 0.30f);
       break;
     case 6:   // glowing: a dark body (the seams carry the light key)
       k[0] = darken(dark, 0.75f); k[1] = darken(dark, 0.3f); k[2] = dark; k[3] = mix(dark, light, 0.4f); k[4] = mix(dark, light, 0.7f);

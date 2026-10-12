@@ -1,0 +1,22 @@
+# M8b VIEW lane: the forge (VISION_PLAN 15.27): the result in its rarity cell and colour, its damage against the worn
+# sword (an arrow and the number), the verdict, and the piece just made shown in its rarity over the MAKE button.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8b_view_forge_phone.txt     (m8bv_forgep_*.png)
+phone
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 11
++0.1 gear6 sword ilvl 2 rarity 1 mat bronze equip
++0.1 enter smithy
++0.4 walkto smith 20
++0.1 stuff bronze ingot 6
++0.05 stuff leather 4
++0.1 forgeat smith
++0.4 expect mode forge
++0.1 forgepick forge.bronze.sword
++0.4 shot m8bv_forgep_sword.png
++0.1 forgemake forge.bronze.sword 2
++0.4 shot m8bv_forgep_made.png
++0.1 key Escape
++0.3 quit

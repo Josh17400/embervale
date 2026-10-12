@@ -1,0 +1,39 @@
+# M8b VIEW lane: the paper doll (EQUIP) with a Mythic set (VISION_PLAN 15.27): every slot framed in its piece's rarity
+# (three Mythic pieces at level 45: the attunement allows three; Mythic's frame a flame running round it with ember
+# licks), the hero's sheet with the Mythic pieces' red-orange glint
+# and his embers; a pack piece picked by hand: its card and the compare against the worn piece over the doll's side.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8b_view_doll_phone.txt     (m8bv_dollp_*.png)
+phone
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 11
++0.1 plevel 45
++0.1 gear6 sword ilvl 45 rarity 5 equip
++0.1 gear6 body ilvl 45 rarity 5 equip
++0.1 gear6 helmet ilvl 44 rarity 5 equip
++0.1 gear6 shield ilvl 44 rarity 3 equip
++0.1 gear6 gloves ilvl 43 rarity 3 equip
++0.1 gear6 boots ilvl 43 rarity 2 equip
++0.1 gear6 cloak ilvl 42 rarity 4 equip
++0.1 gear6 ring ilvl 42 rarity 3 equip
++0.1 gear6 amulet ilvl 42 rarity 2 equip
++0.1 gear6 bow ilvl 40 rarity 1 equip
++0.1 gear6 sword ilvl 45 rarity 4
++0.1 gear6 sword ilvl 30 rarity 1
++0.1 expect lootvalid
++0.6 expect lootembers
++0.1 shot m8bv_dollp_world.png
++0.1 menu 5
++0.5 expect lootframes 10
++0.1 shot m8bv_dollp_set.png
++0.21 shot m8bv_dollp_set_b.png
++0.1 lootsel doll 6 1
++0.4 expect lootcard rarity legendary compare power verdict down
++0.1 shot m8bv_dollp_compare.png
++0.1 lootsel doll 6 2
++0.4 expect lootcard rarity uncommon compare verdict down
++0.1 shot m8bv_dollp_compare2.png
++0.1 key Escape
++0.3 quit

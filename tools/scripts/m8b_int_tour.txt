@@ -1,0 +1,32 @@
+# M8b integration tour (seed 19, desert): the rarity ladder on a dungeon floor (inside, torch-lit), a Mythic-geared hero
+# outdoors by day and at night, and the pack card for a Mythic piece. Checks that every piece is valid and that the
+# beams and the wearer's embers show in both lights.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8b_int_tour.txt     (m8bi_*.png)
+seed 19
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 plevel 34
++0.2 goto cave enter
++0.5 expect inside 1
++3.5 log (the place's banner fades)
++0.1 beastclear
++0.1 lootladder sword ilvl 34 dy -60
++0.1 expect lootvalid
++3.0 expect lootbeams mythic 1
++0.1 shot m8bi_cave_ladder.png
++0.2 walkto exit
++1.5 expect inside 0
++0.1 gear6 sword ilvl 34 rarity 5 equip
++0.1 gear6 body ilvl 34 rarity 5 equip
++0.1 gear6 helmet ilvl 34 rarity 3 equip
+# (M8b fix) level 34 attunes two great pieces (gear::attunementSlots): the helm is Epic so all three are really worn
++0.1 expect lootvalid
++1.5 expect lootembers
++0.1 shot m8bi_wearer_day.png
++0.1 hour 22
++1.0 shot m8bi_wearer_night.png
++0.1 menu 0
++0.3 lootsel menu 1
++0.3 shot m8bi_pack_card.png
++0.3 quit

@@ -1,0 +1,39 @@
+# M8b VIEW lane: the pack (menu 0) with all six rarities (VISION_PLAN 15.27): every name in its ladder colour (Mythic's
+# in the animated flame), every icon in its rarity cell, the compare arrow on each unworn piece's row; a Mythic sword
+# selected: its card (MYTHIC - ITEM LEVEL 31, the synced damage, four affixes in plain words, the Mythic power) and the
+# compare against the worn Rare sword (green / red pixel arrows per line, the verdict, VS the worn piece); then a
+# Common iron sword against the same Rare (a downgrade) and the worn piece itself (WORN).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m8b_view_pack_phone.txt     (m8bv_packp_*.png)
+phone
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 11
++0.1 plevel 30
++0.1 gear6 sword ilvl 28 rarity 2 equip
++0.1 gear6 body ilvl 28 rarity 4 equip
++0.1 gear6 ring ilvl 26 rarity 1 equip
++0.1 gear6 sword ilvl 28 rarity 0 mat iron
++0.1 gear6 helmet ilvl 29 rarity 1
++0.1 gear6 boots ilvl 29 rarity 3
++0.1 gear6 amulet ilvl 30 rarity 4
++0.1 gear6 gloves ilvl 30 rarity 2
++0.1 gear6 sword ilvl 31 rarity 5
++0.1 expect lootvalid
++0.1 lootsel menu last
++0.5 expect lootcard rarity mythic compare power affixes 4 verdict up
++0.05 expect lootframes 6
++0.1 shot m8bv_packp_mythic.png
++0.23 shot m8bv_packp_mythic_b.png
++0.1 lootsel menu 4
++0.4 expect lootcard rarity common compare verdict down
++0.1 shot m8bv_packp_common.png
++0.1 lootsel menu 1
++0.4 expect lootcard rarity rare worn
++0.1 shot m8bv_packp_worn.png
++0.1 lootsel menu 7
++0.4 expect lootcard rarity legendary compare power
++0.1 shot m8bv_packp_amulet.png
++0.1 key Escape
++0.3 quit

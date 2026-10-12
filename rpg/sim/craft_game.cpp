@@ -183,8 +183,18 @@ bool Game::craftChoose(const DlgOpt& o) {
       static const ItemKind kinds[] = {ItemKind::Weapon, ItemKind::Armor, ItemKind::Helmet, ItemKind::Shield, ItemKind::Gloves, ItemKind::Boots};
       const ItemKind k = kinds[r.irange(6)];
       const bool spear = c && c->arms.polearm != cult::Polearm::None;
-      Item it = gear::makeGearC(r, k, k == ItemKind::Weapon ? r.irange(spear ? 6 : 5) : 0, std::max(1, si >= 0 ? world.sites[(size_t)si].level : 1),
-                                Rarity::Uncommon, c);
+      const int sub = k == ItemKind::Weapon ? r.irange(spear ? 6 : 5) : 0;
+      // (M8b) a commission is the smith's best work for the settlement's band: Uncommon or better, a shop's cap (Rare;
+      // the gate by the settlement's band, never the player's level: 7.5 rule 4)
+      gear::DropSource ds;
+      ds.D = std::clamp(si >= 0 ? world.sites[(size_t)si].level : 1, 1, gear::MAX_D);
+      ds.src = gear::LootSrc::Shop;
+      ds.playerLevel = ds.D;
+      ds.culture = c ? c->id : 0;
+      ds.atLeast = Rarity::Uncommon;
+      ds.atMost = Rarity::Rare;
+      const Rarity rar = gear::rollRarity(r, ds);
+      Item it = gear::makeGearC(r, k, sub, ds.D, rar, c);
       it.flags |= IF_CRAFTED;
       addItem(it);
       sfx((int)Sfx::Buy, pl().p);
@@ -339,7 +349,7 @@ bool benchMake(Game& g, int index, std::string* why, Item* made) {
   const cult::Culture* c = r.culture && g.world.src ? &g.world.src->culture(r.culture) : benchCulture(g);
   Rng rng(hash32((uint32_t)g.craft.skill * 2654435761u ^ (uint32_t)g.inv.size() * 977u ^ (uint32_t)(g.time * 60.0f) ^ (uint32_t)g.seed));
   Item out;
-  if (!make(r, g.inv, g.craft, rng, benchDanger(g), c, out)) { if (why) *why = "THE WORK FAILED"; return false; }
+  if (!make(r, g.inv, g.craft, rng, benchDanger(g), c, out, g.plLevel)) { if (why) *why = "THE WORK FAILED"; return false; }
   // the emptied stacks go (dropItem keeps the eq* indices valid), highest first
   for (int i = (int)g.inv.size() - 1; i >= 0; i--)
     if (g.inv[(size_t)i].count <= 0) g.dropItem(i);

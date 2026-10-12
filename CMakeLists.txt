@@ -74,6 +74,14 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/rpg/sim/game.cpp)
   else()
     set_source_files_properties(${RPG_WORLD} PROPERTIES COMPILE_OPTIONS "-ffp-contract=off;-fno-fast-math")
   endif()
+  # M8b: the loot rolls (rarity odds, item level, affix values, power) feed a golden the clang CI build must match
+  # (rpg_test --loot): gear.cpp and items.cpp build like rpg/world, no fast-math and no FMA, on every compiler
+  set(RPG_LOOT_FP ${CMAKE_SOURCE_DIR}/rpg/sim/gear.cpp ${CMAKE_SOURCE_DIR}/rpg/sim/items.cpp)
+  if(MSVC)
+    set_source_files_properties(${RPG_LOOT_FP} PROPERTIES COMPILE_OPTIONS "/fp:precise")
+  else()
+    set_source_files_properties(${RPG_LOOT_FP} PROPERTIES COMPILE_OPTIONS "-ffp-contract=off;-fno-fast-math")
+  endif()
   # M4: the quest and campaign engine (rpg/story: the DSL, the caster, the campaigns, rumours and lore) builds with the
   # simulation (it reads Game, the realm and the world; ordinary floating point like rpg/sim)
   # M6b: the saga generator's archetype and campaign tables live one folder down (rpg/story/arch, rpg/story/campaigns)

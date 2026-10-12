@@ -21,6 +21,7 @@ Read docs/VISION_PLAN.md (especially the milestone ${M} section and section 15, 
 Tools: build with  cmd //c "set BDIR=<dir>&& tools\\\\build.bat <target>"  (targets: embervale, rpg_test, save_test, art_preview).
 rpg_test --seeds 1..20 ; save_test ; embervale.exe --script tools/scripts/<x>.txt (see rpg/main.cpp header for the script language and flags
 like --play --seed --goto --enter --fight --hour --menu --shot --after).
+Batch scripts: tools/run_scripts.sh [prefix_ ...] (only failures printed). Test what you changed; the full sweep runs once per milestone.
 OWNER QUALITY BAR (non-negotiable): the 2D graphics must look really good - commercial 16-bit quality. Walls connect seamlessly
 (no gaps, orphan pieces or broken corners, including curved/diagonal runs and gate joins); buildings have depth and dimension
 (visible side walls/thickness, foundations, eave overhangs, roof volume with light and shadow, cast shadows, consistent 3/4 top-down
@@ -96,7 +97,9 @@ const integ = await agent(`${CTX}
 
 You are the INTEGRATOR for ${M}. All lanes finished (reports below). BDIR=build; you may edit any file to make things work together.
 1. Clean-build embervale, rpg_test, save_test, art_preview (if present). Fix errors; fix warnings that are real bugs.
-2. rpg_test --seeds 1..20 ; save_test ; every script in tools/scripts/ (exit codes 0).
+2. rpg_test --seeds 1..20 ; save_test ; the CI suites in .github/workflows/web.yml ; then the FULL script regression sweep ONCE:
+   'tools/run_scripts.sh' (runs every tools/scripts/*.txt in a batch through slot.sh and prints only failures). Fix every
+   failure. This is the only full sweep in the milestone, so make it count.
 3. Screenshot tour that exercises everything ${M} changed (day and night, inside and outside, several seeds); inspect each against the
    quality bar; fix what you can.
 4. Portability pass for clang/Emscripten.
@@ -128,13 +131,12 @@ const FINDINGS = {
   required: ['findings'],
 }
 const LENSES = [
-  { key: 'bugs', text: 'CORRECTNESS: crashes, logic bugs, save compatibility, soft-locks, quest breakage, AI pathologies. Read the diff (git diff HEAD) and run targeted repro scripts/tests.' },
-  { key: 'visual', text: 'VISUAL QUALITY against the owner bar: take a broad screenshot tour (towns/cities/villages, walls and gates, interiors, characters/equipment, day/night, several seeds); flag anything that looks cheap, broken, disconnected, flat, inconsistent or repetitive. Be picky - commercial quality is the bar.' },
-  { key: 'feel', text: 'PLAYER FEEL + PLATFORM: play scripted sessions as a phone player would (touch taps via script, small-screen readability, UI hit targets, clarity of what to do), plus clang/Emscripten portability and performance (--perf).' },
+  { key: 'bugs', text: 'CORRECTNESS of what this milestone changed: crashes, logic bugs, save compatibility, soft-locks, quest breakage, AI pathologies. Start from the diff (git diff HEAD --stat, then the files) and only test areas the diff touches or directly feeds; run targeted repro scripts/tests. Do not tour unrelated systems - the integrator already ran the full regression sweep.' },
+  { key: 'look', text: "VISUAL QUALITY + PLAYER FEEL + PLATFORM, for what this milestone added or changed only (check git diff HEAD --stat to see what that is). (a) Screenshot those features in the situations they appear (day/night, phone and desktop, a few seeds) against the owner bar: flag anything cheap, broken, disconnected, flat, inconsistent or repetitive - commercial quality is the bar. (b) Play scripted sessions that use them as a phone player would (touch taps via script, small-screen readability, UI hit targets, clarity of what to do). (c) clang/Emscripten portability and --perf of the changed code. Do not tour or replay unrelated parts of the game." },
 ]
 const fixes = []
 const seen = new Set()
-for (let round = 1; round <= 3; round++) {
+for (let round = 1; round <= 2; round++) {
   const found = (await parallel(LENSES.map(ls => () => agent(`${CTX}
 
 You are a REVIEWER for ${M} (round ${round}), lens: ${ls.text}
@@ -150,7 +152,11 @@ ${integ}`, { label: `${M}-review-${ls.key}-r${round}`, phase: 'Review', effort: 
   const fix = await agent(`${CTX}
 
 You are the FIXER for ${M}, round ${round}. BDIR=build. Fix every "must" finding below and as many "should" findings as are safe.
-For each, verify the fix (tests/scripts/screenshots). Re-run rpg_test --seeds 1..20, save_test and tools/scripts/* at the end.
+For each, verify the fix with TARGETED checks only: the test suites and scripts that cover the files you changed, this milestone's own
+scripts ('tools/run_scripts.sh <milestone prefix>_', e.g. m8b_), and any script that failed before. At the end run the fast core:
+rpg_test --seeds 1..20, save_test, --golden, --endless --golden, --towns --golden. Do NOT run the whole tools/scripts/ sweep or
+replay unrelated content (homes, sieges, unrelated quests, town tours) unless your change touched that code; the main session runs
+one full sweep before shipping.
 Report: per finding fixed / not fixed (why).
 
 FINDINGS:

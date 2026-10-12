@@ -322,7 +322,19 @@ bool canMake(const Recipe& r, const std::vector<Item>& inv, const Knowledge& k, 
   return true;
 }
 
-bool make(const Recipe& r, std::vector<Item>& inv, Knowledge& k, Rng& rng, int ilvl, const cult::Culture* c, Item& out) {
+Rarity forgeRarity(int over, float q, int playerLevel) {
+  over = std::max(0, over);
+  Rarity rar = Rarity::Common;
+  // a master's work (well above the recipe) is now and then Epic
+  if (q < 0.002f + over * 0.0004f) rar = Rarity::Epic;
+  else if (q < 0.02f + over * 0.002f) rar = Rarity::Rare;
+  else if (q < 0.15f + over * 0.006f) rar = Rarity::Uncommon;
+  // the gate (15.27.4): never above what the smith's level may find
+  while (rar > Rarity::Common && gear::rarityFloorLevel(rar) > playerLevel) rar = (Rarity)((int)rar - 1);
+  return rar;
+}
+
+bool make(const Recipe& r, std::vector<Item>& inv, Knowledge& k, Rng& rng, int ilvl, const cult::Culture* c, Item& out, int playerLevel) {
   if (!canMake(r, inv, k, nullptr)) return false;
   // consume (stacks that reach 0 stay with count 0: the caller removes them and fixes its equipment indices)
   for (const Need& n : r.in) {
@@ -341,9 +353,7 @@ bool make(const Recipe& r, std::vector<Item>& inv, Knowledge& k, Rng& rng, int i
     // rarity from the smith's skill above the recipe's: a master's work is often fine
     const int over = std::max(0, k.skillLevel() - r.skill);
     const float q = rng.f();
-    Rarity rar = Rarity::Common;
-    if (q < 0.02f + over * 0.002f) rar = Rarity::Rare;
-    else if (q < 0.15f + over * 0.006f) rar = Rarity::Uncommon;
+    const Rarity rar = forgeRarity(over, q, playerLevel);
     // (NUMBERS) the item level is the place's danger, capped by what the material can reach (bronze band 1, iron 2...)
     const int cap = gear::bandHi(gear::matBandCap(r.mat, c, r.alloy));
     out = gear::makeGearC(rng, r.kind, r.sub, std::clamp(ilvl, 1, cap), rar, c && c->id == r.culture ? c : nullptr, r.mat, r.alloy);

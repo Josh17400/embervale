@@ -1,0 +1,39 @@
+# M8b SOURCES: chests through the real Game::openChest. A cave's plain chest (LootSrc::Chest), then a ruin's cache
+# (LootSrc::Explore, boosted) and the hoard its boss guards (LootSrc::Hoard, boosted, a boss's roll). Each is opened
+# with the interact key (the foes about cleared first, so E opens rather than strikes), then the hero steps 4 tiles
+# clear (chestaway: outside the pickups' pull) so the shot shows the find on the floor; every piece passes the loot
+# audit (expect lootvalid). The hero is level 12 (Epic's floor), so a hoard can show what the boost buys.
+#   embervale.exe --script tools/scripts/m8b_sources_chest.txt     (m8b_sources_*.png in the working directory)
+seed 11
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 plevel 12
++0.2 goto cave enter
++0.5 expect inside 1
++3.5 log (the place's banner fades)
++0.2 chestgo chest
++0.1 beastclear
++0.2 key e
++0.1 chestaway
++0.3 expect lootpickups 1
++0.05 expect lootvalid
++0.4 shot m8b_sources_cave_chest.png
++0.2 goto ruin enter
++0.5 expect inside 1
++3.5 log (the place's banner fades)
++0.2 chestgo explore
++0.1 beastclear
++0.2 key e
++0.1 chestaway
++0.3 expect lootpickups 1
++0.05 expect lootvalid
++0.4 shot m8b_sources_ruin_cache.png
++0.2 chestgo hoard
++0.1 beastclear
++0.2 key e
++0.1 chestaway
++0.3 expect lootpickups 1
++0.05 expect lootvalid
++0.4 shot m8b_sources_ruin_hoard.png
++0.3 quit

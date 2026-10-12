@@ -1,0 +1,18 @@
+# M8b POWERS lane: the Mythic power SOULFEAST staged on a level-30 hero with a Mythic sword against three wolves, with shots
+# mid-effect (desktop). Run: embervale.exe --script tools/scripts/m8b_powers_soulfeast.txt  (m8b_powers_soulfeast_*.png in the cwd)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 plevel 30
++0.1 gear6 sword ilvl 30 rarity 5 equip
++0.1 power give soulfeast
++0.1 expect power soulfeast
++0.1 power arena
++3.6 power foes wolf 3 30 tough
++1.0 hold J 2.5
++0.5 shot m8b_powers_soulfeast_1.png
++0.1 power proc soulfeast
++0.2 shot m8b_powers_soulfeast_2.png
++0.1 expect powerfx lifesteal 1
++0.5 quit

@@ -17,7 +17,10 @@ inline bool itemEquippable(ItemKind k) {
 enum class WeaponType : uint8_t { Sword, Axe, Mace, Dagger, Greatsword, Spear, COUNT };
 enum class Ench : uint8_t { None, Fire, Frost, Drain, Health, Magicka, Stamina, Fortify, COUNT };
 enum class PotionType : uint8_t { Health, Magicka, Stamina, COUNT };
-enum class Rarity : uint8_t { Common, Uncommon, Rare, Epic, Legendary };
+// M8b Treasure (VISION_PLAN 15.27, 15.28) appends Mythic: the sixth step (flaming red-orange, animated). Saved: append only.
+enum class Rarity : uint8_t { Common, Uncommon, Rare, Epic, Legendary, Mythic, COUNT };
+constexpr int RARITIES = (int)Rarity::COUNT;   // 6
+const char* rarityName(Rarity r);              // "COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC"
 
 // ---------------------------------------------------------------- M6 Steel (VISION_PLAN 7.2, 7.3, 15.11)
 // What a piece is made of. Leather .. Steel are the universal tiers every culture knows (cult::Tier + 1, in order);
@@ -29,7 +32,18 @@ const char* matName(Mat m);   // "LEATHER", "BRONZE", "IRON", "STEEL", "ALLOY", 
 // (percent for the % affixes, points for Health / Magicka / SpellPower).
 enum class Affix : uint8_t {
   None, FireDmg, FrostDmg, ShadowDmg, LifeDrain, CritChance, CritDmg, StaminaRegen, MoveSpeed, RollDist, Thorns,
-  ResFire, ResFrost, ResShadow, SpellPower, Magicka, PotionEffect, GoldFind, Health, COUNT
+  ResFire, ResFrost, ResShadow, SpellPower, Magicka, PotionEffect, GoldFind, Health,
+  // ---- M8b Treasure (15.28) appends: the owner's plain-word affixes ("+12% DAMAGE VS BEASTS", "BURNS FOES FOR 6 DMG/S").
+  //      They roll only once the POWERS lane makes them work (gear::affixImplemented, rpg/sim/powers.cpp).
+  VsBeasts,       // % more damage to beasts (wolves, bears, spiders, the wildlands' wildlife)
+  VsUndead,       // % more damage to the undead (skeletons, draugr, wraiths)
+  VsPeople,       // % more damage to people (bandits, soldiers, raiders)
+  Burn,           // hits set foes burning for this many damage a second (3 s)
+  AttackSpeed,    // % faster swings and draws
+  ArmourPct,      // % more armour rating
+  HealthRegen,    // health healed every 5 s (points)
+  Stamina,        // + max stamina (points)
+  COUNT
 };
 struct AffixInfo { const char* name; const char* unit; bool weapon, armour, jewel; };   // name: "+8% FIRE DAMAGE" style label stem
 const AffixInfo& affixInfo(Affix a);
@@ -70,11 +84,27 @@ enum class Unique : uint8_t {
   Warcry,           // a kill gives +15 % damage for 6 s
   Ironhide,         // +25 % armour rating
   Wayfarer,         // +20 % stamina and stamina regeneration
+  // ---- M8b Treasure (15.28): the MYTHIC powers (one per Mythic item; never on a Legendary). Each is a named power with a
+  //      gameplay effect, not a stat (POWERS lane, rpg/sim/powers.cpp; uniqueIsMythic tells them apart)
+  Tempest,          // every hit chains lightning to 3 foes
+  Inferno,          // you leave a burning trail; foes in it burn
+  Soulfeast,        // 6 % of the damage you deal heals you; kills heal 5 %
+  BrambleCrown,     // a thorns aura: foes beside you take damage every second
+  Chronos,          // a perfect dodge (a roll through a blow) slows time for 3 s
+  Phoenix,          // a fatal blow leaves you at 30 % health instead (once in 3 minutes)
+  Starfall,         // critical hits call a falling star on the target (area damage)
+  Wolfking,         // kills call a spectral wolf that fights for you for 12 s
   COUNT
 };
+static_assert((int)Unique::COUNT <= 64, "GearStats::uniques is a 64-bit mask");
 struct UniqueInfo { const char* name; const char* line; };   // name: "CHAIN LIGHTNING"; line: the effect, one HUD line
 const UniqueInfo& uniqueInfo(Unique u);
-constexpr int kItemAffixes = 3;
+bool uniqueIsMythic(Unique u);       // Tempest .. Wolfking
+// (M8b) the plain words of an affix at a value, as the tooltip and the compare panel show it: "+12% DAMAGE VS BEASTS",
+// "BURNS FOES FOR 6 DMG/S", "+40 HEALTH", "HEALS 3 HEALTH EVERY 5 S". Every surface that names an affix uses this.
+std::string affixText(Affix a, int value);
+// M8b: four affix slots (Mythic carries four strong ones and its power). Saved: SAVE_VER 19 writes kItemAffixes pairs.
+constexpr int kItemAffixes = 4;
 // Item::flags
 enum : uint8_t { IF_CRAFTED = 1, IF_STOLEN = 2, IF_QUESTREWARD = 4, IF_SHOP = 8 };
 
@@ -117,7 +147,10 @@ struct Item {
 
 const char* tierName(int t);
 uint32_t tierTint(int t);
-uint32_t rarityColor(Rarity r);   // rgba
+uint32_t rarityColor(Rarity r);   // rgba: white, green, blue, purple, gold, flaming red-orange (Mythic's base)
+// (M8b) the colour at a moment: Mythic shimmers between ember red, orange and a hot yellow (t seconds, phase: an offset
+// per letter / pixel so the shimmer runs along a name or a frame); every other rarity is rarityColor
+uint32_t rarityColorAt(Rarity r, float t, float phase = 0);
 const char* enchName(Ench e);
 
 Item makeWeapon(Rng& r, int level, int forceType = -1, bool allowEnch = true);

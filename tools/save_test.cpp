@@ -1,5 +1,6 @@
 // Save-format checks for the CURRENT save version only (owner, 2026-10-04: old saves are not a concern; an older save
-// is refused and the title offers a new game). Fixer M8 r3: SAVE_VER 18 (party block v4: the fallen's gender). Fixer M8 r1: SAVE_VER 17 (party block v3: each companion's look, fixed
+// is refused and the title offers a new game). M8b Treasure: SAVE_VER 19 (items carry 4 affix slots; the Mythic rarity
+// and its powers: a Mythic piece with four affixes, one of them an M8b affix, and a Mythic power). Fixer M8 r3: SAVE_VER 18 (party block v4: the fallen's gender). Fixer M8 r1: SAVE_VER 17 (party block v3: each companion's look, fixed
 // when they join, so it never changes when their census is put away). M8: SAVE_VER 16 (the party block after the talk block: a census
 // companion with approval, bond, gear and a memory, and a fallen companion's grave with belongings; ENDLESS_GEN_VER 21;
 // M8 phase B, party block v2: the stake, a second census companion waiting in the start inn, a third living at the
@@ -13,7 +14,7 @@
 // block; ENDLESS_GEN_VER 14). M4: SAVE_VER 10 (the realm and story blocks after the marks). The CITIZENS lane owns this
 // file and the fixture in M5.
 //   save_test [fixtureDir]           run every check
-//   save_test --make-fixture out.bin write tests/fixtures/save_v18.bin: an endless game (seed 5150) with a created
+//   save_test --make-fixture out.bin write tests/fixtures/save_v19.bin: an endless game (seed 5150) with a created
 //                                    character, the innkeeper's job taken, bot play, a looted chest, the M2 fields
 //                                    (marks, a quest's subject / flags / deadline, a rumoured site), saved outdoors.
 //                                    Regenerate it whenever the layout changes on purpose, and paste the printed FIX6
@@ -239,6 +240,21 @@ void addM5Facts(Game& g) {
 constexpr uint64_t FIX_CULT = (1ull << 60) | (3ull << 46) | (5ull << 32);   // cult::familyId(3, 5)
 constexpr int FIX_SKILL = 237, FIX_SECRET = 60, FIX_TRUST = 42, FIX_ORE = 7;
 constexpr uint64_t FIX_SMITH = 0xABCDEF12345ull;
+// M8b (SAVE_VER 19): a Mythic ring with four affixes (the fourth slot, an M8b affix) and a Mythic power, set by hand
+// (the format, not the generator: the POWERS lane decides which powers roll)
+const char* const FIX_MYTHIC = "FIXTURE MYTHIC RING";
+void addM8bFacts(Game& g) {
+  Rng r(78);
+  Item it = gear::makeGear(r, ItemKind::Ring, 0, 33, Rarity::Epic, 0);
+  it.name = FIX_MYTHIC;
+  it.rarity = Rarity::Mythic;
+  it.affix[0] = {Affix::Health, 41};
+  it.affix[1] = {Affix::CritChance, 6};
+  it.affix[2] = {Affix::ResFrost, 19};
+  it.affix[3] = {Affix::VsBeasts, 17};
+  it.unique = Unique::Phoenix;
+  g.inv.push_back(it);
+}
 void addM6Facts(Game& g) {
   Rng r(77);
   Item it = gear::makeGear(r, ItemKind::Weapon, (int)WeaponType::Spear, 12, Rarity::Legendary, FIX_CULT, Mat::Steel);
@@ -426,6 +442,7 @@ int makeFixture(const char* out) {
   addM4Facts(g);
   addM5Facts(g);
   addM6Facts(g);
+  addM8bFacts(g);
   addM6bFacts(g);
   addM7Facts(g);
   addM7bFacts(g);
@@ -444,7 +461,7 @@ int makeFixture(const char* out) {
 }
 // values printed by --make-fixture (format-level facts only)
 struct Fix6 { int level, xp, gold; size_t inv, quests, looted; int kills, ox; float px, py; int oy; float hour; int day; };
-constexpr Fix6 FIX6 = {1, 20, 30, 8, 4, 1, 0, 0, 2184.000f, 2346.000f, -256, 8.867f, 1};
+constexpr Fix6 FIX6 = {1, 20, 30, 9, 4, 1, 0, 0, 2184.000f, 2346.000f, -256, 8.867f, 1};
 
 }  // namespace
 
@@ -460,7 +477,7 @@ int main(int argc, char** argv) {
 
   // ---- 1. the fixture
   std::vector<uint8_t> fx;
-  if (!readFile(dir + "/save_v18.bin", fx)) check(false, "cannot read tests/fixtures/save_v18.bin");
+  if (!readFile(dir + "/save_v19.bin", fx)) check(false, "cannot read tests/fixtures/save_v19.bin");
   else {
     check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
     Game g(1);
@@ -532,6 +549,15 @@ int main(int argc, char** argv) {
               sp->affixValue(Affix::FireDmg) == 8 && sp->affixValue(Affix::CritChance) == 5 && sp->affixCount() == 2 && (sp->flags & IF_CRAFTED),
           "fixture M6 item: level, material, culture, form, rarity, unique power, affixes, flags (SAVE_VER 12)");
     check(ore == FIX_ORE, "fixture M6 material stack (SAVE_VER 12)");
+    // M8b (SAVE_VER 19): the Mythic rarity, the fourth affix slot, a Mythic power
+    {
+      const Item* my = nullptr;
+      for (const Item& it : g.inv) if (it.name == FIX_MYTHIC) my = &it;
+      check(my && my->kind == ItemKind::Ring && my->ilvl == 33 && my->rarity == Rarity::Mythic && my->unique == Unique::Phoenix && my->affixCount() == 4 &&
+                my->affixValue(Affix::Health) == 41 && my->affixValue(Affix::CritChance) == 6 && my->affixValue(Affix::ResFrost) == 19 &&
+                my->affix[3].kind == Affix::VsBeasts && my->affix[3].value == 17,
+            "fixture M8b item: Mythic, four affixes (an M8b one in the fourth slot), a Mythic power (SAVE_VER 19)");
+    }
     // M7 (SAVE_VER 14): the home block
     {
       const bool one = g.home.plots.size() == 1;

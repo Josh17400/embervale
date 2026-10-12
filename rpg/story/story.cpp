@@ -100,7 +100,67 @@ int residentIndexOf(const Game& g, const Binding& b) {
   return -1;
 }
 
-RewardRoll rewardRoll(int D, int tier, uint64_t culture, const cult::Culture* maker, uint64_t seed) {
+gear::DropSource rewardSource(int D, int tier, uint64_t culture, int playerLevel, gear::LootSrc src) {
+  gear::DropSource ds;
+  ds.D = std::clamp(D, 1, gear::MAX_D);
+  ds.culture = culture;
+  ds.playerLevel = std::max(1, playerLevel);
+  ds.src = src;
+  ds.atLeast = Rarity::Uncommon;
+  const bool great = tier >= 3;
+  int boost = 0;
+  switch (src) {
+    case gear::LootSrc::SagaFinale: boost = great ? 2 : 1; break;
+    case gear::LootSrc::CampaignFinale:
+      // the main way to an early Legendary or Mythic (15.27.4): Legendary guaranteed, ungated (gear.cpp gives Mythic
+      // its chance from level 20)
+      ds.atLeast = Rarity::Legendary;
+      boost = great ? 1 : 0;
+      break;
+    default:   // a stage on the way: the M6b rule (rare at most)
+      ds.src = gear::LootSrc::Saga;
+      ds.atMost = Rarity::Rare;
+      boost = great ? 1 : 0;
+      break;
+  }
+  if (ds.D >= ds.playerLevel + 3) boost++;   // a hard story
+  ds.boost = (int8_t)boost;
+  return ds;
+}
+
+gear::LootSrc rewardSrcOf(const dsl::Script& s, const dsl::StageDef& G) {
+  if (G.kind != StageKind::End || !G.success) return gear::LootSrc::Saga;
+  return s.tier >= 3 ? gear::LootSrc::CampaignFinale : gear::LootSrc::SagaFinale;
+}
+
+namespace {
+// a piece of story gear: the kind (one draw), its weapon type, then the rarity and the piece (draws sequenced)
+Item storyGear(Rng& r, const gear::DropSource& ds, const cult::Culture* maker) {
+  const int what = r.irange(100);
+  ItemKind kind = ItemKind::Weapon;
+  int sub = 0;
+  if (what < 34) { kind = ItemKind::Weapon; sub = r.irange(5); }
+  else if (what < 52) kind = ItemKind::Armor;
+  else if (what < 62) kind = ItemKind::Helmet;
+  else if (what < 70) kind = ItemKind::Shield;
+  else if (what < 78) kind = ItemKind::Bow;
+  else if (what < 86) kind = ItemKind::Boots;
+  else if (what < 93) kind = ItemKind::Ring;
+  else kind = ItemKind::Amulet;
+  const Rarity rar = gear::rollRarity(r, ds);
+  Item it = gear::makeGearC(r, kind, sub, gear::itemLevelFor(ds), rar, maker);
+  if (ds.culture && !it.culture) it.culture = ds.culture;
+  return it;
+}
+}  // namespace
+
+Item storyLoot(int D, int playerLevel, uint64_t seed, bool finale) {
+  Rng r(seed ? seed : 1);
+  const gear::DropSource ds = rewardSource(D, 2, 0, playerLevel, finale ? gear::LootSrc::SagaFinale : gear::LootSrc::Saga);
+  return storyGear(r, ds, nullptr);
+}
+
+RewardRoll rewardRoll(int D, int tier, uint64_t culture, const cult::Culture* maker, uint64_t seed, int playerLevel, gear::LootSrc src) {
   // (M6b, COMPOSER lane) story rewards by the hook's danger, never the player's level (15.9 "slow rags to riches"): a
   // fair ending pays about what one of the M4 tales does early on (40-60 gold), rising gently with D; rich and great add
   // one piece of gear AT the place's band (item level D): uncommon for rich, rare for great (never epic or legendary:
@@ -114,23 +174,7 @@ RewardRoll rewardRoll(int D, int tier, uint64_t culture, const cult::Culture* ma
   R.xp = xpBase[tier] + xpPer[tier] * (D - 1);
   if (tier < 2) return R;
   Rng r(seed ? seed : 1);
-  const int what = r.irange(100);
-  ItemKind kind = ItemKind::Weapon;
-  int sub = 0;
-  if (what < 34) { kind = ItemKind::Weapon; sub = r.irange(5); }
-  else if (what < 52) kind = ItemKind::Armor;
-  else if (what < 62) kind = ItemKind::Helmet;
-  else if (what < 70) kind = ItemKind::Shield;
-  else if (what < 78) kind = ItemKind::Bow;
-  else if (what < 86) kind = ItemKind::Boots;
-  else if (what < 93) kind = ItemKind::Ring;
-  else kind = ItemKind::Amulet;
-  gear::DropSource ds;
-  ds.D = D;
-  ds.culture = culture;
-  const Rarity rar = tier == 3 ? Rarity::Rare : Rarity::Uncommon;
-  R.item = gear::makeGearC(r, kind, sub, gear::dropIlvl(ds), rar, maker);
-  if (culture && !R.item.culture) R.item.culture = culture;
+  R.item = storyGear(r, rewardSource(D, tier, culture, playerLevel, src), maker);
   R.hasItem = true;
   return R;
 }
@@ -505,7 +549,15 @@ void runEffect1(Game& g, Engine& E, Instance& in, const dsl::EffDef& e) {
       for (int i = (int)g.inv.size() - 1; i >= 0; i--) if (g.inv[(size_t)i].kind == ItemKind::Quest && g.inv[(size_t)i].name == n) { g.dropItem(i); break; }
       break;
     }
-    case EffType::Loot: if (host().loot) host().loot(g, hookLevel(g, in) + 1); break;
+    case EffType::Loot: {
+      // (M8b) by the gear rules (storyLoot), never the classic maker: a finale's when the stage is a success ending
+      const dsl::Script* sc = scriptOf(in);
+      const bool fin = sc && in.stage >= 0 && in.stage < (int)sc->stages.size() && rewardSrcOf(*sc, sc->stages[(size_t)in.stage]) != gear::LootSrc::Saga;
+      const uint64_t key = ew::mix64(strHash(in.script) ^ ((uint64_t)in.stage << 40) ^ 0x100Full ^ (in.cast.empty() ? 0 : in.cast[0].id));
+      const Item it = storyLoot(hookLevel(g, in) + 1, g.plLevel, key, fin);
+      if (host().item) host().item(g, it); else g.inv.push_back(it);
+      break;
+    }
     case EffType::Rep: {
       const ew::Gid k = kid(e.args[0]);
       g.realm.addRep(k, e.n);
@@ -579,7 +631,10 @@ void runEffect1(Game& g, Engine& E, Instance& in, const dsl::EffDef& e) {
       if (!in.cast.empty() && in.cast[0].site) { const int h = siteByIdLoad(g, in.cast[0].site); if (h >= 0) cu = g.world.sites[(size_t)h].culture; }
       const cult::Culture* maker = cu && g.world.src ? &g.world.src->culture(cu) : nullptr;
       const uint64_t key = ew::mix64(strHash(in.script) ^ ((uint64_t)in.stage << 40) ^ (in.cast.empty() ? 0 : in.cast[0].id));
-      const RewardRoll R = rewardRoll(D, e.n, cu, maker, key);
+      // (M8b, 15.27.4) a success ending is the story's finale (a campaign's: the main way to an early Legendary)
+      const dsl::Script* sc = scriptOf(in);
+      const gear::LootSrc src = sc && in.stage >= 0 && in.stage < (int)sc->stages.size() ? rewardSrcOf(*sc, sc->stages[(size_t)in.stage]) : gear::LootSrc::Saga;
+      const RewardRoll R = rewardRoll(D, e.n, cu, maker, key, g.plLevel, src);
       if (host().gold) host().gold(g, R.gold); else g.gold += R.gold;
       if (host().xp) host().xp(g, R.xp); else g.plXp += R.xp;
       if (R.hasItem) {

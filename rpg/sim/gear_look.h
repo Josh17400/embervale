@@ -38,5 +38,10 @@ art::HumanLook appearanceLook(const Appearance& app, const cult::Culture* home);
 // that no worn piece sets keep their value (so call it on a fresh appearanceLook).
 void wearGear(art::HumanLook& L, const WornGear& g, const CultureLookup& cultureOf);
 
+// (M8b Treasure, VIEW lane) a Mythic piece's glow on the hero's and a companion's sheet: this exact red-orange
+// (rgba(255, 104, 40)); it wins over a Legendary's colour. The view tells a Mythic wearer by it (rising embers and a
+// flickering light over the baked glint, rpg/view/loot_ui.cpp).
+constexpr uint32_t kMythicGlow = 0xFF2868FFu;
+
 // One piece's icon look (the pack, the shop, the paper doll's slots, pickups on the ground)
 art::IconLook gearIcon(const Item& it, const cult::Culture* maker);

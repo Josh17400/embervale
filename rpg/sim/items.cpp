@@ -1,5 +1,7 @@
 #include "rpg/sim/items.h"
 #include <algorithm>
+#include <cmath>
+#include "rpg/sim/gear.h"
 
 using art::Icon;
 
@@ -38,7 +40,16 @@ const AffixInfo& affixInfo(Affix a) {
                                 {"MAGICKA",               "",   false, true,  true},
                                 {"POTION EFFECT",         "%",  false, true,  true},
                                 {"GOLD FIND",             "%",  false, false, true},
-                                {"HEALTH",                "",   false, true,  true}};
+                                {"HEALTH",                "",   false, true,  true},
+                                // M8b Treasure (15.28)
+                                {"DAMAGE VS BEASTS",      "%",  true,  false, true},
+                                {"DAMAGE VS UNDEAD",      "%",  true,  false, true},
+                                {"DAMAGE VS PEOPLE",      "%",  true,  false, true},
+                                {"BURNING",               "",   true,  false, false},
+                                {"ATTACK SPEED",          "%",  true,  false, true},
+                                {"ARMOUR",                "%",  false, true,  false},
+                                {"HEALTH REGENERATION",   "",   false, true,  true},
+                                {"STAMINA",               "",   false, true,  true}};
   static_assert(sizeof(t) / sizeof(t[0]) == (size_t)Affix::COUNT, "an AffixInfo for every affix");
   return t[(int)a < (int)Affix::COUNT ? (int)a : 0];
 }
@@ -78,143 +89,117 @@ const UniqueInfo& uniqueInfo(Unique u) {
       {"WARCRY", "A KILL GIVES +15% DAMAGE FOR 6 S"},
       {"IRONHIDE", "+25% ARMOUR RATING"},
       {"WAYFARER", "+20% STAMINA AND ITS REGENERATION"},
+      // M8b Treasure (15.28): the Mythic powers
+      {"TEMPEST", "EVERY HIT CHAINS LIGHTNING TO 3 FOES"},
+      {"INFERNO", "YOU LEAVE A BURNING TRAIL THAT SETS FOES ALIGHT"},
+      {"SOULFEAST", "6% OF YOUR DAMAGE HEALS YOU; KILLS HEAL 5%"},
+      {"BRAMBLE CROWN", "THORNS AURA: FOES BESIDE YOU BLEED EVERY SECOND"},
+      {"CHRONOS", "A PERFECT DODGE SLOWS TIME FOR 3 S"},
+      {"PHOENIX", "A FATAL BLOW LEAVES YOU AT 30% (ONCE IN 3 MIN)"},
+      {"STARFALL", "CRITICAL HITS CALL DOWN A FALLING STAR"},
+      {"WOLFKING", "KILLS CALL A SPECTRAL WOLF TO FIGHT FOR 12 S"},
   };
   static_assert(sizeof(t) / sizeof(t[0]) == (size_t)Unique::COUNT, "a UniqueInfo for every unique power");
   return t[(int)u < (int)Unique::COUNT ? (int)u : 0];
 }
+bool uniqueIsMythic(Unique u) { return (int)u >= (int)Unique::Tempest && (int)u < (int)Unique::COUNT; }
+const char* rarityName(Rarity r) {
+  static const char* n[] = {"COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC"};
+  static_assert(sizeof(n) / sizeof(n[0]) == (size_t)Rarity::COUNT, "a name for every rarity");
+  return n[std::clamp((int)r, 0, RARITIES - 1)];
+}
+// (M8b, 15.27) white, green, blue, purple, gold, and Mythic's flaming red-orange
 uint32_t rarityColor(Rarity r) {
-  static const uint32_t c[] = {rgba(230, 230, 230), rgba(110, 220, 110), rgba(90, 160, 255), rgba(200, 110, 255), rgba(255, 170, 40)};
-  return c[(int)r];
+  static const uint32_t c[] = {rgba(230, 230, 230), rgba(110, 220, 110), rgba(90, 160, 255), rgba(200, 110, 255), rgba(255, 196, 56),
+                               rgba(255, 92, 36)};
+  static_assert(sizeof(c) / sizeof(c[0]) == (size_t)Rarity::COUNT, "a colour for every rarity");
+  return c[std::clamp((int)r, 0, RARITIES - 1)];
+}
+uint32_t rarityColorAt(Rarity r, float t, float phase) {
+  if (r != Rarity::Mythic) return rarityColor(r);
+  // a flame: ember red -> orange -> hot yellow and back, two waves beating so it never looks like a plain blink
+  const float w = 0.5f + 0.5f * std::sin(t * 5.3f + phase * 0.9f) * 0.7f + 0.15f * std::sin(t * 11.7f + phase * 2.3f);
+  const float k = std::clamp(w, 0.0f, 1.0f);
+  auto mix = [](int a, int b, float f) { return (uint8_t)std::clamp((int)std::lround((float)a + (float)(b - a) * f), 0, 255); };
+  // 0 ember (220, 40, 24), 0.5 orange (255, 120, 30), 1 hot yellow (255, 222, 110)
+  if (k < 0.5f) { const float f = k * 2; return rgba(mix(220, 255, f), mix(40, 120, f), mix(24, 30, f)); }
+  const float f = (k - 0.5f) * 2;
+  return rgba(255, mix(120, 222, f), mix(30, 110, f));
+}
+std::string affixText(Affix a, int v) {
+  const std::string n = std::to_string(v);
+  switch (a) {
+    case Affix::None: case Affix::COUNT: return "";
+    case Affix::FireDmg: return "+" + n + "% FIRE DAMAGE";
+    case Affix::FrostDmg: return "+" + n + "% FROST DAMAGE";
+    case Affix::ShadowDmg: return "+" + n + "% SHADOW DAMAGE";
+    case Affix::LifeDrain: return n + "% OF DAMAGE HEALS YOU";
+    case Affix::CritChance: return "+" + n + "% CRITICAL CHANCE";
+    case Affix::CritDmg: return "+" + n + "% CRITICAL DAMAGE";
+    case Affix::StaminaRegen: return "+" + n + "% STAMINA REGENERATION";
+    case Affix::MoveSpeed: return "+" + n + "% MOVE SPEED";
+    case Affix::RollDist: return "+" + n + "% ROLL DISTANCE";
+    case Affix::Thorns: return "ATTACKERS TAKE " + n + "% OF THEIR BLOW";
+    case Affix::ResFire: return "+" + n + "% FIRE RESISTANCE";
+    case Affix::ResFrost: return "+" + n + "% FROST RESISTANCE";
+    case Affix::ResShadow: return "+" + n + "% SHADOW RESISTANCE";
+    case Affix::SpellPower: return "+" + n + " SPELL POWER";
+    case Affix::Magicka: return "+" + n + " MAGICKA";
+    case Affix::PotionEffect: return "+" + n + "% POTION EFFECT";
+    case Affix::GoldFind: return "+" + n + "% GOLD FOUND";
+    case Affix::Health: return "+" + n + " HEALTH";
+    case Affix::VsBeasts: return "+" + n + "% DAMAGE VS BEASTS";
+    case Affix::VsUndead: return "+" + n + "% DAMAGE VS UNDEAD";
+    case Affix::VsPeople: return "+" + n + "% DAMAGE VS PEOPLE";
+    case Affix::Burn: return "BURNS FOES FOR " + n + " DMG/S";
+    case Affix::AttackSpeed: return "+" + n + "% ATTACK SPEED";
+    case Affix::ArmourPct: return "+" + n + "% ARMOUR";
+    case Affix::HealthRegen: return "HEALS " + n + " HEALTH EVERY 5 S";
+    case Affix::Stamina: return "+" + n + " STAMINA";
+  }
+  return "";
 }
 const char* enchName(Ench e) {
   static const char* n[] = {"", "BURNING", "FROST", "DRAINING", "VITALITY", "THE MAGE", "ENDURANCE", "THE TITAN"};
   return n[(int)e];
 }
 
+// ---- (M8b NUMBERS, 15.27.2 "no item above Common may roll without at least one working, visible affix") the classic
+//      makers are M6 gear now: an item level (= level), a material, the rarity rolled on the level-gated ladder
+//      (gear::rollRarity: an ordinary find of a level-`level` hero at D `level`) and the affixes / power that rarity owes,
+//      made by gear::makeGearC (heartland words). No legacy enchantment. Signatures kept (tests, debug kits, old paths).
 namespace {
-int tierFor(Rng& r, int level) {
-  const int up = r.f() < 0.25f ? 1 : 0;   // (draws sequenced left to right, as MSVC evaluates them)
-  const int down = r.f() < 0.25f ? 1 : 0;
-  int t = level / 5 + up - down;
-  return std::clamp(t, 0, 5);
-}
-Rarity rollRarity(Rng& r, int level, bool boss) {
-  float q = r.f() - (boss ? 0.35f : 0) - level * 0.004f;
-  if (q < 0.03f) return Rarity::Legendary;
-  if (q < 0.10f) return Rarity::Epic;
-  if (q < 0.25f) return Rarity::Rare;
-  if (q < 0.50f) return Rarity::Uncommon;
-  return Rarity::Common;
+gear::DropSource classicSource(int level) {
+  gear::DropSource s;
+  s.D = std::clamp(level, 1, gear::MAX_D);
+  s.playerLevel = s.D;
+  s.src = gear::LootSrc::Body;
+  return s;
 }
 }  // namespace
 
 Item makeWeapon(Rng& r, int level, int forceType, bool allowEnch) {
-  Item it;
-  it.kind = ItemKind::Weapon;
-  // (M6 phase A: a random draw keeps to the classic five, so the random stream is unchanged; a Spear only when forced)
-  WeaponType wt = forceType >= 0 && forceType < (int)WeaponType::COUNT ? (WeaponType)forceType : (WeaponType)r.irange(5);
-  it.sub = (uint8_t)wt;
-  it.tier = (uint8_t)tierFor(r, level);
-  static const int base[] = {7, 8, 9, 5, 13, 9};
-  static const char* names[] = {"SWORD", "WAR AXE", "MACE", "DAGGER", "GREATSWORD", "SPEAR"};
-  static const Icon icons[] = {Icon::Sword, Icon::Axe, Icon::Mace, Icon::Dagger, Icon::Greatsword, Icon::Spear};
-  static_assert(sizeof(names) / sizeof(names[0]) == (size_t)WeaponType::COUNT, "a name for every weapon type");
-  it.power = (int16_t)(base[(int)wt] + it.tier * (wt == WeaponType::Greatsword ? 5 : 3) + level / 3);
-  it.rarity = allowEnch ? rollRarity(r, level, false) : Rarity::Common;
-  it.icon = icons[(int)wt];
-  it.tint = tierTint(it.tier);
-  it.name = std::string(tierName(it.tier)) + " " + names[(int)wt];
-  if (it.rarity >= Rarity::Uncommon) {
-    static const Ench we[] = {Ench::Fire, Ench::Frost, Ench::Drain};
-    it.ench = we[r.irange(3)];
-    it.enchPow = (int16_t)(3 + level / 2 + (int)it.rarity * 3);
-    it.name += std::string(" OF ") + enchName(it.ench);
-  }
-  it.power = (int16_t)(it.power * (1.0f + (int)it.rarity * 0.08f));
-  it.value = (it.power * 6 + it.enchPow * 10) * (1 + it.tier);
-  return it;
+  // (a random draw keeps to the classic five; a Spear only when forced)
+  const WeaponType wt = forceType >= 0 && forceType < (int)WeaponType::COUNT ? (WeaponType)forceType : (WeaponType)r.irange(5);
+  const Rarity rar = allowEnch ? gear::rollRarity(r, classicSource(level)) : Rarity::Common;   // the start sword: Common
+  return gear::makeGearC(r, ItemKind::Weapon, (int)wt, std::clamp(level, 1, gear::MAX_D), rar, nullptr);
 }
 
 Item makeBow(Rng& r, int level) {
-  Item it;
-  it.kind = ItemKind::Bow;
-  it.tier = (uint8_t)tierFor(r, level);
-  it.power = (int16_t)(8 + it.tier * 4 + level / 3);
-  it.rarity = rollRarity(r, level, false);
-  it.icon = Icon::Bow;
-  it.tint = tierTint(it.tier);
-  it.name = std::string(it.tier == 0 ? "HUNTING" : tierName(it.tier)) + " BOW";
-  if (it.rarity >= Rarity::Rare) {
-    it.ench = r.f() < 0.5f ? Ench::Fire : Ench::Frost;
-    it.enchPow = (int16_t)(3 + level / 2 + (int)it.rarity * 2);
-    it.name += std::string(" OF ") + enchName(it.ench);
-  }
-  it.value = (it.power * 7 + it.enchPow * 10) * (1 + it.tier);
-  return it;
+  const Rarity rar = gear::rollRarity(r, classicSource(level));
+  return gear::makeGearC(r, ItemKind::Bow, 0, std::clamp(level, 1, gear::MAX_D), rar, nullptr);
 }
 
 Item makeStaff(Rng& r, int level) {
-  Item it;
-  it.kind = ItemKind::Staff;
-  it.tier = (uint8_t)tierFor(r, level);
-  it.power = (int16_t)(12 + it.tier * 5 + level / 2);   // spell power
-  it.rarity = (Rarity)std::max((int)Rarity::Uncommon, (int)rollRarity(r, level, false));
-  it.icon = Icon::Staff;
-  it.tint = r.f() < 0.5f ? rgba(255, 120, 40) : rgba(110, 200, 255);
-  it.ench = it.tint == rgba(255, 120, 40) ? Ench::Fire : Ench::Frost;
-  it.name = std::string("STAFF OF ") + (it.ench == Ench::Fire ? "FIREBOLTS" : "FROST LANCES");
-  it.value = it.power * 25;
-  return it;
+  // a staff is a spell focus: never Common (as the classic maker)
+  Rarity rar = gear::rollRarity(r, classicSource(level));
+  if (rar < Rarity::Uncommon) rar = Rarity::Uncommon;
+  return gear::makeGearC(r, ItemKind::Staff, 0, std::clamp(level, 1, gear::MAX_D), rar, nullptr);
 }
 
 Item makeArmor(Rng& r, int level, ItemKind slot) {
-  Item it;
-  it.kind = slot;
-  it.tier = (uint8_t)tierFor(r, level);
-  it.rarity = rollRarity(r, level, false);
-  it.tint = tierTint(it.tier);
-  // tier 0 pieces are either leather or iron; the choice for the M0 slots (and the cap) comes from the level, not
-  // the rng, so the random stream of the pre-M0 kinds is unchanged
-  const bool leather0 = it.tier == 0 && (level & 1);
-  static const char* bodyN[] = {"LEATHER ARMOR", "STEEL PLATE", "GILDED MAIL", "JADE SCALE", "OBSIDIAN PLATE", "EMBERFORGED PLATE"};
-  if (slot == ItemKind::Armor) {
-    it.power = (int16_t)(8 + it.tier * 7 + level / 2);
-    it.icon = Icon::Armor;
-    it.name = it.tier == 0 && r.f() < 0.5f ? "IRON ARMOR" : bodyN[it.tier];
-  } else if (slot == ItemKind::Helmet) {
-    it.power = (int16_t)(3 + it.tier * 3 + level / 4);
-    it.icon = Icon::Helmet;
-    it.name = leather0 ? "LEATHER CAP" : std::string(tierName(it.tier)) + " HELMET";
-  } else if (slot == ItemKind::Gloves) {
-    it.power = (int16_t)(2 + it.tier * 2 + level / 5);
-    it.icon = Icon::Gloves;
-    it.name = it.tier == 0 ? (leather0 ? "LEATHER GLOVES" : "IRON GAUNTLETS") : std::string(tierName(it.tier)) + " GAUNTLETS";
-  } else if (slot == ItemKind::Boots) {
-    it.power = (int16_t)(2 + it.tier * 2 + level / 5);
-    it.icon = Icon::Boots;
-    it.name = it.tier == 0 ? (leather0 ? "LEATHER BOOTS" : "IRON BOOTS") : std::string(tierName(it.tier)) + " BOOTS";
-  } else if (slot == ItemKind::Cloak) {
-    // cloth, not metal: the tint is the cloth colour (the paper doll and the hero wear it)
-    static const char* cloakN[] = {"TRAVEL CLOAK", "WOOL CLOAK", "FUR MANTLE", "RANGER CLOAK", "SHADOW CLOAK", "EMBER MANTLE"};
-    static const uint32_t cloakC[] = {rgba(112, 82, 58), rgba(60, 96, 62), rgba(52, 70, 120), rgba(40, 92, 66), rgba(46, 38, 58), rgba(150, 40, 36)};
-    it.power = (int16_t)(1 + it.tier + level / 6);
-    it.icon = Icon::Cloak;
-    it.name = cloakN[it.tier];
-    it.tint = cloakC[it.tier];
-  } else {
-    it.power = (int16_t)(4 + it.tier * 3 + level / 4);
-    it.icon = Icon::Shield;
-    it.name = std::string(tierName(it.tier)) + " SHIELD";
-  }
-  if (it.name.rfind("LEATHER", 0) == 0) it.tint = rgba(150, 100, 62);
-  if (it.rarity >= Rarity::Uncommon) {
-    static const Ench ae[] = {Ench::Health, Ench::Magicka, Ench::Stamina, Ench::Fortify};
-    it.ench = ae[r.irange(4)];
-    it.enchPow = (int16_t)(8 + level + (int)it.rarity * 6);
-    it.name += std::string(" OF ") + enchName(it.ench);
-  }
-  it.value = (it.power * 8 + it.enchPow * 8) * (1 + it.tier);
-  return it;
+  const Rarity rar = gear::rollRarity(r, classicSource(level));
+  return gear::makeGearC(r, slot, 0, std::clamp(level, 1, gear::MAX_D), rar, nullptr);
 }
 
 // which armour slot a random drop fills (one rng draw)
@@ -229,19 +214,9 @@ ItemKind randomArmorSlot(Rng& r) {
 }
 
 Item makeJewel(Rng& r, int level) {
-  Item it;
-  bool ring = r.f() < 0.5f;
-  it.kind = ring ? ItemKind::Ring : ItemKind::Amulet;
-  it.icon = ring ? Icon::Ring : Icon::Amulet;
-  it.rarity = (Rarity)std::max((int)Rarity::Uncommon, (int)rollRarity(r, level, false));
-  static const Ench je[] = {Ench::Health, Ench::Magicka, Ench::Stamina, Ench::Fortify};
-  it.ench = je[r.irange(4)];
-  it.enchPow = (int16_t)(10 + level * 2 + (int)it.rarity * 6);
-  it.tint = ring ? rgba(230, 200, 90) : rgba(190, 200, 220);
-  static const char* metal[] = {"COPPER", "SILVER", "GOLD", "GOLD", "MOONSTONE", "DRAGONBONE"};
-  it.name = std::string(metal[std::min(5, level / 5)]) + (ring ? " RING OF " : " AMULET OF ") + enchName(it.ench);
-  it.value = it.enchPow * 18;
-  return it;
+  const bool ring = r.f() < 0.5f;
+  const Rarity rar = gear::rollRarity(r, classicSource(level));   // (makeGearC lifts a Common jewel to Uncommon)
+  return gear::makeGearC(r, ring ? ItemKind::Ring : ItemKind::Amulet, 0, std::clamp(level, 1, gear::MAX_D), rar, nullptr);
 }
 
 Item makePotion(PotionType t, int size) {
@@ -303,31 +278,16 @@ Item makeMisc(int which) {
   return it;
 }
 
+// (M8b NUMBERS) the classic loot table is gear::rollDropC's: an ordinary body of a level-`level` hero at D `level`, or a
+// boss's (rank 4, LootSrc::Boss: always gear, a boss's luck and floor, item level + 2)
 Item randomLoot(Rng& r, int level, bool boss) {
-  float q = r.f();
-  if (boss) {
-    if (q < 0.35f) { Item w = makeWeapon(r, level + 3); return w; }
-    if (q < 0.65f) return makeArmor(r, level + 3, randomArmorSlot(r));
-    if (q < 0.8f) return makeJewel(r, level + 2);
-    if (q < 0.9f) return makeBow(r, level + 3);
-    return makeStaff(r, level + 2);
-  }
-  if (q < 0.30f) {   // (draws sequenced: the right argument's first, as MSVC/GCC evaluate them)
-    const int size = level > 12 ? 1 + (r.f() < 0.3f) : (level > 5 ? (r.f() < 0.5f) : 0);
-    return makePotion((PotionType)r.irange(3), size);
-  }
-  if (q < 0.42f) return makeArrows(5 + r.irange(10));
-  if (q < 0.56f) { const int w = r.irange(8); return makeMisc(w == 3 ? 7 : w); }   // (M6) ore is crafting stuff (craft.h)
-  if (q < 0.64f) return makeFood(r.irange(4));
-  if (q < 0.78f) return makeWeapon(r, level);
-  if (q < 0.90f) return makeArmor(r, level, randomArmorSlot(r));
-  if (q < 0.95f) return makeBow(r, level);
-  if (q < 0.98f) return makeJewel(r, level);
-  return makeStaff(r, level);
+  gear::DropSource s = classicSource(level);
+  if (boss) { s.rank = 4; s.src = gear::LootSrc::Boss; }
+  return gear::rollDropC(r, s, nullptr);
 }
 
 // SAVE_VER 12 (M6): the classic fields, then ilvl u8, mat u8, alloy u8, culture u64, form u8, seed u32,
-// 3 x (affix u8, value i16), unique u8, flags u8
+// kItemAffixes x (affix u8, value i16), unique u8, flags u8. SAVE_VER 19 (M8b): kItemAffixes is 4 (it was 3)
 void writeItem(BinW& w, const Item& it) {
   w.u8((uint8_t)it.kind); w.u8(it.sub); w.u8(it.tier); w.u8((uint8_t)it.ench); w.u8((uint8_t)it.rarity);
   w.u16((uint16_t)it.power); w.u16((uint16_t)it.enchPow); w.i32(it.count); w.i32(it.value);
@@ -354,7 +314,7 @@ Item readItem(BinR& r) {
   // a damaged save must not index past the tables (names, colours, icons): out-of-range values load as defaults
   if ((int)it.kind >= (int)ItemKind::COUNT) it.kind = ItemKind::Misc;
   if ((int)it.ench >= (int)Ench::COUNT) it.ench = Ench::None;
-  if ((int)it.rarity > (int)Rarity::Legendary) it.rarity = Rarity::Common;
+  if ((int)it.rarity >= (int)Rarity::COUNT) it.rarity = Rarity::Common;
   if ((int)it.icon >= (int)art::Icon::COUNT) it.icon = art::Icon::Scroll;
   if (it.tier > 6) it.tier = 6;
   return it;

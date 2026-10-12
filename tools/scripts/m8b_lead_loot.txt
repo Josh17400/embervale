@@ -1,0 +1,28 @@
+# M8b phase A (lead): the Treasure contracts in the running game: the six-step ladder (Mythic in the pack and on the
+# ground), affixes in plain words in the tooltip (items.h affixText), what a level-2 and a level-30 hero really find
+# (lootroll: the saturation look), and the loot audit on everything shown (expect lootvalid). Phase A pixels are the
+# M6 ones (Mythic only has its colour): the VIEW lane draws the ladder for real.
+#   embervale.exe --script tools/scripts/m8b_lead_loot.txt     (m8b_lead_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 plevel 2
++0.1 lootroll 16 level 2
++0.1 expect lootpickups 16
++0.1 expect lootvalid
++0.5 shot m8b_lead_ground_l2.png
++0.1 lootdrop sword rarity mythic ilvl 31
++0.1 lootdrop ring rarity legendary ilvl 24
++0.1 gear6 sword ilvl 31 rarity 5
++0.1 gear6 sword ilvl 2 rarity 2 mat bronze
++0.1 gear6 sword ilvl 10 rarity 0 mat iron
++0.1 expect lootvalid
++0.1 menu 0
++0.5 shot m8b_lead_pack.png
++0.1 key Escape
++0.1 plevel 30
++0.1 lootroll 16 level 30
++0.1 expect lootvalid
++0.5 shot m8b_lead_ground_l30.png
++0.3 quit

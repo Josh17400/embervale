@@ -225,6 +225,8 @@ int cmdArms(int argc, char** argv) {
       Rng r(seed * 31 + 5);
       std::vector<Item> cl = {makeArmor(r, 10, ItemKind::Armor), makeArmor(r, 10, ItemKind::Helmet), makeArmor(r, 10, ItemKind::Shield),
                               makeWeapon(r, 10, 0), makeBow(r, 10)};
+      // (M8b) the classic makers give M6 gear now: strip them back to classic pieces (no item level, material or form)
+      for (Item& it : cl) { it.ilvl = 0; it.mat = Mat::None; it.form = 0; it.culture = 0; it.alloy = 0; it.tier = 1; it.name = "STEEL PIECE"; }
       WornGear w;
       w.armor = &cl[0]; w.helmet = &cl[1]; w.shield = &cl[2]; w.weapon = &cl[3]; w.bow = &cl[4];
       art::HumanLook H = base;
