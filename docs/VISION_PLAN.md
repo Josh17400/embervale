@@ -2948,3 +2948,46 @@ remove or change the meaning of what is listed here):
   panel, a banter line on a night road. Script commands (rpg/view/script_party.cpp): `party recruit|cmd|deed|down|kill|
   revive|near|talk|approval|bond|stats`, `expect party members|with|fallen|state|approval|near|banter|share`;
   `tools/scripts/m8_lead_party.txt`.
+
+### 15.27 M8b "Treasure": the loot overhaul (owner, 2026-10-12)
+
+The owner, in their words: "items need to have effects if they have a rarity. im getting a lot of rare items and almost none of them actually do anything, at least it doesnt say they do anything. one thing we want to make sure of is that we dont over saturate the player with a bunch of rare equipment right off the bat." The owner gave the level-10 iron sword example as a feel to aim for, not a rule: "you would need to build it out in a way that makes sense."
+
+1. **The rarity ladder, with six steps.** Each step must be much harder to find than the one before.
+
+   | Step | Colour |
+   |---|---|
+   | Common | white |
+   | Uncommon | green |
+   | Rare | blue |
+   | Epic | purple |
+   | Legendary | gold |
+   | Mythic (new) | a flaming red-and-orange, animated shimmer on the name, frame and icon border |
+
+   Every item drawn on screen must use these colours: its name, frame and icon, the loot beam or sparkle, the paper doll, the shop, the chest and the forge.
+2. **Every rarity above Common does something, and the game says so.**
+   - Each step adds real, scaled affixes. Uncommon gets one minor affix. Mythic gets several strong ones, including one unique, named power with a gameplay effect, not just a stat. Examples: chain lightning on hit, a burning trail, lifesteal, a thorns aura, a time slow on a perfect dodge.
+   - Every affix must work in combat or the sim.
+   - Every affix must show in the item tooltip and compare panel as plain words, for example "+12% DAMAGE VS BEASTS" or "BURNS FOES FOR 6 DMG/S".
+   - No item above Common may roll without at least one working, visible affix. Audit every source that makes items: drops, chests, shops, quest and saga rewards, the forge, companions' gear and merchants. Fix any that give rarity without affixes.
+3. **Item level matters as much as rarity.**
+   - Every item gets an item level from the player level and the source's danger.
+   - Base power scales with item level and material tier.
+   - The rarity's affix budget scales with item level too.
+   - The feel to aim for: a level-10 Common iron sword is roughly as strong as a level-2 Uncommon or Rare bronze sword, but the low-level rare can still win if its perks suit the build.
+   - Show the item level in the tooltip, and compare against what is equipped (green or red arrows).
+4. **No early saturation. Rarity is gated by player level** and by how hard the find was.
+   - Rough level floors: Uncommon from level 1 but uncommon in fact; Rare from about level 5; Epic from about 12; Legendary from about 20; Mythic from about 30.
+   - Near the floor a rarity is very rare, and it ramps up after.
+   - Exploration, harder dungeons, bosses, finishing missions, and saga and campaign finales give guaranteed or boosted rolls. A campaign's last reward is the main way to get a Legendary or Mythic early. These are the meaningful ways to beat the gate a little, never a lot.
+   - The current flat roll (55/28/12/4/1 %) is replaced.
+   - A `--loot` (or extended `--loot-audit`) suite must prove all of the following:
+     - The rarity spread per level band: by level 5, most gear is Common and Uncommon; Rare is rare; Epic and above are absent outside rewards.
+     - Every non-Common item has at least one visible, working affix.
+     - Power curves by item level and rarity, including the iron and bronze example.
+     - No duplicate or contradictory affixes.
+     - Affixes are deterministic and the RNG draws are sequenced.
+5. **Keep it fair and saved.**
+   - Affixes and item level are saved (bump SAVE_VER and regenerate the fixtures; old items load as item level from the player's level at load).
+   - Companions use the same rules.
+   - Balance gates (`--metrics`, `--power-curve`, `--foes`, `--arms`, `--companion`) stay green. Item power must not break the time-to-kill bands.
