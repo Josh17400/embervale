@@ -266,7 +266,7 @@ int streetFaceChecks() {
             rk[k] = r.key();
             bp[k] = bld::design(r);
             const char* why = bld::validate(bp[k]);
-            if (*why) { if (invalid < 6) out("FAIL: street face: style %d wealth %d row %d: %s\n", c, w, (int)rows[k], why); invalid++; }
+            if (*why) { if (invalid < 6) out("FAIL: street face: style %d wealth %d row %d: %s\n", c, w, (int)rows[k], why); invalid++; }
           }
           units++;
           for (int i = 0; i < 5; i++)
@@ -277,18 +277,18 @@ int streetFaceChecks() {
             for (const bld::Volume& v : bp[k].vols) {
               const bool sw = (rows[k] & bld::ROW_SIDE_W) && (v.feat & bld::VF_PARTY_W), se = (rows[k] & bld::ROW_SIDE_E) && (v.feat & bld::VF_PARTY_E);
               if (sw || se) {
-                if (party < 6) out("FAIL: street face: style %d wealth %d row %d: a party wall on the street side (%s)\n", c, w, (int)rows[k], sw ? "west" : "east");
+                if (party < 6) out("FAIL: street face: style %d wealth %d row %d: a party wall on the street side (%s)\n", c, w, (int)rows[k], sw ? "west" : "east");
                 party++;
                 break;
               }
             }
           if (bp[4].vols[0].y0 != 0) {
-            if (backs < 6) out("FAIL: street face: style %d wealth %d: a back on a street stands at y0 %d\n", c, w, (int)bp[4].vols[0].y0);
+            if (backs < 6) out("FAIL: street face: style %d wealth %d: a back on a street stands at y0 %d\n", c, w, (int)bp[4].vols[0].y0);
             backs++;
           }
         }
-  if (keys) out("FAIL: street face: %d row values share a request or blueprint key\n", keys);
-  printf("street faces (M7c): %d units x 5 row kinds, %d invalid, %d party walls on a street side, %d backs off the line, %d shared keys\n",
+  if (keys) out("FAIL: street face: %d row values share a request or blueprint key\n", keys);
+  printf("street faces (M7c): %d units x 5 row kinds, %d invalid, %d party walls on a street side, %d backs off the line, %d shared keys\n",
          units, invalid, party, backs, keys);
   return invalid + party + backs + (keys ? 1 : 0);
 }
