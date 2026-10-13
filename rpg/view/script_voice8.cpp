@@ -103,8 +103,25 @@ bool cmdVoice(ScriptCtx& c) {
     const party::Member& M = g.party.members[(size_t)m];
     uint64_t arg = 0;
     std::string name;
-    if ((party::voice::Trig)trig == party::voice::Trig::Border)
-      for (const Site& S : g.world.sites) if (S.culture && cult::familyOf(S.culture) != cult::familyOf(M.culture)) { arg = S.culture; break; }
+    // the first loaded site of another family; (M7c merge) else the nearest planned settlement of another family in
+    // the region plans round the player (seed 7's merged world loads only the start's own family: the command said
+    // nothing for "border")
+    if ((party::voice::Trig)trig == party::voice::Trig::Border) {
+      const uint64_t fam = cult::familyOf(M.culture);
+      for (const Site& S : g.world.sites) if (S.culture && cult::familyOf(S.culture) != fam) { arg = S.culture; break; }
+      if (!arg && g.world.src) {
+        ew::EndlessSource& S = *g.world.src;
+        const int32_t px = g.world.ox + (int32_t)(g.pl().p.x / TILE), py = g.world.oy + (int32_t)(g.pl().p.y / TILE);
+        const int32_t rx0 = ew::regionOf(px), ry0 = ew::regionOf(py);
+        for (int r = 0; r <= 12 && !arg; r++)
+          for (int32_t ry = ry0 - r; ry <= ry0 + r && !arg; ry++)
+            for (int32_t rx = rx0 - r; rx <= rx0 + r && !arg; rx++) {
+              if (std::max(std::abs(rx - rx0), std::abs(ry - ry0)) != r) continue;
+              for (const ew::SitePlan& sp : S.region(rx, ry).sites)
+                if (sp.culture && cult::familyOf(S.culture(sp.culture).id) != fam) { arg = S.culture(sp.culture).id; break; }
+            }
+      }
+    }
     if ((party::voice::Trig)trig == party::voice::Trig::War) {
       const ew::Gid hl = party::voice::bio(g, M).homelandId;
       for (const realm::KingdomState& K : g.realm.kingdoms()) if (K.id != hl && !K.fallen) { arg = K.id; break; }

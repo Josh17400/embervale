@@ -2,7 +2,8 @@
 # towns; a squad of two to four soldiers in the owner's colours walks the road past. Then the land goes to war: where a
 # road crosses into the warring kingdom's land a checkpoint stands, barricades striped in its colours either side of the
 # road (the way itself open) and two soldiers on watch.
-seed 2
+# (M7c merge) seed 13: on the merged world no road crosses seed 2's warring border near the seat line (no checkpoint)
+seed 13
 0.3  newgame
 +0.02 hour 10
 +0.1 god 1

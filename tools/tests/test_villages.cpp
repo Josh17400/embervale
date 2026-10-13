@@ -1,6 +1,11 @@
-// rpg_test --villages [--seeds A..B] [--write]: the owner's M7b rule (VISION_PLAN 15.23, 15.24): "villages look great",
-// so the M7b city plan (street hierarchy, kerbs, row houses, parks) must NOT change a single village. LEAD-owned and
-// FROZEN: no lane edits this file or tests/fixtures/golden_villages.txt (recorded before any M7b generation change).
+// rpg_test --villages [--seeds A..B] [--write] [--verbose]: the villages keep their character.
+// M7b (VISION_PLAN 15.23, 15.24) locked every village byte for byte ("villages look great"). M7c (VISION_PLAN 15.M7c:
+// one planner, an order dial) replaces that lock with a VILLAGE-CHARACTER check (rpg/world/town_plan.h
+// villageCharacter: a low structure score, organic placement with uneven setbacks and houses not standing in rows, at
+// most a few main roads through the heart, no street blocks, no city fabric) on every village, plus a before / after
+// REVIEW of the same villages (tools/scripts/m7c_villages_review_s1..3.txt shot with the pre-M7c binary and the new one: any
+// village that looks worse fails). The frozen M7b hashes (tests/fixtures/golden_villages.txt, never re-recorded) now
+// only REPORT which villages changed, so the review knows what to look at. SURVEY lane (phase B).
 //
 // Two kinds of village are hashed, with this file's own frozen hash (a copy of the M7 townHash, so a lane that adds
 // fields to rpg_test --towns cannot move it):
@@ -10,12 +15,13 @@
 //    the chunks deliver them (ground, props, walls, relief, biome, paving marks and every building record inside the
 //    footprint), seeds 1..3.
 // Beyond the hash, every village must keep the M7b layers empty: Map::urb all 0 (no street classes, no kerbs) and no
-// Bldg::row party walls.
+// Bldg::row party walls; and pass villageCharacter (the synthetic villages, and the real ones as the source builds them).
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -24,6 +30,7 @@
 #include "rpg/world/settlement.h"
 #include "rpg/world/source.h"
 #include "rpg/world/town_gen.h"
+#include "rpg/world/town_plan.h"
 #include "tools/tests/tests.h"
 
 namespace {
@@ -189,6 +196,28 @@ int emptyM7b(const Map& m, const char* what) {
   return bad;
 }
 
+// (M7c) the village character (rpg/world/town_plan.h)
+struct CharAgg { int n = 0, short_ = 0; double structure = 0, setback = 0, aligned = 0; int spines[8] = {}; bool strict = false; };
+int checkCharacter(const ew::SettlementOut& so, const char* what, CharAgg& A, bool verbose) {
+  const ew::VillageCharacter V = ew::villageCharacter(so);
+  A.n++; A.structure += V.structure; A.setback += V.setbackVar; A.aligned += V.aligned; A.spines[std::min(V.spines, 7)]++;
+  if (verbose)
+    printf("villages: %-40s structure %5.1f spines %d setback-spread %.2f aligned %.2f blocks %d homes %d %s\n", what, V.structure, V.spines, V.setbackVar,
+           V.aligned, V.blocks, V.homes, V.ok ? "ok" : V.why);
+  if (V.ok) return 0;
+  // (M7c phase A: the character is the phase B target; a plain run fails only city fabric in a village, --strict all)
+  if (!A.strict && !V.cityFabric) {
+    if (verbose || A.short_ < 6)
+      printf("villages: (target, --strict) %s: %s (structure %.1f, spines %d, setback spread %.2f, aligned %.2f, blocks %d)\n", what, V.why, V.structure,
+             V.spines, V.setbackVar, V.aligned, V.blocks);
+    A.short_++;
+    return 0;
+  }
+  out("FAIL: villages: %s: %s (structure %.1f, spines %d, setback spread %.2f, aligned %.2f, blocks %d)\n", what, V.why, V.structure, V.spines,
+      V.setbackVar, V.aligned, V.blocks);
+  return 1;
+}
+
 // a real village of the endless world as the chunks deliver it
 uint64_t realVillageHash(ew::EndlessSource& src, const ew::SitePlan& p, int& bad, const std::string& what) {
   uint64_t h = 1469598103934665603ull;
@@ -225,6 +254,40 @@ uint64_t realVillageHash(ew::EndlessSource& src, const ew::SitePlan& p, int& bad
   return h;
 }
 
+// (M7c SURVEY) the before / after review packs: tools/scripts/m7c_villages_review_s<seed>.txt, each village shot from an
+// "at X Y" line near its heart
+std::string reviewPackPath(uint64_t seed) {
+  char fn[96];
+  std::snprintf(fn, sizeof fn, "tools/scripts/m7c_villages_review_s%llu.txt", (unsigned long long)seed);
+#ifdef EMB_SOURCE_DIR
+  return std::string(EMB_SOURCE_DIR) + "/" + fn;
+#else
+  return fn;
+#endif
+}
+// the pack's "at" spots, in order (empty when the seed has no pack)
+std::vector<std::pair<int, int>> reviewSpots(uint64_t seed) {
+  std::vector<std::pair<int, int>> v;
+  FILE* f = fopen(reviewPackPath(seed).c_str(), "r");
+  if (!f) return v;
+  char line[256];
+  while (fgets(line, sizeof line, f)) {
+    if (line[0] == '#') continue;
+    const char* at = strstr(line, " at ");
+    int x = 0, y = 0;
+    if (at && sscanf(at + 4, "%d %d", &x, &y) == 2) v.push_back({x, y});
+  }
+  fclose(f);
+  return v;
+}
+struct RealVillage { uint64_t seed = 0; int ex = 0, ey = 0; };
+// the shot (1-based) of the pack standing within 16 tiles of the heart, 0 none
+int packShot(const std::vector<std::pair<int, int>>& spots, const RealVillage& v) {
+  for (size_t k = 0; k < spots.size(); k++)
+    if (std::abs(spots[k].first - v.ex) <= 16 && std::abs(spots[k].second - v.ey) <= 16) return (int)k + 1;
+  return 0;
+}
+
 std::string fixturePath() {
 #ifdef EMB_SOURCE_DIR
   return std::string(EMB_SOURCE_DIR) + "/tests/fixtures/golden_villages.txt";
@@ -235,16 +298,23 @@ std::string fixturePath() {
 
 int cmdVillages(int argc, char** argv) {
   uint64_t a = 1, b = 3;
-  bool write = false;
+  bool write = false, verbose = false;
+  uint64_t packSeed = 0;
+  CharAgg agg;
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "--write")) write = true;
+    else if (!strcmp(argv[i], "--verbose")) verbose = true;
+    else if (!strcmp(argv[i], "--strict")) agg.strict = true;
     else if (!strcmp(argv[i], "--seeds") && i + 1 < argc) parseSeedRange(argv[++i], a, b);
+    else if (!strcmp(argv[i], "--review-pack") && i + 1 < argc) packSeed = strtoull(argv[++i], nullptr, 10);
   }
+  if (packSeed) a = b = packSeed;
   int bad = 0, synth = 0, real = 0;
   std::map<std::string, uint64_t> hashes;
+  std::map<std::string, RealVillage> reals;   // (M7c SURVEY) the real villages' hearts, for the review packs
   for (uint64_t s = a; s <= b; s++) {
     g_curSeed = s;
-    const std::vector<VCase> cs = casesFor(s);
+    const std::vector<VCase> cs = packSeed ? std::vector<VCase>() : casesFor(s);   // (a review pack: the real villages only)
     for (size_t ci = 0; ci < cs.size(); ci++) {
       ew::SettlementOut so;
       buildVillage(cs[ci], so);
@@ -252,6 +322,7 @@ int cmdVillages(int argc, char** argv) {
       std::snprintf(key, sizeof key, "village_s%llu_c%zu", (unsigned long long)s, ci);
       hashes[key] = villageHash(so);
       bad += emptyM7b(so.buf, key);
+      bad += checkCharacter(so, key, agg, verbose);
       synth++;
     }
     ew::EndlessSource src(s);
@@ -266,16 +337,37 @@ int cmdVillages(int argc, char** argv) {
           char key[64];
           std::snprintf(key, sizeof key, "real_s%llu_%016llx", (unsigned long long)s, (unsigned long long)p.id);
           hashes[key] = realVillageHash(src, p, bad, key);
+          reals[key] = RealVillage{s, (int)p.ex, (int)p.ey};
+          if (packSeed) {}
+          else if (std::shared_ptr<const ew::SettlementOut> o = src.settlement(p.id)) bad += checkCharacter(*o, key, agg, verbose);
+          else { out("FAIL: villages: %s has no settlement build\n", key); bad++; }
           real++;
           n++;
         }
       }
     if (!n) { out("FAIL: villages: seed %llu has no village in the 5x5 regions round the origin\n", (unsigned long long)s); bad++; }
   }
+  if (packSeed) {   // (M7c SURVEY) a before / after review pack: every real village of that seed, at noon from its heart
+    printf("# M7c village before / after review (VISION_PLAN 15.M7c: \"any village that looks worse fails\"), seed %llu: the real villages\n",
+           (unsigned long long)packSeed);
+    printf("# round the origin (rpg_test --villages --review-pack %llu), each shot at noon from its heart. Shoot it with the pre-M7c binary\n",
+           (unsigned long long)packSeed);
+    printf("# (%%TEMP%%\\claude\\emb_M7c\\before_bin\\embervale.exe) into a 'before' folder and with the new build into an 'after' folder, then\n");
+    printf("# compare pair by pair (rpg_test --villages names the villages whose build changed since M7b and their shots):\n");
+    printf("#   cd <shots>/before && <before_bin>/embervale.exe --script <repo>/tools/scripts/m7c_villages_review_s%llu.txt\n", (unsigned long long)packSeed);
+    printf("#   cd <shots>/after  && <bdir>/embervale.exe --script <repo>/tools/scripts/m7c_villages_review_s%llu.txt\n", (unsigned long long)packSeed);
+    printf("seed %llu\n0.3  newgame\n+0.1 god 1\n+0.05 hour 12\n", (unsigned long long)packSeed);
+    int k = 0;
+    for (auto& kv : reals)
+      if (kv.second.seed == packSeed)
+        printf("+0.3 at %d %d\n+2.3 shot m7c_village_s%llu_%d.png\n", kv.second.ex, kv.second.ey, (unsigned long long)packSeed, ++k);
+    printf("+0.3 quit\n");
+    return bad ? 1 : 0;
+  }
   if (write) {
-    printf("# rpg_test --villages golden values (seeds %llu..%llu; rpg_test --villages --write). FROZEN by the owner's M7b rule\n",
+    printf("# rpg_test --villages golden values (seeds %llu..%llu; rpg_test --villages --write). The M7b villages, FROZEN as the\n",
            (unsigned long long)a, (unsigned long long)b);
-    printf("# (VISION_PLAN 15.23): villages must not change. Never re-record this file to make a change pass.\n");
+    printf("# M7c before / after reference (VISION_PLAN 15.M7c): never re-recorded; a changed key is reported for the review.\n");
     for (auto& kv : hashes) printf("%s %016llx\n", kv.first.c_str(), (unsigned long long)kv.second);
     return bad ? 1 : 0;
   }
@@ -290,17 +382,40 @@ int cmdVillages(int argc, char** argv) {
     if (it == hashes.end()) continue;   // (a narrower --seeds run checks its own keys)
     seen++;
     if (it->second != val) {
-      if (changed < 12) printf("FAIL: villages: %s = %016llx, expected %016llx (a village changed)\n", key, (unsigned long long)it->second, val);
+      auto rv = reals.find(key);
+      if (changed < 12 || verbose) {
+        if (rv == reals.end()) printf("villages: changed since M7b (review it before / after): %s\n", key);
+        else if (const int shot = packShot(reviewSpots(rv->second.seed), rv->second))
+          printf("villages: changed since M7b (review it before / after): %s (heart %d,%d: m7c_villages_review_s%llu.txt shot %d)\n", key, rv->second.ex,
+                 rv->second.ey, (unsigned long long)rv->second.seed, shot);
+        else
+          printf("villages: changed since M7b (review it before / after): %s (heart %d,%d: NOT in a review pack: rpg_test --villages --review-pack %llu)\n",
+                 key, rv->second.ex, rv->second.ey, (unsigned long long)rv->second.seed);
+      }
       changed++;
     }
   }
   fclose(f);
-  if (seen != (int)hashes.size()) { printf("FAIL: villages: the fixture has %d of %zu keys (run with seeds inside 1..3)\n", seen, hashes.size()); bad++; }
-  bad += changed;
-  printf("villages: %d synthetic and %d real villages, %d changed: %s\n", synth, real, changed, bad ? "FAILED" : "ok");
+  if (seen != (int)hashes.size()) printf("villages: the M7b reference has %d of %zu keys (seeds outside 1..3 are not compared)\n", seen, hashes.size());
+  if (agg.n)
+    printf("villages: character over %d: structure %.1f (cap %.1f), setback spread %.2f, aligned %.2f; spines 0:%d 1:%d 2:%d 3:%d 4+:%d\n", agg.n,
+           agg.structure / agg.n, ew::STRUCT_VILLAGE_MAX, agg.setback / agg.n, agg.aligned / agg.n, agg.spines[0], agg.spines[1], agg.spines[2], agg.spines[3],
+           agg.spines[4] + agg.spines[5] + agg.spines[6] + agg.spines[7]);
+  if (agg.short_) printf("villages: %d villages short of the M7c village character (phase B target: rpg_test --villages --strict)\n", agg.short_);
+  {   // (M7c SURVEY) how much of the real villages the before / after packs cover
+    int covered = 0;
+    std::map<uint64_t, std::vector<std::pair<int, int>>> spots;
+    for (auto& kv : reals) {
+      if (!spots.count(kv.second.seed)) spots[kv.second.seed] = reviewSpots(kv.second.seed);
+      if (packShot(spots[kv.second.seed], kv.second)) covered++;
+      else if (verbose) printf("villages: %s (heart %d,%d) is in no review pack\n", kv.first.c_str(), kv.second.ex, kv.second.ey);
+    }
+    printf("villages: the review packs (tools/scripts/m7c_villages_review_s*.txt) shoot %d of the %zu real villages\n", covered, reals.size());
+  }
+  printf("villages: %d synthetic and %d real villages, %d changed since M7b (review them), character: %s\n", synth, real, changed, bad ? "FAILED" : "ok");
   return bad ? 1 : 0;
 }
 
 }  // namespace
 
-RPG_TEST_CMD("--villages", "M7b: every village unchanged (frozen hashes, synthetic and real) and free of city fabric [--seeds A..B] [--write]", cmdVillages);
+RPG_TEST_CMD("--villages", "M7c: every village keeps its character (low structure, organic, few main roads, no city fabric); changes since M7b reported for the before/after review [--seeds A..B] [--strict] [--verbose] [--write] [--review-pack S: print a before/after review script of seed S]", cmdVillages);

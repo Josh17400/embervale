@@ -1,0 +1,87 @@
+# (the iPhone review size: the "phone" header line; the same shots as m7c_art_streets.txt)
+# M7c ART lane (VISION_PLAN 15.M7c): the street network of the planned cities as painted at street zoom: the heart
+# (plaza, seat), an avenue, a gate, a craft / rich / poor street and a terrace front, per culture at noon, and the
+# heartland city at night. Judge: kerb returns and corner stones at every junction, the drain through junctions,
+# crossings, slanted kerbs on tilted / diagonal streets, squares framed, bridges / quays, no seams or orphan pieces.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7c_art_streets_phone.txt
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 hour 12
++0.2 gotoculture heartland city
++1.6 hour 12
++0.1 cityspot heart
++1.0 shot m7c_art_st_heartland_heart_phone.png
++0.1 cityspot avenue
++1.0 shot m7c_art_st_heartland_avenue_phone.png
++0.1 cityspot craft
++1.0 shot m7c_art_st_heartland_craft_phone.png
++0.1 cityspot rich
++1.0 shot m7c_art_st_heartland_rich_phone.png
++0.1 cityspot poor
++1.0 shot m7c_art_st_heartland_poor_phone.png
++0.1 cityspot gate
++1.0 shot m7c_art_st_heartland_gate_phone.png
++0.1 hour 21
++0.8 shot m7c_art_st_heartland_gate_night_phone.png
++0.1 hour 12
++0.2 gotoculture imperial city
++1.6 hour 12
++0.1 cityspot heart
++1.0 shot m7c_art_st_imperial_heart_phone.png
++0.1 cityspot craft
++1.0 shot m7c_art_st_imperial_craft_phone.png
++0.1 cityspot gate
++1.0 shot m7c_art_st_imperial_gate_phone.png
++0.2 gotoculture river city
++1.6 hour 12
++0.1 cityspot heart
++1.0 shot m7c_art_st_river_heart_phone.png
++0.1 cityspot rich
++1.0 shot m7c_art_st_river_rich_phone.png
++0.1 cityspot gate
++1.0 shot m7c_art_st_river_gate_phone.png
++0.2 gotoculture dune city
++1.6 hour 12
++0.1 cityspot heart
++1.0 shot m7c_art_st_dune_heart_phone.png
++0.1 cityspot craft
++1.0 shot m7c_art_st_dune_craft_phone.png
++0.2 gotoculture jade city
++1.6 hour 12
++0.1 cityspot avenue
++1.0 shot m7c_art_st_jade_avenue_phone.png
++0.1 cityspot rich
++1.0 shot m7c_art_st_jade_rich_phone.png
++0.2 gotoculture fjordfolk city
++1.6 hour 12
++0.1 cityspot heart
++1.0 shot m7c_art_st_fjord_heart_phone.png
++0.1 cityspot craft
++1.0 shot m7c_art_st_fjord_craft_phone.png
++0.2 gotoculture highland city
++1.6 hour 12
++0.1 cityspot poor
++1.0 shot m7c_art_st_highland_poor_phone.png
++0.2 gotoculture starspire city
++1.6 hour 12
++0.1 cityspot avenue
++1.0 shot m7c_art_st_star_avenue_phone.png
++0.2 gotoculture suntemple city
++1.6 hour 12
++0.1 cityspot heart
++1.0 shot m7c_art_st_sun_heart_phone.png
++0.2 gotoculture marsh city
++1.6 hour 12
++0.1 cityspot heart
++1.0 shot m7c_art_st_marsh_heart_phone.png
++0.2 gotoculture steppe city
++1.6 hour 12
++0.1 cityspot heart
++1.0 shot m7c_art_st_steppe_heart_phone.png
++0.2 gotoculture sylvan city
++1.6 hour 12
++0.1 cityspot heart
++1.0 shot m7c_art_st_sylvan_heart_phone.png
++0.3 quit

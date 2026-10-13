@@ -12,6 +12,7 @@
 #include <tuple>
 #include "rpg/culture/culture.h"
 #include "rpg/world/biomes.h"
+#include "rpg/world/settlement.h"
 #include "rpg/world/source.h"
 #include "rpg/world/wildlife.h"
 
@@ -296,7 +297,17 @@ std::vector<NamedUnique> namedInRegion(ew::EndlessSource& src, int32_t rx, int32
   const uint64_t base = mixh(src.seed() ^ 0x4E414D4544ull, cellKey(rx, ry));
   const int want = 1 + (int)((base >> 7) & 1);
   const ew::GTile spawn = src.start().spawn;
-  const std::vector<ew::SettlementNode> nodes = src.settlementsIn(x0 - 80, y0 - 80, x0 + ew::REGION + 80, y0 + ew::REGION + 80);
+  // ((M7c fixer) a city's footprint with its faubourg belt reaches ~120 tiles from its heart: the nodes are gathered
+  // that far out, and a lair keeps 60 tiles from a heart AND 24 tiles off the settlement's whole footprint (seed 7's
+  // ADERG THE BLIND lay among VANT's row houses, where no lair can spawn, while the rumour still pointed there))
+  const std::vector<ew::SettlementNode> nodes = src.settlementsIn(x0 - 150, y0 - 150, x0 + ew::REGION + 150, y0 + ew::REGION + 150);
+  auto inFootprint = [&](int32_t gx, int32_t gy, const ew::SettlementNode& s) {
+    if (s.type != ::SiteType::Village && s.type != ::SiteType::Town && s.type != ::SiteType::City) return false;
+    int w = 0, h = 0;
+    ew::settlementFootprint(s.type, ew::Archetype::Port, s.seed, w, h);
+    const int64_t ox = std::max<int64_t>(0, std::abs((int64_t)gx - s.x) - w / 2), oy = std::max<int64_t>(0, std::abs((int64_t)gy - s.y) - h / 2);
+    return ox * ox + oy * oy < 24ll * 24ll;
+  };
   for (int n = 0; n < want; n++) {
     for (int t = 0; t < 48; t++) {
       const uint64_t h = mixh(base, (uint64_t)(n * 97 + t + 1));
@@ -304,7 +315,7 @@ std::vector<NamedUnique> namedInRegion(ew::EndlessSource& src, int32_t rx, int32
       const int32_t gy = y0 + 20 + (int32_t)((h >> 24) % (uint64_t)(ew::REGION - 40));
       if (d2(gx, gy, spawn.x, spawn.y) < 150ll * 150ll) continue;   // the start's own fields stay a beginner's
       bool ok = true;
-      for (const ew::SettlementNode& s : nodes) if (d2(gx, gy, s.x, s.y) < 60ll * 60ll) { ok = false; break; }
+      for (const ew::SettlementNode& s : nodes) if (d2(gx, gy, s.x, s.y) < 60ll * 60ll || inFootprint(gx, gy, s)) { ok = false; break; }
       for (const NamedUnique& o : out) if (ok && d2(gx, gy, o.gx, o.gy) < 50ll * 50ll) ok = false;
       if (!ok) continue;
       // (M6 fixer r4) the cheap far sample first: a full macro() on a sea or mountain try built a cold region's caches

@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 #include "rpg/world/source.h"
+#include "rpg/world/town_plan.h"
 
 namespace ew {
 
@@ -36,6 +37,9 @@ struct SettlementCtx {
   Eco eco = Eco::Meadow;
   // M3c: the world's seed (the wild land a terraced town's buffer keeps gets its ramps on the chunks' own lattice)
   uint64_t worldSeed = 0;
+  // (M7c fixer) the biome proper at a global tile (the chunks' own): a city's faubourgs, farmsteads and fields keep
+  // off the waste land round it (ash fields, blight, crystal barrens). Empty: unknown, nothing is avoided.
+  std::function<Eco(int32_t gx, int32_t gy)> ecoAt;
 };
 
 struct SettlementOut {
@@ -54,6 +58,12 @@ struct SettlementOut {
   Specialty special = Specialty::None;       // (M1 economy) what it lives from (the plan's, or derived when it had none)
   // (M7) the lots for sale (rpg/world/plots.h: GLOBAL tiles, ids set, site = the plan's id): villages and towns 1 to 3
   std::vector<PlotPlan> plots;
+  // (M7c, rpg/world/town_plan.h) the planner's layers, per buf tile (never saved, never in the chunks): the road
+  // hierarchy (Rank) and the block roles (BlockRole); and what makes this plan this plan (PlanTraits). For the checks
+  // (structure score, plan signature, village character), the dumps and the world map's city plans.
+  std::vector<uint8_t> rank;
+  std::vector<uint8_t> role;
+  PlanTraits traits;
 };
 
 // Build one settlement. Called by the chunk pipeline (rpg/world/*.cpp) on a cache miss.

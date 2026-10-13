@@ -19,6 +19,9 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <SDL3/SDL.h>
+#include "rpg/art/art_props.h"
+#include "rpg/build/blueprint.h"
 #include "rpg/sim/game.h"
 #include "rpg/view/script_api.h"
 #include "rpg/view/view.h"
@@ -259,5 +262,99 @@ bool cmdCityProps(ScriptCtx& c) {
   return true;
 }
 EMB_SCRIPT_CMD("cityprops", "cityprops [south N]: test only: set out every M7b city prop on a cleared stage south of the hero (M7b CITYART)", cmdCityProps);
+
+// (M7c CITY) cityplan <file.png> [scale] [r]: a schematic of the settlement the hero stands in, one cell per tile (scale
+// px, default 4) within r tiles of its heart (default 96): the street classes of the urban fabric (avenues, their drains
+// and walks, block streets, lanes, alleys, squares, closes, the park and its paths, gardens, courts, quays), the
+// buildings (row houses darker; a side or back face onto a street marked on that edge), the walls, the water, trees
+// and the open ground. The plan reviews read it next to the street-level shots.
+bool cmdCityPlan(ScriptCtx& c) {
+  Game& g = c.game;
+  const Map& m = g.world.over;
+  if (g.inside) { c.fail("cityplan: indoors"); return true; }
+  const std::string file = c.arg(1).empty() ? "cityplan.png" : c.arg(1);
+  const int S = c.arg(2).empty() ? 4 : std::clamp(std::atoi(c.arg(2).c_str()), 1, 8);
+  const int R = c.arg(3).empty() ? 96 : std::clamp(std::atoi(c.arg(3).c_str()), 16, 200);
+  const int px = (int)std::floor(g.pl().p.x / TILE), py = (int)std::floor(g.pl().p.y / TILE);
+  int hx = px, hy = py, bestD = 1 << 30;
+  for (const Site& s : g.world.sites) {
+    if (!s.settlement()) continue;
+    const int d = (s.ex - px) * (s.ex - px) + (s.ey - py) * (s.ey - py);
+    if (d < bestD) { bestD = d; hx = s.ex; hy = s.ey; }
+  }
+  const int N = 2 * R + 1, IW = N * S;
+  std::vector<uint32_t> img((size_t)IW * IW, 0xFF000000u);
+  auto col = [](int r, int gg, int b) { return 0xFF000000u | ((uint32_t)b << 16) | ((uint32_t)gg << 8) | (uint32_t)r; };   // RGBA32 little end
+  auto put = [&](int cx0, int cy0, int x0, int y0, int w, int h, uint32_t v) {
+    for (int y = y0; y < y0 + h; y++)
+      for (int x = x0; x < x0 + w; x++) {
+        const int X = cx0 * S + x, Y = cy0 * S + y;
+        if (X >= 0 && Y >= 0 && X < IW && Y < IW) img[(size_t)Y * IW + X] = v;
+      }
+  };
+  for (int j = 0; j < N; j++)
+    for (int i = 0; i < N; i++) {
+      const int x = hx - R + i, y = hy - R + j;
+      uint32_t v = col(20, 20, 24);
+      if (m.in(x, y)) {
+        const Ground gr = m.at(x, y);
+        switch (gr) {
+          case Ground::Water: case Ground::DeepWater: v = col(52, 92, 168); break;
+          case Ground::Ice: v = col(170, 200, 230); break;
+          case Ground::Bridge: v = col(150, 110, 70); break;
+          case Ground::Road: v = col(150, 146, 136); break;
+          case Ground::Plaza: v = col(196, 188, 168); break;
+          case Ground::Dirt: v = col(132, 104, 70); break;
+          case Ground::Farmland: v = col(120, 92, 50); break;
+          case Ground::Sand: v = col(206, 190, 130); break;
+          case Ground::Snow: v = col(228, 232, 238); break;
+          case Ground::Swamp: v = col(70, 96, 70); break;
+          case Ground::Meadow: v = col(96, 150, 70); break;
+          default: v = col(78, 126, 60); break;
+        }
+        const uint8_t u = m.urbAt(x, y);
+        if (u) switch (ew::urbClass(u)) {
+            case ew::Urb::Avenue: v = col(176, 172, 164); break;
+            case ew::Urb::Gutter: v = col(110, 108, 104); break;
+            case ew::Urb::Sidewalk: v = col(214, 204, 178); break;
+            case ew::Urb::Street: v = col(160, 156, 150); break;
+            case ew::Urb::Lane: v = col(170, 150, 120); break;
+            case ew::Urb::Alley: v = col(140, 112, 80); break;
+            case ew::Urb::Square: v = col(226, 214, 186); break;
+            case ew::Urb::Close: v = col(200, 220, 180); break;
+            case ew::Urb::Park: v = col(70, 160, 70); break;
+            case ew::Urb::ParkPath: v = col(190, 170, 120); break;
+            case ew::Urb::Garden: v = col(110, 168, 80); break;
+            case ew::Urb::Court: v = col(180, 160, 140); break;
+            case ew::Urb::Quay: v = col(150, 150, 170); break;
+            default: break;
+          }
+        const int p = m.propAt(x, y);
+        if (p && art::isTreeProp((art::Prop)(p - 1))) v = col(30, 80, 30);
+        if (!m.wall.empty() && m.wall[(size_t)y * m.w + x]) v = col(60, 56, 60);
+      }
+      put(i, j, 0, 0, S, S, v);
+    }
+  for (const Bldg& b : m.bldgs) {
+    if (std::abs(b.r.cx() - hx) > R + 8 || std::abs(b.r.cy() - hy) > R + 8) continue;
+    const uint32_t body = b.row ? col(150, 56, 40) : ((b.type == art::Building::House || b.type == art::Building::StoneHouse || b.type == art::Building::Hut) ? col(196, 96, 60) : col(120, 70, 150));
+    for (int yy = b.r.y; yy < b.r.y + b.r.h; yy++)
+      for (int xx = b.r.x; xx < b.r.x + b.r.w; xx++) put(xx - hx + R, yy - hy + R, 0, 0, S, S, body);
+    // the front edge (south) lighter; a side or back face onto a street marked on that edge
+    for (int xx = b.r.x; xx < b.r.x + b.r.w; xx++) put(xx - hx + R, b.r.y + b.r.h - 1 - hy + R, 0, S - 1, S, 1, col(240, 210, 150));
+    if (b.row & bld::ROW_SIDE_W) for (int yy = b.r.y; yy < b.r.y + b.r.h; yy++) put(b.r.x - hx + R, yy - hy + R, 0, 0, 1, S, col(255, 255, 0));
+    if (b.row & bld::ROW_SIDE_E) for (int yy = b.r.y; yy < b.r.y + b.r.h; yy++) put(b.r.x + b.r.w - 1 - hx + R, yy - hy + R, S - 1, 0, 1, S, col(255, 255, 0));
+    if (b.row & bld::ROW_BACK) for (int xx = b.r.x; xx < b.r.x + b.r.w; xx++) put(xx - hx + R, b.r.y - hy + R, 0, 0, S, 1, col(0, 255, 255));
+    const int dx = b.doorX();
+    put(dx - hx + R, b.r.y + b.r.h - 1 - hy + R, S / 4, S / 2, std::max(1, S / 2), std::max(1, S / 2), col(40, 20, 10));
+  }
+  SDL_Surface* s = SDL_CreateSurfaceFrom(IW, IW, SDL_PIXELFORMAT_RGBA32, img.data(), IW * 4);
+  const bool ok = s && SDL_SavePNG(s, file.c_str());
+  if (s) SDL_DestroySurface(s);
+  std::printf("cityplan %s: %s (%dx%d, heart %d,%d)\n", file.c_str(), ok ? "ok" : "FAILED", IW, IW, hx, hy);
+  if (!ok) c.fail("cityplan: could not write " + file);
+  return true;
+}
+EMB_SCRIPT_CMD("cityplan", "cityplan <file.png> [scale] [r]: a schematic of the settlement here (streets, blocks, buildings, row faces) (M7c CITY)", cmdCityPlan);
 
 }  // namespace

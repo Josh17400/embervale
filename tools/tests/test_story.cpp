@@ -323,7 +323,11 @@ int storySeed(uint64_t seed, int& scriptsCast, int& pathsWalked) {
       if (g.world.over.at(bx, by) != Ground::Plaza) fail("a notice board off the paving");
       for (int dy = -1; dy <= 1; dy++)
         for (int dx = -1; dx <= 1; dx++)
-          if ((dx || dy) && (g.world.over.blocked(bx + dx, by + dy) || g.world.over.propAt(bx + dx, by + dy))) fail("a notice board crowds a path");
+          if ((dx || dy) && (g.world.over.blocked(bx + dx, by + dy) || g.world.over.propAt(bx + dx, by + dy)))
+            fail(std::string("a notice board crowds a path (") + siteTypeName(t) + " " + g.world.sites[(size_t)h].name + ", board " +
+                 std::to_string(bx) + "," + std::to_string(by) + ", neighbour " + std::to_string(dx) + "," + std::to_string(dy) + ": prop " +
+                 std::to_string(g.world.over.propAt(bx + dx, by + dy)) + ", bldg " +
+                 std::to_string(g.world.over.bldgAt[(size_t)(by + dy) * g.world.over.w + bx + dx]) + ")");
       // read it
       if (!story::useBoard(g, bx, by) || g.mode != Mode::Dialogue || g.dlg.opts.empty()) fail("the notice board cannot be read");
       else if (seed == 1) out("story seed %llu: board of %s: %s (%zu options)\n", (unsigned long long)seed, g.world.sites[(size_t)h].name.c_str(), g.dlg.text.c_str(), g.dlg.opts.size());

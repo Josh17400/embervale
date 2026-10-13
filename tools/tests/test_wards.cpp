@@ -288,7 +288,12 @@ int wardsSeed(uint64_t seed) {
       for (const Actor& a : g.actors)
         if (a.npc && a.site == si && a.fromMap && a.role != Role::Guard) {
           const int hx = (int)std::floor(a.home.x / TILE), hy = (int)std::floor(a.home.y / TILE);
-          if (hx >= b.r.x && hx < b.r.x + b.r.w && hy >= b.r.y - 1 && hy <= b.r.y + b.r.h) { fail("someone came out of a burned-out home"); break; }
+          if (hx >= b.r.x && hx < b.r.x + b.r.w && hy >= b.r.y - 1 && hy <= b.r.y + b.r.h) {
+            fail("someone came out of a burned-out home (" + a.name + " role " + std::to_string((int)a.role) + " slot " + std::to_string(a.slot) + ", home tile " + std::to_string(hx) + "," + std::to_string(hy) + ", bldg " +
+                 std::to_string(a.bldg) + " vs burned " + std::to_string(barredBi) + " at " + std::to_string(b.r.x) + "," + std::to_string(b.r.y) + " " +
+                 std::to_string(b.r.w) + "x" + std::to_string(b.r.h) + ")");
+            break;
+          }
         }
     }
     // the refugees' camp outside the nearest friendly settlement

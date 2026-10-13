@@ -54,6 +54,13 @@ enum : uint8_t {
 
 // ---------------------------------------------------------------- the request
 constexpr uint8_t ROW_W = 1, ROW_E = 2, ROW_YARD = 4;   // Request::row / Bldg::row bits (M7b)
+// (M7c Order of Streets, VISION_PLAN 15.M7c) a city house's other street faces: ROW_SIDE_W / ROW_SIDE_E its west / east
+// side wall looks onto a street (a corner house, a house along a north-south street): the builder dresses that side as
+// an elevation (windows on every storey, quoins, a shop sign or bay, the roof's gable or hip end turned to it), never a
+// blank party wall; ROW_BACK its back (north) wall looks onto a street (a house backing onto a block street): windows
+// and a back door's lintel, no bare wall. The door stays in the front (south) wall: interiors are unchanged. Set by
+// the CITY lane's generator (never in a village), drawn by the ART lane's builder; 0 as before.
+constexpr uint8_t ROW_SIDE_W = 8, ROW_SIDE_E = 16, ROW_BACK = 32;
 
 struct Request {
   art::Building purpose = art::Building::House;

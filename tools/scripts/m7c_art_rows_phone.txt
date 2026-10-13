@@ -1,0 +1,107 @@
+# (the iPhone review size: the "phone" header line; the same shots as m7c_art_rows.txt)
+# M7c ART lane (VISION_PLAN 15.M7c "row houses front every street"): the row houses of every culture's city at street
+# zoom: a terrace front (cityspot terrace), the rich, poor and craft streets (corner houses with their street sides,
+# backs on a street, the double piles of deep blocks), at noon; the heartland terrace at night. Judge: no blank wall
+# on a street, corner units dressed on both faces and lit from the top left, roofs per house (no slab), no boxy
+# repetition along a frontage, cast shadows, the plinth line straight along the row.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7c_art_rows_phone.txt
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 hour 12
++0.2 gotoculture heartland city
++1.6 hour 12
++0.1 cityspot terrace
++1.0 shot m7c_art_rw_heartland_terrace_phone.png
++0.1 cityspot rich
++1.0 shot m7c_art_rw_heartland_rich_phone.png
++0.1 cityspot poor
++1.0 shot m7c_art_rw_heartland_poor_phone.png
++0.2 gotoculture imperial city
++1.6 hour 12
++0.1 cityspot terrace
++1.0 shot m7c_art_rw_imperial_terrace_phone.png
++0.1 cityspot rich
++1.0 shot m7c_art_rw_imperial_rich_phone.png
++0.1 cityspot poor
++1.0 shot m7c_art_rw_imperial_poor_phone.png
++0.2 gotoculture river city
++1.6 hour 12
++0.1 cityspot terrace
++1.0 shot m7c_art_rw_river_terrace_phone.png
++0.1 cityspot rich
++1.0 shot m7c_art_rw_river_rich_phone.png
++0.1 cityspot poor
++1.0 shot m7c_art_rw_river_poor_phone.png
++0.2 gotoculture dune city
++1.6 hour 12
++0.1 cityspot terrace
++1.0 shot m7c_art_rw_dune_terrace_phone.png
++0.1 cityspot rich
++1.0 shot m7c_art_rw_dune_rich_phone.png
++0.1 cityspot poor
++1.0 shot m7c_art_rw_dune_poor_phone.png
++0.2 gotoculture jade city
++1.6 hour 12
++0.1 cityspot terrace
++1.0 shot m7c_art_rw_jade_terrace_phone.png
++0.1 cityspot rich
++1.0 shot m7c_art_rw_jade_rich_phone.png
++0.1 cityspot poor
++1.0 shot m7c_art_rw_jade_poor_phone.png
++0.2 gotoculture fjordfolk city
++1.6 hour 12
++0.1 cityspot terrace
++1.0 shot m7c_art_rw_fjordfolk_terrace_phone.png
++0.1 cityspot rich
++1.0 shot m7c_art_rw_fjordfolk_rich_phone.png
++0.1 cityspot poor
++1.0 shot m7c_art_rw_fjordfolk_poor_phone.png
++0.2 gotoculture highland city
++1.6 hour 12
++0.1 cityspot terrace
++1.0 shot m7c_art_rw_highland_terrace_phone.png
++0.1 cityspot rich
++1.0 shot m7c_art_rw_highland_rich_phone.png
++0.1 cityspot poor
++1.0 shot m7c_art_rw_highland_poor_phone.png
++0.2 gotoculture starspire city
++1.6 hour 12
++0.1 cityspot terrace
++1.0 shot m7c_art_rw_starspire_terrace_phone.png
++0.1 cityspot rich
++1.0 shot m7c_art_rw_starspire_rich_phone.png
++0.1 cityspot poor
++1.0 shot m7c_art_rw_starspire_poor_phone.png
++0.2 gotoculture suntemple city
++1.6 hour 12
++0.1 cityspot terrace
++1.0 shot m7c_art_rw_suntemple_terrace_phone.png
++0.1 cityspot rich
++1.0 shot m7c_art_rw_suntemple_rich_phone.png
++0.1 cityspot poor
++1.0 shot m7c_art_rw_suntemple_poor_phone.png
++0.2 gotoculture marsh city
++1.6 hour 12
++0.1 cityspot rich
++1.0 shot m7c_art_rw_marsh_rich_phone.png
++0.1 cityspot poor
++1.0 shot m7c_art_rw_marsh_poor_phone.png
++0.2 gotoculture steppe city
++1.6 hour 12
++0.1 cityspot rich
++1.0 shot m7c_art_rw_steppe_rich_phone.png
++0.1 cityspot poor
++1.0 shot m7c_art_rw_steppe_poor_phone.png
++0.2 gotoculture sylvan city
++1.6 hour 12
++0.1 cityspot rich
++1.0 shot m7c_art_rw_sylvan_rich_phone.png
++0.1 cityspot poor
++1.0 shot m7c_art_rw_sylvan_poor_phone.png
++0.2 gotoculture heartland city
++1.6 hour 21
++0.1 cityspot terrace
++1.0 shot m7c_art_rw_heartland_terrace_night_phone.png
++0.3 quit

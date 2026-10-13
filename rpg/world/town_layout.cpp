@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <queue>
+#include "rpg/world/town_edge.h"
 #include "rpg/world/town_gen.h"
 #include "rpg/world/urban.h"
 
@@ -69,6 +70,7 @@ void Gen::land() {
   M.height.assign(n, 0);
   M.seed = P.seed;
   mask.assign(n, 0); water.assign(n, 0); lvl.assign(n, 0); inside.assign(n, 0);
+  rank.assign(n, 0); role.assign(n, 0);   // (M7c: the planner's layers, rpg/world/town_plan.h)
   noBuild.assign(n, 0); cover.assign(n, 0); front.assign(n, 0);
   O.used.assign(n, 0);
   O.pools.clear();
@@ -84,8 +86,13 @@ void Gen::land() {
       water[I(x, y)] = groundWater(g) ? 1 : 0;
     }
   layout = village ? rng.irange(3) : 0;
-  rx = P.w * 0.5f;
-  ry = P.h * 0.5f;
+  // (M7c) a city's footprint holds its faubourg belt round the walled core: the radii stay the core's
+  {
+    const int belt = settlementBelt(P.type, P.seed);
+    edgeOf(*this).belt = belt;
+    rx = (P.w - 2 * belt) * 0.5f;
+    ry = (P.h - 2 * belt) * 0.5f;
+  }
   // the heart: near the middle, on dry level ground (a river may run through the footprint, never through the square)
   cx = W / 2 + rng.irange(3) - 1;
   cy = H / 2 + rng.irange(3) - 1;
@@ -142,6 +149,9 @@ void Gen::land() {
   if (bio == Biome::Ocean || bio == Biome::Mountain) bio = Biome::Plains;
   eco = ecoFamily(C.eco) == bio ? C.eco : ecoOfFamily(bio);   // (M3c)
   pickStyle();
+  // (M7c) the order dial (rpg/world/town_plan.h): the settlement's type, its people, a capital, a city's age
+  age = city ? cityAge(P.seed, capital) : 0;
+  order = orderFor(P.type, cArch, capital, age);
   // (M3) a culture's village takes its street form from its colour (town_rules.h: its neighbours differ)
   if (village && C.culture) layout = townForm(townColour(C.culture, P.type, P.ex, P.ey, P.kind));
   pickSpecialty();
@@ -184,8 +194,9 @@ void Gen::land() {
   // wallRing once the roads are known, so its gates sit on straight runs)
   if (walled) {
     wallR = city ? 0.93f : 0.90f;
+    edgeWallShape(*this);   // (M7c: the city's own outline, town_edge_wall.cpp; a hill fort keeps the classic blob)
     for (int y = 1; y < H - 1; y++)
-      for (int x = 1; x < W - 1; x++) inside[I(x, y)] = blobLess(x, y, cx, cy, rx, ry, wseed, wallR) ? 1 : 0;
+      for (int x = 1; x < W - 1; x++) inside[I(x, y)] = edgeInWall(*this, x, y, 0.0f) ? 1 : 0;
   }
   if (terraced) cutTerraces();
   if (stilt) marshWater();
@@ -308,8 +319,7 @@ void Gen::marshWater() {
     for (int x = 1; x < W - 1; x++) {
       const size_t i = I(x, y);
       if (water[i] || lvl[i] != lvl[I(cx, cy)]) continue;
-      const float b = blob(x, y, cx, cy, rx, ry, walled ? wseed : bseed);
-      if (b > lim) continue;
+      if (walled ? !edgeInWall(*this, x, y, wallR - lim) : blob(x, y, cx, cy, rx, ry, bseed) > lim) continue;
       const float ddx = (x - cx) / (sqR * 1.25f + 7.0f), ddy = (y - cy) / (sqR + 6.0f);
       if (ddx * ddx + ddy * ddy < 1.0f) continue;
       // pools and winding channels among reed beds (two octaves: no single lake)
@@ -375,7 +385,7 @@ bool Gen::laneOk(int x, int y, bool ns, int px, int py) const {
   if (inCompound(x, y, 2) || water[I(x, y)]) return false;
   if (!keep.empty() && keep[I(x, y)]) return false;   // (M7b: a city's kept plots and park)
   if (walled) {
-    if (!blobLess(x, y, cx, cy, rx, ry, wseed, wallR - 4.5f / std::min(rx, ry))) return false;
+    if (!edgeInWall(*this, x, y, 4.5f / std::min(rx, ry))) return false;
     if (nearRing(x, y, 2)) return false;   // (the ring as rasterised: no lane along the wall's foot)
   } else if (!blobLess(x, y, cx, cy, rx, ry, bseed + 3, village ? 0.95f : 0.88f)) return false;
   if (terraced && groundSolid(M.at(x, y))) return false;
@@ -450,7 +460,7 @@ void Gen::radialRings() {
       const float wob = (vnoise(dcos(a) * 1.3f + 7, dsin(a) * 1.3f + 7, s) - 0.5f) * 0.07f;
       const float x = cx + 0.5f + dcos(a) * rx * (rr + wob), y = cy + 0.5f + dsin(a) * ry * (rr + wob);
       const int ix = ifloor(x), iy = ifloor(y);
-      const bool ok = in(ix, iy) && !water[I(ix, iy)] && (!walled || (blobLess(ix, iy, cx, cy, rx, ry, wseed, wallR - 4.5f / std::min(rx, ry)) && !nearRing(ix, iy, 2)));
+      const bool ok = in(ix, iy) && !water[I(ix, iy)] && (!walled || (edgeInWall(*this, ix, iy, 4.5f / std::min(rx, ry)) && !nearRing(ix, iy, 2)));
       if (have && ok) line(px, py, x, y, mainRing ? 2 : 1, mainRing ? K_MAIN : K_LANE, mainRing ? Ground::Road : laneG);
       px = x; py = y; have = ok;
     }
@@ -475,7 +485,7 @@ void Gen::radialRings() {
       const float fx = x0 + (x1 - x0) * t / n, fy = y0 + (y1 - y0) * t / n;
       const int ix = ifloor(fx), iy = ifloor(fy);
       if (!in(ix, iy) || water[I(ix, iy)] || inCompound(ix, iy, 2)) break;
-      if (walled && (!blobLess(ix, iy, cx, cy, rx, ry, wseed, wallR - 4.5f / std::min(rx, ry)) || nearRing(ix, iy, 2))) break;
+      if (walled && (!edgeInWall(*this, ix, iy, 4.5f / std::min(rx, ry)) || nearRing(ix, iy, 2))) break;
       lx = fx; ly = fy;
     }
     x1 = lx; y1 = ly;
@@ -542,7 +552,7 @@ void Gen::spineStreets(bool band) {
       for (int st = 1; st <= rows * rowGap + 2; st++) {
         const int qx = ifloor(x + nx * side * st), qy = ifloor(y + ny * side * st);
         if (!in(qx, qy) || water[I(qx, qy)] || inCompound(qx, qy, 2) || dist(qx, qy) > 0.95f) break;
-        if (walled && (!blobLess(qx, qy, cx, cy, rx, ry, wseed, wallR - 4.5f / std::min(rx, ry)) || nearRing(qx, qy, 2))) break;
+        if (walled && (!edgeInWall(*this, qx, qy, 4.5f / std::min(rx, ry)) || nearRing(qx, qy, 2))) break;
         if (qx != px && qy != py) paintStreet(qx, py, K_LANE, laneG);
         paintStreet(qx, qy, K_LANE, laneG);
         px = qx; py = qy;
@@ -586,7 +596,7 @@ void Gen::contourLanes() {
       for (int s = 1; s <= 24; s++) {
         const int qy = y + s;
         if (!in(x, qy) || water[I(x, qy)] || inCompound(x, qy, 2) || dist(x, qy) > 0.95f) break;
-        if (walled && (!blobLess(x, qy, cx, cy, rx, ry, wseed, wallR - 4.5f / std::min(rx, ry)) || nearRing(x, qy, 2))) break;
+        if (walled && (!edgeInWall(*this, x, qy, 4.5f / std::min(rx, ry)) || nearRing(x, qy, 2))) break;
         const bool met = isStreet(x, qy);
         paintStreet(x, qy, K_LANE, laneG);
         if (met && s > 1) break;
@@ -657,12 +667,23 @@ void Gen::pickDistricts() {
 // strange outline), the old ring is kept.
 void Gen::wallRing() {
   ringT.clear();
+  // ((M7c fixer) a polygonal trace that cannot close round the core (its corners dropped by the gate runs, so it cut
+  // inside the oval: seed 44's imperial river city fell back to the unplanned city and scored 58) is traced again
+  // through the same outline's profile sampled round the ring, as the other outlines are)
+  if (!wallRingTry(true) && edgeOf(*this).shape == WallShape::Polygon) wallRingTry(false);
+}
+
+bool Gen::wallRingTry(bool polyOk) {
+  ringT.clear();
   // the outline at normalised angle a (blob(): the radius where the wobbly ellipse reaches wallR)
-  auto rho = [&](float a) { return wallR + (vnoise(dcos(a) * 1.7f + 5, dsin(a) * 1.7f + 5, wseed) - 0.5f) * 0.32f; };
+  // (M7c) the outline's own profile (town_edge_wall.cpp: round, oval, polygon, squeezed along the water, the land's)
+  auto rho = [&](float a) { return edgeWallRho(*this, a); };
+  const EdgeData& E = edgeOf(*this);
+  const bool classic = E.shape == WallShape::None || E.shape == WallShape::Oval;
   auto ptAt = [&](float a) { const float r = rho(a); return std::make_pair(cx + dcos(a) * rx * r, cy + dsin(a) * ry * r); };
   struct V { float a; int x, y; bool fixed; };
   std::vector<V> vs;
-  const int N = city ? 22 : 16;
+  const int N = city ? (E.shape == WallShape::Round ? 26 : 22) : 16;
   const float a0 = hashf(3, 3, wseed) * D_TAU;
   // the gate runs: a road leaving north or south crosses a straight horizontal run of 9 tiles
   std::vector<std::pair<float, float>> runs;   // (normalised angle, half width in radians)
@@ -680,18 +701,24 @@ void Gen::wallRing() {
     vs.push_back(V{aL, px - 4, py, true});
     vs.push_back(V{aR, px + 4, py, true});
   }
-  for (int k = 0; k < N; k++) {
-    const float a = dwrap(a0 + k * D_TAU / N);
+  // (M7c) a polygonal trace: its own corners (the curtains run straight between them)
+  const bool poly = polyOk && E.shape == WallShape::Polygon && E.corners.size() >= 3;
+  const int nv = poly ? (int)E.corners.size() : N;
+  for (int k = 0; k < nv; k++) {
+    const float a = poly ? E.corners[(size_t)k].first : dwrap(a0 + k * D_TAU / N);
     bool nearRun = false;
-    for (auto& r : runs) if (std::fabs(dwrap(a - r.first)) < r.second + 0.2f) nearRun = true;
+    for (auto& r : runs) if (std::fabs(dwrap(a - r.first)) < r.second + (poly ? 0.08f : 0.2f)) nearRun = true;
     if (nearRun) continue;
     // each corner pushed in or out a little (a real curtain wall bends where its builders met the ground), so the
-    // ring is an irregular polygon of straight and slanted runs, not a regular octagon
-    const float j = 1.0f + (hashf(k, 7, wseed) - 0.5f) * 0.10f;
-    const float r = rho(a) * j;
+    // ring is an irregular polygon of straight and slanted runs, not a regular octagon ((M7c) the classic oval's;
+    // the other outlines carry their own shape)
+    const float j = classic ? 1.0f + (hashf(k, 7, wseed) - 0.5f) * 0.10f : 1.0f;
+    const float r = poly ? E.corners[(size_t)k].second : rho(a) * j;
     vs.push_back(V{a, iround(cx + dcos(a) * rx * r), iround(cy + dsin(a) * ry * r), false});
   }
-  if (vs.size() < 6) return;
+  // ((M7c fixer) a polygonal trace of four or five corners with no gate run is still a ring: 3+ vertices close it;
+  // the sampled outlines keep their six (seed 36's steppe capital, a pentagon, fell back to the unplanned city)
+  if (vs.size() < (poly ? 3u : 6u)) return false;
   for (V& v : vs) {   // (the outline may reach past the buffer: the ring keeps three tiles in from its edge)
     v.a = dwrap(v.a);
     v.x = std::clamp(v.x, 3, W - 4);
@@ -726,7 +753,7 @@ void Gen::wallRing() {
     else { stepN(mx, my, s); stepN(sx, sy, d); }
   }
   auto bail = [&](const char* why) { if (std::getenv("EMB_DEBUG_WALLS")) std::printf("wallRing: fallback (%s)\n", why); };
-  if (path.size() < 12 || path.back() != path.front()) { bail("open"); return; }
+  if (path.size() < 12 || path.back() != path.front()) { bail("open"); return false; }
   path.pop_back();
   // a corner tile whose neighbours along the ring touch each other is cut (an L corner or a one-tile jog becomes a
   // clean diagonal step: no tile is buried in the ring, no double-thick corner)
@@ -803,8 +830,8 @@ void Gen::wallRing() {
   // a simple closed curve inside the buffer
   std::vector<uint8_t> on((size_t)W * H, 0);
   for (auto& t : path) {
-    if (t.first < 1 || t.second < 1 || t.first >= W - 1 || t.second >= H - 1) { bail("edge"); return; }
-    if (on[I(t.first, t.second)]) { bail("crossing"); return; }
+    if (t.first < 1 || t.second < 1 || t.first >= W - 1 || t.second >= H - 1) { bail("edge"); return false; }
+    if (on[I(t.first, t.second)]) { bail("crossing"); return false; }
     on[I(t.first, t.second)] = 1;
   }
   // what it encloses: everything a 4-connected flood from the buffer's edge cannot reach
@@ -823,15 +850,16 @@ void Gen::wallRing() {
   }
   int enclosed = 0, before = 0;
   for (size_t i = 0; i < outside.size(); i++) { enclosed += !outside[i] && !on[i]; before += inside[i]; }
-  if (outside[I(cx, cy)] || on[I(cx, cy)] || enclosed * 10 < before * 8) { bail("small"); return; }
+  if (outside[I(cx, cy)] || on[I(cx, cy)] || enclosed * 10 < before * 8) { bail("small"); return false; }
   // every ring tile touches the outside along an edge (a thin ring, no tile buried in it)
   for (auto& t : path) {
     bool edge = false;
     for (int k = 0; k < 4; k++) if (in(t.first + D4X[k], t.second + D4Y[k]) && outside[I(t.first + D4X[k], t.second + D4Y[k])]) edge = true;
-    if (!edge) { bail("buried"); return; }
+    if (!edge) { bail("buried"); return false; }
   }
   ringT = on;
   for (size_t i = 0; i < inside.size(); i++) inside[i] = !outside[i] ? 1 : 0;
+  if (city) O.traits.wall = E.shape == WallShape::None ? WallShape::Oval : E.shape;   // (M7c: the outline built)
   // how far every tile is from the ring (Chebyshev, capped at 7): the lanes keep off its foot cheaply
   ringNear.assign((size_t)W * H, 7);
   for (auto& t : path)
@@ -842,6 +870,7 @@ void Gen::wallRing() {
         const uint8_t d = (uint8_t)std::max(std::abs(ox), std::abs(oy));
         if (d < ringNear[I(x, y)]) ringNear[I(x, y)] = d;
       }
+  return true;
 }
 
 // ------------------------------------------------------------------------------------------------ squares and streets
@@ -1101,6 +1130,13 @@ void Gen::mainStreets() {
 void Gen::ringRoads() {
   // M3: the culture's layout replaces the organic rings and spokes
   if (style != cult::Layout::Organic && style != cult::Layout::Stilt) {
+    // (M7c) a village of a planned people is no lattice, ring or grid of back lanes: its spine and its people's
+    // flavour along it (town_edge_order.cpp)
+    // (a palisaded hill-fort village keeps its compact lanes inside the ring: its lots and yards need them)
+    if (village && !palisade && (style == cult::Layout::Linear || style == cult::Layout::Radial || style == cult::Layout::Compound)) {
+      villageSpine(*this);
+      return;
+    }
     switch (style) {
       case cult::Layout::Grid: gridLanes(false); break;
       case cult::Layout::Compound: gridLanes(true); break;
@@ -1169,7 +1205,7 @@ void Gen::wallStreet() {
     float r0 = 0.5f;
     for (float rr = 0.5f; rr < 1.2f; rr += 0.01f) {
       int x = cx + (int)std::floor(ca * rx * rr + 0.5f), y = cy + (int)std::floor(sa * ry * rr + 0.5f);
-      if (!blobLess(x, y, cx, cy, rx, ry, wseed, wallR - inset)) break;
+      if (!edgeInWall(*this, x, y, inset)) break;
       if (nearRing(x, y, 3)) break;   // (M3: the ring as rasterised may stand a little inside the outline)
       r0 = rr;
     }
@@ -1220,6 +1256,7 @@ void Gen::fabric() {
     }
     return;
   }
+  if (town && style == cult::Layout::Organic) townCore(*this);   // (M7c: the town's structured core, town_edge_order.cpp)
   const float inset = walled ? 4.5f / std::min(rx, ry) : 0.0f;
   const float edge = city ? 0.0f : 0.78f;
   int y = cy - (int)(ry * (walled ? wallR : edge)) + 3 + rng.irange(4);
@@ -1229,9 +1266,12 @@ void Gen::fabric() {
     const uint32_t gs = bseed + 300u + (uint32_t)band * 17u;
     int px = -10, py = 0;
     for (int x = 1; x < W - 1; x++) {
-      int yy = y + iround(dsin(x * freq + phase) * amp);
+      // (M7c) a town's side streets run straight near the heart (its structured streets, town_edge_order.cpp ranks
+      // them), winding more the further out they reach
+      const float wind = town ? std::clamp((std::fabs((float)(x - cx)) / rx - 0.40f) * 2.5f, 0.0f, 1.0f) : 1.0f;
+      int yy = y + iround(dsin(x * freq + phase) * amp * wind);
       bool ok = in(x, yy) && !inCompound(x, yy, 2) && !water[I(x, yy)];
-      if (ok && walled) ok = blobLess(x, yy, cx, cy, rx, ry, wseed, wallR - inset) && !nearRing(x, yy, 2);
+      if (ok && walled) ok = edgeInWall(*this, x, yy, inset) && !nearRing(x, yy, 2);
       if (ok && !walled) ok = blobLess(x, yy, cx, cy, rx, ry, bseed + 3, edge);
       if (ok && city && districtAt(x, yy) == District::Noble && (band & 1)) ok = false;
       if (ok && town && hashf(x / 14, band, gs) < 0.15f) ok = false;   // towns: broken lines, closes and yards
@@ -1393,6 +1433,18 @@ void Gen::cityWall() {
     return best;
   };
   bool gated = false;
+  // (M7c) a planned city's gates are where its plan put them (Gen::gatePlan, the CITY lane's, laid on this ring in
+  // phase 2 with their throats and avenues): each becomes its gatehouse on a straight horizontal run, a plain opening
+  // between the run's end towers on a vertical one, a breach where the ring steps
+  if (planned)
+    for (const GatePlan& gp : gatePlan) {
+      if (nearMade(gp.x, gp.y, 4) || gp.b < 0 || gp.b >= (int)bearings.size()) continue;
+      if (gp.h && straightH(gp.x, gp.y)) { gap(IRect{gp.x - 1, gp.y, 3, 1}, gp.b); O.gates.push_back({gp.x - 1, gp.y}); gated = true; }
+      else if (!gp.h && straightV(gp.x, gp.y)) gap(IRect{gp.x, gp.y - 1, 1, 3}, gp.b);
+      else if (straightH(gp.x, gp.y)) { gap(IRect{gp.x - 1, gp.y, 3, 1}, gp.b); O.gates.push_back({gp.x - 1, gp.y}); gated = true; }
+      else if (straightV(gp.x, gp.y)) gap(IRect{gp.x, gp.y - 1, 1, 3}, gp.b);
+      else gap(IRect{gp.x - 1, gp.y - 1, 3, 3}, gp.b);
+    }
   for (const Cross& c : crosses) {
     int cxr = iround(c.mx), cyr = iround(c.my);
     if (nearMade(cxr, cyr, 4)) continue;

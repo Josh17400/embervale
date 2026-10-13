@@ -417,7 +417,14 @@ struct LifeOps {
   static bool spotOk(const Game& g, const RT::Spot& s) {
     const int x = s.x - g.world.ox, y = s.y - g.world.oy;
     const Map& m = g.world.over;
-    return m.in(x, y) && !m.blocked(x, y) && m.bldgAt[(size_t)y * m.w + x] < 0;
+    if (!m.in(x, y) || m.blocked(x, y) || m.bldgAt[(size_t)y * m.w + x] >= 0) return false;
+    // (M7c integration) never on the doorstep of a burned-out shell: someone standing there reads as having come out
+    // of it (its door is barred, nobody comes or goes)
+    if (m.in(x, y - 1)) {
+      const int b = m.bldgAt[(size_t)(y - 1) * m.w + x];
+      if (b >= 0 && b < (int)m.bldgs.size() && m.bldgs[(size_t)b].charred == 2 && m.bldgs[(size_t)b].doorX() == x) return false;
+    }
+    return true;
   }
   // a spot of the list by hash (free of anyone else's claim: two people never stand on one spot)
   static const RT::Spot* pick(Game& g, const std::vector<RT::Spot>& v, uint32_t h, int self = -1) {
@@ -1773,6 +1780,34 @@ struct LifeOps {
     const Map& m = g.sub;
     auto room = [&](int x, int y) { return m.roomIndexAt(x, y); };
     static const int dx[4] = {0, 0, 1, -1}, dy[4] = {1, -1, 0, 0};
+    // ((M7c fixer) the floor the player can walk to from the way in (the door, the stairs): a worker's station tile
+    // that the furniture walls off (seed 7's start smithy: the anvil's side between the quench tub, a barrel, the
+    // bench and the wall) is never a post, or the smith stands where nobody can reach her to talk or trade)
+    std::vector<uint8_t> reach((size_t)m.w * m.h, 0);
+    {
+      std::vector<int> q;
+      auto seedAt = [&](int x, int y) {
+        if (!m.in(x, y) || reach[(size_t)y * m.w + x]) return;
+        reach[(size_t)y * m.w + x] = 1;
+        q.push_back(y * m.w + x);
+      };
+      if (m.exitY >= 0) {
+        seedAt(m.exitX, m.exitY);
+        for (int16_t e : m.exits) seedAt(e, m.exitY);
+      }
+      for (const Stairs* st : {&m.up, &m.down})
+        if (st->valid())
+          for (int k = 0; k < 4; k++)
+            if (m.in(st->x + dx[k], st->y + dy[k]) && !m.blocked(st->x + dx[k], st->y + dy[k])) seedAt(st->x + dx[k], st->y + dy[k]);
+      if (q.empty()) std::fill(reach.begin(), reach.end(), (uint8_t)1);   // (no way in known: no filter)
+      for (size_t h = 0; h < q.size(); h++) {
+        const int x = q[h] % m.w, y = q[h] / m.w;
+        for (int k = 0; k < 4; k++) {
+          const int nx = x + dx[k], ny = y + dy[k];
+          if (m.in(nx, ny) && !m.blocked(nx, ny)) seedAt(nx, ny);
+        }
+      }
+    }
     for (int y = 1; y < m.h - 1; y++)
       for (int x = 1; x < m.w - 1; x++) {
         const int pr = m.propAt(x, y);
@@ -1835,6 +1870,7 @@ struct LifeOps {
             const int (&pk)[3] = freeStanding ? side[k] : pref[k];
             const int sx = x + pk[0], sy = y + pk[1];
             if (!m.in(sx, sy) || m.blocked(sx, sy) || m.propAt(sx, sy) || m.isExit(sx, sy)) continue;
+            if (!reach[(size_t)sy * m.w + sx]) continue;   // (walled off by the furniture: no post there)
             // a bar is worked from behind (its north side), never from the customers' side
             if (counterProp(p) && pk[1] != -1) continue;
             I.stations.push_back({sx, sy, p, room(sx, sy), (int8_t)pk[2]});

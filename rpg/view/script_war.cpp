@@ -307,6 +307,28 @@ bool cmdWar(ScriptCtx& c) {
       for (const Actor& a : g.actors)
         if (!p.ids.empty() && a.id == p.ids.front() && len2(a.p - g.pl().p) < (9.0f * TILE) * (9.0f * TILE)) return true;
     if (c.waited < 58) return false;
+    // (M7c merge) a patrol walks to the far end of a road picked at random round the ring (Game::warStep): on the
+    // merged world it set off down the south road as often as up the north one, and the script failed by the toss.
+    // A patrol out but walking elsewhere: the player steps to the roadside a few tiles ahead of its leader (in the
+    // window: no teleport, the patrol stays)
+    for (const WarPatrol& p : g.war.patrols) {
+      if (p.ids.empty() || p.path.empty()) continue;
+      for (const Actor& a : g.actors)
+        if (a.id == p.ids.front() && a.st != AState::Dead) {
+          const auto& to = p.path[(size_t)std::min<int>((int)p.path.size() - 1, p.at + 6)];
+          const int rx = to.first - g.world.ox, ry = to.second - g.world.oy;
+          for (int r = 2; r <= 6; r++)   // the first open tile beside the road, two tiles out or more
+            for (int s = -1; s <= 1; s += 2)
+              for (const bool xs : {true, false}) {
+                const int tx = xs ? rx + s * r : rx, ty = xs ? ry : ry + s * r;
+                if (!g.map().in(tx, ty) || g.map().blocked(tx, ty) || g.map().at(tx, ty) == Ground::Road) continue;
+                g.pl().p = Vec2(tx * TILE + 8.0f, ty * TILE + 10.0f);
+                return true;
+              }
+          return false;
+        }
+    }
+    if (c.waited < 58 + 12 * 60) return false;   // (none out yet: one sets off every 10 s)
     c.fail("war goto patrol: no patrol came");
     return true;
   }

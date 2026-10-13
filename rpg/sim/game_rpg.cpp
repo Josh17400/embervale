@@ -461,6 +461,13 @@ int Game::interactTarget() const {
     // someone with a reward waiting or work to offer wins over a bystander about as close (two villagers side by
     // side: the prompt and the tap go to the one with something to say)
     if (rewardWaiting(a) || hasOffer(a)) d *= 0.45f;
+    // (M7c merge, m7_homestead_ride) the player's own horse waiting beside them, turned to, takes the prompt from a
+    // passer-by about as near: in the M7c villages a street's foot traffic brushes past the spot where the rider got
+    // off, and E: TALK <stranger> stole the RIDE the player had turned round for
+    if (a.slot == HOME_SLOT_HORSE && a.critter && (a.lifeBits & LB_HOMESTEAD) && home.riding < 0) {
+      const Vec2 to = a.p - p.p;
+      if (to.x * p.aim.x + to.y * p.aim.y > 0.5f * std::sqrt(std::max(1.0f, d))) d *= 0.45f;
+    }
     // (fixer M8 r2, review: "E: TALK <companion> follows them everywhere") a companion at heel is always the nearest
     // person: they take the prompt only when the player turns to them, and anyone else about as near comes first
     if (a.comp && a.comp <= party.members.size() && party.members[(size_t)a.comp - 1].state == party::State::With) {

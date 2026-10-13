@@ -2878,6 +2878,101 @@ non-zero); `Bldg::row` is part of the open-front cache key; `art::cityPropStyled
 `speech::C_ANSWER` (outside `C_ALL`); script commands `cityspot`, `expect urb none`, `gotourb`, `expect kerbs`.
 Villages: `--villages` and `city_gallery --check` (village art) unchanged. SAVE_VER 15 / ENDLESS_GEN_VER 17 stand.
 
+### 15.M7c "Order of Streets": one settlement planner for villages, towns and cities (owner, 2026-10-11)
+
+M7b gave cities avenues, sidewalks, parks and terraces, but the streets branching off the avenues are still the old
+winding lanes, so cities do not yet read as planned. The owner's concept image (`docs/ref/m7c_city_concept.png`,
+generated with ChatGPT: "closer, not exact") shows the PRINCIPLE: a walled city where the main avenues AND the streets
+off them are real streets forming regular blocks, a central plaza with the seat of power, districts, gardens, orchards
+and fields set in blocks, a harbour on the lake. It is a principle, not a template: every city must be unique.
+
+**One planner, an order dial.** Replace the separate village/town/city street logic with ONE settlement planner that
+shares its vocabulary everywhere (road hierarchy main road > street > lane > footpath; frontage: houses face a road;
+junctions and squares; the edge rule: built-up core loosening into outskirts and then fields), driven by an order
+level from settlement size and culture:
+- **Village (low order):** one spine road through the middle, houses scattered around it and loosely facing it,
+  paths wandering to the well, mill and fields. It must keep the organic charm the owner loves (review compares
+  before/after shots of the same villages; any village that looks worse fails). The byte-identical `--villages`
+  lock is replaced by a village-character check (low structure score, organic placement, one spine).
+- **Town (mid order):** a real main street and square, a few structured side streets with proper frontage, loosening
+  into scattered houses and yards at the edges.
+- **City (high order), inside the walls:** a full street network, not just avenues: avenues from each gate to the
+  central plaza and seat; streets off them laid as a real grid of blocks (row houses fronting every street around
+  shared back yards and gardens); intersections, corners and continuous frontages everywhere; whole blocks given a
+  role (seat or temple precinct, market block, park, orchard and kitchen-garden blocks, craft yards). Not graph
+  paper: grid sections may tilt where an avenue changes direction, streets bend gently along a river, lakeshore or
+  hill, a few run diagonal where walls or terrain demand; but every street is clearly a street, never leftover space.
+- **City, outside the walls:** faubourgs ribboning along each approach road (inns, smithies, stables, houses) dense
+  near the gate and sparser further out, sporadic away from the road; then farmland (fields, orchards, pasture)
+  organic like the countryside.
+
+**Every city unique** (a generator, not a template): wall outline (round, oval, polygonal, squeezed along a river or
+coast, following the land), 2-5 avenues at their own angles from that city's gates, block sizes, tilted grid
+sections, rivers with bridges and quays or a lake harbour or none, where and how big the plaza and seat are (one
+square or a chain), the district mix and where the park, orchards and temple precinct fall, culture plan types
+(jade: strict axial plan with walled compounds; dune: courtyard blocks and covered souk streets; steppe: rings round
+the khan's court; fjord: terraces along the harbour; heartland: market grid round a cathedral close; others by
+their culture data), and age and size (an old capital denser and more layered than a young frontier city).
+
+**Checks:**
+- A structure score per settlement (share of buildings fronting a straight-ish street, block regularity, dead ends,
+  street connectivity): cities clearly above towns, towns clearly above villages, every city above a floor.
+- A uniqueness check: city plans across many seeds must not be near-duplicates (layout similarity metric).
+- Review agents compare the city map view and street-level shots against the concept principle, and villages
+  before/after; commercial 16-bit quality, 3/4 view, seamless walls and paving.
+- Everything that works today keeps working: walls and gates, the economy and markets, M7 lots for sale, the M5
+  census and life, M6 guards, interiors, sagas casting places; capital build-time budget (`--towns` gates);
+  regenerate goldens and bump ENDLESS_GEN_VER.
+
+### 15.M7c-A "Order of Streets" phase A (lead, 2026-10-11): the planner contracts
+
+15.M7c binds M7c (the owner's words win on conflicts). Every new generation RNG draw is sequenced explicitly (clang and
+MSVC must give the same goldens); integer / dmath maths only. Phase A contracts (LEAD-frozen unless a lane is named the
+header's editor; a lane may ADD to a file it owns, never rename, remove or change the meaning of what is listed here):
+- **The planner's vocabulary** `rpg/world/town_plan.h` (frozen): `ew::Rank` (None, Main, Street, Lane, Footpath,
+  Square; `rankStreet` / `rankWay`), `ew::BlockRole` (Homes, Seat, Temple, Market, Park, Orchard, KitchenGarden,
+  CraftYard, Compound, Barracks, Harbour, Faubourg, Farm), the order dial `orderFor(type, cArch, capital, age)`
+  (villages 10..25, towns 40..60, cities 70..100; the culture bends it) and `cityAge(seed, capital)` (0 young .. 3
+  ancient), `PlanTraits` (order, age, layout, planKind, WallShape, WaterKind, gates, avenues and their bearings,
+  block size, tilted grid sections, plazas, the seat's offset, blocks per role, faubourgs).
+- **SettlementOut** (rpg/world/settlement.h): `rank` and `role` (one byte per buffer tile: Rank, BlockRole) and
+  `traits`. Written by `Gen::rankLayer()` (rpg/world/town_plan.cpp, the last step of finish(), no Rng draw): every
+  street tile a planner did not rank itself (`Gen::setRank`) takes its rank from the city plan's class (avenue,
+  gutter and sidewalk: their carriageway's) or the mask (main street Main, lane Lane, square Square). Never saved,
+  never in the chunks. `Gen::order` / `Gen::age` set in land() after pickStyle.
+- **The checks** `rpg/world/town_metrics.cpp` (read-only on SettlementOut): `structureScore` (0..100 = 30 frontage +
+  20 straightness + 20 regularity + 10 dead ends + 20 connectivity, over the wall ring's box or the buildings'),
+  `planSignature` / `planSimilarity` (32 x 32 cells of the core: Jaccard of the street cells and of the building
+  cells, the wall's radial profile, the aspect; best of the 8 rotations and mirrors), `villageCharacter` (structure,
+  main-road arms through the heart, setback spread, houses in rows, blocks, city fabric). Targets (town_plan.h):
+  every city >= 68, cities' mean >= 78, towns' mean 35..62, every village <= 40 and their mean <= 28, gaps of 15;
+  no two cities >= 0.70 alike, the mean <= 0.48.
+- **Baseline (M7b, seeds 1..3 + the real settlements in the 5 x 5 regions round the origin)**: villages mean 28.7
+  (radial / grid villages up to 63), towns 42.2, cities 70.7 (min 44.5: the steppe rings; imperial 89, river 85,
+  starspire / steppe / sun-temple / marsh 56..61); city plans mean similarity 0.39, most alike 0.52.
+- **Tests** (tools/tests/test_plan.cpp): `rpg_test --structure [--strict]`, `--city-unique [--strict]`, `--plan`
+  (one line per settlement: where, order, traits, ranks, structure). `rpg_test --villages` is now the village-character
+  check (a plain run fails city fabric in a village; `--strict` every character rule); the frozen M7b village hashes
+  only REPORT which villages changed, for the before / after review. The plain runs report the phase B targets; CI
+  turns on `--strict` at integration.
+- **Generator split and hooks** (byte-identical: `--towns --golden` 201 hashes and `--villages` unchanged before the
+  bump): the homes moved from town_build.cpp to `rpg/world/town_homes.cpp`; the planned city's part of them moved
+  into CITY hooks in town_urban.cpp (`cityHomesWant`, `plannedHomes` (now leaves `faubourgWant` for outside the
+  walls), `cityFront`, `cityHomesRound`, `cityHomesLast`); `Gen::cityAfter(phase)` (town_city.cpp) runs after every
+  step() phase of a planned city (phase 15: just before finish); EDGE hooks `edgeBegin()` (phase 1, after the wall
+  ring) and `outskirts()` (phase 9, before the top-up rounds) in `rpg/world/town_edge.cpp`; the EDGE lane's own state
+  `Gen::edge` (`EdgeData`, rpg/world/town_edge.h).
+- **Row-house faces** (rpg/build/blueprint.h): `bld::ROW_SIDE_W` / `ROW_SIDE_E` (a side wall looks onto a street:
+  dressed as an elevation, never a blank party wall) and `ROW_BACK` (the back looks onto a street); the door stays in
+  the front wall (interiors unchanged). Set by the CITY lane, drawn by the ART lane; 0 in every village.
+- **World**: `EndlessSource::settlement(Gid)` returns a site's whole build (cached, else built now): the checks over
+  real settlements, the world map's city plans, the `plan` script command.
+- **Scripts** (rpg/view/script_plan.cpp): `plan` (the settlement here: order, traits, structure, ranks, roles) and
+  `expect structure <min> [max]`. Review scripts `tools/scripts/m7c_villages_review_s1..3.txt` (the same villages shot
+  before and after: the pre-M7c binaries are kept in `%TEMP%\claude\emb_M7c\before_bin\`) and `m7c_lead_plan.txt`.
+- **Versions**: ENDLESS_GEN_VER 21 (so the lanes may change generation under it); SAVE_VER 15 unchanged
+  (save_v15.bin re-recorded for the generator version).
+
 ### 15.26 M8 "Fellowship" phase A (lead, 2026-10-11): the companion contracts
 
 Section 9, 13 M8 and the owner's 15.6.2 bind M8, with the owner's M8 notes (2026-10-11) on top: companions can die
@@ -3041,3 +3136,82 @@ remove or change the meaning of what is listed here):
   test"). Script commands (rpg/view/script_loot.cpp): `lootdrop <kind> [rarity N|name] [ilvl N] [n K]`, `lootroll <n>
   [level L] [D d] [rank r] [src s]` (pieces laid outside the pickup pull), `expect lootvalid`, `expect lootpickups
   <n>`; `gear6` takes rarity 0-5; `tools/scripts/m8b_lead_loot.txt`.
+
+### 15.29 M9 "Arcana & Mastery": magic plus a learn-by-use skill and perk system for everything (owner, 2026-10-12)
+
+The owner, in their words: "a skill tree like in skyrim so not just for magic but also for skills like movement speed, damage with swords axes maces ect ect each weapon type has advatages and disadvantages agaist certain enemys get more skilled with armor types or specific culture armors or more broad skilling you get what im saying?"
+
+M9 is the M9 "Arcana" magic plan (the milestone section and 15.5) plus a Skyrim-style progression system that covers the whole game.
+
+1. **Skills levelled by use.** Each skill has a level from 1 to 100 that rises from actually doing the thing, at a pace that slows as it climbs. Character level rises from total skill gains, alongside the existing XP. That ties into the M8b loot gates, which read the player level.
+   - **Weapon skills, one per weapon family:** swords, axes, maces/hammers, spears/polearms, daggers, bows, and unarmed or shields if they fit. Each family has real advantages and disadvantages against enemy types, shown in the UI. Examples:
+     - maces crush armoured and skeletal foes, but are slow;
+     - axes cleave and bleed beasts and the unarmoured;
+     - spears outreach and stop charges (cavalry, wolves);
+     - daggers backstab and crit the unaware;
+     - swords are balanced, with parry;
+     - bows have range and suit beasts, but are weak against shields.
+     These must work through foe tags (beast, undead, armoured, construct, people, flying...) with the M6 foe roster and the M8b "vs" affixes.
+   - **Armour skills:** light, medium and heavy. Each has its own trade-offs:
+     - stamina and noise;
+     - roll and dodge;
+     - speed;
+     - damage reduction.
+   - **Material and culture mastery:** wearing a culture's armour or using a material tier builds familiarity. Perks bonus a full culture set, and a perk tree branch works with M3 culture gear.
+   - **Movement and athletics:** run speed, sprint stamina, climbing ramps, swimming if it exists, and carry weight.
+   - **Broad skills:**
+     - smithing (M6 forge);
+     - cooking (M5 needs and food);
+     - farming and husbandry (M7);
+     - riding (M7 horse);
+     - speech, covering prices, persuasion and dialogue options in the M7b voice system;
+     - stealth, covering sneaking, pickpocketing and the crime system;
+     - lockpicking if it fits;
+     - the magic schools.
+2. **Perk trees.** Every skill has a perk tree. A perk point comes on each character level, and each perk requires a skill level.
+   - Perks change how the game plays, not just numbers. Examples:
+     - power attacks that stagger;
+     - a dagger silent kill;
+     - a heavy-armour charge;
+     - the bow's slow-time draw;
+     - a speech "intimidate";
+     - smithing improvements;
+     - dual-casting.
+   - The trees are drawn as constellations or culture glyph trees, readable and tappable on the phone. The phone-first UI must be beautiful, matching the quality bar.
+   - Respec is costly and rare: a shrine or a trainer.
+3. **Magic.** Follow the existing M9 "Arcana" section and 15.5:
+   - the Skyrim schools levelled by use, plus the culture traditions;
+   - tomes and teachers;
+   - dual-cast, upcast, surfaces and combos, concentration, statuses;
+   - 3–4 quick-cast slots on the phone.
+   Magic skills are just more skills in the same system.
+4. **Trainers and books.** Trainers in towns and cities (via M5 census jobs) sell a few levels for gold, capped per level. Skill books are found as loot (M8b sources). Companions (M8) can also teach their vocation.
+5. **Balance and tests.**
+   - A `--skills` suite proves:
+     - each skill gains from its own action and from no other;
+     - the gain curve takes about 10–20 h of play to master a skill;
+     - each weapon family wins and loses against the right foe tags (an A/B time-to-kill table);
+     - the armour trade-offs hold;
+     - perks apply and save.
+   - `--spells` covers each spell within ±5% of its budget.
+   - These stay green: `--metrics`, `--power-curve`, `--foes`, `--arms` and `--companion`. Adjust their baselines only with a written reason.
+   - Bump SAVE_VER, regenerate the fixtures, and give old saves default skills based on their level.
+6. **Testing scope (owner, 2026-10-12).**
+   - Test what this milestone changes.
+   - The full script regression runs once, at integration, via `tools/run_scripts.sh`.
+   - Fixers and reviewers stay on the milestone's features.
+7. **Magic must look absolutely awesome (owner, 2026-10-12: "i want the magic to look absoluly awesome like sick").** This is the headline visual of M9. The bar is top-tier pixel-art action games (think Hyper Light Drifter, Dead Cells, Eastward), not placeholder circles.
+   - **The life of every spell.** Each spell gets a wind-up (the hands or staff glow, runes gather, a hum), a launch (a flash, a recoil, a small screen kick), travel (a lit trail, particles, sub-pixel motion), an impact (a burst, sparks or debris, a light flash on nearby tiles, a hit-stop of a few frames, a light screen shake), and an aftermath (scorch marks, frost decals, puddles, lingering embers or smoke).
+   - **Real light.** Spells light the world through the existing lighting system. A fireball at night lights the walls it passes. Lightning flashes the whole scene for a frame.
+   - **School identity.** Each school and each culture tradition has its own colours, shapes, motion, glyphs and sound motif, so you can tell a spell apart by its silhouette alone. For example:
+     - Destruction fire boils and roars;
+     - frost shatters in crisp shards;
+     - lightning forks and chains;
+     - Restoration rises in warm motes;
+     - Conjuration tears a rift with summoned forms climbing out;
+     - Illusion shimmers and warps;
+     - Starcalling draws star-lines in the sky at night.
+   - **Big moments.** Charged, upcast and dual-cast spells grow visibly bigger and more spectacular. A top-tier spell is a moment (a meteor, a storm cell, a summoned great beast) that makes the player go "whoa".
+   - **Surfaces and combos read beautifully.** Oil sheen, burning ground, electrified water, freezing puddles and poison clouds each have animated pixel art and clear borders.
+   - **Phone performance.** Particle and effect budgets must hold the web/iPhone frame budget (`--perf`, `--window`). Use pooled particles and baked effect sheets; it should look sick at 60 fps.
+   - **Review.** The visual reviewer must judge every school's spell at 1x on a phone frame, by day and at night, and fail anything that looks flat, small, muddy or generic.

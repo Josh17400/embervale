@@ -201,6 +201,42 @@ void HomeOps::mapLoaded(Game& g) {
     }
     p.starter = 1;
   }
+  // (M7c integration, m7_homestead_buy) a bought house whose own furniture holds no chest (a hut's one room: the M7c
+  // villages put huts up for sale) gets one where it fits and can be reached, once: every home has its store
+  if (p.kind == home::PlotKind::House && !p.starter && fl == 0) {
+    bool chest = false;
+    for (const PlacedObj& o : p.inside) if ((Obj)o.kind == Obj::Chest) chest = true;
+    if (!chest) {   // (the furniture adopted above stands where it is first: the chest is not walled in by the bed)
+      for (const PlacedObj& o : p.inside)
+        if (o.floor() == fl) stampObj(m, o, false);
+      m.rebuildSolid();
+    }
+    const home::ObjInfo& ci = home::objInfo(Obj::Chest);
+    std::string why;
+    for (int y = 1; y < m.h - 1 && !chest; y++)
+      for (int x = 1; x < m.w - 1 && !chest; x++) {
+        if (!home::canPlaceInside(p, m, Obj::Chest, x, y, false, why)) continue;
+        const int ax = x + ci.w / 2, ay = y + ci.h - 1;
+        bool reach = false;
+        static const int d4[4][2] = {{0, 1}, {1, 0}, {-1, 0}, {0, -1}};
+        for (const auto& d : d4) {
+          const int nx = ax + d[0], ny = ay + d[1];
+          const bool inFoot = nx >= x && nx < x + ci.w && ny >= y && ny < y + ci.h;
+          if (!inFoot && m.in(nx, ny) && !m.blocked(nx, ny)) reach = true;
+        }
+        if (!reach) continue;
+        const int k = home::allocStore(p);
+        if (k < 0) { chest = true; break; }
+        PlacedObj po;
+        po.kind = (uint8_t)Obj::Chest; po.x = (uint8_t)x; po.y = (uint8_t)y; po.flags = (uint8_t)(fl << 4);
+        po.data = (uint32_t)k;
+        p.inside.push_back(po);
+        stampObj(m, po, false);
+        m.rebuildSolid();
+        chest = true;
+      }
+    p.starter = 1;
+  }
   for (const PlacedObj& o : p.inside)
     if (o.floor() == fl) stampObj(m, o, false);
   m.rebuildSolid();

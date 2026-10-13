@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <vector>
 #include "rpg/world/gen.h"
+#include "rpg/world/settlement.h"
 #include "rpg/world/wildlife.h"
 #include "rpg/world/town_rules.h"
 
@@ -349,17 +350,51 @@ void EndlessSource::Impl::makeStart() {
     bool found = false;
     const int32_t a0 = (int32_t)(hq(mix64(seed ^ tag("start.cap"))) & 1023);
     // (within 200 tiles first: the story city is one of the start's six kinds of place within reach)
-    for (int32_t dist : {190, 170, 160, 180, 200, 215, 240, 265, 280}) {
-      int bestHab = 0;
-      for (int k = 0; k < 32; k++) {
-        int32_t a = a0 + k * 1024 / 32;
-        int32_t x = hx + icosR(a, dist), y = hy + isinR(a, dist);
-        int hab = habitability(SiteType::City, x, y, nullptr);
-        if (hab <= bestHab || !lineLand(hx, hy, x, y)) continue;
-        bestHab = hab; found = true; sc.x = x; sc.y = y;
+    // ((M7c) a city's footprint holds its faubourg belt round the walls: the first pass keeps the footprint's corner
+    // 46 tiles or more from the start village, so the road between them keeps a stretch for the wayside places
+    // (seeds 5 and 13 had none); only when no spot allows it, the M7b choice)
+    const uint32_t capSeed = (uint32_t)(mix64(seed ^ tag("start.capital.seed")) >> 16);
+    int capW = 0, capH = 0;
+    settlementFootprint(SiteType::City, Archetype::Port, capSeed, capW, capH);
+    const int64_t capHW = capW / 2 + 6, capHH = capH / 2 + 4, ROOM = 46;
+    // ((M7c fixer) the corner test alone let the road run along the city's box for most of its way (seed 34: the
+    // city 91 tiles off the line's axis, its belt over the road nearly to the village's fields). The first pass now
+    // also wants a clear stretch of the straight line, outside the start village's zone and the city's (each with
+    // the wayside places' margin), long enough for two places beside the road)
+    auto clearRun = [&](int32_t x, int32_t y) {
+      const int32_t L = idist(hx, hy, x, y);
+      int32_t run = 0;
+      for (int32_t s = 0; s <= L; s += 2) {
+        const int64_t px = hx + (int64_t)(x - hx) * s / std::max(1, L), py = hy + (int64_t)(y - hy) * s / std::max(1, L);
+        const bool inVil = std::abs(px - hx) < 33 + 14 && std::abs(py - hy) < 25 + 14;
+        const bool inCity = std::abs(px - x) < capHW + 14 && std::abs(py - y) < capHH + 14;
+        if (!inVil && !inCity) run += 2;
       }
-      if (found) break;
-    }
+      return run;
+    };
+    for (int pass = 0; pass < 3 && !found; pass++)
+      for (int32_t dist : {190, 170, 160, 180, 200, 215, 240, 265, 280}) {
+        int bestHab = 0;
+        for (int k = 0; k < 32; k++) {
+          int32_t a = a0 + k * 1024 / 32;
+          int32_t x = hx + icosR(a, dist), y = hy + isinR(a, dist);
+          if (pass <= 1) {
+            const int64_t ox = std::max<int64_t>(0, std::abs(x - hx) - capHW), oy = std::max<int64_t>(0, std::abs(y - hy) - capHH);
+            if (ox * ox + oy * oy < ROOM * ROOM) continue;
+            if (pass == 0 && clearRun(x, y) < 48) continue;
+          }
+          int hab = habitability(SiteType::City, x, y, nullptr);
+          if (hab <= bestHab || !lineLand(hx, hy, x, y)) continue;
+          // ((M7c fixer) the story road must route (seed 108's first choice had none: a lake across every corridor);
+          // roadPath reads only the pure fields, as the road graph's edge() does)
+          if (pass <= 1) {
+            std::vector<GTile> probe;
+            if (!roadPath(hx, hy, x, y, 112, probe) && !roadPath(hx, hy, x, y, 260, probe)) continue;
+          }
+          bestHab = hab; found = true; sc.x = x; sc.y = y;
+        }
+        if (found) break;
+      }
     if (!found) {   // nothing habitable: take the flattest dry spot at about 200 tiles
       for (int k = 0; k < 64 && !found; k++) {
         int32_t a = a0 + k * 1024 / 64;
@@ -370,7 +405,7 @@ void EndlessSource::Impl::makeStart() {
     }
     sc.type = SiteType::City;
     sc.flags = SPF_CAPITAL | SPF_STORY;
-    sc.seed = (uint32_t)(mix64(seed ^ tag("start.capital.seed")) >> 16);
+    sc.seed = capSeed;
     sc.id = makeId(regionOf(sc.x), regionOf(sc.y), IdKind::Site, LOCAL_FORCED + 1);
     forced.push_back(sc);
   }

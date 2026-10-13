@@ -34,7 +34,7 @@ inline bool townIsHome(art::Building t) {
 struct TownScale { int homesMin, homesMax, bldgMax; };
 inline TownScale townScale(SiteType t) {
   switch (t) {
-    case SiteType::City: return {160, 220, 220};
+    case SiteType::City: return {160, 220, 240};   // (M7c: the faubourgs' inns, smithies and stable barns outside the walls)
     case SiteType::Town: return {40, 60, 80};
     default: return {10, 15, 24};
   }

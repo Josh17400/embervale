@@ -111,6 +111,11 @@ bool cmdLife(ScriptCtx& c) {
     const std::string who = upcase(c.rest(2));
     int idx = -1;
     if (!who.empty() && who[0] >= '0' && who[0] <= '9') idx = std::atoi(who.c_str());
+    else if (who == "COMPANION") {   // (M7c merge) the first companion's own census resident, whatever the census named them
+      if (!g.party.members.empty())
+        for (const life::Resident& r : cs->res)
+          if (life::npcId(cs->site, r.idx) == g.party.members[0].npc && !(r.flags & life::RF_DEAD)) { idx = r.idx; break; }
+    }
     else for (const life::Resident& r : cs->res) if (r.name == who && !(r.flags & life::RF_DEAD)) { idx = r.idx; break; }
     if (idx < 0 || idx >= (int)cs->res.size()) { c.fail("life kill: nobody called " + who); return true; }
     g.life.residentDied(cs->site, idx, g.day);

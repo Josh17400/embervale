@@ -259,6 +259,9 @@ void addM6Facts(Game& g) {
   Rng r(77);
   Item it = gear::makeGear(r, ItemKind::Weapon, (int)WeaponType::Spear, 12, Rarity::Legendary, FIX_CULT, Mat::Steel);
   it.name = "FIXTURE SPEAR";
+  // (M8b merge) the affixes are set by hand, every slot: a Legendary rolls three since M8b NUMBERS (gear::affixSlots), and
+  // the slot the generator filled would leak into this format-level item (the M8b ring covers the third and fourth slots)
+  for (ItemAffix& a : it.affix) a = ItemAffix();
   it.affix[0] = {Affix::FireDmg, 8};
   it.affix[1] = {Affix::CritChance, 5};
   it.unique = Unique::ChainLightning;
@@ -461,7 +464,7 @@ int makeFixture(const char* out) {
 }
 // values printed by --make-fixture (format-level facts only)
 struct Fix6 { int level, xp, gold; size_t inv, quests, looted; int kills, ox; float px, py; int oy; float hour; int day; };
-constexpr Fix6 FIX6 = {1, 20, 30, 9, 4, 1, 0, 0, 2184.000f, 2346.000f, -256, 8.867f, 1};
+constexpr Fix6 FIX6 = {1, 86, 30, 12, 4, 1, 3, 0, 1096.000f, 2264.000f, -256, 9.580f, 1};   // (M8b merge: re-recorded)
 
 }  // namespace
 
@@ -481,7 +484,9 @@ int main(int argc, char** argv) {
   else {
     check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
     Game g(1);
-    check(g.deserialize(fx), "fixture did not load");
+    const bool fxLoaded = g.deserialize(fx);
+    check(fxLoaded, "fixture did not load");
+    if (fxLoaded) {   // (M7c) a fixture that fails to load is not checked further (that read a game that is not there)
     check(g.seed == FIX_SEED && g.world.endless, "fixture seed / world kind");
     check(g.plLevel == FIX6.level && g.plXp == FIX6.xp && g.gold == FIX6.gold && g.inv.size() == FIX6.inv && g.quests.size() == FIX6.quests &&
               g.looted.size() == FIX6.looted && g.kills == FIX6.kills, "fixture level / xp / gold / inventory / quests / looted / kills");
@@ -624,6 +629,7 @@ int main(int argc, char** argv) {
     check(g.craft.skill == FIX_SKILL && g.craft.progress(FIX_CULT, 1, craft::SecretKind::AlloyRecipe) == FIX_SECRET &&
               g.craft.trust.count(FIX_SMITH) && g.craft.trust.at(FIX_SMITH) == FIX_TRUST,
           "fixture craft block: skill, a secret's progress, a smith's trust (SAVE_VER 12)");
+    }  // fxLoaded
   }
 
   printf("%s\n", "2. round trips");

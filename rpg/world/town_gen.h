@@ -14,16 +14,26 @@
 //                    precincts, the park, cross streets, lanes and alleys, well-squares, row houses with their walled
 //                    yards, the street furniture (tree pits, lamps, corner stones, planters, the souk's awnings); and
 //                    the urban fabric (Map::urb) of every city and town
+// M7c "Order of Streets" (VISION_PLAN 15.M7c, rpg/world/town_plan.h: one planner, an order dial):
+//   town_homes.cpp   (M7c split from town_build.cpp) the homes: the frontage sweep from the heart outward, the top-up
+//                    rounds, farmhouses; a planned city's own homes through the city hooks below
+//   town_plan.cpp    the planner's vocabulary on the generator: the order dial, the rank layer's defaults (rankLayer)
+//   town_edge.cpp    the edge rule: the built-up core loosening into outskirts, a city's faubourgs along its approach
+//                    roads and the farmland beyond (edgeBegin, outskirts)
+//   town_city.cpp    the planned city's phase hook (cityAfter) and its new street network
+//   town_metrics.cpp the checks (structure score, plan signature, village character): read-only on SettlementOut
 // Determinism: only the ctx inputs; one Rng seeded from the plan's seed; + - * / sqrt and ew::dsin/dcos/datan2 (no libm
 // transcendentals), so MSVC, clang and Emscripten build the same town.
 #pragma once
 #include <cmath>
 #include <cstdint>
+#include <memory>
 #include <utility>
 #include <vector>
 #include "rpg/culture/society.h"
 #include "rpg/world/dmath.h"
 #include "rpg/world/settlement.h"
+#include "rpg/world/town_plan.h"
 #include "rpg/world/town_rules.h"
 
 namespace ew {
@@ -44,6 +54,8 @@ enum Kind : uint8_t {
   K_PARK = 8,      // (M7b) a city's park or green: lawns, gravel paths, a pavilion (walked through, never built on)
   K_ROWYARD = 9    // (M7b) a row house's walled back yard or garden (never built on, no footpath through it)
 };
+
+struct EdgeData;   // (M7c) rpg/world/town_edge.h (EDGE lane)
 
 // city districts (VISION_PLAN 15.8): the old centre with the market, and four sectors around it
 enum class District : uint8_t { Centre, Crafts, Temple, Noble, Poor, COUNT };
@@ -75,6 +87,40 @@ struct Gen {
   Eco eco = Eco::Meadow;         // (M3c) the town's biome proper (its family is bio): the trees it plants (townTree)
   int layout = 0;                // villages: 0 crossroads hamlet, 1 road village, 2 village green
   int homesWant = 0;
+  // ---------------------------------------------------------------- M7c: the order dial and the planner's layers
+  int order = 0;                 // orderFor(type, culture, capital, age): 10..25 village, 40..60 town, 70..100 city
+  int age = 0;                   // cityAge (cities; 0 elsewhere): a young frontier city 0 .. an ancient capital 3
+  // per tile: the road hierarchy (Rank) and the block roles (BlockRole). A planner sets rank where it lays a way whose
+  // rank it knows (setRank); rankLayer (the end of finish) fills every unset street tile from the mask and the city
+  // plan, then both layers go to SettlementOut::rank / role. Allocated in land(). No Rng draw.
+  std::vector<uint8_t> rank, role;
+  void setRank(int x, int y, Rank r) { if (in(x, y)) rank[I(x, y)] = (uint8_t)r; }
+  void setRole(int x, int y, BlockRole r) { if (in(x, y)) role[I(x, y)] = (uint8_t)r; }
+  void setRoleRect(const IRect& r, BlockRole k) { for (int y = r.y; y < r.y + r.h; y++) for (int x = r.x; x < r.x + r.w; x++) setRole(x, y, k); }
+  Rank rankAt(int x, int y) const { return in(x, y) ? (Rank)rank[I(x, y)] : Rank::None; }
+  void rankLayer();              // town_plan.cpp (EDGE lane): the defaults, then O.rank / O.role / O.traits.order...
+  // (M7c) the homes a city keeps for its faubourgs (outside the walls, along the approach roads): the city plan's own
+  // homes aim at homesWant - faubourgWant. Set by the EDGE lane (edgeBegin, phase 1); 0 until it does.
+  int faubourgWant = 0;
+  // (M7c fixer) a local tile on waste land (Gen::harshAt, town_edge.cpp: C.ecoAt's ash fields, blight or crystal
+  // barrens): the faubourgs, farmsteads and fields outside the walls keep off it. Cached per tile (0 unread).
+  std::vector<uint8_t> harshC;
+  bool harshAt(int x, int y);
+  // (M7c) the EDGE lane's own state (its faubourg plots, farm fields, belt tiles...): EdgeData is defined in the EDGE
+  // lane's own header (rpg/world/town_edge.h), made in edgeBegin; nullptr until then. The EDGE lane's new work lives in
+  // free functions over Gen& in its own files, so it never needs to add members here (the CITY lane edits this header).
+  std::shared_ptr<EdgeData> edge;
+  void edgeBegin();             // town_edge.cpp (EDGE): after the wall ring (phase 1): the belt, faubourgWant
+  void outskirts();              // town_edge.cpp (EDGE): after the homes' sweep (phase 9, before the top-up): faubourgs
+                                 // along a city's approach roads, a town's or village's outskirts
+  // (M7c) the planned city's hooks (CITY lane: town_city.cpp, town_urban.cpp), called from the EDGE lane's phases so
+  // neither lane edits the other's files
+  void cityAfter(int phase);     // after every step() phase of a planned city (phase as numbered in step())
+  void cityHomesWant();          // homesBegin: a planned city's homesWant (the M7b bump)
+  int plannedHomes();            // homesBegin: a planned city's own homes (compounds, row houses); homes made
+  bool cityFront(int x, int y, float& weight) const;   // homesBegin: may the sweep front this street tile (weight: its order)
+  void cityHomesRound(int round);// homesFinish: the start of each top-up round (round 2: the back yards given up)
+  int cityHomesLast(int homesNow);   // homesFinish: still short after the rounds (wide row houses let as two); homes made
   // ---------------------------------------------------------------- M3: the culture's settlement (VISION_PLAN 5.6, 5.7)
   // style: the culture's TownStyle::layout (altLayout in about 1 in 4 of its settlements, by the plan's seed);
   // Organic without a culture. cArch: the culture's cult::Archetype (-1: none).
@@ -194,6 +240,7 @@ struct Gen {
   // M3 layout styles (town_layout.cpp)
   void pickStyle();                  // the culture's layout, wall, density, trees (in land, before anything is drawn)
   void wallRing();                   // walled: the ring as a thin octilinear polygon (ringT) and its inside
+  bool wallRingTry(bool polyOk);     // (M7c fixer) one trace (polyOk: a polygon through its own corners); false: none
   void wallStreet();                 // cities: the lane along the inside of the wall
   std::vector<uint8_t> ringT;        // the wall ring's tiles (empty: the classic ring, inside tiles touching the outside)
   bool face(int x, int y) const {   // terraced: the row under a higher neighbour (a terrace's retaining face)
@@ -247,6 +294,10 @@ struct Gen {
   void homesBegin();
   bool homesSweep();                 // a slice of the frontage sweep (false: done)
   void homesFinish();
+  bool homesFinishStep();            // (M7c fixer) a part of homesFinish a call (false: done): a top-up round, then the rest
+  int hfRound = 0, hfHave = 0;       // its round and its tally of the homes
+  bool hfOut = false;                // step() phase 9: the outskirts done, homesFinish under way
+  int finTail = 0;                   // step() phase 15: 1 the folk placed, 2 the planned city's last work done
   std::vector<std::pair<float, int>> hOrder;   // the sweep's street tiles, heart outward
   size_t hIdx = 0;
   int hPass = 0, hHave = 0;
@@ -284,6 +335,9 @@ struct Gen {
   bool keepsWay(int x, int y) const; // (M1 fixer) something solid on (x, y) would cut nobody off (a local check: the
                                      // open tiles beside it still reach each other round it)
   bool putSolid(int x, int y, art::Prop p);   // setProp guarded by keepsWay when p is solid (false: nothing placed)
+  // (M7c integration) a fenced pen's open inside (inside its fence ring) is one piece reachable from the tile just
+  // inside its gate (ix, iy); every prop counts as standing in the way
+  bool penOpen(int fx, int fy, int fw, int fh, int ix, int iy) const;
   void marketLots();                 // (M1 fixer) lots kept along the main street for a street market (noBuild bit 4)
   int lotStalls = 0;                 // the stalls those lots hold
   void markets();                    // the market rows on the main square (or along the main street), the keepers
@@ -342,6 +396,56 @@ struct Gen {
   bool roofOverStreet(const IRect& r, int rise) const;   // a sprite rising rise rows over r would hide an avenue or street
   std::vector<uint8_t> roomy;        // per tile: inside the ring, five tiles clear of it
   void facePrecincts(std::vector<Want>& want);   // services(): the seat and the chief temple face their precincts' squares
+  // ---------------------------------------------------------------- M7c CITY lane: the order of streets (town_city*.cpp)
+  // The planned city's street network (VISION_PLAN 15.M7c): the avenues of the M7b plan, then block streets laid as a
+  // real lattice per grid SECTION (the land the avenues, the wall lane, the rings and the river cut the city into), each
+  // section with its own pitch and phase, anchored on the avenues it borders (a tilt where an avenue turns, a stagger
+  // across it); row houses front every block street; whole blocks take a role. Every choice is hashed from the plan's
+  // seed (no generator Rng draw); the city's own kind of plan by its culture, age and order (cityPick, O.traits).
+  enum CityKind : uint8_t {
+    CK_LEGACY = 0,   // the M7b plan (not built by M7c any more; kept for the traits' numbering)
+    CK_MARKET,       // the heartland's market grid round its cathedral close (and the classic cities)
+    CK_IMPERIAL,     // the imperial grid: one strict lattice over the whole city, wide cross streets
+    CK_AXIAL,        // the jade axial plan: mirrored about the north-south axis, the seat at its north end, compounds
+    CK_COURTYARD,    // the dune and highland courtyard blocks: deep blocks of walled compounds, the covered souk
+    CK_RINGS,        // the steppe, sun-temple and spire rings: octagonal ring streets round the court, spokes
+    CK_HARBOUR,      // the fjord terraces along the harbour: rows parallel to the shore, quays
+    CK_RIVER,        // the river city: the grid bent to the banks, quays and bridges
+    CK_BOARDWALK,    // the marsh city: a lattice of boardwalks over the pools
+    CK_GROVE,        // the elven city among its trees: wide blocks, the great trees standing in them
+    CK_COUNT
+  };
+  struct CityParams {
+    uint8_t kind = CK_LEGACY;
+    int P = 12;                // the block streets' pitch north-south (east-west streets, street centre to centre)
+    int SX = 18;               // their pitch east-west (north-south streets)
+    int nsWide = 0;            // every n-th north-south street three wide with its walks (0: lanes only)
+    bool aligned = false;      // every section on the heart's lattice (the strict plans); else each its own phase
+    bool symmetric = false;    // mirrored about the north-south axis through the heart (the axial plan)
+    int rings = 0;             // ring streets round the heart (the rings plan)
+    int orchards = 0, gardens = 0, crafts = 0;   // role blocks wanted
+    int chain = 0;             // a second square on the way from the market to the seat (a chain of squares)
+  } cp;
+  struct CitySec { int x0 = 0, y0 = 0, x1 = 0, y1 = 0, area = 0, P = 12, SX = 18; int16_t deg = 0; };
+  std::vector<int16_t> csec;          // per tile: the grid section it lies in (-1: none)
+  std::vector<CitySec> csecs;
+  std::vector<std::pair<int, int>> cityFeet;   // where a block's north-south lane meets the street south of it
+  std::vector<uint8_t> cityMade;      // per tile: laid by the M7c street network (block street, lane, ring, bank, wall lane)
+  int cityBridges = 0;
+  void cityPick();                   // cityStreets: the plan kind and its parameters
+  void cityWallLane();               // cityStreets: the lane round the inside of the wall, parallel to its runs
+  void cityRingStreets();            // cityStreets: the rings plan's octagonal ring streets
+  void citySpine();                  // cityStreets: the harbour / river plan's avenue along the water
+  void cityBankStreets();            // cityStreets: a lane along every bank inside the walls (the quays' street)
+  void cityGrid();                   // cityBlocks: the sections, their block streets and lanes, the role blocks
+  void cityRiverLinks();             // (M7c fixer) cityBlocks: a bridge for every street piece the water cut off
+  void cityRoleBlocks();             // cityGrid: orchards, kitchen gardens and craft yards kept as whole blocks
+  void cityFaces();                  // after the homes: a city house's side and back faces onto a street (ROW_SIDE_*, ROW_BACK)
+  void cityRoles();                  // the end: every block's role (setRole), the ranks the plan knows (setRank)
+  void cityTraits();                 // the end: O.traits (the plan kind, gates, avenues, blocks, sections, squares...)
+  void cityTrees();                  // cityBlocks: the elven city's great trees standing between the lanes (M7b)
+  void cityWells(const std::vector<std::pair<int, int>>& laneFoot);   // cityBlocks: well-squares at lanes' feet (M7b)
+  void cityInfill();                 // cityGrid: a block the lattice left too big cut by a street from street to street
 };
 
 }  // namespace town

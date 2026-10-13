@@ -159,7 +159,7 @@ PaveBond paveBond(int material, bool street) {
 
 BridgeForm bridgeOfPaving(int material) {
   switch (material) {
-    case 1: case 9: case 0: return BridgeForm::StoneArch;
+    case 1: case 9: case 11: case 0: return BridgeForm::StoneArch;   // (11: the river people's planned city)
     case 3: case 7: return BridgeForm::Causeway;
     case 5: return BridgeForm::Living;
     case 6: return BridgeForm::MoonArch;

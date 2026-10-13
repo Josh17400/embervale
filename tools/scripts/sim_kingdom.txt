@@ -17,14 +17,15 @@ seed 7
 4.6  expect option YOUR WARES       # (M4: the innkeeper's greeting may be a story pitch now, so the KHAN line is checked at the throne)
 4.7  shot sim_kingdom_2_innkeeper.png     # the innkeeper speaks of the king
 4.8  key Escape
-5.0  enter palace
+# (M7c fixer r2) the seed's start capital moved (the city's faubourg belt keeps its corner off the start village):
+# VANT, the republic of Vontve, whose seat is the GUILDHALL and whose ruler a doge (no royal guard): enterseat
+5.0  enterseat
 5.2  expect inside 1
 5.4  expect npc king
-5.5  expect npc royal
-6.0  shot sim_kingdom_3_throne.png        # the throne hall: the king and the royal guard
+6.0  shot sim_kingdom_3_throne.png        # the seat's hall: the ruler at the high seat
 6.1  talkto king 40
 6.4  expect mode dialogue
-7.8  expect text KHAN OF
+7.8  expect text DOGE OF VONTVE
 7.9  shot sim_kingdom_4_king.png
 8.0  key Escape
 8.2  quit

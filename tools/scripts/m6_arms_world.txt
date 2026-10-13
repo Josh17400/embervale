@@ -42,5 +42,7 @@ seed 7
 +0.4 armskit starspire mat alloy rarity 2 ilvl 40 sword
 +0.1 hold J 0.3
 +0.15 shot m6world_starspire_attack.png
-+0.3 expect mode play
+# (M7c integration) no mode check here: a guard walks past the swing on this seed now, and whether the attack key
+# greets him (a dialogue) depends on his step; the swing itself is judged from the shot
++0.3 log attack done
 +0.2 quit

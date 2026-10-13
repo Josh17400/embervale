@@ -40,7 +40,10 @@ run_one() {
 export -f run_one; export EXE LOGS
 
 start=$SECONDS
+touch "$LOGS/.start"
 printf '%s\n' "${files[@]}" | xargs -P "$JOBS" -I{} bash -c 'run_one "$@"' _ {} | grep -v '^ok ' || true
+# scripts write their screenshots into the repo root: remove the ones this batch made
+find . -maxdepth 1 -name "*.png" -newer "$LOGS/.start" -delete 2>/dev/null
 nfail=$(ls "$LOGS"/*.failed 2>/dev/null | wc -l)
 echo "run_scripts: ${#files[@]} scripts, $nfail failed, $((SECONDS - start)) s"
 if [ "$nfail" -eq 0 ] && [ -z "${RUN_LOG_DIR:-}" ]; then rm -rf "$LOGS"; fi

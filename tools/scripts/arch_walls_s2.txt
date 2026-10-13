@@ -1,16 +1,17 @@
 # Architecture lane: walk up to a city gate from outside, through the passage, and look back along the wall inside;
 # then the same spot at dusk and at night. (M2: the endless world; `gate` finds the nearest gate of the city `goto city`
 # brought into view, so no seed's coordinates are pinned here.) Here the second-nearest gate.
+# (M7c) the seed-2 city now has one gatehouse (its other gates open on vertical runs, which are plain openings): gate 0.
 #   embervale --script tools/scripts/arch_walls_s2.txt
 seed 2
 0 goto city
 0.3 god
 0.5 hour 12
-1 gate 1 out
+1 gate 0 out
 +1 shot arch_s2_out.png
-+0.2 gate 1 on
++0.2 gate 0 on
 +0.4 shot arch_s2_passage.png
-+0.2 gate 1 in
++0.2 gate 0 in
 +1 shot arch_s2_inside.png
 +0.2 walk west 0.8
 +1 shot arch_s2_along.png

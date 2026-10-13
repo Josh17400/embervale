@@ -74,6 +74,17 @@ Vec2 defendGoal(const Game& g, const Actor& a, Vec2 want) {
       if (d2 >= bd || !straightWay(g, a.p, c, a.radius) || !straightWay(g, c, pp, a.radius - 1.0f)) continue;
       bd = d2; best = c;
     }
+  // (M7c merge, --companion seed 12: a birch's trunk square between them and the player, every spot at the player's
+  // side behind it) a step round the trunk, a tile out from where they stand, the one that ends nearest `want`
+  if (bd >= 1e30f) {
+    float bs = len2(a.p - want);
+    for (const auto& dv : dirs) {
+      const Vec2 c = a.p + Vec2(dv[0], dv[1]) * T;
+      const float d2 = len2(c - want);
+      if (d2 >= bs || !straightWay(g, a.p, c, a.radius)) continue;
+      bs = d2; best = c;
+    }
+  }
   return best;
 }
 // the bolt of the mage's people's tradition
@@ -525,7 +536,11 @@ bool PartyOps::fight(Game& g, Actor& a, Member& m, int mi, float dt) {
     // a player running on gains on them while they go round)
     if (fromP > 2.2f * T || (l > reachD && len(guard - a.p) > 0.5f * T)) {
       // (fixer M8 r1) faster than the player runs, so a player chasing a foe never outruns the leash
-      const float sp = std::max(std::max(a.speed * 1.3f, 70.0f), p.speed * (fromP > 2.2f * T ? 1.4f : 1.12f));
+      // (M7c merge, --companion seeds 12 / 17) near the leash's end with a trunk between (the straight way back shut,
+      // defendGoal's detour round it) they sprint: a detour at 1.4x the player's pace gained too little on a player
+      // running on, and the member strayed past 3 tiles in a birch wood
+      const float urge = fromP > 2.6f * T && !straightWay(g, a.p, guard, a.radius) ? 1.8f : fromP > 2.2f * T ? 1.4f : 1.12f;
+      const float sp = std::max(std::max(a.speed * 1.3f, 70.0f), p.speed * urge);
       moveTo(g, a, m, defendGoal(g, a, guard), sp, dt);
       a.st = AState::Walk;
       return true;

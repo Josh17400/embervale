@@ -582,7 +582,10 @@ ShareOut shareRun(uint64_t seed, int D, int voc) {
     }
   }
   g.party.stats = party::Stats();
-  for (int wave = 0; wave < 16; wave++) {
+  // (M7c merge) 32 waves, not 16: a run's share is a mean over the fights, and 16 left it a few points either way on
+  // the lie of the land (a wolf snagged in a birch wood, an archer kiting out of reach): --seeds 1..20 put 2 of 60
+  // runs at 22-24 % with the game unchanged, and any tuning only moved the misses to other seeds. The bounds stand.
+  for (int wave = 0; wave < 32; wave++) {
     // between waves: a downed companion is bound and everyone is whole again (a rest)
     if (!g.party.members.empty()) {
       party::Member& m0 = g.party.members[0];

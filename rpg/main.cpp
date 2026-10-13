@@ -584,7 +584,7 @@ int main(int argc, char** argv) {
     static const struct { const char* n; Role r; } rt[] = {
         {"innkeeper", Role::Innkeeper}, {"merchant", Role::Merchant}, {"smith", Role::Smith}, {"priest", Role::Priest},
         {"jarl", Role::Jarl}, {"guard", Role::Guard}, {"villager", Role::Villager}, {"mage", Role::Mage}, {"farmer", Role::Farmer},
-        {"king", Role::King}};
+        {"king", Role::King}, {"captain", Role::Captain}};
     if (tiles) { walk.kind = 0; walk.tx = std::atoi(a[0].c_str()); walk.ty = std::atoi(a[1].c_str()); return; }
     if (walk.what == "upstairs" || walk.what == "downstairs") {
       bool up = walk.what == "upstairs";
@@ -686,7 +686,38 @@ int main(int argc, char** argv) {
       }
       else { setMove(false, false, false, false); return; }
     }
-    if (walk.t > walk.timeout) { endWalk(false, "timed out"); return; }
+    if (walk.t > walk.timeout) {
+      // (M7c integration) where it stuck: the player (@), the target (T), blocked tiles (#) round the target
+      {
+        int qx, qy;
+        plTile(qx, qy);
+        const Map& mm = game.map();
+        std::printf("script:   walk stuck at %d,%d, target %d,%d\n", qx, qy, walk.tx, walk.ty);
+        for (int y = walk.ty - 6; y <= walk.ty + 6; y++) {
+          std::string row = "script:   ";
+          for (int x = walk.tx - 12; x <= walk.tx + 12; x++)
+            row += (x == qx && y == qy) ? '@' : (x == walk.tx && y == walk.ty) ? 'T' : !mm.in(x, y) ? ' ' : mm.blocked(x, y) ? '#' : '.';
+          std::printf("%s\n", row.c_str());
+        }
+        // (M8b merge) a walk to someone: why the prompt is not theirs (who has it, a foe in reach, the mode)
+        if (walk.kind == 2) {
+          const int k = findActorIdx(walk.actorId);
+          const int it = game.interactTarget();
+          const int ik = it >= 0 ? findActorIdx(it) : -1;
+          std::printf("script:   walking to %s, %.1f px off; the prompt is %s; a foe in reach %d; mode %d\n",
+                      k >= 0 ? game.actors[(size_t)k].name.c_str() : "?", k >= 0 ? len(game.actors[(size_t)k].p - game.pl().p) : -1.0f,
+                      ik >= 0 ? game.actors[(size_t)ik].name.c_str() : "nobody's", (int)game.foeInReach(), (int)game.mode);
+          for (size_t a = 1; a < game.actors.size(); a++) {
+            const Actor& ac = game.actors[a];
+            if (ac.st == AState::Dead || len(ac.p - game.pl().p) > 60.0f) continue;
+            std::printf("script:     near: %s npc %d hostile %d aggro %d target-me %d comp %d %.1f px\n", ac.name.c_str(), (int)ac.npc, (int)ac.hostile,
+                        (int)ac.aggro, (int)(ac.target == game.pl().id), (int)ac.comp, len(ac.p - game.pl().p));
+          }
+        }
+      }
+      endWalk(false, "timed out");
+      return;
+    }
     if (game.mode != Mode::Play) { setMove(false, false, false, false); return; }   // a dialogue or menu is up: wait
     int px, py;
     plTile(px, py);
@@ -709,7 +740,20 @@ int main(int argc, char** argv) {
         walk.closeT += dt;
         if (len(game.actors[k].p - game.pl().p) < 20.0f || walk.closeT > 0.6f) { endWalk(true, ""); return; }
       }
-      walk.tx = (int)std::floor(game.actors[k].p.x / TILE); walk.ty = (int)std::floor((game.actors[k].p.y - 2) / TILE);
+      // (M8b merge, m2_sim_quests) a keeper at their stall is talked to only from the customers' side (interactTarget):
+      // the walk makes for a free tile in front of the counter, not the keeper's own tile (from beside or behind the
+      // stall, 9 px off, the prompt was nobody's and the turn-in timed out)
+      const Actor& A = game.actors[(size_t)k];
+      Vec2 at = A.p;
+      if (A.stallKeeper && len2(A.p - A.home) < 4.0f) {
+        const Map& mm = game.map();
+        for (float tiles : {2.0f, 1.0f, 2.5f}) {
+          const Vec2 q = A.p + faceVec(A.face) * (tiles * TILE);
+          const int qx = (int)std::floor(q.x / TILE), qy = (int)std::floor((q.y - 2) / TILE);
+          if (mm.in(qx, qy) && !mm.blocked(qx, qy)) { at = q; break; }
+        }
+      }
+      walk.tx = (int)std::floor(at.x / TILE); walk.ty = (int)std::floor((at.y - 2) / TILE);
     }
     if (walk.kind == 0 && px == walk.tx && py == walk.ty) { endWalk(true, ""); return; }
     if (walk.kind == 4 && walk.what == "downstairs" && game.stairsAsleep()) {

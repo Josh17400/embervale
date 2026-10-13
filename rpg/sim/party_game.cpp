@@ -659,10 +659,13 @@ float Game::partyAggro(const Actor& hostile, const Actor& member) const {
   float hurt = member.maxHp > 0 && member.hp < member.maxHp * 0.35f && m.lastStandT <= 0 ? 1.8f : 1.0f;
   // the pack leans toward whoever has been spared lately (Party::recentPl / recentParty): the party drawn less the more
   // of the last blows it took, more when the player took nearly all of them (no lean before a few blows have landed)
+  // (M8b merge, --companion --seeds 1..20) a firmer lean (x14 in 0.4..2.0, was x8 in 0.5..1.8): the old one settled
+  // ~2.5 points under the middle with a +-4 spread, so a kiting archer at D25 (seed 17: 24 %) fell out of the band
+  // whenever the fights' lengths moved (the M8b damage numbers moved them; the mean over 60 runs did not move)
   const float seen = party.recentPl + party.recentParty;
   if (seen > 1.0f) {
     const float share = party.recentParty / seen, mid = (float)(party::SHARE_LO_PCT + party::SHARE_HI_PCT) * 0.005f;
-    hurt *= std::clamp(1.0f + (share - mid) * 8.0f, 0.5f, 1.8f);
+    hurt *= std::clamp(1.0f + (share - mid) * 14.0f, 0.4f, 2.0f);
   }
   switch (m.voc) {
     case party::Vocation::Warrior: return hurt * (m.stance == party::Cmd::Defend ? 0.42f : 0.47f);   // in front, the shield up

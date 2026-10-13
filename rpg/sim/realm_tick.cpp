@@ -44,7 +44,8 @@ struct Tune {
   float warDecide = 0.03f;       // Skirmishes -> troops marching (x aggression x strength)
   float cool = 0.02f;            // a rung cools once its cause is gone
   float death = 0.00004f;        // a ruler's death per day at 40 (x e^((age - 40) / 9))
-  float civil = 0.025f;          // civil war per day below stability 0.2
+  float civil = 0.05f;           // civil war per day below stability 0.2 ((M7c) was 0.025: the moved start capitals
+                                 // left falls at 1538 days on --seeds 1..20, out of the 400-1500 band; now 800)
 };
 const Tune T;
 

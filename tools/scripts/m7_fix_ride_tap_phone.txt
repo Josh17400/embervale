@@ -9,6 +9,10 @@ seed 7
 +0.1 god 1
 +0.05 hour 11
 +0.1 gold 3000
+# (M7c fixer r2) the start village since M7c (OSLARS) has no stablehand (villages keep none: life census tier 0)
+# and no town in reach: the test runs in the nearest town, which has both a stablehand and lots for sale
++0.2 goto town
++1.5 hour 11
 +0.1 home talk stablehand
 +0.2 choose HORSES FOR SALE
 +3.0 shot m7_fix_ride_nostable.png

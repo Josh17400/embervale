@@ -1,0 +1,299 @@
+# M7c SURVEY (VISION_PLAN 15.M7c, docs/ref/m7c_city_concept.png): the city map view. For each people's city (and
+# three capitals) the MAP tab shows the REAL plan (EndlessSource::settlement through the world map's plan raster:
+# streets by rank, blocks of roofs lit from the north-west with a shade to the south-east, the wall with towers and
+# gates, parks, gardens in rows, orchards, fields, water), seen from 700 tiles south (outside the Active Window, so the
+# plan raster draws it, not the live tiles) and once from inside (one plan must read the same across the window's edge).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7c_survey_map_cultures.txt [--seed N]
+#   Seed 7 holds every archetype within 12 culture cells (a culture missing on another seed fails its gotoculture).
+# Shots per city: _z2 (mapzoom 2, TOWN: a tile a pixel), _z3 (mapzoom 3, TOWN: two tiles a pixel), _land (mapzoom 4, LAND: the city among its fields and roads), _street (mapzoom 1,
+# STREET: two pixels a tile). mapstats prints the plan cache and the worst frame's plan work and tile painting (ms).
+# REVIEWER GUIDE. Put each shot next to docs/ref/m7c_city_concept.png: the PRINCIPLE must read (the concept is not a
+# template): pale avenues from the gates to the plaza and the seat, streets off them forming blocks, roofs in their own
+# colours fronting the streets, the stone ring with towers and gates, greens, gardens and orchards in blocks, fields
+# and faubourgs outside. FAIL on: noise or plaid, a broken wall ring, roofs merging into one smear, streets vanishing
+# at the town zoom, light not from the north-west, a palette clashing with the parchment map, two peoples' cities that
+# read alike. BEFORE / AFTER: the pre-M7c binary (%TEMP%\claude\emb_M7c\before_bin\embervale.exe) has none of the
+# commands planmark / planaway / mapcity / mapwaitplans / mapstats (its map shows the old roof lattice); its own city
+# shots come from m7b_city_tour.txt. Compare this pack across the phase B lanes' builds (the same seed: the same cities).
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
+# ---- heartland city
++0.2 gotoculture heartland city
++1.2 planmark
++0.1 plan
++0.1 menu 2
++0.1 mapzoom 2
++0.1 mapcity
++0.1 mapwaitplans mark
++1.2 shot m7c_survey_map_heartland_in_z2.png
++0.1 key Escape
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_map_heartland_z2.png
++0.1 mapzoom 3
++1.0 shot m7c_survey_map_heartland_z3.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_map_heartland_land.png
++0.1 mapzoom 1
++1.2 shot m7c_survey_map_heartland_street.png
++0.1 mapstats
++0.1 key Escape
+# ---- imperial city
++0.2 gotoculture imperial city
++1.2 planmark
++0.1 plan
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_map_imperial_z2.png
++0.1 mapzoom 3
++1.0 shot m7c_survey_map_imperial_z3.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_map_imperial_land.png
++0.1 mapzoom 1
++1.2 shot m7c_survey_map_imperial_street.png
++0.1 mapstats
++0.1 key Escape
+# ---- jade city
++0.2 gotoculture jade city
++1.2 planmark
++0.1 plan
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_map_jade_z2.png
++0.1 mapzoom 3
++1.0 shot m7c_survey_map_jade_z3.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_map_jade_land.png
++0.1 mapzoom 1
++1.2 shot m7c_survey_map_jade_street.png
++0.1 mapstats
++0.1 key Escape
+# ---- dune city
++0.2 gotoculture dune city
++1.2 planmark
++0.1 plan
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_map_dune_z2.png
++0.1 mapzoom 3
++1.0 shot m7c_survey_map_dune_z3.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_map_dune_land.png
++0.1 mapzoom 1
++1.2 shot m7c_survey_map_dune_street.png
++0.1 mapstats
++0.1 key Escape
+# ---- steppe city
++0.2 gotoculture steppe city
++1.2 planmark
++0.1 plan
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_map_steppe_z2.png
++0.1 mapzoom 3
++1.0 shot m7c_survey_map_steppe_z3.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_map_steppe_land.png
++0.1 mapzoom 1
++1.2 shot m7c_survey_map_steppe_street.png
++0.1 mapstats
++0.1 key Escape
+# ---- fjordfolk city
++0.2 gotoculture fjordfolk city
++1.2 planmark
++0.1 plan
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_map_fjordfolk_z2.png
++0.1 mapzoom 3
++1.0 shot m7c_survey_map_fjordfolk_z3.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_map_fjordfolk_land.png
++0.1 mapzoom 1
++1.2 shot m7c_survey_map_fjordfolk_street.png
++0.1 mapstats
++0.1 key Escape
+# ---- marsh city
++0.2 gotoculture marsh city
++1.2 planmark
++0.1 plan
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_map_marsh_z2.png
++0.1 mapzoom 3
++1.0 shot m7c_survey_map_marsh_z3.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_map_marsh_land.png
++0.1 mapzoom 1
++1.2 shot m7c_survey_map_marsh_street.png
++0.1 mapstats
++0.1 key Escape
+# ---- sylvan city
++0.2 gotoculture sylvan city
++1.2 planmark
++0.1 plan
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_map_sylvan_z2.png
++0.1 mapzoom 3
++1.0 shot m7c_survey_map_sylvan_z3.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_map_sylvan_land.png
++0.1 mapzoom 1
++1.2 shot m7c_survey_map_sylvan_street.png
++0.1 mapstats
++0.1 key Escape
+# ---- starspire city
++0.2 gotoculture starspire city
++1.2 planmark
++0.1 plan
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_map_starspire_z2.png
++0.1 mapzoom 3
++1.0 shot m7c_survey_map_starspire_z3.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_map_starspire_land.png
++0.1 mapzoom 1
++1.2 shot m7c_survey_map_starspire_street.png
++0.1 mapstats
++0.1 key Escape
+# ---- suntemple city
++0.2 gotoculture suntemple city
++1.2 planmark
++0.1 plan
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_map_suntemple_z2.png
++0.1 mapzoom 3
++1.0 shot m7c_survey_map_suntemple_z3.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_map_suntemple_land.png
++0.1 mapzoom 1
++1.2 shot m7c_survey_map_suntemple_street.png
++0.1 mapstats
++0.1 key Escape
+# ---- river city
++0.2 gotoculture river city
++1.2 planmark
++0.1 plan
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_map_river_z2.png
++0.1 mapzoom 3
++1.0 shot m7c_survey_map_river_z3.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_map_river_land.png
++0.1 mapzoom 1
++1.2 shot m7c_survey_map_river_street.png
++0.1 mapstats
++0.1 key Escape
+# ---- highland city
++0.2 gotoculture highland city
++1.2 planmark
++0.1 plan
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_map_highland_z2.png
++0.1 mapzoom 3
++1.0 shot m7c_survey_map_highland_z3.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_map_highland_land.png
++0.1 mapzoom 1
++1.2 shot m7c_survey_map_highland_street.png
++0.1 mapstats
++0.1 key Escape
+# ---- heartland capital
++0.2 gotoculture heartland capital
++1.2 planmark
++0.1 plan
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_map_heartland_capital_z2.png
++0.1 mapzoom 3
++1.0 shot m7c_survey_map_heartland_capital_z3.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_map_heartland_capital_land.png
++0.1 mapzoom 1
++1.2 shot m7c_survey_map_heartland_capital_street.png
++0.1 mapstats
++0.1 key Escape
+# ---- imperial capital
++0.2 gotoculture imperial capital
++1.2 planmark
++0.1 plan
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_map_imperial_capital_z2.png
++0.1 mapzoom 3
++1.0 shot m7c_survey_map_imperial_capital_z3.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_map_imperial_capital_land.png
++0.1 mapzoom 1
++1.2 shot m7c_survey_map_imperial_capital_street.png
++0.1 mapstats
++0.1 key Escape
+# ---- dune capital
++0.2 gotoculture dune capital
++1.2 planmark
++0.1 plan
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_map_dune_capital_z2.png
++0.1 mapzoom 3
++1.0 shot m7c_survey_map_dune_capital_z3.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_map_dune_capital_land.png
++0.1 mapzoom 1
++1.2 shot m7c_survey_map_dune_capital_street.png
++0.1 mapstats
++0.1 key Escape
++0.1 mapstats
++0.3 quit

@@ -1,0 +1,95 @@
+# M7c SURVEY: the city map view at the iPhone review size (2556 x 1179, the safe insets): six peoples' cities and a
+# capital at the town zoom (mapzoom 2) and the land zoom (mapzoom 4), drawn from the plan raster (700 tiles away).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7c_survey_map_phone.txt
+# Reviewer: the side column and the map both fit inside the safe area; at the phone's pixel density the streets,
+# roofs and the wall ring must still read (no smear), and the legend must not cover the city.
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
+# ---- heartland city
++0.2 gotoculture heartland city
++1.2 planmark
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_mapph_heartland_z2.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_mapph_heartland_land.png
++0.1 key Escape
+# ---- imperial city
++0.2 gotoculture imperial city
++1.2 planmark
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_mapph_imperial_z2.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_mapph_imperial_land.png
++0.1 key Escape
+# ---- jade city
++0.2 gotoculture jade city
++1.2 planmark
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_mapph_jade_z2.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_mapph_jade_land.png
++0.1 key Escape
+# ---- dune city
++0.2 gotoculture dune city
++1.2 planmark
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_mapph_dune_z2.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_mapph_dune_land.png
++0.1 key Escape
+# ---- fjordfolk city
++0.2 gotoculture fjordfolk city
++1.2 planmark
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_mapph_fjordfolk_z2.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_mapph_fjordfolk_land.png
++0.1 key Escape
+# ---- marsh city
++0.2 gotoculture marsh city
++1.2 planmark
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_mapph_marsh_z2.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_mapph_marsh_land.png
++0.1 key Escape
+# ---- river capital
++0.2 gotoculture river capital
++1.2 planmark
++0.2 planaway 0 700
++1.2 menu 2
++0.1 mapzoom 2
++0.1 mapcity last
++0.1 mapwaitplans mark
++1.5 shot m7c_survey_mapph_river_capital_z2.png
++0.1 mapzoom 4
++1.0 shot m7c_survey_mapph_river_capital_land.png
++0.1 key Escape
++0.2 quit

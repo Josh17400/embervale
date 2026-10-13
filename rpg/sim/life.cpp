@@ -721,11 +721,19 @@ void Life::hourTick(Game& g, Census& c, int32_t hourAbs) {
             default: crafted = false; break;
           }
           if (crafted) break;
+          // a famine thins the herds, the game and the catch as well as the fields: what the hunters, herders and
+          // fishers bring in shrinks to the harvest's share, so a town that lives off its pastures and its docks
+          // goes hungry too (only the food: hides and wool still come in)
+          const bool lean = c.famineUntil >= 0 && day <= c.famineUntil && (int)((d >> 8) % 100u) >= c.harvestPct;
           switch (r.job) {
             case Job::Farmer: if ((int)(d % 100u) < c.harvestPct) made((hh & 1) ? G::Produce : G::Grain, 1); break;
-            case Job::Fisher: if (d % 100u < 85) made(G::Fish, 1); break;
-            case Job::Hunter: if ((hh & 1) == 0) made(G::Meat, 1); if ((hh & 3) == 1) made(G::Hides, 1); break;
-            case Job::Herder: made((hh % 3) == 0 ? G::Livestock : (hh % 3) == 1 ? G::Wool : G::Produce, 1); break;
+            case Job::Fisher: if (d % 100u < 85 && !lean) made(G::Fish, 1); break;
+            case Job::Hunter: if ((hh & 1) == 0 && !lean) made(G::Meat, 1); if ((hh & 3) == 1) made(G::Hides, 1); break;
+            case Job::Herder: {
+              const int k = hh % 3;
+              if (k == 1 || !lean) made(k == 0 ? G::Livestock : k == 1 ? G::Wool : G::Produce, 1);
+              break;
+            }
             case Job::Miner: made(G::Ore, 1); break;
             case Job::Woodcutter: made(G::Logs, 1); break;
             default: break;

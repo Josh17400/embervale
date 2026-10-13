@@ -268,7 +268,7 @@ int terraceHoles(const Terrace& T, std::string* why) {
       for (int y = top; y <= foot; y++)
         if (!(row.get(x, y) >> 24)) {
           bad++;
-          if (why && why->empty()) *why = "hole at joint x " + std::to_string(j) + " row " + std::to_string(y);
+          if (why && why->empty()) *why = "hole at joint x " + std::to_string(j) + " row " + std::to_string(y) + (x == x0 ? " (west unit" : " (east unit") + ", " + std::to_string(Hh - y) + " px over the canvas foot)";
           break;
         }
   }
@@ -298,6 +298,96 @@ void terraceBoards(const std::string& dir) {
   std::printf("city_gallery: %s/city_terraces_<culture>.png\n", dir.c_str());
 }
 
+// ---------------------------------------------------------------- (M7c ART) the street faces of the M7c blocks
+// A row of n houses with its street sides as given (ROW_SIDE_W on the first, ROW_SIDE_E on the last, ROW_BACK on all
+// when back), depth h tiles, every house the same storeys (a terrace of one build), the purposes varied.
+Terrace makeRow(int c, int n, int wealth, uint32_t seed, int h, bool sideW, bool sideE, bool back, int storeys) {
+  Terrace T;
+  T.H = h;
+  const cult::Culture K = cultureOf(c < 0 ? 2 : c);
+  for (int i = 0; i < n; i++) {
+    const uint32_t s = seed * 977u + (uint32_t)i * 131u + 7u;
+    const int w = 2 + (int)((s >> 3) % 2u);
+    Building t = Building::House;
+    if (i == 1 && n >= 3) t = Building::Shop;
+    const art::ArchStyle st = cult::buildingArch(K, 2, 2, wealth, s);
+    art::BuildingFacts f;
+    f.storeys = storeys;
+    f.variant = (uint8_t)(1 + (i * 3 + seed) % 7);
+    bld::Request r = bld::simpleRequest(t, w, h, st, s, f);
+    r.wealth = (uint8_t)wealth;
+    r.urban = 2;
+    uint8_t row = (uint8_t)((i > 0 ? bld::ROW_W : 0) | (i < n - 1 ? bld::ROW_E : 0));
+    if (i == 0 && sideW) row |= bld::ROW_SIDE_W;
+    if (i == n - 1 && sideE) row |= bld::ROW_SIDE_E;
+    if (back) row |= bld::ROW_BACK;
+    r.row = row;
+    const bld::Blueprint bp = bld::design(r);
+    if (!bp.vols.empty() && bp.vols[0].shape != bld::VolShape::Box) T.round = true;
+    T.spr.push_back(art::buildingSprite(bp));
+    T.wt.push_back(w);
+  }
+  return T;
+}
+
+// city_rows_<culture>.png: (1) a block's south front with corner houses at both ends and the side streets beside it,
+// (2) the same for the rich (corner turrets), (3) a deep double-pile row backing onto a street (ROW_BACK: its back
+// eave along the street north of it), (4) a north-south street lined by the street sides of six houses stacked one
+// behind the other (ROW_SIDE_E: the side street's view of a block), with a single free-standing corner house
+void rowBoards(const std::string& dir) {
+  const uint32_t pave = rgba(170, 164, 152), walk = rgba(196, 190, 178);
+  for (int c = 0; c < kCults; c++) {
+    const int W = 980, Hh = 760;
+    Board B(W, Hh);
+    B.text(4, 4, std::string("M7C STREET FACES: ") + kCult[c] + "  (CORNERS, RICH CORNERS, DOUBLE PILE + BACK ON A STREET, A SIDE STREET)");
+    auto street = [&](int x0, int y0, int x1, int y1) {
+      for (int y = y0; y < y1; y++) for (int x = x0; x < x1; x++) B.c.set(x, y, ((x / 16 + y / 16) & 1) ? pave : rgba(164, 158, 146));
+    };
+    auto walkStrip = [&](int x0, int y0, int x1, int y1) { for (int y = y0; y < y1; y++) for (int x = x0; x < x1; x++) B.c.set(x, y, walk); };
+    int x = 40;
+    const int base1 = 200;
+    for (int k = 0; k < 2; k++) {   // (1) and (2): fronts with corners
+      const Terrace T = makeRow(c, 4, k == 0 ? 1 : 3, 8100u + (uint32_t)c * 37u + (uint32_t)k, 3, true, true, false, 2 + k);
+      int tw = 0;
+      for (int w : T.wt) tw += w * 16;
+      street(x - 36, base1 - 3 * 16 - 40, x - 4, base1 + 24); walkStrip(x - 4, base1 - 3 * 16 - 40, x, base1 + 24);
+      street(x + tw + 4, base1 - 3 * 16 - 40, x + tw + 36, base1 + 24); walkStrip(x + tw, base1 - 3 * 16 - 40, x + tw + 4, base1 + 24);
+      walkStrip(x - 4, base1, x + tw + 4, base1 + 6); street(x - 36, base1 + 6, x + tw + 36, base1 + 24);
+      putTerrace(B, T, x, base1);
+      x += tw + 90;
+    }
+    {   // (3) a deep double pile backing onto a street
+      const int base3 = 450;
+      const Terrace T = makeRow(c, 5, 2, 8300u + (uint32_t)c * 41u, 5, true, false, true, 3);
+      int tw = 0;
+      for (int w : T.wt) tw += w * 16;
+      const int top = base3 - 5 * 16;
+      street(30, top - 40, 40 + tw + 16, top - 6); walkStrip(30, top - 6, 40 + tw + 16, top);
+      street(4, top - 40, 36, base3 + 24); walkStrip(36, top, 40, base3 + 24);
+      walkStrip(36, base3, 40 + tw + 16, base3 + 6); street(36, base3 + 6, 40 + tw + 16, base3 + 24);
+      putTerrace(B, T, 40, base3);
+    }
+    {   // (4) a north-south street lined by the street sides of a block (six houses stacked), and a lone corner house
+      const int sx = 560, sy0 = 250;
+      street(sx + 3 * 16 + 4, sy0 - 60, sx + 3 * 16 + 40, Hh - 10);
+      walkStrip(sx + 3 * 16, sy0 - 60, sx + 3 * 16 + 4, Hh - 10);
+      for (int r = 0; r < 6; r++) {
+        const Terrace T = makeRow(c, 1, r % 3, 8500u + (uint32_t)c * 53u + (uint32_t)r * 7u, 3, false, true, false, 2 + (r & 1));
+        const int by = sy0 + r * 3 * 16 + 48 - 48;
+        // (each house of the column is the east end of an east-west row: its west neighbour off the board)
+        putTerrace(B, T, sx + 3 * 16 - T.wt[0] * 16, by + 48);
+      }
+      const Terrace L = makeRow(c, 1, 2, 8700u + (uint32_t)c * 59u, 3, true, true, false, 3);
+      street(sx + 160, sy0 + 40, sx + 160 + 36, sy0 + 140); street(sx + 160 + 36 + L.wt[0] * 16, sy0 + 40, sx + 232 + L.wt[0] * 16, sy0 + 140);
+      street(sx + 160, sy0 + 140, sx + 232 + L.wt[0] * 16, sy0 + 160);
+      putTerrace(B, L, sx + 196, sy0 + 140);
+    }
+    savePng(B.c, dir + "/city_rows_" + kCult[c] + ".png", 2);
+    savePng(B.c, dir + "/city_rows_" + kCult[c] + "_1x.png", 1);
+  }
+  std::printf("city_gallery: %s/city_rows_<culture>.png\n", dir.c_str());
+}
+
 }  // namespace
 
 namespace {
@@ -322,6 +412,93 @@ bool litTopLeft(const Canvas& c, bool vertical, float& a, float& b) {
     }
   a = n0 ? (float)(s0 / n0) : 0; b = n1 ? (float)(s1 / n1) : 0;
   return a >= b - 0.004f;
+}
+
+// 5. (M7c ART) the painted street faces of a row house, for every people x wealth x {house, shop} x {2, 3 storeys} on a
+// 3x3 plot: the street side's end of the front (the 20 px of the footprint by that side, from the plinth up two storeys
+// and the roof's foot) differs from the party-wall unit's by 40 px or more (never a blank party wall seen from a side
+// street: windows in the end bay, the quoins, the bracket, the hipped end), and a lone corner unit (both sides on
+// streets) is lit from the top left: its west corner's three facade columns at least as bright as its east corner's.
+int streetFaceCheck() {
+  int units = 0, blank = 0, dark = 0;
+  for (int c = -1; c < kCults; c++)
+    for (int w = 0; w < 4; w++)
+      for (int t = 0; t < 2; t++)
+        for (int n = 2; n <= 3; n++) {
+          const uint32_t seed = 7000u + (uint32_t)(c + 1) * 131u + (uint32_t)w * 17u + (uint32_t)t * 5u + (uint32_t)n;
+          const art::ArchStyle st = c < 0 ? art::urbanize(art::archForBiome(2, seed), 2, seed) : cult::buildingArch(cultureOf(c), 2, 2, w, seed);
+          art::BuildingFacts f;
+          f.storeys = n;
+          f.variant = (uint8_t)(1 + (seed % 7u));
+          bld::Request r = bld::simpleRequest(t ? Building::Shop : Building::House, 3, 3, st, seed, f);
+          r.wealth = (uint8_t)w;
+          r.urban = 2;
+          static const uint8_t rows[4] = {bld::ROW_W | bld::ROW_E, bld::ROW_SIDE_W | bld::ROW_E, bld::ROW_W | bld::ROW_SIDE_E, bld::ROW_SIDE_W | bld::ROW_SIDE_E};
+          Canvas sp[4];
+          bool box = true;
+          int wallH = 24, z0 = 0;
+          for (int k = 0; k < 4; k++) {
+            r.row = rows[k];
+            const bld::Blueprint bp = bld::design(r);
+            if (bp.vols.empty() || bp.vols[0].shape != bld::VolShape::Box) { box = false; continue; }
+            if (k == 3) { wallH = bp.vols[0].wallH; z0 = bp.vols[0].z0; }
+            sp[k] = art::buildingSprite(bp);
+          }
+          if (!box) continue;   // a round house is never a row
+          units++;
+          auto endDiff = [&](const Canvas& a, const Canvas& b, bool east) {
+            if (a.w != b.w || a.h != b.h) return 9999;
+            int d = 0;
+            const int fx0 = art::BLDG_PAD_X, fx1 = art::BLDG_PAD_X + 48;
+            const int y1 = a.h - art::BLDG_PAD_B, y0 = std::max(0, y1 - 48 - 3 * 16);
+            for (int y = y0; y < y1; y++)
+              for (int x = east ? fx1 - 20 : fx0; x < (east ? fx1 : fx0 + 20); x++)
+                if (a.get(x, y) != b.get(x, y)) d++;
+            return d;
+          };
+          // or the end bay already an elevation: glass (the painter's blue-black panes) on the street side's 20 px
+          auto glassIn = [&](const Canvas& a, bool east) {
+            int g = 0;
+            const int fx0 = art::BLDG_PAD_X, fx1 = art::BLDG_PAD_X + 48, y1 = a.h - art::BLDG_PAD_B;
+            for (int y = std::max(0, y1 - 48 - 3 * 16); y < y1; y++)
+              for (int x = east ? fx1 - 20 : fx0; x < (east ? fx1 : fx0 + 20); x++) {
+                const uint32_t p = a.get(x, y);
+                const int rr = (int)(p & 255u), gg = (int)((p >> 8) & 255u), bb = (int)((p >> 16) & 255u);
+                if ((p >> 24) == 255 && bb > rr + 25 && bb >= gg && bb < 200) g++;
+              }
+            return g;
+          };
+          const int dw = std::max(endDiff(sp[1], sp[0], false), glassIn(sp[1], false) >= 8 * n ? 999 : 0);
+          const int de = std::max(endDiff(sp[2], sp[0], true), glassIn(sp[2], true) >= 8 * n ? 999 : 0);
+          if (dw < 40 || de < 40) {
+            if (blank < 8) std::printf("FAIL: street face: %s wealth %d %s %d storeys: a blank street side (west %d px, east %d px changed)\n", cultName(c), w, t ? "shop" : "house", n, dw, de);
+            blank++;
+          }
+          const Canvas& s = sp[3];
+          // the upper storey's band of the front (under the eave, over the ground floor's awnings, boards and doors)
+          const int foot = s.h - art::BLDG_PAD_B - z0;
+          const int y0 = std::max(0, foot - wallH + 5), y1 = std::max(y0 + 1, foot - wallH / 2 - 2);
+          double lw = 0, le = 0;
+          int nw = 0, ne = 0;
+          for (int y = y0; y < y1; y++)
+            for (int i = 0; i < 3; i++) {
+              const uint32_t pw = s.get(art::BLDG_PAD_X + i, y), pe = s.get(art::BLDG_PAD_X + 47 - i, y);
+              if ((pw >> 24) == 255) { lw += lumaOf(pw); nw++; }
+              if ((pe >> 24) == 255) { le += lumaOf(pe); ne++; }
+            }
+          const bool isDark = nw && ne && lw / nw + 0.025 < le / ne;
+          if ((isDark || dw < 40 || de < 40) && std::getenv("EMB_FACE_DIR")) {   // the four units, 4x
+            Board B(4 * (s.w + 8) + 8, s.h + 16);
+            for (int k = 0; k < 4; k++) B.put(sp[k], 8 + k * (s.w + 8), 8);
+            savePng(B.c, std::string(std::getenv("EMB_FACE_DIR")) + "/face_" + cultName(c) + "_w" + std::to_string(w) + (t ? "_shop" : "_house") + std::to_string(n) + ".png", 4);
+          }
+          if (isDark) {
+            if (dark < 8) std::printf("FAIL: street face: %s wealth %d %s %d storeys: the corner unit's west corner %.3f darker than its east %.3f\n", cultName(c), w, t ? "shop" : "house", n, lw / nw, le / ne);
+            dark++;
+          }
+        }
+  std::printf("street faces: %d row units, %d with a blank street side, %d corner units against the top-left light\n", units, blank, dark);
+  return blank + dark;
 }
 
 int check(const std::string& fixture, bool quick) {
@@ -368,6 +545,7 @@ int check(const std::string& fixture, bool quick) {
   }
   std::printf("props: %d city prop looks, %d against the top-left light\n", props, dark);
   bad += dark;
+  bad += streetFaceCheck();
   std::printf("city_gallery --check: %d failure(s)\n", bad);
   return bad;
 }
@@ -381,7 +559,8 @@ int main(int argc, char** argv) {
     if (!std::strcmp(argv[i], "--village-art-write")) return villageWrite(fixturePath(argc, argv, i));
     if (!std::strcmp(argv[i], "--village-art-check")) return villageCheck(fixturePath(argc, argv, i)) ? 1 : 0;
   }
-  if (argc >= 2 && argv[1][0] != '-') { propsBoard(argv[1]); terraceBoards(argv[1]); return 0; }
+  if (argc >= 3 && argv[1][0] != '-' && !std::strcmp(argv[2], "rows")) { rowBoards(argv[1]); return 0; }
+  if (argc >= 2 && argv[1][0] != '-') { propsBoard(argv[1]); terraceBoards(argv[1]); rowBoards(argv[1]); return 0; }
   std::printf("usage: city_gallery --village-art-write|--village-art-check [file] | <outdir> | --check\n");
   return 2;
 }

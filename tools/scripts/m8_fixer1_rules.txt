@@ -8,7 +8,7 @@ seed 7
 +0.1 god 1
 +0.2 party recruit
 +0.1 party cmd home
-+0.5 life kill TIRUNUR
++0.5 life kill companion
 +0.6 expect party fallen 1
 +0.1 expect party members 0
 +0.3 newgame

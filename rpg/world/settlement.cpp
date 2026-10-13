@@ -6,9 +6,19 @@
 // markets, a curved wall with towers, gatehouses where the roads arrive and side gates.
 #include "rpg/world/settlement.h"
 #include <algorithm>
+#include "rpg/world/town_edge.h"
 #include "rpg/world/town_gen.h"
 
 namespace ew {
+
+// (M7c, the edge rule) a city's faubourg belt: the ring of land outside its walls where the faubourgs ribbon along the
+// approach roads and the farmland spreads beyond them (14..18 tiles a side: room for the ribbons by the gates and a
+// band of fields, while the wayside places by the roads keep their room outside it). The generator's radii stay the
+// walled core's (town_layout.cpp land: rx = (w - 2 belt) / 2), so the walled area is the M7b city's.
+int settlementBelt(SiteType type, uint32_t seed) {
+  if (type != SiteType::City) return 0;
+  return 14 + (int)(hash32(seed ^ 0xBE17F00Du) % 3u) * 2;   // (vignettes.cpp CITY_BELT_MAX: the deepest)
+}
 
 void settlementFootprint(SiteType type, Archetype arch, uint32_t seed, int& w, int& h) {
   // a little variety per site (even sizes keep the heart on a tile centre), sized so the scale targets fit with the
@@ -28,6 +38,10 @@ void settlementFootprint(SiteType type, Archetype arch, uint32_t seed, int& w, i
     case Archetype::RiverCrossing: w += type == SiteType::City ? 8 : 4; h += type == SiteType::City ? 6 : 2; break;   // the river
     default: break;
   }
+  // (M7c) the faubourg belt round a city's walled core
+  const int belt = settlementBelt(type, seed);
+  w += 2 * belt;
+  h += 2 * belt;
 }
 
 void buildSettlement(const SettlementCtx& ctx, SettlementOut& out) {

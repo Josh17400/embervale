@@ -1,0 +1,48 @@
+# M7c EDGE (VISION_PLAN 15.M7c, the order dial's mid end): towns. For several peoples' towns: the heart (the high street
+# and the square), a structured side street (straight, houses fronting it), the edge (scattered houses and yards
+# loosening into fields), and the plan report (order, structure score: a town sits between a village and a city).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m7c_edge_towns.txt
+# REVIEW: the square and the high street read at once; the side streets near the heart run straight with doors on them;
+# the lanes wander and the houses stand loose toward the edge; no city row houses, no grid of blocks.
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.2 gotoculture heartland town
++1.2 planmark
++0.1 plan
++0.1 expect structure 25 75
++0.2 planspot plaza
++1.5 shot m7c_edge_town_heartland_heart.png
++0.2 planspot street
++1.5 shot m7c_edge_town_heartland_street.png
++0.2 planaway 0 30
++1.5 shot m7c_edge_town_heartland_edge.png
++0.2 gotoculture river town
++1.2 planmark
++0.1 plan
++0.1 expect structure 25 75
++0.2 planspot plaza
++1.5 shot m7c_edge_town_river_heart.png
++0.2 planspot street
++1.5 shot m7c_edge_town_river_street.png
++0.2 gotoculture imperial town
++1.2 planmark
++0.1 plan
++0.2 planspot plaza
++1.5 shot m7c_edge_town_imperial_heart.png
++0.2 planspot street
++1.5 shot m7c_edge_town_imperial_street.png
++0.2 gotoculture fjordfolk town
++1.2 planmark
++0.1 plan
++0.2 planspot plaza
++1.5 shot m7c_edge_town_fjord_heart.png
++0.2 planaway 0 30
++1.5 shot m7c_edge_town_fjord_edge.png
++0.2 gotoculture heartland village
++1.2 planmark
++0.1 plan
++0.1 expect structure 0 40
++0.2 planspot plaza
++1.5 shot m7c_edge_town_village_heart.png

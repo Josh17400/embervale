@@ -667,6 +667,7 @@ bool EndlessSource::Impl::townJobStep(TownJob& J) {
     ctx.kingdom = kingdom(p.kingdom);
     ctx.culture = &atlas().get(p.culture ? p.culture : cultureAt(p.ex, p.ey));   // M3
     ctx.eco = tile(p.ex, p.ey).eco;                                                // M3c
+    ctx.ecoAt = [this](int32_t gx, int32_t gy) { return tile(gx, gy).eco; };      // (M7c fixer: the waste land)
     ctx.worldSeed = seed;
     ctx.rx = J.D->plan.rx; ctx.ry = J.D->plan.ry;
     auto bi = J.D->bearings.find(p.id);

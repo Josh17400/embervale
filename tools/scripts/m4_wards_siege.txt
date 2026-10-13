@@ -13,7 +13,7 @@ seed 2
 +0.1 war at 1 3
 +4.5 shot m4_wards_siege_camp.png
 +0.1 war goto captain def
-+0.6 key E
++0.6 talkto captain 10   # (M7c integration: walk the last step and talk to the captain, not a child in between)
 +0.4 expect option BREAK THE SIEGE
 +0.1 shot m4_wards_siege_captain.png
 +0.1 choose BREAK THE SIEGE

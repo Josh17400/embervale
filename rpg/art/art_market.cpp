@@ -891,8 +891,7 @@ void clothRoof(M3& m, const Awn& A, int awning) {
   paintPosts(m, 0);
   // the top: stripes run down the slope; the back edge catches the light, the cloth sags between the spars and rolls
   // over into the valance at the front
-  quad(m, g.ru0, g.rvf, g.rzf, g.ru1 - g.ru0, 0, 0, 0, g.rvb - g.rvf, g.rzb - g.rzf, 0, -(g.ru1 - g.ru0) * (g.rzb - g.rzf), (g.ru1 - g.ru0) * (g.rvb - g.rvf),
-       [&](float s, float t, float l) -> uint32_t {
+  auto topCol = [&](float s, float t, float l) -> uint32_t {
          const float u = g.ru0 + s * (g.ru1 - g.ru0);
          float ll = l - std::sin(t * 3.14159f * 2.0f) * 0.035f;   // a sag over the middle spar
          if (t > 0.94f) ll += 0.12f;
@@ -910,7 +909,31 @@ void clothRoof(M3& m, const Awn& A, int awning) {
            if (!g.side) ll -= std::sin(t * 3.14159f * 2.0f) * 0.05f;
          }
          return cloth(u)[t > 0.95f ? 4 : litC(ll, (int)(s * 50), (int)(t * 25))];
-       });
+       };
+  // (M7c fixer r3, review: "east/west-facing market stalls read as tall plank boxes: seen side-on they lose their
+  // awning volume") a side profile's awning is pitched over a ridge along the stall's length (v 21, 3 px above its
+  // eaves): the slope turned to the light lit, the other in shade, a lit ridge seam between them, so from above it
+  // reads as a cloth roof with two faces and not a flat board; its eaves (and so its posts) are where they were
+  const float RV = 21.0f, RZ = std::max(g.rzf, g.rzb) + 3.0f;
+  if (g.side) {
+    const float L = g.ru1 - g.ru0;
+    float fnx = 0, fny = 0;
+    m.dir(0, -1, fnx, fny);
+    for (int half = 0; half < 2; half++) {
+      const float va = half ? RV : g.rvf, za = half ? RZ : g.rzf, vb2 = half ? g.rvb : RV, zb2 = half ? g.rzb : RZ;
+      const float dv = vb2 - va, dz = zb2 - za;
+      const float sideL = ((fnx < 0) != (half == 1)) ? 0.10f : -0.16f;   // the slope turned west (to the light) is lit
+      quad(m, g.ru0, va, za, L, 0, 0, 0, dv, dz, 0, -L * dz, L * dv, [&, half, sideL](float s2, float t2, float l2) -> uint32_t {
+        const float tt = half ? 0.5f + t2 * 0.5f : t2 * 0.5f;
+        if ((half == 0 && t2 > 0.93f) || (half == 1 && t2 < 0.07f)) {   // the ridge seam: a lit roll of the cloth
+          const float u = g.ru0 + s2 * L;
+          return cloth(u)[std::clamp(litC(l2 + sideL + 0.22f, (int)(s2 * 50), (int)(tt * 25)), 2, 4)];
+        }
+        return topCol(s2, tt, l2 + sideL);
+      });
+    }
+  } else
+    quad(m, g.ru0, g.rvf, g.rzf, g.ru1 - g.ru0, 0, 0, 0, g.rvb - g.rvf, g.rzb - g.rzf, 0, -(g.ru1 - g.ru0) * (g.rzb - g.rzf), (g.ru1 - g.ru0) * (g.rvb - g.rvf), topCol);
   // the valance along the front and round the ends and back, its foot blowing out a little (so it shows from above,
   // the scallops too, whichever way the stall faces): scallops (or zigzag points) along its foot
   auto valance = [&](float along, float zDown) -> uint32_t {   // zDown: 0 at the top .. VH at the foot
@@ -954,8 +977,13 @@ void clothRoof(M3& m, const Awn& A, int awning) {
       // (M2 fixer round 3) a side profile's south end is the one face of its cloth we see square-on: the scalloped
       // valance runs across it (the stripes as across a front stall's flap), under a roof pitched gently enough that
       // its top reads as one awning seen from above, its widths running down the slope
-      quad(m, u + o, g.rvf, g.rzf - VH, 0, g.rvb - g.rvf, g.rzb - g.rzf, -o, 0, VH, e ? VH : -VH, 0, VT,
-           [&](float s, float t, float) { return valance(g.rvf + s * (g.rvb - g.rvf), VH * (1 - t)); });
+      // ((M7c fixer r3) under the ridge: the gable of the awning's end, two halves rising to the ridge, the cloth of
+      // the end in the trim's shade above the valance's line)
+      for (int half = 0; half < 2; half++) {
+        const float va = half ? RV : g.rvf, za = half ? RZ : g.rzf, vb2 = half ? g.rvb : RV, zb2 = half ? g.rzb : RZ;
+        quad(m, u + o, va, za - VH, 0, vb2 - va, zb2 - za, -o, 0, VH, e ? VH : -VH, 0, VT,
+             [&, va, vb2](float s2, float t2, float) { return valance(va + s2 * (vb2 - va), VH * (1 - t2)); });
+      }
       continue;
     }
     quad(m, u + o, g.rvf, g.rzf - VH, 0, g.rvb - g.rvf, g.rzb - g.rzf, -o, 0, VH, e ? VH : -VH, 0, VT,
