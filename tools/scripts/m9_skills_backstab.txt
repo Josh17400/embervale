@@ -1,0 +1,24 @@
+# M9 SKILLS: a dagger's backstab. Sneaking in leather, a hero creeps up on a dozing bandit and stabs: the blow is a sure
+# crit (BACKSTAB) at triple damage with the perk, the dagger and Stealth both learn from it.
+#   embervale.exe --script tools/scripts/m9_skills_backstab.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 power arena
++0.5 skill clearing 9
++0.1 skill kit dagger light
++0.1 skill set dagger 30
++0.1 skill points 2
++0.1 skill perk dagger 0
++0.1 skill perk dagger 1
++0.1 skill sneak 1
++0.1 skill foe bandit 1.1 0 unaware level 3
++0.3 expect skillfoes unaware 1
++0.1 shot m9_skills_sneak.png
++0.1 hold D 0.05
++0.25 hold J 0.12
++0.15 shot m9_skills_backstab.png
++0.3 expect skillword BACKSTAB
++0.1 expect skill stealth 6
++0.3 quit

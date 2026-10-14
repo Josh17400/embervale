@@ -7,6 +7,8 @@
 #include <vector>
 #include "engine/audio.h"
 #include "rpg/sim/game.h"
+#include "rpg/sim/magic_ops.h"
+#include "rpg/sim/skill_ops.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/home.h"
@@ -151,6 +153,9 @@ void Game::useItem(int i) {
         break;
       }
       return;
+    case ItemKind::Book:   // (M9) a skill book (SKILLS lane) or a spell tome (MAGIC lane): read once, then gone
+      if (!(skills::isSkillBook(it) ? SkillOps::readBook(*this, i) : MagicOps::readTome(*this, i))) return;
+      break;
     default: return;
   }
   it.count--;
@@ -284,6 +289,9 @@ void Game::dropLoot(const Actor& a) {
     w.name = "DRAGONBONE GREATSWORD"; w.unique = Unique::Dragonbane; w.ench = Ench::Fire; w.enchPow = 30;
     drop(w);
   }
+  // (M9) a skill book or a rare tome may lie among the loot (SKILLS / MAGIC lanes)
+  SkillOps::loot(*this, a.p, ds.D, gear::LootSrc::Body);
+  MagicOps::loot(*this, a.p, ds.D, gear::LootSrc::Body);
 }
 
 void Game::openChest(int tx, int ty) {
@@ -374,6 +382,9 @@ void Game::openChest(int tx, int ty) {
       pickups.push_back(o);
     }
   }
+  // (M9) a skill book or a rare tome may lie in the chest (SKILLS / MAGIC lanes)
+  SkillOps::loot(*this, spot(), ds.D, ds.src);
+  MagicOps::loot(*this, spot(), ds.D, ds.src);
 }
 
 gear::DropSource LootOps::chestSource(const Game& g, int tx, int ty) {
@@ -1217,9 +1228,9 @@ std::string Game::questStatus(const Quest& q) const {
 float Game::blessingSecs() const { return background == Background::Novice ? 900.0f : 600.0f; }   // novice: +50 %
 
 float Game::priceFactor(Role seller) const {
-  if (background == Background::Blacksmith && seller == Role::Smith) return 0.8f;   // a smith's child pays a fair price
-  if (background == Background::Urchin && seller == Role::Merchant) return 0.85f;   // the streets know their own
-  return 1.0f;
+  if (background == Background::Blacksmith && seller == Role::Smith) return 0.8f * SkillOps::buyMul(*this, seller);   // a smith's child pays a fair price
+  if (background == Background::Urchin && seller == Role::Merchant) return 0.85f * SkillOps::buyMul(*this, seller);   // the streets know their own
+  return SkillOps::buyMul(*this, seller);   // (M9) Speech
 }
 
 // The opening: the start village innkeeper hands over an old blade (and a draught for the road) for a small favour.
@@ -1364,6 +1375,8 @@ bool opensWithGreeting(const std::string& t) {
 bool serviceOpt(const DlgOpt& o) {
   if (o.action == A_TRADE || o.action == A_REST || o.action == A_RUMOR || o.action == A_HEAL || o.action == A_LEARN) return true;
   if (o.action >= DLG_HOME && o.action < DLG_HOME_END) return true;    // deeds, horses, recipes, the kitchen, the mill
+  if (o.action >= DLG_MAGIC && o.action < DLG_MAGIC_END) return true;  // (M9) a teacher's spells, attunement
+  if (o.action >= DLG_SKILLS && o.action < DLG_SKILLS_END) return true;  // (M9 integration) lessons, prices, unlearning
   if (o.action >= DLG_CRAFT && o.action < DLG_M6_END) return true;     // the forge, the craft
   return lifeOptKind(o.action) == 1;                                    // the inn's meal, food for the stores
 }
@@ -1520,10 +1533,7 @@ void Game::talkToInner(Actor& a) {
     dlg.opts.push_back({"BUY A RUMOUR (10 GOLD)", A_RUMOR, 10});
   }
   if (a.role == Role::Priest) dlg.opts.push_back({"BLESS ME.", A_HEAL, 0});
-  if (a.role == Role::Mage) {
-    if (!(spellsKnown & (1 << (int)Spell::Heal))) dlg.opts.push_back({"TEACH ME MEND (120 GOLD)", A_LEARN, (int)Spell::Heal});
-    if (!(spellsKnown & (1 << (int)Spell::IceSpike))) dlg.opts.push_back({"TEACH ME FROST LANCE (300 GOLD)", A_LEARN, (int)Spell::IceSpike});
-  }
+  // (M9) a mage's lessons (MEND, FROST LANCE, the rest of the schools, a land's tradition): MagicOps::talk below
   // ---- 7. the lanes' hooks, in their old order. Each proposes its line (speech::propose); a hook that still writes
   // dlg.text directly is taken at the priority its kind of line has (and gives way to a weightier line already chosen)
   auto hook = [&](int defPri, Topic t, auto&& fn) {
@@ -1558,6 +1568,8 @@ void Game::talkToInner(Actor& a) {
   hook(speech::P_URGENT, Topic::Craft, [&] { craftTalk(a); });   // M6: the forge's work and lessons (a thief barred: urgent)
   hook(speech::P_SERVICE, Topic::Home, [&] { homeTalk(a); });    // M7: deeds, builders, horses, recipes and cooking
   hook(speech::P_SERVICE, Topic::Companion, [&] { partyFolkTalk(a); });   // M8: offers to join, kin of companions and the fallen
+  hook(speech::P_SERVICE, Topic::Service, [&] { SkillOps::talk(*this, a); });   // M9: trainers, teaching, persuade / intimidate
+  hook(speech::P_SERVICE, Topic::Service, [&] { MagicOps::talk(*this, a); });   // M9: mage teachers, tomes, traditions
   // ---- 8. one coherent opening: a stranger is told who this is (and gets the people's own hello), an acquaintance is
   // greeted as one; the core line (what matters most to the speaker now) follows
   const std::string core = dlg.text;
@@ -1778,7 +1790,12 @@ void Game::dialogueChooseInner(int oi) {
     }
     case A_RUMOR: {
       // M2 rumours (wayside.cpp): the nearest place the player has not heard of goes on the map as rumoured
-      if (gold < o.arg) { dlg.text = "NO GOLD, NO GOSSIP. THE ALE ISN'T FREE EITHER."; return; }
+      if (gold < o.arg) {
+        dlg.text = "NO GOLD, NO GOSSIP. THE ALE ISN'T FREE EITHER.";
+        // (M9 integration) the refused offer goes from the page: asking again would only hear the same words
+        dlg.opts.erase(std::remove_if(dlg.opts.begin(), dlg.opts.end(), [](const DlgOpt& k) { return k.action == A_RUMOR; }), dlg.opts.end());
+        return;
+      }
       // M4 (VISION_PLAN 4.6): news of the realm that has reached this inn and the player has not heard yet comes first
       {
         int px = 0, py = 0;
@@ -1928,7 +1945,7 @@ void Game::dialogueChooseInner(int oi) {
       recalcPlayer();
       emit(Ev::Heal, pl().p);
       sfx((int)Sfx::Heal, pl().p);
-      dlg.text = "THERE. YOUR WOUNDS ARE MENDED, AND THE GODS' BLESSING GOES WITH YOU. WALK IN THEIR LIGHT, CHILD.";
+      dlg.text = "THERE. YOUR WOUNDS ARE MENDED. GO WITH THE GODS, AND WALK IN THEIR LIGHT, CHILD.";
       dlg.opts = {{"FAREWELL.", A_BYE, 0}};
       return;
     case A_LEARN: {
@@ -1951,6 +1968,8 @@ void Game::dialogueChooseInner(int oi) {
       if (o.action >= DLG_CRAFT && o.action < DLG_M6_END && craftChoose(o)) return;  // M6
       if (o.action >= DLG_HOME && o.action < DLG_HOME_END && homeChoose(o)) return;  // M7
       if (o.action >= DLG_PARTY && o.action < DLG_PARTY_END && partyChoose(o)) return;  // M8 (party_talk.cpp)
+      if (o.action >= DLG_SKILLS && o.action < DLG_SKILLS_END && SkillOps::choose(*this, o)) return;  // M9 (skills_game.cpp)
+      if (o.action >= DLG_MAGIC && o.action < DLG_MAGIC_END && MagicOps::choose(*this, o)) return;    // M9 (magic_game.cpp)
       mode = Mode::Play;
       return;
   }
@@ -1958,6 +1977,7 @@ void Game::dialogueChooseInner(int oi) {
 
 void Game::rest(int hours) {
   if (homeRiding()) homeDismount(home::Dismount::Sleep);   // M7
+  MagicOps::rested(*this, hours);   // M9: the prepared spells may be swapped at rest
   hour += hours;
   while (hour >= 24) { hour -= 24; day++; }
   Actor& p = pl();
@@ -2133,6 +2153,8 @@ std::vector<Item> Game::shopStock(const Actor& a) {
       break;
   }
   homeShopStock(a, s);   // M7: seeds by the culture's staples, farm tools, hay, saddlery (home_game.cpp)
+  MagicOps::shopStock(*this, a, s);   // M9: tomes on a mage's or a scholar's shelf (magic_game.cpp)
+  SkillOps::shopStock(*this, a, s);   // M9: skill books on a scholar's or a trainer's shelf (skills_game.cpp)
   // (M5 census) material prices follow the settlement's stock of the good (price % of list: shortages raise it)
   if (si >= 0) {
     if (const life::Census* cs = life.census(world, si))
@@ -2176,6 +2198,7 @@ bool Game::buy(int si) {
     if (held + it.count > gear::POTION_CARRY) { say("YOU CAN CARRY NO MORE THAN 10 POTIONS"); sfx((int)Sfx::MenuBack, pl().p); return false; }
   }
   gold -= price;
+  SkillOps::traded(*this, price);   // (M9) Speech
   { auto pu = craft.live.purse.find(shop.key); if (pu != craft.live.purse.end()) pu->second.second += price; }
   // (M6, 15.11) buying from a smith grows the apprenticeship's trust
   // (M6 fixer r3) only the smith's own work counts (gear he forged and stocked: IF_SHOP, never goods the player sold him
@@ -2203,6 +2226,7 @@ bool Game::sell(int ii) {
   if (it.kind == ItemKind::Quest) return false;
   if (it.kind == ItemKind::Misc && it.sub == home::MISC_DEED) { say("A DEED IS NOT SOLD OVER A COUNTER"); return false; }   // M7
   int price = gear::sellPrice(it);
+  price = std::max(1, (int)((float)price * SkillOps::sellMul(*this) + 0.5f));   // (M9 integration) Speech pays more
   // M7: a crop foreign to the merchant's people fetches 25..50 % more (8.4's small trading game), and what is sold
   // joins the settlement's stores (15.11: the census stock)
   int homeSite = -1;
@@ -2226,6 +2250,7 @@ bool Game::sell(int ii) {
     pu->second.second -= price;
   }
   gold += price;
+  SkillOps::traded(*this, price);   // (M9) Speech
   if (homeSite >= 0 && homeGood != ew::Good::COUNT && world.sites[(size_t)homeSite].settlement() && life.census(world, homeSite))
     life.supply(world.sites[(size_t)homeSite].id, homeGood, 1);
   Item sold = it;
@@ -2286,10 +2311,16 @@ bool Game::sell(int ii) {
 //   home     (v14) u32 byte length + the home block (home::Homes::serialize: its own version byte first)
 //   talk     (v15) u32 byte length + the talk block (speech::Memory::serialize: its own version byte first)
 //   party    (v16) u32 byte length + the party block (party::Party::serialize: its own version byte first)
+//   skills   (v20) u32 byte length + the skills block (skills::Skills::serialize: its own version byte first)
+//   magic    (v20) u32 byte length + the magic block (magic::Book::serialize: its own version byte first)
 // refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
 // 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 19;  // 19: M8b Treasure (items carry 4 affix slots, the Mythic rarity and
+static constexpr uint32_t SAVE_VER = 20;  // 20: M9 Arcana & Mastery (the skills and magic blocks after the party block;
+                                          //    ENDLESS_GEN_VER unchanged). A SAVE_VER 19 save still loads (owner
+                                          //    15.29.5: "give old saves default skills based on their level"): the
+                                          //    same layout without the two blocks; skills::defaultsForLevel fills them;
+                                          // 19: M8b Treasure (items carry 4 affix slots, the Mythic rarity and
                                           //    powers; ENDLESS_GEN_VER unchanged);
                                           // 18: fixer M8 r3 (party block v4: the fallen's gender);
                                           // 17: fixer M8 r1 (party block v3: a companion's look fixed when they join);
@@ -2317,6 +2348,8 @@ static constexpr uint32_t SAVE_VER = 19;  // 19: M8b Treasure (items carry 4 aff
                                           //    homeland, personal heraldry)
 
 int Game::currentSaveVersion() { return (int)SAVE_VER; }
+// (M9) the oldest SAVE_VER that still loads: 19, the layout of 20 without the skills and magic blocks
+static constexpr uint32_t SAVE_VER_MIN = 19;
 int Game::saveVersion(const std::vector<uint8_t>& in) {
   BinR r(in);
   if (r.u32() != SAVE_MAGIC || r.bad) return 0;
@@ -2326,7 +2359,7 @@ int Game::saveVersion(const std::vector<uint8_t>& in) {
 bool Game::saveFromOlderGenerator(const std::vector<uint8_t>& in) {
   BinR r(in);
   if (r.u32() != SAVE_MAGIC || r.bad) return false;
-  if (r.u32() != SAVE_VER || r.bad) return false;
+  { const uint32_t v = r.u32(); if (v < SAVE_VER_MIN || v > SAVE_VER || r.bad) return false; }
   const bool endless = r.u8() == 1;
   const int genVer = (int)r.u32();
   if (r.bad) return false;
@@ -2448,7 +2481,13 @@ void Game::serialize(std::vector<uint8_t>& out) const {
   w.u32((uint32_t)inv.size());
   for (auto& it : inv) writeItem(w, it);
   for (int e : {eqWeapon, eqBow, eqStaff, eqArmor, eqHelmet, eqShield, eqRing, eqAmulet, eqGloves, eqBoots, eqCloak}) w.i32(e);
-  w.u8(spellsKnown); w.u8((uint8_t)spell);
+  // (M9) the classic spell fields as a load will see them (magic::syncLegacy on copies: the book written below agrees)
+  magic::Book bookOut = arcana.book;
+  uint8_t knownOut = spellsKnown;
+  int spellOut = (int)spell;
+  int8_t mirrorOut = arcana.live.legacyMirror;
+  magic::syncLegacy(bookOut, knownOut, spellOut, mirrorOut);
+  w.u8(knownOut); w.u8((uint8_t)spellOut);
   w.i32(kills); w.i32(dungeonsCleared); w.f32(blessT); w.str(blessName);
   w.u64(R.site(lastTown));
   w.u32((uint32_t)quests.size());
@@ -2548,13 +2587,20 @@ void Game::serialize(std::vector<uint8_t>& out) const {
     party.serialize(blk);     // M8 (v16)
     w.u32((uint32_t)blk.size());
     for (uint8_t c : blk) w.u8(c);
+    skills.serialize(blk);    // M9 (v20)
+    w.u32((uint32_t)blk.size());
+    for (uint8_t c : blk) w.u8(c);
+    bookOut.serialize(blk);   // M9 (v20): the book (synced with the classic fields above)
+    w.u32((uint32_t)blk.size());
+    for (uint8_t c : blk) w.u8(c);
   }
 }
 
 bool Game::deserialize(const std::vector<uint8_t>& in) {
   BinR r(in);
   if (r.u32() != SAVE_MAGIC) return false;
-  if (r.u32() != SAVE_VER || r.bad) return false;   // older (or newer) saves are not loaded: the title says so
+  const uint32_t ver = r.u32();
+  if (ver < SAVE_VER_MIN || ver > SAVE_VER || r.bad) return false;   // older (or newer) saves are not loaded: the title says so
   const bool endless = r.u8() == 1;
   const int genVer = (int)r.u32();
   const uint64_t sd = r.u64();
@@ -2669,16 +2715,26 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   for (uint32_t i = 0; i < n && !r.bad; i++) { uint64_t k = r.u64(); marks[k] = r.i32(); }
   // M4 (v10): the realm and story blocks, M5 (v11) the life block, M6 (v12) the craft block, M7 (v14) the home block,
   // M7b (v15) the talk block, M8 (v16) the party block (a block its owner cannot read refuses the whole save)
-  for (int blkI = 0; blkI < 7 && !r.bad; blkI++) {
+  // M9 (v20) the skills and magic blocks (a SAVE_VER 19 save has neither: defaults from its level below)
+  const int nBlocks = ver >= 20 ? 9 : 7;
+  skills = skills::Skills();
+  arcana = magic::Arcana();
+  for (int blkI = 0; blkI < nBlocks && !r.bad; blkI++) {
     n = r.u32();
     if (r.bad || n > (64u << 20) || r.p + n > in.size()) return false;
     std::vector<uint8_t> blk(in.begin() + (std::ptrdiff_t)r.p, in.begin() + (std::ptrdiff_t)(r.p + n));
     r.p += n;
     const bool ok = blkI == 0 ? realm.deserialize(blk) : blkI == 1 ? story.deserialize(blk) : blkI == 2 ? life.deserialize(blk)
                     : blkI == 3 ? craft.deserialize(blk) : blkI == 4 ? home.deserialize(blk) : blkI == 5 ? talkMem.deserialize(blk)
-                    : party.deserialize(blk);
+                    : blkI == 6 ? party.deserialize(blk) : blkI == 7 ? skills.deserialize(blk) : arcana.book.deserialize(blk);
     if (!ok) return false;
   }
+  if (ver < 20)   // (M9, 15.29.5) a pre-M9 save: skills fitting its level, its classic spells into the book (syncLegacy)
+    skills::defaultsForLevel(skills, plLevel, background, eqWeapon >= 0 && eqWeapon < (int)inv.size() ? &inv[(size_t)eqWeapon] : nullptr,
+                             eqArmor >= 0 && eqArmor < (int)inv.size() ? &inv[(size_t)eqArmor] : nullptr);
+  arcana.live.legacyMirror = (int8_t)spell;   // (the save wrote them synced: nothing to reselect)
+  MagicOps::loaded(*this);   // (M9) the traditions of the lands the book has touched made again (their spells known to spellById)
+  MagicOps::syncLegacy(*this);
   if (r.bad) return false;
   homeSerial_ = world.placeSerial + 0x80000000u;   // M7: the player's plots are stamped on the first step
   if (ins && sb < 0 && !home.plots.empty()) {      // M7: saved inside the player's own house (a Bldg the home stamps)

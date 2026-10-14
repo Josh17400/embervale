@@ -1,0 +1,27 @@
+# M9 UI lane: the item cards' skill lines. A mace (its family and its wins and losses against kinds of foe), a heavy
+# body armour (its class and trade-offs at the hero's skill), a skill book and a spell tome (what they teach).
+#   embervale.exe --script tools/scripts/m9_ui_cards.txt     (m9ui_cards_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 skill set mace 31
++0.1 skill set heavyarmour 18
++0.1 gear6 mace ilvl 4 rarity 2
++0.1 menu 0
++0.1 lootsel menu last
++0.3 shot m9ui_cards_1_weapon.png
++0.1 key Escape
++0.1 gear6 body ilvl 4 rarity 1 mat steel
++0.1 menu 0
++0.1 lootsel menu last
++0.3 shot m9ui_cards_2_armour.png
++0.1 key Escape
++0.1 skillsui give book smithing
++0.1 skillsui give tome frostlance
++0.1 menu 0
++0.1 lootsel menu 0
++0.3 shot m9ui_cards_3_tome.png
++0.1 lootsel menu 1
++0.3 shot m9ui_cards_4_book.png
++0.3 quit

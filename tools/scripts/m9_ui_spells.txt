@@ -1,0 +1,60 @@
+# M9 UI lane: the SPELLS page and the quick-cast keys on the desktop. Six spells known, the slots filled and cleared
+# with keys, then in play: 1 cast, 2 held (upcast), Z held with 4 (dual-cast), V (sneak on: the eye; Ctrl too), the quick
+# bar on the HUD.
+#   embervale.exe --script tools/scripts/m9_ui_spells.txt     (m9ui_spells_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 spell learn firebolt
++0.1 spell learn frostlance
++0.1 spell learn spark
++0.1 spell learn mend
++0.1 spell learn fear
++0.1 spell learn spiritwolf
++0.1 spell mp 500
++0.1 skillsui rested
++0.1 skillsui open spells
++0.4 expect skillsui page spells
++0.1 shot m9ui_spells_1_page.png
+# slot 4: SPARK in it by keys (4, the spell, Enter)
++0.1 key 4
++0.1 expect skillsui slotsel 4
++0.1 skillsui spell spark
++0.1 key Return
++0.1 expect skillsui slot 4 spark
++0.2 shot m9ui_spells_2_prepared.png
+# clear slot 3 and fill it with SPIRIT WOLF
++0.1 key 3
++0.1 key X
++0.1 expect skillsui slot 3 empty
++0.1 skillsui spell spiritwolf
++0.1 key Return
++0.1 expect skillsui slot 3 spiritwolf
++0.2 shot m9ui_spells_3_wolf.png
+# foes close: the loadout may not change now (MagicOps::prepare's refusal, shown on the card)
++0.1 power arena
++0.5 power foes wolf 3 3 tough
++0.5 key X
++0.1 expect skillsui why FOES
++0.1 expect skillsui slot 3 spiritwolf
++0.1 shot m9ui_spells_3b_refused.png
++0.1 key Escape
++0.2 expect mode play
+# the quick keys
++0.1 key 1
++0.1 expect skillsui input press 1
++0.2 hold 2 0.9
++0.4 shot m9ui_spells_4_holding.png
++0.7 expect skillsui input hold 0.8
++0.1 expect skillsui input press 2
++0.1 hold Z 0.6
++0.05 key 4
++0.7 expect skillsui input dual 1
++0.1 key V
++0.2 expect skillsui sneaking 1
++0.1 key 1
++0.1 shot m9ui_spells_5_hud.png
++0.1 key V
++0.2 expect skillsui sneaking 0
++0.3 quit

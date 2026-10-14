@@ -22,6 +22,9 @@
 #include "rpg/culture/culture.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/items.h"
+#include "rpg/sim/magic.h"
+#include "rpg/sim/skills.h"
+#include "rpg/view/skills_paint.h"
 
 namespace lootp {
 
@@ -311,6 +314,10 @@ struct CardCtx {
   int block = 0;
   std::string blockName;
   bool flash = false;
+  // (M9) the hero's skills and spellbook: a weapon's family and its wins and losses against foe tags, an armour piece's
+  // class and trade-offs at the hero's skill, what a book teaches (nullptr: the plain lines, no levels)
+  const skills::Skills* skills = nullptr;
+  const magic::Book* book = nullptr;
 };
 // 1 better, -1 worse, 0 about even (gear::powerScore at the player's level, 3 % either way); an empty slot is better
 inline int verdict(const Item& it, const Item* vs, int level, int* pct = nullptr) {
@@ -405,6 +412,24 @@ float itemCard(Pt& P, float t, const CardCtx& X, const Item& it, float x, float 
     case ItemKind::Arrows: add("AMMUNITION", kText, 0); break;
     case ItemKind::Quest: add("QUEST ITEM", kText, 0); break;
     case ItemKind::Material: add("CRAFTING MATERIAL", kText, 0); add("FOR THE SMELTER, FORGE OR TANNERY", kQuiet, 5); break;
+    case ItemKind::Book:   // (M9) what it teaches: a skill book's skill, a tome's spell
+      if (skills::isSkillBook(it)) {
+        const skills::Skill s = (skills::Skill)it.form;
+        add(std::string("TEACHES ") + skills::skillInfo(s).name, colU(skills::skillInfo(s).color), 0);
+        bool read = false;
+        if (X.skills) for (uint32_t b : X.skills->booksRead) if (b == it.seed) read = true;
+        if (read) add("YOU HAVE READ IT", kQuiet, 1);
+        else add("READ IT TO RAISE THE SKILL", kQuiet, 2);
+      } else if (magic::isTome(it)) {
+        const magic::SpellDef* d = magic::spellById(it.seed);
+        if (d) {
+          add("TEACHES " + d->name, colU(skills::skillInfo(magic::schoolSkill(d->school)).color), 0);
+          add(std::string(magic::tierName(d->tier)) + " " + magic::schoolName(d->school), kText, 1);
+          if (X.book && X.book->knows(d->id)) add("YOU KNOW THIS SPELL", kQuiet, 1);
+          else add("READ IT TO LEARN THE SPELL", kQuiet, 2);
+        } else add("A SPELL TOME", kText, 0);
+      } else add("A BOOK", kText, 0);
+      break;
     default: break;
   }
   if (gearItem && eff < it.ilvl) add("SYNCED TO " + std::to_string(eff) + " (YOUR LEVEL + 4)", kWarn, 3);
@@ -454,6 +479,23 @@ float itemCard(Pt& P, float t, const CardCtx& X, const Item& it, float x, float 
   if (cmp && vs && vs->unique != Unique::None && vs->unique != it.unique) {
     add(std::string("LOSES ") + uniqueInfo(vs->unique).name, kLost, 1).arrow = -1;
     info.lostLines++;
+  }
+  // (M9, after the item's own lines) the weapon's family: its skill and its wins and losses against kinds of foe; an armour piece's class
+  if (it.kind == ItemKind::Weapon || it.kind == ItemKind::Bow) {
+    const skills::Skill fam = skills::familyOf(&it);
+    std::string fl = skp::familyWord(fam);
+    if (X.skills) fl += "  -  YOUR SKILL " + std::to_string(X.skills->level(fam));
+    add(fl, lerpC(colU(skills::skillInfo(fam).color), kText, 0.35f), 2);
+    for (const skp::Line& l : skp::familyLines(fam)) add(l.s, l.tone < 0 ? kDown : kUp, 4).bullet = true;
+  } else if (skills::weightOf(it) != skills::Weight::None) {
+    const skills::Weight wc = skills::weightOf(it);
+    const skills::Skill as = skills::armourSkill(wc);
+    std::string al = std::string(skills::weightName(wc)) + " ARMOUR";
+    if (X.skills && (int)as < skills::SKILLS) al += "  -  YOUR SKILL " + std::to_string(X.skills->level(as));
+    add(al, (int)as < skills::SKILLS ? lerpC(colU(skills::skillInfo(as).color), kText, 0.35f) : kText, 2);
+    if (it.kind == ItemKind::Armor)   // the body piece sets the class's trade-offs
+      for (const skp::Line& l : skp::tradeLines(wc, X.skills && (int)as < skills::SKILLS ? X.skills->level(as) : skills::START_LEVEL))
+        add(l.s, l.tone > 0 ? kUp : l.tone < 0 ? kDown : kQuiet, 4).bullet = true;
   }
   if (gearItem) {
     std::string who = X.maker ? X.maker->adjective + " WORK" : std::string("HEARTLAND WORK");

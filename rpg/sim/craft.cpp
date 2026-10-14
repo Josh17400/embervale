@@ -360,9 +360,8 @@ bool make(const Recipe& r, std::vector<Item>& inv, Knowledge& k, Rng& rng, int i
     if (r.culture) out.culture = r.culture;
     out.flags |= IF_CRAFTED;
   }
-  // practice makes the smith (tenths of a skill point; harder work teaches more: a point a piece at first, then
-  // more for the hard pieces; NUMBERS tuning: smithing 30 (steel) after about forty iron-and-bronze makes)
-  k.skill = (uint16_t)std::min(1000, (int)k.skill + 8 + (r.gear() ? 4 : 0) + r.skill / 5);
+  // (M9) practice makes the smith through the skills (SkillOps::forged, the forge's give: Smithing's act on its slowing
+  // curve, written back into k.skill: one number); make() itself no longer moves it
   return true;
 }
 

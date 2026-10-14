@@ -1,0 +1,47 @@
+# M9 MAGIC lane: the Restoration school (VISION_PLAN 15.5, 15.29.3/7): warm rising heals, wards (a reaction ward answers
+# a telegraphed cast), TURN UNDEAD sending the dead running, SUNBURST, the master's HEAVEN'S PILLAR on a skeleton band.
+#   embervale.exe --script tools/scripts/m9_magic_restoration.txt     (m9_magic_resto_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 power arena
++0.05 spell rain off
++0.5 power foes skeleton 4 3 tough
++0.1 skill set restoration 100
++0.1 spell mp 5000
++0.1 spell learn mend
++0.1 spell learn stone ward
++0.1 spell learn turn undead
++0.1 spell learn sunburst
++0.1 spell slot 1 mend
++0.1 spell slot 2 stone ward
++0.1 spell slot 3 turn undead
++0.1 spell slot 4 sunburst
++0.1 spell cast 1
++0.15 shot m9_magic_resto_mend.png
++0.3 spell cast 2
++0.15 shot m9_magic_resto_ward.png
++0.3 spell cast 3
++0.2 shot m9_magic_resto_turnundead.png
++0.3 expect status frightened 2
++0.5 spell cast 4
++0.15 shot m9_magic_resto_sunburst.png
++0.2 expect status blinded 1
++0.1 spell learn heaven's pillar
++0.1 spell slot 1 heaven's pillar
++0.1 spell aim 1 0
++0.1 spell cast 1
++0.6 shot m9_magic_resto_pillar_fall.png
++0.4 shot m9_magic_resto_pillar_impact.png
++0.3 spell learn healing circle
++0.1 spell slot 2 healing circle
++0.1 hour 22
++0.1 spell cast 2
++0.5 shot m9_magic_resto_circle_night.png
++0.1 spell learn grand healing
++0.1 spell slot 3 grand healing
++0.1 spell upcast 3 2
++0.2 shot m9_magic_resto_grandheal_night.png
++0.2 expect cast 7
++0.5 quit

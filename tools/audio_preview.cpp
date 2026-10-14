@@ -12,7 +12,11 @@
 // M5 (AMBIENCE lane): the bard's tavern piece in every archetype's style and the festival dance, the crowd's murmur,
 // the bard heard from the street (--tavern; also part of the full run), and the animals' and the crowd's sfx.
 //
-//   audio_preview [outDir] [--cultures] [--wild] [--tavern]   default outDir: %LOCALAPPDATA%\Temp\claude\embervale_audio;
+// M9 (SPELLFX lane): --magic: every school's spell life (hum, charge, launch, impact) and the motifs of the seven
+// timbres in every scale, each checked for clipping, a peak under the limiter, its length, and that the launch and
+// impact stand clear of the Combat music on a phone speaker; a busy fight's worth of spell sounds at once stays limited.
+//
+//   audio_preview [outDir] [--cultures] [--wild] [--tavern] [--magic]   default outDir: %LOCALAPPDATA%\Temp\claude\embervale_audio;
 //                                                  --cultures: only the culture pieces; --wild: only the beds and moods;
 //                                                  --tavern: only the tavern
 #include "engine/audio.h"
@@ -45,6 +49,9 @@ const char* kSfxName[(int)Sfx::COUNT] = {
   "Hoof",
   "Revive", "Knell", "Howl",
   "Zap", "Rebirth", "LootChime",
+  "SpellHum", "SpellCharge", "SpellFizzle", "FireCast", "FireBurst", "FrostCast", "FrostShatter", "StormCast", "Thunder",
+  "HolyCast", "HolyBloom", "RiftTear", "SummonRise", "Shimmer", "DreamPulse", "StoneGrind", "StoneSlam", "StarChime",
+  "MeteorFall", "WardRing", "Sizzle", "SpellMotif",
 };
 static_assert(sizeof(kSfxName) / sizeof(kSfxName[0]) == (size_t)Sfx::COUNT, "a name for every Sfx");
 const char* kMusicName[(int)Music::COUNT] = {"Silence", "Title", "Wild", "Night", "Town", "Cave", "Combat", "Boss", "Tavern"};
@@ -545,17 +552,109 @@ int tavernPieces(const fs::path& dir) {
   return problems;
 }
 
+// (M9 SPELLFX) the spells' voices: each school's life (wind-up hum, an upcast step, the launch, the impact) rendered
+// as one take, the motif of every timbre in every scale, and a busy fight (eight launches and impacts over Combat)
+int magicVoices(const fs::path& dir) {
+  int problems = 0;
+  struct Life { const char* name; Sfx cast, hit; float k; };
+  const Life lives[] = {
+    {"fire", Sfx::FireCast, Sfx::FireBurst, 1.0f},       {"frost", Sfx::FrostCast, Sfx::FrostShatter, 1.0f},
+    {"storm", Sfx::StormCast, Sfx::Thunder, 1.0f},       {"restoration", Sfx::HolyCast, Sfx::HolyBloom, 1.0f},
+    {"conjuration", Sfx::RiftTear, Sfx::SummonRise, 1.0f}, {"illusion", Sfx::Shimmer, Sfx::DreamPulse, 1.0f},
+    {"alteration", Sfx::StoneGrind, Sfx::StoneSlam, 1.0f}, {"starcalling", Sfx::StarChime, Sfx::FireBurst, 1.2f},
+    {"meteor", Sfx::MeteorFall, Sfx::FireBurst, 0.7f},   {"ward", Sfx::WardRing, Sfx::WardRing, 1.3f},
+  };
+  // the Combat bed on a phone speaker: every launch and impact must clear it by 4 dB (a hum and a motif need not)
+  float bedPhone = 0;
+  {
+    auto a = std::make_unique<Audio>();
+    a->setMusic(Music::Combat);
+    auto bed = renderFor(*a, 8.0f);
+    bedPhone = loudness(phoneSpeaker(bed), 3 * SR).mean;
+  }
+  std::printf("\nSPELL LIVES (hum 0.6 s, charge, launch, impact 0.35 s later; Combat bed on a phone %.1f dB)\n", db(bedPhone));
+  std::printf("%-12s %7s %7s %6s %9s %9s %9s\n", "life", "peak", "rms dB", "clip", "cast dB", "hit dB", "dur s");
+  for (const Life& l : lives) {
+    auto a = std::make_unique<Audio>();
+    a->play(Sfx::SpellHum, l.k, 0.6f);
+    auto x = renderFor(*a, 0.45f);
+    a->play(Sfx::SpellCharge, 1.0f * l.k, 0.7f);
+    auto y = renderFor(*a, 0.15f);
+    x.insert(x.end(), y.begin(), y.end());
+    a->play(l.cast, l.k, 1.0f);
+    const size_t castAt = x.size();
+    y = renderFor(*a, 0.35f);
+    x.insert(x.end(), y.begin(), y.end());
+    a->play(l.hit, l.k, 1.0f);
+    const size_t hitAt = x.size();
+    y = renderSfx(*a);
+    x.insert(x.end(), y.begin(), y.end());
+    const Levels L = levels(x);
+    const std::vector<float> castPart(x.begin() + (std::ptrdiff_t)castAt, x.begin() + (std::ptrdiff_t)hitAt);
+    const std::vector<float> hitPart(x.begin() + (std::ptrdiff_t)hitAt, x.end());
+    const float castL = loudness(phoneSpeaker(castPart)).maxWin, hitL = loudness(phoneSpeaker(hitPart)).maxWin;
+    std::printf("%-12s %7.3f %7.1f %6d %9.1f %9.1f %9.2f\n", l.name, L.peak, db(L.activeRms), L.clipped, db(castL), db(hitL), L.activeDur);
+    if (L.clipped || L.peak > 0.8f || L.activeDur > 8.0f || db(castL) - db(bedPhone) < 4 || db(hitL) - db(bedPhone) < 4) {
+      std::printf("  ^ PROBLEM\n");
+      problems++;
+    }
+    writeWav(dir / (std::string("spell_") + l.name + ".wav"), x);
+  }
+  // the motifs: seven timbres, every scale, two contours each: never silent, never clipped, rung out (reverb tail included) in 6 s
+  std::printf("\nMOTIFS (7 timbres x 12 scales x 2 motifs)\n");
+  float mPeakMin = 1, mPeakMax = 0, mDurMax = 0;
+  int mClip = 0;
+  for (int tb = 0; tb < 7; tb++)
+    for (int sc = 0; sc < (int)Scale::COUNT; sc++)
+      for (int mo = 0; mo < 2; mo++) {
+        auto a = std::make_unique<Audio>();
+        a->playMotif((uint8_t)(mo * 37 + tb * 11 + sc), (uint8_t)sc, (uint8_t)tb, 64 + tb * 2, 1.0f);
+        auto x = renderSfx(*a);
+        const Levels L = levels(x);
+        mPeakMin = std::fmin(mPeakMin, L.peak);
+        mPeakMax = std::fmax(mPeakMax, L.peak);
+        mDurMax = std::fmax(mDurMax, L.activeDur);
+        mClip += L.clipped;
+        if (sc == 0 && mo == 0) writeWav(dir / ("motif_timbre" + std::to_string(tb) + ".wav"), x);
+      }
+  std::printf("motif peaks %.3f .. %.3f, longest %.2f s, clipped samples %d\n", mPeakMin, mPeakMax, mDurMax, mClip);
+  if (mPeakMin < 0.02f || mPeakMax > 0.8f || mDurMax > 6.0f || mClip) { std::printf("  ^ PROBLEM\n"); problems++; }
+  {   // a busy fight: eight spells launched and landing within a second over the Combat music, the limiter holds
+    auto a = std::make_unique<Audio>();
+    a->setMusic(Music::Combat);
+    std::vector<float> all = renderFor(*a, 3.0f);
+    for (int i = 0; i < 8; i++) {
+      const Life& l = lives[(size_t)i % (sizeof(lives) / sizeof(lives[0]))];
+      a->play(l.cast, l.k, 1.0f);
+      auto y = renderFor(*a, 0.06f);
+      all.insert(all.end(), y.begin(), y.end());
+      a->play(l.hit, l.k, 1.0f);
+      y = renderFor(*a, 0.06f);
+      all.insert(all.end(), y.begin(), y.end());
+    }
+    auto y = renderFor(*a, 2.0f);
+    all.insert(all.end(), y.begin(), y.end());
+    const Levels L = levels(all);
+    std::printf("\nbusy fight (8 launches + impacts in 1 s over Combat): peak %.3f, clipped %d\n", L.peak, L.clipped);
+    if (L.clipped || L.peak > 0.81f) { std::printf("  ^ PROBLEM\n"); problems++; }
+    writeWav(dir / "spell_busy_fight.wav", all);
+  }
+  std::printf("spell voices: %s (%d problem%s)\n", problems ? "CHECK FAILED" : "all checks passed", problems, problems == 1 ? "" : "s");
+  return problems;
+}
+
 int main(int argc, char** argv) {
   fs::path dir;
-  bool culturesOnly = false, wildOnly = false, tavernOnly = false;
+  bool culturesOnly = false, wildOnly = false, tavernOnly = false, magicOnly = false;
   for (int i = 1; i < argc; i++) {
     if (std::string(argv[i]) == "--cultures") culturesOnly = true;
     else if (std::string(argv[i]) == "--tavern") tavernOnly = true;
     else if (std::string(argv[i]) == "--wild") wildOnly = true;
+    else if (std::string(argv[i]) == "--magic") magicOnly = true;
     else if (argv[i][0] == '-') {
       // An unknown flag (e.g. --help) must never become the output directory: that once dumped 200 MB of WAVs
       // into a folder named "--help" in the repo root.
-      std::fprintf(stderr, "usage: audio_preview [outDir] [--cultures] [--wild] [--tavern]\n");
+      std::fprintf(stderr, "usage: audio_preview [outDir] [--cultures] [--wild] [--tavern] [--magic]\n");
       return std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h" ? 0 : 2;
     } else dir = argv[i];
   }
@@ -580,6 +679,10 @@ int main(int argc, char** argv) {
     problems = tavernPieces(dir);
     return problems ? 2 : 0;
   }
+  if (magicOnly) {
+    problems = magicVoices(dir);
+    return problems ? 2 : 0;
+  }
 
   // "raw" = peak the sound would reach without the limiter (rendered at half master, doubled); > 0.8 means limited
   // "200ms" = loudest 200 ms window; "phone" = the same through a 200 Hz high-pass (what a phone speaker plays)
@@ -602,7 +705,8 @@ int main(int argc, char** argv) {
     if (L.clipped || L.peak < 0.02f || L.activeDur < 0.02f) { std::printf("  ^ PROBLEM\n"); problems++; }
     if ((Sfx)s != Sfx::Step && (Sfx)s != Sfx::Talk && (Sfx)s != Sfx::MenuMove && (Sfx)s != Sfx::MenuSelect &&
         (Sfx)s != Sfx::MenuBack && (Sfx)s != Sfx::Bark && (Sfx)s != Sfx::Cluck && (Sfx)s != Sfx::Meow && (Sfx)s != Sfx::Cheer &&
-        (Sfx)s != Sfx::Hoof) {
+        (Sfx)s != Sfx::Hoof && (Sfx)s != Sfx::SpellHum && (Sfx)s != Sfx::SpellMotif) {
+      // (M9) the wind-up hum and the motif are beds under a cast (its launch and impact carry it), soft by design
       // (M5) the animals and the crowd's cheer are the town's ambience, heard at a distance under the music by design
       sfxPeakMin = std::fmin(sfxPeakMin, L.peak);
       sfxLoudMin = std::fmin(sfxLoudMin, loud);
@@ -709,6 +813,7 @@ int main(int argc, char** argv) {
   problems += culturePieces(dir);
   problems += tavernPieces(dir);
   problems += wildlands(dir);
+  problems += magicVoices(dir);
   std::printf("\n%s (%d problem%s)\n", problems ? "CHECK FAILED" : "all checks passed", problems, problems == 1 ? "" : "s");
   return problems ? 2 : 0;
 }

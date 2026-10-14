@@ -12,7 +12,9 @@
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/power_ops.h"
+#include "rpg/sim/magic_ops.h"
 #include "rpg/sim/powers.h"
+#include "rpg/sim/skill_ops.h"
 #include "rpg/sim/stream.h"
 #include "rpg/sim/war.h"
 #include "rpg/culture/society.h"
@@ -195,6 +197,8 @@ void Game::resetPlayer() {
   Item bread = makeFood(0); bread.count = 2;
   inv.push_back(bread);
   spellsKnown = 0; spell = Spell::Flames;   // no magic at the start: spells come from a background, tomes or teachers
+  MagicOps::reset(*this);                    // (M9) the spellbook and the casting runtime
+  skills::startLevels(skills, background);   // (M9) every skill at its start level
   recalcPlayer();
   Actor& p = pl();
   p.hp = p.maxHp; mp = maxMp; stamina = maxSt;
@@ -235,6 +239,8 @@ void Game::finishCreator() {
     case Background::Marked: maxMp += 15; spellsKnown |= (uint8_t)(1 << (int)Spell::Flames); spell = Spell::Flames; break;
     default: break;
   }
+  skills::startLevels(skills, background);   // (M9) the background's own skills start higher
+  MagicOps::background(*this);               // (M9) its spell into the book and the first quick slot
   recalcPlayer();
   pl().hp = pl().maxHp; mp = maxMp; stamina = maxSt;
   mode = Mode::Play;
@@ -319,6 +325,7 @@ void Game::windowMoved(int dx, int dy) {
   for (Pickup& pk : pickups) pk.p += d;
   for (Vec2& t : party.trail) t += d;   // (M8) the player's footsteps the companions follow (party_move.cpp)
   PowerOps::shift(*this, d);            // (M8b) fire patches, falling stars, wolves to call
+  MagicOps::shift(*this, d);            // (M9) the spells' surfaces
   // the heading reference moves with the window too, or the next wish list reads the shift as a walk backwards
   if (len2(prefetchFrom_) > 1e-6f) prefetchFrom_ += d;
   reapplyLooted();
@@ -546,6 +553,8 @@ void Game::update(float dt, const Input& in) {
   if (!inside) prepInteriorTick(dt);   // (M3c carry) the interior of the door ahead, before it is reached
   updatePlayer(dt, in);
   PowerOps::step(*this, dt);   // M8b: the worn powers' clocks, fire patches, auras, stars, spectral wolves (powers.cpp)
+  SkillOps::step(*this, dt);   // M9: distances walked / ridden, sneaking, familiarity (skills_game.cpp, SKILLS lane)
+  MagicOps::step(*this, dt);   // M9: casts in progress, concentration, surfaces and their combos (magic_game.cpp, MAGIC lane)
   if (world.endless && !inside) { maybeRecentre(); prefetchTick(dt); }
   if (!inside && (exploreT_ -= dt) <= 0) {   // fog of war: what the screen shows around the player (global tiles)
     exploreT_ = 0.25f;
@@ -668,7 +677,7 @@ void Game::updatePlayer(float dt, const Input& in) {
   L6.stillT = len2(in.move) < 0.02f && (p.st == AState::Idle || p.st == AState::Walk) ? L6.stillT + dt : 0.0f;
   const float stRegen = (background == Background::Farmhand ? 1.3f : 1.0f)   // farmhand: a field worker's wind
                         * (1.0f + 0.01f * (float)S6.get(Affix::StaminaRegen)) * (S6.has(Unique::Wayfarer) ? 1.2f : 1.0f);
-  const float stLife = lifeStaminaRegenMul();   // M5 (15.2): Well Fed / Hungry / Weary
+  const float stLife = lifeStaminaRegenMul() * SkillOps::staminaRegenMul(*this);   // M5 (15.2): Well Fed / Hungry / Weary; (M9) the armour class, perks
   if (!busy) stamina = stamina + dt * 22.0f * stRegen * stLife;
   float mpMax = maxMp + (float)S6.get(Affix::Magicka);
   for (int idx : worn()) if (idx >= 0 && inv[idx].ench == Ench::Magicka) mpMax += inv[idx].enchPow;
@@ -729,7 +738,7 @@ void Game::updatePlayer(float dt, const Input& in) {
       return;
     }
     case AState::Windup:
-      if (p.stT >= (eqWeapon < 0 ? 0.05f : 0.07f)) {
+      if (p.stT >= (eqWeapon < 0 ? 0.05f : 0.07f) * SkillOps::swingTime(*this)) {   // (M9) the family's pace
         p.st = AState::Strike; p.stT = 0; p.hitDone = false;
         sfx((int)Sfx::Swing, p.p, (eqWeapon < 0 ? 1.45f : 1.0f) + p.combo * 0.12f, eqWeapon < 0 ? 0.6f : 1.0f);
       }
@@ -737,10 +746,10 @@ void Game::updatePlayer(float dt, const Input& in) {
     case AState::Strike:
       if (!p.hitDone) { meleeHit(p); p.hitDone = true; }
       moveActor(p, p.aim * (dt * (p.combo == 2 ? 70.0f : 30.0f)));
-      if (p.stT >= 0.11f) { p.st = AState::Recover; p.stT = 0; }
+      if (p.stT >= 0.11f * SkillOps::swingTime(*this)) { p.st = AState::Recover; p.stT = 0; }   // (M9) a mace lands slow, a dagger quick
       break;
     case AState::Recover:
-      if (p.stT >= (p.combo == 2 ? 0.28f : eqWeapon < 0 ? 0.08f : 0.13f)) { p.st = AState::Idle; p.stT = 0; }
+      if (p.stT >= (p.combo == 2 ? 0.28f : eqWeapon < 0 ? 0.08f : 0.13f) * SkillOps::swingTime(*this)) { p.st = AState::Idle; p.stT = 0; }
       break;
     case AState::Cast:
       if (p.stT >= 0.22f) { p.st = AState::Idle; p.stT = 0; }
@@ -750,9 +759,9 @@ void Game::updatePlayer(float dt, const Input& in) {
       break;
     default: break;
   }
-  bool canAct = p.st == AState::Idle || p.st == AState::Walk || (p.st == AState::Recover && p.stT > 0.06f);
-  // M7: on horseback any fighting move (a swing, a shot, a spell, a roll) gets the rider off first (home_game.cpp)
-  if (homeRiding() && canAct && ((in.attack && !in.interact) || in.bow || in.spell || in.roll)) homeDismount(home::Dismount::Attack);
+  bool canAct = p.st == AState::Idle || p.st == AState::Walk || (p.st == AState::Recover && p.stT > 0.06f * SkillOps::swingTime(*this));   // ((M9) the family's pace)
+  // M7: on horseback any fighting move (a swing, a shot, a spell or a quick-cast slot, a roll) gets the rider off first
+  if (homeRiding() && canAct && ((in.attack && !in.interact) || in.bow || in.spell || in.castSlot >= 0 || in.roll)) homeDismount(home::Dismount::Attack);
   float slow = (p.slowT > 0 ? 0.6f : 1.0f) * homeSpeedMul();   // M7: the horse's pace (1 on foot)
   if (p.st == AState::Idle || p.st == AState::Walk) {
     if (ml > 0.15f) {
@@ -769,17 +778,23 @@ void Game::updatePlayer(float dt, const Input& in) {
     if (ml > 0.15f) moveActor(p, mv * (p.speed * 0.35f * dt));
   }
 
-  if (canAct && in.roll && stamina < 20) { if (stFlash <= 0) sfx((int)Sfx::MenuBack, p.p, 0.6f); stFlash = 0.6f; }
-  if (canAct && in.roll && stamina >= 20) {
-    stamina -= 20;
+  // (M9) sneaking on / off (Stealth: SkillOps)
+  if (in.sneak) { skills.live.sneaking = !skills.live.sneaking; say(skills.live.sneaking ? "SNEAKING" : "NO LONGER SNEAKING"); recalcPlayer(); }
+  const float rollCost = 20.0f * SkillOps::rollCostMul(*this);   // (M9) the armour class, perks
+  // (M9 fixer) a roll also breaks a spell wind-up or a held upcast (stepCast sees the Roll and fizzles the cast)
+  const bool canRoll = canAct || (p.st == AState::Cast && arcana.live.cast.spell);
+  if (canRoll && in.roll && stamina < rollCost) { if (stFlash <= 0) sfx((int)Sfx::MenuBack, p.p, 0.6f); stFlash = 0.6f; }
+  if (canRoll && in.roll && stamina >= rollCost) {
+    stamina -= rollCost;
     perfectRoll_ = false;
     Vec2 d = ml > 0.15f ? norm(mv) : p.aim;
     // (M6) roll distance: the affix and Windwalker carry the roll further
-    p.vel = d * (165.0f * (1.0f + 0.01f * (float)S6.get(Affix::RollDist) + (S6.has(Unique::Windwalker) ? 0.15f : 0.0f)));
+    p.vel = d * (165.0f * (1.0f + 0.01f * (float)S6.get(Affix::RollDist) + (S6.has(Unique::Windwalker) ? 0.15f : 0.0f)) * SkillOps::rollMul(*this));
     p.st = AState::Roll; p.stT = 0; p.iframes = 0.3f;
     p.face = faceOf(d);
     sfx((int)Sfx::Roll, p.p);
     PowerOps::rollStarted(*this);   // (M8b) Chronos' dodge window, Shadowstep
+    SkillOps::rolled(*this);        // (M9) Athletics; the heavy-armour charge perk
     return;
   }
   // a use (talk, sleep, open, pray) wins over a swing given in the same step: on touch the use tap and the held
@@ -797,22 +812,15 @@ void Game::updatePlayer(float dt, const Input& in) {
     if (best >= 0) { p.aim = norm(actors[best].p - p.p); p.face = faceOf(p.aim); }
     p.combo = (p.comboT > 0) ? (p.combo + 1) % 3 : 0;
     p.comboT = 0.55f;
-    float cost = p.combo == 2 ? (eqWeapon < 0 ? 10.0f : 14.0f) : (eqWeapon < 0 ? 3.0f : 4.0f);
+    float cost = (p.combo == 2 ? (eqWeapon < 0 ? 10.0f : 14.0f) : (eqWeapon < 0 ? 3.0f : 4.0f)) * SkillOps::swingCost(*this);
     if (stamina < cost) { if (p.combo == 2 || stamina < 4) stFlash = 0.6f; p.combo = 0; }
     stamina = std::max(0.0f, stamina - cost);
     p.st = AState::Windup; p.stT = 0;
     return;
   }
   if (canAct && in.bow) { shootArrow(); return; }
-  if (canAct && in.spell) { castSpell(); return; }
-  if (in.swapSpell) {
-    for (int k = 1; k <= (int)Spell::COUNT; k++) {
-      int s = ((int)spell + k) % (int)Spell::COUNT;
-      if (spellsKnown & (1 << s)) { spell = (Spell)s; break; }
-    }
-    say(std::string("SPELL: ") + spellName(spell));
-    sfx((int)Sfx::MenuMove, p.p);
-  }
+  // (M9) the quick slots, the SPELL button and SWAP: the book (magic_game.cpp, MAGIC lane)
+  if (MagicOps::input(*this, in, canAct)) return;
   if (in.potion) {
     int best = -1;
     // (M6 fixer) while the shared potion cooldown runs, the quick-heal reaches for food instead (a potion is still
@@ -917,6 +925,10 @@ void Game::meleeHit(Actor& a) {
   Ench ench = Ench::None; float ep = 0;
   if (isPl && eqWeapon >= 0) { ench = inv[eqWeapon].ench; ep = inv[eqWeapon].enchPow; }
   if (isPl && inv.size() && eqWeapon >= 0 && inv[eqWeapon].sub == (uint8_t)WeaponType::Dagger) reach -= 3;
+  // (M9) the weapon family (SkillOps: its reach, its vs-tags, the perks; the skill's gain)
+  const skills::Skill fam = skills::familyOf(isPl && eqWeapon >= 0 && eqWeapon < (int)inv.size() ? &inv[(size_t)eqWeapon] : nullptr);
+  if (isPl) reach += SkillOps::reachAdd(*this);
+  if (isPl) SkillOps::swingShape(*this, a.combo == 2, reach, cone);   // (M9) WHIRLWIND, CLEAVE, IMPALE
   Vec2 origin = a.p + Vec2(0, -4);
   bool any = false;
   for (size_t i = 0; i < actors.size(); i++) {
@@ -937,11 +949,20 @@ void Game::meleeHit(Actor& a) {
     const gear::GearStats& S = WS ? *WS : craft.live.stats;
     bool crit = WS && rng_.f() < gear::CRIT_CHANCE + 0.01f * (float)S.get(Affix::CritChance);
     if (isPl && S.has(Unique::StillCrit) && craft.live.stillT >= 1.0f) { crit = true; craft.live.stillT = 0; emit(Ev::Text, v.p + Vec2(0, -30), (int)rgba(200, 230, 255), 0, "STILLNESS"); }
+    if (isPl) {   // (M9) the victim before the blow (unaware, mid-rush), a sure crit (a dagger on the unaware, RIPOSTE)
+      SkillOps::preStrike(*this, v, fam);
+      if (SkillOps::forceCrit(*this, v, fam)) crit = true;
+    }
     const float cm = gear::CRIT_MULT + 0.01f * (float)S.get(Affix::CritDmg);
-    const float hit = dmg * (0.9f + rng_.f() * 0.2f) * (crit ? cm : 1.0f);
+    const float hit = dmg * (0.9f + rng_.f() * 0.2f) * (crit ? cm : 1.0f) * (isPl ? SkillOps::strikeMul(*this, v, fam, a.combo == 2) : 1.0f);
     const int vid = v.id;
+    const float hp0 = v.hp;
     damage(v, hit, a.p, a.id, ench, ep, crit);
     any = true;
+    if (isPl) {   // (M9) the family's gain and its perks' after-effects (v may have moved: look it up again)
+      const int k = findActor(vid);
+      if (k >= 0) { Actor& t = actors[(size_t)k]; SkillOps::struck(*this, t, fam, hp0 - std::max(0.0f, t.hp), crit, a.combo == 2, t.st == AState::Dead); }
+    }
     if (isPl) {
       // (M6 uniques) the blow's echoes: Stormcaller's lightning on a crit, Echo's second strike, Thunderclap's stun
       // ((M8b) a power's own damage: no procs from it)
@@ -1011,9 +1032,10 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
     emit(Ev::Text, v.p + Vec2(0, -22), (int)rgba(150, 220, 255), 0, "DODGE");
     sfx((int)Sfx::Roll, v.p, 1.6f);
     PowerOps::dodged(*this);   // (M8b) Chronos: a perfect dodge at the roll's start slows time
+    SkillOps::dodged(*this);   // (M9) light armour's EVASION and MATCHLESS
   }
   if (v.player && (v.iframes > 0 || godMode)) return;
-  if (v.player && homeRiding()) homeDismount(home::Dismount::Hurt);   // M7: a blow knocks the rider off
+  if (v.player && homeRiding() && !SkillOps::keepSaddle(*this, dmg)) homeDismount(home::Dismount::Hurt);   // M7: a blow knocks the rider off ((M9) SURE SEAT)
   if (v.st == AState::Down && !v.comp) {   // smashing the bones before they rise (M8: a downed companion is the lane's)
     v.reassembled = true;
     v.hp = 0;
@@ -1077,6 +1099,8 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
   }
   dmg = foeHit(v, dmg, attacker);   // M6: warded / armoured / vampiric / frost-bound (foes_game.cpp)
   dmg = partyHit(v, dmg, attacker);  // M8: shield wall, defend, the damage-share statistics (party_game.cpp)
+  if (v.player) dmg = SkillOps::takenMul(*this, attacker, dmg);   // M9: the worn armour class, perks (skills_game.cpp)
+  dmg = MagicOps::hurtMul(*this, v, dmg, attacker, ench);         // M9: statuses and wards (magic_game.cpp)
   if (AS && elemental > 0) {
     dmg *= 1.0f + elemental;
     if (AS->get(Affix::FireDmg) > 0) { v.burnT = std::max(v.burnT, 2.0f); v.regen = 0; }
@@ -1127,6 +1151,8 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
     }
   }
   v.hp -= dmg;
+  if (v.player) SkillOps::taken(*this, attacker, dmg);   // (M9) the armour skill's gain, Block's
+  MagicOps::hurt(*this, v, dmg, attacker);              // (M9) a heavy hit breaks the caster's concentration
   if (v.player && v.hp > 0) {
     // (M6 uniques) when the hero is struck: Frost Nova, Time Slow below 30 %, Second Wind below 25 %
     gear::Live& L6 = craft.live;
@@ -1154,6 +1180,7 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
   Vec2 dir = norm(v.p - from);
   float kb = v.boss ? 30.0f : (v.player ? 110.0f : 150.0f);
   if (v.mon == Monster::Dragon) kb = 0;
+  if (v.player) kb *= SkillOps::knockMul(*this);   // (M9) heavy armour's IMMOVABLE
   v.knock = dir * kb;
   emit(Ev::Text, v.p + Vec2(0, -18), v.player ? (int)rgba(255, 90, 80) : crit ? (int)rgba(255, 210, 60) : (int)rgba(255, 255, 255), dmg,
        std::to_string((int)std::ceil(dmg)) + (crit ? "!" : ""));
@@ -1186,7 +1213,7 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
       v.fleeing = true;
       emit(Ev::Text, v.p + Vec2(0, -20), (int)rgba(255, 230, 120), 0, "!");
     }
-  } else if (v.st != AState::Roll && dmg > 8) { v.st = AState::Hurt; v.stT = 0; }
+  } else if (v.st != AState::Roll && dmg > 8 && !SkillOps::unstaggerable(*this, dmg)) { v.st = AState::Hurt; v.stT = 0; }   // ((M9) STEADFAST, IMMOVABLE, STEADY)
   // (M8b) the striker's on-hit powers (Tempest, Starfall), never from a power's own damage; read before the kill (the
   // victim's place and id)
   const bool procs = AS && powDepth_ == 0 && v.hostile && dmg > 0;
@@ -1301,6 +1328,7 @@ void Game::gainXp(int xp) {
     plXp -= gear::xpForNext(plLevel);
     plLevel++;
     perkPts++;
+    SkillOps::leveledUp(*this);   // (M9) a perk point to spend in the trees
     emit(Ev::LevelUp, pl().p, plLevel);
     sfx((int)Sfx::LevelUp, pl().p);
     emit(Ev::Shake, pl().p, 0, 3.0f);
@@ -1361,55 +1389,13 @@ void Game::shootArrow() {
   // (M8b) Affix::AttackSpeed draws the bow that much faster too
   p.st = AState::Cast; p.stT = 0;
   p.shootCd = (craft.live.stats.has(Unique::Quickdraw) ? 0.42f * 0.7f : 0.42f) / (1.0f + 0.01f * (float)std::max(0, craft.live.stats.get(Affix::AttackSpeed)));
+  p.shootCd *= SkillOps::drawMul(*this);   // (M9) Archery's draw
   sfx((int)Sfx::Arrow, p.p);
+  SkillOps::loosed(*this);                 // (M9) the steady-draw perk
 }
 
-void Game::castSpell() {
-  Actor& p = pl();
-  if (!(spellsKnown & (1 << (int)spell))) {
-    say(spellsKnown ? "SWAP TO A SPELL YOU KNOW" : "YOU KNOW NO SPELLS YET");
-    sfx((int)Sfx::MenuBack, p.p);
-    return;
-  }
-  // (M6) Arcanist: -20 % cost, +20 % power; Blood Magic: health pays, +40 % power; spell power: staff and affixes
-  const gear::GearStats& S6 = craft.live.stats;
-  int cost = spellCost(spell);
-  if (S6.has(Unique::Arcanist)) cost = cost * 4 / 5;
-  const bool blood = S6.has(Unique::BloodMagic);
-  if (!blood && mp < cost) { say("NOT ENOUGH MAGICKA"); sfx((int)Sfx::MenuBack, p.p); return; }
-  if (blood && p.hp <= cost + 1) { say("TOO WEAK TO PAY IN BLOOD"); sfx((int)Sfx::MenuBack, p.p); return; }
-  if (p.shootCd > 0) return;
-  if (blood) { p.hp -= (float)cost; emit(Ev::Blood, p.p + Vec2(0, -6)); }
-  else mp -= cost;
-  const float sp = (eqStaff >= 0 ? gear::usePower(inv[eqStaff], plLevel) : 0.0f) + (float)S6.get(Affix::SpellPower);
-  float power = gear::playerDamageMul(plLevel) + sp * 0.02f;
-  if (S6.has(Unique::Arcanist)) power *= 1.2f;
-  if (blood) power *= 1.4f;
-  if (spell == Spell::Heal) {
-    p.hp = std::min(p.maxHp, p.hp + 45 * power);
-    emit(Ev::Heal, p.p);
-    sfx((int)Sfx::Heal, p.p);
-  } else {
-    Vec2 aim = p.aim; float bd = 1e9f;
-    for (size_t i = 1; i < actors.size(); i++) {
-      const Actor& e = actors[i];
-      if (!e.hostile || e.st == AState::Dead) continue;
-      Vec2 d = e.p - p.p; float l = len(d);
-      if (l > 170 || l < 1) continue;
-      if (dot(d * (1.0f / l), p.aim) > 0.1f && l < bd) { bd = l; aim = norm(e.p + Vec2(0, -6) - (p.p + Vec2(0, -8))); }
-    }
-    Projectile pr;
-    pr.p = p.p + Vec2(0, -8) + aim * 6;
-    pr.fromPlayer = true; pr.owner = p.id;
-    if (spell == Spell::Flames) { pr.kind = ProjKind::Fireball; pr.v = aim * 200; pr.dmg = 18 * power; pr.ench = Ench::Fire; pr.enchPow = 8 * power; pr.radius = 4; }
-    else { pr.kind = ProjKind::IceSpike; pr.v = aim * 260; pr.dmg = 24 * power; pr.ench = Ench::Frost; pr.enchPow = 6 * power; }
-    pr.life = 1.0f;
-    projs.push_back(pr);
-    p.aim = aim; p.face = faceOf(aim);
-    sfx((int)(spell == Spell::Flames ? Sfx::Fireball : Sfx::Frost), p.p);
-  }
-  p.st = AState::Cast; p.stT = 0; p.shootCd = 0.35f;
-}
+// (M9) the book's selected quick slot (rpg/sim/magic_game.cpp, MAGIC lane: the classic three keep their numbers)
+void Game::castSpell() { MagicOps::cast(*this); }
 
 void Game::updateProjectiles(float dt0) {
   // (M8b) SplitArrows' new arrows join after the pass (never pushed while `pr` is held)
@@ -1481,7 +1467,17 @@ void Game::updateProjectiles(float dt0) {
             sfx((int)Sfx::Block, a.p, 1.3f);
             break;
           }
-          damage(a, pr.dmg, prev, pr.owner, pr.ench, pr.enchPow);
+          // (M9) a spell's missile is magic's (true: handled); a hero's arrow is Archery's (its vs-tags, its gain)
+          if (pr.spell && MagicOps::projHit(*this, pr, a)) { dead = true; break; }
+          const bool plArrow = pr.kind == ProjKind::Arrow && pr.owner == pl().id;
+          const int vid = a.id;
+          const float hp0 = a.hp;
+          if (plArrow) SkillOps::preStrike(*this, a, skills::Skill::Bow);
+          damage(a, pr.dmg * (plArrow ? SkillOps::strikeMul(*this, a, skills::Skill::Bow, false) : 1.0f), prev, pr.owner, pr.ench, pr.enchPow);
+          if (plArrow) {
+            const int k = findActor(vid);
+            if (k >= 0) { Actor& t = actors[(size_t)k]; SkillOps::struck(*this, t, skills::Skill::Bow, hp0 - std::max(0.0f, t.hp), false, false, t.st == AState::Dead); }
+          }
           dead = true;
           if (pr.kind == ProjKind::Arrow) sfx((int)Sfx::ArrowHit, pr.p);
           break;
@@ -1489,6 +1485,7 @@ void Game::updateProjectiles(float dt0) {
       }
     }
     if (dead) {
+      if (pr.spell) MagicOps::projEnd(*this, pr);   // (M9) its impact, aftermath and the surface it leaves
       if (pr.kind == ProjKind::Fireball || pr.kind == ProjKind::DragonFire) {
         emit(Ev::Explode, pr.p, 0, pr.kind == ProjKind::DragonFire ? 1.5f : 1.0f);
         if (pr.kind == ProjKind::Fireball) {
@@ -1574,6 +1571,16 @@ void Game::updateActor(Actor& a, float dt) {
     a.hp -= a.burnDps * k;
     if (a.hp <= 0) { kill(a, a.burnBy >= 0 && findActor(a.burnBy) >= 0 ? a.burnBy : pl().id); return; }
   }
+  // (M9 SKILLS) a bleed (an axe's BLEEDING CUTS, a dagger's LACERATE): bleedDps a second while it lasts
+  if (a.bleedT > 0) {
+    const float k = std::min(dt, a.bleedT);
+    const bool drip = (int)(a.bleedT * 2.0f) != (int)((a.bleedT - dt) * 2.0f);
+    a.bleedT -= dt;
+    a.hp -= a.bleedDps * k;
+    if (drip) emit(Ev::Blood, a.p + Vec2(0, -6));
+    if (a.hp <= 0) { kill(a, a.bleedBy >= 0 && findActor(a.bleedBy) >= 0 ? a.bleedBy : pl().id); return; }
+  }
+  if (MagicOps::actorStep(*this, a, dt)) return;   // (M9) statuses: burning, poisoned, frozen (magic_game.cpp)
   if (a.slowT > 0) a.slowT -= dt;
   if (a.powCd > 0) a.powCd -= dt;
   // (M8b) a companion's Affix::AttackSpeed: their swing and its cooldown run that much faster
@@ -1738,6 +1745,7 @@ void Game::debugFell(int actorId, bool byPlayer) {
 void Game::clearNonPlayer() {
   actors.resize(1);
   PowerOps::clearMap(*this);   // (M8b) the map's fire patches, falling stars and wolves to call
+  MagicOps::clearMap(*this);   // (M9) the map's surfaces, the cast in progress, concentration
   projs.clear();
   pickups.clear();
   activeSites_.clear();

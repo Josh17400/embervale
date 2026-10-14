@@ -1,0 +1,59 @@
+phone
+# M9 UI lane: the spellbook and the quick-cast buttons at phone size, by touch. A slot tapped, a spell tapped and
+# tapped again (prepared), CLEAR and PREPARE tapped; in play: quick 1 tapped (cast), quick 2 held (the charge ring),
+# quick 4 swiped off (dual-cast: X2), the sneak toggle tapped (the eye), an empty slot tapped (the spellbook opens).
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m9_ui_spells_phone.txt     (m9ui_spp_*.png)
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 11
++0.1 spell learn firebolt
++0.1 spell learn frostlance
++0.1 spell learn mend
++0.1 spell learn spark
++0.1 spell mp 500
++0.1 skillsui rested
++0.6 expect skillsui quick 4
++0.1 shot m9ui_spp_1_hud.png
++0.1 skillsui open spells
++0.02 touch 1
++0.3 skillsui tap slot 2
++0.3 expect skillsui slotsel 2
++0.1 skillsui tap spell spark
++0.3 skillsui tap spell spark
++0.3 expect skillsui slot 2 spark
++0.1 shot m9ui_spp_2_page.png
++0.1 skillsui tap slot 4
++0.3 skillsui tap clear
++0.3 expect skillsui slot 4 empty
++0.1 skillsui tap spell frostlance
++0.3 skillsui tap prepare
++0.3 expect skillsui slot 4 frostlance
++0.1 skillsui tap slot 3
++0.3 skillsui tap clear
++0.3 expect skillsui slot 3 empty
++0.1 shot m9ui_spp_3_cleared.png
++0.1 key Escape
++0.02 touch 1
++0.3 expect mode play
++0.1 power arena
++0.5 power foes wolf 3 3 tough
+# the quick buttons: a tap, a hold, a swipe off
++0.1 skillsui tap quick 1
++0.3 expect skillsui input press 1
++0.1 press quick 2 1.0
++0.6 shot m9ui_spp_4_hold.png
++0.6 expect skillsui input hold 0.9
++0.1 swipe quick 4 -40 -12 0.6
++0.4 shot m9ui_spp_5_swipe.png
++0.4 expect skillsui input dual 1
++0.1 skillsui tap quick 5
++0.3 expect skillsui sneaking 1
++0.3 shot m9ui_spp_6_sneak.png
+# an empty slot: the spellbook opens on it
++0.1 skillsui tap quick 3
++0.4 expect skillsui page spells
++0.1 expect skillsui slotsel 3
++0.1 shot m9ui_spp_7_empty.png
++0.3 quit

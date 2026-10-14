@@ -16,6 +16,7 @@
 #include "rpg/culture/culture.h"
 #include "rpg/sim/craft.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/skill_ops.h"
 #include "rpg/sim/gear.h"
 #include "rpg/world/source.h"
 
@@ -80,7 +81,9 @@ struct CraftOps {
       }
   }
   // the made thing into the pack (stacks, auto-equip into an empty slot) with the forge's ring
-  static void give(Game& g, const Item& it) {
+  static void give(Game& g, const Item& made) {
+    Item it = made;
+    SkillOps::forged(g, it);   // (M9) Smithing's gain and its improvement perks (skills_game.cpp)
     g.addItem(it, true);
     g.sfx((int)Sfx::HitHeavy, g.pl().p, 1.6f, 0.8f);
     g.emit(Ev::Sparkle, g.pl().p + Vec2(0, -10));
@@ -247,8 +250,8 @@ bool Game::craftChoose(const DlgOpt& o) {
           craft.knows(M.id, 0, sk)) { sk = craft::SecretKind::AlloyRecipe; al = it.alloy; }
       dropItem(o.arg);
       const std::string what = craft::secretName(M, al, sk);
-      const bool learned = craft::learnSecret(craft, M, al, sk, craft::STUDY_PROGRESS, craft::HOW_BREAKDOWN);
-      craft.skill = (uint16_t)std::min(1000, (int)craft.skill + 6);
+      const bool learned = craft::learnSecret(craft, M, al, sk, craft::STUDY_PROGRESS * SkillOps::studyMul(*this), craft::HOW_BREAKDOWN);   // (M9) QUICK STUDY
+      SkillOps::studied(*this);   // (M9) Smithing's act (the forge's number: craft.skill)
       sfx((int)Sfx::HitHeavy, pl().p, 1.3f, 0.7f);
       dlg.text = "YOU TAKE " + it.name + " APART, RIVET BY RIVET. " + what + ": " + std::to_string(craft.progress(M.id, al, sk)) + "%." +
                  (learned ? " NOW YOU UNDERSTAND IT." : "");

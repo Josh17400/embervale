@@ -1,0 +1,40 @@
+# M9 SPELLFX at night: the spells light the world (a fireball lighting the trees it passes, an impact's flash on the
+# ground round it, lightning lighting the whole scene for a frame, a meteor, burning and shocked ground glowing, the
+# star-lines of a starfall drawn in the night sky). Screenshots m9fx_n_*.png.
+#   embervale.exe --script tools/scripts/m9_fx_night.txt
+seed 2
+0.3  newgame
++0.1 god 1
++0.05 hour 23
++0.1 power arena
++0.4 spell mp 999
++0.4 fx reset
++0.1 fx spell firebolt at 7 0
++0.5 shot m9fx_n_fire_windup.png
++0.22 shot m9fx_n_fire_travel.png
++0.25 shot m9fx_n_fire_impact.png
++0.1 expect magicfx peak_lights 2   # (integration) the peak since the reset: the last frame alone was timing-flaky
++0.8 fx spell frostlance at 6 1
++0.55 shot m9fx_n_frost.png
++0.8 fx spell spark at 6 0
++0.5 shot m9fx_n_spark.png
++0.8 fx spell storm storm destruction size 4 at 5 0
++1.05 shot m9fx_n_storm.png
++0.3 shot m9fx_n_storm2.png
++2.0 fx spell meteor fire destruction size 4 at 5 1
++1.3 shot m9fx_n_meteor.png
++0.2 shot m9fx_n_meteor2.png
++1.2 fx spell meteor star destruction size 3 at -5 0
++0.6 shot m9fx_n_star.png
++0.5 shot m9fx_n_star2.png
++1.0 fx spell mend
++0.55 shot m9fx_n_mend.png
++1.0 fx spell summon shadow conjuration size 3 at 4 -1
++1.5 shot m9fx_n_summon.png
++1.0 fx surface fire 4 3 -5 3
++0.1 fx surface shock 4 3 3 3
++0.1 fx surface poison 3 2 0 4
++0.8 shot m9fx_n_surfaces.png
++0.1 expect magicfx surfaces 8
++0.5 fx report
++0.3 quit

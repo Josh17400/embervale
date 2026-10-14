@@ -1,0 +1,58 @@
+# M9 MAGIC lane: the Alteration school and the BG3 surfaces (VISION_PLAN 15.5, 15.29.3/7): OAKFLESH, TIDECALL pouring
+# water round the hero and SPARK electrifying the whole puddle, an OIL FLASK lit by a FIREBALL (fire running along the
+# oil), BLINK, PARALYZE, and the master's EARTHSHATTER.
+#   embervale.exe --script tools/scripts/m9_magic_alteration.txt     (m9_magic_alt_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 power arena
++0.05 spell rain off
++0.5 power foes wolf 4 3 tough
++0.1 skill set alteration 100
++0.1 skill set destruction 40
++0.1 spell mp 5000
++0.1 spell learn oakflesh
++0.1 spell learn tidecall
++0.1 spell learn spark
++0.1 spell learn oil flask
++0.1 spell learn fireball
++0.1 spell slot 1 oakflesh
++0.1 spell slot 2 tidecall
++0.1 spell slot 3 spark
++0.1 spell slot 4 oil flask
++0.1 spell cast 1
++0.2 shot m9_magic_alt_oakflesh.png
++0.3 spell cast 2
++0.2 shot m9_magic_alt_tidecall.png
++0.1 expect surface water 6
++0.1 expect status wet 2
++0.2 spell cast 3
++0.15 shot m9_magic_alt_shockedwater.png
++0.1 expect surface shock 4
++0.1 expect combo 1
++0.6 spell aim 1 0
++0.1 spell cast 4
++0.6 expect surface oil 2
++0.1 shot m9_magic_alt_oil.png
++0.1 spell slot 1 fireball
++0.1 spell cast 1
++0.6 shot m9_magic_alt_oilfire.png
++0.1 expect surface fire 2
++0.1 spell learn blink
++0.1 spell slot 2 blink
++0.1 spell cast 2
++0.1 shot m9_magic_alt_blink.png
++0.3 spell learn paralyze
++0.1 spell slot 3 paralyze
++0.1 spell aim 1 0
++0.1 spell cast 3
++0.5 shot m9_magic_alt_paralyze.png
++0.1 spell learn earthshatter
++0.1 spell slot 4 earthshatter
++0.1 hour 22
++0.1 spell cast 4
++0.9 shot m9_magic_alt_earthshatter_night.png
++0.2 expect combo 2
++0.2 expect cast 8
++0.5 quit

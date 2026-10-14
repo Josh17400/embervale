@@ -1031,3 +1031,45 @@ approach roads, sporadic houses away from them, organic farmland. Every city uni
 - Open: `--metrics` vs M5 fails 3 lines on the merged world (first weapon 5.5 s vs 8.0: the start village's new
   layout; first level-up +10.2 %; 3 wolves lvl 3 died 5 % vs 17), while the pre-M7c binary passes: bot-seed noise on
   a changed world (an owner call: re-record the baseline or not).
+
+## M9, "Arcana & Mastery" (VISION_PLAN 13 M9, 6, 15.5, 15.29, 15.30; owner notes 2026-10-12)
+
+Goal: two pillars in the owner's words. (1) "a skill tree like in skyrim so not just for magic but also for skills like
+movement speed, damage with swords axes maces ect ect each weapon type has advatages and disadvantages agaist certain
+enemys get more skilled with armor types or specific culture armors or more broad skilling": every skill 1..100 by use
+(10-20 h to master), the character level from skill gains, weapon families against foe tags shown in plain words,
+light / medium / heavy armour trade-offs, material and culture mastery with set perks, athletics, the crafts, riding,
+speech, stealth, the magic schools; perk trees that change play, drawn as constellations tappable on the phone;
+trainers, books, companions who teach. (2) "i want the magic to look absoluly awesome like sick": the Skyrim schools
+and the culture traditions, tomes and teachers, upcast, dual-cast, surfaces and combos, concentration, statuses,
+3-4 quick-cast slots; every spell's full life on screen with real light, school silhouettes, spectacle top tiers,
+inside the phone frame budget.
+
+### Phase A (lead), 2026-10-12: done
+- The contracts are recorded in VISION_PLAN 15.30: `rpg/sim/skills.h` + skill_ops.h (SkillOps hooks wired, neutral in
+  numbers), `rpg/sim/magic.h` + magic_ops.h (the book, quick slots, the classic three through it with their old
+  numbers, Ev::Spell phases, surfaces and combos, statuses), game.h (Input slots / sneak, Actor statuses and scratch,
+  ProjKind::Spell, Ev::Spell / Ev::Skill, DLG ranges, Game::skills / arcana / skillUse), ItemKind::Book, the view's
+  SPELLFX and UI blocks (render_magic.cpp, skills_ui.cpp; placeholders), SAVE_VER 20 + save_v20.bin (SAVE_VER 19 still
+  loads with default skills: owner 15.29.5), `--skills`, `--spells` (CI), the script commands and
+  `tools/scripts/m9_lead_arcana.txt`. tools/slot.sh already existed.
+- Verified (MSVC, BDIR=build): rpg_test --seeds 1..20 20/20; save_test ALL OK; --skills, --spells, --powers, --foes,
+  --arms, --companion, --power-curve, --loot, --loot-sources, --loot-audit, --gear, --villages --strict 0 failures;
+  --metrics: the same 3 lines as before M9 (the M7c start village).
+
+### Phase B lanes (disjoint files; see the lead report for the briefs)
+- **skills** (build_skills): every SkillOps hook switched on (families vs tags, armour trade-offs, stealth), the perk
+  trees filled and every perk working, heritage / material / culture mastery and set perks, the crafts, riding, speech,
+  trainers, books, companions teaching, the character XP of skill gains (the M5 baseline re-recorded once, with its
+  reason), the full `--skills` (mastery time, the A/B time-to-kill table, armour in play, perks saved).
+- **magic** (build_magic): the five schools' novice..master lists with spectacle top tiers, upcast, dual-cast,
+  concentration, reactions, surfaces and combos, statuses, summons and wards, the traditions and their mainland
+  signatures, mastery and attunement, tomes and teachers, the full `--spells` (+-5 % budgets, traditions within
+  +-12 % of Common).
+- **spellfx** (build_spellfx): the magic on screen and in the ear (render_magic.cpp + its own files, render.cpp,
+  engine/audio): wind-up, launch, lit trails, impacts with light / hit-stop / shake, aftermath decals, school and
+  tradition identities, upcast / dual-cast scale, animated surfaces and status overlays, the frame budget; the
+  magic gallery and the day / night phone review.
+- **ui** (build_ui): the SKILLS and SPELLS pages (constellation perk trees, skill progress, vs-foe lines, the
+  spellbook and slots), the phone's quick-cast buttons (tap / hold to upcast / swipe to dual-cast), keys 1-4 and sneak,
+  the HUD's spell and skill moments, the item cards' family / armour-class lines.

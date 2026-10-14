@@ -1,0 +1,32 @@
+# M9 SKILLS: a trainer of the start village (a census job: the innkeeper teaches Cooking and Speech) sells a lesson in
+# their own dialogue; a skill book is read once; a perk is taken and the skills page shows it.
+#   embervale.exe --script tools/scripts/m9_skills_trainer.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 skill gold 5000
++0.2 enter inn
++0.3 walkto innkeeper
++0.1 key E
++0.4 expect mode dialogue
++0.1 expect option COULD YOU TRAIN ME
++0.1 choose COULD YOU TRAIN ME
++0.3 expect option TEACH ME COOKING
++0.1 shot m9_skills_trainer_list.png
++0.1 choose TEACH ME COOKING
++0.3 expect trained 1
++0.1 expect skill cooking 6
++0.1 expect text QUICKER THAN YOU LOOK
++0.1 shot m9_skills_trainer_taught.png
++0.1 choose THAT'S ALL
++0.3 expect mode play
++0.1 skill book spear read
++0.2 expect booksread 1
++0.1 expect skill spear 6
++0.1 skill set sword 25
++0.1 skill points 2
++0.1 skill perk sword 0
++0.1 skill perk sword 1
++0.1 expect perk sword 1
++0.5 shot m9_skills_perk_toast.png
++0.3 quit

@@ -15,6 +15,7 @@
 #include "rpg/sim/gear_look.h"
 #include "rpg/view/prop_traits.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/magic_state.h"
 #include "rpg/view/view.h"
 #include "rpg/world/biomes.h"
 #include "rpg/world/economy.h"
@@ -952,7 +953,7 @@ void View::spawnParticles(const Event& e, Game& g) {
     Particle q; q.p = p; q.life = q.max = life; q.kind = 1; q.fx = (int)f; parts_.push_back(q);
   };
   switch (e.type) {
-    case Ev::Sfx: audio_->play((Sfx)e.a, e.f, e.vol); break;
+    case Ev::Sfx: audio_->play((Sfx)e.a, e.f, e.vol); mfxNoteSfx(*this, e.a); break;   // (M9: the magic's voice won't double it)
     case Ev::Hit:
       for (int i = 0; i < 6; i++) add(e.p, Vec2(r.range(-70, 70), r.range(-80, 20)), 0.25f, Color(1, 1, 0.85f), 1, 200);
       break;
@@ -960,6 +961,7 @@ void View::spawnParticles(const Event& e, Game& g) {
       for (int i = 0; i < 7; i++) add(e.p, Vec2(r.range(-50, 50), r.range(-70, 0)), 0.45f, Color(0.7f, 0.08f, 0.08f), r.f() < 0.5f ? 2.f : 1.f, 260);
       break;
     case Ev::Explode:
+      if (mfxClaimExplode(*this, e.p)) break;   // (M9) a classic FIREBOLT's burst: the magic's own impact is there (render_magic.cpp)
       addFx(art::Fx::Explosion, e.p, 0.45f);
       for (int i = 0; i < 14; i++) add(e.p, Vec2(r.range(-90, 90), r.range(-100, 40)), 0.5f, Color(1, r.range(0.4f, 0.8f), 0.2f), 1.5f, 120);
       shake_ = std::max(shake_, 2.0f * e.f);
@@ -1031,12 +1033,15 @@ void View::spawnParticles(const Event& e, Game& g) {
     case Ev::News: newsEvent(g, e); break;       // (M4) a world event heard of
     case Ev::Banter: case Ev::PartyAlert: partyEvent(g, e); break;   // (M8) a companion speaks / an alert (party_hud.cpp)
     case Ev::Power: powerEvent(g, e); break;                         // (M8b) a worn power fired (render_powers.cpp)
+    case Ev::Spell: magicEvent(g, e); break;                         // (M9) a phase of a spell's life (render_magic.cpp)
+    case Ev::Skill: skillEvent(g, e); break;                         // (M9) a skill moment for the HUD (skills_ui.cpp)
     case Ev::MapChange: fade_ = 1.0f; snap(g); break;
     case Ev::WindowShift:   // M1: the endless window moved; everything overworld moved by e.p pixels
       cam_ += e.p;
       for (Particle& q : parts_) if (q.world) q.p += e.p;
       for (FloatText& ft : texts_) ft.p += e.p;
       for (PowerFx& f : powerFx_) { f.p += e.p; f.q += e.p; }   // (M8b) a burst, star mark or arc in flight moves too
+      magicShift(e.p);                                           // (M9) spell effects and decals
       break;
     default: break;
   }
@@ -1060,6 +1065,7 @@ void View::update(Game& g, float dt) {
   g.events.clear();
   partyUpdate(g, dt);   // (M8) the party's portraits, radial, alerts, banter and the hound's howl (party_hud.cpp)
   powerUpdate(g, dt);   // (M8b) the powers' effects age (render_powers.cpp)
+  magicUpdate(g, dt);   // (M9) the spells' effects age (render_magic.cpp)
   lootUpdate(g, dt);    // (M8b) the loot chime for a fine piece in view, a Mythic wearer's embers (loot_ui.cpp)
   // (M1) arriving in a settlement: a banner with its name and its kingdom (merged into DISCOVERED the first time)
   // (M4) its CURRENT owner in its society's word and its state; shown again when either changes while the player is
@@ -1730,6 +1736,7 @@ void View::drawWorld(Game& g) {
     wallTodo_.pop_back();
     if (!wallTiles_.count(wallTexKey(k))) { wallTileTex(k); break; }
   }
+  if (g.mode != Mode::Title) drawMagicGround(g, cam);   // (M9) surfaces, decals, ground glyphs under the bodies (render_magic.cpp)
   // collect drawables
   std::vector<Drawable> list;
   // (M2: the wonders are up to 7 tiles wide and 7 tall above their anchor tile: a wider margin below and aside)
@@ -1742,6 +1749,12 @@ void View::drawWorld(Game& g) {
       int pr = m.prop[(size_t)ty * m.w + tx];
       // (M4) a walk-through cover (flowers, grass) under a diagonal boardwalk's deck is not drawn over the planks
       if (pr && m.kind == MapKind::Overworld && !propSolid((Prop)(pr - 1)) && boardwalkCoversTile(m, tx, ty)) pr = 0;
+      // (M9 fixer) the grass, flowers and brush inside a fresh spell crater burned away (trees, stones and solid bushes stand)
+      if (pr && !propSolid((Prop)(pr - 1))) {
+        const Prop q = (Prop)(pr - 1);
+        const bool burns = (q >= Prop::Flowers1 && q <= Prop::Fern && q != Prop::Cactus && q != Prop::LilyPad) || (q >= Prop::Heather && q <= Prop::Petals);
+        if (burns && mfxScorched(*this, tx * 16.0f + 8.0f, ty * 16.0f + 10.0f)) pr = 0;
+      }
       if (pr) {
         Prop p = (Prop)(pr - 1);
         if (flatProp(p)) {
@@ -2858,6 +2871,7 @@ void View::drawWorld(Game& g) {
             for (int i = 0; i < 8; i++) P.rect(x - dir.x * i, y - dir.y * i, 1, 1, i < 2 ? Color(0.85f, 0.85f, 0.9f) : (i > 5 ? Color(0.95f, 0.95f, 0.95f) : Color(0.55f, 0.38f, 0.2f)));
             break;
           case ProjKind::Fireball: case ProjKind::DragonFire: {
+            if (pr.spell) { drawSpellProj(g, pr, d.idx, cam); break; }   // (M9) a classic FIREBOLT: the magic draws it (render_magic.cpp)
             const Tex& t = fx_[(int)art::Fx::Fireball];
             int fw = art::fxW(art::Fx::Fireball), fh = art::fxH(art::Fx::Fireball), frames = std::max(1, art::fxFrames(art::Fx::Fireball));
             int fr = (int)(t_ * 14 + d.idx) % frames;
@@ -2868,6 +2882,7 @@ void View::drawWorld(Game& g) {
             break;
           }
           case ProjKind::IceSpike: {
+            if (pr.spell) { drawSpellProj(g, pr, d.idx, cam); break; }   // (M9) a classic FROST LANCE: the magic draws it
             const Tex& t = fx_[(int)art::Fx::Frost];
             int fw = art::fxW(art::Fx::Frost), fh = art::fxH(art::Fx::Frost);
             P.blitEx(t, 0, 0, fw, fh, x - fw / 2.0f, y - fh / 2.0f, (float)fw, (float)fh, dir.x < 0);
@@ -2884,6 +2899,7 @@ void View::drawWorld(Game& g) {
             P.rect(x - 2, y - 2, 4, 4, Color(0.55f, 0.85f, 0.3f));
             P.rect(x - 1, y - 1, 2, 2, Color(0.8f, 1, 0.6f));
             break;
+          case ProjKind::Spell: drawSpellProj(g, pr, d.idx, cam); break;   // (M9) render_magic.cpp
           case ProjKind::Magic:
             if (pr.ench == Ench::None && !pr.fromPlayer) {   // (M3c) a wisp's bolt of light: cyan, with a short trail
               for (int i = 1; i <= 3; i++) P.rectAdd(x - dir.x * i * 2 - 1, y - dir.y * i * 2 - 1, 2, 2, Color(0.4f, 0.9f, 0.9f, 0.5f - i * 0.12f));
@@ -3109,6 +3125,7 @@ void View::drawLighting(Game& g) {
     for (const LightPool& lp : pools) light(lp.p, lp.r, lp.c, lp.k);
   }
   for (const Projectile& pr : g.projs) {
+    if (pr.spell) continue;   // (M9) a spell's missile is lit by magicLights
     if (pr.kind == ProjKind::Fireball || pr.kind == ProjKind::DragonFire) light(pr.p, 60, Color(1, 0.6f, 0.25f), 0.9f);
     else if (pr.kind == ProjKind::Magic && pr.ench == Ench::None && !pr.fromPlayer) light(pr.p, 40, Color(0.4f, 1.0f, 0.95f), 0.8f);
     else if (pr.kind == ProjKind::IceSpike || pr.kind == ProjKind::Magic) light(pr.p, 40, Color(0.5f, 0.6f, 1), 0.8f);
@@ -3130,6 +3147,7 @@ void View::drawLighting(Game& g) {
     if (const uint32_t ac = beasts::auraOf(a)) light(a.p + Vec2(0, -3), 40, col(ac), 0.5f * std::min(1.0f, dark * 1.5f));
   }
   lootLights(g, light);   // (M8b) the loot's beams and pools, a Mythic wearer's smoulder (loot_ui.cpp)
+  magicLights(g, light);  // (M9) the spells' light: lit trails, impact flashes, burning ground (render_magic.cpp)
   P.setTarget(nullptr);
   P.blitEx(lightMap_, 0, 0, lightMap_.w, lightMap_.h, 0, 0, lightMap_.w * 2.0f, lightMap_.h * 2.0f, false, Color(1, 1, 1, 1), 2);
   m4Emissive(g, m, cam, dark);   // (fixer M4 r3) what burns glows over the dark
@@ -3193,8 +3211,8 @@ void View::drawWeather(Game& g, float dt) {
     if (hudColLeft_ < 1e8f && hudColBottom_ > 0)   // (M6 fixer r2) the location / quest column (last frame's): no plate under it
       placed.push_back({hudColLeft_, T, R, hudColBottom_});
     if (biomeBannerT_ > 0 && !biomeBanner_.empty() && !g.inside) {   // the first-visit biome banner (hud.cpp) at the top centre
-      const float by = std::max(T + 30, (wb ? T + 21.0f : 0.0f) + 10);
       const float half = std::min((float)P.textW(biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70);
+      const float by = std::max(biomeBannerY(half), (wb ? T + 21.0f : 0.0f) + 10);   // (M9 fixer) under the quick bar too
       placed.push_back({Pix::W / 2.0f - half, by - 4, Pix::W / 2.0f + half, by + 11});
     }
     if (herald_.t > 0) {   // and the herald's ribbon

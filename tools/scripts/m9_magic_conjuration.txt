@@ -1,0 +1,44 @@
+# M9 MAGIC lane: the Conjuration school (VISION_PLAN 15.5, 15.29.3/7): rifts with summoned forms climbing out (SPIRIT
+# WOLF, BONE THRALL, FLAME ATRONACH), a bound blade, RAISE DEAD marking a foe, the master's great beast (RIFT BEHEMOTH).
+# Summons fight for the hero (Faction::Player) and fade at their time.
+#   embervale.exe --script tools/scripts/m9_magic_conjuration.txt     (m9_magic_conj_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 power arena
++0.05 spell rain off
++0.5 power foes wolf 3 3 tough
++0.1 skill set conjuration 100
++0.1 spell mp 5000
++0.1 spell learn spirit wolf
++0.1 spell learn bound blade
++0.1 spell learn bone thrall
++0.1 spell learn flame atronach
++0.1 spell slot 1 spirit wolf
++0.1 spell slot 2 bound blade
++0.1 spell slot 3 bone thrall
++0.1 spell slot 4 flame atronach
++0.1 spell aim 1 0
++0.1 spell cast 1
++0.12 shot m9_magic_conj_rift.png
++0.6 expect summon 1
++0.1 shot m9_magic_conj_wolf.png
++0.2 spell cast 2
++0.2 shot m9_magic_conj_boundblade.png
++0.3 spell cast 4
++0.6 shot m9_magic_conj_atronach.png
++1.5 shot m9_magic_conj_fight.png
++0.1 spell learn rift behemoth
++0.1 spell slot 3 rift behemoth
++0.1 hour 22
++0.1 spell cast 3
++0.15 shot m9_magic_conj_behemoth_rift_night.png
++0.8 shot m9_magic_conj_behemoth_night.png
++0.2 expect summon 1
++0.1 spell learn raise dead
++0.1 spell slot 2 raise dead
++0.1 spell cast 2
++0.5 shot m9_magic_conj_raisedead.png
++0.2 expect cast 5
++0.5 quit

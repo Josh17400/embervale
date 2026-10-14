@@ -1,0 +1,23 @@
+# M9 SKILLS: the heavy-armour shoulder charge. In a full steel set with CHARGE, a roll into a wolf bowls it over (it
+# reels: a stagger), and Athletics learns from the roll.
+#   embervale.exe --script tools/scripts/m9_skills_charge.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 power arena
++0.5 skill clearing 9
++0.1 skill kit sword heavy
++0.1 skill set heavyarmour 55
++0.1 skill points 3
++0.1 skill perk heavyarmour 0
++0.1 skill perk heavyarmour 1
++0.1 skill perk heavyarmour 2
++0.1 expect perk heavyarmour 2
++0.1 skill foe wolf 2 0 level 2
++0.1 walk east 0.6
++0.12 key Shift
++0.1 shot m9_skills_charge.png
++0.5 expect skillword CHARGE
++0.1 expect skillword BOWLED OVER
++0.3 quit

@@ -1,0 +1,49 @@
+# M9 SPELLFX (the iPhone review size: 639 x 294, the safe insets): every school's spell through its life by day (wind-up, launch, travel, impact, aftermath), the school
+# silhouettes side by side. Screenshots m9fxp_s_*.png in the working directory.
+#   embervale.exe --script tools/scripts/m9_fx_schools_phone.txt
+seed 3
+phone
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 power arena
++0.5 power foes wolf 2 3 tough
++0.3 spell mp 999
+# ---- Destruction: fire (boils and roars)
++0.2 fx spell firebolt
++0.22 shot m9fxp_s_fire_windup.png
++0.25 shot m9fxp_s_fire_travel.png
++0.2 shot m9fxp_s_fire_impact.png
++0.15 shot m9fxp_s_fire_impact2.png
++0.4 expect magicfx peak_effects 2
++0.1 expect magicfx peak_particles 20
++0.6 shot m9fxp_s_fire_after.png
+# ---- frost (shatters in crisp shards)
++0.3 fx spell frostlance
++0.5 shot m9fxp_s_frost_travel.png
++0.12 shot m9fxp_s_frost_impact.png
++0.2 shot m9fxp_s_frost_impact2.png
+# ---- lightning (forks and chains)
++0.6 fx spell spark
++0.48 shot m9fxp_s_spark_travel.png
++0.1 shot m9fxp_s_spark_impact.png
+# ---- Restoration: rises in warm motes
++0.6 fx spell mend
++0.45 shot m9fxp_s_mend.png
++0.25 shot m9fxp_s_mend2.png
++0.5 fx spell stoneward
++0.45 shot m9fxp_s_ward.png
+# ---- Conjuration: a rift, a form climbing out
++0.8 fx spell spiritwolf
++1.0 shot m9fxp_s_summon.png
++0.4 shot m9fxp_s_summon2.png
+# ---- Illusion: shimmers, the fear mask
++1.0 fx spell fear
++0.5 shot m9fxp_s_fear.png
+# ---- Alteration: stone pulses
++0.8 fx spell oakflesh
++0.5 shot m9fxp_s_oakflesh.png
++0.5 fx spell nova stone alteration
++0.5 shot m9fxp_s_stonenova.png
++0.6 fx report
++0.3 quit

@@ -1,0 +1,51 @@
+# M9 UI lane: the SKILLS page on the desktop (keys). The sword's constellation with its root ready (one perk point),
+# the perk taken with Enter (its star bursts, the PERK toast), a blocked perk refused with its reason, the heavy armour
+# page with its trade-offs, a magic school's page, and the skill toasts in play (a run of rises updating one toast).
+#   embervale.exe --script tools/scripts/m9_ui_skills.txt     (m9ui_skills_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 skill set sword 34
++0.1 skill set heavyarmour 22
++0.1 skill set destruction 27
++0.1 skill use sword 6
++0.1 skill points 1
++0.1 skillsui open skills
++0.1 skillsui skill sword
++0.4 expect skillsui page skills
++0.1 expect skillsui skill sword
++0.1 expect skillsui ready 1
++0.1 shot m9ui_skills_1_sword.png
+# take the root: Enter on the ready star
++0.1 skillsui perk 0
++0.1 key Return
++0.1 expect perk sword 0
++0.05 shot m9ui_skills_2_taken.png
++0.1 expect skillsui toast PERK
+# a perk whose level is not reached: refused, the reason on the card
++0.1 skillsui perk 4
++0.1 key Return
++0.1 expect skillsui why NEEDS
++0.2 shot m9ui_skills_3_refused.png
+# the list by keys, then the armour and magic groups
++0.1 key Down
++0.1 expect skillsui skill axes
++0.1 key Up
++0.1 expect skillsui skill swords
++0.1 skillsui skill heavyarmour
++0.4 expect skillsui skill heavyarmour
++0.1 shot m9ui_skills_4_heavy.png
++0.1 skillsui skill destruction
++0.4 shot m9ui_skills_5_destruction.png
++0.1 skillsui skill mace
++0.4 shot m9ui_skills_6_mace.png
++0.1 key Escape
++0.2 expect mode play
+# the toasts: a run of athletics rises (one toast, updated), the perk-point badge by TAB
++0.1 skill use athletics 60
++0.3 expect skillsui toast ATHLETICS RISES TO
++0.05 shot m9ui_skills_7_toast.png
++0.1 skill points 2
++0.6 shot m9ui_skills_8_badge.png
++0.3 quit

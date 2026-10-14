@@ -1,0 +1,49 @@
+# M9 MAGIC lane: the Illusion school (VISION_PLAN 15.5, 15.29.3/7): FEAR scattering a pack, DAZZLE blinding, CALM,
+# CHARM (a charmed wolf fights for the hero, held in concentration), BLUR, and the master's MAYHEM turning the pack on
+# itself. Spells of the mind reach foes by level (the power is their strength).
+#   embervale.exe --script tools/scripts/m9_magic_illusion.txt     (m9_magic_illu_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 power arena
++0.05 spell rain off
++0.5 power foes wolf 5 2 tough
++0.1 skill set illusion 100
++0.1 spell mp 5000
++0.1 spell learn fear
++0.1 spell learn dazzle
++0.1 spell learn charm
++0.1 spell learn blur
++0.1 spell slot 1 fear
++0.1 spell slot 2 dazzle
++0.1 spell slot 3 charm
++0.1 spell slot 4 blur
++0.1 spell cast 1
++0.15 shot m9_magic_illu_fear.png
++0.2 expect status frightened 2
++0.6 spell aim 1 0
++0.1 spell cast 2
++0.12 shot m9_magic_illu_dazzle.png
++0.3 spell cast 4
++0.2 shot m9_magic_illu_blur.png
++0.2 power foes wolf 3 2 tough
++0.3 spell aim 1 0
++0.1 spell cast 3
++0.6 expect summon 1
++0.1 expect conc charm
++0.1 expect status charmed 1
++0.8 shot m9_magic_illu_charm.png
++0.1 spell learn mayhem
++0.1 spell slot 2 mayhem
++0.1 hour 22
++0.1 power foes wolf 4 2 tough
++0.3 spell cast 2
++1.6 shot m9_magic_illu_mayhem_night.png
++0.8 expect status charmed 2
++0.1 spell learn invisibility
++0.1 spell slot 4 invisibility
++0.1 spell cast 4
++0.3 shot m9_magic_illu_invisibility_night.png
++0.2 expect cast 6
++0.5 quit

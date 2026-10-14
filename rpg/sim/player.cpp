@@ -7,6 +7,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/gear_look.h"
+#include "rpg/sim/skill_ops.h"
 #include "rpg/world/source.h"
 
 // (M6 phase A) the look's mapping (appearanceLook, the worn gear's silhouettes and metals) moved to rpg/sim/gear_look.cpp
@@ -28,6 +29,7 @@ void Game::recalcPlayer() {
     for (int idx : {eqWeapon, eqBow, eqStaff, eqArmor, eqHelmet, eqShield, eqRing, eqAmulet, eqGloves, eqBoots, eqCloak})
       if (idx >= 0 && idx < (int)inv.size()) w.push_back(&inv[(size_t)idx]);
     craft.live.stats = gear::sumGear(w, plLevel);
+    SkillOps::applyPerks(*this, craft.live.stats);   // (M9) the perks' and set bonuses' additions (skills_game.cpp)
   }
   const gear::GearStats& S = craft.live.stats;
   bonusHp += (float)S.get(Affix::Health);
@@ -40,6 +42,7 @@ void Game::recalcPlayer() {
   p.radius = 4.5f;
   // (M6) move speed: the affix (+5 % a piece) and Windwalker (+12 %)
   p.speed = 74.0f * (1.0f + 0.01f * (float)S.get(Affix::MoveSpeed) + (S.has(Unique::Windwalker) ? 0.12f : 0.0f));
+  p.speed *= SkillOps::speedMul(*this);   // (M9) the worn armour class, Athletics
 
   // ---- the look: the chosen appearance (Appearance defaults = the pre-M0 hero) dressed in the equipped gear.
   // Every field is set here, so the look never keeps a piece that was taken off. (M6: rpg/sim/gear_look.cpp)

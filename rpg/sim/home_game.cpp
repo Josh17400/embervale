@@ -17,12 +17,14 @@
 // (animals, the waiting horse, builders, the farmhand, wolves) home_actors.cpp; the player's house home_interior.cpp.
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <string>
 #include <vector>
 #include "engine/audio.h"
 #include "rpg/culture/culture.h"
 #include "rpg/sim/craft.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/skill_ops.h"
 #include "rpg/sim/home.h"
 #include "rpg/world/source.h"
 
@@ -135,7 +137,7 @@ bool worldFree(const Game& g, const home::Plot& p, int x, int y, std::string& wh
 float Game::homeSpeedMul() const {
   if (home.riding < 0) return 1.0f;
   const home::BreedInfo& b = home::breedInfo((home::Breed)home.ridingBreed);
-  float mul = b.speed * TILE / home::WALK_SPEED_PX;
+  float mul = b.speed * TILE / home::WALK_SPEED_PX * SkillOps::horseMul(*this);   // (M9) HORSEMAN
   const Actor& p = pl();
   const int tx = (int)std::floor(p.p.x / TILE), ty = (int)std::floor((p.p.y - 2) / TILE);
   const Ground gr = map().at(tx, ty);
@@ -394,8 +396,8 @@ bool Game::homeInteract() {
   home::Plot& P = home.plots[(size_t)u.plot];
   bool ok = true;
   switch (u.kind) {
-    case U_HARVEST: ok = home::harvest(*this, u.plot, u.x, u.y, why); break;
-    case U_WATER: ok = home::water(*this, u.plot, u.x, u.y, why); if (ok) sfx((int)Sfx::Pickup, pl().p, 1.4f, 0.5f); break;
+    case U_HARVEST: ok = home::harvest(*this, u.plot, u.x, u.y, why); if (ok) SkillOps::farmed(*this, 3); break;   // (M9) Farming
+    case U_WATER: ok = home::water(*this, u.plot, u.x, u.y, why); if (ok) { sfx((int)Sfx::Pickup, pl().p, 1.4f, 0.5f); SkillOps::farmed(*this, 2); } break;
     case U_CHECK:
       for (const home::CropRec& c : P.crops)
         if (c.x == u.x && c.y == u.y) {
@@ -403,14 +405,14 @@ bool Game::homeInteract() {
           say(std::string(home::cropInfo((home::Crop)c.kind).name) + ": " + (c.wilted(day) ? "WILTING, IT NEEDS WATER" : st[std::min<int>(c.stage, 3)]));
         }
       return true;
-    case U_PLANT: ok = home::plant(*this, u.plot, u.x, u.y, (home::Crop)u.arg, why); break;
-    case U_TILL: ok = home::till(*this, u.plot, u.x, u.y, why); break;
+    case U_PLANT: ok = home::plant(*this, u.plot, u.x, u.y, (home::Crop)u.arg, why); if (ok) SkillOps::farmed(*this, 1); break;
+    case U_TILL: ok = home::till(*this, u.plot, u.x, u.y, why); if (ok) SkillOps::farmed(*this, 0); break;
     case U_COLLECT: {
       int got = 0;
       for (home::AnimalRec& a : P.animals) {
         const home::AnimalInfo& ai = home::animalInfo((home::Animal)a.kind);
         if ((int)ai.home != u.arg || !a.produce || (a.flags & home::AF_LOST)) continue;
-        Item it = home::makeProduct((home::Product)ai.product, a.produce);
+        Item it = home::makeProduct((home::Product)ai.product, a.produce * SkillOps::produceMul(*this));   // (M9) GOOD HUSBANDRY
         if (a.happiness >= 80) { it.tier = 2; it.name = "FINE " + it.name; it.value += it.value / 2; }
         else if (a.happiness >= 50) it.tier = 1;
         HomeOps::give(*this, it);
@@ -419,6 +421,7 @@ bool Game::homeInteract() {
       }
       ok = got > 0;
       if (!ok) why = "NOTHING TO COLLECT YET";
+      else SkillOps::farmed(*this, 4);   // (M9) Farming: tending the animals
       break;
     }
     case U_HONEY: {
@@ -474,6 +477,8 @@ void Game::homeAte(const Item& food) {
   uint8_t q = 0;
   home::mealBuff(food, h, q);
   if (h <= 0) return;
+  h *= SkillOps::fedMul(*this, food);   // (M9) Cooking HEARTY: a meal the hero cooked fills twice as long
+  if (const float heal = SkillOps::mealHeal(*this, food); heal > 0) pl().hp = std::min(pl().maxHp, pl().hp + heal);   // FIELD COOK
   // a cooked meal's Well Fed replaces a lesser one (never adds up; potions are separate: their cooldown, no buff); a
   // lesser meal over a better one still being digested leaves it be. (M7 fix r3) the station's quality and hours are
   // the meal's own: a campfire stew is a campfire stew, a hearth's better, an inn's best
@@ -893,6 +898,12 @@ bool water(Game& g, int plot, int x, int y, std::string& why) {
     if (r.x == x && r.y == y) {
       r.lastWaterDay = (uint16_t)g.day;
       if (groundAt(p, x, y) == 2) setGround(p, x, y, 3);   // the soil darkens (the view's watered farmland)
+      if (SkillOps::rainMaker(g))   // (M9) Farming RAIN MAKER: the crops beside it drink too
+        for (CropRec& o : p.crops)
+          if (std::abs(o.x - x) <= 1 && std::abs(o.y - y) <= 1 && (o.x != x || o.y != y)) {
+            o.lastWaterDay = (uint16_t)g.day;
+            if (groundAt(p, o.x, o.y) == 2) setGround(p, o.x, o.y, 3);
+          }
       return true;
     }
   why = "NOTHING GROWS THERE";
@@ -908,7 +919,8 @@ bool harvest(Game& g, int plot, int x, int y, std::string& why) {
     if (r.stage < 3) { why = "IT IS NOT RIPE YET"; return false; }
     const CropInfo& ci = cropInfo((Crop)r.kind);
     const uint64_t h = ew::mix64(g.seed ^ p.id ^ ((uint64_t)x << 40) ^ ((uint64_t)y << 48) ^ (uint64_t)(uint32_t)g.day);
-    const int n = harvestYield(ci, r.quality, h) + (HomeOps::hasTool(g, Tool::Sickle) && !ci.perennial && (h >> 32) % 3 == 0 ? 1 : 0);
+    const int n = harvestYield(ci, r.quality, h) + (HomeOps::hasTool(g, Tool::Sickle) && !ci.perennial && (h >> 32) % 3 == 0 ? 1 : 0) +
+                  SkillOps::harvestBonus(g);   // (M9) GREEN THUMB
     HomeOps::give(g, makeCropItem((Crop)r.kind, n, r.quality));
     if (ci.perennial) { r.grown = (uint8_t)(ci.days / 2); r.stage = 1; r.streak = 0; }
     else {
@@ -1020,7 +1032,11 @@ bool cook(Game& g, const Meal& m, Station st, std::string& why) {
   for (Ingr i : m.in) if (i != Ingr::None) need[(int)i]++;
   for (int k = 1; k < (int)Ingr::COUNT; k++)
     if (need[k]) HomeOps::take(g, need[k], [k](const Item& it) { return (int)ingredientOf(it) == k; });
-  HomeOps::give(g, makeMeal(m, st));
+  Item meal = makeMeal(m, st);
+  meal.flags |= IF_CRAFTED;   // (M9) cooked by the hero (Cooking's HEARTY and FIELD COOK know their own meals)
+  HomeOps::give(g, meal);
+  if (SkillOps::secondHelping(g)) HomeOps::give(g, meal);   // (M9) SECOND HELPING
+  SkillOps::cooked(g, meal);   // (M9) Cooking
   HomeOps::sfx(g, (int)Sfx::Pickup, g.pl().p, 0.8f, 0.7f);
   return true;
 }

@@ -347,7 +347,15 @@ void Audio::shutdown() {
 void Audio::play(Sfx s, float pitch, float vol) {
   if ((int)s >= (int)Sfx::COUNT || !(vol > 0.0f)) return;
   if (!(pitch > 0.0f)) pitch = 1.0f;
-  Event e{s, clampf(pitch, 0.25f, 4.0f), clampf(vol, 0.0f, 2.0f)};
+  push(Event{s, clampf(pitch, 0.25f, 4.0f), clampf(vol, 0.0f, 2.0f), 0});
+}
+void Audio::playMotif(uint8_t motif, uint8_t scale, uint8_t timbre, int root, float vol) {
+  if (!(vol > 0.0f)) return;
+  const uint32_t arg = (uint32_t)motif | (uint32_t)(scale % (uint8_t)Scale::COUNT) << 8 | (uint32_t)(timbre & 15) << 12 |
+                       (uint32_t)(root < 36 ? 36 : root > 96 ? 96 : root) << 16 | 1u << 31;
+  push(Event{Sfx::SpellMotif, 1.0f, clampf(vol, 0.0f, 2.0f), arg});
+}
+void Audio::push(const Event& e) {
   while (qLock_.test_and_set(std::memory_order_acquire)) {}
   uint32_t head = qHead_.load(std::memory_order_relaxed);
   if (head - qTail_.load(std::memory_order_acquire) < (uint32_t)QN) {   // full queue: drop (never block)
@@ -613,10 +621,17 @@ const float kSfxTrim[(int)Sfx::COUNT] = {
   0.6f,                                                     // Hoof (M7: under the music, a little above a footstep)
   1.75f, 0.95f, 0.7f,                                       // Revive Knell Howl (M8 ART; calibrated with tools/audio_preview)
   1.0f,  1.25f, 1.3f,                                       // Zap Rebirth LootChime (M8b POWERS; calibrated with tools/audio_preview: clear of the music on a phone, the rebirth under the limiter)
+  // (M9 SPELLFX; calibrated with tools/audio_preview --magic)
+  1.0f,  1.9f,  2.3f,                                       // SpellHum SpellCharge SpellFizzle
+  1.0f,  0.8f,  1.4f,  1.0f,                                // FireCast FireBurst FrostCast FrostShatter
+  1.55f, 1.0f,  1.6f,  1.1f,                                // StormCast Thunder HolyCast HolyBloom
+  1.0f,  1.15f, 1.35f, 1.1f,                                // RiftTear SummonRise Shimmer DreamPulse
+  1.0f,  0.9f,  1.25f, 1.25f,                               // StoneGrind StoneSlam StarChime MeteorFall
+  1.0f,  1.0f,  1.0f,                                       // WardRing Sizzle SpellMotif
 };
 static_assert(sizeof(kSfxTrim) / sizeof(kSfxTrim[0]) == (size_t)Sfx::COUNT, "a trim for every Sfx");
 
-void Audio::trigger(Sfx s, float k, float V) {
+void Audio::trigger(Sfx s, float k, float V, uint32_t arg) {
   V *= kSfxTrim[(int)s];
   switch (s) {
     case Sfx::Swing: {   // band-passed noise whose centre sweeps up and back down: a blade cutting air
@@ -1055,7 +1070,240 @@ void Audio::trigger(Sfx s, float k, float V) {
       add(NB(Noise, 0, 0.05f * V).env(0.15f, 1, 1, 0.25f, 0.3f).hp(7000).send(0.6f));
       break;
     }
+    // ---- M9 Arcana & Mastery (SPELLFX lane): the spells' voices, one family per school / essence, played by the view
+    //      from the Ev::Spell phases (render_magic.cpp). k: the pitch (the school's register, lower for bigger spells)
+    case Sfx::SpellHum: {     // the wind-up: a breathy hum swelling under a glassy shimmer (a bed under the cast)
+      const float r = k * rnd(0.98f, 1.02f);
+      add(NB(Pad, 196 * r, 0.10f * V).detune(0.009f).env(0.22f, 1, 1, 0.5f, 0.3f).lp(800 * r, 1.3f).fslide(1.1f).vib(0.2f, 5).send(0.5f));
+      add(NB(Sine, 392 * r, 0.09f * V).env(0.25f, 1, 1, 0.45f, 0.3f).vib(0.35f, 6).am(9, 0.3f).send(0.4f));
+      add(NB(Noise, 0, 0.16f * V).env(0.28f, 1, 1, 0.45f, 0.25f).bp(1100 * r, 2.2f).fslide(1.3f).color(0.5f).send(0.4f));
+      add(NB(Fm, 1568 * r, 0.035f * V).env(0.35f, 1, 1, 0.4f, 0.35f).fm(2.01f, 0.8f, 1.0f).vib(0.3f, 7).send(0.6f));
+      break;
+    }
+    case Sfx::SpellCharge: {  // an upcast step: a rising swell, then a bright tick as the level locks in
+      const float r = k;
+      add(NB(Saw, 220 * r, 0.12f * V).detune(0.01f).env(0.02f, 1, 1, 0.2f, 0.08f).slide(1.3f).lp(1400 * r, 2.0f).fenv(1.0f, 0.2f).send(0.4f));
+      add(NB(Noise, 0, 0.14f * V).env(0.14f, 1, 1, 0.12f, 0.05f).hp(2800 * r).fslide(1.0f).send(0.3f));
+      add(NB(Fm, 1760 * r, 0.13f * V).perc(0.22f).fm(3.0f, 1.6f, 0.12f).send(0.55f).at(0.2f));
+      add(NB(Sine, 880 * r, 0.10f * V).perc(0.3f).send(0.5f).at(0.2f));
+      break;
+    }
+    case Sfx::SpellFizzle: {  // a damp pfft and a falling sputter: the magic would not come
+      add(NB(Noise, 0, 0.55f * V).env(0.004f, 0.16f).bp(950 * k, 1.2f).fslide(-1.6f).color(0.4f));
+      add(NB(Square, 330 * k, 0.09f * V).env(0.002f, 0.14f).slide(-2.0f).am(32, 0.9f).lp(1300 * k));
+      add(NB(Sine, 240 * k, 0.16f * V).env(0.003f, 0.12f).slide(-1.2f));
+      add(NB(Noise, 0, 0.12f * V).env(0.02f, 0.2f).hp(4000).am(17, 0.8f).at(0.05f));
+      break;
+    }
+    case Sfx::FireCast: {     // a roaring whoosh, a throaty rumble and crackle as the fire leaves the hands
+      const float r = k * rnd(0.95f, 1.05f);
+      add(NB(Noise, 0, 1.0f * V).env(0.025f, 1, 1, 0.26f, 0.22f).lp(520 * r, 1.2f).bump(2.4f).color(0.55f).drive(0.7f).send(0.3f));
+      add(NB(Noise, 0, 0.35f * V).env(0.01f, 1, 1, 0.18f, 0.12f).bp(900 * r, 1.4f).fslide(1.0f).send(0.25f));
+      add(NB(Saw, 72 * r, 0.32f * V).env(0.03f, 1, 1, 0.26f, 0.2f).slide(0.8f).lp(520, 0.9f).am(26, 0.5f).drive(1.2f));
+      add(NB(Noise, 0, 0.26f * V).env(0.02f, 1, 1, 0.3f, 0.15f).hp(2600).am(41, 0.85f));
+      break;
+    }
+    case Sfx::FireBurst: {    // a deep whump, a boiling roar, crackle and pattering debris
+      const float r = k * rnd(0.95f, 1.05f);
+      add(NB(Sine, 52 * r, 1.0f * V).perc(0.45f).pitch(2.6f, 0.04f).drive(0.6f));
+      add(NB(Noise, 0, 0.95f * V).env(0.002f, 0.55f).lp(320 * r, 0.8f).fenv(3.6f, 0.14f).drive(1.2f).send(0.4f));
+      add(NB(Noise, 0, 0.42f * V).env(0.04f, 1, 1, 0.35f, 0.5f).lp(650 * r, 1.0f).am(13, 0.5f).send(0.45f).at(0.03f));
+      add(NB(Noise, 0, 0.24f * V).env(0.04f, 1, 1, 0.45f, 0.3f).hp(3000).am(47, 0.9f).at(0.05f));
+      for (int i = 0; i < 3; i++)
+        add(NB(Noise, 0, 0.22f * V).perc(0.02f).bp(rnd(1600, 2800), 2.5f).at(rnd(0.12f, 0.45f)));
+      break;
+    }
+    case Sfx::FrostCast: {    // a crisp crystalline zing and a breath of cold air
+      const float r = k * rnd(0.97f, 1.03f);
+      add(NB(Fm, 2637 * r, 0.15f * V).perc(0.35f).fm(1.5f, 2.0f, 0.15f).send(0.5f));
+      add(NB(Fm, 3520 * r, 0.08f * V).perc(0.25f).fm(2.7f, 1.4f, 0.1f).send(0.55f).at(0.03f));
+      add(NB(Saw, 1320 * r, 0.07f * V).env(0.004f, 0.12f).slide(0.6f).hp(1500));
+      add(NB(Noise, 0, 0.22f * V).env(0.03f, 1, 1, 0.22f, 0.2f).hp(5200).am(15, 0.4f).send(0.45f));
+      add(NB(Sine, 3951 * r, 0.06f * V).perc(0.09f).at(0.02f));
+      break;
+    }
+    case Sfx::FrostShatter: { // glass shattering, tinkling shards and an icy hiss over a dull crack
+      const float r = k;
+      add(NB(Noise, 0, 0.75f * V).perc(0.012f).hp(2800));
+      add(NB(Sine, 160 * r, 0.42f * V).perc(0.07f).pitch(1.2f, 0.01f));
+      for (int i = 0; i < 7; i++)
+        add(NB(Fm, rnd(2200, 4400) * r, 0.11f * V).perc(rnd(0.12f, 0.3f)).fm(2.7f, 2.0f, 0.08f).send(0.55f).at(rnd(0.0f, 0.12f)));
+      for (int i = 0; i < 5; i++)
+        add(NB(Sine, rnd(3000, 6000) * r, 0.05f * V).perc(0.05f).send(0.6f).at(rnd(0.06f, 0.38f)));
+      add(NB(Noise, 0, 0.16f * V).env(0.01f, 1, 1, 0.25f, 0.3f).hp(6000).send(0.5f));
+      break;
+    }
+    case Sfx::StormCast: {    // a bright electric snap and a buzzing arc
+      const float r = k * rnd(0.95f, 1.05f);
+      add(NB(Noise, 0, 0.8f * V).perc(0.009f).hp(3000 * r));
+      add(NB(Square, 110 * r, 0.15f * V).env(0.002f, 0.2f).am(100, 0.9f).lp(2600 * r, 1.2f).drive(1.5f));
+      add(NB(Saw, 2200 * r, 0.16f * V).env(0.002f, 0.11f).slide(-1.5f).bp(3000 * r, 1.4f).drive(1.0f).send(0.3f));
+      add(NB(Noise, 0, 0.22f * V).env(0.004f, 1, 1, 0.1f, 0.1f).hp(6000).am(60, 0.9f).send(0.35f).at(0.01f));
+      break;
+    }
+    case Sfx::Thunder: {      // a white crack, a snapping arc, then thunder rolling away
+      const float r = k * rnd(0.95f, 1.05f);
+      add(NB(Noise, 0, 1.0f * V).perc(0.016f).hp(2000 * r));
+      add(NB(Saw, 1800 * r, 0.2f * V).env(0.002f, 0.15f).slide(-2.5f).am(90, 0.8f).bp(2500 * r, 1.3f).drive(1.4f));
+      add(NB(Sine, 46 * r, 0.9f * V).perc(0.7f).pitch(1.0f, 0.05f).at(0.03f));
+      add(NB(Noise, 0, 0.8f * V).env(0.05f, 1, 1, 0.4f, 1.3f).lp(210 * r, 0.9f).am(6, 0.5f).send(0.6f).at(0.06f));
+      add(NB(Noise, 0, 0.6f * V).env(0.2f, 1, 1, 0.45f, 1.2f).lp(120 * r, 0.9f).am(3.5f, 0.6f).send(0.6f).at(0.35f));
+      break;
+    }
+    case Sfx::HolyCast: {     // a rising choir swell under three bells
+      const float r = k;
+      const float ch[3] = {440.0f, 554.4f, 659.3f};   // A major
+      for (int i = 0; i < 3; i++)
+        add(NB(Pad, ch[i] * r, 0.06f * V).detune(0.006f).env(0.15f, 1, 1, 0.4f, 0.5f).vox(1000, 1.5f).slide(0.05f).send(0.6f));
+      const float bell[3] = {1318.5f, 1661.2f, 1975.5f};
+      for (int i = 0; i < 3; i++)
+        add(NB(Fm, bell[i] * r, 0.11f * V).perc(0.6f).fm(3.5f, 1.1f, 0.25f).send(0.65f).at(0.07f * (float)i));
+      add(NB(Noise, 0, 0.05f * V).env(0.2f, 1, 1, 0.3f, 0.4f).hp(6000).send(0.6f));
+      break;
+    }
+    case Sfx::HolyBloom: {    // a warm major chord, a soft rising shimmer and a sparkle on top
+      const float r = k;
+      const float ch[4] = {293.7f, 370.0f, 440.0f, 587.3f};   // D major
+      for (int i = 0; i < 4; i++)
+        add(NB(Saw, ch[i] * r, 0.055f * V).detune(0.006f).env(0.05f, 1, 1, 0.45f, 0.7f).lp(1400 * r, 1.0f).send(0.55f).at(0.02f * (float)i));
+      add(NB(Sine, 147 * r, 0.3f * V).env(0.05f, 0.6f).send(0.3f));
+      add(NB(Sine, 1174.7f * r, 0.07f * V).env(0.1f, 1, 1, 0.3f, 0.6f).vib(0.2f, 6).send(0.6f));
+      add(NB(Fm, 2349.3f * r, 0.07f * V).perc(0.8f).fm(3.0f, 1.4f, 0.3f).send(0.7f).at(0.1f));
+      break;
+    }
+    case Sfx::RiftTear: {     // the air tearing: a ripping downward groan into a reversed swell and a sub
+      const float r = k * rnd(0.96f, 1.04f);
+      add(NB(Noise, 0, 0.85f * V).env(0.01f, 1, 1, 0.38f, 0.2f).bp(420 * r, 1.4f).fslide(-1.5f).am(35, 0.8f).drive(1.5f).send(0.35f));
+      add(NB(Saw, 92 * r, 0.3f * V).env(0.05f, 1, 1, 0.45f, 0.3f).slide(-0.8f).vox(520 * r, 2.0f).drive(1.0f).send(0.4f));
+      add(NB(Pad, 146.8f * r, 0.12f * V).detune(0.012f).env(0.42f, 1, 1, 0.42f, 0.05f).lp(1100, 1.2f).fslide(1.6f).send(0.5f));
+      add(NB(Sine, 55 * r, 0.5f * V).env(0.3f, 1, 1, 0.4f, 0.4f).send(0.3f));
+      break;
+    }
+    case Sfx::SummonRise: {   // something climbs out: a low growl rising over a choir of whispers
+      const float r = k * rnd(0.96f, 1.04f);
+      add(NB(Saw, 70 * r, 0.34f * V).env(0.1f, 1, 1, 0.6f, 0.3f).slide(1.2f).vox(600 * r, 2.5f).am(25, 0.6f).drive(1.5f).send(0.4f));
+      add(NB(Noise, 0, 0.3f * V).env(0.2f, 1, 1, 0.5f, 0.4f).bp(2000 * r, 4.0f).am(7, 0.8f).send(0.6f));
+      add(NB(Pad, 110 * r, 0.08f * V).detune(0.01f).env(0.2f, 1, 1, 0.6f, 0.6f).lp(900).send(0.55f));
+      add(NB(Pad, 130.8f * r, 0.07f * V).detune(0.01f).env(0.2f, 1, 1, 0.6f, 0.6f).lp(900).send(0.55f));
+      break;
+    }
+    case Sfx::Shimmer: {      // illusion: a detuned glassy warble, wavering in pitch
+      const float r = k;
+      add(NB(Fm, 880 * r, 0.09f * V).env(0.05f, 1, 1, 0.35f, 0.4f).fm(2.0f, 1.5f, 0.6f).vib(0.6f, 9).send(0.6f));
+      add(NB(Fm, 893 * r, 0.09f * V).env(0.05f, 1, 1, 0.35f, 0.4f).fm(2.0f, 1.5f, 0.6f).vib(0.6f, 7).send(0.6f));
+      add(NB(Fm, 2093 * r, 0.07f * V).perc(0.45f).fm(1.5f, 1.0f, 0.2f).vib(0.8f, 6).send(0.7f).at(0.04f));
+      add(NB(Tri, 1320 * r, 0.07f * V).env(0.02f, 0.4f).slide(-0.3f).vib(1.0f, 11).send(0.7f));
+      add(NB(Noise, 0, 0.07f * V).env(0.1f, 1, 1, 0.3f, 0.3f).hp(5000).am(13, 0.7f).send(0.6f));
+      break;
+    }
+    case Sfx::DreamPulse: {   // a reversed swell into a soft sub thump, an echoing bell and a wobble
+      const float r = k;
+      add(NB(Noise, 0, 0.42f * V).env(0.3f, 1, 1, 0.3f, 0.03f).bp(1500 * r, 1.6f).fslide(1.5f).send(0.5f));
+      add(NB(Sine, 70 * r, 0.75f * V).perc(0.3f).pitch(1.5f, 0.03f).at(0.32f));
+      add(NB(Fm, 659.3f * r, 0.12f * V).perc(1.0f).fm(1.41f, 1.5f, 0.4f).send(0.9f).at(0.32f));
+      add(NB(Tri, 330 * r, 0.09f * V).env(0.01f, 0.6f).vib(1.5f, 4).send(0.7f).at(0.33f));
+      break;
+    }
+    case Sfx::StoneGrind: {   // alteration: stone grinding over a low pulse, a few rock clicks
+      const float r = k * rnd(0.95f, 1.05f);
+      add(NB(Noise, 0, 0.75f * V).env(0.04f, 1, 1, 0.38f, 0.2f).lp(700 * r, 1.1f).am(18, 0.9f).drive(2.0f).color(0.7f));
+      add(NB(Sine, 65 * r, 0.5f * V).env(0.05f, 1, 1, 0.35f, 0.2f).am(6, 0.8f));
+      add(NB(Saw, 98 * r, 0.12f * V).env(0.05f, 1, 1, 0.3f, 0.2f).lp(400).am(18, 0.6f).drive(1.0f));
+      for (int i = 0; i < 4; i++) add(NB(Noise, 0, 0.25f * V).perc(0.015f).bp(rnd(1200, 2000), 3.0f).at(rnd(0.05f, 0.4f)));
+      break;
+    }
+    case Sfx::StoneSlam: {    // a rock slam, rubble pattering down, a slosh of water
+      const float r = k * rnd(0.95f, 1.05f);
+      add(NB(Sine, 55 * r, 1.0f * V).perc(0.4f).pitch(2.5f, 0.04f).drive(0.6f));
+      add(NB(Noise, 0, 0.8f * V).perc(0.12f).lp(900 * r, 0.9f).fenv(2.0f, 0.03f));
+      for (int i = 0; i < 6; i++) add(NB(Noise, 0, rnd(0.15f, 0.3f) * V).perc(0.02f).bp(rnd(1200, 2500), 2.5f).at(rnd(0.08f, 0.45f)));
+      add(NB(Noise, 0, 0.25f * V).env(0.02f, 1, 1, 0.15f, 0.2f).bp(600 * r, 1.5f).fslide(-1.0f).send(0.4f).at(0.04f));
+      break;
+    }
+    case Sfx::StarChime: {    // starcalling: high bells drawn out like a constellation, a cold shimmer
+      const float r = k;
+      const float run[5] = {1568.0f, 1760.0f, 2093.0f, 2349.3f, 2637.0f};
+      for (int i = 0; i < 5; i++)
+        add(NB(Fm, run[i] * r, 0.08f * V).perc(1.2f).fm(3.5f, 1.0f, 0.5f).send(0.8f).at(0.08f * (float)i));
+      add(NB(Sine, 3136 * r, 0.035f * V).env(0.2f, 1, 1, 0.5f, 0.8f).vib(0.2f, 5).send(0.8f));
+      add(NB(Noise, 0, 0.035f * V).env(0.3f, 1, 1, 0.5f, 0.6f).hp(8000).send(0.7f));
+      add(NB(Sine, 392 * r, 0.12f * V).env(0.1f, 1, 1, 0.5f, 0.8f).send(0.6f));
+      break;
+    }
+    case Sfx::MeteorFall: {   // a descending shriek of air building into a roar
+      const float r = k;
+      add(NB(Saw, 2400 * r, 0.09f * V).env(0.15f, 1, 1, 0.55f, 0.1f).slide(-2.2f).bp(2000 * r, 1.5f).fslide(-1.5f).send(0.4f));
+      add(NB(Noise, 0, 0.6f * V).env(0.3f, 1, 1, 0.5f, 0.1f).bp(1200 * r, 1.2f).fslide(-1.0f).bump(1.0f).send(0.4f));
+      add(NB(Noise, 0, 0.5f * V).env(0.4f, 1, 1, 0.4f, 0.1f).lp(400 * r, 1.0f).drive(1.0f).send(0.3f));
+      add(NB(Sine, 80 * r, 0.3f * V).env(0.45f, 1, 1, 0.3f, 0.1f).slide(-0.5f));
+      break;
+    }
+    case Sfx::WardRing: {     // a ward raised or struck: a glassy ring over a resonant hum
+      const float r = k;
+      add(NB(Fm, 1046.5f * r, 0.16f * V).perc(1.0f).fm(1.5f, 2.0f, 0.3f).send(0.6f));
+      add(NB(Fm, 1568 * r, 0.09f * V).perc(0.7f).fm(2.0f, 1.2f, 0.2f).send(0.65f).at(0.02f));
+      add(NB(Sine, 261.6f * r, 0.22f * V).env(0.05f, 1, 1, 0.4f, 0.5f).am(7, 0.3f).send(0.4f));
+      add(NB(Noise, 0, 0.05f * V).env(0.02f, 1, 1, 0.2f, 0.3f).hp(6000).send(0.6f));
+      break;
+    }
+    case Sfx::Sizzle: {       // a surface combo: a short whoomph and steam hissing out
+      add(NB(Noise, 0, 0.6f * V).env(0.01f, 1, 1, 0.5f, 0.4f).hp(3000 * k).fslide(-0.5f).am(23, 0.3f).send(0.4f));
+      add(NB(Sine, 80 * k, 0.45f * V).perc(0.25f).pitch(1.2f, 0.03f));
+      for (int i = 0; i < 4; i++) add(NB(Sine, rnd(600, 1200) * k, 0.08f * V).perc(0.04f).pitch(1.0f, 0.01f).at(rnd(0.05f, 0.4f)));
+      break;
+    }
+    case Sfx::SpellMotif: spellMotif(arg ? arg : (72u << 16), V); break;
     case Sfx::COUNT: break;
+  }
+}
+
+// (M9 SPELLFX) a spell's motif: 3 or 4 notes in the culture's scale (its melody notes: a pentatonic culture's motif
+// stays pentatonic), in the school's voice. The contour and rhythm come from the motif number, so every school and
+// tradition is recognisable by ear; the last note rings longest.
+void Audio::spellMotif(uint32_t arg, float V) {
+  const int motif = (int)(arg & 255), scale = (int)((arg >> 8) & 15) % (int)Scale::COUNT, timbre = (int)((arg >> 12) & 15);
+  int root = (int)((arg >> 16) & 127);
+  if (root < 36) root = 72;
+  int pcsList[12], np = 0;
+  for (int pc = 0; pc < 12; pc++) if (kMelMask[scale] & (1u << pc)) pcsList[np++] = pc;
+  if (np == 0) { pcsList[0] = 0; np = 1; }
+  static const int8_t kContour[8][4] = {{0, 2, 4, 7}, {4, 2, 0, -3}, {0, 4, 2, 5}, {0, 1, 0, 4},
+                                         {7, 4, 5, 0}, {0, -1, 2, 4}, {2, 0, 4, 3}, {0, 3, 1, 5}};
+  static const float kRhythm[4][4] = {{0, 0.08f, 0.16f, 0.24f}, {0, 0.12f, 0.18f, 0.3f}, {0, 0.06f, 0.18f, 0.24f}, {0, 0.1f, 0.2f, 0.36f}};
+  const int8_t* ct = kContour[motif & 7];
+  const float* rh = kRhythm[(motif >> 3) & 3];
+  const int n = 3 + ((motif >> 5) & 1);
+  for (int i = 0; i < n; i++) {
+    const int d = ct[i];
+    const int oct = d >= 0 ? d / np : -((-d + np - 1) / np);
+    const int idx = d - oct * np;
+    const float f = mtof(root + oct * 12 + pcsList[idx]);
+    const bool last = i == n - 1;
+    const float t = rh[i], v = (last ? 0.12f : 0.09f) * V;
+    switch (timbre) {
+      case 0:   // brass: a bright saw stab through a closing filter (destruction)
+        add(NB(Saw, f, v).detune(0.006f).env(0.01f, last ? 0.45f : 0.16f).lp(f * 5, 1.2f).fenv(1.2f, 0.08f).send(0.45f).at(t));
+        break;
+      case 1:   // bells (restoration)
+        add(NB(Fm, f * 2, v).perc(last ? 1.1f : 0.5f).fm(3.5f, 1.0f, 0.3f).send(0.7f).at(t));
+        break;
+      case 2:   // organ: a low hollow reed (conjuration)
+        add(NB(Square, f * 0.5f, v * 0.8f).pw(0.3f).env(0.02f, 1, 1, last ? 0.35f : 0.12f, 0.2f).lp(f * 3, 1.0f).vib(0.15f, 5).send(0.6f).at(t));
+        break;
+      case 3:   // glass: a wavering FM tone (illusion)
+        add(NB(Fm, f * 2, v).env(0.01f, last ? 0.6f : 0.25f).fm(2.0f, 1.4f, 0.4f).vib(0.5f, 7).send(0.75f).at(t));
+        break;
+      case 4:   // wood: a marimba-like knock (alteration)
+        add(NB(Sine, f, v * 1.2f).perc(last ? 0.5f : 0.25f).pitch(0.3f, 0.005f).send(0.4f).at(t));
+        add(NB(Fm, f * 4, v * 0.3f).perc(0.04f).fm(1.0f, 2.0f, 0.02f).at(t));
+        break;
+      case 5:   // choir: a sung vowel
+        add(NB(Saw, f, v * 0.8f).detune(0.008f).env(0.04f, 1, 1, last ? 0.4f : 0.14f, 0.25f).vox(900, 1.8f).vib(0.2f, 5.5f, 0.05f).send(0.65f).at(t));
+        break;
+      default:  // harp: a plucked string
+        add(NB(Pluck, f, v * 1.5f).bright(0.7f).ring(last ? 0.9f : 0.5f).send(0.5f).at(t));
+        break;
+    }
   }
 }
 
@@ -2330,7 +2578,7 @@ void Audio::render(float* out, int frames) {
   const uint32_t head = qHead_.load(std::memory_order_acquire);
   for (; tail != head; tail++) {
     const Event& e = q_[tail % QN];
-    trigger(e.s, e.pitch, e.vol);
+    trigger(e.s, e.pitch, e.vol, e.arg);
   }
   qTail_.store(tail, std::memory_order_release);
   for (int done = 0; done < frames;) {

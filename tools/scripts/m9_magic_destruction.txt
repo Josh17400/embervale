@@ -1,0 +1,68 @@
+# M9 MAGIC lane: the Destruction school cast at foes (VISION_PLAN 15.5, 15.29.3/7): fire that boils, frost that shatters,
+# lightning that forks and chains; an upcast and a dual-cast; a wall of fire; the master's meteor and storm cell; a
+# combo on the ground (frost on water: ice). Ev::Spell phases reach the view (the SPELLFX lane draws them).
+#   embervale.exe --script tools/scripts/m9_magic_destruction.txt     (m9_magic_destr_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 power arena
++0.5 power foes wolf 4 3 tough
++0.1 skill set destruction 100
++0.1 spell mp 5000
++0.05 spell rain off
++0.1 spell learn firebolt
++0.1 spell learn chainlightning
++0.1 spell learn fireball
++0.1 spell learn frostlance
++0.1 expect spell chain lightning
++0.1 spell slot 1 firebolt
++0.1 spell slot 2 chain lightning
++0.1 spell slot 3 fireball
++0.1 spell slot 4 frost lance
++0.1 spell aim 1 0
++0.1 spell cast 1
++0.12 shot m9_magic_destr_firebolt.png
++0.5 spell cast 2
++0.06 shot m9_magic_destr_chain.png
++0.4 expect status shocked 1
++0.2 spell upcast 3 3
++0.25 shot m9_magic_destr_fireball_upcast.png
++0.6 expect status burning 1
++0.1 surface water 2 1
++0.1 surface water 3 1
++0.1 surface water 2 2
++0.1 spell dual 4
++0.5 expect cast 4
++0.1 spell learn ice burst
++0.1 spell slot 1 ice burst
++0.1 spell cast 1
++0.1 shot m9_magic_destr_iceburst.png
++0.3 expect surface ice 1
++0.1 expect combo 1
++0.1 spell learn fire wall
++0.1 spell slot 2 fire wall
++0.1 spell cast 2
++0.4 shot m9_magic_destr_firewall.png
++0.1 expect surface fire 1
++0.1 spell learn meteor
++0.1 spell slot 3 meteor
++0.1 spell cast 3
++0.5 shot m9_magic_destr_meteor_fall.png
++0.45 shot m9_magic_destr_meteor_impact.png
++0.6 spell learn storm cell
++0.1 spell slot 4 storm cell
++0.1 hour 22
++0.1 spell cast 4
++0.5 shot m9_magic_destr_stormcell_night.png
++0.6 shot m9_magic_destr_stormcell_strike.png
++0.1 spell learn incinerate
++0.1 spell slot 1 incinerate
++0.1 spell cast 1
++0.4 expect conc incinerate
++0.1 shot m9_magic_destr_incinerate_night.png
++0.3 spell charge 3 2
++0.6 shot m9_magic_destr_charge.png
++0.1 spell release
++0.3 expect cast 9
++0.5 quit

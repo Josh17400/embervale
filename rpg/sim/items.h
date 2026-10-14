@@ -8,8 +8,10 @@
 
 // Values are saved (writeItem): append only. Gloves, Boots and Cloak arrived with SAVE_VER 3 (M0).
 // M6 Steel appends Material: a crafting material (ore, ingot, hide, leather...; sub = craft::Stuff, rpg/sim/craft.h).
+// M9 Arcana & Mastery appends Book: something to read once (sub = skills::BOOK_SKILL: a skill book, form = the skill;
+// sub = magic::BOOK_TOME: a spell tome, seed = the spell id). Never stacks; always Common (no affixes: lootValid skips it).
 enum class ItemKind : uint8_t { Weapon, Bow, Staff, Armor, Helmet, Shield, Ring, Amulet, Potion, Food, Arrows, Misc, Quest, Gloves, Boots, Cloak,
-                                Material, COUNT };
+                                Material, Book, COUNT };
 inline bool itemEquippable(ItemKind k) {
   return k <= ItemKind::Amulet || k == ItemKind::Gloves || k == ItemKind::Boots || k == ItemKind::Cloak;
 }

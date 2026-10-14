@@ -17,6 +17,7 @@
 #include "engine/audio.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/home.h"
+#include "rpg/sim/skill_ops.h"
 
 namespace {
 constexpr float NEAR_TILES = 40.0f;
@@ -594,7 +595,7 @@ bool buyHorse(Game& g, Breed b, int site, std::string& why) {
 
 int stableOwed(const Game& g) {
   if (g.home.horse < 0 || !g.home.horseInn) return 0;
-  return std::max(0, g.day - (int)g.home.horseGy - 1) * STABLE_INN_FEE;
+  return SkillOps::stableFee(g, std::max(0, g.day - (int)g.home.horseGy - 1) * STABLE_INN_FEE);   // (M9) STABLE HAND
 }
 
 bool stableAtInn(Game& g, int site, std::string& why) {

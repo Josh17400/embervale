@@ -61,6 +61,30 @@ enum class Sfx : uint8_t {
   Zap,           // chain lightning / a falling star's strike: a bright electric crack and a sizzle
   Rebirth,       // the phoenix: a rush of fire rising into a bright chord
   LootChime,     // a fine piece found: a glassy rising arpeggio (higher and longer for Legendary and Mythic)
+  // M9 Arcana & Mastery (SPELLFX lane): the spells' voices. The view plays them from the Ev::Spell phases
+  // (rpg/view/render_magic.cpp); the sim plays none for a spell. k: the school's / the size's pitch.
+  SpellHum,      // the wind-up: a breathy hum swelling under a glassy shimmer (soft by design: a bed under the cast)
+  SpellCharge,   // an upcast step: a rising swell and a bright tick (k rises with the level)
+  SpellFizzle,   // not enough magicka / broken: a damp pfft and a falling sputter
+  FireCast,      // fire leaves the hands: a roaring whoosh, a throaty rumble, crackle
+  FireBurst,     // fire lands: a deep whump, a boiling roar, crackle and debris
+  FrostCast,     // frost: a crisp crystalline zing and a breath of cold air
+  FrostShatter,  // frost lands: glass shattering, tinkling shards, an icy hiss
+  StormCast,     // lightning leaves the hands: a bright electric snap and a buzz
+  Thunder,       // lightning strikes: a white crack, then thunder rolling away
+  HolyCast,      // restoration: a rising choir swell under bells
+  HolyBloom,     // a heal blooms: a warm major chord and a soft shimmer
+  RiftTear,      // conjuration: the air tearing (a ripping, downward groan into a reversed swell)
+  SummonRise,    // something climbs out of the rift: a low growl rising over whispers
+  Shimmer,       // illusion: a detuned glassy warble, wavering in pitch
+  DreamPulse,    // illusion lands: a reversed swell into a soft sub thump and an echoing bell
+  StoneGrind,    // alteration: stone grinding over a low pulse
+  StoneSlam,     // alteration lands: a rock slam, rubble pattering, a slosh of water
+  StarChime,     // starcalling: high bells drawn out like a constellation
+  MeteorFall,    // a meteor falls: a descending shriek of air building into a roar (the landing is a FireBurst)
+  WardRing,      // a ward raised or struck: a glassy ring over a resonant hum
+  Sizzle,        // a surface combo: steam hissing out of a short whoomph
+  SpellMotif,    // a school's / tradition's motif: 3-4 notes in the culture's scale (Audio::playMotif; play() gives motif 0)
   COUNT
 };
 
@@ -88,6 +112,10 @@ class Audio {
   bool init();
   void shutdown();
   void play(Sfx s, float pitch = 1.0f, float vol = 1.0f);
+  // (M9 SPELLFX) a spell's motif (Sfx::SpellMotif): motif picks the contour and rhythm (FxStyle::motif), scale the
+  // culture's (engine/music_style.h Scale), timbre the school's voice (0 brass, 1 bells, 2 organ, 3 glass, 4 wood,
+  // 5 choir, 6 harp), root the tonic's MIDI note (48..84)
+  void playMotif(uint8_t motif, uint8_t scale, uint8_t timbre, int root = 72, float vol = 1.0f);
   void setMusic(Music m);
   // M3: the piece in a culture's style (engine/music_style.h; nullptr = the classic piece). Town, Wild and Night take
   // its scale, tempo, meter, instruments and ornament; Combat and Boss keep their structure but take its percussion.
@@ -170,7 +198,7 @@ class Audio {
     MelEv mel[160] = {};
     int melN = 0, melI = 0, cur = 2;
   };
-  struct Event { Sfx s; float pitch, vol; };
+  struct Event { Sfx s; float pitch, vol; uint32_t arg = 0; };   // arg: (M9) SpellMotif's packed motif
 
   static constexpr int MAXV = 64, NSTR = 16, STRLEN = 1024, QN = 64, BLOCK = 32;
   static constexpr int ECHO = 16384, ECHO_TAP = 14400;
@@ -229,7 +257,9 @@ class Audio {
   float rnd();                       // audio-thread RNG, 0..1
   float rnd(float lo, float hi) { return lo + (hi - lo) * rnd(); }
   void add(const Note& n);
-  void trigger(Sfx s, float pitch, float vol);
+  void trigger(Sfx s, float pitch, float vol, uint32_t arg = 0);
+  void spellMotif(uint32_t arg, float V);   // (M9) Sfx::SpellMotif's notes
+  void push(const Event& e);                // the play queue (main thread -> audio thread)
   void renderBlock(float* out, int n);
   void renderVoice(Voice& v, int n, const float* layerGain, float* sfx, float* mus, float* sndS, float* sndM);
   void updateMusic(float blockSec);

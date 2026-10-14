@@ -1,0 +1,40 @@
+phone
+# M9 UI lane: the SKILLS page at phone size, by touch. The hamburger's perk-point badge, the menu opened on SKILLS, the
+# COMBAT group, the axe row, a star tapped (the reticle), TAKE tapped (taken, twice down the tree), a locked star
+# tapped and TAKE refused, the MAGIC and ARMOUR groups tapped.
+#   cd <shots dir> && embervale.exe --script <repo>/tools/scripts/m9_ui_skills_phone.txt     (m9ui_skp_*.png)
+seed 7
+0.3  newgame
++0.02 touch 1
++0.1 god 1
++0.05 hour 11
++0.1 skill set axe 26
++0.1 skill set restoration 12
++0.1 skill points 2
++0.6 shot m9ui_skp_1_badge.png
++0.1 skillsui open skills
++0.02 touch 1
++0.3 skillsui tap group 0
++0.3 skillsui tap skill axe
++0.3 expect skillsui skill axe
++0.1 skillsui tap star 0
++0.3 expect skillsui perk 0
++0.1 shot m9ui_skp_2_axe.png
++0.1 skillsui tap take
++0.3 expect perk axe 0
++0.1 skillsui tap star 1
++0.3 expect skillsui perk 1
++0.1 skillsui tap take
++0.3 expect perk axe 1
++0.1 shot m9ui_skp_3_taken.png
++0.1 skillsui tap star 3
++0.3 skillsui tap take
++0.2 expect skillsui why NEEDS
++0.1 shot m9ui_skp_4_refused.png
++0.1 skillsui tap group 5
++0.4 expect skillsui skill destruction
++0.1 skillsui tap skill restoration
++0.4 shot m9ui_skp_5_restoration.png
++0.1 skillsui tap group 1
++0.4 shot m9ui_skp_6_armour.png
++0.3 quit

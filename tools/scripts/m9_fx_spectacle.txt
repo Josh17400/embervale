@@ -1,0 +1,53 @@
+# M9 SPELLFX: the big moments by day: upcast and dual-cast visibly bigger (a FIREBOLT plain, upcast 3, upcast 3 and
+# dual-cast), and one spectacle per school (FxStyle::size 4): a meteor, a storm cell, a great summon, a starfall,
+# a great healing light, an illusion's mass fear, an earthquake of stone. Screenshots m9fx_x_*.png.
+#   embervale.exe --script tools/scripts/m9_fx_spectacle.txt
+seed 3
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 power arena
++0.4 spell mp 999
+# ---- upcast and dual-cast grow
++0.2 fx spell firebolt at 6 0
++0.62 shot m9fx_x_fire_plain.png
++0.8 fx spell firebolt upcast 3 at 6 0
++0.55 shot m9fx_x_fire_upcast_windup.png
++0.79 shot m9fx_x_fire_upcast.png
++1.0 fx spell firebolt upcast 3 dual at 6 0
++1.34 shot m9fx_x_fire_dual.png
++0.2 expect magicfx peak_particles 60
+# ---- Destruction: a meteor
++1.0 fx spell meteor fire destruction size 4 at 5 1
++0.7 shot m9fx_x_meteor_windup.png
++0.35 shot m9fx_x_meteor_fall.png
++0.3 shot m9fx_x_meteor_impact.png
++0.25 shot m9fx_x_meteor_impact2.png
++1.2 shot m9fx_x_meteor_crater.png
++0.1 expect magicfx decals 1
+# ---- Destruction: a storm cell
++0.6 fx spell storm storm destruction size 4 at 5 0
++1.05 shot m9fx_x_storm1.png
++0.33 shot m9fx_x_storm2.png
++0.5 shot m9fx_x_storm3.png
+# ---- Conjuration: a great summon
++2.0 fx spell summon shadow conjuration size 4 at 4 1
++1.2 shot m9fx_x_summon1.png
++0.5 shot m9fx_x_summon2.png
++0.5 shot m9fx_x_summon3.png
+# ---- Starcalling: a starfall
++1.5 fx spell meteor star destruction size 3 at 5 0
++0.8 shot m9fx_x_star1.png
++0.6 shot m9fx_x_star2.png
+# ---- Restoration: a great light
++1.5 fx spell nova light restoration size 4
++1.0 shot m9fx_x_light.png
+# ---- Illusion: a mass fear
++1.2 fx spell nova dream illusion size 4
++1.0 shot m9fx_x_dream.png
+# ---- Alteration: the ground breaks
++1.2 fx spell nova stone alteration size 4
++0.95 shot m9fx_x_stone.png
++0.4 shot m9fx_x_stone2.png
++0.5 fx report
++0.3 quit

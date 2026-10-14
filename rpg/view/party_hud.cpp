@@ -990,6 +990,8 @@ bool View::partyRibbonBox(const Game& g, PlateBox& b, float& textW) {
   const int mi = memberOf(g, n.id);
   float ay = std::max(T + 30, bossBarBottom_ + 8);
   if (herald_.t > 0 || (biomeBannerT_ > 0 && !biomeBanner_.empty())) ay += 24;
+  if (biomeBannerT_ > 0 && !biomeBanner_.empty())   // (M9 fixer) the banner may have dropped under the quick bar
+    ay = std::max(ay, biomeBannerY(std::min((float)P.textW(biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70)) + 14);
   if (bannerT_ > 0) ay = std::max(ay, T + (bannerState_.empty() ? 88.0f : 99.0f));   // under the arrival banner
   textW = (float)P.textW(n.s, 1);
   const float w = textW + (mi >= 0 ? 30.0f : 14.0f), h = 20;
@@ -1020,7 +1022,7 @@ void View::hudBands(const Game& g, std::vector<PlateBox>& out) {
     add(x - 4, y, x + w + 4, y + 27);
   }
   if (biomeBannerT_ > 0 && !biomeBanner_.empty() && bannerT_ <= 0 && herald_.t <= 0 && g.mode == Mode::Play && !g.inside) {
-    const float y = std::max(T + 30, bossBarBottom_ + 10), half = std::min((float)P.textW(biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70);
+    const float half = std::min((float)P.textW(biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70), y = biomeBannerY(half);
     add(Pix::W / 2.0f - half, y - 4, Pix::W / 2.0f + half, y + 11);
   }
   PlateBox rb;

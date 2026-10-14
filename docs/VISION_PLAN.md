@@ -3215,3 +3215,87 @@ M9 is the M9 "Arcana" magic plan (the milestone section and 15.5) plus a Skyrim-
    - **Surfaces and combos read beautifully.** Oil sheen, burning ground, electrified water, freezing puddles and poison clouds each have animated pixel art and clear borders.
    - **Phone performance.** Particle and effect budgets must hold the web/iPhone frame budget (`--perf`, `--window`). Use pooled particles and baked effect sheets; it should look sick at 60 fps.
    - **Review.** The visual reviewer must judge every school's spell at 1x on a phone frame, by day and at night, and fail anything that looks flat, small, muddy or generic.
+
+### 15.30 M9 "Arcana & Mastery" phase A (lead, 2026-10-12): the skill and magic contracts
+
+15.29 binds M9 (the owner's words win), with the M9 "Arcana" milestone section and 15.5. Phase A contracts (a lane may ADD
+to a file it is the editor of, never rename, remove or change the meaning of what is listed here):
+- **`rpg/sim/skills.h`** (SKILLS lane is its only editor; skills.cpp, skills_perks.cpp, skills_game.cpp): `Skill` (25,
+  saved by index: Sword, Axe, Mace, Spear, Dagger, Bow, Unarmed, Block, Light / Medium / Heavy armour, Heritage (material
+  and culture mastery), Athletics, Smithing, Cooking, Farming, Riding, Speech, Stealth, Lockpicking, and the five
+  schools Destruction .. Alteration), `SkillInfo` (name, what raises it, group, star colour, glyph seed), the curve
+  (`xpToNext`, `xpToReach`: phase A 0.2 L^1.6 + 2 use points, 12 220 acts from 5 to 100), `charXpForSkillUp` (phase A 0),
+  perks (`PerkDef`: name, plain-word line, level needed, parents, the star's place on a -8..8 grid, cost; up to 32 per
+  skill, saved as bits; `perkTable` routes the schools to `magic::schoolPerks`; `perkBlocked`), foe tags (`FoeTag`:
+  beast, undead, skeletal, armoured, people, construct, flying, charger, shielded, unarmoured, spirit, huge, dragon,
+  unaware; `tagsOf(kind...)` / `tagsOf(Actor)`, beast / undead / people agreeing with the M8b vs-affixes), weapon
+  families (`familyOf`, `FamilyTraits` swing time / reach / stamina / crit, `familyVs` rows "+35% VS ARMOURED: CRUSHES
+  PLATE", `familyVsPct`, `familyVsLines`), armour classes (`Weight`, `weightOf` by material, `armourTrade`: speed, roll,
+  roll cost, stamina regen, noise, damage reduction, softened by skill), the state (`Track`, `Skills`: levels, XP,
+  perks, material and culture familiarity, perk points, trainer counts, books read, respecs, use counts, `live`
+  runtime), `startLevels(background)`, `defaultsForLevel` (15.29.5), skill books (`ItemKind::Book`, `BOOK_SKILL`,
+  `makeSkillBook`).
+- **`rpg/sim/skill_ops.h`** (SKILLS lane): `SkillOps`, Game's friend, every hook already called where it acts: `use`
+  (the one doorway, `Game::skillUse`), `strikeMul` / `struck` (meleeHit, a hero's arrow), `takenMul` / `taken`
+  (damage()), `swingTime` / `reachAdd` / `swingCost`, `speedMul` (recalcPlayer), `rollMul` / `rollCostMul` / `rolled`,
+  `staminaRegenMul`, `drawMul` / `loosed` (shootArrow), `detectMul` (ai.cpp's sense), `step`, `applyPerks`
+  (recalcPlayer, after sumGear), `leveledUp` (gainXp: a perk point), `buyMul` (priceFactor) / `sellMul` / `traded`,
+  `talk` / `choose` (talkTo's section-7 hooks, `DLG_SKILLS` 6000..6500), `shopStock`, `readBook` (useItem), `loot`
+  (dropLoot, openChest), `forged` (the forge's give), `cooked` (home::cook), `farmed` (till / plant / water / harvest),
+  and for tests and scripts `setLevel`, `takePerk`, `respec` / `respecCost`. Phase A: the gains count and level the
+  skills (Ev::Skill), perks can be taken and respecced, every multiplier is neutral and no character XP comes from
+  skills, so every balance gate reads exactly as before.
+- **`rpg/sim/magic.h`** (MAGIC lane; magic.cpp, magic_perks.cpp, magic_game.cpp): `School` (+ `schoolSkill`,
+  `schoolPerks`), the section 6 grammar (`Form` + Storm / Meteor, `Essence` + Arcane, `Mod`, `Resource`, `Signature`),
+  `Status` (the nine of 15.5, on `Actor::status` / `statusT`), `Surface` (water, ice, oil, fire, poison, shocked water,
+  steam, blood) and `comboOf`, the look's identity (`FxStyle`: a 5-colour ramp, `Particle`, `Motion`, glyph seed, sound
+  motif, size), `SpellDef` (power at level 1 is what the budget checks; cost, cooldown, cast time, range, radius,
+  duration, speed, concentration / upcast / dual / reaction flags, the surface it leaves, statuses, resource,
+  tradition), `budgetOf` (6.3: basePower(form) x essenceMult x tier x rank x 0.85 per mod, x1.1 signature),
+  `schoolSpells` (phase A: the classic three with their pre-M9 numbers and one first spell of every other school),
+  `spellById`, the classic ids 1..3 (`legacySpellId` / `legacySpellOf` / `syncLegacy`), `Tradition` +
+  `traditionOf` / `commonArcana` (phase A: Common Arcana everywhere), tomes (`BOOK_TOME`, `makeTome`), the saved
+  `Book` (known, `QUICK_SLOTS` = 4 slots, the selected slot, mastery, attunements, trials, the non-magicka pools), the
+  runtime `Live` (`Cast`, `Conc`, the `Field` of surface tiles with a serial for the view's caches, `Stats`, slot
+  cooldowns), `Arcana` (book + live), the `Phase`s of a spell's life for `Ev::Spell` and `magnitudeOf` (upcast +0.35 a
+  level, dual-cast x1.6).
+- **`rpg/sim/magic_ops.h`** (MAGIC lane): `MagicOps`, Game's friend: `input` (updatePlayer: quick slots, the SPELL
+  button, SWAP), `cast` / `classicCast` (Game::castSpell), `step`, `actorStep` (updateActor: statuses tick, frozen
+  holds), `aiOverride` (updateAI first: frightened flees, frozen waits), `projHit` / `projEnd` (updateProjectiles),
+  `hurtMul` / `hurt` (damage(): a frozen body shatters, a heavy hit breaks concentration), `learn`, `readTome`,
+  `prepare` (the UI's quick-slot change; the rest-or-camp rule is magic's), `talk` / `choose` (`DLG_MAGIC`
+  6500..7000), `shopStock`, `loot`, `rested`, `reset` / `background`, `syncLegacy`, `clearMap`, `shift`, `emit`,
+  `laySurface`, `applyStatus`.
+- **`rpg/sim/game.h`**: `Input::castSlot / castHold / castDual / sneak`; `Actor::status / statusT / statusBy`, the
+  MAGIC scratch `magicTag / magicT / magicBy`, the SKILLS bleed `bleedDps / bleedT / bleedBy` and scratch `skillTag /
+  skillT` (never saved); `ProjKind::Spell`, `Projectile::spell / mag / upcast / dual`; `Ev::Spell` (a = Phase,
+  `Event::spell`, p, q, f, id) and `Ev::Skill` (a = skill, f = kind: 1 level, 2 perk point, 3 perk taken, 4 book, 5
+  trained, 6 mastered, 7 respec); `DLG_SKILLS`, `DLG_MAGIC`; `Game::skills`, `Game::arcana`, `Game::skillUse`;
+  `friend struct SkillOps, MagicOps`. `ItemKind::Book` (items.h). The classic `Game::spellsKnown` / `Game::spell` stay
+  as mirrors of the book's classic spells (tests, debugKit, the old HUD line); the book is the truth.
+- **View** (`rpg/view/view.h`, frozen: each block keeps its state in an opaque struct defined in its own .cpp and reaches
+  View's internals through its friend Ops struct). SPELLFX block (rpg/view/render_magic.cpp; `MagicFxOps`):
+  `magicEvent` (Ev::Spell), `magicUpdate`, `magicShift` (WindowShift), `drawMagicGround` (drawWorld, before the
+  sorted pass: surfaces, decals), `drawSpellProj` (the sorted pass, ProjKind::Spell), `magicLights` (drawLighting),
+  `drawMagicFx` (View::draw after the lighting), `magicFxStats`. UI block (rpg/view/skills_ui.cpp; `SkillsUiOps`):
+  `kSkillsTab` 7, `kSpellsTab` 8, `skillEvent` (Ev::Skill: phase A a toast in the skill's colour),
+  `drawSkillsPage` / `skillsPageKey` / `skillsPageTap`, `drawSpellsPage` / `spellsPageKey` / `spellsPageTap`. Phase A
+  draws placeholders only (a glow, a ring, tinted tiles, a text list).
+- **Saves**: SAVE_VER 20, the skills block and the magic block after the party block (each its own version byte 1);
+  `tests/fixtures/save_v20.bin` (a level and XP, a perk, perk points, a book read, familiarity, SPARK and FEAR known in
+  the slots, mastery). Owner 15.29.5 ("give old saves default skills based on their level") is honoured literally: a
+  SAVE_VER 19 save still loads (the same layout without the two blocks) with `defaultsForLevel` and its classic spells
+  in the book; `tests/fixtures/save_v19.bin` is kept as that check's input; 18 and older are refused as before.
+  Game::serialize writes the classic fields and the book synced (magic::syncLegacy on copies), so a load is byte-exact.
+  ENDLESS_GEN_VER unchanged (22): M9 changes no generation.
+- **Tests and scripts**: `rpg_test --skills` (tables, trees, curve, tags, families win and lose, armour trade-offs, gains
+  from the right act only, the block, perks and respec, a save) and `--spells` (every spell within +-5 % of its budget,
+  ids, statuses, surfaces and combos, the book, casting through the quick slots), both in CI ("Skills and spells
+  test"). Script commands: `skill set|use|perk <skill> <n>`, `skill points <n>`, `expect skill`, `expect perk`
+  (script_skills.cpp); `spell learn|slot|cast|mp`, `surface <kind> <dx> <dy> [s]`, `status <name> <secs>`,
+  `expect spell|status|surface` (script_magic.cpp); `tools/scripts/m9_lead_arcana.txt`.
+- Phase A measured (MSVC, BDIR=build): rpg_test --seeds 1..20 20/20; save_test ALL OK; --skills, --spells, --powers (86
+  A/B runs), --foes 1..3, --arms 1..3, --companion 1..3, --power-curve, --loot, --loot-sources 1..3, --loot-audit, --gear
+  1..3, --villages --strict: 0 failures; --metrics vs M5: the same 3 lines as before M9 (first weapon 5.5 s vs 8.0, first
+  level-up +10.2 %, 3 wolves lvl 3 died 5 % vs 17: the M7c start village, unchanged by phase A); m9_lead_arcana and the
+  fight / m8b_powers / creator / cooking scripts 0 failures.

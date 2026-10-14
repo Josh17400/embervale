@@ -1,7 +1,7 @@
 # Touch dialogue (M0 round 3): a tap while the line is still typing only finishes the text; it never picks an option
 # the player has not read. A second tap on an option band, once the text is out, chooses it.
 #   embervale.exe --script tools/scripts/dialogue_tap.txt
-# (M2: the endless world) a start-village villager with a job; the last option is FAREWELL (M2 UI: the bottom-anchored panel puts its band at y 249).
+# (M2: the endless world) a start-village villager with a job; the last band is MORE... then FAREWELL on the next page (M2 UI: the bottom-anchored panel puts its band at y 249).
 seed 8
 0.3  newgame
 +0.02 hour 10
@@ -9,6 +9,9 @@ seed 8
 +0.15 tap 240 249                # the text is still typing: this tap only finishes it
 +0.3 expect mode dialogue
 +0.1 shot dialogue_tap_0.png     # the whole line shown, the options lit
-+0.3 tap 240 249                 # now the FAREWELL band chooses
++0.3 tap 240 249                 # now the last band chooses: MORE... (M9: the farmer also trains, so six options page)
++0.3 expect mode dialogue
++0.1 shot dialogue_tap_1.png     # the second page: FAREWELL above BACK TO THE START...
++0.3 tap 240 218                 # FAREWELL (the band above BACK TO THE START...)
 +0.3 expect mode play
 +0.3 quit

@@ -23,6 +23,7 @@
 #include "rpg/culture/culture.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/magic_ops.h"
 #include "rpg/sim/party.h"
 #include "rpg/world/source.h"
 
@@ -147,6 +148,12 @@ void PartyOps::strike(Game& g, Actor& a, Member& m) {
     pr.ench = Ench::None;
     pr.kind = mage ? boltOf(g, m, pr.ench) : ProjKind::Arrow;
     pr.enchPow = mage ? 2.0f : 0.0f;
+    if (mage) {   // (M9) the rank-1 bolt of their land's tradition, a spell missile (Common Arcana: the classic FIREBOLT)
+      pr.spell = MagicOps::companionSpell(g, m.culture);
+      pr.kind = ProjKind::Spell;
+      if (const magic::SpellDef* sd = magic::spellById(pr.spell))
+        pr.ench = sd->ess == magic::Essence::Fire ? Ench::Fire : sd->ess == magic::Essence::Frost ? Ench::Frost : Ench::None;
+    }
     pr.fromPlayer = true;   // (it hits what the player's shots hit: the hostile; never the player or the townsfolk)
     pr.owner = a.id; pr.fac = Faction::Player;
     pr.p = a.p + Vec2(0, -8);

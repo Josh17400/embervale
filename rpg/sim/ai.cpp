@@ -8,6 +8,8 @@
 #include "engine/audio.h"
 #include "rpg/sim/foes.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/magic_ops.h"
+#include "rpg/sim/skill_ops.h"
 #include "rpg/sim/power_ops.h"
 #include "rpg/sim/war.h"
 #include "rpg/world/economy.h"
@@ -620,6 +622,7 @@ void Game::updateTownDefence(float dt) {
 }
 
 void Game::updateAI(Actor& a, float dt) {
+  if (MagicOps::aiOverride(*this, a, dt)) return;   // (M9) frozen, frightened, charmed, blinded (magic_game.cpp)
   float slow = a.slowT > 0 ? 0.55f : 1.0f;
   if (a.st == AState::Hurt) { if (a.stT > 0.25f) { a.st = AState::Idle; a.stT = 0; } return; }
 
@@ -640,9 +643,12 @@ void Game::updateAI(Actor& a, float dt) {
     a.thinkT = 0.25f;
     float sense = a.aggroR * (isNight() && !inside ? 0.8f : 1.0f);
     if (p.player && background == Background::Hunter && a.faction == Faction::Wild) sense *= 0.7f;   // the hunter's quiet step
+    if (p.player) sense *= SkillOps::detectMul(*this, a);   // (M9) sneaking, the worn armour's noise, Stealth perks
     if (p.st != AState::Dead && !a.fleeing && dist < sense) a.aggro = true;
     // (M8b) Shadowstep: the hero rolled out of sight; nothing that hunts the hero sees them while it lasts
     if (p.player && PowerOps::unseen(*this) && a.mon != Monster::Dragon) { a.aggro = false; a.target = -1; }
+    // (M9) SHADOW STRIKE / MATCHLESS leave the hero unseen; VANISH: sneaking far enough off, a foe loses the trail
+    if (p.player && a.mon != Monster::Dragon && (SkillOps::hidden(*this) || (a.aggro && SkillOps::losesTrail(*this, a, dist)))) { a.aggro = false; a.target = -1; }
     // packs are tied to their den: past the leash (or once the prey is long gone) they give up and go home.
     // Inside a settlement the leash doesn't hold: whatever got in fights until the guards end it.
     float leash = a.den >= 0 ? 18.0f * TILE : 28.0f * TILE;

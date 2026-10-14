@@ -25,6 +25,10 @@
 //                             from the edge; tools/scripts/m6_menu_tap_phone.txt opens the menu by that tap), so tap
 //                             scripts are written for one size
 //   3 click 240 135           left mouse click at logical coordinates (same space as tap)
+//   3 press 424 222 1.2       (M9) a finger held down at logical coordinates for 1.2 s (a hold: the quick-cast upcast)
+//   3 press quick 2 1.2       (M9) ... on quick-cast button 2 (1..4; 5 the sneak toggle: rpg/view/skills_ui.h quickBtnPos)
+//   3 swipe 100 200 160 180 0.4   (M9) a finger down at the first point, dragged to the second, lifted after 0.4 s
+//   3 swipe quick 2 -40 -10 0.4   (M9) ... from quick-cast button 2, dragged by (dx, dy): a swipe off it (dual-cast)
 //   4 shot out.png            screenshot of this frame
 //   5 walkto inn              autopilot over the tile grid, steering with held WASD: inn|shop|smithy|temple|keep|tower|
 //                             house (walks in the door), innkeeper|merchant|smith|priest|jarl|guard|villager|mage (until
@@ -89,6 +93,7 @@
 #include "rpg/sim/loot_ops.h"
 #include "rpg/view/screen.h"
 #include "rpg/view/script_api.h"
+#include "rpg/view/skills_ui.h"
 #include "rpg/view/view.h"
 #include "rpg/sim/stream.h"
 #include "rpg/world/source.h"
@@ -494,6 +499,7 @@ int main(int argc, char** argv) {
   std::vector<Held> held;
   struct Lift { SDL_FingerID id; float x, y, at; };
   std::vector<Lift> lifts;
+  std::vector<Lift> drags;   // (M9) a swipe's finger motion due at `at` (to x, y)
   SDL_FingerID nextFinger = 101;
   struct Walk {
     bool on = false;
@@ -849,6 +855,29 @@ int main(int argc, char** argv) {
     } else if (op == "click") {
       float x = (float)std::atof(arg(1).c_str()), y = (float)std::atof(arg(2).c_str());
       pushClick(x, y, true); pushClick(x, y, false);
+    } else if (op == "press" || op == "swipe") {   // (M9) a held finger / a drag (the quick-cast hold and swipe)
+      size_t k = 1;
+      float x = 0, y = 0;
+      if (arg(1) == "quick") {
+        const int b = std::atoi(arg(2).c_str()) - 1;
+        const QuickBtn q = quickBtnPos(b < 0 ? 0 : b > 4 ? 4 : b);
+        x = q.x; y = q.y; k = 3;
+      } else {
+        x = (float)std::atof(arg(1).c_str()); y = (float)std::atof(arg(2).c_str()); k = 3;
+      }
+      float x1 = x, y1 = y;
+      if (op == "swipe") {
+        if (arg(1) == "quick") { x1 = x + (float)std::atof(arg(k).c_str()); y1 = y + (float)std::atof(arg(k + 1).c_str()); }
+        else { x1 = (float)std::atof(arg(k).c_str()); y1 = (float)std::atof(arg(k + 1).c_str()); }
+        k += 2;
+      }
+      const float secs = std::max(0.05f, (float)std::atof(arg(k).c_str()));
+      SDL_FingerID id = nextFinger++;
+      pushFinger(SDL_EVENT_FINGER_DOWN, id, x, y);
+      if (op == "swipe") {   // the drag in four steps over the first half of the gesture
+        for (int s = 1; s <= 4; s++) drags.push_back({id, x + (x1 - x) * s / 4.0f, y + (y1 - y) * s / 4.0f, scriptT + secs * 0.5f * s / 4.0f});
+      }
+      lifts.push_back({id, x1, y1, scriptT + secs});
     } else if (op == "shot") {
       pendingShot = arg(1).empty() ? "shot.png" : arg(1);
     } else if (op == "quit") {
@@ -1126,6 +1155,10 @@ int main(int argc, char** argv) {
         held.erase(held.begin() + i);
       } else i++;
     }
+    for (size_t i = 0; i < drags.size();) {
+      if (scriptT >= drags[i].at) { pushFinger(SDL_EVENT_FINGER_MOTION, drags[i].id, drags[i].x, drags[i].y); drags.erase(drags.begin() + i); }
+      else i++;
+    }
     for (size_t i = 0; i < lifts.size();) {
       if (scriptT >= lifts[i].at) { pushFinger(SDL_EVENT_FINGER_UP, lifts[i].id, lifts[i].x, lifts[i].y); lifts.erase(lifts.begin() + i); }
       else i++;
@@ -1280,6 +1313,11 @@ int main(int argc, char** argv) {
     static Input latched;
     in.attack |= latched.attack; in.bow |= latched.bow; in.spell |= latched.spell; in.roll |= latched.roll;
     in.interact |= latched.interact; in.potion |= latched.potion; in.swapSpell |= latched.swapSpell;
+    // (M9) the quick-cast press and the sneak toggle are one-shots too; a dual-cast's release (castDual with castHold
+    // off) must reach a step as well
+    if (in.castSlot < 0) in.castSlot = latched.castSlot;
+    in.sneak |= latched.sneak;
+    if (!in.castHold) in.castDual |= latched.castDual && !latched.castHold;
     latched = Input();
     // EMB_TIMING: the 12 frames after a journey's fade lifts, split into sim steps, view update and draw
     static int afterTravel = 0;
@@ -1293,7 +1331,7 @@ int main(int argc, char** argv) {
       bool first = true;
       while (acc >= SIM_DT && steps < 8) {
         game.update(SIM_DT, in);
-        if (first) { in.attack = in.bow = in.spell = in.roll = in.interact = in.potion = in.swapSpell = false; first = false; }
+        if (first) { in.attack = in.bow = in.spell = in.roll = in.interact = in.potion = in.swapSpell = false; in.castSlot = -1; in.sneak = false; first = false; }
         acc -= SIM_DT; steps++;
       }
       if (steps == 0) { latched = in; latched.move = Vec2(); }

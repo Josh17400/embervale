@@ -22,8 +22,10 @@
 #include "rpg/sim/home.h"
 #include "rpg/sim/items.h"
 #include "rpg/sim/life.h"
+#include "rpg/sim/magic.h"
 #include "rpg/sim/party.h"
 #include "rpg/sim/realm.h"
+#include "rpg/sim/skills.h"
 #include "rpg/sim/talk.h"
 #include "rpg/sim/war.h"
 #include "rpg/sim/world.h"
@@ -43,6 +45,12 @@ constexpr uint32_t SF_FIRST_WEAPON = 1u << 1;   // the opening's guaranteed firs
 struct Input {
   Vec2 move;
   bool attack = false, bow = false, spell = false, roll = false, interact = false, potion = false, swapSpell = false;
+  // ---- M9 Arcana (MagicOps::input, SkillOps::step): the quick-cast slots (15.5: 3-4 on the phone). castSlot: the slot
+  //      pressed this step (-1 none); castHold: a slot's button still held (hold to upcast; letting go casts); castDual:
+  //      the cast is a dual-cast (a swipe on the phone, a modifier on the keyboard). sneak: toggles sneaking (Stealth)
+  int8_t castSlot = -1;
+  bool castHold = false, castDual = false;
+  bool sneak = false;
 };
 
 // Down: a skeleton that has collapsed and may reassemble (a hit while it is down finishes it)
@@ -173,9 +181,26 @@ struct Actor {
   float burnDps = 0, burnDpsT = 0;
   int burnBy = -1;
   float powCd = 0, powRegenT = 0, powAuraT = 0;
+  // M9 Arcana & Mastery (never saved). status: magic::Status bits and statusT the seconds left of each, statusBy the actor
+  // id that put the latest one on (kills credited to them); magicTag / magicT / magicBy: the MAGIC lane's per-actor
+  // scratch (a conjured form and its time left, its caster; meaning defined in magic_game.cpp). bleedDps / bleedT /
+  // bleedBy: a bleed (an axe's perk; the SKILLS lane's, like Affix::Burn's fire); skillTag / skillT: the SKILLS lane's
+  // per-actor scratch (staggered, marked...; meaning defined in skills_game.cpp)
+  uint16_t status = 0;
+  float statusT[magic::STATUSES] = {};
+  int statusBy = -1;
+  uint8_t magicTag = 0;
+  float magicT = 0;
+  int magicBy = -1;
+  float bleedDps = 0, bleedT = 0;
+  int bleedBy = -1;
+  uint8_t skillTag = 0;
+  float skillT = 0;
+  bool hasStatus(magic::Status s) const { return (status & magic::statusBit(s)) != 0; }
 };
 
-enum class ProjKind : uint8_t { Arrow, Fireball, IceSpike, Spit, Magic, DragonFire };
+// M9 appends Spell: a spell's missile (Projectile::spell names it; the view draws it from the spell's FxStyle)
+enum class ProjKind : uint8_t { Arrow, Fireball, IceSpike, Spit, Magic, DragonFire, Spell };
 struct Projectile {
   Vec2 p, v;
   float life = 1.5f, dmg = 5, radius = 3;
@@ -188,6 +213,12 @@ struct Projectile {
   // (M8b POWERS, never saved) where it was loosed (SplitArrows splits past 6 tiles from here) and PJ_* bits
   Vec2 from;
   uint8_t powFlags = 0;
+  // (M9, never saved) the spell this missile carries (magic::SpellDef id; 0 none: also set on the classic Fireball /
+  // IceSpike kinds the classic spells still fly as) and its magnitude (upcast / dual-cast: magic::magnitudeOf)
+  uint32_t spell = 0;
+  float mag = 1;
+  uint8_t upcast = 0;
+  bool dual = false;
 };
 constexpr uint8_t PJ_SPLIT = 1;      // (M8b) already split (or a split's child): never splits again
 constexpr uint8_t PJ_REFLECTED = 2;  // (M8b) turned back by ReflectBlock
@@ -213,7 +244,13 @@ struct Pickup {
 // "ENTERING THE KHAGANATE OF ...")
 enum class Ev : uint8_t { Sfx, Hit, Blood, Explode, Sparkle, Dust, Heal, Frost, Text, Discover, LevelUp, QuestUpdate, Shake, MapChange, Notice,
                           WindowShift, News, Border,
-                          Banter, PartyAlert, Power };
+                          Banter, PartyAlert, Power,
+                          Spell, Skill };
+// M9 Arcana & Mastery: Spell, a phase of a spell's life (a = magic::Phase, Event::spell = the spell id, p / q / f / id:
+// see magic.h Phase; the view: View::magicEvent, rpg/view/render_magic.cpp, SPELLFX lane). Skill, a skill moment for the
+// HUD (a = skills::Skill, f = the kind: 1 a level gained (Event::spell = the new level), 2 a perk point earned, 3 a perk
+// taken (Event::spell = its index), 4 a book read, 5 levels trained, 6 mastered (100), 7 respec; s = the line to show;
+// View::skillEvent, rpg/view/skills_ui.cpp, UI lane)
 // M8b Treasure: Power, a worn power or affix fired (a = powers::Fx, p = from, q = to, f = magnitude, id = the actor it
 // follows or 0): the view draws it (View::powerEvent, rpg/view/render_powers.cpp; POWERS lane)
 // M8 Fellowship: Banter, a companion speaks (a = party::Party::members index, s = the line, f = seconds to show; the
@@ -230,6 +267,7 @@ struct Event {
   uint32_t id = 0;    // (M8) Ev::Banter / Ev::PartyAlert: the speaker's party::Member::id (a, their members index, can
                       // be stale by the time the view reads it: a member who dies that step is gone from the list)
   Vec2 q;             // (M8b) Ev::Power: the second point (a lightning arc's end, a falling star's mark)
+  uint32_t spell = 0; // (M9) Ev::Spell: the spell id; Ev::Skill: the level reached / the perk index
 };
 
 // M2 (VISION_PLAN M2 sim lane, PLAN.md task 6) appends: Deliver (a parcel to an NPC in another settlement), Heirloom
@@ -294,6 +332,9 @@ constexpr int DLG_HOME = 5000, DLG_HOME_END = 5500;
 // M8 Fellowship: the companions' talk (recruiting, a companion's own conversation, orders, gear, their story and personal
 // quest, the kin and friends who speak of them; rpg/sim/party_talk.cpp partyChoose, VOICE lane)
 constexpr int DLG_PARTY = 5500, DLG_PARTY_END = 6000;
+// M9 Arcana & Mastery: the trainers', companions' teaching and speech options (rpg/sim/skills_game.cpp SkillOps::choose,
+// SKILLS lane) and the mage teachers' (rpg/sim/magic_game.cpp MagicOps::choose, MAGIC lane)
+constexpr int DLG_SKILLS = 6000, DLG_SKILLS_END = 6500, DLG_MAGIC = 6500, DLG_MAGIC_END = 7000;
 struct Dialogue {
   int actor = -1;
   std::string speaker, text;
@@ -491,6 +532,14 @@ class Game {
   // ---- M8 Fellowship (rpg/sim/party.h; FELLOWS lane): the companions, the fallen and their graves, the deeds bus's
   //      queue (saved: the party block, SAVE_VER 16)
   party::Party party;
+  // ---- M9 Arcana & Mastery (VISION_PLAN 15.29, 15.30). skills: every skill's level, XP and perks, familiarity with
+  //      materials and cultures, books read, perk points (rpg/sim/skills.h; SKILLS lane; saved: the skills block,
+  //      SAVE_VER 20). arcana: the spellbook, the quick slots, mastery and attunement (saved: the magic block) and the
+  //      casting / surfaces / concentration runtime (never saved) (rpg/sim/magic.h; MAGIC lane).
+  skills::Skills skills;
+  magic::Arcana arcana;
+  //   the one doorway for skill gains: `base` use points of an act of that skill (rpg/sim/skills_game.cpp SkillOps::use)
+  void skillUse(skills::Skill s, float base);
   // (M7b Voice) how the dialogue panel titles a speaker: "SUSUT, INNKEEPER" once they have introduced themselves,
   // "THE INNKEEPER" before; a guard stays "GUARD", a grave its own words
   std::string speakerTitle(const Actor& a) const;
@@ -1025,6 +1074,8 @@ class Game {
   friend struct CraftOps;              // M6 NUMBERS / FORGE: crafting's internals (craft_game.cpp)
   friend struct LootOps;               // M8b SOURCES: the loot internals for the tests (rpg/sim/loot_ops.h)
   friend struct PowerOps;              // M8b POWERS: the worn powers' internals (defined by the POWERS lane in powers.cpp)
+  friend struct SkillOps;              // M9 SKILLS: the skills' hooks and internals (rpg/sim/skill_ops.h, skills_game.cpp)
+  friend struct MagicOps;              // M9 MAGIC: casting, surfaces, statuses (rpg/sim/magic_ops.h, magic_game.cpp)
   // (M8b POWERS, never saved) > 0 while a power's own damage is being dealt: procs never fire from proc damage (a
   // Tempest arc never chains again, a star never calls a star); compStats_: each companion in play's worn gear summed
   // (actor id, stats), refreshed every step by PowerOps::step

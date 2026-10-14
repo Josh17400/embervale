@@ -1,0 +1,39 @@
+# M9 phase A (lead): the Arcana & Mastery contracts in the running game: the spellbook and its quick slots (a classic
+# FIREBOLT and a new school's SPARK as a ProjKind::Spell missile), Ev::Spell phases reaching the view, a status on a
+# foe, surfaces and a combo on the ground, the skills staged and a perk taken. Phase A pixels are placeholders (a
+# glow, a tinted tile): the SPELLFX lane draws the magic for real, the UI lane the skills and spells pages.
+#   embervale.exe --script tools/scripts/m9_lead_arcana.txt     (m9_lead_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 power arena
++0.5 power foes wolf 3 3 tough
++0.1 spell learn firebolt
++0.1 spell learn spark
++0.1 spell learn fear
++0.1 expect spell spark
++0.1 spell mp 500
++0.1 spell cast 1
++0.15 shot m9_lead_firebolt.png
++0.5 spell cast 2
++0.08 shot m9_lead_spark.png
++0.5 spell cast 3
++0.2 expect status frightened 1
++0.1 surface water 2 0
++0.1 surface water 3 0
++0.1 surface oil 2 1
++0.1 surface oil 3 1
++0.1 expect surface water 1
++0.1 spell cast 1
++0.6 expect surface fire 1
++0.1 shot m9_lead_surfaces.png
++0.1 skill set mace 42
++0.1 expect skill mace 42
++0.1 skill points 1
++0.1 skill perk mace 0
++0.1 expect perk mace 0
++0.1 skill use athletics 40
++0.1 expect skill athletics 6
++0.5 shot m9_lead_skills_toast.png
++0.3 quit

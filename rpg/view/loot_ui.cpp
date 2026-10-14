@@ -203,6 +203,8 @@ float View::itemCard(const Game& g, const Item& it, float x, float y, float w, f
   X.maker = it.culture && g.world.src ? &g.world.src->culture(it.culture) : nullptr;
   if (cmp && !worn) X.block = attuneWhy(g, it, vs, &X.blockName);
   X.flash = X.block && lootBlockFlash_ > 0 && std::fmod(lootBlockFlash_, 0.3f) > 0.12f;
+  X.skills = &g.skills;          // (M9) the family / armour lines at the hero's levels, what a book teaches
+  X.book = &g.arcana.book;
   lootp::CardInfo info;
   const float yb = lootp::itemCard(lp, t_, X, it, x, y, w, maxY, cmp, vs, worn, bigIcon, &info);
   lootCount_.cards++;

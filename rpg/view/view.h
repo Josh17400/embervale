@@ -199,6 +199,7 @@ class View {
   float hudColLeft_ = 1e9f, hudColBottom_ = 0;
   float bossBarX0_ = 0, bossBarX1_ = 0;
   float bossBarBottom_ = 0;   // (M6 fixer) the bottom of a world boss's top bar this frame (0: none): banners keep below it
+  float quickBarR_ = 0;       // (M9 fixer) the desktop quick-cast bar's right end this frame (0: none drawn)
   // (M5) last frame's NPC name tag / interact prompt (drawHud): a spoken line's plate stacks above it, never over it
   bool tagOn_ = false;
   float tagX0_ = 0, tagY0_ = 0, tagX1_ = 0, tagY1_ = 0;
@@ -338,6 +339,7 @@ class View {
   void drawLighting(Game& g);
   void drawWeather(Game& g, float dt);
   void drawHud(Game& g);
+  float biomeBannerY(float half) const;   // (M9 fixer) the region banner's text line: below a boss bar, clear of the quick bar
   void drawTouch(Game& g);
   void drawToasts();
   float dlgRowH() const { return touchUI ? 25.0f : 13.0f; }   // dialogue option pitch (touch: finger-sized rows, 25 px = 33 pt)
@@ -754,4 +756,47 @@ class View {
   void powerEvent(Game& g, const Event& e);    // Ev::Power (update's event pass)
   void powerUpdate(Game& g, float dt);         // age the effects (update, after partyUpdate)
   void drawPowerFx(Game& g, Vec2 cam);         // world space, after the lighting (draw, with companionOverlays)
+
+  // ---- M9 Arcana & Mastery (VISION_PLAN 15.29, 15.30). Two blocks, each owned by one lane; view.h itself is frozen:
+  //      each lane keeps its state in its own opaque struct (defined in its .cpp) and reaches View's internals through
+  //      its friend Ops struct (static functions in its own files), so neither needs to edit this header.
+  // SPELLFX lane (rpg/view/render_magic.cpp + its own new files): every spell's life on screen (wind-up, launch,
+  //   travel, impact, aftermath: Ev::Spell phases from the sim; ProjKind::Spell missiles), the surfaces' animated pixel
+  //   art (magic::Field), the statuses' overlays, the spells' light (lit trails, impact flashes, lightning's frame
+  //   flash), decals, baked effect sheets and pooled particles inside the phone frame budget, the spell sounds.
+ public:
+  struct MagicFxStats {      // last frame's counts (scripts `expect magicfx`, --perf, the gallery)
+    int effects = 0, particles = 0, lights = 0, decals = 0, surfaceTiles = 0, missiles = 0, statusOverlays = 0;
+    double ms = 0;           // the magic draw's own time last frame (ms)
+  };
+  MagicFxStats magicFxStats() const;
+  struct MagicFxState;       // (render_magic.cpp)
+ private:
+  friend struct MagicFxOps;  // (render_magic.cpp and the SPELLFX lane's other files)
+  std::shared_ptr<MagicFxState> magicFx_;
+  void magicEvent(Game& g, const Event& e);    // Ev::Spell (the update's event pass, spawnParticles)
+  void magicUpdate(Game& g, float dt);         // age the effects (update, after powerUpdate)
+  void magicShift(Vec2 d);                     // Ev::WindowShift: effects and decals move with the window
+  void drawMagicGround(Game& g, Vec2 cam);     // world space under the bodies: surfaces, decals, ground glyphs (drawWorld)
+  void drawSpellProj(Game& g, const Projectile& pr, int idx, Vec2 cam);   // a ProjKind::Spell missile in the sorted pass
+  void magicLights(Game& g, const std::function<void(Vec2, float, Color, float)>& light);   // drawLighting
+  void drawMagicFx(Game& g, Vec2 cam);         // world space after the lighting: bursts, trails, flashes (View::draw)
+  // UI lane (rpg/view/skills_ui.cpp, rpg/view/spellbook_ui.cpp + hud.cpp, which it owns): the skills page (every skill's
+  //   level and progress; the perk trees as tappable constellations / culture glyph trees; the weapon families' vs-foe
+  //   lines; respec), the spellbook page (known spells, the 3-4 quick slots, tomes), the quick-cast buttons on the phone
+  //   (tap to cast, hold to upcast, swipe to dual-cast), skill-up and perk toasts (Ev::Skill), trainers' screen.
+ public:
+  static constexpr int kSkillsTab = 7;         // the menu's SKILLS page (menuTab_ id)
+  static constexpr int kSpellsTab = 8;         // the menu's SPELLS page (menuTab_ id)
+  struct SkillsUiState;      // (skills_ui.cpp)
+ private:
+  friend struct SkillsUiOps; // (skills_ui.cpp, spellbook_ui.cpp and the UI lane's other files)
+  std::shared_ptr<SkillsUiState> skillsUi_;
+  void skillEvent(Game& g, const Event& e);    // Ev::Skill (the update's event pass): toasts, the level-up glow
+  void drawSkillsPage(Game& g);                // menuTab_ == kSkillsTab (hud.cpp's drawMenu calls it)
+  void skillsPageKey(Game& g, int key);
+  void skillsPageTap(Game& g, Vec2 p);
+  void drawSpellsPage(Game& g);                // menuTab_ == kSpellsTab
+  void spellsPageKey(Game& g, int key);
+  void spellsPageTap(Game& g, Vec2 p);
 };

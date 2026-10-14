@@ -293,6 +293,9 @@ ProgResult progression(uint64_t seed, float secs) {
 
 }  // namespace
 
+// (M9 SKILLS) tests/fixtures/metrics_m5.txt was re-recorded ONCE in M9 (its header says why: the M7c start village had
+// moved the first weapon and the level-3 wolves before M9, and M9 changed the fight: weapon families, the sword's parry,
+// armour classes, character XP from skill-ups); the gate below is unchanged and reads the new numbers.
 // ---- (M6 NUMBERS) the first-hour gate: this run against tests/fixtures/metrics_m5.txt (VISION_PLAN 13 M6: within
 //      +-10 % of M5). Times and hits compare relatively (+-10 %); the wolf-fight death rates in percentage points (+-10:
 //      40 fights a level make one death 2.5 points).

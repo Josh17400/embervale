@@ -1,5 +1,8 @@
 // Save-format checks for the CURRENT save version only (owner, 2026-10-04: old saves are not a concern; an older save
-// is refused and the title offers a new game). M8b Treasure: SAVE_VER 19 (items carry 4 affix slots; the Mythic rarity
+// is refused and the title offers a new game). M9 Arcana & Mastery: SAVE_VER 20 (the skills block and the magic block
+// after the party block: skill levels, XP and perks, familiarity, books read, perk points; the spellbook, the quick slots,
+// mastery). The one exception to "only the current version loads" (owner 15.29.5): a SAVE_VER 19 save still loads, with
+// skills fitting its level (tests/fixtures/save_v19.bin is kept as that check's input). M8b Treasure: SAVE_VER 19 (items carry 4 affix slots; the Mythic rarity
 // and its powers: a Mythic piece with four affixes, one of them an M8b affix, and a Mythic power). Fixer M8 r3: SAVE_VER 18 (party block v4: the fallen's gender). Fixer M8 r1: SAVE_VER 17 (party block v3: each companion's look, fixed
 // when they join, so it never changes when their census is put away). M8: SAVE_VER 16 (the party block after the talk block: a census
 // companion with approval, bond, gear and a memory, and a fallen companion's grave with belongings; ENDLESS_GEN_VER 21;
@@ -14,7 +17,7 @@
 // block; ENDLESS_GEN_VER 14). M4: SAVE_VER 10 (the realm and story blocks after the marks). The CITIZENS lane owns this
 // file and the fixture in M5.
 //   save_test [fixtureDir]           run every check
-//   save_test --make-fixture out.bin write tests/fixtures/save_v19.bin: an endless game (seed 5150) with a created
+//   save_test --make-fixture out.bin write tests/fixtures/save_v20.bin: an endless game (seed 5150) with a created
 //                                    character, the innkeeper's job taken, bot play, a looted chest, the M2 fields
 //                                    (marks, a quest's subject / flags / deadline, a rumoured site), saved outdoors.
 //                                    Regenerate it whenever the layout changes on purpose, and paste the printed FIX6
@@ -25,6 +28,7 @@
 //   2. round trips are byte-identical: endless games after play, after a long walk (many window shifts), upstairs in an
 //      inn with a rented room (M2 retired the classic island)
 //   3. older, newer and damaged files are refused, and saveVersion() reports what they are
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -36,7 +40,9 @@
 #include "rpg/sim/gear.h"
 #include "rpg/sim/home.h"
 #include "rpg/sim/life.h"
+#include "rpg/sim/magic_ops.h"
 #include "rpg/sim/party.h"
+#include "rpg/sim/skills.h"
 #include "rpg/story/saga.h"
 #include "rpg/story/story.h"
 #include "rpg/story/story_internal.h"
@@ -255,6 +261,23 @@ void addM8bFacts(Game& g) {
   it.unique = Unique::Phoenix;
   g.inv.push_back(it);
 }
+// M9 (SAVE_VER 20): the skills and magic blocks, set by hand (the format: the lanes tune the numbers)
+constexpr int FIX_MACE = 42, FIX_POINTS = 2;
+constexpr uint32_t FIX_BOOK = 0x5EEDB00Cu;
+constexpr uint64_t FIX_FAM_CULT = 0xC0FFEEull;
+void addM9Facts(Game& g) {
+  g.skills[skills::Skill::Mace].level = FIX_MACE;
+  g.skills[skills::Skill::Mace].xp = 2.5f;
+  g.skills[skills::Skill::Sword].perks = 0x1u;
+  g.skills.perkPts = FIX_POINTS;
+  g.skills.booksRead.push_back(FIX_BOOK);
+  g.skills.matFam[(int)Mat::Steel] = 27;
+  g.skills.cultFam[FIX_FAM_CULT] = 64;
+  MagicOps::learn(g, 4, false);   // SPARK
+  MagicOps::learn(g, 7, false);   // FEAR
+  g.arcana.book.sel = 1;
+  g.arcana.book.mastery[0x77u] = 300;
+}
 void addM6Facts(Game& g) {
   Rng r(77);
   Item it = gear::makeGear(r, ItemKind::Weapon, (int)WeaponType::Spear, 12, Rarity::Legendary, FIX_CULT, Mat::Steel);
@@ -450,6 +473,7 @@ int makeFixture(const char* out) {
   addM7Facts(g);
   addM7bFacts(g);
   if (addM8Facts(g) < 0) return 1;
+  addM9Facts(g);
   if (g.inside) { printf("the fixture must be saved outdoors\n"); return 1; }
   std::vector<uint8_t> buf;
   g.serialize(buf);
@@ -480,7 +504,7 @@ int main(int argc, char** argv) {
 
   // ---- 1. the fixture
   std::vector<uint8_t> fx;
-  if (!readFile(dir + "/save_v19.bin", fx)) check(false, "cannot read tests/fixtures/save_v19.bin");
+  if (!readFile(dir + "/save_v20.bin", fx)) check(false, "cannot read tests/fixtures/save_v20.bin");
   else {
     check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
     Game g(1);
@@ -629,7 +653,35 @@ int main(int argc, char** argv) {
     check(g.craft.skill == FIX_SKILL && g.craft.progress(FIX_CULT, 1, craft::SecretKind::AlloyRecipe) == FIX_SECRET &&
               g.craft.trust.count(FIX_SMITH) && g.craft.trust.at(FIX_SMITH) == FIX_TRUST,
           "fixture craft block: skill, a secret's progress, a smith's trust (SAVE_VER 12)");
+    // M9 (SAVE_VER 20): the skills and magic blocks
+    check(g.skills.level(skills::Skill::Mace) == FIX_MACE && std::fabs(g.skills[skills::Skill::Mace].xp - 2.5f) < 0.001f && g.skills.has(skills::Skill::Sword, 0) &&
+              g.skills.perkPts == FIX_POINTS && g.skills.booksRead.size() == 1 && g.skills.booksRead[0] == FIX_BOOK && g.skills.matFam[(int)Mat::Steel] == 27 &&
+              g.skills.cultFam.count(FIX_FAM_CULT) && g.skills.cultFam.at(FIX_FAM_CULT) == 64,
+          "fixture skills block: a level and its XP, a perk, perk points, a book read, familiarity (SAVE_VER 20)");
+    check(g.arcana.book.knows(4) && g.arcana.book.knows(7) && g.arcana.book.slotOf(4) >= 0 && g.arcana.book.sel == 1 && g.arcana.book.mastery.count(0x77u) &&
+              g.arcana.book.mastery.at(0x77u) == 300,
+          "fixture magic block: the spells known, the quick slots, the selected slot, mastery (SAVE_VER 20)");
     }  // fxLoaded
+  }
+  // ---- 1b. (M9, owner 15.29.5) a SAVE_VER 19 save (before the skills) still loads, with skills fitting its level
+  {
+    std::vector<uint8_t> old;
+    if (!readFile(dir + "/save_v19.bin", old)) check(false, "cannot read tests/fixtures/save_v19.bin (the pre-M9 save)");
+    else {
+      Game g(1);
+      check(Game::saveVersion(old) == 19 && !Game::saveFromOlderGenerator(old), "the pre-M9 save is not a SAVE_VER 19 save of the current generator");
+      const bool ok = g.deserialize(old);
+      check(ok, "a SAVE_VER 19 save did not load (15.29.5: old saves get default skills from their level)");
+      if (ok) {
+        check(g.plLevel == FIX6.level && g.background == Background::Hunter && g.skills.level(skills::Skill::Bow) >= 15 &&
+                  g.skills.level(skills::Skill::Athletics) >= skills::START_LEVEL && g.skills.perkPts == (uint16_t)std::max(0, g.plLevel - 1),
+              "a SAVE_VER 19 save's default skills (its level, its background, its perk points)");
+        std::vector<uint8_t> again;
+        g.serialize(again);
+        Game h(1);
+        check(Game::saveVersion(again) == Game::currentSaveVersion() && h.deserialize(again), "a SAVE_VER 19 save, saved again, is a current save");
+      }
+    }
   }
 
   printf("%s\n", "2. round trips");
@@ -802,6 +854,7 @@ int main(int argc, char** argv) {
     n.serialize(b);
     auto patched = [&](size_t at, uint32_t v) { std::vector<uint8_t> c = b; for (int k = 0; k < 4; k++) c[at + k] = (uint8_t)(v >> (8 * k)); return c; };
     Game x(1);
+    check(!x.deserialize(patched(4, 18)) && Game::saveVersion(patched(4, 18)) == 18, "accepted (or misread) a SAVE_VER 18 (M8) save");
     check(!x.deserialize(patched(4, 15)) && Game::saveVersion(patched(4, 15)) == 15, "accepted (or misread) a SAVE_VER 15 (M7b) save");
     check(!x.deserialize(patched(4, 14)) && Game::saveVersion(patched(4, 14)) == 14, "accepted (or misread) a SAVE_VER 14 (M7) save");
     check(!x.deserialize(patched(4, 11)) && Game::saveVersion(patched(4, 11)) == 11, "accepted (or misread) a SAVE_VER 11 (M5) save");

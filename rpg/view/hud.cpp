@@ -12,7 +12,11 @@
 #include "rpg/sim/craft.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/home.h"
+#include "rpg/sim/magic.h"
+#include "rpg/sim/skill_ops.h"
+#include "rpg/sim/skills.h"
 #include "rpg/view/realm_ui.h"
+#include "rpg/view/skills_ui.h"
 #include "rpg/view/view.h"
 #include "rpg/world/poi.h"
 #include "rpg/world/source.h"
@@ -50,6 +54,11 @@ void clearOfTouch(float& cx, float& y0, float w, float h) {
     x0 = std::min(x0, d.x - d.r - 4);
     yt = std::min(yt, d.y - d.r - 4);
   }
+  for (int q = 0; q < 4; q++) {   // (M9) and the quick-cast arc round the attack button
+    const QuickBtn d = quickBtnPos(q);
+    x0 = std::min(x0, d.x - d.r - 4);
+    yt = std::min(yt, d.y - d.r - 4);
+  }
   if (cx + w / 2 + 3 <= x0 || y0 + h + 1 <= yt) return;
   const float left = x0 - w / 2 - 4, up = yt - h - 2;
   if (cx - left <= y0 - up) cx = std::floor(left);
@@ -60,12 +69,16 @@ Vec2 stickRest() { return Vec2((float)Pix::SL + 60, (float)(Pix::H - Pix::SB) - 
 
 // menuTab_ ids are stable (scripts and --menu use them); EQUIP (M0) is id 5 but shows second
 // (M8) PARTY (id 6, View::kPartyTab) shows third, after EQUIP, while there is a party or a grave (g_partyTab: set by the
-// menu's draw, keys and taps from View::partyTabShown); without one the strip is the M7 strip, tap for tap
-const char* kTabs[] = {"ITEMS", "QUESTS", "MAP", "HERO", "SYSTEM", "EQUIP", "PARTY"};
+// menu's draw, keys and taps from View::partyTabShown)
+// (M9) SKILLS (id 7, View::kSkillsTab) and SPELLS (id 8, View::kSpellsTab) follow EQUIP / PARTY: the hero's gear, then
+// what the hero can do. MAP keeps the fifth place of the party-less strip (and QUESTS follows it), so a tap on the
+// strip's middle still opens the map as it did on the phone before M9 (tools/scripts/m2_phone_touch.txt)
+const char* kTabs[] = {"ITEMS", "QUESTS", "MAP", "HERO", "SYSTEM", "EQUIP", "PARTY", "SKILLS", "SPELLS"};
 bool g_partyTab = false;
-const int kTabOrder6[6] = {0, 5, 1, 2, 3, 4}, kTabOrder7[7] = {0, 5, 6, 1, 2, 3, 4};
-int nTabs() { return g_partyTab ? 7 : 6; }
-int tabAt(int i) { return g_partyTab ? kTabOrder7[i] : kTabOrder6[i]; }
+float g_quickBarR = 0;   // (M9) the desktop quick bar's right end this frame (the NPC labels keep clear of the HUD block)
+const int kTabOrder8[8] = {0, 5, 7, 8, 2, 1, 3, 4}, kTabOrder9[9] = {0, 5, 6, 7, 8, 2, 1, 3, 4};
+int nTabs() { return g_partyTab ? 9 : 8; }
+int tabAt(int i) { return g_partyTab ? kTabOrder9[i] : kTabOrder8[i]; }
 int tabStep(int tab, int dir) {
   int at = 0;
   const int n = nTabs();
@@ -161,7 +174,7 @@ HeroLay heroLay(bool touch, bool perk) {
 }
 // the SYSTEM tab's first button: the block (four buttons, the seed, the key help) centred in the panel's height
 float sysTop(float top, float sh, bool touch) {
-  const float block = 4 * (sh + 6) + 16 + (touch ? 0.0f : 49.0f);
+  const float block = 4 * (sh + 6) + 16 + (touch ? 0.0f : 60.0f);
   return top + std::max(22.0f, std::floor((Pix::H - 8 - top - block) / 2));
 }
 // a string cut to fit w pixels of 5x7 text (a word boundary when one is near)
@@ -527,6 +540,7 @@ void View::draw(Game& g, bool hasSave) {
     drawMarkers(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));
     companionOverlays(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M8) the wound, the binding
     drawPowerFx(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M8b) the worn powers' effects
+    drawMagicFx(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M9) the spells (render_magic.cpp)
   }
   // floating combat text (screen)
   Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
@@ -667,6 +681,15 @@ View::UiBox View::modalBox(const Game& g) const {
 }
 int View::titleItems() const { return hasSave_ ? 3 : 2; }
 
+// (M9 fixer, review: "the quick bar runs under the region banner") the first-visit region banner's text line: below a
+// world boss's bar, and dropped under the desktop quick-cast bar (T+26..T+44) when its plate would reach the bar
+float View::biomeBannerY(float half) const {
+  const float T = (float)Pix::ST;
+  float y = std::max(T + 30, bossBarBottom_ + 10);
+  if (quickBarR_ > 0 && quickBarR_ + 6 > Pix::W / 2.0f - half && y - 4 < T + 47) y = T + 51;
+  return y;
+}
+
 void View::drawHud(Game& g) {
   Pix& P = *pix_;
   const Actor& p = g.pl();
@@ -715,7 +738,16 @@ void View::drawHud(Game& g) {
       spellX = L + 124;
     }
   }
-  if (g.spellsKnown & (1 << (int)g.spell)) P.textS(spellX, T + 33, spellName(g.spell), 1, Color(0.6f, 0.75f, 1.0f));
+  // (M9) the prepared spells from the book: on the desktop a bar of the four quick slots (number, orb, cooldown; keys
+  // 1-4); on touch the quick-cast buttons round the attack button show them (drawTouch)
+  g_quickBarR = spellX;
+  quickBarR_ = 0;
+  if (!touchUI) {
+    bool any = false;
+    for (uint32_t id : g.arcana.book.slot) if (id) any = true;
+    if (any) quickBarR_ = g_quickBarR = SkillsUiOps::drawQuickBar(*this, g, spellX, T + 26);
+  }
+  SkillsUiOps::drawSneakEye(*this, g, L + 130, T + 4);   // (M9) sneaking: a lidded eye beside the health bar
   if (g.perkPts > 0 && ((int)(t_ * 2) & 1)) P.textS(L + 6, T + 44, "LEVEL UP! OPEN MENU", 1, kGold);
   if (g.blessT > 0) P.textS(L + 6, T + (g.perkPts > 0 ? 54 : 44), g.blessName, 1, Color(0.7f, 0.85f, 1.0f, 0.8f));
 
@@ -947,12 +979,15 @@ void View::drawHud(Game& g) {
       P.textS(a.x - d.x * 22, a.y - d.y * 22 - 3, "RAID", 1, Color(1.0f, 0.36f, 0.28f), 1);
     }
   }
-  if (!touchUI) { P.textS(R - 24, T + 7, "TAB", 1, kDim, 1); }
-  else {
+  if (!touchUI) {
+    P.textS(R - 24, T + 7, "TAB", 1, kDim, 1);
+    SkillsUiOps::drawBadge(*this, R - 46, T + 7, g.skills.perkPts);   // (M9) perk points to spend
+  } else {
     const BtnDef b = btnPos(B_MENU);
     P.rect(b.x - 9, b.y - 8, 18, 16, Color(0.1f, 0.08f, 0.08f, 0.8f));
     P.frame(b.x - 9, b.y - 8, 18, 16, Color(0.6f, 0.5f, 0.3f));
     for (int k = 0; k < 3; k++) P.rect(b.x - 5, b.y - 4 + k * 4, 10, 2, kText);
+    SkillsUiOps::drawBadge(*this, b.x - 15, b.y + 4, g.skills.perkPts);   // (M9) on the hamburger's lower-left corner
   }
 
   // tracked quest
@@ -1006,7 +1041,7 @@ void View::drawHud(Game& g) {
           }
           if (biomeBannerT_ > 0 && !biomeBanner_.empty() && bannerT_ <= 0 && g.mode == Mode::Play) {
             const float half = std::min((float)P.textW(biomeBanner_, 1) / 2 + 26, Pix::W / 2.0f - 70);
-            const float by1 = std::max(T + 30, bossBarBottom_ + 10) + 11 + 14;
+            const float by1 = biomeBannerY(half) + 11 + 14;
             const float mx = Pix::W / 2.0f;
             if (a.y < by1 && std::fabs(a.x - mx) < half + 40) {
               if (a.y <= T + 20) a.x = a.x < mx ? mx - half - 40 : mx + half + 40;
@@ -1020,7 +1055,8 @@ void View::drawHud(Game& g) {
             // (M3c fixer round 3, review: "the quest pointer's distance sits inside the right-thumb touch cluster ... reads
             // like another control") a wider berth round the cluster: the arrow and the distance behind it stay a
             // thumb's width clear of ROLL, the bow and the attack button
-            const float cx0 = bw.x - bw.r - 40, cy0 = std::min(rl.y - rl.r, btnPos(B_SPELL).y - btnPos(B_SPELL).r) - 34;
+            const QuickBtn q0 = quickBtnPos(0), q3 = quickBtnPos(3);   // (M9) the quick-cast arc reaches further out
+            const float cx0 = std::min(bw.x - bw.r - 40, q0.x - q0.r - 24), cy0 = std::min(rl.y - rl.r - 34, q3.y - q3.r - 20);
             const float cyB = at.y + at.r;
             if (a.x > cx0 && a.y > cy0) { if (a.y >= cyB - 4 || a.y > B - 30) a.x = cx0; else a.y = cy0; }
             const Vec2 st = stickRest();
@@ -1186,7 +1222,7 @@ void View::drawHud(Game& g) {
         // floor below a person at the top of a room is open; the "!" bubble stays over the head).
         float lx = s.x;
         {
-          const float hudR = L + (float)std::max(130, 100 + P.textW(spellName(g.spell), 1)) + 12;
+          const float hudR = std::max(L + 130, g_quickBarR) + 12;
           const float hudB = T + ((g.perkPts > 0 || g.blessT > 0) ? (g.perkPts > 0 && g.blessT > 0 ? 64.0f : 54.0f) : 46.0f);
           const float half = labelW - 6;
           const float topY = ly - (touchUI ? 0.0f : 9.0f);
@@ -1279,9 +1315,9 @@ void View::drawHud(Game& g) {
   const bool ringOpen = radial_.open && g.mode == Mode::Play;
   if (!ringOpen && biomeBannerT_ > 0 && !biomeBanner_.empty() && (bannerT_ <= 0 || g.mode == Mode::Dialogue) && herald_.t <= 0 && g.mode == Mode::Play && !g.inside) {
     const float a = clampf(std::min(biomeBannerT_, 4.0f - biomeBannerT_) * 1.6f, 0, 1);
-    const float y = std::max(T + 30, bossBarBottom_ + 10);   // (M6 fixer) clear of a world boss's bar
     const float tw = (float)P.textW(biomeBanner_, 1);
     const float half = std::min(tw / 2 + 26, Pix::W / 2.0f - 70);
+    const float y = biomeBannerY(half);   // (M6 fixer) clear of a world boss's bar; (M9 fixer) and of the quick bar
     P.rect(Pix::W / 2 - half, y - 4, half * 2, 15, Color(0.03f, 0.03f, 0.05f, 0.42f * a));
     P.rect(Pix::W / 2 - half + 6, y + 3, 12, 1, Color(kGold.r, kGold.g, kGold.b, 0.7f * a));
     P.rect(Pix::W / 2 + half - 18, y + 3, 12, 1, Color(kGold.r, kGold.g, kGold.b, 0.7f * a));
@@ -1339,13 +1375,22 @@ void View::drawToasts() {
     float a = clampf(4.0f - t.t, 0, 1);
     auto lines = wrap(t.s, per);
     if (ty + lines.size() * 10.0f > bottom) break;
+    // (M9) a skill toast (Toast::rarity <= -100): a star in the skill's colour before the words, a glow on a level / mastery
+    const bool skillT = SkillsUiOps::isSkillToast(t);
+    const float ind = skillT ? 8.0f : 0.0f;
     for (size_t k = 0; k < lines.size(); k++) {
       const std::string& s = lines[k];
-      float w = (float)P.textW(s, 1);
+      float w = (float)P.textW(s, 1) + ind;
       P.rect(L + 3, ty - 2, w + 6, k + 1 < lines.size() ? 10.0f : 10.0f, Color(0.03f, 0.02f, 0.05f, plateA * a));
       P.rect(L + 3, ty - 2, 1, 10.0f, Color(t.c.r * 0.7f, t.c.g * 0.7f, t.c.b * 0.7f, 0.8f * a));   // (its own rule: no card's)
       P.rect(L + 4, ty + 8, w + 5, 1, Color(0, 0, 0, 0.35f * a));   // a hairline under the plate: it sits on the screen
       if (a > 0.05f) { toastX1_ = std::max(toastX1_, L + 9 + w); toastY1_ = ty + 8; }
+      if (skillT) {
+        if (k == 0) SkillsUiOps::toastDecor(*this, t, L + 6 + ind, ty, w - ind, a);
+        P.textS(L + 6 + ind, ty, s, 1, Color(t.c.r, t.c.g, t.c.b, a));
+        ty += k + 1 < lines.size() ? 10.0f : 11.0f;
+        continue;
+      }
       P.textS(L + 7, ty + 1, s, 1, Color(0, 0, 0, a * 0.6f));
       if (t.rarity > 0) {   // (M8b) a find: its name in the ladder colour (a Mythic's in the flame), a rule in it
         P.rect(L + 3, ty - 2, 1, 10.0f, Color(t.c.r, t.c.g, t.c.b, 0.9f * a));
@@ -1399,6 +1444,7 @@ void View::drawTouch(Game& g) {
   const std::string homeUse = target < 0 ? home::interactLabel(g) : std::string();   // (M7) the yard's use
   int utx = 0, uty = 0, usePr = target < 0 && homeUse.empty() ? usablePropAt(g, utx, uty) : 0;
   for (int b = 0; b < B_MENU; b++) {
+    if (b == B_SPELL) continue;   // (M9) the four quick-cast buttons replace it (SkillsUiOps::drawQuickButtons)
     const BtnDef d = btnPos(b);
     bool held = false;
     for (auto& f : fingers_) if (f.on && f.button == b) held = true;
@@ -1464,7 +1510,6 @@ void View::drawTouch(Game& g) {
         }
         break;
       case B_BOW: P.blit(iconTex(art::Icon::Bow, 0), d.x - 8, d.y - 8); break;
-      case B_SPELL: P.blit(iconTex(g.spell == Spell::Heal ? art::Icon::PotionGreen : (g.spell == Spell::IceSpike ? art::Icon::Gem : art::Icon::Staff), g.spell == Spell::Flames ? rgba(255, 120, 40) : rgba(120, 200, 255)), d.x - 8, d.y - 8); break;
       case B_ROLL: P.text(d.x, d.y - 3, "ROLL", 1, kText, 1); break;
       case B_POTION: {
         P.blit(iconTex(art::Icon::PotionRed, 0), d.x - 8, d.y - 8);
@@ -1492,6 +1537,7 @@ void View::drawTouch(Game& g) {
       default: break;
     }
   }
+  SkillsUiOps::drawQuickButtons(*this, g);   // (M9) the quick-cast arc and the sneak toggle (skills_hud.cpp)
 }
 
 void View::drawMinimap(Game& g, float x, float y, int size) {
@@ -1646,6 +1692,12 @@ void View::drawMenu(Game& g) {
   if (!g_partyTab && menuTab_ == kPartyTab) menuTab_ = 5;
   const TabLay T = tabLay(touchUI);
   for (int i = 0; i < nTabs(); i++) button(T.x0 + i * T.tw, T.y, T.tw - 4, T.h, kTabs[tabAt(i)], tabAt(i) == menuTab_);
+  for (int i = 0; i < nTabs(); i++)   // (M9) perk points to spend: a pulsing gold pip on the SKILLS tab
+    if (tabAt(i) == kSkillsTab && g.skills.perkPts > 0) {
+      const float k = 0.6f + 0.4f * std::sin(t_ * 5.0f);
+      const float px = std::floor(T.x0 + i * T.tw + T.tw - 4 - 6), py = std::floor(T.y + 2);
+      P.rect(px + 1, py, 1, 5, Color(1, 0.84f, 0.4f, k)); P.rect(px, py + 1, 3, 3, Color(1, 0.84f, 0.4f, k));
+    }
   button(T.xX, T.xY, T.xW, T.xH, "X", false);
   float top = 34;
   // a touch list's page buttons and its "1-8 OF 15" count (keyboard: the count alone, under the list)
@@ -1708,7 +1760,7 @@ void View::drawMenu(Game& g) {
           itemCard(g, it, C.dx + 1, top + 13, C.dw - 1, menuLay(touchUI).btnY - 6, true, vs, isWorn);
         }
         bool canEquip = itemEquippable(it.kind);
-        std::string use = canEquip ? (equipped(g, menuSel_) ? "UNEQUIP" : "EQUIP") : (it.kind == ItemKind::Food ? "EAT" : it.kind == ItemKind::Potion || it.name.rfind("SPELL TOME", 0) == 0 ? "USE" : "");
+        std::string use = canEquip ? (equipped(g, menuSel_) ? "UNEQUIP" : "EQUIP") : (it.kind == ItemKind::Food ? "EAT" : it.kind == ItemKind::Potion || it.name.rfind("SPELL TOME", 0) == 0 ? "USE" : it.kind == ItemKind::Book ? "READ" : "");
         // (M6 fixer r2, review: "tapping EQUIP on a legendary below level 10 does nothing visible") a legendary that cannot
         // be attuned yet shows why on its button, drawn idle (the refusal notice would hide behind the open menu)
         bool idle = false;
@@ -1836,8 +1888,9 @@ void View::drawMenu(Game& g) {
         stat("CONDITION", cond, cc);
       }
       y += 4;
-      std::string spells;
-      for (int s = 0; s < (int)Spell::COUNT; s++) if (g.spellsKnown & (1 << s)) { if (!spells.empty()) spells += ", "; spells += spellName((Spell)s); }
+      std::string spells;   // (M9) from the spellbook (the classic bits are its mirror)
+      for (uint32_t id : g.arcana.book.known)
+        if (const magic::SpellDef* d = magic::spellById(id)) { if (!spells.empty()) spells += ", "; spells += d->name; }
       P.text(x, y, "SPELLS", 1, kDim);
       auto sl = wrap(spells.empty() ? "NONE" : spells, std::max(8, (int)((H.lw - 48) / 6)));
       for (size_t k = 0; k < sl.size() && y + k * 10 < Pix::H - 20; k++) P.text(x + H.lw, y + k * 10, sl[k], 1, Color(0.6f, 0.75f, 1.0f), 2);
@@ -1873,8 +1926,9 @@ void View::drawMenu(Game& g) {
       const float ty = by + pitch * 4 + 8;
       P.text(Pix::W / 2, ty, "WORLD SEED " + std::to_string(g.seed), 1, kDim, 1);
       if (!touchUI) {
-        const char* keys[] = {"WASD MOVE   J/SPACE ATTACK   K BOW   L SPELL", "SHIFT ROLL   E TALK/OPEN   Q POTION   R SWAP SPELL", "TAB MENU   M MAP   ESC PAUSE   F11 FULLSCREEN"};
-        for (int i = 0; i < 3; i++) P.text(Pix::W / 2, ty + 16 + i * 11, keys[i], 1, kDim, 1);
+        const char* keys[] = {"WASD MOVE   J/SPACE ATTACK   K BOW   L SPELL", "SHIFT ROLL   E TALK/OPEN   Q POTION   R SWAP SPELL",
+                              "1-4 CAST (HOLD: UPCAST, ALT: DUAL)   CTRL SNEAK", "TAB MENU   M MAP   ESC PAUSE   F11 FULLSCREEN"};
+        for (int i = 0; i < 4; i++) P.text(Pix::W / 2, ty + 16 + i * 11, keys[i], 1, kDim, 1);
       }
       break;
     }
@@ -1883,6 +1937,12 @@ void View::drawMenu(Game& g) {
       break;
     case kPartyTab:   // (M8) the companions' paper doll and the remembered (paperdoll.cpp)
       drawPartyPage(g);
+      break;
+    case kSkillsTab:  // (M9) the skills and their perk constellations (skills_ui.cpp)
+      drawSkillsPage(g);
+      break;
+    case kSpellsTab:  // (M9) the spellbook and the quick slots (spellbook_ui.cpp)
+      drawSpellsPage(g);
       break;
   }
 }
@@ -2000,8 +2060,10 @@ ShopLay shopLay(bool touch) {
   }
   return L;
 }
-int shopPrice(const Item& it, bool buying) {
-  return buying ? (it.kind == ItemKind::Arrows ? it.count : it.value) : (it.kind == ItemKind::Arrows ? std::max(1, it.count / 3) : std::max(1, it.value * 2 / 5));
+int shopPrice(const Game& g, const Item& it, bool buying) {
+  if (buying) return it.kind == ItemKind::Arrows ? it.count : it.value;
+  // as Game::sell: the base price, then (M9) Speech's sell bonus
+  return std::max(1, (int)((float)gear::sellPrice(it) * SkillOps::sellMul(g) + 0.5f));
 }
 int shopScroll(int sel, int rows) { return sel >= rows ? sel - rows + 1 : 0; }
 // the item rows of one list: on touch a list longer than the rows gives its last row to the page buttons
@@ -2073,7 +2135,7 @@ void View::drawShop(Game& g) {
       if (touchUI && i != sel) P.rect(x0 - 2, y - 2, L.lw, L.pitch - 2, Color(0.16f, 0.12f, 0.08f, 0.45f));
       if (i == sel) P.rect(x0 - 2, y - 2, L.lw, L.pitch - (touchUI ? 2 : 0), Color(0.3f, 0.22f, 0.12f, 0.8f));
       rarityIcon(g, it, x0, y - 2 + std::floor((L.pitch - (touchUI ? 2 : 0) - isz) / 2), isz);   // (M8b) in its rarity's cell
-      int price = shopPrice(it, buying);
+      int price = shopPrice(g, it, buying);
       const std::string ps = std::to_string(price);
       std::string suf;
       if (it.count > 1 || it.kind == ItemKind::Arrows) suf = " x" + std::to_string(it.count);
@@ -2112,7 +2174,7 @@ void View::drawShop(Game& g) {
   std::string deal;
   bool cantPay = false;
   if (any) {
-    const int price = shopPrice(src[shopSel_], shopSide_ == 0);
+    const int price = shopPrice(g, src[shopSel_], shopSide_ == 0);
     deal = shopSide_ == 0 ? "BUY FOR " + std::to_string(price) + " GOLD" : armed ? "YOU WEAR IT - TAP AGAIN TO SELL" : "SELL FOR " + std::to_string(price) + " GOLD";
     // (M6 fixer r2, review: "the purse hard-blocks good loot") he buys it for all he has (Game::sell), or has nothing left
     if (shopSide_ == 1 && purseLeft >= 0 && price > purseLeft && !armed) {
@@ -2266,6 +2328,7 @@ void View::titleTap(Vec2 p) {
 
 int View::buttonAt(Vec2 p) const {
   for (int b = 0; b < B_COUNT; b++) {
+    if (b == B_SPELL) continue;   // (M9) replaced by the quick-cast buttons
     const BtnDef d = btnPos(b);
     float r = d.r + 6;
     if (len2(p - Vec2(d.x, d.y)) < r * r) return b;
@@ -2306,6 +2369,18 @@ Input View::input(Game& g) {
   if (in.attack && g.mode == Mode::Play && kAttack_ && !kTapAttack_ &&
       (partyUseHere(g, pidx) || g.interactTarget() >= 0 || usablePropAt(g, utx, uty) || !home::interactLabel(g).empty())) { in.attack = false; in.interact = true; }
   kAttack_ = kBow_ = kSpell_ = kRoll_ = kUse_ = kPotion_ = kSwap_ = kTapAttack_ = false;
+  // (M9) the quick-cast slots and the sneak toggle (skills_hud.cpp): castSlot for the press, castHold while held,
+  // castDual for a swipe off the button or the modifier
+  {
+    View::SkillsUiState& Q = SkillsUiOps::st(*this);
+    if (g.mode == Mode::Play) {
+      const bool held[4] = {k(SDL_SCANCODE_1), k(SDL_SCANCODE_2), k(SDL_SCANCODE_3), k(SDL_SCANCODE_4)};
+      const bool dualMod = k(SDL_SCANCODE_LALT) || k(SDL_SCANCODE_RALT) || k(SDL_SCANCODE_Z);
+      SkillsUiOps::fillInput(*this, g, in, held, dualMod, 0);
+    } else {
+      Q.pressSlot = -1; Q.holdSlot = -1; Q.holdDual = false; Q.sneakPress = false;
+    }
+  }
   // (M8) while the companions' radial is open the keyboard is its own (the stick still steers)
   if (radial_.open && g.mode == Mode::Play) {
     Input keep;
@@ -2328,6 +2403,8 @@ void View::menuKey(Game& g, int key) {
     if (!mapQE && (key == SDLK_E || key == SDLK_PAGEDOWN)) { menuTab_ = tabStep(menuTab_, 1); menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; audio_->play(Sfx::MenuMove); return; }
     if (menuTab_ == 5 && g.mode == Mode::Menu) { paperdollKey(g, key); return; }
     if (menuTab_ == kPartyTab && g.mode == Mode::Menu) { partyPageKey(g, key); return; }   // (M8) paperdoll.cpp
+    if (menuTab_ == kSkillsTab && g.mode == Mode::Menu) { skillsPageKey(g, key); return; }   // (M9) skills_ui.cpp
+    if (menuTab_ == kSpellsTab && g.mode == Mode::Menu) { spellsPageKey(g, key); return; }   // (M9) spellbook_ui.cpp
     if (menuTab_ == 3 && g.perkPts > 0) {
       if (key == SDLK_UP || key == SDLK_W) levelSel_ = (levelSel_ + 2) % 3;
       if (key == SDLK_DOWN || key == SDLK_S) levelSel_ = (levelSel_ + 1) % 3;
@@ -2557,6 +2634,12 @@ void View::tap(Game& g, Vec2 p) {
       case kPartyTab:   // (M8) paperdoll.cpp
         partyPageTap(g, p);
         break;
+      case kSkillsTab:  // (M9) skills_ui.cpp
+        skillsPageTap(g, p);
+        break;
+      case kSpellsTab:  // (M9) spellbook_ui.cpp
+        spellsPageTap(g, p);
+        break;
       case 4: {
         const float sh = L.sysH, pitch = sh + 6;
         const float bw = std::clamp(std::floor(Pix::W * 0.36f), 140.0f, 220.0f), bx = std::floor((Pix::W - bw) / 2), by = sysTop(top, sh, touchUI);
@@ -2630,6 +2713,14 @@ void View::event(const SDL_Event& e, Game& g) {
         case SDLK_E: case SDLK_RETURN: kUse_ = true; break;
         case SDLK_Q: kPotion_ = true; break;
         case SDLK_R: kSwap_ = true; break;
+        // (M9) the quick slots: 1-4 cast (held: upcast; Alt or Z held: dual-cast); Ctrl or V: sneak on / off
+        case SDLK_1: case SDLK_2: case SDLK_3: case SDLK_4: {
+          const bool* ks = SDL_GetKeyboardState(nullptr);
+          const bool dual = (SDL_GetModState() & SDL_KMOD_ALT) || ks[SDL_SCANCODE_Z] || scriptKeys_[SDL_SCANCODE_Z] || scriptKeys_[SDL_SCANCODE_LALT];
+          SkillsUiOps::slotKey(*this, g, (int)(k - SDLK_1), dual);
+          break;
+        }
+        case SDLK_LCTRL: case SDLK_RCTRL: case SDLK_V: SkillsUiOps::sneakKey(*this, g); break;
         default: break;
       }
       break;
@@ -2688,6 +2779,12 @@ void View::event(const SDL_Event& e, Game& g) {
       if (g.mode != Mode::Play) { tap(g, p); break; }
       if (partyPointer(g, 0, (uint64_t)e.tfinger.fingerID, p, false)) break;   // (M8) a companion's card: tap selects, hold orders
       if (homeHudTap(g, p)) break;   // (M7) YARD / DECORATE, DISMOUNT
+      if (const int q = SkillsUiOps::quickAt(*this, g, p); q >= 0 && buttonAt(p) != B_ATTACK) {   // (M9) a quick-cast button
+        SkillsUiOps::quickDown(*this, g, q, (uint64_t)e.tfinger.fingerID, p);
+        Finger f; f.id = e.tfinger.fingerID; f.on = true; f.start = f.cur = p; f.button = 100 + q; f.t0 = SDL_GetTicks();
+        fingers_.push_back(f);
+        break;
+      }
       int b = buttonAt(p);
       // (fixer M5 r3, review: "nothing explains the buff icons when tapped") a tap on the buff icons says what they do
       if (b < 0 && buffTap(g, p)) break;
@@ -2730,6 +2827,7 @@ void View::event(const SDL_Event& e, Game& g) {
       if (g.mode == Mode::Play) partyPointer(g, 1, (uint64_t)e.tfinger.fingerID, p, false);   // (M8) the held radial
       if (stick_.on && stick_.id == e.tfinger.fingerID) stick_.cur = p;
       for (auto& f : fingers_) if (f.id == e.tfinger.fingerID) f.cur = p;
+      SkillsUiOps::quickMove(*this, (uint64_t)e.tfinger.fingerID, p);   // (M9) a swipe off a quick button: dual-cast
       break;
     }
     case SDL_EVENT_FINGER_UP: case SDL_EVENT_FINGER_CANCELED: {

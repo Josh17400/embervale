@@ -1,0 +1,56 @@
+# M9 SPELLFX (the iPhone review size: 639 x 294, the safe insets): every surface as an organic pool (water, ice, oil, burning ground, poison, shocked water, steam, blood)
+# and the combos going off (steam, shocked water, an oil fire, ice), then every status overlay on the foes (burning,
+# chilled, frozen, wet, shocked, frightened, charmed, poisoned, blinded). Screenshots m9fxp_u_*.png.
+#   embervale.exe --script tools/scripts/m9_fx_surfaces_phone.txt
+seed 3
+phone
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 power arena
++0.4 fx surface water 4 3 -7 -3 60
++0.1 fx surface ice 4 3 -2 -3 60
++0.1 fx surface oil 4 3 3 -3 60
++0.1 fx surface fire 4 3 8 -3 60
++0.1 fx surface poison 4 3 -7 3 60
++0.1 fx surface shock 4 3 -2 3 60
++0.1 fx surface steam 4 3 3 3 60
++0.1 fx surface blood 4 3 8 3 60
++0.6 shot m9fxp_u_surfaces.png
++0.1 expect surface water 4
++0.1 expect surface steam 4
++0.1 expect magicfx surfaces 40
++0.25 shot m9fxp_u_surfaces2.png
+# ---- the combos
++0.3 fx clear
++0.2 fx surface water 5 3 -3 0 60
++0.1 fx surface ice 3 3 1 0 60
++0.3 fx combo steam -4 0
++0.1 fx combo shock -2 1
++0.12 shot m9fxp_u_combo1.png
++0.3 fx combo fire 3 -2
++0.1 fx combo ice 1 1
++0.15 shot m9fxp_u_combo2.png
+# ---- the statuses, one at a time on a ring of wolves (each lasts 2.5 s, so the next shows alone)
++0.6 fx clear
++0.2 power foes wolf 5 3 tough
++0.6 fx status burning 2.5 all
++0.5 shot m9fxp_u_status_burning.png
++0.1 expect magicfx statuses 3
++2.5 fx status frozen 2.5 all
++0.5 shot m9fxp_u_status_frozen.png
++2.5 fx status shocked 2.5 all
++0.5 shot m9fxp_u_status_shocked.png
++2.5 fx status poisoned 2.5 all
++0.5 shot m9fxp_u_status_poisoned.png
++2.5 fx status wet 2.5 all
++0.5 shot m9fxp_u_status_wet.png
++2.5 fx status chilled 2.5 all
++0.5 shot m9fxp_u_status_chilled.png
++2.5 fx status charmed 2.5 all
++0.5 shot m9fxp_u_status_charmed.png
++2.5 fx status blinded 2.5 all
++0.5 shot m9fxp_u_status_blinded.png
++2.5 fx status frightened 2.5 all
++0.5 shot m9fxp_u_status_frightened.png
++0.3 quit

@@ -25,6 +25,7 @@
 #include "rpg/sim/life.h"
 #include "rpg/sim/party.h"
 #include "rpg/sim/party_voice.h"
+#include "rpg/sim/skill_ops.h"
 #include "rpg/sim/talk.h"
 #include "rpg/story/story.h"
 #include "rpg/story/story_internal.h"
@@ -225,9 +226,16 @@ void PartyTalkOps::front(Game& g, int mi, bool opening) {
   for (const party::Memory& x : m.mem) if (x.delta != 0) mem = true;
   if (mem) g.dlg.opts.push_back({"WHAT DID YOU THINK OF WHAT WE DID?", P_DEEDS, mi});
   g.dlg.opts.push_back({"HOW ARE YOU HOLDING UP?", P_STATUS, mi});
+  {   // (M9 SKILLS, 15.29.4) a companion can teach their vocation (SkillOps::choose answers it, skills_game.cpp)
+    skills::Skill sk[3];
+    int cap = 0;
+    if (m.approval >= 0 && SkillOps::companionTeaches(g, mi, sk, cap) > 0) g.dlg.opts.push_back({"COULD YOU TEACH ME WHAT YOU KNOW?", SkillOps::DLG_COMPANION, mi});
+  }
   g.dlg.opts.push_back({"NOTHING. LET'S GO ON.", A_BYE, 0});
   if ((int)g.dlg.opts.size() > speech::FIRST_PAGE)   // (a full page: the deeds wait for another time)
     g.dlg.opts.erase(std::remove_if(g.dlg.opts.begin(), g.dlg.opts.end(), [](const DlgOpt& o) { return o.action == P_DEEDS; }), g.dlg.opts.end());
+  if ((int)g.dlg.opts.size() > speech::FIRST_PAGE)   // (still full: the lessons wait too)
+    g.dlg.opts.erase(std::remove_if(g.dlg.opts.begin(), g.dlg.opts.end(), [](const DlgOpt& o) { return o.action == SkillOps::DLG_COMPANION; }), g.dlg.opts.end());
   if (!opening) t = "WHAT ELSE?";
   speech::propose(g.dlg, speech::P_URGENT, speech::Topic::Companion, t);
   if (!opening) g.dlg.text = t;

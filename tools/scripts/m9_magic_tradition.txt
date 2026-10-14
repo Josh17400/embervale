@@ -1,0 +1,61 @@
+# M9 MAGIC lane: a culture tradition learned from a teacher (VISION_PLAN 6, 13 M9 "the owner sees learning Starcalling
+# in a northern kingdom"): standing in a far land (a Starspire people: Starcalling), a mage teaches MEND (the schools'
+# lessons), attunes the hero (level 15) and teaches a rank-1 spell of the tradition; at night with a full moon its
+# starlight pool fills and its spell flies x1.5. Then a FJORDFOLK land's tradition by the same steps.
+#   embervale.exe --script tools/scripts/m9_magic_tradition.txt     (m9_magic_trad_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 power arena
++0.05 spell rain off
++0.1 plevel 15
++0.1 gold 5000
++0.1 spell land starspire 11
++0.1 spell teacher mage
++0.3 expect mode dialogue
++0.1 expect option TEACH ME MEND
++0.1 shot m9_magic_trad_teacher.png
++0.1 choose TEACH ME MEND
++0.2 expect spell mend
++0.1 expect option ATTUNE ME TO
++0.1 choose ATTUNE ME TO
++0.3 expect attuned 1
++0.1 shot m9_magic_trad_attuned.png
++0.1 choose FAREWELL
++0.3 spell teacher mage
++0.3 spell choose tradition
++0.3 shot m9_magic_trad_learned.png
++0.1 choose FAREWELL
++0.3 hour 23
++0.1 spell moon on
++0.1 spell pool full
++0.1 spell trad 1
++0.5 power foes wolf 3 3 tough
++0.1 spell aim 1 0
++0.1 spell cast 1
++0.15 shot m9_magic_trad_star_night.png
++0.6 spell trad 2
++0.05 spell pool full
++0.1 spell cast 1
++0.25 shot m9_magic_trad_star_nova_night.png
++0.5 spell trad last
++0.05 spell pool full
++0.1 spell cast 1
++0.8 shot m9_magic_trad_starfall_fall_night.png
++0.4 shot m9_magic_trad_starfall_impact_night.png
++0.3 expect cast 3
++0.1 hour 12
++0.1 spell moon auto
++0.1 spell land fjordfolk 11
++0.1 plevel 40
++0.1 spell teacher mage
++0.3 spell choose attune
++0.3 expect attuned 2
++0.1 choose FAREWELL
++0.2 spell trad 1
++0.05 spell pool full
++0.1 spell cast 1
++0.25 shot m9_magic_trad_fjord.png
++0.3 spell land off
++0.5 quit

@@ -1,0 +1,47 @@
+# M9 SPELLFX (the iPhone review size: 639 x 294, the safe insets): the magic's frame budget in a busy fight with surfaces (run with --perf; the exit summary's worst frame
+# work, and `fx report` prints the magic's own draw ms: magicFxStats().ms). A dozen foes, statuses on all of them, four
+# kinds of burning / shocked / poisoned / watery ground, and a spell a quarter-second for 8 s: missiles, novas, a meteor,
+# a storm cell. The magic's own draw must stay within 3 ms a frame at worst on the desktop.
+#   embervale.exe --perf --script tools/scripts/m9_fx_perf_phone.txt
+seed 3
+phone
+0.3  newgame
++0.1 god 1
++0.05 hour 22
++0.1 power arena
++0.4 spell mp 9999
++0.1 power foes wolf 8 4 tough
++0.1 power foes goblin 6 4 tough
++0.2 fx surface fire 4 3 -5 -3 60
++0.1 fx surface shock 4 3 2 -3 60
++0.1 fx surface poison 4 3 -5 3 60
++0.1 fx surface water 4 3 2 3 60
++0.1 fx status burning 20 all
++0.1 fx status shocked 20 all
++0.1 fx reset
++0.2 fx spell firebolt upcast 2 dual at 5 0
++0.25 fx spell frostlance at -5 1
++0.25 fx spell spark at 4 -2
++0.25 fx spell meteor fire destruction size 4 at 6 2
++0.25 fx spell nova storm destruction size 2
++0.25 fx spell firebolt at -4 -2
++0.25 fx spell storm storm destruction size 4 at -5 0
++0.25 fx spell fear
++0.25 fx spell bolt venom destruction at 3 3
++0.25 fx spell firebolt upcast 3 at 6 -1
++0.25 fx spell mend
++0.25 fx spell nova stone alteration size 3
++0.25 fx spell spark at -3 2
++0.25 fx spell summon shadow conjuration size 3 at 3 1
++0.25 fx spell meteor star destruction size 3 at -6 -2
++0.25 fx spell firebolt dual at 5 2
++0.25 fx spell nova tide alteration size 2
++0.25 fx spell frostlance upcast 2 at 6 0
++0.6 shot m9fxp_p_busy.png
++0.25 fx spell nova fire destruction size 3
++0.25 fx spell beam fire destruction at 5 0
++1.6 fx report
++0.1 expect magicfx peak_particles 150
++0.1 expect magicfx peak_lights 10
++0.1 expect magicfx ms_worst 3.0
++0.3 quit
