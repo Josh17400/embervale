@@ -22,6 +22,27 @@ cult::Atlas& EndlessSource::Impl::atlas() {
     //     family's smiths favour (owner 15.11).
     atlasPtr = std::make_unique<cult::Atlas>(seed, [this](int32_t x, int32_t y) {
       cult::ClimateSample s;
+      // (M10) a virtual cell (HIDDEN_CCELL_OFF cells east): a hidden land's people. Its climate is the real cell's; it
+      // is hidden when the real cell holds a hidden land's centre (one people per hidden land; mainland families never
+      // reach a virtual cell, so they come out bit-identical)
+      uint32_t hiddenLand = 0;
+      if (x >= (HIDDEN_CCELL_OFF - 512) * CCELL) {
+        x -= HIDDEN_CCELL_OFF * CCELL;
+        const int32_t ci = floorDiv(x, CCELL), cj = floorDiv(y, CCELL);
+        const int32_t lx0 = floorDiv(x + LCELL / 2, LCELL), ly0 = floorDiv(y + LCELL / 2, LCELL);
+        for (int32_t ly = ly0 - 1; ly <= ly0 + 1 && !hiddenLand; ly++)
+          for (int32_t lx = lx0 - 1; lx <= lx0 + 1 && !hiddenLand; lx++) {
+            const LandDraw& D = landDraw(lx, ly);
+            if (D.kind != 2 && D.hidden && floorDiv(D.px, CCELL) == ci && floorDiv(D.py, CCELL) == cj) {
+              hiddenLand = landIdOf(lx, ly);
+              x = D.px; y = D.py;   // (the people are born at the land's heart)
+            }
+          }
+      }
+      s.hiddenLand = hiddenLand;
+      // (M10) the mainland's peoples read phase A's land (continentLegacy), so they come out bit-identical to before
+      // the lands moved; a hidden land's people read the land as it now is
+      LegacyLand legacy(*this, hiddenLand == 0);
       Coarse c = coarse(x, y);
       // a cell centred on the sea is peopled from its land: the first land point on rings out from the centre (fixed
       // order), so its family suits the shore it lives on (the coast flag still says "seafaring")
@@ -61,15 +82,23 @@ cult::Atlas& EndlessSource::Impl::atlas() {
 uint64_t EndlessSource::Impl::kingdomCulture(int32_t kx, int32_t ky) {
   KCell kc = kcell(kx, ky);
   if (!kc.capital) return 0;
+  // (M10) a kingdom seated on a hidden land speaks a dialect of that land's people
+  if (const uint32_t hl = hiddenShapeAt(kc.x, kc.y)) {
+    const uint64_t f = hiddenFamily(hl);
+    return cult::dialectId(cult::cultureCi(f), cult::cultureCj(f), kx, ky);
+  }
   return cult::dialectId(floorDiv(kc.x, CCELL), floorDiv(kc.y, CCELL), kx, ky);
 }
 
 uint64_t EndlessSource::Impl::cultureAt(int32_t x, int32_t y) {
   const Gid k = kingdomAt(x, y);
+  const uint32_t hl = hiddenShapeAt(x, y);
   if (k) {
     const uint64_t c = kingdomCulture(idRx(k), idRy(k));
-    if (c) return c;
+    // (M10) a hidden land keeps to its own: a mainland kingdom's land never reaches across the Mist (nor the reverse)
+    if (c && (hl != 0) == (hiddenShapeAt(kcell(idRx(k), idRy(k)).x, kcell(idRx(k), idRy(k)).y) != 0)) return c;
   }
+  if (hl) return hiddenFamily(hl);
   return cult::familyId(floorDiv(x, CCELL), floorDiv(y, CCELL));
 }
 

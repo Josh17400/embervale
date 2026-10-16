@@ -3299,3 +3299,75 @@ to a file it is the editor of, never rename, remove or change the meaning of wha
   1..3, --villages --strict: 0 failures; --metrics vs M5: the same 3 lines as before M9 (first weapon 5.5 s vs 8.0, first
   level-up +10.2 %, 3 wolves lvl 3 died 5 % vs 17: the M7c start village, unchanged by phase A); m9_lead_arcana and the
   fight / m8b_powers / creator / cooking scripts 0 failures.
+
+### 15.31 M10 "Beyond the Mist" phase A (lead, 2026-10-16): the sea, ship and hidden-land contracts
+
+13 M10 binds the milestone, with 2.12 (the sea, boats, ferries, discovery, the Mist, first contact), 15.4 (harbours,
+boats and fishing: fishing was never pulled earlier, so it lands here), 7.6 (the sea serpent, kraken and merrow; one
+signature monster per isolated culture), 6.2 / 6.4 (the hidden signatures 2, 3, 4, 10, 11, 12 and their trials), 15.1
+(the Sailor: swims farther, buys and sails boats early; the Marked one's hook) and 15.11 (the hidden kingdoms' metals and
+gear never seen at home). Owner rules for M10: the full every-system regression runs ONCE, by the integrator; fixes are
+verified with targeted checks only; the 16-bit quality bar and natural / organic world design stand. Phase A contracts
+(a lane may ADD to a file it is the editor of, never rename, remove or change the meaning of what is listed here):
+- **World (`rpg/world/source.h`, WORLD lane; implemented in `rpg/world/sea_world.cpp`)**: ENDLESS_GEN_VER 23. A LAND is
+  one LCELL continent cell's shape (`LandPlan`: id = `landIdOf(cellX, cellY)`, kind Continent / Archipelago, centre and
+  radius, origin, hidden, the Mist ring `mistIn` .. `mistOut` with `MIST_RING` = 300, a name); `landAt`, `land(id)`,
+  `landsIn`, `hiddenLandAt` (shape or ring), `mistAt` (Q16: thickening over the ring's outer 60 tiles, thick, thinning
+  over its inner 60), `seaAt` (`SeaKind` Land / Shallow / Deep / Storm), `portsIn` (`PortPlan`: the site, the pier head,
+  the berth, harbour or jetty, the land, the kingdom, the name, `moorings` for the view's moored ships), `chartPlaces`
+  (a hidden land's wreck and sea cave) and `trialOf` (a hidden kingdom's two trials; both stubs return false in phase A).
+  `landmass()` stays the fast-travel connectivity id. `KingdomPlan::hiddenLand` (set in phase A from `hiddenLandAt` of
+  the seat), SitePlan flags `SPF_HIDDEN`, `SPF_TRIAL`, `SPF_CHART` (+ `SitePlan::chartLand`), `SPF_PIRATE`,
+  `SPF_SEACAVE`, `VignetteKind::Shipwreck` / `Lighthouse` (sea places: the land planner takes only the first
+  `LAND_VIGNETTES` kinds, so phase A changes no generation). Phase A's lands: `landCell` draws what `continent()` draws
+  and marks about one land cell in four (never the origin) hidden; nothing about the land's shape changed yet.
+- **Cultures (`rpg/culture/culture.h`)**: `Culture::hidden` / `hiddenLand` (set by the WORLD lane BEFORE `applyPriors`, so
+  the priors may branch on it; mainland cultures must come out bit-identical) and `ClimateSample::hiddenLand`.
+- **Roles (`rpg/sim/world.h`)**: `Harbourmaster`, `Shipwright`, `Sailor`, `Pirate` (talk names and trade words added).
+- **Monsters (`rpg/art/art_monsters.h`)**: `SeaSerpent`, `Kraken`, `Merrow` (stand-ins reuse the sandworm, spider and
+  goblin painters; stats, names, plurals, script words, foe tags added). They swim: `Actor::swim`.
+- **Props (`rpg/art/art_props.h`, painted in `rpg/art/art_sea.cpp`)**: `MooringPost`, `NetRack`, `FishBaskets`, `Buoy`,
+  `Anchor`, `CargoPile`, `Slipway` (3x2), `HarbourDesk`, `Lighthouse`, `Wreck` (3x2); `isSeaProp`, `seaFootprint`
+  (frozen), the builder registry classifies them (Kind::None). Piers are `Ground::Bridge` tiles (walkable; a wall to a
+  boat). **Ships (`rpg/art/art_sea.h`)**: `shipSheet(hull, ShipStyle)` (8 headings x 2 bob frames, `shipCellW/H`,
+  `shipAnchorX/Y`, `shipDeckY`), `ShipStyle` (hull / trim / sail colours, the culture's form and sail cut, a pennant,
+  furled), `shipStyleKey`.
+- **Sea (`rpg/sim/sea.h`, SEA lane; sea.cpp, sea_game.cpp)**: `Hull` (Rowboat, Sloop, Galleon: 2.12's prices, waters
+  `W_SHALLOW / W_DEEP / W_STORM`, speed, wind gain, turn, hull, crew, cargo, level and the Sailor's earlier level, the
+  body radius aboard), the upgrades `UP_*`, `Boat` (id, hull, name, the yard's culture, the dock, the tile, heading, hp,
+  upgrades, sunk), the chart chain `Chain` (None, Sailor, Wreck, Cave, Chart) and `LandRecord` (`LF_RUMOURED`,
+  `LF_CHART`, `LF_LANDED`, `LF_WORD`, `LF_MAPPED`, contactDay), fish `Species` / `Catch` (`FW_*`, `FC_*`, `FH_*`;
+  phase A 9 species), `Sea` (saved: boats, aboard, ports known, lands, catches, counters; runtime `live`: speed,
+  heading, helm, wind, storm, stormDark, mist, mistLand, mistT, turningBack, the fishing `Line`, swimT, the ferry
+  `Voyage`, the autopilot, serial), `MIST_TURN_SECS` 20, `SWIM_SECS` 6 / `SAILOR_SWIM_SECS` 15, `fareOf` (20..400),
+  `windAt`, `windFactor`, `SeaEv` for `Ev::Sea`.
+- **`rpg/sim/sea_ops.h` (SEA lane)**: `SeaOps`, Game's friend, every hook already called where it acts: `input`
+  (updatePlayer, after the regen block: aboard / fishing / swimming own the step), `passable` (moveActor, the player on
+  a solid tile: swimming), `step` (update, after MagicOps), `aiOverride` (updateAI, after MagicOps), `interact`
+  (Game::interact, after homeInteract), `interactLabel` (the HUD's use verb), `talk` / `choose` (`DLG_SEA`
+  7000..7500), `shopStock`, `shift`, `clearMap`, `reset`, `background` (15.1 Sailor), `loaded`, `saving`; the working
+  core `giveBoat`, `boatNear`, `board`, `disembark`, `landing`, `sailable`, `aboardBoat`, `heroGx / heroGy`. Phase A
+  plays: a boat given, boarded (the player actor IS the boat: `Actor::swim` 1, the hull's radius, recalcPlayer keeps
+  it), steered with the stick against the wind's push, kept to its waters (a rowboat runs aground at the deep water's
+  edge), left at a landing; the Mist turns a chartless boat back after 20 s of fog (and parts for the chart); the boat
+  aboard is saved at the hero's tile and a save at sea loads at sea.
+- **`rpg/sim/game.h`**: `Input::reel`; `Actor::swim` (0 land, 1 the sea's own, 2 amphibious; `Game::swimSolid`,
+  `bodyFree(..., swim)`); `Ev::Sea`; `DLG_SEA`; `Game::sea`; `friend struct SeaOps`. `realm::KingdomState::isolated`,
+  `hiddenLand`, `contactDay` (set by `Realm::instantiate` from the plan; the realm block v3).
+- **View (`rpg/view/view.h`, frozen)**: the SEA block (`rpg/view/render_sea.cpp`, `SeaViewOps`, opaque
+  `SeaViewState`): `seaEvent`, `seaUpdate`, `seaShift`, `drawSeaWater` (after the terrain), `seaSorted` /
+  `drawSeaSorted` (Drawable kind 10: the boats; the one aboard sorts just before the hero), `seaLights`, `drawSeaOver`
+  (after the weather: the Mist, storms), `drawSeaHud` (drawHud), `seaFillInput` (Input::reel),
+  `seaViewStats`. hud.cpp's use verb is `useVerbHere` (home's, else the sea's). Phase A draws stand-in ships, a grey
+  Mist veil and a one-line sail panel.
+- **Saves**: SAVE_VER 21, the sea block after the magic block (its own version byte 1); `tests/fixtures/save_v21.bin`
+  (a sloop moored at a port, a port known, a land's chain at the sea cave, a catch). The M9 exception (SAVE_VER 19 still
+  loading) ended with the generator change: every older save is refused ("start a new adventure");
+  `save_v19.bin` / `save_v20.bin` retired. save_test adds a save made aboard (loads aboard, byte-identical).
+- **Tests and scripts**: `rpg_test --sea [--seeds A..B]` (CI "Sea test", 1..3): hulls and fish, the lands and the Mist
+  ring round the start, the sea block, boarding / sailing out of a port / saving and loading at sea / coming ashore, the
+  Mist's turn-back without the chart and its parting with it. Script commands (script_sea.cpp): `boat give|board|leave`,
+  `sea port|mistedge|chart|face|helm`, `expect sea aboard|mist|turned|boats|speed`; `tools/scripts/m10_lead_sea.txt`.
+- **Test once (owner)**: the every-system regression (`rpg_test --seeds 1..20` and the full sweep of scripts and
+  commands) runs ONCE per milestone, by the integrator. Lanes and fixers run only the checks that cover the code they
+  changed, and re-run a check only after changing code it covers.

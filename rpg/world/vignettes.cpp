@@ -133,6 +133,15 @@ std::string EndlessSource::Impl::vignetteTitle(VignetteKind k, int32_t x, int32_
       static const char* t[] = {"'S REST", "'S FIRE", "'S WAYREST"};
       return who + t[(v >> 4) % 3];
     }
+    case VignetteKind::Shipwreck: {   // (M10) the ship's own name
+      static const char* a[] = {"GREY", "SALT", "RED", "SILVER", "WANDERING", "PATIENT", "BOLD", "DROWSY", "NORTHERN"};
+      static const char* b[] = {"GULL", "HERON", "WIDOW", "MAIDEN", "OTTER", "PETREL", "LANTERN", "PROMISE", "SWALLOW"};
+      return std::string("WRECK OF THE ") + a[(size_t)slot] + " " + b[(mix64(sd ^ 0x5A11u) >> 29) % 9];
+    }
+    case VignetteKind::Lighthouse: {
+      const uint32_t q = (v >> 4) % 3;
+      return q == 0 ? who + "'S LIGHT" : q == 1 ? "THE LIGHT OF " + who : who + "'S BEACON";
+    }
     default: return vignetteName(k);
   }
 }
@@ -536,14 +545,15 @@ void EndlessSource::Impl::planVignettes(int32_t rx, int32_t ry, RegionData& D, c
   // ---- pick: kinds in the region's order, the best fitting place of each, until the region has its share
   // (the kinds the land rarely offers come first when it does: a road over a wide river, a lake shore, a knoll by a
   // road; the rest in an order the region's seed shuffles)
-  int order[(int)VignetteKind::COUNT];
+  // (M10: the land's kinds only, LAND_VIGNETTES; the sea's places are planned by the sea pass)
+  int order[LAND_VIGNETTES];
   const int rare[3] = {(int)VignetteKind::TollBridge, (int)VignetteKind::FishingHut, (int)VignetteKind::Watchtower};
   int no = 0;
   for (int k : rare) order[no++] = k;
-  for (int k = 0; k < (int)VignetteKind::COUNT; k++) if (k != rare[0] && k != rare[1] && k != rare[2]) order[no++] = k;
-  for (int k = (int)VignetteKind::COUNT - 1; k > 3; k--) std::swap(order[k], order[3 + (int)(mix64(rh ^ (uint64_t)k * 31) % (uint64_t)(k - 2))]);
+  for (int k = 0; k < LAND_VIGNETTES; k++) if (k != rare[0] && k != rare[1] && k != rare[2]) order[no++] = k;
+  for (int k = LAND_VIGNETTES - 1; k > 3; k--) std::swap(order[k], order[3 + (int)(mix64(rh ^ (uint64_t)k * 31) % (uint64_t)(k - 2))]);
   int placed = 0;
-  for (int oi = 0; oi < (int)VignetteKind::COUNT && placed < want; oi++) {
+  for (int oi = 0; oi < LAND_VIGNETTES && placed < want; oi++) {
     const VignetteKind k = (VignetteKind)order[oi];
     if (used[(int)k]) continue;
     std::vector<Cand>& cs = cands[(int)k];
@@ -1118,8 +1128,46 @@ void EndlessSource::Impl::stampVignette(const SitePlan& p, Stamp& S) {
       spawnAt(0, x + 1, y + 1, true, Role::Traveller, false, Monster::Wolf, false);
       break;
     }
+    case VignetteKind::Shipwreck: {
+      // (M10) a ship's broken hull run up on the beach or a sandbar (the sea pass found the 3x2 of land under it), the
+      // chest from its hold dragged up beside it, flotsam strewn along the tide line toward the water
+      auto putSea = [&](int32_t px, int32_t py, Prop pr) {
+        int w = 1, h = 1;
+        art::seaFootprint(pr, w, h);
+        for (int32_t yy = py - h + 1; yy <= py; yy++)
+          for (int32_t xx = px - w / 2; xx <= px + w / 2; xx++) S.p(xx, yy, Prop::Filler);
+        S.p(px, py, pr);
+      };
+      putSea(x, y, Prop::Wreck);
+      auto onLand = [&](int32_t px, int32_t py) { return S.in(px, py) && !wetG(S.at(px, py)) && !groundSolid(S.at(px, py)); };
+      static const int chestAt[4][2] = {{2, 1}, {-2, 1}, {2, -2}, {-2, -2}};
+      for (int k2 = 0; k2 < 4; k2++) {
+        const int q = (int)((sd + (uint32_t)k2) & 3);
+        const int32_t cx2 = x + chestAt[q][0], cy2 = y + chestAt[q][1];
+        if (waterE(cx2, cy2) >= ELEV_SEA) { S.p(cx2, cy2, Prop::Chest); break; }   // (pure: every chunk picks the same)
+      }
+      static const int flot[6][2] = {{-3, 1}, {3, 0}, {1, 2}, {-1, -2}, {3, -1}, {-3, -1}};
+      for (int k2 = 0; k2 < 6; k2++) {
+        if (r.irange(3) == 0) continue;
+        const int32_t fx = x + flot[k2][0], fy = y + flot[k2][1];
+        if (onLand(fx, fy) && S.in(fx, fy) && !S.c.prop[S.idx(fx, fy)]) S.p(fx, fy, k2 % 3 == 0 ? Prop::Barrel : k2 % 3 == 1 ? Prop::Crate : Prop::Log);
+      }
+      if (onLand(x + 1, y - 2) && S.in(x + 1, y - 2) && !S.c.prop[S.idx(x + 1, y - 2)]) S.p(x + 1, y - 2, Prop::Bones);
+      break;
+    }
+    case VignetteKind::Lighthouse: {
+      // (M10) the tower on its headland, a patch of bare rock and turf round its foot, the keeper's stores beside it
+      patch(x, y + 1, 2, 2);
+      S.p(x, y, Prop::Lighthouse);
+      if (S.in(x + 2, y) && !wetG(S.at(x + 2, y))) S.p(x + 2, y, Prop::Barrel);
+      if (S.in(x - 2, y + 1) && !wetG(S.at(x - 2, y + 1))) S.p(x - 2, y + 1, (sd & 1) ? Prop::Crate : Prop::Woodpile);
+      spawnAt(0, x + 1, y + 1, true, Role::Sailor, false, Monster::Wolf, false);
+      break;
+    }
     default: break;
   }
+  // (M10) an uncharted islet's cache: the cairn's chest
+  if (k == VignetteKind::LoneGrave && (p.flags & SPF_CACHE) && S.in(x + 1, y) && !wetG(S.at(x + 1, y))) S.p(x + 1, y, Prop::Chest);
 }
 
 void EndlessSource::Impl::stampWonder(const SitePlan& p, Stamp& S) {

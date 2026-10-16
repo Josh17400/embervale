@@ -33,13 +33,19 @@
 //   expect cast [n]                at least n spells were cast
 //   expect attuned [n]             at least n traditions attuned
 //   expect conc <spell|none>       the concentration held
+// (M10 ARCANA lane) spell hidden | steps | trial | plate | priest | hp | water and expect arcana: see cmdHidden below
+#include <algorithm>
+#include <climits>
 #include <cmath>
 #include <cstdlib>
 #include <string>
+#include <vector>
 #include "rpg/culture/culture.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/magic.h"
 #include "rpg/sim/magic_ops.h"
+#include "rpg/sim/rooms.h"
+#include "rpg/world/source.h"
 #include "rpg/view/script_api.h"
 
 namespace {
@@ -103,6 +109,222 @@ void stageCast(ScriptCtx& c, int slot, int level, bool dual) {
 int dlgPick(Game& g, int kind) {
   for (size_t i = 0; i < g.dlg.opts.size(); i++) if (g.dlg.opts[i].action == DLG_MAGIC + kind) return (int)i;
   return -1;
+}
+
+// ---- (M10 ARCANA lane) the hidden kingdoms' magic, staged
+//   spell hidden <blood|rune|song|mask|verdant|dream> [steps]   stand in a land beyond the Mist whose tradition has that
+//                                  signature (song: the nearest hidden land's people); steps: every step of learning met
+//   spell steps                    the land's five steps met (landed, Honoured, level 25, both trials) and attuned
+//   spell trial [2]                the nearest ruin made the land's Trial of the Threshold (2: the second) and entered
+//   spell plate <kind> [k] [dy]    stand (dy tiles south of it) on the k-th plate (1..) of that kind in the trial (note, rune, mask, pod, altar,
+//                                  mirror, press, sanctum); "motif k": the note plate singing the motif's k-th note in the
+//                                  hall whose gate is still closed
+//   spell priest [n]               n priests (default 2) of the land beside the hero (the dusk song-fire)
+//   spell hp <percent>             the hero's health to that share of the most
+//   spell water <n> [dx]           a strip of n water tiles starting dx tiles (default 2) ahead of the hero (a bridge's)
+//   expect arcana <stat> [n]       at least n of: notes, refrains, runetriggers, runecombos, maskstrikes, maskhits,
+//                                  growths, reverts, snares, decoys, decoyhits, slowed, bubbles, songfires, gates, blood,
+//                                  rites (the hidden rites passed), mask (1 while one is worn), trial (1 in a trial),
+//                                  open (its gates open now), free (1: the hero's tile is not blocked)
+cult::Culture hiddenOf(magic::Signature want) {
+  if (want == magic::Signature::Song && magic::songLand()) {   // the nearest hidden land's people: they always sing
+    for (uint32_t s = 1; s < 64; s++) {
+      cult::Culture c = cult::Atlas::make((cult::Archetype)(s % (uint32_t)cult::Archetype::COUNT), 4000u + s);
+      if (!c.id) c.id = cult::familyId((int)(s % 97u) * 7 + 3, (int32_t)s);
+      c.hidden = true; c.hiddenLand = magic::songLand();
+      return c;
+    }
+  }
+  for (uint32_t s = 1; s < 600; s++) {
+    cult::Culture c = cult::Atlas::make((cult::Archetype)(s % (uint32_t)cult::Archetype::COUNT), 7000u + s * 13u);
+    if (!c.id) c.id = cult::familyId((int)(s % 97u) * 7 + 3, (int32_t)(s % 1000u));
+    c.hidden = true; c.hiddenLand = 0x20000001u + s * 2u;
+    std::vector<magic::SpellDef> sp;
+    if (magic::generateTradition(c, sp).sig == want) return c;
+  }
+  return cult::Culture();
+}
+void meetSteps(Game& g, const magic::Tradition& t) {
+  const cult::Culture* c = MagicOps::cultureHere(g, nullptr);
+  if (c && c->hiddenLand) g.sea.landMut(c->hiddenLand).flags |= sea::LF_LANDED;
+  MagicOps::live(g).repOverride = 60;
+  if (g.plLevel < magic::HIDDEN_LEVEL) g.plLevel = magic::HIDDEN_LEVEL;
+  g.arcana.book.passRite(t.id, 0);
+  g.arcana.book.passRite(t.id, 1);
+  if (!MagicOps::attuned(g, t.id)) MagicOps::attune(g, t);
+  g.arcana.book.mastery[t.id] = std::max<uint16_t>(g.arcana.book.mastery[t.id], magic::MASTERY_RANK3);
+}
+const TrialLayout* trialNow(Game& g) {
+  if (!g.inside || g.subSite < 0 || g.subSite >= (int)g.world.sites.size()) return nullptr;
+  return trialLayoutOf(g.world.sites[(size_t)g.subSite].id);
+}
+bool cmdHidden(ScriptCtx& c, const std::string& op) {
+  Game& g = c.game;
+  if (op == "hidden") {
+    static const char* names[] = {"blood", "rune", "song", "mask", "verdant", "dream"};
+    static const magic::Signature sigs[] = {magic::Signature::Blood, magic::Signature::Rune, magic::Signature::Song, magic::Signature::Mask, magic::Signature::Verdant, magic::Signature::Dream};
+    const std::string w = squashSp(c.arg(2));
+    for (int i = 0; i < 6; i++) {
+      if (w != names[i]) continue;
+      if (!magic::songLand()) MagicOps::findSongLand(g);
+      const cult::Culture cu = hiddenOf(sigs[i]);
+      if (!cu.id) { c.fail("spell hidden: no such people"); return true; }
+      MagicOps::setLand(&cu);
+      if (squashSp(c.arg(3)) == "steps") meetSteps(g, magic::traditionOf(cu));
+      return true;
+    }
+    c.fail("spell hidden: blood | rune | song | mask | verdant | dream");
+    return true;
+  }
+  if (op == "steps") {
+    const magic::Tradition* t = landTradition(g);
+    if (!t || !t->hidden) { c.fail("spell steps: this land has no hidden tradition"); return true; }
+    meetSteps(g, *t);
+    return true;
+  }
+  if (op == "trial") {
+    const cult::Culture* cu = MagicOps::cultureHere(g, nullptr);
+    if (!cu || !cu->hidden) { c.fail("spell trial: stand in a hidden land first (spell hidden ...)"); return true; }
+    int best = -1;
+    float bd = 1e30f;
+    for (int i = 0; i < (int)g.world.sites.size(); i++) {
+      const Site& s = g.world.sites[(size_t)i];
+      if (s.type != SiteType::Ruin) continue;
+      const float d = len2(Vec2((float)s.ex * TILE, (float)s.ey * TILE) - g.pl().p);
+      if (d < bd) { bd = d; best = i; }
+    }
+    if (best < 0 || !MagicOps::markTrial(g, best, *cu, std::atoi(c.arg(2).c_str()) >= 2 ? 1 : 0)) { c.fail("spell trial: no ruin in the window"); return true; }
+    MagicOps::enterSiteRaw(g, best);
+    return true;
+  }
+  // (fixer M10 r1) spell realtrial [enter]: the WORLD lane's own Trial of the Threshold of the hidden land the hero
+  // stands on (the travel to it; `enter`: walk in once it is in the window). spell reload [fresh]: save and load back
+  // in place, as Continue does (fresh: the trial registry emptied first, as after a new process)
+  if (op == "realtrial") {
+    const cult::Culture* cu = MagicOps::cultureHere(g, nullptr);
+    if (!cu || !cu->hidden || !g.world.src) { c.fail("spell realtrial: stand on a hidden land first (sea land)"); return true; }
+    ew::SitePlan sp;
+    bool ok = false;
+    for (int k = 0; k < (int)g.world.kingdoms.size() && !ok; k++) {
+      const cult::Culture* kc = g.world.cultureOfKingdom(k);
+      if (kc && kc->id == cu->id) ok = g.world.src->trialOf(g.world.kingdoms[(size_t)k].id, 0, sp);
+    }
+    if (!ok) { c.fail("spell realtrial: this land's kingdom has no trial"); return true; }
+    if (squashSp(c.arg(2)) != "enter") { g.beginTravelTo(sp.ex, sp.ey); return true; }
+    for (int i = 0; i < (int)g.world.sites.size(); i++)
+      if (g.world.sites[(size_t)i].id == sp.id) { MagicOps::enterSiteRaw(g, i); return true; }
+    c.fail("spell realtrial enter: the trial is not in the window");
+    return true;
+  }
+  if (op == "reload") {
+    std::vector<uint8_t> buf;
+    g.serialize(buf);
+    if (squashSp(c.arg(2)) == "fresh") clearTrials();
+    if (!g.deserialize(buf)) c.fail("spell reload: the save did not load");
+    return true;
+  }
+  if (op == "plate") {
+    const TrialLayout* T = trialNow(g);
+    if (!T) { c.fail("spell plate: not in a trial"); return true; }
+    const std::string w = squashSp(c.arg(2));
+    const int k = std::max(1, std::atoi(c.arg(3).c_str()));
+    int found = -1;
+    if (w == "motif") {
+      int room = 3;
+      for (size_t gi = 0; gi < T->gates.size(); gi++) if (!((g.arcana.live.trial.gatesOpen >> gi) & 1u)) { room = std::min<int>(room, T->gates[gi].room); }
+      for (size_t i = 0; i < T->plates.size(); i++)
+        if (T->plates[i].kind == TP_NOTE && T->plates[i].room == room && T->plates[i].arg == T->spec.motif[std::clamp(k - 1, 0, 2)]) { found = (int)i; break; }
+    } else {
+      static const char* kinds[] = {"note", "rune", "mask", "pod", "altar", "mirror", "press", "sanctum"};
+      int kind = -1;
+      for (int i = 0; i < 8; i++) if (w == kinds[i]) kind = i;
+      int n = 0;
+      for (size_t i = 0; i < T->plates.size() && kind >= 0; i++) if (T->plates[i].kind == kind && ++n == k) { found = (int)i; break; }
+    }
+    if (found < 0) { c.fail("spell plate: no such plate"); return true; }
+    const TrialPlate& p = T->plates[(size_t)found];
+    const int dy = std::atoi(c.arg(4).c_str());   // (a 4th word: that many tiles south of it, off the plate)
+    g.pl().p = Vec2((float)p.x * TILE + 8, (float)(p.y + dy) * TILE + 9);
+    g.pl().face = 1;
+    return true;
+  }
+  if (op == "motif") {   // spell motif <k>: the Songweaving spell that sings the motif's k-th note, learned into slot 1
+    const magic::Tradition* t = landTradition(g);
+    const int k = std::clamp(std::atoi(c.arg(2).c_str()) - 1, 0, 2);
+    if (!t || t->sig != magic::Signature::Song) { c.fail("spell motif: this land does not sing"); return true; }
+    if (!MagicOps::attuned(g, t->id)) MagicOps::attune(g, *t);
+    for (uint32_t sid : t->spells)
+      if (const magic::SpellDef* d = magic::spellById(sid))
+        if (d->rank == 1 && d->note == (int)t->motif[k]) {
+          MagicOps::learn(g, sid, false);
+          for (uint32_t& s : g.arcana.book.slot) if (s == sid) s = 0;
+          g.arcana.book.slot[0] = sid;
+          g.arcana.book.sel = 0;
+          return true;
+        }
+    c.fail("spell motif: no rank-1 spell sings that note");
+    return true;
+  }
+  if (op == "priest") {
+    const int n = c.arg(2).empty() ? 2 : std::max(1, std::atoi(c.arg(2).c_str()));
+    for (int i = 0; i < n; i++) {
+      const float a = 0.6f + 2.2f * (float)i;
+      MagicOps::spawnTeacher(g, g.pl().p + Vec2(std::cos(a) * 34.0f, std::sin(a) * 18.0f - 6.0f), Role::Priest, 20 + i);
+    }
+    return true;
+  }
+  if (op == "clear") {   // spell clear: every foe and decoy gone, the spells' marks on the map wiped (a clean stage)
+    for (size_t i = 1; i < g.actors.size();) {
+      const Actor& a = g.actors[i];
+      if ((a.hostile && !a.comp) || a.magicTag == magic::MT_DECOY || a.magicTag == magic::MT_SUMMON) g.actors.erase(g.actors.begin() + (std::ptrdiff_t)i); else i++;
+    }
+    g.projs.clear();
+    MagicOps::clearMap(g);
+    MagicOps::live(g).mask = -1;
+    return true;
+  }
+  if (op == "shore") {   // spell shore: on the bank of the nearest water 1..3 tiles across, facing it (a vine bridge's place)
+    const Map& m = g.map();
+    const int hx = (int)std::floor(g.pl().p.x / TILE), hy = (int)std::floor((g.pl().p.y - 2) / TILE);
+    int bx = -1, by = -1, bdx = 0, bdy = 0;
+    long best = LONG_MAX;
+    auto land = [&](int x, int y) { return m.in(x, y) && !m.blocked(x, y) && !groundWater(m.at(x, y)) && !m.propAt(x, y); };
+    for (int y = std::max(2, hy - 90); y < std::min(m.h - 2, hy + 90); y++)
+      for (int x = std::max(2, hx - 90); x < std::min(m.w - 2, hx + 90); x++) {
+        if (!land(x, y)) continue;
+        for (int dir = 0; dir < 4; dir++) {
+          static const int ddx[4] = {1, -1, 0, 0}, ddy[4] = {0, 0, 1, -1};
+          int n = 0;
+          while (n <= 3 && m.in(x + ddx[dir] * (n + 1), y + ddy[dir] * (n + 1)) && m.at(x + ddx[dir] * (n + 1), y + ddy[dir] * (n + 1)) == Ground::Water) n++;
+          if (n < 2 || n > 3 || !land(x + ddx[dir] * (n + 1), y + ddy[dir] * (n + 1))) continue;
+          const long d = (long)(x - hx) * (x - hx) + (long)(y - hy) * (y - hy);
+          if (d < best) { best = d; bx = x; by = y; bdx = ddx[dir]; bdy = ddy[dir]; }
+        }
+      }
+    if (bx < 0) { c.fail("spell shore: no narrow water in the window"); return true; }
+    g.pl().p = Vec2((float)bx * TILE + 8, (float)by * TILE + 9);
+    g.pl().aim = Vec2((float)bdx, (float)bdy);
+    g.pl().face = bdx > 0 ? 2 : bdx < 0 ? 3 : bdy > 0 ? 0 : 1;
+    return true;
+  }
+  if (op == "hp") { Actor& p = g.pl(); p.hp = std::max(1.0f, p.maxHp * (float)std::atof(c.arg(2).c_str()) / 100.0f); return true; }
+  if (op == "water") {
+    const int n = std::max(1, std::atoi(c.arg(2).c_str()));
+    const int dx0 = c.arg(3).empty() ? 2 : std::atoi(c.arg(3).c_str());
+    const Actor& p = g.pl();
+    const bool horiz = std::fabs(p.aim.x) >= std::fabs(p.aim.y);
+    const int sx = horiz ? (p.aim.x >= 0 ? 1 : -1) : 0, sy = horiz ? 0 : (p.aim.y >= 0 ? 1 : -1);
+    const int hx = (int)std::floor(p.p.x / TILE), hy = (int)std::floor((p.p.y - 2) / TILE);
+    Map& m = g.map();
+    for (int i = 0; i < n; i++)
+      for (int j = -2; j <= 2; j++) {   // (a channel five tiles wide across the way)
+        const int x = hx + sx * (dx0 + i) + (horiz ? 0 : j), y = hy + sy * (dx0 + i) + (horiz ? j : 0);
+        if (m.in(x, y)) { m.setG(x, y, Ground::Water); m.setP(x, y, 0); }
+      }
+    m.rebuildSolid();
+    return true;
+  }
+  return false;
 }
 
 bool cmdSpell(ScriptCtx& c) {
@@ -210,7 +432,8 @@ bool cmdSpell(ScriptCtx& c) {
     g.arcana.book.res[(int)r] = (float)std::atof(c.arg(3).c_str());
     return true;
   }
-  c.fail("spell: learn | slot | cast | upcast | dual | charge | release | mp | aim | rain | moon | land | attune | trad | teacher | choose | pool");
+  if (cmdHidden(c, op)) return true;   // (M10) hidden | steps | trial | plate | priest | hp | water
+  c.fail("spell: learn | slot | cast | upcast | dual | charge | release | mp | aim | rain | moon | land | attune | trad | teacher | choose | pool | hidden | steps | trial | plate | priest | hp | water");
   return true;
 }
 EMB_SCRIPT_CMD("spell", "spell learn|slot|cast|upcast|dual|charge|release|mp|aim|rain|moon|land|attune|trad|teacher|choose|pool ...: stage the spells (M9)", cmdSpell);
@@ -295,6 +518,27 @@ bool expCast(ScriptCtx& c) { return expCount(c, c.game.arcana.live.stats.casts, 
 EMB_SCRIPT_CMD("expect:cast", "expect cast [n]: at least n spells were cast (M9)", expCast);
 bool expAttuned(ScriptCtx& c) { return expCount(c, (int)c.game.arcana.book.attuned.size(), "attuned"); }
 EMB_SCRIPT_CMD("expect:attuned", "expect attuned [n]: at least n traditions attuned (M9)", expAttuned);
+
+bool expArcana(ScriptCtx& c) {
+  const magic::Stats& S = c.game.arcana.live.stats;
+  const std::string w = squashSp(c.arg(2));
+  int have = -1;
+  if (w == "notes") have = S.notes; else if (w == "refrains") have = S.refrains; else if (w == "runetriggers") have = S.runeTriggers;
+  else if (w == "runecombos") have = S.runeCombos; else if (w == "maskstrikes") have = S.maskStrikes; else if (w == "maskhits") have = S.maskHits;
+  else if (w == "growths") have = S.growths; else if (w == "reverts") have = S.reverts; else if (w == "snares") have = S.snares;
+  else if (w == "decoys") have = S.decoys; else if (w == "decoyhits") have = S.decoyHits; else if (w == "slowed") have = S.slowedSteps;
+  else if (w == "bubbles") have = S.bubbles; else if (w == "songfires") have = S.songFires; else if (w == "gates") have = S.gates;
+  else if (w == "blood") have = S.bloodPaid; else if (w == "rites") have = (int)c.game.arcana.book.rites.size();
+  else if (w == "mask") have = c.game.arcana.live.mask >= 0 ? 1 : 0;
+  else if (w == "trial") have = trialNow(c.game) ? 1 : 0;   // (fixer M10 r1) standing in a trial
+  else if (w == "open") { have = 0; for (uint32_t b = c.game.arcana.live.trial.gatesOpen; b; b &= b - 1) have++; }   // its gates open now
+  else if (w == "free") { const Actor& h = c.game.pl(); const int tx = (int)std::floor(h.p.x / TILE), ty = (int)std::floor((h.p.y - 2) / TILE); have = c.game.map().blocked(tx, ty) ? 0 : 1; }   // the hero on a free tile
+  if (have < 0) { c.fail("expect arcana: no stat called " + c.arg(2)); return true; }
+  const int want = c.arg(3).empty() ? 1 : std::atoi(c.arg(3).c_str());
+  if (have < want) c.fail("expect arcana " + c.arg(2) + ": " + std::to_string(have) + ", wanted " + std::to_string(want));
+  return true;
+}
+EMB_SCRIPT_CMD("expect:arcana", "expect arcana <stat> [n]: the hidden signatures' counters (M10)", expArcana);
 
 bool expConc(ScriptCtx& c) {
   const uint32_t held = c.game.arcana.live.conc.spell;

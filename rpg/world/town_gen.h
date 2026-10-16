@@ -325,6 +325,10 @@ struct Gen {
   void gardens();                    // packed-earth yards, allotments, orchards and flower gardens
   void fields();
   void archetypeDress();
+  // (M10) a port's harbour (C.harbour, sea_ports.cpp): the landing kept clear (phase 2: noBuild bit 16) and joined to
+  // the streets by a lane (phase 10); the chunks lay the mole and its dress
+  void harbourReserve();
+  void harbourLanding();
   void greenery();
   void folk();
   // ---------------------------------------------------------------- town_market.cpp (M1 economy)

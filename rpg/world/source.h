@@ -30,7 +30,12 @@ struct SettlementOut;   // rpg/world/settlement.h
 
 // Bumped when the endless generator's output changes. Old saves are not kept compatible across M1 (owner rule,
 // 2026-10-04); the save stores it so a mismatch can say "this save is from an older world".
-constexpr int ENDLESS_GEN_VER = 22;  // 22: M7c Order of Streets merged with M8 Fellowship (one settlement planner with
+constexpr int ENDLESS_GEN_VER = 23;  // 23: M10 Beyond the Mist (bumped with SAVE_VER 21 so the lanes may change generation
+                                     //     under it: hidden lands and the Mist, second continents and archipelagos,
+                                     //     sea POIs (wrecks, islets, sea caves, lighthouses, pirate coves), ports' piers
+                                     //     and harbours, the hidden peoples; VILLAGES NEVER CHANGE (rpg_test --villages);
+                                     //     goldens re-recorded by the lane that changes their output).
+                                     // 22: M7c Order of Streets merged with M8 Fellowship (one settlement planner with
                                      //     an order dial, a city's full street network of blocks, faubourgs and
                                      //     farmland, towns' side streets, villages' spine; SettlementOut's rank / role
                                      //     layers and traits; companions; goldens re-recorded on the merge).
@@ -104,6 +109,17 @@ constexpr uint16_t SPF_CAPITAL = 2;    // its kingdom's capital (the king's pala
 constexpr uint16_t SPF_MAINQUEST = 4;  // an ancient ruin holding an Ember Shard
 constexpr uint16_t SPF_STORY = 8;      // the main quest's city (the jarl who gives THE DRAGON'S SHADOW)
 constexpr uint16_t SPF_PORT = 16;
+// M10 Beyond the Mist (VISION_PLAN 2.12, 15.31; WORLD lane places them, SEA / ARCANA lanes give them life)
+constexpr uint16_t SPF_HIDDEN = 32;    // a site on a hidden land (beyond the Mist): its people are isolated until contact
+constexpr uint16_t SPF_TRIAL = 64;     // a Trial of the Threshold (VISION_PLAN 6.4): a hidden kingdom's tradition's dungeon
+constexpr uint16_t SPF_CHART = 128;    // a sea-chart chain place (2.12): the wreck (step 2) or the sea cave (step 3) of a
+                                       // hidden land; SitePlan::chartLand names which land
+constexpr uint16_t SPF_PIRATE = 256;   // a pirate cove (SiteType::BanditCamp on an islet or a lonely shore): Role::Pirate
+constexpr uint16_t SPF_SEACAVE = 512;  // a sea cave (SiteType::Cave whose mouth opens on the water: reached by boat)
+constexpr uint16_t SPF_CACHE = 1024;   // (M10 WORLD lane addition) an uncharted islet's cache: a cairn with a chest beside it
+                                       // (VignetteKind::LoneGrave), its inscription a sailor's rumour
+constexpr uint16_t SPF_ISLET = 2048;   // (M10 WORLD lane addition) the one place of an uncharted islet (a wreck, a cache
+                                       // cairn, a pirate cove or a sea cave)
 
 // A site planned by its region (L1b). Global tiles throughout.
 struct SitePlan {
@@ -128,6 +144,8 @@ struct SitePlan {
   // M3: whose culture it is (cult::CultureId): its kingdom's dialect, or in the wildlands its culture cell's family.
   // Settlements are built and peopled in it; POIs carry it for names and (M4/M12) their ruins' history.
   uint64_t culture = 0;
+  // M10: the hidden land a SPF_CHART place belongs to (LandPlan::id; 0 otherwise)
+  uint32_t chartLand = 0;
 };
 
 // A wilderness den (L1b; VISION_PLAN 2.5 "Den about 12 per region")
@@ -149,6 +167,65 @@ struct KingdomPlan {
   // above stay the field, trim and charge of the same arms, for the M1/M2 painters)
   uint64_t culture = 0;
   cult::Heraldry heraldry;
+  // M10: the hidden land its seat stands on (LandPlan::id; 0: a mainland kingdom). Its realm::KingdomState starts
+  // isolated (no relations, wars or trade with anyone) until the player lands there (first contact, 2.12).
+  uint32_t hiddenLand = 0;
+};
+
+// ---- M10 Beyond the Mist (VISION_PLAN 2.12, 13 M10, 15.4, 15.31): the lands, the Mist, the seas and the ports.
+// Contract (frozen after M10 phase A; the WORLD lane implements it in rpg/world/sea_world.cpp and may ADD):
+//   - a LAND is one continent cell's shape (LCELL = 6144-tile cells: Continent 55 %, Archipelago 20 %, Ocean 25 %; the
+//     origin cell is the start continent). landAt() names the land whose shape holds a tile; ew::EndlessSource::landmass
+//     stays the fast-travel connectivity id (two lands joined by land share a landmass).
+//   - a HIDDEN land is surrounded by the MIST: a ring MIST_RING tiles wide outside its coast (mistIn .. mistOut from its
+//     centre) where mistAt() > 0. The sea there turns a boat back unless the player holds that land's sea-chart (SEA
+//     lane). A hidden land's kingdoms carry KingdomPlan::hiddenLand and its sites SPF_HIDDEN; its peoples are
+//     cult::Culture::hidden (the strange traditions, the metals never seen at home).
+//   - the SEA under a tile: Land, Shallow (Ground::Water: coasts, lakes, rivers; rowboats), Deep (Ground::DeepWater:
+//     sloops), Storm (the open ocean far from any coast: galleons, or a sloop with a keel).
+constexpr int32_t MIST_RING = 300;
+enum class LandKind : uint8_t { Continent, Archipelago, COUNT };
+struct LandPlan {
+  uint32_t id = 0;                  // stable for a seed (landIdOf(cellX, cellY)); 0: none (the open sea)
+  LandKind kind = LandKind::Continent;
+  int32_t cellX = 0, cellY = 0;     // its LCELL cell
+  int32_t cx = 0, cy = 0, r = 0;    // centre and radius (global tiles): its shape lies within about 1.15 r
+  bool origin = false;              // the start continent
+  bool hidden = false;              // beyond the Mist
+  int32_t mistIn = 0, mistOut = 0;  // (hidden) the Mist ring's radii from (cx, cy) (mistOut - mistIn == MIST_RING): the
+                                    // fog thickens over the ring's outer 60 tiles, lies thick, and thins over its inner
+                                    // 60 to the clear waters round the land
+  std::string name;                 // "THE SUNDERED ISLES", "VARRAKH" (WORLD lane; phase A: a placeholder)
+};
+inline uint32_t landIdOf(int32_t cellX, int32_t cellY) {   // never 0; landCellX / landCellY undo it
+  return ((uint32_t)(cellX + 0x4000) & 0x7FFFu) << 16 | ((uint32_t)(cellY + 0x4000) & 0x7FFFu) << 1 | 0x1u;
+}
+inline int32_t landCellX(uint32_t id) { return (int32_t)((id >> 16) & 0x7FFFu) - 0x4000; }
+inline int32_t landCellY(uint32_t id) { return (int32_t)((id >> 1) & 0x7FFFu) - 0x4000; }
+enum class SeaKind : uint8_t { Land, Shallow, Deep, Storm, COUNT };
+const char* seaKindName(SeaKind k);   // "LAND", "SHALLOWS", "DEEP SEA", "STORM SEA"
+// A port as the sea sees it: where boats moor and ferries call. Global tiles.
+struct PortPlan {
+  Gid site = 0;                     // the settlement (SPF_PORT, or a fishing village: a rowboat jetty)
+  SiteType type = SiteType::Village;
+  int32_t x = 0, y = 0;             // its heart
+  int32_t pierX = 0, pierY = 0;     // the pier head (a walkable Ground::Bridge tile at the water's edge): boarding
+  int32_t berthX = 0, berthY = 0;   // the water tile beside it where a boat lies moored (Deep for a harbour, Shallow
+                                    // for a fishing jetty)
+  bool harbour = false;             // a town's or a city's harbour: sloops and galleons, a harbourmaster, a shipwright,
+                                    // ferries; false: a fishing village's jetty (rowboats only)
+  uint32_t land = 0;                // LandPlan::id
+  Gid kingdom = 0;
+  std::string name;
+  std::vector<GTile> moorings;      // the harbour's other berths (water tiles by its piers) where the view draws the
+                                    // port's own moored ships (fishing smacks, a trader, a ferry); empty for a jetty
+  // (M10 WORLD lane additions) the pier's shape: it runs from the shore tile (rootX, rootY: land, the landing) out
+  // along (dirX, dirY) (one axis) for pierLen tiles of Ground::Bridge, 3 wide, ending in a T-head 7 wide; dredged: the
+  // berth and a channel out to the deep sea were dug (the coastal shallows ran on past the pier's reach)
+  int32_t rootX = 0, rootY = 0;
+  int8_t dirX = 0, dirY = 0;
+  uint8_t pierLen = 0;
+  bool dredged = false;
 };
 
 // M4 Banners (rpg/sim/realm.h): a settlement as the kingdom lattice knows it, without its region plan. Every node is
@@ -299,6 +376,25 @@ class EndlessSource {
   // 16-tile cells), stable for a seed, cheap enough to ask for a journey. PHASE A STUB: 1 for any land; the WORLD lane
   // makes islands and other continents distinct.
   uint32_t landmass(int32_t gx, int32_t gy);
+
+  // ---- M10 Beyond the Mist (rpg/world/sea_world.cpp, WORLD lane). Pure, cheap enough per boat step / map pixel.
+  uint32_t landAt(int32_t gx, int32_t gy);                // the land whose shape holds this tile (0: open sea)
+  LandPlan land(uint32_t id);                             // a land by id (id 0 / unknown: a LandPlan with id 0)
+  std::vector<LandPlan> landsIn(int32_t x0, int32_t y0, int32_t x1, int32_t y1);   // lands whose disc (centre, 1.15 r
+                                                          // + MIST_RING) touches the box, in id order
+  uint32_t hiddenLandAt(int32_t gx, int32_t gy);          // the hidden land whose shape or Mist ring holds this tile (0)
+  int32_t mistAt(int32_t gx, int32_t gy);                 // the Mist's density here, Q16 (0 clear .. 65536 thick)
+  SeaKind seaAt(int32_t gx, int32_t gy);                  // the sea under a tile (Land on land)
+  std::vector<PortPlan> portsIn(int32_t x0, int32_t y0, int32_t x1, int32_t y1);   // ports whose heart lies in the
+                                                          // box, in site id order
+  // a hidden land's sea-chart chain places (2.12): the wreck (step 2: SPF_CHART Shipwreck) and the sea cave (step 3:
+  // SPF_CHART | SPF_SEACAVE Cave), both on the mainland side within sailing reach of its Mist; false: none (phase A)
+  bool chartPlaces(uint32_t landId, SitePlan& wreck, SitePlan& cave);
+  // a hidden kingdom's Trials of the Threshold (VISION_PLAN 6.4; SPF_TRIAL): which 0 the first (rank 1), 1 the second
+  // (rank 3); false: none (phase A)
+  bool trialOf(Gid kingdom, int which, SitePlan& out);
+  // (M10 WORLD lane addition, tests) the open sea's chunk fast path on / off (the output is the same either way)
+  void oceanFastPath(bool on);
 
   // M3 culture engine (rpg/culture/culture.h): the culture of a global tile (its kingdom's dialect, else its culture
   // cell's family) and any culture by id. Memoised in this source's own cult::Atlas (one per thread, like the source).

@@ -205,6 +205,35 @@ void EndlessSource::Impl::planLandmarks(int32_t rx, int32_t ry, RegionData& D) {
     R.landmarks.push_back(l);
   };
   auto pickSlot = [&](const char* const* pool, uint64_t h) { return std::string(pool[(size_t)slot + 9 * (h % 3)]); };
+  // ---- (M10) the seas between lands: one label for each pair of neighbouring lands (neither hidden: a land beyond the
+  //      Mist names no sea until it is found), in the middle of the open water between their coasts, in the region
+  //      holding that point ("THE SAPPHIRE STRAIT", "THE SEA OF ASKVAR")
+  {
+    const int32_t lcx = floorDiv(x0 + REGION / 2 + LCELL / 2, LCELL), lcy = floorDiv(y0 + REGION / 2 + LCELL / 2, LCELL);
+    for (int32_t ay = lcy - 2; ay <= lcy + 1; ay++)
+      for (int32_t ax = lcx - 2; ax <= lcx + 1; ax++)
+        for (int nb = 0; nb < 4; nb++) {   // (each pair once: the neighbour east, south-east, south, south-west)
+          static const int ndx[4] = {1, 1, 0, -1}, ndy[4] = {0, 1, 1, 1};
+          const LandDraw A = landDraw(ax, ay);
+          const LandDraw B = landDraw(ax + ndx[nb], ay + ndy[nb]);
+          if (A.kind == 2 || B.kind == 2 || A.hidden || B.hidden) continue;
+          const int32_t L = idist(A.px, A.py, B.px, B.py);
+          const int32_t gap = L - A.R - B.R;
+          if (gap < 600 || gap > 6000) continue;
+          const int32_t f = A.R + gap / 2;   // the middle of the gap between the nominal coasts
+          const int32_t mx = A.px + (int32_t)((int64_t)(B.px - A.px) * f / std::max(1, L)), my = A.py + (int32_t)((int64_t)(B.py - A.py) * f / std::max(1, L));
+          if (!inR(mx, my) || landTile(mx, my)) continue;
+          const uint64_t h = mix64(rh ^ key2(ax * 7 + nb, ay * 13));
+          std::string nm;
+          if ((h >> 7) % 3 == 0) {
+            const cult::Culture& C = atlas().get(cultureAt(A.px, A.py));
+            std::string w = cult::landmarkName(C, (uint32_t)(h >> 11), (int)LandmarkKind::Sea);
+            if (w.size() > 9) w.resize(9);
+            nm = "THE SEA OF " + w;
+          } else nm = std::string("THE ") + kSeaA[(h >> 16) % 9] + (gap < 2600 ? " STRAIT" : " SEA");
+          add(LandmarkKind::Sea, mx, my, std::min<int32_t>(4000, gap), nm);
+        }
+  }
   // ---- ranges: the crests of the converging pairs round the region (sampled at its corners and middle)
   std::vector<uint32_t> rangesDone;
   int32_t crestX = INT32_MIN, crestY = 0;

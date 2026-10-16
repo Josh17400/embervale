@@ -219,6 +219,12 @@ struct Culture {
   Archetype archetype = Archetype::Heartland;
   Archetype archetype2 = Archetype::Heartland;   // isolated families cross two archetypes (== archetype otherwise)
   bool isolated = false;
+  // M10 Beyond the Mist (VISION_PLAN 2.12, 6.2, 15.31; WORLD lane sets it, BEFORE detail::applyPriors runs, so the
+  // priors may branch on it): a people of a hidden land beyond the Mist (hiddenLand: its ew::LandPlan id). They are
+  // isolated (the strange traditions 2, 3, 4, 10, 11, 12; their own look; the metals never seen at home). Mainland
+  // cultures (hidden false) must come out bit-identical to before M10.
+  bool hidden = false;
+  uint32_t hiddenLand = 0;
   std::string name, adjective;      // "VETHMARK", "VETHMARKI" (upper case, the HUD's font)
   uint8_t values[8] = {};           // martial, mercantile, pious, scholarly, seafaring, expansionist, isolationist, honour
   uint8_t peopleMix[3] = {230, 20, 6};   // relative weights of People::Human, HalfBreed, Elf among its residents
@@ -240,7 +246,10 @@ struct Culture {
 // ---------------------------------------------------------------- the atlas: every culture of one world
 // One per ew::EndlessSource (and so one per thread: the prefetcher's worker has its own source). Memoised; not
 // thread-safe. Climate comes from a callback so this library needs nothing from rpg/world.
-struct ClimateSample { int biome = 2; int32_t temp = 32768, moist = 32768; bool coast = false, sea = false; };
+struct ClimateSample {
+  int biome = 2; int32_t temp = 32768, moist = 32768; bool coast = false, sea = false;
+  uint32_t hiddenLand = 0;   // (M10) the hidden land the culture cell's centre lies on (0: the mainland; WORLD lane)
+};
 class Atlas {
  public:
   // climate(gx, gy): the macro climate at a global tile (EndlessSource passes its macro sampler). May be empty: then
@@ -276,6 +285,8 @@ int headlineDiffs(const Culture& a, const Culture& b);
 // names in the culture's phonology, upper case, deterministic in (culture, seed). kind for landmarkName: the
 // ew::LandmarkKind index; for dungeonName: the SiteType index.
 std::string placeName(const Culture& c, uint32_t seed);
+// (M10) a reagent only the hidden lands yield (a hidden people's masterwork alloy needs one; no mainland recipe does)
+bool isHiddenReagent(const std::string& reagent);
 std::string personName(const Culture& c, uint32_t seed, bool female);
 std::string kingdomName(const Culture& c, uint32_t seed);
 std::string landmarkName(const Culture& c, uint32_t seed, int kind);

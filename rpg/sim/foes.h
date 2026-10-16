@@ -153,4 +153,24 @@ bool bossReady(ew::EndlessSource& src, int32_t kx, int32_t ky);
 // tick never pays for both; true once worldBossOf(kx, ky) is memoised (ready)
 bool bossWarmStep(ew::EndlessSource& src, int32_t kx, int32_t ky);
 
+// ---- M10 Beyond the Mist (SEA lane; VISION_PLAN 7.6 "sea serpents and krakens (world bosses)"): one lair at most per
+//      SEA_CELL square of open sea, deterministic for a seed: a SEA SERPENT in the deep or storm sea, a KRAKEN only in
+//      the storm sea. It rises when a boat comes near its lair (rpg/sim/sea_foes.cpp); slain, it stays slain
+//      (MK_FOES_BOSS_SLAIN on its id, like the land's world bosses: foeKilled). Rank::WorldBoss, a named title, its
+//      phases are the SEA lane's (foeStep leaves swimmers' phases alone).
+struct SeaBoss {
+  ew::Gid id = 0;           // stable (ew::makeId on the sea cell, IdKind::Poi, 0xE00)
+  art::Monster mon = art::Monster::SeaSerpent;
+  std::string name;         // "VASHRA THE COILED DEEP"
+  std::string kind;         // "SEA SERPENT", "KRAKEN"
+  int32_t lairX = 0, lairY = 0;   // global tile (open water)
+  int D = 1;                // its danger
+  Variant look;
+};
+constexpr int32_t SEA_CELL = 3072;
+inline int32_t seaCellOf(int32_t g) { return g >= 0 ? g / SEA_CELL : -((-g + SEA_CELL - 1) / SEA_CELL); }
+SeaBoss seaBossOf(ew::EndlessSource& src, int32_t sx, int32_t sy, bool& ok);
+// the sea bosses' HP against a land world boss's (x25 is a slog from a deck: a fifth of it)
+constexpr float SEA_BOSS_HP_SHARE = 0.2f;
+
 }  // namespace foes

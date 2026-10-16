@@ -4508,7 +4508,9 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
           Ground o = m.at((px + dx[k]) >> 4, (py + dy[k]) >> 4);
           if (o != Ground::Void && !groundWater(o) && o != Ground::Bridge && !soft(o)) shore = 1;   // built edges (quays, roads)
         }
-      c = deep ? C(28, 58, 118, 190) : C(48, 112, 168, 130);
+      // (M10 ART) a lighter veil than before, so the sea's moving swell under it (render_sea.cpp seaDrawUnderlay) shows
+      // through; the colours are chosen so deep and shallow water still read as they did
+      c = deep ? C(24, 52, 111, 160) : C(61, 135, 184, 120);
       if (m.kind == MapKind::Overworld && shore == 0) {
         // (M1) deep water shades into the shallows along a smoothed, dithered field instead of tile steps
         auto dp = [&](int x, int y) -> float { Ground q = m.at(x, y); return q == Ground::DeepWater || q == Ground::Void ? 1.0f : 0.0f; };
@@ -4519,11 +4521,11 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
         if (!(d00 == d10 && d00 == d01 && d00 == d11)) {
           float v = (d00 * (1 - ax) + d10 * ax) * (1 - ay) + (d01 * (1 - ax) + d11 * ax) * ay;
           v += (vnoise(px / 9.0f, py / 9.0f, 821) - 0.5f) * 0.36f + (bayer(px, py) - 0.5f) * 0.22f;
-          c = v > 0.62f ? C(28, 58, 118, 190) : v > 0.42f ? C(38, 84, 142, 162) : C(48, 112, 168, 130);
+          c = v > 0.62f ? C(24, 52, 111, 160) : v > 0.42f ? C(38, 89, 146, 140) : C(61, 135, 184, 120);
         }
       }
       if (m.kind != MapKind::Overworld) c = C(30, 60, 90, 170);
-      if (shore > 0 && !deep) c = C(110, 170, 200, 140);
+      if (shore > 0 && !deep) c = C(123, 192, 216, 120);
       // (M3c) off a coral strand the water runs turquoise over the white sand (a smooth field between tile centres)
       if (m.kind == MapKind::Overworld) {
         const float fx = (px - 7.5f) / 16.0f, fy = (py - 7.5f) / 16.0f;
@@ -4565,6 +4567,22 @@ uint32_t View::groundPixel(const TMap& m, int px, int py) {
             if (ly == 8) s = (k & 1) ? C(220, 238, 248) : C(150, 190, 214);   // the river breaks on it
             c = s;
           }
+        }
+      } else if (m.kind == MapKind::Overworld && m.at(tx, ty - 1) == Ground::Bridge && !isBoardwalk(m, tx, ty - 1)) {
+        // (M10 ART) a harbour's pier (a deck more than a tile deep, or one standing out into the sea): its south face
+        // over the water, the timber piles under it every few paces, the sea washing round their feet
+        if (ly == 0) c = C(140, 100, 62);
+        else if (ly <= 2) c = ly == 1 ? C(82, 54, 38) : C(62, 40, 30);
+        else {
+          const int col = ((px % 12) + 12) % 12;
+          if (col <= 2 && ly <= 8) {
+            uint32_t s = col == 0 ? C(120, 88, 60) : col == 1 ? C(86, 60, 42) : C(58, 40, 32);
+            if (ly == 3) s = C(44, 30, 26);   // in the deck's shade
+            if (ly >= 7) s = lerpc(s, C(52, 84, 72), 0.55f);   // weed and wet at the waterline
+            if (ly == 8) s = (col & 1) ? C(220, 238, 248) : C(160, 200, 220);
+            c = s;
+          } else if (ly <= 5) c = lerpc(c, C(14, 26, 54, 230), ly == 3 ? 0.75f : ly == 4 ? 0.5f : 0.3f);   // the shade under the deck
+          else if (ly == 8 && (col == 3 || col == 11)) c = C(200, 226, 240, 200);
         }
       }
       break;
@@ -6345,3 +6363,27 @@ bool cmdWallSpot(ScriptCtx& c) {
 }
 EMB_SCRIPT_CMD("wallspot", "wallspot <vertex|diag|gate|water|any> [n]: test only: stand by that place of the city wall (M7c ART)", cmdWallSpot);
 }  // namespace
+
+// (M10 ART) the organic shoreline's field at a global pixel, exactly as groundPixel's bank follows it (the tile grid's
+// wetness bilinear between tile centres, two octaves of noise): 0 dry .. 1 wet, the shore at 0.5; -1 where all four
+// tiles round the pixel agree (no shore near). The sea's surf (render_sea.cpp) runs its foam along the 0.5 contour.
+float seaShoreField(const Map& m, int gox, int goy, int px, int py) {
+  const float fx = (px - 7.5f) / 16.0f, fy = (py - 7.5f) / 16.0f;
+  const int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
+  const float ax = fx - ix, ay = fy - iy;
+  auto wet = [&](int x, int y) -> float {
+    const Ground q = m.at(x - gox, y - goy);
+    if (q == Ground::Void) return 1.0f;
+    if (groundWater(q) && (m.blendAt(x - gox, y - goy) >> 4) == (Map::POOL_MARK >> 4)) return 0.0f;
+    return groundWater(q) || q == Ground::Bridge ? 1.0f : 0.0f;
+  };
+  const float w00 = wet(ix, iy), w10 = wet(ix + 1, iy), w01 = wet(ix, iy + 1), w11 = wet(ix + 1, iy + 1);
+  if (w00 == w10 && w00 == w01 && w00 == w11) return -1.0f;
+  float v = (w00 * (1 - ax) + w10 * ax) * (1 - ay) + (w01 * (1 - ax) + w11 * ax) * ay;
+  if (w00 == w11 && w10 == w01 && w00 != w10) {
+    const float dd = w00 > 0.5f ? std::fabs(ax - ay) : std::fabs(ax + ay - 1.0f);
+    v = std::max(v, 1.0f - dd * 0.9f);
+  }
+  v += (vnoise(px / 6.0f, py / 6.0f, 351) - 0.5f) * 0.30f + (vnoise(px / 19.0f, py / 19.0f, 353) - 0.5f) * 0.26f;
+  return v;
+}

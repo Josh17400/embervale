@@ -26,6 +26,13 @@
 using art::Prop;
 using art::Monster;
 
+// (M10 ART) render_sea.cpp: the hero's lift onto the deck of the boat aboard (px); whether the boat's rig stood over the
+// hero this frame (the ghost silhouette then shows him through the sail); a sea creature drawn half under the swell
+float seaHeroLift(View& v, const Game& g);
+bool seaHeroUnderRig(View& v);
+void seaDrawUnderlay(View& v, const Game& g, Vec2 cam);
+bool seaDrawSwimmer(View& v, const Game& g, const Actor& a, const Tex& sheet, int fr, int cw, int chh, bool flip, float alpha, float flash, Vec2 cam);
+
 // ---- (M6 BEASTS) the view of ranked foes: elites, champions, named uniques, bosses and world bosses ------------------
 // While the world is drawn, the monster branch queues what must show over the night's darkness (the glow sheets of
 // glowing eyes, ember cracks, crystal glints and a golem's rune; the name plates; the world boss's bar); drawWeather's
@@ -1035,6 +1042,7 @@ void View::spawnParticles(const Event& e, Game& g) {
     case Ev::Power: powerEvent(g, e); break;                         // (M8b) a worn power fired (render_powers.cpp)
     case Ev::Spell: magicEvent(g, e); break;                         // (M9) a phase of a spell's life (render_magic.cpp)
     case Ev::Skill: skillEvent(g, e); break;                         // (M9) a skill moment for the HUD (skills_ui.cpp)
+    case Ev::Sea: seaEvent(g, e); break;                             // (M10) a moment at sea (render_sea.cpp)
     case Ev::MapChange: fade_ = 1.0f; snap(g); break;
     case Ev::WindowShift:   // M1: the endless window moved; everything overworld moved by e.p pixels
       cam_ += e.p;
@@ -1042,6 +1050,7 @@ void View::spawnParticles(const Event& e, Game& g) {
       for (FloatText& ft : texts_) ft.p += e.p;
       for (PowerFx& f : powerFx_) { f.p += e.p; f.q += e.p; }   // (M8b) a burst, star mark or arc in flight moves too
       magicShift(e.p);                                           // (M9) spell effects and decals
+      seaShift(e.p);                                             // (M10) wakes and splashes
       break;
     default: break;
   }
@@ -1066,6 +1075,7 @@ void View::update(Game& g, float dt) {
   partyUpdate(g, dt);   // (M8) the party's portraits, radial, alerts, banter and the hound's howl (party_hud.cpp)
   powerUpdate(g, dt);   // (M8b) the powers' effects age (render_powers.cpp)
   magicUpdate(g, dt);   // (M9) the spells' effects age (render_magic.cpp)
+  seaUpdate(g, dt);     // (M10) wakes, splashes, rain, lightning (render_sea.cpp)
   lootUpdate(g, dt);    // (M8b) the loot chime for a fine piece in view, a Mythic wearer's embers (loot_ui.cpp)
   // (M1) arriving in a settlement: a banner with its name and its kingdom (merged into DISCOVERED the first time)
   // (M4) its CURRENT owner in its society's word and its state; shown again when either changes while the player is
@@ -1477,6 +1487,7 @@ namespace {
 struct Drawable {
   float y;
   int kind;     // 0 prop, 1 building, 2 wall, 3 actor, 4 pickup, 5 projectile, 6 gate, 7 (M5) festival pole, 9 (M8) a grave,
+                //   10 (M10) the sea's (View::seaSorted's idx: a boat),
                 //   8 (M7) a home draw (View::homeDraws_[idx]: a yard object, a crop, the building site, a ground edit)
   int idx;
   int tx, ty;
@@ -1540,14 +1551,7 @@ void View::drawWorld(Game& g) {
   beasts::cur = beasts::Stats();
   // water layer underneath the terrain (shows through translucent water pixels)
   if (m.kind == MapKind::Overworld) {
-    P.rect(0, 0, Pix::W, Pix::H, Color(0.16f, 0.36f, 0.6f));
-    float ox = std::fmod(t_ * 5.0f + cam.x * 0.0f, 64.0f), oy = std::fmod(std::sin(t_ * 0.6f) * 6 + 64, 64.0f);
-    for (float y = -64; y < Pix::H + 64; y += 64)
-      for (float x = -64; x < Pix::W + 64; x += 64) {
-        float wx = x - std::fmod(cam.x, 64.0f) + ox, wy = y - std::fmod(cam.y, 64.0f) + oy;
-        P.blit(water_, wx, wy, false, Color(1, 1, 1, 0.55f + 0.25f * std::sin(t_ * 1.7f + x * 0.01f)));
-        P.blit(water_, wx + 32 - ox * 1.6f, wy + 17, true, Color(1, 1, 1, 0.35f));
-      }
+    seaDrawUnderlay(*this, g, cam);   // (M10 ART) the sea's swell: rolling crests over the deep colour (render_sea.cpp)
   } else {
     P.rect(0, 0, Pix::W, Pix::H, Color(0.04f, 0.035f, 0.05f));
     if (m.kind == MapKind::Cave || m.kind == MapKind::Ruin) {
@@ -1736,6 +1740,7 @@ void View::drawWorld(Game& g) {
     wallTodo_.pop_back();
     if (!wallTiles_.count(wallTexKey(k))) { wallTileTex(k); break; }
   }
+  if (g.mode != Mode::Title) drawSeaWater(g, cam);      // (M10) waves, foam, wakes over the water (render_sea.cpp)
   if (g.mode != Mode::Title) drawMagicGround(g, cam);   // (M9) surfaces, decals, ground glyphs under the bodies (render_magic.cpp)
   // collect drawables
   std::vector<Drawable> list;
@@ -1904,6 +1909,8 @@ void View::drawWorld(Game& g) {
     list.push_back({s.y * 16.0f + 13.0f, 7, i, 0, 0});
     list.push_back({s.y * 16.0f + 13.0f, 7, i, 1, 0});
   }
+  // (M10) the sea's standing things: the boats (render_sea.cpp; Drawable kind 10)
+  if (g.mode != Mode::Title) seaSorted(g, cam, [&](float y, int i) { list.push_back({y, 10, i, 0, 0}); });
   // (M6 fixer r3, review: "a diagonal curtain wall's face runs over the gate tower's base") a diagonal run leaving a
   // gatehouse starts a row or two below the gate's own row, so it sorted after the gatehouse and its face crossed the
   // round flanking tower: the first diagonal wall tiles beside a gate go down before the gatehouse (the tower stands in
@@ -2533,6 +2540,7 @@ void View::drawWorld(Game& g) {
             default: fr = 0; break;
           }
           float bob = a.st == AState::Roll ? 3.0f : 0;
+          if (a.player && g.sea.atSea()) bob -= seaHeroLift(*this, g);   // (M10) standing on the deck, riding its bob
           // (M5) what the body is doing (art::Posture): its pose sheet, frames looped at the pose's pace (each actor a
           // little out of step with the next, so a tavern does not lift its mugs as one), sunk onto the seat by dy
           // (seated, begging), laid over the bed (one row: the bed's way); combat states keep the standing sheet
@@ -2608,7 +2616,7 @@ void View::drawWorld(Game& g) {
           x = std::floor(x + 0.5f);   // (M5) crisp at 1x: whole pixels (a seated or sleeping body never shimmers)
           y = std::floor(y + 0.5f);
           // (M5 fixer r2) a bather in a bath's pool: head and shoulders above the water, a ring of ripples at the waterline
-          if (!drawn && bathing(g, m, a)) {
+          if (!drawn && (bathing(g, m, a) || (a.player && g.sea.live.swimming && !g.sea.atSea()))) {   // (M10) and a swimmer in the sea
             const int vis = 14, under = 5;   // head and shoulders in the air, the chest a blur under the water
             const float wy = std::floor(a.p.y - 3 - cam.y + 0.5f);
             const float bobW = (float)((int)(t_ * 1.3f + a.id * 0.7f) & 1);
@@ -2692,6 +2700,8 @@ void View::drawWorld(Game& g) {
           // (M6 fixer r4) on whole pixels, like the critters: the body, its x-ray ghost, its rim and glow sheets (all
           // floored) then land on the same pixels instead of a pixel apart (a doubled, smeared beast)
           x = std::floor(x + 0.5f); y = std::floor(y + 0.5f);
+          // (M10) a sea creature on the water shows only what breaks the swell (render_sea.cpp)
+          if (a.swim && seaDrawSwimmer(*this, g, a, t, fr, cw, chh, flip, alpha, flash, cam)) break;
           // with a ripple round it. (M6 fixer r4) Never a world boss: the land's headline beast shows its whole body.
           int srcH = chh;
           if (a.mon == Monster::Lurker && !a.aggro && !beasts::isRank(a, foes::Rank::WorldBoss) && a.st != AState::Dead && (a.st == AState::Idle || a.st == AState::Walk) && m.kind == MapKind::Overworld) {
@@ -2922,6 +2932,10 @@ void View::drawWorld(Game& g) {
       case 9:   // (M8) a fallen companion's grave
         drawGrave(g, d.idx, cam, false);
         break;
+      case 10:  // (M10) a boat (render_sea.cpp)
+        drawSeaSorted(g, d.idx, cam);
+        if (seaHeroUnderRig(*this)) ghost = true;   // the sail stands before the hero: his silhouette shows through it
+        break;
       default: break;
     }
   }
@@ -3148,6 +3162,7 @@ void View::drawLighting(Game& g) {
   }
   lootLights(g, light);   // (M8b) the loot's beams and pools, a Mythic wearer's smoulder (loot_ui.cpp)
   magicLights(g, light);  // (M9) the spells' light: lit trails, impact flashes, burning ground (render_magic.cpp)
+  seaLights(g, light);    // (M10) boat lanterns, the lighthouse's lamp (render_sea.cpp)
   P.setTarget(nullptr);
   P.blitEx(lightMap_, 0, 0, lightMap_.w, lightMap_.h, 0, 0, lightMap_.w * 2.0f, lightMap_.h * 2.0f, false, Color(1, 1, 1, 1), 2);
   m4Emissive(g, m, cam, dark);   // (fixer M4 r3) what burns glows over the dark

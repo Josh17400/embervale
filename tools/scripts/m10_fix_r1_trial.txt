@@ -1,0 +1,36 @@
+# M10 FIXER round 1: targeted checks for the round-1 findings.
+#   a save inside a real Trial of the Threshold loads back as the trial (fresh process and same session), the hero not
+#   shut behind a gate; aboard among merrow the attack key fights (does not disembark); the quick-heal works aboard;
+#   the moored ships' furled rigs and the Mist's drowned ships (screenshots).
+#   cd <shots> && embervale.exe --script <repo>/tools/scripts/m10_fix_r1.txt    (m10_fix_r1_*.png)
+seed 3
+0.3  newgame
++0.1 god 1
++0.1 plevel 25
++0.2 sea land
++3.0 spell realtrial
++8.0 spell realtrial enter
++0.6 expect arcana trial 1
++0.1 spell plate sanctum
++0.4 shot m10_fix_r1_trial_sanctum.png
++0.1 spell reload fresh
++0.5 expect inside 1
++0.1 expect arcana trial 1
++0.1 expect arcana open 2
++0.1 expect arcana free 1
++0.1 shot m10_fix_r1_trial_reload_fresh.png
++0.1 spell reload
++0.5 expect arcana trial 1
++0.1 expect arcana open 2
++0.1 expect arcana free 1
+# ---- seed 3's berth (known open problem 5): the sloop given at the port gets under way with the helm held out
++0.2 newgame
++0.1 god 1
++0.2 sea port
++0.5 boat give sloop 16
++0.1 boat board
++0.2 expect sea aboard 1
++0.1 sea helm out
++20  expect sea speed 1
++0.1 shot m10_fix_r1_sloop_out_s3.png
++0.2 quit

@@ -9,6 +9,7 @@
 #include "rpg/sim/foes.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/magic_ops.h"
+#include "rpg/sim/sea_ops.h"
 #include "rpg/sim/skill_ops.h"
 #include "rpg/sim/power_ops.h"
 #include "rpg/sim/war.h"
@@ -623,6 +624,7 @@ void Game::updateTownDefence(float dt) {
 
 void Game::updateAI(Actor& a, float dt) {
   if (MagicOps::aiOverride(*this, a, dt)) return;   // (M9) frozen, frightened, charmed, blinded (magic_game.cpp)
+  if (SeaOps::aiOverride(*this, a, dt)) return;     // (M10) the swimmers and pirates afloat (sea_game.cpp)
   float slow = a.slowT > 0 ? 0.55f : 1.0f;
   if (a.st == AState::Hurt) { if (a.stT > 0.25f) { a.st = AState::Idle; a.stT = 0; } return; }
 

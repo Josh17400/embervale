@@ -13,6 +13,7 @@
 #include "rpg/sim/gear.h"
 #include "rpg/sim/home.h"
 #include "rpg/sim/magic.h"
+#include "rpg/sim/sea_ops.h"
 #include "rpg/sim/skill_ops.h"
 #include "rpg/sim/skills.h"
 #include "rpg/view/realm_ui.h"
@@ -23,8 +24,15 @@
 
 void heroStage(Pix& P, const Tex& light, float cx, float footY, float size);   // creator.cpp
 int partyUseHere(const Game& g, int& idx);   // (M8) party_view.cpp: 1 a grave in reach, 2 a downed companion, 0 none
+bool seaHudRect(View& v, float& x0, float& y0, float& x1, float& y1);   // (M10) render_sea.cpp: the sail panel's place
 
 namespace {
+// the use button's verb from the yard (M7 home::interactLabel) or else the sea (M10 SeaOps::interactLabel: BOARD,
+// DISEMBARK, FISH...): each shares its interact's decision, so the prompt always says what the button does
+std::string useVerbHere(const Game& g) {
+  std::string v = home::interactLabel(g);
+  return v.empty() ? SeaOps::interactLabel(g) : v;
+}
 Color col(uint32_t c, float a = 1) { return Color((c & 255) / 255.0f, ((c >> 8) & 255) / 255.0f, ((c >> 16) & 255) / 255.0f, a); }
 // a kingdom's banner colour lifted toward parchment so a dark field still reads as text over the world
 // (M2 fixer) the kingdom's colour lifted well toward a light parchment, so it reads over grass, roofs and snow
@@ -541,6 +549,7 @@ void View::draw(Game& g, bool hasSave) {
     companionOverlays(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M8) the wound, the binding
     drawPowerFx(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M8b) the worn powers' effects
     drawMagicFx(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M9) the spells (render_magic.cpp)
+    drawSeaOver(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M10) the Mist, storms (render_sea.cpp)
   }
   // floating combat text (screen)
   Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
@@ -710,6 +719,7 @@ void View::drawHud(Game& g) {
   };
   // M1: every HUD piece is anchored to the safe area (the notch side of a phone, the HUD MARGIN setting)
   const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
+  drawSeaHud(g);   // (M10) the sail and fishing panels (render_sea.cpp)
   P.textS(L + 6, T + 5, "LV " + std::to_string(g.plLevel), 1, kGold);
   bar(L + 36, T + 6, 90, p.hp, p.maxHp, Color(0.85f, 0.18f, 0.16f), Color(0.3f, 0.05f, 0.05f));
   bar(L + 36, T + 14, 70, g.mp, mpMax, Color(0.25f, 0.45f, 0.95f), Color(0.06f, 0.1f, 0.3f));
@@ -1069,6 +1079,15 @@ void View::drawHud(Game& g) {
           if (a.x > colLeft - 4 && a.y < colBottom) a.x = colLeft - 4;
           // (M8) and off the party's portraits down the left edge (the distance sits behind it: room for it too)
           if (partyColR_ > 0 && a.x < partyColR_ + 30 && a.y < partyColB_ + 6 && a.y > T + 40) a.x = partyColR_ + 30;
+          // (M10) and off the sail panel (its distance label too): above it when it sits low, left of it when high
+          {
+            float sx0, sy0, sx1, sy1;
+            if (seaHudRect(*this, sx0, sy0, sx1, sy1) && a.x > sx0 - 30 && a.x < sx1 + 30 && a.y > sy0 - 14 && a.y < sy1 + 14) {
+              if (sy1 > B - 50) a.y = sy0 - 14;
+              else if (sx0 < (L + R) / 2) a.x = sx1 + 30;
+              else a.x = sx0 - 30;
+            }
+          }
           // a filled arrowhead (dark outline first so it reads on snow and sand), gently pulsing toward the goal
           a = a + d * (std::sin(t_ * 6) * 1.5f);
           Vec2 side(-d.y, d.x);
@@ -1173,7 +1192,7 @@ void View::drawHud(Game& g) {
     for (const Actor& a : g.actors)
       if (a.comp == mi + 1 && a.st != AState::Dead) { it = a.id; break; }
   }
-  const std::string homeVerb = it < 0 && !partyUse ? home::interactLabel(g) : std::string();   // (M7) the yard's use
+  const std::string homeVerb = it < 0 && !partyUse ? useVerbHere(g) : std::string();   // (M7) the yard's use
   if (partyUse == 1 && partyIdx >= 0 && partyIdx < (int)g.party.fallen.size()) {
     // the grave: "E: VISIT" over the stone (its name shows by the stone itself, party_view.cpp)
     const party::Fallen& f = g.party.fallen[(size_t)partyIdx];
@@ -1210,7 +1229,7 @@ void View::drawHud(Game& g) {
         const Vec2 hs = g.pl().p - Vec2(std::floor(cam_.x), std::floor(cam_.y));
         // (M5) village animals are petted, not talked to; (M7) the player's own animals say what the button does
         // (RIDE <NAME> for the waiting horse, GROOM with a brush): home::interactLabel shares homeInteract's decision
-        std::string critterUse = a.critter ? home::interactLabel(g) : std::string();
+        std::string critterUse = a.critter ? useVerbHere(g) : std::string();
         std::string verb = a.critter ? "E: " + (critterUse.empty() ? std::string("PET") : critterUse) : std::string("E: TALK");
         if (partyUse == 2) verb = "E: BIND WOUNDS";   // (M8) a downed companion
         const float labelW = (float)std::max(P.textW(a.name, 1), touchUI ? 0 : P.textW(verb, 1)) * 0.5f + 6;
@@ -1251,14 +1270,17 @@ void View::drawHud(Game& g) {
     Vec2 s = Vec2(px, py - 4.0f) - Vec2(std::floor(cam_.x), std::floor(cam_.y));
     const Vec2 hs = hp.p - Vec2(std::floor(cam_.x), std::floor(cam_.y));
     if (std::fabs(hs.x - s.x) < 30 && s.y - 10 > hs.y - 40 && s.y - 10 < hs.y + 4) s.y = hs.y - 30;   // off the hero's head
-    const std::string lab = std::string(touchUI ? "TAP: " : "E: ") + homeVerb;
+    // (fixer M10 r1) a held verb ("HOLD: REEL") says HOLD, not TAP
+    const bool held = homeVerb.rfind("HOLD: ", 0) == 0;
+    const std::string lab = held ? std::string(touchUI ? "HOLD: " : "HOLD E: ") + homeVerb.substr(6)
+                                 : std::string(touchUI ? "TAP: " : "E: ") + homeVerb;
     const float w = (float)P.textW(lab, 1) + 8;
     // (M7 fix) clear of the toast column on the left (a need's notice ran into the prompt: "...OR AE: LOOK AT")
     if (toastX1_ > 0 && s.x - w / 2 < toastX1_ + 4 && s.y - 13 < toastY1_ + 2 && s.y - 2 > toastY0_ - 2) s.x = toastX1_ + 4 + w / 2;
     if (touchUI) { float ty = s.y - 13; clearOfTouch(s.x, ty, w, 11); s.y = ty + 13; }   // (M7 fixer r2)
     P.rect(s.x - w / 2, s.y - 13, w, 11, Color(0.04f, 0.03f, 0.05f, 0.55f));
     P.textS(s.x, s.y - 11, lab, 1, kGold, 1);
-    if (!touchUI) {   // the tile it acts on: four corner ticks
+    if (!touchUI && !home::interactLabel(g).empty()) {   // the tile it acts on: four corner ticks (the yard's; the sea's verbs act on the boat)
       const float tx = px - 8 - std::floor(cam_.x), ty = py - std::floor(cam_.y);
       const Color tc(kGold.r, kGold.g, kGold.b, 0.75f);
       for (int k = 0; k < 4; k++) {
@@ -1441,7 +1463,7 @@ void View::drawTouch(Game& g) {
     }
   }
   int target = g.interactTarget();
-  const std::string homeUse = target < 0 ? home::interactLabel(g) : std::string();   // (M7) the yard's use
+  const std::string homeUse = target < 0 ? useVerbHere(g) : std::string();   // (M7) the yard's use
   int utx = 0, uty = 0, usePr = target < 0 && homeUse.empty() ? usablePropAt(g, utx, uty) : 0;
   for (int b = 0; b < B_MENU; b++) {
     if (b == B_SPELL) continue;   // (M9) the four quick-cast buttons replace it (SkillsUiOps::drawQuickButtons)
@@ -1466,7 +1488,7 @@ void View::drawTouch(Game& g) {
           for (const Actor& x : g.actors) if (x.id == target) { ta = &x; break; }
           std::string tv = "TALK";
           if (ta && ta->critter) {   // (M7) RIDE / GROOM for the player's own animals, else PET
-            tv = home::interactLabel(g);
+            tv = useVerbHere(g);
             if (tv.empty()) tv = "PET";
             const size_t sp = tv.find(' ');
             if (sp != std::string::npos && P.textW(tv, 1) > (int)(d.r * 2 - 4)) tv = tv.substr(0, sp);
@@ -2358,7 +2380,7 @@ Input View::input(Game& g) {
     for (auto& f : fingers_) {
       int hx = 0, hy = 0;
       int pidx = -1;
-      if (f.on && f.button == B_ATTACK && !f.use && g.interactTarget() < 0 && !usablePropAt(g, hx, hy) && home::interactLabel(g).empty() && !partyUseHere(g, pidx)) in.attack = true;
+      if (f.on && f.button == B_ATTACK && !f.use && g.interactTarget() < 0 && !usablePropAt(g, hx, hy) && useVerbHere(g).empty() && !partyUseHere(g, pidx)) in.attack = true;
     }
   }
   if (kAttack_) { in.attack = true; }
@@ -2367,7 +2389,7 @@ Input View::input(Game& g) {
   // the attack key/button talks when someone is in reach; a tap on the world far from them stays an attack
   // (M8) and binds a downed companion's wounds or visits a grave
   if (in.attack && g.mode == Mode::Play && kAttack_ && !kTapAttack_ &&
-      (partyUseHere(g, pidx) || g.interactTarget() >= 0 || usablePropAt(g, utx, uty) || !home::interactLabel(g).empty())) { in.attack = false; in.interact = true; }
+      (partyUseHere(g, pidx) || g.interactTarget() >= 0 || usablePropAt(g, utx, uty) || !useVerbHere(g).empty())) { in.attack = false; in.interact = true; }
   kAttack_ = kBow_ = kSpell_ = kRoll_ = kUse_ = kPotion_ = kSwap_ = kTapAttack_ = false;
   // (M9) the quick-cast slots and the sneak toggle (skills_hud.cpp): castSlot for the press, castHold while held,
   // castDual for a swipe off the button or the modifier
@@ -2377,6 +2399,7 @@ Input View::input(Game& g) {
       const bool held[4] = {k(SDL_SCANCODE_1), k(SDL_SCANCODE_2), k(SDL_SCANCODE_3), k(SDL_SCANCODE_4)};
       const bool dualMod = k(SDL_SCANCODE_LALT) || k(SDL_SCANCODE_RALT) || k(SDL_SCANCODE_Z);
       SkillsUiOps::fillInput(*this, g, in, held, dualMod, 0);
+      seaFillInput(g, in);   // (M10) the fishing reel (render_sea.cpp)
     } else {
       Q.pressSlot = -1; Q.holdSlot = -1; Q.holdDual = false; Q.sneakPress = false;
     }
@@ -2796,7 +2819,7 @@ void View::event(const SDL_Event& e, Game& g) {
         // whole hold: the held-finger repeat must not turn it into a swing once the verb is gone (mounting clears it,
         // and the swing would get the rider straight off again)
         int ux = 0, uy = 0;
-        if (g.interactTarget() >= 0 || usablePropAt(g, ux, uy) || !home::interactLabel(g).empty()) f.use = true;
+        if (g.interactTarget() >= 0 || usablePropAt(g, ux, uy) || !useVerbHere(g).empty()) f.use = true;
       }
       else if (b == B_BOW) kBow_ = true;
       else if (b == B_SPELL) kSpell_ = true;
@@ -2813,7 +2836,7 @@ void View::event(const SDL_Event& e, Game& g) {
           for (const Actor& a : g.actors)
             if (a.id == it && (len2(p - (a.p - cam - Vec2(0, 10))) < 40.0f * 40.0f || len2(p - (g.pl().p - cam - Vec2(0, 10))) < 40.0f * 40.0f)) talk = true;
         }
-        if (talk || usablePropAt(g, utx, uty) || !home::interactLabel(g).empty()) kUse_ = true; else { kAttack_ = true; kTapAttack_ = true; }
+        if (talk || usablePropAt(g, utx, uty) || !useVerbHere(g).empty()) kUse_ = true; else { kAttack_ = true; kTapAttack_ = true; }
       }
       fingers_.push_back(f);
       break;

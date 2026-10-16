@@ -1,0 +1,27 @@
+# M10 ART: the Mist. Open water outside a hidden land's Mist, a sloop sailing in without the chart: the banks drifting
+# in and thickening, the eerie turn-back (the dark closing in, drowned ships in the fog); then the sea-chart held and
+# the same course again: the Mist parts, a ring of fog round a clear heart, the light breaking through; then ashore on
+# the hidden land (the first-contact title) and in one of its towns: a people that looks like nowhere on the mainland.
+#   embervale.exe --script tools/scripts/m10_art_mist.txt     (m10_art_mist_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 10
++0.3 sea mistedge
++0.2 expect sea aboard 1
++0.1 sea helm land
++6   shot m10_art_mist_enter.png
++8   expect sea mist 0.05
++0.1 shot m10_art_mist_thick.png
++16  expect sea turned 1
++0.6 shot m10_art_mist_turned.png
++3   sea chart here
++0.1 sea helm land
++3   shot m10_art_mist_parting.png
++6   shot m10_art_mist_parted.png
++0.3 sea land
++0.2 seaart contact THE MIST PARTS ON A KINGDOM NOBODY KNEW
++1.5 shot m10_art_mist_land.png
++0.3 goto town
++1.5 shot m10_art_mist_hiddentown.png
++0.5 log m10_art_mist done

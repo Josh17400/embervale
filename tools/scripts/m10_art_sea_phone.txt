@@ -1,0 +1,26 @@
+# M10 ART on the phone (639x294 canvas, the iPhone's safe insets, the touch controls showing): the fishing meter and
+# the catch card; the sail panel clear of the stick, the thumb cluster, the quest column and the edge arrow; the hero
+# on the deck; the Mist's grip.
+#   embervale.exe --script tools/scripts/m10_art_sea_phone.txt     (m10_art_phone_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 tap 320 120
++0.2 sea shore
++0.3 sea fish
++1.5 seaart line reel 0.85
++0.4 shot m10_art_phone_reel.png
++0.1 seaart catch 5
++0.6 shot m10_art_phone_catch.png
++4   sea port
++0.5 boat give sloop 16
++0.1 boat board
++0.1 sea helm 200
++3   shot m10_art_phone_sailing.png
++0.1 sea helm off
++0.3 sea mistedge
++0.1 sea helm land
++12  shot m10_art_phone_mist.png
++0.5 log m10_art_sea_phone done

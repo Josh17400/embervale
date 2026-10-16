@@ -35,8 +35,15 @@ enum class VignetteKind : uint8_t {
   HerbGarden,      // a walled herb garden (art::Prop::HerbBed rows); Role::Herbalist sells herbs and potions
   LoneGrave,       // a lone grave (art::Prop::GraveCairn) whose inscription is a rumour hook (a ruin, a lost heirloom)
   Wayrest,         // a roadside fire and bedroll (art::Prop::Bedroll) where a Role::Traveller trades news (rumours)
+  // ---- M10 Beyond the Mist (VISION_PLAN 2.12, 15.31): the sea's places, planned by the WORLD lane's sea pass (never by
+  //      the land planner: planVignettes takes the first LAND_VIGNETTES kinds only). Phase A: declared, not placed.
+  Shipwreck,       // a wreck on a reef, a sandbar or a beach (art::Prop::Wreck): a loot chest in the hold, flotsam,
+                   // sometimes the chart chain's wreck (SPF_CHART: the drowned captain's log, step 2) and merrow nearby
+  Lighthouse,      // a lighthouse on a headland (art::Prop::Lighthouse, a light at night) with its keeper (Role::Sailor):
+                   // sea rumours, the coast marked on the map
   COUNT
 };
+constexpr int LAND_VIGNETTES = (int)VignetteKind::Wayrest + 1;   // the kinds the land planner places
 
 enum class WonderKind : uint8_t {
   ElderTree,       // a colossal ancient tree (art::Prop::ElderTree) in a glade
@@ -48,7 +55,7 @@ enum class WonderKind : uint8_t {
 
 inline const char* vignetteName(VignetteKind k) {
   static const char* n[] = {"OVERTURNED CARAVAN", "HUNTER'S CAMP", "STANDING STONES", "RUINED WATCHTOWER", "FISHING HUT",
-                            "TOLL BRIDGE", "HERB GARDEN", "LONE GRAVE", "WAYFARERS' REST"};
+                            "TOLL BRIDGE", "HERB GARDEN", "LONE GRAVE", "WAYFARERS' REST", "SHIPWRECK", "LIGHTHOUSE"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)VignetteKind::COUNT, "a name for every vignette");
   return (int)k < (int)VignetteKind::COUNT ? n[(int)k] : "WAYSIDE";
 }

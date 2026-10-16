@@ -1073,3 +1073,53 @@ inside the phone frame budget.
 - **ui** (build_ui): the SKILLS and SPELLS pages (constellation perk trees, skill progress, vs-foe lines, the
   spellbook and slots), the phone's quick-cast buttons (tap / hold to upcast / swipe to dual-cast), keys 1-4 and sneak,
   the HUD's spell and skill moments, the item cards' family / armour-class lines.
+
+## M10, "Beyond the Mist" (VISION_PLAN 2.12, 13 M10, 15.4, 7.6, 6.2 / 6.4, 15.1, 15.11, 15.31; owner notes 2026-10-16)
+
+Goal, as the roadmap has it: the sea, ships and hidden lands. Second continents and archipelagos, hidden lands behind
+the Mist, sea POIs, ports and harbours (lane A, world); sailing with the wind, boats bought / upgraded / sunk, ferries
+that play out on deck, storms, sea encounters (the sea serpent, the kraken, merrow, pirates), the sea-chart chain, the
+Mist's turn-back, first contact, fishing (15.4: cast, bite, a timing / tension reel; species by water, biome, season and
+hour) and the Sailor's hook (lane B, sim); the hidden signatures 2, 3, 4, 10, 11, 12 with their trials, the hidden
+kingdoms' metals and gear (lane B's magic half, a lane of its own here); ships in every culture's style, the serpent,
+kraken and merrow, waves, foam and mist, the isolated cultures' look, the sea's sound (lane C, art and audio). What the
+owner sees on the phone: a rowboat, then a sloop, open sea, storms and islands; after a long rumour chain the Mist
+parts on a kingdom nobody knew, whose priests sing fire into being. Owner notes: the every-system regression runs ONCE,
+by the integrator; fixes are verified with targeted checks only; the 16-bit quality bar stands.
+
+### Phase A (lead), 2026-10-16: done
+- The contracts are recorded in VISION_PLAN 15.31: the world's lands / Mist / seas / ports (`rpg/world/source.h`,
+  `rpg/world/sea_world.cpp`; ENDLESS_GEN_VER 23, no generation changed yet), hidden cultures' flags, the four sea roles,
+  the three sea monsters (stand-ins), the ten sea props and the ships (`rpg/art/art_sea.h/.cpp`, stand-ins), the sea
+  (`rpg/sim/sea.h`, `sea_ops.h`, `sea.cpp`, `sea_game.cpp`: boats boarded and sailed with the wind, kept to their
+  waters, left ashore; the Mist's turn-back and its parting for the chart; saves at sea), `Actor::swim` and
+  `Game::swimSolid`, `Input::reel`, `Ev::Sea`, `DLG_SEA`, `Game::sea`, the realm's isolated kingdoms (realm block v3),
+  the view's SEA block (`rpg/view/render_sea.cpp`: stand-in ships, a Mist veil, a sail line), SAVE_VER 21 +
+  `save_v21.bin` (v19 / v20 retired: old saves refused), `rpg_test --sea` (CI "Sea test"), the script commands and
+  `tools/scripts/m10_lead_sea.txt`. tools/slot.sh already existed.
+- Verified (MSVC, BDIR=build): rpg_test --seeds 1..20 20/20; save_test ALL OK (fixture save_v21, a save aboard loads
+  aboard); --sea 1..3 OK (seeds 1-2 sail 609 / 276 px out of a port in 12 s, save at sea byte-identical; the Mist turns
+  a chartless sloop back after 20.2 s of fog on all three seeds and parts for the chart; seed 3 has no coastal
+  settlement within 6000 tiles of the start: play SKIPPED until the WORLD lane's harbour guarantee); --endless --golden
+  39 hashes ok (no generation changed); --wayfinder 1..4, --builder 1..12 --strict --society-strict, --skills 0
+  failures; --villages --strict exit 0 (its informational "196 changed since M7b" line is not from M10: phase A changes
+  no village); m10_lead_sea 0 failures.
+
+### Phase B lanes (disjoint files; see the lead report for the briefs)
+- **world** (build_world, code): the lands for real (a second continent across open sea, hidden lands set apart by a
+  300-tile ring of open water, archipelagos and uncharted islets, guarantees near the start), names, the hidden
+  peoples (isolated, their own alloys from a hidden-land ore), harbours in coastal towns and cities (piers, berths,
+  moorings, harbourmaster, shipwright, sailors' tavern), sea POIs (wrecks, lighthouses, sea caves, pirate coves), the
+  chart chain's places and the trials' sites, cheap ocean chunks for streaming at sea; `--seaworld`; goldens
+  re-recorded with reasons (villages never change).
+- **sea** (build_sea, code): sailing feel, buying / upgrading / repairing / sinking boats, the Sailor, swimming,
+  storms, ferries on deck, encounters (serpent, kraken, merrow, pirates; the world bosses), the chart chain, the Mist,
+  first contact and isolation in the realm, fishing and fishmongers, the hidden land's signature beast, the `--sail`
+  bot and streaming at sea; `--sea` grown.
+- **arcana** (build_arcana, code): the six hidden signatures (Blood, Rune, Song, Mask, Verdant, Dream) with their
+  mechanics and on-screen identities, hidden traditions (level 25, Friendly, the two trials, the teacher, the focus
+  sold only there, companions casting rank 1), the Trial of the Threshold dungeons, the priests who sing fire into
+  being; `--spells` grown.
+- **art** (build_art, visual): the ships of every culture (rowboat, sloop, galleon; 8 headings; the hero on deck),
+  sea props, the serpent, kraken and merrow, waves, foam, surf, wakes, the Mist, storms, the isolated cultures' look,
+  the sail and fishing HUD, the world map's seas and unknown lands, the sea's sound; a sea gallery and the phone review.

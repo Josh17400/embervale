@@ -1,0 +1,48 @@
+# M10 ART: the ships and the sea in the running game (desktop). A port's moored ships, our sloop given and boarded,
+# the hero on its deck, sailing out (wake, bow wave, the sail drawing, the sail panel), a turn through the headings,
+# a rowboat and a galleon, the same sea at night (lanterns), then fishing from the shore (the float, the bite cue, the
+# tension meter, the catch card).
+#   embervale.exe --script tools/scripts/m10_art_sea.txt     (m10_art_sea_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.2 sea shore
++0.3 sea fish
++2   shot m10_art_sea_fish_wait.png
++0.1 seaart line bite
++0.3 shot m10_art_sea_fish_bite.png
++0.1 seaart line reel 0.7
++0.4 shot m10_art_sea_fish_reel.png
++0.1 seaart catch 3
++0.6 shot m10_art_sea_fish_catch.png
++4   sea port
++0.6 shot m10_art_sea_port.png
++0.2 boat give sloop 16
++0.1 boat board
++0.1 expect sea aboard 1
++0.4 shot m10_art_sea_aboard.png
++0.1 sea helm 0
++3   shot m10_art_sea_sailing.png
++0.05 seaart stats
++0.05 expect seaview wakes 4
++0.1 sea helm 90
++2.5 shot m10_art_sea_south.png
++0.1 sea helm 200
++2.5 shot m10_art_sea_west.png
++0.1 sea helm 300
++2.5 shot m10_art_sea_north.png
++0.1 sea helm off
++0.3 boat give galleon 40
++0.1 boat board
++0.1 sea helm 30
++3   shot m10_art_sea_galleon.png
++0.1 sea helm off
++0.2 boat give rowboat 10
++0.1 boat board
++0.1 sea helm 160
++2.5 shot m10_art_sea_rowboat.png
++0.1 hour 22
++0.1 sea helm 250
++2   shot m10_art_sea_night.png
++0.5 log m10_art_sea done

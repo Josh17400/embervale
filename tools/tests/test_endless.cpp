@@ -217,7 +217,7 @@ int reachWindow(EndlessSource& A, uint64_t seed, int32_t wx0, int32_t wy0, const
   int bad = 0;
   auto fail = [&](const std::string& s) { out("FAIL: %s\n", s.c_str()); bad++; };
   const int N = 1024, NC = N / CHUNK;
-  std::vector<uint8_t> g((size_t)N * N), walk((size_t)N * N), hb((size_t)N * N), road((size_t)N * N);
+  std::vector<uint8_t> g((size_t)N * N), walk((size_t)N * N), hb((size_t)N * N), road((size_t)N * N), ocean((size_t)N * N);
   ChunkData c;
   double sum = 0, mx = 0;
   int nGen = 0, slow = 0;
@@ -243,6 +243,7 @@ int reachWindow(EndlessSource& A, uint64_t seed, int32_t wx0, int32_t wy0, const
             solid = solid || !(gxx == b.doorX() && gyy == b.doorY());
           }
           walk[k] = !solid;
+          ocean[k] = groundWater((Ground)c.ground[i]) && c.biome[i] == (uint8_t)Biome::Ocean;   // (M10: the sea, not a river)
           road[k] = c.ground[i] == (uint8_t)Ground::Road || c.ground[i] == (uint8_t)Ground::Bridge;
           // (a stilt town's boardwalks wind over its marsh by design: not road bridges)
           if (c.ground[i] == (uint8_t)Ground::Bridge && (c.blend[i] >> 4) == (Map::BOARDWALK_MARK >> 4)) g[k] = (uint8_t)Ground::Swamp;
@@ -278,6 +279,32 @@ int reachWindow(EndlessSource& A, uint64_t seed, int32_t wx0, int32_t wy0, const
       }
     return false;
   };
+  // (a miss's diagnosis: the walkable patch the place stands in - its size, and whether it meets the window's edge or
+  // the sea; a patch with no road, wholly inside the window and on the sea, is an island of its own: reached by boat)
+  struct Patch { int size = 0; bool edge = false, sea = false; std::string text; };
+  auto patchOf = [&](int32_t gx0, int32_t gy0, int32_t gx1, int32_t gy1) {
+    std::vector<uint8_t> seen((size_t)N * N, 0);
+    std::vector<int> st;
+    for (int32_t y = gy0; y < gy1; y++)
+      for (int32_t x = gx0; x < gx1; x++) {
+        const int32_t lx = x - wx0, ly = y - wy0;
+        if (lx >= 0 && ly >= 0 && lx < N && ly < N && walk[(size_t)ly * N + lx] && !seen[(size_t)ly * N + lx]) { seen[(size_t)ly * N + lx] = 1; st.push_back(ly * N + lx); }
+      }
+    Patch P;
+    for (size_t h = 0; h < st.size() && st.size() < 400000; h++) {
+      const int k = st[h], x = k % N, y = k / N;
+      if (x == 0 || y == 0 || x == N - 1 || y == N - 1) P.edge = true;
+      const int nb[4] = {x > 0 ? k - 1 : -1, x < N - 1 ? k + 1 : -1, y > 0 ? k - N : -1, y < N - 1 ? k + N : -1};
+      for (int n : nb) {
+        if (n < 0) continue;
+        if (ocean[(size_t)n]) P.sea = true;
+        if (walk[(size_t)n] && !seen[(size_t)n]) { seen[(size_t)n] = 1; st.push_back(n); }
+      }
+    }
+    P.size = (int)st.size();
+    P.text = std::string(" patch ") + std::to_string(st.size()) + (P.edge ? " tiles, meets the window edge" : " tiles") + (P.sea ? ", on the sea" : "");
+    return P;
+  };
   int nSet = 0, noRoad = 0, nPoi = 0, poiMiss = 0;
   for (auto& kv : all) {
     const SitePlan& p = kv.second;
@@ -291,11 +318,18 @@ int reachWindow(EndlessSource& A, uint64_t seed, int32_t wx0, int32_t wy0, const
       bool ok = p.type == SiteType::Cave ? reached(p.ex, p.ey, p.ex + 1, p.ey + 2) : reached(p.gx - 1, p.gy - 1, p.gx + p.w + 1, p.gy + p.h + 1);
       bool story = (p.flags & SPF_MAINQUEST) || p.type == SiteType::DragonLair;
       // (M2) the wayside places and the wonders are walked to from the road
-      const bool wayside = p.type == SiteType::Vignette || p.type == SiteType::Wonder;
+      // (M10) the sea's own places are reached from the water, not the road: an uncharted islet's place (SPF_ISLET) and
+      // a wreck on a reef, a sandbar or a beach pocket under the cliffs
+      const bool seaPlace = (p.flags & SPF_ISLET) || (p.type == SiteType::Vignette && p.kind == (uint8_t)VignetteKind::Shipwreck);
+      const bool wayside = (p.type == SiteType::Vignette || p.type == SiteType::Wonder) && !seaPlace;
       if (!ok) {
         poiMiss++;
         if (story) fail(std::string(siteTypeName(p.type)) + " " + p.name + " (story site) is not reachable from the roads");
-        else if (wayside) fail(std::string(poiKindName(p.type, p.kind)) + " " + p.name + " is not reachable from the roads");
+        else if (wayside) {
+          const Patch P = patchOf(p.gx - 1, p.gy - 1, p.gx + p.w + 1, p.gy + p.h + 1);
+          if (!(P.sea && !P.edge))
+            fail(std::string(poiKindName(p.type, p.kind)) + " " + p.name + " is not reachable from the roads (at " + std::to_string(p.gx) + "," + std::to_string(p.gy) + ";" + P.text + ")");
+        }
       }
     }
   }
@@ -919,10 +953,18 @@ int endlessSeed(uint64_t seed, const char* mapDir, bool quick, bool budget) {
     // a second window far out on another stretch of land (a sampled place away from the start plan)
     int32_t fx = 0, fy = 0;
     bool land = false;
+    // (M10: many lands now, some of them wild - a high or rocky isle with no settlement and so no road - so the window
+    // wants a settled stretch: a settlement planned within 400 tiles of the sampled place)
     for (int k = 0; k < 3000 && !land; k++) {
       int32_t x = 9000 + (int32_t)((seed * 1531) % 7000) + (k % 50) * 512, y = -8000 + (k / 50) * 512;
       MacroSample m = A.macroFar(x, y);
-      if (!m.water && m.elev > ELEV_SEA + 3000 && !A.macroFar(x + 300, y).water && !A.macroFar(x, y + 300).water) { land = true; fx = x; fy = y; }
+      if (m.water || m.elev <= ELEV_SEA + 3000 || A.macroFar(x + 300, y).water || A.macroFar(x, y + 300).water) continue;
+      bool settled = false;
+      for (int ry = regionOf(y - 400); ry <= regionOf(y + 400) && !settled; ry++)
+        for (int rx = regionOf(x - 400); rx <= regionOf(x + 400) && !settled; rx++)
+          for (const SitePlan& p : A.region(rx, ry).sites)
+            if (isSettle(p.type) && (int64_t)(p.ex - x) * (p.ex - x) + (int64_t)(p.ey - y) * (p.ey - y) < 400ll * 400ll) { settled = true; break; }
+      if (settled) { land = true; fx = x; fy = y; }
     }
     if (land) {
       std::map<Gid, SitePlan> far;

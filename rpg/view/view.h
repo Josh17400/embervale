@@ -799,4 +799,33 @@ class View {
   void drawSpellsPage(Game& g);                // menuTab_ == kSpellsTab
   void spellsPageKey(Game& g, int key);
   void spellsPageTap(Game& g, Vec2 p);
+
+  // ---- M10 Beyond the Mist (VISION_PLAN 2.12, 15.4, 15.31). One block, the ART lane's (rpg/view/render_sea.cpp + its
+  //      own new files; view.h itself is frozen: the state lives in the opaque SeaViewState, View's internals are
+  //      reached through the friend SeaViewOps). The sea on screen and in the ear: waves, foam and the shore's surf on
+  //      the water, wakes, the boats (each culture's ships, the one aboard with the hero on deck, moored ones, ferries,
+  //      pirates), the Mist's fog, storms (rain, lightning, the darkened sky), the sea creatures' splashes, the
+  //      sail HUD (wind, heading, hull, speed) and the fishing panel (cast, bite, the reel's tension), the sea's sounds.
+ public:
+  struct SeaViewStats {      // last frame's counts (scripts `expect seaview`, --perf, the sea gallery)
+    int boats = 0, waveTiles = 0, foamTiles = 0, wakes = 0, mistPuffs = 0, rainDrops = 0;
+    double ms = 0;           // the sea draw's own time last frame (ms)
+  };
+  SeaViewStats seaViewStats() const;
+  struct SeaViewState;       // (render_sea.cpp)
+ private:
+  friend struct SeaViewOps;  // (render_sea.cpp and the ART lane's other sea files)
+  std::shared_ptr<SeaViewState> seaView_;
+  void seaEvent(Game& g, const Event& e);      // Ev::Sea (the update's event pass, spawnParticles)
+  void seaUpdate(Game& g, float dt);           // age wakes, splashes, rain, lightning (update, after magicUpdate)
+  void seaShift(Vec2 d);                       // Ev::WindowShift: wakes and splashes move with the window
+  void drawSeaWater(Game& g, Vec2 cam);        // world space over the terrain, under the bodies: waves, foam, wakes
+  // the sorted pass: push(y, idx) entries for the boats (and anything else of the sea that stands up: a serpent's
+  // coils, a mast); drawSeaSorted draws entry idx when its turn comes (Drawable kind 10)
+  void seaSorted(Game& g, Vec2 cam, const std::function<void(float, int)>& push);
+  void drawSeaSorted(Game& g, int idx, Vec2 cam);
+  void seaLights(Game& g, const std::function<void(Vec2, float, Color, float)>& light);   // drawLighting: lanterns, the lighthouse
+  void drawSeaOver(Game& g, Vec2 cam);         // world space after the lighting and weather: the Mist, storm rain, lightning
+  void drawSeaHud(Game& g);                    // screen space (drawHud, under the vitals pass): the sail and fishing panels
+  void seaFillInput(Game& g, Input& in);       // the HUD's input pass (after the quick-cast slots): Input::reel
 };

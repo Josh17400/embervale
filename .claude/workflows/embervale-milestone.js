@@ -15,13 +15,16 @@ const NOTES = (args && args.notes) || ''
 
 const CTX = `
 You are on the EMBERVALE team: a procedural open-world 2D pixel RPG ("Skyrim in 2D pixels"), C++20/SDL3, iPhone-first.
-Repo: C:\\Users\\joshu\\Documents\\Code Stuff\\tailspin (github.com/Josh17400/embervale). The game ships as a web build (Emscripten,
+Repo: C:\\Users\\joshu\\Documents\\embervale (github.com/Josh17400/embervale). The game ships as a web build (Emscripten,
 .github/workflows/web.yml -> GitHub Pages, played from the iPhone Home Screen) and a Windows exe. ALL art and audio are generated in code.
 Read docs/VISION_PLAN.md (especially the milestone ${M} section and section 15, the owner addendum, which wins on conflicts) and docs/PLAN.md.
 Tools: build with  cmd //c "set BDIR=<dir>&& tools\\\\build.bat <target>"  (targets: embervale, rpg_test, save_test, art_preview).
 rpg_test --seeds 1..20 ; save_test ; embervale.exe --script tools/scripts/<x>.txt (see rpg/main.cpp header for the script language and flags
 like --play --seed --goto --enter --fight --hour --menu --shot --after).
 Batch scripts: tools/run_scripts.sh [prefix_ ...] (only failures printed). Test what you changed; the full sweep runs once per milestone.
+TEST ONCE (owner rule, non-negotiable): the check of every system in the game runs exactly ONCE per milestone, by the integrator.
+Nobody else re-tests the whole game, and nobody re-runs the same check twice "to be sure". Re-running a check is fine only after you
+changed code it covers. Past milestones took 24 h instead of 5 h because every round re-tested everything; do not repeat that.
 OWNER QUALITY BAR (non-negotiable): the 2D graphics must look really good - commercial 16-bit quality. Walls connect seamlessly
 (no gaps, orphan pieces or broken corners, including curved/diagonal runs and gate joins); buildings have depth and dimension
 (visible side walls/thickness, foundations, eave overhangs, roof volume with light and shadow, cast shadows, consistent 3/4 top-down
@@ -54,8 +57,9 @@ const LANES_SCHEMA = {
           bdir: { type: 'string' },
           owns: { type: 'array', items: { type: 'string' } },
           brief: { type: 'string' },
+          kind: { type: 'string', enum: ['code', 'visual'] },
         },
-        required: ['name', 'bdir', 'owns', 'brief'],
+        required: ['name', 'bdir', 'owns', 'brief', 'kind'],
       },
     },
   },
@@ -72,7 +76,9 @@ Then split the rest of ${M} into 2-4 parallel LANES with STRICTLY DISJOINT file 
 already prepared should not need further edits - if a lane must touch a shared file, give exactly one lane that file).
 Make each lane's brief self-contained and concrete (tasks, acceptance checks, scripts/screenshots it must produce, the quality bar).
 If the owner notes add work not covered by the plan (e.g. visual quality fixes), assign it to the best lane or a dedicated lane.
-Give each lane its own bdir (build_<name>). Return leadReport + lanes.`, { label: `${M}-lead`, phase: 'Lead', effort: 'high', schema: LANES_SCHEMA })
+Give each lane its own bdir (build_<name>) and a kind: "visual" for art/audio/render/UI-look lanes, "code" for everything else.
+Record your contracts in docs/VISION_PLAN.md as the next 15.x section and the milestone entry in docs/PLAN.md, like earlier milestones.
+Return leadReport + lanes.`, { label: `${M}-lead`, phase: 'Lead', agentType: 'engineer-high', schema: LANES_SCHEMA })
 
 if (!lead || !lead.lanes || !lead.lanes.length) return { error: 'lead produced no lanes', lead }
 log(`${lead.lanes.length} lanes: ${lead.lanes.map(l => l.name).join(', ')}`)
@@ -88,7 +94,7 @@ YOUR BRIEF:
 ${l.brief}
 
 Build and test in your BDIR (rpg_test --seeds 1..20 must stay green; save_test green). Verify visuals with screenshots and iterate to
-the quality bar.`, { label: `${M}-lane-${l.name}`, phase: 'Lanes', effort: 'medium' })))
+the quality bar.`, { label: `${M}-lane-${l.name}`, phase: 'Lanes', agentType: l.kind === 'visual' ? 'artist' : 'engineer' })))
 
 const lanesText = lead.lanes.map((l, i) => `### ${l.name}\n${laneReports[i] || '(lane returned nothing)'}`).join('\n\n')
 
@@ -108,7 +114,7 @@ Return a concise integration report with test numbers and a list of known open p
 LEAD: ${lead.leadReport}
 
 LANES:
-${lanesText}`, { label: `${M}-integrate`, phase: 'Integrate', effort: 'medium' })
+${lanesText}`, { label: `${M}-integrate`, phase: 'Integrate', agentType: 'engineer' })
 
 phase('Review')
 const FINDINGS = {
@@ -134,35 +140,58 @@ const LENSES = [
   { key: 'bugs', text: 'CORRECTNESS of what this milestone changed: crashes, logic bugs, save compatibility, soft-locks, quest breakage, AI pathologies. Start from the diff (git diff HEAD --stat, then the files) and only test areas the diff touches or directly feeds; run targeted repro scripts/tests. Do not tour unrelated systems - the integrator already ran the full regression sweep.' },
   { key: 'look', text: "VISUAL QUALITY + PLAYER FEEL + PLATFORM, for what this milestone added or changed only (check git diff HEAD --stat to see what that is). (a) Screenshot those features in the situations they appear (day/night, phone and desktop, a few seeds) against the owner bar: flag anything cheap, broken, disconnected, flat, inconsistent or repetitive - commercial quality is the bar. (b) Play scripted sessions that use them as a phone player would (touch taps via script, small-screen readability, UI hit targets, clarity of what to do). (c) clang/Emscripten portability and --perf of the changed code. Do not tour or replay unrelated parts of the game." },
 ]
-const fixes = []
-const seen = new Set()
-for (let round = 1; round <= 2; round++) {
-  const found = (await parallel(LENSES.map(ls => () => agent(`${CTX}
-
-You are a REVIEWER for ${M} (round ${round}), lens: ${ls.text}
-Do not edit code. Report only real, verified problems you observed (with repro/screenshot evidence in "detail"). Severity "must" = should
-block shipping or clearly misses the quality bar; "should" = worth fixing soon. Skip anything already fixed.
-Integration report for context:
-${integ}`, { label: `${M}-review-${ls.key}-r${round}`, phase: 'Review', effort: 'medium', schema: FINDINGS }))))
-    .filter(Boolean).flatMap(r => r.findings)
-  const fresh = found.filter(f => { const k = (f.title + '|' + f.where).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true })
-  const must = fresh.filter(f => f.severity === 'must')
-  log(`review round ${round}: ${fresh.length} new findings, ${must.length} must-fix`)
-  if (!fresh.length) break
-  const fix = await agent(`${CTX}
+const REVIEWER_TYPE = { bugs: 'code-reviewer', look: 'eyes' }
+const fixPrompt = (round, findings) => `${CTX}
 
 You are the FIXER for ${M}, round ${round}. BDIR=build. Fix every "must" finding below and as many "should" findings as are safe.
 For each, verify the fix with TARGETED checks only: the test suites and scripts that cover the files you changed, this milestone's own
-scripts ('tools/run_scripts.sh <milestone prefix>_', e.g. m8b_), and any script that failed before. At the end run the fast core:
+scripts ('tools/run_scripts.sh <milestone prefix>_', e.g. m10_), and any script that failed before. At the end run the fast core ONCE:
 rpg_test --seeds 1..20, save_test, --golden, --endless --golden, --towns --golden. Do NOT run the whole tools/scripts/ sweep or
-replay unrelated content (homes, sieges, unrelated quests, town tours) unless your change touched that code; the main session runs
-one full sweep before shipping.
-Report: per finding fixed / not fixed (why).
+replay unrelated content (homes, sieges, unrelated quests, town tours) unless your change touched that code. The full sweep already ran
+once (integrator) and does not run again.
+Report: per finding fixed / not fixed (why), and the exact checks you ran.
 
 FINDINGS:
-${JSON.stringify(fresh, null, 1)}`, { label: `${M}-fix-r${round}`, phase: 'Review', effort: 'medium' })
-  fixes.push({ round, findings: fresh, fix })
-  if (!must.length) break
+${JSON.stringify(findings, null, 1)}`
+
+const fixes = []
+// Round 1: the one full review of what the milestone changed (diff-scoped, two lenses).
+const found = (await parallel(LENSES.map(ls => () => agent(`${CTX}
+
+You are a REVIEWER for ${M}, lens: ${ls.text}
+Do not edit code. Check each feature once. Report only real, verified problems you observed (with repro/screenshot evidence in "detail").
+Severity "must" = should block shipping or clearly misses the quality bar; "should" = worth fixing soon.
+Integration report for context:
+${integ}`, { label: `${M}-review-${ls.key}`, phase: 'Review', agentType: REVIEWER_TYPE[ls.key], schema: FINDINGS }))))
+  .filter(Boolean).flatMap(r => r.findings)
+const seen = new Set()
+const fresh = found.filter(f => { const k = (f.title + '|' + f.where).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true })
+log(`review: ${fresh.length} findings, ${fresh.filter(f => f.severity === 'must').length} must-fix`)
+
+if (fresh.length) {
+  const fix1 = await agent(fixPrompt(1, fresh), { label: `${M}-fix-r1`, phase: 'Review', agentType: 'engineer' })
+  fixes.push({ round: 1, findings: fresh, fix: fix1 })
+
+  // Round 2: re-check ONLY the round-1 findings and the code the fixer touched. No new tour of the milestone or the game.
+  const recheck = await agent(`${CTX}
+
+You are the RE-CHECKER for ${M}. Do not edit code. Verify ONLY the findings below against the fixer's report: for each one, run the
+single repro/check that proves it fixed or not (one run each), and look for breakage in the code the fixer touched (git diff since the
+fixer started is in its report; use git diff HEAD on those files). Do not re-review the milestone, do not run the full sweep, do not
+re-run the fast core unless a fix you are checking changed generation or saves. Return only findings that are still broken or newly
+broken by the fixes.
+
+FINDINGS:
+${JSON.stringify(fresh, null, 1)}
+
+FIXER REPORT:
+${fix1}`, { label: `${M}-recheck`, phase: 'Review', agentType: 'verifier', schema: FINDINGS })
+  const left = (recheck && recheck.findings) || []
+  log(`recheck: ${left.length} still open, ${left.filter(f => f.severity === 'must').length} must-fix`)
+  if (left.some(f => f.severity === 'must')) {
+    const fix2 = await agent(fixPrompt(2, left), { label: `${M}-fix-r2`, phase: 'Review', agentType: 'engineer-high' })
+    fixes.push({ round: 2, findings: left, fix: fix2 })
+  }
 }
 
 return { milestone: M, lead: lead.leadReport, lanes: lead.lanes.map(l => l.name), integrate: integ, reviewRounds: fixes }

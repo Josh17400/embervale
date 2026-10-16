@@ -1,0 +1,57 @@
+# M10 SEA lane: the verification's sail.txt screenshots (VISION_PLAN 13 M10 "what the owner sees on the phone"): a
+# rowboat in the shallows, a sloop out of a harbour, open sea, a storm, islands, the Mist turning a boat back, the Mist
+# parting for the chart, and first contact on a land nobody knew.
+#   embervale.exe --script tools/scripts/m10_sea_sail.txt     (m10_sea_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 10
+# a rowboat on the shallows by the start
++0.2 sea shore
++0.3 boat give rowboat 12
++0.1 boat board
++0.1 expect sea aboard 1
++1.2 shot m10_sea_rowboat.png
+# a sloop out of the nearest harbour, under sail
++0.2 sea port
++0.6 boat give sloop 16
++0.1 boat board
++0.1 expect sea aboard 1
++0.1 sea helm out
++5   expect sea speed 0.5
++0.1 shot m10_sea_sloop.png
++0.1 sea helm off
+# open sea well off the Mist (wind on the water, the sail drawing), then a storm coming in
++0.3 sea mistedge
++0.2 expect sea aboard 1
++0.1 sea face 180
++0.1 sea helm 200
++3   shot m10_sea_open.png
++0.1 sea helm off
++0.1 sea storm 1
++12  expect sea storm 1
++0.1 shot m10_sea_storm.png
+# islands: off the coast of the nearest archipelago
++0.3 sea isle
++0.2 expect sea aboard 1
++1.5 shot m10_sea_isles.png
+# the Mist turns a chartless boat back
++0.3 sea mistedge
++0.2 expect sea aboard 1
++0.1 sea helm land
++14  expect sea mist 0.05
++0.1 shot m10_sea_mist.png
++20  expect sea turned 1
++0.1 shot m10_sea_turned.png
+# ...and parts for the chart
++0.3 sea mistedge
++0.2 sea chart
++0.1 sea helm land
++14  expect sea mist 0.05
++0.1 expect sea turned 0
++0.1 shot m10_sea_parting.png
+# first contact: the hero's feet on the hidden land
++0.3 sea land
++1.5 expect sea landed 1
++0.1 shot m10_sea_contact.png
++0.5 log m10_sea_sail done

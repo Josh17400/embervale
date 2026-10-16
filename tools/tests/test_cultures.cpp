@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 #include "rpg/culture/culture.h"
+#include "rpg/sim/craft.h"
 #include "rpg/world/ids.h"
 #include "rpg/world/source.h"
 #include "tools/tests/tests.h"
@@ -261,6 +262,85 @@ int cmdCultures(int argc, char** argv) {
           c.name.c_str(), c.adjective.c_str(), pl.c_str(), pe.c_str(), cult::kingdomName(c, 5).c_str(), al.c_str(), go.c_str(),
           cult::dungeonName(c, 9, 4).c_str(), cult::dungeonName(c, 11, 5).c_str());
     }
+  }
+  {   // (M10) the hidden peoples: isolated, their masterwork smelted with a reagent only their land yields (a name and a
+      // look no mainland alloy has), and it smelts and forges through the crafting chain
+    int hiddenN = 0, crafted = 0;
+    for (uint64_t seed = A; seed <= B; seed++) {
+      ew::EndlessSource src(seed);
+      std::set<std::string> mainNames;
+      std::set<uint32_t> mainColours;
+      for (int j = -4; j <= 4; j++)
+        for (int i = -4; i <= 4; i++) {
+          const cult::Culture& c = src.atlas().family(i, j);
+          if (c.hidden) { out("FAIL: cultures: seed %llu: mainland family %d,%d is hidden\n", (unsigned long long)seed, i, j); bad++; }
+          for (const cult::Alloy& x : c.arms.alloys) {
+            mainNames.insert(x.name);
+            mainColours.insert(x.color);
+            for (const cult::Ingredient& g : x.recipe)
+              if (g.ore < 0 && cult::isHiddenReagent(g.reagent)) { out("FAIL: cultures: seed %llu: a mainland alloy needs %s\n", (unsigned long long)seed, g.reagent.c_str()); bad++; }
+          }
+        }
+      for (const ew::LandPlan& L : src.landsIn(-16000, -16000, 16000, 16000)) {
+        if (!L.hidden || !src.landAt(L.cx, L.cy)) continue;
+        const cult::Culture& c = src.culture(src.cultureAt(L.cx, L.cy));
+        hiddenN++;
+        if (!c.hidden || c.hiddenLand != L.id || !c.isolated || c.arms.alloys.empty()) {
+          out("FAIL: cultures: seed %llu: hidden land %u's people: hidden %d land %u isolated %d\n", (unsigned long long)seed, L.id, c.hidden, c.hiddenLand, c.isolated);
+          bad++;
+          continue;
+        }
+        const cult::Alloy& M = c.arms.alloys.back();
+        std::string reagent;
+        for (const cult::Ingredient& g : M.recipe) if (g.ore < 0) reagent = g.reagent;
+        if (!cult::isHiddenReagent(reagent) || mainNames.count(M.name) || mainColours.count(M.color)) {
+          out("FAIL: cultures: seed %llu: %s's masterwork %s (%s) is not of the hidden lands\n", (unsigned long long)seed, c.name.c_str(), M.name.c_str(), reagent.c_str());
+          bad++;
+        }
+        if (src.geology(L.cx, L.cy).mistOre == 0) { out("FAIL: cultures: seed %llu: no mist reagent in hidden land %u's ground\n", (unsigned long long)seed, L.id); bad++; }
+        // smelt it and forge a piece in it (craft.cpp)
+        const uint8_t ai = (uint8_t)c.arms.alloys.size();
+        const std::vector<craft::Recipe> rs = craft::cultureRecipes(c);
+        const craft::Recipe* smelt = nullptr;
+        const craft::Recipe* forge = nullptr;
+        for (const craft::Recipe& r : rs) {
+          if (r.alloy != ai) continue;
+          if (!r.gear() && r.out == craft::Stuff::AlloyIngot && !smelt) smelt = &r;
+          if (r.gear() && !forge) forge = &r;
+        }
+        if (!smelt || !forge) { out("FAIL: cultures: seed %llu: no smelting / forging of %s\n", (unsigned long long)seed, M.name.c_str()); bad++; continue; }
+        craft::Knowledge k;
+        k.skill = 1000;
+        craft::learnSecret(k, c, ai, craft::SecretKind::AlloyRecipe, 100, craft::HOW_QUEST);
+        craft::learnSecret(k, c, 0, craft::SecretKind::WeaponPattern, 100, craft::HOW_QUEST);
+        craft::learnSecret(k, c, 0, craft::SecretKind::ArmourPattern, 100, craft::HOW_QUEST);
+        craft::learnSecret(k, c, ai, craft::SecretKind::WeaponPattern, 100, craft::HOW_QUEST);
+        craft::learnSecret(k, c, ai, craft::SecretKind::ArmourPattern, 100, craft::HOW_QUEST);
+        std::vector<Item> inv;
+        for (int t = 0; t < 4; t++)
+          for (const craft::Need& nd : smelt->in) inv.push_back(craft::makeStuff(nd.stuff, nd.count, nd.culture, nd.alloy, &c));
+        Rng rng(seed * 77u + L.id);
+        Item ingot, piece;
+        std::string why;
+        bool ok = craft::make(*smelt, inv, k, rng, 20, &c, ingot);
+        if (ok) {
+          for (const craft::Need& nd : forge->in)
+            if (nd.stuff != craft::Stuff::AlloyIngot) inv.push_back(craft::makeStuff(nd.stuff, nd.count * 2, nd.culture, nd.alloy, &c));
+          for (int t = 0; t < 6; t++) {
+            Item more = ingot;
+            more.count = std::max(1, ingot.count);
+            inv.push_back(more);
+          }
+          ok = craft::canMake(*forge, inv, k, &why) && craft::make(*forge, inv, k, rng, 20, &c, piece);
+        }
+        if (!ok) { out("FAIL: cultures: seed %llu: %s cannot be smelted and forged (%s)\n", (unsigned long long)seed, M.name.c_str(), why.c_str()); bad++; continue; }
+        crafted++;
+        if (seed == A) out("cultures: hidden people %s of %s: masterwork %s (%s), smelted to %s, forged into %s\n", c.name.c_str(), L.name.c_str(),
+                           M.name.c_str(), reagent.c_str(), ingot.name.c_str(), piece.name.c_str());
+      }
+    }
+    out("cultures: %d hidden peoples, %d masterworks smelted and forged\n", hiddenN, crafted);
+    if (!hiddenN) { out("FAIL: cultures: no hidden people round the start\n"); bad++; }
   }
   {   // unit costs: a whole culture (Atlas::make) and one name
     auto t0 = std::chrono::steady_clock::now();

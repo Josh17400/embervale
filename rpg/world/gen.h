@@ -58,6 +58,11 @@ inline bool isSettlement(SiteType t) { return t == SiteType::City || t == SiteTy
 // local ids of the start plan's sites (makeStart): settlements and first-hour sites 0xF00.., forced vignettes 0xF10..,
 // a forced wonder 0xF20
 constexpr uint32_t LOCAL_FORCED_VIG = 0xF10, LOCAL_FORCED_WONDER = 0xF20;
+// (M10) a hidden land's people live in a VIRTUAL culture cell: the cell holding the land's centre, shifted this many
+// cells east (cult::familyId keeps 14 bits a side); culture_map.cpp's climate callback maps it back and marks it hidden
+constexpr int32_t HIDDEN_CCELL_OFF = 4096;
+// (M10) sea sites' local ids (sea_world.cpp planSea): 0xE00 + n
+constexpr uint32_t LOCAL_SEA = 0xE00;
 
 // ---- relief levels (VISION_PLAN 11.1): H = clamp((E - H_BASE) / H_STEP, 0, 7)
 constexpr int32_t H_BASE = Q(0.335), H_STEP = Q(0.068);
@@ -252,6 +257,17 @@ struct EndlessSource::Impl {
 
   // ================================================================ L0 (macro.cpp)
   int32_t continent(int32_t x, int32_t y);                        // C, Q16
+  // (M10) phase A's continent field (no home ring, no hidden lands, no caps): the culture atlas's climate samples read
+  // it while legacyLand is set (culture_map.cpp), so the mainland's peoples stay bit-identical; the memoised geology
+  // and province rock are neither read nor written meanwhile
+  int32_t continentLegacy(int32_t x, int32_t y);
+  bool legacyLand = false;
+  struct LegacyLand {
+    Impl& I;
+    bool was;
+    explicit LegacyLand(Impl& i, bool on) : I(i), was(i.legacyLand) { I.legacyLand = on; }
+    ~LegacyLand() { I.legacyLand = was; }
+  };
   // ridge strength 0..1, rift 0..1; (M2) pair: the two nearest plate cells (a ridge system / rift is one pair), packed
   void plates(int32_t x, int32_t y, int32_t& ridge, int32_t& rift, uint64_t* pair = nullptr);
   struct PlatePt { int32_t x, y; uint64_t h; };
@@ -319,6 +335,8 @@ struct EndlessSource::Impl {
   int habitability(SiteType t, int32_t x, int32_t y, int* levelOut);   // 0..256 (0: not buildable)
   struct Cand { bool ok = false; int32_t x = 0, y = 0; uint32_t seed = 0; };
   Cand settleCand(SiteType t, int32_t cx, int32_t cy);              // raw lattice candidate (town / village)
+  // (M10) a coastal town cell's port: a spot in the cell's window by the shore (false: not coastal, or no spot)
+  bool portPull(int32_t cx, int32_t cy, uint64_t h, int32_t& x, int32_t& y);
   bool settleNode(SiteType t, int32_t cx, int32_t cy, gen::Node& out);   // the candidate, if it survives suppression
   void nodesIn(int32_t x0, int32_t y0, int32_t x1, int32_t y1, std::vector<gen::Node>& out);   // every settlement
   void makeStart();
@@ -337,6 +355,9 @@ struct EndlessSource::Impl {
   std::unordered_map<uint64_t, std::pair<bool, gen::Node>> nodeMemo;
   std::unordered_map<uint64_t, Poi> poiMemo;
   std::unordered_map<uint64_t, std::pair<bool, Poi>> lairMemo;
+  // (M10) the legacy climate's own memos (culture_map.cpp: pure values of phase A's land, never shared)
+  std::unordered_map<uint64_t, KCell> kcellsLegacy;
+  std::unordered_map<uint64_t, std::pair<bool, Poi>> lairMemoLegacy;
   std::unordered_map<Gid, KingdomPlan> kingdoms;
   gen::Lru<gen::RegionData> regions;
   std::shared_ptr<const gen::RegionData> lastRegion;   // keeps region()'s reference valid until the next call
@@ -354,11 +375,83 @@ struct EndlessSource::Impl {
 
   // ================================================================ M2 geology (geology.cpp)
   Geology geology(int32_t x, int32_t y);                            // the province's (memoised per province)
-  std::unordered_map<uint64_t, Geology> geoMemo;
+  std::unordered_map<uint64_t, Geology> geoMemo, geoMemoLegacy;
   Rock provinceRock(int32_t x, int32_t y);                          // (M3c) geology(x, y).rock without the ores (no kingdoms asked)
-  std::unordered_map<uint64_t, Rock> rockMemo;
+  std::unordered_map<uint64_t, Rock> rockMemo, rockMemoLegacy;
   uint32_t landmass(int32_t x, int32_t y);                          // the landmass rule (geology.cpp)
   std::unordered_map<uint64_t, uint32_t> landMemo;                  // 128-tile land cell -> landmass id
+
+  // ================================================================ M10 the lands, the Mist, the seas (sea_world.cpp)
+  // the land of an LCELL continent cell: the same draw continent() makes (kind, centre, radius), plus the hidden flag
+  // and the Mist ring (memoised; ok false: an Ocean cell). WORLD lane: continent() and landCell must stay in agreement.
+  LandPlan landCell(int32_t cellX, int32_t cellY, bool* ok = nullptr);
+  std::unordered_map<uint64_t, std::pair<bool, LandPlan>> landCellMemo;
+  uint32_t landAt(int32_t x, int32_t y);
+  uint32_t hiddenLandAt(int32_t x, int32_t y);
+  int32_t mistAt(int32_t x, int32_t y);
+  SeaKind seaAt(int32_t x, int32_t y);
+  // (M10 WORLD lane) the draw of one LCELL cell that continent() and landCell share: kind (0 Continent, 1 Archipelago,
+  // 2 Ocean), centre, radius, hidden. Phase A's raw draw everywhere but round the origin: the HOME RING (the 5 x 5 cells
+  // round it) carries the per-seed guarantees (a second continent across open sea, a hidden land within reach), and a
+  // hidden land is shrunk until open water sets it apart from every other land (MIST_RING + 200 tiles past its coast).
+  struct LandDraw { int8_t kind = 2; bool hidden = false; int32_t px = 0, py = 0, R = 0; uint64_t h = 0; };
+  LandDraw rawDraw(int32_t cx, int32_t cy);             // phase A's draw (continent() before M10)
+  LandDraw preDraw(int32_t cx, int32_t cy);             // + the home ring (no hidden shrink)
+  const LandDraw& landDraw(int32_t cx, int32_t cy);     // the final draw (memoised; the reference lasts until the next call)
+  struct DrawSlot { bool used = false; int32_t cx = 0, cy = 0; LandDraw d; };
+  DrawSlot drawSlots[1024];
+  struct HomePlan {
+    bool ready = false;
+    int k2 = 0, kH = 4;                                  // the home-ring directions (0 E, 1 SE, 2 S ... 7 NE)
+    int32_t c2x = 0, c2y = 0, R2 = 0;                    // continent 2
+    int32_t hx = 0, hy = 0, RH = 0;                      // the hidden land of the home ring
+    int32_t p0x = 0, p0y = 0, p1x = 0, p1y = 0;          // the strait between the mainland and continent 2 (kept open)
+    // the start's harbour (VISION_PLAN 15.4; a harbour within ~2500 tiles of every start): the nearest shore of the
+    // mainland, or, where it lies further out, a FIRTH (a long sea loch) cut in from it to ~2050 tiles from the origin;
+    // a port town is forced on its bank near portTx / portTy (region.cpp makeStart)
+    bool firthReady = false, firthBusy = false;          // (firthPlan: planned once, on first need)
+    bool firth = false;
+    int32_t fx[5] = {}, fy[5] = {};                      // the firth's middle line, tip (0) to mouth (4)
+    int32_t fBox[4] = {};                                // its bounding box + its widest reach (x0, y0, x1, y1)
+    int32_t portTx = 0, portTy = 0;
+  } home;
+  int32_t firthCut(int32_t x, int32_t y);
+  bool noFirth = false;                                  // (kcell: the seats are chosen on the land without it)
+  const HomePlan& firthPlan();                          // the home plan with the start's harbour planned               // how much the firth lowers the continent field here (Q16)
+  const HomePlan& homePlan();
+  int32_t homeGap(int32_t c2x, int32_t c2y, int32_t R2);   // the strait's width on the continent field (sea_world.cpp)
+  // the land shape bounds (Q16 radii): a land's tiles lie within SHAPE_HI of its centre (hidden: HID_HI)
+  static constexpr int32_t SHAPE_LO = 70779, SHAPE_HI = 77332;    // 1.08, 1.18
+  static constexpr int32_t HID_LO = 64225, HID_HI = 73400;        // 0.98, 1.12
+  // the hidden land whose shape bound holds (x, y) (its tiles and the sea round them inside 1.12 r), 0: none
+  uint32_t hiddenShapeAt(int32_t x, int32_t y);
+  uint32_t hiddenNear(int32_t x, int32_t y, int32_t pad);   // a hidden land whose Mist ring + pad holds (x, y), 0: none
+  // M10: is this tile land as the coast really runs (the elevation with the coast detail; cache-independent)
+  bool landTile(int32_t x, int32_t y);
+  // M10 sea POIs (sea_world.cpp): the sea pass of a region plan (wrecks, lighthouses, islets, sea caves, pirate coves,
+  // the chart places and trials that fall in it, merrow dens)
+  void planSea(int32_t rx, int32_t ry, gen::RegionData& D, const std::vector<gen::Node>& nodes);
+  bool seaLand(int32_t x, int32_t y);                      // land as the chunks have it (waterE: the sea only)
+  bool wreckFits(int32_t x, int32_t y);                    // a beached wreck's 3x2 (sea_places.cpp)
+  bool seaCaveFits(int32_t x, int32_t y);                  // a sea cave's mouth (the water before it, the crag behind)
+  bool headlandFits(int32_t x, int32_t y);                 // a lighthouse's headland
+  bool lighthouseOf(const gen::Node& n, int32_t& x, int32_t& y);   // a harbour's lighthouse (memoised)
+  std::unordered_map<Gid, std::pair<bool, std::pair<int32_t, int32_t>>> lightMemo;
+  bool chartPlaces(uint32_t landId, SitePlan& wreck, SitePlan& cave);
+  bool trialOf(Gid kingdom, int which, SitePlan& out);
+  std::unordered_map<uint32_t, std::pair<bool, std::pair<SitePlan, SitePlan>>> chartMemo;
+  std::unordered_map<uint64_t, std::pair<bool, SitePlan>> trialMemo;
+  // M10 harbours: a port's pier head and berth (portsIn and the region plan agree; sea_world.cpp)
+  bool harbourOf(const gen::Node& n, PortPlan& P);
+  bool harbourPlan(const gen::Node& n, PortPlan& P, bool full);   // (no memo)
+  std::unordered_map<Gid, std::pair<bool, PortPlan>> portMemo;
+  bool harbourDeep(const PortPlan& P, int32_t x, int32_t y);   // a dredged tile (the basin, the moorings, the channel)
+  int32_t harbourDredgeLen(const PortPlan& P);                // the channel's length past the berth (0: not dredged)
+  std::unordered_map<Gid, int32_t> dredgeMemo;
+  // the harbour on one chunk: its ground and props (spawns null), or its keepers (into spawns, with the site's records)
+  void stampHarbour(const PortPlan& P, const SettlementOut* T, gen::Stamp& S, std::vector<SpawnPlan>* spawns);
+  // the culture id a hidden land's people take (a virtual culture cell, so mainland families stay bit-identical)
+  uint64_t hiddenFamily(uint32_t landId);
 
   // ================================================================ M2 wayside places and wonders (vignettes.cpp)
   // a vignette of one kind at a heart (and the layout direction the plan chose); false where the land does not take it
@@ -408,6 +501,8 @@ struct EndlessSource::Impl {
   void baseRectRows(int32_t x0, int32_t y0, int w, int h, gen::BaseRect& B, int yFrom, int yTo);
   void baseRectWater(gen::BaseRect& B);
   void chunk(int32_t cx, int32_t cy, ChunkData& out);
+  bool oceanChunk(int32_t cx, int32_t cy);   // (M10, sea_world.cpp) the open sea: the chunk's fast path applies
+  bool oceanFast = true;                     // (tests compare the fast path with the full pipeline)
   std::shared_ptr<SettlementOut> town(const SitePlan& p, std::shared_ptr<const gen::RegionData> D);
   // web streaming (no threads): a settlement built a phase at a time across frames (EndlessSource::prepareChunk)
   struct TownJob;

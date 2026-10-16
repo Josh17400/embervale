@@ -15,7 +15,7 @@ using art::Monster;
 using art::MonsterLook;
 const char* kNames[] = {"WOLF", "BOAR", "BEAR", "SLIME", "SPIDER", "BAT", "SKELETON", "DRAUGR", "GOBLIN", "TROLL", "WRAITH",
                         "MUDCRAB", "ICE WOLF", "RIME SPIDER", "SANDWORM", "DRAGON", "SCORPION", "HYENA", "LURKER", "YETI",
-                        "WISP", "EMBER HOUND", "BLIGHTSPAWN", "HARPY", "GOLEM"};
+                        "WISP", "EMBER HOUND", "BLIGHTSPAWN", "HARPY", "GOLEM", "SEA SERPENT", "KRAKEN", "MERROW"};
 static_assert(sizeof(kNames) / sizeof(kNames[0]) == (size_t)Monster::COUNT, "a name for every monster");
 
 Canvas cellOf(const Canvas& sheet, int cw, int chh, int f) {

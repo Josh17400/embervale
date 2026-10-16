@@ -1,0 +1,27 @@
+# M10 ART: a storm at sea and the sea's creatures. A sloop out of a port, a storm front coming in (the darkened sky,
+# slanting rain, lightning, the swell heaving, whitecaps), a pirate sloop closing in, then the serpent, the kraken and
+# a band of merrow round the boat (or round the hero washed ashore, if the pirates sank it).
+#   embervale.exe --script tools/scripts/m10_art_storm.txt     (m10_art_storm_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.2 sea port
++0.5 boat give sloop 16
++0.1 boat board
++0.1 sea helm 0
++2.5 sea helm off
++0.1 sea storm 1
++7   shot m10_art_storm_rising.png
++9   shot m10_art_storm_height.png
++0.1 expect seaview waves 20
++0.05 seaart stats
++0.1 sea spawn pirates
++3   shot m10_art_storm_pirates.png
++0.1 sea spawn serpent
++2.5 shot m10_art_storm_serpent.png
++0.1 sea spawn kraken
++3   shot m10_art_storm_kraken.png
++0.1 sea spawn merrow
++2   shot m10_art_storm_merrow.png
++0.5 log m10_art_storm done

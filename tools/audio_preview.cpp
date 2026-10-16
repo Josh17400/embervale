@@ -16,7 +16,11 @@
 // timbres in every scale, each checked for clipping, a peak under the limiter, its length, and that the launch and
 // impact stand clear of the Combat music on a phone speaker; a busy fight's worth of spell sounds at once stays limited.
 //
-//   audio_preview [outDir] [--cultures] [--wild] [--tavern] [--magic]   default outDir: %LOCALAPPDATA%\Temp\claude\embervale_audio;
+// M10 (ART lane): --sea: the sea's moments (every sea sfx) and the sea bed in its states (a sloop under way, a
+// rowboat at the oars, a harbour, a storm, the Mist and its turn-back), each checked for clipping, clicks and level
+// against the beds; the hidden kingdoms' three scales played as Town pieces.
+//
+//   audio_preview [outDir] [--cultures] [--wild] [--tavern] [--magic] [--sea]   default outDir: %LOCALAPPDATA%\Temp\claude\embervale_audio;
 //                                                  --cultures: only the culture pieces; --wild: only the beds and moods;
 //                                                  --tavern: only the tavern
 #include "engine/audio.h"
@@ -52,6 +56,8 @@ const char* kSfxName[(int)Sfx::COUNT] = {
   "SpellHum", "SpellCharge", "SpellFizzle", "FireCast", "FireBurst", "FrostCast", "FrostShatter", "StormCast", "Thunder",
   "HolyCast", "HolyBloom", "RiftTear", "SummonRise", "Shimmer", "DreamPulse", "StoneGrind", "StoneSlam", "StarChime",
   "MeteorFall", "WardRing", "Sizzle", "SpellMotif",
+  "WaveCrash", "SailFlap", "OarStroke", "ReelClick", "LineSnap", "FishPlop", "SerpentRoar", "KrakenRumble", "MerrowChatter",
+  "HullCrack", "MistWhisper", "MistChime", "ShipBell",
 };
 static_assert(sizeof(kSfxName) / sizeof(kSfxName[0]) == (size_t)Sfx::COUNT, "a name for every Sfx");
 const char* kMusicName[(int)Music::COUNT] = {"Silence", "Title", "Wild", "Night", "Town", "Cave", "Combat", "Boss", "Tavern"};
@@ -554,6 +560,76 @@ int tavernPieces(const fs::path& dir) {
 
 // (M9 SPELLFX) the spells' voices: each school's life (wind-up hum, an upcast step, the launch, the impact) rendered
 // as one take, the motif of every timbre in every scale, and a busy fight (eight launches and impacts over Combat)
+int seaSounds(const fs::path& dir) {
+  int problems = 0;
+  std::printf("\n%-13s %6s %7s %8s %7s %5s %9s\n", "SEA SFX", "dur s", "peak", "peak dB", "rms dB", "clip", "phone dB");
+  for (int s = (int)Sfx::WaveCrash; s < (int)Sfx::COUNT; s++) {
+    auto a = std::make_unique<Audio>();
+    a->play((Sfx)s);
+    auto x = renderSfx(*a);
+    const Levels L = levels(x);
+    const float phone = loudness(phoneSpeaker(x)).maxWin;
+    std::printf("%-13s %6.2f %7.3f %8.1f %7.1f %5d %9.1f\n", kSfxName[s], L.activeDur, L.peak, db(L.peak), db(L.activeRms), L.clipped, db(phone));
+    if (L.clipped || L.peak < 0.02f || L.activeDur < 0.02f) { std::printf("  ^ PROBLEM\n"); problems++; }
+    writeWav(dir / (std::string("sfx_") + kSfxName[s] + ".wav"), x);
+  }
+  struct State { const char* name; Audio::SeaSound s; };
+  State st[6];
+  st[0].name = "sloop";    st[0].s.open = 0.9f; st[0].s.wind = 0.8f; st[0].s.creak = 0.6f;
+  st[1].name = "rowboat";  st[1].s.open = 0.7f; st[1].s.creak = 0.25f; st[1].s.oars = 1.2f; st[1].s.surf = 0.5f;
+  st[2].name = "harbour";  st[2].s.surf = 0.6f; st[2].s.gulls = 1.0f; st[2].s.open = 0.3f;
+  st[3].name = "storm";    st[3].s.open = 1.0f; st[3].s.wind = 1.0f; st[3].s.creak = 1.0f; st[3].s.storm = 1.0f;
+  st[4].name = "mist";     st[4].s.open = 0.8f; st[4].s.wind = 0.4f; st[4].s.creak = 0.6f; st[4].s.mist = 1.0f;
+  st[5].name = "turnback"; st[5].s.open = 0.8f; st[5].s.creak = 0.6f; st[5].s.mist = 1.0f; st[5].s.turn = 1.0f;
+  std::printf("\n%-11s %7s %8s %7s %6s %9s %8s\n", "SEA BED", "peak", "peak dB", "rms dB", "clip", "jump", "200ms dB");
+  for (const State& S : st) {
+    auto a = std::make_unique<Audio>();
+    a->setSea(S.s);
+    auto x = renderFor(*a, 14.0f);
+    const Levels L = levels(x, 3 * SR);
+    const float jump = maxJump(x, 3 * SR);
+    const Loud LL = loudness(x, 3 * SR);
+    std::printf("%-11s %7.3f %8.1f %7.1f %6d %9.4f %8.1f\n", S.name, L.peak, db(L.peak), db(L.rms), L.clipped, jump, db(LL.maxWin));
+    // like a land bed: audible, well under the music and the sfx, never clipping or clicking (event voices aside)
+    if (L.clipped || L.peak > 0.6f || L.rms < 1e-3f || jump > 0.45f) { std::printf("  ^ PROBLEM\n"); problems++; }
+    writeWav(dir / (std::string("seabed_") + S.name + ".wav"), x);
+  }
+  {   // sailing into the storm and back ashore: the bed eases and dies away
+    auto a = std::make_unique<Audio>();
+    a->setSea(st[0].s);
+    auto p1 = renderFor(*a, 5.0f);
+    a->setSea(st[3].s);
+    auto p2 = renderFor(*a, 5.0f);
+    a->setSea(Audio::SeaSound());
+    auto p3 = renderFor(*a, 6.0f);
+    std::vector<float> all = p1;
+    all.insert(all.end(), p2.begin(), p2.end());
+    all.insert(all.end(), p3.begin(), p3.end());
+    float tail = 0;
+    for (size_t i = all.size() - SR / 2; i < all.size(); i++) tail = std::fmax(tail, std::fabs(all[i]));
+    std::printf("sea bed sloop -> storm -> ashore: last half second peak %.5f\n", tail);
+    if (tail > 0.03f) { std::printf("PROBLEM: the sea bed does not die away ashore\n"); problems++; }
+    writeWav(dir / "seabed_crossing.wav", all);
+  }
+  {   // the hidden kingdoms' scales as Town pieces
+    const Scale sc[3] = {Scale::WholeTone, Scale::Pelog, Scale::DoubleHarmonic};
+    const char* nm[3] = {"wholetone", "pelog", "doubleharmonic"};
+    for (int i = 0; i < 3; i++) {
+      MusicStyle ms;
+      ms.scale = sc[i]; ms.lead = LeadInst::Bells; ms.pad = PadInst::Choir; ms.perc = PercKind::Gong; ms.drone = 8; ms.seed = (uint16_t)(1234 + i);
+      auto a = std::make_unique<Audio>();
+      a->setMusic(Music::Town, &ms);
+      auto x = renderFor(*a, 24.0f);
+      const Levels L = levels(x, 4 * SR);
+      std::printf("hidden town %-15s peak %.3f rms %.1f dB clip %d\n", nm[i], L.peak, db(L.rms), L.clipped);
+      if (L.clipped || L.rms < 3e-3f) { std::printf("  ^ PROBLEM\n"); problems++; }
+      writeWav(dir / (std::string("hidden_town_") + nm[i] + ".wav"), x);
+    }
+  }
+  std::printf("sea: %s (%d problem%s)\n", problems ? "CHECK FAILED" : "all checks passed", problems, problems == 1 ? "" : "s");
+  return problems;
+}
+
 int magicVoices(const fs::path& dir) {
   int problems = 0;
   struct Life { const char* name; Sfx cast, hit; float k; };
@@ -645,16 +721,17 @@ int magicVoices(const fs::path& dir) {
 
 int main(int argc, char** argv) {
   fs::path dir;
-  bool culturesOnly = false, wildOnly = false, tavernOnly = false, magicOnly = false;
+  bool culturesOnly = false, wildOnly = false, tavernOnly = false, magicOnly = false, seaOnly = false;
   for (int i = 1; i < argc; i++) {
     if (std::string(argv[i]) == "--cultures") culturesOnly = true;
     else if (std::string(argv[i]) == "--tavern") tavernOnly = true;
     else if (std::string(argv[i]) == "--wild") wildOnly = true;
     else if (std::string(argv[i]) == "--magic") magicOnly = true;
+    else if (std::string(argv[i]) == "--sea") seaOnly = true;
     else if (argv[i][0] == '-') {
       // An unknown flag (e.g. --help) must never become the output directory: that once dumped 200 MB of WAVs
       // into a folder named "--help" in the repo root.
-      std::fprintf(stderr, "usage: audio_preview [outDir] [--cultures] [--wild] [--tavern] [--magic]\n");
+      std::fprintf(stderr, "usage: audio_preview [outDir] [--cultures] [--wild] [--tavern] [--magic] [--sea]\n");
       return std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h" ? 0 : 2;
     } else dir = argv[i];
   }
@@ -681,6 +758,10 @@ int main(int argc, char** argv) {
   }
   if (magicOnly) {
     problems = magicVoices(dir);
+    return problems ? 2 : 0;
+  }
+  if (seaOnly) {
+    problems = seaSounds(dir);
     return problems ? 2 : 0;
   }
 

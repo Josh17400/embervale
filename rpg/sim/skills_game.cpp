@@ -553,7 +553,7 @@ void SkillOps::step(Game& g, float dt) {
   const float dx = p.p.x - L.lastX, dy = p.p.y - L.lastY;
   L.lastX = p.p.x; L.lastY = p.p.y;
   const float d = std::sqrt(dx * dx + dy * dy);
-  if (d <= 48.0f) {   // (a door, a journey, the window moving: not walked)
+  if (d <= 48.0f && !g.sea.atSea()) {   // (a door, a journey, the window moving, a deck under sail or a ferry: not walked)
     if (g.homeRiding()) {
       L.ridden += d;
       if (L.ridden >= 16.0f * TILE) { L.ridden -= 16.0f * TILE; g.skillUse(Skill::Riding, 1.0f); }

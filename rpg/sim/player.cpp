@@ -40,6 +40,7 @@ void Game::recalcPlayer() {
   (void)bonusMp; (void)bonusSt;
   p.armor = armorRating();
   p.radius = 4.5f;
+  if (sea.atSea()) p.radius = sea::hullInfo(sea.boats[(size_t)sea.aboard].hull).radius;   // (M10) aboard: the hull's body
   // (M6) move speed: the affix (+5 % a piece) and Windwalker (+12 %)
   p.speed = 74.0f * (1.0f + 0.01f * (float)S.get(Affix::MoveSpeed) + (S.has(Unique::Windwalker) ? 0.12f : 0.0f));
   p.speed *= SkillOps::speedMul(*this);   // (M9) the worn armour class, Athletics

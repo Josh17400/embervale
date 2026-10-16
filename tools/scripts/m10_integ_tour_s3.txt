@@ -1,0 +1,49 @@
+# M10 INTEGRATOR: the screenshot tour over everything M10 changed, on three seeds, by day and night, outside and in:
+# harbours, a sloop under sail, a storm at night, the sea creatures, the Mist turning a boat back and parting for the
+# chart, a hidden land's town and its seat of power, the chart chain's wreck and sea cave (one seed per file).
+#   cd <shots> && embervale.exe --script <repo>/tools/scripts/m10_integ_tour_s*.txt    (m10_integ_*.png)
+seed 3
+0.3  newgame
++0.1 god 1
++0.05 hour 10
++0.2 sea port
++1.5 shot m10_integ_s3_harbour_day.png
++0.1 hour 22
++1.0 shot m10_integ_s3_harbour_night.png
++0.1 hour 10
++0.2 boat give sloop 16
++0.1 boat board
++0.1 expect sea aboard 1
++0.1 sea helm out
++5   shot m10_integ_s3_sloop.png
++0.1 sea helm off
++0.2 sea spawn serpent
++1.5 shot m10_integ_s3_serpent.png
++0.1 hour 23
++0.1 sea storm 0.9
++2.0 shot m10_integ_s3_storm_night.png
++0.1 hour 10
++0.3 sea mistedge
++0.2 expect sea aboard 1
++0.1 sea helm land
++14  expect sea mist 0.05
++0.1 shot m10_integ_s3_mist_in.png
++20  expect sea turned 1
++0.1 shot m10_integ_s3_mist_turn.png
++4   log turned
++0.1 sea chart
++0.3 sea mistedge in
++0.1 sea helm land
++3   shot m10_integ_s3_mist_parted.png
++0.2 sea land
++3.0 shot m10_integ_s3_hidden_land.png
++5.0 shot m10_integ_s3_hidden_land_contact.png
++0.2 gotoseat
++3.0 shot m10_integ_s3_hidden_seat_out.png
++0.1 hour 19
++2.0 shot m10_integ_s3_hidden_seat_dusk.png
++0.1 hour 12
++0.2 enterseat
++2.0 shot m10_integ_s3_hidden_seat_in.png
++0.3 log seed 3 done
++0.2 quit

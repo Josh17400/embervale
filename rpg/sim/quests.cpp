@@ -698,6 +698,7 @@ bool Game::questTargetM2(const Quest& q, int& tx, int& ty) const {
     case QType::Story: return q.hasPos ? global(q.tgx, q.tgy) : false;   // M4: the story engine's marker (rpg/story)
     case QType::War: return q.hasPos ? global(q.tgx, q.tgy) : atSite();   // M4: the enemy camp (relief) or the town (assault)
     case QType::Supply: return (q.flags & life::QF_SUP_GOODS) ? false : atSite();   // M5: where the goods are to be had
+    case QType::Sea: return q.hasPos ? global(q.tgx, q.tgy) : false;   // M10: the chart chain's place, the king's capital
     default: return false;
   }
 }
@@ -735,6 +736,10 @@ std::string Game::questStatusM2(const Quest& q) const {
       if (q.flags & life::QF_SUP_GOODS) return "";
       return fitLine({"FETCH " + std::to_string(q.need) + " " + q.subject + " FROM " + tname + dl, "FETCH " + q.subject + " FROM " + tname + ds,
                       q.subject + ": " + tname + ds, tname + ds});
+    case QType::Sea:   // M10 (sea_chain.cpp): the chain's step / the word to the king in subject; a fishmonger's order
+      if (q.stage == 3) return fitLine({"CATCH " + std::to_string(q.need) + " " + q.subject + " (" + std::to_string(q.have) + "/" + std::to_string(q.need) + ")",
+                                        q.subject + " " + std::to_string(q.have) + "/" + std::to_string(q.need)});
+      return q.subject.empty() ? std::string() : fitLine({q.subject + dl, q.subject + ds, q.subject});
     case QType::Protect: {
       const bool night = (day == q.deadlineDay && hour >= 20.5f) || (day == q.deadlineDay + 1 && hour < 5.5f);
       const std::string home = giverTown(world, q);
@@ -779,6 +784,7 @@ std::string Game::turnInLine(const Quest& q) const {
       return tname.empty() ? "YOU'RE BACK, AND THE BANDITS' CHIEF IS DEAD. THE BOUNTY IS " + g + " GOLD."
                            : "THEY SAY THE BANDITS OF " + tname + " HAVE SCATTERED, AND THEIR CHIEF IS DEAD. THE BOUNTY IS " + g + " GOLD.";
     case QType::War: return "YOU FOUGHT WELL OUT THERE. THE CAPTAINS ALL SAY IT. YOUR PAY IS " + g + " GOLD.";
+    case QType::Sea: return q.stage == 3 ? "FINE FISH, AND FRESH! " + g + " GOLD, AS AGREED." : "YOU'VE DONE A GREAT THING. " + g + " GOLD, AND MY THANKS.";
     default:
       return (tname.empty() ? std::string("YOU'RE BACK, AND IT'S DONE.") : "YOU'RE BACK! THEY SAY " + tname + " HAS GONE QUIET AT LAST.") + " I OWE YOU " + g +
              " GOLD.";

@@ -69,7 +69,7 @@ int monsterWord(const std::string& w0) {
   const std::string w = lower(w0);
   static const char* names[] = {"wolf", "boar", "bear", "slime", "spider", "bat", "skeleton", "draugr", "goblin", "troll", "wraith",
                                 "mudcrab", "icewolf", "frostspider", "sandworm", "dragon", "scorpion", "hyena", "lurker", "yeti",
-                                "wisp", "emberhound", "blightspawn", "harpy", "golem"};
+                                "wisp", "emberhound", "blightspawn", "harpy", "golem", "seaserpent", "kraken", "merrow"};
   static_assert(sizeof(names) / sizeof(names[0]) == (size_t)art::Monster::COUNT, "a word for every monster");
   for (int i = 0; i < (int)art::Monster::COUNT; i++) if (w == names[i]) return i;
   if (w == "bandit" || w == "bandits") return MON_BANDIT;
@@ -120,6 +120,9 @@ const char* tradeName(int role) {
     case Role::Herbalist: return "HERBALIST";
     case Role::Traveller: return "TRAVELLER";
     case Role::Herald: return "HERALD";
+    case Role::Harbourmaster: return "HARBOURMASTER";
+    case Role::Shipwright: return "SHIPWRIGHT";
+    case Role::Sailor: return "SAILOR";
     default: return "VILLAGER";
   }
 }

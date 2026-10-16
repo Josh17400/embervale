@@ -40,6 +40,10 @@ struct SettlementCtx {
   // (M7c fixer) the biome proper at a global tile (the chunks' own): a city's faubourgs, farmsteads and fields keep
   // off the waste land round it (ash fields, blight, crystal barrens). Empty: unknown, nothing is avoided.
   std::function<Eco(int32_t gx, int32_t gy)> ecoAt;
+  // (M10) a port's harbour (sea_ports.cpp: EndlessSource::portsIn's plan, global tiles): the town keeps the landing
+  // (rootX, rootY and the tiles behind it) clear and joins it to its streets; the chunks lay the mole, the dredging and
+  // the dress. nullptr: no harbour (villages always: VILLAGES NEVER CHANGE).
+  const PortPlan* harbour = nullptr;
 };
 
 struct SettlementOut {

@@ -1,0 +1,78 @@
+# M10 ARCANA lane: the Trials of the Threshold (VISION_PLAN 6.4 step 4): a hidden kingdom's short dungeon whose puzzle
+# TEACHES its signature. The Songweaving trial walked whole: the antechamber, the first hall's singing stones (a wrong
+# note first: discord), the motif's three notes open the gate, the second hall's, the sanctum's plate passes the rite.
+# Then a glance into the other five: the Rune hall's lattice and its guardians, the Mask hall's plinths and its
+# fox-carved gate, the Verdant chasm bridged by the seed pod's vines, the Blood altar paid, the Dream mirror's decoy on
+# the far plate.
+#   embervale.exe --script tools/scripts/m10_arcana_trial.txt     (m10_arcana_trial_*.png in the working directory)
+seed 3
+0.3  newgame
++0.1 god 1
++0.1 plevel 25
++0.2 spell hidden song
++0.1 spell trial
++0.6 expect inside 1
++0.2 shot m10_arcana_trial_ante.png
++0.1 spell plate note 1
++0.3 shot m10_arcana_trial_song_hall.png
++0.1 spell plate motif 2
++0.4 spell plate motif 1
++0.4 spell plate motif 2
++0.4 spell plate motif 3
++0.3 shot m10_arcana_trial_song_gate.png
++0.3 expect arcana gates 1
++0.2 spell plate motif 1
++0.4 spell plate motif 2
++0.4 spell plate motif 3
++0.5 expect arcana gates 2
++0.2 spell plate sanctum
++0.4 shot m10_arcana_trial_sanctum.png
++0.3 expect arcana rites 1
+# ---- the Rune trial's first hall: runes laid across it, the guardians coming over them
++0.5 newgame
++0.1 god 1
++0.1 plevel 25
++0.2 spell hidden rune
++0.1 spell trial
++0.6 spell plate rune 4 6
++0.1 hour 12
++1.2 shot m10_arcana_trial_rune.png
++2.5 shot m10_arcana_trial_rune_lured.png
++0.2 expect arcana runetriggers 1
+# ---- the Mask trial: three masks on plinths, the gate carved with the face it opens to
++0.5 newgame
++0.1 god 1
++0.1 plevel 25
++0.2 spell hidden mask
++0.1 spell trial
++0.6 spell plate mask 2
++0.3 shot m10_arcana_trial_mask.png
++0.1 expect arcana mask 1
+# ---- the Verdant trial: the chasm, the seed pod's vines across it
++0.5 newgame
++0.1 god 1
++0.1 plevel 25
++0.2 spell hidden verdant
++0.1 spell trial
++0.6 spell plate pod 1
++1.0 shot m10_arcana_trial_verdant.png
++0.1 expect arcana growths 3
+# ---- the Blood trial: the altar paid
++0.5 newgame
++0.1 god 1
++0.1 plevel 25
++0.2 spell hidden blood
++0.1 spell trial
++0.6 spell plate altar 1
++0.4 shot m10_arcana_trial_blood.png
++0.2 expect arcana gates 1
+# ---- the Dream trial: the mirror sends the decoy to the far plate; the hero takes the near one
++0.5 newgame
++0.1 god 1
++0.1 plevel 25
++0.2 spell hidden dream
++0.1 spell trial
++0.6 spell plate mirror 1
++0.3 spell plate press 1
++0.5 shot m10_arcana_trial_dream.png
++0.2 expect arcana gates 1

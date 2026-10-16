@@ -645,6 +645,279 @@ void sandworm(Canvas& c, int frame) {
   }
 }
 
+// ------------------------------------------------------------------ M10 Beyond the Mist: the sea's creatures
+// They swim: the view draws them cut at the waterline (render_sea.cpp seaDrawSwimmer), so each is painted with the sea
+// surface a few rows over the cell's foot (kSeaWL rows up): what lies below it shows as a dark shape under the water.
+constexpr int kSeaWL = 4;
+
+// the SEA SERPENT: humped coils breaking the swell, a finned crest down its neck, a long striking head
+void seaSerpent(Canvas& c, int frame) {
+  const Ramp Sc = ramp5(rgba(18, 44, 52), rgba(28, 78, 78), rgba(44, 120, 104), rgba(88, 166, 126), rgba(156, 210, 160));
+  const Ramp Be = ramp5(rgba(90, 104, 84), rgba(146, 156, 112), rgba(196, 200, 146), rgba(226, 226, 176), rgba(246, 244, 212));
+  const Ramp Fin = ramp5(rgba(96, 26, 36), rgba(156, 44, 40), rgba(206, 82, 48), rgba(236, 132, 64), rgba(252, 196, 112));
+  const float wl = (float)c.h - kSeaWL;
+  const bool dead = frame == 7;
+  const float ph = frame < 4 ? frame * 1.5708f : 0.0f;
+  // the head and neck by pose
+  Vec2 head{c.w * 0.80f, 11.0f + (frame < 4 ? std::sin(ph) * 1.2f : 0.0f)};
+  Vec2 neckBase{c.w * 0.62f, wl + 1.0f};
+  bool open = (frame & 1) == 0 && frame < 4;
+  float tilt = 0;   // the head's nose down (+) / up (-)
+  if (frame == 4) { head = V(c.w * 0.66f, 6.0f); open = true; tilt = -0.5f; }
+  if (frame == 5) { head = V(c.w * 0.90f, 22.0f); open = true; tilt = 0.45f; neckBase = V(c.w * 0.66f, wl + 1.0f); }
+  if (frame == 6) { head = V(c.w * 0.72f, 13.0f); tilt = -0.3f; }
+  if (dead) { head = V(c.w * 0.86f, wl - 3.0f); neckBase = V(c.w * 0.62f, wl - 1.0f); tilt = 0.1f; }
+  recRamp(Sc);
+  // the coils: a sinuous body along the surface, arching out of it in humps (below the line it is still painted: the
+  // view darkens it under the water)
+  const int N = 46;
+  struct Seg { Vec2 p; float r; };
+  std::vector<Seg> segs;
+  for (int i = 0; i <= N; i++) {
+    const float t = (float)i / N;
+    const float x = 4.0f + t * (neckBase.x - 6.0f);
+    const float hump = dead ? 0.25f : std::max(0.0f, std::sin(t * 9.4f - ph - 0.6f));
+    const float y = wl + 3.0f - hump * (8.0f + 3.0f * t) + (dead ? -1.0f : 0.0f);
+    segs.push_back({V(x, y), 1.6f + 3.4f * std::min(1.0f, t * 1.6f)});
+  }
+  layered(c, [&](Canvas& L) {
+    for (const Seg& s : segs) ball(L, s.p.x, s.p.y, s.r, s.r * 0.95f, Sc, 0.08f);
+    for (size_t i = 3; i < segs.size(); i += 3) {   // the belly scutes catching the light where a hump turns over
+      const Seg& s = segs[i];
+      if (s.p.y < wl - 2) for (int k = -1; k <= 1; k++) L.set((int)(s.p.x + k), (int)(s.p.y + s.r * 0.65f), Be[2]);
+    }
+  });
+  // the dorsal fin running along the humps: small orange spines
+  for (size_t i = 2; i < segs.size(); i += 2) {
+    const Seg& s = segs[i];
+    if (s.p.y > wl - 1) continue;
+    const int top = (int)(s.p.y - s.r);
+    const int hgt = 2 + (int)(i % 4 == 2);
+    for (int k = 0; k < hgt; k++) c.set((int)s.p.x, top - k, Fin[k == hgt - 1 ? 4 : 2]);
+    c.set((int)s.p.x + 1, top, Fin[1]);
+  }
+  // the neck: a curved column rising from the water to the head, its crest of fin membrane down the back
+  const Vec2 nm = (neckBase + head) * 0.5f + V(-5.0f + tilt * 4.0f, 2.0f);
+  std::vector<Vec2> neck;
+  for (int i = 0; i <= 18; i++) {
+    const float t = i / 18.0f;
+    neck.push_back(neckBase * ((1 - t) * (1 - t)) + nm * (2 * (1 - t) * t) + head * (t * t));
+  }
+  layered(c, [&](Canvas& L) {
+    for (int i = 0; i <= 18; i++) {   // the crest: a membrane over the neck's back, spined
+      const Vec2 p = neck[(size_t)i];
+      const float t = i / 18.0f;
+      const float h = (dead ? 1.5f : 4.0f) * std::sin(t * 3.14159f) + 1.0f;
+      for (int k = 0; k < (int)h; k++) L.set((int)(p.x - 3.0f - k * 0.6f), (int)(p.y - 2.0f - k * 0.4f), Fin[k == (int)h - 1 ? 3 : 2 - (i & 1)]);
+    }
+    for (int i = 0; i <= 18; i++) {
+      const float t = i / 18.0f;
+      ball(L, neck[(size_t)i].x, neck[(size_t)i].y, 4.6f - 1.6f * t, 4.4f - 1.6f * t, Sc, 0.08f);
+    }
+    // the throat's pale scutes down its front
+    for (int i = 2; i < 17; i += 2) L.set((int)(neck[(size_t)i].x + 2.6f - i * 0.05f), (int)neck[(size_t)i].y, Be[2]);
+  });
+  // the head: a long wedge with a heavy brow, the crest's frills fanning back, jaws that gape on the strike
+  recHead(head, 4.5f);
+  layered(c, [&](Canvas& L) {
+    const float ca = std::cos(tilt), sa = std::sin(tilt);
+    auto rot = [&](float x, float y) { return V(head.x + x * ca - y * sa, head.y + x * sa + y * ca); };
+    // the frills: three spines and membrane behind the skull
+    for (int s = 0; s < 3; s++) {
+      const Vec2 a = rot(-2.0f, -2.0f + s * 1.6f), b = rot(-8.5f + s * 0.6f, -6.5f + s * 3.2f);
+      capsule(L, a, b, 1.3f, 0.5f, Fin, 0);
+    }
+    ball(L, head.x - 0.5f, head.y, 4.6f, 4.0f, Sc, 0.08f);                         // the skull
+    const Vec2 snout = rot(6.5f, open ? -1.0f : 0.4f);
+    capsule(L, rot(1.5f, -0.6f), snout, 3.4f, 1.8f, Sc, 0);                         // the upper jaw
+    if (open) {
+      const Vec2 jaw = rot(5.8f, 4.2f);
+      capsule(L, rot(1.0f, 2.2f), jaw, 2.4f, 1.2f, Sc, -1);                        // the lower jaw, dropped
+      for (int k = 0; k < 6; k++) {   // the gape: dark throat, white fangs
+        const Vec2 q = rot(2.5f + k * 0.8f, 1.0f + k * 0.35f);
+        L.set((int)q.x, (int)q.y, rgba(70, 18, 34));
+        const Vec2 f1 = rot(3.0f + k * 0.8f, 0.3f), f2 = rot(3.0f + k * 0.75f, 2.8f + k * 0.2f);
+        if (k & 1) { L.set((int)f1.x, (int)f1.y, kBone[4]); L.set((int)f2.x, (int)f2.y, kBone[3]); }
+      }
+    } else capsule(L, rot(1.0f, 1.8f), rot(5.6f, 1.8f), 2.0f, 1.2f, Sc, -1);
+    ball(L, head.x - 1.5f, head.y - 2.6f, 2.6f, 1.6f, Sc, 0.06f, 1);              // the brow ridge
+    const Vec2 eye = rot(1.6f, -1.6f);
+    recEye(eye);
+    if (frame == 6 || dead) { L.set((int)eye.x, (int)eye.y, Sc[0]); L.set((int)eye.x + 1, (int)eye.y, Sc[0]); }
+    else { L.set((int)eye.x, (int)eye.y, rgba(252, 220, 80)); L.set((int)eye.x + 1, (int)eye.y, kInk); }
+    const Vec2 nos = rot(6.0f, -1.6f);
+    L.set((int)nos.x, (int)nos.y, Sc[0]);
+  });
+  recBody((segs.front().p.x + neckBase.x) * 0.5f, wl - 4.0f, (neckBase.x - segs.front().p.x) * 0.5f, 5.0f);
+  // water sheeting off the humps
+  if (!dead)
+    for (size_t i = 4; i < segs.size(); i += 7) {
+      const Seg& s = segs[i];
+      if (s.p.y < wl - 3) { c.set((int)s.p.x - 1, (int)(s.p.y + s.r + 1), rgba(220, 240, 250, 210)); c.set((int)s.p.x + 2, (int)(s.p.y + s.r + 2), rgba(220, 240, 250, 160)); }
+    }
+}
+
+// the KRAKEN's body: the mantle breaking the surface, its great eyes at the waterline, arms coiling on the water; on
+// the strike it clouds the sea with ink
+void krakenBody(Canvas& c, int frame) {
+  const Ramp Sk = ramp5(rgba(44, 18, 40), rgba(82, 30, 56), rgba(126, 48, 66), rgba(170, 80, 82), rgba(212, 128, 112));
+  const Ramp Su = ramp5(rgba(150, 106, 112), rgba(190, 146, 140), rgba(222, 186, 170), rgba(240, 214, 196), rgba(252, 238, 224));
+  const float wl = (float)c.h - kSeaWL;
+  const bool dead = frame == 7;
+  const float ph = frame < 4 ? frame * 1.5708f : 0.0f;
+  const float cx = c.w * 0.5f;
+  float top = 12.0f + (frame < 4 ? std::sin(ph) * 1.0f : 0.0f);
+  if (frame == 4) top = 7.0f;
+  if (frame == 6) top = 14.0f;
+  if (dead) top = wl - 6.0f;
+  recRamp(Sk);
+  // ink on the strike: a dark cloud spreading on the water round it
+  if (frame == 5)
+    for (int y = (int)wl - 4; y < c.h; y++)
+      for (int x = 0; x < c.w; x++) {
+        const float dx = (x - cx) / (c.w * 0.5f), dy = (y - wl) / 6.0f;
+        const float d = dx * dx + dy * dy + (hashf(x / 2, y / 2, 913) - 0.5f) * 0.5f;
+        if (d < 1.0f) c.set(x, y, d < 0.6f ? rgba(16, 12, 26, 230) : rgba(30, 24, 44, 170));
+      }
+  // the arms on the water: thick at the mantle, tapering, curling at the tips, suckers on their undersides
+  auto arm = [&](Canvas& L, float side, float spread, float lift, float phase) {
+    const int S = 24;
+    for (int i = 0; i <= S; i++) {
+      const float t = (float)i / S;
+      const float ang = side * (0.25f + spread * t) ;
+      const float reach = 6.0f + t * 20.0f;
+      const float x = cx + side * (5.0f + reach * std::cos(ang * 0.6f));
+      const float y = wl - 1.0f - lift * std::sin(t * 3.14159f) + std::sin(t * 7.0f + phase) * 1.6f + (t > 0.8f ? (t - 0.8f) * 14.0f * std::sin(phase + 1.0f) : 0.0f);
+      const float r = 2.8f * (1.0f - t * 0.8f) + 0.5f;
+      ball(L, x, y, r, r * 0.85f, Sk, 0.08f);
+      if ((i & 1) && r > 1.2f) L.set((int)x, (int)(y + r * 0.6f), Su[2]);
+    }
+  };
+  const float lift4 = frame == 4 ? 10.0f : frame == 5 ? 4.0f : 2.0f;
+  layered(c, [&](Canvas& L) {
+    arm(L, -1, 0.6f, dead ? 0.0f : 3.0f, ph);
+    arm(L, 1, 0.6f, dead ? 0.0f : 3.0f, ph + 2.0f);
+  });
+  layered(c, [&](Canvas& L) {
+    arm(L, -1, 1.4f, dead ? 0.0f : lift4, ph + 1.0f);
+    arm(L, 1, 1.4f, dead ? 0.0f : lift4, ph + 3.0f);
+  });
+  // the mantle: a mottled dome, its lower half under the swell
+  const float rx = 14.5f, ry = (wl - top) + 2.0f;
+  layered(c, [&](Canvas& L) {
+    for (int y = (int)top; y <= (int)(wl + 3); y++)
+      for (int x = (int)(cx - rx - 1); x <= (int)(cx + rx + 1); x++) {
+        const float dy0 = (y + 0.5f - wl) / ry;
+        const float sack = 0.78f + 0.22f * std::min(1.0f, 1.0f + dy0 * 1.2f);   // a sack: fuller low by the eyes
+        const float dx = (x + 0.5f - cx) / (rx * sack), dy = dy0;
+        if (dx * dx + dy * dy > 1.0f) continue;
+        const float l = lightAt(dx * 0.9f, dy * 0.9f) + (hashf(x / 2, y / 2, 4411) - 0.5f) * 0.25f;
+        uint32_t col = Sk[lightIndex(l, x, y, 0.1f)];
+        if (hashf(x / 3, y / 2, 4419) < 0.12f) col = darken(col, 0.45f);   // mottling
+        L.set(x, y, col);
+      }
+  });
+  recBody(cx, wl - 4.0f, rx, 6.0f);
+  // the eyes: great gold eyes with bar pupils, low on the mantle's face, half-lidded when hurt, shut in death
+  const float ey = wl - 4.0f;
+  recHead(V(cx, ey - 2.0f), 6.0f);
+  recEye(V(cx + 5.0f, ey));
+  for (int s = -1; s <= 1; s += 2) {
+    const float ex = cx + s * 5.5f;
+    if (dead) { c.set((int)ex - 1, (int)ey, Sk[0]); c.set((int)ex, (int)ey, Sk[0]); c.set((int)ex + 1, (int)ey, Sk[0]); continue; }
+    ball(c, ex, ey, 2.4f, 2.0f, ramp5(rgba(150, 100, 20), rgba(200, 150, 30), rgba(240, 200, 60), rgba(252, 230, 110), rgba(255, 250, 200)), 0.05f);
+    c.set((int)ex - 1, (int)ey, kInk); c.set((int)ex, (int)ey, kInk); c.set((int)ex + 1, (int)ey, kInk);
+    if (frame == 6) { c.set((int)ex - 1, (int)ey - 1, Sk[1]); c.set((int)ex, (int)ey - 1, Sk[1]); c.set((int)ex + 1, (int)ey - 1, Sk[1]); }
+  }
+  // water streaming off the dome
+  if (!dead) for (int k = 0; k < 5; k++) c.set((int)(cx - 9 + k * 4 + (frame & 1)), (int)(wl - 1 - (k % 2)), rgba(220, 240, 250, 200));
+}
+
+// a MERROW: scaled fish-folk with a fin crest and a coral spear; amphibious, so it walks the beaches too
+void merrow(Canvas& c, int frame) {
+  const Ramp Sc = ramp5(rgba(20, 50, 64), rgba(30, 86, 92), rgba(46, 128, 120), rgba(90, 172, 148), rgba(160, 216, 180));
+  const Ramp Be = ramp5(rgba(104, 112, 98), rgba(156, 166, 130), rgba(204, 208, 166), rgba(228, 230, 194), rgba(246, 246, 220));
+  const Ramp Fin = ramp5(rgba(96, 30, 50), rgba(160, 50, 60), rgba(214, 92, 78), rgba(240, 150, 104), rgba(252, 206, 150));
+  const Ramp Cor = ramp5(rgba(120, 40, 60), rgba(182, 64, 80), rgba(232, 108, 112), rgba(248, 160, 150), rgba(255, 212, 196));
+  const float gy = (float)c.h - 2.0f;
+  const bool dead = frame == 7;
+  recRamp(Sc);
+  if (dead) {   // lying on its side, the spear dropped beside it
+    layered(c, [&](Canvas& L) {
+      capsule(L, V(5, gy - 3), V(c.w - 9.0f, gy - 3), 3.2f, 3.8f, Sc, 0);
+      ball(L, c.w - 7.0f, gy - 4, 3.6f, 3.2f, Sc, 0.08f);
+      for (int k = 0; k < 6; k++) L.set(8 + k * 2, (int)gy - 6, Fin[2]);
+    });
+    capsule(c, V(3, gy), V(c.w - 4.0f, gy - 1), 0.6f, 0.6f, kWoodDark, 0);
+    c.set(c.w - 3, (int)gy - 2, Cor[3]); c.set(c.w - 2, (int)gy - 1, Cor[2]);
+    recHead(V(c.w - 7.0f, gy - 4), 3.5f);
+    recBody(c.w * 0.5f, gy - 3, 8, 3);
+    return;
+  }
+  const float ph = frame < 4 ? frame * 1.5708f : 0.0f;
+  const float stride = frame < 4 ? std::sin(ph) * 2.5f : 0.0f;
+  float lean = 0;
+  if (frame == 4) lean = -1.5f;
+  if (frame == 5) lean = 2.0f;
+  if (frame == 6) lean = -2.0f;
+  const float hipX = c.w * 0.45f + lean * 0.4f, hipY = gy - 8.0f;
+  const Vec2 neck{hipX + lean, hipY - 9.0f};
+  const Vec2 head{neck.x + 1.5f + lean * 0.3f, neck.y - 3.5f};
+  // the far leg, the far arm, then the body, the near leg; webbed feet
+  layered(c, [&](Canvas& L) {
+    capsule(L, V(hipX, hipY), V(hipX - stride + 0.5f, gy - 0.5f), 1.9f, 1.4f, Sc, -1);
+    L.set((int)(hipX - stride + 2), (int)gy, Sc[1]);
+  });
+  // the spear: a dark shaft, a branch of red coral lashed at its head
+  Vec2 sp0{hipX - 7.0f, hipY - 4.0f}, sp1{hipX + 11.0f, hipY - 9.0f};
+  if (frame == 4) { sp0 = V(hipX - 11.0f, hipY - 3.0f); sp1 = V(hipX + 5.0f, hipY - 9.0f); }
+  if (frame == 5) { sp0 = V(hipX - 2.0f, hipY - 6.0f); sp1 = V(c.w - 1.0f, hipY - 7.0f); }
+  if (frame == 6) { sp0 = V(hipX - 8.0f, hipY - 8.0f); sp1 = V(hipX + 6.0f, hipY - 14.0f); }
+  layered(c, [&](Canvas& L) {
+    capsule(L, V(hipX + 0.5f, hipY), V(hipX + stride + 0.5f, gy - 0.5f), 2.0f, 1.5f, Sc, 0);
+    L.set((int)(hipX + stride + 2.5f), (int)gy, Sc[2]);
+    // the torso: scaled back, pale belly
+    capsule(L, V(hipX, hipY), neck, 3.4f, 3.0f, Sc, 0);
+    for (int y = (int)neck.y + 2; y < (int)hipY; y++) L.set((int)(hipX + lean * 0.5f + 2.0f), y, Be[2]);
+    for (int y = (int)neck.y + 3; y < (int)hipY - 1; y += 2) L.set((int)(hipX + lean * 0.5f + 1.0f), y, Be[1]);
+  });
+  // the back fin down the spine
+  for (int k = 0; k < 6; k++) {
+    const float t = k / 5.0f;
+    const int x = (int)(neck.x - 3.0f + (hipX - neck.x) * t - 1), y = (int)(neck.y + 1.0f + (hipY - neck.y) * t);
+    c.set(x, y, Fin[2]); c.set(x - 1, y - (k & 1), Fin[3 - (k & 1)]);
+  }
+  recBody(hipX, (neck.y + hipY) * 0.5f, 3.4f, 5.0f);
+  // the near arm holding the spear, the shaft and the coral head
+  const Vec2 hand = sp0 + (sp1 - sp0) * 0.42f;
+  capsule(c, sp0, sp1, 0.6f, 0.6f, kWoodDark, 0);
+  layered(c, [&](Canvas& L) {
+    capsule(L, V(neck.x + 0.5f, neck.y + 2.5f), hand, 1.4f, 1.2f, Sc, 0);
+    L.set((int)hand.x, (int)hand.y, Sc[3]);
+    const Vec2 d = (sp1 - sp0) * (1.0f / std::max(1.0f, len(sp1 - sp0)));
+    const Vec2 n{-d.y, d.x};
+    capsule(L, sp1 - d * 1.0f, sp1 + d * 2.5f, 1.0f, 0.4f, Cor, 0);
+    capsule(L, sp1 - d * 1.5f, sp1 + d * 0.8f + n * 2.5f, 0.7f, 0.3f, Cor, 0);
+    capsule(L, sp1 - d * 0.5f, sp1 + d * 1.2f - n * 2.2f, 0.7f, 0.3f, Cor, 0);
+  });
+  // the head: fish-like, great round eyes, a fin crest from brow to nape, gill slits
+  recHead(head, 3.4f);
+  layered(c, [&](Canvas& L) {
+    for (int k = 0; k < 5; k++) {   // the crest
+      const int h = 2 + (k == 1 || k == 2 ? 2 : 1);
+      for (int j = 0; j < h; j++) L.set((int)(head.x - 2.0f + k * 0.9f - j * 0.4f), (int)(head.y - 3.0f - j), Fin[j == h - 1 ? 4 : 2]);
+    }
+    ball(L, head.x, head.y, 3.4f, 3.0f, Sc, 0.08f);
+    capsule(L, V(head.x + 1.0f, head.y + 0.8f), V(head.x + 3.6f, head.y + 1.2f), 1.6f, 1.1f, Sc, 0);   // the mouth
+    L.set((int)(head.x + 3.0f), (int)(head.y + 1.8f), Be[1]);
+  });
+  const Vec2 eye{head.x + 1.4f, head.y - 0.6f};
+  recEye(eye);
+  if (frame == 6) c.set((int)eye.x, (int)eye.y, Sc[0]);
+  else { c.set((int)eye.x, (int)eye.y, rgba(236, 232, 150)); c.set((int)eye.x + 1, (int)eye.y, kInk); c.set((int)eye.x, (int)eye.y - 1, rgba(250, 248, 210)); }
+  c.set((int)(head.x - 1.5f), (int)(head.y + 1.0f), Sc[0]); c.set((int)(head.x - 1.5f), (int)(head.y + 2.0f), Sc[0]);   // gills
+}
+
 // ------------------------------------------------------------------ dragon (boss)
 void dragon(Canvas& c, int frame) {
   // ember dragon: crimson scales, gold belly plates, wine-red wing membranes, bone horns and claws
@@ -2033,6 +2306,10 @@ Canvas paintCell(Monster m, int f, int golemKind, bool great = false) {
     // ---- M6 Steel (BEASTS lane)
     case Monster::Harpy: harpy(cell, f); break;
     case Monster::Golem: golem(cell, f, golemKind); break;
+    // ---- M10 Beyond the Mist (phase A stand-ins; the ART lane paints them)
+    case Monster::SeaSerpent: seaSerpent(cell, f); break;
+    case Monster::Kraken: krakenBody(cell, f); break;
+    case Monster::Merrow: merrow(cell, f); break;
     default: break;
   }
   return cell;
@@ -2548,6 +2825,9 @@ int monsterCellW(Monster m) {
     case Monster::Blightspawn: return 26;
     case Monster::Harpy: return 34;    // (M6 BEASTS: room for the wingspan)
     case Monster::Golem: return 40;
+    case Monster::SeaSerpent: return 72;   // (M10 ART: the coils, the neck and the head over the swell)
+    case Monster::Kraken: return 64;       // the mantle and its arms spread on the water
+    case Monster::Merrow: return 28;
     default: return 24;
   }
 }
@@ -2574,6 +2854,9 @@ int monsterCellH(Monster m) {
     case Monster::Blightspawn: return 28;
     case Monster::Harpy: return 32;
     case Monster::Golem: return 50;    // (the fists rise over the head on the wind-up; fixer r4: 44 clipped them flat)
+    case Monster::SeaSerpent: return 46;
+    case Monster::Kraken: return 40;
+    case Monster::Merrow: return 28;
     default: return 24;
   }
 }

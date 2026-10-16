@@ -469,6 +469,8 @@ void Realm::fallKingdom(KingdomState& k, int day, Gid by) {
 
 // ---------------------------------------------------------------- wars and sieges
 uint32_t Realm::declareWar(Gid attacker, Gid defender, WarCause cause, int day, bool forced) {
+  // (M10) an isolated kingdom fights nobody outside its own hidden land (no relations, no wars before first contact)
+  if (const KingdomState* A0 = kingdom(attacker)) if (const KingdomState* D0 = kingdom(defender)) if (apart(*A0, *D0)) return 0;
   War w;
   w.id = nextWar_++;
   w.attacker = attacker; w.defender = defender;
@@ -740,6 +742,7 @@ void Realm::tickDiplomacy(int span) {
     KingdomState* B = kingdomMut(r.b);
     if (!A || !B || A->fallen || B->fallen) continue;
     if (A->tier != Tier::Active || B->tier != Tier::Active) continue;
+    if (apart(*A, *B)) continue;   // (M10) isolation: no discovery, trade or tension across the Mist before contact
     const bool war = warBetween(r.a, r.b) != nullptr;
     // opinion drifts toward its base (trade warms, tension and war chill)
     int target = r.base + (r.state == Rel::Trade ? 10 : 0) + (r.foodDeal ? 5 : 0) - 10 * (int)r.tension;
@@ -1021,6 +1024,9 @@ Gid Realm::splitRealm(ew::EndlessSource* src, KingdomState& kref, int day) {
   R.lastHarvest = kref.lastHarvest;
   R.famine = kref.famine;
   R.famineDay = kref.famineDay;
+  R.isolated = kref.isolated;       // (M10) a hidden land's rebels stay as apart from the mainland as their parent
+  R.hiddenLand = kref.hiddenLand;
+  R.contactDay = kref.contactDay;
   // split the realm's strength by population
   float popR = 0, popAll = 0;
   for (Gid g : living) {

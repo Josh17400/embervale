@@ -382,8 +382,9 @@ int historyCmd(int argc, char** argv) {
   const double keptPct = rulersAt0 ? 100.0 * rulersKept / rulersAt0 : 100.0;
   const double foodPct = T.wars ? 100.0 * T.warsFood / T.wars : 100.0;
   const double tickAvg = T.tickSum / std::max(1, T.ticks);
-  // 48 active realms (a wider horizon) for the tick's cost
-  const SeedStats big = historySeed(A, 360, 7);
+  // 48 active realms (a wider horizon) for the tick's cost ((M10) radius 8: the strait, the open sea and the Mist now
+  // take cells round the start that held realms, and radius 7 gave 39)
+  const SeedStats big = historySeed(A, 360, 8);
   const double bigAvg = big.tickSum / std::max(1, big.ticks);
   int bad = 0;
   auto gate = [&](bool ok, const char* fmt, double v, const char* range) {

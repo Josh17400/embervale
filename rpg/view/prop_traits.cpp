@@ -42,6 +42,9 @@ bool propLight(Prop p, float& r, Color& c) {
     case Prop::AshVent: r = 42; c = Color(1.0f, 0.50f, 0.20f); return true;
     case Prop::GlowCaps: r = 26; c = Color(0.45f, 1.0f, 0.90f); return true;
     case Prop::GiantMushroom: r = 34; c = Color(0.55f, 0.95f, 0.90f); return true;
+    // M10 Beyond the Mist: the harbourmaster's lantern under his eave (the lighthouse's lamp, high on its tower, is lit
+    // by the sea's own lights: render_sea.cpp seaLights)
+    case Prop::HarbourDesk: r = 46; c = Color(1.0f, 0.78f, 0.45f); return true;
     default: return false;
   }
 }

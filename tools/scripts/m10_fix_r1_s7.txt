@@ -1,0 +1,54 @@
+# M10 FIXER round 1: targeted checks for the round-1 findings.
+#   a save inside a real Trial of the Threshold loads back as the trial (fresh process and same session), the hero not
+#   shut behind a gate; aboard among merrow the attack key fights (does not disembark); the quick-heal works aboard;
+#   the moored ships' furled rigs and the Mist's drowned ships (screenshots).
+#   cd <shots> && embervale.exe --script <repo>/tools/scripts/m10_fix_r1.txt    (m10_fix_r1_*.png)
+seed 7
+# ---- the quick-heal aboard: Q eats the start's food one press at a time, then says NO HEALING ITEMS (it was ignored)
+0.3  newgame
++0.2 sea shore
++0.5 boat give rowboat
++0.1 boat board
++0.2 expect sea aboard 1
++0.1 key Q
++0.3 key Q
++0.3 key Q
++0.3 key Q
++0.3 key Q
++0.3 key Q
++0.3 expect heard NO HEALING ITEMS
+# ---- moored ships at a harbour, and the Mist turning a boat back (drowned ships in the fog)
++0.2 newgame
++0.1 god 1
++0.05 hour 14
++0.2 sea port
++1.5 shot m10_fix_r1_harbour_s7.png
++0.1 hour 22
++1.0 shot m10_fix_r1_harbour_night_s7.png
++0.1 hour 10
++0.3 sea mistedge
++0.2 expect sea aboard 1
++0.1 sea helm land
++34  expect sea turned 1
++0.5 shot m10_fix_r1_mist_turn.png
++3   shot m10_fix_r1_mist_turn2.png
+# ---- a sloop given at the nearest port, the helm held out: she pivots off the pier and gets under way
++0.2 newgame
++0.1 god 1
++0.2 sea port
++0.5 boat give sloop 16
++0.1 boat board
++0.2 expect sea aboard 1
++0.1 sea helm out
++20  expect sea speed 1
++0.1 shot m10_fix_r1_sloop_out_s7.png
+# ---- a companion aboard rides below deck: never left standing on the open water
++0.2 newgame
++0.1 god 1
++0.1 party recruit 1
++0.5 sea mistedge
++0.2 expect sea aboard 1
++0.1 sea helm 200
++3   shot m10_fix_r1_party_aboard.png
++0.1 expect party members 1
++0.2 quit

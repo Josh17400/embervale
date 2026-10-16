@@ -105,6 +105,11 @@ struct SpellDef {
   Resource res = Resource::Magicka;
   uint32_t tradition = 0;        // 0: the schools' own (Common Arcana); else the Tradition::id it belongs to
   FxStyle fx;
+  // (M10 ARCANA lane) the hidden signatures' marks: note, the scale degree (0..6) a Songweaving spell sings (-1 none);
+  // mask, which of Maskwork's three spirit masks an Aura of that tradition dons (0 ember fox, 1 frost owl, 2 storm
+  // stag; -1 none)
+  int8_t note = -1;
+  int8_t mask = -1;
 };
 // the budget of a spell (section 6.3): basePower(form) x essenceMult x rankMult x tierMult x 0.85 per mod; the
 // signature (rank 3) x1.1; hidden traditions no more than +10 %. --spells: every spell's power within +-5 % of it
@@ -137,6 +142,10 @@ struct Tradition {
   uint32_t sigilSeed = 0;
   bool hidden = false;
   uint8_t minLevel = 1;          // 1 common, 12 foreign mainland, 15 hidden valley, 25 beyond the Mist
+  // (M10 ARCANA lane) Songweaving's 3-note motif (scale degrees 0..6, the notes of three of its spells: casting them in
+  // this order sings the Refrain); the tradition's focus, sold only in its own land ("SINGING BOWL", "RUNE-KNIFE" ...)
+  uint8_t motif[3] = {0, 0, 0};
+  std::string focus;
 };
 uint32_t traditionSpellId(uint32_t traditionId, int index);   // >= 1000
 // the tradition of a culture (generated once per culture and memoised; its spells become known to spellById). Phase A:
@@ -162,6 +171,38 @@ constexpr float HEAT_CAP = 100.0f, CHARGE_CAP = 5.0f, STARLIGHT_CAP = 100.0f;
 float resourceCap(Resource r);
 // the full moon comes every 8 days (6.2 Starcalling)
 inline bool fullMoonDay(int day) { return ((day % 8) + 8) % 8 == 4; }
+// ---- (M10 ARCANA lane) the hidden kingdoms' signatures (6.2 #2, 3, 4, 10, 11, 12), their numbers and the five steps
+//      of learning one (6.4)
+//   Blood rites    spells cost health; power x(1 + BLOOD_POWER (1 - hp / maxHp)); the hero's spell healing is halved
+//   Runecarving    runes laid on the ground, triggered by a foe's step; two of the hero's runes within RUNE_LINK px go
+//                  off together as a combo (fire + frost: a steam burst ...); charge 5 refills one every RUNE_CHARGE_SECS
+//   Songweaving    every cast sings its note (SpellDef::note); three casts in the tradition's motif order sing a free
+//                  Refrain of the third at x REFRAIN_MULT (Book::res[Notes] holds the motif's progress 0..3)
+//   Maskwork       three spirit masks (the tradition's Auras: SpellDef::mask) worn MASK_SECS; while one is worn every
+//                  melee blow carries its essence and builds a charge (5), and the swing's finisher is a spell-strike
+//   Verdant        thorn walls (solid, VERDANT_SECS), root snares (held), a vine bridge over up to VINE_SPAN water tiles
+//                  (Ground::Bridge): the only magic that edits the map, and every tile is restored exactly
+//   Dreamweft      decoys of the hero that pull foes' attacks (DECOY_SECS), a bubble where foes move at DREAM_SLOW
+constexpr float BLOOD_POWER = 0.8f, BLOOD_HEAL = 0.5f;
+constexpr float RUNE_LINK = 48.0f, RUNE_CHARGE_SECS = 3.5f, RUNE_COMBO_MULT = 1.5f;
+constexpr float NOTES_CAP = 3.0f, REFRAIN_MULT = 2.0f;
+constexpr int MASKS = 3;
+constexpr float MASK_SECS = 60.0f;
+constexpr float VERDANT_SECS = 30.0f, SNARE_SECS = 2.5f;
+constexpr int VINE_SPAN = 3;
+constexpr float DREAM_SLOW = 0.4f, DREAM_SLOW_SECS = 3.0f, DECOY_SECS = 8.0f, DECOY_PULL = 150.0f;
+constexpr int HIDDEN_LEVEL = 25, REP_FRIENDLY = 25, REP_HONOURED = 60;
+inline bool hiddenSignature(Signature s) {
+  return s == Signature::Blood || s == Signature::Rune || s == Signature::Song || s == Signature::Mask || s == Signature::Verdant ||
+         s == Signature::Dream;
+}
+const char* maskName(int mask);                   // "EMBER FOX", "FROST OWL", "STORM STAG"
+Essence maskEssence(int mask);
+// the NEAREST hidden land of the world being played (WORLD lane's ew::LandPlan id; 0 unknown): its people's tradition
+// is Songweaving with Fire among its essences, its priests sing fire into being at dusk. MagicOps sets it once per
+// world (before any of its traditions is made); generation reads it (a pure function of the culture and this id)
+uint32_t songLand();
+void setSongLand(uint32_t landId);
 // does the spell deal damage (its power is damage: a bolt, a lance, a nova, a cone, a beam, a wall, a storm, a meteor...)
 bool damaging(const SpellDef& s);
 // its sustained damage a second at item / player level 1 (power over its cycle: cast time + cooldown, the shared 0.35 s
@@ -194,6 +235,12 @@ struct Book {
   // (the Trial of the Threshold: kills under the tradition's affinity once mastery reaches rank 3's 1200 XP)
   std::vector<uint64_t> lands;
   uint8_t trialKills[4] = {};
+  // (ARCANA lane, block version 3, written only when not empty: a book without it keeps writing version 2) the hidden
+  // traditions' Trials of the Threshold passed (6.4 step 4 and the rank-3 trial): tradition id -> bit 0 the first
+  // trial, bit 1 the second
+  std::vector<std::pair<uint32_t, uint8_t>> rites;
+  uint8_t rite(uint32_t traditionId) const;
+  void passRite(uint32_t traditionId, int which);
   bool knows(uint32_t id) const;
   bool learn(uint32_t id);                    // false: known already. A new spell fills the first empty slot
   int slotOf(uint32_t id) const;              // -1 not prepared
@@ -243,7 +290,37 @@ struct Turned {
   bool conc = false;
 };
 // Actor::magicTag values (the MAGIC lane's per-actor scratch; magicT its time left, magicBy the caster)
-enum : uint8_t { MT_NONE = 0, MT_SUMMON = 1, MT_CHARM = 2, MT_CALM = 3, MT_PARALYZE = 4, MT_RAISE = 5, MT_BOUND = 6 };
+enum : uint8_t { MT_NONE = 0, MT_SUMMON = 1, MT_CHARM = 2, MT_CALM = 3, MT_PARALYZE = 4, MT_RAISE = 5, MT_BOUND = 6,
+                 MT_DECOY = 7 };   // (M10) a Dreamweft decoy of the hero: foes near it attack it instead
+// (M10 ARCANA lane) a tile Verdant shaping changed for a while: a thorn wall's (solid), a vine bridge's (Ground::Bridge
+// over water), restored exactly when it ends (never under a body: it waits, then the body is set on firm ground)
+enum : uint8_t { GROW_THORN = 0, GROW_VINE = 1 };
+struct Growth {
+  uint8_t kind = GROW_THORN;
+  int16_t tx = 0, ty = 0;        // tile of the map it grew on
+  uint8_t ground = 0;            // the Ground byte it had
+  uint8_t solid = 0;             // the solid byte it had
+  bool over = true;              // on the overworld (World::over), else on the sub-map it was laid in
+  uint8_t order = 0;             // a bridge's tile from the near bank (0) out (the view grows them one after another)
+  float life = 0, age = 0, grace = 0;   // s left / since grown / waited for a body to step off
+  uint32_t seed = 0;
+  uint32_t spell = 0;
+};
+// a Dreamweft bubble: foes inside move, swing and burn at DREAM_SLOW
+struct Bubble { Vec2 p; float r = 0, life = 0, age = 0; uint32_t spell = 0; };
+// the Trial of the Threshold the hero stands in (rpg/sim/rooms.h TrialLayout; MagicOps runs its puzzle)
+struct TrialRun {
+  uint64_t site = 0;             // the trial's site id (0: not in a trial)
+  uint32_t gatesOpen = 0;        // bit per TrialLayout gate
+  uint64_t platesDown = 0;       // bit per plate the hero (or a decoy) stands on now
+  uint64_t paid = 0;             // blood altars paid (bit per plate)
+  uint8_t prog = 0;              // Song: notes of the motif matched so far
+  uint8_t room = 0;              // Song: the hall the last note was sung in
+  uint8_t seen = 0;              // bit per hall whose lesson was told
+  float t = 0, msgT = 0;
+  int decoy = -1;                // Dream: the decoy the mirror made (actor id)
+  bool passed = false;
+};
 struct SurfaceTile {
   int16_t tx = 0, ty = 0;        // tile of the current map
   Surface kind = Surface::None;
@@ -261,6 +338,9 @@ struct Field {
 };
 struct Stats {                   // counters (tests, scripts, the view's perf report)
   int casts = 0, hits = 0, kills = 0, upcasts = 0, duals = 0, combos = 0, reactions = 0, fizzles = 0, concBroken = 0;
+  // (M10) the hidden signatures
+  int notes = 0, refrains = 0, runeTriggers = 0, runeCombos = 0, maskStrikes = 0, maskHits = 0, growths = 0, reverts = 0,
+      snares = 0, decoys = 0, decoyHits = 0, slowedSteps = 0, bubbles = 0, songFires = 0, gates = 0, bloodPaid = 0;
   int statusApplied[STATUSES] = {};
   int surfacesLaid[(int)Surface::COUNT] = {};
 };
@@ -303,6 +383,24 @@ struct Live {
   int8_t bufSlot = -1;
   bool bufHeld = false, bufDual = false;
   float bufUntil = 0;            // Game::time the buffered press expires
+  // ---- (M10 ARCANA lane) the hidden signatures' runtime
+  int8_t lastNote = -1;          // Songweaving: the note last sung (the view's glyph) and when
+  float noteT = 0;
+  bool refrain = false;          // the cast being made is a Refrain (free, x REFRAIN_MULT)
+  int8_t mask = -1;              // Maskwork: the spirit mask worn (-1 none), its time left, the spell that donned it
+  float maskT = 0;
+  uint32_t maskSpell = 0;
+  bool maskFired = false;        // the finisher's spell-strike of this swing went off
+  float runeT = 0;               // Runecarving: the charge's clock
+  std::vector<Growth> growths;   // Verdant shaping
+  std::vector<std::pair<int, float>> snared;   // root-snared actor ids, s left (the view's roots)
+  std::vector<Bubble> bubbles;   // Dreamweft
+  TrialRun trial;
+  std::map<int, float> songT;    // dusk song-fire: priest actor id -> s to its next verse
+  float songScanT = 0;
+  int trialKingdoms = -1;        // World::kingdoms.size() the trial scan last saw
+  uint64_t songWorld = 0;        // the world (seed + 1) the song land was found for
+  int16_t repOverride = -1000;   // tests / scripts: the hero's standing with the land (-1000: the realm's own)
 };
 struct Arcana {
   Book book;                     // saved

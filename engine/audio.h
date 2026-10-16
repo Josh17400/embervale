@@ -85,6 +85,22 @@ enum class Sfx : uint8_t {
   WardRing,      // a ward raised or struck: a glassy ring over a resonant hum
   Sizzle,        // a surface combo: steam hissing out of a short whoomph
   SpellMotif,    // a school's / tradition's motif: 3-4 notes in the culture's scale (Audio::playMotif; play() gives motif 0)
+  // M10 Beyond the Mist (ART lane): the sea's moments. The view plays them from the Ev::Sea events (render_sea.cpp);
+  // the sea's continuous sound (waves, surf, gulls, wind in the sails, rigging, oars, the storm, the Mist) is the sea
+  // bed (Audio::setSea). k: a pitch / size.
+  WaveCrash,     // a wave breaking on the hull or a rock: a thump of water, then the hiss of spray
+  SailFlap,      // canvas filling or luffing: two or three quick flaps and a taut thrum
+  OarStroke,     // an oar's blade dipping and pulling through, the knock of its lock
+  ReelClick,     // the reel's ratchet clicking as line is won (k: faster with the tension)
+  LineSnap,      // the line parting under strain: a twang and a whip
+  FishPlop,      // a fish taking the float under: a small plop
+  SerpentRoar,   // the sea serpent rising: a hissing, bubbling roar that rolls into a deep bellow
+  KrakenRumble,  // the kraken's arm breaking the surface: a deep groan, water streaming off it
+  MerrowChatter, // merrow calling to each other: clicking, gurgling chirps
+  HullCrack,     // the hull struck: timber cracking, a groan of the frames
+  MistWhisper,   // the Mist closing in: breathy whispers over a cold, beating drone
+  MistChime,     // the Mist parting: a rising shimmer of bells into a warm chord
+  ShipBell,      // a ship's bell rung twice (a harbour, a turn of the watch)
   COUNT
 };
 
@@ -140,6 +156,17 @@ class Audio {
   void setMood(uint8_t mood) { wantMood_.store(mood); }
   // 0 night .. 1 day: the beds' day voices (birdsong, bees) give way to the night's (crickets, owls, more frogs)
   void setDaylight(float d) { wantDay_.store(d); }
+  // M10 Beyond the Mist (ART lane): the sea's bed, eased on the audio thread. open: out on the water (the swell's
+  // wash under the hull); surf: a shore near (the breakers); gulls: a harbour or a coast near; wind: wind in the sails
+  // (0 none .. 1 a gale); creak: aboard a ship (its timbers and rigging; more for a big hull); oars: strokes a second at
+  // the oars (0 none); storm: the storm's weight (heavy seas, rain, the gale's howl); mist: the Mist's weight (a cold
+  // drone and whispers); turn: the Mist turning the boat (the drone turns dissonant). All 0..1 unless said.
+  struct SeaSound { float open = 0, surf = 0, gulls = 0, wind = 0, creak = 0, oars = 0, storm = 0, mist = 0, turn = 0; };
+  void setSea(const SeaSound& s) {
+    wantSea_[0].store(s.open); wantSea_[1].store(s.surf); wantSea_[2].store(s.gulls); wantSea_[3].store(s.wind);
+    wantSea_[4].store(s.creak); wantSea_[5].store(s.oars); wantSea_[6].store(s.storm); wantSea_[7].store(s.mist);
+    wantSea_[8].store(s.turn);
+  }
   void setMaster(float v) { master_.store(v); }
   void setMusicVolume(float v) { musicVol_.store(v); }
 
@@ -239,6 +266,11 @@ class Audio {
   uint32_t crowdRng_ = 0x3C6EF372u;
   float crowdEvT_[3] = {1, 2, 3};    // laughter, a mug set down, a chair scraped
   void renderCrowd(float* out, int n, float blockSec);
+  // ---- (M10) the sea bed (audio thread)
+  std::atomic<float> wantSea_[9] = {};
+  float seaCur_[9] = {}, seaT_ = 0, seaLp_[6] = {}, seaEvT_[6] = {0.5f, 1.0f, 1.5f, 2.0f, 0.3f, 3.0f}, seaSwellT_ = 0;
+  uint32_t seaRng_ = 0x510E527Fu;
+  void renderSea(float* out, int n, float blockSec);
   void ambEvent(int e, float vol);
   std::atomic<int> wantMusic_{0};
   std::atomic<uint64_t> wantStyle_{0};

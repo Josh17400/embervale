@@ -28,6 +28,15 @@ struct View::MagicFxState {
   float flashA = 0, liftA = 0;               // the frame's scene flash and light lift (World requests, consumed in draw)
   Color flashC, liftC;
   int lightsThisFrame = 0;
+  // ---- (M10 ARCANA lane) the hidden signatures' own effects (render_magic.cpp: notes, refrains, song-fire, mask
+  //      strikes and dons, vines and thorns springing up, rune combos, gates opening, decoys shimmering in)
+  struct HFx { uint8_t kind = 0; Vec2 p, q; float t = 0, life = 1, f = 0; uint32_t seed = 0, id = 0; mfx::Look L; };
+  std::vector<HFx> hfx;
+  struct HSound { float at = 0; uint8_t motif = 0, timbre = 6; int root = 67; float vol = 0.5f; };
+  std::vector<HSound> hsounds;               // notes due later (a Refrain's motif sung note by note)
+  std::vector<std::pair<uint64_t, float>> seenAt;   // a rune / gate / growth key -> the clock it was first drawn (eases in)
+  float maskPop = 0;                         // the clock the worn mask last changed (its pop)
+  int8_t maskWorn = -1;
 };
 
 struct MagicFxOps {

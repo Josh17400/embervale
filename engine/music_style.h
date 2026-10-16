@@ -7,8 +7,10 @@
 #include <cstdint>
 
 // The 12 scales (VISION_PLAN 5.2). Today's three pieces use Major (Town), Dorian (Wild) and Minor (Night/Combat).
+// (M10) three more, only the peoples beyond the Mist sing in: WholeTone (dreamlike, no centre), Pelog (a gamelan's
+// uneven five), DoubleHarmonic (two augmented seconds: strange and grand). 15 in all: the 4 bits of the pack still hold it.
 enum class Scale : uint8_t { Major, Minor, Dorian, Phrygian, Mixolydian, Lydian, HarmonicMinor, Hijaz, PentaMajor, PentaMinor,
-                             Hirajoshi, InSen, COUNT };
+                             Hirajoshi, InSen, WholeTone, Pelog, DoubleHarmonic, COUNT };
 // The lead instrument a culture's pieces are carried by (VISION_PLAN 5.3 table)
 enum class LeadInst : uint8_t { Lute, Flute, Horn, Pipes, Oud, Reed, Fiddle, Bells, Marimba, Harp, Brass, Voice, COUNT };
 // The bed under it

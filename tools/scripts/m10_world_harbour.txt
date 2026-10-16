@@ -1,0 +1,24 @@
+# M10 WORLD lane: the sea's places for the ART lane's review (VISION_PLAN 15.4, 2.12): a harbour with its mole, T-head,
+# dredged basin and channel, sea props and keepers; a smaller harbour beside its lighthouse and a beached wreck; an
+# islet pair (a sea cave and a pirate cove); an archipelago of small islands. Seed 7 (rpg_test --seaworld --seeds 7..7
+# prints the harbours; rpg_test --sites-at X,Y --seeds 7..7 the places).
+#   cd <shots> && embervale.exe --script <repo>/tools/scripts/m10_world_harbour.txt    (m10_world_*.png)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.2 at 1999 -1104
++2.5 shot m10_world_harbour_chichakent.png
++0.2 at 2006 -1109
++2.0 shot m10_world_harbour_head.png
++0.2 at 316 -1866
++2.5 shot m10_world_harbour_ukhaltau.png
++0.2 at 300 -1815
++2.0 shot m10_world_lighthouse.png
++0.2 at 272 -1936
++2.0 shot m10_world_wreck.png
++0.2 at 1698 -1909
++2.0 shot m10_world_islet_cove_cave.png
++0.2 at -11323 -5242
++3.0 shot m10_world_archipelago.png
++0.3 quit

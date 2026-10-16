@@ -1,0 +1,22 @@
+# M10 ARCANA lane: "a kingdom nobody knew, whose priests sing fire into being" (VISION_PLAN 13 M10, what the owner sees):
+# in the nearest hidden land (always Songweaving, fire among its essences) its temple priests sing fire at dusk, each on
+# their own breath: embers drawn in, a flame blooming over them, notes rising off it. Harmless (no foe, no damage); none
+# at noon. Night follows: the flames light the dark.
+#   embervale.exe --script tools/scripts/m10_arcana_priests.txt     (m10_arcana_priests_*.png in the working directory)
+seed 3
+0.3  newgame
++0.1 god 1
++0.05 hour 12
++0.1 power arena
++0.2 spell hidden song
++0.1 spell priest 3
++3.0 log noon: the priests are silent
++0.1 shot m10_arcana_priests_noon.png
++0.1 hour 18.6
++2.2 shot m10_arcana_priests_dusk.png
++0.9 shot m10_arcana_priests_dusk2.png
++1.4 shot m10_arcana_priests_dusk3.png
++0.3 expect arcana songfires 3
++0.1 hour 20.6
++2.0 shot m10_arcana_priests_night.png
++1.0 expect arcana songfires 5

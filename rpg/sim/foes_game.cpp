@@ -468,7 +468,8 @@ void Game::foeStep(float dt) {
       if (a.slowT > 0) a.slowT -= dt * 0.6f;
     }
     // ---- boss phases (7.6): at 66 % and 33 % health a behaviour from {summon, enrage, hazard, shield}
-    const bool bossy = !a.human && ((a.boss && a.mon != art::Monster::Dragon) || a.rank == (uint8_t)Rank::WorldBoss);
+    // ((M10) the sea's creatures keep their own phases: rpg/sim/sea_foes.cpp)
+    const bool bossy = !a.human && !a.swim && ((a.boss && a.mon != art::Monster::Dragon) || a.rank == (uint8_t)Rank::WorldBoss);
     if (bossy) {
       if (a.affixT2 > 0) a.affixT2 = std::max(0.0f, a.affixT2 - dt);
       const float frac = a.maxHp > 0 ? a.hp / a.maxHp : 1.0f;

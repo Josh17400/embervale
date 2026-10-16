@@ -67,7 +67,8 @@ seed 7
 +1.6 hour 12
 +0.1 wallspot vertex
 +1.0 shot m7c_art_wl_sun_vertex_phone.png
-+0.2 gotoculture marsh city
++0.2 at 12488 -6073
++0.3 gotoculture marsh city
 +1.6 hour 12
 +0.1 wallspot water
 +1.0 shot m7c_art_wl_marsh_water_phone.png

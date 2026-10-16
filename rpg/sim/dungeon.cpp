@@ -2,11 +2,14 @@
 // (the M0b rooms generator in interior_v4.cpp).
 #include <cstdlib>
 #include <algorithm>
+#include <mutex>
+#include <unordered_map>
 #include <queue>
 #include <utility>
 #include <vector>
 #include "rpg/sim/deco.h"
 #include "rpg/sim/interior_v4.h"
+#include "rpg/sim/magic.h"
 #include "rpg/sim/world.h"
 #include "rpg/story/story_internal.h"
 
@@ -150,7 +153,209 @@ void genCave(Map& m, const Site& s, uint32_t seed) {
   m.rebuildSolid();
 }
 
+// ===================================================================================== M10: Trials of the Threshold
+namespace {
+std::mutex g_trialMx;
+std::unordered_map<uint64_t, TrialLayout>& trialReg() {
+  static std::unordered_map<uint64_t, TrialLayout> r;
+  return r;
+}
+// the trial's dungeon (rooms.h): an antechamber at the foot, two halls behind sealed gates, the sanctum at the head;
+// pillars down the halls, braziers in the corners, the tradition's puzzle in each hall
+void genTrial(Map& m, const Site& s, uint32_t seed, TrialLayout& T) {
+  using G = magic::Signature;
+  m.kind = MapKind::Ruin;
+  m.seed = seed;
+  const int W = 48, H = 54;
+  m.alloc(W, H, Ground::CaveWall);
+  const TrialSpec& S = T.spec;
+  const G sig = (G)S.sig;
+  const bool second = S.which > 0;
+  T.plates.clear(); T.gates.clear(); T.chasms.clear();
+  auto carve = [&](IRect rc, bool chamfer) {
+    for (int y = rc.y; y < rc.y + rc.h; y++)
+      for (int x = rc.x; x < rc.x + rc.w; x++) {
+        const bool cx = x == rc.x || x == rc.x + rc.w - 1, cy = y == rc.y || y == rc.y + rc.h - 1;
+        if (chamfer && cx && cy) continue;   // (the corners cut: no box rooms)
+        m.setG(x, y, Ground::StoneFloor);
+      }
+  };
+  const IRect sanct{15, 4, 18, 7}, hall2{7, 16, 34, 10}, hall1{7, 31, 34, 10}, ante{18, 45, 12, 7};
+  carve(sanct, true); carve(hall2, true); carve(hall1, true); carve(ante, true);
+  carve(IRect{22, 11, 4, 5}, false);    // sanctum <- hall 2
+  carve(IRect{22, 26, 4, 5}, false);    // hall 2 <- hall 1
+  carve(IRect{22, 41, 4, 4}, false);    // hall 1 <- antechamber
+  // shrine niches along the halls' back walls: the walls are not straight runs
+  for (const IRect& h : {hall1, hall2})
+    for (int x = h.x + 3; x < h.x + h.w - 3; x += 7) {
+      if (x >= 19 && x <= 27) continue;
+      m.setG(x, h.y - 1, Ground::StoneFloor); m.setG(x + 1, h.y - 1, Ground::StoneFloor);
+    }
+  T.hall[0] = hall1; T.hall[1] = hall2; T.hall[2] = sanct;
+  m.exitX = 24; m.exitY = ante.y + ante.h - 1;
+  m.setProp(m.exitX, m.exitY, Prop::Ladder);
+  // the dressing: pillars down both halls, braziers in the corners, statues by the antechamber's door
+  for (const IRect& h : {hall1, hall2}) {
+    for (int x = h.x + 2; x < h.x + h.w - 2; x += 6) {
+      if (x >= 19 && x <= 28) continue;
+      m.setProp(x, h.y + 1, Prop::Pillar);
+      m.setProp(x, h.y + h.h - 2, Prop::Pillar);
+    }
+    m.setProp(h.x + 1, h.y + 1, Prop::Brazier); m.setProp(h.x + h.w - 2, h.y + 1, Prop::Brazier);
+  }
+  m.setProp(ante.x + 1, ante.y + 1, Prop::Statue); m.setProp(ante.x + ante.w - 2, ante.y + 1, Prop::Statue);
+  m.setProp(ante.x + 2, ante.y + 1, Prop::Brazier); m.setProp(ante.x + ante.w - 3, ante.y + 1, Prop::Brazier);
+  m.setProp(sanct.x + 1, sanct.y + 1, Prop::Brazier); m.setProp(sanct.x + sanct.w - 2, sanct.y + 1, Prop::Brazier);
+  m.setProp(sanct.x + 3, sanct.y, Prop::Statue); m.setProp(sanct.x + sanct.w - 4, sanct.y, Prop::Statue);
+  m.setProp(24, sanct.y, Prop::Altar);
+  m.setProp(27, sanct.y, Prop::Chest);
+  // the gates: four tiles across the corridor, two deep, right above the hall they close
+  auto gate = [&](int y, uint8_t room, int8_t mask) { TrialGate g; g.x = 22; g.y = (int16_t)y; g.w = 4; g.h = 2; g.room = room; g.mask = mask; T.gates.push_back(g); };
+  auto plate = [&](int x, int y, uint8_t kind, uint8_t arg, int8_t gt, uint8_t room) {
+    TrialPlate p; p.x = (int16_t)x; p.y = (int16_t)y; p.kind = kind; p.arg = arg; p.gate = gt; p.room = room; T.plates.push_back(p);
+  };
+  int slot = 0;
+  auto foe = [&](int x, int y, art::Monster mon) {
+    if (m.at(x, y) != Ground::StoneFloor || m.propAt(x, y)) return;
+    Spawn sp; sp.x = x; sp.y = y; sp.site = -1; sp.slot = slot++; sp.mon = mon; m.spawns.push_back(sp);
+  };
+  const art::Monster theme = s.theme == art::Monster::Spider ? art::Monster::Skeleton : s.theme;
+  // an inscription beside each gate: the hall's lesson
+  m.setProp(20, hall1.y, Prop::Inscription);
+  m.setProp(20, hall2.y, Prop::Inscription);
+  switch (sig) {
+    case G::Song: {
+      gate(29, 1, -1); gate(14, 2, -1);
+      // three singing stones with a note plate before each, in a shuffled order (listen, and read the motif's glyph
+      // over the gate)
+      static const int xs[3] = {13, 23, 33};
+      const int sh = (int)(hash32(seed) % 3u);
+      for (int i = 0; i < 3; i++) {
+        const int x = xs[(i + sh) % 3];
+        m.setProp(x, hall1.y + 3, Prop::StandingStone);
+        plate(x, hall1.y + 5, TP_NOTE, S.motif[i], 0, 1);
+      }
+      static const int xs2[3] = {10, 24, 37};
+      for (int i = 0; i < 3; i++) {
+        const int x = xs2[(i + 2 - sh + 3) % 3];
+        m.setProp(x, hall2.y + 3, Prop::StandingStone);
+        plate(x, hall2.y + 5, TP_NOTE, S.motif[i], 1, 2);
+      }
+      if (second) {   // the second trial: a false stone sings a note outside the motif
+        uint8_t odd = (uint8_t)((S.motif[0] + 1) % 7);
+        while (odd == S.motif[1] || odd == S.motif[2] || odd == S.motif[0]) odd = (uint8_t)((odd + 1) % 7);
+        m.setProp(17, hall2.y + 3, Prop::StandingStone);
+        plate(17, hall2.y + 5, TP_NOTE, odd, 1, 2);
+      }
+      for (int k = 0; k < (second ? 6 : 3); k++) foe(12 + k * 5, hall2.y + 7, theme);
+      break;
+    }
+    case G::Rune: {
+      gate(29, 1, -1); gate(14, 2, -1);
+      // a lattice of runes across each hall, two staggered rows a tile apart: whatever crosses the hall crosses a rune
+      // (the guardians come over them at the hero: lure them on, keep your own feet off)
+      const uint8_t a = (uint8_t)magic::Essence::Fire, b = (uint8_t)magic::Essence::Frost;
+      for (int hall = 0; hall < 2; hall++) {
+        const IRect& h = hall ? hall2 : hall1;
+        for (int i = 0; i < 8; i++) {   // (three rows: whatever path crosses the hall passes a rune's reach)
+          plate(9 + i * 4, h.y + 3, TP_RUNE, (i + hall) % 2 ? a : b, -1, (uint8_t)(hall + 1));
+          plate(11 + i * 4, h.y + 5, TP_RUNE, (i + hall) % 3 ? b : a, -1, (uint8_t)(hall + 1));
+          plate(10 + i * 4, h.y + 7, TP_RUNE, (i + hall + 1) % 2 ? a : b, -1, (uint8_t)(hall + 1));
+        }
+      }
+      for (int k = 0; k < 4; k++) foe(12 + k * 8, hall1.y + 1, theme);
+      for (int k = 0; k < (second ? 7 : 5); k++) foe(12 + k * 5, hall2.y + 1, theme);
+      break;
+    }
+    case G::Mask: {
+      const int8_t k1 = (int8_t)(hash32(seed ^ 0x3A5Cu) % 3u), k2 = (int8_t)((k1 + 1 + (int)(hash32(seed) % 2u)) % 3);
+      gate(29, 1, k1); gate(14, 2, k2);
+      static const int xs[3] = {13, 23, 33};
+      for (int i = 0; i < 3; i++) plate(xs[i], hall1.y + 6, TP_MASK, (uint8_t)i, -1, 1);
+      for (int i = 0; i < 3; i++) plate(11 + i * 13, hall2.y + 7, TP_MASK, (uint8_t)((i + 1) % 3), -1, 2);
+      for (int k = 0; k < (second ? 6 : 4); k++) foe(10 + k * 6, hall2.y + 3, theme);
+      break;
+    }
+    case G::Verdant: {
+      // a chasm of dark water across each hall (wall to wall: no way round), a seed pod on the near bank
+      const IRect c1{hall1.x, hall1.y + 3, hall1.w, 3}, c2{hall2.x, hall2.y + 3, hall2.w, 3};
+      for (const IRect& c : {c1, c2})
+        for (int y = c.y; y < c.y + c.h; y++)
+          for (int x = c.x; x < c.x + c.w; x++) {
+            if (m.at(x, y) == Ground::StoneFloor) m.setG(x, y, Ground::Water);
+            m.setP(x, y, 0);
+          }
+      T.chasms.push_back(c1); T.chasms.push_back(c2);
+      plate(23, c1.y + c1.h + 1, TP_POD, 0, -1, 1);
+      plate(23, c2.y + c2.h + 1, TP_POD, 1, -1, 2);
+      for (int k = 0; k < (second ? 5 : 3); k++) foe(12 + k * 6, hall2.y + 1, theme);
+      break;
+    }
+    case G::Blood: {
+      gate(29, 1, -1); gate(14, 2, -1);
+      m.setProp(14, hall1.y, Prop::Altar);
+      plate(14, hall1.y + 2, TP_ALTAR, 0, 0, 1);
+      m.setProp(12, hall2.y, Prop::Altar); m.setProp(35, hall2.y, Prop::Altar);
+      plate(12, hall2.y + 2, TP_ALTAR, 0, 1, 2);
+      plate(35, hall2.y + 2, TP_ALTAR, 0, 1, 2);
+      for (int k = 0; k < (second ? 6 : 4); k++) foe(14 + k * 5, hall2.y + 6, theme);
+      break;
+    }
+    case G::Dream: {
+      gate(29, 1, -1); gate(14, 2, -1);
+      plate(10, hall1.y + 5, TP_PRESS, 0, 0, 1); plate(37, hall1.y + 5, TP_PRESS, 0, 0, 1);
+      plate(23, hall1.y + 7, TP_MIRROR, 0, 0, 1);
+      plate(9, hall2.y + 4, TP_PRESS, 0, 1, 2); plate(38, hall2.y + 4, TP_PRESS, 0, 1, 2);
+      plate(23, hall2.y + 7, TP_MIRROR, 0, 1, 2);
+      for (int k = 0; k < (second ? 6 : 4); k++) foe(13 + k * 5, hall2.y + 2, theme);
+      break;
+    }
+    default: gate(29, 1, -1); gate(14, 2, -1); break;
+  }
+  // the sanctum: its plate before the altar passes the trial; the second trial's guardian keeps it
+  plate(24, sanct.y + 3, TP_SANCTUM, 0, -1, 3);
+  T.sanctumX = 24; T.sanctumY = sanct.y + 3;
+  if (second) {
+    Spawn boss; boss.boss = true; boss.slot = 99; boss.x = 24; boss.y = sanct.y + 5;
+    boss.mon = theme == art::Monster::Wraith ? art::Monster::Wraith : art::Monster::Draugr;
+    m.spawns.push_back(boss);
+  }
+  // nothing stands on a plate or a gate, or on the arrival tile
+  for (const TrialPlate& p : T.plates) m.setP(p.x, p.y, 0);
+  for (const TrialGate& g : T.gates)
+    for (int y = g.y; y < g.y + g.h; y++) for (int x = g.x; x < g.x + g.w; x++) m.setP(x, y, 0);
+  m.setP(m.exitX, m.exitY - 1, 0);
+  m.rebuildSolid();
+  for (const TrialGate& g : T.gates)
+    for (int y = g.y; y < g.y + g.h; y++) for (int x = g.x; x < g.x + g.w; x++) if (m.in(x, y)) m.solid[(size_t)y * m.w + x] = 1;
+}
+}  // namespace
+
+void registerTrial(uint64_t siteId, const TrialSpec& spec) {
+  std::lock_guard<std::mutex> lk(g_trialMx);
+  TrialLayout& L = trialReg()[siteId];
+  L.spec = spec;
+}
+const TrialLayout* trialLayoutOf(uint64_t siteId) {
+  std::lock_guard<std::mutex> lk(g_trialMx);
+  const auto it = trialReg().find(siteId);
+  return it == trialReg().end() ? nullptr : &it->second;
+}
+void clearTrials() {
+  std::lock_guard<std::mutex> lk(g_trialMx);
+  trialReg().clear();
+}
+
 void genRuin(Map& m, const Site& s, uint32_t seed) {
+  {   // (M10) a hidden kingdom's Trial of the Threshold (rooms.h)
+    TrialLayout* T = nullptr;
+    {
+      std::lock_guard<std::mutex> lk(g_trialMx);
+      const auto it = trialReg().find(s.id);
+      if (it != trialReg().end()) T = &it->second;
+    }
+    if (T) { genTrial(m, s, seed, *T); return; }
+  }
   Rng r(seed);
   m.kind = MapKind::Ruin;
   m.seed = seed;
@@ -251,13 +456,23 @@ void story::placeLoreProps(Map& m, uint64_t key, const std::vector<int>& props, 
     for (const auto& p : spawns) if (std::abs(p.first - x) <= 1 && p.second == y) return true;
     return false;
   };
+  // (M10) a Trial of the Threshold: no slab on its puzzle (its plates, gates, chasms, the way through)
+  const TrialLayout* trial = trialLayoutOf(key);
+  auto puzzleTile = [&](int x, int y) {
+    if (!trial) return false;
+    if (x >= 20 && x <= 27) return true;
+    for (const TrialPlate& p : trial->plates) if (std::abs(p.x - x) <= 2 && std::abs(p.y - y) <= 2) return true;
+    for (const TrialGate& g : trial->gates) if (x >= g.x - 2 && x < g.x + g.w + 2 && y >= g.y - 2 && y < g.y + g.h + 2) return true;
+    for (const IRect& c : trial->chasms) if (x >= c.x - 1 && x < c.x + c.w + 1 && y >= c.y - 2 && y < c.y + c.h + 2) return true;
+    return false;
+  };
   for (size_t i = 0; i < props.size(); i++) {
     const Prop p = (Prop)props[i];
     int bx = -1, by = -1, best = -1;
     for (int y = 2; y < m.h - 2; y++)
       for (int x = 2; x < m.w - 2; x++) {
         const int d = dist[(size_t)y * m.w + x];
-        if (d < 9 || !clearAt(x, y) || onSpawn(x, y)) continue;
+        if (d < 9 || !clearAt(x, y) || onSpawn(x, y) || puzzleTile(x, y)) continue;
         if (std::abs(x - m.exitX) <= 2 && std::abs(y - m.exitY) <= 3) continue;
         bool nearOther = false;
         for (const auto& o : out) if (std::abs(o.tx - x) <= 4 && std::abs(o.ty - y) <= 4) nearOther = true;

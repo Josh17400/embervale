@@ -152,7 +152,10 @@ std::string newsLine(const Game& g, const realm::WorldEvent& e, uint64_t voiceCu
   const uint32_t h = hash32(e.id * 2654435761u ^ (uint32_t)voiceCulture);
   std::string core;
   switch (e.type) {
-    case EvType::FirstContact: core = "ENVOYS OF " + A + " AND " + B + " HAVE MET FOR THE FIRST TIME"; break;
+    case EvType::FirstContact:   // (M10) b 0: a hidden land reached by the hero (the Mist parted on it)
+      core = e.b ? "ENVOYS OF " + A + " AND " + B + " HAVE MET FOR THE FIRST TIME"
+                 : "THEY SAY THE MIST HAS PARTED, AND A STRANGER CAME ASHORE IN " + A + ", A KINGDOM NOBODY KNEW";
+      break;
     case EvType::TradeDeal: core = A + " AND " + B + " HAVE SIGNED A TRADE PACT, " + std::string(h & 1 ? "GRAIN FOR IRON" : "SALT FOR TIMBER"); break;
     case EvType::TradeBroken: core = "THE TRADE BETWEEN " + A + " AND " + B + " HAS BROKEN DOWN, AND THE WAGONS STAND EMPTY"; break;
     case EvType::HarvestFailed: core = "THE HARVEST FAILED AROUND " + S + ", BLIGHT IN THE ROOTS"; break;

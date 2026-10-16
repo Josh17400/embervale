@@ -25,6 +25,7 @@
 #include "rpg/sim/magic.h"
 #include "rpg/sim/party.h"
 #include "rpg/sim/realm.h"
+#include "rpg/sim/sea.h"
 #include "rpg/sim/skills.h"
 #include "rpg/sim/talk.h"
 #include "rpg/sim/war.h"
@@ -51,6 +52,9 @@ struct Input {
   int8_t castSlot = -1;
   bool castHold = false, castDual = false;
   bool sneak = false;
+  // ---- M10 Beyond the Mist (SeaOps::input): reel, the fishing reel held (the action button held while a line is out:
+  //      the HUD sets it, rpg/view; the keyboard's J / Space held)
+  bool reel = false;
 };
 
 // Down: a skeleton that has collapsed and may reassemble (a hit while it is down finishes it)
@@ -90,6 +94,10 @@ struct Actor {
   bool fromMap = false;    // created from a map Spawn (persistent identity)
   bool wild = false;       // dynamic wilderness spawn
   bool fly = false;        // dragon in the air
+  // M10 Beyond the Mist (never saved): a swimmer's ground. 0 walks the land (water is a wall); 1 the sea's own: water
+  // is ground and land a wall (the sea serpent, the kraken; the PLAYER while aboard a boat: SeaOps sets it); 2
+  // amphibious: water and land both (merrow). moveActor and Game::swimSolid honour it.
+  uint8_t swim = 0;
   float special = 0;       // ability timer
   bool dropped = false;
   // behaviour sets (game feel)
@@ -245,7 +253,10 @@ struct Pickup {
 enum class Ev : uint8_t { Sfx, Hit, Blood, Explode, Sparkle, Dust, Heal, Frost, Text, Discover, LevelUp, QuestUpdate, Shake, MapChange, Notice,
                           WindowShift, News, Border,
                           Banter, PartyAlert, Power,
-                          Spell, Skill };
+                          Spell, Skill,
+                          Sea };
+// M10 Beyond the Mist: Sea, a moment at sea for the view (a = sea::SeaEv, p, q, f, id, s: rpg/sim/sea.h; View::seaEvent,
+// rpg/view/render_sea.cpp, ART lane): boarding, wakes, hull hits, the Mist, storms, fishing, voyages, first contact
 // M9 Arcana & Mastery: Spell, a phase of a spell's life (a = magic::Phase, Event::spell = the spell id, p / q / f / id:
 // see magic.h Phase; the view: View::magicEvent, rpg/view/render_magic.cpp, SPELLFX lane). Skill, a skill moment for the
 // HUD (a = skills::Skill, f = the kind: 1 a level gained (Event::spell = the new level), 2 a perk point earned, 3 a perk
@@ -278,7 +289,11 @@ struct Event {
 // Quest::targetId the besieged site, Quest::stage the realm's Siege id, Quest::flags bit QF_WAR_ATTACK the side).
 // M5 Hearth and Hall appends: Supply (a radiant quest from an unmet need, 15.12 "the baker has no flour": bring `need`
 // units of a good (Quest::stage = ew::Good) to the giver or the settlement's stores; CITIZENS lane, life_quests.cpp).
-enum class QType : uint8_t { Main, Clear, Hunt, Retrieve, Bounty, Deliver, Heirloom, Missing, NamedBandit, Protect, Story, War, Supply, COUNT };
+// M10 Beyond the Mist appends: Sea (SEA lane, rpg/sim/sea_chain.cpp): Quest::stage the kind (1 the sea-chart chain of a
+// hidden land: Quest::giverId the land's id, Quest::have the chain step, the marker the step's place; 2 "TELL KING X OF
+// THE LAND BEYOND THE MIST": giverId the land, targetId the mainland capital; 3 a fishmonger's order: subject the fish,
+// need / have the count).
+enum class QType : uint8_t { Main, Clear, Hunt, Retrieve, Bounty, Deliver, Heirloom, Missing, NamedBandit, Protect, Story, War, Supply, Sea, COUNT };
 enum class QState : uint8_t { Active, Complete, Done };
 struct Quest {
   int id = 0;
@@ -335,6 +350,7 @@ constexpr int DLG_PARTY = 5500, DLG_PARTY_END = 6000;
 // M9 Arcana & Mastery: the trainers', companions' teaching and speech options (rpg/sim/skills_game.cpp SkillOps::choose,
 // SKILLS lane) and the mage teachers' (rpg/sim/magic_game.cpp MagicOps::choose, MAGIC lane)
 constexpr int DLG_SKILLS = 6000, DLG_SKILLS_END = 6500, DLG_MAGIC = 6500, DLG_MAGIC_END = 7000;
+constexpr int DLG_SEA = 7000, DLG_SEA_END = 7500;   // (M10) harbourmasters, shipwrights, sailors, captains (SeaOps::choose)
 struct Dialogue {
   int actor = -1;
   std::string speaker, text;
@@ -538,6 +554,10 @@ class Game {
   //      casting / surfaces / concentration runtime (never saved) (rpg/sim/magic.h; MAGIC lane).
   skills::Skills skills;
   magic::Arcana arcana;
+  // ---- M10 Beyond the Mist (VISION_PLAN 2.12, 15.4, 15.31; rpg/sim/sea.h, SEA lane): the boats owned and the one
+  //      aboard, the ports known, the lands and their sea-chart chains, the catches (saved: the sea block, SAVE_VER 21)
+  //      and the wind / storm / Mist / fishing / voyage runtime (sea.live, never saved)
+  sea::Sea sea;
   //   the one doorway for skill gains: `base` use points of an act of that skill (rpg/sim/skills_game.cpp SkillOps::use)
   void skillUse(skills::Skill s, float base);
   // (M7b Voice) how the dialogue panel titles a speaker: "SUSUT, INNKEEPER" once they have introduced themselves,
@@ -753,7 +773,10 @@ class Game {
   void updateLocation();
   void moveActor(Actor& a, Vec2 delta);
   bool solidAt(float x, float y, bool flying) const;
-  bool bodyFree(Vec2 p, float r, bool flying) const;   // an actor of radius r fits here (moveActor's box)
+  bool bodyFree(Vec2 p, float r, bool flying, uint8_t swim = 0) const;   // an actor of radius r fits here (moveActor's box)
+  // (M10) a point is a wall for a swimmer (Actor::swim 1: anything but water, or a prop on the water; 2: the land's own
+  // rules ashore, water free)
+  bool swimSolid(float x, float y, uint8_t swim) const;
   // (M7 fixer r2) townsfolk keep out of the player's yards (a villager stood on the new crops and shouldered the hero off
   // the row): true when tile (tx, ty) of the overworld lies in an owned plot that `a` (a friendly NPC that is not one of
   // the farm's own actors) is not already in. The way out stays open to one who is in.
@@ -1076,6 +1099,7 @@ class Game {
   friend struct PowerOps;              // M8b POWERS: the worn powers' internals (defined by the POWERS lane in powers.cpp)
   friend struct SkillOps;              // M9 SKILLS: the skills' hooks and internals (rpg/sim/skill_ops.h, skills_game.cpp)
   friend struct MagicOps;              // M9 MAGIC: casting, surfaces, statuses (rpg/sim/magic_ops.h, magic_game.cpp)
+  friend struct SeaOps;                // M10 SEA: boats, sailing, the Mist, fishing (rpg/sim/sea_ops.h, sea_game.cpp)
   // (M8b POWERS, never saved) > 0 while a power's own damage is being dealt: procs never fire from proc damage (a
   // Tempest arc never chains again, a star never calls a star); compStats_: each companion in play's worn gear summed
   // (actor id, stats), refreshed every step by PowerOps::step

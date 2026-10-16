@@ -1,0 +1,20 @@
+# M10 INTEGRATOR: the screenshot tour over everything M10 changed, on three seeds, by day and night, outside and in:
+# harbours, a sloop under sail, a storm at night, the sea creatures, the Mist turning a boat back and parting for the
+# chart, a hidden land's town and its seat of power, the chart chain's wreck and sea cave (one seed per file).
+#   cd <shots> && embervale.exe --script <repo>/tools/scripts/m10_integ_tour_s*.txt    (m10_integ_*.png)
+seed 42
+0.3  newgame
++0.1 god 1
++0.05 hour 7
++0.2 sea shore
++0.3 boat give rowboat 12
++0.1 boat board
++1.2 shot m10_integ_s42_rowboat_morning.png
++0.2 sea spawn merrow
++1.5 shot m10_integ_s42_merrow.png
++0.2 sea port
++1.5 shot m10_integ_s42_harbour.png
++0.1 hour 21
++1.0 shot m10_integ_s42_harbour_night.png
++0.3 log seed 42 done
++0.2 quit

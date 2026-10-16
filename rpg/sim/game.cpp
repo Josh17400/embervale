@@ -13,6 +13,7 @@
 #include "rpg/sim/gear.h"
 #include "rpg/sim/power_ops.h"
 #include "rpg/sim/magic_ops.h"
+#include "rpg/sim/sea_ops.h"
 #include "rpg/sim/powers.h"
 #include "rpg/sim/skill_ops.h"
 #include "rpg/sim/stream.h"
@@ -198,6 +199,7 @@ void Game::resetPlayer() {
   inv.push_back(bread);
   spellsKnown = 0; spell = Spell::Flames;   // no magic at the start: spells come from a background, tomes or teachers
   MagicOps::reset(*this);                    // (M9) the spellbook and the casting runtime
+  SeaOps::reset(*this);                      // (M10) no boats, nothing known of the sea
   skills::startLevels(skills, background);   // (M9) every skill at its start level
   recalcPlayer();
   Actor& p = pl();
@@ -241,6 +243,7 @@ void Game::finishCreator() {
   }
   skills::startLevels(skills, background);   // (M9) the background's own skills start higher
   MagicOps::background(*this);               // (M9) its spell into the book and the first quick slot
+  SeaOps::background(*this);                 // (M10) 15.1 the Sailor's hook (sea_game.cpp)
   recalcPlayer();
   pl().hp = pl().maxHp; mp = maxMp; stamina = maxSt;
   mode = Mode::Play;
@@ -326,6 +329,7 @@ void Game::windowMoved(int dx, int dy) {
   for (Vec2& t : party.trail) t += d;   // (M8) the player's footsteps the companions follow (party_move.cpp)
   PowerOps::shift(*this, d);            // (M8b) fire patches, falling stars, wolves to call
   MagicOps::shift(*this, d);            // (M9) the spells' surfaces
+  SeaOps::shift(*this, d);              // (M10) storms, the fishing line's bob
   // the heading reference moves with the window too, or the next wish list reads the shift as a walk backwards
   if (len2(prefetchFrom_) > 1e-6f) prefetchFrom_ += d;
   reapplyLooted();
@@ -463,8 +467,20 @@ bool Game::pillarHit(float x, float y, float rx, float ry) const {
   return false;
 }
 
-bool Game::bodyFree(Vec2 p, float r, bool flying) const {
+bool Game::swimSolid(float x, float y, uint8_t swim) const {
+  const Map& m = map();
+  const int tx = (int)std::floor(x / TILE), ty = (int)std::floor(y / TILE);
+  if (!m.in(tx, ty)) return true;
+  if (groundWater(m.at(tx, ty))) return m.solid[(size_t)ty * m.w + tx] != 0;   // a prop on the water: a post, a hull
+  if (swim == 1) return true;                                                   // the sea's own: the land is a wall
+  return solidAt(x, y, false);                                                  // amphibious: the land's rules ashore
+}
+
+bool Game::bodyFree(Vec2 p, float r, bool flying, uint8_t swim) const {
   float ry = r * 0.6f;
+  if (swim)   // (M10) a swimmer: its four corners on its own ground
+    return !swimSolid(p.x - r, p.y - ry, swim) && !swimSolid(p.x + r, p.y - ry, swim) && !swimSolid(p.x - r, p.y + ry, swim) &&
+           !swimSolid(p.x + r, p.y + ry, swim);
   return !solidAt(p.x - r, p.y - ry, flying) && !solidAt(p.x + r, p.y - ry, flying) && !solidAt(p.x - r, p.y + ry, flying) && !solidAt(p.x + r, p.y + ry, flying) &&
          (flying || !pillarHit(p.x, p.y, r, ry));
 }
@@ -479,9 +495,13 @@ void Game::moveActor(Actor& a, Vec2 d) {
   // (fixer M4 r1) a besieged town's barricaded gates stop everyone but the player (never shut in or out by a siege)
   const bool gatePass = a.player && !inside && !war.gateTiles.empty();
   const bool yardCheck = !home.plots.empty() && a.npc && !inside;   // (M7) townsfolk keep out of the player's yards
+  const uint8_t sw = a.swim;            // (M10) a swimmer's ground (a boat aboard, the sea's creatures)
   auto solidP = [&](float x, float y) {
     if (yardCheck && yardBarred(a, (int)std::floor(x / TILE), (int)std::floor(y / TILE))) return true;
+    if (sw) return swimSolid(x, y, sw);
     if (!solidAt(x, y, fl)) return false;
+    // (M10) the hero wading or swimming in the shallows (SeaOps::passable; the Sailor swims farther)
+    if (a.player && SeaOps::passable(*this, a, (int)std::floor(x / TILE), (int)std::floor(y / TILE))) return false;
     return !(gatePass && warGatePass(*this, (int)std::floor(x / TILE), (int)std::floor(y / TILE)));
   };
   auto hit = [&](float x, float y) {
@@ -555,6 +575,7 @@ void Game::update(float dt, const Input& in) {
   PowerOps::step(*this, dt);   // M8b: the worn powers' clocks, fire patches, auras, stars, spectral wolves (powers.cpp)
   SkillOps::step(*this, dt);   // M9: distances walked / ridden, sneaking, familiarity (skills_game.cpp, SKILLS lane)
   MagicOps::step(*this, dt);   // M9: casts in progress, concentration, surfaces and their combos (magic_game.cpp, MAGIC lane)
+  SeaOps::step(*this, dt);     // M10: the wind, storms, the Mist, the boats, voyages, encounters (sea_game.cpp, SEA lane)
   if (world.endless && !inside) { maybeRecentre(); prefetchTick(dt); }
   if (!inside && (exploreT_ -= dt) <= 0) {   // fog of war: what the screen shows around the player (global tiles)
     exploreT_ = 0.25f;
@@ -696,6 +717,25 @@ void Game::updatePlayer(float dt, const Input& in) {
     if (p.hp <= 0) { kill(p, -1); return; }   // burning can finish you off
   }
   if (p.slowT > 0) p.slowT -= dt;
+  // (M10) aboard a boat, a line out, swimming: the sea owns the step (sea_game.cpp, SEA lane)
+  // (fixer M10 r1) the quick-heal: also aboard, swimming and with a line out (the sea owns the rest of that step)
+  auto quickHeal = [&]() {
+    int best = -1;
+    // (M6 fixer) while the shared potion cooldown runs, the quick-heal reaches for food instead (a potion is still
+    // tried when there is no food, so the "POTION READY IN N S" notice tells the player why nothing happened)
+    const bool potionReady = craft.live.potionCd <= 0;
+    for (int i = 0; i < (int)inv.size() && potionReady; i++)
+      if (inv[i].kind == ItemKind::Potion && inv[i].sub == (uint8_t)PotionType::Health && (best < 0 || inv[i].power < inv[best].power)) best = i;
+    if (best < 0) {
+      for (int i = 0; i < (int)inv.size(); i++) if (inv[i].kind == ItemKind::Food) { best = i; break; }
+      if (best < 0 && !potionReady)
+        for (int i = 0; i < (int)inv.size(); i++)
+          if (inv[i].kind == ItemKind::Potion && inv[i].sub == (uint8_t)PotionType::Health) { best = i; break; }
+    }
+    if (best < 0) for (int i = 0; i < (int)inv.size(); i++) if (inv[i].kind == ItemKind::Food) { best = i; break; }
+    if (best >= 0) useItem(best); else say("NO HEALING ITEMS");
+  };
+  if (SeaOps::input(*this, in, dt)) { if (in.potion) quickHeal(); return; }
 
   // M0b: rooms are regenerated from the building's seed; a save made on a different layout (a generator still in
   // development) can put the player inside a wall: step out onto the nearest free tile
@@ -821,22 +861,7 @@ void Game::updatePlayer(float dt, const Input& in) {
   if (canAct && in.bow) { shootArrow(); return; }
   // (M9) the quick slots, the SPELL button and SWAP: the book (magic_game.cpp, MAGIC lane)
   if (MagicOps::input(*this, in, canAct)) return;
-  if (in.potion) {
-    int best = -1;
-    // (M6 fixer) while the shared potion cooldown runs, the quick-heal reaches for food instead (a potion is still
-    // tried when there is no food, so the "POTION READY IN N S" notice tells the player why nothing happened)
-    const bool potionReady = craft.live.potionCd <= 0;
-    for (int i = 0; i < (int)inv.size() && potionReady; i++)
-      if (inv[i].kind == ItemKind::Potion && inv[i].sub == (uint8_t)PotionType::Health && (best < 0 || inv[i].power < inv[best].power)) best = i;
-    if (best < 0) {
-      for (int i = 0; i < (int)inv.size(); i++) if (inv[i].kind == ItemKind::Food) { best = i; break; }
-      if (best < 0 && !potionReady)
-        for (int i = 0; i < (int)inv.size(); i++)
-          if (inv[i].kind == ItemKind::Potion && inv[i].sub == (uint8_t)PotionType::Health) { best = i; break; }
-    }
-    if (best < 0) for (int i = 0; i < (int)inv.size(); i++) if (inv[i].kind == ItemKind::Food) { best = i; break; }
-    if (best >= 0) useItem(best); else say("NO HEALING ITEMS");
-  }
+  if (in.potion) quickHeal();
   if (in.interact) interact();
 
   // doors, cave mouths and exits
@@ -1746,6 +1771,7 @@ void Game::clearNonPlayer() {
   actors.resize(1);
   PowerOps::clearMap(*this);   // (M8b) the map's fire patches, falling stars and wolves to call
   MagicOps::clearMap(*this);   // (M9) the map's surfaces, the cast in progress, concentration
+  SeaOps::clearMap(*this);     // (M10) the line reeled in, the sea's encounters dropped (the boat aboard stays)
   projs.clear();
   pickups.clear();
   activeSites_.clear();

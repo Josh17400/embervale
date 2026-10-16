@@ -25,6 +25,9 @@ struct Geology {
   Rock rock = Rock::Granite;
   uint8_t ore[(int)Ore::COUNT] = {};   // affinity 0..255 per ore: how likely a vein or mine here yields it
   uint32_t province = 0;               // which province (a hash: equal for every tile of one province)
+  // (M10) the hidden lands' own reagent (VISION_PLAN 15.11: "metals never seen at home"): 0 on the mainland; on a land
+  // beyond the Mist, how rich the ground is in the reagent its people's masterwork alloy needs (cult::isHiddenReagent)
+  uint8_t mistOre = 0;
   Ore primary() const {
     int best = 0;
     for (int i = 1; i < (int)Ore::COUNT; i++) if (ore[i] > ore[best]) best = i;

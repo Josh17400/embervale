@@ -62,8 +62,9 @@ Rock EndlessSource::Impl::provinceRock(int32_t x, int32_t y) {
       }
     key = gen::key2(bi, bj) << 1;
   }
-  auto it = rockMemo.find(key);
-  if (it != rockMemo.end()) return it->second;
+  auto& rmemo = legacyLand ? rockMemoLegacy : rockMemo;   // (M10: the legacy climate keeps its own memo)
+  auto it = rmemo.find(key);
+  if (it != rmemo.end()) return it->second;
   const uint64_t h = belt || riftB ? mix64(key ^ seed ^ tag("geo.belt")) : cellSeed(seed, tag("geo.rock"), bi, bj);
   Rock rk;
   if (belt) { const uint32_t q = (uint32_t)(h % 10); rk = q < 5 ? Rock::Granite : q < 8 ? Rock::Slate : Rock::Marble; }
@@ -83,8 +84,8 @@ Rock EndlessSource::Impl::provinceRock(int32_t x, int32_t y) {
     else if ((h >> 3) % 7 == 0 || (sea && (h & 1))) rk = Rock::Basalt;
     else rk = m > gen::Q(0.50) ? Rock::Limestone : ((h >> 5) & 1 ? Rock::Sandstone : Rock::Limestone);
   }
-  if (rockMemo.size() > 8192) rockMemo.clear();
-  rockMemo[key] = rk;
+  if (rmemo.size() > 8192) rmemo.clear();
+  rmemo[key] = rk;
   return rk;
 }
 
@@ -112,8 +113,11 @@ Geology EndlessSource::Impl::geology(int32_t x, int32_t y) {
       }
     key = gen::key2(bi, bj) << 1;   // even
   }
-  auto it = geoMemo.find(key);
-  if (it != geoMemo.end()) return it->second;
+  // (M10) the hidden lands' reagent rides on the tile, not the province (a belt may run under the sea between lands)
+  const uint8_t mist = hiddenShapeAt(x, y) ? (uint8_t)(150 + (key >> 7) % 100) : 0;
+  auto& gmemo = legacyLand ? geoMemoLegacy : geoMemo;   // (M10: the legacy climate keeps its own memo)
+  auto it = gmemo.find(key);
+  if (it != gmemo.end()) { Geology G2 = it->second; G2.mistOre = mist; return G2; }
 
   Geology G;
   const uint64_t h = belt || riftB ? mix64(key ^ seed ^ tag("geo.belt")) : cellSeed(seed, tag("geo.rock"), bi, bj);
@@ -169,8 +173,9 @@ Geology EndlessSource::Impl::geology(int32_t x, int32_t y) {
   v[order[0]] = std::max(v[order[0]], rugged ? 190 : 160);
   for (int k = 3; k < (int)Ore::COUNT; k++) v[order[k]] = std::min(v[order[k]], 90);
   for (int o = 0; o < (int)Ore::COUNT; o++) G.ore[o] = (uint8_t)v[o];
-  if (geoMemo.size() > 4096) geoMemo.clear();
-  geoMemo[key] = G;
+  if (gmemo.size() > 4096) gmemo.clear();
+  gmemo[key] = G;
+  G.mistOre = mist;
   return G;
 }
 

@@ -786,6 +786,50 @@ void Gen::spaces() {
   }
 }
 
+// (M10) the landing of a port's harbour, in local tiles: the shore tile the mole leaves from and the tiles behind it
+void Gen::harbourReserve() {
+  if (!C.harbour || arch != Archetype::Port) return;
+  const PortPlan& Hb = *C.harbour;
+  const int rx0 = Hb.rootX - O.gx, ry0 = Hb.rootY - O.gy, px = -Hb.dirY, py = Hb.dirX;
+  for (int k = 0; k <= 5; k++)
+    for (int o = -2; o <= 2; o++) {
+      const int x = rx0 - Hb.dirX * k + px * o, y = ry0 - Hb.dirY * k + py * o;
+      if (in(x, y)) noBuild[I(x, y)] |= 16;
+    }
+}
+void Gen::harbourLanding() {
+  if (!C.harbour || arch != Archetype::Port) return;
+  const PortPlan& Hb = *C.harbour;
+  const int x0 = Hb.rootX - O.gx, y0 = Hb.rootY - O.gy;
+  if (!in(x0, y0) || water[I(x0, y0)] || M.bldgAt[I(x0, y0)] >= 0 || M.wall[I(x0, y0)]) return;
+  // the shortest walk from the landing to a street (round buildings, walls, fields and solid props)
+  std::vector<int> prev((size_t)W * H, -2);
+  std::queue<int> q;
+  prev[I(x0, y0)] = -1;
+  q.push((int)I(x0, y0));
+  int found = -1;
+  while (!q.empty() && found < 0) {
+    const int c = q.front(); q.pop();
+    const int px = c % W, py = c / W;
+    if (isStreet(px, py) && (px != x0 || py != y0)) { found = c; break; }
+    if (std::abs(px - x0) + std::abs(py - y0) > 70) continue;
+    for (int d = 0; d < 4; d++) {
+      const int nx = px + D4X[d], ny = py + D4Y[d];
+      if (!in(nx, ny) || prev[I(nx, ny)] != -2 || M.bldgAt[I(nx, ny)] >= 0 || M.wall[I(nx, ny)] || groundSolid(M.at(nx, ny)) || water[I(nx, ny)] ||
+          get(nx, ny) == K_FIELD || get(nx, ny) == K_COMPOUND || face(nx, ny))
+        continue;
+      if (M.prop[I(nx, ny)] && propSolid((Prop)(M.prop[I(nx, ny)] - 1))) continue;
+      prev[I(nx, ny)] = c;
+      q.push((int)I(nx, ny));
+    }
+  }
+  if (found < 0) return;
+  for (int c = prev[(size_t)found]; c >= 0; c = prev[(size_t)c]) {
+    M.setP(c % W, c / W, 0);
+    paintStreet(c % W, c / W, K_LANE, laneG);
+  }
+}
+
 void Gen::archetypeDress() {
   bool anyWater = false;
   for (size_t i = 0; i < water.size() && !anyWater; i++) anyWater = water[i] != 0;
@@ -795,6 +839,8 @@ void Gen::archetypeDress() {
     // quays: plank piers out into the water from the shore nearest the streets, crates and barrels at their roots
     int piers = arch == Archetype::Port ? 3 : 2;
     if (linearShore) piers += city ? 2 : 1;   // (M3: a town strung along its shore or its river lives off the water)
+    // (M10) a port with a harbour: the harbour's mole is its pier (the chunks lay it); the landing joins the streets
+    if (arch == Archetype::Port && C.harbour) { harbourLanding(); piers -= 3; }
     std::vector<std::pair<int, int>> made;
     for (int t = 0; t < 400 && (int)made.size() < piers; t++) {
       int x = 2 + rng.irange(W - 4), y = 2 + rng.irange(H - 4);
@@ -1474,7 +1520,7 @@ bool Gen::step() {
       planned = city && !ringT.empty();   // (M7b: the planned city; a ring the polygon could not make keeps the classic plan)
       edgeBegin();                        // (M7c: the faubourg belt; EDGE lane, town_edge.cpp)
       break;
-    case 2: squaresPass(); if (planned) cityStreets(); else { mainStreets(); ringRoads(); } break;
+    case 2: harbourReserve(); squaresPass(); if (planned) cityStreets(); else { mainStreets(); ringRoads(); } break;
     case 3: if (planned) cityBlocks(); else { fabric(); lanes(); } break;
     case 4: if (walled) cityWall(); break;
     case 5:

@@ -8,6 +8,7 @@
 #include "engine/audio.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/magic_ops.h"
+#include "rpg/sim/sea_ops.h"
 #include "rpg/sim/skill_ops.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/gear.h"
@@ -450,6 +451,8 @@ bool Game::foeInReach() const {
 int Game::interactTarget() const {
   const Actor& p = pl();
   if (foeInReach()) return -1;
+  // (fixer M10 r1) aboard, the deck's own verb (DISEMBARK, MOOR, FISH) outranks the crowd on the pier: no TALK flicker
+  if (sea.atSea() && !SeaOps::interactLabel(*this).empty()) return -1;
   int best = -1; float bd = 24 * 24;
   // (M7) in the player's own yard, a crop / coop / stable in front wins over a passer-by (the farm's own actors stay)
   const bool yard = !inside && !home.plots.empty() && home::yardUseAhead(*this);
@@ -559,6 +562,7 @@ void Game::interact() {
   int t = interactTarget();
   if (t >= 0) { talkTo(actors[findActor(t)]); return; }
   if (homeInteract()) return;   // M7: the player's own yard (till, plant, water, harvest, collect, mount; home_game.cpp)
+  if (SeaOps::interact(*this)) return;   // M10: board / disembark, cast a line, a pier's use (sea_game.cpp)
   // chest / shrine / bed / bush in front of the player
   const Actor& p = pl();
   int tx = 0, ty = 0;
@@ -895,6 +899,7 @@ void Game::completeQuest(Quest& q) {
   gainXp(q.xp);
   npcQuestsDone[npcKeyOf(q.giverSite, q.giverBldg, q.giverSlot)]++;
   partyQuest(q, true);   // M8: the companions' view of the job done (party_game.cpp)
+  SeaOps::questDone(*this, q);   // M10: a hidden land's people warm to the hero; a fishmonger takes the fish (sea_chain.cpp)
   emit(Ev::QuestUpdate, pl().p, q.id, 1, "QUEST COMPLETE: " + q.title);
   sfx((int)Sfx::QuestDone, pl().p);
   // occasional item reward (M6, 7.5 rule 5): by the quest's danger, never by the player's level; Uncommon to Epic
@@ -1259,7 +1264,8 @@ void Game::giveFirstWeapon(Quest& q) {
 namespace {
 const char* talkRoleName(Role r) {
   static const char* n[] = {"VILLAGER", "GUARD", "MERCHANT", "SMITH", "INNKEEPER", "PRIEST", "JARL", "FARMER", "CHILD", "MAGE", "BANDIT", "KING",
-                            "HUNTER", "FISHER", "HERBALIST", "TRAVELLER", "HERALD", "SOLDIER", "CAPTAIN", "REFUGEE"};
+                            "HUNTER", "FISHER", "HERBALIST", "TRAVELLER", "HERALD", "SOLDIER", "CAPTAIN", "REFUGEE",
+                            "HARBOURMASTER", "SHIPWRIGHT", "SAILOR", "PIRATE"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)Role::COUNT, "a name for every role");
   return (int)r < (int)Role::COUNT ? n[(int)r] : "?";
 }
@@ -1376,6 +1382,7 @@ bool serviceOpt(const DlgOpt& o) {
   if (o.action == A_TRADE || o.action == A_REST || o.action == A_RUMOR || o.action == A_HEAL || o.action == A_LEARN) return true;
   if (o.action >= DLG_HOME && o.action < DLG_HOME_END) return true;    // deeds, horses, recipes, the kitchen, the mill
   if (o.action >= DLG_MAGIC && o.action < DLG_MAGIC_END) return true;  // (M9) a teacher's spells, attunement
+  if (o.action >= DLG_SEA && o.action < DLG_SEA_END && o.action != DLG_SEA + 95) return true;   // (M10) boats, the yard, passages
   if (o.action >= DLG_SKILLS && o.action < DLG_SKILLS_END) return true;  // (M9 integration) lessons, prices, unlearning
   if (o.action >= DLG_CRAFT && o.action < DLG_M6_END) return true;     // the forge, the craft
   return lifeOptKind(o.action) == 1;                                    // the inn's meal, food for the stores
@@ -1570,6 +1577,7 @@ void Game::talkToInner(Actor& a) {
   hook(speech::P_SERVICE, Topic::Companion, [&] { partyFolkTalk(a); });   // M8: offers to join, kin of companions and the fallen
   hook(speech::P_SERVICE, Topic::Service, [&] { SkillOps::talk(*this, a); });   // M9: trainers, teaching, persuade / intimidate
   hook(speech::P_SERVICE, Topic::Service, [&] { MagicOps::talk(*this, a); });   // M9: mage teachers, tomes, traditions
+  hook(speech::P_SERVICE, Topic::Service, [&] { SeaOps::talk(*this, a); });     // M10: harbourmasters, shipwrights, sailors
   // ---- 8. one coherent opening: a stranger is told who this is (and gets the people's own hello), an acquaintance is
   // greeted as one; the core line (what matters most to the speaker now) follows
   const std::string core = dlg.text;
@@ -1970,6 +1978,7 @@ void Game::dialogueChooseInner(int oi) {
       if (o.action >= DLG_PARTY && o.action < DLG_PARTY_END && partyChoose(o)) return;  // M8 (party_talk.cpp)
       if (o.action >= DLG_SKILLS && o.action < DLG_SKILLS_END && SkillOps::choose(*this, o)) return;  // M9 (skills_game.cpp)
       if (o.action >= DLG_MAGIC && o.action < DLG_MAGIC_END && MagicOps::choose(*this, o)) return;    // M9 (magic_game.cpp)
+      if (o.action >= DLG_SEA && o.action < DLG_SEA_END && SeaOps::choose(*this, o)) return;          // M10 (sea_game.cpp)
       mode = Mode::Play;
       return;
   }
@@ -2155,6 +2164,7 @@ std::vector<Item> Game::shopStock(const Actor& a) {
   homeShopStock(a, s);   // M7: seeds by the culture's staples, farm tools, hay, saddlery (home_game.cpp)
   MagicOps::shopStock(*this, a, s);   // M9: tomes on a mage's or a scholar's shelf (magic_game.cpp)
   SkillOps::shopStock(*this, a, s);   // M9: skill books on a scholar's or a trainer's shelf (skills_game.cpp)
+  SeaOps::shopStock(*this, a, s);     // M10: a fishmonger's catch, a chandler's bait and charts (sea_game.cpp)
   // (M5 census) material prices follow the settlement's stock of the good (price % of list: shortages raise it)
   if (si >= 0) {
     if (const life::Census* cs = life.census(world, si))
@@ -2313,10 +2323,14 @@ bool Game::sell(int ii) {
 //   party    (v16) u32 byte length + the party block (party::Party::serialize: its own version byte first)
 //   skills   (v20) u32 byte length + the skills block (skills::Skills::serialize: its own version byte first)
 //   magic    (v20) u32 byte length + the magic block (magic::Book::serialize: its own version byte first)
+//   sea      (v21) u32 byte length + the sea block (sea::Sea::serialize: its own version byte first)
 // refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
 // 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 20;  // 20: M9 Arcana & Mastery (the skills and magic blocks after the party block;
+static constexpr uint32_t SAVE_VER = 21;  // 21: M10 Beyond the Mist (the sea block after the magic block: boats, the one
+                                          //    aboard, ports known, the lands' chart chains and contact, catches;
+                                          //    ENDLESS_GEN_VER 23). Old saves are refused ("start a new adventure").
+                                          // 20: M9 Arcana & Mastery (the skills and magic blocks after the party block;
                                           //    ENDLESS_GEN_VER unchanged). A SAVE_VER 19 save still loads (owner
                                           //    15.29.5: "give old saves default skills based on their level"): the
                                           //    same layout without the two blocks; skills::defaultsForLevel fills them;
@@ -2348,8 +2362,9 @@ static constexpr uint32_t SAVE_VER = 20;  // 20: M9 Arcana & Mastery (the skills
                                           //    homeland, personal heraldry)
 
 int Game::currentSaveVersion() { return (int)SAVE_VER; }
-// (M9) the oldest SAVE_VER that still loads: 19, the layout of 20 without the skills and magic blocks
-static constexpr uint32_t SAVE_VER_MIN = 19;
+// the oldest SAVE_VER that still loads (M10: only the current one; M9's SAVE_VER 19 exception ended with the generator
+// change, owner: old saves are not a concern)
+static constexpr uint32_t SAVE_VER_MIN = 21;
 int Game::saveVersion(const std::vector<uint8_t>& in) {
   BinR r(in);
   if (r.u32() != SAVE_MAGIC || r.bad) return 0;
@@ -2593,6 +2608,11 @@ void Game::serialize(std::vector<uint8_t>& out) const {
     bookOut.serialize(blk);   // M9 (v20): the book (synced with the classic fields above)
     w.u32((uint32_t)blk.size());
     for (uint8_t c : blk) w.u8(c);
+    sea::Sea seaOut = sea;    // M10 (v21): the boat aboard takes the hero's tile and heading (on a copy)
+    SeaOps::saving(*this, seaOut);
+    seaOut.serialize(blk);
+    w.u32((uint32_t)blk.size());
+    for (uint8_t c : blk) w.u8(c);
   }
 }
 
@@ -2716,9 +2736,11 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   // M4 (v10): the realm and story blocks, M5 (v11) the life block, M6 (v12) the craft block, M7 (v14) the home block,
   // M7b (v15) the talk block, M8 (v16) the party block (a block its owner cannot read refuses the whole save)
   // M9 (v20) the skills and magic blocks (a SAVE_VER 19 save has neither: defaults from its level below)
-  const int nBlocks = ver >= 20 ? 9 : 7;
+  // M10 (v21) the sea block
+  const int nBlocks = 10;
   skills = skills::Skills();
   arcana = magic::Arcana();
+  sea = sea::Sea();
   for (int blkI = 0; blkI < nBlocks && !r.bad; blkI++) {
     n = r.u32();
     if (r.bad || n > (64u << 20) || r.p + n > in.size()) return false;
@@ -2726,12 +2748,10 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
     r.p += n;
     const bool ok = blkI == 0 ? realm.deserialize(blk) : blkI == 1 ? story.deserialize(blk) : blkI == 2 ? life.deserialize(blk)
                     : blkI == 3 ? craft.deserialize(blk) : blkI == 4 ? home.deserialize(blk) : blkI == 5 ? talkMem.deserialize(blk)
-                    : blkI == 6 ? party.deserialize(blk) : blkI == 7 ? skills.deserialize(blk) : arcana.book.deserialize(blk);
+                    : blkI == 6 ? party.deserialize(blk) : blkI == 7 ? skills.deserialize(blk) : blkI == 8 ? arcana.book.deserialize(blk)
+                    : sea.deserialize(blk);
     if (!ok) return false;
   }
-  if (ver < 20)   // (M9, 15.29.5) a pre-M9 save: skills fitting its level, its classic spells into the book (syncLegacy)
-    skills::defaultsForLevel(skills, plLevel, background, eqWeapon >= 0 && eqWeapon < (int)inv.size() ? &inv[(size_t)eqWeapon] : nullptr,
-                             eqArmor >= 0 && eqArmor < (int)inv.size() ? &inv[(size_t)eqArmor] : nullptr);
   arcana.live.legacyMirror = (int8_t)spell;   // (the save wrote them synced: nothing to reselect)
   MagicOps::loaded(*this);   // (M9) the traditions of the lands the book has touched made again (their spells known to spellById)
   MagicOps::syncLegacy(*this);
@@ -2753,6 +2773,7 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   // outside). Only the states the realm already holds are applied (noting new sites here would change the realm the
   // save holds: realmStep notes them on the first step outside, as before)
   realmSync();
+  MagicOps::trialsLoaded(*this);   // (fixer M10 r1) a save inside a Trial loads back as the trial (genRuin reads the registry)
   if (ins && sb >= 0 && sb < (int)world.over.bldgs.size()) {
     enterBuilding(sb);
     if (floorIn > 0 && floorIn < world.over.bldgs[(size_t)sb].floors()) changeFloor(floorIn);
@@ -2766,6 +2787,7 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   }
   if (!std::isfinite(hp)) hp = 1;
   pl().hp = hp;
+  SeaOps::loaded(*this);    // (M10) the boat aboard back under the hero (sea_game.cpp)
   if (hp <= 0) respawn();   // saved on the death screen: wake in town rather than standing up with 1 HP where you fell
   events.clear();
   updateLocation();

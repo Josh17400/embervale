@@ -144,6 +144,8 @@ uint16_t tagsOf(art::Monster mon, bool human, Role role, uint8_t rank, uint16_t 
       case Monster::Dragon: t |= FT_DRAGON | FT_HUGE | FT_FLYING | FT_ARMOURED; break;
       case Monster::Wisp: t |= FT_SPIRIT | FT_FLYING; break;
       case Monster::Golem: t |= FT_CONSTRUCT | FT_ARMOURED | FT_HUGE; break;
+      case Monster::SeaSerpent: case Monster::Kraken: t |= FT_BEAST | FT_HUGE; break;   // (M10)
+      case Monster::Merrow: t |= FT_BEAST | FT_UNARMOURED; break;                      // (M10) fish-folk (not people: the vs-affixes' rule)
       default: t |= FT_BEAST; break;
     }
   }

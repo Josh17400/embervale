@@ -1,0 +1,31 @@
+# M10 ART: a harbour by day and by night (the pier and its piles, the harbourmaster's booth, mooring posts, the port's
+# own moored ships, buoys; lanterns and the lighthouse at night), then the world map: the port's anchor, our boats, the
+# Mist round a hidden land as a ring of fog with the land itself unknown, and its coast once a sailor's tale is heard.
+#   embervale.exe --script tools/scripts/m10_art_harbour.txt     (m10_art_harbour_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.2 sea port
++0.8 shot m10_art_harbour_day.png
++0.1 expect seaview boats 1
++0.1 hour 21.5
++0.8 shot m10_art_harbour_night.png
++0.1 hour 11
++0.2 boat give sloop 16
++0.2 boat give rowboat 12
++0.5 menu 2
++0.1 mapzoom 3
++1.5 shot m10_art_harbour_map.png
++0.2 key Escape
++0.3 sea mistedge
++0.5 menu 2
++0.1 mapzoom 6
++2.5 shot m10_art_harbour_map_mist.png
++0.2 key Escape
++0.3 sea tale
++0.5 menu 2
++0.1 mapzoom 6
++2.5 shot m10_art_harbour_map_rumoured.png
++0.2 key Escape
++0.5 log m10_art_harbour done

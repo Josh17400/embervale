@@ -213,7 +213,7 @@ int cmdWayfinder(int argc, char** argv) {
   printf(" | wonders:");
   for (int k = 0; k < (int)WonderKind::COUNT; k++) printf(" %s %d,", wonderName((WonderKind)k), wonderTotal[k]);
   printf("\n");
-  for (int k = 0; k < (int)VignetteKind::COUNT; k++)
+  for (int k = 0; k < LAND_VIGNETTES; k++)   // (M10: the sea's places are checked by the sea pass's own test)
     if (!kindTotal[k] && b - a >= 4) { printf("FAIL: wayfinder: no %s anywhere\n", vignetteName((VignetteKind)k)); bad++; }
   for (int k = 0; k < (int)WonderKind::COUNT; k++)
     if (!wonderTotal[k] && b - a >= 2) { printf("FAIL: wayfinder: no %s anywhere\n", wonderName((WonderKind)k)); bad++; }

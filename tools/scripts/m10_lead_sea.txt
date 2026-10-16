@@ -1,0 +1,28 @@
+# M10 phase A (lead): the Beyond the Mist contracts in the running game: a port's shore, a sloop of ours given and
+# boarded (the hero becomes the boat), sailing out with the stick, the sail panel, the boat left again; then open
+# water outside a hidden land's Mist: sailing in without the chart, the fog thickens and the Mist turns the boat back.
+# Phase A pixels are stand-ins (a plain hull and sail, a grey veil): the ART lane paints the sea for real.
+#   embervale.exe --script tools/scripts/m10_lead_sea.txt     (m10_lead_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.2 sea port
++0.5 boat give sloop 16
++0.1 boat board
++0.1 expect sea aboard 1
++0.1 shot m10_lead_aboard.png
++0.2 boat leave
++0.1 expect sea aboard 0
++0.2 boat board
++0.1 sea helm 0
++4   shot m10_lead_sailing.png
++0.1 sea helm off
++0.3 sea mistedge
++0.2 expect sea aboard 1
++0.1 sea helm land
++14  expect sea mist 0.05
++0.1 shot m10_lead_mist.png
++20  expect sea turned 1
++0.1 shot m10_lead_turned.png
++0.5 log m10_lead_sea done

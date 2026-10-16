@@ -106,12 +106,43 @@ EndlessSource::Impl::Cand EndlessSource::Impl::settleCand(SiteType t, int32_t cx
   c.y = cy * S + m + (int32_t)((h >> 32) % (uint64_t)(S - 2 * m));
   c.seed = (uint32_t)(mix64(h ^ 0x5EEDu) >> 16);
   int32_t accept = town ? Q(0.66) : Q(0.74);
+  // (M10, VISION_PLAN 15.4 "coastal cities get harbors") a town cell on a coast pulls its town to the shore (most of
+  // them): a port with its harbour. Cells far from any coast (the continent field all high, or all low) never ask, so
+  // inland lattices (the start's villages among them) are untouched.
+  if (town && portPull(cx, cy, h, c.x, c.y)) { c.ok = true; cands.emplace(k, c); return c; }
   if (hq(mix64(h ^ 5)) < accept) {
     int hab = habitability(t, c.x, c.y, nullptr);
     c.ok = hab > 0 && hq(mix64(h ^ 6)) < hab * 256;
   }
   cands.emplace(k, c);
   return c;
+}
+
+bool EndlessSource::Impl::portPull(int32_t cx, int32_t cy, uint64_t h, int32_t& ox, int32_t& oy) {
+  const int32_t x0 = cx * TOWN_CELL + TOWN_M, y0 = cy * TOWN_CELL + TOWN_M, W = TOWN_CELL - 2 * TOWN_M;
+  int lo = 0, hi = 0;
+  for (int k = 0; k < 9; k++) {
+    const int32_t C = continent(x0 - 120 + (k % 3) * (W + 240) / 2, y0 - 120 + (k / 3) * (W + 240) / 2);
+    lo += C < Q(0.42);
+    hi += C > Q(0.52);
+  }
+  if (!lo || !hi) return false;
+  if (hq(mix64(h ^ 0x9077u)) >= Q(0.85)) return false;   // (a few coastal towns turn their backs on the sea)
+  // the window's points (a 16-tile grid from a hashed start) with land underfoot and the sea ~80 tiles off on a side
+  static const int dx[4] = {1, 0, -1, 0}, dy[4] = {0, 1, 0, -1};
+  const int G = W / 16;
+  const int start = (int)((h >> 20) % (uint64_t)(G * G));
+  for (int t = 0; t < G * G; t++) {
+    const int i = (start + t * 7) % (G * G);
+    const int32_t x = x0 + (i % G) * 16 + 8, y = y0 + (i / G) * 16 + 8;
+    if (coarse(x, y).e < ELEV_SEA + Q(0.02)) continue;
+    bool sea = false;
+    for (int d = 0; d < 4 && !sea; d++) sea = coarse(x + dx[d] * 82, y + dy[d] * 82).e < ELEV_SEA - Q(0.004);
+    if (!sea || habitability(SiteType::Town, x, y, nullptr) <= 0) continue;
+    ox = x; oy = y;
+    return true;
+  }
+  return false;
 }
 
 bool EndlessSource::Impl::settleNode(SiteType t, int32_t cx, int32_t cy, Node& out) {
@@ -191,9 +222,11 @@ void EndlessSource::Impl::nodesIn(int32_t x0, int32_t y0, int32_t x1, int32_t y1
 // ============================================================== kingdoms
 EndlessSource::Impl::KCell EndlessSource::Impl::kcell(int32_t kx, int32_t ky) {
   uint64_t k = key2(kx, ky);
-  auto it = kcells.find(k);
-  if (it != kcells.end()) return it->second;
-  if (kcells.size() > 50000) kcells.clear();
+  // (M10) the legacy climate (culture_map.cpp) keeps its own memo: never shared with the land as it now is
+  auto& memo = legacyLand ? kcellsLegacy : kcells;
+  auto it = memo.find(k);
+  if (it != memo.end()) return it->second;
+  if (memo.size() > 50000) memo.clear();
   KCell kc;
   kc.x = kx * KCELL; kc.y = ky * KCELL;   // the cell's centre (cells are offset by half a cell: the origin is a centre)
   bool done = false;
@@ -212,11 +245,18 @@ EndlessSource::Impl::KCell EndlessSource::Impl::kcell(int32_t kx, int32_t ky) {
         int32_t y = ky * KCELL + (int32_t)((hn >> 32) % 425) - 212;
         bool clear = true;
         for (const Node& f : forced)
-          if (dist2(f.x, f.y, x, y) < (f.type == SiteType::City ? 620ll * 620ll : 330ll * 330ll)) clear = false;
+          if (idLocal(f.id) != LOCAL_FORCED + 9 &&   // (M10: the start's port never moves a realm's seat)
+              dist2(f.x, f.y, x, y) < (f.type == SiteType::City ? 620ll * 620ll : 330ll * 330ll)) clear = false;
         for (const SitePlan& f : forcedSites)
           if (dist2(f.ex, f.ey, x, y) < 150ll * 150ll) clear = false;
         if (!clear) continue;
-        int hab = habitability(SiteType::City, x, y, nullptr);
+        int hab;
+        {   // (M10) a seat is chosen on the land without the start's firth (sea_world.cpp: the firth keeps clear of it)
+          const bool was = noFirth;
+          noFirth = true;
+          hab = habitability(SiteType::City, x, y, nullptr);
+          noFirth = was;
+        }
         if (!hab) continue;
         if (started && (nearLair(x, y, nominalR(SiteType::City) + 100) || blightAt(x, y))) continue;   // (M3c)
         int score = hab * 256 + (int)(hn >> 56);
@@ -225,7 +265,7 @@ EndlessSource::Impl::KCell EndlessSource::Impl::kcell(int32_t kx, int32_t ky) {
       if (kc.capital) kc.id = makeId(regionOf(kc.x), regionOf(kc.y), IdKind::Site, LOCAL_CITY);
     }
   }
-  kcells.emplace(k, kc);
+  memo.emplace(k, kc);
   return kc;
 }
 
@@ -239,9 +279,13 @@ Gid EndlessSource::Impl::kingdomAt(int32_t x, int32_t y) {
   int64_t bd = INT64_MAX;
   bool cap = false;
   int32_t bkx = 0, bky = 0;
+  // (M10) a realm never reaches across the Mist: near a hidden land, only the seats on the same side count
+  const bool nearHidden = !legacyLand && hiddenNear(x, y, 1300) != 0;   // (the legacy climate: as before M10)
+  const uint32_t mySide = nearHidden ? hiddenShapeAt(x, y) : 0;
   for (int32_t ky = ky0 - 1; ky <= ky0 + 1; ky++)
     for (int32_t kx = kx0 - 1; kx <= kx0 + 1; kx++) {
       KCell kc = kcell(kx, ky);
+      if (nearHidden && kc.capital && hiddenShapeAt(kc.x, kc.y) != mySide) continue;
       int32_t reach = 205 + (int32_t)(cellSeed(seed, tag("k.reach"), kx, ky) % 102);   // /256: 0.8 .. 1.2
       int64_t d = dist2(wx, wy, kc.x, kc.y) * 65536 / ((int64_t)reach * reach);
       if (d < bd) { bd = d; cap = kc.capital; bkx = kx; bky = ky; }
@@ -270,6 +314,7 @@ const KingdomPlan* EndlessSource::Impl::kingdom(Gid id) {
   k.emblem = (uint8_t)(k.heraldry.emblem % 8);
   k.capital = kc.id;
   k.gx = kc.x; k.gy = kc.y;
+  k.hiddenLand = hiddenLandAt(kc.x, kc.y);   // (M10) a kingdom beyond the Mist (sea_world.cpp)
   return &kingdoms.emplace(id, k).first->second;
 }
 
@@ -563,11 +608,49 @@ void EndlessSource::Impl::makeStart() {
   for (int k = 0; k < 3; k++) sp.shards[k] = forcedSites[(size_t)k].id;
   sp.lair = forcedSites[3].id;
   sp.spawn = GTile{hx, hy + 1};
+  // 5b. (M10, VISION_PLAN 15.4) the start's harbour: a port town on the mainland's nearest shore, or on the bank of the
+  //     firth cut in toward the start (sea_world.cpp homePlan), so a harbour lies within ~2500 tiles of every start
+  {
+    const HomePlan& HP = firthPlan();
+    static const int ddx[4] = {1, 0, -1, 0}, ddy[4] = {0, 1, 0, -1};
+    bool found = false;
+    // (the cheap coarse screen first, then the exact tests the region plan and the harbour make: the coast ring and
+    // a mole with its way out to the deep)
+    for (int32_t r = 0; r <= 900 && !found; r += 16)
+      for (int k = 0; k < (r ? 24 + r / 24 : 1) && !found; k++) {
+        const int n = r ? 24 + r / 24 : 1;
+        const int32_t a = k * 1024 / n;
+        const int32_t x = HP.portTx + icosR(a, r), y = HP.portTy + isinR(a, r);
+        if (coarse(x, y).e < ELEV_SEA + Q(0.02)) continue;
+        bool seaBy = false;
+        for (int d = 0; d < 4 && !seaBy; d++) seaBy = coarse(x + ddx[d] * 82, y + ddy[d] * 82).e < ELEV_SEA - Q(0.004);
+        if (!seaBy) continue;
+        bool clear = true;
+        for (const Node& f : forced) if (dist2(f.x, f.y, x, y) < 600ll * 600ll) clear = false;
+        if (!clear || habitability(SiteType::Town, x, y, nullptr) <= 0) continue;
+        Node pt;
+        pt.type = SiteType::Town;
+        pt.x = x; pt.y = y;
+        pt.seed = (uint32_t)(mix64(seed ^ tag("start.port")) >> 16);
+        pt.id = makeId(regionOf(x), regionOf(y), IdKind::Site, LOCAL_FORCED + 9);
+        PortPlan pp;
+        if (!harbourPlan(pt, pp, false) || !pp.harbour) continue;
+        forced.push_back(pt);
+        found = true;
+      }
+  }
   // 6. (M2) the start guarantee: wayside places near the village and along the road to the story city, a wonder in reach
+  //    ((M10) on fresh memos: the firth's plan above asked kcell / the lattices before the start's port was forced,
+  //    and a stale answer there let the guarantee set places inside the story city and miss its wonder; seed 5)
+  nodeMemo.clear();
+  kcells.clear();
+  kcellsLegacy.clear();
+  wonderMemo.clear();
   forceStartPois();
   // the memos above saw no forced sites; drop what depends on them
   nodeMemo.clear();
   kcells.clear();
+  kcellsLegacy.clear();
   wonderMemo.clear();
   started = true;
   starting = false;
@@ -689,9 +772,11 @@ EndlessSource::Impl::Poi EndlessSource::Impl::poiRaw(SiteType t, int32_t cx, int
 
 bool EndlessSource::Impl::lairOf(int32_t lx, int32_t ly, int32_t& ox, int32_t& oy, uint32_t& sd) {
   uint64_t k = key2(lx, ly);
-  auto it = lairMemo.find(k);
-  if (it == lairMemo.end()) {
-    if (lairMemo.size() > 20000) lairMemo.clear();
+  // (M10) the legacy climate (culture_map.cpp) keeps its own memo: never shared with the land as it now is
+  auto& memo = legacyLand ? lairMemoLegacy : lairMemo;
+  auto it = memo.find(k);
+  if (it == memo.end()) {
+    if (memo.size() > 20000) memo.clear();
     Poi p;
     bool ok = false;
     // the start lair stands for its own lair cell
@@ -732,7 +817,7 @@ bool EndlessSource::Impl::lairOf(int32_t lx, int32_t ly, int32_t& ox, int32_t& o
         if (best != INT32_MIN) { ok = true; p.x = fx; p.y = fy; p.seed = (uint32_t)(cellSeed(seed, tag("lair"), lx, ly) >> 16); }
       }
     }
-    it = lairMemo.emplace(k, std::make_pair(ok, p)).first;
+    it = memo.emplace(k, std::make_pair(ok, p)).first;
   }
   if (!it->second.first) return false;
   ox = it->second.second.x; oy = it->second.second.y; sd = it->second.second.seed;
@@ -930,6 +1015,7 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
     p.level = danger(p.ex, p.ey);
     p.kingdom = kingdomAt(p.ex, p.ey);
     p.culture = cultureAt(p.ex, p.ey);   // M3
+    if (hiddenShapeAt(p.ex, p.ey)) p.flags |= SPF_HIDDEN;   // (M10) beyond the Mist
     R.sites.push_back(p);
     D.flatLevel.push_back({flat, 0});
   };
@@ -1307,6 +1393,12 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
       R.roads.erase(std::remove_if(R.roads.begin(), R.roads.end(), [&](const RoadPlan& rp) { return rp.cls == 2 && rp.a == g; }), R.roads.end());
     }
   }
+  // ---- (M10) the sea pass (sea_world.cpp): wrecks, lighthouses, islets, sea caves, pirate coves, the chart places
+  //      and trials, merrow dens; after the spurs (sea places take no track)
+  planSea(rx, ry, D, nodes);
+  // (M10) every place on a hidden land is beyond the Mist (the wayside planner and the wonders add their own sites)
+  for (SitePlan& p : R.sites)
+    if (!(p.flags & SPF_HIDDEN) && hiddenShapeAt(p.ex, p.ey)) p.flags |= SPF_HIDDEN;
   // ---- graph roads touching the region (public copy for the map and the chunks)
   for (auto& e : D.edges) {
     RoadPlan rp;

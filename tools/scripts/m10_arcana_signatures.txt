@@ -1,0 +1,146 @@
+# M10 ARCANA lane: the six hidden signatures on screen (VISION_PLAN 6.2 #2 3 4 10 11 12, 13 M10 lane B), each in its
+# own land beyond the Mist with every step of learning met: Blood rites (paid in blood, the X1.5 near death), Runecarving
+# (two runes laid side by side, a wolf walking onto them: the steam burst), Songweaving (the motif's three notes cast in
+# order: the Refrain), Maskwork (the ember fox on the hero's face, the finisher's spell-strike), Verdant shaping (a thorn
+# wall springing up, a vine bridge over a channel, a root snare), Dreamweft (a decoy drawing the wolves, a time bubble).
+# Then the same by night (the runes, the masks' eyes, the bubble and the thorns lit after dark).
+#   embervale.exe --script tools/scripts/m10_arcana_signatures.txt     (m10_arcana_*.png in the working directory)
+seed 3
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 power arena
++0.1 plevel 25
++0.2 spell mp 999
+# ---- Blood rites: the hero at a third of their health, the bolt paid in blood and flying x1.5
++0.1 spell hidden blood steps
++0.1 spell trad 1
++0.1 spell hp 35
++0.3 power foes wolf 2 3 tough
++0.1 spell aim 1 0
++0.1 spell cast 1
++0.12 shot m10_arcana_blood.png
++0.3 expect arcana blood 1
++0.6 spell hp 100
++0.1 spell clear
+# ---- Runecarving: a fire rune and a frost rune side by side (linked), then a wolf walks onto them
++0.2 spell hidden rune steps
++0.1 spell pool charge 5
++0.1 spell trad 1
++0.1 spell aim 1 0
++0.1 spell cast 1
++0.1 spell trad 2
++0.1 spell aim 1 0.7
++0.1 spell cast 1
++0.5 shot m10_arcana_runes.png
++0.1 power foes wolf 1 3
++0.9 shot m10_arcana_rune_combo.png
++0.5 expect arcana runecombos 1
++0.1 spell clear
+# ---- Songweaving: the motif's three notes in order; the third sings the Refrain
++0.3 spell hidden song steps
++0.2 power foes wolf 2 3 tough
++0.1 spell aim 1 0
++0.1 spell motif 1
++0.1 spell cast 1
++0.25 shot m10_arcana_song_note.png
++0.4 spell motif 2
++0.1 spell cast 1
++0.6 spell motif 3
++0.1 spell cast 1
++0.15 shot m10_arcana_song_refrain.png
++0.3 shot m10_arcana_song_refrain2.png
++0.2 expect arcana refrains 1
++0.3 spell clear
+# ---- Maskwork: the ember fox worn, the swing's finisher a spell-strike
++0.6 spell hidden mask steps
++0.1 spell trad 1
++0.1 spell aim 0 1
++0.1 spell cast 1
++0.3 shot m10_arcana_mask_fox.png
++0.1 spell trad 2
++0.1 spell aim 1 0
++0.1 spell cast 1
++0.3 shot m10_arcana_mask_owl_side.png
++0.1 spell trad 4
++0.1 spell aim 0 -1
++0.1 spell cast 1
++0.3 shot m10_arcana_mask_stag_back.png
++0.1 spell trad 1
++0.1 spell aim 1 0
++0.1 spell cast 1
++0.2 power foes wolf 2 3 tough
++0.8 hold J 0.05
++0.3 hold J 0.05
++0.3 hold J 0.05
++0.12 shot m10_arcana_mask_strike.png
++0.5 expect arcana maskstrikes 1
++0.1 spell clear
+# ---- Verdant shaping: a thorn wall springs up, a vine bridge crosses a channel, a root snare holds a wolf
++0.4 power arena
++0.2 spell hidden verdant steps
++0.1 spell trad 1
++0.1 spell aim 1 0
++0.1 spell cast 1
++0.28 shot m10_arcana_thorns_growing.png
++0.8 shot m10_arcana_thorns.png
++0.1 expect arcana growths 3
++0.4 spell clear
++0.2 spell shore
++0.1 spell trad 4
++0.1 spell cast 1
++0.25 shot m10_arcana_vines_growing.png
++0.9 shot m10_arcana_vines.png
++0.2 spell trad 2
++0.2 power foes wolf 2 3 tough
++0.9 spell aim 1 0
++0.1 spell cast 1
++0.4 shot m10_arcana_snare.png
++0.2 expect arcana snares 1
++0.1 spell clear
+# ---- Dreamweft: a decoy drawing the wolves, then a time bubble over them
++0.6 power arena
++0.2 spell hidden dream steps
++0.2 power foes wolf 3 3 tough
++0.3 spell trad 1
++0.1 spell aim 1 0
++0.1 spell cast 1
++1.6 shot m10_arcana_decoy.png
++0.2 expect arcana decoyhits 1
++0.2 spell trad 4
++0.1 spell cast 1
++0.5 shot m10_arcana_bubble.png
++0.2 expect arcana slowed 10
++0.1 spell clear
+# ---- by night: runes, the masks' eyes, the bubble, the thorns
++1.0 power arena
++0.1 hour 22.5
++0.2 spell hidden rune steps
++0.1 spell pool charge 5
++0.1 spell trad 1
++0.1 spell aim 1 0
++0.1 spell cast 1
++0.1 spell trad 2
++0.1 spell aim 1 0.7
++0.1 spell cast 1
++0.5 shot m10_arcana_runes_night.png
++0.1 spell clear
++0.2 spell hidden mask steps
++0.1 spell trad 2
++0.1 spell aim 0 1
++0.1 spell cast 1
++0.4 shot m10_arcana_mask_night.png
++0.1 spell clear
++0.2 spell hidden dream steps
++0.2 power foes wolf 2 3 tough
++0.3 spell trad 4
++0.1 spell aim 1 0
++0.1 spell cast 1
++0.4 shot m10_arcana_bubble_night.png
++0.1 spell clear
++0.6 spell hidden verdant steps
++0.1 spell trad 1
++0.1 spell aim -1 0
++0.1 spell cast 1
++0.9 shot m10_arcana_thorns_night.png
++0.3 expect cast 10

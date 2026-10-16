@@ -21,7 +21,10 @@ EndlessSource::Impl::Impl(uint64_t s) : seed(s) {
 
 // ---- continents: Continent (55 %), Archipelago (20 %) or Ocean (25 %) per 6144-tile cell; the origin cell is a
 //      continent centred on (0, 0) with R = 3200. C = max over the 3x3 cells, plus coast detail.
-int32_t EndlessSource::Impl::continent(int32_t x, int32_t y) {
+// (M10) phase A's continent field, kept for the culture atlas's climate samples: the mainland's peoples (and every
+// family the maximin draws against them) must come out bit-identical to before M10, and a family reads the climate of
+// cells thousands of tiles out (its neighbours' neighbours). Pure; never used to paint the land.
+int32_t EndlessSource::Impl::continentLegacy(int32_t x, int32_t y) {
   int32_t wx = x, wy = y;
   warpQ(wx, wy, 11, 1000, mix64(seed ^ tag("c.warp")));
   warpQ(wx, wy, 9, 380, mix64(seed ^ tag("c.warp2")));
@@ -29,36 +32,103 @@ int32_t EndlessSource::Impl::continent(int32_t x, int32_t y) {
   int32_t best = 0;
   for (int32_t cy = cy0 - 1; cy <= cy0 + 1; cy++)
     for (int32_t cx = cx0 - 1; cx <= cx0 + 1; cx++) {
-      uint64_t h = cellSeed(seed, tag("c.cell"), cx, cy);
-      int kind;
-      int32_t px, py, R;
-      if (cx == 0 && cy == 0) { kind = 0; px = 0; py = 0; R = 3200; }
-      else {
-        int32_t q = hq(h);
-        kind = q < Q(0.55) ? 0 : q < Q(0.75) ? 1 : 2;
-        px = cx * LCELL + (int32_t)((mix64(h ^ 1) >> 33) % 2001) - 1000;
-        py = cy * LCELL + (int32_t)((mix64(h ^ 2) >> 33) % 2001) - 1000;
-        R = 1800 + (int32_t)((mix64(h ^ 3) >> 33) % 1201);
-      }
-      if (kind == 2) continue;
-      int64_t d = idist(wx, wy, px, py);
-      if (d > (int64_t)R * 2) continue;
-      int32_t r = (int32_t)((d << 16) / R);
+      const LandDraw D = rawDraw(cx, cy);
+      if (D.kind == 2) continue;
+      int64_t d = idist(wx, wy, D.px, D.py);
+      if (d > (int64_t)D.R * 2) continue;
+      int32_t r = (int32_t)((d << 16) / D.R);
       int32_t v;
-      if (kind == 0) v = Q_ONE - sstep(Q(0.75), Q(1.15), r);
+      if (D.kind == 0) v = Q_ONE - sstep(Q(0.75), Q(1.15), r);
       else {
         if (r > Q(1.15)) continue;
-        int32_t f = fbmQ(x, y, 9, 3, mix64(h ^ 0xA7u));
+        int32_t f = fbmQ(x, y, 9, 3, mix64(D.h ^ 0xA7u));
         int32_t fade = Q_ONE - sstep(Q(0.65), Q(1.15), r);
         v = qm(Q(0.5) + (f - Q(0.57)) * 4, fade);
       }
       best = std::max(best, v);
     }
+  best += qm(centered(vnoiseQ(x, y, 10, mix64(seed ^ tag("c.d0"))), Q(1.6)), Q(0.30));
+  best += qm(centered(vnoiseQ(x, y, 9, mix64(seed ^ tag("c.d9"))), Q(1.6)), Q(0.13));
+  best += qm(centered(fbmQ(x, y, 8, 3, mix64(seed ^ tag("c.d1"))), Q(2.0)), Q(0.08));
+  best += qm(centered(fbmQ(x, y, 6, 2, mix64(seed ^ tag("c.d2"))), Q(2.0)), Q(0.04));
+  return best;
+}
+
+int32_t EndlessSource::Impl::continent(int32_t x, int32_t y) {
+  if (legacyLand) return continentLegacy(x, y);
+  int32_t wx = x, wy = y;
+  warpQ(wx, wy, 11, 1000, mix64(seed ^ tag("c.warp")));
+  warpQ(wx, wy, 9, 380, mix64(seed ^ tag("c.warp2")));
+  const int32_t cx0 = floorDiv(wx + LCELL / 2, LCELL), cy0 = floorDiv(wy + LCELL / 2, LCELL);
+  // (M10) the cell draws are sea_world.cpp's landDraw (shared with landAt / mistAt / seaAt, so they never disagree):
+  // phase A's draw, plus the home ring's guarantees and the hidden lands set apart by open sea
+  int32_t best = 0, nearCap = 0, guard = INT32_MAX;
+  for (int32_t cy = cy0 - 1; cy <= cy0 + 1; cy++)
+    for (int32_t cx = cx0 - 1; cx <= cx0 + 1; cx++) {
+      const LandDraw& D = landDraw(cx, cy);
+      if (D.kind == 2 || D.hidden) continue;
+      const uint64_t h = D.h;
+      const int32_t px = D.px, py = D.py, R = D.R;
+      int64_t d = idist(wx, wy, px, py);
+      if (d > (int64_t)R * 2) continue;
+      int32_t r = (int32_t)((d << 16) / R);
+      nearCap = std::max(nearCap, Q_ONE - sstep(SHAPE_LO, SHAPE_HI, r));
+      int32_t v;
+      if (D.kind == 0) v = Q_ONE - sstep(Q(0.75), Q(1.15), r);
+      else {
+        if (r > Q(1.15)) continue;
+        // (M10) many small islands: the 512-tile islands broken by a 128-tile octave into islets and skerries
+        int32_t f = fbmQ(x, y, 9, 3, mix64(h ^ 0xA7u));
+        int32_t f2 = fbmQ(x, y, 7, 2, mix64(h ^ 0xA9u));
+        int32_t fade = Q_ONE - sstep(Q(0.65), Q(1.15), r);
+        v = qm(Q(0.5) + (f - Q(0.57)) * 4 + (f2 - Q(0.5)) * 3, fade);
+      }
+      best = std::max(best, v);
+    }
+  // (M10) hidden lands, in unwarped space (their Mist is a true ring round their centre): a lobed blob whose radius
+  // wanders with the bearing; inside its guard (out to the Mist ring's end + 260 tiles) every other land is capped
+  // to the sea, so open water always sets it apart
+  {
+    const int32_t ux0 = floorDiv(x + LCELL / 2, LCELL), uy0 = floorDiv(y + LCELL / 2, LCELL);
+    for (int32_t cy = uy0 - 1; cy <= uy0 + 1; cy++)
+      for (int32_t cx = ux0 - 1; cx <= ux0 + 1; cx++) {
+        const LandDraw& D = landDraw(cx, cy);
+        if (D.kind == 2 || !D.hidden) continue;
+        const int32_t mOut = D.R + D.R * 15 / 100 + MIST_RING;
+        if (std::abs(x - D.px) > mOut + 260 || std::abs(y - D.py) > mOut + 260) continue;
+        const int32_t d = idist(x, y, D.px, D.py);
+        if (d > mOut + 260) continue;
+        const int32_t rr = (int32_t)(((int64_t)d << 16) / D.R);
+        nearCap = std::max(nearCap, Q_ONE - sstep(HID_LO, HID_HI, rr));
+        guard = std::min(guard, Q(0.18) + 2 * (Q_ONE - sstep(HID_LO, HID_HI, rr)));
+        // the lobes: noise read on the circle of radius R round the centre, in the tile's bearing
+        int32_t lobe = Q(0.5);
+        if (d > 0) {
+          const int32_t qx = D.px + (int32_t)((int64_t)(x - D.px) * D.R / d), qy = D.py + (int32_t)((int64_t)(y - D.py) * D.R / d);
+          lobe = (vnoiseQ(qx, qy, 10, mix64(D.h ^ 0x10BEu)) * 3 + vnoiseQ(qx, qy, 8, mix64(D.h ^ 0x10BFu))) / 4;
+        }
+        const int32_t reff = std::max<int32_t>(1, (int32_t)(((int64_t)D.R * (Q(0.72) + qm(Q(0.28), lobe))) >> 16));
+        const int32_t r = (int32_t)(((int64_t)d << 16) / reff);
+        int32_t v;
+        if (D.kind == 0) v = Q_ONE - sstep(Q(0.70), Q(1.10), r);
+        else {
+          if (r > Q(1.10)) continue;
+            const int32_t f = fbmQ(x, y, 9, 3, mix64(D.h ^ 0xA7u)), f2 = fbmQ(x, y, 7, 2, mix64(D.h ^ 0xA9u));
+          v = qm(Q(0.5) + (f - Q(0.57)) * 4 + (f2 - Q(0.5)) * 3, Q_ONE - sstep(Q(0.60), Q(1.10), r));
+        }
+        best = std::max(best, v);
+      }
+  }
   // coast detail: big bays and peninsulas (1024-tile scale), capes and inlets (512, 256), then the fine wiggle
   best += qm(centered(vnoiseQ(x, y, 10, mix64(seed ^ tag("c.d0"))), Q(1.6)), Q(0.30));
   best += qm(centered(vnoiseQ(x, y, 9, mix64(seed ^ tag("c.d9"))), Q(1.6)), Q(0.13));
   best += qm(centered(fbmQ(x, y, 8, 3, mix64(seed ^ tag("c.d1"))), Q(2.0)), Q(0.08));
   best += qm(centered(fbmQ(x, y, 6, 2, mix64(seed ^ tag("c.d2"))), Q(2.0)), Q(0.04));
+  // (M10) beyond every land's shape bound the open ocean (no stray specks of land), and a hidden land's guard
+  best = std::min(best, Q(0.18) + 2 * nearCap);
+  if (guard != INT32_MAX) best = std::min(best, guard);
+  // (M10) the start's firth (sea_world.cpp homePlan: a harbour within reach of every start)
+  best -= firthCut(x, y);
   return best;
 }
 

@@ -27,6 +27,14 @@ enum class Monster : uint8_t {
                                     // flies, swoops from above (sea cliffs, mountains, badlands, alpine meadows)
   Golem,                            // a hulking walker of stacked stone (or crystal, or clay) with a glowing core rune:
                                     // slow, armoured, a ground-pounding slam (ruins, mountains, crystal barrens)
+  // M10 Beyond the Mist (VISION_PLAN 7.6, 2.12; phase A stand-ins reuse the sandworm, spider and goblin painters, the
+  // ART lane paints them; the SEA lane gives them their moves). They SWIM (Actor::swim): water is their ground.
+  SeaSerpent,                       // a great sea serpent: coils breaking the swell, a finned crest, a striking head;
+                                    // open and storm seas (a world boss of the deep at its greatest)
+  Kraken,                           // the kraken: a mantle under the water, tentacles rising round a boat, an ink cloud;
+                                    // the storm seas (a world boss)
+  Merrow,                           // a merrow: a scaled fish-folk raider with a fin crest and a coral spear; reefs,
+                                    // wrecks and sea caves, in bands of 2-4; amphibious (comes ashore on beaches)
   COUNT
 };
 int monsterCellW(Monster m);

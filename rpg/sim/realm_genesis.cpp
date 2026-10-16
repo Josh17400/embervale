@@ -74,6 +74,8 @@ void Realm::instantiate(ew::EndlessSource& src, Gid id) {
   k.name = kp->name;
   k.color = kp->color; k.color2 = kp->color2; k.emblem = kp->emblem;
   k.tier = Tier::Dormant;
+  k.hiddenLand = kp->hiddenLand;   // (M10) beyond the Mist: isolated until first contact (the SEA lane keeps the rule)
+  k.isolated = kp->hiddenLand != 0;
   const uint64_t h0 = ew::mix64(id ^ seed_);
   k.foundedDay = -(Realm::YEAR * (40 + (int)(h0 % 161)));
   const cult::Culture& C = src.culture(kp->culture);
@@ -125,6 +127,7 @@ void Realm::linkRelations(ew::EndlessSource& src, Gid id) {
     if (!O || !A) continue;
     const int d = cheb(kx, ky, ew::EndlessSource::kcellOf(capX(*O)), ew::EndlessSource::kcellOf(capY(*O)));
     if (d > 2 || relation(id, oid)) continue;
+    if (apart(*A, *O)) continue;   // (M10) an isolated kingdom meets nobody beyond its own hidden land
     const cult::Culture& CB = src.culture(O->culture);
     const Gid lo = std::min(id, oid), hi = std::max(id, oid);
     const uint64_t h = ew::mix64(lo * 31 + hi ^ seed_ ^ 0x52454C41ull);

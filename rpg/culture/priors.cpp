@@ -8,6 +8,7 @@
 // scheme's hue, so a turf roof stays turf-green and a slate roof stays slate, but a whole town shares one light.
 //
 // Pure integer maths (a splitmix stream); nothing here reads libm.
+#include <algorithm>
 #include <cstdint>
 #include <initializer_list>
 #include <utility>
@@ -1071,6 +1072,69 @@ void crossWith(Culture& c, Archetype b, Pk& p) {
   c.props.awningA = c.arch.accentTint;
   c.props.awningB = c.arch.altTint;
 }
+// (M10 ART) a people beyond the Mist: a look like nowhere on the mainland. Each hidden land's peoples share one of six
+// "far" palettes (deep indigo and bone with gold; jade and vermilion; obsidian and ember; pearl and sea-teal; violet
+// and silver; ochre and turquoise), dye their cloth, roofs, banners and trims in it, wear its ornament (embroidery or
+// vines, face paint, much jewellery, circlets, veils and tall conical hats), carry gilded and filigreed arms of a
+// strange metal, and sing in scales the mainland never uses (whole-tone, pelog, double-harmonic) over bells, gongs and
+// a choir. A family not already crossed is crossed with a second archetype (its roofs, hats, helms and instrument).
+// Its own draw stream: nothing here touches the mainland's (hidden is false there: this never runs).
+void hiddenLook(Culture& c, Archetype a) {
+  Pk q(((uint64_t)c.seed << 16) ^ 0x4D157ull ^ ((uint64_t)c.hiddenLand << 24) ^ ((uint64_t)a << 52));
+  if (c.archetype2 == c.archetype) {
+    const int b = (int)(((uint32_t)a + 1 + (uint32_t)q.pick((int)Archetype::COUNT - 1)) % (uint32_t)Archetype::COUNT);
+    crossWith(c, (Archetype)b, q);
+  }
+  struct FarPal { uint32_t a, b, c, d, metal, metal2; };
+  static const FarPal kFar[6] = {
+      {rgb(46, 44, 110), rgb(222, 210, 180), rgb(200, 160, 60), rgb(90, 70, 150), rgb(214, 180, 90), rgb(120, 86, 40)},     // indigo, bone, gold
+      {rgb(40, 120, 96), rgb(196, 56, 44), rgb(232, 210, 150), rgb(24, 70, 60), rgb(150, 200, 170), rgb(50, 110, 90)},     // jade, vermilion
+      {rgb(36, 32, 40), rgb(220, 110, 40), rgb(160, 50, 40), rgb(90, 80, 90), rgb(70, 64, 80), rgb(30, 26, 36)},           // obsidian, ember
+      {rgb(232, 230, 222), rgb(50, 150, 150), rgb(110, 190, 200), rgb(170, 160, 150), rgb(210, 220, 230), rgb(110, 130, 150)},   // pearl, sea-teal
+      {rgb(110, 60, 150), rgb(200, 204, 216), rgb(60, 40, 90), rgb(180, 130, 200), rgb(196, 204, 224), rgb(110, 100, 140)}, // violet, silver
+      {rgb(190, 130, 50), rgb(40, 160, 160), rgb(130, 60, 40), rgb(230, 200, 140), rgb(90, 190, 180), rgb(40, 100, 110)},  // ochre, turquoise
+  };
+  const FarPal& F = kFar[(c.hiddenLand ? (c.hiddenLand >> 1) : c.seed) % 6];
+  // cloth and pattern
+  c.dress.cloth[0] = q.jit(F.a, 6);
+  c.dress.cloth[1] = q.jit(F.b, 6);
+  c.dress.cloth[2] = q.jit(F.c, 6);
+  c.dress.cloth[3] = q.jit(F.d, 6);
+  c.dress.cloth[4] = q.jit(mixC(F.a, F.b, 128), 8);
+  c.dress.cloth[5] = q.jit(mixC(F.c, F.d, 128), 8);
+  c.dress.pattern = q.w({Pattern::Embroidery, Pattern::Vines, Pattern::BorderTrim, Pattern::Dots}, {3, 2, 2, 1});
+  c.dress.trim = q.jit(F.c, 4);
+  c.dress.jewellery = (uint8_t)q.range(150, 230);
+  c.dress.facePaint = (uint8_t)q.range(1, 4);
+  c.dress.head[0] = q.w({Headwear::Circlet, Headwear::Conical, Headwear::Veil, Headwear::Turban}, {3, 3, 2, 1});
+  c.dress.headP = (uint8_t)q.range(150, 220);
+  // building colour and ornament: roofs, walls' trim, banners and awnings in the far palette
+  c.arch.roofTint = roofColourFor(c.arch.roofMat, q.jit(F.a, 6));
+  c.arch.trimTint = q.jit(F.c, 6);
+  c.arch.accentTint = q.jit(F.b, 6);
+  c.arch.altTint = q.jit(F.d, 6);
+  c.arch.ornament = (uint16_t)(c.arch.ornament | art::ORN_FINIALS | (q.chance(140) ? art::ORN_LANTERNS : 0) | (q.chance(90) ? art::ORN_DRAGON_HEADS : 0));
+  c.props.awningA = c.arch.accentTint;
+  c.props.awningB = c.arch.altTint;
+  // arms: a strange metal, gilded and filigreed, a tall crest and a cape
+  c.arms.metal = q.jit(F.metal, 5);
+  c.arms.cloth = q.jit(F.a, 5);
+  c.arms.plume = q.jit(F.b, 5);
+  c.arms.ornament = (uint16_t)(c.arms.ornament | cult::ARM_FILIGREE | (q.chance(150) ? cult::ARM_GILDING : cult::ARM_ETCHING));
+  c.arms.crest = (uint8_t)std::max<int>(c.arms.crest, q.range(2, 3));
+  c.arms.cape = (uint8_t)q.w({1, 2, 3}, {1, 2, 2});
+  // their banners
+  c.heraldry.field = q.jit(F.a, 4);
+  c.heraldry.field2 = q.jit(F.b, 4);
+  c.heraldry.charge = q.jit(F.c, 4);
+  // their music: a scale never heard at home, bells and gongs and a choir, a held drone
+  c.music.scale = q.w({Scale::WholeTone, Scale::Pelog, Scale::DoubleHarmonic}, {1, 1, 1});
+  c.music.lead = q.w({LeadInst::Bells, LeadInst::Voice, LeadInst::Harp, LeadInst::Marimba}, {3, 2, 2, 1});
+  c.music.pad = q.w({PadInst::Choir, PadInst::Shimmer, PadInst::Drone}, {2, 2, 1});
+  c.music.perc = q.w({PercKind::Gong, PercKind::Bells, PercKind::Hand}, {2, 2, 1});
+  c.music.drone = (uint8_t)q.range(6, 12);
+  c.music.ornament = (uint8_t)q.range(6, 12);
+}
 }  // namespace
 
 // The whole culture of one archetype from one seed (Atlas::make and the maximin's candidates), in two stages so the
@@ -1091,6 +1155,7 @@ void applyPriors(Culture& c, Archetype a, uint32_t seed, int favouredOre, int cr
   }
   common(c, p, scheme);
   if (cross >= 0 && cross != (int)a) crossWith(c, (Archetype)cross, p);
+  if (c.hidden) hiddenLook(c, a);   // (M10 ART) beyond the Mist (never on the mainland: the mainland is bit-identical)
   c.arms.favouredOre = (int8_t)favouredOre;
 }
 

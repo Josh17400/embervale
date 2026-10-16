@@ -87,8 +87,13 @@ inline int bldgRiseTiles(art::Building t, int storeys) {
 // lane), Soldier (a kingdom's man-at-arms: road patrols, siege camps, garrisons; WARDS lane), Captain (a siege camp's or
 // a garrison's commander: "break the siege" / "join the assault"; WARDS lane), Refugee (driven from a burned village,
 // walking to or sheltering in a refugee camp; WARDS lane). Saved only inside quest flags: append.
+// M10 Beyond the Mist (VISION_PLAN 2.12, 15.4, 15.31): Harbourmaster (a harbour's office on the pier: berths, ferry
+// passages, routes, the boats for sale at a town or city; SEA lane), Shipwright (the slipway: builds, repairs and
+// upgrades boats), Sailor (a sailor in the sailors' tavern or on a pier: rumours of unmapped shores; the old sailor who
+// starts a sea-chart chain; a lighthouse keeper), Pirate (hostile, bandit-like, at sea and in pirate coves).
 enum class Role : uint8_t { Villager, Guard, Merchant, Smith, Innkeeper, Priest, Jarl, Farmer, Child, Mage, Bandit, King,
-                            Hunter, Fisher, Herbalist, Traveller, Herald, Soldier, Captain, Refugee, COUNT };
+                            Hunter, Fisher, Herbalist, Traveller, Herald, Soldier, Captain, Refugee,
+                            Harbourmaster, Shipwright, Sailor, Pirate, COUNT };
 
 // the name a building type goes by in the HUD ("INN", "THE KEEP", "THE PALACE"...)
 const char* bldgTypeName(art::Building t);

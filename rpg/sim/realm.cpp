@@ -20,7 +20,7 @@ namespace {
 
 // the realm block's own version (bump with any change to its layout). 2: REALM lane phase B (rulers' houses, the
 // granaries and harvests, the road to war on relations, war captures, siege kinds, settlement economies, sim ruins)
-constexpr uint8_t REALM_BLOCK_VER = 2;
+constexpr uint8_t REALM_BLOCK_VER = 3;   // 3: M10 (a kingdom's isolated, hiddenLand, contactDay)
 constexpr size_t MAX_EVENTS = 400;       // the event log keeps the newest (rumours fade after 30 / 60 days anyway)
 
 uint16_t dayU16(int day) { return (uint16_t)std::clamp(day, 0, 65535); }
@@ -245,6 +245,42 @@ void Realm::contribute(uint32_t siege, int side, float amount) {
       if (amount > 0) renown_.fame = std::min(1000000, renown_.fame + std::max(1, (int)std::lround(amount * 2)));
     }
 }
+// ---------------------------------------------------------------- M10 first contact (SEA lane)
+int Realm::contactLand(uint32_t land, int day, bool announce) {
+  if (!land) return 0;
+  int n = 0;
+  Gid first = 0;
+  for (KingdomState& k : kingdoms_) {
+    if (k.hiddenLand != land || !k.isolated) continue;
+    k.isolated = false;
+    k.contactDay = day;
+    if (k.playerRep == 0) k.playerRep = -20;   // (strangers from beyond the Mist: wary, not hostile)
+    if (!first && !k.fallen) first = k.id;
+    n++;
+  }
+  if (announce && first) {
+    const KingdomState* K = kingdom(first);
+    addEvent(EvType::FirstContact, first, 0, K ? K->capital : 0, K ? capX(*K) : 0, K ? capY(*K) : 0, day);
+  }
+  return n;
+}
+
+void Realm::openContact(uint32_t land, Gid mainland, int day) {
+  if (!land || !mainland || !kingdom(mainland)) return;
+  std::vector<Gid> hidden;
+  for (const KingdomState& k : kingdoms_) if (k.hiddenLand == land && !k.fallen && !k.isolated) hidden.push_back(k.id);
+  for (Gid h : hidden) {
+    if (h == mainland) continue;
+    Relation* r = relMut(h, mainland, true);
+    if (!r) continue;
+    if (r->state == Rel::Unknown) { r->state = Rel::Contact; r->sinceDay = (uint16_t)std::clamp(day, 0, 65535); }
+  }
+  if (!hidden.empty()) {
+    const KingdomState* M = kingdom(mainland);
+    addEvent(EvType::FirstContact, hidden[0], mainland, M ? M->capital : 0, M ? capX(*M) : 0, M ? capY(*M) : 0, day);
+  }
+}
+
 void Realm::markHeard(uint32_t eventId) {
   for (WorldEvent& e : events_) if (e.id == eventId) e.heard = true;
 }
@@ -342,7 +378,7 @@ void Realm::forceTension(Gid a, Gid b, Tension t, WarCause cause, int day) {
 //   ruler (name str, title str, house str, age u8, traits u8, female u8, sinceDay u16, dynasty u64), pop, wealth,
 //   military, stability, exhaustion, food f32, values 8 x u8, fallen u8, rebel u8, tier u8, foundedDay i32, rep i32,
 //   settlements (u32 n, u64 each), parent u64, lastTick u16, famine u8, famineDay u16, yieldRatio f32, harvestDoy u16,
-//   harvestYear i32, lastHarvest f32, capitalLostDay u16, inherit u8);
+//   harvestYear i32, lastHarvest f32, capitalLostDay u16, inherit u8, (v3) isolated u8, hiddenLand u32, contactDay i32);
 // relations (u32 n: a u16, b u16 (indices into the kingdoms above), state u8, tension u8, opinion i8, sinceDay u16,
 //   border u8, bits u8 (foodDeal 1, seller side << 1, aggrieved side << 3; side 0 none, 1 a, 2 b), base i8, cause u8,
 //   stepDay u16, lastIncident u16, marchDay u16, truceUntil u16);
@@ -375,6 +411,7 @@ void Realm::serialize(std::vector<uint8_t>& out) const {
     for (Gid s : k.settlements) w.u64(s);
     w.u64(k.parent); w.u16(k.lastTick); w.u8(k.famine ? 1 : 0); w.u16(k.famineDay); w.f32(k.yieldRatio); w.u16(k.harvestDoy);
     w.i32(k.harvestYear); w.f32(k.lastHarvest); w.u16(k.capitalLostDay); w.u8(k.inherit);
+    w.u8(k.isolated ? 1 : 0); w.u32(k.hiddenLand); w.i32(k.contactDay);   // (v3, M10)
   }
   // relations name their realms by index into the kingdom list above (compact: 24 bytes each)
   uint32_t nrel = 0;
@@ -447,6 +484,7 @@ bool Realm::deserialize(const std::vector<uint8_t>& in) {
     k.parent = r.u64(); k.lastTick = r.u16(); k.famine = r.u8() != 0; k.famineDay = r.u16(); k.yieldRatio = r.f32();
     k.harvestDoy = (uint16_t)(r.u16() % YEAR); k.harvestYear = (int16_t)r.i32(); k.lastHarvest = r.f32();
     k.capitalLostDay = r.u16(); k.inherit = r.u8();
+    k.isolated = r.u8() != 0; k.hiddenLand = r.u32(); k.contactDay = r.i32();   // (v3, M10)
     // floats from a damaged save must stay finite and in range (the tick multiplies them)
     auto sane = [](float v, float lo, float hi) { return std::isfinite(v) ? std::clamp(v, lo, hi) : lo; };
     k.pop = sane(k.pop, 0, 1000); k.wealth = sane(k.wealth, -1000, 100000); k.military = sane(k.military, 0, 10000);

@@ -1,0 +1,28 @@
+# M10 SEA lane: a ferry passage that plays out on deck (VISION_PLAN 15.4, 2.12): the hero boards the ferry at a harbour,
+# the captain takes her out with the clock running fast, pirates close in and board (fought for real), then journey's
+# end at the destination's pier behind the fade; then the sea's creatures round a boat: a serpent rising, a kraken's
+# arms, a merrow band.
+#   embervale.exe --script tools/scripts/m10_sea_ferry.txt     (m10_sea_ferry_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 9
++0.2 sea port
++0.6 sea ferry
++0.1 expect sea voyage 1
++3   shot m10_sea_ferry_deck.png
++0.1 sea spawn pirates
++5   shot m10_sea_ferry_pirates.png
++8   shot m10_sea_ferry_boarded.png
++0.5 log m10_sea_ferry passage under way
+# the sea's creatures (a sloop of our own in open water)
++0.3 sea mistedge
++0.2 expect sea aboard 1
++0.1 sea spawn serpent
++3.5 shot m10_sea_serpent.png
++0.1 sea spawn kraken boss
++4   shot m10_sea_kraken.png
++0.1 sea isle
++0.2 sea spawn merrow
++2.5 shot m10_sea_merrow.png
++0.5 log m10_sea_ferry done

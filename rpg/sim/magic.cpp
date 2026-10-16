@@ -267,7 +267,14 @@ Registry& reg() {
   static Registry r;
   return r;
 }
-uint64_t cultureKey(const cult::Culture& c) { return c.id * 0x9E3779B97F4A7C15ull ^ ((uint64_t)c.seed << 1) ^ 0xC0FFEEull; }
+uint32_t g_songLand = 0;   // (M10) the nearest hidden land of the world being played (setSongLand)
+bool isSongLand(const cult::Culture& c) { return c.hidden && c.hiddenLand && c.hiddenLand == g_songLand; }
+// (M10) a hidden people's key carries its land (and whether it is the song land): a mainland culture's is unchanged
+uint64_t cultureKey(const cult::Culture& c) {
+  uint64_t k = c.id * 0x9E3779B97F4A7C15ull ^ ((uint64_t)c.seed << 1) ^ 0xC0FFEEull;
+  if (c.hidden) k ^= ((uint64_t)hash32(c.hiddenLand ^ 0x41DD3Bu) << 17) ^ (isSongLand(c) ? 0x5096F14Eull << 3 : 0x1D3E7ull) ^ 0x7E1D0000000000ull;
+  return k;
+}
 
 uint32_t blend(uint32_t a, uint32_t b, int t256) {
   auto ch = [&](int sh) {
@@ -296,13 +303,39 @@ School schoolOfForm(Form f, Essence e) {
     default: return e == Essence::Dream ? School::Illusion : School::Destruction;
   }
 }
-struct Pick { uint8_t rank; Form form; Essence ess; };
+struct Pick { uint8_t rank; Form form; Essence ess; bool keep = false; };   // keep: a rank-2 pick never dropped (a mechanic's own)
 // the forms each signature favours (6.1: "the tradition's essences and signature constrain the forms it may use");
-// rank 1 first, then rank 2, then rank 3 (the last is the signature spell)
-std::vector<Pick> picksOf(Signature sig) {
+// rank 1 first, then rank 2, then rank 3 (the last is the signature spell). song: the nearest hidden land (its
+// signature spell burns: the priests who sing fire into being)
+std::vector<Pick> picksOf(Signature sig, uint32_t h = 0, bool song = false) {
   using F = Form;
   using E = Essence;
   switch (sig) {
+    // ---- (M10) the hidden kingdoms' signatures
+    case Signature::Blood:
+      return {{1, F::Bolt, E::Blood}, {1, F::Lance, E::Blood}, {1, F::Mark, E::Blood},
+              {2, F::Nova, E::Blood}, {2, F::Cone, E::Blood}, {2, F::Orb, E::Fire}, {2, F::Wall, E::Blood}, {2, F::Aura, E::Blood},
+              {3, F::Beam, E::Blood}, {3, F::Storm, E::Blood}, {3, F::Nova, E::Blood}};
+    case Signature::Rune:
+      return {{1, F::Rune, E::Fire}, {1, F::Rune, E::Frost}, {1, F::Bolt, E::Stone},
+              {2, F::Rune, E::Storm, true}, {2, F::Rune, E::Venom}, {2, F::Ward, E::Stone}, {2, F::Lance, E::Frost}, {2, F::Wall, E::Fire},
+              {3, F::Rune, E::Stone}, {3, F::Meteor, E::Stone}, {3, F::Rune, E::Arcane}};
+    case Signature::Song:
+      return {{1, F::Bolt, E::Song}, {1, F::Nova, E::Song}, {1, F::Mend, E::Song},
+              {2, F::Cone, E::Fire, true}, {2, F::Orb, E::Fire}, {2, F::Aura, E::Song}, {2, F::Lance, E::Song}, {2, F::Ward, E::Song},
+              {3, F::Storm, E::Song}, {3, F::Beam, E::Fire}, {3, F::Nova, song || (h >> 21) % 3u != 0 ? E::Fire : E::Light}};
+    case Signature::Mask:
+      return {{1, F::Aura, E::Fire}, {1, F::Aura, E::Frost}, {1, F::Bolt, E::Shadow},
+              {2, F::Aura, E::Storm, true}, {2, F::Cone, E::Wind}, {2, F::Lance, E::Bone}, {2, F::Nova, E::Shadow}, {2, F::Mark, E::Dream},
+              {3, F::Storm, E::Shadow}, {3, F::Summon, E::Shadow}, {3, F::Nova, E::Arcane}};
+    case Signature::Verdant:
+      return {{1, F::Wall, E::Verdant}, {1, F::Nova, E::Verdant}, {1, F::Bolt, E::Verdant},
+              {2, F::Blink, E::Verdant, true}, {2, F::Lance, E::Verdant}, {2, F::Totem, E::Verdant}, {2, F::Cone, E::Wind}, {2, F::Orb, E::Venom},
+              {3, F::Storm, E::Verdant}, {3, F::Summon, E::Verdant}, {3, F::Wall, E::Verdant}};
+    case Signature::Dream:
+      return {{1, F::Summon, E::Dream}, {1, F::Bolt, E::Shadow}, {1, F::Cone, E::Dream},
+              {2, F::Totem, E::Dream, true}, {2, F::Lance, E::Shadow}, {2, F::Mark, E::Dream}, {2, F::Aura, E::Dream}, {2, F::Nova, E::Shadow},
+              {3, F::Storm, E::Dream}, {3, F::Summon, E::Dream}, {3, F::Totem, E::Dream}};
     case Signature::Star:
       return {{1, F::Bolt, E::Star}, {1, F::Nova, E::Frost}, {1, F::Ward, E::Light},
               {2, F::Lance, E::Star}, {2, F::Orb, E::Star}, {2, F::Cone, E::Frost}, {2, F::Beam, E::Light}, {2, F::Totem, E::Star},
@@ -333,6 +366,24 @@ const char* signatureSpellName(Signature s) {
     case Signature::Ancestor: return "HOST OF ANCESTORS";
     case Signature::Ember: return "FORGEHEART";
     case Signature::Beast: return "CALL OF THE WILD";
+    case Signature::Blood: return "CRIMSON COVENANT";
+    case Signature::Rune: return "THE GREAT GLYPH";
+    case Signature::Song: return "CHOIR OF EMBERS";
+    case Signature::Mask: return "HUNDRED MASKS";
+    case Signature::Verdant: return "THE WILDWOOD";
+    case Signature::Dream: return "THE LONG MOMENT";
+    default: return "";
+  }
+}
+// (M10) a hidden tradition's focus, sold only in its own land (6.4)
+const char* focusName(Signature s) {
+  switch (s) {
+    case Signature::Blood: return "VEIN CHALICE";
+    case Signature::Rune: return "RUNE-KNIFE";
+    case Signature::Song: return "SINGING BOWL";
+    case Signature::Mask: return "SPIRIT MASK";
+    case Signature::Verdant: return "THORNWOOD ROD";
+    case Signature::Dream: return "DREAMCATCHER";
     default: return "";
   }
 }
@@ -342,8 +393,20 @@ const char* traditionNoun(Signature s, uint32_t h) {
   static const char* anc[] = {"ASHWAKE RITES", "BARROW CALLERS", "ANCESTOR WAY"};
   static const char* emb[] = {"EMBERFORGE", "FORGE CANTORS", "ANVIL RITE"};
   static const char* bst[] = {"BEASTBINDERS", "WILD CIRCLE", "PACK SPEAKERS"};
+  static const char* bld[] = {"BLOOD COVENANT", "CRIMSON RITES", "VEIN SINGERS"};
+  static const char* run[] = {"RUNECARVERS", "GLYPHWRIGHTS", "STONE SCRIBES"};
+  static const char* sng[] = {"NINEFOLD CHOIR", "EMBER CANTORS", "SONGWEAVERS"};
+  static const char* msk[] = {"MASKWEARERS", "HUNDRED FACES", "SPIRIT DANCERS"};
+  static const char* vrd[] = {"WILDSHAPERS", "THORN WARDENS", "GREEN WEAVE"};
+  static const char* drm[] = {"DREAMWEAVERS", "STILL HOUR", "VEILED SLEEPERS"};
   const int k = (int)(h % 3u);
   switch (s) {
+    case Signature::Blood: return bld[k];
+    case Signature::Rune: return run[k];
+    case Signature::Song: return sng[k];
+    case Signature::Mask: return msk[k];
+    case Signature::Verdant: return vrd[k];
+    case Signature::Dream: return drm[k];
     case Signature::Star: return star[k];
     case Signature::Tide: return tide[k];
     case Signature::Ancestor: return anc[k];
@@ -355,6 +418,13 @@ const char* traditionNoun(Signature s, uint32_t h) {
 Signature signatureFor(const cult::Culture& c, uint32_t h) {
   using A = cult::Archetype;
   using G = Signature;
+  // (M10) a people beyond the Mist: one of the six strange signatures no mainland culture has (6.2); the nearest
+  // hidden land always sings (Songweaving)
+  if (c.hidden) {
+    if (isSongLand(c)) return G::Song;
+    static const G six[6] = {G::Blood, G::Rune, G::Song, G::Mask, G::Verdant, G::Dream};
+    return six[(h >> 5) % 6u];
+  }
   const bool b = (h >> 7) & 1u;
   switch (c.archetype) {
     case A::Fjordfolk: return b ? G::Star : G::Ancestor;
@@ -376,8 +446,24 @@ Resource resourceOf(Signature s) {
     case Signature::Star: return Resource::Starlight;
     case Signature::Ancestor: return Resource::Charge;
     case Signature::Ember: return Resource::Heat;
+    case Signature::Blood: return Resource::Health;
+    case Signature::Rune: case Signature::Mask: return Resource::Charge;
+    case Signature::Song: return Resource::Notes;
     default: return Resource::Magicka;
   }
+}
+// a spell's own name for the hidden mechanics' spells (empty: the generated one)
+std::string mechanicName(Signature sig, const Pick& p, const std::string& who) {
+  if (sig == Signature::Mask && p.form == Form::Aura) {
+    const int m = p.ess == Essence::Fire ? 0 : p.ess == Essence::Frost ? 1 : 2;
+    return std::string("MASK OF THE ") + maskName(m);
+  }
+  const std::string pre = who.empty() ? std::string() : who + "'S ";
+  if (sig == Signature::Verdant && p.form == Form::Blink) return pre + "VINE BRIDGE";
+  if (sig == Signature::Verdant && p.form == Form::Nova) return pre + "ROOT SNARE";
+  if (sig == Signature::Dream && p.form == Form::Summon) return pre + "DECOY";
+  if (sig == Signature::Dream && p.form == Form::Totem) return pre + "STILL HOUR";
+  return "";
 }
 
 Tradition makeTradition(const cult::Culture& c, uint64_t key, std::vector<SpellDef>& out) {
@@ -388,10 +474,23 @@ Tradition makeTradition(const cult::Culture& c, uint64_t key, std::vector<SpellD
   t.sig = signatureFor(c, h);
   t.res = resourceOf(t.sig);
   t.sigilSeed = c.faith.glyphSeed ^ h;
-  t.hidden = false;
-  t.minLevel = 12;
+  t.hidden = c.hidden;
+  t.minLevel = c.hidden ? (uint8_t)HIDDEN_LEVEL : 12;
   t.name = "THE " + c.adjective + " " + traditionNoun(t.sig, h >> 3);
-  const std::vector<Pick> P = picksOf(t.sig);
+  if (t.name.size() > 34) t.name = std::string("THE ") + traditionNoun(t.sig, h >> 3);
+  t.focus = focusName(t.sig);
+  const bool songLandHere = isSongLand(c);
+  const std::vector<Pick> P = picksOf(t.sig, h, songLandHere);
+  // Songweaving's notes: its three rank-1 spells sing three different degrees, the motif is them in a hashed order
+  uint8_t deg[3];
+  deg[0] = (uint8_t)(h % 7u);
+  deg[1] = (uint8_t)((deg[0] + 2u + (h >> 3) % 3u) % 7u);
+  deg[2] = (uint8_t)((deg[1] + 2u + (h >> 6) % 2u) % 7u);
+  if (deg[2] == deg[0]) deg[2] = (uint8_t)((deg[2] + 1u) % 7u);
+  if (deg[2] == deg[1]) deg[2] = (uint8_t)((deg[2] + 1u) % 7u);
+  static const uint8_t perm[6][3] = {{0, 1, 2}, {1, 0, 2}, {2, 0, 1}, {0, 2, 1}, {1, 2, 0}, {2, 1, 0}};
+  const uint8_t* pm = perm[(h >> 9) % 6u];
+  for (int i = 0; i < 3; i++) t.motif[i] = deg[pm[i]];
   // 8..11 spells: 3 at rank 1, 3..5 at rank 2, 2..3 at rank 3 (the last always the signature)
   const int n = 8 + (int)((h >> 11) % 4u);
   const int r3 = n >= 10 ? 3 : 2;
@@ -403,7 +502,12 @@ Tradition makeTradition(const cult::Culture& c, uint64_t key, std::vector<SpellD
     for (const Pick& p : P) if (p.rank == 2) two.push_back(p);
     // drop rank-2 picks by the hash until r2 remain (order kept)
     uint32_t hh = hash32(h ^ 0x2222u);
-    while ((int)two.size() > r2) { two.erase(two.begin() + (std::ptrdiff_t)(hh % (uint32_t)two.size())); hh = hash32(hh); }
+    while ((int)two.size() > r2) {
+      const size_t k = hh % (uint32_t)two.size();
+      hh = hash32(hh);
+      if (two[k].keep) continue;   // (a mechanic's own spell stays: the vine bridge, the third mask, the still hour ...)
+      two.erase(two.begin() + (std::ptrdiff_t)k);
+    }
     for (const Pick& p : two) chosen.push_back(p);
   }
   {
@@ -433,8 +537,12 @@ Tradition makeTradition(const cult::Culture& c, uint64_t key, std::vector<SpellD
     else {
       std::string who = cult::personName(c, h ^ (uint32_t)(i * 7919 + 13), (h >> (i & 15)) & 1u);
       if (const size_t sp = who.find(' '); sp != std::string::npos) who = who.substr(0, sp);
-      nm = who + "'S " + essenceWord(p.ess) + " " + formNoun(p.form);
-      if (nm.size() > 24) nm = std::string(essenceWord(p.ess)) + " " + formNoun(p.form);
+      nm = mechanicName(t.sig, p, who);
+      if (nm.size() > 24) nm = mechanicName(t.sig, p, "");
+      if (nm.empty()) {
+        nm = who + "'S " + essenceWord(p.ess) + " " + formNoun(p.form);
+        if (nm.size() > 24) nm = std::string(essenceWord(p.ess)) + " " + formNoun(p.form);
+      }
     }
     SpellDef s = mk(sid, "", schoolOfForm(p.form, p.ess), p.form, p.ess, tier);
     s.name = nm;
@@ -446,6 +554,19 @@ Tradition makeTradition(const cult::Culture& c, uint64_t key, std::vector<SpellD
     if (p.ess == Essence::Wind && p.form == Form::Cone) s.mods = M_KNOCK;
     if (p.ess == Essence::Verdant && p.form == Form::Nova) s.mods = M_ROOT;
     if (p.ess == Essence::Blood && p.form == Form::Lance) s.mods = M_DRAIN;
+    // (M10) the hidden mechanics' spells
+    if (p.ess == Essence::Dream && p.form == Form::Cone) { s.statuses = statusBit(Status::Blinded); s.statusSecs = 4; }
+    if (p.ess == Essence::Dream && p.form == Form::Mark) s.duration = 20;
+    if (p.ess == Essence::Dream && p.form == Form::Storm) { s.statuses = statusBit(Status::Charmed); s.statusSecs = 8; }
+    if (t.sig == Signature::Mask && p.form == Form::Aura) {
+      s.mask = (int8_t)(p.ess == Essence::Fire ? 0 : p.ess == Essence::Frost ? 1 : 2);
+      s.duration = MASK_SECS; s.cooldown = 4; s.castTime = 0.25f; s.dual = false; s.upcast = false;
+    }
+    if (t.sig == Signature::Verdant && p.form == Form::Blink) { s.range = 64; s.cooldown = 10; s.castTime = 0.35f; s.dual = false; s.upcast = false; }
+    if (t.sig == Signature::Verdant && p.form == Form::Nova) s.statuses = 0;
+    if (t.sig == Signature::Dream && p.form == Form::Totem) { s.duration = DREAM_SLOW_SECS; s.radius = sig ? 110.0f : 64.0f; }
+    if (t.sig == Signature::Dream && p.form == Form::Summon) { s.duration = DECOY_SECS; s.dual = false; }
+    if (t.sig == Signature::Song) s.note = (int8_t)(i < 3 ? deg[i] : (uint8_t)(hash32(h ^ (uint32_t)(i * 131 + 7)) % 7u));
     if (sig) {
       s.cooldown = std::max(60.0f, std::min(120.0f, s.cooldown * 1.5f));
       if (s.form == Form::Summon) s.duration = 40;
@@ -454,7 +575,9 @@ Tradition makeTradition(const cult::Culture& c, uint64_t key, std::vector<SpellD
     }
     // what it costs in the tradition's resource: Starlight and Heat half the magicka (pools of 100), Charge 1-3
     if (t.res == Resource::Heat || t.res == Resource::Starlight) s.cost = std::round(s.cost * 0.5f);   // (pools of 100)
-    else if (t.res == Resource::Charge) s.cost = (float)p.rank;
+    else if (t.res == Resource::Health) s.cost = std::max(2.0f, std::round(s.cost * 0.4f));   // (M10 Blood rites: health)
+    else if (t.res == Resource::Charge) s.cost = s.mask >= 0 ? 0.0f : (float)p.rank;          // (a mask is donned freely)
+    if (t.sig == Signature::Song) s.res = Resource::Magicka;   // (Songweaving's Notes are the motif sung, not a price)
     // the look: the essence's ramp, its middle tinted by the culture's own colours; the particle from the signature
     s.fx = essenceFx(p.ess);
     s.fx.ramp[1] = blend(s.fx.ramp[1], tint2, 70);
@@ -466,6 +589,12 @@ Tradition makeTradition(const cult::Culture& c, uint64_t key, std::vector<SpellD
       case Signature::Ancestor: s.fx.particle = p.ess == Essence::Bone ? Particle::Bone : Particle::Smoke; break;
       case Signature::Ember: s.fx.particle = Particle::Ember; break;
       case Signature::Beast: s.fx.particle = p.ess == Essence::Wind ? Particle::Feather : Particle::Leaf; break;
+      case Signature::Blood: s.fx.particle = Particle::Droplet; break;
+      case Signature::Rune: s.fx.particle = Particle::Glyph; break;
+      case Signature::Song: s.fx.particle = Particle::Note; break;
+      case Signature::Mask: s.fx.particle = p.ess == Essence::Wind ? Particle::Feather : Particle::Smoke; break;
+      case Signature::Verdant: s.fx.particle = p.form == Form::Totem ? Particle::Petal : Particle::Leaf; break;
+      case Signature::Dream: s.fx.particle = p.ess == Essence::Shadow ? Particle::Mote : Particle::Petal; break;
       default: break;
     }
     s.fx.glyphSeed = t.sigilSeed ^ (uint32_t)(i * 0x45D9F3Bu);
@@ -576,7 +705,7 @@ bool damaging(const SpellDef& s) {
     case Form::Wall:
       return s.ess != Essence::Dream && !(s.form == Form::Nova && s.ess == Essence::Tide && s.tradition == 0);
     case Form::Storm: return s.ess != Essence::Dream;
-    case Form::Totem: return !(s.ess == Essence::Light || s.ess == Essence::Verdant || s.ess == Essence::Tide);
+    case Form::Totem: return !(s.ess == Essence::Light || s.ess == Essence::Verdant || s.ess == Essence::Tide || s.ess == Essence::Dream);   // (M10: a dream's is a time bubble)
     case Form::Mark: return s.ess != Essence::Dream && s.ess != Essence::Verdant;
     default: return false;
   }
@@ -624,7 +753,7 @@ const Tradition& commonArcana() {
 }
 const Tradition& traditionOf(const cult::Culture& c) {
   // the heartland (and any culture before M3 gave it a family) teaches Common Arcana; every other mainland people its own
-  if (!c.id || (c.archetype == cult::Archetype::Heartland && c.archetype2 == cult::Archetype::Heartland)) return commonArcana();
+  if (!c.id || (!c.hidden && c.archetype == cult::Archetype::Heartland && c.archetype2 == cult::Archetype::Heartland)) return commonArcana();
   Registry& R = reg();
   const uint64_t key = cultureKey(c);
   auto it = R.byCulture.find(key);
@@ -638,7 +767,7 @@ const Tradition& traditionOf(const cult::Culture& c) {
 }
 Tradition generateTradition(const cult::Culture& c, std::vector<SpellDef>& spells) {
   spells.clear();
-  if (!c.id || (c.archetype == cult::Archetype::Heartland && c.archetype2 == cult::Archetype::Heartland)) return commonArcana();
+  if (!c.id || (!c.hidden && c.archetype == cult::Archetype::Heartland && c.archetype2 == cult::Archetype::Heartland)) return commonArcana();
   Tradition t = makeTradition(c, cultureKey(c), spells);
   if (t.sig == Signature::Common) { spells.clear(); return commonArcana(); }
   return t;
@@ -687,10 +816,21 @@ int Book::slotOf(uint32_t id) const {
 }
 // block version 2 (MAGIC lane): version 1's fields, then the lands (u32 n, u64 each) and the trial kills (u8 n, u8 each).
 // Version 1 still reads (tests/fixtures/save_v20.bin)
+// block version 3 (M10 ARCANA lane): version 2's fields, then the rites (u32 n, then u32 tradition + u8 bits each).
+// Written only when a rite was passed, so a book without one keeps its version-2 bytes (save_v21.bin round-trips)
+uint8_t Book::rite(uint32_t tid) const {
+  for (const auto& r : rites) if (r.first == tid) return r.second;
+  return 0;
+}
+void Book::passRite(uint32_t tid, int which) {
+  if (!tid || which < 0 || which > 1) return;
+  for (auto& r : rites) if (r.first == tid) { r.second |= (uint8_t)(1u << which); return; }
+  rites.push_back({tid, (uint8_t)(1u << which)});
+}
 void Book::serialize(std::vector<uint8_t>& out) const {
   out.clear();
   BinW w(out);
-  w.u8(2);   // block version
+  w.u8(rites.empty() ? 2 : 3);   // block version
   w.u32((uint32_t)known.size());
   for (uint32_t k : known) w.u32(k);
   w.u8((uint8_t)QUICK_SLOTS);
@@ -707,11 +847,15 @@ void Book::serialize(std::vector<uint8_t>& out) const {
   for (uint64_t l : lands) { w.u32((uint32_t)l); w.u32((uint32_t)(l >> 32)); }
   w.u8((uint8_t)std::size(trialKills));
   for (uint8_t k : trialKills) w.u8(k);
+  if (!rites.empty()) {
+    w.u32((uint32_t)rites.size());
+    for (const auto& r : rites) { w.u32(r.first); w.u8(r.second); }
+  }
 }
 bool Book::deserialize(const std::vector<uint8_t>& in) {
   BinR r(in);
   const int ver = r.u8();
-  if (ver != 1 && ver != 2) return false;
+  if (ver < 1 || ver > 3) return false;
   *this = Book();
   const uint32_t nk = r.u32();
   if (nk > 4096) return false;
@@ -735,6 +879,11 @@ bool Book::deserialize(const std::vector<uint8_t>& in) {
     const int nt = r.u8();
     for (int i = 0; i < nt && !r.bad; i++) { const uint8_t k = r.u8(); if (i < (int)std::size(trialKills)) trialKills[i] = k; }
   }
+  if (ver >= 3) {
+    const uint32_t nr2 = r.u32();
+    if (nr2 > 256) return false;
+    for (uint32_t i = 0; i < nr2 && !r.bad; i++) { const uint32_t t = r.u32(); const uint8_t b = r.u8(); if (t && !rite(t)) rites.push_back({t, b}); }
+  }
   return !r.bad;
 }
 
@@ -752,6 +901,15 @@ void syncLegacy(Book& B, uint8_t& bits, int& spell, int8_t& mirror) {
   if (l >= 0) spell = l;
   mirror = (int8_t)spell;
 }
+
+// ---- (M10) the hidden signatures' names, the song land
+const char* maskName(int m) {
+  static const char* n[MASKS] = {"EMBER FOX", "FROST OWL", "STORM STAG"};
+  return m >= 0 && m < MASKS ? n[m] : "";
+}
+Essence maskEssence(int m) { return m == 1 ? Essence::Frost : m == 2 ? Essence::Storm : Essence::Fire; }
+uint32_t songLand() { return g_songLand; }
+void setSongLand(uint32_t landId) { g_songLand = landId; }
 
 // ---- the field
 const SurfaceTile* Field::tile(int tx, int ty) const {

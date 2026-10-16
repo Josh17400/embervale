@@ -1028,6 +1028,560 @@ void checkLearning(const Game& base) {
   }
 }
 
+// ---------------------------------------------------------------- (M10) the hidden kingdoms' magic
+// a people beyond the Mist whose tradition has that signature (its land never the song land unless asked)
+cult::Culture hiddenCulture(magic::Signature want, bool songLand = false) {
+  for (uint32_t s = 1; s < 600; s++) {
+    cult::Culture c = cult::Atlas::make((cult::Archetype)(s % (uint32_t)cult::Archetype::COUNT), 7000u + s * 13u);
+    if (!c.id) c.id = cult::familyId((int)(s % 97u) * 7 + 3, (int32_t)(s % 1000u));
+    c.hidden = true;
+    c.hiddenLand = songLand ? magic::songLand() : (0x20000001u + s * 2u);
+    if (!songLand && c.hiddenLand == magic::songLand()) continue;
+    std::vector<SpellDef> sp;
+    if (magic::generateTradition(c, sp).sig == want) return c;
+  }
+  return cult::Culture();
+}
+const SpellDef* sigSpell(const magic::Tradition& t, Form f, int rank = 0) {
+  for (uint32_t sid : t.spells) if (const SpellDef* d = magic::spellById(sid)) if (d->form == f && (!rank || d->rank == rank)) return d;
+  return nullptr;
+}
+// the hero attuned to a hidden tradition (the steps set as met)
+void hiddenHero(Game& g, const magic::Tradition& t) {
+  g.plLevel = std::max(g.plLevel, magic::HIDDEN_LEVEL);
+  g.arcana.book.passRite(t.id, 0);
+  if (!MagicOps::attuned(g, t.id)) g.arcana.book.attuned.push_back(t.id);
+  ready(g);
+}
+void checkHiddenTables() {
+  using G = magic::Signature;
+  const uint32_t keepSong = magic::songLand();
+  int made = 0;
+  std::set<int> sigs;
+  for (int k = 0; k < 6; k++) {
+    static const G six[6] = {G::Blood, G::Rune, G::Song, G::Mask, G::Verdant, G::Dream};
+    const cult::Culture c = hiddenCulture(six[k]);
+    if (!c.id) { SP_FAIL("no hidden culture with %s\n", magic::signatureName(six[k])); continue; }
+    std::vector<SpellDef> s1, s2;
+    const magic::Tradition t1 = magic::generateTradition(c, s1), t2 = magic::generateTradition(c, s2);
+    if (t1.id != t2.id || t1.spells != t2.spells || s1.size() != s2.size() || t1.motif[0] != t2.motif[0] || t1.motif[2] != t2.motif[2]) SP_FAIL("hidden %s: two generations differ\n", t1.name.c_str());
+    for (size_t i = 0; i < s1.size() && i < s2.size(); i++) if (!sameSpell(s1[i], s2[i]) || s1[i].note != s2[i].note || s1[i].mask != s2[i].mask) SP_FAIL("hidden %s: spell %zu differs\n", t1.name.c_str(), i);
+    const magic::Tradition& t = magic::traditionOf(c);
+    if (t.id != t1.id) SP_FAIL("traditionOf(hidden %s) is not its generation\n", c.name.c_str());
+    if (!t.hidden || t.minLevel != magic::HIDDEN_LEVEL || !magic::hiddenSignature(t.sig)) SP_FAIL("%s: hidden %d, min level %d, signature %s\n", t.name.c_str(), (int)t.hidden, t.minLevel, magic::signatureName(t.sig));
+    if (t.focus.empty()) SP_FAIL("%s has no focus\n", t.name.c_str());
+    if (t.spells.size() < 8 || t.spells.size() > 12) SP_FAIL("%s has %zu spells\n", t.name.c_str(), t.spells.size());
+    int r[4] = {};
+    for (uint32_t sid : t.spells) {
+      const SpellDef* d = magic::spellById(sid);
+      if (!d) { SP_FAIL("%s: spell %u unknown\n", t.name.c_str(), sid); continue; }
+      r[std::min<int>(d->rank, 3)]++;
+      const float b = magic::budgetOf(*d);
+      if (b > 0 && std::fabs(d->power / b - 1.0f) > 0.05f) SP_FAIL("%s: %s power %.1f vs budget %.1f\n", t.name.c_str(), d->name.c_str(), d->power, b);
+      if (b > 0 && d->power > magic::basePower(d->form) * magic::essenceMult(d->ess) * 3.2f * 1.3f * 1.1f * 1.1f) SP_FAIL("%s: %s past +10%% of the raw budget\n", t.name.c_str(), d->name.c_str());
+      if (d->name.empty() || d->name.size() > 26) SP_FAIL("%s: a spell name '%s'\n", t.name.c_str(), d->name.c_str());
+      const bool resOk = d->res == t.res || (t.sig == G::Song && d->res == magic::Resource::Magicka);
+      if (!resOk) SP_FAIL("%s: %s not paid in the tradition's resource\n", t.name.c_str(), d->name.c_str());
+      if (m_table && k < 6 && sid == t.spells.front())
+        out("spells: hidden %-32s %-15s %2zu spells, focus %s\n", t.name.c_str(), magic::signatureName(t.sig), t.spells.size(), t.focus.c_str());
+    }
+    if (r[1] != 3 || r[2] < 3 || r[2] > 5 || r[3] < 2 || r[3] > 3) SP_FAIL("%s ranks %d/%d/%d\n", t.name.c_str(), r[1], r[2], r[3]);
+    const SpellDef* last = magic::spellById(t.spells.back());
+    if (!last || last->rank != 3 || last->fx.size < 4) SP_FAIL("%s: its signature spell is not last at rank 3\n", t.name.c_str());
+    // each mechanic's own spell is there
+    if (t.sig == G::Mask) { int masks = 0; for (uint32_t sid : t.spells) if (const SpellDef* d = magic::spellById(sid)) masks += d->mask >= 0; if (masks != 3) SP_FAIL("%s has %d masks (3)\n", t.name.c_str(), masks); }
+    if (t.sig == G::Verdant && (!sigSpell(t, Form::Blink) || !sigSpell(t, Form::Wall, 1) || !sigSpell(t, Form::Nova, 1))) SP_FAIL("%s lacks the bridge, the thorns or the snare\n", t.name.c_str());
+    if (t.sig == G::Dream && (!sigSpell(t, Form::Summon, 1) || !sigSpell(t, Form::Totem, 2))) SP_FAIL("%s lacks the decoy or the bubble\n", t.name.c_str());
+    if (t.sig == G::Rune && !sigSpell(t, Form::Rune, 1)) SP_FAIL("%s lacks a rank-1 rune\n", t.name.c_str());
+    if (t.sig == G::Song) {
+      int noted = 0;
+      for (uint32_t sid : t.spells) if (const SpellDef* d = magic::spellById(sid)) noted += d->note >= 0;
+      if (noted != (int)t.spells.size() || t.motif[0] == t.motif[1] || t.motif[1] == t.motif[2] || t.motif[0] == t.motif[2]) SP_FAIL("%s: notes %d, motif %d %d %d\n", t.name.c_str(), noted, t.motif[0], t.motif[1], t.motif[2]);
+    }
+    made++;
+    sigs.insert((int)t.sig);
+  }
+  if (made != 6 || sigs.size() != 6) SP_FAIL("hidden traditions: %d made, %zu signatures\n", made, sigs.size());
+  // the nearest hidden land always sings, with fire among its essences
+  magic::setSongLand(0x30000001u);
+  for (int k = 0; k < 6; k++) {
+    cult::Culture c = cult::Atlas::make((cult::Archetype)(k * 2 % (int)cult::Archetype::COUNT), 900u + (uint32_t)k);
+    if (!c.id) c.id = cult::familyId(k * 11 + 5, k);
+    c.hidden = true; c.hiddenLand = 0x30000001u;
+    std::vector<SpellDef> sp;
+    const magic::Tradition t = magic::generateTradition(c, sp);
+    bool fire = false;
+    for (Essence e : t.ess) fire |= e == Essence::Fire;
+    if (t.sig != G::Song || !fire) SP_FAIL("the song land's people (%s) have %s, fire %d\n", c.name.c_str(), magic::signatureName(t.sig), (int)fire);
+  }
+  magic::setSongLand(keepSong);
+  // the book's rites: version 3 only when one is passed
+  magic::Book b;
+  b.learn(4);
+  std::vector<uint8_t> v2, v3;
+  b.serialize(v2);
+  b.passRite(4242, 0); b.passRite(4242, 1); b.passRite(77, 0);
+  b.serialize(v3);
+  magic::Book c;
+  if (v2.empty() || v2[0] != 2 || v3[0] != 3) SP_FAIL("the magic block versions %d / %d (want 2 / 3)\n", v2.empty() ? -1 : v2[0], v3[0]);
+  if (!c.deserialize(v3) || c.rite(4242) != 3 || c.rite(77) != 1 || c.rite(5) != 0) SP_FAIL("the rites did not round-trip\n");
+  std::vector<uint8_t> v3b;
+  c.serialize(v3b);
+  if (v3b != v3) SP_FAIL("the version-3 block is not byte-stable\n");
+}
+
+void checkHiddenPlay(const Game& base) {
+  using G = magic::Signature;
+  // ---- Blood rites: paid in health, x(1 + 0.8 (1 - hp / max)), healing halved
+  {
+    const cult::Culture c = hiddenCulture(G::Blood);
+    const magic::Tradition& t = magic::traditionOf(c);
+    Game g = base;
+    g.godMode = false;
+    hiddenHero(g, t);
+    const SpellDef* d = tradSpell(t, 1, true);
+    if (!d) SP_FAIL("blood: no rank-1 spell\n");
+    else {
+      Actor& p = g.pl();
+      p.maxHp = 200; p.hp = 200;
+      if (std::fabs(MagicOps::signatureMul(g, *d) - 1.0f) > 1e-4f) SP_FAIL("blood: x%.3f at full health\n", MagicOps::signatureMul(g, *d));
+      p.hp = 100;
+      if (std::fabs(MagicOps::signatureMul(g, *d) - 1.4f) > 1e-3f) SP_FAIL("blood: x%.3f at half health (1.4)\n", MagicOps::signatureMul(g, *d));
+      p.hp = 20;
+      if (std::fabs(MagicOps::signatureMul(g, *d) - 1.72f) > 1e-3f) SP_FAIL("blood: x%.3f at 10%% health (1.72)\n", MagicOps::signatureMul(g, *d));
+      p.hp = 200;
+      prep(g, d->id);
+      const float mp0 = g.mp, hp0 = p.hp, cost = MagicOps::costOf(g, *d, 0, false);
+      MagicOps::begin(g, 0, false, false);
+      spRun(g, 0.05f);
+      if (std::fabs((hp0 - g.pl().hp) - cost) > 0.5f || g.mp != mp0) SP_FAIL("blood: the cast cost %.1f health (%.1f) and %.0f magicka\n", hp0 - g.pl().hp, cost, mp0 - g.mp);
+      // healing halved: MEND heals half of what it heals an unbound hero
+      Game h = base, k = base;
+      hiddenHero(h, t);
+      k.plLevel = h.plLevel;
+      for (Game* x : {&h, &k}) {
+        ready(*x);
+        prep(*x, magic::SPELL_MEND);
+        x->godMode = false;
+        x->pl().maxHp = 500; x->pl().hp = 10;
+        MagicOps::begin(*x, 0, false, false);
+        spRun(*x, 0.05f);
+      }
+      const float hb = h.pl().hp - 10, hk = k.pl().hp - 10;
+      if (hk <= 0 || std::fabs(hb / hk - magic::BLOOD_HEAL) > 0.03f) SP_FAIL("blood: MEND healed %.1f bound vs %.1f (x0.5)\n", hb, hk);
+      if (m_table) out("spells: blood: x1.00 / x1.40 / x1.72 at 100/50/10%% health; a cast paid %.0f health; MEND %.1f vs %.1f\n", cost, hb, hk);
+    }
+  }
+  // ---- Runecarving: two runes within 3 tiles go off together (fire + frost: a steam burst); the charge refills
+  {
+    const cult::Culture c = hiddenCulture(G::Rune);
+    const magic::Tradition& t = magic::traditionOf(c);
+    const SpellDef* fire = nullptr; const SpellDef* frost = nullptr;
+    for (uint32_t sid : t.spells) if (const SpellDef* d = magic::spellById(sid)) if (d->form == Form::Rune) { if (d->ess == Essence::Fire && !fire) fire = d; if (d->ess == Essence::Frost && !frost) frost = d; }
+    if (!fire || !frost) SP_FAIL("rune: no fire / frost rune\n");
+    else {
+      float single = 0, pair = 0;
+      int combos = 0, steam = 0, left = 0;
+      for (int n = 1; n <= 2; n++) {
+        Game g = base;
+        hiddenHero(g, t);
+        const Vec2 at = g.pl().p + Vec2(48, 0);
+        for (int i = 0; i < n; i++) {
+          magic::Zone z;
+          z.spell = i == 0 ? fire->id : frost->id; z.kind = magic::ZoneKind::Rune; z.owner = g.pl().id; z.mag = 1;
+          z.p = z.q = at + Vec2(32.0f * (float)i, 0); z.r = std::max(24.0f, fire->radius); z.life = 30; z.power = 40;
+          MagicOps::live(g).zones.push_back(z);
+        }
+        const int id = dummy(g, art::Monster::Wolf, at);
+        const float hp0 = byId(g, id)->hp;
+        spRun(g, 0.1f);
+        const float dmg = hp0 - (byId(g, id) ? byId(g, id)->hp : 0.0f);
+        if (n == 1) single = dmg;
+        else {
+          pair = dmg;
+          combos = MagicOps::live(g).stats.runeCombos;
+          for (const magic::SurfaceTile& s : g.arcana.live.field.tiles) steam += s.kind == Surface::Steam;
+          for (const magic::Zone& z : g.arcana.live.zones) left += z.kind == magic::ZoneKind::Rune;
+        }
+      }
+      if (combos != 1 || left != 0 || !steam) SP_FAIL("rune: %d combos, %d runes left, %d steam tiles (1, 0, >0)\n", combos, left, steam);
+      if (single <= 0 || pair < single * (magic::RUNE_COMBO_MULT - 0.02f)) SP_FAIL("rune: the linked pair dealt %.1f vs one rune %.1f (x1.5)\n", pair, single);
+      Game g = base;
+      hiddenHero(g, t);
+      g.arcana.book.res[(int)magic::Resource::Charge] = 0;
+      spRun(g, 2.0f * magic::RUNE_CHARGE_SECS + 0.2f);
+      const float ch = g.arcana.book.res[(int)magic::Resource::Charge];
+      if (std::fabs(ch - 2.0f) > 0.01f) SP_FAIL("rune: the charge refilled to %.1f in 7.2 s (2)\n", ch);
+      if (m_table) out("spells: rune: one rune %.0f, a linked pair %.0f (x%.2f), steam %d tiles, charge %.0f in 7.2 s\n", single, pair, single > 0 ? pair / single : 0.0f, steam, ch);
+    }
+  }
+  // ---- Songweaving: notes, and the motif's Refrain (free, x2)
+  {
+    const cult::Culture c = hiddenCulture(G::Song);
+    const magic::Tradition& t = magic::traditionOf(c);
+    const SpellDef* by[7] = {};
+    for (uint32_t sid : t.spells) if (const SpellDef* d = magic::spellById(sid)) if (d->rank == 1 && d->note >= 0 && !by[d->note]) by[d->note] = d;
+    if (!by[t.motif[0]] || !by[t.motif[1]] || !by[t.motif[2]]) SP_FAIL("song: the motif's spells are not all rank 1\n");
+    else {
+      for (int order = 0; order < 2; order++) {
+        Game g = base;
+        hiddenHero(g, t);
+        const int id = dummy(g, art::Monster::Wolf, g.pl().p + Vec2(40, 0));
+        std::vector<Event> ev;
+        float mp0 = 0;
+        float lastBlow = 0, refrainBlow = 0;
+        for (int i = 0; i < 3; i++) {
+          const SpellDef* d = by[t.motif[order == 0 ? i : 2 - i]];
+          ready(g);
+          g.mp = g.maxMp = 1e5f;
+          if (i == 2) mp0 = g.mp;
+          prep(g, d->id);
+          MagicOps::begin(g, 0, false, false);
+          const std::vector<float> hits = blowsOn(g, id, d->castTime + 1.4f, &ev);
+          if (i == 2 && !hits.empty()) { lastBlow = hits.front(); refrainBlow = hits.size() > 1 ? hits.back() : 0; }
+        }
+        int notes = 0, refr = 0;
+        for (const Event& e : ev) if (e.type == Ev::Spell && e.a == (int)Phase::Reaction) { notes += e.s == "NOTE"; refr += e.s == "REFRAIN"; }
+        const magic::Stats& S = g.arcana.live.stats;
+        const SpellDef* third = by[t.motif[order == 0 ? 2 : 0]];
+        if (order == 0) {
+          if (S.refrains != 1 || refr != 1 || notes != 3) SP_FAIL("song: in motif order %d refrains, %d notes (1, 3)\n", S.refrains, notes);
+          if (mp0 - g.mp > 1.5f * MagicOps::costOf(g, *third, 0, false)) SP_FAIL("song: the Refrain was not free (%.0f paid for %.0f)\n", mp0 - g.mp, MagicOps::costOf(g, *third, 0, false));
+          if (magic::damaging(*third) && (lastBlow <= 0 || std::fabs(refrainBlow / lastBlow - magic::REFRAIN_MULT) > 0.06f))
+            SP_FAIL("song: the Refrain struck %.1f after %.1f (x2)\n", refrainBlow, lastBlow);
+          if (g.arcana.book.res[(int)magic::Resource::Notes] != 0) SP_FAIL("song: the notes did not reset after the Refrain\n");
+          if (m_table) out("spells: song: motif %d-%d-%d sung: %d notes, %d refrain, blow %.1f then refrain %.1f\n", t.motif[0], t.motif[1], t.motif[2], notes, S.refrains, lastBlow, refrainBlow);
+        } else if (S.refrains != 0 && !(t.motif[0] == t.motif[2])) SP_FAIL("song: a reversed motif sang a Refrain\n");
+      }
+    }
+  }
+  // ---- Maskwork: a mask worn, blows build charge and carry its essence, the finisher is a spell-strike
+  {
+    const cult::Culture c = hiddenCulture(G::Mask);
+    const magic::Tradition& t = magic::traditionOf(c);
+    const SpellDef* fox = nullptr;
+    for (uint32_t sid : t.spells) if (const SpellDef* d = magic::spellById(sid)) if (d->mask == 0) fox = d;
+    if (!fox) SP_FAIL("mask: no ember fox\n");
+    else {
+      Game g = base;
+      hiddenHero(g, t);
+      prep(g, fox->id);
+      MagicOps::begin(g, 0, false, false);
+      spRun(g, fox->castTime + 0.2f);
+      const magic::Live& L = g.arcana.live;
+      if (L.mask != 0 || L.maskT < 55) SP_FAIL("mask: worn %d for %.0f s (0, 60)\n", L.mask, L.maskT);
+      const int id = dummy(g, art::Monster::Wolf, g.pl().p + Vec2(18, 0));
+      g.arcana.book.res[(int)magic::Resource::Charge] = 0;
+      MagicOps::damageRaw(g, *byId(g, id), 3, g.pl().p, g.pl().id, Ench::None, 0);
+      if (g.arcana.book.res[(int)magic::Resource::Charge] < 1 || !byId(g, id)->hasStatus(Status::Burning)) SP_FAIL("mask: a masked blow built no charge or carried no fire\n");
+      const float hp0 = byId(g, id)->hp;
+      Actor& p = g.pl();
+      p.aim = Vec2(1, 0); p.combo = 2; p.comboT = 0.5f; p.st = AState::Strike; p.stT = 0; p.hitDone = true;
+      spRun(g, 0.25f);
+      if (L.stats.maskStrikes != 1 || byId(g, id)->hp >= hp0) SP_FAIL("mask: the finisher's spell-strike: %d, %.0f -> %.0f\n", L.stats.maskStrikes, hp0, byId(g, id)->hp);
+      if (m_table) out("spells: mask: %s worn %.0f s, a blow +1 charge and fire, the finisher struck %.0f\n", fox->name.c_str(), L.maskT, hp0 - byId(g, id)->hp);
+    }
+  }
+  // ---- Verdant shaping: thorn walls (solid, 30 s, restored exactly), a vine bridge (never strands), root snares
+  {
+    const cult::Culture c = hiddenCulture(G::Verdant);
+    const magic::Tradition& t = magic::traditionOf(c);
+    const SpellDef* wall = sigSpell(t, Form::Wall, 1);
+    const SpellDef* bridge = sigSpell(t, Form::Blink);
+    const SpellDef* snareS = sigSpell(t, Form::Nova, 1);
+    if (wall) {
+      Game g = base;
+      hiddenHero(g, t);
+      const Map before = g.world.over;
+      prep(g, wall->id);
+      MagicOps::begin(g, 0, false, false);
+      spRun(g, wall->castTime + 0.2f);
+      const int grown = (int)g.arcana.live.growths.size();
+      int solid = 0;
+      for (const magic::Growth& w : g.arcana.live.growths) solid += g.map().blocked(w.tx, w.ty);
+      spRun(g, magic::VERDANT_SECS + 0.5f);
+      int diff = 0;
+      for (size_t i = 0; i < before.solid.size(); i++) diff += before.solid[i] != g.world.over.solid[i] || before.ground[i] != g.world.over.ground[i];
+      if (grown < 3 || solid != grown || !g.arcana.live.growths.empty() || diff) SP_FAIL("verdant: thorns %d grown, %d solid, %zu left, %d tiles differ after\n", grown, solid, g.arcana.live.growths.size(), diff);
+      if (m_table) out("spells: verdant: %d thorn tiles stood solid 30 s and went back exactly (%d tiles differ)\n", grown, diff);
+    } else SP_FAIL("verdant: no thorn wall\n");
+    if (bridge) {
+      for (int width = 3; width <= 4; width++) {
+        Game g = base;
+        hiddenHero(g, t);
+        Map& m = g.world.over;
+        const int hx = (int)std::floor(g.pl().p.x / TILE), hy = (int)std::floor((g.pl().p.y - 2) / TILE);
+        for (int i = 1; i <= width; i++) m.setG(hx + 1 + i, hy, Ground::Water);
+        const Map before = m;
+        g.pl().aim = Vec2(1, 0); g.pl().face = 2;
+        prep(g, bridge->id);
+        MagicOps::begin(g, 0, false, false);
+        spRun(g, bridge->castTime + 0.2f);
+        int bridged = 0;
+        for (int i = 1; i <= width; i++) bridged += m.at(hx + 1 + i, hy) == Ground::Bridge;
+        if (width == 4) { if (bridged) SP_FAIL("verdant: a vine bridge grew over 4 tiles of water\n"); continue; }
+        if (bridged != 3) { SP_FAIL("verdant: the vine bridge covers %d of 3 water tiles\n", bridged); continue; }
+        // the hero stands on the middle of it when it ends: it waits, then sets the hero ashore and turns back exactly
+        g.pl().p = Vec2((float)(hx + 3) * TILE + 8, (float)hy * TILE + 9);
+        spRun(g, magic::VERDANT_SECS - bridge->castTime - 0.2f + 1.0f);
+        const bool waited = m.at(hx + 3, hy) == Ground::Bridge;
+        spRun(g, 6.5f);
+        int diff = 0;
+        for (size_t i = 0; i < before.ground.size(); i++) diff += before.ground[i] != m.ground[i] || before.solid[i] != m.solid[i];
+        const Ground under = m.at((int)std::floor(g.pl().p.x / TILE), (int)std::floor((g.pl().p.y - 2) / TILE));
+        if (!waited || diff || groundWater(under)) SP_FAIL("verdant: the bridge waited %d, %d tiles differ, the hero %s\n", (int)waited, diff, groundWater(under) ? "stranded in water" : "ashore");
+        if (m_table) out("spells: verdant: a vine bridge over 3 tiles (4: refused), waited for the hero, set ashore, %d tiles differ\n", diff);
+      }
+    } else SP_FAIL("verdant: no vine bridge\n");
+    if (snareS) {
+      Game g = base;
+      hiddenHero(g, t);
+      const int id = dummy(g, art::Monster::Wolf, g.pl().p + Vec2(30, 0));
+      prep(g, snareS->id);
+      MagicOps::begin(g, 0, false, false);
+      spRun(g, snareS->castTime + 0.1f);
+      const Actor* a = byId(g, id);
+      if (!a || a->magicTag != magic::MT_PARALYZE || g.arcana.live.snared.empty()) SP_FAIL("verdant: the root snare did not hold the wolf\n");
+    }
+  }
+  // ---- Dreamweft: decoys pull foes' attacks; a bubble slows foes to 40 %
+  {
+    const cult::Culture c = hiddenCulture(G::Dream);
+    const magic::Tradition& t = magic::traditionOf(c);
+    const SpellDef* dec = sigSpell(t, Form::Summon, 1);
+    const SpellDef* bub = sigSpell(t, Form::Totem, 2);
+    if (dec) {
+      Game g = base;
+      hiddenHero(g, t);
+      const int fid = g.debugSpawnAt(art::Monster::Wolf, g.pl().p + Vec2(90, 0), 3);
+      if (Actor* f = byId(g, fid)) { f->aggro = true; f->target = g.pl().id; f->hp = f->maxHp = 1e5f; }
+      g.pl().aim = Vec2(1, 0);
+      prep(g, dec->id);
+      MagicOps::begin(g, 0, false, false);
+      spRun(g, 3.0f);
+      int decoys = 0, did = -1;
+      for (const Actor& a : g.actors) if (a.magicTag == magic::MT_DECOY && a.st != AState::Dead) { decoys++; did = a.id; }
+      const Actor* f = byId(g, fid);
+      if (!decoys || !f || f->target != did || g.arcana.live.stats.decoyHits < 1) SP_FAIL("dream: decoys %d, the wolf targets %d (decoy %d), %d blows on it\n", decoys, f ? f->target : -9, did, g.arcana.live.stats.decoyHits);
+      if (m_table) out("spells: dream: a decoy drew %d blows from the wolf in 3 s\n", g.arcana.live.stats.decoyHits);
+    } else SP_FAIL("dream: no decoy\n");
+    if (bub) {
+      float moved[2] = {};
+      for (int in = 0; in < 2; in++) {
+        Game g = base;
+        hiddenHero(g, t);
+        const Vec2 start = g.pl().p + Vec2(140, 0);
+        const int fid = g.debugSpawnAt(art::Monster::Wolf, start, 3);
+        Actor* f = byId(g, fid);
+        if (!f) continue;
+        f->aggro = true; f->target = g.pl().id; f->hp = f->maxHp = 1e5f;
+        if (in) { magic::Bubble b; b.p = start + Vec2(-40, 0); b.r = 120; b.life = 5; b.spell = bub->id; g.arcana.live.bubbles.push_back(b); }
+        spRun(g, 0.8f);
+        f = byId(g, fid);
+        moved[in] = f ? len(f->p - start) : 0;
+      }
+      const float ratio = moved[0] > 1 ? moved[1] / moved[0] : 0;
+      if (std::fabs(ratio - magic::DREAM_SLOW) > 0.12f) SP_FAIL("dream: a wolf in the bubble moved %.0f vs %.0f px (x%.2f, want 0.4)\n", moved[1], moved[0], ratio);
+      if (m_table) out("spells: dream: the bubble slowed a wolf to x%.2f (%.0f vs %.0f px)\n", ratio, moved[1], moved[0]);
+    } else SP_FAIL("dream: no bubble\n");
+  }
+}
+
+// the five steps (6.4): each refuses with a reason until met; the focus only there; the teacher grants rank 1
+void checkHiddenLearning(const Game& base) {
+  cult::Culture c = hiddenCulture(magic::Signature::Song);
+  const magic::Tradition& t = magic::traditionOf(c);
+  Game g = base;
+  g.gold = 50000;
+  MagicOps::setLand(&c);
+  const int id = MagicOps::spawnTeacher(g, g.pl().p + Vec2(20, 0), Role::Mage);
+  std::string why;
+  int step = MagicOps::hiddenStep(g, t, byId(g, id), 1, &why);
+  if (step != 1) SP_FAIL("learning: unlanded step %d (1)\n", step);
+  g.sea.landMut(c.hiddenLand).flags |= sea::LF_LANDED;
+  MagicOps::live(g).repOverride = 10;
+  step = MagicOps::hiddenStep(g, t, byId(g, id), 1, &why);
+  if (step != 2 || why.find("FRIENDLY") == std::string::npos) SP_FAIL("learning: unfriendly step %d '%s'\n", step, why.c_str());
+  // the talk refuses with the same reason
+  MagicOps::talkTo(g, *byId(g, id));
+  const int oh = optIdx(g, "TEACH ME THE WAYS OF");
+  if (oh < 0) SP_FAIL("learning: the hidden mage offers no ways\n");
+  else { const DlgOpt o = g.dlg.opts[(size_t)oh]; MagicOps::choose(g, o); if (g.dlg.text.find("TRUST") == std::string::npos) SP_FAIL("learning: the refusal says '%s'\n", g.dlg.text.c_str()); }
+  g.mode = Mode::Play;
+  MagicOps::live(g).repOverride = 30;
+  g.plLevel = 20;
+  if ((step = MagicOps::hiddenStep(g, t, byId(g, id), 1)) != 3) SP_FAIL("learning: level-20 step %d (3)\n", step);
+  g.plLevel = 25;
+  if ((step = MagicOps::hiddenStep(g, t, byId(g, id), 1)) != 4) SP_FAIL("learning: untried step %d (4)\n", step);
+  MagicOps::passRite(g, t.id, 0);
+  if ((step = MagicOps::hiddenStep(g, t, byId(g, id), 1)) != 5) SP_FAIL("learning: unattuned step %d (5)\n", step);
+  MagicOps::talkTo(g, *byId(g, id));
+  const int oh2 = optIdx(g, "TEACH ME THE WAYS OF");
+  if (oh2 >= 0) { const DlgOpt o = g.dlg.opts[(size_t)oh2]; MagicOps::choose(g, o); }
+  if (!MagicOps::attuned(g, t.id)) SP_FAIL("learning: the teacher did not grant rank 1\n");
+  int taught = 0;
+  for (const DlgOpt& o : std::vector<DlgOpt>(g.dlg.opts)) if (o.action == DLG_MAGIC + 2) { MagicOps::choose(g, o); taught++; }
+  if (!taught) SP_FAIL("learning: no rank-1 spell offered after the grant\n");
+  g.mode = Mode::Play;
+  const SpellDef* r3 = magic::spellById(t.spells.back());
+  g.arcana.book.mastery[t.id] = magic::MASTERY_RANK3;
+  if (r3 && MagicOps::mayLearn(g, *r3, &why)) SP_FAIL("learning: the signature without Honoured\n");
+  if ((step = MagicOps::hiddenStep(g, t, byId(g, id), 3)) != 6) SP_FAIL("learning: rank 3 at Friendly: step %d (6)\n", step);
+  MagicOps::live(g).repOverride = 60;
+  if ((step = MagicOps::hiddenStep(g, t, byId(g, id), 3)) != 7) SP_FAIL("learning: rank 3 without the second trial: step %d (7)\n", step);
+  MagicOps::passRite(g, t.id, 1);
+  if (r3 && !MagicOps::mayLearn(g, *r3, &why)) SP_FAIL("learning: the signature refused after every step: %s\n", why.c_str());
+  // the focus: sold by the hidden land's mage, never by a mainland one
+  std::vector<Item> stock;
+  MagicOps::shopStock(g, *byId(g, id), stock);
+  int focus = 0;
+  for (const Item& it : stock) focus += it.kind == ItemKind::Staff && it.name == t.focus;
+  if (focus != 1) SP_FAIL("learning: the hidden mage sells %d foci (1)\n", focus);
+  if (const cult::Culture* main = cultureWith(magic::Signature::Star)) {
+    MagicOps::setLand(main);
+    std::vector<Item> s2;
+    MagicOps::shopStock(g, *byId(g, id), s2);
+    for (const Item& it : s2) if (it.kind == ItemKind::Staff) SP_FAIL("learning: a mainland mage sells a hidden focus\n");
+  }
+  // companions of that land cast its rank-1 bolt
+  MagicOps::setLand(nullptr);
+  if (m_table) out("spells: learning: the five steps refused in order (1 landed, 2 Friendly, 3 level 25, 4 trial, 5 teacher) and rank 3 (6 Honoured, 7 second trial)\n");
+  // the priests of the song land sing fire at dusk, never at noon
+  Game h = base;
+  MagicOps::setLand(&c);
+  MagicOps::spawnTeacher(h, h.pl().p + Vec2(30, 10), Role::Priest, 9);
+  MagicOps::spawnTeacher(h, h.pl().p + Vec2(-40, 0), Role::Priest, 10);
+  h.hour = 12;
+  spRun(h, 4.0f);
+  const int noon = h.arcana.live.stats.songFires;
+  h.hour = 19;
+  spRun(h, 8.0f);
+  const int dusk = h.arcana.live.stats.songFires;
+  if (noon != 0 || dusk < 3) SP_FAIL("priests: song-fire %d at noon, %d at dusk (0, >= 3)\n", noon, dusk);
+  if (m_table) out("spells: priests: %d verses of song-fire in 8 s at dusk, %d at noon\n", dusk, noon);
+  MagicOps::setLand(nullptr);
+}
+
+// a Trial of the Threshold for every signature: it generates the same twice, its way through is whole, and its puzzle
+// passes the trial (the Song trial walked plate by plate)
+void checkTrials(const Game& base) {
+  using G = magic::Signature;
+  Game g = base;
+  int ruin = -1;
+  for (int i = 0; i < (int)g.world.sites.size(); i++) if (g.world.sites[(size_t)i].type == SiteType::Ruin) { ruin = i; break; }
+  if (ruin < 0) { SP_FAIL("trials: no ruin in the window\n"); return; }
+  static const G six[6] = {G::Blood, G::Rune, G::Song, G::Mask, G::Verdant, G::Dream};
+  for (G sig : six) {
+    for (int which = 0; which < 2; which++) {
+      const cult::Culture c = hiddenCulture(sig);
+      Site s = g.world.sites[(size_t)ruin];
+      s.id = 0x7E1A1000ull + (uint64_t)sig * 4 + (uint64_t)which;
+      const magic::Tradition& t = magic::traditionOf(c);
+      TrialSpec sp;
+      sp.sig = (uint8_t)sig; sp.which = (uint8_t)which; sp.tradition = t.id;
+      for (int i = 0; i < 3; i++) sp.motif[i] = t.motif[i];
+      registerTrial(s.id, sp);
+      Map m1, m2;
+      genRuin(m1, s, s.seed);
+      genRuin(m2, s, s.seed);
+      const TrialLayout* T = trialLayoutOf(s.id);
+      if (!T || T->plates.empty() || m1.ground != m2.ground || m1.prop != m2.prop) { SP_FAIL("trial %s: no layout or not deterministic\n", magic::signatureName(sig)); continue; }
+      // the way through: from the exit to the sanctum plate over floor, gates and chasms counted open
+      std::vector<int> dist((size_t)m1.w * m1.h, -1);
+      std::vector<int> q{m1.exitY * m1.w + m1.exitX};
+      dist[(size_t)q[0]] = 0;
+      auto passable = [&](int x, int y) {
+        if (!m1.in(x, y)) return false;
+        if (groundWater(m1.at(x, y))) for (const IRect& ch : T->chasms) if (ch.contains(x, y)) return true;
+        for (const TrialGate& gt : T->gates) if (x >= gt.x && x < gt.x + gt.w && y >= gt.y && y < gt.y + gt.h) return true;
+        return !m1.blocked(x, y);
+      };
+      for (size_t qi = 0; qi < q.size(); qi++) {
+        const int x = q[qi] % m1.w, y = q[qi] / m1.w;
+        static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
+        for (int k = 0; k < 4; k++) {
+          const int nx = x + dx[k], ny = y + dy[k];
+          if (!passable(nx, ny) || dist[(size_t)ny * m1.w + nx] >= 0) continue;
+          dist[(size_t)ny * m1.w + nx] = dist[(size_t)q[qi]] + 1;
+          q.push_back(ny * m1.w + nx);
+        }
+      }
+      int unreachable = 0;
+      for (const TrialPlate& p : T->plates) unreachable += dist[(size_t)p.y * m1.w + p.x] < 0;
+      bool sealed = true;   // closed, a gate holds the way: the sanctum is out of reach without the puzzle
+      for (const TrialGate& gt : T->gates) for (int x = gt.x; x < gt.x + gt.w; x++) sealed &= m1.blocked(x, gt.y);
+      if (unreachable || (!T->gates.empty() && !sealed)) SP_FAIL("trial %s %d: %d plates out of reach, gates sealed %d\n", magic::signatureName(sig), which, unreachable, (int)sealed);
+    }
+  }
+  // the Song trial walked: three notes in the motif's order open each gate, the sanctum passes the rite
+  {
+    const cult::Culture c = hiddenCulture(G::Song);
+    const magic::Tradition& t = magic::traditionOf(c);
+    Game h = base;
+    h.noWildSpawns = true;
+    if (!MagicOps::markTrial(h, ruin, c, 0)) { SP_FAIL("trials: markTrial refused the ruin\n"); return; }
+    MagicOps::enterSiteRaw(h, ruin);
+    spRun(h, 0.1f);
+    const TrialLayout* T = trialLayoutOf(h.world.sites[(size_t)ruin].id);
+    if (!T || !h.inside) { SP_FAIL("trials: the Song trial did not load\n"); return; }
+    for (size_t i = 1; i < h.actors.size(); i++) if (h.actors[i].hostile) h.actors[i].hp = 0, h.actors[i].st = AState::Dead;
+    auto stand = [&](int x, int y) { h.pl().p = Vec2((float)x * TILE + 8, (float)y * TILE + 9); spRun(h, 0.1f); h.pl().p = Vec2((float)x * TILE + 8, (float)(y + 1) * TILE + 9); spRun(h, 0.1f); };
+    const bool closed0 = h.map().blocked(T->gates[0].x, T->gates[0].y);
+    for (int room = 1; room <= 2; room++)
+      for (int k = 0; k < 3; k++)
+        for (const TrialPlate& p : T->plates)
+          if (p.kind == TP_NOTE && p.room == room && p.arg == T->spec.motif[k]) { stand(p.x, p.y); break; }
+    const bool open = !h.map().blocked(T->gates[0].x, T->gates[0].y) && !h.map().blocked(T->gates[1].x, T->gates[1].y);
+    stand(T->sanctumX, T->sanctumY);
+    const bool passed = (h.arcana.book.rite(t.id) & 1u) != 0;
+    if (!closed0 || !open || !passed || h.arcana.live.stats.gates != 2) SP_FAIL("trials: Song walked: closed %d, opened %d (%d gates), passed %d\n", (int)closed0, (int)open, h.arcana.live.stats.gates, (int)passed);
+    // a wrong note does not open it
+    Game w = base;
+    MagicOps::markTrial(w, ruin, c, 0);
+    MagicOps::enterSiteRaw(w, ruin);
+    spRun(w, 0.1f);
+    for (const TrialPlate& p : T->plates) if (p.kind == TP_NOTE && p.room == 1 && p.arg != T->spec.motif[0]) { w.pl().p = Vec2((float)p.x * TILE + 8, (float)p.y * TILE + 9); spRun(w, 0.1f); }
+    if (w.arcana.live.stats.gates) SP_FAIL("trials: a wrong order opened the gate\n");
+    // the book keeps the rite through a save
+    std::vector<uint8_t> buf;
+    h.serialize(buf);
+    Game r(h.seed);
+    if (!r.deserialize(buf) || !(r.arcana.book.rite(t.id) & 1u)) SP_FAIL("trials: the rite did not survive a save\n");
+    if (m_table) out("spells: trials: 6 signatures x 2 trials deterministic and whole; the Song trial walked: 2 gates sung open, the rite passed and saved\n");
+  }
+  // the Rune trial: the guardians, coming at the hero over the runes, set them off; the hall cleared opens its gate
+  {
+    const cult::Culture c = hiddenCulture(G::Rune);
+    Game h = base;
+    h.godMode = true;
+    MagicOps::markTrial(h, ruin, c, 0);
+    MagicOps::enterSiteRaw(h, ruin);
+    spRun(h, 0.1f);
+    const TrialLayout* T = trialLayoutOf(h.world.sites[(size_t)ruin].id);
+    if (!T || !h.inside) { SP_FAIL("trials: the Rune trial did not load\n"); return; }
+    int runes = 0, guards = 0;
+    for (const magic::Zone& z : h.arcana.live.zones) runes += z.kind == magic::ZoneKind::Rune;
+    for (const Actor& a : h.actors) guards += a.hostile && a.st != AState::Dead && a.p.y < (float)(T->hall[0].y + T->hall[0].h) * TILE && a.p.y > (float)T->hall[0].y * TILE;
+    h.pl().p = Vec2(17.0f * TILE + 8, (float)(T->hall[0].y + 8) * TILE + 9);
+    for (Actor& a : h.actors) if (a.hostile) { a.aggro = true; a.target = h.pl().id; }
+    spRun(h, 8.0f);
+    const magic::Stats& S = h.arcana.live.stats;
+    if (!runes || !guards || S.runeTriggers < 1) SP_FAIL("trials: Rune: %d runes, %d guardians, %d set off by them\n", runes, guards, S.runeTriggers);
+    // what the runes left of the first hall's guardians the hero finishes: the hall cleared opens its gate
+    const IRect& h1 = T->hall[0];
+    int alive = 0;
+    for (Actor& a : h.actors)
+      if (a.hostile && a.st != AState::Dead && h1.contains((int)std::floor(a.p.x / TILE), (int)std::floor(a.p.y / TILE))) {
+        alive++;
+        for (int k = 0; k < 3 && a.st != AState::Dead; k++) MagicOps::killRaw(h, a, h.pl().id);   // (a collapsed skeleton: struck again)
+      }
+    spRun(h, 0.2f);
+    if (S.runeTriggers < 4 || !S.gates) SP_FAIL("trials: Rune: %d runes set off, %d gates open after the hall was cleared\n", S.runeTriggers, S.gates);
+    if (m_table) out("spells: trials: the Rune hall: %d runes, %d guardians (%d standing), %d runes set off by them (%d combos), gates %d\n", runes, guards, alive, S.runeTriggers, S.runeCombos, S.gates);
+  }
+  clearTrials();
+}
+
 int spellsCmd(int argc, char** argv) {
   uint64_t seed = 3;
   m_table = true;
@@ -1052,6 +1606,22 @@ int spellsCmd(int argc, char** argv) {
   checkSignatures(base);
   checkMastery(base);
   checkLearning(base);
+  MagicOps::setLand(nullptr);
+  // (M10) the hidden kingdoms' magic
+  checkHiddenTables();
+  {
+    int checked = 0;
+    using G = magic::Signature;
+    for (G sig : {G::Blood, G::Rune, G::Song, G::Mask, G::Verdant, G::Dream}) {
+      const cult::Culture c = hiddenCulture(sig);
+      for (uint32_t sid : magic::traditionOf(c).spells) if (const SpellDef* d = magic::spellById(sid)) checkInPlay(base, *d, checked);
+    }
+    if (m_table) out("spells: in play: %d hidden traditions' spells dealt their power within 5%%\n", checked);
+    if (checked < 25) SP_FAIL("only %d hidden spells checked in play\n", checked);
+  }
+  checkHiddenPlay(base);
+  checkHiddenLearning(base);
+  checkTrials(base);
   MagicOps::setLand(nullptr);
   out("spells: %s (%d failures)\n", m_bad ? "FAIL" : "OK", m_bad);
   return m_bad ? 1 : 0;

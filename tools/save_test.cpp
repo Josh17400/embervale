@@ -1,8 +1,11 @@
 // Save-format checks for the CURRENT save version only (owner, 2026-10-04: old saves are not a concern; an older save
-// is refused and the title offers a new game). M9 Arcana & Mastery: SAVE_VER 20 (the skills block and the magic block
+// is refused and the title offers a new game). M10 Beyond the Mist: SAVE_VER 21 (the sea block after the magic block: the
+// boats owned and the one aboard, the ports known, the lands' sea-chart chains and first contact, the catches;
+// ENDLESS_GEN_VER 23; the SAVE_VER 19 exception of M9 ended with the generator change: every older save is refused). A
+// save made aboard a boat loads aboard. M9 Arcana & Mastery: SAVE_VER 20 (the skills block and the magic block
 // after the party block: skill levels, XP and perks, familiarity, books read, perk points; the spellbook, the quick slots,
 // mastery). The one exception to "only the current version loads" (owner 15.29.5): a SAVE_VER 19 save still loads, with
-// skills fitting its level (tests/fixtures/save_v19.bin is kept as that check's input). M8b Treasure: SAVE_VER 19 (items carry 4 affix slots; the Mythic rarity
+// skills fitting its level (until M10, which retired save_v19.bin). M8b Treasure: SAVE_VER 19 (items carry 4 affix slots; the Mythic rarity
 // and its powers: a Mythic piece with four affixes, one of them an M8b affix, and a Mythic power). Fixer M8 r3: SAVE_VER 18 (party block v4: the fallen's gender). Fixer M8 r1: SAVE_VER 17 (party block v3: each companion's look, fixed
 // when they join, so it never changes when their census is put away). M8: SAVE_VER 16 (the party block after the talk block: a census
 // companion with approval, bond, gear and a memory, and a fallen companion's grave with belongings; ENDLESS_GEN_VER 21;
@@ -17,7 +20,7 @@
 // block; ENDLESS_GEN_VER 14). M4: SAVE_VER 10 (the realm and story blocks after the marks). The CITIZENS lane owns this
 // file and the fixture in M5.
 //   save_test [fixtureDir]           run every check
-//   save_test --make-fixture out.bin write tests/fixtures/save_v20.bin: an endless game (seed 5150) with a created
+//   save_test --make-fixture out.bin write tests/fixtures/save_v21.bin: an endless game (seed 5150) with a created
 //                                    character, the innkeeper's job taken, bot play, a looted chest, the M2 fields
 //                                    (marks, a quest's subject / flags / deadline, a rumoured site), saved outdoors.
 //                                    Regenerate it whenever the layout changes on purpose, and paste the printed FIX6
@@ -42,6 +45,7 @@
 #include "rpg/sim/life.h"
 #include "rpg/sim/magic_ops.h"
 #include "rpg/sim/party.h"
+#include "rpg/sim/sea_ops.h"
 #include "rpg/sim/skills.h"
 #include "rpg/story/saga.h"
 #include "rpg/story/story.h"
@@ -278,6 +282,24 @@ void addM9Facts(Game& g) {
   g.arcana.book.sel = 1;
   g.arcana.book.mastery[0x77u] = 300;
 }
+// M10 (SAVE_VER 21): the sea block, set by hand (the format: the SEA lane tunes the numbers)
+constexpr uint32_t FIX_LAND = 0x1234567u;
+constexpr uint64_t FIX_PORT = 0xF00D5ull;
+void addM10Facts(Game& g) {
+  sea::Boat b;
+  b.id = g.sea.nextBoatId++;
+  b.hull = sea::Hull::Sloop;
+  b.name = "THE FIXTURE";
+  b.culture = FIX_CULT; b.dock = FIX_PORT; b.gx = 4321; b.gy = -1234; b.heading = 1.5f; b.hp = 120.0f;
+  b.upgrades = sea::UP_SAILS | sea::UP_LANTERN;
+  g.sea.boats.push_back(b);
+  g.sea.portsKnown.push_back(FIX_PORT);
+  sea::LandRecord& L = g.sea.landMut(FIX_LAND);
+  L.chain = sea::Chain::Cave; L.flags = sea::LF_RUMOURED; L.contactDay = -1;
+  g.sea.catches.push_back({1, 3, 52});
+  g.sea.fishCaught = 3;
+  g.sea.voyages = 1;
+}
 void addM6Facts(Game& g) {
   Rng r(77);
   Item it = gear::makeGear(r, ItemKind::Weapon, (int)WeaponType::Spear, 12, Rarity::Legendary, FIX_CULT, Mat::Steel);
@@ -474,6 +496,7 @@ int makeFixture(const char* out) {
   addM7bFacts(g);
   if (addM8Facts(g) < 0) return 1;
   addM9Facts(g);
+  addM10Facts(g);
   if (g.inside) { printf("the fixture must be saved outdoors\n"); return 1; }
   std::vector<uint8_t> buf;
   g.serialize(buf);
@@ -488,7 +511,7 @@ int makeFixture(const char* out) {
 }
 // values printed by --make-fixture (format-level facts only)
 struct Fix6 { int level, xp, gold; size_t inv, quests, looted; int kills, ox; float px, py; int oy; float hour; int day; };
-constexpr Fix6 FIX6 = {1, 86, 30, 12, 4, 1, 3, 0, 1096.000f, 2264.000f, -256, 9.580f, 1};   // (M8b merge: re-recorded)
+constexpr Fix6 FIX6 = {1, 96, 30, 12, 4, 1, 3, 0, 2312.000f, 1336.000f, -256, 9.580f, 1};   // (M10 phase A: re-recorded; M10 SEA: the sea block v2)
 
 }  // namespace
 
@@ -504,7 +527,7 @@ int main(int argc, char** argv) {
 
   // ---- 1. the fixture
   std::vector<uint8_t> fx;
-  if (!readFile(dir + "/save_v20.bin", fx)) check(false, "cannot read tests/fixtures/save_v20.bin");
+  if (!readFile(dir + "/save_v21.bin", fx)) check(false, "cannot read tests/fixtures/save_v21.bin");
   else {
     check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
     Game g(1);
@@ -661,26 +684,41 @@ int main(int argc, char** argv) {
     check(g.arcana.book.knows(4) && g.arcana.book.knows(7) && g.arcana.book.slotOf(4) >= 0 && g.arcana.book.sel == 1 && g.arcana.book.mastery.count(0x77u) &&
               g.arcana.book.mastery.at(0x77u) == 300,
           "fixture magic block: the spells known, the quick slots, the selected slot, mastery (SAVE_VER 20)");
+    // M10 (SAVE_VER 21): the sea block
+    {
+      const sea::LandRecord* L = g.sea.land(FIX_LAND);
+      check(g.sea.boats.size() == 1 && g.sea.boats[0].name == "THE FIXTURE" && g.sea.boats[0].hull == sea::Hull::Sloop && g.sea.boats[0].dock == FIX_PORT &&
+                g.sea.boats[0].gx == 4321 && g.sea.boats[0].gy == -1234 && g.sea.boats[0].upgrades == (sea::UP_SAILS | sea::UP_LANTERN) && !g.sea.atSea() &&
+                g.sea.knowsPort(FIX_PORT) && L && L->chain == sea::Chain::Cave && (L->flags & sea::LF_RUMOURED) && g.sea.catches.size() == 1 &&
+                g.sea.catches[0].bestCm == 52 && g.sea.fishCaught == 3 && g.sea.voyages == 1,
+            "fixture sea block: a sloop moored at a port, a port known, a land's chart chain, a catch (SAVE_VER 21)");
+    }
     }  // fxLoaded
   }
-  // ---- 1b. (M9, owner 15.29.5) a SAVE_VER 19 save (before the skills) still loads, with skills fitting its level
+  // ---- 1b. (M10) aboard a boat: a save made at sea loads at sea, byte-identical
   {
-    std::vector<uint8_t> old;
-    if (!readFile(dir + "/save_v19.bin", old)) check(false, "cannot read tests/fixtures/save_v19.bin (the pre-M9 save)");
-    else {
-      Game g(1);
-      check(Game::saveVersion(old) == 19 && !Game::saveFromOlderGenerator(old), "the pre-M9 save is not a SAVE_VER 19 save of the current generator");
-      const bool ok = g.deserialize(old);
-      check(ok, "a SAVE_VER 19 save did not load (15.29.5: old saves get default skills from their level)");
-      if (ok) {
-        check(g.plLevel == FIX6.level && g.background == Background::Hunter && g.skills.level(skills::Skill::Bow) >= 15 &&
-                  g.skills.level(skills::Skill::Athletics) >= skills::START_LEVEL && g.skills.perkPts == (uint16_t)std::max(0, g.plLevel - 1),
-              "a SAVE_VER 19 save's default skills (its level, its background, its perk points)");
-        std::vector<uint8_t> again;
-        g.serialize(again);
-        Game h(1);
-        check(Game::saveVersion(again) == Game::currentSaveVersion() && h.deserialize(again), "a SAVE_VER 19 save, saved again, is a current save");
+    Game g(5150);
+    g.newEndlessGame(5150);
+    makeCharacter(g);
+    g.mode = Mode::Play;
+    g.noWildSpawns = true;
+    int bi = SeaOps::giveBoat(g, sea::Hull::Rowboat, 60);
+    if (bi < 0 && g.world.src) {   // no water by the start: the nearest port's shore
+      const int32_t hx = SeaOps::heroGx(g), hy = SeaOps::heroGy(g);
+      for (const ew::PortPlan& P : g.world.src->portsIn(hx - 3000, hy - 3000, hx + 3000, hy + 3000)) {
+        g.teleportGlobal(P.x, P.y);
+        if ((bi = SeaOps::giveBoat(g, sea::Hull::Rowboat, 60)) >= 0) break;
       }
+    }
+    check(bi >= 0 && SeaOps::board(g, bi), "endless seed 5150: no boat could be given and boarded near the start");
+    if (g.sea.atSea()) {
+      for (int f = 0; f < 60; f++) { g.update(SIM_DT, Input()); g.events.clear(); }
+      roundTrip(g, "endless seed 5150 aboard a rowboat");
+      std::vector<uint8_t> a;
+      g.serialize(a);
+      Game h(1);
+      check(h.deserialize(a) && h.sea.atSea() && h.pl().swim == 1 && std::fabs(h.pl().p.x - g.pl().p.x) < 0.01f && std::fabs(h.pl().p.y - g.pl().p.y) < 0.01f,
+            "a save made aboard did not load aboard where it was made");
     }
   }
 
@@ -854,6 +892,8 @@ int main(int argc, char** argv) {
     n.serialize(b);
     auto patched = [&](size_t at, uint32_t v) { std::vector<uint8_t> c = b; for (int k = 0; k < 4; k++) c[at + k] = (uint8_t)(v >> (8 * k)); return c; };
     Game x(1);
+    check(!x.deserialize(patched(4, 20)) && Game::saveVersion(patched(4, 20)) == 20, "accepted (or misread) a SAVE_VER 20 (M9) save");
+    check(!x.deserialize(patched(4, 19)) && Game::saveVersion(patched(4, 19)) == 19, "accepted (or misread) a SAVE_VER 19 (M8b) save");
     check(!x.deserialize(patched(4, 18)) && Game::saveVersion(patched(4, 18)) == 18, "accepted (or misread) a SAVE_VER 18 (M8) save");
     check(!x.deserialize(patched(4, 15)) && Game::saveVersion(patched(4, 15)) == 15, "accepted (or misread) a SAVE_VER 15 (M7b) save");
     check(!x.deserialize(patched(4, 14)) && Game::saveVersion(patched(4, 14)) == 14, "accepted (or misread) a SAVE_VER 14 (M7) save");

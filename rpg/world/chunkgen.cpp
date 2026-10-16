@@ -571,6 +571,7 @@ struct EndlessSource::Impl::TownJob {
   int flat = 0;
   std::shared_ptr<BaseRect> B;
   SettlementCtx ctx;
+  PortPlan port;                         // (M10) a port's harbour (ctx.harbour points here)
   std::shared_ptr<SettlementOut> out;
   std::unique_ptr<town::Gen> gen;
   int stage = 0;                         // 0 the land, 1 the generator, 2 done
@@ -670,6 +671,9 @@ bool EndlessSource::Impl::townJobStep(TownJob& J) {
     ctx.ecoAt = [this](int32_t gx, int32_t gy) { return tile(gx, gy).eco; };      // (M7c fixer: the waste land)
     ctx.worldSeed = seed;
     ctx.rx = J.D->plan.rx; ctx.ry = J.D->plan.ry;
+    // (M10) a port town or city keeps its harbour's landing clear and joins it to its streets (sea_ports.cpp)
+    if ((p.flags & SPF_PORT) && isSettlement(p.type) && harbourOf(Node{p.id, p.type, p.ex, p.ey, p.seed, p.flags}, J.port) && J.port.harbour)
+      ctx.harbour = &J.port;
     auto bi = J.D->bearings.find(p.id);
     if (bi != J.D->bearings.end()) ctx.roadBearings = bi->second;
     // (M2 fixer round 3) the land is made a band of rows per step (a whole city's took ~18 ms in one web frame)
@@ -853,8 +857,9 @@ void EndlessSource::Impl::stampSite(const SitePlan& p, Stamp& S) {
           Ground gg = S.at(x + k, y + j);
           if (gg == Ground::Rock || gg == Ground::Swamp) S.g(x + k, y + j, Ground::Dirt);
         }
-      if (S.in(x, y + 1) && (tileHash(p.seed, x, y) & 1)) S.g(x, y + 1, Ground::Dirt);
-      S.p(x + 2, y + 1, (p.seed >> 3) & 1 ? Prop::Bones : Prop::Boulder);
+      if (S.in(x, y + 1) && (tileHash(p.seed, x, y) & 1) && !(p.flags & SPF_SEACAVE)) S.g(x, y + 1, Ground::Dirt);
+      // (M10) a sea cave's mouth opens on the water: no bones or boulder in the sea before it
+      if (!(p.flags & SPF_SEACAVE)) S.p(x + 2, y + 1, (p.seed >> 3) & 1 ? Prop::Bones : Prop::Boulder);
       break;
     }
     case SiteType::Ruin: {
@@ -1012,17 +1017,24 @@ void EndlessSource::Impl::stampSite(const SitePlan& p, Stamp& S) {
       S.p(bx + 2, by + 6, Prop::Crate); S.p(bx + 3, by + 7, Prop::Barrel);
       S.p(bx + 8, by + 6, Prop::Chest); S.p(bx + 9, by + 7, Prop::Woodpile);
       S.p(bx + 1, by + 4, Prop::Torch); S.p(bx + 9, by + 4, Prop::Torch);
+      // (M10) a pirate cove: the sea's plunder about the fire (an anchor, cargo, nets) instead of the woodpile
+      const bool pirate = (p.flags & SPF_PIRATE) != 0;
+      if (pirate) {
+        S.p(bx + 9, by + 7, Prop::Anchor); S.p(bx + 2, by + 6, Prop::CargoPile); S.p(bx + 5, by + 1, Prop::NetRack);
+      }
       // the camp's bandits (the whole site's, so they arrive with any chunk the camp touches)
       Rng r(p.seed ^ 0xBA4Du);
       int n = 4 + r.irange(3);
       for (int k = 0; k < n; k++) {
         SpawnPlan s; s.siteId = p.id;
         s.sp.bandit = true; s.sp.slot = k;
+        if (pirate) s.sp.role = Role::Pirate;
         s.sp.x = bx + 3 + r.irange(5); s.sp.y = by + 3 + r.irange(3);
         S.c.spawns.push_back(s);
       }
       SpawnPlan chief; chief.siteId = p.id;
       chief.sp.bandit = true; chief.sp.boss = true; chief.sp.slot = 9; chief.sp.x = bx + 6; chief.sp.y = by + 3;
+      if (pirate) chief.sp.role = Role::Pirate;
       S.c.spawns.push_back(chief);
       break;
     }
@@ -1091,6 +1103,8 @@ void EndlessSource::Impl::stampSite(const SitePlan& p, Stamp& S) {
 void EndlessSource::Impl::stampDen(const DenPlan& d, Stamp& S) {
   Rng r(mix64(seed ^ d.id));
   for (int oy = -3; oy <= 3; oy++) for (int ox = -3; ox <= 3; ox++) if (ox * ox + oy * oy <= 10) S.reserve(d.x + ox, d.y + oy);
+  // (M10) a merrow den lies in the sea by a wreck: no lair props (the wreck is their hoard)
+  if (d.mon == Monster::Merrow) return;
   Biome b = S.in(d.x, d.y) ? (Biome)S.c.biome[S.idx(d.x, d.y)] : tile(d.x, d.y).biome;
   bool snowy = b == Biome::Snow;
   Prop rock = snowy ? Prop::SnowRock : (b == Biome::Forest || b == Biome::Swamp || b == Biome::Taiga) ? Prop::MossRock : Prop::Boulder;
@@ -1121,6 +1135,20 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
   c = ChunkData();
   c.cx = cx; c.cy = cy;
   const int32_t x0 = cx * CHUNK, y0 = cy * CHUNK;
+  // (M10) the open sea: deep water through and through (oceanChunk: every coarse sample the tiles read lies well
+  // below the deep-water line, and nothing of the 3x3 regions round it reaches it), made without the land's pipeline
+  if (oceanFast && oceanChunk(cx, cy)) {
+    for (int i = 0; i < ChunkData::N; i++) {
+      c.ground[i] = (uint8_t)Ground::DeepWater;
+      c.biome[i] = (uint8_t)Biome::Ocean;
+      c.eco[i] = c.ecoNb[i] = (uint8_t)Eco::Ocean;
+    }
+    const double ms = msSince(t0) - (nestedMs - nested0);
+    stats.chunks++;
+    stats.chunkMs += ms;
+    stats.maxChunkMs = std::max(stats.maxChunkMs, ms);
+    return;
+  }
   // 1-2: base land, rivers, lakes (with a 2-tile border)
   BaseRect B;
   baseRect(x0 - BR, y0 - BR, BW, BW, B);
@@ -1274,9 +1302,26 @@ void EndlessSource::Impl::chunk(int32_t cx, int32_t cy, ChunkData& c) {
         sp.siteId = p.id;
         c.spawns.push_back(sp);
       }
+      if (p.flags & SPF_PORT) {   // (M10) the harbour's keepers travel with the town's records
+        PortPlan PP;
+        if (harbourOf(Node{p.id, p.type, p.ex, p.ey, p.seed, p.flags}, PP)) stampHarbour(PP, T.get(), S, &c.spawns);
+      }
       for (auto& gt : T->gates) c.gates.push_back(GTile{gt.first + T->gx, gt.second + T->gy});
       for (IRect r : T->wallGaps) { r.x += T->gx; r.y += T->gy; c.wallGaps.push_back(r); }
       for (const PlotPlan& lp : T->plots) c.plots.push_back(lp);   // (M7) its lots for sale (global tiles)
+    }
+  // 3b (M10): the harbours (sea_ports.cpp): the dredged basin and channel, the mole and its T-head, the dress
+  for (int k = 0; k < 9; k++)
+    for (const SitePlan& p : RD[k]->plan.sites) {
+      if (!(p.flags & SPF_PORT) || !isSettlement(p.type)) continue;
+      PortPlan PP;
+      if (!harbourOf(Node{p.id, p.type, p.ex, p.ey, p.seed, p.flags}, PP) || !PP.harbour) continue;
+      const int32_t reach = PP.pierLen + 12 + harbourDredgeLen(PP);
+      if (PP.rootX + reach < x0 - 4 || PP.rootX - reach >= x0 + CHUNK + 4 || PP.rootY + reach < y0 - 4 || PP.rootY - reach >= y0 + CHUNK + 4) continue;
+      const int margin = 32;
+      const bool nearTown = !(p.gx - margin >= x0 + CHUNK + 1 || p.gy - margin >= y0 + CHUNK + 1 || p.gx + p.w + margin <= x0 - 1 || p.gy + p.h + margin <= y0 - 1);
+      std::shared_ptr<SettlementOut> T = nearTown ? town(p, RD[k]) : nullptr;
+      stampHarbour(PP, T.get(), S, nullptr);
     }
   // 4: site and den stamps
   for (int k = 0; k < 9; k++) {

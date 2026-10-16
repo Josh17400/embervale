@@ -208,6 +208,20 @@ enum class Prop : uint8_t {
   Monument,       // a tall column or obelisk on a stepped plinth, the seat's square (20x64); solid
   Pavilion,       // a park's bandstand / gazebo in the culture's style (48x48); 3x2 footprint, solid
   Canopy,         // a cloth awning strung over a souk street (16x40): walked UNDER (not solid), drawn over the walker
+  // ---- M10 Beyond the Mist (VISION_PLAN 2.12, 15.4, 15.31): harbours, piers and the sea's places. Painted in
+  //      rpg/art/art_sea.cpp (phase A stand-ins; the ART lane paints them for real in the 3/4 top-down view with
+  //      top-left light and may change the canvas sizes). Placed by the WORLD lane (ports' harbours and jetties on
+  //      Ground::Bridge piers and the shore; wrecks, lighthouses). FOOTPRINTS ARE FROZEN (seaFootprint below).
+  MooringPost,    // a timber bollard / pile on a pier's edge, a rope coiled on it (10x18); solid
+  NetRack,        // fishing nets hung to dry on a pole frame (about 28x24); solid
+  FishBaskets,    // wicker baskets and a crate of the catch on a pier (16x14); solid
+  Buoy,           // a painted buoy bobbing on the water (12x14, 4 frames); on a water tile, solid to boats
+  Anchor,         // a great iron anchor leaning on a coil of chain (16x18); solid
+  CargoPile,      // crates, barrels and sacks on the quay (about 24x22); solid
+  Slipway,        // the shipwright's slipway: a hull on its cradle with ribs half planked (about 48x36); 3x2, solid
+  HarbourDesk,    // the harbourmaster's booth on the pier: a roofed desk, a ledger, a lantern (about 28x34); solid
+  Lighthouse,     // a lighthouse tower on a headland, its lamp lit at night (about 32x80); 1x1 base, solid (a light)
+  Wreck,          // a ship's broken hull on a reef or a beach, ribs and a snapped mast (about 56x40); 3x2, solid
   COUNT
 };
 // M4: the war's props (art_war.cpp) and the lore props (art_lore.cpp)
@@ -218,6 +232,13 @@ inline bool isHomeProp(Prop p) { return p == Prop::ForSaleSign; }
 // M7b: the city props (art_city.cpp) and their frozen footprints (w odd, h >= 1: the prop stands on the bottom row's
 // middle tile, Filler on the rest of the box; 1 x 1 for the rest)
 inline bool isCityProp(Prop p) { return (int)p >= (int)Prop::Bollard && (int)p <= (int)Prop::Canopy; }
+// M10: the sea props (art_sea.cpp) and their frozen footprints (as the city props': w odd, the prop on the bottom row's
+// middle tile, Filler on the rest)
+inline bool isSeaProp(Prop p) { return (int)p >= (int)Prop::MooringPost && (int)p <= (int)Prop::Wreck; }
+inline void seaFootprint(Prop p, int& w, int& h) {
+  if (p == Prop::Slipway || p == Prop::Wreck) { w = 3; h = 2; return; }
+  w = 1; h = 1;
+}
 inline void cityFootprint(Prop p, int& w, int& h) {
   if (p == Prop::Pavilion) { w = 3; h = 2; return; }
   w = 1; h = 1;

@@ -522,6 +522,62 @@ void clearMemo() {
   g_lairs.clear();
 }
 
+// ---- M10 (SEA lane): the sea's world bosses
+SeaBoss seaBossOf(ew::EndlessSource& src, int32_t sx, int32_t sy, bool& ok) {
+  static std::map<std::tuple<uint64_t, int32_t, int32_t>, std::pair<bool, SeaBoss>> memo;
+  const auto key = std::make_tuple(src.seed(), sx, sy);
+  {
+    std::lock_guard<std::mutex> lk(g_memoMu);
+    auto it = memo.find(key);
+    if (it != memo.end()) { ok = it->second.first; return it->second.second; }
+  }
+  SeaBoss b;
+  ok = false;
+  const uint64_t base = mixh(src.seed() ^ 0x5345414Bull, cellKey(sx, sy));
+  const ew::GTile spawn = src.start().spawn;
+  if (base % 100u < 55u) {   // (a little over half the sea's cells have one)
+    for (int k = 0; k < 8 && !ok; k++) {
+      const uint64_t h = mixh(base, (uint64_t)k + 1);
+      const int32_t x = sx * SEA_CELL + 256 + (int32_t)(h % (uint64_t)(SEA_CELL - 512)), y = sy * SEA_CELL + 256 + (int32_t)((h >> 20) % (uint64_t)(SEA_CELL - 512));
+      if (d2(x, y, spawn.x, spawn.y) < 900ll * 900ll) continue;   // (never in the start's own waters)
+      const ew::SeaKind sk = src.seaAt(x, y);
+      if (sk != ew::SeaKind::Deep && sk != ew::SeaKind::Storm) continue;
+      // open water all round (no coast within ~40 tiles)
+      bool open = true;
+      for (int d = 0; d < 8 && open; d++) {
+        static const int kC[8] = {40, 28, 0, -28, -40, -28, 0, 28};
+        const ew::SeaKind s2 = src.seaAt(x + kC[d], y + kC[(d + 2) % 8]);
+        open = s2 == ew::SeaKind::Deep || s2 == ew::SeaKind::Storm;
+      }
+      if (!open) continue;
+      ok = true;
+      b.lairX = x; b.lairY = y;
+      b.mon = (sk == ew::SeaKind::Storm && (h >> 40) % 3 == 0) ? Monster::Kraken : Monster::SeaSerpent;
+    }
+  }
+  if (ok) {
+    b.id = ew::makeId(sx, sy, ew::IdKind::Poi, 0xE00);
+    b.kind = b.mon == Monster::Kraken ? "KRAKEN" : "SEA SERPENT";
+    const int64_t far = (int64_t)std::sqrt((double)d2(b.lairX, b.lairY, spawn.x, spawn.y));
+    b.D = (int)std::clamp<int64_t>(9 + far / 900, 9, 45);
+    static const char* const first[8] = {"VASHRA", "OLD SALTFANG", "NERRAKH", "THE GREY MAW", "ISKELD", "MOTHER BRINE", "KORVA", "THE DROWNER"};
+    static const char* const tS[4] = {"THE COILED DEEP", "THE TIDEWYRM", "OF THE BLACK SWELL", "THE SHIPBREAKER"};
+    static const char* const tK[4] = {"THE GRASPING DARK", "OF A HUNDRED ARMS", "THE DEEP MOTHER", "THE HULL-CRUSHER"};
+    const std::string f = first[(base >> 24) % 8];
+    const std::string t = b.mon == Monster::Kraken ? tK[(base >> 32) % 4] : tS[(base >> 32) % 4];
+    b.name = (f.rfind("THE ", 0) == 0 || f.rfind("OLD ", 0) == 0 || f.rfind("MOTHER", 0) == 0) ? f : f + " " + t;
+    b.look = variantFor(b.mon, (int)Eco::Ocean, 0, Rank::WorldBoss, (uint32_t)base);
+    b.look.prefix = "";
+    b.look.overlays |= art::MO_EYES;
+    if (b.mon == Monster::SeaSerpent) b.look.tint = rgba(52, 96, 112);
+    else b.look.tint = rgba(110, 52, 70);
+  }
+  std::lock_guard<std::mutex> lk(g_memoMu);
+  if (memo.size() > 4096) memo.clear();
+  memo[key] = {ok, b};
+  return b;
+}
+
 std::string beastNameNear(ew::EndlessSource& src, int mon, int32_t gx, int32_t gy, int rank) {
   const int32_t kx = ew::EndlessSource::kcellOf(gx), ky = ew::EndlessSource::kcellOf(gy);
   std::string best;

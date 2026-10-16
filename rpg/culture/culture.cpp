@@ -361,6 +361,14 @@ Culture familyCandidate(uint64_t cellH, int k, const ClimateSample& cs, int ore,
   int cross = -1;
   if ((cellH >> 40) % 48 == 0) cross = (int)((a == Archetype::COUNT ? 0 : (int)a) + 1 + (int)((cellH >> 20) % 11)) % (int)Archetype::COUNT;
   Culture c;
+  // (M10) a people of a hidden land beyond the Mist: always isolated (crossed with another archetype), marked BEFORE the
+  // priors so they may branch on it (mainland families never take this path: bit-identical)
+  if (cs.hiddenLand) {
+    c.hidden = true;
+    c.hiddenLand = cs.hiddenLand;
+    cross = (int)((a == Archetype::COUNT ? 0 : (int)a) + 1 + (int)((cellH >> 20) % 11) + (int)(sk % 3)) % (int)Archetype::COUNT;
+    if (cross == (int)a) cross = ((int)a + 5) % (int)Archetype::COUNT;
+  }
   c.seed = sk;
   c.homeBiome = (uint8_t)(cs.biome >= 0 && cs.biome < 10 ? cs.biome : 2);
   detail::applyPriors(c, a, sk, ore, cross);
@@ -369,6 +377,44 @@ Culture familyCandidate(uint64_t cellH, int k, const ClimateSample& cs, int ore,
   return c;
 }
 }  // namespace
+
+// (M10, VISION_PLAN 15.11 "sailing to the hidden kingdoms reveals metals and gear never seen at home") a hidden people's
+// masterwork alloy is smelted with a reagent found only on its own land (the province geology there carries
+// Geology::mistOre), and has a name and a look no mainland alloy has: a word no mainland smith uses, and colours from
+// a palette outside every archetype's alloy looks (sea-glass, abyssal violet, drowned gold, ghost-pearl).
+static const char* const kHiddenReagent[8] = {"MISTPEARL", "DROWNED AMBER", "STARSALT", "GHOSTCORAL", "VEILGLASS", "TIDESTONE",
+                                       "SIRENSCALE", "PALE LODESTONE"};
+static const char* const kHiddenWord[6] = {"VEIL", "WHORL", "TIDE", "PEARL", "SHARD", "WRACK"};
+bool isHiddenReagent(const std::string& r) {
+  for (const char* h : kHiddenReagent) if (r == h) return true;
+  return false;
+}
+static void hiddenMetal(Culture& c) {
+  if (c.arms.alloys.empty()) return;
+  const uint32_t h = h32((uint64_t)c.seed ^ 0x415E7A11ull);
+  Alloy& A = c.arms.alloys.back();
+  const std::string reagent = kHiddenReagent[h % 8];
+  std::string root = c.name.substr(0, std::min<size_t>(c.name.size(), 4));
+  A.name = root + kHiddenWord[(h >> 4) % 6];
+  A.baseTier = Tier::Steel;
+  A.tierStep = 3;
+  A.recipe.clear();
+  A.recipe.push_back({5, "", 2});                                   // rare ore
+  A.recipe.push_back({(int8_t)((h >> 8) & 1 ? 4 : 2), "", 2});     // silver or iron
+  A.recipe.push_back({-1, reagent, 1});                             // the land's own reagent
+  static const uint32_t kLight[4] = {0xFFD6F0C8u, 0xFFE8B8C0u, 0xFF9AE6F2u, 0xFFF4F0FAu};   // (rgba as r | g << 8 | b << 16)
+  static const uint32_t kDark[4] = {0xFF5A6A22u, 0xFF6A2E4Au, 0xFF2A7A8Au, 0xFF8A7A9Au};
+  static const Sheen kSheen[4] = {Sheen::Iridescent, Sheen::Glowing, Sheen::Iridescent, Sheen::Pale};
+  const int v = (int)((h >> 12) % 4);
+  A.color = kLight[v];
+  A.color2 = kDark[v];
+  A.sheen = kSheen[v];
+  A.secrecy = 250;
+  A.learn = 1 | 2 | 8;
+  A.lore = "SMELTED WITH " + reagent + ", FOUND ONLY BEYOND THE MIST";
+  c.arms.metal = A.color;
+  c.props.metal = c.arms.metal;
+}
 
 const Culture& Atlas::family(int32_t ci, int32_t cj) {
   const CultureId id = familyId(ci, cj);
@@ -485,6 +531,7 @@ const Culture& Atlas::family(int32_t ci, int32_t cj) {
     }
   }
   detail::finishCulture(*best);
+  if (best->hidden) hiddenMetal(*best);   // (M10)
   best->id = id;
   d_->aux[id] = std::move(bestA);
   d_->stats.families++;

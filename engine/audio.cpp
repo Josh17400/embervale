@@ -74,12 +74,16 @@ const int8_t kHarm[(int)Scale::COUNT][7] = {
   {0, 2, 3, 5, 7, 8, 10},   // Penta minor (parent: minor)
   {0, 2, 3, 5, 7, 8, 10},   // Hirajoshi (parent: minor)
   {0, 1, 3, 5, 7, 8, 10},   // In-sen (parent: phrygian)
+  {0, 2, 4, 6, 7, 9, 10},   // (M10) Whole-tone (parent: lydian dominant)
+  {0, 1, 3, 5, 7, 8, 10},   // (M10) Pelog (parent: phrygian)
+  {0, 1, 4, 5, 7, 8, 11},   // (M10) Double harmonic
 };
 constexpr uint16_t pcs(std::initializer_list<int> l) { uint16_t m = 0; for (int x : l) m = (uint16_t)(m | 1u << x); return m; }
 const uint16_t kMelMask[(int)Scale::COUNT] = {
   pcs({0, 2, 4, 5, 7, 9, 11}), pcs({0, 2, 3, 5, 7, 8, 10}), pcs({0, 2, 3, 5, 7, 9, 10}), pcs({0, 1, 3, 5, 7, 8, 10}),
   pcs({0, 2, 4, 5, 7, 9, 10}), pcs({0, 2, 4, 6, 7, 9, 11}), pcs({0, 2, 3, 5, 7, 8, 11}), pcs({0, 1, 4, 5, 7, 8, 10}),
   pcs({0, 2, 4, 7, 9}),        pcs({0, 3, 5, 7, 10}),       pcs({0, 2, 3, 7, 8}),       pcs({0, 1, 5, 7, 10}),
+  pcs({0, 2, 4, 6, 8, 10}),    pcs({0, 1, 3, 7, 8}),        pcs({0, 1, 4, 5, 7, 8, 11}),
 };
 // chord progressions that suit each scale (roots as degrees of the parent mode)
 const int8_t kProgs[(int)Scale::COUNT][4][4] = {
@@ -95,6 +99,9 @@ const int8_t kProgs[(int)Scale::COUNT][4][4] = {
   {{0, 6, 0, 3}, {0, 3, 6, 0}, {0, 4, 6, 0}, {0, 6, 3, 6}},   // Penta minor
   {{0, 5, 0, 6}, {0, 0, 5, 6}, {0, 3, 0, 5}, {0, 6, 5, 0}},   // Hirajoshi
   {{0, 1, 0, 6}, {0, 6, 0, 1}, {0, 5, 1, 0}, {0, 0, 1, 0}},   // In-sen
+  {{0, 1, 0, 6}, {0, 6, 1, 0}, {0, 1, 6, 1}, {6, 0, 1, 0}},   // (M10) Whole-tone: drifting between I, II and bVII
+  {{0, 1, 0, 5}, {0, 5, 1, 0}, {0, 0, 1, 5}, {5, 1, 0, 0}},   // (M10) Pelog
+  {{0, 1, 0, 4}, {0, 4, 1, 0}, {0, 3, 1, 0}, {0, 1, 4, 0}},   // (M10) Double harmonic: I bII, the V
 };
 
 using Style = audio_detail::Piece;
@@ -628,6 +635,10 @@ const float kSfxTrim[(int)Sfx::COUNT] = {
   1.0f,  1.15f, 1.35f, 1.1f,                                // RiftTear SummonRise Shimmer DreamPulse
   1.0f,  0.9f,  1.25f, 1.25f,                               // StoneGrind StoneSlam StarChime MeteorFall
   1.0f,  1.0f,  1.0f,                                       // WardRing Sizzle SpellMotif
+  // (M10 ART; calibrated with tools/audio_preview --sea)
+  1.0f,  2.4f,  1.2f,  3.0f,                                // WaveCrash SailFlap OarStroke ReelClick
+  1.2f,  1.3f,  0.75f, 0.8f,                                // LineSnap FishPlop SerpentRoar KrakenRumble
+  2.0f,  1.0f,  1.0f,  1.1f,  0.9f,                         // MerrowChatter HullCrack MistWhisper MistChime ShipBell
 };
 static_assert(sizeof(kSfxTrim) / sizeof(kSfxTrim[0]) == (size_t)Sfx::COUNT, "a trim for every Sfx");
 
@@ -1139,6 +1150,103 @@ void Audio::trigger(Sfx s, float k, float V, uint32_t arg) {
       add(NB(Square, 110 * r, 0.15f * V).env(0.002f, 0.2f).am(100, 0.9f).lp(2600 * r, 1.2f).drive(1.5f));
       add(NB(Saw, 2200 * r, 0.16f * V).env(0.002f, 0.11f).slide(-1.5f).bp(3000 * r, 1.4f).drive(1.0f).send(0.3f));
       add(NB(Noise, 0, 0.22f * V).env(0.004f, 1, 1, 0.1f, 0.1f).hp(6000).am(60, 0.9f).send(0.35f).at(0.01f));
+      break;
+    }
+    // ---- M10 Beyond the Mist: the sea's moments
+    case Sfx::WaveCrash: {    // a wave breaking: a low thump of water, the crash's rush, the spray's hiss falling away
+      const float r = k * rnd(0.9f, 1.1f);
+      add(NB(Sine, 70 * r, 0.6f * V).perc(0.25f).pitch(1.2f, 0.04f));
+      add(NB(Noise, 0, 0.9f * V).env(0.02f, 0.5f).lp(900 * r, 0.8f).fenv(1.5f, 0.15f).send(0.35f));
+      add(NB(Noise, 0, 0.45f * V).env(0.08f, 1, 1, 0.3f, 0.9f).hp(2600 * r).send(0.3f).at(0.05f));
+      break;
+    }
+    case Sfx::SailFlap: {     // canvas cracking full: quick flaps and a taut, low thrum
+      const float r = k * rnd(0.92f, 1.08f);
+      for (int i = 0; i < 3; i++) add(NB(Noise, 0, (0.55f - 0.12f * i) * V).perc(0.045f).bp(420 * r, 1.4f).at(0.07f * (float)i + rnd(0, 0.02f)));
+      add(NB(Saw, 62 * r, 0.12f * V).env(0.02f, 0.4f).lp(260 * r).at(0.18f));
+      break;
+    }
+    case Sfx::OarStroke: {    // the blade dipping (a plunge), the pull through the water, the lock's wooden knock
+      const float r = k * rnd(0.9f, 1.1f);
+      add(NB(Noise, 0, 0.5f * V).env(0.005f, 0.09f).bp(900 * r, 0.9f).send(0.2f));
+      add(NB(Noise, 0, 0.35f * V).env(0.08f, 1, 1, 0.25f, 0.2f).lp(600 * r).at(0.05f));
+      add(NB(Sine, 340 * r, 0.22f * V).perc(0.04f).pitch(1.2f, 0.01f).at(0.02f));
+      add(NB(Noise, 0, 0.15f * V).perc(0.012f).bp(1800 * r, 2.0f).at(0.02f));
+      break;
+    }
+    case Sfx::ReelClick: {    // the ratchet: a burst of small dry clicks
+      const float r = k;
+      for (int i = 0; i < 4; i++) add(NB(Noise, 0, 0.30f * V).perc(0.006f).bp(3200 * r, 3.0f).at(0.035f * (float)i / r));
+      break;
+    }
+    case Sfx::LineSnap: {     // a twang that whips away
+      add(NB(Pluck, 660 * k, 0.5f * V).ring(0.25f).slide(-1.5f));
+      add(NB(Noise, 0, 0.4f * V).env(0.002f, 0.12f).hp(2500).fslide(-2.0f));
+      break;
+    }
+    case Sfx::FishPlop: {     // a small plop and a bubble
+      add(NB(Sine, 520 * k, 0.4f * V).perc(0.06f).slide(2.2f));
+      add(NB(Noise, 0, 0.3f * V).perc(0.04f).bp(1500 * k, 1.2f));
+      add(NB(Sine, 900 * k, 0.12f * V).perc(0.04f).slide(2.5f).at(0.09f));
+      break;
+    }
+    case Sfx::SerpentRoar: {  // water boiling off it, a hissing intake, a bubbling bellow sinking to a deep growl
+      const float r = k * rnd(0.95f, 1.05f);
+      add(NB(Noise, 0, 0.5f * V).env(0.05f, 1, 1, 0.25f, 0.3f).hp(1800 * r).bump(1.0f));
+      add(NB(Saw, 130 * r, 0.55f * V).env(0.08f, 1, 1, 0.9f, 0.5f).slide(-0.9f).vox(620 * r, 2.2f).vib(1.2f, 7).am(23, 0.35f).drive(1.6f).send(0.4f).at(0.2f));
+      add(NB(Sine, 55 * r, 0.7f * V).env(0.1f, 1, 1, 0.9f, 0.6f).slide(-0.4f).at(0.25f));
+      add(NB(Noise, 0, 0.35f * V).env(0.1f, 1, 1, 0.8f, 0.5f).bp(380 * r, 1.0f).am(15, 0.7f).at(0.25f));
+      break;
+    }
+    case Sfx::KrakenRumble: { // a deep groan under the water, the arm tearing up through the surface, water pouring off
+      const float r = k * rnd(0.95f, 1.05f);
+      add(NB(Sine, 38 * r, 0.9f * V).env(0.2f, 1, 1, 0.8f, 0.8f).vib(0.8f, 1.5f));
+      add(NB(Saw, 72 * r, 0.3f * V).env(0.25f, 1, 1, 0.6f, 0.6f).lp(240 * r).vib(0.5f, 3).drive(1));
+      add(NB(Noise, 0, 0.7f * V).env(0.02f, 0.5f).lp(1400 * r).send(0.4f).at(0.35f));
+      add(NB(Noise, 0, 0.4f * V).env(0.15f, 1, 1, 0.5f, 0.9f).hp(1800).at(0.45f));
+      break;
+    }
+    case Sfx::MerrowChatter: { // clicks and gurgling, rising chirps
+      const float r = k * rnd(0.9f, 1.15f);
+      for (int i = 0; i < 5; i++) {
+        const float t = 0.07f * (float)i + rnd(0, 0.03f);
+        if (i & 1) add(NB(Noise, 0, 0.25f * V).perc(0.01f).bp(2200 * r, 3.0f).at(t));
+        else add(NB(Sine, rnd(700, 1100) * r, 0.22f * V).env(0.005f, 0.06f).slide(rnd(1.5f, 3.0f)).am(40, 0.6f).at(t));
+      }
+      break;
+    }
+    case Sfx::HullCrack: {    // timber splitting: a hard crack, splinters, the frames groaning
+      const float r = k * rnd(0.92f, 1.08f);
+      add(NB(Noise, 0, 0.9f * V).perc(0.03f).bp(1500 * r, 0.9f));
+      add(NB(Noise, 0, 0.5f * V).perc(0.12f).bp(700 * r, 1.4f).at(0.01f));
+      add(NB(Saw, 110 * r, 0.3f * V).env(0.05f, 0.5f).slide(-0.3f).vox(500 * r, 3.0f).am(12, 0.5f).at(0.08f));
+      add(NB(Sine, 80 * r, 0.6f * V).perc(0.2f).pitch(1.5f, 0.02f));
+      break;
+    }
+    case Sfx::MistWhisper: {  // breaths of whispering over a cold beating drone
+      const float r = k;
+      add(NB(Sine, 98 * r, 0.25f * V).env(0.8f, 1, 1, 1.6f, 1.2f).send(0.6f));
+      add(NB(Sine, 99.7f * r, 0.25f * V).env(0.8f, 1, 1, 1.6f, 1.2f).send(0.6f));
+      for (int i = 0; i < 4; i++)
+        add(NB(Noise, 0, 0.22f * V).env(0.15f, 1, 1, 0.25f, 0.3f).vox(rnd(900, 2400) * r, 4.0f).am(rnd(5, 9), 0.6f).send(0.7f).at(0.3f + 0.45f * (float)i));
+      break;
+    }
+    case Sfx::MistChime: {    // a rising shimmer of bells into a warm open chord
+      const float r = k;
+      const float ch[5] = {523.3f, 659.3f, 784.0f, 987.8f, 1318.5f};
+      for (int i = 0; i < 5; i++) add(NB(Fm, ch[i] * r, 0.16f * V).perc(1.6f).fm(3.5f, 1.2f, 0.4f).send(0.6f).at(0.12f * (float)i));
+      add(NB(Pad, 261.6f * r, 0.12f * V).env(0.6f, 1, 1, 1.6f, 1.4f).lp(1800).send(0.5f).at(0.3f));
+      add(NB(Pad, 392.0f * r, 0.10f * V).env(0.6f, 1, 1, 1.6f, 1.4f).lp(1800).send(0.5f).at(0.3f));
+      break;
+    }
+    case Sfx::ShipBell: {     // a ship's bell: two bright strokes
+      const float f0 = 880.0f * k;
+      for (int s2 = 0; s2 < 2; s2++) {
+        const float t = 0.38f * (float)s2;
+        add(NB(Fm, f0, 0.3f * V).perc(1.4f).fm(2.76f, 1.5f, 0.2f).send(0.4f).at(t));
+        add(NB(Sine, f0 * 2.4f, 0.12f * V).perc(0.6f).at(t));
+        add(NB(Noise, 0, 0.18f * V).perc(0.01f).hp(4000).at(t));
+      }
       break;
     }
     case Sfx::Thunder: {      // a white crack, a snapping arc, then thunder rolling away
@@ -2362,6 +2470,93 @@ void Audio::renderAmbient(float* out, int n, float blockSec) {
   }
 }
 
+// ------------------------------------------------------------------------------------------ (M10) the sea bed
+// The sea round the boat: the swell washing under the hull (low-passed noise breathing on two overlapping wave
+// periods), the shore's breakers (a slow rise and a crash), the wind in the sails (a resonant band that thrums with
+// the gusts), a storm (the gale, heavy rain, the seas heaving), the Mist (a cold beating drone that turns dissonant as
+// it turns the boat back). Sparse events as voices: gulls' cries, a timber's creak, a halyard's tap, oar strokes, a
+// wave slapping the hull, whispers in the fog. A handful of one-pole filters per sample: cheap on a phone.
+void Audio::renderSea(float* out, int n, float blockSec) {
+  float want[9];
+  bool any = false;
+  for (int i = 0; i < 9; i++) {
+    want[i] = clampf(wantSea_[i].load(std::memory_order_relaxed), 0.0f, 4.0f);
+    any = any || want[i] > 0.001f || seaCur_[i] > 0.001f;
+  }
+  if (!any) return;
+  const float ke = 1.0f - std::exp(-blockSec / 0.8f);
+  for (int i = 0; i < 9; i++) seaCur_[i] += (want[i] - seaCur_[i]) * ke;
+  const float open = seaCur_[0], surf = seaCur_[1], gulls = seaCur_[2], wind = seaCur_[3], creak = seaCur_[4];
+  const float oars = seaCur_[5], storm = seaCur_[6], mist = seaCur_[7], turn = seaCur_[8];
+  seaT_ += blockSec;
+  // ---- events (voices)
+  auto due = [&](int e, float rate) {
+    float& T = seaEvT_[e];
+    T -= blockSec;
+    if (T > 0) return false;
+    T = rate > 0.001f ? -std::log(std::fmax(1e-4f, rnd())) / rate : 1.0f;
+    return rate > 0.001f;
+  };
+  if (due(0, gulls * 0.35f)) {   // a gull: a falling "keee-ow", sometimes two or three
+    const int nc = 1 + (int)(rnd() * 2.5f);
+    const float f = rnd(1500, 2100), v = gulls * 0.10f;
+    for (int i = 0; i < nc; i++)
+      add(NB(Saw, f * rnd(0.95f, 1.05f), v).env(0.02f, 0.3f, 0, 0.18f, 0.08f).slide(-0.9f).vox(f * 1.2f, 3.0f).vib(0.5f, 18).send(0.4f).at(0.28f * (float)i));
+  }
+  if (due(1, creak * 0.45f)) {   // a timber's creak / the rigging's groan
+    const float f = rnd(90, 210), v = creak * 0.07f;
+    add(NB(Saw, f, v).env(0.08f, 1, 1, rnd(0.25f, 0.6f), 0.15f).slide(rnd(-0.4f, 0.4f)).vox(rnd(400, 900), 3.5f).am(rnd(18, 34), 0.7f).send(0.2f));
+  }
+  if (due(2, creak * 0.25f + storm * 0.3f)) {   // a halyard tapping the mast, a block knocking
+    const float f = rnd(500, 900), v = (creak * 0.5f + storm * 0.5f) * 0.08f;
+    add(NB(Sine, f, v).perc(0.05f).pitch(0.5f, 0.01f));
+    add(NB(Noise, 0, v * 0.6f).perc(0.01f).bp(f * 2.0f, 2.0f));
+  }
+  if (oars > 0.05f && due(3, oars)) trigger(Sfx::OarStroke, rnd(0.95f, 1.05f), 0.35f);
+  if (due(4, (open * 0.25f + storm * 0.6f) * (creak > 0.01f ? 1.0f : 0.0f))) trigger(Sfx::WaveCrash, rnd(0.9f, 1.25f), 0.10f + 0.10f * storm);
+  if (due(5, mist * 0.12f)) trigger(Sfx::MistWhisper, turn > 0.5f ? 0.94f : 1.0f, 0.18f * mist);
+  // ---- the continuous layers
+  const float swellA = 0.5f + 0.5f * sinc(seaT_ / 7.3f), swellB = 0.5f + 0.5f * sinc(seaT_ / 4.1f + 0.3f);
+  const float swell = 0.35f + 0.65f * (0.6f * swellA + 0.4f * swellB) * (1.0f + storm * 0.3f);
+  const float sp = std::fmod(seaT_ / (8.5f - storm * 2.5f), 1.0f);
+  const float breaker = sp < 0.75f ? (sp / 0.75f) * (sp / 0.75f) : 1.0f - (sp - 0.75f) / 0.25f;
+  const float gust = 0.55f + 0.45f * sinc(seaT_ * 0.13f) * sinc(seaT_ * 0.37f);
+  const float cWash = 1.0f - std::exp(-TAU * (260.0f + 300.0f * storm) / FS), cSurf = 1.0f - std::exp(-TAU * 1100.0f / FS);
+  const float cWind = 1.0f - std::exp(-TAU * (300.0f + 500.0f * wind * gust) / FS), cRain = 1.0f - std::exp(-TAU * 5000.0f / FS);
+  const float droneHz = 73.4f, beat = turn > 0.5f ? 1.0f + 0.059f * turn : 1.006f;   // a tritone creeping in as it turns
+  for (int i = 0; i < n; i++) {
+    const float t = seaT_ - blockSec + (float)i * DT;
+    const float w = white(seaRng_);
+    float y = 0;
+    // the swell's wash
+    seaLp_[0] += cWash * (w - seaLp_[0]);
+    seaLp_[1] += cWash * (seaLp_[0] - seaLp_[1]);
+    y += seaLp_[1] * (open * 1.5f + storm * 0.5f) * swell * 2.4f;
+    // the shore's breakers
+    if (surf > 0.001f) {
+      seaLp_[2] += cSurf * (w - seaLp_[2]);
+      y += seaLp_[2] * surf * (0.25f + 0.75f * breaker) * 1.6f + (w - seaLp_[2]) * surf * breaker * breaker * 0.25f;
+    }
+    // the wind in the sails / the gale
+    if (wind > 0.001f || storm > 0.001f) {
+      seaLp_[3] += cWind * (w - seaLp_[3]);
+      seaLp_[4] += cWind * (seaLp_[3] - seaLp_[4]);
+      const float thrum = 1.0f + 0.25f * sinc(t * (9.0f + 4.0f * gust)) * wind;
+      y += seaLp_[4] * (wind * 1.1f + storm * 0.6f) * gust * thrum * 2.2f;
+    }
+    // the storm's rain
+    if (storm > 0.001f) {
+      seaLp_[5] += cRain * (w - seaLp_[5]);
+      y += (w - seaLp_[5]) * storm * 0.14f;
+    }
+    // the Mist's drone
+    if (mist > 0.001f)
+      y += (sinc(t * droneHz) + 0.8f * sinc(t * droneHz * beat) + 0.35f * sinc(t * droneHz * 1.5f * beat) + 0.2f * sinc(t * droneHz * 4.02f)) * mist * 0.05f *
+           (0.7f + 0.3f * sinc(t * 0.17f));
+    out[i] += y * kAmbGain * 0.6f;
+  }
+}
+
 // ------------------------------------------------------------------------------------------ (M5) the crowd
 // A tavern's murmur: five talkers, each a glottal buzz (a saw near 100..240 Hz with a drifting intonation) through two
 // formant band-passes whose vowel changes every syllable, in phrases with pauses; overlapping, low-passed by the room.
@@ -2517,6 +2712,7 @@ void Audio::renderBlock(float* out, int n) {
   for (Voice& v : v_)
     if (v.on) renderVoice(v, n, lg, sfx, mus, sndS, sndM);
   renderAmbient(amb, n, (float)n * DT);
+  renderSea(amb, n, (float)n * DT);   // (M10) the sea's bed on the ambient bus
   renderCrowd(crowd, n, (float)n * DT);
   // (M5) the score's level and muffle (the bard heard from the street), eased over ~0.4 s; the crowd goes through them
   const float blockSec = (float)n * DT, kg = 1.0f - std::exp(-blockSec / 0.4f);

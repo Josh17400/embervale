@@ -95,6 +95,11 @@ Kind kindOfProp(art::Prop p) {
     case Prop::Canopy: return Kind::MarketStall;                       // the souk street's cloth cover
     case Prop::Hedge: case Prop::FlowerBed: case Prop::FruitTree:
       return Kind::None;
+    // (M10 phase A) the sea props are not built (art_sea.cpp paints them; the ART lane may give the harbour desk and the
+    // slipway the culture's forms and classify them here)
+    case Prop::MooringPost: case Prop::NetRack: case Prop::FishBaskets: case Prop::Buoy: case Prop::Anchor:
+    case Prop::CargoPile: case Prop::Slipway: case Prop::HarbourDesk: case Prop::Lighthouse: case Prop::Wreck:
+      return Kind::None;
     case Prop::COUNT: break;
   }
   return Kind::COUNT;   // unclassified: rpg_test --builder fails

@@ -87,6 +87,13 @@ struct KingdomState {
   float lastHarvest = 1;   // that harvest's quality (0.3 a failed harvest .. 1.1 a bumper year)
   uint16_t capitalLostDay = 0;      // when its capital last fell (0 never): stability suffers for 180 days
   uint8_t inherit = 0;     // cult::Inheritance of its society (who follows a ruler who dies)
+  // M10 Beyond the Mist (VISION_PLAN 2.12 "first contact", 15.31; set by instantiate from ew::KingdomPlan::hiddenLand;
+  // the SEA lane keeps the rule): a kingdom of a hidden land is ISOLATED until the player lands there: no relations,
+  // wars, trade, raids or news with any mainland kingdom (it still ticks its own life). First contact clears it (the
+  // day is kept) and the realm's FirstContact event tells the world.
+  bool isolated = false;
+  uint32_t hiddenLand = 0; // ew::LandPlan::id (0: the mainland)
+  int32_t contactDay = -1; // the realm day of first contact (-1: never)
 };
 
 struct Relation {
@@ -357,6 +364,19 @@ class Realm {
   // (M6 fixer r3) the event's mag packs mon (bits 0-7), the foes::Rank of the beast (bits 8-10) and whether the
   // player made the kill (bit 11), so the news names the right beast (a named unique never passes for a world boss)
   void beastSlain(uint8_t mon, int32_t gx, int32_t gy, int day, uint8_t rank = 0, bool byPlayer = true);
+  // ---- M10 Beyond the Mist (rpg/sim/realm.cpp, SEA lane; VISION_PLAN 2.12 "first contact"). Isolation: an isolated
+  //      kingdom has no relations, wars, trade or raids with any kingdom not of its own hidden land (linkRelations,
+  //      declareWar and tickDiplomacy keep the rule; its own life ticks on). News keeps apart by distance: a hidden
+  //      land lies beyond 300 tiles of Mist, farther than any rumour of the 30-day horizon travels.
+  // two kingdoms the Mist keeps apart (either isolated, and not of the same hidden land)
+  static bool apart(const KingdomState& a, const KingdomState& b) { return (a.isolated || b.isolated) && !(a.hiddenLand && a.hiddenLand == b.hiddenLand); }
+  // the hidden land `land` is reached (the hero set foot on it): every instantiated kingdom of it stops being isolated
+  // (contactDay = day); a kingdom whose people never met the hero starts wary of them (playerRep -20). announce: the
+  // realm's FirstContact event at its capital (once per land: the SEA lane calls it with announce on the first
+  // landing, and again quietly when more of the land's kingdoms come into focus). Returns the kingdoms opened.
+  int contactLand(uint32_t land, int day, bool announce);
+  // the word carried home (LF_WORD): the hidden land's kingdoms and the mainland kingdom `mainland` meet (Rel::Contact)
+  void openContact(uint32_t land, Gid mainland, int day);
 
  private:
   uint64_t seed_ = 0;

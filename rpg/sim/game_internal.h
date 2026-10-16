@@ -48,6 +48,10 @@ inline const MStat& mstat(Monster m) {
       // every second blow its wide telegraphed ground slam, and fire and frost slide off it sooner
       {30, 9, 72, 12, 160, 5, 0.30f, 22, false, true},     // Harpy (packs of 2-3 on the cliffs and crags)
       {160, 19, 28, 19, 90, 9, 0.70f, 76, false, false},   // Golem (alone: crystal barrens, mountains, ruin wardens)
+      // M10 Beyond the Mist (phase A numbers; the SEA lane tunes them and gives each its moves): they swim (Actor::swim)
+      {240, 20, 62, 22, 170, 10, 0.60f, 120, false, false},  // SeaSerpent (open and storm seas; strikes from the swell)
+      {420, 24, 40, 26, 150, 12, 0.70f, 220, false, false},  // Kraken (the storm seas; tentacles round a boat)
+      {40, 9, 58, 14, 130, 5, 0.34f, 20, false, false},      // Merrow (reefs, wrecks, sea caves; bands of 2-4; amphibious)
   };
   static_assert(sizeof(t) / sizeof(t[0]) == (size_t)Monster::COUNT, "stats for every monster");
   return t[(int)m];
@@ -66,7 +70,7 @@ inline const char* monsterName(Monster m) {
   static const char* n[] = {"WOLF", "BOAR", "CAVE BEAR", "SLIME", "GIANT SPIDER", "BAT", "SKELETON", "DRAUGR", "GOBLIN", "TROLL",
                             "WRAITH", "MUDCRAB", "ICE WOLF", "RIME SPIDER", "SANDWORM", "ASHFANG THE DRAGON",
                             "GIANT SCORPION", "HYENA", "MIRE LURKER", "YETI", "WILL-O'-WISP", "EMBER HOUND", "BLIGHTSPAWN",
-                            "HARPY", "STONE GOLEM"};
+                            "HARPY", "STONE GOLEM", "SEA SERPENT", "KRAKEN", "MERROW"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)Monster::COUNT, "a name for every monster");
   return n[(int)m];
 }
@@ -158,7 +162,7 @@ inline std::string goodUnits(int n, const std::string& good) {
 inline const char* monsterPlural(Monster m) {
   static const char* mn[] = {"WOLVES", "BOARS", "BEARS", "SLIMES", "SPIDERS", "BATS", "SKELETONS", "DRAUGR", "GOBLINS", "TROLLS", "WRAITHS", "MUDCRABS", "ICE WOLVES", "RIME SPIDERS", "SANDWORMS", "DRAGONS",
                              "SCORPIONS", "HYENAS", "MIRE LURKERS", "YETIS", "WISPS", "EMBER HOUNDS", "BLIGHTSPAWN",
-                             "HARPIES", "GOLEMS"};
+                             "HARPIES", "GOLEMS", "SEA SERPENTS", "KRAKENS", "MERROW"};
   static_assert(sizeof(mn) / sizeof(mn[0]) == (size_t)Monster::COUNT, "a plural for every monster");
   return mn[(int)m];
 }

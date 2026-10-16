@@ -25,6 +25,8 @@
 #include "rpg/sim/magic_ops.h"
 #include "rpg/sim/power_ops.h"
 #include "rpg/world/biomes.h"
+#include "rpg/culture/culture.h"
+#include "rpg/world/source.h"
 
 using art::Prop;
 using magic::Essence;
@@ -37,6 +39,7 @@ using magic::Surface;
 
 namespace {
 constexpr float PI_F = 3.14159265f;
+void stepHidden(Game& g, float dt);   // (M10, at the end of this file)
 
 bool perk(const Game& g, School s, int idx) { return g.skills.has(magic::schoolSkill(s), idx); }
 // the schools' perk indices (magic_perks.cpp; saved bits)
@@ -156,7 +159,7 @@ void MagicOps::background(Game& g) { syncLegacy(g); }
 // ================================================================== costs and power
 float MagicOps::costOf(const Game& g, const SpellDef& d, int level, bool dual) {
   float c = d.cost;
-  if (d.res == magic::Resource::Charge) return std::max(1.0f, c + (float)(level > 0 ? 1 : 0) + (dual ? 1.0f : 0.0f));
+  if (d.res == magic::Resource::Charge) return c <= 0 ? 0.0f : std::max(1.0f, c + (float)(level > 0 ? 1 : 0) + (dual ? 1.0f : 0.0f));
   // the schools' cost perks: NOVICE (tier 0 half), APPRENTICE (tier 1 half), Destruction's ADEPT (tier 2+: -25 %)
   const School sc = d.school;
   if (d.tier == 0 && perk(g, sc, P_NOVICE)) c *= 0.5f;
@@ -175,6 +178,7 @@ bool MagicOps::canPay(const Game& g, const SpellDef& d, int level, bool dual) {
     if (g.craft.live.stats.has(Unique::BloodMagic)) return g.pl().hp > c + 1;
     return g.mp >= c;
   }
+  if (d.res == magic::Resource::Health) return g.pl().hp > c + 1;   // (M10 Blood rites: paid in blood, never the last drop)
   return g.arcana.book.res[(int)d.res] >= c;
 }
 namespace {
@@ -182,6 +186,13 @@ void pay(Game& g, const SpellDef& d, float c) {
   if (d.res == magic::Resource::Magicka) {
     if (g.craft.live.stats.has(Unique::BloodMagic)) { g.pl().hp -= c; g.events.push_back({Ev::Blood, g.pl().p + Vec2(0, -6), 0, 1, ""}); }
     else g.mp -= c;
+    return;
+  }
+  if (d.res == magic::Resource::Health) {   // (M10 Blood rites)
+    if (g.arcana.live.refrain) return;
+    g.pl().hp = std::max(1.0f, g.pl().hp - c);
+    g.events.push_back({Ev::Blood, g.pl().p + Vec2(0, -6), 0, 1, ""});
+    g.arcana.live.stats.bloodPaid++;
     return;
   }
   float& r = g.arcana.book.res[(int)d.res];
@@ -246,6 +257,7 @@ float MagicOps::signatureMul(const Game& g, const SpellDef& d) {
     case magic::Signature::Star: return g.isNight() && fullMoon(g) ? magic::STAR_FULL_MOON : 1.0f;
     case magic::Signature::Tide: return nearWater(g, g.pl().p, 4) || raining(g) ? magic::TIDE_MULT : 1.0f;
     case magic::Signature::Ancestor: return nearGraves(g, g.pl().p) ? magic::ANCESTOR_MULT : 1.0f;
+    case magic::Signature::Blood: return bloodMul(g);   // (M10) strongest near death
     default: return 1.0f;
   }
 }
@@ -607,6 +619,34 @@ void allyStep(Game& g, Actor& a, float dt) {
 }  // namespace
 
 bool MagicOps::actorStep(Game& g, Actor& a, float dt) {
+  // (M10 Dreamweft) a decoy: it stands and shimmers until its time runs out or it is struck apart
+  if (a.magicTag == magic::MT_DECOY) {
+    a.burnT = 0; a.burnDpsT = 0; a.bleedT = 0; a.status = 0;
+    a.magicT -= dt;
+    if (a.magicT <= 0 || a.hp <= 0.02f) { fade(g, a); return true; }
+    if (a.st == AState::Hurt && a.stT > 0.2f) { a.st = AState::Idle; a.stT = 0; }
+    a.face = g.pl().face;
+    return true;
+  }
+  // (M10 Dreamweft) a foe inside a time bubble lives at DREAM_SLOW: its timers, statuses, steps and swings
+  if (a.hostile && !a.player && a.st != AState::Dead && a.st != AState::Down && a.mon != art::Monster::Dragon &&
+      a.rank < (uint8_t)foes::Rank::WorldBoss && !g.arcana.live.bubbles.empty() && inBubble(g, a.p)) {
+    const float x = dt * (1.0f - magic::DREAM_SLOW), sdt = dt * magic::DREAM_SLOW;
+    a.stT -= x; a.animT -= x;
+    if (a.atkCd > 0) a.atkCd += x;
+    if (a.shootCd > 0) a.shootCd += x;
+    g.arcana.live.stats.slowedSteps++;
+    if (a.status) {
+      const bool held = statusTick(g, a, sdt);
+      if (a.hp <= 0) { MagicOps::killRaw(g, a, a.statusBy >= 0 && MagicOps::findActor(g, a.statusBy) >= 0 ? a.statusBy : g.pl().id); return true; }
+      if (held) return true;
+    }
+    if (a.slowT > 0) a.slowT -= sdt;
+    if (len2(a.knock) > 0.01f) { MagicOps::moveRaw(g, a, a.knock * sdt); a.knock *= std::pow(0.0005f, sdt); }
+    if (a.st == AState::Hurt) { if (a.stT > 0.25f) { a.st = AState::Idle; a.stT = 0; } return true; }
+    MagicOps::updateAIScaled(g, a, sdt);
+    return true;
+  }
   if (a.magicTag == magic::MT_SUMMON) {
     a.burnT = 0; a.burnDpsT = 0; a.bleedT = 0;   // (a conjured body neither burns nor bleeds)
     a.magicT -= dt;
@@ -660,6 +700,44 @@ bool MagicOps::aiOverride(Game& g, Actor& a, float dt) {
       const float ang = a.statusT[(int)Status::Blinded] * 2.3f + (float)(a.id % 7);
       MagicOps::move(g, a, Vec2(std::cos(ang), std::sin(ang)) * (a.speed * 0.25f * dt));
       if (a.st == AState::Windup) { a.st = AState::Idle; a.stT = 0; }
+      return true;
+    }
+  }
+  // (M10 Dreamweft) a decoy close by draws the foe's attack: it goes for the decoy and strikes at it
+  if (a.hostile && !a.boss && a.mon != art::Monster::Dragon && a.st != AState::Hurt && L.stats.decoys > 0) {
+    int best = -1;
+    float bd = magic::DECOY_PULL * magic::DECOY_PULL;
+    for (size_t i = 1; i < g.actors.size(); i++) {
+      const Actor& d = g.actors[i];
+      if (d.magicTag != magic::MT_DECOY || d.st == AState::Dead || d.indoors != a.indoors) continue;
+      const float d2 = len2(d.p - a.p);
+      if (d2 < bd) { bd = d2; best = (int)i; }
+    }
+    if (best >= 0) {
+      Actor& d = g.actors[(size_t)best];
+      a.aggro = true; a.target = d.id;
+      const Vec2 to = d.p - a.p;
+      const float l = len(to);
+      if (a.st == AState::Windup) {
+        if (a.stT >= a.windup) {
+          a.st = AState::Strike; a.stT = 0;
+          if (l <= a.range + d.radius + 6.0f) {
+            d.hp -= std::max(1.0f, a.dmg); d.flash = 0.12f;
+            if (d.st != AState::Dead) { d.st = AState::Hurt; d.stT = 0; }
+            L.stats.decoyHits++;
+            MagicOps::ev(g, Ev::Hit, d.p + Vec2(0, -6), 0, a.dmg);
+          }
+        }
+        return true;
+      }
+      if (a.st == AState::Strike) { if (a.stT > 0.2f) { a.st = AState::Idle; a.stT = 0; a.atkCd = 0.8f; } return true; }
+      a.aim = norm(to + Vec2(0.001f, 0));
+      a.face = faceOf(a.aim);
+      if (l > a.range + d.radius - 2.0f) {
+        MagicOps::move(g, a, a.aim * (a.speed * (a.slowT > 0 ? 0.55f : 1.0f) * dt));
+        if (a.st != AState::Walk) { a.st = AState::Walk; a.stT = 0; }
+      } else if (a.atkCd <= 0) { a.st = AState::Windup; a.stT = 0; }
+      else if (a.st != AState::Idle) { a.st = AState::Idle; a.stT = 0; }
       return true;
     }
   }
@@ -768,7 +846,7 @@ bool MagicOps::projHit(Game& g, Projectile& pr, Actor& v) {
       Actor& w = g.actors[(size_t)k];
       spellStatuses(g, w, *d, pr.owner, pr.mag);
       if ((d->mods & magic::M_KNOCK) && alive(w) && !w.boss) w.knock = norm(pr.v) * 260.0f * std::min(1.6f, pr.mag);
-      if ((d->mods & magic::M_DRAIN) && mine) g.pl().hp = std::min(g.pl().maxHp, g.pl().hp + pr.dmg * 0.3f);
+      if ((d->mods & magic::M_DRAIN) && mine) g.pl().hp = std::min(g.pl().maxHp, g.pl().hp + pr.dmg * 0.3f * (attunedTo(g, magic::Signature::Blood) ? magic::BLOOD_HEAL : 1.0f));
       if (pr.dual && mine && perk(g, d->school, d->school == School::Destruction ? D_IMPACT : P_DUAL) && alive(w) && !w.boss) { w.st = AState::Hurt; w.stT = 0; }
     }
     if (d->mods & magic::M_CHAIN) chainFrom(g, *d, v.p + Vec2(0, -7), vid, pr.dmg, pr.owner, pr.mag, 2 + (int)pr.upcast);
@@ -864,6 +942,14 @@ float MagicOps::hurtMul(Game& g, Actor& v, float dmg, int attacker, Ench ench) {
       applyStatus(g, v, st, 3.0f, A->id);
       emit(g, Phase::Reaction, 0, v.p + Vec2(0, -8), A->p, 0.8f, (uint32_t)A->id, "IMBUED");
     }
+    // (M10 Maskwork) a blow struck in a spirit mask carries its essence and builds a charge
+    if (L.mask >= 0) {
+      float& ch = g.arcana.book.res[(int)magic::Resource::Charge];
+      ch = std::min(magic::CHARGE_CAP, ch + 1.0f);
+      const Essence me = magic::maskEssence(L.mask);
+      applyStatus(g, v, me == Essence::Frost ? Status::Chilled : me == Essence::Storm ? Status::Shocked : Status::Burning, 1.5f, A->id);
+      L.stats.maskHits++;
+    }
     for (uint32_t tid : g.arcana.book.attuned) {
       const magic::Tradition* t = magic::traditionById(tid);
       if (t && t->sig == magic::Signature::Ember) {
@@ -874,7 +960,7 @@ float MagicOps::hurtMul(Game& g, Actor& v, float dmg, int attacker, Ench ench) {
     }
   }
   // a summon is not killed: it fades (no body, no loot); hurt() below lets it go
-  if (v.magicTag == magic::MT_SUMMON && dmg >= v.hp) dmg = std::max(0.0f, v.hp - 0.01f);
+  if ((v.magicTag == magic::MT_SUMMON || v.magicTag == magic::MT_DECOY) && dmg >= v.hp) dmg = std::max(0.0f, v.hp - 0.01f);
   if (v.hasStatus(Status::Frozen) && dmg > 0) {   // a frozen body shatters out of the ice: the blow lands harder
     v.status &= (uint16_t)~magic::statusBit(Status::Frozen);
     v.statusT[(int)Status::Frozen] = 0;
@@ -887,7 +973,7 @@ void MagicOps::hurt(Game& g, Actor& v, float dealt, int attacker) {
   magic::Live& L = g.arcana.live;
   magic::Conc& C = L.conc;
   if (v.player && C.spell && dealt > v.maxHp * 0.15f) releaseConc(g, true);
-  if (v.magicTag == magic::MT_SUMMON && v.hp <= 0.02f) { v.hp = 0.01f; v.magicT = 0; }   // (it fades next step: actorStep)
+  if ((v.magicTag == magic::MT_SUMMON || v.magicTag == magic::MT_DECOY) && v.hp <= 0.02f) { v.hp = 0.01f; v.magicT = 0; }   // (it fades next step: actorStep)
   if (v.magicTag == magic::MT_CALM && attacker == g.pl().id) { v.magicTag = magic::MT_NONE; v.aggro = true; v.target = attacker; }
 }
 
@@ -976,6 +1062,150 @@ void heroBusy(Game& g, Vec2 aim) {
   p.aim = aim; p.face = faceOf(aim);
   p.st = AState::Cast; p.stT = 0; p.shootCd = 0.35f;
 }
+
+// ================================================================== (M10) the hidden signatures' forms
+magic::Signature sigOf(const SpellDef& d) { return MagicOps::sigOf(d); }
+bool attunedTo(const Game& g, magic::Signature s) { return MagicOps::attunedTo(g, s); }
+
+// a root snare holds a foe where it stands (the view's roots coil up round its feet)
+void snare(Game& g, Actor& v, float secs) {
+  if (v.boss || v.mon == art::Monster::Dragon || v.st == AState::Dead) return;
+  v.magicTag = magic::MT_PARALYZE; v.magicT = std::max(v.magicT, secs); v.magicBy = g.pl().id;
+  magic::Live& L = g.arcana.live;
+  bool had = false;
+  for (auto& s : L.snared) if (s.first == v.id) { s.second = std::max(s.second, secs); had = true; }
+  if (!had) L.snared.push_back({v.id, secs});
+  L.stats.snares++;
+  MagicOps::emit(g, Phase::StatusOn, 0, v.p, v.p, 1, (uint32_t)v.id, "SNARED");
+}
+
+// a thorn wall's tiles along its line (the signature: an arc before the hero), each grown where nothing stands
+void thornWall(Game& g, const SpellDef& d, const magic::Zone& z, Vec2 aim) {
+  std::vector<std::pair<int, int>> tiles;
+  auto add = [&](Vec2 w) {
+    const int tx = tileX(w.x), ty = (int)std::floor(w.y / TILE);
+    for (const auto& t : tiles) if (t.first == tx && t.second == ty) return;
+    tiles.push_back({tx, ty});
+  };
+  if (d.rank >= 3) {   // THE WILDWOOD: a half-ring of thorns four tiles out, its open side behind the hero
+    const Vec2 c = g.pl().p;
+    const float a0 = std::atan2(aim.y, aim.x);
+    for (int s = -8; s <= 8; s++) { const float a = a0 + (float)s * 0.2f; add(c + Vec2(std::cos(a), std::sin(a)) * 64.0f); }
+  } else {
+    const float L = len(z.q - z.p);
+    const int n = std::max(2, (int)std::ceil(L / 8.0f));
+    for (int s = 0; s <= n; s++) add(z.p + (z.q - z.p) * ((float)s / (float)n));
+  }
+  int k = 0;
+  for (const auto& t : tiles) if (MagicOps::growTile(g, t.first, t.second, magic::GROW_THORN, magic::VERDANT_SECS, d.id, (uint8_t)std::min(255, k))) k++;
+}
+
+// the vine bridge: straight ahead (the facing's axis), over the first run of 1..VINE_SPAN water tiles to firm ground
+bool vineBridge(Game& g, const SpellDef& d, Vec2 aim) {
+  const Map& m = g.map();
+  const Actor& p = g.pl();
+  const bool horiz = std::fabs(aim.x) >= std::fabs(aim.y);
+  const int dx = horiz ? (aim.x >= 0 ? 1 : -1) : 0, dy = horiz ? 0 : (aim.y >= 0 ? 1 : -1);
+  const int hx = tileX(p.p.x), hy = (int)std::floor((p.p.y - 2) / TILE);
+  for (int start = 1; start <= 3; start++) {
+    const int sx = hx + dx * start, sy = hy + dy * start;
+    if (!m.in(sx, sy)) return false;
+    if (!groundWater(m.at(sx, sy))) {
+      if (m.blocked(sx, sy)) return false;   // a wall or a rock before any water
+      continue;
+    }
+    int n = 0;
+    while (n <= magic::VINE_SPAN && m.in(sx + dx * n, sy + dy * n) && groundWater(m.at(sx + dx * n, sy + dy * n))) n++;
+    if (n < 1 || n > magic::VINE_SPAN) return false;   // too wide: the vines cannot reach the far bank
+    const int fx = sx + dx * n, fy = sy + dy * n;
+    if (!m.in(fx, fy) || m.blocked(fx, fy)) return false;   // no firm ground to land on
+    for (int i = 0; i < n; i++) MagicOps::growTile(g, sx + dx * i, sy + dy * i, magic::GROW_VINE, magic::VERDANT_SECS, d.id, (uint8_t)i);
+    return true;
+  }
+  return false;
+}
+
+// a mask, a vine bridge, decoys, a time bubble: true when the spell was one of them (it happened)
+bool hiddenForm(Game& g, const SpellDef& d, int level, bool dual, float mag, float pw, float durK, float area, Vec2 aim, Vec2 point) {
+  (void)dual;
+  if (!d.tradition) return false;
+  const magic::Signature sig = sigOf(d);
+  Actor& p = g.pl();
+  magic::Live& L = g.arcana.live;
+  const int pid = p.id;
+  if (sig == magic::Signature::Mask && d.form == Form::Aura && d.mask >= 0) {
+    const bool swap = L.mask >= 0 && L.mask != d.mask;
+    L.mask = d.mask; L.maskT = d.duration * durK; L.maskSpell = d.id; L.maskFired = false;
+    MagicOps::emit(g, Phase::Ward, d.id, p.p + Vec2(0, -14), p.p, mag, (uint32_t)pid, swap ? "MASK SWAP" : "MASK");
+    MagicOps::tell(g, std::string(swap ? "YOU CHANGE FACES: " : "YOU WEAR THE ") + magic::maskName(d.mask));
+    gain(g, d, 1.0f);
+    return true;
+  }
+  if (sig == magic::Signature::Verdant && d.form == Form::Blink) {
+    if (!vineBridge(g, d, aim)) {
+      MagicOps::tell(g, "NO WATER NARROW ENOUGH TO BRIDGE AHEAD");
+      MagicOps::emit(g, Phase::Fizzle, d.id, handsOf(p), p.p, 1, (uint32_t)pid, "NO WATER");
+      L.stats.fizzles++;
+      return true;
+    }
+    MagicOps::emit(g, Phase::Impact, d.id, p.p + aim * 24.0f, p.p + aim * 64.0f, mag, (uint32_t)pid, "VINES");
+    gain(g, d, 1.0f + 0.5f * (float)level);
+    return true;
+  }
+  if (sig == magic::Signature::Dream && d.form == Form::Summon) {
+    const int n = d.rank >= 3 ? 3 : 1;
+    const Vec2 at = p.p + aim * std::max(24.0f, d.range * 0.7f);
+    MagicOps::emit(g, Phase::Impact, d.id, at, at + Vec2(0, -20), mag, (uint32_t)pid, "DECOY");
+    for (int i = 0; i < n; i++) {
+      const Vec2 off = n > 1 ? Vec2(std::cos((float)i * 2.094f + 0.5f) * 22.0f, std::sin((float)i * 2.094f + 0.5f) * 14.0f) : Vec2();
+      MagicOps::spawnDecoy(g, d, at + off, mag, d.duration * durK);
+    }
+    // the foes near it turn to it at once (the decoy draws their eyes)
+    for (Actor& e : g.actors) if (foe(e) && !e.boss && len2(e.p - at) < magic::DECOY_PULL * magic::DECOY_PULL) e.aggro = true;
+    gain(g, d, 1.0f + 0.5f * (float)level);
+    return true;
+  }
+  if (sig == magic::Signature::Dream && d.form == Form::Totem) {
+    magic::Bubble b;
+    b.p = point; b.r = (d.radius > 0 ? d.radius : 64.0f) * area; b.life = d.duration * durK; b.spell = d.id;
+    L.bubbles.push_back(b);
+    L.stats.bubbles++;
+    MagicOps::emit(g, Phase::Ward, d.id, point, point + Vec2(b.r, 0), mag, (uint32_t)pid, "BUBBLE");
+    gain(g, d, 1.0f + 0.5f * (float)level);
+    (void)pw;
+    return true;
+  }
+  return false;
+}
+
+// Songweaving: the cast's note (Ev::Spell Reaction "NOTE", f = the scale degree); the motif's third note sings the
+// Refrain: the same spell again at once, free, at x REFRAIN_MULT ("REFRAIN")
+void singNote(Game& g, const SpellDef& d, int level, bool dual) {
+  magic::Live& L = g.arcana.live;
+  if (L.refrain || d.note < 0 || !d.tradition) return;
+  const magic::Tradition& t = magic::traditionOfSpell(d);
+  if (t.sig != magic::Signature::Song) return;
+  float& prog = g.arcana.book.res[(int)magic::Resource::Notes];
+  int pr = std::clamp((int)prog, 0, 2);
+  if ((uint8_t)d.note == t.motif[pr]) pr++;
+  else pr = (uint8_t)d.note == t.motif[0] ? 1 : 0;
+  L.lastNote = d.note; L.noteT = g.time;
+  L.stats.notes++;
+  const Actor& p = g.pl();
+  MagicOps::emit(g, Phase::Reaction, d.id, handsOf(p), handsOf(p) + Vec2(0, -18), (float)d.note, (uint32_t)p.id, "NOTE");
+  if (pr >= 3) {
+    prog = 0;
+    L.stats.refrains++;
+    MagicOps::emit(g, Phase::Reaction, d.id, handsOf(p), p.p, (float)t.motif[2], (uint32_t)p.id, "REFRAIN");
+    MagicOps::ev(g, Ev::Text, p.p + Vec2(0, -30), (int)rgba(255, 220, 140), 0, "REFRAIN");
+    L.refrain = true;
+    g.pl().shootCd = 0;
+    MagicOps::launch(g, d, -1, level, dual);
+    L.refrain = false;
+    return;
+  }
+  prog = (float)pr;
+}
 }  // namespace
 
 bool MagicOps::launch(Game& g, const SpellDef& d, int slot, int level, bool dual) {
@@ -992,15 +1222,16 @@ bool MagicOps::launch(Game& g, const SpellDef& d, int slot, int level, bool dual
     }
     return true;
   }
-  if (!canPay(g, d, level, dual)) {
+  if (!L.refrain && !canPay(g, d, level, dual)) {
     emit(g, Phase::Fizzle, d.id, handsOf(p), p.p, 1, (uint32_t)p.id);
     L.stats.fizzles++;
-    MagicOps::tell(g, "NOT ENOUGH MAGICKA");
+    MagicOps::tell(g, d.res == magic::Resource::Health ? "TOO WEAK TO PAY IN BLOOD" : "NOT ENOUGH MAGICKA");
     return false;
   }
-  pay(g, d, costOf(g, d, level, dual));
   const float mag = magic::magnitudeOf(level, dual);
-  const float k = powerOf(g, d) * mag;
+  // (the power is the hero's as the cast begins: Blood rites reads the health before its price is paid)
+  const float k = powerOf(g, d) * mag * (L.refrain ? magic::REFRAIN_MULT : 1.0f);   // (M10) a Refrain sings at x2
+  if (!L.refrain) pay(g, d, costOf(g, d, level, dual));
   const float pw = d.power * k;   // the spell's power now (damage, a heal, a ward's points...)
   const float area = (1.0f + 0.15f * (float)level) * (dual ? 1.25f : 1.0f) * (dual && d.school == School::Illusion ? 1.2f : 1.0f);
   float durK = 1.0f + 0.25f * (float)level;
@@ -1025,6 +1256,12 @@ bool MagicOps::launch(Game& g, const SpellDef& d, int slot, int level, bool dual
   }
   const uint8_t spow = (uint8_t)std::min(3, 1 + level + (dual ? 1 : 0));
   const int pid = p.id;
+  // (M10) the hidden signatures' own forms: a spirit mask, a vine bridge, a decoy, a time bubble
+  if (hiddenForm(g, d, level, dual, mag, pw, durK, area, aim, point)) {
+    heroBusy(g, aim);
+    singNote(g, d, level, dual);
+    return true;
+  }
   switch (d.form) {
     case Form::Bolt: case Form::Lance: case Form::Orb: case Form::Mark: {
       Projectile pr;
@@ -1061,6 +1298,7 @@ bool MagicOps::launch(Game& g, const SpellDef& d, int slot, int level, bool dual
         Actor& e2 = g.actors[(size_t)k2];
         spellStatuses(g, e2, d, pid, mag);
         if ((d.mods & magic::M_ROOT) && alive(e2)) e2.slowT = std::max(e2.slowT, 3.0f * durK);
+        if ((d.mods & magic::M_ROOT) && alive(e2) && sigOf(d) == magic::Signature::Verdant) snare(g, e2, magic::SNARE_SECS * durK);
         if ((d.mods & magic::M_KNOCK) && alive(e2) && !e2.boss) e2.knock = norm(e2.p - c + Vec2(0.001f, 0)) * 240.0f;
         if (d.ess == Essence::Tide) applyStatus(g, e2, Status::Wet, 6.0f * durK, pid);
         hit++;
@@ -1088,6 +1326,7 @@ bool MagicOps::launch(Game& g, const SpellDef& d, int slot, int level, bool dual
           const Vec2 w = z.p + (z.q - z.p) * ((float)s / 8.0f);
           if (!touchSurface(g, tileX(w.x), tileY(w.y), d.ess, pid) && d.leaves != Surface::None) laySurface(g, tileX(w.x), tileY(w.y), d.leaves, z.life, spow, pid);
         }
+        if (sigOf(d) == magic::Signature::Verdant) thornWall(g, d, z, aim);   // (M10) the thorns stand, solid, for 30 s
         emit(g, Phase::Impact, d.id, z.p, z.q, mag, (uint32_t)pid, "WALL");
       } else if (d.form == Form::Rune) {
         z.kind = magic::ZoneKind::Rune; z.p = z.q = point;
@@ -1108,7 +1347,8 @@ bool MagicOps::launch(Game& g, const SpellDef& d, int slot, int level, bool dual
     }
     case Form::Mend: {
       const float before = p.hp;
-      p.hp = std::min(p.maxHp, p.hp + pw);
+      const float heal = pw * (attunedTo(g, magic::Signature::Blood) ? magic::BLOOD_HEAL : 1.0f);   // (M10 Blood rites: healing halved)
+      p.hp = std::min(p.maxHp, p.hp + heal);
       if (perk(g, School::Restoration, R_RESPITE)) g.stamina = std::min(g.maxSt, g.stamina + pw * 0.5f);
       emit(g, Phase::Impact, d.id, p.p, p.p + Vec2(0, -24), mag, (uint32_t)pid, "HEAL");
       if (d.radius > 0)   // GRAND HEALING: the companions within its reach too
@@ -1132,7 +1372,7 @@ bool MagicOps::launch(Game& g, const SpellDef& d, int slot, int level, bool dual
         case Essence::Stone: case Essence::Bone: case Essence::Rust:
           L.auraDR = std::min(0.6f, d.power * 1.5f * 0.01f * mag); L.auraT = secs; L.auraSpell = d.id; break;
         case Essence::Light: case Essence::Verdant: case Essence::Tide:
-          L.regen = pw * 0.5f; L.regenT = secs; break;
+          L.regen = pw * 0.5f * (attunedTo(g, magic::Signature::Blood) ? magic::BLOOD_HEAL : 1.0f); L.regenT = secs; break;
         case Essence::Arcane: case Essence::Fire:
           L.boundDmg = pw * 0.8f * (perk(g, School::Conjuration, C_MYSTIC) ? 1.5f : 1.0f); L.boundT = secs;
           if (d.ess == Essence::Fire) { L.imbueHits = std::max(L.imbueHits, 8); L.imbueEss = Essence::Fire; L.imbuePow = std::max(L.imbuePow, pw * 0.3f); }
@@ -1190,6 +1430,7 @@ bool MagicOps::launch(Game& g, const SpellDef& d, int slot, int level, bool dual
       break;
   }
   heroBusy(g, aim);
+  singNote(g, d, level, dual);   // (M10 Songweaving: its note, and the Refrain when the motif is sung)
   return true;
 }
 
@@ -1222,7 +1463,7 @@ void MagicOps::classicCast(Game& g, const SpellDef& d, int level, bool dual) {
   g.arcana.live.stats.casts++;
   const Vec2 hands = handsOf(p);
   if (spell == Spell::Heal) {
-    p.hp = std::min(p.maxHp, p.hp + 45 * power);
+    p.hp = std::min(p.maxHp, p.hp + 45 * power * (MagicOps::attunedTo(g, magic::Signature::Blood) ? magic::BLOOD_HEAL : 1.0f));
     if (perk(g, School::Restoration, R_RESPITE)) g.stamina = std::min(g.maxSt, g.stamina + 22 * power);
     g.events.push_back({Ev::Heal, p.p, 0, 1, ""});
     MagicOps::emit(g, Phase::Launch, d.id, hands, hands, mag, (uint32_t)p.id);
@@ -1393,6 +1634,47 @@ void stepConc(Game& g, float dt) {
   if (std::fmod(C.t, 0.3f) < 0.1f) MagicOps::touchSurface(g, tileX(end.x), tileY(end.y + 7), d->ess, p.id);
 }
 
+// (M10 Runecarving) two runes gone off together: their pair's combo bursts between them (Ev::Spell Combo, s = its name)
+void runeCombo(Game& g, const SpellDef* other, const SpellDef& first, Vec2 c, float r, float pw, int owner, float mag) {
+  const Essence a = first.ess, b = other ? other->ess : first.ess;
+  auto is = [&](Essence x, Essence y) { return (a == x && b == y) || (a == y && b == x); };
+  std::string name = "DOUBLE GLYPH";
+  Surface lay = Surface::None;
+  uint16_t st = 0;
+  bool knock = false;
+  float k = 1.0f;
+  if (is(Essence::Fire, Essence::Frost)) { name = "STEAM BURST"; lay = Surface::Steam; st = magic::statusBit(Status::Blinded); }
+  else if (is(Essence::Fire, Essence::Storm)) { name = "THUNDERFIRE"; lay = Surface::Fire; st = magic::statusBit(Status::Shocked); }
+  else if (is(Essence::Frost, Essence::Storm)) { name = "SHATTERSTORM"; st = magic::statusBit(Status::Frozen); }
+  else if (is(Essence::Fire, Essence::Venom)) { name = "BALEFIRE"; lay = Surface::Fire; st = magic::statusBit(Status::Poisoned); }
+  else if (is(Essence::Frost, Essence::Venom)) { name = "BLACK FROST"; lay = Surface::Ice; st = magic::statusBit(Status::Poisoned) | magic::statusBit(Status::Chilled); }
+  else if (is(Essence::Storm, Essence::Venom)) { name = "ACID STORM"; lay = Surface::Poison; st = magic::statusBit(Status::Shocked); }
+  else if (a == Essence::Stone || b == Essence::Stone) { name = "RUNEQUAKE"; knock = true; }
+  else if (a == Essence::Arcane || b == Essence::Arcane) { name = "GREAT GLYPH"; k = 1.5f; }
+  magic::Live& L = g.arcana.live;
+  L.stats.runeCombos++;
+  MagicOps::emit(g, Phase::Combo, first.id, c, c + Vec2(r, 0), mag * 2.0f, (uint32_t)std::max(0, owner), name);
+  feel(g, c, 3, mag * 1.4f);
+  std::vector<int> ids;
+  for (const Actor& e : g.actors) if (foe(e) && len2(e.p - c) < r * r) ids.push_back(e.id);
+  for (int id : ids) {
+    int kk = MagicOps::findActor(g, id);
+    if (kk < 0) continue;
+    spellBlow(g, g.actors[(size_t)kk], first, pw * k, c, owner, mag);
+    kk = MagicOps::findActor(g, id);
+    if (kk < 0) continue;
+    Actor& e = g.actors[(size_t)kk];
+    for (int s = 0; s < magic::STATUSES; s++) if (st & (1u << s)) MagicOps::applyStatus(g, e, (Status)s, 2.5f, owner);
+    if (knock && alive(e) && !e.boss) e.knock = norm(e.p - c + Vec2(0.001f, 0)) * 240.0f;
+  }
+  if (lay != Surface::None) {
+    const int x0 = tileX(c.x - r * 0.7f), x1 = tileX(c.x + r * 0.7f), y0 = (int)std::floor((c.y - r * 0.7f) / TILE), y1 = (int)std::floor((c.y + r * 0.7f) / TILE);
+    for (int y = y0; y <= y1; y++)
+      for (int x = x0; x <= x1; x++)
+        if (len2(Vec2((float)x * TILE + 8, (float)y * TILE + 8) - c) < r * r * 0.49f) MagicOps::laySurface(g, x, y, lay, lay == Surface::Steam ? 5.0f : 6.0f, 2, owner);
+  }
+}
+
 void stepZones(Game& g, float dt) {
   magic::Live& L = g.arcana.live;
   for (size_t zi = 0; zi < L.zones.size(); zi++) {
@@ -1496,21 +1778,46 @@ void stepZones(Game& g, float dt) {
       }
       case magic::ZoneKind::Rune: {
         int who = -1;
-        for (const Actor& e : g.actors) if (foe(e) && len2(e.p - z.p) < 14.0f * 14.0f) { who = e.id; break; }
+        const float trig = (z.seed & 0x80000000u) ? 18.0f : 14.0f;   // (a trial's old runes reach a little wider)
+        for (const Actor& e : g.actors) if (foe(e) && len2(e.p - z.p) < trig * trig) { who = e.id; break; }
         if (who >= 0) {
-          MagicOps::emit(g, Phase::Impact, z.spell, z.p, z.p, z.mag, (uint32_t)std::max(0, z.owner), "RUNE");
-          feel(g, z.p, d->fx.size, z.mag);
-          std::vector<int> ids;
-          for (const Actor& e : g.actors) if (foe(e) && len2(e.p - z.p) < z.r * z.r) ids.push_back(e.id);
-          for (int id : ids) {
-            const int k = MagicOps::findActor(g, id);
-            if (k < 0) continue;
-            spellBlow(g, g.actors[(size_t)k], *d, z.power, z.p, z.owner, z.mag);
-            const int k2 = MagicOps::findActor(g, id);
-            if (k2 >= 0) spellStatuses(g, g.actors[(size_t)k2], *d, z.owner, z.mag);
+          // (M10 Runecarving) the hero's runes within RUNE_LINK of it go off with it, and the pair's combo bursts
+          // between them (fire + frost: a steam burst; fire + storm: thunderfire; frost + storm: a shatterstorm ...)
+          std::vector<size_t> pack{zi};
+          for (size_t zj = 0; zj < L.zones.size(); zj++) {
+            const magic::Zone& o = L.zones[zj];
+            if (zj == zi || o.kind != magic::ZoneKind::Rune || o.life <= 0 || o.owner != z.owner) continue;
+            if (len2(o.p - z.p) <= magic::RUNE_LINK * magic::RUNE_LINK) pack.push_back(zj);
           }
-          groundDisc(g, z.p, z.r, *d, z.owner, 2, true);
-          if (z.owner == g.pl().id) { gain(g, *d, 1.0f); struckWith(g, *d); }
+          float sumPow = 0, rMax = 0;
+          Vec2 mid;
+          for (size_t pi = 0; pi < pack.size(); pi++) {
+            const magic::Zone zz = pi == 0 ? z : L.zones[pack[pi]];
+            const SpellDef* dd = magic::spellById(zz.spell);
+            if (!dd) continue;
+            const bool trialRune = (zz.seed & 0x80000000u) != 0;
+            MagicOps::emit(g, Phase::Impact, zz.spell, zz.p, zz.p, zz.mag, (uint32_t)std::max(0, zz.owner), "RUNE");
+            feel(g, zz.p, dd->fx.size, zz.mag);
+            std::vector<int> ids;
+            for (const Actor& e : g.actors) if (foe(e) && len2(e.p - zz.p) < zz.r * zz.r) ids.push_back(e.id);
+            for (int id : ids) {
+              const int k = MagicOps::findActor(g, id);
+              if (k < 0) continue;
+              Actor& e = g.actors[(size_t)k];
+              const float pw = trialRune ? std::max(zz.power, e.maxHp * 0.8f) : zz.power;   // (a trial's runes are old and deep)
+              spellBlow(g, e, *dd, pw, zz.p, zz.owner, zz.mag);
+              const int k2 = MagicOps::findActor(g, id);
+              if (k2 >= 0) spellStatuses(g, g.actors[(size_t)k2], *dd, zz.owner, zz.mag);
+            }
+            groundDisc(g, zz.p, zz.r, *dd, zz.owner, 2, true);
+            if (zz.owner == g.pl().id && !trialRune) { gain(g, *dd, 1.0f); struckWith(g, *dd); }
+            L.stats.runeTriggers++;
+            sumPow += zz.power; rMax = std::max(rMax, zz.r);
+            mid += zz.p;
+            if (pi > 0) L.zones[pack[pi]].life = 0;
+          }
+          if (pack.size() >= 2) runeCombo(g, pack.size() > 1 ? magic::spellById(L.zones[pack[1]].spell) : nullptr, *d, mid * (1.0f / (float)pack.size()),
+                                          rMax * 1.3f, 0.5f * sumPow / (float)pack.size(), z.owner, z.mag);
           z.life = 0;
         }
         break;
@@ -1684,6 +1991,12 @@ void stepPools(Game& g, float dt) {
         c = std::min(magic::CHARGE_CAP, c + (float)newKills);
         break;
       }
+      case magic::Signature::Rune: {   // (M10 Runecarving) the charge comes back slowly: one every RUNE_CHARGE_SECS
+        float& c = B.res[(int)magic::Resource::Charge];
+        L.runeT += dt;
+        while (L.runeT >= magic::RUNE_CHARGE_SECS) { L.runeT -= magic::RUNE_CHARGE_SECS; c = std::min(magic::CHARGE_CAP, c + 1.0f); }
+        break;
+      }
       default: break;
     }
     // mastery (6.4): a kill soon after the tradition's spell struck, under its affinity, is worth 5; at 1200 XP such
@@ -1752,10 +2065,15 @@ void MagicOps::step(Game& g, float dt) {
   }
   stepZones(g, dt);
   stepSurfaces(g, dt);
+  stepHidden(g, dt);   // (M10) masks, growths, bubbles, snares, the song land, dusk song-fire, the trials
 }
 
 void MagicOps::clearMap(Game& g) {
   magic::Live& L = g.arcana.live;
+  revertGrowths(g, true);   // (M10) every tile Verdant shaping changed is restored before the map goes
+  L.bubbles.clear();
+  L.snared.clear();
+  L.trial = magic::TrialRun();
   for (magic::Turned& t : L.turned) unturn(g, t);
   L.turned.clear();
   L.field.clear();
@@ -1766,9 +2084,552 @@ void MagicOps::clearMap(Game& g) {
 void MagicOps::shift(Game& g, Vec2 d) {
   magic::Live& L = g.arcana.live;
   for (magic::Zone& z : L.zones) { z.p += d; z.q += d; }
+  for (magic::Bubble& b : L.bubbles) b.p += d;
+  {
+    const int gx = (int)std::lround(d.x / TILE), gy = (int)std::lround(d.y / TILE);
+    for (magic::Growth& w : L.growths) if (w.over) { w.tx = (int16_t)(w.tx + gx); w.ty = (int16_t)(w.ty + gy); }
+  }
   magic::Field& F = L.field;
   if (F.tiles.empty()) return;
   const int dx = (int)std::lround(d.x / TILE), dy = (int)std::lround(d.y / TILE);
   for (magic::SurfaceTile& t : F.tiles) { t.tx = (int16_t)(t.tx + dx); t.ty = (int16_t)(t.ty + dy); }
   F.serial++;
+}
+
+// ================================================================== (M10 ARCANA lane) the hidden kingdoms' magic
+magic::Signature MagicOps::sigOf(const SpellDef& d) { return d.tradition ? magic::traditionOfSpell(d).sig : magic::Signature::Common; }
+bool MagicOps::attunedTo(const Game& g, magic::Signature s) {
+  for (uint32_t tid : g.arcana.book.attuned) if (const magic::Tradition* t = magic::traditionById(tid)) if (t->sig == s) return true;
+  return false;
+}
+float MagicOps::bloodMul(const Game& g) {
+  const Actor& p = g.pl();
+  const float f = p.maxHp > 0 ? std::clamp(p.hp / p.maxHp, 0.0f, 1.0f) : 1.0f;
+  return 1.0f + magic::BLOOD_POWER * (1.0f - f);
+}
+bool MagicOps::inBubble(const Game& g, Vec2 p) {
+  for (const magic::Bubble& b : g.arcana.live.bubbles) {
+    const float dx = (p.x - b.p.x) / std::max(1.0f, b.r), dy = (p.y - b.p.y) / std::max(1.0f, b.r * 0.72f);
+    if (dx * dx + dy * dy < 1.0f) return true;
+  }
+  return false;
+}
+
+namespace {
+// does any living body (the hero's too) overlap tile (tx, ty)?
+bool bodyOnTile(const Game& g, int tx, int ty, int* who = nullptr) {
+  const float x0 = (float)tx * TILE, y0 = (float)ty * TILE;
+  for (size_t i = 0; i < g.actors.size(); i++) {
+    const Actor& a = g.actors[i];
+    if (a.st == AState::Dead || a.fly || a.indoors != g.pl().indoors) continue;
+    const float r = a.radius, ry = a.radius * 0.6f;
+    if (a.p.x + r > x0 && a.p.x - r < x0 + TILE && a.p.y + ry > y0 && a.p.y - ry < y0 + TILE) { if (who) *who = (int)i; return true; }
+  }
+  return false;
+}
+Map* growthMap(Game& g, const magic::Growth& w) {
+  if (w.over) return &g.world.over;
+  return g.inside ? &g.sub : nullptr;
+}
+bool isGrowth(const Game& g, int tx, int ty) {
+  for (const magic::Growth& w : g.arcana.live.growths) if (w.tx == tx && w.ty == ty && w.over == !g.inside) return true;
+  return false;
+}
+// put a tile back exactly as it was (a thorn tile keeps a real solid prop's block if one stands there since)
+void restoreTile(Game& g, const magic::Growth& w) {
+  Map* m = growthMap(g, w);
+  if (!m || !m->in(w.tx, w.ty)) return;
+  const size_t i = (size_t)w.ty * m->w + w.tx;
+  if (w.kind == magic::GROW_VINE) {
+    if (m->at(w.tx, w.ty) == Ground::Bridge) m->ground[i] = w.ground;
+    m->solid[i] = w.solid;
+  } else {
+    const int pr = m->propAt(w.tx, w.ty);
+    m->solid[i] = (uint8_t)(w.solid || (pr && propSolid((art::Prop)(pr - 1))) ? 1 : 0);
+  }
+  g.arcana.live.stats.reverts++;
+}
+// a body standing where a tile is about to turn back is set on the nearest firm, free tile (never stranded in water
+// or shut in thorns)
+void setAshore(Game& g, Actor& a, int tx, int ty) {
+  const Map& m = g.map();
+  for (int r = 1; r <= 5; r++)
+    for (int dy = -r; dy <= r; dy++)
+      for (int dx = -r; dx <= r; dx++) {
+        if (std::max(std::abs(dx), std::abs(dy)) != r) continue;
+        const int x = tx + dx, y = ty + dy;
+        if (!m.in(x, y) || m.blocked(x, y) || groundWater(m.at(x, y)) || isGrowth(g, x, y)) continue;
+        const Vec2 c((float)x * TILE + 8, (float)y * TILE + 9);
+        if (!MagicOps::fits(g, c, a.radius)) continue;
+        a.p = c; a.knock = Vec2(); a.vel = Vec2();
+        return;
+      }
+}
+void stepGrowths(Game& g, float dt) {
+  magic::Live& L = g.arcana.live;
+  for (size_t i = 0; i < L.growths.size();) {
+    magic::Growth& w = L.growths[i];
+    Map* m = growthMap(g, w);
+    if (!m || !m->in(w.tx, w.ty)) { L.growths.erase(L.growths.begin() + (std::ptrdiff_t)i); continue; }
+    w.age += dt;
+    w.life -= dt;
+    const size_t ti = (size_t)w.ty * m->w + w.tx;
+    if (w.kind == magic::GROW_THORN) m->solid[ti] = 1;   // (a rebuildSolid elsewhere does not open the wall early)
+    else if (groundWater(m->at(w.tx, w.ty))) m->ground[ti] = (uint8_t)Ground::Bridge;
+    if (w.life > 0) { i++; continue; }
+    // its time is up: a body on it waits it out (up to 6 s), then is set ashore; the tile goes back as it was
+    if (m == &g.map()) {
+      int who = -1;
+      if (bodyOnTile(g, w.tx, w.ty, &who)) {
+        w.grace += dt;
+        if (w.grace < 6.0f) { i++; continue; }
+        setAshore(g, g.actors[(size_t)who], w.tx, w.ty);
+        if (bodyOnTile(g, w.tx, w.ty)) { i++; continue; }
+      }
+    }
+    restoreTile(g, w);
+    L.growths.erase(L.growths.begin() + (std::ptrdiff_t)i);
+  }
+}
+
+// the finisher of a swing in a spirit mask: a spell-strike in the mask's essence before the hero
+void maskStrike(Game& g) {
+  magic::Live& L = g.arcana.live;
+  Actor& p = g.pl();
+  const SpellDef* d = L.maskSpell ? magic::spellById(L.maskSpell) : nullptr;
+  const Essence me = magic::maskEssence(L.mask);
+  const float pw = d ? d->power * MagicOps::powerOf(g, *d) * 1.2f : (10.0f + 1.6f * (float)g.plLevel) * gear::playerDamageMul(g.plLevel) * 0.6f;
+  const Vec2 aim = norm(p.aim + Vec2(0.0001f, 0));
+  const Vec2 c = p.p + Vec2(0, -6);
+  const float R = 46.0f;
+  std::vector<int> ids;
+  for (const Actor& e : g.actors) {
+    if (!foe(e) || len2(e.p - c) > R * R) continue;
+    if (dot(norm(e.p - c + Vec2(0.001f, 0)), aim) < 0.35f && len2(e.p - c) > 14.0f * 14.0f) continue;
+    ids.push_back(e.id);
+  }
+  L.spellDepth++;
+  for (int id : ids) {
+    const int k = MagicOps::findActor(g, id);
+    if (k < 0) continue;
+    MagicOps::hit(g, g.actors[(size_t)k], pw, p.p, p.id, me == Essence::Fire ? Ench::Fire : me == Essence::Frost ? Ench::Frost : Ench::None, 0);
+    const int k2 = MagicOps::findActor(g, id);
+    if (k2 < 0) continue;
+    Actor& e2 = g.actors[(size_t)k2];
+    MagicOps::applyStatus(g, e2, me == Essence::Frost ? Status::Chilled : me == Essence::Storm ? Status::Shocked : Status::Burning, 3.0f, p.id);
+    if (me == Essence::Storm && alive(e2) && !e2.boss) e2.knock = aim * 160.0f;
+  }
+  L.spellDepth--;
+  float& ch = g.arcana.book.res[(int)magic::Resource::Charge];
+  ch = std::min(magic::CHARGE_CAP, ch + 1.0f);
+  L.stats.maskStrikes++;
+  if (!ids.empty()) L.stats.hits += (int)ids.size();
+  MagicOps::emit(g, Phase::Impact, L.maskSpell, c + aim * 18.0f, c + aim * 44.0f, (float)L.mask, (uint32_t)p.id, "MASKSTRIKE");
+  feel(g, c + aim * 18.0f, 2, 1.0f, !ids.empty());
+  if (d) gain(g, *d, 0.5f + 0.5f * (float)std::min<size_t>(3, ids.size()));
+}
+void stepMask(Game& g, float dt) {
+  magic::Live& L = g.arcana.live;
+  if (L.mask < 0) return;
+  Actor& p = g.pl();
+  L.maskT -= dt;
+  if (L.maskT <= 0 || p.st == AState::Dead) {
+    MagicOps::emit(g, Phase::Release, L.maskSpell, p.p + Vec2(0, -14), p.p, 1, (uint32_t)p.id, "MASK");
+    L.mask = -1; L.maskSpell = 0; L.maskT = 0;
+    return;
+  }
+  if (p.st == AState::Strike && p.combo == 2) {
+    if (!L.maskFired) { L.maskFired = true; maskStrike(g); }
+  } else if (p.st != AState::Strike) L.maskFired = false;
+}
+
+// dusk song-fire: the priests of a Songweaving land sing fire into being as the sun goes down (harmless: light, notes
+// and flame for the eye and the ear; each priest on their own breath, never in lockstep)
+void stepPriests(Game& g, float dt) {
+  magic::Live& L = g.arcana.live;
+  const bool dusk = g.hour >= 17.5f && g.hour <= 21.0f;
+  if (!dusk) { if (!L.songT.empty()) L.songT.clear(); return; }
+  const Actor& hero = g.pl();
+  for (size_t i = 1; i < g.actors.size(); i++) {
+    Actor& a = g.actors[i];
+    if (!a.npc || !a.human || a.hostile || a.role != Role::Priest || a.st == AState::Dead || a.indoors != hero.indoors) continue;
+    if (len2(a.p - hero.p) > 380.0f * 380.0f) continue;
+    auto it = L.songT.find(a.id);
+    if (it == L.songT.end()) { L.songT[a.id] = 0.3f + 2.6f * (float)(hash32((uint32_t)a.id * 2654435761u) % 1000u) / 1000.0f; continue; }
+    if ((it->second -= dt) > 0) continue;
+    const cult::Culture* c = MagicOps::cultureHere(g, &a);
+    const magic::Tradition* t = c && c->hidden ? &magic::traditionOf(*c) : nullptr;
+    if (!t || t->sig != magic::Signature::Song) { it->second = 30.0f; continue; }
+    uint32_t fire = 0;
+    for (uint32_t sid : t->spells) if (const SpellDef* d = magic::spellById(sid)) if (d->ess == Essence::Fire) { fire = sid; if (d->form == Form::Nova) break; }
+    if (!fire) { it->second = 30.0f; continue; }
+    const uint32_t verse = (uint32_t)(g.time * 0.37f) + (uint32_t)a.id;
+    const uint8_t deg = t->motif[verse % 3u];
+    MagicOps::emit(g, Phase::Reaction, fire, a.p + Vec2(0, -14), a.p + Vec2(0, -46), (float)deg, (uint32_t)a.id, "SONGFIRE");
+    L.stats.songFires++;
+    it->second = 2.2f + 2.4f * (float)(hash32((uint32_t)a.id * 31u + verse) % 1000u) / 1000.0f;
+  }
+}
+
+// ---- the trials
+void registerFor(uint64_t siteId, const cult::Culture& c, int which) {
+  const magic::Tradition& t = magic::traditionOf(c);
+  TrialSpec s;
+  s.sig = (uint8_t)t.sig; s.which = (uint8_t)which; s.tradition = t.id; s.culture = c.id;
+  for (int i = 0; i < 3; i++) s.motif[i] = t.motif[i];
+  if (const SpellDef* d = t.spells.empty() ? nullptr : magic::spellById(t.spells.back())) { s.ramp[0] = d->fx.ramp[0]; s.ramp[1] = d->fx.ramp[2]; s.ramp[2] = d->fx.ramp[4]; }
+  if (const TrialLayout* old = trialLayoutOf(siteId)) if (old->spec.tradition == s.tradition && old->spec.which == s.which) return;
+  registerTrial(siteId, s);
+}
+// the WORLD lane's trials (ew trialOf) of the hidden kingdoms met so far
+void scanTrials(Game& g) {
+  magic::Live& L = g.arcana.live;
+  if (!g.world.src || (int)g.world.kingdoms.size() == L.trialKingdoms) return;
+  L.trialKingdoms = (int)g.world.kingdoms.size();
+  for (int k = 0; k < (int)g.world.kingdoms.size(); k++) {
+    const cult::Culture* c = g.world.cultureOfKingdom(k);
+    if (!c || !c->hidden) continue;
+    for (int which = 0; which < 2; which++) {
+      ew::SitePlan sp;
+      if (g.world.src->trialOf(g.world.kingdoms[(size_t)k].id, which, sp)) registerFor(sp.id, *c, which);
+    }
+  }
+}
+const SpellDef* tradSpellOf(const magic::Tradition& t, Form f, Essence e, bool anyEss) {
+  const SpellDef* best = nullptr;
+  for (uint32_t sid : t.spells)
+    if (const SpellDef* d = magic::spellById(sid)) {
+      if (d->form != f) continue;
+      if (d->ess == e) return d;
+      if (anyEss && !best) best = d;
+    }
+  return best;
+}
+const SpellDef& decoyDef(const magic::Tradition* t) {
+  if (t) if (const SpellDef* d = tradSpellOf(*t, Form::Summon, Essence::Dream, false)) return *d;
+  static const SpellDef s = [] { SpellDef d; d.id = 0; d.name = "DECOY"; d.form = Form::Summon; d.ess = Essence::Dream; d.power = 30; return d; }();
+  return s;
+}
+Vec2 tileC(int x, int y) { return Vec2((float)x * TILE + 8, (float)y * TILE + 9); }
+void trialSay(Game& g, const std::string& s) {
+  magic::TrialRun& R = g.arcana.live.trial;
+  if (R.msgT > 0) return;
+  R.msgT = 2.5f;
+  MagicOps::tell(g, s);
+}
+void openGate(Game& g, const TrialLayout& T, int gi) {
+  magic::TrialRun& R = g.arcana.live.trial;
+  if (gi < 0 || gi >= (int)T.gates.size() || (R.gatesOpen & (1u << gi))) return;
+  R.gatesOpen |= 1u << gi;
+  const TrialGate& G = T.gates[(size_t)gi];
+  Map& m = g.sub;
+  for (int y = G.y; y < G.y + G.h; y++) for (int x = G.x; x < G.x + G.w; x++) if (m.in(x, y)) m.solid[(size_t)y * m.w + x] = 0;
+  const Vec2 c((float)G.x * TILE + (float)G.w * 8.0f, (float)G.y * TILE + (float)G.h * 8.0f);
+  const magic::Tradition* t = magic::traditionById(T.spec.tradition);
+  MagicOps::emit(g, Phase::Combo, t && !t->spells.empty() ? t->spells.back() : 0, c, c + Vec2((float)G.w * 8.0f, 0), 1.5f, (uint32_t)g.pl().id, "GATE");
+  MagicOps::ev(g, Ev::Notice, c, (int)rgba(255, 224, 160), 0, "THE GATE OPENS");
+  MagicOps::snd(g, (int)Sfx::Door, c, 0.6f);
+  g.arcana.live.stats.gates++;
+}
+bool hallClear(const Game& g, const IRect& h) {
+  for (const Actor& a : g.actors)
+    if (a.hostile && a.st != AState::Dead && a.p.x >= h.x * TILE && a.p.x < (h.x + h.w) * TILE && a.p.y >= h.y * TILE && a.p.y < (h.y + h.h + 1) * TILE) return false;
+  return true;
+}
+void trialBegin(Game& g, const TrialLayout& T) {
+  magic::Live& L = g.arcana.live;
+  const magic::Tradition* t = magic::traditionById(T.spec.tradition);
+  if ((magic::Signature)T.spec.sig != magic::Signature::Rune || !t) return;
+  for (size_t i = 0; i < T.plates.size(); i++) {
+    const TrialPlate& p = T.plates[i];
+    if (p.kind != TP_RUNE) continue;
+    const SpellDef* d = tradSpellOf(*t, Form::Rune, (Essence)p.arg, true);
+    if (!d) continue;
+    magic::Zone z;
+    z.spell = d->id; z.kind = magic::ZoneKind::Rune; z.owner = g.pl().id; z.mag = 1;
+    z.p = z.q = tileC(p.x, p.y);
+    z.r = std::max(24.0f, d->radius);
+    z.life = 1e6f;
+    z.power = d->power * MagicOps::powerOf(g, *d);
+    z.seed = 0x80000000u | (uint32_t)i;
+    L.zones.push_back(z);
+  }
+}
+const char* trialLesson(magic::Signature sig, int hall) {
+  switch (sig) {
+    case magic::Signature::Blood: return hall ? "TWO ALTARS, TWO PRICES. THE NEARER DEATH, THE STRONGER THE RITE." : "THE ALTAR OPENS THE WAY FOR A PRICE IN BLOOD. THIS MAGIC IS PAID IN LIFE.";
+    case magic::Signature::Rune: return hall ? "RUNES SIDE BY SIDE BURST TOGETHER. LEAD THE GUARDIANS ACROSS THEM." : "THE GUARDIANS COME OVER THE RUNES. LURE THEM ON, AND KEEP YOUR OWN FEET OFF.";
+    case magic::Signature::Song: return hall ? "SING THE THREE NOTES AGAIN, WHILE THE GUARDIANS WAKE." : "THE STONES SING. STEP ON THEM IN THE ORDER OF THE GLYPH ABOVE THE GATE.";
+    case magic::Signature::Mask: return hall ? "WEAR THE FACE THE SECOND GATE ASKS FOR." : "THREE SPIRIT MASKS. A GATE OPENS ONLY TO THE FACE CARVED ON IT.";
+    case magic::Signature::Verdant: return hall ? "THE VINES WITHER IN THIRTY BREATHS. CROSS IN TIME." : "STEP ON THE SEED POD: VINES BRIDGE THE WATER, BUT ONLY FOR A WHILE.";
+    case magic::Signature::Dream: return hall ? "YOUR DECOY DRAWS THE GUARDIANS' BLOWS. LET IT." : "TWO PLATES, ONE PAIR OF FEET. THE MIRROR LENDS YOU ANOTHER YOU.";
+    default: return "";
+  }
+}
+void stepTrial(Game& g, float dt) {
+  magic::Live& L = g.arcana.live;
+  magic::TrialRun& R = L.trial;
+  const uint64_t sid = g.inside && g.subSite >= 0 && g.subSite < (int)g.world.sites.size() ? g.world.sites[(size_t)g.subSite].id : 0;
+  const TrialLayout* T = sid ? trialLayoutOf(sid) : nullptr;
+  if (!T || T->plates.empty()) { if (R.site) R = magic::TrialRun(); return; }
+  const magic::Signature sig = (magic::Signature)T->spec.sig;
+  const int which = T->spec.which;
+  if (R.site != sid) {
+    R = magic::TrialRun();
+    R.site = sid;
+    R.passed = (g.arcana.book.rite(T->spec.tradition) >> which) & 1u;
+    trialBegin(g, *T);
+    // (fixer M10 r1) a save made past a gate loads with the hero already in hall 2 or the sanctum (the run is never
+    // saved): the gates behind the hero's hall stand open, quietly, so the load never shuts the hero in
+    const Actor& h0 = g.pl();
+    const int tx = (int)std::floor(h0.p.x / TILE), ty = (int)std::floor((h0.p.y - 2) / TILE);
+    int in = -1;
+    for (int h = 0; h < 3; h++) { const IRect& r = T->hall[h]; if (tx >= r.x && tx < r.x + r.w && ty >= r.y && ty < r.y + r.h) in = h; }
+    for (size_t gi = 0; gi < T->gates.size() && in > 0; gi++) {
+      const TrialGate& G = T->gates[gi];
+      if ((int)G.room > in) continue;
+      R.gatesOpen |= 1u << gi;
+      for (int y = G.y; y < G.y + G.h; y++) for (int x = G.x; x < G.x + G.w; x++) if (g.sub.in(x, y)) g.sub.solid[(size_t)y * g.sub.w + x] = 0;
+    }
+    for (int h = 0; h < in; h++) R.seen |= (uint8_t)(1u << h);
+  }
+  R.t += dt;
+  if (R.msgT > 0) R.msgT -= dt;
+  Map& m = g.sub;
+  for (size_t gi = 0; gi < T->gates.size(); gi++) {   // (closed gates stay solid whatever rebuilds the map's blocks)
+    if (R.gatesOpen & (1u << gi)) continue;
+    const TrialGate& G = T->gates[gi];
+    for (int y = G.y; y < G.y + G.h; y++) for (int x = G.x; x < G.x + G.w; x++) if (m.in(x, y)) m.solid[(size_t)y * m.w + x] = 1;
+  }
+  Actor& hero = g.pl();
+  const int hx = (int)std::floor(hero.p.x / TILE), hy = (int)std::floor((hero.p.y - 2) / TILE);
+  // the hall's lesson, once, as the hero walks in
+  for (int h = 0; h < 3; h++) {
+    const IRect& r = T->hall[h];
+    if (((R.seen >> h) & 1u) || hx < r.x || hx >= r.x + r.w || hy < r.y || hy >= r.y + r.h) continue;
+    R.seen |= (uint8_t)(1u << h);
+    if (h < 2) { const char* s = trialLesson(sig, h); if (s[0]) MagicOps::ev(g, Ev::Notice, hero.p, (int)rgba(230, 210, 255), 0, s); }
+    else MagicOps::ev(g, Ev::Notice, hero.p, (int)rgba(255, 224, 160), 0, R.passed ? "THE THRESHOLD REMEMBERS YOU" : "THE SANCTUM. STEP BEFORE THE ALTAR.");
+  }
+  // the plates under the hero (a press plate: or under the mirror's decoy)
+  const Actor* decoy = nullptr;
+  if (R.decoy >= 0) { const int k = MagicOps::findActor(g, R.decoy); if (k >= 0 && g.actors[(size_t)k].st != AState::Dead) decoy = &g.actors[(size_t)k]; else R.decoy = -1; }
+  uint64_t down = 0;
+  for (size_t i = 0; i < T->plates.size() && i < 64; i++) {
+    const TrialPlate& p = T->plates[i];
+    bool on = hx == p.x && hy == p.y;
+    if (!on && p.kind == TP_PRESS && decoy) on = (int)std::floor(decoy->p.x / TILE) == p.x && (int)std::floor((decoy->p.y - 2) / TILE) == p.y;
+    if (on) down |= 1ull << i;
+  }
+  const uint64_t pressed = down & ~R.platesDown;
+  R.platesDown = down;
+  const magic::Tradition* t = magic::traditionById(T->spec.tradition);
+  const uint32_t look = t && !t->spells.empty() ? t->spells.front() : 0;
+  for (size_t i = 0; i < T->plates.size() && i < 64; i++) {
+    if (!(pressed & (1ull << i))) continue;
+    const TrialPlate& p = T->plates[i];
+    const Vec2 c = tileC(p.x, p.y);
+    switch (p.kind) {
+      case TP_NOTE: {
+        MagicOps::emit(g, Phase::Reaction, look, c + Vec2(0, -30), c + Vec2(0, -52), (float)p.arg, (uint32_t)hero.id, "NOTE");
+        if (p.gate >= 0 && (R.gatesOpen & (1u << p.gate))) break;
+        if (R.room != p.room) { R.prog = 0; R.room = p.room; }
+        if (p.arg == T->spec.motif[R.prog]) R.prog++;
+        else {
+          R.prog = p.arg == T->spec.motif[0] ? 1 : 0;
+          MagicOps::emit(g, Phase::Fizzle, look, c + Vec2(0, -20), c, 1, (uint32_t)hero.id, "DISCORD");
+        }
+        if (R.prog >= 3) {
+          R.prog = 0;
+          MagicOps::emit(g, Phase::Reaction, look, c, c, (float)T->spec.motif[2], (uint32_t)hero.id, "REFRAIN");
+          openGate(g, *T, p.gate);
+        }
+        break;
+      }
+      case TP_MASK:
+        L.mask = (int8_t)std::min<int>(p.arg, magic::MASKS - 1); L.maskT = magic::MASK_SECS; L.maskSpell = 0; L.maskFired = false;
+        MagicOps::emit(g, Phase::Ward, look, hero.p + Vec2(0, -14), hero.p, 1, (uint32_t)hero.id, "MASK");
+        MagicOps::tell(g, std::string("YOU WEAR THE ") + magic::maskName(L.mask));
+        break;
+      case TP_POD: {
+        if (p.arg >= T->chasms.size()) break;
+        const IRect& ch = T->chasms[p.arg];
+        int n = 0;
+        for (int y = ch.y + ch.h - 1; y >= ch.y; y--) n += MagicOps::growTile(g, p.x, y, magic::GROW_VINE, magic::VERDANT_SECS, look, (uint8_t)(ch.y + ch.h - 1 - y)) ? 1 : 0;
+        if (n) MagicOps::emit(g, Phase::Impact, look, c, c + Vec2(0, -48), 1.2f, (uint32_t)hero.id, "VINES");
+        break;
+      }
+      case TP_ALTAR: {
+        if (R.paid & (1ull << i)) break;
+        if (hero.hp <= hero.maxHp * 0.3f) { trialSay(g, "TOO WEAK TO PAY THE ALTAR'S PRICE. REST, THEN RETURN."); break; }
+        hero.hp -= hero.maxHp * 0.2f;
+        R.paid |= 1ull << i;
+        L.stats.bloodPaid++;
+        g.events.push_back({Ev::Blood, hero.p + Vec2(0, -6), 0, 1, ""});
+        MagicOps::emit(g, Phase::Impact, look, c + Vec2(0, -16), c, 1.2f, (uint32_t)hero.id, "ALTAR");
+        bool all = true;
+        for (size_t j = 0; j < T->plates.size() && j < 64; j++)
+          if (T->plates[j].kind == TP_ALTAR && T->plates[j].gate == p.gate && !(R.paid & (1ull << j))) all = false;
+        if (all) openGate(g, *T, p.gate);
+        else trialSay(g, "THE ALTAR DRINKS. ANOTHER WAITS.");
+        break;
+      }
+      case TP_MIRROR: {
+        int far = -1;
+        float fd = -1;
+        for (size_t j = 0; j < T->plates.size(); j++) {
+          const TrialPlate& q = T->plates[j];
+          if (q.kind != TP_PRESS || q.gate != p.gate) continue;
+          const float d2 = len2(tileC(q.x, q.y) - hero.p);
+          if (d2 > fd) { fd = d2; far = (int)j; }
+        }
+        if (far < 0) break;
+        if (R.decoy >= 0) { const int k = MagicOps::findActor(g, R.decoy); if (k >= 0) g.actors[(size_t)k].magicT = 0; }
+        const TrialPlate& q = T->plates[(size_t)far];
+        R.decoy = MagicOps::spawnDecoy(g, decoyDef(t), tileC(q.x, q.y), 1.0f, 25.0f);
+        trialSay(g, "THE MIRROR SENDS ANOTHER YOU TO THE FAR PLATE.");
+        break;
+      }
+      case TP_SANCTUM: {
+        if (R.passed) { trialSay(g, "THE THRESHOLD REMEMBERS YOU."); break; }
+        bool open = true;
+        for (size_t gi = 0; gi < T->gates.size(); gi++) if (!(R.gatesOpen & (1u << gi))) open = false;
+        if (!open) break;
+        if (which > 0 && !hallClear(g, T->hall[2])) { trialSay(g, "THE GUARDIAN OF THE SANCTUM STILL STANDS."); break; }
+        R.passed = true;
+        MagicOps::passRite(g, T->spec.tradition, which);
+        MagicOps::emit(g, Phase::Reaction, t && !t->spells.empty() ? t->spells.back() : 0, c, c + Vec2(0, -60), 2.0f, (uint32_t)hero.id, "RITE");
+        break;
+      }
+      default: break;
+    }
+  }
+  // the gates that open by the state of the hall: a mask worn before it, both press plates held, a hall cleared
+  for (size_t gi = 0; gi < T->gates.size(); gi++) {
+    if (R.gatesOpen & (1u << gi)) continue;
+    const TrialGate& G = T->gates[gi];
+    const Vec2 gc((float)G.x * TILE + (float)G.w * 8.0f, (float)(G.y + G.h) * TILE + 8.0f);
+    if (sig == magic::Signature::Mask && G.mask >= 0) {
+      if (len2(hero.p - gc) < 44.0f * 44.0f) {
+        if (L.mask == G.mask) openGate(g, *T, (int)gi);
+        else trialSay(g, std::string("THE GATE WAITS FOR THE ") + magic::maskName(G.mask) + ".");
+      }
+      continue;
+    }
+    if (sig == magic::Signature::Dream) {
+      int need = 0, held = 0;
+      for (size_t j = 0; j < T->plates.size() && j < 64; j++)
+        if (T->plates[j].kind == TP_PRESS && T->plates[j].gate == (int)gi) { need++; held += (int)((down >> j) & 1u); }
+      if (need && held == need) openGate(g, *T, (int)gi);
+      continue;
+    }
+    if (sig == magic::Signature::Rune && G.room >= 1 && hallClear(g, T->hall[G.room - 1])) openGate(g, *T, (int)gi);
+  }
+  // a trial rune stepped on by the hero bites the hero (lure the guardians, keep off them)
+  if (sig == magic::Signature::Rune)
+    for (magic::Zone& z : L.zones) {
+      if (z.kind != magic::ZoneKind::Rune || z.life <= 0 || !(z.seed & 0x80000000u)) continue;
+      if (len2(hero.p - z.p) > 9.0f * 9.0f) continue;
+      z.life = 0;
+      MagicOps::emit(g, Phase::Impact, z.spell, z.p, z.p, 1.0f, (uint32_t)hero.id, "RUNE");
+      MagicOps::hit(g, hero, hero.maxHp * 0.15f, z.p, -1);
+      trialSay(g, "THE RUNE BITES! LURE THE GUARDIANS ONTO THEM INSTEAD.");
+    }
+}
+
+void stepHidden(Game& g, float dt) {
+  magic::Live& L = g.arcana.live;
+  if (L.songWorld != g.seed + 1) MagicOps::findSongLand(g);
+  stepMask(g, dt);
+  if (!L.growths.empty()) stepGrowths(g, dt);
+  for (size_t i = 0; i < L.bubbles.size();) {
+    magic::Bubble& b = L.bubbles[i];
+    b.age += dt;
+    if ((b.life -= dt) <= 0) { MagicOps::emit(g, Phase::Release, b.spell, b.p, b.p, 1, 0, "BUBBLE"); L.bubbles.erase(L.bubbles.begin() + (std::ptrdiff_t)i); continue; }
+    i++;
+  }
+  for (size_t i = 0; i < L.snared.size();) {
+    L.snared[i].second -= dt;
+    const int k = MagicOps::findActor(g, L.snared[i].first);
+    if (L.snared[i].second <= 0 || k < 0 || g.actors[(size_t)k].st == AState::Dead) { L.snared.erase(L.snared.begin() + (std::ptrdiff_t)i); continue; }
+    i++;
+  }
+  if ((L.songScanT -= dt) <= 0) { L.songScanT = 0.25f; scanTrials(g); }
+  stepPriests(g, dt);
+  stepTrial(g, dt);
+}
+}  // namespace
+
+bool MagicOps::growTile(Game& g, int tx, int ty, uint8_t kind, float life, uint32_t spell, uint8_t order) {
+  Map& m = g.map();
+  if (!m.in(tx, ty)) return false;
+  magic::Live& L = g.arcana.live;
+  for (magic::Growth& w : L.growths)
+    if (w.tx == tx && w.ty == ty && w.over == !g.inside) { if (w.kind == kind) w.life = std::max(w.life, life); return w.kind == kind; }
+  const size_t i = (size_t)ty * m.w + tx;
+  const Ground gr = m.at(tx, ty);
+  if (kind == magic::GROW_THORN) {
+    if (m.blocked(tx, ty) || groundWater(gr) || gr == Ground::Bridge || m.propAt(tx, ty) || m.bldgAt[i] >= 0 || m.isExit(tx, ty)) return false;
+    if (bodyOnTile(g, tx, ty)) return false;   // (never grown through a body)
+  } else if (!groundWater(gr)) return false;
+  magic::Growth w;
+  w.kind = kind; w.tx = (int16_t)tx; w.ty = (int16_t)ty; w.ground = (uint8_t)gr; w.solid = m.solid[i]; w.over = !g.inside;
+  w.order = order; w.life = life; w.spell = spell; w.seed = hash2(tx, ty, (uint32_t)g.seed ^ 0x6E0Du);
+  if (kind == magic::GROW_THORN) m.solid[i] = 1;
+  else { m.ground[i] = (uint8_t)Ground::Bridge; m.solid[i] = 0; }
+  L.growths.push_back(w);
+  L.stats.growths++;
+  return true;
+}
+void MagicOps::revertGrowths(Game& g, bool all) {
+  magic::Live& L = g.arcana.live;
+  std::vector<magic::Growth> keep;
+  for (const magic::Growth& w : L.growths) {
+    if (!all && bodyOnTile(g, w.tx, w.ty)) { keep.push_back(w); continue; }
+    restoreTile(g, w);
+  }
+  L.growths = keep;
+}
+int MagicOps::spawnDecoy(Game& g, const SpellDef& d, Vec2 at, float mag, float secs) {
+  const Actor& me = g.pl();
+  Actor w;
+  w.id = newId(g);
+  w.npc = false; w.hostile = false; w.human = true; w.faction = Faction::Player;
+  w.look = me.look;
+  w.name = "DECOY";
+  w.magicTag = magic::MT_DECOY; w.magicT = secs; w.magicBy = me.id;
+  w.level = std::max(1, g.plLevel);
+  w.maxHp = w.hp = std::max(30.0f, d.power * 3.0f * gear::playerDamageMul(g.plLevel) * mag);
+  w.radius = 4.5f; w.speed = 0; w.dmg = 0; w.armor = 0; w.xp = 0;
+  if (!fits(g, at, w.radius)) at = me.p + Vec2(me.face == 3 ? -16.0f : 16.0f, 2.0f);
+  if (!fits(g, at, w.radius)) at = me.p;
+  w.p = at; w.home = at; w.goal = at;
+  w.face = me.face;
+  const int id = w.id;
+  g.actors.push_back(w);
+  g.arcana.live.stats.decoys++;
+  emit(g, Phase::Reaction, d.id, at, at + Vec2(0, -20), mag, (uint32_t)id, "DECOY");
+  return id;
+}
+void MagicOps::trialsLoaded(Game& g) {
+  g.arcana.live.trialKingdoms = -1;
+  scanTrials(g);
+}
+bool MagicOps::markTrial(Game& g, int site, const cult::Culture& c, int which) {
+  if (site < 0 || site >= (int)g.world.sites.size() || g.world.sites[(size_t)site].type != SiteType::Ruin || !c.hidden) return false;
+  registerFor(g.world.sites[(size_t)site].id, c, which);
+  return true;
+}
+void MagicOps::passRite(Game& g, uint32_t tid, int which) {
+  if (!tid || which < 0 || which > 1) return;
+  const bool had = (g.arcana.book.rite(tid) >> which) & 1u;
+  g.arcana.book.passRite(tid, which);
+  if (had) return;
+  const magic::Tradition* t = magic::traditionById(tid);
+  if (t && t->culture) {
+    std::vector<uint64_t>& Ls = g.arcana.book.lands;
+    if (std::find(Ls.begin(), Ls.end(), t->culture) == Ls.end()) Ls.push_back(t->culture);
+  }
+  ev(g, Ev::Notice, g.pl().p, (int)rgba(255, 220, 140), 0, std::string(which ? "THE SECOND TRIAL PASSED: " : "TRIAL OF THE THRESHOLD PASSED: ") + (t ? t->name : std::string("THE TRADITION")));
+  snd(g, (int)Sfx::QuestDone, g.pl().p, 1.0f);
 }

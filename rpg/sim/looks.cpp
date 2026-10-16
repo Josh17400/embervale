@@ -529,6 +529,28 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
       L.tabardColor = rgba(150, 40, 40); L.cape = true;
       a.name = "HERALD";
       break;
+    // M10 Beyond the Mist (ART lane; colours and cut only, after the shared draws): the harbour's people
+    case Role::Sailor:   // a striped jersey, canvas trousers, a knitted cap
+      L.outfit = art::Outfit::Tunic; L.topColor = rgba(56, 74, 120); L.bottomColor = rgba(150, 138, 112);
+      L.pattern = (uint8_t)cult::Pattern::Stripes; L.patternColor = rgba(226, 222, 206);
+      L.headwear = (uint8_t)cult::Headwear::Cap; L.headColor = (hash32((uint32_t)a.slot * 2246822519u) & 1) ? rgba(170, 48, 40) : rgba(60, 70, 110);
+      L.weapon = 0; L.jewellery = (uint8_t)((hash32((uint32_t)a.slot ^ 0x5A11u) % 3 == 0) ? 1 : 0);
+      break;
+    case Role::Harbourmaster:   // a long dark coat with brass at its edges, a cap of office, the ledger's keeper
+      L.outfit = art::Outfit::Tunic; L.cut = (uint8_t)((int)cult::Cut::Coat + 1); L.topColor = rgba(36, 48, 78); L.bottomColor = rgba(52, 46, 44);
+      L.pattern = (uint8_t)cult::Pattern::BorderTrim; L.patternColor = rgba(214, 170, 74);
+      L.headwear = (uint8_t)cult::Headwear::Cap; L.headColor = rgba(30, 36, 58); L.amulet = true; L.weapon = 0;
+      break;
+    case Role::Shipwright:   // a leather apron over a work shirt, sleeves rolled, the mallet
+      L.outfit = art::Outfit::Leather; L.topColor = rgba(170, 150, 118); L.bottomColor = rgba(86, 70, 54); L.tabardColor = rgba(120, 82, 50);
+      L.weapon = 6; L.beard = !female && L.beard;
+      break;
+    case Role::Pirate:   // a red headscarf, a sash, a ragged coat, a cutlass, gold at the ear
+      L.outfit = (hash32((uint32_t)a.slot * 977u) & 1) ? art::Outfit::Leather : art::Outfit::Rags;
+      L.headwear = (uint8_t)cult::Headwear::Headscarf; L.headColor = (hash32((uint32_t)a.slot * 131u) % 3) ? rgba(160, 36, 40) : rgba(40, 40, 46);
+      L.tabardColor = rgba(150, 40, 46); L.topColor = rgba(60, 52, 56); L.bottomColor = rgba(70, 56, 46);
+      L.weapon = 1; L.jewellery = 1; L.hood = false;
+      break;
     default: break;
   }
   // M1 kingdom identity (VISION_PLAN 15.8): guards wear their kingdom's colours; the king's cloak and the royal guard

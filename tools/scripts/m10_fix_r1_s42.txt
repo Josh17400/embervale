@@ -1,0 +1,18 @@
+# M10 FIXER round 1: targeted checks for the round-1 findings.
+#   a save inside a real Trial of the Threshold loads back as the trial (fresh process and same session), the hero not
+#   shut behind a gate; aboard among merrow the attack key fights (does not disembark); the quick-heal works aboard;
+#   the moored ships' furled rigs and the Mist's drowned ships (screenshots).
+#   cd <shots> && embervale.exe --script <repo>/tools/scripts/m10_fix_r1.txt    (m10_fix_r1_*.png)
+seed 42
+# ---- aboard a rowboat in the shallows, merrow alongside: J swings, the hero stays aboard
+0.3  newgame
++0.1 kit
++0.2 sea shore
++0.5 boat give rowboat
++0.1 boat board
++0.2 expect sea aboard 1
++0.1 sea spawn merrow
++0.8 key J
++0.4 key J
++0.4 expect sea aboard 1
++0.2 quit

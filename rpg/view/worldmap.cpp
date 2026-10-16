@@ -42,6 +42,7 @@
 #include <memory>
 #include <vector>
 #include "rpg/sim/home.h"
+#include "rpg/sim/sea.h"
 #include "rpg/story/story.h"
 #include "rpg/view/realm_ui.h"
 #include "rpg/view/view.h"
@@ -101,6 +102,9 @@ const IconArt kIcons[IC_COUNT] = {
     {"HERB GARDEN", {".GkGkG.", "kLkLkLk", "kGkGkGk", "bbbbbbb", "kkkkkkk"}},
     {"LONE GRAVE", {"..k..", ".kwk.", "kwwwk", ".kwk.", ".kwk.", "kkkkk"}},
     {"WAYFARERS' REST", {"...o...", "..oyo..", ".koyok.", "kbbbbbk", ".k.k.k."}},
+    // (M10 ART) the sea's places: a wreck's broken hull and mast over the waves, a lighthouse and its beam
+    {"SHIPWRECK", {"...k....", "...kk...", "..kbkk..", "k.kbk...", "kbbbbbk.", ".kbkbk..", "BBkBkBBB"}},
+    {"LIGHTHOUSE", {"y.kyk.y", "..kyk..", "..kkk..", "..krk..", "..kwk..", ".kkrkk.", "kssssk."}},
     // wonders (ew::WonderKind order): gold-rimmed
     {"ELDER TREE", {"..kkkkk..", ".kGLLGGk.", "kGLGGGGGk", "kGGGGGGGk", ".kkGbGkk.", "...kbk...", "..kbbbk.."}},
     {"COLOSSUS", {"..kgk..", ".kwwwk.", "..kwk..", ".kwwwk.", "kwkwkwk", ".kwkwk.", "kkkkkkk"}},
@@ -277,6 +281,8 @@ struct MapSmp {
   uint8_t wd = 255;            // distance (samples) to the nearest land, over water (coast ripples)
   uint32_t roofC = 0;          // (street zoom) the building's roof colour
   uint8_t eco = 0;             // (M4) the biome proper (flower meadows are speckled with blooms)
+  uint8_t mist = 0;            // (M10) in a hidden land's Mist: 1 uncharted (thick fog), 2 charted (a thin ring)
+  uint8_t mistD = 0;           // (M10) ... its density there (0 at the ring's edges .. 255 in its thick)
   // (M7c SURVEY) a settlement's plan: the building's identity (row houses read as separate roofs), its height (the
   // length of its shade), a wall tower, a hedge or garden wall, and that the sample comes from a plan (the region
   // plans' road and river lines and the wood glyphs keep off it)
@@ -313,6 +319,10 @@ struct TileJob {
   int row = 0;
   std::unordered_set<uint64_t> moved;      // (M4) genesis kingdoms some of whose settlements another realm holds now
   std::unordered_map<uint64_t, uint32_t> kcol;   // (M4) owner -> its border colour
+  // (M10) the lands round this tile (hidden ones' Mist rings) and which land a coarse cell lies on
+  std::vector<ew::LandPlan> lands;
+  bool landsDone = false;
+  std::unordered_map<uint64_t, uint32_t> landCell;
 };
 
 struct MapState {
@@ -798,6 +808,40 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
       s.kingdom = ms.kingdom && J.moved.count(ms.kingdom) ? g.realm.landOwner(ms.kingdom, gx, gy) : ms.kingdom;
       s.bio = ms.biome;
       s.eco = (uint8_t)ms.eco;
+      // (M10) the far lands: one the hero has never heard of stays off the map (open sea), one rumoured shows its
+      // coasts sketched like the rest of the unknown, one mapped (a cartographer's chart) or landed on shows whole;
+      // a hidden land's Mist lies round it as a ring of fog (thin once its chart is held)
+      if (!s.known && endless) {
+        if (!J.landsDone) { J.lands = g.world.src->landsIn(tx0, ty0, tx1, ty1); J.landsDone = true; }
+        if (!J.lands.empty()) {
+          if (!ms.water) {
+            const uint64_t ck = (uint64_t)(uint32_t)(gx >> 5) << 32 | (uint32_t)(gy >> 5);
+            auto it = J.landCell.find(ck);
+            const uint32_t L = it != J.landCell.end() ? it->second : (J.landCell[ck] = g.world.src->landAt(gx, gy));
+            const ew::LandPlan* lp = nullptr;
+            for (const ew::LandPlan& q : J.lands) if (q.id == L) lp = &q;
+            if (lp && !lp->origin) {
+              const sea::LandRecord* rec = g.sea.land(L);
+              const uint8_t fl = rec ? rec->flags : 0;
+              if (!(fl & (sea::LF_RUMOURED | sea::LF_MAPPED | sea::LF_LANDED))) { s.water = true; s.deep = true; s.c = kSeaDeep; }
+              else if (fl & (sea::LF_MAPPED | sea::LF_LANDED)) s.known = true;
+            }
+          }
+          for (const ew::LandPlan& q : J.lands) {
+            if (!q.hidden) continue;
+            const double d = std::hypot((double)gx - q.cx, (double)gy - q.cy);
+            if (d >= q.mistIn && d <= q.mistOut && (s.water || ms.water)) {
+              s.mist = g.sea.hasChart(q.id) ? 2 : 1;
+              // the fog's density across the ring (thickening over its outer 60 tiles, thinning over its inner 60)
+              const double t = std::min(d - q.mistIn, q.mistOut - d);
+              s.mistD = (uint8_t)std::min(255.0, t * 255.0 / 60.0);
+            } else if (d < q.mistIn && !s.known) {   // everything inside an unheard-of hidden land's Mist: open sea
+              const sea::LandRecord* rec = g.sea.land(q.id);
+              if (!(rec && (rec->flags & (sea::LF_RUMOURED | sea::LF_MAPPED | sea::LF_LANDED)))) { s.water = true; s.deep = true; s.c = kSeaDeep; }
+            }
+          }
+        }
+      }
       if (!s.known) { grid[(size_t)j * N + i] = s; continue; }
       // (M7c) a settlement's real plan where it is ready: at the town zoom and further out everywhere (one plan reads
       // as one plan across the window's edge), at the street zoom outside the window (inside it the live tiles show
@@ -988,6 +1032,14 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
           if ((!n.known && s.water != n.water) || (!w.known && s.water != w.water)) k = mixc(k, kInkC, 0.42f);
         }
         if (n.known || w.known || at(i - 1, j - 1).known) k = shadec(k, 0.9f);
+        if (s.mist) {   // (M10) the Mist: a pale bank of fog hatched over the sea (only a faint ring once charted)
+          const float fog = ::vnoise(px / 11.0f, py / 7.0f, 4471) * 0.55f + ::vnoise(px / 4.0f, py / 3.0f, 4473) * 0.30f + ::vnoise(px / 1.7f, py / 1.5f, 4477) * 0.15f;
+          const float dens = std::min(1.0f, s.mistD / 255.0f);
+          const float dith = (((px & 3) * 4 + (py & 3)) % 16) / 16.0f - 0.5f;
+          if (s.mist == 1) k = mixc(k, C(242, 240, 232), std::clamp(dens * (0.25f + 0.65f * fog) + dith * 0.12f, 0.0f, 0.95f));
+          else if (fog * dens > 0.45f && ((px + py) & 3) == 0) k = mixc(k, C(242, 240, 232), 0.45f);
+          if (s.mist == 1 && fog > 0.62f && dens > 0.6f && ((px * 7 + py * 3) % 11) == 0) k = mixc(k, kInkSoft, 0.18f);   // the curl of a bank
+        }
         c.set(x, y, k);
         continue;
       }
@@ -1325,7 +1377,9 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
   if (t_ - lastDraw > 0.5f && mapSel_ < 0 && S.reqSel == -2) playerG(S.cx, S.cy);   // the map was closed: open it on the hero
   lastDraw = t_;
   // (M4) a conquest moves the borders: the realm's owners are part of what the tiles were painted with
-  const uint64_t sig = exploredSig(g) ^ (S.geo ? 0x5A5A5A5A5A5A5A5Aull : 0) ^ (g.world.endless ? rui::signature(g) * 31 : 0);
+  uint64_t seaSig = 0;   // (M10) a land rumoured, charted, mapped or landed on changes what the map shows
+  for (const sea::LandRecord& r : g.sea.lands) seaSig = ew::mix64(seaSig ^ ((uint64_t)r.land << 8 | r.flags));
+  const uint64_t sig = exploredSig(g) ^ (S.geo ? 0x5A5A5A5A5A5A5A5Aull : 0) ^ (g.world.endless ? rui::signature(g) * 31 : 0) ^ seaSig * 0x9E3779B97F4A7C15ull;
   if (sig != S.sig) {   // the hero has seen more (or the view changed): repaint (the tiles fill back in over a few frames)
     for (auto& kv : S.tiles) pix_->destroy(kv.second.tex);
     S.tiles.clear();
@@ -1984,6 +2038,59 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     }
     P.rect(qs.x, qs.y - 2, 1, 3, Color(0.45f, 0.24f, 0.04f));
     P.rect(qs.x, qs.y + 2, 1, 1, Color(0.45f, 0.24f, 0.04f));
+  }
+  // (M10) the sea on the map: the ports the hero knows (an anchor by the town's icon), the ferry routes between them
+  // (dashed over the water), the boats we own where they lie (a little sail), and under the hero's arrow his boat
+  if (!S.geo && g.world.endless) {
+    auto boatGlyph = [&](Vec2 s, bool ours) {
+      const float x = std::floor(s.x), y = std::floor(s.y);
+      P.rect(x - 4, y + 1, 9, 2, Color(0.30f, 0.18f, 0.10f));            // the hull
+      P.rect(x - 3, y + 3, 7, 1, Color(0.30f, 0.18f, 0.10f));
+      P.rect(x - 3, y + 1, 7, 1, Color(0.62f, 0.40f, 0.22f));
+      P.rect(x, y - 5, 1, 6, Color(0.26f, 0.16f, 0.10f));                  // the mast
+      P.rect(x + 1, y - 4, 3, 4, ours ? Color(0.96f, 0.92f, 0.80f) : Color(0.78f, 0.74f, 0.66f));   // the sail
+      P.rect(x + 1, y - 4, 1, 4, Color(0.80f, 0.74f, 0.60f));
+    };
+    std::vector<Vec2> ports;
+    for (int i = 0; i < (int)g.world.sites.size(); i++) {
+      const Site& st = g.world.sites[(size_t)i];
+      if (!st.discovered || !g.sea.knowsPort(st.id)) continue;
+      const Vec2 s = toScr(st.ex + g.world.ox + 0.5, st.ey + g.world.oy + 0.5);
+      ports.push_back(s);
+    }
+    for (size_t a = 0; a < ports.size(); a++) {   // each port to its nearest known neighbour: a dashed passage
+      int best = -1;
+      float bd = 1e9f;
+      for (size_t b = 0; b < ports.size(); b++)
+        if (b != a) { const float d = len2(ports[b] - ports[a]); if (d < bd) { bd = d; best = (int)b; } }
+      if (best < 0 || best < (int)a) continue;
+      const Vec2 p0 = ports[a], d = ports[(size_t)best] - p0;
+      const int n = (int)std::max(std::fabs(d.x), std::fabs(d.y));
+      for (int k = 0; k < n; k++) {
+        if ((k / 3) % 2) continue;
+        const Vec2 q = p0 + d * ((float)k / std::max(1, n));
+        if (q.x < 0 || q.y < 0 || q.x >= w || q.y >= h) continue;
+        P.rect(std::floor(q.x), std::floor(q.y), 1, 1, Color(0.22f, 0.36f, 0.56f, 0.85f));
+      }
+    }
+    for (const Vec2& s : ports) {   // the anchor beside the port's icon
+      if (s.x < -8 || s.y < -8 || s.x > w + 8 || s.y > h + 8) continue;
+      const float x = std::floor(s.x + 6), y = std::floor(s.y - 9);
+      P.rect(x - 2, y - 1, 7, 9, Color(0.93f, 0.88f, 0.76f, 0.8f));
+      P.rect(x + 1, y, 1, 6, Color(0.18f, 0.24f, 0.36f));
+      P.rect(x, y + 1, 3, 1, Color(0.18f, 0.24f, 0.36f));
+      P.rect(x - 1, y + 5, 5, 1, Color(0.18f, 0.24f, 0.36f));
+      P.rect(x - 1, y + 4, 1, 1, Color(0.18f, 0.24f, 0.36f));
+      P.rect(x + 3, y + 4, 1, 1, Color(0.18f, 0.24f, 0.36f));
+    }
+    for (int i = 0; i < (int)g.sea.boats.size(); i++) {
+      const sea::Boat& b = g.sea.boats[(size_t)i];
+      if (b.sunk || i == g.sea.aboard) continue;
+      const Vec2 s = toScr(b.gx + 0.5, b.gy + 0.5);
+      if (s.x < -8 || s.y < -8 || s.x > w + 8 || s.y > h + 8) continue;
+      boatGlyph(s, true);
+    }
+    if (g.sea.atSea()) boatGlyph(hp + Vec2(0, 7), true);
   }
   // the hero: an arrow the way he faces (a soft pulse round it)
   {

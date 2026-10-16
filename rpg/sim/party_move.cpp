@@ -257,7 +257,13 @@ void PartyOps::keepUp(Game& g, float dt) {
   for (int mi = 0; mi < (int)g.party.members.size(); mi++) {
     Member& m = g.party.members[(size_t)mi];
     if (m.state != State::With && m.state != State::Downed) continue;
-    const int ai = actorOf(g, mi);
+    int ai = actorOf(g, mi);
+    // (fixer M10 r1) aboard a boat the companions ride below deck, out of play (no body left on the open water, no
+    // catch-up along a wake); they step off with the hero (the arrival below, on the land beside the landing)
+    if (g.sea.atSea() && m.state == State::With) {
+      if (ai >= 0) { dropActor(g, mi); ai = -1; }
+      continue;
+    }
     if (ai < 0 && m.state == State::Downed && (m.flags & (party::MF_DOWN_WAIT | party::MF_DOWN_HOME))) {
       // (fixer M8 r2) one downed where they waited or lived, left behind out of play: the foes went with the player,
       // and they come round by themselves (wounded) to the life they had; never carried along into the party

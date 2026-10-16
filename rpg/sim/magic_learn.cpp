@@ -13,6 +13,7 @@
 // their sequence).
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <iterator>
 #include <memory>
 #include <string>
@@ -20,7 +21,10 @@
 #include "engine/audio.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/gear.h"
 #include "rpg/sim/magic_ops.h"
+#include "rpg/sim/realm.h"
+#include "rpg/sim/sea.h"
 #include "rpg/world/source.h"
 
 using art::Prop;
@@ -28,7 +32,7 @@ using magic::SpellDef;
 using magic::School;
 
 namespace {
-enum : int { MK_LEARN = 0, MK_ATTUNE = 1, MK_TRAD = 2 };
+enum : int { MK_LEARN = 0, MK_ATTUNE = 1, MK_TRAD = 2, MK_HIDDEN = 3 };   // MK_HIDDEN (M10): a hidden tradition's ways asked for
 
 int siteOfActor(const Game& g, const Actor& a) {
   if (a.site >= 0 && a.site < (int)g.world.sites.size()) return a.site;
@@ -98,6 +102,7 @@ int MagicOps::masteryRankOf(const Game& g, uint32_t tid) {
   const uint16_t xp = it == B.mastery.end() ? 0 : it->second;
   int ai = -1;
   for (size_t i = 0; i < B.attuned.size(); i++) if (B.attuned[i] == tid) ai = (int)i;
+  if (const magic::Tradition* t = magic::traditionById(tid)) if (t->hidden) return magic::masteryRank(xp, (B.rite(tid) & 2u) != 0);   // (M10)
   return magic::masteryRank(xp, ai >= 0 && (B.trials & (1u << ai)));
 }
 void MagicOps::gainMastery(Game& g, uint32_t tid, int xp) {
@@ -151,6 +156,11 @@ bool MagicOps::mayLearn(const Game& g, const SpellDef& d, std::string* why) {
   if (g.arcana.book.knows(d.id)) { if (why) *why = "YOU KNOW " + d.name + " ALREADY"; return false; }
   if (d.tradition) {
     if (!attuned(g, d.tradition)) { if (why) *why = "ATTUNE TO " + magic::traditionOfSpell(d).name + " FIRST"; return false; }
+    const magic::Tradition& t = magic::traditionOfSpell(d);
+    if (t.hidden) {   // (M10) the five steps (6.4): a hidden tradition's rank 3 also needs Honoured 60 and the second trial
+      if (hiddenStep(g, t, nullptr, d.rank, why) != 0) return false;
+      return true;
+    }
     const int r = masteryRankOf(g, d.tradition);
     if ((int)d.rank > r) {
       if (why) *why = d.rank >= 3 ? "ITS SIGNATURE NEEDS MASTERY 1200 AND THE TRIAL OF THE THRESHOLD" : "IT NEEDS MASTERY RANK 2 (300)";
@@ -239,7 +249,8 @@ void MagicOps::talk(Game& g, Actor& a) {
   const magic::Tradition& t = magic::traditionOf(*c);
   if (!t.id) return;
   if (!attuned(g, t.id)) {
-    g.dlg.opts.push_back({"ATTUNE ME TO " + t.name, DLG_MAGIC + MK_ATTUNE, (int)t.id});
+    if (t.hidden) g.dlg.opts.push_back({"TEACH ME THE WAYS OF " + t.name, DLG_MAGIC + MK_HIDDEN, (int)t.id});   // (M10) the five steps
+    else g.dlg.opts.push_back({"ATTUNE ME TO " + t.name, DLG_MAGIC + MK_ATTUNE, (int)t.id});
     return;
   }
   int n = 0;
@@ -268,6 +279,28 @@ bool MagicOps::choose(Game& g, const DlgOpt& o) {
     MagicOps::snd(g, (int)Sfx::LevelUp, g.pl().p, 1.2f);
     g.dlg.text = "YOU HAVE LEARNED " + d->name + ". USE IT WISELY.";
     if (oi >= 0) g.dlg.opts.erase(g.dlg.opts.begin() + oi);
+    return true;
+  }
+  if (kind == MK_HIDDEN) {   // (M10) the teacher grants rank 1 when the first four steps are met; else says which is not
+    const magic::Tradition* t = magic::traditionById((uint32_t)o.arg);
+    if (!t) return false;
+    std::string why;
+    const int step = hiddenStep(g, *t, nullptr, 0, &why);
+    if (step != 0 && step != 5) { g.dlg.text = why + "."; return true; }
+    magic::Book& B = g.arcana.book;
+    if (std::find(B.attuned.begin(), B.attuned.end(), t->id) == B.attuned.end()) {
+      // the teacher's rank 1 is an attunement that needs no level gate past the steps (the steps are the gate)
+      if (!attune(g, *t, &why)) { g.dlg.text = why + "."; return true; }
+    }
+    g.dlg.text = "YOU HAVE WALKED THE THRESHOLD. " + std::string(magic::signatureName(t->sig)) + " IS YOURS NOW, AS IT IS OURS. BEGIN WITH THESE.";
+    if (oi >= 0) g.dlg.opts.erase(g.dlg.opts.begin() + oi);
+    int n = 0;
+    for (uint32_t sid : t->spells) {
+      const SpellDef* d = magic::spellById(sid);
+      if (!d || d->rank != 1 || !mayLearn(g, *d) || n >= 3) continue;
+      g.dlg.opts.push_back({"TEACH ME " + d->name + " (" + std::to_string(magic::teachPrice(*d)) + " GOLD)", DLG_MAGIC + MK_TRAD, (int)sid});
+      n++;
+    }
     return true;
   }
   if (kind == MK_ATTUNE) {
@@ -299,10 +332,12 @@ void MagicOps::shopStock(Game& g, const Actor& a, std::vector<Item>& stock) {
     stock.push_back(magic::makeTome(pool[k]));
     pool.erase(pool.begin() + (std::ptrdiff_t)k);
   }
-  // a mage of a land with its own tradition sells one of its rank-1 tomes
+  // a mage of a land with its own tradition sells one of its rank-1 tomes (M10: a hidden land's, its focus too: sold
+  // nowhere else)
   if (a.role != Role::Mage) return;
   if (const cult::Culture* c = cultureHere(g, &a)) {
     const magic::Tradition& t = magic::traditionOf(*c);
+    if (t.hidden) stock.push_back(focusOf(g, t));
     std::vector<uint32_t> r1;
     for (uint32_t sid : t.spells) if (const SpellDef* d = magic::spellById(sid)) if (t.id && d->rank == 1) r1.push_back(sid);
     if (!r1.empty()) stock.push_back(magic::makeTome(r1[(size_t)(hash32(h ^ 0x7AD1u) % (uint32_t)r1.size())]));
@@ -347,9 +382,75 @@ void MagicOps::loot(Game& g, Vec2 at, int D, gear::LootSrc src) {
   g.pickups.push_back(k);
 }
 
+// ---- (M10) the hidden traditions: the five steps (6.4), the standing, first contact, the focus, the song land
+int MagicOps::standing(const Game& g, const magic::Tradition& t, const Actor* who) {
+  if (g.arcana.live.repOverride > -1000) return g.arcana.live.repOverride;
+  int site = who ? siteOfActor(g, *who) : -1;
+  if (site < 0 && g.inside) site = g.subSite >= 0 ? g.subSite : g.curSite;
+  if (site >= 0 && site < (int)g.world.sites.size()) {
+    const int k = g.world.sites[(size_t)site].kingdom;
+    if (k >= 0 && k < (int)g.world.kingdoms.size())
+      if (const realm::KingdomState* K = g.realm.kingdom(g.world.kingdoms[(size_t)k].id)) return K->playerRep;
+  }
+  for (const realm::KingdomState& K : g.realm.kingdoms()) if (K.culture == t.culture && !K.fallen) return K.playerRep;
+  return 0;
+}
+bool MagicOps::landed(const Game& g, const magic::Tradition& t) {
+  const cult::Culture* c = nullptr;
+  if (g_land && g_land->id == t.culture) c = g_land.get();
+  else if (g.world.src && t.culture) c = &g.world.src->culture(t.culture);
+  if (!c || !c->hiddenLand) return true;   // (no Mist between: nothing to cross)
+  const sea::LandRecord* r = g.sea.land(c->hiddenLand);
+  return r && (r->flags & sea::LF_LANDED);
+}
+int MagicOps::hiddenStep(const Game& g, const magic::Tradition& t, const Actor* teacher, int rank, std::string* why) {
+  const magic::Book& B = g.arcana.book;
+  auto no = [&](int step, const std::string& s) { if (why) *why = s; return step; };
+  if (!landed(g, t)) return no(1, "NO ONE FROM BEYOND THE MIST HAS EVER STOOD HERE. COME BY SEA, AND SET FOOT ON OUR SHORE");
+  const int rep = standing(g, t, teacher);
+  if (rep < magic::REP_FRIENDLY) return no(2, "WE DO NOT TEACH STRANGERS. EARN OUR TRUST FIRST (FRIENDLY 25, YOU ARE " + std::to_string(rep) + ")");
+  if (g.plLevel < magic::HIDDEN_LEVEL) return no(3, "YOU ARE NOT READY. COME BACK AT LEVEL " + std::to_string(magic::HIDDEN_LEVEL));
+  if (!(B.rite(t.id) & 1u)) return no(4, "FIRST PASS THE TRIAL OF THE THRESHOLD. ITS DOOR WILL TEACH YOU OUR WAY");
+  if (!attuned(g, t.id)) return no(5, "ASK ONE OF OUR TEACHERS FOR THE FIRST RANK");
+  if (rank <= 1) return 0;
+  const auto it = B.mastery.find(t.id);
+  const int xp = it == B.mastery.end() ? 0 : it->second;
+  if (rank == 2) return xp >= magic::MASTERY_RANK2 ? 0 : no(8, "IT NEEDS MASTERY RANK 2 (300)");
+  if (rep < magic::REP_HONOURED) return no(6, "OUR SIGNATURE IS FOR THE HONOURED (60, YOU ARE " + std::to_string(rep) + ")");
+  if (!(B.rite(t.id) & 2u)) return no(7, "THE SIGNATURE NEEDS THE SECOND TRIAL");
+  if (xp < magic::MASTERY_RANK3) return no(8, "THE SIGNATURE NEEDS MASTERY 1200");
+  return 0;
+}
+Item MagicOps::focusOf(Game& g, const magic::Tradition& t) {
+  Rng r(hash32(t.id ^ 0xF0C05u));
+  const cult::Culture* c = nullptr;
+  if (g_land && g_land->id == t.culture) c = g_land.get();
+  else if (g.world.src && t.culture) c = &g.world.src->culture(t.culture);
+  Item it = gear::makeGearC(r, ItemKind::Staff, 0, std::clamp(g.plLevel + 2, 1, gear::MAX_D), Rarity::Rare, c);
+  if (!t.focus.empty()) it.name = t.focus;
+  if (const SpellDef* d = t.spells.empty() ? nullptr : magic::spellById(t.spells.back())) it.tint = d->fx.ramp[2];
+  it.value = std::max(it.value, 900 + 40 * g.plLevel);
+  return it;
+}
+void MagicOps::findSongLand(Game& g) {
+  magic::Live& L = g.arcana.live;
+  L.songWorld = g.seed + 1;
+  if (!g.world.src) return;
+  const int32_t R = 6144 * 4;
+  uint32_t best = 0;
+  int64_t bd = INT64_MAX;
+  for (const ew::LandPlan& lp : g.world.src->landsIn(-R, -R, R, R)) {
+    if (!lp.hidden) continue;
+    const int64_t d = (int64_t)lp.cx * lp.cx + (int64_t)lp.cy * lp.cy;
+    if (d < bd) { bd = d; best = lp.id; }
+  }
+  magic::setSongLand(best);
+}
+
 // ---- a load, the companions
 void MagicOps::loaded(Game& g) {
   if (!g.world.src) return;
+  findSongLand(g);   // (M10) before any hidden land's tradition is made again
   for (uint64_t c : g.arcana.book.lands) magic::traditionOf(g.world.src->culture(c));
 }
 uint32_t MagicOps::companionSpell(Game& g, uint64_t culture) {

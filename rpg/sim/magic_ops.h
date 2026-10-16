@@ -57,6 +57,7 @@ struct MagicOps {
   // book's classic spells mirrored back into them (called by cast, step and a load)
   static void syncLegacy(Game& g);
   static void loaded(Game& g);                        // deserialize: the book's lands' traditions made again
+  static void trialsLoaded(Game& g);                  // (fixer M10 r1) deserialize: the met hidden kingdoms' trials registered (before enterSite)
   // ---- the map
   static void clearMap(Game& g);                      // clearNonPlayer: surfaces, missiles in flight, summons
   static void shift(Game& g, Vec2 d);                 // windowMoved: the surfaces move with the window (tiles)
@@ -121,4 +122,31 @@ struct MagicOps {
   }
   static void talkTo(Game& g, Actor& a) { g.talkTo(a); }
   static void setLand(const cult::Culture* c);
+
+  // ---- (M10 ARCANA lane) the hidden kingdoms' magic (magic_game.cpp: the six signatures and the trials' puzzles;
+  //      magic_learn.cpp: the five steps, the teachers, the focus, the dusk song-fire)
+  static magic::Signature sigOf(const magic::SpellDef& d);            // its tradition's signature (Common for the schools')
+  static bool attunedTo(const Game& g, magic::Signature s);           // an attuned tradition has that signature
+  static float bloodMul(const Game& g);                                // Blood rites: 1 + 0.8 (1 - hp / maxHp)
+  // the five steps (6.4) of a hidden tradition for the hero now: 0 all met for that rank, else the first unmet step
+  // (1 landed, 2 Friendly 25, 3 level 25, 4 the Trial of the Threshold, 5 a teacher's rank 1 (attunement), 6 Honoured
+  // 60, 7 the second trial, 8 mastery) with why
+  static int hiddenStep(const Game& g, const magic::Tradition& t, const Actor* teacher, int rank, std::string* why = nullptr);
+  static int standing(const Game& g, const magic::Tradition& t, const Actor* who);   // the realm's playerRep there
+  static bool landed(const Game& g, const magic::Tradition& t);       // its land has been set foot on (sea LF_LANDED)
+  static Item focusOf(Game& g, const magic::Tradition& t);            // its focus (a staff-kind item), sold only there
+  static void findSongLand(Game& g);                                   // the nearest hidden land of this world
+  // the trials (rpg/sim/rooms.h TrialLayout): a site made a trial of a culture's tradition (scripts, tests; the WORLD
+  // lane's ew trialOf sites are registered by step); a rite passed
+  static bool markTrial(Game& g, int site, const cult::Culture& c, int which);
+  static void passRite(Game& g, uint32_t traditionId, int which);
+  // Verdant shaping: every grown tile restored now (a map change; all: even under a body)
+  static void revertGrowths(Game& g, bool all);
+  static bool growTile(Game& g, int tx, int ty, uint8_t kind, float life, uint32_t spell, uint8_t order);
+  // Dreamweft: a decoy of the hero at p (its actor id)
+  static int spawnDecoy(Game& g, const magic::SpellDef& d, Vec2 p, float mag, float secs);
+  static bool inBubble(const Game& g, Vec2 p);
+  static void updateAIScaled(Game& g, Actor& a, float dt) { g.updateAI(a, dt); }
+  static void enterSiteRaw(Game& g, int site) { g.enterSite(site); }   // tests / scripts: walk into a trial
+  static void moveRaw(Game& g, Actor& a, Vec2 d) { g.moveActor(a, d); }
 };
