@@ -87,7 +87,7 @@ void EndlessSource::Impl::planSummits(int32_t rx, int32_t ry, RegionData& D, con
       int side = (p.seed & 1) ? 1 : -1;
       int32_t walked = 0;
       for (int leg = 0; leg < 14; leg++) {
-        const GTile& a = pts.back();
+        const GTile a = pts.back();   // (a copy: push_back below may reallocate pts, and `walked` reads a after it)
         const GTile b{a.x + ux + px * side, a.y + uy + py * side};
         if (waterE(b.x, b.y) < ELEV_SEA + Q(0.02) || riverWidthCell(b.x, b.y)) break;   // (the legs: no sea, no river)
         pts.push_back(b);
