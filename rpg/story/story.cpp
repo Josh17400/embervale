@@ -11,6 +11,8 @@
 #include <cmath>
 #include <set>
 #include <string>
+#include <utility>
+#include <vector>
 #include "engine/audio.h"
 #include "rpg/culture/culture.h"
 #include "rpg/sim/craft.h"
@@ -1905,24 +1907,28 @@ int Engine::offerFor(Game& g, const Actor& a) {
   const uint32_t h = hash32((uint32_t)key ^ (uint32_t)(key >> 32) ^ 0x57A1u);
   const int pct = a.role == Role::Innkeeper ? 60 : a.role == Role::Priest ? 50 : a.role == Role::Guard ? 25 : 30;
   if ((int)(h % 100) >= pct) return -1;
+  // (P1 Fresh Roads) a tale the world has seen ended is never told again, and a town has one teller per tale (offers.cpp
+  // tellerClaim): the unplayed tales of this trade, the person's own order, the first one that fits and is theirs to tell
   const dsl::Library& L = dsl::library();
-  int best = -1, bestPlays = 1 << 30;
-  uint32_t bestRank = 0;
+  std::vector<std::pair<uint32_t, int>> cand;
   for (size_t i = 0; i < L.scripts.size(); i++) {
     const dsl::Script& s = L.scripts[i];
     if (s.hook != dsl::HookKind::Npc) continue;
     if (s.hookTrade == -2 ? (a.role == Role::Guard || a.role == Role::Jarl) : s.hookTrade != (int)a.role) continue;
+    if (timesPlayed(s.id) > 0) continue;
     bool running = false;
     for (const Instance& in : running_) if (in.script == s.id) running = true;
     if (running) continue;
-    const int plays = timesPlayed(s.id);
-    const uint32_t rank = hash32(h ^ (uint32_t)strHash(s.id));
-    if (plays < bestPlays || (plays == bestPlays && rank > bestRank)) {
-      if (!precheck(g, s, hs)) continue;
-      best = (int)i; bestPlays = plays; bestRank = rank;
-    }
+    cand.push_back({hash32(h ^ (uint32_t)strHash(s.id)), (int)i});
   }
-  return best;
+  std::sort(cand.begin(), cand.end(), [](const std::pair<uint32_t, int>& x, const std::pair<uint32_t, int>& y) { return x.first > y.first; });
+  for (const auto& c : cand) {
+    const dsl::Script& s = L.scripts[(size_t)c.second];
+    if (!precheck(g, s, hs)) continue;
+    if (!tellerClaim(g, a, hs, strHash(s.id))) continue;
+    return c.second;
+  }
+  return -1;
 }
 
 int Engine::offerForPlace(Game& g, int hookKind, int site) {
@@ -1934,7 +1940,10 @@ int Engine::offerForPlace(Game& g, int hookKind, int site) {
     bool running = false;
     for (const Instance& in : running_) if (in.script == s.id) running = true;
     if (running) continue;
-    if (s.tier == 3 && timesPlayed(s.id) > 0) continue;   // a campaign is told once per world
+    // (P1 Fresh Roads) every tale, not only a campaign, is told once per world: a played one falls through to a
+    // generated story (offers.cpp placeOffer); a news tale waits for news it has not answered yet
+    if (timesPlayed(s.id) > 0) continue;
+    if (s.hook == dsl::HookKind::Event && !eventTaleFresh(g, s, site)) continue;
     if (!precheck(g, s, site)) continue;
     const int plays = timesPlayed(s.id);
     if (plays < bestPlays) { best = (int)i; bestPlays = plays; }

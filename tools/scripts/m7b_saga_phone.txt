@@ -62,8 +62,7 @@ seed 7
 +0.1 choose WE SHARE IT
 +0.3 story show
 +0.1 choose LET'S BE ON
-+0.3 expect saga homeward
-+0.3 story complete
+# (P1 integrator: a twist no longer cuts into a conversation, so the omen's sign follows the shared claim at once)
 +0.6 expect saga t2_sign
 +0.1 story show
 +0.1 choose I DON'T BUY

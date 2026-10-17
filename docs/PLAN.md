@@ -1289,3 +1289,75 @@ is deferred until after M12; the 16-bit quality bar and natural / organic world 
   lintel; steward menu rows small on phone layout; realm label can cover YOUR SEAT on the region map; no test reaches
   first contact with a hidden kingdom; no Warlord/Envoy actors spawn; ~67 of 150 archetypes; BALANCE: a newly
   independent one-village realm is retaken by its old liege within ~3 days of war on all test seeds.
+
+## P1, "Fresh Roads": the first post-M12 polish batch (VISION_PLAN 15.34; owner notes 2026-10-17)
+
+Goal: the owner's friends' playtest. Quests stop repeating (finished tales never come back, no four tales hogging the
+offers, campaigns that actually start, varied jobs from what a settlement really needs, every hunt with a place and a
+marker) and towns live (workplace-less trades with a real day, people walking when the player arrives, givers living
+their schedule, quests the player stumbles on: overheard gossip as journal LEADS, street incidents). Not in scope:
+character art size / zoom, animations, the character creator, the world-spanning main campaign. Owner notes: the
+every-system regression runs ONCE, by the integrator; fixes are verified with targeted checks only; the 16-bit quality
+bar and natural / organic world design stand; old saves are not a concern (refused gracefully).
+
+### Phase A (lead), 2026-10-17: done
+- The contracts are recorded in VISION_PLAN 15.34: one story picker (`story::Offer`, `tellerOffer`, `placeOffer` in
+  rpg/story/offers.cpp; storyTalk, the tale scan, boards, heralds, ruins and the news call it; the M6b policy kept
+  exactly), the jobs records (rpg/sim/jobs.h, jobs_ops.h, jobs.cpp: weekly `Pool`s, journal `Lead`s, `ErrandKind`;
+  `Game::jobBook`; `JobOps` step / accepted / questDone / reset / loaded wired), `Game::hasOffer` moved to quests.cpp,
+  `Game::addLead`, `QType::Errand` with `Game::openErrand` / `finishErrand` (marker, journal line and thanks in
+  quests.cpp), the tracked quest's pin following the giver (questTarget: the live giver, then `lifeGiverSpot`, a LIFE
+  stub, then the door), Mk tag ranges for the lanes, SAVE_VER 23 (the jobs block) with `tests/fixtures/save_v23.bin`
+  (save_v22.bin retired), ENDLESS_GEN_VER 27, SAGA_GEN_VER 2, `rpg_test --quest-mix` and `--town-motion` (CI "Quest
+  mix and town motion test", with --gates) and `tools/scripts/p1_lead_roads.txt`. THE WAR OF THE TWO CROWNS
+  (`succession`, M12) was never listed in campaignPlans(): listed now (six generated plans). tools/slot.sh already
+  existed.
+- Verified (MSVC, BDIR=build, every target built; clang -fsyntax-only on every changed file in WSL): rpg_test --seeds
+  1..20 20/20; save_test ALL OK (fixture save_v23, FIX6 re-recorded: one more quest, the errand); --quests 0 failures;
+  --story 1..5 0 failures; --campaigns 1..5 0 failures (60 walks with SUCCESSION); --sagalib 0 failures; --sagas 300 1..2 0 failures; --voice 0
+  failures; --save-soak 20 ok; --endless --golden 39 hashes ok; --golden ok. --quest-mix with the survey's visit set
+  reproduces the survey's talk numbers exactly (2,149 story offers, 3,425 jobs, Hunt 1,066): the picker refactor
+  changed nothing.
+- Baselines (the lanes' starting point; DONE gates in VISION_PLAN 15.34): `--quest-mix --seeds 1..20` (1,488 visits:
+  984 village, 252 town, 252 city; 257 s): finished tales re-offered 57.9 %, top-4 tales 63.3 % (PARDON alone 14,030 of
+  29,591), generated campaigns started 1 of 6 (REBELLION; the library's EMPTY THRONE every seed; BURDEN, PLAGUE, FAE,
+  DRAGON, SUCCESSION never offered: every board
+  offers MISSING CHILD and every ruin THE CURSED GIFT; no village news story was ever offered), top-3 job kinds 75.6 %,
+  farmers 30.9 %, every one of 15,238 hunts without a target. `--town-motion --seeds 1..8 --city` (31 s): walking
+  15.4 % (on arrival 10.1 %; DERGZALT in the tour: 0 of 54 walking at 11:04), 692 people static for 2 game hours
+  (MERCHANT 170, TAILOR 78, SCHOLAR 79, STABLEHAND 52, SMITH 45, BAKER 23 ... all WORK with no workplace; 157 generator
+  spawns standing in pose none).
+- Note for the lanes: the survey probe's "6 nearest settlements" came from World::nearSites, which at the start holds
+  only the start village (it measured 244 visits, not 1,440); --quest-mix reads the region plans and adds the nearest
+  town and city (the opening sends the player to the capital; boards stand only in towns and cities). `--no-towns`
+  keeps villages as they come.
+
+### Phase B lanes (disjoint files; see the lead report for the briefs)
+- **story** (build_story, code): the picker's policy (finished tales never return, one teller per tale per town, places
+  falling through to sagas and campaigns), ruin- and event-started stories, the five blocked campaigns reachable, the
+  double negative and the tone tags, story stand-ins that live a day; `--quest-mix` story gates.
+- **jobs** (build_jobs, code): weekly need-driven job pools, wider trade menus, Hunt targets with markers, journal
+  LEADS (rumours, the QUESTS page), errands' polish; `--quest-mix` job gates.
+- **life** (build_life, code, senior): a real day for workplace-less trades (stalls, errands, carry routes, shopping,
+  visiting), staggered arrival, no giver pins, generator spawns that move, overheard gossip as leads, street incidents
+  as errands, pathBudget on phone-class perf; `--town-motion` gates, perf flat.
+- Lane results (MSVC, `--quest-mix --seeds 1..20 --gates` and `--town-motion --seeds 1..8 --city --gates`): finished
+  tales re-offered 0.0 % (13,050 story offers), top-4 tales 13.6 %, generated campaigns started 5 of 6 (BURDEN, PLAGUE,
+  FAE, REBELLION, SUCCESSION; DRAGON 0: realm events near the start are too rare and its arcs all describe a raid just
+  happened), top-3 job kinds 53.6 % (6,492 radiant jobs), farmers 4.6 %, hunts without a target 0; town centres walking
+  33.1 % (arrival 24.8 %), static for 2 h 0, life step worst 0.6 ms.
+
+### Integration, 2026-10-17: done
+- Clean MSVC build of every target (only pre-existing int-to-float warnings); WSL clang 18 build of rpg_test clean of
+  new warnings; `rpg_test --seeds 1..20` 20/20 on MSVC and 20/20 on clang; save_test ALL OK; every CI suite in web.yml
+  passes (60 commands incl. --quest-mix and --town-motion gates, --window p99.9 2.19-2.91 ms, --golden, --endless
+  --golden) plus --jobs, --life-p1 --hooks, --story-p1, --story-events.
+- Full script sweep (335 scripts, once): 7 failures, 6 fixed: dialogue_tap / m2_phone_touch (the nearest giver now
+  has five options, no second page), m4_story_board (the board pins SUCCESSION's defaced proclamation before MISSING
+  CHILD), m6b_fix_cast_gone / m6b_fix_giver_dead (new `saga kill [role]` instead of resident names), m7b_saga_phone (a
+  twist no longer cuts into a conversation: the omen's sign follows at once). Open: m9_lead_arcana line 29 (the
+  firebolt auto-aims at the nearest frightened wolf, which now sits north behind seed 7's bamboo; the bolt dies on a
+  stalk; the shared dice moved with the town's new day; not a P1 code path).
+- `--dialogue 1..3` fixed (7 failures -> 0): guard salutes, the spell-lesson refusal, the Heirloom acceptance echo.
+- Screenshot tour (seeds 3 desktop and 12 phone; town 09/11/22 h, inn, city 15/21 h, board, overheard lead, thief,
+  hunt HUD, journal leads, map): staffed stalls, people walking and carrying, no "BOUNTY:" on non-bounty notices.

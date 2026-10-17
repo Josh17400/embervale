@@ -31,7 +31,8 @@ struct Particle {
 };
 // a floating line over the world: a combat number rising and fading (0.9 s), or (M5) a spoken line (an overheard
 // remark, a greeting by name: Ev::Text of words) held over the speaker on a dark plate, wrapped, for `life` seconds
-struct FloatText { Vec2 p; std::string s; Color c; float t = 0; bool speech = false; float life = 0.9f; };
+// (P1 fixer r2) actor: a spoken line's speaker (Actor::id; -1 none), whom the plate follows at off from their feet
+struct FloatText { Vec2 p; std::string s; Color c; float t = 0; bool speech = false; float life = 0.9f; int actor = -1; Vec2 off; };
 struct Toast { std::string s; Color c; float t = 0; int rarity = -1; };   // (M8b) rarity: an item notice (its name in the ladder colour)
 
 class View {
@@ -779,6 +780,7 @@ class View {
   void magicEvent(Game& g, const Event& e);    // Ev::Spell (the update's event pass, spawnParticles)
   void magicUpdate(Game& g, float dt);         // age the effects (update, after powerUpdate)
   void magicShift(Vec2 d);                     // Ev::WindowShift: effects and decals move with the window
+  void drawIncidentGround(Game& g, Vec2 cam);  // (P1 fixer) a street incident's ground props: a broken cart's loose wheel (render_markers.cpp)
   void drawMagicGround(Game& g, Vec2 cam);     // world space under the bodies: surfaces, decals, ground glyphs (drawWorld)
   void drawSpellProj(Game& g, const Projectile& pr, int idx, Vec2 cam);   // a ProjKind::Spell missile in the sorted pass
   void magicLights(Game& g, const std::function<void(Vec2, float, Color, float)>& light);   // drawLighting

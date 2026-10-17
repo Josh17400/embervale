@@ -87,8 +87,10 @@ bool cmdFolk(ScriptCtx& c) {
       plan = std::string(life::actName(p.act)) + "@" + life::placeName(p.place) + (p.bldg >= 0 ? "#" + std::to_string(p.bldg) : "");
       job = life::jobName(r.job);
     }
-    std::printf("  %-18s %-11s %-22s %-9s st %d at %d,%d%s\n", a.name.c_str(), job.c_str(), plan.c_str(), postureName(a.posture), (int)a.st,
-                (int)std::floor(a.p.x / TILE), (int)std::floor((a.p.y - 2) / TILE), a.useX >= 0 ? " (uses furniture)" : "");
+    // (P1 Fresh Roads) the street task of the segment (SPOT, STALL, DELIVER, SWEEP, READ, VISIT, SHOP)
+    const int task = life::taskOf(g, a.id);
+    std::printf("  %-18s %-11s %-22s %-7s %-9s st %d at %d,%d%s\n", a.name.c_str(), job.c_str(), plan.c_str(), task >= 0 ? life::taskName(task) : "-",
+                postureName(a.posture), (int)a.st, (int)std::floor(a.p.x / TILE), (int)std::floor((a.p.y - 2) / TILE), a.useX >= 0 ? " (uses furniture)" : "");
   }
   if (lowerS(c.arg(1)) == "all" && cs) {
     for (const life::Resident& r : cs->res) {

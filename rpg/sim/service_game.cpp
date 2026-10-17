@@ -511,7 +511,10 @@ void ServiceOps::talk(Game& g, Actor& a) {
                                         "EYES OPEN, %R. THERE'S TALK OF TROUBLE BEYOND THE BORDER.", "MORNING OR EVENING, %R, THE PAY IS THE SAME. KEEP WELL.",
                                         "YOU AGAIN, %R. I'D SALUTE, BUT MY ARM'S STILL SORE FROM DRILL."};
     const uint32_t hv = hash32((uint32_t)a.id * 2654435761u ^ (uint32_t)g.day * 977u);
-    const char* line = (hv & 1) ? v.greet : PLAIN[(hv >> 1) % (sizeof(PLAIN) / sizeof(PLAIN[0]))];
+    // (P1 integrator: half of a capital's guard on the salute still gave 4 the same line) the salute is one choice
+    // among the plain ones, so a square full of guards spreads over eight lines
+    const uint32_t np = (uint32_t)(sizeof(PLAIN) / sizeof(PLAIN[0])), pick = (hv >> 1) % (np + 1);
+    const char* line = pick == np ? v.greet : PLAIN[pick];
     speech::propose(d, speech::P_NEWS, speech::Topic::Service, fill(line, K, 0, S.rank));
   }
   d.opts.push_back({"REPORTING FOR DUTY", DLG_SERVICE + K_REPORT, 0});

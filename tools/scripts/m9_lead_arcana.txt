@@ -25,6 +25,26 @@ seed 7
 +0.1 surface oil 2 1
 +0.1 surface oil 3 1
 +0.1 expect surface water 1
+# (P1 integration fixer) the fire-on-oil combo on a clean, fixed stage: the bolt used to auto-aim at whichever wolf was
+# nearest after FEAR scattered them (seed 7's town-life change put it north behind bamboo: the bolt hit a stalk). Now
+# the scattered pack is gone, the ground round the hero is cleared, one still wolf stands 5 tiles west on a patch of oil
+# and the hero faces it (the auto-aim only takes foes ahead): the firebolt lands on the oil, which must catch.
++0.1 beastclear
++0.05 skill clearing 9
++0.05 spell aim -1 0
++0.05 beast wolf 1 still at -80 0
++0.05 surface oil -6 -1
++0.02 surface oil -5 -1
++0.02 surface oil -4 -1
++0.02 surface oil -3 -1
++0.02 surface oil -6 0
++0.02 surface oil -5 0
++0.02 surface oil -4 0
++0.02 surface oil -3 0
++0.02 surface oil -6 1
++0.02 surface oil -5 1
++0.02 surface oil -4 1
++0.02 surface oil -3 1
 +0.1 spell cast 1
 +0.6 expect surface fire 1
 +0.1 shot m9_lead_surfaces.png

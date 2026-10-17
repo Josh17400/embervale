@@ -16,6 +16,7 @@
 #include "rpg/sim/magic_ops.h"
 #include "rpg/sim/lord_ops.h"
 #include "rpg/sim/sea_ops.h"
+#include "rpg/sim/jobs_ops.h"
 #include "rpg/sim/service_ops.h"
 #include "rpg/sim/powers.h"
 #include "rpg/sim/skill_ops.h"
@@ -205,6 +206,7 @@ void Game::resetPlayer() {
   SeaOps::reset(*this);                      // (M10) no boats, nothing known of the sea
   LordOps::reset(*this);                     // (M12) no holdings, no realm of one's own (lord_game.cpp)
   ServiceOps::reset(*this);                  // (M12) never enlisted (service_game.cpp)
+  JobOps::reset(*this);                      // (P1) no job pools, no leads (jobs.cpp)
   skills::startLevels(skills, background);   // (M9) every skill at its start level
   recalcPlayer();
   Actor& p = pl();
@@ -629,6 +631,7 @@ void Game::update(float dt, const Input& in) {
   SeaOps::step(*this, dt);     // M10: the wind, storms, the Mist, the boats, voyages, encounters (sea_game.cpp, SEA lane)
   LordOps::step(*this, dt);    // M12: the fief's day: taxes, tribute, works (lord_game.cpp, LORD lane)
   ServiceOps::step(*this, dt); // M12: the army's day: wages, orders, missions (service_game.cpp, SERVICE lane)
+  JobOps::step(*this, dt);     // P1: leads going stale, last week's job pools dropped (jobs.cpp, JOBS lane)
   if (world.endless && !inside) { maybeRecentre(); prefetchTick(dt); }
   if (!inside && (exploreT_ -= dt) <= 0) {   // fog of war: what the screen shows around the player (global tiles)
     exploreT_ = 0.25f;

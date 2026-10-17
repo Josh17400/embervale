@@ -1,5 +1,6 @@
 # M4 STORY lane: a notice board in a town square (VISION_PLAN 4.6), laid at runtime on a free paved tile: bounties,
-# proclamations, missing persons; a bounty taken from it; the board-hooked story (a missing child) begun from it.
+# proclamations, missing persons; a bounty taken from it; the board-hooked story begun from it (P1: the board pins a
+# generated campaign before its library tale: SUCCESSION's defaced crown notice on seed 2).
 #   embervale.exe --script tools/scripts/m4_story_board.txt     (m4_story_b*.png in the working directory)
 seed 2
 0.3  newgame
@@ -11,8 +12,8 @@ seed 2
 +4.5 shot m4_story_b1_board.png
 +0.1 choose BOUNTY:
 +2.5 shot m4_story_b2_bounty.png
-+0.1 choose READ: MISSING CHILD
-+0.3 expect story psalter running
++0.1 choose THE DEFACED PROCLAMATION
++0.3 expect tracked DIVIDED CROWN
 +2.5 shot m4_story_b3_missing.png
 +0.1 key Escape
 +2.5 shot m4_story_b4_square.png

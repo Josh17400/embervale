@@ -29,6 +29,7 @@ void addWorld(std::vector<Archetype>& v);
 void addArcs(std::vector<Archetype>& v);
 void addCompanion(std::vector<Archetype>& v);   // (M8)
 void addRise(std::vector<Archetype>& v);        // (M12 REALM lane) rise.cpp: realms that rise and fall
+void addRoads(std::vector<Archetype>& v);       // (P1 STORY lane) roads.cpp: stories begun by a ruin's words or the news
 void addTwists(std::vector<Twist>& v);
 
 }  // namespace arch

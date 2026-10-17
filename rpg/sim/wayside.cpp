@@ -19,6 +19,7 @@
 #include <vector>
 #include "engine/audio.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/jobs_ops.h"
 #include "rpg/world/source.h"
 
 using art::Monster;
@@ -143,9 +144,18 @@ std::string Game::hearRumour() {
   int px, py;
   overworldTile(*this, px, py);
   const int32_t gx = world.ox + px, gy = world.oy + py;
+  // (P1 Fresh Roads) a person talking (an innkeeper, a traveller; not a grave or a book) also names a real job in
+  // another settlement this week, every other rumour: a journal LEAD ("THE SMITH OF VOND IS SHORT OF GOODS")
+  const bool person = mode == Mode::Dialogue && dlg.actor >= 0;
+  if (person && (hash32((uint32_t)day * 2654435761u ^ (uint32_t)dlg.actor ^ (uint32_t)seed) & 1u)) JobOps::rumourJob(*this, curSite);
   const int si = rumourSite(gx, gy);
   if (si < 0) return "";
   world.sites[(size_t)si].rumoured = true;
+  {   // the place itself becomes a lead too (the journal keeps what was heard, the map shows the "?")
+    const Site& s = world.sites[(size_t)si];
+    const std::string what = placeWords(s);
+    JobOps::placeLead(*this, si, s.name != what && !s.name.empty() ? what + " CALLED " + s.name : what);
+  }
   return rumourLine(si, gx, gy);
 }
 

@@ -30,7 +30,9 @@ struct SettlementOut;   // rpg/world/settlement.h
 
 // Bumped when the endless generator's output changes. Old saves are not kept compatible across M1 (owner rule,
 // 2026-10-04); the save stores it so a mismatch can say "this save is from an older world".
-constexpr int ENDLESS_GEN_VER = 26;  // 26: M11 fixer r2 (chunkgen: the land tops out at level 6, level 7 is the summit
+constexpr int ENDLESS_GEN_VER = 27;  // 27: P1 Fresh Roads (the census gives workplace-less trades a real day: stalls,
+                                     //     errands, carry routes; LIFE lane). Old saves refused.
+                                     // 26: M11 fixer r2 (chunkgen: the land tops out at level 6, level 7 is the summit
                                      //     crowns'; a dirt track's way up is an earth ramp; nothing tall over a fall;
                                      //     fixture and 3 chunk goldens re-made).
                                      // 25: M11 fixer r1 (chunkgen step 6: the level fix-up over the full 2-tile ring, LB 7, so

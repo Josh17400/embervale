@@ -95,6 +95,22 @@ struct RulerOverride { ew::Gid kingdom = 0; std::string name, title; int32_t day
 // Library statistics (tests, reports)
 struct LibraryStats { int scripts = 0, campaigns = 0, stages = 0, words = 0, options = 0; };
 
+// (P1 Fresh Roads, lead; VISION_PLAN 15.34) what a teller or a place offers now. ONE picker serves storyTalk, the tale
+// scan (the scroll marker), the notice boards, the heralds, the ruins' words, the news (eventStories) and rpg_test
+// --quest-mix, so the measurement is the game's own choice. The STORY lane changes the policy inside tellerOffer /
+// placeOffer (rpg/story/offers.cpp) only. lib >= 0: a library script index (dsl::library().scripts); else saga: a
+// generated story's spec id; neither: nothing to offer. replay: lib is a tale this world has already seen ended.
+struct Offer {
+  int lib = -1;
+  std::string saga;
+  bool replay = false;
+  bool any() const { return lib >= 0 || !saga.empty(); }
+  bool campaign() const;     // a tier-3 story (a library campaign, or a generated campaign: spec id "saga<N>~@...")
+  std::string id() const;    // the script id offered ("" none)
+};
+Offer tellerOffer(Game& g, const Actor& a);          // hook "npc <trade>": the person in front of the player
+Offer placeOffer(Game& g, int hookKind, int site);   // hook board / herald / ruin / event at a site handle
+
 class Engine {
  public:
   void reset(uint64_t worldSeed);
@@ -316,5 +332,7 @@ constexpr int SA_START = 300;    // + library script index (arg: hook site)
 constexpr int SA_BOARD = 600;    // + board entry kind (arg: entry argument)
 constexpr int SA_HERALD = 800;   // herald talk
 constexpr int SA_SAGA = 900;     // (M6b) + index into Engine::sagaOffers_ (arg: hook site): start a generated story
+constexpr int SA_READON = 890;   // (P1) "READ ON.": a ruin's words began a story too long to share the lore's panel
+                                 // (arg: the instance id): its first lines (inside the herald range; heralds use 800, 801)
 
 }  // namespace story

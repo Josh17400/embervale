@@ -13,6 +13,7 @@
 #include "rpg/sim/deco.h"
 #include "rpg/sim/foes.h"
 #include "rpg/sim/gear_look.h"
+#include "rpg/sim/life.h"
 #include "rpg/view/prop_traits.h"
 #include "rpg/view/script_api.h"
 #include "rpg/view/magic_state.h"
@@ -123,7 +124,7 @@ Canvas paintTableShadow(uint64_t key) { return art::marketTableShadow((int)(key 
 Canvas paintClothShadow(uint64_t) { return art::groundClothShadow(); }
 Canvas paintCart(uint64_t key) {
   if ((key >> 8) & 1) art::setMarketSnow(4.0f);
-  Canvas c = art::marketCart((int)(key & 15));
+  Canvas c = (key >> 9) & 1 ? art::marketCartBroken((int)(key & 15)) : art::marketCart((int)(key & 15));
   art::setMarketSnow(1e9f);
   return c;
 }
@@ -142,6 +143,12 @@ int stallFacingOn(const Game& g, const Map& m, int tx, int ty) {
 // the stall's form (cloth booth, canvas tent, timber booth): one per row (S / N, by its global row) or column (E / W)
 int stallFormOn(const Game& g, int tx, int ty, int facing) {
   return facing >= art::StallE ? ew::stallFormAt(0x3C00000 ^ (tx + g.world.ox)) : ew::stallFormAt(ty + g.world.oy);
+}
+// (P1 fixer r2) the speaker of a spoken plate (Actor::id; the player and the dead never), or null
+const Actor* speakerOf(const Game& g, int id) {
+  for (size_t k = 1; k < g.actors.size(); k++)
+    if (g.actors[k].id == id) return &g.actors[k];
+  return nullptr;
 }
 // a cart's look by its global tile: its load and which way its shafts point
 int cartLook(const Game& g, int tx, int ty) {
@@ -982,13 +989,23 @@ void View::spawnParticles(const Event& e, Game& g) {
     case Ev::Heal: addFx(art::Fx::Heal, e.p + Vec2(0, -10), 0.6f); for (int i = 0; i < 10; i++) add(e.p + Vec2(r.range(-8, 8), r.range(-16, 0)), Vec2(0, r.range(-40, -15)), 0.8f, Color(0.5f, 1, 0.6f), 1, 0); break;
     case Ev::Frost: addFx(art::Fx::Frost, e.p + Vec2(0, -6), 0.35f); break;
     case Ev::Text: {
+      if (e.s.empty()) {   // (P1 fixer r2) a hush: the speaker's plate taken down (life_game.cpp hush)
+        if (e.id)
+          texts_.erase(std::remove_if(texts_.begin(), texts_.end(), [&](const FloatText& t) { return t.speech && t.actor == (int)e.id - 1; }), texts_.end());
+        break;
+      }
       FloatText ft; ft.p = e.p + Vec2(r.range(-4, 4), 0); ft.s = e.s; ft.c = col((uint32_t)e.a);
       // (M5) words (an overheard remark, a greeting by name, a plea) are a spoken line: held over the speaker long
       // enough to read on a phone (about 2 s plus a beat per word), on a dark plate; numbers and one-word calls still
       // rise and fade
-      if (e.s.size() >= 8 && e.s.find(' ') != std::string::npos && ((e.s[0] >= 'A' && e.s[0] <= 'Z') || e.s[0] == '"' || e.s[0] == 0x27)) {
+      // (P1 fixer) a line that trails in ("...OLD BRANDR WANTS THE WOLVES CULLED...": overheard gossip) is spoken too: it
+      // was drawn as rising grey text with no plate, through the E: TALK label
+      if (e.s.size() >= 8 && e.s.find(' ') != std::string::npos && ((e.s[0] >= 'A' && e.s[0] <= 'Z') || e.s[0] == '"' || e.s[0] == 0x27 || (e.s[0] == '.' && e.s.size() > 3 && e.s[3] >= 'A' && e.s[3] <= 'Z'))) {
         ft.speech = true;
         ft.p = e.p;
+        // (P1 fixer r2) a line with its speaker (Event::id = actor id + 1, life_game.cpp say): the plate rides over them
+        if (e.id)
+          if (const Actor* sp = speakerOf(g, (int)e.id - 1)) { ft.actor = sp->id; ft.off = e.p - sp->p; }
         int words = 1;
         for (char ch : e.s) if (ch == ' ') words++;
         ft.life = std::min(5.5f, 1.8f + 0.32f * (float)words);
@@ -999,7 +1016,9 @@ void View::spawnParticles(const Event& e, Game& g) {
         if (dup) break;
         // a new line from (about) the same speaker replaces the old one
         for (size_t k = 0; k < texts_.size();)
-          if (texts_[k].speech && std::fabs(texts_[k].p.x - ft.p.x) < 10 && std::fabs(texts_[k].p.y - ft.p.y) < 14) texts_.erase(texts_.begin() + (std::ptrdiff_t)k);
+          if (texts_[k].speech && ((ft.actor >= 0 && texts_[k].actor == ft.actor) ||
+                                   (std::fabs(texts_[k].p.x - ft.p.x) < 10 && std::fabs(texts_[k].p.y - ft.p.y) < 14)))
+            texts_.erase(texts_.begin() + (std::ptrdiff_t)k);
           else k++;
       }
       texts_.push_back(ft);
@@ -1031,7 +1050,16 @@ void View::spawnParticles(const Event& e, Game& g) {
       // the same line already showing as the centre notice (Game::say) is not repeated as a toast, nor a line the
       // banner shows whole (M7 fix: "YOUR HOUSE IS FINISHED" twice)
       const bool bannerWhole = (e.f == 0 || e.f == 1) && e.s.find(':') == std::string::npos;
-      if (!(g.noticeT > 0 && g.notice == e.s) && !bannerWhole) { Toast t; t.s = e.s; t.c = e.f == 1 ? Color(1, 0.85f, 0.3f) : Color(0.9f, 0.85f, 0.7f); toasts_.push_back(t); }
+      // (P1 fixer r2) a quest done: the centre banner says QUEST COMPLETE over its title, so no toast repeats it, and its
+      // own QUEST STARTED line still up goes (a street errand starts and ends in a breath: three toasts and a banner
+      // for one caught thief)
+      bool bannerSays = false;
+      if (e.f == 1 && e.s.rfind("QUEST COMPLETE: ", 0) == 0) {
+        bannerSays = true;
+        const std::string started = "QUEST STARTED: " + e.s.substr(16);
+        toasts_.erase(std::remove_if(toasts_.begin(), toasts_.end(), [&](const Toast& t) { return t.s == started; }), toasts_.end());
+      }
+      if (!(g.noticeT > 0 && g.notice == e.s) && !bannerWhole && !bannerSays) { Toast t; t.s = e.s; t.c = e.f == 1 ? Color(1, 0.85f, 0.3f) : Color(0.9f, 0.85f, 0.7f); toasts_.push_back(t); }
       if (e.f == 0 || e.f == 1) { bannerState_.clear(); banner_ = e.f == 1 ? "QUEST COMPLETE" : "NEW QUEST"; bannerSub_ = e.s.substr(e.s.find(':') == std::string::npos ? 0 : e.s.find(':') + 2); bannerT_ = 3.5f; }
       break;
     }
@@ -1259,7 +1287,12 @@ void View::update(Game& g, float dt) {
   for (size_t i = 0; i < texts_.size();) {
     texts_[i].t += dt;
     if (!texts_[i].speech) texts_[i].p.y -= dt * 22;
-    else if (texts_[i].t < 0.25f) texts_[i].p.y -= dt * 12;   // (M5) a spoken line lifts a few pixels, then holds
+    else if (texts_[i].t < 0.25f) { texts_[i].p.y -= dt * 12; texts_[i].off.y -= dt * 12; }   // (M5) a spoken line lifts a few pixels, then holds
+    if (texts_[i].speech && texts_[i].actor >= 0) {   // (P1 fixer r2) over its speaker wherever they go (gone: it stays put)
+      const Actor* sp = speakerOf(g, texts_[i].actor);
+      if (sp && sp->st != AState::Dead) texts_[i].p = sp->p + texts_[i].off;
+      else texts_[i].actor = -1;
+    }
     if (texts_[i].t > texts_[i].life) texts_.erase(texts_.begin() + i); else i++;
   }
   // toasts wait while a dialogue or menu is open, so "OLD BLADE" is still there when the player looks up
@@ -1753,6 +1786,7 @@ void View::drawWorld(Game& g) {
   if (g.mode != Mode::Title) drawReliefWater(g, cam);   // (M11) waterfalls over the faces (render_relief.cpp)
   if (g.mode != Mode::Title) drawSeaWater(g, cam);      // (M10) waves, foam, wakes over the water (render_sea.cpp)
   if (g.mode != Mode::Title) drawMagicGround(g, cam);   // (M9) surfaces, decals, ground glyphs under the bodies (render_magic.cpp)
+  if (g.mode != Mode::Title && !g.inside) drawIncidentGround(g, cam);   // (P1 fixer) a broken cart's wheel in the road (render_markers.cpp)
   // collect drawables
   std::vector<Drawable> list;
   // (M2: the wonders are up to 7 tiles wide and 7 tall above their anchor tile: a wider margin below and aside)
@@ -2401,7 +2435,11 @@ void View::drawWorld(Game& g) {
           else if (p == Prop::MarketTable) art::marketTableOrigin(ox, oy);
           else if (p == Prop::GroundCloth) art::groundClothOrigin(ox, oy);
           else {
-            tp = &cachedTex(0x3Dull << 56 | (uint64_t)(g.mode != Mode::Title && snowyTile(m, d.tx, d.ty) ? 1 : 0) << 8 | (uint64_t)cartLook(g, d.tx, d.ty), paintCart);
+            // (P1 fixer r2) the street incident's cart stands with its near wheel off until the wheel is going back on
+            // (the wheel lies in the road meanwhile: drawIncidentGround, render_markers.cpp)
+            const life::IncidentView iv = life::incidentNow(g);
+            const bool brokenCart = iv.kind == life::INC_CART && iv.holdT < 3.0f && iv.gx - g.world.ox == d.tx && iv.gy - g.world.oy == d.ty;
+            tp = &cachedTex(0x3Dull << 56 | (uint64_t)(brokenCart ? 1 : 0) << 9 | (uint64_t)(g.mode != Mode::Title && snowyTile(m, d.tx, d.ty) ? 1 : 0) << 8 | (uint64_t)cartLook(g, d.tx, d.ty), paintCart);
             art::marketCartOrigin(ox, oy);
           }
           const float x = d.tx * 16.0f + ox - cam.x, y = d.ty * 16.0f + oy - cam.y;

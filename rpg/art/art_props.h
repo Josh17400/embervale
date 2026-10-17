@@ -487,6 +487,7 @@ Canvas groundClothShadow();
 // its shafts point (v & 4: west); stands on its tile, the shafts reaching over the next
 constexpr int kCartLooks = 8;
 Canvas marketCart(int v);
+Canvas marketCartBroken(int v);   // (P1 fixer r2) the same cart with its near wheel off, the bed tilted onto that side
 void marketCartOrigin(int& dx, int& dy);
 Canvas marketCartShadow(int v);
 Canvas mineRail(int joins);

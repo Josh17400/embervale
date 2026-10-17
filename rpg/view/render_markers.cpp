@@ -4,6 +4,8 @@
 // bare gold "!" (no bubble: the bubble means a reward is waiting), and the person a Missing quest has the player walk
 // home (the escort, whose name is the quest's subject) wears a teal chevron and a ring at the feet, so they can be
 // told from a crowd and seen to follow.
+// P1 Fresh Roads (JOBS lane): town givers carry no offer mark (the player stumbles on work by talking to people, by
+// overhearing, by rumour); a person an open journal lead names, who has work this week, wears a small parchment "?".
 // Pixel art at 1x (11 x 14): a cream bubble with a near-black outline reads on grass, snow, stone and warm interior
 // wood alike; the "!" is orange-gold, lit from the top-left like every other sprite, the bubble's lower-right edge is
 // shaded, a 1 px drop shadow lifts it off the scene, and the tail points down at the giver's head.
@@ -11,6 +13,8 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include "rpg/sim/jobs_ops.h"
+#include "rpg/sim/life.h"
 #include "rpg/view/view.h"
 
 namespace {
@@ -43,6 +47,32 @@ void drawOfferMark(Pix& P, const Actor& a, Vec2 cam, float t, Color outline, Col
         if (ch == '.') continue;
         if (pass == 0) { P.rect((float)(x0 + c + 1), (float)(y0 + r + 1), 1, 1, Color(0, 0, 0, 0.35f)); continue; }
         P.rect((float)(x0 + c), (float)(y0 + r), 1, 1, ch == 'o' ? outline : ch == 'H' ? hi : ch == 'S' ? goldShade : gold);
+      }
+}
+// (P1 Fresh Roads, JOBS lane) the person an open journal LEAD names, who has work this week: a small parchment "?"
+// (no bubble, no gold: the town is not carpeted in marks; the player stumbles on work, and a lead only whispers who
+// to ask). 7 x 9, lit top-left like the "!", a slow bob and breath, a 1 px drop shadow.
+const char* kAsk[9] = {"..ooo..", ".oHPSo.", "oPoooSo", ".o..oSo", "...oPo.", "..oPo..", "..ooo..", "..oPo..", "..ooo.."};
+void drawLeadMark(Pix& P, const Actor& a, Vec2 cam, float t, Color outline) {
+  const Color hi(1.0f, 0.95f, 0.80f), parch(0.93f, 0.80f, 0.56f), shade(0.66f, 0.47f, 0.27f);
+  const float k = 0.78f + 0.22f * (0.5f + 0.5f * std::sin(t * 1.6f));   // a slow breath, never gone
+  const int bob = (int)std::lround(std::sin(t * 2.2f) * 1.0f);
+  const int x0 = (int)std::floor(a.p.x - cam.x) - 3, y0 = (int)std::floor(a.p.y - cam.y) - art::HUMAN_H - 11 + bob;
+  // (P1 fixer) a faint warm halo a pixel round the outline: the dark-rimmed "?" was lost on a dark awning or slate roof
+  for (int r = -1; r < 10; r++)
+    for (int c = -1; c < 8; c++) {
+      auto on = [&](int rr, int cc) { return rr >= 0 && rr < 9 && cc >= 0 && cc < 7 && kAsk[rr][cc] != '.'; };
+      if (on(r, c) || !(on(r - 1, c) || on(r + 1, c) || on(r, c - 1) || on(r, c + 1))) continue;
+      P.rect((float)(x0 + c), (float)(y0 + r), 1, 1, Color(1.0f, 0.93f, 0.76f, 0.42f * k));
+    }
+  for (int pass = 0; pass < 2; pass++)
+    for (int r = 0; r < 9; r++)
+      for (int c = 0; c < 7; c++) {
+        const char ch = kAsk[r][c];
+        if (ch == '.') continue;
+        if (pass == 0) { P.rect((float)(x0 + c + 1), (float)(y0 + r + 1), 1, 1, Color(0, 0, 0, 0.30f * k)); continue; }
+        const Color col = ch == 'o' ? outline : ch == 'H' ? hi : ch == 'S' ? shade : parch;
+        P.rect((float)(x0 + c), (float)(y0 + r), 1, 1, col.withA(k));
       }
 }
 // the escort: a teal chevron over the head and a soft ring at the feet
@@ -175,6 +205,59 @@ void View::drawBubbles(Game& g, Vec2 cam) {
     }
 }
 
+// (P1 fixer) a broken cart (a street incident, life_game.cpp): its wheel lies flat in the road at the cart's front-left
+// with three spilt sacks, until the player has held the cart up long enough for the wheel to go back on. 3/4 top-down,
+// lit from the top-left like every sprite: a 15 x 8 rim of dark-oiled oak with a lit upper-left arc, six spokes to an
+// iron hub, a soft contact shadow below-right. Ground layer: drawn under the bodies, so the kneeling owner covers it.
+namespace {
+// 'o' outline, 'R' rim lit, 'r' rim, 'd' rim shade, 's' spoke, 'h' hub, 'H' hub light, '.' empty
+const char* kWheel[8] = {
+    "....ooooooo....",
+    "..ooRRRRRrroo..",
+    ".oRRs..s..srdo.",
+    "oRr..s.s.s..rdo",
+    "oRsssshHhssssdo",
+    "ord..s.s.s..ddo",
+    ".odds..s..sddo.",
+    "..ooodddddooo..",
+};
+const char* kSack[5] = {".ooo.", "oLMMo", "oMMSo", "oMSSo", ".ooo."};
+}  // namespace
+
+void View::drawIncidentGround(Game& g, Vec2 cam) {
+  const life::IncidentView v = life::incidentNow(g);
+  if (v.kind != life::INC_CART || v.holdT >= 3.0f) return;
+  Pix& P = *pix_;
+  const float cxw = (float)((v.gx - g.world.ox) * 16 + 8), cyw = (float)((v.gy - g.world.oy) * 16 + 8);
+  const int x0 = (int)std::floor(cxw - cam.x) - 19, y0 = (int)std::floor(cyw - cam.y) + 6;
+  if (x0 < -40 || y0 < -40 || x0 > Pix::W + 40 || y0 > Pix::H + 40) return;
+  const Color out(0.10f, 0.07f, 0.05f), lit(0.66f, 0.46f, 0.26f), rim(0.48f, 0.31f, 0.17f), dk(0.30f, 0.19f, 0.11f), spoke(0.55f, 0.38f, 0.21f),
+      hub(0.36f, 0.36f, 0.40f), hubL(0.70f, 0.70f, 0.74f);
+  // the contact shadow (an ellipse a pixel down-right)
+  for (int r = 0; r < 8; r++)
+    for (int c = 0; c < 15; c++)
+      if (kWheel[r][c] == 'o') P.rect((float)(x0 + c + 1), (float)(y0 + r + 2), 1, 1, Color(0, 0, 0, 0.28f));
+  for (int r = 0; r < 8; r++)
+    for (int c = 0; c < 15; c++) {
+      const char ch = kWheel[r][c];
+      if (ch == '.') continue;
+      const Color col = ch == 'o' ? out : ch == 'R' ? lit : ch == 'r' ? rim : ch == 'd' ? dk : ch == 's' ? spoke : ch == 'H' ? hubL : hub;
+      P.rect((float)(x0 + c), (float)(y0 + r), 1, 1, col);
+    }
+  // three sacks spilt off the tilted bed, behind the wheel (burlap, lit top-left)
+  const Color sL(0.86f, 0.76f, 0.56f), sM(0.72f, 0.60f, 0.40f), sS(0.50f, 0.40f, 0.26f);
+  static const int sx[3] = {27, 32, 29}, sy[3] = {-5, -3, 1};
+  for (int k = 0; k < 3; k++)
+    for (int pass = 0; pass < 2; pass++)
+      for (int r = 0; r < 5; r++)
+        for (int c = 0; c < 5; c++) {
+          const char ch = kSack[r][c];
+          if (ch == '.') continue;
+          if (pass == 0) { if (ch == 'o') P.rect((float)(x0 + sx[k] + c + 1), (float)(y0 + sy[k] + r + 1), 1, 1, Color(0, 0, 0, 0.25f)); continue; }
+          P.rect((float)(x0 + sx[k] + c), (float)(y0 + sy[k] + r), 1, 1, ch == 'o' ? out : ch == 'L' ? sL : ch == 'S' ? sS : sM);
+        }
+}
+
 void View::drawMarkers(Game& g, Vec2 cam) {
   Pix& P = *pix_;
   drawBubbles(g, cam);
@@ -192,9 +275,13 @@ void View::drawMarkers(Game& g, Vec2 cam) {
     if (escort) { drawEscortMark(P, a, cam, t_, outline); continue; }
     if (!g.rewardWaiting(a)) {
       const bool wayside = a.role == Role::Hunter || a.role == Role::Fisher || a.role == Role::Herbalist || a.role == Role::Traveller;
+      const bool talking = a.bubble != art::Bubble::None && a.bubbleT > 0;
       if (wayside && g.offersWork(a)) drawOfferMark(P, a, cam, t_ + a.id * 0.57f, outline, hi, gold, goldShade);
-      else if (g.story.hasTale(a.id) && !(a.bubble != art::Bubble::None && a.bubbleT > 0) && g.mode != Mode::Dialogue)
+      else if (g.story.hasTale(a.id) && !talking && g.mode != Mode::Dialogue)
         drawTaleMark(P, a, cam, t_ + a.id * 0.41f, outline, paper, paperShade);
+      // (P1) town givers wear no "!" (the player stumbles on work); a lead that names them whispers a small "?"
+      else if (!talking && g.mode != Mode::Dialogue && a.human && JobOps::leadNames(g, a) && g.offersWork(a))
+        drawLeadMark(P, a, cam, t_ + a.id * 0.37f, outline);
       continue;
     }
     // a slow bob snapped to whole pixels (no shimmer), each giver on their own phase

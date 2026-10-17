@@ -180,8 +180,52 @@ uint32_t slotFamilies(const std::string& body, int slot) {
   return 0;
 }
 
+// (P1 Fresh Roads) does slot t<slot+1> cut into a conversation that goes on with the same person? (an option of a talk
+// stage leads into the slot, and the slot's continuation is a talk stage with that same speaker: the piper's "PLAY ME FOR
+// THEM. A BETTER TUNE." leading into a ferryman's fare before the contest). A twist is an episode of the road; it never
+// interrupts two people mid-conversation, so such a slot stays empty.
+bool slotMidTalk(const Archetype& a, int slot) {
+  static std::map<std::string, bool> memo;
+  const std::string mk = std::string(a.id) + "#" + std::to_string(slot);
+  auto it = memo.find(mk);
+  if (it != memo.end()) return it->second;
+  const std::string want = "t" + std::to_string(slot + 1);
+  const std::vector<std::string> lines = splitLines(a.body);
+  std::string cont;
+  for (const std::string& l0 : lines) {
+    const std::vector<std::string> w = words(trimLeft(l0).c_str());
+    if (w.size() >= 4 && w[0] == "slot" && w[1] == want && w[2] == "->") { cont = w[3]; break; }
+  }
+  // each stage's speaker
+  std::map<std::string, std::string> talkOf;
+  {
+    std::string st;
+    for (const std::string& l0 : lines) {
+      const std::vector<std::string> w = words(trimLeft(l0).c_str());
+      if (w.size() >= 2 && w[0] == "stage") st = w[1];
+      else if (w.size() >= 2 && w[0] == "talk" && !st.empty()) talkOf[st] = w[1];
+    }
+  }
+  bool mid = false;
+  const std::string contTalk = cont.empty() ? std::string() : talkOf[cont];
+  if (!contTalk.empty()) {
+    std::string st;
+    for (const std::string& l0 : lines) {
+      const std::string l = trimLeft(l0);
+      const std::vector<std::string> w = words(l.c_str());
+      if (w.size() >= 2 && w[0] == "stage") { st = w[1]; continue; }
+      if (w.empty() || w[0] != "opt" || st.empty()) continue;
+      if (l.find("@" + want) == std::string::npos) continue;
+      if (talkOf[st] == contTalk) mid = true;
+    }
+  }
+  memo[mk] = mid;
+  return mid;
+}
+
 bool twistFitsSlot(const Archetype& a, const Twist& t, int slot, const std::vector<std::string>& chosen) {
   if (!twistFits(a, t, chosen)) return false;
+  if (slotMidTalk(a, slot)) return false;
   const uint32_t m = slotFamilies(a.body, slot);
   return !m || (m & t.family);
 }
@@ -194,7 +238,7 @@ std::string specId(const Spec& s) {
   if (s.campaign) {
     id += "@" + s.arch + "~";
     for (size_t i = 0; i < s.arcs.size(); i++) { if (i) id += "."; id += s.arcs[i]; }
-    id += "~~";
+    id += "~" + (s.head > 0 ? "h" + std::to_string(s.head) : std::string()) + "~";   // (P1: an alternative head)
   } else {
     id += s.arch + "~" + s.twist[0] + "~" + s.twist[1] + "~" + s.twist[2];
   }
@@ -224,6 +268,11 @@ bool parseSpecId(const std::string& id, Spec& out) {
       if (b == std::string::npos) b = f[2].size();
       s.arcs.push_back(f[2].substr(a, b - a));
       a = b + 1;
+    }
+    if (!f[3].empty()) {
+      if (f[3][0] != 'h' || f[3].size() < 2) return false;
+      s.head = std::atoi(f[3].c_str() + 1);
+      if (s.head < 1 || s.head > 9) return false;
     }
   } else {
     s.arch = f[1];
@@ -279,12 +328,29 @@ bool saidBefore(const std::set<std::string>& said, const std::string& text) {
 }
 }  // namespace
 
+namespace {
+// (P1 Fresh Roads) words in a line that promise no harm: a voice slot after them refuses ~harm phrases
+bool promisesNoHarm(const std::string& said) {
+  static const char* const kPeace[] = {"WON'T HURT", "WON'T HARM", "NO HARM", "MEAN YOU NO", "NOT HURT", "NEVER HURT", "WOULDN'T HURT",
+                                       "I'M NO THREAT", "IN PEACE", "WON'T HARM", "NEVER HARM"};
+  for (const char* w : kPeace) if (said.find(w) != std::string::npos) return true;
+  return false;
+}
+}  // namespace
+
 std::string expand(const std::string& body, Expand& x) {
   std::string out;
+  std::string talkRole;   // (P1) who speaks the current stage ("giver", a person, a twist's %local); "" narration
   for (const std::string& l0 : splitLines(body)) {
     std::string line = l0;
     const std::string t = trimLeft(line);
     if (t.compare(0, 5, "slot ") == 0) continue;
+    if (t.compare(0, 6, "stage ") == 0) talkRole.clear();
+    else if (t.compare(0, 5, "talk ") == 0) {
+      talkRole = trimLeft(t.substr(5));
+      const size_t sp = talkRole.find_first_of(" \t\r#");
+      if (sp != std::string::npos) talkRole = talkRole.substr(0, sp);
+    }
     // ?flag / !flag line conditions
     if (!t.empty() && (t[0] == '?' || t[0] == '!') && t.size() > 1 && idChar(t[1])) {
       size_t e = 1;
@@ -364,6 +430,15 @@ std::string expand(const std::string& body, Expand& x) {
         if (e == std::string::npos) { x.errors.push_back("an unclosed << in: " + line); o += line.substr(i); break; }
         std::string key = line.substr(i + 2, e - i - 2);
         Motive m = x.motive;
+        // (P1) tones the slot refuses: <<key!harm>>, <<key:motive!harm!grim>>
+        uint32_t avoid = 0;
+        for (size_t bang = key.rfind('!'); bang != std::string::npos; bang = key.rfind('!')) {
+          const int tw = toneWord(key.substr(bang + 1));
+          if (!tw) x.errors.push_back("unknown tone in <<" + key + ">>");
+          avoid |= (uint32_t)tw;
+          key = key.substr(0, bang);
+        }
+        const bool ownMotive = key.find(':') != std::string::npos;
         const size_t colon = key.find(':');
         if (colon != std::string::npos) {
           const int mw = motiveWord(key.substr(colon + 1));
@@ -378,7 +453,12 @@ std::string expand(const std::string& body, Expand& x) {
         {   // (M7b) after other words of its quoted line: a phrase that stands alone, never an opener
           const size_t q = o.rfind('"');
           v.midLine = inQuote && q != std::string::npos && o.find_first_not_of(' ', q + 1) != std::string::npos;
+          // (P1) never a threat of harm right after the speaker promised none
+          if (inQuote && q != std::string::npos && promisesNoHarm(o.substr(q))) avoid |= TONE_HARM;
         }
+        // (P1) a speaker who is not the giver keeps their own voice: the people's idiom, not the giver's motive
+        v.noMotive = !ownMotive && !talkRole.empty() && talkRole != "giver";
+        v.avoid = avoid;
         Phrase ph = phrase(key, v);
         // (M7b) a phrase is said once in a story: a repeat is drawn again (a few more steps of the story's own rng,
         // so the choice stays a pure function of the spec)
@@ -386,7 +466,24 @@ std::string expand(const std::string& body, Expand& x) {
           v.seed = step(x.rng);
           ph = phrase(key, v);
         }
+        // (P1) the people's idiom alone is a small pool: a speaker who would only repeat what the story already said
+        // draws from the whole key (the giver's motive lines too) rather than say it twice
+        if (v.noMotive && !ph.text.empty() && saidBefore(x.said, ph.text)) {
+          v.noMotive = false;
+          for (int tries = 0; tries < 32 && !ph.text.empty() && saidBefore(x.said, ph.text); tries++) {
+            v.seed = step(x.rng);
+            ph = phrase(key, v);
+          }
+        }
         if (!ph.text.empty()) x.said.insert(ph.text);
+        if (ph.text.empty() && avoid && phrase(key, VoiceCtx()).text.size()) {
+          // (P1) no line of the key fits the tones refused here: the slot says nothing
+          while (!o.empty() && o.back() == ' ') o.pop_back();
+          i = e + 2;
+          while (i < line.size() && line[i] == ' ') i++;
+          if (i < line.size() && line[i] != '"' && !o.empty() && o.back() != '"') o += ' ';
+          continue;
+        }
         if (ph.text.empty()) x.errors.push_back("unknown voice key <<" + key + ">>");
         else if (ph.family) x.families.push_back(ph.family);
         o += ph.text;
@@ -1005,9 +1102,11 @@ std::string offerFor(Game& g, const Actor& a) {
   const uint64_t key = g.npcKey(a);
   if (g.marks.count(storyMarkKey(key, MK_STORY_GIVER))) return std::string();
   for (const Instance& in : g.story.running()) if (!in.cast.empty() && in.cast[0].id == key) return std::string();
-  // not everyone has a tale this week: innkeepers and priests often, guards and the rest now and then
+  // not everyone has a tale this week: innkeepers and priests often, guards and the rest now and then. (P1 Fresh Roads:
+  // raised, since finished library tales no longer come back: the variety is the archetypes', one teller per archetype
+  // in a town: offers.cpp)
   const uint32_t h = hash32((uint32_t)key ^ (uint32_t)(key >> 32) ^ (uint32_t)(g.day / 7) * 0x9E37u ^ 0x5A6Au);
-  const int pct = a.role == Role::Innkeeper ? 45 : a.role == Role::Priest ? 40 : a.role == Role::Guard ? 8 : 10;
+  const int pct = a.role == Role::Innkeeper ? 60 : a.role == Role::Priest ? 55 : a.role == Role::Guard ? 12 : 20;
   if ((int)(h % 100) >= pct) return std::string();
   Hook hk;
   hk.kind = (int)dsl::HookKind::Npc;
@@ -1024,12 +1123,42 @@ std::string offerForPlace(Game& g, int hookKind, int site) {
   auto it = g.marks.find(mk);
   if (it != g.marks.end() && g.day - it->second < 14) return std::string();
   const uint32_t h = hash32((uint32_t)sid ^ (uint32_t)(sid >> 32) ^ (uint32_t)(g.day / 7) * 0x9E37u ^ (uint32_t)hookKind * 0x1F3u);
-  const int pct = hookKind == (int)dsl::HookKind::Board ? 40 : hookKind == (int)dsl::HookKind::Herald ? 35 : hookKind == (int)dsl::HookKind::Ruin ? 35 : 50;
+  // (P1: boards and ruins a little more often: their library tales no longer fill them for good once played)
+  const int pct = hookKind == (int)dsl::HookKind::Board ? 50 : hookKind == (int)dsl::HookKind::Herald ? 35 : hookKind == (int)dsl::HookKind::Ruin ? 50 : 50;
   if ((int)(h % 100) >= pct) return std::string();
   Hook hk;
   hk.kind = hookKind;
   hk.site = site;
   return offerAt(g, hk);
+}
+
+std::string campaignForPlace(Game& g, int hookKind, int site) {
+  if (hookKind == (int)dsl::HookKind::Npc || hookKind == (int)dsl::HookKind::Companion) return std::string();
+  if (site < 0 || site >= (int)g.world.sites.size()) return std::string();
+  const ew::Gid sid = g.world.sites[(size_t)site].id;
+  // (a place that began a generated story keeps quiet for a fortnight: noteTold's mark, as offerForPlace)
+  auto it = g.marks.find(storyMarkKey(ew::mix64(sid ^ 0x5A6A9ull * (uint64_t)(hookKind + 1)), MK_STORY_MARK));
+  if (it != g.marks.end() && g.day - it->second < 14) return std::string();
+  Hook hk;
+  hk.kind = hookKind;
+  hk.site = site;
+  HookCtx c;
+  if (!hookCtx(g, hk, c)) return std::string();
+  Spec s;
+  if (!pickCampaign(g, hk, s)) return std::string();
+  if (g.story.guard_.penalty(s, c.day, c.gx, c.gy, c.hookHash) >= 1000) return std::string();
+  const std::string id = specId(s);
+  if (runningSpec(g, id) || !script(id)) return std::string();
+  return id;
+}
+
+bool placeNeedsHold(Game& g, int hookKind, int site, uint32_t needs) {
+  Hook hk;
+  hk.kind = hookKind;
+  hk.site = site;
+  HookCtx c;
+  if (!hookCtx(g, hk, c)) return false;
+  return needsHold(g, c, needs);
 }
 
 bool warmHook(Game& g, int site) {

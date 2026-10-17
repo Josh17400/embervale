@@ -1,5 +1,7 @@
 // Save-format checks for the CURRENT save version only (owner, 2026-10-04: old saves are not a concern; an older save
-// is refused and the title offers a new game). M12 Rise and Fall: SAVE_VER 22 (the service block and the lordship block
+// is refused and the title offers a new game). P1 Fresh Roads: SAVE_VER 23 (the jobs block after the lordship block: a
+// settlement's weekly job pool, the journal's leads; a street errand quest, QType::Errand; ENDLESS_GEN_VER 27, saga
+// SAGA_GEN_VER 2; SAVE_VER 22 is refused). M12 Rise and Fall: SAVE_VER 22 (the service block and the lordship block
 // after the sea block: sworn as a sergeant with an order, a mission and a deserted army; the start village held with its
 // coffers, tribute owed and a palisade going up; the realm block v4 with the renown mirror, a camp and a lair; SAVE_VER
 // 21 is refused). M10 Beyond the Mist: SAVE_VER 21 (the sea block after the magic block: the
@@ -23,7 +25,7 @@
 // block; ENDLESS_GEN_VER 14). M4: SAVE_VER 10 (the realm and story blocks after the marks). The CITIZENS lane owns this
 // file and the fixture in M5.
 //   save_test [fixtureDir]           run every check
-//   save_test --make-fixture out.bin write tests/fixtures/save_v22.bin: an endless game (seed 5150) with a created
+//   save_test --make-fixture out.bin write tests/fixtures/save_v23.bin: an endless game (seed 5150) with a created
 //                                    character, the innkeeper's job taken, bot play, a looted chest, the M2 fields
 //                                    (marks, a quest's subject / flags / deadline, a rumoured site), saved outdoors.
 //                                    Regenerate it whenever the layout changes on purpose, and paste the printed FIX6
@@ -330,6 +332,30 @@ void addM12Facts(Game& g) {
   g.realm.noteCamp(FIX_CAMP, 1000, -2000, 0, 1);
   g.realm.noteLair(FIX_LAIR, -3000, 4000, (uint8_t)art::Monster::Wolf, 40, 1);
 }
+// P1 Fresh Roads (SAVE_VER 23): the jobs block (the start village's pool this week: one job given, one open; two leads,
+// one open and one taken) and a street errand being run (QType::Errand)
+constexpr uint64_t FIX_LEAD_WHO = 0x1EAD0000C0FFEEull, FIX_POOL_GIVER = 0x900100AAull;
+const char* const FIX_LEAD = "THE MILLER OF THE START VILLAGE NEEDS HANDS";
+const char* const FIX_ERRAND = "CATCH THE THIEF";
+void addP1Facts(Game& g) {
+  const Site& sv = g.world.sites[(size_t)g.world.startSite];
+  jobs::Pool p;
+  p.site = sv.id; p.week = g.day / 7;
+  p.jobs.push_back({(uint8_t)QType::Hunt, 3, jobs::PJ_GIVEN, FIX_POOL_GIVER});
+  p.jobs.push_back({(uint8_t)QType::Supply, 5, jobs::PJ_OPEN, FIX_POOL_GIVER + 1});
+  g.jobBook.pools.push_back(p);
+  jobs::Lead l;
+  l.from = jobs::LeadFrom::Gossip; l.qtype = (uint8_t)QType::Supply; l.site = sv.id; l.who = FIX_LEAD_WHO; l.text = FIX_LEAD;
+  l.hasPos = true; l.gx = 1234; l.gy = -567;
+  g.addLead(l);
+  jobs::Lead t;
+  t.from = jobs::LeadFrom::Rumour; t.qtype = (uint8_t)QType::COUNT; t.text = "A CAVE TO THE NORTH, THEY SAY";
+  if (const uint32_t id = g.addLead(t)) if (jobs::Lead* x = g.jobBook.lead(id)) x->state = jobs::LS_TAKEN;
+  Quest q;
+  q.stage = (int)jobs::ErrandKind::Thief; q.title = "STOP, THIEF!"; q.subject = FIX_ERRAND; q.giverName = "ASA";
+  q.giverSite = g.world.startSite; q.gold = 15; q.xp = 10; q.hasPos = true; q.tgx = g.world.ox + sv.ex + 3; q.tgy = g.world.oy + sv.ey;
+  g.openErrand(q);
+}
 void addM6Facts(Game& g) {
   Rng r(77);
   Item it = gear::makeGear(r, ItemKind::Weapon, (int)WeaponType::Spear, 12, Rarity::Legendary, FIX_CULT, Mat::Steel);
@@ -350,7 +376,7 @@ void addM6Facts(Game& g) {
 }
 // M6b (SAVE_VER 13, story block v4): a generated story running (started at the start village by a census resident, its
 // first choice made), one told record and one offered record in the repetition guard
-const char* const FIX_SAGA = "saga1~the_pit~~~~v2~m2~0000a5a5";
+const char* const FIX_SAGA = "saga2~the_pit~~~~v2~m2~0000a5a5";
 constexpr int32_t FIX_SEEN_DAY = 2, FIX_SEEN_GX = 4242, FIX_SEEN_GY = -777;
 constexpr uint32_t FIX_SEEN_SHAPE = 0x5A6A, FIX_OFFER_HOOK = 0x0FF3A;
 void addM6bFacts(Game& g) {
@@ -463,7 +489,7 @@ int addM8Facts(Game& g) {
   party::Member& m = g.party.members[(size_t)mi];
   m.approval = (int8_t)FIX_APPROVAL; m.bond = (uint8_t)FIX_BOND;
   m.mem.push_back({party::Deed::Rescued, 6, g.day, 0xFEEDull});
-  m.quest = "saga1~the_pit~~~~v2~m2~0000a5a5"; m.talkBits = 0x5u;
+  m.quest = "saga2~the_pit~~~~v2~m2~0000a5a5"; m.talkBits = 0x5u;
   party::Fallen f;
   f.id = g.party.nextId++; f.name = FIX_FALLEN; f.voc = party::Vocation::Archer; f.origin = party::Origin::Mercenary;
   f.gx = FIX_GRAVE_GX; f.gy = FIX_GRAVE_GY; f.day = g.day; f.cause = "FELL TO WOLVES ON THE HIGH ROAD"; f.days = 12; f.kills = 9; f.bond = 31;
@@ -528,6 +554,7 @@ int makeFixture(const char* out) {
   addM9Facts(g);
   addM10Facts(g);
   addM12Facts(g);
+  addP1Facts(g);
   if (g.inside) { printf("the fixture must be saved outdoors\n"); return 1; }
   std::vector<uint8_t> buf;
   g.serialize(buf);
@@ -542,7 +569,7 @@ int makeFixture(const char* out) {
 }
 // values printed by --make-fixture (format-level facts only)
 struct Fix6 { int level, xp, gold; size_t inv, quests, looted; int kills, ox; float px, py; int oy; float hour; int day; };
-constexpr Fix6 FIX6 = {1, 96, 30, 12, 4, 1, 3, 0, 2312.000f, 1336.000f, -256, 9.580f, 1};   // (M10 phase A: re-recorded; M10 SEA: the sea block v2; M12 phase A: save_v22.bin, unchanged)
+constexpr Fix6 FIX6 = {1, 96, 30, 12, 5, 1, 3, 0, 2312.000f, 1336.000f, -256, 9.580f, 1};   // (M10 phase A: re-recorded; M10 SEA: the sea block v2; M12 phase A: save_v22.bin, unchanged; P1 phase A: save_v23.bin, the errand quest)
 
 }  // namespace
 
@@ -558,7 +585,7 @@ int main(int argc, char** argv) {
 
   // ---- 1. the fixture
   std::vector<uint8_t> fx;
-  if (!readFile(dir + "/save_v22.bin", fx)) check(false, "cannot read tests/fixtures/save_v22.bin");
+  if (!readFile(dir + "/save_v23.bin", fx)) check(false, "cannot read tests/fixtures/save_v23.bin");
   else {
     check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
     Game g(1);
@@ -669,7 +696,7 @@ int main(int argc, char** argv) {
             "fixture party block: the companion from the start village, approval and bond (SAVE_VER 16)");
       check(m && m->hasLook && m->look.hair < art::Hair::COUNT && m->look.outfit < art::Outfit::COUNT, "fixture party block: the companion's look, fixed when they joined (SAVE_VER 17)");
       check(m && m->mem.size() == 1 && m->mem[0].deed == party::Deed::Rescued && m->mem[0].delta == 6 && m->mem[0].about == 0xFEEDull &&
-                m->quest == "saga1~the_pit~~~~v2~m2~0000a5a5" && m->talkBits == 0x5u,
+                m->quest == "saga2~the_pit~~~~v2~m2~0000a5a5" && m->talkBits == 0x5u,
             "fixture party block: a remembered deed, the VOICE fields");
       // (fixer M8 r1) the kit is the trade's (a mage or a healer keeps their own dress: boots, no armour)
       check(m && m->eq[party::S_BOOTS] + m->eq[party::S_ARMOR] > -2 &&
@@ -740,6 +767,19 @@ int main(int argc, char** argv) {
       check(R.lordOf == sv.id && R.liege == S.sworn && R.sworn == S.sworn && R.rank == (uint8_t)service::Rank::Sergeant && g.realm.camp(FIX_CAMP) &&
                 g.realm.lairs().size() == 1 && g.realm.lairs()[0].site == FIX_LAIR && g.realm.lairs()[0].level == 40,
             "fixture realm block v4: the renown mirror, a camp and a lair watched (SAVE_VER 22)");
+    }
+    {   // P1 Fresh Roads (SAVE_VER 23): the jobs block and a street errand
+      const Site& sv = g.world.sites[(size_t)g.world.startSite];
+      const jobs::Book& B = g.jobBook;
+      const bool pool = B.pools.size() == 1 && B.pools[0].site == sv.id && B.pools[0].jobs.size() == 2 && B.pools[0].jobs[0].qtype == (uint8_t)QType::Hunt &&
+                        B.pools[0].jobs[0].state == jobs::PJ_GIVEN && B.pools[0].jobs[1].giver == FIX_POOL_GIVER + 1 && B.pools[0].jobs[1].need == 5;
+      const bool leads = B.leads.size() == 2 && B.leads[0].text == FIX_LEAD && B.leads[0].who == FIX_LEAD_WHO && B.leads[0].state == jobs::LS_OPEN &&
+                         B.leads[0].from == jobs::LeadFrom::Gossip && B.leads[0].hasPos && B.leads[0].gx == 1234 && B.leads[0].gy == -567 &&
+                         B.leads[1].state == jobs::LS_TAKEN && B.nextLead == 3;
+      bool errand = false;
+      for (const Quest& q : g.quests)
+        errand |= q.type == QType::Errand && q.state == QState::Active && q.subject == FIX_ERRAND && q.stage == (int)jobs::ErrandKind::Thief && q.hasPos;
+      check(pool && leads && errand, "fixture jobs block: the week's pool, an open and a taken lead, a street errand (SAVE_VER 23)");
     }
     }  // fxLoaded
   }
@@ -940,6 +980,7 @@ int main(int argc, char** argv) {
     n.serialize(b);
     auto patched = [&](size_t at, uint32_t v) { std::vector<uint8_t> c = b; for (int k = 0; k < 4; k++) c[at + k] = (uint8_t)(v >> (8 * k)); return c; };
     Game x(1);
+    check(!x.deserialize(patched(4, 22)) && Game::saveVersion(patched(4, 22)) == 22, "accepted (or misread) a SAVE_VER 22 (M12) save");
     check(!x.deserialize(patched(4, 20)) && Game::saveVersion(patched(4, 20)) == 20, "accepted (or misread) a SAVE_VER 20 (M9) save");
     check(!x.deserialize(patched(4, 19)) && Game::saveVersion(patched(4, 19)) == 19, "accepted (or misread) a SAVE_VER 19 (M8b) save");
     check(!x.deserialize(patched(4, 18)) && Game::saveVersion(patched(4, 18)) == 18, "accepted (or misread) a SAVE_VER 18 (M8) save");

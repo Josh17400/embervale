@@ -14,7 +14,7 @@ seed 7
 +0.1 saga accept
 +0.5 expect saga running
 +0.3 key Escape
-+0.5 life kill BAU
++0.5 saga kill giver
 +1 life days 20
 +2 expect saga done
 +0.5 saga start shield_wall

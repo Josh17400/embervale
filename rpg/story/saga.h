@@ -72,7 +72,7 @@ namespace saga {
 
 // the composer's output version: inside every spec id. A saved saga of another version is dropped as "forgotten" (its
 // journal entry closes, nothing crashes); bump it whenever the same spec would compose a different script.
-constexpr int SAGA_GEN_VER = 1;
+constexpr int SAGA_GEN_VER = 2;   // 2: P1 Fresh Roads (the STORY lane's ruin- and event-started stories, tone tags, the fall-through)
 
 // ---------------------------------------------------------------- 1. archetypes
 enum class Source : uint8_t {
@@ -171,6 +171,8 @@ bool twistFits(const Archetype& a, const Twist& t, const std::vector<std::string
 // ... and in slot `slot` (0..2: t1..t3) in particular: a slot line may name the families it takes
 // (`slot t2 -> confront mercy price`); a slot that names none takes any of the archetype's families
 bool twistFitsSlot(const Archetype& a, const Twist& t, int slot, const std::vector<std::string>& chosen);
+// (P1) a slot that would cut into a conversation going on with the same speaker (never filled: twistFitsSlot)
+bool slotMidTalk(const Archetype& a, int slot);
 uint32_t slotFamilies(const std::string& body, int slot);       // the TwistFamily bits a slot line names (0 none)
 uint32_t twistFamilyWord(const std::string& w);                 // "deceit" .. "world" -> its bit (0 unknown)
 
@@ -183,7 +185,19 @@ struct VoiceCtx {
   // (M7b) the phrase follows other words of the same line: no opener ("HAIL, ROAD-WALKER." belongs at the start of
   // what someone says, never after their first sentence), only lines that stand alone (F, B, and the motive's M lines)
   bool midLine = false;
+  // (P1 Fresh Roads) a speaker who is not the giver: the people's idiom only, never the giver's motive lines
+  bool noMotive = false;
+  // (P1) tones this slot refuses (Tone bits): only lines that carry none of them ("" when no line fits)
+  uint32_t avoid = 0;
 };
+// (P1 Fresh Roads) tone tags of voice lines (voice.cpp: "~harm" after a line): what a phrase does to the listener
+enum Tone : uint32_t {
+  TONE_HARM = 1u << 0,   // threatens hurt or death ("BLOOD WANTS BLOOD. YOURS WILL DO.")
+  TONE_GRIM = 1u << 1,   // speaks of death and graves
+  TONE_MOCK = 1u << 2    // scorns the listener
+};
+int toneWord(const std::string& w);                                // "harm" -> TONE_HARM; 0 unknown
+uint32_t phraseTone(const std::string& key, const std::string& text);   // the tone tags of a line of the key's tables
 struct Phrase {
   std::string text;              // upper case, at most 60 characters (the 300-character line budget); "" unknown key
   uint32_t family = 0;           // the phrase family (the repetition guard counts them); 0 none
@@ -213,8 +227,10 @@ struct Spec {
   Motive motive = Motive::Duty;
   uint32_t seed = 0;             // alternatives, phrases
   int ver = SAGA_GEN_VER;
+  int head = 0;                  // (P1, campaigns) 0: the plan's head; k: its alternative head alts[k - 1]
 };
-// "saga<ver>~<arch>~<t1>~<t2>~<t3>~v<voice>~m<motive>~<seed hex>"; campaigns "saga<ver>~@<id>~<arc>.<arc>...~v..~m..~.."
+// "saga<ver>~<arch>~<t1>~<t2>~<t3>~v<voice>~m<motive>~<seed hex>"; campaigns "saga<ver>~@<id>~<arc>.<arc>...~[h<k>]~~v..~m..~.."
+// (P1: an alternative head's index in the field after the arcs; empty for the plan's own head, so older ids still read)
 std::string specId(const Spec& s);
 bool parseSpecId(const std::string& id, Spec& out);   // false: not a saga id, or malformed
 inline bool isSagaId(const std::string& id) { return id.compare(0, 4, "saga") == 0; }
@@ -270,6 +286,13 @@ bool pickCampaign(Game& g, const Hook& h, Spec& out);
 // after the library's own scripts)
 std::string offerFor(Game& g, const Actor& a);
 std::string offerForPlace(Game& g, int hookKind, int site);
+// (P1 Fresh Roads) the generated campaign a place would offer now ("" none): asked before the place's library tale, so a
+// board's or a ruin's tale does not keep its campaigns from ever beginning (offers.cpp placeOffer). Rare by itself (the
+// plan's chance per 8-day spell, chain.cpp); a place that began a generated story keeps quiet for a fortnight.
+std::string campaignForPlace(Game& g, int hookKind, int site);
+// (P1) do these world facts (Need bits) hold at place `site` for a hook of this kind? (the composer's look; campaigns'
+// alternative heads use it for the facts chain.cpp does not test itself: famine, the needy, grief...)
+bool placeNeedsHold(Game& g, int hookKind, int site, uint32_t needs);
 // (COMPOSER lane) the world facts at a hook: which of `needs` (Need bits) do NOT hold there (0: all hold). pick()'s own
 // cheap look (the caster still decides); tests choose hook places by it. needName: "CAVE", "WAR"... (reports)
 uint32_t needsMissing(Game& g, const Hook& h, uint32_t needs);
@@ -335,6 +358,16 @@ LibraryReport report();
 struct ArcSlot {
   std::vector<std::string> choices;   // tier-3 archetype ids (or "" for an optional arc) the chainer picks from
 };
+// (P1 Fresh Roads) another way into a campaign: its own opening (title, hook, pitch, hint, the same recurring roles and
+// vars as the plan's head, the opening stages ending in @next) and the world facts IT needs (in place of the plan's).
+// The event-hooked plans (PLAGUE, DRAGON, SUCCESSION) are rarely within reach of a realm event; an alternative head lets
+// a real local fact (a poor, feverish town; the crown's notice of a pretender) begin them honestly, never a faked event.
+enum AltHeadFlag : uint32_t { AH_NOT_CAPITAL = 1u << 0 };   // the hook place must not be a capital
+struct AltHead {
+  const char* head = "";
+  uint32_t needs = 0;
+  uint32_t flags = 0;
+};
 struct CampaignPlan {
   const char* id = "";           // "burden"
   const char* name = "";         // "THE BURDEN ACROSS KINGDOMS"
@@ -345,6 +378,7 @@ struct CampaignPlan {
                                  // (ending in @next)
   std::vector<ArcSlot> arcs;     // 4..8 arcs (each arc's stages end in @next)
   const char* finale = "";       // template: the world-changing endings
+  std::vector<AltHead> alts;     // (P1) alternative heads (Spec::head 1..alts.size())
 };
 const std::vector<CampaignPlan>& campaignPlans();
 const CampaignPlan* campaignPlan(const std::string& id);

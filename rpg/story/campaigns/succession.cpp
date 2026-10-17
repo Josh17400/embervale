@@ -69,6 +69,56 @@ stage declined
   do remember heir "THE ROAD WAS OPEN. YOU TOOK IT. MOST PEOPLE DO, WHEN THERE ARE TWO CROWNS IN ONE LAND."
 )SAGA";
 
+// (P1 Fresh Roads) another way in: the crown's own notice. A proclamation nailed to a market town's board (never the
+// capital's: AH_NOT_CAPITAL) puts a price on the pretender's head, and someone has written over it in charcoal. The heir
+// hides in that town. The same recurring roles and vars as kHead.
+const char* const kHeadBoard = R"SAGA(
+title THE WAR OF THE [[crowns=TWO CROWNS|BROKEN CROWN|DIVIDED CROWN]]
+hook board
+pitch "THE DEFACED PROCLAMATION"
+hint "BY ORDER OF THE CROWN: A PRICE ON THE HEAD OF THE PRETENDER OF THE OLD HOUSE. ACROSS IT, IN CHARCOAL: LONG LIVE THE TRUE CROWN."
+role giver giver
+role home site home
+role land kingdom home
+role rival kingdom rival
+role lord ruler land
+role seat capital land
+role heir person [[female|male]] at home
+role chancellor person male at seat
+role ford site village near
+role marshal person [[male|female]] at ford
+role tomb ruin near
+var claim 0
+var lords 0
+var blood 0
+
+stage hidden
+  talk heir
+  say "YOU READ THE NOTICE, AND YOU CAME LOOKING. EITHER YOU WANT THE PRICE ON MY HEAD, OR YOU WANT TO KNOW IF THE CHARCOAL IS TRUE. IT IS. THEY CROWNED ME IN A BARN, WITH A CIRCLET THE SMITH BEAT OUT OF A HORSESHOE. MY HOUSE RULED {LAND} BEFORE {LORD}."
+  journal "THE CROWN HAS PUT A PRICE ON {HEIR}, LAST OF THE OLD HOUSE, CROWNED IN {HOME} AGAINST {LORD}. WAR IS NEAR."
+  opt "WHAT DO YOU NEED FROM ME?" -> hidden2
+  opt "WHY SHOULD I BACK YOU?" -> hidden3
+  opt "I WANT NO PART OF A CIVIL WAR." -> declined
+
+stage hidden2
+  talk heir
+  say "FRIENDS. THE OLD CHANCELLOR, {CHANCELLOR}, SERVED MY GRANDFATHER AND SERVES {LORD} NOW, AND HAS NOT DECIDED WHICH OF US HE SERVES. AND THE MARCHER LORDS AT {FORD}, WHO DECIDE NOTHING UNTIL THEY SEE WHO IS WINNING."
+  opt "I'LL SEE WHAT CAN BE DONE." -> @next
+  opt "[[THEN I'LL FIND YOU FRIENDS.|THEN WE START TODAY.]]" -> @next
+
+stage hidden3
+  talk heir
+  say "BECAUSE {LORD} TAXES THE OLD LANDS TWICE FOR EVERY TIME THE NEW LANDS PAY ONCE, AND HANGS WHOEVER SAYS SO. BECAUSE IF I LOSE, THEY BURN {HOME} FOR HIDING ME. AND BECAUSE I WON'T BE CROWNED OVER GRAVES."
+  opt "THEN I'LL HELP YOU." -> @next
+  opt "I WANT NO PART OF IT." -> declined
+
+stage declined
+  end fail
+  say "{HEIR} NODS AS IF EXPECTING IT. BY EVENING {HEIR.HE} HAS MOVED TO ANOTHER LOFT, AND THE CHARCOAL ON THE NOTICE HAS BEEN SCRUBBED AWAY, AND WRITTEN AGAIN."
+  journal "YOU WALKED AWAY FROM THE WAR OF THE [[=crowns]] IN {LAND}."
+  do remember heir "THE ROAD WAS OPEN. YOU TOOK IT. MOST PEOPLE DO, WHEN THERE ARE TWO CROWNS IN ONE LAND."
+)SAGA";
+
 const char* const kFinale = R"SAGA(
 stage hall
   talk lord
@@ -381,6 +431,12 @@ CampaignPlan successionPlan() {
   p.arcs = {ArcSlot{{"su_chancellor", "su_march"}}, ArcSlot{{"su_tomb", "su_burned"}}, ArcSlot{{"su_ford", "su_parley"}},
             ArcSlot{{"su_marshal", "su_envoy"}}};
   p.finale = kFinale;
+  // (P1) the crown's defaced notice on a market town's board (head 1): the heir hides in that town
+  AltHead board;
+  board.head = kHeadBoard;
+  board.needs = N_CAPITAL | N_KINGDOM | N_RIVAL | N_VILLAGE | N_RUIN;
+  board.flags = AH_NOT_CAPITAL;
+  p.alts.push_back(board);
   return p;
 }
 

@@ -98,23 +98,82 @@ int tabStep(int tab, int dir) {
 // the quest column's width.
 // (fixer M4 r3) the journal opens on the tracked quest (else the newest open one), not on the first row: a quest just
 // taken is the one the player wants to read
+// (P1 Fresh Roads, JOBS lane) the QUESTS page's rows: the open quests, then the journal's LEADS (jobs.h: what was
+// heard or seen that points at work not yet offered; open ones newest first, then the stale ones, dimmed; taken ones
+// are gone: their quest is above), then the finished quests
+struct JRow { int q = -1; int lead = -1; };
+std::vector<JRow> journalRows(const Game& g) {
+  std::vector<JRow> rows;
+  for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state != QState::Done) rows.push_back({i, -1});
+  const auto& L = g.jobBook.leads;
+  for (int pass = 0; pass < 2; pass++)
+    for (int i = (int)L.size() - 1; i >= 0; i--)
+      if (L[(size_t)i].state == (pass == 0 ? jobs::LS_OPEN : jobs::LS_STALE)) rows.push_back({-1, i});
+  for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state == QState::Done) rows.push_back({i, -1});
+  return rows;
+}
 int journalRowOf(const Game& g) {
-  std::vector<int> order;
-  for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state != QState::Done) order.push_back(i);
-  for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state == QState::Done) order.push_back(i);
+  const std::vector<JRow> rows = journalRows(g);
   int newest = -1;
-  for (int r = 0; r < (int)order.size(); r++) {
-    const Quest& q = g.quests[(size_t)order[(size_t)r]];
+  for (int r = 0; r < (int)rows.size(); r++) {
+    if (rows[(size_t)r].q < 0) continue;
+    const Quest& q = g.quests[(size_t)rows[(size_t)r].q];
     if (q.id == g.trackedQuest) return r;
     if (q.state != QState::Done) newest = r;
   }
   return std::max(0, newest);
+}
+// a lead's source word and its colour (the journal's palette: amber, sage, rose, parchment, lilac)
+Color leadColour(jobs::LeadFrom f) {
+  switch (f) {
+    case jobs::LeadFrom::Rumour: return Color(0.96f, 0.72f, 0.38f);
+    case jobs::LeadFrom::Gossip: return Color(0.62f, 0.84f, 0.66f);
+    case jobs::LeadFrom::Incident: return Color(0.95f, 0.56f, 0.48f);
+    case jobs::LeadFrom::Board: return Color(0.90f, 0.84f, 0.66f);
+    default: return Color(0.80f, 0.72f, 1.0f);
+  }
+}
+// where a lead points from the hero ("NE" / "NORTH-EAST"; "" without a place); indoors, from the door
+std::string leadDir(const Game& g, const jobs::Lead& l, bool longForm) {
+  if (!l.hasPos) return "";
+  int px = (int)std::floor(g.pl().p.x / TILE), py = (int)std::floor(g.pl().p.y / TILE);
+  if (g.inside && g.subBldg >= 0 && g.subBldg < (int)g.world.over.bldgs.size()) { px = g.world.over.bldgs[(size_t)g.subBldg].doorX(); py = g.world.over.bldgs[(size_t)g.subBldg].doorY(); }
+  else if (g.inside && g.subSite >= 0 && g.subSite < (int)g.world.sites.size()) { px = g.world.sites[(size_t)g.subSite].ex; py = g.world.sites[(size_t)g.subSite].ey; }
+  const int dx = l.gx - (px + g.world.ox), dy = l.gy - (py + g.world.oy);
+  if (std::abs(dx) + std::abs(dy) < 24) return "HERE";
+  static const char* lf[8] = {"EAST", "NORTH-EAST", "NORTH", "NORTH-WEST", "WEST", "SOUTH-WEST", "SOUTH", "SOUTH-EAST"};
+  static const char* sf[8] = {"E", "NE", "N", "NW", "W", "SW", "S", "SE"};
+  const float a = std::atan2((float)-dy, (float)dx);
+  const int k = ((int)std::lround(a / (3.14159265f / 4)) % 8 + 8) % 8;
+  return longForm ? lf[k] : sf[k];
+}
+// how far, in walking words ("HALF A DAY'S WALK")
+std::string leadWalk(const Game& g, const jobs::Lead& l) {
+  if (!l.hasPos) return "";
+  int px = (int)std::floor(g.pl().p.x / TILE), py = (int)std::floor(g.pl().p.y / TILE);
+  if (g.inside && g.subBldg >= 0 && g.subBldg < (int)g.world.over.bldgs.size()) { px = g.world.over.bldgs[(size_t)g.subBldg].doorX(); py = g.world.over.bldgs[(size_t)g.subBldg].doorY(); }
+  const float d = std::hypot((float)(l.gx - (px + g.world.ox)), (float)(l.gy - (py + g.world.oy)));
+  const float h = d / 30.0f;
+  return h < 0.75f ? "CLOSE BY" : h < 1.5f ? "AN HOUR'S WALK" : h < 4.5f ? "A FEW HOURS' WALK" : h < 9.0f ? "HALF A DAY'S WALK" : h < 18.0f ? "A DAY'S WALK" : "DAYS AWAY";
 }
 
 std::string trackedStep(const Game& g, const Quest& q) {
   std::string s = g.questStatus(q);
   if (s.empty() && q.state == QState::Complete) s = "RETURN TO " + q.giverName;
   if (s.size() <= 30) return s;
+  // (P1) a hunt keeps its count and its way on the first line, the ground on the second ("THIN THE WOLVES 2/5 (NE)"
+  // over "BY THE GREY TEETH")
+  if (q.type == QType::Hunt && q.state == QState::Active && s.rfind("THIN THE ", 0) == 0) {
+    const size_t by = s.find(" BY "), at = by != std::string::npos ? by : s.find(" AT THEIR DEN") != std::string::npos ? s.find(" AT THEIR DEN") : s.find(" IN THE WILDS");
+    const std::string prog = std::to_string(q.have) + "/" + std::to_string(q.need);
+    const size_t pp = s.rfind(" " + prog);
+    if (at != std::string::npos && pp != std::string::npos && pp > at) {
+      std::string first = s.substr(0, at) + s.substr(pp), second = s.substr(at + 1, pp - at - 1);
+      if (first.size() > 30) first = s.substr(0, at) + " " + prog;
+      if (second.size() > 30) second = second.substr(0, 30);
+      return first + "\n" + second;
+    }
+  }
   // drop a trailing clause (" IN <TOWN>", " (NORTH-EAST)", " NEAR <TOWN>") rather than cutting a word in half
   size_t cut = std::string::npos;
   for (const char* sep : {" IN ", " NEAR ", " AT ", " (", ": "}) {
@@ -193,6 +252,51 @@ std::string fitText(const std::string& s, float w) {
   size_t sp = t.find_last_of(' ');
   if (sp != std::string::npos && (int)sp >= n - 6) t.resize(sp);
   return t;
+}
+// (P1 fixer) a journal LEAD row: the need first, so a row cut to the column still says something. The source word is
+// the bullet's colour and the place is the row's direction, so they go: "SEEN: " / "OVERHEARD: " off the front, the
+// "... OF DERGZALT" / "... IN BEDORP" filler out of the middle (the town goes last, in brackets), a leading "THE " off.
+// "DAKA OF DERGZALT WANTS SPIDERS CULLED" -> "DAKA WANTS SPIDERS CULLED (DERGZALT)"; a row still too long ends "...".
+std::string leadRow(const Game& g, const jobs::Lead& l, float w) {
+  std::string t = l.text;
+  // (P1 fixer r2) a teller's lead is "NAME OF TOWN: THE TALE'S TITLE - "the words overheard"": the row is the name and
+  // the title (the words are on the lead's page)
+  if (l.from == jobs::LeadFrom::Teller) {
+    const size_t q = t.find(" - \"");
+    if (q != std::string::npos) t.resize(q);
+  }
+  for (const char* pre : {"SEEN: ", "OVERHEARD: ", "RUMOUR: "})
+    if (t.rfind(pre, 0) == 0) t = t.substr(std::strlen(pre));
+  std::string town;
+  const int si = l.site ? g.world.siteHandle(l.site) : -1;
+  if (si >= 0 && si < (int)g.world.sites.size()) town = g.world.sites[(size_t)si].name;
+  bool moved = false;
+  if (!town.empty())
+    for (const std::string& pat : {" OF " + town, " IN " + town, " AT " + town}) {
+      const size_t at = t.find(pat);
+      if (at == std::string::npos) continue;
+      t.erase(at, pat.size());
+      moved = true;
+      break;
+    }
+  for (const char* mid : {", OVERHEARD: "}) {
+    const size_t at = t.find(mid);
+    if (at != std::string::npos) t.replace(at, std::strlen(mid), ": ");
+  }
+  if (t.rfind("THE ", 0) == 0) t = t.substr(4);
+  const int n = std::max(1, (int)((w + 1) / 6));
+  // whole with its town; else without it; else (a person's need) without their name, the need alone ("NEEDS A
+  // COURIER": the name heads the picked lead's page); else the need cut at a word with "..."
+  if (moved && (int)(t.size() + town.size() + 3) <= n) return t + " (" + town + ")";
+  if ((int)t.size() <= n) return t;
+  if (l.who && l.from == jobs::LeadFrom::Gossip) {   // (a teller's row keeps the name: it is who to find)
+    const size_t sp = t.find(' ');
+    if (sp != std::string::npos && sp + 1 < t.size()) {
+      t = t.substr(sp + 1);
+      if ((int)t.size() <= n) return t;
+    }
+  }
+  return fitText(t, w - 18) + "...";
 }
 // (fixer M4 r1) the tracked quest's title on the HUD column: whole up to 30 characters (M4's titles run long: "BREAK
 // THE SIEGE OF JARFAADARA"), longer ones cut at a word with an ellipsis (never a hard cut mid-word)
@@ -1271,6 +1375,14 @@ void View::drawHud(Game& g) {
           const float ly0 = ly - (touchUI ? 2.0f : 11.0f), ly1 = ly + 9.0f;
           if (toastX1_ > 0 && lx - labelW < toastX1_ + 4 && ly0 < toastY1_ + 2 && ly1 > toastY0_ - 2) lx = toastX1_ + 4 + labelW;
         }
+        // (P1 fixer) the centre banner ("QUEST COMPLETE / STOP, THIEF!") is drawn after the tag, its plate over the
+        // label ("STOP, TALK THIEF!"): while it shows, a label in its band waits for it to fade (moved under it, it
+        // landed on the "+16 GOLD" rising off the hero)
+        if (bannerT_ > 0 && g.mode != Mode::Dialogue) {
+          const float b0 = T + 50.0f, b1 = T + 56.0f + (bannerState_.empty() ? 30.0f : 42.0f);
+          const float l0 = ly - (touchUI ? 2.0f : 11.0f), l1 = ly + 9.0f;
+          if (l1 > b0 - 2 && l0 < b1 + 2) break;
+        }
         // (M7 fix) "E: RIDE DUSTY" already names her: one label, not the verb stacked over the name
         const bool verbNames = !touchUI && !a.name.empty() && verb.size() > a.name.size() && verb.compare(verb.size() - a.name.size(), a.name.size(), a.name) == 0;
         if (verbNames) P.textS(lx, ly, verb, 1, kGold, 1);
@@ -1858,31 +1970,87 @@ void View::drawMenu(Game& g) {
       drawJournalStrip(questCols().lx, questCols().lw, top);
       if (journalSec_ != 0) { drawJournalSection(g, top + journalStripH()); break; }
       top += journalStripH();
-      std::vector<int> order;
-      for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state != QState::Done) order.push_back(i);
-      for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state == QState::Done) order.push_back(i);
-      menuSel_ = std::clamp(menuSel_, 0, std::max(0, (int)order.size() - 1));
+      // (P1) the open quests, then the LEADS, then the finished quests (journalRows)
+      const std::vector<JRow> rows = journalRows(g);
+      menuSel_ = std::clamp(menuSel_, 0, std::max(0, (int)rows.size() - 1));
       MenuLay L = menuLay(touchUI);
       L.rows = std::max(3, L.rows - (int)std::ceil(journalStripH() / L.pitch));
       const Cols C = questCols();
       if (menuSel_ < menuScroll_) menuScroll_ = menuSel_;
       if (menuSel_ >= menuScroll_ + L.rows) menuScroll_ = menuSel_ - L.rows + 1;
-      menuScroll_ = std::clamp(menuScroll_, 0, std::max(0, (int)order.size() - L.rows));
-      for (int r = 0; r < L.rows && menuScroll_ + r < (int)order.size(); r++) {
+      menuScroll_ = std::clamp(menuScroll_, 0, std::max(0, (int)rows.size() - L.rows));
+      for (int r = 0; r < L.rows && menuScroll_ + r < (int)rows.size(); r++) {
         const int oi = menuScroll_ + r;
-        const Quest& q = g.quests[order[oi]];
+        const JRow& jr = rows[(size_t)oi];
         const float rowTop = top + 10 + r * L.pitch, y = rowTop + std::floor((L.pitch - 8) / 2);
         if (oi == menuSel_) P.rect(C.lx, rowTop, C.lw, L.pitch - (touchUI ? 1 : 0), Color(0.3f, 0.22f, 0.12f, 0.8f));
         else if (touchUI && (r & 1)) P.rect(C.lx, rowTop, C.lw, L.pitch - 1, Color(0.16f, 0.12f, 0.08f, 0.35f));
-        Color c = q.state == QState::Done ? kDim : (q.type == QType::Main ? kGold : kText);
-        P.text(C.lx + 4, y, (q.id == g.trackedQuest ? "> " : "  ") + fitText(q.title, C.lw - 20), 1, c);
+        if (jr.q >= 0) {
+          const Quest& q = g.quests[(size_t)jr.q];
+          Color c = q.state == QState::Done ? kDim : (q.type == QType::Main ? kGold : kText);
+          P.text(C.lx + 4, y, (q.id == g.trackedQuest ? "> " : "  ") + fitText(q.title, C.lw - 20), 1, c);
+          continue;
+        }
+        // a lead: a hairline over the first one parts them from the quests; the source word in its colour, the line,
+        // the way there at the right (touch: the source and the way on a small first line, the words under them)
+        const jobs::Lead& l = g.jobBook.leads[(size_t)jr.lead];
+        const bool stale = l.state == jobs::LS_STALE;
+        if (oi == 0 || rows[(size_t)oi - 1].lead < 0) {
+          P.rect(C.lx + 2, rowTop - 1, C.lw - 4, 1, Color(0.55f, 0.43f, 0.26f, 0.9f));
+          P.rect(C.lx + 2, rowTop, C.lw - 4, 1, Color(0.04f, 0.03f, 0.03f, 0.5f));
+        }
+        Color tc = leadColour(l.from), xc = kText;
+        if (stale) { tc = Color(tc.r * 0.62f, tc.g * 0.62f, tc.b * 0.62f); xc = kDim; }
+        const std::string dir = leadDir(g, l, false);
+        const float dirW = dir.empty() ? 0.0f : (float)P.textW(dir, 1) + 4;
+        if (touchUI) {
+          const float y1 = rowTop + 3, y2 = rowTop + 13;
+          P.text(C.lx + 16, y1, jobs::leadFromName(l.from), 1, tc);
+          if (!dir.empty()) P.text(C.lx + C.lw - 4 - (float)P.textW(dir, 1), y1, dir, 1, stale ? kDim : Color(0.80f, 0.74f, 0.62f));
+          P.rect(C.lx + 7, y1 + 2, 3, 3, tc);
+          P.text(C.lx + 16, y2, leadRow(g, l, C.lw - 22), 1, xc);
+        } else {
+          // (one 12 px line: the source is its bullet's colour here, and its word heads the picked lead's page)
+          P.rect(C.lx + 7, y + 2, 3, 3, tc);
+          P.text(C.lx + 16, y, leadRow(g, l, C.lw - 22 - dirW), 1, xc);
+          if (!dir.empty()) P.text(C.lx + C.lw - 4 - (float)P.textW(dir, 1), y, dir, 1, stale ? kDim : Color(0.80f, 0.74f, 0.62f));
+        }
       }
-      pager(C, L, menuScroll_, (int)order.size());
+      pager(C, L, menuScroll_, (int)rows.size());
       P.rect(C.div, top - journalStripH() + 8, 1, Pix::H - (top - journalStripH()) - 24, Color(0.4f, 0.32f, 0.2f));
-      if (!order.empty()) {
-        const Quest& q = g.quests[order[menuSel_]];
+      const int per = std::max(10, (int)(C.dw / 6));
+      if (!rows.empty() && rows[(size_t)menuSel_].lead >= 0) {
+        // the picked lead: its words, where it came from and when, where it points, and what to do about it
+        const jobs::Lead& l = g.jobBook.leads[(size_t)rows[(size_t)menuSel_].lead];
+        const bool stale = l.state == jobs::LS_STALE;
         float y = top - journalStripH() + 12;
-        const int per = std::max(10, (int)(C.dw / 6));
+        for (const std::string& ln : wrap(l.text, per)) { P.text(C.dx, y, ln, 1, stale ? kDim : kText); y += 10; }
+        y += 4;
+        const Color tc = leadColour(l.from);
+        P.rect(C.dx, y + 2, 3, 3, tc);
+        // the source word in its colour, then when, dim ("RUMOUR  3 DAYS AGO")
+        const std::string src = jobs::leadFromName(l.from);
+        P.text(C.dx + 8, y, src, 1, tc);
+        P.text(C.dx + 8 + (float)P.textW(src, 1) + 12, y, fitText(rui::daysAgo(g.day, l.day), C.dw - 24 - (float)P.textW(src, 1)), 1, kDim);
+        y += 14;
+        int si = l.site ? g.world.siteHandle(l.site) : -1;
+        std::string where;
+        if (si >= 0 && g.world.sites[(size_t)si].settlement()) where = "IN " + g.world.sites[(size_t)si].name;
+        if (l.hasPos) {
+          const std::string d = leadDir(g, l, true);
+          where += (where.empty() ? std::string() : ", ") + (d == "HERE" ? std::string("RIGHT HERE") : leadWalk(g, l) + " " + d);
+        }
+        if (!where.empty()) { for (const std::string& ln : wrap(where, per)) { P.text(C.dx, y, ln, 1, kText); y += 10; } y += 4; }
+        const char* hint = stale ? "AN OLD LEAD. IT MAY HAVE GONE COLD BY NOW."
+                           : l.from == jobs::LeadFrom::Teller ? "SOMETHING TROUBLES THEM. FIND THEM AND HEAR THEM OUT."
+                           : l.from == jobs::LeadFrom::Incident && l.qtype == (uint8_t)QType::COUNT ? "IT'S OVER NOW. LOOK THEM UP: THEY MAY NEED A FRIEND."
+                           : l.who ? "FIND THE ONE IT NAMES AND ASK IF THEY NEED HELP."
+                           : l.qtype != (uint8_t)QType::COUNT ? "GO AND SEE. SOMEONE THERE MAY HAVE WORK."
+                                                              : "THE PLACE IS ON YOUR MAP. WHAT LIES THERE IS FOR YOU TO FIND.";
+        for (const std::string& ln : wrap(hint, per)) { if (y > L.trackY - 10) break; P.text(C.dx, y, ln, 1, kDim); y += 10; }
+      } else if (!rows.empty()) {
+        const Quest& q = g.quests[(size_t)rows[(size_t)menuSel_].q];
+        float y = top - journalStripH() + 12;
         for (const std::string& l : wrap(q.title, per)) { P.text(C.dx, y, l, 1, q.type == QType::Main ? kGold : kText); y += 10; }
         y += 2;
         std::string st = q.state == QState::Done ? ((q.flags & QF_FAILED) ? "ENDED UNFINISHED" : "COMPLETED") : q.state == QState::Complete ? "READY TO TURN IN" : "IN PROGRESS";
@@ -2498,10 +2666,10 @@ void View::menuKey(Game& g, int key) {
     if (key == SDLK_RIGHT || key == SDLK_D) { menuTab_ = tabStep(menuTab_, 1); menuSel_ = menuTab_ == 1 ? journalRowOf(g) : 0; }
     if (key == SDLK_RETURN || key == SDLK_SPACE) {
       if (menuTab_ == 0 && menuSel_ < (int)g.inv.size()) packUse(g, menuSel_);
-      if (menuTab_ == 1) {
-        std::vector<int> order;
-        for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state != QState::Done) order.push_back(i);
-        if (menuSel_ < (int)order.size()) g.trackedQuest = g.quests[order[menuSel_]].id;
+      if (menuTab_ == 1) {   // (P1) track the picked quest (a lead row has nothing to track)
+        const std::vector<JRow> rows = journalRows(g);
+        if (menuSel_ < (int)rows.size() && rows[(size_t)menuSel_].q >= 0 && g.quests[(size_t)rows[(size_t)menuSel_].q].state != QState::Done)
+          g.trackedQuest = g.quests[(size_t)rows[(size_t)menuSel_].q].id;
       }
       if (menuTab_ == 4) {
         if (menuSel_ == 0) { wantSave = true; banner_ = "GAME SAVED"; bannerSub_ = ""; bannerState_.clear(); bannerT_ = 2; }
@@ -2684,17 +2852,17 @@ void View::tap(Game& g, Vec2 p) {
         top += journalStripH();
         MenuLay L = menuLay(touchUI);
         L.rows = std::max(3, L.rows - (int)std::ceil(journalStripH() / L.pitch));
-        std::vector<int> order;
-        for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state != QState::Done) order.push_back(i);
-        for (int i = 0; i < (int)g.quests.size(); i++) if (g.quests[i].state == QState::Done) order.push_back(i);
+        const std::vector<JRow> rows = journalRows(g);   // (P1) quests, leads, finished quests
         const Cols C = questCols();
-        for (int r = 0; r < L.rows && menuScroll_ + r < (int)order.size(); r++)
+        for (int r = 0; r < L.rows && menuScroll_ + r < (int)rows.size(); r++)
           if (inR(C.lx, top + 10 + r * L.pitch, C.lw, L.pitch)) { menuSel_ = menuScroll_ + r; return; }
-        if (paged(C, (int)order.size())) return;
+        if (paged(C, (int)rows.size())) return;
         // keyboard / mouse: scroll the journal by clicking just above / below the list
         if (!touchUI && inR(C.lx, top + 2, C.lw, 8)) { menuSel_ = std::max(0, menuSel_ - 5); return; }
-        if (!touchUI && inR(C.lx, top + 10 + L.rows * L.pitch, C.lw, 14)) { menuSel_ = std::min((int)order.size() - 1, menuSel_ + 5); return; }
-        if (menuSel_ < (int)order.size() && inR(C.dx, L.trackY, std::min(C.dw, touchUI ? 140.0f : 110.0f), L.trackH)) g.trackedQuest = g.quests[order[menuSel_]].id;
+        if (!touchUI && inR(C.lx, top + 10 + L.rows * L.pitch, C.lw, 14)) { menuSel_ = std::min((int)rows.size() - 1, menuSel_ + 5); return; }
+        if (menuSel_ < (int)rows.size() && rows[(size_t)menuSel_].q >= 0 && g.quests[(size_t)rows[(size_t)menuSel_].q].state != QState::Done &&
+            inR(C.dx, L.trackY, std::min(C.dw, touchUI ? 140.0f : 110.0f), L.trackH))
+          g.trackedQuest = g.quests[(size_t)rows[(size_t)menuSel_].q].id;
         break;
       }
       case 2:

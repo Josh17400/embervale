@@ -72,6 +72,58 @@ stage declined
   do remember healer "THE ONE WHO WASN'T A PHYSICIAN. WE'RE DOWN TO HALF THE STREET, IF YOU WONDERED."
 )SAGA";
 
+// (P1 Fresh Roads) another way in: no famine news needed. A lean year in a poor town (a resident really hungry or
+// penniless: N_NEEDY), a fever, and the healer's notice on the board. The same recurring roles and vars as kHead.
+const char* const kHeadBoard = R"SAGA(
+title [[cult=THE PALE CHOIR|THE ASHEN CHORUS|THE CHOIR OF THE LAST HOUR]]
+hook board
+pitch "THE HEALER'S NOTICE"
+hint "WANTED: A STEADY HAND AND A STRONG STOMACH, FOR THE FEVER HOUSE. ASK FOR THE HEALER. NO SINGERS."
+role giver giver
+role home site home
+role land kingdom home
+role lord ruler land
+role seat capital land
+role healer person [[female|male]] at home
+role sick resident any
+role chapel site village near
+role prophet person [[male|female]] at chapel
+role cistern site cave near
+role deacon foe [[male|female]] at cistern
+role next site town near
+var faith 0
+var proof 0
+var healer 1
+var slain 0
+
+stage notice
+  talk healer
+  say "YOU READ IT? GOOD. NOBODY ELSE STOPS AT THAT BOARD NOW. IT'S BEEN A LEAN YEAR, AND THE FEVER CAME WITH THE SPRING RAIN: BLACK TONGUE, THREE DAYS, A COUGH LIKE TEARING CLOTH. THEN [[=cult]] CAME, IN GREY, WITH A HYMN AND BREAD. <<doubt>>"
+  journal "{HEALER}, THE HEALER OF {HOME}, POSTED A NOTICE FOR HELP WITH THE FEVER. {HEALER.HE} DOES NOT TRUST THE SINGERS WHO FEED THE POOR."
+  opt "BREAD FOR THE POOR. WHERE'S THE HARM?" -> notice2
+  opt "WHAT DO YOU NEED?" -> notice3
+  opt "I'M NO PHYSICIAN." -> declined
+
+stage notice2
+  talk healer
+  say "THE HARM IS THAT WHOEVER EATS THEIR BREAD DOESN'T SICKEN, AND WHOEVER WON'T, DOES. THEIR PROPHET SAYS THE FEVER IS {HEALER.GOD}'S JUDGEMENT, AND THE FED ARE THE FORGIVEN. I'VE BURIED NINE THIS MONTH. NONE OF THEM HAD ANYTHING TO BE FORGIVEN FOR."
+  opt "WHAT DO YOU NEED?" -> notice3
+  opt "I'M NO PHYSICIAN." -> declined
+
+stage notice3
+  talk healer
+  say "EYES THAT AREN'T MINE. THE CHOIR KNOWS MY FACE. {SICK}, THE {SICK.JOB}, WOKE WITH THE FEVER TODAY. I CAN KEEP {SICK.HIM} BREATHING FOR A WEEK, NO MORE. FIND OUT WHAT IS IN THAT BREAD, AND WHERE THE FEVER COMES FROM."
+  do remember sick "THE HEALER SAYS YOU'RE LOOKING INTO THE FEVER. I CAN'T STOP SHAKING. IS THAT THE FEVER OR THE FEAR?"
+  opt "A WEEK. I'LL BE QUICK." -> @next
+  opt "[[KEEP {SICK.HIM} BREATHING.|BOIL EVERYTHING. WAIT FOR ME.]]" -> @next
+
+stage declined
+  end fail
+  say "{HEALER} TAKES THE NOTICE DOWN, FOLDS IT SMALL AND PUTS IT IN {HEALER.HIS} APRON. AT DAWN THE HYMN BEGINS AT THE WELL, AND THE QUEUE IS LONGER THAN YESTERDAY."
+  journal "YOU LEFT {HOME} TO ITS FEVER AND ITS SINGERS."
+  do remember healer "THE ONE WHO READ MY NOTICE AND WALKED ON. WE'RE DOWN TO HALF THE STREET, IF YOU WONDERED."
+)SAGA";
+
 const char* const kFinale = R"SAGA(
 stage judgement_road
   goal goto chapel
@@ -451,6 +503,11 @@ CampaignPlan plaguePlan() {
   p.arcs = {ArcSlot{{"pl_loaf", "pl_sick_house"}}, ArcSlot{{"pl_true_prophet", "pl_choir_cup"}},
             ArcSlot{{"pl_cistern", "pl_ran_singer"}}, ArcSlot{{"pl_healer_bargain", "pl_crown_soldiers"}}};
   p.finale = kFinale;
+  // (P1) the healer's notice on a poor town's board (head 1): a real need, no famine news
+  AltHead board;
+  board.head = kHeadBoard;
+  board.needs = N_NEEDY | N_KINGDOM | N_CAPITAL | N_TOWN;
+  p.alts.push_back(board);
   return p;
 }
 

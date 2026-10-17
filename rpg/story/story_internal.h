@@ -20,7 +20,20 @@ namespace story {
 constexpr uint64_t MK_STORY_GIVER = 8;   // an NPC (npcKey): the day they last started a story (one story per giver)
 constexpr uint64_t MK_STORY_MARK = 9;    // a story's persistent mark (script id, mark name, its giver's binding)
 constexpr uint64_t MK_BOARD_TAKEN = 10;  // a notice board (site id ^ entry): the day its notice was taken
+constexpr uint64_t MK_TALE_TELLER = 11;  // (P1) a tale's teller in a town (key: town id x tale): who (tellerTag), and the
+                                         // day the claim was last renewed (key ^ TELLER_DAY_SALT)
+constexpr uint64_t MK_TALE_HEARD = 12;   // (P1) a teller (npcKey): the day the player last overheard them speak of their tale
 uint64_t storyMarkKey(uint64_t id, uint64_t tag);   // == gsim::markKey(id, (Mk)tag)
+
+// (P1 Fresh Roads, offers.cpp) at most one teller per tale per town: true when `a` is that tale's teller in town `site`
+// (claiming it when nobody holds it, or the holder has not been met for TELLER_DAYS days, is dead or has started another
+// story). Deterministic in the order people are asked; the claim lives in Game::marks (saved).
+constexpr int TELLER_DAYS = 14;
+bool tellerClaim(Game& g, const Actor& a, int site, uint64_t tale);
+// (P1) a library tale hooked on a realm event (hook event <type>): the freshest such event that has reached the site and
+// that the tale has not yet answered (its MK_STORY_MARK); 0 none. eventStories marks the id answered when it begins.
+uint32_t eventTaleFresh(const Game& g, const dsl::Script& s, int site);
+uint64_t eventTaleMarkKey(const dsl::Script& s);
 
 // actors the engine spawns carry a slot in this range (a person or foe of a running story: (instance id % 1024) *
 // PERSON_ROLES + its role index), or HERALD_SLOT (a capital's herald). Never fromMap: the town's streaming leaves them

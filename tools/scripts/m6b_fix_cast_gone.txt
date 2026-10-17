@@ -18,7 +18,7 @@ seed 7
 +1 expect saga herb
 +0.3 expect text YOU'LL FIND
 +0.3 key Escape
-+0.5 life kill VECKEN
++0.5 saga kill
 +1 life days 20
 +2 expect quest done HERB
 +0.5 saga start shield_wall

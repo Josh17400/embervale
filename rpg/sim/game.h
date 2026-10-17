@@ -21,6 +21,7 @@
 #include "rpg/sim/gear.h"
 #include "rpg/sim/home.h"
 #include "rpg/sim/items.h"
+#include "rpg/sim/jobs.h"
 #include "rpg/sim/life.h"
 #include "rpg/sim/lordship.h"
 #include "rpg/sim/magic.h"
@@ -307,8 +308,11 @@ struct Event {
 // service::Order id, targetId / tgx / tgy its place), Envoy (SERVICE lane: a diplomacy mission, Quest::stage the
 // service::Mission id, targetId the receiving court's seat), Fief (LORD lane, rpg/sim/lord*.cpp: a lord's task in a held
 // village (settlers, works, a raid to stand against), Quest::stage the task id, targetId the holding).
+// P1 Fresh Roads appends: Errand (LIFE lane, rpg/sim/life_game.cpp: a street incident's quest, jobs.h ErrandKind in
+// Quest::stage, hasPos / tgx / tgy where it happens, subject the journal line; opened with Game::openErrand and ended
+// with Game::finishErrand, which pays at once: nobody has to be found again).
 enum class QType : uint8_t { Main, Clear, Hunt, Retrieve, Bounty, Deliver, Heirloom, Missing, NamedBandit, Protect, Story, War, Supply, Sea,
-                             Campaign, Envoy, Fief, COUNT };
+                             Campaign, Envoy, Fief, Errand, COUNT };
 enum class QState : uint8_t { Active, Complete, Done };
 struct Quest {
   int id = 0;
@@ -502,7 +506,10 @@ class Game {
   std::vector<Quest> quests;
   int nextQuestId = 1;
   int trackedQuest = -1;
+  int errandPrevTracked_ = -1;   // (P1 fixer) the quest tracked before a street errand took the pin (restored when it ends; not saved)
   std::map<uint64_t, int> npcQuestsDone;     // npc key -> completed count (new offers)
+  // P1 Fresh Roads (SAVE_VER 23, rpg/sim/jobs.h; JOBS lane): the settlements' weekly job pools and the journal's leads
+  jobs::Book jobBook;
   std::set<uint64_t> looted;                 // mapKey<<32 | tile, or lootKey's global key (endless overworld)
   ExploredMask explored;                     // M1: fog of war for the world map (global tiles the player has seen)
   std::map<int, std::set<int>> killedSlots;  // mapKey -> spawn slots defeated (no respawn)
@@ -525,6 +532,21 @@ class Game {
   void finishCreator();                            // ...applies the background's trait, rebuilds the look, starts play
   bool rewardWaiting(const Actor& npc) const;      // a completed quest's reward waits with this NPC (world "!" marker)
   bool offersWork(const Actor& npc) const { return hasOffer(npc); }   // M2: this NPC has a job to offer (scripts, tests)
+  // ---- P1 Fresh Roads (VISION_PLAN 15.34). Leads (jobs.h; JOBS lane, rpg/sim/jobs.cpp): a journal line pointing at a
+  //      quest not offered yet. Any lane may add one: the LIFE lane's overheard gossip and street incidents, the JOBS
+  //      lane's rumours, the STORY lane's tellers. id / day / state are filled in; a lead naming the same person and
+  //      quest type (or with the same text) as an open one is not added twice (its id is returned). 0: not added.
+  uint32_t addLead(const jobs::Lead& lead, bool announce = true);   // (P1 fixer r2) announce: the NEW LEAD notice
+  //      Errands (QType::Errand; LIFE lane): a street incident's quest, taken on the spot. openErrand accepts `q` (type
+  //      Errand, stage the jobs::ErrandKind, giver the victim, gold / xp, hasPos / tgx / tgy, subject the journal line)
+  //      and returns its id; finishErrand ends it at once: success pays (completeQuest: gold, xp, the giver's thanks
+  //      counted), failure marks it Done with QF_FAILED. game_rpg.cpp.
+  int openErrand(const Quest& q);
+  void finishErrand(int qid, bool success);
+  //      where a quest giver is now when the map has no actor for them (LIFE lane, life_game.cpp: the resident's
+  //      current spot from the census: a street, a stall, a friend's house; false: unknown). The tracked quest's pin
+  //      asks it before falling back to the giver's door (questTarget).
+  bool lifeGiverSpot(const Quest& q, int& tx, int& ty) const;
   std::string questStatus(const Quest& q) const;   // one journal line: what to do next ("" = nothing extra)
   void dialogueChoose(int optIndex);
   void closeDialogue();
@@ -831,7 +853,7 @@ class Game {
   void applyLevel(Actor& a, int level);
   void questKill(const Actor& a);
   void checkDungeonCleared(int site);
-  Quest makeOffer(const Actor& npc);
+  Quest makeOffer(const Actor& npc, bool* ok = nullptr);   // (P1 fixer) ok: false when nothing could be offered
   bool hasOffer(const Actor& npc) const;
   void acceptQuest(const Quest& q);
   void completeQuest(Quest& q);
@@ -1126,6 +1148,8 @@ class Game {
   friend struct SeaOps;                // M10 SEA: boats, sailing, the Mist, fishing (rpg/sim/sea_ops.h, sea_game.cpp)
   friend struct ServiceOps;            // M12 SERVICE: enlisting, ranks, orders, missions (rpg/sim/service_ops.h)
   friend struct LordOps;               // M12 LORD: the lordship and the player's realm (rpg/sim/lord_ops.h)
+  friend struct JobOps;                // P1 JOBS: the job pools and the leads (rpg/sim/jobs_ops.h, jobs.cpp)
+  friend struct QuestMixOps;           // P1 lead: rpg_test --quest-mix asks the game's own offer code (test_quest_mix.cpp)
   friend struct ClimbOps;              // M11 CLIMB: moving over the relief, the long path search (game.cpp, ai.cpp)
   // M11 CLIMB (never saved): the long path search's cache (ai.cpp). A body whose short search (the bounded BFS round
   // buildings) cannot reach its goal (a cliff between, its way up 16-24 tiles along the face, stacked faces,

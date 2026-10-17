@@ -413,4 +413,41 @@ void buildCensus(const World& w, int site, Census& out);
 // mapping is an identity, whatever the resident is doing: callers check Resident::flags (RF_DEAD, RF_AWAY) and plan().
 int spawnResident(const Census& c, const Spawn& sp, int bldgOff);
 
+// ---------------------------------------------------------------- P1 "Fresh Roads" (LIFE lane, life_game.cpp)
+// The street's day and the stumble-on hooks (VISION_PLAN 15.34). Residents out in the street live their block in
+// segments of 22-57 game minutes (a stall minded with trips for stock, carry routes between real doors, sweeping, a
+// visit, a round of the stalls, a stroll, the field), so a town is never a still picture. Overheard gossip near a
+// chatting pair names a real need of someone in town (a journal LEAD, LeadFrom::Gossip: once per giver per week, at most
+// two a town a day); street incidents (a thief running, a broken cart, a brawl: at most one a town an hour, decided by
+// the site and the hour) open an Errand when the player steps in, and leave an Incident lead when ignored.
+constexpr int INC_NONE = 0, INC_THIEF = 1, INC_CART = 2, INC_BRAWL = 3;
+struct StreetStats {
+  int gossipLines = 0, gossipLeads = 0;                     // overheard lines / the ones that named a need (leads)
+  int incidents = 0, errandsOpened = 0, errandsWon = 0, errandsLost = 0, incidentLeads = 0;
+  int tasks[8] = {};                                        // street tasks begun, by kind (taskName)
+  int legFails[8] = {};                                     // route searches that found no way, by the walker's task
+};
+struct IncidentView {
+  int kind = INC_NONE;                                      // INC_*
+  int victim = -1, other = -1;                              // actor ids (the robbed / cart owner / a brawler; the thief / the other brawler)
+  int quest = 0;                                            // the errand's quest id once engaged (0 not yet)
+  bool engaged = false;
+  int32_t gx = 0, gy = 0;                                   // where (global tile)
+  int32_t ex = 0, ey = 0;                                   // a thief's way out of town (global tile)
+  float holdT = 0;                                          // a cart: how long the player has held it up (the wheel goes back on)
+};
+const char* taskName(int task);                             // "SPOT", "STALL", "DELIVER", "SWEEP", "READ", "VISIT", "SHOP"
+int taskOf(const Game& g, int actorId);                     // the street task of a resident actor (-1: none / not a resident)
+const StreetStats& streetStats(const Game& g);
+IncidentView incidentNow(const Game& g);
+// scripts and tests: stage a street incident near the player now (INC_*; false: nobody suitable near); let the nearest
+// resident near the player overhear-gossip a need now (the lead's id; 0: nobody in town has work to name)
+bool forceIncident(Game& g, int kind);
+uint32_t forceGossip(Game& g);
+// tests: talk to an actor as the player does (Game::talkTo) / choose a dialogue option by its label's start
+bool debugTalk(Game& g, int actorId);
+bool debugChoose(Game& g, const std::string& labelStart);
+// tests: one resident actor's street state in a line (kind, task, leg, arrived, fails, target...; "" none)
+std::string debugFolk(const Game& g, int actorId);
+
 }  // namespace life

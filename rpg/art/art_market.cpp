@@ -1623,12 +1623,19 @@ void clothModel(M3& m, int cloth, int goods, bool closed) {
 // A two-wheeled market cart standing on its tile in 3/4: the bed's floor and sides (its load seen from above), the
 // near wheel full face (the far one behind the bed), the shafts reaching over the next tile resting on a prop.
 constexpr int CAX0 = -24, CAY0 = -28, CAW = 72, CAH = 46;
-void cartModel(M3& m, int v) {
+// (P1 fixer r2) broken: the near wheel is off (the view draws it lying in the road, render_markers.cpp) and the bed has
+// dropped onto its axle on that side: everything tilts toward the camera, the near edge resting on the ground
+void cartModel(M3& m, int v, bool broken = false) {
   const bool west = (v & 4) != 0;
   auto X = [&](float x) { return west ? 16.0f - x : x; };   // the model is built shafts-east and mirrored
+  auto TZ = [&](float y) { return broken ? -(y - 2.0f) * (5.5f / 12.0f) : 0.0f; };
   auto B = [&](float x0, float x1, float y0, float y1, float z0, float z1, const Ramp& R) {
     const float a = X(x0), b = X(x1);
-    boxM(m, TU(std::min(a, b)), TU(std::max(a, b)), TV(y1), TV(y0), z0, z1, R);
+    if (!broken) { boxM(m, TU(std::min(a, b)), TU(std::max(a, b)), TV(y1), TV(y0), z0, z1, R); return; }
+    for (float y = y0; y < y1 - 0.01f; y += 1.0f) {   // in strips along the tilt
+      const float ye = std::min(y1, y + 1.0f), dz = TZ((y + ye) * 0.5f);
+      boxM(m, TU(std::min(a, b)), TU(std::max(a, b)), TV(ye), TV(y), z0 + dz, z1 + dz, R);
+    }
   };
   // the far wheel (behind the bed), the axle
   for (float y : {2.6f}) {
@@ -1651,10 +1658,13 @@ void cartModel(M3& m, int v) {
     else if (load == 1) s = crateTop(7, 4, 4, i & 1 ? &kLeaf : nullptr, (uint32_t)i);
     else if (load == 2) { s = drumTop(6, 6, kWood, kWood, false); for (int x = 0; x < 6; x++) { s.set(x, 4, kIron[2]); s.set(x, 8, kIron[2]); } }
     else { s = Canvas(9, 7); furBall(s, 4.5f, 3.6f, 4.2f, 3.0f, hay, 0.5f, (uint32_t)(3 + i)); }
-    put(m, s, TU(X(x)), TV(y), 7.5f, false, 0.6f);
+    put(m, s, TU(X(x)), TV(y), 7.5f + TZ(y), false, 0.6f);
   }
-  // the axle and the near wheel, full face to the camera: rim, spokes, hub
-  for (float a = 0; a < 6.2832f; a += 0.03f) {
+  // the axle and the near wheel, full face to the camera: rim, spokes, hub (broken: the bare axle end on the ground)
+  if (broken)
+    for (float y = 13.0f; y <= 15.0f; y += 0.3f)
+      for (float r = 0; r < 1.0f; r += 0.3f) m.plotW(X(4.0f), y, 6.5f + TZ(y) + r, kIron[y > 14.6f ? 4 : 2], 1.0f);
+  for (float a = 0; a < 6.2832f && !broken; a += 0.03f) {
     for (float r = 5.0f; r <= 6.6f; r += 0.3f) {
       const float lx = std::cos(a), lz = std::sin(a);
       const int k = (lx * -0.6f + lz * 0.8f) > 0.3f ? 3 : ((lx * -0.6f + lz * 0.8f) > -0.4f ? 2 : 1);
@@ -1663,17 +1673,19 @@ void cartModel(M3& m, int v) {
     if (std::fmod(a + 0.05f, 0.785f) < 0.1f)
       for (float r = 1.0f; r < 5.0f; r += 0.3f) m.plotW(X(4.0f + std::cos(a) * r), 14.6f, 6.5f + std::sin(a) * r, kWood[2], 1.0f);
   }
-  for (float r = 0; r < 1.4f; r += 0.3f)
+  for (float r = 0; r < 1.4f && !broken; r += 0.3f)
     for (float a = 0; a < 6.2832f; a += 0.2f) m.plotW(X(4.0f + std::cos(a) * r), 14.8f, 6.5f + std::sin(a) * r, kIron[r < 0.6f ? 4 : 2], 1.2f);
   // the shafts: from the bed's front over the next tile, down to a prop at their tips
   for (float y : {4.0f, 12.0f})
     for (float x = 15.0f; x <= 32.0f; x += 0.3f) {
-      const float z = 9.0f - (x - 15.0f) * 0.28f;
+      const float z = std::max(0.5f, 9.0f - (x - 15.0f) * 0.28f + TZ(y));
       m.plotW(X(x), y, z, kWood[3]);
       m.plotW(X(x), y + 1.0f, z, kWood[1]);
     }
-  boxM(m, TU(X(31.0f) - 0.5f), TU(X(31.0f) + 0.7f), TV(12.0f), TV(4.0f), 4.0f, 5.0f, kWood);
-  for (float z = 0; z < 4.5f; z += 0.3f) m.plotW(X(31.0f), 8.0f, z, kWood[2]);
+  if (!broken) {
+    boxM(m, TU(X(31.0f) - 0.5f), TU(X(31.0f) + 0.7f), TV(12.0f), TV(4.0f), 4.0f, 5.0f, kWood);
+    for (float z = 0; z < 4.5f; z += 0.3f) m.plotW(X(31.0f), 8.0f, z, kWood[2]);
+  }
 }
 
 // ---- the market cross: a stepped octagonal base, a shaft, a carved head
@@ -2241,6 +2253,12 @@ Canvas groundClothShadow() {
 Canvas marketCart(int v) {
   M3 m(CAW, CAH, CAX0, CAY0, StallS);
   cartModel(m, ((v % kCartLooks) + kCartLooks) % kCartLooks);
+  outline(m.c, 0.95f);
+  return m.c;
+}
+Canvas marketCartBroken(int v) {
+  M3 m(CAW, CAH, CAX0, CAY0, StallS);
+  cartModel(m, ((v % kCartLooks) + kCartLooks) % kCartLooks, true);
   outline(m.c, 0.95f);
   return m.c;
 }

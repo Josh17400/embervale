@@ -102,6 +102,41 @@ int libraryChecks(int& compositions) {
     const int hk = hookKindOf(P, ev);
     if (hk != (int)dsl::HookKind::Board && hk != (int)dsl::HookKind::Herald && hk != (int)dsl::HookKind::Ruin && hk != (int)dsl::HookKind::Event)
       fail(id + ": a campaign is stumbled into at a board, a herald, a ruin or an event (not an npc)");
+    // (P1) every alternative head: a place hook, and it composes with every combination of arcs in every voice
+    for (size_t hi = 0; hi < P.alts.size(); hi++) {
+      std::vector<dsl::Script> hv;
+      std::vector<std::string> herr;
+      dsl::parse((std::string("script x\n") + P.alts[hi].head).c_str(), "plan", hv, herr);
+      const int ak = hv.empty() ? -1 : (int)hv[0].hook;
+      if (ak != (int)dsl::HookKind::Board && ak != (int)dsl::HookKind::Herald && ak != (int)dsl::HookKind::Ruin && ak != (int)dsl::HookKind::Event)
+        fail(id + ": alternative head " + std::to_string(hi + 1) + " is not a place hook");
+      size_t combosA = 1;
+      for (const ArcSlot& sl : P.arcs) combosA *= std::max<size_t>(1, sl.choices.size());
+      int altFails = 0;
+      for (size_t c = 0; c < combosA; c++)
+        for (int v = 0; v < 8; v++) {
+          Spec s;
+          s.campaign = true;
+          s.arch = P.id;
+          s.head = (int)hi + 1;
+          size_t k = c;
+          for (const ArcSlot& sl : P.arcs) { s.arcs.push_back(sl.choices[k % sl.choices.size()]); k /= sl.choices.size(); }
+          s.voice = v;
+          s.motive = (Motive)((c + (size_t)v) % (size_t)Motive::COUNT);
+          s.seed = 77u + (uint32_t)c * 131u + (uint32_t)v;
+          Composed cm;
+          compositions++;
+          Spec back;
+          if (!parseSpecId(specId(s), back) || back.head != s.head) { fail(specId(s) + ": the spec id does not keep its head"); continue; }
+          if (!composeCampaign(s, cm)) {
+            if (++altFails <= 3) {
+              printf("FAIL: campaigns: %s does not compose:\n", specId(s).c_str());
+              for (size_t e = 0; e < cm.errors.size() && e < 8; e++) printf("    %s\n", cm.errors[e].c_str());
+            }
+            bad++;
+          }
+        }
+    }
     // every combination of arc choices, every voice, a few motives and seeds
     size_t combos = 1;
     for (const ArcSlot& sl : P.arcs) combos *= std::max<size_t>(1, sl.choices.size());
@@ -412,10 +447,12 @@ int campaignsCmd(int argc, char** argv) {
     for (const CampaignPlan& P : campaignPlans()) {
       size_t maxChoices = 0;
       for (const ArcSlot& sl : P.arcs) maxChoices = std::max(maxChoices, sl.choices.size());
-      for (size_t k = 0; k < maxChoices; k++) {
+      // (P1) and each alternative head once (another hook into the same plan)
+      for (size_t k = 0; k < maxChoices + P.alts.size(); k++) {
         Spec s;
         s.campaign = true;
         s.arch = P.id;
+        s.head = k >= maxChoices ? (int)(k - maxChoices) + 1 : 0;
         for (size_t j = 0; j < P.arcs.size(); j++) {
           const size_t n = P.arcs[j].choices.size();
           s.arcs.push_back(P.arcs[j].choices[(k + (size_t)seed * (j + 1)) % n]);

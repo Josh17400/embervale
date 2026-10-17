@@ -168,7 +168,7 @@ int sagaLibCmd(int argc, char** argv) {
         // so one long line in a template reads as one failure line, not two hundred)
         for (size_t i = 0; i < c.errors.size() && i < 6; i++) {
           std::string e = c.errors[i];
-          const size_t sid = e.find("saga1~");
+          const size_t sid = e.find("saga" + std::to_string(SAGA_GEN_VER) + "~");
           if (sid != std::string::npos) {
             const size_t sp = e.find(' ', sid);
             e.erase(sid, sp == std::string::npos ? std::string::npos : sp - sid);

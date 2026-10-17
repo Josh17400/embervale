@@ -10,6 +10,14 @@
 //   B<v> <line>                  a line in voice v that stands alone OR follows one of the voice's openers
 //   M<motive> <line>             a line coloured by the speaker's motive; it always follows one of the voice's openers,
 //                                so the people's idiom frames what the motive says
+//   ... ~<tone> [~<tone>]        (P1 Fresh Roads) TONE TAGS after any line (saga.h Tone: ~harm threatens hurt or death,
+//                                ~grim speaks of death and graves, ~mock scorns the listener). A voice slot may refuse
+//                                tones (<<threat!harm>>); the composer refuses ~harm by itself after words that promise no
+//                                harm ("I WON'T HURT THEM"), so a phrase never contradicts what its speaker just said
+//
+// (P1) A slot in a stage spoken by someone other than the giver (a twist's ferryman, a campaign arc's witness) and with no
+// motive of its own (<<warning>>, not <<warning:fear>>) draws only the people's idiom (F, B and opener + B lines), never
+// the giver's motive lines: the giver's grief or vengeance is theirs, not every stranger's in their story.
 //
 // The phrases of (key, voice, motive) are: every F line, every B line, every opener + B line, every opener + M line of
 // that motive (combinations over 60 characters are dropped). The seed picks one. A phrase's FAMILY (the repetition
@@ -22,6 +30,7 @@
 // the listener; threats at the listener.
 #include <cstdint>
 #include <cstring>
+#include <initializer_list>
 #include <map>
 #include <string>
 #include <vector>
@@ -53,7 +62,7 @@ uint64_t mix(uint64_t z) {
   return z ^ (z >> 31);
 }
 
-struct Line { std::string text; uint32_t family = 0; };
+struct Line { std::string text; uint32_t family = 0; uint32_t tone = 0; };
 struct KeyTable {
   std::string key;
   std::vector<Line> F[VOICES], A[VOICES], B[VOICES];
@@ -62,6 +71,8 @@ struct KeyTable {
   // follows other words of its line
   std::vector<Line> pool[VOICES][(int)Motive::COUNT];
   std::vector<Line> mid[VOICES][(int)Motive::COUNT];
+  // (P1) the same without the motive's lines: the idiom of a speaker who is not the giver
+  std::vector<Line> plain[VOICES], plainMid[VOICES];
 };
 
 struct Tables {
@@ -108,6 +119,13 @@ void parseBlock(const char* text, Tables& T) {
     const std::string tag = l.substr(0, sp);
     Line ln;
     ln.text = trim(l.substr(sp + 1));
+    // (P1) trailing tone tags: "... ~harm ~grim"
+    for (size_t t = ln.text.rfind(" ~"); t != std::string::npos; t = ln.text.rfind(" ~")) {
+      const int tw = toneWord(ln.text.substr(t + 2));
+      if (tw == 0) { T.errors.push_back("unknown tone: " + l); break; }
+      ln.tone |= (uint32_t)tw;
+      ln.text = trim(ln.text.substr(0, t));
+    }
     const char kind = tag[0];
     if (kind == 'M') {
       const int m = motiveWord(tag.substr(1));
@@ -152,13 +170,16 @@ const Tables& tables() {
               Line c;
               c.text = join(a.text, b.text);
               c.family = b.family;
+              c.tone = a.tone | b.tone;
               if (!c.text.empty()) P.push_back(c);
             }
+          if (m == 0) k.plain[v] = P;   // (P1: F, B and opener + B: no motive yet)
           for (const Line& a : k.A[v])
             for (const Line& mm : k.M[m]) {
               Line c;
               c.text = join(a.text, mm.text);
               c.family = mm.family;
+              c.tone = a.tone | mm.tone;
               if (!c.text.empty()) P.push_back(c);
             }
           std::vector<Line>& Q = k.mid[v][m];
@@ -173,12 +194,14 @@ const Tables& tables() {
                 Line c;
                 c.text = join(a.text, b.text);
                 c.family = b.family;
+                c.tone = a.tone | b.tone;
                 if (!c.text.empty()) Q.push_back(c);
               }
           } else {
             for (const Line& b : k.B[v]) Q.push_back(b);
-            for (const Line& mm : k.M[m]) Q.push_back(mm);
           }
+          if (m == 0) k.plainMid[v] = Q;   // (P1: no motive lines)
+          if (!framed) for (const Line& mm : k.M[m]) Q.push_back(mm);
         }
     return t;
   }();
@@ -195,16 +218,52 @@ Phrase phrase(const std::string& key, const VoiceCtx& v) {
   const KeyTable& k = T.keys[it->second];
   const int vo = v.voice < 0 || v.voice >= VOICES ? 2 : v.voice;
   const int mo = v.motive < Motive::COUNT ? (int)v.motive : (int)Motive::Duty;
-  const std::vector<Line>& P = v.midLine && !k.mid[vo][mo].empty() ? k.mid[vo][mo] : k.pool[vo][mo];
-  if (P.empty()) return p;
+  const std::vector<Line>* P = v.midLine && !k.mid[vo][mo].empty() ? &k.mid[vo][mo] : &k.pool[vo][mo];
+  // (P1) a speaker who is not the giver: the people's idiom only (when the key has any; else the motive's lines)
+  if (v.noMotive) {
+    const std::vector<Line>& Q = v.midLine && !k.plainMid[vo].empty() ? k.plainMid[vo] : k.plain[vo];
+    if (!Q.empty()) P = &Q;
+  }
+  if (P->empty()) return p;
   const uint64_t r = mix(v.seed ^ 0x5EEDF00Dull);
-  const Line& l = P[(size_t)(r % P.size())];
-  p.text = l.text;
-  p.family = l.family;
+  if (!v.avoid) {
+    const Line& l = (*P)[(size_t)(r % P->size())];
+    p.text = l.text;
+    p.family = l.family;
+    return p;
+  }
+  // (P1) tones the slot refuses: the choice among the lines that carry none of them ("" when none does)
+  size_t n = 0;
+  for (const Line& l : *P) if (!(l.tone & v.avoid)) n++;
+  if (!n) return p;
+  size_t at = (size_t)(r % n);
+  for (const Line& l : *P) {
+    if (l.tone & v.avoid) continue;
+    if (at-- == 0) { p.text = l.text; p.family = l.family; break; }
+  }
   return p;
 }
 
 const std::vector<std::string>& voiceKeys() { return tables().names; }
+
+int toneWord(const std::string& w) {
+  if (w == "harm") return TONE_HARM;
+  if (w == "grim") return TONE_GRIM;
+  if (w == "mock") return TONE_MOCK;
+  return 0;
+}
+
+uint32_t phraseTone(const std::string& key, const std::string& text) {
+  const Tables& T = tables();
+  auto it = T.index.find(key);
+  if (it == T.index.end()) return 0;
+  const KeyTable& k = T.keys[it->second];
+  for (int v = 0; v < VOICES; v++)
+    for (int m = 0; m < (int)Motive::COUNT; m++)
+      for (const std::vector<Line>* P : {&k.pool[v][m], &k.mid[v][m]})
+        for (const Line& l : *P) if (l.text == text) return l.tone;
+  return 0;
+}
 
 // (rpg_test --voice) the phrases a (key, voice, motive) can give, and problems found while reading the tables
 std::vector<std::string> voicePool(const std::string& key, int voice, int motive) {

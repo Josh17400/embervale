@@ -3540,3 +3540,132 @@ remove or change the meaning of what is listed here):
 - **Test once (owner)**: the every-system regression (`rpg_test --seeds 1..20` and the full sweep of scripts and
   commands) runs ONCE per milestone, by the integrator. Lanes and fixers run only the checks that cover the code they
   changed, and re-run a check only after changing code it covers.
+
+### 15.34 P1 "Fresh Roads": the first post-M12 polish batch (owner, 2026-10-17), and its phase A contracts (lead)
+
+Owner playtest feedback (friends): (a) the same few quests repeat constantly, and some are weird; (b) in towns and
+cities lots of NPCs stand still, which breaks immersion: NPCs must go about their lives, and the player should STUMBLE
+across quests rather than interrogate statues. There is no section 13 entry for this batch: this section is its spec.
+The measured survey (2026-10-17, scratchpad survey/SURVEY_REPORTS.md) found five offer sources with their own pickers;
+a teller whose weekly saga roll fails (90 % of villagers) falls back to a hand-written tale even when it was finished,
+so every villager in the world shares one tale and every farmer another; boards, ruins and famines offer their library
+tale forever, which blocks the FAE, BURDEN and PLAGUE campaigns; radiant jobs come from a fixed 3-kind menu per trade
+with lifetime caps per person and a 1-in-3 hash; Hunt jobs have no target; 34-36 % of town folk are trades with no
+workplace (`work = -1`) parked WORK@STREET for the whole work block; arrival places everyone mid-task, so a town is a
+still picture between schedule changes; quest givers are pinned to the plaza 07-21; quests are pull-only.
+
+Scope (Batch 1 of the survey plan; NOT in scope: character art size / zoom, animations, the character creator, the
+world-spanning main campaign; story engine changes must stay compatible with a future main-campaign act chain):
+- **STORY** (rpg/story/**): finished library tales are never offered again; at most one teller per tale per town;
+  boards, ruins, famines and the news fall through to generated sagas and campaigns when their tale is played; ruin- and
+  world-event-started single stories; "NOBODY ELSE DARES NOT TO" (arch/lewis.cpp:399); the tone clash of injected
+  phrases (voice_wisdom.cpp:447: the piper's "I WON'T HURT THEM" then "BLOOD WANTS BLOOD. YOURS WILL DO.").
+- **JOBS** (sim/quests.cpp, life_quests.cpp, render_markers.cpp, hud.cpp): wider per-trade job menus; a weekly job pool
+  per settlement driven by real needs instead of lifetime per-person caps and the 1-in-3 hash; Hunt jobs get a real
+  target area and a marker; journal LEADS for rumours.
+- **LIFE** (sim/census.cpp, life.cpp, life_game.cpp): workplace-less trades get a real day (market stalls, errands,
+  deliveries and carry routes between buildings, shopping, visiting); staggered arrival placement so some people are
+  always walking; no quest-giver plaza pin (life_game.cpp:467-481) and no generator-spawn giver pin, so givers live
+  their schedule (the tracked quest's pin follows them); stumble-on hooks: overheard gossip naming a need becomes a
+  journal LEAD; street incidents (a thief running, a broken cart, a brawl) open a quest; pathBudget checked on
+  phone-class perf.
+
+DONE gates (measured before / after with the two P1 harnesses below; phase A baselines on MSVC, BDIR=build):
+| gate | target | survey | phase A baseline |
+|---|---|---|---|
+| finished tales re-offered (`--quest-mix`) | 0 % | 44 % | 57.9 % (17,138 of 29,591) |
+| top-4 tales of story offers | <= 25 % | 68 % | 63.3 % (PARDON 14,030, FOUNDLING, CURSED GIFT, WAGER) |
+| generated campaign plans started over 20 seeds | >= 5 of 6 | 3 (analytic) | 1 (REBELLION 11 seeds; the library's EMPTY THRONE 20, reported apart) |
+| top-3 job kinds | <= 55 % | 80 % | 75.6 % (Hunt 15,238, Missing, Deliver of 37,855) |
+| farmers' share of jobs | <= 30 % | 58 % | 30.9 % (with towns and the city in the visit set; 58 % start-village only) |
+| Hunt offers without a target (no marker) | 0 | 100 % | 100 % (15,238) |
+| town centre walking 08-18 (`--town-motion --city`, 8 seeds) | >= 15 % | 0-19 % | 15.4 % (arrival 10.1 %) |
+| people static for 2 game hours (not sentries / posted workers in a work pose) | 0 | most | 692 (MERCHANT / TAILOR / SCHOLAR / STABLEHAND / SMITH WORK@NOWORK 410, generator spawns 157) |
+| chunk / frame perf (`--window`, the capital timing gates, `--folk` perf) | flat | | the integrator's sweep |
+
+Phase A contracts (a lane may ADD to a file it is the editor of, never rename, remove or change the meaning of what is
+listed here):
+- **One story picker (`rpg/story/story.h` `Offer`, `tellerOffer`, `placeOffer`; `rpg/story/offers.cpp`, STORY lane)**:
+  storyTalk, the tale scan (the scroll marker), the notice boards, the heralds, the ruins' words, the news
+  (eventStories) and `rpg_test --quest-mix` all ask here; the STORY lane changes the policy inside these two functions
+  (phase A kept the M6b policy exactly: the talk numbers match the survey to the offer). `Offer::lib` (a library script
+  index), `saga` (a spec id), `replay`, `campaign()`, `id()`.
+- **Jobs (`rpg/sim/jobs.h`, `jobs_ops.h`, `jobs.cpp`, JOBS lane)**: `jobs::Book` (saved: the jobs block, its own version
+  byte `JOBS_BLOCK_VER` 1) with `Pool` (a settlement's jobs for a week: `site`, `week` = day / 7, `PoolJob` qtype / need /
+  state PJ_OPEN, PJ_GIVEN, PJ_DONE / giver npcKey), `Lead` (`from` Rumour / Gossip / Incident / Board / Teller, qtype
+  (QType::COUNT: no job yet), state LS_OPEN / LS_TAKEN / LS_STALE, day, site, who (npcKey), hasPos / gx / gy, text),
+  `LEAD_MAX` 24, `LEAD_DAYS` 10, `ErrandKind` (Thief, Cart, Brawl, Lost, Help). `Game::jobBook`. `JobOps` hooks, all
+  wired: `step` (update, after ServiceOps::step), `accepted` (acceptQuest: the pool's job given out, the leads naming
+  its giver taken), `questDone` (completeQuest), `reset`, `loaded`. **`Game::hasOffer` moved to quests.cpp** (phase A:
+  the M2 rule unchanged) so the JOBS lane owns who offers work without touching game_rpg.cpp.
+- **Leads (`Game::addLead(const jobs::Lead&)`, jobs.cpp)**: any lane may add one (LIFE: overheard gossip, incidents;
+  JOBS: rumours; STORY: tellers); id / day / state filled in, a duplicate of an open lead (same person and quest type, or
+  same text) is not added twice, the newest 24 kept, "NEW LEAD: ..." said. The journal shows them on the QUESTS page
+  (hud.cpp, JOBS lane); no new journal section (the phone strip is full).
+- **Errands (`QType::Errand`, appended; `Game::openErrand(const Quest&)` / `finishErrand(qid, success)`, game_rpg.cpp)**:
+  a street incident's quest, taken on the spot (LIFE lane): Quest::stage the ErrandKind, giver the victim, subject the
+  journal line, hasPos / tgx / tgy the place; finishErrand pays at once (completeQuest) or fails it (QF_FAILED).
+  quests.cpp gives it a marker (questTargetM2), a journal line (subject) and a thanks line.
+- **The giver's pin (`Game::questTarget`, game_rpg.cpp; `Game::lifeGiverSpot`, life_game.cpp, LIFE lane)**: a finished
+  job points at the giver themself while they are in the map, then where the census says they are (`lifeGiverSpot`:
+  phase A stub, false), and only then at their door.
+- **Campaigns**: THE WAR OF THE TWO CROWNS (`succession`, written by the M12 REALM lane) was never listed in
+  `campaignPlans()`; phase A listed it (chain.cpp), so the six generated plans are BURDEN, PLAGUE, FAE, REBELLION, DRAGON
+  and SUCCESSION (`--campaigns 1..5`: 60 walks, 0 failures; `--sagalib` 0 failures).
+- **Marks**: Mk tags 128..143 JOBS, 144..159 LIFE (game_internal.h comment); STORY keeps its tags below 32.
+- **Saves**: SAVE_VER 23 (the jobs block after the lordship block); `tests/fixtures/save_v23.bin` (the start village's
+  pool with a job given and one open, an open and a taken lead, a street errand running); save_v22.bin retired, SAVE_VER
+  22 refused. ENDLESS_GEN_VER 27 (the census changes: LIFE lane), SAGA_GEN_VER 2 (the STORY lane's composer changes;
+  the save fixture's saga is "saga2~..."). Old saves are refused gracefully ("start a new adventure"). Lanes never
+  regenerate the fixture or the goldens; a lane that changes its block's layout bumps the block's own version byte and
+  says so; the integrator regenerates once.
+- **Tests and scripts**: `rpg_test --quest-mix [--seeds 1..20 --weeks 12 --settle 6 --takes 3 --no-towns --gates
+  --report]` (tools/tests/test_quest_mix.cpp: per seed the 6 settlements nearest the start from the region plans plus the
+  nearest town and city, 12 weeks, every person on the street and indoors asked, the board, the nearest capital's herald,
+  2 ruins within 160 tiles and the village news read, up to 3 offers a visit taken and finished, campaigns always taken;
+  the survey probe read World::nearSites, which at the start holds only the start village); `rpg_test --town-motion
+  [--seeds 1..8 --city --from 8 --to 18 --radius 24 --gates --report]` (tools/tests/test_town_motion.cpp: arrive at the
+  heart at 08:00 as a player does, stand there to 18:00, look every 5 game minutes at everyone outdoors within 24 tiles;
+  exempt from "static": guards, soldiers, captains, heralds at their post, and a posted worker (stall keeper, a resident
+  at their own workplace, a field / yard trade, a bard playing, a beggar) in an animated work pose the whole time); both
+  in CI with `--gates` ("Quest mix and town motion test"). Both test files are the lead's (frozen for the lanes: report a
+  harness problem to the integrator instead of editing it). `tools/scripts/p1_lead_roads.txt` (seed 7: DERGZALT at 11:00
+  and 13:00, the city at 14:00, `folk` snapshots, the journal): every lane reviews it before and after.
+- **Test once (owner)**: the every-system regression runs ONCE per milestone, by the integrator. Lanes run only the
+  checks that cover the code they changed, and re-run a check only after changing code it covers.
+
+Phase B lane contracts (added by the integrator from the lanes' reports, 2026-10-17):
+- **STORY**: the picker's policy (offers.cpp): a finished library tale is never offered again, by anyone; at most one
+  teller per tale (and per generated archetype) per town, held in `Game::marks` (`MK_TALE_TELLER` 11, `MK_TALE_HEARD`
+  12), passed on after 14 days or when the holder dies or starts another story; places offer a library campaign, then a
+  generated campaign, then their own unplayed tale, then a generated story; `eventTaleFresh` lives in the picker.
+  Campaigns may have alternative openings with their own world conditions, recorded in the campaign id (old ids without
+  one still read): PLAGUE (a healer's notice on a poor town's board), SUCCESSION (a defaced crown notice on a market
+  town's board, never the capital). arch/roads.cpp: 6 ruin-started and 6 realm-news-started single stories. Injected
+  phrases may carry a "harm" tag (never after a "won't hurt" promise); twists never cut into a conversation. Story
+  stand-ins walk a three-stop round by day and wait at a doorstep by night. Passing within 6 tiles of a teller adds a
+  Teller lead (once per 5 days per teller). Tests: `rpg_test --story-p1`, `--story-events`; script `storyp1`.
+- **JOBS**: weekly pools per settlement from real needs (dens, camps, caves, ruins, delivery towns, trade goods, famine,
+  war), frozen for the week; 3-5 jobs a village, 6-10 a town, 10-16 a city, plus the board's two (drawn from the pool);
+  givers picked by trade, last week's givers rest a week; no lifetime caps, no 1-in-3 hash (`hasOffer` reads the pool
+  through a cached index). Every trade has >= 4 job kinds. Every Hunt targets a den or hunting ground (marker, "THIN THE
+  X BY Y 2/5"). Rumours add place leads naming real jobs; a lead's person wears a small parchment "?"; town givers wear
+  no "!". `JOBS_BLOCK_VER` stays 1 (runtime-only fields added). Tests: `rpg_test --jobs`; scripts `jobs`, `jobsleads`,
+  `expect jobs`.
+- **LIFE**: an outdoor resident's block is cut into 22-57 game-minute segments with their own phase and pace, each a
+  task (a new spot, a stall with stock trips, carry routes between real doors, sweeping, reading or preaching, a visit, a
+  round of the stalls); a fresh street puts 42 % of people part-way to their stop; spots unreachable from the town's
+  heart are dropped; a stuck walker tries a spot in plain sight, then one step out of the snag. No giver pins:
+  `lifeGiverSpot` returns the giver's planned spot, else the door they are behind. ai.cpp: stall keepers take 9-12
+  minute stock breaks, wave their wares and can step out of the stall to flee; square folk path round stalls and re-goal
+  after 1.5 s without progress; anyone more than 12 tiles from home flees to the nearest door. Gossip: a Gossip lead
+  naming a real giver, once per giver per week, two per town per day, lines <= 30 characters. Street incidents (thief,
+  cart, brawl) at most once per town-hour: stepping in opens and pays an Errand, ignoring one leaves an Incident lead;
+  the plea is P_URGENT. Census, life block and goldens unchanged; Mk tags 144/145. Workplace-less trades were NOT given
+  census workplaces (that would move the goldens): their day runs on street routes. Tests: `rpg_test --life-p1
+  [--hooks --city --motion --report]`; script `tools/scripts/p1_life_hooks.txt`.
+- **Integrator**: a long lead's "NEW LEAD:" notice is cut at a word to ~50 characters (the journal keeps the whole
+  text); the board labels only a Bounty "BOUNTY: "; a sworn kingdom's guards pick their greeting from eight lines (the
+  culture's salute is one of them); a spell lesson the player can't afford names the price and the shortfall and leaves
+  the list; the Heirloom acceptance line no longer echoes the ask ("I'LL BE WAITING FOR IT."); script `saga kill
+  [role]` kills the census resident bound to a saga role (the M6b fix scripts no longer name residents).

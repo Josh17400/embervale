@@ -20,10 +20,15 @@
 #include <vector>
 #include "engine/audio.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/jobs_ops.h"
 #include "rpg/world/source.h"
+#include "rpg/world/wildlife.h"
 
 using art::Monster;
 using art::Prop;
+
+// (P1, life_quests.cpp) a Supply quest for a trade's good from the nearest loaded neighbour that sells it
+bool jobsSupplyQuest(const Game& g, const Actor& npc, ew::Good good, life::Job job, Quest& q);
 
 namespace {
 constexpr int kRadiantRange = 768;   // tiles: a long day's walk (VISION_PLAN 2.11)
@@ -102,6 +107,7 @@ const char* const kKeepsake[] = {"SILVER RING", "GOLD LOCKET", "IVORY COMB", "OL
 const char* const kEpithet[] = {"THE RED", "THE GRIM", "THE CRUEL", "ONE-EYE", "BLACKHAND", "THE BUTCHER", "IRONJAW", "THE WOLF",
                                 "SILVERTONGUE", "THE BURNED", "HALFHAND", "THE CROW"};
 const char* const kLookingFor[] = {"MUSHROOMS", "A LOST GOAT", "SILVER", "FIREWOOD", "THE OLD DOG", "BLUE MOUNTAIN FLOWERS"};
+const char* const kStrayBeast[] = {"HEIFER", "GOAT", "RAM", "MARE", "OX", "SOW"};
 
 art::Icon keepsakeIcon(const std::string& s) {
   if (s.find("RING") != std::string::npos || s.find("BAND") != std::string::npos) return art::Icon::Ring;
@@ -175,9 +181,11 @@ Monster zoneMonster(int z, Biome b) {
 }
 const char* zonePlural(int z, Biome b) { return z == 2 ? "BANDITS" : monsterPlural(zoneMonster(z, b)); }
 
-enum OfferKind { K_CAVE, K_RUIN, K_BOUNTY, K_HUNT, K_DELIVER, K_HEIR, K_MISSING, K_NAMED, K_PROTECT };
+enum OfferKind { K_CAVE, K_RUIN, K_BOUNTY, K_HUNT, K_DELIVER, K_HEIR, K_MISSING, K_NAMED, K_PROTECT, K_STOLEN, K_SUPPLY, K_COUNT };
 QType kindType(OfferKind k) {
   switch (k) {
+    case K_STOLEN: return QType::Heirloom;
+    case K_SUPPLY: return QType::Supply;
     case K_CAVE: case K_RUIN: return QType::Clear;
     case K_BOUNTY: return QType::Bounty;
     case K_HUNT: return QType::Hunt;
@@ -264,6 +272,17 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
   const uint64_t key = npcKey(a);
   auto it = npcQuestsDone.find(key);
   const int done = it == npcQuestsDone.end() ? 0 : it->second;
+  // (P1 Fresh Roads) the pool job's need (makeOffer sets it while this runs); the notice board's two posted jobs are
+  // the town's pool's board jobs (whatever kind places.cpp asks for: the pool decides; none open: nothing posted)
+  uint8_t need = jobBook.offerNeed;
+  if (a.bldg == -1 && (a.slot == jobs::BOARD_SLOT0 || a.slot == jobs::BOARD_SLOT0 + 1) && world.sites[(size_t)a.site].settlement() && world.endless) {
+    JobOps::ensurePool(*this, a.site);
+    const jobs::PoolJob* bj = JobOps::openJobByKey(*this, key);
+    if (!bj) return q;
+    want = (QType)bj->qtype;
+    need = bj->need;
+  }
+  const int week = day / 7;
   Rng r(((uint64_t)hash32((uint32_t)key * 31u + (uint32_t)done) << 24) ^ (key >> 9) ^ seed ^ 0x0FFE5ull);
   // (M2 fixer round 2) the grammar's words turn with the jobs this person has given: two offers of one kind a few jobs
   // apart never come out word for word the same (a giver repeated HOLD THE FIELDS)
@@ -272,7 +291,8 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
   auto pickN = [&](Rng& rr, const auto& arr) {
     const int n = (int)(sizeof(arr) / sizeof(arr[0]));
     (void)rr.irange(n);   // (the dice still roll: the rest of the offer keeps its draws)
-    return arr[(int)(((key >> 13) % (uint64_t)n + (uint64_t)done) % (uint64_t)n)];
+    // (P1) and with the week: a giver asked again next week (the notice board above all) says it another way
+    return arr[(int)(((key >> 13) % (uint64_t)n + (uint64_t)done + (uint64_t)week) % (uint64_t)n)];
   };
   q.giverSite = a.site; q.giverBldg = a.bldg; q.giverSlot = a.slot; q.giverName = a.name;
   const Site home = world.sites[(size_t)a.site];   // a copy: picking targets loads more sites
@@ -307,26 +327,34 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
   // what this person offers (by trade), tried from a rotating start so successive jobs differ; the kind of the last
   // job they gave goes to the back of the line
   std::vector<OfferKind> menu;
+  // (P1) every trade has four kinds or more (VISION_PLAN 15.34): the weekly pool picks one by the land's needs, and
+  // a person asked outside the pools (a test, a wayside keeper) turns through them
   switch (a.role) {
-    case Role::Jarl: menu = {K_CAVE, K_RUIN, K_NAMED, K_MISSING}; break;
-    case Role::Guard: menu = {K_BOUNTY, K_NAMED, K_CAVE}; break;
+    case Role::Jarl: menu = {K_CAVE, K_RUIN, K_NAMED, K_MISSING, K_BOUNTY}; break;
+    case Role::Guard: menu = {K_BOUNTY, K_NAMED, K_CAVE, K_HUNT}; break;
     case Role::Innkeeper: menu = {K_BOUNTY, K_HUNT, K_DELIVER, K_NAMED, K_HEIR}; break;
-    case Role::Priest: menu = {K_RUIN, K_MISSING, K_HEIR}; break;
-    case Role::Smith: menu = {K_HUNT, K_DELIVER, K_CAVE}; break;
-    case Role::Mage: menu = {K_RUIN, K_HEIR}; break;
-    case Role::Merchant: menu = {K_DELIVER, K_HEIR, K_BOUNTY}; break;
-    case Role::Farmer: menu = {K_PROTECT, K_HUNT, K_MISSING}; break;
-    case Role::Hunter: menu = {K_HUNT}; break;
-    case Role::Fisher: menu = {K_HUNT, K_DELIVER}; break;
-    case Role::Herbalist: menu = {K_HEIR, K_MISSING}; break;
-    default: menu = {K_HUNT, K_HEIR, K_MISSING, K_DELIVER, K_PROTECT}; break;
+    case Role::Priest: menu = {K_RUIN, K_MISSING, K_HEIR, K_DELIVER}; break;
+    case Role::Smith: menu = {K_HUNT, K_DELIVER, K_CAVE, K_SUPPLY}; break;
+    case Role::Mage: menu = {K_RUIN, K_HEIR, K_DELIVER, K_CAVE}; break;
+    case Role::Merchant: menu = {K_DELIVER, K_HEIR, K_BOUNTY, K_STOLEN}; break;
+    case Role::Farmer: menu = {K_PROTECT, K_HUNT, K_MISSING, K_SUPPLY}; break;
+    case Role::Hunter: menu = {K_HUNT, K_DELIVER, K_MISSING, K_CAVE}; break;
+    case Role::Fisher: menu = {K_HUNT, K_DELIVER, K_MISSING, K_HEIR}; break;
+    case Role::Herbalist: menu = {K_HEIR, K_MISSING, K_HUNT, K_CAVE}; break;
+    default:
+      // (P1 fixer) a scholar's work is books, relics and ruins (a SCHOLAR offered a wolves-at-the-sheep hunt)
+      if (JobOps::censusJob(*this, a) == life::Job::Scholar) menu = {K_HEIR, K_RUIN, K_MISSING, K_DELIVER};
+      else menu = {K_HUNT, K_HEIR, K_MISSING, K_DELIVER, K_PROTECT};
+      break;
   }
   if (want != QType::COUNT) {
     menu.clear();
-    if (want == QType::Clear) menu = {K_CAVE, K_RUIN};
+    if (want == QType::Clear) menu = need == jobs::JN_CAVE ? std::vector<OfferKind>{K_CAVE}
+                                     : (need == jobs::JN_RUIN || need == jobs::JN_DESECRATED) ? std::vector<OfferKind>{K_RUIN} : std::vector<OfferKind>{K_CAVE, K_RUIN};
+    else if (want == QType::Heirloom) menu = need == jobs::JN_STOLEN ? std::vector<OfferKind>{K_STOLEN} : std::vector<OfferKind>{K_HEIR};
     else
-      for (int k = K_BOUNTY; k <= K_PROTECT; k++)
-        if (kindType((OfferKind)k) == want) menu.push_back((OfferKind)k);
+      for (int k = K_BOUNTY; k < K_COUNT; k++)
+        if (kindType((OfferKind)k) == want && k != K_STOLEN) menu.push_back((OfferKind)k);
     if (menu.empty()) return q;
   }
   {
@@ -372,6 +400,16 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
           static const char* const de[] = {"SOMETHING FOUL NESTS IN {T}, {D} OF {H}. KILL WHATEVER LEADS IT, THEN RETURN TO {GIVER} IN {H}.",
                                            "{M} HAUNT {T} ({D} OF {H}). KILL THEIR LEADER AND TELL {GIVER} IN {H}."};
           title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as); desc = pickN(r, de);
+        } else if (need == jobs::JN_DESECRATED) {   // (P1) a priest's: holy ground gone foul
+          static const char* const ti[] = {"CLEANSE {T}", "HOLY GROUND DEFILED", "THE DEFILERS OF {T}", "A SHRINE GONE DARK"};
+          static const char* const re[] = {"{T} WAS HOLY GROUND WHEN MY GRANDMOTHER WAS A GIRL. NOW SOMETHING UNCLEAN DWELLS THERE.",
+                                           "THE OLD SHRINE IN {T} HAS BEEN DEFILED. THE CANDLES WE LEAVE THERE ARE FOUND SNUFFED AND BLACK.",
+                                           "PILGRIMS WON'T WALK TO {T} ANY MORE. THEY SAY THE STONES WEEP AT NIGHT.",
+                                           "WHATEVER SQUATS IN {T}, {W} {D} OF HERE, HAS MADE A MOCKERY OF THE GODS' HOUSE."};
+          static const char* const as[] = {"DRIVE IT OUT AND THE GODS WILL KNOW YOUR NAME.", "SLAY WHAT DEFILES IT, SO WE CAN BLESS IT AGAIN."};
+          static const char* const de[] = {"SOMETHING UNCLEAN DEFILES {T} ({D} OF {H}). SLAY ITS MASTER AND TELL {GIVER} THE GROUND IS CLEAN.",
+                                           "{GIVER} OF {H} WANTS {T} CLEANSED ({D}). DESTROY WHAT DWELLS THERE AND RETURN."};
+          title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as); desc = pickN(r, de);
         } else {
           static const char* const ti[] = {"THE RESTLESS DEAD", "LIGHTS IN {T}", "LAY {T} TO REST"};
           static const char* const re[] = {"THE DEAD STIR IN {T}.", "LIGHTS BURN IN {T} WHERE NO LIVING HAND LIT THEM.",
@@ -388,9 +426,27 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
         const int t = pickRadiant(SiteType::BanditCamp, hx, hy, r, danger);
         if (t < 0) return false;
         atSite(t);
-        if (k == K_BOUNTY) {
+        if (k == K_BOUNTY && need == jobs::JN_RAIDERS) {   // (P1) a merchant's: the caravan robbers
           q.type = QType::Bounty;
-          static const char* const ti[] = {"BOUNTY: {T}", "A PRICE ON {T}", "THE OUTLAWS OF {T}"};
+          static const char* const ti[] = {"RAIDERS ON THE ROAD", "THE CARAVAN ROBBERS", "WHAT {T} TOOK", "A PRICE ON THE RAIDERS"};
+          static const char* const re[] = {"MY LAST CARAVAN NEVER REACHED {H}. THE RAIDERS WHO TOOK IT HOLE UP AT {T}, {W} {D}.",
+                                           "THREE WAGONS OF MINE ROBBED THIS SEASON, ALL BY THE SAME BAND OUT OF {T}.",
+                                           "NO CARTER WILL TAKE MY GOODS PAST {N} WHILE THE RAIDERS OF {T} WATCH THE ROAD."};
+          static const char* const as[] = {"KILL THEIR CHIEF AND THE ROAD IS MINE AGAIN.", "PUT THEIR CHIEF IN THE GROUND."};
+          title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as);
+          desc = "RAIDERS FROM {T} ({D} OF {H}) ROB {GIVER}'S CARAVANS. KILL THEIR CHIEF AND COLLECT THE BOUNTY FROM {GIVER}.";
+        } else if (k == K_BOUNTY && need == jobs::JN_WARBAND) {   // (P1) the realm at war: deserters turned bandit
+          q.type = QType::Bounty;
+          static const char* const ti[] = {"DESERTERS AT {T}", "THE WAR'S LEFTOVERS", "TURNCOATS ON THE ROAD"};
+          static const char* const re[] = {"THE WAR HAS FILLED THE WOODS WITH DESERTERS. A BAND OF THEM HOLDS {T}, AND THEY TAKE WHAT THEY LIKE.",
+                                           "SOLDIERS WHO RAN FROM THE WAR CAMP AT {T} NOW, {W} {D}. THEY ROB THEIR OWN PEOPLE.",
+                                           "WITH THE ARMY AWAY AT THE WAR, DESERTERS FROM {T} RAID OUR ROADS UNCHALLENGED."};
+          static const char* const as[] = {"KILL THE ONE WHO LEADS THEM.", "END THEIR CAPTAIN AND THE REST WILL SCATTER."};
+          title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as);
+          desc = "DESERTERS HOLD {T} ({D} OF {H}) WHILE THE REALM IS AT WAR. KILL THEIR LEADER AND COLLECT THE BOUNTY FROM {GIVER}.";
+        } else if (k == K_BOUNTY) {
+          q.type = QType::Bounty;
+          static const char* const ti[] = {"BOUNTY: {T}", "A PRICE ON {T}", "THE OUTLAWS OF {T}", "CUTTHROATS AT {T}"};
           static const char* const re[] = {"BANDITS AT {T} HAVE BEEN RAIDING THE ROADS {D} OF HERE.",
                                            "THE OUTLAWS OF {T} ROBBED A WAGON ON ITS WAY HERE LAST WEEK.",
                                            "THEY BURNED A FARM NEAR {N}. THE TRACKS LED TO {T}, {W} {D}."};
@@ -418,33 +474,113 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
       }
       case K_HUNT: {
         q.type = QType::Hunt;
-        // (M3c) the beasts of the land around (rpg/world/wildlife.h)
-        Monster opts[3];
-        ew::huntTargets(world.over.ecoAt(home.ex, home.ey), opts);
-        q.mon = opts[r.irange(3)];
-        q.need = (q.mon == Monster::Troll || q.mon == Monster::Bear || q.mon == Monster::Sandworm || q.mon == Monster::Yeti || q.mon == Monster::Lurker) ? 2 : 4 + r.irange(3);
+        // (P1) a real target area: a den within a morning's walk (the nearer few, by the dice; not one another hunt
+        // already points at), else a hunting ground out in the wilds; the quarry is the den's beasts or the land's
+        int32_t ax = hx, ay = hy;
+        std::string area;   // a landmark near it ("THE GREY TEETH"), else ""
+        bool den = false;
+        if (world.endless && world.src) {
+          struct DenC { int64_t d2; ew::Gid id; int32_t x, y; Monster mon; };
+          std::vector<DenC> dc;
+          const int32_t rx0 = ew::regionOf(hx), ry0 = ew::regionOf(hy);
+          for (int32_t ry = ry0 - 1; ry <= ry0 + 1; ry++)
+            for (int32_t rx = rx0 - 1; rx <= rx0 + 1; rx++) {
+              const ew::RegionPlan R = world.regionPlan(rx, ry);
+              for (const ew::DenPlan& d : R.dens) {
+                const int64_t dx = d.x - hx, dy = d.y - hy, d2 = dx * dx + dy * dy;
+                if (d2 > 260 * 260 || d2 < 12 * 12) continue;
+                bool taken = false;
+                for (const Quest& o : quests) if (o.type == QType::Hunt && o.state != QState::Done && o.targetId == d.id) taken = true;
+                for (int di = 0; di < (int)world.dens.size() && !taken; di++)
+                  if (world.dens[(size_t)di].id == d.id && denClearedDay(di) >= 0) taken = true;
+                if (!taken) dc.push_back({d2, d.id, d.x, d.y, d.mon});
+              }
+            }
+          std::sort(dc.begin(), dc.end(), [](const DenC& x, const DenC& y) { return x.d2 != y.d2 ? x.d2 < y.d2 : x.id < y.id; });
+          if (!dc.empty() && need != jobs::JN_GROUND) {
+            const DenC& d = dc[(size_t)r.irange(std::min<int>(3, (int)dc.size()))];
+            q.mon = d.mon; q.targetId = d.id; ax = d.x; ay = d.y; den = true;
+          }
+        }
+        if (!den) {
+          Monster opts[3];
+          ew::huntTargets(world.over.ecoAt(home.ex, home.ey), opts);
+          q.mon = opts[r.irange(3)];
+          // the ground: 40-60 tiles out, the first of eight ways (from the dice) on the home's own land
+          static const int dx8[8] = {1, 1, 0, -1, -1, -1, 0, 1}, dy8[8] = {0, 1, 1, 1, 0, -1, -1, -1};
+          const int d0 = r.irange(8), far = 40 + r.irange(21);
+          const int32_t land = landAt(hx, hy);
+          ax = hx + dx8[d0] * far; ay = hy + dy8[d0] * far;
+          for (int k = 0; k < 8; k++) {
+            const int d = (d0 + k) % 8, m = (dx8[d] && dy8[d]) ? far * 7 / 10 : far;
+            const int32_t tx = hx + dx8[d] * m, ty = hy + dy8[d] * m;
+            if (!land || landAt(tx, ty) == land) { ax = tx; ay = ty; break; }
+          }
+        }
+        if (world.endless && world.src) {
+          float bd = 140.0f;
+          for (int32_t ry = ew::regionOf(ay) - 1; ry <= ew::regionOf(ay) + 1; ry++)
+            for (int32_t rx = ew::regionOf(ax) - 1; rx <= ew::regionOf(ax) + 1; rx++) {
+              const ew::RegionPlan R = world.regionPlan(rx, ry);
+              for (const ew::LandmarkPlan& L : R.landmarks) {
+                const float d = std::hypot((float)(L.x - ax), (float)(L.y - ay));
+                if (d < bd) { bd = d; area = L.name; }
+              }
+            }
+        }
+        q.hasPos = true; q.tgx = ax; q.tgy = ay;
+        q.subject = area;
+        const bool big = q.mon == Monster::Troll || q.mon == Monster::Bear || q.mon == Monster::Sandworm || q.mon == Monster::Yeti || q.mon == Monster::Lurker;
+        q.need = big ? 2 : 3 + r.irange(3);
         q.target = -1;
         V.set("M", monsterPlural(q.mon));
         V.set("n", speech::countWord(q.need));
-        static const char* const ti[] = {"CULL THE {M}", "TOO MANY {M}", "THE {M} OF {H}"};
-        static const char* const re[] = {"THE {M} AROUND HERE ARE GETTING BOLD.", "{M} HAVE BEEN AT THE SHEEP AGAIN.",
-                                         "THE {M} CAME DOWN PAST {N} WITH THE COLD, AND THEY ARE HUNGRY.", "I LOST A GOOD DOG TO THE {M} LAST NIGHT."};
-        static const char* const as[] = {"KILL {n} OF THEM.", "THIN THEM OUT: {n} SHOULD DO IT."};
-        static const char* const de[] = {"THE {M} AROUND {H} ARE GETTING BOLD. KILL {n} OF THEM AND {GIVER} WILL PAY YOU.",
-                                         "{GIVER} WANTS THE {M} NEAR {H} THINNED OUT: {n} OF THEM, FOR A FAIR PRICE.",
-                                         "HUNT {n} {M} IN THE WILDS ROUND {H}. {GIVER} PAYS ON YOUR RETURN.",
-                                         "{M} PROWL CLOSE TO {H} AGAIN. BRING DOWN {n} AND {GIVER} WILL MAKE IT WORTH YOUR WHILE."};
-        title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as); desc = pickN(r, de);
-        // (M3c LIFE) the land speaks in the giver's words: a reason and a title of its biome (no dice rolled: the person's
-        // key chooses, so every other draw of the offer stays as it was)
-        {
+        V.set("D", dirWord(ax - hx, ay - hy, false));
+        V.set("W", walkWords(std::hypot((float)(ax - hx), (float)(ay - hy))));
+        V.set("L", spokenPlace(area));
+        V.set("PLACE", area.empty() ? std::string(den ? "THEIR DEN" : "THE WILDS") : spokenPlace(area));
+        if (need == jobs::JN_HIDES) {   // a smith's or a tailor's: hides for the trade
+          static const char* const ti[] = {"HIDES FOR THE TRADE", "{M} PELTS WANTED", "A HUNT FOR HIDES", "LEATHER ON THE HOOF", "PELTS FROM {PLACE}", "HIDES FROM THE {D}"};
+          static const char* const re[] = {"I'M OUT OF GOOD HIDE FOR GRIPS AND BELLOWS. THE {M} OUT BY {PLACE} WEAR THE BEST THERE IS.",
+                                           "THE TANNER'S RACKS ARE EMPTY AND MY ORDERS WON'T WAIT. THE {M} DEN {W} {D} OF HERE.",
+                                           "FRESH {M} HIDES FETCH MORE THAN ANYTHING I MAKE THIS SEASON, AND THEY ROAM {PLACE}."};
+          static const char* const as[] = {"BRING DOWN {n} OF THEM. I'LL SEND THE TANNER FOR THE SKINS.", "KILL {n}, CLEANLY IF YOU CAN."};
+          static const char* const de[] = {"{GIVER} OF {H} WANTS HIDES: KILL {n} {M} OUT BY {PLACE} ({D} OF {H}).",
+                                           "HUNT {n} {M} NEAR {PLACE}, {D} OF {H}. {GIVER} PAYS FOR THE HIDES."};
+          title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as); desc = pickN(r, de);
+        } else if (!area.empty()) {
+          static const char* const ti[] = {"THIN THE {M} BY {L}", "THE {M} OF {L}", "{M} AT {L}", "CULL THE {M}", "TOO MANY {M}", "THE {M} OF {H}"};
+          static const char* const re[] = {"THE {M} HAVE TAKEN TO {L}, {W} {D} OF HERE, AND EVERY NIGHT THEY COME CLOSER.",
+                                           "{M} HAVE BEEN AT THE SHEEP AGAIN. THEY DEN OUT BY {L}.",
+                                           "THE SHEPHERDS WON'T TAKE THE FLOCKS PAST {L} WHILE THE {M} ARE ABOUT.",
+                                           "I LOST A GOOD DOG TO THE {M} BY {L} LAST NIGHT.",
+                                           "SINCE THE THAW THE {M} OF {L} HAVE GROWN BOLD. THEY TOOK A CALF IN DAYLIGHT."};
+          static const char* const as[] = {"KILL {n} OF THEM.", "THIN THEM OUT: {n} SHOULD DO IT.", "GO OUT TO {L} AND KILL {n}."};
+          static const char* const de[] = {"THE {M} BY {L} ({D} OF {H}) ARE GETTING BOLD. KILL {n} OF THEM AND {GIVER} WILL PAY YOU.",
+                                           "{GIVER} WANTS THE {M} NEAR {L} THINNED OUT: {n} OF THEM, FOR A FAIR PRICE.",
+                                           "HUNT {n} {M} AROUND {L}, {D} OF {H}. {GIVER} PAYS ON YOUR RETURN."};
+          title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as); desc = pickN(r, de);
+        } else {
+          static const char* const ti[] = {"CULL THE {M}", "TOO MANY {M}", "THE {M} OF {H}", "A DEN OF {M}", "{M} ON THE PROWL", "NIGHTS OF {M}"};
+          static const char* const re[] = {"THE {M} AROUND HERE ARE GETTING BOLD. THEY DEN {W} {D} OF HERE.", "{M} HAVE BEEN AT THE SHEEP AGAIN.",
+                                           "THE {M} CAME DOWN PAST {N} WITH THE COLD, AND THEY ARE HUNGRY.", "I LOST A GOOD DOG TO THE {M} LAST NIGHT.",
+                                           "WE HEAR THE {M} EVERY NIGHT NOW, OUT {D} WHERE THE ROAD BENDS."};
+          static const char* const as[] = {"KILL {n} OF THEM.", "THIN THEM OUT: {n} SHOULD DO IT."};
+          static const char* const de[] = {"THE {M} AROUND {H} ARE GETTING BOLD. KILL {n} OF THEM ({D} OF {H}) AND {GIVER} WILL PAY YOU.",
+                                           "{GIVER} WANTS THE {M} NEAR {H} THINNED OUT: {n} OF THEM, FOR A FAIR PRICE.",
+                                           "HUNT {n} {M} IN THE WILDS {D} OF {H}. {GIVER} PAYS ON YOUR RETURN.",
+                                           "{M} PROWL CLOSE TO {H} AGAIN. BRING DOWN {n} AND {GIVER} WILL MAKE IT WORTH YOUR WHILE."};
+          title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as); desc = pickN(r, de);
+        }
+        // (M3c LIFE) the land speaks in the giver's words: a reason and a title of its biome (the person's key chooses)
+        if (need != jobs::JN_HIDES) {
           const Eco he = world.over.ecoAt(home.ex, home.ey);
-          const char* fl = huntFlavour(he, (key >> 21) + (uint64_t)done);
-          if (fl && ((key >> 17) & 3) != 0) {
+          const char* fl = huntFlavour(he, (key >> 21) + (uint64_t)done + (uint64_t)week);
+          if (fl && ((key >> 17) & 3) == 1) {
             std::string en = ecoName(he);
             V.set("E", en);
             reason = fl;
-            if (((key >> 19) & 1) != 0) title = "THE {M} OF THE {E}";
+            if (((key >> 19) & 1) != 0 && area.empty()) title = "THE {M} OF THE {E}";
           }
         }
         return true;
@@ -456,7 +592,9 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
         const Site T = world.sites[(size_t)t];
         q.type = QType::Deliver;
         const float rr = r.f();
-        const Role role = rr < 0.5f ? Role::Innkeeper : (rr < 0.8f || T.type == SiteType::Village ? Role::Smith : Role::Merchant);
+        Role role = rr < 0.5f ? Role::Innkeeper : (rr < 0.8f || T.type == SiteType::Village ? Role::Smith : Role::Merchant);
+        if (need == jobs::JN_TOOLS) role = T.type == SiteType::Village ? Role::Innkeeper : Role::Merchant;   // (P1) a smith's order
+        if (need == jobs::JN_BREAD) role = Role::Innkeeper;                                                  // (P1) a baker's
         q.flags |= (uint32_t)role << 8;
         Actor d;
         d.site = t;
@@ -478,13 +616,32 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
         // the recipient's door when the place's records are in (else it is found on arrival: questTick)
         for (int b = T.bldgFirst; b < T.bldgFirst + T.bldgCount && b < (int)world.over.bldgs.size(); b++)
           if (world.over.bldgs[(size_t)b].type == roleBuilding(role)) { q.destBldg = b; break; }
-        static const char* const ti[] = {"A PARCEL FOR {S}", "THE ROAD TO {T}", "LETTERS FOR {T}"};
-        static const char* const re[] = {"THIS PARCEL MUST REACH {S}, THE {R} OF {T}. THE ROAD RUNS {D}, {W}.",
-                                         "I PROMISED {S}, THE {R} OF {T}, THIS PARCEL BEFORE THE NEW MOON, AND MY LEGS ARE NOT WHAT THEY WERE.",
-                                         "{S}, THE {R} OF {T}, IS WAITING ON THIS BUNDLE OF LETTERS. IT IS {W} {D} OF HERE."};
-        static const char* const as[] = {"TAKE IT TO {P_OBJ}, AND TO NOBODY ELSE.", "PUT IT IN {P_POSS} OWN HANDS."};
-        title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as);
-        desc = "CARRY A PARCEL FROM {GIVER} TO {S}, THE {R} OF {T} ({D} OF {H}). {S} PAYS ON DELIVERY.";
+        if (need == jobs::JN_TOOLS) {
+          static const char* const ti[] = {"TOOLS FOR {T}", "A CRATE FOR {S}", "THE SMITH'S ORDER", "IRON FOR {T}"};
+          static const char* const re[] = {"{S}, THE {R} OF {T}, ORDERED A CRATE OF MY TOOLS. THE ROAD RUNS {D}, {W}.",
+                                           "SCYTHES, NAILS AND TWO GOOD AXES, ALL PROMISED TO {S} IN {T} BY THE NEW MOON.",
+                                           "MY APPRENTICE WAS TO CARRY THIS CRATE TO {S} IN {T}, BUT THE BOY BROKE HIS ARM."};
+          static const char* const as[] = {"CARRY IT TO {P_OBJ}. IT'S HEAVY, BUT IT WON'T BREAK.", "PUT IT IN {P_POSS} OWN HANDS."};
+          title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as);
+          desc = "CARRY A CRATE OF TOOLS FROM {GIVER} TO {S}, THE {R} OF {T} ({D} OF {H}). {S} PAYS ON DELIVERY.";
+        } else if (need == jobs::JN_BREAD) {
+          static const char* const ti[] = {"BREAD FOR {T}", "THE BAKER'S ORDER", "LOAVES FOR {S}", "A FEAST IN {T}"};
+          static const char* const re[] = {"{S} AT THE INN OF {T} WANTS MY HONEY LOAVES FOR A WEDDING FEAST. IT'S {W} {D} OF HERE.",
+                                           "THE INN AT {T} SWEARS BY MY BLACK BREAD, AND {S} HAS SENT FOR A BASKET.",
+                                           "A BASKET OF CAKES FOR {S} IN {T}, BAKED THIS MORNING. THEY WON'T KEEP FOREVER."};
+          static const char* const as[] = {"TAKE IT TO {P_OBJ} WHILE IT'S FRESH.", "DON'T EAT ANY ON THE ROAD."};
+          title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as);
+          desc = "CARRY {GIVER}'S BREAD TO {S}, THE {R} OF {T} ({D} OF {H}). {S} PAYS ON DELIVERY.";
+        } else {
+          static const char* const ti[] = {"A PARCEL FOR {S}", "THE ROAD TO {T}", "LETTERS FOR {T}", "A LETTER FOR {S}"};
+          static const char* const re[] = {"THIS PARCEL MUST REACH {S}, THE {R} OF {T}. THE ROAD RUNS {D}, {W}.",
+                                           "I PROMISED {S}, THE {R} OF {T}, THIS PARCEL BEFORE THE NEW MOON, AND MY LEGS ARE NOT WHAT THEY WERE.",
+                                           "{S}, THE {R} OF {T}, IS WAITING ON THIS BUNDLE OF LETTERS. IT IS {W} {D} OF HERE.",
+                                           "A SEALED LETTER FOR {S}, THE {R} OF {T}. THE CARRIER WHO SHOULD HAVE TAKEN IT NEVER CAME."};
+          static const char* const as[] = {"TAKE IT TO {P_OBJ}, AND TO NOBODY ELSE.", "PUT IT IN {P_POSS} OWN HANDS."};
+          title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as);
+          desc = "CARRY A PARCEL FROM {GIVER} TO {S}, THE {R} OF {T} ({D} OF {H}). {S} PAYS ON DELIVERY.";
+        }
         return true;
       }
       case K_HEIR: {
@@ -492,6 +649,21 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
         if (t < 0) return false;
         q.type = QType::Heirloom;
         atSite(t);
+        if (need == jobs::JN_HOLYRELIC) {   // (P1) a temple's relic, carried off long ago
+          static const char* const relic[] = {"RELIQUARY", "SILVER CHALICE", "HOLY BOOK", "SAINT'S BONE", "ALTAR CANDLESTICK", "BLESSED BELL"};
+          const std::string item = relic[r.irange(6)];
+          q.subject = "THE TEMPLE'S " + item;
+          V.set("S", q.subject);
+          V.set("OBJ", "THE " + item);
+          static const char* const ti[] = {"THE LOST RELIC", "{S}", "A RELIC IN {T}", "WHAT THE THIEVES DROPPED"};
+          static const char* const re[] = {"THIEVES TOOK {OBJ} FROM OUR ALTAR AND FLED INTO {T}. THEY NEVER CAME OUT, BUT NEITHER DID IT.",
+                                           "{OBJ} WAS CARRIED INTO {T} BY A PRIEST WHO WENT TO CLEANSE IT. SHE NEVER RETURNED.",
+                                           "OUR FEAST DAY COMES, AND {OBJ} STILL SITS IN A CHEST IN {T}, {W} {D}."};
+          static const char* const as[] = {"BRING IT BACK TO THE TEMPLE.", "FIND THE CHEST AND BRING IT HOME TO US."};
+          title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as);
+          desc = "THE TEMPLE OF {H} LOST {OBJ} IN {T} ({D} OF {H}). FIND IT IN AN OLD CHEST THERE AND BRING IT TO {GIVER}.";
+          return true;
+        }
         const int ri = r.irange(10), ki = r.irange(12);
         q.subject = std::string(kRelK[ri]) + "'S " + kKeepsake[ki];
         V.set("S", q.subject);
@@ -505,6 +677,55 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
         static const char* const as[] = {"BRING IT BACK TO ME.", "FIND THE CHEST AND BRING IT HOME."};
         title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as);
         desc = "{GIVER}'S {REL} WAS LOST IN {T} ({D} OF {H}). FIND {OBJ} IN AN OLD CHEST THERE AND BRING IT BACK.";
+        return true;
+      }
+      case K_STOLEN: {   // (P1) a merchant's strongbox: the robbers hid it in a cave
+        const int t = pickRadiant(SiteType::Cave, hx, hy, r, danger);
+        if (t < 0) return false;
+        q.type = QType::Heirloom;
+        atSite(t);
+        static const char* const goods[] = {"STRONGBOX", "LEDGER", "SPICE CHEST", "BOLT OF SILK", "SILVER PLATE", "SEAL"};
+        const std::string item = goods[r.irange(6)];
+        q.subject = "THE CARAVAN'S " + item;
+        V.set("S", q.subject);
+        V.set("OBJ", "THE " + item);
+        static const char* const ti[] = {"STOLEN GOODS", "{S}", "THE ROBBERS' CACHE", "WHAT WAS TAKEN ON THE ROAD"};
+        static const char* const re[] = {"ROBBERS TOOK MY CARAVAN ON THE ROAD AND HID {OBJ} IN {T}. I'D KNOW IT ANYWHERE.",
+                                         "{OBJ} WENT MISSING WITH MY LAST WAGON. A TRAPPER SAW IT CARRIED INTO {T}, {W} {D}.",
+                                         "WITHOUT {OBJ} I CAN'T PROVE A SINGLE DEBT. THE THIEVES LEFT IT IN A CHEST IN {T}."};
+        static const char* const as[] = {"BRING IT BACK, UNOPENED.", "FIND THE CHEST AND BRING IT TO ME."};
+        title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as);
+        desc = "ROBBERS HID {GIVER}'S {OBJ} IN {T} ({D} OF {H}). FIND IT IN A CHEST THERE AND BRING IT BACK.";
+        return true;
+      }
+      case K_SUPPLY: {   // (P1) the goods the giver's trade works, from a neighbour that sells them (life_quests.cpp)
+        q.flags = 0;   // (no person seed: bits 20-21 are the supply run's own flags)
+        const life::Job job = JobOps::censusJob(*this, a);
+        const ew::Good gd = JobOps::tradeGood(a.role, job, need);
+        if (gd == ew::Good::COUNT) return false;
+        Quest sq;
+        if (!jobsSupplyQuest(*this, a, gd, job, sq)) return false;
+        q.type = QType::Supply;
+        q.stage = sq.stage; q.need = sq.need; q.have = 0; q.gold = sq.gold; q.xp = sq.xp; q.subject = sq.subject;
+        atSite(sq.target);
+        V.set("GOOD", q.subject);
+        V.set("UNITS", goodUnits(q.need, q.subject));
+        if (need == jobs::JN_FAMINE) {
+          static const char* const ti[] = {"FOOD FOR {H}", "THE HUNGRY WEEKS", "{GOOD} FROM {T}", "BEFORE THE STORES RUN DRY"};
+          static const char* const re[] = {"THE GRANARIES ARE EMPTY AND THE CHILDREN CRY AT NIGHT. {T} STILL HAS {GOOD}.",
+                                           "THIS FAMINE WILL TAKE THE OLD ONES FIRST. {T}, {W} {D}, HAS {GOOD} TO SPARE.",
+                                           "WE'VE EATEN THE SEED CORN. IF NOBODY BRINGS {GOOD} FROM {T}, THERE'LL BE NO SPRING."};
+          static const char* const as[] = {"BRING US {UNITS}.", "FETCH {UNITS} AND I'LL SEE IT SHARED OUT FAIRLY."};
+          title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as);
+        } else {
+          static const char* const ti[] = {"{GOOD} FROM {T}", "SHORT OF {GOOD}", "THE {GOOD} RUN", "AN ORDER OF {GOOD}"};
+          static const char* const re[] = {"MY WORK STANDS IDLE: NOT A SCRAP OF {GOOD} LEFT, AND THE CARTER IS A WEEK LATE. {T} SELLS IT.",
+                                           "I'VE ORDERS I CAN'T FILL WITHOUT {GOOD}. {T}, {W} {D}, HAS PLENTY.",
+                                           "THE LAST LOT OF {GOOD} WAS RUBBISH. {T} SELLS THE GOOD STUFF, {W} {D} OF HERE."};
+          static const char* const as[] = {"BRING ME {UNITS}.", "FETCH {UNITS}. THEY KNOW ME THERE."};
+          title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as);
+        }
+        desc = sq.desc;
         return true;
       }
       case K_MISSING: {
@@ -525,7 +746,18 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
         V.set("REL2", fem ? pick(r, relF) : pick(r, relM));
         V.set("X", std::to_string(2 + r.irange(4)));
         V.set("LOOK", pick(r, kLookingFor));
-        static const char* const ti[] = {"MISSING: {S}", "FIND {S}", "{S} HAS NOT COME HOME"};
+        if (need == jobs::JN_STRAYED) {   // (P1) a farm's: the hand who went after the herd
+          V.set("BEAST", pick(r, kStrayBeast));
+          static const char* const ti[] = {"STRAYED: {S}", "{S} WENT AFTER THE HERD", "LOST WITH THE {BEAST}", "FIND {S}"};
+          static const char* const re[] = {"OUR FARMHAND {S} WENT AFTER A STRAYED {BEAST} {X} DAYS AGO. THE TRACKS RUN TO {T}, {W} {D}.",
+                                           "{S} TOOK THE DOG TO BRING BACK THE {BEAST}. THE DOG CAME HOME ALONE, FROM THE WAY OF {T}.",
+                                           "THE {BEAST} CAME BACK BY ITSELF. {S}, WHO WENT LOOKING FOR IT NEAR {T}, DID NOT."};
+          static const char* const as[] = {"BRING {P_OBJ} HOME ALIVE.", "FIND {P_OBJ} BEFORE ANOTHER NIGHT FALLS."};
+          title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as);
+          desc = "{S}, WHO WORKS {GIVER}'S FIELDS, WENT AFTER A STRAYED {BEAST} AND WAS LOST IN {T} ({D} OF {H}). FIND {P_OBJ} AND LEAD {P_OBJ} OUT.";
+          return true;
+        }
+        static const char* const ti[] = {"MISSING: {S}", "FIND {S}", "{S} HAS NOT COME HOME", "WHERE IS {S}?"};
         static const char* const re[] = {"MY {REL2} {S} WENT INTO {T} {X} DAYS AGO AND HAS NOT COME BACK.",
                                          "MY {REL2} {S} WENT LOOKING FOR {LOOK} NEAR {T} AND NEVER CAME BACK. SOMEONE SAW A LIGHT IN THE CAVE.",
                                          "MY {REL2} {S} WAS TAKEN. THE TRACKS LEAD TO {T}, {W} {D}."};
@@ -566,6 +798,7 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
         title = pickN(r, ti); reason = pickN(r, re); ask = pickN(r, as); desc = pickN(r, de);
         return true;
       }
+      case K_COUNT: break;
     }
     return false;
   };
@@ -593,6 +826,7 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
     case K_PROTECT: g += 110; xp += 80; break;
     default: break;
   }
+  if (made == K_SUPPLY) { g = q.gold; xp = q.xp; danger = false; }   // (P1) the going price, doubled (life_quests.cpp)
   if (danger) { q.flags |= QF_DANGER; g = g * 3 / 2; xp = xp * 3 / 2; }
   q.gold = g; q.xp = xp;
   V.set("G", std::to_string(g));
@@ -618,6 +852,9 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
   if (q.target >= 0 && made != K_PROTECT && reason.find("{D}") == std::string::npos)
     // (named once is enough: a place the reason already named is "the place"; a delivery's town keeps its name)
     where = reason.find("{T}") != std::string::npos && made != K_DELIVER ? "THE PLACE IS {W} {D} OF HERE." : "{T} IS {W} {D} OF HERE.";
+  // (P1) a hunt's ground: where the beasts den, when the reason did not say
+  if (made == K_HUNT && q.hasPos && reason.find("{D}") == std::string::npos && reason.find("{L}") == std::string::npos && reason.find("{PLACE}") == std::string::npos)
+    where = !q.subject.empty() ? "THEY DEN BY {L}, {W} {D} OF HERE." : q.targetId ? "THEIR DEN IS {W} {D} OF HERE." : "THEY ROAM THE WILDS {W} {D} OF HERE.";
   const char* const dangerLine = danger ? pick(r, kDanger) : "";
   // one person talking, in order: why they ask, what happened, where, what they want, the risk, the pay. A pitch too
   // long for the phone panel loses its opener first, then the way there (the journal and the map have it)
@@ -671,10 +908,53 @@ bool Game::debugOfferTalk(int actorId, QType t) {
 // M5 (CITIZENS lane): the giver's own words for an offer from life_quests.cpp
 std::string lifePitch(const Game& g, const Quest& q);
 
-Quest Game::makeOffer(const Actor& npc) {
+// (P1 Fresh Roads, JOBS lane) does this NPC have work to offer? An unmet need first (life_quests.cpp), then the
+// settlement's weekly pool (rpg/sim/jobs_pool.cpp: worked out from the land's real needs the first time anyone there is
+// asked this week, frozen, each job named to a resident of a fitting trade). No lifetime caps, no 1-in-3 hash: a
+// fresh week is a fresh pool. Outside the settlements (a wayside hunter, a hermit) one job a week. Runs every frame
+// (the talk prompt, the markers): the pool is read through an O(1) index (jobs::Book::live).
+bool Game::hasOffer(const Actor& a) const {
+  const bool noble = background == Background::Noble;   // exiled noble: guards and jarls offer more work
+  if (!a.npc || (a.role == Role::Guard && !noble) || a.role == Role::Child || a.role == Role::King || a.site < 0) return false;
+  if (!a.human || a.quest > 0 || a.role == Role::Traveller) return false;   // M2: a troll, a missing person, a traveller
+  if (a.site >= (int)world.sites.size()) return false;
+  for (auto& q : quests) if (q.state != QState::Done && q.type != QType::Main && isGiver(q, a)) return false;
+  { Quest lq; if (lifeOffer(a, lq)) return true; }   // M5: an unmet need asks for help (life_quests.cpp)
+  const Site& S = world.sites[(size_t)a.site];
+  if (S.settlement() && world.endless) {
+    if (!life.find(S.id)) return false;   // (its census is a moment away: the pool is worked out from it)
+    const jobs::PoolJob* j = JobOps::openJob(*this, a);
+    if (!j) return false;
+    // a night on the fields is asked for by day, out of doors (offerFor's Protect rule)
+    if (j->qtype == (uint8_t)QType::Protect && (hour < 6.0f || hour >= 17.0f || inside)) return false;
+    return true;
+  }
+  // no census (the wilds, a wayside place): one job a week; the wayside trades always have one, others every other week
+  const uint64_t key = npcKey(a);
+  if (!JobOps::waysideFree(*this, key)) return false;
+  if (a.role == Role::Hunter || a.role == Role::Fisher || a.role == Role::Herbalist || a.role == Role::Innkeeper || a.role == Role::Jarl) return true;
+  return hash32((uint32_t)key ^ (uint32_t)seed ^ (uint32_t)(day / 7) * 2654435761u) % 2 == 0;
+}
+
+Quest Game::makeOffer(const Actor& npc, bool* okOut) {
+  if (okOut) *okOut = true;
   { Quest lq; if (lifeOffer(npc, lq)) { pendingPitch_ = lifePitch(*this, lq); return lq; } }   // M5: an unmet need asks for help first (life_quests.cpp)
   bool ok = false;
-  return offerFor(npc, QType::COUNT, ok);
+  // (P1) the person's job this week: its kind and its need (offerFor reads jobBook.offerNeed while it builds)
+  if (const jobs::PoolJob* j = JobOps::openJob(*this, npc)) {
+    jobBook.offerNeed = j->need;
+    const QType want = (QType)j->qtype;
+    Quest q = offerFor(npc, want, ok);
+    if (!ok && JobOps::censusJob(*this, npc) != life::Job::Scholar) {   // the place it named is gone (cleared since Monday, taken by another job): a hunt at a den always fits (not a scholar's)
+      jobBook.offerNeed = jobs::JN_DEN;
+      q = offerFor(npc, QType::Hunt, ok);
+    }
+    jobBook.offerNeed = jobs::JN_NONE;
+    if (ok) return q;
+  }
+  Quest q = offerFor(npc, QType::COUNT, ok);
+  if (okOut) *okOut = ok;
+  return q;
 }
 
 // ---------------------------------------------------------------- markers and journal lines
@@ -701,6 +981,24 @@ bool Game::questTargetM2(const Quest& q, int& tx, int& ty) const {
     case QType::Sea: return q.hasPos ? global(q.tgx, q.tgy) : false;   // M10: the chart chain's place, the king's capital
     case QType::Campaign: case QType::Envoy: case QType::Fief:   // M12: the order's / court's / holding's place
       return q.hasPos ? global(q.tgx, q.tgy) : atSite();
+    case QType::Errand: return q.hasPos ? global(q.tgx, q.tgy) : false;   // P1: the street incident's place (LIFE lane)
+    case QType::Hunt: {   // P1: the den or the hunting ground; a quarry in sight first (out of doors, within 20 tiles)
+      if (!q.hasPos) return false;   // (a hunt from before P1: questTarget looks for the quarry and the dens itself)
+      if (!inside) {
+        float bd = (20.0f * TILE) * (20.0f * TILE);
+        bool seen = false;
+        for (size_t i = 1; i < actors.size(); i++) {
+          const Actor& m = actors[i];
+          if (m.st == AState::Dead || m.human || m.npc || m.mon != q.mon) continue;
+          // (P1 fixer) never the hero's own summon, a charmed or raised beast (a calmed or held wild one is still quarry)
+          if (m.faction == Faction::Player || m.magicTag == magic::MT_SUMMON || m.magicTag == magic::MT_CHARM || m.magicTag == magic::MT_RAISE || m.magicTag == magic::MT_BOUND) continue;
+          const float d = len2(m.p - pl().p);
+          if (d < bd) { bd = d; tx = (int)std::floor(m.p.x / TILE); ty = (int)std::floor(m.p.y / TILE); seen = true; }
+        }
+        if (seen) return true;
+      }
+      return global(q.tgx, q.tgy);
+    }
     default: return false;
   }
 }
@@ -744,6 +1042,18 @@ std::string Game::questStatusM2(const Quest& q) const {
       return q.subject.empty() ? std::string() : fitLine({q.subject + dl, q.subject + ds, q.subject});
     case QType::Campaign: case QType::Envoy: case QType::Fief:   // M12 (service_game.cpp / lord_game.cpp write subject)
       return q.subject.empty() ? std::string() : fitLine({q.subject + dl, q.subject + ds, q.subject});
+    case QType::Errand: {   // P1 (LIFE lane writes subject: "CATCH THE THIEF"); without one, the kind says it
+      static const char* const byKind[] = {"CATCH THE THIEF", "MEND THE CART", "BREAK UP THE BRAWL", "BRING THEM BACK", "LEND A HAND"};
+      const std::string what = !q.subject.empty() ? q.subject : byKind[std::clamp(q.stage, 0, (int)jobs::ErrandKind::COUNT - 1)];
+      return fitLine({what + dl, what + ds, what});
+    }
+    case QType::Hunt: {   // P1: "THIN THE WOLVES BY THE GREY TEETH 2/5 (NORTH-EAST)"
+      if (!q.hasPos) return "";
+      const std::string m = monsterPlural(q.mon), prog = std::to_string(q.have) + "/" + std::to_string(q.need);
+      const std::string area = !q.subject.empty() ? " BY " + spokenPlace(q.subject) : q.targetId ? std::string(" AT THEIR DEN") : std::string(" IN THE WILDS");
+      return fitLine({"THIN THE " + m + area + " " + prog + dl, "THIN THE " + m + area + " " + prog + ds, "THIN THE " + m + " " + prog + ds, m + " " + prog + ds,
+                      m + " " + prog});
+    }
     case QType::Protect: {
       const bool night = (day == q.deadlineDay && hour >= 20.5f) || (day == q.deadlineDay + 1 && hour < 5.5f);
       const std::string home = giverTown(world, q);
@@ -775,7 +1085,12 @@ std::string Game::turnInLine(const Quest& q) const {
   const std::string tname = q.target >= 0 && q.target < (int)world.sites.size() ? spokenPlace(world.sites[(size_t)q.target].name) : std::string();
   const bool fem = personFemale(q, seed);
   switch (q.type) {
-    case QType::Heirloom: return "MY " + q.subject + "! I NEVER THOUGHT I WOULD HOLD IT AGAIN. I PROMISED YOU " + g + " GOLD, AND YOU HAVE MY BLESSING TOO.";
+    case QType::Heirloom:
+      if (q.subject.rfind("THE TEMPLE'S ", 0) == 0)   // (P1) a temple's relic
+        return "THE " + keepsakeOf(q.subject) + ", BACK WHERE IT BELONGS! THE GODS WILL REMEMBER THIS. " + g + " GOLD FROM THE OFFERINGS, AND OUR BLESSING.";
+      if (q.subject.rfind("THE CARAVAN'S ", 0) == 0)   // (P1) a merchant's stolen goods
+        return "MY " + keepsakeOf(q.subject) + ", AND NOT A SEAL BROKEN! THOSE THIEVES WILL GET NOTHING FROM ME. " + g + " GOLD, AS PROMISED.";
+      return "MY " + q.subject + "! I NEVER THOUGHT I WOULD HOLD IT AGAIN. I PROMISED YOU " + g + " GOLD, AND YOU HAVE MY BLESSING TOO.";
     case QType::Missing:
       return q.subject + " IS HOME, AND SAFE! I DON'T KNOW HOW TO THANK YOU. " + std::string(fem ? "SHE" : "HE") + " TOLD US WHAT YOU DID. THE " + g +
              " GOLD IS YOURS.";
@@ -807,6 +1122,12 @@ std::string Game::turnInLine(const Quest& q) const {
       return std::string(by[m ? std::clamp((int)m->outcome, 0, 3) : 0]) + " " + g + " GOLD, AND THE COURT'S THANKS.";
     }
     case QType::Fief: return "THE VILLAGE WON'T FORGET THIS, MY LORD. " + g + " GOLD FROM THE COFFERS.";
+    case QType::Errand: {   // P1: a street incident's thanks, by its kind (jobs.h ErrandKind)
+      static const char* const byKind[] = {"MY PURSE! I THOUGHT I'D NEVER SEE IT AGAIN.", "THE WHEEL HOLDS! I'D HAVE BEEN STUCK HERE TILL DARK.",
+                                           "THANK THE GODS SOMEBODY STEPPED IN BEFORE THE WATCH CAME.", "HOME SAFE! I DON'T KNOW WHAT I'D HAVE DONE.",
+                                           "THAT WAS KIND OF YOU, STRANGER."};
+      return std::string(byKind[std::clamp(q.stage, 0, (int)jobs::ErrandKind::COUNT - 1)]) + " TAKE THESE " + g + " GOLD, AND MY THANKS.";
+    }
     default:
       return (tname.empty() ? std::string("YOU'RE BACK, AND IT'S DONE.") : "YOU'RE BACK! THEY SAY " + tname + " HAS GONE QUIET AT LAST.") + " I OWE YOU " + g +
              " GOLD.";
@@ -825,8 +1146,9 @@ std::string Game::questReminder(const Quest& q) const {
     case QType::Hunt: {
       const int left = std::max(0, q.need - q.have);
       const std::string m = monsterPlural(q.mon);
+      const std::string by = q.hasPos && !q.subject.empty() ? "OUT BY " + spokenPlace(q.subject) : "THE WILDS ROUND " + home;   // (P1) the hunt's ground
       if (q.have <= 0)
-        return h % 2 ? "NO LUCK WITH THE " + m + " YET? THEY ROAM THE WILDS ROUND " + home + ". I NEED " + speech::countWord(q.need) + " OF THEM DEAD."
+        return h % 2 ? "NO LUCK WITH THE " + m + " YET? THEY ROAM " + by + ". I NEED " + speech::countWord(q.need) + " OF THEM DEAD."
                      : "THE " + m + " ARE STILL OUT THERE, BOLDER EVERY NIGHT. KILL " + speech::countWord(q.need) + " OF THEM AND I'LL PAY WHAT I PROMISED.";
       return "HOW GOES THE HUNT? THAT'S " + speech::countWord(q.have) + " DOWN, SO " + speech::countWord(left) + " MORE " + m + " TO GO.";
     }
@@ -881,9 +1203,12 @@ std::string Game::acceptLine(const Quest& q) const {
       return "HERE'S THE PARCEL. " + q.subject + (place.empty() ? std::string(" PAYS ON DELIVERY.") : " IS IN " + place + ", AND PAYS ON DELIVERY.") +
              " KEEP IT DRY, AND KEEP IT SHUT.";
     case QType::Protect: return "THEN MEET ME AT THE FIELDS BY NIGHTFALL. THEY COME AFTER DARK, AND THEY DON'T GIVE UP EASILY.";
-    case QType::Hunt: return "GOOD. COME BACK TO ME WHEN " + speech::countWord(q.need) + " OF THE " + monsterPlural(q.mon) + " ARE DEAD.";
+    case QType::Hunt:   // (P1) the den or the ground is on the map
+      return q.hasPos ? std::string("GOOD. I'VE MARKED ") + (q.targetId ? "THEIR DEN" : "WHERE THEY ROAM") + " ON YOUR MAP. COME BACK WHEN " + speech::countWord(q.need) +
+                            " OF THE " + monsterPlural(q.mon) + " ARE DEAD."
+                      : "GOOD. COME BACK TO ME WHEN " + speech::countWord(q.need) + " OF THE " + monsterPlural(q.mon) + " ARE DEAD.";
     case QType::Missing: return "THANK YOU. GODS, THANK YOU. BRING " + q.subject + " HOME ALIVE. I'VE MARKED " + marked + " ON YOUR MAP.";
-    case QType::Heirloom: return "THANK YOU. I'VE MARKED " + marked + " ON YOUR MAP. BRING IT HOME TO ME.";
+    case QType::Heirloom: return "THANK YOU. I'VE MARKED " + marked + " ON YOUR MAP. I'LL BE WAITING FOR IT.";
     case QType::Supply: return "GOOD. " + (place.empty() ? std::string("THE NEXT TOWN") : place) + " HAS WHAT I NEED. COME STRAIGHT BACK WITH IT.";
     case QType::Clear: case QType::Bounty: case QType::NamedBandit:
       return place.empty() ? "GOOD. COME BACK TO ME WHEN IT'S DONE." : "GOOD. I'VE MARKED " + marked + " ON YOUR MAP. COME BACK TO ME WHEN IT'S DONE.";

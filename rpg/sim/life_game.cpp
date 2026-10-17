@@ -23,12 +23,29 @@
 //     children at tag, the lamplighter's round;
 //   - village animals (dogs, cats, hens, a rooster, goats, pigs, ducks): a handful per settlement near the player;
 //   - the player's hooks in dialogue (feed, coin, employ, supply, befriend, the inn's hot meal) and the 15.2 buffs.
+// P1 "Fresh Roads" (LIFE lane, VISION_PLAN 15.34): nobody in the street is a statue.
+//   - the street's day: a resident's outdoor block is cut into segments of 22-57 game minutes (segOf: a length and a
+//     phase of their own), each a task (TaskK): a plain spot of the plan's kind somewhere new (3+ tiles off), minding a
+//     stall with trips for stock (back with a crate: Carry), a carry route between real doors (the bakery / smithy /
+//     market / seat / inn to customers' homes and back), sweeping along a lane, reading or preaching in the square, a
+//     visit to a friend's door, a round of the stalls. The trades with no workplace (WORK@STREET) live mostly on routes;
+//     the leisure hours stroll, shop and visit; field hands move along their own fields. Everyone keeps a pace of their
+//     own; a stop out of reach gives the next one, twice running a spot in plain sight, a wedge a short step out;
+//   - staggered arrival: a fresh street (walked into, or the clock jumped) places 42 % of the outdoor folk part-way to
+//     their stop (from inside the town, in plain sight of it: walking at once), the rest at it part-way through its
+//     wait; spots a body cannot reach from the town's heart (a fenced yard, a gap between houses) are never used;
+//   - no giver pins: an open quest's giver, a story's person, an interior keeper with an open job live their day; the
+//     tracked quest's pin follows them (Game::lifeGiverSpot: their spot by the plan, else the door they are behind);
+//   - stumble-on hooks: overheard gossip naming a real need (a journal LEAD, once per giver a week, two a town a day),
+//     street incidents (a thief, a broken cart, a brawl: one a town an hour at most, by the site and the hour) that
+//     open an Errand when the player steps in and leave an Incident lead when ignored (life.h forceIncident etc.).
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -64,9 +81,21 @@ constexpr uint32_t LB_SERVED = 32u;    // a patron who has had a mug brought
 constexpr uint32_t LB_FRESH = 64u;     // spawned this step (its first think places it)
 constexpr uint32_t LB_CRITTER = 128u;  // a village animal
 constexpr uint32_t LB_SERVER = 256u;   // the inn's server on their rounds (no chat pair)
+constexpr uint32_t LB_THIEF = 512u;    // (P1) a street incident's cutpurse (not a resident; incidentFolk drives them)
+constexpr int THIEF_SLOT = 3996;       // (P1) the cutpurse's slot (3992 .. 3999: free of the residents, the watch, the animals)
 
 // what the actor is doing with its target (ARt::kind)
 enum TKind : uint8_t { T_NONE, T_SPOT, T_DOOR, T_EXIT, T_AWAY };
+
+// (P1 Fresh Roads) what a resident out in the street is doing within their plan's block (ARt::task): the block is cut
+// into segments of 22-57 game minutes (per person; a phase of their own, so nobody turns in lockstep), and each segment
+// is one of these: a plain spot (chat, stroll, the field), minding a stall (with trips for stock), a carry route between
+// real doors (source to customers and back), sweeping along a lane, reading or preaching in the square, a visit to a
+// friend's door, or a round of the stalls
+enum TaskK : uint8_t { TK_NONE, TK_STALL, TK_DELIVER, TK_SWEEP, TK_READ, TK_VISIT, TK_SHOP, TK_COUNT };
+// ARt::mood values of the P1 street incidents (stageMood's own are 1 begging, 2 brawling)
+constexpr uint8_t MOOD_INCIDENT = 3;   // held by a street incident (a victim, a cart's owner, a brawler)
+constexpr uint8_t MOOD_PARTED = 4;     // (P1 fixer r2) a brawler the player just parted: backs off a step, glares, goes
 
 const float kWalk = 0.62f;   // walking pace (share of Actor::speed)
 
@@ -227,8 +256,24 @@ struct Game::LifeRuntime {
     Posture post = Posture::None;
     int destFace = 0, then = 0;
     bool claimed = false;             // holds the outdoor spot (cx, cy) (global tile)
+    bool pairStep = false;            // (P1 fixer r2) a chat pair's step into place beside the partner (dest)
+    float pairT = 0;
     int32_t cx = 0, cy = 0;
     uint8_t mood = 0;                 // (M5 fixer r2) a staged mood vignette at its spot: 0 none, 1 begging, 2 brawling
+    // ---- P1 Fresh Roads: the street's day (TaskK)
+    int32_t seg = INT32_MIN;          // the segment the current task belongs to (segOf)
+    uint8_t task = TK_NONE, leg = 0;  // the task and the leg of its route (a stop at a door, a stall, a spot)
+    float dwell = 0;                  // seconds left at this leg's stop
+    Posture walkPost = Posture::None; // the posture on the way (Carry: a sack, a basket, a crate)
+    int srcB = -1;                    // TK_DELIVER: the building (handle) the goods come from; TK_STALL / TK_SWEEP: -1
+    int32_t ax = 0, ay = 0;           // the task's anchor (global tile): the stall, the lane swept, the friend's door
+    float pace = 1.0f;                // this person's own pace (0.86 .. 1.14 of the town's walking pace)
+    float hawkT = 0;                  // TK_STALL: the next cry of the wares
+    uint8_t retry = 0;                // spots out of reach in a row this segment (2: one in plain sight instead)
+    bool slip = false;                // wedged between walls: a short step out to slipTo, through the snag (never a jump)
+    bool slipped = false;             // the step out was tried this block (a second wedge: they keep to their spot: retry 255)
+    float slipT = 0;
+    Vec2 slipTo;
   };
   std::unordered_map<int, ARt> act;
   ARt& rt(int id) { return act[id]; }
@@ -266,6 +311,29 @@ struct Game::LifeRuntime {
   double stepT0 = 0;
   double folkMs = 0;                  // lifeFolk time this step
   float barkT = 0;
+
+  // ---- P1 Fresh Roads: stumble-on hooks (never saved: an errand left running is failed when its moment has passed)
+  struct Incident {
+    int kind = 0;                     // 0 none, 1 a thief, 2 a broken cart, 3 a brawl (life::INC_*)
+    int si = -1;
+    ew::Gid site = 0;
+    int victim = -1, other = -1;      // actor ids: who asks (the robbed, the cart's owner, a brawler) / the thief, the second brawler
+    int quest = 0;                    // the errand's id once the player took it on
+    float t = 0, holdT = 0, sayT = 0; // seconds since it began / the player's help at the cart / the next word
+    int32_t gx = 0, gy = 0;           // where (global tile): the cart, the brawl, the thief now
+    int32_t ex = 0, ey = 0;           // the thief's way out (global tile)
+    bool engaged = false;
+    // the victim's identity (an errand can be opened, a lead written, after their body is put away)
+    int vSite = -1, vBldg = -1, vSlot = -1;
+    uint64_t vKey = 0;
+    std::string vName;
+  } inc;
+  // (P1 fixer r2) a line said a beat after another (the robbed's thanks after the thief gives up): one plate at a time
+  struct LaterSay { int actor = -1; float t = 0; std::string s; uint32_t col = 0; };
+  std::vector<LaterSay> sayLater;
+  std::unordered_set<uint64_t> incidentSlots;   // (site, hour) slots already decided (one incident an hour at most)
+  float incidentCheckT = 0, orphanT = 0;
+  life::StreetStats street;
 };
 
 // ================================================================= the lane's internals (friend of Game)
@@ -308,7 +376,17 @@ struct LifeOps {
 
   static void bubble(Actor& a, Bubble b, float secs) { a.bubble = b; a.bubbleT = secs; }
   static void say(Game& g, const Actor& a, const std::string& s, uint32_t col = 0) {
-    g.emit(Ev::Text, a.p + Vec2(0, -22), (int)(col ? col : rgba(240, 232, 200)), 0, s);
+    // (P1 fixer) the plate's foot clears the speaker's head (a 24 px body): the words never cover the face that says them
+    g.emit(Ev::Text, a.p + Vec2(0, -27), (int)(col ? col : rgba(240, 232, 200)), 0, s);
+    // (P1 fixer r2) the speaker rides with the line (Event::id = actor id + 1): the view keeps the plate over their head
+    // as they walk (a brawler squaring up, a thief caught on the run) and a new line from them replaces it. A plate left
+    // where the words were first said covered the next person there and outlived the moment
+    g.events.back().id = (uint32_t)a.id + 1u;
+  }
+  // (P1 fixer r2) the speaker's plate, if one is up, taken down (an empty line with its speaker: render.cpp Ev::Text)
+  static void hush(Game& g, const Actor& a) {
+    g.emit(Ev::Text, a.p, 0, 0, "");
+    g.events.back().id = (uint32_t)a.id + 1u;
   }
 
   // ---------------------------------------------------------------- plans
@@ -413,6 +491,39 @@ struct LifeOps {
       for (int y = st.r.y; y < st.r.y + st.r.h; y++)
         for (int x = st.r.x; x < st.r.x + st.r.w; x++)
           if (walk(x, y) && (m.at(x, y) == Ground::Road || m.at(x, y) == Ground::Dirt) && ((x * 7 + y * 3) % 5 == 0)) put(S.street, x, y, 0);
+    // (P1) only spots a body can walk to from the town: a woodpile in a yard fenced all round, a gap shut in by houses,
+    // are left out (someone placed there could never leave it). A flood over the scanned area from the heart (or, when
+    // the heart stands on something solid, from the nearest street spot)
+    {
+      const int W = x1 - x0 + 1, H = y1 - y0 + 1;
+      if (W > 0 && H > 0) {
+        std::vector<uint8_t> seen((size_t)W * H, 0);
+        std::vector<int> q;
+        q.reserve(4096);
+        auto push = [&](int x, int y) {
+          if (x < x0 || y < y0 || x > x1 || y > y1 || !walk(x, y)) return;
+          uint8_t& s = seen[(size_t)(y - y0) * W + (x - x0)];
+          if (s) return;
+          s = 1;
+          q.push_back((y - y0) * W + (x - x0));
+        };
+        push(st.ex, st.ey);
+        if (q.empty())
+          for (const RT::Spot& s : S.street) { push(s.x - g.world.ox, s.y - g.world.oy); if (!q.empty()) break; }
+        for (size_t i = 0; i < q.size(); i++) {
+          const int x = q[i] % W + x0, y = q[i] / W + y0;
+          push(x + 1, y); push(x - 1, y); push(x, y + 1); push(x, y - 1);
+        }
+        // (a town whose heart reaches only a sliver of it is left as scanned: better a stuck few than an empty street)
+        if (q.size() * 4 >= (size_t)W * H / 8)
+          for (auto* v : {&S.farm, &S.water, &S.wood, &S.mine, &S.pasture, &S.plaza, &S.market, &S.street, &S.lamps, &S.yard, &S.edge})
+            v->erase(std::remove_if(v->begin(), v->end(), [&](const RT::Spot& s) {
+                       const int x = s.x - g.world.ox, y = s.y - g.world.oy;
+                       return x < x0 || y < y0 || x > x1 || y > y1 || !seen[(size_t)(y - y0) * W + (x - x0)];
+                     }),
+                     v->end());
+      }
+    }
   }
   static bool spotOk(const Game& g, const RT::Spot& s) {
     const int x = s.x - g.world.ox, y = s.y - g.world.oy;
@@ -464,20 +575,11 @@ struct LifeOps {
 
   // where on the street a resident's plan puts them now (false: indoors / away / nowhere outdoors). out: global tile
   // and facing; post: the posture once there
-  // outdoorSpot, or, for the giver of an open quest (or a story's person), a place in the square by day whatever their
-  // plan says (the turn-in keys on them: they wait where the player can find them)
+  // (P1 Fresh Roads: no more plaza pin for an open quest's giver or a story's person: they live their day like
+  //  everyone else, and the tracked quest's pin follows them, Game::lifeGiverSpot)
   static bool targetSpot(Game& g, int si, RT::SiteRt& S, const life::Census& c, const life::Resident& r, const life::Plan& p,
                          int32_t& gx, int32_t& gy, int& face, int self = -1) {
-    if (outdoorSpot(g, si, S, c, r, p, gx, gy, face, self)) return true;
-    if ((r.flags & (life::RF_DEAD | life::RF_AWAY)) || !warKeyPerson(g, si, LIFE_SLOT0 + (int)r.idx)) return false;
-    if (!(g.hour >= 7.0f && g.hour < 21.0f)) {   // at night: on their own doorstep
-      int hx, hy;
-      if (r.home >= 0 && doorStep(g, c.bldgHandle(g.world.sites[(size_t)si], r.home), hx, hy)) { gx = g.world.ox + hx; gy = g.world.oy + hy; face = 0; return true; }
-    }
-    const RT::Spot* q = pick(g, S.plaza, mixu(c.seed, r.idx), self);
-    if (!q) return false;
-    gx = q->x; gy = q->y; face = 0;
-    return true;
+    return outdoorSpot(g, si, S, c, r, p, gx, gy, face, self);
   }
   static bool fieldJob(life::Job j) {
     return j == life::Job::Farmer || j == life::Job::Herder || j == life::Job::Woodcutter || j == life::Job::Fisher || j == life::Job::Miner;
@@ -485,8 +587,9 @@ struct LifeOps {
   static bool fieldLunch(const Game& g, const life::Resident& r, const life::Plan& p) {
     return p.act == life::Act::Eat && p.place == life::Place::Home && fieldJob(r.job) && g.hour >= 11.0f && g.hour < 14.0f;
   }
+  // salt: (P1) the segment of the block (segOf + 1; 0 the block's first spot): a fresh spot of the same kind each segment
   static bool outdoorSpot(Game& g, int si, RT::SiteRt& S, const life::Census& c, const life::Resident& r, const life::Plan& p0,
-                          int32_t& gx, int32_t& gy, int& face, int self = -1) {
+                          int32_t& gx, int32_t& gy, int& face, int self = -1, uint32_t salt = 0) {
     using life::Act;
     using life::Place;
     using life::Job;
@@ -495,7 +598,7 @@ struct LifeOps {
     life::Plan p = p0;
     if (fieldLunch(g, r, p0)) { p.act = Act::Work; p.place = Place::Field; p.bldg = -1; }
     if (p.bldg >= 0 && p.act != Act::Emigrate) return false;
-    const uint32_t h = mixu(c.seed ^ (uint64_t)r.idx * 7919u, (uint64_t)g.day * 31u + (uint64_t)p.act * 977u + (uint64_t)p.place);
+    const uint32_t h = mixu(c.seed ^ (uint64_t)r.idx * 7919u, (uint64_t)g.day * 31u + (uint64_t)p.act * 977u + (uint64_t)p.place + (uint64_t)salt * 0x9E3779B1ull);
     const std::vector<RT::Spot>* v = &S.street;
     switch (p.place) {
       case Place::Field:
@@ -569,13 +672,29 @@ struct LifeOps {
       default: return 14;
     }
   }
-  static bool findPath(Game& g, int sx, int sy, int tx, int ty, std::vector<int32_t>& out) {
+  // (P1 fixer r2) a tile out in the open, where a body is seen whole: not behind a stall's counter or under its awning
+  // (a vendor's prop, a cart or their filler within a tile across, one above or two below), nor in the strip a roof's
+  // eave hides north of a building (its footprint one or two tiles below)
+  static bool openTile(const Map& m, int x, int y) {
+    for (int dy = -1; dy <= 2; dy++)
+      for (int dx = -1; dx <= 1; dx++) {
+        const int tx = x + dx, ty = y + dy;
+        if (!m.in(tx, ty)) continue;
+        const int q = m.propAt(tx, ty);
+        if (q && (art::isVendorProp((Prop)(q - 1)) || q == (int)Prop::Cart + 1 || q == (int)Prop::Filler + 1)) return false;
+        if (dx == 0 && dy >= 1 && m.bldgAt[(size_t)ty * m.w + tx] >= 0) return false;
+      }
+    return true;
+  }
+  // inView: (P1 fixer r2: the cutpurse's run) the open street costs as usual and a hidden tile (openTile) five times
+  // over, so the chase stays where it is seen and the catch never happens behind a stall
+  static bool findPath(Game& g, int sx, int sy, int tx, int ty, std::vector<int32_t>& out, bool inView = false) {
     RT& R = rt(g);
     const Map& m = g.world.over;
     out.clear();
     if (!m.in(sx, sy) || !m.in(tx, ty)) return false;
     const uint64_t key = ew::mix64(((uint64_t)(uint32_t)(g.world.ox + sx) << 32 | (uint32_t)(g.world.oy + sy)) * 31ull ^
-                                   ((uint64_t)(uint32_t)(g.world.ox + tx) << 32 | (uint32_t)(g.world.oy + ty)));
+                                   ((uint64_t)(uint32_t)(g.world.ox + tx) << 32 | (uint32_t)(g.world.oy + ty))) ^ (inView ? 0x0BE11ull : 0ull);
     auto it = R.cache.find(key);
     if (it != R.cache.end()) { out = it->second; R.stats.pathCacheHits++; return !out.empty(); }
     R.stats.pathRequests++;
@@ -618,7 +737,7 @@ struct LifeOps {
         if (nx < x0 || ny < y0 || nx > x1 || ny > y1 || !pass(nx, ny)) continue;
         const int li = L(nx, ny);
         if (R.closed[(size_t)li]) continue;
-        const int gs = R.gScore[(size_t)n.i] + stepCost(m, nx, ny);
+        const int gs = R.gScore[(size_t)n.i] + stepCost(m, nx, ny) * (inView && !openTile(m, nx, ny) ? 5 : 1);
         if (gs >= R.gScore[(size_t)li]) continue;
         R.gScore[(size_t)li] = gs;
         R.came[(size_t)li] = n.i;
@@ -678,6 +797,7 @@ struct LifeOps {
       std::vector<int32_t> p;
       if (!findPath(g, tileX(a.p), tileY(a.p), lx, ly, p)) {
         A.fails++;
+        R.street.legFails[std::min<int>(A.task, 7)]++;
         a.st = AState::Idle;
         return false;
       }
@@ -898,7 +1018,11 @@ struct LifeOps {
         int32_t gx, gy;
         int face;
         const life::Resident& r = c->res[(size_t)a.resident];
-        if (!targetSpot(g, si, S, *c, r, S.plans[(size_t)a.resident], gx, gy, face, a.id) || !keepOut(g, si, r)) {
+        // (P1) everyone in the street is placed afresh, as a street walked into is (staggered: some on their way, some at
+        // their stop part-way through it): kept as they were, the whole street would turn to its new block at once
+        auto ai = R.act.find(a.id);
+        const bool held = ai != R.act.end() && ai->second.mood == MOOD_INCIDENT;
+        if (!held || !targetSpot(g, si, S, *c, r, S.plans[(size_t)a.resident], gx, gy, face, a.id) || !keepOut(g, si, r)) {
           c->res[(size_t)a.resident].actor = -1;
           present[(size_t)a.resident] = -1;
           removeActorAt(g, k);
@@ -1087,11 +1211,37 @@ struct LifeOps {
       RT::ARt& A = R.rt(id);
       A.kind = T_SPOT; A.gx = w.gx; A.gy = w.gy; A.act = p.act; A.place = p.place; A.pbldg = p.bldg;
       claimSpot(g, A, id, w.gx, w.gy);
+      A.pace = personPace(*c, r);
+      // (P1) the segment's task: its first stop is where they are bound (a stall, a door on a round, a new spot)
+      const bool tasked = rhythmic(r, p, A);
+      if (tasked) pickTask(g, a, A, *c, r, p, S, segOf(g, *c, r));
+      if (fresh && tasked) {
+        // a street walked into is mid-day (P1 staggered arrival): those whose block began minutes ago are part-way from
+        // the door they left by; of the rest, some are on their way somewhere (a few tiles off, walking), the others at
+        // their stop, part-way through its wait
+        const Vec2 tgt = tileCentre(A.gx - g.world.ox, A.gy - g.world.oy);
+        const uint32_t hh = mixu(c->seed ^ ((uint64_t)w.idx << 4), (uint64_t)(absHour(g) * 12.0));
+        Vec2 from;
+        if (haveDoor && age < 0.3f) {
+          const Vec2 door = tileCentre(fx, fy);
+          const float tripH = len(tgt - door) / (g.actors[0].speed * kWalk) * (14.5f / 1200.0f);
+          const float t = tripH > 0 ? std::clamp(age / tripH, 0.0f, 1.0f) : 1.0f;
+          at = snapWalk(g, door + (tgt - door) * t);
+        } else if (hh % 100u < 42u && midRoute(g, a, tgt, hh, from)) at = from;
+        else at = tgt;
+        a.p = at; a.goal = at;
+      }
       if (p.act == life::Act::Play) playing++;
-      A.arrived = len2(at - tileCentre(w.gx - g.world.ox, w.gy - g.world.oy)) < 4.0f;
+      A.arrived = len2(a.p - tileCentre(A.gx - g.world.ox, A.gy - g.world.oy)) < 4.0f;
       A.watchP = a.p;
       a.face = w.face;
-      if (fresh && A.arrived) settleOutdoor(g, a, A, *c, c->res[(size_t)w.idx]);
+      if (fresh && A.arrived) {
+        settleOutdoor(g, a, A, *c, c->res[(size_t)w.idx]);
+        if (A.task != TK_NONE) {
+          taskArrive(g, a, A, r);
+          if (A.dwell < 1e5f) A.dwell *= 0.15f + (float)(mixu(c->seed ^ (uint64_t)w.idx, (uint64_t)g.day) % 85u) * 0.01f;
+        }
+      }
       folk++;
       budget--;
     }
@@ -1367,6 +1517,459 @@ struct LifeOps {
     return it == rt(g).sites.end() ? nullptr : &it->second;
   }
 
+  // ================================================================ P1 Fresh Roads: the street's day (TaskK)
+  // A resident out in the street lives their block in segments (segMinutes: 22-57 game minutes, a phase of their own);
+  // each segment is a task with a route of stops (startLeg / taskArrive / taskTick). Deterministic per resident, day and
+  // segment; the runtime only decides who is free to claim a spot or a door step.
+  static float personPace(const life::Census& c, const life::Resident& r) {
+    return 0.86f + (float)(mixu(c.seed ^ 0x9ACEull, (uint64_t)r.idx) % 29u) * 0.01f;
+  }
+  static int segMinutes(const life::Census& c, const life::Resident& r) { return 22 + (int)(mixu(c.seed ^ 0x5E6Dull, (uint64_t)r.idx * 131u) % 36u); }
+  static int32_t segOf(const Game& g, const life::Census& c, const life::Resident& r) {
+    const int L = segMinutes(c, r);
+    const double mins = absHour(g) * 60.0 + (double)(mixu(c.seed ^ 0xF4A5ull, (uint64_t)r.idx) % (uint32_t)L);
+    return (int32_t)std::floor(mins / (double)L);
+  }
+  // does the street's rhythm drive this person now (not a beggar's pitch, the bard's corner, the lamplighter's round, a
+  // brawl, a staged vignette, the night)
+  static bool rhythmic(const life::Resident& r, const life::Plan& p, const RT::ARt& A) {
+    using life::Act;
+    if (A.kind != T_SPOT || A.mood) return false;
+    switch (p.act) {
+      case Act::Perform: case Act::LightLamps: case Act::Brawl: case Act::Emigrate: case Act::Sleep: case Act::Patrol: return false;
+      default: break;
+    }
+    // (a beggar moves along now and then: another pitch by the stalls, the alms meal at the temple's door)
+    return r.job != life::Job::Guard;
+  }
+  // a trade with no workplace at work in the street (WORK@STREET: merchants, tailors, scholars, stablehands, smiths and
+  // bakers without a shop of their own, servants, priests without a temple)
+  static bool streetTrade(const life::Resident& r, const life::Plan& p) {
+    using life::Job;
+    if (p.act != life::Act::Work || p.place != life::Place::Street) return false;
+    return r.job != Job::Labourer && r.job != Job::Lamplighter && r.job != Job::Beggar && r.job != Job::Guard && r.job != Job::Child;
+  }
+  static bool leisureAct(const life::Plan& p) {
+    using life::Act;
+    return p.bldg < 0 && (p.act == Act::Wander || p.act == Act::Socialise || p.act == Act::Shop || p.act == Act::Home || p.act == Act::Eat ||
+                          p.act == Act::Pray || p.act == Act::Tavern || p.act == Act::Bathe);
+  }
+  static void breakPair(Game& g, RT::ARt& A, int self) {
+    if (A.partner < 0) return;
+    RT& R = rt(g);
+    auto it = R.act.find(A.partner);
+    if (it != R.act.end() && it->second.partner == self) it->second.partner = -1;
+    A.partner = -1;
+  }
+  static int resBldg(const Game& g, int si, const life::Census& c, int off) { return off >= 0 ? c.bldgHandle(g.world.sites[(size_t)si], off) : -1; }
+  // a free place at a building's door (global tile): the step itself, else a tile beside or below it (two people never
+  // stand on one tile; a busy shop's door has a queue round it)
+  static bool doorNear(Game& g, int b, int32_t& gx, int32_t& gy, int self) {
+    int x, y;
+    if (!doorStep(g, b, x, y)) return false;
+    static const int ox[6] = {0, -1, 1, 0, -1, 1}, oy[6] = {0, 0, 0, 1, 1, 1};
+    const Map& m = g.world.over;
+    for (int k = 0; k < 6; k++) {
+      const int tx = x + ox[k], ty = y + oy[k];
+      if (!m.in(tx, ty) || m.blocked(tx, ty) || m.bldgAt[(size_t)ty * m.w + tx] >= 0 || m.wall[(size_t)ty * m.w + tx]) continue;
+      if (spotTaken(g, g.world.ox + tx, g.world.oy + ty, self)) continue;
+      gx = g.world.ox + tx; gy = g.world.oy + ty;
+      return true;
+    }
+    return false;
+  }
+  // where a trade's goods come from: the bakery (or the mill), the smithy, the market hall, the inn's yard, the lord's
+  // seat, the temple; a quarter of the rounds start from their own house
+  static int sourceOf(Game& g, int si, const life::Census& c, const life::Resident& r) {
+    using life::Job;
+    int off = -1;
+    switch (r.job) {
+      case Job::Baker: off = c.bakery >= 0 ? c.bakery : c.mill; break;
+      case Job::Smith: off = c.smithy; break;
+      case Job::Merchant: case Job::Tailor: off = c.market >= 0 ? c.market : c.inn; break;
+      case Job::Stablehand: off = c.inn; break;
+      case Job::Servant: off = c.seat >= 0 ? c.seat : c.inn; break;
+      case Job::Scholar: off = c.temple >= 0 ? c.temple : c.seat; break;
+      case Job::Priest: off = c.temple; break;
+      default: break;
+    }
+    if (off < 0 || mixu(c.seed ^ r.idx, 0x50Cull) % 4u == 0) off = r.home >= 0 ? r.home : off;
+    int x, y;
+    int b = resBldg(g, si, c, off);
+    if (doorStep(g, b, x, y)) return b;
+    b = resBldg(g, si, c, c.inn);
+    return doorStep(g, b, x, y) ? b : -1;
+  }
+  // a real door of the census within [4, maxD] tiles of (gx, gy): a resident's home, the inn, the market (not notB);
+  // the first hashed candidate, or a nearer one half the time (short rounds and long ones)
+  static int customerDoor(Game& g, int si, const life::Census& c, int32_t gx, int32_t gy, uint32_t h, int notB, int maxD, int self) {
+    const int n = (int)c.res.size();
+    if (n <= 0) return -1;
+    int best = -1, bd = 1 << 30;
+    for (int k = 0; k < 14; k++) {
+      const uint32_t hk = mixu(h, (uint64_t)k * 7u + 1u);
+      const uint32_t kind = hk % 10u;
+      const int off = kind == 0 && c.inn >= 0 ? c.inn : kind == 1 && c.market >= 0 ? c.market : c.res[(size_t)((hk >> 8) % (uint32_t)n)].home;
+      const int b = resBldg(g, si, c, off);
+      if (b < 0 || b == notB) continue;
+      int32_t dx, dy;
+      if (!doorNear(g, b, dx, dy, self)) continue;
+      const int d = std::abs(dx - gx) + std::abs(dy - gy);
+      if (d < 4 || d > maxD) continue;
+      if (best < 0 || (((hk >> 4) & 1u) && d < bd)) { best = b; bd = d; }
+      if (k >= 5) break;
+    }
+    return best;
+  }
+  // a free spot of a list within [minD, maxD] tiles (Manhattan) of (gx, gy), by hash
+  static const RT::Spot* pickNear(Game& g, const std::vector<RT::Spot>& v, uint32_t h, int32_t gx, int32_t gy, int minD, int maxD, int self) {
+    if (v.empty()) return nullptr;
+    for (int k = 0; k < 16; k++) {
+      const RT::Spot& s = v[(h + (uint32_t)k * 2654435761u) % v.size()];
+      const int d = std::abs(s.x - gx) + std::abs(s.y - gy);
+      if (d < minD || d > maxD) continue;
+      if (spotOk(g, s) && !spotTaken(g, s.x, s.y, self)) return &s;
+    }
+    // (P1 fixer r2) a city's lists run to thousands of spots: sixteen picks from the whole list rarely land within a few
+    // tiles, and a stall keeper's every trip for stock then failed (stood at the stall for hours: town-motion seed 5).
+    // One pass from a hashed start finds the first fitting spot (once a leg: cheap)
+    const size_t n = v.size(), s0 = (size_t)(h % (uint32_t)n);
+    for (size_t k = 0; k < n; k++) {
+      const RT::Spot& s = v[(s0 + k) % n];
+      const int d = std::abs(s.x - gx) + std::abs(s.y - gy);
+      if (d < minD || d > maxD) continue;
+      if (spotOk(g, s) && !spotTaken(g, s.x, s.y, self)) return &s;
+    }
+    return nullptr;
+  }
+  static void headTo(Game& g, Actor& a, RT::ARt& A, int32_t gx, int32_t gy) {
+    A.gx = gx; A.gy = gy; A.arrived = false; A.path.clear(); A.pi = 0; A.fails = 0; A.want = false; A.stuckT = 0;
+    A.watchT = 0; A.watchP = a.p;
+    claimSpot(g, A, a.id, gx, gy);
+  }
+  // a new segment: what this person does with it (weights by trade; the leisure hours stroll, look round the stalls,
+  // call on a friend)
+  static void pickTask(Game& g, Actor& a, RT::ARt& A, life::Census& c, const life::Resident& r, const life::Plan& p, RT::SiteRt& S, int32_t seg) {
+    using life::Job;
+    RT& R = rt(g);
+    A.seg = seg; A.leg = 0; A.dwell = 0; A.srcB = -1; A.walkPost = Posture::None; A.retry = 0; A.slip = false;
+    breakPair(g, A, a.id);
+    const uint32_t h = mixu(c.seed ^ ((uint64_t)r.idx << 12), (uint64_t)(uint32_t)seg * 2654435761u + 0x7A5Cull);
+    int w[TK_COUNT] = {};
+    if (streetTrade(r, p)) {
+      switch (r.job) {
+        case Job::Merchant: w[TK_STALL] = 42; w[TK_DELIVER] = 30; w[TK_SHOP] = 6; w[TK_VISIT] = 10; w[TK_NONE] = 12; break;
+        case Job::Tailor: w[TK_STALL] = 36; w[TK_DELIVER] = 28; w[TK_VISIT] = 14; w[TK_SHOP] = 10; w[TK_NONE] = 12; break;
+        case Job::Baker: w[TK_DELIVER] = 46; w[TK_STALL] = 32; w[TK_SWEEP] = 10; w[TK_NONE] = 12; break;
+        case Job::Smith: w[TK_DELIVER] = 46; w[TK_SWEEP] = 22; w[TK_STALL] = 12; w[TK_NONE] = 20; break;
+        case Job::Stablehand: w[TK_DELIVER] = 46; w[TK_SWEEP] = 34; w[TK_NONE] = 20; break;
+        case Job::Scholar: w[TK_READ] = 38; w[TK_VISIT] = 24; w[TK_SHOP] = 14; w[TK_DELIVER] = 12; w[TK_NONE] = 12; break;
+        case Job::Priest: w[TK_READ] = 34; w[TK_VISIT] = 34; w[TK_SWEEP] = 14; w[TK_NONE] = 18; break;
+        case Job::Servant: w[TK_DELIVER] = 46; w[TK_SHOP] = 24; w[TK_SWEEP] = 20; w[TK_NONE] = 10; break;
+        default: w[TK_DELIVER] = 36; w[TK_SWEEP] = 24; w[TK_VISIT] = 14; w[TK_NONE] = 26; break;
+      }
+    } else if (leisureAct(p) && r.job != Job::Child && r.job != Job::Beggar) {
+      w[TK_NONE] = 52;
+      w[TK_SHOP] = p.act == life::Act::Shop ? 56 : 18;
+      w[TK_VISIT] = r.job == Job::Elder ? 26 : 18;
+    } else w[TK_NONE] = 1;
+    if (S.market.empty()) { w[TK_DELIVER] += w[TK_STALL]; w[TK_STALL] = 0; w[TK_NONE] += w[TK_SHOP]; w[TK_SHOP] = 0; }
+    int sum = 0;
+    for (int k = 0; k < TK_COUNT; k++) sum += w[k];
+    int roll = (int)(h % (uint32_t)std::max(1, sum)), task = TK_NONE;
+    for (int k = 0; k < TK_COUNT; k++) {
+      if (roll < w[k]) { task = k; break; }
+      roll -= w[k];
+    }
+    A.task = (uint8_t)task;
+    if (!startLeg(g, a, A, c, r, p, S)) { A.task = TK_NONE; A.leg = 0; startLeg(g, a, A, c, r, p, S); }
+    R.street.tasks[std::min<int>(A.task, 7)]++;
+  }
+  // the next stop of the task's route (false: no way to do it here: the caller falls back to a plain spot)
+  static bool startLeg(Game& g, Actor& a, RT::ARt& A, life::Census& c, const life::Resident& r, const life::Plan& p, RT::SiteRt& S) {
+    const int si = a.site;
+    const int32_t px = g.world.ox + tileX(a.p), py = g.world.oy + tileY(a.p);
+    const uint32_t h = mixu(c.seed ^ ((uint64_t)r.idx << 12) ^ 0x1E6ull, (uint64_t)(uint32_t)A.seg * 977u + A.leg);
+    int32_t gx = 0, gy = 0;
+    switch (A.task) {
+      case TK_STALL: {
+        if (A.leg == 0) {   // a stall to mind (a market row's front, facing the passers-by)
+          const RT::Spot* s = pickNear(g, S.market, h, px, py, 0, 40, a.id);
+          if (!s) s = pick(g, S.market, h, a.id);
+          if (!s) return false;
+          A.ax = s->x; A.ay = s->y;
+          A.walkPost = Posture::None;
+          headTo(g, a, A, s->x, s->y);
+          return true;
+        }
+        bool fetched = A.leg >= 2;
+        if (A.leg & 1) {   // a trip for stock: a store door near the stall (none near: stay on)
+          const int b = customerDoor(g, si, c, A.ax, A.ay, h, -1, 18, a.id);
+          if (b >= 0 && doorNear(g, b, gx, gy, a.id)) { A.walkPost = Posture::None; headTo(g, a, A, gx, gy); return true; }
+          if (const RT::Spot* s = pickNear(g, S.street, h, A.ax, A.ay, 3, 10, a.id)) { A.walkPost = Posture::None; headTo(g, a, A, s->x, s->y); return true; }   // (a handcart down the lane)
+          A.leg++;
+          fetched = false;
+        }
+        A.walkPost = fetched ? Posture::Carry : Posture::None;   // back with the stock
+        if (spotTaken(g, A.ax, A.ay, a.id)) return false;
+        headTo(g, a, A, A.ax, A.ay);
+        return true;
+      }
+      case TK_DELIVER: {
+        if (A.leg == 0) A.srcB = sourceOf(g, si, c, r);
+        if (A.srcB < 0) return false;
+        if ((A.leg & 1) == 0) {   // to the source (the goods to fetch)
+          if (!doorNear(g, A.srcB, gx, gy, a.id)) return false;
+          A.walkPost = Posture::None;
+          headTo(g, a, A, gx, gy);
+          return true;
+        }
+        int sx, sy;
+        if (!doorStep(g, A.srcB, sx, sy)) return false;
+        const int b = customerDoor(g, si, c, g.world.ox + sx, g.world.oy + sy, h, A.srcB, 30, a.id);
+        if (b < 0 || !doorNear(g, b, gx, gy, a.id)) return false;
+        A.walkPost = Posture::Carry;   // a sack, a basket, a crate on the shoulder
+        headTo(g, a, A, gx, gy);
+        return true;
+      }
+      case TK_SWEEP: {
+        if (A.leg == 0) {   // their own lane (the house's, or the trade's door)
+          int ox = px, oy = py, x, y;
+          const int b = r.home >= 0 ? resBldg(g, si, c, r.home) : sourceOf(g, si, c, r);
+          if (doorStep(g, b, x, y)) { ox = g.world.ox + x; oy = g.world.oy + y; }
+          A.ax = ox; A.ay = oy;
+        }
+        const RT::Spot* s = pickNear(g, S.street, h, A.leg == 0 ? A.ax : px, A.leg == 0 ? A.ay : py, A.leg == 0 ? 0 : 1, A.leg == 0 ? 7 : 4, a.id);
+        if (!s) s = pickNear(g, S.street, h, A.ax, A.ay, 0, 10, a.id);
+        if (!s) return false;
+        A.walkPost = Posture::None;
+        headTo(g, a, A, s->x, s->y);
+        return true;
+      }
+      case TK_READ: {
+        const RT::Spot* s = pickNear(g, S.plaza, h, px, py, 3, 24, a.id);
+        if (!s) s = pick(g, S.plaza, h, a.id);
+        if (!s) return false;
+        A.walkPost = Posture::None;
+        headTo(g, a, A, s->x, s->y);
+        return true;
+      }
+      case TK_VISIT: {   // a friend's door (else a neighbour's)
+        int b = -1;
+        const std::vector<int> fr = g.life.friendsOf(c, r.idx);
+        for (size_t k = 0; k < fr.size() && k < 3 && b < 0; k++) {
+          const int f = fr[(k + h) % std::min<size_t>(fr.size(), 3)];
+          if (f < 0 || f >= (int)c.res.size() || c.res[(size_t)f].home < 0 || c.res[(size_t)f].home == r.home) continue;
+          const int fb = resBldg(g, si, c, c.res[(size_t)f].home);
+          int32_t dx, dy;
+          if (fb >= 0 && doorNear(g, fb, dx, dy, a.id) && std::abs(dx - px) + std::abs(dy - py) <= 40) b = fb;
+        }
+        if (b < 0) b = customerDoor(g, si, c, px, py, h, r.home >= 0 ? resBldg(g, si, c, r.home) : -1, 26, a.id);
+        if (b < 0 || !doorNear(g, b, gx, gy, a.id)) return false;
+        A.walkPost = Posture::None;
+        headTo(g, a, A, gx, gy);
+        return true;
+      }
+      case TK_SHOP: {   // a round of the stalls
+        const RT::Spot* s = pickNear(g, S.market, h, px, py, 2, 16, a.id);
+        if (!s && A.leg == 0) s = pick(g, S.market, h, a.id);
+        if (!s) return false;
+        A.walkPost = Posture::None;
+        headTo(g, a, A, s->x, s->y);
+        return true;
+      }
+      default: {   // a plain spot of the plan's kind, somewhere new (never the spot they stand on: 3 tiles off at least)
+        int face = 0;
+        const uint32_t salt = (uint32_t)A.seg * 2u + 1u + (uint32_t)A.leg * 7919u;
+        // (the fields: on along their own furrows, the next woodpile, the next stretch of bank: never across the land)
+        const bool lunch = fieldLunch(g, r, p);   // (the midday bread and cheese is eaten out at the field: its spots)
+        if ((p.place == life::Place::Field || lunch) && A.arrived) {
+          life::Plan fp = p;
+          if (lunch) { fp.act = life::Act::Work; fp.place = life::Place::Field; fp.bldg = -1; }
+          if (const RT::Spot* s = pickNear(g, spotsFor(S, r, fp), h, px, py, 3, 12, a.id)) {
+            A.walkPost = Posture::None;
+            headTo(g, a, A, s->x, s->y);
+            return true;
+          }
+        }
+        if (!outdoorSpot(g, si, S, c, r, p, gx, gy, face, a.id, salt)) return false;
+        for (uint32_t k = 1; k < 4 && std::abs(gx - px) + std::abs(gy - py) < 3; k++) {
+          int32_t x2, y2;
+          int f2 = 0;
+          if (outdoorSpot(g, si, S, c, r, p, x2, y2, f2, a.id, salt + k * 0x5151u) && std::abs(x2 - px) + std::abs(y2 - py) >= 3) { gx = x2; gy = y2; }
+        }
+        const int far = std::abs(gx - px) + std::abs(gy - py);
+        if (far > 36) {   // (a capital's square, a city's woods, are a long way across: somewhere of the kind nearer)
+          const std::vector<RT::Spot>& v = spotsFor(S, r, fieldAware(g, r, p));
+          if (const RT::Spot* s = pickNear(g, v, h ^ 0x4EA7u, px, py, 3, 30, a.id)) { gx = s->x; gy = s->y; }
+        }
+        if (std::abs(gx - px) + std::abs(gy - py) < 3 && p.place != life::Place::Field) {
+          // (their own lane's spot is the nearest to the door whatever the hash: a few steps along it instead)
+          const bool lane = p.place == life::Place::Street || p.place == life::Place::Home || p.place == life::Place::Work;
+          const RT::Spot* s = pickNear(g, lane ? S.street : S.plaza, h, px, py, 3, 10, a.id);
+          if (!s) s = pickNear(g, lane ? S.plaza : S.street, h, px, py, 3, 12, a.id);
+          if (s) { gx = s->x; gy = s->y; }
+        }
+        A.walkPost = Posture::None;
+        headTo(g, a, A, gx, gy);
+        return true;
+      }
+    }
+  }
+  // the cry of a stall's wares
+  static std::string wares(const life::Resident& r, uint32_t h) {
+    using life::Job;
+    static const char* merchant[] = {"FAIR PRICES, FRIEND!", "COME AND SEE, COME AND SEE!", "THE BEST IN TOWN!", "FRESH IN TODAY!"};
+    static const char* baker[] = {"HOT BREAD! STILL WARM!", "FRESH LOAVES! HONEY CAKES!", "BREAD! GOOD BREAD!"};
+    static const char* tailor[] = {"FINE CLOTH! GOOD WOOL!", "CLOAKS FOR THE COLD!", "MENDING DONE, CHEAP!"};
+    static const char* smith[] = {"NAILS, HINGES, KNIVES!", "GOOD IRON, FAIR PRICE!"};
+    switch (r.job) {
+      case Job::Baker: return baker[h % 3u];
+      case Job::Tailor: return tailor[h % 3u];
+      case Job::Smith: return smith[h % 2u];
+      default: return merchant[h % 4u];
+    }
+  }
+  // got to the task's stop: the posture and the wait there
+  static void taskArrive(Game& g, Actor& a, RT::ARt& A, const life::Resident& r) {
+    (void)g;
+    const uint32_t h = mixu((uint64_t)a.id * 31u + A.leg, (uint64_t)(uint32_t)A.seg);
+    auto secs = [&](float lo, float hi) { return lo + (hi - lo) * (float)(h % 1000u) * 0.001f; };
+    a.st = AState::Idle;
+    a.postureT = 0;
+    switch (A.task) {
+      case TK_STALL:
+        a.posture = Posture::None;
+        if (A.leg & 1) { a.face = 1; A.dwell = secs(2.0f, 3.5f); }   // at the store's door: the stock taken up
+        else { a.face = 0; A.dwell = secs(16.0f, 38.0f); A.hawkT = secs(1.5f, 6.0f); }
+        break;
+      case TK_DELIVER:
+        a.posture = Posture::None;
+        a.face = 1;
+        if (A.leg & 1) { A.dwell = secs(1.8f, 3.2f); bubble(a, (h >> 7) % 3u == 0 ? Bubble::Coin : Bubble::Talk, 1.4f); }   // handed over
+        else A.dwell = secs(2.4f, 4.5f);
+        break;
+      case TK_SWEEP: a.posture = Posture::Sweep; a.face = (int)((h >> 10) % 4u); A.dwell = secs(14.0f, 28.0f); break;
+      case TK_READ: a.posture = r.job == life::Job::Priest ? Posture::Pray : Posture::Read; a.face = 0; A.dwell = 1e6f; break;
+      case TK_VISIT:
+        a.posture = Posture::None; a.face = 1; A.dwell = secs(6.0f, 11.0f);
+        bubble(a, (h >> 3) & 1u ? Bubble::Talk : Bubble::Question, 1.6f);
+        break;
+      case TK_SHOP:
+        a.posture = Posture::None; a.face = 1; A.dwell = secs(5.0f, 12.0f);
+        if ((h >> 5) & 1u) bubble(a, Bubble::Coin, 1.5f);
+        break;
+      default: break;
+    }
+  }
+  // at the stop: the wait (a stall's cries), then the next leg
+  static void taskTick(Game& g, Actor& a, RT::ARt& A, life::Census& c, const life::Resident& r, const life::Plan& p, RT::SiteRt& S, float dt) {
+    RT& R = rt(g);
+    a.st = AState::Idle;
+    A.dwell -= dt;
+    if (A.task == TK_STALL && !(A.leg & 1)) {
+      A.hawkT -= dt;
+      if (A.hawkT <= 0) {
+        const uint32_t hh = mixu((uint64_t)a.id, (uint64_t)(g.time * 3.0f));
+        A.hawkT = 8.0f + (float)(hh % 1000u) * 0.01f;
+        a.posture = Posture::Wave; a.postureT = 0;
+        if ((hh >> 12) & 1u) bubble(a, Bubble::Talk, 1.2f);
+        if (R.barkT <= 0 && len2(g.pl().p - a.p) < (5.0f * TILE) * (5.0f * TILE) && onScreen(g, a.p)) {
+          R.barkT = 7.0f;
+          say(g, a, wares(r, hh));
+        }
+      } else if (a.posture == Posture::Wave && a.postureT > 1.1f) a.posture = Posture::None;
+    }
+    if (A.dwell > 0) return;
+    A.leg++;
+    if ((A.task == TK_SHOP && A.leg >= 3) || (A.task == TK_VISIT && A.leg >= 1)) { A.task = TK_NONE; A.leg = 0; }
+    if (!startLeg(g, a, A, c, r, p, S)) {
+      A.task = TK_NONE; A.leg = 0;
+      if (!startLeg(g, a, A, c, r, p, S)) A.dwell = 4.0f;
+    }
+  }
+  // the kind of spots a plan's place uses (outdoorSpot's lists, roughly): for the plain-sight fallback
+  // a field hand's midday meal is out at the field (outdoorSpot's rule): the plan as the street's spots see it
+  static life::Plan fieldAware(const Game& g, const life::Resident& r, const life::Plan& p) {
+    life::Plan q = p;
+    if (fieldLunch(g, r, p)) { q.act = life::Act::Work; q.place = life::Place::Field; q.bldg = -1; }
+    return q;
+  }
+  static const std::vector<RT::Spot>& spotsFor(RT::SiteRt& S, const life::Resident& r, const life::Plan& p) {
+    using life::Place;
+    using life::Job;
+    switch (p.place) {
+      case Place::Field:
+        switch (r.job) {
+          case Job::Fisher: if (!S.water.empty()) return S.water; break;
+          case Job::Woodcutter: if (!S.wood.empty()) return S.wood; break;
+          case Job::Miner: if (!S.mine.empty()) return S.mine; break;
+          case Job::Herder: if (!S.pasture.empty()) return S.pasture; break;
+          default: break;
+        }
+        return !S.farm.empty() ? S.farm : S.street;
+      case Place::Market: return !S.market.empty() ? S.market : S.plaza;
+      case Place::Plaza: case Place::Gathering: case Place::Gathering2: case Place::Temple: return S.plaza;
+      default: return S.street;
+    }
+  }
+  // a spot of the plan's kind (else any street or square spot) 2..8 tiles off in plain sight: walked straight to
+  static bool plainSight(Game& g, Actor& a, RT::ARt& A, RT::SiteRt& S, const life::Resident& r, const life::Plan& p) {
+    const int32_t px = g.world.ox + tileX(a.p), py = g.world.oy + tileY(a.p);
+    const uint32_t h = mixu((uint64_t)a.id * 7u + A.leg, (uint64_t)(uint32_t)A.seg);
+    const std::vector<RT::Spot>* lists[3] = {&spotsFor(S, r, fieldAware(g, r, p)), &S.street, &S.plaza};
+    for (const std::vector<RT::Spot>* v : lists) {
+      for (int k = 0; k < 24; k++) {
+        if (v->empty()) break;
+        const RT::Spot& s = (*v)[(h + (uint32_t)k * 2654435761u) % v->size()];
+        const int d = std::abs(s.x - px) + std::abs(s.y - py);
+        if (d < 2 || d > 8 || !spotOk(g, s) || spotTaken(g, s.x, s.y, a.id)) continue;
+        if (!clearLine(g, a.p, tileCentre(s.x - g.world.ox, s.y - g.world.oy), a.radius)) continue;
+        A.task = TK_NONE;
+        headTo(g, a, A, s.x, s.y);
+        return true;
+      }
+    }
+    return false;
+  }
+  // the nearest open tile (its centre free for a body) other than the one they are stuck in, within 3 tiles
+  static bool slipOut(Game& g, const Actor& a, Vec2& out) {
+    const Map& m = g.world.over;
+    const int tx = tileX(a.p), ty = tileY(a.p);
+    for (int rr = 1; rr <= 3; rr++)
+      for (int oy = -rr; oy <= rr; oy++)
+        for (int ox = -rr; ox <= rr; ox++) {
+          if (std::max(std::abs(ox), std::abs(oy)) != rr) continue;
+          const int x = tx + ox, y = ty + oy;
+          if (!m.in(x, y) || m.blocked(x, y) || m.bldgAt[(size_t)y * m.w + x] >= 0 || m.wall[(size_t)y * m.w + x]) continue;
+          const Vec2 c = tileCentre(x, y);
+          if (!g.bodyFree(c, a.radius + 1.0f, false)) continue;
+          out = c;
+          return true;
+        }
+    return false;
+  }
+  // a fresh street's walker part-way along: a walkable tile 3..9 tiles from the target in plain sight of it
+  // (from inside the town's own streets: someone bound for the fields is met coming out of town, never out of the wild)
+  static bool midRoute(Game& g, const Actor& a, Vec2 tgt, uint32_t h, Vec2& out) {
+    const Map& m = g.world.over;
+    const IRect town = a.site >= 0 && a.site < (int)g.world.sites.size() ? g.world.sites[(size_t)a.site].r : IRect();
+    const int tx = tileX(tgt), ty = tileY(tgt);
+    for (int k = 0; k < 12; k++) {
+      const uint32_t hk = mixu(h, (uint64_t)k + 0x3D1ull);
+      const int dx = (int)(hk % 15u) - 7, dy = (int)((hk >> 5) % 11u) - 5;
+      const int d = std::abs(dx) + std::abs(dy);
+      if (d < 3 || d > 9) continue;
+      const int x = tx + dx, y = ty + dy;
+      if (!m.in(x, y) || !town.contains(x, y) || m.blocked(x, y) || m.bldgAt[(size_t)y * m.w + x] >= 0 || m.wall[(size_t)y * m.w + x]) continue;
+      const Vec2 c = tileCentre(x, y);
+      if (!g.bodyFree(c, a.radius, false) || !clearLine(g, c, tgt, a.radius)) continue;
+      out = c;
+      return true;
+    }
+    return false;
+  }
+
   // ---------------------------------------------------------------- the street life of one resident actor
   static bool streetFolk(Game& g, Actor& a, float dt) {
     RT& R = rt(g);
@@ -1382,6 +1985,9 @@ struct LifeOps {
     const life::Plan& p = S->plans[(size_t)a.resident];
     if (a.postureT >= 0) a.postureT += dt;
     if (a.bubbleT > 0 && (a.bubbleT -= dt) <= 0) a.bubble = Bubble::None;
+    // (P1) held by a street incident (the robbed, a cart's owner, a brawler): incidentTick drives them
+    if (A.mood == MOOD_INCIDENT) return incidentHeld(g, a, A, dt);
+    if (A.mood == MOOD_PARTED) return partedHeld(g, a, A, dt);
     // the plan changed: a new target (time-sliced: 40 thinkers per step)
     if (A.kind != T_AWAY && (A.kind == T_NONE || A.act != p.act || A.place != p.place || A.pbldg != p.bldg) && R.thinkBudget > 0) {
       R.thinkBudget--;
@@ -1430,24 +2036,73 @@ struct LifeOps {
       case T_SPOT: break;
       default: a.st = AState::Idle; return true;
     }
+    // (P1) wedged: the short step out (a walk, never a jump), then the next stop of the day
+    if (A.slip) {
+      const Vec2 d = A.slipTo - a.p;
+      const float l = len(d);
+      A.slipT += dt;
+      if (l > 0.6f && A.slipT < 3.0f) {
+        a.p += d * (std::min(l, a.speed * kWalk * 0.8f * dt) / l);
+        a.face = faceOf(d); a.st = AState::Walk; a.posture = Posture::None;
+        return true;
+      }
+      A.slip = false; A.path.clear(); A.fails = 0;
+      A.leg++;
+      if (!startLeg(g, a, A, *c, r, p, *S)) { A.arrived = true; settleOutdoor(g, a, A, *c, r); }
+      return true;
+    }
+    // (P1) the street's rhythm: a new segment of the block, a new task (time-sliced with the plan changes)
+    if (rhythmic(r, p, A) && A.act == p.act && A.place == p.place && A.retry != 255) {
+      const int32_t seg = segOf(g, *c, r);
+      if (A.seg != seg && R.thinkBudget > 0) {
+        R.thinkBudget--;
+        pickTask(g, a, A, *c, r, p, *S, seg);
+      }
+    }
     if (!A.arrived) {
-      const float pace = (p.act == life::Act::Play) ? 0.9f : kWalk;
+      // (P1) everyone at their own pace (a little slower under a load)
+      const float pace = ((p.act == life::Act::Play) ? 0.9f : kWalk) * A.pace * (A.task != TK_NONE && A.walkPost == Posture::Carry ? 0.93f : 1.0f);
       a.posture = p.act == life::Act::Play ? Posture::Play : (r.job == life::Job::Labourer && p.act == life::Act::Work ? Posture::Carry : Posture::None);
+      if (A.task != TK_NONE) a.posture = A.walkPost;
       if (walkOut(g, a, A, a.speed * pace, dt)) {
         A.arrived = true;
         A.path.clear();
         A.watchT = 0;
         settleOutdoor(g, a, A, *c, r);
+        if (A.task != TK_NONE) taskArrive(g, a, A, r);
       } else {
         watch(g, a, A, dt);
         if (A.fails >= 3) {   // no way there: another spot of the same kind (or stay put)
           A.fails = 0;
-          A.kind = T_NONE;
-          A.arrived = true;
-          settleOutdoor(g, a, A, *c, r);
+          if (A.task != TK_NONE) {   // (P1) a stop of the route out of reach: the next one
+            A.arrived = true;
+            A.dwell = 0;
+            settleOutdoor(g, a, A, *c, r);
+          } else if (rhythmic(r, p, A)) {   // (P1) a spot out of reach: another one (never the same unreachable spot again)
+            // (twice in a row: one in plain sight, walked straight to without a search; none: they stay where they are)
+            A.leg++;
+            if (++A.retry >= 2 ? !plainSight(g, a, A, *S, r, p) : !startLeg(g, a, A, *c, r, p, *S)) {
+              // nowhere to go from here: wedged on a corner or in a gap too tight for a body: a step out to the nearest
+              // open tile (through the snag), then on with the day
+              // (once a block; trapped for good, a yard fenced all round: they keep to their spot until the block ends)
+              Vec2 to;
+              if (A.retry >= 2 && !A.slipped && slipOut(g, a, to)) { A.slip = true; A.slipped = true; A.slipT = 0; A.slipTo = to; A.retry = 0; }
+              else { A.retry = 255; A.task = TK_NONE; A.arrived = true; settleOutdoor(g, a, A, *c, r); }
+            }
+          } else {
+            A.kind = T_NONE;
+            A.arrived = true;
+            settleOutdoor(g, a, A, *c, r);
+          }
         }
       }
       if (!A.arrived) { greetings(g, a, *c, r); return true; }
+    }
+    // (P1) at a stop of the segment's task
+    if (A.task != TK_NONE && A.mood == 0) {
+      taskTick(g, a, A, *c, r, p, *S, dt);
+      greetings(g, a, *c, r);
+      return true;
     }
     // ---- at the spot: what they do there
     a.st = AState::Idle;
@@ -1475,7 +2130,10 @@ struct LifeOps {
           if (s && std::abs(s->x - A.gx) + std::abs(s->y - A.gy) < 10) { A.gx = s->x; A.gy = s->y; A.arrived = false; A.path.clear(); claimSpot(g, A, a.id, s->x, s->y); }
           A.t = 14.0f + (float)(mixu(r.idx, (uint64_t)g.time) % 1600u) * 0.01f;
         } else if (r.job == life::Job::Labourer && A.t <= 0) {
-          const RT::Spot* s = pick(g, S->street, mixu(c->seed ^ (uint64_t)r.idx, (uint64_t)(g.time * 0.1f)), a.id);
+          // (P1: a load carried a few lanes on, not across the whole city: a route that is walked, never a search that fails)
+          const uint32_t lh = mixu(c->seed ^ (uint64_t)r.idx, (uint64_t)(g.time * 0.1f));
+          const RT::Spot* s = pickNear(g, S->street, lh, g.world.ox + tileX(a.p), g.world.oy + tileY(a.p), 3, 14, a.id);
+          if (!s) s = pick(g, S->street, lh, a.id);
           if (s) { A.gx = s->x; A.gy = s->y; A.arrived = false; A.path.clear(); claimSpot(g, A, a.id, s->x, s->y); }
           A.t = 6.0f;
         }
@@ -1516,6 +2174,14 @@ struct LifeOps {
       default: break;
     }
     if (p.act != Act::Play) greetings(g, a, *c, r);
+    // (P1) the street's talk as the player passes close: a grown-up at leisure (alone or in a pair) lets a line slip now
+    // and then (the site's gossip clock: one line in 24 s at most), sometimes naming someone's need (overheard: a lead)
+    if (r.job != life::Job::Child && r.job != life::Job::Beggar && A.mood == 0 && S->gossipT <= g.time &&
+        (A.partner >= 0 || p.act == Act::Socialise || p.act == Act::Wander || p.act == Act::Shop || p.act == Act::Tavern || p.act == Act::Eat) &&
+        len2(g.pl().p - a.p) < (3.0f * TILE) * (3.0f * TILE)) {
+      gossip(g, a, *c, *S);
+      bubble(a, Bubble::Talk, 1.6f);
+    }
     // a word of need as the player passes (15.12: "HAVEN'T EATEN SINCE YESTERDAY"), now and then
     if (R.barkT <= 0 && r.job != life::Job::Child && r.job != life::Job::Beggar && len2(g.pl().p - a.p) < (2.2f * TILE) * (2.2f * TILE)) {
       R.barkT = 12.0f;
@@ -1555,7 +2221,8 @@ struct LifeOps {
     RT::SiteRt& S = siteRt(g, si);
     A.act = p.act; A.place = p.place; A.pbldg = p.bldg;
     A.path.clear(); A.pi = 0; A.fails = 0; A.arrived = false; A.want = false;
-    A.partner = -1;
+    breakPair(g, A, a.id);
+    A.task = TK_NONE; A.seg = INT32_MIN; A.leg = 0; A.retry = 0; A.slipped = false; A.slip = false;   // (P1: the new block's first segment picks its task at once)
     a.posture = Posture::None;
     int32_t gx, gy;
     int face;
@@ -1594,7 +2261,8 @@ struct LifeOps {
     a.posture = Posture::None;                                  // tag: catching a breath between dashes
     if (A.t > 0) return;
     for (int k = 0; k < 4; k++) {
-      const RT::Spot* s = pick(g, v, mixu((uint64_t)a.id * 131u + (uint64_t)k, (uint64_t)(g.time * 3.0f)), a.id);
+      // (P1: a dash to a spot near, not a hashed one anywhere in town that is never near enough to run to)
+      const RT::Spot* s = pickNear(g, v, mixu((uint64_t)a.id * 131u + (uint64_t)k, (uint64_t)(g.time * 3.0f)), A.gx, A.gy, 2, 6, a.id);
       if (s && (s->x != A.gx || s->y != A.gy) && std::abs(s->x - A.gx) + std::abs(s->y - A.gy) < 7) {
         A.gx = s->x; A.gy = s->y; A.arrived = false; A.path.clear(); claimSpot(g, A, a.id, s->x, s->y);
         break;
@@ -1637,6 +2305,11 @@ struct LifeOps {
       if (k <= 0 || len2(g.actors[(size_t)k].p - a.p) > (2.2f * TILE) * (2.2f * TILE)) A.partner = -1;
       else {
         Actor& o = g.actors[(size_t)k];
+        if (A.pairStep) {   // (P1 fixer r2) a step or two into place beside them (never a hop)
+          A.pairT += dt;
+          if (len2(A.dest - a.p) > 1.0f && A.pairT < 2.5f) { stepToward(g, a, A.dest, a.speed * kWalk * 0.8f, dt); return; }
+          A.pairStep = false;
+        }
         a.face = faceOf(o.p - a.p);
         a.st = AState::Idle;
         if (A.t <= 0) {
@@ -1671,14 +2344,20 @@ struct LifeOps {
     if (best > 0) {
       Actor& o = g.actors[(size_t)best];
       RT::ARt& B = R.rt(o.id);
+      // (P1 fixer r2) side by side, facing: west and east of the middle, 9 px each way, walked to. (They were put there
+      // in one jump, along the line between them: a pair met north-south stood in one column, a head painted over the
+      // other's body, and with a wall at one side one of them stayed where they were, the two in one heap)
+      Vec2 mid = (a.p + o.p) * 0.5f;
+      const Vec2 dir(o.p.x >= a.p.x ? 1.0f : -1.0f, 0.0f);
+      bool room = false;
+      for (float sx : {0.0f, 6.0f, -6.0f, 12.0f, -12.0f}) {
+        const Vec2 m2 = mid + Vec2(sx, 0);
+        if (g.bodyFree(m2 - dir * 9.0f, a.radius, false) && g.bodyFree(m2 + dir * 9.0f, o.radius, false)) { mid = m2; room = true; break; }
+      }
+      if (!room) return;   // (no room for two here: no chat this time)
       A.partner = o.id; B.partner = a.id;
-      // stand a step apart, facing
-      const Vec2 mid = (a.p + o.p) * 0.5f;
-      const Vec2 dir = len2(o.p - a.p) > 1.0f ? norm(o.p - a.p) : Vec2(1, 0);
-      const Vec2 pa = mid - dir * 9.0f, pb = mid + dir * 9.0f;
-      if (g.bodyFree(pa, a.radius, false)) a.p = pa;
-      if (g.bodyFree(pb, o.radius, false)) o.p = pb;
-      a.face = faceOf(o.p - a.p); o.face = faceOf(a.p - o.p);
+      A.dest = mid - dir * 9.0f; B.dest = mid + dir * 9.0f;
+      A.pairStep = B.pairStep = true; A.pairT = B.pairT = 0;
       A.t = 0.2f; B.t = 1.4f;
       return;
     }
@@ -1697,7 +2376,11 @@ struct LifeOps {
     a.face = faceOf(o.p - a.p);
     A.t2 += dt;
     if (a.st == AState::Idle && fmodf(A.t2, 1.4f) < dt) { a.st = AState::Windup; a.stT = 0; }
-    if (a.st == AState::Windup && a.stT > 0.3f) { a.st = AState::Strike; a.stT = 0; g.sfx((int)Sfx::Hit, a.p, 1.3f, 0.3f); }
+    if (a.st == AState::Windup && a.stT > 0.3f) {
+      a.st = AState::Strike; a.stT = 0; g.sfx((int)Sfx::Hit, a.p, 1.3f, 0.3f);
+      // (P1 fixer) a scuffle reads at a glance: a kick of dust between them on every blow
+      if (len2(o.p - a.p) < (1.6f * TILE) * (1.6f * TILE)) g.emit(Ev::Dust, (a.p + o.p) * 0.5f + Vec2(0, 1), 0, 0, "");
+    }
     if (a.st == AState::Strike && a.stT > 0.25f) a.st = AState::Idle;
     if (a.bubbleT <= 0) bubble(a, Bubble::Anger, 1.2f);
   }
@@ -1707,6 +2390,9 @@ struct LifeOps {
     if (len2(g.pl().p - a.p) > (4.0f * TILE) * (4.0f * TILE) || S.gossipT > g.time) return;
     S.gossipT = g.time + 24.0f;
     const uint32_t h = mixu(c.seed ^ (uint64_t)a.id, (uint64_t)g.day * 24u + (uint64_t)g.hour);
+    rt(g).street.gossipLines++;
+    // (P1) overheard: now and then the talk is of someone in town who needs help (a journal lead); close by only
+    if (h % 3 == 1 && len2(g.pl().p - a.p) < (3.5f * TILE) * (3.5f * TILE) && overheard(g, a, rt(g).rt(a.id).partner, false)) return;
     std::string line;
     if (h % 3 == 0) {
       // (the places the session already holds near the window: nothing is loaded for a line of gossip)
@@ -2844,8 +3530,850 @@ struct LifeOps {
     return true;
   }
 
+  // ================================================================ P1 Fresh Roads: stumble-on hooks
+  // the LIFE lane's Game::marks tags (Mk 144..159): 144 an overheard giver (npcKey): 1 + the week their need was last
+  // overheard; 145 a settlement (site id): day * 4 + the overheard leads that day
+  static Mk mkLife(int n) { return (Mk)(144 + n); }
+  static Actor* actorById(Game& g, int id) {
+    const int k = id >= 0 ? g.findActor(id) : -1;
+    return k > 0 ? &g.actors[(size_t)k] : nullptr;
+  }
+  static std::string callName(const life::Resident* r, const std::string& name, uint32_t h) {
+    const std::string fn = firstName(name);
+    if (!r) return fn;
+    if (r->age >= 58 && h % 2u == 0) return "OLD " + fn;
+    if (h % 3u == 1 && r->job != life::Job::Child && r->job != life::Job::Elder && r->job != life::Job::None) {
+      std::string j = life::jobName(r->job);
+      return fn + " THE " + j;
+    }
+    return fn;
+  }
+  static const life::Resident* residentOf(Game& g, const Actor& a) {
+    if (a.resident < 0 || a.site < 0 || a.site >= (int)g.world.sites.size()) return nullptr;
+    const life::Census* c = g.life.find(g.world.sites[(size_t)a.site].id);
+    return c && a.resident < (int)c->res.size() ? &c->res[(size_t)a.resident] : nullptr;
+  }
+  // the lead's place: the person's own door (a resident), else where they stand (global tile)
+  static void leadPlace(Game& g, const Actor& a, jobs::Lead& L) {
+    L.hasPos = true;
+    L.gx = g.world.ox + tileX(a.p); L.gy = g.world.oy + tileY(a.p);
+    const life::Resident* r = residentOf(g, a);
+    if (r && r->home >= 0) {
+      const life::Census* c = g.life.find(g.world.sites[(size_t)a.site].id);
+      int x, y;
+      if (c && doorStep(g, c->bldgHandle(g.world.sites[(size_t)a.site], r->home), x, y)) { L.gx = g.world.ox + x; L.gy = g.world.oy + y; }
+    }
+  }
+  // (5a) overheard: a chatting pair near the player lets slip a real need of someone in town ("...OLD BRANDR'S BEEN
+  // ASKING FOR SOMEONE TO CULL THE WOLVES..."): a person in play in this settlement with work to give, not overheard this
+  // week; the line becomes a journal lead (LeadFrom::Gossip) pointing at their door. At most two a town a day.
+  static uint32_t overheard(Game& g, const Actor& speaker, int partnerId, bool force) {
+    RT& R = rt(g);
+    const int si = speaker.site;
+    if (si < 0 || si >= (int)g.world.sites.size() || !g.world.sites[(size_t)si].settlement()) return 0;
+    const ew::Gid sid = g.world.sites[(size_t)si].id;
+    const int week = g.day / 7;
+    int32_t today = 0;
+    {
+      auto it = g.marks.find(markKey(sid, mkLife(1)));
+      if (it != g.marks.end() && it->second / 4 == g.day) today = it->second % 4;
+    }
+    if (!force && today >= 2) return 0;
+    std::vector<std::pair<uint32_t, int>> cand;
+    for (size_t k = 1; k < g.actors.size(); k++) {
+      const Actor& o = g.actors[k];
+      if (!o.npc || !o.human || o.hostile || o.comp || o.critter || o.st == AState::Dead || o.site != si || o.id == speaker.id || o.id == partnerId) continue;
+      if (o.lifeBits & LB_THIEF) continue;
+      if (!g.offersWork(o)) continue;
+      const uint64_t key = g.npcKey(o);
+      auto it = g.marks.find(markKey(key, mkLife(0)));
+      if (it != g.marks.end() && it->second == week + 1) continue;
+      cand.push_back({mixu(key, (uint64_t)g.day * 24u + (uint64_t)g.hour), (int)k});
+    }
+    if (cand.empty()) return 0;
+    std::sort(cand.begin(), cand.end());
+    const Actor giver = g.actors[(size_t)cand[0].second];   // (a copy: offerFor may stream places in)
+    // (P1 fixer) the job named is the one this person offers when asked (makeOffer: their pool job this week), so the
+    // lead's words, its qtype and the lead closing on taking the job all agree
+    bool ok = false;
+    const Quest q = g.makeOffer(giver, &ok);
+    if (!ok) return 0;
+    const life::Resident* gr = residentOf(g, giver);
+    const uint32_t h = mixu(g.npcKey(giver), (uint64_t)g.day);
+    const std::string who = callName(gr, giver.name, h);
+    const std::string fn = firstName(giver.name);
+    const std::string town = g.world.sites[(size_t)si].name;
+    const std::string subj = q.subject.empty() ? std::string() : q.subject;
+    const std::string mons = monsterPlural(q.mon);
+    const std::string there = q.target >= 0 && q.target < (int)g.world.sites.size() ? g.world.sites[(size_t)q.target].name : std::string("THE NEXT TOWN");
+    // the line said (short: the street's floating words; the first that fits 30 letters) and the journal's lead
+    std::vector<std::string> lines;
+    std::string lead;
+    const std::string sj = subj.empty() ? std::string() : subj;
+    switch (q.type) {
+      case QType::Hunt:
+        lines = {who + " WANTS THE " + mons + " CULLED", fn + " WANTS " + mons + " CULLED", fn + " NEEDS A HUNTER"};
+        lead = fn + " OF " + town + " WANTS " + mons + " CULLED";
+        break;
+      case QType::Clear: lines = {fn + " WANTS " + there + " CLEARED", fn + " WANTS A DEN CLEARED"}; lead = fn + " OF " + town + " WANTS " + there + " CLEARED"; break;
+      case QType::Deliver: lines = {who + " NEEDS A COURIER", fn + " NEEDS A COURIER"}; lead = fn + " OF " + town + " NEEDS A COURIER"; break;
+      case QType::Missing:
+        lines = {sj.empty() ? std::string() : sj + " WENT MISSING, POOR " + fn, fn + " HAS SOMEONE MISSING"};
+        lead = fn + " OF " + town + ": SOMEONE IS MISSING";
+        break;
+      case QType::Retrieve: case QType::Heirloom:
+        lines = {sj.empty() ? std::string() : fn + " LOST " + sj, fn + " LOST SOMETHING DEAR"};
+        lead = fn + " OF " + town + " LOST " + (sj.empty() ? std::string("AN HEIRLOOM") : sj);
+        break;
+      case QType::Bounty: case QType::NamedBandit:
+        lines = {sj.empty() ? std::string() : fn + " WANTS " + sj + " DEAD", fn + " WANTS BANDITS DEAD", fn + " OFFERS A BOUNTY"};
+        lead = fn + " OF " + town + " OFFERS A BOUNTY";
+        break;
+      case QType::Protect: lines = {who + " FEARS FOR THE FARM", fn + " FEARS FOR THE FARM"}; lead = fn + " OF " + town + " FEARS FOR THE FARM"; break;
+      case QType::Supply: lines = {who + " IS SHORT OF GOODS", fn + " IS SHORT OF GOODS"}; lead = fn + " OF " + town + " IS SHORT OF GOODS"; break;
+      default: lines = {who + " COULD USE A HAND", fn + " NEEDS A HAND"}; lead = fn + " OF " + town + " NEEDS A HAND"; break;
+    }
+    std::string line;
+    for (const std::string& c2 : lines) if (!c2.empty() && c2.size() <= 30) { line = c2; break; }
+    if (line.empty()) line = (fn.size() > 18 ? fn.substr(0, 18) : fn) + " NEEDS HELP";
+    jobs::Lead L;
+    L.from = jobs::LeadFrom::Gossip;
+    L.qtype = (uint8_t)q.type;
+    L.site = sid;
+    L.who = g.npcKey(giver);
+    leadPlace(g, giver, L);
+    L.text = lead;
+    const uint32_t id = g.addLead(L);
+    if (!id) return 0;
+    g.marks[markKey(L.who, mkLife(0))] = week + 1;
+    g.marks[markKey(sid, mkLife(1))] = g.day * 4 + std::min(3, today + 1);
+    say(g, speaker, "..." + line + "...", rgba(232, 214, 150));
+    R.street.gossipLeads++;
+    return id;
+  }
+
+  // ---- (5b) street incidents: a thief running with a purse, a broken cart in the road, a brawl. Decided by the site and
+  // the hour (one an hour at most, by day, a fair way from rare in a city), staged near the player with the people in the
+  // street; the player steps in (talks to the victim, catches the thief, walks between the brawlers) and an Errand opens
+  // (Game::openErrand) and ends on the spot (finishErrand); ignored, the incident leaves a lead (LeadFrom::Incident).
+  static bool incidentFit(Game& g, const Actor& a, int si) {
+    if (!(a.lifeBits & LB_LIFE) || (a.lifeBits & (LB_GONE | LB_KEY)) || a.site != si || a.st == AState::Dead || a.resident < 0) return false;
+    const life::Resident* r = residentOf(g, a);
+    if (!r || r->job == life::Job::Child || r->job == life::Job::Guard || r->job == life::Job::Beggar || r->job == life::Job::Noble) return false;
+    auto it = rt(g).act.find(a.id);
+    if (it == rt(g).act.end() || it->second.kind != T_SPOT || it->second.mood) return false;
+    if (g.mode == Mode::Dialogue && g.dlg.actor == a.id) return false;
+    return onScreen(g, a.p, -2.0f);
+  }
+  static void holdForIncident(Game& g, Actor& a) {
+    RT::ARt& A = rt(g).rt(a.id);
+    breakPair(g, A, a.id);
+    A.mood = MOOD_INCIDENT;
+    A.task = TK_NONE;
+    A.path.clear();
+    A.arrived = true;
+    A.t = 0; A.fails = 0;
+    a.posture = Posture::None;
+    a.st = AState::Idle;
+  }
+  static bool startIncident(Game& g, int si, int kind) {
+    RT& R = rt(g);
+    RT::Incident& I = R.inc;
+    if (I.kind || si < 0 || si >= (int)g.world.sites.size()) return false;
+    const Site& st = g.world.sites[(size_t)si];
+    RT::SiteRt& S = siteRt(g, si);
+    const Vec2 pp = g.pl().p;
+    const uint32_t h = mixu(st.id ^ 0x1AC2ull, (uint64_t)g.day * 24u + (uint64_t)g.hour);
+    // the people in the street fit for it, nearest the player first (a little hash so it is not always the nearest)
+    std::vector<std::pair<float, int>> cand;
+    for (size_t k = 1; k < g.actors.size(); k++) {
+      const Actor& a = g.actors[k];
+      if (!incidentFit(g, a, si)) continue;
+      const float d = len(a.p - pp) / TILE;
+      if (d < 2.5f || d > 13.0f) continue;
+      cand.push_back({d + (float)(mixu(h, (uint64_t)a.id) % 300u) * 0.01f, a.id});
+    }
+    std::sort(cand.begin(), cand.end());
+    if (cand.empty()) return false;
+    if (kind == life::INC_THIEF) {
+      Actor* v = actorById(g, cand[0].second);
+      if (!v || S.edge.empty()) return false;
+      Vec2 side = Vec2(v->p.x < pp.x ? -12.0f : 12.0f, 3.0f);
+      {   // (P1 fixer r2) off from the victim on the open side when the far side is behind a stall or under an eave
+        const Vec2 s2 = v->p + side;
+        if (!openTile(g.world.over, tileX(s2), tileY(s2)) && openTile(g.world.over, tileX(v->p - Vec2(side.x, -side.y)), tileY(v->p - Vec2(side.x, -side.y))))
+          side.x = -side.x;
+      }
+      const Vec2 at = snapWalk(g, v->p + side);
+      // the way out: an edge of town on the thief's side, away from the player (never past them), of a few by hash.
+      // (P1 integration fixer) only an edge the thief can actually reach from where they stand: thiefRun counts a failed
+      // route as a fail and gives up after three, and a failed route is cached, so a way out with no road to it ended
+      // the run within three frames of the snatch (the thief "escaped" standing still, and a catch found no thief)
+      std::vector<int32_t> route;
+      auto reachable = [&](const RT::Spot& s) { return findPath(g, tileX(at), tileY(at), s.x - g.world.ox, s.y - g.world.oy, route, true); };
+      std::vector<std::pair<float, const RT::Spot*>> ways;
+      for (int k = 0; k < 32; k++) {
+        const RT::Spot& s = S.edge[(h + (uint32_t)k * 2654435761u) % S.edge.size()];
+        const Vec2 e = tileCentre(s.x - g.world.ox, s.y - g.world.oy);
+        const float dp = len(e - pp), dv = len(e - v->p);
+        if (dp < 18.0f * TILE || dv > dp) continue;
+        ways.push_back({-(dp - 1.3f * dv), &s});
+      }
+      std::stable_sort(ways.begin(), ways.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+      const RT::Spot* esc = nullptr;
+      int tries = 0;
+      for (const auto& w : ways)
+        if (++tries <= 6 && reachable(*w.second)) { esc = w.second; break; }
+      if (!esc) {   // (no way out on their side: the edges farthest from the player)
+        ways.clear();
+        for (int k = 0; k < 32; k++) {
+          const RT::Spot& s = S.edge[(h + (uint32_t)k * 2654435761u) % S.edge.size()];
+          const float dp = len(tileCentre(s.x - g.world.ox, s.y - g.world.oy) - pp);
+          if (dp >= 18.0f * TILE) ways.push_back({-dp, &s});
+        }
+        std::stable_sort(ways.begin(), ways.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+        tries = 0;
+        for (const auto& w : ways)
+          if (++tries <= 6 && reachable(*w.second)) { esc = w.second; break; }
+      }
+      if (!esc) return false;
+      Spawn sp;
+      sp.npc = true; sp.role = Role::Villager; sp.site = si; sp.slot = THIEF_SLOT; sp.x = tileX(at); sp.y = tileY(at);
+      const int tid = g.spawnHuman(sp, at);
+      Actor& t = g.actors.back();
+      t.lifeBits = LB_THIEF;
+      t.name = "CUTPURSE";
+      t.militia = false;
+      t.fromMap = true;
+      t.resident = -1;
+      t.bldg = -1;
+      t.p = at; t.home = at; t.goal = at;
+      t.speed = 56.0f;
+      t.look.topColor = rgba(58, 52, 50);
+      t.look.bottomColor = rgba(44, 40, 38);
+      // (P1 fixer) told from the crowd at a glance: a hooded charcoal travel cloak (nobody in town walks hooded by day)
+      t.look.cloak = 1;
+      t.look.cloakColor = rgba(40, 36, 42);
+      t.look.hood = true;
+      t.posture = Posture::Carry;   // the purse clutched to the chest
+      RT::ARt& T = R.rt(tid);
+      T = RT::ARt();
+      T.kind = T_AWAY; T.gx = esc->x; T.gy = esc->y; T.pace = 1.0f;
+      v = actorById(g, cand[0].second);   // (spawning moved the actors)
+      if (!v) { t.lifeBits |= LB_GONE; return false; }
+      holdForIncident(g, *v);
+      v->face = faceOf(t.p - v->p);
+      bubble(*v, Bubble::Exclaim, 2.5f);
+      say(g, *v, "STOP, THIEF! MY PURSE!", rgba(250, 170, 130));
+      g.sfx((int)Sfx::Hit, v->p, 1.6f, 0.25f);
+      I = RT::Incident();
+      I.kind = life::INC_THIEF; I.si = si; I.site = st.id; I.victim = v->id; I.other = tid;
+      I.gx = g.world.ox + tileX(t.p); I.gy = g.world.oy + tileY(t.p); I.ex = esc->x; I.ey = esc->y;
+    } else if (kind == life::INC_CART) {
+      // a cart standing in the street near the player (the world's own cart props: nothing new is put down)
+      const Map& m = g.world.over;
+      const int px = tileX(pp), py = tileY(pp);
+      int cx = -1, cy = -1, sx = -1, sy = -1;
+      float best = 1e9f;
+      for (int y = py - 12; y <= py + 12; y++)
+        for (int x = px - 14; x <= px + 14; x++) {
+          if (!m.in(x, y) || m.propAt(x, y) != (int)Prop::Cart + 1 || !st.r.contains(x, y)) continue;
+          static const int ox[3] = {0, 1, -1}, oy[3] = {1, 0, 0};   // (P1 fixer: in front first, beside the loose wheel)
+          for (int k = 0; k < 3; k++) {
+            const int tx = x + ox[k], ty = y + oy[k];
+            if (!m.in(tx, ty) || m.blocked(tx, ty) || m.bldgAt[(size_t)ty * m.w + tx] >= 0 || spotTaken(g, g.world.ox + tx, g.world.oy + ty, -1)) continue;
+            const float d = (float)(std::abs(x - px) + std::abs(y - py)) + (float)(mixu(h, (uint64_t)(y * 4096 + x)) % 400u) * 0.01f;
+            if (d >= 3.0f && d < best) { best = d; cx = x; cy = y; sx = tx; sy = ty; }
+            break;
+          }
+        }
+      if (cx < 0) return false;
+      // its owner: the nearest fit person to the cart
+      Actor* o = nullptr;
+      float od = (16.0f * TILE) * (16.0f * TILE);
+      for (auto& cd : cand) {
+        Actor* a = actorById(g, cd.second);
+        if (!a) continue;
+        const float d = len2(a->p - tileCentre(cx, cy));
+        if (d < od) { od = d; o = a; }
+      }
+      if (!o) return false;
+      holdForIncident(g, *o);
+      RT::ARt& A = R.rt(o->id);
+      A.arrived = false;
+      A.gx = g.world.ox + sx; A.gy = g.world.oy + sy;
+      claimSpot(g, A, o->id, A.gx, A.gy);
+      bubble(*o, Bubble::Exclaim, 2.0f);
+      g.emit(Ev::Dust, tileCentre(cx, cy) + Vec2(-11, 11), 0, 0, "");   // (P1 fixer) the wheel just came off
+      g.sfx((int)Sfx::Hit, tileCentre(cx, cy), 0.7f, 0.3f);
+      I = RT::Incident();
+      I.kind = life::INC_CART; I.si = si; I.site = st.id; I.victim = o->id;
+      I.gx = g.world.ox + cx; I.gy = g.world.oy + cy;
+    } else if (kind == life::INC_BRAWL) {
+      // two who fall out: the first fit person and the nearest other within a few tiles of them
+      for (size_t i = 0; i < cand.size(); i++) {
+        Actor* a = actorById(g, cand[i].second);
+        if (!a) continue;
+        Actor* b = nullptr;
+        float bd2 = (3.5f * TILE) * (3.5f * TILE);   // (neighbours already close: a few steps to square up, not a march)
+        for (size_t j = 0; j < cand.size(); j++) {
+          if (j == i) continue;
+          Actor* o = actorById(g, cand[j].second);
+          if (!o) continue;
+          const float d = len2(o->p - a->p);
+          if (d < bd2) { bd2 = d; b = o; }
+        }
+        if (!b) continue;
+        holdForIncident(g, *a);
+        holdForIncident(g, *b);
+        RT::ARt& A = R.rt(a->id);
+        RT::ARt& B = R.rt(b->id);
+        A.partner = b->id; B.partner = a->id; A.t2 = 0; B.t2 = 0.7f;
+        // a step apart, squared up
+        // (P1 fixer) always side by side, face to face (west / east of the middle, 11 px each way): two people squared
+        // up north-south were drawn in one column, one head painted over the other's body
+        Vec2 mid = (a->p + b->p) * 0.5f;
+        const Vec2 dir(b->p.x >= a->p.x ? 1.0f : -1.0f, 0.0f);
+        {   // (a wall or a stall at one side: the pair shift along the street until both feet are free)
+          static const float sh[5] = {0.0f, 6.0f, -6.0f, 12.0f, -12.0f};
+          for (float sx : sh) {
+            const Vec2 m2 = mid + Vec2(sx, 0);
+            if (g.bodyFree(m2 - dir * 11.0f, a->radius, false) && g.bodyFree(m2 + dir * 11.0f, b->radius, false)) { mid = m2; break; }
+          }
+        }
+        A.dest = mid - dir * 11.0f; B.dest = mid + dir * 11.0f;
+        A.arrived = false; B.arrived = false;
+        bubble(*a, Bubble::Anger, 2.0f);
+        static const char* opener[] = {"SAY THAT AGAIN, I DARE YOU!", "YOU CHEATED ME, YOU DOG!", "THAT'S MY WIFE YOU'RE TALKING ABOUT!", "GIVE IT BACK!"};
+        say(g, *a, opener[h % 4u], rgba(240, 150, 120));
+        I = RT::Incident();
+        I.kind = life::INC_BRAWL; I.si = si; I.site = st.id; I.victim = a->id; I.other = b->id;
+        I.gx = g.world.ox + tileX(mid); I.gy = g.world.oy + tileY(mid);
+        // the street stops to watch
+        for (size_t k = 1; k < g.actors.size(); k++) {
+          Actor& w = g.actors[k];
+          if (w.id == a->id || w.id == b->id || !(w.lifeBits & LB_LIFE) || w.site != si || len2(w.p - mid) > (7.0f * TILE) * (7.0f * TILE)) continue;
+          if (w.st == AState::Walk) continue;
+          w.face = faceOf(mid - w.p);
+          bubble(w, Bubble::Exclaim, 1.4f);
+        }
+        break;
+      }
+      if (I.kind != life::INC_BRAWL) return false;
+    } else return false;
+    if (Actor* v = actorById(g, I.victim)) { I.vSite = v->site; I.vBldg = v->bldg; I.vSlot = v->slot; I.vKey = g.npcKey(*v); I.vName = v->name; }
+    R.street.incidents++;
+    return true;
+  }
+  // an incident's resident (the robbed, the cart's owner, a brawler): what they do while it lasts
+  static bool incidentHeld(Game& g, Actor& a, RT::ARt& A, float dt) {
+    RT& R = rt(g);
+    RT::Incident& I = R.inc;
+    if (!I.kind || (a.id != I.victim && a.id != I.other)) {   // it is over: back to their day
+      A.mood = 0; A.partner = -1; A.kind = T_NONE; A.task = TK_NONE; A.seg = INT32_MIN;
+      a.posture = Posture::None; a.st = AState::Idle;
+      return true;
+    }
+    life::Census* c = g.life.findMut(I.site);
+    switch (I.kind) {
+      case life::INC_THIEF: {
+        Actor* t = actorById(g, I.other);
+        a.st = AState::Idle;
+        a.face = faceOf((t ? t->p : g.pl().p) - a.p);
+        if (!I.engaged && len2(g.pl().p - a.p) < (4.0f * TILE) * (4.0f * TILE) && I.sayT <= 0) {
+          I.sayT = 6.0f;
+          bubble(a, Bubble::Exclaim, 1.5f);
+          a.face = faceOf(g.pl().p - a.p);
+          say(g, a, "HE'S GOT MY PURSE! STOP HIM!", rgba(250, 190, 150));
+        }
+        return true;
+      }
+      case life::INC_CART: {
+        if (!A.arrived) {
+          a.posture = Posture::None;
+          if (walkOut(g, a, A, a.speed * kWalk * 1.1f, dt) || A.fails >= 3) { A.arrived = true; A.path.clear(); }
+          else { watch(g, a, A, dt); return true; }
+        }
+        a.st = AState::Idle;
+        a.face = faceOf(tileCentre(I.gx - g.world.ox, I.gy - g.world.oy) - a.p);
+        a.posture = I.engaged && I.holdT > 0 ? Posture::Hammer : Posture::Kneel;
+        if (!I.engaged && len2(g.pl().p - a.p) < (5.0f * TILE) * (5.0f * TILE) && I.sayT <= 0) {
+          I.sayT = 8.0f;
+          bubble(a, Bubble::Question, 2.0f);
+          say(g, a, "MY WHEEL'S OFF! A HAND, PLEASE?", rgba(232, 222, 196));
+        }
+        return true;
+      }
+      case life::INC_BRAWL: {
+        if (!A.arrived) {   // square up (a step, never a jump)
+          if (len2(A.dest - a.p) > 4.0f && g.bodyFree(A.dest, a.radius, false)) { stepToward(g, a, A.dest, a.speed * 0.9f, dt); A.t += dt; if (A.t < 4.0f) return true; }
+          A.arrived = true; A.t = 0;
+        }
+        if (c) brawl(g, a, A, *c, dt);
+        return true;
+      }
+      default: break;
+    }
+    return true;
+  }
+  // (P1 fixer r2) parted: the two brawlers back off from whoever stepped between them to a body and a half on their own
+  // side (the player stands where the fight was: left there, all three were drawn in one heap), glare a moment each (not
+  // in step), then go back to their day
+  static void partFrom(Game& g, Actor& a, Vec2 from, float side, float vy) {
+    RT::ARt& A = rt(g).rt(a.id);
+    breakPair(g, A, a.id);
+    A.mood = MOOD_PARTED; A.partner = -1; A.kind = T_NONE; A.task = TK_NONE; A.path.clear();
+    A.t = 0; A.arrived = false; A.fails = 0;
+    // their own side first; a wall, a post or a hedge there: off at a slant, then up (or down) the street, the two
+    // always on opposite sides of the one who parted them
+    const Vec2 dirs[5] = {Vec2(side, 0), Vec2(side * 0.7f, vy * 0.7f), Vec2(side * 0.7f, -vy * 0.7f), Vec2(0, vy), Vec2(-side * 0.45f, vy * 0.9f)};
+    A.dest = a.p;
+    bool found = false;
+    for (const Vec2& dv : dirs) {
+      for (float d : {28.0f, 22.0f, 17.0f}) {
+        const Vec2 c = from + dv * d;
+        if (len2(c - from) <= len2(a.p - from) + 4.0f) continue;   // (never closer than they already are)
+        if (g.bodyFree(c, a.radius, false)) { A.dest = c; found = true; break; }
+      }
+      if (found) break;
+    }
+    A.t2 = 2.1f + (float)(mixu((uint64_t)a.id, 0xB4A1ull) % 9u) * 0.15f;
+    a.posture = Posture::None; a.st = AState::Idle;
+  }
+  static void partBrawlers(Game& g, int ida, int idb, Vec2 from) {
+    Actor* a = actorById(g, ida);
+    Actor* b = actorById(g, idb);
+    float sa = -1.0f, sb = 1.0f;
+    if (a && b) { sa = a->p.x <= b->p.x ? -1.0f : 1.0f; sb = -sa; }
+    else if (a) sa = a->p.x < from.x ? -1.0f : 1.0f;
+    else if (b) sb = b->p.x < from.x ? -1.0f : 1.0f;
+    if (a) partFrom(g, *a, from, sa, -1.0f);
+    if ((b = actorById(g, idb))) partFrom(g, *b, from, sb, 1.0f);
+  }
+  static bool partedHeld(Game& g, Actor& a, RT::ARt& A, float dt) {
+    A.t += dt;
+    const Vec2 pp = g.pl().p;
+    if (!A.arrived) {
+      if (len2(A.dest - a.p) > 1.5f && A.t < 1.8f) {
+        // backing off with their eyes on the one who parted them: a startled quick step that slows (ease-out)
+        const float ease = 1.6f - 1.1f * std::min(1.0f, A.t / 0.7f);
+        stepToward(g, a, A.dest, a.speed * ease, dt);
+        a.face = faceOf(pp - a.p);
+        return true;
+      }
+      A.arrived = true;
+    }
+    a.st = AState::Idle;
+    a.face = faceOf(pp - a.p);
+    if (A.t >= A.t2) {   // over: back to their day
+      A.mood = 0; A.kind = T_NONE; A.task = TK_NONE; A.seg = INT32_MIN; A.arrived = false;
+      a.posture = Posture::None;
+    }
+    return true;
+  }
+  // the cutpurse: runs for the edge of town, a look back over the shoulder now and then (catchable on foot); caught or
+  // away, off out of town
+  static bool thiefFolk(Game& g, Actor& a, float dt) {
+    RT& R = rt(g);
+    RT::ARt& T = R.rt(a.id);
+    if (a.bubbleT > 0 && (a.bubbleT -= dt) <= 0) a.bubble = Bubble::None;
+    const bool running = R.inc.kind == life::INC_THIEF && R.inc.other == a.id;
+    if (running) {
+      T.t += dt;
+      a.posture = Posture::Carry;
+      if (std::fmod(T.t, 5.5f) > 4.9f) { a.st = AState::Idle; a.face = faceOf(g.pl().p - a.p); return true; }
+      if (thiefRun(g, a, T, a.speed, dt) || T.fails >= 3) T.arrived = true;
+      watch(g, a, T, dt);
+      // (P1 fixer) running, not walking: a puff of dust at the heels every few strides
+      if (a.st == AState::Walk && std::fmod(T.t, 0.32f) < dt) g.emit(Ev::Dust, a.p + Vec2(0, 1), 0, 0, "");
+      return true;
+    }
+    // (P1 fixer r2) caught: down on one knee, the purse given up, eyes on the one who caught them, a moment before
+    // slinking off (they ran on at once, and the catch never read as one)
+    if (T.t2 > 0) {
+      T.t2 -= dt;
+      if (T.t2 > 1.45f && len2(T.dest - a.p) > 1.0f) {   // the stumble (fast, slowing)
+        stepToward(g, a, T.dest, a.speed * (0.6f + 2.0f * (T.t2 - 1.45f)), dt);
+        a.face = faceOf(g.pl().p - a.p);
+        return true;
+      }
+      a.st = AState::Idle;
+      a.posture = T.t2 > 0.35f ? Posture::Kneel : Posture::None;
+      a.face = faceOf(g.pl().p - a.p);
+      return true;
+    }
+    a.posture = Posture::None;
+    if (walkOut(g, a, T, a.speed * 0.85f, dt) || T.fails >= 3 || !onScreen(g, a.p, 1.0f)) a.lifeBits |= LB_GONE;
+    return true;
+  }
+  // (P1 fixer r2) the cutpurse's run: a route that keeps to the open street (findPath inView), followed waypoint by
+  // waypoint, a corner cut only where the straight way is open too. (walkOut's own look-ahead cut through the gap behind
+  // a stall's counter, so the thief ran, and was caught, under the awning: a ghost in the stall)
+  static bool openLine(Game& g, Vec2 a, Vec2 b, float r) {
+    if (!clearLine(g, a, b, r)) return false;
+    const Vec2 d = b - a;
+    const float l = len(d);
+    for (float t = 4.0f; t < l; t += 6.0f) {
+      const Vec2 q = a + d * (t / l);
+      if (!openTile(g.world.over, tileX(q), tileY(q))) return false;
+    }
+    return true;
+  }
+  static bool thiefRun(Game& g, Actor& a, RT::ARt& T, float speed, float dt) {
+    RT& R = rt(g);
+    const int lx = T.gx - g.world.ox, ly = T.gy - g.world.oy;
+    const Vec2 dest = tileCentre(lx, ly);
+    if (len2(dest - a.p) < 3.0f * 3.0f) return true;
+    if (T.path.empty()) {
+      if (R.pathBudget > 0) R.pathBudget--;   // (one route a run: never held up by the street's budget)
+      std::vector<int32_t> p;
+      if (!findPath(g, tileX(a.p), tileY(a.p), lx, ly, p, true)) { T.fails++; a.st = AState::Idle; return false; }
+      T.path = std::move(p);
+      T.pi = 0; T.lookT = 0; T.stuckT = 0;
+    }
+    T.lookT -= dt;
+    if (T.lookT <= 0) {
+      T.lookT = 0.3f;
+      for (size_t k = std::min(T.path.size() / 2, T.pi + 4); k > T.pi + 1; k--) {
+        const Vec2 w = tileCentre(T.path[(k - 1) * 2] - g.world.ox, T.path[(k - 1) * 2 + 1] - g.world.oy);
+        if (openLine(g, a.p, w, a.radius)) { T.pi = k - 1; break; }
+      }
+    }
+    while (T.pi < T.path.size() / 2) {
+      const Vec2 w = tileCentre(T.path[T.pi * 2] - g.world.ox, T.path[T.pi * 2 + 1] - g.world.oy);
+      if (len2(w - a.p) < 2.5f * 2.5f) { T.pi++; continue; }
+      const Vec2 before = a.p;
+      stepToward(g, a, w, speed, dt);
+      if (len2(a.p - before) < 0.0004f) {   // wedged on a corner: back to the tile's middle and plan again
+        T.stuckT += dt;
+        if (T.stuckT > 1.0f) { T.stuckT = 0; T.path.clear(); T.fails++; unwedge(g, a); }
+      } else T.stuckT = std::max(0.0f, T.stuckT - dt);
+      return false;
+    }
+    stepToward(g, a, dest, speed, dt);
+    return len2(dest - a.p) < 3.0f * 3.0f;
+  }
+  static int incidentTier(const Game& g, int si) {
+    const SiteType t = g.world.sites[(size_t)si].type;
+    return t == SiteType::Village ? 0 : t == SiteType::Town ? 1 : 2;
+  }
+  // the errand the player took on (the victim is the giver: their identity, their thanks)
+  static int openIncidentErrand(Game& g, const Actor& giver) {
+    RT& R = rt(g);
+    RT::Incident& I = R.inc;
+    if (I.quest) return I.quest;
+    Quest q;
+    q.type = QType::Errand;
+    q.stage = (int)(I.kind == life::INC_THIEF ? jobs::ErrandKind::Thief : I.kind == life::INC_CART ? jobs::ErrandKind::Cart : jobs::ErrandKind::Brawl);
+    q.giverSite = giver.site; q.giverBldg = giver.bldg; q.giverSlot = giver.slot; q.giverName = giver.name;
+    q.giverId = I.site;
+    const std::string fn = firstName(giver.name);
+    const std::string town = g.world.sites[(size_t)I.si].name;
+    const int tier = incidentTier(g, I.si);
+    const uint32_t h = mixu(I.site, (uint64_t)g.day * 24u + (uint64_t)g.hour);
+    q.gold = 8 + tier * 6 + (int)(h % 7u);
+    q.xp = 15 + tier * 6;
+    switch (I.kind) {
+      case life::INC_THIEF:
+        q.title = "STOP, THIEF!"; q.subject = "CATCH THE THIEF";
+        q.desc = "A CUTPURSE SNATCHED " + fn + "'S PURSE IN " + town + ". CATCH THEM BEFORE THEY'RE OUT OF TOWN.";
+        break;
+      case life::INC_CART:
+        q.title = "A BROKEN CART"; q.subject = "HELP " + fn + " WITH THE CART";
+        q.desc = fn + "'S CART LOST A WHEEL IN THE STREETS OF " + town + ". HOLD IT UP WHILE THE WHEEL GOES BACK ON.";
+        break;
+      default:
+        q.title = "A BRAWL IN THE STREET"; q.subject = "BREAK UP THE BRAWL";
+        q.desc = "TWO OF " + town + "'S FOLK ARE AT EACH OTHER'S THROATS. STEP IN BEFORE SOMEONE GETS HURT.";
+        break;
+    }
+    q.hasPos = true; q.tgx = I.gx; q.tgy = I.gy;
+    I.quest = g.openErrand(q);
+    I.engaged = true;
+    R.street.errandsOpened++;
+    return I.quest;
+  }
+  static void finishIncident(Game& g, bool success) {
+    RT& R = rt(g);
+    if (R.inc.quest) {
+      g.finishErrand(R.inc.quest, success);
+      if (success) R.street.errandsWon++; else R.street.errandsLost++;
+    }
+  }
+  // ignored: the incident leaves a lead (the person to see; their job when they have one to give)
+  static void incidentLead(Game& g, Actor* victim) {
+    RT& R = rt(g);
+    const RT::Incident& I = R.inc;
+    if (I.engaged || I.si < 0) return;
+    jobs::Lead L;
+    L.from = jobs::LeadFrom::Incident;
+    L.site = I.site;
+    L.qtype = (uint8_t)QType::COUNT;
+    L.hasPos = true; L.gx = I.gx; L.gy = I.gy;
+    const std::string town = g.world.sites[(size_t)I.si].name;
+    std::string fn = I.vName.empty() ? std::string("SOMEONE") : firstName(I.vName);
+    L.who = I.vKey;
+    if (victim) {
+      L.who = g.npcKey(*victim);
+      leadPlace(g, *victim, L);
+      fn = firstName(victim->name);
+      if (g.offersWork(*victim)) {
+        bool ok = false;
+        const Quest q = g.makeOffer(*victim, &ok);   // (P1 fixer: the job they really offer when asked)
+        if (ok) L.qtype = (uint8_t)q.type;
+      }
+    }
+    L.text = I.kind == life::INC_THIEF ? "SEEN: A THIEF ROBBED " + fn + " IN " + town
+             : I.kind == life::INC_CART ? "SEEN: " + fn + "'S CART BROKE DOWN IN " + town
+                                        : "SEEN: " + fn + " IN A BRAWL IN " + town;
+    if (g.addLead(L)) R.street.incidentLeads++;
+  }
+  static void endIncident(Game& g) {
+    RT& R = rt(g);
+    for (int id : {R.inc.victim, R.inc.other}) {
+      Actor* a = actorById(g, id);
+      if (!a || (a->lifeBits & LB_THIEF)) continue;
+      auto it = R.act.find(id);
+      if (it == R.act.end()) continue;
+      RT::ARt& A = it->second;
+      if (A.mood != MOOD_INCIDENT) continue;
+      A.mood = 0; A.partner = -1; A.kind = T_NONE; A.task = TK_NONE; A.seg = INT32_MIN;
+      a->posture = Posture::None; a->st = AState::Idle;
+    }
+    R.inc = RT::Incident();
+  }
+  // the player stepped in (dialogue's I'LL HELP, or caught up with it)
+  static void engageIncident(Game& g, Actor& by) {
+    RT& R = rt(g);
+    RT::Incident& I = R.inc;
+    if (!I.kind) return;
+    Actor* v = actorById(g, I.victim);
+    if (I.kind == life::INC_BRAWL) {
+      // the giver: someone watching (the brawlers do not pay to be parted), else the calmer of the two
+      const Actor* giver = nullptr;
+      float bd = (8.0f * TILE) * (8.0f * TILE);
+      for (size_t k = 1; k < g.actors.size(); k++) {
+        const Actor& w = g.actors[k];
+        if (w.id == I.victim || w.id == I.other || !(w.lifeBits & LB_LIFE) || w.site != I.si || w.resident < 0 || w.st == AState::Dead) continue;
+        const life::Resident* r = residentOf(g, w);
+        if (!r || r->job == life::Job::Child) continue;
+        const float d = len2(w.p - by.p);
+        if (d < bd) { bd = d; giver = &w; }
+      }
+      Actor* o = actorById(g, I.other);
+      const Actor gv = giver ? *giver : (o ? *o : by);
+      openIncidentErrand(g, gv);
+      if (v) { bubble(*v, Bubble::Question, 1.6f); say(g, *v, "ALL RIGHT, ALL RIGHT! HE STARTED IT.", rgba(232, 222, 196)); }
+      if ((o = actorById(g, I.other))) { o->face = faceOf(g.pl().p - o->p); bubble(*o, Bubble::Tear, 1.6f); }
+      finishIncident(g, true);
+      const int ia = I.victim, ib = I.other;
+      endIncident(g);
+      partBrawlers(g, ia, ib, by.p);
+      return;
+    }
+    if (v) openIncidentErrand(g, *v);
+  }
+  // once a step outdoors: the hour's incident decided and staged; the live one followed to its end
+  static void incidentTick(Game& g, float dt) {
+    RT& R = rt(g);
+    RT::Incident& I = R.inc;
+    if (I.sayT > 0) I.sayT -= dt;
+    for (size_t k = 0; k < R.sayLater.size();) {   // (P1 fixer r2) the lines said a beat later
+      RT::LaterSay& ls = R.sayLater[k];
+      if ((ls.t -= dt) > 0) { k++; continue; }
+      if (Actor* sp = actorById(g, ls.actor)) say(g, *sp, ls.s, ls.col);
+      R.sayLater.erase(R.sayLater.begin() + (std::ptrdiff_t)k);
+    }
+    // an errand left running with no incident behind it (a load, the clock jumped): it passes once the player is well
+    // away, or after a little while
+    if (!I.kind) {
+      bool orphan = false;
+      for (Quest& q : g.quests) {
+        if (q.type != QType::Errand || q.state == QState::Done) continue;
+        orphan = true;
+        R.orphanT += dt;
+        const float d = (float)(std::abs(q.tgx - (g.world.ox + tileX(g.pl().p))) + std::abs(q.tgy - (g.world.oy + tileY(g.pl().p))));
+        if (R.orphanT > 25.0f || d > 48.0f) { g.finishErrand(q.id, false); R.orphanT = 0; break; }
+      }
+      if (!orphan) R.orphanT = 0;
+    }
+    if (!I.kind) {
+      if ((R.incidentCheckT -= dt) > 0) return;
+      R.incidentCheckT = 1.0f;
+      if (g.mode != Mode::Play || g.inside || g.hour < 8.0f || g.hour >= 20.0f) return;
+      const int px = tileX(g.pl().p), py = tileY(g.pl().p);
+      int si = -1;
+      for (int s : g.activeSites_)
+        if (s >= 0 && s < (int)g.world.sites.size() && g.world.sites[(size_t)s].settlement() && g.world.sites[(size_t)s].r.contains(px, py)) si = s;
+      if (si < 0 || warEmpty(g, si)) return;
+      for (int hi : g.hostiles_)
+        if (hi >= 0 && hi < (int)g.actors.size() && g.actors[(size_t)hi].aggro && g.actors[(size_t)hi].st != AState::Dead) return;   // (not in a fight)
+      const Site& st = g.world.sites[(size_t)si];
+      const int32_t slot = g.day * 24 + (int)g.hour;
+      const uint64_t key = st.id * 31ull ^ (uint64_t)(uint32_t)slot;
+      if (R.incidentSlots.count(key)) return;
+      const uint32_t h = mixu(st.id ^ 0x1AC1Dull, (uint64_t)(uint32_t)slot);
+      const int minute = 6 + (int)((h >> 8) % 40u);
+      if ((g.hour - std::floor(g.hour)) * 60.0f < (float)minute) return;
+      if (R.incidentSlots.size() > 2048) R.incidentSlots.clear();
+      R.incidentSlots.insert(key);
+      const int tier = incidentTier(g, si);
+      if ((int)(h % 100u) >= (tier == 0 ? 10 : tier == 1 ? 24 : 32)) return;
+      int kind = (int)((h >> 16) % 3u) + 1;
+      if (tier == 0 && kind == life::INC_THIEF) kind = life::INC_CART;
+      for (int k = 0; k < 3; k++, kind = kind % 3 + 1)
+        if (startIncident(g, si, kind)) return;
+      return;
+    }
+    I.t += dt;
+    Actor* v = actorById(g, I.victim);
+    const Vec2 pp = g.pl().p;
+    if (I.kind == life::INC_THIEF) {
+      Actor* t = actorById(g, I.other);
+      if (t) {
+        I.gx = g.world.ox + tileX(t->p); I.gy = g.world.oy + tileY(t->p);
+        if (I.quest)
+          for (Quest& q : g.quests) if (q.id == I.quest) { q.tgx = I.gx; q.tgy = I.gy; }
+      }
+      if (t && len2(t->p - pp) < (1.4f * TILE) * (1.4f * TILE) && g.mode == Mode::Play) {   // caught
+        if (v) openIncidentErrand(g, *v);
+        else if (I.vSlot >= 0) {   // (the robbed is out of sight: their identity still pays, through the errand)
+          Actor who;
+          who.npc = true; who.site = I.vSite; who.bldg = I.vBldg; who.slot = I.vSlot; who.name = I.vName;
+          openIncidentErrand(g, who);
+        }
+        t->face = faceOf(pp - t->p);
+        bubble(*t, Bubble::Exclaim, 1.5f);
+        say(g, *t, "ALL RIGHT! ALL RIGHT! TAKE IT!", rgba(220, 200, 170));
+        // (P1 fixer r2) the robbed calls their thanks only when near enough to be heard (left behind down the street:
+        // a heart, no second plate over the catch)
+        if (v) {
+          hush(g, *v);   // (their "STOP, THIEF!" still up from the snatch: done with)
+          bubble(*v, Bubble::Heart, 2.0f);
+          if (len2(v->p - pp) < (6.0f * TILE) * (6.0f * TILE)) { RT::LaterSay ls; ls.actor = v->id; ls.t = 1.2f; ls.s = "MY PURSE! BLESS YOU, FRIEND!"; ls.col = rgba(240, 220, 170); R.sayLater.push_back(ls); }
+        }
+        finishIncident(g, I.quest != 0);
+        RT::ARt& T = R.rt(t->id);
+        T.path.clear(); T.fails = 0;
+        T.t2 = 1.8f;   // (P1 fixer r2) the caught moment (thiefFolk): a stumble a step on from the hand that caught them
+        {   // (to the side of the one who caught them, both seen whole: one behind the other in 3/4 hides the thief)
+          const float sx = t->p.x >= pp.x ? 1.0f : -1.0f;
+          const Vec2 d = t->p - pp;
+          const float l = std::max(len(d), 0.5f);
+          const Vec2 cands[5] = {pp + Vec2(sx * 19.0f, 2.0f), pp + Vec2(-sx * 19.0f, 2.0f), pp + Vec2(sx * 15.0f, -6.0f), pp + Vec2(-sx * 15.0f, -6.0f), pp + d * (18.0f / l)};
+          T.dest = t->p;
+          bool got = false;
+          for (int pass = 0; pass < 2 && !got; pass++)   // (out in the open first: never under a stall's awning)
+            for (const Vec2& c : cands)
+              if ((pass || openTile(g.world.over, tileX(c), tileY(c))) && g.bodyFree(c, t->radius, false) && clearLine(g, t->p, c, t->radius)) { T.dest = c; got = true; break; }
+        }
+        endIncident(g);
+        return;
+      }
+      const bool away = !t || R.rt(t->id).arrived || len2(t->p - pp) > (28.0f * TILE) * (28.0f * TILE) || I.t > 80.0f;
+      if (away) {
+        if (I.quest) {
+          if (v && onScreen(g, v->p)) { bubble(*v, Bubble::Tear, 2.0f); say(g, *v, "GONE... EVERY COIN I HAD.", rgba(220, 200, 190)); }
+          finishIncident(g, false);
+        } else incidentLead(g, v);
+        if (t) t->lifeBits |= LB_GONE;
+        endIncident(g);
+      }
+      return;
+    }
+    if (!v) { if (!I.engaged) incidentLead(g, nullptr); else finishIncident(g, false); endIncident(g); return; }
+    if (I.kind == life::INC_CART) {
+      const Vec2 cart = tileCentre(I.gx - g.world.ox, I.gy - g.world.oy);
+      const float d = len(pp - cart) / TILE;
+      if (I.engaged) {
+        if (d < 2.3f) {
+          if (I.holdT <= 0) { say(g, *v, "HOLD IT STEADY... THAT'S IT...", rgba(232, 222, 196)); g.sfx((int)Sfx::Hit, cart, 0.8f, 0.3f); }
+          I.holdT += dt;
+          if (I.holdT >= 6.0f) {
+            bubble(*v, Bubble::Heart, 2.0f);
+            say(g, *v, "GOOD AS NEW! THANK YOU, FRIEND.", rgba(240, 220, 170));
+            finishIncident(g, true);
+            endIncident(g);
+          }
+        } else if (d > 14.0f) {
+          say(g, *v, "...I'LL MANAGE ON MY OWN, THEN.", rgba(220, 200, 190));
+          finishIncident(g, false);
+          endIncident(g);
+        }
+        return;
+      }
+      if (I.t > 150.0f || d > 30.0f) { incidentLead(g, v); endIncident(g); }
+      return;
+    }
+    if (I.kind == life::INC_BRAWL) {
+      Actor* o = actorById(g, I.other);
+      if (!o) { if (!I.engaged) incidentLead(g, v); endIncident(g); return; }
+      if (len2(v->p - pp) < (1.8f * TILE) * (1.8f * TILE) || len2(o->p - pp) < (1.8f * TILE) * (1.8f * TILE)) {   // stepped between them
+        engageIncident(g, g.pl());
+        return;
+      }
+      if (I.t > 42.0f) {   // they tire of it
+        say(g, *v, "HMPH. THIS ISN'T OVER.", rgba(220, 200, 190));
+        incidentLead(g, v);
+        endIncident(g);
+      }
+    }
+  }
+
+  // ---- the public hooks' internals (life.h: scripts and tests)
+  static int taskOfActor(const Game& g, int id) {
+    if (!g.lifeRt_) return -1;
+    auto it = g.lifeRt_->act.find(id);
+    const int k = g.findActor(id);
+    if (it == g.lifeRt_->act.end() || k <= 0 || g.actors[(size_t)k].resident < 0) return -1;
+    return it->second.task;
+  }
+  static const life::StreetStats& streetOf(const Game& g) {
+    static const life::StreetStats none;
+    return g.lifeRt_ ? g.lifeRt_->street : none;
+  }
+  static life::IncidentView incidentView(const Game& g) {
+    life::IncidentView v;
+    if (!g.lifeRt_) return v;
+    const RT::Incident& I = g.lifeRt_->inc;
+    v.kind = I.kind; v.victim = I.victim; v.other = I.other; v.quest = I.quest; v.engaged = I.engaged; v.gx = I.gx; v.gy = I.gy; v.ex = I.ex; v.ey = I.ey; v.holdT = I.holdT;
+    return v;
+  }
+  static uint32_t forceGossip(Game& g) {
+    if (g.inside) return 0;
+    // the nearest resident in the street near the player is the one who lets it slip
+    const Actor* best = nullptr;
+    float bd = (10.0f * TILE) * (10.0f * TILE);
+    for (size_t k = 1; k < g.actors.size(); k++) {
+      const Actor& a = g.actors[k];
+      if (!(a.lifeBits & LB_LIFE) || a.resident < 0 || a.st == AState::Dead) continue;
+      const float d = len2(a.p - g.pl().p);
+      if (d < bd) { bd = d; best = &a; }
+    }
+    if (!best) return 0;
+    const Actor speaker = *best;
+    return overheard(g, speaker, rt(g).rt(speaker.id).partner, true);
+  }
+  static std::string debugFolk(const Game& g, int id) {
+    if (!g.lifeRt_) return "";
+    auto it = g.lifeRt_->act.find(id);
+    if (it == g.lifeRt_->act.end()) return "";
+    const RT::ARt& A = it->second;
+    char b[200];
+    snprintf(b, sizeof b, "kind %d task %d leg %d arrived %d fails %d retry %d target %d,%d (local %d,%d) dwell %.1f mood %d partner %d path %d",
+             (int)A.kind, (int)A.task, (int)A.leg, (int)A.arrived, A.fails, (int)A.retry, A.gx, A.gy, A.gx - g.world.ox, A.gy - g.world.oy, A.dwell, (int)A.mood,
+             A.partner, (int)(A.path.size() / 2)); if (A.slip) snprintf(b + strlen(b), sizeof b - strlen(b), " SLIP to %.0f,%.0f", A.slipTo.x / TILE, A.slipTo.y / TILE);
+    return b;
+  }
+  static bool debugTalk(Game& g, int id) {
+    const int k = g.findActor(id);
+    if (k <= 0) return false;
+    g.talkTo(g.actors[(size_t)k]);
+    return g.mode == Mode::Dialogue;
+  }
+
   // ---------------------------------------------------------------- dialogue (15.12 hooks)
-  enum DlgL { L_FEED = DLG_LIFE + 1, L_COIN, L_EMPLOY, L_SUPPLY, L_CHAT, L_MEAL, L_PET };
+  enum DlgL { L_FEED = DLG_LIFE + 1, L_COIN, L_EMPLOY, L_SUPPLY, L_CHAT, L_MEAL, L_PET, L_HELP };
   static uint64_t markOf(const Game& g, int si, int idx, int tag) {
     return markKey(life::npcId(g.world.sites[(size_t)si].id, idx), (Mk)(80 + tag));
   }
@@ -2929,6 +4457,8 @@ void Game::lifeStep(float dt) {
   const double abs = LifeOps::absHour(*this);
   const bool jump = R.lastAbsH >= 0 && (abs < R.lastAbsH - 1e-4 || abs - R.lastAbsH > 0.2);
   R.lastAbsH = abs;
+  if (jump) R.sayLater.clear();
+  if (jump && R.inc.kind) LifeOps::endIncident(*this);   // (P1: the street's moment passed with the hours)
   // the 15.2 buffs: tell the player when one comes or goes
   {
     const uint8_t b = life.player.buffs();
@@ -2975,6 +4505,13 @@ void Game::lifeStep(float dt) {
       const int h = world.siteHandle(kv.first);
       if (h < 0 || !activeSites_.count(h)) { kv.second.active = false; kv.second.crittersOut = false; }
     }
+    // (P1) the street's incidents: the hour's decided and staged near the player, the live one followed to its end
+    LifeOps::incidentTick(*this, dt);
+  }
+  if (inside && R.inc.kind) {   // (in at a door: the street's moment passes without them: a lead, or the errand lost)
+    if (R.inc.engaged) LifeOps::finishIncident(*this, false);
+    else LifeOps::incidentLead(*this, nullptr);
+    LifeOps::endIncident(*this);
   }
   // the per-actor state of actors no longer in play
   if ((R.stats.steps & 63) == 0) {
@@ -3016,11 +4553,12 @@ void Game::lifeStep(float dt) {
 
 bool Game::lifeFolk(Actor& a, float dt) {
   if (a.lifeBits & LB_HOMESTEAD) return HomeOps::folk(*this, a, dt);   // (M7) the player's farm animals, horse, builders, farmhand
-  if (!(a.lifeBits & (LB_LIFE | LB_CRITTER | LB_KEY | LB_GUEST))) return false;
+  if (!(a.lifeBits & (LB_LIFE | LB_CRITTER | LB_KEY | LB_GUEST | LB_THIEF))) return false;
   LifeOps::RT& R = LifeOps::rt(*this);
   const double t0 = nowMs();
   bool done;
-  if (a.critter) done = LifeOps::critterFolk(*this, a, dt);
+  if (a.lifeBits & LB_THIEF) done = inside ? false : LifeOps::thiefFolk(*this, a, dt);
+  else if (a.critter) done = LifeOps::critterFolk(*this, a, dt);
   else if (inside) done = LifeOps::interiorFolk(*this, a, dt);
   else if (a.lifeBits & LB_LIFE) done = LifeOps::streetFolk(*this, a, dt);
   else done = false;
@@ -3034,7 +4572,8 @@ bool Game::lifeSpawnAllowed(int site, const Spawn& sp) {
   if (!sp.npc || sp.bandit) return true;
   if (sp.role == Role::Guard || sp.role == Role::Herald || sp.role == Role::Soldier || sp.role == Role::Captain || sp.role == Role::King) return true;
   if (!LifeOps::censusOfSite(*this, site)) return true;
-  if (warKeyPerson(*this, site, sp.slot)) return true;   // an open quest's giver or a story's person keeps their place
+  // (P1 Fresh Roads: an open quest's giver or a story's person no longer keeps the generator's place: the census's
+  //  resident the spawn is lives their day, and the quest's pin follows them)
   // (M2 owner note 6) a capital's square folk (idlers, a crier, children round the centrepiece) keep the square by day
   // and go home at night (ai.cpp's square-goers): they are the square's own, besides the census's passers-by
   if ((sp.role == Role::Villager || sp.role == Role::Child) && world.sites[(size_t)site].type == SiteType::City && world.over.at(sp.x, sp.y) == Ground::Plaza)
@@ -3065,10 +4604,9 @@ void Game::lifeSpawned(Actor& a, const Spawn& sp) {
     if (ri < 0) { a.lifeBits |= LB_KEY; return; }
     life::Resident& r = c->res[(size_t)ri];
     const bool mage = B.type == art::Building::Tower;
-    // (a giver of an open quest waits here for the player whatever the hour: the turn-in keys on this spawn)
-    bool openQuest = false;
-    for (const Quest& q : quests) if (q.state != QState::Done && q.giverBldg == subBldg && q.giverSlot == 0) openQuest = true;
-    if (!mage && !LifeOps::keyAtPost(*this, *c, r) && !openQuest) {
+    // (P1 Fresh Roads: an open quest no longer keeps its giver at the post out of hours: they live their day, and the
+    //  tracked quest's pin follows them, lifeGiverSpot)
+    if (!mage && !LifeOps::keyAtPost(*this, *c, r)) {
       // a home's head at home this hour is placed by the schedule instead (in bed at night, at the table...)
       a.lifeBits |= LB_DROP;
       return;
@@ -3115,6 +4653,18 @@ void Game::lifeTalk(Actor& a) {
   if (!c || a.resident < 0 || a.resident >= (int)c->res.size()) return;
   life::Resident& r = c->res[(size_t)a.resident];
   const std::string town = world.sites[(size_t)si].name;
+  // (P1) a street incident's person: the plea, and the offer to step in (the errand opens with it)
+  {
+    const LifeOps::RT::Incident& I = LifeOps::rt(*this).inc;
+    if (I.kind && !I.engaged && (a.id == I.victim || a.id == I.other)) {
+      const char* plea = I.kind == life::INC_THIEF ? "HE'S GOT MY PURSE! THAT WAY, QUICK!"
+                         : I.kind == life::INC_CART ? "THE WHEEL'S COME OFF, AND I CAN'T LIFT THE CART ON MY OWN."
+                                                    : "STAY OUT OF THIS, STRANGER! THIS IS BETWEEN HIM AND ME.";
+      speech::propose(dlg, speech::P_URGENT, speech::Topic::Need, plea);   // (it is happening now: over a tale or a job)
+      dlg.opts.insert(dlg.opts.begin(), {I.kind == life::INC_THIEF ? "I'LL CATCH THEM!" : I.kind == life::INC_CART ? "LEND A HAND" : "BREAK IT UP",
+                                         LifeOps::L_HELP, 0});
+    }
+  }
   // a plain townsperson's own words (M7b: proposed, so a reward, an offer or a parcel still speaks over them; talkTo's
   // frame puts a stranger's introduction or an acquaintance's hello in front)
   bool asks = false;
@@ -3204,6 +4754,24 @@ bool Game::lifeChoose(const DlgOpt& o) {
   }
   if (ai < 0) return false;
   Actor& a = actors[(size_t)ai];
+  if (o.action == LifeOps::L_HELP) {   // (P1) stepping in to a street incident: the errand opens on the spot
+    LifeOps::RT& R = LifeOps::rt(*this);
+    if (!R.inc.kind || R.inc.engaged || (a.id != R.inc.victim && a.id != R.inc.other)) {
+      dlg.text = "NEVER MIND. IT'S OVER NOW.";
+      dlg.opts = {{"FAREWELL.", A_BYE, 0}};
+      return true;
+    }
+    if (R.inc.kind == life::INC_BRAWL) {
+      LifeOps::engageIncident(*this, a);
+      dlg.text = "ALL RIGHT, ALL RIGHT... WE'RE DONE. NO NEED FOR THAT.";
+    } else {
+      LifeOps::openIncidentErrand(*this, a);
+      dlg.text = R.inc.kind == life::INC_THIEF ? "THANK YOU! HE WENT THAT WAY, RUNNING LIKE A HARE!"
+                                               : "BLESS YOU. GET YOUR SHOULDER UNDER THE SIDE THERE, AND HOLD IT STEADY WHILE I KNOCK THE WHEEL ON.";
+    }
+    dlg.opts = {{"GO.", A_BYE, 0}};
+    return true;
+  }
   const int si = a.site >= 0 ? a.site : (a.bldg >= 0 && a.bldg < (int)world.over.bldgs.size() ? world.over.bldgs[(size_t)a.bldg].site : -1);
   if (si < 0) return false;
   life::Census* c = life.findMut(world.sites[(size_t)si].id);
@@ -3479,3 +5047,76 @@ bool lifeSitOn(Game& g, Actor& a, int x, int y, Posture post) {
   }
   return false;
 }
+
+// (P1 Fresh Roads; LIFE lane) where a quest giver is now when the map has no actor for them: the census resident's
+// spot by their plan this hour (a street, a stall, the field, the square), else the door of the building their plan has
+// them in (home, work, the tavern, the temple). Local tiles (questTarget's). False: not a census resident / unknown.
+bool Game::lifeGiverSpot(const Quest& q, int& tx, int& ty) const {
+  if (q.giverSite < 0 || q.giverSite >= (int)world.sites.size()) return false;
+  const Site& st = world.sites[(size_t)q.giverSite];
+  if (!st.settlement() || !st.id) return false;
+  const life::Census* c = life.find(st.id);
+  if (!c) return false;
+  int idx = -1;
+  if (q.giverBldg < 0 && q.giverSlot >= LIFE_SLOT0 && q.giverSlot < LIFE_SLOT0 + LIFE_SLOTN) idx = q.giverSlot - LIFE_SLOT0;
+  else if (q.giverSlot == 0 && q.giverBldg >= st.bldgFirst && q.giverBldg < st.bldgFirst + st.bldgCount) {
+    const int off = q.giverBldg - st.bldgFirst;
+    for (const life::Resident& r : c->res)
+      if (r.keyBldg == off && r.keySlot == 0) { idx = (int)r.idx; break; }
+  }
+  if (idx < 0 || idx >= (int)c->res.size()) return false;
+  const life::Resident& r = c->res[(size_t)idx];
+  if (r.flags & (life::RF_DEAD | life::RF_AWAY)) return false;
+  const life::Plan p = life.plan(world, *c, r, day, hour);
+  if (p.place == life::Place::Away) return false;
+  Game& g = const_cast<Game&>(*this);   // (the street's spot lists are the runtime's cache; nothing of the game changes)
+  if (p.bldg < 0 && !LifeOps::keyAtPost(g, *c, r)) {
+    LifeOps::RT::SiteRt& S = LifeOps::siteRt(g, q.giverSite);
+    int32_t gx, gy;
+    int face = 0;
+    if (LifeOps::outdoorSpot(g, q.giverSite, S, *c, r, p, gx, gy, face, -2)) {
+      tx = gx - world.ox; ty = gy - world.oy;
+      if (world.over.in(tx, ty)) return true;
+    }
+  }
+  int off = p.bldg >= 0 ? p.bldg : r.home;
+  if (LifeOps::keyAtPost(g, *c, r)) off = r.keyBldg;
+  const int b = c->bldgHandle(st, off);
+  if (b < 0 || b >= (int)world.over.bldgs.size()) return false;
+  tx = world.over.bldgs[(size_t)b].doorX(); ty = world.over.bldgs[(size_t)b].doorY();
+  return true;
+}
+
+// ================================================================= P1 Fresh Roads: the LIFE lane's public hooks (life.h)
+namespace life {
+const char* taskName(int t) {
+  static const char* n[] = {"SPOT", "STALL", "DELIVER", "SWEEP", "READ", "VISIT", "SHOP"};
+  static_assert(sizeof(n) / sizeof(n[0]) == (size_t)TK_COUNT, "a name for every street task");
+  return t >= 0 && t < (int)TK_COUNT ? n[t] : "-";
+}
+int taskOf(const Game& g, int actorId) { return LifeOps::taskOfActor(g, actorId); }
+const StreetStats& streetStats(const Game& g) { return LifeOps::streetOf(g); }
+IncidentView incidentNow(const Game& g) { return LifeOps::incidentView(g); }
+bool forceIncident(Game& g, int kind) {
+  const int px = (int)std::floor(g.pl().p.x / TILE), py = (int)std::floor((g.pl().p.y - 2) / TILE);
+  int si = -1;
+  float bd = 1e30f;
+  for (int s : g.world.nearSites) {
+    if (s < 0 || s >= (int)g.world.sites.size() || !g.world.sites[(size_t)s].settlement()) continue;
+    const Site& st = g.world.sites[(size_t)s];
+    const float d = (float)((st.ex - px) * (st.ex - px) + (st.ey - py) * (st.ey - py));
+    if (d < bd) { bd = d; si = s; }
+  }
+  if (si < 0 || g.inside) return false;
+  return LifeOps::startIncident(g, si, kind);
+}
+uint32_t forceGossip(Game& g) { return LifeOps::forceGossip(g); }
+std::string debugFolk(const Game& g, int actorId) { return LifeOps::debugFolk(g, actorId); }
+bool debugTalk(Game& g, int actorId) { return LifeOps::debugTalk(g, actorId); }
+bool debugChoose(Game& g, const std::string& labelStart) {
+  if (g.mode != Mode::Dialogue) return false;
+  for (size_t i = 0; i < g.dlg.opts.size(); i++)
+    if (g.dlg.opts[i].label.compare(0, labelStart.size(), labelStart) == 0) { g.dialogueChoose((int)i); return true; }
+  return false;
+}
+}  // namespace life

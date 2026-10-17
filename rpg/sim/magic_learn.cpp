@@ -272,7 +272,14 @@ bool MagicOps::choose(Game& g, const DlgOpt& o) {
     std::string why;
     if (!mayLearn(g, *d, &why)) { g.dlg.text = why + "."; return true; }
     const int price = magic::teachPrice(*d);
-    if (g.gold < price) { g.dlg.text = "COME BACK WHEN YOU HAVE THE GOLD."; return true; }
+    if (g.gold < price) {
+      // (P1 integrator: the dialogue review) name the lesson and the shortfall, and take the offer off the list so a
+      // second press doesn't get the same refusal
+      g.dlg.text = d->name + " IS " + std::to_string(price) + " GOLD, AND YOU'RE " + std::to_string(price - g.gold) +
+                   " SHORT. COME BACK WITH THE REST.";
+      if (oi >= 0) g.dlg.opts.erase(g.dlg.opts.begin() + oi);
+      return true;
+    }
     g.gold -= price;
     learn(g, d->id, false);
     if (d->tradition) addLand(g, magic::traditionOfSpell(*d).culture);

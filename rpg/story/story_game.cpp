@@ -16,6 +16,7 @@
 #include "engine/audio.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/jobs_ops.h"
 #include "rpg/sim/talk.h"
 #include "rpg/story/dsl.h"
 #include "rpg/story/story_internal.h"
@@ -160,6 +161,59 @@ void syncPersons(Game& g) {
   }
 }
 
+// (P1 Fresh Roads) the stand-ins of a story's people are not statues: by day each walks a small round of its own
+// (three stops near where the story put it, a stop every ~45 game minutes, each person's round and timing their own;
+// the townsfolk AI strolls about each stop), and at night it waits on the doorstep of the nearest house, where the
+// player can still find it (questTarget's story branch follows the live actor). Foes keep their ground.
+void standInsLive(Game& g) {
+  using namespace story;
+  if (g.inside) return;
+  for (Actor& a : g.actors) {
+    if (!isStoryPerson(a) || !a.npc || a.hostile || a.st == AState::Dead || a.aggro) continue;
+    const uint32_t inst = (uint32_t)((a.slot - PERSON_SLOT0) / PERSON_ROLES);
+    const int ri = (a.slot - PERSON_SLOT0) % PERSON_ROLES;
+    const Binding* b = nullptr;
+    for (const Instance& in : g.story.running()) {
+      if (in.done || in.id % 1024u != inst) continue;
+      const dsl::Script* s = scriptOf(in);
+      if (s && ri < (int)s->roles.size()) b = bindingOf(in, s->roles[(size_t)ri].name);
+      break;
+    }
+    if (!b || !b->hasPos) continue;
+    const int ax = b->gx - g.world.ox, ay = b->gy - g.world.oy;
+    const uint32_t salt = (uint32_t)(b->id ^ (b->id >> 32)) ^ (uint32_t)a.slot * 0x9E37u;
+    int tx = ax, ty = ay;
+    if (g.isNight()) {
+      // the doorstep of the nearest house within 16 tiles (else the stop by day it is nearest to)
+      int best = -1;
+      int64_t bd = 16 * 16;
+      for (size_t k = 0; k < g.world.over.bldgs.size(); k++) {
+        const Bldg& B = g.world.over.bldgs[k];
+        const int64_t dx = B.doorX() - ax, dy = B.doorY() + 1 - ay, d2 = dx * dx + dy * dy;
+        if (d2 < bd) { bd = d2; best = (int)k; }
+      }
+      if (best >= 0) { tx = g.world.over.bldgs[(size_t)best].doorX(); ty = g.world.over.bldgs[(size_t)best].doorY() + 1; }
+    } else {
+      // the round: stop 0 the story's own place, stops 1 and 2 a few tiles off it; each person's clock is offset
+      const double gameMin = ((double)g.day * 24.0 + (double)g.hour) * 60.0;
+      const int period = 35 + (int)(hash32(salt) % 25);   // 35..59 game minutes a stop
+      const int stop = (int)(((int64_t)(gameMin / period) + (int64_t)(hash32(salt ^ 0x51u) % 3)) % 3);
+      if (stop > 0) {
+        const uint32_t h = hash32(salt + (uint32_t)stop * 7919u);
+        const int r = 4 + (int)(h % 6);
+        const int dir = (int)((h >> 8) % 8);
+        static const int kDx[8] = {1, 1, 0, -1, -1, -1, 0, 1}, kDy[8] = {0, 1, 1, 1, 0, -1, -1, -1};
+        tx = ax + kDx[dir] * r;
+        ty = ay + kDy[dir] * r;
+      }
+    }
+    int fx = tx, fy = ty;
+    if (!freeTileNear(g, tx, ty, fx, fy, salt)) continue;
+    const Vec2 home((float)fx * TILE + 8.0f, (float)fy * TILE + 10.0f);
+    if (len2(home - a.home) > 4.0f) { a.home = home; a.goal = home; a.thinkT = 0.5f + (float)(hash32(salt ^ (uint32_t)g.day) % 100) * 0.02f; }
+  }
+}
+
 // a story that begins with a realm event: the player arrives in a settlement the news has reached
 void eventStories(Game& g) {
   using namespace story;
@@ -167,10 +221,11 @@ void eventStories(Game& g) {
   // (a village: the old captain who is all the garrison there is, the elder of a hungry hamlet; towns and cities have
   //  their watch and their granaries)
   if (g.world.sites[(size_t)g.curSite].type != SiteType::Village) return;
-  const int st = g.story.offerForPlace(g, (int)dsl::HookKind::Event, g.curSite);
+  const Offer of = placeOffer(g, (int)dsl::HookKind::Event, g.curSite);   // (P1: the one picker, offers.cpp)
+  const int st = of.lib;
   if (st < 0) {
     // (M6b) a generated story the news brings (saga.h offerForPlace: one a fortnight per village, fresh news only)
-    const std::string sid = saga::offerForPlace(g, (int)dsl::HookKind::Event, g.curSite);
+    const std::string sid = of.saga;
     if (sid.empty()) return;
     if (const uint32_t id = g.story.start(g, sid, -1, g.curSite)) {
       saga::Hook hk;
@@ -180,15 +235,12 @@ void eventStories(Game& g) {
     }
     return;
   }
+  // (P1) the picker offers a news tale only on news it has not answered yet (offers.cpp eventTaleFresh), so a stale tale
+  // no longer stops the village's generated news stories and campaigns (PLAGUE) here
   const dsl::Script& s = dsl::library().scripts[(size_t)st];
-  const Site& home = g.world.sites[(size_t)g.curSite];
-  const int32_t hx = g.world.ox + home.ex, hy = g.world.oy + home.ey;
-  uint32_t fresh = 0;
-  for (const realm::WorldEvent& e : g.realm.events()) if ((int)e.type == s.hookEv && rumourReaches(e, g.day, hx, hy)) fresh = std::max(fresh, e.id);
-  const uint64_t key = storyMarkKey(strHash64(s.id), MK_STORY_MARK);
-  auto it = g.marks.find(key);
-  if (!fresh || (it != g.marks.end() && (uint32_t)it->second >= fresh)) return;
-  g.marks[key] = (int32_t)fresh;
+  const uint32_t fresh = eventTaleFresh(g, s, g.curSite);
+  if (!fresh) return;
+  g.marks[eventTaleMarkKey(s)] = (int32_t)fresh;
   g.story.start(g, s.id, -1, g.curSite);
 }
 
@@ -236,6 +288,7 @@ void Game::storyStep(float dt) {
     story.stepT_ = 0;
     story.step(*this);
     syncPersons(*this);
+    standInsLive(*this);   // (P1: a round by day, a doorstep by night)
     if (inside) crownTheKing(*this);
     story::heraldsProclaim(*this);
   }
@@ -303,16 +356,56 @@ void Game::storyStep(float dt) {
         ts.key = npcKey(a);
         bool waiting = false;   // (someone a running story waits on has the quest's own marker)
         for (const story::Instance& in : story.running_) if (!in.done && story.talksTo(*this, in, a)) waiting = true;
-        if (!waiting) {
-          const int idx = story.offerFor(*this, a);
-          if (idx >= 0 && story.timesPlayed(dsl::library().scripts[(size_t)idx].id) == 0) ts.tale = true;
-          else {
-            const std::string sid = saga::offerFor(*this, a);
-            ts.tale = (!sid.empty() && story::scriptById(sid)) || idx >= 0;
-          }
-        }
+        story::Offer of;
+        if (!waiting) of = story::tellerOffer(*this, a);   // (P1: the one picker, offers.cpp)
+        ts.tale = of.any();
         if (story.tales_.size() > 256) story.tales_.clear();
         story.tales_[a.id] = ts;
+        // (P1 Fresh Roads) stumbled on: passing close by a teller, the player overhears what troubles them, and the journal
+        // keeps it as a lead (a TALE) to the person; heard once in a while per teller, never from across the square
+        if (of.any() && !of.campaign() && len2(a.p - pl().p) < (6.0f * TILE) * (6.0f * TILE)) {
+          const uint64_t hk = story::storyMarkKey(ts.key, story::MK_TALE_HEARD);
+          auto hm = marks.find(hk);
+          const story::dsl::Script* sc = story::scriptById(of.id());
+          if (sc && !sc->hint.empty() && (hm == marks.end() || day - hm->second >= 5)) {
+            marks[hk] = day;
+            std::string said = sc->hint;
+            size_t stop = said.find_first_of(".!?");
+            // (P1 fixer) a first sentence too short to say anything ("AH, A TRAVELLER...", "IT DOESN'T EAT THEM.") runs on
+            // into the next, so the lead carries what troubles them
+            while (stop != std::string::npos && stop < 34) {
+              size_t e = stop;
+              while (e + 1 < said.size() && (said[e + 1] == '.' || said[e + 1] == '!' || said[e + 1] == '?')) e++;
+              const size_t nx = said.find_first_of(".!?", e + 1);
+              if (nx == std::string::npos) { stop = said.size() - 1; break; }
+              stop = nx;
+            }
+            if (stop != std::string::npos) said = said.substr(0, stop + 1);
+            if (said.size() > 90) {
+              const size_t sp = said.rfind(' ', 87);
+              said = said.substr(0, sp == std::string::npos ? 87 : sp) + "...";
+            }
+            const int hs = story::homeSiteOf(*this, a);
+            const std::string town = hs >= 0 && hs < (int)world.sites.size() ? world.sites[(size_t)hs].name : std::string();
+            jobs::Lead L;
+            L.from = jobs::LeadFrom::Teller;
+            L.qtype = (uint8_t)QType::COUNT;
+            L.site = hs >= 0 && hs < (int)world.sites.size() ? world.sites[(size_t)hs].id : 0;
+            L.who = ts.key;
+            int32_t gx = world.ox + (int32_t)std::floor(a.p.x / TILE), gy = world.oy + (int32_t)std::floor(a.p.y / TILE);
+            L.hasPos = true; L.gx = gx; L.gy = gy;
+            // (P1 fixer) the lead says what it is: someone troubled, and the words that gave it away
+            // (P1 fixer r2) who and what first: the tale's own title ("EJE OF DERGZALT: THE SMITH'S LOST BOOK"), the words
+            // overheard after it for the lead's page; a row cut to the journal's column keeps the name and the title
+            // (three rows of 'SEEMS TROUBLED: "IT...' could not be told apart). Quietly: the "?" over the teller is the
+            // street's cue, and a NEW LEAD toast for every teller passed buried the moment's own notices
+            const std::string who = a.name.substr(0, a.name.find(' ')) + (town.empty() ? std::string() : " OF " + town);
+            std::string title = sc->title;
+            if (title.find('[') != std::string::npos || title.find('{') != std::string::npos) title.clear();   // (an unresolved form)
+            L.text = title.empty() ? who + " SEEMS TROUBLED: \"" + said + "\"" : who + ": " + title + " - \"" + said + "\"";
+            addLead(L, false);
+          }
+        }
       }
     }
   }
@@ -345,12 +438,12 @@ void Game::storyTalk(Actor& a) {
   }
   const bool busy = blocksGossip(dlg);
   // a story to tell
-  const int idx = busy ? -1 : story.offerFor(*this, a);
-  // (M6b) the library's unplayed tales first, then a generated story (saga.h offerFor); a tale already told comes back
-  // only when no generated story fits this teller
-  if (!busy && (idx < 0 || story.timesPlayed(dsl::library().scripts[(size_t)idx].id) > 0)) {
-    const std::string sid = saga::offerFor(*this, a);
-    const dsl::Script* sc = sid.empty() ? nullptr : scriptById(sid);
+  // (P1) the one picker (offers.cpp tellerOffer): a library tale or a generated story (saga.h offerFor)
+  const Offer of = busy ? Offer() : tellerOffer(*this, a);
+  const int idx = of.lib;
+  if (!of.saga.empty()) {
+    const std::string sid = of.saga;
+    const dsl::Script* sc = scriptById(sid);
     if (sc) {
       story.sagaOffers_.push_back(sid);
       tellerLine(*this, *sc, a);
@@ -412,6 +505,7 @@ bool Game::storyChoose(const DlgOpt& o) {
   if (k < SA_START) return story.choose(*this, (uint32_t)o.arg, k - SA_OPT);
   // a story was taken up: the teller says its first lines, or points the way to whoever must say them
   auto begun = [&](const dsl::Script& s, uint32_t id, int ai) {
+    if (ai >= 0) JobOps::taleStarted(*this, npcKey(actors[(size_t)ai]));   // (P1 fixer) their TALE lead: taken now
     Instance* in = story.find(id);
     if (in && ai >= 0 && story.talksTo(*this, *in, actors[(size_t)ai])) {
       dlg.opts.clear();
@@ -483,6 +577,14 @@ bool Game::storyChoose(const DlgOpt& o) {
     if (const dsl::Script* s2 = scriptById(sid)) begun(*s2, id, ai);
     return true;
   }
+  if (k == SA_READON) {
+    // (P1) the rest of a ruin's words: the first lines of the story they began
+    const Instance* in = story.find((uint32_t)o.arg);
+    const std::string say = in ? story.sayText(*this, *in) : std::string();
+    if (!say.empty()) dlg.text = say;
+    dropOpt();
+    return true;
+  }
   return boardChoose(*this, k, o.arg);
 }
 
@@ -514,32 +616,35 @@ bool Game::storyUseProp(art::Prop p, int tx, int ty) {
     story.onUseProp(*this, (int)p, tx, ty);
     // a ruin's words may begin a story (a dead adventurer's journal, an oath carved for the living)
     if (inside && subSite >= 0) {
-      const int st = story.offerForPlace(*this, (int)dsl::HookKind::Ruin, subSite);
+      // (P1) the story's first lines after the lore's when both fit the panel, else behind a "READ ON." option (the
+      // ruin's own story is the point of reading: it is never lost for want of room)
+      auto share = [&](uint32_t id) {
+        const Instance* in = story.find(id);
+        if (!in) return;
+        const std::string say = story.sayText(*this, *in);
+        if (say.empty()) return;
+        if (dlg.text.size() + say.size() < 290) { dlg.text += " " + say; return; }
+        dlg.opts.insert(dlg.opts.begin(), {"READ ON.", DLG_STORY + SA_READON, (int)id});
+      };
+      const story::Offer of = story::placeOffer(*this, (int)dsl::HookKind::Ruin, subSite);   // (P1: offers.cpp)
+      const int st = of.lib;
       if (st >= 0) {
         const dsl::Script& s = dsl::library().scripts[(size_t)st];
         const uint64_t key = storyMarkKey(world.sites[(size_t)subSite].id ^ strHash64(s.id), MK_STORY_MARK);
         if (!marks.count(key)) {
           marks[key] = day;
-          if (const uint32_t id = story.start(*this, s.id, -1, subSite)) {
-            if (const Instance* in = story.find(id)) {
-              const std::string say = story.sayText(*this, *in);
-              if (!say.empty() && dlg.text.size() + say.size() < 290) dlg.text += " " + say;
-            }
-          }
+          if (const uint32_t id = story.start(*this, s.id, -1, subSite)) share(id);
         }
       } else {
-        // (M6b) a generated story the ruin's words begin (saga.h offerForPlace: rare, one a fortnight here)
-        const std::string sid = saga::offerForPlace(*this, (int)dsl::HookKind::Ruin, subSite);
+        // (M6b) a generated story (or campaign) the ruin's words begin (offers.cpp placeOffer; a fortnight between)
+        const std::string sid = of.saga;
         if (!sid.empty()) {
           if (const uint32_t id = story.start(*this, sid, -1, subSite)) {
             saga::Hook hk;
             hk.kind = (int)dsl::HookKind::Ruin;
             hk.site = subSite;
             saga::noteTold(*this, sid, id, hk);
-            if (const Instance* in = story.find(id)) {
-              const std::string say = story.sayText(*this, *in);
-              if (!say.empty() && dlg.text.size() + say.size() < 290) dlg.text += " " + say;
-            }
+            share(id);
           }
         }
       }

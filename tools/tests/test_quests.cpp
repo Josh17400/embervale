@@ -90,6 +90,15 @@ int giverActor(Game& g, const Quest& q) {
   const Site& s = g.world.sites[(size_t)q.giverSite];
   g.teleportGlobal(g.world.ox + s.ex, g.world.oy + s.ey + 2);
   for (int f = 0; f < 40 && (id = find()) < 0; f++) tick(g, 1);
+  if (id >= 0) return id;
+  // (P1 Fresh Roads) givers live their day (no plaza pin): follow the quest's pin to them (Game::questTarget follows
+  // the giver, then where the census says they are); at dawn they are still abed, so the morning is waited for
+  for (int tries = 0; tries < 2 && id < 0; tries++) {
+    if (tries == 1 && g.hour < 9.0f) { g.hour = 9.5f; tick(g, 3); }
+    int tx = 0, ty = 0;
+    if (g.questTarget(q.id, tx, ty)) g.teleportGlobal(g.world.ox + tx, g.world.oy + ty + 1);
+    for (int f = 0; f < 60 && (id = find()) < 0; f++) tick(g, 1);
+  }
   return id;
 }
 // collect the reward from the giver: the first option of the talk is COLLECT ...

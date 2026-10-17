@@ -239,7 +239,9 @@ enum class Mk : uint64_t {
   // the REALM lane 48..63, each defined in its own files as (Mk)(32 + n), so nobody else edits this enum.
   // M6: the FOES lane uses 64..79 (rpg/sim/foes.h MK_FOES_*), the NUMBERS / FORGE lane 80..95 (craft_game.cpp).
   // M7: the HOMESTEAD lane uses 96..111 (rpg/sim/home_game.cpp).
-  // M8: the FELLOWS lane uses 112..127 (rpg/sim/party_*.cpp: PartyOps::MK_*).
+  // M8: the FELLOWS lane uses 112..127 (rpg/sim/party_*.cpp: PartyOps::MK_*). (M10 SEA: 200, sea_trade.cpp.)
+  // P1 Fresh Roads: the JOBS lane uses 128..143 (quests.cpp, jobs.cpp), the LIFE lane 144..159 (life_game.cpp: gossip
+  // heard, incidents seen), the STORY lane keeps its tags below 32 (story_internal.h); each defined in its own files.
 };
 inline uint64_t markKey(uint64_t id, Mk tag) { return ew::mix64(id ^ ((uint64_t)tag * 0xD1B54A32D192ED03ull)); }
 

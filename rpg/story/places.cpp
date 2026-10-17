@@ -171,20 +171,23 @@ bool useBoard(Game& g, int tx, int ty) {
     Quest q = g.offerFor(A, kk == 0 ? QType::Bounty : QType::Hunt, ok);
     if (!ok) q = g.offerFor(A, QType::COUNT, ok);
     if (!ok || q.title.empty()) continue;
-    std::string label = q.title.rfind("BOUNTY", 0) == 0 ? q.title : "BOUNTY: " + q.title;
+    // (P1 integrator) only a bounty is labelled one: "BOUNTY: THIN THE WOLVES BY DUSKMERE" read wrong
+    const std::string full = (q.type != QType::Bounty || q.title.rfind("BOUNTY", 0) == 0) ? q.title : "BOUNTY: " + q.title;
+    std::string label = full;
     if (label.size() > 40) label = label.substr(0, 37) + "...";
     g.dlg.opts.push_back({label, DLG_STORY + SA_BOARD + 0, kk});
-    if (lines.size() < 2) lines.push_back((q.title.rfind("BOUNTY", 0) == 0 ? q.title : "BOUNTY: " + q.title) + ", " + std::to_string(q.gold) + " GOLD");
+    if (lines.size() < 2) lines.push_back(full + ", " + std::to_string(q.gold) + " GOLD");
   }
   // missing persons and other stories pinned here
-  const int st = g.story.offerForPlace(g, (int)dsl::HookKind::Board, si);
+  const Offer of = placeOffer(g, (int)dsl::HookKind::Board, si);   // (P1: the one picker, offers.cpp)
+  const int st = of.lib;
   if (st >= 0) {
     const dsl::Script& sc = dsl::library().scripts[(size_t)st];
     g.dlg.opts.insert(g.dlg.opts.begin(), {sc.pitch, DLG_STORY + SA_START + st, si});
     if (!sc.hint.empty()) lines.insert(lines.begin(), sc.hint);
   } else {
     // (M6b) a generated story pinned here (saga.h offerForPlace: a campaign first, then a story; rare)
-    const std::string sid = saga::offerForPlace(g, (int)dsl::HookKind::Board, si);
+    const std::string sid = of.saga;
     if (const dsl::Script* sc = sid.empty() ? nullptr : scriptById(sid)) {
       g.story.sagaOffers_.push_back(sid);
       g.dlg.opts.insert(g.dlg.opts.begin(), {sc->pitch, DLG_STORY + SA_SAGA + (int)g.story.sagaOffers_.size() - 1, si});
@@ -436,14 +439,15 @@ void heraldTalk(Game& g, Actor& a) {
       if (d < bd) { bd = d; cap = si; }
     }
   if (cap >= 0) {
-    const int st = g.story.offerForPlace(g, (int)dsl::HookKind::Herald, cap);
+    const Offer of = placeOffer(g, (int)dsl::HookKind::Herald, cap);   // (P1: the one picker, offers.cpp)
+    const int st = of.lib;
     if (st >= 0) {
       const dsl::Script& sc = dsl::library().scripts[(size_t)st];
       if (!sc.hint.empty()) speech::propose(g.dlg, speech::P_STORY, speech::Topic::QuestOffer, sc.hint);
       g.dlg.opts.insert(g.dlg.opts.begin(), {sc.pitch, DLG_STORY + SA_START + st, cap});
     } else {
       // (M6b) the crown's own proclamation of a generated story (a campaign first: saga.h offerForPlace)
-      const std::string sid = saga::offerForPlace(g, (int)dsl::HookKind::Herald, cap);
+      const std::string sid = of.saga;
       if (const dsl::Script* sc = sid.empty() ? nullptr : scriptById(sid)) {
         g.story.sagaOffers_.push_back(sid);
         if (!sc->hint.empty()) speech::propose(g.dlg, speech::P_STORY, speech::Topic::QuestOffer, sc->hint);

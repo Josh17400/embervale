@@ -9,9 +9,6 @@ seed 8
 +0.15 tap 240 249                # the text is still typing: this tap only finishes it
 +0.3 expect mode dialogue
 +0.1 shot dialogue_tap_0.png     # the whole line shown, the options lit
-+0.3 tap 240 249                 # now the last band chooses: MORE... (M9: the farmer also trains, so six options page)
-+0.3 expect mode dialogue
-+0.1 shot dialogue_tap_1.png     # the second page: FAREWELL above BACK TO THE START...
-+0.3 tap 240 218                 # FAREWELL (the band above BACK TO THE START...)
++0.3 tap 240 249                 # now the last band chooses: FAREWELL (P1: the nearest giver has five options)
 +0.3 expect mode play
 +0.3 quit

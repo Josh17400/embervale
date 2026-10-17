@@ -11,6 +11,8 @@
 //                           first, so such tellers are passed over) and talk to them: the pitch is the dialogue's first
 //                           option. Waits up to 4 s for people to come into play
 //   saga accept             (COMPOSER) choose the open dialogue's generated-story pitch (it becomes the newest saga)
+//   saga kill [role]        (P1) the census resident bound to that role of the newest saga (default: the one its
+//                           stage talks to) dies
 //   saga step [n]           (COMPOSER) play the newest saga on n steps (default 1): a goal completes as if done, a
 //                           dialogue opens and its FIRST option is chosen; the dialogue shown is what the player reads
 //   expect saga <stage|done|running>                 the newest generated story is at that stage / has ended / runs
@@ -22,6 +24,7 @@
 #include <vector>
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/life.h"
 #include "rpg/story/dsl.h"
 #include "rpg/story/saga.h"
 #include "rpg/story/story.h"
@@ -56,6 +59,39 @@ story::Instance* lastInst(Game& g) {
 bool cmdSaga(ScriptCtx& c) {
   Game& g = c.game;
   const std::string what = lowerW(c.arg(1));
+  if (what == "kill") {
+    // (P1 integrator) saga kill [role]: the census resident bound to that role of the newest saga (default: the person
+    // its current stage talks to) dies. The M6b fix scripts named the residents, and every census change moved them.
+    story::Instance* in = lastInst(g);
+    if (!in) { c.fail("saga kill: no saga running"); return true; }
+    const story::dsl::Script* s = story::scriptOf(*in);
+    const std::string role = !c.arg(2).empty() ? lowerW(c.arg(2)) : (s && in->stage >= 0 && in->stage < (int)s->stages.size()) ? s->stages[(size_t)in->stage].talk : std::string();
+    const story::Binding* b = story::bindingOf(*in, role);
+    if (!b || !b->id) { c.fail("saga kill: no person bound to '" + role + "'"); return true; }
+    // the binding's site first, then every census in memory (a giver met away from home is bound where they stood)
+    std::vector<life::Census*> look;
+    if (b->site) if (life::Census* cs = g.life.findMut(b->site)) look.push_back(cs);
+    for (const Site& st : g.world.sites)
+      if (life::Census* cs = g.life.findMut(st.id)) if (std::find(look.begin(), look.end(), cs) == look.end()) look.push_back(cs);
+    // a person met in the street is bound by their actor's key (Game::npcKey), not the census id: by name in the census
+    // of the settlement that actor stands in, as `life kill NAME` did
+    std::string name;
+    life::Census* home = nullptr;
+    for (const Actor& a : g.actors)
+      if (a.npc && a.hp > 0 && g.npcKey(a) == b->id) { name = a.name; if (a.site >= 0 && a.site < (int)g.world.sites.size()) home = g.life.findMut(g.world.sites[(size_t)a.site].id); break; }
+    for (int pass = 0; pass < 2; pass++)
+      for (life::Census* cs : look) {
+        if (pass == 1 && (name.empty() || (home && cs != home))) continue;
+        for (const life::Resident& r : cs->res)
+          if (!(r.flags & life::RF_DEAD) && (pass == 0 ? life::npcId(cs->site, r.idx) == b->id : r.name == name)) {
+            g.life.residentDied(cs->site, r.idx, g.day);
+            printf("saga kill: %s (%s) died\n", r.name.c_str(), role.c_str());
+            return true;
+          }
+      }
+    c.fail("saga kill: " + b->name + " (" + role + ") is no living census resident");
+    return true;
+  }
   if (what == "speak") {
     const std::string tw = lowerW(c.arg(2));
     const int trade = tw.empty() || tw == "any" ? -2 : story::dsl::tradeWord(tw);
@@ -181,5 +217,5 @@ bool expSaga(ScriptCtx& c) {
 
 }  // namespace
 
-EMB_SCRIPT_CMD("saga", "saga start <archetype> [twists] [vN] [mMOTIVE] [sSEED] | campaign <id> [arcs] | speak [trade] | accept | step [n]: generated stories (M6b)", cmdSaga);
+EMB_SCRIPT_CMD("saga", "saga start <archetype> [twists] [vN] [mMOTIVE] [sSEED] | campaign <id> [arcs] | speak [trade] | accept | step [n] | kill [role]: generated stories (M6b)", cmdSaga);
 EMB_SCRIPT_CMD("expect:saga", "expect saga <stage|done|running|offered>: the newest generated story's state, or a pitch in the open dialogue (M6b)", expSaga);

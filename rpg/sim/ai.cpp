@@ -575,7 +575,25 @@ void Game::updateFolk(Actor& a, float dt) {
       if (threat) alarms_[a.site].lastThreatT = time;
       a.fleeT += dt;
       bool ran = false;
-      if (a.fleeT > 8.0f && a.fleeT - dt <= 8.0f) {
+      // (P1) a stall's keeper stands inside the stall against its counter: out by the stall's open side first (a step,
+      // through the snag), then the run for a door like anyone
+      if (a.stallKeeper && !bodyFree(a.p, a.radius, false)) {
+        int kx = (int)std::floor(a.home.x / TILE), ky = (int)std::floor(a.home.y / TILE), kf = art::StallS;
+        art::stallOfKeeper([&](int x, int y) { return world.over.propAt(x, y); }, a.home.x, a.home.y, world.ox, world.oy, kx, ky, kf);
+        const art::StallKeeperSpot kks = art::stallKeeperSpot(kf);
+        const Vec2 d = tileCentre(kx + kks.postDx, ky + kks.postDy) - a.p;
+        const float l = len(d);
+        if (l > 0.5f) {
+          a.p += d * (std::min(l, a.speed * 1.2f * dt) / l);
+          a.face = faceOf(d);
+          a.st = AState::Walk;
+          a.goal = a.p; a.thinkT = 1.0f;
+          return;
+        }
+      }
+      // (P1) out on an errand across town, home is too far to run for: the nearest door from the first moment
+      const bool farHome = a.fleeT - dt <= 0.0f && len2(a.home - a.p) > (12.0f * TILE) * (12.0f * TILE);
+      if ((a.fleeT > 8.0f && a.fleeT - dt <= 8.0f) || farHome) {
         // home is cut off: make for the nearest door from here instead
         a.homeBldg = -1;
         Vec2 h = a.home;
@@ -611,7 +629,7 @@ void Game::updateFolk(Actor& a, float dt) {
       a.goal = a.p; a.thinkT = 1.0f;   // when it's over, stay put a moment before wandering again
       return;
     }
-    if (a.fleeT > 8.0f) a.homeBldg = -1;   // the nearest-door fallback was for that alarm only: home is home again
+    if (a.fleeT > 0.0f) a.homeBldg = -1;   // the nearest-door fallback was for that alarm only: home is home again
     a.fleeT = 0;
   }
   // M5: a resident with a plan lives it (work, meals, the tavern, sleep; life_game.cpp, TOWNSFOLK lane)
@@ -651,9 +669,66 @@ void Game::updateFolk(Actor& a, float dt) {
     const art::StallKeeperSpot ks = art::stallKeeperSpot(sf);
     const int pox = stx + ks.postDx, poy = sty + ks.postDy;
     if (ew::stallOpen(stx + world.ox, sty + world.oy, hour)) {
+      // (P1 Fresh Roads) a keeper is not a statue: every 35-60 game minutes (their own rhythm) they step out from behind
+      // the counter for stock (a few tiles back from the stall and back again with a crate on the shoulder), and between
+      // times they cry their wares with a wave now and then
+      {
+        const uint32_t kh = hash32((uint32_t)a.slot * 2654435761u ^ (uint32_t)(stx * 73856093) ^ (uint32_t)(sty * 19349663));
+        const float period = 35.0f + (float)(kh % 26u);
+        const float mins = (float)std::fmod((double)day * 1440.0 + (double)hour * 60.0 + (double)((kh >> 8) % 60u), (double)period);
+        const float brk = 9.0f + (float)((kh >> 20) % 4u), back = brk - 2.4f;   // (the break: 9-12 game minutes, the last 2.4 the walk back)
+        if (mins < brk) {
+          // the stock: an open tile 2..5 steps from the post (never in the stall, a wall or a house), by the keeper's hash
+          // (P1 fixer r2: at least 3.4 tiles from the counter: a trip of two and a half read as standing on the spot, a
+          //  look taken mid-walk within a tile and a half of either end)
+          Vec2 stock = tileCentre(pox, poy);
+          for (int k = 0; k < 40; k++) {
+            const uint32_t hk = hash32(kh + (uint32_t)k * 0x9E3779B9u);
+            const int dx = (int)(hk % 9u) - 4, dy = (int)((hk >> 4) % 9u) - 4, d = std::abs(dx) + std::abs(dy);
+            const int tx = pox + dx, ty = poy + dy;
+            if (d < 3 || d > 6 || len2(tileCentre(tx, ty) - a.home) < (3.4f * TILE) * (3.4f * TILE) || (tx == stx && ty == sty) || !world.over.in(tx, ty) || world.over.blocked(tx, ty) ||
+                world.over.bldgAt[(size_t)ty * world.over.w + tx] >= 0 || world.over.propAt(tx, ty))
+              continue;
+            if (!bodyFree(tileCentre(tx, ty), a.radius, false)) continue;
+            // (in plain sight of the post: a straight walk there and back, never a search that finds no way)
+            const Vec2 from = tileCentre(pox, poy), sd = tileCentre(tx, ty) - from;
+            const float sl = len(sd);
+            bool clear = true;
+            for (float t = 4.0f; t < sl && clear; t += 4.0f) clear = bodyFree(from + sd * (t / sl), a.radius, false);
+            if (!clear) continue;
+            stock = tileCentre(tx, ty);
+            break;
+          }
+          const Vec2 to = mins < back ? stock : tileCentre(pox, poy);
+          a.posture = mins < back ? art::Posture::None : art::Posture::Carry;
+          if ((tileX(a.p) == stx && tileY(a.p) == sty) || (mins < back && !bodyFree(a.p, a.radius, false))) {   // out from behind the counter by the stall's opening (a step, not a jump)
+            const Vec2 d = tileCentre(pox, poy) - a.p;
+            const float l = len(d);
+            if (l > 0.5f) a.p += d * (std::min(l, a.speed * 0.5f * dt) / l);
+            a.face = faceOf(d);
+            a.st = AState::Walk;
+            return;
+          }
+          if (len2(to - a.p) > 9.0f) {
+            if (!navStep(a, to, a.speed * 0.5f, dt)) moveActor(a, norm(to - a.p) * (a.speed * 0.45f * dt));
+            a.face = faceOf(to - a.p);
+            a.st = AState::Walk;
+          } else a.st = AState::Idle;
+          return;
+        }
+        if (a.posture == art::Posture::Carry) a.posture = art::Posture::None;
+        const float cry = (float)std::fmod((double)time + (double)(kh % 97u), 13.0 + (double)((kh >> 16) % 9u));
+        if (len2(a.home - a.p) < 9.0f) a.posture = cry < 1.3f ? art::Posture::Wave : art::Posture::None;
+      }
       a.goal = a.home;
       if (len2(a.home - a.p) < 9.0f) { a.st = AState::Idle; a.face = ks.face; return; }
-      if (tileX(a.p) == pox && tileY(a.p) == poy) { a.p = a.home; a.st = AState::Idle; a.face = ks.face; return; }
+      if ((tileX(a.p) == pox && tileY(a.p) == poy) || (tileX(a.p) == stx && tileY(a.p) == sty)) {   // (P1) the last step in behind the counter: walked, not jumped
+        const Vec2 d = a.home - a.p;
+        const float l = len(d);
+        if (l > 0.5f) { a.p += d * (std::min(l, a.speed * 0.5f * dt) / l); a.face = faceOf(d); a.st = AState::Walk; }
+        else { a.p = a.home; a.st = AState::Idle; a.face = ks.face; }
+        return;
+      }
       const Vec2 post = tileCentre(pox, poy);
       if (!navStep(a, post, a.speed * 0.5f, dt)) moveActor(a, norm(post - a.p) * (a.speed * 0.45f * dt));
       a.face = faceOf(post - a.p);
@@ -671,11 +746,21 @@ void Game::updateFolk(Actor& a, float dt) {
   }
   if (a.thinkT <= 0 && !a.stallKeeper) {
     a.thinkT = 2.0f + rng_.f() * 4.0f;
-    if (rng_.f() < 0.45f) a.goal = a.p;
+    if (!a.lifeBits) { a.lifeA = -1; a.lifeT = 0; }   // (P1: a new goal: progress is counted afresh)
+    // (P1 Fresh Roads) out of doors a stroll more often than a stand (a short pause between), over the whole square
+    if (rng_.f() < (inside ? 0.45f : 0.3f)) a.goal = a.p;
     else {
-      float range = inside ? 3.0f : (squareGoer ? 3.5f : 6.0f);
+      float range = inside ? 3.0f : (squareGoer ? 5.0f : 6.0f);
       // (draws sequenced: y first, as MSVC/GCC evaluate the Vec2 arguments right to left; clang goes left to right)
-      auto wander = [&]() { const float gy = rng_.range(-range * 0.4f, range * 0.4f) * TILE; const float gx = rng_.range(-range, range) * TILE; return a.home + Vec2(gx, gy); };
+      // (P1) a square's own folk walk its lanes between the stalls: one way or the other (a diagonal into a stall's corner
+      //  is a walk that never starts), as far across as up and down (same draws as ever)
+      const bool lanes = squareGoer && !inside;
+      auto wander = [&]() {
+        float gy = rng_.range(-range * 0.4f, range * 0.4f) * TILE;
+        float gx = rng_.range(-range, range) * TILE;
+        if (lanes) { if (std::fabs(gx) * 0.4f > std::fabs(gy)) gy = 0; else { gy *= 2.0f; gx = 0; } }
+        return a.home + Vec2(gx, gy);
+      };
       a.goal = wander();
       // (M2 fixer round 3) indoors a stop keeps a few px clear of the walls and furniture: a person idling with their
       // body against a side wall was drawn half into it
@@ -690,10 +775,27 @@ void Game::updateFolk(Actor& a, float dt) {
   float l = len(d);
   if (l > 3) {
     Vec2 before = a.p;
-    moveActor(a, d * (1.0f / l) * (a.speed * 0.45f * dt));
+    // (P1) out in a town the way round a stall row or a fence is found (navStep: straight when in plain sight)
+    if (!inside && town && !guard) navStep(a, a.goal, a.speed * 0.45f, dt);
+    else moveActor(a, d * (1.0f / l) * (a.speed * 0.45f * dt));
     a.face = faceOf(d);
     a.st = AState::Walk;
-    if (len2(a.p - before) < 0.0004f) a.goal = a.p;
+    // (P1) no nearer to the goal for 1.5 s (shouldering a guard at his post, a corner that pushes back): another way.
+    // lifeT / lifeA: the TOWNSFOLK lane's scratch, free on a generator spawn: the time without progress and the nearest
+    // the walker has come (px)
+    bool noWay = len2(a.p - before) < 0.0004f;
+    if (!inside && town && !a.lifeBits) {
+      const int dist = (int)len(a.goal - a.p);
+      if (a.lifeA < 0 || dist < a.lifeA) { a.lifeA = dist; a.lifeT = 0; }
+      else if ((a.lifeT += dt) > 1.5f) noWay = true;
+    }
+    if (noWay) {
+      a.lifeA = -1; a.lifeT = 0;
+      a.goal = a.p;
+      if (!inside) a.thinkT = std::min(a.thinkT, 0.6f);   // (P1: blocked: another way soon, not a long stare at the obstacle)
+      // (P1) wedged on a corner (the body caught in a solid): a step back toward home, through the snag, never stuck
+      if (!inside && !bodyFree(a.p, a.radius, false) && len2(a.home - a.p) > 1.0f) a.p += norm(a.home - a.p) * std::min(a.speed * 0.3f * dt, len(a.home - a.p));
+    }
   } else a.st = AState::Idle;
 }
 

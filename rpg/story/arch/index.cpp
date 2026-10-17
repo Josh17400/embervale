@@ -21,6 +21,7 @@ const std::vector<Archetype>& archetypes() {
     arch::addArcs(a);
     arch::addCompanion(a);   // (M8 Fellowship: the companions' own stories, offered only by a companion)
     arch::addRise(a);        // (M12 Rise and Fall: successions, pretenders, warlords, exiles, resettlers, tribute)
+    arch::addRoads(a);       // (P1 Fresh Roads: stories a ruin's words or the realm's news begin)
     return a;
   }();
   return v;

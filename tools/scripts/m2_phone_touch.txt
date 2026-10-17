@@ -15,9 +15,7 @@ seed 8
 +0.15 tap 320 261
 +0.3 expect mode dialogue
 +0.1 shot m2_phone_touch_0_talk.png
-+0.3 tap 320 261                 # MORE... (M9: the farmer also trains, so six options page)
-+0.3 expect mode dialogue
-+0.3 tap 320 236                 # FAREWELL, the band above BACK TO THE START... on the second page
++0.3 tap 320 261                 # FAREWELL, the last band (P1: the nearest giver has five options, no second page)
 +0.3 expect mode play
 # the menu and the map by touch
 +0.3 tap 580 12                  # the hamburger, top right of the safe area (real 3x insets: 44 logical px)

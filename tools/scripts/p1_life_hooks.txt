@@ -1,0 +1,38 @@
+# P1 Fresh Roads (LIFE lane): the stumble-on hooks in a living town. Seed 7, TOWN DERGZALT by day: an overheard need
+# (a journal LEAD), a thief snatching a purse (taken on, chased, caught: the errand pays), a brawl in the street (stepped
+# into), a broken cart (a hand lent), the journal's QUESTS page with the leads. Shots p1_life_*.png in the working
+# directory.   embervale.exe --script tools/scripts/p1_life_hooks.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.3 goto town
++0.3 hour 10
++4.0 overhear
++0.6 shot p1_life_overhear.png
++0.5 incident thief
++0.5 shot p1_life_thief_1.png
++0.2 incidenttalk
++0.2 shot p1_life_thief_talk.png
++0.1 incidenthelp
++1.2 shot p1_life_thief_2.png
++0.1 catchthief
++0.3 shot p1_life_thief_caught.png
++1.5 expect incident none
++2.0 incident brawl
++0.6 gotoincident 3
++0.6 shot p1_life_brawl.png
++0.1 gotoincident 0
++0.4 shot p1_life_brawl_over.png
++1.0 expect incident none
++1.0 at 196 -741
++2.0 incident cart
++6.0 gotoincident 3
++0.3 shot p1_life_cart.png
++0.1 incidenthelp
++0.1 gotoincident 1
++2.5 shot p1_life_cart_help.png
++5.0 expect incident none
++0.2 leads
++0.2 journal quests
++0.4 shot p1_life_journal.png
++0.3 log p1_life_hooks done

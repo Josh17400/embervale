@@ -1,0 +1,26 @@
+# P1 Fresh Roads phase A (lead): the towns the owner's friends played, as they were, for every lane to review before
+# and after. Seed 7 (the survey's): TOWN DERGZALT at 11:00 and 13:00 (survey: 15 of 17 people never moved, 0 walking),
+# CITY at 14:00 (5 of 27 walking), the folk snapshot each time (`folk` prints every resident's plan, posture and
+# where), the journal's QUESTS page (where the JOBS lane's LEADS go). Numbers: rpg_test --town-motion / --quest-mix.
+#   embervale.exe --script tools/scripts/p1_lead_roads.txt     (p1_lead_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.3 goto town
++0.3 hour 11
++3.0 folk
++0.2 shot p1_lead_town_1100.png
++20  folk
++0.2 shot p1_lead_town_1100b.png
++0.1 hour 13
++3.0 folk
++0.2 shot p1_lead_town_1300.png
++0.3 goto city
++0.3 hour 14
++3.0 folk
++0.2 shot p1_lead_city_1400.png
++20  folk
++0.2 shot p1_lead_city_1400b.png
++0.1 journal quests
++0.3 shot p1_lead_journal.png
++0.3 log p1_lead_roads done

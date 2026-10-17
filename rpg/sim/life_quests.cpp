@@ -77,6 +77,8 @@ std::string lifePitch(const Game& g, const Quest& q) {
          (fem ? "HER" : "HIM") + " HOME, PLEASE. " + gold + " GOLD IS ALL WE HAVE.";
 }
 
+bool jobsSupplyQuest(const Game& g, const Actor& npc, ew::Good good, life::Job job, Quest& q);
+
 bool Game::lifeOffer(const Actor& npc, Quest& q) const {
   if (!npc.npc || !npc.human || npc.quest > 0 || npc.site < 0 || npc.site >= (int)world.sites.size()) return false;
   switch (npc.role) {
@@ -140,33 +142,55 @@ bool Game::lifeOffer(const Actor& npc, Quest& q) const {
   ew::Good g;
   if (!starvedGood(world.over.bldgs[(size_t)(S.bldgFirst + r.work)], *c, g)) return false;
   for (const Quest& o : quests) if (o.type == QType::Supply && o.state != QState::Done && o.giverId == S.id && o.stage == (int)g) return false;
-  // where it can be had: the nearest loaded settlement that makes it (or keeps plenty)
+  return jobsSupplyQuest(*this, npc, g, r.job, q);
+}
+
+// (P1 Fresh Roads, JOBS lane) the nearest loaded settlement that makes `good` (or keeps plenty) for site `si`, within
+// 600 tiles (-1: none); the weekly pools ask it before they put a trade's Supply job up (jobs_pool.cpp)
+int jobsSupplyFrom(const Game& g, int si, ew::Good good) {
+  if (si < 0 || si >= (int)g.world.sites.size()) return -1;
+  const Site& S = g.world.sites[(size_t)si];
   int best = -1;
   float bd = 600.0f * 600.0f;
-  for (int oi : world.nearSites) {
-    if (oi < 0 || oi >= (int)world.sites.size() || oi == npc.site) continue;
-    const Site& o = world.sites[(size_t)oi];
+  for (int oi : g.world.nearSites) {
+    if (oi < 0 || oi >= (int)g.world.sites.size() || oi == si) continue;
+    const Site& o = g.world.sites[(size_t)oi];
     if (!o.settlement()) continue;
-    const life::Census* oc = life.find(o.id);
-    const bool makes = ((o.produces >> (int)g) & 1u) != 0 || (oc && oc->stock[(size_t)g] >= 20);
+    const life::Census* oc = g.life.find(o.id);
+    const bool makes = ((o.produces >> (int)good) & 1u) != 0 || (oc && oc->stock[(size_t)good] >= 20);
     if (!makes) continue;
     const float dx = (float)(o.ex - S.ex), dy = (float)(o.ey - S.ey), d = dx * dx + dy * dy;
     if (d < bd) { bd = d; best = oi; }
   }
+  return best;
+}
+
+// a Supply quest for `good` from npc (the M5 supply run: fetch N units from the producer, the giver pays the going price
+// doubled); job: the giver's trade for the title ("THE SMITH HAS NO ORE"). The starved keepers (lifeOffer) and the weekly
+// pools' trade jobs (quests.cpp offerFor) share it. False: nobody near sells it, or the giver already waits on it.
+bool jobsSupplyQuest(const Game& g, const Actor& npc, ew::Good good, life::Job job, Quest& q) {
+  if (npc.site < 0 || npc.site >= (int)g.world.sites.size()) return false;
+  const Site& S = g.world.sites[(size_t)npc.site];
+  const life::Census* c = g.life.find(S.id);
+  if (!c) return false;
+  for (const Quest& o : g.quests) if (o.type == QType::Supply && o.state != QState::Done && o.giverId == S.id && o.stage == (int)good) return false;
+  const int best = jobsSupplyFrom(g, npc.site, good);
   if (best < 0) return false;
-  const Site& T = world.sites[(size_t)best];
+  const int32_t hx = g.world.ox + S.ex, hy = g.world.oy + S.ey;
+  const Site& T = g.world.sites[(size_t)best];
   q = Quest();
   q.type = QType::Supply;
-  q.stage = (int)g;
-  q.need = 4 + 2 * c->tier + (int)(hash32((uint32_t)S.id ^ (uint32_t)g * 31u) % 3u);
+  q.stage = (int)good;
+  q.need = 4 + 2 * c->tier + (int)(hash32((uint32_t)S.id ^ (uint32_t)good * 31u) % 3u);
   q.have = 0;
   q.giverSite = npc.site; q.giverBldg = npc.bldg; q.giverSlot = npc.slot; q.giverName = npc.name; q.giverId = S.id;
-  q.target = best; q.targetId = T.id; q.hasPos = true; q.tgx = world.ox + T.ex; q.tgy = world.oy + T.ey;
-  q.subject = ew::goodName(g);
-  const int going = std::max(1, listPrice(g) * (int)c->price[(size_t)g] / 100);
+  q.target = best; q.targetId = T.id; q.hasPos = true; q.tgx = g.world.ox + T.ex; q.tgy = g.world.oy + T.ey;
+  q.subject = ew::goodName(good);
+  const int going = std::max(1, listPrice(good) * (int)c->price[(size_t)good] / 100);
   q.gold = 15 + q.need * going * 2;
   q.xp = 20 + q.need * 4;
-  const std::string who = r.job == life::Job::Innkeeper ? std::string("THE INN") : "THE " + std::string(life::jobName(r.job));
+  const std::string who = job == life::Job::Innkeeper ? std::string("THE INN") : job == life::Job::None ? std::string("THE ") + (npc.role == Role::Smith ? "SMITH" : "TRADER")
+                                                                                                         : "THE " + std::string(life::jobName(job));
   q.title = who + " HAS NO " + q.subject;
   q.desc = q.giverName + " IN " + S.name + " NEEDS " + std::to_string(q.need) + " " + q.subject + ". " + T.name + " (" +
            dirWord(q.tgx - hx, q.tgy - hy, false) + ") HAS SOME.";

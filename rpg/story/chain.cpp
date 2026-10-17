@@ -45,6 +45,7 @@ CampaignPlan plaguePlan();
 CampaignPlan faePlan();
 CampaignPlan rebellionPlan();
 CampaignPlan dragonPlan();
+CampaignPlan successionPlan();   // (P1 lead: written in M12, never listed here)
 }  // namespace camp
 
 namespace {
@@ -140,6 +141,7 @@ const std::vector<CampaignPlan>& campaignPlans() {
     p.push_back(camp::faePlan());
     p.push_back(camp::rebellionPlan());
     p.push_back(camp::dragonPlan());
+    p.push_back(camp::successionPlan());
     return p;
   }();
   return v;
@@ -190,9 +192,12 @@ bool composeCampaign(const Spec& s, Composed& out) {
     return finaleEntry;
   };
 
+  // (P1) the plan's head, or one of its alternative heads (another way in: its own hook, the same recurring roles)
+  if (s.head < 0 || s.head > (int)P->alts.size()) { out.errors.push_back("campaign '" + s.arch + "' has no head " + std::to_string(s.head)); return false; }
+  const char* head = s.head == 0 ? P->head : P->alts[(size_t)s.head - 1].head;
   out.text = "script " + specId(s) + "\narchetype " + std::string(P->name) + "\ntier 3\n";
   x.targets["@next"] = nextAfter(0);
-  out.text += expand(P->head, x);
+  out.text += expand(head, x);
   for (size_t i = 0; i < arcs.size(); i++) {
     if (!arcs[i]) continue;
     Expand y;
@@ -245,11 +250,10 @@ bool anyCampaignRunning(const Engine& E) {
   return false;
 }
 
-// do the plan's world needs hold at this hook place?
-bool needsHold(Game& g, const CampaignPlan& P, const Hook& h, int hookEv, const Site& S) {
+// do the plan's (or the alternative head's: `n`) world needs hold at this hook place?
+bool needsHold(Game& g, const CampaignPlan& P, uint32_t n, const Hook& h, int hookEv, const Site& S) {
   const int32_t hx = g.world.ox + S.ex, hy = g.world.oy + S.ey;
   const ew::Gid land = landAt(g, hx, hy);
-  const uint32_t n = P.needs;
   if (n & (N_KINGDOM | N_RIVAL | N_CAPITAL | N_WAR)) {
     const realm::KingdomState* K = land ? g.realm.kingdom(land) : nullptr;
     if (!K || K->fallen) return false;
@@ -283,6 +287,9 @@ bool needsHold(Game& g, const CampaignPlan& P, const Hook& h, int hookEv, const 
     if (!fresh) return false;
   }
   if (h.kind == (int)dsl::HookKind::Ruin && P.id == std::string("burden") && !burdenRuin(g, S.id)) return false;
+  // (P1) the facts this chainer does not test itself (an alternative head's: the needy, famine, grief), by the composer
+  const uint32_t local = N_FAMINE | N_GRIEF | N_NEEDY | N_FRIENDS | N_SMITH;
+  if ((n & local) && !(h.kind == (int)dsl::HookKind::Event && (n & N_EVENT)) && !placeNeedsHold(g, h.kind, h.site, n & local)) return false;
   return true;
 }
 
@@ -296,26 +303,34 @@ bool pickCampaign(Game& g, const Hook& h, Spec& out) {
   const int32_t hx = g.world.ox + S.ex, hy = g.world.oy + S.ey;
   const int bucket = g.day / 8;
   const CampaignPlan* best = nullptr;
+  int bestHead = 0;
   uint64_t bestRank = 0;
   for (const CampaignPlan& P : campaignPlans()) {
-    int kind = 0, ev = -1;
-    headHook(P.head, kind, ev);
-    if (kind != h.kind) continue;
-    if (kind == (int)dsl::HookKind::Event && h.ev >= 0 && ev >= 0 && h.ev != ev) continue;
     if (campaignTold(g.story, P.id)) continue;
-    // rare: a hook place offers a given campaign in about one week-long bucket in N (heralds and events more often:
-    // they are themselves rare; boards and ruins are everywhere)
-    uint64_t r = ew::mix64(g.seed ^ ((uint64_t)S.id * 0x9E3779B97F4A7C15ull));
-    r = ew::mix64(r ^ ((uint64_t)(uint32_t)bucket << 20) ^ fnv32(P.id));
-    const int chance = kind == (int)dsl::HookKind::Herald ? 30 : kind == (int)dsl::HookKind::Event ? 45 : kind == (int)dsl::HookKind::Ruin ? 60 : 9;
-    if ((int)(r % 100) >= chance) continue;
-    if (!needsHold(g, P, h, ev, S)) continue;
-    if (!best || r > bestRank) { best = &P; bestRank = r; }
+    // (P1) the plan's head, then its alternative heads (another hook, other needs)
+    for (int hi = 0; hi <= (int)P.alts.size(); hi++) {
+      const char* head = hi == 0 ? P.head : P.alts[(size_t)hi - 1].head;
+      const uint32_t needs = hi == 0 ? P.needs : P.alts[(size_t)hi - 1].needs;
+      if (hi > 0 && (P.alts[(size_t)hi - 1].flags & AH_NOT_CAPITAL) && S.capital) continue;
+      int kind = 0, ev = -1;
+      headHook(head, kind, ev);
+      if (kind != h.kind) continue;
+      if (kind == (int)dsl::HookKind::Event && h.ev >= 0 && ev >= 0 && h.ev != ev) continue;
+      // rare: a hook place offers a given campaign in about one week-long bucket in N (heralds and events more often:
+      // they are themselves rare; boards and ruins are everywhere)
+      uint64_t r = ew::mix64(g.seed ^ ((uint64_t)S.id * 0x9E3779B97F4A7C15ull));
+      r = ew::mix64(r ^ ((uint64_t)(uint32_t)bucket << 20) ^ fnv32(P.id) ^ ((uint64_t)hi << 40));
+      const int chance = kind == (int)dsl::HookKind::Herald ? 30 : kind == (int)dsl::HookKind::Event ? 45 : kind == (int)dsl::HookKind::Ruin ? 60 : 12;
+      if ((int)(r % 100) >= chance) continue;
+      if (!needsHold(g, P, needs, h, ev, S)) continue;
+      if (!best || r > bestRank) { best = &P; bestHead = hi; bestRank = r; }
+    }
   }
   if (!best) return false;
   Spec s;
   s.campaign = true;
   s.arch = best->id;
+  s.head = bestHead;
   uint64_t rng = ew::mix64(bestRank ^ 0xCA3Bull);
   for (const ArcSlot& sl : best->arcs) {
     const uint64_t r = draw(rng);
