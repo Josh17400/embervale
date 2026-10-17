@@ -1,0 +1,27 @@
+# M11 CLIMB: a guard answers across a cliff by the ramp (VISION_PLAN 13 M11 "guards path across ramps"). A guard hostile
+# to the hero is left 3 tiles down a ramp's low side; the hero stands 3 tiles past its top. He runs up the ramp after
+# the hero (Game::navStep's way round the face), then the same at stone stairs, then at a face whose nearest way up is
+# 16-24 tiles along it (the long path search).
+#   embervale.exe --script tools/scripts/m11_climb_guard.txt     (m11_climb_guard_*.png in the working directory)
+seed 1
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 climbto earth 0
++0.1 climbnav reset
++0.1 climbguard chase
++0.25 shot m11_climb_guard_0_foot.png
++0.25 shot m11_climb_guard_1_ramp.png
++4.0 expect climbup guard 3
++0.1 shot m11_climb_guard_2_top.png
++0.1 climbto stair 0
++0.1 climbguard chase
++0.4 shot m11_climb_guard_3_stairs.png
++4.0 expect climbup guard 3
++0.1 climbto cliff 0
++0.1 climbguard chase
++1.5 shot m11_climb_guard_4_round.png
++14 expect climbup guard 3
++0.1 shot m11_climb_guard_5_arrived.png
++0.1 climbnav
++0.1 expect climbnav worst 4

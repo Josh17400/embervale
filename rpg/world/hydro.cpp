@@ -27,7 +27,7 @@ int32_t EndlessSource::Impl::hydroE(int32_t i, int32_t j) {
   uint64_t k = key2(i, j);
   auto it = hydroMemo.find(k);
   if (it != hydroMemo.end()) return it->second;
-  if (hydroMemo.size() > 400000) hydroMemo.clear();
+  if (hydroMemo.size() > 400000) { hydroMemo.clear(); hydroLvMemo.clear(); }
   int32_t C = 0;
   const int32_t x = i * HG + HG / 2, y = j * HG + HG / 2;
   int32_t e = elevation(x, y, &C, nullptr, 1);   // the smooth land: few noise pits
@@ -37,7 +37,17 @@ int32_t EndlessSource::Impl::hydroE(int32_t i, int32_t j) {
   // sea cells are marked by an E' below every land value; the C term tilts the land toward its coast
   int32_t ep = sea ? INT32_MIN / 2 + e : e + qm(Q(0.30), C);
   hydroMemo.emplace(k, ep);
+  hydroLvMemo[k] = (uint8_t)(sea ? 0 : levelOf(e));
   return ep;
+}
+
+int EndlessSource::Impl::hydroLv(int32_t i, int32_t j) {
+  const uint64_t k = key2(i, j);
+  auto it = hydroLvMemo.find(k);
+  if (it != hydroLvMemo.end()) return it->second;
+  hydroE(i, j);   // (fills both memos)
+  it = hydroLvMemo.find(k);
+  return it != hydroLvMemo.end() ? it->second : 0;
 }
 
 bool EndlessSource::Impl::latticeLake(int32_t cx, int32_t cy, Lake& out) {
@@ -102,11 +112,11 @@ std::shared_ptr<const Trace> EndlessSource::Impl::trace(int32_t cx, int32_t cy) 
   int32_t sx, sy;
   if (spring(cx, cy, sx, sy)) {
     stats.rivers++;
-    struct P { int32_t x, y; uint8_t w; };
+    struct P { int32_t x, y; uint8_t w; uint8_t lv = 7; };   // (M11) lv: the cell's relief level (hydroLv)
     std::vector<P> pts;
     std::vector<std::pair<int32_t, int32_t>> cells;
     int32_t i = floorDiv(sx, HG), j = floorDiv(sy, HG);
-    pts.push_back({sx, sy, 1});
+    pts.push_back({sx, sy, 1, (uint8_t)hydroLv(i, j)});
     cells.push_back({i, j});
     int spills = 0;
     bool toSea = false, ended = false;
@@ -154,7 +164,7 @@ std::shared_ptr<const Trace> EndlessSource::Impl::trace(int32_t cx, int32_t cy) 
       int32_t jx = (int32_t)(jh & 31) - 16, jy = (int32_t)((jh >> 8) & 31) - 16;   // +-16 tiles: winding courses
       int k2 = (int)cells.size() - 1;
       uint8_t w = (uint8_t)(1 + std::min(3, k2 / 18));
-      pts.push_back({i * HG + HG / 2 + jx * 5 / 8, j * HG + HG / 2 + jy * 5 / 8, w});
+      pts.push_back({i * HG + HG / 2 + jx * 5 / 8, j * HG + HG / 2 + jy * 5 / 8, w, (uint8_t)hydroLv(i, j)});
     }
     if (!ended && pts.size() >= 2) {
       // a river that found neither the sea nor a lake within reach ends in a lake of its own (never in the middle of
@@ -171,7 +181,7 @@ std::shared_ptr<const Trace> EndlessSource::Impl::trace(int32_t cx, int32_t cy) 
       // run on into the sea so the mouth is open water
       const P& a = pts[pts.size() - 2];
       const P& b = pts.back();
-      pts.push_back({b.x + (b.x - a.x), b.y + (b.y - a.y), b.w});
+      pts.push_back({b.x + (b.x - a.x), b.y + (b.y - a.y), b.w, 0});
     }
     if (pts.size() >= 2) {
       // two Chaikin passes (integer, floor division): smooth bends
@@ -180,8 +190,8 @@ std::shared_ptr<const Trace> EndlessSource::Impl::trace(int32_t cx, int32_t cy) 
         q.push_back(pts.front());
         for (size_t n = 0; n + 1 < pts.size(); n++) {
           const P &a = pts[n], &b = pts[n + 1];
-          q.push_back({floorDiv(3 * a.x + b.x, 4), floorDiv(3 * a.y + b.y, 4), a.w});
-          q.push_back({floorDiv(a.x + 3 * b.x, 4), floorDiv(a.y + 3 * b.y, 4), b.w});
+          q.push_back({floorDiv(3 * a.x + b.x, 4), floorDiv(3 * a.y + b.y, 4), a.w, a.lv});
+          q.push_back({floorDiv(a.x + 3 * b.x, 4), floorDiv(a.y + 3 * b.y, 4), b.w, b.lv});
         }
         q.push_back(pts.back());
         pts.swap(q);
@@ -190,13 +200,35 @@ std::shared_ptr<const Trace> EndlessSource::Impl::trace(int32_t cx, int32_t cy) 
       for (size_t n = 0; n + 1 < pts.size(); n++) {
         const P &a = pts[n], &b = pts[n + 1];
         if (a.x == b.x && a.y == b.y) continue;
-        T->segs.push_back(RiverSeg{a.x, a.y, b.x, b.y, std::max(a.w, b.w), riverIdOf(cx, cy)});
+        T->segs.push_back(RiverSeg{a.x, a.y, b.x, b.y, std::max(a.w, b.w), riverIdOf(cx, cy), a.lv, b.lv});
         T->x0 = std::min({T->x0, a.x - 4, b.x - 4}); T->x1 = std::max({T->x1, a.x + 4, b.x + 4});
         T->y0 = std::min({T->y0, a.y - 4, b.y - 4}); T->y1 = std::max({T->y1, a.y + 4, b.y + 4});
       }
       for (const Lake& L : T->lakes) {
         T->x0 = std::min(T->x0, L.x - L.r - 12); T->x1 = std::max(T->x1, L.x + L.r + 12);
         T->y0 = std::min(T->y0, L.y - L.r - 12); T->y1 = std::max(T->y1, L.y + L.r + 12);
+      }
+      // (M11) the surface level down the course: the running minimum of the routing cells' relief levels (hydroLv,
+      // carried through the smoothing: each segment starts with its first point's cell level); a spring never sits
+      // perched on a face (the source runs at the lower of its first two cells); the last 48 tiles before the sea run
+      // at level 0 (no fall at a mouth: boats come in from the sea as far as the first fall)
+      {
+        int rl = 7;
+        for (size_t n = 0; n < T->segs.size() && n < 8; n++) rl = std::min<int>(rl, T->segs[n].lvEnd);
+        for (size_t n = 0; n < T->segs.size(); n++) {
+          RiverSeg& sg = T->segs[n];
+          rl = std::min<int>(rl, sg.lv);
+          sg.lv = (uint8_t)rl;
+        }
+        if (toSea) {
+          int32_t run = 0;
+          for (size_t n = T->segs.size(); n-- > 0;) {
+            T->segs[n].lv = 0;
+            run += idist(T->segs[n].x0, T->segs[n].y0, T->segs[n].x1, T->segs[n].y1);
+            if (run >= 48) break;
+          }
+        }
+        for (size_t n = 0; n < T->segs.size(); n++) T->segs[n].lvEnd = n + 1 < T->segs.size() ? T->segs[n + 1].lv : T->segs[n].lv;
       }
       if (T->segs.empty() && T->lakes.empty()) { T->x0 = T->y0 = 0; T->x1 = T->y1 = -1; }
     } else {
@@ -219,7 +251,7 @@ std::shared_ptr<const RegionHydro> EndlessSource::Impl::hydro(int32_t rx, int32_
   const int32_t x0 = rx * REGION, y0 = ry * REGION, x1 = x0 + REGION, y1 = y0 + REGION, M = 12;
   const int32_t sc0x = floorDiv(x0 - REACH, SPRING_CELL), sc1x = floorDiv(x1 + REACH, SPRING_CELL);
   const int32_t sc0y = floorDiv(y0 - REACH, SPRING_CELL), sc1y = floorDiv(y1 + REACH, SPRING_CELL);
-  std::vector<std::tuple<int32_t, int32_t, int32_t, int32_t, uint8_t, uint32_t>> segs;
+  std::vector<std::tuple<int32_t, int32_t, int32_t, int32_t, uint8_t, uint32_t, uint8_t, uint8_t>> segs;
   std::vector<std::tuple<int32_t, int32_t, int32_t, uint32_t>> lakes;
   for (int32_t cy = sc0y; cy <= sc1y; cy++)
     for (int32_t cx = sc0x; cx <= sc1x; cx++) {
@@ -228,7 +260,7 @@ std::shared_ptr<const RegionHydro> EndlessSource::Impl::hydro(int32_t rx, int32_
       for (const RiverSeg& s : T->segs) {
         if (std::max(s.x0, s.x1) + 3 < x0 - M || std::min(s.x0, s.x1) - 3 >= x1 + M) continue;
         if (std::max(s.y0, s.y1) + 3 < y0 - M || std::min(s.y0, s.y1) - 3 >= y1 + M) continue;
-        segs.emplace_back(s.x0, s.y0, s.x1, s.y1, s.w, s.river);
+        segs.emplace_back(s.x0, s.y0, s.x1, s.y1, s.w, s.river, s.lv, s.lvEnd);
       }
       for (const Lake& L : T->lakes)
         if (L.x + L.r + 12 >= x0 - M && L.x - L.r - 12 < x1 + M && L.y + L.r + 12 >= y0 - M && L.y - L.r - 12 < y1 + M)
@@ -241,13 +273,18 @@ std::shared_ptr<const RegionHydro> EndlessSource::Impl::hydro(int32_t rx, int32_
       if (L.x + L.r + 12 >= x0 - M && L.x - L.r - 12 < x1 + M && L.y + L.r + 12 >= y0 - M && L.y - L.r - 12 < y1 + M)
         lakes.emplace_back(L.x, L.y, L.r, L.seed);
     }
-  // merged traces share segments: dedupe (keeping the widest), in a fixed order
+  // merged traces share segments: dedupe (keeping the widest), in a fixed order; (M11) the surface level is the lowest
+  // any of them carries (the minimum of non-increasing courses stays non-increasing)
   std::sort(segs.begin(), segs.end());
+  uint8_t dupLv = 7, dupEnd = 7;
   for (size_t n = 0; n < segs.size(); n++) {
+    dupLv = std::min(dupLv, std::get<6>(segs[n]));
+    dupEnd = std::min(dupEnd, std::get<7>(segs[n]));
     if (n + 1 < segs.size() && std::get<0>(segs[n]) == std::get<0>(segs[n + 1]) && std::get<1>(segs[n]) == std::get<1>(segs[n + 1]) &&
         std::get<2>(segs[n]) == std::get<2>(segs[n + 1]) && std::get<3>(segs[n]) == std::get<3>(segs[n + 1]))
       continue;   // the next one has the same ends and a width >= this one (sorted; on a tie the larger river id)
-    H->segs.push_back(RiverSeg{std::get<0>(segs[n]), std::get<1>(segs[n]), std::get<2>(segs[n]), std::get<3>(segs[n]), std::get<4>(segs[n]), std::get<5>(segs[n])});
+    H->segs.push_back(RiverSeg{std::get<0>(segs[n]), std::get<1>(segs[n]), std::get<2>(segs[n]), std::get<3>(segs[n]), std::get<4>(segs[n]), std::get<5>(segs[n]), dupLv, dupEnd});
+    dupLv = dupEnd = 7;
   }
   std::sort(lakes.begin(), lakes.end());
   lakes.erase(std::unique(lakes.begin(), lakes.end()), lakes.end());

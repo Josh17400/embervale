@@ -129,7 +129,7 @@ bool fellable(const Game& g, int x, int y) {
   if (!(art::isTreeProp(pp) || pp == Prop::Bush || pp == Prop::BerryBush || pp == Prop::SnowBush || art::isWildlandsSolid(pp))) return false;
   if (pp == Prop::Boulder || pp == Prop::Rock || pp == Prop::MossRock || pp == Prop::SnowRock) return false;
   const size_t i = (size_t)y * M.w + x;
-  if (M.bldgAt[i] >= 0 || M.wall[i] || (!M.height.empty() && (M.height[i] & (Map::HEIGHT_CLIFF | Map::HEIGHT_RAMP)))) return false;
+  if (M.bldgAt[i] >= 0 || M.wall[i] || (!M.height.empty() && (M.height[i] & Map::HEIGHT_STEP))) return false;
   const Ground gr = (Ground)M.ground[i];
   return !groundSolid(gr) && gr != Ground::Road && gr != Ground::Plaza && gr != Ground::Bridge && gr != Ground::Farmland;
 }
@@ -416,7 +416,7 @@ int placeTower(Game& g, WarOverlay& o, int si, ew::Gid conq) {
         if (!M.in(x, y)) return false;
         const size_t i = (size_t)y * M.w + x;
         const bool core = x >= x0 && x < x0 + 3 && y >= y0 && y < y0 + 3;
-        if (M.bldgAt[i] >= 0 || M.wall[i] || groundSolid((Ground)M.ground[i]) || (M.height[i] & (Map::HEIGHT_CLIFF | Map::HEIGHT_RAMP))) return false;
+        if (M.bldgAt[i] >= 0 || M.wall[i] || groundSolid((Ground)M.ground[i]) || (M.height[i] & Map::HEIGHT_STEP)) return false;
         if (core) {
           const Ground gr = (Ground)M.ground[i];
           if (gr == Ground::Road || gr == Ground::Plaza || gr == Ground::Bridge || gr == Ground::Farmland) return false;
@@ -611,7 +611,7 @@ bool warFreeTile(const Game& g, int tx, int ty) {
   const size_t i = (size_t)ty * M.w + tx;
   if (!walkableGround((Ground)M.ground[i])) return false;
   if (M.bldgAt[i] >= 0 || M.wall[i]) return false;
-  if (!M.height.empty() && (M.height[i] & (Map::HEIGHT_CLIFF | Map::HEIGHT_RAMP))) return false;
+  if (!M.height.empty() && (M.height[i] & Map::HEIGHT_STEP)) return false;
   const int p = M.prop[i];
   if (p) {
     const Prop pp = (Prop)(p - 1);

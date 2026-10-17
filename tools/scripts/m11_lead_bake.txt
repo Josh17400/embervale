@@ -1,0 +1,18 @@
+# M11 "High Ground" lead: the terrain bake cost over relief (13 M11: "the bake cost rises by at most 20 %").
+# Run with EMB_BAKEBENCH=1 (each chunk bake alone, timed: "bakebench: <eco> <ms>") and average every bakebench line:
+#   EMB_BAKEBENCH=1 embervale.exe --script tools/scripts/m11_lead_bake.txt | grep bakebench
+# The windows are rpg_test --relief's for seed 1 (the start, then three named ranges / peaks). Phase A baseline: VISION_PLAN 15.32.
+seed 1
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++1.0 walk east 6
++0.3 at 512 -160
++1.0 walk east 6
++0.3 at 384 224
++1.0 walk south 6
++0.3 at -352 96
++1.0 walk east 6
++0.3 at 300 -40
++1.0 walk west 6
++1.0 quit

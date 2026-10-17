@@ -1,0 +1,22 @@
+# M11 CLIMB: the hero on a hillside (VISION_PLAN 11.2: walkable at 0.8x), on an earth ramp and on stone stairs, each
+# walked a moment (Actor::reliefK eases to Map::reliefSpeed), then the minimap's relief by a cliff.
+#   embervale.exe --script tools/scripts/m11_climb_slope.txt     (m11_climb_slope_*.png in the working directory)
+seed 1
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 gotorelief slope
++0.5 expect relief walk
++0.1 shot m11_climb_slope_0_hillside.png
++0.1 climbto earth 0
++0.1 climbhero low
++0.1 hold W 0.05
++0.1 climbhero mid
++0.1 expect relief walk
++0.1 shot m11_climb_slope_1_ramp.png
++0.1 climbto stair 0
++0.1 climbhero mid
++0.1 expect relief walk
++0.3 shot m11_climb_slope_2_stairs.png
++0.1 climbto cliff 0
++0.5 shot m11_climb_slope_3_minimap.png

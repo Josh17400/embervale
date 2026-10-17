@@ -542,6 +542,7 @@ int Game::interactProp(int& otx, int& oty) const {
         if (!pr) continue;
         Prop prop = (Prop)(pr - 1);
         bool usable = prop == Prop::Chest || prop == Prop::Shrine || prop == Prop::Altar || prop == Prop::BerryBush ||
+                      (prop == Prop::SummitShrine && !inside) ||   // M11: the shrine at the top of a peak's climb
                       ((prop == Prop::StandingStone || prop == Prop::GraveCairn) && !inside) ||   // M2 wayside (wayside.cpp)
                       (prop == Prop::Signpost && !inside && world.siteAt(tx, ty, 3) >= 0) ||
                       ((prop == Prop::Hammock || prop == Prop::SleepingMat) && inside && subBldg >= 0) ||   // M3: cultures that sleep so
@@ -576,6 +577,22 @@ void Game::interact() {
   if (prop == Prop::StandingStone || prop == Prop::GraveCairn) story.onUseProp(*this, (int)prop, tx, ty);
   if (useWaysideProp(prop, tx, ty)) return;
   if (storyUseProp(prop, tx, ty)) return;   // M4: notice boards, inscriptions, graves, journals (story_game.cpp)
+  if (prop == Prop::SummitShrine) {
+    // M11: the summit shrine pays the climb back: its god's blessing for twice as long, full health and a
+    // "summit" word so the player knows this one is stronger than a wayside shrine's
+    int si = world.siteAt(tx, ty, 2);
+    blessName = "BLESSING OF THE SUMMIT";
+    if (si >= 0 && world.sites[si].type == SiteType::Shrine && world.sites[si].name.rfind("SHRINE OF ", 0) == 0)
+      blessName = "BLESSING OF " + world.sites[si].name.substr(10);
+    deed(party::Deed::Prayed, si >= 0 ? world.sites[(size_t)si].id : 0);
+    blessT = blessingSecs() * 2.0f;
+    pl().hp = pl().maxHp;
+    recalcPlayer();
+    say(blessName + " (SUMMIT): +ARMOR, FASTER HEALING, TWICE AS LONG");
+    emit(Ev::Heal, p.p);
+    sfx((int)Sfx::Heal, p.p, 1.0f);
+    return;
+  }
   if (prop == Prop::Shrine || prop == Prop::Altar) {
     static const char* bless[] = {"BLESSING OF SOLMIR", "BLESSING OF VEYNA", "BLESSING OF HALDRUN", "BLESSING OF ORISSA"};
     blessName = bless[hash2(tx, ty) % 4];

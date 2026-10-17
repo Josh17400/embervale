@@ -384,7 +384,7 @@ const char* useVerbAt(const Game& g, int pr, int tx, int ty) {
 const char* useVerb(int pr) {
   switch ((art::Prop)(pr - 1)) {
     case art::Prop::Chest: return "OPEN";
-    case art::Prop::Shrine: case art::Prop::Altar: return "PRAY";
+    case art::Prop::Shrine: case art::Prop::Altar: case art::Prop::SummitShrine: return "PRAY";
     case art::Prop::BerryBush: return "PICK";
     case art::Prop::Signpost: return "READ";
     case art::Prop::Bed: case art::Prop::Hammock: case art::Prop::SleepingMat: case art::Prop::Bedroll: return "SLEEP";
@@ -549,6 +549,7 @@ void View::draw(Game& g, bool hasSave) {
     companionOverlays(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M8) the wound, the binding
     drawPowerFx(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M8b) the worn powers' effects
     drawMagicFx(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M9) the spells (render_magic.cpp)
+    drawReliefOver(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M11) cloud shadows, haze (render_relief.cpp)
     drawSeaOver(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M10) the Mist, storms (render_sea.cpp)
   }
   // floating combat text (screen)
@@ -1629,6 +1630,41 @@ void View::drawMinimap(Game& g, float x, float y, int size) {
         }
         miniPx_[(size_t)yy * 64 + xx] = k;
       }
+    // (M11 CLIMB) the relief (VISION_PLAN 11.3, 11.5): higher ground a little paler (the aerial grade), a cliff a dark
+    // line (a stacked face darker still), a hillside softly hatched, a ramp or stone stairs a pale tongue up it, a
+    // waterfall white water; a crest whose south or east falls away catches the north-west light
+    if (m.kind == MapKind::Overworld && !m.height.empty())
+      for (int yy = 0; yy < 64; yy++)
+        for (int xx = 0; xx < 64; xx++) {
+          const int tx = ox + xx, ty = oy + yy;
+          if (!m.in(tx, ty)) continue;
+          const size_t i = (size_t)ty * m.w + tx;
+          const uint8_t b = m.height[i];
+          uint32_t& k = miniPx_[(size_t)yy * 64 + xx];
+          if (b & Map::HEIGHT_FALL) {   // white water, and the pool round its foot churned pale
+            k = rgba(214, 238, 252);
+            static const int fx4[4] = {1, -1, 0, 0}, fy4[4] = {0, 0, 1, -1};
+            for (int q = 0; q < 4; q++) {
+              const int qx = xx + fx4[q], qy = yy + fy4[q];
+              if (qx < 0 || qy < 0 || qx >= 64 || qy >= 64 || !m.in(tx + fx4[q], ty + fy4[q])) continue;
+              if (groundWater(m.at(tx + fx4[q], ty + fy4[q])) && !m.fallAt(tx + fx4[q], ty + fy4[q]))
+                miniPx_[(size_t)qy * 64 + qx] = art::mix(miniPx_[(size_t)qy * 64 + qx], rgba(206, 228, 244), 0.6f);
+            }
+            continue;
+          }
+          if (groundWater(m.at(tx, ty)) || m.bldgAt[i] >= 0 || m.wall[i]) continue;
+          const int lv = b & Map::HEIGHT_LEVEL;
+          k = art::mix(k, rgba(232, 228, 214), (float)lv * 0.035f);
+          if (b & Map::HEIGHT_CLIFF) {
+            const int rise = std::max({m.heightAt(tx, ty - 1), m.heightAt(tx + 1, ty), m.heightAt(tx - 1, ty), m.heightAt(tx, ty + 1)}) - lv;
+            k = art::mix(art::shade(k, rise >= 2 ? 0.40f : 0.56f), rgba(60, 46, 40), rise >= 2 ? 0.35f : 0.18f);
+          } else if (b & Map::HEIGHT_SLOPE)
+            k = art::shade(k, ((tx + ty) & 1) ? 0.84f : 0.94f);
+          else if (b & Map::HEIGHT_RAMP)
+            k = art::mix(k, (b & Map::HEIGHT_STAIR) ? rgba(214, 204, 182) : rgba(200, 174, 128), 0.5f);
+          else if (m.heightAt(tx, ty + 1) < lv || m.heightAt(tx + 1, ty) < lv)
+            k = art::mix(k, rgba(250, 244, 226), 0.22f);
+        }
     // (M2 fixer round 2) the mountains: a peak or a massif shows as a little dark mountain over its footprint (a lit
     // west flank, a shaded east one), so a summit the map names is on the minimap too
     if (m.kind == MapKind::Overworld)

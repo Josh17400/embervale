@@ -1,0 +1,37 @@
+# M11 "High Ground" WORLD lane: the relief the generator builds (VISION_PLAN 11, 15.32): hillsides in the hills, a
+# mountain's stacked tiers, a waterfall with its plunge pool, a stairway in two flights (a switchback) on a road and on
+# a stacked face, a summit shrine at the top of its trail, a harbour town on a hilly coast.
+#   embervale.exe --script tools/scripts/m11_world_relief.txt     (m11world_*.png in the working directory)
+seed 1
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 at 300 -40
++0.5 gotorelief slope
++1.5 shot m11world_0_hillside.png
++0.1 expect relief near slope
++0.1 gotopoi range
++0.5 gotorelief stack
++1.5 shot m11world_1_stacked.png
++0.1 expect relief near stack
++0.1 gotoeco alpinemeadow
++0.5 gotorelief stack
++1.5 shot m11world_1b_stacked_alpine.png
++0.1 gotopoi range
++0.5 gotorelief stack
++0.1 gotorelief switchback
++1.5 shot m11world_2_switchback.png
++0.1 expect relief walk
++0.1 at -400 -100
++0.5 gotorelief fall
++1.5 shot m11world_3_fall.png
++0.1 expect relief near fall
++0.1 gotorelief summit
++1.5 shot m11world_4_summit.png
++0.1 expect relief walk
++0.1 gotorelief roadsw
++1.5 shot m11world_5_road_switchback.png
++0.1 sea port
++1.5 shot m11world_6_harbour.png
++0.1 expect relief walk
++0.3 quit

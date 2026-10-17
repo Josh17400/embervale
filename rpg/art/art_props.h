@@ -222,6 +222,15 @@ enum class Prop : uint8_t {
   HarbourDesk,    // the harbourmaster's booth on the pier: a roofed desk, a ledger, a lantern (about 28x34); solid
   Lighthouse,     // a lighthouse tower on a headland, its lamp lit at night (about 32x80); 1x1 base, solid (a light)
   Wreck,          // a ship's broken hull on a reef or a beach, ribs and a snapped mast (about 56x40); 3x2, solid
+  // ---- M11 High Ground (VISION_PLAN 11.3, 13 M11, 15.32): the summit shrine and its trail. Painted in
+  //      rpg/art/art_relief.cpp (phase A stand-ins; the FALLS lane paints them for real in the 3/4 top-down view with
+  //      top-left light and may change the canvas sizes). Placed by the WORLD lane (a summit shrine on the top level of a
+  //      named peak or a range's crest, cairns along the trail up, prayer flags by the shrine). FOOTPRINTS ARE FROZEN
+  //      (reliefFootprint below).
+  SummitShrine,   // an old open shrine on the summit: a stepped stone dais, a weathered idol or altar under a small
+                  // roof, offerings, two braziers lit at night (about 48x48); 3x2, solid (a light)
+  Cairn,          // a waymarker of stacked stones on the trail up (about 14x20); solid
+  PrayerFlags,    // a line of faded cloth flags strung between two poles, fluttering (about 32x28, 4 frames); solid
   COUNT
 };
 // M4: the war's props (art_war.cpp) and the lore props (art_lore.cpp)
@@ -235,6 +244,13 @@ inline bool isCityProp(Prop p) { return (int)p >= (int)Prop::Bollard && (int)p <
 // M10: the sea props (art_sea.cpp) and their frozen footprints (as the city props': w odd, the prop on the bottom row's
 // middle tile, Filler on the rest)
 inline bool isSeaProp(Prop p) { return (int)p >= (int)Prop::MooringPost && (int)p <= (int)Prop::Wreck; }
+// M11: the relief props (art_relief.cpp) and their frozen footprints (as the sea props': w odd, the prop on the bottom
+// row's middle tile, Filler on the rest)
+inline bool isReliefProp(Prop p) { return (int)p >= (int)Prop::SummitShrine && (int)p <= (int)Prop::PrayerFlags; }
+inline void reliefFootprint(Prop p, int& w, int& h) {
+  if (p == Prop::SummitShrine) { w = 3; h = 2; return; }
+  w = 1; h = 1;
+}
 inline void seaFootprint(Prop p, int& w, int& h) {
   if (p == Prop::Slipway || p == Prop::Wreck) { w = 3; h = 2; return; }
   w = 1; h = 1;

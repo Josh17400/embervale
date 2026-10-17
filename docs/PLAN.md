@@ -1123,3 +1123,95 @@ by the integrator; fixes are verified with targeted checks only; the 16-bit qual
 - **art** (build_art, visual): the ships of every culture (rowboat, sloop, galleon; 8 headings; the hero on deck),
   sea props, the serpent, kraken and merrow, waves, foam, surf, wakes, the Mist, storms, the isolated cultures' look,
   the sail and fishing HUD, the world map's seas and unknown lands, the sea's sound; a sea gallery and the phone review.
+
+## M11, "High Ground" (VISION_PLAN 11, 13 M11, 2.7, 15.10, 15.29, 15.31, 15.32; owner notes 2026-10-16)
+
+Goal, as the roadmap has it: terrain relief. Height levels, the ramp lattice, plateau minimums, waterfalls, road stairs
+(lane A, world); cliff faces for every ground, slopes, aerial grading, cast shadows, waterfall animation, peaks (lane B,
+view: split here into the baked TERRAIN and the live FALLS lanes); slope speed, AI pathing over ramps, map contours
+(lane C, the CLIMB lane). Verification: 100 % reachability of plateaus of 24+ tiles in the sampled windows; guards and
+companions path across ramps; the bake cost rises by at most 20 %. What the owner sees on the phone: hills, cliffs,
+plateaus and waterfalls; climbing to a peak shrine is a journey; mountains read as height. Relief must live with M10's
+coasts, harbours, piers, islands, the Mist and the hidden lands, and boats are never stranded by height. Owner notes:
+the every-system regression runs ONCE, by the integrator; fixes are verified with targeted checks only; the 16-bit
+quality bar and natural / organic world design stand.
+
+### Phase A (lead), 2026-10-16: done
+- The contracts are recorded in VISION_PLAN 15.32: the height byte's three new bits (`Map::HEIGHT_SLOPE`, `HEIGHT_FALL`,
+  `HEIGHT_STAIR`, the `HEIGHT_STEP` mask) and `Map::reliefSpeed` (rpg/sim/world.h), ENDLESS_GEN_VER 24 and `SPF_SUMMIT`
+  (rpg/world/source.h), first generation rules for stairs, falls and hillsides (chunkgen.cpp step 6), the summit props
+  (`SummitShrine`, `Cairn`, `PrayerFlags`: rpg/art/art_relief.h/.cpp stand-ins, registry classified), the view's
+  RELIEF block (rpg/view/render_relief.cpp: stand-in falls, the roar handed on; hooks in render.cpp and hud.cpp),
+  `Audio::setFalls`, `rpg_test --relief` (walled plateaus, the census, the chunk cost against the baseline) and
+  `rpg_test --climb` (the speed contract), script commands `gotorelief`, `expect relief`, `expect reliefview`
+  (rpg/view/script_relief.cpp), `tools/scripts/m11_lead_relief.txt` and `m11_lead_bake.txt`. SAVE_VER stays 21; the
+  fixture save_v21.bin was re-made under generator 24 (FIX6 unchanged); the endless chunk goldens re-recorded (region
+  plans unchanged). tools/slot.sh already existed.
+- Baselines: chunk generation 0.790 ms average over --relief seeds 1..3 (budget 0.948); terrain bake 275 ms per chunk
+  over m11_lead_bake.txt (EMB_BAKEBENCH=1, 41 bakes; budget 330). Census before M11: every step one level (0 stacked
+  faces in 12 windows), 0 slopes, 0 falls.
+- Verified (MSVC, BDIR=build, everything built): rpg_test --seeds 1..20 20/20; save_test ALL OK; --sea 1..3 OK;
+  --villages --strict exit 0; --endless --golden 39 hashes ok; --endless --seeds 1..3: reachability 0 failures (its
+  one FAIL, "region plans average 3.42 ms (budget 3)" on seed 1, was there before M11: 3.41 ms at the baseline, region
+  plans unchanged); --relief 1..3 0 failures (after phase A: slopes 0..1287, stairs 0..91, falls 0..35 per window, chunk
+  avg 0.799 ms, x1.01); --climb 0 failures; --builder 1..2 --strict 0 failures; m11_lead_relief 0 failures.
+
+### Phase B lanes (disjoint files; see the lead report for the briefs)
+- **world** (build_world, code): the levels for real (hills and highland plateaus that read, mountains rising in
+  stacked tiers, 2-level faces on steep ground, rock only on the steep cores), the plateau minimum (24 tiles), slopes
+  tuned, the ramp lattice on every face incl. stacked ones (switchbacks), waterfalls (rivers over steps, plateau lakes'
+  spills, pools at the foot), road stairs and switchbacks, summit shrines with their trails, coasts / harbours / islands
+  / the Mist kept whole (boats never stranded); --relief grown; goldens re-recorded with reasons.
+- **terrain** (build_terrain, visual): the baked look: faces for every ground, tall stacked faces, side lips and rims
+  with thickness, hillsides, earth ramps and stone stairs and switchbacks cut into the faces, the aerial grade, cast
+  shadows, snow overhangs, the mountains as stacked cliffs and scree instead of the faceted rock field, the wet face
+  under a fall; the bake within 1.2 x the baseline.
+- **falls** (build_falls, visual): the live relief: animated waterfalls with foam, spray and mist, the falls' roar,
+  cloud shadows and haze over the high ground, the peaks that read as height, the summit shrine, cairns and prayer flags.
+- **climb** (build_climb, code): slope speed for everyone who walks, AI pathing over ramps (guards, folk, companions,
+  mounts), falls as walls to swimmers and boats, the world map and minimap relief (contours from the final relief,
+  falls and summit marks); --climb grown into the movement check.
+
+### Integration (2026-10-16): done
+- Clean MSVC build of every target (BDIR=build): 0 errors, no new warnings that are bugs (int-to-float C4244 only).
+  Portability pass by inspection (no clang/emsdk on the dev PC): missing standard headers added (render_relief.cpp,
+  art_relief.cpp `<cstdlib>`; script_climb.cpp, test_relief.cpp `<utility>`; engine/audio.cpp `<algorithm>`); threads
+  stay under `#ifndef __EMSCRIPTEN__`; no MSVC-only constructs in the M11 files. CI (web.yml) gained the step "Relief
+  and climb test" (`--relief --seeds 1..3 --no-budget`, `--climb --seeds 1..3`).
+- Fixed: `--endless --seeds 1..10` failed on seeds 6 and 8 (10 relief slivers a window, at most 8): the stacked tiers
+  left notches, fingers and 1-deep terraces from the last sliver pass. chunkgen.cpp step 6 now works the levels on a
+  6-tile border (LB 6) with four passes, and the exact final fix-up (within a tile of the chunk) also joins 3-sided
+  notches / fingers and straight 1-deep terraces: 60 slivers over the 20 windows became 43, at most 7 a window. No
+  golden moved (endless 39, towns 201, region 8 ok; save fixture ok). Chunk cost +3 % (see open issues).
+- Fixed scripts: m11_falls_tour's second fall ("gotofall any 1 far" found none within 25 windows of the first: falls
+  are rare) now teleports to (-510,-100) first; m3c_land_ecotones' savanna/dunes edge had drifted past the 12000-tile
+  search from the previous stop, so it starts from (0,0).
+- Verified once: rpg_test --seeds 1..20 20/20; save_test ALL OK; every CI suite in web.yml passes (timing gates re-run
+  alone on a quiet machine: an external ffmpeg at 91 % CPU had failed --towns and --window's web-travel step);
+  full script sweep 317 scripts, 2 failed (both fixed above; re-run 0 failed); after the chunkgen fix the generation
+  suites and the m11_/m10_/relief/water scripts were re-run: 0 failures. --relief 1..3: 0 failures, chunk avg 0.919 ms
+  (x1.15 of the phase A baseline, budget x1.20). Terrain bake 274.2 ms over 41 bakes (baseline 275, budget 330).
+  --climb 1..3: guards 36/36, far ways up 5/5, companions 6/6, worst search 0.26 ms.
+- Open: (1) perched rivers: rivers on the compressed high ground ride a level above both banks (0..214 water tiles a
+  window, now reported by --relief as "perched water tiles"); their falls are not drawn (render_relief skips a step
+  with water on both sides). Cause and the two tried fixes are in test_relief.cpp next to the census. (2) dev-PC
+  budgets in --endless (CI runs --no-budget): region plans 3.45 ms on seed 1 (3.41 before M11), 3.01 on seed 3; chunk
+  average 1.03 ms on seed 2's window (budget 1; phase A 0.90, WORLD lane 0.99, +3 % from LB 6). (3) snow / glacier
+  stacked faces barely read on white ground, and small level-5 bowls sunk into level-7 summit fields read as white
+  pits ringed by ramps (seed 5 near -53,1469). (4) falls stay rare (0-2 a window; seed 5 has none within 600 tiles
+  of its summit); the gotofall "any 1 far" style lookups are fragile. (5) Hillsides 25-45 % of 1-level hill steps,
+  roads do not prefer existing ramps.
+
+### Review and fixes, 2026-10-16
+- Review (2 lenses, diff-scoped): 11 findings, 4 must. Fixer r1 + one re-check of only those findings; fixer r2 on the 2
+  musts still open. No second full sweep (owner rule: the every-system regression runs once, at integration).
+- ENDLESS_GEN_VER 24 -> 25 (fixer r1: 2-level ramps become cliffs, level border 7, earth-ramp banks) -> 26 (fixer r2:
+  the land tops out at level 6 and level 7 is kept for summit crowns; packed-snow trails). Chunk hashes in
+  golden_endless.txt re-recorded each time (region plans unchanged); save_v21.bin re-made under 26 (FIX6 unchanged).
+- Fixed: summit shrine PRAY + blessing, 2-level ramps (0 a window, --relief fails on any), chunk-seam steps, earth-bank
+  slabs, road stairs only on paved roads / summit trails / bridges, shrine slab, granite see-through band, hillside
+  rims, falls kept clear of props and lit at night, world-map street-zoom hillshade and inked cliffs.
+- Still open (post-M12 polish list): broad level-6 tops read flat (macro.cpp reliefLevels); the straight trench below a
+  fall and rare falls (hydro.cpp river levels from coarse cells; seed 3's range has none); perched river tiles (up to
+  214 a window, report only in --relief); the 1-tile road jog at a stair's foot; chunk cost x1.18 of the x1.20 budget;
+  dev-PC --endless timing budgets (region plans 3.0-3.5 ms vs 3; CI runs --no-budget).

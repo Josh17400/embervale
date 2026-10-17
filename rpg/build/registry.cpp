@@ -100,6 +100,9 @@ Kind kindOfProp(art::Prop p) {
     case Prop::MooringPost: case Prop::NetRack: case Prop::FishBaskets: case Prop::Buoy: case Prop::Anchor:
     case Prop::CargoPile: case Prop::Slipway: case Prop::HarbourDesk: case Prop::Lighthouse: case Prop::Wreck:
       return Kind::None;
+    // (M11 phase A) the summit's props are not built (art_relief.cpp paints them)
+    case Prop::SummitShrine: case Prop::Cairn: case Prop::PrayerFlags:
+      return Kind::None;
     case Prop::COUNT: break;
   }
   return Kind::COUNT;   // unclassified: rpg_test --builder fails

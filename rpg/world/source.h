@@ -30,7 +30,19 @@ struct SettlementOut;   // rpg/world/settlement.h
 
 // Bumped when the endless generator's output changes. Old saves are not kept compatible across M1 (owner rule,
 // 2026-10-04); the save stores it so a mismatch can say "this save is from an older world".
-constexpr int ENDLESS_GEN_VER = 23;  // 23: M10 Beyond the Mist (bumped with SAVE_VER 21 so the lanes may change generation
+constexpr int ENDLESS_GEN_VER = 26;  // 26: M11 fixer r2 (chunkgen: the land tops out at level 6, level 7 is the summit
+                                     //     crowns'; a dirt track's way up is an earth ramp; nothing tall over a fall;
+                                     //     fixture and 3 chunk goldens re-made).
+                                     // 25: M11 fixer r1 (chunkgen step 6: the level fix-up over the full 2-tile ring, LB 7, so
+                                     //     chunk seams agree; no ramp beside a tile 2 levels higher; road stairs on the
+                                     //     road's own tiles; hillsides judged per 16-tile cell; summit shrines on a stepped
+                                     //     crown with no paved court and no spire before them; fixture and goldens re-made).
+                                     // 24: M11 High Ground (terrain relief, VISION_PLAN 11, 15.32: Map::HEIGHT_SLOPE /
+                                     //     HEIGHT_FALL / HEIGHT_STAIR, the levels, stacked cliffs, plateau minimums,
+                                     //     waterfalls, road stairs and switchbacks, summit shrines; SAVE_VER stays 21, the
+                                     //     fixture re-made for this generator; VILLAGES' OWN TILES NEVER CHANGE (rpg_test
+                                     //     --villages); goldens re-recorded by the lane that changes their output).
+                                     // 23: M10 Beyond the Mist (bumped with SAVE_VER 21 so the lanes may change generation
                                      //     under it: hidden lands and the Mist, second continents and archipelagos,
                                      //     sea POIs (wrecks, islets, sea caves, lighthouses, pirate coves), ports' piers
                                      //     and harbours, the hidden peoples; VILLAGES NEVER CHANGE (rpg_test --villages);
@@ -120,6 +132,10 @@ constexpr uint16_t SPF_CACHE = 1024;   // (M10 WORLD lane addition) an uncharted
                                        // (VignetteKind::LoneGrave), its inscription a sailor's rumour
 constexpr uint16_t SPF_ISLET = 2048;   // (M10 WORLD lane addition) the one place of an uncharted islet (a wreck, a cache
                                        // cairn, a pirate cove or a sea cave)
+// M11 High Ground (VISION_PLAN 11, 13 M11, 15.32; the WORLD lane places it)
+constexpr uint16_t SPF_SUMMIT = 4096;  // a summit shrine (SiteType::Shrine) on the top level of a named peak or a range's
+                                       // crest: reached by a trail of stairs and switchbacks up the stacked levels (the
+                                       // climb is the journey); `gotorelief summit` and the world map find it
 
 // A site planned by its region (L1b). Global tiles throughout.
 struct SitePlan {
@@ -299,7 +315,9 @@ struct ChunkData {
   uint8_t eco[N] = {};              // M3c: Eco, the biome proper (its family is biome[]); Map::eco
   uint8_t ecoNb[N] = {};            // M3c: the Eco this tile blends toward (blend's weight); == eco where unblended; Map::ecoNb
   uint8_t height[N] = {};           // relief (Map::height bits): level 0..7 in bits 0-2 (VISION_PLAN 11.1), Map::HEIGHT_CLIFF
-                                    // = a cliff face (not walkable), Map::HEIGHT_RAMP = a ramp / stairs between levels
+                                    // = a cliff face (not walkable), Map::HEIGHT_RAMP = a ramp / stairs between levels;
+                                    // M11: HEIGHT_SLOPE (a walkable hillside), HEIGHT_FALL (a waterfall), HEIGHT_STAIR
+                                    // (with RAMP: built stone stairs). rpg/sim/world.h has the full contract
   uint8_t wall[N] = {};             // city wall pieces
   uint8_t urb[N] = {};              // M7b: the urban fabric (Map::urb, rpg/world/urban.h); 0 outside a city's plan
   uint16_t bldg[N] = {};            // 0 = none, else 1 + index into bldgs (footprints inside this chunk)

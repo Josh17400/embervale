@@ -604,7 +604,15 @@ Ground EndlessSource::Impl::groundFor(Eco eco, int32_t el, int32_t t, int32_t x,
     case Eco::SandBeach: case Eco::Shingle: return t < Q(0.25) ? Ground::Snow : Ground::Sand;
     case Eco::CoralCoast: return Ground::Sand;
     case Eco::SeaCliffs: return t < Q(0.25) ? Ground::Snow : Ground::Grass;
-    case Eco::Mountain: return Ground::Rock;
+    // (M11, VISION_PLAN 11.2: "rock only on the steep cores, drawn as stacked cliffs, never a flat grey area") the
+    // mountains' open high ground is walkable: snow where it is cold, scree (tundra ground) on the upper shoulders,
+    // alpine turf lower down, in drifts; the chunk keeps rock only on the stacked faces of the steep cores
+    case Eco::Mountain: {
+      if (t < Q(0.40)) return Ground::Snow;
+      const int32_t v = n(4, "g.alpine");
+      if (levelOf(el) >= 6) return t < Q(0.50) && v > Q(0.58) ? Ground::Snow : Ground::Tundra;
+      return v > Q(0.52) ? Ground::Tundra : Ground::Grass;
+    }
     case Eco::SnowField: return Ground::Snow;
     case Eco::Tundra: return Ground::Tundra;
     case Eco::Glacier:
@@ -677,7 +685,9 @@ TileF EndlessSource::Impl::tile(int32_t x, int32_t y) {
        qm(centered(vnoiseQ(x, y, 1, mix64(seed ^ tag("t.d2"))), Q(1.0)), Q(0.004));
   f.e = e;
   f.sea = e < ELEV_SEA;
-  f.h = f.sea ? 0 : (uint8_t)natLevel(x, y);
+  // (M11) the chunks' level (reliefLevels: natLevel deepened on the high ground); the classifier keeps the natural level
+  int natLv = 0;
+  f.h = f.sea ? 0 : (uint8_t)reliefLevels(x, y, &natLv);
   // (the noise moves the threshold by at most 0.12: below 0.38 no tile is rock, and the noise need not be drawn)
   f.rock = !f.sea && rock > Q(0.38) && rock > Q(0.5) + qm(centered(vnoiseQ(x, y, 2, mix64(seed ^ tag("t.rk"))), Q(1.0)), Q(0.12));
   // ecotones: the climate edges interleave over a few tiles instead of running along the interpolation
@@ -699,7 +709,7 @@ TileF EndlessSource::Impl::tile(int32_t x, int32_t y) {
   // (M3c) the classifier's view of the tile: the jittered climate, the channels read bilinearly from the block, the
   // coarse sample whose rock it takes (nearest, nudged by the jitter so province edges wander off the 16-tile grid)
   EcoIn in;
-  in.e = std::max(e, ELEV_SEA + Q(0.011)); in.t = f.t + tj; in.m = f.m + mj; in.ridge = f.ridge; in.lv = f.h; in.x = x; in.y = y;
+  in.e = std::max(e, ELEV_SEA + Q(0.011)); in.t = f.t + tj; in.m = f.m + mj; in.ridge = f.ridge; in.lv = f.sea ? 0 : natLv; in.x = x; in.y = y;
   for (int k = 0; k < ECH_N; k++) in.ch[k] = bil(a.ch[k], b.ch[k], c.ch[k], d.ch[k], fx, fy);
   in.blk = &B;
   in.bi = i + (fx + tj * 10 >= Q(0.5) ? 1 : 0);
@@ -755,6 +765,73 @@ int EndlessSource::Impl::natLevel(int32_t x, int32_t y) {
   // (mesas only on dry land well above the sea, and never above level 4)
   if (ec < ELEV_SEA + Q(0.03) || lv > 4) return lv;
   return std::min(5, lv + mesaLift(x, y, B, i, j, fx, fy));
+}
+
+// (M11 "High Ground", VISION_PLAN 11.1-11.2, 15.32; WORLD lane) the level the chunks build: natLevel's level (the plans'
+// level: sites, roads, caves and the regions keep reading natLevel, so no plan moves), deepened on the high ground
+// (natural level 4 and up; the lowlands and hills keep their contours):
+//  - the top compressed: above natural level 5 the level rises 9/16 as fast (the big ranges reach 9 or 10 natural
+//    levels, which were all one flat level-7 field), so the top tiers are kept for the crests;
+//  - ridges: from level 5 up (fading in over two levels, so the field keeps rising with the land) a ridged noise
+//    (the warp's own octaves made ridged: crest lines about 40 tiles apart and a 26-tile octave, both on rotated
+//    lattices, so no extra noise is drawn per tile) lifts the crests up to
+//    1.4 levels and sinks the valleys between up to 1.6: a range is crests and valleys, not a dome;
+//  - contour pairs: in parity zones (the warp's 40-tile octave on the 12-5-13 lattice) the band of one level
+//    collapses, so two contours meet and the step between them is a stacked face of 2 levels (11.2: "up to 2 levels
+//    per tile row"): parity 0 pairs 3|5 and 5|7, parity 1 pairs 4|6. The collapse fades to nothing at a zone's
+//    border (a ledge a few tiles deep between two 1-level faces, then the plain contours), so the field stays
+//    continuous and the land mixes stacked tiers with single steps.
+// A pure function of the tile (integer maths only): every chunk computes the same levels.
+int EndlessSource::Impl::reliefLevels(int32_t x, int32_t y, int* natOut) {
+  int32_t wx = x, wy = y;
+  warpQ(wx, wy, 5, 5, mix64(seed ^ tag("t.warp")));
+  const uint64_t s1 = mix64(seed ^ tag("t.rw1")), s2 = mix64(seed ^ tag("t.rw2"));
+  const int32_t a1 = 3 * x + 4 * y, b1 = 4 * x - 3 * y, a2 = 12 * x + 5 * y, b2 = 5 * x - 12 * y;
+  // (natLevel's warp; its two slow octaves are kept: the high ground reuses them as noise of its own)
+  const int32_t w1x = vnoiseQ(a1, b1, 7, s1), w2x = vnoiseQ(a2, b2, 9, s2), w1y = vnoiseQ(a1, b1, 7, s1 ^ 0x77u), w2y = vnoiseQ(a2, b2, 9, s2 ^ 0x77u);
+  wx += (int32_t)(((int64_t)(w1x - 32768) * 8) >> 16) + (int32_t)(((int64_t)(w2x - 32768) * 12) >> 16);
+  wy += (int32_t)(((int64_t)(w1y - 32768) * 8) >> 16) + (int32_t)(((int64_t)(w2y - 32768) * 12) >> 16);
+  const int32_t bx = wx >> REGION_SHIFT, by = wy >> REGION_SHIFT;
+  const Block& B = *block(bx, by);
+  const int32_t lx = wx - bx * REGION, ly = wy - by * REGION;
+  const int i = lx >> CG_SHIFT, j = ly >> CG_SHIFT;
+  const int32_t fx = (lx & (CG - 1)) << (16 - CG_SHIFT), fy = (ly & (CG - 1)) << (16 - CG_SHIFT);
+  const int32_t c00 = B.clean(i, j), c10 = B.clean(i + 1, j), c01 = B.clean(i, j + 1), c11 = B.clean(i + 1, j + 1);
+  const int32_t ec = bil(c00, c10, c01, c11, fx, fy);
+  const int lv = levelOf(ec);
+  int nat = lv;
+  if (!(ec < ELEV_SEA + Q(0.03) || lv > 4)) nat = std::min(5, lv + mesaLift(x, y, B, i, j, fx, fy));
+  if (natOut) *natOut = nat;
+  if (ec < levelFloor(4) || nat != lv) return nat;   // the lowlands, the hills and the mesas keep natLevel's level
+  // the level in 1/256ths
+  int32_t u = (int32_t)(((int64_t)(ec - H_BASE) << 8) / H_STEP);
+  // a wobble (+-0.19 of a level, the warp's last 26-tile octave): where the high ground rises as one even ramp (a
+  // coarse cell's plane), a contour across it bends a little instead of running dead straight
+  u += (int32_t)(((int64_t)(w1y - 32768) * 96) >> 16);
+  // the high ground is compressed above level 5 (0.55 x: the big ranges reach 9 or 10 natural levels, all of it
+  // flat level 7 before): the top tiers are kept for the crests
+  if (u > 5 * 256) u = 5 * 256 + (u - 5 * 256) * 9 / 16;
+  // the ridges (above): crest lines rise up to 1.4 levels and the valleys between sink up to 1.6
+  {
+    const int32_t hi = std::clamp((u - 5 * 256) / 2, 0, 256);   // (over two levels: the field keeps rising with u)
+    if (hi > 0) {
+      const int32_t n1 = w2y, n2 = w1x;   // (the warp's own octaves: 40 tiles on the 12-5-13 lattice, 26 on the 3-4-5)
+      const int32_t r1 = 65535 - std::abs(2 * n1 - 65535), r2 = 65535 - std::abs(2 * n2 - 65535);   // 0 .. 65535, crests high
+      const int32_t r = (r1 * 3 + r2) >> 2;
+      u += (int32_t)((int64_t)(r - 35000) * 3 * hi >> 16);
+    }
+  }
+  // contour pairing: inside a parity zone the band collapses whole (a 2-level face); toward the zone's border less
+  // and less of it (a ledge a few tiles deep between two 1-level faces, then the plain contours)
+  {
+    const int32_t pn = w2x;   // (the warp's 40-tile octave on the 12-5-13 lattice)
+    const int parity = pn >= 32768 ? 1 : 0;
+    const int32_t w = std::min(256, std::abs(pn - 32768) >> 4);   // the share of the band that collapses (/256)
+    const int L = u >> 8, fr = u & 255;
+    // (parity 0 pairs the contours 3|5 and 5|7, parity 1 the contours 4|6)
+    if ((parity ? L == 5 : (L == 4 || L == 6)) && fr < w) u = (L - 1) * 256 + 255;
+  }
+  return std::min(7, u >> 8);
 }
 
 // (M2) the clean elevation natLevel reads (the same warps), for peaks: a crest is where this has a local maximum

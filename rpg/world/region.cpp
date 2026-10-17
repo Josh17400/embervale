@@ -1434,6 +1434,8 @@ void EndlessSource::Impl::buildRegion(int32_t rx, int32_t ry, RegionData& D) {
     R.landmarks.push_back(l);
   }
   planLandmarks(rx, ry, D);
+  // ---- (M11) the summit shrines and their trails (relief_plan.cpp), after the landmarks they stand by
+  planSummits(rx, ry, D, nodes, near);
 }
 
 }  // namespace ew

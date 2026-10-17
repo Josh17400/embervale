@@ -1,0 +1,55 @@
+# M11 "High Ground" TERRAIN lane: the baked look of the relief on stamped review gardens (rpg/view/script_terrain.cpp
+# reliefstamp: a plateau with curved and diagonal runs, a stacked two-level face with a switchback, a hillside that ends
+# in cliffs, an earth ramp, road stairs and a pond pouring over the south face), one per face material, then dusk.
+#   embervale.exe --script tools/scripts/m11_terrain_garden.txt     (m11tg_*.png in the working directory)
+seed 1
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.1 weather clear
++0.2 gotoeco meadow
++0.5 reliefstamp 1 1
++1.5 shot m11tg_0_grass.png
++0.1 expect relief walk
++0.1 at 300 -40
++0.1 gotoeco dunes
++0.5 reliefstamp
++1.5 shot m11tg_1_sandstone.png
++0.1 gotoeco ashfields
++0.5 reliefstamp
++1.5 shot m11tg_2_basalt.png
++0.1 gotoeco reedmarsh
++0.5 reliefstamp
++1.5 shot m11tg_3_marsh.png
++0.1 gotoeco chalkdowns
++0.5 reliefstamp
++1.5 shot m11tg_4_chalk.png
++0.1 gotoeco snowfield
++0.5 reliefstamp
++1.5 shot m11tg_5_snow.png
++0.1 gotoeco glacier
++0.5 reliefstamp
++1.5 shot m11tg_6_ice.png
++0.1 gotoeco badlands
++0.5 reliefstamp
++1.5 shot m11tg_7_badlands.png
++0.1 gotoeco alpinemeadow
++0.5 reliefstamp 2
++1.5 shot m11tg_8_granite.png
++0.1 gotoeco mixedforest
++0.5 reliefstamp slope 1
++1.5 shot m11tg_9_hills.png
++0.1 gotoeco taiga
++0.5 reliefstamp
++1.5 shot m11tg_10_taiga.png
++0.1 gotoeco crystalbarrens
++0.5 reliefstamp
++1.5 shot m11tg_11_crystal.png
++0.1 at 300 -40
++0.1 gotoeco meadow
++0.5 reliefstamp 1 1
++0.1 hour 19
++1.5 shot m11tg_12_dusk.png
++0.1 hour 23
++1.5 shot m11tg_13_night.png
++0.3 quit

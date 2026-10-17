@@ -1,0 +1,45 @@
+# M11 "High Ground" TERRAIN lane: the baked relief on the generated land (VISION_PLAN 11.2 / 11.3): the mountains as
+# stacked cliffs and scree, a peak, a range, faces of two levels, hillsides, earth ramps, road stairs, a fall's face,
+# snow steps, a chunk edge crossing a cliff, and the same at dusk and at night. The mountains' scree and high turf are
+# rare in the cold ranges near the start, so they are laid round a stacked face with reliefground (script_terrain.cpp).
+#   embervale.exe --script tools/scripts/m11_terrain_tour.txt     (m11tt_*.png in the working directory)
+seed 1
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.1 weather clear
++0.2 gotoeco mountain 2
++1.5 shot m11tt_0_mountain.png
++0.1 gotorelief stack
++1.5 shot m11tt_4_stack.png
++0.1 reliefground tundra
++1.5 shot m11tt_13_scree.png
++0.1 reliefground grass
++1.5 shot m11tt_14_high_turf.png
++0.1 gotopoi peak
++1.5 shot m11tt_1_peak.png
++0.1 gotopoi range
++1.5 shot m11tt_2_range.png
++0.1 at 239 463
++1.5 shot m11tt_3_snow_steps.png
++0.1 at 300 -40
++0.5 gotorelief slope
++1.5 shot m11tt_5_slope.png
++0.1 expect relief walk
++0.1 gotorelief ramp
++1.5 shot m11tt_6_ramp.png
++0.1 gotorelief stair
++1.5 shot m11tt_7_stair.png
++0.1 gotochunkcliff
++1.5 shot m11tt_10_chunk_edge.png
++0.1 gotorelief high
++1.5 shot m11tt_8_high.png
++0.1 at -400 -100
++0.5 gotorelief fall
++1.5 shot m11tt_9_fall.png
++0.1 hour 19
++1.5 shot m11tt_11_dusk.png
++0.1 gotoeco mountain 2
++0.1 hour 23
++1.5 shot m11tt_12_mountain_night.png
++0.3 quit

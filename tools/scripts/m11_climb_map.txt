@@ -1,0 +1,36 @@
+# M11 CLIMB: the relief on the world map (VISION_PLAN 11.5): cliffs inked, stacked faces darker, hillsides hatched, ramps
+# and stairs, waterfalls white on their rivers; faint contours every two levels and the north-west hillshade; a summit
+# shrine's icon on its peak, at the street, town and land zooms; then the minimap by a fall.
+#   embervale.exe --script tools/scripts/m11_climb_map.txt     (m11_climb_map_*.png in the working directory)
+seed 1
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 gotopoi range
++0.6 mapexplore 600
++0.1 mapreveal 30
++0.2 menu 2
++0.1 mapcentre hero
++0.1 mapzoom 0
++1.5 shot m11_climb_map_0_street.png
++0.1 mapzoom 2
++1.5 shot m11_climb_map_1_town.png
++0.1 mapzoom 4
++2.0 shot m11_climb_map_2_land.png
++0.2 key Escape
++0.3 climbseek fall
++0.6 shot m11_climb_map_3_fall_minimap.png
++0.2 menu 2
++0.1 mapcentre hero
++0.1 mapzoom 0
++1.5 shot m11_climb_map_4_fall_street.png
++0.1 mapzoom 3
++1.5 shot m11_climb_map_5_fall_town.png
++0.2 key Escape
++0.3 climbseek stack
++0.6 shot m11_climb_map_6_stack_minimap.png
++0.2 menu 2
++0.1 mapcentre hero
++0.1 mapzoom 0
++1.5 shot m11_climb_map_7_stack_street.png
++0.2 key Escape

@@ -127,7 +127,10 @@ struct TileF {
 // ---- L0.5
 // (M2) river: the river this piece belongs to (riverIdOf: its spring cell; where traces merge, the longest one's), for
 // names (landmarks, toll bridges)
-struct RiverSeg { int32_t x0, y0, x1, y1; uint8_t w; uint32_t river = 0; };
+// (M11) lv: the river's surface level where the segment starts (the running minimum of the relief level down its course
+// from the spring, sampled at every second segment start; 0 on the last reach before the sea), lvEnd: the next
+// segment's (<= lv): a river never climbs a step (the chunk keeps its surface between the two along the segment)
+struct RiverSeg { int32_t x0, y0, x1, y1; uint8_t w; uint32_t river = 0; uint8_t lv = 7, lvEnd = 7; };
 inline uint32_t riverIdOf(int32_t cx, int32_t cy) { return ((uint32_t)(cx & 0xFFFF) << 16) | (uint32_t)(cy & 0xFFFF); }
 inline int32_t riverCellX(uint32_t id) { return (int32_t)(int16_t)(uint16_t)(id >> 16); }
 inline int32_t riverCellY(uint32_t id) { return (int32_t)(int16_t)(uint16_t)(id & 0xFFFF); }
@@ -278,6 +281,10 @@ struct EndlessSource::Impl {
   // per-tile fields: bilinear from the blocks at warped coordinates (pure)
   gen::TileF tile(int32_t x, int32_t y);
   int natLevel(int32_t x, int32_t y);                             // relief level only (fast path)
+  // (M11) the chunks' relief level: natLevel deepened on the high ground (ridge ceiling, stacked contour pairs);
+  // natOut: natLevel's level at the same tile (one warp for both)
+  int reliefLevels(int32_t x, int32_t y, int* natOut);
+  int fineLevel(int32_t x, int32_t y) { return reliefLevels(x, y, nullptr); }
   int32_t waterE(int32_t x, int32_t y);                           // the elevation tile() decides the sea with
   Biome classify(int32_t e, int32_t t, int32_t m, int32_t x, int32_t y, bool sea);
   // M3c: the biome proper within family fam (rpg/world/biomes.h), from the tile's climate fields: e, t, m (with their
@@ -320,6 +327,10 @@ struct EndlessSource::Impl {
   int riverWidthCell(int32_t x, int32_t y);                        // river width in the 8-tile cell holding (x, y)
   bool waterAt(int32_t x, int32_t y);                               // sea, lake or river at a tile (slowish)
   std::unordered_map<uint64_t, int32_t> hydroMemo;
+  // (M11) the relief level of a routing cell's smooth land (levelOf of hydroE's elevation; 0 at sea): the rivers'
+  // surface levels are worked from it (no block is built for a trace's far reaches)
+  std::unordered_map<uint64_t, uint8_t> hydroLvMemo;
+  int hydroLv(int32_t i, int32_t j);
   std::unordered_map<uint64_t, std::pair<bool, gen::Lake>> lakeMemo;
   // a lake that would lie under a settlement is not made (the town is built on dry land; rivers still run through)
   bool lakeUnderSettlement(const gen::Lake& L);
@@ -459,6 +470,9 @@ struct EndlessSource::Impl {
   bool waterAtPlan(int32_t x, int32_t y);                           // a river, lake or the sea, from the plans only
   void planVignettes(int32_t rx, int32_t ry, gen::RegionData& D, const std::vector<gen::Node>& nodes,
                      const std::vector<std::shared_ptr<const gen::Edge>>& near);
+  // (M11) the summit shrines (SPF_SUMMIT) at the named peaks and ranges' crests, and their trails (relief_plan.cpp)
+  void planSummits(int32_t rx, int32_t ry, gen::RegionData& D, const std::vector<gen::Node>& nodes,
+                   const std::vector<std::shared_ptr<const gen::Edge>>& near);
   void stampVignette(const SitePlan& p, gen::Stamp& S);
   void stampWonder(const SitePlan& p, gen::Stamp& S);
   // the wonder of a wonder-lattice cell (pure, memoised); wonders near the start plan's forced one stand down

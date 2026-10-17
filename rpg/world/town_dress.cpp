@@ -1236,6 +1236,9 @@ void Gen::finish() {
         for (int d = 0; d < 4; d++) if (in(x + D4X[d], y + D4Y[d]) && lvl[I(x + D4X[d], y + D4Y[d])] > lvl[i]) face = true;
         if (face) {
           bool way = isStreet(x, y) || get(x, y) == K_YARD;
+          // (M11, VISION_PLAN 15.32) a town's or a city's street stairs are built stone stairs (HEIGHT_STAIR; a
+          // village's own tiles never change)
+          const bool built = way && isStreet(x, y) && !village;
           // (M3c) the wild land in the town's buffer (natural relief beyond its outline) takes the chunks' ramp lattice
           // (every 8 tiles along a face, as round any settlement's terraces), so a knoll at the town's edge is never
           // walled in where the town's relief meets the land's
@@ -1247,6 +1250,7 @@ void Gen::finish() {
             else way = ((gy + (int32_t)(ew::gen::tileHash(rs, 1, gx >> 4) & 15)) & 7) < 3;
           }
           h |= way ? Map::HEIGHT_RAMP : Map::HEIGHT_CLIFF;
+          if (built) h |= Map::HEIGHT_STAIR;
           if (!way && !M.wall[i] && M.prop[i]) M.prop[i] = 0;
         }
         M.height[i] = h;

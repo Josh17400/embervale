@@ -167,6 +167,10 @@ class Audio {
     wantSea_[4].store(s.creak); wantSea_[5].store(s.oars); wantSea_[6].store(s.storm); wantSea_[7].store(s.mist);
     wantSea_[8].store(s.turn);
   }
+  // M11 High Ground (VISION_PLAN 11.3, 15.32): the roar of the nearest waterfall, a looping bed (the FALLS lane renders
+  // it in audio.cpp: a deep filtered rush with a spatter on top). level 0 silent .. 1 standing at its foot; pan -1 left
+  // .. 1 right; size 0 a little cascade .. 1 a great fall (the pitch and the weight of the roar).
+  void setFalls(float level, float pan, float size) { wantFalls_[0].store(level); wantFalls_[1].store(pan); wantFalls_[2].store(size); }
   void setMaster(float v) { master_.store(v); }
   void setMusicVolume(float v) { musicVol_.store(v); }
 
@@ -268,6 +272,11 @@ class Audio {
   void renderCrowd(float* out, int n, float blockSec);
   // ---- (M10) the sea bed (audio thread)
   std::atomic<float> wantSea_[9] = {};
+  std::atomic<float> wantFalls_[3] = {};   // M11 setFalls: level, pan, size (renderFalls)
+  // (M11 FALLS) the falls' roar (audio thread): eased level / size, the filters' states, the spatter's gate
+  float fallsCur_[2] = {}, fallsLp_[8] = {}, fallsT_ = 0, fallsGate_ = 0, fallsGateT_ = 0;
+  uint32_t fallsRng_ = 0x1F83D9ABu;
+  void renderFalls(float* out, int n, float blockSec);
   float seaCur_[9] = {}, seaT_ = 0, seaLp_[6] = {}, seaEvT_[6] = {0.5f, 1.0f, 1.5f, 2.0f, 0.3f, 3.0f}, seaSwellT_ = 0;
   uint32_t seaRng_ = 0x510E527Fu;
   void renderSea(float* out, int n, float blockSec);

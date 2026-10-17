@@ -20,7 +20,9 @@
 // rowboat at the oars, a harbour, a storm, the Mist and its turn-back), each checked for clipping, clicks and level
 // against the beds; the hidden kingdoms' three scales played as Town pieces.
 //
-//   audio_preview [outDir] [--cultures] [--wild] [--tavern] [--magic] [--sea]   default outDir: %LOCALAPPDATA%\Temp\claude\embervale_audio;
+// M11 (FALLS lane): --falls: the falls' roar at three sizes, a walk up to a fall, a window shift's jump, walking away.
+//
+//   audio_preview [outDir] [--cultures] [--wild] [--tavern] [--magic] [--sea] [--falls]   default outDir: %LOCALAPPDATA%\Temp\claude\embervale_audio;
 //                                                  --cultures: only the culture pieces; --wild: only the beds and moods;
 //                                                  --tavern: only the tavern
 #include "engine/audio.h"
@@ -630,6 +632,59 @@ int seaSounds(const fs::path& dir) {
   return problems;
 }
 
+// (M11 FALLS) the falls' roar (Audio::setFalls): a little cascade, a fall, a great fall, each at its foot; walking up to
+// one; a window shift's jump in the nearest fall (eased: no click); walking away (it dies to silence)
+int fallsSounds(const fs::path& dir) {
+  int problems = 0;
+  std::printf("\n%-14s %7s %8s %7s %6s %9s %8s %8s\n", "FALLS", "peak", "peak dB", "rms dB", "clip", "jump", "200ms dB", "cent Hz");
+  const float sizes[3] = {0.1f, 0.5f, 1.0f};
+  const char* names[3] = {"cascade", "fall", "great_fall"};
+  float rmsAt[3] = {};
+  for (int i = 0; i < 3; i++) {
+    auto a = std::make_unique<Audio>();
+    a->setFalls(1.0f, 0.0f, sizes[i]);
+    auto x = renderFor(*a, 8.0f);
+    const Levels L = levels(x, 3 * SR);
+    const Loud LL = loudness(x, 3 * SR);
+    const float jump = maxJump(x, 3 * SR);
+    const Tone T = tone(std::vector<float>(x.begin() + 3 * SR, x.end()));
+    rmsAt[i] = L.rms;
+    std::printf("%-14s %7.3f %8.1f %7.1f %6d %9.4f %8.1f %8.0f\n", names[i], L.peak, db(L.peak), db(L.rms), L.clipped, jump, db(LL.maxWin), T.centroid);
+    // a bed: audible at the foot, well under the music and the sfx, never clipping or clicking
+    if (L.clipped || L.peak > 0.6f || L.rms < 2e-3f || jump > 0.45f) { std::printf("  ^ PROBLEM\n"); problems++; }
+    writeWav(dir / (std::string("falls_") + names[i] + ".wav"), x);
+  }
+  if (!(rmsAt[2] > rmsAt[0])) { std::printf("PROBLEM: a great fall is not heavier than a cascade\n"); problems++; }
+  {   // walking up to a fall, a window shift's jump (0.25 -> 0.8 in one frame), then walking away
+    auto a = std::make_unique<Audio>();
+    std::vector<float> all;
+    for (int k = 0; k <= 20; k++) {   // 4 s of approach in 0.2 s steps
+      a->setFalls(0.04f * k, -0.6f + 0.03f * k, 0.6f);
+      auto p = renderFor(*a, 0.2f);
+      all.insert(all.end(), p.begin(), p.end());
+    }
+    const size_t jumpAt = all.size();
+    a->setFalls(0.25f, 0.3f, 0.6f);
+    auto p1 = renderFor(*a, 1.0f);
+    all.insert(all.end(), p1.begin(), p1.end());
+    a->setFalls(0.8f, -0.3f, 0.6f);
+    auto p2 = renderFor(*a, 1.5f);
+    all.insert(all.end(), p2.begin(), p2.end());
+    a->setFalls(0.0f, 0.0f, 0.6f);
+    auto p3 = renderFor(*a, 4.0f);
+    all.insert(all.end(), p3.begin(), p3.end());
+    const float jump = maxJump(all, jumpAt);
+    float tail = 0;
+    for (size_t i = all.size() - SR / 2; i < all.size(); i++) tail = std::fmax(tail, std::fabs(all[i]));
+    std::printf("falls walk-up -> shift jump -> away: max sample jump %.4f, last half second peak %.5f\n", jump, tail);
+    if (jump > 0.45f) { std::printf("PROBLEM: the roar clicks on a jump\n"); problems++; }
+    if (tail > 0.01f) { std::printf("PROBLEM: the roar does not die away\n"); problems++; }
+    writeWav(dir / "falls_walk.wav", all);
+  }
+  std::printf("falls: %s (%d problem%s)\n", problems ? "CHECK FAILED" : "all checks passed", problems, problems == 1 ? "" : "s");
+  return problems;
+}
+
 int magicVoices(const fs::path& dir) {
   int problems = 0;
   struct Life { const char* name; Sfx cast, hit; float k; };
@@ -721,17 +776,18 @@ int magicVoices(const fs::path& dir) {
 
 int main(int argc, char** argv) {
   fs::path dir;
-  bool culturesOnly = false, wildOnly = false, tavernOnly = false, magicOnly = false, seaOnly = false;
+  bool culturesOnly = false, wildOnly = false, tavernOnly = false, magicOnly = false, seaOnly = false, fallsOnly = false;
   for (int i = 1; i < argc; i++) {
     if (std::string(argv[i]) == "--cultures") culturesOnly = true;
     else if (std::string(argv[i]) == "--tavern") tavernOnly = true;
     else if (std::string(argv[i]) == "--wild") wildOnly = true;
     else if (std::string(argv[i]) == "--magic") magicOnly = true;
     else if (std::string(argv[i]) == "--sea") seaOnly = true;
+    else if (std::string(argv[i]) == "--falls") fallsOnly = true;
     else if (argv[i][0] == '-') {
       // An unknown flag (e.g. --help) must never become the output directory: that once dumped 200 MB of WAVs
       // into a folder named "--help" in the repo root.
-      std::fprintf(stderr, "usage: audio_preview [outDir] [--cultures] [--wild] [--tavern] [--magic] [--sea]\n");
+      std::fprintf(stderr, "usage: audio_preview [outDir] [--cultures] [--wild] [--tavern] [--magic] [--sea] [--falls]\n");
       return std::string(argv[i]) == "--help" || std::string(argv[i]) == "-h" ? 0 : 2;
     } else dir = argv[i];
   }
@@ -758,6 +814,10 @@ int main(int argc, char** argv) {
   }
   if (magicOnly) {
     problems = magicVoices(dir);
+    return problems ? 2 : 0;
+  }
+  if (fallsOnly) {
+    problems = fallsSounds(dir);
     return problems ? 2 : 0;
   }
   if (seaOnly) {

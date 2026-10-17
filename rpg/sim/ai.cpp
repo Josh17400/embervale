@@ -1,7 +1,10 @@
 // EMBERVALE AI: per-species monster behaviour, NPC and guard behaviour, the heavy slam.
 // (M0 town-defence lane: factions, monsters targeting villagers and guards, fleeing, militia, the bell.)
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <cstdlib>
+#include <utility>
 #include <map>
 #include <string>
 #include <vector>
@@ -122,8 +125,99 @@ int Game::homeDoor(Actor& a) {
   return best;
 }
 
+// M11 CLIMB: the long path search (VISION_PLAN 11.4, 13 M11 "guards and companions path across ramps"). The short
+// search below is a BFS bounded to the start and goal's box plus 16 tiles: a cliff between whose nearest way up lies
+// 16-24 tiles along the face (the ramp lattice), stacked faces or a switchback trail fall outside it. Then an A* over a
+// window 40 tiles wider (at most NAV_WINDOW tiles a side, NAV_BUDGET expansions) finds the way by the ramp; its path is
+// cached per body and walked (with a look-ahead that cuts corners where the box is clear, so nobody zig-zags along the
+// tile grid) until it is walked, the goal moves off it or the body makes no headway. A failure is held NAV_FAIL_HOLD s
+// for that goal: an unreachable goal costs one search a second, not one a frame.
+namespace {
+constexpr int NAV_MARGIN = 40, NAV_WINDOW = 208, NAV_BUDGET = 12000;
+constexpr float NAV_FAIL_HOLD = 1.0f;
+constexpr size_t NAV_CACHE = 64;
+// the walking cost of a tile (x10): relief tiles cost their slowness (Map::reliefSpeed), so a path keeps to the flat
+// where a way round is no longer
+int navTileCost(const Map& m, int x, int y) {
+  const float k = m.reliefSpeedAt(x, y);
+  return k >= 1.0f ? 10 : (int)std::lround(10.0f / k);
+}
+using NavOpen = std::pair<int32_t, int32_t>;   // (f, local index)
+struct NavOpenCmp {
+  bool operator()(const NavOpen& p, const NavOpen& q) const { return p.first > q.first; }
+};
+}  // namespace
+
+// the A* over the wide window: true with the way (tile pairs x, y in this map's local tiles, the goal's last) in `out`
+bool ClimbOps::longSearch(Game& g, const Actor& a, int sx, int sy, int gx, int gy, std::vector<int32_t>& out, int& nodes) {
+  const Map& m = g.map();
+  out.clear();
+  nodes = 0;
+  if (std::abs(sx - gx) > NAV_WINDOW - 16 || std::abs(sy - gy) > NAV_WINDOW - 16) return false;
+  int x0 = std::max(0, std::min(sx, gx) - NAV_MARGIN), y0 = std::max(0, std::min(sy, gy) - NAV_MARGIN);
+  int x1 = std::min(m.w - 1, std::max(sx, gx) + NAV_MARGIN), y1 = std::min(m.h - 1, std::max(sy, gy) + NAV_MARGIN);
+  // (a window over the cap: trimmed evenly round the start and goal's own box)
+  while (x1 - x0 + 1 > NAV_WINDOW) {
+    if (x0 < std::min(sx, gx)) x0++;
+    if (x1 - x0 + 1 > NAV_WINDOW && x1 > std::max(sx, gx)) x1--;
+  }
+  while (y1 - y0 + 1 > NAV_WINDOW) {
+    if (y0 < std::min(sy, gy)) y0++;
+    if (y1 - y0 + 1 > NAV_WINDOW && y1 > std::max(sy, gy)) y1--;
+  }
+  const int ww = x1 - x0 + 1, hh = y1 - y0 + 1;
+  const size_t n = (size_t)ww * hh;
+  std::vector<int32_t>& cost = g.navCost_;
+  std::vector<int32_t>& from = g.navFrom_;
+  std::vector<uint32_t>& stamp = g.navStamp_;
+  if (cost.size() < n) { cost.resize(n); from.resize(n); stamp.assign(n, 0u); g.navGen_ = 0; }
+  if (++g.navGen_ == 0) { std::fill(stamp.begin(), stamp.end(), 0u); g.navGen_ = 1; }
+  const uint32_t gen = g.navGen_;
+  auto loc = [&](int x, int y) { return (y - y0) * ww + (x - x0); };
+  auto h = [&](int x, int y) { return 10 * (std::abs(x - gx) + std::abs(y - gy)); };
+  std::vector<NavOpen> open;
+  open.reserve(512);
+  const int s0 = loc(sx, sy), goalL = loc(gx, gy);
+  stamp[(size_t)s0] = gen; cost[(size_t)s0] = 0; from[(size_t)s0] = s0;
+  open.push_back({h(sx, sy), s0});
+  const bool over = m.kind == MapKind::Overworld;
+  static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
+  bool found = false;
+  while (!open.empty() && nodes < NAV_BUDGET) {
+    std::pop_heap(open.begin(), open.end(), NavOpenCmp());
+    const NavOpen top = open.back();
+    open.pop_back();
+    const int li = top.second, cx = li % ww + x0, cy = li / ww + y0;
+    if (top.first - h(cx, cy) > cost[(size_t)li]) continue;   // a stale entry
+    if (li == goalL) { found = true; break; }
+    nodes++;
+    for (int k = 0; k < 4; k++) {
+      const int nx = cx + dx[k], ny = cy + dy[k];
+      if (nx < x0 || ny < y0 || nx > x1 || ny > y1) continue;
+      const bool isGoal = nx == gx && ny == gy;
+      if (!isGoal) {
+        if (m.blocked(nx, ny)) continue;
+        if (over && g.yardBarred(a, nx, ny)) continue;
+        if (over && m.bldgAt[(size_t)ny * m.w + nx] >= 0) continue;
+      }
+      const int nl = loc(nx, ny);
+      const int nc = cost[(size_t)li] + navTileCost(m, nx, ny);
+      if (stamp[(size_t)nl] == gen && cost[(size_t)nl] <= nc) continue;
+      stamp[(size_t)nl] = gen; cost[(size_t)nl] = nc; from[(size_t)nl] = li;
+      open.push_back({nc + h(nx, ny), nl});
+      std::push_heap(open.begin(), open.end(), NavOpenCmp());
+    }
+  }
+  if (!found) return false;
+  std::vector<int32_t> rev;
+  for (int cur = goalL; cur != s0; cur = from[(size_t)cur]) { rev.push_back(cur % ww + x0); rev.push_back(cur / ww + y0); }
+  for (size_t k = rev.size(); k >= 2; k -= 2) { out.push_back(rev[k - 2]); out.push_back(rev[k - 1]); }
+  return !out.empty();
+}
+
 // Walk toward `goal` (a world point): straight when the way is clear, otherwise along a 4-connected tile path
-// found by a bounded breadth-first search (re-planned on every tile, so moving targets are fine).
+// found by a bounded breadth-first search (re-planned on every tile, so moving targets are fine); (M11) beyond that
+// search's box, the long A* above, its way cached and walked.
 bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
   const Map& m = map();
   Vec2 d = goal - a.p;
@@ -139,7 +233,64 @@ bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
     a.navNext = -1;
     return true;
   }
+  navStats.requests++;
+  const auto clk0 = std::chrono::steady_clock::now();
+  auto clocked = [&](bool r) {
+    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - clk0).count();
+    navStats.ms += ms;
+    navStats.worstMs = std::max(navStats.worstMs, ms);
+    return r;
+  };
   int sx = tileX(a.p), sy = tileY(a.p), gx = tileX(goal), gy = tileY(goal);
+  // ---- (M11) a cached long way, or a failure held a moment
+  const int key = mapKey();
+  const int32_t ox = inside ? 0 : world.ox, oy = inside ? 0 : world.oy;
+  size_t ci = navPaths_.size();
+  for (size_t i = 0; i < navPaths_.size(); i++)
+    if (navPaths_[i].id == a.id) { ci = i; break; }
+  if (ci < navPaths_.size()) {
+    NavPath& np = navPaths_[ci];
+    np.t += dt;
+    const int32_t moved = std::max(std::abs(gx + ox - np.gx), std::abs(gy + oy - np.gy));
+    bool drop = np.key != key;
+    if (!drop && np.fail) {
+      if (np.t < NAV_FAIL_HOLD && moved <= 2) { navStats.failHeld++; return clocked(false); }
+      drop = true;
+    }
+    if (!drop && (np.at * 2 >= (int)np.tiles.size() || np.stuck > 0.6f || (moved > 3 && np.t > 0.5f))) drop = true;
+    if (drop) { navPaths_.erase(navPaths_.begin() + (std::ptrdiff_t)ci); ci = navPaths_.size(); }
+  }
+  auto followCached = [&](NavPath& np) {
+    navStats.cacheFollows++;
+    a.navNext = -1;
+    auto centre = [&](int k) { return tileCentre(np.tiles[(size_t)k * 2] - ox, np.tiles[(size_t)k * 2 + 1] - oy); };
+    const int n = (int)np.tiles.size() / 2;
+    Vec2 c = centre(np.at);
+    if (len2(c - a.p) < 3.0f * 3.0f || np.t == 0.0f) {
+      if (np.t > 0.0f) np.at++;
+      if (np.at >= n) { np.at = n; return true; }   // walked: the straight way (or a fresh plan) next step
+      // look ahead: the farthest of the next few waypoints the body walks to straight (a natural line, not the grid)
+      for (int k = std::min(n - 1, np.at + 5); k > np.at; k--) {
+        const Vec2 e = centre(k), de = e - a.p;
+        const float le = len(de);
+        bool ok = true;
+        for (float t = 4.0f; t < le && ok; t += 4.0f) ok = bodyFree(a.p + de * (t / le), a.radius, false);
+        if (ok) { np.at = k; break; }
+      }
+      c = centre(np.at);
+    }
+    const Vec2 dc = c - a.p;
+    const float lc = len(dc);
+    if (lc > 0.01f) {
+      const Vec2 before = a.p;
+      moveActor(a, dc * (std::min(speed * dt, lc) / lc));
+      a.face = faceOf(dc);
+      if (len2(a.p - before) < 0.0004f) np.stuck += dt;
+      else np.stuck = std::max(0.0f, np.stuck - dt);
+    }
+    return true;
+  };
+  if (ci < navPaths_.size()) return clocked(followCached(navPaths_[ci]));
   int goalIdx = gy * m.w + gx;
   a.navT -= dt;
   bool atNext = false;
@@ -151,41 +302,69 @@ bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
     a.navGoal = goalIdx;
     a.navT = 0.5f;
     a.navNext = -1;
+    if (!m.in(sx, sy) || !m.in(gx, gy)) return clocked(false);
     // bounded BFS from the actor's tile to the goal tile
     // (the margin lets a path swing out through a city gate or around a long house row)
     int x0 = std::max(0, std::min(sx, gx) - 16), y0 = std::max(0, std::min(sy, gy) - 16);
     int x1 = std::min(m.w - 1, std::max(sx, gx) + 16), y1 = std::min(m.h - 1, std::max(sy, gy) + 16);
     int ww = x1 - x0 + 1, hh = y1 - y0 + 1;
-    if (ww > 112 || hh > 112 || !m.in(sx, sy) || !m.in(gx, gy)) return false;
-    navPrev_.assign((size_t)ww * hh, -1);
-    auto loc = [&](int x, int y) { return (y - y0) * ww + (x - x0); };
-    std::vector<int> q;
-    q.reserve(256);
-    q.push_back(loc(sx, sy));
-    navPrev_[(size_t)loc(sx, sy)] = loc(sx, sy);
     bool found = false;
-    static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
-    for (size_t h = 0; h < q.size() && !found; h++) {
-      int cx = q[h] % ww + x0, cy = q[h] / ww + y0;
-      for (int k = 0; k < 4; k++) {
-        int nx = cx + dx[k], ny = cy + dy[k];
-        if (nx < x0 || ny < y0 || nx > x1 || ny > y1) continue;
-        int li = loc(nx, ny);
-        if (navPrev_[(size_t)li] >= 0) continue;
-        if (m.blocked(nx, ny) && !(nx == gx && ny == gy)) continue;
-        if (m.kind == MapKind::Overworld && yardBarred(a, nx, ny)) continue;   // (M7) not through the player's yard
-        // (owner) a building's ways in (an open front's bays: only the pillars block there) are no street to walk along
-        if (m.kind == MapKind::Overworld && m.bldgAt[(size_t)ny * m.w + nx] >= 0 && !(nx == gx && ny == gy)) continue;
-        navPrev_[(size_t)li] = q[h];
-        if (nx == gx && ny == gy) { found = true; break; }
-        q.push_back(li);
+    if (ww <= 112 && hh <= 112) {
+      navPrev_.assign((size_t)ww * hh, -1);
+      auto loc = [&](int x, int y) { return (y - y0) * ww + (x - x0); };
+      std::vector<int> q;
+      q.reserve(256);
+      q.push_back(loc(sx, sy));
+      navPrev_[(size_t)loc(sx, sy)] = loc(sx, sy);
+      static const int dx[4] = {1, -1, 0, 0}, dy[4] = {0, 0, 1, -1};
+      for (size_t h = 0; h < q.size() && !found; h++) {
+        int cx = q[h] % ww + x0, cy = q[h] / ww + y0;
+        for (int k = 0; k < 4; k++) {
+          int nx = cx + dx[k], ny = cy + dy[k];
+          if (nx < x0 || ny < y0 || nx > x1 || ny > y1) continue;
+          int li = loc(nx, ny);
+          if (navPrev_[(size_t)li] >= 0) continue;
+          if (m.blocked(nx, ny) && !(nx == gx && ny == gy)) continue;
+          if (m.kind == MapKind::Overworld && yardBarred(a, nx, ny)) continue;   // (M7) not through the player's yard
+          // (owner) a building's ways in (an open front's bays: only the pillars block there) are no street to walk along
+          if (m.kind == MapKind::Overworld && m.bldgAt[(size_t)ny * m.w + nx] >= 0 && !(nx == gx && ny == gy)) continue;
+          navPrev_[(size_t)li] = q[h];
+          if (nx == gx && ny == gy) { found = true; break; }
+          q.push_back(li);
+        }
+      }
+      if (found) {
+        int cur = loc(gx, gy), start = loc(sx, sy);
+        while (navPrev_[(size_t)cur] != start && navPrev_[(size_t)cur] != cur) cur = navPrev_[(size_t)cur];
+        if (cur == start) return clocked(false);
+        a.navNext = (cur / ww + y0) * m.w + (cur % ww + x0);
+        navStats.shortFound++;
       }
     }
-    if (!found) return false;
-    int cur = loc(gx, gy), start = loc(sx, sy);
-    while (navPrev_[(size_t)cur] != start && navPrev_[(size_t)cur] != cur) cur = navPrev_[(size_t)cur];
-    if (cur == start) return false;
-    a.navNext = (cur / ww + y0) * m.w + (cur % ww + x0);
+    if (!found) {
+      navStats.shortFails++;
+      // (M11) the long search: the way by a ramp 16-24 tiles along the face, up stacked faces, a switchback trail
+      navStats.longSearches++;
+      std::vector<int32_t> way;
+      int nodes = 0;
+      const bool ok = ClimbOps::longSearch(*this, a, sx, sy, gx, gy, way, nodes);
+      navStats.nodes += nodes;
+      navStats.worstNodes = std::max(navStats.worstNodes, nodes);
+      if (navPaths_.size() >= NAV_CACHE) navPaths_.erase(navPaths_.begin());
+      NavPath np;
+      np.id = a.id; np.gx = gx + ox; np.gy = gy + oy; np.key = key;
+      if (!ok) {
+        navStats.longFails++;
+        np.fail = true;
+        navPaths_.push_back(std::move(np));
+        return clocked(false);
+      }
+      navStats.longFound++;
+      for (size_t k = 0; k < way.size(); k += 2) { way[k] += ox; way[k + 1] += oy; }
+      np.tiles = std::move(way);
+      navPaths_.push_back(std::move(np));
+      return clocked(followCached(navPaths_.back()));
+    }
   }
   Vec2 c = tileCentre(a.navNext % m.w, a.navNext / m.w);
   Vec2 dc = c - a.p;
@@ -200,7 +379,7 @@ bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
       if (m.blocked(tileX(a.p), tileY(a.p))) { a.p = freeSpot(tileX(a.p), tileY(a.p)); a.navNext = -1; }
     }
   }
-  return true;
+  return clocked(true);
 }
 
 // Friendly NPCs: guards (and militia) fight what threatens the town, everyone else runs home and hides, and
@@ -276,6 +455,7 @@ void Game::updateFolk(Actor& a, float dt) {
     if (a.unreachT > 0) a.unreachT -= dt;
     if (thinkClock <= 0) {
       thinkClock = 0.4f;
+      const int chasing = a.target;
       a.target = -1;
       float bd = 1e30f;
       const Site* st = town ? &world.sites[a.site] : nullptr;
@@ -284,6 +464,9 @@ void Game::updateFolk(Actor& a, float dt) {
         if (e.id == a.unreach && a.unreachT > 0) return;   // no way to it from here: leave it for someone else
         float d2 = len2(e.p - a.p);
         bool nearMe = d2 < (guard ? 110.0f * 110.0f : 90.0f * 90.0f);
+        // (M11 CLIMB) the quarry already chased is kept on a longer leash (20 tiles): the way round a cliff by its ramp
+        // leads away along the face before it climbs back (VISION_PLAN 11.4: a way up every 16-24 tiles)
+        if (!nearMe && e.id == chasing && d2 < (20.0f * TILE) * (20.0f * TILE)) nearMe = true;
         bool inTown = false;
         if (a.role == Role::Guard && st) {
           // the bell (or a beast on the hunt in town, M4: or anything hostile walking the streets) calls every guard:

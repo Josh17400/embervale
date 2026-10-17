@@ -16,6 +16,7 @@
 //          -> reverb / echo sends -------------------------------------------/
 #include "engine/audio.h"
 #include <SDL3/SDL.h>
+#include <algorithm>
 #include <cmath>
 #include <initializer_list>
 
@@ -2557,6 +2558,53 @@ void Audio::renderSea(float* out, int n, float blockSec) {
   }
 }
 
+// ------------------------------------------------------------------------------------------ (M11) the falls' roar
+// A waterfall heard from nearby (Audio::setFalls, the FALLS lane): a deep rush (noise through two low-pass poles,
+// lower and heavier for a great fall), a body of mid-band hiss (the sheet tearing on the rock), and spatter on top
+// (bright clicks of droplets in short random bursts). A slow swell breathes through it so it never reads as static
+// noise. Level and size ease on the audio thread (a window shift or a new nearest fall never pops). The mixer is mono:
+// the side (pan) only tilts the tone (the far side duller), it cannot place the sound.
+void Audio::renderFalls(float* out, int n, float blockSec) {
+  const float wantL = clampf(wantFalls_[0].load(std::memory_order_relaxed), 0.0f, 1.0f);
+  const float wantS = clampf(wantFalls_[2].load(std::memory_order_relaxed), 0.0f, 1.0f);
+  const float pan = clampf(wantFalls_[1].load(std::memory_order_relaxed), -1.0f, 1.0f);
+  if (wantL < 0.0005f && fallsCur_[0] < 0.0005f) { fallsCur_[0] = 0; return; }
+  const float ke = 1.0f - std::exp(-blockSec / 0.35f), ks = 1.0f - std::exp(-blockSec / 1.5f);
+  const float l0 = fallsCur_[0];
+  fallsCur_[0] += (wantL - fallsCur_[0]) * ke;
+  fallsCur_[1] += (wantS - fallsCur_[1]) * ks;
+  const float l1 = fallsCur_[0], size = fallsCur_[1];
+  fallsT_ += blockSec;
+  // the filters by size: a little cascade hisses high, a great fall thunders low
+  const float cDeep = 1.0f - std::exp(-TAU * (420.0f - 260.0f * size) / FS);
+  const float cBody = 1.0f - std::exp(-TAU * (2600.0f - 1200.0f * size - 500.0f * std::fabs(pan)) / FS);
+  const float cHi = 1.0f - std::exp(-TAU * 5200.0f / FS);
+  const float swell = 0.82f + 0.12f * sinc(fallsT_ * 0.21f) + 0.06f * sinc(fallsT_ * 0.53f + 1.3f);
+  const float wDeep = 2.6f + 2.2f * size, wBody = 0.9f - 0.3f * size, wSpat = 0.22f - 0.08f * size;
+  for (int i = 0; i < n; i++) {
+    const float lv = l0 + (l1 - l0) * ((float)i / (float)n);   // per-sample ramp: no zipper steps
+    const float w = white(fallsRng_);
+    // the deep rush
+    fallsLp_[0] += cDeep * (w - fallsLp_[0]);
+    fallsLp_[1] += cDeep * (fallsLp_[0] - fallsLp_[1]);
+    float y = fallsLp_[1] * wDeep;
+    // the body: band-limited hiss (low-pass minus a lower low-pass)
+    fallsLp_[2] += cBody * (w - fallsLp_[2]);
+    fallsLp_[3] += cDeep * (fallsLp_[2] - fallsLp_[3]);
+    y += (fallsLp_[2] - fallsLp_[3]) * wBody;
+    // spatter: bright clicks gated in short random bursts
+    fallsGateT_ -= DT;
+    if (fallsGateT_ <= 0) {
+      fallsGateT_ = 0.004f + 0.03f * (float)(xs32(fallsRng_) & 1023) / 1023.0f;
+      fallsGate_ = (float)(xs32(fallsRng_) & 1023) / 1023.0f;
+      fallsGate_ *= fallsGate_;
+    }
+    fallsLp_[4] += cHi * (w - fallsLp_[4]);
+    y += (w - fallsLp_[4]) * fallsGate_ * wSpat;
+    out[i] += y * swell * lv * kAmbGain * 0.48f * (0.8f + 0.6f * size);   // a great fall is louder as well as lower
+  }
+}
+
 // ------------------------------------------------------------------------------------------ (M5) the crowd
 // A tavern's murmur: five talkers, each a glottal buzz (a saw near 100..240 Hz with a drifting intonation) through two
 // formant band-passes whose vowel changes every syllable, in phrases with pauses; overlapping, low-passed by the room.
@@ -2713,6 +2761,7 @@ void Audio::renderBlock(float* out, int n) {
     if (v.on) renderVoice(v, n, lg, sfx, mus, sndS, sndM);
   renderAmbient(amb, n, (float)n * DT);
   renderSea(amb, n, (float)n * DT);   // (M10) the sea's bed on the ambient bus
+  renderFalls(amb, n, (float)n * DT); // (M11) the falls' roar on the ambient bus
   renderCrowd(crowd, n, (float)n * DT);
   // (M5) the score's level and muffle (the bard heard from the street), eased over ~0.4 s; the crowd goes through them
   const float blockSec = (float)n * DT, kg = 1.0f - std::exp(-blockSec / 0.4f);

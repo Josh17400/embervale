@@ -15,8 +15,8 @@ struct WildInfo { uint8_t w, h, frames; };
 // Peak, StandingStone, CaravanWreck, WatchtowerRuin, FishingShack, TollPost, HerbBed, GraveCairn, Bedroll, ElderTree,
 // Colossus, StarShard, DragonBones, GreatPeak
 const WildInfo kWild[] = {
-    {64, 78, 1}, {18, 36, 1}, {56, 36, 1}, {52, 80, 1}, {52, 50, 1}, {40, 32, 1}, {18, 15, 1},
-    {22, 24, 1}, {30, 16, 4}, {112, 128, 1}, {56, 112, 1}, {22, 32, 4}, {120, 62, 1}, {136, 140, 1},
+    {80, 80, 1}, {18, 36, 1}, {56, 36, 1}, {52, 80, 1}, {52, 50, 1}, {40, 32, 1}, {18, 15, 1},
+    {22, 24, 1}, {30, 16, 4}, {112, 128, 1}, {56, 112, 1}, {22, 32, 4}, {120, 62, 1}, {160, 150, 1},
 };
 constexpr int kWildN = (int)(sizeof(kWild) / sizeof(kWild[0]));
 static_assert(kWildN == (int)Prop::GreatPeak + 1 - (int)Prop::Peak, "a size for every M2 prop (Peak .. GreatPeak)");
@@ -105,138 +105,206 @@ void lichen(Canvas& c, int x0, int y0, int x1, int y1, uint32_t seed, float amou
 }
 
 // ---- Peak ------------------------------------------------------------------------------------------------------
-// A mountain seen in the 3/4 view: a jagged skyline, spurs running from the summit down toward the viewer (each lit on
-// its west side and shaded on its east side, with a gully between), strata across the faces, a scree apron and grass
-// at the foot. Eight shapes (height, lean, a twin summit, the number of spurs) in three lands: grey rock, snow-capped
-// (snow on the upper faces, streaming down the gullies) and banded sandstone.
+// (M11 FALLS lane) A mountain seen in the 3/4 view, built from RIDGES, not cones: a main crest running east-west
+// (jagged, notched, with a lesser top on some), spurs running from it down toward the viewer with a knee and a shoulder,
+// a broad mass filling between them. Every ridge's flanks share one steepness, so they read as clean PLANES: the west
+// planes catch the north-west light, the south planes face the viewer in mid tones, the east planes fall into shade, and
+// the crest between a lit and a shaded plane carries a bright rim. Snow lies on the heights and runs down the gullies
+// (lit white, shaded blue). Its land changes the rock (grey, cool snow-capped, sandstone strata, banded badlands, basalt
+// columns, glacier ice, chalk), never the form. Eight shapes; the same painter at a GreatPeak's canvas paints a massif
+// (more spurs, a longer crest, foothills). The canvas leaves a margin either side for the cast shadow (peakVariant).
 void peak(Canvas& c, int v, int land) {
   const int W = c.w, H = c.h, base = H - 4;
   const uint32_t seed = 7001u + (uint32_t)v * 131u;   // the same shape in every land (a range changes its rock, not its form)
-  const Ramp Rg = ramp5(rgba(44, 40, 62), rgba(76, 72, 94), rgba(114, 108, 120), rgba(154, 146, 146), rgba(194, 186, 174));
-  const Ramp Rc = ramp5(rgba(36, 38, 66), rgba(62, 68, 100), rgba(96, 104, 134), rgba(138, 146, 170), rgba(184, 192, 210));
+  const Ramp Rg = ramp5(rgba(44, 40, 62), rgba(74, 70, 92), rgba(112, 106, 118), rgba(152, 144, 144), rgba(196, 188, 176));
+  const Ramp Rc = ramp5(rgba(34, 36, 64), rgba(58, 64, 98), rgba(92, 100, 132), rgba(134, 142, 168), rgba(182, 190, 210));
   const Ramp Rs = ramp5(rgba(98, 50, 52), rgba(150, 84, 64), rgba(196, 124, 82), rgba(224, 164, 106), rgba(244, 206, 148));
-  // (M3c Wildlands, LAND lane) 3 red banded badlands sandstone, 4 black basalt, 5 glacier ice, 6 white chalk
   const Ramp Rb = ramp5(rgba(92, 40, 42), rgba(146, 66, 50), rgba(188, 98, 64), rgba(218, 142, 92), rgba(240, 194, 140));
   const Ramp Rcream = ramp5(rgba(120, 82, 66), rgba(174, 130, 96), rgba(214, 176, 128), rgba(234, 208, 162), rgba(250, 234, 200));
   const Ramp Rk = ramp5(rgba(18, 18, 28), rgba(34, 34, 46), rgba(54, 54, 66), rgba(82, 82, 94), rgba(118, 118, 126));
   const Ramp Ri = ramp5(rgba(54, 84, 146), rgba(92, 136, 196), rgba(142, 184, 226), rgba(196, 224, 244), rgba(240, 250, 255));
   const Ramp Rw = ramp5(rgba(110, 110, 120), rgba(164, 162, 160), rgba(204, 200, 190), rgba(230, 226, 214), rgba(250, 248, 240));
   const Ramp& R = land == 2 ? Rs : land == 1 ? Rc : land == 3 ? Rb : land == 4 ? Rk : land == 5 ? Ri : land == 6 ? Rw : Rg;
-  // The mountain is a small heightfield on the ground plane (x east, z north/back), seen in the 3/4 view: a ground
-  // point (x, z) at height Z shows at screen y = base - z * 0.5 - Z. Every column is drawn front to back with a
-  // y-buffer, so near ridges hide the slopes behind them. Radial ridges (spurs) twist down from the summit; light comes
-  // from the north-west, high: west slopes lit, east slopes in shade, strata along the contours, snow on the heights.
-  struct Cone { float x, z, h, r, twist; int n; };
-  // (M2 fixer round 2) the same painter at any canvas: a Peak (64 x 78) or a GreatPeak (the massif at a named summit
-  // or a range's crest, about twice as big), its cones scaled to the canvas; the great one is a whole massif
-  const float s = W / 64.0f, sv = H / 78.0f;
-  const bool great = s > 1.5f;
-  const float D = 44.0f * s;                     // ground depth of the footprint (screen: D / 2 px)
+  const bool great = W > 120;
+  const float s = great ? 1.9f : 1.0f;
+  const int M = great ? 12 : 8;                   // the margins either side (the cast shadow's room)
+  const float IW = (float)(W - 2 * M);            // the mountain's own width
+  const float D = IW * 0.62f;                     // its ground depth (screen: D / 2 px)
+  const float cx = W * 0.5f;
   const bool tall = (v & 1) == 0;
-  const float hgt = (tall ? 50.0f : 36.0f) * sv * (great ? 1.08f : 1.0f);
-  std::vector<Cone> cones;
-  const float lean = ((v == 2 || v == 7) ? -5.0f : (v == 4 || v == 5) ? 5.0f : 0.0f) * s;
-  const float r0 = (tall ? 25.0f : 26.0f) * s * (great ? 0.80f : 1.0f);
-  cones.push_back({W * 0.5f + lean, r0 * 0.8f + 1.0f * s + (great ? 6.0f * s : 0.0f), hgt, r0, (v & 2) ? 0.6f : -0.5f, 4 + (v % 3) + (great ? 2 : 0)});
-  if (great) {
-    // shoulders and lesser summits either side, foothills in front: one mass of rock, not a cone
-    const float side = (v & 4) ? 1.0f : -1.0f;
-    cones.push_back({W * 0.5f + side * 19.0f * s, D * 0.52f, hgt * 0.74f, 15.0f * s, 0.4f, 5});
-    cones.push_back({W * 0.5f - side * 17.0f * s, D * 0.46f, hgt * 0.60f, 14.0f * s, -0.3f, 4});
-    cones.push_back({W * 0.5f + side * 25.0f * s, D * 0.28f, hgt * 0.38f, 12.0f * s, 0.2f, 4});
-    cones.push_back({W * 0.5f - side * 24.0f * s, D * 0.24f, hgt * 0.30f, 11.0f * s, -0.2f, 3});
-    cones.push_back({W * 0.5f + side * 4.0f * s, D * 0.18f, hgt * 0.26f, 13.0f * s, 0.3f, 4});
-  } else {
-    if (v == 3 || v == 6) cones.push_back({W * 0.5f + (v == 3 ? 12.0f : -12.0f) * s, D * 0.40f, hgt * 0.8f, 17.0f * s, 0.3f, 4});      // a twin summit
-    else if (v != 7) cones.push_back({W * 0.5f + (lean > 0 ? -13.0f : 13.0f) * s, D * 0.34f, hgt * 0.48f, 15.0f * s, -0.4f, 3});     // a shoulder
-    if (v == 1 || v == 5) cones.push_back({W * 0.5f - lean * 2, 12.5f * s, hgt * 0.36f, 14.0f * s, 0.2f, 3});                       // a foothill in front
-  }
-  // every cone stands wholly on the footprint (z >= 0): one reaching past its front edge was cut off flat there
-  for (Cone& k : cones) k.z = std::max(k.z, k.r * 0.8f + 1.5f);
-  auto Z = [&](float x, float z) -> float {
-    float best = 0;
-    for (const Cone& k : cones) {
-      const float dx = (x - k.x) / k.r, dz = (z - k.z) / (k.r * 0.8f);
-      const float r = std::sqrt(dx * dx + dz * dz);
-      if (r >= 1) continue;
-      const float th = std::atan2(dz, dx) + k.twist * r + (vnoise(x / (7.0f * s), z / (7.0f * s), seed + 3) - 0.5f) * 1.2f;
-      const float spur = std::fabs(std::sin(th * k.n * 0.5f));   // 0 on a ridge .. 1 in a valley
-      float h = k.h * std::pow(1 - r, 1.35f) * (1.0f - 0.22f * spur * std::min(1.0f, r * 3.0f));
-      h += (vnoise(x / (3.0f * s), z / (3.0f * s), seed + 5) - 0.5f) * 2.4f * sv * (1 - r);   // crags
-      best = std::max(best, h);
+  const float zs = D * 0.56f;
+  const float Hs = std::min((float)base - zs * 0.5f - 3.0f, (great ? (tall ? 100.0f : 86.0f) : (tall ? 56.0f : 43.0f)));
+  auto rnd = [&](int k) { return hashf(k, v, seed + 77); };   // 0..1 per shape
+  struct Seg { float ax, az, ah, bx, bz, bh; };
+  std::vector<Seg> segs;
+  // the main crest: the summit, an arm to the west and one to the east, each in three jagged pieces
+  const float lean = ((v == 2 || v == 7) ? -0.08f : (v == 4 || v == 5) ? 0.08f : 0.0f) * IW;
+  const float sx = cx + lean;
+  struct Pt { float x, z, h; };
+  std::vector<Pt> crest;   // west end .. summit .. east end
+  const float armW = IW * (0.34f + 0.07f * rnd(1)), armE = IW * (0.34f + 0.07f * rnd(2));
+  const float endW = Hs * (0.30f + 0.22f * rnd(3)), endE = Hs * (0.30f + 0.22f * rnd(4));
+  const bool twin = v == 3 || v == 6 || great;
+  const int twinSide = (v & 4) ? 1 : -1;
+  for (int side = -1; side <= 1; side += 2) {
+    const float arm = side < 0 ? armW : armE, endH = side < 0 ? endW : endE;
+    std::vector<Pt> half;
+    for (int k = 1; k <= 3; k++) {
+      const float t = k / 3.0f;
+      float h = Hs + (endH - Hs) * std::pow(t, 0.8f) + (k < 3 ? (rnd(10 + k * 2 + (side > 0)) - 0.5f) * Hs * 0.16f : 0.0f);
+      if (twin && side == twinSide && k == 1) h = Hs * (great ? 0.80f : 0.84f);   // a lesser top on the crest
+      if (k == 2 && h > Hs * 0.7f) h = Hs * 0.62f;                                  // a notch between
+      const float z = zs + (rnd(20 + k * 2 + (side > 0)) - 0.5f) * D * 0.16f;
+      half.push_back({sx + side * arm * t, z, h});
     }
-    return best - 1.4f;   // (the skirt ends cleanly: no flat apron round the foot)
+    if (side < 0) { for (int k = 2; k >= 0; k--) crest.push_back(half[k]); crest.push_back({sx, zs, Hs}); }
+    else for (const Pt& p : half) crest.push_back(p);
+  }
+  for (size_t k = 0; k + 1 < crest.size(); k++) segs.push_back({crest[k].x, crest[k].z, crest[k].h, crest[k + 1].x, crest[k + 1].z, crest[k + 1].h});
+  // spurs toward the viewer from the summit and the crest's points (a knee two fifths down, then a long shoulder), and a
+  // couple to the back (they shape the skyline behind)
+  const int nSp = (great ? 6 : 3) + (v % 2);
+  for (int i = 0; i < nSp; i++) {
+    const int ci = std::clamp((int)std::lround((i + 0.5f) / nSp * (float)(crest.size() - 1)), 0, (int)crest.size() - 1);
+    const Pt& P = (i == nSp / 2) ? crest[3] : crest[(size_t)ci];
+    const float dx = (P.x - sx) * 0.35f + (rnd(40 + i) - 0.5f) * IW * 0.22f;
+    const float kx = P.x + dx * 0.45f, kz = P.z - (P.z - D * 0.12f) * 0.45f, kh = P.h * (0.52f + 0.12f * rnd(50 + i));
+    const float fx = P.x + dx, fz = D * (0.06f + 0.08f * rnd(60 + i)), fh = P.h * 0.12f;
+    segs.push_back({P.x, P.z, P.h, kx, kz, kh});
+    segs.push_back({kx, kz, kh, fx, fz, fh});
+  }
+  for (int i = 0; i < 2; i++) {
+    const Pt& P = crest[i == 0 ? 2 : 4];
+    segs.push_back({P.x, P.z, P.h, P.x + (i ? 1 : -1) * IW * 0.12f, D * 0.97f, P.h * 0.2f});
+  }
+  if (great) {   // foothills before the massif
+    for (int i = 0; i < 3; i++) {
+      const float fx0 = cx + (i - 1) * IW * 0.32f + (rnd(70 + i) - 0.5f) * 10.0f, fh0 = Hs * (0.20f + 0.10f * rnd(80 + i));
+      segs.push_back({fx0 - 10.0f, D * 0.16f, fh0 * 0.6f, fx0 + 8.0f, D * 0.20f, fh0});
+    }
+  }
+  // the height at a ground point: the highest ridge profile there (and the second, to find the gullies between)
+  auto field = [&](float x, float z, float& second) -> float {
+    float best = 0, sec = 0;
+    for (const Seg& g : segs) {
+      const float ux = g.bx - g.ax, uz = g.bz - g.az;
+      const float L2 = ux * ux + uz * uz;
+      float t = L2 > 0 ? ((x - g.ax) * ux + (z - g.az) * uz) / L2 : 0;
+      t = std::clamp(t, 0.0f, 1.0f);
+      const float px = g.ax + ux * t, pz = g.az + uz * t;
+      const float d = std::sqrt((x - px) * (x - px) + (z - pz) * (z - pz) * 1.4f);
+      const float hc = g.ah + (g.bh - g.ah) * t;
+      const float w = hc * 0.43f + 2.5f * s;
+      if (d >= w) continue;
+      const float h = hc * std::pow(1.0f - d / w, 1.22f);
+      if (h > best) { sec = best; best = h; } else if (h > sec) sec = h;
+    }
+    // the mass between the spurs
+    const float ex = (x - sx) / (IW * 0.5f), ez = (z - D * 0.48f) / (D * 0.5f);
+    const float rr = std::sqrt(ex * ex + ez * ez);
+    if (rr < 1) {
+      const float hm = Hs * 0.22f * std::pow(1 - rr, 1.3f);
+      if (hm > best) { sec = best; best = hm; } else if (hm > sec) sec = hm;
+    }
+    const float crag = (vnoise(x / (3.0f * s), z / (3.0f * s), seed + 5) - 0.5f) * 2.0f * s;
+    // the foot tapers off inside the canvas (never cut flat at its side)
+    const float edge = std::clamp(std::min(x - M * 0.5f, W - M * 0.5f - x) / (IW * 0.16f), 0.0f, 1.0f);
+    const float es = edge * edge * (3 - 2 * edge);
+    second = sec * es;
+    const float footWob = (vnoise(x / (5.0f * s), z / (4.0f * s), seed + 41) - 0.5f) * 3.0f * s;   // a ragged foot
+    const float h = best + (best > 2 ? crag * std::min(1.0f, best / 12.0f) : 0) - 1.2f + (best < 8.0f * s ? footWob * (1.0f - best / (8.0f * s)) : 0.0f);
+    return h * es - (1.0f - es) * 6.0f;
   };
+  // light from the north-west, high (x east, y up, z north/back): west planes lit, south planes mid, east in shade
+  float Lx = -0.60f, Ly = 0.62f, Lz = -0.26f;   // (a little from the viewer's side: the south planes in mid tones)
+  const float Ll = std::sqrt(Lx * Lx + Ly * Ly + Lz * Lz);
+  Lx /= Ll; Ly /= Ll; Lz /= Ll;
   std::vector<int> ybuf(W, base + 1);
-  std::vector<float> zbuf(W, -1);
-  Canvas zc(W, H);   // per pixel: which ground depth it shows (for the snow and the strata), packed
+  Canvas zc(W, H);    // per pixel: its ground depth, its height, its tone (packed)
+  const float dz = great ? 0.4f : 0.25f;
   for (int x = 0; x < W; x++) {
-    for (float z = 0; z <= D; z += great ? 0.4f : 0.25f) {
-      const float h = Z(x + 0.5f, z);
+    for (float z = 0; z <= D; z += dz) {
+      float sec;
+      const float h = field(x + 0.5f, z, sec);
       if (h <= 0.0f) continue;
       const int ys = (int)std::floor(base - z * 0.5f - h);
-      if (ybuf[x] > base) ybuf[x] = ys + 1;   // the column's nearest point: only its own pixel (not down to the canvas foot)
+      if (ybuf[x] > base) ybuf[x] = ys + 1;
       if (ys >= ybuf[x]) continue;
-      // the normal from the field's slope
+      float s2;
       const float e = 1.0f;
-      const float gx = Z(x + 0.5f + e, z) - Z(x + 0.5f - e, z), gz = Z(x + 0.5f, z + e) - Z(x + 0.5f, z - e);
+      const float gx = field(x + 0.5f + e, z, s2) - field(x + 0.5f - e, z, s2), gz = field(x + 0.5f, z + e, s2) - field(x + 0.5f, z - e, s2);
       float nx = -gx, ny = 2 * e, nz = -gz;
       const float nl = std::sqrt(nx * nx + ny * ny + nz * nz);
       nx /= nl; ny /= nl; nz /= nl;
-      // light from the top-left, high and a little toward the viewer (as art_internal's lightAt): west slopes lit,
-      // the front in mid tones, east slopes in shade
-      const float lx = -0.58f, ly = 0.60f, lz = -0.36f;
-      const float lam = nx * lx + ny * ly + nz * lz;
+      const float lam = nx * Lx + ny * Ly + nz * Lz;
+      const float gully = 1.0f - std::clamp((h - sec) / (Hs * 0.10f), 0.0f, 1.0f);   // two ridges meet: a gully
       for (int y = std::max(0, ys); y < ybuf[x]; y++) {
-        const float l = lam + (vnoise(x / 2.0f, y / 2.0f, seed + 7) - 0.5f) * 0.10f + (bayer(x, y) - 0.5f) * 0.07f;
-        int k = l > 0.80f ? 4 : l > 0.62f ? 3 : l > 0.40f ? 2 : l > 0.14f ? 1 : 0;
-        // strata along the contours (bold bands in sandstone)
+        const float l = lam + (bayer(x, y) - 0.5f) * 0.05f - gully * 0.10f;
+        int k = l > 0.80f ? 4 : l > 0.58f ? 3 : l > 0.33f ? 2 : l > 0.10f ? 1 : 0;
+        // strata along the contours (bold beds in sandstone and the badlands), cracks in grey rock, columns in basalt
         const float cont = h + (vnoise(x / 8.0f, z / 8.0f, seed + 9) - 0.5f) * 3.0f;
-        const float bandH = (land == 2 ? 4.5f : land == 3 ? 3.5f : 6.0f) * sv;
+        const float bandH = (land == 2 ? 4.5f : land == 3 ? 3.5f : 6.0f) * s;
         const float bf = cont / bandH - std::floor(cont / bandH);
         const int bandI = (int)std::floor(cont / bandH);
         bool cream = false;
         if (land == 2) { if (bandI & 1) k = std::max(0, k - 1); if (bf > 0.82f && k < 4 && lam > 0.4f) k++; }
-        else if (land == 3) {   // bold red and cream beds, each bed's lit lip catching the sun
+        else if (land == 3) {
           cream = (hashf(bandI, 1, seed + 27) < 0.34f);
           if (bandI & 1) k = std::max(0, k - 1);
           if (bf > 0.80f && k < 4 && lam > 0.3f) k++;
-        } else if (land == 4) {   // basalt: vertical columns, a dark joint between each
+        } else if (land == 4) {
           if (((x + (int)(hashf(x / 3, (int)(cont / 5.0f), seed + 29) * 2)) % 3) == 0 && k > 0) k--;
-        } else if (land == 5) {   // ice: smooth, a few dark crevasses across the slopes
+        } else if (land == 5) {
           if (bf < 0.05f && hashf(x / 3, bandI, seed + 31) < 0.6f) k = 0;
-        } else if (bf < 0.14f && hashf(x / 2, bandI, seed + 11) < 0.75f && k > 0) k--;
+        } else if (bf < 0.10f && hashf(x / 2, bandI, seed + 11) < 0.5f && k > 0 && k < 4) k--;   // ledges
         uint32_t col = cream ? Rcream[k] : R[k];
-        // snow on the heights (land 1), thin dusting on a tall grey summit
-        const float sn = (land == 1 ? hgt * 0.50f : land == 5 ? hgt * 0.62f : (land == 0 || land == 4) && tall ? hgt * 0.84f : 1e9f) +
-                         (vnoise(x / 3.0f, z / 3.0f, seed + 13) - 0.5f) * 7.0f - ny * 4.0f;
-        if (h > sn) col = kSnow[std::clamp(k + 1, 1, 4)];
-        else if ((land == 1 || land == 5) && h > sn - 2.5f && hashf(x, y, seed + 15) < 0.45f) col = kSnow[std::clamp(k, 1, 3)];
+        // snow: on the heights, running lower down the gullies; lit white, shaded blue
+        const float snowAt = land == 1 ? Hs * 0.60f : land == 5 ? Hs * 0.60f : (land == 0 || land == 4) && tall ? Hs * 0.80f : 1e9f;
+        const float sn = snowAt + (vnoise(x / 3.0f, z / 3.0f, seed + 13) - 0.5f) * 6.0f * s - gully * Hs * 0.17f - ny * 3.0f;
+        bool snow = false;
+        if (h > sn) snow = true;
+        else if ((land == 1 || land == 5) && h > sn - 2.5f * s && hashf(x, y, seed + 15) < 0.45f) snow = true;
+        if (snow) col = kSnow[std::clamp(k + (k >= 2 ? 1 : 0), 1, 4)];
         c.set(x, y, col);
-        zc.set(x, y, rgba(std::clamp((int)(z * 4), 0, 255), std::clamp((int)(h * 4), 0, 255), 0));
+        zc.set(x, y, rgba(std::clamp((int)(z * 3), 0, 255), std::clamp((int)(h * 2), 0, 255), k * 40 + (snow ? 1 : 0)));
       }
       ybuf[x] = std::max(0, ys);
     }
   }
-  // the foot: scree and grass (or snow, or sand) creeping up over the lowest slopes
+  // crisp crests: where a lit plane meets a shaded one on the same surface, the lit edge flares and the shaded edge
+  // deepens (the ridgeline reads at a glance)
+  const Canvas before = c;
+  for (int y = 1; y < H - 1; y++)
+    for (int x = 1; x < W - 1; x++) {
+      if (!solid(before, x, y) || !solid(before, x + 1, y)) continue;
+      const uint32_t a = zc.get(x, y), b = zc.get(x + 1, y);
+      const int ka = (int)((a >> 16) & 255) / 40, kb = (int)((b >> 16) & 255) / 40;
+      const int za = (int)(a & 255), zb = (int)(b & 255);
+      if (std::abs(za - zb) > 6) continue;   // an occluding edge, not a crest
+      if (ka >= 2 && kb <= ka - 2) {
+        const bool sa = ((a >> 16) & 1) != 0, sb = ((b >> 16) & 1) != 0;
+        c.set(x, y, sa ? kSnow[4] : (land == 3 ? Rb[4] : R[4]));
+        c.set(x + 1, y, sb ? kSnow[1] : R[0]);
+      }
+    }
+  // the foot: scree and grass (or the chalk downs' turf) creeping up over the lowest slopes
   for (int y = 0; y < H; y++)
     for (int x = 0; x < W; x++) {
       if (!solid(c, x, y)) continue;
-      const float h = ((zc.get(x, y) >> 8) & 255) / 4.0f;
+      const float h = ((zc.get(x, y) >> 8) & 255) / 2.0f;
       const float hf = hashf(x, y, seed + 17);
-      if (h < 4.0f) {   // scree
+      if (h < 4.0f * s) {
         if (hf < 0.07f) c.set(x, y, R[3]);
         else if (hf < 0.12f) c.set(x, y, R[1]);
       }
-      if (h < 1.0f + vnoise(x / 4.0f, y / 2.0f, seed + 19) * 2.2f && hf < 0.7f) {   // the land creeping up the foot
+      if (h < 1.0f + vnoise(x / 4.0f, y / 2.0f, seed + 19) * 2.4f * s && hf < 0.7f) {
         if ((land == 0 || land == 6) && hf < 0.5f) c.set(x, y, kLeaf[hf < 0.2f ? 3 : 2]);
       }
-      // (M3c) the chalk downs' turf climbing well up the white hill
-      if (land == 6 && h < 6.0f + vnoise(x / 5.0f, y / 3.0f, seed + 33) * 6.0f) c.set(x, y, kLeaf[(vnoise(x / 2.0f, y / 2.0f, seed + 35) > 0.62f ? 3 : 2) - (x > W / 2 ? 1 : 0)]);
+      if (land == 6 && h < 6.0f * s + vnoise(x / 5.0f, y / 3.0f, seed + 33) * 6.0f) c.set(x, y, kLeaf[(vnoise(x / 2.0f, y / 2.0f, seed + 35) > 0.62f ? 3 : 2) - (x > W / 2 ? 1 : 0)]);
     }
   if (land == 0) {
-    lichen(c, 0, base - 16, W - 1, base, seed + 23, 0.25f, false);
-    tufts(c, 2, W - 3, base, seed + 25, 0.30f);
+    lichen(c, 0, base - (int)(14 * s), W - 1, base, seed + 23, 0.22f, false);
+    tufts(c, M, W - 1 - M, base, seed + 25, 0.30f);
   }
 }
 
@@ -1273,6 +1341,21 @@ Canvas peakVariant(int v, int land) {
   for (int y = c.h - 8; y < c.h; y++)
     for (int x = 0; x < c.w; x++) if (!solid(before, x, y) && !solid(before, x, y - 1)) c.set(x, y, 0);
   feather(c, 2);
+  // (M11 FALLS) its cast shadow to the lower right (the light is top-left): the foot's silhouette laid on the ground
+  // east of the mountain in the margin the painter left, soft at its edge
+  const int sh = p == Prop::GreatPeak ? 13 : 7;
+  const Canvas lit = c;
+  std::vector<int> rmax(c.h, -1);
+  for (int y = 0; y < c.h; y++)
+    for (int x = 0; x < c.w; x++) if (chA(lit.get(x, y)) > 200) rmax[y] = x;
+  for (int y = c.h - 16; y < c.h; y++) {
+    const int qy = std::min(c.h - 1, y - 3 + (c.h - y) / 3);
+    if (rmax[qy] < 0) continue;
+    for (int x = std::max(rmax[y], rmax[qy]) + 1; x <= rmax[qy] + sh && x < c.w; x++) {
+      const float u = (float)(x - rmax[qy]) / (float)sh;   // 0 at the foot .. 1 at the shadow's tip
+      c.set(x, y, rgba(34, 28, 62, u < 0.45f ? 92 : u < 0.8f ? 64 : 36));
+    }
+  }
   return c;
 }
 

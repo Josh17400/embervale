@@ -11,6 +11,7 @@
 #include "engine/audio.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/gear.h"
+#include "rpg/sim/home.h"
 #include "rpg/sim/power_ops.h"
 #include "rpg/sim/magic_ops.h"
 #include "rpg/sim/sea_ops.h"
@@ -471,9 +472,44 @@ bool Game::swimSolid(float x, float y, uint8_t swim) const {
   const Map& m = map();
   const int tx = (int)std::floor(x / TILE), ty = (int)std::floor(y / TILE);
   if (!m.in(tx, ty)) return true;
+  if (m.fallAt(tx, ty)) return true;                                            // (M11) a waterfall: a wall to swimmers and boats
   if (groundWater(m.at(tx, ty))) return m.solid[(size_t)ty * m.w + tx] != 0;   // a prop on the water: a post, a hull
   if (swim == 1) return true;                                                   // the sea's own: the land is a wall
   return solidAt(x, y, false);                                                  // amphibious: the land's rules ashore
+}
+
+float ClimbOps::reliefTarget(const Game& g, const Actor& a) {
+  if (a.fly || a.flying || a.swim) return 1.0f;
+  const Map& m = g.map();
+  if (m.height.empty()) return 1.0f;   // (rooms, caves: no relief)
+  const int tx = (int)std::floor(a.p.x / TILE), ty = (int)std::floor((a.p.y - 2) / TILE);
+  float k = m.reliefSpeedAt(tx, ty);
+  if (k >= 1.0f) return 1.0f;
+  if (a.player) {
+    // the sure-footed breed takes ramps and hillsides in its stride (home.h BreedInfo::sure)
+    if (g.homeRiding()) return home::breedInfo((home::Breed)g.home.ridingBreed).sure ? 1.0f : k;
+    // (15.29) a seasoned climber: Athletics past 50 softens the climb, up to a quarter of it at 100
+    const float soft = std::clamp(((float)g.skills.level(skills::Skill::Athletics) - 50.0f) / 50.0f, 0.0f, 1.0f) * 0.25f;
+    k = 1.0f - (1.0f - k) * (1.0f - soft);
+  }
+  return k;
+}
+
+int ClimbOps::spawnGuard(Game& g, Vec2 at, bool hostile) {
+  Spawn sp;
+  sp.npc = true;
+  sp.role = Role::Guard;
+  sp.slot = 7000 + (int)(g.actors.size() & 255);
+  const int id = g.spawnHuman(sp, at);
+  const int ai = g.findActor(id);
+  if (ai >= 0) {
+    Actor& a = g.actors[(size_t)ai];
+    a.fromMap = false;   // (no site's census: never streamed away under the script)
+    a.hostile = hostile;
+    a.aggro = hostile;
+    if (hostile) a.target = g.pl().id;   // (already after the hero: the watch keeps a quarry it is chasing)
+  }
+  return id;
 }
 
 bool Game::bodyFree(Vec2 p, float r, bool flying, uint8_t swim) const {
@@ -486,12 +522,22 @@ bool Game::bodyFree(Vec2 p, float r, bool flying, uint8_t swim) const {
 }
 
 void Game::moveActor(Actor& a, Vec2 d) {
+  if (a.fly) { a.p += d; return; }
+  // (M11 CLIMB) the relief's pace (Map::reliefSpeed: a hillside or an earth ramp 0.8, stone stairs 0.9): the factor the
+  // ground under the feet asks for, eased in and out over about 0.15 s of walking (0.2 of pace per a.speed * 0.15 px
+  // moved, at most 8 px) so a tile's edge never snaps it. Flying, swimming and boats keep 1 (ClimbOps::reliefTarget).
+  {
+    const float tgt = ClimbOps::reliefTarget(*this, a);
+    const float span = std::clamp(a.speed * 0.15f, 3.0f, 8.0f);
+    const float stepK = 0.2f * std::sqrt(d.x * d.x + d.y * d.y) / span;
+    a.reliefK = tgt > a.reliefK ? std::min(tgt, a.reliefK + stepK) : std::max(tgt, a.reliefK - stepK);
+    d = d * a.reliefK;
+  }
   float steps = std::ceil(std::max(std::fabs(d.x), std::fabs(d.y)) / 3.0f);
   if (steps < 1) steps = 1;
   Vec2 s = d * (1.0f / steps);
   float rx = a.radius, ry = a.radius * 0.6f;
   bool fl = a.flying || a.fly;
-  if (a.fly) { a.p += d; return; }
   // (fixer M4 r1) a besieged town's barricaded gates stop everyone but the player (never shut in or out by a siege)
   const bool gatePass = a.player && !inside && !war.gateTiles.empty();
   const bool yardCheck = !home.plots.empty() && a.npc && !inside;   // (M7) townsfolk keep out of the player's yards
@@ -500,6 +546,7 @@ void Game::moveActor(Actor& a, Vec2 d) {
     if (yardCheck && yardBarred(a, (int)std::floor(x / TILE), (int)std::floor(y / TILE))) return true;
     if (sw) return swimSolid(x, y, sw);
     if (!solidAt(x, y, fl)) return false;
+    if (!fl && map().fallAt((int)std::floor(x / TILE), (int)std::floor(y / TILE))) return true;   // (M11) a waterfall: never waded
     // (M10) the hero wading or swimming in the shallows (SeaOps::passable; the Sailor swims farther)
     if (a.player && SeaOps::passable(*this, a, (int)std::floor(x / TILE), (int)std::floor(y / TILE))) return false;
     return !(gatePass && warGatePass(*this, (int)std::floor(x / TILE), (int)std::floor(y / TILE)));

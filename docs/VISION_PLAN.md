@@ -3371,3 +3371,74 @@ verified with targeted checks only; the 16-bit quality bar and natural / organic
 - **Test once (owner)**: the every-system regression (`rpg_test --seeds 1..20` and the full sweep of scripts and
   commands) runs ONCE per milestone, by the integrator. Lanes and fixers run only the checks that cover the code they
   changed, and re-run a check only after changing code it covers.
+
+### 15.32 M11 "High Ground" phase A (lead, 2026-10-16): the relief contracts
+
+13 M11 binds the milestone, with section 11 (height levels, edges between levels, readability cues, the walkability
+guarantee, the map), 2.5 L2b step 7 (relief: cliffs, ramps and slopes from height levels), 2.7 (ramps on a global
+lattice), 15.10 ("relief instead of brown mountain blobs": `Map::height`), 15.29 (athletics: climbing ramps), 15.31
+(the M10 coasts, harbours, piers, islands, the Mist and hidden lands, which relief must respect: boats are never
+stranded by height) and the M1 risk notes on bake cost and the iPhone frame budget (12.3, 14.1). What the owner sees on
+the phone: hills, cliffs, plateaus and waterfalls; climbing to a peak shrine is a journey; mountains read as height.
+Owner rules for M11: the every-system regression runs ONCE, by the integrator; fixes are verified with targeted checks
+only; the 16-bit quality bar (one 3/4 top-down perspective and top-left light across every sprite and face, depth and
+volume, cast shadows, a cohesive palette, no boxy repetition) and natural / organic world design stand. What M2's first
+aid already built stays (levels 0..7 per tile, cliffs on the lower tile of every step, the 16-tile ramp lattice, the
+sliver passes, flats under settlements, faces drawn from a smooth level field, peaks and massifs, the map's hillshade,
+contours and mountain glyphs); M11 deepens it. Phase A contracts (a lane may ADD to a file it is the editor of, never
+rename, remove or change the meaning of what is listed here):
+- **The height byte (`rpg/sim/world.h` Map, frozen)**: bits 0-2 the level, `HEIGHT_CLIFF` 8 (a face: not walkable),
+  `HEIGHT_RAMP` 16 (a way up: walkable) and three new bits, every step bit on the LOWER tile of a 4-neighbour step:
+  `HEIGHT_SLOPE` 32 (a gentle one-level step, a hillside: walkable, never with CLIFF or RAMP), `HEIGHT_FALL` 64 (a
+  water tile a river or a plateau lake's spill pours over a step into, always with CLIFF: a waterfall, a wall to
+  walkers, swimmers and boats), `HEIGHT_STAIR` 128 (with RAMP: built stone stairs; a RAMP without it is a worn earth
+  ramp). `HEIGHT_STEP` = CLIFF | RAMP | SLOPE (any step). `Map::reliefSpeed(bits)` is the one definition of the walking
+  factor (hillside 0.8, earth ramp 0.8, stairs 0.9, else 1); `reliefSpeedAt`, `fallAt`. Chunkgen, war camps and home
+  plots test `HEIGHT_STEP` where they meant "a step".
+- **World (`rpg/world/source.h`, WORLD lane)**: ENDLESS_GEN_VER 24. `SPF_SUMMIT` 4096: a summit shrine
+  (`SiteType::Shrine`) on the top level of a named peak or a range's crest, reached by a trail of stairs and
+  switchbacks up the stacked levels. Phase A's generation (chunkgen.cpp step 6, the first rules the WORLD lane tunes):
+  a road's or track's way up is `HEIGHT_STAIR`; a river (not a bridge) on the lower tile of a step is `HEIGHT_FALL`; a
+  one-level step of the low hills (both levels 3 or lower), off every settlement's terraces, where the clean elevation
+  (`reliefE`) climbs less than a fifth of a level over 4 tiles, is `HEIGHT_SLOPE`. No plan changed (region goldens
+  hold; the chunk goldens were re-recorded).
+- **Props (`rpg/art/art_props.h`, painted in `rpg/art/art_relief.cpp`, FALLS lane)**: `SummitShrine` (3x2, solid, a
+  light), `Cairn`, `PrayerFlags` (4 frames); `isReliefProp`, `reliefFootprint` (frozen); the builder registry
+  classifies them (Kind::None); phase A paints stand-in blocks.
+- **View (`rpg/view/view.h`)**: the RELIEF block (`rpg/view/render_relief.cpp`, FALLS lane; `ReliefViewOps`, opaque
+  `ReliefViewState`): `reliefUpdate` (after seaUpdate), `reliefShift`, `drawReliefWater` (after the terrain, before
+  the sea's water), `reliefSorted` / `drawReliefSorted` (Drawable kind 11), `drawReliefOver` (hud.cpp, after the
+  weather, before the sea's Mist), `reliefViewStats` (falls drawn, mist puffs, sprays, the roar, ms). Phase A draws
+  pale stripes over each fall tile and hands the nearest fall's roar to the audio. The baked look of the relief
+  (faces, slopes, stairs, grading, cast shadows, the mountains' rock) stays in terrain.cpp (TERRAIN lane).
+- **Audio (`engine/audio.h`)**: `Audio::setFalls(level, pan, size)` (the falls' roar; FALLS lane renders it).
+- **Tests and scripts**: `rpg_test --relief [--seeds A..B] [--windows N] [--size T] [--map dir] [--no-budget]`
+  (tools/tests/test_relief.cpp, WORLD lane): per seed the start's window and one on each of the 3 named ranges / peaks
+  nearest it (512 x 512 tiles); FAILS on any walled plateau (a walkable component of 24+ tiles, off the edge and the
+  water, not the largest, whose dry boundary is at least half cliff), prints the census (levels, cliffs, ramps, stairs,
+  slopes, falls, stacked faces, plateaus and the smallest) and FAILS when the chunk average rises over 1.2 x the
+  baseline. `rpg_test --climb` (tools/tests/test_climb.cpp, CLIMB lane; phase A: the speed contract; its header lists
+  the pathing protocol). Script commands (rpg/view/script_relief.cpp, WORLD lane): `gotorelief
+  cliff|stack|ramp|stair|slope|fall|high|plateau|summit [n]`, `expect relief walk|level N|near <kind>`, `expect
+  reliefview falls N`. Scripts: `tools/scripts/m11_lead_relief.txt` (the relief tour every lane reviews before and
+  after), `tools/scripts/m11_lead_bake.txt` (the terrain bake bench).
+- **Baselines (phase A, MSVC Release, the dev PC)**: chunk generation 0.790 ms average over the --relief windows of
+  seeds 1..3 (3072 chunks; budget 0.948); the terrain bake 275 ms average per chunk over m11_lead_bake.txt with
+  EMB_BAKEBENCH=1 (41 bakes; budget 330). The census before M11: every step one level (0 stacked faces in 12
+  windows), 0 slopes, 0 falls, smallest plateau 24 tiles, the top levels wide flat fields; where the Mountain eco's
+  rock ground lies (`gotoeco mountain`) it still paints as a faceted grey rock field (the "brown blob" 11.2 forbids).
+- **Saves**: SAVE_VER stays 21 (no format change); `tests/fixtures/save_v21.bin` re-made under ENDLESS_GEN_VER 24 (its
+  FIX6 facts unchanged). A save from generator 23 is refused ("start a new adventure").
+- **Test once (owner)**: the every-system regression (`rpg_test --seeds 1..20` and the full sweep of scripts and
+  commands) runs ONCE per milestone, by the integrator. Lanes and fixers run only the checks that cover the code they
+  changed, and re-run a check only after changing code it covers.
+
+- **Phase B additions (recorded at integration, 2026-10-16)**: `RiverSeg::lv` and `lvEnd` (a segment's surface level
+  and the next one's start); Impl `reliefLevels` (the chunks' level: natLevel compressed above 5, ridged, contour
+  pairs), `fineLevel`, `hydroLv`, `planSummits`; summit trails use ids 0x800 | (0x340 + k); script commands
+  `gotorelief switchback|roadsw`, `gotofall`, `fallfx`, `expect fallfx` (relief_script.cpp), `climbto|climbguard|
+  climbparty|climbhero|climbseek|climbnav`, `expect climbup|climbnav|climbpace` (script_climb.cpp), `reliefstamp`,
+  `gotochunkcliff`, `gotorock`, `reliefground`, `reliefrebake`, `weather clear` (TERRAIN, test only); `--relief
+  --no-order`, `--probe X Y`; `Actor::reliefK`, the per-actor path cache and `Game::navStats` (CLIMB); chunkgen step 6
+  works the levels on a 6-tile border with four sliver passes (integration). Open at integration: perched rivers on
+  the compressed high ground (PLAN.md M11 Integration).

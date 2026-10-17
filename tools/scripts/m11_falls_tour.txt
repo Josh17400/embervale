@@ -1,0 +1,41 @@
+# M11 FALLS lane: the waterfalls on the desktop (VISION_PLAN 11.3, 15.32): a fall by day (and a frame sequence of its
+# motion), by night, in falling snow, a second fall; the roar near a fall and silence away from it; the relief draw's
+# own cost (reliefViewStats().ms <= 0.3 ms).
+#   embervale.exe --script tools/scripts/m11_falls_tour.txt     (m11falls_*.png in the working directory)
+seed 1
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.1 weather clear
++0.3 gotofall north 0 far
++0.1 perfmark start
++6   shot m11falls_day.png
++0.01 perfmark near_fall
++0.01 shot m11falls_seq0.png
++0.08 shot m11falls_seq1.png
++0.08 shot m11falls_seq2.png
++0.08 shot m11falls_seq3.png
++0.1 expect reliefview falls 1
++0.1 expect fallfx roar 0.1
++0.1 expect fallfx puffs 1
++0.1 expect fallfx ms 0.3
++0.1 fallfx
++0.1 hour 23
++1.5 shot m11falls_night.png
++0.1 expect reliefview falls 1
++0.1 hour 11
++0.1 weather snowy
++2.5 shot m11falls_snow.png
++0.1 weather clear
++0.1 at -510 -100
++0.3 gotofall any 0 far
++1.5 shot m11falls_second.png
++0.1 expect reliefview falls 1
++0.1 fallfx
++0.1 walk south 4
++0.1 gotopoi range
++0.1 perfmark moved
++6   expect fallfx quiet
++0.01 perfmark away_from_falls
++0.1 fallfx
++0.3 quit

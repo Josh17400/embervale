@@ -1,0 +1,27 @@
+# M11 CLIMB: companions follow over the relief (VISION_PLAN 13 M11 "companions path across ramps"): two companions left
+# at the foot of stone stairs reach the hero above by the party's own follow code (no off-screen catch-up), then on the
+# switchback stairs of a summit trail, then up an earth ramp.
+#   embervale.exe --script tools/scripts/m11_climb_party.txt     (m11_climb_party_*.png in the working directory)
+seed 1
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 climbto stair 0
++0.1 climbparty 2
++0.3 shot m11_climb_party_0_stairs_foot.png
++0.35 shot m11_climb_party_1_stairs_up.png
++5.0 expect climbup party 4
++0.1 shot m11_climb_party_2_stairs_top.png
++0.1 gotorelief summit
++0.5 climbto stair 0
++0.1 climbhero low
++0.1 climbhero top
++0.1 climbparty 2
++0.3 shot m11_climb_party_3_switchback.png
++0.35 shot m11_climb_party_4_switchback_up.png
++6.0 expect climbup party 4
++0.1 shot m11_climb_party_5_switchback_top.png
++0.1 climbto earth 1
++0.1 climbparty 1
++6.0 expect climbup party 4
++0.1 climbnav

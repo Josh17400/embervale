@@ -338,6 +338,15 @@ struct Map {
   std::vector<uint8_t> height;   // M1: relief per tile (endless overworld only, else empty): bits 0..2 the level 0..7
                                  // (VISION_PLAN 11.1), HEIGHT_CLIFF a cliff face (not walkable), HEIGHT_RAMP a ramp or
                                  // stairs between levels (walkable). The view draws faces where the level steps down.
+                                 // M11 High Ground (VISION_PLAN 11.2 / 11.3 / 15.32) adds three bits; every step bit
+                                 // (CLIFF, RAMP, SLOPE) sits on the LOWER tile of a 4-neighbour level step:
+                                 //   HEIGHT_SLOPE a gentle 1-level step (a hillside): walkable at reliefSpeed's 0.8,
+                                 //                drawn as a shaded hillside band, never with CLIFF or RAMP
+                                 //   HEIGHT_FALL  a water tile a river (or a plateau lake's spill) pours over a step
+                                 //                into (always with CLIFF): an animated waterfall; a wall to walkers,
+                                 //                swimmers and boats alike
+                                 //   HEIGHT_STAIR with RAMP: a built way up (stone stairs: roads, tracks, towns, a summit's
+                                 //                trail); a RAMP without it is a worn earth ramp
   // M7b Cities (rpg/world/urban.h): the urban fabric per tile (endless overworld and settlement buffers only, else
   // empty): the street class (avenue, street, lane, alley, sidewalk, gutter, square, close, park, garden, court, quay),
   // the upkeep and the quarter. Written by the settlement generator (cities; a town's main street and square), always
@@ -372,8 +381,19 @@ struct Map {
   bool in(int x, int y) const { return x >= 0 && y >= 0 && x < w && y < h; }
   bool blocked(int x, int y) const;
   static constexpr uint8_t HEIGHT_LEVEL = 7, HEIGHT_CLIFF = 8, HEIGHT_RAMP = 16;
+  static constexpr uint8_t HEIGHT_SLOPE = 32, HEIGHT_FALL = 64, HEIGHT_STAIR = 128;   // M11 (above)
+  static constexpr uint8_t HEIGHT_STEP = HEIGHT_CLIFF | HEIGHT_RAMP | HEIGHT_SLOPE;      // the lower side of any step
+  // M11: the walking speed factor of a relief tile (VISION_PLAN 11.2): a hillside 0.8, an earth ramp 0.8, stone stairs
+  // 0.9, anything else 1. The SIM lane applies it (the player, NPCs, companions, mounts); this is its one definition.
+  static float reliefSpeed(uint8_t bits) {
+    if (bits & HEIGHT_SLOPE) return 0.8f;
+    if (bits & HEIGHT_RAMP) return (bits & HEIGHT_STAIR) ? 0.9f : 0.8f;
+    return 1.0f;
+  }
   int heightAt(int x, int y) const { return in(x, y) && !height.empty() ? (height[(size_t)y * w + x] & HEIGHT_LEVEL) : 0; }
   uint8_t heightBits(int x, int y) const { return in(x, y) && !height.empty() ? height[(size_t)y * w + x] : 0; }
+  float reliefSpeedAt(int x, int y) const { return reliefSpeed(heightBits(x, y)); }
+  bool fallAt(int x, int y) const { return (heightBits(x, y) & HEIGHT_FALL) != 0; }   // M11: a waterfall tile
   Biome biomeAt(int x, int y) const { return in(x, y) && !biome.empty() ? (Biome)biome[(size_t)y * w + x] : Biome::Plains; }
   uint8_t blendAt(int x, int y) const { return in(x, y) && !blend.empty() ? blend[(size_t)y * w + x] : 0; }
   uint8_t urbAt(int x, int y) const { return in(x, y) && !urb.empty() ? urb[(size_t)y * w + x] : 0; }   // M7b (rpg/world/urban.h)

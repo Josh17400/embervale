@@ -44,6 +44,7 @@ seed 2
 +2.0 shot m3c_land_eco_sandbeach_coralcoast.png
 +0.2 gotoecoedge jungle bamboo
 +2.0 shot m3c_land_eco_jungle_bamboo.png
++0.1 at 0 0
 +0.2 gotoecoedge savanna dunes
 +2.0 shot m3c_land_eco_savanna_dunes.png
 +0.2 gotoecoedge blight meadow

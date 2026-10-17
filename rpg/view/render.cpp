@@ -96,6 +96,8 @@ void beastsViewStats(int& auras, int& plates, int& glows, int& bossBar, double& 
   auras = beasts::last.auras; plates = beasts::last.plates; glows = beasts::last.glows; bossBar = beasts::last.bossBar; ms = beasts::last.ms;
 }
 
+// (M11 TERRAIN) View::scriptSky's value for "weather clear": no rain, snow, fog or sand at all (review shots)
+constexpr int kSkyClear = 99;
 namespace {
 // (M5 fixer r2) a townsperson standing in a bath's pool (life_game.cpp bathe): drawn chest-deep, no floor shadow
 bool bathing(const Game& g, const Map& m, const Actor& a) {
@@ -1051,6 +1053,7 @@ void View::spawnParticles(const Event& e, Game& g) {
       for (PowerFx& f : powerFx_) { f.p += e.p; f.q += e.p; }   // (M8b) a burst, star mark or arc in flight moves too
       magicShift(e.p);                                           // (M9) spell effects and decals
       seaShift(e.p);                                             // (M10) wakes and splashes
+      reliefShift(e.p);                                          // (M11) mist and spray
       break;
     default: break;
   }
@@ -1076,6 +1079,7 @@ void View::update(Game& g, float dt) {
   powerUpdate(g, dt);   // (M8b) the powers' effects age (render_powers.cpp)
   magicUpdate(g, dt);   // (M9) the spells' effects age (render_magic.cpp)
   seaUpdate(g, dt);     // (M10) wakes, splashes, rain, lightning (render_sea.cpp)
+  reliefUpdate(g, dt);  // (M11) the falls' mist and spray, their roar (render_relief.cpp)
   lootUpdate(g, dt);    // (M8b) the loot chime for a fine piece in view, a Mythic wearer's embers (loot_ui.cpp)
   // (M1) arriving in a settlement: a banner with its name and its kingdom (merged into DISCOVERED the first time)
   // (M4) its CURRENT owner in its society's word and its state; shown again when either changes while the player is
@@ -1403,6 +1407,7 @@ void View::update(Game& g, float dt) {
         want.blizz += t.blizz * f; want.sand += t.sand * f; want.shimmer += t.shimmer * f; want.ash += t.ash * f; want.eerie += t.eerie * f;
       }
       if (en > 0) { want.er = er / en; want.eg = eg / en; want.eb = eb / en; } else { want.er = wx_.er; want.eg = wx_.eg; want.eb = wx_.eb; }
+      if (skyOverride_ == kSkyClear) { Wx z; z.er = want.er; z.eg = want.eg; z.eb = want.eb; want = z; }   // (M11 TERRAIN) a script's clear sky
       wxWant_ = want;
       if (!wxInit_) { wx_ = want; wxInit_ = true; }
     }
@@ -1487,7 +1492,7 @@ namespace {
 struct Drawable {
   float y;
   int kind;     // 0 prop, 1 building, 2 wall, 3 actor, 4 pickup, 5 projectile, 6 gate, 7 (M5) festival pole, 9 (M8) a grave,
-                //   10 (M10) the sea's (View::seaSorted's idx: a boat),
+                //   10 (M10) the sea's (View::seaSorted's idx: a boat), 11 (M11) the relief's (View::reliefSorted's idx),
                 //   8 (M7) a home draw (View::homeDraws_[idx]: a yard object, a crop, the building site, a ground edit)
   int idx;
   int tx, ty;
@@ -1740,6 +1745,7 @@ void View::drawWorld(Game& g) {
     wallTodo_.pop_back();
     if (!wallTiles_.count(wallTexKey(k))) { wallTileTex(k); break; }
   }
+  if (g.mode != Mode::Title) drawReliefWater(g, cam);   // (M11) waterfalls over the faces (render_relief.cpp)
   if (g.mode != Mode::Title) drawSeaWater(g, cam);      // (M10) waves, foam, wakes over the water (render_sea.cpp)
   if (g.mode != Mode::Title) drawMagicGround(g, cam);   // (M9) surfaces, decals, ground glyphs under the bodies (render_magic.cpp)
   // collect drawables
@@ -1911,6 +1917,8 @@ void View::drawWorld(Game& g) {
   }
   // (M10) the sea's standing things: the boats (render_sea.cpp; Drawable kind 10)
   if (g.mode != Mode::Title) seaSorted(g, cam, [&](float y, int i) { list.push_back({y, 10, i, 0, 0}); });
+  // (M11) the relief's standing things: a fall's spray column (render_relief.cpp; Drawable kind 11)
+  if (g.mode != Mode::Title) reliefSorted(g, cam, [&](float y, int i) { list.push_back({y, 11, i, 0, 0}); });
   // (M6 fixer r3, review: "a diagonal curtain wall's face runs over the gate tower's base") a diagonal run leaving a
   // gatehouse starts a row or two below the gate's own row, so it sorted after the gatehouse and its face crossed the
   // round flanking tower: the first diagonal wall tiles beside a gate go down before the gatehouse (the tower stands in
@@ -2936,6 +2944,9 @@ void View::drawWorld(Game& g) {
         drawSeaSorted(g, d.idx, cam);
         if (seaHeroUnderRig(*this)) ghost = true;   // the sail stands before the hero: his silhouette shows through it
         break;
+      case 11:  // (M11) the relief's (render_relief.cpp)
+        drawReliefSorted(g, d.idx, cam);
+        break;
       default: break;
     }
   }
@@ -3907,10 +3918,11 @@ bool cmdWeather(ScriptCtx& c) {
   static_assert(sizeof(names) / sizeof(names[0]) == (size_t)Sky::COUNT, "a name for every Sky");
   const std::string w = c.arg(1);
   if (w == "auto" || w.empty()) { c.view.scriptSky(-1); return true; }
+  if (w == "clear") { c.view.scriptSky(kSkyClear); std::printf("weather: clear\n"); return true; }   // (M11 TERRAIN) no weather at all: review shots
   for (int i = 0; i < (int)Sky::COUNT; i++)
     if (w == names[i]) { c.view.scriptSky(i); std::printf("weather: %s\n", names[i]); return true; }
   c.fail("weather: unknown kind " + w);
   return true;
 }
 }  // namespace
-EMB_SCRIPT_CMD("weather", "weather temperate|showery|misty|dry|arid|snowy|blizzard|monsoon|ashfall|eerie|auto: force the weather (full strength)", cmdWeather);
+EMB_SCRIPT_CMD("weather", "weather temperate|showery|misty|dry|arid|snowy|blizzard|monsoon|ashfall|eerie|clear|auto: force the weather (full strength; clear: none)", cmdWeather);

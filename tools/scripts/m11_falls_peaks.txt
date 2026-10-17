@@ -1,0 +1,20 @@
+# M11 FALLS lane: mountains read as height (VISION_PLAN 11.3, 13 M11): peaks along a range, a summit shrine by day and
+# at night (its braziers lit), cairns and prayer flags by it, cloud shadows drifting over the high ground.
+#   embervale.exe --script tools/scripts/m11_falls_peaks.txt     (m11peaks_*.png in the working directory)
+seed 1
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.1 weather clear
++0.1 gotopoi range
++7   shot m11peaks_range.png
++0.1 gotorelief summit
++7   shot m11peaks_shrine_day.png
++0.1 expect fallfx ms 0.3
++0.1 fallfx
++0.1 hour 22
++1.5 shot m11peaks_shrine_night.png
++0.1 hour 11
++0.1 gotorelief summit 1
++7   shot m11peaks_shrine_2.png
++0.3 quit

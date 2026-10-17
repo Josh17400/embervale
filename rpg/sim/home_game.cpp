@@ -142,9 +142,8 @@ float Game::homeSpeedMul() const {
   const int tx = (int)std::floor(p.p.x / TILE), ty = (int)std::floor((p.p.y - 2) / TILE);
   const Ground gr = map().at(tx, ty);
   if (gr == Ground::Road || gr == Ground::Plaza || gr == Ground::Bridge) mul *= 1.0f + home::RIDE_ROAD_BONUS;
-  // (phase B) a horse that is not sure-footed picks its way down a ramp
-  const Map& m = map();
-  if (!b.sure && m.in(tx, ty) && !m.height.empty() && (m.height[(size_t)ty * m.w + tx] & Map::HEIGHT_RAMP)) mul *= 0.6f;
+  // (M11 CLIMB) ramps, stairs and hillsides: Map::reliefSpeed, applied in moveActor like everyone's (a sure-footed breed
+  // is exempt there: ClimbOps::reliefTarget); the phase-B 0.6 on ramps is gone
   return mul;
 }
 
@@ -627,7 +626,7 @@ int debugLot(Game& g, int32_t gx, int32_t gy, LotSize s) {
           const size_t i = (size_t)ly * M.w + lx;
           const Ground gr = M.at(lx, ly);
           if (groundSolid(gr) || gr == Ground::Road || gr == Ground::Plaza || gr == Ground::Bridge || M.bldgAt[i] >= 0 || M.wall[i] ||
-              (!M.height.empty() && (M.height[i] & (Map::HEIGHT_CLIFF | Map::HEIGHT_RAMP))) || g.home.plotAt(x, y) >= 0)
+              (!M.height.empty() && (M.height[i] & Map::HEIGHT_STEP)) || g.home.plotAt(x, y) >= 0)
             return false;
         }
       // (integration) nor over a settlement's generated lot (World::lots), ring included

@@ -77,6 +77,7 @@ enum Icon {
   IC_V0,                                  // + VignetteKind (9)
   IC_W0 = IC_V0 + (int)ew::VignetteKind::COUNT,   // + WonderKind (4)
   IC_CAPITAL = IC_W0 + (int)ew::WonderKind::COUNT,
+  IC_SUMMIT,                              // (M11 CLIMB) a summit shrine (SPF_SUMMIT): a snowy peak crowned by its shrine
   IC_COUNT
 };
 // Pixel icons: '.' clear, k ink, w light, s stone, d dark, r red, R roof, g gold, G green, L leaf light, b brown,
@@ -111,6 +112,7 @@ const IconArt kIcons[IC_COUNT] = {
     {"STARFALL", {"....W....", "...kck...", "k.kcWck.k", ".kcWWWck.", "kcWWyWWck", ".kcWWWck.", "k.kcWck.k", "...kck...", "....W...."}},
     {"DRAGON BONES", {"kk.......", "kwk.k.k.k", "kwwkwkwkw", ".kwwwwwww", "..kkkkkkk"}},
     {"CAPITAL", {"g.g.g", "ggggg"}},
+    {"SUMMIT SHRINE", {"....kgk....", "...kgggk...", "...kwdwk...", "...kWWWk...", "..kWsWWdk..", ".kWssWsddk.", "kssssssdddk", "kkkkkkkkkkk"}},
 };
 uint32_t iconCol(char ch) {
   switch (ch) {
@@ -283,6 +285,11 @@ struct MapSmp {
   uint8_t eco = 0;             // (M4) the biome proper (flower meadows are speckled with blooms)
   uint8_t mist = 0;            // (M10) in a hidden land's Mist: 1 uncharted (thick fog), 2 charted (a thin ring)
   uint8_t mistD = 0;           // (M10) ... its density there (0 at the ring's edges .. 255 in its thick)
+  // (M11 CLIMB) the window's real relief (street and town zooms): the step bits of the sample's tiles (a sample over
+  // several tiles ORs them, so a face one tile thick never breaks into dashes), the side its higher ground lies on (1
+  // north, 2 east, 3 west, 4 south; 0 none) and whether a face there climbs two levels or more (a stacked face)
+  uint8_t rb = 0, up = 0;
+  bool stack = false;
   // (M7c SURVEY) a settlement's plan: the building's identity (row houses read as separate roofs), its height (the
   // length of its shade), a wall tower, a hedge or garden wall, and that the sample comes from a plan (the region
   // plans' road and river lines and the wood glyphs keep off it)
@@ -705,6 +712,32 @@ bool planSample(const PlanRaster& P, int slot, int32_t x0, int32_t y0, int n, in
 }
 }  // namespace
 
+// (M11 CLIMB) a sample's relief from the window's real tiles (VISION_PLAN 11.5: the map's contours from the final
+// relief): the step bits of the tiles it covers (z tiles a side from z = 1 on), the side the higher ground lies on, a
+// stacked face
+static void reliefSample(const Map& m, int lx, int ly, float z, MapSmp& s) {
+  if (m.height.empty()) return;
+  const int nb = z < 1 ? 1 : (int)z;
+  int bestUp = 0, rise = 0;
+  for (int oy = 0; oy < nb; oy++)
+    for (int ox = 0; ox < nb; ox++) {
+      const int x = lx + ox, y = ly + oy;
+      if (!m.in(x, y)) continue;
+      const uint8_t b = m.heightBits(x, y);
+      const uint8_t step = b & (Map::HEIGHT_STEP | Map::HEIGHT_FALL | Map::HEIGHT_STAIR);
+      if (!step) continue;
+      s.rb |= step;
+      const int l = b & Map::HEIGHT_LEVEL;
+      static const int dx[4] = {0, 1, -1, 0}, dy[4] = {-1, 0, 0, 1};
+      for (int k = 0; k < 4; k++) {
+        const int d = m.heightAt(x + dx[k], y + dy[k]) - l;
+        if (d > rise || (d == rise && d > 0 && k == 0)) { rise = d; bestUp = k + 1; }
+      }
+    }
+  s.up = (uint8_t)bestUp;
+  s.stack = (s.rb & Map::HEIGHT_CLIFF) && rise >= 2;
+}
+
 // ---- one cached tile -------------------------------------------------------------------------------------------
 // The tile's samples cover it plus a margin of MG map pixels (coasts and glyphs are decided the same way on both sides
 // of a tile edge, so tiles meet seamlessly).
@@ -862,6 +895,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
           if (!m.biome.empty()) s.bio = m.biomeAt(lx, ly);
           if (!m.eco.empty()) s.eco = (uint8_t)m.ecoAt(lx, ly);
           s.h = (uint8_t)m.heightAt(lx, ly);
+          reliefSample(m, lx, ly, z, s);
         }
       } else if (z <= 2 && m.in(lx, ly)) {
         // the real tiles of the window
@@ -896,6 +930,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
           s.hedge = s.hedgeKind != 0;
         }
         s.h = (uint8_t)m.heightAt(lx, ly);
+        reliefSample(m, lx, ly, z, s);
         s.wall = !m.wall.empty() && m.wall[(size_t)ly * m.w + lx] != 0;
         s.tree = isTreeProp(m.prop[(size_t)ly * m.w + lx]);
         // (M2 fixer round 3, review: "the town zoom is muddy, blurry green noise") a sample spanning two tiles takes
@@ -1005,6 +1040,7 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
   // the hillshade's strength: the same mountains read at every zoom (a sample spans z tiles)
   const float hsA = 17.0f * std::pow(4.0f / z, 0.8f);
   Canvas c(TS, TS);
+  std::vector<std::pair<int, int>> fallMarks;   // (M11 CLIMB) waterfall glyphs: the window's falls, the rivers' drops
   for (int y = 0; y < TS; y++)
     for (int x = 0; x < TS; x++) {
       const int i = x + MG, j = y + MG;
@@ -1050,7 +1086,17 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         // town zoom's strength (sample to sample the per-tile elevation steps were amplified into a plaid), and a level
         // step is one thin shaded line on its low side instead of a shaded band
         const int ko = z < 1 ? (int)std::lround(1.0f / z) : 1;
-        const float slope = at(i - ko, j - ko).e - at(i + ko, j + ko).e;
+        float slope = at(i - ko, j - ko).e - at(i + ko, j + ko).e;
+        if (z < 1) {
+          // (M11 fixer r2) at the street zoom the slope is blended between the tile centres (bilinear), so the hillshade
+          // runs smoothly across the land instead of a 12-px block per tile
+          const float tfx = (px + 0.5f) * z - std::floor((px + 0.5f) * z), tfy = (py + 0.5f) * z - std::floor((py + 0.5f) * z);
+          const int ci = i + (int)std::lround((0.5f - tfx) / z), cj = j + (int)std::lround((0.5f - tfy) / z);
+          const int i0 = tfx < 0.5f ? ci - ko : ci, j0 = tfy < 0.5f ? cj - ko : cj;
+          const float ax = tfx < 0.5f ? tfx + 0.5f : tfx - 0.5f, ay = tfy < 0.5f ? tfy + 0.5f : tfy - 0.5f;
+          auto sl = [&](int a, int b) { return at(a - ko, b - ko).e - at(a + ko, b + ko).e; };
+          slope = (sl(i0, j0) * (1 - ax) + sl(i0 + ko, j0) * ax) * (1 - ay) + (sl(i0, j0 + ko) * (1 - ax) + sl(i0 + ko, j0 + ko) * ax) * ay;
+        }
         float hs = std::clamp(0.5f + slope * (z < 1 ? 17.0f * std::pow(4.0f, 0.8f) : hsA), 0.0f, 1.0f);
         if (z < 1) {
           if ((int)n.h > (int)s.h) hs = std::max(0.0f, hs - 0.30f);
@@ -1062,6 +1108,52 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         k = s.plan && (s.road || s.bldg || s.wall) ? shadec(k, 0.93f + hs * 0.14f) : shadec(k, 0.74f + hs * 0.52f);
         // faint contours every two relief levels (Z1, Z2)
         if (z >= 1 && z <= 8 && (n.h / 2 != s.h / 2 || w.h / 2 != s.h / 2) && !n.water && !w.water) k = mixc(k, kInkSoft, 0.28f);
+        // (M11 CLIMB) the relief as the hero meets it (11.2, 11.5). Where the window's real tiles are sampled (rb): a
+        // cliff is a face in shade with an inked crest, a stacked face darker and longer with a soft shadow at its foot;
+        // a hillside a soft diagonal hatch; a ramp a paler worn tongue, stone stairs ruled treads. Beyond the window
+        // (the macro levels) a step on the high ground (level 4 up, where the faces are) is drawn as a firmer line than
+        // the faint contours of the low hills.
+        if (!s.rb && z >= 1 && z <= 8 && !n.water && !w.water && std::max({(int)s.h, (int)n.h, (int)w.h}) >= 4 && (n.h > s.h || w.h > s.h))
+          k = mixc(k, kInkSoft, (n.h >= s.h + 2 || w.h >= s.h + 2) ? 0.50f : 0.34f);
+        if (s.rb && !s.bldg && !s.wall && !(s.plan && s.road && !(s.rb & Map::HEIGHT_STAIR))) {
+          const uint8_t rb = s.rb;
+          const float fx = (px + 0.5f) * z - std::floor((px + 0.5f) * z), fy = (py + 0.5f) * z - std::floor((py + 0.5f) * z);
+          if ((rb & Map::HEIGHT_CLIFF) && !(rb & Map::HEIGHT_FALL)) {
+            if (z < 1) {
+              // the cartographer's cliff: an inked crest along the edge toward the higher ground, hachures (short ink
+              // strokes, every other one shorter) running down the face, the gaps between them in shade (a face toward
+              // the north-west light lit instead), a contact shadow at a south face's foot; a stacked face is darker and
+              // fills the tile
+              // (M11 fixer r2) one unbroken band per face: a firm inked crest, the face in shade (lit toward the
+              // north-west light) darkening to a fine foot line, a contact shadow below a south face. The hachure strokes
+              // every other pixel read as a comb of ticks
+              const float depth = s.stack ? 1.01f : 0.70f;
+              const float along = s.up == 1 ? fy : s.up == 4 ? 1.0f - fy : s.up == 3 ? fx : s.up == 2 ? 1.0f - fx : fy;
+              const float lit = s.up == 2 ? 1.04f : s.up == 4 ? 1.0f : s.up == 3 ? 0.84f : 0.78f;
+              if (along < 0.18f) k = mixc(k, kInkC, s.stack ? 0.86f : 0.74f);
+              else if (along < depth) {
+                const float t = (along - 0.18f) / (depth - 0.18f);
+                k = shadec(k, lit * (s.stack ? 0.84f : 0.92f) * (1.0f - 0.10f * t));
+                if (along > depth - 0.09f) k = mixc(k, kInkC, 0.30f);
+              } else if (s.up == 1 || s.up == 0)
+                k = shadec(k, 0.86f);
+            } else
+              k = mixc(k, kInkC, s.stack ? 0.78f : 0.56f);   // a face a tile or less: one firm ink line
+          } else if (rb & Map::HEIGHT_SLOPE) {
+            // a hillside: soft shade and a diagonal hatch running down the fall line (north-west light)
+            const int hp = z < 1 ? 4 : 3;
+            k = shadec(k, s.up == 1 || s.up == 2 ? 0.92f : 0.96f);
+            if ((((px - py) % hp) + hp) % hp == 0) k = mixc(k, kInkSoft, z < 1 ? 0.30f : 0.22f);
+          } else if (rb & Map::HEIGHT_RAMP) {
+            if (rb & Map::HEIGHT_STAIR) {
+              // stone stairs: pale dressed stone ruled into treads across the way up
+              const uint32_t stone = mixc(s.c, C(198, 186, 164), 0.55f);
+              const float t = s.up == 2 || s.up == 3 ? fx : fy;
+              k = z < 1 ? ((int)std::floor(t * 4.0f) & 1 ? shadec(stone, 0.80f) : shadec(stone, 1.06f)) : mixc(k, C(198, 186, 164), 0.45f);
+            } else
+              k = mixc(shadec(k, 1.06f), C(196, 170, 124), 0.30f);                                  // a worn earth ramp
+          }
+        }
         // woods stippled at the town zoom outside the window (the land zoom gets tree marks)
         if (z < 1 && !s.road && !s.bldg && (s.bio == Biome::Forest || s.bio == Biome::Taiga || s.bio == Biome::Autumn) && !m.in((int)std::floor((px + 0.5f) * z) - g.world.ox, (int)std::floor((py + 0.5f) * z) - g.world.oy)) {
           const int jx = (int)(hash2(px / 3, py / 3, 731) % 2);
@@ -1149,6 +1241,17 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
         }
         if (((px * 3 + py * 5) & 31) == 0 && s.wd > 6) k = mixc(k, kRipple, 0.4f);   // a few wave strokes far out
         if (s.wd == 1) k = mixc(kRiver, kInkC, 0.45f);
+        // (M11 CLIMB) a waterfall in the window: white water pouring over the face, streaked blue, a spray at its foot
+        if (s.rb & Map::HEIGHT_FALL) {
+          const float fx = (px + 0.5f) * z - std::floor((px + 0.5f) * z), fy = (py + 0.5f) * z - std::floor((py + 0.5f) * z);
+          const int streak = z < 1 ? (int)std::floor(fx * 5.0f) : px;
+          k = (streak + (py >> 1)) % 3 == 0 ? C(176, 210, 228) : C(240, 248, 250);
+          // its glyph once a tile (the sample nearest the tile's middle), so a fall one tile wide reads at every zoom
+          const bool mid = z >= 1 || (std::fabs(fx - 0.5f) <= z * 0.5f && std::fabs(fy - 0.5f) <= z * 0.5f);
+          bool near = false;
+          for (const auto& fm : fallMarks) near |= std::abs(fm.first - x) + std::abs(fm.second - y) < (z < 1 ? 3 : 6);
+          if (mid && !near) fallMarks.push_back({x, y});
+        }
       }
       // (M4) kingdom borders at every zoom: where the owner changes (Realm::landOwner: conquests move them), a dashed line
       // in each owner's colour on its own side (two-tone between two realms, a double-width line facing the wildlands),
@@ -1197,13 +1300,28 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
   if (geo || !endless) { out = std::move(c); return true; }
   // ---- cartographic lines: rivers and roads from the explored regions' plans (Z1 outside the window, Z2)
   auto knownAt = [&](int x, int y) { return x >= -MG && y >= -MG && x < TS + MG && y < TS + MG && at(x + MG, y + MG).known; };
+  // (M11 CLIMB) where a river's line drops a level on the high ground (level 3 and up, where a step is a face rather
+  // than a hillside) a waterfall is marked on it (inside the window the real fall tiles draw themselves)
   auto plotLine = [&](float x0, float y0, float x1, float y1, uint32_t col, int dash, bool skipWindow) {
     const float L = std::max(std::fabs(x1 - x0), std::fabs(y1 - y0));
     const int n = std::max(1, (int)std::ceil(L));
+    int prevH = -1;
     for (int k2 = 0; k2 <= n; k2++) {
       const float t = (float)k2 / n;
       const float fx = x0 + (x1 - x0) * t, fy = y0 + (y1 - y0) * t;
       const int x = (int)std::floor(fx), y = (int)std::floor(fy);
+      if (col == kRiver && x >= -MG && y >= -MG && x < TS + MG && y < TS + MG) {
+        const Smp& q = at(x + MG, y + MG);
+        if (!q.water && q.known) {
+          if (prevH >= 0 && (int)q.h != prevH && std::max((int)q.h, prevH) >= 3 && x >= 0 && y >= 0 && x < TS && y < TS) {
+            bool near = false;
+            for (const auto& fm : fallMarks) near |= std::abs(fm.first - x) + std::abs(fm.second - y) < 6;
+            const int lx = (int)std::floor((ix * TS + x + 0.5f) * z) - g.world.ox, ly = (int)std::floor((iy * TS + y + 0.5f) * z) - g.world.oy;
+            if (!near && !(skipWindow && m.in(lx, ly))) fallMarks.push_back({x, y});
+          }
+          prevH = q.h;
+        }
+      }
       if (x < 0 || y < 0 || x >= TS || y >= TS || !knownAt(x, y)) continue;
       if (dash && ((ix * TS + x + iy * TS + y) % (dash + 1)) == dash) continue;
       if (skipWindow) {   // inside the window the real tiles already show it
@@ -1233,6 +1351,19 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
                      rd.cls == 0 ? 0 : rd.cls == 1 ? 3 : 1, skipW);
         }
       }
+  }
+  // the waterfall marks: a white bar of falling water across the river, inked at its ends, a spray pixel below
+  for (const auto& fm : fallMarks) {
+    const int x = fm.first, y = fm.second;
+    auto put = [&](int qx, int qy, uint32_t col) { if (qx >= 0 && qy >= 0 && qx < TS && qy < TS) c.set(qx, qy, col); };
+    put(x - 2, y, mixc(kInkC, kParch, 0.25f));
+    put(x + 2, y, mixc(kInkC, kParch, 0.25f));
+    put(x - 1, y, C(244, 250, 252));
+    put(x, y, C(255, 255, 255));
+    put(x + 1, y, C(244, 250, 252));
+    put(x, y + 1, C(196, 224, 240));
+    put(x - 1, y + 1, mixc(C(196, 224, 240), kRiver, 0.5f));
+    put(x + 1, y + 1, mixc(C(196, 224, 240), kRiver, 0.5f));
   }
   // ---- glyphs: tree marks in the woods (Z1 outside the window, Z2) and snow-tipped peaks on the ridge crests (Z2, Z3).
   //      A jittered global lattice of candidates; each tile draws every glyph that reaches it (sorted north to south).
@@ -1678,7 +1809,24 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     const bool minor = !st.settlement() && st.type != SiteType::Wonder && !st.mainQuest && st.type != SiteType::DragonLair;
     if (minor && z >= 16) continue;
     if (st.type == SiteType::Village && z >= 32) continue;
-    marks.push_back({s.x, s.y, siteIcon(st), i});
+    int ic = siteIcon(st);
+    if (st.type == SiteType::Shrine && g.world.src) {
+      // (M11 CLIMB) a summit shrine (its region plan's SPF_SUMMIT; looked up once per site)
+      static std::unordered_map<uint64_t, bool> summitOf;
+      auto it = summitOf.find(st.id);
+      if (it == summitOf.end()) {
+        bool sum = false;
+        const int32_t gx = st.ex + g.world.ox, gy = st.ey + g.world.oy;
+        bool found = false;
+        for (int k = 0; k < 10 && !found; k++)   // (its own region first, then the ring: a plan near a region's edge)
+          for (const ew::SitePlan& sp : g.world.src->region(ew::regionOf(gx) + (k == 0 ? 0 : (k - 1) % 3 - 1), ew::regionOf(gy) + (k == 0 ? 0 : (k - 1) / 3 - 1)).sites)
+            if (sp.id == st.id) { sum = (sp.flags & ew::SPF_SUMMIT) != 0; found = true; break; }
+        if (summitOf.size() > 4096) summitOf.clear();
+        it = summitOf.emplace(st.id, sum).first;
+      }
+      if (it->second) ic = IC_SUMMIT;
+    }
+    marks.push_back({s.x, s.y, ic, i});
   }
   // (fixer M4 r3, review: "about 8 icons sit in one knot round the start on the phone") declutter: the places are
   // taken most important first (the selected one, capitals, cities, towns, wonders, villages, the rest) and an icon

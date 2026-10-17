@@ -45,6 +45,8 @@ bool propLight(Prop p, float& r, Color& c) {
     // M10 Beyond the Mist: the harbourmaster's lantern under his eave (the lighthouse's lamp, high on its tower, is lit
     // by the sea's own lights: render_sea.cpp seaLights)
     case Prop::HarbourDesk: r = 46; c = Color(1.0f, 0.78f, 0.45f); return true;
+    // M11 High Ground (FALLS lane): the summit shrine's two braziers (one warm pool over the whole dais)
+    case Prop::SummitShrine: r = 76; c = Color(1.0f, 0.60f, 0.30f); return true;
     default: return false;
   }
 }
@@ -65,6 +67,10 @@ int propShadow(Prop p) {
   if (p == Prop::ElderTree || p == Prop::DragonBones || p == Prop::GreatPeak) return 7;
   if (p == Prop::Peak || p == Prop::CaravanWreck || p == Prop::WatchtowerRuin || p == Prop::FishingShack || p == Prop::Colossus) return 6;
   if (p == Prop::StandingStone || p == Prop::GraveCairn || p == Prop::TollPost) return 2;
+  // M11 (FALLS lane): the summit shrine's dais casts a footprint-wide shadow, a cairn a large object's (the prayer
+  // flags' thin poles none)
+  if (p == Prop::SummitShrine) return 6;
+  if (p == Prop::Cairn) return 2;
   return 0;
 }
 

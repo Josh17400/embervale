@@ -1,40 +1,46 @@
 # rpg/world endless generator golden values (rpg_test --endless --golden --write). Integer maths only: must match on
 # every platform. Settlement interiors and footprints (the towns lane's output) are masked out.
+# (M11 WORLD lane, 2026-10-16: re-recorded: the chunks' deeper relief (stacked tiers, ridges, hillsides, river beds and falls,
+# landings, summit trails) and the region plans' summit shrines (SPF_SUMMIT, with their trails) at the named peaks and crests)
+# (M11 fixer r1, 2026-10-16: re-recorded 4 chunk hashes: the level fix-up over the 2-tile ring (seams agree), no ramp beside a
+# tile 2 levels higher, road stairs on the road's own tiles, 16-tile hillside cells, the summit shrines' crown; plans unchanged)
+# (M11 fixer r2, 2026-10-16: re-recorded 3 chunk hashes: the land tops out at level 6 (level 7 the summit crowns'), a dirt
+# track's way up an earth ramp (stairs on paved roads and summit trails), no tree or rock over a waterfall; plans unchanged)
 1.cultures 3ee6e3981d4060b7
-1.farneg.chunks 26c565079463398d
-1.farneg.region 86afb4258d39df2c
+1.farneg.chunks 4545a74d3d71e0db
+1.farneg.region 6c5eb646cd4951f7
 1.farneg.tiles 0000000000002b80
-1.farpos.chunks f430efd26794938b
-1.farpos.region 263855f738775178
+1.farpos.chunks b79a1cb0ec02589b
+1.farpos.region 8d3bf1639f6e3bd9
 1.farpos.tiles 0000000000002e74
 1.macro d4ce0f5cfa4eb190
-1.near.chunks 795765dcf30adf05
+1.near.chunks 17884b7e0a9fef20
 1.near.region 175a469a4af2263d
 1.near.tiles 00000000000017c0
 1.places 01f2fe7901a7fe79
 1.start d55d63567fa5b7d6
 12345.cultures 5748bdb49bfd7f11
-12345.farneg.chunks dcea763fd7c89546
-12345.farneg.region d02b3a65c2baf7d9
+12345.farneg.chunks fe43df180e4696b3
+12345.farneg.region 8da5f67e842bb3ea
 12345.farneg.tiles 0000000000004000
-12345.farpos.chunks dd2c947fc8b8ff91
+12345.farpos.chunks 3cf1934c75243794
 12345.farpos.region 51cb4fda754f547c
 12345.farpos.tiles 0000000000002d07
 12345.macro 82585978f2740c3c
-12345.near.chunks 05af99ac02fe286b
+12345.near.chunks df01e246a3f6d740
 12345.near.region b861879968c2a524
 12345.near.tiles 0000000000001d40
 12345.places 0195fe790195fe79
 12345.start b911976102c3924e
 7.cultures b780363274df937d
-7.farneg.chunks c89718468c4860a6
+7.farneg.chunks 7a6ffcf29c8b89e5
 7.farneg.region 435a3cb2ec7da01f
 7.farneg.tiles 0000000000002d80
-7.farpos.chunks 95a2f060db69eab2
+7.farpos.chunks c6a8f130bbafc334
 7.farpos.region c46147ef16cc5575
 7.farpos.tiles 0000000000002840
 7.macro b6e05656b5e1368f
-7.near.chunks 6acfe181c43b04a4
+7.near.chunks b54c45b3f265c8a6
 7.near.region 2a18062017ac7837
 7.near.tiles 0000000000002820
 7.places 01a9fe790186fe79

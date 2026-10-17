@@ -167,6 +167,7 @@ class View {
   uint32_t groundPixel(const TMap& m, int px, int py);   // px, py: global pixels
   int rockLevel(const TMap& m, int tx, int ty);
   uint32_t reliefPixel(const TMap& m, int px, int py, uint32_t c, Ground g, bool flat = false);   // cliff faces, lips, ramps, grade (flat: the grade alone, smoothed: a city's paving over a walkable step)
+  friend struct TerrainScriptOps;   // (M11 TERRAIN lane) rpg/view/script_terrain.cpp: test stamps re-bake the chunks
   // EMB_PERF: bake time and texture counts, printed once a second
   struct Perf { double bakeMs = 0, worstBakeMs = 0, worstFrameMs = 0, frameMs = 0; int bakes = 0, inlineBakes = 0, frames = 0; float t = 0; };
   Perf perf_;
@@ -828,4 +829,32 @@ class View {
   void drawSeaOver(Game& g, Vec2 cam);         // world space after the lighting and weather: the Mist, storm rain, lightning
   void drawSeaHud(Game& g);                    // screen space (drawHud, under the vitals pass): the sail and fishing panels
   void seaFillInput(Game& g, Input& in);       // the HUD's input pass (after the quick-cast slots): Input::reel
+
+  // ---- M11 High Ground (VISION_PLAN 11.3, 13 M11, 15.32). One block, the FALLS lane's (rpg/view/render_relief.cpp + its
+  //      own new files; view.h itself is frozen for that lane: the state lives in the opaque ReliefViewState, View's
+  //      internals are reached through the friend ReliefViewOps). What of the relief MOVES or stands up, drawn live
+  //      over the baked terrain: waterfalls (Map::HEIGHT_FALL tiles: the falling sheet over the face, 3+ frames, the
+  //      foam pool and spray at the foot, mist particles), plateau lakes' spills, the falls' roar (Audio::setFalls,
+  //      by the nearest fall and its side), drifting cloud shadows and high-ground haze. The baked look of the relief
+  //      (faces, slopes, stairs, grading, cast shadows) stays in terrain.cpp (the TERRAIN lane).
+ public:
+  struct ReliefViewStats {   // last frame's counts (scripts `expect reliefview`, --perf)
+    int falls = 0;           // HEIGHT_FALL tiles drawn this frame
+    int mistPuffs = 0, sprays = 0;
+    float roar = 0;          // the level handed to Audio::setFalls
+    double ms = 0;           // the relief draw's own time last frame (ms)
+  };
+  ReliefViewStats reliefViewStats() const;
+  struct ReliefViewState;    // (render_relief.cpp)
+ private:
+  friend struct ReliefViewOps;   // (render_relief.cpp and the FALLS lane's other relief files)
+  std::shared_ptr<ReliefViewState> reliefView_;
+  void reliefUpdate(Game& g, float dt);        // update, after seaUpdate: mist, spray, the roar's level
+  void reliefShift(Vec2 d);                    // Ev::WindowShift: particles move with the window
+  void drawReliefWater(Game& g, Vec2 cam);     // world space over the terrain, before the sea's water: the falls
+  // the sorted pass: push(y, idx) for anything of the relief that stands up among the bodies (a fall's spray column,
+  // a lip of the face the hero walks behind); drawReliefSorted draws entry idx when its turn comes (Drawable kind 11)
+  void reliefSorted(Game& g, Vec2 cam, const std::function<void(float, int)>& push);
+  void drawReliefSorted(Game& g, int idx, Vec2 cam);
+  void drawReliefOver(Game& g, Vec2 cam);      // world space after the weather, before the sea's Mist: cloud shadows, haze
 };

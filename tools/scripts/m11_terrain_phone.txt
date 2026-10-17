@@ -1,0 +1,32 @@
+# M11 "High Ground" TERRAIN lane: the phone review (639 x 294 logical, the iPhone Home Screen size): the relief as the
+# owner sees it: an earth-bank plateau with its stacked face, hillside, stairs and fall; granite tiers two levels high;
+# the mountains' high ground; a road's stairs; a waterfall's face; dusk on the plateau.
+#   embervale.exe --script tools/scripts/m11_terrain_phone.txt     (m11tp_*.png in the working directory)
+phone
+seed 1
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.1 weather clear
++0.2 gotoeco meadow
++0.5 reliefstamp 1 1
++1.5 shot m11tp_0_garden.png
++0.1 at 300 -40
++0.1 gotoeco alpinemeadow
++0.5 reliefstamp 2
++1.5 shot m11tp_1_granite_tiers.png
++0.1 gotoeco mountain 2
++1.5 shot m11tp_2_mountain.png
++0.1 at 300 -40
++0.5 gotorelief stair
++1.5 shot m11tp_3_stair.png
++0.1 at -400 -100
++0.5 gotorelief fall
++1.5 shot m11tp_4_fall.png
++0.1 expect relief walk
++0.1 at 300 -40
++0.1 gotoeco meadow
++0.5 reliefstamp 1 1
++0.1 hour 19.5
++1.5 shot m11tp_5_dusk.png
++0.3 quit

@@ -1,0 +1,20 @@
+# M11 FALLS lane on the phone (639x294 canvas, the iPhone's safe insets, the touch controls showing): a waterfall and
+# its mist read at phone size, the relief draw's cost; a summit shrine with its cairns and flags.
+#   embervale.exe --script tools/scripts/m11_falls_phone.txt     (m11falls_phone_*.png in the working directory)
+phone
+seed 1
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 weather clear
++0.3 gotofall north 0 far
++6   shot m11falls_phone_fall.png
++0.1 expect reliefview falls 1
++0.1 expect fallfx ms 0.3
++0.1 fallfx
++0.1 hour 21
++1.5 shot m11falls_phone_night.png
++0.1 hour 11
++0.1 gotorelief summit
++7   shot m11falls_phone_shrine.png
++0.3 quit

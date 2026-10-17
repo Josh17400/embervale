@@ -438,6 +438,10 @@ int reachWindow(EndlessSource& A, uint64_t seed, int32_t wx0, int32_t wy0, const
     for (int y = 1; y < N - 1; y++)
       for (int x = 1; x < N - 1; x++) {
         if (near[(size_t)y * N + x] || wetA(x, y) || wetA(x, y - 1) || wetA(x, y + 1) || wetA(x - 1, y) || wetA(x + 1, y)) continue;
+        // (M11, WORLD lane) a way up is no sliver: a stairway's landing (a stacked face climbed in two flights) is a
+        // 1-tile terrace by design, and the flights are ramps
+        if (hb[(size_t)y * N + x] & Map::HEIGHT_RAMP) continue;
+        if ((hb[(size_t)(y - 1) * N + x] | hb[(size_t)(y + 1) * N + x] | hb[(size_t)y * N + x - 1] | hb[(size_t)y * N + x + 1]) & Map::HEIGHT_RAMP) continue;
         const int l = lvA(x, y), n = lvA(x, y - 1), s = lvA(x, y + 1), w = lvA(x - 1, y), e = lvA(x + 1, y);
         const int hi = (n > l) + (s > l) + (w > l) + (e > l), lo = (n < l) + (s < l) + (w < l) + (e < l);
         bool hit = true;
@@ -446,6 +450,8 @@ int reachWindow(EndlessSource& A, uint64_t seed, int32_t wx0, int32_t wy0, const
         else if ((n > l && s > l) || (n < l && s < l) || (w > l && e > l) || (w < l && e < l)) strip++;
         else hit = false;
         if (hit && !sx) { sx = wx0 + x; sy = wy0 + y; }
+        if (hit && std::getenv("EMB_SLIVERS") && terr + strip + spur <= 12)
+          out("    sliver at %d,%d (level %d; n %d s %d w %d e %d)\n", wx0 + x, wy0 + y, l, n, s, w, e);
       }
     g_slivers += terr + strip + spur;
     // (three cleanup passes leave a handful per million tiles: long 1-wide snakes the passes shorten from both ends)

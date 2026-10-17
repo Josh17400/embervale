@@ -551,6 +551,7 @@ void SkillOps::step(Game& g, float dt) {
   // ---- distances: walking and running (Athletics), riding (Riding)
   if (!L.hasLast) { L.lastX = p.p.x; L.lastY = p.p.y; L.hasLast = true; return; }
   const float dx = p.p.x - L.lastX, dy = p.p.y - L.lastY;
+  const float wasX = L.lastX, wasY = L.lastY;
   L.lastX = p.p.x; L.lastY = p.p.y;
   const float d = std::sqrt(dx * dx + dy * dy);
   if (d <= 48.0f && !g.sea.atSea()) {   // (a door, a journey, the window moving, a deck under sail or a ferry: not walked)
@@ -560,6 +561,14 @@ void SkillOps::step(Game& g, float dt) {
     } else {
       L.walked += d;
       if (L.walked >= 24.0f * TILE) { L.walked -= 24.0f * TILE; g.skillUse(Skill::Athletics, 1.0f); }
+      // (M11 CLIMB, 15.29 "climbing ramps") each level gained on foot (up a ramp, stone stairs or a hillside): a third of
+      // a use, so a climb to a summit shrine (seven levels) is worth two and a bit of the walk's 24-tile lots
+      const Map& m = g.map();
+      if (!g.inside && !m.height.empty()) {
+        const int h0 = m.heightAt((int)std::floor(wasX / TILE), (int)std::floor((wasY - 2) / TILE));
+        const int h1 = m.heightAt((int)std::floor(p.p.x / TILE), (int)std::floor((p.p.y - 2) / TILE));
+        if (h1 > h0 && h1 - h0 <= 2) g.skillUse(Skill::Athletics, 0.34f * (float)(h1 - h0));
+      }
     }
   }
   // ---- sneaking near foes that have not noticed (Stealth)

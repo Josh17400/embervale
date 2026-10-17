@@ -1,0 +1,17 @@
+# M11 CLIMB: the frame cost in a hilly window (run with --perf; built-in and phase-A commands only, so the same script
+# times a build from before the CLIMB lane): a range's window walked, the watch, wolves on the slopes.
+#   embervale.exe --perf --script tools/scripts/m11_climb_perf.txt
+seed 1
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 gotopoi range
++0.5 fight wolf 4
++0.1 walk east 5
++0.1 walk north 5
++0.1 walk west 5
++0.1 walk south 5
++0.1 gotorelief stair
++0.5 fight wolf 3
++0.1 walk east 6
++0.1 walk north 6

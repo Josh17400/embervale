@@ -1,5 +1,6 @@
 # rpg/world settlement golden values (rpg_test --towns --golden --write; seeds 1..3): every synthetic case's town
 # hash (ground, props, walls, heights, buildings, spawns, gates, M7 lots for sale). Must match on every platform.
+# (M11 WORLD lane, 2026-10-16: re-recorded because a terraced town's or city's street stairs now carry HEIGHT_STAIR; 7 cases changed, no village)
 town_s1_c0 fe1562959245a1cf
 town_s1_c1 7087e82e4ee968c6
 town_s1_c10 86482ab88ae4dfae
@@ -26,7 +27,7 @@ town_s1_c29 9395c90ec667819e
 town_s1_c3 ae0a1aedf19c7900
 town_s1_c30 8614f88f8069da34
 town_s1_c31 643cb10e9ba65bbb
-town_s1_c32 ebb8f5f961bb515f
+town_s1_c32 50b67763f1b2265f
 town_s1_c33 3515aa1ab72f8158
 town_s1_c34 592f5bd0355ad4b7
 town_s1_c35 ebd6f8f23cf856da
@@ -59,7 +60,7 @@ town_s1_c59 b533b02798bd5f04
 town_s1_c6 ba01da5b9964b58c
 town_s1_c60 6b1f9a888f255a81
 town_s1_c61 5b6ff0b34a39d60b
-town_s1_c62 bb26149bb564d4ea
+town_s1_c62 ffa631309a963eea
 town_s1_c63 2d654e9f7f86941d
 town_s1_c64 690777ef5ae70a9b
 town_s1_c65 9017a0e6f7809a73
@@ -93,7 +94,7 @@ town_s2_c29 eff23d37287d96ad
 town_s2_c3 4767c0330cedd3fa
 town_s2_c30 e41f8237e9191ab4
 town_s2_c31 3ed2a94f207e9697
-town_s2_c32 631cda3e4c9e7b0e
+town_s2_c32 327e7b7cc2e1568e
 town_s2_c33 a21f1cf29bf26d5f
 town_s2_c34 237d205e323c0659
 town_s2_c35 a451d27f620f087e
@@ -126,7 +127,7 @@ town_s2_c59 7a955b51dd205487
 town_s2_c6 b09132d7bdc87a5c
 town_s2_c60 733915f342bfd32f
 town_s2_c61 8fbfa62c25234184
-town_s2_c62 2efe0aacba316858
+town_s2_c62 060b3d400c21e8d8
 town_s2_c63 fe988ec145e146ea
 town_s2_c64 1c0fc4da8d0c8077
 town_s2_c65 8db8809f7f223152
@@ -160,13 +161,13 @@ town_s3_c29 bf6eba2691e25613
 town_s3_c3 714d2f72efb3fbf5
 town_s3_c30 8771f5680496a86e
 town_s3_c31 f3f3ab85b9399359
-town_s3_c32 8e6ca6d226aa103a
+town_s3_c32 78f9ca528bbbafba
 town_s3_c33 83284c28d49540f6
 town_s3_c34 954fa20c233c7a81
 town_s3_c35 e8a9c9fd0bfb7c96
 town_s3_c36 20a623b27a49b842
 town_s3_c37 9abc30b11a3ecbb5
-town_s3_c38 650af4248c84c145
+town_s3_c38 385a113f0426e845
 town_s3_c39 c5761e00c0536680
 town_s3_c4 596da98ef0fc8f1c
 town_s3_c40 563566e668cd6531
@@ -193,7 +194,7 @@ town_s3_c59 2a170ad4cbc2fd58
 town_s3_c6 a0db45afad0b580c
 town_s3_c60 d8709ceeacd3aec2
 town_s3_c61 99dfb8ea96c23149
-town_s3_c62 01ea859d80b45848
+town_s3_c62 771d94f7b6c0c2c8
 town_s3_c63 62575695142d5171
 town_s3_c64 8a2bdfc0a2513482
 town_s3_c65 68c1e6ad563583c1

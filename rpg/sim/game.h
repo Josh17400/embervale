@@ -204,6 +204,9 @@ struct Actor {
   int bleedBy = -1;
   uint8_t skillTag = 0;
   float skillT = 0;
+  // M11 High Ground (CLIMB lane, never saved): the relief walking factor this body moves at now (Map::reliefSpeed of the
+  // ground under its feet, eased over about 0.15 s of walking so a tile's edge never snaps the pace; moveActor)
+  float reliefK = 1.0f;
   bool hasStatus(magic::Status s) const { return (status & magic::statusBit(s)) != 0; }
 };
 
@@ -1100,6 +1103,37 @@ class Game {
   friend struct SkillOps;              // M9 SKILLS: the skills' hooks and internals (rpg/sim/skill_ops.h, skills_game.cpp)
   friend struct MagicOps;              // M9 MAGIC: casting, surfaces, statuses (rpg/sim/magic_ops.h, magic_game.cpp)
   friend struct SeaOps;                // M10 SEA: boats, sailing, the Mist, fishing (rpg/sim/sea_ops.h, sea_game.cpp)
+  friend struct ClimbOps;              // M11 CLIMB: moving over the relief, the long path search (game.cpp, ai.cpp)
+  // M11 CLIMB (never saved): the long path search's cache (ai.cpp). A body whose short search (the bounded BFS round
+  // buildings) cannot reach its goal (a cliff between, its way up 16-24 tiles along the face, stacked faces,
+  // switchbacks) gets an A* path over a wider window, followed until it is walked or the goal moves off; a failed
+  // search is remembered a moment so an unreachable goal costs one search, not one a frame.
+  struct NavPath {
+    int id = 0;                        // Actor::id
+    int32_t gx = 0, gy = 0;            // the goal tile (global outdoors, local inside)
+    int key = 0;                       // mapKey() the path was found on
+    std::vector<int32_t> tiles;        // the way: tile pairs (x, y), global outdoors; the goal's last
+    int at = 0;                        // the pair walked toward now
+    float t = 0;                       // its age (s)
+    float stuck = 0;                   // seconds without headway (a body in the way, a corner): re-planned past 0.6
+    bool fail = false;                 // no way found (remembered NAV_FAIL_HOLD s)
+  };
+  std::vector<NavPath> navPaths_;
+  std::vector<int32_t> navCost_;       // the long search's scratch (cost so far, parent, generation stamp)
+  std::vector<int32_t> navFrom_;
+  std::vector<uint32_t> navStamp_;
+  uint32_t navGen_ = 0;
+ public:
+  // M11 CLIMB: path search counters (--perf, scripts' `climbnav`, rpg_test --climb); reset by whoever reads them
+  struct NavStats {
+    int requests = 0;                  // navStep calls that needed a path (the straight way shut)
+    int shortFound = 0, shortFails = 0;   // the bounded BFS
+    int longSearches = 0, longFound = 0, longFails = 0, failHeld = 0, cacheFollows = 0;
+    int nodes = 0, worstNodes = 0;     // A* expansions, all and the worst single search
+    double ms = 0, worstMs = 0;        // time in the path searches, all and the worst single navStep
+  };
+  NavStats navStats;
+ private:
   // (M8b POWERS, never saved) > 0 while a power's own damage is being dealt: procs never fire from proc damage (a
   // Tempest arc never chains again, a star never calls a star); compStats_: each companion in play's worn gear summed
   // (actor id, stats), refreshed every step by PowerOps::step
@@ -1133,4 +1167,24 @@ class Game {
   void tollTalk(Actor& troll);         // the troll's demand as a dialogue
   int rumourSite(int32_t gx, int32_t gy);              // the nearest unknown place worth a rumour (-1 none)
   std::string rumourLine(int site, int32_t fromX, int32_t fromY) const;
+};
+
+// M11 CLIMB: moving over the relief (rpg/sim/game.cpp moveActor, ai.cpp navStep): the internals the tests and scripts
+// drive (rpg_test --climb, rpg/view/script_climb.cpp)
+struct ClimbOps {
+  static void moveActor(Game& g, Actor& a, Vec2 d) { g.moveActor(a, d); }
+  static bool navStep(Game& g, Actor& a, Vec2 goal, float speed, float dt) { return g.navStep(a, goal, speed, dt); }
+  static bool bodyFree(const Game& g, Vec2 p, float r, bool flying = false, uint8_t swim = 0) { return g.bodyFree(p, r, flying, swim); }
+  static Vec2 freeSpot(const Game& g, int tx, int ty) { return g.freeSpot(tx, ty); }
+  static void clearPaths(Game& g) { g.navPaths_.clear(); }
+  // the factor the ground under a body asks of it now (Map::reliefSpeed; 1 flying, swimming, aboard; the player's
+  // sure-footed horse; softened a little by a high Athletics): what Actor::reliefK eases toward
+  static float reliefTarget(const Game& g, const Actor& a);
+  // the long path search (ai.cpp): an A* over the start and goal's box plus 40 tiles; the way as local tile pairs
+  // (x, y; the goal's last) and the expansions it took
+  static bool longSearch(Game& g, const Actor& a, int sx, int sy, int gx, int gy, std::vector<int32_t>& out, int& nodes);
+  static bool yardBarred(const Game& g, const Actor& a, int tx, int ty) { return g.yardBarred(a, tx, ty); }
+  // scripts: a town guard at `at` (map pixels; hostile: one hostile to the hero, who chases them as the watch chases a
+  // wanted man); its Actor::id
+  static int spawnGuard(Game& g, Vec2 at, bool hostile);
 };

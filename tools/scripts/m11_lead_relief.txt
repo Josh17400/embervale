@@ -1,0 +1,36 @@
+# M11 "High Ground" lead: the relief tour every lane reviews before and after its work (VISION_PLAN 15.32).
+# Hills, cliffs of every ground, ramps and road stairs, a river over a step (waterfall), a peak, a plateau, snow steps.
+#   embervale.exe --script tools/scripts/m11_lead_relief.txt     (m11relief_*.png in the working directory)
+seed 1
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.2 at 239 463
++1.5 shot m11relief_0_snow_steps.png
++0.1 at 300 -40
++1.5 shot m11relief_1_grass_banks.png
++0.1 at 173 -67
++1.5 shot m11relief_2_ramp.png
++0.1 gotoeco alpinemeadow
++1.5 shot m11relief_3_alpine.png
++0.1 gotoeco mountain
++1.5 shot m11relief_4_mountain.png
++0.1 gotopoi peak
++1.5 shot m11relief_5_peak.png
++0.1 gotoeco stonydesert
++1.5 shot m11relief_6_desert.png
++0.1 gotoeco chalkdowns
++1.5 shot m11relief_7_downs.png
++0.1 gotopoi range
++1.5 shot m11relief_8_range.png
++0.1 at 300 -40
++0.5 gotorelief slope
++1.5 shot m11relief_9_slope.png
++0.1 gotorelief stair
++1.5 shot m11relief_10_stair.png
++0.1 at -400 -100
++0.5 gotorelief fall
++1.5 shot m11relief_11_fall.png
++0.1 expect reliefview falls 1
++0.1 expect relief walk
++0.3 quit
