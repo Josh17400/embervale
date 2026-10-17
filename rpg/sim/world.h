@@ -93,7 +93,9 @@ inline int bldgRiseTiles(art::Building t, int storeys) {
 // starts a sea-chart chain; a lighthouse keeper), Pirate (hostile, bandit-like, at sea and in pirate coves).
 enum class Role : uint8_t { Villager, Guard, Merchant, Smith, Innkeeper, Priest, Jarl, Farmer, Child, Mage, Bandit, King,
                             Hunter, Fisher, Herbalist, Traveller, Herald, Soldier, Captain, Refugee,
-                            Harbourmaster, Shipwright, Sailor, Pirate, COUNT };
+                            Harbourmaster, Shipwright, Sailor, Pirate,
+                            Steward, Warlord, Envoy,   // (M12) the player's reeve in a held village, a warlord, a court's envoy
+                            COUNT };
 
 // the name a building type goes by in the HUD ("INN", "THE KEEP", "THE PALACE"...)
 const char* bldgTypeName(art::Building t);

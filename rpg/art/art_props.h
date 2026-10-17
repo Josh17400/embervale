@@ -231,6 +231,15 @@ enum class Prop : uint8_t {
                   // roof, offerings, two braziers lit at night (about 48x48); 3x2, solid (a light)
   Cairn,          // a waymarker of stacked stones on the trail up (about 14x20); solid
   PrayerFlags,    // a line of faded cloth flags strung between two poles, fluttering (about 32x28, 4 frames); solid
+  // ---- M12 Rise and Fall (VISION_PLAN 13 M12, 15.33): the player's (and a warlord's) standard and the watchtower a lord
+  //      raises. Painted in rpg/art/art_rise.cpp (phase A stand-ins; the VIEW lane paints them for real and draws them
+  //      in the owner's colours through the view, as the war props are). FOOTPRINTS ARE FROZEN (riseFootprint below).
+  //      PROP BUDGET: Prop is a uint8_t and the chunk caches store prop + 1 (0 none), so Prop::COUNT may not pass 255.
+  //      After these two the ONE slot left is reserved: anything else M12 shows (works, warlord forts, resettlers) is
+  //      drawn by the view or reuses existing props (Palisade, WarTent, Scaffold, RefugeeTent, Shrine, Barricade...).
+  LordBanner,     // a tall standard on a pole: the lord's (or a warlord's) arms on a long banner, waving (about 20x48,
+                  // 4 frames); solid
+  Watchtower,     // a timber watchtower on four legs with a roofed platform and a ladder (about 32x64); 1x1 base, solid
   COUNT
 };
 // M4: the war's props (art_war.cpp) and the lore props (art_lore.cpp)
@@ -247,6 +256,9 @@ inline bool isSeaProp(Prop p) { return (int)p >= (int)Prop::MooringPost && (int)
 // M11: the relief props (art_relief.cpp) and their frozen footprints (as the sea props': w odd, the prop on the bottom
 // row's middle tile, Filler on the rest)
 inline bool isReliefProp(Prop p) { return (int)p >= (int)Prop::SummitShrine && (int)p <= (int)Prop::PrayerFlags; }
+// M12: the rise props (art_rise.cpp) and their frozen footprints (1 x 1 each: the tower stands on its base tile)
+inline bool isRiseProp(Prop p) { return p == Prop::LordBanner || p == Prop::Watchtower; }
+inline void riseFootprint(Prop p, int& w, int& h) { (void)p; w = 1; h = 1; }
 inline void reliefFootprint(Prop p, int& w, int& h) {
   if (p == Prop::SummitShrine) { w = 3; h = 2; return; }
   w = 1; h = 1;
@@ -273,6 +285,23 @@ inline void m4Footprint(Prop p, int& w, int& h) {
 // its sheet); the view caches it by (p, field, trim) and draws it for tiles whose camp has an owner
 // (Game::warPropKingdom).
 Canvas warPropSprite(Prop p, uint32_t field, uint32_t trim);
+// (M12 fixer) a Palisade tile joined into its run (mask: neighbours N 1 E 2 S 4 W 8; gates: sides facing a gateway get a
+// gatepost); 16 x 34, bottom on the tile's bottom edge (art_war.cpp)
+Canvas palisadePiece(int mask, int gates, uint32_t seed);
+// (M12 fixer r2) a lord's stone ring (GardenWall) where a road cuts it: a squat crenellated gate tower over each post and
+// a crenellated way between them, in the wall's own masonry (culture: PropStyle::culture, stone: PropStyle::stone).
+//   stoneGateTower: 16 x 44, bottom on the post tile's bottom edge (over the post's wall piece)
+//   stoneGateArch:  spanPx x 44, an east-west arch, bottom on the posts' tile row's bottom edge, its x 0 at the west
+//                   tower's east outline + 1 (the view: post x * 16 + 13; spanPx = 16 * tiles between posts - 11)
+//   stoneGateWay:   16 x (28 + 16 * tiles + 16), a north-south way over the road between a north and a south tower, its
+//                   top at the north post tile's top - 28 (canvas row = ground row from that tile's top + 28 - height)
+Canvas stoneGateTower(int culture, uint32_t stone, bool snow, uint32_t seed);
+Canvas stoneGateArch(int spanPx, int culture, uint32_t stone, bool snow, uint32_t seed);
+Canvas stoneGateWay(int tiles, int culture, uint32_t stone, bool snow, uint32_t seed);
+// (M12 fixer r2) a burned house being cleared at a resettled place's heart: 64 x 64 over a 4 x 3 tile footprint, canvas
+// row 0 one tile above its back row; part 0 its scorched floor (flat), 1 its back (the sooty wall, a fallen beam; sorted
+// at the back row), 2 its front (charred posts, fallen stone; sorted at the front row); variant 0..3 (art_war.cpp)
+Canvas burntShell(int part, int variant);
 // M3c: the Wildlands flora ranges (one shared answer for every reader: the forest rule, crowns, the map, projectiles)
 inline bool isWildlandsFlora(Prop p) { return (int)p >= (int)Prop::AcaciaTree && (int)p <= (int)Prop::Petals; }
 inline bool isWildlandsSolid(Prop p) { return (int)p >= (int)Prop::AcaciaTree && (int)p <= (int)Prop::Thornbush; }

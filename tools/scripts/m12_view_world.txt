@@ -1,0 +1,27 @@
+# M12 VIEW lane: the rise in the world round the start of seed 7. A bandit camp grown into a warlord's (two standards
+# in the warlord's colours, trophy pikes, a broken stockade of stakes) by day and night; the warlord's seat (its
+# standard at the heart); a place resettled after its fall (scaffolds, stacked timber, thatch bundles, new stone, a
+# cart); a town a world boss raided (claw scars torn through the ground, smoke from its roofs).
+#   embervale.exe --script tools/scripts/m12_view_world.txt     (m12_view_w_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.3 rise camp
++0.1 rise warlord
++0.1 expect rise warlords 1
++0.1 riseview stage camp
++4.5 shot m12_view_w_camp.png
++0.1 expect riseview world warlord 4
++0.1 hour 22
++1.0 shot m12_view_w_camp_night.png
++0.1 hour 11
++0.1 rise resettle 1
++0.1 riseview stage rebuild 1
++4.5 shot m12_view_w_rebuild.png
++0.1 expect riseview world rebuild 3
++0.1 rise bossraid 2
++0.1 riseview stage raid 2
++4.5 shot m12_view_w_raid.png
++0.1 expect riseview world scars 2
++0.2 log m12_view_world done

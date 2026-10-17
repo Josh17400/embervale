@@ -699,6 +699,8 @@ bool Game::questTargetM2(const Quest& q, int& tx, int& ty) const {
     case QType::War: return q.hasPos ? global(q.tgx, q.tgy) : atSite();   // M4: the enemy camp (relief) or the town (assault)
     case QType::Supply: return (q.flags & life::QF_SUP_GOODS) ? false : atSite();   // M5: where the goods are to be had
     case QType::Sea: return q.hasPos ? global(q.tgx, q.tgy) : false;   // M10: the chart chain's place, the king's capital
+    case QType::Campaign: case QType::Envoy: case QType::Fief:   // M12: the order's / court's / holding's place
+      return q.hasPos ? global(q.tgx, q.tgy) : atSite();
     default: return false;
   }
 }
@@ -739,6 +741,8 @@ std::string Game::questStatusM2(const Quest& q) const {
     case QType::Sea:   // M10 (sea_chain.cpp): the chain's step / the word to the king in subject; a fishmonger's order
       if (q.stage == 3) return fitLine({"CATCH " + std::to_string(q.need) + " " + q.subject + " (" + std::to_string(q.have) + "/" + std::to_string(q.need) + ")",
                                         q.subject + " " + std::to_string(q.have) + "/" + std::to_string(q.need)});
+      return q.subject.empty() ? std::string() : fitLine({q.subject + dl, q.subject + ds, q.subject});
+    case QType::Campaign: case QType::Envoy: case QType::Fief:   // M12 (service_game.cpp / lord_game.cpp write subject)
       return q.subject.empty() ? std::string() : fitLine({q.subject + dl, q.subject + ds, q.subject});
     case QType::Protect: {
       const bool night = (day == q.deadlineDay && hour >= 20.5f) || (day == q.deadlineDay + 1 && hour < 5.5f);
@@ -785,6 +789,24 @@ std::string Game::turnInLine(const Quest& q) const {
                            : "THEY SAY THE BANDITS OF " + tname + " HAVE SCATTERED, AND THEIR CHIEF IS DEAD. THE BOUNTY IS " + g + " GOLD.";
     case QType::War: return "YOU FOUGHT WELL OUT THERE. THE CAPTAINS ALL SAY IT. YOUR PAY IS " + g + " GOLD.";
     case QType::Sea: return q.stage == 3 ? "FINE FISH, AND FRESH! " + g + " GOLD, AS AGREED." : "YOU'VE DONE A GREAT THING. " + g + " GOLD, AND MY THANKS.";
+    case QType::Campaign: {   // M12 (SERVICE lane): the army's thanks for the order's kind
+      const service::Order* o = nullptr;
+      for (const service::Order& x : service.orders) if ((int)x.id == q.stage) o = &x;
+      static const char* by[] = {"ORDERS CARRIED OUT. THE CAPTAINS WILL HEAR OF IT.", "THE SIEGE IS BROKEN AND OUR PEOPLE EAT AGAIN.",
+                                 "THE GATE FELL BECAUSE YOU WENT IN FIRST.", "THE CARTS GOT THROUGH. THE GARRISON WILL HOLD.",
+                                 "A GOOD REPORT, AND YOU CAME BACK ALIVE TO GIVE IT.", "THEIR CAPTAIN IS DEAD, AND HIS MEN ALREADY WAVER.",
+                                 "THOSE FAMILIES ARE ALIVE BECAUSE OF YOU.", "THE FRONTIER HELD THE NIGHT, AND YOU HELD IT WITH THEM."};
+      return std::string(by[o ? std::clamp((int)o->kind, 0, 7) : 0]) + " " + g + " GOLD FROM THE WAR CHEST.";
+    }
+    case QType::Envoy: {   // M12 (SERVICE lane): the court's thanks, by what its word won
+      const service::Mission* m = nullptr;
+      for (const service::Mission& x : service.missions) if ((int)x.id == q.stage) m = &x;
+      static const char* by[] = {"THEY REFUSED, BUT YOU CARRIED OUR WORD WITH HONOUR.", "PEACE. YOU CARRIED IT, AND IT HELD.",
+                                 "AN ALLIANCE! WE WILL NOT STAND ALONE NOW.", "THEY WILL PAY. YOU SPOKE FOR US WELL."};
+      if (m && m->kind == service::MissionKind::FirstEnvoy) return "THE COURT BEYOND THE MIST HAS OUR GREETING. A NEW WORLD OPENS. " + g + " GOLD, AND OUR THANKS.";
+      return std::string(by[m ? std::clamp((int)m->outcome, 0, 3) : 0]) + " " + g + " GOLD, AND THE COURT'S THANKS.";
+    }
+    case QType::Fief: return "THE VILLAGE WON'T FORGET THIS, MY LORD. " + g + " GOLD FROM THE COFFERS.";
     default:
       return (tname.empty() ? std::string("YOU'RE BACK, AND IT'S DONE.") : "YOU'RE BACK! THEY SAY " + tname + " HAS GONE QUIET AT LAST.") + " I OWE YOU " + g +
              " GOLD.";
@@ -842,6 +864,8 @@ std::string Game::questReminder(const Quest& q) const {
       return "STILL NO " + q.subject + "? " + t + " HAS PLENTY. I NEED " + goodUnits(q.need, q.subject) + ".";
     }
     case QType::War: return "YOU'RE WITH US, THEN. DO WHAT WE AGREED, AND COME BACK ALIVE.";
+    case QType::Campaign: return q.subject.empty() ? "YOU HAVE YOUR ORDERS, SOLDIER. CARRY THEM OUT." : "YOUR ORDERS STAND: " + q.subject + ". MOVE, SOLDIER.";   // M12
+    case QType::Envoy: return q.subject.empty() ? "OUR WORD IS STILL IN YOUR SATCHEL? THEY ARE WAITING FOR IT." : "OUR WORD IS STILL IN YOUR SATCHEL? " + q.subject + ", AND QUICKLY.";
     default: return "HAVE YOU DONE WHAT I ASKED? I'M STILL WAITING.";
   }
 }

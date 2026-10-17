@@ -1215,3 +1215,77 @@ quality bar and natural / organic world design stand.
   fall and rare falls (hydro.cpp river levels from coarse cells; seed 3's range has none); perched river tiles (up to
   214 a window, report only in --relief); the 1-tile road jog at a stair's foot; chunk cost x1.18 of the x1.20 budget;
   dev-PC --endless timing budgets (region plans 3.0-3.5 ms vs 3; CI runs --no-budget).
+
+## M12, "Rise and Fall" (VISION_PLAN 13 M12, 4.3, 4.7, 7.6, 15.3, 15.6.3, 15.6.4, 15.9, 15.20, 15.33; owner notes 2026-10-16)
+
+Goal, as the roadmap has it: the deep world sim. Civil wars and successor states, warlord realms grown from bandit
+camps, resettlement of ruins, world bosses raiding towns (lane A, realm); enlisting with ranks and campaign quests,
+diplomacy quests (lane B, service); village lordship and kingdom-making (owner decision 2026-10-16: YES: own a
+village, pay tribute or declare independence, grow it into a kingdom; lane C, lord); what the owner sees on the phone
+(lane D, view). Verification: `--history 5000`, drama metrics, `--save-soak 100` at <= 1 MB. What the owner sees on
+the phone: realms that rise and fall around him, and a place in that history. Realms and wars must work with hidden
+kingdoms (isolated until contact), islands, harbours and relief; wars v1 from M4 stay. Owner notes: the every-system
+regression runs ONCE, by the integrator; fixes are verified with targeted checks only; all polish of earlier milestones
+is deferred until after M12; the 16-bit quality bar and natural / organic world design stand. Fragile gates: the
+--companion damage share (25-40 %), --history realm counts, timing gates (re-run alone before chasing).
+
+### Phase A (lead), 2026-10-16: done
+- The contracts are recorded in VISION_PLAN 15.33: the realm's records (`KingdomState::origin / overlord / tribute /
+  claim / camp / player`, `Camp`, `Lair`, 16 new `EvType`s, the renown mirror `realmOf / liege`) with forcing calls and
+  diplomacy rolls (rpg/sim/realm_rise.cpp) and the player's realm (rpg/sim/realm_player.cpp: grantFief,
+  declareIndependence, tribute, playerTakes); the tick leaves a KO_PLAYER realm to the player (no war declared, no ruler
+  death, no split; always Active); realmNoteSites notes every loaded bandit camp. The service (rpg/sim/service.h,
+  service_ops.h, service.cpp, service_game.cpp: ranks with wages, merit, enlisting at captains and guards, discharge and
+  desertion, orders and missions as Campaign / Envoy quests, the realm's rolls at a court) and the lordship
+  (rpg/sim/lordship.h, lord_ops.h, lordship.cpp, lord_game.cpp: a village granted / chartered, daily taxes into the
+  coffers, tribute every 30 days, the steward's talk, independence under the player's heraldry). `Ev::Rise` + `RiseEv`
+  (rpg/sim/rise.h), `QType::Campaign / Envoy / Fief`, `DLG_SERVICE` / `DLG_LORD`, roles Steward / Warlord / Envoy, the
+  view's RISE block (rpg/view/render_rise.cpp: toasts) and the journal's STANDING section slot, two props
+  (`LordBanner`, `Watchtower`: rpg/art/art_rise.h/.cpp stand-ins; Prop::COUNT is now 254 of the uint8 limit 255, the
+  last slot reserved), SAVE_VER 22 (service and lordship blocks; realm block v4) with `tests/fixtures/save_v22.bin`
+  (save_v21.bin retired), `rpg_test --rise` and `--save-soak` (CI "Rise test"), script commands (script_rise.cpp,
+  script_service.cpp, script_lord.cpp, `journal standing`) and `tools/scripts/m12_lead_rise.txt`. ENDLESS_GEN_VER stays
+  26: M12 changes no generation. tools/slot.sh already existed.
+- Verified (MSVC, BDIR=build, everything built): rpg_test --seeds 1..20 20/20; save_test ALL OK (fixture save_v22,
+  FIX6 unchanged); --history 2000 --seeds 1..20 0 failures (unchanged: wars 0.28 avg, 278 wars all foreshadowed, 64 %
+  food, hands every 124 days, falls every 909 days, rulers kept 97 %, block 47130 B, tick 0.014 ms); --rise 1..3 0
+  failures (a warlord, a successor, a sergeant, a lordship, independence on every seed; saves 21.6-31.7 KB);
+  --save-soak 100 0 failures (seed 1, 700 days: largest save 39281 B of the 1 MB budget, load 694 ms average); --realm
+  1..3 ok; --endless --golden 39 hashes ok; --loot-sources 0 failures; --builder 1..2 --strict 0 failures;
+  m12_lead_rise 0 failures.
+- Seen in m12_lead_rise (seed 7, for the lanes): independence while sworn to the liege's army leaves the player
+  enlisted in the army of the realm they defied (the LORD / SERVICE lanes: desertion or discharge first); the start
+  kingdom, left with no settlement by the warlord and the independence, fell ("YOUR ARMY IS NO MORE"); the player's
+  realm inherits its liege's government word ("REPUBLIC OF THE EMBER MARCH"); toasts stack at the left (the VIEW lane's
+  herald banners replace them).
+
+### Phase B lanes (disjoint files; see the lead report for the briefs)
+- **realm** (build_realm, code): the tick grows it all by itself under the owner's slow, realistic rules: civil wars
+  that leave successor states and pretenders, wars of reunification, warlords grown from camps nobody clears (warbands
+  raiding first), ruins resettled and rebuilt (and their ruins' records kept as Lost History), world bosses waking and
+  raiding from lairs, alliances called to war, vassals and tribute, the player's realm as a neighbour; hidden kingdoms
+  apart until contact; the rise-and-fall rumours, ruins of realms fallen in play (15.3), rise-and-fall story archetypes
+  and one campaign; `--history 5000` with the drama metrics; `--save-soak` kept.
+- **service** (build_service, code): orders generated from the sworn kingdom's sieges and wars (break the siege,
+  assault, supply, scout, assassinate, escort, hold) played with actors, the squad that marches with a sergeant or
+  captain, wages, ranks, the uniform and the oath (desertion, discharge, disbanding), diplomacy missions to courts
+  (carry the terms, seek an alliance, demand tribute, greet a hidden kingdom after contact); `--service`.
+- **lord** (build_lord, code): the paths to a lordship (granted to a captain, a charter bought, a ruin resettled, a
+  conquest), the steward, taxes and loyalty, works raised in the village (banner, palisade, watchtower, granary,
+  militia, market, shrine, walls) stamped into the world, tribute or defiance, the liege's war for its land, the
+  player's realm growing by conquest, the crown; `--lord`.
+- **view** (build_view, visual): the herald's banners and fanfares of the player's rise, rank insignia and the sworn
+  realm's tabard, the STANDING page, the world map's rising and falling realms (warlords, successors, vassals, the
+  player's realm and banner) and the realm's timeline, the lordship's works and banner on the village, warlord camps,
+  resettlers and boss-raid scars, the two new props and the three new roles' looks; the phone review.
+
+### Review and fixes, 2026-10-17
+- Review (2 lenses, diff-scoped): 12 findings, 3 must (zombie player realm, realm name cut off in the HUD, broken lord's
+  walls). Fixer r1, one re-check, fixer r2 on the wall gate. The r2 fixer ended before its checks; the main session ran
+  them once (m12_ 16/16, seeds 20/20 MSVC + WSL clang, goldens, --lord, --service, save_test). --rise had broken: the test
+  asserted the old "player realm always stays Active" contract the zombie fix changed; the test now requires a fallen
+  player realm to have KingdomFell news, no land, no open war and no leftover lordship (VISION_PLAN 15.33).
+- Post-M12 polish list: diagonal palisade/stone-wall runs stepped with end caps; stone-wall road gaps have piers but no
+  lintel; steward menu rows small on phone layout; realm label can cover YOUR SEAT on the region map; no test reaches
+  first contact with a hidden kingdom; no Warlord/Envoy actors spawn; ~67 of 150 archetypes; BALANCE: a newly
+  independent one-village realm is retaken by its old liege within ~3 days of war on all test seeds.

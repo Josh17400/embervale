@@ -1,0 +1,13 @@
+# M12 fixer r1: the news of the player's own tribute names the player's village, never "A FAR REALM". Seed 7: the start
+# village granted; a month's tribute paid, then a month the coffers could not meet.
+#   embervale.exe --script tools/scripts/m12_fix_tribute.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 lord grant 0
++0.1 realm days 32
++0.5 lord coffers 0
++0.1 realm days 31
++0.5 rise hear
++0.1 expect news THE LORD OF
++0.1 log m12_fix_tribute done

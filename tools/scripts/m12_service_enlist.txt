@@ -1,0 +1,28 @@
+# M12 SERVICE: enlisting at a town's captain of the watch (VISION_PLAN 4.7, 15.33). The captain stands before the
+# barracks (or the keep) in his kingdom's colours, offers the army's pay in his culture's voice, asks for the oath; the
+# player swears and is a RECRUIT of that kingdom (the renown mirror, the STANDING page, the tabard: VIEW lane).
+#   embervale.exe --script tools/scripts/m12_service_enlist.txt     (m12_service_enlist_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.3 goto town
++1.5 expect service captain 1
++0.1 talkto captain 40
++0.4 expect mode dialogue
++0.1 expect option I WANT TO ENLIST
++0.2 shot m12_service_enlist_1_captain.png
++0.1 choose I WANT TO ENLIST
++0.3 expect option I SWEAR IT
++0.2 shot m12_service_enlist_2_oath.png
++0.1 choose I SWEAR IT
++0.3 expect service rank recruit
++0.1 expect service sworn 1
++0.2 shot m12_service_enlist_3_sworn.png
++0.1 choose FAREWELL
++0.5 talkto captain 20
++0.4 expect option REPORTING FOR DUTY
++0.1 choose REPORTING FOR DUTY
++0.3 shot m12_service_enlist_4_report.png
++0.1 key Escape
++0.3 log m12_service_enlist done

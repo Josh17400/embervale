@@ -1,5 +1,8 @@
 // Save-format checks for the CURRENT save version only (owner, 2026-10-04: old saves are not a concern; an older save
-// is refused and the title offers a new game). M10 Beyond the Mist: SAVE_VER 21 (the sea block after the magic block: the
+// is refused and the title offers a new game). M12 Rise and Fall: SAVE_VER 22 (the service block and the lordship block
+// after the sea block: sworn as a sergeant with an order, a mission and a deserted army; the start village held with its
+// coffers, tribute owed and a palisade going up; the realm block v4 with the renown mirror, a camp and a lair; SAVE_VER
+// 21 is refused). M10 Beyond the Mist: SAVE_VER 21 (the sea block after the magic block: the
 // boats owned and the one aboard, the ports known, the lands' sea-chart chains and first contact, the catches;
 // ENDLESS_GEN_VER 23; the SAVE_VER 19 exception of M9 ended with the generator change: every older save is refused). A
 // save made aboard a boat loads aboard. M9 Arcana & Mastery: SAVE_VER 20 (the skills block and the magic block
@@ -20,7 +23,7 @@
 // block; ENDLESS_GEN_VER 14). M4: SAVE_VER 10 (the realm and story blocks after the marks). The CITIZENS lane owns this
 // file and the fixture in M5.
 //   save_test [fixtureDir]           run every check
-//   save_test --make-fixture out.bin write tests/fixtures/save_v21.bin: an endless game (seed 5150) with a created
+//   save_test --make-fixture out.bin write tests/fixtures/save_v22.bin: an endless game (seed 5150) with a created
 //                                    character, the innkeeper's job taken, bot play, a looted chest, the M2 fields
 //                                    (marks, a quest's subject / flags / deadline, a rumoured site), saved outdoors.
 //                                    Regenerate it whenever the layout changes on purpose, and paste the printed FIX6
@@ -300,6 +303,33 @@ void addM10Facts(Game& g) {
   g.sea.fishCaught = 3;
   g.sea.voyages = 1;
 }
+// M12 (SAVE_VER 22): the service block (sworn to the start kingdom as a sergeant with merit, an open order, a mission,
+// a past army deserted), the lordship block (the start village held: coffers, tribute owed, a work being raised), the
+// realm block v4 (the renown mirror, a camp and a lair watched)
+constexpr int FIX_MERIT = 17, FIX_TREASURY = 321, FIX_TRIBUTE = 45;
+constexpr uint64_t FIX_CAMP = 0xCA4B0012ull, FIX_LAIR = 0x1A1B0012ull, FIX_OLDARMY = 0x0A4A1ull;
+void addM12Facts(Game& g) {
+  const Site& sv = g.world.sites[(size_t)g.world.startSite];
+  const ew::Gid k = sv.kingdom >= 0 ? g.world.kingdoms[(size_t)sv.kingdom].id : 0;
+  service::Service& S = g.service;
+  S.sworn = k; S.rank = service::Rank::Sergeant; S.merit = FIX_MERIT; S.enlistDay = 1; S.paidDay = 1; S.battles = 9;
+  service::Order o;
+  o.id = S.nextId++; o.kind = service::OrderKind::BreakSiege; o.site = sv.id; o.gx = 77; o.gy = -88; o.givenDay = 1; o.dueDay = 11; o.merit = 12;
+  S.orders.push_back(o);
+  service::Mission m;
+  m.id = S.nextId++; m.kind = service::MissionKind::SeekAlliance; m.from = k; m.to = FIX_OLDARMY; m.gx = 5; m.gy = 6; m.givenDay = 1; m.dueDay = 31;
+  S.missions.push_back(m);
+  S.past.push_back({FIX_OLDARMY, service::Rank::Recruit, service::PAST_DESERTED, 1});
+  lord::Holding h;
+  h.site = sv.id; h.how = lord::How::Granted; h.sinceDay = 1; h.taxPct = 12; h.loyalty = 66; h.works = lord::LW_BANNER;
+  h.building = lord::LW_PALISADE; h.buildDone = 7; h.lastTaxDay = 1;
+  g.lordship.holdings.push_back(h);
+  g.lordship.treasury = FIX_TREASURY; g.lordship.liege = k; g.lordship.tributeDue = FIX_TRIBUTE; g.lordship.tributeDay = 31;
+  realm::Renown& R = g.realm.renown();
+  R.sworn = k; R.rank = (uint8_t)service::Rank::Sergeant; R.lordOf = sv.id; R.liege = k;
+  g.realm.noteCamp(FIX_CAMP, 1000, -2000, 0, 1);
+  g.realm.noteLair(FIX_LAIR, -3000, 4000, (uint8_t)art::Monster::Wolf, 40, 1);
+}
 void addM6Facts(Game& g) {
   Rng r(77);
   Item it = gear::makeGear(r, ItemKind::Weapon, (int)WeaponType::Spear, 12, Rarity::Legendary, FIX_CULT, Mat::Steel);
@@ -497,6 +527,7 @@ int makeFixture(const char* out) {
   if (addM8Facts(g) < 0) return 1;
   addM9Facts(g);
   addM10Facts(g);
+  addM12Facts(g);
   if (g.inside) { printf("the fixture must be saved outdoors\n"); return 1; }
   std::vector<uint8_t> buf;
   g.serialize(buf);
@@ -511,7 +542,7 @@ int makeFixture(const char* out) {
 }
 // values printed by --make-fixture (format-level facts only)
 struct Fix6 { int level, xp, gold; size_t inv, quests, looted; int kills, ox; float px, py; int oy; float hour; int day; };
-constexpr Fix6 FIX6 = {1, 96, 30, 12, 4, 1, 3, 0, 2312.000f, 1336.000f, -256, 9.580f, 1};   // (M10 phase A: re-recorded; M10 SEA: the sea block v2)
+constexpr Fix6 FIX6 = {1, 96, 30, 12, 4, 1, 3, 0, 2312.000f, 1336.000f, -256, 9.580f, 1};   // (M10 phase A: re-recorded; M10 SEA: the sea block v2; M12 phase A: save_v22.bin, unchanged)
 
 }  // namespace
 
@@ -527,7 +558,7 @@ int main(int argc, char** argv) {
 
   // ---- 1. the fixture
   std::vector<uint8_t> fx;
-  if (!readFile(dir + "/save_v21.bin", fx)) check(false, "cannot read tests/fixtures/save_v21.bin");
+  if (!readFile(dir + "/save_v22.bin", fx)) check(false, "cannot read tests/fixtures/save_v22.bin");
   else {
     check(Game::saveVersion(fx) == Game::currentSaveVersion(), "fixture version is not the current SAVE_VER (regenerate it)");
     Game g(1);
@@ -692,6 +723,23 @@ int main(int argc, char** argv) {
                 g.sea.knowsPort(FIX_PORT) && L && L->chain == sea::Chain::Cave && (L->flags & sea::LF_RUMOURED) && g.sea.catches.size() == 1 &&
                 g.sea.catches[0].bestCm == 52 && g.sea.fishCaught == 3 && g.sea.voyages == 1,
             "fixture sea block: a sloop moored at a port, a port known, a land's chart chain, a catch (SAVE_VER 21)");
+    }
+    {   // M12 (SAVE_VER 22): the service and lordship blocks, the realm block v4
+      const Site& sv = g.world.sites[(size_t)g.world.startSite];
+      const service::Service& S = g.service;
+      check(S.enlisted() && S.rank == service::Rank::Sergeant && S.merit == FIX_MERIT && S.battles == 9 && S.orders.size() == 1 &&
+                S.orders[0].kind == service::OrderKind::BreakSiege && S.orders[0].site == sv.id && S.orders[0].gx == 77 && S.orders[0].gy == -88 &&
+                S.missions.size() == 1 && S.missions[0].kind == service::MissionKind::SeekAlliance && S.missions[0].to == FIX_OLDARMY &&
+                S.deserterOf(FIX_OLDARMY),
+            "fixture service block: a sergeant with merit, an order, a mission, a deserted army (SAVE_VER 22)");
+      const lord::Holding* h = g.lordship.holding(sv.id);
+      check(h && h->how == lord::How::Granted && h->taxPct == 12 && h->loyalty == 66 && h->works == lord::LW_BANNER && h->building == lord::LW_PALISADE &&
+                g.lordship.treasury == FIX_TREASURY && g.lordship.tributeDue == FIX_TRIBUTE && g.lordship.liege == S.sworn,
+            "fixture lordship block: the start village held, the coffers, tribute owed, a palisade going up (SAVE_VER 22)");
+      const realm::Renown& R = g.realm.renown();
+      check(R.lordOf == sv.id && R.liege == S.sworn && R.sworn == S.sworn && R.rank == (uint8_t)service::Rank::Sergeant && g.realm.camp(FIX_CAMP) &&
+                g.realm.lairs().size() == 1 && g.realm.lairs()[0].site == FIX_LAIR && g.realm.lairs()[0].level == 40,
+            "fixture realm block v4: the renown mirror, a camp and a lair watched (SAVE_VER 22)");
     }
     }  // fxLoaded
   }

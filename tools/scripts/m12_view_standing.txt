@@ -1,0 +1,50 @@
+# M12 VIEW lane: the journal's STANDING section: sworn to the start
+# kingdom's army and promoted (the badge, merit to the next rank, the wage), an order and a mission with their places,
+# the start village held (loyalty, tax, coffers, works, tribute due), an alliance and a vassal near, then the player's own realm,
+# and the HISTORY timeline of the rise and fall round the player (with the land's old chronicle).
+#   embervale.exe --script tools/scripts/m12_view_standing.txt     (m12_view_s*.png in the working directory)
+
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.3 enlist
++0.1 merit 45
++0.1 order scout 1
++0.1 mission alliance
++0.1 lord grant 0
++0.1 rise ally
++0.1 rise vassal
++0.1 riseview works banner granary raising watchtower
++0.1 hearall
++0.5 journal standing
++0.4 shot m12_view_s_head.png
++0.1 expect riseview standing 8
++0.1 key Down
++0.2 shot m12_view_s_army.png
++0.1 key Down
++0.2 shot m12_view_s_order.png
++0.1 key Down
++0.2 shot m12_view_s_mission.png
++0.1 key Down
++0.1 key Down
++0.2 shot m12_view_s_holding.png
++0.1 key Escape
++0.3 realm days 31
++1.0 lord free THE EMBER MARCH
++0.5 journal standing
++0.1 key Down
++0.1 key Down
++0.1 key Down
++0.1 key Down
++0.1 key Down
++0.1 key Down
++0.2 shot m12_view_s_realm.png
++0.1 key Down
++0.1 key Down
++0.2 shot m12_view_s_history.png
++0.1 key Down
++0.1 key Down
++0.1 key Down
++0.2 shot m12_view_s_history2.png
++0.2 log m12_view_standing done

@@ -20,6 +20,7 @@ const std::vector<Archetype>& archetypes() {
     arch::addWorld(a);
     arch::addArcs(a);
     arch::addCompanion(a);   // (M8 Fellowship: the companions' own stories, offered only by a companion)
+    arch::addRise(a);        // (M12 Rise and Fall: successions, pretenders, warlords, exiles, resettlers, tribute)
     return a;
   }();
   return v;

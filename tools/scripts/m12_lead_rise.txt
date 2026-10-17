@@ -1,0 +1,39 @@
+# M12 phase A (lead): the Rise and Fall contracts in the running game, from the start village: a bandit camp grown
+# into a warlord realm (its village flies a new banner), the start kingdom's army joined (RECRUIT), merit to SERGEANT,
+# an order and a diplomacy mission given (their quests), the start village granted as a lordship, a month of taxes and
+# tribute, the player's own banner raised over it (independence), the journal's STANDING section. Phase A pixels are
+# stand-ins (toasts; the STANDING page still shows the lore list): the VIEW lane paints the herald's banners, the
+# insignia, the STANDING page and the world map's rising and falling realms.
+#   embervale.exe --script tools/scripts/m12_lead_rise.txt     (m12_lead_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.3 rise camp
++0.1 expect rise camps 1
++0.1 rise warlord
++0.1 expect rise warlords 1
++0.1 rise stats
++0.2 enlist
++0.1 expect service rank recruit
++0.3 shot m12_lead_enlisted.png
++0.1 merit 30
++0.1 expect service rank sergeant
++0.1 order scout 1
++0.1 expect service orders 1
++0.1 mission alliance
++0.1 expect service missions 1
++0.3 shot m12_lead_orders.png
++0.1 lord grant 0
++0.1 expect lord holdings 1
++0.1 expect lord liege 1
++0.3 shot m12_lead_lord.png
++0.1 realm days 31
++1.0 expect lord treasury 1
++0.1 lord free THE EMBER MARCH
++0.1 expect lord realm 1
++0.1 expect rise player 1
++0.5 shot m12_lead_free.png
++0.1 journal standing
++0.2 shot m12_lead_journal.png
++0.3 log m12_lead_rise done

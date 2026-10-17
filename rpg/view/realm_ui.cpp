@@ -39,6 +39,10 @@ Look look(const Game& g, ew::Gid id) {
     if (K->color) { k.color = K->color; k.color2 = K->color2; k.emblem = K->emblem; }
     k.gov = K->gov;
     if (!K->ruler.name.empty()) k.ruler = (K->ruler.title.empty() ? std::string() : K->ruler.title + " ") + K->ruler.name;
+    k.made = K->rebel || K->origin != realm::KO_GENESIS;
+    if (K->player && !g.app.heraldry.empty()) k.own = &g.app.heraldry;
+    if (K->player && (K->ruler.title == "LORD" || K->ruler.title == "LADY")) k.lordship = true;
+    if (K->origin == realm::KO_WARLORD) k.warlord = true;
   }
   if (!k.ok && g.world.src) {
     if (const ew::KingdomPlan* kp = g.world.src->kingdom(id)) {
@@ -50,15 +54,22 @@ Look look(const Game& g, ew::Gid id) {
 
 std::string realmTitle(const Look& k, bool the) {
   if (!k.ok) return the ? "THE WILDLANDS" : "WILDLANDS";
-  return std::string(the ? "THE " : "") + realmWord(k.gov) + " OF " + k.name;
+  if (k.warlord) {   // a warband's realm keeps its menace in its name (one of three words, by the realm)
+    static const char* const w[3] = {"HOLD", "HORDE", "WARBAND"};
+    return std::string(the ? "THE " : "") + w[ew::mix64(k.id ^ 0x484F4C44ull) % 3] + " OF " + k.name;
+  }
+  return std::string(the ? "THE " : "") + (k.lordship ? "LORDSHIP" : realmWord(k.gov)) + " OF " + k.name;
 }
 
 void arms(const Look& k, cult::Heraldry& out) {
   out = cult::Heraldry();
+  if (k.own) { out = *k.own; return; }   // (M12) the player's realm: the hero's own arms
   if (k.culture && !k.culture->heraldry.empty()) {
     out = k.culture->heraldry;
     // a realm-made kingdom (rebels, a new dynasty) flies its own colours over its culture's grammar
     if (k.color && k.color != out.field) { out.field = k.color; out.charge = k.color2 ? k.color2 : out.charge; }
+    // (M12) and its own charge: the culture's division and banner shape, the new realm's emblem
+    if (k.made) { out.chargeKind = 0; out.emblem = k.emblem; }
     return;
   }
   out.field = k.color ? k.color : rgba(150, 40, 44);
@@ -107,6 +118,7 @@ uint64_t signature(const Game& g) {
   auto mx = [&](uint64_t v) { h = ew::mix64(h ^ v); };
   for (const realm::KingdomState& k : g.realm.kingdoms()) {
     mx(k.id); mx(k.fallen ? 1 : 0);
+    mx((uint64_t)k.origin << 8 | (k.player ? 1u : 0u)); mx(k.overlord);   // (M12) the map's warlord, vassal and player borders
     for (ew::Gid s : k.settlements) {
       mx(s);
       if (const realm::SettlementState* st = g.realm.settlement(s)) mx(st->home);

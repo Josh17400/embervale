@@ -216,6 +216,11 @@ RuinRecord Realm::ruin(ew::EndlessSource& src, Gid site) {
     r.extinct = home ? home->fallen : true;
     r.builtByKingdom = home && !home->fallen ? home->id : 0;
     r.lastLord = std::string(S.lordTitle ? S.lordTitle : "LORD") + " " + cult::personName(C, (uint32_t)(h >> 9), (h & 3) == 0);
+    // (M12) the true last lord: the ruler of the realm that held it when it fell, if that ruler still is the one who
+    // sat the throne then (a realm that fell in play keeps its last ruler's record)
+    if (owner && !owner->ruler.name.empty() && (owner->fallen || (int)owner->ruler.sinceDay <= (int)sr.day))
+      r.lastLord = (owner->ruler.title.empty() ? std::string("LORD") : owner->ruler.title) + " " + owner->ruler.name +
+                   (owner->ruler.house.empty() ? std::string() : " OF " + owner->ruler.house);
     r.foundedYearsAgo = home ? std::max(1, -home->foundedDay / YEAR) : 30 + (int)(h % 120);
     r.fellYearsAgo = std::max(0, (day_ - (int)sr.day) / YEAR);
     r.cause = sr.cause;
@@ -228,6 +233,14 @@ RuinRecord Realm::ruin(ew::EndlessSource& src, Gid site) {
       r.clues.push_back("JOURNAL: THE LAST SACK OF GRAIN IS GONE. THE CHILDREN EAT BARK. TOMORROW WE LEAVE " + r.oldName + ".");
     r.clues.push_back("GRAVE: HERE LIE THE PEOPLE OF " + r.oldName + ", WHO DID NOT LIVE TO SEE THE SPRING.");
     r.clues.push_back("INSCRIPTION: " + r.oldName + ", A FREE TOWN OF " + (home ? home->name : std::string("THE WILDLANDS")) + ".");
+    // (M12) a realm that fell during play: the last word of it, true to the day
+    if (owner && owner->fallen) {
+      const int ago = std::max(0, (day_ - (int)owner->lastTick) / YEAR);
+      r.clues.push_back("JOURNAL: " + owner->name + " IS NO MORE. " + (ago ? std::to_string(ago) + " WINTERS" : std::string("THIS WINTER")) +
+                        " ITS LAST BANNER CAME DOWN, AND " + r.lastLord + " WITH IT.");
+    }
+    if (s && (s->flags & SS_RESETTLED)) r.clues.push_back("NOTICE: SETTLERS OF " + std::string(kingdom(s->owner) ? kingdom(s->owner)->name : std::string("THE MARCH")) +
+                                                          " ARE WELCOME TO THE EMPTY HOUSES. BRING SEED AND A SPADE.");
     ruins_[site] = r;
     return r;
   }

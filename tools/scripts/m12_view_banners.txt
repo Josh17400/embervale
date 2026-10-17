@@ -1,0 +1,45 @@
+# M12 VIEW lane: the herald's banners of the player's rise, one per moment, queued (never stacked), each with the
+# realm's arms and the rank's badge or the arms again; the quiet ones (pay, tax, tribute) a coin chip by the purse; the
+# rank's badge under the level while enlisted. From the start village of seed 7 (the lead's tour), the real service
+# and lordship commands where they exist, `riseview fire` for the moments no command makes yet.
+#   embervale.exe --script tools/scripts/m12_view_banners.txt     (m12_view_b_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.5 enlist
++0.75 shot m12_view_b_enlisted.png
++0.1 expect riseview last enlisted
++0.1 expect riseview insignia 1
++0.1 expect riseview showing 1
++3.0 merit 30
++0.75 shot m12_view_b_promoted.png
++0.1 expect service rank sergeant
++3.0 order scout 1
++0.75 shot m12_view_b_order.png
++3.0 mission alliance
++0.75 shot m12_view_b_mission.png
++3.0 riseview fire wage 30 YOUR PAY: 30 GOLD.
++0.4 shot m12_view_b_wage.png
++0.1 expect riseview toasts 1
++0.1 lord grant 0
++0.9 shot m12_view_b_fief.png
++4.0 riseview fire warlord 1 A WARLORD HAS RISEN AT THE HOLLOW CAMP AND TAKEN A VILLAGE NEAR YOU.
++0.75 shot m12_view_b_warlord.png
++3.6 riseview fire bossraid 1 A GREAT BEAST FELL ON A TOWN TO THE EAST.
++0.75 shot m12_view_b_bossraid.png
++3.6 riseview fire tributerefused 0 THE COFFERS COULD NOT MEET THE TRIBUTE.
++0.75 shot m12_view_b_refused.png
++3.3 lord free THE EMBER MARCH
++0.9 shot m12_view_b_free.png
++0.1 expect riseview banners 9
+# a burst: three moments at once queue one behind the other (one on screen at a time)
++5.0 riseview fire orderdone 10 ORDERS CARRIED OUT.
++0.0 riseview fire missiondone 2 THE COURT ACCEPTS THE TERMS.
++0.0 riseview fire crowned 3 THE EMBER MARCH IS A KINGDOM.
++0.75 shot m12_view_b_burst1.png
++3.0 shot m12_view_b_burst2.png
++3.3 shot m12_view_b_crowned.png
++0.1 expect riseview last crowned
++4.0 expect riseview shown 12
++0.2 log m12_view_banners done

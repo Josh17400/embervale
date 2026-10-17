@@ -189,6 +189,7 @@ void Realm::setTiers() {
   });
   std::vector<uint8_t> want(kingdoms_.size(), 0);
   for (size_t i = 0; i < cand.size() && (int)i < maxActive; i++) want[(size_t)cand[i].ix] = 1;
+  for (size_t i = 0; i < kingdoms_.size(); i++) if (kingdoms_[i].player && !kingdoms_[i].fallen) want[i] = 1;   // (M12) the player's realm is always active
   stats.active = stats.dormant = 0;
   for (size_t i = 0; i < kingdoms_.size(); i++) {
     KingdomState& k = kingdoms_[i];

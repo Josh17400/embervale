@@ -21,6 +21,7 @@
 #include "rpg/culture/society.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/service_ops.h"
 #include "rpg/sim/war.h"
 #include "rpg/world/source.h"
 
@@ -176,6 +177,12 @@ bool warGatesOpen(const Game& g, ew::Gid site) {
     if (!(q.flags & QF_WAR_ATTACK)) return true;           // the defenders let their champion in
     if (q.state != QState::Active) return true;            // the assault broke the gate
   }
+  // (M12 SERVICE) the army's orders: a relief sent in by the defenders, or an assault that broke the gate
+  for (const service::Order& o : g.service.orders) {
+    if (o.siege != sg->id || o.state == service::OS_FAILED) continue;
+    if (o.kind == service::OrderKind::BreakSiege) return true;
+    if (o.kind == service::OrderKind::Assault && o.state == service::OS_DONE) return true;
+  }
   return false;
 }
 
@@ -186,6 +193,9 @@ bool warGatePass(const Game& g, int tx, int ty) {
 bool warCaptainDead(const Game& g, uint32_t siege) {
   for (const WarQuestRun& r : g.war.runs) if (r.siege == siege && r.captainDead) return true;
   for (const Quest& q : g.quests) if (q.type == QType::War && q.stage == (int)siege && (q.flags & QF_WAR_CAPDEAD)) return true;
+  // (M12 SERVICE) a campaign order's kill: BREAK THE SIEGE's captain, or the captain an ASSASSINATE order was sent for
+  for (const service::Order& o : g.service.orders)
+    if (o.siege == siege && (o.flags & service::OF_CAPDEAD) && (o.kind == service::OrderKind::BreakSiege || o.kind == service::OrderKind::Assassinate)) return true;
   return false;
 }
 
@@ -259,6 +269,12 @@ void Game::warStep(float dt) {
     if (q.type == QType::War && q.state == QState::Active)
       if (const realm::Siege* sg = siegeById(*this, (uint32_t)q.stage))
         if (!sg->over) sides.push_back({sg->id, (q.flags & QF_WAR_ATTACK) ? sg->defender : sg->attacker, (q.flags & QF_WAR_ATTACK) != 0, sg->site});
+  // (M12 SERVICE) an open campaign order at a siege puts the player on its side the same way
+  if (service.enlisted())
+    for (const service::Order& o : service.orders)
+      if (o.state == service::OS_OPEN && o.siege && (o.kind == service::OrderKind::BreakSiege || o.kind == service::OrderKind::Assault))
+        if (const realm::Siege* sg = siegeById(*this, o.siege))
+          if (!sg->over) sides.push_back({sg->id, o.kind == service::OrderKind::Assault ? sg->defender : sg->attacker, o.kind == service::OrderKind::Assault, sg->site});
   auto spawnMan = [&](Role r, ew::Gid kingdom, Vec2 at, int slot, int level, int site) {
     Actor a;
     a.id = nextId_++;
@@ -490,6 +506,10 @@ void Game::warStep(float dt) {
         if (a.role == Role::Guard) { if (sd.assault && world.sites.size() > (size_t)std::max(0, a.site) && a.site >= 0 && world.sites[(size_t)a.site].id == sd.site) h = true; }
         else h = true;
       }
+      // (M12 SERVICE) a sworn soldier is an enemy combatant to the men of every realm at war with his banner, and a
+      // deserter is hunted by his old comrades for a while
+      if (!h && a.role != Role::Guard && service.enlisted() && a.realm != service.sworn && realm.atWar(a.realm, service.sworn)) h = true;
+      if (!h && a.role != Role::Guard && service.huntedBy && a.realm == service.huntedBy && day < (int)service.huntedUntil) h = true;
       if (!h && a.role != Role::Guard && realm.rep(a.realm) <= -25) {
         bool warring = false;
         for (const realm::War& w : realm.wars()) if (!w.endDay && (w.attacker == a.realm || w.defender == a.realm)) warring = true;
@@ -760,8 +780,12 @@ void Game::warTalk(Actor& a) {
     return nullptr;
   };
   if (a.role == Role::Captain && a.realm) {
-    const bool att = (a.slot - SLOT_CAPTAIN) % 4 == 1;
+    // (M12 SERVICE) a town's captain of the watch (service_orders.cpp) is never a besieger; with no siege at his walls
+    // his talk is the army's (ServiceOps::talk: enlisting, reports)
+    const bool watch = ServiceOps::isServiceCaptain(a);
+    const bool att = !watch && a.slot >= SLOT_CAPTAIN && a.slot < SLOT_SOLDIER && (a.slot - SLOT_CAPTAIN) % 4 == 1;
     const realm::Siege* sg = findSiege(a.realm, att);
+    if (!sg && watch) return;
     if (!sg) { speech::propose(dlg, speech::P_NEWS, speech::Topic::War, "THE WAR IS A SLOW BUSINESS, FRIEND. WE WAIT FOR ORDERS."); return; }
     const int si = world.siteHandle(sg->site);
     const std::string site = si >= 0 ? world.sites[(size_t)si].name : std::string("THE TOWN");

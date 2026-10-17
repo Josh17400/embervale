@@ -3442,3 +3442,101 @@ rename, remove or change the meaning of what is listed here):
   --no-order`, `--probe X Y`; `Actor::reliefK`, the per-actor path cache and `Game::navStats` (CLIMB); chunkgen step 6
   works the levels on a 6-tile border with four sliver passes (integration). Open at integration: perched rivers on
   the compressed high ground (PLAN.md M11 Integration).
+
+### 15.33 M12 "Rise and Fall" phase A (lead, 2026-10-16): the deep sim, service and lordship contracts
+
+13 M12 binds the milestone, with 4.3 "Rise" (civil wars split realms; a strong bandit camp cleared by nobody for 30
+days can become a warlord realm; abandoned places are resettled after 60 days), 4.4 / 4.8 (tiers and budgets), 4.5 (the
+overlays: banners follow, charred and rebuilding places), 4.6 (every event is a rumour), 4.7 (enlisting: Recruit,
+Sergeant, Captain, Marshal with a wage, campaign quests generated from active sieges; "a diplomacy quest forces a peace
+roll"; kingdom-making), 7.6 (world bosses raid settlements as a sim event), 15.3 (investigable ruins, which M12
+deepens: ruins of realms that fell DURING play, resettled ruins), 15.6.3 (slow, realistic drama: every war has a cause
+and is foreshadowed; no "lively" default), 15.6.4 and the owner's decision of 2026-10-16 (YES to village lordship and
+kingdom-making: own a village, pay tribute or declare independence, grow it into a kingdom or conquer one), 15.8
+(kingdom identity: every new realm has its own name, arms and banner), 15.9 (campaigns arrive with M4 / M12; stories
+cast from the living world), 15.20 (archetypes toward 150 by M12: M12 adds the rise-and-fall ones), 15.31 (hidden
+kingdoms stay isolated until contact; islands and harbours) and 15.32 (relief). Verification: `--history 5000`, drama
+metrics, `--save-soak 100` at <= 1 MB. What the owner sees on the phone: realms that rise and fall around him, and a
+place in that history. Owner rules for M12: the every-system regression runs ONCE, by the integrator; fixes are
+verified with targeted checks only; earlier milestones' polish is deferred until after M12; the 16-bit quality bar and
+natural / organic world design stand. Phase A contracts (a lane may ADD to a file it is the editor of, never rename,
+remove or change the meaning of what is listed here):
+- **The realm (`rpg/sim/realm.h`, REALM lane; realm block v4)**: `KingdomState::origin` (`KO_GENESIS / KO_REBEL /
+  KO_WARLORD / KO_SUCCESSOR / KO_PLAYER`; `rebel` stays true for every realm the generator never planned), `overlord`
+  and `tribute` (a vassal), `claim` (a successor's or pretender's claim), `camp` (a warlord's camp), `player` (the
+  player rules it: the tick never declares its wars, kills its ruler, splits it or makes its peace; it is always
+  Active). `Camp` (`CF_CLEARED / WARBAND / WARLORD / WILD`; noted by realmNoteSites for every loaded
+  `SiteType::BanditCamp`, cleared with the site) and `Lair` (a world boss's lair: woke, next raid, raids, slain);
+  `noteCamp`, `campCleared`, `camps`, `camp`, `noteLair`, `lairSlain`, `lairs`. Forcing: `forceWarlord` (the camp's
+  warband takes the nearest village: a KO_WARLORD realm), `forceSuccessor` (a fallen realm's remnant crowns a successor
+  with its claim and old colour), `forceResettle`, `forceAlliance`, `forceVassal`, `forceBossRaid`. Diplomacy rolls the
+  SERVICE lane's missions drive: `peaceRoll`, `allianceRoll`, `tributeRoll` (each records TermsCarried). Private
+  `newRealmId` and `foundRealm` (every realm the generator never planned comes through it; `splitRealm` may move to it).
+  `EvType` appended (saved as u8): `WarlordRose, WarbandRaid, SuccessorRose, Reunified, AllianceMade, AllyJoined,
+  Vassalised, TributePaid, TributeRefused, Independence, FiefGranted, Enlisted, Promoted, TermsCarried, BossWoke,
+  Rebuilt` (names in `evTypeName`, story DSL words in dsl.cpp). Phase A runs NONE of this from the tick: the M4 history
+  targets are unchanged.
+- **Renown (`realm.h`)**: the realm-visible mirror: `rank` / `sworn` (kept by the SERVICE lane), `lordOf`, `liege`,
+  `realmOf` (kept by the LORD lane).
+- **The player's realm (`rpg/sim/realm_player.cpp`, LORD lane)**: `grantFief(site, liege, how)`, `revokeFief`,
+  `declareIndependence(name, ruler, female, colours, emblem)` (a KO_PLAYER realm holding every fief; the liege's
+  relation at TradeBroken, cause Succession), `playerRealm`, `payTribute`, `refuseTribute` (the overlord's tension climbs
+  a rung), `playerTakes` (a conquest by the player's banner).
+- **The service (`rpg/sim/service.h`, `service_ops.h`, `service.cpp`, `service_game.cpp`, SERVICE lane)**: `Rank`
+  (None, Recruit, Sergeant, Captain, Marshal; `rankName`, `wageOf` 12 / 30 / 70 / 150 gold a week, `meritToRise` 30 / 80
+  / 180, `squadOf` 0 / 0 / 2 / 4 / 6), `OrderKind` (BreakSiege, Assault, Supply, Scout, Assassinate, Escort, Hold),
+  `Order`, `MissionKind` (CarryTerms, SeekAlliance, DemandTribute, FirstEnvoy), `Mission`, `Past` (discharged,
+  deserted, disbanded), `Service` (saved). `ServiceOps` (Game's friend) hooks, all wired: `step` (update, after
+  LordOps::step), `talk` (P_SERVICE: captains / guards ENLIST, REPORTING, LEAVE; rulers and envoys hear missions),
+  `choose` (`DLG_SERVICE` 7500..8000), `kill` (after warKill), `questDone`, `reset`, `loaded`; the core `enlist`,
+  `addMerit`, `promote`, `leave`, `giveOrder` / `finishOrder` (QType::Campaign), `giveMission` / `arrive`
+  (QType::Envoy), `sync`, `rise`.
+- **The lordship (`rpg/sim/lordship.h`, `lord_ops.h`, `lordship.cpp`, `lord_game.cpp`, LORD lane)**: `How` (Granted,
+  Charter, Resettled, Conquered, Founded), works `LW_BANNER / PALISADE / HALL / GRANARY / MILITIA / MARKET / WATCHTOWER
+  / WALLS / SHRINE` (`workInfo`), `charterPrice` (a village 2500), `CHARTER_FAME` 300, `GRANT_RANK` 3 (Captain),
+  `Holding`, `Lordship` (saved: coffers, liege, tribute due = a quarter of the taxes since the last tribute day, every
+  30 days, the player's realm and its name). `LordOps` hooks, all wired: `step` (update, after SeaOps::step), `talk`
+  (P_SERVICE: the steward / elder / innkeeper of a holding: COFFERS, TAKE, PAY THE TRIBUTE, RAISE MY OWN BANNER; rulers:
+  ASK FOR A LORDSHIP (a Captain of theirs), BUY A CHARTER (fame 300)), `choose` (`DLG_LORD` 8000..8500), `questDone`,
+  `reset`, `loaded`; the core `grant`, `independence` (the player's own heraldry), `collect`, `payTribute`, `take`,
+  `heldSite`, `sync`, `rise`. Villages only until the crown (the LORD lane decides towns).
+- **`rpg/sim/game.h`**: `Game::service`, `Game::lordship`; `friend struct ServiceOps / LordOps`; `Ev::Rise` with
+  `RiseEv` (`rpg/sim/rise.h`, frozen: Enlisted, Promoted, Wage, Order, OrderDone, OrderFailed, Discharged, Deserted,
+  Mission, MissionDone, FiefGranted, Tax, Tribute, TributeRefused, Independence, Crowned, WarlordNear, BossRaid);
+  `QType::Campaign / Envoy / Fief` (quests.cpp gives them markers, lines and the giver's thanks); `DLG_SERVICE`,
+  `DLG_LORD`. **`rpg/sim/world.h`**: roles `Steward`, `Warlord`, `Envoy` (talk names added; looks are the VIEW lane's).
+- **View (`rpg/view/view.h`)**: the RISE block (`rpg/view/render_rise.cpp`, VIEW lane; `RiseViewOps`, opaque
+  `RiseViewState`): `riseEvent` (render.cpp's event pass), `riseUpdate` (after reliefUpdate), `drawRiseHud` (hud.cpp,
+  after drawSeaHud), `riseViewStats`. The journal's fourth section STANDING (`setJournalSection(3)`, `journal
+  standing`; realm_hud.cpp draws it). Phase A shows each moment as a toast.
+- **Props (`rpg/art/art_props.h`, painted in `rpg/art/art_rise.cpp`, VIEW lane)**: `LordBanner` (4 frames, tinted by
+  its owner's arms in the view) and `Watchtower`; `isRiseProp`, `riseFootprint` (frozen, 1 x 1); the builder registry
+  classifies them (Kind::None). **Prop budget**: Prop is a uint8_t and the chunk caches store prop + 1, so
+  `Prop::COUNT` (now 254) may not pass 255; the one slot left is reserved. Everything else M12 shows (works, warlord
+  standards and forts, resettlers, raid scars) is drawn by the view or reuses existing props.
+- **Saves of phase B**: a lane that must change its block's layout bumps that block's own version byte and keeps
+  reading the phase A layout, so `save_v22.bin` keeps loading; lanes never regenerate the fixture or edit
+  tools/save_test.cpp (the integrator regenerates the fixture once and drops the old layouts).
+- **Saves**: SAVE_VER 22 (the service block, then the lordship block, after the sea block; each its own version byte
+  1); the realm block v4; `tests/fixtures/save_v22.bin` (sworn as a sergeant with an order, a mission and a deserted
+  army; the start village held with coffers, tribute owed and a palisade going up; the renown mirror, a camp and a
+  lair); save_v21.bin retired, SAVE_VER 21 refused. ENDLESS_GEN_VER stays 26: **M12 changes no generation** (identity
+  never changes, only overlays: 4.5). A lane that must change generation asks the integrator first.
+- **Tests and scripts**: `rpg_test --rise [--seeds A..B]` (tools/tests/test_rise.cpp: a warlord from a camp with its
+  banner, an alliance, a vassal, a successor, a resettlement, a boss raid, the diplomacy rolls, enlisting to Sergeant,
+  an order and a mission, the wage, a lordship's taxes and tribute, independence and 120 ticked days that leave the
+  player's realm alone, the byte-identical save); **contract change (M12 review round 1, 2026-10-17)**: the player's
+  realm no longer stays Active with no land: losing its last holding ends it (`playerRealmEnds`: KingdomFell news, its
+  wars end, the lordship clears), and `--rise` accepts that fall (it checks the news, no open war, no lordship left) or
+  else requires the realm to still hold land; `rpg_test --save-soak N [--seeds] [--days D] [--budget KB]`
+  (tools/tests/test_soak.cpp: N save / load cycles while the world plays on, travel every 5th, an M12 act every 10th,
+  play continuing on the loaded copy; FAILS over 1 MB or on any difference); both in CI ("Rise test"). `--history N`
+  (M4) gains the M12 drama metrics (REALM lane). Script commands: `rise camp|warlord|successor|resettle|ally|vassal|
+  bossraid|stats`, `expect rise warlords|successors|vassals|alliances|camps|lairs|player` (script_rise.cpp, REALM);
+  `enlist`, `promote`, `merit`, `order <kind>|done|fail`, `mission <kind>|arrive`, `discharge [desert]`, `expect service
+  rank|sworn|orders|missions` (script_service.cpp, SERVICE); `lord grant|free|collect|tribute|take`, `expect lord
+  holdings|realm|treasury|liege` (script_lord.cpp, LORD); `journal standing`. `tools/scripts/m12_lead_rise.txt` (the
+  tour every lane reviews before and after).
+- **Test once (owner)**: the every-system regression (`rpg_test --seeds 1..20` and the full sweep of scripts and
+  commands) runs ONCE per milestone, by the integrator. Lanes and fixers run only the checks that cover the code they
+  changed, and re-run a check only after changing code it covers.

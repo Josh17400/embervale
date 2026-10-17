@@ -458,7 +458,8 @@ class View {
   //      of burned places and the siege camps' light
  public:
   int journalSection() const { return journalSec_; }
-  void setJournalSection(int s) { journalSec_ = s < 0 ? 0 : s > 2 ? 2 : s; menuSel_ = 0; menuScroll_ = 0; }
+  // (M12) 3: STANDING (the army, the holdings, the player's realm, the world's history: realm_hud.cpp)
+  void setJournalSection(int s) { journalSec_ = s < 0 ? 0 : s > 3 ? 3 : s; menuSel_ = 0; menuScroll_ = 0; }
   bool heraldShowing() const { return herald_.t > 0; }
   const std::string& heraldTitle() const { return herald_.title; }
   // (scripts) the last frame's counts of drawn M4 overlays: war props in an owner's colours, burned buildings smoking,
@@ -469,7 +470,7 @@ class View {
   struct Herald { float t = 0; std::string top, title; uint32_t color = 0; ew::Gid kingdom = 0; bool wild = false; };
   Herald herald_;
   M4Stats m4Stats_, m4Count_;
-  int journalSec_ = 0;                        // the QUESTS tab: 0 quests, 1 news, 2 lost history
+  int journalSec_ = 0;                        // the QUESTS tab: 0 quests, 1 news, 2 lost history, 3 standing (M12)
   ew::Gid arriveOwner_ = 0;                   // the owner and state flags the arrival banner last announced
   uint16_t arriveFlags_ = 0;
   std::string bannerState_;                   // a third line under the arrival banner ("OCCUPIED BY QIBA")
@@ -857,4 +858,40 @@ class View {
   void reliefSorted(Game& g, Vec2 cam, const std::function<void(float, int)>& push);
   void drawReliefSorted(Game& g, int idx, Vec2 cam);
   void drawReliefOver(Game& g, Vec2 cam);      // world space after the weather, before the sea's Mist: cloud shadows, haze
+
+  // ---- M12 Rise and Fall (VISION_PLAN 13 M12 "realms that rise and fall around him, and a place in that history",
+  //      15.33). The VIEW lane's block (rpg/view/render_rise.cpp + its own new files; the state lives in the opaque
+  //      RiseViewState, View's internals through the friend RiseViewOps). Ev::Rise moments (rpg/sim/rise.h: enlisted,
+  //      promoted, paid, orders, a lordship, tribute, independence, a warlord or a world boss near) shown as a herald's
+  //      banner with the realm's arms and a fanfare; the rank's insignia and the fief's state on the HUD. The journal's
+  //      fourth section, STANDING (journalSection 3; realm_hud.cpp draws it), shows the army served, the rank and merit,
+  //      orders and missions, the holdings, the coffers, tribute and the player's realm, and the world's history.
+ public:
+  struct RiseViewStats { int banners = 0; int toasts = 0; RiseEv last = RiseEv::None;     // scripts `expect riseview`
+    // (phase B, VIEW lane) banners shown so far (queued ones wait their turn), the one showing's box (screen px), the
+    // rank's badge drawn on the HUD this frame, the world's rise pieces drawn last frame (rise_world.cpp)
+    int shown = 0;
+    float bannerX = 0, bannerY = 0, bannerW = 0, bannerH = 0;
+    bool insignia = false;
+    int lordBanners = 0, works = 0, warlordPieces = 0, rebuildPieces = 0, raidScars = 0, standingRows = 0;
+    int mapMarks = 0;          // the world map's rise markers drawn last frame (worldmap.cpp)
+  };
+  RiseViewStats riseViewStats() const;
+  struct RiseViewState;      // (render_rise.cpp)
+ private:
+  friend struct RiseViewOps;     // (render_rise.cpp and the VIEW lane's other rise files)
+  std::shared_ptr<RiseViewState> riseView_;
+  void riseEvent(Game& g, const Event& e);     // Ev::Rise (render.cpp's event pass)
+  void riseUpdate(Game& g, float dt);          // update, after reliefUpdate
+  void drawRiseHud(Game& g);                   // screen space (drawHud, after drawSeaHud): the herald's banner, insignia
+  // (phase B, VIEW lane: rise_world.cpp) the rise in the world: the lord's standard (Prop::LordBanner) in its owner's
+  // arms, the holdings' works, warlords' camps and seats, resettled places, boss-raided towns
+  const Tex* riseBannerTex(Game& g, int tx, int ty);    // a LordBanner's frame sheet in the tile's owner's arms (nullptr: plain)
+  void drawRiseGround(Game& g, Vec2 cam);      // world space, flat (after the home flats): a beast's claw scars
+  // the sorted pass: push(y, idx) for every standing rise piece in view; drawRiseSorted draws one (Drawable kind 12)
+  void riseSorted(Game& g, Vec2 cam, const std::function<void(float, int)>& push);
+  void drawRiseSorted(Game& g, int idx, Vec2 cam);
+  void riseLights(Game& g, const std::function<void(Vec2, float, Color, float)>& light);   // drawLighting: tower lanterns
+  // (M12 integrator) the herald's banner's strip last drawn (riseBanBottom_ 0: none): the quest compass keeps out of it
+  float riseBanX0_ = 0, riseBanX1_ = 0, riseBanBottom_ = 0;
 };

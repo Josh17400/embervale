@@ -26,6 +26,12 @@ struct Look {
   int handle = -1;                       // World::kingdoms index (-1: not loaded)
   const cult::Culture* culture = nullptr;
   std::string ruler;                     // "KHAN TEMUR" (empty: not known)
+  // (M12 VIEW lane) a realm the generator never planned (rebels, a warlord, a successor, the player's): its own emblem
+  // over its culture's grammar (15.8: every new realm has its own arms); the player's realm flies the player's own arms
+  bool made = false;
+  const cult::Heraldry* own = nullptr;   // the player's realm: the hero's heraldry (Game::app), else nullptr
+  bool lordship = false;   // (M12) the player's realm before the crown (under 3 settlements): "LORDSHIP OF ..."
+  bool warlord = false;    // (M12 fixer) a realm grown from a bandit camp: "HOLD / HORDE / WARBAND OF ...", never a civic name
 };
 Look look(const Game& g, ew::Gid id);
 // "THE KHAGANATE OF ASHMARK" / "KINGDOM OF ASHMARK" (the = false)

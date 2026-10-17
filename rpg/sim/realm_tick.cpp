@@ -21,8 +21,16 @@
 //   civil war    stability below 0.2 splits the realm: the far half becomes a rebel kingdom
 //   settlements  food, mood, unrest, famine, healing (rebuilding), refugees, abandonment -> ruin (30 days) ->
 //                resettlement by an expansionist neighbour (60 days)
+//   (M12, REALM lane) a successor resettles its claim's ruins first, a land-hungry neighbour after a year; a resettled
+//                ruin is Rebuilt when it heals; civil wars found their realms through foundRealm (KO_REBEL, a claim on
+//                the parent) and a contested succession may raise a pretender; a loser that lost no land, or a war of
+//                revenge that changed no hands, leaves a cold border instead of a grudge, and a new ruler forgets a
+//                landless grudge (long runs: revenge chains drowned the real causes); a crushing defeat may make a
+//                vassal; declared wars call the defender's allies (realm_deep.cpp); a warlord's wars are raids; the
+//                player's realm is never felled, and its wars end only by the player's terms or a fall
 #include <algorithm>
 #include <cmath>
+#include <initializer_list>
 #include "rpg/culture/culture.h"
 #include "rpg/culture/society.h"
 #include "rpg/sim/realm.h"
@@ -132,6 +140,7 @@ void Realm::tickDay(ew::EndlessSource& src, int span) {
   tickDiplomacy(span);
   tickRulers(src, span);
   tickCivil(src, span);
+  tickRise(span);   // (M12) camps and warlords, lairs, successors and claims, alliances, vassals (realm_deep.cpp)
   if (day_ % 30 == 0 || span >= 7) prune();
 }
 
@@ -254,26 +263,27 @@ void Realm::tickSettlement(SettlementState& s, KingdomState* K, int span) {
       ruinSite(s, (s.flags & SS_BURNED) || by ? FallCause::War : FallCause::Famine, by, day_);
     }
     if (since >= 60 && chance(0.04f * span)) {
+      // (M12) who goes back: a successor whose claim this land is first (it means to restore the old realm), then
+      // the nearest expansionist realm, its own realm after 180 days, or after a year any realm with a town near
       KingdomState* best = nullptr;
       int64_t bd = 1800ll * 1800;
       for (KingdomState& k : kingdoms_) {
-        if (k.fallen || k.tier != Tier::Active) continue;
-        const bool ok = k.values[V_EXPANSIONIST] > 160 || (k.id == s.owner && since >= 180);
+        if (k.fallen || k.tier != Tier::Active || k.player) continue;
+        const bool heir = k.claim && k.claim == s.home;
+        const bool ok = heir || k.values[V_EXPANSIONIST] > 160 || (k.id == s.owner && since >= 180) || since >= YEAR;
         if (!ok) continue;
-        const int64_t d = dist2(capX(k), capY(k), s.gx, s.gy);
+        int64_t d = dist2(capX(k), capY(k), s.gx, s.gy);
+        if (since >= YEAR && !heir && k.values[V_EXPANSIONIST] <= 160 && k.id != s.owner) {
+          // a land-hungry neighbour: only one with a settlement of its own within a long day's walk
+          int64_t nd = INT64_MAX;
+          for (Gid g : k.settlements) if (const SettlementState* o = settlement(g)) nd = std::min(nd, dist2(o->gx, o->gy, s.gx, s.gy));
+          if (nd > 700ll * 700) continue;
+          d = nd * 2;
+        }
+        if (heir) d /= 4;
         if (d < bd) { bd = d; best = &k; }
       }
-      if (best) {
-        const Gid was = s.owner, to = best->id;
-        s.flags &= (uint16_t)~(SS_ABANDONED | SS_RUINED | SS_BURNED | SS_FAMINE | SS_OCCUPIED | SS_UNREST | SS_REFUGEES | SS_BESIEGED);
-        s.flags |= SS_REBUILDING;
-        s.popPct = 30; s.damage = std::max<uint8_t>(s.damage, 40); s.food = 40; s.mood = 50;
-        if (was != to) giveSite(s, to, day_);
-        s.changedDay = dayU16(day_);
-        ruins_.erase(s.site);
-        addEvent(EvType::Resettled, to, was, s.site, s.gx, s.gy, day_);
-        if (KingdomState* O = kingdomMut(was)) if (was != to && O->settlements.empty() && !O->fallen) fallKingdom(*O, day_, to);
-      }
+      if (best) resettle(s, best->id, day_);
     }
     return;
   }
@@ -304,7 +314,12 @@ void Realm::tickSettlement(SettlementState& s, KingdomState* K, int span) {
   } else if (s.damage > 0 && !(s.flags & SS_BESIEGED)) {
     s.damage = (uint8_t)std::max(0, s.damage - span);
   }
-  if ((s.flags & SS_REBUILDING) && s.damage == 0) { s.flags &= (uint16_t)~SS_REBUILDING; s.changedDay = dayU16(day_); }
+  if ((s.flags & SS_REBUILDING) && s.damage == 0) {
+    s.flags &= (uint16_t)~SS_REBUILDING;
+    s.changedDay = dayU16(day_);
+    // (M12) a resettled ruin lives again as a village
+    if (s.flags & SS_RESETTLED) { s.flags &= (uint16_t)~SS_RESETTLED; addEvent(EvType::Rebuilt, s.owner, 0, s.site, s.gx, s.gy, day_); }
+  }
   if ((s.flags & SS_OCCUPIED) && day_ - (int)s.takenDay >= 30) { s.flags &= (uint16_t)~SS_OCCUPIED; s.changedDay = dayU16(day_); }
   if ((s.flags & SS_REFUGEES) && day_ - (int)s.refugeesDay >= 45) {
     s.flags &= (uint16_t)~SS_REFUGEES;
@@ -457,6 +472,7 @@ void Realm::ruinSite(SettlementState& s, FallCause cause, Gid destroyer, int day
 
 void Realm::fallKingdom(KingdomState& k, int day, Gid by) {
   if (k.fallen) return;
+  if (k.player) return;   // (M12) the player's realm stays Active even with no land left: the LORD lane decides its fate
   k.fallen = true;
   k.famine = false;
   const Gid id = k.id;
@@ -481,7 +497,7 @@ uint32_t Realm::declareWar(Gid attacker, Gid defender, WarCause cause, int day, 
   const KingdomState* D = kingdom(defender);
   const uint64_t h = ew::mix64(seed_ ^ ((uint64_t)w.id * 0x9E3779B97F4A7C15ull) ^ attacker);
   w.goal = WarGoal::Conquer;
-  if (A && A->gov == (uint8_t)cult::Government::Khanate) w.goal = WarGoal::Raid;
+  if (A && (A->gov == (uint8_t)cult::Government::Khanate || A->origin == KO_WARLORD)) w.goal = WarGoal::Raid;   // (M12: a warlord's host raids)
   else if (cause == WarCause::Famine && (h & 1)) w.goal = WarGoal::Raid;   // hungry raiders come for the granaries
   std::string base;
   const std::string an = A ? A->name : std::string("THE NORTH"), dn = D ? D->name : std::string("THE SOUTH");
@@ -514,6 +530,14 @@ uint32_t Realm::declareWar(Gid attacker, Gid defender, WarCause cause, int day, 
   int32_t ex = 0, ey = 0;
   if (D) { ex = capX(*D); ey = capY(*D); }
   addEvent(EvType::WarDeclared, attacker, defender, 0, ex, ey, day).mag = (int16_t)(w.id & 0x7FFF);
+  // (M12) a vassal that takes up arms against its overlord (or the overlord against it) breaks the bond
+  for (Gid side : {attacker, defender}) {
+    KingdomState* X = kingdomMut(side);
+    const Gid other = side == attacker ? defender : attacker;
+    if (X && X->overlord == other) { X->overlord = 0; X->tribute = 0; }
+  }
+  // (M12) the defender's allies, overlord and vassals are called to arms (callAllies, after the day's diplomacy)
+  if (!forced) allyCalls_.push_back(w.id);
   return w.id;
 }
 
@@ -565,6 +589,28 @@ void Realm::endWar(War& w, int day) {
     r->seller = 0;
     r->aggrieved = w.score >= 0 ? w.defender : w.attacker;
     r->cause = WarCause::Revenge;
+    // (M12) revenge for revenge fades: a war of revenge that changed no hands leaves a cold border, not a new grudge
+    // (long runs: chains of them drowned the wars' real causes, hunger and broken trade, after a dozen years)
+    // and a loser who kept all its towns nurses a cold border rather than a grudge for revenge
+    bool lostLand = false;
+    for (size_t i = 0; i < w.taken.size(); i++) {
+      const SettlementState* s = settlement(w.taken[i]);
+      if (s && i < w.takenFrom.size() && w.takenFrom[i] == r->aggrieved && s->owner != r->aggrieved) lostLand = true;
+    }
+    if (!lostLand && (w.cause == WarCause::Revenge || w.taken.empty())) {
+      r->cause = WarCause::BorderDispute;
+      r->tension = Tension::Calm;
+      r->aggrieved = 0;
+    }
+  }
+  // (M12) a crushing defeat: the beaten realm, far weaker, may bend the knee to the victor (a vassal paying tribute
+  // each year). Never the player's realm, either way (the LORD lane makes the player's terms)
+  A = kingdomMut(w.attacker);
+  D = kingdomMut(w.defender);
+  if (A && D && !A->fallen && !D->fallen && !A->player && !D->player && std::fabs(w.score) >= 0.45f) {
+    KingdomState* win = w.score > 0 ? A : D;
+    KingdomState* lose = win == A ? D : A;
+    if (!lose->overlord && !win->overlord && lose->military < 0.7f * win->military && chance(0.45f)) makeVassal(lose->id, win->id, day);
   }
 }
 
@@ -652,9 +698,10 @@ void Realm::tickWars(int span) {
     KingdomState* D = kingdomMut(wars_[i].defender);
     if (!A || !D || A->fallen || D->fallen) { endWar(wars_[i], day_); continue; }
     const int len = day_ - (int)wars_[i].startDay;
+    const bool playerWar = A->player || D->player;   // (M12) never ended by the tick: the LORD lane makes the player's peace
     if (A->tier != Tier::Active || D->tier != Tier::Active) {
       wars_[i].pausedDays = (uint16_t)std::min(65535, wars_[i].pausedDays + span);
-      if (len >= 90) endWar(wars_[i], day_);
+      if (len >= 90 && !playerWar) endWar(wars_[i], day_);
       continue;
     }
     A->exhaustion = std::min(1.0f, A->exhaustion + (0.0035f + (A->famine ? 0.002f : 0.0f)) * span);
@@ -693,7 +740,7 @@ void Realm::tickWars(int span) {
     D = kingdomMut(did);
     if (!A || !D) continue;
     const bool tired = A->exhaustion > 0.7f || D->exhaustion > 0.7f || std::fabs(w.score) > 0.6f;
-    if (len >= 90 || (len >= 20 && tired) || (len >= 45 && !openA && !openD && chance(0.02f * span))) endWar(w, day_);
+    if (!playerWar && (len >= 90 || (len >= 20 && tired) || (len >= 45 && !openA && !openD && chance(0.02f * span)))) endWar(w, day_);
   }
 }
 
@@ -745,7 +792,7 @@ void Realm::tickDiplomacy(int span) {
     if (apart(*A, *B)) continue;   // (M10) isolation: no discovery, trade or tension across the Mist before contact
     const bool war = warBetween(r.a, r.b) != nullptr;
     // opinion drifts toward its base (trade warms, tension and war chill)
-    int target = r.base + (r.state == Rel::Trade ? 10 : 0) + (r.foodDeal ? 5 : 0) - 10 * (int)r.tension;
+    int target = r.base + (r.state == Rel::Trade ? 10 : 0) + (r.state == Rel::Alliance ? 18 : 0) + (r.foodDeal ? 5 : 0) - 10 * (int)r.tension;
     if (war) target = std::min(target, -60);
     if (chance(0.25f * span) && target != r.opinion) r.opinion = (int8_t)std::clamp(r.opinion + (target > r.opinion ? 1 : -1), -100, 100);
     if (war) continue;
@@ -794,7 +841,7 @@ void Realm::tickDiplomacy(int span) {
       if ((aSells || bSells) && chance(0.01f * span)) {
         r.foodDeal = true;
         r.seller = aSells ? r.a : r.b;
-        r.state = Rel::Trade;
+        if (r.state != Rel::Alliance && r.state != Rel::Vassal) r.state = Rel::Trade;
         at(EvType::TradeDeal, A, B, (aSells ? B : A)->capital);
         events_.back().mag = 1;
       }
@@ -878,6 +925,7 @@ void Realm::tickDiplomacy(int span) {
         break;
       case Tension::Skirmishes: {
         if (!G) { setTension(r, Tension::BorderTension, day_); break; }
+        if (G->player) break;   // (M12) the player declares the player's wars (the LORD lane), never the tick
         if (r.marchDay) {
           if (day_ >= (int)r.marchDay) {
             const bool stale = day_ - (int)r.marchDay > 10;   // a side lay dormant meanwhile: the host went home
@@ -933,6 +981,22 @@ void Realm::succession(KingdomState& k, int day, bool died) {
   k.ruler.sinceDay = dayU16(std::max(1, day));
   if (newHouse) k.ruler.dynasty = ew::mix64(h ^ 0x44594E41ull);
   k.stability = std::max(0.0f, k.stability - hit);
+  // (M12) a contested succession (a new house, a child on the throne, a shaken realm) may raise a pretender: the realm
+  // splits in civil war (tickCivil, the same day), the rebels' ruler claiming the whole crown
+  if (died && !k.player) {
+    int living = 0;
+    for (Gid g : k.settlements) if (const SettlementState* s = settlement(g)) if (!(s->flags & SS_ABANDONED)) living++;
+    const bool contested = newHouse || k.ruler.age < 20 || k.stability < 0.45f;
+    if (living >= 3 && contested && chance(0.12f)) pretenders_.push_back(k.id);
+  }
+  // (M12) a new ruler, a new page: a grudge of revenge with no lost land behind it dies with the one who held it
+  for (Relation& r : relations_) {
+    if (r.aggrieved != k.id || r.cause != WarCause::Revenge || r.tension > Tension::Strained || r.state == Rel::War) continue;
+    const KingdomState* O = kingdom(r.a == k.id ? r.b : r.a);
+    bool lost = false;
+    if (O) for (Gid g : O->settlements) if (const SettlementState* s = settlement(g)) if (s->home == k.id) { lost = true; break; }
+    if (!lost) { r.tension = Tension::Calm; r.aggrieved = 0; r.stepDay = dayU16(day); }
+  }
   addEvent(EvType::Succession, k.id, 0, k.capital, capX(k), capY(k), day).mag = newHouse ? 1 : 0;
 }
 
@@ -942,6 +1006,7 @@ void Realm::tickRulers(ew::EndlessSource& src, int span) {
   for (size_t i = 0; i < kingdoms_.size(); i++) {
     KingdomState& k = kingdoms_[i];
     if (k.fallen || k.tier != Tier::Active) continue;
+    if (k.player) continue;   // (M12) the player rules it: no age, no death, no heir
     if (newYear && k.ruler.age < 250) k.ruler.age++;
     const bool war = i < warNow_.size() && warNow_[i];
     const float p = T.death * std::exp((k.ruler.age - 40) / 9.0f) + (war ? 0.0002f : 0.0f);
@@ -953,19 +1018,24 @@ void Realm::tickCivil(ew::EndlessSource& src, int span) {
   std::vector<Gid> split;
   for (const KingdomState& k : kingdoms_) {
     if (k.fallen || k.tier != Tier::Active || k.stability >= 0.2f) continue;
+    if (k.player) continue;   // (M12) the player's realm never splits by itself
     int living = 0;
     for (Gid g : k.settlements) if (const SettlementState* s = settlement(g)) if (!(s->flags & SS_ABANDONED)) living++;
     if (living >= 3 && chance(T.civil * span)) split.push_back(k.id);
   }
-  for (Gid id : split) if (KingdomState* k = kingdomMut(id)) splitRealm(&src, *k, day_);
+  for (Gid id : pretenders_)   // (M12) the pretenders of contested successions
+    if (std::find(split.begin(), split.end(), id) == split.end()) split.push_back(id);
+  pretenders_.clear();
+  for (Gid id : split) if (KingdomState* k = kingdomMut(id)) if (!k->fallen && !k->player) splitRealm(&src, *k, day_);
 }
 
 Gid Realm::splitRealm(ew::EndlessSource* src, KingdomState& kref, int day) {
+  // (M12) the rebels found their realm through foundRealm (KO_REBEL): a pretender of a new house with a claim on the
+  // whole of the parent realm, holding the far half of its living settlements (never the capital)
   const Gid pid = kref.id;
   std::vector<Gid> living;
   for (Gid g : kref.settlements) if (const SettlementState* s = settlement(g)) if (!(s->flags & SS_ABANDONED)) living.push_back(g);
   if (living.size() < 3) return 0;
-  // the rebels hold the far half (never the capital)
   const int32_t cx = capX(kref), cy = capY(kref);
   std::vector<std::pair<int64_t, Gid>> far;
   for (Gid g : living) {
@@ -976,57 +1046,26 @@ Gid Realm::splitRealm(ew::EndlessSource* src, KingdomState& kref, int day) {
   std::sort(far.begin(), far.end());
   const size_t n = std::min(far.size(), std::max<size_t>(1, living.size() / 2));
   if (n == 0) return 0;
-  Gid rid = 0;
-  for (int tries = 0; tries < 0x800 && (!rid || kingdom(rid)); tries++)
-    rid = ew::makeId(ew::idRx(pid), ew::idRy(pid), ew::IdKind::Kingdom, 0x800u + (nextRebel_++ % 0x800u));
-  if (kingdom(rid)) return 0;
-  KingdomState R;
-  R.id = rid;
-  R.rebel = true;
-  R.parent = pid;
-  R.culture = kref.culture;
-  R.gov = kref.gov;
-  R.inherit = kref.inherit;
-  for (int v = 0; v < V_COUNT; v++) R.values[v] = kref.values[v];
-  const uint64_t h = ew::mix64(rid ^ seed_ ^ 0x5245424Cull);
-  if (src && src->seed() == seed_) {
-    const cult::Culture& C = src->culture(kref.culture);
-    R.name = cult::kingdomName(C, (uint32_t)h);
-    if (R.name == kref.name) R.name = cult::kingdomName(C, (uint32_t)(h >> 20) ^ 0x51u);
-    R.ruler.name = cult::personName(C, (uint32_t)(h >> 8), (h & 3) == 0);
-    R.ruler.house = "HOUSE " + cult::personName(C, (uint32_t)(h >> 28) ^ 0x484F5553u, false);
-  } else {
-    R.name = "FREE " + kref.name;
-    R.ruler.name = "THE PRETENDER";
-    R.ruler.house = "HOUSE OF THE REVOLT";
-  }
+  std::vector<Gid> sites;
+  for (size_t i = 0; i < n; i++) sites.push_back(far[i].second);
+  // the rebels' arms: a new field, a new charge (never the parent's colour)
+  const uint64_t h = ew::mix64(pid ^ (uint64_t)nextRebel_ * 0x9E3779B97F4A7C15ull ^ seed_ ^ 0x5245424Cull);
   static const uint32_t PAL[] = {colour(150, 30, 30), colour(30, 60, 140), colour(30, 110, 50), colour(120, 40, 120),
                                  colour(200, 150, 30), colour(40, 40, 40), colour(200, 200, 190), colour(170, 80, 20),
                                  colour(20, 120, 130), colour(90, 60, 30)};
-  R.color = PAL[h % 10];
-  if (R.color == kref.color) R.color = PAL[(h + 3) % 10];
-  R.color2 = PAL[(h >> 8) % 10];
-  if (R.color2 == R.color) R.color2 = PAL[(h + 5) % 10];
-  R.emblem = (uint8_t)((kref.emblem + 1 + (h >> 16) % 6) % 8);
-  R.ruler.female = (h & 3) == 0;
-  R.ruler.title = kref.ruler.title;
-  R.ruler.age = (uint8_t)(25 + (h >> 36) % 25);
-  R.ruler.traits = (uint8_t)(detail::traitsFor(R.values, h) | RT_AGGRESSIVE);
-  R.ruler.sinceDay = dayU16(std::max(1, day));
-  R.ruler.dynasty = ew::mix64(h ^ 0x44594E41ull);
-  R.foundedDay = day;
-  R.tier = Tier::Active;
-  R.lastTick = dayU16(day);
-  R.stability = 0.5f;
-  R.food = kref.food;
-  R.harvestDoy = kref.harvestDoy;
-  R.harvestYear = kref.harvestYear;
-  R.lastHarvest = kref.lastHarvest;
-  R.famine = kref.famine;
-  R.famineDay = kref.famineDay;
-  R.isolated = kref.isolated;       // (M10) a hidden land's rebels stay as apart from the mainland as their parent
-  R.hiddenLand = kref.hiddenLand;
-  R.contactDay = kref.contactDay;
+  uint32_t col = PAL[h % 10];
+  if (col == kref.color) col = PAL[(h + 3) % 10];
+  uint32_t col2 = PAL[(h >> 8) % 10];
+  if (col2 == col) col2 = PAL[(h + 5) % 10];
+  const uint8_t emb = (uint8_t)((kref.emblem + 1 + (h >> 16) % 6) % 8);
+  std::string name;
+  if (src && src->seed() == seed_ && kref.culture) {
+    const cult::Culture& C = src->culture(kref.culture);
+    name = cult::kingdomName(C, (uint32_t)h);
+    if (name == kref.name) name = cult::kingdomName(C, (uint32_t)(h >> 20) ^ 0x51u);
+  } else {
+    name = "FREE " + kref.name;
+  }
   // split the realm's strength by population
   float popR = 0, popAll = 0;
   for (Gid g : living) {
@@ -1036,25 +1075,25 @@ Gid Realm::splitRealm(ew::EndlessSource* src, KingdomState& kref, int day) {
     for (size_t i = 0; i < n; i++) if (far[i].second == g) popR += p;
   }
   const float f = popAll > 0 ? popR / popAll : 0.5f;
-  R.wealth = std::max(0.0f, kref.wealth) * f;
-  R.military = kref.military * f;
-  kref.wealth -= R.wealth;
-  kref.military -= R.military;
-  kref.stability = 0.45f;   // the malcontents have gone
-  const std::string parentName = kref.name;
-  kingdoms_.push_back(std::move(R));
-  rebuildIndex();
+  const float wealth = std::max(0.0f, kref.wealth) * f, military = kref.military * f;
+  const bool famine = kref.famine;
+  const uint16_t famineDay = kref.famineDay;
+  if (src) src_ = src;
+  const Gid rid = foundRealm(KO_REBEL, pid, sites, name, col, col2, emb ? emb : 1, day);
+  if (!rid) return 0;
   KingdomState* P = kingdomMut(pid);
   KingdomState* K = kingdomMut(rid);
-  for (size_t i = 0; i < n; i++) {
-    auto it = settlementIx_.find(far[i].second);
-    if (it == settlementIx_.end()) continue;
-    SettlementState& s = settlements_[(size_t)it->second];
-    giveSite(s, rid, day);
-    s.flags &= (uint16_t)~SS_OCCUPIED;
-  }
-  P = kingdomMut(pid);
-  K = kingdomMut(rid);
+  if (!P || !K) return rid;
+  K->claim = pid;   // the pretender's claim: the whole of the parent realm
+  K->wealth = wealth;
+  K->military = military;
+  K->famine = famine;
+  K->famineDay = famineDay;
+  K->ruler.traits = (uint8_t)(K->ruler.traits | RT_AGGRESSIVE);
+  P->wealth -= wealth;
+  P->military -= military;
+  P->stability = 0.45f;   // the malcontents have gone
+  for (Gid g : sites) if (auto it = settlementIx_.find(g); it != settlementIx_.end()) settlements_[(size_t)it->second].flags &= (uint16_t)~SS_OCCUPIED;
   recount(*P);
   recount(*K);
   // relations: the old realm wants its land back; the rebels inherit the neighbours' acquaintance
@@ -1084,7 +1123,6 @@ Gid Realm::splitRealm(ew::EndlessSource* src, KingdomState& kref, int day) {
   K = kingdomMut(rid);
   addEvent(EvType::CivilWar, pid, rid, K->capital, capX(*K), capY(*K), day);
   addEvent(EvType::KingdomRose, rid, pid, K->capital, capX(*K), capY(*K), day);
-  (void)parentName;
   stats.instantiated = (int)kingdoms_.size();
   return rid;
 }
@@ -1097,6 +1135,7 @@ void Realm::prune() {
   for (const War& w : wars_) if (w.endDay) ended++;
   for (size_t i = 0; i < wars_.size() && ended > 24;)
     if (wars_[i].endDay) { wars_.erase(wars_.begin() + (std::ptrdiff_t)i); ended--; } else i++;
+  pruneRealms();   // (M12) the oldest fallen realms the generator never planned
   // sieges: gone 60 days after they ended
   sieges_.erase(std::remove_if(sieges_.begin(), sieges_.end(), [&](const Siege& g) { return g.over && day_ - (int)g.resolveDay > 60; }), sieges_.end());
   // relations of realms that are gone

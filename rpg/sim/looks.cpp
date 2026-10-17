@@ -11,6 +11,7 @@
 #include "rpg/culture/culture.h"
 #include "rpg/culture/society.h"
 #include "rpg/sim/game_internal.h"
+#include "rpg/art/art_rise.h"
 
 // ------------------------------------------------------------------ the census look (M3, VISION_PLAN 5.6 "NPCs")
 // Dresses a person in a culture: people from its mix, skin and hair from its ranges, the dress cut per sex, headwear,
@@ -449,6 +450,54 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
       break;
     }
     case Role::Smith: case Role::Hunter: L.cut = 0; L.pattern = 0; break;
+    // (M12 VIEW lane) the rise's people. A steward: a sober long coat in a dark dyed cloth with a plain edging, a cap of
+    // office, the keys at the belt and the ledger in hand (no weapon, no finery)
+    case Role::Steward: {
+      L.outfit = art::Outfit::Tunic;
+      L.cut = (uint8_t)((int)cult::Cut::Coat + 1);
+      L.topColor = darker(blend(cloth(h.pick(std::max(1, nc))), rgba(78, 66, 58), 0.6f), 0.8f);
+      L.bottomColor = rgba(54, 48, 46);
+      L.pattern = (uint8_t)cult::Pattern::BorderTrim;
+      L.patternColor = rgba(176, 156, 112);
+      L.hood = false; L.helmet = false;
+      L.headwear = (uint8_t)cult::Headwear::Cap; L.headColor = darker(L.topColor, 0.75f);
+      L.jewellery = 0; L.facePaint = 0;
+      L.weapon = art::WEAPON_LEDGER;
+      L.armsOrnament = art::RISE_KEYS;
+      break;
+    }
+    // a warlord: the land's own arms gone savage: a horned helm, a scale or leather coat under a fur mantle, war paint,
+    // trophies at the belt, a great axe (the realm's colours on the shield and plume: makeLook)
+    case Role::Warlord: {
+      applyArms(Al, 2, 0, 0);
+      L.outfit = art::Outfit::Leather;
+      L.helmet = true; L.hood = false; L.headwear = 0;
+      L.helmStyle = 2; L.helmForm = (uint8_t)((int)cult::HelmForm::Horned + 1);
+      L.bodyForm = (uint8_t)((int)cult::BodyArm::Scale + 1);
+      L.cloak = 2; L.cloakColor = rgba(104, 78, 56);
+      L.armsOrnament = (uint16_t)((Al.ornament & (cult::ARM_FUR_TRIM | cult::ARM_STUDS | cult::ARM_RIVETS)) | cult::ARM_FUR_TRIM | art::RISE_TROPHIES);
+      L.facePaint = 1;
+      L.weapon = 2; L.shield = false; L.shieldForm = 0;
+      L.gloves = 1; L.boots = 2;
+      L.beard = !female && L.people != 2;
+      L.armourTint = 0; L.armourTint2 = 0; L.sheen = 0;
+      L.cut = 0; L.pattern = 0;
+      break;
+    }
+    // an envoy: court robes in the court's colours (makeLook) edged in gold, a cap of office, a chain, the sealed scroll
+    // case of the court's letters
+    case Role::Envoy: {
+      const cult::Cut c0 = female ? D.cutF : D.cutM;
+      L.outfit = art::Outfit::Robe;
+      L.cut = (uint8_t)((c0 == cult::Cut::Gown || c0 == cult::Cut::Kaftan ? (int)c0 : (int)cult::Cut::Robe) + 1);
+      L.pattern = (uint8_t)cult::Pattern::BorderTrim;
+      L.patternColor = rgba(222, 182, 82);
+      L.hood = false; L.helmet = false;
+      L.headwear = (uint8_t)cult::Headwear::Cap;
+      L.jewellery = 2; L.facePaint = 0;
+      L.weapon = art::WEAPON_SCROLL;
+      break;
+    }
     default: break;
   }
   // ---- the name, in the culture's phonology (titles kept; guards keep theirs: the spawner names them)
@@ -460,6 +509,9 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
       else if (r == Role::Priest) nm = "PRIEST " + nm;
       else if (r == Role::King) nm = std::string(cult::societyOf(owner).rulerTitle) + " " + nm;   // (fix) the society's own title: KHAN, HIGH JARL, DOGE...
       else if (r == Role::Captain) nm = "CAPTAIN " + nm;
+      else if (r == Role::Steward) nm = "STEWARD " + nm;   // (M12)
+      else if (r == Role::Warlord) nm = "WARLORD " + nm;
+      else if (r == Role::Envoy) nm = "ENVOY " + nm;
       name = nm;
     }
   }
@@ -545,6 +597,10 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
       L.outfit = art::Outfit::Leather; L.topColor = rgba(170, 150, 118); L.bottomColor = rgba(86, 70, 54); L.tabardColor = rgba(120, 82, 50);
       L.weapon = 6; L.beard = !female && L.beard;
       break;
+    // M12 Rise and Fall (VIEW lane; colours only, after the shared draws): the steward, the warlord, the envoy
+    case Role::Steward: L.outfit = art::Outfit::Tunic; L.topColor = rgba(70, 60, 54); L.bottomColor = rgba(54, 48, 46); L.weapon = art::WEAPON_LEDGER; L.armsOrnament = art::RISE_KEYS; a.name = "STEWARD " + a.name; break;
+    case Role::Warlord: L.outfit = art::Outfit::Leather; L.helmet = true; L.cloak = 2; L.cloakColor = rgba(104, 78, 56); L.weapon = 2; L.facePaint = 1; L.tabardColor = rgba(110, 30, 34); L.armsOrnament = art::RISE_TROPHIES; a.name = "WARLORD " + a.name; break;
+    case Role::Envoy: L.outfit = art::Outfit::Robe; L.topColor = rgba(120, 40, 50); L.tabardColor = rgba(222, 182, 82); L.weapon = art::WEAPON_SCROLL; a.name = "ENVOY " + a.name; break;
     case Role::Pirate:   // a red headscarf, a sash, a ragged coat, a cutlass, gold at the ear
       L.outfit = (hash32((uint32_t)a.slot * 977u) & 1) ? art::Outfit::Leather : art::Outfit::Rags;
       L.headwear = (uint8_t)cult::Headwear::Headscarf; L.headColor = (hash32((uint32_t)a.slot * 131u) % 3) ? rgba(160, 36, 40) : rgba(40, 40, 46);
@@ -559,7 +615,8 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
   census::Rank rank;
   // (M4) the men of a kingdom (soldiers, captains, heralds) wear the arms of the kingdom they serve (Actor::realm),
   // wherever they stand: a besieger's camp, a road patrol, a capital's square
-  const bool kingsMan = r == Role::Soldier || r == Role::Captain || r == Role::Herald;
+  // (M12) an envoy and a warlord with a realm (Actor::realm) are its people too: the court's colours, the warlord's
+  const bool kingsMan = r == Role::Soldier || r == Role::Captain || r == Role::Herald || ((r == Role::Envoy || r == Role::Warlord) && a.realm);
   int servedK = -1;
   if (kingsMan && a.realm) { auto it = world.kingdomById.find(a.realm); if (it != world.kingdomById.end()) servedK = it->second; }
   if (kingsMan && servedK < 0 && home >= 0 && home < (int)world.sites.size()) servedK = world.sites[(size_t)home].kingdom;
@@ -579,6 +636,15 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
     }
     if (r == Role::Soldier) a.name = "SOLDIER";
     if (r == Role::Herald) a.name = "HERALD";
+    if (r == Role::Envoy) {   // (M12) court robes in the court's colours, the gold edging, a cap in its second colour
+      L.topColor = K.color | 0xFF000000u;
+      L.headColor = K.color2 ? (K.color2 | 0xFF000000u) : census::darker(K.color, 0.7f);
+      L.patternColor = rgba(222, 182, 82);
+    }
+    if (r == Role::Warlord) {  // (M12) the warlord's colours on the plume and the paint; the fur mantle stays fur
+      L.tabardColor = K.color | 0xFF000000u;
+      L.plumeColor = K.color2 ? (K.color2 | 0xFF000000u) : 0;
+    }
     if (KC || PC) a.culture = KC ? KC->id : PC->id;   // (M6) whose arms they wear: their loot is that culture's make
     return;
   }

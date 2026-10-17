@@ -20,7 +20,8 @@ namespace {
 
 // the realm block's own version (bump with any change to its layout). 2: REALM lane phase B (rulers' houses, the
 // granaries and harvests, the road to war on relations, war captures, siege kinds, settlement economies, sim ruins)
-constexpr uint8_t REALM_BLOCK_VER = 3;   // 3: M10 (a kingdom's isolated, hiddenLand, contactDay)
+constexpr uint8_t REALM_BLOCK_VER = 4;   // 4: M12 (origin, overlord, tribute, claim, camp, player; renown realmOf, liege;
+                                         //    camps, lairs); 3: M10 (a kingdom's isolated, hiddenLand, contactDay)
 constexpr size_t MAX_EVENTS = 400;       // the event log keeps the newest (rumours fade after 30 / 60 days anyway)
 
 uint16_t dayU16(int day) { return (uint16_t)std::clamp(day, 0, 65535); }
@@ -73,7 +74,10 @@ const char* evTypeName(EvType t) {
                             "SKIRMISH", "WAR DECLARED", "SIEGE BEGUN", "SIEGE BROKEN", "TOWN TAKEN", "TOWN BURNED",
                             "REFUGEES", "PEACE", "RULER DIED", "SUCCESSION", "CIVIL WAR", "KINGDOM FELL", "KINGDOM ROSE",
                             "RESETTLED", "RUINED", "FESTIVAL", "TROOPS MARCHING", "PRICES RISING",
-                            "BEAST RAID", "BEAST SLAIN"};
+                            "BEAST RAID", "BEAST SLAIN",
+                            "WARLORD ROSE", "WARBAND RAID", "SUCCESSOR ROSE", "REUNIFIED", "ALLIANCE MADE", "ALLY JOINED",
+                            "VASSALISED", "TRIBUTE PAID", "TRIBUTE REFUSED", "INDEPENDENCE", "FIEF GRANTED", "ENLISTED",
+                            "PROMOTED", "TERMS CARRIED", "BOSS WOKE", "REBUILT"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)EvType::COUNT, "evTypeName table");
   return (size_t)t < (size_t)EvType::COUNT ? n[(size_t)t] : "?";
 }
@@ -212,6 +216,7 @@ size_t Realm::memoryBytes() const {
   b += sieges_.capacity() * sizeof(Siege);
   b += settlements_.capacity() * sizeof(SettlementState) + settlementIx_.size() * 32;
   b += events_.capacity() * sizeof(WorldEvent);
+  b += camps_.capacity() * sizeof(Camp) + lairs_.capacity() * sizeof(Lair);   // (M12)
   b += simRuins_.capacity() * sizeof(SimRuin);
   b += pending_.capacity() * sizeof(Gid) + scanned_.size() * 24;
   for (const auto& h : hist_) { b += 48; for (const HistoryEntry& e : h.second) b += sizeof(HistoryEntry) + e.text.capacity(); }
@@ -378,7 +383,8 @@ void Realm::forceTension(Gid a, Gid b, Tension t, WarCause cause, int day) {
 //   ruler (name str, title str, house str, age u8, traits u8, female u8, sinceDay u16, dynasty u64), pop, wealth,
 //   military, stability, exhaustion, food f32, values 8 x u8, fallen u8, rebel u8, tier u8, foundedDay i32, rep i32,
 //   settlements (u32 n, u64 each), parent u64, lastTick u16, famine u8, famineDay u16, yieldRatio f32, harvestDoy u16,
-//   harvestYear i32, lastHarvest f32, capitalLostDay u16, inherit u8, (v3) isolated u8, hiddenLand u32, contactDay i32);
+//   harvestYear i32, lastHarvest f32, capitalLostDay u16, inherit u8, (v3) isolated u8, hiddenLand u32, contactDay i32,
+//   (v4) origin u8, overlord u64, tribute f32, claim u64, camp u64, player u8);
 // relations (u32 n: a u16, b u16 (indices into the kingdoms above), state u8, tension u8, opinion i8, sinceDay u16,
 //   border u8, bits u8 (foodDeal 1, seller side << 1, aggrieved side << 3; side 0 none, 1 a, 2 b), base i8, cause u8,
 //   stepDay u16, lastIncident u16, marchDay u16, truceUntil u16);
@@ -390,8 +396,10 @@ void Realm::forceTension(Gid a, Gid b, Tension t, WarCause cause, int day) {
 //   mood u8, flags u16, changed u16, refugeesFrom u64, garrisonOf u64, special u8, yield u8, refugeesDay u16, markDay u16,
 //   takenDay u16, burnDay u16);
 // events (u32 n: id u32, day u16, type u8, a u64, b u64, site u64, mag i32, gx i32, gy i32, heard u8);
-// renown (fame i32, lordOf u64, rank u8, sworn u64); sim ruins (u32 n: site u64, day u16, cause u8, destroyer u64,
-// owner u64, home u64).
+// renown (fame i32, lordOf u64, rank u8, sworn u64, (v4) realmOf u64, liege u64); sim ruins (u32 n: site u64, day u16,
+// cause u8, destroyer u64, owner u64, home u64); (v4) camps (u32 n: site u64, gx i32, gy i32, land u64, strength u8,
+// flags u8, noted u16, cleared u16, grew u16, realm u64); lairs (u32 n: site u64, gx i32, gy i32, mon u8, level u8,
+// woke u16, nextRaid u16, raids u16, lastTarget u64, slain u8).
 void Realm::serialize(std::vector<uint8_t>& out) const {
   out.clear();
   BinW w(out);
@@ -412,6 +420,7 @@ void Realm::serialize(std::vector<uint8_t>& out) const {
     w.u64(k.parent); w.u16(k.lastTick); w.u8(k.famine ? 1 : 0); w.u16(k.famineDay); w.f32(k.yieldRatio); w.u16(k.harvestDoy);
     w.i32(k.harvestYear); w.f32(k.lastHarvest); w.u16(k.capitalLostDay); w.u8(k.inherit);
     w.u8(k.isolated ? 1 : 0); w.u32(k.hiddenLand); w.i32(k.contactDay);   // (v3, M10)
+    w.u8(k.origin); w.u64(k.overlord); w.f32(k.tribute); w.u64(k.claim); w.u64(k.camp); w.u8(k.player ? 1 : 0);   // (v4, M12)
   }
   // relations name their realms by index into the kingdom list above (compact: 24 bytes each)
   uint32_t nrel = 0;
@@ -452,8 +461,19 @@ void Realm::serialize(std::vector<uint8_t>& out) const {
     w.i32(e.gx); w.i32(e.gy); w.u8(e.heard ? 1 : 0);
   }
   w.i32(renown_.fame); w.u64(renown_.lordOf); w.u8(renown_.rank); w.u64(renown_.sworn);
+  w.u64(renown_.realmOf); w.u64(renown_.liege);   // (v4, M12)
   w.u32((uint32_t)simRuins_.size());
   for (const SimRuin& r : simRuins_) { w.u64(r.site); w.u16(r.day); w.u8((uint8_t)r.cause); w.u64(r.destroyer); w.u64(r.owner); w.u64(r.home); }
+  w.u32((uint32_t)camps_.size());   // (v4, M12)
+  for (const Camp& c : camps_) {
+    w.u64(c.site); w.i32(c.gx); w.i32(c.gy); w.u64(c.land); w.u8(c.strength); w.u8(c.flags);
+    w.u16(c.notedDay); w.u16(c.clearedDay); w.u16(c.grewDay); w.u64(c.realm);
+  }
+  w.u32((uint32_t)lairs_.size());
+  for (const Lair& L : lairs_) {
+    w.u64(L.site); w.i32(L.gx); w.i32(L.gy); w.u8(L.mon); w.u8(L.level); w.u16(L.wokeDay); w.u16(L.nextRaid); w.u16(L.raids);
+    w.u64(L.lastTarget); w.u8(L.slain ? 1 : 0);
+  }
 }
 
 bool Realm::deserialize(const std::vector<uint8_t>& in) {
@@ -467,7 +487,7 @@ bool Realm::deserialize(const std::vector<uint8_t>& in) {
   R.focusKx_ = r.i32(); R.focusKy_ = r.i32();
   if (R.day_ < 0 || R.day_ > 65535) return false;
   const uint32_t nk = r.u32();
-  if (!fits(nk, 120)) return false;
+  if (!fits(nk, 150)) return false;
   for (uint32_t i = 0; i < nk && !r.bad; i++) {
     KingdomState k;
     k.id = r.u64(); k.capital = r.u64(); k.culture = r.u64(); k.name = r.str(); k.color = r.u32(); k.color2 = r.u32();
@@ -485,6 +505,9 @@ bool Realm::deserialize(const std::vector<uint8_t>& in) {
     k.harvestDoy = (uint16_t)(r.u16() % YEAR); k.harvestYear = (int16_t)r.i32(); k.lastHarvest = r.f32();
     k.capitalLostDay = r.u16(); k.inherit = r.u8();
     k.isolated = r.u8() != 0; k.hiddenLand = r.u32(); k.contactDay = r.i32();   // (v3, M10)
+    k.origin = std::min<uint8_t>(r.u8(), KO_PLAYER); k.overlord = r.u64(); k.tribute = r.f32(); k.claim = r.u64(); k.camp = r.u64();
+    k.player = r.u8() != 0;   // (v4, M12)
+    if (!std::isfinite(k.tribute)) k.tribute = 0;
     // floats from a damaged save must stay finite and in range (the tick multiplies them)
     auto sane = [](float v, float lo, float hi) { return std::isfinite(v) ? std::clamp(v, lo, hi) : lo; };
     k.pop = sane(k.pop, 0, 1000); k.wealth = sane(k.wealth, -1000, 100000); k.military = sane(k.military, 0, 10000);
@@ -564,6 +587,7 @@ bool Realm::deserialize(const std::vector<uint8_t>& in) {
     R.events_.push_back(e);
   }
   R.renown_.fame = r.i32(); R.renown_.lordOf = r.u64(); R.renown_.rank = r.u8(); R.renown_.sworn = r.u64();
+  R.renown_.realmOf = r.u64(); R.renown_.liege = r.u64();   // (v4, M12)
   const uint32_t nru = r.u32();
   if (!fits(nru, 35)) return false;
   for (uint32_t i = 0; i < nru && !r.bad; i++) {
@@ -571,6 +595,24 @@ bool Realm::deserialize(const std::vector<uint8_t>& in) {
     x.site = r.u64(); x.day = r.u16(); x.cause = (FallCause)std::min<uint8_t>(r.u8(), (uint8_t)FallCause::COUNT - 1);
     x.destroyer = r.u64(); x.owner = r.u64(); x.home = r.u64();
     R.simRuins_.push_back(x);
+  }
+  const uint32_t nc = r.u32();   // (v4, M12) camps and lairs, in site order
+  if (!fits(nc, 39)) return false;
+  for (uint32_t i = 0; i < nc && !r.bad; i++) {
+    Camp c;
+    c.site = r.u64(); c.gx = r.i32(); c.gy = r.i32(); c.land = r.u64(); c.strength = r.u8(); c.flags = r.u8();
+    c.notedDay = r.u16(); c.clearedDay = r.u16(); c.grewDay = r.u16(); c.realm = r.u64();
+    if (!R.camps_.empty() && R.camps_.back().site >= c.site) return false;
+    R.camps_.push_back(c);
+  }
+  const uint32_t nl = r.u32();
+  if (!fits(nl, 33)) return false;
+  for (uint32_t i = 0; i < nl && !r.bad; i++) {
+    Lair L;
+    L.site = r.u64(); L.gx = r.i32(); L.gy = r.i32(); L.mon = r.u8(); L.level = r.u8(); L.wokeDay = r.u16(); L.nextRaid = r.u16();
+    L.raids = r.u16(); L.lastTarget = r.u64(); L.slain = r.u8() != 0;
+    if (!R.lairs_.empty() && R.lairs_.back().site >= L.site) return false;
+    R.lairs_.push_back(L);
   }
   if (r.bad || r.p != in.size()) return false;
   R.stats = Stats();

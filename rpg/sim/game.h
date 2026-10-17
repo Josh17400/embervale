@@ -22,10 +22,13 @@
 #include "rpg/sim/home.h"
 #include "rpg/sim/items.h"
 #include "rpg/sim/life.h"
+#include "rpg/sim/lordship.h"
 #include "rpg/sim/magic.h"
 #include "rpg/sim/party.h"
 #include "rpg/sim/realm.h"
+#include "rpg/sim/rise.h"
 #include "rpg/sim/sea.h"
+#include "rpg/sim/service.h"
 #include "rpg/sim/skills.h"
 #include "rpg/sim/talk.h"
 #include "rpg/sim/war.h"
@@ -257,7 +260,11 @@ enum class Ev : uint8_t { Sfx, Hit, Blood, Explode, Sparkle, Dust, Heal, Frost, 
                           WindowShift, News, Border,
                           Banter, PartyAlert, Power,
                           Spell, Skill,
-                          Sea };
+                          Sea,
+                          Rise };
+// M12 Rise and Fall: Rise, a moment of the player's place in history for the view (a = RiseEv, rpg/sim/rise.h; f, s, id
+// as noted there; View::riseEvent, rpg/view/render_rise.cpp, VIEW lane): enlisted, promoted, paid, orders, missions,
+// a lordship granted, taxes, tribute, independence, a warlord or a world boss near
 // M10 Beyond the Mist: Sea, a moment at sea for the view (a = sea::SeaEv, p, q, f, id, s: rpg/sim/sea.h; View::seaEvent,
 // rpg/view/render_sea.cpp, ART lane): boarding, wakes, hull hits, the Mist, storms, fishing, voyages, first contact
 // M9 Arcana & Mastery: Spell, a phase of a spell's life (a = magic::Phase, Event::spell = the spell id, p / q / f / id:
@@ -296,7 +303,12 @@ struct Event {
 // hidden land: Quest::giverId the land's id, Quest::have the chain step, the marker the step's place; 2 "TELL KING X OF
 // THE LAND BEYOND THE MIST": giverId the land, targetId the mainland capital; 3 a fishmonger's order: subject the fish,
 // need / have the count).
-enum class QType : uint8_t { Main, Clear, Hunt, Retrieve, Bounty, Deliver, Heirloom, Missing, NamedBandit, Protect, Story, War, Supply, Sea, COUNT };
+// M12 Rise and Fall appends: Campaign (SERVICE lane, rpg/sim/service*.cpp: an enlisted player's order, Quest::stage the
+// service::Order id, targetId / tgx / tgy its place), Envoy (SERVICE lane: a diplomacy mission, Quest::stage the
+// service::Mission id, targetId the receiving court's seat), Fief (LORD lane, rpg/sim/lord*.cpp: a lord's task in a held
+// village (settlers, works, a raid to stand against), Quest::stage the task id, targetId the holding).
+enum class QType : uint8_t { Main, Clear, Hunt, Retrieve, Bounty, Deliver, Heirloom, Missing, NamedBandit, Protect, Story, War, Supply, Sea,
+                             Campaign, Envoy, Fief, COUNT };
 enum class QState : uint8_t { Active, Complete, Done };
 struct Quest {
   int id = 0;
@@ -354,6 +366,8 @@ constexpr int DLG_PARTY = 5500, DLG_PARTY_END = 6000;
 // SKILLS lane) and the mage teachers' (rpg/sim/magic_game.cpp MagicOps::choose, MAGIC lane)
 constexpr int DLG_SKILLS = 6000, DLG_SKILLS_END = 6500, DLG_MAGIC = 6500, DLG_MAGIC_END = 7000;
 constexpr int DLG_SEA = 7000, DLG_SEA_END = 7500;   // (M10) harbourmasters, shipwrights, sailors, captains (SeaOps::choose)
+// (M12) enlisting, orders and missions (ServiceOps::choose, service_game.cpp); the lordship (LordOps::choose, lord_game.cpp)
+constexpr int DLG_SERVICE = 7500, DLG_SERVICE_END = 8000, DLG_LORD = 8000, DLG_LORD_END = 8500;
 struct Dialogue {
   int actor = -1;
   std::string speaker, text;
@@ -561,6 +575,12 @@ class Game {
   //      aboard, the ports known, the lands and their sea-chart chains, the catches (saved: the sea block, SAVE_VER 21)
   //      and the wind / storm / Mist / fishing / voyage runtime (sea.live, never saved)
   sea::Sea sea;
+  // ---- M12 Rise and Fall (VISION_PLAN 13 M12, 4.7, 15.6.4, 15.33). service: the army the player serves, the rank,
+  //      merit, orders and diplomacy missions (rpg/sim/service.h, SERVICE lane; saved: the service block, SAVE_VER 22).
+  //      lordship: the villages the player holds, the hall's coffers, tribute and the player's own realm
+  //      (rpg/sim/lordship.h, LORD lane; saved: the lordship block). Realm::renown() mirrors rank / sworn / lordOf.
+  service::Service service;
+  lord::Lordship lordship;
   //   the one doorway for skill gains: `base` use points of an act of that skill (rpg/sim/skills_game.cpp SkillOps::use)
   void skillUse(skills::Skill s, float base);
   // (M7b Voice) how the dialogue panel titles a speaker: "SUSUT, INNKEEPER" once they have introduced themselves,
@@ -857,6 +877,7 @@ class Game {
   //   registers the settlements the window loads, applies owners (World::setSiteOwner), emits Ev::Border on crossings
   void realmStep(float dt);
   uint32_t realmSeen_ = 0;             // the realm's eventSerial() last applied (realm_game.cpp)
+  uint32_t riseSeen_ = 0;              // (M12) the last realm event id told to the view as a rise banner (realm_game.cpp)
   size_t realmSites_ = 0;              // world.sites already registered with the realm (sites is append-only)
   int realmDay_ = -1;                  // the day the realm last advanced to
   ew::Gid realmLand_ = 0;              // whose land the player stood on (Ev::Border when it changes)
@@ -1103,6 +1124,8 @@ class Game {
   friend struct SkillOps;              // M9 SKILLS: the skills' hooks and internals (rpg/sim/skill_ops.h, skills_game.cpp)
   friend struct MagicOps;              // M9 MAGIC: casting, surfaces, statuses (rpg/sim/magic_ops.h, magic_game.cpp)
   friend struct SeaOps;                // M10 SEA: boats, sailing, the Mist, fishing (rpg/sim/sea_ops.h, sea_game.cpp)
+  friend struct ServiceOps;            // M12 SERVICE: enlisting, ranks, orders, missions (rpg/sim/service_ops.h)
+  friend struct LordOps;               // M12 LORD: the lordship and the player's realm (rpg/sim/lord_ops.h)
   friend struct ClimbOps;              // M11 CLIMB: moving over the relief, the long path search (game.cpp, ai.cpp)
   // M11 CLIMB (never saved): the long path search's cache (ai.cpp). A body whose short search (the bounded BFS round
   // buildings) cannot reach its goal (a cliff between, its way up 16-24 tiles along the face, stacked faces,

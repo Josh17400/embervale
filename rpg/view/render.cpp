@@ -16,6 +16,8 @@
 #include "rpg/view/prop_traits.h"
 #include "rpg/view/script_api.h"
 #include "rpg/view/magic_state.h"
+#include "rpg/view/realm_ui.h"
+#include "rpg/view/rise_view.h"
 #include "rpg/view/view.h"
 #include "rpg/world/biomes.h"
 #include "rpg/world/economy.h"
@@ -1045,6 +1047,7 @@ void View::spawnParticles(const Event& e, Game& g) {
     case Ev::Spell: magicEvent(g, e); break;                         // (M9) a phase of a spell's life (render_magic.cpp)
     case Ev::Skill: skillEvent(g, e); break;                         // (M9) a skill moment for the HUD (skills_ui.cpp)
     case Ev::Sea: seaEvent(g, e); break;                             // (M10) a moment at sea (render_sea.cpp)
+    case Ev::Rise: riseEvent(g, e); break;                           // (M12) the player's place in history (render_rise.cpp)
     case Ev::MapChange: fade_ = 1.0f; snap(g); break;
     case Ev::WindowShift:   // M1: the endless window moved; everything overworld moved by e.p pixels
       cam_ += e.p;
@@ -1080,6 +1083,7 @@ void View::update(Game& g, float dt) {
   magicUpdate(g, dt);   // (M9) the spells' effects age (render_magic.cpp)
   seaUpdate(g, dt);     // (M10) wakes, splashes, rain, lightning (render_sea.cpp)
   reliefUpdate(g, dt);  // (M11) the falls' mist and spray, their roar (render_relief.cpp)
+  riseUpdate(g, dt);    // (M12) the herald's banners of the player's rise (render_rise.cpp)
   lootUpdate(g, dt);    // (M8b) the loot chime for a fine piece in view, a Mythic wearer's embers (loot_ui.cpp)
   // (M1) arriving in a settlement: a banner with its name and its kingdom (merged into DISCOVERED the first time)
   // (M4) its CURRENT owner in its society's word and its state; shown again when either changes while the player is
@@ -1493,6 +1497,7 @@ struct Drawable {
   float y;
   int kind;     // 0 prop, 1 building, 2 wall, 3 actor, 4 pickup, 5 projectile, 6 gate, 7 (M5) festival pole, 9 (M8) a grave,
                 //   10 (M10) the sea's (View::seaSorted's idx: a boat), 11 (M11) the relief's (View::reliefSorted's idx),
+                //   12 (M12) the rise's (View::riseSorted's idx: a work, a warlord's standard, resettlers' stores),
                 //   8 (M7) a home draw (View::homeDraws_[idx]: a yard object, a crop, the building site, a ground edit)
   int idx;
   int tx, ty;
@@ -1919,6 +1924,12 @@ void View::drawWorld(Game& g) {
   if (g.mode != Mode::Title) seaSorted(g, cam, [&](float y, int i) { list.push_back({y, 10, i, 0, 0}); });
   // (M11) the relief's standing things: a fall's spray column (render_relief.cpp; Drawable kind 11)
   if (g.mode != Mode::Title) reliefSorted(g, cam, [&](float y, int i) { list.push_back({y, 11, i, 0, 0}); });
+  // (M12) the rise's standing pieces: the holdings' works, warlords' standards and stockades, resettlers' stores
+  //       (render_rise.cpp's rise_world.cpp; Drawable kind 12), and its flat ones (a beast's claw scars) under them
+  if (g.mode != Mode::Title) {
+    riseSorted(g, cam, [&](float y, int i) { list.push_back({y, 12, i, 0, 0}); });
+    drawRiseGround(g, cam);
+  }
   // (M6 fixer r3, review: "a diagonal curtain wall's face runs over the gate tower's base") a diagonal run leaving a
   // gatehouse starts a row or two below the gate's own row, so it sorted after the gatehouse and its face crossed the
   // round flanking tower: the first diagonal wall tiles beside a gate go down before the gatehouse (the tower stands in
@@ -2165,6 +2176,9 @@ void View::drawWorld(Game& g) {
             // (M3) the kingdom's full arms where its culture gives them, else its two colours and emblem
             const cult::Culture* kc = g.world.cultureOfKingdom(g.world.sites[(size_t)bs].kingdom);
             tp = (kc && !kc->heraldry.empty()) ? &heraldryTex(0, kc->heraldry, 0, 0) : &kingdomTex(0, *k, 0);
+            // (M12) a realm the generator never planned (a warlord's, a successor's, the player's own) flies its own arms
+            const rui::Look RL = rui::look(g, k->id);
+            if (RL.made || RL.own) { cult::Heraldry hr; rui::arms(RL, hr); tp = &heraldryTex(0, hr, 0, 0); }
           } else {   // (M3b) no kingdom: the culture's own banner
             const art::PropStyle* ps = propStyleAt(g, d.tx, d.ty);
             if (!ps->classic()) tp = &styledPropTex(p, *ps);
@@ -2236,6 +2250,12 @@ void View::drawWorld(Game& g) {
         // or a run's end), the souk's canopy joined over its street (a hem and poles where it stops)
         if (art::isCityProp(p) && m.kind == MapKind::Overworld && g.mode != Mode::Title) {
           const art::PropStyle* ps = propStyleAt(g, d.tx, d.ty);
+          // (M12 fixer) a wall ringing a village just outside its bounds (a lord's stone walls) is built in the village's
+          // style all the way round, never half in the land's plain stone
+          if (p == Prop::GardenWall && ps->classic() && g.world.endless) {
+            const int ns = g.world.siteAt(d.tx, d.ty, 7);
+            if (ns >= 0 && g.world.sites[(size_t)ns].settlement()) ps = propStyleAt(g, g.world.sites[(size_t)ns].ex, g.world.sites[(size_t)ns].ey);
+          }
           const uint32_t h = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6311);
           int variant = 0, joins = 0;
           const bool snow = snowyTile(m, d.tx, d.ty);
@@ -2246,6 +2266,7 @@ void View::drawWorld(Game& g) {
           // bay is one cloth: its variant from the bay (the run along the street from its open end, across the street
           // from its edge), not the tile; it fades whole while the hero stands under it
           bool bayFade = false;
+          int gwSpan[4] = {0, 0, 0, 0};
           if (p == Prop::Canopy) {
             joins = (same(d.tx, d.ty - 1) ? 1 : 0) | (same(d.tx + 1, d.ty) ? 2 : 0) | (same(d.tx, d.ty + 1) ? 4 : 0) | (same(d.tx - 1, d.ty) ? 8 : 0);
             auto runLen = [&](int dx, int dy) { int n = 0; while (n < 10 && same(d.tx + dx * (n + 1), d.ty + dy * (n + 1))) n++; return n; };
@@ -2275,6 +2296,32 @@ void View::drawWorld(Game& g) {
               else ends |= bit;
             }
             joins = mask | gates << 4 | ends << 8;
+            // (M12 fixer r2) a lord's stone ring where a road cuts it: the posts across the road (1..5 open tiles, nothing
+            // standing in the way) become a gateway (gwSpan: the posts' distance in tiles, by side N E S W)
+            bool lordRing = false;
+            if (p == Prop::GardenWall && g.world.endless && !g.lordship.holdings.empty()) {
+              const int ns = g.world.siteAt(d.tx, d.ty, 7);
+              if (ns >= 0)
+                for (const lord::Holding& lh : g.lordship.holdings)
+                  if ((lh.works & lord::LW_WALLS) && g.world.siteHandle(lh.site) == ns) lordRing = true;
+            }
+            // the gap must be the road's cut: every open tile road, plaza, bridge or a trodden path (the ring leaves out
+            // exactly those), and not the ground beside a run that steps aside and back (a stair of the ring's curve, where
+            // the gap's tiles lie along the wall: no gateway there)
+            for (int k = 0; k < 4 && lordRing; k++) {
+              if (mask & (1 << k)) continue;
+              const int pk = (k + 1) & 3;
+              int along = 0;
+              for (int n = 1; n <= 6; n++) {
+                const int nx = d.tx + DX[k] * n, ny = d.ty + DY[k] * n;
+                if (!m.in(nx, ny)) break;
+                if (same(nx, ny)) { if (n >= 2 && along * 2 <= n - 1) gwSpan[k] = n; break; }
+                if (m.propAt(nx, ny) || m.blocked(nx, ny)) break;
+                const Ground gr = m.at(nx, ny);
+                if (gr != Ground::Road && gr != Ground::Plaza && gr != Ground::Bridge && gr != Ground::Dirt) break;
+                if (same(nx + DX[pk], ny + DY[pk]) || same(nx - DX[pk], ny - DY[pk])) along++;
+              }
+            }
           }
           const uint64_t sk = art::cityPropStyledByCulture(p) || p == Prop::Hedge ? ps->key() : 0;
           const uint64_t k = ew::mix64(sk ^ ((uint64_t)p << 48) ^ ((uint64_t)variant << 40) ^ ((uint64_t)joins << 20) ^ (snow ? 0x51u : 0u) ^ 0xC17Aull);
@@ -2282,6 +2329,26 @@ void View::drawWorld(Game& g) {
           const Tex& ct = it != styledProps_.end() ? it->second : (styledProps_[k] = pix_->bake(art::cityPropStyled(p, *ps, variant, joins, snow)));
           if (p == Prop::GardenWall || p == Prop::Hedge) {   // (16 wide, its bottom on the tile's bottom edge, as the fences)
             P.blit(ct, d.tx * 16.0f - cam.x, d.ty * 16.0f + 16.0f - (float)ct.h - cam.y);
+            // (M12 fixer r2) the gateway: a gate tower over each post, the arch (or the way) drawn by the west (north) post
+            if (gwSpan[0] | gwSpan[1] | gwSpan[2] | gwSpan[3]) {
+              const uint32_t gs = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6343);
+              auto gateTex = [&](uint64_t tag, auto&& paint) -> const Tex& {
+                const uint64_t gk = ew::mix64(sk ^ tag ^ (snow ? 0x51ull : 0ull) ^ 0x6A7E6A7Eull);
+                auto gi = styledProps_.find(gk);
+                return gi != styledProps_.end() ? gi->second : (styledProps_[gk] = pix_->bake(paint()));
+              };
+              const Tex& tt = gateTex(0x7011ull << 32 | (gs & 7), [&] { return art::stoneGateTower(ps->culture, ps->stone, snow, gs & 7); });
+              P.blit(tt, d.tx * 16.0f - cam.x, d.ty * 16.0f + 16.0f - (float)tt.h - cam.y);
+              if (gwSpan[1]) {
+                const int span = gwSpan[1] * 16 - 11;
+                const Tex& at = gateTex(0xA4Cull << 32 | (uint64_t)span << 8 | (gs >> 8 & 7), [&] { return art::stoneGateArch(span, ps->culture, ps->stone, snow, gs >> 8 & 7); });
+                P.blit(at, d.tx * 16.0f + 13.0f - cam.x, d.ty * 16.0f + 16.0f - (float)at.h - cam.y);
+              }
+              if (gwSpan[2]) {
+                const Tex& wt = gateTex(0x3A7ull << 32 | (uint64_t)gwSpan[2] << 8 | (gs >> 8 & 7), [&] { return art::stoneGateWay(gwSpan[2], ps->culture, ps->stone, snow, gs >> 8 & 7); });
+                P.blit(wt, d.tx * 16.0f - cam.x, d.ty * 16.0f - 28.0f - cam.y);
+              }
+            }
             break;
           }
           if (p == Prop::Canopy) {   // drawn over the walkers under it; its bay thins while the hero is under it
@@ -2366,10 +2433,66 @@ void View::drawWorld(Game& g) {
           }
           break;
         }
+        // (M12 fixer) a palisade joins its run (east-west stakes, a north-south file, corners round one stake) and where
+        // a road cuts it, the run's ends are squared gateposts under a timber lintel (a lord's ring, a war camp's fence)
+        if (p == Prop::Palisade && m.kind == MapKind::Overworld && g.mode != Mode::Title) {
+          (void)warPropTex(g, p, d.tx, d.ty);   // the war overlay's counts (the camp's owner) as before
+          auto pz =[&](int x, int y) { return m.propAt(x, y) == (int)Prop::Palisade + 1; };
+          int mask = (pz(d.tx, d.ty - 1) ? 1 : 0) | (pz(d.tx + 1, d.ty) ? 2 : 0) | (pz(d.tx, d.ty + 1) ? 4 : 0) | (pz(d.tx - 1, d.ty) ? 8 : 0);
+          static const int DX[4] = {0, 1, 0, -1}, DY[4] = {-1, 0, 1, 0};
+          int gates = 0, span[4] = {0, 0, 0, 0};
+          for (int k = 0; k < 4; k++) {
+            if (mask & (1 << k)) continue;
+            int n = 1;
+            for (; n <= 5; n++) {
+              const int nx = d.tx + DX[k] * n, ny = d.ty + DY[k] * n;
+              if (!m.in(nx, ny)) { n = 99; break; }
+              if (pz(nx, ny)) break;
+              if (m.propAt(nx, ny) || m.blocked(nx, ny)) { n = 99; break; }
+            }
+            if (n >= 2 && n <= 5) { gates |= 1 << k; span[k] = n; }
+          }
+          // a one-run gateway: the side across the road joins the run's axis (a lone stake by a road is the run's end)
+          if (!mask) mask = (gates & 5) && !(gates & 10) ? 5 : 10;
+          const uint32_t ph = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6337);
+          const uint64_t pk = ew::mix64(0x9A115ADEull ^ ((uint64_t)mask << 8) ^ ((uint64_t)gates << 12) ^ ((uint64_t)(ph & 7) << 20));
+          auto pit = styledProps_.find(pk);
+          const Tex& pt = pit != styledProps_.end() ? pit->second : (styledProps_[pk] = pix_->bake(art::palisadePiece(mask, gates, ph & 7)));
+          P.blit(pt, d.tx * 16.0f - cam.x, d.ty * 16.0f + 16.0f - (float)pt.h - cam.y);
+          // the lintel over the gateway, drawn once by the west / north post (a beam lit on top, its shadow on the road)
+          const Color b0(0.66f, 0.50f, 0.33f), b1(0.50f, 0.35f, 0.22f), b2(0.36f, 0.24f, 0.16f), b3(0.22f, 0.15f, 0.11f);
+          if (gates & 2) {
+            const float x0 = d.tx * 16.0f + 11 - cam.x, x1 = (d.tx + span[1]) * 16.0f + 5 - cam.x;
+            const float y0 = d.ty * 16.0f + 16 - 4 - 27 - cam.y;
+            P.rect(x0 + 3, d.ty * 16.0f + 16 - cam.y, x1 - x0, 2, Color(0.05f, 0.03f, 0.06f, 0.16f));
+            P.rect(x0, y0, x1 - x0, 1, b0);
+            P.rect(x0, y0 + 1, x1 - x0, 2, b1);
+            P.rect(x0, y0 + 3, x1 - x0, 1, b2);
+            P.rect(x0, y0 + 4, x1 - x0, 1, b3);
+            for (float bx = x0 + 5; bx < x1 - 3; bx += 7) P.rect(bx, y0 + 1, 1, 2, b2);   // the adze marks
+            // a pair of braces from the posts to the beam
+            for (int j = 0; j < 4; j++) { P.rect(x0 + 1 + j, y0 + 5 + j, 1, 1, b2); P.rect(x1 - 2 - j, y0 + 5 + j, 1, 1, b2); }
+          }
+          if (gates & 4) {
+            const float xx = d.tx * 16.0f + 5 - cam.x;
+            const float y0 = d.ty * 16.0f + 16 - 4 - 29 - cam.y, y1 = (d.ty + span[2]) * 16.0f + 16 - 4 - 12 - 29 - cam.y;
+            if (y1 > y0) {
+              P.rect(xx + 6, y0 + 30, 2, y1 - y0, Color(0.05f, 0.03f, 0.06f, 0.16f));
+              P.rect(xx, y0, 1, y1 - y0 + 4, b0);
+              P.rect(xx + 1, y0, 3, y1 - y0 + 4, b1);
+              P.rect(xx + 4, y0, 1, y1 - y0 + 4, b2);
+              P.rect(xx + 5, y0, 1, y1 - y0 + 4, b3);
+            }
+          }
+          break;
+        }
         // (M4) a war prop in the colours of the kingdom whose camp it belongs to (realm_render.cpp)
         bool warSwap = false;
         if (art::isWarProp(p) && m.kind == MapKind::Overworld && g.mode != Mode::Title)
           if (const Tex* wt = warPropTex(g, p, d.tx, d.ty)) { tp = wt; warSwap = true; }
+        // (M12) the lord's standard in its owner's arms (rise_world.cpp; the same frames as the plain prop)
+        if (p == Prop::LordBanner && m.kind == MapKind::Overworld && g.mode != Mode::Title)
+          if (const Tex* bt = riseBannerTex(g, d.tx, d.ty)) tp = bt;
         // (M5, VISION_PLAN 10.3) a street lamp burns only from the lamplighter's visit at dusk (19:00..20:30 along his
         // round) until it is put out at dawn; by day and before he comes its glass is dark
         bool lampFlameOn = false;
@@ -2386,6 +2509,7 @@ void View::drawWorld(Game& g) {
         int fw = art::propW(p), fh = art::propH(p);
         int frames = warSwap ? 1 : std::max(1, art::propFrames(p));
         int fr = frames > 1 ? (int)(t_ * 8 + d.tx * 3 + d.ty) % frames : 0;
+        if (p == Prop::LordBanner) fr = (int)(t_ * 5 + d.tx * 3 + d.ty) % frames;   // (M12) the heavy cloth waves slower
         bool flipP = flipVar;
         if (p == Prop::Sheep || p == Prop::Cow) {   // (M1 fixer round 2) the beasts graze at their own slow pace, either way round
           const uint32_t h = hash2(d.tx + g.world.ox, d.ty + g.world.oy, 6197);
@@ -2534,7 +2658,11 @@ void View::drawWorld(Game& g) {
           // (M8) the bonded hound, a companion on their horse (party_view.cpp)
         } else if (a.human) {
           const bool child = a.role == Role::Child;   // (M5) a shorter body (childBody)
-          const Tex* tp = &humanTex(a.look, child);
+          // (M12) the enlisted hero wears the sworn realm's tabard and the rank's mark (render_rise.cpp)
+          art::HumanLook heroLook;
+          if (a.player && g.service.enlisted()) { heroLook = a.look; RiseViewOps::dressHero(g, heroLook); }
+          const art::HumanLook& look = a.player && g.service.enlisted() ? heroLook : a.look;
+          const Tex* tp = &humanTex(look, child);
           int row = a.face == 0 ? 0 : a.face == 1 ? 1 : 2;
           bool flip = a.face == 3;
           int fr = 0;
@@ -2588,7 +2716,7 @@ void View::drawWorld(Game& g) {
               int kit = -1;
               const art::Berth bk = berthAt(m, a.useX, a.useY, kit);
               const int sf = (int)(clock * std::max(0.1f, pi.fps)) & 1;
-              if (const Tex* st = sleeperTex(a.look, bk, kit, sf)) {
+              if (const Tex* st = sleeperTex(look, bk, kit, sf)) {
                 const art::BedFit bf = art::bedFit(bk, kit);
                 const float sx = std::floor(a.useX * 16.0f + 8.0f - bf.w / 2.0f - cam.x), sy = std::floor(a.useY * 16.0f + 16.0f - bf.h - cam.y);
                 P.blitEx(*st, 0, 0, st->w, st->h, sx, sy, (float)st->w, (float)st->h, false, Color(1, 1, 1, alpha));
@@ -2605,7 +2733,7 @@ void View::drawWorld(Game& g) {
               }
             }
             if (!drawn) {
-              if (const Tex* pt = poseTex(a.look, pz, variant, child)) {
+              if (const Tex* pt = poseTex(look, pz, variant, child)) {
                 tp = pt;
                 fr = pf;
                 if (pi.oneRow || pi.lying) { row = 0; flip = false; }
@@ -2617,7 +2745,7 @@ void View::drawWorld(Game& g) {
               bob += (float)art::postureInfo(pz).dy;
             }
           }
-          const bool standSheet = !child && tp == &humanTex(a.look, child);   // (M8b fixer r3) the aura fits this sheet only
+          const bool standSheet = !child && tp == &humanTex(look, child);   // (M8b fixer r3) the aura fits this sheet only
           const Tex& t = *tp;
           float x = at.x - art::HUMAN_W / 2.0f - cam.x, y = at.y - art::HUMAN_H + 2 + bob - cam.y;
           if (a.st == AState::Dead) y += 3;
@@ -2944,6 +3072,9 @@ void View::drawWorld(Game& g) {
         drawSeaSorted(g, d.idx, cam);
         if (seaHeroUnderRig(*this)) ghost = true;   // the sail stands before the hero: his silhouette shows through it
         break;
+      case 12:  // (M12) the rise's (rise_world.cpp)
+        drawRiseSorted(g, d.idx, cam);
+        break;
       case 11:  // (M11) the relief's (render_relief.cpp)
         drawReliefSorted(g, d.idx, cam);
         break;
@@ -3174,6 +3305,7 @@ void View::drawLighting(Game& g) {
   lootLights(g, light);   // (M8b) the loot's beams and pools, a Mythic wearer's smoulder (loot_ui.cpp)
   magicLights(g, light);  // (M9) the spells' light: lit trails, impact flashes, burning ground (render_magic.cpp)
   seaLights(g, light);    // (M10) boat lanterns, the lighthouse's lamp (render_sea.cpp)
+  riseLights(g, light);   // (M12) the watchtowers' lanterns (rise_world.cpp)
   P.setTarget(nullptr);
   P.blitEx(lightMap_, 0, 0, lightMap_.w, lightMap_.h, 0, 0, lightMap_.w * 2.0f, lightMap_.h * 2.0f, false, Color(1, 1, 1, 1), 2);
   m4Emissive(g, m, cam, dark);   // (fixer M4 r3) what burns glows over the dark

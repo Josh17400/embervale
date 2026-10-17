@@ -1,0 +1,31 @@
+# M12 SERVICE: an order from the sworn kingdom's war, on the map, and the squad marching with a SERGEANT. The start
+# village is besieged by its neighbour; the army orders the player to break the siege (the Campaign quest and its
+# marker); two soldiers of the sworn realm fall in behind the player, march with them to the camp and fight there.
+#   embervale.exe --script tools/scripts/m12_service_squad.txt     (m12_service_squad_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 kit
++0.05 hour 10
++0.2 enlist
++0.1 merit 30
++0.1 expect service rank sergeant
++0.3 realm siege 0
++0.3 service order
++0.2 expect service order open
++0.1 expect service orders 1
++1.0 expect service squad 2
++0.3 shot m12_service_squad_1_order.png
++0.1 menu 2
++0.1 mapzoom 2
++0.5 shot m12_service_squad_2_map.png
++0.1 key Escape
++0.3 walk south 3
++0.2 shot m12_service_squad_3_marching.png
++2.0 walk east 3
++0.2 shot m12_service_squad_4_marching.png
++1.5 expect service squad 2
++0.1 service goto order 6
++3.0 shot m12_service_squad_5_camp.png
++3.0 shot m12_service_squad_6_fight.png
++0.3 log m12_service_squad done

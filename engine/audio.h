@@ -132,6 +132,11 @@ class Audio {
   // culture's (engine/music_style.h Scale), timbre the school's voice (0 brass, 1 bells, 2 organ, 3 glass, 4 wood,
   // 5 choir, 6 harp), root the tonic's MIDI note (48..84)
   void playMotif(uint8_t motif, uint8_t scale, uint8_t timbre, int root = 72, float vol = 1.0f);
+  // (M12 VIEW lane) the herald's stings of the player's rise (rpg/view/render_rise.cpp): an oath's drum roll, a rank's
+  // fanfare, independence's horn call, a warlord's or a beast's alarm, a seal pressed into wax (orders, an envoy's
+  // letters). They ride the Sfx::SpellMotif slot with their own marker (so the Sfx list and its tools stay as they are).
+  enum class Sting : uint8_t { DrumRoll, Fanfare, HornCall, WarAlarm, Seal, COUNT };
+  void playSting(Sting s, float pitch = 1.0f, float vol = 1.0f);
   void setMusic(Music m);
   // M3: the piece in a culture's style (engine/music_style.h; nullptr = the classic piece). Town, Wild and Night take
   // its scale, tempo, meter, instruments and ornament; Combat and Boss keep their structure but take its percussion.
@@ -300,6 +305,7 @@ class Audio {
   void add(const Note& n);
   void trigger(Sfx s, float pitch, float vol, uint32_t arg = 0);
   void spellMotif(uint32_t arg, float V);   // (M9) Sfx::SpellMotif's notes
+  void riseSting(int which, float k, float V);   // (M12) playSting's notes (arg bit 30 on the SpellMotif slot)
   void push(const Event& e);                // the play queue (main thread -> audio thread)
   void renderBlock(float* out, int n);
   void renderVoice(Voice& v, int n, const float* layerGain, float* sfx, float* mus, float* sndS, float* sndM);

@@ -1,0 +1,31 @@
+# M12 VIEW lane: the rise's people up close. A steward (a sober coat, keys at the belt, the ledger), a warlord (furs,
+# a horned helm, war paint, trophies, a great axe) and an envoy (court robes, a chain of office, the sealed scroll case)
+# beside the hero; the hero sworn to the land's army in its tabard as a recruit, a sergeant (two chevrons), a captain
+# (a sash) and a marshal (a gilded sash and the realm's cloak), and the paperdoll (HERO tab) as a captain.
+#   embervale.exe --script tools/scripts/m12_view_people.txt     (m12_view_p_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 gear 2
++0.2 riseview spawn steward 3
++0.1 riseview spawn warlord 3
++0.1 riseview spawn envoy 3
++0.6 shot m12_view_p_roles.png
++0.1 enlist
++4.0 shot m12_view_p_recruit.png
++0.1 expect riseview insignia 1
++0.1 merit 30
++4.0 shot m12_view_p_sergeant.png
++0.1 promote
++4.0 shot m12_view_p_captain.png
++0.1 hold S 0.4
++0.6 shot m12_view_p_captain_walk.png
++0.1 menu 4
++0.5 shot m12_view_p_doll.png
++0.1 key Escape
++0.2 promote
++4.0 shot m12_view_p_marshal.png
++0.1 hold D 0.5
++0.3 shot m12_view_p_marshal_side.png
++0.2 log m12_view_people done

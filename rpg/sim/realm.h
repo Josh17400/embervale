@@ -94,7 +94,18 @@ struct KingdomState {
   bool isolated = false;
   uint32_t hiddenLand = 0; // ew::LandPlan::id (0: the mainland)
   int32_t contactDay = -1; // the realm day of first contact (-1: never)
+  // M12 Rise and Fall (VISION_PLAN 15.33; realm block v4). Where the realm came from, whom it serves, what it claims.
+  uint8_t origin = 0;      // KO_*: genesis, a civil war's rebels, a warlord grown from a bandit camp, a fallen realm's
+                           // successor, the player's own realm (rebel stays true for every realm the generator never planned)
+  Gid overlord = 0;        // a vassal's liege (0: free). A vassal pays `tribute` a year and is called to its liege's wars
+  float tribute = 0;       // wealth (gold / 100) owed to the overlord each year
+  Gid claim = 0;           // a successor's (or a pretender's) claim: the realm whose lands it would reunite
+  Gid camp = 0;            // KO_WARLORD: the bandit camp (site id) it grew from
+  bool player = false;     // KO_PLAYER: the player rules it. The tick never declares its wars, kills its ruler, makes
+                           // peace for it or splits it (the LORD lane decides those); it still pays, feeds and recruits
 };
+// KingdomState::origin (M12)
+constexpr uint8_t KO_GENESIS = 0, KO_REBEL = 1, KO_WARLORD = 2, KO_SUCCESSOR = 3, KO_PLAYER = 4;
 
 struct Relation {
   Gid a = 0, b = 0;        // a < b
@@ -148,6 +159,9 @@ struct Siege {
 // SettlementState::flags (VISION_PLAN 4.1, 4.5)
 constexpr uint16_t SS_BESIEGED = 1, SS_BURNED = 2, SS_ABANDONED = 4, SS_OCCUPIED = 8, SS_REFUGEES = 16, SS_FAMINE = 32,
                    SS_UNREST = 64, SS_RUINED = 128, SS_FRONTIER = 256, SS_REBUILDING = 512, SS_GARRISON = 1024;
+// (M12 REALM lane) SS_RESETTLED: settlers came back to a ruin (Resettled); cleared with the Rebuilt event when it lives
+// again (saved in the flags' u16: no layout change)
+constexpr uint16_t SS_RESETTLED = 2048;
 // SS_FRONTIER: no kingdom holds it (the wildlands): militia only, no kingdom guards (owner 2026-10-03)
 // SS_GARRISON: a conqueror of another culture keeps a garrison tower here (VISION_PLAN 4.5)
 // SS_REFUGEES: a refugee camp stands outside it (refugeesFrom says whose)
@@ -187,6 +201,25 @@ enum class EvType : uint8_t {
   // M6 Steel (FOES lane): a world boss raided a settlement (a = its land's kingdom, site, mag = the boss's art::Monster);
   // a world boss or a named unique was slain (by the player: mag = its art::Monster, gx / gy where it fell)
   BeastRaid, BeastSlain,
+  // M12 Rise and Fall (15.33). a / b / site / mag as noted; every one makes a rumour like the others.
+  WarlordRose,     // a bandit camp became a warlord realm (a = the warlord realm, site = the village it took, mag = strength)
+  WarbandRaid,     // a camp's warband raided a village (a = 0, b = the village's owner, site; the foreshadowing of a warlord)
+  SuccessorRose,   // a fallen realm's remnant crowned its own ruler (a = the successor, b = the fallen realm, site = its seat)
+  Reunified,       // a successor took back the last lands of the realm it claims (a = the successor, b = the claim)
+  AllianceMade,    // a, b allied (Rel::Alliance)
+  AllyJoined,      // a joined its ally b's war (mag = the war's id low bits)
+  Vassalised,      // a bent the knee to b (a's overlord = b; a treaty's terms or a diplomacy quest)
+  TributePaid,     // a paid its overlord b (mag = gold); a = the player's realm when the player pays
+  TributeRefused,  // a refused its overlord b (the road to war's first rung)
+  Independence,    // a broke from its overlord b (the player's declaration: a = the player's realm, site = the seat)
+  FiefGranted,     // the player was granted a lordship (a = the liege, site = the village; mag = 1 granted, 2 charter
+                   // bought, 3 a ruin resettled, 4 conquered)
+  Enlisted,        // the player swore to a (mag = the rank)
+  Promoted,        // the player rose in a's army (mag = the new rank)
+  TermsCarried,    // a diplomacy quest's terms reached b from a (mag: 1 peace signed, 2 alliance, 3 tribute agreed,
+                   // 0 refused)
+  BossWoke,        // a world boss took a lair near the realms (site = the lair, mag = its art::Monster)
+  Rebuilt,         // a resettled ruin lives again as a village (a = its new owner, site)
   COUNT
 };
 struct WorldEvent {
@@ -240,11 +273,44 @@ struct HistoryEntry {
 };
 
 // 15.6.4: renown and land, the hooks for founding or conquering a kingdom late in the game (M12); M4 records them.
+// M12: these are the realm-visible MIRROR of the service block (rank, sworn: rpg/sim/service.h, SERVICE lane keeps
+// them in step) and the lordship block (lordOf: rpg/sim/lordship.h, LORD lane); the realm, the rumours and the
+// dialogue read them here. `realmOf` is the player's own realm (KO_PLAYER) once independent (realm_player.cpp).
 struct Renown {
   int fame = 0;            // global (dialogue, offers): grows with deeds told of in the news
-  Gid lordOf = 0;          // a settlement the player holds (M7 / M12), 0 none
+  Gid lordOf = 0;          // a settlement the player holds (M7 / M12), 0 none (the seat when the player holds several)
   uint8_t rank = 0;        // enlisted rank (VISION_PLAN 4.7 M12): 0 none, 1 recruit, 2 sergeant, 3 captain, 4 marshal
   Gid sworn = 0;           // the kingdom the player serves (0 none)
+  // M12 (realm block v4)
+  Gid realmOf = 0;         // the player's own realm (0: none)
+  Gid liege = 0;           // the kingdom the player's lordship answers to (0: none or independent)
+};
+
+// M12 Rise and Fall (15.33; realm block v4). A bandit camp the realm watches (VISION_PLAN 4.3 "Rise": a strong camp in
+// the wildlands, cleared by nobody for 30 days, can become a warlord realm). Noted when the window loads a
+// SiteType::BanditCamp site (realmNoteSites) or by forceWarlord; the tick grows it.
+constexpr uint8_t CF_CLEARED = 1, CF_WARBAND = 2, CF_WARLORD = 4, CF_WILD = 8;
+// CF_CLEARED: the player (or a garrison) broke it; CF_WARBAND: it has grown enough to raid villages (WarbandRaid);
+// CF_WARLORD: it became the realm `realm`; CF_WILD: it stands in the wildlands (no kingdom's land)
+struct Camp {
+  Gid site = 0;            // the camp's site id
+  int32_t gx = 0, gy = 0;  // its heart (global tile)
+  Gid land = 0;            // the genesis kingdom of its land (0: the wildlands)
+  uint8_t strength = 10;   // 0..100: grows while nobody clears it, falls when raided or cleared
+  uint8_t flags = 0;       // CF_*
+  uint16_t notedDay = 0, clearedDay = 0, grewDay = 0;   // grewDay: the last day it grew a step (warband, warlord)
+  Gid realm = 0;           // CF_WARLORD: the warlord realm it became
+};
+// A world boss's lair as the sim sees it (VISION_PLAN 7.6; M12 "world bosses raiding towns"): it wakes, raids the
+// settlements round it now and then (Realm::beastRaid, the FOES lane's event), and sleeps for good when slain.
+struct Lair {
+  Gid site = 0;            // the lair's (den / site) id
+  int32_t gx = 0, gy = 0;
+  uint8_t mon = 0;         // art::Monster
+  uint8_t level = 1;
+  uint16_t wokeDay = 0, nextRaid = 0, raids = 0;
+  Gid lastTarget = 0;      // the settlement it raided last
+  bool slain = false;
 };
 
 class Realm {
@@ -378,6 +444,68 @@ class Realm {
   // the word carried home (LF_WORD): the hidden land's kingdoms and the mainland kingdom `mainland` meet (Rel::Contact)
   void openContact(uint32_t land, Gid mainland, int day);
 
+  // ---- M12 Rise and Fall (VISION_PLAN 13 M12, 4.3 "Rise", 4.7, 15.3, 15.6.4, 15.33). Phase A: the records, the save
+  //      block v4, the forcing calls below (each leaves a consistent state and an event) and the player's realm
+  //      (realm_player.cpp). The REALM lane makes the tick grow these by itself (realm_rise.cpp and its own files):
+  //      civil wars that leave successor states, warlords from camps, resettled ruins rebuilt, world bosses raiding,
+  //      alliances that join wars, vassals and tribute. Hidden kingdoms stay apart (apart()) until contact.
+  // bandit camps (realm_rise.cpp, REALM lane)
+  void noteCamp(Gid site, int32_t gx, int32_t gy, Gid land, int day);   // a SiteType::BanditCamp the window loaded
+  void campCleared(Gid site, int day);                                   // its chief fell / the player broke it
+  const std::vector<Camp>& camps() const { return camps_; }
+  const Camp* camp(Gid site) const;
+  // world bosses' lairs (realm_rise.cpp, REALM lane)
+  void noteLair(Gid site, int32_t gx, int32_t gy, uint8_t mon, uint8_t level, int day);
+  void lairSlain(Gid site, int day);
+  const std::vector<Lair>& lairs() const { return lairs_; }
+  // forcing (scripts `realm warlord|successor|resettle|ally|vassal|bossraid`, rpg_test --rise, the lanes' tests)
+  Gid forceWarlord(Gid campSite, int day);           // the camp's warband takes the nearest village: a warlord realm (0: none)
+  Gid forceSuccessor(Gid fallen, int day);           // a fallen realm's remnant crowns a successor (0: nothing left to hold)
+  void forceResettle(Gid site, Gid by, int day);     // an abandoned / ruined place resettled by `by` (SS_REBUILDING)
+  void forceAlliance(Gid a, Gid b, int day);         // Rel::Alliance (ends a war between them first)
+  void forceVassal(Gid vassal, Gid overlord, int day);   // vassal bends the knee (Rel::Vassal / Overlord, tribute set)
+  void forceBossRaid(Gid lair, Gid site, int day);   // the lair's beast raids the site now (beastRaid, its event)
+  // diplomacy the SERVICE lane's quests drive (VISION_PLAN 4.7 "a diplomacy quest forces a peace roll"). `bonus` 0..1
+  // tips the roll (the envoy's renown, a gift); each records TermsCarried and returns the outcome.
+  bool peaceRoll(Gid a, Gid b, float bonus, int day);      // true: their war ended in a treaty
+  bool allianceRoll(Gid a, Gid b, float bonus, int day);   // true: allied
+  bool tributeRoll(Gid weaker, Gid stronger, float bonus, int day);   // true: weaker became stronger's vassal
+  // the player's realm and lordship (rpg/sim/realm_player.cpp, LORD lane: the realm-side facts; the lordship block
+  // keeps the rest). A site the realm has never noted is refused (noteSite first).
+  bool grantFief(Gid site, Gid liege, uint8_t how, int day);   // the player holds `site` under `liege` (how: FiefGranted mag)
+  void revokeFief(Gid site, int day);                           // the lordship taken back (the liege's anger, a lost war)
+  // the player breaks from the liege: a KO_PLAYER realm holding every fief (the liege's relation starts at
+  // TradeBroken, cause Succession). Returns its id (0: no fief to rule from).
+  Gid declareIndependence(const std::string& name, const std::string& rulerName, bool female, uint32_t color,
+                          uint32_t color2, uint8_t emblem, int day);
+  Gid playerRealm() const { return renown_.realmOf; }
+  void payTribute(Gid from, Gid to, float wealth, int day);    // wealth moves, TributePaid recorded
+  // TributeRefused, the overlord's tension rises a rung (from 0: the player; defiant false: the coffers were short)
+  void refuseTribute(Gid from, Gid to, int day, bool defiant = true);
+  // (M12) the player's realm takes a settlement (a conquest by the player's own banner, the LORD lane's siege)
+  void playerTakes(Gid site, int day);
+  // (M12) the player's lordship ended with its realm's last land: the KO_PLAYER realm falls (its wars end, KingdomFell)
+  void playerRealmEnds(int day);
+
+  // ---- M12 phase B (REALM lane): the deep sim the tick grows by itself (rpg/sim/realm_rise.cpp, realm_deep.cpp).
+  //      Camps grow warbands that raid (WarbandRaid) and may become warlord realms; a fallen realm's remnant crowns a
+  //      successor that fights to reunite its claim (Reunified); ruins are resettled and Rebuilt; lairs sleep and wake
+  //      (BossWoke) and raid every few weeks while awake; alliances form against common threats and allies are called
+  //      to war (AllyJoined); beaten realms become vassals that pay tribute each year or refuse it.
+  const Lair* lair(Gid site) const;
+  // the settlement a lair's beast falls on next (the nearest living settlement within its reach; 0 none)
+  Gid lairTarget(const Lair& L) const;
+  // one schedule for the raids (VISION_PLAN 7.6): the lair's. The tick raids on the lair's day by itself; a raid the
+  // FOES lane plays out in front of the player reports here (damage 0: the defence decides) so the lair rests after it
+  void lairRaid(Gid lair, Gid site, int damage, int day);
+  // a raid of the realm's own (the tick) happened today at a settlement within `near` tiles of the player's focus:
+  // the FOES lane shows the beast there (the realm left the damage to the defence). Returns the lair or 0.
+  Gid lairRaidedNear(int day, int32_t gx, int32_t gy, int nearTiles, Gid& site) const;
+  // more forcing (scripts `rise warband|ruin`, the tour): a camp grown to a warband that raids its village now; a
+  // settlement abandoned and ruined now (its SimRuin: the Lost History of the place; resettled after 30 more days)
+  void forceWarband(Gid campSite, int day);
+  void forceRuin(Gid site, int day);
+
  private:
   uint64_t seed_ = 0;
   uint64_t rng_ = 0;               // the sim's own stream (saved)
@@ -400,6 +528,30 @@ class Realm {
   // REALM lane (M4 phase B)
   uint32_t nextRebel_ = 0;                        // rebel realms born so far (their ids: 0x800 + n)
   std::vector<SimRuin> simRuins_;
+  // M12 (realm block v4)
+  std::vector<Camp> camps_;                       // site order
+  std::vector<Lair> lairs_;                       // site order
+  Gid newRealmId(Gid near);                       // a free id for a realm the generator never planned (0x800 + n)
+  // a realm the generator never planned, holding `sites` (taken from their owners): rebels, warlords, successors and
+  // the player's realm all come through here. Returns its id (0: none of the sites could be had).
+  Gid foundRealm(uint8_t origin, Gid parent, const std::vector<Gid>& sites, const std::string& name, uint32_t color,
+                 uint32_t color2, uint8_t emblem, int day);
+  // M12 phase B (REALM lane; realm_rise.cpp / realm_deep.cpp)
+  std::vector<Gid> pretenders_;                   // realms whose contested succession raised a pretender today (tick scratch)
+  std::vector<uint32_t> allyCalls_;               // wars declared today whose defenders call their allies (tick scratch)
+  void tickRise(int span);                        // after tickCivil: the deep sim
+  void tickCamps(int span);
+  void tickLairs(int span);
+  void tickClaims(int span);                      // successors crowned, claims fulfilled
+  void tickAlliances(int span);
+  void tickVassals(int span);
+  void tickWarlords(int span);                    // a warlord's tribute demands
+  void callAllies(uint32_t war, int day);
+  Gid raiseWarlord(Camp& c, Gid site, int day);
+  Gid crownSuccessor(Gid fallen, Gid site, int day);
+  void resettle(SettlementState& s, Gid by, int day);
+  void makeVassal(Gid vassal, Gid overlord, int day);
+  void pruneRealms();
   // genesis (realm_genesis.cpp): not saved; rebuilt by the next focus
   ew::EndlessSource* src_ = nullptr;              // the source of the last focus (history and ruins need cultures)
   std::vector<Gid> pending_;                      // kingdoms in range still to instantiate, nearest first

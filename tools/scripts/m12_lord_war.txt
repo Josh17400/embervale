@@ -1,0 +1,33 @@
+# M12 LORD lane: a besieged holding and the crowned realm, from the start village (seed 7). The start village held
+# with every work raised; its lord's defiance (the liege's siege of the seat: the camp outside the palisade); the
+# siege broken; a burned village's refugees led home (resettled) and a third village taken by the player's banner:
+# three settlements, the crown (KING / QUEEN); the journal's STANDING page.
+#   embervale.exe --script tools/scripts/m12_lord_war.txt     (m12_lord_w_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 10
++0.1 lord grant 0
++0.1 lord build all
++0.1 expect lord works 8
++0.1 lord siege
++0.1 expect lord realm 1
++0.1 expect lord siege 1
++0.1 lord here 0 20
++1.0 shot m12_lord_w_siege.png
++0.1 lord here 0 3
++0.5 shot m12_lord_w_siege_green.png
++0.1 lord break
++0.1 realm days 8
++1.0 expect lord siege 0
++0.1 expect lord holdings 1
++0.1 lord resettle
++0.1 expect lord holdings 2
++0.1 lord conquer 0
++0.3 expect lord holdings 3
++0.1 expect lord crowned 1
++0.1 lord here 0 3
++0.5 shot m12_lord_w_crowned.png
++0.1 journal standing
++0.3 shot m12_lord_w_standing.png
++0.3 log m12_lord_war done

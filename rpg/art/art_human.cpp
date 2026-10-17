@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include "rpg/art/art_internal.h"
+#include "rpg/art/art_rise.h"
 
 namespace art {
 
@@ -1387,7 +1388,7 @@ struct HumanPainter {
     if (armor == 1) R.sleeve = ramp(L.topColor);   // the leather jerkin goes over the shirt: its sleeves show
     R.glove = L.gloves ? bandRamp(L.gloves) : R.skin;
     R.cloak = ramp(L.cloakColor);
-    if (L.people || L.cut || L.headwear || L.pattern || L.bodyForm || L.helmForm || L.armsOrnament || L.pauldron || L.skirt || L.crest) buildRigM3();
+    if (L.people || L.cut || L.headwear || L.pattern || L.bodyForm || L.helmForm || (L.armsOrnament & ~RISE_MASK) || L.pauldron || L.skirt || L.crest) buildRigM3();   // (M12: the rise's bits are not the culture's)
     if (L.armourTint) buildAlloy();
   }
   // M6: every metal armour ramp (the band's, chain mail, the body form's) becomes the alloy's; leather stays leather
@@ -2046,6 +2047,7 @@ struct HumanPainter {
   void weapon(int hx, int hy2, int dx, int dy, int side) {
     int w = L.weapon;
     if (w == 0) return;
+    if (w == WEAPON_LEDGER || w == WEAPON_SCROLL) { heldThing(hx, hy2); return; }   // (M12) not a weapon at all
     const Ramp& m = R.metal;
     int px = -dy, py = dx;
     if (side < 0) { px = -px; py = -py; }
@@ -2486,7 +2488,7 @@ struct HumanPainter {
       ears();
       if (L.helmForm) helmForm(ox, oy, *rp);
       else drawMap(c, hm, ox, oy, *rp, kEye, accent, visor);
-      if (!L.helmForm && (L.armsOrnament || L.crest)) helmExtras(ox, *rp);
+      if (!L.helmForm && ((L.armsOrnament & ~RISE_MASK) || L.crest)) helmExtras(ox, *rp);
       helmFace();
     } else if (L.hood) {
       drawMap(c, facing == kDown ? kHoodD : (facing == kUp ? kHoodU : kHoodS), ox, oy, R.hood);
@@ -3159,6 +3161,94 @@ struct HumanPainter {
     finishM6();
   }
 
+  // ====================================================================== M12 Rise and Fall (VIEW lane)
+  // a steward's ledger held at the side (a bound book: the cover lit on its west edge, the pale page edges, a strap) or
+  // an envoy's sealed scroll case (a leather tube, a brass cap, the court's red seal on its cord)
+  void heldThing(int hx, int hy2) {
+    if (L.weapon == WEAPON_LEDGER) {
+      const int x0 = hx - 1, y0 = hy2;
+      for (int y = y0; y <= y0 + 3; y++)
+        for (int x = x0; x <= x0 + 2; x++) c.set(x, y, x == x0 ? kLeather[3] : (y == y0 + 3 ? kLeather[0] : kLeather[2]));
+      c.set(x0 + 2, y0 + 1, kWhite); c.set(x0 + 2, y0 + 2, kBone[3]);   // the page edges
+      c.set(x0, y0 + 1, kBrass[3]);                                      // the clasp
+    } else {
+      const int x0 = hx, y0 = hy2 - 1;
+      for (int y = y0; y <= y0 + 4; y++) { c.set(x0, y, kLeather[y == y0 ? 4 : 3]); c.set(x0 + 1, y, kLeather[1]); }
+      c.set(x0, y0 - 1, kBrass[4]); c.set(x0 + 1, y0 - 1, kBrass[2]);   // the cap
+      c.set(x0 + 2, y0 + 2, rgba(196, 40, 40)); c.set(x0 + 2, y0 + 3, rgba(140, 26, 30));   // the seal on its cord
+    }
+  }
+  // the sworn realm's tabard over the gear, the rank's mark on it, a steward's keys and a warlord's trophies at the belt
+  // (front and back: the torso's columns 5..10; side: the front half of the body). Painted with the torso, before the
+  // arms, so a swinging arm still crosses over it.
+  int riseRank() const { return riseRankOf(L.armsOrnament); }
+  Ramp riseField() const { return ramp(opaque(L.tabardColor ? L.tabardColor : rgba(150, 40, 40)), 0.85f); }
+  Ramp riseTrim() const {
+    if (riseRank() >= 3) return kGold;
+    if (!L.pattern && L.patternColor) return ramp(opaque(L.patternColor), 0.8f);   // the realm's charge colour (the view sets it)
+    return ramp(lighten(opaque(L.tabardColor ? L.tabardColor : rgba(150, 40, 40)), 0.9f), 0.6f);
+  }
+  void riseTorso(bool back) {
+    const uint16_t o = L.armsOrnament;
+    if (o & RISE_TABARD) {
+      const Ramp F = riseField(), T = riseTrim();
+      static const int colK[4] = {3, 3, 2, 1};
+      // the tabard: from the collar to a hand below the belt, its hem cut square, its edges trimmed
+      for (int y = ty + 1; y <= hip; y++)
+        for (int x = 6; x <= 9; x++) {
+          int k = colK[x - 6];
+          if (y == hip) k = std::max(0, k - 1);            // the hem in its own shade
+          uint32_t col = F[k];
+          if (x == 6 || x == 9) col = T[x == 6 ? 3 : 1];    // the trim down both edges
+          c.set(x, y, col);
+        }
+      for (int x = 6; x <= 9; x++) c.set(x, ty, T[x < 8 ? 4 : 2]);   // the trimmed collar
+      if (!back) {   // the charge: a small lit device on the breast (a sergeant wears the chevrons in its place)
+        if (riseRank() != 2) { c.set(7, ty + 2, lighten(F[3], 0.8f)); c.set(8, ty + 2, F[4]); c.set(7, ty + 3, F[4]); c.set(8, ty + 3, lighten(F[2], 0.5f)); }
+      }
+      const int rk = riseRank();
+      if (!back && rk == 2) {   // a sergeant's two chevrons on the breast
+        for (int k = 0; k < 2; k++) {
+          const int y = ty + 2 + k * 2;
+          c.set(7, y, kGold[4]); c.set(8, y, kGold[3]);
+          c.set(6, y + 1, kGold[3]); c.set(9, y + 1, kGold[2]);
+        }
+      }
+      if (rk >= 3) {   // a captain's sash from the left shoulder to the right hip (a marshal's gilded, over a gold collar)
+        for (int i = 0; i <= hip - ty; i++) {
+          const int x = back ? 10 - i * 5 / std::max(1, hip - ty) : 5 + i * 5 / std::max(1, hip - ty), y = ty + i;
+          c.set(x, y, rk == 4 ? kGold[i < 2 ? 4 : 3] : T[i < 2 ? 4 : 3]);
+          if (y + 1 <= hip) c.set(x, y + 1, rk == 4 ? kGold[1] : T[1]);
+        }
+        if (rk == 4) for (int x = 5; x <= 10; x++) c.set(x, ty, kGold[x < 8 ? 4 : 3]);
+      }
+    }
+    if (o & RISE_KEYS) {   // a ring of iron keys hanging from the belt at the hip
+      const int y = ty + 5;
+      c.set(9, y, kIron[3]); c.set(9, y + 1, kIron[2]); c.set(10, y + 1, kIron[1]); c.set(9, y + 2, kIron[1]);
+    }
+    if (o & RISE_TROPHIES) {   // a small skull and a bone hung from the belt
+      const int y = ty + 5;
+      c.set(5, y, kBone[4]); c.set(6, y, kBone[3]); c.set(5, y + 1, kEye); c.set(6, y + 1, kBone[2]); c.set(10, y, kBone[3]); c.set(10, y + 1, kBone[1]);
+    }
+  }
+  void riseTorsoSide() {
+    const uint16_t o = L.armsOrnament;
+    const int ox = P.lean;
+    if (o & RISE_TABARD) {
+      const Ramp F = riseField(), T = riseTrim();
+      for (int y = ty + 1; y <= hip; y++)
+        for (int x = 8; x <= 10; x++) c.set(x + ox, y, x == 10 ? T[1] : F[y == hip ? 1 : (x == 8 ? 3 : 2)]);
+      for (int x = 8; x <= 10; x++) c.set(x + ox, ty, T[3]);
+      const int rk = riseRank();
+      if (rk == 2) { c.set(9 + ox, ty + 2, kGold[4]); c.set(8 + ox, ty + 3, kGold[3]); c.set(9 + ox, ty + 4, kGold[4]); c.set(8 + ox, ty + 5, kGold[3]); }
+      if (rk >= 3) for (int i = 0; i < 5; i++) c.set(6 + i + ox, ty + i, rk == 4 ? kGold[3] : T[3]);
+      if (rk == 4) for (int x = 6; x <= 10; x++) c.set(x + ox, ty, kGold[x < 9 ? 4 : 3]);
+    }
+    if (o & RISE_KEYS) { c.set(7 + ox, ty + 5, kIron[3]); c.set(7 + ox, ty + 6, kIron[1]); }
+    if (o & RISE_TROPHIES) { c.set(9 + ox, ty + 5, kBone[4]); c.set(9 + ox, ty + 6, kEye); c.set(10 + ox, ty + 5, kBone[2]); }
+  }
+
   // ====================================================================== M6 Steel: the metal's sheen, legendary glow
   void finishM6() {
     if (R.tinted) sheenPass();
@@ -3311,6 +3401,7 @@ struct HumanPainter {
     skirtFront();
     if (form) tassets();
     if (cutK) ponchoFront();
+    if (L.armsOrnament & RISE_MASK) riseTorso(false);   // (M12) the sworn tabard, the rank's mark, keys, trophies
     armFront(11, P.swingB, false);   // off hand (screen right)
     // (M6 fixer r4, review: "the spear head covers the hero's face") a polearm at rest stands behind the head: its
     // shaft is painted before the head (the hand still closes over it below), so the face and helm stay clear
@@ -3352,6 +3443,7 @@ struct HumanPainter {
     skirtFront();
     if (form) tassets();
     if (cutK) ponchoFront();
+    if (L.armsOrnament & RISE_MASK) riseTorso(true);   // (M12)
     int hx = 11, hy2 = ty + 5 + P.swingB, dx = 0, dy = isStaff() ? -1 : 1;
     if (L.weapon == 3) { dx = 1; dy = 0; }
     if (P.atk == 1) { hx = 12; hy2 = ty - 2; dx = 0; dy = -1; }
@@ -3392,6 +3484,7 @@ struct HumanPainter {
     skirtSide();
     if (form) tassets();
     if (cutK) ponchoSide();
+    if (L.armsOrnament & RISE_MASK) riseTorsoSide();   // (M12)
     if (L.cloak) cloakCollarSide();
     if (hasShield()) shield(11 + P.lean, ty + 1, true);
     // (M6 fixer r4) a polearm at rest stands behind the head (see paintDown)

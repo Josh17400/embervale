@@ -47,6 +47,9 @@ bool propLight(Prop p, float& r, Color& c) {
     case Prop::HarbourDesk: r = 46; c = Color(1.0f, 0.78f, 0.45f); return true;
     // M11 High Ground (FALLS lane): the summit shrine's two braziers (one warm pool over the whole dais)
     case Prop::SummitShrine: r = 76; c = Color(1.0f, 0.60f, 0.30f); return true;
+    // M12 Rise and Fall (VIEW lane): the watchtower's lantern spills a soft pool round the tower's feet (the lantern's
+    // own bead, high in the lookout, is lit by rise_world.cpp riseLights)
+    case Prop::Watchtower: r = 44; c = Color(1.0f, 0.66f, 0.36f); return true;
     default: return false;
   }
 }
@@ -71,6 +74,9 @@ int propShadow(Prop p) {
   // flags' thin poles none)
   if (p == Prop::SummitShrine) return 6;
   if (p == Prop::Cairn) return 2;
+  // M12 (VIEW lane): the lord's standard and the watchtower bake their own cast shadows (thrown to the lower right);
+  // the standard's stone plinth also sits in a small contact shade
+  if (p == Prop::LordBanner) return 5;
   return 0;
 }
 

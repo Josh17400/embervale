@@ -27,9 +27,12 @@ Cat catOf(EvType t) {
   switch (t) {
     case EvType::BorderIncident: case EvType::Skirmish: case EvType::WarDeclared: case EvType::SiegeBegun: case EvType::TownTaken:
     case EvType::TownBurned: case EvType::CivilWar: case EvType::KingdomFell: case EvType::TroopsMarching: case EvType::Ruined:
+    case EvType::WarlordRose: case EvType::WarbandRaid: case EvType::AllyJoined: case EvType::TributeRefused:   // (M12)
       return CAT_WAR;
     case EvType::FirstContact: case EvType::TradeDeal: case EvType::Peace: case EvType::Succession: case EvType::KingdomRose:
     case EvType::Resettled: case EvType::Festival: case EvType::SiegeBroken:
+    case EvType::Reunified: case EvType::AllianceMade: case EvType::Rebuilt: case EvType::FiefGranted: case EvType::Enlisted:   // (M12)
+    case EvType::Promoted: case EvType::Independence:
       return CAT_GOOD;
     default: return CAT_HARD;
   }
@@ -112,7 +115,10 @@ int voiceOf(const Game& g, uint64_t cultureId) {
 }
 
 int rumourLifeDays(EvType t) {
-  return t == EvType::TownTaken || t == EvType::KingdomFell || t == EvType::Ruined || t == EvType::FirstContact ? 60 : 30;
+  return t == EvType::TownTaken || t == EvType::KingdomFell || t == EvType::Ruined || t == EvType::FirstContact ||
+                 t == EvType::WarlordRose || t == EvType::SuccessorRose || t == EvType::Reunified || t == EvType::Independence   // (M12)
+             ? 60
+             : 30;
 }
 int rumourReach(int ageDays) { return 24 + 30 * std::max(0, ageDays); }
 bool rumourReaches(const realm::WorldEvent& e, int day, int32_t gx, int32_t gy) {
@@ -126,6 +132,8 @@ bool warNews(EvType t) {
     case EvType::BorderIncident: case EvType::Skirmish: case EvType::WarDeclared: case EvType::SiegeBegun: case EvType::SiegeBroken:
     case EvType::TownTaken: case EvType::TownBurned: case EvType::Peace: case EvType::CivilWar: case EvType::TroopsMarching:
     case EvType::KingdomFell:
+    case EvType::WarlordRose: case EvType::WarbandRaid: case EvType::AllyJoined: case EvType::TributeRefused:   // (M12)
+    case EvType::SuccessorRose: case EvType::Reunified: case EvType::Independence:
       return true;
     default: return false;
   }
@@ -215,6 +223,97 @@ std::string newsLine(const Game& g, const realm::WorldEvent& e, uint64_t voiceCu
           core = beast.empty() ? "THEY SAY A GREAT BEAST HAS BEEN BROUGHT DOWN" + where + ". NOBODY KNOWS WHO DID IT"
                                : beast + " IS DEAD, BROUGHT DOWN" + where + ". HUNTERS, SOLDIERS, NOBODY IS SURE WHO";
       }
+      break;
+    }
+    // ---- M12 Rise and Fall (REALM lane): every new event has its own line
+    case EvType::WarlordRose: {
+      const realm::KingdomState* K = g.realm.kingdom(e.a);
+      const std::string who = K && !K->ruler.name.empty() ? K->ruler.name : std::string("THEIR CHIEF");
+      static const char* const after[3] = {". HIS BANNER FLIES OVER THE ELDER'S HOUSE NOW", ". THE ELDER WAS HANGED FROM HIS OWN GATE",
+                                           ". THE FARMERS PAY HIS MEN OR BURN"};
+      core = "THE BANDITS OF THE HILLS HAVE TAKEN " + S + ", AND " + who + " CALLS HIMSELF WARLORD OF " + A + after[h % 3];
+      if (K && K->ruler.female) { core = "THE BANDITS OF THE HILLS HAVE TAKEN " + S + ", AND " + who + " CALLS HERSELF WARLORD OF " + A + ". THE FARMERS PAY HER RIDERS OR BURN"; }
+      break;
+    }
+    case EvType::WarbandRaid: {
+      static const char* const what[3] = {" CAME DOWN ON ", " RAIDED ", " FELL ON "};
+      static const char* const after[3] = {". THEY DROVE OFF THE CATTLE AND BURNED THE BARNS", ". THEY TOOK THE SEED GRAIN AND TWO GIRLS",
+                                           ". THE CAMP IN THE HILLS GROWS BOLDER EVERY MONTH"};
+      core = "A WARBAND OUT OF THE HILLS" + std::string(what[h % 3]) + S + after[(h >> 3) % 3];
+      break;
+    }
+    case EvType::SuccessorRose: {
+      const realm::KingdomState* K = g.realm.kingdom(e.a);
+      const std::string who = K ? (K->ruler.title.empty() ? std::string("") : K->ruler.title + " ") + K->ruler.name : std::string("A NEW RULER");
+      const std::string house = K && !K->ruler.house.empty() ? " OF " + K->ruler.house : std::string();
+      core = "IN " + S + " THEY HAVE CROWNED " + who + house + ", HEIR TO FALLEN " + B + ". THE OLD BANNER FLIES AGAIN, AND THE REALM IS CALLED " + A;
+      break;
+    }
+    case EvType::Reunified:
+      core = A + " HAS WON BACK THE LAST TOWNS OF OLD " + B + ". WHAT WAS BROKEN IS WHOLE AGAIN UNDER ONE CROWN";
+      break;
+    case EvType::AllianceMade: {
+      static const char* const how[3] = {" HAVE SWORN AN ALLIANCE", " HAVE CLASPED HANDS AND SWORN TO STAND TOGETHER", " ARE ALLIES NOW, SEALED WITH A MARRIAGE"};
+      core = A + " AND " + B + how[h % 3] + ". A BLOW AT ONE IS A BLOW AT BOTH";
+      break;
+    }
+    case EvType::AllyJoined: core = A + " HAS ANSWERED THE CALL OF " + B + " AND MARCHES TO WAR AT ITS SIDE. OATHS ARE OATHS"; break;
+    case EvType::Vassalised: core = A + " HAS BENT THE KNEE TO " + B + ". IT WILL PAY TRIBUTE EVERY YEAR, AND ITS PRIDE WITH IT"; break;
+    case EvType::TributePaid: {
+      const realm::KingdomState* K = g.realm.kingdom(e.b);
+      if (!e.a)   // (M12 fixer) the player's own lordship: the site is the player's village
+        core = "THE LORD OF " + S + " HAS SENT THE TRIBUTE OWED TO " + B + ", CARTS OF SILVER UNDER GUARD. A WANDERER WHO PAYS ON TIME, THEY SAY";
+      else if (K && K->origin == realm::KO_WARLORD)
+        core = A + " HAS PAID THE WARLORD OF " + B + " TO LEAVE ITS VILLAGES BE. SILVER FOR PEACE, FOR NOW";
+      else
+        core = "THE TRIBUTE OF " + A + " HAS GONE TO " + B + ", CARTS OF SILVER UNDER GUARD. NOBODY CHEERED THEM ON THE ROAD";
+      break;
+    }
+    case EvType::TributeRefused: {
+      const realm::KingdomState* K = g.realm.kingdom(e.b);
+      if (!e.a && e.mag)
+        core = "THE LORD OF " + S + " HAS WITHHELD THE TRIBUTE OWED TO " + B + ". " + B + " WILL NOT LET THAT STAND";
+      else if (!e.a)
+        core = "THE LORD OF " + S + " COULD NOT MEET THE TRIBUTE OWED TO " + B + ". THE COFFERS RAN DRY, THEY SAY";
+      else if (K && K->origin == realm::KO_WARLORD)
+        core = A + " SENT THE RIDERS OF THE WARLORD OF " + B + " AWAY EMPTY-HANDED. THERE WILL BE BURNING FOR THAT";
+      else
+        core = A + " REFUSES THE TRIBUTE IT OWES " + B + " AND CALLS ITSELF FREE. " + B + " WILL NOT LET THAT STAND";
+      break;
+    }
+    case EvType::Independence: core = S + " HAS RAISED ITS OWN BANNER AND BROKEN WITH " + B + ". THEY CALL THEMSELVES " + A + " NOW"; break;
+    case EvType::FiefGranted: {
+      static const char* const how[5] = {" HAS A NEW LORD", " HAS A NEW LORD, GIVEN THE PLACE BY " , " HAS A NEW LORD, WHO BOUGHT THE CHARTER FROM ",
+                                         " HAS A NEW LORD, WHO RESETTLED THE RUINS FOR ", " HAS A NEW LORD, WHO TOOK IT IN THE NAME OF "};
+      const int m = std::clamp((int)e.mag, 0, 4);
+      core = S + how[m] + (m && e.a ? A : std::string()) + ". A WANDERER, THEY SAY, OF ALL PEOPLE";
+      break;
+    }
+    case EvType::Enlisted: core = "A WANDERER HAS TAKEN THE COLOURS OF " + A + ". THE RECRUITERS ARE TELLING EVERYONE"; break;
+    case EvType::Promoted: {
+      static const char* const rank[5] = {"SOLDIER", "RECRUIT", "SERGEANT", "CAPTAIN", "MARSHAL"};
+      core = "THE WANDERER WHO JOINED THE ARMY OF " + A + " IS A " + rank[std::clamp((int)e.mag, 0, 4)] + " NOW. THE OLD SOLDIERS GRUMBLE ABOUT IT";
+      break;
+    }
+    case EvType::TermsCarried: {
+      static const char* const res[4] = {". THEY SENT THE ENVOY HOME WITH NOTHING", ". THE WAR IS OVER, AND THE ARMIES ARE GOING HOME",
+                                         ". THEY ARE ALLIES NOW", ". THE WEAKER WILL PAY TRIBUTE EVERY YEAR"};
+      core = "AN ENVOY CARRIED TERMS BETWEEN " + A + " AND " + B + res[std::clamp((int)e.mag, 0, 3)];
+      break;
+    }
+    case EvType::BossWoke: {
+      std::string beast = g.world.src ? foes::beastNameNear(*g.world.src, e.mag, e.gx, e.gy, (int)foes::Rank::WorldBoss) : std::string();
+      const std::string kind = e.mag >= 0 && e.mag < (int)art::Monster::COUNT ? foes::worldBossKind((art::Monster)e.mag) : "BEAST";
+      if (beast.empty()) beast = std::string("A GREAT ") + kind;
+      static const char* const after[3] = {". THE HERDS ARE FLEEING THE HILLS", ". THE HUNTERS WILL NOT GO UP THERE NOW",
+                                           ". THE TEMPLE BELL RANG ALL NIGHT ON ITS OWN"};
+      core = beast + " HAS WOKEN IN ITS LAIR OUT TO THE " + dirWord(e.gx - px, e.gy - py, false) + after[h % 3];
+      break;
+    }
+    case EvType::Rebuilt: {
+      static const char* const after[3] = {". SMOKE FROM THE CHIMNEYS AGAIN, AND CHILDREN IN THE LANES", ". THE NEW ROOFS ARE STILL YELLOW STRAW",
+                                           ". THEY RANG THE OLD BELL FOR THE FIRST TIME IN YEARS"};
+      core = S + " LIVES AGAIN" + std::string(after[h % 3]);
       break;
     }
     default: core = std::string(realm::evTypeName(e.type)) + " NEAR " + S; break;

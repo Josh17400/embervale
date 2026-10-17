@@ -41,6 +41,8 @@ RULES:
 - Edit C++ with Edit/Write tools (python heredocs through Bash turn \\\\n into real newlines inside string literals).
 - Screenshots in C:\\Users\\joshu\\AppData\\Local\\Temp\\claude\\emb_${M}\\<your-name>\\ ; delete them when done. Delete your own
   build dir at the end unless it is "build".
+- Run checks in the foreground (long timeouts are fine). Never end your turn while a background command is still running: it is
+  killed when you stop and your report would be unverified (the M12 round-2 fixer ended on "Waiting for the batch notification").
 - Stay strictly inside the files you own. Report concisely: files changed, verification done (with numbers), open issues.
 ${NOTES ? 'OWNER NOTES FOR THIS MILESTONE: ' + NOTES : ''}`
 
@@ -108,7 +110,9 @@ You are the INTEGRATOR for ${M}. All lanes finished (reports below). BDIR=build;
    failure. This is the only full sweep in the milestone, so make it count.
 3. Screenshot tour that exercises everything ${M} changed (day and night, inside and outside, several seeds); inspect each against the
    quality bar; fix what you can.
-4. Portability pass for clang/Emscripten.
+4. Portability pass for clang/Emscripten. A CI-equivalent Linux clang 18 build lives in WSL: refresh the copy with
+   wsl -d Ubuntu -- bash -lc "rsync -a --delete --exclude='/build*' --exclude='/.git' /mnt/c/Users/joshu/Documents/embervale/ ~/emb/ && cd ~/emb && ninja -C build-native rpg_test"
+   then run ~/emb/build-native/rpg_test --seeds 1..20 there ONCE (MSVC hides use-after-free and eval-order bugs; M11 shipped one).
 Return a concise integration report with test numbers and a list of known open problems.
 
 LEAD: ${lead.leadReport}
@@ -145,7 +149,8 @@ const fixPrompt = (round, findings) => `${CTX}
 
 You are the FIXER for ${M}, round ${round}. BDIR=build. Fix every "must" finding below and as many "should" findings as are safe.
 For each, verify the fix with TARGETED checks only: the test suites and scripts that cover the files you changed, this milestone's own
-scripts ('tools/run_scripts.sh <milestone prefix>_', e.g. m10_), and any script that failed before. At the end run the fast core ONCE:
+scripts ('tools/run_scripts.sh <milestone prefix>_', e.g. m10_), this milestone's own rpg_test suites (the ones the lead/lanes added
+to .github/workflows/web.yml, e.g. --rise / --lord / --service), and any script that failed before. At the end run the fast core ONCE:
 rpg_test --seeds 1..20, save_test, --golden, --endless --golden, --towns --golden. Do NOT run the whole tools/scripts/ sweep or
 replay unrelated content (homes, sieges, unrelated quests, town tours) unless your change touched that code. The full sweep already ran
 once (integrator) and does not run again.

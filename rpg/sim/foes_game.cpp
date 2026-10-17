@@ -394,6 +394,7 @@ void Game::foeKilled(const Actor& a, int killer) {
     }
   } else if (a.rank == (uint8_t)Rank::WorldBoss) {
     marks[markKey(a.unique, mk(foes::MK_FOES_BOSS_SLAIN))] = std::max(1, day);
+    realm.lairSlain(a.unique, day);   // (M12) its lair raids no more
     realm.beastSlain((uint8_t)a.mon, gx, gy, day, (uint8_t)Rank::WorldBoss, byPlayer);
     if (byPlayer) {
       realm.renown().fame += 40;
@@ -777,42 +778,42 @@ void Game::foeStep(float dt) {
         }
   }
   marks[dayKey] = day;
-  if (last == 0 || day <= last) return;   // the first day seen only starts the count
+  // (M12 REALM lane) one schedule for the raids, the lair's (rpg/sim/realm_rise.cpp): every world boss round the player
+  // is known to the realm as a lair (its own sleeping and waking rhythm); on a lair's raid day, when its target is a
+  // loaded settlement near the player, the raid comes in front of them here and the realm is told (damage 0: the
+  // defence decides). Any other raid the realm's tick makes the day after, wherever the player is.
   const int32_t kx = ew::EndlessSource::kcellOf(pgx), ky = ew::EndlessSource::kcellOf(pgy);
   for (int dy = -2; dy <= 2; dy++)
     for (int dx = -2; dx <= 2; dx++) {
       bool ok = false;
       const foes::WorldBoss b = foes::worldBossOf(src, kx + dx, ky + dy, ok);
+      if (!ok) continue;
+      realm.noteLair(b.id, b.lairX, b.lairY, (uint8_t)b.mon, (uint8_t)std::clamp(b.D, 1, 255), day);
+      if (FoeOps::slainBoss(*this, b.id)) { realm.lairSlain(b.id, day); continue; }
+    }
+  if (last == 0 || day <= last) return;   // the first day seen only starts the count
+  for (int dy = -2; dy <= 2; dy++)
+    for (int dx = -2; dx <= 2; dx++) {
+      bool ok = false;
+      const foes::WorldBoss b = foes::worldBossOf(src, kx + dx, ky + dy, ok);
       if (!ok || FoeOps::slainBoss(*this, b.id)) continue;
-      const uint64_t h = hmix(b.id ^ seed, (uint64_t)(uint32_t)day);
-      if (h % 15u != 0) continue;
+      const realm::Lair* L = realm.lair(b.id);
+      if (!L || L->slain || !L->wokeDay || (int)L->nextRaid != day) continue;
+      const ew::Gid tid = realm.lairTarget(*L);
+      const int si = tid ? world.siteHandle(tid) : -1;
+      if (si < 0) continue;
+      const Site& s = world.sites[(size_t)si];
+      const int64_t pdx = world.ox + s.ex - pgx, pdy = world.oy + s.ey - pgy;
+      const bool live = !inside && plAlive && !life.raid.site && pdx * pdx + pdy * pdy <= 110ll * 110ll && !FoeOps::present(*this, b.id);
+      if (!live) continue;   // (the realm's tick raids tomorrow)
       int32_t bx = 0, by = 0;
       foes::worldBossAt(b, day, 12.0f, bx, by);
-      const int32_t R = b.range * 3 / 4;
-      const ew::SettlementNode* tgt = nullptr;
-      int64_t bd = -1;
-      const std::vector<ew::SettlementNode> nodes = src.settlementsIn(bx - R, by - R, bx + R, by + R);
-      for (const ew::SettlementNode& nd : nodes) {
-        if (nd.flags & ew::SPF_START) continue;
-        const int64_t d = (int64_t)(nd.x - bx) * (nd.x - bx) + (int64_t)(nd.y - by) * (nd.y - by);
-        if (d > (int64_t)R * R || (bd >= 0 && d >= bd)) continue;
-        bd = d; tgt = &nd;
-      }
-      if (!tgt) continue;
-      if (!realm.settlement(tgt->id)) realm.noteSite(tgt->id, tgt->kingdom, (uint8_t)tgt->type, tgt->x, tgt->y);
-      const int dmg = 10 + (int)((h >> 8) % 16u);
-      const int si = world.siteHandle(tgt->id);
-      const int64_t pdx = tgt->x - pgx, pdy = tgt->y - pgy;
-      const bool live = si >= 0 && !inside && plAlive && !life.raid.site && pdx * pdx + pdy * pdy <= 110ll * 110ll &&
-                        !FoeOps::present(*this, b.id);
-      if (!live) { realm.beastRaid(tgt->id, (uint8_t)b.mon, dmg, day); continue; }
       // the raid comes in front of the player: the beast and a few of its kind at the edge of town, on its side
-      const Site& s = world.sites[(size_t)si];
-      Vec2 dir((float)(bx - tgt->x), (float)(by - tgt->y));
+      Vec2 dir((float)(bx - (world.ox + s.ex)), (float)(by - (world.oy + s.ey)));
       dir = len2(dir) > 1.0f ? norm(dir) : Vec2(0, 1);
       const int rad = std::max(s.r.w, s.r.h) / 2 + 10;
       const int ex = s.ex + (int)std::lround(dir.x * (float)rad), ey = s.ey + (int)std::lround(dir.y * (float)rad);
-      if (!world.over.in(ex, ey)) { realm.beastRaid(tgt->id, (uint8_t)b.mon, dmg, day); continue; }
+      if (!world.over.in(ex, ey)) continue;
       FoeOps::spawnWorldBoss(*this, b, freeSpotClear(ex, ey, 1));
       const Vec2 heart(s.ex * TILE + 8.0f, s.ey * TILE + 8.0f);
       life::Life::RaidLive R0;
@@ -833,8 +834,9 @@ void Game::foeStep(float dt) {
         R0.ids.push_back(id);
       }
       life.raid = R0;
-      realm.beastRaid(tgt->id, (uint8_t)b.mon, 0, day);   // the news; the damage is the defence's to decide
-      emit(Ev::Notice, pp, (int)kBossCol, 0, b.name + " FALLS ON " + s.name + "!");
+      const std::string sname = s.name;
+      realm.lairRaid(b.id, tid, 0, day);   // the news, and the lair rests; the damage is the defence's to decide
+      emit(Ev::Notice, pp, (int)kBossCol, 0, b.name + " FALLS ON " + sname + "!");
       emit(Ev::Shake, pp, 0, 4.0f);
       sfx((int)Sfx::Roar, pp, 0.7f);
     }

@@ -1,0 +1,30 @@
+# M12 SERVICE: a diplomacy mission at a court (VISION_PLAN 4.7 "a diplomacy quest ('carry the terms') forces a peace
+# roll"). The capital's kingdom is at war with its neighbour; its ruler asks the player to carry the terms; the player
+# carries them to the enemy court, whose ruler hears them and answers (the realm's peace roll).
+#   embervale.exe --script tools/scripts/m12_service_mission.txt     (m12_service_mission_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.3 goto capital
++0.3 service court
++0.3 enterseat
++0.6 expect inside 1
++0.2 talkto king 40
++0.4 expect mode dialogue
++0.1 expect option CARRY YOUR TERMS
++0.2 shot m12_service_mission_1_court.png
++0.1 choose CARRY YOUR TERMS
++0.3 expect service missions 1
++0.2 shot m12_service_mission_2_given.png
++0.1 choose FAREWELL
++0.3 service goto court
++0.5 enterseat
++0.6 expect inside 1
++0.2 talkto king 40
++0.4 expect option I CARRY WORD
++0.2 shot m12_service_mission_3_enemy_court.png
++0.1 choose I CARRY WORD
++0.3 shot m12_service_mission_4_answer.png
++0.1 key Escape
++0.3 log m12_service_mission done

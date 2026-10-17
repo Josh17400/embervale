@@ -37,6 +37,11 @@ bool Game::realmNoteSites() {
   bool fresh = false;
   for (; realmSites_ < world.sites.size(); realmSites_++) {
     const Site& s = world.sites[realmSites_];
+    if (s.type == SiteType::BanditCamp) {   // (M12) a warlord's seed: the realm watches every camp the window loads
+      const int32_t cx = world.ox + s.ex, cy = world.oy + s.ey;
+      realm.noteCamp(s.id, cx, cy, world.src->kingdomAt(cx, cy), day);
+      if (s.cleared) realm.campCleared(s.id, day);
+    }
     if (!s.settlement()) continue;
     const ew::Gid home = s.homeKingdom >= 0 ? world.kingdoms[(size_t)s.homeKingdom].id : 0;
     realm.noteSite(s.id, home, (uint8_t)s.type, world.ox + s.ex, world.oy + s.ey);
@@ -59,6 +64,37 @@ void Game::realmStep(float dt) {
     realmDay_ = day;
   }
   if (fresh || realm.eventSerial() != realmSeen_) realmSync();
+  // (M12) the world's rise and fall near the player: a warlord rising, a warband or a world boss raiding (a herald's
+  // banner; Event::id = the low bits of the realm it concerns). Only news the player could hear: within 160 tiles
+  // (a hidden land is far across the sea), and only events made since the last look (never the history on a load).
+  if (riseSeen_ == 0 || riseSeen_ > realm.eventSerial()) riseSeen_ = realm.eventSerial();
+  else if (riseSeen_ != realm.eventSerial()) {
+    for (const realm::WorldEvent& e : realm.events()) {
+      if (e.id < riseSeen_) continue;
+      RiseEv k = RiseEv::None;
+      float f = 1;
+      ew::Gid who = e.a;
+      std::string line;
+      const realm::KingdomState* A = e.a ? realm.kingdom(e.a) : nullptr;
+      if (e.type == realm::EvType::WarlordRose) { k = RiseEv::WarlordNear; f = 1; line = A ? A->name : "A WARLORD"; }
+      else if (e.type == realm::EvType::WarbandRaid) { k = RiseEv::WarlordNear; f = 2; who = e.b; line = "SMOKE ON THE HORIZON"; }
+      else if (e.type == realm::EvType::BeastRaid) { k = RiseEv::BossRaid; line = "A TOWN NEARBY BURNS"; }
+      if (k == RiseEv::None) continue;
+      const int64_t dx = (int64_t)e.gx - gx, dy = (int64_t)e.gy - gy;
+      if (dx * dx + dy * dy > 160ll * 160ll) continue;
+      if (e.site) {   // the place by name when the window holds it (the banner's top line already names the deed)
+        const int h = world.siteHandle(e.site);
+        if (h >= 0) {
+          const std::string& nm = world.sites[(size_t)h].name;
+          line = k == RiseEv::WarlordNear && f == 1 ? line + " TAKES " + nm : k == RiseEv::WarlordNear ? "SMOKE OVER " + nm : nm + " BURNS";
+        }
+      }
+      Event ev{Ev::Rise, pl().p, (int)k, f, line};
+      ev.id = (uint32_t)who;
+      events.push_back(ev);
+    }
+    riseSeen_ = realm.eventSerial();
+  }
   // crossing into another kingdom's land (VISION_PLAN M4: "a herald's banner at every border")
   const ew::Gid land = realm.landOwner(src.kingdomAt(gx, gy), gx, gy);
   if (!realmLandKnown_) { realmLand_ = land; realmLandKnown_ = true; return; }

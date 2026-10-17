@@ -14,7 +14,9 @@
 #include "rpg/sim/home.h"
 #include "rpg/sim/power_ops.h"
 #include "rpg/sim/magic_ops.h"
+#include "rpg/sim/lord_ops.h"
 #include "rpg/sim/sea_ops.h"
+#include "rpg/sim/service_ops.h"
 #include "rpg/sim/powers.h"
 #include "rpg/sim/skill_ops.h"
 #include "rpg/sim/stream.h"
@@ -96,7 +98,7 @@ void Game::resetSession() {
   realm.reset(world.seed);
   story.reset(world.seed);
   war = WarState();
-  realmSeen_ = 0; realmSites_ = 0; realmDay_ = -1; realmLand_ = 0; realmLandKnown_ = false;
+  realmSeen_ = 0; riseSeen_ = 0; realmSites_ = 0; realmDay_ = -1; realmLand_ = 0; realmLandKnown_ = false;
   // M5: the census, needs and moods belong to the world too (a load reads the saved life block over this)
   life.clear();
   lifeRt_.reset();
@@ -201,6 +203,8 @@ void Game::resetPlayer() {
   spellsKnown = 0; spell = Spell::Flames;   // no magic at the start: spells come from a background, tomes or teachers
   MagicOps::reset(*this);                    // (M9) the spellbook and the casting runtime
   SeaOps::reset(*this);                      // (M10) no boats, nothing known of the sea
+  LordOps::reset(*this);                     // (M12) no holdings, no realm of one's own (lord_game.cpp)
+  ServiceOps::reset(*this);                  // (M12) never enlisted (service_game.cpp)
   skills::startLevels(skills, background);   // (M9) every skill at its start level
   recalcPlayer();
   Actor& p = pl();
@@ -623,6 +627,8 @@ void Game::update(float dt, const Input& in) {
   SkillOps::step(*this, dt);   // M9: distances walked / ridden, sneaking, familiarity (skills_game.cpp, SKILLS lane)
   MagicOps::step(*this, dt);   // M9: casts in progress, concentration, surfaces and their combos (magic_game.cpp, MAGIC lane)
   SeaOps::step(*this, dt);     // M10: the wind, storms, the Mist, the boats, voyages, encounters (sea_game.cpp, SEA lane)
+  LordOps::step(*this, dt);    // M12: the fief's day: taxes, tribute, works (lord_game.cpp, LORD lane)
+  ServiceOps::step(*this, dt); // M12: the army's day: wages, orders, missions (service_game.cpp, SERVICE lane)
   if (world.endless && !inside) { maybeRecentre(); prefetchTick(dt); }
   if (!inside && (exploreT_ -= dt) <= 0) {   // fog of war: what the screen shows around the player (global tiles)
     exploreT_ = 0.25f;
@@ -1371,6 +1377,7 @@ void Game::kill(Actor& a, int killer) {
   const bool byParty = byPlayer || (killer >= 0 && party.indexOfActor(killer) >= 0);
   if (byParty || (a.plHitT > -99 && time - a.plHitT < 8.0f)) questKill(a);
   warKill(a, killer);           // M4: siege contributions, reputation (war_game.cpp)
+  ServiceOps::kill(*this, a, killer);   // M12: an enemy of the sworn kingdom slain: merit (service_game.cpp)
   storyKill(a, byParty);        // M4: story objectives (rpg/story/story_game.cpp)
   lifeKill(a, killer);          // M5: a resident's death: grief, the census (life_game.cpp)
   if (!inside && a.site >= 0 && a.site < (int)world.sites.size() && world.sites[a.site].type == SiteType::BanditCamp) {

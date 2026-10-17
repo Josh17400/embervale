@@ -363,6 +363,11 @@ void Audio::playMotif(uint8_t motif, uint8_t scale, uint8_t timbre, int root, fl
                        (uint32_t)(root < 36 ? 36 : root > 96 ? 96 : root) << 16 | 1u << 31;
   push(Event{Sfx::SpellMotif, 1.0f, clampf(vol, 0.0f, 2.0f), arg});
 }
+void Audio::playSting(Sting s, float pitch, float vol) {
+  if ((int)s >= (int)Sting::COUNT || !(vol > 0.0f)) return;
+  if (!(pitch > 0.0f)) pitch = 1.0f;
+  push(Event{Sfx::SpellMotif, clampf(pitch, 0.25f, 4.0f), clampf(vol, 0.0f, 2.0f), (uint32_t)s | 1u << 30});
+}
 void Audio::push(const Event& e) {
   while (qLock_.test_and_set(std::memory_order_acquire)) {}
   uint32_t head = qHead_.load(std::memory_order_relaxed);
@@ -1361,7 +1366,10 @@ void Audio::trigger(Sfx s, float k, float V, uint32_t arg) {
       for (int i = 0; i < 4; i++) add(NB(Sine, rnd(600, 1200) * k, 0.08f * V).perc(0.04f).pitch(1.0f, 0.01f).at(rnd(0.05f, 0.4f)));
       break;
     }
-    case Sfx::SpellMotif: spellMotif(arg ? arg : (72u << 16), V); break;
+    case Sfx::SpellMotif:
+      if ((arg & (1u << 30)) && !(arg & (1u << 31))) { riseSting((int)(arg & 255), k, V); break; }   // (M12) playSting
+      spellMotif(arg ? arg : (72u << 16), V);
+      break;
     case Sfx::COUNT: break;
   }
 }
@@ -2830,5 +2838,79 @@ void Audio::render(float* out, int frames) {
     const int n = frames - done < BLOCK ? frames - done : BLOCK;
     renderBlock(out + done, n);
     done += n;
+  }
+}
+
+// ------------------------------------------------------------------------------------------ (M12) the rise's stings
+// The herald's stings (Audio::playSting, rpg/view/render_rise.cpp): short, unmistakable, under the limiter.
+void Audio::riseSting(int which, float k, float V) {
+  switch ((Sting)which) {
+    case Sting::DrumRoll: {   // an oath: a snare roll swelling over a second, then the bass drum and a cymbal's wash
+      for (int i = 0; i < 26; i++) {
+        const float t = 0.034f * (float)i, a = 0.18f + 0.55f * (float)i / 25.0f;
+        add(NB(Noise, 0, 0.42f * a * V).perc(0.045f).bp(1900 * k * rnd(0.95f, 1.05f), 1.1f).color(0.15f).at(t + rnd(0, 0.006f)));
+        add(NB(Sine, 220 * k, 0.10f * a * V).perc(0.03f).pitch(0.6f, 0.01f).at(t));
+      }
+      add(NB(Sine, 62 * k, 0.95f * V).perc(0.55f).pitch(0.9f, 0.04f).at(0.9f).send(0.35f));
+      add(NB(Noise, 0, 0.55f * V).perc(0.09f).bp(1700 * k, 0.9f).at(0.9f));
+      add(NB(Noise, 0, 0.22f * V).env(0.002f, 1.1f).hp(5200 * k).send(0.5f).at(0.9f));
+      add(NB(Saw, 146.8f * k, 0.14f * V).env(0.03f, 0.5f, 0.7f, 0.55f, 0.4f).lp(700, 1.1f).at(0.9f).send(0.45f));   // a low horn under the hit
+      break;
+    }
+    case Sting::Fanfare: {    // a rank: "ta-ta-ta TAAA ta-DAAA" on two trumpets, a snare flam, timpani
+      const float n1[6] = {392.0f, 392.0f, 392.0f, 523.3f, 392.0f, 659.3f};
+      const float tm[6] = {0.0f, 0.1f, 0.2f, 0.3f, 0.62f, 0.74f};
+      const float ln[6] = {0.06f, 0.06f, 0.06f, 0.26f, 0.08f, 0.95f};
+      for (int i = 0; i < 6; i++) {
+        add(NB(Saw, n1[i] * k, 0.20f * V).env(0.012f, 0.3f, 0.7f, ln[i], 0.12f).lp(1500, 1.1f).fenv(1.2f, 0.07f)
+                .vib(i == 5 ? 0.18f : 0.0f, 5.4f, 0.25f).at(tm[i]).send(0.35f));
+        add(NB(Saw, n1[i] * 0.75f * k, 0.10f * V).env(0.015f, 0.3f, 0.7f, ln[i], 0.12f).lp(1100, 1.0f).at(tm[i]).send(0.35f));   // the second trumpet a fourth under
+      }
+      const float ch[3] = {261.6f, 329.6f, 392.0f};
+      for (float c : ch) add(NB(Pad, c * k, 0.09f * V).detune(0.007f).lp(1800).env(0.06f, 1, 1, 0.9f, 0.6f).at(0.74f).send(0.5f));
+      add(NB(Sine, 98 * k, 0.7f * V).perc(0.3f).pitch(0.4f, 0.03f).at(0.3f));
+      add(NB(Sine, 65.4f * k, 0.85f * V).perc(0.7f).pitch(0.4f, 0.04f).at(0.74f).send(0.3f));
+      add(NB(Noise, 0, 0.32f * V).perc(0.07f).bp(2100 * k, 1.0f).at(0.71f));
+      add(NB(Noise, 0, 0.36f * V).perc(0.09f).bp(1900 * k, 1.0f).at(0.74f));
+      for (int i = 0; i < 3; i++) add(NB(Fm, 2093.0f * k * std::exp2((float)i * 7.0f / 12.0f), 0.05f * V).perc(0.5f).fm(3, 1, 0.2f).at(0.8f + 0.07f * (float)i).send(0.6f));
+      break;
+    }
+    case Sting::HornCall: {   // independence: two great horns calling over a low drone, a war drum, the hall's echo
+      const float call[4] = {146.8f, 220.0f, 196.0f, 293.7f};
+      const float tm[4] = {0.0f, 0.42f, 0.86f, 1.12f};
+      const float ln[4] = {0.34f, 0.36f, 0.2f, 1.25f};
+      for (int i = 0; i < 4; i++) {
+        add(NB(Saw, call[i] * k, 0.26f * V).env(0.07f, 0.5f, 0.8f, ln[i], 0.45f).lp(620, 1.2f).fenv(1.3f, 0.18f)
+                .vib(i == 3 ? 0.16f : 0.06f, 4.8f, 0.3f).at(tm[i]).send(0.7f));
+        add(NB(Saw, call[i] * 0.5f * k, 0.16f * V).env(0.09f, 0.6f, 0.8f, ln[i], 0.5f).lp(380, 1.0f).at(tm[i] + 0.02f).send(0.6f));
+      }
+      add(NB(Pad, 73.4f * k, 0.13f * V).detune(0.006f).lp(500).env(0.4f, 1, 1, 2.2f, 1.2f).send(0.6f));
+      add(NB(Sine, 55 * k, 0.9f * V).perc(0.8f).pitch(0.7f, 0.05f).at(1.12f).send(0.45f));
+      add(NB(Sine, 55 * k, 0.6f * V).perc(0.5f).pitch(0.7f, 0.05f).at(0.0f).send(0.4f));
+      add(NB(Noise, 0, 0.18f * V).env(0.003f, 1.6f).hp(4800 * k).send(0.6f).at(1.12f));
+      break;
+    }
+    case Sting::WarAlarm: {   // a warlord or a beast: two harsh horn blasts a tritone apart, war drums, a clanging bell
+      for (int b = 0; b < 2; b++) {
+        const float t = 0.34f * (float)b;
+        add(NB(Saw, 116.5f * k, 0.30f * V).env(0.02f, 0.3f, 0.85f, 0.24f, 0.12f).lp(900, 1.4f).drive(1.3f).at(t).send(0.4f));
+        add(NB(Saw, 164.8f * k, 0.22f * V).env(0.02f, 0.3f, 0.85f, 0.24f, 0.12f).lp(1000, 1.3f).drive(1.2f).at(t).send(0.4f));
+      }
+      for (int i = 0; i < 4; i++) add(NB(Sine, 70 * k, (0.6f + 0.1f * (float)i) * V).perc(0.22f).pitch(1.0f, 0.03f).at(0.72f + 0.14f * (float)i).send(0.3f));
+      add(NB(Noise, 0, 0.3f * V).perc(0.06f).bp(900 * k, 1.0f).at(1.14f));
+      const float f0 = 523.3f * k;
+      add(NB(Fm, f0, 0.16f * V).perc(1.0f).fm(2.76f, 2.0f, 0.3f).at(0.7f).send(0.5f));
+      add(NB(Sine, f0 * 1.19f, 0.10f * V).perc(0.9f).at(0.7f).send(0.4f));
+      break;
+    }
+    case Sting::Seal: {       // a seal pressed into warm wax on a folded letter: a paper rustle, a soft thump, a click
+      add(NB(Noise, 0, 0.28f * V).env(0.01f, 0.08f).bp(3200 * k, 0.8f).color(0.1f));
+      add(NB(Noise, 0, 0.18f * V).env(0.01f, 0.06f).bp(2400 * k, 0.8f).at(0.09f));
+      add(NB(Sine, 150 * k, 0.55f * V).perc(0.09f).pitch(0.8f, 0.015f).at(0.2f));
+      add(NB(Noise, 0, 0.22f * V).perc(0.02f).lp(1400 * k).at(0.2f));
+      add(NB(Sine, 1900 * k, 0.05f * V).perc(0.03f).at(0.22f));
+      break;
+    }
+    default: break;
   }
 }

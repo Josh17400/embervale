@@ -103,6 +103,9 @@ Kind kindOfProp(art::Prop p) {
     // (M11 phase A) the summit's props are not built (art_relief.cpp paints them)
     case Prop::SummitShrine: case Prop::Cairn: case Prop::PrayerFlags:
       return Kind::None;
+    // (M12 phase A) the rise props are not built (art_rise.cpp paints them; the view colours them by owner)
+    case Prop::LordBanner: case Prop::Watchtower:
+      return Kind::None;
     case Prop::COUNT: break;
   }
   return Kind::COUNT;   // unclassified: rpg_test --builder fails

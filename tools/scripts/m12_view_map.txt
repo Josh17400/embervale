@@ -1,0 +1,37 @@
+# M12 VIEW lane: the rise and fall on the world map, round the start village of seed 7. The land's kingdom falls and
+# its remnant crowns a successor (in the old banner's colour, "HEIRS OF ..."), the start village is granted and raised
+# as the player's own realm (a gilded border, the crown at the seat), a bandit camp grows into a warlord's realm (a
+# rough, broken border, "A WARLORD'S REALM", the camp's skull standard), a neighbour bends the knee (its land hatched in
+# its liege's colour, "VASSAL OF ..."), a world boss raids; the legend names the new marks. Land, town and continent
+# zooms.
+#   embervale.exe --script tools/scripts/m12_view_map.txt     (m12_view_map_*.png in the working directory)
+seed 7
+0.3  newgame
++0.02 hour 11
++0.1 god 1
++0.3 mapexplore 900
++0.1 mapreveal 12
++0.3 rise successor
++0.1 expect rise successors 1
++0.1 lord grant 0
++0.1 lord free THE EMBER MARCH
++0.1 rise camp
++0.1 rise warlord
++0.1 rise vassal
++0.1 rise bossraid 3
++0.1 hearall
++0.1 expect rise warlords 1
++0.1 expect rise vassals 1
++0.1 expect rise player 1
++0.3 menu 2
++0.1 mapzoom 4
++0.1 mapcentre hero
++1.8 expect riseview map 2
++0.1 shot m12_view_map_land.png
++0.1 mapzoom 5
++1.8 shot m12_view_map_region.png
++0.1 mapzoom 3
++1.8 shot m12_view_map_town.png
++0.1 mapzoom 6
++1.8 shot m12_view_map_continent.png
++0.3 log m12_view_map done

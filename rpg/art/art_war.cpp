@@ -6,7 +6,10 @@
 // and the command pavilion in the attacker's field with trim, pennants and the banner; the checkpoint's barrier pole
 // striped in the owner's colours. The canvas sizes are the art's own; the tile FOOTPRINTS are frozen (m4Footprint: the
 // prop stands on the bottom-centre tile of its footprint and its sprite is drawn bottom-centred on that tile).
+#include <algorithm>
+#include <cmath>
 #include <cstdlib>
+#include <vector>
 #include "rpg/art/art_internal.h"
 
 namespace art {
@@ -474,6 +477,285 @@ void palisade(Canvas& c, uint32_t seed) {
   }
 }
 
+// one sharpened stake (4 px) whose foot stands on row `base`: the same cylinder as the palisade's, lit from the left
+void stakeAt(Canvas& c, int x0, int base, int h, int lean, int k) {
+  const int top = base - h;
+  for (int y = top; y <= base; y++) {
+    const float t = (float)(base - y) / (float)h;
+    const int sh = (int)std::lround(lean * t);
+    for (int i = 0; i < 4; i++) {
+      const int x = x0 + i + sh;
+      if (y < top + 3) {
+        const int w = y - top;
+        if ((w == 0 && i != 1 && i != 2) || (w == 1 && i == 3)) continue;
+        c.set(x, y, kWood[i <= 1 ? 4 : (i == 2 ? 3 : 2)]);
+        continue;
+      }
+      const int kk = i == 0 ? 3 : (i == 1 ? 2 : (i == 2 ? 1 : 0));
+      uint32_t col = kBark[kk + (i == 0 ? 1 : 0)];
+      if (((y * 3 + k * 5 + i) % 9) == 0 && i > 0) col = kBark[std::max(0, kk - 1)];
+      if (i == 3 && ((y + k) & 1)) col = kBark[0];
+      c.set(x, y, col);
+    }
+  }
+  c.set(x0 + 1 + (int)std::lround(lean * (1.0f - 3.0f / h)), top + 3, kWood[3]);
+}
+// a squared gatepost (6 px), taller than the stakes, an iron band and a pale cap: where a run meets a gateway
+void gatePost(Canvas& c, int x0, int base) {
+  const int top = base - 29;
+  for (int y = top; y <= base; y++)
+    for (int i = 0; i < 6; i++) {
+      uint32_t col = i == 0 ? kBark[4] : i <= 2 ? kBark[3] : i <= 4 ? kBark[2] : kBark[0];
+      if (y - top == 6 || y - top == 7) col = i == 0 ? rgba(150, 150, 156) : i <= 3 ? rgba(104, 104, 112) : rgba(60, 60, 70);   // the band
+      if (((y * 5 + i) % 11) == 0 && i > 0 && i < 5) col = kBark[1];
+      c.set(x0 + i, y, col);
+    }
+  for (int i = -1; i <= 6; i++) { c.set(x0 + i, top - 1, kWood[i < 3 ? 4 : 3]); c.set(x0 + i, top, kWood[i < 3 ? 3 : 2]); }
+}
+}  // namespace
+
+// (M12 fixer) the palisade joined into its run: mask bits 1 N, 2 E, 4 S, 8 W (the neighbours that are palisade too);
+// gates the same bits for a side that faces a gateway across a road (a squared gatepost stands there). An east-west
+// run is the stakes across the tile; a north-south run a file of stakes up the tile's middle, each a step behind the
+// next (so a column reads as stakes behind stakes); a corner joins its two half-runs round one stake. The earth ridge
+// follows the run. The canvas is 16 x 34, its bottom on the tile's bottom edge.
+Canvas palisadePiece(int mask, int gates, uint32_t seed) {
+  Canvas c(16, 34);
+  const int base = c.h - 4;
+  if (!(mask & 15)) mask = 10;
+  const bool n = mask & 1, e = mask & 2, s = mask & 4, w = mask & 8;
+  static const int hts[6] = {19, 22, 18, 21, 20, 23};
+  static const int lean[4] = {0, 1, 0, -1};
+  // the earth ridge first (the stakes stand in it)
+  auto soil = [&](int x0, int x1, int y0, int y1) {
+    for (int y = y0; y <= y1; y++)
+      for (int x = x0; x <= x1; x++) {
+        if (x < 0 || x >= 16) continue;
+        const int k = y <= y0 ? 3 : (y > y1 - 1 ? 1 : 2);
+        c.set(x, y, kSoil[k]);
+      }
+  };
+  const bool ew = (e || w) && !(n || s) ? true : false;
+  if (w || ew) soil(0, 8, base - 2, base + 3);
+  if (e || ew) soil(7, 15, base - 2, base + 3);
+  if (n) soil(4, 11, base - 17, base + 3);
+  if (s || n) soil(4, 11, base - 3, base + 3);
+  // the stakes, back to front (by foot row), west to east
+  struct St { int x, foot, k; };
+  std::vector<St> st;
+  if (w || ew) { st.push_back({0, base, 0}); st.push_back({4, base, 1}); }
+  if (e || ew) { st.push_back({8, base, 2}); st.push_back({12, base, 3}); }
+  if (n) for (int j = 3; j >= 1; j--) st.push_back({6, base - 4 * j, 3 + j});
+  if (n || s) st.push_back({6, base, 4});   // the stake the column turns round
+  std::stable_sort(st.begin(), st.end(), [](const St& a, const St& b) { return a.foot < b.foot; });
+  for (const St& q : st) {
+    const uint32_t hh = hash3(q.x + 3, q.foot, seed);
+    stakeAt(c, q.x, q.foot, hts[(q.k + hh) % 6] - (int)(hh >> 8) % 2, lean[(q.k + (hh >> 4)) % 4], q.k);
+  }
+  // gateposts where the run meets a gateway
+  if (gates & 2) gatePost(c, 10, base);
+  if (gates & 8) gatePost(c, 0, base);
+  if (gates & 1) gatePost(c, 5, base - 12);
+  if (gates & 4) gatePost(c, 5, base);
+  for (int x = 0; x < 16; x++)
+    if (hash3(x, 9, seed) % 3 == 0 && !solid(c, x, base - 3) && solid(c, x, base - 1)) c.set(x, base - 3 + (int)(hash3(x, 11, seed) % 2), kLeaf[2]);
+  return c;
+}
+
+namespace {
+// ---------------------------------------------------------------- (M12 fixer r2) the lord's stone gateway
+// The lord's stone ring is the village's garden-wall masonry (art_city.cpp gardenWallPiece) carried round it; where a
+// road cuts it the two posts rise into squat crenellated gate towers and a crenellated way joins them over the road (an
+// arch of dressed voussoirs and a keystone across a north-south road, its passage floor in shade; across an east-west
+// road a way whose merlons step along it, its shade on the road under it). Heights are in px over the ground; a ground
+// point (gx, gy) at height z lands on canvas row gy + OY - z, as every joined wall piece.
+struct GateMat { Ramp stone, cope; bool brick = false, plaster = false; };
+// the wall's materials by its culture (PropStyle::culture: cult::Archetype + 1), the same choice as the garden wall's
+GateMat gateMat(int cul, uint32_t tint) {
+  static const Ramp kAdobeG = ramp5(rgba(120, 90, 74), rgba(176, 140, 108), rgba(214, 186, 148), rgba(236, 214, 178), rgba(250, 238, 212));
+  static const Ramp kWhiteG = ramp5(rgba(120, 118, 132), rgba(176, 176, 184), rgba(214, 214, 214), rgba(236, 234, 228), rgba(252, 250, 242));
+  static const Ramp kEarthG = ramp5(rgba(80, 58, 46), rgba(122, 92, 66), rgba(156, 124, 88), rgba(184, 154, 112), rgba(212, 186, 142));
+  static const Ramp kTerraG = ramp5(rgba(84, 36, 34), rgba(136, 58, 40), rgba(184, 88, 54), rgba(214, 126, 78), rgba(238, 170, 116));
+  static const Ramp kJadeG = ramp5(rgba(14, 50, 56), rgba(24, 88, 80), rgba(40, 132, 104), rgba(88, 180, 132), rgba(178, 230, 182));
+  enum { NONE = 0, HEART = 3, IMPERIAL = 4, DUNE = 5, STEPPE = 6, JADE = 8, RIVER = 9, SUN = 10, STAR = 12 };
+  GateMat m;
+  m.stone = tint ? ramp(opaque(tint), 0.85f) : kStone;
+  m.cope = m.stone;
+  switch (cul) {
+    case IMPERIAL: if (!tint) m.stone = kStoneWarm; m.cope = kTerraG; break;
+    case DUNE: m.stone = kAdobeG; m.cope = kAdobeG; break;
+    case SUN: m.stone = kWhiteG; m.cope = kAdobeG; break;
+    case STEPPE: m.stone = kEarthG; m.cope = kEarthG; break;
+    case JADE: if (!tint) m.stone = kStone; m.cope = kJadeG; break;
+    case RIVER: m.stone = kBrick; m.cope = tint ? ramp(opaque(tint), 0.85f) : kStone; break;
+    case STAR: m.stone = kWhiteG; m.cope = kWhiteG; break;
+    case HEART: case NONE: if (!tint) m.stone = kStoneWarm; m.cope = m.stone; break;
+    default: break;
+  }
+  m.brick = cul == RIVER || cul == JADE;
+  m.plaster = cul == DUNE || cul == SUN || cul == STAR || cul == STEPPE;
+  return m;
+}
+inline uint32_t gateShadow(int a) { return withA(rgba(40, 28, 70), a); }
+// a face pixel's masonry at column gx (the run's own x, so courses carry across pieces), height h: ashlar courses with
+// staggered joints, brick, or plaster with its wear; kk the face's tone (1 at the foot, 2 above)
+uint32_t gateFace(const GateMat& M, int gx, int gy, int h, int kk) {
+  if (M.brick) {
+    const int crs = h / 2;
+    const bool jt = h % 2 == 0 || (gx + (crs & 1) * 2) % 4 == 0;
+    return jt ? M.stone[1] : M.stone[(hash3(gx / 4, crs, 337u) % 5 == 0) ? 3 : kk];
+  }
+  if (M.plaster) {
+    uint32_t col = M.stone[kk];
+    if (hash3(gx, h, 339u) % 11 == 0) col = M.stone[std::max(0, kk - 1)];
+    return h <= 1 ? M.stone[1] : col;
+  }
+  const int crs = h / 3;
+  const bool jt = h % 3 == 0 || (gx + (crs & 1) * 3 + (int)(hash3(crs, gy, 341u) % 2)) % 6 == 0;
+  return jt ? M.stone[std::max(0, kk - 1)] : M.stone[(hash3(gx / 6, crs, 343u) % 4 == 0) ? std::min(3, kk + 1) : kk];
+}
+// a heightfield of masonry, rows gy0..gy1 back to front: the tops in the coping (lit on the north-west rims, in a
+// merlon's shade behind it), the south faces where the plan steps down (the coping's lip and drip, the courses, a
+// string course at the wall's coping height, the west ends lit and the east ends shaded)
+template <class Z>
+void gateMasonry(Canvas& c, int OY, int gy0, int gy1, Z&& z, const GateMat& M, bool snow, int gxOff) {
+  for (int gy = gy0; gy <= gy1; gy++)
+    for (int gx = 0; gx < c.w; gx++) {
+      const int zz = z(gx, gy);
+      if (zz <= 0) continue;
+      const int zw = z(gx - 1, gy), zn = z(gx, gy - 1), ze = z(gx + 1, gy), zs = z(gx, gy + 1);
+      int k = 3;
+      if (zw > zz || zn > zz) k = 1;
+      else if (zw < zz || zn < zz) k = 4;
+      else if (ze < zz || zs < zz) k = 2;
+      uint32_t top = snow ? kSnow[std::max(1, k)] : M.cope[k];
+      if (!snow && !M.plaster && k == 3 && (gx + gxOff) % 5 == 0) top = M.cope[2];   // the coping's joints
+      c.set(gx, gy + OY - zz, top);
+      if (zs >= zz) continue;
+      for (int h = zz - 1; h >= std::max(0, zs); h--) {
+        uint32_t col;
+        if (h == zz - 1) col = snow ? kSnow[2] : M.cope[3];
+        else if (h == zz - 2) col = M.cope[1];
+        else if (h == 9) col = M.cope[3];   // the string course, level with the ring's coping
+        else if (h == 8) col = M.cope[1];
+        else col = gateFace(M, gx + gxOff, gy, h, h <= 1 ? 1 : 2);
+        if (zw <= h && h < zz - 1) col = lighten(col, 0.22f);
+        else if (ze <= h && h < zz - 1) col = darken(col, 0.28f);
+        c.set(gx, gy + OY - h, col);
+      }
+    }
+}
+}  // namespace
+
+Canvas stoneGateTower(int culture, uint32_t stone, bool snow, uint32_t seed) {
+  const GateMat M = gateMat(culture, stone);
+  Canvas c(16, 44);
+  const int OY = 28;
+  auto inPlan = [](int gx, int gy) { return gx >= 3 && gx <= 12 && gy >= 4 && gy <= 12; };
+  auto z = [&](int gx, int gy) -> int {
+    if (!inPlan(gx, gy)) return 0;
+    if ((gy == 4 || gy == 12) && ((gx - 3) / 2) % 2 == 0) return 28;   // the merlons, round the parapet
+    if ((gx == 3 || gx == 12) && ((gy - 4) / 2) % 2 == 0) return 28;
+    return 25;
+  };
+  // its cast shadow on the ground, down-right (longer than the wall's), dithered at its edge
+  for (int gy = 0; gy < 16; gy++)
+    for (int gx = 0; gx < 16; gx++) {
+      if (inPlan(gx, gy)) continue;
+      int hit = 0;
+      for (int d = 1; d <= 6 && !hit; d++) if (inPlan(gx - d, gy - (d * 3 + 2) / 5)) hit = d;
+      if (hit && !(hit >= 5 && ((gx + gy) & 1))) c.set(gx, gy + OY, gateShadow(hit <= 3 ? 88 : 70));
+    }
+  gateMasonry(c, OY, 0, 15, z, M, snow, (int)(seed & 7));
+  // the front face's dressing: quoins at its corners, a cross-shaped arrow loop with a lit sill
+  const int fy = 12 + OY;   // the front face's foot row
+  for (int h = 2; h <= 22; h++) {
+    if (h == 8 || h == 9) continue;
+    const bool west = (h / 3) % 2 == 0;
+    for (int gx : {west ? 3 : 11, west ? 4 : 12}) c.set(gx, fy - h, lighten(c.get(gx, fy - h), 0.16f));
+  }
+  const uint32_t slit = rgba(30, 22, 36), slitLit = rgba(58, 46, 60);
+  for (int h = 13; h <= 20; h++) { c.set(7, fy - h, slitLit); c.set(8, fy - h, slit); }
+  for (int gx = 6; gx <= 9; gx++) c.set(gx, fy - 17, gx == 6 ? slitLit : slit);
+  for (int gx = 6; gx <= 9; gx++) c.set(gx, fy - 12, M.cope[gx == 6 ? 4 : 3]);   // the sill
+  outline(c, 0.85f);
+  return c;
+}
+
+Canvas stoneGateArch(int spanPx, int culture, uint32_t stone, bool snow, uint32_t seed) {
+  const GateMat M = gateMat(culture, stone);
+  const int S = std::max(8, spanPx), OY = 28;
+  Canvas c(S, 44);
+  const float half = S * 0.5f, rise = std::min(8.0f, half * 0.55f);
+  const int spring = 12;
+  auto zi = [&](int gx) {   // the intrados: the arch's underside over the road at column gx
+    const float t = (gx + 0.5f - half) / half;
+    return spring + (int)std::lround(rise * std::sqrt(std::max(0.0f, 1.0f - t * t)));
+  };
+  const int mid = S / 2;
+  auto z = [&](int gx, int gy) -> int {
+    if (gy < 5 || gy > 10) return 0;
+    if (gx < 0 || gx >= S) return 25;   // the towers at its ends
+    const bool merlon = ((gx - mid + 301) / 3) % 2 == 0;
+    if ((gy >= 9 || gy == 5) && merlon) return 26;   // the front parapet (two deep) and the back one
+    return 23;
+  };
+  // the shadow it throws on the road in front, dithered
+  for (int gy = 11; gy <= 12; gy++)
+    for (int gx = 2; gx < S; gx++)
+      if (gy < 12 || ((gx + gy) & 1)) c.set(gx, gy + OY, gateShadow(gy == 11 ? 60 : 44));
+  gateMasonry(c, OY, 5, 10, z, M, snow, (int)(seed % 11));
+  // the opening: the face cut away under the intrados, the road seen through, its passage floor in the vault's shade
+  const int fy = 10 + OY;
+  for (int gx = 0; gx < S; gx++) {
+    const int top = zi(gx);
+    for (int h = 0; h < top; h++) c.set(gx, fy - h, 0);
+    for (int h = 0; h <= 5; h++) c.set(gx, fy - h, gateShadow(std::min(90, 40 + h * 9)));
+  }
+  // the voussoirs: a ring of dressed stone over the opening, its joints radiating, a keystone at the crown
+  for (int gx = 0; gx < S; gx++) {
+    const int top = zi(gx);
+    const float t = (gx + 0.5f - half) / half;
+    const int step = std::abs(t) > 0.75f ? 2 : 3;   // the joints crowd where the ring turns down
+    for (int r = 0; r < 3; r++) {
+      const int h = top + r;
+      uint32_t col = r == 0 ? M.cope[2] : M.cope[3];
+      if ((gx - mid + 300) % step == 0 && r > 0) col = M.cope[1];
+      c.set(gx, fy - h, col);
+    }
+    c.set(gx, fy - top - 3, M.stone[1]);   // the ring's shadow line on the spandrel
+  }
+  const int kTop = zi(mid);
+  for (int gx = mid - 1; gx <= mid + 1; gx++)
+    for (int h = kTop - 1; h <= std::min(22, kTop + 4); h++)
+      c.set(gx, fy - h, h == kTop - 1 ? M.cope[1] : M.cope[gx == mid - 1 ? 4 : (gx == mid ? 3 : 2)]);
+  outline(c, 0.85f);
+  return c;
+}
+
+Canvas stoneGateWay(int tiles, int culture, uint32_t stone, bool snow, uint32_t seed) {
+  const GateMat M = gateMat(culture, stone);
+  const int n = std::max(2, tiles), OY = 28;
+  Canvas c(16, OY + 16 * n + 16);
+  const int g0 = 13, g1 = 16 * n + 3;   // its plan: from the north tower's face to the south tower's back
+  auto z = [&](int gx, int gy) -> int {
+    if (gy < g0 || gy > g1) return (gx >= 3 && gx <= 12) ? 25 : 0;   // the towers (never drawn here)
+    if (gx < 5 || gx > 10) return 0;
+    if ((gx == 5 || gx == 10) && ((gy - g0) / 3) % 2 == 0) return 26;   // the merlons along both parapets
+    return 23;
+  };
+  // the shade of the vault on the road under it and its cast shadow beside, down-right, dithered
+  for (int gy = g0; gy <= g1; gy++) {
+    for (int gx = 5; gx <= 10; gx++) c.set(gx, gy + OY, gateShadow(gx == 5 ? 64 : 78));
+    for (int gx = 11; gx <= 13; gx++)
+      if (gx < 13 || ((gx + gy) & 1)) c.set(gx, gy + OY, gateShadow(gx == 11 ? 72 : 56));
+  }
+  gateMasonry(c, OY, g0, g1, z, M, snow, (int)(seed % 13));
+  outline(c, 0.85f);
+  return c;
+}
+
+namespace {
 // ---------------------------------------------------------------- the refugee lean-to (3 x 2)
 // A lean-to of patched blankets: a ridge pole on two forked sticks at the back, the blanket thrown over it and pulled
 // forward and down to short stakes at the front, so its quilted face slopes toward the viewer and a dark low mouth opens
@@ -775,6 +1057,161 @@ Canvas warPropSprite(Prop p, uint32_t field, uint32_t trim) {
     case Prop::Barricade: barricade(c, field ? F : kRed, field ? T : ramp(rgba(230, 220, 196), 0.6f), seed); break;
     default: break;
   }
+  return c;
+}
+
+// (M12 fixer r2) a house that burned, being cleared for its rebuilding (a resettled place's heart): 64 x 64 over a 4 x 3
+// tile footprint, canvas row 0 one tile above its back row. part 0: the scorched floor (flat: charred planks on the
+// ash, burned through in places, embers, the broken plinth, the soot thrown out over the ground round it); 1: the back
+// (the sooty stone wall left standing with its broken top and a blind window, the west wall's stump, a rafter fallen
+// against the wall and the roof beam down across the floor); 2: the front (the charred corner posts, one leaning, and
+// the heap of fallen stone). The three share one frame: the view blits them at one origin, the floor under everything,
+// the back sorted at the back row and the front at the front row (the hero walks through it between them).
+Canvas burntShell(int part, int variant) {
+  Canvas c(64, 64);
+  const uint32_t seed = 0xB0A7u + (uint32_t)(variant & 3) * 131u;
+  const int X0 = 3, X1 = 60, YB = 22, YF = 58;   // the plan: x X0..X1, ground rows YB (the back wall) .. YF (the front)
+  const Ramp kCharR = ramp5(rgba(18, 14, 20), rgba(34, 26, 30), rgba(54, 42, 42), rgba(80, 64, 58), rgba(112, 92, 80));
+  const Ramp kAshR = ramp5(rgba(44, 38, 44), rgba(66, 58, 62), rgba(92, 84, 84), rgba(122, 114, 110), rgba(156, 148, 140));
+  const Ramp& St = (variant & 1) ? kStoneWarm : kStone;
+  auto soot = [&](uint32_t col, float k) { return mix(col, kCharR[1], std::clamp(k, 0.0f, 0.9f)); };
+  if (part == 0) {
+    for (int y = 12; y < 64; y++)
+      for (int x = 0; x < 64; x++) {
+        const int dx = x < X0 ? X0 - x : (x > X1 ? x - X1 : 0), dy = y < YB ? YB - y : (y > YF ? y - YF : 0);
+        const float d = std::sqrt((float)(dx * dx + dy * dy)) - (float)(hash3(x / 3, y / 3, seed) % 4);
+        if ((dx || dy) && d > 3.0f) continue;
+        if (dx || dy) {   // the soot thrown out over the ground round it, breaking up at its edge
+          if (d > 1.0f && ((x + y) & 1)) continue;
+          c.set(x, y, withA(kAshR[d < 1.0f ? 0 : 1], d < 1.0f ? 176 : 120));
+          continue;
+        }
+        // the floor: charred planks running east-west, some burned through to the ash under them
+        const int row = (y - YB) / 4;
+        const bool seam = (y - YB) % 4 == 3;
+        const bool gone = hash3(row, (x + row * 7) / 9, seed + 3) % 4 == 0;
+        uint32_t col;
+        if (gone) col = kAshR[1 + (hash3(x, y, seed + 4) % 3 == 0 ? 1 : 0)];
+        else if (seam) col = kCharR[0];
+        else col = kCharR[(hash3(x / 5 + row * 3, row, seed + 5) % 3 == 0) ? 2 : 1];
+        if (!gone && !seam && (x + row * 3) % 11 == 0) col = kCharR[0];   // the plank ends
+        if (gone && hash3(x, y, seed + 6) % 41 == 0) col = kFire[hash3(x, y, seed + 7) % 2 ? 1 : 0];   // embers in the ash
+        c.set(x, y, col);
+      }
+    // the plinth round the floor: dressed stones two px proud, broken where the fire brought the walls down
+    auto broken = [&](int i) { return hash3(i / 5, 1, seed + 8) % 5 == 0; };
+    for (int x = X0; x <= X1; x++) {
+      if (broken(x)) continue;
+      const bool j = (x - X0) % 6 == 0;
+      c.set(x, YF - 2, soot(St[j ? 2 : 3], 0.3f));
+      c.set(x, YF - 1, soot(St[j ? 0 : 2], 0.3f));
+      c.set(x, YF, soot(St[1], 0.3f));
+    }
+    for (int y = YB; y <= YF - 2; y++) {
+      if (!broken(y + 40)) { c.set(X0, y - 2, soot(St[4], 0.35f)); c.set(X0 + 1, y - 2, soot(St[3], 0.35f)); }
+      if (!broken(y + 80)) { c.set(X1 - 1, y - 2, soot(St[3], 0.35f)); c.set(X1, y - 2, soot(St[2], 0.35f)); }
+    }
+    return c;
+  }
+  Canvas b(64, 64);
+  // the masonry of a standing face at column x, height z (courses with staggered joints), the soot climbing it
+  auto face = [&](int x, int z, float k) {
+    const int crs = z / 3;
+    const bool jt = z % 3 == 0 || (x + (crs & 1) * 3) % 6 == 0;
+    const uint32_t col = jt ? St[1] : St[(hash3(x / 6, crs, seed + 9) % 4 == 0) ? 3 : 2];
+    return soot(col, k);
+  };
+  if (part == 1) {
+    static const int prof[4][6] = {{21, 14, 5, 16, 9, 19}, {17, 20, 11, 4, 13, 18}, {12, 19, 15, 6, 18, 10}, {20, 8, 4, 14, 20, 13}};
+    const int* pr = prof[variant & 3];
+    auto hb = [&](int x) {   // the back wall's broken top: a profile per variant, ragged stone by stone
+      const float f = (float)(x - X0) / (float)(X1 - X0) * 5.0f;
+      const int i = std::min(4, (int)f);
+      const float t = f - (float)i;
+      const float v = (float)pr[i] * (1.0f - t) + (float)pr[i + 1] * t;
+      return std::max(2, (int)std::lround(v) - (int)(hash3(x / 2, 3, seed) % 3));
+    };
+    // its shadow thrown down-right over the floor
+    for (int x = X0 + 1; x <= X1; x++) {
+      const int len = hb(x - 1) / 4;
+      for (int r = 1; r <= len; r++)
+        if (r < len || ((x + r) & 1)) b.set(x, YB + r, withA(rgba(10, 6, 14), 84));
+    }
+    for (int x = X0; x <= X1; x++) {
+      const int h = hb(x);
+      for (int t = 0; t < 3; t++) {   // its top, three stones deep, ragged
+        uint32_t col = St[t == 0 ? 4 : 3];
+        if (hash3(x, t, seed + 10) % 3 == 0) col = St[2];
+        b.set(x, YB - 2 + t - h, soot(col, 0.45f));
+      }
+      for (int z = h - 1; z >= 0; z--) {   // its south face
+        const float streak = vnoise((float)x * 0.35f, (float)z * 0.12f, seed + 11) > 0.55f ? 0.22f : 0.0f;
+        const float k = 0.18f + 0.5f * (float)z / 20.0f + streak;
+        uint32_t col = face(x, z, k);
+        // a blind window where the wall still stands high, the soot of the fire that came out of it above
+        const int wx = (x - X0) % 19;
+        if (h >= 15 && wx >= 8 && wx <= 12) {
+          if (z >= 7 && z <= 12) col = (wx == 8 || z == 12) ? kCharR[1] : kCharR[0];
+          else if (z == 6) col = St[3];
+          else if (z > 12) col = soot(col, k + 0.3f);
+        }
+        if (x == X0) col = lighten(col, 0.2f);
+        b.set(x, YB - z, col);
+      }
+    }
+    // the west wall's stump, falling away toward the front: its top, then its south end
+    const int yEnd = YB + 12 + (variant & 3) * 2;
+    int hEnd = 2;
+    for (int y = YB + 1; y <= yEnd; y++) {
+      const int h2 = std::max(2, hb(X0) - (y - YB) * 4 / 5 - (int)(hash3(y, 5, seed) % 2));
+      hEnd = h2;
+      for (int i = 0; i < 3; i++) b.set(X0 + i, y - h2, soot(St[i == 0 ? 4 : (i == 1 ? 3 : 2)], 0.4f));
+    }
+    for (int z = hEnd - 1; z >= 0; z--)
+      for (int i = 0; i < 3; i++) b.set(X0 + i, yEnd - z, i == 0 ? lighten(face(X0 + i, z, 0.3f), 0.2f) : face(X0 + i, z, 0.3f));
+    // a rafter fallen against the wall, and the roof beam down across the floor
+    const float rx = 42.0f + (float)(variant & 3) * 3.0f;
+    thickLine(b, rx, (float)(YB - 16), rx + 7, (float)(YB + 13), 2.4f, kCharR[1]);
+    thickLine(b, rx - 0.6f, (float)(YB - 16), rx + 6.4f, (float)(YB + 13), 0.8f, kCharR[3]);
+    const float by0 = (float)(YB + 10 + (variant & 1) * 3);
+    thickLine(b, 9, by0, 40, by0 + 13, 2.8f, kCharR[1]);
+    thickLine(b, 9, by0 - 1.2f, 40, by0 + 11.8f, 0.9f, kCharR[3]);
+    for (int k = 0; k < 4; k++) b.set(14 + k * 7, (int)(by0 + (float)(5 + k * 7) * 13.0f / 31.0f), kCharR[0]);   // its cracks
+    b.set(30, (int)(by0 + 9), kFire[1]);
+    outline(b, 0.8f);
+    blit(c, b, 0, 0);
+    return c;
+  }
+  // part 2: the charred corner posts (squared timbers burned to stumps, cracked across, an ember at a top) and the
+  // heap of the wall's fallen stone at the front
+  struct Post { int x, foot, h, lean; };
+  const int v = variant & 3;
+  const Post posts[3] = {{X0 + 1, YF - 1, 22 - v, 0}, {27 + v * 2, YF, 11 + (v & 1) * 5, 0}, {X1 - 5, YF - 1, 17 + v, 2}};
+  for (const Post& q : posts) {
+    for (int z = 0; z < q.h; z++) {
+      const int off = q.lean * z / std::max(1, q.h);
+      for (int i = 0; i < 3; i++) {
+        if (z == q.h - 1 && i == 2) continue;   // the burned top, ragged
+        if (z == q.h - 2 && i == 2 && (q.h & 1)) continue;
+        uint32_t col = i == 0 ? kCharR[3] : (i == 1 ? kCharR[2] : kCharR[0]);
+        if (z % 4 == 1 && i > 0) col = kCharR[1];   // the char's cracks across the grain
+        b.set(q.x + i + off, q.foot - z, col);
+      }
+    }
+    if (q.h % 3 == 0) b.set(q.x + q.lean, q.foot - q.h + 1, kFire[1]);
+  }
+  Canvas r(64, 64);
+  stoneBlock(r, 40, YF - 6, 6, 4, 3, 1, St, seed + 11);
+  stoneBlock(r, 48, YF - 8, 7, 4, 3, 2, kStone, seed + 12);
+  stoneBlock(r, 44, YF - 11, 5, 3, 2, 1, St, seed + 13);
+  stoneBlock(r, 50, YF - 3, 6, 4, 2, 1, kStoneWarm, seed + 14);
+  stoneBlock(r, 36, YF - 2, 5, 3, 2, 1, kStone, seed + 15);
+  for (int y = 0; y < 64; y++)
+    for (int x = 0; x < 64; x++)
+      if (solid(r, x, y) && vnoise((float)x * 0.4f, (float)y * 0.4f, seed + 16) > 0.6f) r.set(x, y, darken(r.get(x, y), 0.5f));
+  outline(b, 0.8f);
+  blit(b, r, 0, 0);
+  blit(c, b, 0, 0);
   return c;
 }
 

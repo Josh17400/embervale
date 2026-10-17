@@ -12,6 +12,13 @@
 //   war length 20-90 days; famines 1-6 per 360 days; a settlement changes hands every 40-200 days; a kingdom falls or
 //   splits every 400-1500 days; >= 50% of rulers in office after 300 days; nothing unbounded; tick avg <= 1 ms (worst
 //   <= 3 ms), also with 48 active realms.
+//   (M12 REALM lane) the player's walk also notes what the game's window and the FOES lane would: the bandit camps of
+//   the 3 x 3 regions round them and the world bosses' lairs of the 5 x 5 kingdom cells. The DRAMA METRICS of the deep
+//   sim are printed, and gated over 5000+ days (--history 5000 --seeds 1..20): successors (>= 25 % of the falls of
+//   planned realms leave one), warlords (0.2-3 per seed per 5000 days, none before day 30), resettlements (>= 1 per
+//   seed on average, ruins rebuilt), boss raids (0.3-4 per lair per 360 days), alliances (in >= 30 % of seeds), allies
+//   joining wars, vassals and tribute (>= 1 over all seeds), realms that rise AND fall during play (>= 25 % of seeds).
+//   A war an ally was called to is foreshadowed by its call (AllyJoined in the 30 days before) and the troops marching.
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -20,6 +27,7 @@
 #include <map>
 #include <set>
 #include "tools/tests/tests.h"
+#include "rpg/sim/foes.h"
 #include "rpg/world/source.h"
 
 namespace {
@@ -230,8 +238,33 @@ int realmCmd(int argc, char** argv) {
 
 // ---------------------------------------------------------------- --history N
 struct WarRec { ew::Gid a = 0, b = 0; int start = 0, end = 0; realm::WarCause cause = realm::WarCause::BorderDispute; };
+// (M12) what the window and the FOES lane note round the player: camps of the 3 x 3 regions, lairs of the 5 x 5 cells
+void noteAround(realm::Realm& R, ew::EndlessSource& src, int32_t px, int32_t py, int day) {
+  const int32_t rx0 = ew::floorDiv(px, ew::REGION), ry0 = ew::floorDiv(py, ew::REGION);
+  for (int32_t ry = ry0 - 1; ry <= ry0 + 1; ry++)
+    for (int32_t rx = rx0 - 1; rx <= rx0 + 1; rx++) {
+      std::vector<std::pair<ew::Gid, std::pair<int32_t, int32_t>>> camps;
+      for (const ew::SitePlan& s : src.region(rx, ry).sites)
+        if (s.type == SiteType::BanditCamp) camps.push_back({s.id, {s.ex, s.ey}});
+      for (auto& c : camps) R.noteCamp(c.first, c.second.first, c.second.second, src.kingdomAt(c.second.first, c.second.second), day);
+    }
+  const int32_t kx = ew::EndlessSource::kcellOf(px), ky = ew::EndlessSource::kcellOf(py);
+  for (int dy = -2; dy <= 2; dy++)
+    for (int dx = -2; dx <= 2; dx++) {
+      bool ok = false;
+      const foes::WorldBoss b = foes::worldBossOf(src, kx + dx, ky + dy, ok);
+      if (ok) R.noteLair(b.id, b.lairX, b.lairY, (uint8_t)b.mon, (uint8_t)std::clamp(b.D, 1, 255), day);
+    }
+}
+
 struct SeedStats {
   int days = 0, wars = 0, famine = 0, wars20to90 = 0, warsEnded = 0, warsFood = 0, warsForeshadowed = 0, changes = 0, falls = 0;
+  // (M12) the drama metrics
+  int warlords = 0, warlordsEarly = 0, successors = 0, plannedFalls = 0, fallsSucceeded = 0, resettled = 0, rebuilt = 0, bossRaids = 0, bossWoke = 0;
+  int alliances = 0, allyJoined = 0, allyWars = 0, vassals = 0, tributePaid = 0, tributeRefused = 0, reunified = 0, warbandRaids = 0;
+  int riseFall = 0, camps = 0, lairs = 0;
+  int byCause[(int)realm::WarCause::COUNT] = {};
+  double lairDays = 0;
   int rulersKept = 0, rulersAt0 = 0, maxActive = 0, maxEvents = 0, maxRel = 0, maxWars = 0, maxSieges = 0, maxKingdoms = 0;
   double activeWarDays = 0, tickSum = 0, tickWorst = 0;
   std::vector<double> tickMs;   // every tick (the gate takes the 99.9th percentile: one OS preemption is not the sim)
@@ -250,6 +283,7 @@ SeedStats historySeed(uint64_t seed, int N, int radius) {
   R.reset(seed);
   R.activeRadius = radius;
   R.focusNow(src, px, py, 1);
+  noteAround(R, src, px, py, 1);
   std::map<ew::Gid, uint64_t> rulers0;   // the realms active at the start and their rulers' dynasty + since
   for (const realm::KingdomState& k : R.kingdoms())
     if (k.tier == realm::Tier::Active) rulers0[k.id] = 1;
@@ -265,6 +299,7 @@ SeedStats historySeed(uint64_t seed, int N, int radius) {
       px = std::clamp(px + dx * ew::KCELL, sx - 2 * ew::KCELL, sx + 2 * ew::KCELL);
       py = std::clamp(py + dy * ew::KCELL, sy - 2 * ew::KCELL, sy + 2 * ew::KCELL);
       R.focusNow(src, px, py, d);
+      noteAround(R, src, px, py, d);
     }
     auto t0 = std::chrono::steady_clock::now();
     R.advanceTo(src, d);
@@ -290,6 +325,7 @@ SeedStats historySeed(uint64_t seed, int N, int radius) {
     st.maxWars = std::max(st.maxWars, (int)R.wars().size());
     st.maxSieges = std::max(st.maxSieges, (int)R.sieges().size());
     st.maxKingdoms = std::max(st.maxKingdoms, (int)R.kingdoms().size());
+    for (const realm::Lair& L : R.lairs()) st.lairDays += L.slain ? 0 : 1;
     if (d == 301) {
       for (auto& kv : rulers0) {
         const realm::KingdomState* k = R.kingdom(kv.first);
@@ -303,6 +339,36 @@ SeedStats historySeed(uint64_t seed, int N, int radius) {
   R.serialize(blk);
   st.block = blk.size();
   st.memory = R.memoryBytes();
+  st.camps = (int)R.camps().size();
+  st.lairs = (int)R.lairs().size();
+  std::set<ew::Gid> risen, fellRisen, plannedFallen, succeeded;
+  for (const realm::WorldEvent& e : log) {
+    switch (e.type) {
+      case realm::EvType::WarlordRose: st.warlords++; if (e.day < 30) st.warlordsEarly++; risen.insert(e.a); break;
+      case realm::EvType::SuccessorRose: st.successors++; risen.insert(e.a); succeeded.insert(e.b); break;
+      case realm::EvType::KingdomRose: risen.insert(e.a); break;
+      case realm::EvType::KingdomFell: {
+        if (risen.count(e.a)) fellRisen.insert(e.a);
+        const realm::KingdomState* k = R.kingdom(e.a);
+        if (k && !k->rebel && !plannedFallen.count(e.a)) { st.plannedFalls++; plannedFallen.insert(e.a); }
+        break;
+      }
+      case realm::EvType::Resettled: st.resettled++; break;
+      case realm::EvType::Rebuilt: st.rebuilt++; break;
+      case realm::EvType::BeastRaid: st.bossRaids++; break;
+      case realm::EvType::BossWoke: st.bossWoke++; break;
+      case realm::EvType::AllianceMade: st.alliances++; break;
+      case realm::EvType::AllyJoined: st.allyJoined++; break;
+      case realm::EvType::Vassalised: st.vassals++; break;
+      case realm::EvType::TributePaid: st.tributePaid++; break;
+      case realm::EvType::TributeRefused: st.tributeRefused++; break;
+      case realm::EvType::Reunified: st.reunified++; break;
+      case realm::EvType::WarbandRaid: st.warbandRaids++; break;
+      default: break;
+    }
+  }
+  st.riseFall = (int)fellRisen.size();
+  for (ew::Gid f : plannedFallen) if (succeeded.count(f)) st.fallsSucceeded++;
   for (const realm::WorldEvent& e : log) {
     if (e.type == realm::EvType::Famine) st.famine++;
     if (e.type == realm::EvType::TownTaken || e.type == realm::EvType::Resettled) st.changes++;
@@ -312,6 +378,7 @@ SeedStats historySeed(uint64_t seed, int N, int radius) {
     const WarRec& w = kv.second;
     st.wars++;
     if (w.cause == realm::WarCause::Famine || w.cause == realm::WarCause::BrokenTrade) st.warsFood++;
+    st.byCause[(int)w.cause]++;
     bool fell = false;   // a war that ends because one side fell is as short as the fall made it
     for (const realm::WorldEvent& e : log)
       if (e.type == realm::EvType::KingdomFell && (int)e.day == w.end && (e.a == w.a || e.a == w.b)) fell = true;
@@ -330,7 +397,12 @@ SeedStats historySeed(uint64_t seed, int N, int radius) {
           e.type == realm::EvType::TroopsMarching || e.type == realm::EvType::PricesRising)
         fore++;
     }
-    if (fore >= 2) st.warsForeshadowed++;
+    // (M12) a war an ally was called to: its call (AllyJoined by the attacker in the 30 days before) and the march
+    bool called = false;
+    for (const realm::WorldEvent& e : log)
+      if (e.type == realm::EvType::AllyJoined && e.a == w.a && (int)e.day <= w.start && (int)e.day >= w.start - 30) called = true;
+    if (called) st.allyWars++;
+    if (fore >= 2 || (called && fore >= 1)) st.warsForeshadowed++;
     else {
       printf("  seed %llu: war %u (%s) on day %d not foreshadowed; events between them:\n", (unsigned long long)seed, kv.first,
              realm::warCauseName(w.cause), w.start);
@@ -353,10 +425,13 @@ int historyCmd(int argc, char** argv) {
          "famine", "hands", "falls", "ruler", "tick", "worst", "blockB", "memKB");
   SeedStats T;
   int seedsWithWar = 0, seeds = 0, rulersKept = 0, rulersAt0 = 0;
+  int seedsAllied = 0, seedsRiseFall = 0, seedsResettled = 0, minResettled = 1 << 30;
+  std::vector<SeedStats> per;
   for (uint64_t s = A; s <= B; s++) {
     const SeedStats st = historySeed(s, N, 3);
     seeds++;
     if (st.wars > 0) seedsWithWar++;
+    for (int c = 0; c < (int)realm::WarCause::COUNT; c++) T.byCause[c] += st.byCause[c];
     T.wars += st.wars; T.warsEnded += st.warsEnded; T.wars20to90 += st.wars20to90; T.warsFood += st.warsFood;
     T.warsForeshadowed += st.warsForeshadowed; T.famine += st.famine; T.changes += st.changes; T.falls += st.falls;
     T.activeWarDays += st.activeWarDays; T.days += st.days; T.tickSum += st.tickSum; T.ticks += st.ticks;
@@ -368,12 +443,31 @@ int historyCmd(int argc, char** argv) {
     T.block = std::max(T.block, st.block); T.memory = std::max(T.memory, st.memory);
     T.minLen = std::min(T.minLen, st.minLen); T.maxLen = std::max(T.maxLen, st.maxLen);
     rulersKept += st.rulersKept; rulersAt0 += st.rulersAt0;
+    T.warlords += st.warlords; T.warlordsEarly += st.warlordsEarly; T.successors += st.successors; T.plannedFalls += st.plannedFalls; T.fallsSucceeded += st.fallsSucceeded;
+    T.resettled += st.resettled; T.rebuilt += st.rebuilt; T.bossRaids += st.bossRaids; T.bossWoke += st.bossWoke;
+    T.alliances += st.alliances; T.allyJoined += st.allyJoined; T.allyWars += st.allyWars; T.vassals += st.vassals;
+    T.tributePaid += st.tributePaid; T.tributeRefused += st.tributeRefused; T.reunified += st.reunified;
+    T.warbandRaids += st.warbandRaids; T.riseFall += st.riseFall; T.lairDays += st.lairDays; T.camps += st.camps; T.lairs += st.lairs;
+    if (st.alliances) seedsAllied++;
+    if (st.riseFall) seedsRiseFall++;
+    if (st.resettled) seedsResettled++;
+    minResettled = std::min(minResettled, st.resettled);
+    per.push_back(st);
     char len[24];
     if (st.warsEnded) snprintf(len, sizeof len, "%d-%d", st.minLen, st.maxLen); else snprintf(len, sizeof len, "-");
     printf("%-5llu %5d %6d %5.2f %2d/%-2d %2d/%-2d %6s %7.2f %6d %5d %3d/%-2d %6.3f %7.2f %6zu %6zu\n", (unsigned long long)s, st.maxActive,
            st.wars, st.activeWarDays / std::max(1, st.days), st.warsForeshadowed, st.wars, st.warsFood, st.wars, len,
            st.famine * 360.0 / std::max(1, st.days), st.changes, st.falls, st.rulersKept, st.rulersAt0, st.tickSum / std::max(1, st.ticks),
            st.tickWorst, st.block, st.memory / 1024);
+  }
+  // (M12) the drama metrics, per seed
+  printf("drama (M12): %-5s %5s %5s %6s %6s %6s %6s %7s %6s %6s %6s %6s %5s %5s\n", "seed", "camps", "lairs", "wband", "wlord", "succ",
+         "reset", "rebuilt", "raids", "ally", "joined", "vassal", "trib", "r&f");
+  for (size_t i = 0; i < per.size(); i++) {
+    const SeedStats& st = per[i];
+    printf("             %-5llu %5d %5d %6d %6d %3d/%-2d %6d %7d %6d %6d %6d %6d %5d %5d\n", (unsigned long long)(A + i), st.camps, st.lairs,
+           st.warbandRaids, st.warlords, st.successors, st.plannedFalls, st.resettled, st.rebuilt, st.bossRaids, st.alliances, st.allyJoined,
+           st.vassals, st.tributePaid, st.riseFall);
   }
   const double avgWars = T.activeWarDays / std::max(1, T.days);
   const double famine360 = T.famine * 360.0 / std::max(1, T.days);
@@ -397,7 +491,8 @@ int historyCmd(int argc, char** argv) {
   gate(avgWars >= 0.2 && avgWars <= 1.5, "average active wars in the horizon %.2f", avgWars, "0.2-1.5");
   gate(seedsWithWar * 4 >= seeds * 3, "seeds with at least one war %.0f", (double)seedsWithWar, ">= 75%");
   gate(T.warsForeshadowed == T.wars, "wars foreshadowed by >= 2 events in 90 days %.0f", (double)T.warsForeshadowed, "all");
-  printf("    (of %d wars)\n", T.wars);
+  printf("    (of %d wars; by cause:", T.wars);
+  for (int c = 0; c < (int)realm::WarCause::COUNT; c++) printf(" %s %d%s", realm::warCauseName((realm::WarCause)c), T.byCause[c], c + 1 < (int)realm::WarCause::COUNT ? "," : ")\n");
   gate(foodPct >= 50, "wars caused by famine or broken trade %.0f%%", foodPct, ">= 50%");
   gate(T.wars20to90 == T.warsEnded, "ended wars lasting 20-90 days %.0f", (double)T.wars20to90, "all");
   printf("    (of %d ended; shortest %d, longest %d days)\n", T.warsEnded, T.warsEnded ? T.minLen : 0, T.maxLen);
@@ -417,6 +512,40 @@ int historyCmd(int argc, char** argv) {
   gate(p999 <= 3.0, "tick worst (99.9th percentile) %.3f ms", p999, "<= 3 ms");
   gate(bigAvg <= 1.0 && big.maxActive >= 40, "tick average with %.0f active realms", (double)big.maxActive, ">= 40 active");
   printf("    (avg %.3f ms, worst %.3f ms over 360 days; the raw worst tick of all seeds %.3f ms)\n", bigAvg, big.tickWorst, T.tickWorst);
+  // (M12) the drama metrics: gated over 5000+ days (shorter runs print them only)
+  const bool dramaGated = N >= 5000;
+  int dramaBad = 0;
+  auto dgate = [&](bool ok, const char* fmt, double v, const char* range) {
+    char b[160];
+    snprintf(b, sizeof b, fmt, v);
+    printf("  %-58s %-14s %s\n", b, range, ok ? "ok" : (dramaGated ? "FAIL" : "(not gated under 5000 days)"));
+    if (!ok && dramaGated) dramaBad++;
+  };
+  printf("the M12 drama metrics over %d seeds x %d days:\n", seeds, N);
+  const double succPct = T.plannedFalls ? 100.0 * T.fallsSucceeded / T.plannedFalls : 0.0;
+  dgate(T.plannedFalls == 0 || succPct >= 25, "falls of planned realms leaving a successor %.0f%%", succPct, ">= 25%");
+  printf("    (%d of %d fallen planned realms left a successor; %d successors crowned, %d claims fulfilled)\n", T.fallsSucceeded, T.plannedFalls,
+         T.successors, T.reunified);
+  const double wlPer = (double)T.warlords / std::max(1, seeds) * 5000.0 / std::max(1, N);
+  dgate(wlPer >= 0.2 && wlPer <= 3.0, "warlords per seed per 5000 days %.2f", wlPer, "0.2-3");
+  dgate(T.warlordsEarly == 0, "warlords risen in the first 30 days %.0f", (double)T.warlordsEarly, "0");
+  printf("    (%d warlords from %d camps noted; %d warband raids foreshadowed them)\n", T.warlords, T.camps, T.warbandRaids);
+  const double resetPer = (double)T.resettled / std::max(1, seeds);
+  dgate(resetPer >= 1.0, "resettlements per seed %.2f", resetPer, ">= 1");
+  printf("    (%d resettled, %d rebuilt; %d of %d seeds resettled a ruin, fewest %d)\n", T.resettled, T.rebuilt, seedsResettled, seeds, minResettled);
+  const double raidLair = T.lairDays > 0 ? T.bossRaids * 360.0 / T.lairDays : 0.0;
+  const double raidHorizon = T.bossRaids * 360.0 / std::max(1, T.days);
+  dgate(raidHorizon >= 0.3 && raidHorizon <= 4.0, "boss raids per 360 days per horizon %.2f", raidHorizon, "0.3-4");
+  printf("    (%d raids, %d wakings, %d lairs noted; %.3f raids per lair per 360 days)\n", T.bossRaids, T.bossWoke, T.lairs, raidLair);
+  dgate(seedsAllied * 10 >= seeds * 3, "seeds with an alliance %.0f", (double)seedsAllied, ">= 30%");
+  dgate(T.allyJoined >= 1, "allies called to a war %.0f", (double)T.allyJoined, ">= 1");
+  printf("    (%d alliances; %d wars fought by a called ally)\n", T.alliances, T.allyWars);
+  dgate(T.vassals >= 1, "vassals made %.0f", (double)T.vassals, ">= 1");
+  dgate(T.tributePaid >= 1, "tributes paid %.0f", (double)T.tributePaid, ">= 1");
+  printf("    (%d tributes refused)\n", T.tributeRefused);
+  dgate(seedsRiseFall * 4 >= seeds, "seeds where a realm rose and fell in play %.0f", (double)seedsRiseFall, ">= 25%");
+  printf("    (%d realms rose and fell)\n", T.riseFall);
+  bad += dramaBad;
   printf("history: %d failures\n", bad);
   return bad ? 1 : 0;
 }

@@ -721,6 +721,7 @@ void View::drawHud(Game& g) {
   // M1: every HUD piece is anchored to the safe area (the notch side of a phone, the HUD MARGIN setting)
   const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
   drawSeaHud(g);   // (M10) the sail and fishing panels (render_sea.cpp)
+  drawRiseHud(g);  // (M12) the herald's banner of a rise, the rank's insignia (render_rise.cpp)
   P.textS(L + 6, T + 5, "LV " + std::to_string(g.plLevel), 1, kGold);
   bar(L + 36, T + 6, 90, p.hp, p.maxHp, Color(0.85f, 0.18f, 0.16f), Color(0.3f, 0.05f, 0.05f));
   bar(L + 36, T + 14, 70, g.mp, mpMax, Color(0.25f, 0.45f, 0.95f), Color(0.06f, 0.1f, 0.3f));
@@ -862,7 +863,18 @@ void View::drawHud(Game& g) {
     if (const Kingdom* k = g.world.kingdomOf(g.curSite)) {
       const rui::Look lk = rui::look(g, k->id);
       kingLine = cs.capital && cs.homeKingdom == cs.kingdom ? "CAPITAL OF " + lk.name : rui::realmTitle(lk, false);
-      if (kingLine.size() > 26) kingLine = kingLine.substr(0, 26);
+      // (M12 fixer) a long realm name is shortened by words, never clipped mid-word ("LORDSHIP OF THE EMBER MARCH"
+      // drops its THE; a name still too long stands alone, then loses whole trailing words)
+      if (kingLine.size() > 26) {
+        const size_t ot = kingLine.find(" OF THE ");
+        if (ot != std::string::npos) kingLine.erase(ot + 4, 4);
+      }
+      if (kingLine.size() > 26) kingLine = lk.name;
+      while (kingLine.size() > 26) {
+        const size_t ws = kingLine.find_last_of(' ', 26);
+        if (ws == std::string::npos || ws < 4) { kingLine.resize(26); break; }
+        kingLine.resize(ws);
+      }
       if (k->color) kingCol = mixKing(col(k->color));
     }
     uint32_t sc = 0;
@@ -1048,6 +1060,13 @@ void View::drawHud(Game& g) {
             if (a.y < by1 && std::fabs(a.x - mx) < half + 30) {
               if (a.y <= T + 20) a.x = a.x < mx ? mx - half - 30 : mx + half + 30;
               else a.y = std::max(a.y, by1);
+            }
+          }
+          if (riseBanBottom_ > 0 && g.mode == Mode::Play) {   // (M12 integrator) and out of a rise's herald banner
+            const float x0 = riseBanX0_ - 40, x1 = riseBanX1_ + 40, mx = (riseBanX0_ + riseBanX1_) / 2;
+            if (a.y < riseBanBottom_ + 14 && a.x > x0 && a.x < x1) {
+              if (a.y <= T + 20) a.x = a.x < mx ? x0 : x1;   // along the top edge: past the banner's ends
+              else a.y = riseBanBottom_ + 14;
             }
           }
           if (biomeBannerT_ > 0 && !biomeBanner_.empty() && bannerT_ <= 0 && g.mode == Mode::Play) {
@@ -2471,7 +2490,7 @@ void View::menuKey(Game& g, int key) {
       return;
     }
     if (menuTab_ == 2 && mapTabKey(g, key)) return;   // worldmap.cpp
-    if (menuTab_ == 1 && key == SDLK_N) { setJournalSection((journalSec_ + 1) % 3); audio_->play(Sfx::MenuMove); return; }   // (M4) the journal's sections
+    if (menuTab_ == 1 && key == SDLK_N) { setJournalSection((journalSec_ + 1) % 4); audio_->play(Sfx::MenuMove); return; }   // (M4) the journal's sections
     if (menuTab_ == 1 && journalSec_ != 0 && (key == SDLK_RETURN || key == SDLK_SPACE)) return;
     if (key == SDLK_UP || key == SDLK_W) { menuSel_ = std::max(0, menuSel_ - 1); audio_->play(Sfx::MenuMove); }
     if (key == SDLK_DOWN || key == SDLK_S) { menuSel_++; audio_->play(Sfx::MenuMove); }

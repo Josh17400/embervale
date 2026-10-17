@@ -1,0 +1,19 @@
+# M12 fixer r1: losing the last holding of the player's own realm ends that realm (no zombie KO_PLAYER realm left at war
+# with the old liege). Seed 7: the start village granted, independence by the liege's siege, the liege takes the seat
+# back; 400 days on the old liege is at peace again and no second player realm stands.
+#   embervale.exe --script tools/scripts/m12_fix_zombie.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 lord grant 0
++0.1 lord siege
++0.1 expect lord realm 1
++0.1 expect rise player 1
++0.1 lord here 0 3
++0.1 realm take 0
++0.5 expect lord realm 0
++0.1 expect rise player 0
++0.1 realm days 400
++1.0 realm stats
++0.1 expect realm peace
++0.1 log m12_fix_zombie done

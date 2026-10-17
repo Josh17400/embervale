@@ -1,0 +1,48 @@
+# M12 REALM lane: the deep sim's places in the running game, from the start of seed 7. A bandit camp's warband raids its
+# village, then grows into a warlord realm that takes it (the village flies the warlord's new banner); a world boss falls
+# on a town (its roofs charred); a ruin resettled and rebuilding (the settlers' scaffolds, the Lost History of the place
+# kept); the land's kingdom falls and its remnant crowns a scion of the old house in one of its old towns (the old field
+# colour with a new charge); the player hears it all and the News journal lists the new lines; the world map shows the
+# realms. The tick makes every one of these by itself over years (rpg_test --history 5000, --rise); the script forces
+# them so the tour is short.
+#   embervale.exe --script tools/scripts/m12_realm_tour.txt     (m12_realm_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
+# the warband, then the warlord's village and its new banner
++0.3 rise warband
++0.1 expect rise warbands 1
++0.1 rise warlord
++0.1 expect rise warlords 1
++0.1 rise goto warlord
++1.5 shot m12_realm_warlord.png
+# a town a world boss fell on
++0.1 rise bossraid 1
++0.1 expect rise raids 1
++0.1 rise goto raided
++1.5 shot m12_realm_raided.png
+# a ruin resettled: settlers rebuilding it
++0.1 rise ruin 2
++0.1 expect realm ruined 2
++0.1 rise resettle 2
++0.1 expect rise resettled 1
++0.1 rise goto resettled
++1.5 shot m12_realm_resettled.png
+# the land's kingdom falls; a successor is crowned in one of its old towns
++0.1 rise successor
++0.1 expect rise successors 1
++0.1 rise goto successor
++1.5 shot m12_realm_successor.png
+# the news of all of it, and the realms on the map
++0.1 rise hear
++0.1 expect rise news 4
++0.1 expect news WARLORD
++0.1 journal news
++0.6 shot m12_realm_news.png
++0.2 key Escape
++0.3 menu 2
++0.1 mapzoom 4
++1.5 shot m12_realm_map.png
++0.2 key Escape
++0.3 log m12_realm_tour done

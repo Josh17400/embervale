@@ -1,0 +1,52 @@
+# M12 VIEW lane: the journal's STANDING section at the iPhone review size (24 px rows, UP / DOWN): sworn to the start
+# kingdom's army and promoted (the badge, merit to the next rank, the wage), an order and a mission with their places,
+# the start village held (loyalty, tax, coffers, works, tribute due), an alliance and a vassal near, then the player's own realm,
+# and the HISTORY timeline of the rise and fall round the player (with the land's old chronicle).
+#   embervale.exe --script tools/scripts/m12_view_standing_phone.txt     (m12_view_s*.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.3 enlist
++0.1 merit 45
++0.1 order scout 1
++0.1 mission alliance
++0.1 lord grant 0
++0.1 rise ally
++0.1 rise vassal
++0.1 riseview works banner granary raising watchtower
++0.1 hearall
++0.1 touch 1
++0.5 journal standing
++0.4 shot m12_view_s_phone_head.png
++0.1 expect riseview standing 8
++0.1 riseview row 1
++0.2 shot m12_view_s_phone_army.png
++0.1 riseview row 2
++0.2 shot m12_view_s_phone_order.png
++0.1 riseview row 3
++0.2 shot m12_view_s_phone_mission.png
++0.1 riseview row 4
++0.1 riseview row 5
++0.2 shot m12_view_s_phone_holding.png
++0.1 key Escape
++0.3 realm days 31
++1.0 lord free THE EMBER MARCH
++0.1 touch 1
++0.5 journal standing
++0.1 riseview row 1
++0.1 riseview row 2
++0.1 riseview row 3
++0.1 riseview row 4
++0.1 riseview row 5
++0.1 riseview row 6
++0.2 shot m12_view_s_phone_realm.png
++0.1 riseview row 7
++0.1 riseview row 8
++0.2 shot m12_view_s_phone_history.png
++0.1 riseview row 9
++0.1 riseview row 10
++0.1 riseview row 11
++0.2 shot m12_view_s_phone_history2.png
++0.2 log m12_view_standing_phone done

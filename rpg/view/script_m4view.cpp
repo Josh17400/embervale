@@ -38,12 +38,12 @@ EMB_SCRIPT_CMD("hearall", "hearall: test only: every realm event so far counts a
 
 bool cmdJournal(ScriptCtx& c) {
   const std::string w = c.arg(1);
-  const int s = w == "news" ? 1 : (w == "history" || w == "lore") ? 2 : 0;
+  const int s = w == "news" ? 1 : (w == "history" || w == "lore") ? 2 : w == "standing" ? 3 : 0;   // (M12) standing
   c.view.openMenu(c.game, 1);
   c.view.setJournalSection(s);
   return true;
 }
-EMB_SCRIPT_CMD("journal", "journal quests|news|history: open the journal on that section (M4 VIEW)", cmdJournal);
+EMB_SCRIPT_CMD("journal", "journal quests|news|history|standing: open the journal on that section (M4 VIEW; M12 standing)", cmdJournal);
 
 bool cmdTestLore(ScriptCtx& c) {
   Game& g = c.game;

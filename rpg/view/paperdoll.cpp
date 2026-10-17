@@ -22,6 +22,7 @@
 #include "rpg/sim/gear.h"
 #include "rpg/sim/gear_look.h"
 #include "rpg/view/view.h"
+#include "rpg/view/rise_view.h"
 #include "rpg/world/source.h"
 
 void heroStage(Pix& P, const Tex& light, float cx, float footY, float size);   // creator.cpp
@@ -247,7 +248,9 @@ void View::drawPaperdoll(Game& g, float x, float y, float w, float h) {
   static const int order[4] = {0, 2, 1, 3};
   int face = S.face >= 0 && S.hold > 0 ? S.face : order[(int)(t_ / 1.8f) & 3];
   int frame = 1 + ((int)(t_ * 5.0f) & 3);
-  const Tex& t = dollTex(*pix_, g.pl().look);
+  art::HumanLook heroLook = g.pl().look;
+  RiseViewOps::dressHero(g, heroLook);   // (M12) the sworn realm's tabard and the rank's mark (render_rise.cpp)
+  const Tex& t = dollTex(*pix_, heroLook);
   // (M8b fixer r3, review: "the portrait is blown up to ~10 screen px per sprite pixel and reads as muddy noise") 3x:
   // nearer the icons' scale beside it, the figure's pixels stay readable, with a drop shadow under the feet
   const float sc = 3;

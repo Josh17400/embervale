@@ -307,6 +307,15 @@ bool readLore(Game& g, int tx, int ty) {
 
 // ---------------------------------------------------------------- overworld ruins: the toppled statue of the last lord
 namespace {
+// (M12 REALM lane) a settlement the live sim ruined (burned or starved, then abandoned): ruined still, or resettled and
+// rebuilt since. Its true record (the realm's SimRuin: the realm that held it, its last lord, who burned it, a realm
+// that fell in play) is read from the toppled statue of its last lord, like an old ruin's.
+bool simRuinSite(const Game& g, const Site& s) {
+  if (!s.settlement()) return false;
+  for (const realm::SimRuin& r : g.realm.simRuins()) if (r.site == s.id) return true;
+  return false;
+}
+
 bool statueSpot(const Game& g, const Site& s, int& ox, int& oy) {
   const Map& m = g.world.over;
   // already standing? (a window move keeps it; a region streamed back in has it again only after this places it)
@@ -342,7 +351,8 @@ void placeRuinStatues(Game& g) {
   for (int si : g.world.nearSites) {
     if (si < 0 || si >= (int)g.world.sites.size()) continue;
     const Site& s = g.world.sites[(size_t)si];
-    if (s.type != SiteType::Ruin || (ew::mix64(s.id ^ 0x57A7ull) % 3) == 0) continue;   // two ruins in three keep one
+    const bool sim = simRuinSite(g, s);
+    if (!sim && (s.type != SiteType::Ruin || (ew::mix64(s.id ^ 0x57A7ull) % 3) == 0)) continue;   // two ruins in three keep one
     if (std::fabs(s.ex - px) > 40 || std::fabs(s.ey - py) > 30) continue;
     if (!g.world.over.in(s.ex - 9, s.ey - 8) || !g.world.over.in(s.ex + 9, s.ey + 8)) continue;
     int x = 0, y = 0;
@@ -362,7 +372,8 @@ bool readStatue(Game& g, int tx, int ty) {
   int best = -1;
   float bd = 1e9f;
   for (int si : g.world.nearSites) {
-    if (si < 0 || si >= (int)g.world.sites.size() || g.world.sites[(size_t)si].type != SiteType::Ruin) continue;
+    if (si < 0 || si >= (int)g.world.sites.size()) continue;
+    if (g.world.sites[(size_t)si].type != SiteType::Ruin && !simRuinSite(g, g.world.sites[(size_t)si])) continue;
     const float d = std::hypot((float)(g.world.sites[(size_t)si].ex - tx), (float)(g.world.sites[(size_t)si].ey - ty));
     if (d < bd) { bd = d; best = si; }
   }

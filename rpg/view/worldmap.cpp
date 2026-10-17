@@ -45,6 +45,7 @@
 #include "rpg/sim/sea.h"
 #include "rpg/story/story.h"
 #include "rpg/view/realm_ui.h"
+#include "rpg/view/rise_view.h"
 #include "rpg/view/view.h"
 #include "rpg/world/biomes.h"
 #include "rpg/world/coords.h"
@@ -203,6 +204,59 @@ Canvas warIconCanvas(int wi) {
   return c;
 }
 
+// ---- (M12) the rise's markers: drawn live (a few rects each), about 9 x 9 at (x, y)
+enum RiseMark { RM_WARBAND, RM_WARLORD, RM_LAIR, RM_REBUILT, RM_HOLDING, RM_SEAT, RM_COUNT };
+const char* const kRiseMarkName[RM_COUNT] = {"WARBAND CAMP", "WARLORD'S CAMP", "BEAST'S LAIR", "RESETTLED", "YOUR HOLDING", "YOUR SEAT"};
+void riseMapGlyph(Pix& P, int kind, float x, float y, uint32_t c1, uint32_t c2) {
+  const Color ink(0.18f, 0.12f, 0.08f), halo(0.95f, 0.90f, 0.78f, 0.8f), bone(0.92f, 0.88f, 0.76f);
+  const Color f1 = colOf(c1), f2 = colOf(c2);
+  switch (kind) {
+    case RM_WARBAND: case RM_WARLORD: {   // a skull on a pole, a ragged flag (the warlord's in its colours)
+      P.rect(x - 1, y - 1, 10, 11, halo);
+      P.rect(x + 1, y + 2, 1, 7, ink);
+      P.rect(x, y, 3, 3, ink); P.rect(x + 1, y + 1, 1, 1, bone);
+      P.rect(x, y, 1, 1, bone); P.rect(x + 2, y, 1, 1, bone);
+      if (kind == RM_WARLORD) {
+        P.rect(x + 2, y + 2, 6, 5, ink);
+        P.rect(x + 3, y + 3, 4, 3, f1);
+        P.rect(x + 4, y + 4, 2, 1, f2);
+        P.rect(x + 3, y + 6, 1, 1, f1); P.rect(x + 6, y + 6, 1, 1, f1);
+      } else {
+        P.rect(x + 2, y + 3, 4, 3, ink);
+        P.rect(x + 3, y + 4, 2, 1, Color(0.55f, 0.16f, 0.14f));
+      }
+      break;
+    }
+    case RM_LAIR: {   // three claw slashes
+      P.rect(x - 1, y - 1, 10, 10, halo);
+      for (int k = 0; k < 3; k++)
+        for (int j = 0; j < 7; j++) P.rect(x + k * 3 + (j > 3 ? 1 : 0), y + j, 1, 1, j == 0 || j == 6 ? ink : f1);
+      break;
+    }
+    case RM_REBUILT: {   // a hammer over a stack of new timber
+      P.rect(x - 1, y - 1, 10, 10, halo);
+      P.rect(x, y + 6, 8, 2, Color(0.66f, 0.46f, 0.26f)); P.rect(x, y + 8, 8, 1, ink);
+      P.rect(x + 3, y + 1, 1, 5, ink);
+      P.rect(x + 1, y, 5, 2, Color(0.45f, 0.45f, 0.5f)); P.rect(x + 1, y + 2, 5, 1, ink);
+      break;
+    }
+    case RM_HOLDING: case RM_SEAT: {   // a pennant in the player's colours (a gold crown over the seat's)
+      P.rect(x - 1, y - 2, 11, 14, halo);
+      P.rect(x + 1, y + 3, 1, 9, ink);
+      P.rect(x + 2, y + 3, 6, 5, ink);
+      P.rect(x + 2, y + 4, 5, 3, f1);
+      P.rect(x + 4, y + 5, 1, 1, f2);
+      if (kind == RM_SEAT) {
+        const Color gold(0.95f, 0.76f, 0.24f);
+        P.rect(x, y, 7, 2, gold); P.rect(x, y - 1, 1, 1, gold); P.rect(x + 3, y - 1, 1, 1, gold); P.rect(x + 6, y - 1, 1, 1, gold);
+        P.rect(x, y + 2, 7, 1, ink);
+      }
+      break;
+    }
+    default: break;
+  }
+}
+
 // ---- the colours of the land
 uint32_t groundInk(Ground gr) {
   switch (gr) {
@@ -326,6 +380,10 @@ struct TileJob {
   int row = 0;
   std::unordered_set<uint64_t> moved;      // (M4) genesis kingdoms some of whose settlements another realm holds now
   std::unordered_map<uint64_t, uint32_t> kcol;   // (M4) owner -> its border colour
+  // (M12) owner -> how its border is drawn: 1 a warlord's (rough), 2 a vassal's (its liege's colour hatched inside),
+  // 3 the player's own (a gilded double line), 0 plain; ksub: the liege's colour for a vassal
+  std::unordered_map<uint64_t, uint8_t> kstyle;
+  std::unordered_map<uint64_t, uint32_t> ksub;
   // (M10) the lands round this tile (hidden ones' Mist rings) and which land a coarse cell lies on
   std::vector<ew::LandPlan> lands;
   bool landsDone = false;
@@ -1280,12 +1338,39 @@ static bool paintMapTile(Game& g, TileJob& J, Canvas& out, std::chrono::steady_c
             kc = J.kcol.emplace(s.kingdom, lum2 > 150 ? shadec(c0, 0.62f) : c0).first;
           }
           const uint32_t ink = kc->second;
-          const int width = wildSide ? 2 : 1;
+          // (M12) the rise's realms read apart: a warlord's border rough and broken, a vassal's land hatched in its
+          // liege's colour, the player's own realm edged in gold
+          auto ks = J.kstyle.find(s.kingdom);
+          if (ks == J.kstyle.end()) {
+            uint8_t st = 0;
+            uint32_t sub = 0;
+            if (const realm::KingdomState* RK = g.realm.kingdom(s.kingdom)) {
+              if (RK->player) st = 3;
+              else if (RK->origin == realm::KO_WARLORD) st = 1;
+              else if (RK->overlord) {
+                st = 2;
+                const rui::Look OL = rui::look(g, RK->overlord);
+                sub = OL.color ? OL.color : C(160, 40, 44);
+                const int lum = ((int)(sub & 255) * 3 + (int)((sub >> 8) & 255) * 6 + (int)((sub >> 16) & 255)) / 10;
+                if (lum > 150) sub = shadec(sub, 0.62f);
+              }
+            }
+            ks = J.kstyle.emplace(s.kingdom, st).first;
+            J.ksub[s.kingdom] = sub;
+          }
+          const uint8_t style = ks->second;
+          const int width = wildSide || style == 3 ? 2 : 1;
           if (bd <= width) {
-            const bool gap = ((px + py) / 2) % 3 == 2;   // dashes along the line, whichever way it runs
+            bool gap = ((px + py) / 2) % 3 == 2;   // dashes along the line, whichever way it runs
+            if (style == 1) gap = hashf(px / 2, py / 2, 0x3A7) < 0.34f;   // a warlord's: ragged, broken at random
             k = gap ? mixc(k, ink, 0.06f) : mixc(ink, kInkC, 0.18f);   // (fixer M4 r3) the gaps read as gaps
+            if (style == 3 && bd == 2 && !gap) k = mixc(C(214, 164, 58), kInkC, 0.12f);   // the player's: a gilded inner line
             S.borderPx++;
-          } else k = mixc(k, ink, 0.22f - 0.04f * (float)(bd - width - 1));
+          } else {
+            k = mixc(k, ink, 0.22f - 0.04f * (float)(bd - width - 1));
+            if (style == 2 && ((px + py) & 3) == 0) k = mixc(k, J.ksub[s.kingdom], 0.55f);   // a vassal: its liege's hatch
+            if (style == 1 && hashf(px, py, 0x91) < 0.2f) k = mixc(k, ink, 0.25f);                 // a warlord's: a mottled wash
+          }
         }
       }
       // the paper shows through the paint, and the known land fades into the parchment at its edge (dithered)
@@ -1687,7 +1772,7 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
   }
   // ---- labels are placed after the markers, most important first; one that would overlap a placed label (or a
   //      marker) tries its other position and is otherwise left out
-  struct Lab { int prio; float x, y, alt; std::string s; Color ink, halo; bool spaced; };
+  struct Lab { int prio; float x, y, alt; std::string s; Color ink, halo; bool spaced; std::string sub = std::string(); Color subInk = Color(); bool realm = false; };   // (M12) sub: a second, smaller line under it
   std::vector<Lab> labs;
   struct Box { float x0, y0, x1, y1; };
   std::vector<Box> taken;
@@ -1701,7 +1786,9 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
   if (g.world.endless && !S.geo) {
     // kingdom names (M4: in the society's word, where the realm holds its land now: the middle of its settlements; a
     // fallen realm has none)
-    if (z >= 4)
+    // (M12) at every zoom (close in, under the towns' names), with a second line for the realms of the rise: a
+    // warlord's, a successor's heirs, a vassal's liege, the player's own
+    {
       for (const Kingdom& k : g.world.kingdoms) {
         double kx = k.gx + 0.5, ky = k.gy + 0.5;
         if (const realm::KingdomState* K = g.realm.kingdom(k.id)) {
@@ -1720,8 +1807,25 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
         if (s.x < -80 || s.y < -20 || s.x > w + 80 || s.y > h + 20) continue;
         const rui::Look L = rui::look(g, k.id);
         const uint32_t kcol = L.color ? L.color : k.color;
-        labs.push_back({3, s.x, s.y - 16, s.y + 8, rui::realmTitle(L, false), colOf(kcol ? mixc(kcol, C(60, 30, 30), 0.3f) : rgba(150, 40, 44)), Color(0.95f, 0.9f, 0.8f, 0.7f), z >= 16});
+        int kprio = z >= 4 ? 3 : 6;
+        // (M12 fixer) the player's own realm always has its name on the map (forced: beside its seat, over the icons
+        // round it if it must; it was dropped when the seat's marks crowded every clear spot)
+        if (const realm::KingdomState* PK = g.realm.kingdom(k.id)) if (PK->player) kprio = 0;
+        std::string sub;
+        if (const realm::KingdomState* RK = g.realm.kingdom(k.id)) {
+          if (RK->player) sub = "YOUR REALM";
+          else if (RK->origin == realm::KO_WARLORD) sub = "A WARLORD'S REALM";
+          else if (RK->origin == realm::KO_SUCCESSOR && RK->claim) { const rui::Look CL = rui::look(g, RK->claim); sub = CL.ok ? "HEIRS OF " + CL.name : "A SUCCESSOR REALM"; }
+          else if (RK->overlord) { const rui::Look OL = rui::look(g, RK->overlord); sub = OL.ok ? "VASSAL OF " + OL.name : "A VASSAL"; }
+        }
+        Lab kl{kprio, s.x, s.y - 16, s.y + 8, rui::realmTitle(L, false), colOf(kcol ? mixc(kcol, C(60, 30, 30), 0.3f) : rgba(150, 40, 44)), Color(0.95f, 0.9f, 0.8f, 0.7f), z >= 16};
+        kl.sub = sub;
+        kl.realm = true;
+        if (kprio == 0) kl.y -= 10;   // (a two-line forced label: above its middle stands whole)
+        kl.subInk = sub == "YOUR REALM" ? Color(0.55f, 0.36f, 0.06f) : Color(0.36f, 0.24f, 0.16f);
+        labs.push_back(kl);
       }
+    }
     // landmarks of the explored regions near the view (the region plans are fetched a few per frame)
     {
       const int32_t gx0 = (int32_t)std::floor(left * z) - 512, gy0 = (int32_t)std::floor(top * z) - 512;
@@ -2023,11 +2127,77 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
         if (e.site) marked.insert(e.site);
       }
     }
+    // (M12) the rise on the map: warbands' and warlords' camps, beasts' lairs that raid, resettled places, the player's
+    // holdings and the crown at the player's seat
+    {
+      RiseViewState& RS = RiseViewOps::st(*this);
+      RS.stats.mapMarks = 0;
+      auto mark = [&](int kind, double gx, double gy, uint32_t c1, uint32_t c2) {
+        const Vec2 q = toScr(gx + 0.5, gy + 0.5);
+        if (!inView(q)) return;
+        float mx = std::floor(q.x - 4), my = std::floor(q.y - (kind == RM_SEAT || kind == RM_HOLDING ? 16 : 4));
+        // (M12 fixer r2) the glyph's whole box (the seat's and a holding's pennant stand 14 px tall, from my - 2)
+        const float gT = kind == RM_SEAT || kind == RM_HOLDING ? 3.0f : 1.0f, gB = kind == RM_SEAT || kind == RM_HOLDING ? 13.0f : 11.0f;
+        // (M12 fixer) marks that fall on one another (the seat, a lair, a camp and the hero at a far zoom) step aside
+        // to the first clear place round their spot, a thin leader line back to it
+        {
+          auto hit = [&](float x0, float y0) {
+            const Box b{x0 - 1, y0 - gT, x0 + 10, y0 + gB};
+            if (b.x0 < hp.x + 9 && b.x1 > hp.x - 9 && b.y0 < hp.y + 8 && b.y1 > hp.y - 10) return true;
+            for (const Box& o : warBoxes) if (b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0) return true;
+            return false;
+          };
+          if (hit(mx, my)) {
+            static const float off[12][2] = {{12, 0}, {-12, 0}, {0, -12}, {0, 12}, {12, -12}, {-12, -12}, {12, 12}, {-12, 12},
+                                             {24, 0}, {-24, 0}, {0, -24}, {0, 24}};
+            for (const auto& o : off)
+              if (!hit(mx + o[0], my + o[1])) {
+                const float nx = mx + o[0], ny = my + o[1];
+                const float ax = q.x, ay = q.y, bx = nx + 4.5f, by = ny + 4.5f;
+                const int steps = (int)std::max(std::fabs(bx - ax), std::fabs(by - ay));
+                for (int i = 2; i < steps - 3; i++) {
+                  const float t = (float)i / (float)std::max(1, steps);
+                  P.rect(std::floor(ax + (bx - ax) * t), std::floor(ay + (by - ay) * t), 1, 1, Color(0.30f, 0.20f, 0.12f, 0.75f));
+                }
+                mx = nx; my = ny;
+                break;
+              }
+          }
+        }
+        riseMapGlyph(P, kind, mx, my, c1, c2);
+        taken.push_back({mx - 1, my - gT, mx + 10, my + gB});
+        warBoxes.push_back({mx - 1, my - gT, mx + 10, my + gB});
+        legendAdd(-10 - kind);
+        RS.stats.mapMarks++;
+      };
+      for (const realm::Camp& cp : g.realm.camps()) {
+        if ((cp.flags & realm::CF_CLEARED) || !(cp.flags & (realm::CF_WARBAND | realm::CF_WARLORD))) continue;
+        if (!g.explored.seen(cp.gx, cp.gy) && !heardAt.count(cp.site)) continue;
+        const bool lord = (cp.flags & realm::CF_WARLORD) && cp.realm;
+        const rui::Look CL = lord ? rui::look(g, cp.realm) : rui::Look();
+        mark(lord ? RM_WARLORD : RM_WARBAND, cp.gx, cp.gy, CL.color ? CL.color : C(120, 30, 34), CL.color2 ? CL.color2 : C(30, 26, 30));
+      }
+      for (const realm::Lair& lr : g.realm.lairs())
+        if (!lr.slain && (lr.raids > 0 || lr.wokeDay > 0) && (g.explored.seen(lr.gx, lr.gy) || lr.raids > 0)) mark(RM_LAIR, lr.gx, lr.gy, C(150, 40, 30), 0);
+      for (const realm::SettlementState* st : rui::knownStates(g))
+        if ((st->flags & realm::SS_REBUILDING) && !marked.count(st->site) && (g.explored.seen(st->gx, st->gy) || heardAt.count(st->site)))
+          mark(RM_REBUILT, st->gx + 1.5, st->gy - 0.5, C(176, 132, 70), 0);
+      const ew::Gid mine = g.realm.playerRealm();
+      cult::Heraldry mh;
+      if (mine) rui::arms(rui::look(g, mine), mh);
+      for (size_t hi = 0; hi < g.lordship.holdings.size(); hi++) {
+        const realm::SettlementState* st = g.realm.settlement(g.lordship.holdings[hi].site);
+        if (!st) continue;
+        const bool seat = mine && hi == 0;
+        const uint32_t fc = mine ? mh.field : C(200, 170, 90), tc = mine ? (mh.charge ? mh.charge : C(236, 200, 90)) : C(120, 80, 30);
+        mark(seat ? RM_SEAT : RM_HOLDING, st->gx, st->gy, fc, tc);
+      }
+    }
     // a border is on screen: say what the dashed lines are
     legendAdd(-8);
   }
   // (the war's markers and the border lead the legend: the places' icons follow and are cut first)
-  std::stable_partition(S.legend.begin(), S.legend.end(), [](int ic) { return ic <= -3 && ic >= -9; });
+  std::stable_partition(S.legend.begin(), S.legend.end(), [](int ic) { return ic <= -3 && ic >= -30; });   // (M12: and the rise's)
   m4Stats_.mapMarkers = S.markers;
   m4Stats_.borderPx = (int)std::min<long>(S.borderPx, 1 << 30);
   // the tracked quest's destination: the objective's global tile (Quest::tgx/tgy), else the classic rule
@@ -2107,7 +2277,9 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     for (Lab l : labs) {
       if (l.prio >= 6 && feats >= featCap) continue;
       const int gap = l.spaced ? 3 : 0;
-      const float tw = (float)P.textW(l.s, 1) + gap * (float)std::max<size_t>(0, l.s.size() - 1);
+      const float tw0 = (float)P.textW(l.s, 1) + gap * (float)std::max<size_t>(0, l.s.size() - 1);
+      const float tw = l.sub.empty() ? tw0 : std::max(tw0, (float)P.textW(l.sub, 1));
+      const float lh = l.sub.empty() ? 9.0f : 18.0f;   // (M12) a two-line realm label
       l.x = std::clamp(l.x, tw / 2 + 2, std::max(tw / 2 + 2, w - tw / 2 - 2));   // whole on the map, not cut at its edge
       // (M2 fixer round 2) a forced label (the selected place, the quest) stays beside its marker: below, above, right
       // or left of it, first where nothing lies, then where only icons lie (the label is drawn over them with its
@@ -2117,21 +2289,52 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
       bool forcedHere = false;
       if (l.prio == 0) {
         for (size_t k = 0; k < taken.size(); k++) if (k >= labelBase) labelOnly.push_back(taken[k]);
+        if (!taken.empty()) labelOnly.push_back(taken[0]);   // (M12 fixer) never over the hero's own marker
         std::vector<Box> labelWar = labelOnly;   // (fixer M4 r3) round 1: over the places' icons, never over war markers
         labelWar.insert(labelWar.end(), warBoxes.begin(), warBoxes.end());
         const float cy = (l.y + l.alt) * 0.5f;
         const float cxs[4] = {l.x, l.x, l.x + tw / 2 + 10, l.x - tw / 2 - 10};
         const float cys[4] = {l.y, l.alt, cy, cy};
         bool placed = false;
-        for (int round = 0; round < 3 && !placed; round++)
+        for (int round = 0; round < 3 && !placed; round++) {
           for (int k = 0; k < 4 && !placed; k++) {
             const float x = std::clamp(cxs[k], tw / 2 + 2, std::max(tw / 2 + 2, w - tw / 2 - 2)), y = cys[k];
-            if (y < 0 || y + 9 > h) continue;
-            const Box b{x - tw / 2 - 1, y - 1, x + tw / 2 + 1, y + 9};
+            if (y < 0 || y + lh > h) continue;
+            const Box b{x - tw / 2 - 1, y - 1, x + tw / 2 + 1, y + lh};   // (M12 fixer: a two-line realm label whole)
             bool ok = true;
             for (const Box& o : (round == 0 ? taken : round == 1 ? labelWar : labelOnly)) if (b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0) { ok = false; break; }
             if (ok) { l.x = x; l.y = y; l.alt = y; placed = true; forcedHere = true; }
           }
+          if (round == 1 && !placed && l.realm) {
+            // (M12 fixer r2) the player's realm name never covers the war's or the rise's marks (its own seat's pennant
+            // among them): before it may lie over them, the nearest clear spot a little farther round its middle
+            float best = 1e9f;
+            const float lx0 = l.x;
+            for (int dy = -4; dy <= 4; dy++)
+              for (int dx = -2; dx <= 2; dx++) {
+                const float x = std::clamp(lx0 + dx * (tw / 2 + 12), tw / 2 + 2, std::max(tw / 2 + 2, w - tw / 2 - 2)), y = cy - lh / 2 + dy * 11.0f;
+                if (y < 0 || y + lh > h) continue;
+                const float dist = std::fabs(x - lx0) * 0.5f + std::fabs(y + lh / 2 - cy);
+                if (dist >= best) continue;
+                const Box b{x - tw / 2 - 1, y - 1, x + tw / 2 + 1, y + lh};
+                bool ok = true;
+                for (const Box& o : labelWar) if (b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0) { ok = false; break; }
+                if (ok) { best = dist; l.x = x; l.y = y; l.alt = y; placed = true; forcedHere = true; }
+              }
+          }
+        }
+      }
+      // (M12) a realm's name may stand a little farther off its middle (round the hero, the seat and the warlord's town
+      // the middle is crowded with marks): above, below, then beside, the first clear spot
+      if (l.realm) {
+        const float mid = (l.y + l.alt) * 0.5f;
+        const float cxs[10] = {l.x, l.x, l.x, l.x, l.x - tw / 2 - 16, l.x + tw / 2 + 16, l.x, l.x, l.x - tw / 2 - 16, l.x + tw / 2 + 16};
+        const float cys[10] = {l.y, l.alt, l.y - 14, l.alt + 14, mid - lh / 2, mid - lh / 2, l.y - 30, l.alt + 30, mid - lh - 12, mid + 12};
+        for (int k = 0; k < 10; k++) {
+          const float x = std::clamp(cxs[k], tw / 2 + 2, std::max(tw / 2 + 2, w - tw / 2 - 2)), y = cys[k];
+          if (y < 0 || y + lh > h) continue;
+          if (clear(Box{x - tw / 2 - 4, y - 3, x + tw / 2 + 4, y + lh + 2})) { l.x = x; l.y = y; l.alt = y; break; }
+        }
       }
       for (int pass = 0; pass < (l.prio == 0 ? 3 : 2); pass++) {
         float yy = pass == 1 ? l.alt : l.y;   // (a forced label: below, above, else below anyway)
@@ -2140,13 +2343,13 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
             const float cand[2] = {l.y + 10.0f * (float)k, l.alt - 10.0f * (float)k};
             bool found = false;
             for (float cy : cand) {
-              if (cy < 0 || cy + 9 > h) continue;
-              if (clear(Box{l.x - tw / 2 - 1, cy - 1, l.x + tw / 2 + 1, cy + 9})) { yy = cy; found = true; break; }
+              if (cy < 0 || cy + lh > h) continue;
+              if (clear(Box{l.x - tw / 2 - 1, cy - 1, l.x + tw / 2 + 1, cy + lh})) { yy = cy; found = true; break; }
             }
             if (found) break;
           }
         }
-        Box b{l.x - tw / 2 - 1, yy - 1, l.x + tw / 2 + 1, yy + 9};
+        Box b{l.x - tw / 2 - 1, yy - 1, l.x + tw / 2 + 1, yy + lh};
         // (M2 fixer round 2) the lesser labels keep a little air round them: names stacked touching read as one
         const Box bp = l.prio >= 6 ? Box{b.x0 - 8, b.y0 - 4, b.x1 + 8, b.y1 + 4} : l.prio > 0 ? Box{b.x0 - 3, b.y0 - 2, b.x1 + 3, b.y1 + 2} : b;
         if (pass < 2 && !clear(bp) && !(forcedHere && pass == 0)) continue;
@@ -2158,6 +2361,7 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
           for (int k = 0; k < 4; k++) P.text(l.x + (k == 0 ? 1.0f : k == 1 ? -1.0f : 0.0f), yy + (k == 2 ? 1.0f : k == 3 ? -1.0f : 0.0f), l.s, 1, l.halo, 1);
           P.text(l.x, yy, l.s, 1, l.ink, 1);
         } else {
+          const float tw = tw0;   // (spaced: the main line's own width)
           float cx = l.x - tw / 2;
           for (char ch : l.s) {
             const std::string one(1, ch);
@@ -2165,6 +2369,10 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
             P.text(cx, yy, one, 1, l.ink, 0);
             cx += 6 + gap;
           }
+        }
+        if (!l.sub.empty()) {   // (M12) the second line: what kind of realm (a warlord's, heirs, a vassal, the player's)
+          for (int k = 0; k < 4; k++) P.text(l.x + (k == 0 ? 1.0f : k == 1 ? -1.0f : 0.0f), yy + 9 + (k == 2 ? 1.0f : k == 3 ? -1.0f : 0.0f), l.sub, 1, l.halo, 1);
+          P.text(l.x, yy + 9, l.sub, 1, l.subInk, 1);
         }
         break;
       }
@@ -2568,6 +2776,17 @@ void View::drawMapTab(Game& g, float top) {
         P.rect(x + 1, ly - 1, 1, 9, kText);
         P.rect(x + 2, ly - 1, 5, 5, Color(0.70f, 0.18f, 0.16f));
         P.text(x + 12, ly, "OCCUPIED", 1, kDim);
+      } else if (ic <= -10 && ic >= -30) {   // (M12) the rise's markers
+        const int kind = -10 - ic;
+        uint32_t c1 = C(120, 30, 34), c2 = C(30, 26, 30);
+        if (kind == RM_SEAT || kind == RM_HOLDING) {
+          if (const ew::Gid mine = g.realm.playerRealm()) { cult::Heraldry mh; rui::arms(rui::look(g, mine), mh); c1 = mh.field; c2 = mh.charge ? mh.charge : C(236, 200, 90); }
+          else { c1 = C(200, 170, 90); c2 = C(120, 80, 30); }
+        }
+        if (kind == RM_LAIR) c1 = C(150, 40, 30);
+        if (kind == RM_REBUILT) c1 = C(176, 132, 70);
+        riseMapGlyph(P, kind, x, ly - (kind == RM_SEAT || kind == RM_HOLDING ? 2 : 1), c1, c2);
+        P.text(x + 12, ly, kRiseMarkName[kind], 1, kDim);
       } else if (ic <= -3 && ic >= -9) {   // (M4) siege, burned, refugees, news, hungry
         const int wi = ic == -3 ? WI_SIEGE : ic == -4 ? WI_BURNED : ic == -6 ? WI_REFUGEES : ic == -7 ? WI_NEWS : WI_HUNGRY;
         const Tex& t = S.warIcons[(size_t)wi];

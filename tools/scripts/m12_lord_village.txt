@@ -1,0 +1,42 @@
+# M12 LORD lane: a granted village and its lord's works, from the start village (seed 7). The start kingdom's captain
+# is granted the start village; the lord's banner on the green; a palisade going up (a stretch of stakes, scaffold and
+# woodpile), then every work raised (palisade, watchtower by the road out, granary yard, militia drill yard with its
+# militiamen, market cross, shrine, the hall's banners); the steward's pages (the hall, the tax); finally stone walls.
+#   embervale.exe --script tools/scripts/m12_lord_village.txt     (m12_lord_v_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.2 enlist
++0.1 promote 2
++0.1 expect service rank captain
++0.1 lord grant 0
++0.1 expect lord holdings 1
++0.1 lord build banner now
++0.1 lord here 0 3
++0.4 expect lord props 1
++0.1 expect lord steward 1
++0.2 shot m12_lord_v_banner.png
++0.1 lord build palisade
++0.1 realm days 3
++0.5 shot m12_lord_v_going_up.png
++0.1 lord build palisade now
++0.1 lord build all
++0.1 lord here 0 3
++0.5 expect lord works 8
++0.1 expect lord props 40
++0.2 shot m12_lord_v_works.png
++0.1 lord here 0 -6
++0.3 shot m12_lord_v_works_n.png
++0.1 lord steward
++0.3 shot m12_lord_v_steward.png
++0.1 choose THE TAX
++0.2 shot m12_lord_v_tax.png
++0.1 choose A LOW TAX
++0.1 choose FAREWELL
++0.1 lord here 0 20
++0.5 shot m12_lord_v_palisade.png
++0.1 lord build walls now
++0.5 expect lord props 40
++0.2 shot m12_lord_v_walls.png
++0.3 log m12_lord_village done

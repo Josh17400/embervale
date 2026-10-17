@@ -5,8 +5,9 @@
 //   - Ev::News: a toast in the left column ("NEWS: ...")
 //   - the arrival banner names the settlement's CURRENT owner and its state ("OCCUPIED BY QIBA"), and is shown again
 //     when either changes while the player stands there (a conquest, a siege laid or broken)
-//   - the journal (QUESTS tab): a section strip QUESTS | NEWS | HISTORY at the top of the list; NEWS lists the heard
-//     events newest first (story::newsLine, how many days ago), HISTORY the Lost History entries (story.lore())
+//   - the journal (QUESTS tab): a section strip QUESTS | NEWS | HISTORY | STANDING at the top of the list; NEWS lists the
+//     heard events newest first (story::newsLine, how many days ago), HISTORY the Lost History entries (story.lore()),
+//     (M12) STANDING the army, the holdings, the player's realm and the rise-and-fall timeline (rise_standing.cpp)
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <cmath>
@@ -14,6 +15,7 @@
 #include <vector>
 #include "rpg/art/art_culture.h"
 #include "rpg/view/realm_ui.h"
+#include "rpg/view/rise_view.h"
 #include "rpg/view/view.h"
 #include "rpg/world/economy.h"
 #include "rpg/world/poi.h"
@@ -200,17 +202,36 @@ void View::drawHerald(Game& g) {
 }
 
 // ---------------------------------------------------------------- the journal's sections
+// (M12) four sections: QUESTS | NEWS | HISTORY | STANDING, each button as wide as its word needs (the list column is
+// 200 px on the desktop), every one a phone-sized touch target
+namespace {
+void stripCells(float lx, float lw, float* x, float* w) {
+  static const int kLen[4] = {6, 4, 7, 8};
+  const float gap = 3, pad = 8;
+  float need = 0;
+  for (int i = 0; i < 4; i++) need += kLen[i] * 6 + pad;
+  const float spare = std::max(0.0f, lw - need - gap * 3);
+  float cx = lx;
+  for (int i = 0; i < 4; i++) {
+    w[i] = std::floor(kLen[i] * 6 + pad + spare / 4);
+    x[i] = std::floor(cx);
+    cx += w[i] + gap;
+  }
+}
+}  // namespace
 void View::drawJournalStrip(float lx, float lw, float top) {
-  Pix& P = *pix_;
-  static const char* kSec[3] = {"QUESTS", "NEWS", "HISTORY"};
-  const float bw = std::floor((lw - 8) / 3), bh = journalStripH() - 4;
-  for (int i = 0; i < 3; i++) button(lx + i * (bw + 4), top + 6, bw, bh, kSec[i], journalSec_ == i);
-  (void)P;
+  static const char* kSec[4] = {"QUESTS", "NEWS", "HISTORY", "STANDING"};
+  float x[4], w[4];
+  stripCells(lx, lw, x, w);
+  const float bh = journalStripH() - 4;
+  for (int i = 0; i < 4; i++) button(x[i], top + 6, w[i], bh, kSec[i], journalSec_ == i);
 }
 bool View::journalStripTap(Vec2 p, float lx, float lw, float top) {
-  const float bw = std::floor((lw - 8) / 3), bh = journalStripH() - 4;
-  for (int i = 0; i < 3; i++)
-    if (p.x >= lx + i * (bw + 4) - 1 && p.x < lx + i * (bw + 4) + bw + 1 && p.y >= top + 4 && p.y < top + 8 + bh) {
+  float x[4], w[4];
+  stripCells(lx, lw, x, w);
+  const float bh = journalStripH() - 4;
+  for (int i = 0; i < 4; i++)
+    if (p.x >= x[i] - 1 && p.x < x[i] + w[i] + 2 && p.y >= top + 4 && p.y < top + 8 + bh) {
       if (journalSec_ != i) { setJournalSection(i); audio_->play(Sfx::MenuMove); }
       return true;
     }
@@ -220,6 +241,7 @@ bool View::journalStripTap(Vec2 p, float lx, float lw, float top) {
 // the NEWS and HISTORY sections (journalSec_ 1, 2): a list on the left (the menu's list column), the picked entry on
 // the right; `top` is the list's top (under the strip)
 void View::drawJournalSection(Game& g, float top) {
+  if (journalSec_ == 3) { RiseViewOps::drawStanding(*this, g, top); return; }   // (M12) STANDING (rise_standing.cpp)
   Pix& P = *pix_;
   const bool touch = touchUI;
   const float pitch = touch ? 24.0f : 12.0f;
@@ -301,6 +323,7 @@ void View::drawJournalSection(Game& g, float top) {
 }
 
 bool View::journalSectionTap(Game& g, Vec2 p, float top) {
+  if (journalSec_ == 3) return RiseViewOps::standingTap(*this, g, p, top);   // (M12) STANDING (rise_standing.cpp)
   const bool touch = touchUI;
   const float pitch = touch ? 24.0f : 12.0f;
   const float lx = 18, lw = std::floor(200 + std::max(0, Pix::W - 480) * 0.4f);

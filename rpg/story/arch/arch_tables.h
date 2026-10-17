@@ -7,6 +7,7 @@
 //   VOICE lane:      folk.cpp (folk and fairy tale), maas.cpp, gwynne.cpp (themes only), world.cpp (world-native)
 //   CAMPAIGNS lane:  rpg/story/campaigns/arcs.cpp (tier-3 campaign arcs)
 //   (M8 VOICE lane)  companion.cpp (the companions' personal quests: `hook companion`)
+//   (M12 REALM lane) rise.cpp (realms that rise and fall, cast from the living sim)
 // MSVC caps one string literal near 16 KB: give every template its own raw literal R"SAGA(...)SAGA".
 #pragma once
 #include <vector>
@@ -27,6 +28,7 @@ void addGwynne(std::vector<Archetype>& v);
 void addWorld(std::vector<Archetype>& v);
 void addArcs(std::vector<Archetype>& v);
 void addCompanion(std::vector<Archetype>& v);   // (M8)
+void addRise(std::vector<Archetype>& v);        // (M12 REALM lane) rise.cpp: realms that rise and fall
 void addTwists(std::vector<Twist>& v);
 
 }  // namespace arch

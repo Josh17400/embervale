@@ -8,7 +8,9 @@
 #include "engine/audio.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/magic_ops.h"
+#include "rpg/sim/lord_ops.h"
 #include "rpg/sim/sea_ops.h"
+#include "rpg/sim/service_ops.h"
 #include "rpg/sim/skill_ops.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/gear.h"
@@ -917,6 +919,8 @@ void Game::completeQuest(Quest& q) {
   npcQuestsDone[npcKeyOf(q.giverSite, q.giverBldg, q.giverSlot)]++;
   partyQuest(q, true);   // M8: the companions' view of the job done (party_game.cpp)
   SeaOps::questDone(*this, q);   // M10: a hidden land's people warm to the hero; a fishmonger takes the fish (sea_chain.cpp)
+  ServiceOps::questDone(*this, q);   // M12: a campaign order or a diplomacy mission done (service_game.cpp)
+  LordOps::questDone(*this, q);      // M12: a fief's task done (lord_game.cpp)
   emit(Ev::QuestUpdate, pl().p, q.id, 1, "QUEST COMPLETE: " + q.title);
   sfx((int)Sfx::QuestDone, pl().p);
   // occasional item reward (M6, 7.5 rule 5): by the quest's danger, never by the player's level; Uncommon to Epic
@@ -1282,7 +1286,8 @@ namespace {
 const char* talkRoleName(Role r) {
   static const char* n[] = {"VILLAGER", "GUARD", "MERCHANT", "SMITH", "INNKEEPER", "PRIEST", "JARL", "FARMER", "CHILD", "MAGE", "BANDIT", "KING",
                             "HUNTER", "FISHER", "HERBALIST", "TRAVELLER", "HERALD", "SOLDIER", "CAPTAIN", "REFUGEE",
-                            "HARBOURMASTER", "SHIPWRIGHT", "SAILOR", "PIRATE"};
+                            "HARBOURMASTER", "SHIPWRIGHT", "SAILOR", "PIRATE",
+                            "STEWARD", "WARLORD", "ENVOY"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)Role::COUNT, "a name for every role");
   return (int)r < (int)Role::COUNT ? n[(int)r] : "?";
 }
@@ -1595,6 +1600,8 @@ void Game::talkToInner(Actor& a) {
   hook(speech::P_SERVICE, Topic::Service, [&] { SkillOps::talk(*this, a); });   // M9: trainers, teaching, persuade / intimidate
   hook(speech::P_SERVICE, Topic::Service, [&] { MagicOps::talk(*this, a); });   // M9: mage teachers, tomes, traditions
   hook(speech::P_SERVICE, Topic::Service, [&] { SeaOps::talk(*this, a); });     // M10: harbourmasters, shipwrights, sailors
+  hook(speech::P_SERVICE, Topic::Service, [&] { ServiceOps::talk(*this, a); }); // M12: captains (ENLIST, ORDERS), envoys, rulers
+  hook(speech::P_SERVICE, Topic::Service, [&] { LordOps::talk(*this, a); });    // M12: the steward, rulers (lordships, charters)
   // ---- 8. one coherent opening: a stranger is told who this is (and gets the people's own hello), an acquaintance is
   // greeted as one; the core line (what matters most to the speaker now) follows
   const std::string core = dlg.text;
@@ -1996,6 +2003,8 @@ void Game::dialogueChooseInner(int oi) {
       if (o.action >= DLG_SKILLS && o.action < DLG_SKILLS_END && SkillOps::choose(*this, o)) return;  // M9 (skills_game.cpp)
       if (o.action >= DLG_MAGIC && o.action < DLG_MAGIC_END && MagicOps::choose(*this, o)) return;    // M9 (magic_game.cpp)
       if (o.action >= DLG_SEA && o.action < DLG_SEA_END && SeaOps::choose(*this, o)) return;          // M10 (sea_game.cpp)
+      if (o.action >= DLG_SERVICE && o.action < DLG_SERVICE_END && ServiceOps::choose(*this, o)) return;  // M12 (service_game.cpp)
+      if (o.action >= DLG_LORD && o.action < DLG_LORD_END && LordOps::choose(*this, o)) return;          // M12 (lord_game.cpp)
       mode = Mode::Play;
       return;
   }
@@ -2341,10 +2350,15 @@ bool Game::sell(int ii) {
 //   skills   (v20) u32 byte length + the skills block (skills::Skills::serialize: its own version byte first)
 //   magic    (v20) u32 byte length + the magic block (magic::Book::serialize: its own version byte first)
 //   sea      (v21) u32 byte length + the sea block (sea::Sea::serialize: its own version byte first)
+//   service  (v22) u32 byte length + the service block (service::Service::serialize: its own version byte first)
+//   lordship (v22) u32 byte length + the lordship block (lord::Lordship::serialize: its own version byte first)
 // refs: site ref = u64 id (0 none); bldg ref = u64 id + u64 owner site id (0 none); map ref = u8 kind (0 overworld,
 // 1 cave/ruin, 2 building, 3 dens) + u64 id + u64 owner + u8 floor.
 static constexpr uint32_t SAVE_MAGIC = 0x454D4256;   // EMBV
-static constexpr uint32_t SAVE_VER = 21;  // 21: M10 Beyond the Mist (the sea block after the magic block: boats, the one
+static constexpr uint32_t SAVE_VER = 22;  // 22: M12 Rise and Fall (the service and lordship blocks after the sea block;
+                                          //    the realm block v4: camps, lairs, realm origins, vassals, the player's
+                                          //    realm; ENDLESS_GEN_VER unchanged). Old saves are refused.
+                                          // 21: M10 Beyond the Mist (the sea block after the magic block: boats, the one
                                           //    aboard, ports known, the lands' chart chains and contact, catches;
                                           //    ENDLESS_GEN_VER 23). Old saves are refused ("start a new adventure").
                                           // 20: M9 Arcana & Mastery (the skills and magic blocks after the party block;
@@ -2381,7 +2395,7 @@ static constexpr uint32_t SAVE_VER = 21;  // 21: M10 Beyond the Mist (the sea bl
 int Game::currentSaveVersion() { return (int)SAVE_VER; }
 // the oldest SAVE_VER that still loads (M10: only the current one; M9's SAVE_VER 19 exception ended with the generator
 // change, owner: old saves are not a concern)
-static constexpr uint32_t SAVE_VER_MIN = 21;
+static constexpr uint32_t SAVE_VER_MIN = 22;   // (M12) only the current one
 int Game::saveVersion(const std::vector<uint8_t>& in) {
   BinR r(in);
   if (r.u32() != SAVE_MAGIC || r.bad) return 0;
@@ -2630,6 +2644,12 @@ void Game::serialize(std::vector<uint8_t>& out) const {
     seaOut.serialize(blk);
     w.u32((uint32_t)blk.size());
     for (uint8_t c : blk) w.u8(c);
+    service.serialize(blk);   // M12 (v22): the army served, rank, orders, missions
+    w.u32((uint32_t)blk.size());
+    for (uint8_t c : blk) w.u8(c);
+    lordship.serialize(blk);  // M12 (v22): the holdings, the hall's coffers, tribute, the player's realm
+    w.u32((uint32_t)blk.size());
+    for (uint8_t c : blk) w.u8(c);
   }
 }
 
@@ -2753,11 +2773,13 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   // M4 (v10): the realm and story blocks, M5 (v11) the life block, M6 (v12) the craft block, M7 (v14) the home block,
   // M7b (v15) the talk block, M8 (v16) the party block (a block its owner cannot read refuses the whole save)
   // M9 (v20) the skills and magic blocks (a SAVE_VER 19 save has neither: defaults from its level below)
-  // M10 (v21) the sea block
-  const int nBlocks = 10;
+  // M10 (v21) the sea block, M12 (v22) the service and lordship blocks
+  const int nBlocks = 12;
   skills = skills::Skills();
   arcana = magic::Arcana();
   sea = sea::Sea();
+  service = service::Service();
+  lordship = lord::Lordship();
   for (int blkI = 0; blkI < nBlocks && !r.bad; blkI++) {
     n = r.u32();
     if (r.bad || n > (64u << 20) || r.p + n > in.size()) return false;
@@ -2766,7 +2788,7 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
     const bool ok = blkI == 0 ? realm.deserialize(blk) : blkI == 1 ? story.deserialize(blk) : blkI == 2 ? life.deserialize(blk)
                     : blkI == 3 ? craft.deserialize(blk) : blkI == 4 ? home.deserialize(blk) : blkI == 5 ? talkMem.deserialize(blk)
                     : blkI == 6 ? party.deserialize(blk) : blkI == 7 ? skills.deserialize(blk) : blkI == 8 ? arcana.book.deserialize(blk)
-                    : sea.deserialize(blk);
+                    : blkI == 9 ? sea.deserialize(blk) : blkI == 10 ? service.deserialize(blk) : lordship.deserialize(blk);
     if (!ok) return false;
   }
   arcana.live.legacyMirror = (int8_t)spell;   // (the save wrote them synced: nothing to reselect)
@@ -2805,6 +2827,8 @@ bool Game::deserialize(const std::vector<uint8_t>& in) {
   if (!std::isfinite(hp)) hp = 1;
   pl().hp = hp;
   SeaOps::loaded(*this);    // (M10) the boat aboard back under the hero (sea_game.cpp)
+  LordOps::loaded(*this);   // (M12) the renown mirror of the lordship (lord_game.cpp)
+  ServiceOps::loaded(*this);   // (M12) the renown mirror of the service (service_game.cpp)
   if (hp <= 0) respawn();   // saved on the death screen: wake in town rather than standing up with 1 HP where you fell
   events.clear();
   updateLocation();

@@ -1,0 +1,25 @@
+# M12 VIEW lane: the player's village. Granted as a lordship, then the player's own banner raised (independence): the
+# lord's standard and the watchtower stamped by `riseview stage village` fly and stand as props (the standard in the
+# player's arms), by day and by night (the tower's lantern); then the works the view draws for a holding (the market
+# cross, a shrine, the granary's stores, the walls going up as a scaffold with new stone) in the same village.
+#   embervale.exe --script tools/scripts/m12_view_village.txt     (m12_view_v_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.3 lord grant 0
++0.1 lord free THE EMBER MARCH
++0.1 expect rise player 1
++0.2 riseview stage village
++9.5 shot m12_view_v_day.png
++0.1 expect riseview world banners 1
++0.1 hour 17.5
++1.0 shot m12_view_v_dusk.png
++0.1 hour 22
++1.0 shot m12_view_v_night.png
++0.1 hour 11
++0.1 riseview works banner market shrine granary raising walls
++0.1 walk south 1.2
++1.0 shot m12_view_v_works.png
++0.1 expect lord props 3
++0.2 log m12_view_village done

@@ -13,6 +13,7 @@ void addPlagueArcs(std::vector<Archetype>& v);      // campaigns/plague.cpp     
 void addFaeArcs(std::vector<Archetype>& v);         // campaigns/fae.cpp        THE COURT UNDER THE HILL
 void addRebellionArcs(std::vector<Archetype>& v);   // campaigns/rebellion.cpp  THE IRON TITHE (the rebellion)
 void addDragonArcs(std::vector<Archetype>& v);      // campaigns/dragon.cpp     THE TONGUE OF THE BEAST (the dragon cult)
+void addSuccessionArcs(std::vector<Archetype>& v);  // campaigns/succession.cpp THE WAR OF THE TWO CROWNS (M12 REALM lane)
 }  // namespace camp
 
 namespace arch {
@@ -23,6 +24,7 @@ void addArcs(std::vector<Archetype>& v) {
   camp::addFaeArcs(v);
   camp::addRebellionArcs(v);
   camp::addDragonArcs(v);
+  camp::addSuccessionArcs(v);
 }
 
 }  // namespace arch
