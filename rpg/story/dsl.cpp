@@ -12,6 +12,7 @@
 #include "rpg/sim/backgrounds.h"
 #include "rpg/sim/realm.h"
 #include "rpg/sim/world.h"
+#include "rpg/world/economy.h"
 
 namespace story {
 namespace dsl {
@@ -90,6 +91,14 @@ int propWord(const std::string& w0) {
   if (w == "altar") return (int)art::Prop::Altar;
   if (w == "stones") return (int)art::Prop::StandingStone;
   if (w == "cairn") return (int)art::Prop::GraveCairn;
+  if (w == "beacon" || w == "watchtower") return (int)art::Prop::WatchtowerRuin;   // (P1b) a hilltop tower's fire basket
+  // (P1b) everyday props a story may send the player to search or use (the ENGINE lane wires the interaction)
+  if (w == "crate") return (int)art::Prop::Crate;
+  if (w == "barrel") return (int)art::Prop::Barrel;
+  if (w == "chest") return (int)art::Prop::Chest;
+  if (w == "well") return (int)art::Prop::Well;
+  if (w == "brazier") return (int)art::Prop::Brazier;
+  if (w == "sacks") return (int)art::Prop::Sacks;
   return -1;
 }
 int tradeWord(const std::string& w0) {
@@ -98,7 +107,9 @@ int tradeWord(const std::string& w0) {
       {"villager", Role::Villager}, {"guard", Role::Guard}, {"merchant", Role::Merchant}, {"smith", Role::Smith},
       {"innkeeper", Role::Innkeeper}, {"priest", Role::Priest}, {"jarl", Role::Jarl}, {"farmer", Role::Farmer},
       {"mage", Role::Mage}, {"king", Role::King}, {"hunter", Role::Hunter}, {"fisher", Role::Fisher},
-      {"herbalist", Role::Herbalist}, {"traveller", Role::Traveller}, {"herald", Role::Herald}};
+      {"herbalist", Role::Herbalist}, {"traveller", Role::Traveller}, {"herald", Role::Herald},
+      // (P1b) the harbour's people (M10 dock folk) as hook trades
+      {"harbourmaster", Role::Harbourmaster}, {"shipwright", Role::Shipwright}, {"sailor", Role::Sailor}};
   for (const auto& p : t) if (w == p.first) return (int)p.second;
   if (w == "any") return -2;
   return -1;
@@ -152,10 +163,51 @@ int iconWord(const std::string& w0) {
       {"letter", art::Icon::Letter}, {"scroll", art::Icon::Scroll}, {"book", art::Icon::Book}, {"ring", art::Icon::Ring},
       {"amulet", art::Icon::Amulet}, {"key", art::Icon::Key}, {"gem", art::Icon::Gem}, {"crown", art::Icon::Crown},
       {"sigil", art::Icon::Sigil}, {"map", art::Icon::Map}, {"herb", art::Icon::Herb}, {"bone", art::Icon::Bone},
-      {"gold", art::Icon::Gold}, {"dagger", art::Icon::Dagger}, {"sword", art::Icon::Sword}};
+      {"gold", art::Icon::Gold}, {"dagger", art::Icon::Dagger}, {"sword", art::Icon::Sword},
+      // (P1b) more of the existing item icons a quest item may wear
+      {"cheese", art::Icon::Cheese}, {"bread", art::Icon::Bread}, {"meat", art::Icon::Meat}, {"apple", art::Icon::Apple},
+      {"pelt", art::Icon::Pelt}, {"ore", art::Icon::Ore}, {"gloves", art::Icon::Gloves}, {"cloak", art::Icon::Cloak},
+      {"potion", art::Icon::PotionRed}, {"tonic", art::Icon::PotionGreen}, {"seeds", art::Icon::Seeds},
+      {"sheaf", art::Icon::Sheaf}, {"veg", art::Icon::Veg}, {"ingot", art::Icon::Ingot}, {"boots", art::Icon::Boots}};
   for (const auto& p : t) if (w == p.first) return (int)p.second;
   return -1;
 }
+// (P1b) the words of the offer gates
+int seasonWord(const std::string& w0) {
+  const std::string w = lower(w0);
+  static const char* names[] = {"spring", "summer", "autumn", "winter"};
+  for (int i = 0; i < 4; i++) if (w == names[i]) return i;
+  return -1;
+}
+int goodWord(const std::string& w0) {
+  const std::string w = lower(w0);
+  static const char* names[] = {"grain", "flour", "bread", "produce", "fish", "ore", "ingot", "tools", "logs", "planks", "wool", "cloth",
+                                "livestock", "meat", "hides", "leather", "pottery"};
+  static_assert(sizeof(names) / sizeof(names[0]) == (size_t)ew::Good::COUNT, "a word for every good");
+  for (int i = 0; i < (int)ew::Good::COUNT; i++) if (w == names[i]) return i;
+  if (w == "ingots") return (int)ew::Good::Ingot;
+  return -1;
+}
+int moodFlagWord(const std::string& w0) {
+  const std::string w = lower(w0);
+  static const char* names[] = {"content", "festival", "hungry", "famine", "wartorn", "grief", "brawls", "emigrating", "shuttered", "raided"};
+  for (int i = 0; i < 10; i++) if (w == names[i]) return 1 << i;   // life.h MF_* bits in this order
+  return 0;
+}
+int buildingWord(const std::string& w0) {
+  const std::string w = lower(w0);
+  static const char* names[] = {"house", "stonehouse", "inn", "smithy", "shop", "temple", "keep", "tower", "farmhouse", "hut", "palace",
+                                "barracks", "windmill", "watermill", "granary", "bakery", "butcher", "tanner", "fishmonger", "smelter",
+                                "sawmill", "weaver", "guildhall", "exchange", "meadhall", "bathhouse", "teahouse", "lodge", "councilhall"};
+  static_assert(sizeof(names) / sizeof(names[0]) == (size_t)art::Building::COUNT, "a word for every building");
+  for (int i = 0; i < (int)art::Building::COUNT; i++) if (w == names[i]) return i;
+  return -1;
+}
+bool settleWordOk(const std::string& w0) {
+  const std::string w = lower(w0);
+  return w == "village" || w == "town" || w == "city" || w == "capital" || w == "port" || w == "coast";
+}
+
 int backgroundWord(const std::string& w0) {
   const std::string w = lower(w0);
   static const char* names[] = {"none", "blacksmith", "hunter", "novice", "urchin", "farmhand", "noble", "sailor", "marked"};
@@ -267,6 +319,28 @@ bool parseCond(const std::vector<Tok>& t, size_t& i, CondDef& c, std::string& er
     if (!need(2)) return false;
     c.type = CondType::War; c.a = lower(t[i + 1].s); c.b = lower(t[i + 2].s);
     i += 3;
+  } else if (w == "is") {   // (P1b) equality
+    if (!need(2)) return false;
+    c.type = CondType::Is; c.a = lower(t[i + 1].s); c.n = num(t[i + 2].s, ok);
+    i += 3;
+  } else if (w == "days" || w == "nodays") {
+    if (!need(1)) return false;
+    c.type = w == "days" ? CondType::Days : CondType::NoDays; c.n = num(t[i + 1].s, ok);
+    i += 2;
+  } else if (w == "season") {
+    if (!need(1)) return false;
+    c.type = CondType::Season; c.a = lower(t[i + 1].s); c.n = seasonWord(c.a);
+    if (c.n < 0) { err = "season spring|summer|autumn|winter"; return false; }
+    i += 2;
+  } else if (w == "hour") {
+    if (!need(2)) return false;
+    c.type = CondType::Hour; c.n = num(t[i + 1].s, ok);
+    bool ok2 = true;
+    const int to = num(t[i + 2].s, ok2);
+    if (!ok2) ok = false;
+    c.a = std::to_string(to);
+    if (ok && (c.n < 0 || c.n > 24 || to < 0 || to > 24)) { err = "hour <from 0..24> <to 0..24>"; return false; }
+    i += 3;
   } else {
     err = "unknown condition '" + w + "'";
     return false;
@@ -315,6 +389,25 @@ bool parseObj(const std::vector<Tok>& t, ObjDef& o, std::string& err) {
   } else if (w == "have") {
     if (!argc(1) || !t[2].quoted) { err = "have \"<item>\""; return false; }
     o.type = ObjType::Have; o.item = t[2].s;
+  } else if (w == "escort") {   // (P1b) escort <person> to <site> [wagon|drove|walk]
+    if (!argc(3) || lower(t[3].s) != "to") { err = "escort <person> to <site> [wagon|drove|walk]"; return false; }
+    o.type = ObjType::Escort; o.role = lower(t[2].s); o.role2 = lower(t[4].s); o.n = ESCORT_WALK;
+    if (t.size() >= 6) {
+      const std::string sk = lower(t[5].s);
+      if (sk == "wagon") o.n = ESCORT_WAGON;
+      else if (sk == "drove") o.n = ESCORT_DROVE;
+      else if (sk != "walk") { err = "escort ... wagon|drove|walk"; return false; }
+    }
+  } else if (w == "bout") {     // (P1b) a fight not to the death
+    if (!argc(1)) return false;
+    o.type = ObjType::Bout; o.role = lower(t[2].s);
+  } else if (w == "time") {     // (P1b) time <from> <to>: the time of day
+    if (!argc(2)) return false;
+    o.type = ObjType::Time; o.n = num(t[2].s, ok);
+    bool ok2 = true;
+    o.prop = num(t[3].s, ok2);
+    if (!ok2) ok = false;
+    if (ok && (o.n < 0 || o.n > 24 || o.prop < 0 || o.prop > 24 || o.n == o.prop)) { err = "time <from 0..24> <to 0..24>"; return false; }
   } else {
     err = "unknown objective '" + w + "'";
     return false;
@@ -338,6 +431,7 @@ bool parseEff(const std::vector<Tok>& t, EffDef& e, std::string& err) {
     if (!quoted(2) || t.size() < 4) { err = "give \"<item>\" <icon>"; return false; }
     e.type = EffType::Give; e.icon = iconWord(t[3].s);
     if (e.icon < 0) { err = "unknown icon '" + t[3].s + "'"; return false; }
+    if (t.size() >= 5) { if (lower(t[4].s) != "heavy") { err = "give \"<item>\" <icon> [heavy]"; return false; } e.ev = 1; }
   } else if (w == "take") {
     if (!quoted(2)) return false;
     e.type = EffType::Take;
@@ -379,7 +473,11 @@ bool parseEff(const std::vector<Tok>& t, EffDef& e, std::string& err) {
   } else if (w == "reward") {
     if (!argc(1)) return false;
     e.type = EffType::Reward; e.n = rewardWord(t[2].s);
-    if (e.n < 0) { err = "reward small|fair|rich|great"; return false; }
+    if (e.n < 0) { err = "reward small|fair|rich|great [percent]"; return false; }
+    if (t.size() >= 4) {   // (P1b) the band's pay times percent / 100
+      e.ev = num(t[3].s, ok);
+      if (ok && (e.ev < 10 || e.ev > 300)) { err = "reward <band> <percent 10..300>"; return false; }
+    }
   } else if (w == "secret") {
     if (!argc(1)) return false;
     e.type = EffType::Secret; e.args = {lower(t[2].s)};
@@ -406,6 +504,40 @@ bool parseEff(const std::vector<Tok>& t, EffDef& e, std::string& err) {
     if (!argc(1)) return false;
     e.type = EffType::Fate; e.args = {lower(t[2].s)};
     if (e.args[0] != "home" && e.args[0] != "part") { err = "fate home|part"; return false; }
+  } else if (w == "days") {   // (P1b)
+    if (!argc(1)) return false;
+    e.type = EffType::Days; e.args = {lower(t[2].s)};
+  } else if (w == "follow" || w == "stay" || w == "hostile" || w == "calm") {
+    if (!argc(1)) return false;
+    e.type = w == "follow" ? EffType::Follow : w == "stay" ? EffType::Stay : w == "hostile" ? EffType::Hostile : EffType::Calm;
+    e.args = {lower(t[2].s)};
+  } else if (w == "ambush") {   // ambush <monster|bandit|beast|undead> <n>
+    if (!argc(2)) return false;
+    e.type = EffType::Ambush; e.n = monsterWord(t[2].s); e.ev = num(t[3].s, ok);
+    if (e.n == -99 || e.n == MON_ANY) { err = "ambush <monster|bandit|beast|undead> <n>"; return false; }
+    if (ok && (e.ev < 1 || e.ev > 8)) { err = "ambush ... 1..8"; return false; }
+  } else if (w == "census") {   // census <site> <field> [args]
+    if (!argc(2)) return false;
+    e.type = EffType::Census; e.args = {lower(t[2].s)};
+    const std::string f = lower(t[3].s);
+    if (f == "mood" || f == "famine" || f == "refugees") {
+      if (!argc(3)) return false;
+      e.n = f == "mood" ? CEN_MOOD : f == "famine" ? CEN_FAMINE : CEN_REFUGEES;
+      e.ev = num(t[4].s, ok);
+      if (ok && f == "mood" && (e.ev < -50 || e.ev > 50)) { err = "census <site> mood -50..50"; return false; }
+      if (ok && f == "famine" && (e.ev < 1 || e.ev > 60)) { err = "census <site> famine 1..60 days"; return false; }
+      if (ok && f == "refugees" && (e.ev < 1 || e.ev > 12)) { err = "census <site> refugees 1..12"; return false; }
+    } else if (f == "stock" || f == "price") {
+      if (!argc(4)) return false;
+      e.n = f == "stock" ? CEN_STOCK : CEN_PRICE;
+      if (goodWord(t[4].s) < 0) { err = "unknown good '" + t[4].s + "'"; return false; }
+      e.args.push_back(lower(t[4].s));
+      e.ev = num(t[5].s, ok);
+      if (ok && f == "stock" && (e.ev < -200 || e.ev > 200)) { err = "census <site> stock <good> -200..200"; return false; }
+      if (ok && f == "price" && (e.ev < 25 || e.ev > 400)) { err = "census <site> price <good> 25..400 percent"; return false; }
+    } else if (f == "festival") {
+      e.n = CEN_FESTIVAL;
+    } else { err = "census <site> mood|stock|price|famine|festival|refugees"; return false; }
   } else if (w == "realm") {
     if (!argc(2)) return false;
     const std::string k = lower(t[2].s);
@@ -494,6 +626,70 @@ void parse(const char* text, const char* srcName, std::vector<Script>& out, std:
       } else error("unknown hook '" + h + "'");
       continue;
     }
+    // (P1b) what the item is and where it may be offered
+    if (k == "family") {
+      const std::string f = t.size() > 1 ? lower(t[1].s) : std::string();
+      if (f != "job" && f != "request" && f != "tale" && f != "test") error("family job|request|tale|test");
+      else S->family = f;
+      continue;
+    }
+    if (k == "settle") {
+      if (t.size() < 2) { error("settle <village|town|city|capital|port|coast>..."); continue; }
+      for (size_t q = 1; q < t.size(); q++) {
+        const std::string w = lower(t[q].s);
+        if (!settleWordOk(w)) error("settle: unknown word '" + w + "' (village town city capital port coast)");
+        else S->settle.push_back(w);
+      }
+      continue;
+    }
+    if (k == "needs") {
+      if (t.size() < 2) { error("needs <cond> [args]"); continue; }
+      NeedDef n;
+      n.word = lower(t[1].s);
+      n.line = lineNo;
+      for (size_t q = 2; q < t.size(); q++) n.args.push_back(lower(t[q].s));
+      bool ok = true;
+      auto numArg = [&](size_t i) { return i < n.args.size() ? num(n.args[i], ok) : (ok = false, 0); };
+      if (n.word == "nowar" || n.word == "war" || n.word == "coast") { if (!n.args.empty()) error("needs " + n.word + " takes no words"); }
+      else if (n.word == "season") {
+        if (n.args.empty()) error("needs season <spring|summer|autumn|winter>...");
+        for (const std::string& a : n.args) if (seasonWord(a) < 0) error("needs season: unknown season '" + a + "'");
+      } else if (n.word == "stock") {
+        if (n.args.size() != 3 || goodWord(n.args[0]) < 0 || (n.args[1] != "below" && n.args[1] != "above")) error("needs stock <good> below|above <n>");
+        else numArg(2);
+      } else if (n.word == "mood") {
+        if (n.args.size() != 2 || (n.args[0] != "below" && n.args[0] != "above")) error("needs mood below|above <n>");
+        else numArg(1);
+      } else if (n.word == "flag") {
+        if (n.args.size() != 1 || !moodFlagWord(n.args[0])) error("needs flag <content|festival|hungry|famine|wartorn|grief|brawls|emigrating|shuttered|raided>");
+      } else if (n.word == "building") {
+        if (n.args.empty() || n.args.size() > 2 || buildingWord(n.args[0]) < 0) error("needs building <type> [<n>]");
+        else if (n.args.size() == 2) numArg(1);
+      } else if (n.word == "level") {
+        if (n.args.size() != 1) error("needs level <n>");
+        else numArg(0);
+      } else error("unknown need '" + n.word + "' (nowar war coast season stock mood flag building level)");
+      if (!ok) error("needs " + n.word + ": a number is missing");
+      S->needs.push_back(n);
+      continue;
+    }
+    if (k == "once") {
+      const std::string w = t.size() > 1 ? lower(t[1].s) : std::string();
+      if (w != "world" && w != "site") error("once world|site");
+      else S->onceSite = w == "site";
+      continue;
+    }
+    if (k == "cooldown") {
+      bool ok = true;
+      S->cooldown = t.size() > 1 ? num(t[1].s, ok) : 0;
+      if (!ok || S->cooldown < 1 || S->cooldown > 120) error("cooldown <days 1..120>");
+      continue;
+    }
+    if (k == "gossip") {
+      if (t.size() < 2 || !t[1].quoted) error("gossip \"<line>\"");
+      else S->gossip.push_back(t[1].s);
+      continue;
+    }
     if (k == "var") {
       bool ok = true;
       if (t.size() < 3) { error("var <name> <value>"); continue; }
@@ -520,6 +716,23 @@ void parse(const char* text, const char* srcName, std::vector<Script>& out, std:
         if (sx != "male" && sx != "female") { error("person/foe needs male or female"); continue; }
         r.female = sx == "female";
         atArg(4);
+        for (size_t q = 4; q < t.size(); q++) if (lower(t[q].s) == "young") r.young = true;   // (P1b)
+        for (size_t q = 4; q + 1 < t.size(); q++)   // (P1b fixer) person ... as <word>: the panel's title for them
+          if (lower(t[q].s) == "as") {
+            std::string w = t[q + 1].s;
+            for (char& ch : w) { if (ch == '-') ch = ' '; else if (ch >= 'a' && ch <= 'z') ch = (char)(ch - 'a' + 'A'); }
+            r.title = w;
+          }
+        if (!r.title.empty() && (r.kind != RoleKind::Person || r.title.size() > 14)) { error("'as <title>' is for a person, 14 letters at most"); continue; }
+        if (r.young && r.kind != RoleKind::Person) { error("only a person is young"); continue; }
+        // (P1b) person ... in <site>: inside that site's map
+        for (size_t q = 4; q + 1 < t.size(); q++)
+          if (lower(t[q].s) == "in") {
+            if (r.kind != RoleKind::Person) { error("only a person waits 'in' a site (a foe is always inside)"); break; }
+            if (!r.at.empty()) { error("a person is 'at' or 'in' a site, not both"); break; }
+            r.at = lower(t[q + 1].s);
+            r.inside = true;
+          }
         if (r.kind == RoleKind::Foe && r.at.empty()) { error("a foe needs 'at <site>'"); continue; }
       } else if (kind == "npc") {
         r.kind = RoleKind::Npc;
@@ -530,9 +743,31 @@ void parse(const char* text, const char* srcName, std::vector<Script>& out, std:
         r.kind = RoleKind::Site;
         r.a = t.size() > 3 ? lower(t[3].s) : std::string();
         r.b = t.size() > 4 ? lower(t[4].s) : std::string("near");
-        static const std::set<std::string> types = {"home", "cave", "ruin", "camp", "village", "town", "city"};
-        if (!types.count(r.a)) { error("site home|cave|ruin|camp|village|town|city"); continue; }
+        static const std::set<std::string> types = {"home", "cave", "ruin", "camp", "village", "town", "city",
+                                                    "watchtower", "dwelling"};   // (P1b) vignettes
+        if (!types.count(r.a)) { error("site home|cave|ruin|camp|village|town|city|watchtower|dwelling"); continue; }
         if (r.b != "near" && r.b != "far") { error("site ... near|far"); continue; }
+        // (P1b) with <filter>: beast <monster> | road | min <tiles> | max <tiles> (any number of `with`)
+        bool badWith = false;
+        for (size_t q = 5; q < t.size() && !badWith; q++) {
+          if (lower(t[q].s) != "with") { error("site ...: unexpected '" + t[q].s + "' (with <filter>)"); badWith = true; break; }
+          const std::string f = q + 1 < t.size() ? lower(t[q + 1].s) : std::string();
+          if (f == "road") { r.with.push_back("road"); q += 1; continue; }
+          if ((f == "beast" || f == "min" || f == "max" || f == "flag" || f == "makes") && q + 2 < t.size()) {
+            const std::string v = lower(t[q + 2].s);
+            bool ok = true;
+            if (f == "beast" && monsterWord(v) < 0) { error("with beast: unknown monster '" + v + "'"); badWith = true; break; }
+            if (f == "flag" && !moodFlagWord(v)) { error("with flag: unknown mood flag '" + v + "'"); badWith = true; break; }
+            if (f == "makes" && goodWord(v) < 0) { error("with makes: unknown good '" + v + "'"); badWith = true; break; }
+            if ((f == "min" || f == "max") && (num(v, ok) < 1 || !ok)) { error("with " + f + " <tiles>"); badWith = true; break; }
+            r.with.push_back(f + " " + v);
+            q += 2;
+            continue;
+          }
+          error("with beast <monster> | road | min <tiles> | max <tiles> | flag <moodflag> | makes <good>");
+          badWith = true;
+        }
+        if (badWith) continue;
       } else if (kind == "capital" || kind == "ruler" || kind == "war") {
         r.kind = kind == "capital" ? RoleKind::Capital : kind == "ruler" ? RoleKind::Ruler : RoleKind::War;
         r.a = t.size() > 3 ? lower(t[3].s) : std::string();
@@ -584,6 +819,15 @@ void parse(const char* text, const char* srcName, std::vector<Script>& out, std:
     if (k == "journal") { if (t.size() < 2 || !t[1].quoted) error("journal \"<text>\""); else G->journal = t[1].s; continue; }
     if (k == "goal") { ObjDef o; if (!parseObj(t, o, err)) error(err); else if (setKind(StageKind::Goal)) G->goal = o; continue; }
     if (k == "then") { if (t.size() < 2) error("then <stage>"); else G->then = lower(t[1].s); continue; }
+    if (k == "else") { if (t.size() < 2) error("else <stage>"); else G->orElse = lower(t[1].s); continue; }   // (P1b)
+    if (k == "deadline") {   // (P1b) deadline <days> -> <stage>
+      bool ok = true;
+      if (t.size() < 4 || lower(t[2].s) != "->") { error("deadline <days> -> <stage>"); continue; }
+      G->deadline = num(t[1].s, ok);
+      if (!ok || G->deadline < 1 || G->deadline > 60) { error("deadline 1..60 days"); continue; }
+      G->deadlineTo = lower(t[3].s);
+      continue;
+    }
     if (k == "end") {
       const std::string r = t.size() > 1 ? lower(t[1].s) : std::string();
       if (r != "success" && r != "fail") { error("end success|fail"); continue; }
@@ -669,6 +913,25 @@ std::vector<std::string> validate(const Script& s) {
     }
   }
   if (s.roles.empty() || s.roles[0].kind != RoleKind::Giver) bad(s.line, "the first role must be the giver");
+  if (s.role("var") >= 0) bad(s.line, "'var' is not a role name ({var.<name>} spells a variable)");
+  // (P1b) the new headers
+  for (const RoleDef& r : s.roles)
+    if (r.inside) {
+      const int k = s.role(r.at) >= 0 ? (int)s.roles[(size_t)s.role(r.at)].kind : -1;
+      const std::string& ty = k == (int)RoleKind::Site ? s.roles[(size_t)s.role(r.at)].a : std::string();
+      if (k != (int)RoleKind::Ruin && !(k == (int)RoleKind::Site && (ty == "cave" || ty == "ruin" || ty == "camp")))
+        bad(r.line, "role '" + r.name + "': 'in' needs a cave, ruin or camp (or a ruin role)");
+    }
+  if (!s.family.empty() && s.family != "test") {
+    if (s.family == "request" && s.settle.empty()) bad(s.line, "a request says where it is raised (settle village|town|city|capital|port)");
+    for (const std::string& gl : s.gossip) {
+      if (!placeholders(gl).empty()) bad(s.line, "a gossip line has a placeholder (it is overheard before casting): " + gl);
+      if (gl.size() > 38) bad(s.line, "a gossip line is longer than 38 characters: " + gl);
+      for (char c : gl) if (c >= 'a' && c <= 'z') { bad(s.line, "lower case in a gossip line"); break; }
+    }
+    if (s.gossip.size() > 3) bad(s.line, "more than 3 gossip lines");
+  }
+  if (!s.gossip.empty() && s.family.empty()) bad(s.line, "gossip belongs to a P1b item (family job|request|tale)");
   // (M6b) the engine keys spawned people on (instance, role index): 32 roles at most (story_internal.h PERSON_ROLES)
   if (s.roles.size() > 32) bad(s.line, "more than 32 roles (" + std::to_string(s.roles.size()) + ")");
   // placeholders
@@ -679,6 +942,10 @@ std::vector<std::string> validate(const Script& s) {
     for (const auto& ph : placeholders(txt)) {
       if (ph.first == "{") { bad(line, std::string("an unclosed placeholder in the ") + what); continue; }
       if (ph.first == "player") continue;
+      if (ph.first == "var") {   // (P1b) {var.<name>}: a declared variable spelled as a word
+        if (ph.second.empty() || !s.vars.count(ph.second)) bad(line, "placeholder {var." + ph.second + "}: no such variable (" + what + ")");
+        continue;
+      }
       const int ri = s.role(ph.first);
       if (ri < 0) { bad(line, "placeholder {" + ph.first + "} has no binding (" + what + ")"); continue; }
       if (ph.second.empty()) continue;
@@ -717,7 +984,12 @@ std::vector<std::string> validate(const Script& s) {
   auto checkCond = [&](int line, const CondDef& c) {
     switch (c.type) {
       case CondType::Rep: needKind(line, c.a, RoleKind::Kingdom, "rep"); break;
-      case CondType::Var: case CondType::NoVar: if (!s.vars.count(c.a)) bad(line, "undeclared variable '" + c.a + "'"); break;
+      case CondType::Var: case CondType::NoVar: case CondType::Is:
+        if (!s.vars.count(c.a)) bad(line, "undeclared variable '" + c.a + "'");
+        // (P1b) `var x 0` is always true and `novar x 0` never: the judge found three gates that meant equality
+        if (c.type == CondType::Var && c.n <= 0) bad(line, "'var " + c.a + " " + std::to_string(c.n) + "' is always true (use is / novar)");
+        if (c.type == CondType::NoVar && c.n <= 0) bad(line, "'novar " + c.a + " " + std::to_string(c.n) + "' is never true");
+        break;
       case CondType::Female: needRole(line, c.a, "female"); break;
       case CondType::War: needKind(line, c.a, RoleKind::Kingdom, "war"); needKind(line, c.b, RoleKind::Kingdom, "war"); break;
       default: break;
@@ -756,6 +1028,12 @@ std::vector<std::string> validate(const Script& s) {
       case StageKind::Goal: {
         if (G.then.empty()) bad(G.line, "stage '" + G.name + "': a goal without 'then'");
         else link(G.then, G.line);
+        // (P1b) escort and bout can be lost: they say where to (else); nothing else has an else
+        const bool losable = G.goal.type == ObjType::Escort || G.goal.type == ObjType::Bout;
+        if (G.goal.type == ObjType::Time && !G.journal.empty() && G.journal.size() < 4) bad(G.line, "a time goal says what the player waits for");
+        if (losable && G.orElse.empty()) bad(G.line, "stage '" + G.name + "': an escort or bout needs 'else <stage>' (when it is lost)");
+        if (!losable && !G.orElse.empty()) bad(G.line, "stage '" + G.name + "': 'else' belongs to an escort or a bout");
+        if (!G.orElse.empty()) link(G.orElse, G.line);
         if (!G.opts.empty()) bad(G.line, "stage '" + G.name + "': options in a goal stage");
         const ObjDef& o = G.goal;
         switch (o.type) {
@@ -769,11 +1047,27 @@ std::vector<std::string> validate(const Script& s) {
           case ObjType::Slay:
             if (needRole(G.line, o.role, "slay")) {
               const int k = kindOf(o.role);
-              if (k != (int)RoleKind::Foe && k != (int)RoleKind::Beast && k != (int)RoleKind::Boss) bad(G.line, "role '" + o.role + "' is the wrong kind for slay");
+              // (P1b) a person the story turned hostile (do hostile) may be slain too
+              if (k != (int)RoleKind::Foe && k != (int)RoleKind::Beast && k != (int)RoleKind::Boss && k != (int)RoleKind::Person)
+                bad(G.line, "role '" + o.role + "' is the wrong kind for slay");
             }
             break;
           case ObjType::Fetch: if (needRole(G.line, o.role, "fetch") && !siteLike(o.role)) bad(G.line, "fetch: '" + o.role + "' is not a place"); break;
           case ObjType::Wait: if (o.n < 1 || o.n > 30) bad(G.line, "wait 1..30 days"); break;
+          case ObjType::Escort: {   // (P1b)
+            if (needRole(G.line, o.role, "escort")) {
+              const int k = kindOf(o.role);
+              if (k != (int)RoleKind::Person && k != (int)RoleKind::Resident) bad(G.line, "escort: '" + o.role + "' is not a person");
+            }
+            if (needRole(G.line, o.role2, "escort") && !siteLike(o.role2)) bad(G.line, "escort: '" + o.role2 + "' is not a place");
+            break;
+          }
+          case ObjType::Bout:
+            if (needRole(G.line, o.role, "bout")) {
+              const int k = kindOf(o.role);
+              if (k != (int)RoleKind::Person && k != (int)RoleKind::Foe && k != (int)RoleKind::Resident) bad(G.line, "bout: '" + o.role + "' is not a person or foe");
+            }
+            break;
           case ObjType::War: needKind(G.line, o.role, RoleKind::Kingdom, "war"); needKind(G.line, o.role2, RoleKind::Kingdom, "war"); break;
           case ObjType::Rep: needKind(G.line, o.role, RoleKind::Kingdom, "rep"); break;
           default: break;
@@ -785,6 +1079,12 @@ std::vector<std::string> validate(const Script& s) {
         if (!G.then.empty() || !G.opts.empty()) bad(G.line, "stage '" + G.name + "': an ending goes nowhere");
         break;
     }
+    // (P1b) the clock
+    if (G.deadline > 0) {
+      if (G.kind != StageKind::Talk && G.kind != StageKind::Goal) bad(G.line, "stage '" + G.name + "': a deadline on an ending");
+      link(G.deadlineTo, G.line);
+    }
+    if (G.kind == StageKind::Talk && !G.orElse.empty()) bad(G.line, "stage '" + G.name + "': 'else' belongs to an escort or a bout");
     if (!G.say.empty()) checkText(G.line, G.say, 300, "line");
     if (!G.journal.empty()) checkText(G.line, G.journal, 150, "journal");
     for (const EffDef& e : G.effs) {
@@ -822,6 +1122,17 @@ std::vector<std::string> validate(const Script& s) {
           if (e.n < -30 || e.n > 30) bad(G.line, "approve / bond -30..30");
           break;
         case EffType::Fate: if (!companion) bad(G.line, "fate belongs to a companion's own story (hook companion)"); break;
+        case EffType::Days: if (!s.vars.count(e.args[0])) bad(G.line, "undeclared variable '" + e.args[0] + "'"); break;   // (P1b)
+        case EffType::Census: if (needRole(G.line, e.args[0], "census") && !siteLike(e.args[0])) bad(G.line, "census: '" + e.args[0] + "' is not a place"); break;
+        case EffType::Follow: case EffType::Stay:
+          if (needRole(G.line, e.args[0], "follow/stay") && kindOf(e.args[0]) != (int)RoleKind::Person && kindOf(e.args[0]) != (int)RoleKind::Resident)
+            bad(G.line, "follow/stay: '" + e.args[0] + "' is not a person");
+          break;
+        case EffType::Hostile:
+          if (needRole(G.line, e.args[0], "hostile") && kindOf(e.args[0]) != (int)RoleKind::Person && kindOf(e.args[0]) != (int)RoleKind::Foe)
+            bad(G.line, "hostile: '" + e.args[0] + "' is not a person or foe");
+          break;
+        case EffType::Calm: if (needRole(G.line, e.args[0], "calm") && !siteLike(e.args[0])) bad(G.line, "calm: '" + e.args[0] + "' is not a place"); break;
         default: break;
       }
     }
@@ -869,6 +1180,8 @@ std::vector<std::string> validate(const Script& s) {
 void link(Script& s) {
   for (StageDef& G : s.stages) {
     G.thenIx = G.then.empty() ? -1 : s.stage(G.then);
+    G.elseIx = G.orElse.empty() ? -1 : s.stage(G.orElse);          // (P1b)
+    G.deadlineIx = G.deadlineTo.empty() ? -1 : s.stage(G.deadlineTo);
     for (OptDef& o : G.opts) { o.toIx = s.stage(o.to); o.elseIx = o.orElse.empty() ? -1 : s.stage(o.orElse); }
   }
 }
@@ -878,6 +1191,12 @@ const Library& library() {
     Library lib;
     parse(talesSource(), "tales", lib.scripts, lib.errors);
     parse(campaignSource(), "campaign", lib.scripts, lib.errors);
+    // (P1b) the new items (REQUESTS and TALES lanes) and the lead's mechanics test scripts
+    parse(requestsVillageSource(), "req_village", lib.scripts, lib.errors);
+    parse(requestsTownSource(), "req_town", lib.scripts, lib.errors);
+    parse(requestsCitySource(), "req_city", lib.scripts, lib.errors);
+    parse(tales2Source(), "tales2", lib.scripts, lib.errors);
+    parse(p1bTestSource(), "p1b_test", lib.scripts, lib.errors);
     std::set<std::string> ids;
     for (Script& s : lib.scripts) {
       if (!ids.insert(s.id).second) lib.errors.push_back(s.source + ":" + std::to_string(s.line) + " " + s.id + ": a second script with this id");

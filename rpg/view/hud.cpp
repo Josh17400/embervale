@@ -1,6 +1,7 @@
 // HUD, menus, dialogue, shop, title/death screens, and all input (keyboard, mouse, touch).
 #include <SDL3/SDL.h>
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -8,6 +9,7 @@
 #include <initializer_list>
 #include <string>
 #include <vector>
+#include "rpg/story/story.h"
 #include "rpg/culture/culture.h"
 #include "rpg/sim/craft.h"
 #include "rpg/sim/gear.h"
@@ -160,6 +162,43 @@ std::string leadWalk(const Game& g, const jobs::Lead& l) {
 std::string trackedStep(const Game& g, const Quest& q) {
   std::string s = g.questStatus(q);
   if (s.empty() && q.state == QState::Complete) s = "RETURN TO " + q.giverName;
+  // (P1b ENGINE lane) a story stage's clock ("6 DAYS LEFT", "ONE DAY LEFT", "LAST DAY") is the line that must never be
+  // cut: it is read from the engine (the stage's deadline) and takes the second line of its own; the step above it, its
+  // copy of the clock dropped (the status line's fit may have cut it anywhere), is trimmed at a word to the column
+  if (q.type == QType::Story) {
+    std::string clock;
+    for (const story::Instance& in : g.story.running())
+      if (!in.done && in.questId == q.id) {
+        const int d = g.story.stageDeadline(in);
+        if (d > 0) {
+          const int left = std::max(0, in.stageDay + d - g.day);
+          clock = left > 1 ? std::to_string(left) + " DAYS LEFT" : left == 1 ? "ONE DAY LEFT" : "LAST DAY";
+        }
+      }
+    if (!clock.empty()) {
+      std::string step = s;
+      for (size_t cp = step.find(" ("); cp != std::string::npos; cp = step.find(" (", cp + 1)) {
+        const std::string rest = step.substr(cp + 2);
+        if (!rest.empty() && (std::isdigit((unsigned char)rest[0]) || rest.rfind("ONE D", 0) == 0 || rest.rfind("LAST D", 0) == 0 || rest.rfind("ONE", 0) == 0 ||
+                              rest.rfind("LAST", 0) == 0)) {
+          // keep a way word after it ("(EAST)") when the fit kept one
+          const size_t close = step.find(')', cp);
+          std::string way;
+          if (close != std::string::npos) { const size_t w = step.find(" (", close); if (w != std::string::npos) way = step.substr(w); }
+          step = step.substr(0, cp) + way;
+          break;
+        }
+      }
+      if (step.size() > 30) {
+        step = step.substr(0, 30);
+        const size_t sp = step.find_last_of(' ');
+        if (sp != std::string::npos && sp > 14) step = step.substr(0, sp);
+        if (!step.empty() && step.back() == '(') step.pop_back();
+        while (!step.empty() && step.back() == ' ') step.pop_back();
+      }
+      return step + "\n" + clock;
+    }
+  }
   if (s.size() <= 30) return s;
   // (P1) a hunt keeps its count and its way on the first line, the ground on the second ("THIN THE WOLVES 2/5 (NE)"
   // over "BY THE GREY TEETH")
@@ -470,6 +509,7 @@ std::string statsPlain(const Game& g, const Item& it) {
 int usablePropAt(const Game& g, int& tx, int& ty) {
   if (g.mode == Mode::Play && g.foeInReach()) return 0;   // (fixer M4 r3) mid-fight the button swings
   int pr = g.interactProp(tx, ty);
+  if (!pr) pr = story::wantedProp(g, tx, ty);   // (P1b) a beacon to light, a crate to search: a story asked for it
   if (!pr) return 0;
   // (M0b fix round 2: another guest's bed, or the innkeeper's, stays usable: the button reads LOOK and a tap explains
   // whose it is and that the innkeeper lets rooms, instead of swinging a weapon in a room full of people)
@@ -483,6 +523,10 @@ const char* useVerb(int pr);
 // the verb for the prop at (tx, ty): a bed that is not yours to sleep in is only looked at
 const char* useVerbAt(const Game& g, int pr, int tx, int ty) {
   if (pr == (int)art::Prop::Bed + 1 && !g.bedIsYours(tx, ty)) return "LOOK";
+  {   // (P1b) the story's own word for it: LIGHT, SEARCH, OPEN, DRAW
+    int wx = 0, wy = 0;
+    if (story::wantedProp(g, wx, wy) == pr && wx == tx && wy == ty) return story::wantedVerb(pr - 1);
+  }
   return useVerb(pr);
 }
 const char* useVerb(int pr) {
@@ -866,6 +910,24 @@ void View::drawHud(Game& g) {
   SkillsUiOps::drawSneakEye(*this, g, L + 130, T + 4);   // (M9) sneaking: a lidded eye beside the health bar
   if (g.perkPts > 0 && ((int)(t_ * 2) & 1)) P.textS(L + 6, T + 44, "LEVEL UP! OPEN MENU", 1, kGold);
   if (g.blessT > 0) P.textS(L + 6, T + (g.perkPts > 0 ? 54 : 44), g.blessName, 1, Color(0.7f, 0.85f, 1.0f, 0.8f));
+  // (P1b ENGINE lane) a story's burden (a body carried home, a cask, a sack): the HEAVY LOAD chip, a small iron weight
+  // and the words on a dark plate with an amber rim, so the slower step is never a mystery
+  if (g.story.burdened()) {
+    const float cy = T + (g.perkPts > 0 ? 10.0f : 0.0f) + (g.blessT > 0 ? 10.0f : 0.0f) + 43.0f;
+    const char* lab = "HEAVY LOAD";
+    const float w = (float)P.textW(lab, 1) + 20.0f, x0 = L + 4;
+    P.rect(x0, cy, w, 11, Color(0.06f, 0.05f, 0.05f, 0.78f));
+    P.frame(x0, cy, w, 11, Color(0.78f, 0.55f, 0.24f, 0.95f));
+    // the weight: a trapezoid of iron, its ring on top, lit from the top left
+    const float wx = x0 + 3, wy = cy + 2;
+    P.rect(wx + 3, wy, 3, 2, Color(0.55f, 0.55f, 0.58f));
+    P.rect(wx + 4, wy + 1, 1, 1, Color(0.06f, 0.05f, 0.05f));
+    P.rect(wx + 1, wy + 2, 7, 5, Color(0.38f, 0.38f, 0.42f));
+    P.rect(wx + 1, wy + 2, 7, 1, Color(0.62f, 0.62f, 0.66f));
+    P.rect(wx + 1, wy + 2, 1, 5, Color(0.56f, 0.56f, 0.6f));
+    P.rect(wx, wy + 6, 9, 1, Color(0.22f, 0.22f, 0.26f));
+    P.textS(x0 + 14, cy + 2, lab, 1, Color(1.0f, 0.78f, 0.45f));
+  }
 
   // M0b fix round 3: inside a building the rooms fill the screen and a wide one runs on under the minimap and the
   // location / quest column. The building is in full view, so its minimap is dropped there, and the column fades to
@@ -1127,7 +1189,15 @@ void View::drawHud(Game& g) {
       if (!obj.empty()) {
         const size_t nl = obj.find('\n');
         colText(T + 121 + kdy, obj.substr(0, nl), fa(kText));
-        if (nl != std::string::npos) colText(T + 130 + kdy, obj.substr(nl + 1), fa(kText));
+        if (nl != std::string::npos) {
+          // (P1b ENGINE lane) a story's clock reads at a glance: gold while days remain, the last day a warning red
+          const std::string l2 = obj.substr(nl + 1);
+          Color c2 = kText;
+          if (q->type == QType::Story && l2 == "LAST DAY") c2 = ((int)(t_ * 2.5f) & 1) ? Color(1.0f, 0.42f, 0.32f) : Color(1.0f, 0.62f, 0.45f);
+          else if (q->type == QType::Story && l2 == "ONE DAY LEFT") c2 = Color(1.0f, 0.62f, 0.38f);
+          else if (q->type == QType::Story && l2.find("DAYS LEFT") != std::string::npos) c2 = kGold;
+          colText(T + 130 + kdy, l2, fa(c2));
+        }
       }
       // off-screen arrow toward the objective
       int tx, ty;
@@ -1146,7 +1216,11 @@ void View::drawHud(Game& g) {
           float k = std::min(((R - L) / 2.0f - 18) / std::max(0.01f, std::fabs(d.x)), ((B - T) / 2.0f - 18) / std::max(0.01f, std::fabs(d.y)));
           Vec2 a = c + d * k;
           // slide along the screen edge out of the HUD corners (vitals top-left, minimap + quest column top-right)
-          if (a.x < L + 150 && a.y < T + 58) { if (a.y <= T + 20) a.x = L + 150; else a.y = T + 58; }
+          // (P1b fixer) the corner's foot follows its lines: LEVEL UP and a blessing stacked, and the HEAVY LOAD chip
+          // under them (the arrow and its distance sat on the chip: "[arrow]AVY LOAD")
+          float vitB = T + ((g.perkPts > 0 && g.blessT > 0) ? 66.0f : 58.0f);
+          if (g.story.burdened()) vitB = std::max(vitB, T + (g.perkPts > 0 ? 10.0f : 0.0f) + (g.blessT > 0 ? 10.0f : 0.0f) + 43.0f + 11.0f + 6.0f);
+          if (a.x < L + 150 && a.y < vitB) { if (a.y <= T + 20) a.x = L + 150; else a.y = vitB; }
           // (M1 round 3) below the column's real foot (a two-line step and a kingdom line made it taller than the old
           // fixed limit, and the arrow and its distance sat on the quest's last line)
           if (a.x > colLeft && a.y < colBottom) { if (a.y <= T + 20) a.x = colLeft; else a.y = colBottom; }
@@ -1366,7 +1440,7 @@ void View::drawHud(Game& g) {
         float lx = s.x;
         {
           const float hudR = std::max(L + 130, g_quickBarR) + 12;
-          const float hudB = T + ((g.perkPts > 0 || g.blessT > 0) ? (g.perkPts > 0 && g.blessT > 0 ? 64.0f : 54.0f) : 46.0f);
+          const float hudB = T + ((g.perkPts > 0 || g.blessT > 0) ? (g.perkPts > 0 && g.blessT > 0 ? 64.0f : 54.0f) : 46.0f) + (g.story.burdened() ? 12.0f : 0.0f);
           const float half = labelW - 6;
           const float topY = ly - (touchUI ? 0.0f : 9.0f);
           if (lx - half < hudR && topY < hudB) ly = s.y + (touchUI ? 4.0f : 13.0f);

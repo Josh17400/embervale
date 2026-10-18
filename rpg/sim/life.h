@@ -261,6 +261,8 @@ class Life {
   bool employ(ew::Gid site, int idx, int day);
   bool supply(ew::Gid site, ew::Good g, int units);
   bool befriend(ew::Gid site, int idx);
+  // (P1b, lead) a story sends n refugee families to a settlement (`do census <site> refugees <n>`): addRefugees
+  void storyRefugees(const World& w, Census& c, int n) { addRefugees(w, c, n); }
   // friends of a resident (indices), strongest first; `name` lookup for greetings ("EVENING, HALLA")
   std::vector<int> friendsOf(const Census& c, int idx) const;
 

@@ -135,6 +135,7 @@ void JobOps::step(Game& g, float dt) {
   const size_t n0 = ps.size();
   ps.erase(std::remove_if(ps.begin(), ps.end(), [&](const jobs::Pool& p) { return p.week < week - 1; }), ps.end());
   if (ps.size() != n0) g.jobBook.liveDirty = true;
+  radiantStep(g);   // (P1b) radiant jobs begun / ended (rpg/story/radiant.cpp)
 }
 
 void JobOps::accepted(Game& g, const Quest& q) {

@@ -16,6 +16,7 @@
 #include "rpg/sim/skill_ops.h"
 #include "rpg/sim/power_ops.h"
 #include "rpg/sim/war.h"
+#include "rpg/story/story_internal.h"
 #include "rpg/world/economy.h"
 
 using art::Monster;
@@ -387,6 +388,8 @@ bool Game::navStep(Actor& a, Vec2 goal, float speed, float dt) {
 void Game::updateFolk(Actor& a, float dt) {
   Actor& p = pl();
   bool talking = mode == Mode::Dialogue && dlg.actor == a.id;
+  // (P1b) a story's walker, a bout's moment, a person waiting inside a site, a drove's beast (rpg/story/story_game.cpp)
+  if ((story::isStoryPerson(a) || story::isDroveBeast(a)) && story::folkStep(*this, a, dt)) return;
   // M5: a village animal (Actor::critter) lives by the TOWNSFOLK lane (life_game.cpp)
   if (!a.human && a.critter && lifeFolk(a, dt)) return;
   // M8: a sellsword for hire at an inn, a body walking home out of sight (party_recruit.cpp)
@@ -916,6 +919,8 @@ void Game::updateAI(Actor& a, float dt) {
   // ---- friendly NPCs (M4: and the kingdoms' men-at-arms even when they are the player's enemies: a guard of a town the
   //      player assaults, an enemy patrol, a besieger's soldier fight as soldiers, not as beasts)
   if (!a.hostile || (a.npc && a.human && (a.role == Role::Guard || a.role == Role::Soldier || a.role == Role::Captain))) { updateFolk(a, dt); return; }
+  // (P1b) a calmed site's creatures stand down; a bout's opponent fights the player only (rpg/story/story_game.cpp)
+  if (story::hostileStep(*this, a, dt)) return;
 
   // ---- hostiles: fight the nearest enemy (the player counted 1.5x closer); the leash only holds outside towns
   a.thinkT -= dt;

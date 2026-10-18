@@ -1361,3 +1361,70 @@ bar and natural / organic world design stand; old saves are not a concern (refus
 - `--dialogue 1..3` fixed (7 failures -> 0): guard salutes, the spell-lesson refusal, the Heirloom acceptance echo.
 - Screenshot tour (seeds 3 desktop and 12 phone; town 09/11/22 h, inn, city 15/21 h, board, overheard lead, thief,
   hunt HUD, journal leads, map): staffed stalls, people walking and carrying, no "BOUNTY:" on non-bounty notices.
+
+## P1b, "New Roads Content": the second post-M12 polish batch (VISION_PLAN 15.35; owner notes 2026-10-17)
+
+Goal: 15 new job kinds, 30 new town / city requests (10 village, 10 market town, 10 city / capital incl. port-only) and
+20 new one-off tales, all already designed and judged (scratchpad content/INDEX.md and the per-area specs with their
+`.judge.md` notes, every note resolved), each complete, logical in the world, with its full dialogue variety, offered,
+reachable and finishable. Not in scope: art size / animations, the creator, the main campaign. Owner notes: the
+every-system regression runs ONCE, by the integrator; fixers verify only their fixes; the 16-bit quality bar stands; old
+saves are not a concern.
+
+### Phase A (lead), 2026-10-17: done
+- One runtime for all 65 items: the story engine. The designers' NEW-MECHANICs became DSL words (dsl.h, VISION_PLAN
+  15.35 table): family, settle, needs, once, cooldown, gossip; person `in` a site and `young`; site filters (beast, min,
+  max; road / flag / makes and the watchtower / dwelling places cast by the ENGINE lane); stage deadline and else; goals
+  escort, bout, time; conditions is / days / nodays / season / hour (`var x 0` refused); effects days, census (mood, stock,
+  price, famine, festival, refugees), reward with a percent, ambush, follow / stay, hostile, calm, give heavy;
+  {var.<name>}; more icons, props and harbour trades. Endings reached off a dialogue queue an epilogue shown as a closing
+  scene (P1b families).
+- Radiant jobs run on the engine: rpg/story/radiant.h (spec ids `job1~<kind>~<flags>~<seed>`, scriptById resolves them),
+  stub radiant.cpp; "ANY WORK GOING?" asks radiant::offerFor first and starts the job with Game::storyBeginJob (the opening
+  talk is the pitch with ACCEPT / DECLINE). Library sources for the lanes: rpg/story/req/{village,town,city}.cpp and
+  rpg/story/tales2/lib_tales2.cpp (empty), rpg/story/lib_p1b_test.cpp (`p1b_mechanics`, family test: every new word).
+- The offer policy (Engine::offerFor / offerForPlace, offerPrecheck, offerGates, nearCoast) moved from story.cpp to
+  offers.cpp so one lane owns it; requests are raised apart (rpg/story/req/req_offers.cpp: requestOfferFor /
+  requestOfferForPlace, asked first). Caster: `with min / max / beast`; un-cast filters refuse. life.h: `storyRefugees`.
+- Tests: `rpg_test --content-p1b` (tools/tests/test_content_p1b.cpp: the families, the text rule with the longest names
+  measured over 20 seeds, every script and every composed job variant played through every branch with soft-lock,
+  journal, reward, census and epilogue checks, the offer gates; CI "New Roads content test"); `--quest-mix --p1b /
+  --gates-p1b / --more-towns N / --ports`; `--story` walks else and deadline branches; script
+  `tools/scripts/p1b_lead_mechanics.txt`.
+- No version bump (no new save data). Verified (MSVC, BDIR=build, every target built; WSL clang -fsyntax-only on every
+  changed file: no new warnings): --story 1..5 0 failures (65 scripts, 19,385 paths); --content-p1b 1..3 0 failures;
+  --sagalib, --sagas 300 1..2, --campaigns 1..5, --voice, --story-p1, --dialogue 1..3 0 failures; save_test ALL OK;
+  --quest-mix seed 1 x 2 weeks identical to before phase A; the lead script 0 failures.
+
+### Phase B lanes (disjoint files; see the lead report for the briefs)
+- **engine** (build_engine, code, senior): the runtime behind the new words: the escort follower across the world with
+  its wagon and drove, the bout's yield and the player kept standing, hostile / calm, a person inside a cave / ruin /
+  camp, young looks, the burden, watchtower / dwelling places and the road / flag / makes filters, prop use (beacon,
+  crate...), the tracker clock, the epilogue scene's timing; screenshots desktop and phone.
+- **jobs** (build_jobs, code): the radiant composer and the 15 job templates (jobs_a/b/c.md + judge notes), the weekly
+  pool's radiant jobs, leads, variety (top-3 job kinds < 53.6 %); every kind offered over 20 seeds and played through
+  every branch.
+- **requests** (build_requests, code): the 30 requests (req_village/town/city.md + judge notes) as DSL with settle /
+  needs / once site / cooldown / clocks / census outcomes, the `gossip` lines overheard as leads; every request offered
+  over 20 seeds and played through every branch.
+- **tales** (build_tales, code): the 20 tales (tales_a..d.md + judge notes, the FAILs rewritten), the offer policy
+  (offers.cpp: new tales and requests offered, once per world, top-4 tales < 13.6 %); every tale played through every
+  branch.
+
+### Integration (integrator), 2026-10-17: done
+- Clean MSVC build of every target (only the usual C4244 / C4267 narrowing warnings); WSL clang 18 build of rpg_test
+  clean apart from four pre-existing warnings (magic_game.cpp enum conditional, test_life / test_towns format strings).
+- Fixes: seed_run counts quests before "ANY WORK GOING?" (a radiant pitch mirrors its quest quietly); no radiant job is
+  offered on days 1-2 (the opening's first job stays the hunt it teaches with, like requests); a road ambush (escort /
+  follower in the stage) set off inside a settlement is held (`_amb_m/_amb_n/_amb_stage`) and falls once the player is
+  out of every settlement (no raid bell in the square), dropped if the stage moved on; magic teacher's shortfall line
+  turns per refusal (repeated phrase); rq_seedgrain option lines varied; THE LONG LAMP's wait line matches its 1-day
+  goal; `--quest-mix --ports` searches 10 regions for a harbour (all 30 requests now offered); script helper
+  nearestPerson skips animals (opening.txt handed its hunt to a dog); p1b_req_tour(_phone) expect the courier's
+  arrival before completing the fight.
+- CI: `--quest-mix ... --gates --p1b --gates-p1b --ports`, `--content-p1b --gates`, `--radiant --seeds 1..3`,
+  `--p1b-engine --seeds 1..5`.
+- Results: rpg_test --seeds 1..20 20/20 (MSVC and clang); all 62 CI commands pass (save_test ALL OK; --dialogue 0 after
+  the fix); quest-mix 20 seeds: job kinds 15/15, requests 30/30, tales 19/20 (THE FALSE LIGHT force-played only),
+  top-3 job kinds 49.3 %, top-4 tales 9.8 %; content-p1b 165 scripts + 261 jobs, 10,503 paths, 0 failures; script sweep
+  344 scripts, 4 failures, all fixed and re-run green; 8 P1b tours (desktop + phone) 0 failures.

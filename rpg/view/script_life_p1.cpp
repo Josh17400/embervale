@@ -8,13 +8,19 @@
 //   overhear                        the nearest resident lets slip a need of someone in town (a journal LEAD); prints it
 //   leads                           print the journal's leads
 //   expect incident none|thief|cart|brawl [engaged]
+//   raise <request id> [talk]       (P1b REQUESTS lane) force that request raised here this week; prints its teller
+//                                   (talk: steps up to them and talks: their hint and the request's pitch)
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <vector>
 #include "rpg/sim/game.h"
 #include "rpg/sim/jobs.h"
 #include "rpg/sim/life.h"
+#include "rpg/story/dsl.h"
+#include "rpg/story/story.h"
+#include "rpg/story/story_internal.h"
 #include "rpg/view/script_api.h"
 
 namespace {
@@ -158,6 +164,40 @@ bool cmdLeads(ScriptCtx& c) {
   return true;
 }
 EMB_SCRIPT_CMD("leads", "leads: print the journal's leads (P1)", cmdLeads);
+
+// (P1b, REQUESTS lane) a new request raised here this week (the raise policy's own path, its header gates still apply:
+// rpg/story/req/req_offers.cpp, Game::marks tag 176), then who in the street would raise it (story::tellerOffer)
+bool cmdRaise(ScriptCtx& c) {
+  Game& g = c.game;
+  const std::string id = c.arg(1);
+  const int si = g.curSite;
+  if (si < 0 || si >= (int)g.world.sites.size() || !g.world.sites[(size_t)si].settlement()) { c.fail("raise: not in a settlement"); return true; }
+  const int lib = story::dsl::library().find(id);
+  if (lib < 0 || story::dsl::library().scripts[(size_t)lib].family != "request") { c.fail("raise: no request '" + id + "'"); return true; }
+  const story::dsl::Script& s = story::dsl::library().scripts[(size_t)lib];
+  g.marks[story::storyMarkKey(g.world.sites[(size_t)si].id ^ story::strHash64s(s.id), 176)] = g.day / 7 + 1;
+  std::string why;
+  if (!story::offerGates(g, s, si, &why)) { c.fail("raise " + id + ": its gates refuse " + g.world.sites[(size_t)si].name + ": " + why); return true; }
+  if (s.hook != story::dsl::HookKind::Npc) { std::printf("raise: %s raised at %s (its place: %s)\n", id.c_str(), g.world.sites[(size_t)si].name.c_str(), s.hook == story::dsl::HookKind::Board ? "the notice board" : "the herald"); return true; }
+  std::vector<Actor> folk;
+  for (size_t k = 1; k < g.actors.size(); k++) if (g.actors[k].npc && g.actors[k].human && (int)g.actors[k].role == s.hookTrade) folk.push_back(g.actors[k]);
+  for (const Actor& a : folk) {
+    const story::Offer of = story::tellerOffer(g, a);
+    if (of.lib != lib) continue;
+    std::printf("raise: %s raised at %s by %s\n", id.c_str(), g.world.sites[(size_t)si].name.c_str(), a.name.c_str());
+    if (c.arg(2) == "talk") {   // step up to the teller and talk (their hint, the request's pitch)
+      if (const Actor* t = byId(g, a.id)) {
+        g.pl().p = t->p + Vec2(0, 16);
+        g.pl().face = 1; g.pl().aim = Vec2(0, -1);
+        if (story::host().talkTo) story::host().talkTo(g, a.id);
+      }
+    }
+    return true;
+  }
+  c.fail("raise " + id + ": nobody of its trade here takes it up");
+  return true;
+}
+EMB_SCRIPT_CMD("raise", "raise <request id> [talk]: force a P1b request raised at this settlement this week, name its teller (talk: and talk to them) (P1b REQUESTS)", cmdRaise);
 
 bool expIncident(ScriptCtx& c) {
   const int want = kindOf(c.arg(2));

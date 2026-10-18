@@ -8,6 +8,10 @@
 //   expect jobs pool <n>  this week's pool here holds at least n jobs
 //   expect jobs leads <n> the journal holds at least n leads that are not taken
 //   expect jobs hunt      the tracked quest is a Hunt with a target area and a marker
+//   jobs radiant <kind> [walk]   (P1b) test only: begin a radiant job of that kind here: its giver is the nearest person
+//                         whose trade the kind takes (the walk's own trade with a walk number: rpg/story/jobs/<kind>.cpp
+//                         KindDef::walks), composed from the world (or that walk's variant and twist), and its opening
+//                         (the pitch, ACCEPT / DECLINE) opens as "ANY WORK GOING?" shows it. The `story` commands drive it
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -16,6 +20,10 @@
 #include <vector>
 #include "rpg/sim/game.h"
 #include "rpg/sim/jobs_ops.h"
+#include "rpg/story/dsl.h"
+#include "rpg/story/radiant.h"
+#include "rpg/story/story.h"
+#include "rpg/story/story_internal.h"
 #include "rpg/view/script_api.h"
 #include "rpg/view/view.h"
 
@@ -42,8 +50,65 @@ int siteHere(Game& g) {
   return best;
 }
 
+// (P1b) jobs radiant <kind> [walk]: begin a radiant job here, as "ANY WORK GOING?" would
+bool cmdJobsRadiant(ScriptCtx& c) {
+  using namespace story;
+  Game& g = c.game;
+  const std::string kid = c.arg(2);
+  int kind = -1;
+  for (int k = 0; k < radiant::kindCount(); k++) if (kid == radiant::kindId(k)) kind = k;
+  if (kind < 0) { c.fail("jobs radiant: no kind '" + kid + "'"); return true; }
+  const radiant::KindDef& K = *radiant::kinds()[(size_t)kind];
+  int si = siteHere(g);
+  if (si < 0) { c.fail("jobs radiant: no settlement in play"); return true; }
+  g.life.census(g.world, si);
+  const int walk = c.arg(3).empty() ? -1 : std::atoi(c.arg(3).c_str());
+  if (walk >= (int)K.walks.size()) { c.fail("jobs radiant: kind " + kid + " has " + std::to_string(K.walks.size()) + " walks"); return true; }
+  // the giver: the nearest person of a trade the kind takes (the walk's own trade), in this settlement
+  const Vec2 pp = g.pl().p;
+  const Actor* giver = nullptr;
+  float bd = 1e30f;
+  for (const Actor& a : g.actors) {
+    if (!a.npc || !a.human || isStoryPerson(a) || a.st == AState::Dead) continue;
+    bool fits = false;
+    if (walk >= 0) fits = (int)a.role == K.walks[(size_t)walk].trade;
+    else for (int t : K.trades) fits |= (int)a.role == t;
+    if (!fits) continue;
+    const float d = (a.p.x - pp.x) * (a.p.x - pp.x) + (a.p.y - pp.y) * (a.p.y - pp.y);
+    if (d < bd && d < (90.0f * TILE) * (90.0f * TILE)) { bd = d; giver = &a; }
+  }
+  if (!giver && c.waited < 4.0f) return false;   // (the street fills a moment after the hero arrives)
+  if (giver) {
+    // step up to the giver, as the talk would (the pitch is theirs)
+    const int hs = homeSiteOf(g, *giver);
+    if (hs >= 0 && g.world.sites[(size_t)hs].settlement()) si = hs;
+    g.pl().p = giver->p + Vec2(0, 16);
+    g.pl().face = 1; g.pl().aim = Vec2(0, -1);
+  }
+  const uint64_t seed = ew::mix64((uint64_t)g.day * 0x9E37ull ^ (uint64_t)kind ^ g.seed);
+  const std::string id = walk >= 0 ? radiant::composeVariant(g, kind, walk, si, seed) : radiant::composeFor(g, kind, giver, si, seed);
+  if (id.empty()) { c.fail("jobs radiant: kind " + kid + " cannot be composed and cast here"); return true; }
+  std::string why;
+  const uint32_t inst = g.story.start(g, id, giver ? giver->id : -1, si, &why);
+  if (!inst) { c.fail("jobs radiant: " + id + ": " + why); return true; }
+  Instance* in = g.story.find(inst);
+  std::printf("script: jobs radiant %s: %s (instance %u, stage %s, giver %s)\n", kid.c_str(), id.c_str(), inst, in ? g.story.stageName(*in).c_str() : "?",
+              giver ? giver->name.c_str() : "the place");
+  if (in && !g.story.isGoal(*in) && !g.story.isEnd(*in)) {
+    // the opening is the giver's pitch with its own ACCEPT / DECLINE, as Game::storyBeginJob shows it
+    const dsl::Script* s = scriptById(id);
+    g.dlg = Dialogue();
+    const Binding* b = s ? bindingOf(*in, s->stages[(size_t)in->stage].talk) : nullptr;
+    g.dlg.speaker = b ? b->name : std::string();
+    g.story.showDialogue(g, *in);
+    g.mode = Mode::Dialogue;
+  }
+  return true;
+}
+
 bool cmdJobs(ScriptCtx& c) {
   Game& g = c.game;
+  if (c.arg(1) == "radiant") return cmdJobsRadiant(c);
   const int si = siteHere(g);
   if (si < 0) { c.fail("jobs: no settlement in play"); return true; }
   g.life.census(g.world, si);
@@ -61,7 +126,7 @@ bool cmdJobs(ScriptCtx& c) {
   }
   return true;
 }
-EMB_SCRIPT_CMD("jobs", "jobs: print this week's job pool of the settlement here or nearest (P1 JOBS)", cmdJobs);
+EMB_SCRIPT_CMD("jobs", "jobs | jobs radiant <kind> [walk]: print this week's job pool here or nearest (P1 JOBS); begin a radiant job of a kind here, its pitch open (P1b)", cmdJobs);
 
 bool cmdJobsLeads(ScriptCtx& c) {
   Game& g = c.game;

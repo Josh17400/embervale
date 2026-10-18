@@ -201,6 +201,51 @@ class Engine {
   int offerForPlace(Game& g, int hookKind, int site);
   // forget a running instance (tests walking every path restore the engine between paths)
   void drop(uint32_t inst);
+  // ---- (P1b New Roads Content, lead; VISION_PLAN 15.35) the walker's other branches, the epilogues, the burden
+  bool goalCanFail(const Instance& in) const;      // the current goal is an escort or a bout (it has an `else`)
+  bool debugFail(Game& g, uint32_t inst);          // ... lost (the person died / the player went down): to its else
+  int stageDeadline(const Instance& in) const;     // the current stage's clock in days (0 none)
+  bool debugDeadline(Game& g, uint32_t inst);      // the clock ran out (the day moves on to it): to its stage
+  bool burdened() const;                           // a running story gave the player a heavy item (slower walking)
+  // (P1b fixer) what the dialogue panel calls a story's stand-in person (`as <title>`, else their part's trade word:
+  // "COURIER", "SHIP'S MATE"); empty: not a story person, or no title (the panel keeps its own)
+  std::string personTitle(const Actor& a) const;
+  // an ending reached off a dialogue (goal -> end, a clock, an escort lost) whose `say` no panel showed: queued here by
+  // enterStage; story_game.cpp (ENGINE lane) shows each as a closing scene and pops it (runtime, never saved)
+  struct Epilogue { uint32_t inst = 0; std::string speaker, text; };
+  std::vector<Epilogue> epilogues_;
+  bool choosing_ = false;                          // runtime: inside choose() (its own panel shows an ending's say)
+
+  // ---- (P1b ENGINE lane) the shared mechanics in play. All runtime (never saved): rebuilt from the instances (their
+  //      stage, the _follow_ / _hostile_ / _calm_ / _heavy: vars) by Game::storyStep, so a load picks up where it was.
+  //      story_game.cpp runs them; ai.cpp, game.cpp, render.cpp and hud.cpp read them through the functions below.
+  // what a story asks of an actor now (actorPart)
+  enum Part : uint8_t { P_NONE = 0, P_FOLLOW, P_BOUT_WAIT, P_BOUT, P_YIELD, P_BEATEN, P_HOSTILE, P_BEAST, P_INSIDE };
+  // a story person walking with the player (an escort goal, `do follow`): their eased pace, the stuck clock, and for a
+  // wagon the cart trailing them (its centre, heading in radians, the wheels' turn); a drove's beasts are actors of their
+  // own (DROVE_SLOT0 + ...), `herd` of them
+  struct Walker {
+    uint32_t inst = 0;
+    int role = -1, actor = -1, skin = 0, herd = 0;
+    float spd = 0, stuckT = 0, lastX = 0, lastY = 0, farT = 0;
+    float cartX = 0, cartY = 0, cartAng = 0, wheel = 0;
+    bool cartSet = false;
+    float laneOff = 0;                 // a person's own side of the trail (people do not walk in each other's steps)
+  };
+  std::vector<Walker> walkers_;
+  // a bout (goal bout): 0 waiting (the opponent stands ready), 1 fighting, 2 yielded (kneeling), 3 the player went down
+  struct Bout { uint32_t inst = 0; int role = -1, actor = -1; uint8_t phase = 0; float t = 0; float hp0 = 0; };
+  std::vector<Bout> bouts_;
+  std::map<int, uint8_t> parts_;       // actor id -> Part (the step's answer for ai.cpp / game.cpp / render.cpp)
+  std::set<uint64_t> calm_;            // site ids whose creatures stand down (`do calm`) for the stories that said so
+  float engineT_ = 0;
+  // the player's footsteps on this map (a crumb a tile apart, newest last; the window's shift moves them): the way a
+  // walker follows (through the gate the player took, round the corner they turned)
+  struct Crumb { float x = 0, y = 0; };
+  std::vector<Crumb> trail_;
+  int trailMap_ = -1;
+  uint8_t actorPart(int actorId) const { auto it = parts_.find(actorId); return it == parts_.end() ? (uint8_t)P_NONE : it->second; }
+  const Walker* walkerOf(int actorId) const { for (const Walker& w : walkers_) if (w.actor == actorId) return &w; return nullptr; }
 
   // ---- consequences
   const std::vector<Memory>& memories() const { return memories_; }
@@ -325,6 +370,39 @@ struct Host {
   void (*talkTo)(Game&, int actorId) = nullptr;                          // open the talk dialogue (tests, scripts)
 };
 Host& host();
+
+// ---- (P1b ENGINE lane, story_game.cpp) the shared mechanics' hooks in the simulation and the view
+// ai.cpp updateFolk / updateAI: a story person or a drove's beast the engine moves now (a walker, a bout opponent
+// waiting, kneeling or standing over the player, a person inside a site, a beast of a drove): true when handled
+bool folkStep(Game& g, Actor& a, float dt);
+// ai.cpp updateAI (hostiles): a creature of a calmed site stands down; a bout opponent fights the player only. True
+// when handled (the rest of the hostile AI is skipped)
+bool hostileStep(Game& g, Actor& a, float dt);
+// game.cpp damage: untouchable: a yielded / standing-down opponent or a friendly story person takes nothing (the
+// blow is void). boutBlow (just before the hit lands): a bout opponent at a quarter health yields (hp held there), the
+// player at nothing in a bout is left on 1 HP and loses; dmg is changed in place
+bool untouchable(const Game& g, const Actor& v, int attacker);
+void boutBlow(Game& g, Actor& v, float& dmg, int attacker);
+// game.cpp collectHostiles: a bout opponent threatens the player only (townsfolk and guards leave the fight alone)
+bool threatensTown(const Game& g, const Actor& a);
+// a prop a running story wants used (goal use beacon / crate / barrel / chest / well / brazier / sacks) in front of
+// the player: prop + 1 and its tile (0 none). game.cpp's use button and hud.cpp's TAP label ask it; useVerb: LIGHT /
+// SEARCH / OPEN / DRAW / USE
+int wantedProp(const Game& g, int& tx, int& ty);
+const char* wantedVerb(int prop);
+// use it (the story's moment: the beacon lit, the crate searched; its goal moves on): false when it is not a prop a
+// running goal wants at that tile. Game::storyUseProp calls it first
+bool useWantedProp(Game& g, int prop, int tx, int ty);
+// the player walks this much slower under a story's burden (game.cpp; 1 none)
+float burdenMul(const Game& g);
+// a beacon lit by a story at overworld tile (tx, ty) (render.cpp: fire on the tower's top)
+bool beaconLit(const Game& g, int tx, int ty);
+// (scripts, tests: rpg/view/script_story.cpp) stage a running instance's bout to its end (win: the opponent kneels and
+// yields; lose: the player is left on 1 HP) or set its walkers (and a drove) down beside the player; false: nothing to do
+bool debugBout(Game& g, uint32_t inst, bool win);
+// (game.cpp leaveSub) the player stepped out of a building or a site: the walkers are set down beside them at once
+void syncNow(Game& g);
+bool debugEscort(Game& g, uint32_t inst);
 
 // DLG_STORY sub-ranges (game.h DLG_STORY .. DLG_WAR): story options, hook offers, boards and heralds
 constexpr int SA_OPT = 0;        // + option index (arg: instance id)

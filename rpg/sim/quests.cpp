@@ -944,7 +944,9 @@ Quest Game::makeOffer(const Actor& npc, bool* okOut) {
   if (const jobs::PoolJob* j = JobOps::openJob(*this, npc)) {
     jobBook.offerNeed = j->need;
     const QType want = (QType)j->qtype;
-    Quest q = offerFor(npc, want, ok);
+    // (P1b) a radiant job (QType::Story) is begun by "ANY WORK GOING?" itself (radiant::offerFor); here only when it
+    // could not be composed or cast in this world: the fallback hunt below
+    Quest q = want == QType::Story ? Quest() : offerFor(npc, want, ok);
     if (!ok && JobOps::censusJob(*this, npc) != life::Job::Scholar) {   // the place it named is gone (cleared since Monday, taken by another job): a hunt at a den always fits (not a scholar's)
       jobBook.offerNeed = jobs::JN_DEN;
       q = offerFor(npc, QType::Hunt, ok);

@@ -1,4 +1,4 @@
-// P1 "Fresh Roads" STORY lane checks (VISION_PLAN 15.34).
+// P1 "Fresh Roads" STORY lane checks (VISION_PLAN 15.34); (P1b TALES lane) --tale-reach.
 //   rpg_test --story-p1 [--seeds A..B]                   the lane's own checks, one PASS/FAIL line each: the picker's
 //                                                        policy on real worlds (no replays, one teller per tale per
 //                                                        town, places falling through, news only when fresh), the
@@ -7,6 +7,7 @@
 //                                                        into a conversation
 //   rpg_test --story-events [--seeds A..B] [--weeks N]   which realm events reach the start's settlements in N weeks
 //                                                        (the event-hooked campaigns' and stories' supply; a report)
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -15,10 +16,12 @@
 #include <string>
 #include <vector>
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/life.h"
 #include "rpg/story/dsl.h"
 #include "rpg/story/saga.h"
 #include "rpg/story/story.h"
 #include "rpg/story/story_internal.h"
+#include "rpg/world/source.h"
 #include "tools/tests/tests.h"
 
 namespace story {
@@ -202,11 +205,17 @@ void worldP1(uint64_t seed) {
                                   std::to_string(worst) + (worst > 1 ? " (" + worstKey + ")" : "") + sd);
   // ---- 1: a finished tale is never offered again (every library tale marked played: nobody offers one)
   for (const dsl::Script& sc : dsl::library().scripts) g.story.played_[sc.id]++;
+  // ((P1b) a `once site` script, a town request, is played once per settlement, not once per world: marked played
+  // here only in the world's count, it may still come up in a town that never had it, by design: not a replay)
   int replays = 0;
+  std::string replayIds;
   for (size_t k = 1; k < g.actors.size(); k++) {
     Actor& a = g.actors[k];
     if (!a.npc || !a.human || a.st == AState::Dead || isStoryPerson(a)) continue;
-    if (tellerOffer(g, a).lib >= 0) replays++;
+    const Offer o = tellerOffer(g, a);
+    if (o.lib < 0 || dsl::library().scripts[(size_t)o.lib].onceSite) continue;
+    replays++;
+    replayIds += " " + o.id();
   }
   // ---- 3: places fall through (a played tale is never a place's offer; the news only with fresh news)
   int placeReplays = 0;
@@ -215,7 +224,7 @@ void worldP1(uint64_t seed) {
     for (int kind : {(int)dsl::HookKind::Board, (int)dsl::HookKind::Ruin, (int)dsl::HookKind::Event, (int)dsl::HookKind::Herald})
       if (placeOffer(g, kind, si).lib >= 0) placeReplays++;
   }
-  check(replays == 0 && placeReplays == 0, "finished tales never offered again: talk " + std::to_string(replays) + ", places " + std::to_string(placeReplays) + sd);
+  check(replays == 0 && placeReplays == 0, "finished tales never offered again: talk " + std::to_string(replays) + replayIds + ", places " + std::to_string(placeReplays) + sd);
   // a news tale with no fresh news: never offered (a fresh world: no famine, no war reached the start)
   for (const dsl::Script& sc : dsl::library().scripts) g.story.played_.erase(sc.id);
   int staleNews = 0;
@@ -293,7 +302,70 @@ int storyEvents(int argc, char** argv) {
   return 0;
 }
 
+// (P1b TALES lane) rpg_test --tale-reach [--seeds A..B] [--rings N]: where each P1b tale (tales2) could be offered, a
+// report: over the settlements of N region rings round the start, at how many its offer gates hold (offerPrecheck:
+// settle / needs / the world's wars and events) and how many census residents of its hook trade live there (its
+// possible tellers). A tale the quest-mix visit set never offers is explained here (the coast, the trade, a war).
+int taleReach(int argc, char** argv) {
+  uint64_t A = 1, B = 5;
+  int rings = 2;
+  for (int i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "--seeds") && i + 1 < argc) {
+      if (!parseSeedRange(argv[++i], A, B)) return 2;
+    } else if (!strcmp(argv[i], "--rings") && i + 1 < argc) rings = std::max(0, atoi(argv[++i]));
+  }
+  const dsl::Library& L = dsl::library();
+  struct Reach { int gates = 0, tellers = 0, both = 0; std::set<uint64_t> seeds; };
+  std::map<std::string, Reach> R;
+  int settlements = 0, coast = 0;
+  for (uint64_t seed = A; seed <= B; seed++) {
+    g_curSeed = seed;
+    Game g(seed);
+    g.newEndlessGame(seed);
+    g.mode = Mode::Play; g.godMode = true; g.noWildSpawns = true;
+    for (int f = 0; f < 10; f++) { g.update(SIM_DT, Input()); g.events.clear(); }
+    const Site st = g.world.sites[(size_t)g.world.startSite];
+    const int32_t sx = g.world.ox + st.ex, sy = g.world.oy + st.ey;
+    for (int32_t ry = ew::regionOf(sy) - rings; ry <= ew::regionOf(sy) + rings; ry++)
+      for (int32_t rx = ew::regionOf(sx) - rings; rx <= ew::regionOf(sx) + rings; rx++) {
+        const ew::RegionPlan RP = g.world.regionPlan(rx, ry);
+        for (const ew::SitePlan& p : RP.sites) {
+          if ((p.type != SiteType::Village && p.type != SiteType::Town && p.type != SiteType::City) || (p.flags & ew::SPF_HIDDEN)) continue;
+          const int h = g.world.ensureSite(p.id);
+          if (h < 0) continue;
+          settlements++;
+          const Site S = g.world.sites[(size_t)h];
+          if (nearCoast(g, g.world.ox + S.ex, g.world.oy + S.ey)) coast++;
+          const life::Census* c = g.life.census(g.world, h);
+          for (const dsl::Script& s : L.scripts) {
+            if (s.family != "tale") continue;
+            Reach& r = R[s.id];
+            const bool gates = offerPrecheck(g, s, h);
+            int tellers = 0;
+            if (s.hook != dsl::HookKind::Npc) tellers = (s.hook == dsl::HookKind::Board ? S.type != SiteType::Village : true) ? 1 : 0;
+            else if (c)
+              for (const life::Resident& res : c->res)
+                if (s.hookTrade == -2 ? (life::jobRole(res.job) == Role::Guard || life::jobRole(res.job) == Role::Jarl) : (int)life::jobRole(res.job) == s.hookTrade) tellers++;
+            if (gates) r.gates++;
+            if (tellers) r.tellers++;
+            if (gates && tellers) { r.both++; r.seeds.insert(seed); }
+          }
+        }
+      }
+  }
+  printf("tale-reach: seeds %llu..%llu, %d region rings: %d settlements (%d near the sea)\n", (unsigned long long)A, (unsigned long long)B, rings,
+         settlements, coast);
+  for (const dsl::Script& s : L.scripts) {
+    if (s.family != "tale") continue;
+    const Reach& r = R[s.id];
+    printf("  %-13s %-23s gates hold at %4d, a teller of its trade at %4d, both at %4d settlements, in %zu seeds\n", s.id.c_str(), s.title.c_str(),
+           r.gates, r.tellers, r.both, r.seeds.size());
+  }
+  return 0;
+}
+
 }  // namespace
 
+RPG_TEST_CMD("--tale-reach", "P1b tales: where each new tale's offer gates hold and its hook trade lives (a report) [--seeds A..B --rings 2]", taleReach);
 RPG_TEST_CMD("--story-p1", "P1 story lane: the picker's policy, ruin and event stories, alternative heads, tone fixes [--seeds A..B]", storyP1);
 RPG_TEST_CMD("--story-events", "P1 story: realm events reaching the start's settlements [--seeds A..B --weeks 12]", storyEvents);

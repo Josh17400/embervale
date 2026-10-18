@@ -23,6 +23,10 @@
 #include <vector>
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/jobs_ops.h"
+#include "rpg/story/dsl.h"
+#include "rpg/story/radiant.h"
+#include "rpg/story/story.h"
+#include "rpg/story/story_internal.h"
 #include "rpg/world/source.h"
 #include "tools/tests/tests.h"
 
@@ -134,6 +138,15 @@ int jobsSeed(uint64_t seed, double& usPerCall, int& hunts, int& huntsOk, std::ma
         continue;
       }
       Game t = g;
+      // (P1b) a radiant job is begun by "ANY WORK GOING?" itself: its composed story, of the pool's kind
+      if (j.qtype == (uint8_t)QType::Story) {
+        asked++;
+        const std::string rj = story::radiant::offerFor(t, a);
+        if (!rj.empty() && story::radiant::kindOf(rj) == j.need - jobs::JN_RADIANT0) matched++;
+        else if (!rj.empty()) fail("a radiant pool job offered as another kind: " + rj);
+        else if (g_jverbose) out("  pool radiant %d could not be cast (the fallback hunt)\n", j.need - jobs::JN_RADIANT0);
+        continue;
+      }
       const Quest q = JobOps::makeOffer(t, a);
       asked++;
       if ((uint8_t)q.type == j.qtype || q.type == QType::Supply || q.type == QType::Missing) matched++;
@@ -271,7 +284,8 @@ int jobsSeed(uint64_t seed, double& usPerCall, int& hunts, int& huntsOk, std::ma
       const life::Census* cc = u.life.find(u.world.sites[(size_t)start].id);
       for (const jobs::PoolJob& j : first.jobs) {
         const int ri = residentOf(u, start, j.giver);
-        if (ri < 0 || j.qtype == (uint8_t)QType::Protect) continue;
+        // (P1b: a radiant job's lead is taken when its story is begun: rpg_test --radiant checks that)
+        if (ri < 0 || j.qtype == (uint8_t)QType::Protect || j.qtype == (uint8_t)QType::Story) continue;
         const Actor ga = residentActor(u, start, cc->res[(size_t)ri]);
         if (!JobOps::hasOffer(u, ga)) continue;
         jobs::Lead ln;
@@ -366,7 +380,164 @@ int jobsCmd(int argc, char** argv) {
   return bad ? 1 : 0;
 }
 
+// ---------------------------------------------------------------- (P1b) rpg_test --radiant [--seeds A..B] [--only kind] [--dump]
+// The radiant job kinds' composer (story::radiant): every walk of every kind composes (expansion, parse, validation) for
+// many seeds; with --dump the first composition of each walk is printed. Per seed: the start village's people are asked
+// for work (radiant::offerFor through the weekly pools) and each kind's offers are counted; a radiant offer starts on its
+// giver (its opening is the giver's talk), its pool job is given out once it is accepted and done when it ends.
+int radiantCmd(int argc, char** argv) {
+  using namespace story;
+  uint64_t A = 1, B = 3;
+  std::string only;
+  bool dump = false;
+  for (int i = 1; i < argc; i++) {
+    if (!strcmp(argv[i], "--seeds") && i + 1 < argc) {
+      if (!parseSeedRange(argv[++i], A, B)) { printf("bad --seeds range '%s'\n", argv[i]); return 2; }
+    } else if (!strcmp(argv[i], "--only") && i + 1 < argc) only = argv[++i];
+    else if (!strcmp(argv[i], "--dump")) dump = true;
+  }
+  int bad = 0, composed = 0;
+  auto fail = [&](const std::string& s) { out("FAIL: radiant: %s\n", s.c_str()); bad++; };
+  // 1. composition: every walk, 40 seeds (the [[...]] alternatives and the picks)
+  for (int k = 0; k < radiant::kindCount(); k++) {
+    if (!only.empty() && only != radiant::kindId(k)) continue;
+    const radiant::KindDef& K = *radiant::kinds()[(size_t)k];
+    if (K.walks.empty()) { fail(std::string(K.id) + ": no walks"); continue; }
+    for (size_t w = 0; w < K.walks.size(); w++)
+      for (uint32_t s = 1; s <= 40; s++) {
+        const std::string id = radiant::specIdOf(k, K.walks[w], s * 2654435761u);
+        if (radiant::kindOf(id) != k) fail(id + ": kindOf");
+        const std::vector<std::string> errs = radiant::composeErrors(id);
+        if (!errs.empty()) { for (size_t e = 0; e < errs.size() && e < 6; e++) fail(id + ": " + errs[e]); if (dump) printf("%s\n", radiant::composedText(id).c_str()); break; }
+        composed++;
+        // the journal and the tracker show a story's title as written (Engine::mirror does not fill it): no name in it
+        if (const dsl::Script* sc = radiant::script(id)) if (sc->title.find('{') != std::string::npos) fail(id + ": a placeholder in the title: " + sc->title);
+        if (dump && s == 1) printf("---- %s\n%s\n", id.c_str(), radiant::composedText(id).c_str());
+      }
+  }
+  // 1b. every walk cast at the start village of the first seed (why not, when it cannot be)
+  {
+    g_curSeed = A;
+    Game g(A);
+    g.newEndlessGame(A);
+    g.mode = Mode::Play; g.godMode = true; g.noWildSpawns = true;
+    tick(g, 30);
+    for (int k = 0; k < radiant::kindCount(); k++) {
+      if (!only.empty() && only != radiant::kindId(k)) continue;
+      const radiant::KindDef& K = *radiant::kinds()[(size_t)k];
+      int cast = 0;
+      for (size_t w = 0; w < K.walks.size(); w++) {
+        radiant::JobCtx c = K.walks[w];
+        std::string why;
+        bool ok = false;
+        for (int pass = 0; pass < 2 && !ok; pass++) {
+          if (pass == 1) { if (!K.fallback) break; c.fallback = true; }
+          const std::string id = radiant::specIdOf(k, c, 77u + (uint32_t)w);
+          const dsl::Script* s = scriptById(id);
+          if (!s) { why = "does not compose"; continue; }
+          std::vector<Binding> b;
+          ok = castScript(g, *s, -1, g.world.startSite, 1234u + w, b, why);
+        }
+        if (ok) cast++;
+        else out("  radiant: %s walk %zu (variant %d twist %d%s) cannot be cast at the start village: %s\n", K.id, w, K.walks[w].variant,
+                 K.walks[w].twist, c.fallback ? ", fallback too" : "", why.c_str());
+      }
+      if (!cast && !K.walks.empty()) fail(std::string(K.id) + ": no walk can be cast at the start village of seed " + std::to_string(A));
+    }
+  }
+  // 2. offers through the pools: the start village and the towns near, a few weeks
+  std::map<std::string, int> offers;
+  int started = 0, given = 0, done = 0;
+  for (uint64_t seed = A; seed <= B; seed++) {
+    g_curSeed = seed;
+    Game g(seed);
+    g.newEndlessGame(seed);
+    g.mode = Mode::Play; g.godMode = true; g.noWildSpawns = true;
+    tick(g, 60);
+    for (int week = 0; week < 4; week++) {
+      std::vector<int> sites;
+      for (int si : g.world.nearSites) if (si >= 0 && si < (int)g.world.sites.size() && g.world.sites[(size_t)si].settlement()) sites.push_back(si);
+      for (int si : sites) {
+        const life::Census* c = g.life.census(g.world, si);
+        if (!c) continue;
+        jobs::Pool* p = JobOps::ensurePool(g, si);
+        if (!p) continue;
+        const std::vector<jobs::PoolJob> pj = p->jobs;
+        for (const jobs::PoolJob& j : pj) {
+          if (j.qtype != (uint8_t)QType::Story) continue;
+          const int ri = residentOf(g, si, j.giver);
+          if (ri < 0) continue;
+          const Actor a = residentActor(g, si, c->res[(size_t)ri]);
+          const std::string id = radiant::offerFor(g, a);
+          if (id.empty()) { offers["(not cast) " + std::string(radiant::kindId(j.need - jobs::JN_RADIANT0))]++; continue; }
+          const int kk = radiant::kindOf(id);
+          if (kk != j.need - jobs::JN_RADIANT0) fail(id + ": offered as another kind than the pool's");
+          offers[radiant::kindId(kk)]++;
+        }
+      }
+      g.day += 7;
+      tick(g, 2);
+    }
+    // 3. a radiant job's life in the pool: begun (opening = the giver's talk), accepted (given out), finished (done)
+    {
+      const int si = g.world.startSite;
+      const life::Census* c = g.life.census(g.world, si);
+      jobs::Pool* p = c ? JobOps::ensurePool(g, si) : nullptr;
+      for (size_t ji = 0; p && ji < p->jobs.size(); ji++) {
+        const jobs::PoolJob j = p->jobs[ji];
+        if (j.qtype != (uint8_t)QType::Story || j.state != jobs::PJ_OPEN) continue;
+        const int ri = residentOf(g, si, j.giver);
+        if (ri < 0) continue;
+        Actor a = residentActor(g, si, c->res[(size_t)ri]);
+        a.id = 999001;
+        // the giver at their post indoors (an innkeeper behind the bar): its body key npcKeyOf(site, bldg, 0) is not
+        // the census key the pool holds, and the story cast keeps the body key (the P1b fixer's radiantStep repro)
+        {
+          const Site& S = g.world.sites[(size_t)si];
+          const int home = c->res[(size_t)ri].home;
+          if (S.bldgCount > 0) { a.bldg = S.bldgFirst + (home >= 0 && home < S.bldgCount ? home : 0); a.slot = 0; }
+        }
+        g.actors.push_back(a);   // (the caster finds the hook actor by id: the giver's own body casts the story)
+        const std::string id = radiant::offerFor(g, a);
+        if (id.empty()) continue;
+        jobs::Lead ln;
+        ln.from = jobs::LeadFrom::Rumour; ln.qtype = (uint8_t)QType::Story; ln.who = j.giver; ln.site = g.world.sites[(size_t)si].id;
+        ln.text = "THE TEST LEAD FOR A RADIANT JOB";
+        const uint32_t leadId = g.addLead(ln, false);
+        const uint32_t inst = g.story.start(g, id, a.id, si);
+        if (!inst) { fail(id + ": offered but cannot start"); continue; }
+        started++;
+        Instance* in = g.story.find(inst);
+        if (!in || !g.story.isEnd(*in)) {}
+        // accept: the pitch's first option
+        g.story.choose(g, inst, 0, true, 1);
+        // the instance keeps the giver's own body key; radiantStep must map it back to the pool's census key
+        if (Instance* in2 = g.story.find(inst))
+          if (!in2->cast.empty() && a.bldg >= 0 && in2->cast[0].id == j.giver) fail(id + ": the indoor giver's cast key is the census key (test no longer covers the body-key path)");
+        tick(g, 2);
+        const jobs::Pool* q = g.jobBook.pool(p->site, p->week);
+        if (q && ji < q->jobs.size() && q->jobs[ji].state == jobs::PJ_GIVEN) given++;
+        else fail(id + ": accepted, but its pool job was not given out");
+        if (const jobs::Lead* lp = g.jobBook.lead(leadId)) { if (lp->state != jobs::LS_TAKEN) fail(id + ": begun, but the lead naming its giver is still open"); }
+        if (Instance* in3 = g.story.find(inst)) { in3->done = true; }
+        tick(g, 2);
+        q = g.jobBook.pool(p->site, p->week);
+        if (q && ji < q->jobs.size() && q->jobs[ji].state == jobs::PJ_DONE) done++;
+        else fail(id + ": ended, but its pool job is not done");
+        break;
+      }
+    }
+  }
+  std::string o;
+  for (const auto& kv : offers) o += (o.empty() ? "" : ", ") + kv.first + " " + std::to_string(kv.second);
+  printf("radiant: %d kinds, %d compositions; offers: %s; lifecycle: %d started, %d given, %d done; %d failures\n", radiant::kindCount(), composed,
+         o.c_str(), started, given, done, bad);
+  return bad ? 1 : 0;
+}
+
 }  // namespace
+
+RPG_TEST_CMD("--radiant", "P1b: the radiant job kinds compose (every walk, 40 seeds) and are offered through the weekly pools [--seeds A..B --only kind --dump]", radiantCmd);
 
 RPG_TEST_CMD("--jobs", "P1: the weekly job pools (determinism, freezing, sizes, rotation, no lifetime cap, the board), hunts' targets, leads, the save, hasOffer's cost [--seeds A..B --verbose]",
              jobsCmd);

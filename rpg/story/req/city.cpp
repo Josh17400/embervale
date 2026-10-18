@@ -1,0 +1,1444 @@
+// P1b "New Roads Content" (VISION_PLAN 15.35): the ten new city and capital requests (content spec: req_city.md, every
+// final judge note of req_city.judge.md resolved). REQUESTS lane. Each script is `family request`, `settle city` (city
+// includes capitals; `settle capital` for the herald's; `settle town city coast` for the three harbour-board items, whose
+// raise rule also wants a harbour: a port town or city), `once
+// site` and a `cooldown` (the city RARE rule: a city raises no new request for that many days after one ended there).
+// The realm events and city state each answers (refugees, rising prices, war, a hungry coast, granaries, a jarl in
+// residence) are req_offers.cpp's raise policy.
+//
+//   rq_rowwell      THE ROW WELL          boarded houses that are not plague: a landlord's lime pit leaks into the Row well
+//   rq_silverskin   THE SILVER SKIN       plated coin struck at a quarry with the treasury's own die, to pay unpaid soldiers
+//   rq_barrels      FOUR HUNDRED BARRELS  a harbour store "robbed" of fish that never existed; oars, lime and a slate
+//   rq_longtable    THE LONG TABLE        iron in the ruler's cup before a war; the aunt who would keep her grandson home
+//   rq_ratguild     THE RATCATCHERS' PRICE a guild that breeds the rats it is paid to catch
+//   rq_cisternbook  THE CISTERN BOOK      a lost survey with loaves written on its back, and a bathhouse drinking the Low Town dry
+//   rq_darklanes    THE DARK LANES        lamplighters priced out of their own oil, and three wards in the dark
+//   rq_yellowflag   THE YELLOW FLAG       an honest ship of spurred rye at the buoy, and a starving port
+//   rq_articles     THE SIGNED ARTICLES   a crimp's articles, a ropewalk indenture, and a master's leave to go to sea
+//   rq_blueglove    THE HANGMAN'S WEEK    a blue-stained glove, a red-handed dyer, and the mother of a beaten boy
+//
+// Spec fallbacks (judge notes and the world as it is): no herbalist lives in a city, so the temple's priest nurses the Row
+// and goes out to the yellow-flag ship, and an apothecary merchant sells the bloodroot; named people of the plots are
+// `person` roles (the census guarantees no sex or age); the rat pit is a walk-in at a cave's mouth (there is no rat
+// monster), proven by the guild's own branded feed tally.
+#include <string>
+#include "rpg/story/dsl.h"
+
+namespace story {
+namespace dsl {
+
+namespace {
+
+const char* const kCity[] = {
+R"DSL(
+script rq_rowwell
+title THE ROW WELL
+archetype city request: a false plague
+tier 2
+family request
+settle city
+once site
+cooldown 40
+gossip "THE ROW WELL QUEUE GETS SHORTER."
+gossip "SEVEN DOORS BOARDED ON TANNER ROW."
+hook npc priest
+pitch "WHY ARE THOSE DOORS BOARDED?"
+hint "IF YOU'RE GOING DOWN TANNER ROW, DON'T DRINK THERE. I CAN'T TELL YOU WHY YET. THAT'S WHAT FRIGHTENS ME."
+role giver giver
+role home site home
+role land kingdom home
+role sick person female at home
+role guard npc guard
+role factor npc merchant
+var how 0
+
+stage start
+  talk giver
+  say "THE QUEUE AT THE TANNER ROW WELL GETS SHORTER EVERY DAY, AND NOT BECAUSE THE WATER IS GOOD. SEVEN HOUSES SICK: BLUE LIPS, SHAKES, A THIRST NOTHING TOUCHES. THE WATCH BOARDED THEM AS PLAGUE. I'VE NURSED PLAGUE. IT JUMPS HOUSE TO HOUSE. THIS STAYS INSIDE THEM."
+  opt "I'LL TALK TO THE SICK." -> sick
+  opt "WHAT DO YOU THINK IT IS?" -> think
+  opt "PLAGUE IS PLAGUE. KEEP AWAY." -> refuse
+
+stage think
+  talk giver
+  say "SOMETHING THEY SHARE. I KNOW PRAYERS AND POULTICES, NOT DRAINS. I'M ONE PAIR OF HANDS WITH A BASKET AND A BAD FEELING. {SICK} BEHIND THE BOARDS STILL TALKS. START THERE."
+  opt "I'LL TALK TO {SICK}." -> sick
+
+stage sick
+  talk sick
+  say "MY LIPS WENT BLUE ON MARKET DAY. THEN NEXT DOOR, THEN THE NEXT. BUT MY SISTER ACROSS THE LANE IS WELL. SHE CARRIES RIVER WATER; SAYS THE ROW WELL TASTES OF ROT. WE DRINK IT ANYWAY. IT'S FREE, AND WE HAVE NOTHING."
+  opt "WHO BOARDED YOUR DOOR?" -> guard
+
+stage guard
+  talk guard
+  say "THE PRIEST SAID SICK, THE CAPTAIN SAID PLAGUE, SO I BOARD. I DON'T LIKE IT. THE BARRACKS DRINKS FROM ITS OWN CISTERN AND NOT ONE OF MY LADS IS ILL. READ THE FACTOR'S NOTICE ON THE BOARD. THEN ASK WHEN IT WAS WRITTEN."
+  opt "I'LL READ IT." -> board
+
+stage board
+  goal use board in home
+  then factor
+  journal "THE SICK OF TANNER ROW IN {HOME} ALL DRINK FROM THE ROW WELL. READ THE FACTOR'S NOTICE ON THE NOTICE BOARD."
+
+stage factor
+  talk factor
+  say "THE WELL IS SWEET. I POSTED IT, DIDN'T I? FORTY NEW FAMILIES, EVERY ROOM LET, AND A LIME PIT DUG UPHILL TO GIVE THEM WORK. I WILL NOT HEAR THAT IT LEAKS. A SEALED WELL MEANS EMPTY ROOMS AND A DEAD YEAR. MIND WHERE YOU SPEAK."
+  journal "THE NOTICE CALLS THE ROW WELL SWEET. IT WAS POSTED BEFORE ANYONE FELL ILL: THE FACTOR'S TENANTS HAD COMPLAINED OF THE TASTE A WEEK BEFORE."
+  opt "SEAL IT. OPEN YOUR OWN CASKS." check level 4 -> sealed else brushed
+  opt "WHAT IS SILENCE WORTH?" -> bribe
+  opt "I'LL BUY THE ROW CLEAN WATER." if gold 120 -> bought
+
+stage sealed
+  talk factor
+  say "...FINE. THE PIT IS MINE, THE WELL IS MINE, THE SHAME IS MINE. SEAL IT. CASKS FROM THE RIVER GATE AT MY COST. NOW GO, BEFORE I THINK BETTER OF IT."
+  do set how 1
+  opt "THREE DAYS, THEN WE'LL SEE." -> wait
+
+stage brushed
+  talk factor
+  say "YOU? A STRANGER WITH A SWORD AND AN OPINION? GET OUT OF MY COUNTING HOUSE. THE WELL STAYS OPEN."
+  opt "THEN THE WATCH HEARS OF IT." -> guard_seal
+  opt "THEN I'LL BUY THE WATER MYSELF." if gold 120 -> bought
+  opt "THEN WHAT IS SILENCE WORTH?" -> bribe
+
+stage guard_seal
+  talk guard
+  say "TWO THINGS NOW: A NOTICE DATED BEFORE THE ILLNESS, AND THE PRIEST'S WORD. ENOUGH FOR THE WATCH. I'LL PUT TWO LADS ON THE WELL WITH AN AXE FOR THE ROPE. THE FACTOR WILL HATE US BOTH. LET HIM."
+  do set how 2
+  opt "THREE DAYS, THEN." -> wait
+
+stage wait
+  goal wait 3
+  then final
+  journal "THE ROW WELL OF {HOME} IS SEALED. GIVE THE SICK THREE DAYS OF CLEAN WATER, THEN SEE {GIVER}."
+
+stage bought
+  goal wait 3
+  then final
+  do gold -120
+  do set how 3
+  journal "YOU PAID FOR RIVER CASKS FOR TANNER ROW IN {HOME}. GIVE THE SICK THREE DAYS, THEN SEE {GIVER}."
+
+stage final
+  talk giver
+  say "THREE DAYS OF RIVER WATER. COME DOWN TO THE ROW WITH ME AND LOOK AT THEM."
+  opt "LOOK AT THE ROW." if is how 1 -> end_sealed
+  opt "LOOK AT THE ROW." if is how 2 -> end_guard
+  opt "LOOK AT THE ROW." if is how 3 -> end_bought
+
+stage end_sealed
+  end success
+  say "THE LIPS ARE PINK AGAIN. SEVEN DOORS, AND I'VE TAKEN THE BOARDS OFF EVERY ONE MYSELF. DON'T LOOK SURPRISED. I DIDN'T TRUST ANYONE ELSE WITH THE HAMMER."
+  journal "THE ROW WELL OF {HOME} IS SEALED AND THE FACTOR PAYS FOR CASKS. TANNER ROW IS MENDING."
+  do reward fair
+  do deed charity
+  do rep land 1
+  do census home mood 6
+  do shop factor "I SELL RIVER WATER AT COST THIS WINTER. DON'T TELL ANYONE I SAID COST."
+  do remember giver "YOU WERE RIGHT ABOUT THE WELL. THE FACTOR SENDS ME HIS OWN SPICES NOW, WITH A NOTE I CAN'T READ."
+  do fact "THE ROW WELL OF {HOME} WAS SEALED WHEN {PLAYER} SHOWED THE SICKNESS ON TANNER ROW WAS THE WATER, NOT A PLAGUE."
+
+stage end_guard
+  end success
+  say "THE LIPS ARE PINK AGAIN, AND THE WATCH STILL STANDS ON THE WELL WITH ITS AXE. THE FACTOR CROSSES THE STREET WHEN HE SEES ME. I'VE NEVER SLEPT BETTER."
+  journal "THE WATCH SEALED THE ROW WELL OF {HOME} OVER THE FACTOR'S HEAD. TANNER ROW IS MENDING."
+  do reward fair
+  do rep land 1
+  do census home mood 6
+  do shop factor "ASK THE WATCH WHERE TO BUY WATER. I'M NOT TALKING TO YOU."
+  do remember giver "THE WATCH AND A STRANGER SEALED A WELL. I'LL TELL THAT STORY AT EVERY SICKBED I SIT BY."
+  do fact "THE WATCH OF {HOME} SEALED THE ROW WELL OVER ITS LANDLORD'S HEAD. {PLAYER} BROUGHT THEM THE PROOF."
+
+stage end_bought
+  end success
+  say "THE RIVER CASKS ARE HELPING. YOU PAID WHAT THE FACTOR SHOULD HAVE. THE WELL IS STILL OPEN, AND SOMEONE WILL DRINK FROM IT. I'LL KEEP TALKING. IT'S ALL I HAVE."
+  journal "TANNER ROW IN {HOME} DRINKS RIVER CASKS YOU PAID FOR. THE ROW WELL IS STILL OPEN."
+  do reward small
+  do deed charity
+  do census home mood 3
+  do remember giver "THE CASKS COME EVERY MORNING. SO DOES THE QUEUE AT THE OLD WELL. I STAND THERE AND SHOUT."
+  do fact "TANNER ROW OF {HOME} DRINKS RIVER CASKS PAID FOR BY {PLAYER}. THE ROW WELL IS STILL OPEN."
+
+stage bribe
+  end fail
+  say "NOW YOU TALK SENSE. ONE HUNDRED, AND THE ROW KEEPS ITS WELL. THE SICK WILL MEND WHEN THEY MEND. NOBODY DIES OF BAD WATER IN A WEEK."
+  journal "THE FACTOR OF TANNER ROW PAID YOU TO KEEP QUIET. THE ROW WELL OF {HOME} STAYS OPEN."
+  do gold 100
+  do deed bribed
+  do rep land -1
+  do census home mood -4
+  do remember giver "THE ROW GOT WORSE. NO ONE KNOWS WHY. YOU WOULD, I THINK."
+  do fact "THE ROW WELL OF {HOME} STAYS OPEN AND TANNER ROW STAYS SICK. ITS LANDLORD PAID A STRANGER TO SAY NOTHING."
+
+stage refuse
+  end fail
+  journal "YOU KEPT AWAY FROM THE BOARDED HOUSES OF TANNER ROW IN {HOME}."
+  do remember giver "YOU KEPT AWAY. THE ROW DIDN'T HAVE THAT CHOICE. IT STILL DRINKS FROM THAT WELL."
+)DSL",
+
+R"DSL(
+script rq_silverskin
+title THE SILVER SKIN
+archetype city request: debased coin
+tier 2
+family request
+settle city
+once site
+cooldown 50
+gossip "BITE YOUR SILVER. IF IT GIVES, BEWARE."
+gossip "THE WATCH PAYS IN ONE-BAR COIN."
+hook npc merchant
+pitch "WHY ARE YOU BITING THAT COIN?"
+hint "SILVER ON TOP, COPPER BELOW. SCRATCH IT AND IT BLEEDS RED. THREE STALLS HAVE TAKEN IT THIS WEEK. MINE WILL BE NEXT."
+role giver giver
+role home site home
+role land kingdom home
+role smith npc smith
+role inn npc innkeeper
+role eggwife person female at home
+role camp site camp near
+role press person male at camp
+role lord ruler land
+role seat capital land
+
+stage start
+  talk giver
+  say "BITE THIS ONE. NOW ONE OF MINE. SOFT UNDER THE SKIN, SEE? SILVER ON TOP, COPPER BELOW: SCRATCH IT AND IT BLEEDS RED. THREE STALLS TOOK IT THIS WEEK. FIND WHO STRIKES IT BEFORE THE MARKET STOPS TRUSTING ANY CHANGER'S SCALE. MINE FIRST."
+  opt "I'LL FIND WHO MAKES IT." -> smith
+  opt "COIN IS COIN. NOT MY TRADE." -> refuse
+
+stage smith
+  talk smith
+  say "IT BENDS. SILVER DOESN'T. COPPER, AND CLEAN WORK. LOOK AT THE EDGE: ONE BAR UNDER THE CROWN. THE CROWN'S ASSAY HOUSE STAMPS THREE. ONE BAR IS THE TREASURY'S OWN DIE. SOMEONE WITH THE KEY TO THAT DIE MADE THIS. TAKE IT."
+  do give "A BENT COIN" gold
+  opt "WHO ELSE HAS SEEN THIS COIN?" -> inn
+
+stage inn
+  talk inn
+  say "THE WATCH PAYS FOR ITS ALE IN THAT COIN. FIRST OF THE MONTH, A NEW BAG, ALL ONE BAR. I'M SAYING NOTHING. I'VE A FAMILY AND A CELLAR. HERE: A PAY SLIP THE SERGEANT LEFT. PAID AT THE TREASURY DOOR. I NEVER SAW IT."
+  do give "A WATCH PAY SLIP" letter
+  opt "AND WHERE DOES THE COIN COME FROM?" -> eggwife
+
+stage eggwife
+  talk eggwife
+  say "I SOLD EGGS FOR IT AND FOUND OUT AT THE WELL. TWENTY YEARS AT THIS STALL, NEVER A SHORT WEIGHT. THE CART THAT BRINGS THE BAGS RIDES FROM THE OLD QUARRY. ITS TOKEN FELL OFF AT MY STALL. TELL WHOEVER IT IS I WANT MY TWENTY YEARS BACK."
+  do give "A QUARRY CART TOKEN" key
+  opt "THE QUARRY, THEN." -> to_camp
+
+stage to_camp
+  goal goto camp
+  then press
+  journal "ONE-BAR COIN, TREASURY PAY, AND A CART FROM THE OLD QUARRY: THE BAD SILVER OF {HOME} COMES FROM {CAMP}. GO THERE."
+
+stage press
+  talk press
+  say "YOU'RE FROM THE MARKET. I KNEW SOMEONE WOULD COME. I'M THE UNDER-TREASURER. STRIKING COIN BY NIGHT IN A QUARRY IS NOT WHAT I TRAINED FOR. I KEPT A TALLY OF EVERY BAG. I WANT SOMEONE TO HOLD IT BEFORE I'M THE ONE BLAMED."
+  opt "WHY STRIKE IT AT ALL?" -> why
+  opt "GIVE ME THE TALLY." -> tally
+
+stage why
+  talk press
+  say "THE {LORD.TITLE} OWES TWO HUNDRED SOLDIERS A SEASON'S PAY, AND THE TREASURY IS EMPTY. THE ASSAY HOUSE WOULD NEVER PASS BAD COIN, SO WE STRIKE IT OUT HERE, OUT OF ITS SIGHT. MEN HAVE TO EAT. THAT'S THE WHOLE CRIME, AND IT'S STILL A CRIME."
+  opt "GIVE ME THE TALLY." -> tally
+
+stage tally
+  talk press
+  say "HERE. EVERY BAG, EVERY DAY, IN MY OWN HAND. THE PRESS STOPS TONIGHT; I'LL SMASH THE DIE MYSELF. THE MEN WITH THE HAMMERS ARE MINE, AND NO ONE HERE WILL RAISE A HAND TO YOU. ...DON'T LET HIM HANG ME FOR HIS DEBT."
+  do give "THE TREASURY TALLY" scroll
+  opt "I'LL TAKE IT TO THE {LORD.TITLE}." -> to_lord
+
+stage to_lord
+  goal goto seat
+  then lord
+  journal "THE UNDER-TREASURER'S TALLY SHOWS THE CROWN STRUCK THE PLATED COIN TO PAY ITS SOLDIERS. TAKE IT TO THE {LORD.TITLE} AT {SEAT}."
+
+stage lord
+  talk lord
+  say "YOU'VE BEEN AT THE QUARRY. MY UNDER-TREASURER SENT A RIDER TO SAY YOU WERE CIVIL. YES: TWO HUNDRED MEN, A SEASON UNPAID, NOTHING IN THE BOX. I'D DO IT AGAIN, AND I HATE IT. HE ONLY OBEYED ME. WHAT WILL YOU DO WITH THE TALLY?"
+  opt "MELT YOUR PLATE. PAY THEM TRUE." check level 5 -> melt else refused
+  opt "THE MARKET HEARS THE TALLY." -> public
+  opt "RECALL IT QUIETLY, AND SOON." -> quiet
+  opt "IT'S NOT MY QUARREL." -> let_be
+
+stage refused
+  talk lord
+  say "MELT MY FATHER'S PLATE? THE CITY WOULD KNOW BY SUNDOWN WHY. NO. FIND ME A WAY THAT KEEPS MY NAME AND MY MEN."
+  opt "THEN THE MARKET HEARS IT." -> public
+  opt "THEN RECALL IT QUIETLY." -> quiet
+  opt "I'M DONE HERE." -> let_be
+
+stage melt
+  end success
+  say "...MY FATHER'S PLATE. EIGHT DISHES AND A CUP. FINE. EVERY SOLDIER PAID IN TRUE SILVER, EVERY STALL MADE WHOLE. I'LL SAY IT FROM THE STEPS MYSELF: I DEBASED THE COIN. LET THE CITY JUDGE ME. THE UNDER-TREASURER KEEPS HIS PLACE."
+  journal "THE {LORD.TITLE} MELTED {LORD.HIS} FATHER'S PLATE TO PAY THE SOLDIERS IN TRUE SILVER, AND CONFESSED FROM THE STEPS."
+  do take "THE TREASURY TALLY"
+  do take "A BENT COIN"
+  do take "A WATCH PAY SLIP"
+  do take "A QUARRY CART TOKEN"
+  do reward rich
+  do deed innocent
+  do rep land 1
+  do remember press "I KEEP MY PLACE, AND THE DIE IS IN PIECES IN THE QUARRY POOL. I COUNT TRUE SILVER NOW. IT'S DULL WORK. I LOVE IT."
+  do shop smith "NOW THIS IS SILVER. LISTEN TO IT RING ON THE ANVIL."
+  do shop inn "THE WATCH PAYS IN HONEST COIN NOW. ODD HOW MUCH BETTER THE ALE TASTES."
+  do remember eggwife "GOT MY TWENTY YEARS BACK. THE NEXT EGGS ARE ON ME."
+  do fact "THE {LORD.TITLE} OF {LAND} MELTED {LORD.HIS} FATHER'S PLATE TO PAY THE SOLDIERS IN TRUE SILVER. {PLAYER} FOUND THE PRESS."
+
+stage public
+  end success
+  say "BY NOON THE MARKET KNEW. THEY BOOED THE {LORD.TITLE} ON THE STEPS, THE FIRST TIME IN ALL {LORD.HIS} YEARS. THE SOLDIERS BOOED TOO, AND WERE PAID BY EVENING ON LOANS AGAINST THE NEXT TAX. THE SILVER WILL BE TRUE BY SPRING."
+  journal "THE MARKET OF {HOME} HEARD THE TREASURY TALLY. THE {LORD.TITLE} WAS JEERED, THE SOLDIERS PAID ON LOANS."
+  do take "THE TREASURY TALLY"
+  do take "A BENT COIN"
+  do take "A WATCH PAY SLIP"
+  do take "A QUARRY CART TOKEN"
+  do reward fair
+  do deed guard
+  do rep land -1
+  do remember giver "YOU MADE ME FAMOUS. EVERY STALL KNOWS THE CHANGER WHO FOUND THE BAD SILVER. I'D RATHER HAVE HAD QUIET."
+  do shop smith "NOW THIS IS SILVER. LISTEN TO IT RING. THE OTHER STUFF WENT IN THE MELT."
+  do remember eggwife "GOT MY TWENTY YEARS BACK, AND THE PLEASURE OF BOOING A {LORD.TITLE}. THE NEXT EGGS ARE ON ME."
+  do fact "THE {LORD.TITLE} OF {LAND} DEBASED THE COIN TO PAY THE SOLDIERS. {PLAYER} SAID SO, AND THE MARKET JEERED."
+
+stage quiet
+  end success
+  say "SO. THE COIN VANISHES THIS MONTH, BIT BY BIT, AT THE TREASURY DOOR, FOR GOOD SILVER OUT OF THE TAX. NO PROCLAMATION. THE MEN ARE PAID TRUE AT HARVEST, EVERY STALL MADE WHOLE. NOBODY LOSES BUT ME. DON'T THANK ME."
+  journal "THE BAD COIN OF {HOME} IS BEING RECALLED QUIETLY AT THE TREASURY DOOR. NOBODY WILL SAY WHY."
+  do take "THE TREASURY TALLY"
+  do take "A BENT COIN"
+  do take "A WATCH PAY SLIP"
+  do take "A QUARRY CART TOKEN"
+  do reward fair
+  do rep land 1
+  do remember press "A QUIET RECALL. THE BAD COIN COMES BACK TO MY DOOR ONE BAG AT A TIME, AND I MELT IT MYSELF. NOBODY HANGS."
+  do fact "THE BAD COIN OF {HOME} WAS RECALLED IN A MONTH AT THE TREASURY DOOR. NOBODY SAID WHY."
+
+stage let_be
+  end fail
+  say "THE {LORD.TITLE} NODS AND KEEPS THE TALLY. THE PRESS WILL WAIT A MONTH, THEN START AGAIN SOMEWHERE ELSE."
+  journal "YOU LEFT THE PLATED COIN OF {HOME} TO THE CROWN. IT STILL SPREADS."
+  do take "THE TREASURY TALLY"
+  do rep land -1
+  do notice "BAD COIN SPREADS. TEST YOUR SILVER."
+  do remember giver "NOW EVERY PURSE IN THIS CITY IS A LIE. I BITE MY OWN CHANGE."
+  do fact "PLATED COIN STILL SPREADS IN {HOME}. THE CROWN KEPT THE TALLY THAT WOULD HAVE STOPPED IT."
+
+stage refuse
+  end fail
+  journal "YOU LEFT THE CHANGER OF {HOME} WITH A BAD COIN."
+  do remember giver "COIN IS COIN, YOU SAID. TELL THAT TO THE EGG-SELLER WHO TOOK THIS ONE."
+)DSL",
+
+R"DSL(
+script rq_barrels
+title FOUR HUNDRED BARRELS
+archetype city request: a false theft
+tier 2
+family request
+settle town city coast
+once site
+cooldown 30
+gossip "FOUR HUNDRED BARRELS, THEY SAY. GONE."
+gossip "A LANTERN BOAT, BOW LOW, THREE NIGHTS."
+hook board
+pitch "FISH STORE ROBBED. A REWARD IS POSTED."
+hint "FISH STORE ROBBED. FOUR HUNDRED BARRELS GONE. BY ORDER OF THE COUNCIL: A REWARD. ASK THE HARBOURMASTER."
+role giver giver
+role home site home
+role master person male at giver
+role watch person male at giver
+role clerk person female at giver
+role cove site cave near
+
+stage start
+  talk master
+  say "FOUR HUNDRED BARRELS OF SALT FISH GONE FROM THE STORE, AND THE COUNCIL WANTS A THIEF BEFORE THE FIRST FROST. THE LOCK WAS OPENED WITH THE RIGHT KEY. I POSTED THE REWARD MYSELF, AS ORDERED. FIND WHO DID IT. I HAVEN'T SLEPT IN A WEEK."
+  opt "I'LL LOOK INTO IT." -> watch
+  opt "WHO HAD THE KEYS?" -> keys
+  opt "FIND YOUR OWN THIEF." -> refuse
+
+stage keys
+  talk master
+  say "THREE KEYS. MINE, THE CLERK'S, AND THE NIGHT WATCH'S. {WATCH} SLEEPS IN HIS BOAT AND {CLERK} FAINTS AT A DEAD FISH. DON'T SAY I ACCUSED ANYONE."
+  opt "I'LL ASK THE WATCH." -> watch
+
+stage watch
+  talk watch
+  say "A LANTERN BOAT, BOW LOW, NO SAIL, THREE NIGHTS RUNNING. I COUNTED THE OARS AND THE WATERLINE: THIRTY BARRELS A TRIP, OR SHE'D SINK. AND SHE STANK. THE GULLS FOLLOWED HER OUT AND CAME BACK FAT. THAT'S NO THIEF'S CARGO. THAT'S A DUMPER'S."
+  opt "THEN I'LL ASK THE CLERK." -> clerk
+
+stage clerk
+  talk clerk
+  say "THE LEDGER SAYS FOUR HUNDRED. I COPIED IT FROM THE MASTER'S WORD AND NEVER COUNTED. THE LAST TWO PAGES AREN'T MY HAND. AND SOMEONE SPREAD FRESH LIME ON THE STORE FLOOR THIS WEEK. I'M FRIGHTENED, AND I'M SAYING IT ANYWAY."
+  opt "I'LL READ THE BERTH LOG." -> log
+
+stage log
+  goal use board in home
+  then cove
+  journal "THE BERTH LOG IS POSTED ON THE NOTICE BOARD OF {HOME}. READ HOW MANY BARRELS THE HARBOUR LANDED AND SENT OUT THIS SEASON."
+
+stage cove
+  goal fetch "A SMUGGLER'S TALLY SLATE" in cove
+  then confront
+  journal "BERTH LOG: 300 BARRELS LANDED, 210 SENT. THE STORE NEVER HELD MORE THAN NINETY. THE LANTERN BOAT PUT IN AT {COVE}. FIND ITS TALLY."
+
+stage confront
+  talk master
+  say "THE SLATE. THREE RUNS, THIRTY A RUN. ...I TOLD THE COUNCIL FOUR HUNDRED AT THE SPRING RECKONING, HOPING THE AUTUMN CATCH WOULD MAKE IT TRUE. THE AUTUMN SHOALS NEVER CAME. THE BRINE FAILED IN LATE SUMMER AND ALL NINETY WENT GREEN."
+  do take "A SMUGGLER'S TALLY SLATE"
+  opt "AND THEN THE STOCK-TAKE." -> confess
+
+stage confess
+  talk master
+  say "THE STOCK-TAKE ORDER CAME, SO I PAID MEN TO SINK THE ROT OFF THE POINT AND POSTED A THEFT. NINETY ROTTED, THREE HUNDRED AND TEN I NEVER HAD. I'D RATHER BE ROBBED THAN FOOLISH. WHAT WILL YOU DO?"
+  opt "THE COUNCIL GETS THE TRUE COUNT." -> council
+  opt "SELL YOUR LIGHTER. BUY WINTER FISH." check level 4 -> repay else council
+  opt "THE THEFT STORY STANDS. I'LL SAY IT." -> cover
+  opt "IT'S YOUR HARBOUR." -> leave
+
+stage repay
+  end success
+  say "THEN I SELL MY OWN LIGHTER, BUY FISH AT THE WINTER PRICE, AND TELL THE COUNCIL MYSELF: NINETY LOST, THREE HUNDRED AND TEN I NEVER HAD. I STEP DOWN IN SPRING. I THOUGHT YOU'D HAND ME OVER. I'VE NO IDEA WHAT TO SAY."
+  journal "THE HARBOURMASTER OF {HOME} SOLD HIS LIGHTER TO BUY WINTER FISH AND TOLD THE COUNCIL THE TRUE COUNT HIMSELF."
+  do reward rich
+  do deed mercy
+  do fame 1
+  do census home stock fish 20
+  do remember master "I STEP DOWN IN SPRING WITH MY NAME. I DON'T KNOW HOW YOU MANAGED THAT."
+  do fact "THE HARBOUR OF {HOME} SOLD ITS MASTER'S LIGHTER TO BUY WINTER FISH. {PLAYER} COUNTED THE BARRELS."
+
+stage council
+  end success
+  say "THE COUNCIL HAS THE TRUE COUNT BY EVENING. THE MASTER IS DISMISSED; {CLERK} IS KEPT ON. THE QUAY KNOWS IT HAS NO RESERVE AND BUYS EARLY, AND THE PRICE OF FISH CLIMBS."
+  journal "THE COUNCIL OF {HOME} HAS THE TRUE COUNT OF THE FISH STORE. THE HARBOURMASTER IS DISMISSED."
+  do reward fair
+  do deed guard
+  do census home price fish 140
+  do remember clerk "THEY KEPT ME ON. I COUNT EVERY BARREL NOW, TWICE, OUT LOUD. THE GULLS LISTEN."
+  do fact "THE HARBOURMASTER OF {HOME} HID A ROTTED STORE BEHIND A THEFT. {PLAYER} COUNTED THE OARS."
+
+stage cover
+  end success
+  say "YOU'LL SAY IT? A STRANGER'S WORD HOLDS WITH THE COUNCIL WHERE MINE WON'T. ...THANK YOU. THE COUNCIL BELIEVES IT HAS A RESERVE AND BUYS NOTHING. I'LL NOT FORGET WHAT I'VE ASKED OF YOU."
+  journal "YOU TOLD THE COUNCIL OF {HOME} THE FISH WERE STOLEN. IT BELIEVES IN A RESERVE IT DOES NOT HAVE."
+  do reward small
+  do deed lied
+  do census home famine 10
+  do remember master "YOU LIED FOR ME. I OWE YOU THAT, AND I'LL NEVER MEET YOUR EYE."
+  do fact "THE COUNCIL OF {HOME} BELIEVES ITS FISH STORE WAS ROBBED AND BOUGHT NO WINTER FISH. THE STORE WAS EMPTY ALL ALONG."
+
+stage leave
+  end fail
+  say "YOU WALK OFF THE QUAY. BY WINTER EVERYONE KNOWS THE STORE IS EMPTY, AND NOBODY KNOWS WHY."
+  journal "YOU LEFT THE HARBOURMASTER OF {HOME} TO HIS OWN ACCOUNTS."
+  do census home price fish 130
+  do notice "THE FISH STORE IS EMPTY. BUY EARLY."
+  do remember master "IT'S MY HARBOUR, YOU SAID. IT IS. IT'S ALSO EMPTY."
+  do fact "THE FISH STORE OF {HOME} WAS FOUND EMPTY BEFORE WINTER. THE HARBOURMASTER NEVER EXPLAINED IT."
+
+stage refuse
+  end fail
+  journal "YOU LEFT THE HARBOUR OF {HOME} TO FIND ITS OWN THIEF."
+  do remember master "FIND YOUR OWN THIEF, YOU SAID. I'M TRYING NOT TO."
+)DSL",
+
+R"DSL(
+script rq_longtable
+title THE LONG TABLE
+archetype city request: poison at court
+tier 2
+family request
+settle capital
+once site
+cooldown 60
+gossip "THEY BLAME THE EEL. IT WASN'T THE EEL."
+gossip "THE LORD LEFT THE FEAST WHITE AGAIN."
+hook herald
+pitch "WHY DOES THE KEEP BELL RING TWICE?"
+hint "THE HOST MARCHES IN TEN DAYS, AND THE ONE WHO LEADS IT CAN'T KEEP A FEAST DOWN. I'M A HERALD, NOT A PHYSICIAN. HEAR ME OUT."
+role giver giver
+role home site home
+role land kingdom home
+role lord ruler land
+role cousin person male at home
+role maid person female at home
+role dowager person female at home
+role apoth npc merchant
+var path 0
+
+stage start
+  talk giver
+  say "THE {LORD.TITLE} HAS LEFT THE LONG TABLE WHITE AS CHALK THREE FEASTS RUNNING, AND SAYS THE CUP TASTES OF IRON. THE COURT SAYS THE COUSIN {COUSIN} DID IT; HE WANTS THE SEAT AND SAYS SO LOUDLY. THE HOST MARCHES IN TEN DAYS. TELL ME I'M WRONG."
+  opt "I'LL SIT AT THE TABLE." -> cousin
+  opt "COURT POISONINGS ARE NOT MY TRADE." -> refuse
+
+stage cousin
+  talk cousin
+  say "POISON? ME? I'M FAR TOO LOUD. I SIT AT THE FAR END WITH MY OWN WINE AND MY OWN OPINIONS. WHO REACHES THE CUP? NOT ME; I CAN'T EVEN REACH THE SALT. GO BOTHER SOMEONE CLOSE TO THE HEAD OF THE TABLE AND LEAVE ME MY GRIEVANCES."
+  opt "WHAT TASTES OF IRON?" -> apoth
+
+stage apoth
+  talk apoth
+  say "IRON IN A CUP? BLOODROOT. IT SLOWS THE BLOOD. ONE BUYER BY THE POUND, ONCE A MONTH: A KEEP MAID WITH A BURNT WRIST, FOR HER MISTRESS'S CHEST. A LITTLE FOR A WEAK CHEST, A LOT FOR A STRONG RULER. HERE'S MY BOOK OF SALES."
+  do give "A BLOODROOT RECEIPT" scroll
+  opt "I'LL WATCH THE FEAST TONIGHT." -> feast
+
+stage feast
+  goal wait 1
+  then maid
+  journal "THE APOTHECARY OF {HOME} SELLS BLOODROOT, WHICH TASTES OF IRON, TO A KEEP MAID WITH A BURNT WRIST. WATCH THE FEAST TONIGHT."
+
+stage maid
+  talk maid
+  say "YOU SAW. OH. I ONLY POUR WHAT I'M GIVEN. MY LADY SAID IT WAS FOR SLEEP, THAT THE {LORD.TITLE} NEVER SLEEPS AND WILL WORK TO DEATH. A PINCH IN THE CUP. I DIDN'T KNOW IT WAS HARM. PLEASE, SPEAK TO HER BEFORE ANYONE ELSE."
+  journal "AT THE FEAST {MAID}, A MAID WITH A BURNT WRIST, TURNED THE CUP OF THE {LORD.TITLE}. HEAR HER OUT."
+  opt "WHO IS YOUR LADY?" -> maid_more
+  opt "I'LL SPEAK TO HER." -> dowager
+
+stage maid_more
+  talk maid
+  say "THE DOWAGER, {DOWAGER}. THREE MONTHS, A PINCH EACH FEAST. LAST FEAST IT WAS TWO, BECAUSE THE HOST IS SO NEAR. SHE CRIED AFTER. I HAVE NEVER SEEN HER CRY."
+  opt "I'LL SPEAK TO HER." -> dowager
+
+stage dowager
+  talk dowager
+  say "THE MAID TOLD YOU, OR THE APOTHECARY. NO MATTER. I TURN THE CUP. A PINCH, THEN TWO, TO MAKE THE {LORD.TITLE} SLOW, NOT DEAD. THE HOST WOULD TAKE MY GRANDSON, FOURTEEN, TO CARRY THE BANNER. THE LAST BOY CAME HOME IN A CART."
+  opt "SAY IT YOURSELF. I'LL STAND BY YOU." check level 4 -> confessed else told
+  opt "THE {LORD.TITLE} MUST KNOW. I'LL TELL." -> told
+  opt "I'LL ASK FOR THE BOY TO STAY HOME." -> plea_word
+  opt "I SAW NOTHING." -> silent
+
+stage confessed
+  talk dowager
+  say "...YES. I'LL SAY IT TONIGHT, WHILE THE {LORD.TITLE} CAN STILL STAND TO SHOUT. LET {LORD.HIM} BANISH ME; I'LL WALK. BUT THE BOY STAYS WITH HIS MOTHER. THAT IS MY ONE PRICE, AND I'LL ASK IT ON MY KNEES."
+  do set path 1
+  opt "I'LL BE THERE." -> night
+
+stage told
+  talk dowager
+  say "THEN TELL. I WON'T RUN, AND I WON'T BEG A STRANGER. I'LL BE IN MY ROOMS."
+  do set path 2
+  opt "I'M SORRY." -> night
+
+stage plea_word
+  talk dowager
+  say "IF THE BOY STAYS HOME, THE CUP IS CLEAN FROM TONIGHT. YOU HAVE MY WORD. DON'T LET THEM KNOW WHY; I COULDN'T BEAR IT. TELL THE {LORD.TITLE} IT IS AN OLD WOMAN'S FEAR."
+  opt "I'LL ASK." -> plea
+
+stage plea
+  talk lord
+  say "MY AUNT SENDS A STRANGER TO ASK ME THIS. SHE COULD HAVE ASKED ME HERSELF. ...THE LAST BOY. I REMEMBER THE CART. I REMEMBER IT EVERY NIGHT. WHY DOES SHE SEND YOU INSTEAD OF HER OWN MOUTH? WHAT ELSE DOES SHE NOT SAY?"
+  opt "SHE FEARS FOR THE BOY. THAT'S ALL." check level 5 -> bargain else plea_fail
+  opt "NEVER MIND." -> silent
+
+stage bargain
+  talk lord
+  say "AN OLD WOMAN'S FEAR. AND MINE. THE BOY STAYS. I'LL CARRY MY OWN BANNER, AND I WON'T ASK HER WHY SHE SENT YOU. GO."
+  do set path 3
+  opt "THANK YOU." -> night
+
+stage plea_fail
+  talk lord
+  say "THAT'S NOT ALL. I CAN SEE IT IN YOUR FACE. ...IRON. THE CUP. HER? SAY IT. NO, DON'T. I KNOW."
+  do set path 2
+  opt "I'M SORRY." -> night
+
+stage night
+  goal wait 1
+  then report
+  journal "WHAT HAPPENS AT THE LONG TABLE OF {HOME} TONIGHT IS OUT OF YOUR HANDS. SEE THE HERALD IN THE MORNING."
+
+stage report
+  talk giver
+  say "I'VE BEEN AT THE DOOR OF THE GREAT HALL ALL NIGHT. YOU'LL WANT TO HEAR IT FROM ME BEFORE THE GOSSIPS HAVE IT."
+  opt "TELL ME." if is path 1 -> end_confessed
+  opt "TELL ME." if is path 2 -> end_told
+  opt "TELL ME." if is path 3 -> end_bargain
+
+stage end_confessed
+  end success
+  say "SHE SAID IT TO THE {LORD.TITLE}'S FACE. A LONG SILENCE. THEN THE BOY STAYS, AND THE {LORD.TITLE} WILL CARRY THE BANNER. SHE LIVES IN HER ROOMS AND BREWS TEA NOW. NOBODY HAS TASTED IRON SINCE."
+  journal "THE DOWAGER OF {HOME} CONFESSED AT THE LONG TABLE. SHE WAS FORGIVEN, AND HER GRANDSON STAYS HOME."
+  do take "A BLOODROOT RECEIPT"
+  do reward rich
+  do deed innocent
+  do rep land 1
+  do remember dowager "I SAID IT MYSELF. YOU STOOD THERE. I'M GRATEFUL, AND I'M NOT GOOD AT IT."
+  do fact "THE DOWAGER OF {HOME} TOLD THE {LORD.TITLE} SHE HAD DOSED THE CUP. SHE WAS FORGIVEN AND HER GRANDSON LEFT AT HOME."
+
+stage end_told
+  end success
+  say "QUIET ALL EVENING. THEN ONE WORD: AUNT. SHE KEEPS HER ROOMS BEHIND A GUARD NOW AND GOES TO THE CONVENT AT THE NEXT MOON. THE HOST MARCHES AT DAWN, AND THE BOY GOES WITH IT. I'M SORRY. IT HAD TO BE SAID."
+  journal "THE DOWAGER OF {HOME} GOES TO A CONVENT FOR DOSING THE CUP. THE HOST MARCHES, AND HER GRANDSON WITH IT."
+  do take "A BLOODROOT RECEIPT"
+  do reward fair
+  do deed guard
+  do remember giver "THE HALL IS SAFE AND COLDER. I HEARD HER GO DOWN THE STAIRS. NOBODY HELD HER ARM."
+  do fact "THE DOWAGER OF {HOME} DOSED THE CUP OF THE {LORD.TITLE} TO KEEP A GRANDSON FROM WAR. SHE LIVES IN A CONVENT NOW."
+
+stage end_bargain
+  end success
+  say "THE BOY STAYS BEHIND, AND NO ONE HAS SAID WHY. THREE MEALS AT THE LONG TABLE AND NOBODY WENT WHITE. THE DOWAGER BROUGHT THE CUP HERSELF, AND IT WAS DRUNK, AND NOTHING WAS SAID."
+  journal "THE GRANDSON OF THE DOWAGER STAYS HOME FROM THE WAR. THE CUP AT THE LONG TABLE OF {HOME} IS CLEAN."
+  do take "A BLOODROOT RECEIPT"
+  do reward fair
+  do deed mercy
+  do rep land 1
+  do remember giver "SOMETHING WAS DONE AND I WASN'T TOLD. I'M NOT SURE I WANT TO BE."
+  do fact "THE {LORD.TITLE} OF {HOME} LEFT A BANNER-BOY AT HOME BEFORE THE WAR. NOBODY KNOWS WHY THE ILLNESS AT THE TABLE STOPPED."
+
+stage silent
+  end fail
+  say "YOU SAY NOTHING. AS THE MUSTER NEARS, THE DOWAGER DOUBLES THE PINCH AGAIN. THE {LORD.TITLE} FALLS AT THE MUSTER GATE, AND THE COUSIN LEADS THE HOST."
+  journal "YOU KEPT SILENT. THE {LORD.TITLE} OF {HOME} FELL AT THE MUSTER GATE AND THE COUSIN LEADS THE HOST."
+  do take "A BLOODROOT RECEIPT"
+  do rep land -1
+  do notice "THE RULER FELL AT THE MUSTER GATE. THE COUSIN LEADS."
+  do remember maid "SHE DOUBLED IT. I POURED IT. YOU SAW, AND YOU WALKED AWAY."
+  do fact "THE {LORD.TITLE} OF {HOME} FELL AT THE MUSTER GATE WITH IRON IN THE CUP. THE COUSIN {COUSIN} LEADS THE HOST."
+
+stage refuse
+  end fail
+  journal "YOU LEFT THE HERALD OF {HOME} TO THE COURT'S POISON."
+  do remember giver "NOT YOUR TRADE. NOR MINE. AND YET HERE WE BOTH ARE, AT THE SAME TABLE."
+)DSL",
+
+R"DSL(
+script rq_ratguild
+title THE RATCATCHERS' PRICE
+archetype city request: a guild racket
+tier 2
+family request
+settle city
+once site
+cooldown 45
+gossip "THE TAILS NEVER RUN OUT, DO THEY?"
+gossip "A BUCKET OF TAILS ON THE GUILD STEPS."
+hook npc merchant
+pitch "THERE'S A RAT ON YOUR SACKS."
+hint "THREE GRANARIES, THREE SETS OF RATS, AND A FEE THAT GOES UP EVERY MONTH. I'M NO NATURALIST. I CAN COUNT, THOUGH."
+role giver giver
+role home site home
+role land kingdom home
+role master person male at home
+role lad person male young at home
+role cave site cave near
+var how 0
+
+stage start
+  talk giver
+  say "THE RATCATCHERS' FEE WENT UP A THIRD EVERY MONTH THIS YEAR, AND THE RATS NEVER GO DOWN. THEY BRING ME TAILS IN A BUCKET AS PROOF. EVERY TAIL THE SAME GREY, THE SAME LENGTH. NO NATURE I KNOW MAKES TWINS THAT FAST."
+  opt "I'LL LOOK INTO IT." -> lad
+  opt "RATS ARE RATS. PAY THE FEE." -> refuse
+
+stage lad
+  talk lad
+  say "I CARRY SACKS AFTER DARK WITH THE MASTER. THEY MOVE. WE LEAVE THEM BY THE GRANARY WALLS AND HE CALLS IT BAIT. IT ISN'T BAIT, IS IT? WE FILL THEM AT A PIT IN THE MOUTH OF {CAVE}. HIS FEED TALLY HANGS BY THE CAGES. PLEASE DON'T SAY I TOLD."
+  opt "I WON'T. STAY HOME TONIGHT." -> pit
+
+stage pit
+  goal enter cave
+  then tally
+  journal "THE RATCATCHERS' GUILD OF {HOME} FILLS ITS SACKS AT A PIT IN THE MOUTH OF {CAVE}. GO AND SEE."
+
+stage tally
+  goal fetch "THE GUILD'S FEED TALLY" in cave
+  then back
+  say "CAGES. ROWS OF THEM, AND THE SMELL. THE GUILD MARK IS BRANDED ON EVERY SACK."
+  journal "THE PIT AT {CAVE} IS A BREEDING PIT: CAGES OF RATS AND THE GUILD'S BRANDED SACKS. FIND THE GUILD'S FEED TALLY THERE."
+
+stage back
+  goal goto home
+  then master
+  journal "THE FEED TALLY COUNTS SACKS OF GRAIN FED TO THE RATS, IN THE GUILDMASTER'S HAND. TAKE IT TO {MASTER} IN {HOME}."
+
+stage master
+  talk master
+  say "SO YOU FOUND THE PIT. WHAT DID YOU EXPECT? THE FEES KEEP THIRTY FAMILIES IN BREAD. EVERY TAIL IS A REAL TAIL OFF A REAL RAT, AND THE CITY HAS ALWAYS HAD RATS. IT BEGAN ONE LEAN WINTER. I'M NOT A VILLAIN. I'M A MAN WHO COULDN'T FIND THE EXIT."
+  opt "THE CITY HEARS THE TALLY." -> exposed
+  opt "BURN THE PIT. CATCH HONESTLY." check level 4 -> reformed else exposed
+  opt "BURN THE PIT. NO ONE HEARS." -> quiet
+  opt "NOT MY RATS." -> leave
+
+stage reformed
+  talk master
+  say "...HONEST FEES, A THIRD LESS, AND THE PIT BURNED BY MY OWN HAND TONIGHT. IF THE RATS COME BACK I'LL BE KILLING THEM FOR REAL, WITH FEWER FAMILIES IN THE GUILD. YOU'RE KINDER THAN I'D EARNED."
+  do set how 1
+  opt "MAKE IT HONEST WORK." -> wait
+
+stage exposed
+  talk master
+  say "THEN READ IT IN THE SQUARE. I WON'T STOP YOU. I'LL BE AT HOME, TELLING THIRTY FAMILIES WHY THERE'S NO BREAD."
+  do set how 2
+  opt "I'M SORRY FOR THE FAMILIES." -> wait
+
+stage quiet
+  talk master
+  say "THE PIT BURNS TONIGHT AND NOBODY HEARS WHY. THE FEE STAYS HIGH, BUT FOR HONEST WORK. I'LL NOT FORGET THIS, AND I'LL NOT THANK YOU FOR IT EITHER."
+  do set how 3
+  opt "SEE THAT IT BURNS." -> wait
+
+stage wait
+  goal wait 1
+  then final
+  journal "WHATEVER BECOMES OF THE RATCATCHERS' GUILD OF {HOME}, IT HAPPENS TONIGHT. SEE {GIVER} TOMORROW."
+
+stage final
+  talk giver
+  say "WELL. I'VE HEARD THINGS THIS MORNING, AND SMELT SMOKE FROM THE NORTH ROAD. TELL ME WHAT I'M PAYING YOU FOR."
+  opt "THE GUILD BURNED ITS OWN PIT." if is how 1 -> end_reformed
+  opt "THE CITY HAS THE TALLY." if is how 2 -> end_exposed
+  opt "THE RATS WON'T TROUBLE YOU NOW." if is how 3 -> end_quiet
+
+stage end_reformed
+  end success
+  say "HONEST FEES, A THIRD LESS, AND THE MASTER CAME TO MY DOOR HIMSELF TO SAY SO. I'LL SELL GRAIN TO YOU AT A FAIR PRICE WHILE I LIVE."
+  journal "THE RATCATCHERS OF {HOME} BURNED THEIR BREEDING PIT AND CUT THEIR FEES. THE FACTOR'S GRANARIES ARE CLEAN."
+  do take "THE GUILD'S FEED TALLY"
+  do reward rich
+  do deed mercy
+  do rep land 1
+  do remember master "THE FEES ARE HONEST NOW. I SLEEP BETTER. I DIDN'T SAY THANK YOU. I'M SAYING IT."
+  do remember giver "THE GRANARIES ARE CLEAN AND THE FEE IS FAIR. I STILL CHECK THE SACKS. HABIT."
+  do fact "THE RATCATCHERS OF {HOME} BURNED THEIR BREEDING PIT AND CUT THEIR FEES. {PLAYER} FOUND IT."
+
+stage end_exposed
+  end success
+  say "THE GUILD'S CHARTER WAS PULLED THIS MORNING. THIRTY FAMILIES WITHOUT WORK, AND THE RATS ARE REAL NOW. I WAS RIGHT AND I FEEL SICK. {LAD} WORKS MY GRANARY FOR PAY. HE ASKED ME TO TELL YOU THANKS."
+  journal "THE RATCATCHERS' GUILD OF {HOME} LOST ITS CHARTER. THIRTY FAMILIES ARE OUT OF WORK."
+  do take "THE GUILD'S FEED TALLY"
+  do reward fair
+  do deed guard
+  do remember lad "I CARRY GRAIN NOW, NOT RATS. THE PAY IS WORSE. I DON'T DREAM ABOUT SACKS ANY MORE."
+  do fact "THE RATCATCHERS' GUILD OF {HOME} LOST ITS CHARTER FOR BREEDING THE RATS IT KILLED. {PLAYER} FOUND THE PIT."
+
+stage end_quiet
+  end success
+  say "THE TAILS STOPPED COMING. THE FEE IS STILL TOO HIGH, BUT NOW IT'S HIGH FOR HONEST WORK. I DON'T KNOW WHAT YOU DID. I'D LIKE TO KNOW."
+  journal "THE RATS OF {HOME} STOPPED COMING. ONLY YOU AND THE GUILDMASTER KNOW WHY."
+  do take "THE GUILD'S FEED TALLY"
+  do reward small
+  do deed mercy
+  do remember master "WHAT YOU KNOW AND WHAT I KNOW. THE GUILD EATS. THAT'S ALL I ASK OF ANYONE."
+  do fact "THE RATS OF {HOME} STOPPED COMING. NO ONE KNOWS WHY BUT THE CATCHERS."
+
+stage leave
+  end fail
+  say "THE MASTER SMILES AND PUTS OUT HIS HAND FOR THE TALLY. NEXT MONTH THE FEE GOES UP AGAIN."
+  journal "YOU LEFT THE RATCATCHERS OF {HOME} TO THEIR PIT."
+  do take "THE GUILD'S FEED TALLY"
+  do rep land -1
+  do census home price bread 125
+  do notice "THE GRANARIES ARE EATEN. BREAD COSTS MORE."
+  do remember giver "NOT YOUR RATS, YOU SAID. THEY'RE EVERYONE'S RATS NOW."
+  do fact "THE RATCATCHERS' GUILD OF {HOME} RAISED ITS FEE AGAIN. THE GRANARIES ARE EATEN."
+
+stage refuse
+  end fail
+  journal "YOU TOLD THE GRAIN FACTOR OF {HOME} TO PAY THE RATCATCHERS."
+  do remember giver "PAY THE FEE, YOU SAID. I DID. THEN I PAID IT AGAIN."
+)DSL",
+
+R"DSL(
+script rq_cisternbook
+title THE CISTERN BOOK
+archetype city request: a lost survey
+tier 2
+family request
+settle city
+once site
+cooldown 60
+gossip "THE LOW TOWN WELLS RUN THIN."
+gossip "THE BATHHOUSE IS STILL STEAMING."
+hook npc mage
+pitch "YOU LOOK LIKE YOU'VE LOST A BOOK."
+hint "A RIBBON. A RIBBON WHERE A BOOK SHOULD BE. SIX HUNDRED YEARS OF WATER, AND SOMEONE HAS WALKED OFF WITH IT."
+role giver giver
+role home site home
+role land kingdom home
+role sister person female at home
+role baker person female at home
+role warden person male at home
+role lord person male at home
+
+stage start
+  talk giver
+  say "THE SURVEY OF THE CISTERNS IS GONE FROM ITS SHELF. THE LOW TOWN WELLS ARE FAILING AND THE COUNCIL WANTS THE OLD MAPS. I FOUND A RIBBON WHERE IT SHOULD BE. THE LAST BORROWER WAS THE WATER-WARDEN, WHO DIED IN WINTER. HER SISTER {SISTER} CLEARED THE HOUSE."
+  opt "I'LL FIND IT." -> sister
+  opt "WHAT DOES IT SHOW?" -> what
+  opt "BUY NEW MAPS." -> refuse
+
+stage what
+  talk giver
+  say "EVERY CHANNEL UNDER THE CITY, SIX HUNDRED YEARS OF IT. WHERE THE WATER GOES AND WHO TAKES IT. I'M AFRAID OF WHAT IT SAYS. THE WARDEN ONLY EVER OPENED A BOOK TO PROVE IT WRONG."
+  opt "I'LL FIND IT." -> sister
+
+stage sister
+  talk sister
+  say "HER BOOKS? I GAVE THEM AWAY WHEN I CLEARED THE HOUSE. FORTY, AND NO ONE TO READ THEM. THE GREEN ONE WITH THE DRAWINGS WENT TO {BAKER} NEXT DOOR. MY SISTER SAID THE CITY WAS DOING SOMETHING WRONG TO ITS OWN WATER. NOBODY ASKED HER WHAT."
+  opt "I'LL ASK {BAKER}." -> baker
+
+stage baker
+  talk baker
+  say "THE GREEN ONE? FRONT HALF'S LINES AND NUMBERS, BACK HALF'S BLANK. I'VE WRITTEN MY LOAVES IN THE BACK FOR A YEAR. IT'S THE CITY'S? OH, MERCY. TAKE IT; I'LL COPY THE RECIPES ONTO SLATES. AND TAKE A BUN, FOR YOUR TROUBLE AND MY MANNERS."
+  do give "THE GREEN SURVEY" book
+  do give "A BAKER'S BUN" bread
+  opt "I'LL BRING IT TO THE LIBRARY." -> to_library
+
+stage to_library
+  goal goto home
+  then read
+  journal "THE SURVEY OF THE CISTERNS IS FOUND, WITH LOAVES WRITTEN ON ITS BACK LEAVES. TAKE IT TO {GIVER} IN {HOME}."
+
+stage read
+  talk giver
+  say "THE FRONT HALF IS THE SURVEY, AND IT'S WORSE THAN I FEARED. SEE THE OLD SPRING UNDER THE QUIET GARDEN? IT FED EVERY LOW TOWN WELL FOR SIX HUNDRED YEARS. LAST YEAR {LORD}'S NEW BATHHOUSE TAPPED IT. THE WARDEN WROTE IT ALL DOWN. NO ONE LISTENED."
+  do take "THE GREEN SURVEY"
+  opt "THE BATH-MASTER MUST HEAR IT." -> lord
+  opt "THE WELL-WARDENS HAVE A RIGHT." -> warden
+  opt "SHELVE IT. WE CAN'T FIGHT HIM." -> shelved
+
+stage lord
+  talk lord
+  say "A DEAD WOMAN'S DRAWINGS? MY BATHHOUSE STANDS ON MY FATHER'S OLD CHANNEL, AND THE LOW TOWN HAS WELLS. ...NOT THAT THEY'RE DRY. ARE THEY? I'VE NEVER WALKED DOWN THERE. WHAT WOULD YOU HAVE ME DO, RUN COLD BATHS ALL WINTER?"
+  opt "CLOSE THE BATHHOUSE TILL SPRING." check level 4 -> closed else lord_no
+  opt "OPEN THE CISTERN GATE ON MARKET DAYS." -> shared
+  opt "THEN THE WARDENS GET THE BOOK." -> warden_last
+
+stage lord_no
+  talk lord
+  say "NO. HALF THE COUNCIL BATHES IN MY HOUSE. I DON'T RUN COLD BATHS BECAUSE A DEAD WOMAN SCRIBBLED. FIND ME A WAY THAT DOESN'T HAVE ME SHIVERING, OR TAKE YOUR BOOK TO SOMEONE ELSE."
+  opt "THEN OPEN THE CISTERN GATE." -> shared
+  opt "THEN THE WARDENS GET THE BOOK." -> warden_last
+  opt "I'M DONE HERE." -> shelved
+
+stage warden
+  talk warden
+  say "YOU'VE BROUGHT US THE BOOK? WE'VE SAID FOR A YEAR IT WAS THE BATHHOUSE. THE CARPENTERS ARE READY TO TAKE HIS FEED PIPE OUT TONIGHT. THE LAW WON'T LIKE IT. THE WELLS WILL."
+  opt "BREAK THE PIPE. IT'S YOUR WATER." -> wardens_end
+  opt "WAIT. I'LL ASK THE BATH-MASTER FIRST." -> lord
+
+stage warden_last
+  talk warden
+  say "THE BATH-MASTER SENT YOU BACK TO US? THEN IT'S OURS TO DO. THE CARPENTERS ARE READY, AND THE NIGHT IS DARK ENOUGH."
+  opt "BREAK THE PIPE." -> wardens_end
+
+stage closed
+  end success
+  say "...SPRING. FINE. I'LL CLOSE IT, AND I'LL WALK DOWN TO THE LOW TOWN MYSELF AND LOOK AT THE WELLS. IF THEY'RE AS BAD AS THE BOOK SAYS, I'LL PAY TO CHANNEL THE SPRING BOTH WAYS. DON'T SPREAD IT ABOUT THAT I'M SOFT."
+  journal "{LORD} CLOSED THE BATHHOUSE OF {HOME} TILL SPRING. THE LOW TOWN WELLS ARE FILLING."
+  do reward rich
+  do deed innocent
+  do rep land 1
+  do census home mood 6
+  do remember giver "THE LOW TOWN QUEUE IS GONE. THE BATH-MASTER WALKED DOWN HIMSELF IN A PLAIN CLOAK. NOBODY KNEW HIM."
+  do fact "THE BATH-MASTER OF {HOME} CLOSED HIS BATHHOUSE TO SAVE THE LOW TOWN WELLS. {PLAYER} FOUND THE BOOK."
+
+stage shared
+  end success
+  say "THE GATE ON MARKET DAYS. THE LOW TOWN DRAWS WHAT IT NEEDS, AND I KEEP MY STEAM THREE DAYS A WEEK. IT'S WHAT A FAIR MAN DOES. WHO WROTE THIS BOOK? I'D HAVE LIKED TO MEET HER."
+  journal "THE CISTERN GATE OF {HOME} OPENS ON MARKET DAYS FOR THE LOW TOWN. THE BATHHOUSE STEAMS ON THE OTHER DAYS."
+  do reward fair
+  do deed charity
+  do rep land 1
+  do census home mood 4
+  do remember giver "MARKET DAYS. THE LOW TOWN CALLS THEM WATER DAYS NOW. THE WARDEN WOULD HAVE LAUGHED."
+  do fact "THE CISTERN GATE OF {HOME} OPENS ON MARKET DAYS FOR THE LOW TOWN. {PLAYER} FOUND THE BOOK."
+
+stage wardens_end
+  end success
+  say "THE PIPE CAME OUT BEFORE DAWN. THE WATER'S BACK IN THE LOW TOWN WELLS, AND TWO OF THE CARPENTERS ARE IN THE GAOL. NOBODY IS SORRY."
+  journal "THE WELL-WARDENS OF {HOME} BROKE THE BATHHOUSE PIPE. THE WELLS ARE FULL; TWO MEN ARE HELD."
+  do reward small
+  do rep land -1
+  do census home mood 3
+  do remember warden "THE WATER'S BACK. SO ARE TWO OF MY MEN, IN THE GAOL. I'D DO IT AGAIN."
+  do fact "THE LOW TOWN OF {HOME} BROKE A BATHHOUSE PIPE TO GET ITS WATER BACK."
+
+stage shelved
+  end fail
+  say "THE BOOK GOES BACK ON ITS SHELF, LOAVES AND ALL. BY HIGH SUMMER THE LOW TOWN BUYS ITS WATER BY THE BUCKET."
+  journal "THE SURVEY OF THE CISTERNS WAS SHELVED. THE LOW TOWN WELLS OF {HOME} RUN DRY."
+  do rep land -1
+  do census home mood -5
+  do notice "THE LOW TOWN WELLS RAN DRY. WATER IS SOLD."
+  do remember giver "SHELVED. IT'S WHAT LIBRARIES DO BEST. I HATE IT."
+  do fact "THE LOW TOWN WELLS OF {HOME} RAN DRY. THE SURVEY THAT EXPLAINED WHY SITS ON A LIBRARY SHELF."
+
+stage refuse
+  end fail
+  journal "YOU LEFT THE LIBRARY KEEPER OF {HOME} WITH A RIBBON AND NO BOOK."
+  do remember giver "NEW MAPS. OF SIX HUNDRED YEARS OF WATER. DO YOU KNOW HOW LONG THAT TAKES?"
+)DSL",
+
+R"DSL(
+script rq_darklanes
+title THE DARK LANES
+archetype city request: a strike
+tier 2
+family request
+settle city
+once site
+cooldown 30
+gossip "I WALKED INTO THE WELL. TWICE."
+gossip "THREE WARDS DARK SINCE LAST WEEK."
+hook npc innkeeper
+pitch "WHY IS THE LANE SO DARK?"
+hint "THREE WARDS DARK, MY CUSTOMERS WALKING HOME BY FEEL, AND MY CELLAR STAIRS A BROKEN NECK WAITING. THE GREEDY LAMPLIGHTERS."
+role giver giver
+role home site home
+role land kingdom home
+role fox person male at home
+role mill person female at home
+role dyer person male young at home
+role master person male at home
+role factor npc merchant
+var how 0
+
+stage start
+  talk giver
+  say "THE LAMPLIGHTERS HAVE WALKED OUT FOR MORE PAY, THE GREEDY LOT. THREE WARDS DARK SINCE LAST WEEK. MY CUSTOMERS WALK HOME BY FEEL. TALK TO THE LANE-FOLK, THEN THE GUILD, AND MAKE SOMEONE SEE SENSE."
+  opt "I'LL ASK AROUND." -> fox
+  opt "BUY CANDLES." -> refuse
+
+stage fox
+  talk fox
+  say "I WALKED INTO THE WELL. TWICE. THE SECOND TIME I'D TAKEN ADVICE: KEEP TO THE LEFT. THE WELL IS ON THE LEFT. NOW I CARRY A LANTERN AND MY WHOLE HOUSEHOLD FOLLOWS IT LIKE SHEEP. ASK OLD {MILL}. SHE'S BEEN SAYING THINGS."
+  opt "I'LL ASK {MILL}." -> mill
+
+stage mill
+  talk mill
+  say "MY GRANDCHILDREN COME HOME LATE FROM THE TEMPLE SCHOOL AND I CAN'T SEE THE ROAD TO MEET THEM. I'D PAY A COPPER A LAMP IF THE GUILD ASKED. THEY DON'T ASK. THEY JUST STOP. NO ONE EXPLAINS A THING TO THE OLD. ASK THE DYER'S LAD."
+  opt "I'LL ASK HIM." -> dyer
+
+stage dyer
+  talk dyer
+  say "I'M NOT AFRAID OF THE DARK, IT'S WHAT'S IN IT. TWO PURSES TAKEN ON OUR ROW. I SLEEP WITH A KETTLE BY THE DOOR. THE LAMPLIGHTERS' BOY SAYS OIL COSTS THREE TIMES WHAT IT DID. IS THAT TRUE? ASK {MASTER}, HE'S THEIR MASTER."
+  opt "I'LL ASK {MASTER}." -> master
+
+stage master
+  talk master
+  say "THREE TIMES. WE BUY OUR OWN OIL OUT OF OUR OWN PAY, AND THE OIL FACTOR PUT IT UP AFTER THE LORD TAXED HIS WAREHOUSES. WE'RE NOT GREEDY. WE'RE BROKE. LIGHT THE LANES YOURSELF AND YOU BREAK THE GUILD. TALK TO THE OIL MAN."
+  opt "I'LL TALK TO THE FACTOR." -> factor
+
+stage factor
+  talk factor
+  say "THE LORD TAXED MY WAREHOUSES. WHAT WOULD YOU HAVE ME DO, EAT IT? OIL IS THREE TIMES BECAUSE IT'S SCARCE. I'LL SELL AT THE OLD PRICE THE DAY THE TAX GOES. NOT BEFORE."
+  opt "BACK TO THE GUILDMASTER, THEN." -> choice
+
+stage choice
+  talk master
+  say "WELL? YOU'VE HEARD HIM. YOU'VE HEARD THE LANES. TELL ME WHAT YOU'D DO, AND I'LL TELL YOU IF IT'LL WORK."
+  opt "I'LL MAKE THE FACTOR DEAL." check level 4 -> deal else factor_no
+  opt "I'LL PAY THE GUILD'S OIL BILL." if gold 100 -> paid
+  opt "LET THE NEIGHBOURS HANG LAMPS." -> neighbours
+  opt "NOT MY STRIKE." -> fail
+
+stage deal
+  talk factor
+  say "THE OLD PRICE FOR A SEASON, IF THE GUILD LIGHTS MY WAREHOUSE ROW FIRST. SEE THAT THEY DO. I'D RATHER NOT BE ROBBED AT MY OWN DOOR."
+  do set how 1
+  opt "DONE." -> dusk
+
+stage factor_no
+  talk factor
+  say "YOU? WHAT DOES A TRAVELLER KNOW OF TAXES? THE PRICE STAYS UNTIL THE LORD LIFTS HIS."
+  opt "I'LL PAY THE GUILD'S OIL BILL." if gold 100 -> paid
+  opt "THEN THE NEIGHBOURS HANG LAMPS." -> neighbours
+  opt "I'M DONE." -> fail
+
+stage paid
+  talk master
+  say "ONE HUNDRED GOLD, FOR OIL. YOU'RE A SOFT MARK, BUT A USEFUL ONE. THE LAMPS WILL BE LIT BY DUSK. THIS ISN'T CHARITY. I'LL REPAY IT."
+  do gold -100
+  do set how 2
+  opt "BY DUSK, THEN." -> dusk
+
+stage neighbours
+  talk master
+  say "YOU WANT EVERY HOUSEHOLD TO HANG ITS OWN LANTERN AND BREAK MY GUILD'S ART? ...IT'LL WORK. THAT'S THE WORST OF IT. GO AND POST YOUR CALL. WE'LL REMEMBER YOU."
+  opt "I'LL POST IT." -> post
+
+stage post
+  goal use board in home
+  then dusk_n
+  journal "POST THE CALL ON THE NOTICE BOARD OF {HOME}: A LANTERN ON EVERY DOOR FROM DUSK."
+
+stage dusk
+  goal wait 1
+  then final
+  journal "THE LAMPS OF {HOME} ARE TO BE LIT TOMORROW. SEE {GIVER} WHEN THEY ARE."
+
+stage dusk_n
+  goal wait 1
+  then final
+  do set how 3
+  journal "THE CALL IS POSTED: A LANTERN ON EVERY DOOR IN {HOME}. SEE {GIVER} TOMORROW."
+
+stage final
+  talk giver
+  say "COME AND LOOK DOWN THE LANE. GO ON. LOOK."
+  opt "LOOK DOWN THE LANE." if is how 1 -> end_deal
+  opt "LOOK DOWN THE LANE." if is how 2 -> end_paid
+  opt "LOOK DOWN THE LANE." if is how 3 -> end_neighbours
+
+stage end_deal
+  end success
+  say "ALL THREE WARDS LIT, AND FOX STREET'S WELL IS SAFE AT LAST. THE GUILDMASTER BOWED TO ME; HE'S NEVER DONE THAT. {FOX} HAS ASKED ME TO CHALK HIS WELL-FREE DAYS ON MY WALL. NINE SO FAR. DRINK ON THE HOUSE."
+  journal "THE OIL FACTOR OF {HOME} SELLS AT THE OLD PRICE FOR A SEASON. ALL THREE WARDS ARE LIT."
+  do reward fair
+  do deed innocent
+  do rep land 1
+  do remember master "THE ONE WHO TALKED THE OIL MAN DOWN. THE GUILD DRINKS TO YOU ON PAY DAY."
+  do shop factor "I SELL OIL AT THE OLD PRICE TO ANYONE WHO CARRIES A LANTERN."
+  do fact "THE OIL MAN OF {HOME} CUT HIS PRICE AFTER A STRANGER TALKED TO HIM. NOBODY KNOWS WHAT WAS SAID."
+
+stage end_paid
+  end success
+  say "THE LAMPS ARE LIT, AND THE GUILDMASTER SAYS HE'LL REPAY YOU. I'D LIKE TO SEE THAT. THE OIL STILL COSTS THREE TIMES, SO WE'RE DARK AGAIN IN A MONTH. {FOX} HAS BOUGHT HIS OWN LANTERN. FIRST ALE IS ON ME."
+  journal "YOUR GOLD BOUGHT A MONTH OF LAMP OIL FOR {HOME}. THE PRICE OF OIL HAS NOT CHANGED."
+  do reward small
+  do deed charity
+  do remember master "I'LL REPAY YOU. I'M WRITING IT DOWN. LOOK, THERE'S YOUR NAME, AT THE TOP."
+  do fact "A STRANGER PAID THE LAMPLIGHTERS' OIL BILL IN {HOME}. THE LANES WERE LIT FOR A MONTH."
+
+stage end_neighbours
+  end success
+  say "A LANTERN ON EVERY DOOR. IT LOOKS LIKE A FEAST NIGHT, AND THE GUILD WON'T LOOK AT ME. {FOX} LEADS HIS HOUSEHOLD LIKE A SHEPHERD AND HASN'T FALLEN IN THE WELL ONCE. I OWE YOU A PINT AND I OWE THE GUILD AN APOLOGY."
+  journal "EVERY HOUSEHOLD OF {HOME} HANGS ITS OWN LANTERN NOW. THE LAMPLIGHTERS' GUILD IS BROKEN."
+  do reward small
+  do remember master "YOU BROKE THE ART. THE LANES ARE LIT. I CAN'T DECIDE WHICH TO SAY FIRST."
+  do fact "THE HOUSEHOLDS OF {HOME} HUNG THEIR OWN LAMPS. {PLAYER} POSTED THE CALL."
+
+stage fail
+  end fail
+  say "THE LANES STAY DARK. TWO MORE PURSES ARE TAKEN ON DYERS' ROW BEFORE THE WEEK IS OUT."
+  journal "YOU LEFT THE DARK LANES OF {HOME} DARK."
+  do rep land -1
+  do notice "THREE WARDS ARE DARK. WALK IN PAIRS."
+  do remember giver "NOT YOUR STRIKE. MY CELLAR STAIRS DIDN'T GET THE MESSAGE."
+  do fact "THREE WARDS OF {HOME} STAYED DARK WHEN THE LAMPLIGHTERS COULD NOT AFFORD THEIR OIL."
+
+stage refuse
+  end fail
+  journal "YOU TOLD THE INNKEEPER OF {HOME} TO BUY CANDLES."
+  do remember giver "CANDLES. FOR THREE WARDS. I'LL TELL THE CHANDLER YOU SENT ME."
+)DSL",
+
+R"DSL(
+script rq_yellowflag
+title THE YELLOW FLAG
+archetype city request: a poisoned cargo
+tier 2
+family request
+settle town city coast
+once site
+cooldown 40
+gossip "A YELLOW FLAG AT THE BUOY. FIVE DAYS."
+gossip "TWO HUNDRED SACKS OF RYE, AND TURNIPS."
+hook board
+pitch "SHIP AT THE BUOY. ASK THE HARBOURMASTER."
+hint "A SHIP AT THE BUOY FLIES A YELLOW FLAG. NO BOAT IS TO GO OUT TO HER. BY ORDER OF THE HARBOURMASTER."
+role giver giver
+role home site home
+role master person male as HARBOURMASTER at giver
+role mate person male at giver
+role healer npc priest
+role captain person male at giver
+var how 0
+
+stage start
+  talk master
+  say "A SHIP AT THE BUOY FIVE DAYS UNDER A YELLOW FLAG. POISON, SAYS HER CAPTAIN: HIS OWN CARGO. THE PORT'S EATEN TURNIPS SINCE THE HARVEST FAILED, AND SHE CARRIES TWO HUNDRED SACKS OF RYE. I SAY A PRICE RING. FIND ME PROOF EITHER WAY."
+  opt "I'LL FIND THE TRUTH." -> mate
+  opt "STARVE OR DON'T. NOT MY SHIP." -> refuse
+
+stage mate
+  talk mate
+  say "STAY BACK, PLEASE. I ROWED ASHORE TO BEG THE HARBOUR TO HEAR THE CAPTAIN OUT, AND THEY HELD ME ON THE QUAY. TWO OF OUR MEN HAVE BLACK FINGERS AND BURNING HANDS, AND ONE SAW THINGS IN THE NIGHT. THE CAPTAIN LOCKED THE HOLD. WE LIVE ON BISCUIT."
+  opt "WHO HAS BEEN OUT TO HER?" -> healer
+
+stage healer
+  talk healer
+  say "I ROWED OUT AT DAWN. NO FEVER: EYES CLEAR, NO ONE HOT. BUT IN THE HOLD, BLACK SPURS IN THE RYE LIKE RAVEN CLAWS. THE BURNING SICKNESS. IT ISN'T CATCHING; IT'S IN THE BREAD. SALT WATER FLOATS THE SPURS OFF, IF YOU HAVE PATIENCE AND HANDS."
+  opt "WHERE DID THE RYE COME FROM?" -> customs
+
+stage customs
+  goal use board in home
+  then captain
+  journal "READ THE CUSTOMS LIST ON THE NOTICE BOARD OF {HOME}: WHERE THE RYE AT THE BUOY CAME FROM, AND WHAT IT COST."
+
+stage captain
+  talk captain
+  say "THE FLAG IS ALL I HAD. I BOUGHT THE RYE CHEAP FROM A FLOODED FARM, AND TWO MEN ATE FROM IT BEFORE I SAW THE SPURS. NOBODY LISTENS TO A MAN WHO SAYS HIS OWN CARGO IS POISON AND ASKS TO BE PAID. IF I'M A THIEF, I'M A POOR ONE."
+  journal "CUSTOMS LIST: RYE, 200 SACKS, BOUGHT AT HALF PRICE FROM THE FLOODED LOW FIELDS. THE CAPTAIN WAITS ON THE QUAY OF {HOME}."
+  opt "I BELIEVE YOU." -> choice
+
+stage choice
+  talk master
+  say "SO IT'S TRUE. TWO HUNDRED SACKS OF BREAD I CAN'T FEED TO A STARVING PORT, AND A PORT THAT WILL RIOT TO GET IT. WHAT DO I DO WITH IT?"
+  opt "BRINE IT. FLOAT OFF THE SPURS." check level 4 -> sifted else sickened
+  opt "BURN IT ALL." -> burned
+  opt "SEND IT ON. SAY NOTHING." -> sent_on
+  opt "NOT MY SHIP." -> leave
+
+stage sifted
+  end success
+  say "SALT WATER, SKIM, DRY, SKIM AGAIN. TEN DAYS AND EVERY WOMAN FROM THE TEMPLE. IT FEEDS THE PORT ON HALF THE RYE, AND NOBODY EATS A LOAF THE PRIEST HASN'T TOUCHED. YOU'VE SAVED A PORT. DON'T LET IT GO TO YOUR HEAD."
+  journal "THE SPURRED RYE AT THE BUOY OF {HOME} WAS SIFTED IN BRINE AND FED THE PORT. THE CREW WAS PAID FROM THE SALE."
+  do reward rich
+  do deed innocent
+  do fame 1
+  do census home stock grain 20
+  do census home mood 8
+  do remember master "THE PORT OWES YOU A DRINK AND A BUSHEL. I'M HOLDING THE BUSHEL. THE DRINK YOU'LL HAVE TO COLLECT."
+  do fact "THE POISONED RYE AT THE BUOY IN {HOME} WAS SIFTED IN BRINE AND FED THE PORT. {PLAYER} FOUND THE BLACK SPURS."
+
+stage sickened
+  end success
+  say "THE PORT SIFTED IT IN A HURRY. A DOZEN ARE ILL AND THE PRIEST WON'T SPEAK TO ME. I BURNED WHAT WAS LEFT. YOU MEANT WELL. SO DID THEY."
+  journal "THE SPURRED RYE OF {HOME} WAS SIFTED IN HASTE. A DOZEN FELL ILL BEFORE THE REST WAS BURNED."
+  do reward small
+  do census home mood -4
+  do remember master "WE MEANT WELL. A DOZEN OF THEM STILL CAN'T HOLD A CUP."
+  do fact "THE PORT OF {HOME} SIFTED SPURRED RYE IN HASTE. A DOZEN FELL ILL."
+
+stage burned
+  end success
+  say "EVERY SACK, ON THE SANDS, DOWNWIND. THE PORT WILL CURSE ME AND BE ALIVE. I'LL PAY THE CAPTAIN HALF OUT OF THE DUES AND FEED HIS CREW AT MY OWN TABLE."
+  journal "THE SPURRED RYE WAS BURNED ON THE SANDS OF {HOME}. THE PORT STAYS HUNGRY AND ALIVE."
+  do reward fair
+  do deed guard
+  do census home mood -2
+  do remember captain "HALF PRICE AND A HOT MEAL. MORE THAN I EXPECTED. MORE THAN I DESERVED, MAYBE."
+  do fact "A SHIP'S SPURRED RYE WAS BURNED ON THE SANDS OF {HOME}. THE PORT STAYED HUNGRY AND ALIVE."
+
+stage sent_on
+  end success
+  say "TO THE NEXT PORT, AND NOT A WORD OF WHY? I'D LIKE IT OFF MY QUAY. I'D LIKE NOT TO THINK ABOUT THE NEXT PORT'S BREAD. FINE. IT SAILS AT DAWN. I'LL SLEEP BADLY."
+  journal "THE SPURRED RYE LEFT {HOME} FOR ANOTHER PORT. NOBODY THERE HAS BEEN WARNED."
+  do reward small
+  do deed lied
+  do remember master "SHE SAILED. I WATCH FOR NEWS FROM THE SOUTH NOW, AND HOPE THERE ISN'T ANY."
+  do fact "THE SPURRED RYE LEFT {HOME} FOR ANOTHER PORT WITHOUT A WARNING. SOMEONE THERE WILL EAT IT."
+
+stage leave
+  end fail
+  say "A CROWD ROWS OUT TO THE GRAIN SHIP THAT NIGHT. BY MORNING MANY ARE SICK."
+  journal "YOU LEFT THE YELLOW-FLAG SHIP OF {HOME} TO THE HARBOUR. A CROWD BOARDED HER."
+  do census home mood -6
+  do notice "A CROWD BOARDED THE GRAIN SHIP. MANY ARE SICK."
+  do remember master "NOT YOUR SHIP, YOU SAID. IT WAS EVERYBODY'S BY MIDNIGHT."
+  do fact "A HUNGRY CROWD IN {HOME} BOARDED A SHIP OF SPURRED RYE. MANY FELL SICK."
+
+stage refuse
+  end fail
+  journal "YOU LEFT THE HARBOURMASTER OF {HOME} WITH A YELLOW FLAG AT THE BUOY."
+  do remember master "STARVE OR DON'T, YOU SAID. THE PORT IS TRYING BOTH."
+)DSL",
+
+R"DSL(
+script rq_articles
+title THE SIGNED ARTICLES
+archetype city request: a crimped apprentice
+tier 2
+family request
+settle town city coast
+once site
+cooldown 35
+gossip "TWO ALES AND A SMILE AT UNCLE'S."
+gossip "AN EMPTY BENCH ON THE ROPEWALK."
+hook board
+pitch "APPRENTICE MISSING FROM THE ROPEWALK."
+hint "APPRENTICE MISSING FROM THE ROPEWALK. BOUND TO ME THREE YEARS. FIFTEEN. ASK FOR THE ROPEMAKER."
+role giver giver
+role home site home
+role ropemaker person male at giver
+role lad person male young at giver
+role crimp npc innkeeper
+role skipper person female at giver
+var how 0
+
+stage start
+  talk ropemaker
+  say "TWO ALES AND A SMILE FROM A STRANGER. THAT'S ALL IT TAKES. {LAD} IS FIVE DAYS GONE, LAST SEEN AT UNCLE'S, THE SAILORS' HOUSE ON THE QUAY. TAKE MY COPY OF HIS INDENTURE. HE'S BOUND TO ME TWO MORE YEARS, AND NO CRIMP'S PAGE UNDOES THAT."
+  do give "A ROPEWALK INDENTURE" scroll
+  opt "I'LL SEE THE CRIMP." -> crimp
+  opt "WHY NOT GO YOURSELF?" -> why
+  opt "BOYS RUN TO SEA. LET HIM." -> refuse
+
+stage why
+  talk ropemaker
+  say "I WENT. HIS DOGMEN TURNED ME OUT BY THE COLLAR, AND THE WATCH CALLED IT A CIVIL MATTER. I'M SIXTY, I'VE A BAD HIP, AND A WALK OF ROPE TO FINISH. I'M ONE MAN. YOU'RE NOT."
+  opt "I'LL SEE THE CRIMP." -> crimp
+
+stage crimp
+  talk crimp
+  say "UNCLE, THEY CALL ME. THE BOY SIGNED FAIR AND SQUARE, SEE THE MARK? A BUNK, THREE MEALS AND A DEBT OF NINETY GOLD FOR HIS SEA-CHEST AND HIS ALE. PAY, AND I TEAR THE PAGE MYSELF. NOBODY CALLS UNCLE UNREASONABLE."
+  opt "I'LL PAY THE DEBT. [90 GOLD]" if gold 90 -> paid
+  opt "HE'S ALREADY BOUND. READ THIS." check level 3 -> void else scoff
+  opt "I'LL THINK ON IT." -> hub
+  opt "NOT MY AFFAIR." -> fail
+
+stage paid
+  talk crimp
+  say "NINETY. COUNT IT ONTO THE TABLE. THERE: THE ARTICLES, TORN. A PLEASURE. HE'S ON THE QUAY BY NOW, I EXPECT. YOUR NEXT BOY IS ON ME."
+  do gold -90
+  opt "KEEP YOUR BOYS." -> lad
+
+stage void
+  talk crimp
+  say "...A PRIOR INDENTURE. THE HARBOUR CLERK WOULD FINE ME TWENTY FOR SHIPPING A BOUND APPRENTICE, AND I'D LOSE THE PAGE ANYWAY. HE'S OUT THE BACK. KEEP YOUR LAW OUT OF MY HOUSE."
+  opt "GLADLY." -> lad
+
+stage scoff
+  talk crimp
+  say "A BOY'S FIRST SIGNATURE IS A CHILD'S GAME. THE SECOND IS A MAN'S. YOU'RE BLUFFING. SHOW IT TO THE MAGISTRATE, WHO SITS THE DAY AFTER THE TIDE."
+  opt "I'LL PAY, THEN. [90 GOLD]" if gold 90 -> paid
+  opt "I'LL BE BACK." -> hub
+
+stage hub
+  talk ropemaker
+  say "HE WON'T BUDGE? THE ARTICLES SIT IN A BOX UNDER HIS BED. I'LL STAND IN THE ALLEY WITH A SHUTTERED LANTERN. IT ISN'T LEGAL. IT ISN'T NOTHING. THE TIDE IS AT DAWN."
+  opt "I'LL GET THE ARTICLES TONIGHT." -> night
+  opt "NOT MY AFFAIR." -> fail
+
+stage night
+  goal wait 1
+  then window
+  journal "THE CRIMP OF {HOME} KEEPS THE BOY'S ARTICLES IN A BOX UNDER HIS BED. GO IN TONIGHT, BEFORE THE DAWN TIDE."
+
+stage window
+  talk ropemaker
+  say "THE WINDOW AT THE BACK, THE BOX UNDER THE BED. NO DOGS TONIGHT: I FED THEM A SAUSAGE. {ROPEMAKER.GOD} FORGIVE ME, IT WAS A GOOD SAUSAGE. GO."
+  opt "[CLIMB IN AT THE BACK WINDOW]" check level 3 -> stolen else caught
+
+stage stolen
+  talk ropemaker
+  say "YOU HAVE IT? ...THE ARTICLES. I'LL BURN THEM ON MY OWN HEARTH. WITHOUT PAPER, UNCLE'S A KIDNAPPER, AND HE'LL LET THE LAD OUT BEFORE HE'LL SAY THAT TO A CLERK. THERE, THAT'S HIM ON THE QUAY."
+  do deed stole
+  opt "LET'S GO AND MEET HIM." -> lad
+
+stage caught
+  end fail
+  say "I HEARD THE DOGS FROM HERE. I'M SORRY. THE LAD SAILS AT DAWN, AND I'LL NOT SEE HIM AGAIN. YOU WERE BRAVE. IT WASN'T ENOUGH."
+  journal "THE CRIMP'S DOGS WOKE. {LAD} SAILED FROM {HOME} AT DAWN ON ARTICLES HE NEVER SHOULD HAVE SIGNED."
+  do take "A ROPEWALK INDENTURE"
+  do notice "A SHIP SAILED AT DAWN WITH ONE MORE BOY."
+  do remember ropemaker "I HEARD THE DOGS. I STOOD IN THE ALLEY AND HEARD THEM. THAT'S ALL I COULD DO."
+  do fact "A CRIMP OF {HOME} SHIPPED A BOUND ROPEWALK APPRENTICE TO SEA ON ARTICLES SIGNED OVER TWO ALES."
+
+stage lad
+  talk lad
+  say "YOU GOT ME OUT. I'M STILL SHAKING. I SIGNED TWICE, I KNOW. I THOUGHT THE ROPEWALK WAS FOREVER AND THE SEA WAS NOW. I DON'T WANT TO RUN. I WANT TO GO WITH PAPER, AND A MASTER'S BLESSING."
+  opt "WE'LL ASK THE GULL'S SKIPPER." -> skipper
+  opt "COME HOME TO THE ROPEWALK." -> home_end
+
+stage skipper
+  talk skipper
+  say "A BOY WITH HIS MASTER'S LEAVE AND SQUARE ARTICLES I'LL TAKE. NO LEAVE, NO BERTH; I DON'T TAKE BOYS WHO CAME THROUGH A CRIMP'S DOOR. THE GULL SAILS AT DAWN. HE'LL BE A SEAMAN BY NINETEEN, IF HE'S LUCKY AND CAREFUL."
+  opt "I'LL ASK HIS MASTER." -> release
+
+stage release
+  talk ropemaker
+  say "YOU WANT ME TO LET MY BEST HAND GO TO SEA? TWO YEARS LEFT ON HIS BOND, AND HE'S BETTER AT A SPLICE THAN I WAS AT TWENTY. ...I KNOW THAT SKIPPER. SHE'S HONEST. TELL ME WHY I SHOULD."
+  opt "HE'LL COME BACK A BETTER ROPEMAKER." check level 3 -> released else stay_end
+  opt "KEEP HIM. THE BOND HOLDS." -> stay_end
+
+stage released
+  end success
+  say "...HE'LL SPLICE FOR THE GULL, THEN. BRING HIM HERE; I'LL WRITE THE LEAVE MYSELF. TELL HIM TO COME BACK AND SEE HOW HIS ROPE HELD. AND TELL HIM I KNEW HE'D GO. I ALWAYS KNEW."
+  journal "{LAD} SAILS FROM {HOME} ON THE GULL WITH HIS MASTER'S LEAVE AND SQUARE ARTICLES."
+  do take "A ROPEWALK INDENTURE"
+  do reward fair
+  do deed charity
+  do fame 1
+  do remember ropemaker "HE WRITES FROM EVERY PORT. BAD SPELLING, GOOD KNOTS. I KEEP THE LETTERS ON THE BENCH."
+  do fact "A ROPEMAKER OF {HOME} FREED HIS APPRENTICE TO SAIL ON AN HONEST SHIP. {PLAYER} CARRIED THE ARTICLES."
+
+stage stay_end
+  end success
+  say "HE'S HOME. HE DIDN'T SAY A WORD, AND HE'S ASLEEP ON HIS BENCH WITH HIS BOOTS ON. I'LL RAISE HIS PAY, AND IN TWO YEARS HE GOES TO SEA WITH MY BLESSING. I SWEAR IT ON THIS ROPE."
+  journal "{LAD} IS BACK ON THE ROPEWALK OF {HOME}, BOUND TWO MORE YEARS ON BETTER TERMS."
+  do take "A ROPEWALK INDENTURE"
+  do reward fair
+  do deed charity
+  do fame 1
+  do remember ropemaker "TWO YEARS, BETTER PAY, AND A PROMISE. HE HOLDS ME TO IT EVERY MORNING."
+  do fact "A CRIMP'S ARTICLES IN {HOME} WERE VOID AND THE LAD CAME HOME. {PLAYER} KNEW WHERE THE LAW WAS."
+
+stage home_end
+  end success
+  say "HOME, IS IT? HE WALKED IN AND PICKED UP A SPLICE WITHOUT A WORD. GOOD LAD. I'LL RAISE HIS PAY, AND IN TWO YEARS HE GOES TO SEA WITH MY BLESSING. I SWEAR IT ON THIS ROPE."
+  journal "{LAD} CAME HOME TO THE ROPEWALK OF {HOME}. HIS MASTER HAS PROMISED HIM THE SEA IN TWO YEARS."
+  do take "A ROPEWALK INDENTURE"
+  do reward fair
+  do deed charity
+  do fame 1
+  do remember lad "TWO MORE YEARS OF ROPE. THEN THE SEA, WITH PAPER. HE SWORE IT ON A ROPE, AND HE DOESN'T SWEAR."
+  do fact "A ROPEWALK APPRENTICE OF {HOME} WAS FREED FROM A CRIMP'S HOUSE AND CAME HOME. {PLAYER} BROUGHT HIM."
+
+stage fail
+  end fail
+  say "THE SHIP SAILS WITH THE BOY ON THE DAWN TIDE. THE ROPEMAKER WATCHES FROM THE END OF HIS WALK."
+  journal "YOU LEFT {LAD} TO THE CRIMP OF {HOME}. HE SAILED AT DAWN."
+  do take "A ROPEWALK INDENTURE"
+  do remember ropemaker "I SAW HIS SHIP LEAVE FROM THE WALK. I WAVED. HE DIDN'T SEE."
+  do fact "A ROPEWALK APPRENTICE OF {HOME} WAS SHIPPED TO SEA BY A CRIMP. NOBODY STOPPED IT."
+
+stage refuse
+  end fail
+  journal "YOU LEFT THE ROPEMAKER OF {HOME} TO FIND HIS OWN APPRENTICE."
+  do take "A ROPEWALK INDENTURE"
+  do remember ropemaker "BOYS RUN TO SEA, YOU SAID. NOT ON A CRIMP'S PAPER, THEY DON'T. NOT MINE."
+)DSL",
+
+R"DSL(
+script rq_blueglove
+title THE HANGMAN'S WEEK
+archetype city request: the wrong hand
+tier 2
+family request
+settle city
+once site
+cooldown 45
+gossip "THE DYER HANGS ON THE THIRD MORNING."
+gossip "HIS NEIGHBOUR SHOUTS IN THE STREET."
+hook npc villager
+pitch "WHO ARE THEY BUILDING THE GALLOWS FOR?"
+hint "THEY'RE RAISING A GALLOWS IN THE SQUARE FOR A MAN WHO WAS AT MY TABLE THE NIGHT HE'S SUPPOSED TO HAVE KILLED. NOBODY LISTENS TO A FRIEND."
+role giver giver
+role home site home
+role land kingdom home
+role accused person male at home
+role sergeant npc guard
+role rival person male at home
+role culprit person female at home
+var how 0
+
+stage start
+  talk giver
+  say "THEY SAY {ACCUSED} KILLED THE WOOL-BUYER. HE WAS AT MY TABLE THAT NIGHT, AND THE WATCH CALLS ME A LIAR BECAUSE I'M HIS FRIEND. HE HANGS ON THE THIRD MORNING. HE DYES RED; ALL HIS LIFE, MADDER. NOBODY ASKED WHAT DYES BLUE."
+  opt "I'LL TALK TO HIM." -> accused
+  opt "THE WATCH KNOWS ITS BUSINESS." -> refuse
+
+stage accused
+  talk accused
+  say "I NEVER TOUCHED THE MAN. HE CHEATED ME LIKE HE CHEATED EVERYONE, AND I SWORE AT HIM IN THE MARKET, AND THAT'S MY WHOLE CRIME. NOW THEY SAY THERE'S A GLOVE. I HAVEN'T OWNED A GLOVE SINCE MY WEDDING. ASK THE SERGEANT TO SHOW YOU."
+  opt "I'LL ASK THE SERGEANT." -> sergeant
+
+stage sergeant
+  talk sergeant
+  say "THE LORD WANTS A NAME BEFORE THE THIRD MORNING, AND THE DYER'S WAS CONVENIENT. MY LADS ARE BOUND BY THE WRIT: WE MAY NOT QUESTION A CITIZEN WITHOUT A CHARGE. A STRANGER MAY. THIS WAS IN THE GUTTER BY THE BODY. TELL ME WHAT YOU SEE."
+  do give "A STAINED WOOL GLOVE" gloves
+  opt "WHO DYES BLUE IN THIS CITY?" -> rival
+
+stage rival
+  talk rival
+  say "THAT'S WOAD. NOT MADDER, NOT WELD; NOTHING ELSE STAINS BLUE LIKE THAT. SIX HANDS IN MY SHED. FIVE SLEPT BY THE VATS THAT NIGHT, FIVE GLOVES ON FIVE PEGS. THE SIXTH PEG IS {CULPRIT}'S, AND IT'S EMPTY. SHE LIVES BEHIND THE TANNERY. I'LL NOT SAY MORE."
+  journal "A WOOL GLOVE STAINED BLUE TO THE WRIST: WOAD. THE DYER {ACCUSED} WORKS IN RED. THE MISSING GLOVE IS FROM THE PEG OF {CULPRIT}."
+  opt "I'LL FIND {CULPRIT}." -> culprit
+
+stage culprit
+  talk culprit
+  say "YOU'VE COME FOR THE GLOVE. I KNEW SOMEONE WOULD. THE BUYER BEAT MY SON HALF TO DEATH OVER A DEBT. I WAITED THREE NIGHTS FOR HIM TO WALK PAST. I WATCH THEM RAISE THE GALLOWS FROM MY WINDOW AND I CAN'T SPEAK. IF I HANG, WHO FEEDS MY BOY?"
+  opt "SPEAK. THE LORD WILL HEAR WHY." check level 4 -> confess else refuses
+  opt "SPEAK, AND I'LL FEED HIM. [60 GOLD]" if gold 60 -> confess_paid
+  opt "THE SERGEANT GETS THE GLOVE." -> to_sergeant
+  opt "THE DYER HANGS. I SAW NOTHING." -> silent
+
+stage confess
+  talk culprit
+  say "...YES. FOR THE DYER, NOT FOR ME. AND FOR MY BOY, WHO MUST HEAR THE TRUTH FROM ME. I'LL SAY IT ON THE STEPS ON THE THIRD MORNING AND LET THE LORD HEAR WHAT THE BUYER DID."
+  do set how 1
+  opt "I'LL BE THERE." -> morning
+
+stage confess_paid
+  talk culprit
+  say "SIXTY, FOR HIS BREAD AND HIS BED, TO WHOEVER TAKES HIM IN. YOU DON'T EVEN KNOW ME. ...I'LL SAY IT ON THE STEPS. TELL HIM I WENT WITH MY HEAD UP."
+  do gold -60
+  do set how 2
+  opt "I'LL TELL HIM." -> morning
+
+stage refuses
+  talk culprit
+  say "I'M NOT HANGING FOR A MAN I HATED. GIVE THE GLOVE TO WHOM YOU LIKE."
+  opt "THEN THE SERGEANT GETS THE GLOVE." -> to_sergeant
+  opt "THEN I SAW NOTHING." -> silent
+
+stage to_sergeant
+  talk sergeant
+  say "WOAD, AND HER PEG EMPTY. THEN THE GLOVE HANGS HER. YOU DID RIGHT BY THE LAW, AND THE LAW IS A POOR THING TODAY. THE DYER'S FREE. I'LL BE AT THE ROPE AT DAWN, AND I WON'T ENJOY IT."
+  opt "NOR WILL I." -> guard_end
+
+stage morning
+  goal wait 1
+  then judged
+  journal "{CULPRIT} WILL SPEAK ON THE STEPS OF {HOME} ON THE THIRD MORNING. WAIT FOR THE LORD'S JUDGEMENT, THEN SEE {GIVER}."
+
+stage judged
+  talk giver
+  say "THE LORD HEARD HER ON THE STEPS. TWO YEARS IN THE QUARRY, NOT THE ROPE, FOR A KILLING THAT GREW OUT OF A CHEAT AND A BEATING. {ACCUSED} IS FREE. HE SAYS HE'LL KEEP HER BOY, AND HIS WIFE IS FUSSING ALREADY."
+  opt "THEN IT'S DONE." if is how 1 -> end_confess
+  opt "THE SIXTY GOES TO HIS HOUSE, THEN." if is how 2 -> end_paid
+
+stage end_confess
+  end success
+  say "HE'S FREE. HE SAYS HE'LL DYE A CLOTH BLUE IN YOUR HONOUR. I SAID DON'T. HERE: IT'S NOT MUCH, BUT IT'S MINE."
+  journal "{CULPRIT} SPOKE ON THE STEPS OF {HOME}. SHE SERVES TWO YEARS; {ACCUSED} IS FREE AND KEEPS HER SON."
+  do take "A STAINED WOOL GLOVE"
+  do reward rich
+  do deed innocent
+  do rep land 1
+  do remember giver "HE'S FREE. HE SAYS HE'LL DYE A CLOTH BLUE IN YOUR HONOUR. I'VE HIDDEN HIS WOAD."
+  do fact "THE DYER {ACCUSED} OF {HOME} WAS FREED. THE WOAD-HAND {CULPRIT} SPOKE FOR HERSELF, AND {PLAYER} ASKED HER TO."
+
+stage end_paid
+  end success
+  say "THE SIXTY WENT TO HIS HOUSE FOR HER BOY'S BREAD AND BED, AND HIS WIFE HAS SPENT HALF OF IT ON BLANKETS ALREADY. HE'S FREE. HERE, FOR YOUR TROUBLE."
+  journal "{CULPRIT} SPOKE ON THE STEPS OF {HOME}. YOUR SIXTY GOLD KEEPS HER SON IN THE HOUSE OF {ACCUSED}."
+  do take "A STAINED WOOL GLOVE"
+  do reward fair
+  do deed charity
+  do rep land 1
+  do remember accused "HER BOY SLEEPS IN OUR BACK ROOM. HE LIKES THE RED VATS BEST. GOOD BOY."
+  do fact "THE DYER {ACCUSED} OF {HOME} WAS FREED. {PLAYER} PAID FOR THE WOAD-HAND'S BOY, AND SHE SPOKE."
+
+stage guard_end
+  end success
+  say "THE WOAD-HAND HANGED ON THE THIRD MORNING. THE DYER WALKED FREE. THE CITY MOURNS HER, A LITTLE, AND FORGETS HER, A LOT."
+  journal "{CULPRIT} HANGED IN {HOME} FOR THE WOOL-BUYER'S DEATH. {ACCUSED} IS FREE."
+  do take "A STAINED WOOL GLOVE"
+  do reward fair
+  do deed guard
+  do remember sergeant "I SAW HER FACE ON THE ROPE. I'LL SEE IT LONG."
+  do fact "A WOAD-HAND WAS HANGED IN {HOME} FOR KILLING A CHEAT WHO BEAT HER SON. {PLAYER} FOUND THE GLOVE."
+
+stage silent
+  end fail
+  say "THE DYER HANGS ON THE THIRD MORNING. HIS NEIGHBOUR SHOUTS UNTIL THE WATCH DRAGS HIM AWAY, AND LEAVES THE CITY BEFORE THE WEEK IS OUT."
+  journal "{ACCUSED} HANGED IN {HOME} FOR A KILLING HE DID NOT DO."
+  do take "A STAINED WOOL GLOVE"
+  do rep land -1
+  do remember sergeant "THE DYER HANGED. HIS FRIEND SHOUTED THE WHOLE TIME. I CAN STILL HEAR HIM."
+  do fact "THE DYER {ACCUSED} OF {HOME} HANGED FOR A STAINED GLOVE. HIS NEIGHBOUR SPOKE FOR HIM. NO ONE LISTENED."
+
+stage refuse
+  end fail
+  journal "YOU LEFT THE DYER OF {HOME} TO THE GALLOWS."
+  do remember giver "THE WATCH KNOWS ITS BUSINESS, YOU SAID. ITS BUSINESS IS ROPE."
+)DSL",
+};
+
+}  // namespace
+
+const char* requestsCitySource() {
+  static const std::string joined = [] {
+    std::string s;
+    for (const char* p : kCity) s += p;
+    return s;
+  }();
+  return joined.c_str();
+}
+
+}  // namespace dsl
+}  // namespace story

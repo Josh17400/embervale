@@ -140,6 +140,23 @@ int walk(Game& g, uint32_t id, const std::string& script, WalkStats& ws, std::ma
   }
   ws.stagesSeen++;
   const Snap s0 = snap(g);
+  // (P1b) the other ways on from a stage: a clock that runs out (talk or goal), a goal that is lost (escort, bout)
+  {
+    const bool canFail = g.story.goalCanFail(*in);
+    const bool clock = g.story.stageDeadline(*in) > 0;
+    for (int k = 0; k < 2; k++) {
+      if (k == 0 ? !canFail : !clock) continue;
+      restore(g, s0);
+      const bool ok = k == 0 ? g.story.debugFail(g, id) : g.story.debugDeadline(g, id);
+      if (!ok) { out("FAIL: story %s stage %s: the %s branch cannot be taken\n", script.c_str(), stName.c_str(), k == 0 ? "else" : "deadline"); bad++; continue; }
+      const std::string t0 = trail;
+      story::Instance* after = g.story.find(id);
+      trail += std::string(k == 0 ? ">lost:" : ">late:") + (after ? g.story.stageName(*after) : std::string("?"));
+      bad += walk(g, id, script, ws, visits, depth + 1, trail);
+      trail = t0;
+    }
+    if (canFail || clock) restore(g, s0);
+  }
   if (g.story.isGoal(*in)) {
     if (!g.story.debugComplete(g, id)) { out("FAIL: story %s stage %s: the objective cannot be completed\n", script.c_str(), stName.c_str()); bad++; }
     else {

@@ -23,7 +23,26 @@ constexpr uint64_t MK_BOARD_TAKEN = 10;  // a notice board (site id ^ entry): th
 constexpr uint64_t MK_TALE_TELLER = 11;  // (P1) a tale's teller in a town (key: town id x tale): who (tellerTag), and the
                                          // day the claim was last renewed (key ^ TELLER_DAY_SALT)
 constexpr uint64_t MK_TALE_HEARD = 12;   // (P1) a teller (npcKey): the day the player last overheard them speak of their tale
+// (P1b, lead) `once site` (script x settlement: the day it ended there) and `cooldown` (a settlement: the day its last
+// cooldown script ended). Tags 16..23 are the P1b ENGINE lane's (story_game.cpp / story.cpp); the radiant jobs use
+// 160..175 (JOBS lane), the requests 176..191 (REQUESTS lane), the new tales 192..199 (TALES lane).
+constexpr uint64_t MK_P1B_PLAYED = 13;
+constexpr uint64_t MK_P1B_COOLDOWN = 14;
+constexpr uint64_t MK_P1B_GOSSIP = 15;   // a teller (npcKey) of a P1b item: the day their gossip line was last overheard
 uint64_t storyMarkKey(uint64_t id, uint64_t tag);   // == gsim::markKey(id, (Mk)tag)
+// (P1b) may script `s` be OFFERED at settlement `hookSite` now (family test never; settle, needs, once site, cooldown)?
+// The pickers ask it (Engine::offerFor / offerForPlace precheck); a forced start (tests, scripts) casts anywhere.
+bool offerGates(const Game& g, const dsl::Script& s, int hookSite, std::string* why = nullptr);
+// (P1b) the sea within ~360 tiles of a global tile (macro samples)
+bool nearCoast(const Game& g, int32_t gx, int32_t gy);
+// (P1b) the pickers' cheap look before casting (offers.cpp): the world has what the roles need (a war, an event) and
+// offerGates holds
+bool offerPrecheck(const Game& g, const dsl::Script& s, int hookSite);
+// (P1b, REQUESTS lane: rpg/story/req/req_offers.cpp) the library request (`family request`) person `a` raises now, or
+// the place raises (a board, the news), as a library index (-1 none). Engine::offerFor / offerForPlace ask these
+// first and never offer a request themselves.
+int requestOfferFor(Game& g, const Actor& a);
+int requestOfferForPlace(Game& g, int hookKind, int site);
 
 // (P1 Fresh Roads, offers.cpp) at most one teller per tale per town: true when `a` is that tale's teller in town `site`
 // (claiming it when nobody holds it, or the holder has not been met for TELLER_DAYS days, is dead or has started another
@@ -43,6 +62,16 @@ constexpr int PERSON_SLOT0 = 50000, PERSON_SLOT1 = 50000 + 1024 * PERSON_ROLES;
 constexpr int HERALD_SLOT = 950;
 inline bool isStoryPerson(const Actor& a) { return a.slot >= PERSON_SLOT0 && a.slot < PERSON_SLOT1; }
 inline int personSlot(uint32_t inst, int role) { return PERSON_SLOT0 + (int)(inst % 1024u) * PERSON_ROLES + (role & (PERSON_ROLES - 1)); }
+// (P1b ENGINE lane) the beasts of a drove an escort drives (goal escort ... drove): up to DROVE_MAX a story, slot
+// DROVE_SLOT0 + (instance % 1024) * DROVE_MAX + k. Never fromMap (the streaming leaves them alone), never saved (the
+// engine sets them out again beside their drover)
+constexpr int DROVE_MAX = 8;
+constexpr int DROVE_SLOT0 = PERSON_SLOT1, DROVE_SLOT1 = PERSON_SLOT1 + 1024 * DROVE_MAX;
+inline bool isDroveBeast(const Actor& a) { return a.slot >= DROVE_SLOT0 && a.slot < DROVE_SLOT1; }
+// (P1b ENGINE lane) marks: a beacon a story lit (key: its global tile; the day it was lit)
+constexpr uint64_t MK_P1B_BEACON = 16;
+// (P1b fixer) a site (its gid) whose creatures a FINISHED story calmed for good (`do calm` in an end stage: the day)
+constexpr uint64_t MK_P1B_CALM = 17;
 
 // the library's script of an instance (nullptr: a script the library no longer has)
 const dsl::Script* scriptOf(const Instance& in);
@@ -92,6 +121,9 @@ std::string kingdomName(const Game& g, ew::Gid k);
 // a culture-aware person name for a story person (deterministic in the key)
 std::string personNameIn(const Game& g, uint64_t culture, uint64_t key, bool female);
 
+// (P1b) the cast key Engine::start uses for a generated story (saga or radiant job) begun by actor A (null: a place) at
+// hookSite: an offer that try-casts with castScript(g, s, A->id, hookSite, offerCastKey(...), ...) casts the same people
+uint64_t offerCastKey(const Game& g, const dsl::Script& s, const Actor* A, int hookSite);
 // the caster (caster.cpp): bind every role of a script from a hook context; false with a reason when it cannot
 bool castScript(Game& g, const dsl::Script& s, int hookActor, int hookSite, uint64_t key, std::vector<Binding>& out, std::string& why);
 // sites bound by running instances (the caster prefers others)
@@ -112,5 +144,7 @@ void placeLoreProps(Map& m, uint64_t key, const std::vector<int>& props, std::ve
 
 // a free walkable overworld tile near (tx, ty) for a spawned person (window tiles; false none)
 bool freeTileNear(const Game& g, int tx, int ty, int& ox, int& oy, uint32_t salt);
+void storyAmbush(Game& g, Instance& in, int mword, int count);   // (P1b) n foes from 8-12 tiles round the player
+bool storyOnRoad(const Instance& in);                            // (P1b) an escort / follower walks with the player now
 
 }  // namespace story

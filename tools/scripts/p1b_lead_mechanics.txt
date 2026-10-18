@@ -1,0 +1,27 @@
+# P1b New Roads Content phase A (lead): the shared mechanics on the lead's test script (family test, never offered).
+# Seed 7, the start village: the opening (a giver's pitch with ACCEPT / DECLINE), the escort's tracker line with the
+# clock's days left, the bout, the dusk wait with its wolf ambush, the keeper's dialogue (options gated by season, hour,
+# days and a variable), an ending. The ENGINE lane extends it with the real follower, the wagon, the yield, the person
+# inside the cave and the epilogue scene.
+#   embervale.exe --script tools/scripts/p1b_lead_mechanics.txt     (p1b_lead_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++1.0 story start p1b_mechanics
++0.6 shot p1b_lead_open.png
++0.1 voice choose 1
++0.6 shot p1b_lead_road.png
++0.1 expect story p1b_mechanics road
++0.1 story complete
++0.1 expect story p1b_mechanics duel
++0.1 story complete
++0.1 expect story p1b_mechanics dusk
++1.0 shot p1b_lead_ambush.png
++0.1 story complete
++0.1 expect story p1b_mechanics keeper
++0.3 story show
++1.0 shot p1b_lead_keeper.png
++0.1 voice choose 1
++0.6 shot p1b_lead_end.png
++0.1 expect story p1b_mechanics done
++0.3 log p1b_lead_mechanics done

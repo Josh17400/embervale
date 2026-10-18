@@ -112,7 +112,8 @@ int nearestPerson(Game& g) {
   float bd = 1e30f;
   for (size_t k = 1; k < g.actors.size(); k++) {
     const Actor& a = g.actors[k];
-    if (!a.npc || a.st == AState::Dead || a.role == Role::Guard || a.role == Role::Child || a.role == Role::King) continue;
+    // (P1b integrator) people only: a village dog that wandered nearest must not "hand over" the quest
+    if (!a.npc || !a.human || a.st == AState::Dead || a.role == Role::Guard || a.role == Role::Child || a.role == Role::King) continue;
     float d = len2(a.p - g.pl().p);
     if (d < bd) { bd = d; best = (int)k; }
   }

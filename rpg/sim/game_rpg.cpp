@@ -20,6 +20,7 @@
 #include "rpg/culture/culture.h"
 #include "rpg/world/source.h"
 #include "rpg/culture/society.h"
+#include "rpg/story/radiant.h"
 #include "rpg/story/story.h"
 
 using art::Monster;
@@ -1446,7 +1447,9 @@ bool serviceOpt(const DlgOpt& o) {
 std::string Game::speakerTitle(const Actor& a) const {
   if (a.comp) return a.name;   // (M8) a companion is known by name (the VOICE lane may add their calling)
   if (!a.npc || !a.human) return a.name;
-  const std::string trade = talkTrade(*this, a);
+  // (P1b fixer) a story's stand-in is called by their part ("BERGBO, COURIER"), not VILLAGER whatever their trade
+  const std::string part = a.role == Role::Villager ? story.personTitle(a) : std::string();
+  const std::string trade = part.empty() ? talkTrade(*this, a) : part;
   if (!talkNamed(a)) return a.name;
   if (a.role == Role::King) return a.name;   // a ruler is known by name and title alike
   if (talkMem.introduced(npcKey(a))) return speech::givenName(a.name) + ", " + trade;
@@ -1906,6 +1909,13 @@ void Game::dialogueChooseInner(int oi) {
     }
     case A_ASK:
       if (ai < 0) return;
+      {
+        // (P1b) a radiant job runs on the story engine: its opening talk is the pitch, with its own ACCEPT / DECLINE.
+        // Not in the first two days (P1b integrator): the opening's first job stays the plain hunt it teaches with (a
+        // smuggler's run is a poor first errand), as requests are not raised on days 1-2 either
+        const std::string rj = day <= 2 ? std::string() : story::radiant::offerFor(*this, actors[(size_t)ai]);
+        if (!rj.empty() && storyBeginJob(actors[(size_t)ai], rj)) return;
+      }
       pendingOffer_ = makeOffer(actors[ai]);
       dlg.text = pendingPitch_.empty() ? "THERE IS SOMETHING. " + pendingOffer_.desc + " I'LL PAY " + std::to_string(pendingOffer_.gold) + " GOLD." : pendingPitch_;
       // (fixer M7b r3) a giver who has not yet said who they are does so before the pitch (the title then names them)

@@ -27,7 +27,10 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/story/dsl.h"
+#include "rpg/story/radiant.h"
 #include "rpg/story/story_internal.h"
+#include "rpg/sim/home.h"
+#include "rpg/world/economy.h"
 #include "rpg/world/source.h"
 
 namespace story {
@@ -78,7 +81,8 @@ int scriptIndex(const std::string& id) { return dsl::library().find(id); }
 const dsl::Script* scriptById(const std::string& id) {
   const int i = scriptIndex(id);
   if (i >= 0) return &dsl::library().scripts[(size_t)i];
-  return saga::isSagaId(id) ? saga::script(id) : nullptr;
+  if (saga::isSagaId(id)) return saga::script(id);
+  return radiant::isJobId(id) ? radiant::script(id) : nullptr;   // (P1b) a radiant job's composed script
 }
 const dsl::Script* scriptOf(const Instance& in) { return scriptById(in.script); }
 uint64_t strHash64s(const std::string& s) { return strHash(s); }
@@ -263,6 +267,11 @@ std::string fillText(const Game& g, const Instance& in, const std::string& text)
     const size_t dot = ph.find('.');
     const std::string role = dot == std::string::npos ? ph : ph.substr(0, dot), field = dot == std::string::npos ? "" : ph.substr(dot + 1);
     if (role == "player") { out += g.app.name.empty() ? std::string("TRAVELLER") : upper(g.app.name); continue; }
+    if (role == "var") {   // (P1b) {var.<name>}: the variable spelled ("THREE"; digits past twelve)
+      auto it = in.vars.find(field);
+      out += speech::countWord(it == in.vars.end() ? 0 : (int)it->second);
+      continue;
+    }
     const Binding* b = bindingOf(in, role);
     if (!b) { out += "{" + ph + "}"; continue; }   // (the validator forbids it; tests look for a leftover brace)
     if (field.empty()) { out += b->name; continue; }
@@ -471,6 +480,12 @@ uint64_t markId(const Instance& in, const std::string& name) {
   return ew::mix64(strHash(in.script) ^ ew::mix64(strHash(name)) ^ (in.cast.empty() ? 0 : in.cast[0].id));
 }
 
+// (P1b) the day a story began (its `_start` var; an instance saved before P1b: the day its stage began)
+int storyStartDay(const Instance& in) {
+  auto it = in.vars.find("_start");
+  return it == in.vars.end() ? in.stageDay : it->second;
+}
+
 bool evalCond(const Game& g, const Instance& in, const dsl::CondDef& c) {
   auto var = [&](const std::string& n) { auto it = in.vars.find(n); return it == in.vars.end() ? 0 : it->second; };
   auto kid = [&](const std::string& r) -> ew::Gid { const Binding* b = bindingOf(in, r); return b ? b->id : 0; };
@@ -487,6 +502,16 @@ bool evalCond(const Game& g, const Instance& in, const dsl::CondDef& c) {
     case CondType::NoMark: return g.marks.count(storyMarkKey(markId(in, c.a), MK_STORY_MARK)) == 0;
     case CondType::Female: { const Binding* b = bindingOf(in, c.a); return b && b->female; }
     case CondType::War: return g.realm.atWar(kid(c.a), kid(c.b));
+    // (P1b)
+    case CondType::Is: return var(c.a) == c.n;
+    case CondType::Days: return g.day - storyStartDay(in) >= c.n;
+    case CondType::NoDays: return g.day - storyStartDay(in) < c.n;
+    case CondType::Season: return (int)home::seasonOf(g.day) == c.n;
+    case CondType::Hour: {
+      const int from = c.n, to = atoi(c.a.c_str());
+      const float h = g.hour;
+      return from <= to ? (h >= (float)from && h < (float)to) : (h >= (float)from || h < (float)to);
+    }
     default: return false;
   }
 }
@@ -509,6 +534,15 @@ int hookLevel(const Game& g, const Instance& in) {
 
 }  // namespace
 
+// (P1b, lead) the cast key a generated story (a saga or a radiant job) is begun with: an offer try-casts with the same
+// key, so what was pitched is what begins (the M6b fixer r2/r3 rule, shared)
+uint64_t offerCastKey(const Game& g, const dsl::Script& s, const Actor* A, int hookSite) {
+  const bool siteKeyed = !A || s.hook == dsl::HookKind::Herald;
+  const ew::Gid sid = hookSite >= 0 && hookSite < (int)g.world.sites.size() ? g.world.sites[(size_t)hookSite].id : 0;
+  const uint64_t hookKey = !siteKeyed ? g.npcKey(*A) : ew::mix64(sid ^ (0xB0A2Dull * (uint64_t)((int)s.hook + 1)));
+  return ew::mix64(g.seed ^ strHash(s.id) ^ hookKey);
+}
+
 // (M8) the party member whose own story this is (its giver: party::companionKey), -1 none
 static int companionOf(const Game& g, const Instance& in) {
   if (in.cast.empty()) return -1;
@@ -528,6 +562,40 @@ void runEffect(Game& g, Engine& E, Instance& in, const dsl::EffDef& e) {
     for (const realm::WorldEvent& ev : g.realm.events())
       if (ev.id == id) { hearEvent(g, ev, 0); break; }
 }
+// (P1b) the ambush itself: n foes of monster word m from 8-12 tiles round the player
+void storyAmbush(Game& g, Instance& in, int mword, int count) {
+  if (g.inside || !host().spawnMonster) return;
+  const int lvl = std::max(1, storyDanger(g, in));
+  const Vec2 pp = g.pl().p;
+  for (int k = 0; k < count; k++) {
+    const float ang = (float)k * 6.2831853f / (float)count + (float)(hash32((uint32_t)(in.id * 977u + (uint32_t)g.day * 31u + (uint32_t)k)) % 628u) / 100.0f;
+    const float dist = (float)(8 + (int)(hash32((uint32_t)k * 2654435761u ^ in.id) % 5u)) * TILE;
+    int tx = (int)std::floor((pp.x + std::cos(ang) * dist) / TILE), ty = (int)std::floor((pp.y + std::sin(ang) * dist) / TILE), ox = tx, oy = ty;
+    if (!freeTileNear(g, tx, ty, ox, oy, (uint32_t)(in.id * 131u + (uint32_t)k))) continue;
+    int m = mword;
+    if (m == dsl::MON_BEAST) m = (int)art::Monster::Wolf;
+    else if (m == dsl::MON_UNDEAD) m = (int)art::Monster::Skeleton;
+    if (m == dsl::MON_BANDIT) {
+      if (!host().spawnHuman) continue;
+      Spawn sp;
+      sp.bandit = true;
+      host().spawnHuman(g, sp, ox * TILE + 8.0f, oy * TILE + 10.0f);
+    } else if (m >= 0) host().spawnMonster(g, m, ox * TILE + 8.0f, oy * TILE + 10.0f, lvl, false);
+  }
+}
+
+// (P1b) someone walks with the player in this story right now (an escort goal stage, or a `do follow` still on)
+bool storyOnRoad(const Instance& in) {
+  if (const dsl::Script* s = scriptOf(in))
+    if (in.stage >= 0 && in.stage < (int)s->stages.size()) {
+      const dsl::StageDef& G = s->stages[(size_t)in.stage];
+      if (G.kind == dsl::StageKind::Goal && G.goal.type == dsl::ObjType::Escort) return true;
+    }
+  for (const auto& kv : in.vars)
+    if (kv.second == 1 && kv.first.compare(0, 8, "_follow_") == 0) return true;
+  return false;
+}
+
 void runEffect1(Game& g, Engine& E, Instance& in, const dsl::EffDef& e) {
   auto kid = [&](const std::string& r) -> ew::Gid { const Binding* b = bindingOf(in, r); return b ? b->id : 0; };
   auto bsite = [&](const std::string& r) -> ew::Gid { const Binding* b = bindingOf(in, r); return b ? (b->site ? b->site : b->id) : 0; };
@@ -544,10 +612,14 @@ void runEffect1(Game& g, Engine& E, Instance& in, const dsl::EffDef& e) {
       it.kind = ItemKind::Quest; it.name = fillText(g, in, e.text); it.icon = (art::Icon)e.icon; it.value = 0;
       it.tint = rgba(214, 176, 96); it.questId = in.questId;
       if (host().item) host().item(g, it); else g.inv.push_back(it);
+      // (P1b) a burden (a body carried home, a cask): the player walks slower while any quest item of a story with
+      // `_heavy` is in the pack (ENGINE lane: the walking speed reads Engine::burdened)
+      if (e.ev == 1) in.vars["_heavy:" + it.name] = 1;   // (until it is taken back)
       break;
     }
     case EffType::Take: {
       const std::string n = fillText(g, in, e.text);
+      in.vars.erase("_heavy:" + n);   // (P1b) a burden handed over
       for (int i = (int)g.inv.size() - 1; i >= 0; i--) if (g.inv[(size_t)i].kind == ItemKind::Quest && g.inv[(size_t)i].name == n) { g.dropItem(i); break; }
       break;
     }
@@ -636,7 +708,8 @@ void runEffect1(Game& g, Engine& E, Instance& in, const dsl::EffDef& e) {
       // (M8b, 15.27.4) a success ending is the story's finale (a campaign's: the main way to an early Legendary)
       const dsl::Script* sc = scriptOf(in);
       const gear::LootSrc src = sc && in.stage >= 0 && in.stage < (int)sc->stages.size() ? rewardSrcOf(*sc, sc->stages[(size_t)in.stage]) : gear::LootSrc::Saga;
-      const RewardRoll R = rewardRoll(D, e.n, cu, maker, key, g.plLevel, src);
+      RewardRoll R = rewardRoll(D, e.n, cu, maker, key, g.plLevel, src);
+      if (e.ev > 0) { R.gold = std::max(1, R.gold * e.ev / 100); R.xp = std::max(1, R.xp * e.ev / 100); }   // (P1b) reward <band> <pct>
       if (host().gold) host().gold(g, R.gold); else g.gold += R.gold;
       if (host().xp) host().xp(g, R.xp); else g.plXp += R.xp;
       if (R.hasItem) {
@@ -742,6 +815,59 @@ void runEffect1(Game& g, Engine& E, Instance& in, const dsl::EffDef& e) {
       else g.partyDismiss(mi);
       break;
     }
+    // ---- (P1b) the shared mechanics
+    case EffType::Days: in.vars[e.args[0]] = g.day - storyStartDay(in); break;
+    case EffType::Follow: in.vars["_follow_" + e.args[0]] = 1; break;    // (ENGINE lane: the person walks behind the player)
+    case EffType::Stay: in.vars["_follow_" + e.args[0]] = 0; break;
+    case EffType::Hostile: in.vars["_hostile_" + e.args[0]] = 1; break;  // (ENGINE lane: their actor turns on the player)
+    case EffType::Calm: {   // (ENGINE lane: the site's creatures stand down)
+      in.vars["_calm_" + e.args[0]] = 1;
+      // (P1b fixer) said in an end stage, the calm outlives the story (engineSync rebuilds calm_ from running stories
+      // only): a persistent mark the stand-down check reads
+      const dsl::Script* cs = scriptOf(in);
+      if (cs && in.stage >= 0 && in.stage < (int)cs->stages.size() && cs->stages[(size_t)in.stage].kind == dsl::StageKind::End)
+        if (const Binding* b = bindingOf(in, e.args[0])) {
+          const uint64_t site = b->site ? b->site : b->id;
+          if (site) g.marks[storyMarkKey(site, MK_P1B_CALM)] = g.day;
+        }
+      break;
+    }
+    case EffType::Ambush: {
+      // n hostile foes come at the player from 8-12 tiles off, outdoors only (the hook's danger: their level). A road
+      // ambush (someone walks with the player: an escort goal or `do follow`) set off inside a settlement waits until
+      // the player is out on the road, so a wagon leaving the square does not ring the town's raid bell (engineSync)
+      if (g.inside || !host().spawnMonster) break;
+      if (storyOnRoad(in) && g.settlementAt(g.pl().p) >= 0) {
+        in.vars["_amb_m"] = e.n; in.vars["_amb_n"] = e.ev; in.vars["_amb_stage"] = in.stage;
+        break;
+      }
+      storyAmbush(g, in, e.n, e.ev);
+      break;
+    }
+    case EffType::Census: {
+      const ew::Gid site = bsite(e.args[0]);
+      const int h = site ? siteByIdLoad(g, site) : -1;
+      life::Census* c = h >= 0 && g.world.sites[(size_t)h].settlement() ? g.life.census(g.world, h) : nullptr;
+      if (!c) break;
+      switch (e.n) {
+        case dsl::CEN_MOOD: c->mood = (uint8_t)std::clamp((int)c->mood + e.ev, 0, 100); break;
+        case dsl::CEN_STOCK: {
+          const int gd = dsl::goodWord(e.args.size() > 1 ? e.args[1] : std::string());
+          if (gd >= 0) c->stock[(size_t)gd] = (uint16_t)std::clamp((int)c->stock[(size_t)gd] + e.ev, 0, 60000);
+          break;
+        }
+        case dsl::CEN_PRICE: {
+          const int gd = dsl::goodWord(e.args.size() > 1 ? e.args[1] : std::string());
+          if (gd >= 0) c->price[(size_t)gd] = (uint8_t)std::clamp(e.ev, 25, 250);
+          break;
+        }
+        case dsl::CEN_FAMINE: c->famineUntil = std::max(c->famineUntil, (int32_t)(g.day + e.ev)); break;
+        case dsl::CEN_FESTIVAL: c->festivalDay = g.day; break;
+        case dsl::CEN_REFUGEES: g.life.storyRefugees(g.world, *c, e.ev); break;
+        default: break;
+      }
+      break;
+    }
     case EffType::RealmEvent: {
       ew::Gid a = 0, b = 0, site = 0;
       int32_t ex = px, ey = py;
@@ -766,7 +892,21 @@ void Engine::enterStage(Game& g, Instance& in, int st) {
   in.count = 0;
   const dsl::StageDef& G = s->stages[(size_t)st];
   for (const dsl::EffDef& e : G.effs) runEffect(g, *this, in, e);
-  if (G.kind == StageKind::End) { finish(g, in, G.success); return; }
+  if (G.kind == StageKind::End) {
+    // (P1b) an ending reached off a dialogue (a goal done, a clock run out, an escort lost) has no panel to show its say
+    // in: it is queued as an epilogue (ENGINE lane: story_game.cpp shows it as a closing scene)
+    if (!choosing_ && !G.say.empty() && !s->family.empty()) {   // (P1b items; the older library never needed it)
+      Epilogue ep;
+      ep.inst = in.id;
+      ep.text = fillText(g, in, G.say);
+      ep.speaker = in.cast.empty() ? s->title : in.cast[0].name;
+      if (narration(ep.text, ep.speaker)) ep.speaker = s->title;
+      epilogues_.push_back(ep);
+      if (epilogues_.size() > 8) epilogues_.erase(epilogues_.begin());
+    }
+    finish(g, in, G.success);
+    return;
+  }
   mirror(g, in);
   // a fetch inside the site the player stands in: the item is laid out now
   if (G.kind == StageKind::Goal && (G.goal.type == ObjType::Fetch || G.goal.type == ObjType::Slay) && g.inside && g.subSite >= 0)
@@ -776,8 +916,15 @@ void Engine::enterStage(Game& g, Instance& in, int st) {
 void Engine::finish(Game& g, Instance& in, bool success) {
   in.done = true;
   in.failed = !success;
-  played_[in.script]++;
   const dsl::Script* s = scriptOf(in);
+  // (P1b) a radiant job's composed script is one of thousands: the pool remembers the job, not the play count
+  if (!radiant::isJobId(in.script)) played_[in.script]++;
+  // (P1b) `once site` and `cooldown`: where it was played (not a decline at the opening)
+  if (s && !s->family.empty() && !in.vars.count("_quiet") && !in.cast.empty()) {
+    const ew::Gid site = in.cast[0].site ? in.cast[0].site : in.cast[0].id;
+    if (s->onceSite) g.marks[storyMarkKey(ew::mix64(strHash(in.script) ^ site), MK_P1B_PLAYED)] = g.day;
+    if (s->cooldown > 0) g.marks[storyMarkKey(site, MK_P1B_COOLDOWN)] = g.day;
+  }
   // (M8) a tale seen through or let drop is a deed the companions weigh (not one turned down at the start)
   if (in.vars.find("_quiet") == in.vars.end() && !in.cast.empty()) {
     if (const int mi = companionOf(g, in); mi >= 0) g.party.members[(size_t)mi].flags |= party::MF_QUEST_DONE;
@@ -873,8 +1020,22 @@ void Engine::mirror(Game& g, Instance& in) {
       case ObjType::Famine: what = "WATCH THE HARVEST"; break;
       case ObjType::Rep: what = "EARN THE TRUST OF " + (tb ? tb->name : std::string("THE REALM")); break;
       case ObjType::Have: what = "FIND " + fillText(g, in, o.item); break;
+      case ObjType::Escort: {   // (P1b)
+        const Binding* pb = bindingOf(in, o.role);
+        const Binding* to = bindingOf(in, o.role2);
+        what = "TAKE " + (pb ? pb->name : std::string("THEM")) + " TO " + (to ? to->name : std::string("SAFETY"));
+        if (to) tb = to;
+        break;
+      }
+      case ObjType::Bout: what = tb ? "BEAT " + tb->name + " (NOT TO THE DEATH)" : "WIN THE BOUT"; break;
+      case ObjType::Time: what = o.n >= 17 || o.n < 4 ? "WAIT FOR NIGHTFALL" : o.n < 10 ? "WAIT FOR MORNING" : "WAIT FOR THE HOUR"; break;
       default: break;
     }
+  }
+  // (P1b) a clock: the days left
+  if (G.deadline > 0 && (G.kind == StageKind::Talk || G.kind == StageKind::Goal)) {
+    const int left = std::max(0, in.stageDay + G.deadline - g.day);
+    what += left > 1 ? " (" + std::to_string(left) + " DAYS LEFT)" : left == 1 ? " (ONE DAY LEFT)" : " (LAST DAY)";
   }
   Q->subject = what;
   if (!G.journal.empty()) Q->desc = fillText(g, in, G.journal);
@@ -921,6 +1082,7 @@ uint32_t Engine::start(Game& g, const std::string& script, int hookActor, int ho
   in.id = nextId_++;
   in.script = s.id;
   for (const auto& kv : s.vars) in.vars[kv.first] = kv.second;
+  in.vars["_start"] = g.day;   // (P1b) days / nodays / do days
   std::string w;
   const uint64_t key = ew::mix64(seed_ ^ strHash(s.id) ^ ((uint64_t)in.id << 32) ^ (uint64_t)(uint32_t)hookSite * 0x9E3779B97F4A7C15ull);
   // (fixer M6b r1) the composer's try-cast used its own key: a role picked from a few candidates (the giver's kin, a
@@ -930,7 +1092,7 @@ uint32_t Engine::start(Game& g, const std::string& script, int hookActor, int ho
   // (fixer M6b r2) a saga is cast first with the very key the composer's try-cast validated the offer with (compose.cpp
   // hookCtx/pickFrom: the hook's npcKey, or its site id mixed with the hook kind), so an offer that was pitched can be
   // begun with the same people the pitch was checked against
-  if (saga::isSagaId(s.id)) {
+  if (saga::isSagaId(s.id) || radiant::isJobId(s.id)) {   // (P1b: a radiant job too: radiant::offerFor try-casts with offerCastKey)
     const Actor* A = nullptr;
     if (hookActor >= 0 && host().findActor) {
       const int ai = host().findActor(g, hookActor);
@@ -941,9 +1103,7 @@ uint32_t Engine::start(Game& g, const std::string& script, int hookActor, int ho
     if (hs >= 0 && hs < (int)g.world.sites.size()) {
       // (fixer M6b r3) a herald's offer is worked out for its capital (saga::offerForPlace, no actor), so its key is
       // the site's even when the herald who proclaimed it becomes the giver
-      const bool siteKeyed = !A || s.hook == dsl::HookKind::Herald;
-      const uint64_t hookKey = !siteKeyed ? g.npcKey(*A) : ew::mix64(g.world.sites[(size_t)hs].id ^ (0xB0A2Dull * (uint64_t)((int)s.hook + 1)));
-      const uint64_t ck = ew::mix64(g.seed ^ strHash(s.id) ^ hookKey);
+      const uint64_t ck = offerCastKey(g, s, A, hs);
       in.cast.clear();
       cast = castScript(g, s, hookActor, hookSite, ck, in.cast, w);
     }
@@ -968,7 +1128,7 @@ uint32_t Engine::start(Game& g, const std::string& script, int hookActor, int ho
         if (b.kind == (uint8_t)RoleKind::Giver && b.site == rs) { in.vars["_giver_res"] = rix + 1; break; }
   }
   // a giver who told a story tells no other
-  if (!in.cast.empty() && (s.hook == dsl::HookKind::Npc || s.hook == dsl::HookKind::Herald))
+  if (!in.cast.empty() && (s.hook == dsl::HookKind::Npc || s.hook == dsl::HookKind::Herald) && !radiant::isJobId(s.id))   // (P1b: a job is work)
     g.marks[storyMarkKey(in.cast[0].id, MK_STORY_GIVER)] = g.day;
   running_.push_back(in);
   Instance& I = running_.back();
@@ -1297,7 +1457,9 @@ bool Engine::choose(Game& g, uint32_t instId, int opt, bool forceIf, int forceCh
     }
     if (sb && !said.empty()) handCtx_ = sb->name + " SAID: \"" + said + "\" YOU ANSWERED: \"" + fillText(g, *in, o.label) + "\"";
   }
+  choosing_ = true;
   enterStage(g, *in, to);
+  choosing_ = false;
   handCtx_.clear();
   in = find(instId);
   if (!in) return true;
@@ -1606,10 +1768,23 @@ void Engine::step(Game& g) {
     const dsl::Script* s = scriptOf(in);
     if (!s) { in.done = true; in.failed = true; continue; }
     const dsl::StageDef& G = s->stages[(size_t)in.stage];
+    // (P1b) the clock ran out: on to the deadline's stage (a talk waiting, a goal not done)
+    if (G.deadline > 0 && G.deadlineIx >= 0 && (G.kind == StageKind::Talk || G.kind == StageKind::Goal) && g.day >= in.stageDay + G.deadline &&
+        !in.vars.count("_quiet")) {
+      enterStage(g, in, G.deadlineIx);
+      continue;
+    }
     if (G.kind != StageKind::Goal) continue;
     const dsl::ObjDef& o = G.goal;
     const Binding* b = o.role.empty() ? nullptr : bindingOf(in, o.role);
     bool done = false;
+    // (P1b) an escort is lost when the person dies; a bout when the player went down (ENGINE lane sets _lost_bout)
+    auto vget = [&](const std::string& n) { auto it = in.vars.find(n); return it == in.vars.end() ? 0 : it->second; };
+    if ((o.type == ObjType::Escort && vget("_dead_" + o.role)) || (o.type == ObjType::Bout && vget("_lost_bout"))) {
+      in.vars.erase("_lost_bout");
+      enterStage(g, in, G.elseIx);
+      continue;
+    }
     switch (o.type) {
       case ObjType::Goto: done = b && atPlace(g, *b, placeRadius(g, *b)); break;
       case ObjType::Enter: done = b && !isDungeonSite(g, b->site) && atPlace(g, *b, placeRadius(g, *b)); break;
@@ -1623,6 +1798,20 @@ void Engine::step(Game& g) {
         if (b && b->kind == (uint8_t)RoleKind::Beast) done = g.marks.count(storyMarkKey(b->id, foes::MK_FOES_NAMED_SLAIN)) > 0;
         else if (b && b->kind == (uint8_t)RoleKind::Boss) done = g.marks.count(storyMarkKey(b->id, foes::MK_FOES_BOSS_SLAIN)) > 0;
         break;
+      case ObjType::Escort: {
+        // (P1b, phase A) done when the player reaches the place with the person alive; the ENGINE lane makes them walk
+        // there with the player (and checks they arrived too: _escort_near)
+        const Binding* to = bindingOf(in, o.role2);
+        auto nv = in.vars.find("_escort_far");
+        done = to && atPlace(g, *to, placeRadius(g, *to)) && (nv == in.vars.end() || !nv->second);
+        break;
+      }
+      case ObjType::Bout: done = vget("_won_bout") != 0; if (done) in.vars.erase("_won_bout"); break;   // (ENGINE lane sets it)
+      case ObjType::Time: {   // (P1b) the time of day
+        const float h = g.hour;
+        done = o.n <= o.prop ? (h >= (float)o.n && h < (float)o.prop) : (h >= (float)o.n || h < (float)o.prop);
+        break;
+      }
       default: break;
     }
     if (done) {
@@ -1712,7 +1901,8 @@ void Engine::onKill(Game& g, const Actor& v, bool byPlayer) {
     if (!s) continue;
     // a story's foe stays dead
     for (size_t ri = 0; ri < s->roles.size(); ri++)
-      if (s->roles[ri].kind == RoleKind::Foe && isStoryPerson(v) && v.slot == personSlot(in.id, (int)ri)) in.vars["_dead_" + s->roles[ri].name] = 1;
+      if ((s->roles[ri].kind == RoleKind::Foe || s->roles[ri].kind == RoleKind::Person) && isStoryPerson(v) && v.slot == personSlot(in.id, (int)ri))
+        in.vars["_dead_" + s->roles[ri].name] = 1;   // (P1b: a person too: an escort lost, a hostile one slain)
       else if (s->roles[ri].kind == RoleKind::Giver && v.npc && !isStoryPerson(v)) {
         // (fixer M6b r2) the street NPC who told the tale fell: the step ends it when it next needs them
         const Binding* gb = bindingOf(in, s->roles[ri].name);
@@ -1721,9 +1911,11 @@ void Engine::onKill(Game& g, const Actor& v, bool byPlayer) {
     const dsl::StageDef& G = s->stages[(size_t)in.stage];
     if (G.kind != StageKind::Goal) continue;
     const dsl::ObjDef& o = G.goal;
-    if (o.type == ObjType::Slay) {
+    if (o.type == ObjType::Slay || o.type == ObjType::Bout) {
+      // (P1b) a bout's opponent killed after all (the ENGINE lane's yield failed to stop it): the bout is won
       const int ri = s->role(o.role);
       if (ri >= 0 && isStoryPerson(v) && v.slot == personSlot(in.id, ri)) { enterStage(g, in, G.thenIx); continue; }
+      if (o.type == ObjType::Bout) continue;
       // (M6b) a named unique or the world boss the story cast: its own body, by its stable id
       const Binding* b = bindingOf(in, o.role);
       if (b && v.unique && v.unique == b->id && (b->kind == (uint8_t)RoleKind::Beast || b->kind == (uint8_t)RoleKind::Boss)) {
@@ -1863,93 +2055,57 @@ bool Engine::debugComplete(Game& g, uint32_t instId) {
     }
     case ObjType::Rep: g.realm.addRep(kid(o.role), std::max(0, o.n - g.realm.rep(kid(o.role)))); break;
     case ObjType::Slay: in->vars["_dead_" + o.role] = 1; break;
-    default: break;
+    case ObjType::Time: g.hour = (float)o.n + 0.5f; break;   // (P1b)
+    default: break;   // (P1b: escort, bout: arrived together / they yielded)
   }
   enterStage(g, *in, G.thenIx);
   return true;
 }
 
-// ---------------------------------------------------------------- offers
-namespace {
-// a cheap look before casting: does the world have what the script's roles need (a war, an event)?
-bool precheck(const Game& g, const dsl::Script& s, int hookSite) {
-  if (hookSite < 0 || hookSite >= (int)g.world.sites.size()) return false;
-  const Site& home = g.world.sites[(size_t)hookSite];
-  const int32_t hx = g.world.ox + home.ex, hy = g.world.oy + home.ey;
-  const ew::Gid land = landAt(g, hx, hy);
-  for (const dsl::RoleDef& R : s.roles) {
-    if ((R.kind == RoleKind::Kingdom || R.kind == RoleKind::Ruler || R.kind == RoleKind::Capital) && !land) return false;
-    if (R.kind == RoleKind::Kingdom && !g.realm.kingdom(land)) return false;
-    if (R.kind == RoleKind::War) {
-      bool any = false;
-      for (const realm::War& w : g.realm.wars()) if (!w.endDay && (w.attacker == land || w.defender == land)) any = true;
-      if (!any) return false;
-    }
-    if (R.kind == RoleKind::Event) {
-      bool any = false;
-      for (const realm::WorldEvent& e : g.realm.events()) if ((int)e.type == R.ev && rumourReaches(e, g.day, hx, hy)) any = true;
-      if (!any) return false;
-    }
-    if (R.kind == RoleKind::Site && R.a == "home" && !home.settlement()) return false;
-  }
+// (P1b) the walker's other branches: a lost escort or bout, a clock run out
+bool Engine::goalCanFail(const Instance& in) const {
+  const dsl::Script* s = scriptOf(in);
+  if (!s || in.done || in.stage < 0 || in.stage >= (int)s->stages.size()) return false;
+  const dsl::StageDef& G = s->stages[(size_t)in.stage];
+  return G.kind == StageKind::Goal && G.elseIx >= 0;
+}
+bool Engine::debugFail(Game& g, uint32_t instId) {
+  Instance* in = find(instId);
+  if (!in || !goalCanFail(*in)) return false;
+  const dsl::Script* s = scriptOf(*in);
+  const dsl::StageDef& G = s->stages[(size_t)in->stage];
+  if (G.goal.type == ObjType::Escort) in->vars["_dead_" + G.goal.role] = 1;
+  enterStage(g, *in, G.elseIx);
   return true;
 }
-}  // namespace
-
-int Engine::offerFor(Game& g, const Actor& a) {
-  if (!a.npc || !a.human || isStoryPerson(a) || a.role == Role::King || a.role == Role::Child || a.role == Role::Herald) return -1;
-  const int hs = homeSiteOf(g, a);
-  if (hs < 0 || !g.world.sites[(size_t)hs].settlement()) return -1;
-  const uint64_t key = g.npcKey(a);
-  if (g.marks.count(storyMarkKey(key, MK_STORY_GIVER))) return -1;
-  for (const Instance& in : running_) if (!in.cast.empty() && in.cast[0].id == key) return -1;
-  // not everyone has a tale: innkeepers and priests often, everyone else now and then
-  const uint32_t h = hash32((uint32_t)key ^ (uint32_t)(key >> 32) ^ 0x57A1u);
-  const int pct = a.role == Role::Innkeeper ? 60 : a.role == Role::Priest ? 50 : a.role == Role::Guard ? 25 : 30;
-  if ((int)(h % 100) >= pct) return -1;
-  // (P1 Fresh Roads) a tale the world has seen ended is never told again, and a town has one teller per tale (offers.cpp
-  // tellerClaim): the unplayed tales of this trade, the person's own order, the first one that fits and is theirs to tell
-  const dsl::Library& L = dsl::library();
-  std::vector<std::pair<uint32_t, int>> cand;
-  for (size_t i = 0; i < L.scripts.size(); i++) {
-    const dsl::Script& s = L.scripts[i];
-    if (s.hook != dsl::HookKind::Npc) continue;
-    if (s.hookTrade == -2 ? (a.role == Role::Guard || a.role == Role::Jarl) : s.hookTrade != (int)a.role) continue;
-    if (timesPlayed(s.id) > 0) continue;
-    bool running = false;
-    for (const Instance& in : running_) if (in.script == s.id) running = true;
-    if (running) continue;
-    cand.push_back({hash32(h ^ (uint32_t)strHash(s.id)), (int)i});
+int Engine::stageDeadline(const Instance& in) const {
+  const dsl::Script* s = scriptOf(in);
+  if (!s || in.done || in.stage < 0 || in.stage >= (int)s->stages.size()) return 0;
+  const dsl::StageDef& G = s->stages[(size_t)in.stage];
+  return G.deadlineIx >= 0 ? G.deadline : 0;
+}
+bool Engine::debugDeadline(Game& g, uint32_t instId) {
+  Instance* in = find(instId);
+  if (!in || stageDeadline(*in) <= 0) return false;
+  const dsl::Script* s = scriptOf(*in);
+  const dsl::StageDef& G = s->stages[(size_t)in->stage];
+  g.day = std::max(g.day, in->stageDay + G.deadline);
+  in->vars.erase("_quiet");
+  enterStage(g, *in, G.deadlineIx);
+  return true;
+}
+bool Engine::burdened() const {
+  for (const Instance& in : running_) {
+    if (in.done) continue;
+    for (auto it = in.vars.lower_bound("_heavy:"); it != in.vars.end() && it->first.compare(0, 7, "_heavy:") == 0; ++it)
+      if (it->second) return true;
   }
-  std::sort(cand.begin(), cand.end(), [](const std::pair<uint32_t, int>& x, const std::pair<uint32_t, int>& y) { return x.first > y.first; });
-  for (const auto& c : cand) {
-    const dsl::Script& s = L.scripts[(size_t)c.second];
-    if (!precheck(g, s, hs)) continue;
-    if (!tellerClaim(g, a, hs, strHash(s.id))) continue;
-    return c.second;
-  }
-  return -1;
+  return false;
 }
 
-int Engine::offerForPlace(Game& g, int hookKind, int site) {
-  const dsl::Library& L = dsl::library();
-  int best = -1, bestPlays = 1 << 30;
-  for (size_t i = 0; i < L.scripts.size(); i++) {
-    const dsl::Script& s = L.scripts[i];
-    if ((int)s.hook != hookKind) continue;
-    bool running = false;
-    for (const Instance& in : running_) if (in.script == s.id) running = true;
-    if (running) continue;
-    // (P1 Fresh Roads) every tale, not only a campaign, is told once per world: a played one falls through to a
-    // generated story (offers.cpp placeOffer); a news tale waits for news it has not answered yet
-    if (timesPlayed(s.id) > 0) continue;
-    if (s.hook == dsl::HookKind::Event && !eventTaleFresh(g, s, site)) continue;
-    if (!precheck(g, s, site)) continue;
-    const int plays = timesPlayed(s.id);
-    if (plays < bestPlays) { best = (int)i; bestPlays = plays; }
-  }
-  return best;
-}
+// ---------------------------------------------------------------- offers
+// (P1b, lead) Engine::offerFor / offerForPlace, their precheck and the P1b offer gates moved to rpg/story/offers.cpp: the
+// whole offer policy has one owner (the TALES lane in P1b), the engine (this file) another (the ENGINE lane).
 
 // ---------------------------------------------------------------- persistence
 // Layout v2: ver u8, nextId u32, running (u32 n; each: id u32, script str, stage i32, questId i32, done u8, failed u8,

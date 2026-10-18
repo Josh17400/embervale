@@ -1,0 +1,110 @@
+# P1b New Roads Content (REQUESTS lane): one new request of each settlement kind, raised by the game's own raise policy
+# (`raise` forces this week's raise; the request's own header gates still apply), heard as overheard gossip, offered by
+# its teller (their hint and the PITCH as the player's option), opened, and walked a few stages: the start village's
+# THE OLD OATH STONE (a villager; the two farmers; the ruin's marker; the reading on the green with three voices), a
+# market town's THE ORDER AT THE GATE (a guard; the pale courier; the ruin; what the order said), a city's THE HANGMAN'S
+# WEEK (a villager; the dyer, the sergeant's glove, the woad-dyer, the culprit's choice) and a harbour board's THE YELLOW
+# FLAG (started at the city: the harbourmaster and the mate). Seed 7, desktop size.
+#   embervale.exe --script tools/scripts/p1b_req_tour.txt     (p1b_req_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.3 hour 10
++2.0 raise rq_movedstone
++0.2 overhear
++0.8 shot p1b_req_village_gossip.png
++0.4 raise rq_movedstone talk
++2.5 shot p1b_req_village_hook.png
++0.1 choose WHY ARE THOSE TWO SHOUTING
++4.5 shot p1b_req_village_open.png
++0.1 choose I'LL HEAR THEM BOTH FIRST
++0.6 choose FAREWELL
++0.3 story goto rq_movedstone
++1.5 story talk rq_movedstone
++4.5 shot p1b_req_village_hill.png
++0.1 choose AND WHAT DOES
++0.6 choose FAREWELL
++0.3 story goto rq_movedstone
++1.5 story talk rq_movedstone
++4.5 shot p1b_req_village_low.png
++0.1 choose THEN I'LL FETCH THE BRONZE
++2.0 shot p1b_req_village_goal.png
++0.3 journal quests
++0.8 shot p1b_req_village_journal.png
++0.2 key Escape
++0.3 story goto rq_movedstone
++2.5 shot p1b_req_village_ruin.png
++0.1 story complete rq_movedstone
++0.1 story complete rq_movedstone
++0.3 story goto rq_movedstone
++1.5 story talk rq_movedstone
++5.0 shot p1b_req_village_reading.png
++0.1 choose READ THEM THE LAST LINE
++5.0 shot p1b_req_village_end.png
++0.3 key Escape
++0.3 goto town
++0.3 hour 10
++3.0 raise rq_courier
++0.2 overhear
++0.8 shot p1b_req_town_gossip.png
++0.2 leads
++0.4 raise rq_courier talk
++2.5 shot p1b_req_town_hook.png
++0.1 choose WHO IS THE MAN AT YOUR GATE
++4.5 shot p1b_req_town_open.png
++0.1 choose I'LL SPEAK TO HIM
++0.6 choose FAREWELL
++0.3 story goto rq_courier
++1.5 story talk rq_courier
++4.5 shot p1b_req_town_courier.png
++0.1 choose I'LL TAKE IT
++2.0 shot p1b_req_town_goal.png
++0.2 key Escape
++0.3 story goto rq_courier
++2.5 shot p1b_req_town_ruin.png
++0.1 expect story rq_courier fight   # (arriving at the ruin already did the walk there)
++0.1 story complete rq_courier
++0.3 story goto rq_courier
++1.5 story talk rq_courier
++5.0 shot p1b_req_town_ask.png
++0.1 choose COME AWAY
++5.0 shot p1b_req_town_end.png
++0.3 key Escape
++0.3 goto city
++0.3 hour 10
++3.0 raise rq_blueglove talk
++2.5 shot p1b_req_city_hook.png
++0.1 choose WHO ARE THEY BUILDING
++4.5 shot p1b_req_city_open.png
++0.1 choose I'LL TALK TO HIM
++0.6 choose FAREWELL
++0.3 story goto rq_blueglove
++1.5 story talk rq_blueglove
++4.5 shot p1b_req_city_accused.png
++0.1 choose I'LL ASK THE SERGEANT
++0.6 choose FAREWELL
++0.3 story goto rq_blueglove
++1.5 story talk rq_blueglove
++4.5 shot p1b_req_city_sergeant.png
++0.1 choose WHO DYES BLUE
++0.6 choose FAREWELL
++0.3 story goto rq_blueglove
++1.5 story talk rq_blueglove
++4.5 shot p1b_req_city_rival.png
++0.1 choose I'LL FIND
++0.6 choose FAREWELL
++0.3 story goto rq_blueglove
++1.5 story talk rq_blueglove
++4.5 shot p1b_req_city_culprit.png
++0.2 key Escape
++0.3 journal quests
++0.8 shot p1b_req_city_journal.png
++0.2 key Escape
++0.3 story start rq_yellowflag
++4.5 shot p1b_req_port_open.png
++0.1 choose I'LL FIND THE TRUTH
++0.6 choose FAREWELL
++0.3 story goto rq_yellowflag
++1.5 story talk rq_yellowflag
++4.5 shot p1b_req_port_mate.png
++0.3 log p1b_req_tour done

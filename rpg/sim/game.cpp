@@ -22,6 +22,7 @@
 #include "rpg/sim/skill_ops.h"
 #include "rpg/sim/stream.h"
 #include "rpg/sim/war.h"
+#include "rpg/story/story_internal.h"
 #include "rpg/culture/society.h"
 
 using art::Monster;
@@ -334,6 +335,8 @@ void Game::windowMoved(int dx, int dy) {
   }
   for (Pickup& pk : pickups) pk.p += d;
   for (Vec2& t : party.trail) t += d;   // (M8) the player's footsteps the companions follow (party_move.cpp)
+  for (story::Engine::Walker& w : story.walkers_) { w.cartX += d.x; w.cartY += d.y; }   // (P1b) a wagon's cart
+  for (story::Engine::Crumb& c : story.trail_) { c.x += d.x; c.y += d.y; }               // (P1b) the walkers' trail
   PowerOps::shift(*this, d);            // (M8b) fire patches, falling stars, wolves to call
   MagicOps::shift(*this, d);            // (M9) the spells' surfaces
   SeaOps::shift(*this, d);              // (M10) storms, the fishing line's bob
@@ -401,6 +404,7 @@ void Game::collectHostiles() {
     const Actor& e = actors[i];
     // (M4) soldiers too: a guard or a soldier of a kingdom at war fights them (warFoes)
     if (e.npc && !e.hostile && e.faction != Faction::Army) continue;
+    if (e.hostile && !story::threatensTown(*this, e)) continue;   // (P1b) a bout is the player's fight alone
     hostiles_.push_back((int)i);
     if (e.hostile && e.st != AState::Dead) n++;
   }
@@ -859,6 +863,7 @@ void Game::updatePlayer(float dt, const Input& in) {
   // M7: on horseback any fighting move (a swing, a shot, a spell or a quick-cast slot, a roll) gets the rider off first
   if (homeRiding() && canAct && ((in.attack && !in.interact) || in.bow || in.spell || in.castSlot >= 0 || in.roll)) homeDismount(home::Dismount::Attack);
   float slow = (p.slowT > 0 ? 0.6f : 1.0f) * homeSpeedMul();   // M7: the horse's pace (1 on foot)
+  slow *= story::burdenMul(*this);   // (P1b) a story's heavy load (a body carried home, a cask): x0.7
   if (p.st == AState::Idle || p.st == AState::Walk) {
     if (ml > 0.15f) {
       moveActor(p, mv * (p.speed * slow * dt));
@@ -918,7 +923,13 @@ void Game::updatePlayer(float dt, const Input& in) {
   // (M9) the quick slots, the SPELL button and SWAP: the book (magic_game.cpp, MAGIC lane)
   if (MagicOps::input(*this, in, canAct)) return;
   if (in.potion) quickHeal();
-  if (in.interact) interact();
+  if (in.interact) {
+    // (P1b) a prop a story asked for (a beacon to light, a crate to search) answers the use button first, unless a
+    // person stands there to be talked to
+    int stx = 0, sty = 0;
+    const int sp = interactTarget() < 0 ? story::wantedProp(*this, stx, sty) : 0;
+    if (!(sp && storyUseProp((Prop)(sp - 1), stx, sty))) interact();
+  }
 
   // doors, cave mouths and exits
   const Map& m = map();
@@ -1104,6 +1115,7 @@ void Game::meleeHit(Actor& a) {
 
 void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float ep, bool crit) {
   if (v.st == AState::Dead) return;
+  if (story::untouchable(*this, v, attacker)) return;   // (P1b) a bout already decided, a friendly story person
   if (v.player && v.st == AState::Roll && v.iframes > 0 && attacker >= 0 && !perfectRoll_) {
     // rolled through a blow that would have landed: a slow-motion blip and a little stamina back
     perfectRoll_ = true;
@@ -1231,6 +1243,7 @@ void Game::damage(Actor& v, float dmg, Vec2 from, int attacker, Ench ench, float
       if (at.hp <= 0) kill(at, pl().id);
     }
   }
+  story::boutBlow(*this, v, dmg, attacker);   // (P1b) a bout: the yield at a quarter health, the player kept on 1 HP
   v.hp -= dmg;
   if (v.player) SkillOps::taken(*this, attacker, dmg);   // (M9) the armour skill's gain, Block's
   MagicOps::hurt(*this, v, dmg, attacker);              // (M9) a heavy hit breaks the caster's concentration
@@ -2479,6 +2492,7 @@ void Game::leaveSub() {
   }
   pl().face = 0;
   if (si >= 0) questLeftSite(si);   // M2: a missing person led out is safe (quests.cpp)
+  story::syncNow(*this);            // (P1b) a story's walker who waited at the door (or came out of the dark) is beside them
   emit(Ev::MapChange, pl().p);
   sfx((int)Sfx::Door, pl().p, 0.8f);
   updateLocation();

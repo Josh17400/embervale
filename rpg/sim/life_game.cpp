@@ -57,6 +57,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/war.h"
+#include "rpg/story/story_internal.h"   // (P1b, REQUESTS lane) overheard gossip of the new items: tellerOffer, the library
 #include "rpg/world/economy.h"
 
 using art::Prop;
@@ -3567,6 +3568,114 @@ struct LifeOps {
   // (5a) overheard: a chatting pair near the player lets slip a real need of someone in town ("...OLD BRANDR'S BEEN
   // ASKING FOR SOMEONE TO CULL THE WOLVES..."): a person in play in this settlement with work to give, not overheard this
   // week; the line becomes a journal lead (LeadFrom::Gossip) pointing at their door. At most two a town a day.
+  // (P1b "New Roads Content", REQUESTS lane; VISION_PLAN 15.35) overheard, the new items' way: while a P1b request or tale
+  // that carries `gossip` lines (dsl.h) is on offer in this settlement (story::tellerOffer would offer it to someone here:
+  // the very person who raises it), a chatting pair lets one of its lines slip, and the journal keeps a LeadFrom::Gossip
+  // lead pointing at that teller's door. The P1 rules: a teller once a week (Game::marks MK_P1B_GOSSIP), two overheard
+  // leads a town a day (the P1 counter, shared). Out of a forced test, a town's or city's notice board that holds a request
+  // with gossip may be the subject too (no teller: the lead points at the board). A teller's P1b gossip lead closes when
+  // their story starts (it names no job, so JobOps never takes it: the sweep below does).
+  // the line as the street hears it, between "..." and "...": without its own closing full stop
+  static std::string spoken(std::string s) {
+    while (!s.empty() && s.back() == '.') s.pop_back();
+    return s;
+  }
+  static constexpr Mk MK_P1B_GOSSIP_TAG = (Mk)story::MK_P1B_GOSSIP;
+  static constexpr Mk MK_STORY_GIVER_TAG = (Mk)story::MK_STORY_GIVER;
+  static uint32_t overheardP1b(Game& g, const Actor& speaker, int partnerId, bool force, int32_t today) {
+    const int si = speaker.site;
+    if (si < 0 || si >= (int)g.world.sites.size() || !g.world.sites[(size_t)si].settlement()) return 0;
+    const ew::Gid sid = g.world.sites[(size_t)si].id;
+    const int week = g.day / 7;
+    // the sweep: a P1b gossip lead whose teller has since begun their story is taken
+    for (jobs::Lead& l : g.jobBook.leads) {
+      if (l.state != jobs::LS_OPEN || l.from != jobs::LeadFrom::Gossip || l.qtype != (uint8_t)QType::Story || !l.who) continue;
+      auto gm = g.marks.find(markKey(l.who, MK_STORY_GIVER_TAG));
+      if (gm != g.marks.end() && gm->second >= l.day) l.state = jobs::LS_TAKEN;
+    }
+    // who in this settlement has a P1b item with gossip on offer (ids: tellerOffer may stream places in)
+    std::vector<int> ids;
+    for (size_t k = 1; k < g.actors.size(); k++) {
+      const Actor& o = g.actors[k];
+      if (!o.npc || !o.human || o.hostile || o.comp || o.critter || o.st == AState::Dead || o.site != si || o.id == speaker.id || o.id == partnerId) continue;
+      if (story::isStoryPerson(o) || (o.lifeBits & LB_THIEF)) continue;
+      auto it = g.marks.find(markKey(g.npcKey(o), MK_P1B_GOSSIP_TAG));
+      if (it != g.marks.end() && it->second == week + 1) continue;
+      ids.push_back(o.id);
+    }
+    const story::dsl::Library& L = story::dsl::library();
+    struct Cand { uint32_t h; int id; int lib; };
+    std::vector<Cand> cand;
+    for (int id : ids) {
+      const int k = g.findActor(id);
+      if (k <= 0) continue;
+      const Actor o = g.actors[(size_t)k];
+      const story::Offer of = story::tellerOffer(g, o);
+      if (of.lib < 0 || (size_t)of.lib >= L.scripts.size()) continue;
+      const story::dsl::Script& s = L.scripts[(size_t)of.lib];
+      if (s.family.empty() || s.family == "test" || s.gossip.empty()) continue;
+      cand.push_back({mixu(g.npcKey(o), (uint64_t)g.day * 24u + (uint64_t)g.hour), id, of.lib});
+    }
+    auto titleOf = [](const story::dsl::Script& s) {
+      return s.title.find('{') != std::string::npos || s.title.find('[') != std::string::npos ? std::string() : s.title;
+    };
+    const std::string town = g.world.sites[(size_t)si].name;
+    jobs::Lead Ld;
+    Ld.from = jobs::LeadFrom::Gossip;
+    Ld.qtype = (uint8_t)QType::Story;
+    Ld.site = sid;
+    std::string line;
+    if (!cand.empty()) {
+      std::sort(cand.begin(), cand.end(), [](const Cand& x, const Cand& y) { return x.h < y.h; });
+      const int k = g.findActor(cand[0].id);
+      if (k <= 0) return 0;
+      const Actor giver = g.actors[(size_t)k];
+      const story::dsl::Script& s = L.scripts[(size_t)cand[0].lib];
+      line = s.gossip[(size_t)(cand[0].h % (uint32_t)s.gossip.size())];
+      const std::string title = titleOf(s);
+      std::string fn = firstName(giver.name);
+      if (fn == story::dsl::tradeName((int)giver.role)) fn = "A " + fn;   // (a guard with no name of their own: A GUARD OF ...)
+      Ld.who = g.npcKey(giver);
+      leadPlace(g, giver, Ld);
+      Ld.text = fn + " OF " + town + (title.empty() ? std::string() : ": " + title) + " - \"" + line + "\"";
+      const uint32_t id = g.addLead(Ld);
+      if (!id) return 0;
+      g.marks[markKey(Ld.who, MK_P1B_GOSSIP_TAG)] = week + 1;
+      g.marks[markKey(sid, mkLife(1))] = g.day * 4 + std::min(3, today + 1);
+      say(g, speaker, "..." + spoken(line) + "...", rgba(232, 214, 150));
+      rt(g).street.gossipLeads++;
+      return id;
+    }
+    // no teller: a notice board's request (towns and cities; never in a forced test, which wants a teller)
+    if (force) return 0;
+    const SiteType t = g.world.sites[(size_t)si].type;
+    if (t != SiteType::Town && t != SiteType::City) return 0;
+    const uint64_t boardKey = sid ^ 0xB0A2D5A1Full;
+    auto bm = g.marks.find(markKey(boardKey, MK_P1B_GOSSIP_TAG));
+    if (bm != g.marks.end() && bm->second == week + 1) return 0;
+    const int r = story::requestOfferForPlace(g, (int)story::dsl::HookKind::Board, si);
+    if (r < 0 || (size_t)r >= L.scripts.size() || L.scripts[(size_t)r].gossip.empty()) return 0;
+    const int si2 = g.world.siteHandle(sid);   // (the offer's try-cast may have streamed places in)
+    if (si2 < 0) return 0;
+    int bx = 0, by = 0;
+    if (!story::boardTile(g, si2, bx, by)) return 0;
+    const story::dsl::Script& s = L.scripts[(size_t)r];
+    const uint32_t h = mixu(sid, (uint64_t)g.day * 24u + (uint64_t)g.hour);
+    line = s.gossip[(size_t)(h % (uint32_t)s.gossip.size())];
+    const std::string title = titleOf(s);
+    Ld.hasPos = true;
+    Ld.gx = g.world.ox + bx; Ld.gy = g.world.oy + by;
+    Ld.text = "THE NOTICE BOARD OF " + town + (title.empty() ? std::string() : ": " + title) + " - \"" + line + "\"";
+    const uint32_t id = g.addLead(Ld);
+    if (!id) return 0;
+    g.marks[markKey(boardKey, MK_P1B_GOSSIP_TAG)] = week + 1;
+    g.marks[markKey(sid, mkLife(1))] = g.day * 4 + std::min(3, today + 1);
+    const int sk = g.findActor(speaker.id);
+    if (sk > 0) say(g, g.actors[(size_t)sk], "..." + spoken(line) + "...", rgba(232, 214, 150));
+    rt(g).street.gossipLeads++;
+    return id;
+  }
+
   static uint32_t overheard(Game& g, const Actor& speaker, int partnerId, bool force) {
     RT& R = rt(g);
     const int si = speaker.site;
@@ -3579,6 +3688,11 @@ struct LifeOps {
       if (it != g.marks.end() && it->second / 4 == g.day) today = it->second % 4;
     }
     if (!force && today >= 2) return 0;
+    // (P1b) the new items first, on one overheard line in two (always when forced, falling back to a job when none is)
+    if (force || (mixu(sid ^ (uint64_t)speaker.id, (uint64_t)g.day * 24u + (uint64_t)g.hour) & 1u) == 0u) {
+      const Actor sp = speaker;   // (a copy: the P1b offers may stream places in)
+      if (const uint32_t id = overheardP1b(g, sp, partnerId, force, today)) return id;
+    }
     std::vector<std::pair<uint32_t, int>> cand;
     for (size_t k = 1; k < g.actors.size(); k++) {
       const Actor& o = g.actors[k];

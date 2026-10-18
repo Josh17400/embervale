@@ -1,0 +1,152 @@
+# P1b New Roads Content, TALES lane: a tour of five of the twenty new tales (rpg/story/tales2/lib_tales2.cpp), each
+# told by a person of its trade in the start village of seed 7 (storyp1 teller / begin) and played to an ending
+# through the game's own dialogue: the teller's hint and pitch, the dialogue boxes with the longest lines, a goal's
+# closing line, the tale's journal entry while it runs, and the ending's closing scene.
+#   THE DARK CAUSEWAY (the kinder lie), THE RUNAWAY DUCHESS (the fight, the cheese carried home), THE LONG LAMP (the
+#   priest takes the vow), THE FALSE LIGHT (the stave at the reeve's door, the beacon relit), THE UNSIGNED NOTICES
+#   (face to face, the reeve at the well-digger's gate).
+#   embervale.exe --script tools/scripts/p1b_tales_tour.txt      (p1b_tales_*.png in the working directory)
+# The phone twin: tools/scripts/p1b_tales_tour_phone.txt.
+seed 7
+0.3  newgame
++0.1 god 1
+# ---- THE DARK CAUSEWAY
++1.0 storyp1 teller causeway
++3.0 shot p1b_tales_causeway_teller.png
++0.1 storyp1 begin causeway
++3.0 shot p1b_tales_causeway_open.png
++0.1 choose WHAT DO YOU WANT
++3.0 shot p1b_tales_causeway_ask.png
++0.1 choose I'LL FETCH IT
++3.0 shot p1b_tales_causeway_seek.png
++0.1 choose FAREWELL
++0.3 menu 1
++0.6 click 83 90
++1.0 shot p1b_tales_causeway_journal.png
++0.2 key Escape
++0.1 expect story causeway seek
++0.1 story complete
+# (the walk home is a goto of the village the player stands in: done at once)
++0.3 expect story causeway board
++0.3 story show
++1.0 choose LAMP OUT
++0.3 choose OFF THE ROAD
++0.3 choose LISTENING
++3.0 shot p1b_tales_causeway_whydark.png
++0.1 choose KINDER VERSION
++0.6 story show
++0.6 choose DARK. LOST
++0.4 choose OF COURSE
++3.0 shot p1b_tales_causeway_end.png
++0.1 expect story causeway done
++0.3 key Escape
+# ---- THE RUNAWAY DUCHESS
++1.0 storyp1 teller duchess
++3.0 shot p1b_tales_duchess_teller.png
++0.1 storyp1 begin duchess
++3.0 shot p1b_tales_duchess_open.png
++0.1 choose I'LL BRING HER BACK
++0.1 expect story duchess seek
++0.1 story complete
++0.1 expect story duchess meet
++0.3 story show
++0.8 choose THAT'S A CHEESE
++3.0 shot p1b_tales_duchess_boss.png
++0.1 choose TAKING HER BACK
++0.1 expect story duchess fight
++0.1 story complete
++0.1 expect story duchess grab
++0.3 story show
++3.0 shot p1b_tales_duchess_grab.png
++0.1 choose SORRY ABOUT
++3.0 shot p1b_tales_duchess_haul.png
++0.1 choose FAREWELL
++0.3 menu 1
++0.6 click 83 90
++1.0 shot p1b_tales_duchess_journal.png
++0.2 key Escape
++0.3 expect story duchess fight_end
++0.3 story show
++3.0 shot p1b_tales_duchess_home.png
++0.1 choose DIGNIFIED
++3.0 shot p1b_tales_duchess_end.png
++0.1 expect story duchess done
++0.3 key Escape
+# ---- THE LONG LAMP
++1.0 storyp1 teller longlamp
++3.0 shot p1b_tales_longlamp_teller.png
++0.1 storyp1 begin longlamp
++3.0 shot p1b_tales_longlamp_open.png
++0.1 choose I'LL ASK HER
++0.1 story complete
++0.1 expect story longlamp meet
++0.3 story show
++0.8 choose ASKS WHAT ANSWERS
++0.3 choose BOUND HOW
++3.0 shot p1b_tales_longlamp_vow.png
++0.1 choose KEEP IT TONIGHT
++3.0 shot p1b_tales_longlamp_tend.png
++0.1 choose FAREWELL
++0.3 menu 1
++0.6 click 83 90
++1.0 shot p1b_tales_longlamp_journal.png
++0.2 key Escape
++0.1 story complete
++0.1 expect story longlamp dawn
++0.3 story show
++0.8 choose I'LL CARRY IT
+# (the way home is a goto of the village the player stands in: it is done at once)
++0.4 expect story longlamp verdict
++0.3 story show
++3.0 shot p1b_tales_longlamp_verdict.png
++0.1 choose TAKE THE VOW
++3.0 shot p1b_tales_longlamp_takeup.png
++0.1 choose SHE'LL SLEEP.
++0.4 expect story longlamp done
++0.3 key Escape
+# ---- THE FALSE LIGHT
++1.0 storyp1 teller falselight
++3.0 shot p1b_tales_falselight_teller.png
++0.1 storyp1 begin falselight
++3.0 shot p1b_tales_falselight_open.png
++0.1 choose GO TO THE CAMP
++0.1 story complete
++0.1 expect story falselight chief_talk
++0.3 story show
++3.0 shot p1b_tales_falselight_chief.png
++0.1 choose WHY WAS THE BEACON
++0.3 choose TAKE IT TO HER
++0.3 choose CONFRONT HER
+# (the reeve lives in the village the player stands in: the walk home is done at once)
++0.4 expect story falselight reeve_first
++0.3 story show
++0.8 choose SEVEN CASKS
++3.0 shot p1b_tales_falselight_exposed.png
++0.1 choose LIGHT THE BEACON TONIGHT
++3.0 shot p1b_tales_falselight_end.png
++0.1 expect story falselight done
++0.3 key Escape
+# ---- THE UNSIGNED NOTICES
++1.0 storyp1 begin notices
++3.0 shot p1b_tales_notices_open.png
++0.1 choose ASK THE BOY
++0.6 story show
++3.0 shot p1b_tales_notices_boy.png
++0.1 choose I'LL GO TO
++0.1 story complete
++0.1 expect story notices scribe_meet
++0.3 story show
++0.8 choose WHY THE KIND
++0.3 choose HARD ONE
++3.0 shot p1b_tales_notices_wreck.png
++0.1 choose FACE TO FACE
++0.8 expect story notices face_meet
++0.3 story show
++0.8 choose TELL THE REEVE
++0.6 story show
++3.0 shot p1b_tales_notices_reeve.png
++0.1 choose GO. THEY'VE
++3.0 shot p1b_tales_notices_end.png
++0.1 expect story notices done
++0.3 key Escape
++0.3 log p1b_tales_tour done

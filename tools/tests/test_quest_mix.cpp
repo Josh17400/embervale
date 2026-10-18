@@ -21,6 +21,14 @@
 //   hunts without a target       Hunt offers with neither a target site nor a position (no marker)     gate 0
 // Survey baseline (20 seeds, 6 settlements, 12 weeks, 3 takes): re-offered 44 %, top-4 68 %, campaigns 3 (analytic),
 // top-3 jobs 80 %, farmers 58 %, hunts without a target 100 %.
+//
+// (P1b "New Roads Content", lead; VISION_PLAN 15.35) the new items are reported by name: radiant job kinds (a radiant job
+// offered by "ANY WORK GOING?": radiant::offerFor, counted as a job kind "R:<kind>"), requests and tales (story offers
+// of a library script with `family request` / `family tale`). --p1b prints the per-item table; --gates-p1b enforces the
+// P1b DONE gates: every radiant job kind and every request offered at least once over the seeds, top-3 job kinds below
+// P1's 53.6 %, top-4 tales below P1's 13.6 % (the tales are also force-played by --content-p1b, so a tale the visit set
+// never meets is reported, not failed). The visit set can grow: --more-towns N (the N next nearest towns and cities
+// too) and --ports (the nearest port town or city too).
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -33,6 +41,7 @@
 #include <vector>
 #include "rpg/sim/game_internal.h"
 #include "rpg/story/dsl.h"
+#include "rpg/story/radiant.h"
 #include "rpg/story/saga.h"
 #include "rpg/story/story.h"
 #include "rpg/story/story_internal.h"
@@ -77,6 +86,9 @@ struct Mix {
   std::map<std::string, int> campaignsOffered, campaignsStarted;   // plan id -> seeds
   int people = 0, withStory = 0, withWork = 0;
   std::map<std::string, int> visits;     // settlement visits by type
+  // (P1b) the new items by name: radiant job kinds, requests, tales (offers), and the seeds each was offered in
+  std::map<std::string, int> p1bOffers;  // "job:<kind>" / "request:<id>" / "tale:<id>" -> offers
+  std::map<std::string, std::set<uint64_t>> p1bSeeds;
 };
 
 std::string taleKey(const Offer& o) {
@@ -119,11 +131,20 @@ bool takeStory(Game& g, const Offer& o, int kind, int actorId, int site) {
   return true;
 }
 
+void noteP1b(Mix& M, const std::string& key) {
+  M.p1bOffers[key]++;
+  M.p1bSeeds[key].insert(g_curSeed);
+}
+
 void noteStory(Mix& M, const Offer& o, const char* from) {
   M.storyOffers++;
   M.story[taleKey(o)]++;
   M.storyFrom[from]++;
   if (o.lib >= 0 && o.replay) M.replays++;
+  if (o.lib >= 0) {
+    const dsl::Script& sc = dsl::library().scripts[(size_t)o.lib];
+    if (sc.family == "request" || sc.family == "tale") noteP1b(M, sc.family + ":" + sc.id);
+  }
 }
 
 struct Visit {
@@ -152,6 +173,27 @@ void considerActor(Game& g, Actor& a, Visit& v, Mix& M, std::set<std::string>& s
   // work ("DO YOU NEED HELP?": hasOffer, then makeOffer)
   if (QuestMixOps::hasOffer(g, a)) {
     M.withWork++;
+    // (P1b) a radiant job (a composed story run by the story engine): counted as a job kind of its own
+    const std::string rj = radiant::offerFor(g, a);
+    if (!rj.empty()) {
+      const int k = radiant::kindOf(rj);
+      const std::string kn = std::string("R:") + (k >= 0 ? radiant::kindId(k) : "?");
+      M.jobOffers++;
+      M.jobs[kn]++;
+      M.jobRole[roleTalkName(a.role)]++;
+      M.titles[story::Engine::scriptTitle(rj)]++;
+      if (a.role == Role::Farmer) M.farmerJobs++;
+      noteP1b(M, std::string("job:") + (k >= 0 ? radiant::kindId(k) : "?"));
+      if (v.takes > 0) {
+        const uint32_t inst = g.story.start(g, rj, a.id, homeSiteOf(g, a));
+        if (inst) {
+          for (Instance& in : g.story.running_) if (in.id == inst) { in.vars.erase("_quiet"); in.done = true; }
+          g.npcQuestsDone[key]++;
+          v.takes--;
+        }
+      }
+      return;
+    }
     const Quest q = QuestMixOps::makeOffer(g, a);
     if (q.title.empty()) return;
     M.jobOffers++;
@@ -223,6 +265,8 @@ int questMix(int argc, char** argv) {
   uint64_t A = 1, B = 20;
   int weeks = 12, settle = 6, takesPerVisit = 3;
   bool gates = false, report = false, towns = true;
+  bool p1b = false, gatesP1b = false, ports = false;   // (P1b)
+  int moreTowns = 0;
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "--seeds") && i + 1 < argc) {
       if (!parseSeedRange(argv[++i], A, B)) { printf("bad --seeds range '%s'\n", argv[i]); return 2; }
@@ -232,6 +276,10 @@ int questMix(int argc, char** argv) {
     else if (!strcmp(argv[i], "--gates")) gates = true;
     else if (!strcmp(argv[i], "--no-towns")) towns = false;
     else if (!strcmp(argv[i], "--report")) report = true;
+    else if (!strcmp(argv[i], "--p1b")) p1b = true;
+    else if (!strcmp(argv[i], "--gates-p1b")) { gatesP1b = true; p1b = true; }
+    else if (!strcmp(argv[i], "--more-towns") && i + 1 < argc) moreTowns = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--ports")) ports = true;
   }
   Mix M;
   const auto t0 = std::chrono::steady_clock::now();
@@ -270,6 +318,29 @@ int questMix(int argc, char** argv) {
         const int si = g.world.findSiteNear(sx, sy, t, 8);
         if (si >= 0) near.push_back({0.0f, g.world.sites[(size_t)si].id});
       }
+    // (P1b) a wider visit set: the next nearest towns and cities, and the nearest port town or city
+    if (moreTowns > 0 || ports) {
+      std::vector<std::pair<int64_t, ew::Gid>> tc, pt;
+      // harbours lie 1,200-2,600 tiles out on most seeds, so the port search reaches 10 regions; towns stay within 4
+      const int32_t reach = ports ? 10 : 4;
+      for (int32_t ry = ew::regionOf(sy) - reach; ry <= ew::regionOf(sy) + reach; ry++)
+        for (int32_t rx = ew::regionOf(sx) - reach; rx <= ew::regionOf(sx) + reach; rx++) {
+          const ew::RegionPlan R = g.world.regionPlan(rx, ry);
+          const bool inTowns = std::abs(rx - ew::regionOf(sx)) <= 4 && std::abs(ry - ew::regionOf(sy)) <= 4;
+          for (const ew::SitePlan& p : R.sites) {
+            if ((p.type != SiteType::Town && p.type != SiteType::City) || (p.flags & ew::SPF_HIDDEN)) continue;
+            const int64_t d = (int64_t)(p.ex - sx) * (p.ex - sx) + (int64_t)(p.ey - sy) * (p.ey - sy);
+            if (inTowns) tc.push_back({d, p.id});
+            if (p.archetype == ew::Archetype::Port) pt.push_back({d, p.id});
+          }
+        }
+      std::sort(tc.begin(), tc.end());
+      std::sort(pt.begin(), pt.end());
+      auto have = [&](ew::Gid id) { for (const auto& nd : near) if (nd.second == id) return true; return false; };
+      int added = 0;
+      for (const auto& c : tc) { if (added >= moreTowns) break; if (!have(c.second)) { near.push_back({0.0f, c.second}); added++; } }
+      if (ports && !pt.empty() && !have(pt[0].second)) near.push_back({0.0f, pt[0].second});
+    }
     std::set<std::string> seedCamps, seedStarted;
     auto tick = [&](int frames) {
       for (int f = 0; f < frames; f++) {
@@ -382,7 +453,43 @@ int questMix(int argc, char** argv) {
     s.clear(); top(M.story, 16, &s);
     printf("  top tales: %s\n", s.c_str());
   }
+  // (P1b) the new items by name
+  int p1bKinds = 0, p1bReq = 0, p1bTales = 0, nReq = 0, nTales = 0;
+  std::string missKinds, missReq, missTales;
+  {
+    for (int k = 0; k < radiant::kindCount(); k++) {
+      const std::string key = std::string("job:") + radiant::kindId(k);
+      if (M.p1bOffers.count(key)) p1bKinds++; else missKinds += std::string(missKinds.empty() ? "" : " ") + radiant::kindId(k);
+    }
+    for (const dsl::Script& sc : dsl::library().scripts) {
+      if (sc.family != "request" && sc.family != "tale") continue;
+      const bool req = sc.family == "request";
+      (req ? nReq : nTales)++;
+      if (M.p1bOffers.count(sc.family + ":" + sc.id)) (req ? p1bReq : p1bTales)++;
+      else (req ? missReq : missTales) += std::string((req ? missReq : missTales).empty() ? "" : " ") + sc.id;
+    }
+    if (p1b || radiant::kindCount() > 0 || nReq + nTales > 0)
+      printf("  p1b: job kinds offered %d of %d, requests %d of %d, tales %d of %d\n", p1bKinds, radiant::kindCount(), p1bReq, nReq, p1bTales, nTales);
+    if (p1b) {
+      if (!missKinds.empty()) printf("  p1b never offered: job kinds: %s\n", missKinds.c_str());
+      if (!missReq.empty()) printf("  p1b never offered: requests: %s\n", missReq.c_str());
+      if (!missTales.empty()) printf("  p1b never offered (force-played by --content-p1b): tales: %s\n", missTales.c_str());
+      std::string t;
+      for (const auto& kv : M.p1bOffers) t += (t.empty() ? "" : ", ") + kv.first + " " + std::to_string(kv.second) + "/" + std::to_string(M.p1bSeeds[kv.first].size()) + "s";
+      printf("  p1b offers (offers/seeds): %s\n", t.c_str());
+    }
+  }
   int bad = 0;
+  if (gatesP1b) {
+    auto gate = [&](bool ok, const char* what, double have, const char* want) {
+      if (!ok) { printf("FAIL: quest-mix p1b %s: %.1f (want %s)\n", what, have, want); bad++; }
+    };
+    gate(radiant::kindCount() == 15 && p1bKinds == 15, "radiant job kinds offered", p1bKinds, "all 15");
+    gate(nReq == 30 && p1bReq == 30, "requests offered", p1bReq, "all 30");
+    gate(pct(top3, M.jobOffers) < 53.6, "top-3 job kinds %", pct(top3, M.jobOffers), "< 53.6 (P1)");
+    gate(pct(top4, M.storyOffers) < 13.6, "top-4 tales %", pct(top4, M.storyOffers), "< 13.6 (P1)");
+    printf("quest-mix p1b gates: %s\n", bad ? "FAIL" : "ok");
+  }
   if (gates) {
     auto gate = [&](bool ok, const char* what, double have, const char* want) {
       if (!ok) { printf("FAIL: quest-mix %s: %.1f (want %s)\n", what, have, want); bad++; }
@@ -401,4 +508,4 @@ int questMix(int argc, char** argv) {
 
 }  // namespace
 
-RPG_TEST_CMD("--quest-mix", "P1: the quests offered over weeks of play [--seeds A..B --weeks 12 --settle 6 --takes 3 --gates --report]", questMix);
+RPG_TEST_CMD("--quest-mix", "P1: the quests offered over weeks of play [--seeds A..B --weeks 12 --settle 6 --takes 3 --gates --report --p1b --gates-p1b --more-towns N --ports]", questMix);

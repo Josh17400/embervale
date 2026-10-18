@@ -3669,3 +3669,100 @@ Phase B lane contracts (added by the integrator from the lanes' reports, 2026-10
   culture's salute is one of them); a spell lesson the player can't afford names the price and the shortfall and leaves
   the list; the Heirloom acceptance line no longer echoes the ask ("I'LL BE WAITING FOR IT."); script `saga kill
   [role]` kills the census resident bound to a saga role (the M6b fix scripts no longer name residents).
+
+### 15.35 P1b "New Roads Content": the second post-M12 polish batch (owner, 2026-10-17), and its phase A contracts (lead)
+
+Owner request: 15 NEW JOB TYPES, 30 NEW TOWN / CITY REQUESTS (10 village / hamlet, 10 market town, 10 city / capital,
+some port-only) and 20 NEW ONE-OFF TALES, "well done, nothing crappy or half baked": every item complete, logical in the
+world, with its full dialogue variety, reachable and finishable in play. There is no section 13 entry: the owner note is
+the spec. The content is already designed and judged: the scratchpad `content/` folder (INDEX.md: the 65-row table and
+the consolidated NEW-MECHANIC list; jobs_a/b/c.md, req_village/town/city.md, tales_a/b/c/d.md, each with a sibling
+`.judge.md` of the quality judge's FINAL notes). EVERY judge note is resolved during implementation (fix the content, or
+replace an unsalvageable item with an equally strong one, keeping the counts 15 / 30 / 20). Builds on P1 (15.34). Not in
+scope: art size / animations, the creator, the main campaign. No version bump unless new save data needs it (phase A
+needed none: SAVE_VER 23, ENDLESS_GEN_VER 27, SAGA_GEN_VER 2, the story block v4 and JOBS_BLOCK_VER 1 are unchanged).
+
+**The phase A design (lead): ONE runtime for all 65 items, the story engine.** The NEW-MECHANICs the designers listed
+(SITE-TALK, TURN-OPTS, the request frame with deadlines and census outcomes, escort / drove followers, BOUT-RULES,
+SETTLE-TOWN, the city raise test, the port flag, carried body, hostage clock, beacon, filters...) are not 20 bespoke
+systems: they are additions to the M4 story DSL (rpg/story/dsl.h documents every word), so every item, job, request or
+tale, is a dsl::Script with talk stages and choices, goals, clocks and effects; the validator checks every line; one
+headless walker plays every branch of every item; save data stays the M4 Instance (cast, stage, vars). Requests and
+tales are library scripts (`family request` / `family tale`); the 15 job kinds are DSL TEMPLATES composed per offer into
+a script named by a spec id, as sagas are (rpg/story/radiant.h). A mechanic that is cut degrades to what the DSL already
+does (a person `in` a cave stands at its mouth; a bout lost to a kill still completes; an un-cast filter makes the item
+not offered, never wrong).
+
+The language added in phase A (parser and validator: dsl.cpp; runtime: story.cpp unless marked ENGINE):
+| word | what | runtime |
+|---|---|---|
+| `family job / request / tale / test` | what the item is (reports, tests); `test` is never offered | phase A |
+| `settle village town city capital port coast` | where it may be OFFERED: tiers OR'd, port / coast AND'd (offerGates) | phase A |
+| `needs nowar / war / coast / season .. / stock <good> below / above n / mood below / above n / flag <moodflag> / building <type> [n] / level n` | more offer gates, AND'd | phase A |
+| `once world / site`, `cooldown <days>` | once per world (default) or per settlement; a settlement's gap between cooldown scripts | phase A (marks 13, 14) |
+| `gossip "<line>"` (0-3, <= 38, no placeholder) | overheard lines while the item is on offer in a town: a Gossip LEAD to its teller | REQUESTS lane (life gossip) |
+| `person male / female [young] in <cave / ruin / camp>` | SITE-TALK: the person waits inside that site's map; young: a child or youth | ENGINE (phase A: at the mouth) |
+| `site <type> ... with beast <m> / min n / max n` | a cave or ruin of that creature; a distance band | phase A |
+| `site watchtower / dwelling`, `with road / flag <moodflag> / makes <good>` | vignette places; a settlement's census flag or product | ENGINE (refused until cast) |
+| stage `deadline <days> -> <stage>` | a hard clock on a talk or goal stage; the tracker shows the days left | phase A |
+| goal `escort <person> to <site> [wagon / drove / walk]` + stage `else <stage>` | the person follows the player; lost if they die | ENGINE walks them (phase A: done at the place, lost on death) |
+| goal `bout <person / foe>` + `else` | not to the death: yield at 25 % (done), the player at 0 kept at 1 (else) | ENGINE (phase A: a kill wins) |
+| goal `time <from> <to>` | done when the time of day is in range (dusk, the small hours) | phase A |
+| conditions `is <var> n`, `days n`, `nodays n`, `season s`, `hour a b` | equality (`var x 0` / `novar x 0` are refused: the judge's always-true gates), days since the story began, the season, the time | phase A |
+| effects `days <var>`, `census <site> mood / stock <good> / price <good> / famine / festival / refugees`, `reward <band> <pct>`, `ambush <monster / bandit / beast> <n>` | soft clocks, census outcomes, pay multipliers, a road ambush | phase A |
+| effects `follow / stay <person>`, `hostile <person>`, `calm <site>`, `give ... heavy` | a walker behind the player; a person turns on the player (slay works on them); a site stands down; a burden (Engine::burdened) | ENGINE (phase A: recorded in vars) |
+| `{var.<name>}`; icons cheese bread meat apple pelt ore gloves cloak potion tonic seeds sheaf veg ingot boots; props beacon crate barrel chest well brazier sacks; trades harbourmaster shipwright sailor | words | phase A (the props' interaction: ENGINE) |
+| epilogue | an ending reached off a dialogue (goal / clock / lost) with a say is queued (Engine::epilogues_) and shown as a closing scene (storyStep) | phase A, P1b families only (the judge's "an end after a goal skips its say") |
+
+Contracts (a lane may ADD to a file it owns, never rename, remove or change the meaning of what is listed here):
+- **rpg/story/radiant.h** (JOBS lane owns radiant.cpp + rpg/story/jobs/*.cpp): spec id
+  `job<RADIANT_GEN_VER>~<kind>~<flags>~<seed>`, `script(id)` (cached composition; scriptById resolves job ids), `kindCount /
+  kindId / kindTitle / kindOf`, `offerFor(g, a)` (the weekly pool's radiant job for a person: a PoolJob with qtype
+  QType::Story and need JN_RADIANT0 + kind), `composeFor`, `variantCount / composeVariant` (tests). A running job is an
+  ordinary Instance; a finished one does not count in Engine::played_; it never uses up the giver's one story
+  (MK_STORY_GIVER). Engine::start casts a job id with `offerCastKey(g, script, giver, site)` (story_internal.h, shared
+  with the sagas), so radiant::offerFor try-casts (castScript with that key) exactly the people the job will begin with.
+- **"ANY WORK GOING?"** (game_rpg.cpp A_ASK, phase A): `radiant::offerFor` first; a job starts through
+  `Game::storyBeginJob(actor, id)` (story_game.cpp), whose opening talk stage is the pitch with its own ACCEPT / DECLINE
+  (a decline closes quietly). Otherwise the old makeOffer path, unchanged.
+- **The library sources** (dsl.cpp library()): `requestsVillageSource / requestsTownSource / requestsCitySource`
+  (rpg/story/req/*.cpp, REQUESTS lane), `tales2Source` (rpg/story/tales2/lib_tales2.cpp, TALES lane), `p1bTestSource`
+  (rpg/story/lib_p1b_test.cpp, lead: `p1b_mechanics`, every new word used once; family test).
+- **The offer policy moved to rpg/story/offers.cpp** (TALES lane): Engine::offerFor / offerForPlace, their precheck,
+  `offerPrecheck`, `offerGates(g, script, site, &why)` and `nearCoast`. Gates apply to OFFERS only; a forced start (tests,
+  scripts) casts anywhere, so `rpg_test --story` and `--content-p1b` walk every script. **Requests are raised apart**
+  (REQUESTS lane, rpg/story/req/req_offers.cpp): Engine::offerFor asks `requestOfferFor(g, a)` first (before the
+  teller's tale roll: requests are need-driven) and offerForPlace asks `requestOfferForPlace`; neither offers a `family
+  request` itself. Phase A's policy there: the first unplayed request of the person's trade whose gates hold, one teller
+  per request per town (tellerClaim).
+- **Engine additions** (story.h): `goalCanFail / debugFail`, `stageDeadline / debugDeadline`, `burdened()`, `epilogues_`,
+  `choosing_`. Instance vars the runtime keys on: `_start` (the start day), `_follow_<role>`, `_hostile_<role>`,
+  `_calm_<site role>`, `_heavy:<item>`, `_won_bout` / `_lost_bout` (ENGINE sets them), `_escort_far` (ENGINE: the escort
+  is not with the player), `_dead_<role>` (now for persons too).
+- **Marks**: story tags 13 MK_P1B_PLAYED, 14 MK_P1B_COOLDOWN, 15 MK_P1B_GOSSIP (story_internal.h); 16..23 ENGINE lane;
+  160..175 JOBS lane (radiant), 176..191 REQUESTS lane, 192..199 TALES lane.
+- **Text rule (owner: lines <= 38, titles <= 22 WITH the longest names)**, made mechanical in `rpg_test --content-p1b`:
+  every placeholder filled with the longest name of its kind (the table in test_content_p1b.cpp, measured over seeds
+  1..20: person 10, settlement 12, city 11, cave 15, ruin 18, camp 18, kingdom 12, ruler 29, god 8, people 12, ruin lord
+  31, builder 27, clue 93; the table adds 1-2 and the test fails if any seed's world has a longer one); title <= 22, pitch
+  and option <= 40, every say / hint / memory fits the phone panel (speech::PANEL_CHARS 70 x PANEL_LINES 5), journal <=
+  150, fact <= 160, notice <= 60, item <= 32; single-line texts (gossip, a spoken bubble, a bark) <= 38; no word over 38.
+- **Tests**: `rpg_test --content-p1b [--seeds 1..3 --gates --names --only <id>]` (lead's file, frozen for the lanes):
+  the families, the text rule, every P1b script and every composed variant of every job kind cast at a settlement its
+  `settle` allows and played through EVERY branch (options incl. hidden ones and both check outcomes, goals, lost
+  escorts / bouts, clocks), no soft lock (a talk shows an option in the state a path reached it; a goal completes),
+  journal text on every live stage, every ending reached, success endings pay, census effects move the census,
+  epilogues queued; --gates: 30 requests (10 per source), 20 tales, 15 job kinds. In CI ("New Roads content test"; the
+  integrator adds --gates). `rpg_test --quest-mix` reports the P1b items by name (`--p1b`) and `--gates-p1b` enforces:
+  every job kind and every request offered over the seeds, top-3 job kinds < 53.6 % (P1), top-4 tales < 13.6 % (P1); the
+  visit set can grow (`--more-towns N`, `--ports`). `--story`'s walker also takes else and deadline branches. Script
+  `tools/scripts/p1b_lead_mechanics.txt` (seed 7: the test script's pitch, tracker, ambush, keeper, ending).
+- **Phase A baselines** (MSVC, BDIR=build): --story 1..5 65 scripts cast, 19,385 paths, 0 failures; --content-p1b 1..3
+  0 failures (p1b_mechanics: 10 paths, 7 endings a seed); --sagalib, --sagas 300 1..2, --campaigns 1..5, --voice,
+  --story-p1, --dialogue 1..3 0 failures; save_test ALL OK; --quest-mix seed 1, 2 weeks: identical to before phase A (231
+  story offers, top-4 13.4 %, 83 radiant jobs, top-3 54.2 %). Seen in the lead script: the tracker shows "TAKE <driver>
+  TO <town>" but cuts the clock's "(6 DAYS LEFT)" at desktop width (ENGINE lane: make the clock readable).
+- **Integration rules (integrator)**: radiant jobs are not offered on days 1-2; a road ambush (`do ambush` in a stage
+  with an escort goal or a `do follow` on) raised inside a settlement waits until the player is outside every
+  settlement, and is dropped if the stage changes first; ambushes with nobody walking along (a beast at the village
+  gate) still fall where the player stands. `--quest-mix --ports` reaches 10 regions for the nearest harbour.

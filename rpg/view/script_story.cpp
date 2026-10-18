@@ -10,6 +10,14 @@
 //   story board                 stand before the nearest notice board and read it
 //   story herald                stand before the capital's herald and talk to them
 //   story read [n]              inside a ruin: read its n-th lore prop (default: the next unread one)
+//   story fail [script]         (P1b) the current escort or bout is lost (the person died / the player went down): to its else
+//   story late [script]         (P1b) the current stage's clock runs out (the day moves on to it): to its deadline stage
+//   story bout win|lose [script]  (P1b) the current bout to its moment: the opponent kneels and yields / the player is
+//                               left on 1 HP (staged face to face in front of the player; the goal moves on after it)
+//   story escort [script]       (P1b) the walkers of the current stage (and a drove's beasts) set down beside the player
+//   story near [script]         (P1b) stand two tiles short of the current stage's person (any map: inside a cave too)
+//   story use [script]          (P1b) stand at the foot of the prop the current goal wants used (within 16 tiles) and use it
+//   story days <n>              (P1b) n days pass (a stage's clock runs down)
 //   expect news [words]         the player has heard some realm news (whose line contains the words)
 //   expect story <script> <stage|done|running>   the script is at that stage / has ended / runs
 //   expect lore [complete]      a Lost History entry exists (and is complete)
@@ -42,6 +50,61 @@ story::Instance* pick(Game& g, const std::string& name) {
 bool cmdStory(ScriptCtx& c) {
   Game& g = c.game;
   const std::string what = lowerS(c.arg(1));
+  // (P1b ENGINE lane) the new branches and moments, for tests and tours
+  if ((what == "escort" || what == "near" || what == "use" || what == "bout") && g.mode == Mode::Dialogue) g.mode = Mode::Play;   // (a tour: the talk is done)
+  if (what == "fail" || what == "late" || what == "escort") {
+    story::Instance* in = pick(g, c.arg(2));
+    if (!in) { c.fail("story " + what + ": no running story"); return true; }
+    const uint32_t id = in->id;
+    const bool ok = what == "fail" ? g.story.debugFail(g, id) : what == "late" ? g.story.debugDeadline(g, id) : story::debugEscort(g, id);
+    if (!ok) { c.fail("story " + what + ": the current stage has no " + (what == "fail" ? "else" : what == "late" ? "clock" : "walker")); return true; }
+    std::printf("script: story %s -> %s\n", what.c_str(), g.story.find(id) ? g.story.stageName(*g.story.find(id)).c_str() : "(ended)");
+    return true;
+  }
+  if (what == "open") {
+    // (P1b tours) step out onto open country (the nearest stretch of 20 x 12 walkable tiles with no building, wall or
+    // settlement on it; `story open road`: one with a road or a track running through its middle), facing east
+    const bool road = lowerS(c.arg(2)) == "road";
+    const Map& m = g.world.over;
+    if (g.inside) { c.fail("story open: outdoors only"); return true; }
+    const int px = (int)std::floor(g.pl().p.x / TILE), py = (int)std::floor(g.pl().p.y / TILE);
+    int best = -1, bx = 0, by = 0;
+    for (int cy = std::max(8, py - 120); cy < std::min(m.h - 8, py + 120); cy += 2)
+      for (int cx = std::max(12, px - 120); cx < std::min(m.w - 12, px + 120); cx += 2) {
+        const int d = std::abs(cx - px) + std::abs(cy - py);
+        if (best >= 0 && d >= best) continue;
+        if (road && m.at(cx, cy) != Ground::Road) continue;
+        if (g.settlementAt(Vec2(cx * TILE + 8.0f, cy * TILE + 8.0f)) >= 0 || g.world.siteAt(cx, cy, 16) >= 0) continue;   // (no camp or den at hand)
+        int bad = 0;
+        for (int y = cy - 5; y <= cy + 5 && bad <= 22; y++)
+          for (int x = cx - 9; x <= cx + 9 && bad <= 22; x++) {
+            if (m.bldgAt[(size_t)y * m.w + x] >= 0 || m.at(x, y) == Ground::Water || m.at(x, y) == Ground::DeepWater) bad += 100;
+            else if (m.blocked(x, y)) bad++;
+          }
+        if (bad > 22 || m.blocked(cx, cy)) continue;
+        best = d; bx = cx; by = cy;
+      }
+    if (best >= 0) {
+      g.teleportGlobal(g.world.ox + bx, g.world.oy + by);
+      g.pl().face = 2; g.pl().aim = Vec2(1, 0);
+      std::printf("script: story open -> %d %d\n", g.world.ox + bx, g.world.oy + by);
+      return true;
+    }
+    c.fail("story open: no open ground within 90 tiles");
+    return true;
+  }
+  if (what == "days") {   // (P1b) let days pass: a stage's clock runs down (the tracker's days left)
+    g.day += std::max(0, std::atoi(c.arg(2).c_str()));
+    return true;
+  }
+  if (what == "bout") {
+    const std::string how = lowerS(c.arg(2));
+    story::Instance* in = pick(g, c.arg(3));
+    if (!in || (how != "win" && how != "lose")) { c.fail("story bout win|lose [script]: no running story or no outcome"); return true; }
+    if (!story::debugBout(g, in->id, how == "win")) { c.fail("story bout: the current stage is no bout with its opponent at hand"); return true; }
+    std::printf("script: story bout %s\n", how.c_str());
+    return true;
+  }
   if (what == "start") {
     const std::string id = lowerS(c.arg(2));
     const story::dsl::Script* sp = story::scriptById(id);   // (M6b: a saga spec id composes its story)
@@ -170,10 +233,54 @@ bool cmdStory(ScriptCtx& c) {
     c.fail("story talk: nobody here is the stage's person");
     return true;
   }
-  c.fail("story start <script> | show | complete | goto | talk [script] | board | herald | read [n]");
+  // (P1b ENGINE lane) tours: stand two tiles short of the stage's person (any map), facing them; stand at the foot of
+  // the prop the stage wants used and use it; let days pass (the stage's clock runs down)
+  if (what == "near") {
+    // the stage's person: the one it talks with, else its goal's (a bout's opponent, an escort's walker)
+    int goalSlot = -1;
+    if (s && g.story.isGoal(*in)) {
+      const int ri = s->role(s->stages[(size_t)in->stage].goal.role);
+      if (ri >= 0) goalSlot = story::personSlot(in->id, ri);
+    }
+    for (Actor& a : g.actors)
+      if (g.story.talksTo(g, *in, a) || (goalSlot >= 0 && story::isStoryPerson(a) && a.slot == goalSlot && a.st != AState::Dead)) {
+        const Vec2 at = ClimbOps::freeSpot(g, (int)std::floor(a.p.x / TILE), (int)std::floor(a.p.y / TILE) + 2);
+        g.pl().p = at;
+        g.pl().aim = norm(a.p - at); g.pl().face = 1;
+        return true;
+      }
+    if (c.waited < 6.0f) return false;
+    c.fail("story near: nobody here is the stage's person");
+    return true;
+  }
+  if (what == "use") {
+    const Map& m = g.map();
+    const int px = (int)std::floor(g.pl().p.x / TILE), py = (int)std::floor(g.pl().p.y / TILE);
+    const story::dsl::Script* s = story::scriptOf(*in);
+    const int want = s && g.story.isGoal(*in) ? s->stages[(size_t)in->stage].goal.prop : -1;
+    for (int r = 0; r <= 16 && want >= 0; r++)
+      for (int y = py - r; y <= py + r; y++)
+        for (int x = px - r; x <= px + r; x++) {
+          if (std::max(std::abs(x - px), std::abs(y - py)) != r || !m.in(x, y) || m.propAt(x, y) != want + 1) continue;
+          const Vec2 at = ClimbOps::freeSpot(g, x, y + 1);
+          g.pl().p = at;
+          g.pl().aim = norm(Vec2(x * TILE + 8.0f, y * TILE + 8.0f) - at);
+          g.pl().face = 1;
+          int wx = 0, wy = 0;
+          const int wp = story::wantedProp(g, wx, wy);
+          if (!wp || !story::useWantedProp(g, wp - 1, wx, wy)) { c.fail("story use: the prop does not answer the use button"); return true; }
+          std::printf("script: story use -> %s\n", g.story.find(in->id) ? g.story.stageName(*g.story.find(in->id)).c_str() : "(ended)");
+          return true;
+        }
+    if (c.waited < 2.0f) return false;
+    c.fail("story use: no prop the stage wants within 16 tiles");
+    return true;
+  }
+
+  c.fail("story start <script> | show | complete | goto | talk | near | use | fail | late | escort [script] | bout win|lose | days <n> | board | herald | read [n]");
   return true;
 }
-EMB_SCRIPT_CMD("story", "story start <script> | show | complete | goto | talk [script] | board | herald | read [n]: drive the story engine (M4)", cmdStory);
+EMB_SCRIPT_CMD("story", "story start <script> | show | complete | goto | talk | near | use | fail | late | escort [script] | bout win|lose [script] | days <n> | board | herald | read [n]: drive the story engine (M4, P1b)", cmdStory);
 
 bool expNews(ScriptCtx& c) {
   Game& g = c.game;

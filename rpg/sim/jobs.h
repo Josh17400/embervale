@@ -94,7 +94,13 @@ enum JobNeed : uint8_t {
   JN_SUPPLY,      // Supply: the goods the giver's trade works (life_quests.cpp tradeSupply)
   JN_FAMINE,      // Supply: food in a famine (the realm's SS_FAMINE)
   JN_WARBAND,     // Bounty: deserters and raiders while the realm is at war
-  JN_COUNT
+  JN_COUNT,
+  // (P1b New Roads Content) a radiant job: PoolJob::qtype QType::Story, need JN_RADIANT0 + the kind (story::radiant::
+  // kinds(): 0 ROAD WARDEN .. 14 BEACON CHAIN). "ANY WORK GOING?" starts its composed script (radiant::offerFor); the
+  // pool job is given out when the job is begun and done when it ends (JobOps::radiantStep). The saved layout is
+  // unchanged (need is a byte): JOBS_BLOCK_VER stays 1.
+  JN_RADIANT0 = 32,
+  JN_RADIANT_END = JN_RADIANT0 + 15
 };
 const char* jobNeedName(uint8_t n);     // "DEN", "HIDES", ... (tests, scripts)
 

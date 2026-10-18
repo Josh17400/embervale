@@ -1,0 +1,82 @@
+# P1b New Roads Content, ENGINE lane: the shared mechanics in play, on the engine's own test scripts (family test,
+# never offered: rpg/story/lib_p1b_test.cpp). Seed 7, the start village. Desktop size (p1b_engine_tour_phone.txt: the
+# same at the iPhone review size).
+#   A. a bout: the opponent squares up, kneels to yield at a quarter health; a second bout lost (the player on 1 HP)
+#   B. the beacon on the nearest watchtower lit at dusk (fire in the broken drum, its glow); the hermit waiting inside
+#      a cave (a quiet nook well off the way in)
+#   C. a wagon escort: the driver walking the road behind the player, the hand cart on his shafts, its own shadow; the
+#      tracker's clock on its own line and the HEAVY LOAD chip; the last day in the warning colour; the escort lost:
+#      the closing scene (epilogue)
+#   D. a drove: sheep or cattle trailing their drover across the land
+#   embervale.exe --script tools/scripts/p1b_engine_tour.txt     (p1b_engine_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.3 hour 10
+# ---- A. the bout
++1.0 story start p1b_engine_bout
++0.4 voice choose 1
++2.5 story near p1b_engine_bout
++0.3 story bout win p1b_engine_bout
++0.6 shot p1b_engine_bout_yield.png
++3.0 expect story p1b_engine_bout done
++0.5 story start p1b_engine_bout
++0.4 voice choose 1
++2.5 story near p1b_engine_bout
++0.3 story bout lose p1b_engine_bout
++0.5 shot p1b_engine_bout_lost.png
++2.5 shot p1b_engine_bout_lost_scene.png
++0.3 key Escape
+# ---- B. the beacon and the person inside
++0.5 story start p1b_engine_places
++0.4 voice choose 1
++0.3 story goto p1b_engine_places
++0.2 hour 20
++2.0 story use p1b_engine_places
++4.5 shot p1b_engine_beacon_dusk.png
++0.1 hour 23
++0.6 shot p1b_engine_beacon_night.png
++0.2 hour 11
++0.3 story goto p1b_engine_places
++1.0 goto cave enter
++1.5 story near p1b_engine_places
++4.0 shot p1b_engine_inside_cave.png
++0.3 walkto exit 30
++0.5 log places done
+# ---- C. the wagon escort, the tracker clock, the burden, the epilogue
++0.5 goto village
++1.0 story start p1b_mechanics
++0.5 voice choose 1
++0.3 story open road
++0.8 story escort p1b_mechanics
++1.0 walk east 5
++4.5 shot p1b_engine_wagon_road.png
++0.6 walk north 1.6
++1.4 shot p1b_engine_wagon_north.png
++0.4 walk east 2.5
++2.6 walk south 1.6
++1.4 shot p1b_engine_wagon_south.png
++0.4 walk east 2
++2.8 shot p1b_engine_wagon_stop.png
++0.3 goto city
++0.8 story escort p1b_mechanics
++0.5 walk north 2
++1.8 shot p1b_engine_wagon_gate.png
++0.1 story days 5
++0.6 shot p1b_engine_tracker_lastday.png
++0.1 story fail p1b_mechanics
++1.8 shot p1b_engine_epilogue.png
++0.3 key Escape
+# ---- D. the drove
++0.3 goto village
++0.1 hour 10
++1.0 story start p1b_engine_drove
++0.4 voice choose 1
++0.3 story open road
++0.8 story escort p1b_engine_drove
++1.0 walk east 6
++5.5 shot p1b_engine_drove.png
++0.6 walk east 3
++2.6 shot p1b_engine_drove_turn.png
++3.0 shot p1b_engine_drove_rest.png
++0.5 log p1b_engine_tour done

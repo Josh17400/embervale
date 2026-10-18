@@ -23,7 +23,9 @@
 #include <string>
 #include <vector>
 #include "rpg/sim/game_internal.h"
+#include "rpg/sim/home.h"
 #include "rpg/sim/jobs_ops.h"
+#include "rpg/story/radiant.h"
 #include "rpg/world/source.h"
 
 // life_quests.cpp (JOBS lane): the nearest loaded settlement that sells `good` to site `si` (-1 none)
@@ -35,6 +37,7 @@ const char* jobNeedName(uint8_t n) {
   static const char* t[] = {"NONE", "DEN", "GROUND", "HIDES", "CAMP", "RAIDERS", "CHIEF", "CAVE", "RUIN", "DESECRATED", "RELIC",
                             "HOLYRELIC", "STOLEN", "LOST", "STRAYED", "PARCEL", "TOOLS", "BREAD", "FIELDS", "SUPPLY", "FAMINE", "WARBAND"};
   static_assert(sizeof(t) / sizeof(t[0]) == JN_COUNT, "a name for every need");
+  if (n >= JN_RADIANT0 && n < JN_RADIANT_END) return "RADIANT";   // (P1b: story::radiant::kindId names the kind)
   return n < JN_COUNT ? t[n] : "?";
 }
 
@@ -47,10 +50,11 @@ using jobs::JobNeed;
 struct Kind { QType t; uint8_t need; };
 
 // what a trade asks for (VISION_PLAN 15.34 "wider per-trade menus": 4 kinds or more each)
-int menuOf(Role role, life::Job job, Kind out[8]) {
+constexpr int MENU_MAX = 24;   // (P1b: the trade's own kinds and the radiant kinds its trade may offer)
+int menuOf(Role role, life::Job job, Kind out[MENU_MAX]) {
   using J = life::Job;
   int n = 0;
-  auto add = [&](QType t, uint8_t need) { if (n < 8) out[n++] = Kind{t, need}; };
+  auto add = [&](QType t, uint8_t need) { if (n < MENU_MAX) out[n++] = Kind{t, need}; };
   switch (role) {
     case Role::Jarl:
       add(QType::Clear, jobs::JN_CAVE); add(QType::Clear, jobs::JN_RUIN); add(QType::NamedBandit, jobs::JN_CHIEF);
@@ -92,6 +96,8 @@ int menuOf(Role role, life::Job job, Kind out[8]) {
         add(QType::Missing, jobs::JN_STRAYED); add(QType::Supply, jobs::JN_FAMINE);
       }
       break;
+    case Role::Child: case Role::King: case Role::Bandit:   // (never asked: kept off the radiant menus below too)
+      return 0;
     case Role::Hunter:
       add(QType::Hunt, jobs::JN_DEN); add(QType::Hunt, jobs::JN_GROUND); add(QType::Deliver, jobs::JN_PARCEL); add(QType::Missing, jobs::JN_LOST);
       add(QType::Clear, jobs::JN_CAVE);
@@ -111,6 +117,10 @@ int menuOf(Role role, life::Job job, Kind out[8]) {
       add(QType::Protect, jobs::JN_FIELDS);
       break;
   }
+  // (P1b) the radiant job kinds this trade may offer (story::radiant::KindDef::trades; the world decides in possible())
+  for (int k = 0; k < story::radiant::kindCount(); k++)
+    for (int t : story::radiant::kinds()[(size_t)k]->trades)
+      if (t == (int)role) { add(QType::Story, (uint8_t)(jobs::JN_RADIANT0 + k)); break; }
   return n;
 }
 
@@ -148,6 +158,48 @@ int baseWeight(QType t) {
     case QType::Protect: case QType::NamedBandit: return 11;
     default: return 10;
   }
+}
+
+// (P1b) may this settlement's giver of trade `role` offer radiant kind `kind` this week? The places the kind's roles need
+// lie near (the scan's counts: the caster still decides when it is offered), and the kind takes this giver in this world
+// (KindDef::choose). Integer-only and deterministic: the pool is saved.
+bool radiantPossible(Game& g, int si, const JobOps::Needs& N, int kind, Role role, int32_t week) {
+  using namespace story::radiant;
+  if (kind < 0 || kind >= kindCount()) return false;
+  const KindDef& K = *kinds()[(size_t)kind];
+  const std::string id = K.id;
+  bool near = true;
+  if (id == "roadwarden" || id == "homeward" || id == "champion") near = N.dests > 0;
+  else if (id == "fence" || id == "ransom") near = N.camps > 0;
+  else if (id == "rundown" || id == "remedy") near = N.caves + N.ruins > 0;
+  else if (id == "survey") near = N.caves > 0 && N.ruins > 0;
+  else if (id == "haunt" || id == "beacon") near = N.ruins > 0;
+  else if (id == "smuggle") near = N.camps > 0 || N.caves > 0;
+  if (!near || !K.choose) return false;
+  const Site& S = g.world.sites[(size_t)si];
+  JobCtx w;
+  w.trade = (int)role;
+  w.season = (int)home::seasonOf(g.day);
+  w.tier = S.type == SiteType::City ? 2 : S.type == SiteType::Town ? 1 : 0;
+  w.port = S.archetype == (uint8_t)ew::Archetype::Port;
+  w.coast = w.port;
+  w.war = N.war;
+  JobCtx out;
+  return K.choose(w, ew::mix64(S.id ^ (uint64_t)(uint32_t)week * 0x51ED27ull ^ ((uint64_t)kind << 32) ^ (uint64_t)role), out);
+}
+
+// (P1b) a radiant kind's weight in a pool (x10, like baseWeight): fifteen kinds share the ground the old kinds held, so
+// each weighs a little under the least of them; the pool's radiant share stays under about half of its jobs
+int radiantWeight(int kind, int radiantSoFar, int want) {
+  if (radiantSoFar * 2 >= std::max(2, want)) return 0;
+  // (measured with rpg_test --quest-mix: the kinds few trades offer, or that need rarer places, weigh a little more so
+  // each is met; the kinds most trades offer a little less)
+  const std::string id = kind >= 0 && kind < story::radiant::kindCount() ? story::radiant::kindId(kind) : "";
+  if (id == "beacon") return 18;
+  if (id == "bounds" || id == "survey") return 15;
+  if (id == "feast" || id == "homeward" || id == "fence") return 11;
+  if (id == "remedy" || id == "ransom" || id == "haunt") return 7;
+  return 9;
 }
 
 }  // namespace
@@ -195,9 +247,18 @@ ew::Good JobOps::tradeGood(Role role, life::Job job, uint8_t need) { return ::tr
 // ---------------------------------------------------------------- identities
 uint64_t JobOps::giverKey(const Game& g, const Actor& a) {
   if (a.site < 0 || a.site >= (int)g.world.sites.size()) return g.npcKey(a);
-  if (a.resident >= 0) return g.npcKeyOf(a.site, -1, jobs::RES_SLOT0 + a.resident);
-  if (a.altSlot >= jobs::RES_SLOT0 && a.altBldg == -1) return g.npcKeyOf(a.site, -1, a.altSlot);
   const uint64_t raw = g.npcKey(a);
+  // a body that knows its census identity: still remember raw -> key, so a story cast that holds this body's own
+  // key (an innkeeper at the post: npcKeyOf(site, bldg, 0)) maps back to the pool giver (JobOps::radiantStep)
+  auto remember = [&](uint64_t key) {
+    if (raw != key) {
+      if (g.jobBook.canon.size() > 4096) g.jobBook.canon.clear();
+      g.jobBook.canon[raw] = key;
+    }
+    return key;
+  };
+  if (a.resident >= 0) return remember(g.npcKeyOf(a.site, -1, jobs::RES_SLOT0 + a.resident));
+  if (a.altSlot >= jobs::RES_SLOT0 && a.altBldg == -1) return remember(g.npcKeyOf(a.site, -1, a.altSlot));
   if (a.bldg == -1 && (a.slot == jobs::BOARD_SLOT0 || a.slot == jobs::BOARD_SLOT0 + 1)) return raw;   // the notice board
   auto it = g.jobBook.canon.find(raw);
   if (it != g.jobBook.canon.end()) return it->second;
@@ -303,12 +364,16 @@ jobs::Pool* JobOps::ensurePool(Game& g, int si) {
       case jobs::JN_FIELDS: return (S.type == SiteType::Village || S.type == SiteType::Town) && (N.nearDens > 0 || N.nearCamps > 0);
       case jobs::JN_SUPPLY: return supplyOk(role, job, k.need);
       case jobs::JN_FAMINE: return N.famine && supplyOk(role, job, k.need);
-      default: return false;
+      default: break;
     }
+    // (P1b) a radiant job kind: the places it needs lie near, and the kind will take this giver in this world
+    if (k.t == QType::Story && k.need >= jobs::JN_RADIANT0 && k.need < jobs::JN_RADIANT0 + story::radiant::kindCount())
+      return radiantPossible(g, si, N, k.need - jobs::JN_RADIANT0, role, week);
+    return false;
   };
 
   // who may ask: the living residents at home, never a child, a guard (unless the exile is a noble) or a beggar
-  struct Cand { uint16_t idx; Role role; life::Job job; uint64_t key; int score; Kind menu[8]; int nm; bool used; };
+  struct Cand { uint16_t idx; Role role; life::Job job; uint64_t key; int score; Kind menu[MENU_MAX]; int nm; bool used; };
   std::vector<Cand> cands;
   const jobs::Pool* last = g.jobBook.pool(S.id, week - 1);
   for (const life::Resident& rs : c->res) {
@@ -318,7 +383,7 @@ jobs::Pool* JobOps::ensurePool(Game& g, int si) {
     cd.idx = rs.idx; cd.job = rs.job; cd.role = life::jobRole(rs.job);
     cd.key = g.npcKeyOf(si, -1, jobs::RES_SLOT0 + rs.idx);
     cd.used = false;
-    Kind all[8];
+    Kind all[MENU_MAX];
     const int na = menuOf(cd.role, cd.job, all);
     cd.nm = 0;
     for (int k = 0; k < na; k++) if (possible(all[k], cd.role, cd.job)) cd.menu[cd.nm++] = all[k];
@@ -338,7 +403,7 @@ jobs::Pool* JobOps::ensurePool(Game& g, int si) {
   const int tier = std::min<int>(c->tier, 2);
   int want = tier == 0 ? 3 + r.irange(3) : tier == 1 ? 6 + r.irange(5) : 10 + r.irange(7);
   want = std::min<int>(want, (int)cands.size());
-  int farmers = 0, perType[(int)QType::COUNT] = {};
+  int farmers = 0, perType[(int)QType::COUNT] = {}, perNeed[64] = {};
   auto give = [&](Cand& cd, const Kind& k) {
     jobs::PoolJob j;
     j.qtype = (uint8_t)k.t; j.need = k.need; j.state = jobs::PJ_OPEN; j.giver = cd.key;
@@ -346,6 +411,7 @@ jobs::Pool* JobOps::ensurePool(Game& g, int si) {
     cd.used = true;
     if (cd.role == Role::Farmer) farmers++;
     perType[(int)k.t]++;
+    perNeed[k.need & 63]++;
   };
   // 1. an open lead about someone here keeps its promise; a rumour heard far off ("THE INNKEEPER OF VOND PAYS FOR A
   //    HUNT", no person known yet) finds its person now: one of that trade if there is one, else anyone who asks for it
@@ -399,7 +465,11 @@ jobs::Pool* JobOps::ensurePool(Game& g, int si) {
         int w = baseWeight(cd.menu[k].t);
         if (cd.menu[k].need == jobs::JN_FAMINE) w *= 4;
         if (cd.menu[k].need == jobs::JN_WARBAND) w *= 3;
-        for (int n = 0; n < perType[(int)cd.menu[k].t]; n++) w = w * 4 / 10;
+        // (P1b) the radiant kinds are fifteen kinds of their own: each weighs less once it is in the pool (not the
+        // whole QType::Story), and together they never take more than about half a pool
+        const bool radiant = cd.menu[k].t == QType::Story;
+        if (radiant) w = radiantWeight(cd.menu[k].need - jobs::JN_RADIANT0, perType[(int)QType::Story], want);
+        for (int n = 0; n < (radiant ? perNeed[cd.menu[k].need & 63] * 2 : perType[(int)cd.menu[k].t]); n++) w = w * 4 / 10;
         if (cd.menu[k].t == QType::Protect && perType[(int)QType::Protect] > 0) w = 0;   // (one night on the fields a week)
         if (w > 0) kinds.push_back({cd.menu[k], w});
       }
@@ -421,7 +491,13 @@ jobs::Pool* JobOps::ensurePool(Game& g, int si) {
       for (int m = 0; m < cd.nm; m++) if (cd.menu[m].t == k.t && cd.menu[m].need == k.need) fits = true;
       if (!fits) continue;
       bool have = false;
-      for (const RW& x : roles) if (x.role == cd.role) have = true;
+      for (RW& x : roles)
+        if (x.role == cd.role) {
+          have = true;
+          // (P1b) a radiant kind leans to the trades with more people free to ask, so the weeks rotate through people
+          // rather than back and forth between a town's one priest and one innkeeper
+          if (k.t == QType::Story && x.w < 3 * (cd.role == Role::Farmer ? 14 : cd.role == Role::Villager ? 9 : 20)) x.w += cd.role == Role::Farmer ? 14 : cd.role == Role::Villager ? 9 : 20;
+        }
       if (!have) roles.push_back({cd.role, cd.role == Role::Farmer ? 14 : cd.role == Role::Villager ? 9 : 20});
     }
     if (roles.empty()) continue;
@@ -487,6 +563,10 @@ std::string leadLine(uint8_t qtype, uint8_t need, const std::string& who, const 
     case QType::Deliver: return of + " NEEDS A CARRIER";
     case QType::Protect: return of + " FEARS A RAID ON THE FIELDS";
     case QType::Supply: return need == jobs::JN_FAMINE ? of + " BEGS FOR FOOD" : of + " IS SHORT OF GOODS";
+    case QType::Story:   // (P1b) a radiant job: the kind's own words ("THE MERCHANT OF VOND NEEDS A WARDEN FOR A WAGON")
+      if (need >= jobs::JN_RADIANT0 && need < jobs::JN_RADIANT0 + story::radiant::kindCount())
+        return of + " " + story::radiant::kinds()[(size_t)(need - jobs::JN_RADIANT0)]->lead;
+      return of + " HAS WORK";
     default: return of + " HAS WORK";
   }
 }

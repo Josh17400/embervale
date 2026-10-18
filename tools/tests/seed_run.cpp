@@ -389,9 +389,12 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
         else {
           out("dialogue: %s: %s\n", q.dlg.speaker.c_str(), q.dlg.text.c_str());
           for (size_t o = 0; o < q.dlg.opts.size(); o++) out("   [%zu] %s\n", o, q.dlg.opts[o].label.c_str());
+          // count before asking: a radiant job's pitch (P1b) already mirrors its quest quietly, so the accept itself
+          // may add nothing; either way exactly one new quest must stand after ACCEPT
+          size_t nq = q.quests.size();
           for (size_t o = 0; o < q.dlg.opts.size(); o++) if (q.dlg.opts[o].label.find("ANY WORK") != std::string::npos) { q.dialogueChoose((int)o); break; }
           out("offer: %s\n", q.dlg.text.c_str());
-          size_t nq = q.quests.size();
+          for (size_t o = 0; o < q.dlg.opts.size(); o++) out("   offer[%zu] %s\n", o, q.dlg.opts[o].label.c_str());
           q.dialogueChoose(0);
           out("quests now %zu: %s\n", q.quests.size(), q.quests.back().title.c_str());
           if (q.quests.size() != nq + 1) { out("FAIL: quest not accepted\n"); bad++; }

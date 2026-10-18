@@ -10,6 +10,10 @@
 //                                   next unread lore prop, facing it: `key E` then reads it through the game's own path
 //   storyp1 hint <archetype> [vN] [sN] [mMOTIVE]   the nearest person greets the player with that story's hint (as a
 //                                   teller does: tellerLine) and offers its pitch: the writing review of a teller's line
+//   storyp1 teller <tale>           (P1b TALES lane) the nearest person of a library tale's hook trade greets the player
+//                                   with its hint and offers its pitch (the opening a player meets)
+//   storyp1 begin <tale>            ... and the tale begins with that person as its giver; its first dialogue opens
+//                                   (`story start` casts the giver as the place: the tours want the teller's own name)
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -48,8 +52,12 @@ bool cmdStoryP1(ScriptCtx& c) {
     if (si < 0) { if (c.waited < 4.0f) return false; c.fail("storyp1 boardwait: no notice board near"); return true; }
     // (a campaign when one comes up in 120 days, else the first generated story)
     const int day0 = g.day;
+    int skipped = 0;
     for (int k = 0; k < 60; k++) {
       const story::Offer o = story::placeOffer(g, (int)story::dsl::HookKind::Board, si);
+      // (P1b) a board's own library tale (THE NAME AMONG THE DEAD, THE UNSIGNED NOTICES) counts as read: the wait is
+      // for what the board pins once its tales are told
+      if (o.lib >= 0 && !o.campaign() && skipped < 32 && !g.story.played_[o.id()]) { g.story.played_[o.id()]++; skipped++; k--; continue; }
       if (!o.saga.empty() && (o.campaign() || k >= 30)) {
         std::printf("script: storyp1 boardwait: day %d, the board of %s pins %s\n", g.day, g.world.sites[(size_t)si].name.c_str(), o.saga.c_str());
         return true;
@@ -126,7 +134,61 @@ bool cmdStoryP1(ScriptCtx& c) {
     std::printf("script: storyp1 hint %s: %s\n", story::saga::specId(s).c_str(), sc->hint.c_str());
     return true;
   }
-  c.fail("storyp1: played | boardwait | ruinwait [campaign] | hint <archetype> [vN] [sN] [mMOTIVE]");
+  if (what == "teller" || what == "begin") {
+    // (P1b TALES lane) a library tale told by a real person of its hook trade, as play has it (the tours): `teller`
+    // stands the player before the nearest such person, who greets with the tale's hint and offers its pitch; `begin`
+    // starts the tale with that person as the giver (story start casts the giver as the place) and opens its first
+    // dialogue. A tale whose hook is no person (a board, a ruin) begins with the place, as `story start` does.
+    const std::string id = lowerP1(c.arg(2));
+    const story::dsl::Library& L = story::dsl::library();
+    const int li = L.find(id);
+    if (li < 0) { c.fail("storyp1 " + what + ": no library script '" + id + "'"); return true; }
+    const story::dsl::Script& sc = L.scripts[(size_t)li];
+    const Actor* best = nullptr;
+    if (sc.hook == story::dsl::HookKind::Npc) {
+      float bd = 1e30f;
+      for (int pass = 0; pass < 2 && !best; pass++)
+        for (const Actor& a : g.actors) {
+          if (!a.npc || !a.human || a.st == AState::Dead || story::isStoryPerson(a) || a.role == Role::Child || a.role == Role::Herald) continue;
+          if (pass == 0 && (sc.hookTrade == -2 ? (a.role != Role::Guard && a.role != Role::Jarl) : (int)a.role != sc.hookTrade)) continue;
+          const float d = len2(a.p - g.pl().p);
+          if (d < bd) { bd = d; best = &a; }
+        }
+      if (!best) { if (c.waited < 4.0f) return false; c.fail("storyp1 " + what + ": nobody about"); return true; }
+      g.pl().p = best->p + Vec2(0, 16);
+      g.pl().face = 1; g.pl().aim = Vec2(0, -1);
+    }
+    if (what == "teller") {
+      g.dlg = Dialogue();
+      g.dlg.actor = best ? best->id : -1;
+      g.dlg.speaker = best ? best->name : sc.title;
+      g.dlg.text = sc.hint;
+      g.dlg.opts.push_back({sc.pitch, 0, 0});
+      g.dlg.opts.push_back({"FAREWELL.", 0, 0});
+      g.mode = Mode::Dialogue;
+      std::printf("script: storyp1 teller %s: %s\n", id.c_str(), best ? best->name.c_str() : "(the place)");
+      return true;
+    }
+    int site = g.curSite >= 0 && g.world.sites[(size_t)g.curSite].settlement() ? g.curSite : g.world.startSite;
+    if (best) site = story::homeSiteOf(g, *best) >= 0 ? story::homeSiteOf(g, *best) : site;
+    std::string why;
+    const uint32_t inst = g.story.start(g, id, best ? best->id : -1, site, &why);
+    if (!inst) { c.fail("storyp1 begin " + id + ": " + why); return true; }
+    story::Instance* in = g.story.find(inst);
+    std::printf("script: storyp1 begin %s (giver %s)\n", id.c_str(), best ? best->name.c_str() : "the place");
+    if (in && !g.story.isGoal(*in)) {
+      g.dlg = Dialogue();
+      const story::dsl::StageDef& G = sc.stages[(size_t)in->stage];
+      const story::Binding* b = story::bindingOf(*in, G.talk);
+      g.dlg.actor = best && G.talk == "giver" ? best->id : -1;
+      g.dlg.speaker = b ? b->name : std::string();
+      g.story.showDialogue(g, *in);
+      g.dlg.opts.push_back({"FAREWELL.", 0, 0});
+      g.mode = Mode::Dialogue;
+    }
+    return true;
+  }
+  c.fail("storyp1: played | boardwait | ruinwait [campaign] | hint <archetype> [vN] [sN] [mMOTIVE] | teller <tale> | begin <tale>");
   return true;
 }
 

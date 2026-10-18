@@ -275,8 +275,13 @@ bool MagicOps::choose(Game& g, const DlgOpt& o) {
     if (g.gold < price) {
       // (P1 integrator: the dialogue review) name the lesson and the shortfall, and take the offer off the list so a
       // second press doesn't get the same refusal
+      // (P1b integrator) the closing words turn with each refusal, so asking for two lessons in a row reads naturally
+      static const char* const kShort[] = {" SHORT. COME BACK WITH THE REST.", " SHORT. BRING THE REST ANOTHER DAY.",
+                                           " SHORT. THE LESSON WILL KEEP.", " SHORT. SAVE A WHILE, THEN ASK AGAIN."};
+      int left = 0;
+      for (const auto& op : g.dlg.opts) if (op.action == o.action) left++;
       g.dlg.text = d->name + " IS " + std::to_string(price) + " GOLD, AND YOU'RE " + std::to_string(price - g.gold) +
-                   " SHORT. COME BACK WITH THE REST.";
+                   kShort[(size_t)left % 4u];
       if (oi >= 0) g.dlg.opts.erase(g.dlg.opts.begin() + oi);
       return true;
     }

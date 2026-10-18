@@ -914,6 +914,9 @@ class Game {
   //   heralds
   void storyStep(float dt);
   void storyTalk(Actor& a);            // may add options (DLG_STORY..) and set dlg.text; called by talkTo before FAREWELL
+  // (P1b, lead) "ANY WORK GOING?" with a radiant job (story::radiant::offerFor): start its composed script on giver `a`
+  // and show its opening talk (the pitch, ACCEPT / DECLINE) in the open dialogue; false: it could not be cast
+  bool storyBeginJob(Actor& a, const std::string& specId);
   bool storyChoose(const DlgOpt& o);   // an option in [DLG_STORY, DLG_WAR): true handled
   void storyKill(const Actor& victim, bool byPlayer);
   void storyEntered(int site, int bldg);   // the player just entered a site's map (site >= 0) or a building (bldg >= 0)

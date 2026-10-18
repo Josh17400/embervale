@@ -1,0 +1,130 @@
+# P1b New Roads Content, lane JOBS: five radiant job kinds on the story engine, begun as "ANY WORK GOING?" begins them
+# (jobs radiant <kind> <walk>: the nearest person of the walk's trade is the giver; rpg/story/jobs/<kind>.cpp walks).
+# Each: the pitch (the giver's opening talk with ACCEPT / DECLINE), the tracker and marker of a goal, a dialogue on the
+# way, and an ending. The runtime of the escort's walking, the bout's yield and the watchtowers is the ENGINE lane's.
+#   embervale.exe --script tools/scripts/p1b_jobs_tour_phone.txt  (p1b_jobs_*_phone.png in the working directory)
+#   tools/scripts/p1b_jobs_tour.txt: the same at the desktop size
+phone
+seed 7
+0.3  newgame
++0.1 god 1
+# ---- THE ROAD WARDEN (a merchant's wagon to the next town)
++0.5 goto town
++0.1 hour 11
++2.0 jobs radiant roadwarden 0
++4.0 shot p1b_jobs_roadwarden_1_pitch_phone.png
++0.1 voice choose 1
++0.3 story show
++4.0 shot p1b_jobs_roadwarden_2_driver_phone.png
++0.1 voice choose 1
++2.0 key Escape
++1.0 shot p1b_jobs_roadwarden_3_road_phone.png
++0.1 story complete
++0.1 story complete
++0.3 story show
++4.0 shot p1b_jobs_roadwarden_4_buyer_phone.png
++0.1 voice choose 1
++4.0 shot p1b_jobs_roadwarden_5_end_phone.png
++0.3 key Escape
++0.3 key Escape
+# ---- A HOUSE THAT WAITS (a mage's unburied ghost)
++0.3 hour 11
++1.0 jobs radiant haunt 0
++4.0 shot p1b_jobs_haunt_1_pitch_phone.png
++0.1 voice choose 1
++0.5 key Escape
++1.0 shot p1b_jobs_haunt_2_tracker_phone.png
++0.1 story complete
++0.3 story show
++4.0 shot p1b_jobs_haunt_3_ghost_phone.png
++0.1 voice choose 1
++0.5 key Escape
++0.1 story complete
++0.3 story show
++4.0 shot p1b_jobs_haunt_4_rite_phone.png
++0.1 voice choose 1
++4.0 shot p1b_jobs_haunt_5_end_phone.png
++0.3 key Escape
++0.3 key Escape
+# ---- CHAMPION'S BOUT (a lord's quarrel; the rival's side of it)
++0.3 hour 11
++1.0 jobs radiant champion 0
++4.0 shot p1b_jobs_champion_1_pitch_phone.png
++0.1 voice choose 1
++0.5 key Escape
++0.1 story complete
++0.3 story show
++4.0 shot p1b_jobs_champion_2_parley_phone.png
++0.1 voice choose 2
++4.0 shot p1b_jobs_champion_3_claim_phone.png
++0.1 voice choose 1
++0.5 key Escape
++1.0 shot p1b_jobs_champion_4_bout_phone.png
++0.1 story complete
++0.3 story show
++4.0 shot p1b_jobs_champion_5_yield_phone.png
++0.1 voice choose 1
++0.5 key Escape
++0.3 story show
++0.1 voice choose 1
++4.0 shot p1b_jobs_champion_6_end_phone.png
++0.3 key Escape
++0.3 key Escape
+# ---- BEACON CHAIN (a hunter's wolves; the old watchman at the first tower)
++0.3 goto village
++0.1 hour 11
++2.0 jobs radiant beacon 0
++4.0 shot p1b_jobs_beacon_1_pitch_phone.png
++0.1 voice choose 1
++0.5 key Escape
++1.0 shot p1b_jobs_beacon_2_tracker_phone.png
++0.1 story complete
++0.3 story show
++4.0 shot p1b_jobs_beacon_3_watchman_phone.png
++0.1 voice choose 1
++0.3 voice choose 1
++0.5 key Escape
++0.1 story complete
++0.1 story complete
++0.1 story complete
++0.1 story complete
++0.1 story complete
++0.3 story show
++4.0 shot p1b_jobs_beacon_4_sighting_phone.png
++0.1 voice choose 1
++0.3 voice choose 1
++0.5 key Escape
++0.3 story show
++4.0 shot p1b_jobs_beacon_5_report_phone.png
++0.1 voice choose 1
++4.0 shot p1b_jobs_beacon_6_end_phone.png
++0.3 key Escape
++0.3 key Escape
+# ---- MEND THE WORKS (a farmer's bridge, trouble near: keep watch)
++0.3 hour 11
++1.0 jobs radiant mend 0
++4.0 shot p1b_jobs_mend_1_pitch_phone.png
++0.1 voice choose 1
++0.5 key Escape
++1.0 shot p1b_jobs_mend_2_tracker_phone.png
++0.1 story complete
++0.3 story show
++4.0 shot p1b_jobs_mend_3_seller_phone.png
++0.1 voice choose 1
++0.5 key Escape
++0.1 story complete
++0.3 story show
++4.0 shot p1b_jobs_mend_4_foreman_phone.png
++0.1 voice choose 2
++0.5 key Escape
++0.1 story complete
++0.1 story complete
++0.3 story show
++4.0 shot p1b_jobs_mend_5_find_phone.png
++0.1 voice choose 1
++0.3 voice choose 1
++0.5 key Escape
++0.3 story show
++0.1 voice choose 1
++4.0 shot p1b_jobs_mend_6_end_phone.png
++0.3 log p1b_jobs_tour_phone done

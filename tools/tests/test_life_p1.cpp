@@ -10,7 +10,9 @@
 //             caught (talk to the victim, I'LL CATCH THEM!, reach the thief) pays the errand; a thief ignored leaves an
 //             Incident lead and no errand; a broken cart helped (LEND A HAND, stand by it) pays; a brawl stepped into pays;
 //             the giver's pin (Game::lifeGiverSpot) knows where a census giver is with nobody in play; an open quest's
-//             giver whose plan is indoors is not kept out in the street at night (no plaza pin).
+//             giver whose plan is indoors is not kept out in the street at night (no plaza pin). (P1b) while a new request
+//             or tale with `gossip` lines is on offer in the town (or the start village), an overheard line is one of its
+//             lines and its lead names that teller; never the same teller twice a week.
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -23,6 +25,10 @@
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/jobs.h"
 #include "rpg/sim/life.h"
+#include "rpg/story/dsl.h"
+#include "rpg/story/story.h"
+#include "rpg/story/story_internal.h"
+#include "rpg/world/source.h"
 #include "tools/tests/tests.h"
 
 namespace {
@@ -387,12 +393,133 @@ int hooks(uint64_t seed, bool report) {
       }
     }
   }
+  // ---- (P1b, REQUESTS lane) overheard gossip of the new items: while a request or a tale with `gossip` lines is on offer
+  // in the settlement (story::tellerOffer), a forced overheard line is one of its lines and the lead names that teller
+  // (LeadFrom::Gossip, qtype Story, their npcKey, a place); a second one that week never names the same teller. The town,
+  // then the start village, week after week (16 at most) until something with gossip is on offer
+  {
+    const story::dsl::Library& L = story::dsl::library();
+    const ew::Gid places[2] = {sid, g.world.sites[(size_t)g.world.startSite].id};
+    bool seen = false;
+    int offered = 0;
+    for (int pass = 0; pass < 2 && !seen; pass++)
+      for (int w = 0; w < 16 && !seen; w++) {
+        const int at = g.world.siteHandle(places[pass]);
+        if (at < 0) break;
+        arrive(g, at, 10.0f);
+        const int here = g.world.siteHandle(places[pass]);
+        std::map<uint64_t, int> tellers;   // npcKey -> the library script they offer
+        std::vector<Actor> folk;
+        for (size_t k = 1; k < g.actors.size(); k++) if (g.actors[k].npc && g.actors[k].human && g.actors[k].site == here) folk.push_back(g.actors[k]);
+        for (const Actor& a : folk) {
+          const story::Offer of = story::tellerOffer(g, a);
+          if (of.lib >= 0 && (size_t)of.lib < L.scripts.size() && !L.scripts[(size_t)of.lib].family.empty() && !L.scripts[(size_t)of.lib].gossip.empty())
+            tellers[g.npcKey(a)] = of.lib;
+        }
+        if (!tellers.empty()) {
+          offered++;
+          const uint32_t id = life::forceGossip(g);
+          const jobs::Lead* Ld = id ? g.jobBook.lead(id) : nullptr;
+          if (Ld && Ld->qtype == (uint8_t)QType::Story) {
+            auto t = tellers.find(Ld->who);
+            if (Ld->from != jobs::LeadFrom::Gossip || !Ld->hasPos || t == tellers.end()) C.fail("a P1b overheard lead does not name a teller of an item with gossip");
+            else {
+              const story::dsl::Script& s = L.scripts[(size_t)t->second];
+              bool line = false;
+              for (const std::string& gl : s.gossip) line |= Ld->text.find("\"" + gl + "\"") != std::string::npos;
+              if (!line) C.fail("the P1b overheard lead does not carry one of " + s.id + "'s gossip lines: " + Ld->text);
+              if (report) out("  life-p1 hooks seed %llu: P1b overheard (%s, week %d): %s\n", (unsigned long long)seed, s.id.c_str(), w, Ld->text.c_str());
+              const uint64_t who = Ld->who;
+              const uint32_t id2 = life::forceGossip(g);
+              const jobs::Lead* L2 = id2 ? g.jobBook.lead(id2) : nullptr;
+              if (L2 && L2->qtype == (uint8_t)QType::Story && L2->who == who) C.fail("the same P1b teller overheard twice in one week");
+              seen = true;
+            }
+          }
+        }
+        g.day += 7;
+        tick(g, 3);
+      }
+    if (!seen) C.fail("no P1b item with gossip was overheard in 16 weeks of " + town + " and the start village (" + std::to_string(offered) + " weeks with one on offer)");
+  }
   if (report) {
     const life::StreetStats& s = life::streetStats(g);
     out("  life-p1 hooks seed %llu: incidents %d, errands opened %d won %d lost %d, incident leads %d, gossip lines %d leads %d\n", (unsigned long long)seed,
         s.incidents, s.errandsOpened, s.errandsWon, s.errandsLost, s.incidentLeads, s.gossipLines, s.gossipLeads);
   }
   return C.bad;
+}
+
+// --req-probe (P1b REQUESTS lane, diagnostics): per seed, the nearest harbour (a port town or city) and what its notice
+// board raises week by week, and whether the start's realm sees a war in the first twelve weeks (the herald's request)
+int reqProbe(uint64_t A, uint64_t B) {
+  for (uint64_t seed = A; seed <= B; seed++) {
+    g_curSeed = seed;
+    Game g(seed);
+    g.newEndlessGame(seed);
+    g.mode = Mode::Play; g.godMode = true; g.noWildSpawns = true;
+    tick(g, 10);
+    const Site st = g.world.sites[(size_t)g.world.startSite];
+    const int32_t sx = g.world.ox + st.ex, sy = g.world.oy + st.ey;
+    ew::Gid best = 0;
+    int64_t bd = INT64_MAX;
+    for (int32_t ry = ew::regionOf(sy) - 8; ry <= ew::regionOf(sy) + 8; ry++)
+      for (int32_t rx = ew::regionOf(sx) - 8; rx <= ew::regionOf(sx) + 8; rx++) {
+        const ew::RegionPlan R = g.world.regionPlan(rx, ry);
+        for (const ew::SitePlan& p : R.sites) {
+          if ((p.type != SiteType::Town && p.type != SiteType::City) || p.archetype != ew::Archetype::Port || (p.flags & ew::SPF_HIDDEN)) continue;
+          const int64_t d = (int64_t)(p.ex - sx) * (p.ex - sx) + (int64_t)(p.ey - sy) * (p.ey - sy);
+          if (d < bd) { bd = d; best = p.id; }
+        }
+      }
+    std::string near;
+    for (int32_t ry = ew::regionOf(sy) - 4; ry <= ew::regionOf(sy) + 4; ry++)
+      for (int32_t rx = ew::regionOf(sx) - 4; rx <= ew::regionOf(sx) + 4; rx++) {
+        const ew::RegionPlan R = g.world.regionPlan(rx, ry);
+        for (const ew::SitePlan& p : R.sites) {
+          if ((p.type != SiteType::Town && p.type != SiteType::City) || (p.flags & ew::SPF_HIDDEN)) continue;
+          const double d = std::sqrt((double)((int64_t)(p.ex - sx) * (p.ex - sx) + (int64_t)(p.ey - sy) * (p.ey - sy)));
+          near += " " + std::string(p.type == SiteType::City ? "C" : "T") + std::to_string((int)p.archetype) + (story::nearCoast(g, p.ex, p.ey) ? "c" : "") + "@" + std::to_string((int)d);
+        }
+      }
+    out("req-probe seed %llu: towns/cities within 4 regions (type, archetype, c=coast @tiles):%s\n", (unsigned long long)seed, near.c_str());
+    int wars = 0;
+    std::string board;
+    if (best) {
+      const int h = g.world.ensureSite(best);
+      if (h >= 0) g.world.sites[(size_t)h].discovered = true;
+      if (h >= 0 && g.fastTravel(h)) {
+        tick(g, 8);
+        {
+          const int here = g.world.siteHandle(best);
+          for (const char* rid : {"rq_barrels", "rq_yellowflag", "rq_articles"}) {
+            const int li = story::dsl::library().find(rid);
+            if (li < 0 || here < 0) continue;
+            const story::dsl::Script& s = story::dsl::library().scripts[(size_t)li];
+            std::string why, cwhy;
+            const bool gates = story::offerGates(g, s, here, &why);
+            std::vector<story::Binding> cast;
+            const bool cast_ok = story::castScript(g, s, -1, here, story::offerCastKey(g, s, nullptr, here), cast, cwhy);
+            out("req-probe seed %llu: %s at the harbour: gates %s (%s), cast %s (%s), precheck %d\n", (unsigned long long)seed, rid, gates ? "ok" : "no", why.c_str(),
+                cast_ok ? "ok" : "no", cwhy.c_str(), (int)story::offerPrecheck(g, s, here));
+          }
+        }
+        for (int w = 0; w < 12; w++) {
+          const int here = g.world.siteHandle(best);
+          if (here < 0) break;
+          const int r = story::requestOfferForPlace(g, (int)story::dsl::HookKind::Board, here);
+          const story::Offer o = story::placeOffer(g, (int)story::dsl::HookKind::Board, here);
+          board += " w" + std::to_string(w) + ":" + (r >= 0 ? story::dsl::library().scripts[(size_t)r].id : std::string("-")) + "/" + (o.any() ? o.id() : std::string("-"));
+          for (const realm::War& wr : g.realm.wars()) if (!wr.endDay) { wars++; break; }
+          g.day += 7;
+          tick(g, 3);
+        }
+      }
+    }
+    out("req-probe seed %llu: nearest harbour %s at %.0f tiles (%s 4 regions); weeks at war %d;%s\n", (unsigned long long)seed,
+        best ? "found" : "none", best ? std::sqrt((double)bd) : 0.0, best && std::sqrt((double)bd) <= 4.0 * (1 << ew::REGION_SHIFT) ? "within" : "beyond", wars, board.c_str());
+  }
+  return 0;
 }
 
 // --keeper: one stall keeper's track over an hour (diagnostics)
@@ -509,6 +636,12 @@ int lifeP1(int argc, char** argv) {
         if (!strcmp(argv[k], "--from") && k + 1 < argc) from = (float)atof(argv[k + 1]);
       }
       return trackActor(argv[i + 1], (uint64_t)atoll(argv[i + 2]), city, from);
+    }
+  for (int i = 1; i < argc; i++)
+    if (!strcmp(argv[i], "--req-probe")) {
+      uint64_t a = 1, b = 3;
+      for (int k = 1; k < argc; k++) if (!strcmp(argv[k], "--seeds") && k + 1 < argc) parseSeedRange(argv[k + 1], a, b);
+      return reqProbe(a, b);
     }
   uint64_t A = 1, B = 3;
   bool city = false, report = false, mot = false, hk = false;

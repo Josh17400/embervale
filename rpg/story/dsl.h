@@ -74,6 +74,52 @@
 //               role: WIFE, SON, FRIEND...) .lost (a mourner's dead, by name); beast / boss .kind ("WOLVES" / "FROST GIANT") .dir .realm; giver, person,
 //               npc, resident, site, capital, ruin, kingdom: .god (the first god of its culture's faith) .people (its
 //               culture's adjective: "VETHMARKI")
+//
+// (P1b "New Roads Content", lead phase A; VISION_PLAN 15.35) the shared mechanics of the 65 new items, as language:
+//   family job|request|tale|test     what the item is (reports, rpg_test --content-p1b / --quest-mix; `test` scripts are
+//                                    never offered: tests start them). Scripts without one are the older library.
+//   settle <word>...                 where it may be OFFERED (the pickers' precheck; a forced start casts anywhere):
+//                                    tier words OR'd: village town city capital (city includes capitals); port (the
+//                                    settlement has a harbour: archetype Port) and coast (the sea within reach) are AND'd
+//   needs <cond> [args]              more offer gates, all AND'd (one per line): nowar | war | coast | season <s>... |
+//                                    stock <good> below|above <n> | mood below|above <n> | flag <moodflag> |
+//                                    building <type> [<n>] (the hook settlement has n such buildings) | level <n>
+//   once world|site                  world (default): never offered again once played; site: once per settlement (the
+//                                    same request may come up in another town)
+//   cooldown <days>                  a settlement offers no `cooldown` script for this many days after one ended there
+//   gossip "<line>"                  (0-3) an overheard line (no placeholders, <= 38) the townsfolk may say while the item
+//                                    is on offer in their town: a journal LEAD pointing at the teller (life gossip)
+//   role ... person male|female [young] in <site>   (instead of `at`) the person waits INSIDE that cave / ruin / camp
+//                                    map (SITE-TALK); young: a child or youth (the look). Until the ENGINE lane places
+//                                    them inside, they stand at the site's mouth like `at`
+//   role ... site <type> near|far [with <filter>]...   filters: beast <monster> (a cave or ruin whose creatures are that
+//                                    kind) | min <tiles> | max <tiles> | road (within a few tiles of a road) | flag
+//                                    <moodflag> (a settlement whose census shows it: wartorn, raided, famine...) | makes
+//                                    <good> (a settlement that produces it); types also watchtower (a hilltop watchtower
+//                                    vignette) and dwelling (a lone hut, camp or garden vignette). road / flag / makes and
+//                                    the two vignette types are cast by the ENGINE lane: until then such a role refuses
+//   stage attributes:
+//     deadline <days> -> <stage>     if the stage is still current `days` days after it began, go there (a hard clock;
+//                                    the tracker shows the days left). On talk and goal stages.
+//     else <stage>                   (escort, bout) where the goal goes when it is lost
+//   objectives: escort <person> to <site> [wagon|drove|walk]   the person follows the player across the world (a wagon or
+//                                    a small drove beside them); done when both reach the place; lost (else) if they die
+//               bout <person|foe>    a fight not to the death: they yield at a quarter health (done); the player at
+//                                    nothing is left on their feet, loses (else), no gold lost
+//               time <from> <to>     done when the time of day is in [from, to) (dusk, the small hours: 19 23, 0 4)
+//   conditions: is <var> <n> (== n; `var x 0` is refused: it is always true) | days <n> (n days or more since the story
+//               began) | nodays <n> (fewer) | season spring|summer|autumn|winter | hour <from> <to> (the time of day in
+//               [from, to), wrapping midnight)
+//   effects:    days <var> (var = days since the story began) | census <site> mood <+-n> | census <site> stock <good>
+//               <+-n> | census <site> price <good> <percent> | census <site> famine <days> | census <site> festival |
+//               census <site> refugees <n> | follow <person> / stay <person> (walks behind the player / stops) |
+//               hostile <person> (turns on the player: a fight to the death; slay completes on them) | calm <site>
+//               (the site's creatures stand down: no more fights there for this story) | ambush <monster|bandit|beast>
+//               <n> (n hostile foes come at the player from 8-12 tiles off, now: a road ambush, watchers at dusk; outdoors
+//               only, nothing indoors) | give "<item>" <icon> heavy (a
+//               burden: the player walks slower while carrying it) | reward <band> <percent> (the band's pay times
+//               percent / 100, 10..300)
+//   placeholders: {var.<name>} a variable's value as a word ("THREE"; digits past twelve)
 #pragma once
 #include <cstdint>
 #include <map>
@@ -89,13 +135,22 @@ enum class RoleKind : uint8_t { Giver, Person, Foe, Npc, Site, Capital, Kingdom,
 enum class HookKind : uint8_t { Npc, Board, Herald, Ruin, Event,
                                 Companion,   // (M8) a companion's own personal quest: `hook companion <stake> [<fact>]`
                                 COUNT };
-enum class CondType : uint8_t { Gold, Level, Bg, Rep, Fame, Var, NoVar, Have, Mark, NoMark, Female, War, COUNT };
-enum class ObjType : uint8_t { None, Goto, Enter, Kill, Slay, Fetch, Use, Wait, War, Famine, Rep, Have, COUNT };
+enum class CondType : uint8_t { Gold, Level, Bg, Rep, Fame, Var, NoVar, Have, Mark, NoMark, Female, War,
+                                Is, Days, NoDays, Season, Hour,   // P1b
+                                COUNT };
+enum class ObjType : uint8_t { None, Goto, Enter, Kill, Slay, Fetch, Use, Wait, War, Famine, Rep, Have,
+                               Escort, Bout, Time,   // P1b
+                               COUNT };
 enum class EffType : uint8_t { Gold, Xp, Give, Take, Loot, Rep, Fame, Set, Add, Mark, Remember, Fact, Moves, Shop, Hide, Show,
                                Notice, Sound, Rumour, RealmWar, RealmFamine, RealmPeace, RealmSuccession, RealmEvent,
                                Reward, Secret, Befriend,   // M6b (saga.h)
                                Deed, Recruit, Approve, Bond, Fate,   // M8 Fellowship (companions)
+                               Days, Census, Follow, Stay, Hostile, Calm, Ambush,   // P1b
                                COUNT };
+// (P1b) census <site> <what>: EffDef::n the field, args {site, good word}, ev the amount
+enum CensusField : uint8_t { CEN_MOOD, CEN_STOCK, CEN_PRICE, CEN_FAMINE, CEN_FESTIVAL, CEN_REFUGEES, CEN_COUNT };
+// (P1b) escort skins (ObjDef::n)
+constexpr int ESCORT_WALK = 0, ESCORT_WAGON = 1, ESCORT_DROVE = 2;
 enum class StageKind : uint8_t { None, Talk, Goal, End };
 
 // monster words for kill objectives: an art::Monster index, or these
@@ -112,6 +167,8 @@ struct ObjDef {
   int n = 0;
   int monster = MON_ANY;
   int prop = -1;        // art::Prop for use
+                        // (P1b) escort: role the person, role2 the place, n the skin (ESCORT_*); bout: role the opponent;
+                        // time: n the first hour, prop the last (the time of day in [n, prop), wrapping midnight)
 };
 struct EffDef {
   EffType type = EffType::Gold;
@@ -123,6 +180,10 @@ struct EffDef {
                                     // (M6b) reward: n = 0 small, 1 fair, 2 rich, 3 great
                                     // (M8) deed: n = party::Deed, ev = its weight (1, or 2 for `grave`); approve /
                                     // bond: n the change; fate: args[0] home|part; recruit: args[0] the role
+                                    // (P1b) give: ev 1 = heavy (a burden); reward: ev the percent (0 = 100);
+                                    // census: n the CensusField, args {site[, good]}, ev the amount; days: args {var};
+                                    // ambush: n the monster word (monsterWord: an art::Monster or MON_BANDIT / MON_BEAST /
+                                    // MON_UNDEAD), ev how many
 };
 struct OptDef {
   std::string label;
@@ -145,6 +206,10 @@ struct StageDef {
   std::vector<EffDef> effs;
   std::vector<OptDef> opts;
   int line = 0;
+  // (P1b) deadline <days> -> <stage>: the clock (0 none); else <stage>: where a lost escort or bout goes
+  int deadline = 0;
+  std::string deadlineTo, orElse;
+  int deadlineIx = -1, elseIx = -1;
 };
 struct RoleDef {
   std::string name;
@@ -160,7 +225,13 @@ struct RoleDef {
                                     // has one (person: the stake's kin, named as the census knows them; beast: the
                                     // stake's foe; kingdom: the stake's kingdom; ruin: the stake's ruin; site: the
                                     // stake's place), else as the kind says
+  bool inside = false;              // (P1b) person ... in <site>: waits inside that site's map (r.at holds the site)
+  bool young = false;               // (P1b) person male|female young: a child or a youth (their look; .boy fits them)
+  std::string title;                // (P1b fixer) person ... as <WORD>: what the dialogue panel calls them ("SHIP'S-MATE" -> "SHIP'S MATE")
+  std::vector<std::string> with;    // (P1b) site filters: "beast wolf", "road", "min 60", "max 250" (one entry each)
 };
+// (P1b) an offer gate: `needs <word> [args]`
+struct NeedDef { std::string word; std::vector<std::string> args; int line = 0; };
 struct Script {
   std::string id, title, archetype;
   int tier = 2;
@@ -173,6 +244,13 @@ struct Script {
   std::vector<StageDef> stages;
   std::string source;               // the library file it came from (errors)
   int line = 0;
+  // (P1b) what it is and where it may be offered (dsl.h header words; the pickers check them, a forced start does not)
+  std::string family;               // "job" | "request" | "tale" | "test" | "" (the older library)
+  std::vector<std::string> settle;  // tier words (village town city capital) OR'd; port / coast AND'd
+  std::vector<NeedDef> needs;
+  bool onceSite = false;            // once site: once per settlement (else once per world)
+  int cooldown = 0;                 // days
+  std::vector<std::string> gossip;  // overheard lines
   int role(const std::string& n) const { for (size_t i = 0; i < roles.size(); i++) if (roles[i].name == n) return (int)i; return -1; }
   int stage(const std::string& n) const { for (size_t i = 0; i < stages.size(); i++) if (stages[i].name == n) return (int)i; return -1; }
 };
@@ -207,6 +285,21 @@ int rewardWord(const std::string& w);
 // the sources (lib_tales.cpp, lib_campaign.cpp)
 const char* talesSource();
 const char* campaignSource();
+// (P1b) the new items' sources: the REQUESTS lane's (rpg/story/req/village.cpp, town.cpp, city.cpp), the TALES lane's
+// (rpg/story/tales2/lib_tales2.cpp) and the lead's mechanics test scripts (rpg/story/lib_p1b_test.cpp; family test)
+const char* requestsVillageSource();
+const char* requestsTownSource();
+const char* requestsCitySource();
+const char* tales2Source();
+const char* p1bTestSource();
+// (P1b) the words of the new headers and conditions (dsl.cpp): season 0..3 / -1, a ew::Good / -1, a mood flag bit / 0,
+// an art::Building / -1
+int seasonWord(const std::string& w);
+int goodWord(const std::string& w);
+int moodFlagWord(const std::string& w);
+int buildingWord(const std::string& w);
+// (P1b) is this an offer gate word the pickers know (settle / needs / with filters)?
+bool settleWordOk(const std::string& w);
 
 // word lists (the parser's and the engine's)
 int monsterWord(const std::string& w);        // MON_* or an art::Monster index; -99 unknown

@@ -22,6 +22,7 @@
 #include "rpg/sim/party_voice.h"
 #include "rpg/story/story_internal.h"
 #include "rpg/world/dmath.h"
+#include "rpg/world/poi.h"
 #include "rpg/world/source.h"
 
 namespace story {
@@ -43,7 +44,7 @@ struct Found { ew::Gid id = 0; int32_t x = 0, y = 0; std::string name; uint64_t 
 // the nearest site of a type between minD and maxD tiles of (gx, gy), not in `avoid`; settlements of kingdom `prefer`
 // win over others within the band
 bool findSite(Game& g, int32_t gx, int32_t gy, SiteType t, int minD, int maxD, const std::set<uint64_t>& avoid, ew::Gid prefer,
-              Found& out) {
+              Found& out, int theme = -1) {
   if (!g.world.src) return false;
   ew::EndlessSource& src = *g.world.src;
   // (fixer M6b r2) integer distances only (owner rule: generation is integer/dmath): squared distances for the bands, a
@@ -86,12 +87,92 @@ bool findSite(Game& g, int32_t gx, int32_t gy, SiteType t, int minD, int maxD, c
       const ew::RegionPlan R = g.world.regionPlan(rx, ry);
       for (const ew::SitePlan& p : R.sites) {
         if (p.type != t || avoid.count(p.id)) continue;
+        if (theme >= 0 && (int)p.theme != theme) continue;   // (P1b) with beast <monster>
         const int64_t d2 = dist2(p.ex - gx, p.ey - gy);
         if (d2 < minD2 || d2 > maxD2) continue;
         if (d2 < best) { best = d2; out.id = p.id; out.x = p.ex; out.y = p.ey; out.name = p.name; out.culture = p.culture; }
       }
     }
   return out.id != 0;
+}
+
+// (P1b ENGINE lane) a road (a highway or a road between places: not a site's own spur) within r tiles of (x, y), from
+// the region plans' polylines (integer squared distances)
+bool roadNear(Game& g, int32_t x, int32_t y, int r) {
+  const int64_t r2 = (int64_t)r * r;
+  const int32_t rx0 = ew::regionOf(x), ry0 = ew::regionOf(y);
+  for (int32_t ry = ry0 - 1; ry <= ry0 + 1; ry++)
+    for (int32_t rx = rx0 - 1; rx <= rx0 + 1; rx++) {
+      const ew::RegionPlan R = g.world.regionPlan(rx, ry);
+      for (const ew::RoadPlan& rd : R.roads) {
+        if (rd.cls > 1 || rd.pts.size() < 2) continue;
+        for (size_t i = 0; i + 1 < rd.pts.size(); i++) {
+          const int64_t ax = rd.pts[i].x, ay = rd.pts[i].y, bx = rd.pts[i + 1].x, by = rd.pts[i + 1].y;
+          const int64_t vx = bx - ax, vy = by - ay, wx = x - ax, wy = y - ay;
+          const int64_t vv = vx * vx + vy * vy;
+          int64_t dx = wx, dy = wy;
+          if (vv > 0) {
+            const int64_t t = std::clamp<int64_t>(wx * vx + wy * vy, 0, vv);
+            dx = wx - (vx * t) / vv; dy = wy - (vy * t) / vv;
+          }
+          if (dx * dx + dy * dy <= r2) return true;
+        }
+      }
+    }
+  return false;
+}
+
+// (P1b ENGINE lane) the nearest place in [minD, maxD] tiles of (gx, gy) that passes every filter: a settlement of type t
+// (a "town" takes a city when none is near), a wayside vignette whose kind is in `kinds` (t == Vignette), or a site of
+// type t (a cave or ruin of `theme`'s creatures). road: within 18 tiles of a highway or a road (measured: camps
+// stand 13-17 tiles off the road they prey on, behind their own spur; a tighter band cast on 5 seeds in 20); flag: the settlement's census shows
+// that mood flag now; makes: it produces that good (ew::goodBit)
+bool findFiltered(Game& g, int32_t gx, int32_t gy, SiteType t, uint32_t kinds, int minD, int maxD, const std::set<uint64_t>& avoid,
+                  ew::Gid prefer, int theme, bool road, uint16_t flag, int makes, Found& out) {
+  struct Cand { int64_t score; const ew::SitePlan* p; };
+  const int64_t minD2 = (int64_t)minD * minD, maxD2 = (int64_t)maxD * maxD;
+  const bool settlement = t == SiteType::Village || t == SiteType::Town || t == SiteType::City;
+  const int rings = (maxD + ew::REGION - 1) / ew::REGION;
+  const int32_t rx0 = ew::regionOf(gx), ry0 = ew::regionOf(gy);
+  std::vector<ew::RegionPlan> plans;
+  plans.reserve((size_t)(2 * rings + 1) * (size_t)(2 * rings + 1));
+  for (int32_t ry = ry0 - rings; ry <= ry0 + rings; ry++)
+    for (int32_t rx = rx0 - rings; rx <= rx0 + rings; rx++) plans.push_back(g.world.regionPlan(rx, ry));
+  std::vector<Cand> cands;
+  for (const ew::RegionPlan& R : plans)
+    for (const ew::SitePlan& p : R.sites) {
+      if (avoid.count(p.id) || (p.flags & ew::SPF_HIDDEN)) continue;
+      int64_t pen = 0;
+      if (t == SiteType::Vignette) {
+        if (p.type != SiteType::Vignette || p.kind >= 32 || !(kinds & (1u << p.kind))) continue;
+      } else if (settlement) {
+        if (p.type != t && !(t == SiteType::Town && p.type == SiteType::City)) continue;
+        if (t == SiteType::Town && p.type == SiteType::City) pen += 300;
+        if (prefer && p.kingdom != prefer) pen += 4000;
+      } else {
+        if (p.type != t) continue;
+        if (theme >= 0 && (int)p.theme != theme) continue;
+      }
+      const int64_t d2 = (int64_t)(p.ex - gx) * (p.ex - gx) + (int64_t)(p.ey - gy) * (p.ey - gy);
+      if (d2 < minD2 || d2 > maxD2) continue;
+      if (makes >= 0 && !(p.produces & (1u << (uint32_t)makes))) continue;
+      cands.push_back({(int64_t)ew::isqrt((uint64_t)d2 << 16) + (pen << 8), &p});
+    }
+  std::sort(cands.begin(), cands.end(), [](const Cand& a, const Cand& b) { return a.score != b.score ? a.score < b.score : a.p->id < b.p->id; });
+  int tried = 0;
+  for (const Cand& c : cands) {
+    if (road && !roadNear(g, c.p->ex, c.p->ey, 18)) { if (++tried > 160) break; continue; }
+    if (flag) {
+      if (!(g.life.moodFlags(c.p->id) & flag)) continue;
+    }
+    out.id = c.p->id; out.x = c.p->ex; out.y = c.p->ey; out.name = c.p->name; out.culture = c.p->culture;
+    if (settlement) {
+      const int h = siteByIdLoad(g, out.id);
+      if (h >= 0) { out.name = g.world.sites[(size_t)h].name; out.culture = g.world.sites[(size_t)h].culture; }
+    }
+    return true;
+  }
+  return false;
 }
 
 const char* const kEpithets[] = {"THE RED", "ONE-EAR", "THE GRIM", "BLACKTOOTH", "THE CROW", "IRONHAND", "THE WOLF",
@@ -231,11 +312,46 @@ bool castScript(Game& g, const dsl::Script& s, int hookActor, int hookSite, uint
           b.id = home.id; b.name = home.name; atHome();
           break;
         }
-        const SiteType t = siteTypeWord(R.a);
+        SiteType t = siteTypeWord(R.a);
         Found f;
         const bool far = R.b == "far";
-        if (!findSite(g, hx, hy, t, far ? 450 : 40, far ? 1300 : 560, avoid, land, f) &&
-            !findSite(g, hx, hy, t, far ? 300 : 24, far ? 1800 : 1400, avoid, land, f)) {
+        // (P1b) with filters: min / max tiles, beast <monster> (a cave or ruin of that kind); (P1b ENGINE lane) road
+        // (within 18 tiles of a road), flag <moodflag> (a settlement whose census shows it), makes <good> (a settlement
+        // that produces it), and the wayside places: watchtower (a hilltop ruined watchtower) and dwelling (a hunter's
+        // camp, a fishing hut or a herb garden): bound to the real vignette, named by its title
+        uint32_t kinds = 0;
+        if (R.a == "watchtower") { t = SiteType::Vignette; kinds = 1u << (int)ew::VignetteKind::Watchtower; }
+        else if (R.a == "dwelling") {
+          t = SiteType::Vignette;
+          kinds = (1u << (int)ew::VignetteKind::HunterCamp) | (1u << (int)ew::VignetteKind::FishingHut) | (1u << (int)ew::VignetteKind::HerbGarden);
+        }
+        int minD = far ? 450 : 40, maxD = far ? 1300 : 560, theme = -1;
+        if (t == SiteType::Vignette && !far) minD = 16;
+        bool hardBand = false, road = false;
+        uint16_t flag = 0;
+        int makes = -1;
+        for (const std::string& w : R.with) {
+          const size_t sp = w.find(' ');
+          const std::string f0 = w.substr(0, sp), v = sp == std::string::npos ? std::string() : w.substr(sp + 1);
+          if (f0 == "min") { minD = std::max(1, atoi(v.c_str())); hardBand = true; }
+          else if (f0 == "max") { maxD = std::max(minD + 1, atoi(v.c_str())); hardBand = true; }
+          else if (f0 == "beast") theme = dsl::monsterWord(v);
+          else if (f0 == "road") road = true;
+          else if (f0 == "flag") { flag = (uint16_t)dsl::moodFlagWord(v); if (!flag) { why = "role '" + R.name + "': no mood flag '" + v + "'"; return false; } }
+          else if (f0 == "makes") { makes = dsl::goodWord(v); if (makes < 0) { why = "role '" + R.name + "': no good '" + v + "'"; return false; } }
+          else { why = "role '" + R.name + "': the filter '" + w + "' is unknown"; return false; }
+        }
+        if (t == SiteType::COUNT) { why = "role '" + R.name + "': a " + R.a + " is not a place the caster knows"; return false; }
+        if (minD >= maxD) maxD = minD + 1;
+        const bool filtered = t == SiteType::Vignette || road || flag || makes >= 0;
+        if (filtered) {
+          if (!findFiltered(g, hx, hy, t, kinds, minD, maxD, avoid, land, theme, road, flag, makes, f) &&
+              (hardBand || !findFiltered(g, hx, hy, t, kinds, far ? 300 : 12, far ? 1800 : 1200, avoid, land, theme, road, flag, makes, f))) {
+            why = "no " + R.a + " for role '" + R.name + "' that fits its filters";
+            return false;
+          }
+        } else if (!findSite(g, hx, hy, t, minD, maxD, avoid, land, f, theme) &&
+            (hardBand || !findSite(g, hx, hy, t, far ? 300 : 24, far ? 1800 : 1400, avoid, land, f, theme))) {
           why = "no " + R.a + " for role '" + R.name + "' (near:";
           for (const ew::SettlementNode& n : g.world.src->settlementsIn(hx - 900, hy - 900, hx + 900, hy + 900))
             why += " " + std::to_string((int)n.type) + "@" + std::to_string((int)ew::isqrt((uint64_t)((int64_t)(n.x - hx) * (n.x - hx) + (int64_t)(n.y - hy) * (n.y - hy))));
