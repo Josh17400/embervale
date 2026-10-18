@@ -1589,7 +1589,7 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     for (int d = 0; d < 8; d++) S.arrow[d] = pix_->bake(arrowCanvas(d));
   }
   if (S.warIcons.empty()) for (int i = 0; i < WI_COUNT; i++) S.warIcons.push_back(pix_->bake(warIconCanvas(i)));
-  static float lastDraw = -10;
+  float& lastDraw = mapLastDraw_;
   if (t_ - lastDraw > 0.5f && mapSel_ < 0 && S.reqSel == -2) playerG(S.cx, S.cy);   // the map was closed: open it on the hero
   lastDraw = t_;
   // (M4) a conquest moves the borders: the realm's owners are part of what the tiles were painted with
@@ -2872,3 +2872,7 @@ bool View::mapTabKey(Game& g, int key) {
   if (key == SDLK_T && sel) { travelTo(*this, g, mapSel_, true, &View::snap); return true; }
   return false;
 }
+
+// (Witness, View::witnessRelease) the world map back to its start: centre, zoom, painted tiles, plans and pointers (its
+// textures were destroyed with every other one made since Pix::markTextures)
+void witnessResetWorldMap() { S = MapState(); }

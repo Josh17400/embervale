@@ -54,7 +54,7 @@ class Pix {
   void pushBox(int x, int y, int w, int h);
   void popBox();
   void outputSize(int& w, int& h) const;   // the window's drawable size in device pixels
-  bool init(const char* title, int winW, int winH, bool vsync = true);
+  bool init(const char* title, int winW, int winH, bool vsync = true, bool hidden = false);   // hidden: a test harness (Witness)
   void shutdown();
   void begin(Color clear);
   void end();
@@ -87,6 +87,15 @@ class Pix {
 
   void windowToLogical(float wx, float wy, float& lx, float& ly) const;
   bool screenshot(const char* path);
+  // the logical canvas as RGBA8 (Pix::W x Pix::H, top row first) read back from this frame before end(): each logical
+  // pixel's centre sampled from the device pixels (the Witness test harness's screenshot)
+  bool readCanvas(std::vector<uint8_t>& rgba, int& w, int& h);
+  // (Witness) a test harness's reset: markTextures() remembers the textures alive now (the font, before any View);
+  // destroyUnmarked() destroys every texture made since and bumps texEpoch, which a function-static texture checks
+  // to know it is gone. Never called in normal play.
+  void markTextures() { marked_ = owned_; }
+  void destroyUnmarked();
+  static inline int texEpoch = 0;
   SDL_Window* window() const { return win_; }
   SDL_Renderer* renderer() const { return ren_; }
 
@@ -97,6 +106,7 @@ class Pix {
   SDL_Texture* mini_ = nullptr;
   int miniW_ = 0, miniH_ = 0;
   std::vector<SDL_Texture*> owned_;
+  std::vector<SDL_Texture*> marked_;   // (Witness) markTextures()
   float scale_ = 1;
   bool pixelArt_ = false;            // sprites use SDL_SCALEMODE_PIXELART (non-integer scale)
   int baseX_ = 0, baseY_ = 0;        // the canvas viewport origin (logical units)

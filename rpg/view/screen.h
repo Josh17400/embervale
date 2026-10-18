@@ -23,7 +23,10 @@ class Pix;
 
 namespace screen {
 
-void init(Pix& pix, const std::string& settingsPath, bool touch);   // load the settings, size the canvas
+// load the settings, size the canvas. pinned (a Witness run or a WITNESS_RECORD session): always the 480 x 270 design
+// canvas, no insets, scaled to fit the window; the settings file, EMB_SCREEN / EMB_BORDER / EMB_HUD / EMB_SAFE and
+// set() change nothing
+void init(Pix& pix, const std::string& settingsPath, bool touch, bool pinned = false);
 void frame(Pix& pix);                                               // follow window size changes (cheap when unchanged)
 
 enum Mode : int { Fill = 0, PixelPerfect = 1 };

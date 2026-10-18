@@ -47,6 +47,7 @@ int g_pw = -1, g_ph = -1, g_ww = -1, g_wh = -1, g_ins[4] = {-1, -1, -1, -1};
 int g_poll = 0;
 bool g_fakeSafe = false;   // EMB_SAFE (a test hook): these insets instead of the device's
 int g_fakeIns[4] = {0, 0, 0, 0};
+bool g_pinned = false;     // init(..., pinned): the 480 x 270 design canvas whatever the window, settings or env say
 
 constexpr int kDesignW = 480, kDesignH = 270;   // the safe area always holds at least this (every screen fits)
 constexpr int kMaxFillH = 312;                  // FILL takes an integer scale while the safe height stays <= this
@@ -99,6 +100,16 @@ void safeInsets(SDL_Window* win, int ww, int wh, int out[4]) {
 }
 
 void fit(Pix& pix, int pw, int ph, float density, const int insPt[4]) {
+  if (g_pinned) {   // (Witness) the design canvas, centred, at whatever scale fits; no border, no insets
+    const float s = std::max(0.25f, std::min(pw / (float)kDesignW, ph / (float)kDesignH));
+    pix.present(kDesignW, kDesignH, s, (int)std::lround((pw - kDesignW * s) / 2), (int)std::lround((ph - kDesignH * s) / 2));
+    Pix::SL = Pix::ST = Pix::SR = Pix::SB = 0;
+    g_autoInset = 0;
+    char buf[64];
+    std::snprintf(buf, sizeof buf, "%d X %d AT %.2fX (PINNED)", kDesignW, kDesignH, s);
+    g_desc = buf;
+    return;
+  }
   const float bpx = std::floor(g_set.border * 4 * density);   // the BORDER, per side, in device px
   const float aw = std::max(64.0f, pw - 2 * bpx), ah = std::max(36.0f, ph - 2 * bpx);
   // the device safe area inside the image (a border already keeps part of the notch clear)
@@ -149,7 +160,16 @@ void fit(Pix& pix, int pw, int ph, float density, const int insPt[4]) {
 }
 }  // namespace
 
-void init(Pix& pix, const std::string& settingsPath, bool touch) {
+void init(Pix& pix, const std::string& settingsPath, bool touch, bool pinned) {
+  g_pinned = pinned;
+  if (pinned) {   // (Witness) nothing read, nothing written: the defaults, and fit() keeps the design canvas
+    g_path.clear();
+    g_set = Settings();
+    g_fakeSafe = false;
+    g_dirty = true;
+    frame(pix);
+    return;
+  }
   g_path = settingsPath;
   // test hook: EMB_SETTINGS_FILE gives a scripted run a settings file of its own (persistence tests; never the player's)
   if (const char* e = std::getenv("EMB_SETTINGS_FILE")) g_path = e;
@@ -197,6 +217,7 @@ void frame(Pix& pix) {
 Settings get() { return g_set; }
 
 void set(const Settings& s) {
+  if (g_pinned) return;   // (Witness) the canvas stays pinned and nothing is saved
   Settings n = s;
   n.mode = n.mode == PixelPerfect ? PixelPerfect : Fill;
   n.border = std::clamp(n.border, 0, kBorderMax);

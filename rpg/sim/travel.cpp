@@ -285,17 +285,29 @@ void Game::travelStep(float dt) {
     // fade to black, then keep it black
     sleepFade = std::max(sleepFade, std::min(1.0f, travel.t / kTravelFadeOut));
     const bool black = travel.t >= kTravelFadeOut;
-    // no frame loop pumping a thread-less streamer (a headless run with streamThreads off): pump it here
-    if (world.streamer && !world.streamer->threaded() && frameWorkCalls_ == 0) world.streamer->pump(black ? kTravelBlackBudgetMs : 3.0);
-    if (black && (travelReady() || travel.gatherReal > kGatherCapMs)) travelArriveNow();
+    if (syncStreams) {
+      // (Witness) a harness compares runs: no budget and no real-time cap. On the first black step the whole wish list
+      // is made at once, in order, and the arrival follows in the same step (placeWindow makes anything still missing),
+      // so the gather always takes the same number of steps
+      if (black) {
+        if (world.streamer && !world.streamer->threaded()) world.streamer->pump(1e12);
+        travelArriveNow();
+      }
+    } else {
+      // no frame loop pumping a thread-less streamer (a headless run with streamThreads off): pump it here
+      if (world.streamer && !world.streamer->threaded() && frameWorkCalls_ == 0) world.streamer->pump(black ? kTravelBlackBudgetMs : 3.0);
+      if (black && (travelReady() || travel.gatherReal > kGatherCapMs)) travelArriveNow();
+    }
   } else if (travel.phase == TravelPhase::Arrive) {
     sleepFade = std::max(sleepFade, 1.0f);
     // behind the black: the place's people stream in, the next ring starts streaming
     updateSpawning(dt);
     prefetchTick(dt);
     // headless runs end the arrival by themselves; with a view it is the view's call (its own 6 s safety net), and
-    // this is only a backstop for a view that stopped drawing the arrival (a slow phone took longer than 0.5 s)
-    if (travel.t >= (travel.viewed ? 10.0f : kTravelArriveHold)) finishTravel();
+    // this is only a backstop for a view that stopped drawing the arrival (a slow phone took longer than 0.5 s).
+    // (Witness) syncStreams: always kTravelArriveHold of steps (the view paints inline and never ends it), so every
+    // arrival runs updateSpawning / prefetchTick the same number of times
+    if (travel.t >= (travel.viewed && !syncStreams ? 10.0f : kTravelArriveHold)) finishTravel();
   }
   travel.worstStepMs = std::max(travel.worstStepMs, nowMs() - t0);
 }

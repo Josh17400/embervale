@@ -125,6 +125,7 @@ enum class Music : uint8_t {
 
 class Audio {
  public:
+  static constexpr int kSampleRate = 48000;   // mono f32 (render: a test harness mixes into its own buffer)
   bool init();
   void shutdown();
   void play(Sfx s, float pitch = 1.0f, float vol = 1.0f);

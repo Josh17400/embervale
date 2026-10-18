@@ -368,6 +368,9 @@ void Game::prefetchTick(float dt) {
 }
 
 void Game::frameWork(double budgetMs) {
+  // (Witness) syncStreams: nothing is made "whenever a frame had time" (a recording must replay step for step): chunks
+  // come on demand, and a journey's gather makes its wish list itself (travelStep)
+  if (syncStreams) return;
   frameWorkCalls_++;
   {
     const double now = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now().time_since_epoch()).count();

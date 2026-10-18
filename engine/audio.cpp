@@ -21,7 +21,7 @@
 #include <initializer_list>
 
 namespace {
-constexpr float FS = 48000.0f;
+constexpr float FS = (float)Audio::kSampleRate;
 constexpr float DT = 1.0f / FS;
 constexpr float CROSSFADE_SEC = 2.0f;
 

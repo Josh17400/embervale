@@ -35,6 +35,13 @@ struct Particle {
 struct FloatText { Vec2 p; std::string s; Color c; float t = 0; bool speech = false; float life = 0.9f; int actor = -1; Vec2 off; };
 struct Toast { std::string s; Color c; float t = 0; int rarity = -1; };   // (M8b) rarity: an item notice (its name in the ladder colour)
 
+// (Witness, View::witnessRelease) each file's presentation state kept outside View, back to its start
+void witnessResetBeasts();      // render.cpp: the ranked foes' memo (roars, phases)
+void witnessResetWorldMap();    // worldmap.cpp: the MAP tab's centre, zoom and painted tiles
+void witnessResetPaperdoll();   // paperdoll.cpp: the PARTY page's last word
+void witnessResetPartyHud();    // party_hud.cpp: the members' remembered looks
+void witnessResetHud();         // hud.cpp: the menu strip's PARTY flag, the quick bar's extent
+
 class View {
  public:
   bool init(Pix& pix, Audio& audio);
@@ -50,6 +57,19 @@ class View {
   int urbKerbCheck(const Game& g, int r, int& faces);
   Vec2 camera() const { return cam_; }   // M2: top-left of the view in world pixels (scripts tap world things)
   void openMenu(Game& g, int tab) { g.mode = Mode::Menu; menuTab_ = tab; menuSel_ = 0; }
+  int menuTab() const { return menuTab_; }   // the open menu's page (Mode::Menu; the Witness harness reports it)
+  // (Witness) wait (up to 5 s) until the terrain bakers are idle, so the next draw shows every chunk asked for: a
+  // harness screenshot never depends on how fast the worker threads were
+  void settleBakes();
+  // (Witness) a harness drives this view (rpg/main.cpp --witness, or a WITNESS_RECORD session): nothing on screen
+  // waits on a frame budget or a worker (chunks, buildings and pose sheets are made inline when drawn), and a journey's
+  // arrival is the sim's to end (Game::syncStreams: a fixed number of steps), so a run never depends on thread timing
+  bool witness = false;
+  // (Witness) between runs (rpg/view/witness_state.cpp): the bakers are joined, every texture made since
+  // Pix::markTextures() is destroyed (this View's caches, the lanes', the function statics') and the presentation state
+  // kept outside View is reset. The caller then rebuilds the View in place and init()s it again, so no picture or
+  // sound of an earlier run carries into the next.
+  void witnessRelease();
   bool wantsQuit = false;
   bool wantNewGame = false, wantContinue = false, wantSave = false;
   bool touchUI = false;                  // show on-screen controls
@@ -66,6 +86,9 @@ class View {
   Pix* pix_ = nullptr;
   Audio* audio_ = nullptr;
   float t_ = 0;
+  // eased presentation state that used to be function statics (one View, so the same; members so a Witness reset renews
+  // them): the snow's cold dusk light (drawLighting), the ridden horse's stride (update), the map tab's last draw
+  float coldK_ = -1, strideT_ = 0, mapLastDraw_ = -10;
   Vec2 cam_;                 // top-left of the view in world pixels
   float shake_ = 0, titleT_ = 0;
   Vec2 shakeOff_;

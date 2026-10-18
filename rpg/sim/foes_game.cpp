@@ -657,6 +657,7 @@ void Game::foeStep(float dt) {
     bool& coldBoss = foeWarmedTick_;
     auto namedWarm = [&](int32_t x, int32_t y) {
       if (foes::namedReady(src, x, y)) return true;
+      if (syncStreams) { (void)foes::namedInRegion(src, x, y); return true; }
       if (warmOffThread(src, false, x, y)) return false;
       if (coldNamed) return false;
       coldNamed = true;
@@ -665,6 +666,7 @@ void Game::foeStep(float dt) {
     };
     auto bossWarm = [&](int32_t x, int32_t y) {
       if (foes::bossReady(src, x, y)) return true;
+      if (syncStreams) { for (int k = 0; k < 4 && !foes::bossWarmStep(src, x, y); k++) {} return foes::bossReady(src, x, y); }
       if (warmOffThread(src, true, x, y)) return false;
       if (coldBoss) return false;
       coldBoss = true;
@@ -771,6 +773,7 @@ void Game::foeStep(float dt) {
     for (int dy = -2; dy <= 2; dy++)
       for (int dx = -2; dx <= 2; dx++)
         if (!foes::bossReady(src, wkx + dx, wky + dy)) {
+          if (syncStreams) { for (int k = 0; k < 4 && !foes::bossWarmStep(src, wkx + dx, wky + dy); k++) {} continue; }
           if (warmOffThread(src, true, wkx + dx, wky + dy)) return;   // (fixer round 2) the worker makes it
           if (foeWarmedTick_) return;   // (M6 fixer r3) this tick already generated one: the next tick warms this
           (void)foes::bossWarmStep(src, wkx + dx, wky + dy);   // (fixer r4) one slice a tick
@@ -873,7 +876,7 @@ bool Game::foeChoose(const DlgOpt& o) {
   // (M6 fixer r2) only the regions already generated (foeStep warms the 5x5 one per tick): asking never stalls a frame
   for (int dy = -2; dy <= 2; dy++)
     for (int dx = -2; dx <= 2; dx++) {
-      if (!foes::namedReady(src, rx + dx, ry + dy)) continue;
+      if (!syncStreams && !foes::namedReady(src, rx + dx, ry + dy)) continue;
       for (const foes::NamedUnique& u : foes::namedInRegion(src, rx + dx, ry + dy))
         if (!FoeOps::slainNamed(*this, u.id)) found.push_back(u);
     }

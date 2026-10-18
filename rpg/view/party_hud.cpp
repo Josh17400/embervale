@@ -1165,3 +1165,6 @@ void View::drawBanter(Game& g, Vec2 cam) {
     for (size_t k = 0; k < ls.size(); k++) P.textS(cx, ty + k * lh, ls[k], 1, Color(0.97f, 0.92f, 0.80f, a), 1);
   }
 }
+
+// (Witness, View::witnessRelease) the members' remembered looks back to none (member ids repeat from run to run)
+void witnessResetPartyHud() { g_lookMemo.clear(); }

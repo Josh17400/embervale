@@ -1440,6 +1440,8 @@ bool seaDrawSwimmer(View& v, const Game& g, const Actor& a, const Tex& sheet, in
   const Tex* tex = &sheet;
   if (kind == 3) {   // a kraken's tentacle: its own sheet (art::seaTentacleSheet), rising out of the water as it surfaces
     static Tex tent;
+    static int epoch = 0;   // (Witness) Pix::destroyUnmarked destroyed it: bake it again
+    if (epoch != Pix::texEpoch) { epoch = Pix::texEpoch; tent = Tex(); }
     if (!tent.t) tent = P.bake(art::seaTentacleSheet());
     tex = &tent;
     cw = art::SEA_TENTACLE_W;

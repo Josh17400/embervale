@@ -3321,3 +3321,6 @@ std::string View::moodWord(const Game& g, ew::Gid site, uint32_t* color) {
   if ((f & life::MF_CONTENT) || mood >= 60) return out(mood >= 78 ? "THRIVING" : "CONTENT", rgba(150, 214, 120));
   return out(mood < 35 ? "MISERABLE" : "UNEASY", rgba(214, 190, 130));
 }
+
+// (Witness, View::witnessRelease) the menu strip's PARTY flag and the quick bar's last extent back to their start
+void witnessResetHud() { g_partyTab = false; g_quickBarR = 0; }

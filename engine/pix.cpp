@@ -1,6 +1,8 @@
 #include "engine/pix.h"
 #include <SDL3/SDL.h>
+#include <algorithm>
 #include <cmath>
+#include <cstring>
 #include "engine/font5x7.h"
 
 using namespace font5x7;
@@ -9,8 +11,9 @@ namespace {
 constexpr int kCols = 16, kRows = 6;
 }  // namespace
 
-bool Pix::init(const char* title, int winW, int winH, bool vsync) {
+bool Pix::init(const char* title, int winW, int winH, bool vsync, bool hidden) {
   SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY;
+  if (hidden) flags |= SDL_WINDOW_HIDDEN;
 #ifdef __EMSCRIPTEN__
   flags |= SDL_WINDOW_FILL_DOCUMENT;   // the canvas takes the whole page and follows the browser size
 #endif
@@ -209,7 +212,19 @@ void Pix::text(float x, float y, const std::string& s, int scale, Color c, int a
   }
 }
 
+void Pix::destroyUnmarked() {
+  std::vector<SDL_Texture*> keep;
+  for (SDL_Texture* t : owned_) {
+    if (std::find(marked_.begin(), marked_.end(), t) != marked_.end()) keep.push_back(t);
+    else SDL_DestroyTexture(t);
+  }
+  owned_.swap(keep);
+  texEpoch++;
+}
+
 void Pix::miniInit(int w, int h) {
+  if (mini_) SDL_DestroyTexture(mini_);   // (a second View::init: a Witness reset)
+  mini_ = nullptr;
   miniW_ = w; miniH_ = h;
   mini_ = SDL_CreateTexture(ren_, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, w, h);
   if (mini_) { SDL_SetTextureScaleMode(mini_, pixelArt_ ? SDL_SCALEMODE_PIXELART : SDL_SCALEMODE_NEAREST); SDL_SetTextureBlendMode(mini_, SDL_BLENDMODE_BLEND); }
@@ -242,4 +257,34 @@ bool Pix::screenshot(const char* path) {
   bool ok = SDL_SavePNG(s, path);
   SDL_DestroySurface(s);
   return ok;
+}
+
+bool Pix::readCanvas(std::vector<uint8_t>& rgba, int& w, int& h) {
+  SDL_Rect vp{};
+  float sx = 1, sy = 1;
+  SDL_GetRenderViewport(ren_, &vp);
+  SDL_GetRenderScale(ren_, &sx, &sy);
+  SDL_SetRenderScale(ren_, 1, 1);
+  SDL_SetRenderViewport(ren_, nullptr);
+  SDL_Surface* s = SDL_RenderReadPixels(ren_, nullptr);
+  SDL_SetRenderScale(ren_, sx, sy);
+  SDL_SetRenderViewport(ren_, &vp);
+  if (!s) return false;
+  SDL_Surface* c = SDL_ConvertSurface(s, SDL_PIXELFORMAT_RGBA32);
+  SDL_DestroySurface(s);
+  if (!c) return false;
+  w = W; h = H;
+  rgba.assign((size_t)w * h * 4, 0);
+  const uint8_t* src = (const uint8_t*)c->pixels;
+  for (int y = 0; y < h; y++) {
+    const int dy = (int)((baseY_ + y + 0.5f) * scale_);
+    if (dy < 0 || dy >= c->h) continue;
+    for (int x = 0; x < w; x++) {
+      const int dx = (int)((baseX_ + x + 0.5f) * scale_);
+      if (dx < 0 || dx >= c->w) continue;
+      std::memcpy(&rgba[((size_t)y * w + x) * 4], src + (size_t)dy * c->pitch + (size_t)dx * 4, 4);
+    }
+  }
+  SDL_DestroySurface(c);
+  return true;
 }

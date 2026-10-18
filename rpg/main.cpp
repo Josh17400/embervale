@@ -8,6 +8,13 @@
 //   --perf                                          once a second: fps, frame work ms (avg / worst), NPCs awake and
 //                                                   asleep, hostiles, active sites, chunks/s, worst shift ms, regions,
 //                                                   settlements built; at exit a summary (worst frame at a window shift)
+//   embervale.exe --witness                         (desktop, EMBERVALE_WITNESS) driven by the Witness test harness over a
+//                                                   local socket (WITNESS_ADDR, set by `witness test|doctor|shot|...` from
+//                                                   witness.json): headless, deterministic, never saves; see "Witness" below
+//   WITNESS_RECORD=file.jsonl embervale.exe         normal play records a replay (one line per sim step, F8 marks a
+//                                                   moment) that `witness replay` re-simulates exactly (the session runs
+//                                                   as witness mode does: no stream worker, inline bakes, the 480 x 270
+//                                                   canvas); at exit file.jsonl.state.json holds the end state to check
 //
 // Script format: one command per line, "<time> <command> [args]". Times are seconds of script time; "+0.5" means
 // 0.5 s after the previous line. '#' starts a comment. Script time stops while a walkto runs, so later lines keep
@@ -97,10 +104,20 @@
 #include "rpg/view/view.h"
 #include "rpg/sim/stream.h"
 #include "rpg/world/source.h"
+#ifdef EMB_WITNESS
+#include <map>
+#include <new>
+#include "engine/witness.h"
+#include "rpg/view/witness_state.h"
+#endif
 
 namespace {
 std::string g_savePath;
-void newWorld(Game& g, uint64_t s) { g.newEndlessGame(s); }
+void newWorld(Game& g, uint64_t s) {
+  g.newEndlessGame(s);
+  if (!g.streamThreads) g.world.streamer.reset();   // (Witness) no prefetch worker: every chunk is made on demand, in order
+}
+int g_savesWritten = 0;   // saves written this session (the Witness snapshot reports it: a harness run never writes one)
 
 bool readSave(std::vector<uint8_t>& out) {
   if (g_savePath.empty()) return false;
@@ -129,6 +146,7 @@ void writeSave(const Game& g) {
     std::fclose(f);
     std::remove(g_savePath.c_str());
     std::rename(tmp.c_str(), g_savePath.c_str());
+    g_savesWritten++;
   }
 #ifdef __EMSCRIPTEN__
   // persist the in-memory file system to IndexedDB (mounted at /save by the web shell)
@@ -210,6 +228,9 @@ SDL_Scancode keyFromName(std::string s) {
   else if (u == "SHIFT") s = "Left Shift";
   else if (u == "LSHIFT") s = "Left Shift";
   else if (u == "RSHIFT") s = "Right Shift";
+  else if (u == "CTRL") s = "Left Ctrl";
+  else if (u == "ALT") s = "Left Alt";
+  else if (u == "SUPER") s = "Left GUI";
   return SDL_GetScancodeFromName(s.c_str());
 }
 
@@ -308,7 +329,21 @@ int main(int argc, char** argv) {
     }
   }
   const bool scripted = scriptPath != nullptr;
-  const bool noSave = play || shotPath || seed != 0 || scripted;   // test runs never touch the player's save
+#ifdef EMB_WITNESS
+  const bool witness = witness_active(argc, argv);   // a Witness harness drives this run (see "Witness" below)
+#else
+  const bool witness = false;
+#endif
+#ifdef EMB_WITNESS
+  // WITNESS_RECORD=<file.jsonl> (normal play, not a harness run): the session must replay step for step, so it runs
+  // as witness mode does: no stream worker (Game::streamThreads off, syncStreams on), the view's inline bakes and the
+  // sim-ended arrival (View::witness), the 480 x 270 canvas, and one view update per sim step (see the frame loop)
+  const char* recordEnv = std::getenv("WITNESS_RECORD");
+  const bool recordSync = !witness && recordEnv && *recordEnv;
+#else
+  const bool recordSync = false;
+#endif
+  const bool noSave = play || shotPath || seed != 0 || scripted || witness;   // test runs never touch the player's save
 
   SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
   SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
@@ -319,25 +354,32 @@ int main(int argc, char** argv) {
 #else
   if (char* pref = SDL_GetPrefPath("Josh17400", "Embervale")) { g_savePath = std::string(pref) + "save.bin"; SDL_free(pref); }
 #endif
-  if (scripted) g_savePath.clear();   // belt and braces: a script can never read or write the real save
+  if (scripted || witness) g_savePath.clear();   // belt and braces: a script or harness never reads or writes the real save
   // test hook: read the title's save from another file (e.g. an old-format save, to see the title's notice). Test runs
   // (--shot, --play, --seed) still never write it.
   const char* saveOverride = std::getenv("EMB_SAVE_PATH");
-  if (saveOverride && *saveOverride && !scripted) g_savePath = saveOverride;
+  if (saveOverride && *saveOverride && !scripted && !witness) g_savePath = saveOverride;
 
   Pix pix;
-  if (!pix.init("EMBERVALE", winW, winH, vsync)) return 1;
+  // (Witness) a hidden 960x540 window (the 480x270 canvas at 2x), no vsync, no audio device (the mix is rendered per step)
+  if (!(witness ? pix.init("EMBERVALE", 960, 540, false, true) : pix.init("EMBERVALE", winW, winH, vsync))) return 1;
+  if (witness) pix.markTextures();   // (a reset destroys every texture made after this: Pix::destroyUnmarked)
   static Audio audio;   // ~175 KB: keep it off the stack
-  audio.init();
+  if (!witness) audio.init();
 
-  uint64_t startSeed = seed ? seed : (uint64_t)SDL_GetTicks() * 2654435761ull + 12345;
+  uint64_t startSeed = seed ? seed : witness ? 1 : (uint64_t)SDL_GetTicks() * 2654435761ull + 12345;
   Game game(startSeed);
+  if (witness || recordSync) { game.streamThreads = false; game.syncStreams = true; }   // runs never depend on worker timing
   newWorld(game, startSeed);   // title screen drifts over this world
   game.mode = Mode::Title;
   View view;
   view.init(pix, audio);
+  view.witness = witness || recordSync;
 #if defined(SDL_PLATFORM_IOS) || defined(SDL_PLATFORM_ANDROID)
   view.touchUI = true;
+#endif
+#ifdef EMB_WITNESS
+  const bool touchUIStart = view.touchUI;   // (a Witness reset puts it back: a test's finger turns the controls on)
 #endif
   {   // M1: screen fit and the player's settings (a small file of its own next to the save; scripts use defaults)
     std::string settingsPath;
@@ -346,8 +388,10 @@ int main(int argc, char** argv) {
 #else
     if (char* pref = SDL_GetPrefPath("Josh17400", "Embervale")) { settingsPath = std::string(pref) + "settings.bin"; SDL_free(pref); }
 #endif
-    if (scripted) settingsPath.clear();
-    screen::init(pix, settingsPath, view.touchUI);
+    if (scripted || witness) settingsPath.clear();
+    // (Witness, WITNESS_RECORD) the canvas pinned at 480 x 270: EMB_SCREEN / EMB_BORDER / EMB_HUD / EMB_SAFE and the
+    // settings file never change what a run sees (the canvas size feeds the NPC sleep box: Game::sleepHalfW)
+    screen::init(pix, settingsPath, view.touchUI, witness || recordSync);
   }
 
   bool hasSave = false;
@@ -365,12 +409,31 @@ int main(int argc, char** argv) {
   }
   if (noSave) hasSave = false;   // (the override above only shows the title's notice; a test run never continues it)
 
+#ifdef EMB_WITNESS
+  int recordIds = 1;   // the actor id counter when the world in play began (a WITNESS_RECORD header carries it)
+#endif
   auto startNew = [&](uint64_t s) {
+#ifdef EMB_WITNESS
+    recordIds = game.idCounter();
+#endif
     newWorld(game, s);
     game.mode = Mode::Play;
     view.snap(game);
     audio.play(Sfx::QuestStart);
   };
+#ifdef EMB_WITNESS
+  // WITNESS_RECORD=<file.jsonl> in normal play: a replay `witness replay` re-simulates, one line per sim step. It begins
+  // when play does (--play, or the creator handing over); the header holds the seed the world used and the params the
+  // harness's reset needs to rebuild that start (scene, the creator's background)
+  auto recordBegin = [&](const std::string& params) {
+    if (!witness) witness_record_begin("Embervale", 60, (long long)game.seed, params.c_str());
+  };
+  auto jsonStr = [](const std::string& v) {
+    std::string r = "\"";
+    for (char ch : v) { if (ch == '"' || ch == '\\') r += '\\'; if ((unsigned char)ch >= 0x20) r += ch; }
+    return r + "\"";
+  };
+#endif
   // test helpers shared by the command-line flags and the script commands
   auto doGoto = [&](const std::string& w, bool enterIt) {
     SiteType want = SiteType::City;
@@ -470,6 +533,66 @@ int main(int argc, char** argv) {
       if (name == names[m]) game.debugSpawn((art::Monster)m, n > 0 ? n : (m == (int)art::Monster::Dragon ? 1 : 3), 60);
   };
 
+#ifdef EMB_WITNESS
+  // (Witness) how a run starts: a harness reset's params, or a recorded --play session's flags (its replay header).
+  // Both go through applyStart, so a replay begins exactly where the recording did: a brand-new Game (no timer, id
+  // counter or cache of an earlier world), then the steps --play takes, in its order
+  struct StartSpec {
+    bool god = false, enter = false, creator = false, atSet = false;
+    std::string scene, fight, name;
+    float hour = -1;
+    int32_t atX = 0, atY = 0;
+    int talk = -1, menu = -1, count = 0, background = 0, ids = 0;
+  };
+  WitnessExtra wStart;   // where the start put the player (state.player.start / moved)
+  auto applyStart = [&](uint64_t s, const StartSpec& sp) {
+    game.~Game();
+    new (&game) Game(s);
+    game.streamThreads = false;
+    game.syncStreams = true;
+    if (sp.ids > 0) game.setIdCounter(sp.ids);
+    startNew(s);
+    if (sp.creator) {   // a recorded new game: the creator's choices that change play
+      game.app.name = sp.name;
+      game.background = (Background)sp.background;
+      game.finishCreator();
+    }
+    game.godMode = sp.god;
+    if (sp.hour >= 0) game.hour = sp.hour;
+    if (sp.atSet) { game.teleportGlobal(sp.atX, sp.atY); view.snap(game); }
+    if (!sp.scene.empty()) doGoto(sp.scene, sp.enter);
+    if (sp.hour >= 0) game.hour = sp.hour;   // (a fast travel passes the hours of the journey: the hour asked for wins)
+    if (sp.talk >= 0) doTalk(sp.talk);
+    view.snap(game);
+    if (sp.menu >= 0) view.openMenu(game, sp.menu);
+    if (!sp.fight.empty()) doFight(sp.fight, sp.count);
+    wStart = WitnessExtra();
+    wStart.hasStart = !game.inside;
+    wStart.startGX = game.world.ox + (int)std::floor(game.pl().p.x / TILE);
+    wStart.startGY = game.world.oy + (int)std::floor((game.pl().p.y - 2) / TILE);
+  };
+  auto specJson = [&](const StartSpec& sp) {
+    std::string p = "{\"god\":" + std::string(sp.god ? "true" : "false");
+    if (!sp.scene.empty()) p += ",\"scene\":" + jsonStr(sp.scene) + ",\"enter\":" + (sp.enter ? "true" : "false");
+    if (sp.hour >= 0) { char b[32]; std::snprintf(b, sizeof b, "%.9g", sp.hour); p += ",\"hour\":" + std::string(b); }   // (exact as a float)
+    if (sp.atSet) p += ",\"at\":[" + std::to_string(sp.atX) + "," + std::to_string(sp.atY) + "]";
+    if (sp.talk >= 0) p += ",\"talk\":" + std::to_string(sp.talk);
+    if (sp.menu >= 0) p += ",\"menu\":" + std::to_string(sp.menu);
+    if (!sp.fight.empty()) p += ",\"fight\":" + jsonStr(sp.fight) + ",\"count\":" + std::to_string(sp.count);
+    if (sp.creator) p += ",\"creator\":true,\"background\":" + std::to_string(sp.background) + ",\"name\":" + jsonStr(sp.name);
+    return p + ",\"ids\":" + std::to_string(sp.ids > 0 ? sp.ids : 1) + "}";
+  };
+  if (play && recordSync) {
+    StartSpec sp;
+    sp.god = god; sp.enter = enter; sp.hour = hourSet; sp.atSet = atSet; sp.atX = atX; sp.atY = atY;
+    sp.talk = talkStep; sp.menu = menuTab;
+    if (gotoWhat) sp.scene = gotoWhat;
+    if (fight) sp.fight = fight;
+    applyStart(startSeed, sp);
+    sp.ids = recordIds;
+    recordBegin(specJson(sp));
+  } else
+#endif
   if (play) {
     startNew(startSeed);
     game.godMode = god;
@@ -494,6 +617,10 @@ int main(int argc, char** argv) {
   size_t scriptNext = 0;
   float scriptT = 0, scriptEndT = -1;
   int scriptFails = 0;
+  std::string lastFail;        // the last failure's message (a Witness call reports it)
+#ifdef EMB_WITNESS
+  bool witnessInCall = false;  // failing inside a call: the call's error says it; later failures are logged
+#endif
   std::vector<std::string> heard;   // every notice (Game::say) shown since the script began, for "expect heard"
   std::string pendingShot;
   struct Held { SDL_Scancode sc; float until; };
@@ -566,6 +693,10 @@ int main(int argc, char** argv) {
   auto fail = [&](int line, const std::string& msg) {
     std::printf("script FAIL (line %d): %s\n", line, msg.c_str());
     scriptFails++;
+    lastFail = msg;
+#ifdef EMB_WITNESS
+    if (witness && !witnessInCall) witness_log(WITNESS_ERROR, "script: %s", msg.c_str());
+#endif
   };
   auto plTile = [&](int& x, int& y) { x = (int)std::floor(game.pl().p.x / TILE); y = (int)std::floor((game.pl().p.y - 2) / TILE); };
   auto findActorIdx = [&](int id) { for (size_t k = 1; k < game.actors.size(); k++) if (game.actors[k].id == id) return (int)k; return -1; };
@@ -1170,7 +1301,7 @@ int main(int argc, char** argv) {
       runCmd(script[scriptNext++]);
       if (walk.on || extRun.e) return;
     }
-    if (scriptNext >= script.size() && held.empty() && lifts.empty()) {
+    if (!witness && scriptNext >= script.size() && held.empty() && lifts.empty()) {
       if (scriptEndT < 0) scriptEndT = scriptT;
       if (scriptT - scriptEndT > 2.0f) { std::printf("script: end of script\n"); running = false; }
     }
@@ -1203,6 +1334,16 @@ int main(int argc, char** argv) {
                 ss.prefetched, ss.syncChunks, ss.syncInShifts, ss.recycled);
   };
 
+#ifdef EMB_WITNESS
+  // (Witness) one sim step as a harness takes it, and as a WITNESS_RECORD session takes each of its steps (so a replay
+  // re-runs the very same calls): the view's input, the sim (in play), the view's update at the step's dt
+  auto simStep = [&](float dt) {
+    Input in = view.input(game);
+    if (game.mode == Mode::Play) game.update(dt, in);
+    else if (game.mode == Mode::Title) game.time += dt;
+    view.update(game, dt);
+  };
+#endif
   // one frame of the game; desktop loops on it, the browser calls it once per animation frame
   auto frame = [&]() {
     const Uint64 work0 = SDL_GetPerformanceCounter();
@@ -1220,6 +1361,27 @@ int main(int argc, char** argv) {
     }
     SDL_Event e;
     while (SDL_PollEvent(&e)) {
+#ifdef EMB_WITNESS
+      if (witness_recording()) {   // in Witness names and logical pixels (F8 marks the moment)
+        if ((e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) && !e.key.repeat) {
+          char k[32];
+          witness_record_key(witness_key_normalize(SDL_GetScancodeName(e.key.scancode), k, sizeof k), e.type == SDL_EVENT_KEY_DOWN);
+        } else if (e.type == SDL_EVENT_MOUSE_BUTTON_DOWN || e.type == SDL_EVENT_MOUSE_BUTTON_UP || e.type == SDL_EVENT_MOUSE_MOTION) {
+          const bool motion = e.type == SDL_EVENT_MOUSE_MOTION;
+          float lx = 0, ly = 0;
+          pix.windowToLogical(motion ? e.motion.x : e.button.x, motion ? e.motion.y : e.button.y, lx, ly);
+          const int b = motion ? -1 : e.button.button == SDL_BUTTON_LEFT ? 0 : e.button.button == SDL_BUTTON_MIDDLE ? 1 : 2;
+          witness_record_mouse(lx, ly, b, e.type == SDL_EVENT_MOUSE_BUTTON_DOWN);
+        } else if (e.type == SDL_EVENT_MOUSE_WHEEL) {
+          witness_event w{};
+          w.type = WITNESS_EV_WHEEL; w.down = -1; w.button = -1;
+          w.dx = -e.wheel.x * 100.0; w.dy = -e.wheel.y * 100.0;   // the protocol's sign: + is down / zoom out
+          witness_record_event(&w);
+        }
+      }
+      // a key's auto-repeat is not recorded (a replay presses each key once), so it does not reach the view either
+      if (recordSync && (e.type == SDL_EVENT_KEY_DOWN || e.type == SDL_EVENT_KEY_UP) && e.key.repeat) continue;
+#endif
       switch (e.type) {
         case SDL_EVENT_QUIT: running = false; break;
         case SDL_EVENT_WILL_ENTER_BACKGROUND: if (!noSave) writeSave(game); break;
@@ -1268,6 +1430,18 @@ int main(int argc, char** argv) {
         if (!noSave) writeSave(game);
         hasSave = !noSave;
         view.snap(game);
+#ifdef EMB_WITNESS
+        {
+          StartSpec sp;
+          sp.creator = true; sp.background = (int)game.background; sp.name = game.app.name;
+          sp.ids = recordIds;   // the title world handed out ids before this one began: the replay's fresh Game starts there
+          recordBegin(specJson(sp));
+          wStart = WitnessExtra();
+          wStart.hasStart = !game.inside;
+          wStart.startGX = game.world.ox + (int)std::floor(game.pl().p.x / TILE);
+          wStart.startGY = game.world.oy + (int)std::floor((game.pl().p.y - 2) / TILE);
+        }
+#endif
       }
       prevMode = game.mode;
     }
@@ -1308,6 +1482,40 @@ int main(int argc, char** argv) {
       fpsT = 0; fpsN = 0;
     }
 
+    // EMB_TIMING: the 12 frames after a journey's fade lifts, split into sim steps, view update and draw
+    static int afterTravel = 0;
+    static bool wasTravelling = false;
+    auto timingMark = [&]() {
+      if (wasTravelling && !game.travelling()) afterTravel = 12;
+      wasTravelling = game.travelling();
+      return SDL_GetPerformanceCounter();
+    };
+    Uint64 simT0 = 0, simT1 = 0;
+#ifdef EMB_WITNESS
+    if (recordSync) {
+      simT0 = timingMark();
+      // WITNESS_RECORD: every recorded step is the replay's step (simStep: input, sim, view update), so a replay
+      // re-runs the session call for call; menus and dialogue step once a frame at its dt, a lost-focus pause not at all
+      if (game.mode == Mode::Play) {
+        acc += frameDt;
+        int steps = 0;
+        while (acc >= SIM_DT && steps < 8) {
+          simStep(SIM_DT);
+          witness_record_frame(SIM_DT);
+          acc -= SIM_DT; steps++;
+        }
+        if (steps == 8) acc = 0;
+        saveT += (float)frameDt;
+        if (!noSave && saveT > 20.0f) { saveT = 0; writeSave(game); }
+      } else {
+        acc = 0;
+        if (game.mode == Mode::Title) { game.time += (float)frameDt; view.update(game, (float)frameDt); }
+        else if (game.mode != Mode::Paused) { simStep((float)frameDt); witness_record_frame(frameDt); }
+      }
+      simT1 = SDL_GetPerformanceCounter();
+    } else
+#endif
+    {
     Input in = view.input(game);
     // one-shot presses must survive render frames in which no sim step runs (on 120/144 Hz displays, about half
     // of all frames): the view clears them every frame, so carry them until a step actually consumes them
@@ -1320,12 +1528,7 @@ int main(int argc, char** argv) {
     in.sneak |= latched.sneak;
     if (!in.castHold) in.castDual |= latched.castDual && !latched.castHold;
     latched = Input();
-    // EMB_TIMING: the 12 frames after a journey's fade lifts, split into sim steps, view update and draw
-    static int afterTravel = 0;
-    static bool wasTravelling = false;
-    if (wasTravelling && !game.travelling()) afterTravel = 12;
-    wasTravelling = game.travelling();
-    const Uint64 simT0 = SDL_GetPerformanceCounter();
+    simT0 = timingMark();
     if (game.mode == Mode::Play) {
       acc += frameDt;
       int steps = 0;
@@ -1343,8 +1546,9 @@ int main(int argc, char** argv) {
       acc = 0;
       if (game.mode == Mode::Title) game.time += (float)frameDt;
     }
-    const Uint64 simT1 = SDL_GetPerformanceCounter();
+    simT1 = SDL_GetPerformanceCounter();
     view.update(game, (float)frameDt);
+    }
     const Uint64 updT1 = SDL_GetPerformanceCounter();
     view.draw(game, hasSave);
     {
@@ -1386,14 +1590,326 @@ int main(int argc, char** argv) {
   static std::function<void()>* loopFn = new std::function<void()>(frame);
   emscripten_set_main_loop([] { (*loopFn)(); }, 0, 1);
 #else
+#ifdef EMB_WITNESS
+  if (witness) {
+    // ---- Witness (engine/witness.h; github.com/Josh17400/witness): a harness launched this run with WITNESS_ADDR set
+    // (or --witness) and drives it over a local socket. The game steps only when told to, at the dt it is given (no
+    // clock, no vsync); input goes through the script driver's paths (pushed SDL events, View::scriptHold); the mixer is
+    // rendered into the capture buffer each step (no audio device); a frame is drawn only for a screenshot (the window
+    // is hidden). `call` runs any script command, built in (runCmd) or registered (rpg/view/script_api.h); one that takes
+    // time (walkto, talkto, a registered command that waits) carries on over the next steps (state.script.busy) and a
+    // later failure is logged as an error (it fails the test).
+    std::vector<SDL_Scancode> wHeld;   // keys the harness holds down
+    std::vector<float> wMix;
+    std::vector<uint8_t> wShot;
+    auto drawFrame = [&]() { screen::frame(pix); view.settleBakes(); view.draw(game, false); };
+    auto pushMouse = [&](SDL_EventType type, float lx, float ly, int button) {
+      float wx, wy;
+      toWindow(lx, ly, wx, wy);
+      SDL_Event ev;
+      SDL_zero(ev);
+      ev.type = type;
+      if (type == SDL_EVENT_MOUSE_MOTION) {
+        ev.motion.windowID = SDL_GetWindowID(pix.window());
+        ev.motion.x = wx; ev.motion.y = wy;
+      } else {
+        ev.button.windowID = SDL_GetWindowID(pix.window());
+        ev.button.button = (Uint8)(button == 1 ? SDL_BUTTON_MIDDLE : button == 2 ? SDL_BUTTON_RIGHT : SDL_BUTTON_LEFT);
+        ev.button.down = type == SDL_EVENT_MOUSE_BUTTON_DOWN;
+        ev.button.clicks = 1;
+        ev.button.x = wx; ev.button.y = wy;
+      }
+      SDL_PushEvent(&ev);
+    };
+    double mouseX = 0, mouseY = 0;
+    std::vector<int> wButtons;   // mouse buttons the harness holds down (0 left, 1 middle, 2 right)
+    // the queued events, through the view (the hidden window's own focus / quit events are never a pause or a quit)
+    auto drainEvents = [&]() {
+      SDL_Event ev;
+      while (SDL_PollEvent(&ev)) {
+        if (ev.type == SDL_EVENT_QUIT || ev.type == SDL_EVENT_WINDOW_FOCUS_LOST || ev.type == SDL_EVENT_WINDOW_HIDDEN ||
+            ev.type == SDL_EVENT_WILL_ENTER_BACKGROUND) continue;
+        view.event(ev, game);
+      }
+    };
+    // `statematch` / `shotmatch` (a test's determinism checks): the first run of a label in this process is kept, every
+    // later run of it must be identical (never reset: tests compare across resets)
+    std::map<std::string, std::string> wMatch;
+    uint64_t wAudioHash = 1469598103934665603ull;   // (audiomatch) FNV-1a of every sample mixed since the reset
+    long long wAudioN = 0;
+
+    witness::Handlers h;
+    h.reset = [&](long long s, const char* scene, witness::Value params) {
+      // nothing of the last run may leak into this one. Whatever it held is let go first, through the view as a
+      // player's release would be: keys (held by the harness or a script), fingers still down (a tap's or a swipe's
+      // pending lift), mouse buttons. Then the walk, a waiting command and every queued event go
+      for (SDL_Scancode sc : wHeld) { view.scriptHold(sc, false); pushKey(sc, false); }
+      for (const Held& hd : held) { view.scriptHold(hd.sc, false); pushKey(hd.sc, false); }
+      for (const Lift& l : lifts) pushFinger(SDL_EVENT_FINGER_UP, l.id, l.x, l.y);
+      for (int b : wButtons) pushMouse(SDL_EVENT_MOUSE_BUTTON_UP, (float)mouseX, (float)mouseY, b);
+      setMove(false, false, false, false);
+      drainEvents();
+      wHeld.clear(); held.clear(); lifts.clear(); drags.clear(); wButtons.clear();
+      walk = Walk(); extRun = ExtRun();
+      heard.clear(); pendingShot.clear(); lastFail.clear();
+      scriptFails = 0; scriptT = 0;
+      SDL_FlushEvents(SDL_EVENT_FIRST, SDL_EVENT_LAST);
+      // a freshly made view and mixer: no clock (t_, the particles' seed), effect, notice, banner, fade, menu cursor,
+      // texture cache, voice or piece of music of the last run carries over (View::witnessRelease)
+      view.witnessRelease();
+      view.~View();
+      audio.~Audio();
+      new (&audio) Audio();
+      new (&view) View();
+      view.init(pix, audio);
+      view.witness = true;
+      view.touchUI = touchUIStart;
+      mouseX = mouseY = 0;
+      wAudioHash = 1469598103934665603ull;
+      wAudioN = 0;
+      startSeed = (uint64_t)s;
+      // then a brand-new Game and the start the params ask for (applyStart: the same steps a recorded --play took)
+      StartSpec sp;
+      sp.god = params["god"].boolean();
+      sp.scene = scene && *scene ? scene : params["scene"].str("");
+      sp.enter = params["enter"].boolean();
+      if (params["hour"].exists()) sp.hour = (float)params["hour"].num();
+      if (params["at"].size() == 2) { sp.atSet = true; sp.atX = (int32_t)params["at"][0].integer(); sp.atY = (int32_t)params["at"][1].integer(); }
+      sp.talk = (int)params["talk"].integer(-1);
+      sp.menu = (int)params["menu"].integer(-1);
+      sp.fight = params["fight"].str("");
+      sp.count = (int)params["count"].integer(0);
+      sp.creator = params["creator"].boolean();
+      sp.background = (int)params["background"].integer(0);
+      sp.name = params["name"].str("");
+      sp.ids = (int)params["ids"].integer(0);   // a recording's id counter at its start (absent: a fresh Game's)
+      applyStart(startSeed, sp);
+    };
+    h.input = [&](const witness_event& e) {
+      if (e.type == WITNESS_EV_KEY && e.down >= 0) {
+        const SDL_Scancode sc = keyFromName(e.name);
+        if (sc == SDL_SCANCODE_UNKNOWN) { witness_log(WITNESS_WARN, "witness: unknown key '%s'", e.name); return; }
+        const bool down = e.down == 1;
+        pushKey(sc, down);          // one-shot presses (View::event)
+        view.scriptHold(sc, down);  // and the held state (View::input)
+        wHeld.erase(std::remove(wHeld.begin(), wHeld.end(), sc), wHeld.end());
+        if (down) wHeld.push_back(sc);
+      } else if (e.type == WITNESS_EV_MOUSE) {
+        if (e.has_pos) { mouseX = e.x; mouseY = e.y; pushMouse(SDL_EVENT_MOUSE_MOTION, (float)mouseX, (float)mouseY, 0); }
+        if (e.down >= 0) {
+          const int b = e.button == 1 || e.button == 2 ? e.button : 0;
+          pushMouse(e.down ? SDL_EVENT_MOUSE_BUTTON_DOWN : SDL_EVENT_MOUSE_BUTTON_UP, (float)mouseX, (float)mouseY, b);
+          wButtons.erase(std::remove(wButtons.begin(), wButtons.end(), b), wButtons.end());
+          if (e.down) wButtons.push_back(b);
+        }
+      } else if (e.type == WITNESS_EV_WHEEL) {
+        SDL_Event ev;
+        SDL_zero(ev);
+        ev.type = SDL_EVENT_MOUSE_WHEEL;
+        ev.wheel.windowID = SDL_GetWindowID(pix.window());
+        ev.wheel.x = (float)(-e.dx / 100.0); ev.wheel.y = (float)(-e.dy / 100.0);   // the protocol's + is down
+        SDL_PushEvent(&ev);
+      } else {
+        witness_log(WITNESS_WARN, "witness: input type %d is not used by Embervale (keys, mouse and wheel are)", (int)e.type);
+      }
+    };
+    h.step = [&](double dt) {
+      const float fdt = (float)dt;
+      scriptStep(fdt);   // held keys, a walk or a registered command under way (script time)
+      drainEvents();
+      view.wantSave = false;
+      if (view.wantsQuit) { view.wantsQuit = false; game.mode = Mode::Title; }
+      if (view.wantNewGame || view.wantContinue) { view.wantNewGame = view.wantContinue = false; startNew(startSeed); }
+      game.sleepHalfW = std::max(22.0f, Pix::W * 0.5f / TILE + 4.0f);   // as frame(): the NPC LOD follows the canvas
+      game.sleepHalfH = std::max(13.0f, Pix::H * 0.5f / TILE + 4.0f);
+      simStep(fdt);
+      const int n = witness_audio_frames_for_step(dt);   // exactly the samples this step covers
+      wMix.resize((size_t)n);
+      for (int k = 0; k < n; k += 1024) audio.render(wMix.data() + k, std::min(1024, n - k));
+      witness_audio_write(wMix.data(), n);
+      for (int k = 0; k < n; k++) {
+        uint32_t u;
+        std::memcpy(&u, &wMix[(size_t)k], 4);
+        for (int b = 0; b < 4; b++) { wAudioHash ^= (u >> (8 * b)) & 255u; wAudioHash *= 1099511628211ull; }
+      }
+      wAudioN += n;
+    };
+    h.snapshot = [&](witness::Json& j) {
+      WitnessExtra x = wStart;
+      x.scriptBusy = walk.on || extRun.e != nullptr;
+      x.scriptFails = scriptFails;
+      x.lastFail = lastFail;
+      x.savesWritten = g_savesWritten;
+      x.saveEnabled = !noSave;
+      witnessState(j, game, view, x);
+    };
+    h.screenshot = [&](witness_image& img) -> bool {
+      drawFrame();
+      int w = 0, hh = 0;
+      const bool ok = pix.readCanvas(wShot, w, hh);
+      pix.end();
+      if (!ok) { witness::fail(std::string("screenshot: ") + SDL_GetError()); return false; }
+      img.rgba = wShot.data(); img.width = w; img.height = hh;
+      return true;
+    };
+    h.call = [&](const char* name, witness::Value args, witness::Json& result) {
+      ScriptCmd c;
+      c.a.push_back(name);
+      for (auto& ch : c.a[0]) ch = (char)std::tolower((unsigned char)ch);
+      for (size_t i = 0; i < args.size(); i++) {
+        const witness::Value v = args.at(i);
+        if (v.type() == WITNESS_STRING) { c.a.push_back(v.str()); continue; }
+        char b[40];
+        const double d = v.num();
+        if (d == std::floor(d) && std::fabs(d) < 1e15) std::snprintf(b, sizeof b, "%lld", (long long)d);
+        else std::snprintf(b, sizeof b, "%g", d);
+        c.a.push_back(b);
+      }
+      for (size_t k = 0; k < c.a.size(); k++) { if (k) c.text += ' '; c.text += c.a[k]; }
+      if (c.a[0] == "quit") { witness::fail("quit: the harness ends the run (its quit command)"); return; }
+      if (c.a[0] == "statematch" || c.a[0] == "shotmatch" || c.a[0] == "audiomatch") {
+        // the determinism checks: this moment's full state (the snapshot plus every actor exactly: witnessDigest), this
+        // frame's canvas (RGBA) or every sample mixed since the reset, against the first run of the label in this process
+        const bool shot = c.a[0] == "shotmatch";
+        if (c.a.size() < 2) { witness::fail(c.a[0] + ": a label (the runs that must match share it)"); return; }
+        std::string now;
+        if (shot) {
+          drawFrame();
+          int w = 0, hh = 0;
+          const bool ok = pix.readCanvas(wShot, w, hh);
+          pix.end();
+          if (!ok) { witness::fail(std::string("shotmatch: ") + SDL_GetError()); return; }
+          now.assign((const char*)wShot.data(), wShot.size());
+        } else if (c.a[0] == "audiomatch") {
+          char ab[48];
+          std::snprintf(ab, sizeof ab, "%016llx over %lld samples", (unsigned long long)wAudioHash, wAudioN);
+          now = ab;
+        } else {
+          now = witnessJsonString([&](witness::Json& j) { h.snapshot(j); }) + "\n" + witnessDigest(game);
+        }
+        uint64_t hash = 1469598103934665603ull;   // FNV-1a 64
+        for (unsigned char ch : now) { hash ^= ch; hash *= 1099511628211ull; }
+        const std::string key = c.a[0] + ":" + c.a[1];
+        auto it = wMatch.find(key);
+        const bool first = it == wMatch.end();
+        if (first) wMatch[key] = now;
+        else if (it->second != now) {
+          size_t at = 0;
+          while (at < now.size() && at < it->second.size() && now[at] == it->second[at]) at++;
+          std::string msg = c.a[0] + " " + c.a[1] + ": this run differs from the first one";
+          if (shot) {
+            const size_t px = at / 4;
+            msg += " (first differing pixel x " + std::to_string(px % (size_t)std::max(1, Pix::W)) + ", y " + std::to_string(px / (size_t)std::max(1, Pix::W)) + ")";
+          } else {
+            const size_t from = at > 60 ? at - 60 : 0;
+            msg += " at char " + std::to_string(at) + ": first ..." + it->second.substr(from, 140) + "... now ..." + now.substr(from, 140) + "...";
+          }
+          witness::fail(msg);
+          return;
+        }
+        char hb[24];
+        std::snprintf(hb, sizeof hb, "%016llx", (unsigned long long)hash);
+        result.begin_object().field("label", c.a[1]).field("first", first).field("hash", std::string(hb)).end_object();
+        return;
+      }
+      if (walk.on || extRun.e) { witness::fail("busy: the last call is still running (step until state.script.busy is false)"); return; }
+      const int fails0 = scriptFails;
+      witnessInCall = true;
+      runCmd(c);
+      witnessInCall = false;
+      if (scriptFails > fails0) { witness::fail(lastFail); return; }
+      if (!pendingShot.empty()) {   // `shot file.png`: this frame, to a file
+        drawFrame();
+        const bool ok = pix.screenshot(pendingShot.c_str());
+        pix.end();
+        const std::string path = pendingShot;
+        pendingShot.clear();
+        if (!ok) { witness::fail("shot " + path + ": " + SDL_GetError()); return; }
+      }
+      result.begin_object().field("busy", walk.on || extRun.e != nullptr).field("mode", (int)game.mode).end_object();
+    };
+
+    // the calls: the built-in script commands, then every registered one (the registry's expect checks ride on `expect`)
+    static const struct { const char* name; const char* args; const char* help; } builtin[] = {
+        {"goto", "city|town|village|cave|ruin|camp|lair|shrine|capital|market [enter]", "fast travel to the nearest such place"},
+        {"walkto", "inn|shop|innkeeper|giver|exit|NAME|x y [timeout]", "autopilot (takes steps: state.script.busy)"},
+        {"talkto", "NAME|role [timeout]", "walk to someone and talk to them"},
+        {"talk", "0|1|2", "the innkeeper: greeting, job offer, shop"},
+        {"choose", "words", "choose the open dialogue's option containing the words"},
+        {"fight", "wolf|boar|bear|...|dragon [n]", "spawn monsters nearby (gives the test kit if unarmed)"},
+        {"enter", "inn|shop|smithy|temple|house|... [floor] [n]", "step into the n-th nearest building of that type"},
+        {"floor", "n", "inside a building: go to that floor"},
+        {"at", "gx gy", "teleport to a global tile"},
+        {"hour", "h", "set the time of day"},
+        {"god", "[0|1]", "invulnerability"},
+        {"kit", "", "the test kit: sword, bow, arrows, potions"},
+        {"gear", "band [weapon]", "a full armour set of band 1..7"},
+        {"strip", "", "take off every piece of equipment"},
+        {"menu", "tab", "open the menu on a tab"},
+        {"newgame", "", "a fresh world (the reset seed)"},
+        {"key", "name", "press and release a key"},
+        {"hold", "key secs", "hold a key"},
+        {"walk", "east|west|north|south secs", "hold a direction"},
+        {"tap", "x y", "a touch tap at logical coordinates"},
+        {"click", "x y", "a left click at logical coordinates"},
+        {"chestgo", "[hoard|explore|chest]", "stand beside the nearest closed chest"},
+        {"pos", "[map]", "print where the player is (game output)"},
+        {"shot", "file.png", "save this frame to a file"},
+        {"expect", "mode|gold|quest|heard|option|inside|... args", "a script check (fails the call)"},
+        {"statematch", "label", "the full state (every actor exactly) must equal the first run of this label in this process"},
+        {"shotmatch", "label", "this frame's canvas must equal the first run of this label in this process"},
+        {"audiomatch", "label", "every sample mixed since the reset must equal the first run of this label in this process"}};
+    std::vector<witness_call_info> calls;
+    for (const auto& b : builtin) calls.push_back({b.name, b.args, b.help});
+    for (const ScriptExt& e : scriptExts())
+      if (std::strncmp(e.name, "expect:", 7) != 0) calls.push_back({e.name, nullptr, e.help});
+    static const char* const keys[] = {"w", "a", "s", "d", "up", "down", "left", "right", "space", "e", "j", "z", "q", "f", "r",
+                                       "i", "m", "tab", "escape", "enter", "shift", "alt", "1", "2", "3", "4"};
+    witness_hello hello = witness_hello();
+    hello.name = "Embervale";
+    hello.engine = "custom C++/SDL3";
+    hello.language = "c++";
+    hello.fps = 60;
+    screen::frame(pix);   // the canvas size (Pix::W x Pix::H) the harness sees
+    hello.width = Pix::W;
+    hello.height = Pix::H;
+    hello.calls = calls.data();
+    hello.call_count = (int)calls.size();
+    hello.keys = keys;
+    hello.key_count = (int)(sizeof keys / sizeof keys[0]);
+    hello.audio_sample_rate = Audio::kSampleRate;
+    hello.audio_channels = 1;
+    if (witness::connect(hello, h)) witness_run();
+    else std::printf("witness: could not connect to the harness\n");
+    witness_shutdown();
+  } else
+#endif
   while (running) frame();
 #endif
 
+#ifdef EMB_WITNESS
+  if (recordSync && witness_recording()) {
+    // the state the recording ended in, next to it (<file>.state.json, the harness's snapshot): a replay of the file
+    // can be checked against it for an exact match (`witness replays` lists only the .jsonl)
+    WitnessExtra x = wStart;
+    x.scriptBusy = false;   // (a harness replay has no script of its own)
+    x.savesWritten = g_savesWritten;
+    x.saveEnabled = !noSave;
+    const std::string st = witnessJsonString([&](witness::Json& j) { witnessState(j, game, view, x); });
+    if (FILE* f = std::fopen((std::string(recordEnv) + ".state.json").c_str(), "wb")) {
+      std::fwrite(st.data(), 1, st.size(), f);
+      std::fclose(f);
+    }
+  }
+#endif
   if (!noSave && game.mode != Mode::Title) writeSave(game);
   view.shutdown();
   audio.shutdown();
   pix.shutdown();
   SDL_Quit();
+#ifdef EMB_WITNESS
+  witness_record_stop();
+#endif
   if (perf || scripted) printSummary();
   if (scripted) {
     std::printf("script: %d failure(s)\n", scriptFails);

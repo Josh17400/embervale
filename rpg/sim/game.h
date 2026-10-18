@@ -727,6 +727,14 @@ class Game {
   bool godMode = false;
   bool noWildSpawns = false;           // metrics arenas: no roaming spawns or dens
   bool streamThreads = true;           // false: stream as the web build does (no worker; frameWork generates); tests
+  // (Witness) a harness that compares runs: every cold generation the foes step would leave to a worker or spread over
+  // ticks (named uniques, world bosses) is made at once on this thread, so a run never depends on thread timing or on
+  // what an earlier run in the same process left in the memo
+  bool syncStreams = false;
+  // (Witness) the actor id counter: a recorded session's header carries the value its world began with, so a replay's
+  // fresh Game hands out the same ids (ids feed foe ranks and affixes, orbit directions, loot rolls)
+  int idCounter() const { return nextId_; }
+  void setIdCounter(int n) { nextId_ = n; }
   void debugSpawn(art::Monster m, int n, float dist);
   int debugSpawnAt(art::Monster m, Vec2 at, int level);   // returns the actor id (already aggro)
   // (M6 fixer r2) a free spot with every tile within `rad` of it free too (a big body: a world boss is not stood on a wall)

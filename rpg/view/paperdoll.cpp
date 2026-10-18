@@ -185,6 +185,8 @@ void selCursor(Pix& P, float t, float x, float y, float w, float h) {
 const Tex& dollTex(Pix& P, const art::HumanLook& Lw) {
   static uint64_t key = 0;
   static Tex tex;
+  static int epoch = 0;   // (Witness) Pix::destroyUnmarked destroyed it: bake it again
+  if (epoch != Pix::texEpoch) { epoch = Pix::texEpoch; tex = Tex(); key = 0; }
   const uint64_t k = Lw.key() ^ 0xD0115EEDull;
   if (tex.t && key == k) return tex;
   const bool mythic = Lw.glow && Lw.glowColor == kMythicGlow;
@@ -1017,3 +1019,6 @@ void View::partyPageTap(Game& g, Vec2 p) {
   for (int r = 0; r < rows && first + r < (int)c.size(); r++)
     if (inR(p, L.dX, y + r * L.rowH, L.dW, L.rowH)) { partyPack_ = first + r; partyPageKey(g, SDLK_RETURN); return; }
 }
+
+// (Witness, View::witnessRelease) the PARTY page's last word back to none (its time is t_, which starts again at 0)
+void witnessResetPaperdoll() { partyNote.clear(); partyNoteC = Color(); partyNoteT = -100; }

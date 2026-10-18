@@ -5831,6 +5831,23 @@ void View::workerLoop() {
   }
 }
 
+void View::settleBakes() {
+  if (singleThread()) return;
+  for (int i = 0; i < 5000; i++) {
+    {
+      std::lock_guard<std::mutex> lk(mu_);
+      bool busy = false;
+      for (uint64_t k : pending_) {   // queued, or being painted (pending, not finished)
+        bool finished = false;
+        for (const BakeDone& d : done_) if (d.key == k) { finished = true; break; }
+        if (!finished) { busy = true; break; }
+      }
+      if (!busy) return;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+}
+
 void View::clearChunks() {
   for (auto& ch : chunks_) pix_->destroy(ch.tex);
   chunks_.clear();
@@ -5928,6 +5945,20 @@ Tex View::chunkTex(const Map& m, uint64_t mapId, int cx, int cy) {
   for (auto& ch : chunks_)
     if (ch.key == key) {
       ch.used = t_;
+      if (ch.stale && witness) {   // (Witness) the new bake now, not whenever a baker gets to it
+        {
+          std::lock_guard<std::mutex> lk(mu_);
+          for (size_t i = 0; i < jobs_.size();) if (jobs_[i].key == key) jobs_.erase(jobs_.begin() + (std::ptrdiff_t)i); else i++;
+          for (size_t i = 0; i < done_.size();) if (done_[i].key == key) done_.erase(done_.begin() + (std::ptrdiff_t)i); else i++;
+          pending_.erase(std::remove(pending_.begin(), pending_.end(), key), pending_.end());
+        }
+        Canvas c;
+        bakeChunk(makeJob(m, mapId, cx, cy), c);
+        pix_->destroy(ch.tex);
+        ch.tex = pix_->bake(c);
+        ch.stale = false;
+        return ch.tex;
+      }
       if (ch.stale) {   // (M7) to be baked again (a player's house came or changed): swap the new bake in when ready
         std::unique_lock<std::mutex> lk(mu_);
         for (size_t i = 0; i < done_.size(); i++)
@@ -6051,6 +6082,15 @@ void View::travelArrive(Game& g) {
   using SClock = std::chrono::steady_clock;
   auto msSince = [](SClock::time_point t) { return std::chrono::duration<double, std::milli>(SClock::now() - t).count(); };
   auto wallMs = [] { return std::chrono::duration<double, std::milli>(SClock::now().time_since_epoch()).count(); };
+  if (witness) {
+    // (Witness) nothing waits on a baker, a paint thread or a budget: the camera sits on the arrival, the draw bakes and
+    // paints whatever it shows inline (arriving_ stays off), and the sim ends the arrival after a fixed number of steps
+    // (Game::syncStreams), never this view (so travel.viewed is left alone)
+    arriving_ = false;
+    arrival_ = Arrival();
+    snap(g);
+    return;
+  }
   if (!arrival_.on) {
     arrival_ = Arrival();
     arrival_.on = true;

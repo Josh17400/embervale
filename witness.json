@@ -1,0 +1,8 @@
+{
+  "name": "embervale",
+  "build": "tools\\build.bat embervale",
+  "launch": { "command": "build/embervale", "args": ["--witness"] },
+  "tests": "witness",
+  "seed": 1,
+  "timeout": 120
+}

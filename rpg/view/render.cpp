@@ -95,6 +95,14 @@ using Clock = std::chrono::steady_clock;
 double msSince(Clock::time_point t0) { return std::chrono::duration<double, std::milli>(Clock::now() - t0).count(); }
 }  // namespace beasts
 
+// (Witness, View::witnessRelease) the foes' view memo back to its start: actor ids repeat from run to run, so a foe of the
+// last run that had roared would silence this run's
+void witnessResetBeasts() {
+  beasts::glows.clear(); beasts::xray.clear(); beasts::plates.clear(); beasts::memo.clear();
+  beasts::now = 0; beasts::stingT = -10;
+  beasts::cur = beasts::Stats(); beasts::last = beasts::Stats();
+}
+
 // (M6 BEASTS) the last frame's ranked-foe overlays (rpg/view/script_beasts.cpp reads them)
 void beastsViewStats(int& auras, int& plates, int& glows, int& bossBar, double& ms) {
   auras = beasts::last.auras; plates = beasts::last.plates; glows = beasts::last.glows; bossBar = beasts::last.bossBar; ms = beasts::last.ms;
@@ -602,6 +610,7 @@ const Tex& View::humanTex(const art::HumanLook& L, bool child) {
 // a character sheet; a tavern filling up asks for a dozen at once, so a frame bakes poses only within ~2.5 ms (the web:
 // 1.5 ms; at least one per frame) and returns nullptr for the rest, which stand on their standing sheet a frame or two.
 bool View::poseBudget() {
+  if (witness) return true;   // (Witness) every pose a shot shows is baked inline: no picture depends on CPU speed
   if (poseFrameT_ != t_) { poseFrameT_ = t_; poseFrameMs_ = 0; }
 #ifdef __EMSCRIPTEN__
   const double budget = 1.5;
@@ -1406,7 +1415,7 @@ void View::update(Game& g, float dt) {
     if (g.mode == Mode::Build) buildCamWant(g, want);   // (M7) the build ghost in view, clear of the panel
     // (M7) the ridden horse's hooves: the walk's even four-beat, the gallop's three quick beats and a pause
     {
-      static float strideT = 0;
+      float& strideT = strideT_;
       const float sp = len(p.vel);
       if (g.mode == Mode::Play && g.homeRiding() && !g.inside && p.st == AState::Walk && sp > 6.0f) {
         const bool gal = sp > home::WALK_SPEED_PX * 1.3f;
@@ -2883,7 +2892,8 @@ void View::drawWorld(Game& g) {
         // (M1 round 3) behind a fade (a fast travel's arrival, a new game) the buildings not painted yet are painted
         // a few per frame within a budget instead of all in the arrival frame (a capital's 70-90 sprites took ~150 ms
         // on the desktop, more on a phone's wasm); the fade hides the ones still waiting
-        if ((g.sleepFade > 0.5f || fade_ > 0.5f) && !bldgTex_.count(bldgKey(m, b, d.idx))) {
+        // ((Witness) never: a building in view is painted inline, so a shot through the fade never misses one)
+        if (!witness && (g.sleepFade > 0.5f || fade_ > 0.5f) && !bldgTex_.count(bldgKey(m, b, d.idx))) {
           if (fadePaintMs_ >= 10.0) break;
           const auto t0 = std::chrono::steady_clock::now();
           const bool done = bldgPaintStep(b, d.idx, std::max(0.5, std::min(4.0, 10.0 - fadePaintMs_)));   // (M3: in steps)
@@ -3475,7 +3485,7 @@ void View::drawLighting(Game& g) {
       const Biome pb = om.biomeAt(ptx, pty);
       cold = pb == Biome::Snow || om.at(ptx, pty) == Ground::Snow || (pb == Biome::Taiga && om.heightAt(ptx, pty) >= 4);
     }
-    static float ck = -1;   // eased, so walking off the snow at dusk does not switch the light at once
+    float& ck = coldK_;   // eased, so walking off the snow at dusk does not switch the light at once
     ck = ck < 0 ? (cold ? 1.0f : 0.0f) : ck + ((cold ? 1.0f : 0.0f) - ck) * 0.02f;
     auto mixC = [&](Color a, Color b) { return Color(lerpf(a.r, b.r, ck), lerpf(a.g, b.g, ck), lerpf(a.b, b.b, ck)); };
     dusk = mixC(dusk, Color(0.86f, 0.76f, 0.86f));
