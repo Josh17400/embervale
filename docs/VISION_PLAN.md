@@ -3766,3 +3766,404 @@ Contracts (a lane may ADD to a file it owns, never rename, remove or change the 
   with an escort goal or a `do follow` on) raised inside a settlement waits until the player is outside every
   settlement, and is dropped if the stage changes first; ambushes with nobody walking along (a beast at the village
   gate) still fall where the player stands. `--quest-mix --ports` reaches 10 regions for the nearest harbour.
+
+### 15.36 P2 "Clear Sight": big, crisp, living people (owner, 2026-10-18); the plan for P2a, P2b and P2c (planner)
+
+Owner playtest feedback (friends): characters are too small and blurry; the dead look like they are still standing;
+every weapon has the same swing. Owner decisions (final): a TALLER, DETAILED character rig with readable faces and
+hands PLUS camera zoom; whole-number scaling with no fractional blur; outlines and contrast; a player ring. The
+per-weapon swings and the death fall are painted on the new rig, once. A male and a female body base (the P3 creator
+picks; `app.female` is never set today, so every hero is crowned KING). There is no section 13 entry: this section is
+the spec. The art direction is **docs/STYLE_P2.md** (binding on every P2 art area). Each batch ships on its own and
+leaves the game fully playable with one rig visible to players.
+
+**Dependency (wave 0).** A test-tooling change is in flight (Witness: rpg/main.cpp, rpg/sim/travel.cpp,
+rpg/view/terrain.cpp, the particles in rpg/view/render.cpp, rpg/view/screen.cpp, engine/pix.*, engine/witness*,
+rpg/view/witness_state.*, view.h). It is committed first; P2a phase A branches from that commit and nobody edits those
+files before it lands.
+
+**Measured today** (the 2026-10-17 survey and a code read on 2026-10-18):
+| fact | value | where |
+|---|---|---|
+| canvas and fit | 480x270 design; the height stays 270..312; FILL takes an integer scale only while the safe height is 312 or less, else a fractional scale with SDL's PIXELART filter; one scale for world and UI, drawn straight to the window | screen.cpp:51-52, 101-149; pix.cpp:62-81 |
+| scales | desktop 1440x810 480x270 @3; iPhone 15 Pro Home Screen app 639x295 @4; Safari 721x287 @3.54; iPhone 11 615x284 @2.91; SE 480x270 @2.78; iPad 480x333 @4.92 | EMB_SCREEN_LOG |
+| people | one 16x24 cell, 8 frames x 3 rows (left = the right row mirrored); figure about 13x22 incl. outline; head 8x8 of skin, eyes 1x2 each, no brows or mouth | art_human.h:13; art_human.cpp:61-93 |
+| on screen | figure 8.1 % of the screen height (desktop), 7.5 % (phone app), 5.7 % (laptop) | survey |
+| frames | walk 1-4 at 9 fps; windup and cast share 5; strike and recover share 6; hurt and dead share 7 | render.cpp:2992-3000 |
+| the dead | the hurt frame, 3 px lower, faded 4-6 s, erased at 6 s | render.cpp:2978, 3075; game.cpp:726 |
+| swings | every melee weapon uses the same raise and strike in the down and up views; one 24x24 silver arc for all, timed at stT / 0.11 whatever the family; the greatsword is drawn as a sword (art id 1) | art_human.cpp:3394-3533; render.cpp:3257-3267; gear_look.cpp:257 |
+| timing | the hero: windup 0.07 (0.05 unarmed), strike 0.11, recover 0.13 s, each x the family pace (sword 1.0, axe 1.08, mace 1.25, spear 1.1, dagger 0.8, fists 0.9); enemy humans wind up 0.30 s whatever they hold | game.cpp:834-845; skills.cpp:186-193; ai.cpp:518 |
+| speeds | the hero 74 px/s; an NPC 40 by default; bandit aggro 130 px | player.cpp:45; game.h:83; game.cpp:1763 |
+| world | tile 16 px; house door 16x10 (13x8 small, 20x12 temple, 22x12 grand, 26x16 palace); one-storey wall 24 px; bed 20x32 on a 2-tile footprint; seat line row 19 of 24; ridden horse 36x36; ladder 16x24; stair flight 16x40 | art_building.cpp:86, 2231-2235; art_life.h; art_home.h:90; art_props.h |
+| creatures | wolf 32x22, bear 36x28, troll 36x34, yeti 38x38, golem 40x50, dragon 80x56; skeleton, draugr and goblin painted by the human rig at 24x24 | art_monsters.cpp:2807-2859 |
+| outlines | selective (the neighbour darkened, 45 % ink); torso luma 131 vs ground 129 by day, 52 vs 61 at night | art_internal.h:248-270; survey |
+| budgets | phone (web): textures 64 MB or less, render 6 ms or less; caches 320 human sheets, 160 pose sheets | 12.3; render.cpp:725-726 |
+
+**The design.** Two layers. The WORLD layer is drawn at a whole number D of device px per world px, chosen per
+screen, so every world pixel is an exact D x D block on every device; the UI layer keeps today's fit and size (480x270
+safe boxes, every tap script unchanged). People move to rig v2: 32 px tall (2 tiles; a woman 31), a 12 px head with a
+real face (brows, 1x2 eyes, nose, mouth), 2x2 hands, four facings painted natively (the light stays top-left, the
+weapon stays in the right hand), an ink outer outline; every weapon class has its own three-hit swing and its own
+effect; every human falls and lies. What a body uses (doors, walls, seats, beds, mounts, boats, carts, ladders,
+gates) scales with the rig by k = 32 / 22 = 1.45; footprints in tiles never change, so world generation, saves and
+pathing are untouched. **The compatibility path**: v2 and the k-scaled holders are built behind `rig 2` (preview:
+EMB_RIG=2, web `?rig=2`, script `rig 2`) while v1 stays the shipped default through P2a; P2b flips every human at once
+when coverage reaches 100 %, and v1 is deleted. No shipped default ever shows both rigs.
+
+**Not in scope**: the creator's flow and layout (P3: it sets `app.female` and picks the body; P2 provides the bodies);
+the world-spanning campaign; collision radii and any balance change beyond the DPS-neutral items named below; a new
+UI design (the UI keeps its size and layout).
+
+**Constants that interact**
+| constant | value | arithmetic |
+|---|---|---|
+| tile, footprints | 16 px, unchanged | layouts, collision and saves untouched |
+| adult figure | 32 px (woman 31, elf +1, youth 26, child 21) incl. the outline | 32 / 22 = 1.45 = k for body-holders; head 12 = face 10 x 9 |
+| default world scale | D0 = round(h_device / 240), ties up | v2 figure share 32 D0 / h = 11.6-14.8 % on the 10 reference screens (STYLE_P2 §1) |
+| zoom bounds | V = h / D in [150, 300] world rows | FAR never draws more than about today's phone canvas (295 rows): render cost never rises |
+| aggro vs view | bandit aggro 130 px; half the view at NORMAL 108-138 px | foes can notice the hero from off the view: pips are required |
+| walk cycle | 6 frames, one per 4.5 px travelled | 74 px/s = 16.4 fps, 40 px/s = 8.9 fps; no foot slide at any speed |
+| hero swing | 0.07 / 0.11 / 0.13 s x pace over 2 / 2 / 2 frames | the windup is 4 sim frames: a family reads in its strike, follow-through and effect |
+| enemy windups | 0.22-0.38 s by family | spawn-weighted mean held at 0.30 +- 0.01 s (no balance change) |
+| fall | 0.34 s (0.10 + 0.12 + 0.12) | gate 0.45 s |
+| corpses | 60 s, at most 24 | 24 DEATH atlases x 48 KB = 1.2 MB |
+| people textures | 24 MB or less of the phone's 64 MB | 80 folk x LOCO 128 KB = 10 MB + 12 fighters x ACTION 512 KB = 6 MB + 40 postures x 64 KB = 2.5 MB + deaths 1.2 MB = 20 MB |
+| bake | folk entering the 34-tile stream radius bake 2 ms a frame (1.2 ms web), nearest first | 544 px of stream radius vs at most about 320 px of half-view: folk are baked before they are seen |
+| ring | 24 x 9 under a 16 px-shouldered figure | flares 1 s when hit or entering a crowd (4 within 3 tiles) |
+
+**The split**
+- **P2a "Lens and Rig"** ships the lens: whole-number world scale on every screen, ZOOM, the player ring, the ink outer
+  outline on today's v1 people and creatures, the night lift, off-screen pips, per-family effects and timing, per-family
+  enemy windups. It builds (judged, behind `rig 2`) the v2 body, faces, hands, hair, cloth, headwear, locomotion, the
+  fall and lying corpse, every swing family, every posture, children and the humanoid monsters, and the k-scaled
+  body-holders. Players see today's people, crisp and easy to find; the owner can preview the new people on the phone
+  with `?rig=2`.
+- **P2b "New People"** ships the switch: the gear grammar on v2 (armour, helms, cloaks, shields, the culture weapon
+  forms, ornaments), every draw path on v2 (riders, companions, paperdoll, creator preview, HUD figures,
+  portraits, the Mythic aura), coverage 100 %; v2 and the k holders become the only rig and v1 is deleted.
+- **P2c "Proportion"** ships the creatures and the leftovers: big monsters and village animals re-proportioned to the
+  taller people, plus every prop the P2b judge lists as reading wrong.
+
+#### P2a "Lens and Rig"
+
+Phase A (lead, serial; afterwards these are frozen for the lanes, who may ADD but never rename or change meaning):
+1. **Layers** (engine/pix.h): `Pix::Layer {w, h, scale, offX, offY}`, `presentLayers(world, ui)`, `beginWorld()` /
+   `endWorld()` (inside: Pix::W/H read the world view in world px, the insets are 0, the render scale is the integer D,
+   `setTarget(nullptr)` returns to the world layer), `worldLayer()`, `uiLayer()`, `readWorld(rgba, w, h)` (the world
+   layer at world px). Phase A stub: world = UI, nothing moves.
+2. **Screen** (rpg/view/screen.h): `Settings::zoom` (-1..2, an offset from D0) and `Settings::ring`; settings file
+   EMBS version 2 (a version-1 file loads with the defaults); `worldScale()`, `defaultWorldScale()`, `zoomLevels()`;
+   `describe()` adds the world ("WORLD 512 X 236 AT 5X"); test hooks EMB_ZOOM (an absolute D) and EMB_RIG.
+3. **Projection** (view.h): `View::toUi(Vec2 world)`, `View::toWorld(Vec2 ui)`, `View::uiPerWorld()`; the list of
+   world-anchored call sites (hud.cpp speech plates, combat numbers, name tags and E: TALK, door and quest labels;
+   party_hud.cpp banter; the elite name plates' text; buildmode.cpp taps; script_test.cpp label taps).
+4. **Rig contract** (new rpg/art/art_rig.h): `rigVersion()` / `setRigVersion()`, `bodyScale()` (1, or 32 / 22 at rig 2),
+   `RigMetrics rig(v)` (figure height by body, age and people; head top, eye row, hand row, marker, bubble, plate and
+   bar heights; ring and shadow sizes; reach per family; the bathing and swimming crop rows), `enum class Clip` (Idle,
+   Walk, Hurt, Windup, Strike, Follow, Cast, Draw, Release, Block, Roll, Fall, Lying), `enum class Family` (Unarmed,
+   Dagger, Sword, Greatsword, Axe, Mace, Spear, Staff, Bow), `familyOf(look)`, `FrameRect {x, y, w, h, px, py}` (pivot =
+   the point between the feet on the sole row), `RigSheet {atlas, frames, frame(facing, clip, variant, i)}`,
+   `humanRig(look, part)` for parts LOCO / ACTION / DEATH, `humanPosture2`, `sleeper2`, `rig2Covers(look)` (stub
+   false). HumanLook gains `body` (0 man, 1 woman) and `age` (0 adult, 1 child, 2 youth), mixed into key(); weapon art
+   id 7 = greatsword (gear_look's map becomes {1, 2, 6, 5, 7, 8}; v1 paints 7 as 1). looks.cpp sets body from the
+   census `female`, gear_look.cpp from `app.female` (v1 ignores both: no v1 pixel moves). `humanFigureStill` (statues)
+   and `humanoidCell` with the three humanoid monsters' cell sizes route by rigVersion() to v2 painters (RIG-BODY and
+   POSES fill them). `View::rigTex(look, part, child)` returns the baked atlas and its frames (LENS implements the
+   caches and the bake queue; render_anim.cpp draws from it).
+5. **Effects** (art_fx.h, appended): SwingArc, HeavyArc, ChopArc, SmashRing, StabGlint, ThrustStreak, BluntSwish,
+   PunchStar, Twang (phase A stubs copy Slash).
+6. **Animation pick** (new rpg/sim/anim.h/.cpp, pure, testable headless): `animPick(game, actor)` returns {clip,
+   family, variant, frame, frames, t}; phase A reproduces today's v1 columns exactly at rig 1.
+7. **Moves, pixel-identical at rig 1**: the human frame pick, body draw, slash effect and dead offset leave render.cpp
+   for new rpg/view/render_anim.cpp; the story hand-cart model (render.cpp hc*) leaves for new rpg/art/art_handcart.cpp.
+8. **bodyScale plumbing** (identity at 1): door and wall sizes in art_building.cpp, furniture sizes in art_props.cpp,
+   fits in art_life.cpp, the horse cell in art_home.cpp, deck fits in art_sea.cpp read `art::bodyScale()`; crude at
+   k (enough for the slice's cottage), refined by HOLDERS; golden_village_art identical at rig 1.
+9. **The ink outline policy** (STYLE_P2 §8) for every character sheet that exists today (v1 people, monsters, critters,
+   horses, the hound) through one `outlineInk()` helper in art_internal.h. The only intended pixel change of phase A;
+   art_hash re-recorded.
+10. **Test hooks**: Witness reset params `window [w, h]`, `safe [l, t, r, b]` (device px), `screen` fill / pixel,
+    `zoom`, `rig` 1 / 2, `female`; state additions `state.screen {window, ui {w, h, scale, integer}, world {w, h,
+    scale, integer, d0, levels}, zoom, ring, v1Draws, peopleMB}`, `state.player.sprite {rig, figH, box (device px),
+    pivot}`, `state.player.anim {clip, family, variant, frame, frames}`, `entities[].anim`, `entities[].corpse {age}`;
+    calls and script commands `zoom`, `rig`, `body`, `pose <clip> [family] [variant] [frame]` (freeze the hero's
+    frame), `hideplayer`, `ui 0|1`, `ring`, with `expect screen | zoom | rig | anim | corpse` checks; keys minus and
+    equals in the hello list; **tools/p2_measure.mjs** (Node 18,
+    no dependencies: PNG decode, the figure mask from a shot pair with and without the hero, its box and height, the
+    D x D block test, outline-ring, ground-ring and figure luma, the colour-subset check).
+11. **Harness** (the lead's, frozen; a lane reports a harness problem instead of editing it): `rpg_test --rig`,
+    `--anim`, `--rig-coverage` (tools/tests/test_rig.cpp, test_anim.cpp), with rpg_art linked into rpg_test (the
+    #include hack in test_hero / test_arms retired) or a separate rig_test tool if SDL in CI costs too much; CMake
+    globs rpg/art/rig/*.cpp; tools/scripts/p2a_lead_lens.txt and _phone; witness/p2a_lens.witness.json; one gallery
+    skeleton per art area (tools/preview/rig_gallery.cpp, rigarms_gallery.cpp, rigposes_gallery.cpp,
+    holders_gallery.cpp), each handed to its area.
+12. **Baselines** recorded in PLAN.md: per reference screen the UI fit and figure share; `--perf` render ms in the
+    capital at 15:00; v1 sheet bake ms p50 / p95 (EMB_TIMING); people texture MB; art_hash.
+
+Areas (one owner each; files disjoint; "done" refers to the gates below):
+- **LENS** (engineer-high). Files: engine/pix.cpp; rpg/view/screen.cpp, settings.cpp, render.cpp, hud.cpp,
+  render_markers.cpp, party_hud.cpp, home_view.cpp, party_view.cpp, buildmode.cpp, script_test.cpp, terrain.cpp
+  (culling only); rpg/main.cpp; web/index.html. Brief: the two layers and everything that rides on them.
+  - core: the world layer at integer D on every screen (the camera rounded once a frame, the world rect covering the
+    window behind the notch, the light map, weather and vignette inside it); ZOOM by the D0 rule and the V bounds,
+    kept in the settings file, - and = keys and the wheel in play; every text draw in the UI layer through toUi, taps
+    through toWorld; the hero's ring; the night lift (each visible human added again in Moonwash after the light map);
+    off-screen pips; the NPC sleep box from the world view (main.cpp sleepHalfW/H); rig metrics in every world draw
+    path (markers, bubbles, bars, plates, the hidden-hero silhouette, bathing and swimming crops, riders, companions);
+    the `rig 2` preview of riders and companions; `View::rigTex` with people caches capped in MB and a bake queue for
+    folk entering the stream radius (2 ms a frame, 1.2 ms on the web, nearest first); web `?rig=2`.
+  - depth: a two-finger pinch on touch (both fingers clear of the stick and buttons); the camera eases 0.15 s on a zoom
+    change so the hero stays put; sub-pixel camera smoothing through a world target, kept only if the judge's motion
+    check shows no sprite wobble.
+  - delight: the ring flares when the hero is hit or walks into a crowd; pips pulse faster as the foe closes; SETTINGS
+    shows the world fit beside the UI fit.
+  - done: L1-L9.
+- **ANIM** (engineer). Files: rpg/sim/anim.cpp, rpg/view/render_anim.cpp, rpg/sim/game.cpp, rpg/sim/ai.cpp,
+  rpg/sim/skills.cpp. Brief: when each frame and effect shows, and what the sim does with the dead.
+  - core: animPick for every human state on v2 per STYLE_P2 §10 (walk by distance, idle phases per actor, windup /
+    strike / follow split by the family's pace, the combo variant from Actor::combo, cast, bow, fall, lying), v1
+    untouched; render_anim.cpp draws a v1 cell or, at rig 2 where rig2Covers(look), the v2 atlas frame by its pivot
+    (never flipped); effects by family through the new Fx ids, progress = stT / (0.11 x pace), the finisher's tint and
+    1.2x;
+    enemy windups by family (dagger 0.22, unarmed 0.24, sword 0.28, spear and staff 0.30, axe 0.32, mace 0.36,
+    greatsword 0.38 s) scaled so the spawn-weighted mean stays 0.30 +- 0.01 s; at rig 2 the dead stay 60 s (fade
+    55-60 s), block nothing, at most 24 (the oldest fade first), and at rig 1 they leave at 6 s as today; the hero's
+    fall plays under the death screen on view time.
+  - depth: the greatsword's own pace 1.18 with damage x 1.18 (DPS unchanged; --power-curve, --skills and --arms stay in
+    their bands); a parry pose if the sword's timed parry already exists in the sim; the roll clip.
+  - delight: the impact flash and a one-frame camera nudge on heavy finishers (greatsword, mace); a dust puff where a
+    body lands.
+  - done: A1-A5.
+- **RIG-BODY** (artist-xhigh). Files: new rpg/art/rig/rig_core.cpp, rig_body.cpp, rig_face.cpp, rig_hair.cpp,
+  rig_cloth.cpp, rig_death.cpp; tools/preview/rig_gallery.cpp. Brief: the skeleton and everything a civilian is;
+  the STYLE SLICE first (section "The style slice" below).
+  - core: the skeleton and pose solver (per-frame anchors: head box, neck, shoulders, elbows, hands with grip angle,
+    hips, knees, feet, the back slot; the depth order; four native facings), the atlas packer with pivots, the v2
+    outline; man and woman x slim / average / broad x human / half-breed / elf; skins S1-S8; the faces and hands of
+    STYLE_P2 §4-5; the 8 hair styles and the beard; Tunic, Dress, Robe (hood optional), Rags, the 8 culture cuts and the
+    patterns; the 8 culture headwear kinds and the legacy hood; face paint and jewellery; Idle 3, Walk 6, Hurt; Fall 3
+    and Lying 2.
+  - depth: secondary motion (a ponytail or braid swings on walk frames, hems lag one frame); elves' finer features.
+  - delight: the blink; the hair's sheen moves with the head.
+  - done: R1-R6.
+- **RIG-ARMS** (artist-xhigh; starts after the slice passes). Files: new rpg/art/rig/rig_arms.cpp, rig_actions.cpp;
+  rpg/art/art_fx.cpp; tools/preview/rigarms_gallery.cpp. Brief: the swings, their weapons and their effects
+  (STYLE_P2 §11-12).
+  - core: the 10 base weapons rasterized at 16 angles with the grip and depth rules (the greatsword its own art id 7);
+    the action library: unarmed, dagger, sword, greatsword, axe, mace, spear, staff x 3 variants x (Windup 2, Strike 2,
+    Follow 2) x 4 facings; Cast 2; the bow's Draw 3 and Release 1 in every facing; the 9 effects and the finisher look.
+  - depth: Block 1 and Roll 4; the glaive and halberd sweeps as the spear's hit 3 (base forms; culture forms in P2b).
+  - delight: the dagger's glint, sparks when a mace meets metal, chips from the axe.
+  - done: R7-R10.
+- **POSES** (artist; starts after the slice passes). Files: new rpg/art/rig/rig_poses.cpp, rig_sleep.cpp, rig_kin.cpp,
+  rig_humanoid.cpp; rpg/art/art_life.cpp (the v2 tables only; the v1 tables stay byte-identical);
+  tools/preview/rigposes_gallery.cpp. Brief: what town folk do with their bodies, on v2.
+  - core: the 31 postures with today's bard and kneel variants and frame counts, four facings (Ride on the new saddle
+    line); sleeper sprites for the 10 berths; youth and child bodies; skeleton, draugr and goblin on the skeleton in the
+    monster sheet layout; SeatFit2 and BedFit2 tables agreed with HOLDERS.
+  - depth: every culture instrument variant; carry loads (sack, basket, crate).
+  - delight: drinkers out of step; a sleeper's chest rising; children hopping at tag.
+  - done: P1-P3.
+- **HOLDERS** (artist; starts after the slice passes). Files: rpg/art/art_building.cpp, art_props.cpp,
+  art_culture_furniture.cpp, art_market.cpp, art_home.cpp, art_sea.cpp, art_parts_gates.cpp, art_walls.cpp (gate
+  passages only), art_city.cpp (fences, hedges, garden walls, square benches), art_critters.cpp (the loose horse only),
+  art_party.cpp (graves only), art_handcart.cpp; tools/preview/holders_gallery.cpp. Brief: everything a body uses, at
+  k, behind `rig 2`, pixel-identical at rig 1 (STYLE_P2 §1 and §16).
+  - core: doors and walls of every building kind and culture (windows, porches and arcades follow the wall); chairs,
+    stools, benches, thrones, cushions, tables, counters, the classic and culture beds, bunks, hammocks, mats and
+    bedrolls; stall counters and canopies; carts and the hand cart; the ridden horse (horseSheet, riderSeat) and the
+    loose horse to match; boat thwarts, decks, rails and crew spots; ladders and stair flights; gate passages and
+    arches; fences and hedges; graves.
+  - depth: the well's windlass, the anvil and forge at working height, bath pools' waterline, festival poles.
+  - delight: a stable door that reads big enough for a rider.
+  - done: H1-H4.
+
+Waves: phase A -> **wave 1**: LENS, ANIM, RIG-BODY (the slice first) -> **the slice gate** (judged; STYLE_P2 then
+records its measured numbers) -> **wave 2**: RIG-ARMS, POSES, HOLDERS start; RIG-BODY completes the base; LENS and ANIM
+finish -> integration (lead: one full regression, one script sweep, art_hash once, the web build, the owner's `?rig=2`
+link) -> judge rounds (at most 4).
+
+P2a DONE gates (before / after with the phase A harness; MSVC, BDIR=build):
+| gate | target | today |
+|---|---|---|
+| L1 world scale whole-number on the 10 reference screens (STYLE_P2 §1) | 10 / 10 | 6 / 10 |
+| L2 noon device shots, `ui 0`: world pixels in exact D x D blocks (p2_measure) | 100 % | a 3.54x crop had 938 colours vs 353 at 4x |
+| L3 D0 and the zoom levels per the table; ZOOM survives a restart; - / = and the wheel step it | exact | no zoom |
+| L4 UI canvas and scale per screen; every existing tap script | identical to the phase A baseline | |
+| L5 text glyph height at every zoom (speech plate, name tag, combat number) | 7 x U device px | |
+| L6 day edge contrast (grass, road, sand, snow); at 23:00 figure median vs ground, and edge contrast | 40 or more; +10 or more and 25 or more | torso vs ground +2 by day, -9 at night |
+| L7 ring contrast against the ground on the 4 grounds, day and night; PLAYER RING toggles | 35 or more, 8 / 8 | no ring |
+| L8 a pip for every aggro'd hostile outside the view within its aggro radius | every one | none |
+| L9 capital 15:00: render ms at FAR / NORMAL; people textures with rig 2; folk baking per frame | baseline +10 % / baseline or less; 24 MB or less; 2 ms or less | |
+| A1 v1 frame pick at rig 1 (--anim golden) | identical | |
+| A2 9 distinct effects by family; the effect ends with the strike state within 1 frame (dagger 0.8, mace 1.25) | yes | 1 effect, fixed 0.11 s |
+| A3 enemy windup mean (spawn-weighted); --foes, --arms, the companion suites | 0.30 +- 0.01 s; green | 0.30 for all |
+| A4 rig 2: lying on screen after the killing blow; corpse life; cap; collision | 0.45 s or less; 60 s; 24; none | standing, 6 s |
+| A5 the hero's fall under the death screen | plays | none |
+| R1 the style slice | PASS | |
+| R2 v2 heights (STYLE_P2 §3) for every body, build, people and age, all facings | exact | |
+| R3 looks of a 20-seed census with no armour, helm, cloak, shield or culture weapon form, drawn on v2 (rig2Covers) | 99 % or more | 0 |
+| R4 brows, two 1x2 eyes, nose and mouth on every down frame but blink, hurt and lying; two hands in front and back idle and walk | all | eyes only |
+| R5 no holes, nothing touching the scratch edge, pivots steady on contact frames | 0 failures | |
+| R6 atlas size per look: LOCO / DEATH / POSTURE / ACTION; one facing's LOCO bake | 128 / 48 / 64 / 512 KB or less; v1 sheet p95 or less | |
+| R7 Strike frames of every pair of the 8 melee families differ in 25 % or more of their union, per facing | 28 x 4 | 0 |
+| R8 tip paths (STYLE_P2 §12) | every family | |
+| R9 a family's 3 combo variants differ pairwise (25 % or more) | all | |
+| R10 left frames painted, not mirrored; the weapon stays in the right hand | all clips | mirrored |
+| P1 31 postures with their variants, 4 facings, today's frame counts, on v2 | all | |
+| P2 seated hips on the seat (0 px) for every seat and facing it takes; sleepers' heads on the pillow in every berth | all | |
+| P3 youth 26 and child 21 painted natively; skeleton, draugr, goblin on v2 | yes | rows dropped from the adult |
+| H1 rig 1: golden_village_art and the v1 art_hash categories | identical | |
+| H2 rig 2 ratios from painter metadata: door 0.70-0.76, wall 1.00-1.12, seat 0.31-0.37, table 0.44-0.50, horse withers 0.80-0.90, gate clearance 1.25 or more, fence 0.45-0.60, rungs 6 px | all in range | |
+| H3 rig 2: the rider on every horse frame, the rower on the thwart, the walker under every arch | 0 px off | |
+| H4 rig 2: nothing jammed in village, town, city and port streets (the judge's look review) | PASS | |
+
+#### P2b "New People"
+
+Phase A (lead): the gear-layer interface on the skeleton (a layer paints itself for a pose frame from its anchors, so
+gear never needs per-frame art; the layer order as data: back items, cloak back, legs, boots, torso armour, gloves,
+arms, cloak front, helm and headwear, shield, weapon); rig2Covers made real per field, and `--rig-coverage` naming the
+uncovered fields; the `v1Draws` counter (--perf, Witness, `expect rig v2only`); test_hero / test_arms and the galleries
+covering both rigs; scripts p2b_lead_people.txt and _phone, witness/p2b_switch.witness.json; baselines (coverage,
+people MB, the city-arrival worst frame).
+
+Areas:
+- **HEADGEAR** (artist). Files: new rpg/art/rig/rig_headgear.cpp. Helm bands 1-7 (cap, nasal, great helm, winged,
+  crested, obsidian horns, ember crown), the culture helm forms (kettle, spangen, horned, plumed, aventail, masked,
+  crested, elven...), plumes and crests in plumeColor, the legendary helm glint; on every clip (a helm stays on a lying
+  head). Depth: hair showing under open helms by style. Delight: plumes that bob on the walk. Done: B1 (its fields),
+  B3, B4.
+- **BODYGEAR** (artist). Files: new rpg/art/rig/rig_bodygear.cpp, rig_cloak.cpp. Armour bands 1-7 and the armoured
+  outfits (Leather, Chain, Plate, Elven, Ebony, Guard with the kingdom's tabard), the body forms (padded, leather,
+  brigandine, mail, lamellar, scale, plate, leaf), pauldrons, skirts, the ornament bits, the M12 rank marks, sheen and
+  alloy ramps, body glow, glove and boot bands, cloaks 1-3 and the cape in four facings and every clip (a cloak lies
+  under its corpse). Depth: mail that glints per frame. Delight: a cloak that swings behind a turn. Done: B1, B3, B4.
+- **ARMS-B** (artist). Files: rpg/art/rig/rig_arms.cpp, rig_actions.cpp (from RIG-ARMS), new rig_shield.cpp. Culture
+  blade, polearm and bow forms on the base weapons with the crossbow's own crank and release; shields (round, heater,
+  kite, tower; culture forms; field and device paint; rim tint); back items (bow and quiver, staff); legendary weapon
+  and shield glints; the ring and amulet glints. Depth: a shield bash pose. Delight: arrows visible in the quiver.
+  Done: B1, B3.
+- **SWITCH** (engineer-high). Files: rpg/view/render.cpp, render_anim.cpp, home_view.cpp, party_view.cpp, loot_ui.cpp,
+  paperdoll.cpp, creator.cpp, hud.cpp, party_hud.cpp; rpg/art/art_party_portrait.cpp; rpg/sim/looks.cpp, gear_look.cpp;
+  rpg/art/art_human.cpp (retired); CMakeLists.txt. Every human draw path on v2 (riders, companions, the hidden-hero
+  silhouette, bathing, the Mythic aura per v2 frame), the paperdoll, creator preview, HUD hero and party list at whole
+  multiples, portraits in the v2 face rules; then the flip: rig 2 by default, `rig 1` removed, v1 code deleted (the
+  statue and humanoid routes keep only their v2 side). Depth: the creator preview animating idle, walk and a swing.
+  Delight: the paperdoll turning to the facing of the last tap. Done: B2, B5, B6.
+
+Wave: phase A -> one wave (HEADGEAR, BODYGEAR, ARMS-B, SWITCH plumbing behind the flag) -> the flip when B1 reads
+100 % -> integration (art_hash and golden_village_art re-recorded once) -> judge rounds (at most 4).
+
+P2b DONE gates:
+| gate | target |
+|---|---|
+| B1 v2 coverage: the 20-seed census, every foe kind, every party member, every gear band x form x culture the gear system can roll | 100 % |
+| B2 after the flip: frames drawn from a v1 sheet over the full script sweep and every Witness test | 0 |
+| B3 gear on every frame (LOCO, ACTION, DEATH, POSTURE, sleepers where worn): no holes; helm on the head box; shield on the off arm; cloak behind or in front by facing; a lying body keeps its gear (`--rig --gear`) | 0 failures |
+| B4 man and woman wear every piece on the same anchors; the woman's armour per STYLE_P2 §14 (the judge's review) | PASS |
+| B5 paperdoll, creator preview, HUD hero, party list and portraits on v2; the Mythic aura hugs v2 frames | all |
+| B6 capital 15:00 people textures; city-arrival worst frame; render ms | 24 MB or less; baseline +4 ms or less; baseline +10 % or less |
+| B7 art_hash and golden_village_art | re-recorded once, with before / after shot pairs |
+
+#### P2c "Proportion"
+
+Phase A (lead): creature heights reported from painter metadata (`rpg_test --creatures`), scripts p2c_creatures.txt and
+_phone (every monster and great form beside the hero; a village's animals; the hound), witness/p2c.witness.json.
+Areas: **CREATURES** (artist; art_monsters.cpp, art_critters.cpp, art_party.cpp): troll, yeti, golem, harpy, bear,
+boar, the dragon and the great forms re-proportioned in bigger cells on the one pixel grid; dog, cat, chicken,
+rooster, goat, pig, duck, cow, sheep; the hound. **POLISH** (artist): only the files of the props the P2b judge listed
+as reading wrong, none of CREATURES' files.
+
+P2c DONE gates: C1 heights against the 32 px adult: troll 1.45-1.6, yeti 1.5-1.7, golem 1.6-1.8, harpy 0.95-1.1,
+bear on all fours 0.6-0.75, wolf at the shoulder 0.45-0.55, boar 0.4-0.5, goblin 0.7-0.8, dragon length 3.0 or more;
+dog 0.3-0.4, chicken 0.2-0.25, goat 0.45-0.55, cow 0.7-0.8, the loose horse equal to the ridden one. C2 telegraphs,
+name plates and bars sit on the new heights; the elite scale (115-130 %) still reads on top. C3 every P2b "reads
+wrong" item closed.
+
+**Tests and scripts** (each script has a `_phone` twin; screenshots go to %TEMP% and are deleted after review; an
+`eyes` agent turns shots into text):
+- rpg_test `--rig [--gear] [--gates] [--report]` (sheet facts, faces, hands, outlines, heights, pivots, family and
+  variant distinctness, tip paths, painted left frames, atlas KB and bake ms), `--anim [--seeds 1..3] [--gates]` (clip
+  timing per family, effect progress, enemy windup means, corpse life and cap, the hero's fall), `--rig-coverage
+  [--seeds 1..20] [--gates]`, `--creatures`. CI step "Clear Sight rig and animation test" (P2a: --rig --gates, --anim
+  --gates; P2b adds --rig-coverage --gates and --rig --gear; P2c adds --creatures).
+- Scripts: p2a_lead_lens (lead: every zoom level in the start village at 11:00 and 22:00, the capital's crowd at 15:00
+  with the ring, text plates at each zoom), p2a_slice, p2a_swings (rig 2: each family live against a bandit and
+  frozen with `pose`), p2a_death, p2a_poses (tavern, smithy, farm, bedroom, temple, festival, the bard), p2a_holders
+  (rig 2: the cottage door, chairs, beds, stalls, a cart, riding, the rowboat, the ladder, a gatehouse), p2a_night,
+  p2a_pips; p2b_lead_people, p2b_gear (guards of three cultures, soldiers of two realms, bandits by family, the hero
+  in every band, a woman knight), p2b_menus, p2b_world (the p2a_poses and p2a_holders places plus a war camp, a
+  market, a harbour); p2c_creatures.
+- Witness (`node ../witness/bin/witness.js test` / `shot`): witness/p2a_lens.witness.json (the 10 screens through the
+  `window`, `safe` and `screen` params: state.screen, D0, the levels, the figure share from state.player.sprite, the
+  zoom keys, ZOOM persisting over a reset), witness/p2a_rig.witness.json (rig 2: the clip by state and time per
+  family, lying by 0.45 s, corpse age 60 s, ring and pips), witness/p2b_switch.witness.json (v1Draws 0, coverage,
+  menus), witness/p2c.witness.json.
+- The judge's measurements run tools/p2_measure.mjs on device-resolution shots (the `shot` call), never on the
+  canvas-sampled Witness screenshot (it samples UI px, so a world at D != U would alias).
+
+**Saves, versions and goldens.** No SAVE_VER, ENDLESS_GEN_VER, SAGA_GEN_VER or block-version bump in any of the three
+batches: footprints and generation are untouched, HumanLook is derived on load, `app.female` is already saved, and the
+zoom and ring live in the settings file (EMBS version 2). Old saves keep working; no new adventure is forced.
+tests/fixtures/save_v23.bin and the town, world and endless goldens never change. art_hash is re-recorded by P2a phase
+A (the ink outline, the only intended pixel change) and once by each batch's integrator; v1 categories are frozen
+from P2a phase A until deleted in P2b; v2 adds its own categories. golden_village_art.txt ("villages never change",
+M7b) stays identical through P2a (H1) and is re-recorded once at the P2b flip with before / after pairs. Lanes never
+re-record a golden or a fixture.
+
+**The style slice** (P2a wave 1, RIG-BODY, artist-xhigh; content in STYLE_P2 §19). The hero as a man and as a woman
+(same look, a sword) in Idle, Walk, Hurt, the sword's three variants, Fall and Lying in four facings with the Steel Arc;
+one village woman (Dress, a culture cut, a pattern) in Idle and Walk; one start-village cottage with its door and wall
+at k, a fence run, the ring. Scripts p2a_slice.txt and _phone (seed 7, OSLARS, rig 2): desktop 1440x810 at NORMAL (D3)
+and NEAR (D4), phone 2556x1179 at NORMAL (D5), 11:00 and 22:00. The judge's acceptance protocol (all must hold; each
+failure comes back with a repro and a check):
+1. Size: man 32, woman and villager 31 art px (the shot-pair mask's height / D): 96 / 93 device px at D3, 128 / 124 at
+   D4, 160 / 155 at D5 (11.9 / 11.5 % and 13.6 / 13.1 % of the screen height).
+2. Crisp: in the 11:00 shots with `ui 0`, every world pixel an exact D x D block; the hero crop from the knee up uses
+   only colours of the baked frame and of the ground.
+3. Face (down idle): brows on F-26, two 1x2 eyes at face columns 3 and 6, a nose pixel, a 2 px mouth; eye-to-skin
+   contrast 60 luma or more; the side frame has eye, nose and ear; the back frame no face.
+4. Hands: two 2x2 hands in down and up idle and on every walk frame; the sword hand over the grip, guard and pommel
+   either side.
+5. Outline: outer-silhouette pixels at luma 60 or less (100 or less on Lit Ink edges); no #000000.
+6. Contrast: day edge contrast 40 or more on grass and road; at 22:00, 5 tiles or more from a lamp, the figure median
+   10 or more above the ground and edge contrast 25 or more; the ring 35 or more on both.
+7. Bodies: shoulders differ by 2 px or more; hands, hips and feet within 1 px; man and woman read at phone size and
+   neither is exaggerated (review).
+8. Walk: 6 frames; the planted foot moves 1 px or less against the ground on contact frames over a 2 s walk at 74 px/s
+   (60 Hz frame shots); breathe and blink both seen in 6 s of idle.
+9. Swing: the three variants differ by 25 % or more; the tip arc 120 degrees or more; the arc effect ends within one
+   frame of the strike state.
+10. Fall: lying on screen 0.45 s or less after the kill, 16 px tall or less, head toward the fall side, the sword
+    beside the hand.
+11. World fit: the cottage door 23 px (0.72), the wall 35 (1.09), the fence 0.60 or less of the figure; the hero
+    walks through the door without looking taller than the eaves.
+12. Look review first: STYLE_P2's palette, top-left light on all four facings, no pillow shading, banding, orphan
+    pixels or jaggies, the hero found first in the village shot, and the side-by-side with a v1 villager showing the
+    upgrade.
+After PASS, STYLE_P2 records the slice's measured numbers and every later v2 area matches the slice.
+
+**What the judge looks at.** Look and feel first, from the state a player starts in (a new game, NORMAL zoom, the
+phone size), then the gates. P2a: is the world crisp on every screen; is the hero found at once by day, at night and
+in a crowd; do text plates stay readable at every zoom; is the `rig 2` preview what STYLE_P2 describes (faces, hands,
+swings, the fall); do the holders fit the new bodies; is perf flat. P2b: no v1 anywhere; gear on every frame;
+cultures still told apart by silhouette in 10 seconds (pillar 2); men and women in armour; menus; perf. P2c: creatures
+keep their menace beside taller people. The judge states the full protocol in round 1 and reruns it every round;
+fixers rerun the judge's harness before claiming a fix; the every-system regression runs once per batch (integrator).
+
+**Risks.** (1) P2b carries the whole gear grammar: anchor-based layers, coverage naming what is missing and the P2a
+preview keep it bounded. (2) Facades grow 11 px a storey: towns read denser; the wall ratio may sit anywhere in
+1.00-1.12 (the door ratio does not move); H4 and B-round shots review M7c streets. (3) Bake time and memory on the
+phone: trimmed atlases, lazy ACTION and DEATH parts, the bake queue, MB caps; the owner checks on the device. (4) The
+hero's 4-frame windup: a family must read in its strike, follow-through and effect. (5) Bigger bodies overlap in
+crowds because collision radii stay. (6) Two rigs live side by side for two batches: v1 is frozen (no new v1 art) and
+deleted at the flip. (7) The tooling change in flight: phase A waits for it. (8) Resizing Witness's hidden window:
+phase A proves it on Windows, with a `--window` launch per run as the fallback.
+
+**For the owner to confirm** (the plan proceeds on these defaults):
+1. On Safari, 2x iPhones and the iPad the UI keeps today's size (its text drawn with the pixel-art filter) rather than
+   an integer UI 15-31 % smaller; the world is whole-number everywhere either way.
+2. Default zoom D0 = round(screen px height / 240): the iPhone app at 5x (236 world rows, the v2 hero 13.6 % of the
+   screen); the 1440x810 desktop window stays at 3x until v2 ships (NEAR gives 4x).
+3. Facades grow with the rig in P2b (door 16 -> 23 px, one-storey wall 24 -> 35 px), so the "villages never change"
+   golden is re-recorded once.
