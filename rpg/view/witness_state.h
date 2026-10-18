@@ -17,6 +17,10 @@ struct WitnessExtra {        // what only the platform layer knows
   bool saveEnabled = false;
   bool hasStart = false;     // the global tile the player stood on at the reset (state.player.start / moved)
   int startGX = 0, startGY = 0;
+  // false: leave out what the window decides (state.screen, state.player.sprite: device px, the UI's fit). A recording's
+  // end state and its replay run in different windows (the player's, the harness's hidden 960 x 540), and only the
+  // session itself must match; set for a WITNESS_RECORD session and for a reset whose params say "recorded"
+  bool device = true;
 };
 
 // state: mode, clock, player, quests, location, nearby entities (state.entities), UI and counts; JSON-safe, small

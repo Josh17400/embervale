@@ -917,9 +917,8 @@ bool View::rigBakeBudget() {
 void View::rigBakeQueue(const Game& g) {
   lensStats.rigQueued = (int)rigQueue_.size();
   if (art::rigVersion() < 2 || g.mode == Mode::Title || g.mode == Mode::Creator) { rigQueue_.clear(); return; }
-  static float rebuildT = 0;
-  if (t_ - rebuildT > 0.25f || t_ < rebuildT) {
-    rebuildT = t_;
+  if (t_ - rigQueueT_ > 0.25f || t_ < rigQueueT_) {
+    rigQueueT_ = t_;
     std::vector<RigJob> q;
     const Vec2 pp = g.pl().p;
     for (const Actor& a : g.actors) {

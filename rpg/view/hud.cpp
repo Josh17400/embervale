@@ -3016,7 +3016,16 @@ void View::tap(Game& g, Vec2 p) {
 }
 
 void View::event(const SDL_Event& e, Game& g) {
-  auto logical = [&](float wx, float wy) { float lx, ly; pix_->windowToLogical(wx, wy, lx, ly); return Vec2(lx, ly); };
+  auto logical = [&](float wx, float wy) {
+    float lx, ly;
+    pix_->windowToLogical(wx, wy, lx, ly);
+    if (witness) { lx = witnessSnap(lx); ly = witnessSnap(ly); }   // (Witness) replays re-create these floats exactly
+    return Vec2(lx, ly);
+  };
+  // the touch gestures' clock (a pinch's 0.3 s, a short tap's 0.35 s), in ms: the wall clock in normal play; under
+  // Witness (a harness or a WITNESS_RECORD session) the view's own clock, which only sim steps advance, so a replay
+  // sees the same gesture lengths as the recorded session
+  auto gestureMs = [&]() -> uint64_t { return witness ? (uint64_t)((double)t_ * 1000.0) : SDL_GetTicks(); };
   // (M1) the MAP tab: drags pan and pinches zoom the world map; a press that does not move is a tap (picks a place)
   const bool onMap = g.mode == Mode::Menu && menuTab_ == 2 && !settingsOpen_;
   auto mapPtr = [&](int phase, uint64_t id, Vec2 screenP) {
@@ -3154,7 +3163,7 @@ void View::event(const SDL_Event& e, Game& g) {
       if (g.mode != Mode::Play) { tap(g, p); break; }
       {   // (P2a) a two-finger pinch steps ZOOM: a second finger landing within 0.3 s of a first one that has hardly moved,
           // both clear of the buttons (the first one's stick, if it made one, is let go)
-        const uint64_t now = SDL_GetTicks();
+        const uint64_t now = gestureMs();
         int others = 0;
         const Finger* first = nullptr;
         for (const Finger& f : fingers_) if (f.on) { others++; first = &f; }
@@ -3172,14 +3181,14 @@ void View::event(const SDL_Event& e, Game& g) {
       if (homeHudTap(g, p)) break;   // (M7) YARD / DECORATE, DISMOUNT
       if (const int q = SkillsUiOps::quickAt(*this, g, p); q >= 0 && buttonAt(p) != B_ATTACK) {   // (M9) a quick-cast button
         SkillsUiOps::quickDown(*this, g, q, (uint64_t)e.tfinger.fingerID, p);
-        Finger f; f.id = e.tfinger.fingerID; f.on = true; f.start = f.cur = p; f.button = 100 + q; f.t0 = SDL_GetTicks();
+        Finger f; f.id = e.tfinger.fingerID; f.on = true; f.start = f.cur = p; f.button = 100 + q; f.t0 = gestureMs();
         fingers_.push_back(f);
         break;
       }
       int b = buttonAt(p);
       // (fixer M5 r3, review: "nothing explains the buff icons when tapped") a tap on the buff icons says what they do
       if (b < 0 && buffTap(g, p)) break;
-      Finger f; f.id = e.tfinger.fingerID; f.on = true; f.start = f.cur = p; f.button = b; f.t0 = SDL_GetTicks();
+      Finger f; f.id = e.tfinger.fingerID; f.on = true; f.start = f.cur = p; f.button = b; f.t0 = gestureMs();
       if (b == B_MENU) { if (!g.travelling()) { g.mode = Mode::Menu; menuTab_ = g.perkPts > 0 ? 3 : 0; menuSel_ = 0; audio_->play(Sfx::MenuSelect); } break; }
       if (b == B_ATTACK) {
         kAttack_ = true;
@@ -3251,7 +3260,7 @@ void View::event(const SDL_Event& e, Game& g) {
         stick_.on = false;
         // M0b fix round 3: a short, still tap on the left half opens the stick, but when it lands on the "TAP: SLEEP"
         // label / the prop it names, or on the person in reach, it is a use: the label says tap here, so it must work
-        if (e.type == SDL_EVENT_FINGER_UP && g.mode == Mode::Play && SDL_GetTicks() - stick_.t0 < 350 && len2(stick_.cur - stick_.start) < 8.0f * 8.0f) {
+        if (e.type == SDL_EVENT_FINGER_UP && g.mode == Mode::Play && gestureMs() - stick_.t0 < 350 && len2(stick_.cur - stick_.start) < 8.0f * 8.0f) {
           const Vec2 q = stick_.start;
           bool use = false;
           int utx = 0, uty = 0;

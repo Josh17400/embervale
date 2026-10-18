@@ -1,6 +1,7 @@
 // EMBERVALE presentation: sprite bank, terrain baking, world rendering, lighting, particles, HUD, menus, touch controls.
 #pragma once
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <cstdint>
 #include <deque>
@@ -65,6 +66,11 @@ class View {
   // waits on a frame budget or a worker (chunks, buildings and pose sheets are made inline when drawn), and a journey's
   // arrival is the sim's to end (Game::syncStreams: a fixed number of steps), so a run never depends on thread timing
   bool witness = false;
+  // (Witness) with `witness` set, every pointer position (mouse, fingers) is snapped to the centre of its 1/16 logical-px
+  // cell, here and in the WITNESS_RECORD recorder (rpg/main.cpp). A replay delivers the recorded position through window
+  // coordinates at another window size; that round trip is off by an ulp or two, far inside half a cell, so the view
+  // sees the very same floats as the recorded session did. Normal play reads positions as they come.
+  static float witnessSnap(float v) { return (std::floor(v * 16.0f) + 0.5f) / 16.0f; }
   // (Witness) between runs (rpg/view/witness_state.cpp): the bakers are joined, every texture made since
   // Pix::markTextures() is destroyed (this View's caches, the lanes', the function statics') and the presentation state
   // kept outside View is reset. The caller then rebuilds the View in place and init()s it again, so no picture or
@@ -327,7 +333,7 @@ class View {
   bool scriptKeys_[512] = {};   // indexed by SDL_Scancode (SDL_SCANCODE_COUNT is 512)
   bool kAttack_ = false, kBow_ = false, kSpell_ = false, kRoll_ = false, kUse_ = false, kPotion_ = false, kSwap_ = false;
   bool kTapAttack_ = false;   // this attack came from a tap on the open world (never turned into a talk)
-  struct Finger { uint64_t id = 0; bool on = false; Vec2 start, cur; int button = -1; uint64_t t0 = 0; bool use = false; };   // t0: SDL_GetTicks at the touch; use: began as a use (TALK, RIDE...)
+  struct Finger { uint64_t id = 0; bool on = false; Vec2 start, cur; int button = -1; uint64_t t0 = 0; bool use = false; };   // t0: ms at the touch (hud.cpp gestureMs); use: began as a use (TALK, RIDE...)
   Finger stick_;
   std::vector<Finger> fingers_;
   bool mouseDown_ = false;
@@ -663,6 +669,7 @@ class View {
   float wheelAcc_ = 0, wheelT_ = -1;
   struct RigJob { art::HumanLook look; art::RigPart part = art::RigPart::Loco; bool child = false; float d2 = 0; };
   std::vector<RigJob> rigQueue_;
+  float rigQueueT_ = 0;   // when rigBakeQueue last rebuilt the queue (a member: a Witness reset's new View starts it over)
   float rigBakeFrameT_ = -1;
   double rigBakeFrameMs_ = 0;
   bool rigBakeBudget();

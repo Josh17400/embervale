@@ -1,0 +1,38 @@
+[
+  { "name": "touch: a tap on the menu button opens the menu (iPhone 15 Pro, protocol touch events)",
+    "params": { "window": [2556, 1179], "safe": [177, 0, 177, 63], "screen": "fill", "hour": 11 },
+    "input": "touch:580,12@0.4",
+    "steps": [ { "at": 0.3, "expect": ["state.mode == 'play'", "state.screen.ui.w == 639 && state.screen.ui.h == 295", "state.screen.safe == '45 0 45 16'"] },
+               { "at": 0.6, "expect": ["state.mode == 'menu'", "state.menu == 0"] } ] },
+  { "name": "touch: a swipe on the left half is the move stick and walks the hero (iPhone 15 Pro)",
+    "params": { "window": [2556, 1179], "safe": [177, 0, 177, 63], "screen": "fill", "hour": 11 },
+    "input": "swipe:150,200->190,200@0.3-2.3",
+    "steps": [ { "at": 1.5, "expect": ["state.mode == 'play'", "state.player.state == 'walk'"] },
+               { "at": 2.8, "expect": ["state.player.moved >= 2", "state.player.state == 'idle'"] } ] },
+  { "name": "touch: a tap on the world away from anyone swings the sword, as on a phone",
+    "params": { "window": [2556, 1179], "safe": [177, 0, 177, 63], "screen": "fill", "hour": 11 },
+    "input": "touch:470,120@0.4",
+    "steps": [ { "at": 0.45, "expect": "['windup', 'strike', 'recover'].includes(state.player.state)" } ] },
+  { "name": "snapshot: animals are typed by their kind and cannot be talked to; the nearest one to talk to is a person",
+    "steps": [ { "at": 0.5, "expect": [
+      "entities.some(e => e.type == 'Hen' && e.kind == 'animal' && !e.talk)",
+      "entities.filter(e => e.kind == 'animal').every(e => ['Dog', 'Cat', 'Hen', 'Rooster', 'Goat', 'Pig', 'Duck', 'Cow', 'Sheep', 'Horse'].includes(e.type) && !e.talk)",
+      "entities.filter(e => e.type == 'Villager').every(e => e.kind == 'person')",
+      "entities.filter(e => e.talk)[0].kind == 'person'",
+      "entities.filter(e => e.kind == 'person').length >= 3"] } ] },
+  { "name": "snapshot: the walkability window is 41 x 41 tiles round the player, who stands on open ground, as everyone else does",
+    "input": "d@0.2-2.2",
+    "steps": [ { "at": 0.1, "expect": [
+      "state.map.cell == 1 && state.map.solid == '#' && state.map.rows.length == 41 && state.map.rows.every(r => r.length == 41 && /^[#.]+$/.test(r))",
+      "state.map.origin[0] == Math.floor(state.player.pos[0]) - 20 && state.map.origin[1] == Math.floor(state.player.pos[1]) - 20",
+      "state.map.rows[20][20] == '.'", "state.map.rows.join('').includes('#')", "state.map.id.startsWith('ow:')"] },
+               { "at": 2.5, "expect": [
+      "state.player.moved >= 4",
+      "state.map.origin[0] == Math.floor(state.player.pos[0]) - 20 && state.map.rows[20][20] == '.'",
+      "entities.filter(e => e.kind == 'person' && Math.abs(e.pos[0] - state.player.pos[0]) < 20 && Math.abs(e.pos[1] - state.player.pos[1]) < 20).every(e => state.map.rows[Math.floor(e.pos[1]) - state.map.origin[1]][Math.floor(e.pos[0]) - state.map.origin[0]] == '.')"] } ] },
+  { "name": "snapshot: inside a building the window is the building's floor, walled round",
+    "seed": 4, "scene": "town", "params": { "hour": 15 },
+    "steps": [ { "at": 0.5, "call": ["enter", "inn"] },
+               { "at": 1.5, "expect": ["state.player.inside", "state.scene == 'inside'", "state.map.id.startsWith('in:')", "state.map.rows[20][20] == '.'",
+                                       "state.map.rows[0] == '#'.repeat(41)"] } ] }
+]

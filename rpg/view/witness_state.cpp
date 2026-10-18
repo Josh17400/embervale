@@ -29,6 +29,12 @@ const char* monsterType(art::Monster m) {
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)art::Monster::COUNT, "a type for every monster");
   return (int)m < (int)art::Monster::COUNT ? n[(int)m] : "Monster";
 }
+// a village or farm animal (Actor::critter - 1): what count('Hen') matches; a person's role never names one
+const char* critterType(art::Critter c) {
+  static const char* n[] = {"Dog", "Cat", "Hen", "Rooster", "Goat", "Pig", "Duck", "Cow", "Sheep", "Horse"};
+  static_assert(sizeof(n) / sizeof(n[0]) == (size_t)art::Critter::COUNT, "a type for every critter");
+  return (int)c < (int)art::Critter::COUNT ? n[(int)c] : "Animal";
+}
 const char* modeName(Mode m) {
   static const char* n[] = {"title", "play", "dialogue", "menu", "shop", "levelup", "dead", "paused", "creator", "forge", "build"};
   return (size_t)m < sizeof(n) / sizeof(n[0]) ? n[(int)m] : "other";
@@ -77,7 +83,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   j.key("equipped").begin_object().field("weapon", eq(g.eqWeapon)).field("bow", eq(g.eqBow)).field("armor", eq(g.eqArmor))
       .field("helmet", eq(g.eqHelmet)).field("shield", eq(g.eqShield)).end_object();
   j.field("items", (int)g.inv.size());
-  {   // (P2a) the hero as drawn last frame: rig, figure height, the opaque box and the feet point in device px
+  if (x.device) {   // (P2a) the hero as drawn last frame: rig, figure height, the opaque box and the feet point in device px
     const View::HeroSprite& hs = v.heroSprite;
     const Pix::Layer& wl = v.worldLayerForTests();
     j.key("sprite").begin_object().field("rig", art::rigVersion()).field("figH", art::rig().figH(P.look)).field("drawn", hs.on);
@@ -99,7 +105,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   j.end_object();
 
   // (P2a) the screen: the window, the UI fit, the world layer and its zoom numbers, the rig's draw counters
-  {
+  if (x.device) {
     const Pix::Layer& ul = v.uiLayerForTests();
     const Pix::Layer& wl = v.worldLayerForTests();
     int pw = 0, ph = 0;
@@ -141,7 +147,31 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     if (const Kingdom* K = g.world.kingdomOf(si)) j.field("kingdom", K->name);
   }
   j.end_object();
-  if (g.mode == Mode::Play || g.mode == Mode::Dialogue) j.field("scene", g.inside ? "inside" : "overworld");
+  // in every mode with a world in play (a menu over it too: an agent playtest reads a change of scene as a new place)
+  const bool inWorld = g.mode != Mode::Title && g.mode != Mode::Creator;
+  if (inWorld) j.field("scene", g.inside ? "inside" : "overworld");
+
+  // the ground round the player, for an agent playtest's pathing (Witness PLAYTEST.md "Snapshot conventions"): 41 x 41
+  // tiles centred on the player's tile, '#' where Map::blocked (walls, buildings, solid props, deep water, cliffs, off
+  // the map), '.' where a body can stand. Positions are tiles of the current map, as `pos` is, so origin is the top-left
+  // tile; id names that frame (inside: the building and floor; outside: the endless window's origin, which moves the
+  // local tiles when it shifts). Read-only: nothing here touches the sim.
+  if (inWorld) {
+    const Map& m = g.map();
+    constexpr int R = 20;
+    const int px = (int)std::floor(P.p.x / TILE), py = (int)std::floor(P.p.y / TILE);
+    char id[64];
+    if (g.inside) std::snprintf(id, sizeof id, "in:%d:%d:%d", g.subSite, g.subBldg, g.subFloor);
+    else std::snprintf(id, sizeof id, "ow:%d,%d", (int)g.world.ox, (int)g.world.oy);
+    j.key("map").begin_object().field("id", std::string(id)).field("cell", 1).key("origin").vec(px - R, py - R).field("solid", "#");
+    j.key("rows").begin_array();
+    std::string row((size_t)(2 * R + 1), '.');
+    for (int y = py - R; y <= py + R; y++) {
+      for (int x = px - R; x <= px + R; x++) row[(size_t)(x - px + R)] = m.blocked(x, y) ? '#' : '.';
+      j.value(row);
+    }
+    j.end_array().end_object();
+  }
 
   // the people and beasts within 40 tiles, nearest first (at most 60)
   std::vector<std::pair<float, const Actor*>> near;
@@ -156,10 +186,13 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   int hostiles = 0;
   for (size_t i = 0; i < near.size() && i < 60; i++) {
     const Actor& a = *near[i].second;
-    const bool person = a.npc || a.human;
+    // a person (human: a role), an animal of a village or farm (critter: its kind), else a beast (its monster type: a
+    // companion hound, the toll bridge's troll). talk: the player can talk to them (TALK on E or a tap)
+    const bool animal = a.critter != 0, person = a.human && !animal;
+    const bool talk = a.npc && !animal && !a.hostile && a.st != AState::Dead && !(a.aggro && a.target == P.id);
     if (a.hostile && a.st != AState::Dead) hostiles++;
-    j.begin_object().field("id", a.id).field("type", person ? roleName(a.role) : monsterType(a.mon))
-        .field("kind", a.comp ? "companion" : person ? "person" : "beast").field("name", a.name);
+    j.begin_object().field("id", a.id).field("type", animal ? critterType((art::Critter)(a.critter - 1)) : person ? roleName(a.role) : monsterType(a.mon))
+        .field("kind", a.comp ? "companion" : animal ? "animal" : person ? "person" : "beast").field("talk", talk).field("name", a.name);
     j.key("pos"); tilePos(j, a.p);
     j.field("dist", r2(near[i].first)).field("hp", r2(a.hp)).field("maxHp", r2(a.maxHp)).field("level", a.level)
         .field("hostile", a.hostile).field("aggro", a.aggro).field("faction", factionName(a.faction)).field("state", stateName(a.st));

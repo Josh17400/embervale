@@ -1,0 +1,19 @@
+# (Witness) a WITNESS_RECORD session with touch, a lost focus and its resume replays exactly. In Git Bash:
+#   WITNESS_RECORD="$TEMP/emb_rec/touch.jsonl" build/embervale.exe --play --seed 5 --script tools/scripts/record/witness_record_touch.txt
+#   node ../witness/bin/witness.js replay "$TEMP/emb_rec/touch.jsonl"     (must end in the state the session wrote)
+# Kept in tools/scripts/record/ (out of the run_scripts.sh sweep): it needs --play, which a sweep does not pass.
+# What it covers: fingers recorded as protocol touch events (the move stick, a world tap), a phone-sized window against
+# the replay's 960 x 540 (View::witnessSnap makes the positions come back bit for bit), a lost focus while a finger and a
+# key are held (both let go of in the recording and the view; the finger's late lift is dropped), the pause it causes
+# (the recorded "pause" action) and the Escape that resumes. Without WITNESS_RECORD it is an ordinary script.
+phone
+0.5  swipe 100 200 140 190 1.5     # the move stick: a walk to the east
++2.0 swipe 100 200 140 200 3       # a finger on the stick, dragged east (its later moves and its lift come after the resume) ...
++0.0 hold w 2                      # ... and W held: a walk to the north-east
++0.8 blur                          # the window loses the focus: both are let go of, play pauses
++0.5 expect mode paused
++0.3 key Escape                    # resume
++0.2 expect mode play
++0.3 hold d 1.0
++1.5 tap 300 120                   # a world tap away from anyone: a swing
++1.0 quit
