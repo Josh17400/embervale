@@ -166,6 +166,17 @@ jobs:
           ./build-native/rpg_test --radiant --seeds 1..3
           ./build-native/rpg_test --p1b-engine --seeds 1..5
 
+      # P2a Clear Sight (VISION_PLAN 15.36): the rig contract (metrics, families, bodyPx identity at rig 1, the atlas
+      # index, the weapon ids, the ink outer outline on every v1 character sheet == outlineInk(raw cell)), the v1 frame
+      # pick at rig 1 against its frozen reference and golden (A1), and the rig coverage of a census (reported). rpg_test
+      # links the painters (rpg_art) from P2a on. The integrator adds --gates to --rig and --anim (the lanes' DONE gates)
+      # and --gates to --rig-coverage at P2b. Blocking.
+      - name: Clear Sight rig and animation test
+        run: |
+          ./build-native/rpg_test --rig --gates
+          ./build-native/rpg_test --anim --gates
+          ./build-native/rpg_test --rig-coverage --seeds 1..3
+
       # M7 Home (VISION_PLAN 8, 15.22): crops and seasons, deterministic offline catch-up, a 1000-placement fuzz, the
       # 4 KB plot budget and the home block, building in a culture's style, riding and the dismount triggers. Blocking.
       - name: Home test

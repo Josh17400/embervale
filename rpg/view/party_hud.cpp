@@ -1036,27 +1036,30 @@ void View::hudBands(const Game& g, std::vector<PlateBox>& out) {
   }
   if (tagOn_) add(tagX0_ - 2, tagY0_ - 2, tagX1_ + 2, tagY1_ + 2);   // the faced person's name and E: TALK
   if (g.mode == Mode::Play) {
-    const Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
+    // (P2a) world sizes in UI px: k UI px per world px; heights from the rig's metrics
+    const float k = uiPerWorld();
+    const art::RigMetrics& RM = rigFor(g.pl().look);
     // (fixer M8 r2, review: "plates cover the mounted hero's head and the companion's horse") the hero, on foot or
     // in the saddle: no spoken line is laid over them
-    const Vec2 hs = g.pl().p - cam;
-    if (g.homeRiding()) add(hs.x - 15, hs.y - 40, hs.x + 15, hs.y + 3);
-    else add(hs.x - 8, hs.y - 30, hs.x + 8, hs.y + 2);
+    const Vec2 hs = toUi(g.pl().p);
+    if (g.homeRiding()) add(hs.x - 15 * k, hs.y - (RM.markerY + 10) * k, hs.x + 15 * k, hs.y + 3 * k);
+    else add(hs.x - 8 * k, hs.y - RM.markerY * k, hs.x + 8 * k, hs.y + 2 * k);
     // (fixer M8 r2, review: "the binding ring is hidden under the name label and the I'M DOWN plate") the wound mark
     // and the binding ring over a downed companion (companionOverlays) stay in the clear
     for (size_t i = 1; i < g.actors.size(); i++) {
       const Actor& a = g.actors[i];
       const int mi = companionIndex(g, a);
       if (mi < 0 || a.st == AState::Dead || g.party.members[(size_t)mi].state != party::State::Downed) continue;
-      const Vec2 s = a.p - cam;
-      const float cx = std::floor(s.x), cy = std::floor(s.y - (a.human ? 28.0f : 22.0f));
-      add(cx - 11, cy - 11, cx + 11, cy + 11);
+      const Vec2 s = toUi(a.p);
+      const float cx = std::floor(s.x), cy = std::floor(s.y - (a.human ? (float)rigFor(a.look).plateY : 22.0f) * k);
+      add(cx - 11 * k, cy - 11 * k, cx + 11 * k, cy + 11 * k);
     }
   }
 }
 
 // ---------------------------------------------------------------- banter
 void View::drawBanter(Game& g, Vec2 cam) {
+  (void)cam;   // (P2a) the UI layer: the speakers are projected through toUi
   if (banterShow_.empty() || g.mode != Mode::Play) return;
   Pix& P = *pix_;
   const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
@@ -1092,8 +1095,8 @@ void View::drawBanter(Game& g, Vec2 cam) {
     Vec2 head;
     if (ai > 0) {
       const Actor& sp = g.actors[(size_t)ai];
-      head = sp.p - cam;
-      const float top = sp.human ? 30.0f : 20.0f;
+      head = toUi(sp.p);
+      const float top = (sp.human ? (float)rigFor(sp.look).markerY : 20.0f) * uiPerWorld();
       if (head.x > L + 4 && head.x < R - 4 && head.y - top > T + 4 && head.y < B - 4) {
         overHead = true;
         cx = std::floor(head.x);

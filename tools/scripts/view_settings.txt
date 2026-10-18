@@ -14,10 +14,10 @@ seed 7
 1.3  key Right                   # BORDER: 2 steps
 1.5  shot settings_3_keys.png
 # touch (box coordinates at the default window, FILL with a small border keeps the box near 0,0)
-1.6  tap 397 130                 # HUD MARGIN ">": AUTO -> 0 PX (a tap switches to the touch layout: 30 px rows)
-1.7  tap 397 130                 # -> 4 PX
-1.8  tap 300 100                 # BORDER slider: the notch under the finger (6)
+1.6  tap 397 115                 # HUD MARGIN ">": AUTO -> 0 PX (a tap switches to the touch layout; P2a: 7 rows, 24 px)
+1.7  tap 397 115                 # -> 4 PX
+1.8  tap 300 94                  # BORDER slider: the notch under the finger (6)
 2.0  shot settings_4_taps.png
-2.1  tap 240 190                 # DONE
+2.1  tap 240 212                 # DONE (P2a: row 7, under ZOOM and PLAYER RING)
 2.3  shot settings_5_closed.png
 2.4  quit

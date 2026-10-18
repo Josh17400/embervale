@@ -17,7 +17,7 @@ int critterCellW(Critter c) {
     case Critter::Rooster: return 14;
     case Critter::Cow: return 30;     // (M7) a dairy cow
     case Critter::Sheep: return 22;   // (M7) a woolly sheep (shorn by variant bit 7)
-    case Critter::Horse: return HORSE_W;   // (M7) the loose horse: the riding horse's own cells, untacked
+    case Critter::Horse: return horseCellW();   // (M7) the loose horse: the riding horse's own cells, untacked (P2a: its rig-2 size)
     default: return 14;   // hen, duck
   }
 }
@@ -31,7 +31,7 @@ int critterCellH(Critter c) {
     case Critter::Duck: return 13;
     case Critter::Cow: return 24;
     case Critter::Sheep: return 18;
-    case Critter::Horse: return HORSE_H;
+    case Critter::Horse: return horseCellH();
     default: return 15;   // hen
   }
 }
@@ -699,7 +699,7 @@ Canvas critterSheet(Critter cr, uint32_t variant) {
         case Critter::Horse: {   // (M7) the riding horse's own cells, no tack: idle, walk, graze, lying down
           static const uint32_t kHorseCoat[4] = {rgba(140, 90, 48), rgba(96, 62, 38), rgba(184, 182, 178), rgba(186, 140, 82)};
           static const int kPose[CRITTER_FRAMES] = {0, 1, 2, 3, 4, 8, 9, 10};
-          place(out, horseCell(kHorseCoat[v % 4], (v / 4) * 2654435761u + v, false, row, kPose[f]), f, row);
+          place(out, horseCellRig(kHorseCoat[v % 4], (v / 4) * 2654435761u + v, false, row, kPose[f]), f, row);   // (P2a: the rig's horse)
           continue;
         }
         case Critter::Dog: case Critter::Cat: case Critter::Goat: case Critter::Pig:
@@ -719,7 +719,7 @@ Canvas critterSheet(Critter cr, uint32_t variant) {
           break;
         }
       }
-      outline(cell, 0.9f);
+      outlineInk(cell, 0.9f);   // (P2a) the ink outer outline (STYLE_P2 8)
       place(out, cell, f, row);
     }
   return out;

@@ -687,7 +687,13 @@ void View::wrapText(float x, float y, float w, const std::string& s, Color c, in
 void View::draw(Game& g, bool hasSave) {
   Pix& P = *pix_;
   hasSave_ = hasSave;
+  v1DrawsLast = v1Draws;   // (P2a) people frames drawn from v1 sheets last frame
+  v1Draws = 0;
   P.begin(Color(0, 0, 0));
+  // (P2a) the WORLD layer (engine/pix.h): every world pixel a whole D x D block of device px; the world view is Pix::W x
+  // Pix::H in here (View::viewW / viewH outside)
+  ringOn_ = false;
+  P.beginWorld();
   drawWorld(g);
   drawLighting(g);
   drawWeather(g, 0);
@@ -700,8 +706,12 @@ void View::draw(Game& g, bool hasSave) {
     drawReliefOver(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M11) cloud shadows, haze (render_relief.cpp)
     drawSeaOver(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M10) the Mist, storms (render_sea.cpp)
   }
-  // floating combat text (screen)
-  Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
+  P.endWorld();
+  // (P2a `ui 0`) the world alone: the device shots p2_measure.mjs checks for whole D x D blocks
+  if (!p2a.ui) return;
+  // ---- the UI layer from here: text anchored on the world goes through toUi (STYLE_P2 18: its glyphs the same size
+  // at every zoom), world sizes through uiPerWorld
+  drawBeastPlates(g);   // the elites' plates, a world boss's bar (render.cpp)
   // (fixer M8 r1) every spoken plate this frame keeps clear of the HUD's bands and of the plates placed before it
   plateBoxes_.clear();
   std::vector<PlateBox> speechBands;
@@ -715,7 +725,8 @@ void View::draw(Game& g, bool hasSave) {
       int w = 0;
       for (const std::string& l : ls) w = std::max(w, P.textW(l, 1));
       const float lh = 9.0f, h = ls.size() * lh + 3.0f;
-      float cx = std::floor(f.p.x - cam.x), y0 = std::floor(f.p.y - cam.y - h);
+      const Vec2 fu = toUi(f.p);   // (P2a) the speaker's anchor, projected from the world layer
+      float cx = std::floor(fu.x), y0 = std::floor(fu.y - h);
       cx = clampf(cx, (float)Pix::SL + w / 2.0f + 4, (float)(Pix::W - Pix::SR) - w / 2.0f - 4);
       // (M5 fixer) never under the location / quest column: slide left of it (or below it when that is nearer)
       if (y0 < hudColBottom_ && cx + w / 2.0f + 3 > hudColLeft_) {
@@ -748,8 +759,9 @@ void View::draw(Game& g, bool hasSave) {
       continue;
     }
     float a = clampf(1.2f - f.t, 0, 1);
-    P.text(f.p.x - cam.x + 1, f.p.y - cam.y + 1, f.s, 1, Color(0, 0, 0, a * 0.7f), 1);
-    P.text(f.p.x - cam.x, f.p.y - cam.y, f.s, 1, Color(f.c.r, f.c.g, f.c.b, a), 1);
+    const Vec2 fu = toUi(f.p);   // (P2a) a combat number: anchored on the world, its glyphs the UI's size
+    P.text(fu.x + 1, fu.y + 1, f.s, 1, Color(0, 0, 0, a * 0.7f), 1);
+    P.text(fu.x, fu.y, f.s, 1, Color(f.c.r, f.c.g, f.c.b, a), 1);
   }
   if (g.mode == Mode::Play) drawBanter(g, Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)));   // (M8) party_hud.cpp
   if (g.mode == Mode::Title) { drawTitle(g, hasSave); }
@@ -758,6 +770,8 @@ void View::draw(Game& g, bool hasSave) {
     // (M1 round 3) the HUD steps away under the menu and the shop (its bars, gold, minimap and the hamburger showed
     // round the panel's edges on a wide phone)
     if (g.mode != Mode::Menu && g.mode != Mode::Shop && g.mode != Mode::LevelUp && g.mode != Mode::Forge && g.mode != Mode::Build) drawHud(g);
+    partyWorldText(g);   // (P2a) the party's names over the world (party_view.cpp; after the HUD's name tag it keeps clear of)
+    drawPips(g);         // (P2a) the off-screen danger pips at the safe area's edge, over the HUD's banners (render.cpp)
     if (touchUI && (g.mode == Mode::Play)) drawTouch(g);
     if (g.mode == Mode::Play) drawPartyRadial(g);   // (M8) the companions' orders, over the whole HUD (party_hud.cpp)
     if (g.mode == Mode::Dialogue) drawDialogue(g);
@@ -868,6 +882,10 @@ void View::drawHud(Game& g) {
   };
   // M1: every HUD piece is anchored to the safe area (the notch side of a phone, the HUD MARGIN setting)
   const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
+  // (P2a) what the HUD places over the world is projected through toUi; a world size is kw UI px per world px and the
+  // heights over a body come from the rig's metrics
+  const float kw = uiPerWorld();
+  const art::RigMetrics& RM = rigFor(g.pl().look);   // the hero's (as drawn)
   drawSeaHud(g);   // (M10) the sail and fishing panels (render_sea.cpp)
   drawRiseHud(g);  // (M12) the herald's banner of a rise, the rank's insignia (render_rise.cpp)
   P.textS(L + 6, T + 5, "LV " + std::to_string(g.plLevel), 1, kGold);
@@ -941,9 +959,10 @@ void View::drawHud(Game& g) {
     // (M1) a big hall (the palace, a keep) runs on under the minimap and the column: keep both readable over the
     // shelves and beds with a firmer backing, and step aside only while the hero is right under them
     const Map& m = g.map();
-    const Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
-    float mx1 = m.w * 16.0f - cam.x, my0 = -16.0f - cam.y;
-    const Vec2 ps = g.pl().p - cam;
+    // (P2a) the room's right and top edges and the hero, projected from the world layer into the HUD's UI px
+    const Vec2 mc = toUi(Vec2(m.w * 16.0f, -16.0f));
+    float mx1 = mc.x, my0 = mc.y;
+    const Vec2 ps = toUi(g.pl().p);
     if (mx1 > R - 74 && my0 < T + 90 && ps.x > R - 84 && ps.y < T + 100) showMini = false;
     if (mx1 > R - 160 && my0 < T + 130) {   // the rooms run on under the location / quest column
       backA = 0.74f;
@@ -953,11 +972,10 @@ void View::drawHud(Game& g) {
   // (M6 fixer r2, review: "the info panel is drawn over the STONEFATHER world boss") a boss standing under the location
   // / quest column fades the column the way a hall's rooms do: the fight is what matters
   if (!g.inside && g.mode == Mode::Play) {
-    const Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
     for (const Actor& a : g.actors) {
       if (!a.hostile || a.st == AState::Dead || !(a.boss || a.rank >= 4)) continue;
-      const Vec2 s = a.p - cam;
-      const float half = a.scalePct > 100 ? 8.0f * a.scalePct / 100.0f + 6.0f : 14.0f;
+      const Vec2 s = toUi(a.p);
+      const float half = (a.scalePct > 100 ? 8.0f * a.scalePct / 100.0f + 6.0f : 14.0f) * kw;
       if (s.x + half > R - 180 && s.x - half < R && s.y - 3.0f * half < T + 165 && s.y > T + 60) { hudA = 0.3f; backA = 0.22f; break; }
     }
   }
@@ -1135,14 +1153,13 @@ void View::drawHud(Game& g) {
   // (M5 fixer, review: "nothing points to the fight") a live night raid: a red chevron at the screen's edge toward the
   // nearest raider out of sight, pulsing, so a phone player can find (and join) the town's defence
   if (g.life.raid.site && g.life.raid.outcome == 0 && !g.inside && g.mode == Mode::Play) {
-    const Vec2 camR(std::floor(cam_.x), std::floor(cam_.y));
     float bd = 1e30f;
     Vec2 best;
     bool any = false, seen = false;
     for (const Actor& ra : g.actors) {
       if (std::find(g.life.raid.ids.begin(), g.life.raid.ids.end(), ra.id) == g.life.raid.ids.end()) continue;
       if (ra.st == AState::Dead || !ra.hostile) continue;
-      const Vec2 sc = ra.p - camR;
+      const Vec2 sc = toUi(ra.p);   // (P2a) projected from the world layer
       if (sc.x > L && sc.y > T && sc.x < R && sc.y < B) { seen = true; break; }
       const float d2 = len2(ra.p - g.pl().p);
       if (d2 < bd) { bd = d2; best = sc; any = true; }
@@ -1203,7 +1220,7 @@ void View::drawHud(Game& g) {
       int tx, ty;
       if (!g.inside && questTile(g, *q, tx, ty)) {
         Vec2 tgt(tx * 16 + 8.0f, ty * 16 + 8.0f);
-        Vec2 sc = tgt - Vec2(std::floor(cam_.x), std::floor(cam_.y));
+        Vec2 sc = toUi(tgt);   // (P2a) projected from the world layer
         bool on = sc.x > L + 10 && sc.y > T + 10 && sc.x < R - 10 && sc.y < B - 10;
         float dist = len(tgt - p.p) / 16;
         // (fixer M4 r1, review: "the compass chevron draws over the dialogue panel's border") no compass while a
@@ -1321,7 +1338,7 @@ void View::drawHud(Game& g) {
                    }())) {
           // an outlined quest pin in the "!" bubble's style (render_markers.cpp): a gold diamond with a dark outline
           // and a tail pointing down. A door target (a building) carries it above the roof line, not on the facade.
-          float pinY = sc.y - 26;   // tail tip
+          float pinY = sc.y - 26 * kw;   // tail tip
           const Map& om = g.map();
           for (int bi = 0; bi < (int)om.bldgs.size(); bi++) {
             const Bldg& b = om.bldgs[bi];
@@ -1331,12 +1348,12 @@ void View::drawHud(Game& g) {
             auto tr = bldgTopRow_.find(k);
             if (bt != bldgTex_.end() && tr != bldgTopRow_.end()) {
               const float top = (b.r.y + b.r.h) * 16.0f + art::BLDG_PAD_B - bt->second.h + tr->second;
-              pinY = std::min(pinY, top - std::floor(cam_.y) - 3);
+              pinY = std::min(pinY, toUi(Vec2(0, top)).y - 3);
             }
             break;
           }
           // never into the HUD: above the screen top or behind the vitals block, it sits just over the door instead
-          if (pinY - 11 < T + 6 || (sc.x < L + 160 && pinY - 11 < T + 46)) pinY = sc.y - 22;
+          if (pinY - 11 < T + 6 || (sc.x < L + 160 && pinY - 11 < T + 46)) pinY = sc.y - 22 * kw;
           // (fixer M4 r1, review: "the quest diamond draws over the arrow counter") still under the HUD's top-left block
           // (vitals, gold, arrows) or the top edge: the pin is not drawn (the target is right there on screen)
           const bool underHud = pinY - 12 < T + 4 || (sc.x - 6 < L + 160 && pinY - 12 < T + 52) || (g.mode == Mode::Dialogue);
@@ -1394,7 +1411,7 @@ void View::drawHud(Game& g) {
   if (partyUse == 1 && partyIdx >= 0 && partyIdx < (int)g.party.fallen.size()) {
     // the grave: "E: VISIT" over the stone (its name shows by the stone itself, party_view.cpp)
     const party::Fallen& f = g.party.fallen[(size_t)partyIdx];
-    Vec2 s = Vec2((f.gx - g.world.ox) * 16.0f + 8.0f, (f.gy - g.world.oy) * 16.0f - 24.0f) - Vec2(std::floor(cam_.x), std::floor(cam_.y));
+    Vec2 s = toUi(Vec2((f.gx - g.world.ox) * 16.0f + 8.0f, (f.gy - g.world.oy) * 16.0f - 24.0f));
     std::string lab = std::string(touchUI ? "TAP: " : "E: ") + "VISIT " + f.name + "'S GRAVE";
     if (lab.size() > 30) lab = std::string(touchUI ? "TAP: " : "E: ") + "VISIT THE GRAVE";
     const float w = (float)P.textW(lab, 1) + 8;
@@ -1414,17 +1431,19 @@ void View::drawHud(Game& g) {
           break;
         // (fixer M8 r2) while the wounds are being bound the ring over them says it all: no name or verb over it
         if (partyUse == 2 && partyIdx >= 0 && partyIdx < (int)g.party.members.size() && g.party.members[(size_t)partyIdx].reviveT > 0) break;
-        Vec2 s = a.p - Vec2(std::floor(cam_.x), std::floor(cam_.y));
+        Vec2 s = toUi(a.p);   // (P2a) the feet, projected; heights over them are the rig's, kw UI px per world px
         // a giver with a reward waiting wears the "!" bubble (drawMarkers) just above the head: the label goes over it
         // (fixer M6b r3) so do the "has a tale" scroll and the wayside "!" (drawMarkers): the label covered the scroll
         // of the very person the player had walked up to
         const bool wayside = a.role == Role::Hunter || a.role == Role::Fisher || a.role == Role::Herbalist || a.role == Role::Traveller;
         const bool marked = g.rewardWaiting(a) || (wayside && g.offersWork(a)) ||
                             (g.story.hasTale(a.id) && !(a.bubble != art::Bubble::None && a.bubbleT > 0));
-        float ly = marked ? s.y - art::HUMAN_H - 24.0f : s.y - 34.0f;
-        if (partyUse == 2) ly -= 16.0f;   // (M8) over the wound mark and the binding ring (fixer M8 r2: clear of it)
+        // (v1: 48 / 34 px over the feet: the marker line plus the "!" bubble, or the bubble line)
+        const art::RigMetrics& AM = rigFor(a.look);
+        float ly = marked ? s.y - (AM.markerY + 18) * kw : s.y - AM.bubbleY * kw;
+        if (partyUse == 2) ly -= 16.0f * kw;   // (M8) over the wound mark and the binding ring (fixer M8 r2: clear of it)
         // keep the label off the hero: when the hero's head is where the label would go, lift it clear
-        const Vec2 hs = g.pl().p - Vec2(std::floor(cam_.x), std::floor(cam_.y));
+        const Vec2 hs = toUi(g.pl().p);
         // (M5) village animals are petted, not talked to; (M7) the player's own animals say what the button does
         // (RIDE <NAME> for the waiting horse, GROOM with a brush): home::interactLabel shares homeInteract's decision
         std::string critterUse = a.critter ? useVerbHere(g) : std::string();
@@ -1432,8 +1451,8 @@ void View::drawHud(Game& g) {
         if (partyUse == 2) verb = "E: BIND WOUNDS";   // (M8) a downed companion
         const float labelW = (float)std::max(P.textW(a.name, 1), touchUI ? 0 : P.textW(verb, 1)) * 0.5f + 6;
         const float labelTop = ly - (touchUI ? 2.0f : 11.0f);
-        if (std::fabs(hs.x - s.x) < labelW + 6 && hs.y - 30.0f < ly + 8 && hs.y > labelTop - 4)
-          ly = std::min(ly, hs.y - 38.0f);
+        if (std::fabs(hs.x - s.x) < labelW + 6 && hs.y - RM.markerY * kw < ly + 8 && hs.y > labelTop - 4)
+          ly = std::min(ly, hs.y - RM.markerY * kw - 8.0f);
         // and off the HUD's top-left block (vitals, gold, arrows, spell name): an NPC near the top of a room had its
         // name run into the spell text ("FIREBOLTULONMAR"). There the label goes under the NPC's feet instead (the
         // floor below a person at the top of a room is open; the "!" bubble stays over the head).
@@ -1443,7 +1462,7 @@ void View::drawHud(Game& g) {
           const float hudB = T + ((g.perkPts > 0 || g.blessT > 0) ? (g.perkPts > 0 && g.blessT > 0 ? 64.0f : 54.0f) : 46.0f) + (g.story.burdened() ? 12.0f : 0.0f);
           const float half = labelW - 6;
           const float topY = ly - (touchUI ? 0.0f : 9.0f);
-          if (lx - half < hudR && topY < hudB) ly = s.y + (touchUI ? 4.0f : 13.0f);
+          if (lx - half < hudR && topY < hudB) ly = s.y + (touchUI ? 4.0f : 4.0f * kw + 9.0f);
           // (fixer M8 r3, review: "the HUNGRY hint box overlaps E: TALK / A GUARD") clear of the toast column on the
           // left, as the yard's and the props' prompts keep (M7 fix): the label steps right of the notices
           const float ly0 = ly - (touchUI ? 2.0f : 11.0f), ly1 = ly + 9.0f;
@@ -1473,9 +1492,9 @@ void View::drawHud(Game& g) {
     const Actor& hp = g.pl();
     const Vec2 probe = hp.p + hp.aim * 12.0f + Vec2(0, -4);
     const float px = std::floor(probe.x / TILE) * TILE + 8.0f, py = std::floor(probe.y / TILE) * TILE;
-    Vec2 s = Vec2(px, py - 4.0f) - Vec2(std::floor(cam_.x), std::floor(cam_.y));
-    const Vec2 hs = hp.p - Vec2(std::floor(cam_.x), std::floor(cam_.y));
-    if (std::fabs(hs.x - s.x) < 30 && s.y - 10 > hs.y - 40 && s.y - 10 < hs.y + 4) s.y = hs.y - 30;   // off the hero's head
+    Vec2 s = toUi(Vec2(px, py - 4.0f));
+    const Vec2 hs = toUi(hp.p);
+    if (std::fabs(hs.x - s.x) < 30 * kw && s.y - 10 > hs.y - (RM.markerY + 10) * kw && s.y - 10 < hs.y + 4 * kw) s.y = hs.y - RM.markerY * kw;   // off the hero's head
     // (fixer M10 r1) a held verb ("HOLD: REEL") says HOLD, not TAP
     const bool held = homeVerb.rfind("HOLD: ", 0) == 0;
     const std::string lab = held ? std::string(touchUI ? "HOLD: " : "HOLD E: ") + homeVerb.substr(6)
@@ -1487,10 +1506,11 @@ void View::drawHud(Game& g) {
     P.rect(s.x - w / 2, s.y - 13, w, 11, Color(0.04f, 0.03f, 0.05f, 0.55f));
     P.textS(s.x, s.y - 11, lab, 1, kGold, 1);
     if (!touchUI && !home::interactLabel(g).empty()) {   // the tile it acts on: four corner ticks (the yard's; the sea's verbs act on the boat)
-      const float tx = px - 8 - std::floor(cam_.x), ty = py - std::floor(cam_.y);
+      const Vec2 tl = toUi(Vec2(px - 8, py));   // (P2a) the tile's corners, projected: the ticks frame it at any zoom
+      const float tx = std::floor(tl.x), ty = std::floor(tl.y);
       const Color tc(kGold.r, kGold.g, kGold.b, 0.75f);
       for (int k = 0; k < 4; k++) {
-        const float cx = tx + ((k & 1) ? 13.0f : 0.0f), cy = ty + ((k & 2) ? 15.0f : 0.0f);
+        const float cx = tx + ((k & 1) ? std::floor(16.0f * kw) - 3.0f : 0.0f), cy = ty + ((k & 2) ? std::floor(16.0f * kw) - 1.0f : 0.0f);
         P.rect(cx, cy, 3, 1, tc);
         P.rect(cx + ((k & 1) ? 2.0f : 0.0f), cy + ((k & 2) ? -2.0f : 0.0f), 1, 3, tc);
       }
@@ -1498,7 +1518,7 @@ void View::drawHud(Game& g) {
   } else if (g.mode == Mode::Play) {
     int ptx = 0, pty = 0, pr = usablePropAt(g, ptx, pty);
     if (pr) {
-      Vec2 s = Vec2(ptx * 16 + 8.0f, pty * 16 - 4.0f) - Vec2(std::floor(cam_.x), std::floor(cam_.y));
+      Vec2 s = toUi(Vec2(ptx * 16 + 8.0f, pty * 16 - 4.0f));
       const std::string lab = std::string(touchUI ? "TAP: " : "E: ") + useVerbAt(g, pr, ptx, pty);
       const float w = (float)P.textW(lab, 1);
       if (toastX1_ > 0 && s.x - w / 2 < toastX1_ + 4 && s.y - 11 < toastY1_ + 2 && s.y - 2 > toastY0_ - 2) s.x = toastX1_ + 4 + w / 2;   // (M7 fix)
@@ -1552,8 +1572,8 @@ void View::drawHud(Game& g) {
     P.textS(Pix::W / 2 + 1, y + 1, biomeBanner_, 1, Color(0, 0, 0, a * 0.6f), 1);
     P.textS(Pix::W / 2, y, biomeBanner_, 1, Color(0.98f, 0.92f, 0.74f, a), 1);
   }
-  // banner
-  if (bannerT_ > 0 && g.mode != Mode::Dialogue && !ringOpen) {
+  // banner (not on the death screen: its words own the centre, and an arrival card under them read "YOU HAVE FALLARS")
+  if (bannerT_ > 0 && g.mode != Mode::Dialogue && g.mode != Mode::Dead && !ringOpen) {
     const float a0 = clampf(std::min(bannerT_, 4.0f - bannerT_) * 2.5f, 0, 1);
     // (fixer M4 r3, review: "a ghost of the town name stays on the ground after the plate fades") the plate fades last:
     // the words go first (a squared), so no name ever floats over the street without its dark plate under it
@@ -2611,22 +2631,43 @@ void View::drawTitle(Game& g, bool hasSave) {
 
 void View::drawDead(Game& g) {
   Pix& P = *pix_;
-  (void)g;
-  P.rect(0, 0, Pix::W, Pix::H, Color(0.15f, 0, 0, 0.55f));
-  const UiBox box = uiBox(270);
-  P.pushBox(box.x, box.y, box.w, box.h);
-  const float cy = std::floor(Pix::H / 2.0f);
-  P.popBox();
-  for (int k = 0; k < 90; k++) {   // a dark band behind the words, eased at its edges
-    const float d = std::fabs(k - 45.0f) / 45.0f;
-    P.rect(0, box.y + cy - 50 + k, Pix::W, 1, Color(0.06f, 0, 0, 0.6f * (1 - d * d)));
+  // (P2a, STYLE_P2 13) the hero's fall plays UNDER the death screen's fade, on view time (modeT_ = seconds since the
+  // death): the tint deepens over 0.8 s, the band and the words come up only as he lands (full at 0.55 s, after the
+  // lying frame at about 0.35 s), and the words sit ABOVE his head with the prompt below his feet, so the body stays in
+  // view between them, never under the band.
+  auto ease = [](float x) { x = clampf(x, 0, 1); return x * x * (3 - 2 * x); };
+  const float t = modeT_;
+  const float tintA = ease(t / 0.8f), bandA = ease((t - 0.15f) / 0.40f), wordA = ease((t - 0.25f) / 0.30f);
+  P.rect(0, 0, Pix::W, Pix::H, Color(0.15f, 0, 0, 0.5f * tintA));
+  // the hero on the UI layer: his feet (the pivot) and the top of a standing figure (rig 2 stands about 40 world px)
+  const float upw = uiPerWorld();
+  const Vec2 hp = toUi(g.pl().p);
+  const float headY = hp.y - 42.0f * upw, feetY = hp.y + 8.0f * upw;
+  const float top = (float)Pix::ST, bot = (float)(Pix::H - Pix::SB);
+  // the words' centre line: above the head with the band's soft lower edge just clearing it; on a screen too short for
+  // that (or the hero pinned high by the map's edge) they go below his feet instead
+  constexpr int kBand = 56;   // the band's rows (the words are 21 rows tall at size 3)
+  float wy = std::floor(std::min(headY - kBand / 2.0f + 4.0f, (top + bot) / 2.0f - 40.0f));
+  bool below = false;
+  if (wy - kBand / 2.0f < top) { wy = std::floor(feetY + kBand / 2.0f + 2.0f); below = true; }
+  if (bandA > 0)
+    for (int k = 0; k < kBand; k++) {   // a dark band behind the words, eased at its edges
+      const float d = std::fabs(k - kBand / 2.0f) / (kBand / 2.0f);
+      P.rect(0, wy - kBand / 2.0f + k, Pix::W, 1, Color(0.06f, 0, 0, 0.6f * bandA * (1 - d * d)));
+    }
+  if (wordA > 0) {
+    const float rise = std::floor((1 - wordA) * 4.0f);   // the words settle 4 px upward as they come up
+    const float ty = wy - 10 + rise;
+    P.text(Pix::W / 2 + 2, ty + 2, "YOU HAVE FALLEN", 3, Color(0, 0, 0, 0.6f * wordA), 1);
+    P.text(Pix::W / 2, ty, "YOU HAVE FALLEN", 3, Color(0.9f, 0.25f, 0.2f, wordA), 1);
   }
-  P.pushBox(box.x, box.y, box.w, box.h);
-  P.text(Pix::W / 2 + 2, cy - 33, "YOU HAVE FALLEN", 3, Color(0, 0, 0, 0.6f), 1);
-  P.text(Pix::W / 2, cy - 35, "YOU HAVE FALLEN", 3, Color(0.9f, 0.25f, 0.2f), 1);
-  // the prompt (and input) waits a beat, so mashing attack as you fall doesn't skip the moment
-  if (modeT_ > 1.2f) P.text(Pix::W / 2, cy + 5, touchUI ? "TAP TO RISE AGAIN" : "PRESS ENTER TO RISE AGAIN", 1, Color(kText.r, kText.g, kText.b, clampf((modeT_ - 1.2f) * 2, 0, 1)), 1);
-  P.popBox();
+  // the prompt (and input) waits a beat, so mashing attack as you fall doesn't skip the moment; it sits under the body
+  // (or under the words when they had to go below)
+  if (modeT_ > 1.2f) {
+    const float py = std::floor(std::min(below ? wy + kBand / 2.0f + 4.0f : feetY + 10.0f, bot - 14.0f));
+    P.textS(Pix::W / 2, py, touchUI ? "TAP TO RISE AGAIN" : "PRESS ENTER TO RISE AGAIN", 1,
+            Color(kText.r, kText.g, kText.b, clampf((modeT_ - 1.2f) * 2, 0, 1)), 1);
+  }
 }
 
 // ------------------------------------------------------------------ input
@@ -2989,6 +3030,17 @@ void View::event(const SDL_Event& e, Game& g) {
   switch (e.type) {
     case SDL_EVENT_MOUSE_WHEEL:
       if (onMap && e.wheel.y != 0) worldMapZoom(e.wheel.y > 0 ? -1 : 1, inBox(modalBox(g), mouse_));
+      else if (g.mode == Mode::Play && !settingsOpen_ && e.wheel.y != 0) {
+        // (P2a) ZOOM in play: a notch steps one level (a trackpad's small deltas add up to one; a fling steps once per
+        // 0.15 s, so it never races through the levels)
+        wheelAcc_ += e.wheel.y;
+        if (std::fabs(wheelAcc_) >= 1.0f && (t_ - wheelT_ >= 0.15f || t_ < wheelT_)) {   // (view time: a harness's steps too)
+          zoomStep(wheelAcc_ > 0 ? 1 : -1);
+          wheelT_ = t_;
+          wheelAcc_ = 0;
+        }
+        wheelAcc_ = std::clamp(wheelAcc_, -1.5f, 1.5f);
+      }
       break;
     case SDL_EVENT_MOUSE_BUTTON_UP:
       if (g.mode == Mode::Play && e.button.which != SDL_TOUCH_MOUSEID && e.button.button == SDL_BUTTON_LEFT)
@@ -3041,6 +3093,9 @@ void View::event(const SDL_Event& e, Game& g) {
           break;
         }
         case SDLK_LCTRL: case SDLK_RCTRL: case SDLK_V: SkillsUiOps::sneakKey(*this, g); break;
+        // (P2a) ZOOM: - out, = (or +) in, and the keypad's
+        case SDLK_MINUS: case SDLK_KP_MINUS: zoomStep(-1); break;
+        case SDLK_EQUALS: case SDLK_PLUS: case SDLK_KP_PLUS: zoomStep(1); break;
         default: break;
       }
       break;
@@ -3097,6 +3152,22 @@ void View::event(const SDL_Event& e, Game& g) {
         if (bp.x >= 16 && bp.x < box.w - 164 && bp.y >= 40 && bp.y < box.h - 12) { mapPtr(0, (uint64_t)e.tfinger.fingerID, p); break; }
       }
       if (g.mode != Mode::Play) { tap(g, p); break; }
+      {   // (P2a) a two-finger pinch steps ZOOM: a second finger landing within 0.3 s of a first one that has hardly moved,
+          // both clear of the buttons (the first one's stick, if it made one, is let go)
+        const uint64_t now = SDL_GetTicks();
+        int others = 0;
+        const Finger* first = nullptr;
+        for (const Finger& f : fingers_) if (f.on) { others++; first = &f; }
+        if (others == 1 && first && first->button == -1 && now - first->t0 < 300 && len2(first->cur - first->start) < 10.0f * 10.0f &&
+            buttonAt(p) < 0 && SkillsUiOps::quickAt(*this, g, p) < 0) {
+          pinch_.on = true; pinch_.a = first->id; pinch_.b = (uint64_t)e.tfinger.fingerID;
+          pinch_.pa = first->cur; pinch_.pb = p; pinch_.d0 = std::max(8.0f, len(p - first->cur)); pinch_.done = 0;
+          if (stick_.on && stick_.id == first->id) stick_.on = false;
+          Finger f; f.id = e.tfinger.fingerID; f.on = true; f.start = f.cur = p; f.button = -3; f.t0 = now;   // -3: a pinch finger
+          fingers_.push_back(f);
+          break;
+        }
+      }
       if (partyPointer(g, 0, (uint64_t)e.tfinger.fingerID, p, false)) break;   // (M8) a companion's card: tap selects, hold orders
       if (homeHudTap(g, p)) break;   // (M7) YARD / DECORATE, DISMOUNT
       if (const int q = SkillsUiOps::quickAt(*this, g, p); q >= 0 && buttonAt(p) != B_ATTACK) {   // (M9) a quick-cast button
@@ -3129,9 +3200,9 @@ void View::event(const SDL_Event& e, Game& g) {
         int utx = 0, uty = 0;
         bool talk = false;
         if (int it = g.interactTarget(); it >= 0) {
-          const Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
+          // (P2a) the bodies projected from the world layer; the finger's reach stays in UI px
           for (const Actor& a : g.actors)
-            if (a.id == it && (len2(p - (a.p - cam - Vec2(0, 10))) < 40.0f * 40.0f || len2(p - (g.pl().p - cam - Vec2(0, 10))) < 40.0f * 40.0f)) talk = true;
+            if (a.id == it && (len2(p - toUi(a.p - Vec2(0, 10))) < 40.0f * 40.0f || len2(p - toUi(g.pl().p - Vec2(0, 10))) < 40.0f * 40.0f)) talk = true;
         }
         if (talk || usablePropAt(g, utx, uty) || !useVerbHere(g).empty()) kUse_ = true; else { kAttack_ = true; kTapAttack_ = true; }
       }
@@ -3142,6 +3213,12 @@ void View::event(const SDL_Event& e, Game& g) {
       int ww, wh;
       SDL_GetWindowSize(pix_->window(), &ww, &wh);
       Vec2 p = logical(e.tfinger.x * ww, e.tfinger.y * wh);
+      if (pinch_.on && ((uint64_t)e.tfinger.fingerID == pinch_.a || (uint64_t)e.tfinger.fingerID == pinch_.b)) {
+        // (P2a) the pinch: spread a third wider for a level in, close a quarter for a level out (rebased each step)
+        if ((uint64_t)e.tfinger.fingerID == pinch_.a) pinch_.pa = p; else pinch_.pb = p;
+        const float d = len(pinch_.pb - pinch_.pa), r = d / std::max(1.0f, pinch_.d0);
+        if (g.mode == Mode::Play && (r > 1.35f || r < 0.74f)) { zoomStep(r > 1 ? 1 : -1); pinch_.d0 = std::max(8.0f, d); pinch_.done++; }
+      }
       if (onMap) mapPtr(1, (uint64_t)e.tfinger.fingerID, p);
       if (g.mode == Mode::Build) buildPointer(g, 1, p);   // (M7) the ghost or a list dragged
       if (g.mode == Mode::Play) partyPointer(g, 1, (uint64_t)e.tfinger.fingerID, p, false);   // (M8) the held radial
@@ -3151,6 +3228,7 @@ void View::event(const SDL_Event& e, Game& g) {
       break;
     }
     case SDL_EVENT_FINGER_UP: case SDL_EVENT_FINGER_CANCELED: {
+      if (pinch_.on && ((uint64_t)e.tfinger.fingerID == pinch_.a || (uint64_t)e.tfinger.fingerID == pinch_.b)) pinch_.on = false;   // (P2a)
       if (g.mode == Mode::Play) {   // (M8) a card let go of: a tap selects; the held radial gives the order under the finger
         int ww, wh;
         SDL_GetWindowSize(pix_->window(), &ww, &wh);
@@ -3174,17 +3252,16 @@ void View::event(const SDL_Event& e, Game& g) {
         // M0b fix round 3: a short, still tap on the left half opens the stick, but when it lands on the "TAP: SLEEP"
         // label / the prop it names, or on the person in reach, it is a use: the label says tap here, so it must work
         if (e.type == SDL_EVENT_FINGER_UP && g.mode == Mode::Play && SDL_GetTicks() - stick_.t0 < 350 && len2(stick_.cur - stick_.start) < 8.0f * 8.0f) {
-          const Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
           const Vec2 q = stick_.start;
           bool use = false;
           int utx = 0, uty = 0;
           if (usablePropAt(g, utx, uty)) {
-            Vec2 s = Vec2(utx * 16 + 8.0f, uty * 16 - 4.0f) - cam;   // the prop's label sits at s.y - 10
+            Vec2 s = toUi(Vec2(utx * 16 + 8.0f, uty * 16 - 4.0f));   // the prop's label sits at s.y - 10 (UI px)
             if (std::fabs(q.x - s.x) < 32 && q.y > s.y - 22 && q.y < s.y + 24) use = true;
           }
           if (int it = g.interactTarget(); it >= 0)
             for (const Actor& a : g.actors)
-              if (a.id == it && len2(q - (a.p - cam - Vec2(0, 10))) < 24.0f * 24.0f) use = true;
+              if (a.id == it && len2(q - toUi(a.p - Vec2(0, 10))) < 24.0f * 24.0f) use = true;
           if (use) kUse_ = true;
         }
       }

@@ -37,69 +37,19 @@ const char* kBubble[14] = {
 };
 // a bare gold "!" with a dark outline over the head (work on offer)
 const char* kBang[12] = {".ooo.", "oHYSo", "oHYSo", "oHYSo", "oHYSo", ".oYSo", ".oYo.", ".oYo.", "..o..", ".ooo.", "oHYSo", ".ooo."};
-void drawOfferMark(Pix& P, const Actor& a, Vec2 cam, float t, Color outline, Color hi, Color gold, Color goldShade) {
-  const int bob = (int)std::lround(std::sin(t * 3.0f) * 1.2f);
-  const int x0 = (int)std::floor(a.p.x - cam.x) - 2, y0 = (int)std::floor(a.p.y - cam.y) - art::HUMAN_H - 13 + bob;
-  for (int pass = 0; pass < 2; pass++)
-    for (int r = 0; r < 12; r++)
-      for (int c = 0; c < 5; c++) {
-        const char ch = kBang[r][c];
-        if (ch == '.') continue;
-        if (pass == 0) { P.rect((float)(x0 + c + 1), (float)(y0 + r + 1), 1, 1, Color(0, 0, 0, 0.35f)); continue; }
-        P.rect((float)(x0 + c), (float)(y0 + r), 1, 1, ch == 'o' ? outline : ch == 'H' ? hi : ch == 'S' ? goldShade : gold);
-      }
-}
-// (P1 Fresh Roads, JOBS lane) the person an open journal LEAD names, who has work this week: a small parchment "?"
-// (no bubble, no gold: the town is not carpeted in marks; the player stumbles on work, and a lead only whispers who
-// to ask). 7 x 9, lit top-left like the "!", a slow bob and breath, a 1 px drop shadow.
+// (P2a) the line the over-head marks hang from: v1's HUMAN_H (24) at rig 1, from the rig's markerY (the mark's foot
+// markerY px over the feet: 4 px of air over the hair) for a person drawn on v2
+int headLine(const Actor& a) { return a.human ? View::rigFor(a.look).markerY - 6 : art::HUMAN_H; }
+// (P2a LENS fix r1, L9) the marks were drawn a pixel at a time (a P.rect per pixel and per pass: about 250 calls for a
+// giver's bubble); a capital's crowd of tale-tellers cost 0.4 ms a frame on the phone window. Each mark is baked once
+// per layer and drawn in two or three blits, the same pixels: layer 0 the mark (opaque), layer 1 its drop shadow's mask
+// (white, tinted black at the shadow's alpha, one px down-right), layer 2 the lead mark's halo mask. The canvas has a
+// pixel of margin all round: the mark's (0, 0) is the canvas's (1, 1).
+enum MarkKind { MK_BANG, MK_ASK, MK_CHEV, MK_SCROLL, MK_BUBBLE };
+const char* kChev[6] = {"ooooooo", "oHMMMLo", ".oHMLo.", "..oMo..", "...o...", "......."};
+// the lead mark's "?" (7 x 9)
 const char* kAsk[9] = {"..ooo..", ".oHPSo.", "oPoooSo", ".o..oSo", "...oPo.", "..oPo..", "..ooo..", "..oPo..", "..ooo.."};
-void drawLeadMark(Pix& P, const Actor& a, Vec2 cam, float t, Color outline) {
-  const Color hi(1.0f, 0.95f, 0.80f), parch(0.93f, 0.80f, 0.56f), shade(0.66f, 0.47f, 0.27f);
-  const float k = 0.78f + 0.22f * (0.5f + 0.5f * std::sin(t * 1.6f));   // a slow breath, never gone
-  const int bob = (int)std::lround(std::sin(t * 2.2f) * 1.0f);
-  const int x0 = (int)std::floor(a.p.x - cam.x) - 3, y0 = (int)std::floor(a.p.y - cam.y) - art::HUMAN_H - 11 + bob;
-  // (P1 fixer) a faint warm halo a pixel round the outline: the dark-rimmed "?" was lost on a dark awning or slate roof
-  for (int r = -1; r < 10; r++)
-    for (int c = -1; c < 8; c++) {
-      auto on = [&](int rr, int cc) { return rr >= 0 && rr < 9 && cc >= 0 && cc < 7 && kAsk[rr][cc] != '.'; };
-      if (on(r, c) || !(on(r - 1, c) || on(r + 1, c) || on(r, c - 1) || on(r, c + 1))) continue;
-      P.rect((float)(x0 + c), (float)(y0 + r), 1, 1, Color(1.0f, 0.93f, 0.76f, 0.42f * k));
-    }
-  for (int pass = 0; pass < 2; pass++)
-    for (int r = 0; r < 9; r++)
-      for (int c = 0; c < 7; c++) {
-        const char ch = kAsk[r][c];
-        if (ch == '.') continue;
-        if (pass == 0) { P.rect((float)(x0 + c + 1), (float)(y0 + r + 1), 1, 1, Color(0, 0, 0, 0.30f * k)); continue; }
-        const Color col = ch == 'o' ? outline : ch == 'H' ? hi : ch == 'S' ? shade : parch;
-        P.rect((float)(x0 + c), (float)(y0 + r), 1, 1, col.withA(k));
-      }
-}
-// the escort: a teal chevron over the head and a soft ring at the feet
-void drawEscortMark(Pix& P, const Actor& a, Vec2 cam, float t, Color outline) {
-  const Color hi(0.62f, 1.0f, 0.92f), mid(0.22f, 0.78f, 0.70f), lo(0.10f, 0.46f, 0.44f);
-  const float fx = std::floor(a.p.x - cam.x), fy = std::floor(a.p.y - cam.y);
-  for (int k = 0; k < 48; k++) {   // the ring (an ellipse, brighter at the front)
-    const float an = k / 48.0f * 6.2831853f;
-    if (std::sin(an) < -0.15f) continue;   // the back half would cross the legs (markers draw over the sprites)
-    const float x = fx + std::cos(an) * 9.0f, y = fy + 1 + std::sin(an) * 4.0f;
-    P.rect(std::floor(x), std::floor(y), 1, 1, Color(mid.r, mid.g, mid.b, std::sin(an) > 0 ? 0.85f : 0.45f));
-  }
-  static const char* kChev[6] = {"ooooooo", "oHMMMLo", ".oHMLo.", "..oMo..", "...o...", "......."};
-  const int bob = (int)std::lround(std::sin(t * 3.4f) * 1.2f);
-  const int x0 = (int)fx - 3, y0 = (int)fy - art::HUMAN_H - 9 + bob;
-  for (int pass = 0; pass < 2; pass++)
-    for (int r = 0; r < 6; r++)
-      for (int c = 0; c < 7; c++) {
-        const char ch = kChev[r][c];
-        if (ch == '.') continue;
-        if (pass == 0) { P.rect((float)(x0 + c + 1), (float)(y0 + r + 1), 1, 1, Color(0, 0, 0, 0.35f)); continue; }
-        P.rect((float)(x0 + c), (float)(y0 + r), 1, 1, ch == 'o' ? outline : ch == 'H' ? hi : ch == 'L' ? lo : mid);
-      }
-}
-// someone with a tale to tell (Engine::hasTale: the story scan found an offer)
-// (fixer M6b r2) "has a tale": a speech bubble the size of the work-on-offer "!" bubble (11 x 12, readable at phone 1x)
-// holding a tan scroll between two rolled ends, ink lines on it; the slow bob of the other markers
+// the tale mark: a bubble holding a scroll (11 x 12)
 const char* kScroll[12] = {
     "..ooooooo..",
     ".oWWWWWWWo.",
@@ -114,19 +64,90 @@ const char* kScroll[12] = {
     "....oDo....",
     ".....o.....",
 };
-void drawTaleMark(Pix& P, const Actor& a, Vec2 cam, float t, Color outline, Color paper, Color paperShade) {
-  const Color hi(1.0f, 0.86f, 0.62f), ink(0.36f, 0.22f, 0.13f), roll(0.58f, 0.36f, 0.19f), parch(0.95f, 0.83f, 0.58f);
+struct MarkPat { const char* const* rows; int h, w; };
+MarkPat markPat(int kind) {
+  switch (kind) {
+    case MK_BANG: return {kBang, 12, 5};
+    case MK_ASK: return {kAsk, 9, 7};
+    case MK_CHEV: return {kChev, 6, 7};
+    case MK_SCROLL: return {kScroll, 12, 11};
+    default: return {kBubble, 14, 11};
+  }
+}
+uint32_t markRgb(float r, float g, float b) { return rgba((int)std::lround(r * 255), (int)std::lround(g * 255), (int)std::lround(b * 255)); }
+// the colours drawMarkers and the mark painters used (outline, paper, paperShade, hi, gold, goldShade there)
+uint32_t markColor(int kind, char ch) {
+  const uint32_t outline = markRgb(0.09f, 0.06f, 0.08f);
+  if (ch == 'o') return outline;
+  switch (kind) {
+    case MK_BANG: return ch == 'H' ? markRgb(1.0f, 0.86f, 0.38f) : ch == 'S' ? markRgb(0.74f, 0.33f, 0.05f) : markRgb(1.0f, 0.64f, 0.10f);
+    case MK_ASK: return ch == 'H' ? markRgb(1.0f, 0.95f, 0.80f) : ch == 'S' ? markRgb(0.66f, 0.47f, 0.27f) : markRgb(0.93f, 0.80f, 0.56f);
+    case MK_CHEV: return ch == 'H' ? markRgb(0.62f, 1.0f, 0.92f) : ch == 'L' ? markRgb(0.10f, 0.46f, 0.44f) : markRgb(0.22f, 0.78f, 0.70f);
+    case MK_SCROLL:
+      return ch == 'H' ? markRgb(1.0f, 0.86f, 0.62f) : ch == 'D' ? markRgb(0.82f, 0.74f, 0.62f) : ch == 'k' ? markRgb(0.36f, 0.22f, 0.13f) :
+             ch == 'r' ? markRgb(0.58f, 0.36f, 0.19f) : ch == 'P' ? markRgb(0.95f, 0.83f, 0.58f) : markRgb(1.0f, 0.97f, 0.88f);
+    default:
+      return ch == 'W' ? markRgb(1.0f, 0.97f, 0.88f) : ch == 'D' ? markRgb(0.82f, 0.74f, 0.62f) : ch == 'H' ? markRgb(1.0f, 0.86f, 0.38f) :
+             ch == 'S' ? markRgb(0.74f, 0.33f, 0.05f) : markRgb(1.0f, 0.64f, 0.10f);
+  }
+}
+uint64_t markKey(int kind, int layer) { return 0x02ull << 56 | 0x4D4Bull << 24 | (uint64_t)kind << 4 | (uint64_t)layer; }
+Canvas paintMark(uint64_t key) {
+  const int kind = (int)((key >> 4) & 15), layer = (int)(key & 15);
+  const MarkPat mp = markPat(kind);
+  Canvas c(mp.w + 2, mp.h + 2);
+  auto on = [&](int r, int q) { return r >= 0 && r < mp.h && q >= 0 && q < mp.w && mp.rows[r][q] != '.'; };
+  for (int r = -1; r <= mp.h; r++)
+    for (int q = -1; q <= mp.w; q++) {
+      if (layer == 0 && on(r, q)) c.set(q + 1, r + 1, markColor(kind, mp.rows[r][q]));
+      if (layer == 1 && on(r, q)) c.set(q + 2, r + 2, rgba(255, 255, 255));
+      if (layer == 2 && !on(r, q) && (on(r - 1, q) || on(r + 1, q) || on(r, q - 1) || on(r, q + 1))) c.set(q + 1, r + 1, rgba(255, 255, 255));
+    }
+  return c;
+}
+struct MarkTex { const Tex* pat = nullptr; const Tex* shadow = nullptr; const Tex* halo = nullptr; };
+// a mark whose (0, 0) lands on (x0, y0): its shadow at shadowA, then the mark at markA (the lead mark's halo first)
+void blitMark(Pix& P, const MarkTex& m, int x0, int y0, float shadowA, float markA, float haloA = 0) {
+  const float x = (float)(x0 - 1), y = (float)(y0 - 1);
+  const Tex& t = *m.pat;
+  if (m.halo && haloA > 0) P.blitEx(*m.halo, 0, 0, t.w, t.h, x, y, (float)t.w, (float)t.h, false, Color(1.0f, 0.93f, 0.76f, haloA));
+  P.blitEx(*m.shadow, 0, 0, t.w, t.h, x, y, (float)t.w, (float)t.h, false, Color(0, 0, 0, shadowA));
+  P.blitEx(t, 0, 0, t.w, t.h, x, y, (float)t.w, (float)t.h, false, Color(1, 1, 1, markA));
+}
+void drawOfferMark(Pix& P, const MarkTex& m, const Actor& a, Vec2 cam, float t) {
   const int bob = (int)std::lround(std::sin(t * 3.0f) * 1.2f);
-  const int x0 = (int)std::floor(a.p.x - cam.x) - 5, y0 = (int)std::floor(a.p.y - cam.y) - art::HUMAN_H - 14 + bob;
-  for (int pass = 0; pass < 2; pass++)
-    for (int r = 0; r < 12; r++)
-      for (int c = 0; c < 11; c++) {
-        const char ch = kScroll[r][c];
-        if (ch == '.') continue;
-        if (pass == 0) { P.rect((float)(x0 + c + 1), (float)(y0 + r + 1), 1, 1, Color(0, 0, 0, 0.35f)); continue; }
-        P.rect((float)(x0 + c), (float)(y0 + r), 1, 1,
-               ch == 'o' ? outline : ch == 'H' ? hi : ch == 'D' ? paperShade : ch == 'k' ? ink : ch == 'r' ? roll : ch == 'P' ? parch : paper);
-      }
+  const int x0 = (int)std::floor(a.p.x - cam.x) - 2, y0 = (int)std::floor(a.p.y - cam.y) - headLine(a) - 13 + bob;
+  blitMark(P, m, x0, y0, 0.35f, 1.0f);
+}
+// (P1 Fresh Roads, JOBS lane) the person an open journal LEAD names, who has work this week: a small parchment "?"
+// (no bubble, no gold: the town is not carpeted in marks; the player stumbles on work, and a lead only whispers who
+// to ask). 7 x 9, lit top-left like the "!", a slow bob and breath, a 1 px drop shadow; (P1 fixer) a faint warm halo a
+// pixel round the outline: the dark-rimmed "?" was lost on a dark awning or slate roof
+void drawLeadMark(Pix& P, const MarkTex& m, const Actor& a, Vec2 cam, float t) {
+  const float k = 0.78f + 0.22f * (0.5f + 0.5f * std::sin(t * 1.6f));   // a slow breath, never gone
+  const int bob = (int)std::lround(std::sin(t * 2.2f) * 1.0f);
+  const int x0 = (int)std::floor(a.p.x - cam.x) - 3, y0 = (int)std::floor(a.p.y - cam.y) - headLine(a) - 11 + bob;
+  blitMark(P, m, x0, y0, 0.30f * k, k, 0.42f * k);
+}
+// the escort: a teal chevron over the head and a soft ring at the feet
+void drawEscortMark(Pix& P, const MarkTex& m, const Actor& a, Vec2 cam, float t) {
+  const Color mid(0.22f, 0.78f, 0.70f);
+  const float fx = std::floor(a.p.x - cam.x), fy = std::floor(a.p.y - cam.y);
+  for (int k = 0; k < 48; k++) {   // the ring (an ellipse, brighter at the front)
+    const float an = k / 48.0f * 6.2831853f;
+    if (std::sin(an) < -0.15f) continue;   // the back half would cross the legs (markers draw over the sprites)
+    const float x = fx + std::cos(an) * 9.0f, y = fy + 1 + std::sin(an) * 4.0f;
+    P.rect(std::floor(x), std::floor(y), 1, 1, Color(mid.r, mid.g, mid.b, std::sin(an) > 0 ? 0.85f : 0.45f));
+  }
+  const int bob = (int)std::lround(std::sin(t * 3.4f) * 1.2f);
+  blitMark(P, m, (int)fx - 3, (int)fy - headLine(a) - 9 + bob, 0.35f, 1.0f);
+}
+// (fixer M6b r2) "has a tale": a speech bubble the size of the work-on-offer "!" bubble (11 x 12, readable at phone 1x)
+// holding a tan scroll between two rolled ends, ink lines on it; the slow bob of the other markers
+void drawTaleMark(Pix& P, const MarkTex& m, const Actor& a, Vec2 cam, float t) {
+  const int bob = (int)std::lround(std::sin(t * 3.0f) * 1.2f);
+  const int x0 = (int)std::floor(a.p.x - cam.x) - 5, y0 = (int)std::floor(a.p.y - cam.y) - headLine(a) - 14 + bob;
+  blitMark(P, m, x0, y0, 0.35f, 1.0f);
 }
 }  // namespace
 
@@ -153,7 +174,8 @@ void View::drawBubbles(Game& g, Vec2 cam) {
     // the head: the standing figure's top (a seated or sleeping body sits lower: its pose's dy)
     float dy = 0;
     if (a.human && a.posture != art::Posture::None) dy = (float)art::postureInfo(a.posture).dy;
-    const float headY = a.p.y - (a.human ? (float)art::HUMAN_H - 3.0f : (a.critter ? (float)art::critterCellH((art::Critter)(a.critter - 1)) : 18.0f)) + dy;
+    // (P2a) a person's crown from the rig they are drawn with (v1: HUMAN_H - 3 = 21)
+    const float headY = a.p.y - (a.human ? (float)rigFor(a.look).headTop : (a.critter ? (float)art::critterCellH((art::Critter)(a.critter - 1)) : 18.0f)) + dy;
     float ax = a.p.x, hy = headY;
     bool seatedDrawn = a.human && art::postureInfo(a.posture).seated;
     // (fixer M5 r3) a human's bubble rides on the head as it was drawn this frame (a posture's sink or a seat's fit is
@@ -163,7 +185,7 @@ void View::drawBubbles(Game& g, Vec2 cam) {
       if (dh != drawnHead_.end() && dh->second.t == t_) {
         ax = dh->second.x;
         hy = dh->second.y + 1.0f;
-        seatedDrawn = seatedDrawn && hy > a.p.y - (float)art::HUMAN_H + 4.0f;   // drawn sunk: it really sits
+        seatedDrawn = seatedDrawn && hy > a.p.y - (float)rigFor(a.look).headTop - 3.0f + 4.0f;   // drawn sunk: it really sits
       }
     }
     int cx = (int)std::floor(ax - cam.x) + (g.rewardWaiting(a) ? 9 : 2);
@@ -261,8 +283,16 @@ void View::drawIncidentGround(Game& g, Vec2 cam) {
 void View::drawMarkers(Game& g, Vec2 cam) {
   Pix& P = *pix_;
   drawBubbles(g, cam);
-  const Color outline(0.09f, 0.06f, 0.08f), paper(1.0f, 0.97f, 0.88f), paperShade(0.82f, 0.74f, 0.62f);
+  const Color outline(0.09f, 0.06f, 0.08f);
   const Color hi(1.0f, 0.86f, 0.38f), gold(1.0f, 0.64f, 0.10f), goldShade(0.74f, 0.33f, 0.05f);
+  // (P2a LENS) the marks, baked once (paintMark)
+  auto markTex = [&](int kind) {
+    MarkTex m;
+    m.pat = &cachedTex(markKey(kind, 0), paintMark);
+    m.shadow = &cachedTex(markKey(kind, 1), paintMark);
+    if (kind == MK_ASK) m.halo = &cachedTex(markKey(kind, 2), paintMark);
+    return m;
+  };
   // the escorts: the subjects of the active Missing quests
   std::vector<const std::string*> escorts;
   for (const Quest& q : g.quests)
@@ -272,32 +302,24 @@ void View::drawMarkers(Game& g, Vec2 cam) {
     if (a.p.x < cam.x - 20 || a.p.x > cam.x + Pix::W + 20 || a.p.y < cam.y - 10 || a.p.y > cam.y + Pix::H + 40) continue;
     bool escort = false;
     for (const std::string* s : escorts) if (a.name.find(*s) != std::string::npos || s->find(a.name) == 0) escort = true;
-    if (escort) { drawEscortMark(P, a, cam, t_, outline); continue; }
+    if (escort) { drawEscortMark(P, markTex(MK_CHEV), a, cam, t_); continue; }
     if (!g.rewardWaiting(a)) {
       const bool wayside = a.role == Role::Hunter || a.role == Role::Fisher || a.role == Role::Herbalist || a.role == Role::Traveller;
       const bool talking = a.bubble != art::Bubble::None && a.bubbleT > 0;
-      if (wayside && g.offersWork(a)) drawOfferMark(P, a, cam, t_ + a.id * 0.57f, outline, hi, gold, goldShade);
+      if (wayside && g.offersWork(a)) drawOfferMark(P, markTex(MK_BANG), a, cam, t_ + a.id * 0.57f);
       else if (g.story.hasTale(a.id) && !talking && g.mode != Mode::Dialogue)
-        drawTaleMark(P, a, cam, t_ + a.id * 0.41f, outline, paper, paperShade);
+        drawTaleMark(P, markTex(MK_SCROLL), a, cam, t_ + a.id * 0.41f);
       // (P1) town givers wear no "!" (the player stumbles on work); a lead that names them whispers a small "?"
       else if (!talking && g.mode != Mode::Dialogue && a.human && JobOps::leadNames(g, a) && g.offersWork(a))
-        drawLeadMark(P, a, cam, t_ + a.id * 0.37f, outline);
+        drawLeadMark(P, markTex(MK_ASK), a, cam, t_ + a.id * 0.37f);
       continue;
     }
-    // a slow bob snapped to whole pixels (no shimmer), each giver on their own phase
+    // a slow bob snapped to whole pixels (no shimmer), each giver on their own phase: the bubble with its "!"
     float ph = t_ * 3.0f + a.id * 1.7f;
     int bob = (int)std::lround(std::sin(ph) * 1.2f);
     int x0 = (int)std::floor(a.p.x - cam.x) - 5;
-    int y0 = (int)std::floor(a.p.y - cam.y) - art::HUMAN_H - 15 + bob;
-    for (int pass = 0; pass < 2; pass++)   // 0: the drop shadow, 1: the bubble
-      for (int r = 0; r < 14; r++)
-        for (int c = 0; c < 11; c++) {
-          char ch = kBubble[r][c];
-          if (ch == '.') continue;
-          if (pass == 0) { P.rect((float)(x0 + c + 1), (float)(y0 + r + 1), 1, 1, Color(0, 0, 0, 0.35f)); continue; }
-          Color col = ch == 'o' ? outline : ch == 'W' ? paper : ch == 'D' ? paperShade : ch == 'H' ? hi : ch == 'S' ? goldShade : gold;
-          P.rect((float)(x0 + c), (float)(y0 + r), 1, 1, col);
-        }
+    int y0 = (int)std::floor(a.p.y - cam.y) - headLine(a) - 15 + bob;
+    blitMark(P, markTex(MK_BUBBLE), x0, y0, 0.35f, 1.0f);
   }
 
   // M0b: the inn's rented rooms carry brass number plates over their doors, and the room you rented has a gold
@@ -371,7 +393,12 @@ void View::drawMarkers(Game& g, Vec2 cam) {
         while (m.propAt(x0 - 1, st.y) == sp) x0--;
         while (m.propAt(x1 + 1, st.y) == sp) x1++;
         float tx = (x0 + x1 + 1) * 8.0f - cam.x, ty = st.y * 16.0f - 6 - cam.y;
-        const float L = 10.0f + Pix::SL, T = 54.0f + Pix::ST, R = Pix::W - Pix::SR - 142.0f, B = Pix::H - Pix::SB - (touchUI ? 56.0f : 12.0f);
+        // (P2a) the clear area is the HUD's (UI px from the UI canvas's edges), seen from the world layer
+        int sl = 0, stt = 0, sr = 0, sb = 0;
+        P.uiInsets(sl, stt, sr, sb);
+        float wi[4];
+        uiInsetsToWorld(10.0f + sl, 54.0f + stt, 142.0f + sr, (touchUI ? 56.0f : 12.0f) + sb, wi);
+        const float L = wi[0], T = wi[1], R = Pix::W - wi[2], B = Pix::H - wi[3];
         float cx = clampf(tx, L, R), cy = clampf(ty, T, B);
         bool off = std::fabs(cx - tx) > 0.5f || std::fabs(cy - ty) > 0.5f;
         // dir 0: down (at the stairs), 1: up, 2: left, 3: right (pointing out of the clear area at them)

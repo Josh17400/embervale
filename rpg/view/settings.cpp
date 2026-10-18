@@ -12,11 +12,14 @@
 
 namespace {
 const Color kGold(0.98f, 0.82f, 0.42f), kText(0.93f, 0.9f, 0.82f), kDim(0.62f, 0.58f, 0.52f);
-enum Row { R_SCREEN, R_BORDER, R_HUD, R_TOUCH, R_DONE, R_COUNT };
-const char* kRowName[R_COUNT] = {"SCREEN", "BORDER", "HUD MARGIN", "TOUCH CONTROLS", ""};
+// (P2a) ZOOM and PLAYER RING (STYLE_P2 18) join the rows; SCREEN and BORDER keep their places (the keys' first steps)
+enum Row { R_SCREEN, R_BORDER, R_HUD, R_ZOOM, R_RING, R_TOUCH, R_DONE, R_COUNT };
+const char* kRowName[R_COUNT] = {"SCREEN", "BORDER", "HUD MARGIN", "ZOOM", "PLAYER RING", "TOUCH CONTROLS", ""};
 
 // the layout, shared by drawing and taps (M2: from the box, which is the whole safe area; at 480 x 270 the panel is
-// 34..446 x 12..258 as before, on a phone it widens to the safe area, up to 560, and grows with its height)
+// 34..446 x 12..258 as before, on a phone it widens to the safe area, up to 560, and grows with its height). (P2a) The
+// rows' pitch fits the seven rows, three lines of help and (desktop) the key hint into the panel: 22 px at 480 x 270
+// on the desktop, 24 px (finger rows) on a 270-high touch screen, up to 26 / 30 where the box is taller.
 struct Lay { float x, y, w, h, cx, rowY, pitch, rowH, arrowL, valX, valW, arrowR, arrowW; };
 Lay lay(bool touch) {
   Lay L;
@@ -26,8 +29,9 @@ Lay lay(bool touch) {
   L.h = std::min((float)Pix::H - 24, 300.0f);
   L.y = std::floor((Pix::H - L.h) / 2);
   L.rowY = L.y + 46;
-  L.pitch = touch ? 30.0f : 26.0f;
-  L.rowH = touch ? 26.0f : 22.0f;
+  const float room = L.y + L.h - L.rowY - 31.0f - (touch ? 0.0f : 13.0f);   // help: 3 lines + 4; the key hint
+  L.pitch = std::clamp(std::floor(room / (float)R_COUNT), touch ? 24.0f : 20.0f, touch ? 30.0f : 26.0f);
+  L.rowH = L.pitch - (L.pitch >= 26.0f ? 4.0f : 3.0f);
   L.arrowW = touch ? 30.0f : 24.0f;
   L.arrowL = L.x + std::floor(L.w * 0.393f);   // 196 at 480
   L.valX = L.arrowL + L.arrowW + 4;
@@ -42,6 +46,11 @@ std::string valueText(int row, const screen::Settings& s, bool touch) {
     case R_SCREEN: return s.mode == screen::PixelPerfect ? "PIXEL PERFECT" : "FILL";
     case R_BORDER: return s.border == 0 ? "NONE" : std::to_string(s.border * 4) + " PX";
     case R_HUD: return s.hud < 0 ? "AUTO (" + std::to_string(screen::autoInset()) + ")" : std::to_string(s.hud * 4) + " PX";
+    case R_ZOOM: {   // the level this screen shows (a level it does not allow shows the nearest)
+      const int d = screen::worldScale();
+      return std::string(screen::zoomName(screen::zoomLevelOf(d))) + "  " + std::to_string(d) + "X";
+    }
+    case R_RING: return s.ring ? "ON" : "OFF";
     case R_TOUCH: return touch ? "ON" : "OFF";
     default: return "";
   }
@@ -51,6 +60,8 @@ const char* helpText(int row) {
     case R_SCREEN: return "FILL: THE PICTURE COVERS THE WHOLE SCREEN.  PIXEL PERFECT: EVERY PIXEL THE SAME SIZE, A THIN BLACK EDGE MAY SHOW.";
     case R_BORDER: return "A BLACK FRAME AROUND THE PICTURE. RAISE IT IF THE EDGES OF THE GAME HIDE UNDER THE NOTCH OR THE ROUNDED CORNERS.";
     case R_HUD: return "HOW FAR THE BARS, MAP AND BUTTONS KEEP FROM THE EDGES (THE GOLD CORNERS). AUTO FOLLOWS THE PHONE'S NOTCH.";
+    case R_ZOOM: return "HOW CLOSE THE CAMERA SITS. EVERY PIXEL STAYS WHOLE.";
+    case R_RING: return "A GOLD RING AT YOUR FEET, SO YOU ARE EASY TO FIND IN A CROWD.";
     case R_TOUCH: return "THE ON-SCREEN STICK AND BUTTONS. THEY ALSO TURN ON BY THEMSELVES WHEN YOU TOUCH THE SCREEN.";
     default: return "CHANGES APPLY AT ONCE AND ARE KEPT FOR NEXT TIME.";
   }
@@ -62,6 +73,16 @@ void stepRow(int row, int dir, bool& touch) {
     case R_SCREEN: s.mode = s.mode == screen::Fill ? screen::PixelPerfect : screen::Fill; break;
     case R_BORDER: s.border = std::clamp(s.border + dir, 0, screen::kBorderMax); break;
     case R_HUD: s.hud = std::clamp(s.hud + dir, -1, screen::kHudMax); break;
+    case R_ZOOM: {   // through the levels this screen allows (FAR first)
+      const std::vector<int> lv = screen::zoomLevels();
+      const int cur = screen::worldScale();
+      int i = 0;
+      for (int k = 0; k < (int)lv.size(); k++) if (std::abs(lv[(size_t)k] - cur) < std::abs(lv[(size_t)i] - cur)) i = k;
+      i = std::clamp(i + dir, 0, (int)lv.size() - 1);
+      s.zoom = std::clamp(screen::zoomLevelOf(lv[(size_t)i]), screen::kZoomMin, screen::kZoomMax);
+      break;
+    }
+    case R_RING: s.ring = !s.ring; break;
     case R_TOUCH: touch = !touch; break;
     default: break;
   }
@@ -96,7 +117,15 @@ void View::drawSettings() {
   setSel_ = std::clamp(setSel_, 0, R_COUNT - 1);
   panel(Y.x, Y.y, Y.w, Y.h, 0.95f);
   P.textS(Y.cx, Y.y + 10, "SETTINGS", 2, kGold, 1);
-  P.text(Y.cx, Y.y + 30, "SCREEN " + screen::describe(), 1, kDim, 1);
+  {   // (P2a) the UI's fit and the world's beside it (the world always whole: "WORLD 512 X 236 AT 5X")
+    std::string d = screen::describe();
+    if (d.find("WORLD") == std::string::npos) {
+      const Pix::Layer& wl = P.worldLayer();
+      d += "  WORLD " + std::to_string(wl.w) + " X " + std::to_string(wl.h) + " AT " + std::to_string((int)std::lround(wl.scale)) + "X";
+    } else d.replace(d.find(" WORLD"), 6, "  WORLD");
+    const std::string line = "SCREEN " + d;
+    P.text(Y.cx, Y.y + 30, line, 1, kDim, 1);
+  }
   for (int r = 0; r < R_COUNT; r++) {
     const float y = Y.rowY + r * Y.pitch;
     const bool sel = r == setSel_;
@@ -145,7 +174,7 @@ void View::settingsKey(int key) {
   }
   if (key == SDLK_RETURN || key == SDLK_SPACE || key == SDLK_KP_ENTER) {
     if (setSel_ == R_DONE) { settingsOpen_ = false; audio_->play(Sfx::MenuBack); return; }
-    if (setSel_ == R_SCREEN || setSel_ == R_TOUCH) { stepRow(setSel_, 1, touch); touchUI = touch; audio_->play(Sfx::MenuSelect); }
+    if (setSel_ == R_SCREEN || setSel_ == R_TOUCH || setSel_ == R_RING) { stepRow(setSel_, 1, touch); touchUI = touch; audio_->play(Sfx::MenuSelect); }
     else { setSel_++; audio_->play(Sfx::MenuMove); }   // on a slider Enter moves on (left/right set it)
   }
 }
@@ -171,6 +200,13 @@ void View::settingsTap(Vec2 p) {
         screen::Settings s = screen::get();
         if (r == R_BORDER) s.border = i; else s.hud = i - 1;
         screen::set(s);
+      } else if (r == R_ZOOM) {   // (P2a) a tap on the value cycles the levels, back to FAR after the last
+        const std::vector<int> lv = screen::zoomLevels();
+        if (!lv.empty() && screen::worldScale() >= lv.back()) {
+          screen::Settings s = screen::get();
+          s.zoom = std::clamp(screen::zoomLevelOf(lv.front()), screen::kZoomMin, screen::kZoomMax);
+          screen::set(s);
+        } else stepRow(r, 1, touch);
       } else stepRow(r, 1, touch);
     }
     touchUI = touch;

@@ -39,6 +39,15 @@ void paintCultureFurniture(Canvas& c, Prop p, int frame) {
       break;
     }
     case Prop::LowTable: {   // a low table: a lacquered top seen from above, short legs, a tray with a teapot and cups
+      if (rigVersion() >= 2) {   // (P2a HOLDERS) a step higher and deeper for the v2 floor sitter: the top's lip 7 px up
+        box34(c, 1, base - 12, w - 2, 6, 5, kWood);
+        for (int s = 0; s < 2; s++) box(c, s ? w - 4 : 2, base - 1, s ? w - 3 : 3, base, kWoodDark[s ? 1 : 2]);
+        for (int x = 6; x < w - 6; x++) for (int y = base - 11; y <= base - 8; y++) c.set(x, y, kBrass[y == base - 11 ? 4 : 3]);
+        ball(c, w * 0.5f - 0.5f, base - 12.0f, 2.8f, 2.2f, kBone);
+        c.set(w / 2 + 2, base - 13, kBone[2]); c.set(w / 2 + 3, base - 12, kBone[1]);
+        for (int s = 0; s < 2; s++) { c.set(s ? w - 8 : 7, base - 10, kWhite); c.set(s ? w - 8 : 7, base - 9, kBone[2]); }
+        break;
+      }
       box34(c, 1, base - 9, w - 2, 5, 3, kWood);
       for (int s = 0; s < 2; s++) box(c, s ? w - 4 : 2, base - 1, s ? w - 3 : 3, base, kWoodDark[s ? 1 : 2]);
       for (int x = 5; x < w - 5; x++) for (int y = base - 8; y <= base - 6; y++) c.set(x, y, kBrass[y == base - 8 ? 4 : 3]);
@@ -53,15 +62,18 @@ void paintCultureFurniture(Canvas& c, Prop p, int frame) {
         for (int y = 2; y <= base; y++) { c.set(x, y, kWood[s ? 1 : 3]); c.set(x + 1, y, kWood[s ? 0 : 2]); }
         c.set(x, 2, kWood[4]);
       }
+      const bool r2 = rigVersion() >= 2;   // (P2a HOLDERS) a longer, deeper hammock for the v2 sleeper lying across
+      const float sagA = r2 ? 10.0f : 7.0f;
+      const int band = r2 ? 6 : 4;
       for (int x = 3; x < w - 3; x++) {
         const float t = (x - 3) / (float)(w - 7);
-        const int sag = (int)std::lround(std::sin(t * 3.14159f) * 7.0f);
-        for (int k = 0; k < 4; k++) {
+        const int sag = (int)std::lround(std::sin(t * 3.14159f) * sagA);
+        for (int k = 0; k < band; k++) {
           const int y = 6 + sag + k;
           const bool stripe = ((x / 3) & 1) != 0;
           c.set(x, y, stripe ? (k == 0 ? rgba(236, 214, 160) : rgba(206, 180, 120)) : (k == 0 ? rgba(214, 104, 72) : rgba(176, 72, 56)));
         }
-        if (x % 4 == 0) c.set(x, 6 + sag + 4, kCloth[1]);   // fringe
+        if (x % 4 == 0) c.set(x, 6 + sag + band, kCloth[1]);   // fringe
       }
       line(c, 2, 4, 4, 6, kCloth[2]); line(c, w - 3, 4, w - 5, 6, kCloth[2]);
       break;
@@ -1041,7 +1053,8 @@ void paintInteriorM3b(Canvas& c, Prop p, int frame) {
 
 Canvas cultureInteriorPiece(int arch, Prop p, int variant) {
   if (p == Prop::Bed) {
-    Canvas c(20, (variant & 1) ? 48 : 32);
+    // (P2a HOLDERS) rig 2: 24 wide, the one-tile bed 40 tall (its head piece rises 8 px over the wall), STYLE_P2 1
+    Canvas c(rigVersion() >= 2 ? 24 : 20, (variant & 1) ? 48 : (rigVersion() >= 2 ? 40 : 32));
     bedKit(c, arch);
     outline(c);
     return c;

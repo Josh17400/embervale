@@ -118,7 +118,7 @@ Canvas humanPostureSheet(const HumanLook& look, Posture p, uint8_t variant) {
   for (int row = 0; row < 3; row++)
     for (int f = 0; f < POSTURE_FRAMES; f++) {
       Canvas cell = humanPostureCellRaw(look, p, variant, row, f % nf);
-      outline(cell);
+      outlineInk(cell);   // (P2a) the ink outer outline of a person (STYLE_P2 8)
       place(out, cell, f, row);
     }
   return out;

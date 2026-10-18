@@ -12,6 +12,7 @@
 #include "rpg/culture/society.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/art/art_rise.h"
+#include "rpg/art/art_rig.h"
 
 // ------------------------------------------------------------------ the census look (M3, VISION_PLAN 5.6 "NPCs")
 // Dresses a person in a culture: people from its mix, skin and hair from its ranges, the dress cut per sex, headwear,
@@ -72,6 +73,9 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
            uint64_t seed, const Rank& rank) {
   Stream h(seed);
   const cult::DressStyle& D = C.dress;
+  // (P2a) the v2 rig's body base from the census (v1 ignores both; no draw from the stream)
+  L.body = female ? 1 : 0;
+  L.age = r == Role::Child ? 1 : 0;
   // ---- the people (weights from the culture's mix)
   {
     const int w0 = C.peopleMix[0], w1 = C.peopleMix[1], w2 = C.peopleMix[2], tot = w0 + w1 + w2;
@@ -536,6 +540,8 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
   L.beard = !female && rr.f() < 0.45f;
   L.outfit = female && rr.f() < 0.6f ? art::Outfit::Dress : art::Outfit::Tunic;
   L.weapon = 0;
+  L.body = female ? 1 : 0;              // (P2a) the v2 body base (v1 ignores it)
+  L.age = r == Role::Child ? 1 : 0;
   a.name = makePersonName(rr, female);
   switch (r) {
     case Role::Guard: L.outfit = art::Outfit::Guard; L.helmet = true; L.shield = true; L.weapon = 1; L.tabardColor = rgba(150, 40, 40); L.beard = false; break;
@@ -577,7 +583,7 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
       break;
     case Role::Herald:
       // a tabard in the kingdom's colours over a padded coat (no mail, no helm), a horn at the hip
-      L.outfit = art::Outfit::Guard; L.helmet = false; L.shield = false; L.weapon = 7; L.beard = false;
+      L.outfit = art::Outfit::Guard; L.helmet = false; L.shield = false; L.weapon = art::WEAPON_HORN; L.beard = false;
       L.tabardColor = rgba(150, 40, 40); L.cape = true;
       a.name = "HERALD";
       break;

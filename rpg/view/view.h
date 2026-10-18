@@ -82,6 +82,74 @@ class View {
   void scriptSky(int sky) { skyOverride_ = sky; wxInit_ = false; wxSampleT_ = 0; }
   int scriptSkyNow() const { return skyOverride_; }
 
+  // ---- P2a Clear Sight (VISION_PLAN 15.36 phase A; FROZEN: lanes ADD, never rename or change meaning) -----------------
+  // (item 3) the projection between the world layer and the UI layer (engine/pix.h layers): a world point in map px (as
+  // Actor::p) to UI logical px (what Pix::text and taps use) and back; how many UI px one world px spans. Every text drawn
+  // over the world goes through toUi (STYLE_P2 18: text never lives in the world layer), every tap on the world through
+  // toWorld. World-anchored UI call sites LENS moves onto them: hud.cpp View::draw (speech plates, combat numbers),
+  // drawHud (the name tag and E: TALK, door and quest labels); party_hud.cpp drawBanter; the elite name plates' text
+  // (render.cpp, the beasts::plates pass after the lighting); buildmode.cpp taps; script_test.cpp label taps.
+  Vec2 toUi(Vec2 world) const;
+  Vec2 toWorld(Vec2 ui) const;
+  float uiPerWorld() const;
+  Vec2 worldCam() const;   // the world layer's camera this frame: floor(camera + shake), what every world draw subtracts
+  // (item 4) a look's v2 atlas for a part, baked and cached (LENS owns the caches, their MB caps and the bake queue;
+  // render_anim.cpp draws from it). Not ready (tex null) until the painters cover the look: callers draw v1 meanwhile.
+  struct RigTex {
+    const Tex* tex = nullptr;
+    const art::RigSheet* sheet = nullptr;   // the atlas's frames (the canvas itself is dropped once baked)
+    bool ready() const { return tex && tex->t && sheet && !sheet->empty(); }
+  };
+  RigTex rigTex(const art::HumanLook& L, art::RigPart part, bool child = false);
+  // after art::setRigVersion: every cache whose pixels depend on the rig (people, poses, sleepers, monsters, buildings,
+  // props, the v2 atlases) is dropped and baked again on demand
+  void rigChanged();
+  // (item 10) test hooks (script commands and Witness calls: rpg/view/script_p2a.cpp)
+  struct P2aHooks {
+    bool hidePlayer = false;   // `hideplayer`: the hero's body is not drawn (the contact shadow and the ring stay): the
+                               // shot pair p2_measure.mjs masks the figure with
+    bool ui = true;            // `ui 0|1`: the UI layer (HUD, text, menus, touch controls) is drawn
+    bool poseOn = false;       // `pose <clip> [family] [variant] [frame]`: the hero's frame frozen
+    art::Clip poseClip = art::Clip::Idle;
+    art::Family poseFamily = art::Family::Unarmed;
+    int poseVariant = 0, poseFrame = 0;
+  };
+  P2aHooks p2a;
+  // the hero as drawn last frame (world-layer px, relative to the world view's top-left): the cell's top-left, size and
+  // frame, the opaque box inside the cell (v1: from the baked sheet), the pivot (the feet point) and the rig it came from
+  struct HeroSprite {
+    bool on = false;
+    int rig = 1;
+    float x = 0, y = 0;
+    int w = 0, h = 0, fr = 0, row = 0;
+    bool flip = false;
+    int bx0 = 0, by0 = 0, bx1 = -1, by1 = -1;   // opaque box in the cell (inclusive; bx1 < bx0: unknown)
+    float pivX = 0, pivY = 0;
+  };
+  HeroSprite heroSprite;
+  // people frames drawn from v1 sheets (P2b gate B2): v1Draws counts during a draw and holds the last drawn frame's count
+  // after it (what Witness reports); v1DrawsLast the frame before
+  int v1Draws = 0, v1DrawsLast = 0;
+  double peopleMB() const;            // the people textures alive (standing sheets, poses, sleepers, v2 atlases), MB
+  // (Witness state.screen) the layers and the window as presented
+  const Pix::Layer& worldLayerForTests() const { return pix_->worldLayer(); }
+  const Pix::Layer& uiLayerForTests() const { return pix_->uiLayer(); }
+  void outputSizeForTests(int& w, int& h) const { w = h = 0; if (pix_) pix_->outputSize(w, h); }
+  // ---- (P2a LENS, added) the world view: its size in world px (the world layer's w x h: what the camera frames, what the
+  // world draws read as Pix::W x Pix::H inside beginWorld / endWorld); ZOOM one level in (+1) or out (-1) through the
+  // levels this screen allows (the - / = keys, the wheel, a pinch; saved to the settings file); the lens's counters for
+  // the tests (the pips drawn last frame, the ring's flare, the v2 bake queue)
+  int viewW() const;
+  int viewH() const;
+  void zoomStep(int dir);
+  // the metrics of the rig a person is DRAWN with (rig 2 only where art::rig2Covers(look): a v1 figure keeps v1's
+  // marker, bubble, plate and bar heights while the preview is partial)
+  static const art::RigMetrics& rigFor(const art::HumanLook& L) {
+    return art::rigVersion() >= 2 && art::rig2Covers(L) ? art::rig(2) : art::rig(1);
+  }
+  struct LensStats { int pips = 0; float ringA = 0; int liftFigs = 0; int rigQueued = 0, rigBaked = 0; double rigBakeMs = 0, rigMB = 0; };
+  LensStats lensStats;
+
  private:
   Pix* pix_ = nullptr;
   Audio* audio_ = nullptr;
@@ -557,6 +625,64 @@ class View {
   const Tex* sleeperTex(const art::HumanLook& L, art::Berth b, int kit, int frame);
   bool poseBudget();         // true: another pose may be baked this frame (and starts its timing)
   void poseSpent(std::chrono::steady_clock::time_point t0);
+  // ---- P2a (rpg/view/render_anim.cpp: the human frame pick, body draw, swing effect and the dead's offset, moved out of
+  //      render.cpp pixel-identical at rig 1; the ANIM lane owns render_anim.cpp)
+  // a human's body this frame (the standing sheet, a posture, a sleeper in its berth, a bather; the Mythic aura, the hit
+  // flash and the burn); the hero's draw also fills ghost (the silhouette shown through a roof: set only for the hero)
+  // and heroSprite
+  struct HumanGhost { const Tex* t = nullptr; int fr = 0, row = 0; bool flip = false; float x = 0, y = 0; };   // (as RideGhost)
+  void drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float alpha, float flash, HumanGhost& ghost);
+  void drawSwingFx(const Game& g, const Actor& a, Vec2 cam);   // a human's melee strike effect (after its body)
+  friend struct P2aScriptOps;   // (rpg/view/script_p2a.cpp: the P2a test commands)
+  // v2 atlases by (look key x part x child): the canvas is baked and dropped, its frames kept (LENS: MB caps, bake queue)
+  struct RigEntry { Tex tex; art::RigSheet sheet; float used = 0; };
+  std::unordered_map<uint64_t, RigEntry> rigTex_;
+  // (Witness) each v1 standing sheet's opaque box per cell (state.player.sprite.box), by humans_ key; filled only for a
+  // harness run
+  struct CellBox { int8_t x0 = 0, y0 = 0, x1 = -1, y1 = -1; };
+  std::unordered_map<uint64_t, std::vector<CellBox>> humanBoxes_;
+  // ---- (P2a LENS, added; render.cpp / hud.cpp) the ring's flare (s left) and what triggers it; the people drawn in the
+  // sorted pass this frame (the night lift re-adds them after the light map); the camera's zoom hand-over (the last
+  // world view and scale, so a zoom change keeps the hero where they stand); the pinch; the v2 bake queue (looks of folk
+  // entering the stream radius, nearest first, baked within a per-frame budget) and the v2 caches' byte cap
+  float ringFlare_ = 0, ringHpWas_ = -1;
+  bool ringCrowdWas_ = false;
+  bool ringOn_ = false;   // drawn this frame at (ringX_, ringY_) (world-view px) with ringA_: the night pass lifts it again
+  float ringX_ = 0, ringY_ = 0, ringA_ = 0;
+  const Tex* ringTex_ = nullptr;
+  std::vector<Pix::BlitRec> liftRecs_;
+  // the night lift's interior masks: per people texture (by its SDL texture), white where the figure is opaque inside its
+  // ink outline (the outline stays dark: the edge contrast holds while the body's median rises)
+  // (kept as bytes when the sheet is painted; baked into a texture the first night it is needed)
+  struct LiftMask { int w = 0, h = 0; std::vector<uint8_t> m; Tex tex; };
+  std::unordered_map<SDL_Texture*, LiftMask> liftMask_;
+  void liftMaskFor(const Canvas& sheet, const Tex& t);
+  void dropLiftMask(const Tex& t);
+  int lensViewW_ = 0, lensViewH_ = 0, lensD_ = 0;
+  struct Pinch { bool on = false; uint64_t a = 0, b = 0; Vec2 pa, pb; float d0 = 0; int done = 0; } pinch_;
+  float wheelAcc_ = 0, wheelT_ = -1;
+  struct RigJob { art::HumanLook look; art::RigPart part = art::RigPart::Loco; bool child = false; float d2 = 0; };
+  std::vector<RigJob> rigQueue_;
+  float rigBakeFrameT_ = -1;
+  double rigBakeFrameMs_ = 0;
+  bool rigBakeBudget();
+  RigTex rigPoseTex(const art::HumanLook& L, art::Posture p, uint8_t variant);
+  struct RideGhost;
+  bool drawRiderV2(const art::HumanLook& L, int facing, float hipX, float hipY, float pivX, float pivY, Color c, int blend, RideGhost* ghost);
+  void rigBakeQueue(const Game& g);
+  void trimRigCaches();
+  void drawRing(const Game& g, const Actor& a, Vec2 cam);
+  void drawNightLift(const Game& g, float dark);
+  void drawPips(const Game& g);
+  void drawBeastPlates(Game& g);   // the elites' name plates and a world boss's bar: the UI layer (STYLE_P2 18)
+  void drawWeatherSky(Game& g);    // drawWeather's sky (the world layer)
+  void partyWorldText(Game& g);    // party_view.cpp: the tapped companion's name, the graves' names (the UI layer)
+  struct GraveTop { int fi = -1; float x = 0, feet = 0, top = 0; };   // a grave drawn this frame (map px)
+  std::vector<GraveTop> graveTops_;
+  void lensUpdate(Game& g, float dt);
+  // UI-layer insets (left, top, right, bottom in UI px from the UI canvas's edges: the HUD's bands) as world-layer insets
+  // (world px from the world view's edges)
+  void uiInsetsToWorld(float l, float t, float r, float b, float out[4]) const;
   std::unordered_map<uint64_t, Tex> critterTex_;
   const Tex& critterTex(int kind, uint32_t variant);
   std::unordered_map<uint64_t, Tex> lampDark_;   // a lamppost by day / before the lamplighter comes (its glass dark)
@@ -611,7 +737,8 @@ class View {
   std::vector<LightPool> homeLights_;
   void drawHomeFlats(Vec2 cam);
   void drawHomeShadow(const HomeDraw& d, Vec2 cam);
-  struct RideGhost { const Tex* t = nullptr; int fr = 0, row = 0; bool flip = false; float x = 0, y = 0; };
+  // (P2a LENS, added: sx, sy, w, h) a v2 frame's own rect in its atlas (w 0: the v1 cell fr x row)
+  struct RideGhost { const Tex* t = nullptr; int fr = 0, row = 0; bool flip = false; float x = 0, y = 0; int sx = 0, sy = 0, w = 0, h = 0; };
   RideGhost rideGhost_;
   void drawMountShadow(Game& g, const Actor& a, Vec2 cam);
   bool buildCamWant(Game& g, Vec2& want);       // Mode::Build: where the camera wants to be (the ghost in view)

@@ -1,0 +1,81 @@
+# P2a Lens and Rig, phase A (lead): the lens harness at the 1440x810 desktop default (VISION_PLAN 15.36 item 11; frozen:
+# a lane reports a harness problem instead of editing it). Seed 7, the start village (OSLARS): every zoom level this
+# screen allows (NORMAL D3, NEAR D4, CLOSE D5; no FAR: 405 rows > 300) at 11:00 and 22:00, each as the player sees it
+# and the world alone (`ui 0`) as a `shotpair` with and without the hero's body (the same moment: p2_measure.mjs mask /
+# contrast / blocks); text plates (the name tag / E: prompt, combat numbers) at each zoom; the capital's crowd at 15:00
+# with the PLAYER RING on and off (`shotpair ... ring`: p2_measure.mjs ring). The checks are what phase A already gives
+# (D0, the levels, the zoom the setting asks for); LENS's shots are judged on the same lines (the world layer at the
+# asked D: `expect screen world`).
+#   embervale.exe --script tools/scripts/p2a_lead_lens.txt     (p2a_lens_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.5 expect screen d0 3
++0.0 expect screen levels 3,4,5
++0.0 expect screen ui 480 270
++0.0 expect rig 1
+# ---- 11:00, every level
++0.1 zoom normal
++0.3 expect zoom normal
++0.0 expect screen want 3
++0.0 shot p2a_lens_day_normal.png
++0.1 ui 0
++0.2 shotpair p2a_lens_day_normal_world.png p2a_lens_day_normal_world_nohero.png
++0.1 ui 1
++0.1 zoom near
++0.3 expect zoom near
++0.0 expect screen want 4
++0.0 shot p2a_lens_day_near.png
++0.1 ui 0
++0.2 shotpair p2a_lens_day_near_world.png p2a_lens_day_near_world_nohero.png
++0.1 ui 1
++0.1 zoom close
++0.3 expect zoom close
++0.0 expect screen want 5
++0.0 shot p2a_lens_day_close.png
++0.1 ui 0
++0.2 shot p2a_lens_day_close_world.png
++0.1 ui 1
+# a level the screen does not allow takes the nearest one
++0.1 zoom far
++0.3 expect screen want 3
+# ---- 22:00, every level
++0.1 hour 22
++0.1 zoom normal
++0.5 shot p2a_lens_night_normal.png
++0.1 ui 0
++0.2 shotpair p2a_lens_night_normal_world.png p2a_lens_night_normal_world_nohero.png
++0.1 ui 1
++0.1 zoom near
++0.5 shot p2a_lens_night_near.png
++0.1 zoom close
++0.5 shot p2a_lens_night_close.png
+# ---- text plates at each zoom: the name tag and E: TALK of the nearest villager, a spoken line, combat numbers
++0.1 hour 11
++0.1 zoom normal
++0.1 walkto villager 30
++0.4 shot p2a_lens_text_normal.png
++0.1 zoom near
++0.4 shot p2a_lens_text_near.png
++0.1 zoom close
++0.4 shot p2a_lens_text_close.png
++0.1 zoom normal
++0.1 fight wolf 1
++0.2 hold J 2.5
++1.2 shot p2a_lens_numbers_normal.png
++0.1 zoom close
++0.6 shot p2a_lens_numbers_close.png
++1.5 zoom normal
+# ---- the capital's crowd at 15:00: the PLAYER RING on and off (the pair p2_measure.mjs ring takes)
++0.1 goto capital
++1.5 hour 15
++0.5 ring 1
++0.3 shot p2a_lens_crowd_ring.png
++0.1 ui 0
++0.2 shotpair p2a_lens_crowd_ring_world.png p2a_lens_crowd_noring_world.png ring
++0.1 ui 1
++0.1 zoom near
++0.4 shot p2a_lens_crowd_near.png
++0.1 zoom normal
++0.2 log p2a_lead_lens done

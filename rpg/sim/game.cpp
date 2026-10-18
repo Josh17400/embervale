@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include "engine/audio.h"
+#include "rpg/sim/anim.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/gear.h"
 #include "rpg/sim/home.h"
@@ -613,7 +614,18 @@ void Game::moveActor(Actor& a, Vec2 d) {
 }
 
 // ------------------------------------------------------------------ main update
+namespace {
+// (P2a ANIM) rig 2: where each body stood before the step, so a walker's animT runs by the distance it walked (STYLE_P2
+// 10: the walk by the whole px drawn, anim.cpp animWalkFrame). One Game steps at a time per thread.
+struct WalkMark { int id; Vec2 p; bool walking; };   // (SLICE-WALK-SLIDE) walking: the state before the step
+constexpr float kHeroStepPeriod = 0.29f;              // the hero's footstep sound, s of walking
+thread_local std::vector<WalkMark> tlWalk;
+}  // namespace
+
 void Game::update(float dt, const Input& in) {
+  // (P2a ANIM) the hero's fall plays under the death screen: the view runs it on its own clock (render_anim.cpp); a
+  // headless step (rpg_test --anim) advances the body's state time the same way
+  if (mode == Mode::Dead && art::rigVersion() >= 2 && pl().st == AState::Dead) pl().stT += dt;
   if (mode != Mode::Play) return;
   if (travel.phase != TravelPhase::None) { travelStep(dt); return; }   // M2: on the road behind the fade (travel.cpp)
   if (stFlash > 0) stFlash -= dt;
@@ -631,6 +643,11 @@ void Game::update(float dt, const Input& in) {
   if (sleepFade > 0) sleepFade = std::max(0.0f, sleepFade - dt);
 
   if (!inside) prepInteriorTick(dt);   // (M3c carry) the interior of the door ahead, before it is reached
+  const bool rig2 = art::rigVersion() >= 2;
+  if (rig2) {
+    tlWalk.resize(actors.size());
+    for (size_t i = 0; i < actors.size(); i++) tlWalk[i] = WalkMark{actors[i].id, actors[i].p, actors[i].st == AState::Walk};
+  }
   updatePlayer(dt, in);
   PowerOps::step(*this, dt);   // M8b: the worn powers' clocks, fire patches, auras, stars, spectral wolves (powers.cpp)
   SkillOps::step(*this, dt);   // M9: distances walked / ridden, sneaking, familiarity (skills_game.cpp, SKILLS lane)
@@ -719,14 +736,73 @@ void Game::update(float dt, const Input& in) {
   updatePickups(dt);
   if (!inside) timed(PC::S_SPAWN, [&] { updateSpawning(dt); });
   updateLocation();
-  // cleanup corpses
+  // cleanup corpses. (P2a ANIM) at rig 2 the human dead lie animCorpseLife (60 s, fading over the last 5), at most
+  // animCorpseCap at once: past cap - 3 the oldest start their fade early, past the cap the oldest go at once; beasts
+  // and rig 1 keep today's 6 s
+  const int rv = art::rigVersion();
+  const float humanLife = animCorpseLife(rv);
+  if (const int cap = animCorpseCap(rv)) {
+    int lying = 0;   // corpses not yet fading: at most cap - 3 (the fading ones make up the rest, gone within 5 s)
+    for (size_t i = 1; i < actors.size(); i++) lying += actors[i].human && actors[i].st == AState::Dead && actors[i].stT < humanLife - kCorpseFade;
+    while (lying > cap - 3) {
+      Actor* oldest = nullptr;   // the oldest corpse not yet fading
+      for (size_t i = 1; i < actors.size(); i++) {
+        Actor& a = actors[i];
+        if (a.human && a.st == AState::Dead && a.stT < humanLife - kCorpseFade && (!oldest || a.stT > oldest->stT)) oldest = &a;
+      }
+      if (!oldest) break;
+      oldest->stT = humanLife - kCorpseFade;
+      lying--;
+    }
+    int over = -cap;
+    for (size_t i = 1; i < actors.size(); i++) over += actors[i].human && actors[i].st == AState::Dead;
+    for (; over > 0; over--) {
+      size_t at = 0;
+      for (size_t i = 1; i < actors.size(); i++)
+        if (actors[i].human && actors[i].st == AState::Dead && actors[i].stT <= humanLife && (!at || actors[i].stT > actors[at].stT)) at = i;
+      if (!at) break;
+      actors[at].stT = humanLife + 1.0f;   // gone in the pass below
+    }
+  }
   for (size_t i = 1; i < actors.size();) {
     Actor& a = actors[i];
     bool far = a.wild && len2(a.p - pl().p) > (48.0f * TILE) * (48.0f * TILE);
-    if ((a.st == AState::Dead && a.stT > 6.0f) || far) {
+    if ((a.st == AState::Dead && a.stT > (a.human ? humanLife : 6.0f)) || far) {
       if (a.id == dragonId_) dragonId_ = -1;
       actors.erase(actors.begin() + i);
     } else i++;
+  }
+  // (P2a ANIM) rig 2: a walking human's animT runs by the distance walked over its own speed (anim.cpp: the walk frame
+  // is animWalkFrame(animT x speed)); a body standing, fighting or carried across a window shift runs on time as before
+  if (rig2) {
+    for (size_t i = 0; i < actors.size(); i++) {
+      Actor& a = actors[i];
+      if (!(a.human || a.player)) continue;
+      const WalkMark* w = i < tlWalk.size() && tlWalk[i].id == a.id ? &tlWalk[i] : nullptr;
+      if (!w) for (const WalkMark& m : tlWalk) if (m.id == a.id) { w = &m; break; }
+      const float d = w ? len(a.p - w->p) : -1.0f;
+      if (a.st == AState::Walk && d >= 0 && d < 32.0f) {
+        // (P2a slice, SLICE-WALK-SLIDE) the DRAWN travel: the whole world px the feet moved on the screen along the step's
+        // main axis (render_anim.cpp puts the pivot at round(p) on the whole-pixel camera), so anim.cpp's frames change
+        // on the px where the art's planted sole has stepped and the foot lands back on its spot; a walk starts on the
+        // passing frame (animWalkBegin: its planted foot is the idle stance's back foot)
+        const float sp = std::max(1.0f, a.speed);
+        const Vec2 s = a.p - w->p;
+        const float drawn = std::fabs(s.x) >= std::fabs(s.y) ? std::fabs(std::floor(a.p.x + 0.5f) - std::floor(w->p.x + 0.5f))
+                                                              : std::fabs(std::floor(a.p.y + 0.5f) - std::floor(w->p.y + 0.5f));
+        int n = (int)std::floor(a.animT * sp + 0.5f);   // the whole px walked so far (animT keeps them over the speed)
+        if (!w->walking) n = animWalkBegin(n);
+        const float before = (float)n / sp;
+        a.animT = (float)(n + (int)drawn) / sp;
+        // the hero's footstep every 0.29 s of walk clock (updatePlayer's rule at rig 1), counted here where the clock
+        // moves: it now moves in whole px (1 or 2 a frame at 74 px/s), so updatePlayer's "animT - dt" window would skip
+        // or double a step
+        if (a.player && (int)(a.animT / kHeroStepPeriod) != (int)(before / kHeroStepPeriod)) {
+          const float pitch = 0.85f + rng_.f() * 0.3f;   // (drawn either way: the RNG stream does not depend on riding)
+          if (!homeRiding()) sfx((int)Sfx::Step, a.p, pitch, 0.5f);
+        }
+      } else a.animT += dt;
+    }
   }
 }
 
@@ -737,7 +813,7 @@ void Game::updatePlayer(float dt, const Input& in) {
   if (const int asp = craft.live.stats.get(Affix::AttackSpeed))
     if (asp > 0 && (p.st == AState::Windup || p.st == AState::Strike || p.st == AState::Recover)) p.stT += dt * 0.01f * (float)asp;
   p.stT += dt;
-  p.animT += dt;
+  if (art::rigVersion() < 2) p.animT += dt;   // (P2a ANIM) rig 2: Game::update runs it by the distance walked
   if (p.flash > 0) p.flash -= dt;
   if (p.iframes > 0) p.iframes -= dt;
   if (p.atkCd > 0) p.atkCd -= dt;
@@ -841,7 +917,7 @@ void Game::updatePlayer(float dt, const Input& in) {
       return;
     }
     case AState::Windup:
-      if (p.stT >= (eqWeapon < 0 ? 0.05f : 0.07f) * SkillOps::swingTime(*this)) {   // (M9) the family's pace
+      if (p.stT >= (eqWeapon < 0 ? 0.05f : 0.07f) * AnimOps::heroPace(*this)) {   // (M9) the family's pace
         p.st = AState::Strike; p.stT = 0; p.hitDone = false;
         sfx((int)Sfx::Swing, p.p, (eqWeapon < 0 ? 1.45f : 1.0f) + p.combo * 0.12f, eqWeapon < 0 ? 0.6f : 1.0f);
       }
@@ -849,10 +925,10 @@ void Game::updatePlayer(float dt, const Input& in) {
     case AState::Strike:
       if (!p.hitDone) { meleeHit(p); p.hitDone = true; }
       moveActor(p, p.aim * (dt * (p.combo == 2 ? 70.0f : 30.0f)));
-      if (p.stT >= 0.11f * SkillOps::swingTime(*this)) { p.st = AState::Recover; p.stT = 0; }   // (M9) a mace lands slow, a dagger quick
+      if (p.stT >= 0.11f * AnimOps::heroPace(*this)) { p.st = AState::Recover; p.stT = 0; }   // (M9) a mace lands slow, a dagger quick
       break;
     case AState::Recover:
-      if (p.stT >= (p.combo == 2 ? 0.28f : eqWeapon < 0 ? 0.08f : 0.13f) * SkillOps::swingTime(*this)) { p.st = AState::Idle; p.stT = 0; }
+      if (p.stT >= (p.combo == 2 ? 0.28f : eqWeapon < 0 ? 0.08f : 0.13f) * AnimOps::heroPace(*this)) { p.st = AState::Idle; p.stT = 0; }
       break;
     case AState::Cast:
       if (p.stT >= 0.22f) { p.st = AState::Idle; p.stT = 0; }
@@ -862,7 +938,7 @@ void Game::updatePlayer(float dt, const Input& in) {
       break;
     default: break;
   }
-  bool canAct = p.st == AState::Idle || p.st == AState::Walk || (p.st == AState::Recover && p.stT > 0.06f * SkillOps::swingTime(*this));   // ((M9) the family's pace)
+  bool canAct = p.st == AState::Idle || p.st == AState::Walk || (p.st == AState::Recover && p.stT > 0.06f * AnimOps::heroPace(*this));   // ((M9) the family's pace)
   // M7: on horseback any fighting move (a swing, a shot, a spell or a quick-cast slot, a roll) gets the rider off first
   if (homeRiding() && canAct && ((in.attack && !in.interact) || in.bow || in.spell || in.castSlot >= 0 || in.roll)) homeDismount(home::Dismount::Attack);
   float slow = (p.slowT > 0 ? 0.6f : 1.0f) * homeSpeedMul();   // M7: the horse's pace (1 on foot)
@@ -872,8 +948,9 @@ void Game::updatePlayer(float dt, const Input& in) {
       moveActor(p, mv * (p.speed * slow * dt));
       p.face = faceOf(mv);
       if (p.st != AState::Walk) { p.st = AState::Walk; }
-      float stepPeriod = 0.29f;
-      if ((int)(p.animT / stepPeriod) != (int)((p.animT - dt) / stepPeriod)) {
+      const float stepPeriod = kHeroStepPeriod;
+      // (P2a slice, SLICE-WALK-SLIDE) rig 2 counts the footstep on its whole-px walk clock at the end of Game::update
+      if (art::rigVersion() < 2 && (int)(p.animT / stepPeriod) != (int)((p.animT - dt) / stepPeriod)) {
         const float pitch = 0.85f + rng_.f() * 0.3f;   // (drawn either way: the RNG stream does not depend on riding)
         if (!homeRiding()) sfx((int)Sfx::Step, p.p, pitch, 0.5f);   // (M7) the horse's hoofbeats are the view's
       }
@@ -1013,6 +1090,7 @@ void Game::meleeHit(Actor& a) {
   float reach = isPl ? (a.combo == 2 ? 24.0f : 20.0f) : a.range;
   float cone = isPl ? (a.combo == 2 ? -0.1f : 0.25f) : 0.2f;
   float dmg = isPl ? weaponDamage() * (a.combo == 2 ? 1.7f : 1.0f) : a.dmg;
+  if (isPl && AnimOps::heroGreatsword(*this)) dmg *= kGreatswordPace;   // (P2a ANIM) its own slower pace: DPS unchanged
   if (isPl && eqWeapon < 0) {   // bare fists: short reach, quick jabs, a finisher that staggers
     reach -= 4;
     dmg *= a.combo == 2 ? 1.0f : 1.2f;
@@ -1080,7 +1158,12 @@ void Game::meleeHit(Actor& a) {
     }
   }
   if (isPl && any) {
-    emit(Ev::Shake, a.p, 0, a.combo == 2 ? 2.5f : 1.2f);
+    // (P2a ANIM delight, STYLE_P2 12) a finisher with a greatsword, a mace or a hammer lands with an impact flash on the
+    // blow's point and a harder knock of the camera
+    const art::Family wf = art::familyOf(a.look);
+    const bool heavyFin = a.combo == 2 && (wf == art::Family::Greatsword || wf == art::Family::Mace);
+    if (heavyFin) emit(Ev::Hit, a.p + a.aim * (reach * 0.7f) + Vec2(0, -6));
+    emit(Ev::Shake, a.p, 0, heavyFin ? 3.6f : a.combo == 2 ? 2.5f : 1.2f);
     hitStop = a.combo == 2 ? 0.07f : 0.035f;
     // (M6) Chain Lightning: every third landed swing arcs to the two nearest other foes
     gear::Live& L6 = craft.live;
@@ -1650,11 +1733,19 @@ void Game::updatePickups(float dt) {
 // ------------------------------------------------------------------ NPC / monster update
 void Game::updateActor(Actor& a, float dt) {
   a.stT += dt;
-  a.animT += dt;
+  if (!a.human || art::rigVersion() < 2) a.animT += dt;   // (P2a ANIM) a human at rig 2: Game::update, by the distance walked
   if (a.flash > 0) a.flash -= dt;
   if (a.atkCd > 0) a.atkCd -= dt;
   if (a.shootCd > 0) a.shootCd -= dt;
-  if (a.st == AState::Dead) return;
+  if (a.st == AState::Dead) {
+    // (P2a ANIM delight) rig 2: a puff of dust where the body lands, as the fall's topple ends (0.34 s)
+    if (a.human && art::rigVersion() >= 2 && a.stT >= 0.34f && a.stT - dt < 0.34f) {
+      const float side = std::fabs(a.knock.x) > 1.0f ? (a.knock.x > 0 ? 1.0f : -1.0f) : a.face == 2 ? -1.0f : a.face == 3 ? 1.0f : ((a.id & 1) ? 1.0f : -1.0f);
+      emit(Ev::Dust, a.p + Vec2(side * 9.0f, 0));
+      emit(Ev::Dust, a.p + Vec2(side * 2.0f, 1));
+    }
+    return;
+  }
   if (a.burnT > 0 && a.comp && a.posture == art::Posture::Downed) a.burnT = 0;   // (fixer M8 r2) the downed bleed, they do not burn
   if (a.burnT > 0) {
     a.burnT -= dt;

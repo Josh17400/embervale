@@ -49,6 +49,9 @@ constexpr int kOutfits = 10, kHairs = 6, kMonsters = 16, kProps = 74, kBuildings
 
 int main(int argc, char** argv) {
   for (int i = 1; i < argc; i++) if (!std::strcmp(argv[i], "-v")) g_verbose = true;
+  // (P2a) --legacy-outline: the character sheets with the pre-P2a selective outline: every line must then equal the
+  // pre-P2a record (docs/PLAN.md P2a), proving the ink outline is the only pixel change of phase A
+  for (int i = 1; i < argc; i++) if (!std::strcmp(argv[i], "--legacy-outline")) art::outlineLegacyForTests() = true;
   using namespace art;
   Cat humans{"humans"}, monsters{"monsters"}, props{"props"}, buildings{"buildings"}, walls{"walls"}, icons{"icons"}, fx{"fx"};
   Cat humansNew{"humans+new"}, monstersNew{"monst+new"}, propsNew{"props+new"}, buildingsNew{"bldgs+new"}, iconsNew{"icons+new"},

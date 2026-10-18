@@ -443,6 +443,12 @@ void boutCheck(Game& g, uint64_t seed) {
     const int gold0 = g.gold;
     const size_t inv0 = g.inv.size();
     steps(g, 20);
+    // (P2a integration) the player steps up to the champion: the won bout can end with the player across a fence from
+    // the champion's spot, and the bot below stands still within 3 tiles while the AI (no pathing) cannot round it
+    if (const int ci = actorOf(g, inst, "champ"); ci >= 0) {
+      const Vec2 cp = g.actors[(size_t)ci].p;
+      g.pl().p = ClimbOps::freeSpot(g, (int)std::floor(cp.x / T), (int)std::floor(cp.y / T));
+    }
     float minHp = 1e9f;
     bool beatenSeen = false;
     int tick = 0;

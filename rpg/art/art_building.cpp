@@ -1254,8 +1254,10 @@ Mass volumeMass(const Plan& p, const bld::Volume& v) {
   m.round = v.shape != bld::VolShape::Box;
   m.x0 = v.x0; m.x1 = v.x1; m.y0 = v.y0; m.y1 = v.y1;
   if (m.round) { m.r = std::min(m.x1 - m.x0, m.y1 - m.y0) * 0.5f; m.cx = (m.x0 + m.x1) * 0.5f; m.cy = m.y1 - m.r; }
-  m.zBase = v.z0;
-  m.wallH = v.wallH;
+  // (P2a) walls scale with the rig (art::bodyPx: exactly the builder's px at rig 1; x 32 / 22 at rig 2, crude until
+  // HOLDERS refines it per kind: one-storey wall 1.00-1.12 of the figure, STYLE_P2 1)
+  m.zBase = bodyPx(v.z0);
+  m.wallH = bodyPx(v.wallH);
   m.shape = v.roof;
   if (m.round && (m.shape == RoofShape::Hip || m.shape == RoofShape::Gable || m.shape == RoofShape::Turf || m.shape == RoofShape::Mansard)) m.shape = RoofShape::Conical;
   m.rmat = v.roofMat;
@@ -2228,13 +2230,14 @@ void buildFacades(Plan& p, int m0 = 0, int m1 = 1 << 30) {
               m.f.set(du - 4 + i, v, c);
             }
       } else {
-        int dw = 10, dh = 16;
-        if (m.wallH < 22) { dw = 8; dh = 13; }
-        if (sacred) { dw = 12; dh = 20; }
-        if (b == Building::Palace && hasDoor) { dw = 16; dh = 26; }
-        else if (grand && hasDoor && !sacred) { dw = 12; dh = 22; }
+        // (P2a) doors scale with the rig (art::bodyPx: today's sizes at rig 1; door height 0.70-0.76 of the figure at rig 2)
+        int dw = bodyPx(10), dh = bodyPx(16);
+        if (m.wallH < bodyPx(22)) { dw = bodyPx(8); dh = bodyPx(13); }
+        if (sacred) { dw = bodyPx(12); dh = bodyPx(20); }
+        if (b == Building::Palace && hasDoor) { dw = bodyPx(16); dh = bodyPx(26); }
+        else if (grand && hasDoor && !sacred) { dw = bodyPx(12); dh = bodyPx(22); }
         const int room = m.storeys >= 2 && m.floorV > 0 ? m.floorV - 2 : m.wallH - 6;
-        dh = std::min(dh, std::max(10, room));
+        dh = std::min(dh, std::max(bodyPx(10), room));
         if (p.cul == CU_NONE) facadeDoor(m, du, dw, dh, arched, sacred ? kWood : kWoodDark);
         else {
           // M3 the culture's door, painted in its accent where it paints its doors; a surround from the facade variety
@@ -2315,6 +2318,7 @@ void buildFacades(Plan& p, int m0 = 0, int m1 = 1 << 30) {
     int winV = 8 + (m.zBase > 0 ? 0 : 1), winW = 6, winH = 8;
     if (b == Building::Hut) { winV = 6; winW = 5; winH = 6; }
     if (m.wall == WallKind::Adobe) { winW = 5; winH = 7; }
+    winV = bodyPx(winV); winW = bodyPx(winW); winH = bodyPx(winH);   // (P2a HOLDERS) the windows follow the taller wall at rig 2
     if (p.cul && m.wallH < 26 && !sacred && m.storeys <= 1) { winH = std::clamp(m.wallH - 13, 4, winH); winV = std::min(winV, std::max(4, m.wallH - winH - 7)); }
     const bool feltWall = m.wall == WallKind::Felt;   // (M3: a yurt has no windows below: its light comes through the crown)
     const int deck = flatShape(m.shape) && !m.round ? 6 : 2;
@@ -2368,7 +2372,7 @@ void buildFacades(Plan& p, int m0 = 0, int m1 = 1 << 30) {
         int uc = u + ((w % step) / 2);
         if (uc < 6 || uc > w - 7 || uc < uLo || uc > uHi) continue;
         // (M7 fix) a double door (and a moon gate, a round door) is wider: a window beside it stood on its jamb
-        const int doorClear = (m.door == (uint8_t)DoorShape::Double || m.door == (uint8_t)DoorShape::Moon || m.door == (uint8_t)DoorShape::Round) ? 15 : 11;
+        const int doorClear = bodyPx((m.door == (uint8_t)DoorShape::Double || m.door == (uint8_t)DoorShape::Moon || m.door == (uint8_t)DoorShape::Round) ? 15 : 11);   // (P2a: the wider door at rig 2)
         if ((hasDoor || vDoor) && s == 0 && std::abs(uc - du) < doorClear) continue;
         if (m.face == bld::Face::Shopfront && s == 0 && std::abs(uc - du) < 20) {   // a wide shop window beside the door
           facadeWindow(m, uc - 5, v0 - 1, 10, 7, p.seed + u, false, false, false, shutterCol);

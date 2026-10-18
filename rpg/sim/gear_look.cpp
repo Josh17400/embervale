@@ -16,6 +16,7 @@
 #include <initializer_list>
 #include "rpg/culture/culture.h"
 #include "rpg/sim/gear.h"
+#include "rpg/art/art_rig.h"
 
 namespace {
 // an armour piece's M5 material band (art::HumanLook): 1 leather, 2 iron, 3 steel, 4 gilded, 5 jade, 6 obsidian, 7 ember
@@ -219,6 +220,7 @@ art::HumanLook appearanceLook(const Appearance& app, const cult::Culture* home) 
   L.tabardColor = rgba(170, 50, 40);   // the hero's heraldry: the painted field of every shield
   if (!app.heraldry.empty()) L.tabardColor = app.heraldry.field | 0xFF000000u;   // M3: personal arms chosen in the creator
   L.people = (uint8_t)std::min<int>(app.people, 2);   // M3: human, half-breed or elf (ears, proportions)
+  L.body = app.female ? 1 : 0;                         // P2a: the v2 rig's body base (v1 ignores it)
   L.outfit = art::Outfit::Tunic;
   if (home) {
     const cult::Cut c = app.female ? home->dress.cutF : home->dress.cutM;
@@ -254,7 +256,7 @@ void wearGear(art::HumanLook& L, const WornGear& g, const CultureLookup& culture
   // in hand: the melee weapon, else the staff, else the bow; whatever else is equipped rides on the back
   auto tintOf = [&](const Item* it) { return metalTint(*it, metal(it)); };
   if (g.weapon) {
-    static const uint8_t wmap[] = {1, 2, 6, 5, 1, 8};   // sword, axe, mace (hammer head), dagger, greatsword, spear (M6)
+    static const uint8_t wmap[] = {1, 2, 6, 5, 7, 8};   // sword, axe, mace (hammer head), dagger, greatsword (P2a: art id 7, v1 paints the sword), spear (M6)
     static_assert(sizeof(wmap) / sizeof(wmap[0]) == (size_t)WeaponType::COUNT, "a hand look for every weapon type");
     L.weapon = wmap[g.weapon->sub % (int)WeaponType::COUNT];
     L.weaponColor = tintOf(g.weapon);
@@ -298,7 +300,7 @@ void wearGear(art::HumanLook& L, const WornGear& g, const CultureLookup& culture
   if (g.weapon) {
     const cult::Culture* c = maker(g.weapon);
     if (L.weapon == 8) L.polearmForm = polearmFormOf(*g.weapon, c);   // every M6 spear wears a proper head
-    else if (c && L.weapon == 1) L.bladeForm = formOr(g.weapon->form, c->arms.blade, (int)cult::Blade::COUNT);
+    else if (c && (L.weapon == 1 || L.weapon == art::WEAPON_GREATSWORD)) L.bladeForm = formOr(g.weapon->form, c->arms.blade, (int)cult::Blade::COUNT);
   }
   if (const cult::Culture* c = maker(g.bow)) L.bowForm = formOr(g.bow->form, c->arms.bow, (int)cult::BowKind::COUNT);
 

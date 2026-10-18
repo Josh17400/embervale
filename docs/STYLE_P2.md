@@ -230,14 +230,25 @@ M6 band ramps and alloy keys (metalRampKeys), so the doll, the icons and the wor
 - P2a applies the ink outer outline to today's v1 sheets as well (people, monsters, critters, horses, the hound), so the
   contrast ships before the new rig.
 - **Night**: after the light map, each visible human figure is added again in Moonwash at 0.10-0.18 of the darkness, so
-  people stay a step brighter than the ground they stand on. Lamps and the hero's torch still win.
+  people stay a step brighter than the dark ground they stand on (grass, road, earth). On a ground brighter than the
+  figure (snow, pale sand under the moon) no lift makes the figure the brighter one without paling torch-lit folk:
+  there the dark ink edge against the bright ground carries the figure, as it does by day. Away from every light the
+  ground falls to 18-30 luma and the ink to about 10, so an unlit townsperson's edge can never reach a day-like
+  contrast: unlit folk are read by their lifted body alone, which must stand 10 luma or more over even the brightest
+  unlit ground (moonlit snow). Lamps and the hero's torch still win.
 - **The hero's ring**: a 1 px Ember Gold ellipse at the feet (24 x 9 on the v2 rig, 18 x 7 on v1), its front arc 1 px
   brighter, a 1 px Ring Shadow line under the front arc so it reads on snow and sand. Drawn after the contact shadow
   and before the body, 80 % alpha; it flares to 95 % for one second when the hero is hit or walks into a crowd (4 or
   more people within 3 tiles). PLAYER RING: ON / OFF in SETTINGS (default ON).
-- **Measured targets** (VISION_PLAN 15.36): day edge contrast of a figure's outline ring against the ground ring at
-  least 40 luma on grass, road, sand and snow; at night at least 25, and the figure's median luma at least 10 above
-  the ground's.
+- **Measured targets** (VISION_PLAN 15.36 L6; restated 2026-10-18, P2a fix round 1, L6-NIGHT-BRIGHT-GROUND): by day
+  the edge contrast of a figure's outline ring against the ground ring is at least 40 luma on grass, road, sand and
+  snow. At night (23:00, 5 tiles or more from any lamp), for the hero AND for an unlit townsperson 5 tiles or more from
+  any light (the hero's torch included: tools/scripts/p2a_night_npc.txt and _phone, `npcstage` / `npcpair`), on each of
+  the four grounds: the figure stands apart from the ground by value (|figure median - ground median| at least 10) OR
+  its ink edge reads as by day (edge contrast at least 40). The old wording ("the figure's median at least 10 above the
+  ground's and edge contrast at least 25") cannot hold on a ground brighter than the figure, cannot hold for unlit folk
+  (ink about 10 luma against unlit ground at 18-30: an edge of 20 at most), and measured only the hero, who carries a
+  light.
 
 ---
 
@@ -260,7 +271,7 @@ DEATH (baked when someone falls), POSTURE (per posture in use).
 | clip | frames per facing | timing | reads as |
 |---|---|---|---|
 | Idle | 3: neutral, breathe, blink | neutral and breathe alternate 0.55 s each (shoulders and chest rise 1 px); a 0.12 s blink every 3-6 s, phase per actor | alive while standing |
-| Walk | 6: contact, down, pass, contact, down, pass | one frame per 4.5 px travelled (a 27 px stride cycle): 16 fps at the hero's 74 px/s, 9 fps at 40 px/s, never sliding | feet planted at any speed |
+| Walk | 6: contact, down, pass, contact, down, pass | 6 frames over a 28 px cycle (5/4/5 px a stance) keyed to whole px drawn along the main axis: 15.9 fps at the hero's 74 px/s, 8.6 at 40; side views register the planted foot within 1 px at each frame change and slip 4.5 px (one frame step) or less within a held frame (restated 2026-10-18; held frames an occluder cuts are not measured); front/back walk in place | feet planted at any speed |
 | Hurt | 1 | held through the Hurt state (0.18 s for the hero) | flinch: head back, shoulders up, eyes squeezed |
 | Windup | 2 | 45 % / 55 % of the windup state (the hero: 0.07 x pace s; enemies: their family's windup) | anticipation |
 | Strike | 2 | 40 % / 60 % of the strike state (0.11 x pace s); the FX starts on the first | the blow |
@@ -448,12 +459,40 @@ The smallest finished piece that locks the look. Built on rig v2 behind `rig 2`,
 figure 32 / 31 px (96 / 93 device px at D3 on the desktop, 160 / 155 at D5 on the phone: 11.5-14 % of the screen
 height); every world pixel in the noon shots an exact D x D block; the face shows brows, two 1 x 2 eyes, a nose pixel
 and a mouth with eye-to-skin contrast of 60 luma or more; two hands in front and back idle frames; outer outline
-pixels at luma 60 or less (100 or less on Lit Ink edges); day edge contrast 40 or more and night 25 or more with the
-figure 10 above the ground; the man and the woman differ by 2 px in shoulder width or more and read as man and woman
-without exaggeration; the walk keeps the feet planted (1 px slide or less per contact frame); the sword's tip path
+pixels at luma 60 or less (100 or less on Lit Ink edges); day edge contrast 40 or more; at night the figure 10 or more
+off the ground by value or its edge 40 or more (section 8, restated 2026-10-18); the man and the woman differ by 2 px in shoulder width or more and read as man and woman
+without exaggeration; the walk registers the planted foot within 1 px at each side-view frame change and slips 4.5 px (one frame step) or less within a held frame (front/back walk in place; restated 2026-10-18); the sword's tip path
 spans 120 degrees or more; lying within 0.45 s of the kill at 16 px tall or less; the cottage door at 0.70-0.76 of the
 figure and the wall at 1.00-1.12; then the look review: palette, top-left light, no pillow shading or banding, no
 orphan pixels or jaggies, the hero found first in the shot.
+
+**What the slice measured** (the slice judge, round 4, 2026-10-18, on a clean MSVC build; recorded here as the slice's
+numbers, which every later v2 area matches. Points 1-7 and 9-12 passed. Point 8 is restated (2026-10-18, P2a fix
+round 1, SLICE-WALK-SLIDE; section 10's Walk row and the acceptance above carry it): side views register the planted
+foot within 1 px at every frame change, and it slips no more than one frame step (4.5 px of travel) within a held
+frame; held frames whose sole row an occluder cuts (a bush or tuft drawn in front of the feet) are not measured. The
+judge's tools: .tmp/judge/motion.py (slip within a held frame) and motion_reg.py (registration at frame changes) on
+the frame-exact walk60 run. Measured on that run, fix round 1: registration 1 px at worst; slip 4 px at worst (contact
+and any frame; 8 occluded held frames skipped); hero pivot changed on 0 of 119 frames; camera steps {-2: 28, -1: 91}.)
+
+| point | measured |
+|---|---|
+| 1 size | idle frames: man 32, woman and villager 31 art px in all four facings; on screen 96 (desktop NORMAL, D3) and 160 (phone NORMAL, D5); NEAR 128 (D4) and 192 (D6) for the man, 124 / 186 for the woman; the same on grass and road, by day and at night (woman 93 / 155) |
+| 2 crisp | every `ui 0` world shot 100 % whole D x D blocks; the hero crop's colours a subset of the frame and the ground: 0 strays in 2931, 8165 and 2799 px |
+| 3-4 face, hands | R4: faces 8 / 8 down frames (brows, two 1 x 2 eyes, nose, mouth), hands 18 / 18 front and back idle and walk frames |
+| 5 outline | outer-silhouette pixels over luma 60 (100 on Lit Ink): man 0, villager 0, woman 1 (an old mask artefact); 0 px of #000000 |
+| 6 contrast | night figure median over the ground (D3 / D5): grass +26.4 / +25.8, road +20.5 / +18.3, the slice spot +34.3 / +36.6; night edge contrast 37.6-43.8; day edge 72.6-97.1; the ring 45.8-78.4; at the night lift's 0.5: grass +27.4, road +19.5 |
+| 7 bodies | shoulders 16 (man) vs 14 (woman) incl. the outline; hands, hips and feet within 1 px of each other |
+| 8 walk | 6 frames over a 28 px cycle, stepping 5 / 4 / 5 px a stance (frame starts at 0, 5, 9, 14, 19, 23 px), keyed to the whole px drawn along the step's main axis: 15.9 fps at 74 px/s (about 11 on a 45-degree diagonal), 8.6 at 40. Side views: the planted foot lands within 1 px of its spot at every frame change (9 stances, none at 2 px) and slips 4 px at most within a held frame; front and back views walk in place (the 16-bit convention); the hero stays steady on screen (pivot changes W and E 0 / 119 frames, S 2 / 119, N 16 / 119 all one way); a walk starts on frame 5 (its planted foot is the idle stance's back foot); idle: 8 breaths and blinks at 5.23 s and 9.45 s in 10 s |
+| 9 swing | 104 action frames, none drawing the idle box; tips: hit 1 252, hit 2 270, hit 3 153 degrees about the grip (R8); variants differ 55-64 % (R9); 0 of 48 left frames mirrored (R10); the Steel Arc 4 frames a hit (boxes 10 x 8, 22 x 28, 35 x 53, 17 x 9 px on screen at D3), long side 30, the finisher tinted with long side 34; no arc on follow frames |
+| 10 fall | lying on screen +0.367 s after the killing blow, 14 px tall; 0 frames toppling to the wrong side |
+| 11 world fit | the cottage door 23 px (0.72 of the figure), the one-storey wall 35 (1.09); walking out of the door the head stays under the eaves |
+| 12 look | big, crisp and found first by day and at night on desktop and phone; the walk reads contact, down, pass in 3-4 sim frames each, with a smooth step-off and stop |
+| atlases | LOCO 106 / 100 / 79 KB (hero man, hero woman, villager), DEATH 46 / 45 / 40 KB, the sword's ACTION 212 / 206 KB; one facing's LOCO bake p50 0.09 ms; --rig and --anim 0 failures (A1 56fb08be96b73a1a) |
+
+The base built on the slice (RIG-BODY, P2a wave 2) keeps these: the slice's looks paint the same pixels except where
+the base adds secondary motion (the braid's swing, the dress's hem following the legs, the sheen dipping on a walk's
+down frames).
 
 ---
 

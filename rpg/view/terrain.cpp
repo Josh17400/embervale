@@ -5865,7 +5865,7 @@ void View::prefetch(const Map& m, uint64_t mapId, Vec2 cam) {
   }
 #endif
   int c0x = (int)std::floor((cam.x - 256) / 512), c0y = (int)std::floor((cam.y - 256) / 512);
-  int c1x = (int)std::floor((cam.x + Pix::W + 256) / 512), c1y = (int)std::floor((cam.y + Pix::H + 256) / 512);
+  int c1x = (int)std::floor((cam.x + viewW() + 256) / 512), c1y = (int)std::floor((cam.y + viewH() + 256) / 512);   // (P2a: the world view)
   std::lock_guard<std::mutex> lk(mu_);
   // keep only jobs for the current map (the global chunk key survives window shifts, so those jobs stay)
   for (size_t i = 0; i < jobs_.size();) {
@@ -5984,7 +5984,7 @@ Tex View::chunkTex(const Map& m, uint64_t mapId, int cx, int cy) {
   auto store = [&](Canvas& c) -> Tex {
     Chunk* slot = nullptr;
     // enough for the visible chunks of a wide phone screen and the ring prefetched around them
-    const size_t cap = (size_t)std::max(24, 2 * (Pix::W / 512 + 3) * (Pix::H / 512 + 3));
+    const size_t cap = (size_t)std::max(24, 2 * (viewW() / 512 + 3) * (viewH() / 512 + 3));
     if (chunks_.size() < cap) { chunks_.push_back(Chunk()); slot = &chunks_.back(); }
     else {
       slot = &chunks_[0];
@@ -6108,12 +6108,13 @@ void View::travelArrive(Game& g) {
   const Map& m = *mp;
   const Vec2 cam(std::floor(cam_.x), std::floor(cam_.y));
   const int v0x = (int)std::floor(cam.x / 512), v0y = (int)std::floor(cam.y / 512);
-  const int v1x = (int)std::floor((cam.x + Pix::W) / 512), v1y = (int)std::floor((cam.y + Pix::H) / 512);
+  const int VW = viewW(), VH = viewH();   // (P2a) the world view (this runs in update, outside the world layer)
+  const int v1x = (int)std::floor((cam.x + VW) / 512), v1y = (int)std::floor((cam.y + VH) / 512);
   // the chunks the fade waits for: desktop, the view and a ring round it (the background bakers are quick); without
   // threads only what the first frames after the fade can show (the view plus 64 px); the ring is baked afterwards by
   // the per-frame pump like any walk's prefetch
   const int n0x = st ? (int)std::floor((cam.x - 64) / 512) : v0x - 1, n0y = st ? (int)std::floor((cam.y - 64) / 512) : v0y - 1;
-  const int n1x = st ? (int)std::floor((cam.x + Pix::W + 64) / 512) : v1x + 1, n1y = st ? (int)std::floor((cam.y + Pix::H + 64) / 512) : v1y + 1;
+  const int n1x = st ? (int)std::floor((cam.x + VW + 64) / 512) : v1x + 1, n1y = st ? (int)std::floor((cam.y + VH + 64) / 512) : v1y + 1;
   auto inMap = [&](int cx, int cy) { return cx >= 0 && cy >= 0 && cx * CH < m.w && cy * CH < m.h; };
   if (st && arrival_.frames == 1) {
     // without threads, bakes still queued for where the player was are dropped, or the pump works through them first
@@ -6199,8 +6200,8 @@ void View::travelArrive(Game& g) {
     // the view, and every building drawWorld's one-a-frame prefetch would paint once the fade lifts (within 720 x 520
     // px of the player): a palace there took 25 ms in the first frames after a city arrival
     const Vec2 pp = g.pl().p;
-    bldgsIn(g, m, std::min(cam.x - 32, pp.x - 720), std::min(cam.y - 32, pp.y - 520), std::max(cam.x + Pix::W + 32, pp.x + 720),
-            std::max(cam.y + Pix::H + 32, pp.y + 520), vis);
+    bldgsIn(g, m, std::min(cam.x - 32, pp.x - 720), std::min(cam.y - 32, pp.y - 520), std::max(cam.x + VW + 32, pp.x + 720),
+            std::max(cam.y + VH + 32, pp.y + 520), vis);
     bool painted = false;
 #ifndef __EMSCRIPTEN__
     if (!st) {
@@ -6235,7 +6236,7 @@ void View::travelArrive(Game& g) {
       }
     if (!wallKeys_.empty() && wallKeys_.size() == (size_t)m.w * m.h) {
       const int tx0 = std::max(0, (int)std::floor(cam.x / 16) - 3), ty0 = std::max(0, (int)std::floor(cam.y / 16) - 2);
-      const int tx1 = std::min(m.w, tx0 + Pix::W / 16 + 7), ty1 = std::min(m.h, ty0 + Pix::H / 16 + 8);
+      const int tx1 = std::min(m.w, tx0 + VW / 16 + 7), ty1 = std::min(m.h, ty0 + VH / 16 + 8);
       bool over = false;
       for (int ty = ty0; ty < ty1 && !over; ty++)
         for (int tx = tx0; tx < tx1; tx++) {
@@ -6249,7 +6250,7 @@ void View::travelArrive(Game& g) {
   // the people the arrival shows: their character sheets painted ahead (a city square wakes thirty at once)
   const auto th = SClock::now();
   for (const Actor& a : g.actors) {
-    if (!a.human || a.p.x < cam.x - 96 || a.p.x > cam.x + Pix::W + 96 || a.p.y < cam.y - 96 || a.p.y > cam.y + Pix::H + 128) continue;
+    if (!a.human || a.p.x < cam.x - 96 || a.p.x > cam.x + VW + 96 || a.p.y < cam.y - 96 || a.p.y > cam.y + VH + 128) continue;
     const bool child = a.role == Role::Child;   // (M5) children's sheets are keyed apart (render.cpp childBody)
     if (humans_.count(a.look.key() ^ (child ? 0xC41D0000C41Dull : 0))) continue;
     if (st ? spent() > kArriveBudget * 0.75 : spent() > 8.0) { ready = false; break; }

@@ -1332,18 +1332,20 @@ void View::drawSeaHud(Game& g) {
   // ---- the fishing panel: the float's bite cue, the tension meter and the run, beside the hero
   const sea::Sea::Line& ln = Lv.line;
   if (ln.phase != sea::Sea::Cast::None && g.mode == Mode::Play) {
-    const Vec2 hero(g.pl().p.x - std::floor(cam_.x), g.pl().p.y - std::floor(cam_.y) - seaHeroLift(*this, g));
+    // (P2a integration) this panel is in the UI layer: the hero and the float go through toUi, world offsets through u
+    const float u = uiPerWorld();
+    const Vec2 hero = toUi(Vec2(g.pl().p.x, g.pl().p.y - seaHeroLift(*this, g)));
     const bool fight = ln.phase == sea::Sea::Cast::Reeling;
     if (ln.phase == sea::Sea::Cast::Bite || S.biteT > 0) {   // the bite: a bright "!" over the float, the button cue
-      const Vec2 bob(ln.bob.x - std::floor(cam_.x), ln.bob.y - std::floor(cam_.y));
+      const Vec2 bob = toUi(Vec2(ln.bob.x, ln.bob.y));
       const float jump = std::fabs(std::sin(t_ * 14.0f)) * 3.0f;
-      P.textS(bob.x - 2, bob.y - 18 - jump, "!", 2, Color(1.0f, 0.86f, 0.30f));
+      P.textS(std::floor(bob.x) - 2, std::floor(bob.y - 18 * u - jump), "!", 2, Color(1.0f, 0.86f, 0.30f));
 
     }
     if (fight) {
       // the meter: a vertical gauge right of the hero: green slack .. gold .. red snap; the needle eases
-      float mx = hero.x + 16, my = hero.y - 44;
-      if (mx + 30 > R) mx = hero.x - 46;
+      float mx = std::floor(hero.x + 16 * u), my = std::floor(hero.y - 44 * u);
+      if (mx + 30 > R) mx = std::floor(hero.x - 16 * u - 30);
       const float mh = 40;
       seaPanel(P, mx, my, 14, mh + 6, 0.85f);
       for (int i = 0; i < (int)mh; i++) {
@@ -1358,14 +1360,14 @@ void View::drawSeaHud(Game& g) {
       P.rect(mx + 2, std::floor(my + 3 + mh - fillH), 10, 1, Color(1, 1, 1, 0.9f));
       if (tv > 0.82f && ((int)(t_ * 10) & 1)) P.frame(mx, my, 14, mh + 6, Color(1.0f, 0.4f, 0.3f, 1));
       // the run: how far the fish still is (a fish icon sliding home along a line under the hero)
-      const float lw = 44, lx = hero.x - lw / 2, ly = hero.y + 8;
+      const float lw = 44, lx = std::floor(hero.x - lw / 2), ly = std::floor(hero.y + 8 * u);
       P.rect(lx, ly, lw, 1, Color(0.85f, 0.88f, 0.92f, 0.6f));
       const float fx = lx + lw * std::max(0.0f, std::min(1.0f, S.distShown));
       P.rect(std::floor(fx) - 2, ly - 1, 4, 3, Color(0.70f, 0.82f, 0.90f, 1));
       P.rect(std::floor(fx) + 2, ly - 1, 1, 1, Color(0.70f, 0.82f, 0.90f, 1));
       P.rect(std::floor(fx) + 2, ly + 1, 1, 1, Color(0.70f, 0.82f, 0.90f, 1));
     }
-    if (S.lostT > 0) P.textS(hero.x, hero.y - 40, "LOST IT...", 1, Color(0.9f, 0.6f, 0.5f, std::min(1.0f, S.lostT * 2)), 1);
+    if (S.lostT > 0) P.textS(std::floor(hero.x), std::floor(hero.y - 40 * u), "LOST IT...", 1, Color(0.9f, 0.6f, 0.5f, std::min(1.0f, S.lostT * 2)), 1);
   }
   // ---- the catch card: the fish painted, its name, its size, how rare
   if (S.card.t > 0 && S.card.species >= 0 && S.card.species < (int)sea::species().size()) {

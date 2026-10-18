@@ -268,6 +268,27 @@ void outline(Canvas& c, float strength = 1.0f) {
       c.set(x, y, outlineOf(n, s));
     }
 }
+// (P2a, STYLE_P2 8: the figure-ground rule) the INK outer outline of a character sheet (people, monsters, critters,
+// horses, the hound): 1 px round the whole silhouette in the same places outline() puts it, Ink on the bottom- and
+// right-facing edges, Lit Ink (Ink mixed 30 % toward the neighbour) on the top- and left-facing edges. Never #000000.
+// The world (terrain, props, buildings, flora) keeps the selective outline(); inner contours keep layered().
+// legacyStrength: the selective outline's strength this sheet had before P2a (tests: art::outlineLegacyForTests)
+void outlineInk(Canvas& c, float legacyStrength = 1.0f) {
+  if (outlineLegacyForTests()) { outline(c, legacyStrength); return; }
+  Canvas src = c;
+  for (int y = 0; y < c.h; y++)
+    for (int x = 0; x < c.w; x++) {
+      if (solid(src, x, y)) continue;
+      static const int nx[4] = {0, -1, 1, 0}, ny[4] = {1, 0, 0, -1};
+      int found = -1;
+      for (int k = 0; k < 4; k++)
+        if (chA(src.get(x + nx[k], y + ny[k])) > 96) { found = k; break; }
+      if (found < 0) continue;
+      const uint32_t n = src.get(x + nx[found], y + ny[found]);
+      const bool lit = found == 0 || found == 2;   // the shape is below / right of this pixel: a top / left-facing edge
+      c.set(x, y, lit ? mix(kInk, opaque(n), 0.30f) : kInk);
+    }
+}
 // darkens the inner edge of a shape against transparency (used for a soft rim instead of a full outline)
 void innerRim(Canvas& c, float k) {
   Canvas src = c;

@@ -9,3 +9,4 @@ site/
 *.wav
 /--*/
 /.claude/worktrees/
+.tmp/

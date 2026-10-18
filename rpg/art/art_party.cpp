@@ -718,7 +718,7 @@ Canvas houndSheet(const HoundLook& L) {
       Canvas cell(HOUND_W, HOUND_H);
       HoundPainter hp(cell, L, row, f);
       hp.paint();
-      outline(cell);
+      outlineInk(cell);   // (P2a) the ink outer outline (STYLE_P2 8)
       place(sheet, cell, f, row);
     }
   return sheet;
@@ -736,12 +736,19 @@ Canvas houndPortrait(const HoundLook& L, int mood) {
 // ================================================================================================ graves
 namespace {
 
+// (P2a HOLDERS) at rig 2 the grave is painted x 1.2 (STYLE_P2 1: "a kneeling mourner's head clears it"; its mound a
+// v2 body's length) on a 28 x 38 canvas; s = 1 at rig 1, where every product below is today's number
+inline float graveS() { return rigVersion() >= 2 ? 1.2f : 1.0f; }
+inline int graveW() { return rigVersion() >= 2 ? 28 : GRAVE_W; }
+inline int graveH() { return rigVersion() >= 2 ? 38 : GRAVE_H; }
 struct GravePainter {
   Canvas& c;
   const GraveLook& G;
   Ramp St;              // the stone (or the post's wood)
-  const int W = GRAVE_W, H = GRAVE_H;
-  const int cx = GRAVE_W / 2;
+  const float s = graveS();
+  const int W = graveW(), H = graveH();
+  const int cx = graveW() / 2;
+  int Si(int v) const { return s == 1.0f ? v : (int)std::lround(v * s); }
   GravePainter(Canvas& c_, const GraveLook& g) : c(c_), G(g) {
     uint32_t base = G.stone;
     if (!base) {
@@ -765,7 +772,7 @@ struct GravePainter {
     // marker. All of it is the sprite: the view draws only the ground shadow under it.
     const Ramp Earth = ramp5(rgba(52, 34, 30), rgba(80, 54, 40), rgba(110, 76, 52), rgba(140, 102, 68), rgba(168, 130, 88));
     const Ramp Gr = ramp5(rgba(44, 78, 46), rgba(60, 102, 52), rgba(78, 128, 58), rgba(100, 150, 64), rgba(136, 178, 82));
-    const float mcx = cx - 0.5f, mcy = H - 10.5f, rx = 5.6f, ry = 7.6f;   // (r3: a body's length toward the camera)
+    const float mcx = cx - 0.5f, mcy = H - 10.5f * s, rx = 5.6f * s, ry = 7.6f * s;   // (r3: a body's length toward the camera)
     auto shape = [&](float px, float py) {
       const float dx = std::fabs((px - mcx) / rx), dy = std::fabs((py - mcy) / ry);
       return dx * dx * dx + dy * dy * dy;   // <= 1 inside (a rounded oblong)
@@ -821,11 +828,11 @@ struct GravePainter {
   // ---- the five rites (the marker stands at the head of the grave, the north end of the mound)
   void headstone(int baseY) {
     // a slab with a rounded top seen in 3/4: the face toward the camera, its top edge and the right side in depth
-    const int x0 = cx - 4, x1 = cx + 3, top = baseY - 13;
+    const int x0 = cx - Si(4), x1 = cx + Si(3), top = baseY - Si(13);
     for (int y = top; y <= baseY; y++)
       for (int x = x0; x <= x1 + 1; x++) {
         const float t = (x + 0.5f - (x0 + x1 + 1) * 0.5f) / ((x1 - x0 + 2) * 0.5f);
-        const float arch = top + 2.6f * (1.0f - std::sqrt(std::max(0.0f, 1.0f - t * t)));
+        const float arch = top + 2.6f * s * (1.0f - std::sqrt(std::max(0.0f, 1.0f - t * t)));
         if (y + 0.5f < arch) continue;
         int k;
         if (x == x1 + 1) k = 0;                       // the slab's side in depth
@@ -835,7 +842,7 @@ struct GravePainter {
         c.set(x, y, St[k]);
       }
     // the carving: a ring cross, a sun, a tree or a knot (by seed), its lines cut and shaded
-    const int m = (int)(G.seed % 4), mx = cx - 1, my = top + 5;
+    const int m = (int)(G.seed % 4), mx = cx - 1, my = top + Si(5);
     const uint32_t cut = St[0], lip = St[4];
     switch (m) {
       case 0: for (int k = -2; k <= 2; k++) { c.set(mx, my + k, cut); c.set(mx + k, my, cut); } c.set(mx - 1, my - 1, lip); c.set(mx + 1, my + 1, cut); break;
@@ -844,8 +851,8 @@ struct GravePainter {
       case 2: for (int y = my - 1; y <= my + 3; y++) c.set(mx, y, cut); c.set(mx - 1, my - 1, cut); c.set(mx + 1, my - 1, cut); c.set(mx - 2, my - 2, cut); c.set(mx + 2, my - 2, cut); break;
       default: for (int k = 0; k < 4; k++) { c.set(mx - 2 + k, my - 1 + (k & 1), cut); c.set(mx - 2 + k, my + 2 - (k & 1), cut); } break;
     }
-    for (int x = x0 + 1; x <= x1 - 1; x++) if ((x + G.seed) % 2 == 0) c.set(x, top + 9 + (x & 1) * 0, St[1]);   // the name's line
-    for (int x = x0 + 1; x <= x1 - 2; x++) if ((x + G.seed) % 3 != 0) c.set(x, top + 11, St[1]);
+    for (int x = x0 + 1; x <= x1 - 1; x++) if ((x + G.seed) % 2 == 0) c.set(x, top + Si(9) + (x & 1) * 0, St[1]);   // the name's line
+    for (int x = x0 + 1; x <= x1 - 2; x++) if ((x + G.seed) % 3 != 0) c.set(x, top + Si(11), St[1]);
     // the base stone it is set in
     for (int x = x0 - 1; x <= x1 + 2; x++) { c.set(x, baseY + 1, St[x <= x0 ? 3 : (x >= x1 + 1 ? 0 : 2)]); c.set(x, baseY, x == x1 + 2 ? St[0] : c.get(x, baseY)); }
     if (!G.fresh) for (int x = x0; x <= x1; x += 2) if (hash3(x, 0, G.seed) & 1) c.set(x, baseY - 1, kMoss[2]);   // moss at its foot
@@ -862,7 +869,8 @@ struct GravePainter {
       Ramp R = St;
       if (tint == 1) R = ramp(shade(St[2], 0.9f), 0.85f);
       if (tint == 2) R = ramp(mix(St[2], rgba(150, 134, 110), 0.3f), 0.85f);
-      layered(c, [&](Canvas& p) { rock(p, cx + s.x, baseY - 1.0f + s.y, s.rx, s.ry, R, G.seed + i * 17, 5); }, 0.8f);
+      const float k = this->s;
+      layered(c, [&](Canvas& p) { rock(p, cx + s.x * k, baseY - 1.0f + s.y * k, s.rx * k, s.ry * k, R, G.seed + i * 17, 5); }, 0.8f);
     }
     if (!G.fresh) { c.set(cx - 5, baseY - 1, kMoss[2]); c.set(cx + 3, baseY - 3, kMoss[3]); c.set(cx - 1, baseY - 6, kMoss[2]); }
   }
@@ -871,7 +879,7 @@ struct GravePainter {
     // steppe and the marsh), knotwork bands, a carved head (a bird / a horse / a sun by seed)
     // (fixer M8 r1) taller and lighter than the mound, a crossbar: it reads as a marker, never a jug or a sack
     St = ramp(mix(St[2], rgba(170, 150, 120), 0.35f), 0.85f);
-    const int x0 = cx - 2, x1 = cx + 1, top = baseY - 13;
+    const int x0 = cx - 2, x1 = cx + 1, top = baseY - Si(13);
     for (int y = top + 3; y <= top + 5; y++)   // the crossbar, through the post, its ends cut square
       for (int x = cx - 6; x <= cx + 5; x++) {
         int k = y == top + 3 ? 4 : (y == top + 5 ? 1 : 2);
@@ -902,7 +910,7 @@ struct GravePainter {
   }
   void standingStone(int baseY) {
     // a tall rough menhir, leaning a touch, a spiral or runes cut into its face, lichen
-    rock(c, cx - 0.5f, baseY - 7.2f, 4.0f, 7.8f, St, G.seed + 5, 6);
+    rock(c, cx - 0.5f, baseY - 7.2f * s, 4.0f * s, 7.8f * s, St, G.seed + 5, 6);
     const int m = (int)(G.seed % 2);
     if (m == 0) {   // a spiral
       const int sx = cx - 1, sy = baseY - 8;
@@ -918,7 +926,7 @@ struct GravePainter {
   }
   void urnNiche(int baseY) {
     // a little stone shrine on a plinth: a gabled cap over an open niche, the urn inside it
-    const int x0 = cx - 5, x1 = cx + 4, top = baseY - 12;
+    const int x0 = cx - Si(5), x1 = cx + Si(4), top = baseY - Si(12);
     for (int y = top + 2; y <= baseY; y++)
       for (int x = x0; x <= x1 + 1; x++) {
         int k = x == x1 + 1 ? 0 : (x <= x0 + 1 ? 3 : (x >= x1 - 1 ? 1 : 2));
@@ -943,10 +951,10 @@ struct GravePainter {
   void weapon(int my) {
     // laid along the grave from its head toward the camera: the hilt / the haft's end under the marker
     (void)my;
-    const int w = G.weapon;
+    const int w = G.weapon == WEAPON_GREATSWORD ? 1 : G.weapon;   // (P2a) a greatsword is laid as a sword, as before
     if (!w) return;
     const Ramp& M = kIron;
-    const int x = cx - 1, y0 = H - 13;
+    const int x = cx - 1, y0 = H - Si(13);
     auto shaft = [&](int y1, int y2, const Ramp& R, int k) { for (int y = y1; y <= y2; y++) { c.set(x, y, R[k + 1]); c.set(x + 1, y, R[k - 1]); } };
     switch (w) {
       case 1: case 5: {   // a sword (a dagger is short): the pommel, the grip, the cross-guard, the blade to its point
@@ -995,7 +1003,7 @@ struct GravePainter {
   }
   void paint() {
     mound();
-    const int baseY = H - 16;   // the marker stands at the head of the grave, the mound's north end
+    const int baseY = H - Si(16);   // the marker stands at the head of the grave, the mound's north end
     switch (G.rite) {
       case 1: cairn(baseY + 1); break;
       case 2: post(baseY); break;
@@ -1003,7 +1011,7 @@ struct GravePainter {
       case 4: urnNiche(baseY); break;
       default: headstone(baseY); break;
     }
-    weapon(H - 7);
+    weapon(H - Si(7));
     flowers(baseY + 1);
   }
 };
@@ -1011,7 +1019,7 @@ struct GravePainter {
 }  // namespace
 
 Canvas graveRaw(const GraveLook& g) {
-  Canvas c(GRAVE_W, GRAVE_H);
+  Canvas c(graveW(), graveH());
   GravePainter gp(c, g);
   gp.paint();
   return c;
@@ -1022,9 +1030,9 @@ Canvas graveSprite(const GraveLook& g) {
   outline(c);
   // (fixer M8 r1, review: "the grave reads as a brown sack or jug") the marker keeps its ink line, but the mound lies
   // in the ground: round the plot the hard outline becomes a soft damp shadow, so the whole never reads as a pot
-  const int y0 = GRAVE_H - 16 + 1;
-  for (int y = y0; y < GRAVE_H; y++)
-    for (int x = 0; x < GRAVE_W; x++)
+  const int y0 = c.h - (int)std::lround(16 * graveS()) + 1;
+  for (int y = y0; y < c.h; y++)
+    for (int x = 0; x < c.w; x++)
       if ((raw.get(x, y) >> 24) == 0 && (c.get(x, y) >> 24) != 0) c.set(x, y, rgba(24, 30, 18, 96));
   return c;
 }

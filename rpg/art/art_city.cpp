@@ -9,6 +9,7 @@
 #include <vector>
 #include "rpg/art/art_city.h"
 #include "rpg/art/art_internal.h"
+#include "rpg/art/art_holders2.h"
 
 namespace art {
 
@@ -18,8 +19,8 @@ Sz cityInfo(Prop p) {
   switch (p) {
     case Prop::Bollard: return {10, 16, 1};
     case Prop::Planter: return {16, 22, 1};
-    case Prop::GardenWall: return {16, 28, 1};
-    case Prop::Hedge: return {16, 28, 1};
+    case Prop::GardenWall: return {16, rigVersion() >= 2 ? 28 + holders::kGardenWall - 10 : 28, 1};   // (P2a HOLDERS) taller at rig 2
+    case Prop::Hedge: return {16, rigVersion() >= 2 ? 28 + holders::kHedge - 7 : 28, 1};   // (P2a HOLDERS) taller at rig 2
     case Prop::FlowerBed: return {16, 16, 1};
     case Prop::FruitTree: return {28, 36, 1};
     case Prop::Monument: return {24, 64, 1};
@@ -94,6 +95,125 @@ void block(Canvas& c, int x0, int x1, int g0, int g1, int z, const Ramp& R, int 
     }
 }
 
+// ---------------------------------------------------------------- (P2a HOLDERS) the rig-2 clipped hedge
+// At rig 2 the city's hedge reaches the hip of the 32 px figure (holders::kHedge, 0.53; STYLE_P2 1 "fence, hedge,
+// garden wall 0.45-0.60"): the culture hedge's plan, joins and gateway posts (art_culture_props.cpp hedgePiece, which
+// stays today's 7 px piece at rig 1) on a canvas kHedge - 7 rows taller, its bottom on the tile's bottom as before.
+// Its taller face is clipped leaf in soft clumps (a lit upper-left on each, dark pockets between), a ragged lip under
+// the flat top, the foot in shade; snow lies on the top and drips over the lip.
+Canvas hedgePiece2(int bits, bool snow) {
+  const int mask = bits & 15, gates = (bits >> 4) & 15;
+  const int HT = holders::kHedge, OY = HT + 5, W = 16, H = 16 + OY;   // canvas y = ground y + OY - z
+  const int a0 = 4, a1 = 11;                                           // the run's width across (ground px)
+  auto in = [&](int gx, int gy) -> bool {   // the plan, its arms beyond the tile edges toward the joined sides
+    const bool cx = gx >= a0 && gx <= a1, cy = gy >= a0 && gy <= a1;
+    if (cx && cy) return true;
+    if (cx && gy < a0) return ((mask & 1) && gy >= -16) || ((gates & 1) && gy >= 3);
+    if (cx && gy > a1) return ((mask & 4) && gy <= 31) || ((gates & 4) && gy <= 12);
+    if (cy && gx < a0) return ((mask & 8) && gx >= -16) || ((gates & 8) && gx >= 3);
+    if (cy && gx > a1) return ((mask & 2) && gx <= 31) || ((gates & 2) && gx <= 12);
+    return false;
+  };
+  // seamless from tile to tile: the hashes see the position modulo the tile
+  auto leaf = [&](int gx, int gy, uint32_t s) { return hash3(((gx % 16) + 16) % 16 / 2, ((gy % 16) + 16) % 16 / 2, s) ^ hash3(gx & 15, gy & 15, s + 1u); };
+  auto clump = [&](int gx, int hh) -> float {   // a soft clump field over the face, seamless every 16 px: 0 a pocket .. 1 a crown
+    const float fx = (((gx % 16) + 16) % 16) / 4.0f, fy = hh / 3.0f + (float)(gx & 3) * 0.08f;
+    const int ix = (int)std::floor(fx), iy = (int)std::floor(fy);
+    const float tx = fx - ix, ty = fy - iy, sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+    auto L = [&](int a, int b) { return hashf(((a % 4) + 4) % 4, b, 233u); };
+    const float n = (L(ix, iy) * (1 - sx) + L(ix + 1, iy) * sx) * (1 - sy) + (L(ix, iy + 1) * (1 - sx) + L(ix + 1, iy + 1) * sx) * sy;
+    return n * 0.85f + hashf(gx & 15, hh, 239u) * 0.15f;
+  };
+  const Ramp& L = kLeaf;
+  const Ramp& D = kLeafDark;
+  Canvas c(W, H);
+  // the cast shadow on the ground to the south-east (the light from the top left), where nothing stands
+  for (int gy = 0; gy < 16; gy++)
+    for (int gx = 0; gx < 16; gx++) {
+      if (in(gx, gy)) continue;
+      bool sh = false;
+      for (int r = 1; r <= 5 && !sh; r++) sh = in(gx - r, gy) || in(gx, gy - r) || in(gx - r, gy - r) || (r > 1 && in(gx - r + 1, gy - r));
+      if (sh) c.set(gx, gy + OY, rgba(16, 22, 12, 104));
+    }
+  for (int gy = -HT; gy < 16; gy++)
+    for (int gx = 0; gx < W; gx++) {
+      if (!in(gx, gy)) continue;
+      const bool rimW = !in(gx - 1, gy), rimN = !in(gx, gy - 1), rimE = !in(gx + 1, gy), rimS = !in(gx, gy + 1);
+      // the clipped top: leaves in small clumps, lit toward the north-west rims, rounding into shade at the south-east
+      const uint32_t h = leaf(gx, gy, 211u);
+      int k = (h % 5 == 0) ? 2 : 3;
+      if (h % 7 == 0) k = 4;
+      if (rimW || rimN) k = std::min(4, k + 1);
+      if (rimE) k = std::max(1, k - 1);
+      if (rimS) k = 2;
+      uint32_t top = L[std::clamp(k, 0, 4)];
+      if (snow) {
+        int sk = (rimW || rimN) ? 4 : 3;
+        if (rimE || rimS) sk = 2;
+        if (h % 6 == 0) sk = std::max(1, sk - 1);
+        top = (h % 5 == 0 && !rimN && !rimW) ? D[(h >> 4) % 2 ? 2 : 3] : kSnow[sk];
+      }
+      const int ty = gy + OY - HT;
+      if (ty >= 0 && ty < H) c.set(gx, ty, top);
+      if (!rimS) continue;
+      // the face toward the camera
+      const int lip = (int)(leaf(gx, 7, 229u) % 3u == 0);   // a ragged px under the lip here and there
+      for (int hh = HT - 1; hh >= 0; hh--) {
+        const int y = gy + OY - hh;
+        if (y < 0 || y >= H || gy - hh + HT < 0) continue;
+        const int depth = HT - 1 - hh;
+        const float cl = clump(gx, hh);
+        // the face darkens toward the foot; soft clumps bulge a step lighter, pockets sink a step darker
+        int kk = depth <= 1 ? 3 : (depth <= 4 ? 2 : 1);
+        if (cl > 0.64f) kk++;
+        else if (cl < 0.34f) kk--;
+        if (depth == 2 + lip) kk = std::min(kk, 1);                          // the lip's ragged shadow line
+        if (hh == 0) kk = 0;                                                 // the foot in shade
+        if (rimW && hh > 0) kk++;                                            // the lit west end
+        if (rimE && hh > 0) kk--;
+        kk = std::clamp(kk, 0, 4);
+        static const int kIdx[5] = {1, 2, 2, 3, 4};
+        uint32_t col = kk >= 2 ? L[kIdx[kk]] : D[kIdx[kk] + 0];
+        if (kk >= 3 && leaf(gx, gy * 3 + hh, 223u) % 9 == 0) col = L[4];    // a sunlit leaf
+        if (snow) {
+          const int drip = 1 + (int)(leaf(gx, 5, 227u) % 3u);
+          if (depth < drip) col = kSnow[depth == 0 ? 3 : 2];
+        }
+        c.set(gx, y, col);
+      }
+    }
+  // a gateway through the hedge hangs on two squared timber posts at its ends, a little taller than the hedge
+  const int hp = HT + 4, m0 = a0 + 2, m1 = a1 - 2;
+  for (int d = 0; d < 4; d++) {
+    const int bit = 1 << d;
+    if (!(gates & bit)) continue;
+    int x0, x1, y0, y1;
+    if (bit == 1) { x0 = (m0 + m1) / 2 - 1; x1 = x0 + 2; y0 = 0; y1 = 2; }
+    else if (bit == 4) { x0 = (m0 + m1) / 2 - 1; x1 = x0 + 2; y1 = 15; y0 = 13; }
+    else if (bit == 8) { y0 = m0 - 1; y1 = m1 + 1; x0 = 0; x1 = 2; }
+    else { y0 = m0 - 1; y1 = m1 + 1; x1 = 15; x0 = 13; }
+    for (int gy = y0; gy <= y1; gy++)
+      for (int gx = x0; gx <= x1; gx++) {
+        const int ty = gy + OY - hp;
+        int k = gx == x0 ? 4 : (gx == x1 ? 2 : 3);
+        if (gy > y0 && gy < y1 && gx > x0 && gx < x1) k = 2;   // the post's cut top
+        if (ty >= 0 && ty < H) c.set(gx, ty, kWood[k]);
+        if (gy != y1) continue;
+        for (int hh = hp - 1; hh >= 0; hh--) {   // its south face, a groove under the cap
+          const int y = gy + OY - hh;
+          if (y < 0 || y >= H) continue;
+          int kk = gx == x0 ? 3 : (gx == x1 ? 1 : 2);
+          if (hh == hp - 1) kk = 3;
+          if (hh == hp - 3) kk = 0;
+          if (hh == 0) kk = std::min(kk, 1);
+          c.set(gx, y, kWood[std::clamp(kk, 0, 4)]);
+        }
+      }
+  }
+  outline(c, 0.85f);
+  return c;
+}
+
 // ---------------------------------------------------------------- joined runs (garden walls; hedges via hedgePiece)
 // the run's plan in the tile's ground px (0..15): a band a0..a1 across, out to the joined sides; a pier's square where
 // the run stops at a gateway or an end
@@ -109,7 +229,9 @@ bool runIn(int gx, int gy, int a0, int a1, int mask) {
   return false;
 }
 Canvas gardenWallPiece(int bits, const Mat& M, bool snow) {
-  const int W = 16, H = 28, OY = 12, HT = 10;   // canvas y = ground y + OY - z; the wall stands HT px tall
+  // (P2a HOLDERS) at rig 2 the wall stands kGardenWall px tall (0.50 of the figure), on a taller canvas
+  const int lift = rigVersion() >= 2 ? holders::kGardenWall - 10 : 0;
+  const int W = 16, H = 28 + lift, OY = 12 + lift, HT = 10 + lift;   // canvas y = ground y + OY - z; the wall stands HT px tall
   const int mask = bits & 15, gates = (bits >> 4) & 15, ends = (bits >> 8) & 15;
   const int a0 = 5, a1 = 10;
   Canvas c(W, H);
@@ -697,7 +819,7 @@ int fruitTreeKind(int biome, uint32_t h) {
 Canvas cityPropStyled(Prop p, const PropStyle& st, int variant, int joins, bool snow) {
   const Sz s = cityInfo(p);
   const Mat M = matOf(st);
-  if (p == Prop::Hedge) return hedgePiece(joins, st, snow);         // the culture's clipped hedge, joined as on the land
+  if (p == Prop::Hedge) return rigVersion() >= 2 ? hedgePiece2(joins, snow) : hedgePiece(joins, st, snow);   // the culture's clipped hedge, joined as on the land
   if (p == Prop::GardenWall) return gardenWallPiece(joins, M, snow);
   Canvas c(s.w, s.h);
   switch (p) {

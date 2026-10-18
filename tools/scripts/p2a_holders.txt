@@ -1,0 +1,63 @@
+# P2a Lens and Rig, HOLDERS: everything a body uses at rig 2 (VISION_PLAN 15.36 H2-H4, STYLE_P2 1 and 16) on the
+# 1440x810 desktop at NORMAL (D3). Seed 7, the start village OSLARS: the cottage door and wall, the inn's chairs,
+# stools, benches, tables and counter with townsfolk seated, a hut's bed with a sleeper, the capital's market (the
+# stalls' counters and roofs, a cart) and its gate (the passage), the harbour's rowboat and sloop with the hero
+# aboard, a cave's ladder; then the start village on rig 1 for the side-by-side. Shot pairs (`shotpair`, `ui 0`) for
+# p2_measure.mjs where a figure is measured against what it uses.
+#   embervale.exe --script tools/scripts/p2a_holders.txt        (p2a_holders_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.3 shot p2a_holders_village.png
+# ---- the cottage door: in and back out, on the doorstep facing out
++0.1 enter hut
++0.5 walkto exit 20
++0.6 ui 0
++0.2 shotpair p2a_holders_door.png p2a_holders_door_nohero.png
++0.1 ui 1
+# ---- the inn: every seat taken by the nearest townsfolk
++0.2 enter inn
++0.5 seatall
++1.5 shot p2a_holders_inn.png
++0.1 leave
+# ---- a hut's bed at night
++0.2 hour 23
++0.2 enter hut
++0.3 seatall sleep
++1.5 shot p2a_holders_bed.png
++0.1 leave
++0.2 hour 11
+# ---- the harbour: the rowboat and the sloop, the hero aboard
++0.2 sea port
++1.0 boat give rowboat
++0.5 boat board
++1.0 ui 0
++0.2 shotpair p2a_holders_rowboat.png p2a_holders_rowboat_nohero.png
++0.1 ui 1
++0.2 boat leave
++0.5 boat give sloop
++0.5 boat board
++1.0 shot p2a_holders_sloop.png
++0.2 boat leave
+# ---- the capital: the market's stalls and carts, a street, the city gate
++0.3 travel city 40
++0.1 waittravel
++0.5 cityspot heart
++1.0 shot p2a_holders_market.png
++0.3 cityspot craft
++1.0 shot p2a_holders_street.png
++0.3 gate 1 out
++0.8 shot p2a_holders_gate_out.png
++0.2 gate 1 on
++0.8 shot p2a_holders_gate_on.png
+# ---- the same village spot on rig 1 (today's holders and people)
++0.3 travel start
++0.1 waittravel
++0.5 rig 1
++0.0 expect rig 1
++0.5 shot p2a_holders_village_rig1.png

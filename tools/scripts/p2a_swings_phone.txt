@@ -1,0 +1,144 @@
+# P2a Lens and Rig, RIG-ARMS: THE SWINGS on the phone (the iPhone 15 Pro Home Screen app, 2556x1179, FILL, the safe
+# insets: NORMAL is D5, NEAR D6), the twin of p2a_swings.txt (VISION_PLAN 15.36 R7-R10, STYLE_P2 10-12). Seed 7, the
+# start village OSLARS, rig 2, 11:00: every melee family frozen (`pose`) mid-blow in the four facings, the bow's draw,
+# a cast. Shots p2a_swings_phone_*.png in the working directory.
+#   embervale.exe --script tools/scripts/p2a_swings_phone.txt
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.3 expect zoom normal
+# the slice's open spot before the cottage door (p2a_slice_phone.txt)
++0.1 enter hut
++0.5 walkto exit 20
++0.6 walk south 0.65
++0.9 walk east 0.15
++0.3 pose windup unarmed 0 1
++0.2 shot p2a_swings_phone_unarmed_r_w1.png
++0.1 pose strike unarmed 0 1
++0.2 shot p2a_swings_phone_unarmed_r_s1.png
++0.1 pose strike unarmed 1 1
++0.2 shot p2a_swings_phone_unarmed_r_h2.png
++0.1 pose strike unarmed 2 1
++0.2 shot p2a_swings_phone_unarmed_r_h3.png
++0.1 pose windup dagger 0 1
++0.2 shot p2a_swings_phone_dagger_r_w1.png
++0.1 pose strike dagger 0 1
++0.2 shot p2a_swings_phone_dagger_r_s1.png
++0.1 pose strike dagger 1 0
++0.2 shot p2a_swings_phone_dagger_r_h2.png
++0.1 pose strike dagger 2 1
++0.2 shot p2a_swings_phone_dagger_r_h3.png
++0.1 pose windup greatsword 0 1
++0.2 shot p2a_swings_phone_greatsword_r_w1.png
++0.1 pose strike greatsword 0 1
++0.2 shot p2a_swings_phone_greatsword_r_s1.png
++0.1 pose strike greatsword 1 1
++0.2 shot p2a_swings_phone_greatsword_r_h2.png
++0.1 pose strike greatsword 2 1
++0.2 shot p2a_swings_phone_greatsword_r_h3.png
++0.1 pose windup axe 0 1
++0.2 shot p2a_swings_phone_axe_r_w1.png
++0.1 pose strike axe 0 1
++0.2 shot p2a_swings_phone_axe_r_s1.png
++0.1 pose strike axe 1 0
++0.2 shot p2a_swings_phone_axe_r_h2.png
++0.1 pose strike axe 2 1
++0.2 shot p2a_swings_phone_axe_r_h3.png
++0.1 pose windup mace 0 1
++0.2 shot p2a_swings_phone_mace_r_w1.png
++0.1 pose strike mace 0 1
++0.2 shot p2a_swings_phone_mace_r_s1.png
++0.1 pose strike mace 1 1
++0.2 shot p2a_swings_phone_mace_r_h2.png
++0.1 pose strike mace 2 1
++0.2 shot p2a_swings_phone_mace_r_h3.png
++0.1 pose windup spear 0 1
++0.2 shot p2a_swings_phone_spear_r_w1.png
++0.1 pose strike spear 0 1
++0.2 shot p2a_swings_phone_spear_r_s1.png
++0.1 pose strike spear 1 1
++0.2 shot p2a_swings_phone_spear_r_h2.png
++0.1 pose strike spear 2 1
++0.2 shot p2a_swings_phone_spear_r_h3.png
++0.1 pose windup staff 0 1
++0.2 shot p2a_swings_phone_staff_r_w1.png
++0.1 pose strike staff 0 1
++0.2 shot p2a_swings_phone_staff_r_s1.png
++0.1 pose strike staff 1 1
++0.2 shot p2a_swings_phone_staff_r_h2.png
++0.1 pose strike staff 2 1
++0.2 shot p2a_swings_phone_staff_r_h3.png
++0.1 pose draw bow 0 2
++0.2 shot p2a_swings_phone_bow_r_draw.png
++0.1 pose release bow 0 0
++0.2 shot p2a_swings_phone_bow_r_release.png
++0.1 pose cast axe 0 1
++0.2 shot p2a_swings_phone_cast_r.png
++0.1 pose off
++0.1 walk south 0.15
++0.3 pose strike unarmed 0 1
++0.2 shot p2a_swings_phone_unarmed_d_s1.png
++0.1 pose strike dagger 0 1
++0.2 shot p2a_swings_phone_dagger_d_s1.png
++0.1 pose strike greatsword 0 0
++0.2 shot p2a_swings_phone_greatsword_d_s0.png
++0.1 pose strike greatsword 0 1
++0.2 shot p2a_swings_phone_greatsword_d_s1.png
++0.1 pose strike greatsword 1 1
++0.2 shot p2a_swings_phone_greatsword_d_h2.png
++0.1 pose strike axe 0 1
++0.2 shot p2a_swings_phone_axe_d_s1.png
++0.1 pose strike axe 1 1
++0.2 shot p2a_swings_phone_axe_d_h2.png
++0.1 pose strike mace 0 1
++0.2 shot p2a_swings_phone_mace_d_s1.png
++0.1 pose strike mace 1 1
++0.2 shot p2a_swings_phone_mace_d_h2.png
++0.1 pose strike spear 0 1
++0.2 shot p2a_swings_phone_spear_d_s1.png
++0.1 pose strike staff 0 1
++0.2 shot p2a_swings_phone_staff_d_s1.png
++0.1 pose strike staff 2 1
++0.2 shot p2a_swings_phone_staff_d_h3.png
++0.1 pose draw bow 0 2
++0.2 shot p2a_swings_phone_bow_d_draw.png
++0.1 pose off
++0.1 walk north 0.15
++0.3 pose strike greatsword 0 0
++0.2 shot p2a_swings_phone_greatsword_u_s0.png
++0.1 pose strike axe 0 1
++0.2 shot p2a_swings_phone_axe_u_s1.png
++0.1 pose strike spear 0 1
++0.2 shot p2a_swings_phone_spear_u_s1.png
++0.1 pose draw bow 0 2
++0.2 shot p2a_swings_phone_bow_u_draw.png
++0.1 pose off
++0.1 walk west 0.15
++0.3 pose strike greatsword 0 1
++0.2 shot p2a_swings_phone_greatsword_l_s1.png
++0.1 pose strike axe 0 1
++0.2 shot p2a_swings_phone_axe_l_s1.png
++0.1 pose strike spear 0 1
++0.2 shot p2a_swings_phone_spear_l_s1.png
++0.1 pose strike dagger 0 1
++0.2 shot p2a_swings_phone_dagger_l_s1.png
++0.1 pose draw bow 0 2
++0.2 shot p2a_swings_phone_bow_l_draw.png
++0.1 pose off
++0.1 walk east 0.15
++0.1 zoom near
++0.3 pose strike greatsword 0 1
++0.2 shot p2a_swings_phone_d6_greatsword.png
++0.1 pose strike mace 0 1
++0.2 shot p2a_swings_phone_d6_mace.png
++0.1 pose strike spear 0 1
++0.2 shot p2a_swings_phone_d6_spear.png
++0.1 pose off
++0.1 zoom normal

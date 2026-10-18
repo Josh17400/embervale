@@ -95,12 +95,61 @@ bool cmdGate(ScriptCtx& c) {
 }
 EMB_SCRIPT_CMD("gate", "gate [n] out|on|in: stand outside, in the passage of, or inside the n-th nearest city gate (gate forget: drop the remembered one)", cmdGate);
 
+// (P2a LENS) stand on the n-th nearest open patch of a ground (a 5 x 5 block of it with no prop, no building and no wall
+// on it), facing down: the figure-ground, ring and night measurements on a known ground (tools/scripts/p2a_night.txt)
+bool cmdGotoGround(ScriptCtx& c) {
+  Game& g = c.game;
+  static const struct { const char* n; Ground gr; } kNames[] = {
+      {"grass", Ground::Grass}, {"meadow", Ground::Meadow}, {"forest", Ground::ForestFloor}, {"autumn", Ground::Autumn},
+      {"tundra", Ground::Tundra}, {"snow", Ground::Snow}, {"dirt", Ground::Dirt}, {"farmland", Ground::Farmland},
+      {"road", Ground::Road}, {"plaza", Ground::Plaza}, {"sand", Ground::Sand}, {"ice", Ground::Ice}, {"swamp", Ground::Swamp}};
+  Ground want = Ground::COUNT;
+  for (const auto& k : kNames) if (c.arg(1) == k.n) want = k.gr;
+  if (want == Ground::COUNT) { c.fail("gotoground: grass|meadow|forest|autumn|tundra|snow|dirt|farmland|road|plaza|sand|ice|swamp [n]"); return true; }
+  const int nth = c.arg(2).empty() ? 0 : std::max(0, std::atoi(c.arg(2).c_str()));
+  if (g.inside) { c.fail("gotoground: outdoors only"); return true; }
+  const Map& m = g.world.over;
+  const int px = (int)std::floor(g.pl().p.x / TILE), py = (int)std::floor(g.pl().p.y / TILE);
+  auto open = [&](int x, int y) {
+    // the tile and a run through it (left-right or up-down: a one-tile road qualifies) of the ground; no prop or wall in
+    // the 3 x 3 round it (grass is strewn with flora a tile or two off: that may stay)
+    auto is = [&](int tx, int ty) { return m.in(tx, ty) && m.at(tx, ty) == want; };
+    if (!is(x, y) || !((is(x - 1, y) && is(x + 1, y)) || (is(x, y - 1) && is(x, y + 1)))) return false;
+    for (int dy = -1; dy <= 1; dy++)
+      for (int dx = -1; dx <= 1; dx++) {
+        const int tx = x + dx, ty = y + dy;
+        if (!m.in(tx, ty) || m.propAt(tx, ty) != 0) return false;
+        if (!m.wall.empty() && m.wall[(size_t)ty * m.w + tx] != 0) return false;
+      }
+    for (const Bldg& b : m.bldgs)
+      if (x >= b.r.x - 3 && x < b.r.x + b.r.w + 3 && y >= b.r.y - 1 && y < b.r.y + b.r.h + 6) return false;
+    return true;
+  };
+  std::vector<std::pair<int, int>> found;   // (distance^2, index)
+  const int R = 160;
+  for (int y = std::max(2, py - R); y < std::min(m.h - 2, py + R); y++)
+    for (int x = std::max(2, px - R); x < std::min(m.w - 2, px + R); x++)
+      if (m.at(x, y) == want && open(x, y)) found.push_back({(x - px) * (x - px) + (y - py) * (y - py), y * m.w + x});
+  if ((int)found.size() <= nth) { c.fail("gotoground: no open " + c.arg(1) + " within " + std::to_string(R) + " tiles"); return true; }
+  std::nth_element(found.begin(), found.begin() + nth, found.end());
+  std::sort(found.begin(), found.begin() + nth + 1);
+  const int at = found[(size_t)nth].second, tx = at % m.w, ty = at / m.w;
+  const int32_t ggx = g.world.ox + tx, ggy = g.world.oy + ty;   // (global: the teleport may move the window)
+  g.teleportGlobal(ggx, ggy);
+  g.pl().aim = Vec2(0, 1);
+  g.pl().face = 0;
+  g.mode = Mode::Play;
+  c.view.snap(g);
+  std::printf("script: gotoground %s at global %d,%d\n", c.arg(1).c_str(), ggx, ggy);
+  return true;
+}
+EMB_SCRIPT_CMD("gotoground", "gotoground grass|meadow|road|plaza|sand|snow|... [n]: stand on the n-th nearest open patch of that ground, facing down (P2a LENS)", cmdGotoGround);
+
 bool cmdTapLabel(ScriptCtx& c) {
   Game& g = c.game;
   int tx = 0, ty = 0;
   if (!g.interactProp(tx, ty)) { c.fail("taplabel: nothing usable in front of the player"); return true; }
-  const Vec2 cam(std::floor(c.view.camera().x), std::floor(c.view.camera().y));
-  const Vec2 s = Vec2(tx * 16 + 8.0f, ty * 16 - 4.0f) - cam;   // hud.cpp: the label is drawn at s.y - 10
+  const Vec2 s = c.view.toUi(Vec2(tx * 16 + 8.0f, ty * 16 - 4.0f));   // hud.cpp: the label is drawn at s.y - 10 (UI px)
   std::printf("script: taplabel at %.0f,%.0f (%s half)\n", s.x, s.y - 10, s.x < Pix::W / 2 ? "the stick's" : "the buttons'");
   c.tap(s.x, s.y - 10);
   return true;

@@ -3822,7 +3822,7 @@ UI design (the UI keeps its size and layout).
 | default world scale | D0 = round(h_device / 240), ties up | v2 figure share 32 D0 / h = 11.6-14.8 % on the 10 reference screens (STYLE_P2 §1) |
 | zoom bounds | V = h / D in [150, 300] world rows | FAR never draws more than about today's phone canvas (295 rows): render cost never rises |
 | aggro vs view | bandit aggro 130 px; half the view at NORMAL 108-138 px | foes can notice the hero from off the view: pips are required |
-| walk cycle | 6 frames, one per 4.5 px travelled | 74 px/s = 16.4 fps, 40 px/s = 8.9 fps; no foot slide at any speed |
+| walk cycle | 6 frames over a 28 px cycle (5/4/5 px a stance), keyed to the whole px drawn along the step's main axis | 74 px/s = 15.9 fps (about 11 on a 45-degree diagonal), 40 px/s = 8.6 fps; side views register the planted foot within 1 px at each frame change (restated 2026-10-18, main session) |
 | hero swing | 0.07 / 0.11 / 0.13 s x pace over 2 / 2 / 2 frames | the windup is 4 sim frames: a family reads in its strike, follow-through and effect |
 | enemy windups | 0.22-0.38 s by family | spawn-weighted mean held at 0.30 +- 0.01 s (no balance change) |
 | fall | 0.34 s (0.10 + 0.12 + 0.12) | gate 0.45 s |
@@ -3984,39 +3984,39 @@ finish -> integration (lead: one full regression, one script sweep, art_hash onc
 link) -> judge rounds (at most 4).
 
 P2a DONE gates (before / after with the phase A harness; MSVC, BDIR=build):
-| gate | target | today |
-|---|---|---|
-| L1 world scale whole-number on the 10 reference screens (STYLE_P2 §1) | 10 / 10 | 6 / 10 |
-| L2 noon device shots, `ui 0`: world pixels in exact D x D blocks (p2_measure) | 100 % | a 3.54x crop had 938 colours vs 353 at 4x |
-| L3 D0 and the zoom levels per the table; ZOOM survives a restart; - / = and the wheel step it | exact | no zoom |
-| L4 UI canvas and scale per screen; every existing tap script | identical to the phase A baseline | |
-| L5 text glyph height at every zoom (speech plate, name tag, combat number) | 7 x U device px | |
-| L6 day edge contrast (grass, road, sand, snow); at 23:00 figure median vs ground, and edge contrast | 40 or more; +10 or more and 25 or more | torso vs ground +2 by day, -9 at night |
-| L7 ring contrast against the ground on the 4 grounds, day and night; PLAYER RING toggles | 35 or more, 8 / 8 | no ring |
-| L8 a pip for every aggro'd hostile outside the view within its aggro radius | every one | none |
-| L9 capital 15:00: render ms at FAR / NORMAL; people textures with rig 2; folk baking per frame | baseline +10 % / baseline or less; 24 MB or less; 2 ms or less | |
-| A1 v1 frame pick at rig 1 (--anim golden) | identical | |
-| A2 9 distinct effects by family; the effect ends with the strike state within 1 frame (dagger 0.8, mace 1.25) | yes | 1 effect, fixed 0.11 s |
-| A3 enemy windup mean (spawn-weighted); --foes, --arms, the companion suites | 0.30 +- 0.01 s; green | 0.30 for all |
-| A4 rig 2: lying on screen after the killing blow; corpse life; cap; collision | 0.45 s or less; 60 s; 24; none | standing, 6 s |
-| A5 the hero's fall under the death screen | plays | none |
-| R1 the style slice | PASS | |
-| R2 v2 heights (STYLE_P2 §3) for every body, build, people and age, all facings | exact | |
-| R3 looks of a 20-seed census with no armour, helm, cloak, shield or culture weapon form, drawn on v2 (rig2Covers) | 99 % or more | 0 |
-| R4 brows, two 1x2 eyes, nose and mouth on every down frame but blink, hurt and lying; two hands in front and back idle and walk | all | eyes only |
-| R5 no holes, nothing touching the scratch edge, pivots steady on contact frames | 0 failures | |
-| R6 atlas size per look: LOCO / DEATH / POSTURE / ACTION; one facing's LOCO bake | 128 / 48 / 64 / 512 KB or less; v1 sheet p95 or less | |
-| R7 Strike frames of every pair of the 8 melee families differ in 25 % or more of their union, per facing | 28 x 4 | 0 |
-| R8 tip paths (STYLE_P2 §12) | every family | |
-| R9 a family's 3 combo variants differ pairwise (25 % or more) | all | |
-| R10 left frames painted, not mirrored; the weapon stays in the right hand | all clips | mirrored |
-| P1 31 postures with their variants, 4 facings, today's frame counts, on v2 | all | |
-| P2 seated hips on the seat (0 px) for every seat and facing it takes; sleepers' heads on the pillow in every berth | all | |
-| P3 youth 26 and child 21 painted natively; skeleton, draugr, goblin on v2 | yes | rows dropped from the adult |
-| H1 rig 1: golden_village_art and the v1 art_hash categories | identical | |
-| H2 rig 2 ratios from painter metadata: door 0.70-0.76, wall 1.00-1.12, seat 0.31-0.37, table 0.44-0.50, horse withers 0.80-0.90, gate clearance 1.25 or more, fence 0.45-0.60, rungs 6 px | all in range | |
-| H3 rig 2: the rider on every horse frame, the rower on the thwart, the walker under every arch | 0 px off | |
-| H4 rig 2: nothing jammed in village, town, city and port streets (the judge's look review) | PASS | |
+| gate | target | today | P2a integration, 2026-10-18 (measured) |
+|---|---|---|---|
+| L1 world scale whole-number on the 10 reference screens (STYLE_P2 §1) | 10 / 10 | 6 / 10 | 10 / 10 (Witness p2a_lens 15 / 15, lane 2 / 2): PASS |
+| L2 noon device shots, `ui 0`: world pixels in exact D x D blocks (p2_measure) | 100 % | a 3.54x crop had 938 colours vs 353 at 4x | 100 % on all 52 `ui 0` shots (desktop D3 / D4 / D5, phone D4-D7, day and night): PASS |
+| L3 D0 and the zoom levels per the table; ZOOM survives a restart; - / = and the wheel step it | exact | no zoom | exact on the 10 screens; ZOOM survives a reset; - / = and the wheel step it: PASS |
+| L4 UI canvas and scale per screen; every existing tap script | identical to the phase A baseline | | UI fit unchanged on the 10 screens; 359 / 359 scripts exit 0 (view_settings taps re-aimed at the 7-row panel): PASS |
+| L5 text glyph height at every zoom (speech plate, name tag, combat number) | 7 x U device px | | 21 device px (7 x 3) at NORMAL, NEAR and CLOSE (1440x810): PASS |
+| L6 day edge contrast (grass, road, sand, snow); at 23:00 figure median vs ground, and edge contrast, for the hero and an unlit villager | 40 or more; \|figure - ground\| 10 or more or edge 40 or more (restated 2026-10-18; was +10 or more and 25 or more) | torso vs ground +2 by day, -9 at night | day 85-155: PASS; 23:00 figure / edge: grass +21.9 / 41, road +15.6 / 41, sand +8.2 / 56.5, snow -12.0 / 74.5 (phone alike): FAIL on sand and snow (a look call: more lift pales torch-lit folk). RESTATED 2026-10-18 (fix round 1, L6-NIGHT-BRIGHT-GROUND; STYLE_P2 section 8): day edge 40 or more; night (23:00, 5 tiles or more from any lamp) for the hero (p2a_night) AND an unlit villager 8 tiles from the hero (p2a_night_npc, `npcstage` / `npcpair`), 4 grounds x D3 / D5: \|figure - ground\| 10 or more OR edge 40 or more (an unlit figure's ink, about 10 luma, against unlit ground at 18-30 can never make an edge of 25). Fix round 1 measured (MSVC): hero D3 / D5 grass +21.2 / +21.6 (edge 43.1 / 41.7), road +13.3 / +13.8, sand +2.5 / +7.5 with edge 64.8 / 56.4, snow -17.2 / -11.6: PASS 8 / 8; unlit villager (D3 = D5) grass +14.4, road +11.9, sand +7.1 (edge 16.7), snow +2.8 (edge 20.1): FAIL on sand and snow. Fix (LENS, render.cpp drawNightLift): the lift's floor away from the hero 0.4 -> 0.6; emulated (EMB_LIFTK / EMB_LIFTF x 1.5) the villager reads grass +23.9, road +21.4, sand +16.6, snow +12.3, not ghostly; the torch-lit hero keeps full strength |
+| L7 ring contrast against the ground on the 4 grounds, day and night; PLAYER RING toggles | 35 or more, 8 / 8 | no ring | 8 / 8 (lowest 39.0, desktop and phone); toggles: PASS (the capital crowd shot reads 16: the ring half hidden by a passer-by on red brick) |
+| L8 a pip for every aggro'd hostile outside the view within its aggro radius | every one | none | a pip for each of the 2 hunters out of view inside their radius; none for the one in view or the one beyond its radius: PASS (the top pip sits under the region banner while it shows) |
+| L9 capital 15:00: render ms at FAR / NORMAL; people textures with rig 2; folk baking per frame | baseline +10 % / baseline or less; 24 MB or less; 2 ms or less | | NORMAL 0.56 ms (baseline 0.49), FAR 0.70 ms (limit 0.66): FAIL, RULING 2026-10-18 (main session): accepted, FAR may be up to 0.75 ms (0.04 ms is far inside the frame budget); NORMAL must stay within baseline +15 %; people 3.4 MB rig 1, 8.5 MB rig 2: PASS; bake queue capped at 2 ms (1.2 ms web); v1 sheet bake p50 0.270 / p95 0.349 ms |
+| A1 v1 frame pick at rig 1 (--anim golden) | identical | | identical (21,630 samples, 56fb08be96b73a1a): PASS |
+| A2 9 distinct effects by family; the effect ends with the strike state within 1 frame (dagger 0.8, mace 1.25) | yes | 1 effect, fixed 0.11 s | 9 effects painted by family (fx+new 061fd76c895fbd6d); the effect ends 0.7 (dagger), 0.8 (mace), 0.4 (sword) frames from the strike: PASS |
+| A3 enemy windup mean (spawn-weighted); --foes, --arms, the companion suites | 0.30 +- 0.01 s; green | 0.30 for all | 0.359 s over 182 bandits (phase A re-based the target to 0.36 +- 0.01); --foes, --arms, --companion green: PASS |
+| A4 rig 2: lying on screen after the killing blow; corpse life; cap; collision | 0.45 s or less; 60 s; 24; none | standing, 6 s | lying 0.35 s; gone at 60.0 s; 24 with 30 killed; walked through: PASS |
+| A5 the hero's fall under the death screen | plays | none | plays, lying at 0.35 s: PASS |
+| R1 the style slice | PASS | | FAIL on SLICE-WALK-SLIDE only (the planner's restatement of the 1 px slide; the code meets the proposed wording). Fix round 1 (2026-10-18): point 8 restated here, in STYLE_P2 section 10 and section 19 (registration 1 px or less at every frame change; slip one frame step, 4.5 px, or less within a held frame). walk60 on the MSVC build: registration 1 px at worst (motion_reg.py); slip 4 px at worst, contact and any frame, 8 occluded held frames skipped (motion.py); hero pivot changed on 0 of 119 frames; camera steps {-2: 28, -1: 91}: meets the restated bar |
+| R2 v2 heights (STYLE_P2 §3) for every body, build, people and age, all facings | exact | | 216 checks, 0 failed: PASS |
+| R3 looks of a 20-seed census with no armour, helm, cloak, shield or culture weapon form, drawn on v2 (rig2Covers) | 99 % or more | 0 | 461 of 461 (100 %), seeds 1..20: PASS |
+| R4 brows, two 1x2 eyes, nose and mouth on every down frame but blink, hurt and lying; two hands in front and back idle and walk | all | eyes only | faces 8 / 8, hands 18 / 18: PASS |
+| R5 no holes, nothing touching the scratch edge, pivots steady on contact frames | 0 failures | | 880 checks, 5 failed (the bow's Draw frames: 5-29 px enclosed between string and stave): FAIL (the lead's call). RULING 2026-10-18 (main session): the gap between a drawn bow's stave and string is correct art, not a hole; exempt the bow Draw/Release frames' string-stave enclosure from R5 in the check (keepOpen stays true) |
+| R6 atlas size per look: LOCO / DEATH / POSTURE / ACTION; one facing's LOCO bake | 128 / 48 / 64 / 512 KB or less; v1 sheet p95 or less | | 90 checks, 0 failed; LOCO bake p50 0.09 ms vs v1 p95 0.10: PASS |
+| R7 Strike frames of every pair of the 8 melee families differ in 25 % or more of their union, per facing | 28 x 4 | 0 | 224 checks, 0 failed: PASS |
+| R8 tip paths (STYLE_P2 §12) | every family | | 9 families, 0 failed: PASS |
+| R9 a family's 3 combo variants differ pairwise (25 % or more) | all | | 96 checks, 0 failed: PASS |
+| R10 left frames painted, not mirrored; the weapon stays in the right hand | all clips | mirrored | 344 checks, 0 failed: PASS |
+| P1 31 postures with their variants, 4 facings, today's frame counts, on v2 | all | | 120 checks, 0 failed: PASS |
+| P2 seated hips on the seat (0 px) for every seat and facing it takes; sleepers' heads on the pillow in every berth | all | | 26 checks, 0 failed: PASS |
+| P3 youth 26 and child 21 painted natively; skeleton, draugr, goblin on v2 | yes | rows dropped from the adult | 5 checks, 0 failed: PASS |
+| H1 rig 1: golden_village_art and the v1 art_hash categories | identical | | golden_village_art 65 groups, 0 changed; v1 art_hash TOTAL 317eef6efe4d8229: PASS |
+| H2 rig 2 ratios from painter metadata: door 0.70-0.76, wall 1.00-1.12, seat 0.31-0.37, table 0.44-0.50, horse withers 0.80-0.90, gate clearance 1.25 or more, fence 0.45-0.60, rungs 6 px | all in range | | 23 checks, 6 failed (gate, arch and city-gate clearance and the hedge not measured; rowboat gunwale and deck rail 0.06): FAIL |
+| H3 rig 2: the rider on every horse frame, the rower on the thwart, the walker under every arch | 0 px off | | not met: riders still on the v1 horse (home_view / party_view), gate passages 22-24 px: FAIL |
+| H4 rig 2: nothing jammed in village, town, city and port streets (the judge's look review) | PASS | | the judge's look review (not run by the integrator) |
 
 #### P2b "New People"
 
@@ -4091,6 +4091,7 @@ wrong" item closed.
   with the ring, text plates at each zoom), p2a_slice, p2a_swings (rig 2: each family live against a bandit and
   frozen with `pose`), p2a_death, p2a_poses (tavern, smithy, farm, bedroom, temple, festival, the bard), p2a_holders
   (rig 2: the cottage door, chairs, beds, stalls, a cart, riding, the rowboat, the ladder, a gatehouse), p2a_night,
+  p2a_night_npc (an unlit villager on the four grounds: L6; added in fix round 1, rpg/view/script_p2a_night.cpp),
   p2a_pips; p2b_lead_people, p2b_gear (guards of three cultures, soldiers of two realms, bandits by family, the hero
   in every band, a woman knight), p2b_menus, p2b_world (the p2a_poses and p2a_holders places plus a war camp, a
   market, a harbour); p2c_creatures.
@@ -4127,11 +4128,15 @@ failure comes back with a repro and a check):
    either side.
 5. Outline: outer-silhouette pixels at luma 60 or less (100 or less on Lit Ink edges); no #000000.
 6. Contrast: day edge contrast 40 or more on grass and road; at 22:00, 5 tiles or more from a lamp, the figure median
-   10 or more above the ground and edge contrast 25 or more; the ring 35 or more on both.
+   10 or more off the ground (|figure - ground|) or edge contrast 40 or more (restated 2026-10-18 with L6 and STYLE_P2
+   section 8); the ring 35 or more on both.
 7. Bodies: shoulders differ by 2 px or more; hands, hips and feet within 1 px; man and woman read at phone size and
    neither is exaggerated (review).
-8. Walk: 6 frames; the planted foot moves 1 px or less against the ground on contact frames over a 2 s walk at 74 px/s
-   (60 Hz frame shots); breathe and blink both seen in 6 s of idle.
+8. Walk: 6 frames; side views (W/E): the planted foot lands within 1 px of its spot at each frame change (registration,
+   .tmp/judge/motion_reg.py) and slips no more than one frame step (4.5 px of travel) within a held frame (motion.py;
+   held frames whose sole row an occluder cuts are not measured); front and back views walk in place (the 16-bit convention); the hero stays steady on screen
+   (pivot changes on 2 or fewer of 119 frames for W, E and S; N one way, 0 reversals) over a 2 s walk at 74 px/s (60 Hz
+   frame shots) (restated 2026-10-18, main session: 1 px with 6 rigid frames is not reachable within R6's budget); breathe and blink both seen in 6 s of idle.
 9. Swing: the three variants differ by 25 % or more; the tip arc 120 degrees or more; the arc effect ends within one
    frame of the strike state.
 10. Fall: lying on screen 0.45 s or less after the kill, 16 px tall or less, head toward the fall side, the sword

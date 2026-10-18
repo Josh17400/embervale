@@ -1,5 +1,6 @@
 // EMBERVALE art: effects. See rpg/art.h for the contract and rpg/art/art_internal.h for the shared helpers.
 #include "rpg/art/art_internal.h"
+#include "rpg/art/rig/rig_internal.h"   // (P2a style slice) rig2::steelArc, the Steel Arc
 
 namespace art {
 
@@ -45,7 +46,244 @@ void puff(Canvas& c, float cx, float cy, float r, const Ramp& R, int alpha, uint
     }
 }
 
+// ---------------------------------------------------------------- (P2a RIG-ARMS) the family swing effects
+// STYLE_P2 6 and 12: each melee family its own effect, painted facing right (the renderer turns the arcs, the glint and
+// the streak a quarter for the down and up facings and mirrors them for the left), in the palette's named colours,
+// opaque where the colour is named so it lands exactly (the Steel Arc's rule), with no gradients: a rim of core, a body
+// of edge, one half-clear px inside. Every painter draws for its kFxInfo size and scales with the cell it is given, so a
+// bigger copy (the finisher's 1.2x: fxSpriteSized) is painted natively at one pixel size, never stretched.
+namespace {
+
+const uint32_t kHeavyCore = rgba(255, 242, 208), kHeavyEdge = rgba(200, 168, 120);   // Heavy Arc #FFF2D0 / #C8A878
+const uint32_t kSteelCore = rgba(244, 241, 230), kSteelEdge = rgba(184, 196, 216);   // Steel Arc #F4F1E6 / #B8C4D8
+const uint32_t kChipWood = rgba(176, 122, 74), kChipBone = rgba(230, 220, 192);       // Chip #B07A4A / #E6DCC0
+const uint32_t kSmashDust = rgba(200, 180, 150), kSpark = rgba(255, 216, 122);        // Smash Dust #C8B496, sparks #FFD87A
+const uint32_t kGlintCore = rgba(255, 255, 255), kGlintHalo = rgba(255, 233, 168);    // Glint #FFFFFF / #FFE9A8
+const uint32_t kThrustHead = rgba(232, 240, 255), kThrustTail = rgba(159, 180, 216);  // Thrust Streak #E8F0FF -> #9FB4D8
+const uint32_t kSwish = rgba(216, 205, 184);                                           // Swish #D8CDB8 (drawn at 50 %)
+const uint32_t kPunchCore = rgba(255, 240, 192), kPunchRim = rgba(240, 138, 60);      // Punch Star #FFF0C0 / #F08A3C
+const uint32_t kTwang = rgba(232, 224, 200);                                           // Twang #E8E0C8
+
+// a crescent on an ellipse round (cx, cy) between the angles a0 .. a1 (degrees, 0 = right, + = clockwise down the
+// screen): wTail at a0 to wHead at a1 (moon: thin at both ends, wHead at the middle); the outer rim 1 px of core, the
+// body edge, the innermost px half clear (a soft inner edge, no gradient)
+void crescent(Canvas& c, float cx, float cy, float rx, float ry, float a0, float a1, float wTail, float wHead, bool moon, uint32_t core, uint32_t edge) {
+  for (int y = 0; y < c.h; y++)
+    for (int x = 0; x < c.w; x++) {
+      const float dx = x + 0.5f - cx, dy = y + 0.5f - cy;
+      const float a = std::atan2(dy / ry, dx / rx) * 57.29578f;
+      if (a < a0 || a > a1) continue;
+      const float t = (a - a0) / std::max(0.01f, a1 - a0);
+      const float w = moon ? 1.0f + (wHead - 1.0f) * std::sin(t * 3.14159265f) : wTail + (wHead - wTail) * t;
+      const float r = std::sqrt((dx / rx) * (dx / rx) + (dy / ry) * (dy / ry));
+      if (r <= 0.001f) continue;
+      const float d = (1.0f - r) * std::sqrt(dx * dx + dy * dy) / r;   // px in from the rim
+      if (d < 0 || d >= w) continue;
+      if (d < 1.0f) c.set(x, y, core);
+      else if (d < w - 1.0f || w < 2.5f) c.set(x, y, edge);
+      else c.set(x, y, withA(edge, 128));
+    }
+}
+// a trailing ghost of the blade along the radius at angle a (from r0 to r1 of the ellipse): a wedge widening to 3 px at
+// its outer end, half clear, its leading (clockwise) side one px of core: the afterimage of a heavy blade
+void ghostBlade(Canvas& c, float cx, float cy, float rx, float ry, float a, float r0, float r1, uint32_t core, uint32_t edge, float k) {
+  const float ca = std::cos(a / 57.29578f), sa = std::sin(a / 57.29578f);
+  const int n = (int)std::ceil((r1 - r0) * std::max(rx, ry));
+  for (int i = 0; i <= n; i++) {
+    const float t = (float)i / std::max(1, n);
+    const float r = r0 + (r1 - r0) * t;
+    const float x = cx + ca * rx * r, y = cy + sa * ry * r;
+    const int w = 1 + (int)std::lround(t * 2.0f * k);
+    for (int j = 0; j <= w; j++) {   // across the blade, trailing side (counter-clockwise) first
+      const int px = (int)std::floor(x + sa * (j - w)), py = (int)std::floor(y - ca * (j - w));
+      if (c.get(px, py) >> 24) continue;
+      c.set(px, py, j == w ? withA(core, 190) : withA(edge, 130));
+    }
+  }
+}
+void star(Canvas& c, int x, int y, int arm, uint32_t core, uint32_t halo) {   // a 4-point glint
+  c.set(x, y, core);
+  for (int k = 1; k <= arm; k++) {
+    const uint32_t col = k < arm ? core : halo;
+    c.set(x + k, y, col); c.set(x - k, y, col);
+    if (k < arm) { c.set(x, y + k, col); c.set(x, y - k, col); }
+  }
+}
+
+void paintFamilyFx(Canvas& c, Fx f, int frame, float k) {
+  switch (f) {
+    case Fx::HeavyArc: {   // greatsword: a wide heavy crescent (48 x 40, 5 frames) with a trailing ghost blade
+      // the blade's path seen side-on: an ellipse round the body (the cell's left-middle), wider than it is tall
+      const float cx = 4.0f * k, cy = 20.0f * k, rx = 41.0f * k, ry = 19.0f * k;
+      struct S { float a0, a1, wt, wh; bool moon; float ghost; };
+      static const S kS[5] = {{-92, -60, 2, 5, false, -999}, {-92, -14, 2, 8, false, -36}, {-82, 36, 2, 10, true, 4},
+                              {-30, 66, 1, 7, false, 44}, {26, 74, 1, 3, false, -999}};
+      const S& s = kS[frame % 5];
+      if (s.ghost > -900) ghostBlade(c, cx, cy, rx, ry, s.ghost, 0.40f, 0.96f, kHeavyCore, kHeavyEdge, k);
+      crescent(c, cx, cy, rx, ry, s.a0, s.a1, s.wt * k, s.wh * k, s.moon, kHeavyCore, kHeavyEdge);
+      if (frame % 5 == 1 || frame % 5 == 2) {   // the glint riding the head of the cut
+        const float a = s.a1 / 57.29578f;
+        star(c, (int)std::floor(cx + std::cos(a) * (rx - 1)), (int)std::floor(cy + std::sin(a) * (ry - 1)), 2, kGlintCore, kGlintHalo);
+      }
+      break;
+    }
+    case Fx::ChopArc: {   // axe: a short, thick, steep arc (28 x 28, 4 frames) biting down; chips fly on the last frames
+      const float cx = 0.0f, cy = 13.0f * k, R = 14.0f * k;
+      struct S { float a0, a1, wt, wh; bool moon; };
+      static const S kS[4] = {{-78, -46, 2, 5, false}, {-78, 12, 2, 6, false}, {-48, 66, 2, 6, true}, {28, 70, 1, 3, false}};
+      const S& s = kS[frame & 3];
+      crescent(c, cx, cy, R, R, s.a0, s.a1, s.wt * k, s.wh * k, s.moon, kSteelCore, kSteelEdge);
+      if ((frame & 3) >= 2) {   // chips of wood and bone thrown out past the bite
+        const int f2 = (frame & 3) - 2;
+        static const int8_t chip[4][3] = {{11, 22, 0}, {15, 18, 1}, {8, 25, 1}, {17, 24, 0}};
+        for (int i = 0; i < 4; i++) {
+          const int x = (int)std::lround((chip[i][0] + f2 * (2 + i)) * k), y = (int)std::lround((chip[i][1] - f2 * (i & 1 ? 2 : 0) + f2) * k);
+          const uint32_t col = chip[i][2] ? kChipBone : kChipWood;
+          c.set(x, y, col);
+          c.set(x + 1, y, chip[i][2] ? col : mix(col, kChipBone, 0.35f));   // a 2 px chunk, its lit end lighter
+          if (i == 0 && f2 == 0) c.set(x, y + 1, mix(col, kInk, 0.3f));
+        }
+      }
+      break;
+    }
+    case Fx::SmashRing: {   // mace / hammer: the impact ring on the ground (32 x 16, 5 frames), dust, sparks
+      const float cx = 16.0f * k, cy = 9.0f * k;
+      static const float rr[5] = {4.0f, 8.0f, 11.5f, 13.5f, 15.0f};
+      static const float ww[5] = {2.5f, 2.6f, 2.2f, 1.6f, 1.0f};
+      const int fr = frame % 5;
+      const float rx = rr[fr] * k, ry = rr[fr] * 0.45f * k, w = ww[fr] * k;
+      for (int y = 0; y < c.h; y++)
+        for (int x = 0; x < c.w; x++) {
+          const float dx = x + 0.5f - cx, dy = y + 0.5f - cy;
+          const float r = std::sqrt((dx / rx) * (dx / rx) + (dy / ry) * (dy / ry));
+          const float d = (1.0f - r) * rx;   // px in from the rim, measured across the long axis
+          if (d < -0.5f || d > w) continue;
+          if (fr == 4 && ((x / 2 + y) & 1)) continue;          // the last ring breaks up
+          const bool front = dy > 0;                            // the near arc a shade brighter (it faces the eye)
+          c.set(x, y, d < 1.0f ? (front ? kWhite : kSmashDust) : withA(kSmashDust, front ? 220 : 170));
+        }
+      if (fr == 0) {   // the flash where the head lands
+        star(c, (int)cx, (int)cy, std::max(2, (int)std::lround(2 * k)), kWhite, kSpark);
+      }
+      // dust puffs rising either side
+      if (fr >= 1) {
+        static const int8_t puffs[3][2] = {{-1, 0}, {1, 0}, {0, -1}};
+        for (int i = 0; i < 3; i++) {
+          const float px = cx + puffs[i][0] * (rx + 1.0f), py = cy - (fr - 1) * 1.2f * k + puffs[i][1] * 3.0f * k - 1.0f;
+          const float pr = (1.2f + fr * 0.35f) * k;
+          for (int y = (int)(py - pr); y <= (int)(py + pr); y++)
+            for (int x = (int)(px - pr); x <= (int)(px + pr); x++) {
+              const float ex = x + 0.5f - px, ey = y + 0.5f - py;
+              if (ex * ex + ey * ey > pr * pr) continue;
+              if (c.get(x, y) >> 24) continue;
+              c.set(x, y, withA(ey < 0 ? kWhite : kSmashDust, fr >= 4 ? 120 : 190));
+            }
+        }
+      }
+      // three sparks off the metal, flying up and out
+      if (fr <= 2) {
+        static const int8_t sp[3][2] = {{-3, -2}, {3, -3}, {1, -4}};
+        for (int i = 0; i < 3; i++) {
+          const int x = (int)std::lround(cx + sp[i][0] * (1 + fr) * k), y = (int)std::lround(cy + sp[i][1] * (1 + fr) * 0.7f * k - 1);
+          c.set(x, y, kSpark);
+          if (fr < 2) c.set(x, y + 1, withA(kSpark, 150));
+        }
+      }
+      break;
+    }
+    case Fx::StabGlint: {   // dagger: the Glint at the point (12 x 6, 2 frames), long along the stab
+      const int cx = (int)std::lround(7 * k), cy = (int)std::lround(3 * k);
+      if ((frame & 1) == 0) {
+        star(c, cx, cy, std::max(2, (int)std::lround(2 * k)), kGlintCore, kGlintHalo);
+      } else {
+        const int arm = (int)std::lround(5 * k);
+        for (int x = -arm; x <= arm; x++) c.set(cx + x, cy, std::abs(x) <= arm / 2 ? kGlintCore : kGlintHalo);
+        for (int y = -2; y <= 2; y++) if (y) c.set(cx, cy + y, std::abs(y) == 1 ? kGlintCore : kGlintHalo);
+        c.set(cx + 1, cy - 1, withA(kGlintHalo, 170)); c.set(cx - 1, cy + 1, withA(kGlintHalo, 170));
+      }
+      break;
+    }
+    case Fx::ThrustStreak: {   // spear: the Thrust Streak along the aim (24 x 5, 3 frames), bright at the point
+      const int cy = c.h / 2, W = c.w;
+      const int fr = frame % 3;
+      const int head = fr == 0 ? W - 1 : W - 1, len = fr == 0 ? W / 3 : fr == 1 ? W - 1 : W - 4;
+      for (int i = 0; i < len; i++) {
+        const int x = head - i;
+        const float t = (float)i / std::max(1, len - 1);   // 0 at the point .. 1 at the tail
+        if (fr == 2 && (i % 4) == 3) continue;              // breaking up as it fades
+        const uint32_t col = t < 0.34f ? kThrustHead : t < 0.67f ? mix(kThrustHead, kThrustTail, 0.5f) : kThrustTail;
+        c.set(x, cy, col);
+        const int thick = t < 0.2f ? 2 : t < 0.55f ? 1 : 0;   // tapering from 3 px at the point to 1 at the tail
+        for (int j = 1; j <= thick && cy + j < c.h; j++) {
+          c.set(x, cy - j, withA(col, fr == 2 ? 120 : 200));
+          c.set(x, cy + j, withA(kThrustTail, fr == 2 ? 120 : 200));
+        }
+      }
+      if (fr == 1) c.set(head, cy, kWhite);
+      break;
+    }
+    case Fx::BluntSwish: {   // staff / walking stick: the Swish (28 x 28, 3 frames): three speed lines, no glint
+      const float cx = 0.0f, cy = 14.0f * k, R = 13.5f * k;
+      struct S { float a0, a1; };
+      static const S kS[3] = {{-66, -18}, {-66, 42}, {-6, 64}};
+      const S& s = kS[frame % 3];
+      for (int line = 0; line < 3; line++) {
+        const float r = R - line * 2.2f * k;
+        const float b0 = s.a0 + line * 9.0f, b1 = s.a1 - line * 6.0f;   // the inner lines shorter: a sweep, not a ring
+        for (int y = 0; y < c.h; y++)
+          for (int x = 0; x < c.w; x++) {
+            const float dx = x + 0.5f - cx, dy = y + 0.5f - cy;
+            const float a = std::atan2(dy, dx) * 57.29578f;
+            if (a < b0 || a > b1) continue;
+            const float d = std::sqrt(dx * dx + dy * dy) - r;
+            if (d > -0.5f && d < (line == 0 ? 1.5f : 0.5f)) c.set(x, y, withA(kSwish, 128));
+          }
+      }
+      break;
+    }
+    case Fx::PunchStar: {   // fists: the Punch Star (9 x 9, 2 frames)
+      const int cx = c.w / 2, cy = c.h / 2;
+      if ((frame & 1) == 0) {
+        // a tight burst: a 3 x 3 core, four short points
+        for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) c.set(cx + x, cy + y, (x == 0 || y == 0) ? kPunchCore : kPunchRim);
+        c.set(cx + 2, cy, kPunchRim); c.set(cx - 2, cy, kPunchRim); c.set(cx, cy + 2, kPunchRim); c.set(cx, cy - 2, kPunchRim);
+      } else {
+        // the full star: eight points, the core opening out
+        const int L = std::max(3, (int)std::lround(4 * k));
+        for (int i = 1; i <= L; i++) {
+          const uint32_t col = i <= L / 2 ? kPunchCore : kPunchRim;
+          c.set(cx + i, cy, col); c.set(cx - i, cy, col); c.set(cx, cy + i, col); c.set(cx, cy - i, col);
+          if (i <= L - 1) {
+            const uint32_t d = i <= 1 ? kPunchCore : kPunchRim;
+            c.set(cx + i, cy + i, d); c.set(cx - i, cy - i, d); c.set(cx + i, cy - i, d); c.set(cx - i, cy + i, d);
+          }
+        }
+        c.set(cx, cy, kWhite);
+      }
+      break;
+    }
+    case Fx::Twang: {   // bow release: the Twang at the bow (8 x 8, 2 frames): the string's quiver as two / three arcs
+      const int arcs = (frame & 1) ? 3 : 2;
+      for (int a = 0; a < arcs; a++) {
+        const int x0 = (int)std::lround((2 + a * 2 + (frame & 1)) * k);
+        const int h = (int)std::lround((2 + a) * k);
+        for (int y = -h; y <= h; y++) {
+          const int x = x0 + (std::abs(y) == h ? -1 : 0);
+          c.set(x, c.h / 2 + y, withA(kTwang, a == arcs - 1 ? 150 : 230));
+        }
+      }
+      break;
+    }
+    default: break;
+  }
+}
+
+}  // namespace
+
 void paintFx(Canvas& c, Fx f, int frame) {
+  // (P2a style slice) the sword's Steel Arc (STYLE_P2 6, 12: 32 x 32, 4 frames), painted with the v2 rig (rig_body.cpp)
+  if (f == Fx::SwingArc) { rig2::steelArc(c, frame); return; }
+  if ((int)f > (int)Fx::SwingArc && (int)f < (int)Fx::COUNT) { paintFamilyFx(c, f, frame, 1.0f); return; }
   switch (f) {
     case Fx::Slash: case Fx::SlashDown: case Fx::SlashUp: {
       float base = f == Fx::Slash ? 0.0f : (f == Fx::SlashDown ? PI * 0.5f : -PI * 0.5f);
@@ -197,6 +435,9 @@ void paintFx(Canvas& c, Fx f, int frame) {
 struct FxInfo { uint8_t w, h, frames; };
 const FxInfo kFxInfo[(int)Fx::COUNT] = {
   {24, 24, 4}, {24, 24, 4}, {24, 24, 4}, {12, 3, 1}, {3, 12, 1}, {12, 12, 4}, {32, 32, 6}, {8, 8, 4}, {8, 8, 4}, {8, 8, 4}, {12, 12, 4}, {16, 16, 4},
+  // the family effects at their STYLE_P2 12 sizes and frame counts: SwingArc (the style slice's Steel Arc), HeavyArc,
+  // ChopArc, SmashRing, StabGlint, ThrustStreak, BluntSwish, PunchStar, Twang
+  {32, 32, 4}, {48, 40, 5}, {28, 28, 4}, {32, 16, 5}, {12, 6, 2}, {24, 5, 3}, {28, 28, 3}, {9, 9, 2}, {8, 8, 2},
 };
 
 }  // namespace
@@ -211,6 +452,18 @@ Canvas fxSprite(Fx f) {
   for (int i = 0; i < n; i++) {
     Canvas cell(w, h);
     paintFx(cell, f, i);
+    place(sheet, cell, i, 0);
+  }
+  return sheet;
+}
+Canvas fxSpriteSized(Fx f, int w, int h) {
+  if ((int)f < (int)Fx::SwingArc || (int)f >= (int)Fx::COUNT || w <= 0 || h <= 0) return Canvas();
+  const int n = fxFrames(f);
+  Canvas sheet(w * n, h);
+  for (int i = 0; i < n; i++) {
+    Canvas cell(w, h);
+    if (f == Fx::SwingArc) rig2::steelArc(cell, i);   // the arc's radius and widths follow the cell's height
+    else paintFamilyFx(cell, f, i, (float)h / (float)std::max(1, fxH(f)));   // (RIG-ARMS) every family effect, the same rule
     place(sheet, cell, i, 0);
   }
   return sheet;

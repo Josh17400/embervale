@@ -107,6 +107,12 @@ struct HumanLook {
   uint32_t shieldField = 0;  // (M6 fixer) a maker culture's shield paint: the field (0: tabardColor, the hero's arms)
   uint32_t shieldDevice = 0; // and its device (0: gold)
 
+  // ---- P2a Clear Sight (VISION_PLAN 15.36, rpg/art/art_rig.h): the body base the v2 rig paints. v1 ignores both (no
+  //      v1 pixel moves); mixed into key() only when set, so every earlier look keeps its key. Derived, never saved:
+  //      looks.cpp sets body from the census `female`, gear_look.cpp from Appearance::female.
+  uint8_t body = 0;          // 0 man, 1 woman
+  uint8_t age = 0;           // 0 adult, 1 child, 2 youth
+
   // Identity of the painted sheet: equal keys must mean identical sheets. The renderer caches baked sheets by it,
   // so every field that changes pixels must be mixed in here (art_human.cpp).
   uint64_t key() const;

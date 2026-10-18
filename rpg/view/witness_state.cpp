@@ -7,8 +7,10 @@
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
+#include "rpg/sim/anim.h"
 #include "rpg/sim/factions.h"
 #include "rpg/sim/game.h"
+#include "rpg/view/screen.h"
 #include "rpg/view/view.h"
 
 namespace {
@@ -75,7 +77,48 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   j.key("equipped").begin_object().field("weapon", eq(g.eqWeapon)).field("bow", eq(g.eqBow)).field("armor", eq(g.eqArmor))
       .field("helmet", eq(g.eqHelmet)).field("shield", eq(g.eqShield)).end_object();
   j.field("items", (int)g.inv.size());
+  {   // (P2a) the hero as drawn last frame: rig, figure height, the opaque box and the feet point in device px
+    const View::HeroSprite& hs = v.heroSprite;
+    const Pix::Layer& wl = v.worldLayerForTests();
+    j.key("sprite").begin_object().field("rig", art::rigVersion()).field("figH", art::rig().figH(P.look)).field("drawn", hs.on);
+    if (hs.on && hs.bx1 >= hs.bx0) {
+      const double s = wl.scale;
+      j.key("box").begin_array().value(r2(wl.offX + (hs.x + hs.bx0) * s)).value(r2(wl.offY + (hs.y + hs.by0) * s))
+          .value(r2(wl.offX + (hs.x + hs.bx1 + 1) * s)).value(r2(wl.offY + (hs.y + hs.by1 + 1) * s)).end_array();
+      j.field("boxH", hs.by1 - hs.by0 + 1);   // the opaque height in art px
+    }
+    j.key("pivot").vec(r2(wl.offX + hs.pivX * wl.scale), r2(wl.offY + hs.pivY * wl.scale));
+    j.end_object();
+  }
+  {   // (P2a) what the hero shows (rpg/sim/anim.h animPick, or the frozen `pose`)
+    AnimPick k = animPick(g, P);
+    if (v.p2a.poseOn) { k.clip = v.p2a.poseClip; k.family = v.p2a.poseFamily; k.variant = (uint8_t)v.p2a.poseVariant; k.frame = (uint8_t)v.p2a.poseFrame; }
+    j.key("anim").begin_object().field("clip", art::clipName(k.clip)).field("family", art::familyName(k.family)).field("variant", (int)k.variant)
+        .field("frame", (int)k.frame).field("frames", (int)k.frames).field("frozen", v.p2a.poseOn).end_object();
+  }
   j.end_object();
+
+  // (P2a) the screen: the window, the UI fit, the world layer and its zoom numbers, the rig's draw counters
+  {
+    const Pix::Layer& ul = v.uiLayerForTests();
+    const Pix::Layer& wl = v.worldLayerForTests();
+    int pw = 0, ph = 0;
+    v.outputSizeForTests(pw, ph);
+    const screen::Settings ss = screen::get();
+    j.key("screen").begin_object();
+    j.key("window").vec(pw, ph);
+    j.key("ui").begin_object().field("w", ul.w).field("h", ul.h).field("scale", r2(ul.scale))
+        .field("integer", std::fabs(ul.scale - std::round(ul.scale)) < 1e-4f).end_object();
+    j.key("world").begin_object().field("w", wl.w).field("h", wl.h).field("scale", r2(wl.scale))
+        .field("integer", std::fabs(wl.scale - std::round(wl.scale)) < 1e-4f).field("d0", screen::defaultWorldScale())
+        .field("want", screen::worldScale()).key("levels").begin_array();
+    for (int d : screen::zoomLevels()) j.value(d);
+    j.end_array().end_object();
+    j.field("zoom", ss.zoom).field("zoomName", screen::zoomName(ss.zoom)).field("ring", ss.ring)
+        .field("safe", std::to_string(Pix::SL) + " " + std::to_string(Pix::ST) + " " + std::to_string(Pix::SR) + " " + std::to_string(Pix::SB))
+        .field("v1Draws", v.v1Draws).field("peopleMB", r2(v.peopleMB())).field("figShare", r2(ph > 0 && v.heroSprite.on && v.heroSprite.by1 >= v.heroSprite.by0 ? 100.0 * (v.heroSprite.by1 - v.heroSprite.by0 + 1) * wl.scale / ph : 0.0));
+    j.end_object();
+  }
 
   // quests (the tracked one first, then by id)
   j.key("quests").begin_array();
@@ -120,6 +163,12 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     j.key("pos"); tilePos(j, a.p);
     j.field("dist", r2(near[i].first)).field("hp", r2(a.hp)).field("maxHp", r2(a.maxHp)).field("level", a.level)
         .field("hostile", a.hostile).field("aggro", a.aggro).field("faction", factionName(a.faction)).field("state", stateName(a.st));
+    if (a.human) {   // (P2a) what a person shows, and how long the dead have lain
+      const AnimPick k = animPick(g, a);
+      j.key("anim").begin_object().field("clip", art::clipName(k.clip)).field("family", art::familyName(k.family)).field("variant", (int)k.variant)
+          .field("frame", (int)k.frame).field("frames", (int)k.frames).end_object();
+    }
+    if (a.st == AState::Dead) j.key("corpse").begin_object().field("age", r2(a.stT)).end_object();
     j.end_object();
   }
   j.end_array();

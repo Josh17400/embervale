@@ -1,0 +1,24 @@
+# P2a LENS: off-screen danger pips (STYLE_P2 18, gate L8). Seed 7, open grass in the nearest meadow (no village: no alarm) at 11:00, the 1440x810
+# desktop zoomed to CLOSE (D5: 288 x 162 world px, so a foe 7 tiles north or south is out of view yet inside a bandit's
+# 130 px aggro radius). Foes are staged hunting the hero: a bandit 7 tiles north and one 7.5 tiles south (out of view,
+# inside the radius: a pip each, at the top and bottom edges), a bandit 4 tiles east (in view: no pip), a bandit 13 tiles
+# north (outside its radius: no pip). The shots are taken the moment they are staged (they have not closed in yet),
+# then a second later (closer: the pips pulse faster), then at NORMAL (all in view: no pips).
+#   embervale.exe --script tools/scripts/p2a_pips.txt          (p2a_pips_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 weather clear
++0.1 gotoeco meadow
++0.1 gotoground grass
++0.05 hour 11
++0.05 zoom close
++0.6 skill foe bandit 0 -7
++0.0 skill foe bandit 0 7.5
++0.0 skill foe bandit 4 0
++0.0 skill foe bandit 0 -13
++0.05 shot p2a_pips_close.png
++0.4 shot p2a_pips_close_later.png
++0.05 zoom normal
++0.3 shot p2a_pips_normal.png
++0.2 log p2a_pips done

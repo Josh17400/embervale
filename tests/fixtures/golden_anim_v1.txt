@@ -1,0 +1,2 @@
+# P2a phase A: rpg_test --anim --write (the v1 frame pick at rig 1 over 21630 samples; never re-recorded by a lane)
+56fb08be96b73a1a

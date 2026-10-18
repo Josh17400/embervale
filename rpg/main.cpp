@@ -109,6 +109,7 @@
 #include <new>
 #include "engine/witness.h"
 #include "rpg/view/witness_state.h"
+#include "rpg/sim/anim.h"   // (P2a) AnimOps::refreshHero (the reset's female)
 #endif
 
 namespace {
@@ -153,6 +154,17 @@ void writeSave(const Game& g) {
   EM_ASM(FS.syncfs(false, function(err) { if (err) console.log('save sync failed', err); }););
 #endif
 }
+
+#ifdef __EMSCRIPTEN__
+// (P2a) a whole-number query parameter of the page's URL (?rig=2: the owner's preview of the v2 people); 0 when absent
+EM_JS(int, emb_url_int, (const char* name), {
+  try {
+    var v = new URLSearchParams(window.location.search).get(UTF8ToString(name));
+    var n = parseInt(v, 10);
+    return isNaN(n) ? 0 : n;
+  } catch (e) { return 0; }
+});
+#endif
 
 // ---------------------------------------------------------------- test scripts
 struct ScriptCmd {
@@ -231,6 +243,8 @@ SDL_Scancode keyFromName(std::string s) {
   else if (u == "CTRL") s = "Left Ctrl";
   else if (u == "ALT") s = "Left Alt";
   else if (u == "SUPER") s = "Left GUI";
+  else if (u == "MINUS") s = "-";        // (P2a) the ZOOM keys: - and =
+  else if (u == "EQUALS" || u == "PLUS") s = "=";
   return SDL_GetScancodeFromName(s.c_str());
 }
 
@@ -329,6 +343,14 @@ int main(int argc, char** argv) {
     }
   }
   const bool scripted = scriptPath != nullptr;
+  // (P2a test hook) EMB_LEGACY_OUTLINE=1: the character sheets with the pre-P2a selective outline, so a run's shots can be
+  // compared byte for byte with a pre-P2a build (the ink outline is phase A's only intended pixel change)
+  if (std::getenv("EMB_LEGACY_OUTLINE")) art::outlineLegacyForTests() = true;
+  // (P2a test hook) EMB_RIG=1|2: the human rig (the preview of the v2 people), set before the first sheet is baked
+  if (const char* e = std::getenv("EMB_RIG")) art::setRigVersion(std::atoi(e));
+#ifdef __EMSCRIPTEN__
+  if (const int r = emb_url_int("rig"); r > 0) art::setRigVersion(r);   // (P2a) the web's ?rig=2 (the preview link)
+#endif
 #ifdef EMB_WITNESS
   const bool witness = witness_active(argc, argv);   // a Witness harness drives this run (see "Witness" below)
 #else
@@ -1312,6 +1334,7 @@ int main(int argc, char** argv) {
   // worst one in which the endless window shifted under a walking player (the "no hitch at shifts" check)
   struct PerfAcc {
     double workSum = 0, workWorst = 0;        // this second
+    double drawSum = 0, drawWorst = 0;        // (P2a) View::draw's share of it (the render baseline, L9)
     double worstAll = 0, worstShift = 0;      // the whole run
     double worstAfterShift = 0;               // the second after a walking shift (the view re-bakes what moved)
     int afterShift = 0;
@@ -1350,8 +1373,9 @@ int main(int argc, char** argv) {
     const int walkShifts0 = game.world.sstats.walkShifts;
     screen::frame(pix);
     game.frameWork(3.0);   // M1 streaming: collect the worker's chunks (native) or generate within ~3 ms (web)
-    game.sleepHalfW = std::max(22.0f, Pix::W * 0.5f / TILE + 4.0f);   // NPC LOD: off screen is beyond the view
-    game.sleepHalfH = std::max(13.0f, Pix::H * 0.5f / TILE + 4.0f);
+    // NPC LOD: off screen is beyond the view (P2a: the world view, in world px, at the zoom in use)
+    game.sleepHalfW = std::max(22.0f, view.viewW() * 0.5f / TILE + 4.0f);
+    game.sleepHalfH = std::max(13.0f, view.viewH() * 0.5f / TILE + 4.0f);
     if (scripted) {
       Uint64 nowS = SDL_GetPerformanceCounter();
       static Uint64 prevS = nowS;
@@ -1477,8 +1501,10 @@ int main(int argc, char** argv) {
           game.perf.sysWorstMs[k] = 0;
         }
         if (!slow.empty()) std::printf("perf   worst step ms:%s\n", slow.c_str());
+        std::printf("perf   draw avg %.2f ms worst %.2f ms | people textures %.1f MB\n", fpsN ? pacc.drawSum / fpsN : 0.0, pacc.drawWorst, view.peopleMB());   // (P2a)
       }
       pacc.workSum = 0; pacc.workWorst = 0;
+      pacc.drawSum = 0; pacc.drawWorst = 0;
       fpsT = 0; fpsN = 0;
     }
 
@@ -1551,6 +1577,11 @@ int main(int argc, char** argv) {
     }
     const Uint64 updT1 = SDL_GetPerformanceCounter();
     view.draw(game, hasSave);
+    {   // (P2a) the draw's own time (the --perf render baseline)
+      const double dms = (double)(SDL_GetPerformanceCounter() - updT1) * 1000.0 / (double)freq;
+      pacc.drawSum += dms;
+      pacc.drawWorst = std::max(pacc.drawWorst, dms);
+    }
     {
       static const bool timing = std::getenv("EMB_TIMING") != nullptr;
       auto ms = [&](Uint64 a, Uint64 b) { return (double)(b - a) * 1000.0 / (double)freq; };
@@ -1659,6 +1690,24 @@ int main(int argc, char** argv) {
       view.witnessRelease();
       view.~View();
       audio.~Audio();
+      // (P2a) the screen and the rig this run asks for, before the view is rebuilt (VISION_PLAN 15.36 item 10):
+      //   window [w, h] device px (the hidden window resized; the fit runs unpinned), safe [l, t, r, b] device px,
+      //   screen "fill" | "pixel", zoom -1..2 or "keep" (the last run's, as a restart reads the settings file),
+      //   rig 1 | 2, female (the hero's body base)
+      {
+        int ww = 0, wh = 0, safe[4] = {0, 0, 0, 0}, mode = -1, zoom = 0;
+        bool hasSafe = false, keep = false;
+        if (params["window"].size() == 2) { ww = (int)params["window"][0].integer(); wh = (int)params["window"][1].integer(); }
+        if (params["safe"].size() == 4) { hasSafe = true; for (int k = 0; k < 4; k++) safe[k] = (int)params["safe"][k].integer(); }
+        if (params["screen"].exists()) mode = std::string(params["screen"].str("fill")) == "pixel" ? (int)screen::PixelPerfect : (int)screen::Fill;
+        if (params["zoom"].exists()) {
+          if (params["zoom"].type() == WITNESS_STRING) keep = std::string(params["zoom"].str("")) == "keep";
+          else zoom = (int)params["zoom"].integer(0);
+        }
+        if ((hasSafe || mode >= 0) && ww <= 0) { ww = 960; wh = 540; }   // a safe area or a mode alone: the harness window, unpinned
+        screen::witnessScreen(pix, ww, wh, hasSafe ? safe : nullptr, mode, zoom, keep);
+        art::setRigVersion((int)params["rig"].integer(1));   // a fresh view follows: no cache carries the other rig's pixels
+      }
       new (&audio) Audio();
       new (&view) View();
       view.init(pix, audio);
@@ -1684,6 +1733,7 @@ int main(int argc, char** argv) {
       sp.name = params["name"].str("");
       sp.ids = (int)params["ids"].integer(0);   // a recording's id counter at its start (absent: a fresh Game's)
       applyStart(startSeed, sp);
+      if (params["female"].boolean()) { game.app.female = true; AnimOps::refreshHero(game); }   // (P2a) the woman's body base
     };
     h.input = [&](const witness_event& e) {
       if (e.type == WITNESS_EV_KEY && e.down >= 0) {
@@ -1717,11 +1767,12 @@ int main(int argc, char** argv) {
       const float fdt = (float)dt;
       scriptStep(fdt);   // held keys, a walk or a registered command under way (script time)
       drainEvents();
+      screen::frame(pix);   // (P2a) a ZOOM step re-presents the layers now: the camera and the NPC LOD frame the world view in use
       view.wantSave = false;
       if (view.wantsQuit) { view.wantsQuit = false; game.mode = Mode::Title; }
       if (view.wantNewGame || view.wantContinue) { view.wantNewGame = view.wantContinue = false; startNew(startSeed); }
-      game.sleepHalfW = std::max(22.0f, Pix::W * 0.5f / TILE + 4.0f);   // as frame(): the NPC LOD follows the canvas
-      game.sleepHalfH = std::max(13.0f, Pix::H * 0.5f / TILE + 4.0f);
+      game.sleepHalfW = std::max(22.0f, view.viewW() * 0.5f / TILE + 4.0f);   // as frame(): the NPC LOD follows the world view
+      game.sleepHalfH = std::max(13.0f, view.viewH() * 0.5f / TILE + 4.0f);
       simStep(fdt);
       const int n = witness_audio_frames_for_step(dt);   // exactly the samples this step covers
       wMix.resize((size_t)n);
@@ -1864,7 +1915,8 @@ int main(int argc, char** argv) {
     for (const ScriptExt& e : scriptExts())
       if (std::strncmp(e.name, "expect:", 7) != 0) calls.push_back({e.name, nullptr, e.help});
     static const char* const keys[] = {"w", "a", "s", "d", "up", "down", "left", "right", "space", "e", "j", "z", "q", "f", "r",
-                                       "i", "m", "tab", "escape", "enter", "shift", "alt", "1", "2", "3", "4"};
+                                       "i", "m", "tab", "escape", "enter", "shift", "alt", "1", "2", "3", "4",
+                                       "minus", "equals"};   // (P2a) ZOOM out / in
     witness_hello hello = witness_hello();
     hello.name = "Embervale";
     hello.engine = "custom C++/SDL3";

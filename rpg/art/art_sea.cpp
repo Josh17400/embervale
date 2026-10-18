@@ -10,6 +10,7 @@
 #include <cmath>
 #include <vector>
 #include "rpg/art/art_internal.h"
+#include "rpg/art/art_holders2.h"
 #include "rpg/art/art_sea.h"
 
 namespace art {
@@ -67,6 +68,10 @@ inline float sunI(V3 n) { return 0.5f + 0.5f * dot3(n, kSun); }
 // ---- the oblique splat renderer: a depth-tested canvas that remembers, per pixel, how far south its point stands
 //      (the hero's layer split) and whether it lies at deck level; the shadow it casts on the water; the foam at its
 //      waterline
+// (P2a HOLDERS) at rig 2 the ships are drawn k = 32 / 22 bigger (every hull, rig and fitting about the waterline
+// centre, the cells and anchors with them: STYLE_P2 1 "boats scale with the body"); 1 at rig 1 and for the sea props
+thread_local float g_shipK = 1.0f;
+inline float shipK() { return rigVersion() >= 2 ? 32.0f / 22.0f : 1.0f; }
 struct SC {
   int w, h;
   float ox, oy;
@@ -78,18 +83,30 @@ struct SC {
   std::vector<uint32_t> col;
   std::vector<float> zb, wy;
   std::vector<uint8_t> deck, sh, foam;
+  // (P2a HOLDERS) rig 2: the floor and the bulwarks' insides may lie under the waterline, inside the hull (the gunwale
+  // and the rail are measured from the floor the body is in: holders::kGunwale2 / kDeckRail2). Such a point is drawn
+  // only inside the hull's silhouette: above the lowest hull-side pixel already painted in its column (`low`)
+  bool inner = false, wetOk = false;   // wetOk: after the hull, the fittings and the masts' feet may stand inside it too
+  std::vector<int> low;
   SC(int w_, int h_, float ox_, float oy_)
       : w(w_), h(h_), ox(ox_), oy(oy_), col((size_t)w_ * h_, 0), zb((size_t)w_ * h_, -1e9f), wy((size_t)w_ * h_, 0),
-        deck((size_t)w_ * h_, 0), sh((size_t)w_ * h_, 0), foam((size_t)w_ * h_, 0) {}
+        deck((size_t)w_ * h_, 0), sh((size_t)w_ * h_, 0), foam((size_t)w_ * h_, 0), low((size_t)w_, -1) {}
   // where a world point lands (after the bob and the heel); false under the water or off the canvas
-  bool at(V3 p, V3& q, int& sx, int& sy) const {
+  bool at(V3 p, V3& q, int& sx, int& sy, bool under = false) const {
+    if (g_shipK != 1.0f) p = p * g_shipK;
     p.z -= sink;
     if (pitch != 0) p.z += (p.x * pitchDir.x + p.y * pitchDir.y) * pitch;
-    if (p.z < -0.05f) return false;
+    const bool wet = p.z < -0.05f;
+    if (wet && !under) return false;
     q = p + heelDir * (std::max(0.0f, p.z) * heel);
     sx = (int)std::floor(ox + q.x);
     sy = (int)std::floor(oy + q.y - q.z);
-    return sx >= 0 && sy >= 0 && sx < w && sy < h;
+    if (sx < 0 || sy < 0 || sx >= w || sy >= h) return false;
+    if (wet && (low[(size_t)sx] < 0 || sy >= low[(size_t)sx])) return false;   // under the water outside the hull
+    return true;
+  }
+  void markLow(int sx, int sy, uint8_t dk) {
+    if (!dk && sy > low[(size_t)sx]) low[(size_t)sx] = sy;
   }
   void cast(V3 q) {
     const int x = (int)std::floor(ox + q.x + q.z * 0.40f), y = (int)std::floor(oy + q.y + q.z * 0.26f);
@@ -98,8 +115,9 @@ struct SC {
   void putC(V3 p, uint32_t c, uint8_t dk = 0, bool shadowIt = true) {
     V3 q;
     int sx, sy;
-    if (!at(p, q, sx, sy)) return;
+    if (!at(p, q, sx, sy, inner && (dk || wetOk))) return;
     if (shadowIt) cast(q);
+    markLow(sx, sy, dk);
     const size_t i = (size_t)sy * w + sx;
     const float d = q.y + q.z;
     if (d < zb[i]) return;
@@ -109,8 +127,9 @@ struct SC {
   void putL(V3 p, const Ramp& R, float I, float bias = 0, uint8_t dk = 0, bool shadowIt = true) {
     V3 q;
     int sx, sy;
-    if (!at(p, q, sx, sy)) return;
+    if (!at(p, q, sx, sy, inner && (dk || wetOk))) return;
     if (shadowIt) cast(q);
+    markLow(sx, sy, dk);
     const size_t i = (size_t)sy * w + sx;
     const float d = q.y + q.z;
     if (d < zb[i]) return;
@@ -118,6 +137,7 @@ struct SC {
     zb[i] = d; col[i] = R[(int)std::floor(f + 0.5f)]; wy[i] = q.y; deck[i] = dk;
   }
   void putFoam(V3 p) {
+    if (g_shipK != 1.0f) p = p * g_shipK;
     const int x = (int)std::floor(ox + p.x), y = (int)std::floor(oy + p.y);
     if (x >= 0 && y >= 0 && x < w && y < h) foam[(size_t)y * w + x] = 1;
   }
@@ -250,6 +270,17 @@ Form formFor(int hull, int cul) {
       f.castleA *= 0.5f; f.castleF = 0; f.posts = 0;
       break;
     default: break;
+  }
+  // (P2a HOLDERS) rig 2 (STYLE_P2 1: gunwale 0.35-0.45, rail 0.45-0.55 of the figure, from the floor the body is in): the
+  // rowboat's bottom boards lie holders::kGunwale2 px under its gunwale, a deck holders::kDeckRail2 px under its rail
+  // (the hull is drawn k = 32 / 22 bigger, so these are those px / k here). The floor may lie under the waterline
+  // inside the hull, as in a real boat; the freeboard rises only as far as a standing body's soles at the middle need
+  // to stay inside the hull's silhouette (0.6 px over the near waterline). The rowboat is a little beamier.
+  if (rigVersion() >= 2) {
+    const float k2 = 32.0f / 22.0f;
+    if (hull <= 0) { f.B *= 1.12f; f.railH = holders::kGunwale2 / k2; }
+    else f.railH = holders::kDeckRail2 / k2;
+    f.F = std::max(f.F, f.railH - f.B + 0.6f);
   }
   return f;
 }
@@ -482,7 +513,14 @@ void paintHull(SC& s, const Ship& S) {
     for (int side = -1; side <= 1; side += 2)
       for (float z = zd; z <= zr; z += 0.3f) {
         const V3 n = unit3(S.R * (float)-side);
-        s.putL(S.at(u, side * wi, z), P.hullDk, sunI(n) * 0.9f + 0.05f, 0, 1, false);
+        float bias = 0;
+        if (s.inner) {   // (P2a HOLDERS) the taller inside at rig 2: its strakes' seams, the ribs, the gunwale's lit edge
+          if (std::fmod(zr - z, 2.1f) < 0.35f) bias -= 0.35f;
+          if (std::fmod(u + 40.0f, S.hull <= 0 ? 2.4f : 3.2f) < 0.45f) bias += 0.28f;
+          if (z > zr - 0.6f) bias += 0.25f;
+          if (z < zd + 1.2f) bias -= 0.25f;   // the bilge's shade
+        }
+        s.putL(S.at(u, side * wi, z), P.hullDk, sunI(n) * 0.9f + 0.05f, bias, 1, false);
       }
   }
   // ---- the castles' bulkheads (the step where a raised deck begins), with a door and windows
@@ -612,8 +650,12 @@ void paintFittings(SC& s, const Ship& S) {
   }
   if (S.hull <= 0) {
     // thwarts across the boat
-    for (float tt : {0.36f, -0.12f, -0.62f}) {
-      const float w = beamAt(f, tt) - 0.5f, z = deckZ(f, tt) + 0.9f;
+    // (P2a HOLDERS) rig 2: the middle thwart at the boat's middle (the rower's seat over the anchor), each holders::kThwart2
+    // px over the bottom boards (a seat's height: the rower's hips on it)
+    const bool r2 = s.inner;
+    const float th[3] = {r2 ? 0.40f : 0.36f, r2 ? 0.0f : -0.12f, r2 ? -0.58f : -0.62f};
+    for (float tt : th) {
+      const float w = beamAt(f, tt) - 0.5f, z = deckZ(f, tt) + (r2 ? holders::kThwart2 / (32.0f / 22.0f) : 0.9f);
       for (float du = -0.7f; du <= 0.7f; du += 0.3f)
         for (float v = -w; v <= w; v += 0.3f) s.putL(S.at(tt * f.L + du, v, z), P.deck, 0.9f, du < -0.4f ? -0.4f : 0.0f, 1);
     }
@@ -1130,11 +1172,32 @@ Ship makeShip(int hull, const ShipStyle& st, int fineDir, int frame) {
 }  // namespace
 
 // ---------------------------------------------------------------- the public ship API
-int shipCellW(int hull) { return hull >= 2 ? 132 : hull == 1 ? 84 : 44; }
-int shipCellH(int hull) { return hull >= 2 ? 140 : hull == 1 ? 92 : 40; }
+int shipCellW(int hull) {
+  if (rigVersion() >= 2) return hull >= 2 ? 192 : hull == 1 ? 122 : 64;   // (P2a HOLDERS) x 32 / 22
+  return hull >= 2 ? 132 : hull == 1 ? 84 : 44;
+}
+int shipCellH(int hull) {
+  if (rigVersion() >= 2) return hull >= 2 ? 204 : hull == 1 ? 134 : 58;
+  return hull >= 2 ? 140 : hull == 1 ? 92 : 40;
+}
 int shipAnchorX(int hull) { return shipCellW(hull) / 2; }
-int shipAnchorY(int hull) { return hull >= 2 ? 90 : hull == 1 ? 62 : 25; }
-int shipDeckY(int hull) { return hull >= 2 ? 6 : hull == 1 ? 4 : 1; }
+int shipAnchorY(int hull) {
+  if (rigVersion() >= 2) return hull >= 2 ? 131 : hull == 1 ? 90 : 36;
+  return hull >= 2 ? 90 : hull == 1 ? 62 : 25;
+}
+int shipDeckY(int hull) {
+  // (P2a HOLDERS) rig 2: the floor / deck amidships of the classic form (formFor), px over the waterline (under it: < 0)
+  if (rigVersion() >= 2) {
+    const Form f = formFor(std::max(0, std::min(2, hull)), C_CLASSIC);
+    return (int)std::lround(deckZ(f, 0.0f) * (32.0f / 22.0f));
+  }
+  return hull >= 2 ? 6 : hull == 1 ? 4 : 1;
+}
+int shipThwartY(int hull) {
+  const Form f = formFor(std::max(0, std::min(2, hull)), C_CLASSIC);
+  if (rigVersion() >= 2) return (int)std::lround((deckZ(f, 0.0f) + holders::kThwart2 / (32.0f / 22.0f)) * (32.0f / 22.0f));
+  return (int)std::lround(deckZ(f, -0.12f) + 0.9f);
+}
 
 uint8_t shipSailCutFor(uint8_t culture) { return sailCutOf(culture <= 12 ? culture : 0); }
 
@@ -1152,13 +1215,16 @@ Canvas shipCell(int hull, const ShipStyle& st, int fineDir, int frame, int layer
   hull = std::max(0, std::min(2, hull));
   const int W = shipCellW(hull), H = shipCellH(hull);
   const Ship S = makeShip(hull, st, fineDir, frame);
+  struct KScope { float was = g_shipK; KScope() { g_shipK = shipK(); } ~KScope() { g_shipK = was; } } ks;
   SC s(W, H, (float)shipAnchorX(hull), (float)shipAnchorY(hull));
   const bool wreck = (st.extras & SX_WRECKED) != 0;
   s.sink = (S.frame ? 0.7f : 0.0f) + (wreck ? 2.2f : 0.0f);
   const float heelSide = S.trim < 0 ? -1.0f : 1.0f;
   s.heel = (S.frame ? 0.018f : 0.0f) + 0.034f * S.fill * (S.rig.n > 0 ? 1.0f : 0.0f) + (wreck ? 0.11f : 0.0f);
   s.heelDir = S.R * heelSide;
+  s.inner = rigVersion() >= 2;   // (P2a HOLDERS) the floor and the deck inside the hull, under the waterline
   paintHull(s, S);
+  s.wetOk = s.inner;
   paintPosts(s, S);
   paintFittings(s, S);
   Tops tops;
@@ -1169,7 +1235,7 @@ Canvas shipCell(int hull, const ShipStyle& st, int fineDir, int frame, int layer
   for (size_t i = 0; i < c.px.size(); i++) c.px[i] = s.col[i];
   const Canvas solid = c;
   outline(c, 0.85f);
-  auto frontAt = [&](size_t i) { return s.deck[i] ? s.wy[i] > 3.0f : s.wy[i] > 0.6f; };
+  auto frontAt = [&](size_t i) { return s.deck[i] ? s.wy[i] > 3.0f * g_shipK : s.wy[i] > 0.6f * g_shipK; };
   if (layer != SHIP_LAYER_ALL)
     for (int y = 0; y < H; y++)
       for (int x = 0; x < W; x++) {
@@ -1217,7 +1283,7 @@ int shipMastTops(int hull, const ShipStyle& st, int fineDir, int* xs, int* ys) {
   int n = 0;
   for (int i = 0; i < S.rig.n && n < 3; i++) {
     const MastDef& m = S.rig.m[i];
-    const V3 p = S.at(m.t * S.f.L, 0, m.h);
+    const V3 p = S.at(m.t * S.f.L, 0, m.h) * shipK();
     xs[n] = (int)std::floor(shipAnchorX(hull) + p.x);
     ys[n] = (int)std::floor(shipAnchorY(hull) + p.y - p.z);
     n++;
@@ -1229,7 +1295,7 @@ void shipLanternAt(int hull, const ShipStyle& st, int fineDir, int& x, int& y) {
   hull = std::max(0, std::min(2, hull));
   const Ship S = makeShip(hull, st, fineDir, 0);
   const float lz = railZ(S.f, -0.96f) + (hull >= 2 ? 4.5f : 3.5f);
-  const V3 p = S.at(stationU(S.f, -0.96f, 1.0f), 0, hull <= 0 ? 2.0f : lz);
+  const V3 p = S.at(stationU(S.f, -0.96f, 1.0f), 0, hull <= 0 ? 2.0f : lz) * shipK();
   x = (int)std::floor(shipAnchorX(hull) + p.x);
   y = (int)std::floor(shipAnchorY(hull) + p.y - p.z);
 }

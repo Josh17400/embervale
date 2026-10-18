@@ -1,0 +1,148 @@
+# P2a Lens and Rig, RIG-ARMS: THE SWINGS (VISION_PLAN 15.36 R7-R10, STYLE_P2 10-12) on the 1440x810 desktop (NORMAL D3,
+# NEAR D4). Seed 7, the start village OSLARS, rig 2, 11:00. The hero frozen (`pose`) in every melee family's blows, the
+# family's weapon in hand: hit 1's windup / strike / follow facing right, hits 1-3 mid-strike facing right and down, the
+# strike facing up and left; the bow's draw at the cheek and its release; a cast. (Live swings show v2 where rig2Covers
+# takes the family; the effects are on rigarms_gallery's motion boards.) Shots p2a_swings_*.png in the working directory.
+#   embervale.exe --script tools/scripts/p2a_swings.txt
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.3 expect zoom normal
+# the slice's open spot before the cottage door (p2a_slice.txt)
++0.1 enter hut
++0.5 walkto exit 20
++0.6 walk south 0.65
++0.9 walk east 0.15
+# ---- facing right: each family's hit 1 (windup 1, strike 0, strike 1, follow 0), then hits 2 and 3 mid-strike
++0.3 pose windup unarmed 0 1
++0.2 shot p2a_swings_unarmed_r_w1.png
++0.1 pose strike unarmed 0 1
++0.2 shot p2a_swings_unarmed_r_s1.png
++0.1 pose strike unarmed 1 1
++0.2 shot p2a_swings_unarmed_r_h2.png
++0.1 pose strike unarmed 2 1
++0.2 shot p2a_swings_unarmed_r_h3.png
++0.1 pose windup dagger 0 1
++0.2 shot p2a_swings_dagger_r_w1.png
++0.1 pose strike dagger 0 1
++0.2 shot p2a_swings_dagger_r_s1.png
++0.1 pose strike dagger 1 0
++0.2 shot p2a_swings_dagger_r_h2.png
++0.1 pose strike dagger 2 1
++0.2 shot p2a_swings_dagger_r_h3.png
++0.1 pose windup greatsword 0 1
++0.2 shot p2a_swings_greatsword_r_w1.png
++0.1 pose strike greatsword 0 1
++0.2 shot p2a_swings_greatsword_r_s1.png
++0.1 pose strike greatsword 1 1
++0.2 shot p2a_swings_greatsword_r_h2.png
++0.1 pose strike greatsword 2 1
++0.2 shot p2a_swings_greatsword_r_h3.png
++0.1 pose windup axe 0 1
++0.2 shot p2a_swings_axe_r_w1.png
++0.1 pose strike axe 0 1
++0.2 shot p2a_swings_axe_r_s1.png
++0.1 pose strike axe 1 0
++0.2 shot p2a_swings_axe_r_h2.png
++0.1 pose strike axe 2 1
++0.2 shot p2a_swings_axe_r_h3.png
++0.1 pose windup mace 0 1
++0.2 shot p2a_swings_mace_r_w1.png
++0.1 pose strike mace 0 1
++0.2 shot p2a_swings_mace_r_s1.png
++0.1 pose strike mace 1 1
++0.2 shot p2a_swings_mace_r_h2.png
++0.1 pose strike mace 2 1
++0.2 shot p2a_swings_mace_r_h3.png
++0.1 pose windup spear 0 1
++0.2 shot p2a_swings_spear_r_w1.png
++0.1 pose strike spear 0 1
++0.2 shot p2a_swings_spear_r_s1.png
++0.1 pose strike spear 1 1
++0.2 shot p2a_swings_spear_r_h2.png
++0.1 pose strike spear 2 1
++0.2 shot p2a_swings_spear_r_h3.png
++0.1 pose windup staff 0 1
++0.2 shot p2a_swings_staff_r_w1.png
++0.1 pose strike staff 0 1
++0.2 shot p2a_swings_staff_r_s1.png
++0.1 pose strike staff 1 1
++0.2 shot p2a_swings_staff_r_h2.png
++0.1 pose strike staff 2 1
++0.2 shot p2a_swings_staff_r_h3.png
++0.1 pose draw bow 0 2
++0.2 shot p2a_swings_bow_r_draw.png
++0.1 pose release bow 0 0
++0.2 shot p2a_swings_bow_r_release.png
++0.1 pose cast axe 0 1
++0.2 shot p2a_swings_cast_r.png
++0.1 pose off
+# ---- facing down: every family's three hits mid-strike
++0.1 walk south 0.15
++0.3 pose strike unarmed 0 1
++0.2 shot p2a_swings_unarmed_d_s1.png
++0.1 pose strike dagger 0 1
++0.2 shot p2a_swings_dagger_d_s1.png
++0.1 pose strike greatsword 0 0
++0.2 shot p2a_swings_greatsword_d_s0.png
++0.1 pose strike greatsword 0 1
++0.2 shot p2a_swings_greatsword_d_s1.png
++0.1 pose strike greatsword 1 1
++0.2 shot p2a_swings_greatsword_d_h2.png
++0.1 pose strike axe 0 1
++0.2 shot p2a_swings_axe_d_s1.png
++0.1 pose strike axe 1 1
++0.2 shot p2a_swings_axe_d_h2.png
++0.1 pose strike mace 0 1
++0.2 shot p2a_swings_mace_d_s1.png
++0.1 pose strike mace 1 1
++0.2 shot p2a_swings_mace_d_h2.png
++0.1 pose strike spear 0 1
++0.2 shot p2a_swings_spear_d_s1.png
++0.1 pose strike staff 0 1
++0.2 shot p2a_swings_staff_d_s1.png
++0.1 pose strike staff 2 1
++0.2 shot p2a_swings_staff_d_h3.png
++0.1 pose draw bow 0 2
++0.2 shot p2a_swings_bow_d_draw.png
++0.1 pose off
+# ---- facing up and left: the strikes
++0.1 walk north 0.15
++0.3 pose strike greatsword 0 0
++0.2 shot p2a_swings_greatsword_u_s0.png
++0.1 pose strike axe 0 1
++0.2 shot p2a_swings_axe_u_s1.png
++0.1 pose strike spear 0 1
++0.2 shot p2a_swings_spear_u_s1.png
++0.1 pose draw bow 0 2
++0.2 shot p2a_swings_bow_u_draw.png
++0.1 pose off
++0.1 walk west 0.15
++0.3 pose strike greatsword 0 1
++0.2 shot p2a_swings_greatsword_l_s1.png
++0.1 pose strike axe 0 1
++0.2 shot p2a_swings_axe_l_s1.png
++0.1 pose strike spear 0 1
++0.2 shot p2a_swings_spear_l_s1.png
++0.1 pose strike dagger 0 1
++0.2 shot p2a_swings_dagger_l_s1.png
++0.1 pose draw bow 0 2
++0.2 shot p2a_swings_bow_l_draw.png
++0.1 pose off
+# ---- NEAR (D4): the families side by side in memory of the phone's size
++0.1 walk east 0.15
++0.1 zoom near
++0.3 pose strike greatsword 0 1
++0.2 shot p2a_swings_d4_greatsword.png
++0.1 pose strike mace 0 1
++0.2 shot p2a_swings_d4_mace.png
++0.1 pose strike spear 0 1
++0.2 shot p2a_swings_d4_spear.png
++0.1 pose off
++0.1 zoom normal

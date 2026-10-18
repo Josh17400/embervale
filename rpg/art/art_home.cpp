@@ -975,112 +975,123 @@ struct HorseRig {
   bool saddled;
   int g;
   bool headOnly = false;   // (M7 fixer r2) front(): the neck and head alone (the sheet's overlay row, over the rider)
-  HorseRig(Canvas& c_, const HorseCoat& k, const HorsePose& p, bool s) : c(c_), K(k), P(p), saddled(s), g(c_.h - 2) {}
+  // (P2a HOLDERS) the body scale: 1 at rig 1 (every product below is then exactly today's number, so today's pixels
+  // never move); 32 / 22 at rig 2, the horse drawn to the v2 rider (its withers 0.80-0.90 of the figure)
+  float k = 1.0f;
+  HorseRig(Canvas& c_, const HorseCoat& k_, const HorsePose& p, bool s) : c(c_), K(k_), P(p), saddled(s), g(c_.h - 2) {}
+  int Ki(int v) const { return k == 1.0f ? v : (int)std::lround(v * k); }
 
   // ---------------------------------------------------------------- shared parts
   // a leg from its top (on the body) to the hoof on the ground: the upper leg in the coat, the cannon and pastern in
   // the points colour (or a white sock), the hoof dark; fore: the knee folds forward when lifted; hind: the hock
   // angles back
   void legSide(float tx, float ty, float sw, float lift, bool fore, int bias, bool sock) {
+    sw *= k;
+    lift *= k;
     const float fx = tx + sw + (fore ? -lift * 0.4f : lift * 0.2f), fy = g + 0.5f - lift;
     Vec2 T{tx, ty}, F{fx, fy}, J;
     if (fore) J = Vec2{(tx + fx) * 0.5f + lift * 0.9f + sw * 0.15f, ty + (fy - ty) * 0.48f - lift * 0.3f};
-    else J = Vec2{tx - 2.0f + sw * 0.55f - lift * 0.5f, ty + (fy - ty) * 0.52f};
+    else J = Vec2{tx - 2.0f * k + sw * 0.55f - lift * 0.5f, ty + (fy - ty) * 0.52f};
     const Ramp& lower = K.pointsLegs ? K.points : K.coat;
-    capsule(c, T, J, fore ? 1.55f : 2.1f, 1.0f, K.coat, bias);
-    capsule(c, J, F + Vec2{0, -1.2f}, 0.95f, 0.8f, lower, bias);
+    capsule(c, T, J, (fore ? 1.55f : 2.1f) * k, 1.0f * k, K.coat, bias);
+    capsule(c, J, F + Vec2{0, -1.2f * k}, 0.95f * k, 0.8f * k, lower, bias);
     const int fxi = (int)std::floor(F.x), fyi = (int)std::floor(F.y);
-    if (sock) for (int y = fyi - 3; y <= fyi - 1; y++) for (int x = fxi - 1; x <= fxi; x++) if (solid(c, x, y)) c.set(x, y, K.sock[3 + bias + (x == fxi ? -1 : 0)]);
+    if (sock) for (int y = fyi - Ki(3); y <= fyi - 1; y++) for (int x = fxi - 1; x <= fxi; x++) if (solid(c, x, y)) c.set(x, y, K.sock[3 + bias + (x == fxi ? -1 : 0)]);
     // the hoof: a dark wedge, toe forward
     c.set(fxi - 1, fyi, K.hoof[2 + bias]); c.set(fxi, fyi, K.hoof[1 + bias]); c.set(fxi + 1, fyi, K.hoof[0]);
     c.set(fxi - 1, fyi - 1, lower[1 + bias]);
+    if (k != 1.0f) { c.set(fxi - 2, fyi, K.hoof[2 + bias]); c.set(fxi, fyi - 1, K.hoof[2 + bias]); }   // a broader hoof at rig 2
   }
 
   // ---------------------------------------------------------------- the side view (facing right)
   void side() {
-    const float ox = -0.5f, b = P.bob;
-    auto Y = [&](float h, float x) { return g + 0.5f - h + b + (x - 17.0f) * P.pitch * 0.08f; };
+    const float ox = -0.5f, b = P.bob * k;
+    auto Y = [&](float h, float x) { return g + 0.5f - h + b + (x - 17.0f * k) * P.pitch * 0.08f; };
     if (P.lying) { lyingSide(); return; }
-    const float foreX = 23.5f + ox, hindX = 11.0f + ox, legTop = 12.0f;
+    const float foreX = 23.5f * k + ox, hindX = 11.0f * k + ox, legTop = 12.0f * k;
     // the far legs, a shade darker, a pixel behind
-    legSide(foreX - 1.5f, Y(legTop, foreX), P.sw[1], P.lift[1], true, -1, K.socks & 2);
-    legSide(hindX - 1.5f, Y(legTop + 1, hindX), P.sw[3], P.lift[3], false, -1, K.socks & 8);
+    legSide(foreX - 1.5f * k, Y(legTop, foreX), P.sw[1], P.lift[1], true, -1, K.socks & 2);
+    legSide(hindX - 1.5f * k, Y(legTop + 1 * k, hindX), P.sw[3], P.lift[3], false, -1, K.socks & 8);
     // the body: hindquarters, barrel, chest; a slight sheen
-    ball(c, hindX + 0.5f, Y(15.0f, hindX), 5.0f, 4.7f, K.coat, 0.06f);
-    ball(c, 17.0f + ox, Y(14.2f, 17), 7.6f, 4.3f, K.coat, 0.06f);
-    ball(c, foreX - 0.5f, Y(14.6f, foreX), 4.3f, 4.5f, K.coat, 0.06f);
+    ball(c, hindX + 0.5f * k, Y(15.0f * k, hindX), 5.0f * k, 4.7f * k, K.coat, 0.06f);
+    ball(c, 17.0f * k + ox, Y(14.2f * k, 17 * k), 7.6f * k, 4.3f * k, K.coat, 0.06f);
+    ball(c, foreX - 0.5f * k, Y(14.6f * k, foreX), 4.3f * k, 4.5f * k, K.coat, 0.06f);
     // the belly's lighter underline and the muscle lines
-    for (int x = (int)(hindX + 2); x <= (int)(foreX - 2); x++)
-      for (int y = (int)Y(10, x) - 2; y < c.h; y++)
+    for (int x = (int)(hindX + 2 * k); x <= (int)(foreX - 2 * k); x++)
+      for (int y = (int)Y(10 * k, x) - 2; y < c.h; y++)
         if (solid(c, x, y) && !solid(c, x, y + 1)) { c.set(x, y, K.coat[1]); break; }
-    c.set((int)(hindX + 3.5f), (int)Y(14, hindX), K.coat[3]);
-    c.set((int)(hindX + 4.5f), (int)Y(12.5f, hindX), K.coat[1]);
-    if (K.dapple) for (int i = 0; i < 26; i++) {
-      const int x = (int)(hindX - 3) + (int)(hash3(i, 1, 4441u) % 18), y = (int)Y(18, 17) + (int)(hash3(i, 2, 4441u) % 7);
+    c.set((int)(hindX + 3.5f * k), (int)Y(14 * k, hindX), K.coat[3]);
+    c.set((int)(hindX + 4.5f * k), (int)Y(12.5f * k, hindX), K.coat[1]);
+    if (K.dapple) for (int i = 0; i < Ki(26); i++) {
+      const int x = (int)(hindX - 3 * k) + (int)(hash3(i, 1, 4441u) % (uint32_t)Ki(18)), y = (int)Y(18 * k, 17 * k) + (int)(hash3(i, 2, 4441u) % (uint32_t)Ki(7));
       if (solid(c, x, y) && solid(c, x + 1, y)) { c.set(x, y, K.coat[4]); if (i & 1) c.set(x + 1, y, K.coat[3]); }
     }
-    if (K.dorsal) for (int x = (int)(hindX - 1); x <= (int)(foreX - 3); x++) {
+    if (K.dorsal) for (int x = (int)(hindX - 1 * k); x <= (int)(foreX - 3 * k); x++) {
       for (int y = 0; y < c.h; y++) if (solid(c, x, y)) { c.set(x, y + 1, K.points[2]); break; }
     }
     // the tail: from the dock, falling in a full sweep behind the buttock
     {
-      const float dx = hindX - 4.2f, dy = Y(18.5f, hindX);
-      const float sway = P.tail;
+      const float dx = hindX - 4.2f * k, dy = Y(18.5f * k, hindX);
+      const float sway = P.tail * k;
       const Ramp& T = K.twoTone ? K.mane : K.mane;
-      tube(c, V2(dx + 0.5f, dy), V2(dx - 2.5f + sway, dy + 4.0f), V2(dx - 1.5f + sway * 1.5f, dy + 11.5f - (P.graze ? 0 : 0)), 1.1f, 0.9f, T, 2, 1.7f);
-      for (int i = 0; i < 4; i++) c.set((int)std::floor(dx - 1.5f + sway * 1.5f) + (i & 1), (int)std::floor(dy + 11.0f) - i * 2, T[3]);
+      tube(c, V2(dx + 0.5f * k, dy), V2(dx - 2.5f * k + sway, dy + 4.0f * k), V2(dx - 1.5f * k + sway * 1.5f, dy + 11.5f * k - (P.graze ? 0 : 0)), 1.1f * k, 0.9f * k, T, 2, 1.7f * k);
+      for (int i = 0; i < Ki(4); i++) c.set((int)std::floor(dx - 1.5f * k + sway * 1.5f) + (i & 1), (int)std::floor(dy + 11.0f * k) - i * 2, T[3]);
     }
     // the neck and the head
-    const float px = 29.0f + ox + P.headFwd, py = Y(25.5f - P.headDrop, 29);
-    Vec2 poll{px, py}, muzzle{px + 3.6f, py + 5.2f};
-    if (P.graze) { poll = Vec2{30.0f + ox, Y(9.0f, 30)}; muzzle = Vec2{32.0f + ox, (float)g - 0.5f}; }
-    const Vec2 neckBase{foreX - 0.5f, Y(16.0f, foreX)};
-    capsule(c, neckBase, poll + Vec2{-0.6f, 1.2f}, 3.3f, 2.0f, K.coat);
-    capsule(c, poll, muzzle, 2.25f, 1.45f, K.coat);
-    ball(c, poll.x + 0.2f, poll.y + 0.4f, 2.1f, 1.9f, K.coat, 0.04f);   // the jowl
+    const float px = 29.0f * k + ox + P.headFwd * k, py = Y(25.5f * k - P.headDrop * k, 29 * k);
+    Vec2 poll{px, py}, muzzle{px + 3.6f * k, py + 5.2f * k};
+    if (P.graze) { poll = Vec2{30.0f * k + ox, Y(9.0f * k, 30 * k)}; muzzle = Vec2{32.0f * k + ox, (float)g - 0.5f}; }
+    const Vec2 neckBase{foreX - 0.5f * k, Y(16.0f * k, foreX)};
+    capsule(c, neckBase, poll + Vec2{-0.6f * k, 1.2f * k}, 3.3f * k, 2.0f * k, K.coat);
+    capsule(c, poll, muzzle, 2.25f * k, 1.45f * k, K.coat);
+    ball(c, poll.x + 0.2f * k, poll.y + 0.4f * k, 2.1f * k, 1.9f * k, K.coat, 0.04f);   // the jowl
     // the mane along the crest (two-tone: a dark centre stripe)
     {
-      const int n = 9;
+      const int n = Ki(9);
       for (int i = 0; i <= n; i++) {
         const float t = (float)i / n;
-        const Vec2 p = neckBase + (poll - neckBase) * t + Vec2{-2.2f * (1 - t) - 0.6f, -2.6f * (1 - t) - 1.2f};
+        const Vec2 p = neckBase + (poll - neckBase) * t + Vec2{-2.2f * k * (1 - t) - 0.6f * k, -2.6f * k * (1 - t) - 1.2f * k};
         const int x = (int)std::floor(p.x), y = (int)std::floor(p.y);
         c.set(x, y, K.mane[i & 1 ? 2 : 3]); c.set(x - 1, y + 1, K.mane[1]); c.set(x, y + 1, K.twoTone ? K.points[1] : K.mane[2]);
+        if (k != 1.0f) { c.set(x - 1, y, K.mane[2]); c.set(x - 2, y + 1, K.mane[1]); }   // a fuller mane at rig 2
       }
       c.set((int)poll.x + 1, (int)poll.y - 1, K.mane[3]);   // the forelock
     }
     // ears, eye, nostril, a star or blaze
     const int ex = (int)std::floor(poll.x), ey = (int)std::floor(poll.y);
-    if (!P.graze) { c.set(ex - 1, ey - 2, K.coat[3]); c.set(ex - 1, ey - 3, K.coat[2]); c.set(ex, ey - 2, K.coat[1]); }
+    if (!P.graze) {
+      c.set(ex - 1, ey - 2, K.coat[3]); c.set(ex - 1, ey - 3, K.coat[2]); c.set(ex, ey - 2, K.coat[1]);
+      if (k != 1.0f) { c.set(ex - 1, ey - 4, K.coat[3]); c.set(ex, ey - 3, K.coat[1]); }   // the ear a pixel longer
+    }
     else { c.set(ex - 1, ey - 2, K.coat[2]); c.set(ex - 2, ey - 2, K.coat[3]); }
     c.set(ex + 1, ey, kEye); c.set(ex + 1, ey - 1, K.coat[1]);
     c.set((int)std::floor(muzzle.x + 0.6f), (int)std::floor(muzzle.y - 0.2f), K.coat[0]);
     c.set((int)std::floor(muzzle.x - 0.4f), (int)std::floor(muzzle.y + 0.9f), K.coat[1]);
     if (K.face) {
       const Vec2 d = muzzle - poll;
-      for (int i = 1; i <= (K.face == 2 ? 5 : 1); i++) { const Vec2 p = poll + d * (0.18f + i * 0.13f); c.set((int)std::floor(p.x + 1.3f), (int)std::floor(p.y - 0.8f), K.sock[3]); }
+      for (int i = 1; i <= (K.face == 2 ? 5 : 1); i++) { const Vec2 p = poll + d * (0.18f + i * 0.13f); c.set((int)std::floor(p.x + 1.3f * k), (int)std::floor(p.y - 0.8f * k), K.sock[3]); }
     }
     // the near legs
     legSide(foreX, Y(legTop, foreX), P.sw[0], P.lift[0], true, 0, K.socks & 1);
-    legSide(hindX, Y(legTop + 1, hindX), P.sw[2], P.lift[2], false, 0, K.socks & 4);
+    legSide(hindX, Y(legTop + 1 * k, hindX), P.sw[2], P.lift[2], false, 0, K.socks & 4);
     // tack: the bridle, the saddle cloth and saddle, the girth, the stirrup; the reins to the pommel
     if (saddled) {
       const uint32_t L1 = kLeather[1], L2 = kLeather[2];
       line(c, (int)poll.x, (int)poll.y - 1, (int)std::floor(muzzle.x - 0.5f), (int)std::floor(muzzle.y), L1);   // cheek strap
       c.set((int)std::floor(muzzle.x - 0.5f), (int)std::floor(muzzle.y), kIron[3]);                          // the bit
-      const int sx0 = (int)(14.0f + ox), sx1 = (int)(20.5f + ox);
-      const int top = (int)std::floor(Y(18.6f, 17));
+      const int sx0 = (int)(14.0f * k + ox), sx1 = (int)(20.5f * k + ox);
+      const int top = (int)std::floor(Y(18.6f * k, 17 * k));
       for (int x = sx0 - 1; x <= sx1 + 1; x++)   // the cloth, its edge below the saddle flap
-        for (int y = top + 1; y <= top + 5; y++) if (solid(c, x, y)) c.set(x, y, K.cloth[x == sx0 - 1 ? 3 : (y == top + 5 || x == sx1 + 1 ? 1 : 2)]);
+        for (int y = top + 1; y <= top + Ki(5); y++) if (solid(c, x, y)) c.set(x, y, K.cloth[x == sx0 - 1 ? 3 : (y == top + Ki(5) || x == sx1 + 1 ? 1 : 2)]);
       for (int x = sx0; x <= sx1; x++) {   // the seat: the cantle behind, the pommel in front
         const int y = top + (x == sx0 || x == sx1 ? -1 : 0);
         c.set(x, y, L2 + 0); c.set(x, y + 1, kLeather[x < sx0 + 3 ? 4 : 3]); c.set(x, y + 2, kLeather[2]); c.set(x, y + 3, kLeather[1]);
       }
       c.set(sx0, top - 2, kLeather[3]); c.set(sx1, top - 2, kLeather[2]); c.set(sx1 + 1, top - 1, kLeather[1]);
-      for (int y = top + 4; y <= (int)Y(10.5f, 18); y++) c.set(sx0 + 3, y, L1);   // the girth
+      for (int y = top + 4; y <= (int)Y(10.5f * k, 18 * k); y++) c.set(sx0 + Ki(3), y, L1);   // the girth
       // the stirrup leather and iron
-      for (int y = top + 3; y <= top + 7; y++) c.set(sx0 + 4, y, kLeather[0]);
-      c.set(sx0 + 3, top + 8, kIron[3]); c.set(sx0 + 4, top + 8, kIron[2]); c.set(sx0 + 5, top + 8, kIron[1]);
+      for (int y = top + 3; y <= top + Ki(7); y++) c.set(sx0 + Ki(4), y, kLeather[0]);
+      c.set(sx0 + Ki(3), top + Ki(8), kIron[3]); c.set(sx0 + Ki(4), top + Ki(8), kIron[2]); c.set(sx0 + Ki(5), top + Ki(8), kIron[1]);
       // the reins from the bit up to the pommel
       line(c, (int)std::floor(muzzle.x - 0.5f), (int)std::floor(muzzle.y) - 1, sx1 + 1, top, L2);
     }
@@ -1089,26 +1100,26 @@ struct HorseRig {
   void lyingSide() {
     // the horse lying down: legs folded under, the head up and dozing
     const float b = 0;
-    ball(c, 16.0f, g + 0.5f - 5.0f + b, 10.0f, 4.6f, K.coat, 0.06f);
-    ball(c, 9.0f, g + 0.5f - 6.0f, 5.0f, 4.0f, K.coat, 0.06f);
-    capsule(c, V2(21, g - 6.0f), V2(19.5f, g - 0.8f), 1.3f, 1.0f, K.pointsLegs ? K.points : K.coat, -1);   // folded fore
-    c.set(20, g, K.hoof[1]); c.set(21, g, K.hoof[0]);
-    capsule(c, V2(23.0f, g - 7.0f), V2(27.0f, g - 15.0f), 3.0f, 2.0f, K.coat);
-    capsule(c, V2(27.5f, g - 15.5f), V2(31.0f, g - 11.5f), 2.1f, 1.4f, K.coat);
-    c.set(27, g - 17, K.coat[3]); c.set(27, g - 18, K.coat[2]);
-    c.set(29, g - 15, rgba(70, 50, 60));
-    for (int i = 0; i < 8; i++) c.set(21 + (i * 6) / 8, g - 9 - i, K.mane[(i & 1) ? 2 : 3]);
-    tube(c, V2(5.0f, g - 7.0f), V2(2.5f, g - 3.0f), V2(4.0f, g - 0.5f), 1.0f, 0.8f, K.mane, 2, 1.4f);
+    ball(c, 16.0f * k, g + 0.5f - 5.0f * k + b, 10.0f * k, 4.6f * k, K.coat, 0.06f);
+    ball(c, 9.0f * k, g + 0.5f - 6.0f * k, 5.0f * k, 4.0f * k, K.coat, 0.06f);
+    capsule(c, V2(21 * k, g - 6.0f * k), V2(19.5f * k, g - 0.8f * k), 1.3f * k, 1.0f * k, K.pointsLegs ? K.points : K.coat, -1);   // folded fore
+    c.set(Ki(20), g, K.hoof[1]); c.set(Ki(21), g, K.hoof[0]);
+    capsule(c, V2(23.0f * k, g - 7.0f * k), V2(27.0f * k, g - 15.0f * k), 3.0f * k, 2.0f * k, K.coat);
+    capsule(c, V2(27.5f * k, g - 15.5f * k), V2(31.0f * k, g - 11.5f * k), 2.1f * k, 1.4f * k, K.coat);
+    c.set(Ki(27), g - Ki(17), K.coat[3]); c.set(Ki(27), g - Ki(18), K.coat[2]);
+    c.set(Ki(29), g - Ki(15), rgba(70, 50, 60));
+    for (int i = 0; i < Ki(8); i++) c.set(Ki(21) + (i * 6) / 8, g - Ki(9) - i, K.mane[(i & 1) ? 2 : 3]);
+    tube(c, V2(5.0f * k, g - 7.0f * k), V2(2.5f * k, g - 3.0f * k), V2(4.0f * k, g - 0.5f * k), 1.0f * k, 0.8f * k, K.mane, 2, 1.4f * k);
   }
 
   // ---------------------------------------------------------------- facing the camera
   void front() {
-    const float cx = 18.0f, b = P.bob;
+    const float cx = 18.0f * k, b = P.bob * k;
     if (P.lying) {
-      ball(c, cx, g + 0.5f - 5.0f, 8.0f, 5.0f, K.coat, 0.06f);
-      capsule(c, V2(cx, g - 7.0f), V2(cx + 0.5f, g - 13.0f), 3.0f, 2.2f, K.coat);
-      ball(c, cx + 0.5f, g - 12.5f, 2.4f, 2.6f, K.coat, 0.05f);
-      c.set((int)cx - 1, g - 12, rgba(70, 50, 60)); c.set((int)cx + 2, g - 12, rgba(70, 50, 60));
+      ball(c, cx, g + 0.5f - 5.0f * k, 8.0f * k, 5.0f * k, K.coat, 0.06f);
+      capsule(c, V2(cx, g - 7.0f * k), V2(cx + 0.5f * k, g - 13.0f * k), 3.0f * k, 2.2f * k, K.coat);
+      ball(c, cx + 0.5f * k, g - 12.5f * k, 2.4f * k, 2.6f * k, K.coat, 0.05f);
+      c.set((int)cx - Ki(1), g - Ki(12), rgba(70, 50, 60)); c.set((int)cx + Ki(2), g - Ki(12), rgba(70, 50, 60));
       return;
     }
     const bool walk = std::fabs(P.sw[0]) + std::fabs(P.lift[0]) > 0.01f;
@@ -1117,48 +1128,48 @@ struct HorseRig {
     // the hind legs, deep behind and in shade, peeking below the barrel
     for (int s = -1; s <= 1; s += 2) {
       const int i = s < 0 ? 2 : 3;
-      const float x = cx + s * 5.0f;   // (M7 fix) the horse broader than its rider: the rider's legs lie on its flanks
-      capsule(c, V2(x, g - 14.0f + b), V2(x + s * 0.3f, g - 8.5f - P.lift[i] * 0.5f), 1.5f, 1.0f, K.pointsLegs ? K.points : K.coat, -2);
-      c.set((int)x, (int)(g - 8 - P.lift[i] * 0.5f), K.hoof[0]);
+      const float x = cx + s * 5.0f * k;   // (M7 fix) the horse broader than its rider: the rider's legs lie on its flanks
+      capsule(c, V2(x, g - 14.0f * k + b), V2(x + s * 0.3f * k, g - 8.5f * k - P.lift[i] * k * 0.5f), 1.5f * k, 1.0f * k, K.pointsLegs ? K.points : K.coat, -2);
+      c.set((int)x, (int)(g - 8 * k - P.lift[i] * k * 0.5f), K.hoof[0]);
     }
     // the rump far behind, the back and barrel rising up the screen (the high camera sees it from above)
-    ball(c, cx, g + 0.5f - 25.0f + b, 6.4f, 3.8f, K.coat, 0.05f, -1);
-    ball(c, cx, g + 0.5f - 19.5f + b, 7.8f, 6.8f, K.coat, 0.05f);
-    if (K.dorsal) for (int y = (int)(g - 28 + b); y <= (int)(g - 15 + b); y++) c.set((int)cx, y, K.points[2]);
-    if (K.dapple) for (int i = 0; i < 14; i++) {
-      const int x = (int)cx - 5 + (int)(hash3(i, 1, 4443u) % 11), y = (int)(g - 25 + b) + (int)(hash3(i, 2, 4443u) % 10);
+    ball(c, cx, g + 0.5f - 25.0f * k + b, 6.4f * k, 3.8f * k, K.coat, 0.05f, -1);
+    ball(c, cx, g + 0.5f - 19.5f * k + b, 7.8f * k, 6.8f * k, K.coat, 0.05f);
+    if (K.dorsal) for (int y = (int)(g - 28 * k + b); y <= (int)(g - 15 * k + b); y++) c.set((int)cx, y, K.points[2]);
+    if (K.dapple) for (int i = 0; i < Ki(14); i++) {
+      const int x = (int)cx - Ki(5) + (int)(hash3(i, 1, 4443u) % (uint32_t)Ki(11)), y = (int)(g - 25 * k + b) + (int)(hash3(i, 2, 4443u) % (uint32_t)Ki(10));
       if (solid(c, x, y)) c.set(x, y, K.coat[4]);
     }
     // the tail's tip swinging out behind the rump
-    c.set((int)cx + (P.tail > 0 ? 3 : -3), (int)(g - 27 + b), K.mane[2]);
+    c.set((int)cx + (P.tail > 0 ? Ki(3) : -Ki(3)), (int)(g - 27 * k + b), K.mane[2]);
     // the saddle on the back
     if (saddled) {
-      for (int y = -4; y <= 3; y++)
-        for (int x = -7; x <= 7; x++) {
-          const int px = (int)cx + x, py = (int)(g - 20 + b) + y;
+      for (int y = -Ki(4); y <= Ki(3); y++)
+        for (int x = -Ki(7); x <= Ki(7); x++) {
+          const int px = (int)cx + x, py = (int)(g - 20 * k + b) + y;
           if (!solid(c, px, py)) continue;
-          const bool cloth = std::abs(x) >= 5 || y == 3;
-          c.set(px, py, cloth ? K.cloth[x < 0 ? 3 : 1] : kLeather[y <= -3 ? 4 : (x < -2 ? 3 : (x > 2 ? 1 : 2))]);
+          const bool cloth = std::abs(x) >= Ki(5) || y == Ki(3);
+          c.set(px, py, cloth ? K.cloth[x < 0 ? 3 : 1] : kLeather[y <= -Ki(3) ? 4 : (x < -Ki(2) ? 3 : (x > Ki(2) ? 1 : 2))]);
         }
-      c.set((int)cx - 1, (int)(g - 25 + b), kLeather[3]); c.set((int)cx, (int)(g - 25 + b), kLeather[2]);   // the cantle
+      c.set((int)cx - 1, (int)(g - 25 * k + b), kLeather[3]); c.set((int)cx, (int)(g - 25 * k + b), kLeather[2]);   // the cantle
       // stirrups hanging at the sides
-      for (int s = -1; s <= 1; s += 2) { const int x = (int)cx + s * 8 - (s > 0 ? 1 : 0); c.set(x, (int)(g - 17 + b), kLeather[0]); c.set(x, (int)(g - 15 + b), kIron[3]); c.set(x, (int)(g - 14 + b), kIron[1]); }
+      for (int s = -1; s <= 1; s += 2) { const int x = (int)cx + s * Ki(8) - (s > 0 ? 1 : 0); c.set(x, (int)(g - 17 * k + b), kLeather[0]); c.set(x, (int)(g - 15 * k + b), kIron[3]); c.set(x, (int)(g - 14 * k + b), kIron[1]); }
     }
     // the chest, the forelegs
-    ball(c, cx - 3.6f, g + 0.5f - 14.0f + b, 3.8f, 4.6f, K.coat, 0.05f);       // the shoulders either side of the chest
-    ball(c, cx + 3.6f, g + 0.5f - 14.0f + b, 3.8f, 4.6f, K.coat, 0.05f, -1);
-    ball(c, cx, g + 0.5f - 12.5f + b, 6.6f, 4.2f, K.coat, 0.05f);
-    for (int y = (int)(g - 15 + b); y <= (int)(g - 10 + b); y++) c.set((int)cx, y, K.coat[1]);   // the cleft between the breast muscles
+    ball(c, cx - 3.6f * k, g + 0.5f - 14.0f * k + b, 3.8f * k, 4.6f * k, K.coat, 0.05f);       // the shoulders either side of the chest
+    ball(c, cx + 3.6f * k, g + 0.5f - 14.0f * k + b, 3.8f * k, 4.6f * k, K.coat, 0.05f, -1);
+    ball(c, cx, g + 0.5f - 12.5f * k + b, 6.6f * k, 4.2f * k, K.coat, 0.05f);
+    for (int y = (int)(g - 15 * k + b); y <= (int)(g - 10 * k + b); y++) c.set((int)cx, y, K.coat[1]);   // the cleft between the breast muscles
     for (int s = -1; s <= 1; s += 2) {
       const int i = s < 0 ? 0 : 1;
-      const float x = cx + s * 3.6f;
-      const float lift = P.lift[i], sw = P.sw[i];
+      const float x = cx + s * 3.6f * k;
+      const float lift = P.lift[i] * k, sw = P.sw[i] * k;
       const float footY = g + 0.5f - lift - std::max(0.0f, sw) * 0.25f;
       const Ramp& lower = K.pointsLegs ? K.points : K.coat;
-      capsule(c, V2(x, g - 12.0f + b), V2(x + s * 0.2f, g - 6.0f - lift * 0.6f), 1.7f, 1.1f, K.coat, s > 0 ? -1 : 0);
-      capsule(c, V2(x + s * 0.2f, g - 6.0f - lift * 0.6f), V2(x, footY - 1.0f), 1.0f, 0.85f, lower, s > 0 ? -1 : 0);
+      capsule(c, V2(x, g - 12.0f * k + b), V2(x + s * 0.2f * k, g - 6.0f * k - lift * 0.6f), 1.7f * k, 1.1f * k, K.coat, s > 0 ? -1 : 0);
+      capsule(c, V2(x + s * 0.2f * k, g - 6.0f * k - lift * 0.6f), V2(x, footY - 1.0f * k), 1.0f * k, 0.85f * k, lower, s > 0 ? -1 : 0);
       const bool sock = K.socks & (s < 0 ? 1 : 2);
-      if (sock) for (int y = (int)footY - 3; y < (int)footY; y++) { c.set((int)x - 1, y, K.sock[3]); c.set((int)x, y, K.sock[2]); }
+      if (sock) for (int y = (int)footY - Ki(3); y < (int)footY; y++) { c.set((int)x - 1, y, K.sock[3]); c.set((int)x, y, K.sock[2]); }
       c.set((int)x - 1, (int)footY, K.hoof[2]); c.set((int)x, (int)footY, K.hoof[1]); c.set((int)x + 1, (int)footY, K.hoof[0]);
     }
     }   // !headOnly
@@ -1166,115 +1177,121 @@ struct HorseRig {
     // inside the chest's own outline) the neck rises from the breast and the head is carried high in front of it, the
     // poll and the pricked ears up at the withers' height, so its own silhouette stands out over the chest (and over
     // the rider's belly: the view draws this part of the cell in front of the rider)
-    const float hy = g + 0.5f - 25.0f + b + P.headDrop * 0.8f + (P.graze ? 11.0f : 0.0f);
-    capsule(c, V2(cx, g - 14.0f + b), V2(cx, hy + 3.0f), 3.6f, 3.0f, K.coat, -1);   // the neck, in the head's shade
+    const float hy = g + 0.5f - 25.0f * k + b + P.headDrop * k * 0.8f + (P.graze ? 11.0f * k : 0.0f);
+    capsule(c, V2(cx, g - 14.0f * k + b), V2(cx, hy + 3.0f * k), 3.6f * k, 3.0f * k, K.coat, -1);   // the neck, in the head's shade
     // the mane falling to one side of the crest
-    for (int y = (int)(hy + 1); y <= (int)(g - 15 + b); y++) { c.set((int)cx - 3, y, K.mane[2]); c.set((int)cx - 4, y, K.twoTone ? K.points[1] : K.mane[1]); }
+    for (int y = (int)(hy + 1 * k); y <= (int)(g - 15 * k + b); y++) { c.set((int)cx - Ki(3), y, K.mane[2]); c.set((int)cx - Ki(4), y, K.twoTone ? K.points[1] : K.mane[1]); }
     // the long face toward the camera, set off from the neck by its own contour: the broad forehead, the narrowing
     // nose, the soft pale muzzle
     layered(c, [&](Canvas& p) {
-      capsule(p, V2(cx, hy + 1.0f), V2(cx, hy + 8.4f), 3.2f, 2.1f, K.coat, 1);
-      ball(p, cx, hy + 9.0f, 2.5f, 1.9f, K.light, 0.03f, -1);
+      capsule(p, V2(cx, hy + 1.0f * k), V2(cx, hy + 8.4f * k), 3.2f * k, 2.1f * k, K.coat, 1);
+      ball(p, cx, hy + 9.0f * k, 2.5f * k, 1.9f * k, K.light, 0.03f, -1);
     }, 0.8f);
     const int hx = (int)cx, hyi = (int)std::floor(hy);
-    c.set(hx - 3, hyi + 2, kEye); c.set(hx + 3, hyi + 2, kEye);
-    c.set(hx - 3, hyi + 1, K.coat[4]); c.set(hx + 3, hyi + 1, K.coat[2]);   // the brow over each eye
+    c.set(hx - Ki(3), hyi + Ki(2), kEye); c.set(hx + Ki(3), hyi + Ki(2), kEye);
+    c.set(hx - Ki(3), hyi + Ki(2) - 1, K.coat[4]); c.set(hx + Ki(3), hyi + Ki(2) - 1, K.coat[2]);   // the brow over each eye
     // the ears, pricked and a little apart (dark-edged so they read at 1x), lit on the west
-    for (int k = 0; k < 3; k++) {
-      c.set(hx - 2 - (k == 2 ? 1 : 0), hyi - 1 - k, K.coat[k == 2 ? 4 : 3]);
-      c.set(hx + 2 + (k == 2 ? 1 : 0), hyi - 1 - k, K.coat[k == 2 ? 2 : 1]);
+    for (int e = 0; e < Ki(3); e++) {
+      const bool tip = e == Ki(3) - 1;
+      c.set(hx - 2 - (tip ? 1 : 0), hyi - 1 - e, K.coat[tip ? 4 : 3]);
+      c.set(hx + 2 + (tip ? 1 : 0), hyi - 1 - e, K.coat[tip ? 2 : 1]);
     }
     c.set(hx - 1, hyi - 1, K.coat[0]); c.set(hx + 1, hyi - 1, K.coat[0]);   // the hollow between them
     c.set(hx, hyi, K.mane[3]); c.set(hx, hyi + 1, K.mane[2]);   // forelock
-    c.set(hx - 1, hyi + 9, K.coat[0]); c.set(hx + 1, hyi + 9, K.coat[0]);   // nostrils
-    if (K.face) for (int y = hyi + 2; y <= hyi + (K.face == 2 ? 8 : 3); y++) c.set(hx, y, K.sock[3]);
+    c.set(hx - 1, hyi + Ki(9), K.coat[0]); c.set(hx + 1, hyi + Ki(9), K.coat[0]);   // nostrils
+    if (K.face) for (int y = hyi + 2; y <= hyi + (K.face == 2 ? Ki(8) : Ki(3)); y++) c.set(hx, y, K.sock[3]);
     if (saddled) {   // the bridle: browband and noseband, the reins down to the withers
-      for (int x = hx - 3; x <= hx + 3; x++) c.set(x, hyi + 1, kLeather[x < hx ? 2 : 1]);
-      for (int x = hx - 2; x <= hx + 2; x++) c.set(x, hyi + 7, kLeather[x < hx ? 2 : 1]);
-      c.set(hx - 3, hyi + 8, kIron[3]); c.set(hx + 3, hyi + 8, kIron[2]);
-      line(c, hx - 4, hyi + 8, hx - 5, (int)(g - 17 + b), kLeather[1]);
-      line(c, hx + 4, hyi + 8, hx + 5, (int)(g - 17 + b), kLeather[0]);
+      for (int x = hx - Ki(3); x <= hx + Ki(3); x++) c.set(x, hyi + Ki(2) - 1, kLeather[x < hx ? 2 : 1]);
+      for (int x = hx - Ki(2); x <= hx + Ki(2); x++) c.set(x, hyi + Ki(7), kLeather[x < hx ? 2 : 1]);
+      c.set(hx - Ki(3), hyi + Ki(8), kIron[3]); c.set(hx + Ki(3), hyi + Ki(8), kIron[2]);
+      line(c, hx - Ki(4), hyi + Ki(8), hx - Ki(5), (int)(g - 17 * k + b), kLeather[1]);
+      line(c, hx + Ki(4), hyi + Ki(8), hx + Ki(5), (int)(g - 17 * k + b), kLeather[0]);
     }
   }
 
   // ---------------------------------------------------------------- walking away
   void back() {
-    const float cx = 18.0f, b = P.bob;
+    const float cx = 18.0f * k, b = P.bob * k;
     if (P.lying) {
-      ball(c, cx, g + 0.5f - 5.5f, 8.0f, 5.0f, K.coat, 0.06f);
-      tube(c, V2(cx, g - 7.0f), V2(cx + 1.5f, g - 4.0f), V2(cx + 0.5f, g - 1.0f), 1.0f, 0.8f, K.mane, 2, 1.3f);
+      ball(c, cx, g + 0.5f - 5.5f * k, 8.0f * k, 5.0f * k, K.coat, 0.06f);
+      tube(c, V2(cx, g - 7.0f * k), V2(cx + 1.5f * k, g - 4.0f * k), V2(cx + 0.5f * k, g - 1.0f * k), 1.0f * k, 0.8f * k, K.mane, 2, 1.3f * k);
       return;
     }
     // the head and neck beyond the back (hidden behind the rider when saddled)
     if (!saddled) {
       // (M7 fix) the head held up over the withers, the ears pricked and the mane down the crest, so a waiting horse
       // seen from behind reads as a horse (a plain brown lozenge before)
-      const float hy = g + 0.5f - 27.0f + b + (P.graze ? 7.0f : 0.0f);
-      capsule(c, V2(cx, g - 21.0f + b), V2(cx, hy + 1.0f), 3.2f, 2.4f, K.coat, -1);
-      ball(c, cx, hy, 2.6f, 2.2f, K.coat, 0.04f, -1);
+      const float hy = g + 0.5f - 27.0f * k + b + (P.graze ? 7.0f * k : 0.0f);
+      capsule(c, V2(cx, g - 21.0f * k + b), V2(cx, hy + 1.0f * k), 3.2f * k, 2.4f * k, K.coat, -1);
+      ball(c, cx, hy, 2.6f * k, 2.2f * k, K.coat, 0.04f, -1);
       const int hx = (int)cx, hyi = (int)std::floor(hy);
-      for (int k = 0; k < 3; k++) { c.set(hx - 2, hyi - 2 - k, K.coat[k == 2 ? 4 : 3]); c.set(hx + 2, hyi - 2 - k, K.coat[k == 2 ? 3 : 1]); }   // the ears
+      for (int e = 0; e < Ki(3); e++) { const bool tip = e == Ki(3) - 1; c.set(hx - 2, hyi - 2 - e, K.coat[tip ? 4 : 3]); c.set(hx + 2, hyi - 2 - e, K.coat[tip ? 3 : 1]); }   // the ears
       c.set(hx - 1, hyi - 2, K.coat[1]); c.set(hx + 1, hyi - 2, K.coat[0]);
-      for (int y = hyi - 1; y <= (int)(g - 20 + b); y++) { c.set(hx, y, K.mane[(y & 1) ? 3 : 2]); c.set(hx - 1, y, K.mane[1]); }
+      for (int y = hyi - 1; y <= (int)(g - 20 * k + b); y++) { c.set(hx, y, K.mane[(y & 1) ? 3 : 2]); c.set(hx - 1, y, K.mane[1]); }
     }
     // the forelegs, far and in shade, between the hind legs
     for (int s = -1; s <= 1; s += 2) {
-      const float x = cx + s * 2.5f;
-      capsule(c, V2(x, g - 13.0f + b), V2(x, g - 6.0f - P.lift[s < 0 ? 0 : 1] * 0.5f), 1.1f, 0.8f, K.pointsLegs ? K.points : K.coat, -2);
+      const float x = cx + s * 2.5f * k;
+      capsule(c, V2(x, g - 13.0f * k + b), V2(x, g - 6.0f * k - P.lift[s < 0 ? 0 : 1] * k * 0.5f), 1.1f * k, 0.8f * k, K.pointsLegs ? K.points : K.coat, -2);
     }
     // the back (saddled: only up to the cantle; the rider's body covers the rest)
     if (!saddled) {
-      ball(c, cx, g + 0.5f - 20.5f + b, 7.0f, 5.8f, K.coat, 0.05f);
-      for (int y = (int)(g - 25 + b); y <= (int)(g - 17 + b); y++) c.set((int)cx - 1, y, K.coat[4]);   // the light along the spine
+      ball(c, cx, g + 0.5f - 20.5f * k + b, 7.0f * k, 5.8f * k, K.coat, 0.05f);
+      for (int y = (int)(g - 25 * k + b); y <= (int)(g - 17 * k + b); y++) c.set((int)cx - 1, y, K.coat[4]);   // the light along the spine
     }
     else {
-      for (int y = (int)(g - 22 + b); y <= (int)(g - 14 + b); y++)
-        for (int x = (int)cx - 7; x <= (int)cx + 6; x++) {
-          const float dx = (x + 0.5f - cx) / 7.0f, dy = (y + 0.5f - (g - 18.0f + b)) / 4.5f;
+      for (int y = (int)(g - 22 * k + b); y <= (int)(g - 14 * k + b); y++)
+        for (int x = (int)cx - Ki(7); x <= (int)cx + Ki(6); x++) {
+          const float dx = (x + 0.5f - cx) / (7.0f * k), dy = (y + 0.5f - (g - 18.0f * k + b)) / (4.5f * k);
           if (dx * dx + dy * dy > 1.0f) continue;
           const bool cloth = std::fabs(dx) > 0.66f;
-          c.set(x, y, cloth ? K.cloth[x < cx ? 3 : 1] : kLeather[x < cx - 2 ? 3 : (x > cx + 1 ? 1 : 2)]);
+          c.set(x, y, cloth ? K.cloth[x < cx ? 3 : 1] : kLeather[x < cx - 2 * k ? 3 : (x > cx + 1 * k ? 1 : 2)]);
         }
-      for (int x = (int)cx - 3; x <= (int)cx + 2; x++) c.set(x, (int)(g - 18 + b), kLeather[x < cx ? 4 : 3]);   // the cantle's lit rim
+      for (int x = (int)cx - Ki(3); x <= (int)cx + Ki(2); x++) c.set(x, (int)(g - 18 * k + b), kLeather[x < cx ? 4 : 3]);   // the cantle's lit rim
     }
     // the hind legs and the rump nearest the camera
     for (int s = -1; s <= 1; s += 2) {
       const int i = s < 0 ? 2 : 3;
-      const float x = cx + s * 4.0f, lift = P.lift[i];
+      const float x = cx + s * 4.0f * k, lift = P.lift[i] * k;
       const float footY = g + 0.5f - lift;
       const Ramp& lower = K.pointsLegs ? K.points : K.coat;
-      capsule(c, V2(x, g - 12.0f + b), V2(x + s * 0.4f, g - 6.0f - lift * 0.5f), 2.0f, 1.0f, K.coat, s > 0 ? -1 : 0);
-      capsule(c, V2(x + s * 0.4f, g - 6.0f - lift * 0.5f), V2(x, footY - 1.0f), 0.95f, 0.85f, lower, s > 0 ? -1 : 0);
-      if (K.socks & (s < 0 ? 4 : 8)) for (int y = (int)footY - 3; y < (int)footY; y++) { c.set((int)x - 1, y, K.sock[3]); c.set((int)x, y, K.sock[2]); }
+      capsule(c, V2(x, g - 12.0f * k + b), V2(x + s * 0.4f * k, g - 6.0f * k - lift * 0.5f), 2.0f * k, 1.0f * k, K.coat, s > 0 ? -1 : 0);
+      capsule(c, V2(x + s * 0.4f * k, g - 6.0f * k - lift * 0.5f), V2(x, footY - 1.0f * k), 0.95f * k, 0.85f * k, lower, s > 0 ? -1 : 0);
+      if (K.socks & (s < 0 ? 4 : 8)) for (int y = (int)footY - Ki(3); y < (int)footY; y++) { c.set((int)x - 1, y, K.sock[3]); c.set((int)x, y, K.sock[2]); }
       c.set((int)x - 1, (int)footY, K.hoof[2]); c.set((int)x, (int)footY, K.hoof[1]); c.set((int)x + 1, (int)footY, K.hoof[0]);
     }
-    ball(c, cx - 3.2f, g + 0.5f - 14.0f + b, 4.4f, 4.6f, K.coat, 0.05f);
-    ball(c, cx + 3.2f, g + 0.5f - 14.0f + b, 4.4f, 4.6f, K.coat, 0.05f, -1);
-    for (int y = (int)(g - 17 + b); y <= (int)(g - 11 + b); y++) c.set((int)cx, y, K.coat[0]);   // the cleft of the quarters
-    if (K.dorsal) for (int y = (int)(g - 18 + b); y <= (int)(g - 16 + b); y++) c.set((int)cx, y, K.points[2]);
+    ball(c, cx - 3.2f * k, g + 0.5f - 14.0f * k + b, 4.4f * k, 4.6f * k, K.coat, 0.05f);
+    ball(c, cx + 3.2f * k, g + 0.5f - 14.0f * k + b, 4.4f * k, 4.6f * k, K.coat, 0.05f, -1);
+    for (int y = (int)(g - 17 * k + b); y <= (int)(g - 11 * k + b); y++) c.set((int)cx, y, K.coat[0]);   // the cleft of the quarters
+    if (K.dorsal) for (int y = (int)(g - 18 * k + b); y <= (int)(g - 16 * k + b); y++) c.set((int)cx, y, K.points[2]);
     // the tail falling over the buttocks between the hind legs
-    const float sway = P.tail;
-    tube(c, V2(cx, g - 17.5f + b), V2(cx + sway * 0.6f, g - 12.0f + b), V2(cx + sway * 1.4f, g - 6.0f + b), 1.0f, 1.2f, K.mane, 2, 1.6f);
-    c.set((int)(cx + sway * 1.4f), (int)(g - 6 + b), K.mane[1]);
+    const float sway = P.tail * k;
+    tube(c, V2(cx, g - 17.5f * k + b), V2(cx + sway * 0.6f, g - 12.0f * k + b), V2(cx + sway * 1.4f, g - 6.0f * k + b), 1.0f * k, 1.2f * k, K.mane, 2, 1.6f * k);
+    c.set((int)(cx + sway * 1.4f), (int)(g - 6 * k + b), K.mane[1]);
   }
 };
 
-Canvas horseCellImpl(uint32_t coat, uint32_t variant, bool saddled, int row, int pose) {
-  Canvas cell(HORSE_W, HORSE_H);
+// k: 1 today's horse; 32 / 22 the rig-2 horse (horseSheetRig / horseCellRig), on its own bigger cell
+Canvas horseCellImpl(uint32_t coat, uint32_t variant, bool saddled, int row, int pose, float k = 1.0f) {
+  Canvas cell(k != 1.0f ? HORSE_W2 : HORSE_W, k != 1.0f ? HORSE_H2 : HORSE_H);
   const HorseCoat K = horseCoat(coat, variant);
   const HorsePose P = horsePose(pose);
   HorseRig rig(cell, K, P, saddled);
+  rig.k = k;
   rig.headOnly = row == 3;
   if (row == 0 || row == 3) rig.front();
   else if (row == 1) rig.back();
   else rig.side();
-  outline(cell, 0.9f);
+  outlineInk(cell, 0.9f);   // (P2a) the ink outer outline (STYLE_P2 8)
   return cell;
 }
 
 }  // namespace
 
 // ---------------------------------------------------------------- the riding horse
+float horseScale() { return rigVersion() >= 2 ? 32.0f / 22.0f : 1.0f; }
+int horseCellW() { return rigVersion() >= 2 ? HORSE_W2 : HORSE_W; }
+int horseCellH() { return rigVersion() >= 2 ? HORSE_H2 : HORSE_H; }
 Canvas horseSheet(uint32_t coat, uint32_t variant, bool saddled) {
   Canvas out(HORSE_W * MOUNT_FRAMES, HORSE_H * 4);
   for (int row = 0; row < 4; row++)
@@ -1282,6 +1299,30 @@ Canvas horseSheet(uint32_t coat, uint32_t variant, bool saddled) {
   return out;
 }
 Canvas horseCell(uint32_t coat, uint32_t variant, bool saddled, int row, int pose) { return horseCellImpl(coat, variant, saddled, row, pose); }
+Canvas horseSheetRig(uint32_t coat, uint32_t variant, bool saddled) {
+  const float k = horseScale();
+  Canvas out(horseCellW() * MOUNT_FRAMES, horseCellH() * 4);
+  for (int row = 0; row < 4; row++)
+    for (int f = 0; f < MOUNT_FRAMES; f++) place(out, horseCellImpl(coat, variant, saddled, row, f, k), f, row);
+  return out;
+}
+Canvas horseCellRig(uint32_t coat, uint32_t variant, bool saddled, int row, int pose) { return horseCellImpl(coat, variant, saddled, row, pose, horseScale()); }
+void saddleSeat(int row, int frame, int& dx, int& dy) {
+  const HorsePose P = horsePose(std::clamp(frame, 0, MOUNT_FRAMES - 1));
+  const float k = horseScale(), b = P.bob * k;
+  const int r2 = k != 1.0f ? 1 : 0;   // the v1 offsets a pixel wider at rig 2
+  if (row == 2) { dx = -2 - r2; dy = (int)std::floor(0.5f - 18.6f * k + b); }          // the side saddle's seat row
+  else if (row == 1) { dx = 0; dy = (int)std::floor(-18.0f * k + b) - 2 - r2; }        // above the cantle's lit rim
+  else { dx = 0; dy = (int)std::floor(-20.0f * k + b) - (int)std::lround(4 * k) + 2 + r2; }   // the saddle's top
+}
+void riderSeatRig(int row, int frame, int& dx, int& dy) {
+  if (rigVersion() < 2) { riderSeat(row, frame, dx, dy); return; }
+  // (P2a HOLDERS) the saddle on the horse drawn 32 / 22 bigger: the v1 rule (the Ride cell's seat line 6 rows below
+  // its bottom-centre's dy) on the scaled saddle
+  int sy;
+  saddleSeat(row, frame, dx, sy);
+  dy = sy + 6;
+}
 void riderSeat(int row, int frame, int& dx, int& dy) {
   const HorsePose P = horsePose(std::clamp(frame, 0, MOUNT_FRAMES - 1));
   const int bob = (int)std::lround(P.bob);

@@ -1157,6 +1157,7 @@ class Game {
   friend struct SkillOps;              // M9 SKILLS: the skills' hooks and internals (rpg/sim/skill_ops.h, skills_game.cpp)
   friend struct MagicOps;              // M9 MAGIC: casting, surfaces, statuses (rpg/sim/magic_ops.h, magic_game.cpp)
   friend struct SeaOps;                // M10 SEA: boats, sailing, the Mist, fishing (rpg/sim/sea_ops.h, sea_game.cpp)
+  friend struct AnimOps;               // P2a ANIM: the animation pick's hooks into the sim (rpg/sim/anim.h, anim.cpp)
   friend struct ServiceOps;            // M12 SERVICE: enlisting, ranks, orders, missions (rpg/sim/service_ops.h)
   friend struct LordOps;               // M12 LORD: the lordship and the player's realm (rpg/sim/lord_ops.h)
   friend struct JobOps;                // P1 JOBS: the job pools and the leads (rpg/sim/jobs_ops.h, jobs.cpp)

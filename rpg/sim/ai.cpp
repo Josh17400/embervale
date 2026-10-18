@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include "engine/audio.h"
+#include "rpg/sim/anim.h"
 #include "rpg/sim/foes.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/magic_ops.h"
@@ -1051,7 +1052,8 @@ void Game::updateAI(Actor& a, float dt) {
   const bool archer = a.ranged && a.human;
   const bool wisp = a.mon == Monster::Wisp;
   const bool kite = archer || wisp;
-  const float wu = a.heavy ? heavyWindup(a.mon) : (harpy && a.lunge ? 0.5f : a.windup);   // (the harpy rises before the dive)
+  // (the harpy rises before the dive; (P2a ANIM) a man or woman winds up by what they hold: animEnemyWindup)
+  const float wu = a.heavy ? heavyWindup(a.mon) : (harpy && a.lunge ? 0.5f : a.human ? animEnemyWindup(a) : a.windup);
   // a blow at the current target only (the hound's fire bite, the scorpion's sting): in reach and in front
   auto hitTarget = [&](float mult, float extraReach, Ench e, float ep) -> bool {
     const Vec2 d = p.p - a.p;

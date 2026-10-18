@@ -1428,3 +1428,160 @@ saves are not a concern.
   the fix); quest-mix 20 seeds: job kinds 15/15, requests 30/30, tales 19/20 (THE FALSE LIGHT force-played only),
   top-3 job kinds 49.3 %, top-4 tales 9.8 %; content-p1b 165 scripts + 261 jobs, 10,503 paths, 0 failures; script sweep
   344 scripts, 4 failures, all fixed and re-run green; 8 P1b tours (desktop + phone) 0 failures.
+
+## P2a, "Lens and Rig": the first Clear Sight batch (VISION_PLAN 15.36, art direction docs/STYLE_P2.md; owner 2026-10-18)
+
+Goal: players see today's people crisp and easy to find (the world at a whole-number scale on every screen, ZOOM, the
+ink outer outline, the player ring, the night lift, off-screen pips, per-family effects and enemy windups); the v2 rig
+(32 px people with faces and hands, every swing family, the fall and lying corpse, every posture, children, the humanoid
+monsters) and the k-scaled body-holders are built and judged behind `rig 2`. Owner defaults (15.36 "For the owner to
+confirm"): the UI keeps its fractional fit on Safari / 2x iPhones / the iPad while the world is whole-number everywhere;
+D0 = round(h / 240) (zoom constant 240); the villages golden is re-recorded once, in P2b. No SAVE_VER / ENDLESS_GEN_VER /
+SAGA_GEN_VER bump; the every-system regression runs once, by the integrator.
+
+### Phase A (lead), 2026-10-18: done
+- Layers (engine/pix.h): `Pix::Layer`, `presentLayers`, `beginWorld` / `endWorld` (View::draw wraps the world in them),
+  `worldLayer`, `uiLayer`, `readWorld`. Stub: the world layer IS the UI layer.
+- Screen (rpg/view/screen.h): `Settings::zoom` (-1..2) and `ring`; EMBS version 2 (a version-1 file keeps its fields and
+  the new defaults); `defaultWorldScale` (D0), `zoomLevels`, `zoomLevelOf`, `worldScale`, `zoomName`, `d0ForHeight` /
+  `levelsForHeight`; `describe` adds " WORLD W X H AT DX" once the world layer differs (never in phase A: the UI text is
+  unchanged); EMB_ZOOM=<D>; EMB_RIG=1|2 (read by main.cpp before the first bake); `witnessScreen` (the Witness reset's
+  window / safe / screen / zoom, "keep" = the last run's, as a restart reads the file).
+- Projection (view.h): `View::toUi`, `toWorld`, `uiPerWorld`, `worldCam`; the world-anchored UI call sites listed there.
+- Rig contract (new rpg/art/art_rig.h, art_rig.cpp): `rigVersion` / `setRigVersion` / `bodyScale` / `bodyPx` (header-only,
+  so rpg/sim reads them), `RigMetrics rig(v)` (figure heights by body x age x people, head / eye / hand rows, marker,
+  bubble, plate and bar heights, ring and shadow, reach and lift per family, bathing crop), `Clip`, `Family`,
+  `familyOf(look)`, `FrameRect`, `RigAnchors` (head, face, hands, hips, feet, grip, tip, weapon behind: the pose data the
+  gates and P2b's gear read), `RigSheet` (`count`, `frame`, `anchorsOf`, `add`), `RigPart`, `humanRig`, `humanPosture2`,
+  `sleeper2`, `rig2Covers` (false), `humanFigureStill2`, `humanoidCell2` / `W2` / `H2` (statues and the three humanoid
+  monsters route to them at rig 2; empty = v1), `seatFit2`, `bedFit2`, `Holder` + `holderPx` (doors and the one-storey wall
+  measured so far). Lane stubs: rpg/art/rig/{rig_core, rig_body, rig_face, rig_hair, rig_cloth, rig_death} (RIG-BODY),
+  {rig_arms, rig_actions} (RIG-ARMS), {rig_poses, rig_sleep, rig_kin, rig_humanoid} (POSES), rig_internal.h (rig2::rigLoco /
+  rigAction / rigDeath); CMake globs rpg/art/rig/*.cpp. HumanLook gains `body` and `age` (mixed into key() only when set:
+  every earlier key and golden key holds); looks.cpp sets them from the census, gear_look.cpp from Appearance::female.
+- Weapon ids: the greatsword is art id 7 (`WEAPON_GREATSWORD`; gear_look's map {1, 2, 6, 5, 7, 8}; v1 paints it as the
+  sword, its culture blade form kept). The herald's horn, which held id 7, is `WEAPON_HORN` = 12 (painted as before).
+- Effects (art_fx.h): SwingArc, HeavyArc, ChopArc, SmashRing, StabGlint, ThrustStreak, BluntSwish, PunchStar, Twang
+  (stand-ins: the Slash).
+- Animation pick (new rpg/sim/anim.h / .cpp): `animPick(game, actor[, rig])` -> {clip, family, variant, frame, frames,
+  t}, at rig 1 render.cpp's old column exactly; the shared timing `animSwingFx`, `animSwingProgress`, `animStrikeTime`,
+  `animEnemyWindup`, `animCorpseLife`, `animCorpseCap` (today's numbers); `AnimOps` (Game befriends it). Measured: the
+  enemy humans the sim spawns (bandits) wind up 0.36 s (Actor::windup, 22 frames), not the plan's 0.30 (ai.cpp's folk
+  branch): A3 keeps today's spawn-weighted mean, 0.36 +- 0.01.
+- Moves, pixel-identical at rig 1: the human frame pick, body draw, swing effect and the dead's offset -> new
+  rpg/view/render_anim.cpp (`View::drawHumanBody`, `drawSwingFx`); the story hand cart -> new rpg/art/art_handcart.cpp /
+  .h (`art::handcartSprite`, `handcartDir`, HANDCART_*).
+- bodyScale plumbing (identity at 1): art_building.cpp's volume walls and floors (`bodyPx(v.wallH)`, `bodyPx(v.z0)`) and
+  every door size: the cottage reads at k at rig 2 (door 23 = 0.72, wall 35 = 1.09). Seats, beds, the horse cell and the
+  decks stay HOLDERS' with POSES (seatFit2 / bedFit2): scaling a holder alone would unseat today's v1 sitters at rig 2.
+- The ink outer outline (art_internal.h `outlineInk`: Ink on bottom / right edges, Lit Ink = Ink 30 % toward the shape on
+  top / left; never #000000) on every v1 character sheet: people (standing and postures), monsters, critters, horses,
+  the hound. Sleepers in their berths keep the selective outline (their head sits in the berth's pillow). The only
+  intended pixel change; `art::outlineLegacyForTests` (art_hash --legacy-outline, EMB_LEGACY_OUTLINE=1) paints the old one.
+- Test hooks: Witness reset params `window`, `safe` (device px), `screen` fill|pixel, `zoom` (-1..2 | "keep"), `rig`,
+  `female`; state `screen` {window, ui, world {w, h, scale, integer, d0, want, levels}, zoom, zoomName, ring, safe,
+  v1Draws, peopleMB, figShare}, `player.sprite` {rig, figH, drawn, box (device px), boxH, pivot}, `player.anim`,
+  `entities[].anim`, `entities[].corpse.age`; keys `minus` / `equals`; script commands / calls `zoom`, `rig`, `body`, `pose`,
+  `hideplayer`, `shotpair` (two shots of one moment, with / without the hero or the ring), `ui`, `ring`; checks `expect
+  screen | zoom | rig | anim | corpse`. tools/p2_measure.mjs (Node 18, no dependencies): diff, mask, blocks, contrast,
+  ring, subset, luma. `--perf` prints "perf   draw avg / worst | people textures MB"; EMB_TIMING prints each sheet's bake.
+- Harness (frozen; lanes report problems instead of editing): `rpg_test --rig [--gates] [--report]` (tools/tests/
+  test_rig.cpp: the contract always; R2, R4-R10, P1-P3, H2 with --gates), `--rig-coverage [--seeds A..B] [--gates]` (R3),
+  `--anim [--seeds A..B] [--gates] [--write]` (tools/tests/test_anim.cpp: A1 always, golden tests/fixtures/
+  golden_anim_v1.txt; A2-A5 with --gates); rpg_test links rpg_art (EMB_RPG_TEST_HAS_ART retires the #include hack);
+  scripts tools/scripts/p2a_lead_lens.txt and _phone, p2a_lead_perf.txt; witness/p2a_lens.witness.json; gallery
+  skeletons tools/preview/rig_gallery.cpp (RIG-BODY), rigarms_gallery.cpp (RIG-ARMS), rigposes_gallery.cpp (POSES),
+  holders_gallery.cpp (HOLDERS), shared tools/preview/rig_preview.h; CI step "Clear Sight rig and animation test"
+  (--rig, --anim, --rig-coverage --seeds 1..3; the integrator adds --gates).
+
+Baselines (phase A; the world is drawn at the UI's fit until LENS):
+| reference screen | UI fit (kept) | D0 / levels | v1 hero figure (23 art px) |
+|---|---|---|---|
+| desktop 1440x810 (PIXEL PERFECT) | 480x270 @3 | 3 / 3 4 5 | 8.5 % (69 device px, shot pair) |
+| desktop 1920x1080 | 480x270 @4 | 5 / 4 5 6 7 | 8.5 % |
+| laptop 1366x768 | 683x384 @2 | 3 / 3 4 5 | 6.0 % |
+| desktop 2560x1440 | 512x288 @5 | 6 / 5 6 7 8 | 8.0 % |
+| iPhone 15 Pro app 2556x1179 (FILL, insets) | 639x295 @4 | 5 / 4 5 6 7 | 7.8 % (92 device px, shot pair) |
+| iPhone 15 Pro Safari 2556x1020 | 721x287 @3.54 | 4 / 4 5 6 | 8.0 % |
+| iPhone 11 1792x828 | 615x284 @2.91 | 3 / 3 4 5 | 8.1 % |
+| iPhone SE 1334x750 | 480x270 @2.78 | 3 / 3 4 5 | 8.5 % |
+| iPad 2360x1640 | 480x333 @4.92 | 7 / 6 7 8 9 | 6.9 % |
+| Witness 960x540 | 480x270 @2 | 2 / 2 3 | 8.5 % |
+- Render (p2a_lead_perf.txt, the phone window, the capital at 15:00, desktop PC, median of a phase's last 5 seconds):
+  View::draw 0.49 ms at NORMAL, 0.60 ms at FAR (the same view in phase A), 0.60 ms with rig 2; frame work 0.52-0.63 ms.
+- v1 character sheet bake (EMB_TIMING, 147 sheets): p50 0.241 ms, p95 0.385 ms. People textures in the capital at 15:00:
+  3.8 MB (rig 1).
+- Shot pairs (p2a_lead_lens, 1440x810, D3): day edge contrast 81.3 (outline ring 50 vs ground 132), the figure 47 luma
+  below the ground; 22:00 edge contrast 41.5, the figure 23.5 below the ground (the night lift is LENS's); whole D x D
+  blocks 81.3 % at D3 (desktop) and 78.1 % at D4 (phone): the light map, vignette and particles are not on the grid yet.
+- art_hash (re-recorded: the ink outline): humans bec3b12c01605e67, monsters 607e3543a29be1ec, props b5397faadf627d55,
+  buildings 2aabcae2a6bd5417, walls a0f74be3c081af13, icons 246f135187536eb5, fx e0ecd0fcb344c159, TOTAL 317eef6efe4d8229;
+  humans+new 3cf412bb61e51330, monst+new 9eddb8cca73868c3, props+new e3666c4a2263a932, bldgs+new 6c7bd74c9baea831,
+  icons+new d7efef6a9cdcd742, fx+new (9 sprites, new) d8bccbafd4d9fd2b. `art_hash --legacy-outline` gives every pre-P2a
+  value back (TOTAL b4f10b1053879981; humans 95e9f2914ff5b496, monsters 01c007f58a695291).
+- Gates today (the frozen harness, before the lanes): `--rig` contract 0 failures; `--rig --gates` R2 R4 R5 R6 R7 R8 R9
+  R10 P1 P2 P3 H2 all FAIL (nothing painted on v2; H2: the doors and the wall in range, the other 15 holders not measured);
+  R3 0 % (0 of 41 plain looks, seeds 1..2); `--anim` A1 identical (21,630 samples, golden 56fb08be96b73a1a); `--anim
+  --gates` A2 (one effect for all, fixed 0.11 s: it ends 2.0 frames before the mace's 9-frame strike; dagger 0.6, sword
+  0.4 off), A3 (every family 0.36 s; the mean 0.36), A4 (6 s, no cap; lying at once: the v1 hurt frame), A5 (no fall)
+  FAIL; witness/p2a_lens 6 of 15
+  pass (the UI fit, D0 and the levels on all 10 screens, the zoom call and "keep", rig / female / pose, the hooks); the 9
+  others are LENS's L1 / L3: the world layer at D0 on 9 screens, the zoom keys.
+- Verified (MSVC, BDIR=build_p2a, every target built; EMBERVALE_WITNESS=OFF configure builds embervale; WSL clang 18
+  -fsyntax-only on every changed and new file: no new warning but art_internal.h's usual unused helpers): rig 1 is
+  pixel-identical but the outline: `art_hash --legacy-outline` = every pre-P2a line, and 9 Witness shots (the village at 1
+  and 4 s, a walk, the town at 21:30, a three-wolf cave fight with swings, the capital at 15:00) byte-identical between
+  the pre-P2a build and this one with EMB_LEGACY_OUTLINE=1; golden_village_art 65 groups, 0 changed; rpg_test --golden,
+  --endless --golden (39), --towns --golden (201) ok; --arms 1..3 ALL OK (golden keys); --seeds 1..3 3 passed (hero
+  checks with rpg_art linked); save_test ALL OK; all 22 tap scripts pass on both builds (same exit codes; their shots
+  differ only by real-time animation phase, e.g. 15 px of a pulsing corner); Witness 17 / 17 existing tests;
+  p2a_lead_lens(_phone) 0 failures.
+
+### Phase B lanes (disjoint files; VISION_PLAN 15.36 "Areas"; see the lead report for the hooks)
+- **LENS** (engineer-high): the two layers for real (pix.cpp, screen.cpp), ZOOM and its keys / wheel / pinch, text
+  through toUi, the ring, the night lift, pips, rig metrics in every world draw path, rigTex's MB caps and bake queue,
+  web `?rig=2`. Done: L1-L9.
+- **ANIM** (engineer): anim.cpp at rig 2, render_anim.cpp (v2 frames by pivot, family effects), game.cpp (corpses via
+  animCorpseLife / Cap), ai.cpp (enemy windups via animEnemyWindup), skills.cpp (the greatsword's pace). Done: A1-A5.
+- **RIG-BODY** (artist-xhigh): the style slice first, then the base (rig/rig_core, body, face, hair, cloth, death,
+  rig_internal.h; rig2Covers; rig_gallery). Done: R1-R6.
+- **RIG-ARMS** (artist-xhigh, after the slice): rig_arms, rig_actions, art_fx.cpp (the 9 effects), rigarms_gallery.
+  Done: R7-R10.
+- **POSES** (artist, after the slice): rig_poses, rig_sleep, rig_kin, rig_humanoid, art_life.cpp's v2 tables,
+  rigposes_gallery. Done: P1-P3.
+- **HOLDERS** (artist, after the slice): the holders' painters (art_building, art_props + holderPx, art_culture_furniture,
+  art_market, art_home, art_sea, art_parts_gates, art_walls, art_city, art_critters' loose horse, art_party's graves,
+  art_handcart), holders_gallery. Done: H1-H4.
+
+### Integration (integrator), 2026-10-18: done (the gates table of VISION_PLAN 15.36 carries every measured number)
+- MSVC (BDIR=build): every target built (408 ninja lines, only the usual C4244 / C4267 narrowing warnings, none new
+  in kind); EMBERVALE_WITNESS=OFF configure + build of embervale (the web stand-in, 587 lines) links; WSL clang 18
+  (build-native, refreshed by rsync) builds rpg_test and save_test.
+- Fixes (integration only): render_sea.cpp's fishing panel (the bite "!", the tension meter, the run line, "LOST IT")
+  is drawn in the UI layer but placed from world positions: now through toUi, its offsets x uiPerWorld (it sat off the
+  hero on the phone, D5 over U4; checked on a 2556x1179 reel shot); tools/scripts/view_settings.txt taps re-aimed at
+  the 7-row SETTINGS panel (ZOOM and PLAYER RING pushed HUD MARGIN / BORDER / DONE down: the taps had landed on the new
+  rows, exit 0 but not testing what they meant); test_p1b_engine.cpp's lost bout puts the player beside the champion
+  first: the family windups (ai.cpp animEnemyWindup, an intended P2a change) moved the won bout's end, the player was
+  left across a fence from the champion's spot, the bot stands within 3 tiles and the AI (no pathing) cannot round the
+  fence: 150 s, no blow (seed 1; reverting the windup alone passes, so nothing else moved).
+- Regression (the one full run): all 67 CI commands of web.yml pass on MSVC and on clang (p1b-engine after the fix
+  above; rpg_test --seeds 1..20 20 / 20; save_test ALL OK); `--anim --gates` and `--anim --seeds 1..3 --gates` 0
+  failures; `--rig-coverage --seeds 1..20 --gates` 461 / 461; `--rig --gates` 2 failures on both compilers (R5 the
+  bow's Draw frames, H2 6 of 23); script sweep 359 scripts, 0 failed (3,598 s); Witness 34 / 34 (17 existing, p2a_lens
+  15, the LENS lane's 2); art_hash v1 categories identical (TOTAL 317eef6efe4d8229), fx+new 061fd76c895fbd6d (RIG-ARMS's
+  effects; the other +new lines as in phase A); golden_village_art 65 groups, 0 changed.
+- Gates: L1-L5, L7, L8, A1-A5, R2-R4, R6-R10, P1-P3, H1 PASS. FAIL: L6 at 23:00 on sand (+8.2) and snow (-12.0) (grass
+  +21.9, road +15.6; edges 41-75: a look call), L9 draw at NORMAL 0.56 ms (baseline 0.49) and FAR 0.70 (limit 0.66;
+  people 8.5 MB at rig 2), R1 (SLICE-WALK-SLIDE: the planner restates the slide gate), R5 (the bow: the lead picks an
+  exemption or keepOpen false), H2 (gates not modelled, the hedge unowned, the boats' ratios: restate), H3 (riders on
+  the v1 horse until home_view / party_view switch; gate passages). H4 is the judge's.
+- CI not changed: `--rig --gates` would fail the web build on R5 / H2 until those are decided.
+- Open for the next round (owners): LENS: draw time; the night lift on sand / snow; the ring on pale paving in a crowd
+  (16); the top pip under the region banner; render_magic.cpp's blood multiplier text drawn in the world layer (scales
+  with zoom); loot_ui.cpp's update-time culling by the UI size (harmless today); the hidden-hero silhouette and v2
+  postures (HumanGhost, rigPoseTex); the v2 rider on HOLDERS' saddle. ANIM: the contact shadow under v2 corpses for 60 s;
+  kids' walk frame starts (16 / 20 px cycles); footstep vs footfall sync; the convoy's animT tweak; sea pirates'
+  windups; the pose path for posing folk at rig 2. RIG-ARMS / lead: R5 bow; effect placement notes. HOLDERS: gates,
+  culture fences / hedges / benches (art_culture_props.cpp, art_parts_props.cpp unowned). POSES: humanoidAnchors at v2.
+  Planner: SLICE-WALK-SLIDE and the H2 boat targets.

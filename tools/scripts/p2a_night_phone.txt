@@ -1,0 +1,79 @@
+phone
+# P2a LENS: the figure against the ground and the PLAYER RING on the four grounds (grass, road, sand, snow), by day
+# (11:00) and at night (23:00, away from lamps: the hero's torch is the only light), at NORMAL on the phone (the iPhone 15 Pro app, 2556x1179, FILL, insets)
+# (D5). Each ground gives the world alone (`ui 0`) as two shot pairs of the same moment: with and without the hero's body
+# (p2_measure.mjs contrast: L6) and with and without the ring (p2_measure.mjs ring: L7); plus the look as the player
+# sees it (`ui 1`). The hero stands still facing down, nobody in front of him (gotoground: an open patch of
+# the ground, no prop, building or wall within two tiles), clear weather.
+#   embervale.exe --script tools/scripts/p2a_night_phone.txt          (p2a_night_phone_*.png in the working directory)
+#   node tools/p2_measure.mjs contrast p2a_night_phone_grass_day_hero.png p2a_night_phone_grass_day_nohero.png --d 5
+#   node tools/p2_measure.mjs ring p2a_night_phone_grass_day_ring.png p2a_night_phone_grass_day_noring.png
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 weather clear
++0.05 zoom normal
++0.05 ring 1
+# ---- grass (the nearest open grass)
++0.1 gotoground grass
++0.05 hour 11
++0.8 log settle
++0.3 shot p2a_night_phone_grass_day.png
++0.0 ui 0
++0.1 shotpair p2a_night_phone_grass_day_hero.png p2a_night_phone_grass_day_nohero.png
++0.0 shotpair p2a_night_phone_grass_day_ring.png p2a_night_phone_grass_day_noring.png ring
++0.0 ui 1
++0.1 hour 23
++1.0 shot p2a_night_phone_grass_night.png
++0.0 ui 0
++0.1 shotpair p2a_night_phone_grass_night_hero.png p2a_night_phone_grass_night_nohero.png
++0.0 shotpair p2a_night_phone_grass_night_ring.png p2a_night_phone_grass_night_noring.png ring
++0.0 ui 1
+# ---- road (the nearest open stretch of road)
++0.1 gotoground road
++0.05 hour 11
++1.2 log settle
++0.3 shot p2a_night_phone_road_day.png
++0.0 ui 0
++0.1 shotpair p2a_night_phone_road_day_hero.png p2a_night_phone_road_day_nohero.png
++0.0 shotpair p2a_night_phone_road_day_ring.png p2a_night_phone_road_day_noring.png ring
++0.0 ui 1
++0.1 hour 23
++1.0 shot p2a_night_phone_road_night.png
++0.0 ui 0
++0.1 shotpair p2a_night_phone_road_night_hero.png p2a_night_phone_road_night_nohero.png
++0.0 shotpair p2a_night_phone_road_night_ring.png p2a_night_phone_road_night_noring.png ring
++0.0 ui 1
+# ---- sand (a beach)
++0.1 gotoeco sandbeach
++0.1 gotoground sand
++0.05 hour 11
++1.2 log settle
++0.3 shot p2a_night_phone_sand_day.png
++0.0 ui 0
++0.1 shotpair p2a_night_phone_sand_day_hero.png p2a_night_phone_sand_day_nohero.png
++0.0 shotpair p2a_night_phone_sand_day_ring.png p2a_night_phone_sand_day_noring.png ring
++0.0 ui 1
++0.1 hour 23
++1.0 shot p2a_night_phone_sand_night.png
++0.0 ui 0
++0.1 shotpair p2a_night_phone_sand_night_hero.png p2a_night_phone_sand_night_nohero.png
++0.0 shotpair p2a_night_phone_sand_night_ring.png p2a_night_phone_sand_night_noring.png ring
++0.0 ui 1
+# ---- snow (a snow field)
++0.1 gotoeco snowfield
++0.1 gotoground snow
++0.05 hour 11
++1.2 log settle
++0.3 shot p2a_night_phone_snow_day.png
++0.0 ui 0
++0.1 shotpair p2a_night_phone_snow_day_hero.png p2a_night_phone_snow_day_nohero.png
++0.0 shotpair p2a_night_phone_snow_day_ring.png p2a_night_phone_snow_day_noring.png ring
++0.0 ui 1
++0.1 hour 23
++1.0 shot p2a_night_phone_snow_night.png
++0.0 ui 0
++0.1 shotpair p2a_night_phone_snow_night_hero.png p2a_night_phone_snow_night_nohero.png
++0.0 shotpair p2a_night_phone_snow_night_ring.png p2a_night_phone_snow_night_noring.png ring
++0.0 ui 1
++0.2 log p2a_night done

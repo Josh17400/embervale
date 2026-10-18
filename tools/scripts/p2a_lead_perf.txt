@@ -1,0 +1,21 @@
+# P2a Lens and Rig, phase A (lead): the render baseline for L9 (VISION_PLAN 15.36; frozen harness). The phone window
+# (2556x1179, FILL, the iPhone's insets), seed 7, the nearest kingdom capital at 15:00 (its crowd): 8 s at NORMAL, then 8 s
+# at FAR, then 8 s at NORMAL with rig 2. Run with --perf (once a second: "perf fps=... work avg ..." and "perf   draw avg
+# X ms worst Y ms | people textures Z MB") and EMB_TIMING=1 (each v1 character sheet's bake: "... ms this one"):
+#   EMB_TIMING=1 embervale.exe --perf --script tools/scripts/p2a_lead_perf.txt
+# The `log` lines mark the phases in the output; the baseline is the median of each phase's last 5 draw averages.
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.1 goto capital
++1.5 hour 15
++0.1 zoom normal
++0.5 log P2A_PERF NORMAL
++8   log P2A_PERF FAR
++0.0 zoom far
++8   log P2A_PERF NORMAL_RIG2
++0.0 zoom normal
++0.0 rig 2
++8   log P2A_PERF END
++0.1 shot p2a_perf_end.png

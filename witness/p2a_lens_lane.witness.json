@@ -1,0 +1,151 @@
+[
+ {
+  "name": "p2a LENS lane: the wheel steps ZOOM in play (a notch a level; up is in), only through the levels the screen allows; the world layer follows",
+  "params": {
+   "window": [
+    1920,
+    1080
+   ],
+   "screen": "pixel",
+   "hour": 11
+  },
+  "steps": [
+   {
+    "at": 0.2,
+    "expect": [
+     "state.screen.zoom == 0",
+     "state.screen.world.scale == 5",
+     "state.screen.world.w == 384 && state.screen.world.h == 216"
+    ]
+   },
+   {
+    "at": 0.3,
+    "input": "wheel:-1@0"
+   },
+   {
+    "at": 0.5,
+    "expect": [
+     "state.screen.zoom == 1",
+     "state.screen.world.scale == 6",
+     "state.screen.world.w == 320 && state.screen.world.h == 180"
+    ]
+   },
+   {
+    "at": 0.6,
+    "input": "wheel:-1@0"
+   },
+   {
+    "at": 0.8,
+    "input": "wheel:-1@0"
+   },
+   {
+    "at": 1.0,
+    "expect": [
+     "state.screen.zoom == 2",
+     "state.screen.world.scale == 7",
+     "state.screen.world.w == 275 && state.screen.world.h == 155"
+    ]
+   },
+   {
+    "at": 1.1,
+    "input": "wheel:+1@0"
+   },
+   {
+    "at": 1.3,
+    "input": "wheel:+1@0"
+   },
+   {
+    "at": 1.5,
+    "input": "wheel:+1@0"
+   },
+   {
+    "at": 1.7,
+    "input": "wheel:+1@0"
+   },
+   {
+    "at": 1.9,
+    "expect": [
+     "state.screen.zoom == -1",
+     "state.screen.world.scale == 4",
+     "state.screen.world.w == 480 && state.screen.world.h == 270"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "p2a LENS lane: the iPhone app's FAR, NORMAL, NEAR and CLOSE frame 639, 512, 426 and 366 world px across; the UI's fit never moves",
+  "params": {
+   "window": [
+    2556,
+    1179
+   ],
+   "safe": [
+    177,
+    0,
+    177,
+    63
+   ],
+   "screen": "fill",
+   "hour": 11
+  },
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     "zoom",
+     "far"
+    ]
+   },
+   {
+    "at": 0.25,
+    "expect": [
+     "state.screen.world.scale == 4",
+     "state.screen.world.w == 639 && state.screen.world.h == 295"
+    ]
+   },
+   {
+    "at": 0.3,
+    "call": [
+     "zoom",
+     "normal"
+    ]
+   },
+   {
+    "at": 0.35,
+    "expect": [
+     "state.screen.world.scale == 5",
+     "state.screen.world.w == 512 && state.screen.world.h == 236"
+    ]
+   },
+   {
+    "at": 0.4,
+    "call": [
+     "zoom",
+     "near"
+    ]
+   },
+   {
+    "at": 0.45,
+    "expect": [
+     "state.screen.world.scale == 6",
+     "state.screen.world.w == 426 && state.screen.world.h == 197"
+    ]
+   },
+   {
+    "at": 0.5,
+    "call": [
+     "zoom",
+     "close"
+    ]
+   },
+   {
+    "at": 0.55,
+    "expect": [
+     "state.screen.world.scale == 7",
+     "state.screen.world.w == 366 && state.screen.world.h == 169",
+     "state.screen.ui.w == 639 && state.screen.ui.h == 295 && state.screen.ui.scale == 4"
+    ]
+   }
+  ]
+ }
+]

@@ -12,6 +12,7 @@
 // the roof's slope side-on, the counter's end, the goods along one edge). The trade's goods are little sprites lying
 // ON the counter top (seen from above) and hanging from the rail under the roof's front edge.
 #include "rpg/art/art_internal.h"
+#include "rpg/art/art_holders2.h"
 
 namespace art {
 
@@ -74,6 +75,9 @@ void basketOf(Canvas& c, int x0, int w, int y, const Ramp& R, uint32_t seed, flo
 // Model space ("stall space"): u runs along the counter (0..48, three tiles), v from the customers' edge of the counter
 // (0) in toward the back (the keeper's row, to about 36), z up. The facing turns it onto the world (px from the prop
 // tile's top-left, y south); the canvas pixel of world (x, y, z) is (x - X0, y - z - Y0).
+// (P2a HOLDERS) at rig 2 every height of a stall, a table and a cart is drawn g_zk times taller (the counter's top
+// kCounter, its roof over a 32 px keeper; a cart's wheel kCartWheel) while their footprints stay: 1 at rig 1
+thread_local float g_zk = 1.0f;
 struct M3 {
   Canvas c;
   std::vector<float> zb;
@@ -106,7 +110,10 @@ struct M3 {
     d = k;
     c.set(sx, sy, col);
   }
-  void plotW(float x, float y, float z, uint32_t col, float bias = 0) { pix((int)std::floor(x), (int)std::floor(y - z), y + z + bias, col); }
+  void plotW(float x, float y, float z, uint32_t col, float bias = 0) {
+    z *= g_zk;
+    pix((int)std::floor(x), (int)std::floor(y - z), y + z + bias, col);
+  }
   void plot(float u, float v, float z, uint32_t col, float bias = 0) {
     float x, y;
     world(u, v, x, y);
@@ -202,6 +209,7 @@ void boxM(M3& m, float u0, float u1, float v0, float v1, float z0, float z1, con
 void put(M3& m, const Canvas& s, float u, float v, float z, bool hang = false, float bias = 0.6f) {
   float x, y;
   m.world(u, v, x, y);
+  z *= g_zk;
   const int sx0 = (int)std::floor(x) - s.w / 2;
   const int sy0 = hang ? (int)std::floor(y - z) : (int)std::floor(y - z) - s.h + 1;
   const float k = y + z + bias;
@@ -220,6 +228,7 @@ struct Shade {
   int X0, Y0;
   Shade(int x0, int y0, int w, int h) : c(w, h), a((size_t)w * h, 0), X0(x0), Y0(y0) {}
   void cast(float x, float y, float z, uint8_t k) {
+    z *= g_zk;
     const int sx = (int)std::floor(x + z * 0.5f) - X0, sy = (int)std::floor(y + z * 0.22f) - Y0;
     if (sx < 0 || sy < 0 || sx >= c.w || sy >= c.h) return;
     uint8_t& d = a[(size_t)sy * c.w + sx];
@@ -722,7 +731,7 @@ constexpr float RAIL = 11.0f;                   // the rail the goods hang from 
 constexpr float KV = 25.0f;                     // the keeper's row (v), the stool and the crates
 
 struct StallCanvas { int x0, y0, w, h; };
-StallCanvas stallCanvas(int facing) {
+StallCanvas stallCanvas1(int facing) {
   switch (facing) {
     // (stalls fixer round 3) a margin all round: the cloth booth's valance ends and their outline reached x0 before
     case StallN: return {-23, -26, 62, 68};
@@ -731,6 +740,21 @@ StallCanvas stallCanvas(int facing) {
     default: return {-23, -62, 62, 82};
   }
 }
+// (P2a HOLDERS) at rig 2 the stall stands kStallZ2 times taller (its counter's top at kCounter): the canvas grows
+// upward by the roof's extra height
+constexpr float kStallZ2 = (float)holders::kCounter / 11.0f;   // CT
+constexpr int kStallLift2 = 18;
+StallCanvas stallCanvas(int facing) {
+  StallCanvas sc = stallCanvas1(facing);
+  if (rigVersion() >= 2) { sc.y0 -= kStallLift2; sc.h += kStallLift2; }
+  return sc;
+}
+// sets g_zk for one painting at rig 2, and puts it back after
+struct ZScale {
+  float was;
+  explicit ZScale(float k) : was(g_zk) { if (rigVersion() >= 2) g_zk = k; }
+  ~ZScale() { g_zk = was; }
+};
 
 // the counter: a box of boards (form 0, 2), or a trestle under a linen cloth falling to a hem (form 1). trade: the
 // fish stall's top is a bed of crushed ice
@@ -1370,7 +1394,12 @@ Canvas stallShadowFor(int form, int facing) {
 // The trestle table: two tiles wide, standing on its WEST tile (world px from that tile's top-left: the table spans x
 // 1..31); the seller stands behind it (north). Its goods lie on the top; a square sunshade on two poles behind may
 // shade it. The ground cloth: a cloth spread on the paving over the two tiles, its goods laid out on it.
-constexpr int TBX0 = -4, TBY0 = -46, TBW = 40, TBH = 63;   // the table's canvas
+constexpr int TBX0 = -4, TBY0_1 = -46, TBW = 40, TBH_1 = 63;   // the table's canvas (rig 1)
+// (P2a HOLDERS) rig 2: the table's top at kTable and its sunshade over a 32 px seller: the canvas grows upward
+constexpr float kTableZ2 = (float)holders::kTable / 10.0f;   // TT
+constexpr int kTableLift2 = 18;
+inline int tby0() { return rigVersion() >= 2 ? TBY0_1 - kTableLift2 : TBY0_1; }
+inline int tbh() { return rigVersion() >= 2 ? TBH_1 + kTableLift2 : TBH_1; }
 constexpr int GCX0 = -4, GCY0 = -14, GCW = 40, GCH = 31;   // the cloth's
 constexpr float TT = 10.0f;                                // the table's top
 uint32_t shadeCloth(int shade) {
@@ -1625,9 +1654,13 @@ void clothModel(M3& m, int cloth, int goods, bool closed) {
 constexpr int CAX0 = -24, CAY0 = -28, CAW = 72, CAH = 46;
 // (P1 fixer r2) broken: the near wheel is off (the view draws it lying in the road, render_markers.cpp) and the bed has
 // dropped onto its axle on that side: everything tilts toward the camera, the near edge resting on the ground
+// (P2a HOLDERS) rig 2: the cart drawn kCartS times bigger across and up about its axle (x 4) so its wheel is
+// kCartWheel across; its depth (y) and its tile stay
+constexpr float kCartS = (float)holders::kCartWheel / 13.0f;   // the wheel's rim is 13 px across at rig 1
+inline float cartX(float x) { return g_zk != 1.0f ? 4.0f + (x - 4.0f) * g_zk : x; }
 void cartModel(M3& m, int v, bool broken = false) {
   const bool west = (v & 4) != 0;
-  auto X = [&](float x) { return west ? 16.0f - x : x; };   // the model is built shafts-east and mirrored
+  auto X = [&](float x) { x = cartX(x); return west ? 16.0f - x : x; };   // the model is built shafts-east and mirrored
   auto TZ = [&](float y) { return broken ? -(y - 2.0f) * (5.5f / 12.0f) : 0.0f; };
   auto B = [&](float x0, float x1, float y0, float y1, float z0, float z1, const Ramp& R) {
     const float a = X(x0), b = X(x1);
@@ -2158,6 +2191,7 @@ Canvas marketStallForm(int trade, int awning, int form, bool closed) { return ma
 
 Canvas marketStallFacing(int trade, int awning, int form, bool closed, int facing) {
   facing &= 3;
+  const ZScale zs(kStallZ2);
   const StallCanvas sc = stallCanvas(facing);
   M3 m(sc.w, sc.h, sc.x0, sc.y0, facing);
   paintStallModel(m, ((trade % kStallTrades) + kStallTrades) % kStallTrades, ((awning % kStallAwnings) + kStallAwnings) % kStallAwnings,
@@ -2185,7 +2219,9 @@ void stallOrigin(int facing, int& dx, int& dy) {
   dy = sc.y0;
 }
 
-Canvas marketStallShadow(int form, int facing) { return stallShadowFor(((form % kStallForms) + kStallForms) % kStallForms, facing & 3); }
+Canvas marketStallShadow(int form, int facing) {
+  const ZScale zs(kStallZ2);
+  return stallShadowFor(((form % kStallForms) + kStallForms) % kStallForms, facing & 3); }
 
 void stallLantern(int facing, int& lx, int& ly) {
   // hung under the roof's front corner (S), on the near back post outside the back cloth (N), on the near front post
@@ -2197,11 +2233,17 @@ void stallLantern(int facing, int& lx, int& ly) {
     case StallW: lx = 5; ly = 6; break;
     default: lx = -12; ly = -14; break;
   }
+  // (P2a HOLDERS) rig 2: under the same corner of the taller roof
+  if (rigVersion() >= 2) {
+    const Geo g = geoOf(facing & 3);
+    ly -= (int)std::lround(((facing & 3) == StallN ? g.rzb : g.rzf) * (kStallZ2 - 1.0f));
+  }
 }
 
 Canvas marketTable(int goods, int shade, bool closed) {
+  const ZScale zs(kTableZ2);
   shade = ((shade % kTableShades) + kTableShades) % kTableShades;
-  M3 m(TBW, TBH, TBX0, TBY0, StallS);
+  M3 m(TBW, tbh(), TBX0, tby0(), StallS);
   tableModel(m, shade, closed);
   if (!closed) tableGoodsM(m, goods);
   else {   // the stock under a tied cover
@@ -2228,11 +2270,12 @@ Canvas groundCloth(int goods, int cloth, bool closed) {
   return m.c;
 }
 
-void marketTableOrigin(int& dx, int& dy) { dx = TBX0; dy = TBY0; }
+void marketTableOrigin(int& dx, int& dy) { dx = TBX0; dy = tby0(); }
 void groundClothOrigin(int& dx, int& dy) { dx = GCX0; dy = GCY0; }
 
 Canvas marketTableShadow(int shade) {
-  M3 m(TBW, TBH, TBX0, TBY0, StallS);
+  const ZScale zs(kTableZ2);
+  M3 m(TBW, tbh(), TBX0, tby0(), StallS);
   Shade sh(kVendorShadowX, kVendorShadowY, 96, 96);
   for (float x = 2.0f; x <= 30.0f; x += 0.5f)
     for (float y = 3.0f; y <= 14.0f; y += 0.5f) { sh.cast(x, y, TT, 70); sh.cast(x, y, 0, 40); }
@@ -2251,12 +2294,14 @@ Canvas groundClothShadow() {
 }
 
 Canvas marketCart(int v) {
+  const ZScale zs(kCartS);
   M3 m(CAW, CAH, CAX0, CAY0, StallS);
   cartModel(m, ((v % kCartLooks) + kCartLooks) % kCartLooks);
   outline(m.c, 0.95f);
   return m.c;
 }
 Canvas marketCartBroken(int v) {
+  const ZScale zs(kCartS);
   M3 m(CAW, CAH, CAX0, CAY0, StallS);
   cartModel(m, ((v % kCartLooks) + kCartLooks) % kCartLooks, true);
   outline(m.c, 0.95f);
@@ -2264,12 +2309,13 @@ Canvas marketCartBroken(int v) {
 }
 void marketCartOrigin(int& dx, int& dy) { dx = CAX0; dy = CAY0; }
 Canvas marketCartShadow(int v) {
+  const ZScale zs(kCartS);
   const bool west = (v & 4) != 0;
   Shade sh(kVendorShadowX, kVendorShadowY, 96, 96);
   for (float x = -12.0f; x <= 15.0f; x += 0.5f)
-    for (float y = 2.0f; y <= 14.0f; y += 0.5f) sh.cast(west ? 16.0f - x : x, y, 9.0f, 84);
+    for (float y = 2.0f; y <= 14.0f; y += 0.5f) sh.cast(west ? 16.0f - cartX(x) : cartX(x), y, 9.0f, 84);
   for (float x = 15.0f; x <= 31.0f; x += 0.5f)
-    for (float y : {4.0f, 12.0f}) sh.cast(west ? 16.0f - x : x, y, 9.0f - (x - 15.0f) * 0.28f, 70);
+    for (float y : {4.0f, 12.0f}) sh.cast(west ? 16.0f - cartX(x) : cartX(x), y, 9.0f - (x - 15.0f) * 0.28f, 70);
   return sh.done();
 }
 
@@ -2308,7 +2354,7 @@ void paintEconomyProp(Canvas& c, Prop p, int frame) {
     case Prop::MineEntrance: mineEntrance(c); break;
     case Prop::LogPile: logPile(c); break;
     case Prop::Trough: trough(c); break;
-    case Prop::MarketTable: blit(c, marketTable(0, 0, false), TBX0 + 16, TBY0 + 28); break;   // (the view draws its own: a fallback)
+    case Prop::MarketTable: blit(c, marketTable(0, 0, false), TBX0 + 16, tby0() + 28); break;   // (the view draws its own: a fallback)
     case Prop::GroundCloth: blit(c, groundCloth(0, 0, false), GCX0 + 16, GCY0 + 4); break;
     case Prop::MarketCross: marketCross(c); break;
     case Prop::Sheep: sheep(c, frame); break;

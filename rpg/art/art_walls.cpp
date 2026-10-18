@@ -3,6 +3,7 @@
 #include "rpg/art/art_internal.h"
 #include "rpg/art/art_heraldry.h"
 #include "rpg/art/art_parts.h"
+#include "rpg/art/art_holders2.h"
 
 namespace art {
 
@@ -270,6 +271,17 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
   // heights of the style: the walk, the parapet's merlons and gaps, the towers
   const int wallH = (cw == CityWall::Rampart ? WALL_H - 4 : (cw == CityWall::Thorn ? WALL_H - 6 : (cw == CityWall::Palisade ? WALL_H - 2 : WALL_H))) + lift;
   const int tZ = (cw == CityWall::Thorn ? kTowerZ - 6 : (cw == CityWall::Rampart ? kTowerZ - 2 : kTowerZ)) + lift;
+  // (P2a HOLDERS) rig 2: an east-west span carries a raised arch block over the middle two tiles of its opening (ground
+  // x 8..39 of the three, inside the jambs' own 8 px so no neighbour paints it), its walk at holders::kSpanTop2 over
+  // its front rows 8..15 (the back rows keep the wall's walk: the block's crest stays inside the canvas), the arch's
+  // crown at holders::kArchClear. The Z / top / face lambdas read the block's walk height as their wallH there.
+  const bool r2 = rigVersion() >= 2;
+  const int wallH0 = wallH;
+  auto spanBlock2 = [&](int gx, int gy) -> bool {
+    if (!r2 || !hSpan || gy < 8 || gy > 15) return false;
+    const float ox = (spos - 1) * 16 + gx + 0.5f;
+    return ox > 8.0f && ox < 40.0f && S.in(gx, gy);
+  };
   // (M3b) the tower's form (bld::TowerForm): RoundDrum is each material's own drum (crenellated stone, pointed adobe
   // merlons, the thorn's great bush, the timber walls' and white walls' cones)
   enum TK { TK_DEF, TK_CONE, TK_SQUARE, TK_PAGODA, TK_MINARET, TK_BASTION, TK_PLATFORM };
@@ -453,6 +465,7 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
     if (Tw(gx, gy, tz, part)) return tz;
     if (const int rz = spanRoof(gx, gy)) return rz;
     if (!S.in(gx, gy)) return 0;
+    const int wallH = spanBlock2(gx, gy) ? holders::kSpanTop2 : wallH0;   // (P2a HOLDERS) the raised span block
     bool eN = !S.in(gx, gy - 1), eS = !S.in(gx, gy + 1), eW = !S.in(gx - 1, gy), eE = !S.in(gx + 1, gy);
     bool e2 = !S.in(gx, gy - 2) || !S.in(gx, gy + 2) || !S.in(gx - 2, gy) || !S.in(gx + 2, gy);
     // the coordinate the merlons count along. (fixer M6b r1) only a straight north-south edge counts in y: an edge pixel
@@ -528,6 +541,7 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
     int tz = 0, part = 0;
     const int t = Tw(gx, gy, tz, part);
     int k;
+    const int wallH = spanBlock2(gx, gy) ? holders::kSpanTop2 : wallH0;   // (P2a HOLDERS) the raised span block
     if (!t && spanRoof(gx, gy)) {   // the gate passage's roof: tiles (shingles, slates, a living thatch) in courses
       const Ramp& RR = ws ? CONE : (cw == CityWall::Thorn ? kWallThorn : (cw == CityWall::Palisade || cw == CityWall::Rampart ? kRoofBrownW : kBrick));
       const float d = gx + 0.5f - 8.0f;
@@ -764,6 +778,7 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
   auto face = [&](int gx, int gy, int z, int h, int v, int zNext) -> uint32_t {
     int tz = 0, part = 0;
     const int t = Tw(gx, gy, tz, part);
+    const int wallH = spanBlock2(gx, gy) ? holders::kSpanTop2 : wallH0;   // (P2a HOLDERS) the raised span block
     // ((M7c fixer) the gate roof's eave over the road: a fascia two px deep, then the road seen under it)
     if (!t && spanRoof(gx, gy)) {
       (void)h;
@@ -953,7 +968,8 @@ Canvas wallTileImpl(uint32_t key, const bld::FortParts& F) {
     if (hSpan && spanOx > 0.0f && spanOx < 48.0f && gy >= 0 && gy < 16) {
       const float ox = spanOx, u = (ox - 24.0f) / 16.0f;
       const bool timber = cw == CityWall::Palisade || cw == CityWall::Rampart;
-      const int soff = timber ? wallH - 5 : (int)std::lround(10.0f + 7.0f * std::sqrt(std::max(0.0f, 1 - u * u)));
+      const int soff = r2 ? (timber ? holders::kArchClear : (int)std::lround(holders::kArchClear - 9 + 9.0f * std::sqrt(std::max(0.0f, 1 - u * u))))
+                          : timber ? wallH - 5 : (int)std::lround(10.0f + 7.0f * std::sqrt(std::max(0.0f, 1 - u * u)));
       const bool edge = ox < 9.0f || ox > 39.0f;   // the jambs' own stones stand at the opening's sides
       if (!edge) {
         if (h < soff - 5) return rgba(16, 12, 26, 150);   // the opening: the road beyond, in the vault's shade
@@ -1170,13 +1186,19 @@ Canvas gateHouseImpl(uint32_t seed, uint32_t field, uint32_t trim, int emblem, C
   const int BX = GATE_OX, BY = GATE_OY;
   Canvas c(GATE_CW, GATE_CH);
   std::vector<uint8_t> own((size_t)GATE_CW * GATE_CH, 0);
-  const int TR = 13, TZ = WALL_H + 16 + lift, BZ = WALL_H + 10 + lift;   // tower radius / height, gate block height
-  const int t0x = -8, t1x = 56, tcy = 8;
+  // (P2a HOLDERS) rig 2: the passage clears the 32 px walker by 1.25 (holders::kCityGateClear) under a gate block raised
+  // to 46 (talud 44), its back three rows short of the tile so the crest stays on the canvas; the towers stand 3 px
+  // further south and a px slimmer, 44 tall whatever the capital's height (the canvas holds no more), the block a
+  // hand over them: a gate tower between its drums. Rig 1: today's numbers.
+  const bool r2 = rigVersion() >= 2;
+  const int TR = r2 ? 12 : 13, TZ = r2 ? 44 : WALL_H + 16 + lift, BZ = r2 ? (talud ? 44 : 46) : WALL_H + 10 + lift;   // tower radius / height, gate block height
+  const int t0x = -8, t1x = 56, tcy = r2 ? 11 : 8;
   const int ax0 = 3, ax1 = 44, archH = 24;   // the arch opening on the front face (ground x range, height)
+  const int blockY0 = r2 ? 3 : 1, blockP = r2 ? 4 : 2;   // the gate block's first row and its back parapet's last
   // a tower's height in the style: crenellated (stone, adobe with pointed merlons), under a cone (timber, white
   // stone), or a great rounded bush (thorn)
-  constexpr int PY = 12, PT = 9;   // talud pylon half-size and its upper tier's
-  constexpr int SQ = 12;           // (M3b) the square towers' half size
+  const int PY = r2 ? 11 : 12, PT = r2 ? 8 : 9;   // talud pylon half-size and its upper tier's
+  const int SQ = r2 ? 11 : 12;                    // (M3b) the square towers' half size
   auto towerAt = [&](int gx, int gy, int cx) -> int {
     if (square) {
       const float ax = std::fabs(gx + 0.5f - cx), ay = std::fabs(gy + 0.5f - tcy), d = std::max(ax, ay);
@@ -1210,9 +1232,9 @@ Canvas gateHouseImpl(uint32_t seed, uint32_t field, uint32_t trim, int emblem, C
   auto Z = [&](int gx, int gy) -> int {
     int z = std::max(towerAt(gx, gy, t0x), towerAt(gx, gy, t1x));
     if (z) return z;
-    if (gx < 0 || gx > 47 || gy < 1 || gy > 15) return 0;
+    if (gx < 0 || gx > 47 || gy < blockY0 || gy > 15) return 0;
     // gate block: walkway with a parapet front and back
-    if (gy <= 2 || gy >= 14) {
+    if (gy <= blockP || gy >= 14) {
       if (talud) return BZ + kAlm[((gx % 8) + 8) % 8];
       if (thorn) return BZ - 4 + (int)std::lround(3.0f * vnoise(gx / 3.0f, gy / 2.0f, 55u));
       if (timber) return BZ + (gx % 3 == 1 ? 6 : 4);
@@ -1226,6 +1248,13 @@ Canvas gateHouseImpl(uint32_t seed, uint32_t field, uint32_t trim, int emblem, C
   auto archTop = [&](int gx) {   // height of the arch soffit above ground at this x, -1 outside the opening
     if (gx < ax0 || gx > ax1) return -1;
     float u = (gx + 0.5f - (ax0 + ax1 + 1) * 0.5f) / ((ax1 - ax0 + 1) * 0.5f);
+    if (r2) {   // (P2a HOLDERS) the same arch forms over the 32 px walker: crowns at kCityGateClear / 42
+      const int C = holders::kCityGateClear;
+      if (timber) return C;                                                                           // the lintel
+      if (talud) return std::min(C + 1, C - 11 + ((int)std::floor((1 - std::fabs(u)) * 27.0f) / 3) * 3);   // corbelled
+      if (cw == CityWall::WhiteStone) return (int)std::lround(C - 10 + 11 * std::pow(std::max(0.0f, 1 - std::fabs(u)), 0.55f));   // pointed
+      return (int)std::lround(C - 8 + 9 * std::sqrt(std::max(0.0f, 1 - u * u)));
+    }
     if (timber) return archH - 3;   // a square timber gateway under a lintel
     if (talud) return std::min(archH + 1, archH - 10 + ((int)std::floor((1 - std::fabs(u)) * 24.0f) / 3) * 3);   // corbelled
     if (cw == CityWall::WhiteStone) return (int)std::lround(archH - 9 + 11 * std::pow(std::max(0.0f, 1 - std::fabs(u)), 0.55f));   // pointed
@@ -1407,7 +1436,7 @@ Canvas gateHouseImpl(uint32_t seed, uint32_t field, uint32_t trim, int emblem, C
   };
   auto owner = [&](int, int) { return true; };
   // the field must reach the bottom of the round towers (tcy + TR = 21), or their lower front is never painted
-  renderField(c, own, -16 - 8, 63 + 8, -8, tcy + TR + 1, BX, BY, Z, top, face, owner);
+  renderField(c, own, -16 - 8, 63 + 8, -8, tcy + TR + 1 + (r2 ? 1 : 0), BX, BY, Z, top, face, owner);
   // the passage: dark vault in the upper part of the opening, the raised portcullis teeth, a lit floor beyond
   for (int gx = ax0; gx <= ax1; gx++) {
     int at = archTop(gx);
@@ -1433,7 +1462,8 @@ Canvas gateHouseImpl(uint32_t seed, uint32_t field, uint32_t trim, int emblem, C
   }
   // coat of arms over the arch, banners on the towers, lanterns either side of the opening
   {
-    int sx = BX + 21, sy = BY + 15 - (archH + 9);
+    // (rig 2: the arms hang over the front parapet, the arch's crown under them)
+    int sx = BX + 21, sy = r2 ? BY + 15 - (BZ + 4) : BY + 15 - (archH + 9);
     for (int j = 0; j < 7; j++)
       for (int i = 0; i < 6; i++) {
         if (j >= 5 && (i == 0 || i == 5)) continue;
@@ -1451,7 +1481,7 @@ Canvas gateHouseImpl(uint32_t seed, uint32_t field, uint32_t trim, int emblem, C
   }
   for (int side = 0; side < 2; side++) {
     int cx = side == 0 ? t0x : t1x;
-    int bx = BX + cx - 3, by = BY + 15 - (TZ - 6);
+    int bx = BX + cx - 3, by = r2 ? BY + tcy + TR - TZ + 1 : BY + 15 - (TZ - 6);
     for (int j = 0; j < 16; j++)
       for (int i = 0; i < 6; i++) {
         if (j >= 14 && (i == 2 || i == 3)) continue;
@@ -1469,7 +1499,7 @@ Canvas gateHouseImpl(uint32_t seed, uint32_t field, uint32_t trim, int emblem, C
       c.set(bx + 1, by + 6, kGold[2]); c.set(bx + 4, by + 6, kGold[1]); c.set(bx + 2, by + 7, kGold[2]); c.set(bx + 3, by + 7, kGold[1]);
     }
     // lantern on a bracket by the arch
-    int lx = BX + (side == 0 ? ax0 - 3 : ax1 + 3), ly = BY + 15 - 16;
+    int lx = BX + (side == 0 ? ax0 - 3 : ax1 + 3), ly = BY + 15 - (r2 ? 23 : 16);
     c.set(lx, ly - 1, kIron[2]); c.set(lx, ly, kGlow[4]); c.set(lx, ly + 1, kGlow[2]); c.set(lx - 1, ly, kIron[1]); c.set(lx + 1, ly, kIron[1]);
   }
   outline(c, 0.9f);

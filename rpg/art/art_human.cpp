@@ -1276,9 +1276,18 @@ enum { kFormPadded = 1, kFormLeather, kFormMail, kFormScale, kFormLamellar, kFor
 // headwear (HumanLook::headwear = cult::Headwear)
 enum { kHwHood = 1, kHwCap, kHwTurban, kHwFurHat, kHwVeil, kHwCirclet, kHwConical, kHwScarf };
 
+// (P2a) the weapon art ids as the v1 painter knows them: the greatsword (7) is painted as the sword (1), the herald's
+// horn (WEAPON_HORN, id 7 before P2a) keeps its old painter case 7. Nothing else moves, so no v1 pixel changes.
+HumanLook v1Look(const HumanLook& l) {
+  HumanLook v = l;
+  if (v.weapon == WEAPON_GREATSWORD) v.weapon = 1;
+  else if (v.weapon == WEAPON_HORN) v.weapon = 7;
+  return v;
+}
+
 struct HumanPainter {
   Canvas& c;
-  const HumanLook& L;
+  const HumanLook L;   // (P2a) a copy in the v1 painter's weapon ids (v1Look)
   Rig R;
   Pose P;
   int facing = kDown;
@@ -1297,7 +1306,7 @@ struct HumanPainter {
   const Ramp* helmRamp = nullptr;   // the helm's material as painted
   Ramp shieldRamp{};          // the shield rim's metal as painted
 
-  HumanPainter(Canvas& c_, const HumanLook& l, int f, const Pose& p) : c(c_), L(l), P(p), facing(f) {
+  HumanPainter(Canvas& c_, const HumanLook& l, int f, const Pose& p) : c(c_), L(v1Look(l)), P(p), facing(f) {
     armor = L.armorStyle <= HumanLook::kBands ? L.armorStyle : 0;
     static const Outfit byBand[8] = {Outfit::Tunic, Outfit::Leather, Outfit::Chain, Outfit::Plate, Outfit::Elven, Outfit::Plate, Outfit::Ebony, Outfit::Ebony};
     O = armor ? byBand[armor] : L.outfit;
@@ -4855,10 +4864,10 @@ Canvas humanSheet(const HumanLook& look) {
       hp.paint();
       if (look.glow) {
         const Canvas raw = cell;
-        outline(cell);
+        outlineInk(cell);   // (P2a) the ink outer outline (STYLE_P2 8)
         hp.glowRim(cell, raw);
       } else {
-        outline(cell);
+        outlineInk(cell);
       }
       place(sheet, cell, f, row);
     }
@@ -4934,10 +4943,16 @@ uint64_t HumanLook::key() const {
     mx(m6); mx((uint64_t)armourTint << 32 | armourTint2); mx(glowColor);
   }
   if (shieldField || shieldDevice) mx((uint64_t)shieldField << 32 | shieldDevice);
+  // P2a the v2 body base (mixed only when set, so every earlier look keeps its key)
+  if (body || age) mx(0x9D2A0000ull | (uint64_t)body | (uint64_t)age << 8);
   return k;
 }
 
 Canvas humanFigureStill(const HumanLook& look, int facing) {
+  if (rigVersion() >= 2) {   // (P2a) the v2 figure (RIG-BODY: rig_body.cpp); an empty canvas means not painted yet
+    Canvas v2 = humanFigureStill2(look, facing);
+    if (v2.w > 0) return v2;
+  }
   Canvas fig(HUMAN_W, HUMAN_H);
   HumanPainter hp(fig, look, facing, Pose{});
   hp.paint();
@@ -5030,6 +5045,10 @@ void skeletonFigure(Canvas& c, const Pose& P, int frame) {
 
 // The HumanPainter gets a few species hooks via these helpers (kept outside the class for clarity).
 Canvas humanoidCell(Species sp, int frame) {
+  if (rigVersion() >= 2) {   // (P2a) on the v2 skeleton (POSES: rig_humanoid.cpp); an empty canvas means not painted yet
+    Canvas v2 = humanoidCell2((int)sp, frame);
+    if (v2.w > 0) return v2;
+  }
   // the rig paints into 16x24; the monster cell is 24x24 with the figure centred
   HumanLook L;
   Pose P = frame == 7 ? Pose{} : humanPose(kSide, frame + 1);   // monster frames 0-6 = human frames 1-7

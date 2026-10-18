@@ -434,7 +434,9 @@ bool View::buildCamWant(Game& g, Vec2& want) {
     const Vec2 mid((p.gx - g.world.ox + p.w * 0.5f) * 16.0f, (p.gy - g.world.oy + p.h * 0.5f) * 16.0f);
     c = c * 0.65f + mid * 0.35f;
   }
-  want = Vec2(c.x - (freeX0 + freeX1) * 0.5f, c.y - (float)(Pix::ST + Pix::H - Pix::SB) * 0.5f);
+  // (P2a) the free part's middle is a UI point: where it falls in the world view (world px from the view's top-left)
+  const Vec2 mid = toWorld(Vec2((freeX0 + freeX1) * 0.5f, (float)(Pix::ST + Pix::H - Pix::SB) * 0.5f)) - worldCam();
+  want = c - mid;
   return true;
 }
 
@@ -1031,7 +1033,7 @@ void View::buildTap(Game& g, Vec2 p) {
       return;
     }
     // the world: the ghost goes to the tile under the finger, and a drag from here moves it
-    const Vec2 w(p.x + std::floor(cam_.x), p.y + std::floor(cam_.y));
+    const Vec2 w = toWorld(p);   // (P2a) the tap, through the world layer's projection
     int tx = (int)std::floor(w.x / TILE), ty = (int)std::floor(w.y / TILE);
     int mw = pl.w, mh = pl.h;
     if (inside) { mw = g.map().w; mh = g.map().h; }

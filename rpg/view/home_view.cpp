@@ -455,7 +455,8 @@ void View::drawMountShadow(Game& g, const Actor& a, Vec2 cam) {
   (void)g;
   Pix& P = *pix_;
   const bool side = a.face >= 2;
-  const float w = side ? 32.0f : 18.0f, h = side ? 8.0f : 10.0f;
+  const float hk = art::horseScale();   // (P2a) as long as the rig's horse
+  const float w = std::round((side ? 32.0f : 18.0f) * hk), h = std::round((side ? 8.0f : 10.0f) * hk);
   P.blitEx(shadowBig_, 0, 0, 40, 12, std::floor(a.p.x - w / 2 + 2 - cam.x + 0.5f), std::floor(a.p.y - h / 2 + 1 - cam.y + 0.5f), w, h, false,
            Color(1, 1, 1, 0.85f));
 }
@@ -465,9 +466,13 @@ bool View::drawMounted(Game& g, const Actor& a, Vec2 cam) {
   rideGhost_ = RideGhost();
   const home::BreedInfo& bi = home::breedInfo((home::Breed)g.home.ridingBreed);
   const uint32_t seedv = g.home.ridingSeed;
-  const uint64_t key = hkey(6, bi.coat & 0xFFFFFFu, seedv & 0xFFFFu, 1);
+  // (P2a LENS fix r1, H3) the horse of the current rig: at rig 2 HOLDERS' k-scaled horse on its 52 x 52 cell
+  // (horseSheetRig / horseCellW / riderSeatRig / saddleSeat), at rig 1 today's 36 x 36 horse exactly
+  const bool rig2 = art::rigVersion() >= 2;
+  const int HW = art::horseCellW(), HH = art::horseCellH();
+  const uint64_t key = hkey(6, bi.coat & 0xFFFFFFu, seedv & 0xFFFFu, rig2 ? 2 : 1);
   auto it = homeTex_.find(key);
-  if (it == homeTex_.end()) it = homeTex_.emplace(key, P.bake(art::horseSheet(bi.coat, seedv, true))).first;
+  if (it == homeTex_.end()) it = homeTex_.emplace(key, P.bake(art::horseSheetRig(bi.coat, seedv, true))).first;
   const Tex& ht = it->second;
   const int row = a.face == 0 ? 0 : a.face == 1 ? 1 : 2;
   const bool flip = a.face == 3;
@@ -477,37 +482,47 @@ bool View::drawMounted(Game& g, const Actor& a, Vec2 cam) {
   if (a.iframes > 0 && a.st != AState::Roll && ((int)(t_ * 20) & 1)) alpha = 0.5f;
   const float flash = a.flash > 0 ? a.flash / 0.12f : 0.0f;
   const float fx = std::floor(a.p.x - cam.x + 0.5f), fy = std::floor(a.p.y + 2 - cam.y + 0.5f);
-  const float hx = fx - art::HORSE_W / 2.0f, hy = fy - art::HORSE_H + 2;
-  const int cx = fr * art::HORSE_W, cy = row * art::HORSE_H;
+  const float hx = fx - HW / 2.0f, hy = fy - HH + 2;
+  const int cx = fr * HW, cy = row * HH;
   // a part of the horse's cell (rows y0.. and columns x0..x0+w of the cell), flipped with the cell
   auto horsePart = [&](int x0, int y0, int w, int h, Color c, int blend) {
     if (w <= 0 || h <= 0) return;
-    const int dx0 = flip ? art::HORSE_W - x0 - w : x0;
+    const int dx0 = flip ? HW - x0 - w : x0;
     P.blitEx(ht, cx + x0, cy + y0, w, h, hx + dx0, hy + y0, (float)w, (float)h, flip, c, blend);
   };
-  auto horse = [&](Color c, int blend) { horsePart(0, 0, art::HORSE_W, art::HORSE_H, c, blend); };
+  auto horse = [&](Color c, int blend) { horsePart(0, 0, HW, HH, c, blend); };
   int dx = 0, dy = 0;
-  art::riderSeat(row, fr, dx, dy);
-  if (flip) dx = -dx;
+  art::riderSeatRig(row, fr, dx, dy);
+  int sdx = 0, sdy = 0;   // the saddle's seat point (from the hooves' row at the cell's centre column)
+  art::saddleSeat(row, fr, sdx, sdy);
+  if (flip) { dx = -dx; sdx = -sdx; }
   const Tex* rt = poseTex(a.look, art::Posture::Ride);
   const Tex& rider = rt ? *rt : humanTex(a.look);
   const float rx = std::floor(fx + dx - art::HUMAN_W / 2.0f), ry = std::floor(fy + dy - art::HUMAN_H + 2 + art::postureInfo(art::Posture::Ride).dy);
   const int rfr = rt ? 0 : 0;
+  // (P2a LENS) at rig 2 a covered look rides on v2 (the Ride posture's frame, its hip anchor on the saddle's seat
+  // point); the body's blits are recorded for the night lift (the horse's are not)
+  RideGhost g2;
+  bool v2 = false;
   auto body = [&](Color c, int blend) {
+    if (rig2 && drawRiderV2(a.look, a.face, fx + sdx, fy + sdy, fx + sdx, fy + sdy + 3.0f, c, blend, &g2)) { v2 = true; return; }
+    if (blend == 0) P.recordBlits(&liftRecs_);
     P.blitEx(rider, rfr * art::HUMAN_W, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, rx, ry, (float)art::HUMAN_W, (float)art::HUMAN_H, flip, c, blend);
+    P.recordBlits(nullptr);
   };
   // the seat in the cell's rows: what lies below it on the screen is in front of the rider's legs (facing up: the
   // rump; facing down: the chest, neck and head, which rise in front of the rider's belly)
-  const int seatRow = std::clamp(art::HORSE_H - 2 + dy, 0, art::HORSE_H);
+  const int seatRow = std::clamp(HH - 2 + dy, 0, HH);
+  const int stripW = rig2 ? 18 : 12;   // the chest strip in front of the rider's belly, k wider at rig 2
   const Color full(1, 1, 1, alpha);
   auto layer = [&](Color c, int blend) {
     horse(c, blend);
     body(c, blend);
-    if (row == 1) horsePart(0, seatRow + 1, art::HORSE_W, art::HORSE_H - seatRow - 1, c, blend);
+    if (row == 1) horsePart(0, seatRow + 1, HW, HH - seatRow - 1, c, blend);
     else if (row == 0) {
-      horsePart(art::HORSE_W / 2 - 6, std::max(0, seatRow - 5), 12, art::HORSE_H - std::max(0, seatRow - 5), c, blend);
+      horsePart(HW / 2 - stripW / 2, std::max(0, seatRow - 5), stripW, HH - std::max(0, seatRow - 5), c, blend);
       // (M7 fixer r2) the head carried high in front of the rider's chest: the sheet's head-only row over everything
-      P.blitEx(ht, cx, 3 * art::HORSE_H, art::HORSE_W, art::HORSE_H, hx, hy, (float)art::HORSE_W, (float)art::HORSE_H, flip, c, blend);
+      P.blitEx(ht, cx, 3 * HH, HW, HH, hx, hy, (float)HW, (float)HH, flip, c, blend);
     }
   };
   layer(full, 0);
@@ -523,7 +538,8 @@ bool View::drawMounted(Game& g, const Actor& a, Vec2 cam) {
     q.size = 2; q.grav = 0; q.kind = 0;
     parts_.push_back(q);
   }
-  rideGhost_.t = &rider; rideGhost_.fr = rfr; rideGhost_.row = row; rideGhost_.flip = flip; rideGhost_.x = rx; rideGhost_.y = ry;
-  drawnHead_[a.id] = DrawnHead{fx + cam.x, ry + cam.y, t_};
+  if (v2) rideGhost_ = g2;
+  else { rideGhost_.t = &rider; rideGhost_.fr = rfr; rideGhost_.row = row; rideGhost_.flip = flip; rideGhost_.x = rx; rideGhost_.y = ry; }
+  drawnHead_[a.id] = DrawnHead{fx + cam.x, (v2 ? g2.y : ry) + cam.y, t_};
   return true;
 }

@@ -8,6 +8,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <SDL3/SDL.h>
 #include "rpg/art/art_city.h"
 #include "rpg/art/art_parts.h"
 #include "rpg/sim/deco.h"
@@ -20,6 +21,7 @@
 #include "rpg/view/magic_state.h"
 #include "rpg/view/realm_ui.h"
 #include "rpg/view/rise_view.h"
+#include "rpg/view/screen.h"
 #include "rpg/view/view.h"
 #include "rpg/world/biomes.h"
 #include "rpg/world/economy.h"
@@ -35,6 +37,7 @@ using art::Monster;
 float seaHeroLift(View& v, const Game& g);
 bool seaHeroUnderRig(View& v);
 void seaDrawUnderlay(View& v, const Game& g, Vec2 cam);
+bool rvSwingFxBehind(const Game& g, const Actor& a);   // render_anim.cpp: the swing effect goes behind the body this frame
 bool seaDrawSwimmer(View& v, const Game& g, const Actor& a, const Tex& sheet, int fr, int cw, int chh, bool flip, float alpha, float flash, Vec2 cam);
 
 // ---- (M6 BEASTS) the view of ranked foes: elites, champions, named uniques, bosses and world bosses ------------------
@@ -112,210 +115,10 @@ void beastsViewStats(int& auras, int& plates, int& glows, int& bossBar, double& 
 constexpr int kSkyClear = 99;
 namespace {
 
-// ---------------------------------------------------------------- (P1b ENGINE lane) a story's hand cart
-// The wagon an escort's driver pulls (goal escort ... wagon): a two-wheeled hand cart on raised shafts, modelled in
-// 3/4 like the market's carts (a small voxel model: the bed, its boards, the load, the wheels and the shafts, shaded by
-// the top-left light and outlined in ink) and painted for the four headings (the wheels face on when it rolls east or
-// west, edge on when it rolls north or south), its spokes in four turns. Its ground shadow is cast from the same model.
-// key: dir (0 east, 1 west, 2 north, 3 south) | load << 2 (0 sacks, 1 crates, 2 barrels, 3 hay) | turn << 4 | shadow << 6
-constexpr int HC_W = 64, HC_H = 50, HC_OX = 32, HC_OY = 38;   // the cart's ground point (its axle's foot) in the canvas
-struct HcModel {
-  Canvas c{HC_W, HC_H};
-  std::vector<float> depth = std::vector<float>((size_t)HC_W * HC_H, -1e9f);
-  Canvas sh{HC_W, HC_H};
-  int dir = 0;
-  // model space: u forward (toward the driver), v to the cart's right, z up; world: x east, y south (the ground's depth)
-  void toWorld(float u, float v, float& x, float& y) const {
-    switch (dir) {
-      case 0: x = u; y = v; break;          // east
-      case 1: x = -u; y = -v; break;        // west
-      case 2: x = v; y = -u; break;         // north
-      default: x = -v; y = u; break;        // south
-    }
-  }
-  void nWorld(float nu, float nv, float& nx, float& ny) const { toWorld(nu, nv, nx, ny); }
-  // the top-left light (from the north-west, high): 0..4 on a ramp
-  static int lightK(float nx, float ny, float nz) {
-    const float l = -0.48f * nx - 0.52f * ny + 0.71f * nz;
-    return l > 0.62f ? 4 : l > 0.32f ? 3 : l > 0.02f ? 2 : l > -0.3f ? 1 : 0;
-  }
-  void plot(float u, float v, float z, uint32_t col) {
-    float x, y;
-    toWorld(u, v, x, y);
-    const int sx = (int)std::floor(HC_OX + x + 0.5f), sy = (int)std::floor(HC_OY + y - z + 0.5f);
-    if (sx < 0 || sy < 0 || sx >= HC_W || sy >= HC_H) return;
-    float& d = depth[(size_t)sy * HC_W + sx];
-    if (y + z * 0.001f < d) return;
-    d = y + z * 0.001f;
-    c.set(sx, sy, col);
-    // its shadow on the ground, cast to the lower right (the light's way)
-    const int hx = (int)std::floor(HC_OX + x + z * 0.55f + 0.5f), hy = (int)std::floor(HC_OY + y + z * 0.38f + 0.5f);
-    sh.set(hx, hy, 0xFF000000u);
-  }
-};
-uint32_t hcRgb(int r, int g, int b) { return rgba((uint8_t)r, (uint8_t)g, (uint8_t)b); }
-// ramps, darkest first (the game's warm wood, iron, sacking, hay)
-const uint32_t* hcWood() { static const uint32_t r[5] = {hcRgb(62, 38, 24), hcRgb(96, 60, 34), hcRgb(134, 88, 50), hcRgb(170, 118, 70), hcRgb(204, 156, 98)}; return r; }
-const uint32_t* hcWoodDark() { static const uint32_t r[5] = {hcRgb(44, 28, 20), hcRgb(70, 44, 28), hcRgb(98, 64, 38), hcRgb(128, 86, 52), hcRgb(156, 110, 68)}; return r; }
-const uint32_t* hcIron() { static const uint32_t r[5] = {hcRgb(40, 40, 48), hcRgb(66, 66, 76), hcRgb(98, 98, 108), hcRgb(140, 140, 150), hcRgb(186, 186, 192)}; return r; }
-const uint32_t* hcSack() { static const uint32_t r[5] = {hcRgb(112, 92, 64), hcRgb(146, 122, 86), hcRgb(178, 154, 112), hcRgb(206, 184, 140), hcRgb(230, 214, 176)}; return r; }
-const uint32_t* hcHay() { static const uint32_t r[5] = {hcRgb(122, 92, 40), hcRgb(160, 124, 52), hcRgb(196, 160, 72), hcRgb(222, 192, 104), hcRgb(240, 220, 150)}; return r; }
-
-// a box in model space, each face lit by its normal (the far / north faces are hidden by the depth test)
-void hcBox(HcModel& m, float u0, float u1, float v0, float v1, float z0, float z1, const uint32_t* R, float grain = 0) {
-  auto face = [&](float nu, float nv, float nz) {
-    float nx, ny;
-    m.nWorld(nu, nv, nx, ny);
-    return HcModel::lightK(nx, ny, nz);
-  };
-  const float st = 0.45f;
-  const int kTop = face(0, 0, 1);
-  for (float u = u0; u <= u1; u += st)
-    for (float v = v0; v <= v1; v += st) {
-      int k = kTop;
-      if (grain > 0 && (int)std::floor((u - u0) / grain) % 2 == 1) k = std::max(0, k - 1);
-      m.plot(u, v, z1, R[k]);
-    }
-  const int kU0 = face(-1, 0, 0), kU1 = face(1, 0, 0), kV0 = face(0, -1, 0), kV1 = face(0, 1, 0);
-  for (float z = z0; z <= z1; z += st) {
-    for (float v = v0; v <= v1; v += st) { m.plot(u0, v, z, R[kU0]); m.plot(u1, v, z, R[kU1]); }
-    for (float u = u0; u <= u1; u += st) {
-      const bool seam = grain > 0 && std::fmod(u - u0 + 0.01f, grain) < st;
-      m.plot(u, v0, z, R[seam ? std::max(0, kV0 - 1) : kV0]);
-      m.plot(u, v1, z, R[seam ? std::max(0, kV1 - 1) : kV1]);
-    }
-  }
-}
-// an ellipsoid's upper part (a sack, a heap of hay): lit by its own normal
-void hcBlob(HcModel& m, float cu, float cv, float cz, float ru, float rv, float rz, const uint32_t* R, uint32_t seed, bool rough) {
-  for (float a = 0; a < 6.2832f; a += 0.09f)
-    for (float b = -0.2f; b < 1.5708f; b += 0.08f) {
-      const float cb = std::cos(b), sb = std::sin(b);
-      const float nu = std::cos(a) * cb, nv = std::sin(a) * cb, nz = sb;
-      float nx, ny;
-      m.nWorld(nu, nv, nx, ny);
-      int k = HcModel::lightK(nx, ny, nz);
-      if (rough) k = std::clamp(k + (int)(hash32(seed + (uint32_t)(a * 40) * 131u + (uint32_t)(b * 50) * 7u) % 3u) - 1, 0, 4);
-      m.plot(cu + nu * ru, cv + nv * rv, cz + nz * rz, R[k]);
-    }
-}
-// a wheel: rim, eight spokes turned by `turn` (a quarter of a spoke's step each), the iron hub; plane at v = vw
-void hcWheel(HcModel& m, float uw, float vw, float zc, float r, int turn) {
-  const uint32_t* W = hcWood();
-  const uint32_t* D = hcWoodDark();
-  const uint32_t* I = hcIron();
-  const float ph = turn * (0.7854f / 4.0f);
-  for (float t = -0.7f; t <= 0.7f; t += 0.35f) {
-    for (float a = 0; a < 6.2832f; a += 0.025f) {
-      const float ca = std::cos(a), sa = std::sin(a);
-      float nx, ny;
-      m.nWorld(ca, 0, nx, ny);
-      const int k = HcModel::lightK(nx, ny, sa);
-      for (float rr = r - 1.3f; rr <= r; rr += 0.35f) m.plot(uw + ca * rr, vw + t, zc + sa * rr, rr > r - 0.4f ? I[std::clamp(k - 1, 1, 3)] : W[std::max(1, k)]);
-    }
-    for (int s = 0; s < 8; s++) {
-      const float a = ph + s * 0.7854f;
-      for (float rr = 1.0f; rr < r - 1.0f; rr += 0.3f) m.plot(uw + std::cos(a) * rr, vw + t * 0.5f, zc + std::sin(a) * rr, D[2 + (s & 1)]);
-    }
-  }
-  for (float rr = 0; rr <= 1.4f; rr += 0.3f)
-    for (float a = 0; a < 6.2832f; a += 0.3f) m.plot(uw + std::cos(a) * rr, vw + (vw > 0 ? 0.9f : -0.9f), zc + std::sin(a) * rr, I[rr < 0.7f ? 4 : 2]);
-}
-// ink round the opaque pixels (the game's outline weight), and the shadow softened to a dither
-void hcFinish(Canvas& c, float weight) {
-  Canvas o = c;
-  const uint32_t ink = rgba(28, 20, 18);
-  for (int y = 0; y < c.h; y++)
-    for (int x = 0; x < c.w; x++) {
-      if (c.get(x, y) >> 24) continue;
-      const bool edge = (c.get(x - 1, y) >> 24) || (c.get(x + 1, y) >> 24) || (c.get(x, y - 1) >> 24) || (c.get(x, y + 1) >> 24);
-      if (edge) o.set(x, y, (ink & 0x00FFFFFFu) | ((uint32_t)(weight * 255.0f) << 24));
-    }
-  c = o;
-}
-Canvas paintHandcart(uint64_t key) {
-  HcModel m;
-  m.dir = (int)(key & 3);
-  const int load = (int)((key >> 2) & 3), turn = (int)((key >> 4) & 3);
-  const bool shadow = ((key >> 6) & 1) != 0;
-  const uint32_t* W = hcWood();
-  const uint32_t* D = hcWoodDark();
-  // the far wheel first (the depth test sorts the rest), the bed, the boards
-  hcWheel(m, -1.0f, -6.8f, 5.2f, 5.2f, turn);
-  hcBox(m, -11.0f, 11.0f, -6.0f, 6.0f, 6.0f, 7.0f, D);                 // the floor
-  hcBox(m, -11.0f, 11.0f, -6.0f, -5.0f, 7.0f, 11.0f, W, 3.6f);         // the side boards
-  hcBox(m, -11.0f, 11.0f, 5.0f, 6.0f, 7.0f, 11.0f, W, 3.6f);
-  hcBox(m, -11.0f, -10.0f, -5.0f, 5.0f, 7.0f, 11.5f, D, 3.0f);         // the tailboard, a little higher
-  hcBox(m, 10.0f, 11.0f, -5.0f, 5.0f, 7.0f, 10.0f, W, 3.0f);           // the front board
-  for (float u : {-6.0f, 0.5f, 6.5f}) hcBox(m, u, u + 0.9f, -6.3f, -5.8f, 7.0f, 11.3f, D);   // the stakes
-  for (float u : {-6.0f, 0.5f, 6.5f}) hcBox(m, u, u + 0.9f, 5.8f, 6.3f, 7.0f, 11.3f, D);
-  // the load
-  const uint32_t seed = (uint32_t)(key * 2654435761u);
-  if (load == 0) {
-    hcBlob(m, -6.0f, -2.6f, 9.0f, 3.6f, 2.8f, 3.8f, hcSack(), seed, false);
-    hcBlob(m, 0.4f, 2.4f, 9.0f, 3.6f, 2.8f, 3.6f, hcSack(), seed + 1, false);
-    hcBlob(m, 5.6f, -2.0f, 9.0f, 3.2f, 2.8f, 3.4f, hcSack(), seed + 2, false);
-    hcBlob(m, -2.2f, 0.4f, 12.0f, 3.2f, 2.6f, 3.0f, hcSack(), seed + 3, false);
-    for (float u : {-6.0f, 0.4f, 5.6f}) for (float t = -0.6f; t <= 0.6f; t += 0.3f) m.plot(u, (u > 0 && u < 2) ? 2.4f : -2.0f, 12.4f + t, hcSack()[0]);   // the ties
-  } else if (load == 1) {
-    hcBox(m, -9.5f, -2.0f, -4.6f, 0.4f, 7.0f, 13.0f, W, 2.5f);
-    hcBox(m, -1.0f, 6.5f, -0.6f, 4.6f, 7.0f, 12.0f, D, 2.5f);
-    hcBox(m, -7.5f, -1.0f, -3.4f, 1.6f, 13.0f, 17.0f, W, 2.2f);
-  } else if (load == 2) {
-    for (int i = 0; i < 3; i++) {
-      const float cu = -6.5f + i * 6.0f, cv = (i & 1) ? 1.8f : -1.6f;
-      for (float z = 7.0f; z <= 14.0f; z += 0.4f) {
-        const float bulge = 2.6f + std::sin((z - 7.0f) / 7.0f * 3.1416f) * 0.6f;
-        for (float a = 0; a < 6.2832f; a += 0.1f) {
-          float nx, ny;
-          m.nWorld(std::cos(a), std::sin(a), nx, ny);
-          const bool hoop = std::fabs(z - 8.5f) < 0.4f || std::fabs(z - 12.5f) < 0.4f;
-          m.plot(cu + std::cos(a) * bulge, cv + std::sin(a) * bulge, z, hoop ? hcIron()[HcModel::lightK(nx, ny, 0.1f)] : W[HcModel::lightK(nx, ny, 0.1f)]);
-        }
-      }
-      for (float r = 0; r <= 2.6f; r += 0.4f)
-        for (float a = 0; a < 6.2832f; a += 0.2f) m.plot(cu + std::cos(a) * r, cv + std::sin(a) * r, 14.0f, r > 2.2f ? D[3] : W[4]);
-    }
-  } else {
-    hcBlob(m, 0.0f, 0.0f, 9.5f, 10.5f, 5.6f, 6.5f, hcHay(), seed, true);
-    for (int i = 0; i < 14; i++) {   // straws standing out of the heap
-      const uint32_t h = hash32(seed + (uint32_t)i * 977u);
-      const float u = -8.0f + (float)(h % 160u) / 10.0f, v = -4.0f + (float)((h >> 8) % 80u) / 10.0f;
-      for (float t = 0; t < 1.8f; t += 0.4f) m.plot(u + t * 0.6f, v, 13.5f + t, hcHay()[(h >> 16) % 2u ? 4 : 3]);
-    }
-  }
-  // the shafts, raised to the driver's hands, and the cross bar at their tips
-  for (float vs : {-4.4f, 4.4f})
-    for (float u = 11.0f; u <= 23.5f; u += 0.3f) {
-      const float z = 9.5f + (u - 11.0f) * 0.26f;
-      m.plot(u, vs, z + 0.6f, W[3]);
-      m.plot(u, vs, z, W[1]);
-      m.plot(u, vs + 0.5f, z, W[2]);
-    }
-  for (float v = -4.4f; v <= 4.4f; v += 0.3f) { m.plot(22.5f, v, 13.4f, W[3]); m.plot(22.5f, v, 12.8f, W[1]); }
-  // the near wheel over the bed's side
-  hcWheel(m, -1.0f, 6.8f, 5.2f, 5.2f, turn);
-  if (shadow) {
-    // the cast shadow: a soft-edged dither of the model's footprint (drawn under the cart at reduced alpha)
-    Canvas s(HC_W, HC_H);
-    for (int y = 1; y < HC_H - 1; y++)
-      for (int x = 1; x < HC_W - 1; x++) {
-        int n = 0;
-        for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) n += (m.sh.get(x + dx, y + dy) >> 24) ? 1 : 0;
-        if (n >= 5) s.set(x, y, rgba(0, 0, 0, 255));
-        else if (n >= 2 && ((x + y) & 1)) s.set(x, y, rgba(0, 0, 0, 255));
-      }
-    return s;
-  }
-  hcFinish(m.c, 0.95f);
-  return m.c;
-}
-// which of the four paintings a heading (radians, toward the driver) takes
-int handcartDir(float ang) {
-  const float cx = std::cos(ang), cy = std::sin(ang);
-  if (std::fabs(cx) >= std::fabs(cy) * 0.9f) return cx >= 0 ? 0 : 1;
-  return cy < 0 ? 2 : 3;
-}
+// (P1b ENGINE lane) a story's hand cart: rpg/art/art_handcart.cpp (P2a phase A moved the model there, pixel-identical)
+using art::handcartDir;
+constexpr int HC_OX = art::HANDCART_OX, HC_OY = art::HANDCART_OY;
+Canvas paintHandcart(uint64_t key) { return art::handcartSprite(key); }
 
 // (P1b ENGINE lane) a beacon a story lit on a watchtower's broken top: a tall fire in four flickers (a dark red skirt,
 // orange, yellow, a white heart), drawn into the drum over the jagged rim; and the warm glow it throws at night
@@ -505,6 +308,12 @@ art::Berth berthAt(const Map& m, int tx, int ty, int& kit) {
 }
 }  // namespace
 
+// (P2a) the helpers rpg/view/render_anim.cpp's human draw shares with the sorted pass here
+bool rvBathing(const Game& g, const Map& m, const Actor& a) { return bathing(g, m, a); }
+art::Berth rvBerthAt(const Map& m, int tx, int ty, int& kit) { return berthAt(m, tx, ty, kit); }
+Canvas rvFloorCushion(uint64_t key) { return paintFloorCushion(key); }
+void rvPushGlow(const Tex* t, int sx, int sw, int sh, float x, float y, bool flip, float a) { beasts::glows.push_back({t, sx, sw, sh, x, y, flip, a}); }
+
 bool View::init(Pix& pix, Audio& audio) {
   pix_ = &pix;
   audio_ = &audio;
@@ -597,13 +406,618 @@ const Tex& View::humanTex(const art::HumanLook& L, bool child) {
   Canvas sheet = art::humanSheet(L);
   if (child) childBody(sheet, true);
   const Tex& t = humans_[k] = pix_->bake(sheet);
+  liftMaskFor(sheet, t);   // (P2a LENS) the night lift's interior mask
   if (std::getenv("EMB_TIMING")) {
     static double total = 0;
     static int n = 0;
-    total += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-    std::printf("character sheet painted: %d so far, %.1f ms total\n", ++n, total);
+    const double one = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    total += one;
+    std::printf("character sheet painted: %d so far, %.1f ms total, %.3f ms this one\n", ++n, total, one);   // (P2a: per sheet, the p50 / p95 baseline)
+  }
+  if (witness && !child) {   // (P2a, Witness state.player.sprite.box) each cell's opaque box
+    std::vector<CellBox>& bx = humanBoxes_[L.key()];
+    bx.assign((size_t)art::HUMAN_FRAMES * 3, CellBox());
+    for (int row = 0; row < 3; row++)
+      for (int f = 0; f < art::HUMAN_FRAMES; f++) {
+        CellBox& b = bx[(size_t)(row * art::HUMAN_FRAMES + f)];
+        int x0 = 99, y0 = 99, x1 = -1, y1 = -1;
+        for (int y = 0; y < art::HUMAN_H; y++)
+          for (int x = 0; x < art::HUMAN_W; x++)
+            if (sheet.get(f * art::HUMAN_W + x, row * art::HUMAN_H + y) >> 24) { x0 = std::min(x0, x); y0 = std::min(y0, y); x1 = std::max(x1, x); y1 = std::max(y1, y); }
+        if (x1 >= 0) { b.x0 = (int8_t)x0; b.y0 = (int8_t)y0; b.x1 = (int8_t)x1; b.y1 = (int8_t)y1; }
+      }
   }
   return t;
+}
+
+// ---- P2a phase A (VISION_PLAN 15.36 items 3 and 4): the projection and the v2 atlases. LENS owns these from here (the
+//      world layer, the MB caps on the people caches, the bake queue for folk entering the stream radius).
+Vec2 View::worldCam() const { return Vec2(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y)); }
+Vec2 View::toUi(Vec2 w) const {
+  if (!pix_) return w;
+  const Pix::Layer& wl = pix_->worldLayer();
+  const Pix::Layer& ul = pix_->uiLayer();
+  const Vec2 c = worldCam();
+  const float dx = wl.offX + (w.x - c.x) * wl.scale, dy = wl.offY + (w.y - c.y) * wl.scale;   // device px
+  return Vec2((dx - ul.offX) / ul.scale, (dy - ul.offY) / ul.scale);
+}
+Vec2 View::toWorld(Vec2 u) const {
+  if (!pix_) return u;
+  const Pix::Layer& wl = pix_->worldLayer();
+  const Pix::Layer& ul = pix_->uiLayer();
+  const Vec2 c = worldCam();
+  const float dx = ul.offX + u.x * ul.scale, dy = ul.offY + u.y * ul.scale;
+  return Vec2(c.x + (dx - wl.offX) / wl.scale, c.y + (dy - wl.offY) / wl.scale);
+}
+float View::uiPerWorld() const {
+  if (!pix_) return 1;
+  return pix_->worldLayer().scale / std::max(1e-3f, pix_->uiLayer().scale);
+}
+
+// ---- P2a LENS: the world view, ZOOM, the HUD's bands seen from the world, the ring, the night lift, the pips
+namespace {
+// the night lift's strength: the Moonwash copy of a figure is added at kLiftK x the darkness (amb 0.12 / 0.15 / 0.30 at
+// midnight: darkness 0.81)
+// (measured, p2a_night.txt: a figure's median is held down by its ink outline, hair and trousers, about 50 luma under
+// the meadow by day; at 1.0 the hero stands +12 over the meadow at 23:00 with the outline still 32 under the ground)
+const float kLiftK = std::getenv("EMB_LIFTK") ? (float)std::atof(std::getenv("EMB_LIFTK")) : 0.5f;
+// the flat Moonwash glaze over the figure's interior, x the darkness
+const float kLiftFlat = std::getenv("EMB_LIFTF") ? (float)std::atof(std::getenv("EMB_LIFTF")) : 0.25f;
+// the ring's front arc added again after the light map, x its alpha x the darkness
+const float kRingNightK = std::getenv("EMB_RINGK") ? (float)std::atof(std::getenv("EMB_RINGK")) : 0.3f;
+
+// (P2a slice, SLICE-WALK-JITTER) the camera rounded once a frame, in View::update: cam_ then holds the whole-pixel camera
+// that every draw, worldCam() and toUi read, and the eased camera's dropped fraction waits in s_camRes for the next
+// frame's easing. An axis that moves with the hero is rounded in the hero's own phase: his feet are drawn at round(p) -
+// cam, so that axis takes round(p) - round(p - c) and his place on the screen changes only when the camera's lag behind
+// him changes (it eases), never because the hero and the camera round on different frames (round 2: pivot.x 717 / 720
+// on 56 of 119 frames of a steady walk). A resting axis (a fixed room, the map's edge, the camera settled) is floored
+// alone, as before, so the world never shimmers while the camera is still.
+Vec2 s_camRes, s_camPrev;
+bool s_camPrevOk = false, s_camFollowX = false, s_camFollowY = false;
+// (test hook) EMB_CAMSNAP=0: the pre-fix camera (the eased camera floored at each draw), for before / after comparisons
+const bool kCamSnap = !(std::getenv("EMB_CAMSNAP") && std::atoi(std::getenv("EMB_CAMSNAP")) == 0);
+Vec2 rvSnapCamera(Vec2 c, Vec2 hero, bool withHero, float dt) {
+  Vec2 s(std::floor(c.x), std::floor(c.y));
+  auto axis = [&](float cv, float pv, float prev, bool& follow, float& out) {
+    const float speed = s_camPrevOk && dt > 0 ? std::fabs(cv - prev) / dt : 0.0f;   // world px a second
+    follow = withHero && speed >= (follow ? 8.0f : 15.0f);
+    if (follow) out = std::floor(pv + 0.5f) - std::floor(pv - cv + 0.5f);
+  };
+  axis(c.x, hero.x, s_camPrev.x, s_camFollowX, s.x);
+  axis(c.y, hero.y, s_camPrev.y, s_camFollowY, s.y);
+  s_camPrev = c;
+  s_camPrevOk = true;
+  return s;
+}
+}  // namespace
+int View::viewW() const {
+  if (!pix_) return Pix::W;
+  const Pix::Layer& wl = pix_->worldLayer();
+  return wl.w > 0 ? wl.w : Pix::W;
+}
+int View::viewH() const {
+  if (!pix_) return Pix::H;
+  const Pix::Layer& wl = pix_->worldLayer();
+  return wl.h > 0 ? wl.h : Pix::H;
+}
+void View::zoomStep(int dir) {
+  const std::vector<int> lv = screen::zoomLevels();
+  if (lv.empty() || dir == 0) return;
+  const int cur = screen::worldScale();
+  int i = 0;
+  for (int k = 0; k < (int)lv.size(); k++) if (std::abs(lv[(size_t)k] - cur) < std::abs(lv[(size_t)i] - cur)) i = k;
+  const int ni = std::clamp(i + (dir > 0 ? 1 : -1), 0, (int)lv.size() - 1);
+  screen::Settings s = screen::get();
+  const int z = std::clamp(screen::zoomLevelOf(lv[(size_t)ni]), screen::kZoomMin, screen::kZoomMax);
+  if (ni == i && z == s.zoom) return;   // already at the end of the screen's levels
+  s.zoom = z;
+  screen::set(s);
+  if (audio_) audio_->play(Sfx::MenuMove, dir > 0 ? 1.12f : 0.9f, 0.45f);
+}
+void View::uiInsetsToWorld(float l, float t, float r, float b, float out[4]) const {
+  out[0] = l; out[1] = t; out[2] = r; out[3] = b;
+  if (!pix_) return;
+  const Pix::Layer& wl = pix_->worldLayer();
+  const Pix::Layer& ul = pix_->uiLayer();
+  if (wl.w <= 0 || ul.w <= 0) return;
+  const float U = ul.scale, D = wl.scale;
+  out[0] = (ul.offX + l * U - wl.offX) / D;
+  out[1] = (ul.offY + t * U - wl.offY) / D;
+  out[2] = (float)wl.w - (ul.offX + (ul.w - r) * U - wl.offX) / D;
+  out[3] = (float)wl.h - (ul.offY + (ul.h - b) * U - wl.offY) / D;
+}
+
+// Once a frame before the camera moves: a zoom (or a window resize) keeps the hero where they stand on the screen (the
+// camera's centre moves so the hero's device position holds; the follow then eases the lead back in its ~0.15 s), the
+// ring's flare (hit, or walked into a crowd), the v2 bake queue.
+void View::lensUpdate(Game& g, float dt) {
+  const int vw = viewW(), vh = viewH();
+  const int d = pix_ ? std::max(1, (int)std::lround(pix_->worldLayer().scale)) : 1;
+  if (lensD_ > 0 && (d != lensD_ || vw != lensViewW_ || vh != lensViewH_) && g.mode != Mode::Title) {
+    const Vec2 hero = g.pl().p;
+    const Vec2 oc = cam_ + Vec2(lensViewW_ * 0.5f, lensViewH_ * 0.5f);
+    const Vec2 nc = hero - (hero - oc) * ((float)lensD_ / (float)d);
+    cam_ = nc - Vec2(vw * 0.5f, vh * 0.5f);
+  }
+  lensD_ = d; lensViewW_ = vw; lensViewH_ = vh;
+  // the ring flares for a second when the hero is hit or walks into a crowd (4 or more people within 3 tiles)
+  if (ringFlare_ > 0) ringFlare_ = std::max(0.0f, ringFlare_ - dt);
+  if (g.mode == Mode::Play) {
+    const Actor& p = g.pl();
+    if (ringHpWas_ >= 0 && p.hp < ringHpWas_ - 0.01f) ringFlare_ = 1.0f;
+    ringHpWas_ = p.hp;
+    int crowdN = 0;
+    for (const Actor& a : g.actors)
+      if (!a.player && a.human && a.st != AState::Dead && len2(a.p - p.p) < 48.0f * 48.0f) crowdN++;
+    const bool crowd = crowdN >= 4;
+    if (crowd && !ringCrowdWas_) ringFlare_ = 1.0f;
+    ringCrowdWas_ = crowd;
+  } else ringHpWas_ = -1;
+  rigBakeQueue(g);
+}
+
+namespace {
+// the hero's ring (STYLE_P2 8): a 1 px Ember Gold ellipse w x h, its front (lower) arc a step brighter, a 1 px Ring Shadow
+// line (Ink at 45 %) under the front arc. key: w | h << 8 | pale << 16. On a pale ground (sand, snow, ice) the gold sits
+// close to the ground's own value, so there the rim deepens to a warm amber and the Ring Shadow runs round the whole
+// ellipse (outside it, a touch firmer): the ring then reads by its dark edge (p2a_night.txt: 35 luma or more on all four
+// grounds). Canvas: one px of margin round the ellipse (the shadow's room); the ellipse's centre is the canvas centre.
+Canvas paintRing(uint64_t key) {
+  const int w = (int)(key & 255), h = (int)((key >> 8) & 255);
+  const bool pale = ((key >> 16) & 1) != 0;
+  Canvas c(w + 2, h + 2);
+  const float rx = w * 0.5f, ry = h * 0.5f;
+  auto in = [&](int x, int y) {   // ellipse coordinates (0..w-1, 0..h-1)
+    if (x < 0 || y < 0 || x >= w || y >= h) return false;
+    const float u = (x + 0.5f - rx) / rx, v = (y + 0.5f - ry) / ry;
+    return u * u + v * v <= 1.0f;
+  };
+  auto rimAt = [&](int x, int y) { return in(x, y) && !(in(x - 1, y) && in(x + 1, y) && in(x, y - 1) && in(x, y + 1)); };
+  const uint32_t rim = pale ? rgba(0xD8, 0x8E, 0x2A) : rgba(0xF2, 0xC1, 0x4E);
+  const uint32_t front = pale ? rgba(0xF0, 0xB0, 0x44) : rgba(0xFF, 0xDE, 0x82);
+  const uint32_t shade = rgba(0x1E, 0x16, 0x2A, pale ? 190 : 115);
+  for (int y = 0; y < h; y++)
+    for (int x = 0; x < w; x++)
+      if (rimAt(x, y)) c.set(x + 1, y + 1, y * 2 >= h ? front : rim);
+  for (int y = -1; y <= h; y++)
+    for (int x = -1; x <= w; x++) {
+      if (in(x, y)) continue;
+      if (pale) {   // round the whole ellipse: every clear pixel touching the rim (4-neighbours)
+        if (rimAt(x - 1, y) || rimAt(x + 1, y) || rimAt(x, y - 1) || rimAt(x, y + 1)) c.set(x + 1, y + 1, shade);
+      } else if (y * 2 >= h && rimAt(x, y - 1)) {   // under the front arc only
+        c.set(x + 1, y + 1, shade);
+      }
+    }
+  if (pale)   // and inside it: the gold line inked on both sides (its dark edge then outweighs it on sand and snow)
+    for (int y = 0; y < h; y++)
+      for (int x = 0; x < w; x++)
+        if (in(x, y) && !rimAt(x, y) && (rimAt(x - 1, y) || rimAt(x + 1, y) || rimAt(x, y - 1) || rimAt(x, y + 1))) c.set(x + 1, y + 1, shade);
+  return c;
+}
+// a ground whose own value sits near the gold's (by day: sand 175, snow 186 luma against Ember Gold's 190)
+bool paleGround(Ground gr) { return gr == Ground::Sand || gr == Ground::Snow || gr == Ground::Ice; }
+}  // namespace
+
+void View::drawRing(const Game& g, const Actor& a, Vec2 cam) {
+  if (!a.player || !screen::get().ring || g.mode == Mode::Title || g.mode == Mode::Creator || a.st == AState::Dead) return;
+  const art::RigMetrics& M = rigFor(a.look);
+  const Map& m = g.mode == Mode::Title ? g.world.over : g.map();
+  const int gtx = (int)std::floor(a.p.x / 16), gty = (int)std::floor(a.p.y / 16);
+  const bool pale = m.in(gtx, gty) && paleGround(m.at(gtx, gty));
+  const Tex& t = cachedTex((uint64_t)M.ringW | (uint64_t)M.ringH << 8 | (uint64_t)(pale ? 1 : 0) << 16 | 0x61ull << 56, paintRing);
+  const float k = clampf(ringFlare_, 0, 1);
+  const float alpha = 0.80f + 0.15f * k;
+  // centred on the feet (the canvas has a px of margin all round)
+  const float x = std::floor(a.p.x - M.ringW * 0.5f - 1 - cam.x + 0.5f), y = std::floor(a.p.y - M.ringH * 0.5f - 1 - cam.y + 0.5f);
+  ringOn_ = true; ringX_ = x; ringY_ = y; ringA_ = alpha; ringTex_ = &t;
+  pix_->blitEx(t, 0, 0, t.w, t.h, x, y, (float)t.w, (float)t.h, false, Color(1, 1, 1, alpha));
+  lensStats.ringA = alpha;
+}
+
+// The night lift (STYLE_P2 8): after the light map, each human figure drawn in the sorted pass is added again in
+// Moonwash, scaled by how dark the night is, so people stay a step brighter than the ground they stand on (lamps and
+// the hero's torch still win: the lift is a fraction of the figure's own colours, never a flat glow).
+// (P2a LENS fix r3, NIGHT-LIFT-THROUGH-OCCLUDERS) only what shows of a figure is lifted. The sorted pass records, besides
+// the figures' blits (liftRecs_), every plain blit drawn round them (g_occRecs: tents, awnings, crowns, roofs, the
+// people in front), and for each figure blit how many of those came before it (BlitRec::occ, stamped by Pix at the blit
+// itself, so a horse's head or rump painted after its rider in the same drawable still covers him: fix r4). drawNightLift
+// replays that order into its own target: a figure blit first clears the lift under it (its own body hides what it stands before),
+// then adds its lift; every later blit clears the lift by its alpha. The target is then added over the lit world.
+namespace {
+std::vector<Pix::BlitRec> g_occRecs;
+Tex g_liftT;
+int g_liftEpoch = 0;
+// dst.rgb *= 1 - src.a (the blit's coverage clears the lift under it)
+SDL_BlendMode liftEraseMode() {
+  static const SDL_BlendMode m = SDL_ComposeCustomBlendMode(SDL_BLENDFACTOR_ZERO, SDL_BLENDFACTOR_ONE_MINUS_SRC_ALPHA, SDL_BLENDOPERATION_ADD,
+                                                            SDL_BLENDFACTOR_ZERO, SDL_BLENDFACTOR_ONE_MINUS_SRC_ALPHA, SDL_BLENDOPERATION_ADD);
+  return m;
+}
+// the erase blend works on this renderer (checked once on the lift's target; the software renderer has no custom blends)
+bool liftEraseOk(SDL_Texture* t) {
+  static int ok = -1;
+  if (ok < 0) { ok = SDL_SetTextureBlendMode(t, liftEraseMode()) ? 1 : 0; SDL_SetTextureBlendMode(t, SDL_BLENDMODE_BLEND); }
+  return ok == 1;
+}
+void liftErase(SDL_Renderer* ren, const Pix::BlitRec& r) {
+  if (!r.t) return;
+  SDL_SetTextureBlendMode(r.t, liftEraseMode());
+  SDL_SetTextureAlphaModFloat(r.t, clampf(r.a, 0, 1));
+  const SDL_FRect s{(float)r.sx, (float)r.sy, (float)r.sw, (float)r.sh};
+  const SDL_FRect d{r.dx, r.dy, r.dw, r.dh};
+  SDL_RenderTextureRotated(ren, r.t, &s, &d, 0.0, nullptr, r.flip ? SDL_FLIP_HORIZONTAL : SDL_FLIP_NONE);
+  SDL_SetTextureBlendMode(r.t, SDL_BLENDMODE_BLEND);
+  SDL_SetTextureAlphaModFloat(r.t, 1.0f);
+}
+}  // namespace
+
+void View::drawNightLift(const Game& g, float dark) {
+  lensStats.liftFigs = 0;
+  struct Clear { std::vector<Pix::BlitRec>& l; ~Clear() { l.clear(); g_occRecs.clear(); } } clearAll{liftRecs_};
+  if (g.mode == Mode::Title || g.mode == Mode::Creator || g.inside || dark < 0.05f || liftRecs_.empty()) return;
+  // the lift's own target (the world view's size, one texel per world px), cleared to nothing
+  static const bool noMask = std::getenv("EMB_LIFT_NOMASK") != nullptr;   // (test hook) the unmasked lift, for an A/B
+  SDL_Renderer* ren = pix_->renderer();
+  bool masked = !noMask && ren != nullptr;
+  if (masked) {
+    if (g_liftEpoch != Pix::texEpoch) { g_liftEpoch = Pix::texEpoch; g_liftT = Tex(); }
+    if (g_liftT.w != Pix::W || g_liftT.h != Pix::H || !g_liftT.t) {
+      pix_->destroy(g_liftT);
+      g_liftT = pix_->makeTarget(Pix::W, Pix::H);
+      if (g_liftT.t) SDL_SetTextureScaleMode(g_liftT.t, SDL_SCALEMODE_NEAREST);
+    }
+    masked = g_liftT.t != nullptr && liftEraseOk(g_liftT.t);
+  }
+  if (masked) {
+    pix_->setTarget(&g_liftT);
+    SDL_SetRenderDrawColor(ren, 0, 0, 0, 0);
+    SDL_RenderClear(ren);
+  }
+  // the figures drawn so far (their union): a later blit outside it has nothing to clear
+  float ux0 = 1e9f, uy0 = 1e9f, ux1 = -1e9f, uy1 = -1e9f;
+  // each figure blit's place among the occluders, as Pix stamped it (never before an earlier figure's: the replay runs
+  // forward; a blit made with no occluder record set counts as right after the figure before it)
+  size_t oi = liftRecs_[0].occ != Pix::kNoOcc ? liftRecs_[0].occ : 0, occAt = oi;
+  auto eraseTo = [&](size_t end) {
+    for (; oi < end && oi < g_occRecs.size(); oi++) {
+      const Pix::BlitRec& o = g_occRecs[oi];
+      if (o.dx >= ux1 || o.dy >= uy1 || o.dx + o.dw <= ux0 || o.dy + o.dh <= uy0) continue;
+      liftErase(ren, o);
+    }
+  };
+  // two parts: the figure's own colours x Moonwash (keeps its shading) and a flat Moonwash glaze over its interior (the
+  // mask: the ink outline is left out, so the edge stays dark while the body's darker half rises with the rest)
+  const float k = kLiftK * dark, kf = kLiftFlat * dark;
+  const Color mw(0x8F / 255.0f, 0xA6 / 255.0f, 0xD8 / 255.0f, 1);
+  const Vec2 hc = g.pl().p - worldCam();   // the hero's feet in the world view (their torch's middle)
+  const float hx = hc.x, hy = hc.y;
+  int maskBakes = 0;
+  for (size_t ri = 0; ri < liftRecs_.size(); ri++) {
+    const Pix::BlitRec& r = liftRecs_[ri];
+    if (masked) {
+      if (r.occ != Pix::kNoOcc) occAt = std::max(occAt, (size_t)r.occ);
+      eraseTo(occAt);
+      liftErase(ren, r);
+      ux0 = std::min(ux0, r.dx); uy0 = std::min(uy0, r.dy); ux1 = std::max(ux1, r.dx + r.dw); uy1 = std::max(uy1, r.dy + r.dh);
+    }
+    if (r.a < 0.5f || r.sh < 12) continue;   // a bather's tinted under-water half, a cushion
+    // fullest at the hero (in their torchlight), easing to kLiftFar from 24 to 96 px off: folk round about read as pale
+    // ghosts at full strength; at 40 % an unlit villager on sand / snow sank under L6 (|fig - gnd| 7 / 3), at 60 % they
+    // stand 12 or more over every ground (L6, fix round 2)
+    constexpr float kLiftFar = 0.6f;
+    const float fx = r.dx + r.dw * 0.5f - hx, fy = r.dy + r.dh - hy;
+    const float nearK = 1.0f - (1.0f - kLiftFar) * clampf((std::sqrt(fx * fx + fy * fy) - 24.0f) / 72.0f, 0, 1);
+    lensStats.liftFigs++;
+    if (k > 0) pix_->blitRec(r, Color(mw.r * k * nearK, mw.g * k * nearK, mw.b * k * nearK, r.a), 1);
+    auto mi = liftMask_.find(r.t);
+    if (kf > 0 && mi != liftMask_.end()) {
+      LiftMask& lm = mi->second;
+      if (!lm.tex.t && !lm.m.empty() && (witness || maskBakes++ < 8)) {   // its first night: the mask's texture (8 a frame)
+        Canvas c(lm.w, lm.h);
+        for (size_t i = 0; i < lm.m.size(); i++) if (lm.m[i]) c.px[i] = rgba(255, 255, 255);
+        lm.tex = pix_->bake(c);
+      }
+      if (!lm.tex.t) continue;
+      Pix::BlitRec q = r;
+      q.t = lm.tex.t;
+      pix_->blitRec(q, Color(mw.r, mw.g, mw.b, r.a * kf * nearK), 1);
+    }
+  }
+  if (masked) {
+    eraseTo(g_occRecs.size());
+    // back to the world: the summed lift (its alpha 0) added over the lit world as it stands
+    pix_->setTarget(nullptr);
+    SDL_SetTextureBlendMode(g_liftT.t, SDL_BLENDMODE_ADD_PREMULTIPLIED);
+    SDL_SetTextureColorModFloat(g_liftT.t, 1, 1, 1);
+    SDL_SetTextureAlphaModFloat(g_liftT.t, 1);
+    const SDL_FRect d{0, 0, (float)g_liftT.w, (float)g_liftT.h};
+    SDL_RenderTexture(ren, g_liftT.t, nullptr, &d);
+  }
+  liftRecs_.clear();
+  // the ring glows through the night: its front arc (below the feet) and its back arc's two ends (beside the legs): what no
+  // part of the standing hero covers
+  if (ringOn_ && ringTex_ && ringTex_->t) {
+    const Tex& t = *ringTex_;
+    const Color c(1, 1, 1, ringA_ * dark * kRingNightK);
+    const int sy = t.h / 2 + 1, sh = t.h - sy;
+    if (sh > 0) pix_->blitEx(t, 0, sy, t.w, sh, ringX_, ringY_ + sy, (float)t.w, (float)sh, false, c, 1);
+    const int cx = t.w / 2, legs = t.w >= 24 ? 6 : 5;   // the legs' half-width round the feet (v1 / v2)
+    const int lw = cx - legs, rx0 = cx + legs;
+    if (lw > 0) {
+      pix_->blitEx(t, 0, 0, lw, sy, ringX_, ringY_, (float)lw, (float)sy, false, c, 1);
+      pix_->blitEx(t, rx0, 0, t.w - rx0, sy, ringX_ + rx0, ringY_, (float)(t.w - rx0), (float)sy, false, c, 1);
+    }
+  }
+}
+
+// Off-screen pips (STYLE_P2 18; the UI layer): a 7 x 5 Warning Ember chevron with an Ink edge at the safe area's edge,
+// pointing at each aggro'd hostile outside the view within its aggro radius (bandits notice the hero from beyond half the
+// view); it pulses slowly, faster as the foe closes. Out of the HUD's corners like the quest arrow.
+void View::drawPips(const Game& g) {
+  lensStats.pips = 0;
+  if (g.mode != Mode::Play && g.mode != Mode::Dialogue) return;
+  if (g.mode == Mode::Dialogue) return;   // the talk panel is modal
+  Pix& P = *pix_;
+  const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR), B = (float)(Pix::H - Pix::SB);
+  const Actor& hp = g.pl();
+  static const char* kUp[5] = {"...#...", "..###..", ".#####.", "###.###", "##...##"};
+  const Color ember(0xE8 / 255.0f, 0x60 / 255.0f, 0x3C / 255.0f), ink(0x1E / 255.0f, 0x16 / 255.0f, 0x2A / 255.0f);
+  struct Placed { float x, y; };
+  std::vector<Placed> placed;
+  for (const Actor& a : g.actors) {
+    if (a.player || !a.hostile || !a.aggro || a.st == AState::Dead || a.st == AState::Down || a.critter > 0) continue;
+    const float d = len(a.p - hp.p);
+    if (d > std::max(a.aggroR, 60.0f)) continue;
+    // in view: any part of the body inside the safe area (a figure's middle, a few px of margin)
+    const float bodyH = a.human ? (float)rigFor(a.look).figH(a.look) :(float)art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a);
+    const Vec2 mid = toUi(a.p - Vec2(0, bodyH * 0.5f));
+    const float k = uiPerWorld();
+    if (mid.x > L - 4 * k && mid.x < R + 4 * k && mid.y > T - bodyH * 0.5f * k && mid.y < B + bodyH * 0.5f * k) continue;
+    // where the ray from the safe area's centre to the foe meets the edge (8 px in)
+    const Vec2 c((L + R) * 0.5f, (T + B) * 0.5f);
+    const Vec2 dir = norm(mid - c);
+    const float kk = std::min(((R - L) * 0.5f - 8) / std::max(0.01f, std::fabs(dir.x)), ((B - T) * 0.5f - 8) / std::max(0.01f, std::fabs(dir.y)));
+    Vec2 at = c + dir * kk;
+    // out of the HUD's corners: the vitals block top-left, the minimap and quest column top-right
+    if (at.x < L + 150 && at.y < T + 60) { if (std::fabs(dir.x) > std::fabs(dir.y)) at.y = T + 64; else at.x = L + 154; }
+    if (hudColLeft_ < 1e8f && at.x > hudColLeft_ - 4 && at.y < hudColBottom_ + 4) {
+      if (std::fabs(dir.x) > std::fabs(dir.y)) at.y = hudColBottom_ + 8; else at.x = hudColLeft_ - 8;
+    }
+    // one pip per spot: a pack behind one edge shows as a short row, not a blot
+    for (int guard = 0; guard < 6; guard++) {
+      bool clash = false;
+      for (const Placed& q : placed) if (std::fabs(q.x - at.x) < 9 && std::fabs(q.y - at.y) < 9) clash = true;
+      if (!clash) break;
+      if (std::fabs(dir.x) > std::fabs(dir.y)) at.y += 10; else at.x += 10;
+    }
+    placed.push_back({at.x, at.y});
+    // the facing: the edge it rides (up, down, left, right)
+    const int face = std::fabs(dir.x) * (B - T) > std::fabs(dir.y) * (R - L) ? (dir.x > 0 ? 3 : 2) : (dir.y > 0 ? 1 : 0);
+    const float close = clampf(1.0f - d / std::max(60.0f, a.aggroR), 0, 1);
+    const float rate = 3.0f + 7.0f * close;   // faster as the foe closes
+    const float pulse = 0.72f + 0.28f * std::sin(t_ * rate + (float)a.id);
+    auto fill = [&](int x, int y) {   // the pattern in the pip's facing (7 x 5 up; turned for the others)
+      int u = x, v = y;
+      if (face == 1) v = 4 - y;
+      if (face == 2 || face == 3) { u = y; v = x; if (face == 3) v = 4 - x; }
+      return u >= 0 && u < 7 && v >= 0 && v < 5 && kUp[v][u] == '#';
+    };
+    const int pw = face >= 2 ? 5 : 7, ph = face >= 2 ? 7 : 5;
+    const float x0 = std::floor(at.x - pw / 2.0f), y0 = std::floor(at.y - ph / 2.0f);
+    for (int y = -1; y <= ph; y++)
+      for (int x = -1; x <= pw; x++) {
+        if (fill(x, y)) continue;
+        bool edge = false;
+        for (int j = -1; j <= 1 && !edge; j++) for (int i = -1; i <= 1 && !edge; i++) edge = fill(x + i, y + j);
+        if (edge) P.rect(x0 + x, y0 + y, 1, 1, Color(ink.r, ink.g, ink.b, 0.9f * pulse));
+      }
+    for (int y = 0; y < ph; y++)
+      for (int x = 0; x < pw; x++)
+        if (fill(x, y)) P.rect(x0 + x, y0 + y, 1, 1, Color(std::min(1.0f, ember.r * (0.9f + 0.2f * close)), ember.g, ember.b, pulse));
+    lensStats.pips++;
+  }
+}
+
+namespace {
+uint64_t rigKey(const art::HumanLook& L, art::RigPart part, bool child) {
+  return ew::mix64(L.key() ^ ((uint64_t)part + 1) * 0x9E3779B97F4A7C15ull ^ (child ? 0x2C41D2ull : 0));
+}
+// the v2 bake budget per frame (VISION_PLAN 15.36 "bake": 2 ms, 1.2 ms on the web) and the v2 atlases' byte cap (of the
+// phone's 24 MB for all people textures: the v1 sheets and pose sheets keep the rest while both rigs live)
+#ifdef __EMSCRIPTEN__
+constexpr double kRigBakeMs = 1.2;
+#else
+const double kRigBakeMs = std::getenv("EMB_WEBSIM") ? 1.2 : 2.0;
+#endif
+constexpr double kRigCapMB = 16.0;
+constexpr float kStreamR = 34.0f * 16.0f;   // the stream radius (px): folk inside it are baked before they are seen
+}  // namespace
+
+// a v2 atlas: from the cache, baked now within this frame's budget (a person on screen needs it), or queued (drawn v1
+// until the queue reaches it). A Witness run bakes inline: no picture depends on CPU speed.
+View::RigTex View::rigTex(const art::HumanLook& L, art::RigPart part, bool child) {
+  RigTex r;
+  if (art::rigVersion() < 2 || !art::rig2Covers(L)) return r;   // v1 is drawn: nothing to bake
+  const uint64_t k = rigKey(L, part, child);
+  auto it = rigTex_.find(k);
+  if (it == rigTex_.end()) {
+    if (!witness && !rigBakeBudget()) {   // over this frame's budget: queued, nearest first next frame
+      bool queued = false;
+      for (const RigJob& j : rigQueue_) if (j.part == part && j.child == child && j.look.key() == L.key()) queued = true;
+      if (!queued) { RigJob j; j.look = L; j.part = part; j.child = child; j.d2 = 0; rigQueue_.insert(rigQueue_.begin(), j); }
+      return r;
+    }
+    const auto t0 = std::chrono::steady_clock::now();
+    RigEntry e;
+    e.sheet = art::humanRig(L, part);
+    if (!e.sheet.empty() && e.sheet.atlas.w > 0) {
+      e.tex = pix_->bake(e.sheet.atlas);
+      liftMaskFor(e.sheet.atlas, e.tex);   // (P2a slice) the night lift's interior mask: v2 people rise inside their ink
+    }
+    e.sheet.atlas = Canvas();   // the frames are kept; the pixels live in the texture
+    it = rigTex_.emplace(k, std::move(e)).first;
+    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    rigBakeFrameMs_ += ms;
+    lensStats.rigBaked++;
+  }
+  it->second.used = t_;
+  r.tex = &it->second.tex;
+  r.sheet = &it->second.sheet;
+  return r;
+}
+// a v2 posture atlas (art::humanPosture2: the posture's frames as clip Idle, variant 0, in four facings), cached with the
+// v2 atlases and baked within the same budget; not ready while the painters do not cover the look
+View::RigTex View::rigPoseTex(const art::HumanLook& L, art::Posture p, uint8_t variant) {
+  RigTex r;
+  if (art::rigVersion() < 2 || !art::rig2Covers(L)) return r;
+  const uint64_t k = ew::mix64(L.key() ^ 0x9051E2ull ^ ((uint64_t)p + 1) << 40 ^ (uint64_t)variant << 52);
+  auto it = rigTex_.find(k);
+  if (it == rigTex_.end()) {
+    if (!witness && !rigBakeBudget()) return r;   // next frame (drawn v1 meanwhile)
+    const auto t0 = std::chrono::steady_clock::now();
+    RigEntry e;
+    e.sheet = art::humanPosture2(L, p, variant);
+    if (!e.sheet.empty() && e.sheet.atlas.w > 0) { e.tex = pix_->bake(e.sheet.atlas); liftMaskFor(e.sheet.atlas, e.tex); }
+    e.sheet.atlas = Canvas();
+    it = rigTex_.emplace(k, std::move(e)).first;
+    rigBakeFrameMs_ += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+  }
+  it->second.used = t_;
+  r.tex = &it->second.tex;
+  r.sheet = &it->second.sheet;
+  return r;
+}
+// (P2a LENS) a rider (the hero's or a companion's) on v2: the Ride posture's frame for the facing, its hip anchor on
+// the saddle's seat point (hipX, hipY: screen px; v1's seat line), else its pivot on v1's feet point (pivX, pivY);
+// never flipped. False (draw v1) until the painters cover the look. The blit is recorded for the night lift.
+bool View::drawRiderV2(const art::HumanLook& L, int facing, float hipX, float hipY, float pivX, float pivY, Color c, int blend, RideGhost* ghost) {
+  const RigTex rt = rigPoseTex(L, art::Posture::Ride, 0);
+  if (!rt.ready()) return false;
+  const art::FrameRect* f = rt.sheet->frame(facing, art::Clip::Idle, 0, 0);
+  if (!f) return false;
+  const art::RigAnchors* an = rt.sheet->anchorsOf(facing, art::Clip::Idle, 0, 0);
+  float x, y;
+  if (an && an->hipX != art::kNoAnchor && an->hipY != art::kNoAnchor) { x = hipX - (f->px + an->hipX); y = hipY - (f->py + an->hipY); }
+  else { x = pivX - f->px; y = pivY - f->py; }
+  x = std::floor(x + 0.5f); y = std::floor(y + 0.5f);
+  if (blend == 0) pix_->recordBlits(&liftRecs_);
+  pix_->blitEx(*rt.tex, f->x, f->y, f->w, f->h, x, y, (float)f->w, (float)f->h, false, c, blend);
+  pix_->recordBlits(nullptr);
+  if (ghost) { ghost->t = rt.tex; ghost->sx = f->x; ghost->sy = f->y; ghost->w = f->w; ghost->h = f->h; ghost->flip = false; ghost->x = x; ghost->y = y; }
+  return true;
+}
+bool View::rigBakeBudget() {
+  if (rigBakeFrameT_ != t_) { rigBakeFrameT_ = t_; rigBakeFrameMs_ = 0; lensStats.rigBaked = 0; }
+  return rigBakeFrameMs_ < kRigBakeMs;
+}
+// The bake queue (rig 2): the looks of the folk inside the stream radius whose LOCO atlas is not baked (a fighter's
+// ACTION too once it hunts the hero), nearest first, rebuilt four times a second; each frame bakes from its head within
+// the budget, so folk are baked before they walk into view.
+void View::rigBakeQueue(const Game& g) {
+  lensStats.rigQueued = (int)rigQueue_.size();
+  if (art::rigVersion() < 2 || g.mode == Mode::Title || g.mode == Mode::Creator) { rigQueue_.clear(); return; }
+  static float rebuildT = 0;
+  if (t_ - rebuildT > 0.25f || t_ < rebuildT) {
+    rebuildT = t_;
+    std::vector<RigJob> q;
+    const Vec2 pp = g.pl().p;
+    for (const Actor& a : g.actors) {
+      if (!a.human || a.st == AState::Dead) continue;
+      const float d2 = len2(a.p - pp);
+      if (d2 > kStreamR * kStreamR || !art::rig2Covers(a.look)) continue;
+      const bool child = a.role == Role::Child;
+      auto want = [&](art::RigPart part) {
+        if (rigTex_.count(rigKey(a.look, part, child))) return;
+        RigJob j; j.look = a.look; j.part = part; j.child = child; j.d2 = d2;
+        q.push_back(j);
+      };
+      want(art::RigPart::Loco);
+      if (a.player || (a.hostile && (a.aggro || d2 < 200.0f * 200.0f))) want(art::RigPart::Action);
+    }
+    std::sort(q.begin(), q.end(), [](const RigJob& x, const RigJob& y) { return x.d2 < y.d2; });
+    rigQueue_.swap(q);
+  }
+  while (!rigQueue_.empty() && rigBakeBudget()) {
+    const RigJob j = rigQueue_.front();
+    rigQueue_.erase(rigQueue_.begin());
+    if (rigTex_.count(rigKey(j.look, j.part, j.child))) continue;
+    (void)rigTex(j.look, j.part, j.child);
+  }
+  lensStats.rigBakeMs = rigBakeFrameMs_;
+}
+// the v2 atlases past their byte cap: the least recently used (unused for 4 s or more) go, to three quarters of the cap
+void View::trimRigCaches() {
+  double b = 0;
+  for (const auto& kv : rigTex_) b += (double)kv.second.tex.w * kv.second.tex.h * 4;
+  lensStats.rigMB = b / (1024.0 * 1024.0);
+  if (lensStats.rigMB <= kRigCapMB) return;
+  std::vector<std::pair<float, uint64_t>> age;
+  for (const auto& kv : rigTex_) age.push_back({kv.second.used, kv.first});
+  std::sort(age.begin(), age.end());
+  for (const auto& a : age) {
+    if (b <= kRigCapMB * 0.75 * 1024.0 * 1024.0 || t_ - a.first < 4.0f) break;
+    auto it = rigTex_.find(a.second);
+    if (it == rigTex_.end()) continue;
+    b -= (double)it->second.tex.w * it->second.tex.h * 4;
+    dropLiftMask(it->second.tex);   // (a later texture may reuse the pointer)
+    pix_->destroy(it->second.tex);
+    rigTex_.erase(it);
+  }
+  lensStats.rigMB = b / (1024.0 * 1024.0);
+}
+
+void View::rigChanged() {
+  if (!pix_) return;
+  auto drop = [&](std::unordered_map<uint64_t, Tex>& m) { for (auto& kv : m) pix_->destroy(kv.second); m.clear(); };
+  for (auto& kv : liftMask_) if (kv.second.tex.t) pix_->destroy(kv.second.tex);
+  liftMask_.clear();
+  drop(humans_); humanUsed_.clear(); humanBoxes_.clear();
+  drop(poseTex_); poseUsed_.clear();
+  drop(monsterLooks_);
+  drop(bldgTex_); bldgUsed_.clear(); drop(bldgNight_); drop(bldgGlow_); bldgTopRow_.clear(); bldgSmoke_.clear();
+  drop(styledProps_); drop(homeTex_); drop(laneTex_); drop(critterTex_); drop(partyTex_); drop(mythicAura_);
+  drop(lampDark_); drop(warPropTex_); drop(armsTex_);
+  for (auto& kv : rigTex_) pix_->destroy(kv.second.tex);
+  rigTex_.clear();
+  rigQueue_.clear();
+  for (Tex& t : monsters_) pix_->destroy(t);
+  monsters_.clear();
+  for (int i = 0; i < (int)Monster::COUNT; i++) monsters_.push_back(pix_->bake(art::monsterSheet((Monster)i)));
+  for (Tex& t : props_) pix_->destroy(t);
+  props_.clear();
+  for (int i = 0; i < (int)Prop::COUNT; i++) props_.push_back(pix_->bake(art::propSprite((Prop)i)));
+}
+
+double View::peopleMB() const {
+  double b = 0;
+  for (const auto& kv : humans_) b += (double)kv.second.w * kv.second.h * 4;
+  for (const auto& kv : poseTex_) b += (double)kv.second.w * kv.second.h * 4;
+  for (const auto& kv : rigTex_) b += (double)kv.second.tex.w * kv.second.tex.h * 4;
+  for (const auto& kv : liftMask_) if (kv.second.tex.t) b += (double)kv.second.tex.w * kv.second.tex.h * 4;   // (P2a LENS) the night lift's masks
+  return b / (1024.0 * 1024.0);
+}
+
+// (P2a LENS) the night lift's interior mask of a people sheet: set where the sheet is opaque and all four neighbours are
+// too (inside the outer ink outline). Kept as bytes; drawNightLift bakes it the first night it is drawn.
+void View::liftMaskFor(const Canvas& sheet, const Tex& t) {
+  if (!t.t || sheet.w <= 0) return;
+  dropLiftMask(t);
+  LiftMask& lm = liftMask_[t.t];
+  lm.w = sheet.w; lm.h = sheet.h;
+  lm.m.assign((size_t)sheet.w * sheet.h, 0);
+  const uint32_t* p = sheet.px.data();
+  const int w = sheet.w, h = sheet.h;
+  auto op = [&](int x, int y) { return x >= 0 && y >= 0 && x < w && y < h && (p[(size_t)y * w + x] >> 24) >= 128; };
+  for (int y = 0; y < h; y++)
+    for (int x = 0; x < w; x++)
+      if ((p[(size_t)y * w + x] >> 24) >= 128 && op(x - 1, y) && op(x + 1, y) && op(x, y - 1) && op(x, y + 1)) lm.m[(size_t)y * w + x] = 1;
+}
+void View::dropLiftMask(const Tex& t) {
+  auto it = liftMask_.find(t.t);
+  if (it == liftMask_.end()) return;
+  if (it->second.tex.t) pix_->destroy(it->second.tex);
+  liftMask_.erase(it);
 }
 
 // (M5) a pose sheet (art::humanPostureSheet: POSTURE_FRAMES x 3 facings) by look and posture. A painted pose costs about
@@ -633,6 +1047,7 @@ const Tex* View::poseTex(const art::HumanLook& L, art::Posture p, uint8_t varian
   Canvas sheet = art::humanPostureSheet(L, p, variant);
   if (child) childBody(sheet, !art::postureInfo(p).seated);
   const Tex& t = poseTex_[k] = pix_->bake(sheet);
+  liftMaskFor(sheet, t);
   poseSpent(t0);
   return &t;
 }
@@ -643,7 +1058,9 @@ const Tex* View::sleeperTex(const art::HumanLook& L, art::Berth b, int kit, int 
   if (it != poseTex_.end()) return &it->second;
   if (!poseBudget()) return nullptr;
   const auto t0 = std::chrono::steady_clock::now();
-  const Tex& t = poseTex_[k] = pix_->bake(art::sleeperSprite(L, b, kit, frame & 1));
+  const Canvas sc = art::sleeperSprite(L, b, kit, frame & 1);
+  const Tex& t = poseTex_[k] = pix_->bake(sc);
+  liftMaskFor(sc, t);
   poseSpent(t0);
   return &t;
 }
@@ -719,7 +1136,7 @@ void View::trimCaches() {
       if (t_ - age[i].first < 4.0f) break;   // still in use
       const uint64_t k = age[i].second;
       auto it = tex.find(k);
-      if (it != tex.end()) { pix_->destroy(it->second); tex.erase(it); }
+      if (it != tex.end()) { dropLiftMask(it->second); pix_->destroy(it->second); tex.erase(it); }
       used.erase(k);
       extra(k);
     }
@@ -733,6 +1150,7 @@ void View::trimCaches() {
   });
   trim(humans_, humanUsed_, 320, [](uint64_t) {});
   trim(poseTex_, poseUsed_, 160, [](uint64_t) {});   // (M5) pose sheets: a busy tavern holds a few dozen
+  trimRigCaches();   // (P2a LENS) the v2 atlases: capped in MB
   if (lampDark_.size() > 64) { for (auto& kv : lampDark_) pix_->destroy(kv.second); lampDark_.clear(); }
   // (M6 BEASTS) variant monster sheets (and their glow and 2x bakes) and the auras: a few dozen at most in one place;
   // a long journey through many lands drops them all and re-bakes what is still on screen
@@ -1204,11 +1622,14 @@ const Tex& View::heraldryTex(int kind, const cult::Heraldry& h, uint32_t seed, i
 
 void View::snap(Game& g) {
   const Actor& p = g.pl();
-  cam_ = Vec2(p.p.x - Pix::W / 2.0f, p.p.y - 10 - Pix::H / 2.0f);
+  const float VW = (float)viewW(), VH = (float)viewH();   // (P2a) the world view, in world px
+  cam_ = Vec2(p.p.x - VW / 2.0f, p.p.y - 10 - VH / 2.0f);
   const Map& m = g.map();
   float mw = m.w * 16.0f, mh = m.h * 16.0f;
-  if (mw > Pix::W) cam_.x = clampf(cam_.x, 0, mw - Pix::W); else cam_.x = (mw - Pix::W) / 2;
-  if (mh > Pix::H) cam_.y = clampf(cam_.y, 0, mh - Pix::H); else cam_.y = (mh - Pix::H) / 2;
+  if (mw > VW) cam_.x = clampf(cam_.x, 0, mw - VW); else cam_.x = (mw - VW) / 2;
+  if (mh > VH) cam_.y = clampf(cam_.y, 0, mh - VH); else cam_.y = (mh - VH) / 2;
+  lensD_ = 0;   // (a snap is not a zoom: nothing to hand over)
+  s_camRes = Vec2(); s_camPrevOk = false;   // (P2a slice) a cut: no eased fraction or camera speed carried over
 }
 
 // ------------------------------------------------------------------ events -> particles / audio / UI
@@ -1255,7 +1676,11 @@ void View::spawnParticles(const Event& e, Game& g) {
         ft.p = e.p;
         // (P1 fixer r2) a line with its speaker (Event::id = actor id + 1, life_game.cpp say): the plate rides over them
         if (e.id)
-          if (const Actor* sp = speakerOf(g, (int)e.id - 1)) { ft.actor = sp->id; ft.off = e.p - sp->p; }
+          if (const Actor* sp = speakerOf(g, (int)e.id - 1)) {
+            ft.actor = sp->id; ft.off = e.p - sp->p;
+            // (P2a) the sim places lines over a v1 head: a speaker drawn on v2 is that much taller
+            if (sp->human) { const float lift = (float)(rigFor(sp->look).headTop - art::rig(1).headTop); ft.off.y -= lift; ft.p.y -= lift; }
+          }
         int words = 1;
         for (char ch : e.s) if (ch == ' ') words++;
         ft.life = std::min(5.5f, 1.8f + 0.32f * (float)words);
@@ -1408,10 +1833,14 @@ void View::update(Game& g, float dt) {
   }
   if (herald_.t > 0 && g.mode == Mode::Play) herald_.t -= dt;
   if (toasts_.size() > 5) toasts_.erase(toasts_.begin(), toasts_.begin() + (toasts_.size() - 5));
-  // camera follows with a little lead in the aim direction
+  // camera follows with a little lead in the aim direction (P2a: framing the world view, VW x VH world px)
+  cam_ += s_camRes;   // (P2a slice) the eased camera again: the draw read it rounded (rvSnapCamera, below)
+  s_camRes = Vec2();
+  lensUpdate(g, dt);
+  const float VW = (float)viewW(), VH = (float)viewH();
   if (g.mode != Mode::Title) {
     const Actor& p = g.pl();
-    Vec2 want(p.p.x - Pix::W / 2.0f + p.aim.x * 10, p.p.y - 10 - Pix::H / 2.0f + p.aim.y * 6);
+    Vec2 want(p.p.x - VW / 2.0f + p.aim.x * 10, p.p.y - 10 - VH / 2.0f + p.aim.y * 6);
     if (g.mode == Mode::Build) buildCamWant(g, want);   // (M7) the build ghost in view, clear of the panel
     // (M7) the ridden horse's hooves: the walk's even four-beat, the gallop's three quick beats and a pause
     {
@@ -1445,6 +1874,11 @@ void View::update(Game& g, float dt) {
       if (g.mode == Mode::Build && g.home.ui.mode == home::UiMode::Decorate) {
         padT = 18.0f + Pix::ST; padB = 4.0f + Pix::SB; padR = (touchUI ? 190.0f : 176.0f) + 10.0f + Pix::SR;
       }
+      {   // (P2a) the HUD's bands are UI px from the UI canvas's edges: as world px from the world view's edges
+        float wp[4];
+        uiInsetsToWorld(padL, padT, padR, padB, wp);
+        padL = std::max(0.0f, wp[0]); padT = std::max(0.0f, wp[1]); padR = std::max(0.0f, wp[2]); padB = std::max(0.0f, wp[3]);
+      }
       auto axis = [](float& c, float want, float lo, float hi, float scr, float pa, float pb) {
         float len = hi - lo;
         if (len <= scr - 2 * std::max(pa, pb)) c = lo - (scr - len) / 2;             // fits clear, centred
@@ -1452,19 +1886,24 @@ void View::update(Game& g, float dt) {
         else c = clampf(want, lo - pa, hi - scr + pb);                               // pans with the player
       };
       float wantX = cam_.x, wantY = cam_.y;
-      axis(cam_.x, wantX, 0, mw, Pix::W, padL, padR);
-      axis(cam_.y, wantY, -16, mh, Pix::H, padT, padB);   // the back wall rises a row above the map
+      axis(cam_.x, wantX, 0, mw, VW, padL, padR);
+      axis(cam_.y, wantY, -16, mh, VH, padT, padB);   // the back wall rises a row above the map
     } else {
-      if (mw > Pix::W) cam_.x = clampf(cam_.x, 0, mw - Pix::W); else cam_.x = (mw - Pix::W) / 2;
-      if (mh > Pix::H) cam_.y = clampf(cam_.y, 0, mh - Pix::H); else cam_.y = (mh - Pix::H) / 2;
+      if (mw > VW) cam_.x = clampf(cam_.x, 0, mw - VW); else cam_.x = (mw - VW) / 2;
+      if (mh > VH) cam_.y = clampf(cam_.y, 0, mh - VH); else cam_.y = (mh - VH) / 2;
     }
   } else {
     // title: slow drift across the start region
     const Site& home = g.world.sites[g.world.startSite];
-    Vec2 c0(home.r.cx() * 16.0f - Pix::W / 2.0f - 300, home.r.cy() * 16.0f - Pix::H / 2.0f - 120);
+    Vec2 c0(home.r.cx() * 16.0f - VW / 2.0f - 300, home.r.cy() * 16.0f - VH / 2.0f - 120);
     if (titleT_ == 0 || titleT_ > 90) { cam_ = c0; titleT_ = 0.001f; }
     titleT_ += dt;
     cam_ = c0 + Vec2(titleT_ * 8.0f, titleT_ * 2.5f);
+  }
+  if (kCamSnap) {   // (P2a slice) the camera rounded once a frame, with the hero's phase on an axis that follows him
+    const Vec2 eased = cam_;
+    cam_ = rvSnapCamera(eased, g.mode != Mode::Title ? g.pl().p : eased, g.mode != Mode::Title, dt);
+    s_camRes = eased - cam_;
   }
   // (M6 BEASTS) what the view hears and shows of the foes' moves: the harpy's shriek as it rears for the swoop, the
   // golem's slam (a shake and dust), the sting when an elite or a champion first comes into view, a world boss's roar
@@ -1734,8 +2173,8 @@ void View::update(Game& g, float dt) {
     auto spawn = [&](Vec2 p, Vec2 v, float life, Color c, float size, int layer) {
       Particle q; q.p = p; q.v = v; q.life = q.max = life; q.c = c; q.size = size; q.layer = layer; parts_.push_back(q);
     };
-    auto anywhere = [&]() { return cam_ + Vec2(r.range(0, (float)Pix::W), r.range(0, (float)Pix::H)); };
-    auto fromTop = [&]() { return cam_ + Vec2(r.range(-40, (float)Pix::W), -4); };
+    auto anywhere = [&]() { return cam_ + Vec2(r.range(0, VW), r.range(0, VH)); };
+    auto fromTop = [&]() { return cam_ + Vec2(r.range(-40, VW), -4); };
     // fireflies over the meadows, the reeds and the woods on a warm night
     const bool flies = (b == Biome::Plains && !ecoHas(e, EF_COLD) && e != Eco::Blight) || b == Biome::Forest || b == Biome::Autumn ||
                        (b == Biome::Swamp && e != Eco::PeatBog);
@@ -1751,7 +2190,7 @@ void View::update(Game& g, float dt) {
       spawn(fromTop(), Vec2(r.range(10, 26), r.range(10, 18)), 12, r.f() < 0.6f ? Color(1.0f, 0.78f, 0.86f) : Color(0.98f, 0.92f, 0.95f), r.f() < 0.3f ? 2.f : 1.f, 2);
     // embers rising off the ash fields
     if (e == Eco::AshFields && r.f() < dt * 9)
-      spawn(cam_ + Vec2(r.range(0, (float)Pix::W), r.range(Pix::H * 0.3f, (float)Pix::H + 10)), Vec2(r.range(-8, 8), r.range(-26, -12)), r.range(1.5f, 3.0f),
+      spawn(cam_ + Vec2(r.range(0, VW), r.range(VH * 0.3f, VH + 10)), Vec2(r.range(-8, 8), r.range(-26, -12)), r.range(1.5f, 3.0f),
             r.f() < 0.5f ? Color(1.0f, 0.55f, 0.15f) : Color(1.0f, 0.82f, 0.35f), 1, 1);
     // spores in the mushroom wood, glints on the crystal barrens, silver motes in the silverwood, flies over the blight
     if (e == Eco::MushroomForest && r.f() < dt * 6)
@@ -1768,7 +2207,7 @@ void View::update(Game& g, float dt) {
   }
   if (g.inside && g.subSite >= 0 && hashf((int)(t_ * 10), 0, 9) < dt * 4) {
     Rng r((uint32_t)(t_ * 331));
-    Particle q; q.p = cam_ + Vec2(r.range(0, Pix::W), r.range(0, Pix::H)); q.v = Vec2(r.range(-3, 3), r.range(-5, -1));
+    Particle q; q.p = cam_ + Vec2(r.range(0, VW), r.range(0, VH)); q.v = Vec2(r.range(-3, 3), r.range(-5, -1));
     q.life = q.max = 3; q.c = Color(0.7f, 0.65f, 0.6f); q.size = 1; q.layer = 1; parts_.push_back(q);
   }
   if (parts_.size() > 600) parts_.erase(parts_.begin(), parts_.begin() + (parts_.size() - 600));
@@ -1820,6 +2259,10 @@ void View::drawWorld(Game& g) {
   // (P1b fix) this frame's lit beacons only: drawLighting returns early in full daylight before its own clear, and
   // the list used to grow every frame until dusk (one huge lighting frame, unbounded memory)
   g_beaconFires.clear();
+  beasts::plates.clear();   // (P2a LENS) the UI pass (drawBeastPlates) takes this frame's; a `ui 0` frame leaves them
+  liftRecs_.clear();
+  g_occRecs.clear();
+  graveTops_.clear();
   {   // (M4) last frame's overlay counts for the scripts (the map's are kept from its own draw)
     const int mk = m4Stats_.mapMarkers, bp = m4Stats_.borderPx;
     m4Stats_ = m4Count_;
@@ -2312,6 +2755,7 @@ void View::drawWorld(Game& g) {
       const bool airborne = !a.human && a.flying && a.mon == Monster::Harpy;
       if (airborne) sc *= 0.8f;
       P.blitEx(s, 0, 0, s.w, s.h, a.p.x - s.w * sc / 2 - cam.x, a.p.y - s.h * sc / 2 - cam.y, s.w * sc, s.h * sc, false, Color(1, 1, 1, a.fly ? 0.6f : airborne ? 0.75f : 1));
+      if (a.player) drawRing(g, a, cam);   // (P2a) the hero's ring: after the contact shadow, before the body
     } else if (d.kind == 0) {
       Prop p = (Prop)d.idx;
       // (stall facings) a stall, table, cloth or cart throws its own model's shadow (soft, to the lower right)
@@ -2366,7 +2810,15 @@ void View::drawWorld(Game& g) {
   int ghostFr = 0, ghostRow = 0;
   bool ghostFlip = false;
   float ghostX = 0, ghostY = 0;
+  int ghostSx = 0, ghostSy = 0, ghostW = 0, ghostH = 0;   // (P2a) a v2 frame's rect (w 0: the v1 cell)
+  // (P2a LENS fix r1, RIG2-HIDDEN-HERO) a v2 hero on foot: the atlas frame's blit as recorded (its texture, source rect
+  // and place), so the silhouette is the frame he was drawn with
+  Pix::BlitRec ghostRec;
+  // (P2a LENS fix r3) every plain blit of the sorted pass is recorded (g_occRecs), and for each figure blit how many of
+  // those came before it: the night lift then lifts only what shows (drawNightLift)
+  const bool recOcc = g.mode != Mode::Title && !g.inside;
   for (const Drawable& d : list) {
+    P.recordOthers(recOcc ? &g_occRecs : nullptr);
     switch (d.kind) {
       case 0: {
         Prop p = (Prop)d.idx;
@@ -2980,6 +3432,7 @@ void View::drawWorld(Game& g) {
         if (a.player && g.homeRiding() && drawMounted(g, a, cam)) {   // (M7) the rider on the horse (home_view.cpp)
           if (rideGhost_.t) {   // hidden behind a roof or a crown: the rider's silhouette shows through (as on foot)
             ghostTex = rideGhost_.t; ghostFr = rideGhost_.fr; ghostRow = rideGhost_.row; ghostFlip = rideGhost_.flip;
+            ghostSx = rideGhost_.sx; ghostSy = rideGhost_.sy; ghostW = rideGhost_.w; ghostH = rideGhost_.h;
             ghostX = rideGhost_.x; ghostY = rideGhost_.y;
           }
           break;
@@ -2987,141 +3440,31 @@ void View::drawWorld(Game& g) {
         float flash = a.flash > 0 ? a.flash / 0.12f : 0;
         float alpha = a.st == AState::Dead ? clampf(1.0f - (a.stT - 4.0f) / 2.0f, 0, 1) : 1.0f;
         if (a.player && a.iframes > 0 && a.st != AState::Roll && ((int)(t_ * 20) & 1)) alpha *= 0.5f;
+        // (P2a slice) facing up, the Steel Arc of hits 1 and 2 sweeps beyond the body: drawn first, the body hides its middle
+        const bool fxBehind = rvSwingFxBehind(g, a);
+        if (fxBehind) drawSwingFx(g, a, cam);
+        // (P2a LENS) a human's body blits are recorded: the night lift adds them again after the light map (a mounted
+        // companion's rider records itself, not the horse: party_view.cpp)
         if (a.comp && drawCompanionBody(g, a, cam, alpha, flash)) {
           // (M8) the bonded hound, a companion on their horse (party_view.cpp)
         } else if (a.human) {
-          const bool child = a.role == Role::Child;   // (M5) a shorter body (childBody)
-          // (M12) the enlisted hero wears the sworn realm's tabard and the rank's mark (render_rise.cpp)
-          art::HumanLook heroLook;
-          if (a.player && g.service.enlisted()) { heroLook = a.look; RiseViewOps::dressHero(g, heroLook); }
-          const art::HumanLook& look = a.player && g.service.enlisted() ? heroLook : a.look;
-          const Tex* tp = &humanTex(look, child);
-          int row = a.face == 0 ? 0 : a.face == 1 ? 1 : 2;
-          bool flip = a.face == 3;
-          int fr = 0;
-          switch (a.st) {
-            case AState::Walk: fr = 1 + (int)(a.animT * 9) % 4; break;
-            case AState::Roll: fr = 1 + (int)(a.stT * 20) % 4; break;
-            case AState::Windup: case AState::Cast: fr = 5; break;
-            case AState::Strike: fr = 6; break;
-            case AState::Recover: fr = 6; break;
-            case AState::Hurt: case AState::Dead: fr = 7; break;
-            default: fr = 0; break;
-          }
-          float bob = a.st == AState::Roll ? 3.0f : 0;
-          if (a.player && g.sea.atSea()) bob -= seaHeroLift(*this, g);   // (M10) standing on the deck, riding its bob
-          // (M5) what the body is doing (art::Posture): its pose sheet, frames looped at the pose's pace (each actor a
-          // little out of step with the next, so a tavern does not lift its mugs as one), sunk onto the seat by dy
-          // (seated, begging), laid over the bed (one row: the bed's way); combat states keep the standing sheet
-          Vec2 at = a.p;   // where the figure's feet are drawn (a seat's fit moves it onto the seat)
-          bool drawn = false;
-          bool floorSeat = false;   // (fixer M5 r3) sat on the bare floor: a cushion goes under them
-          // (M8) a downed companion lies in Posture::Downed, the player binding them kneels (party_view.cpp partyPosture)
-          const art::Posture pzA = (a.comp || a.player) ? partyPosture(g, a) : a.posture;
-          if (pzA != art::Posture::None && (a.st == AState::Idle || a.st == AState::Walk || ((a.st == AState::Down || a.st == AState::Dead) && pzA == art::Posture::Downed))) {
-            art::Posture pz = pzA;
-            const art::PostureInfo pi = art::postureInfo(pz);
-            const int nf = std::clamp((int)pi.frames, 1, art::POSTURE_FRAMES);
-            const bool stride = a.st == AState::Walk && (pz == art::Posture::Carry || pz == art::Posture::Play || pz == art::Posture::Dance);
-            const float clock = (a.postureT > 0 ? a.postureT : t_) + (float)(hash32((uint32_t)a.id * 2654435761u) % 997u) * 0.0131f;
-            const int pf = stride ? (int)(a.animT * 9) % nf : (int)(clock * std::max(0.1f, pi.fps)) % nf;
-            uint8_t variant = 0;
-            if (pz == art::Posture::Kneel && story::isStoryPerson(a)) variant = 1;   // (P1b) a bout's yield: the head bowed
-            // (ART seatFit) on a seat: the posture for its kind (chair height or cross-legged) and the sitter's feet
-            // where its seat line lands on the seat's surface; a facing the seat does not take keeps the figure where it is
-            if (pi.seated && a.useX >= 0 && a.useY >= 0 && m.in(a.useX, a.useY)) {
-              const int sp = m.propAt(a.useX, a.useY);
-              const art::Prop seat = sp ? (art::Prop)(sp - 1) : art::Prop::COUNT;
-              const art::SeatFit f = art::seatFit(seat, -1, a.face);
-              if (f.ok) {
-                pz = art::seatedPosture(seat, pz);
-                floorSeat = seat == art::Prop::COUNT;
-                at = Vec2(a.useX * 16.0f + 8.0f + (a.face == 3 ? -f.ax : f.ax), a.useY * 16.0f + 16.0f + f.ay);
-                // (M5 fixer r2) on the bench before a long hearth: forward on its edge, so the embers and logs show over
-                // the shoulders (life_game.cpp sitDown places the body the same)
-                if (seat == art::Prop::Bench && a.face == 1 && m.in(a.useX, a.useY - 1)) {
-                  const int up = m.propAt(a.useX, a.useY - 1);
-                  if (up == (int)art::Prop::FirePitL + 1 || up == (int)art::Prop::FirePitM + 1 || up == (int)art::Prop::FirePitR + 1) at.y += 5;
-                }
+          // (P2a) the human frame pick and body draw: rpg/view/render_anim.cpp
+          HumanGhost hg;
+          const size_t rec0 = liftRecs_.size();
+          if (g.mode != Mode::Title) P.recordBlits(&liftRecs_);
+          drawHumanBody(g, m, a, cam, alpha, flash, hg);
+          P.recordBlits(nullptr);
+          if (a.player && hg.t) { ghostTex = hg.t; ghostFr = hg.fr; ghostRow = hg.row; ghostFlip = hg.flip; ghostX = hg.x; ghostY = hg.y; }
+          if (a.player && !hg.t && heroSprite.on && heroSprite.rig >= 2) {
+            // rig 2 leaves HumanGhost empty (render_anim.cpp): take the body's own blit (the one at the frame's rect)
+            const HeroSprite& hs = heroSprite;
+            for (size_t i = rec0; i < liftRecs_.size(); i++) {
+              const Pix::BlitRec& r = liftRecs_[i];
+              if (r.sw == hs.w && r.sh == hs.h && std::fabs(r.dx - hs.x) < 0.5f && std::fabs(r.dy - hs.y) < 0.5f) {
+                ghostRec = r; ghostTex = nullptr; break;
               }
             }
-            // (ART bedFit) in a bed: the sleeper fitted to the berth, drawn right after it at the berth's own anchor
-            if (pi.lying && a.useX >= 0 && a.useY >= 0 && m.in(a.useX, a.useY)) {
-              int kit = -1;
-              const art::Berth bk = berthAt(m, a.useX, a.useY, kit);
-              const int sf = (int)(clock * std::max(0.1f, pi.fps)) & 1;
-              if (const Tex* st = sleeperTex(look, bk, kit, sf)) {
-                const art::BedFit bf = art::bedFit(bk, kit);
-                const float sx = std::floor(a.useX * 16.0f + 8.0f - bf.w / 2.0f - cam.x), sy = std::floor(a.useY * 16.0f + 16.0f - bf.h - cam.y);
-                P.blitEx(*st, 0, 0, st->w, st->h, sx, sy, (float)st->w, (float)st->h, false, Color(1, 1, 1, alpha));
-                drawn = true;
-                m5Count_.posed++;
-              }
-            }
-            // the bard's instrument in his people's style (ART: humanPostureSheet variants by MusicStyle)
-            if (pz == art::Posture::Lute || pz == art::Posture::Flute || pz == art::Posture::Drum) {
-              const int cs = g.inside && g.subBldg >= 0 && g.subBldg < (int)g.world.over.bldgs.size() ? g.world.over.bldgs[(size_t)g.subBldg].site : a.site;
-              if (const cult::Culture* C = cs >= 0 ? g.world.cultureOf(cs) : nullptr) {
-                if (pz == art::Posture::Drum) variant = (uint8_t)C->music.perc;
-                else if (art::bardPosture(C->music) == pz) variant = art::bardVariant(C->music);
-              }
-            }
-            if (!drawn) {
-              if (const Tex* pt = poseTex(look, pz, variant, child)) {
-                tp = pt;
-                fr = pf;
-                if (pi.oneRow || pi.lying) { row = 0; flip = false; }
-                m5Count_.posed++;
-              } else {
-                fr = stride ? 1 + (int)(a.animT * 9) % 4 : 0;   // the stand-in this frame: its own standing sheet
-                m5Count_.poseFallback++;
-              }
-              bob += (float)art::postureInfo(pz).dy;
-            }
           }
-          const bool standSheet = !child && tp == &humanTex(look, child);   // (M8b fixer r3) the aura fits this sheet only
-          const Tex& t = *tp;
-          float x = at.x - art::HUMAN_W / 2.0f - cam.x, y = at.y - art::HUMAN_H + 2 + bob - cam.y;
-          if (a.st == AState::Dead) y += 3;
-          x = std::floor(x + 0.5f);   // (M5) crisp at 1x: whole pixels (a seated or sleeping body never shimmers)
-          y = std::floor(y + 0.5f);
-          // (M5 fixer r2) a bather in a bath's pool: head and shoulders above the water, a ring of ripples at the waterline
-          if (!drawn && (bathing(g, m, a) || (a.player && g.sea.live.swimming && !g.sea.atSea()))) {   // (M10) and a swimmer in the sea
-            const int vis = 14, under = 5;   // head and shoulders in the air, the chest a blur under the water
-            const float wy = std::floor(a.p.y - 3 - cam.y + 0.5f);
-            const float bobW = (float)((int)(t_ * 1.3f + a.id * 0.7f) & 1);
-            P.blitEx(t, fr * art::HUMAN_W, row * art::HUMAN_H, art::HUMAN_W, (float)vis, x, wy - vis + bobW, (float)art::HUMAN_W, (float)vis, flip, Color(1, 1, 1, alpha));
-            P.blitEx(t, fr * art::HUMAN_W, row * art::HUMAN_H + vis, art::HUMAN_W, (float)under, x, wy + bobW, (float)art::HUMAN_W, (float)under, flip,
-                     Color(0.45f, 0.75f, 0.85f, 0.38f * alpha));
-            P.rect(x + 2, wy, 12, 1, Color(0.78f, 0.92f, 0.95f, 0.55f * alpha));
-            P.rect(x + 1, wy + 1, 14, 1, Color(0.05f, 0.18f, 0.26f, 0.35f * alpha));
-            P.rect(x + 4, wy - 1, 2, 1, Color(0.9f, 0.97f, 1.0f, 0.4f * alpha));
-            drawn = true;
-            m5Count_.posed++;
-          }
-          if (floorSeat && !drawn) {   // (fixer M5 r3) "seated patrons hover with no seat": a cushion under them
-            const Tex& ct = cachedTex(0x6Aull << 56 | (uint64_t)(hash32((uint32_t)(a.useX * 73856093) ^ (uint32_t)(a.useY * 19349663)) & 3u),
-                                      paintFloorCushion);
-            P.blitEx(ct, 0, 0, ct.w, ct.h, std::floor(at.x - 9.0f - cam.x + 0.5f), std::floor(at.y - 5.0f - cam.y + 0.5f), (float)ct.w, (float)ct.h,
-                     false, Color(1, 1, 1, alpha));
-          }
-          // (M8b fixer r3, review: "a Mythic-geared hero looks plain in the world") a Mythic wearer stands in a flickering
-          // flame that hugs the whole silhouette and licks upward (loot_ui.cpp mythicAuraTex): behind the body here, and
-          // again additively after the lighting (beasts::glows), so it burns by night as well as reading by day
-          if (!drawn && standSheet && a.look.glow && a.look.glowColor == kMythicGlow && a.st != AState::Dead) {
-            if (const Tex* au = mythicAuraTex(a.look)) {
-              const int v = (int)(t_ * 11.0f + (float)(a.id % 7) * 0.37f) % AURA_V;
-              const int sx = ((row * art::HUMAN_FRAMES + fr) * AURA_V + v) * AURA_CW;
-              const float ax = x - AURA_PAD, ay = y - AURA_PAD;
-              P.blitEx(*au, sx, 0, AURA_CW, AURA_CH, ax, ay, (float)AURA_CW, (float)AURA_CH, flip, Color(1, 1, 1, 0.92f * alpha));
-              beasts::glows.push_back({au, sx, AURA_CW, AURA_CH, ax, ay, flip, 0.7f * alpha});
-            }
-          }
-          if (!drawn) P.blitEx(t, fr * art::HUMAN_W, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, x, y, (float)art::HUMAN_W, (float)art::HUMAN_H, flip, Color(1, 1, 1, alpha));
-          if (!drawn) drawnHead_[a.id] = DrawnHead{at.x, y + cam.y, t_};
-          if (a.player) { ghostTex = &t; ghostFr = fr; ghostRow = row; ghostFlip = flip; ghostX = x; ghostY = y; }
-          if (flash > 0 && !drawn) P.blitEx(t, fr * art::HUMAN_W, row * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, x, y, (float)art::HUMAN_W, (float)art::HUMAN_H, flip, Color(1, 1, 1, flash), 1);
-          if (a.burnT > 0 && ((int)(t_ * 10) & 1)) P.rectAdd(x + 5, y + 6, 6, 10, Color(0.6f, 0.25f, 0.05f, 0.6f));
         } else if (a.critter > 0) {
           // (M5) a village animal (art::critterSheet): columns 0 idle, 1-4 walk, 5-6 its own action, 7 lying down; rows
           // down / up / right (left flipped). Standing about it now and then does its thing (pecks, grooms, wags), each
@@ -3263,21 +3606,11 @@ void View::drawWorld(Game& g) {
             }
           }
         }
-        // melee slash arc
-        if ((a.st == AState::Strike || (a.st == AState::Recover && a.stT < 0.05f)) && (a.player || a.human)) {
-          art::Fx f = a.face == 0 ? art::Fx::SlashDown : a.face == 1 ? art::Fx::SlashUp : art::Fx::Slash;
-          const Tex& ft = fx_[(int)f];
-          int fw = art::fxW(f), fh = art::fxH(f), frames = std::max(1, art::fxFrames(f));
-          float prog = a.st == AState::Strike ? a.stT / 0.11f : 1.0f;
-          int fr = std::min(frames - 1, (int)(prog * frames));
-          Vec2 c = a.p + Vec2(0, -8) + a.aim * 11;
-          Color tint = a.player && a.combo == 2 ? Color(1, 0.9f, 0.6f) : Color(1, 1, 1, 0.9f);
-          float sc = a.player && a.combo == 2 ? 1.3f : 1.0f;
-          P.blitEx(ft, fr * fw, 0, fw, fh, c.x - fw * sc / 2 - cam.x, c.y - fh * sc / 2 - cam.y, fw * sc, fh * sc, a.face == 3, tint);
-        }
+        // melee slash arc (P2a: rpg/view/render_anim.cpp; drawn before the body above when it sweeps beyond it)
+        if (!fxBehind) drawSwingFx(g, a, cam);
         // attack telegraph
         if (a.hostile && a.st == AState::Windup && a.mon != Monster::Dragon) {
-          float lift = a.human ? 30.0f : art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a) + 6.0f;
+          float lift = a.human ? (float)rigFor(a.look).markerY : art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a) + 6.0f;
           float pulse = 0.6f + 0.4f * std::sin(t_ * 30);
           if (a.heavy) {
             // heavy slam: a ground ring that fills in as the blow comes, and a double "!!" - roll out (or through)
@@ -3322,7 +3655,7 @@ void View::drawWorld(Game& g) {
         if (a.hostile && a.st != AState::Dead && a.st != AState::Down && beasts::marked(a)) {
           const float d2 = len2(a.p - g.pl().p);
           if (a.aggro || d2 < 90.0f * 90.0f) {
-            const float top = a.human ? 28.0f : art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a) + 2.0f;
+            const float top = a.human ? (float)rigFor(a.look).plateY : art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a) + 2.0f;
             beasts::plates.push_back({d.idx, a.p.x, a.p.y - top - (a.fly ? 34.0f : a.flying ? 7.0f : 0.0f), d2, a.p.y});
             plated = true;
           }
@@ -3330,7 +3663,7 @@ void View::drawWorld(Game& g) {
         // health bar for damaged enemies
         if (!plated && a.hostile && a.st != AState::Dead && a.st != AState::Down && a.hp < a.maxHp && !a.boss && a.rank != (uint8_t)foes::Rank::WorldBoss) {
           float lift = a.fly ? 34 : 0;
-          float bw = 16, x = a.p.x - bw / 2 - cam.x, y = a.p.y - (a.human ? 26 : art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a) + 2) - lift - cam.y;
+          float bw = 16, x = a.p.x - bw / 2 - cam.x, y = a.p.y - (a.human ? rigFor(a.look).barY : art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a) + 2) - lift - cam.y;
           P.rect(x - 1, y - 1, bw + 2, 4, Color(0.05f, 0.03f, 0.05f, 0.8f));
           P.rect(x, y, bw * clampf(a.hp / a.maxHp, 0, 1), 2, Color(0.85f, 0.2f, 0.18f));
         }
@@ -3430,16 +3763,28 @@ void View::drawWorld(Game& g) {
       default: break;
     }
   }
+  P.recordOthers(nullptr);
   // the hidden hero: a cool, see-through silhouette over whatever hides it, so it reads as "behind" the roof or crown
   // rather than standing on it (a faint additive rim keeps it visible on dark slate as well as on pale thatch)
   if (ghost && ghostTex && g.mode != Mode::Title) {
     const float W = (float)art::HUMAN_W, H = (float)art::HUMAN_H;
-    P.blitEx(*ghostTex, ghostFr * art::HUMAN_W, ghostRow * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, ghostX, ghostY, W, H, ghostFlip, Color(0.42f, 0.48f, 0.72f, 0.55f));
-    P.blitEx(*ghostTex, ghostFr * art::HUMAN_W, ghostRow * art::HUMAN_H, art::HUMAN_W, art::HUMAN_H, ghostX, ghostY, W, H, ghostFlip, Color(0.18f, 0.22f, 0.36f, 0.5f), 1);
+    const int sx = ghostW > 0 ? ghostSx : ghostFr * art::HUMAN_W, sy = ghostW > 0 ? ghostSy : ghostRow * art::HUMAN_H;
+    const int sw = ghostW > 0 ? ghostW : art::HUMAN_W, sh = ghostW > 0 ? ghostH : art::HUMAN_H;
+    (void)W; (void)H;
+    P.blitEx(*ghostTex, sx, sy, sw, sh, ghostX, ghostY, (float)sw, (float)sh, ghostFlip, Color(0.42f, 0.48f, 0.72f, 0.55f));
+    P.blitEx(*ghostTex, sx, sy, sw, sh, ghostX, ghostY, (float)sw, (float)sh, ghostFlip, Color(0.18f, 0.22f, 0.36f, 0.5f), 1);
+  } else if (ghost && ghostRec.t && g.mode != Mode::Title) {   // (P2a) the v2 hero's frame, the same two passes
+    P.blitRec(ghostRec, Color(0.42f, 0.48f, 0.72f, 0.55f), 0);
+    P.blitRec(ghostRec, Color(0.18f, 0.22f, 0.36f, 0.5f), 1);
   }
   // (M5) a festival's bunting hangs overhead, over everyone walking under it
-  if (g.mode != Mode::Title && m.kind == MapKind::Overworld) drawFestival(g, m, cam);
-  else festLights_.clear();
+  if (g.mode != Mode::Title && m.kind == MapKind::Overworld) {
+    P.recordOthers(recOcc ? &g_occRecs : nullptr);   // (P2a LENS fix r3) the bunting hangs over the folk under it
+    drawFestival(g, m, cam);
+    P.recordOthers(nullptr);
+  } else {
+    festLights_.clear();
+  }
   // particles (world layer)
   for (const Particle& q : parts_) {
     float a = clampf(q.life / q.max, 0, 1);
@@ -3507,7 +3852,7 @@ void View::drawLighting(Game& g) {
       amb = Color(amb.r * lerpf(1, warm.r, w), amb.g * lerpf(1, warm.g, w), amb.b * lerpf(1, warm.b, w));
     }
   }
-  if (amb.r > 0.99f && amb.g > 0.99f && amb.b > 0.99f) return;
+  if (amb.r > 0.99f && amb.g > 0.99f && amb.b > 0.99f) { liftRecs_.clear(); g_occRecs.clear(); lensStats.liftFigs = 0; return; }
   Vec2 cam(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y));
   // (M1) the light map is half the canvas: re-made when the screen fit changes the canvas size
   if (lightMap_.w != (Pix::W + 1) / 2 || lightMap_.h != (Pix::H + 1) / 2) {
@@ -3664,6 +4009,7 @@ void View::drawLighting(Game& g) {
   riseLights(g, light);   // (M12) the watchtowers' lanterns (rise_world.cpp)
   P.setTarget(nullptr);
   P.blitEx(lightMap_, 0, 0, lightMap_.w, lightMap_.h, 0, 0, lightMap_.w * 2.0f, lightMap_.h * 2.0f, false, Color(1, 1, 1, 1), 2);
+  drawNightLift(g, dark);        // (P2a LENS) people a step brighter than the ground they stand on
   m4Emissive(g, m, cam, dark);   // (fixer M4 r3) what burns glows over the dark
 }
 
@@ -3674,8 +4020,8 @@ void View::drawWeather(Game& g, float dt) {
   Pix& P = *pix_;
   // (M6 BEASTS) after the weather (and after every early return below): the glowing parts of the variant looks, the
   // name plates of the elites, champions and named uniques, and a world boss's bar
+  // (P2a LENS) the plates and the boss bar are the UI layer's now: drawBeastPlates, after the world (beasts::plates waits)
   auto beastsOver = [&] {
-    bossBarBottom_ = 0;
     if (g.mode == Mode::Title || g.mode == Mode::Creator) { beasts::glows.clear(); beasts::plates.clear(); beasts::xray.clear(); return; }
     const auto t0 = beasts::Clock::now();
     struct Tally { beasts::Clock::time_point t; ~Tally() { beasts::cur.ms += beasts::msSince(t); } } tally{t0};
@@ -3694,8 +4040,25 @@ void View::drawWeather(Game& g, float dt) {
     for (const beasts::Glow& q : beasts::glows)
       P.blitEx(*q.t, q.sx, 0, q.sw, q.sh, q.x, q.y, (float)q.sw, (float)q.sh, q.flip, Color(1, 1, 1, ga * q.a), 1);
     beasts::glows.clear();
-    if (g.mode != Mode::Play) { beasts::plates.clear(); return; }
-    const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR);
+  };
+  beasts::OnExit<decltype(beastsOver)> beastsAfter{beastsOver};
+  drawWeatherSky(g);
+}
+
+// (M6 BEASTS; P2a LENS: the UI layer, anchored on the world through toUi) the name plates of the elites, champions and
+// named uniques, and a world boss's bar. The plates were collected by the sorted pass (beasts::plates, map px).
+void View::drawBeastPlates(Game& g) {
+  Pix& P = *pix_;
+  bossBarBottom_ = 0;
+  if (g.mode != Mode::Play) { beasts::plates.clear(); return; }
+  const auto t0 = beasts::Clock::now();
+  struct Tally { beasts::Clock::time_point t; ~Tally() { beasts::cur.ms += beasts::msSince(t); } } tally{t0};
+  // map px to UI px (affine): x -> ox + x * k
+  const Vec2 uo = toUi(Vec2(0, 0));
+  const float uk = uiPerWorld();
+  auto ux = [&](float x) { return uo.x + x * uk; };
+  auto uy = [&](float y) { return uo.y + y * uk; };
+  const float L = (float)Pix::SL, T = (float)Pix::ST, R = (float)(Pix::W - Pix::SR);
     // a world boss's bar is found first: its strip at the top is kept clear of the plates (and of the herald's ribbon
     // and the biome banner, which read bossBarBottom_)
     const Actor* wb = nullptr;
@@ -3719,8 +4082,9 @@ void View::drawWeather(Game& g, float dt) {
     struct Rect4 { float x0, y0, x1, y1; };
     std::vector<Rect4> placed;
     {   // the hero's body: plates slide off it
-      const Vec2 hp = g.pl().p - cam;
-      placed.push_back({hp.x - 8, hp.y - 26, hp.x + 8, hp.y + 2});
+      const Vec2 hp = toUi(g.pl().p);
+      const float fh = (float)rigFor(g.pl().look).figH(g.pl().look) + 4.0f;
+      placed.push_back({hp.x - 8 * uk, hp.y - fh * uk, hp.x + 8 * uk, hp.y + 2 * uk});
     }
     if (hudColLeft_ < 1e8f && hudColBottom_ > 0)   // (M6 fixer r2) the location / quest column (last frame's): no plate under it
       placed.push_back({hudColLeft_, T, R, hudColBottom_});
@@ -3754,7 +4118,7 @@ void View::drawWeather(Game& g, float dt) {
     std::vector<std::pair<int, Rect4>> bodies;
     bodies.reserve(beasts::plates.size());
     for (const beasts::Plate& pl : beasts::plates)
-      bodies.push_back({pl.idx, {std::floor(pl.x - cam.x) - 8, std::floor(pl.y - cam.y), std::floor(pl.x - cam.x) + 8, std::floor(pl.feet - cam.y) + 2}});
+      bodies.push_back({pl.idx, {std::floor(ux(pl.x) - 8 * uk), std::floor(uy(pl.y)), std::floor(ux(pl.x) + 8 * uk), std::floor(uy(pl.feet) + 2 * uk)}});
     struct Shown { std::string key; float x, y; int pack, n; size_t rect; float y0; };
     std::vector<Shown> shownV;
     bool firstHunter = true;
@@ -3790,11 +4154,11 @@ void View::drawWeather(Game& g, float dt) {
       const int w = std::max(P.textW(line1, 1) + (named ? 0 : 20), line2.empty() ? 0 : P.textW(line2, 1));   // (room for " x3")
       const bool hurt = a.hp < a.maxHp;
       const float h = 9.0f + (line2.empty() ? 0.0f : 8.0f) + (hurt ? 3.0f : 0.0f);
-      float cx = std::floor(pl.x - cam.x), y0 = std::floor(pl.y - cam.y - h);
+      float cx = std::floor(ux(pl.x)), y0 = std::floor(uy(pl.y) - h);
       cx = clampf(cx, L + w / 2.0f + 4, R - w / 2.0f - 4);
       if (y0 < hudColBottom_ && cx + w / 2.0f + 3 > hudColLeft_) {   // under the quest column: slide a little, or leave it out
         const float nx = hudColLeft_ - w / 2.0f - 4;
-        if (cx - nx > 40.0f) y0 = std::floor(pl.feet - cam.y + 4.0f);   // far under it: the plate goes under the feet
+        if (cx - nx > 40.0f) y0 = std::floor(uy(pl.feet) + 4.0f * uk);   // far under it: the plate goes under the feet
         else cx = nx;
       }
       const float top = T + 2 + (wb ? 22.0f : 0.0f);   // below the boss bar's strip
@@ -3809,7 +4173,7 @@ void View::drawWeather(Game& g, float dt) {
         for (const auto& bo : bodies) if (bo.first != pl.idx && hits(bo.second)) return false;
         return true;
       };
-      const float yF = std::floor(pl.feet - cam.y + 4.0f), shiftX = std::floor(w / 2.0f + 14.0f);
+      const float yF = std::floor(uy(pl.feet) + 4.0f * uk), shiftX = std::floor(w / 2.0f + 14.0f);
       const float cxs[3] = {cx, clampf(cx - shiftX, L + w / 2.0f + 4, R - w / 2.0f - 4), clampf(cx + shiftX, L + w / 2.0f + 4, R - w / 2.0f - 4)};
       bool clear = false;
       for (int k = 0; k < 6 && !clear; k++) {
@@ -3853,7 +4217,7 @@ void View::drawWeather(Game& g, float dt) {
       float bw = std::min(200.0f, gx1 - gx0 - 8.0f), bx, ty;
       if (bw >= 96.0f) { bx = std::floor((gx0 + gx1) * 0.5f - bw * 0.5f); ty = T + 3.0f; bossBarBottom_ = ty + 18.0f; bossBarX0_ = bx; bossBarX1_ = bx + bw; }
       else { bw = 150.0f; bx = L + 6.0f; ty = T + 58.0f; }   // a narrow screen: under the vitals
-      const float k = clampf(wb->hp / std::max(1.0f, wb->maxHp), 0, 1);
+      const float hk = clampf(wb->hp / std::max(1.0f, wb->maxHp), 0, 1);
       auto mi = beasts::memo.find(wb->id);
       const float fl = mi != beasts::memo.end() ? clampf(mi->second.flashT / 0.45f, 0, 1) : 0.0f;
       P.textS(bx + bw * 0.5f, ty, wb->name, 1, Color(1.0f, 0.80f, 0.55f), 1);
@@ -3861,9 +4225,9 @@ void View::drawWeather(Game& g, float dt) {
       P.rect(bx - 2, yb - 2, bw + 4, 9, Color(0.03f, 0.02f, 0.04f, 0.85f));
       P.rect(bx - 1, yb - 1, bw + 2, 7, Color(0.45f, 0.30f, 0.18f, 0.9f));   // a bronze rim
       P.rect(bx, yb, bw, 5, Color(0.22f, 0.04f, 0.05f, 0.95f));
-      P.rect(bx, yb, std::floor(bw * k), 5, Color(0.78f + 0.2f * fl, 0.12f + 0.6f * fl, 0.10f + 0.5f * fl));
-      P.rect(bx, yb, std::floor(bw * k), 1, Color(1.0f, 0.45f, 0.35f));
-      P.rect(bx, yb + 4, std::floor(bw * k), 1, Color(0.5f, 0.06f, 0.08f));
+      P.rect(bx, yb, std::floor(bw * hk), 5, Color(0.78f + 0.2f * fl, 0.12f + 0.6f * fl, 0.10f + 0.5f * fl));
+      P.rect(bx, yb, std::floor(bw * hk), 1, Color(1.0f, 0.45f, 0.35f));
+      P.rect(bx, yb + 4, std::floor(bw * hk), 1, Color(0.5f, 0.06f, 0.08f));
       for (float m : {0.66f, 0.33f}) P.rect(std::floor(bx + bw * m), yb - 1, 1, 7, Color(0.05f, 0.03f, 0.05f, 0.95f));
       for (int i = 0; i < 3; i++) {   // the phases: lit pips for the ones passed, the current one pulsing
         const float px = std::floor(bx + bw - 3.0f - (2 - i) * 7.0f), py = ty + 3.0f;   // (beside the name: the quest
@@ -3873,8 +4237,11 @@ void View::drawWeather(Game& g, float dt) {
         P.rect(px - 1, py, 3, 1, pc); P.rect(px, py - 1, 1, 3, pc);
       }
     }
-  };
-  beasts::OnExit<decltype(beastsOver)> beastsAfter{beastsOver};
+}
+
+// the weather's sky in the world layer (drawWeather's body; the beasts' glows follow it)
+void View::drawWeatherSky(Game& g) {
+  Pix& P = *pix_;
   if (g.inside || g.mode == Mode::Title) {
     P.blitEx(vignette_, 0, 0, vignette_.w, vignette_.h, 0, 0, (float)Pix::W, (float)Pix::H, false, Color(1, 1, 1, g.inside && g.subSite >= 0 ? 1.0f : 0.6f));
     return;

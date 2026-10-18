@@ -22,6 +22,8 @@
 #include "rpg/art/art_home.h"   // M7 Home: crops, yard objects, scaffolding, horses, trophies, paintings
 #include "rpg/art/art_party.h"  // M8 Fellowship: party portraits, the bonded hound, graves of the fallen
 #include "rpg/art/art_sea.h"    // M10 Beyond the Mist: harbour props, wrecks, lighthouses, the ships
+#include "rpg/art/art_rig.h"    // P2a Clear Sight: the rig switch, body scale, metrics, clips, families, v2 atlases
+#include "rpg/art/art_handcart.h"   // P2a: the story's hand cart (moved out of render.cpp)
 
 namespace art {
 

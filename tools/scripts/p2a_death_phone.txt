@@ -1,0 +1,40 @@
+# P2a Lens and Rig, ANIM (VISION_PLAN 15.36 A4 / A5, STYLE_P2 13): the fall and the lying dead on rig 2. Seed 7, the
+# start village at 11:00, NORMAL zoom on the phone (the iPhone 15 Pro Home Screen app, 2556x1179, FILL). A bandit (a sword) is cut down by the hero: shots through
+# the fall (recoil, buckle, topple) and the lying body, the corpse still there at 20 s; then the hero falls where he
+# stands and the death screen comes up over the fall. A look the v2 painters do not cover yet is drawn on v1 (rig2Covers).
+#   embervale.exe --script tools/scripts/p2a_death_phone.txt         (p2a_death_phone_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.3 skill clearing 6
++0.1 skill kit sword none
++0.3 shot p2a_death_phone_0_ready.png
++0.1 skill foe bandit 1.4 0 level 1
++0.05 hold J 2.2
++0.25 shot p2a_death_phone_1_fight.png
++0.25 shot p2a_death_phone_2_fight.png
++0.25 shot p2a_death_phone_3_fight.png
++0.25 shot p2a_death_phone_4_fight.png
++0.25 shot p2a_death_phone_5_fight.png
++0.25 shot p2a_death_phone_6_fight.png
++0.25 shot p2a_death_phone_7_fight.png
++0.25 shot p2a_death_phone_8_fight.png
++1.0 shot p2a_death_phone_9_lying.png
++0.0 expect corpse 1
++18  expect corpse 1 18 60
++0.0 shot p2a_death_phone_10_lying20s.png
+# the hero's own fall, under the death screen (it plays on view time while the words come up)
++0.2 god 0
++0.1 die
++0.06 shot p2a_death_phone_11_hero_recoil.png
++0.12 shot p2a_death_phone_12_hero_buckle.png
++0.12 shot p2a_death_phone_13_hero_topple.png
++0.30 shot p2a_death_phone_14_hero_lying.png
++0.0 expect anim lying
++1.5 shot p2a_death_phone_15_screen.png
++0.2 quit

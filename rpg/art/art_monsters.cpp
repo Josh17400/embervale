@@ -2793,7 +2793,7 @@ Canvas lookSheet(const MonsterLook& L, Canvas* glowOut) {
     if ((o & MO_HORNS) && A.head) layered(cell, [&](Canvas& t) { ovHorn(t, A, true, 0); }, 0.6f);
     if (o & MO_EYES) ovEyes(cell, A, eyeColourFor(L));
     g_rec = nullptr;
-    if (L.base != Monster::Wisp) outline(cell);
+    if (L.base != Monster::Wisp) outlineInk(cell);   // (P2a) the ink outer outline (STYLE_P2 8)
     place(sheet, cell, f, 0);
     if (glowOut) place(*glowOut, glow, f, 0);
   }
@@ -2802,7 +2802,12 @@ Canvas lookSheet(const MonsterLook& L, Canvas* glowOut) {
 
 }  // namespace
 
+// (P2a) the humanoid monsters' cells on the v2 skeleton (POSES: rig_humanoid.cpp; 0 = not painted yet: the v1 cell)
+static int humanoidSpecies(Monster m) {
+  return m == Monster::Skeleton ? (int)kSkeletonSp : m == Monster::Draugr ? (int)kDraugrSp : m == Monster::Goblin ? (int)kGoblinSp : 0;
+}
 int monsterCellW(Monster m) {
+  if (rigVersion() >= 2 && humanoidSpecies(m)) { const int w = humanoidCellW2(humanoidSpecies(m)); if (w > 0) return w; }
   switch (m) {
     case Monster::Wolf: case Monster::IceWolf: return 32;
     case Monster::Boar: return 28;
@@ -2832,6 +2837,7 @@ int monsterCellW(Monster m) {
   }
 }
 int monsterCellH(Monster m) {
+  if (rigVersion() >= 2 && humanoidSpecies(m)) { const int h = humanoidCellH2(humanoidSpecies(m)); if (h > 0) return h; }
   switch (m) {
     case Monster::Wolf: case Monster::IceWolf: return 22;
     case Monster::Boar: return 20;
@@ -2866,7 +2872,7 @@ Canvas monsterSheet(Monster m) {
   Canvas sheet(cw * MONSTER_FRAMES, chh);
   for (int f = 0; f < MONSTER_FRAMES; f++) {
     Canvas cell = paintCell(m, f, 0);
-    if (m != Monster::Wisp) outline(cell);   // (the wisp is light: a dark rim would put it out)
+    if (m != Monster::Wisp) outlineInk(cell);   // (the wisp is light: a dark rim would put it out) (P2a: ink, STYLE_P2 8)
     place(sheet, cell, f, 0);
   }
   return sheet;

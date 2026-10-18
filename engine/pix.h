@@ -48,6 +48,42 @@ class Pix {
   // pixel widths without shimmer); an integer scale keeps plain nearest sampling.
   void present(int w, int h, float scale, int offX, int offY);
   float presentScale() const { return scale_; }
+  // ---- P2a Clear Sight (VISION_PLAN 15.36 item 1): two layers. The WORLD layer is drawn at a whole number D of device
+  // px per world px (every world pixel an exact D x D block); the UI layer keeps the fit present() gives today (480 x 270
+  // safe boxes, fractional where it is fractional today). A layer: w x h logical px at `scale` device px each, its
+  // logical (0, 0) at device px (offX, offY). FROZEN after phase A (LENS implements; lanes ADD, never rename).
+  struct Layer { int w = 0, h = 0; float scale = 1; int offX = 0, offY = 0; };
+  // both layers at once (screen.cpp); phase A stub: the world layer IS the UI layer (present(ui...)), nothing moves
+  void presentLayers(const Layer& world, const Layer& ui);
+  // draws between beginWorld() and endWorld() go to the world layer: inside, Pix::W / Pix::H read the world view in world
+  // px, the insets are 0, the render scale is the integer D, and setTarget(nullptr) returns to the world layer (not the
+  // window). Outside, everything is the UI layer as today. Phase A stub: a flag only (world == UI).
+  void beginWorld();
+  void endWorld();
+  bool inWorld() const { return inWorld_; }
+  const Layer& worldLayer() const { return world_; }
+  const Layer& uiLayer() const { return ui_; }
+  // the world layer as RGBA8 at world px (w x h = worldLayer().w x h): each world pixel's centre sampled from the device
+  // pixels, so a D x D block reads back as one pixel. Phase A stub: readCanvas (world == UI).
+  bool readWorld(std::vector<uint8_t>& rgba, int& w, int& h);
+  // (P2a LENS, added) the device rect the world may cover (the window inside the BORDER): endWorld() keeps the rest black
+  void setWorldClip(int x, int y, int w, int h);
+  // (P2a LENS, added) the UI layer's safe-area insets (Pix::SL, ST, SR, SB as the UI sees them), also inside
+  // beginWorld / endWorld where Pix::SL..SB read 0 (convert with View::uiInsetsToWorld)
+  void uiInsets(int& l, int& t, int& r, int& b) const {
+    if (inWorld_) { l = saved_.SL; t = saved_.ST; r = saved_.SR; b = saved_.SB; } else { l = SL; t = ST; r = SR; b = SB; }
+  }
+  // (P2a LENS, added) a record of the normal-blend blitEx calls made while a list is set (the night lift re-adds the
+  // people drawn in the sorted pass after the light map); nullptr stops recording
+  // occ (P2a LENS fix r4): on a recordBlits entry, how many recordOthers entries had been made when it was blitted
+  // (kNoOcc: no recordOthers list was set); the night lift replays the two records in their true draw order from it
+  static constexpr uint32_t kNoOcc = 0xFFFFFFFFu;
+  struct BlitRec { SDL_Texture* t = nullptr; int sx = 0, sy = 0, sw = 0, sh = 0; float dx = 0, dy = 0, dw = 0, dh = 0, a = 1; bool flip = false; uint32_t occ = kNoOcc; };
+  void recordBlits(std::vector<BlitRec>* out) { rec_ = out; }
+  // (P2a LENS fix r3, added) a second record: every normal-blend blit, blitRegion and blitEx made while this list is set
+  // and recordBlits has none (the night lift's occluders: what the sorted pass draws round the people); nullptr stops it
+  void recordOthers(std::vector<BlitRec>* out) { oth_ = out; }
+  void blitRec(const BlitRec& r, Color tint, int blend);
   // UI boxes: draws go into the logical rectangle (x, y, w, h) of the screen, with (0, 0) at its top-left, clipped
   // to it, and Pix::W / Pix::H read the box size until popBox(). Menus and dialogues are laid out for 480 px of
   // width, so on a wide phone they sit in a centred box instead of stretching. Nested boxes are relative.
@@ -108,6 +144,8 @@ class Pix {
   std::vector<SDL_Texture*> owned_;
   std::vector<SDL_Texture*> marked_;   // (Witness) markTextures()
   float scale_ = 1;
+  Layer world_, ui_;                 // (P2a) the two layers (phase A: equal)
+  bool inWorld_ = false;             // (P2a) between beginWorld() and endWorld()
   bool pixelArt_ = false;            // sprites use SDL_SCALEMODE_PIXELART (non-integer scale)
   int baseX_ = 0, baseY_ = 0;        // the canvas viewport origin (logical units)
   struct BoxState { int vx, vy, vw, vh, W, H, SL, ST, SR, SB; };
@@ -115,4 +153,15 @@ class Pix {
   int vpX_ = 0, vpY_ = 0;            // the current viewport origin (base + boxes)
   void applyViewport(int x, int y, int w, int h);
   void spriteScaleMode(SDL_Texture* t);
+  // (P2a LENS) the world layer's viewport origin in render units (x D), the UI state beginWorld() put aside, the world's
+  // device clip (w < 0: none), the blit record
+  int wBaseX_ = 0, wBaseY_ = 0;
+  SDL_Texture* worldTex_ = nullptr;   // the world's render target (w x h world px; never in owned_: a Witness reset keeps it)
+  int worldTexW_ = 0, worldTexH_ = 0;
+  bool useTex_ = false;               // this beginWorld draws into worldTex_
+  BoxState saved_{};
+  int clipX_ = 0, clipY_ = 0, clipW_ = -1, clipH_ = -1;
+  std::vector<BlitRec>* rec_ = nullptr;
+  std::vector<BlitRec>* oth_ = nullptr;
+  void sampleFor(SDL_Texture* t);
 };

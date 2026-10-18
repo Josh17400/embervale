@@ -95,6 +95,20 @@ void riderSeat(int row, int frame, int& dx, int& dy);
 // (ART lane) one HORSE_W x HORSE_H horse cell, outlined: row as horseSheet; pose 0 idle, 1-4 walk, 5-7 gallop (the
 // sheet's columns), 8-9 grazing (head down), 10 lying down. The loose horse critter (Critter::Horse) is painted from it.
 Canvas horseCell(uint32_t coat, uint32_t variant, bool saddled, int row, int pose);
+// (P2a HOLDERS) the horse of the CURRENT rig: at rig 2 drawn 32 / 22 bigger (withers 0.80-0.90 of the 32 px figure) on
+// HORSE_W2 x HORSE_H2 cells; at rig 1 exactly horseSheet / horseCell / riderSeat. horseSheet, horseCell, riderSeat and
+// HORSE_W / HORSE_H keep today's horse at every rig, so a view switches to the rig's horse by reading these together:
+// horseSheetRig + horseCellW() / horseCellH() + riderSeatRig (the loose horse critter already does). horseScale(): 1
+// or 32 / 22. saddleSeat: the saddle's seat point (where the rider's hips sit) in px from the hooves' row at the cell's
+// centre column, from the painter's own numbers (riderSeatRig = that seat with riderSeat's v1 offset rule).
+constexpr int HORSE_W2 = 52, HORSE_H2 = 52;
+int horseCellW();
+int horseCellH();
+float horseScale();
+Canvas horseSheetRig(uint32_t coat, uint32_t variant, bool saddled);
+Canvas horseCellRig(uint32_t coat, uint32_t variant, bool saddled, int row, int pose);
+void riderSeatRig(int row, int frame, int& dx, int& dy);
+void saddleSeat(int row, int frame, int& dx, int& dy);
 
 // ---------------------------------------------------------------- trophies and paintings (VISION_PLAN 8.3)
 constexpr int TROPHY_W = 20, TROPHY_H = 24;   // wall decor: the canvas bottom is the foot of the wall (like Tapestry)

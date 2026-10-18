@@ -1,0 +1,141 @@
+# P2a Lens and Rig, RIG-BODY: THE STYLE SLICE (VISION_PLAN 15.36 "The style slice", STYLE_P2 19) on the 1440x810 desktop.
+# Seed 7, the start village OSLARS, rig 2. The hero (a man, then a woman: `body`) with a sword: idle by a cottage door
+# beside a village woman (VENTMEJE: the gown cut, stripes, long hair), each swing variant mid-strike (`pose`: frozen
+# frames), the fall and the lying body, the four facings; NORMAL (D3) and NEAR (D4), 11:00 and 22:00; the same spot on
+# rig 1 for the side-by-side with today's people. Shot pairs (`shotpair`, `ui 0`) for p2_measure.mjs (mask, blocks,
+# contrast, ring).
+#   embervale.exe --script tools/scripts/p2a_slice.txt          (p2a_slice_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.3 expect zoom normal
+# ---- the village woman: talk to her (she stops and turns to the hero), then stand at her side facing her; the
+#      townsfolk round about drop their postures (POSES paints postures on v2 later: a posture is drawn on v1 till then)
++0.1 talkto VENTMEJE 40
++0.3 key escape
++0.05 walk east 0.27
++0.32 walk north 0.13
++0.18 walk west 0.08
++0.14 posture none 8
++0.2 shot p2a_slice_d3_villager.png
++0.05 ui 0
++0.1 shotpair p2a_slice_d3_villager_world.png p2a_slice_d3_villager_nohero.png
++0.05 ui 1
++0.05 zoom near
++0.15 shot p2a_slice_d4_villager.png
++0.1 zoom normal
+# ---- by a cottage door (the nearest hut: OSLARS's one-storey cottage): in and back out, on the doorstep facing out
++0.1 enter hut
++0.5 walkto exit 20
++0.6 shot p2a_slice_d3_door.png
++0.1 ui 0
++0.2 shotpair p2a_slice_d3_door_world.png p2a_slice_d3_door_nohero.png
++0.1 ui 1
++0.1 zoom near
++0.4 shot p2a_slice_d4_door.png
++0.1 zoom normal
++0.1 walk south 0.5
+# ---- the hero idle and the four facings (frozen idle frame 0 after a step each way)
++0.1 walk south 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2a_slice_d3_down.png
++0.1 ui 0
++0.2 shotpair p2a_slice_d3_down_world.png p2a_slice_d3_down_nohero.png
++0.2 shotpair p2a_slice_d3_ring_on.png p2a_slice_d3_ring_off.png ring
++0.1 ui 1
++0.1 pose off
++0.1 walk east 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2a_slice_d3_right.png
++0.1 pose off
++0.1 walk north 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2a_slice_d3_up.png
++0.1 pose off
++0.1 walk west 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2a_slice_d3_left.png
++0.1 pose off
+# ---- the three sword swings mid-strike (facing right, then down)
++0.1 walk east 0.15
++0.3 pose strike sword 0 0
++0.2 shot p2a_slice_d3_swing1.png
++0.1 pose strike sword 1 0
++0.2 shot p2a_slice_d3_swing2.png
++0.1 pose strike sword 2 0
++0.2 shot p2a_slice_d3_swing3.png
++0.1 pose off
++0.1 walk south 0.15
++0.3 pose strike sword 0 0
++0.2 shot p2a_slice_d3_swing1_down.png
++0.1 pose strike sword 1 0
++0.2 shot p2a_slice_d3_swing2_down.png
++0.1 pose strike sword 2 0
++0.2 shot p2a_slice_d3_swing3_down.png
+# ---- the fall (recoil, buckle, topple) and the lying body
++0.1 pose fall sword 0 0
++0.2 shot p2a_slice_d3_fall0.png
++0.1 pose fall sword 0 1
++0.2 shot p2a_slice_d3_fall1.png
++0.1 pose fall sword 0 2
++0.2 shot p2a_slice_d3_fall2.png
++0.1 pose lying sword 0 0
++0.2 shot p2a_slice_d3_lying.png
++0.1 pose off
+# ---- the woman hero, same look (STYLE_P2 19: Chestnut braids; `body` switches only the body base, `hair` her hair:
+#      rpg/view/script_slice.cpp), in the four facings
++0.1 body woman
++0.0 hair braids chestnut
++0.4 shot p2a_slice_d3_woman.png
++0.1 ui 0
++0.2 shotpair p2a_slice_d3_woman_world.png p2a_slice_d3_woman_nohero.png
++0.1 ui 1
++0.1 walk east 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2a_slice_d3_woman_right.png
++0.1 pose strike sword 0 0
++0.2 shot p2a_slice_d3_woman_swing1.png
++0.1 pose off
++0.1 walk north 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2a_slice_d3_woman_up.png
++0.1 pose off
++0.1 walk west 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2a_slice_d3_woman_left.png
++0.1 pose off
++0.1 walk south 0.15
++0.3 zoom near
++0.4 shot p2a_slice_d4_woman.png
++0.1 zoom normal
++0.1 body man
++0.0 hair short chestnut
+# ---- the walk (16 fps at 74 px/s): a burst of frames walking east
++0.1 walk east 1.0
++0.30 shot p2a_slice_walk_0.png
++0.05 shot p2a_slice_walk_1.png
++0.05 shot p2a_slice_walk_2.png
++0.05 shot p2a_slice_walk_3.png
+# ---- 22:00
++0.8 hour 22
++0.6 shot p2a_slice_d3_night.png
++0.1 ui 0
++0.2 shotpair p2a_slice_d3_night_world.png p2a_slice_d3_night_nohero.png
++0.2 shotpair p2a_slice_d3_night_ring_on.png p2a_slice_d3_night_ring_off.png ring
++0.1 ui 1
++0.1 zoom near
++0.4 shot p2a_slice_d4_night.png
++0.1 zoom normal
+# ---- the same spot on rig 1: today's people beside the slice
++0.1 hour 11
++0.1 rig 1
++0.6 shot p2a_slice_d3_rig1.png
++0.1 rig 2
++0.6 shot p2a_slice_d3_rig2.png
++0.2 quit

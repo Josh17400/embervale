@@ -12,6 +12,13 @@
 #include "rpg/art/art_internal.h"
 #include "rpg/art/art_heraldry.h"
 #include "rpg/art/art_parts.h"
+#include "rpg/art/art_holders2.h"
+
+// (P2a HOLDERS) rig 2 (STYLE_P2 1 "the hero walks under, never through"): every form's passage clears the 32 px walker
+// by 1.25 or more (holders::kGateClear / kArchClear over the passage's front ground row). The canvas and its anchor are
+// the contract's (GATE_OY rows over the passage), so the forms grow up into the room they leave: the structures stand
+// a few px further south where their backs would leave the canvas, their heights are fixed (not the capitals' lift).
+// Rig 1 paints today's pixels (H1).
 
 namespace art {
 
@@ -133,15 +140,17 @@ Canvas timberGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, boo
   const int cul = (int)F.culture - 1;
   const Ramp& RF = cul == 5 ? kGHide : (cul == 6 ? kGReed : kGShingle);
   const int wallH = wallWalkHeight(F);
-  const int zb = wallH + 13, zg = zb + 7;            // the log body's top, the gallery's top (the eaves)
-  const int bx0 = -5, bx1 = 52, by0 = -1, by1 = 16;  // the body
+  const bool r2 = rigVersion() >= 2;   // (P2a HOLDERS) the gateway's lintel at kGateClear, a shallower body, a lower pitch
+  const int zb = r2 ? holders::kGateClear + 5 : wallH + 13, zg = r2 ? zb + 5 : zb + 7;   // the log body's top, the gallery's top (the eaves)
+  const int bx0 = -5, bx1 = 52, by0 = r2 ? 3 : -1, by1 = 16;  // the body
   const int rx0 = bx0 - 2, rx1 = bx1 + 2, ry0 = by0 - 2, ry1 = by1 + 2;   // the roof, overhanging
   const float ridgeY = (ry0 + ry1) * 0.5f, half = (ry1 - ry0) * 0.5f + 0.5f;
-  const int ax0 = 10, ax1 = 37, aH = 22;              // the gateway
+  const float pitch = r2 ? 0.62f : 1.15f;
+  const int ax0 = r2 ? 8 : 10, ax1 = r2 ? 39 : 37, aH = r2 ? holders::kGateClear : 22;   // the gateway
   Canvas s(GATE_CW, GATE_CH);
   auto Z = [&](int gx, int gy) -> int {
     if (gx < rx0 || gx > rx1 || gy < ry0 || gy > ry1) return 0;
-    return zg + (int)std::lround((half - std::fabs(gy + 0.5f - ridgeY)) * 1.15f);
+    return zg + (int)std::lround((half - std::fabs(gy + 0.5f - ridgeY)) * pitch);
   };
   auto top = [&](int gx, int gy, int z) -> uint32_t {
     const float dy = gy + 0.5f - ridgeY;
@@ -193,7 +202,7 @@ Canvas timberGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, boo
       for (int h = 0; h < aH - 1 - i; h++) s.set(x, GATE_OY + by1 - h, kWood[(i % 2 == 0) ? 2 : 3 - (h % 5 == 0 ? 2 : 0)]);
     }
   // the finery: carved dragon heads on the ridge ends (fjords), horse-tail standards (steppe), the arms on the gallery
-  const int rr = GATE_OY + (int)ridgeY - Z(rx0, (int)ridgeY);
+  const int rr = GATE_OY + (int)ridgeY - Z(rx0, (int)ridgeY) + (r2 ? 3 : 0);   // (rig 2: down the gable, on the canvas)
   if (cul == 0) {
     for (int side = 0; side < 2; side++) {
       const int x = GATE_OX + (side == 0 ? rx0 : rx1);
@@ -214,7 +223,7 @@ Canvas timberGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, boo
   }
   // the arms hung from the gallery rail, between the posts
   for (int b = 0; b < 2; b++) {
-    const int x = GATE_OX + (b == 0 ? bx0 + 11 : bx1 - 16);
+    const int x = GATE_OX + (r2 ? (b == 0 ? bx0 + 3 : bx1 - 8) : (b == 0 ? bx0 + 11 : bx1 - 16));   // (rig 2: beside the wider gateway)
     hangBanner(s, x, GATE_OY + ry1 - zb - 1, 6, 11, BF, BT, emblem, kc, true);
   }
   composeOver(c, s);
@@ -229,7 +238,8 @@ Canvas earthworkGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, 
   flankPiece(c, 0, false, F, seed);
   flankPiece(c, 1, false, F, seed);
   const int wallH = wallWalkHeight(F);
-  const int zd = wallH + 1;                       // the deck
+  const bool r2 = rigVersion() >= 2;   // (P2a HOLDERS) the deck's edge beam over the walker: its underside at kGateClear
+  const int zd = r2 ? holders::kGateClear + 3 : wallH + 1;   // the deck
   Canvas s(GATE_CW, GATE_CH);
   auto post = [&](int gx, int gy) { return (gx == -3 || gx == -2 || gx == 49 || gx == 50) && (gy == 2 || gy == 3 || gy == 12 || gy == 13); };
   auto Z = [&](int gx, int gy) -> int {
@@ -256,6 +266,14 @@ Canvas earthworkGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, 
     // ground)
     if (z > zd && h >= zd) return kWood[v == 0 ? 3 : 2];                       // a stake
     if (h >= zd - 3) return kWood[v == 0 ? 3 : (h == zd - 3 ? 0 : 2)];          // the deck's edge beam
+    if (r2) {   // (rig 2) knee braces from the tall posts up under the deck's beam, lit on their upper edge
+      const int bx = gx <= 23 ? gx + 2 : 49 - gx;   // px out from the post
+      if (bx >= 0 && bx <= 12) {
+        const int hb = zd - 16 + bx;
+        if (h == hb + 1) return kWood[3];
+        if (h == hb) return kWood[1];
+      }
+    }
     if (h >= zd - 6 && ((gx >= 3 && gx <= 6) || (gx >= 41 && gx <= 44))) return kWood[1];   // braces
     return kSkip;                                                               // the road under the deck
   };
@@ -264,7 +282,7 @@ Canvas earthworkGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, 
   for (int side = 0; side < 2; side++)
     for (int i = 0; i < 4; i++) {
       const int x = GATE_OX + (side == 0 ? i : 47 - i);
-      for (int h = 0; h < zd - 5 - i; h++) s.set(x, GATE_OY + 14 - h, kWood[(i % 2 == 0) ? 2 : 3 - (h % 5 == 0 ? 2 : 0)]);
+      for (int h = 0; h < (r2 ? 26 : zd - 5) - i; h++) s.set(x, GATE_OY + 14 - h, kWood[(i % 2 == 0) ? 2 : 3 - (h % 5 == 0 ? 2 : 0)]);
     }
   // the arms on a pole at the middle of the deck
   vline(s, GATE_OX + 24, GATE_OY + 8 - zd - 14, GATE_OY + 8 - zd, kWood[1]);
@@ -283,7 +301,9 @@ Canvas hedgeGap(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bool 
   flankPiece(c, 1, false, F, seed);
   const int cul = (int)F.culture - 1;
   Canvas s(GATE_CW, GATE_CH);
-  const int ph = 26;
+  // (P2a HOLDERS) rig 2: tall posts, the cord's lowest flag over the walker at kGateClear, a gate-high wicker leaf
+  const bool r2 = rigVersion() >= 2;
+  const int sag = r2 ? 4 : 5, ph = r2 ? holders::kGateClear + 3 + sag + 2 : 26, leafH = r2 ? 20 : 14;
   for (int side = 0; side < 2; side++) {
     const int x = GATE_OX + (side == 0 ? 1 : 45), yb = GATE_OY + 13;
     for (int h = 0; h < ph; h++) {
@@ -302,7 +322,7 @@ Canvas hedgeGap(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bool 
     // the wicker leaf, open toward the hedge
     for (int i = 0; i < 9; i++) {
       const int lx = side == 0 ? x + 3 + i : x - 1 - i;
-      for (int h = 1; h < 14 - (i > 6 ? i - 6 : 0); h++) {
+      for (int h = 1; h < leafH - (i > 6 ? i - 6 : 0); h++) {
         const bool over = ((i / 2) + (h / 2)) & 1;
         s.set(lx, yb + 1 - h - i / 3, over ? kWood[(h % 2) ? 3 : 2] : kWood[(h % 2) ? 1 : 0]);
       }
@@ -311,7 +331,7 @@ Canvas hedgeGap(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bool 
   // the cord with its charms or flags
   for (int x = GATE_OX + 3; x <= GATE_OX + 45; x++) {
     const float t = (x - GATE_OX - 3) / 42.0f;
-    const int y = GATE_OY + 13 - ph + 2 + (int)std::lround(std::sin(t * 3.14159f) * 5.0f);
+    const int y = GATE_OY + 13 - ph + 2 + (int)std::lround(std::sin(t * 3.14159f) * (float)sag);
     s.set(x, y, kCloth[1]);
     if ((x - GATE_OX) % 5 == 0) {
       static const uint32_t flags[5] = {rgba(52, 92, 168), rgba(236, 232, 220), rgba(196, 56, 46), rgba(56, 140, 80), rgba(232, 196, 70)};
@@ -335,8 +355,12 @@ Canvas iwanGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bool 
   const Ramp TR = F.trim ? ramp(opaque(F.trim), 0.9f) : kGTeal;
   const Ramp& R = kGAdobe;
   const int wallH = wallWalkHeight(F);
-  const int ZP = wallH + 22, ZT = wallH + 15;   // the pishtaq's top, the drums' crest
-  const int px0 = -3, px1 = 50, py0 = 3, py1 = 15;
+  // (P2a HOLDERS) rig 2: a doorway 32 px wide with its crown at kArchClear in a pishtaq raised to 52, three rows
+  // shallower so its crenels stay on the canvas
+  const bool r2 = rigVersion() >= 2;
+  const int ZP = r2 ? holders::kArchClear + 10 : wallH + 22, ZT = wallH + 15;   // the pishtaq's top, the drums' crest
+  const int px0 = -3, px1 = 50, py0 = r2 ? 6 : 3, py1 = 15;
+  const int dx0 = r2 ? 8 : 12, dx1 = r2 ? 40 : 36, dHs = r2 ? holders::kArchClear - 10 : 14, dHa = r2 ? holders::kArchClear : 24;   // the doorway
   const int t0x = -9, t1x = 56, tcy = 8, TRr = 11;
   static const int alm[6] = {0, 2, 4, 4, 2, 0};
   Canvas s(GATE_CW, GATE_CH);
@@ -422,7 +446,7 @@ Canvas iwanGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bool 
     }
     // the niche: its pointed head (a recess in shade), honeycomb cells, the doorway
     const int nTop = pointedArch(x + 0.5f, px0 + 4.0f, px1 - 3.0f, ZP - 18, ZP - 6);
-    const int dTop = pointedArch(x + 0.5f, 12.0f, 36.0f, 14, 24);
+    const int dTop = pointedArch(x + 0.5f, (float)dx0, (float)dx1, dHs, dHa);
     if (nTop < 0 || h >= nTop + 2) {                                                         // the frame's spandrels
       if (h >= nTop && nTop >= 0) return TR[3];
       const bool star = ((x + 64) % 6 == 3 && (h % 6) == 3);
@@ -447,7 +471,7 @@ Canvas iwanGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bool 
   for (int side = 0; side < 2; side++) {
     const int cx = side == 0 ? t0x : t1x;
     hangBanner(s, GATE_OX + cx - 3, GATE_OY + 15 - (ZT - 7), 6, 15, BF, BT, emblem, kc, true);
-    const int lx = GATE_OX + (side == 0 ? 9 : 38), ly = GATE_OY + 15 - 20;
+    const int lx = GATE_OX + (r2 ? (side == 0 ? 4 : 43) : (side == 0 ? 9 : 38)), ly = GATE_OY + 15 - (r2 ? 30 : 20);
     lantern(s, lx, ly, ramp(rgba(244, 196, 110)));
   }
   composeOver(c, s);
@@ -464,14 +488,24 @@ Canvas paifangGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bo
   flankPiece(c, 1, true, F, seed);
   const Ramp T = F.roof ? ramp(opaque(F.roof), 0.9f) : kGJadeTile;
   const int wallH = wallWalkHeight(F);
-  const int ZB = wallH + 4, ZC = ZB + 11;   // the brick base's top, the pavilion's eaves
+  // (P2a HOLDERS) rig 2: a tunnel 32 px wide, its crown at kArchClear, in a brick base raised to 47; a low pavilion of
+  // red posts and the name board under one sweeping hip roof (the double eave has no room left on the canvas)
+  const bool r2 = rigVersion() >= 2;
+  const int ZB = r2 ? holders::kArchClear + 5 : wallH + 4, ZC = r2 ? ZB + 5 : ZB + 11;   // the brick base's top, the pavilion's eaves
   const int bx0 = -4, bx1 = 51;
-  const int rx0 = -9, rx1 = 56, ry0 = -4, ry1 = 19;
+  const int rx0 = -9, rx1 = 56, ry0 = r2 ? 3 : -4, ry1 = 19;
   const float ry = (ry0 + ry1) * 0.5f;
+  const float tunR = r2 ? 16.0f : 11.5f;   // the tunnel's half width
   Canvas s(GATE_CW, GATE_CH);
   auto Z = [&](int gx, int gy) -> int {
     if (gx < rx0 || gx > rx1 || gy < ry0 || gy > ry1) return 0;
     const float d = std::fabs(gy + 0.5f - ry), e = (float)std::min(gx - rx0, rx1 - gx);   // across the slope, from the gable end
+    if (r2) {   // one hip roof from the eave (d 8.5) to the ridge, its corners swept up, the beasts on the ridge's ends
+      int z = ZC + (int)std::lround((8.8f - d) * 0.85f);
+      if (e < 4.0f && d > 5.0f) z += (int)std::lround((4.0f - e) * 0.6f);
+      if (e < 3.0f && d <= 1.0f) z += 2;
+      return z;
+    }
     int z;
     if (d > 7.0f) z = ZC + (int)std::lround((12.0f - d) * 0.6f);                       // the lower eave
     else z = ZC + 5 + (int)std::lround((7.5f - d) * 1.45f);                            // the upper roof
@@ -485,9 +519,9 @@ Canvas paifangGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bo
     if (e < 3 && d <= 1.0f) return gx < 24 ? kGold[4] : kGold[2];
     if (d <= 1.0f) return T[4];                                                       // the ridge
     int k = dy < 0 ? 3 : 2;
-    if (d > 7.0f) k = dy < 0 ? 4 : 2;                                                 // the lower eave
+    if (d > (r2 ? 7.6f : 7.0f)) k = dy < 0 ? 4 : 2;                                   // the lower eave
     if (((int)std::floor(gx + 64.0f)) % 3 == 0) k = std::max(0, k - 1);               // rows of round tiles down the slope
-    if (std::fabs(d - 7.0f) < 0.6f) return T[0];                                      // the step between the eaves
+    if (!r2 && std::fabs(d - 7.0f) < 0.6f) return T[0];                               // the step between the eaves
     if (e <= 1) k = std::max(0, k - 1);
     (void)z;
     return T[k];
@@ -502,8 +536,9 @@ Canvas paifangGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bo
       if (h >= ZC - 2) return rgba(40, 26, 30);                                       // the eave's deep shade
       const bool col = gx == bx0 || gx == bx0 + 1 || gx == bx1 || gx == bx1 - 1 || std::abs(gx - 15) <= 0 || std::abs(gx - 32) <= 0 || gx == 16 || gx == 33;
       if (col) return kGLacquer[(gx == bx0 || gx == 15 || gx == 32) ? 3 : 2];
-      if (gx >= 18 && gx <= 29 && h >= ZC - 7 && h <= ZC - 3) {                        // the name board
-        if (h == ZC - 7 || h == ZC - 3 || gx == 18 || gx == 29) return kGold[2];
+      const int nb0 = r2 ? ZB : ZC - 7;
+      if (gx >= 18 && gx <= 29 && h >= nb0 && h <= ZC - 3) {                           // the name board
+        if (h == nb0 || h == ZC - 3 || gx == 18 || gx == 29) return kGold[2];
         return ((gx + h) % 3 == 0 && gx > 19 && gx < 28) ? kGold[4] : rgba(30, 50, 110);
       }
       if (h == ZB) return kGLacquer[0];
@@ -511,8 +546,8 @@ Canvas paifangGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bo
       return ((gx + h) % 3 == 0 || (gx - h + 99) % 3 == 0) ? kGLacquer[1] : rgba(56, 34, 40);   // lattice
     }
     // the brick base and its tunnel
-    const float u = (gx + 0.5f - 24.0f) / 11.5f;
-    const int at = std::fabs(u) <= 1.0f ? 12 + (int)std::lround(9.0f * std::sqrt(std::max(0.0f, 1 - u * u))) : -1;
+    const float u = (gx + 0.5f - 24.0f) / tunR;
+    const int at = std::fabs(u) <= 1.0f ? (r2 ? holders::kArchClear - 9 : 12) + (int)std::lround(9.0f * std::sqrt(std::max(0.0f, 1 - u * u))) : -1;
     if (at >= 0 && h < at) {
       if (h < at - 6) return kClear;
       return mix(rgba(26, 22, 34), rgba(46, 40, 52), (h - (at - 6)) / 6.0f);
@@ -530,7 +565,7 @@ Canvas paifangGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bo
   const Ramp L = ramp(rgba(214, 60, 46));
   for (int lx : {4, 43}) lantern(s, GATE_OX + lx, GATE_OY + ry1 - ZC + 2, L);
   for (int side = 0; side < 2; side++)
-    hangBanner(s, GATE_OX + (side == 0 ? 2 : 40), GATE_OY + 15 - (ZB - 2), 5, 13, BF, BT, emblem, kc, false);
+    hangBanner(s, GATE_OX + (r2 ? (side == 0 ? 1 : 42) : (side == 0 ? 2 : 40)), GATE_OY + 15 - (ZB - 2), 5, r2 ? 16 : 13, BF, BT, emblem, kc, false);
   composeOver(c, s);
   return c;
 }
@@ -544,9 +579,12 @@ Canvas moonGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bool 
   flankPiece(c, 1, true, F, seed);
   const Ramp T = F.roof ? ramp(opaque(F.roof), 0.9f) : kGJadeTile;
   const int wallH = wallWalkHeight(F);
-  const int ZW = wallH + 6;
+  // (P2a HOLDERS) rig 2: the round opening 40 px across, its top at kArchClear and its sill as low as today's, in a
+  // garden wall raised to 50; the leak windows move up into the corners the moon leaves
+  const bool r2 = rigVersion() >= 2;
+  const int ZW = r2 ? holders::kArchClear + 8 : wallH + 6;
   const int x0 = -3, x1 = 50, y0 = 2, y1 = 13;
-  const float mcx = 24.0f, mcy = 12.0f, mr = 11.5f;
+  const float mcx = 24.0f, mcy = r2 ? 22.5f : 12.0f, mr = r2 ? 21.6f : 11.5f;
   Canvas s(GATE_CW, GATE_CH);
   auto Z = [&](int gx, int gy) -> int {
     if (gx < x0 || gx > x1 || gy < y0 || gy > y1) return 0;
@@ -572,10 +610,10 @@ Canvas moonGate(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bool 
       const float a = std::atan2(dh, dx);
       return kGStoneRing[(a > 0.6f && a < 2.9f) ? 4 : ((a < -0.6f && a > -2.6f) ? 1 : 3)];
     }
-    for (int wx : {6, 41}) {                                                // the leak windows
-      const float ex = gx + 0.5f - wx, eh = h + 0.5f - 14.0f;
-      if (ex * ex / 16.0f + eh * eh / 20.0f < 1.0f) {
-        if (ex * ex / 9.0f + eh * eh / 13.0f > 1.0f) return kGStoneRing[2];
+    for (int wx : {r2 ? 3 : 6, r2 ? 44 : 41}) {                             // the leak windows
+      const float ex = gx + 0.5f - wx, eh = h + 0.5f - (r2 ? 41.0f : 14.0f);
+      if (ex * ex / (r2 ? 7.0f : 16.0f) + eh * eh / (r2 ? 10.0f : 20.0f) < 1.0f) {
+        if (ex * ex / (r2 ? 3.2f : 9.0f) + eh * eh / (r2 ? 5.5f : 13.0f) > 1.0f) return kGStoneRing[2];
         return ((gx + h) % 2 == 0) ? kGStoneRing[3] : rgba(44, 58, 52);
       }
     }
@@ -604,7 +642,11 @@ Canvas elvenArch(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bool
   flankPiece(c, 1, true, F, seed);
   const Ramp& R = kGWhite;
   const int wallH = wallWalkHeight(F);
-  const int ZT = wallH + 18, ZA = wallH + 9;
+  // (P2a HOLDERS) rig 2: the pointed arch's crown at kArchClear in an arch block raised to 50 under its gable, the block
+  // two rows shallower; the towers keep their drums and spires
+  const bool r2 = rigVersion() >= 2;
+  const int ZT = wallH + 18, ZA = r2 ? holders::kArchClear + 8 : wallH + 9;
+  const int aY0 = r2 ? 6 : 4, aHs = r2 ? holders::kArchClear - 12 : 9, aHa = r2 ? holders::kArchClear : 25;
   const int t0x = -8, t1x = 56, tcy = 8;
   const float TRd = 8.0f;
   Canvas s(GATE_CW, GATE_CH);
@@ -616,7 +658,7 @@ Canvas elvenArch(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bool
   };
   auto Z = [&](int gx, int gy) -> int {
     int p = 0, z = 0;
-    if (gx >= 0 && gx <= 47 && gy >= 4 && gy <= 12) z = ZA + std::max(0, 7 - (int)std::lround(std::fabs(gx + 0.5f - 24.0f) / 3.4f));
+    if (gx >= 0 && gx <= 47 && gy >= aY0 && gy <= 12) z = ZA + std::max(0, 7 - (int)std::lround(std::fabs(gx + 0.5f - 24.0f) / 3.4f));
     return std::max(z, std::max(tower(gx, gy, t0x, p), tower(gx, gy, t1x, p)));
   };
   auto towerOf = [&](int gx, int gy, int& part, int& cx) {
@@ -669,7 +711,7 @@ Canvas elvenArch(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bool
     }
     if (zn > 0) return R[v == 0 ? 3 : 1];
     // the arch block's face: the pointed arch, its moulded ring, a star over the apex, the gable's carved edge
-    const int at = pointedArch(gx + 0.5f, 5.0f, 43.0f, 9, 25);
+    const int at = pointedArch(gx + 0.5f, 5.0f, 43.0f, aHs, aHa);
     if (at >= 0 && h < at) {
       if (h < at - 6) return kClear;
       return mix(rgba(28, 30, 50), rgba(56, 60, 84), (h - (at - 6)) / 6.0f);
@@ -682,7 +724,7 @@ Canvas elvenArch(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, bool
     }
     if (h == ZA - 1) return R[1];
     if (std::abs(gx - 24) <= 1 && h >= ZA - 6 && h <= ZA - 3) return (gx == 24 || h == ZA - 5) ? kGElfGlow[4] : kGElfGlow[2];   // a star
-    if (h == ZA - 8) return kGTeal[2];
+    if (h == (r2 ? ZA - 2 : ZA - 8)) return kGTeal[2];
     if (h < 3) return R[1];
     const int row = h / 5, hh = h % 5, bx = gx + (row & 1) * 5;
     return R[(hh == 0 || ((bx % 10) + 10) % 10 == 0) ? 1 : (hh == 4 ? 3 : 2)];
@@ -706,11 +748,15 @@ Canvas livingArch(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, boo
   flankPiece(c, 0, false, F, seed);
   flankPiece(c, 1, false, F, seed);
   const int wallH = wallWalkHeight(F);
-  const int ZC = wallH + 18;
+  // (P2a HOLDERS) rig 2: the trained arch's soffit crowns at kArchClear, the canopy over it at 44 and gathered four
+  // rows further south so its back stays on the canvas
+  const bool r2 = rigVersion() >= 2;
+  const int ZC = r2 ? holders::kArchClear + 2 : wallH + 18;
   const float t0 = -7.5f, t1 = 55.5f, tcy = 9.0f;
+  const float cCy = r2 ? 9.5f : 5.0f, cRy = r2 ? 9.5f : 11.0f;   // the canopy's centre row and half depth
   Canvas s(GATE_CW, GATE_CH);
   auto canopy = [&](int gx, int gy) -> int {   // the crown: lumpy, highest over the trunks, a saddle over the road
-    const float ex = (gx + 0.5f - 24.0f) / 40.0f, ey = (gy + 0.5f - 5.0f) / 11.0f;
+    const float ex = (gx + 0.5f - 24.0f) / 40.0f, ey = (gy + 0.5f - cCy) / cRy;
     const float n = vnoise(gx / 4.0f, gy / 4.0f, 701u + seed % 97u);
     if (ex * ex + ey * ey > 1.0f - (n - 0.5f) * 0.35f) return 0;
     const float hump = std::max(std::exp(-((gx - t0) * (gx - t0)) / 160.0f), std::exp(-((gx - t1) * (gx - t1)) / 160.0f));
@@ -733,7 +779,7 @@ Canvas livingArch(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, boo
     if (h >= z - 4 || v <= 2) return kGLeaf[std::clamp((v == 0 ? 3 : 2) - (n < 0.2f ? 1 : 0), 0, 4)];   // the crown's flank
     // under the crown: the trunks, the arching branches, the opening
     const float u = (gx + 0.5f - 24.0f) / 31.5f;
-    const int at = std::fabs(u) <= 1.0f ? 8 + (int)std::lround(18.0f * std::pow(1 - std::fabs(u), 0.5f)) : 0;   // the arch's soffit
+    const int at = std::fabs(u) <= 1.0f ? (r2 ? holders::kArchClear - 16 : 8) + (int)std::lround((r2 ? 16.0f : 18.0f) * std::pow(1 - std::fabs(u), 0.5f)) : 0;   // the arch's soffit
     const float dt = std::min(std::fabs(gx + 0.5f - t0), std::fabs(gx + 0.5f - t1));
     const float tw = 3.6f + (h < 6 ? (6 - h) * 0.9f : 0.0f);   // the trunk, flaring into its roots
     if (dt < tw) {
@@ -751,7 +797,7 @@ Canvas livingArch(uint32_t seed, const Ramp& BF, const Ramp& BT, int emblem, boo
   // glow-orbs hanging in the arch
   const Ramp G = kGElfGlow;
   for (int i = 0; i < 3; i++) {
-    const int ox = GATE_OX + 10 + i * 14, oy = GATE_OY + 15 - 24 + (i == 1 ? -3 : 0);
+    const int ox = GATE_OX + 10 + i * 14, oy = GATE_OY + 15 - (r2 ? 36 : 24) + (i == 1 ? -3 : 0);
     vline(s, ox, oy - 4, oy - 1, kGBark[1]);
     ball(s, ox + 0.5, oy + 1.0, 1.8, 1.8, G);
   }
