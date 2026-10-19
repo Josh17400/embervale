@@ -4,6 +4,11 @@
   { "name": "determinism: a town shot, first (reference for the same shot after other tests)",
     "seed": 4, "scene": "town", "params": { "hour": 15 },
     "steps": [ { "at": 1, "match": "town", "expect": "state.location.siteType == 'TOWN'" } ] },
+  { "name": "determinism: the world map tab, first (painted in full at once under Witness: no 5 ms budget, no fade; the first draw opens it on the hero, then a zoom in over explored land)",
+    "seed": 4, "params": { "hour": 12, "menu": 2 },
+    "steps": [ { "at": 0.3, "match": "worldmap0", "expect": ["state.mode == 'menu'", "state.menu == 2"] },
+               { "at": 0.35, "call": [["mapexplore", "200"], ["mapcentre", "hero"], ["mapzoom", "1"]] },
+               { "at": 0.6, "match": "worldmap", "expect": "state.mode == 'menu'" } ] },
   { "name": "determinism: a journey behind the fade",
     "seed": 3, "params": { "god": true, "hour": 10 },
     "steps": [ { "at": 0.2, "call": [["travel", "town", "400"], ["waittravel"]], "expect": "state.script.busy" },
@@ -34,5 +39,10 @@
     "steps": [ { "at": 1.5, "match": "plain", "expect": "state.player.moved == 0" } ] },
   { "name": "determinism: the town shot after all of that equals the first one",
     "seed": 4, "scene": "town", "params": { "hour": 15 },
-    "steps": [ { "at": 1, "match": "town", "expect": "state.location.siteType == 'TOWN'" } ] }
+    "steps": [ { "at": 1, "match": "town", "expect": "state.location.siteType == 'TOWN'" } ] },
+  { "name": "determinism: the world map tab after all of that equals the first one",
+    "seed": 4, "params": { "hour": 12, "menu": 2 },
+    "steps": [ { "at": 0.3, "match": "worldmap0", "expect": ["state.mode == 'menu'", "state.menu == 2"] },
+               { "at": 0.35, "call": [["mapexplore", "200"], ["mapcentre", "hero"], ["mapzoom", "1"]] },
+               { "at": 0.6, "match": "worldmap", "expect": "state.mode == 'menu'" } ] }
 ]

@@ -5,6 +5,7 @@
   "tests": "witness",
   "seed": 1,
   "timeout": 120,
+  "replay": { "ignore": ["player.sprite", "screen"] },
   "play": {
     "profile": "topdown",
     "cell": 1,
@@ -24,7 +25,7 @@
     },
     "dead": "state.mode == 'dead'",
     "menu": "state.mode == 'menu' || state.mode == 'shop' || state.mode == 'paused' ? state.mode : null",
-    "goal": "(() => { const qs = state.quests || []; const q = qs.find((x) => x.tracked) || qs.find((x) => x.state === 'active'); return q ? q.title + (q.need ? ' (' + q.have + '/' + q.need + ')' : '') : null; })()",
+    "goal": "(() => { const qs = (state.quests || []).filter((x) => x.state !== 'done'); const q = qs.find((x) => x.tracked) || qs.find((x) => x.state === 'active'); if (!q) return null; const more = qs.length - 1; const text = q.title + (q.need ? ' (' + q.have + '/' + q.need + ')' : '') + (q.status ? ': ' + q.status : '') + (more > 0 ? ' [+' + more + ' other quest' + (more > 1 ? 's' : '') + ' in the journal]' : ''); return q.pos ? { text, pos: q.pos } : text; })()",
     "stats": [
       "state.player.gold",
       "state.player.level",
@@ -37,7 +38,8 @@
       "pickup": 0.6
     },
     "alert": 8,
-    "brief": "Embervale: an open-world pixel RPG (think Skyrim in pixels). Distances are in tiles. Hostile creatures and bandits fight back; wolves wind up before they bite (the autopilot rolls away from telegraphed attacks). People can be talked to; animals (hens, dogs, goats...) cannot. Dialogue options are picked with choose N. Quests appear in the goal line.",
-    "npc": "e.talk"
+    "brief": "Embervale: an open-world pixel RPG (think Skyrim in pixels). Distances are in tiles. The goal line is the tracked quest and its next step; 'goto goal' walks to where that step happens (a door, a den, a camp). Public buildings are listed by their doors (Inn, Shop, Smithy, Temple...): 'goto Inn' walks in, and inside you talk to the people there (talk Innkeeper) and leave by 'goto Exit'. Entering or leaving a building interrupts the order: give the next one. Stall keepers are talked to from the front of their counter. A newly accepted quest does not replace the tracked one in the goal line (the game says NEW QUEST: ...); every open quest with a place to go is also listed as a Quest thing named by its title: goto \"<title>\" walks there (a den, a camp, a door). There is no block: fights roll away from telegraphed bites (dodge, the default); wolves wind up before they bite, and a badly hurt one runs off: 'fight' it again to finish it. People can be talked to; animals (hens, dogs, goats...) cannot. Dialogue options are picked with choose N; walking away or choosing FAREWELL ends a conversation.",
+    "npc": "e.talk",
+    "entities": "[...(state.entities || []), ...(state.quests || []).filter((q) => q.pos && q.state !== 'done').map((q) => ({ id: 49100000 + q.id, type: 'Quest', kind: 'quest', name: q.title, pos: q.pos }))]"
   }
 }

@@ -10,13 +10,16 @@
 //                                                   settlements built; at exit a summary (worst frame at a window shift)
 //   embervale.exe --witness                         (desktop, EMBERVALE_WITNESS) driven by the Witness test harness over a
 //                                                   local socket (WITNESS_ADDR, set by `witness test|doctor|shot|...` from
-//                                                   witness.json): headless, deterministic, never saves; see "Witness" below
+//                                                   witness.json): headless, deterministic, never saves; see "Witness" below.
+//                                                   WITNESS_WATCH=1 (`witness play start --watch`) shows the window and
+//                                                   presents every step; real input is dropped; the sim is unchanged
 //   WITNESS_RECORD=file.jsonl embervale.exe         normal play records a replay (one line per sim step, F8 marks a
 //                                                   moment) that `witness replay` re-simulates exactly (the session runs
 //                                                   as witness mode does: no stream worker, inline bakes, the 480 x 270
 //                                                   canvas); at exit file.jsonl.state.json holds the end state to check.
-//                                                   Keys, mouse, wheel and fingers are recorded; a lost focus lets go of
-//                                                   all that is held and records its pause (tools/scripts/
+//                                                   Keys, mouse, wheel and fingers are recorded (a system-ended finger as
+//                                                   a cancel, with its pressure); a lost focus lets go of all that is held
+//                                                   (fingers as cancels) and records its pause (tools/scripts/
 //                                                   record/witness_record_touch.txt checks a touch session end to end)
 //
 // Script format: one command per line, "<time> <command> [args]". Times are seconds of script time; "+0.5" means
@@ -124,6 +127,30 @@ void newWorld(Game& g, uint64_t s) {
   if (!g.streamThreads) g.world.streamer.reset();   // (Witness) no prefetch worker: every chunk is made on demand, in order
 }
 int g_savesWritten = 0;   // saves written this session (the Witness snapshot reports it: a harness run never writes one)
+
+// every event the game pushes itself (a script's or the harness's keys, clicks and fingers) goes through pushEvent.
+// (Witness watch mode, WITNESS_WATCH=1) the window is shown, but only that injected input may reach gameplay: the
+// event filter drops the real keyboard, mouse and touch, so a viewer's stray click cannot change a run whose replay
+// must stay exact (and the window never takes the keyboard focus: SDL's key state stays empty)
+bool g_dropRealInput = false, g_injecting = false;
+void pushEvent(SDL_Event& ev) {
+  g_injecting = true;
+  SDL_PushEvent(&ev);   // (SDL calls the filter right here, synchronously)
+  g_injecting = false;
+}
+bool SDLCALL realInputFilter(void*, SDL_Event* e) {
+  if (!g_dropRealInput || g_injecting) return true;
+  switch (e->type) {
+    case SDL_EVENT_KEY_DOWN: case SDL_EVENT_KEY_UP: case SDL_EVENT_TEXT_INPUT: case SDL_EVENT_TEXT_EDITING:
+    case SDL_EVENT_MOUSE_MOTION: case SDL_EVENT_MOUSE_BUTTON_DOWN: case SDL_EVENT_MOUSE_BUTTON_UP: case SDL_EVENT_MOUSE_WHEEL:
+    case SDL_EVENT_FINGER_DOWN: case SDL_EVENT_FINGER_UP: case SDL_EVENT_FINGER_MOTION: case SDL_EVENT_FINGER_CANCELED:
+    case SDL_EVENT_GAMEPAD_BUTTON_DOWN: case SDL_EVENT_GAMEPAD_BUTTON_UP: case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+    case SDL_EVENT_PEN_DOWN: case SDL_EVENT_PEN_UP: case SDL_EVENT_PEN_MOTION:
+    case SDL_EVENT_DROP_FILE: case SDL_EVENT_DROP_TEXT:
+      return false;
+    default: return true;
+  }
+}
 
 bool readSave(std::vector<uint8_t>& out) {
   if (g_savePath.empty()) return false;
@@ -358,6 +385,11 @@ int main(int argc, char** argv) {
 #endif
 #ifdef EMB_WITNESS
   const bool witness = witness_active(argc, argv);   // a Witness harness drives this run (see "Witness" below)
+  // WITNESS_WATCH=1 (`witness play start --watch`, Witness PROTOCOL.md section 9): a person watches the harness play.
+  // The window is shown and every step is presented; real input is dropped; nothing else changes (no pacing: the
+  // harness paces, and the sim is the headless one)
+  const char* watchEnv = std::getenv("WITNESS_WATCH");
+  const bool watch = witness && watchEnv && std::strcmp(watchEnv, "1") == 0;
 #else
   const bool witness = false;
 #endif
@@ -391,6 +423,20 @@ int main(int argc, char** argv) {
   // (Witness) a hidden 960x540 window (the 480x270 canvas at 2x), no vsync, no audio device (the mix is rendered per step)
   if (!(witness ? pix.init("EMBERVALE", 960, 540, false, true) : pix.init("EMBERVALE", winW, winH, vsync))) return 1;
   if (witness) pix.markTextures();   // (a reset destroys every texture made after this: Pix::destroyUnmarked)
+#ifdef EMB_WITNESS
+  if (watch) {
+    g_dropRealInput = true;
+    SDL_SetEventFilter(realInputFilter, nullptr);
+    SDL_SetWindowFocusable(pix.window(), false);   // (no keyboard focus: real keys never reach SDL's key state)
+    SDL_SetWindowResizable(pix.window(), false);
+    SDL_SetWindowTitle(pix.window(), "EMBERVALE (Witness: watching)");
+    // Windows starts the harness's process with its first window hidden (the first ShowWindow call is turned into a
+    // hide), so the window is shown, hidden and shown again
+    SDL_ShowWindow(pix.window());
+    SDL_HideWindow(pix.window());
+    SDL_ShowWindow(pix.window());
+  }
+#endif
   static Audio audio;   // ~175 KB: keep it off the stack
   if (!witness) audio.init();
 
@@ -570,7 +616,6 @@ int main(int argc, char** argv) {
     float hour = -1;
     int32_t atX = 0, atY = 0;
     int talk = -1, menu = -1, count = 0, background = 0, ids = 0;
-    bool recorded = false;   // a WITNESS_RECORD session's start, or its replay's (the header's params say so)
   };
   WitnessExtra wStart;   // where the start put the player (state.player.start / moved)
   auto applyStart = [&](uint64_t s, const StartSpec& sp) {
@@ -595,7 +640,6 @@ int main(int argc, char** argv) {
     if (sp.menu >= 0) view.openMenu(game, sp.menu);
     if (!sp.fight.empty()) doFight(sp.fight, sp.count);
     wStart = WitnessExtra();
-    wStart.device = !sp.recorded;
     wStart.hasStart = !game.inside;
     wStart.startGX = game.world.ox + (int)std::floor(game.pl().p.x / TILE);
     wStart.startGY = game.world.oy + (int)std::floor((game.pl().p.y - 2) / TILE);
@@ -609,8 +653,9 @@ int main(int argc, char** argv) {
     if (sp.menu >= 0) p += ",\"menu\":" + std::to_string(sp.menu);
     if (!sp.fight.empty()) p += ",\"fight\":" + jsonStr(sp.fight) + ",\"count\":" + std::to_string(sp.count);
     if (sp.creator) p += ",\"creator\":true,\"background\":" + std::to_string(sp.background) + ",\"name\":" + jsonStr(sp.name);
-    // recorded: the replay's snapshot, like the session's end state, leaves out what the window decides (WitnessExtra::device)
-    return p + ",\"ids\":" + std::to_string(sp.ids > 0 ? sp.ids : 1) + ",\"recorded\":true}";
+    // (what the window decides, state.screen and state.player.sprite, differs between the player's window and the
+    // replay's hidden one: witness.json "replay": {"ignore": [...]} leaves it out of the end-state check)
+    return p + ",\"ids\":" + std::to_string(sp.ids > 0 ? sp.ids : 1) + "}";
   };
   if (play && recordSync) {
     StartSpec sp;
@@ -618,7 +663,6 @@ int main(int argc, char** argv) {
     sp.talk = talkStep; sp.menu = menuTab;
     if (gotoWhat) sp.scene = gotoWhat;
     if (fight) sp.fight = fight;
-    sp.recorded = true;
     applyStart(startSeed, sp);
     sp.ids = recordIds;
     recordBegin(specJson(sp));
@@ -686,10 +730,10 @@ int main(int argc, char** argv) {
     ev.key.scancode = sc;
     ev.key.key = SDL_GetKeyFromScancode(sc, SDL_KMOD_NONE, false);
     ev.key.down = down;
-    SDL_PushEvent(&ev);
+    pushEvent(ev);
   };
   auto toWindow = [&](float lx, float ly, float& wx, float& wy) { SDL_RenderCoordinatesToWindow(pix.renderer(), lx, ly, &wx, &wy); };
-  auto pushFinger = [&](SDL_EventType type, SDL_FingerID id, float lx, float ly) {
+  auto pushFinger = [&](SDL_EventType type, SDL_FingerID id, float lx, float ly, float pressure = 1.0f) {
     float wx, wy;
     int ww = 1, wh = 1;
     toWindow(lx, ly, wx, wy);
@@ -703,8 +747,8 @@ int main(int argc, char** argv) {
     ev.tfinger.fingerID = id;
     ev.tfinger.x = wx / (float)std::max(1, ww);
     ev.tfinger.y = wy / (float)std::max(1, wh);
-    ev.tfinger.pressure = 1;
-    SDL_PushEvent(&ev);
+    ev.tfinger.pressure = pressure;
+    pushEvent(ev);
   };
   auto pushClick = [&](float lx, float ly, bool down) {
     float wx, wy;
@@ -719,7 +763,7 @@ int main(int argc, char** argv) {
     ev.button.down = down;
     ev.button.clicks = 1;
     ev.button.x = wx; ev.button.y = wy;
-    SDL_PushEvent(&ev);
+    pushEvent(ev);
   };
   auto fail = [&](int line, const std::string& msg) {
     std::printf("script FAIL (line %d): %s\n", line, msg.c_str());
@@ -754,8 +798,8 @@ int main(int argc, char** argv) {
     recLogical(t.x * ww, t.y * wh, lx, ly);
   };
   // one event of a recording session, in Witness names and logical pixels (F8 marks the moment). false: the view must
-  // not see it either (the late release of something a lost focus already let go of). A finger's CANCELED reaches the
-  // view as an UP, the only end the protocol (and so the replay) knows.
+  // not see it either (the late release of something a lost focus already let go of). A finger's CANCELED (the system
+  // ended the touch: never a completed tap) is recorded as the protocol's cancel, which the replay injects as CANCELED.
   auto recordEvent = [&](SDL_Event& e) -> bool {
     auto has = [](const std::vector<std::string>& v, const std::string& s) { return std::find(v.begin(), v.end(), s) != v.end(); };
     auto drop = [](std::vector<std::string>& v, const std::string& s) { v.erase(std::remove(v.begin(), v.end(), s), v.end()); };
@@ -806,7 +850,7 @@ int main(int argc, char** argv) {
       }
       case SDL_EVENT_FINGER_DOWN: case SDL_EVENT_FINGER_MOTION: case SDL_EVENT_FINGER_UP: case SDL_EVENT_FINGER_CANCELED: {
         if (e.tfinger.touchID == SDL_MOUSE_TOUCHID) return true;   // made from the mouse: the mouse is what is recorded
-        if (e.type == SDL_EVENT_FINGER_CANCELED) e.type = SDL_EVENT_FINGER_UP;
+        const bool ends = e.type == SDL_EVENT_FINGER_UP || e.type == SDL_EVENT_FINGER_CANCELED;
         const SDL_FingerID id = e.tfinger.fingerID;
         int slot = -1;
         for (int i = 0; i < 10; i++) if (rec.finger[i].on && rec.finger[i].ev.fingerID == id) slot = i;
@@ -820,15 +864,16 @@ int main(int argc, char** argv) {
           // the view had that release) or one put down before the recording began
           auto it = std::find(rec.fingersLetGo.begin(), rec.fingersLetGo.end(), id);
           if (it == rec.fingersLetGo.end()) return true;
-          if (e.type == SDL_EVENT_FINGER_UP) rec.fingersLetGo.erase(it);
+          if (ends) rec.fingersLetGo.erase(it);
           return false;
         }
         rec.finger[slot].ev = e.tfinger;
         float lx, ly;
         recFinger(e.tfinger, lx, ly);
-        const bool up = e.type == SDL_EVENT_FINGER_UP;
-        witness_record_touch(slot, lx, ly, e.type == SDL_EVENT_FINGER_DOWN ? WITNESS_TOUCH_DOWN : up ? WITNESS_TOUCH_UP : WITNESS_TOUCH_MOVE);
-        if (up) rec.finger[slot].on = false;
+        const int phase = e.type == SDL_EVENT_FINGER_DOWN ? WITNESS_TOUCH_DOWN : e.type == SDL_EVENT_FINGER_UP ? WITNESS_TOUCH_UP
+                        : e.type == SDL_EVENT_FINGER_CANCELED ? WITNESS_TOUCH_CANCEL : WITNESS_TOUCH_MOVE;
+        witness_record_touch_ex(slot, lx, ly, phase, e.tfinger.pressure);   // (pressure <= 0: not given; replays use 1)
+        if (ends) rec.finger[slot].on = false;
         return true;
       }
       default: return true;
@@ -844,10 +889,10 @@ int main(int argc, char** argv) {
       SDL_Event ev;
       SDL_zero(ev);
       ev.tfinger = rec.finger[i].ev;
-      ev.type = SDL_EVENT_FINGER_UP;
+      ev.type = SDL_EVENT_FINGER_CANCELED;   // the system ended it (the protocol's cancel): the view takes it as no tap
       float lx, ly;
       recFinger(ev.tfinger, lx, ly);
-      witness_record_touch(i, lx, ly, WITNESS_TOUCH_UP);
+      witness_record_touch_ex(i, lx, ly, WITNESS_TOUCH_CANCEL, ev.tfinger.pressure);
       rec.finger[i].on = false;
       rec.fingersLetGo.push_back(ev.tfinger.fingerID);
       view.event(ev, game);
@@ -1615,7 +1660,6 @@ int main(int argc, char** argv) {
           recordBegin(specJson(sp));
           rec = RecHeld();   // (a new playthrough's recording holds nothing yet)
           wStart = WitnessExtra();
-          wStart.device = false;
           wStart.hasStart = !game.inside;
           wStart.startGX = game.world.ox + (int)std::floor(game.pl().p.x / TILE);
           wStart.startGY = game.world.oy + (int)std::floor((game.pl().p.y - 2) / TILE);
@@ -1807,7 +1851,7 @@ int main(int argc, char** argv) {
         ev.button.clicks = 1;
         ev.button.x = wx; ev.button.y = wy;
       }
-      SDL_PushEvent(&ev);
+      pushEvent(ev);
     };
     double mouseX = 0, mouseY = 0;
     std::vector<int> wButtons;   // mouse buttons the harness holds down (0 left, 1 middle, 2 right)
@@ -1892,7 +1936,6 @@ int main(int argc, char** argv) {
       sp.background = (int)params["background"].integer(0);
       sp.name = params["name"].str("");
       sp.ids = (int)params["ids"].integer(0);   // a recording's id counter at its start (absent: a fresh Game's)
-      sp.recorded = params["recorded"].boolean();   // a replay of a WITNESS_RECORD session
       applyStart(startSeed, sp);
       if (params["female"].boolean()) { game.app.female = true; AnimOps::refreshHero(game); }   // (P2a) the woman's body base
     };
@@ -1919,22 +1962,23 @@ int main(int argc, char** argv) {
         ev.type = SDL_EVENT_MOUSE_WHEEL;
         ev.wheel.windowID = SDL_GetWindowID(pix.window());
         ev.wheel.x = (float)(-e.dx / 100.0); ev.wheel.y = (float)(-e.dy / 100.0);   // the protocol's + is down
-        SDL_PushEvent(&ev);
+        pushEvent(ev);
       } else if (e.type == WITNESS_EV_TOUCH) {
-        // a finger, through the touch path SDL delivers one by (View::event's FINGER_* cases; hello.touch: no mouse copy)
+        // a finger, through the touch path SDL delivers one by (View::event's FINGER_* cases; hello.touch: no mouse copy).
+        // cancel (the system ended the touch) arrives as SDL's CANCELED: the finger is lifted, but it is never a tap
         const SDL_FingerID id = (SDL_FingerID)e.id + 1;   // (SDL never uses finger id 0)
         const float x = (float)e.x, y = (float)e.y;
         const SDL_EventType t = e.phase == WITNESS_TOUCH_DOWN ? SDL_EVENT_FINGER_DOWN : e.phase == WITNESS_TOUCH_UP ? SDL_EVENT_FINGER_UP
-                                                                                                              : SDL_EVENT_FINGER_MOTION;
-        pushFinger(t, id, x, y);
+                              : e.phase == WITNESS_TOUCH_CANCEL ? SDL_EVENT_FINGER_CANCELED : SDL_EVENT_FINGER_MOTION;
+        pushFinger(t, id, x, y, e.pressure > 0 ? (float)e.pressure : 1.0f);
         wFingers.erase(std::remove_if(wFingers.begin(), wFingers.end(), [&](const Lift& l) { return l.id == id; }), wFingers.end());
-        if (t != SDL_EVENT_FINGER_UP) wFingers.push_back({id, x, y, 0.0f});
+        if (t == SDL_EVENT_FINGER_DOWN || t == SDL_EVENT_FINGER_MOTION) wFingers.push_back({id, x, y, 0.0f});
       } else if (e.type == WITNESS_EV_ACTION && std::strcmp(e.name, "pause") == 0) {
         SDL_Event ev;   // in the event stream, so it lands between the inputs around it exactly as it did when recorded
         SDL_zero(ev);
         ev.type = SDL_EVENT_USER;
         ev.user.code = kPauseCode;
-        SDL_PushEvent(&ev);
+        pushEvent(ev);
       } else {
         witness_log(WITNESS_WARN, "witness: input type %d is not used by Embervale (keys, mouse, wheel, touch and the "
                     "\"pause\" action are)", (int)e.type);
@@ -1961,6 +2005,7 @@ int main(int argc, char** argv) {
         for (int b = 0; b < 4; b++) { wAudioHash ^= (u >> (8 * b)) & 255u; wAudioHash *= 1099511628211ull; }
       }
       wAudioN += n;
+      if (watch) { drawFrame(); pix.end(); }   // (watch mode) the step on screen (drawing never feeds the sim)
     };
     h.snapshot = [&](witness::Json& j) {
       WitnessExtra x = wStart;
@@ -2109,8 +2154,12 @@ int main(int argc, char** argv) {
     hello.audio_sample_rate = Audio::kSampleRate;
     hello.audio_channels = 1;
     hello.touch = 1;   // touch events reach the touch path; Witness sends no mouse copy of finger 0
-    if (witness::connect(hello, h)) witness_run();
-    else std::printf("witness: could not connect to the harness\n");
+    if (witness::connect(hello, h)) {
+      // (watch mode) between commands the window's events keep being pumped about every 30 ms, so the OS never marks
+      // it "not responding" and it can be moved; queued input stays queued for the next step, real input is filtered
+      if (watch) while (witness_poll(30)) SDL_PumpEvents();
+      else witness_run();
+    } else std::printf("witness: could not connect to the harness\n");
     witness_shutdown();
   } else
 #endif

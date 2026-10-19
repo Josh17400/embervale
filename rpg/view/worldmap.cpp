@@ -1644,7 +1644,8 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
   // half done is resumed next frame)
   S.lastPaintMs = 0;
   if (S.job.on && (S.job.zi != S.zi || S.job.geo != S.geo)) S.job = TileJob();
-  const auto deadline = t0 + std::chrono::microseconds(5000);
+  // ((Witness) every tile in view now, shown at once: a screenshot never depends on CPU speed or catches a fade)
+  const auto deadline = witness ? t0 + std::chrono::hours(1) : t0 + std::chrono::microseconds(5000);
   for (size_t qi = 0;;) {
     if (!S.job.on) {
       while (qi < todo.size()) {
@@ -1665,7 +1666,7 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     MapState::T t;
     t.tex = pix_->bake(cv);
     t.used = t_;
-    t.born = t_;   // (drawn from the next frame, fading in over the blank parchment already drawn here)
+    t.born = witness ? -10.0f : t_;   // (drawn from the next frame, fading in over the blank parchment already drawn here)
     {
       auto old = S.tiles.find(tileKey(S.zi, S.job.ix, S.job.iy) ^ geoBit);
       if (old != S.tiles.end()) { pix_->destroy(old->second.tex); t.born = -10; }   // (a repaint: no fade)
@@ -1676,6 +1677,11 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     if (std::chrono::steady_clock::now() > deadline) break;
   }
   S.worstPaintMs = std::max(S.worstPaintMs, S.lastPaintMs);
+  if (witness)   // ((Witness) a screenshot is one frame: the tiles just painted are shown in it, not from the next one)
+    for (const auto& q : todo) {
+      auto f = S.tiles.find(tileKey(S.zi, q.first, q.second) ^ geoBit);
+      if (f != S.tiles.end() && !f->second.stale) P.blit(f->second.tex, (float)std::floor(q.first * TS - left), (float)std::floor(q.second * TS - top));
+    }
   // (M7c) the real plans of the discovered settlements in and near the view: one place at a time, built through the
   // source's prepare path (a generator phase at a time) within what is left of the frame's few milliseconds
   if (g.world.endless && g.world.src && !S.geo) {
@@ -1695,10 +1701,10 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     }
     const double spent = std::chrono::duration<double, std::milli>(p0 - t0).count();
     S.planLastMs = 0;
-    if (want && spent < 7.0) {
+    if (want && (witness || spent < 7.0)) {
       const int32_t hx = g.world.ox + want->ex, hy = g.world.oy + want->ey;
       S.planBusy = want->id;
-      if (g.world.src->prepareChunk(ew::chunkOf(hx), ew::chunkOf(hy), std::clamp(7.5 - spent, 0.8, 3.0))) {
+      if (g.world.src->prepareChunk(ew::chunkOf(hx), ew::chunkOf(hy), witness ? 1e9 : std::clamp(7.5 - spent, 0.8, 3.0))) {
         std::shared_ptr<const ew::SettlementOut> o = g.world.src->settlement(want->id);
         S.planBusy = 0;
         if (!o) S.noPlan.insert(want->id);
@@ -1838,7 +1844,8 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
         if (it == S.lms.end()) {
           // (M2 fixer round 3) one region plan a frame, and none once the frame's map work passed 6 ms: on the web a
           // plan is made on the main thread, and opening the map stacked two of them on the tile painting
-          if (fetched >= 1 || std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count() > 6.0) continue;
+          // ((Witness) a count, never the clock: no picture may depend on CPU speed)
+          if (fetched >= 1 || (!witness && std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count() > 6.0)) continue;
           fetched++;
           it = S.lms.emplace(kv.first, g.world.src->region(rx, ry).landmarks).first;
         }
@@ -2229,6 +2236,24 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     taken.push_back({qs.x - 6, qs.y - 6, qs.x + 6, qs.y + 6});
     legendAdd(-2);
   }
+  // (Witness playtests, 2026-10) the other open quests with a place (a hunt's den, a missing person, an heirloom...): a
+  // new job no longer takes the pin from the quest being followed (Game::acceptQuest), but its giver still says "I'VE
+  // MARKED THEIR DEN ON YOUR MAP", so each keeps a smaller, quiet diamond (no ring, no pulse, no edge arrow) labelled
+  // with its title; the tracked quest stays the one gold, pulsing marker. A few at most (the journal holds the rest)
+  std::vector<Vec2> otherQ;
+  if (!S.geo)
+    for (const Quest& q : g.quests) {
+      if (q.id == g.trackedQuest || !q.hasPos || q.state == QState::Done || otherQ.size() >= 6) continue;
+      const Vec2 s = toScr(q.tgx + 0.5, q.tgy + 0.5);
+      if (s.x < 5 || s.y < 5 || s.x > w - 6 || s.y > h - 6) continue;
+      if (hasQ && len2(s - qs) < 6.0f * 6.0f) continue;   // (under the tracked one's diamond)
+      otherQ.push_back(Vec2(std::floor(s.x), std::floor(s.y)));
+      taken.push_back({s.x - 4, s.y - 4, s.x + 4, s.y + 4});
+      std::string nm = q.title;
+      if (nm.size() > 22) { const size_t sp = nm.rfind(' ', 22); nm = nm.substr(0, sp != std::string::npos && sp > 8 ? sp : 22); }
+      if (len2(s - hp) >= 14.0f * 14.0f) labs.push_back({3, s.x, s.y + 6, s.y - 16, nm, Color(0.45f, 0.24f, 0.04f), Color(1.0f, 0.95f, 0.8f, 0.7f), false});
+      legendAdd(-40);
+    }
   // (M7) the player's property: a little house in the HUD's gold over each plot (its ground outlined when zoomed in
   // close enough to see it), labelled with its name
   if (!S.geo)
@@ -2395,6 +2420,14 @@ void View::drawWorldMap(Game& g, float x, float y, float w, float h) {
     P.rect(qs.x, qs.y - 2, 1, 3, Color(0.45f, 0.24f, 0.04f));
     P.rect(qs.x, qs.y + 2, 1, 1, Color(0.45f, 0.24f, 0.04f));
   }
+  for (const Vec2& s : otherQ)   // the other open quests: a small diamond, dark outline, a paler gold
+    for (int pass = 0; pass < 2; pass++) {
+      const int rr = pass == 0 ? 3 : 2;
+      for (int yy = -rr; yy <= rr; yy++) {
+        const int hw = rr - std::abs(yy);
+        P.rect(s.x - hw, s.y + yy, (float)(hw * 2 + 1), 1, pass == 0 ? Color(0.18f, 0.1f, 0.04f) : Color(0.93f, 0.80f, 0.55f));
+      }
+    }
   // (M10) the sea on the map: the ports the hero knows (an anchor by the town's icon), the ferry routes between them
   // (dashed over the water), the boats we own where they lie (a little sail), and under the hero's arrow his boat
   if (!S.geo && g.world.endless) {
@@ -2757,6 +2790,10 @@ void View::drawMapTab(Game& g, float top) {
       } else if (ic == -2) {
         P.rect(x + 1, ly + 1, 5, 5, kGold);
         P.text(x + 12, ly, "TRACKED QUEST", 1, kDim);
+      } else if (ic == -40) {   // the other open quests' small diamond
+        for (int yy = -3; yy <= 3; yy++) P.rect((float)(x + 4 - (3 - std::abs(yy))), (float)(ly + 3 + yy), (float)((3 - std::abs(yy)) * 2 + 1), 1, Color(0.18f, 0.1f, 0.04f));
+        for (int yy = -2; yy <= 2; yy++) P.rect((float)(x + 4 - (2 - std::abs(yy))), (float)(ly + 3 + yy), (float)((2 - std::abs(yy)) * 2 + 1), 1, Color(0.93f, 0.80f, 0.55f));
+        P.text(x + 12, ly, "OTHER QUEST", 1, kDim);
       } else if (ic == -8) {   // (M4) the border: a dashed line in a realm's colour
         // (fixer M4 r3, review: "the legend's red dash does not match the purple borders") in the colour the map draws
         // the hero's own realm's border with (the same pale-field rule), dashed the same way

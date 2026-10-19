@@ -1,5 +1,7 @@
-// The Witness snapshot (witness_state.h). Positions are in tiles of the current map (float; the player's pixel
-// position too), so tests can use dist(); state.entities lists the people and beasts within 40 tiles, nearest first.
+// The Witness snapshot (witness_state.h). Positions are in tiles (float): global tiles outside (the endless world's
+// one frame), the building's or cave's own tiles inside; px is the player's pixel position in the loaded map. tests
+// can use dist(); state.entities lists the people and beasts within 40 tiles, nearest first, then (for agent
+// playtests) the public buildings' doors outside, the exit and stairs inside.
 #ifdef EMB_WITNESS
 #include "rpg/view/witness_state.h"
 #include <algorithm>
@@ -35,6 +37,28 @@ const char* critterType(art::Critter c) {
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)art::Critter::COUNT, "a type for every critter");
   return (int)c < (int)art::Critter::COUNT ? n[(int)c] : "Animal";
 }
+// a public building's entity type (its door is listed for agent playtests), nullptr for homes and workshops
+const char* buildingType(art::Building b) {
+  using B = art::Building;
+  switch (b) {
+    case B::Inn: return "Inn";
+    case B::Shop: return "Shop";
+    case B::Smithy: return "Smithy";
+    case B::Temple: return "Temple";
+    case B::Keep: return "Keep";
+    case B::Palace: return "Palace";
+    case B::Barracks: return "Barracks";
+    case B::Tower: return "Tower";
+    case B::Guildhall: return "Guildhall";
+    case B::MeadHall: return "MeadHall";
+    case B::TeaHouse: return "TeaHouse";
+    case B::Lodge: return "Lodge";
+    case B::CouncilHall: return "CouncilHall";
+    case B::Exchange: return "Exchange";
+    case B::Bathhouse: return "Bathhouse";
+    default: return nullptr;
+  }
+}
 const char* modeName(Mode m) {
   static const char* n[] = {"title", "play", "dialogue", "menu", "shop", "levelup", "dead", "paused", "creator", "forge", "build"};
   return (size_t)m < sizeof(n) / sizeof(n[0]) ? n[(int)m] : "other";
@@ -50,7 +74,12 @@ double r2(double v) {
   std::snprintf(b, sizeof b, "%.2f", v);
   return std::strtod(b, nullptr);
 }
-void tilePos(witness::Json& j, Vec2 p) { j.vec(r2(p.x / TILE), r2(p.y / TILE)); }
+// a position in tiles: outside, GLOBAL tiles (the endless window's origin added), so positions never jump when the
+// window shifts as the player walks on; inside, the building's or cave's own tiles
+void tilePos(witness::Json& j, Vec2 p, const Game& g) {
+  const double ox = g.inside ? 0.0 : (double)g.world.ox, oy = g.inside ? 0.0 : (double)g.world.oy;
+  j.vec(r2(p.x / TILE + ox), r2(p.y / TILE + oy));
+}
 }  // namespace
 
 void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessExtra& x) {
@@ -59,7 +88,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   j.field("mode", modeName(g.mode)).field("day", g.day).field("hour", r2(g.hour)).field("time", r2(g.time));
   if (g.mode == Mode::Menu) j.field("menu", v.menuTab());
   if (g.mode == Mode::Dialogue) {
-    j.key("dialogue").begin_object().field("speaker", g.dlg.speaker).field("text", g.dlg.text.substr(0, 400)).key("options").begin_array();
+    j.key("dialogue").begin_object().field("speaker", g.dlg.speaker).field("text", g.dlg.text.substr(0, 1200)).key("options").begin_array();
     for (const DlgOpt& o : g.dlg.opts) j.value(o.label);
     j.end_array().end_object();
   }
@@ -68,7 +97,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   // the player
   auto eq = [&](int i) -> std::string { return i >= 0 && i < (int)g.inv.size() ? g.inv[(size_t)i].name : std::string(); };
   j.key("player").begin_object().field("id", P.id).field("type", "Player").field("name", g.app.name.empty() ? std::string("YOU") : g.app.name);
-  j.key("pos"); tilePos(j, P.p);
+  j.key("pos"); tilePos(j, P.p, g);
   j.key("px").vec(r2(P.p.x), r2(P.p.y));
   if (!g.inside) {
     const int gx = g.world.ox + (int)std::floor(P.p.x / TILE), gy = g.world.oy + (int)std::floor((P.p.y - 2) / TILE);
@@ -79,11 +108,13 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   j.field("hp", r2(P.hp)).field("maxHp", r2(P.maxHp)).field("magicka", r2(g.mp)).field("maxMagicka", r2(g.maxMp))
       .field("stamina", r2(g.stamina)).field("maxStamina", r2(g.maxSt)).field("state", stateName(P.st))
       .field("gold", g.gold).field("level", g.plLevel).field("xp", g.plXp).field("xpNext", g.xpForNext())
-      .field("kills", g.kills).field("god", g.godMode).field("inside", g.inside).field("floor", g.subFloor);
+      .field("kills", g.kills).field("god", g.godMode).field("inside", g.inside).field("floor", g.subFloor)
+      .field("facing", P.face == 1 ? "N" : P.face == 2 ? "E" : P.face == 3 ? "W" : "S");   // (agent playtests: attacks and talks land)
   j.key("equipped").begin_object().field("weapon", eq(g.eqWeapon)).field("bow", eq(g.eqBow)).field("armor", eq(g.eqArmor))
       .field("helmet", eq(g.eqHelmet)).field("shield", eq(g.eqShield)).end_object();
   j.field("items", (int)g.inv.size());
-  if (x.device) {   // (P2a) the hero as drawn last frame: rig, figure height, the opaque box and the feet point in device px
+  {   // (P2a) the hero as drawn last frame: rig, figure height, the opaque box and the feet point in device px. It and
+      // state.screen are what the window decides: witness.json's replay.ignore leaves both out of a replay's end check
     const View::HeroSprite& hs = v.heroSprite;
     const Pix::Layer& wl = v.worldLayerForTests();
     j.key("sprite").begin_object().field("rig", art::rigVersion()).field("figH", art::rig().figH(P.look)).field("drawn", hs.on);
@@ -105,7 +136,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   j.end_object();
 
   // (P2a) the screen: the window, the UI fit, the world layer and its zoom numbers, the rig's draw counters
-  if (x.device) {
+  {
     const Pix::Layer& ul = v.uiLayerForTests();
     const Pix::Layer& wl = v.worldLayerForTests();
     int pw = 0, ph = 0;
@@ -134,7 +165,20 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   for (size_t i = 0; i < qs.size() && i < 24; i++) {
     const Quest& q = *qs[i];
     j.begin_object().field("id", q.id).field("title", q.title).field("type", (int)q.type).field("state", questState(q.state))
-        .field("have", q.have).field("need", q.need).field("giver", q.giverName).field("tracked", q.id == g.trackedQuest).end_object();
+        .field("have", q.have).field("need", q.need).field("giver", q.giverName).field("tracked", q.id == g.trackedQuest);
+    // (agent playtests) the journal's next step ("TALK TO THE INNKEEPER IN VOND") and, outside, where it leads: the
+    // objective's tile centre in the frame `pos` uses (Game::questTarget, else the quest's own place: a den, a camp)
+    if (q.state != QState::Done) {
+      j.field("status", g.questStatus(q));
+      int tx = 0, ty = 0;
+      bool at = false;
+      if (!g.inside) {
+        if (g.questTarget(q.id, tx, ty)) at = true;
+        else if (q.hasPos) { tx = q.tgx - g.world.ox; ty = q.tgy - g.world.oy; at = true; }
+      }
+      if (at) j.key("pos").vec(g.world.ox + tx + 0.5, g.world.oy + ty + 0.5);   // (global, as pos is outside)
+    }
+    j.end_object();
   }
   j.end_array();
 
@@ -153,17 +197,18 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
 
   // the ground round the player, for an agent playtest's pathing (Witness PLAYTEST.md "Snapshot conventions"): 41 x 41
   // tiles centred on the player's tile, '#' where Map::blocked (walls, buildings, solid props, deep water, cliffs, off
-  // the map), '.' where a body can stand. Positions are tiles of the current map, as `pos` is, so origin is the top-left
-  // tile; id names that frame (inside: the building and floor; outside: the endless window's origin, which moves the
-  // local tiles when it shifts). Read-only: nothing here touches the sim.
+  // the map), '.' where a body can stand. Positions are in the frame `pos` uses, so origin is the top-left tile; id
+  // names that frame (inside: the building and floor; outside: "ow:global", one frame for the whole endless world, so
+  // a window shift is not a new place). Read-only: nothing here touches the sim.
   if (inWorld) {
     const Map& m = g.map();
     constexpr int R = 20;
     const int px = (int)std::floor(P.p.x / TILE), py = (int)std::floor(P.p.y / TILE);
     char id[64];
     if (g.inside) std::snprintf(id, sizeof id, "in:%d:%d:%d", g.subSite, g.subBldg, g.subFloor);
-    else std::snprintf(id, sizeof id, "ow:%d,%d", (int)g.world.ox, (int)g.world.oy);
-    j.key("map").begin_object().field("id", std::string(id)).field("cell", 1).key("origin").vec(px - R, py - R).field("solid", "#");
+    else std::snprintf(id, sizeof id, "ow:global");
+    const int ox = g.inside ? 0 : g.world.ox, oy = g.inside ? 0 : g.world.oy;
+    j.key("map").begin_object().field("id", std::string(id)).field("cell", 1).key("origin").vec(ox + px - R, oy + py - R).field("solid", "#");
     j.key("rows").begin_array();
     std::string row((size_t)(2 * R + 1), '.');
     for (int y = py - R; y <= py + R; y++) {
@@ -182,7 +227,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   }
   std::stable_sort(near.begin(), near.end(), [](const auto& a, const auto& b) { return a.first < b.first || (a.first == b.first && a.second->id < b.second->id); });
   j.key("entities").begin_array();
-  j.begin_object().field("id", P.id).field("type", "Player").key("pos"); tilePos(j, P.p); j.field("hp", r2(P.hp)).end_object();
+  j.begin_object().field("id", P.id).field("type", "Player").key("pos"); tilePos(j, P.p, g); j.field("hp", r2(P.hp)).end_object();
   int hostiles = 0;
   for (size_t i = 0; i < near.size() && i < 60; i++) {
     const Actor& a = *near[i].second;
@@ -193,7 +238,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     if (a.hostile && a.st != AState::Dead) hostiles++;
     j.begin_object().field("id", a.id).field("type", animal ? critterType((art::Critter)(a.critter - 1)) : person ? roleName(a.role) : monsterType(a.mon))
         .field("kind", a.comp ? "companion" : animal ? "animal" : person ? "person" : "beast").field("talk", talk).field("name", a.name);
-    j.key("pos"); tilePos(j, a.p);
+    j.key("pos"); tilePos(j, a.p, g);
     j.field("dist", r2(near[i].first)).field("hp", r2(a.hp)).field("maxHp", r2(a.maxHp)).field("level", a.level)
         .field("hostile", a.hostile).field("aggro", a.aggro).field("faction", factionName(a.faction)).field("state", stateName(a.st));
     if (a.human) {   // (P2a) what a person shows, and how long the dead have lain
@@ -203,6 +248,39 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     }
     if (a.st == AState::Dead) j.key("corpse").begin_object().field("age", r2(a.stT)).end_object();
     j.end_object();
+  }
+  // (agent playtests) outside: the doors of the public buildings within 40 tiles, nearest first (at most 8), so "goto
+  // Inn" walks in (stepping onto a door enters). kind "building"; the id is the door's global tile (stable while the
+  // window shifts), far above any actor id
+  if (!g.inside && inWorld) {
+    struct Door { float d; int bi; };
+    std::vector<Door> doors;
+    const auto& B = g.world.over.bldgs;
+    for (size_t bi = 0; bi < B.size(); bi++) {
+      if (!buildingType(B[bi].type) || B[bi].charred || B[bi].home == 3) continue;
+      const float d = std::hypot(B[bi].doorX() + 0.5f - P.p.x / TILE, B[bi].doorY() + 0.5f - P.p.y / TILE);
+      if (d <= 40.0f) doors.push_back({d, (int)bi});
+    }
+    std::stable_sort(doors.begin(), doors.end(), [](const Door& a, const Door& b) { return a.d < b.d; });
+    for (size_t i = 0; i < doors.size() && i < 8; i++) {
+      const Bldg& b = B[(size_t)doors[i].bi];
+      const int32_t gx = g.world.ox + b.doorX(), gy = g.world.oy + b.doorY();
+      const int id = 50000000 + (int)(((uint32_t)gx & 0xFFFu) << 12 | ((uint32_t)gy & 0xFFFu));
+      j.begin_object().field("id", id).field("type", buildingType(b.type)).field("kind", "building").field("talk", false);
+      j.key("pos").vec(gx + 0.5, gy + 0.5);
+      j.field("dist", r2(doors[i].d)).field("hostile", false).end_object();
+    }
+  }
+  // inside: the way out (stepping onto it leaves) and the stairs, so "goto Exit" / "goto StairsUp" work
+  if (g.inside && inWorld) {
+    auto place = [&](int id, const char* type, int tx, int ty) {
+      j.begin_object().field("id", id).field("type", type).field("kind", "place").field("talk", false);
+      j.key("pos").vec(tx + 0.5, ty + 0.5);
+      j.field("dist", r2(std::hypot(tx + 0.5f - P.p.x / TILE, ty + 0.5f - P.p.y / TILE))).field("hostile", false).end_object();
+    };
+    if (g.sub.exitY >= 0) place(49000001, "Exit", g.sub.exitX, g.sub.exitY);
+    if (g.sub.up.valid()) place(49000002, "StairsUp", g.sub.up.x, g.sub.up.y);
+    if (g.sub.down.valid()) place(49000003, "StairsDown", g.sub.down.x, g.sub.down.y);
   }
   j.end_array();
 

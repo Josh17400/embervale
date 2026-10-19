@@ -81,7 +81,8 @@ void View::homeCollect(Game& g, const Map& m, Vec2 cam) {
     bakeMs += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     return t;
   };
-  auto can = [&](uint64_t key) { return bakeMs < 3.0 || homeTex_.count(key) != 0; };
+  // ((Witness) every piece now: no picture may depend on CPU speed)
+  auto can = [&](uint64_t key) { return witness || bakeMs < 3.0 || homeTex_.count(key) != 0; };
   const World& W = g.world;
   const home::Ui& U = g.home.ui;
   const bool building = g.mode == Mode::Build;

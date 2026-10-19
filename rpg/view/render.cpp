@@ -937,7 +937,10 @@ void View::rigBakeQueue(const Game& g) {
     std::sort(q.begin(), q.end(), [](const RigJob& x, const RigJob& y) { return x.d2 < y.d2; });
     rigQueue_.swap(q);
   }
-  while (!rigQueue_.empty() && rigBakeBudget()) {
+  // (Witness) a fixed count instead of the millisecond budget: how many atlases a step baked must not depend on CPU
+  // speed or machine load (it showed as state.screen.peopleMB differing between `witness test --repeat 2` passes)
+  int witnessBakes = 1;
+  while (!rigQueue_.empty() && (witness ? witnessBakes-- > 0 : rigBakeBudget())) {
     const RigJob j = rigQueue_.front();
     rigQueue_.erase(rigQueue_.begin());
     if (rigTex_.count(rigKey(j.look, j.part, j.child))) continue;
