@@ -50,6 +50,7 @@ int runSeed(uint64_t seed, const char* mapOut, float secs, bool mortal, SeedResu
 
 // ---- metrics.cpp
 int runMetrics(uint64_t A, uint64_t B, float progSecs);
+int runPackProbe(uint64_t A, uint64_t B);   // --pack-probe: three wolves against a bot that reacts like a person
 
 // ---- golden.cpp: returns failures; write = print fresh values instead of checking
 int goldenCheck(bool write);

@@ -25,6 +25,7 @@ namespace {
 struct Bot {
   Rng r{1};
   float skill = 0.5f;
+  float react = -1;                 // (pack probe) >= 0: sees every windup and rolls once it has watched it this long (s)
   std::map<long long, bool> seen;   // (enemy id, windup start) -> will roll for it
   int swingCd = 0, bowCd = 0;
   int rolls = 0;
@@ -58,9 +59,12 @@ struct Bot {
       auto it = seen.find(key);
       if (it == seen.end()) {
         bool heavy = e.heavy;
-        it = seen.emplace(key, r.f() < (heavy ? std::min(0.9f, skill + 0.3f) : skill)).first;
+        it = seen.emplace(key, react >= 0 ? true : r.f() < (heavy ? std::min(0.9f, skill + 0.3f) : skill)).first;
       }
-      if (it->second && e.stT >= wu - 0.14f && g.stamina >= 20) {
+      // the classic bot rolls just before the blow lands (it knows the windup: no reaction time); the probe's bot rolls
+      // once it has watched the windup for its reaction time, as a person (and Witness's reflex layer) does
+      const bool due = react >= 0 ? e.stT >= react : e.stT >= wu - 0.14f;
+      if (it->second && due && g.stamina >= 20) {
         Vec2 away = norm(p.p - e.p);
         Vec2 side(-away.y, away.x);
         if (r.f() < 0.5f) side = side * -1.0f;
@@ -146,7 +150,8 @@ void makeHero(Game& g, int L) {
 
 struct FightResult { bool died = false, won = false; float secs = 0, hpLeft = 0; int hits = 0, rolls = 0, hitsTaken = 0; };
 
-FightResult arenaFight(uint64_t seed, int trial, art::Monster mon, int n, int L, float timeout, bool fleeWins, bool fists = false) {
+FightResult arenaFight(uint64_t seed, int trial, art::Monster mon, int n, int L, float timeout, bool fleeWins, bool fists = false, float skill = 0.5f,
+                       float react = -1.0f, int foeL = 0) {
   FightResult fr;
   Game g(seed);
   g.newEndlessGame(seed);
@@ -165,9 +170,10 @@ FightResult arenaFight(uint64_t seed, int trial, art::Monster mon, int n, int L,
   float a0 = rr.f() * TAU;
   for (int k = 0; k < n; k++) {
     float a = a0 + k * TAU / n + rr.range(-0.3f, 0.3f);
-    ids.push_back(g.debugSpawnAt(mon, g.pl().p + Vec2(std::cos(a), std::sin(a) * 0.7f) * rr.range(70, 95), L));
+    ids.push_back(g.debugSpawnAt(mon, g.pl().p + Vec2(std::cos(a), std::sin(a) * 0.7f) * rr.range(70, 95), foeL > 0 ? foeL : L));
   }
   Bot bot; bot.r = Rng((uint32_t)(seed * 31 + trial * 977 + L));
+  bot.skill = skill; bot.react = react;
   std::map<int, float> lastHp;
   float plHp = g.pl().hp;
   int frames = (int)(timeout * 60);
@@ -373,6 +379,43 @@ int compareM5(const MetricsRun& now) {
   return bad;
 }
 }  // namespace
+
+// (Witness playtests, 2026-10) the pack probe: three same-level wolves, no potions, against a bot that fights like a
+// person: one that never rolls, and ones that roll once they have watched a windup for 0.25 s / 0.35 s (Witness's
+// default and newcomer reaction times). The classic metrics bot reacts with no delay, so it never showed a telegraph
+// too short to read. Targets (the owner, 2026-10-18): at level 1 the hero who never rolls wins with 30-60 % hp left and
+// a good roller ends near full; no level is a walkover for the hero who never rolls.
+int runPackProbe(uint64_t A, uint64_t B) {
+  printf("pack probe: wolves, no potions, seeds %llu..%llu x 8 fights a cell (died %% of all, hp left of the fights won)\n", (unsigned long long)A,
+         (unsigned long long)B);
+  struct Way { const char* name; float skill, react; };
+  const Way ways[] = {{"never rolls", 0.0f, 99.0f}, {"rolls at 0.25 s", 1.0f, 0.25f}, {"rolls at 0.35 s", 1.0f, 0.35f}};
+  // the same-level rows, then a level-1 hero at the dens a first hunt can send them to (danger 2 and 3: packs of three
+  // near home; danger 4: four)
+  struct Row { int L, D, n; };
+  const Row rows[] = {{1, 1, 3}, {3, 3, 3}, {5, 5, 3}, {10, 10, 3}, {20, 20, 3}, {30, 30, 3}, {1, 2, 3}, {1, 3, 3}, {1, 4, 4}};
+  for (const Row& row : rows) {
+    const int L = row.L;
+    if (row.D == L) printf("PACK lvl %-2d       ", L);
+    else printf("PACK lvl %d, %d at D%d", L, row.n, row.D);
+    for (const Way& w : ways) {
+      int died = 0, won = 0, trials = 0, taken = 0;
+      double secs = 0, hp = 0;
+      for (uint64_t s = A; s <= B; s++)
+        for (int t = 0; t < 8; t++) {
+          const FightResult fr = arenaFight(s, t, art::Monster::Wolf, row.n, L, 90, true, false, w.skill, w.react, row.D);
+          trials++; taken += fr.hitsTaken;
+          if (fr.died) died++;
+          if (fr.won) { won++; secs += fr.secs; hp += fr.hpLeft; }
+        }
+      printf(" | %s: died %2d%%, won with %3.0f%% hp in %4.1fs, %.1f bites", w.name, 100 * died / std::max(1, trials), won ? 100 * hp / won : 0.0,
+             won ? secs / won : 0.0, (double)taken / std::max(1, trials));
+    }
+    printf("\n");
+    fflush(stdout);
+  }
+  return 0;
+}
 
 int runMetrics(uint64_t A, uint64_t B, float progSecs) {
   g_run = MetricsRun();

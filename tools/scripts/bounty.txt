@@ -58,6 +58,8 @@ seed 1
 +2.5 shot bounty_6j_ready.png
 +2.5 shot bounty_6k_ready.png
 +3.0 shot bounty_6l_ready.png
++0.1 hold J 20                   # (a melee's course moves with every change to the AI's dice: time for the chief to fall)
++20.0 shot bounty_6m_ready.png
 +0.1 expect heard BOUNTY READY: RETURN TO
 +0.1 expect sidequest complete bounty
 +0.2 menu 1

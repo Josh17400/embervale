@@ -1117,7 +1117,10 @@ void Game::updateAI(Actor& a, float dt) {
           a.aim = norm(toP);
           a.vel = a.aim * (a.mon == Monster::Lurker ? 260.0f : harpy ? 270.0f : 235.0f);
           a.hitDone = false;
-          a.atkCd = 0.8f + rng_.f() * 0.6f;
+          // (Witness playtests) a pack hunter falls back to the ring after its lunge and circles a while before the next
+          // (1.5-2.3 s): the pack's pressure is a rhythm to read, not a bite a second (a level-1 hero who never rolled
+          // lost to three same-level wolves in 8 s)
+          a.atkCd = (pack && !harpy ? 1.5f : 0.8f) + rng_.f() * (pack && !harpy ? 0.8f : 0.6f);
           sfx((int)Sfx::Swing, a.p, 0.7f);
         } else if (a.mon == Monster::EmberHound) {
           hitTarget(1.0f, 2.0f, Ench::Fire, 4.0f);
@@ -1134,7 +1137,9 @@ void Game::updateAI(Actor& a, float dt) {
       }
       return;
     case AState::Strike:
-      if (a.lunge && !a.hitDone && len2(a.vel) > 1) {   // a lunge bends a little toward a dodging target
+      // a lunge bends a little toward a target that sidesteps; (Witness playtests) never after one mid-roll: the roll is
+      // the answer to the telegraph, and a lunge that homed in on it caught a roll begun as the windup was seen
+      if (a.lunge && !a.hitDone && len2(a.vel) > 1 && p.st != AState::Roll) {
         float sp = len(a.vel);
         a.vel = norm(norm(a.vel) + norm(toP) * std::min(1.0f, dt * 4.0f)) * sp;
       }
@@ -1230,7 +1235,9 @@ void Game::updateAI(Actor& a, float dt) {
         mates++;
         if (o.lunge && o.st == AState::Windup) busy++;
       }
-      int slots = mates >= 2 ? 2 : 1;
+      // (Witness playtests) "big" is four or more: a pack of three lunges one wolf at a time, so a newcomer reads one
+      // telegraph at a time (two at once from three left a slow reaction no safe way to roll)
+      int slots = mates >= 3 ? 2 : 1;
       bool flank = dot(norm(a.p - p.p), p.aim) < 0.3f;
       const float lungeMax = a.mon == Monster::Hyena ? 62.0f : a.mon == Monster::EmberHound ? 54.0f : harpy ? 76.0f : 48.0f;   // (beyond the pack's ring)
       if (busy < slots && dist > 16 && dist < lungeMax && (flank || a.special > 0.7f)) {

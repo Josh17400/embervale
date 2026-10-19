@@ -202,6 +202,10 @@ bool cmdQuestGo(ScriptCtx& c) {
       break;
     }
     case QType::Protect: g.teleportGlobal(q->tgx, q->tgy + 1); g.pl().aim = Vec2(0, -1); g.pl().face = 1; break;
+    case QType::Hunt:   // the den or the ground, from a dozen tiles south: the pack comes out as a walker would meet it
+      if (!q->hasPos) { c.fail("questgo: the hunt has no place"); return true; }
+      g.teleportGlobal(q->tgx, q->tgy + 12); g.pl().aim = Vec2(0, -1); g.pl().face = 1;
+      break;
     default: c.fail("questgo: not for this kind of quest"); return true;
   }
   c.view.snap(g);

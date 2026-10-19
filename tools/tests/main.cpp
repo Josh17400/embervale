@@ -3,6 +3,7 @@
 //   rpg_test [seed] [--map out.png] [--secs N] [--mortal] [--noaudit]
 //   rpg_test --seeds 1..20      one summary line per seed, a repetition-audit summary, nonzero exit on any failure
 //   rpg_test --metrics [--seeds 1..5] [--metric-secs 2400]   game-feel and balance metrics (PLAN.md targets table)
+//   rpg_test --pack-probe [--seeds 1..5]   three wolves vs a bot that never rolls / rolls after watching 0.25 s / 0.35 s
 //   rpg_test --golden [--write]                               rpg/world noise + dmath golden values (M1 prep)
 #include <algorithm>
 #include <chrono>
@@ -80,11 +81,12 @@ int main(int argc, char** argv) {
   bool range = false, audit = true;
   const char* mapOut = nullptr;
   float secs = 120;
-  bool mortal = false, metrics = false, golden = false, goldenWrite = false;
+  bool mortal = false, metrics = false, golden = false, goldenWrite = false, packProbe = false;
   float metricSecs = 2400;
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "--map") && i + 1 < argc) mapOut = argv[++i];
     else if (!strcmp(argv[i], "--metrics")) metrics = true;
+    else if (!strcmp(argv[i], "--pack-probe")) packProbe = true;
     else if (!strcmp(argv[i], "--golden")) golden = true;
     else if (!strcmp(argv[i], "--write")) goldenWrite = true;
     else if (!strcmp(argv[i], "--metric-secs") && i + 1 < argc) metricSecs = (float)atof(argv[++i]);
@@ -97,6 +99,10 @@ int main(int argc, char** argv) {
     } else seed = (uint64_t)atoll(argv[i]);
   }
   if (golden) return goldenCheck(goldenWrite) ? 1 : 0;
+  if (packProbe) {
+    if (!range) { seedA = 1; seedB = 5; }
+    return runPackProbe(seedA, seedB);
+  }
   if (metrics) {
     if (!range) { seedA = 1; seedB = 5; }
     return runMetrics(seedA, seedB, metricSecs);

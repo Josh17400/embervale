@@ -63,9 +63,10 @@ Cell cell(int L, int D) {
   const float hit = heroHit(L, D);
   c.hitsTrash = wolf.hp * gear::enemyHpMul(D) / hit;
   c.hitsBrute = bear.hp * gear::enemyHpMul(D) / hit;
-  // three wolves, one bite each every 2 s (wind-up, strike, the pack's cooldown), no dodging, no potions
+  // three wolves, one bite each every 3 s (wind-up 0.48, strike and recovery 0.63, then (Witness playtests, 2026-10)
+  // circling 1.5-2.3 s back on the pack's ring; it was 2 s), no dodging, no potions
   const float bite = wolf.dmg * gear::enemyDamageMul(D) * (1.0f - gear::mitigation(heroAr(L), D)) * gear::gapEnemyDamage(L, D);
-  c.deathSecs = heroHp(L) / (3.0f * bite / 2.0f);
+  c.deathSecs = heroHp(L) / (3.0f * bite / 3.0f);
   c.xp = gear::killXp(wolf.xp, D, L);
   return c;
 }

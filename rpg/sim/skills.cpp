@@ -64,10 +64,13 @@ float xpToReach(int from, int to) {
 // skill climbing on to mastery gives about 1 350 over the climb, the deep skills of a long game a steady second road.
 int charXpForSkillUp(int newLevel) { return std::max(0, (newLevel - 10) / 3); }
 float skillRate(Skill s) {
-  // calibrated by rpg_test --skills (the play-rate bot's acts per hour of play: tools/tests/test_skills.cpp)
+  // calibrated by rpg_test --skills (the play-rate bot's acts per hour of play: tools/tests/test_skills.cpp).
+  // (Witness playtests, 2026-10) block and the armour classes learn a blow taken at a time, and the wolf now bites about
+  // a third less often (a longer telegraph, the pack's circling after a lunge): their rates rose from 0.90 and 0.95 to
+  // keep their mastery near the 13-15 h it was
   static const float r[SKILLS] = {
-      0.42f, 0.37f, 0.40f, 0.40f, 0.39f, 0.55f, 0.44f, 0.90f,   // swords axes maces spears daggers archery unarmed block
-      0.95f, 0.95f, 0.95f,                                      // light, medium, heavy armour (a blow taken each)
+      0.42f, 0.37f, 0.40f, 0.40f, 0.39f, 0.55f, 0.44f, 1.18f,   // swords axes maces spears daggers archery unarmed block
+      1.25f, 1.25f, 1.25f,                                      // light, medium, heavy armour (a blow taken each)
       5.00f, 2.74f,                                             // heritage (5 s worn in a fight), athletics (24 tiles)
       18.5f, 27.2f, 19.2f, 2.37f, 24.7f, 9.70f, 1.00f,          // smithing cooking farming riding speech stealth lockpicking
       1.00f, 1.00f, 1.00f, 1.00f, 1.00f};                       // the schools (the MAGIC lane's acts and pace)                       // the schools (the MAGIC lane's acts)

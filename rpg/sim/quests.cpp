@@ -497,8 +497,14 @@ Quest Game::offerFor(const Actor& a, QType want, bool& ok) {
               }
             }
           std::sort(dc.begin(), dc.end(), [](const DenC& x, const DenC& y) { return x.d2 != y.d2 ? x.d2 < y.d2 : x.id < y.id; });
+          // (Witness playtests, 2026-10) a den that suits the hero first: at most two levels past them (the dice over
+          // the nearer three sent a level-1 newcomer to a level-4 pack of four, 20 a bite). The nearer few of those, else (none within
+          // the walk) the nearer few of all, as before; one draw either way
+          const int fitD = plLevel + 2;
+          const auto fitEnd = std::stable_partition(dc.begin(), dc.end(), [&](const DenC& c) { return world.src->danger(c.x, c.y) <= fitD; });
+          const int fit = (int)(fitEnd - dc.begin());
           if (!dc.empty() && need != jobs::JN_GROUND) {
-            const DenC& d = dc[(size_t)r.irange(std::min<int>(3, (int)dc.size()))];
+            const DenC& d = dc[(size_t)r.irange(std::min<int>(3, fit > 0 ? fit : (int)dc.size()))];
             q.mon = d.mon; q.targetId = d.id; ax = d.x; ay = d.y; den = true;
           }
         }

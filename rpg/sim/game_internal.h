@@ -15,9 +15,14 @@ namespace gsim {
 using art::Monster;
 
 struct MStat { float hp, dmg, speed, range, aggro, radius, windup; int xp; bool ranged, flying; };
+// windup: the telegraph before the blow (s). (Witness playtests, 2026-10) the pack lungers (wolf, ice wolf, hyena,
+// ember hound) wind up 0.44-0.48 s, readable at a human reaction (0.25-0.35 s) with time left to roll; at 0.28-0.32 s
+// a newcomer reacting in 0.35 s was bitten 18 times in 24 (the metrics bot never showed it: it reacts with no delay).
+// The wolf bites for 10 (was 13): with the pack's turns and its circling after a lunge (ai.cpp), a level-1 hero who
+// never rolls beats three same-level wolves with about half their health left (rpg_test --pack-probe)
 inline const MStat& mstat(Monster m) {
   static const MStat t[] = {
-      {34, 13, 66, 13, 120, 5, 0.32f, 12, false, false},   // Wolf
+      {34, 10, 66, 13, 120, 5, 0.48f, 12, false, false},   // Wolf
       {36, 8, 56, 13, 90, 6, 0.40f, 14, false, false},     // Boar
       {95, 15, 46, 17, 100, 8, 0.50f, 38, false, false},   // Bear
       {22, 4, 30, 11, 80, 5, 0.45f, 6, false, false},      // Slime
@@ -29,7 +34,7 @@ inline const MStat& mstat(Monster m) {
       {105, 17, 44, 19, 110, 9, 0.55f, 60, false, false},  // Troll
       {60, 10, 48, 15, 140, 6, 0.40f, 36, true, true},     // Wraith
       {22, 5, 30, 11, 60, 6, 0.40f, 6, false, false},      // Mudcrab
-      {46, 9, 66, 13, 130, 5, 0.30f, 20, false, false},    // IceWolf
+      {46, 9, 66, 13, 130, 5, 0.46f, 20, false, false},    // IceWolf
       {62, 10, 52, 15, 120, 7, 0.36f, 30, true, false},    // FrostSpider
       {85, 14, 40, 18, 100, 8, 0.50f, 42, false, false},   // Sandworm
       {1500, 30, 72, 34, 320, 18, 0.60f, 1500, true, true},// Dragon
@@ -37,11 +42,11 @@ inline const MStat& mstat(Monster m) {
       // move: the scorpion's every-third heavy sting, the hyena pack's circling, the lurker's lunge from the water, the
       // yeti's frost slam, the wisp's kited bolts, the hound's fire bite, the blightspawn's spore burst)
       {52, 10, 48, 16, 100, 6, 0.42f, 24, false, false},   // Scorpion
-      {28, 7, 72, 13, 150, 5, 0.28f, 11, false, false},    // Hyena (packs of 3-4)
+      {28, 7, 72, 13, 150, 5, 0.44f, 11, false, false},    // Hyena (packs of 3-4)
       {78, 15, 36, 17, 70, 8, 0.50f, 32, false, false},    // Lurker (slow ashore, a fast lunge)
       {108, 17, 46, 19, 120, 9, 0.55f, 64, false, false},  // Yeti
       {26, 7, 58, 12, 150, 4, 0.50f, 20, true, true},      // Wisp (ranged bolts, floats)
-      {48, 11, 74, 13, 150, 5, 0.30f, 32, false, false},   // EmberHound
+      {48, 11, 74, 13, 150, 5, 0.46f, 32, false, false},   // EmberHound
       {50, 10, 40, 15, 130, 6, 0.45f, 28, false, false},   // Blightspawn
       // M6 Steel (FOES lane; ai.cpp gives each its moves): the harpy circles on the wing, dives (a swoop you roll
       // through: it bites on contact) and shrieks (a short slow); the golem is slow stone (double armour, foes_game.cpp),

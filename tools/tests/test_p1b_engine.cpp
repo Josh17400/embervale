@@ -474,7 +474,9 @@ void boutCheck(Game& g, uint64_t seed) {
         g.mode == Mode::Dead ? "DEAD" : "alive", gold0, g.gold, toElse ? "to its else" : "NOT ended");
     if (g.mode == Mode::Dead) { fail(sd(seed) + "bout: the player died in a bout"); g.mode = Mode::Play; g.pl().st = AState::Idle; g.pl().hp = g.pl().maxHp; }
     if (minHp < 0.99f) fail(sd(seed) + "bout: the player's HP fell to " + std::to_string(minHp));
-    if (g.gold != gold0 || g.inv.size() != inv0) fail(sd(seed) + "bout: something was lost in the lost bout");
+    // (a loss only: the world goes on round a bout, and coin a beast drops where it falls nearby is picked up on the way
+    // (seed 1 after the 2026-10 wolf tuning: 50 -> 61 gold); the bout itself must take nothing)
+    if (g.gold < gold0 || g.inv.size() < inv0) fail(sd(seed) + "bout: something was lost in the lost bout");
     if (!toElse) fail(sd(seed) + "bout: the lost bout did not go to its else (stage " + stageOf(g, inst) + ")");
     (void)beatenSeen;
     g.godMode = true;

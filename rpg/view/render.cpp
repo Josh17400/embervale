@@ -1730,8 +1730,8 @@ void View::spawnParticles(const Event& e, Game& g) {
       bool bannerSays = false;
       if (e.f == 1 && e.s.rfind("QUEST COMPLETE: ", 0) == 0) {
         bannerSays = true;
-        const std::string started = "QUEST STARTED: " + e.s.substr(16);
-        toasts_.erase(std::remove_if(toasts_.begin(), toasts_.end(), [&](const Toast& t) { return t.s == started; }), toasts_.end());
+        const std::string started = "QUEST STARTED: " + e.s.substr(16), added = "NEW QUEST: " + e.s.substr(16);   // (an untracked one)
+        toasts_.erase(std::remove_if(toasts_.begin(), toasts_.end(), [&](const Toast& t) { return t.s == started || t.s == added; }), toasts_.end());
       }
       if (!(g.noticeT > 0 && g.notice == e.s) && !bannerWhole && !bannerSays) { Toast t; t.s = e.s; t.c = e.f == 1 ? Color(1, 0.85f, 0.3f) : Color(0.9f, 0.85f, 0.7f); toasts_.push_back(t); }
       if (e.f == 0 || e.f == 1) { bannerState_.clear(); banner_ = e.f == 1 ? "QUEST COMPLETE" : "NEW QUEST"; bannerSub_ = e.s.substr(e.s.find(':') == std::string::npos ? 0 : e.s.find(':') + 2); bannerT_ = 3.5f; }
