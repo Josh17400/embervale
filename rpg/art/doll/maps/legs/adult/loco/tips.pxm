@@ -1,5 +1,9 @@
 # legs/adult/loco/tips: shoe tips under a long hem (A3's woman): drawn over the hem's under-edge
 # The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+# Redrawn 2026-10-19 with the walk (std.pxm): both shoes show in every front and back frame (a step lifts one a row over
+# the hem, never hides it); side views keep A3's flat tip (a 6 px shoe on a 7 px sole) with the planted sole centred on
+# the plant anchor the man's legs use (round 2: one walk table for both bodies), a second shoe lifted behind the hem on
+# the down frames, both off the ground in the run's flight; `stance` is A3's. Regions: B shoe, O sole (rags: bare feet).
 use person woman
 body adult
 role legs tips
@@ -16,50 +20,92 @@ view D key idle origin 4 1
 |fih..fhg
 |KKK..KKK
 
-view D key run1 origin 4 1
-|fih
-|KKK
+view D key run1 origin 4 2
+|.....fhg
+|fih..KKK
+|KKK.....
+regions
+|.....BBB
+|BBB..OOO
+|OOO.....
 
 view D key run2 origin 4 1
-|fih
-|KKK
+|fih..fhg
+|KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
 
-view D key run3 origin 4 1
-|fih
-|KKK
+view D key run3 origin 4 2
+|fih..fhg
+|KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
 
-view D key run4 origin -1 1
-|fhg
-|KKK
+view D key run4 origin 4 2
+|fih.....
+|KKK..fhg
+|.....KKK
+regions
+|BBB.....
+|OOO..BBB
+|.....OOO
 
-view D key run5 origin -1 1
-|fhg
-|KKK
+view D key run5 origin 4 1
+|fih..fhg
+|KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
 
-view D key run6 origin -1 1
-|fhg
-|KKK
+view D key run6 origin 4 2
+|fih..fhg
+|KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
 
 view D key sit origin 6 1
 mark hip 6 -6
 |fih......fhg
 |KKK......KKK
 
-view D key walkA origin 4 1
-|fih
-|KKK
+view D key walkA origin 4 2
+|fih.....
+|KKK..fhg
+|.....KKK
+regions
+|BBB.....
+|OOO..BBB
+|.....OOO
 
-view D key walkB origin 4 1
-|fih
-|KKK
+view D key walkB origin 4 2
+|.....fhg
+|fih..KKK
+|KKK.....
+regions
+|.....BBB
+|BBB..OOO
+|OOO.....
 
-view D key walkC origin -1 1
-|fhg
-|KKK
+view D key walkC origin 4 2
+|.....fhg
+|fih..KKK
+|KKK.....
+regions
+|.....BBB
+|BBB..OOO
+|OOO.....
 
-view D key walkD origin -1 1
-|fhg
-|KKK
+view D key walkD origin 4 2
+|fih.....
+|KKK..fhg
+|.....KKK
+regions
+|BBB.....
+|OOO..BBB
+|.....OOO
 
 view U key buckle origin 4 1
 |fhg..fhg
@@ -69,49 +115,91 @@ view U key idle origin 4 1
 |fhg..fhg
 |KKK..KKK
 
-view U key run1 origin 4 1
-|fhg
-|KKK
+view U key run1 origin 4 2
+|.....fhg
+|fhg..KKK
+|KKK.....
+regions
+|.....BBB
+|BBB..OOO
+|OOO.....
 
 view U key run2 origin 4 1
-|fhg
-|KKK
+|fhg..fhg
+|KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
 
-view U key run3 origin 4 1
-|fhg
-|KKK
+view U key run3 origin 4 2
+|fhg..fhg
+|KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
 
-view U key run4 origin -1 1
-|fhg
-|KKK
+view U key run4 origin 4 2
+|fhg.....
+|KKK..fhg
+|.....KKK
+regions
+|BBB.....
+|OOO..BBB
+|.....OOO
 
-view U key run5 origin -1 1
-|fhg
-|KKK
+view U key run5 origin 4 1
+|fhg..fhg
+|KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
 
-view U key run6 origin -1 1
-|fhg
-|KKK
+view U key run6 origin 4 2
+|fhg..fhg
+|KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
 
 view U key sit origin 0 0
 mark hip 0 -7
 |.
 
-view U key walkA origin 4 1
-|fhg
-|KKK
+view U key walkA origin 4 2
+|fhg.....
+|KKK..fhg
+|.....KKK
+regions
+|BBB.....
+|OOO..BBB
+|.....OOO
 
-view U key walkB origin 4 1
-|fhg
-|KKK
+view U key walkB origin 4 2
+|.....fhg
+|fhg..KKK
+|KKK.....
+regions
+|.....BBB
+|BBB..OOO
+|OOO.....
 
-view U key walkC origin -1 1
-|fhg
-|KKK
+view U key walkC origin 4 2
+|.....fhg
+|fhg..KKK
+|KKK.....
+regions
+|.....BBB
+|BBB..OOO
+|OOO.....
 
-view U key walkD origin -1 1
-|fhg
-|KKK
+view U key walkD origin 4 2
+|fhg.....
+|KKK..fhg
+|.....KKK
+regions
+|BBB.....
+|OOO..BBB
+|.....OOO
 
 view R key buckle origin 1 1
 |fihhgf.
@@ -121,58 +209,118 @@ view R key idle origin 1 1
 |fihhgf.
 |KKKKKKK
 
-view R key run1 origin -2 1
-|fihhgf
-|KKKKKK
+view R key run1 origin 9 3
+|fhhggf............
+|KKKKKKK...........
+|...........fihhgf.
+|...........KKKKKKK
+regions
+|BBBBBB............
+|OOOOOOO...........
+|...........BBBBBB.
+|...........OOOOOOO
 
-view R key run2 origin 3 1
-|fihhgf
-|KKKKKK
+view R key run2 origin 3 3
+|......fhhggf.
+|......KKKKKKK
+|fihhgf.......
+|KKKKKKK......
+regions
+|......BBBBBB.
+|......OOOOOOO
+|BBBBBB.......
+|OOOOOOO......
 
-view R key run3 origin -3 2
-|fhhggf
-|KKKKKK
+view R key run3 origin 9 3
+|fihhgf.............
+|KKKKKKK.....fhhggf.
+|............KKKKKKK
+regions
+|BBBBBB.............
+|OOOOOOO.....BBBBBB.
+|............OOOOOOO
 
-view R key run4 origin -2 1
-|fhhggf
-|KKKKKK
+view R key run4 origin 9 3
+|fihhgf............
+|KKKKKKK...........
+|...........fhhggf.
+|...........KKKKKKK
+regions
+|BBBBBB............
+|OOOOOOO...........
+|...........BBBBBB.
+|...........OOOOOOO
 
-view R key run5 origin 3 1
-|fhhggf
-|KKKKKK
+view R key run5 origin 3 3
+|......fihhgf.
+|......KKKKKKK
+|fhhggf.......
+|KKKKKKK......
+regions
+|......BBBBBB.
+|......OOOOOOO
+|BBBBBB.......
+|OOOOOOO......
 
-view R key run6 origin -3 2
-|fihhgf
-|KKKKKK
+view R key run6 origin 9 3
+|fhhggf.............
+|KKKKKKK.....fihhgf.
+|............KKKKKKK
+regions
+|BBBBBB.............
+|OOOOOOO.....BBBBBB.
+|............OOOOOOO
 
 view R key sit origin -5 1
 mark hip -5 -6
 |fihhgf.
 |KKKKKKK
 
-view R key walkA origin 7 1
-|fhgf.....fihhgf
-|KKKK.....KKKKKK
+view R key walkA origin 6 1
+|fhhggf...fihhgf.
+|KKKKKKK..KKKKKKK
+regions
+|BBBBBB...BBBBBB.
+|OOOOOOO..OOOOOOO
 
-view R key walkA2 origin 1 1
-|fihhgf
-|KKKKKK
+view R key walkA2 origin 6 2
+|fhhggf.......
+|KKKKKKfihhgf.
+|......KKKKKKK
+regions
+|BBBBBB.......
+|OOOOOOBBBBBB.
+|......OOOOOOO
 
-view R key walkB2 origin 4 1
-|fihhgf
-|KKKKKK
+view R key walkB2 origin 3 1
+|fihhgf.
+|KKKKKKK
+regions
+|BBBBBB.
+|OOOOOOO
 
-view R key walkC origin 7 1
-|fihf.....fhhggf
-|KKKK.....KKKKKK
+view R key walkC origin 6 1
+|fihhgf...fhhggf.
+|KKKKKKK..KKKKKKK
+regions
+|BBBBBB...BBBBBB.
+|OOOOOOO..OOOOOOO
 
-view R key walkC2 origin 1 1
-|fhhggf
-|KKKKKK
+view R key walkC2 origin 6 2
+|fihhgf.......
+|KKKKKKKhhggf.
+|......KKKKKKK
+regions
+|BBBBBB.......
+|OOOOOOOBBBBB.
+|......OOOOOOO
 
-view R key walkD2 origin 4 1
-|fhhggf
-|KKKKKK
+view R key walkD2 origin 3 1
+|fhhggf.
+|KKKKKKK
+regions
+|BBBBBB.
+|OOOOOOO
 
 view L key buckle origin 6 1
 |.fihhgf
@@ -182,59 +330,161 @@ view L key idle origin 6 1
 |.fihhgf
 |KKKKKKK
 
-view L key run1 origin 7 1
-|fihhgf
-|KKKKKK
+view L key run1 origin 9 3
+|............fhhggf
+|...........KKKKKKK
+|.fihhgf...........
+|KKKKKKK...........
+regions
+|............BBBBBB
+|...........OOOOOOO
+|.BBBBBB...........
+|OOOOOOO...........
 
-view L key run2 origin 2 1
-|fihhgf
-|KKKKKK
+view L key run2 origin 10 3
+|.fhhggf......
+|KKKKKKK......
+|.......fihhgf
+|......KKKKKKK
+regions
+|.BBBBBB......
+|OOOOOOO......
+|.......BBBBBB
+|......OOOOOOO
 
-view L key run3 origin 8 2
-|fhhggf
-|KKKKKK
+view L key run3 origin 10 3
+|.............fihhgf
+|.fhhggf.....KKKKKKK
+|KKKKKKK............
+regions
+|.............BBBBBB
+|.BBBBBB.....OOOOOOO
+|OOOOOOO............
 
-view L key run4 origin 7 1
-|fhhggf
-|KKKKKK
+view L key run4 origin 9 3
+|............fihhgf
+|...........KKKKKKK
+|.fhhggf...........
+|KKKKKKK...........
+regions
+|............BBBBBB
+|...........OOOOOOO
+|.BBBBBB...........
+|OOOOOOO...........
 
-view L key run5 origin 2 1
-|fhhggf
-|KKKKKK
+view L key run5 origin 10 3
+|.fihhgf......
+|KKKKKKK......
+|.......fhhggf
+|......KKKKKKK
+regions
+|.BBBBBB......
+|OOOOOOO......
+|.......BBBBBB
+|......OOOOOOO
 
-view L key run6 origin 8 2
-|fihhgf
-|KKKKKK
+view L key run6 origin 10 3
+|.............fhhggf
+|.fihhgf.....KKKKKKK
+|KKKKKKK............
+regions
+|.............BBBBBB
+|.BBBBBB.....OOOOOOO
+|OOOOOOO............
 
 view L key sit origin 12 1
 mark hip 12 -6
 |.fihhgf
 |KKKKKKK
 
-view L key walkA origin 8 1
-|fihhgf.....fhgf
-|KKKKKK.....KKKK
+view L key walkA origin 10 1
+|.fihhgf...fhhggf
+|KKKKKKK..KKKKKKK
+regions
+|.BBBBBB...BBBBBB
+|OOOOOOO..OOOOOOO
 
-view L key walkA2 origin 5 1
-|fihhgf
-|KKKKKK
+view L key walkA2 origin 7 2
+|.......fhhggf
+|.fihhgfKKKKKK
+|KKKKKKK......
+regions
+|.......BBBBBB
+|.BBBBBBOOOOOO
+|OOOOOOO......
 
-view L key walkB2 origin 2 1
-|fihhgf
-|KKKKKK
+view L key walkB2 origin 4 1
+|.fihhgf
+|KKKKKKK
+regions
+|.BBBBBB
+|OOOOOOO
 
-view L key walkC origin 8 1
-|fhhggf.....fihf
-|KKKKKK.....KKKK
+view L key walkC origin 10 1
+|.fhhggf...fihhgf
+|KKKKKKK..KKKKKKK
+regions
+|.BBBBBB...BBBBBB
+|OOOOOOO..OOOOOOO
 
-view L key walkC2 origin 5 1
-|fhhggf
-|KKKKKK
+view L key walkC2 origin 7 2
+|.......fihhgf
+|.fhhggKKKKKKK
+|KKKKKKK......
+regions
+|.......BBBBBB
+|.BBBBBOOOOOOO
+|OOOOOOO......
 
-view L key walkD2 origin 2 1
-|fhhggf
-|KKKKKK
+view L key walkD2 origin 4 1
+|.fhhggf
+|KKKKKKK
+regions
+|.BBBBBB
+|OOOOOOO
 
 view L key lie origin 2 1
 |fihhgf
 |KKKKKK
+
+view D key walkA2 origin 4 1
+|fih..fhg
+|KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
+
+view D key walkC2 origin 4 1
+|fih..fhg
+|KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
+
+view U key walkA2 origin 4 1
+|fhg..fhg
+|KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
+
+view U key walkC2 origin 4 1
+|fhg..fhg
+|KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
+
+view R key stance origin 7 1
+|fhgf.....fihhgf
+|KKKK.....KKKKKK
+regions
+|BBBB.....BBBBBB
+|OOOO.....OOOOOO
+
+view L key stance origin 8 1
+|fihhgf.....fhgf
+|KKKKKK.....KKKK
+regions
+|BBBBBB.....BBBB
+|OOOOOO.....OOOO

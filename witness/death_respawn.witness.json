@@ -1,0 +1,19 @@
+[
+  { "name": "a death inside a ruin: the death screen waits, then Enter wakes the hero in a settlement outside",
+    "seed": 3, "scene": "ruin", "params": { "hour": 10, "enter": true },
+    "steps": [ { "at": 0.3, "expect": ["state.mode == 'play'", "state.scene == 'inside'", "state.location.siteType == 'ANCIENT RUIN' || state.location.siteType == 'RUIN'"] },
+               { "at": 0.4, "call": ["die"], "expect": ["state.mode == 'dead'", "state.dead", "state.player.hp == 0"] },
+               { "at": 0.45, "input": "enter@0.2" },
+               { "at": 1.0, "expect": ["state.mode == 'dead'", "state.scene == 'inside'"] },
+               { "at": 2.0, "input": "enter@0.1" },
+               { "at": 2.5, "expect": ["state.mode == 'play'", "!state.dead", "state.scene == 'overworld'", "state.player.hp == state.player.maxHp",
+                                        "String(state.notice || '').includes('YOU WAKE')"] },
+               { "at": 4.0, "expect": ["state.mode == 'play'", "state.time > 0"] } ] },
+  { "name": "the death screen's own clock: a held key from the fight does not skip it, and space also respawns",
+    "seed": 7, "scene": "ruin", "params": { "hour": 10, "enter": true },
+    "input": "space@0.3-0.9",
+    "steps": [ { "at": 0.35, "call": ["die"], "expect": ["state.mode == 'dead'", "state.scene == 'inside'"] },
+               { "at": 1.2, "expect": "state.mode == 'dead'" },
+               { "at": 2.2, "input": "space@0.1" },
+               { "at": 2.8, "expect": ["state.mode == 'play'", "state.scene == 'overworld'"] } ] }
+]

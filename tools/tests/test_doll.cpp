@@ -1,21 +1,27 @@
 // rpg_test --doll, --doll-coverage and --doll-variety (P2b New People, VISION_PLAN 15.36 phase A item 6: the lead's
 // frozen harness; an area reports a harness problem instead of editing it). The doll (rpg/art/doll/doll.h) measured
 // from its atlases, its pool and a census of looks.
-//   rpg_test --doll [--gates] [--parity] [--report] [--pool FILE] [--dump DIR]
+//   rpg_test --doll [--gates] [--parity] [--report] [--pool FILE] [--dump DIR] [--frames DIR]
 //   rpg_test --doll-coverage [--seeds A..B] [--scope civil|all] [--gates] [--pool FILE] [--report]
 //   rpg_test --doll-variety [--seeds A..B] [--gates] [--report]
 // --doll always (CI): the contract: the pool parses, the frozen tables (slots, regions, layers, anchors, roles, hair styles
 //   24 from the 8 families, the names), the A3 palettes against docs/ref/style_a3/palettes.json's colours, rampA3 giving
 //   A3's hand ramps back for their bases, the walk table's defaults (man 19, woman 20, run 36 px), the look fields (v1 and
 //   rig 1 keys ignore them; rig 2 keys see them), the elder's height, an empty pool covering nothing.
-// --parity: B1's pixels: the A3 hero and woman composed with A3's palettes against docs/ref/style_a3/frames: the 48 kept
-//   frames (8 idles, 24 front and back walks, 8 side contact frames, 8 swing keys) at 0 px differing; the 16 re-registered
-//   side frames reported for the review beside A3's GIF. --dump DIR writes each frame beside its reference (x4).
+// --parity: B1's pixels: the A3 hero and woman composed with A3's palettes against docs/ref/style_a3/frames: the 16 kept
+//   frames (8 idles, 8 swing keys) at 0 px differing; the 48 walk frames reported for the review (redrawn 2026-10-19 for
+//   the owner with the idle's leg mass: B11 gates them). --dump DIR writes each frame beside its reference (x4).
+// B11 leg mass (with --gates; the owner's walk fix, 2026-10-19): every walk and run frame of the A3 hero and woman against
+//   the idle of its facing, on the legs and the garments composed apart: the legs visible under the hem 90 % of the
+//   idle's or more; the hip row (the first visible leg row) at most 1 px narrower than the idle's; no visible leg run
+//   under 3 px (no sliver of a leg); the hip row within 1 px of the clip's contact frame (round 3: no squat); the walk's
+//   down frames no wider than its contact; the woman's skirt 90 % of the idle's or more; also the woman in shirt and trousers
+//   (the shared legs and her own overrides under her tunic) and her bare-leg base. --report prints every frame.
 // --gates: B1 parity; B2 heights (every body set, people, age and build in every facing: STYLE_P2 3); faces and hands
 //   (A3's face rows and the 3 x 2 hands, from the marks); B8 craft on composed frames (no orphan, no #000000, step-0 luma
 //   70 or less, 48 colours or fewer per figure); B9's structure (no civilian garment part shared by the man and the
 //   woman); B10 atlases (LOCO 128, RUN 64, DEATH 48, POSTURE 64 KB per look) and speed (one facing's LOCO bake p95 at or
-//   under the v1 sheet's), the pool (1.0 MB or less); the ramp generator within delta E 6 per step of A3's 14 ramps.
+//   under the v1 sheet's), the pool (1.0 MB or less); the ramp generator within delta E 6 per step of A3's 14 ramps; B11.
 // --doll-coverage: B6: the census's looks (A the world's humans after 60 frames and the start region's census residents;
 //   B every culture of the seeds x every role x both sexes x child, youth, adult and elder x 8 seeds; D the creator's
 //   hair, beard, build, people, skin and sex, with and without each homeland; E the party, story people and statues as the
@@ -138,7 +144,7 @@ std::vector<ParityFrame> parityFrames() {
   for (int who = 0; who < 2; who++)
     for (int f = 0; f < 4; f++) {
       v.push_back({who, nullptr, RigPart::Loco, f, Clip::Idle, 0, true});
-      for (int i = 0; i < 6; i++) v.push_back({who, nullptr, RigPart::Loco, f, Clip::Walk, i, f < 2 || i == 0 || i == 3});
+      for (int i = 0; i < 6; i++) v.push_back({who, nullptr, RigPart::Loco, f, Clip::Walk, i, false});
     }
   for (int f : {2, 0}) {
     v.push_back({0, nullptr, RigPart::Action, f, Clip::Windup, 0, true});
@@ -181,6 +187,10 @@ void writeSideBySide(const std::string& path, const Canvas& a, int apx, int apy,
   writePng(path.c_str(), (W * 3 + gap * 2) * k, H * k, img);
 }
 // returns the kept frames' differing pixel total (and prints); -1 if a frame is missing
+// (2026-10-19, the owner's walk fix: "the walking looks bad ... his legs all of a sudden get super skinny". The walk and
+// run were redrawn with the idle's leg mass, so the walk frames are no longer A3's: they are reported for the review and
+// gated by B11 leg mass instead. The idles and the swing keys stay at 0 px; the swing's side keys stand on `stance`, A3's
+// contact legs kept pixel for pixel.)
 int parity(Gate& g, const char* dumpDir) {
   RigSheet sheets[2][4];
   for (int who = 0; who < 2; who++) {
@@ -218,10 +228,10 @@ int parity(Gate& g, const char* dumpDir) {
     } else {
       review++;
       reviewDiff += diff ? 1 : 0;
-      if (g_report) std::printf("  B1 review %s: %d px differ from A3 (re-registered: judged beside A3's GIF)\n", nm.c_str(), diff);
+      if (g_report) std::printf("  B1 review %s: %d px differ from A3 (the redrawn walk: judged by B11 and beside A3's GIF)\n", nm.c_str(), diff);
     }
   }
-  std::printf("  B1 parity: kept frames %d px differing in all; %d re-registered side frames for review (%d differ from A3)\n", keptDiff, review, reviewDiff);
+  std::printf("  B1 parity: kept frames (idles, swing keys) %d px differing in all; %d walk frames for review (%d differ from A3)\n", keptDiff, review, reviewDiff);
   return keptDiff;
 }
 
@@ -466,6 +476,129 @@ void gateRamps(Gate& g) {   // the generator within delta E 6 per step of A3's 1
   std::printf("  ramps: the generator's worst step is %s at delta E %.1f (gate 6)\n", worstName.c_str(), worst);
 }
 
+// the walk fix's looks: 0 the A3 hero, 1 the A3 woman (her dress), 2 the woman in shirt and trousers (the shared legs and
+// her own leg overrides), 3 her bare-leg base (the legs' thigh, knee and shin regions in skin: shorts, kilts, short hems)
+doll::DollRecipe walkLook(int k) {
+  if (k < 2) return a3Recipe(k);
+  HumanLook L = a3Woman();
+  L.outfit = art::Outfit::Tunic;
+  L.bottomColor = hexc(0x4F4B6B);
+  doll::DollRecipe r = doll::resolve(L);
+  r.ramps = doll::a3Palette(1);
+  if (k == 3) for (doll::Region g : {doll::Region::Thigh, doll::Region::Knee, doll::Region::Shin}) r.region[(int)g] = (uint8_t)doll::Slot::Skin;
+  return r;
+}
+const char* walkLookName(int k) { static const char* const n[4] = {"hero", "woman", "womant", "womanb"}; return n[k & 3]; }
+
+// B11 leg mass: the recipe split into its legs and its garments (composed apart, so a leg pixel is visible where no
+// garment pixel lies over it)
+doll::DollRecipe onlyParts(const doll::DollRecipe& full, const char* prefix) {
+  doll::DollRecipe r = full;
+  r.parts.clear();
+  for (int p : full.parts)
+    if (std::string(doll::partName(p)).rfind(prefix, 0) == 0) r.parts.push_back(p);
+  return r;
+}
+struct LegMass { int area = 0, hip = 0, minRun = 99, skirt = 0, hipY = 0, stance = 0; };   // hipY: the hip row (rows above F); stance: the legs' span
+// legsOver: the legs part draws over the garments (the woman's shoe tips over her hem), so every leg pixel shows
+LegMass legMassOf(const Fr& l, const Fr& w, bool legsOver) {
+  LegMass m;
+  if (!l.ok) return m;
+  auto worn = [&](int x, int y) {   // l's pixel (x, y) under a garment pixel of w (aligned at the pivots)
+    if (!w.ok || legsOver) return false;
+    const int X = x - l.px + w.px, Y = y - l.py + w.py;
+    return X >= 0 && Y >= 0 && X < w.c.w && Y < w.c.h && (w.c.get(X, Y) >> 24);
+  };
+  if (w.ok) for (uint32_t p : w.c.px) m.skirt += (p >> 24) ? 1 : 0;
+  int top = -1, x0 = 1 << 20, x1 = -1;
+  for (int y = 0; y < l.c.h; y++) {
+    int run = 0, rowPx = 0;
+    for (int x = 0; x <= l.c.w; x++) {
+      const bool vis = x < l.c.w && (l.c.get(x, y) >> 24) && !worn(x, y);
+      if (vis) { run++; rowPx++; x0 = std::min(x0, x); x1 = std::max(x1, x); continue; }
+      if (run) m.minRun = std::min(m.minRun, run);
+      run = 0;
+    }
+    if (rowPx && top < 0) { top = y; m.hip = rowPx; }
+    m.area += rowPx;
+  }
+  m.hipY = top >= 0 ? l.py - top : 0;
+  m.stance = x1 >= x0 ? x1 - x0 + 1 : 0;
+  return m;
+}
+void gateLegs(Gate& g) {
+  static const char* const F = "DURL";
+  for (int who = 0; who < 4; who++) {   // the A3 hero, the A3 woman (her dress, the shoe tips), the woman in trousers, bare-legged
+    const doll::DollRecipe full = walkLook(who);
+    const doll::DollRecipe legsR = onlyParts(full, "legs/"), wearR = onlyParts(full, "wear/");
+    const RigSheet li = doll::compose(legsR, RigPart::Loco), wi = doll::compose(wearR, RigPart::Loco);
+    const RigSheet lr = doll::compose(legsR, RigPart::Run), wr = doll::compose(wearR, RigPart::Run);
+    for (int fc = 0; fc < 4; fc++) {
+      const LegMass idle = legMassOf(cut(li, fc, Clip::Idle, 0, 0), cut(wi, fc, Clip::Idle, 0, 0), who == 1);
+      for (int run = 0; run < 2; run++) {
+        const RigSheet& L = run ? lr : li;
+        const RigSheet& W = run ? wr : wi;
+        const LegMass contact = legMassOf(cut(L, fc, Clip::Walk, 0, 0), cut(W, fc, Clip::Walk, 0, 0), who == 1);
+        for (int i = 0; i < L.count(fc, Clip::Walk); i++) {
+          const LegMass m = legMassOf(cut(L, fc, Clip::Walk, 0, i), cut(W, fc, Clip::Walk, 0, i), who == 1);
+          const std::string nm = std::string(who == 3 ? "woman/bare legs " : who == 2 ? "woman/trousers " : who ? "woman " : "man ") + (run ? "run " : "walk ") + F[fc] + std::to_string(i);
+          const double ratio = idle.area ? (double)m.area / idle.area : 0, skirt = idle.skirt ? (double)m.skirt / idle.skirt : 1;
+          if (g_report)
+            std::printf("  B11 %-22s legs %3d / %3d (%3.0f %%)  hip %2d / %2d  narrowest run %d  hip row %+d  stance %2d (contact %2d)%s\n", nm.c_str(), m.area,
+                        idle.area, 100 * ratio, m.hip, idle.hip, m.minRun == 99 ? 0 : m.minRun, contact.hipY - m.hipY, m.stance, contact.stance,
+                        who == 1 ? fmt("  skirt %.0f %%", 100 * skirt).c_str() : "");
+          if (ratio < 0.895) g.bad(nm + fmt(": legs %.0f %% of the idle's (90)", 100 * ratio));
+          else if (who != 1 && m.hip < idle.hip - 1) g.bad(nm + fmt(": hip row %.0f px (the idle's %.0f, at most 1 narrower)", m.hip, idle.hip));
+          else if (m.minRun < 3) g.bad(nm + fmt(": a leg run of %.0f px (3 or more)", m.minRun));
+          else if (who != 1 && std::abs(contact.hipY - m.hipY) > 1) g.bad(nm + fmt(": the hips %.0f px from the contact frame's (1)", std::abs(contact.hipY - m.hipY)));
+          else if (!run && (i == 1 || i == 4) && m.stance > contact.stance) g.bad(nm + fmt(": the down frame %.0f px wide (the contact %.0f)", m.stance, contact.stance));
+          else if (who == 1 && skirt < 0.895) g.bad(nm + fmt(": skirt %.0f %% of the idle's (90)", 100 * skirt));
+          else g.ok();
+        }
+      }
+    }
+  }
+}
+
+// --frames DIR (the walk fix's look-and-measure loop): every LOCO idle and walk frame and every RUN frame of the A3 hero
+// and woman (A3's palettes) at 1x as <who>_<loco|run>_<F><i>.png (idle = loco frame "I"), its twin with the legs and
+// garments only (_lg.png: the leg mass under the hem, nothing in front of it), and frames.tsv (name px py w h); clear
+// pixels are written as the key #FF00FF
+void dumpFrames(const char* dir) {
+  FILE* tsv = std::fopen((std::string(dir) + "/frames.tsv").c_str(), "w");
+  if (!tsv) { std::printf("FAIL: --frames %s: cannot write\n", dir); return; }
+  for (int who = 0; who < 4; who++) {
+    const doll::DollRecipe full = walkLook(who);
+    doll::DollRecipe lg = full;
+    lg.parts.clear();
+    for (int p : full.parts) {
+      const std::string n = doll::partName(p);
+      if (n.rfind("legs/", 0) == 0 || n.rfind("wear/", 0) == 0) lg.parts.push_back(p);
+    }
+    for (int twin = 0; twin < 2; twin++)
+      for (RigPart part : {RigPart::Loco, RigPart::Run}) {
+        const RigSheet s = doll::compose(twin ? lg : full, part);
+        for (int fc = 0; fc < 4; fc++)
+          for (Clip c : {Clip::Idle, Clip::Walk}) {
+            if (part == RigPart::Run && c == Clip::Idle) continue;
+            const int n = c == Clip::Idle ? 1 : s.count(fc, c);
+            for (int i = 0; i < n; i++) {
+              const Fr f = cut(s, fc, c, 0, i);
+              if (!f.ok) continue;
+              const std::string nm = std::string(walkLookName(who)) + "_" + (part == RigPart::Run ? "run_" : "loco_") + "DURL"[fc] +
+                                     (c == Clip::Idle ? std::string("I") : std::to_string(i)) + (twin ? "_lg" : "");
+              std::vector<uint32_t> px = f.c.px;   // (writePng is opaque: clear pixels as the key #FF00FF)
+              for (uint32_t& p : px) if (!(p >> 24)) p = 0xFFFF00FFu;
+              writePng((std::string(dir) + "/" + nm + ".png").c_str(), f.c.w, f.c.h, px);
+              std::fprintf(tsv, "%s\t%d\t%d\t%d\t%d\n", nm.c_str(), f.px, f.py, f.c.w, f.c.h);
+            }
+          }
+      }
+  }
+  std::fclose(tsv);
+  std::printf("  frames written to %s\n", dir);
+}
+
 bool loadPoolArg(int argc, char** argv) {
   for (int i = 1; i + 1 < argc; i++)
     if (!std::strcmp(argv[i], "--pool")) {
@@ -479,11 +612,13 @@ bool loadPoolArg(int argc, char** argv) {
 int dollCmd(int argc, char** argv) {
   bool gates = false, par = false;
   const char* dump = nullptr;
+  const char* frames = nullptr;
   for (int i = 1; i < argc; i++) {
     if (!std::strcmp(argv[i], "--gates")) gates = true;
     else if (!std::strcmp(argv[i], "--parity")) par = true;
     else if (!std::strcmp(argv[i], "--report")) g_report = true;
     else if (!std::strcmp(argv[i], "--dump") && i + 1 < argc) dump = argv[++i];
+    else if (!std::strcmp(argv[i], "--frames") && i + 1 < argc) frames = argv[++i];
   }
   if (!loadPoolArg(argc, argv)) return 1;
   g_contract = 0;
@@ -492,6 +627,7 @@ int dollCmd(int argc, char** argv) {
   int gateFails = 0;
   const int was = art::rigVersion();
   art::setRigVersion(2);
+  if (frames) dumpFrames(frames);
   if (par || gates) {
     Gate b1{"B1 parity"};
     parity(b1, dump);
@@ -499,14 +635,15 @@ int dollCmd(int argc, char** argv) {
     gateFails += b1.fails ? 1 : 0;
   }
   if (gates) {
-    Gate b2{"B2 heights"}, fc{"faces"}, hd{"hands"}, b8{"B8 craft"}, b9{"B9 fitted pairs"}, b10{"B10 atlas and speed"}, rp{"ramps dE 6"};
+    Gate b2{"B2 heights"}, fc{"faces"}, hd{"hands"}, b8{"B8 craft"}, b9{"B9 fitted pairs"}, b10{"B10 atlas and speed"}, rp{"ramps dE 6"}, b11{"B11 leg mass"};
     gateHeights(b2);
     gateFaces(fc, hd);
     gateCraft(b8);
     gateFit(b9);
     gateAtlas(b10);
     gateRamps(rp);
-    for (Gate* g : {&b2, &fc, &hd, &b8, &b9, &b10, &rp}) {
+    gateLegs(b11);
+    for (Gate* g : {&b2, &fc, &hd, &b8, &b9, &b10, &rp, &b11}) {
       std::printf("%s %-24s %4d checks, %4d failed%s%s\n", g->fails ? "FAIL:" : "ok   ", g->id, g->checks, g->fails, g->fails ? "; first: " : "", g->first.c_str());
       gateFails += g->fails ? 1 : 0;
     }
@@ -516,7 +653,7 @@ int dollCmd(int argc, char** argv) {
   std::printf(bad ? "doll: %d failure(s)\n" : "doll: 0 failures\n", bad);
   return bad ? 1 : 0;
 }
-RPG_TEST_CMD("--doll", "P2b doll contract [--parity: B1] [--gates: B1 B2 faces B8 B9 B10 ramps] [--report] [--pool f] [--dump dir]", dollCmd);
+RPG_TEST_CMD("--doll", "P2b doll contract [--parity: B1] [--gates: B1 B2 faces B8 B9 B10 ramps B11] [--report] [--pool f] [--dump dir] [--frames dir]", dollCmd);
 
 // ---------------------------------------------------------------- the census (B6, B7)
 bool civil(const HumanLook& L) {

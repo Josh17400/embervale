@@ -14,3 +14,5 @@ tools/witness_web/node_modules/
 /--*/
 /.claude/worktrees/
 .tmp/
+tools/witness_web/package.json
+tools/witness_web/package-lock.json
