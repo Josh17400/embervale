@@ -3808,7 +3808,9 @@ effect; every human falls and lies. What a body uses (doors, walls, seats, beds,
 gates) scales with the rig by k = 32 / 22 = 1.45; footprints in tiles never change, so world generation, saves and
 pathing are untouched. **The compatibility path**: v2 and the k-scaled holders are built behind `rig 2` (preview:
 EMB_RIG=2, web `?rig=2`, script `rig 2`) while v1 stays the shipped default through P2a; P2b flips every human at once
-when coverage reaches 100 %, and v1 is deleted. No shipped default ever shows both rigs.
+when coverage reaches 100 %, and v1 is deleted. No shipped default ever shows both rigs. (Re-planned 2026-10-18:
+the v2 people are now the doll's hand-placed A3 part maps, and the flip moves to P2c; see "The art-direction
+change" below.)
 
 **Not in scope**: the creator's flow and layout (P3: it sets `app.female` and picks the body; P2 provides the bodies);
 the world-spanning campaign; collision radii and any balance change beyond the DPS-neutral items named below; a new
@@ -3831,6 +3833,10 @@ UI design (the UI keeps its size and layout).
 | bake | folk entering the 34-tile stream radius bake 2 ms a frame (1.2 ms web), nearest first | 544 px of stream radius vs at most about 320 px of half-view: folk are baked before they are seen |
 | ring | 24 x 9 under a 16 px-shouldered figure | flares 1 s when hit or entering a crowd (4 within 3 tiles) |
 
+(P2b and P2c re-plan, 2026-10-18: the walk cycle now comes from A3's drawings, man 19 px and woman 20 px;
+people above 54 px/s run on a cycle of about 36 px; a RUN atlas of 64 KB joins the budgets. "Constants for the doll"
+below has the arithmetic.)
+
 **The split**
 - **P2a "Lens and Rig"** ships the lens: whole-number world scale on every screen, ZOOM, the player ring, the ink outer
   outline on today's v1 people and creatures, the night lift, off-screen pips, per-family effects and timing, per-family
@@ -3838,11 +3844,16 @@ UI design (the UI keeps its size and layout).
   fall and lying corpse, every swing family, every posture, children and the humanoid monsters, and the k-scaled
   body-holders. Players see today's people, crisp and easy to find; the owner can preview the new people on the phone
   with `?rig=2`.
-- **P2b "New People"** ships the switch: the gear grammar on v2 (armour, helms, cloaks, shields, the culture weapon
-  forms, ornaments), every draw path on v2 (riders, companions, paperdoll, creator preview, HUD figures,
-  portraits, the Mythic aura), coverage 100 %; v2 and the k holders become the only rig and v1 is deleted.
-- **P2c "Proportion"** ships the creatures and the leftovers: big monsters and village animals re-proportioned to the
-  taller people, plus every prop the P2b judge lists as reading wrong.
+- **P2b "New People"** (re-planned 2026-10-18 after the owner's art-direction change, below): the hand-drawn folk. The
+  doll (hand-placed part maps composed in layers and recoloured by ramps) replaces the procedural rig behind `rig 2`; the
+  A3 style slice is signed off by the owner first; then every civilian look of the census and the creator is drawn and
+  covered: bodies, head types, hair, beards, garments fitted to man and woman, headwear, cloaks, postures, riders, rowers,
+  sleepers, deaths, kids and elders. Players still see v1.
+- **P2c "Arms and Armour"**: armour fitted to man and woman, helms, shields, the weapon library, every action family and
+  its effect, the humanoid monsters, every remaining draw path on the doll; coverage 100 %, then the flip: the doll is the
+  only rig, and v1 and the procedural rig are deleted.
+- **P2d "Proportion"** (was P2c): the creatures and the leftovers: big monsters and village animals re-proportioned to the
+  32 px people, plus every prop the P2c judge lists as reading wrong.
 
 #### P2a "Lens and Rig"
 
@@ -4018,101 +4029,492 @@ P2a DONE gates (before / after with the phase A harness; MSVC, BDIR=build):
 | H3 rig 2: the rider on every horse frame, the rower on the thwart, the walker under every arch | 0 px off | | not met: riders still on the v1 horse (home_view / party_view), gate passages 22-24 px: FAIL |
 | H4 rig 2: nothing jammed in village, town, city and port streets (the judge's look review) | PASS | | the judge's look review (not run by the integrator) |
 
-#### P2b "New People"
+#### The art-direction change (owner, 2026-10-18): hand-placed people
 
-Phase A (lead): the gear-layer interface on the skeleton (a layer paints itself for a pose frame from its anchors, so
-gear never needs per-frame art; the layer order as data: back items, cloak back, legs, boots, torso armour, gloves,
-arms, cloak front, helm and headwear, shield, weapon); rig2Covers made real per field, and `--rig-coverage` naming the
-uncovered fields; the `v1Draws` counter (--perf, Witness, `expect rig v2only`); test_hero / test_arms and the galleries
-covering both rigs; scripts p2b_lead_people.txt and _phone, witness/p2b_switch.witness.json; baselines (coverage,
-people MB, the city-arrival worst frame).
+After P2a shipped (6b40fb2), the owner rejected the procedural rig's look: "they look bad, they just aren't sharp or
+clear" (proportions, shading, faces). The reference wanted is Sea of Stars and Chained Echoes. An art study produced
+hand-placed pixel mockups. The owner picked take A (32 px, chunky proportions that "fit nice with what we have"),
+rejected the slimmer A2 ("the skinny legs look bad"), and APPROVED **A3**: A's exact silhouette with better rendering
+inside (eye whites, iris and glint, brows, mouth, hue-shifted 5-step ramps, cloth, leather and metal kept apart, lit-edge
+coloured outlines, left facings repainted for the top-left light, zero orphan pixels, secondary motion). The approved
+reference is locked in docs/ref/style_a3/ (the maps, sheets, GIFs, notes, the 64 frames at 1x, palettes.json), and
+docs/STYLE_P2.md is rewritten for it, with what is superseded listed at its top.
 
-Areas:
-- **HEADGEAR** (artist). Files: new rpg/art/rig/rig_headgear.cpp. Helm bands 1-7 (cap, nasal, great helm, winged,
-  crested, obsidian horns, ember crown), the culture helm forms (kettle, spangen, horned, plumed, aventail, masked,
-  crested, elven...), plumes and crests in plumeColor, the legendary helm glint; on every clip (a helm stays on a lying
-  head). Depth: hair showing under open helms by style. Delight: plumes that bob on the walk. Done: B1 (its fields),
-  B3, B4.
-- **BODYGEAR** (artist). Files: new rpg/art/rig/rig_bodygear.cpp, rig_cloak.cpp. Armour bands 1-7 and the armoured
-  outfits (Leather, Chain, Plate, Elven, Ebony, Guard with the kingdom's tabard), the body forms (padded, leather,
-  brigandine, mail, lamellar, scale, plate, leaf), pauldrons, skirts, the ornament bits, the M12 rank marks, sheen and
-  alloy ramps, body glow, glove and boot bands, cloaks 1-3 and the cape in four facings and every clip (a cloak lies
-  under its corpse). Depth: mail that glints per frame. Delight: a cloak that swings behind a turn. Done: B1, B3, B4.
-- **ARMS-B** (artist). Files: rpg/art/rig/rig_arms.cpp, rig_actions.cpp (from RIG-ARMS), new rig_shield.cpp. Culture
-  blade, polearm and bow forms on the base weapons with the crossbow's own crank and release; shields (round, heater,
-  kite, tower; culture forms; field and device paint; rim tint); back items (bow and quiver, staff); legendary weapon
-  and shield glints; the ring and amulet glints. Depth: a shield bash pose. Delight: arrows visible in the quiver.
-  Done: B1, B3.
-- **SWITCH** (engineer-high). Files: rpg/view/render.cpp, render_anim.cpp, home_view.cpp, party_view.cpp, loot_ui.cpp,
-  paperdoll.cpp, creator.cpp, hud.cpp, party_hud.cpp; rpg/art/art_party_portrait.cpp; rpg/sim/looks.cpp, gear_look.cpp;
-  rpg/art/art_human.cpp (retired); CMakeLists.txt. Every human draw path on v2 (riders, companions, the hidden-hero
-  silhouette, bathing, the Mythic aura per v2 frame), the paperdoll, creator preview, HUD hero and party list at whole
-  multiples, portraits in the v2 face rules; then the flip: rig 2 by default, `rig 1` removed, v1 code deleted (the
-  statue and humanoid routes keep only their v2 side). Depth: the creator preview animating idle, walk and a swing.
-  Delight: the paperdoll turning to the facing of the last tap. Done: B2, B5, B6.
+Owner requirements for the people (2026-10-18), binding on P2b and P2c:
+1. **Head types**: distinct face and head shapes, not one head recoloured (round, long or square jaws, different noses
+   and brows, age marks for the old, elf and half-breed features), all inside A3's silhouette rules.
+2. **Hair**: more than the current 8 styles, for men and women (short, cropped, shaved or bald, spiky, curly, long and
+   loose, ponytail, braid, twin braids, bun, mohawk-ish), beards and moustaches of several kinds; each in 4 facings with
+   walk secondary motion where it has hanging parts.
+3. **Clothing and armour fitted to both bodies**, not one shared shape (tunics, dresses, robes, work clothes, culture
+   cuts; light, medium and heavy armour: padded, leather, mail, plate; helmets and hoods), covering every gear look
+   gear_look.cpp and looks.cpp produce, so equipping armour visibly changes the hero, man or woman.
+4. "Nothing crappy or half baked": A3's quality on every part.
 
-Wave: phase A -> one wave (HEADGEAR, BODYGEAR, ARMS-B, SWITCH plumbing behind the flag) -> the flip when B1 reads
-100 % -> integration (art_hash and golden_village_art re-recorded once) -> judge rounds (at most 4).
+Consequences: P2b and P2c are re-planned around a new production method (the doll, below); the old P2c creature work
+moves to P2d; P2a's lens, animation timing, holders and bake machinery stay.
 
-P2b DONE gates:
+#### What P2a keeps, adapts and retires
+
+**Kept as built**: the lens (layers, integer D, ZOOM, toUi / toWorld, the ring, the night lift and its lift masks, pips,
+text in the UI layer); bodyScale / bodyPx and every k-scaled holder; the view's atlas cache and bake queue (View::rigTex,
+rigPoseTex, rigBakeQueue with its 2 ms / 1.2 ms budget, trimRigCaches and its MB cap, liftMaskFor); the night lift's
+BlitRec recording; the animation pick (AnimPick, Clip, Family, variants) and its timing (windup, strike and recover by
+pace, enemy windups by family, the greatsword's pace, the effects' progress, corpse life, cap and fade, the hero's fall
+under the death screen); art_rig.h's public types (FrameRect, RigAnchors, RigSheet, RigPart, RigMetrics, Holder and
+holderPx, the seatFit2 and bedFit2 signatures); weapon art id 7; the Witness hooks and checks P2a added; tools/
+p2_measure.mjs; the p2a scripts; `--anim` and its golden; holders_gallery.
+
+**Adapted**:
+- art_rig.cpp's dispatch (humanRig, humanPosture2, sleeper2, humanFigureStill2, humanoidCell2) calls the doll instead of
+  rpg/art/rig; rig2Covers becomes the doll's resolver (dollCovers per look and part).
+- RigMetrics r2 takes A3's rows (crown F-31 / F-30, eyes, hands); RigAnchors adds `topY` (the frame's top, so markers
+  and plates clear hair and hats).
+- The walk table (kWalkAt, kWalkCycle 28) becomes the clip tables' plant anchors (man 19 px, woman 20 px), plus the run.
+- SheetBuilder (trim, pivot, dedupe, pack) moves from rig_core.cpp into the doll as its atlas packer; seatFit2 and bedFit2
+  move from rig_poses.cpp and rig_sleep.cpp into the doll with their numbers unchanged.
+- P2a's pose tables (rig_actions.cpp's families x variants x keys, rig_poses.cpp's postures, rig_death.cpp's fall) are
+  exported once as number drafts for the clip tables; the weapon rasterizer (rig_arms.cpp) and the 9 effect painters
+  (art_fx.cpp) are exported once as pixel drafts for the weapon and arc maps.
+- The `--rig` gates (R2, R4-R10, P1-P3) are restated for A3 and pointed at the doll's atlases; R3 becomes the doll's
+  coverage census; rig_gallery, rigarms_gallery and rigposes_gallery give way to doll_gallery.
+
+**Retired**: the procedural painters rig_core.cpp (skeleton, pose solver, limb painter), rig_body.cpp, rig_face.cpp,
+rig_hair.cpp, rig_cloth.cpp, rig_death.cpp, rig_poses.cpp, rig_sleep.cpp, rig_kin.cpp, rig_humanoid.cpp, rig_arms.cpp,
+rig_actions.cpp and rig_internal.h. P2b phase A detaches them from `rig 2` (the game never draws them again); they stay
+compiled only for the draft tool until the P2c flip deletes them with v1. The procedural effects in art_fx.cpp follow
+at the flip.
+
+#### The production method: the doll
+
+**What it is.** A person is composed at bake time from hand-drawn part maps in layers (a paper doll), recoloured by
+ramps: legs, arms, torso garment, hang (what falls below the waist), head (head type, nose, brows, eyes, ears, marks),
+beard, hair, headwear or helm, neckwear and belt items, cloak, held item, shield. Rigid parts are drawn once per facing
+and moved by the clip's anchors; only legs, arms and hangs are drawn per key. Every colour comes from a ramp, so one
+drawing serves every skin, hair colour, culture cloth and metal. STYLE_P2 section 24 is the artists' rulebook.
+
+**The authoring format.** `.pxm` text files under rpg/art/doll/maps/: one character per pixel, `.` keeps what is below
+and `-` erases it. One part per file, with its views (D, U, R, L), keys, anchor, layer, origin and legend; `when`
+overlays for optional regions; build masks; the stretch row. The legends (rpg/art/doll/maps/legend/) map each character to
+a slot or region and a step (STYLE_P2 section 6), keeping A3's hero characters for their slots. Clip tables are text too
+(rpg/art/doll/clips/*.clip): per body set, clip, facing and frame, the leg, arm, hang, hair and tuft keys, bob, lean, head
+offset, expression, weapon angle and depth, the effect's frame, and the plant anchor (walk and run).
+
+**Compiled and embedded.** `node tools/doll/pxc.mjs` (Node 18, no dependencies, like tools/p2_measure.mjs) validates
+every map (legend, views, keys, STYLE_P2 section 24's craft checks) and writes one generated source,
+rpg/art/doll/gen/doll_pool.cpp: a packed byte pool (one byte per pixel, slot or region x step; transparent runs
+compressed) and a directory of parts, views, keys and clip tables, in arrays of 64 KB or less (MSVC's limits). The
+generated file is committed, so building needs no Node; CI runs `pxc.mjs --check` and fails when it is stale. Nothing is
+read from disk at run time (the web build has no asset loading). **Size**: about 3,400 maps holding about 310,000 opaque
+pixels in boxes of about 620,000 cells: about 0.5 MB in the binary (budget 1.0 MB) and about 0.2 MB more over the wire
+gzipped for the web (budget: embervale.wasm grows by 1.2 MB or less); about 2 MB of generated source in one chunked
+translation unit.
+
+**Bake and atlas.** `doll::compose(look, part)` fills a RigSheet as P2a's painters did. For each frame of the clip table,
+each layer in the facing's order is placed at its anchor (plus the view's origin, the bob, lean and breathe), its pixels
+mapped through the legend to the look's ramps: regions resolved by sleeve, legwear, gloves and boots; optional regions by
+ornaments and dials; build masks; the elf stretch row; derived sways; erases applied. Then the finishing pass (A3's
+selout) runs over the composite, and P2a's SheetBuilder trims, pivots, records the RigAnchors (head, face, hands, hips,
+feet, grip, tip, top), dedupes and packs. Lying: the side view composed, turned a quarter, mirrored for head west and
+finished again. The view's cache, bake queue, MB cap and lift masks take the atlas unchanged. Parts: LOCO (idle, walk,
+hurt; sheathed), RUN (a new RigPart, baked for movers above 54 px/s), ACTION (the drawn idle, walk and run, the family's
+swings, cast, bow, block, roll), DEATH, POSTURE (per posture), the sleeper canvas, the statue figure.
+
+**The switch (rig 1 / rig 2).** Through P2b and P2c the shipped default stays rig 1 (v1). `rig 2` (EMB_RIG=2, web
+`?rig=2`, script `rig 2`, Witness reset `rig: 2`) draws the doll for every look whose needed parts it covers (LOCO and
+DEATH; ACTION for anyone who fights; POSTURE while posing) and v1 whole otherwise; from P2b phase A it never draws the
+rejected procedural rig. The k-scaled holders stay bound to rig 2. **The flip** is P2c's: when the coverage census reads
+100 % and the judge passes the gear gates, rig 2 becomes the only rig, `rig 1` is removed, v1 (art_human.cpp's sheets,
+humanSheet, humanPostureSheet) and rpg/art/rig/* are deleted, and art_hash and golden_village_art are re-recorded once
+with before / after pairs. No shipped default ever shows two kinds of people.
+
+**Coverage** (`rpg_test --doll-coverage [--seeds A..B] [--scope civil|all] [--gates]`): the resolver names every field
+value of a look that no authored part covers (field = value, part, body, facing, key). The census of looks has five
+sources: (A) the world: every human of the seeds' starting regions after 60 frames (P2a's R3 loop) and every census
+resident of the start region's settlements through makeLook; (B) cultures x roles: census::dress for every culture of the
+seeds x every Role x both sexes x child, youth, adult and elder x 8 person seeds; (C) gear: every item gear.cpp can roll
+for each maker culture (kind x material x rarity x form; bands 1-7, bronze, each alloy), worn through wearGear by a man
+and by a woman; (D) the creator: every hair, beard, build, people, skin and sex through appearanceLook, with and without
+each homeland; (E) the special: party members, story people, the humanoid monsters, statues. The census also reports dead
+parts (authored maps no look reaches): the gate wants 0.
+
+**The look fields** (phase A; derived, never saved; v1 ignores them; mixed into key() only at rig 2, so rig 1's keys,
+caches and goldens stay identical until the flip): `head` (head type), `nose`, `brow`, `marks` (freckles, scar, beauty
+mark, weathered, lined, gaunt), `hairVar` (the style within the census's hair family), `beardStyle`, `neck` (scarf,
+kerchief, collar); `age` gains 3 = elder, and youth (2) comes into use for census children aged 10-14. looks.cpp fills
+them from a new hash stream at the end of census::dress, after every existing draw, so no other look moves; gear_look.cpp
+fills the hero's from a hash of the Appearance until P3's creator saves real choices.
+
+**Constants for the doll** (they interact):
+| constant | value | arithmetic |
+|---|---|---|
+| body box | man 32, woman 31 (hair up to 2 more); youth 26, child 21; elf +1 | A3 measured; P2a's holders were sized for 32 (k = 32 / 22), so every ratio holds |
+| walk cycle | man 19 px, woman 20 px, 6 frames | A3's planted foot travels 9 / 10 px a step; at 40 px/s the man's walk runs 12.6 fps (2.1 cycles a second), a 20 px/s stroll 6.3 fps |
+| run cycle | about 36 px, 6 frames | about 10 px of stance + 8 px of flight a half-cycle; at 74 px/s 2.06 cycles a second and 12.3 fps (A3's approved walk GIF: 2.6) |
+| gait switch | 54 px/s | about the geometric mean of 40 and 74: the walk there would be 2.8 cycles a second (its top), the run 1.5 (its bottom) |
+| A3's sword swing | windup 70, strike 110, follow-through 70, recover 60 ms | the hero's 0.07 / 0.11 / 0.13 s at the sword's pace 1.0; other families x their pace |
+| atlases per look | LOCO 128, RUN 64, ACTION 512, DEATH 48, POSTURE 64 KB | the capital at 15:00: 80 folk x 100 + 12 fighters x 300 + 10 runners x 50 + 40 postures x 50 + 24 dead x 40 KB = about 15 MB of the phone's 24 MB |
+| bake | one facing's LOCO 0.1 ms or less; the queue 2 ms a frame (1.2 web) | a look's LOCO about 0.4 ms: about 5 people a frame entering the 34-tile stream radius, before they are seen |
+| pool | about 0.5 MB (budget 1.0 MB) | about 3,400 maps, 620,000 cells, runs compressed |
+| colours | 48 or fewer per figure | A3: hero 40, woman 37 |
+
+#### The variety solution
+
+| axis | how the doll covers it | count |
+|---|---|---|
+| man and woman | two adult body sets; garments and armour fitted to each; the legs shared in trousers (A3's leg rows are the same) with painted overrides; shoe tips under long skirts | 2 |
+| builds | average (A3), slim, broad: build masks in torsos, hangs and pauldrons; the arms placed at the shoulders | 3 |
+| human, half-breed, elf | 3 ear sets; head types (elves 3 of their own, half-breeds all 9); the elf stretch row and one build slimmer | 3 |
+| adult, youth, child, elder | four body sets (adult man, adult woman, youth, child); the youth on the adult head box; elders as the adult body with the stoop, age marks and grey ramps | 4 + elder |
+| skins | curated A3 ramps: the culture's 12 steps and the creator's 8; elf tints | 20 |
+| head types | man 9 and woman 9 (6 human + 3 elven each), the youth the soft 4 of its sex, the child 4; noses 5 (man) / 4 (woman), brows 4, ears 3, marks 6, expressions 6 | 180 man faces and 144 woman faces before marks, age and eye colour |
+| hair | 24 adult styles (20 + 4 depth) shared by man, woman and youth; 10 child styles; hang keys on the 8 hanging styles, tuft keys on 3, capped variants for volume | 34 |
+| beards and moustaches | stubble, short boxed, full, long, braided, goatee, moustache, Van Dyke, mutton chops (+ handlebar) | 9 |
+| clothes, cuts and cultures | civilian garments: man 13, woman 14, youth 8, child 7, the 8 culture cuts among them; apron, tabard, sash and baldric overlays; 5 neckwear; 7 patterns as tiles, edges and motifs; culture colours by ramp | 42 |
+| headwear | 8 culture kinds + the legacy and cloak hoods, shared by adults; 4 for children | 14 |
+| armour (P2c) | 8 body forms x man and woman = 16 fitted torso sets; 7 bands, bronze, alloys, sheens and Mythic tempering by ramp; 9 pauldron parts; 2 armour hang families; gloves and boots by region; 10 ornaments, rank marks and glints as optional regions | 16 |
+| helms (P2c) | on the adult head box, with crest, plume and horsetail regions and face and hair masks | 12 |
+| cloaks | travel (hooded), fur mantle, long noble, cape | 4 |
+| shields (P2c) | round, heater, kite, tower, crescent, oval, buckler, leaf; field, device and rim regions | 8 |
+| weapons and things in hand | 10 base weapons x 16 angles; 8 blade, 2 polearm and 5 bow forms; ledger, scroll, horn; 22 props and the culture instruments; 2 back items | |
+| postures | 31 + Row: 6 leg modes (stand, chair, floor, kneel, ride, ground) x posture arm keys x props | 32 |
+| riders and rowers | Ride on HOLDERS' k-scaled horse (riderSeat); Row on the rowboat's thwart, synced to the oars | |
+| deaths and corpses | recoil, buckle, topple; lying composed and turned; gear lies with the body | |
+| motion | 4 facings; walk 6 + run 6, idle 3, hurt, 9 families x 3 variants, cast, bow, block, roll, fall 3 x 2 sides, lying 2 | |
+
+**How the census picks.** makeLook's existing draws are untouched (their order is a contract). The new stream picks a head
+type by people and sex, culture-weighted (Highland favours Craggy and Square, the elven peoples their own three); a nose
+and brows; marks (freckles more among the fair, scars among fighters, age lines from 60); the hair variant within the
+drawn family (Bald: Bald, Shaved; Short: Short, Cropped, Tousled, Spiky, Receding; Long: Long loose, Long wavy, Shag, Bob;
+Ponytail: Ponytail, High ponytail, Pigtails; Mohawk: Mohawk, Topknot; Braids: Braid, Twin braids, Locs, Crown braid; Bun:
+Bun, Top bun; Curls: Curly, Big curls) by archetype weights (Fjordfolk braids and braided beards, Steppe topknots and
+shaved heads, Jade top buns, Sylvan long loose hair and crown braids); the beard's style when `beard` is set; neckwear for
+commoners. Roles map onto garments through looks.cpp's role cases (smith and shipwright the work apron, farmer the smock,
+hunter the jerkin).
+
+#### The authoring volume, and how it is cut
+
+| category | P2b maps | P2c maps | what |
+|---|---|---|---|
+| legs | 213 | 32 | adults shared 81 + the woman's overrides 30 + shoe tips 16; youth 45, child 41; P2c the action stances |
+| arms | 494 | 292 | adult LOCO, fall, elder and posture keys 274; youth 110, child 110; P2c action arms 184 and drawn-weapon LOCO arms 108 |
+| torsos and overlays | 236 | 120 | civilian man 52, woman 56, youth 32, child 28; overlays, neckwear and belt items 68; P2c armour 64, pauldrons 36, sheaths 20 |
+| hangs | 312 | 96 | 4 families x 24 keys per adult body, 3 x 20 per kid body; P2c 2 armour families x 24 keys x 2 bodies |
+| heads | 249 | 20 | adult head types, noses, brows, ears, expressions, age, marks and paint 193; child 56; P2c draugr and goblin heads |
+| hair and beards | 277 | | adult 176 (styles, hangs, tufts, capped, lying), child 64, beards 37 |
+| headwear and helms | 61 | 60 | culture headwear and hoods; P2c 12 helms and their lying views |
+| cloaks | 64 | | 4 styles x 16 keys |
+| held items and props | 115 | 399 | civilian items at rest, the slice's sword, 22 props and the instruments; P2c weapons at 16 angles with forms and back items |
+| shields | | 80 | 8 shapes x 9 views, 8 devices |
+| effects | 8 | 122 | A3's arc; P2c 8 families x 16 maps + the twang |
+| humanoid monsters | | 152 | the skeleton body set and its gear |
+| **total** | **about 2,030** | **about 1,370** | **about 3,400 maps (maps = parts x facings x keys), about 310,000 hand-placed pixels; 60 % of the maps under 60 px** |
+
+The cuts that make it affordable, with what each saves against a layer system without it:
+1. **Rigid parts per facing**: torsos, heads, hair, headwear and cloaks drawn once per facing and moved by the clip's
+   anchors (bob, lean, breathe, stoop), never per frame: about 15,000 maps (10 LOCO + 65 posture + 155 action frames a
+   facing).
+2. **One adult head box**: hair, headwear, helms, beards, ears and marks shared by the man, the woman and the youth (A3's
+   heads are the same 12 rows; the woman's sits one row lower): about 450.
+3. **One adult arm library with regions** (upper arm, forearm, cuff, hand, gauntlet flare) for both bodies and every
+   sleeve: about 500.
+4. **Legs with regions** (thigh, knee, shin, boot): trousers, bare knees, tall boots and greaves recolour one set of leg
+   drawings, shared by man and woman in trousers: about 900.
+5. **Hang families** shared by garments of one silhouette, the front and back sways derived by row shifts: about 400.
+6. **Ramps for every colour**: skin, hair, cloth, leather, the metal bands and alloys never need a new map.
+7. **Optional regions** for ornaments, dials, sheaths and glints inside one map: about 500.
+8. **Build masks and the elf stretch row** instead of build and people variants: about 600.
+9. **Lying by turning the composed side view** (sleepers alike), painted lying views only where the judge asks: about 400.
+10. **Drafts**: left views from mirror-and-relight, weapons and arcs from P2a's rasterizers, clip tables from P2a's pose
+    numbers; the blocking-in is free and every committed map is still hand-placed and hand-checked.
+11. **Overlays at fixed face anchors** for expressions, marks and paint (every head type keeps A3's eye and mouth rows).
+Without the doll, whole frames for even one look per role (40 roles x 2 bodies x about 1,100 frames) would be 88,000
+frames; with it, the whole range of the census, the creator and the gear system is about 3,400 maps.
+
+#### P2b "New People": the hand-drawn folk
+
+Goal: every civilian of the census, the creator's hero and the A3 hero with his sword drawn by the doll at `rig 2`,
+measured, judged and signed off. Players still see v1 (crisp, ringed, lifted at night). Armour, helms, shields and the
+action families are P2c's.
+
+**Dependency (wave 0).** Another agent is changing game balance and quest files (ai.cpp, foes_game.cpp, the animation
+tuning in anim.cpp, quest tracking). P2b phase A branches after that work is committed; no P2b area edits those files
+before it lands, and only FOLK-SIM edits anim.cpp after it.
+
+Phase A (lead, serial; frozen afterwards: areas ADD, never rename or change meaning):
+1. **The reference**: docs/ref/style_a3 (copied 2026-10-18 by the planner, with the frames at 1x); `tools/doll/
+   from_a3.py` writes `.pxm` drafts of A3's named parts (hero.py's D_LEGS, R_LEGS, L_LEGS, R_TORSO, R_ARM, ARM_FWD /
+   ARM_BACK, U_ARM, TAIL_R / TAIL_L, FAR_HAND_L, R_HILT and the scabbards; woman.py's shoes, arm patches and braid swings;
+   swing.py's overlays and arcs).
+2. **The doll contract** (new rpg/art/doll/doll.h): the slots, regions and legends; the layer table; the anchors;
+   `DollRecipe resolve(const HumanLook&)`, `dollCovers(look, part)`, `dollMissing(look)`, `compose(look, part)` ->
+   RigSheet; `walkTable(bodySet, gait)` (the frame starts from the plant anchors); the clip-table schema; `rampA3(base,
+   material)` and the curated tables. art_rig.cpp's dispatch goes to the doll; the procedural painters are detached.
+3. **The tools**: tools/doll/pxc.mjs (`--check`; `--report` with the pool's size and every map's craft checks),
+   tools/doll/draft.mjs (mirror-and-relight), tools/preview/rigdraft.cpp (P2a's pose numbers and the weapon and arc drafts
+   for P2c); CMake globs rpg/art/doll/*.cpp and gen/*.cpp.
+4. **Look fields** (art_human.h): head, nose, brow, marks, hairVar, beardStyle, neck; age 3; mixed into key() only at rig
+   2. RigPart::Run; RigAnchors::topY; Posture::Row (appended); RigMetrics r2 to A3.
+5. **Test hooks** (rpg/view/script_p2b.cpp, witness_state.cpp): `camhold 1|0` (freeze the camera, so `witness measure
+   motion` sees a body cross still ground), `lineup <archetype> <role> [n] [female|male|mixed] [age]` (a row of census
+   people), `dollpart <part> <view> [key]` (one part on the hero for review); state `player.sprite.doll` and
+   `entities[].doll` (covered, the parts missing); `expect doll covered|missing`.
+6. **Harness** (the lead's, frozen; an area reports a harness problem instead of editing it): `rpg_test --doll [--gates]
+   [--parity] [--report]` (tools/tests/test_doll.cpp: parity with docs/ref/style_a3/frames, heights, faces, hands, craft
+   checks, pivots, atlas KB, bake ms, the ramp calibration, the man / woman fit; P2c adds families, tips, left frames and
+   the armour change), `--doll-coverage`, `--doll-variety` (per settlement: distinct head recipes, the largest shared
+   group, styles seen); `--rig` restated for A3; tools/preview/doll_gallery.cpp; scripts p2b_slice, p2b_folk, p2b_poses,
+   p2b_walk, p2b_holders (each with `_phone`); witness/p2b_doll.witness.json; the playtest goals (tools/scripts/
+   p2b_playtests.txt).
+7. **Baselines** in PLAN.md: coverage (0 %); people MB and render ms in the capital at 15:00 at rig 1 and rig 2; bake ms.
+
+Areas (one owner each; files disjoint; maps are folders under rpg/art/doll/maps/; "done" refers to the gates below):
+- **DOLL** (engineer-high). Files: rpg/art/doll/*.cpp and *.h (not the maps), rpg/art/doll/gen/*, tools/doll/*,
+  rpg/art/art_rig.cpp, CMakeLists.txt (the doll lines), tools/preview/doll_gallery.cpp. Brief: the compiler, the pool,
+  the compositor, the resolver and coverage, the ramp generator, the atlas, the RUN part, bake speed.
+  - core: every format feature of STYLE_P2 section 24; the finishing pass identical to A3's selout (parity proves it); the
+    turned lying figure and the sleepers; regions, optional regions, build masks, stretch rows, derived sways; the
+    resolver naming every missing part; the generator within delta E 6 of A3's 14 ramps; the atlas budgets.
+  - depth: an incremental compile (changed maps only) and a `--watch` that re-renders doll_gallery on save.
+  - delight: the gallery's onion-skin view of a walk (the frames at 30 % over each other), so registration shows at once.
+  - done: B1 (parity), B6, B8, B10.
+- **FOLK-BODY** (artist-xhigh). Wave 1: **the style slice** (STYLE_P2 section 19; it owns every map it makes until the
+  slice gate, then hands each folder to its wave-2 area). Wave 2 files: maps/body/adult/**, maps/legs/adult/loco/**,
+  maps/arms/adult/loco/**, maps/held/weapons/sword* and maps/belt/sheaths/** (the A3 sword and scabbard; to WEAPONS in
+  P2c), clips/loco.clip, clips/death.clip. Brief: the adult bodies: idle, the walk (6 drawings a side), the run, hurt,
+  fall and lying for both bodies and both sides, the elder's stoop, shoe tips, the woman's leg overrides.
+  - core: A3 parity; registration; the run; deaths.
+  - depth: secondary motion of every hanging style and garment checked in motion with HAIR and the GARB areas.
+  - delight: a dust-puff frame where a running foot lands.
+  - done: B1, B2, B5, B11 (deaths).
+- **FACES** (artist-xhigh). Files: maps/head/adult/**. Brief: the 9 + 9 head types, noses, brows, the three ear sets,
+  expressions, marks, age, face paint, earrings (STYLE_P2 section 4).
+  - core: every type in D, R and L (U by jaw class); every expression fits every type.
+  - depth: elven fineness (thinner lashes, upswept brows) that reads at phone size.
+  - delight: the talk mouth while a speech plate shows; a wince that differs by type.
+  - done: B7 (faces), B8.
+- **HAIR** (artist). Files: maps/hair/adult/**, maps/beard/**. Brief: 24 adult styles with hangs, tufts, capped variants
+  and lying views where needed; the 9 beards (STYLE_P2 section 21).
+  - core: 4 facings each; hangs swing in the walk and the run; capped under every headwear.
+  - depth: the crown's sheen dipping on the walk's down frames.
+  - delight: twin braids swinging out of phase.
+  - done: B7 (hair), B8.
+- **GARB-M** (artist-xhigh). Files: maps/wear/man/**. Brief: the man's 13 civilian garments: torsos with build masks,
+  sleeve styles, hangs in every key, the overlays' man cuts, the patterns on each.
+  - core: fitted to the man in every key; depth: the robe's cuff flare; delight: a coat's skirt kicking out in the run.
+  - done: B7 (garments), B8, B9.
+- **GARB-W** (artist-xhigh). Files: maps/wear/woman/**, maps/neck/**, maps/belt/items/**. Brief: the woman's 14 (A3's
+  dress first) and the overlays' woman cuts; neckwear (A3's scarf first); belt items.
+  - core: fitted to the woman in every key; depth: A3's apron bow from behind; delight: the scarf's tail in side views.
+  - done: B7 (garments), B8, B9.
+- **OUTER** (artist). Files: maps/headwear/cloth/**, maps/cloak/**. Brief: the culture headwear and the hoods with their
+  hair masks; the 4 cloaks with sway, run flare, sitting and riding drapes.
+  - done: B7 (headwear), B8.
+- **POSES-B** (artist). Files: maps/legs/adult/pose/**, maps/arms/adult/pose/**, clips/postures.clip. Brief: the 31
+  postures and Row on the adult bodies; riders on HOLDERS' horse, rowers on the thwart, sleepers in the 10 berths.
+  - core: P2a's P1 / P2 restated (hips on seats 0 px, heads on pillows); every frame count and pace.
+  - depth: carried loads that sway; drinkers out of step.
+  - delight: a sleeper's chest rising.
+  - done: B11.
+- **PROPS** (artist). Files: maps/held/props/**, maps/held/civil/** (the stick, staff, carried bow, hammer, ledger,
+  scroll and horn at rest). Brief: everything a civilian holds, in its own ramps, the hand over the grip; the culture
+  instruments.
+  - done: B8, B11.
+- **KIN-YOUTH** (artist). Files: maps/kin/youth/**, clips/kin_youth.clip. Brief: the youth body (26 px) in every LOCO,
+  DEATH and posture key; its 8 garments and hangs; on the adult head box.
+  - done: B2, B7, B8.
+- **KIN-CHILD** (artist). Files: maps/kin/child/**, clips/kin_child.clip. Brief: the child body (21 px): legs, arms,
+  7 garments and hangs, the 4 head types, 10 hair styles, child headwear, the kids' postures (play and tag, carry, sit,
+  eat, wave).
+  - delight: children hopping at tag.
+  - done: B2, B7, B8.
+- **HOLDERS-B** (artist). Files: rpg/art/art_parts_gates.cpp, art_walls.cpp (gate passages), art_sea.cpp (gunwale and
+  rail), art_props.cpp (holderPx). Brief: P2a's open H2 / H3: gate, arch and city-gate clearance 1.25 of the body or more
+  (22-24 px today), the hedge measured, the rowboat's gunwale and the deck rail in their ranges.
+  - done: B12.
+- **FOLK-SIM** (engineer). Files: rpg/sim/looks.cpp, gear_look.cpp, anim.cpp (after wave 0), life_game.cpp (the spawn's
+  age). Brief: the new look fields from the census and the hero; elders and youths from census ages; the role garments;
+  the walk and run tables from walkTable; the gait switch at 54 px/s; the sheathed / drawn pick (Idle and Walk variant 0
+  sheathed, 1 drawn: drawn for 4 s after a swing or while a hostile is within its aggro radius); the elder's walk.
+  - done: B5, B7.
+- **VIEW-B** (engineer). Files: rpg/view/render_anim.cpp, render.cpp, home_view.cpp, party_view.cpp, render_sea.cpp (the
+  rower only). Brief: the doll's frames on every civilian draw path at rig 2 (per-part coverage, v1 whole otherwise); the
+  RUN part in the bake queue; markers and plates on RigAnchors::topY; riders on the doll on HOLDERS' saddle (P2a H3); Row
+  synced to the oars; the posture path at rig 2; the hidden-hero silhouette from a doll frame; the contact shadow under
+  corpses.
+  - done: B5, B10, B11.
+
+Waves: wave 0 (the balance and quest work lands) -> phase A -> **wave 1**: FOLK-BODY (the slice), DOLL, FOLK-SIM (the
+look fields and census picks; anim.cpp after wave 0) -> **the slice gate** (measured, judged, then the owner's sign-off
+from the owner pack; no production map is drawn before it) -> **wave 2**: FACES, HAIR, GARB-M, GARB-W, OUTER, POSES-B,
+PROPS, KIN-YOUTH, KIN-CHILD, HOLDERS-B and VIEW-B start; FOLK-BODY completes the adult bodies; DOLL and FOLK-SIM finish ->
+integration (lead: one full regression, one script sweep, `pxc.mjs --check`, art_hash once (the doll's new categories;
+v1's unchanged), the web build and its size, the owner's `?rig=2` link) -> judge rounds (at most 4).
+
+**The slice gate** (all must hold; each failure comes back with a repro and a check):
+1. Parity: with A3's palettes, the doll's frames equal docs/ref/style_a3/frames with 0 px differing for the 8 idles, the
+   24 front and back walk frames, the 8 side contact frames and the 8 swing keys (48 frames); the 16 re-registered and new
+   side frames are reviewed beside A3's GIF.
+2. Size (`witness measure box` on `shotpair` shots, `ui 0`): the body box 32 (man) and 31 (woman) art px, the hero 34 with
+   his cowlick: 102 / 93 device px at D3, 136 / 124 at D4, 170 / 155 at D5; the child 21; the elder by STYLE_P2 section 3.
+3. Crisp (`witness measure scale --k D`): every D x D cell one colour in the 11:00 `ui 0` shots at D3, D4 and D5.
+4. Contrast (tools/p2_measure.mjs contrast; `witness measure contrast --a diff:<without> --b ring:2` for the record): the
+   day edge 40 or more on grass and road; 22:00 per STYLE_P2 section 8; the ring 35 or more.
+5. Motion (`witness measure motion --json` on `camhold` runs at 60 Hz: a villager walking across at 40 px/s; the hero
+   walking at 40 and running at 74; side, front and back views): the planted foot within 1 px at every side frame change
+   (the lowest row's span against the centroid), slip one frame step or less, front and back walking in place, the pivot
+   steady (2 or fewer changes in 119 frames).
+6. Coverage: every slice look resolves; no dead part among the slice's maps.
+7. Craft: STYLE_P2 section 24's checks at 0 failures on every slice map and composed frame; the ramp generator within delta
+   E 6 per step of A3's ramps.
+8. The look review (the judge, on the owner pack): A3 held on every new part; the top-left light in all four facings; mail
+   and the helm read as armour on both bodies; the lineup shows 12 different people; the hero found first.
+9. **The owner's sign-off** on the owner pack (STYLE_P2 section 19), which also settles the run above 54 px/s and sheathed
+   weapons out of combat.
+After the sign-off STYLE_P2 records the slice's measured numbers, and every later part matches the slice.
+
+P2b DONE gates (before / after with the phase A harness; MSVC, BDIR=build; Witness at rig 2):
 | gate | target |
 |---|---|
-| B1 v2 coverage: the 20-seed census, every foe kind, every party member, every gear band x form x culture the gear system can roll | 100 % |
-| B2 after the flip: frames drawn from a v1 sheet over the full script sweep and every Witness test | 0 |
-| B3 gear on every frame (LOCO, ACTION, DEATH, POSTURE, sleepers where worn): no holes; helm on the head box; shield on the off arm; cloak behind or in front by facing; a lying body keeps its gear (`--rig --gear`) | 0 failures |
-| B4 man and woman wear every piece on the same anchors; the woman's armour per STYLE_P2 §14 (the judge's review) | PASS |
-| B5 paperdoll, creator preview, HUD hero, party list and portraits on v2; the Mythic aura hugs v2 frames | all |
-| B6 capital 15:00 people textures; city-arrival worst frame; render ms | 24 MB or less; baseline +4 ms or less; baseline +10 % or less |
-| B7 art_hash and golden_village_art | re-recorded once, with before / after shot pairs |
+| B1 the slice gate | PASS, signed off |
+| B2 heights (`--doll --gates` for every body set, people, age and build in every facing; `witness measure box` on the lineups) | exact, by STYLE_P2 section 3 |
+| B3 crisp: every `ui 0` world shot at rig 2 (`witness measure scale`) | 100 % whole cells |
+| B4 contrast on the four grounds by day and at night for a villager, an elder, a child and the hero (p2_measure, L6's rule) | all |
+| B5 motion: walk and run registration for the man, woman, youth, child and elder (`witness measure motion` on camhold runs); the gait switch at 54 px/s; the sheathed / drawn pick | 1 px and one frame step; switch and pick as specified |
+| B6 coverage: `--doll-coverage --scope civil --seeds 1..20 --gates` over sources A, B, D and E (no armour, helm, shield or culture weapon form) | 100 %, 0 dead parts |
+| B7 variety (`--doll-variety --seeds 1..20`): no head recipe (type, nose, brows, hair style and colour, beard, headwear) shared by more than 2 folk of a village or 3 % of a town or city; 18 or more of the 24 hair styles and all 9 beards seen; every head type seen on each body; every civilian garment seen on each body that wears it; peoples told apart by their lineups in 10 seconds (the judge) | all |
+| B8 craft: STYLE_P2 section 24's checks on every map and on the composed frames of the census's looks | 0 failures |
+| B9 the man / woman fit: every civilian garment a fitted pair of maps, the woman's per STYLE_P2 section 14 (the judge's lineup review) | PASS |
+| B10 atlas and speed: LOCO 128, RUN 64, DEATH 48, POSTURE 64 KB per look or less; one facing's LOCO bake p95 at or under the v1 sheet's (0.385 ms); people 24 MB or less in the capital at 15:00 at rig 2; render ms at NORMAL within baseline + 15 %; the pool 1.0 MB or less; embervale.wasm + 1.2 MB or less | all |
+| B11 postures, riders, rowers, sleepers and deaths: P1 / P2 restated on the doll; the rider on every horse frame and the rower on the thwart (0 px); lying 0.45 s or less after the blow, 16 px tall or less, head toward the fall side | all |
+| B12 holders (P2a H2 / H3 closed): every ratio in range; gate passages 1.25 of the body or more | all |
+| B13 playtests (below): every goal met by 2 of 3 testers; every note with a shot triaged (fixed or ruled) | PASS |
 
-#### P2c "Proportion"
+**Playtests** (`witness play`, headless; Sonnet at low effort as the testers, briefed by `witness play brief`; the phone
+window and `rig: 2` in the reset params; two sessions at a time): T1 newbie, "find the smith, the innkeeper and an elder
+in the start village and talk to each" (the roles must read from their looks; the tester checks with `witness play
+shot`); T2 explorer, "visit towns of two different peoples and say how their people dress"; T3 breaker, "sit in the
+tavern, sleep in a bed, ride a horse, take a rowboat out, and watch a bandit fall". Each tester notes anything that looks
+broken (floating, missing, flickering, on the wrong layer) with a shot; the judge triages every note.
 
-Phase A (lead): creature heights reported from painter metadata (`rpg_test --creatures`), scripts p2c_creatures.txt and
-_phone (every monster and great form beside the hero; a village's animals; the hound), witness/p2c.witness.json.
-Areas: **CREATURES** (artist; art_monsters.cpp, art_critters.cpp, art_party.cpp): troll, yeti, golem, harpy, bear,
-boar, the dragon and the great forms re-proportioned in bigger cells on the one pixel grid; dog, cat, chicken,
-rooster, goat, pig, duck, cow, sheep; the hound. **POLISH** (artist): only the files of the props the P2b judge listed
-as reading wrong, none of CREATURES' files.
+#### P2c "Arms and Armour": steel on the new folk, and the flip
 
-P2c DONE gates: C1 heights against the 32 px adult: troll 1.45-1.6, yeti 1.5-1.7, golem 1.6-1.8, harpy 0.95-1.1,
-bear on all fours 0.6-0.75, wolf at the shoulder 0.45-0.55, boar 0.4-0.5, goblin 0.7-0.8, dragon length 3.0 or more;
-dog 0.3-0.4, chicken 0.2-0.25, goat 0.45-0.55, cow 0.7-0.8, the loose horse equal to the ridden one. C2 telegraphs,
-name plates and bars sit on the new heights; the elite scale (115-130 %) still reads on top. C3 every P2b "reads
-wrong" item closed.
+Goal: every fighter on the doll (armour fitted to man and woman, helms, shields, every weapon and form, every action
+family and its effect, the humanoid monsters), every remaining draw path on the doll, coverage 100 %, and the flip: rig 2
+the only rig, v1 and the procedural rig deleted.
+
+Phase A (lead): the armour contracts (form, band, dial, ornament and glint regions; the armour hang families; the gauntlet
+and greave regions); the helm and shield anchors and masks; the weapon library's directory (art id x form x 16 angles,
+grip and tip anchors); the action clip schema (families x variants x facings, cast, bow, block, roll and the drawn LOCO);
+the effects as maps (kFxInfo's sizes kept); the drafts exported by rigdraft (P2a's weapons, effects and pose numbers);
+`--doll-coverage --scope all` adds source C (every gear roll); `--doll --gates` adds the families (R7-R10 restated), the
+weapon library's craft and the armour change; scripts p2c_gear (guards of three peoples, soldiers of two realms, bandits
+by family, the hero and a woman knight in every band), p2c_swings (each family live and frozen with `pose`), p2c_menus,
+p2c_world (each with `_phone`); witness/p2c_switch.witness.json (v1Draws 0, coverage, menus); baselines.
+
+Areas (maps under rpg/art/doll/maps/):
+- **ARMOUR-M** (artist-xhigh). Files: maps/armour/man/**, maps/armour/shared/** (pauldrons, the tabard over armour, rank
+  marks). Brief: the 8 forms fitted to the man in 4 facings, their sleeve and leg regions, the armour hangs in every key,
+  ornaments and glints as optional regions. Depth: mail that glints per frame. Delight: plate catching the lit edge as the
+  body turns. Done: C1, C3, C4.
+- **ARMOUR-W** (artist-xhigh). Files: maps/armour/woman/**. Brief: the same 8 forms fitted to the woman (STYLE_P2 section
+  14: shaped by a step-1 row, never sculpted). Done: C1, C3, C4.
+- **HELMS** (artist). Files: maps/headwear/helm/**. Brief: 12 helms with crest, plume and horsetail regions, face and hair
+  masks, lying views where turning fails. Depth: hair under open helms by style. Delight: plumes that bob on the walk.
+  Done: C1, C3.
+- **WEAPONS** (artist-xhigh). Files: maps/held/weapons/**, maps/belt/sheaths/**, maps/back/**. Brief: the 10 base weapons
+  at 16 angles, the 8 blade, 2 polearm and 5 bow forms, the crossbow's crank, a sheath for every sheathed kind, quivers and
+  staffs on the back, legendary and Mythic glints. Delight: arrows visible in the quiver. Done: C1, C6.
+- **SHIELDS-FX** (artist). Files: maps/shield/**, maps/fx/**. Brief: the 8 shields (at rest, raised, flat), field, device
+  and rim regions; the 9 family effects re-cut to A3's three-tone arc (side and down orientations; the finisher by tint).
+  Delight: sparks when a mace meets metal. Done: C1, C5 (effects).
+- **ACTIONS** (artist-xhigh). Files: maps/arms/adult/action/**, maps/arms/adult/armed/**, maps/legs/adult/action/**,
+  clips/actions/*.clip, clips/armed.clip. Brief: every family x 3 variants x 4 facings, cast, the bow's draw and release,
+  block and roll, and the drawn idle, walk and run, on A3's reach (STYLE_P2 section 12), starting from P2a's pose
+  numbers. Depth: a parry pose; a shield bash. Delight: the impact flash and a one-frame camera nudge on heavy finishers.
+  Done: C5.
+- **HUMANOIDS** (artist). Files: maps/humanoid/**, clips/humanoid.clip. Brief: the skeleton's bone body set; the draugr
+  (the adult body with its skin, head and horns); the goblin (the youth body with its head, ears, skin and scraps); in the
+  monster sheet layout through humanoidCell2. Done: C1.
+- **DOLL-C** (engineer-high). Files: rpg/art/doll/*.cpp and *.h (not the maps), tools/doll/*, rpg/art/art_fx.cpp. Brief:
+  weapons by angle and depth, shields, glints by frame, the drawn LOCO in ACTION, the effects drawn from their maps, the
+  atlas and bake budgets with gear. Done: C3, C8.
+- **FOLK-SIM-C** (engineer). Files: rpg/sim/gear_look.cpp, looks.cpp, anim.cpp. Brief: the sheath kind of each weapon;
+  the drawn state for foes, guards and companions; any new derived arms fields. Done: C5.
+- **SWITCH** (engineer-high). Files: rpg/view/paperdoll.cpp, creator.cpp, loot_ui.cpp, hud.cpp, party_hud.cpp,
+  render_anim.cpp, render.cpp; rpg/art/art_party_portrait.cpp, art_human.cpp (deleted), rpg/art/rig/* (deleted),
+  art_rig.cpp; tools/preview/rigdraft.cpp, rig_gallery.cpp, rigarms_gallery.cpp, rigposes_gallery.cpp (deleted);
+  CMakeLists.txt. Brief: every remaining human draw path on the doll (the paperdoll, the creator preview, the HUD hero and
+  the party list at whole multiples, portraits by A3's face, loot previews, statues, the Mythic aura per doll frame);
+  then the flip. Depth: the creator preview animating idle, walk, run and a swing. Delight: the paperdoll turning to the
+  facing of the last tap. Done: C2, C7, C9.
+
+Waves: phase A -> one wave (all areas; ACTIONS composes on the weapon drafts until WEAPONS replaces them; SWITCH's
+plumbing behind the flag) -> **the flip** when C1 reads 100 % and C3-C5 pass -> integration (the one full regression,
+art_hash and golden_village_art re-recorded once with before / after pairs, the web build) -> judge rounds (at most 4).
+
+P2c DONE gates:
+| gate | target |
+|---|---|
+| C1 coverage: `--doll-coverage --scope all --seeds 1..20 --gates` over sources A-E | 100 %, 0 dead parts |
+| C2 after the flip: frames drawn from a v1 sheet over the full script sweep and every Witness test (`v1Draws`) | 0 |
+| C3 gear on every frame (LOCO, RUN, ACTION, DEATH, POSTURE; sleepers where worn): no holes; the helm on the head box; the shield on the off arm; the cloak behind or in front by facing; a lying body keeps its gear | 0 failures |
+| C4 armour visibly changes the hero: every form x band on the man and on the woman changes 25 % or more of the idle figure's pixels (15 % for padded and leather) and the silhouette of the medium and heavy forms; equipped in game (`gear` script, shot pairs, `witness measure box` and diff); the judge's fit review | all |
+| C5 families: the strike frames of every family pair differ in 25 % or more of their union per facing; tip paths; variants 25 % apart; left frames painted, the weapon in the right hand; the effect ends with the strike within a frame | all |
+| C6 the weapon library: every map at 16 angles, the lit edge toward the top-left, a tip pixel, no orphans or doubled pixels | 0 failures |
+| C7 menus and portraits on the doll; the Mythic aura hugs doll frames | all |
+| C8 speed: ACTION 512 KB or less per look; people 24 MB or less in the capital; the city-arrival worst frame within baseline + 4 ms; render ms within baseline + 10 % | all |
+| C9 art_hash and golden_village_art | re-recorded once, with before / after pairs |
+| C10 playtests: T4 fighter ("fight bandits with each weapon family: does each swing look different?"), T5 outfitter ("as a man, then as a woman (the `female` reset), buy and equip leather, mail and plate and take a shot after each"), T6 watch ("find guards in three peoples' towns and soldiers of two realms"): every goal met by 2 of 3; notes triaged | PASS |
+
+#### P2d "Proportion" (was P2c)
+
+Unchanged in content: the creatures and village animals re-proportioned to the 32 px people, and every prop the P2c judge
+lists as reading wrong. It follows STYLE_P2's ramps and outlines; whether creatures move to hand-placed maps is decided at
+P2d's phase A from the P2c judge's notes.
+
+Phase A (lead): creature heights from painter metadata (`rpg_test --creatures`), scripts p2d_creatures.txt and _phone
+(every monster and great form beside the hero; a village's animals; the hound), witness/p2d.witness.json. Areas:
+**CREATURES** (artist; art_monsters.cpp, art_critters.cpp, art_party.cpp): troll, yeti, golem, harpy, bear, boar, the
+dragon and the great forms re-proportioned in bigger cells on the one pixel grid; dog, cat, chicken, rooster, goat, pig,
+duck, cow, sheep; the hound. **POLISH** (artist): only the files of the props the P2c judge listed, none of CREATURES'.
+
+P2d DONE gates: D1 heights against the 32 px adult: troll 1.45-1.6, yeti 1.5-1.7, golem 1.6-1.8, harpy 0.95-1.1, bear on
+all fours 0.6-0.75, wolf at the shoulder 0.45-0.55, boar 0.4-0.5, goblin 0.7-0.8, dragon length 3.0 or more; dog 0.3-0.4,
+chicken 0.2-0.25, goat 0.45-0.55, cow 0.7-0.8, the loose horse equal to the ridden one. D2 telegraphs, name plates and bars
+sit on the new heights; the elite scale (115-130 %) still reads on top. D3 every P2c "reads wrong" item closed.
 
 **Tests and scripts** (each script has a `_phone` twin; screenshots go to %TEMP% and are deleted after review; an
 `eyes` agent turns shots into text):
-- rpg_test `--rig [--gear] [--gates] [--report]` (sheet facts, faces, hands, outlines, heights, pivots, family and
-  variant distinctness, tip paths, painted left frames, atlas KB and bake ms), `--anim [--seeds 1..3] [--gates]` (clip
-  timing per family, effect progress, enemy windup means, corpse life and cap, the hero's fall), `--rig-coverage
-  [--seeds 1..20] [--gates]`, `--creatures`. CI step "Clear Sight rig and animation test" (P2a: --rig --gates, --anim
-  --gates; P2b adds --rig-coverage --gates and --rig --gear; P2c adds --creatures).
-- Scripts: p2a_lead_lens (lead: every zoom level in the start village at 11:00 and 22:00, the capital's crowd at 15:00
-  with the ring, text plates at each zoom), p2a_slice, p2a_swings (rig 2: each family live against a bandit and
-  frozen with `pose`), p2a_death, p2a_poses (tavern, smithy, farm, bedroom, temple, festival, the bard), p2a_holders
-  (rig 2: the cottage door, chairs, beds, stalls, a cart, riding, the rowboat, the ladder, a gatehouse), p2a_night,
-  p2a_night_npc (an unlit villager on the four grounds: L6; added in fix round 1, rpg/view/script_p2a_night.cpp),
-  p2a_pips; p2b_lead_people, p2b_gear (guards of three cultures, soldiers of two realms, bandits by family, the hero
-  in every band, a woman knight), p2b_menus, p2b_world (the p2a_poses and p2a_holders places plus a war camp, a
-  market, a harbour); p2c_creatures.
-- Witness (`node ../witness/bin/witness.js test` / `shot`): witness/p2a_lens.witness.json (the 10 screens through the
-  `window`, `safe` and `screen` params: state.screen, D0, the levels, the figure share from state.player.sprite, the
-  zoom keys, ZOOM persisting over a reset), witness/p2a_rig.witness.json (rig 2: the clip by state and time per
-  family, lying by 0.45 s, corpse age 60 s, ring and pips), witness/p2b_switch.witness.json (v1Draws 0, coverage,
-  menus), witness/p2c.witness.json.
-- The judge's measurements run tools/p2_measure.mjs on device-resolution shots (the `shot` call), never on the
-  canvas-sampled Witness screenshot (it samples UI px, so a world at D != U would alias).
+- rpg_test `--rig` (P2a's contract, kept; its procedural gates retired at P2b phase A and restated for A3), `--anim
+  [--seeds 1..3] [--gates]` (kept; P2b adds the run, the gait switch and the sheathed / drawn pick), `--doll [--gates]
+  [--parity] [--report]`, `--doll-coverage [--seeds A..B] [--scope civil|all] [--gates]`, `--doll-variety [--seeds
+  A..B]`, `--creatures` (P2d). CI step "Clear Sight rig and animation test": P2a's lines, plus `node tools/doll/pxc.mjs
+  --check`, `--doll` and `--doll-coverage --seeds 1..3` (P2b); each integrator adds `--gates`.
+- Scripts: the p2a_* scripts (kept); p2b_slice, p2b_folk (lineups of every people by role, sex and age at 11:00 and
+  22:00), p2b_poses (tavern, smithy, farm, bedroom, temple, festival, the bard, a stable ride, a rowboat), p2b_walk
+  (`camhold` walk and run runs), p2b_holders; p2c_gear, p2c_swings, p2c_menus, p2c_world (a war camp, a market, a
+  harbour); p2d_creatures.
+- Witness (`node ../witness/bin/witness.js test | shot | measure | play`): witness/p2a_lens.witness.json (kept),
+  witness/p2b_doll.witness.json (rig 2: covered looks, the gait by speed, the drawn pick, corpses, riders), witness/
+  p2c_switch.witness.json, witness/p2d.witness.json; `witness measure scale | box | contrast | motion` for B2-B5 and C4;
+  `witness play` for B13 and C10.
+- The judge measures on device-resolution shots (the `shot` call), never on the canvas-sampled Witness screenshot (it
+  samples UI px, so a world at D != U would alias).
 
-**Saves, versions and goldens.** No SAVE_VER, ENDLESS_GEN_VER, SAGA_GEN_VER or block-version bump in any of the three
-batches: footprints and generation are untouched, HumanLook is derived on load, `app.female` is already saved, and the
-zoom and ring live in the settings file (EMBS version 2). Old saves keep working; no new adventure is forced.
-tests/fixtures/save_v23.bin and the town, world and endless goldens never change. art_hash is re-recorded by P2a phase
-A (the ink outline, the only intended pixel change) and once by each batch's integrator; v1 categories are frozen
-from P2a phase A until deleted in P2b; v2 adds its own categories. golden_village_art.txt ("villages never change",
-M7b) stays identical through P2a (H1) and is re-recorded once at the P2b flip with before / after pairs. Lanes never
-re-record a golden or a fixture.
+**Saves, versions and goldens.** No SAVE_VER, ENDLESS_GEN_VER, SAGA_GEN_VER or block-version bump in P2a, P2b, P2c or P2d:
+footprints and generation are untouched; HumanLook is derived on load and the doll's new fields are derived, never saved;
+the census's existing draws are untouched (the new stream runs last); postures are not saved; the Appearance block is
+unchanged in P2 (P3's creator appends its choices); the zoom and ring live in the settings file (EMBS version 2). Old
+saves keep working; no new adventure is forced. tests/fixtures/save_v23.bin and the town, world and endless goldens never
+change. The doll's fields enter key() only at rig 2, so rig 1's keys and the `--arms` golden keys hold until the flip.
+art_hash was re-recorded by P2a phase A (the ink outline) and its integrator; the P2b integrator adds the doll's own
+categories; v1's categories stay frozen until P2c deletes them and re-records once at the flip. golden_village_art
+("villages never change", M7b) stays identical through P2b and is re-recorded once at the P2c flip with before / after
+pairs. Areas never re-record a golden or a fixture.
 
-**The style slice** (P2a wave 1, RIG-BODY, artist-xhigh; content in STYLE_P2 §19). The hero as a man and as a woman
+**The P2a style slice** (history: P2a wave 1, RIG-BODY, artist-xhigh; passed 2026-10-18; its procedural look is
+superseded by A3, and its protocol is the model for P2b's slice gate). The hero as a man and as a woman
 (same look, a sword) in Idle, Walk, Hurt, the sword's three variants, Fall and Lying in four facings with the Steel Arc;
 one village woman (Dress, a culture cut, a pattern) in Idle and Walk; one start-village cottage with its door and wall
 at k, a fence run, the ring. Scripts p2a_slice.txt and _phone (seed 7, OSLARS, rig 2): desktop 1440x810 at NORMAL (D3)
@@ -4146,29 +4548,37 @@ failure comes back with a repro and a check):
 12. Look review first: STYLE_P2's palette, top-left light on all four facings, no pillow shading, banding, orphan
     pixels or jaggies, the hero found first in the village shot, and the side-by-side with a v1 villager showing the
     upgrade.
-After PASS, STYLE_P2 records the slice's measured numbers and every later v2 area matches the slice.
+After PASS, STYLE_P2 recorded the slice's measured numbers (now its appendix).
 
-**What the judge looks at.** Look and feel first, from the state a player starts in (a new game, NORMAL zoom, the
-phone size), then the gates. P2a: is the world crisp on every screen; is the hero found at once by day, at night and
-in a crowd; do text plates stay readable at every zoom; is the `rig 2` preview what STYLE_P2 describes (faces, hands,
-swings, the fall); do the holders fit the new bodies; is perf flat. P2b: no v1 anywhere; gear on every frame;
-cultures still told apart by silhouette in 10 seconds (pillar 2); men and women in armour; menus; perf. P2c: creatures
-keep their menace beside taller people. The judge states the full protocol in round 1 and reruns it every round;
-fixers rerun the judge's harness before claiming a fix; the every-system regression runs once per batch (integrator).
+**What the judge looks at.** Look and feel first, from the state a player starts in (a new game, NORMAL zoom, the phone
+size; `?rig=2` until the flip), then the gates. P2a: is the world crisp on every screen; is the hero found at once by day,
+at night and in a crowd; do text plates stay readable at every zoom; do the holders fit the new bodies; is perf flat. P2b:
+does every person look like A3 (faces, ramps, coloured outlines, the top-left light) in every facing and motion; can you
+tell people apart in a village and peoples apart in 10 seconds (pillar 2); do men and women each wear their own cut; are
+walks planted and runs purposeful; do people sit, sleep, ride, row and fall right; perf. P2c: does each weapon swing its
+own way; does armour visibly change a man and a woman; are guards and soldiers of different peoples told apart; menus;
+no v1 anywhere after the flip; perf. P2d: creatures keep their menace beside the new people. The judge states the full
+protocol in round 1 and reruns it every round; fixers rerun the judge's harness before claiming a fix; the every-system
+regression runs once per batch (integrator).
 
-**Risks.** (1) P2b carries the whole gear grammar: anchor-based layers, coverage naming what is missing and the P2a
-preview keep it bounded. (2) Facades grow 11 px a storey: towns read denser; the wall ratio may sit anywhere in
-1.00-1.12 (the door ratio does not move); H4 and B-round shots review M7c streets. (3) Bake time and memory on the
-phone: trimmed atlases, lazy ACTION and DEATH parts, the bake queue, MB caps; the owner checks on the device. (4) The
-hero's 4-frame windup: a family must read in its strike, follow-through and effect. (5) Bigger bodies overlap in
-crowds because collision radii stay. (6) Two rigs live side by side for two batches: v1 is frozen (no new v1 art) and
-deleted at the flip. (7) The tooling change in flight: phase A waits for it. (8) Resizing Witness's hidden window:
-phase A proves it on Windows, with a `--window` launch per run as the fallback.
+**Risks.** P2a's risks (bake time and memory on the phone, facades growing 11 px a storey, the hero's 4-frame windup,
+crowds overlapping, two rigs side by side, Witness's window) still hold where they apply. For P2b and P2c: (1) Volume:
+about 3,400 maps. The cuts above, the drafts, the slice first, ten artist areas in parallel in P2b and the compiler's
+checks on every save keep it bounded. (2) Coherence across ten artists: STYLE_P2 plus the signed slice; the gallery's
+lineup pages; the judge compares every area with the slice. (3) The format cannot express something A3 did: parity on 48
+frames finds it in wave 1, while the format can still change. (4) The run and sheathing are new looks: the owner decides
+at the slice, with A3's walk and P2a's always-in-hand as the fallbacks. (5) Gear breadth: the coverage census names every
+missing field, value and part, and the flip waits for 100 %. (6) Wasm size and compile time: the pool's budget and
+chunking; the compiler reports both. (7) A quarter-turned lying part may light wrong: the judge flags it and the part
+gets a painted lying view. (8) Another agent's balance and quest work: wave 0.
 
-**For the owner to confirm** (the plan proceeds on these defaults):
-1. On Safari, 2x iPhones and the iPad the UI keeps today's size (its text drawn with the pixel-art filter) rather than
-   an integer UI 15-31 % smaller; the world is whole-number everywhere either way.
-2. Default zoom D0 = round(screen px height / 240): the iPhone app at 5x (236 world rows, the v2 hero 13.6 % of the
-   screen); the 1440x810 desktop window stays at 3x until v2 ships (NEAR gives 4x).
-3. Facades grow with the rig in P2b (door 16 -> 23 px, one-storey wall 24 -> 35 px), so the "villages never change"
-   golden is re-recorded once.
+**For the owner to confirm** (the plan proceeds on these defaults). Items 1-3 are P2a's and stand; items 4-5 are new
+with the re-plan and are settled at the P2b slice sign-off from the owner pack.
+1. On Safari, 2x iPhones and the iPad the UI keeps today's size, while the world is whole-number everywhere.
+2. Default zoom D0 = round(screen px height / 240).
+3. Facades grow with the rig (door 16 -> 23 px, one-storey wall 24 -> 35 px), so the "villages never change" golden is
+   re-recorded once, now at the P2c flip.
+4. **The run**: people above 54 px/s run on a cycle of about 36 px, so the hero's legs cycle about twice a second at
+   74 px/s. The alternative is A3's walk at its natural stride, which puts the hero at 3.9 cycles a second.
+5. **Sheathed weapons out of combat**: A3's sword at the hip with the hand on the hilt, drawn while fighting; legendary and
+   Mythic hilts glint. The alternative keeps P2a's weapon in hand at all times.

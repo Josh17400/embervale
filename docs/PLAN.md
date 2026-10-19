@@ -1585,3 +1585,14 @@ Baselines (phase A; the world is drawn at the UI's fit until LENS):
   windups; the pose path for posing folk at rig 2. RIG-ARMS / lead: R5 bow; effect placement notes. HOLDERS: gates,
   culture fences / hedges / benches (art_culture_props.cpp, art_parts_props.cpp unowned). POSES: humanoidAnchors at v2.
   Planner: SLICE-WALK-SLIDE and the H2 boat targets.
+
+### Owner art-direction change, 2026-10-18: P2b and P2c re-planned
+- The owner rejected the procedural rig's look (proportions, shading, faces) and approved art study A3 (A's 32 px
+  silhouette, Sea of Stars / Chained Echoes rendering inside). The reference is locked in docs/ref/style_a3/;
+  docs/STYLE_P2.md is rewritten for it; VISION_PLAN 15.36 re-plans P2b "New People" (the hand-drawn folk on the doll, the
+  A3 slice signed off by the owner first) and P2c "Arms and Armour" (armour, helms, shields, weapons, actions, the flip);
+  the old P2c creature work is now P2d "Proportion". P2a's lens, timing, holders and bake machinery stay; the procedural
+  painters are detached from `rig 2` at P2b phase A and deleted at the P2c flip.
+- P2a's open items carried into the re-plan: H2 / H3 (HOLDERS-B, P2b), riders on the doll and the posture path at rig 2,
+  the hidden-hero silhouette, the contact shadow under corpses (VIEW-B, P2b), kids' walk cycles (KIN areas, P2b),
+  SLICE-WALK-SLIDE (answered: A3's stride gives a 19 / 20 px walk and a run above 54 px/s, STYLE_P2 section 10).

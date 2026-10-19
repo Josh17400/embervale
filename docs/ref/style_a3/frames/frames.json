@@ -1,0 +1,709 @@
+{
+ "note": "A3 frames at 1x, rendered from the maps in this folder (pixlib.render, the module palettes). pivot = the point between the feet on the sole (ink) row, as STYLE_P2 section 10 defines it.",
+ "frames": [
+  {
+   "file": "hero_IDLE_D.png",
+   "who": "hero",
+   "frame": "IDLE_D",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_IDLE_U.png",
+   "who": "hero",
+   "frame": "IDLE_U",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_IDLE_L.png",
+   "who": "hero",
+   "frame": "IDLE_L",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_IDLE_R.png",
+   "who": "hero",
+   "frame": "IDLE_R",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_D0.png",
+   "who": "hero",
+   "frame": "WALK_D0",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_D1.png",
+   "who": "hero",
+   "frame": "WALK_D1",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_D2.png",
+   "who": "hero",
+   "frame": "WALK_D2",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_D3.png",
+   "who": "hero",
+   "frame": "WALK_D3",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_D4.png",
+   "who": "hero",
+   "frame": "WALK_D4",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_D5.png",
+   "who": "hero",
+   "frame": "WALK_D5",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_U0.png",
+   "who": "hero",
+   "frame": "WALK_U0",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_U1.png",
+   "who": "hero",
+   "frame": "WALK_U1",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_U2.png",
+   "who": "hero",
+   "frame": "WALK_U2",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_U3.png",
+   "who": "hero",
+   "frame": "WALK_U3",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_U4.png",
+   "who": "hero",
+   "frame": "WALK_U4",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_U5.png",
+   "who": "hero",
+   "frame": "WALK_U5",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_L0.png",
+   "who": "hero",
+   "frame": "WALK_L0",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_L1.png",
+   "who": "hero",
+   "frame": "WALK_L1",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_L2.png",
+   "who": "hero",
+   "frame": "WALK_L2",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_L3.png",
+   "who": "hero",
+   "frame": "WALK_L3",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_L4.png",
+   "who": "hero",
+   "frame": "WALK_L4",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_L5.png",
+   "who": "hero",
+   "frame": "WALK_L5",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_R0.png",
+   "who": "hero",
+   "frame": "WALK_R0",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_R1.png",
+   "who": "hero",
+   "frame": "WALK_R1",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_R2.png",
+   "who": "hero",
+   "frame": "WALK_R2",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_R3.png",
+   "who": "hero",
+   "frame": "WALK_R3",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_R4.png",
+   "who": "hero",
+   "frame": "WALK_R4",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_WALK_R5.png",
+   "who": "hero",
+   "frame": "WALK_R5",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_IDLE_D.png",
+   "who": "woman",
+   "frame": "IDLE_D",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_IDLE_U.png",
+   "who": "woman",
+   "frame": "IDLE_U",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_IDLE_L.png",
+   "who": "woman",
+   "frame": "IDLE_L",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_IDLE_R.png",
+   "who": "woman",
+   "frame": "IDLE_R",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_D0.png",
+   "who": "woman",
+   "frame": "WALK_D0",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_D1.png",
+   "who": "woman",
+   "frame": "WALK_D1",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_D2.png",
+   "who": "woman",
+   "frame": "WALK_D2",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_D3.png",
+   "who": "woman",
+   "frame": "WALK_D3",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_D4.png",
+   "who": "woman",
+   "frame": "WALK_D4",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_D5.png",
+   "who": "woman",
+   "frame": "WALK_D5",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_U0.png",
+   "who": "woman",
+   "frame": "WALK_U0",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_U1.png",
+   "who": "woman",
+   "frame": "WALK_U1",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_U2.png",
+   "who": "woman",
+   "frame": "WALK_U2",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_U3.png",
+   "who": "woman",
+   "frame": "WALK_U3",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_U4.png",
+   "who": "woman",
+   "frame": "WALK_U4",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_U5.png",
+   "who": "woman",
+   "frame": "WALK_U5",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_L0.png",
+   "who": "woman",
+   "frame": "WALK_L0",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_L1.png",
+   "who": "woman",
+   "frame": "WALK_L1",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_L2.png",
+   "who": "woman",
+   "frame": "WALK_L2",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_L3.png",
+   "who": "woman",
+   "frame": "WALK_L3",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_L4.png",
+   "who": "woman",
+   "frame": "WALK_L4",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_L5.png",
+   "who": "woman",
+   "frame": "WALK_L5",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_R0.png",
+   "who": "woman",
+   "frame": "WALK_R0",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_R1.png",
+   "who": "woman",
+   "frame": "WALK_R1",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_R2.png",
+   "who": "woman",
+   "frame": "WALK_R2",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_R3.png",
+   "who": "woman",
+   "frame": "WALK_R3",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_R4.png",
+   "who": "woman",
+   "frame": "WALK_R4",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "woman_WALK_R5.png",
+   "who": "woman",
+   "frame": "WALK_R5",
+   "w": 24,
+   "h": 36,
+   "pivot": [
+    12,
+    34
+   ]
+  },
+  {
+   "file": "hero_SWING_R0.png",
+   "who": "hero",
+   "frame": "SWING_R0",
+   "w": 44,
+   "h": 44,
+   "pivot": [
+    22,
+    42
+   ]
+  },
+  {
+   "file": "hero_SWING_R1.png",
+   "who": "hero",
+   "frame": "SWING_R1",
+   "w": 44,
+   "h": 44,
+   "pivot": [
+    22,
+    42
+   ]
+  },
+  {
+   "file": "hero_SWING_R2.png",
+   "who": "hero",
+   "frame": "SWING_R2",
+   "w": 44,
+   "h": 44,
+   "pivot": [
+    22,
+    42
+   ]
+  },
+  {
+   "file": "hero_SWING_R3.png",
+   "who": "hero",
+   "frame": "SWING_R3",
+   "w": 44,
+   "h": 44,
+   "pivot": [
+    22,
+    42
+   ]
+  },
+  {
+   "file": "hero_SWING_D0.png",
+   "who": "hero",
+   "frame": "SWING_D0",
+   "w": 48,
+   "h": 48,
+   "pivot": [
+    24,
+    42
+   ]
+  },
+  {
+   "file": "hero_SWING_D1.png",
+   "who": "hero",
+   "frame": "SWING_D1",
+   "w": 48,
+   "h": 48,
+   "pivot": [
+    24,
+    42
+   ]
+  },
+  {
+   "file": "hero_SWING_D2.png",
+   "who": "hero",
+   "frame": "SWING_D2",
+   "w": 48,
+   "h": 48,
+   "pivot": [
+    24,
+    42
+   ]
+  },
+  {
+   "file": "hero_SWING_D3.png",
+   "who": "hero",
+   "frame": "SWING_D3",
+   "w": 48,
+   "h": 48,
+   "pivot": [
+    24,
+    42
+   ]
+  }
+ ]
+}
