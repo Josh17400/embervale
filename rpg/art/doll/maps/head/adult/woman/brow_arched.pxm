@@ -1,0 +1,21 @@
+# head/adult/woman/brow_arched: the woman's arched brows (A3): 2 px over each eye in hair step 1
+# The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role brow arched
+layer face
+anchor head
+keys rest
+tags mirror-ok
+
+view D key rest origin -4 -8
+|bb....bb
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -11 -8
+|b
+
+view L key rest origin -4 -8
+|b

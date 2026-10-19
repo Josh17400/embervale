@@ -138,6 +138,14 @@ class Audio {
   // letters). They ride the Sfx::SpellMotif slot with their own marker (so the Sfx list and its tools stay as they are).
   enum class Sting : uint8_t { DrumRoll, Fanfare, HornCall, WarAlarm, Seal, COUNT };
   void playSting(Sting s, float pitch = 1.0f, float vol = 1.0f);
+  // (Witness 0.6 sound events) a listener told every sound started through play / playMotif / playSting, by name
+  // (sfxName: "swing", "hit_heavy", "quest_done"...; a motif "spell_motif", a sting "sting_fanfare"...) and volume, on the
+  // caller's thread before the voice is queued. rpg/main.cpp sets it in witness mode only (witness_sound_ex); null: none.
+  // One for the process (a Witness reset rebuilds Audio in place and the listener stays). Changes nothing that sounds.
+  using PlayListener = void (*)(const char* name, float vol);
+  static void setPlayListener(PlayListener f);
+  static const char* sfxName(Sfx s);
+  static const char* stingName(Sting s);
   void setMusic(Music m);
   // M3: the piece in a culture's style (engine/music_style.h; nullptr = the classic piece). Town, Wild and Night take
   // its scale, tempo, meter, instruments and ornament; Combat and Boss keep their structure but take its percussion.

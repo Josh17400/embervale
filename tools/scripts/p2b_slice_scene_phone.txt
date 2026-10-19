@@ -1,0 +1,33 @@
+# P2b New People: A3's scene in the engine (FOLK-BODY; STYLE_P2 19 item 6, beside docs/ref/style_a3/scene_phone_zoom.png):
+# seed 7, the start village OSLARS (the meadow by its cottages), rig 2: the A3 hero facing the A3 woman by the stalls, a villager behind
+# (`slicelineup scene`), 11:00 and 22:00, NORMAL (phone 2556x1179, FILL: D5).
+#   embervale.exe --script tools/scripts/p2b_slice_scene_phone.txt      (p2b_scene*_phone.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.0 hair short copper
++0.1 slicelook a3
++0.1 at -140 -432
++2.5 walk east 0.12
++0.3 slicelook a3
++0.1 slicelineup scene
++0.2 pose idle sword 0 0
++0.1 expect doll covered
++0.6 shot p2b_scene_day_phone.png
++0.1 ui 0
++0.2 shot p2b_scene_day_world_phone.png
++0.1 ui 1
++0.1 hour 22
++1.0 shot p2b_scene_night_phone.png
++0.1 ui 0
++0.2 shot p2b_scene_night_world_phone.png
++0.1 ui 1
++0.1 pose off
++0.1 hour 11
++0.2 quit

@@ -1,0 +1,362 @@
+# arms/adult/loco/man_l: the man's left arm: sleeve, bracer, hand; the fighter's hand rests on a sheathed hilt (when armed)
+# The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+use person
+body man
+role arms std
+layer armNear
+anchor shoulderL
+keys armL
+side L
+
+view D key back origin 1 -1
+mark handL 0 5
+|765
+|765
+|765
+|hgf
+|hgf
+|tsq
+|srq
+|qq.
+
+view D key back origin 1 -1 when armed replace
+mark handL 0 6
+|765
+|765
+|765
+|765
+|hgf
+|hgf
+|tsq
+|srq
+
+view D key fwd origin 1 -1
+mark handL 0 7
+|765
+|765
+|765
+|765
+|765
+|hgf
+|hgf
+|tsq
+|srq
+|qq.
+
+view D key fwd origin 1 -1 when armed replace
+mark handL 0 6
+|765
+|765
+|765
+|765
+|hgf
+|hgf
+|tsq
+|srq
+
+view D key idle origin 1 -1
+mark handL 0 6
+|765
+|765
+|765
+|765
+|hgf
+|hgf
+|tsq
+|srq
+|qq.
+
+view D key idle origin 1 -1 when armed replace
+mark handL 0 6
+|765
+|765
+|765
+|765
+|hgf
+|hgf
+|tsq
+|srq
+
+view D key runF origin 1 -1
+mark handL 0 3
+|765
+|765
+|765
+|tsq
+|srq
+|qq.
+
+view D key runF origin 1 -1 when armed replace
+mark handL 0 6
+|765
+|765
+|765
+|765
+|hgf
+|hgf
+|tsq
+|srq
+
+view D key lap origin 3 -1
+mark handL 1 9
+|..765
+|..765
+|..765
+|..765
+|..hgf
+|.hgf.
+|.hgf.
+|hgf..
+|tsq..
+|srq..
+|qq...
+
+view U key back origin 1 -1
+mark handL 0 6
+|597.
+|597.
+|597.
+|597.
+|fihf
+|fih.
+|qts.
+|qsr.
+|.qq.
+
+view U key back origin 1 -1 when armed replace
+mark handL 0 6
+|597
+|597
+|597
+|597
+|fih
+|fih
+|qts
+|qsr
+|.qq
+
+view U key fwd origin 1 -1
+mark handL 0 5
+|597.
+|597.
+|597.
+|597.
+|fihf
+|qts.
+|qsr.
+|.qq.
+
+view U key fwd origin 1 -1 when armed replace
+mark handL 0 6
+|597
+|597
+|597
+|597
+|fih
+|fih
+|qts
+|qsr
+|.qq
+
+view U key idle origin 1 -1
+mark handL 0 6
+|597
+|597
+|597
+|597
+|fih
+|fih
+|qts
+|qsr
+|.qq
+
+view U key runF origin 1 -1
+mark handL 0 3
+|597.
+|597.
+|597.
+|fihf
+|qts.
+|.qq.
+
+view U key runF origin 1 -1 when armed replace
+mark handL 0 6
+|597
+|597
+|597
+|597
+|fih
+|fih
+|qts
+|qsr
+|.qq
+
+view U key lap origin 1 -1
+mark handL 0 5
+|597
+|597
+|597
+|597
+|fih
+|fgf
+
+view R key back origin 5 -6
+|.5
+|qr
+|qq
+
+view R key back origin 0 0 when armed replace
+|.
+
+view L key B origin 4 -1
+mark handL 4 6
+|58765...
+|.58765..
+|.58765..
+|..58765.
+|..fihgf.
+|...fihgf
+|....qtsq
+|....qsrq
+|.....qq.
+
+view L key B origin 8 -1 when armed replace
+mark handL 1 6
+|...58765
+|..58765.
+|..58765.
+|.58765..
+|.fihgf..
+|fihgf...
+|.qtsq...
+|.qsrq...
+|..qq....
+
+view L key F origin 7 -1
+mark handL 1 6
+|...58765
+|..58765.
+|..58765.
+|.58765..
+|.fihgf..
+|fihgf...
+|.qtsq...
+|.qsrq...
+|..qq....
+
+view L key F origin 8 -1 when armed replace
+mark handL 1 6
+|...58765
+|..58765.
+|..58765.
+|.58765..
+|.fihgf..
+|fihgf...
+|.qtsq...
+|.qsrq...
+|..qq....
+
+view L key N origin 4 -1
+mark handL 1 6
+|58765
+|58765
+|58765
+|58765
+|fihgf
+|fihgf
+|.qtsq
+|.qsrq
+|..qq.
+
+view L key N origin 8 -1 when armed replace
+mark handL 1 6
+|...58765
+|..58765.
+|..58765.
+|.58765..
+|.fihgf..
+|fihgf...
+|.qtsq...
+|.qsrq...
+|..qq....
+
+view L key idle origin 4 -1
+mark handL 1 6
+|58765
+|58765
+|58765
+|58765
+|fihgf
+|fihgf
+|.qtsq
+|.qsrq
+|..qq.
+
+view L key idle origin 8 -1 when armed replace
+mark handL 1 6
+|...58765
+|..58765.
+|..58765.
+|.58765..
+|.fihgf..
+|fihgf...
+|.qtsq...
+|.qsrq...
+|..qq....
+
+view L key lie origin 0 0
+mark handL 3 9
+|58765.
+|587765
+|587765
+|587765
+|.fihgf
+|.fihgf
+|..fhgf
+|..fhgf
+|..qsrq
+|..qtsq
+|...qq.
+
+view L key runB origin 3 -1
+mark handL 5 5
+|58765....
+|..58765..
+|...58765.
+|....fihgf
+|....fihgf
+|.....qtsq
+|.....qsrq
+|......qq.
+
+view L key runB origin 8 -1 when armed replace
+mark handL 1 6
+|...58765
+|..58765.
+|..58765.
+|.58765..
+|.fihgf..
+|fihgf...
+|.qtsq...
+|.qsrq...
+|..qq....
+
+view L key runF origin 8 -1
+mark handL 0 1
+|.....58765
+|qtsq.58765
+|5876fiqsrq
+|....fihgf.
+|.qq.......
+
+view L key runF origin 8 -1 when armed replace
+mark handL 1 6
+|...58765
+|..58765.
+|..58765.
+|.58765..
+|.fihgf..
+|fihgf...
+|.qtsq...
+|.qsrq...
+|..qq....

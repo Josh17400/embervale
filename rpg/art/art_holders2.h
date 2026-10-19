@@ -19,9 +19,13 @@ namespace holders {
 
 constexpr int kFigure = 32;          // the v2 adult man (STYLE_P2 3)
 
-// ---- seats and tops (STYLE_P2 1: seat 0.31-0.37, table / counter 0.44-0.50 of the figure)
-constexpr int kSeat = 11;            // chair, stool, bench: the seat's front edge above the floor (0.34)
-constexpr int kThroneSeat = 12;      // the throne's seat front edge above the floor (on its 2 px dais)
+// ---- seats and tops (STYLE_P2 1: table / counter 0.44-0.50 of the figure)
+// (P2b slice, SLICE-SIT-HEIGHT) seats sit at A3's knee: A3's legs are 8 rows under a hem at F-9 (STYLE_P2 3), so a
+// chair-height sitter's hips land 7 rows over the floor (kSeat + 2) and the seated figure stands 2 rows lower than the
+// same figure standing. P2a's 11 (0.34, sized for its 11-row legs) put the hips 13 rows up, above A3's standing hip, so
+// seated A3 people stood taller than standing ones. v1 (22 px people) sat at 4-5.
+constexpr int kSeat = 5;             // chair, stool, bench: the seat's front edge above the floor (0.16; the seat line 0.22)
+constexpr int kThroneSeat = 6;       // the throne's seat front edge above the floor (on its 2 px dais: kSeat + 1)
 constexpr int kTable = 15;           // a table's top, front edge (0.47)
 constexpr int kCounter = 15;         // a counter's / stall counter's top, front edge (0.47)
 constexpr int kSeatDepth = 3;        // rows of seat surface behind the front edge (the sitter's hips sit on its middle)
@@ -29,8 +33,8 @@ constexpr int kSeatDepth = 3;        // rows of seat surface behind the front ed
 // convention as the v1 SeatFit::seatY (the middle of the seat's top surface, 2 rows above the front edge)
 inline int seatRow2(Prop seat) {
   switch (seat) {
-    case Prop::Chair: case Prop::Stool: case Prop::Bench: return 15 - kSeat - 2;          // 2
-    case Prop::Throne: return 15 - kThroneSeat - 2;                                      // 1 (the throne overhangs north)
+    case Prop::Chair: case Prop::Stool: case Prop::Bench: return 15 - kSeat - 2;          // 8
+    case Prop::Throne: return 15 - kThroneSeat - 2;                                      // 7
     case Prop::Cushion: return 15 - 5;                                                   // its plump top: 10
     default: return 12;                                                                  // floor seats: as v1
   }
@@ -75,7 +79,8 @@ constexpr int kSpanTop2 = 48;
 //      under the waterline, inside the hull, as in a real boat)
 constexpr int kGunwale2 = 13;        // the rowboat's gunwale over its bottom boards (0.41)
 constexpr int kDeckRail2 = 16;       // a sloop's (and a galleon's waist) rail over its deck (0.50)
-constexpr int kThwart2 = 11;         // the rowboat's thwart over its bottom boards: a seated rower's hips (= kSeat, 0.34)
+constexpr int kThwart2 = 11;         // the rowboat's thwart over its bottom boards: a seated rower's hips (0.34; the hull
+                                     // hides his legs, so it keeps P2a's height while kSeat follows A3's knee)
 
 }  // namespace holders
 

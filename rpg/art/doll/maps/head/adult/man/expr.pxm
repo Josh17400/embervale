@@ -1,0 +1,107 @@
+# head/adult/man/expr: the man's expressions, overlays at the face (A3 fierce; blink, hurt, closed, talk)
+# The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+use person
+body man
+role expr fierce
+role expr blink
+role expr hurt
+role expr closed
+role expr talk
+layer face
+anchor head
+keys expr
+z 2
+tags overlay mirror-ok
+
+view D key blink origin -4 -9
+|tt....ss
+|##....##
+|ss....sr
+
+view D key closed origin -4 -9
+|tt....ss
+|##....##
+|ss....sr
+
+view D key fierce origin -1 0
+|........bb.....
+|....bbb.b..b...
+|..bb....b......
+|.b.............
+|b..............
+|b..............
+|b..............
+|b..............
+|...aa....aa....
+|..#.....#..b.q-
+|...............
+|...............
+|......M........
+|...r...........
+
+view D key hurt origin -4 -9
+|t#....#s
+|#t....s#
+|ss....sr
+|...MM...
+
+view D key talk origin -8 -12
+|M
+|M
+
+view R key blink origin -11 -9
+|tt
+|##
+
+view R key closed origin -11 -9
+|tt
+|##
+
+view R key fierce origin 2 0
+|..........bb....
+|......bbbbb..b..
+|.....b.........b
+|....b...........
+|...b............
+|..b.............
+|.b..............
+|b...............
+|...............b
+|..b.............
+|.b..............
+|................
+|..............M.
+|.......r........
+
+view R key hurt origin -11 -9
+|t#.
+|#s.
+|...
+|.MM
+
+view R key talk origin -12 -12
+|MM
+
+view L key blink origin -3 -9
+|tt
+|##
+
+view L key closed origin -3 -9
+|tt
+|##
+
+view L key fierce origin -2 -8
+|baa
+|...
+|...
+|...
+|MM.
+
+view L key hurt origin -2 -9
+|.#t
+|.s#
+|...
+|MM.
+
+view L key talk origin -2 -12
+|MM

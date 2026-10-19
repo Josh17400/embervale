@@ -1,0 +1,64 @@
+# hair/adult/braid: Braid (A3's woman): the hair mass, lit locks on the left, a darker lower right, gathered toward the braid
+# The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+use person woman
+body adult
+role hair braid
+layer hairFront
+anchor head
+keys rest
+
+view D key rest origin 0 -2
+|......aaaa......
+|....aaeeddaa....
+|...adeedbccca...
+|..addddcbcccba..
+|..acddccbccbba..
+|.acdcc...cccbba.
+|.acc........cba.
+|-ab..........ba-
+|-ab..........ba-
+|.ab..........ba.
+|.ab..........ba.
+|.abca......acba.
+
+view U key rest origin 0 -2
+|......aaaa......
+|....aaddddaa....
+|...adddddccca...
+|..aeeeeedccbba..
+|..adddcdccbcba..
+|.acddcddccbccba.
+|.aedcbddcbcbbba.
+|-adddbdccbcbbba-
+|-acdcdcbcbbbbba-
+|..abcdcbcbbbba..
+|...abdcdbbbba...
+|....abcdcba.....
+
+view R key rest origin -1 -2
+|....aaaaa.....
+|..adeedcca....
+|.adeeddccca...
+|adddddcccccba.
+|acddcccccbcbba
+|acdccbcccbc...
+|abccbccbc..b..
+|abcbcbcb......
+|abbcbbcb......
+|abbbbaba......
+|.abbaa........
+|.adba.........
+
+view L key rest origin -1 -2
+|.....aaaaa....
+|....adeedcca..
+|...adeeddccca.
+|.adddddcccccba
+|abdcccdccccbba
+|...dcccbccbcba
+|..b..cbccbcbba
+|......bcbcbcba
+|......bcbbcbba
+|......ababbbba
+|........aabba.
+|.........acba.

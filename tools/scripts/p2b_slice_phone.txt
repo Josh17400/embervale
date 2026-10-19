@@ -1,0 +1,134 @@
+# P2b New People: THE A3 SLICE on the phone (the iPhone 15 Pro Home Screen app, 2556x1179, FILL: NORMAL is D5, NEAR D6) (VISION_PLAN 15.36 P2b "The slice gate", STYLE_P2 19; phase A
+# harness, frozen). Seed 7, the start village OSLARS, rig 2: the hero as A3's (tousled copper hair, the scarf, the sword
+# sheathed at the hip) idle in four facings, walking, running, each sword key frozen, the fall and the lying body; the
+# woman hero; a 12-person lineup of three peoples; an elder and children; the same spot at 22:00 and on rig 1 for the
+# side-by-side. NORMAL (D5) and NEAR (D6); shot pairs (`shotpair`, `ui 0`) for witness measure box / scale / contrast and
+# tools/p2_measure.mjs. A look the doll does not cover yet is drawn whole on v1 (`expect doll` tells which).
+# (the phone twin of p2b_slice.txt: the same steps, shots named p2b_slice_phone_*)
+#   embervale.exe --script tools/scripts/p2b_slice_phone.txt          (p2b_slice_phone_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.0 hair short copper
++0.3 expect zoom normal
+# ---- the hero idle in the four facings (frozen idle frame 0 after a step each way)
++0.1 walk south 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2b_slice_phone_d5_down.png
++0.1 ui 0
++0.2 shotpair p2b_slice_phone_d5_down_world.png p2b_slice_phone_d5_down_nohero.png
++0.2 shotpair p2b_slice_phone_d5_ring_on.png p2b_slice_phone_d5_ring_off.png ring
++0.1 ui 1
++0.1 pose off
++0.1 walk east 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2b_slice_phone_d5_right.png
++0.1 pose off
++0.1 walk north 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2b_slice_phone_d5_up.png
++0.1 pose off
++0.1 walk west 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2b_slice_phone_d5_left.png
++0.1 pose off
++0.1 walk south 0.15
++0.3 zoom near
++0.4 shot p2b_slice_phone_d6_down.png
++0.1 ui 0
++0.2 shotpair p2b_slice_phone_d6_down_world.png p2b_slice_phone_d6_down_nohero.png
++0.1 ui 1
++0.1 zoom normal
+# ---- the sword's keys, facing right then down (wind-up, strike, follow-through, recover)
++0.1 walk east 0.15
++0.3 pose windup sword 0 0
++0.2 shot p2b_slice_phone_d5_windup.png
++0.1 pose strike sword 0 0
++0.2 shot p2b_slice_phone_d5_strike.png
++0.1 pose follow sword 0 0
++0.2 shot p2b_slice_phone_d5_follow.png
++0.1 pose follow sword 0 1
++0.2 shot p2b_slice_phone_d5_recover.png
++0.1 pose off
++0.1 walk south 0.15
++0.3 pose windup sword 0 0
++0.2 shot p2b_slice_phone_d5_windup_down.png
++0.1 pose strike sword 0 0
++0.2 shot p2b_slice_phone_d5_strike_down.png
++0.1 pose follow sword 0 0
++0.2 shot p2b_slice_phone_d5_follow_down.png
++0.1 pose off
+# ---- the fall and the lying body
++0.1 pose fall sword 0 0
++0.2 shot p2b_slice_phone_d5_fall0.png
++0.1 pose fall sword 0 2
++0.2 shot p2b_slice_phone_d5_fall2.png
++0.1 pose lying sword 0 0
++0.2 shot p2b_slice_phone_d5_lying.png
++0.1 pose off
+# ---- the walk and the run east (a burst of frames: 74 px/s is above the gait switch's 54)
++0.1 walk east 1.2
++0.30 shot p2b_slice_phone_run_0.png
++0.05 shot p2b_slice_phone_run_1.png
++0.05 shot p2b_slice_phone_run_2.png
++0.05 shot p2b_slice_phone_run_3.png
++0.7 walk west 0.3
+# ---- the woman hero (A3's woman: wheat braid), four facings
++0.4 body woman
++0.0 hair braids wheat
++0.4 shot p2b_slice_phone_d5_woman.png
++0.1 ui 0
++0.2 shotpair p2b_slice_phone_d5_woman_world.png p2b_slice_phone_d5_woman_nohero.png
++0.1 ui 1
++0.1 walk east 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2b_slice_phone_d5_woman_right.png
++0.1 pose off
++0.1 walk north 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2b_slice_phone_d5_woman_up.png
++0.1 pose off
++0.1 walk west 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2b_slice_phone_d5_woman_left.png
++0.1 pose off
++0.1 walk south 0.15
++0.1 body man
++0.0 hair short copper
+# ---- variety on the same pipeline: three peoples' villagers, an elder, children (lineup: a row east of the hero)
++0.3 lineup highland villager 4 mixed
++0.5 shot p2b_slice_phone_d5_lineup_highland.png
++0.1 lineup dune villager 4 mixed
++0.5 shot p2b_slice_phone_d5_lineup_dune.png
++0.1 lineup jade villager 4 mixed
++0.5 shot p2b_slice_phone_d5_lineup_jade.png
++0.1 zoom near
++0.4 shot p2b_slice_phone_d6_lineup_jade.png
++0.1 zoom normal
++0.1 lineup highland villager 3 male elder
++0.5 shot p2b_slice_phone_d5_elder.png
++0.1 lineup heartland child 4 mixed child
++0.5 shot p2b_slice_phone_d5_children.png
++0.1 lineup heartland child 4 mixed youth
++0.5 shot p2b_slice_phone_d5_youths.png
+# ---- 22:00
++0.3 hour 22
++0.6 shot p2b_slice_phone_d5_night.png
++0.1 ui 0
++0.2 shotpair p2b_slice_phone_d5_night_world.png p2b_slice_phone_d5_night_nohero.png
++0.2 shotpair p2b_slice_phone_d5_night_ring_on.png p2b_slice_phone_d5_night_ring_off.png ring
++0.1 ui 1
++0.1 hour 11
+# ---- the same spot on rig 1: today's people beside the slice
++0.3 rig 1
++0.0 expect rig 1
++0.6 shot p2b_slice_phone_d5_rig1.png
++0.1 rig 2
++0.6 shot p2b_slice_phone_d5_rig2.png

@@ -1,0 +1,268 @@
+# a3/hero/legs: a draft of A3's parts (tools/doll/from_a3.py; docs/ref/style_a3). A starting point: hand-check it.
+part a3/hero/legs
+tags draft a3
+use person
+body man
+role legs std
+layer legs
+anchor pivot
+keys legs
+
+view D key drawn origin 7 8
+|..2222112221..
+|..2432113321..
+|..2432113321..
+|.giiihffiihhf.
+|.ghhhgffhhggf.
+|.ghhggffhgggf.
+|gjihhgffhhgggf
+|ghhhggffhggggf
+|KKKKKKKKKKKKKK
+
+view D key idle origin 7 8
+|..1222112221..
+|..1432113321..
+|..1432113321..
+|.fiiihffiihh..
+|.fhhhgffhhgg..
+|.fhhggffhggg..
+|fjihhgffhhgg..
+|fhhhggffhggggf
+|KKKKKKKKKKKKKK
+
+view D key walkA origin 7 9
+|..1222112221.
+|..1222112221.
+|..14321fiihhf
+|..14321fhhggf
+|.fiiihffhgggf
+|.fhhhgffhhggf
+|.fhhggfKKKKKK
+|fhihhgf......
+|fhhhggf......
+|KKKKKKK......
+
+view D key walkB origin 7 9
+|..1222112221..
+|..1222112221..
+|..1432113321..
+|..14321fiihhf.
+|.fiiihffhhggf.
+|.fhhhgffhgggf.
+|.fhhggffhhggf.
+|fhihhgffhggggf
+|fhhhggfKKKKKKK
+|KKKKKKK.......
+
+view D key walkC origin 6 9
+|.1222112221..
+|.1222112221..
+|fiiihf13321..
+|fhhhgf13321..
+|fhhggffiihhf.
+|fhhhgffhhggf.
+|KKKKKKfhgggf.
+|......fhhgggf
+|......fhhgggf
+|......KKKKKKK
+
+view D key walkD origin 7 9
+|..1222112221..
+|..1222112221..
+|..1432113321..
+|.fiiihf13321..
+|.fhhhgffiihhf.
+|.fhhggffhhggf.
+|.fhhhgffhgggf.
+|fhhhggffhhgggf
+|KKKKKKKfhggggf
+|.......KKKKKKK
+
+view U key idle origin 7 8
+|..1222112221..
+|..1432113321..
+|..1432113321..
+|..iiihffiihhf.
+|..hhhgffhhggf.
+|..hhggffhgggf.
+|..hhhgffhhgggf
+|..hhggffhggggf
+|KKKKKKKKKKKKKK
+
+view U key walkA origin 7 9
+|..1222112221.
+|..1222112221.
+|..14321fiihhf
+|..14321fhhggf
+|.fiiihffhgggf
+|.fhhhgffhhggf
+|.fhhggfKKKKKK
+|fhihhgf......
+|fhhhggf......
+|KKKKKKK......
+
+view U key walkB origin 7 9
+|..1222112221..
+|..1222112221..
+|..1432113321..
+|..14321fiihhf.
+|.fiiihffhhggf.
+|.fhhhgffhgggf.
+|.fhhggffhhggf.
+|fhihhgffhggggf
+|fhhhggfKKKKKKK
+|KKKKKKK.......
+
+view U key walkC origin 6 9
+|.1222112221..
+|.1222112221..
+|fiiihf13321..
+|fhhhgf13321..
+|fhhggffiihhf.
+|fhhhgffhhggf.
+|KKKKKKfhgggf.
+|......fhhgggf
+|......fhhgggf
+|......KKKKKKK
+
+view U key walkD origin 7 9
+|..1222112221..
+|..1222112221..
+|..1432113321..
+|.fiiihf13321..
+|.fhhhgffiihhf.
+|.fhhggffhhggf.
+|.fhhhgffhgggf.
+|fhhhggffhhgggf
+|KKKKKKKfhggggf
+|.......KKKKKKK
+
+view R key idle origin 4 8
+|.12212221..
+|.13214321..
+|.13214321..
+|.fihfiihf..
+|.fhgfhhgf..
+|.fhgfhhgf..
+|fhhgfhhhgf.
+|fhggfihhggf
+|KKKKKKKKKKK
+
+view R key lunge origin 9 9
+|......1222221.......
+|......13214321......
+|.....1321..14321....
+|....1321....14321...
+|...1321.....fiihhf..
+|..fhgf.......fhhgf..
+|.fggf........fhhgf..
+|fgggf........fhhhgf.
+|fhgggf.......fihhggf
+|.KKKKK.......KKKKKKK
+
+view R key walkA origin 7 9
+|....1222221......
+|....13214321.....
+|...1321.14321....
+|..1321...14321...
+|.fhhgf...fiihhf..
+|fghgf.....fhhgf..
+|fgggf.....fhhgf..
+|fggggf....fhhhgf.
+|.fhgggf...fihhggf
+|..KKKKK...KKKKKKK
+
+view R key walkB origin 5 9
+|..1222221...
+|..13214321..
+|..13214321..
+|...1214321..
+|..fhgfiihhf.
+|.fggffhhgf..
+|fgggffhhgf..
+|KKKKKfhhhgf.
+|.....fihhggf
+|.....KKKKKKK
+
+view R key walkC origin 7 9
+|....1222221......
+|....14321321.....
+|...14321.1321....
+|..14321...1321...
+|.fiihhf...fhhgf..
+|.fhhgf.....fhgf..
+|fhhgf......fhgf..
+|fhhhgf.....fhggf.
+|.fihhgf....fhgggf
+|..KKKKK....KKKKKK
+
+view R key walkD origin 3 9
+|1222221..
+|.143211..
+|..14321..
+|..114321.
+|..ffiihhf
+|..ffhhgf.
+|..fhhhgf.
+|..KKKKKK.
+|..fhggggf
+|..KKKKKKK
+
+view L key idle origin 7 8
+|........1221
+|..1432.....1
+|..14321321..
+|..fiihfhgf..
+|..fhhgfhgf..
+|..fhhgfhgf..
+|.fhhhgfhggf.
+|fihhggfhggf.
+|KKKKKKKKKKK.
+
+view L key walkA origin 9 9
+|......1222221....
+|.....14321321....
+|....14321.1321...
+|...14321...1321..
+|..fiihhf...fhhgf.
+|..fihgf.....fhggf
+|..fihgf.....fgggf
+|.fihhgf....fggggf
+|fjihhgf...fhgggf.
+|KKKKKKK...KKKKK..
+
+view L key walkB origin 6 9
+|...1222221..
+|..14321321..
+|..14321321..
+|..1432121...
+|fiihhffhgf..
+|..fihgffggf.
+|..fihgffgggf
+|.fihhgfKKKKK
+|fjihhgf.....
+|KKKKKKK.....
+
+view L key walkC origin 9 9
+|......1222221....
+|.....13211432....
+|....1321.14321...
+|...1321...14321..
+|..fhhgf...fiihhf.
+|..fhgf.....fihgf.
+|..fhgf......fihgf
+|.fhggf.....fihhgf
+|fhgggf....fjihgf.
+|KKKKKK....KKKKK..
+
+view L key walkD origin 5 9
+|..1222221
+|..143211.
+|..14321..
+|.143211..
+|fiihhff..
+|.fihgff..
+|.fihhgf..
+|.KKKKKK..
+|fhggggf..
+|KKKKKKK..

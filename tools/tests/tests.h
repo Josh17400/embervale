@@ -25,6 +25,9 @@ void out(const char* fmt, ...);
 
 // ---- png.cpp
 bool writePng(const char* path, int w, int h, const std::vector<uint32_t>& rgba);
+// (P2b, png_read.cpp) the reader: 8-bit RGBA / RGB / grey / palette, non-interlaced (A3's reference frames, Witness
+// shots); rgba packs r | g << 8 | b << 16 | a << 24 like the engine's rgba(). False when missing or of another kind.
+bool readPng(const char* path, int& w, int& h, std::vector<uint32_t>& rgba);
 uint32_t groundColor(Ground g);
 
 // ---- audit.cpp: informational numbers that later generator tasks should raise (PLAN.md task 1)

@@ -1,0 +1,9518 @@
+[
+ {
+  "name": "slice motion herowalk east",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "d@0.9-2.50",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ],
+     [
+      "skill",
+      "sneak",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_herowalk_east_000.png",
+    "expect": [
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_herowalk_east_001.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_herowalk_east_002.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_herowalk_east_003.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_herowalk_east_004.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_herowalk_east_005.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_herowalk_east_006.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_herowalk_east_007.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_herowalk_east_008.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_herowalk_east_009.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_herowalk_east_010.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_herowalk_east_011.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_herowalk_east_012.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_herowalk_east_013.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_herowalk_east_014.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_herowalk_east_015.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_herowalk_east_016.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_herowalk_east_017.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_herowalk_east_018.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_herowalk_east_019.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_herowalk_east_020.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_herowalk_east_021.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_herowalk_east_022.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_herowalk_east_023.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_herowalk_east_024.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_herowalk_east_025.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_herowalk_east_026.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_herowalk_east_027.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_herowalk_east_028.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_herowalk_east_029.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_herowalk_east_030.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_herowalk_east_031.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_herowalk_east_032.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_herowalk_east_033.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_herowalk_east_034.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_herowalk_east_035.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_herowalk_east_036.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_herowalk_east_037.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_herowalk_east_038.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_herowalk_east_039.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_herowalk_east_040.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_herowalk_east_041.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_herowalk_east_042.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_herowalk_east_043.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_herowalk_east_044.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_herowalk_east_045.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_herowalk_east_046.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_herowalk_east_047.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_herowalk_east_048.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_herowalk_east_049.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_herowalk_east_050.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_herowalk_east_051.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_herowalk_east_052.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_herowalk_east_053.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_herowalk_east_054.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_herowalk_east_055.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_herowalk_east_056.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_herowalk_east_057.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_herowalk_east_058.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_herowalk_east_059.png"
+   },
+   {
+    "at": "132f",
+    "shot": "p2b_motion_herowalk_east_060.png"
+   },
+   {
+    "at": "133f",
+    "shot": "p2b_motion_herowalk_east_061.png"
+   },
+   {
+    "at": "134f",
+    "shot": "p2b_motion_herowalk_east_062.png"
+   },
+   {
+    "at": "135f",
+    "shot": "p2b_motion_herowalk_east_063.png"
+   },
+   {
+    "at": "136f",
+    "shot": "p2b_motion_herowalk_east_064.png"
+   },
+   {
+    "at": "137f",
+    "shot": "p2b_motion_herowalk_east_065.png"
+   },
+   {
+    "at": "138f",
+    "shot": "p2b_motion_herowalk_east_066.png"
+   },
+   {
+    "at": "139f",
+    "shot": "p2b_motion_herowalk_east_067.png"
+   },
+   {
+    "at": "140f",
+    "shot": "p2b_motion_herowalk_east_068.png"
+   },
+   {
+    "at": "141f",
+    "shot": "p2b_motion_herowalk_east_069.png"
+   },
+   {
+    "at": "142f",
+    "shot": "p2b_motion_herowalk_east_070.png"
+   },
+   {
+    "at": "143f",
+    "shot": "p2b_motion_herowalk_east_071.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion herowalk west",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "a@0.9-2.50",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ],
+     [
+      "skill",
+      "sneak",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_herowalk_west_000.png",
+    "expect": [
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_herowalk_west_001.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_herowalk_west_002.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_herowalk_west_003.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_herowalk_west_004.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_herowalk_west_005.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_herowalk_west_006.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_herowalk_west_007.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_herowalk_west_008.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_herowalk_west_009.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_herowalk_west_010.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_herowalk_west_011.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_herowalk_west_012.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_herowalk_west_013.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_herowalk_west_014.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_herowalk_west_015.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_herowalk_west_016.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_herowalk_west_017.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_herowalk_west_018.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_herowalk_west_019.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_herowalk_west_020.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_herowalk_west_021.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_herowalk_west_022.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_herowalk_west_023.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_herowalk_west_024.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_herowalk_west_025.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_herowalk_west_026.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_herowalk_west_027.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_herowalk_west_028.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_herowalk_west_029.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_herowalk_west_030.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_herowalk_west_031.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_herowalk_west_032.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_herowalk_west_033.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_herowalk_west_034.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_herowalk_west_035.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_herowalk_west_036.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_herowalk_west_037.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_herowalk_west_038.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_herowalk_west_039.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_herowalk_west_040.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_herowalk_west_041.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_herowalk_west_042.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_herowalk_west_043.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_herowalk_west_044.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_herowalk_west_045.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_herowalk_west_046.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_herowalk_west_047.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_herowalk_west_048.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_herowalk_west_049.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_herowalk_west_050.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_herowalk_west_051.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_herowalk_west_052.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_herowalk_west_053.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_herowalk_west_054.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_herowalk_west_055.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_herowalk_west_056.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_herowalk_west_057.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_herowalk_west_058.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_herowalk_west_059.png"
+   },
+   {
+    "at": "132f",
+    "shot": "p2b_motion_herowalk_west_060.png"
+   },
+   {
+    "at": "133f",
+    "shot": "p2b_motion_herowalk_west_061.png"
+   },
+   {
+    "at": "134f",
+    "shot": "p2b_motion_herowalk_west_062.png"
+   },
+   {
+    "at": "135f",
+    "shot": "p2b_motion_herowalk_west_063.png"
+   },
+   {
+    "at": "136f",
+    "shot": "p2b_motion_herowalk_west_064.png"
+   },
+   {
+    "at": "137f",
+    "shot": "p2b_motion_herowalk_west_065.png"
+   },
+   {
+    "at": "138f",
+    "shot": "p2b_motion_herowalk_west_066.png"
+   },
+   {
+    "at": "139f",
+    "shot": "p2b_motion_herowalk_west_067.png"
+   },
+   {
+    "at": "140f",
+    "shot": "p2b_motion_herowalk_west_068.png"
+   },
+   {
+    "at": "141f",
+    "shot": "p2b_motion_herowalk_west_069.png"
+   },
+   {
+    "at": "142f",
+    "shot": "p2b_motion_herowalk_west_070.png"
+   },
+   {
+    "at": "143f",
+    "shot": "p2b_motion_herowalk_west_071.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion herowalk south",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "s@0.9-2.50",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ],
+     [
+      "skill",
+      "sneak",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_herowalk_south_000.png",
+    "expect": [
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_herowalk_south_001.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_herowalk_south_002.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_herowalk_south_003.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_herowalk_south_004.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_herowalk_south_005.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_herowalk_south_006.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_herowalk_south_007.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_herowalk_south_008.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_herowalk_south_009.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_herowalk_south_010.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_herowalk_south_011.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_herowalk_south_012.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_herowalk_south_013.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_herowalk_south_014.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_herowalk_south_015.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_herowalk_south_016.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_herowalk_south_017.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_herowalk_south_018.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_herowalk_south_019.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_herowalk_south_020.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_herowalk_south_021.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_herowalk_south_022.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_herowalk_south_023.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_herowalk_south_024.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_herowalk_south_025.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_herowalk_south_026.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_herowalk_south_027.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_herowalk_south_028.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_herowalk_south_029.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_herowalk_south_030.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_herowalk_south_031.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_herowalk_south_032.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_herowalk_south_033.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_herowalk_south_034.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_herowalk_south_035.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_herowalk_south_036.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_herowalk_south_037.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_herowalk_south_038.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_herowalk_south_039.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_herowalk_south_040.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_herowalk_south_041.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_herowalk_south_042.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_herowalk_south_043.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_herowalk_south_044.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_herowalk_south_045.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_herowalk_south_046.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_herowalk_south_047.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_herowalk_south_048.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_herowalk_south_049.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_herowalk_south_050.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_herowalk_south_051.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_herowalk_south_052.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_herowalk_south_053.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_herowalk_south_054.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_herowalk_south_055.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_herowalk_south_056.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_herowalk_south_057.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_herowalk_south_058.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_herowalk_south_059.png"
+   },
+   {
+    "at": "132f",
+    "shot": "p2b_motion_herowalk_south_060.png"
+   },
+   {
+    "at": "133f",
+    "shot": "p2b_motion_herowalk_south_061.png"
+   },
+   {
+    "at": "134f",
+    "shot": "p2b_motion_herowalk_south_062.png"
+   },
+   {
+    "at": "135f",
+    "shot": "p2b_motion_herowalk_south_063.png"
+   },
+   {
+    "at": "136f",
+    "shot": "p2b_motion_herowalk_south_064.png"
+   },
+   {
+    "at": "137f",
+    "shot": "p2b_motion_herowalk_south_065.png"
+   },
+   {
+    "at": "138f",
+    "shot": "p2b_motion_herowalk_south_066.png"
+   },
+   {
+    "at": "139f",
+    "shot": "p2b_motion_herowalk_south_067.png"
+   },
+   {
+    "at": "140f",
+    "shot": "p2b_motion_herowalk_south_068.png"
+   },
+   {
+    "at": "141f",
+    "shot": "p2b_motion_herowalk_south_069.png"
+   },
+   {
+    "at": "142f",
+    "shot": "p2b_motion_herowalk_south_070.png"
+   },
+   {
+    "at": "143f",
+    "shot": "p2b_motion_herowalk_south_071.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion herowalk north",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "w@0.9-2.50",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ],
+     [
+      "skill",
+      "sneak",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_herowalk_north_000.png",
+    "expect": [
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_herowalk_north_001.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_herowalk_north_002.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_herowalk_north_003.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_herowalk_north_004.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_herowalk_north_005.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_herowalk_north_006.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_herowalk_north_007.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_herowalk_north_008.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_herowalk_north_009.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_herowalk_north_010.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_herowalk_north_011.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_herowalk_north_012.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_herowalk_north_013.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_herowalk_north_014.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_herowalk_north_015.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_herowalk_north_016.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_herowalk_north_017.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_herowalk_north_018.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_herowalk_north_019.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_herowalk_north_020.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_herowalk_north_021.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_herowalk_north_022.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_herowalk_north_023.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_herowalk_north_024.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_herowalk_north_025.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_herowalk_north_026.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_herowalk_north_027.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_herowalk_north_028.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_herowalk_north_029.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_herowalk_north_030.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_herowalk_north_031.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_herowalk_north_032.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_herowalk_north_033.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_herowalk_north_034.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_herowalk_north_035.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_herowalk_north_036.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_herowalk_north_037.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_herowalk_north_038.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_herowalk_north_039.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_herowalk_north_040.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_herowalk_north_041.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_herowalk_north_042.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_herowalk_north_043.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_herowalk_north_044.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_herowalk_north_045.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_herowalk_north_046.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_herowalk_north_047.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_herowalk_north_048.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_herowalk_north_049.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_herowalk_north_050.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_herowalk_north_051.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_herowalk_north_052.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_herowalk_north_053.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_herowalk_north_054.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_herowalk_north_055.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_herowalk_north_056.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_herowalk_north_057.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_herowalk_north_058.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_herowalk_north_059.png"
+   },
+   {
+    "at": "132f",
+    "shot": "p2b_motion_herowalk_north_060.png"
+   },
+   {
+    "at": "133f",
+    "shot": "p2b_motion_herowalk_north_061.png"
+   },
+   {
+    "at": "134f",
+    "shot": "p2b_motion_herowalk_north_062.png"
+   },
+   {
+    "at": "135f",
+    "shot": "p2b_motion_herowalk_north_063.png"
+   },
+   {
+    "at": "136f",
+    "shot": "p2b_motion_herowalk_north_064.png"
+   },
+   {
+    "at": "137f",
+    "shot": "p2b_motion_herowalk_north_065.png"
+   },
+   {
+    "at": "138f",
+    "shot": "p2b_motion_herowalk_north_066.png"
+   },
+   {
+    "at": "139f",
+    "shot": "p2b_motion_herowalk_north_067.png"
+   },
+   {
+    "at": "140f",
+    "shot": "p2b_motion_herowalk_north_068.png"
+   },
+   {
+    "at": "141f",
+    "shot": "p2b_motion_herowalk_north_069.png"
+   },
+   {
+    "at": "142f",
+    "shot": "p2b_motion_herowalk_north_070.png"
+   },
+   {
+    "at": "143f",
+    "shot": "p2b_motion_herowalk_north_071.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion herorun east",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "d@0.9-2.30",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_herorun_east_000.png",
+    "expect": [
+     "state.player.anim.gait == 'run'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_herorun_east_001.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_herorun_east_002.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_herorun_east_003.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_herorun_east_004.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_herorun_east_005.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_herorun_east_006.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_herorun_east_007.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_herorun_east_008.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_herorun_east_009.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_herorun_east_010.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_herorun_east_011.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_herorun_east_012.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_herorun_east_013.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_herorun_east_014.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_herorun_east_015.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_herorun_east_016.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_herorun_east_017.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_herorun_east_018.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_herorun_east_019.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_herorun_east_020.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_herorun_east_021.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_herorun_east_022.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_herorun_east_023.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_herorun_east_024.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_herorun_east_025.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_herorun_east_026.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_herorun_east_027.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_herorun_east_028.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_herorun_east_029.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_herorun_east_030.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_herorun_east_031.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_herorun_east_032.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_herorun_east_033.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_herorun_east_034.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_herorun_east_035.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_herorun_east_036.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_herorun_east_037.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_herorun_east_038.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_herorun_east_039.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_herorun_east_040.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_herorun_east_041.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_herorun_east_042.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_herorun_east_043.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_herorun_east_044.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_herorun_east_045.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_herorun_east_046.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_herorun_east_047.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_herorun_east_048.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_herorun_east_049.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_herorun_east_050.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_herorun_east_051.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_herorun_east_052.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_herorun_east_053.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_herorun_east_054.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_herorun_east_055.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_herorun_east_056.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_herorun_east_057.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_herorun_east_058.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_herorun_east_059.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion herorun west",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "a@0.9-2.30",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_herorun_west_000.png",
+    "expect": [
+     "state.player.anim.gait == 'run'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_herorun_west_001.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_herorun_west_002.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_herorun_west_003.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_herorun_west_004.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_herorun_west_005.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_herorun_west_006.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_herorun_west_007.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_herorun_west_008.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_herorun_west_009.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_herorun_west_010.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_herorun_west_011.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_herorun_west_012.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_herorun_west_013.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_herorun_west_014.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_herorun_west_015.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_herorun_west_016.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_herorun_west_017.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_herorun_west_018.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_herorun_west_019.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_herorun_west_020.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_herorun_west_021.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_herorun_west_022.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_herorun_west_023.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_herorun_west_024.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_herorun_west_025.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_herorun_west_026.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_herorun_west_027.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_herorun_west_028.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_herorun_west_029.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_herorun_west_030.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_herorun_west_031.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_herorun_west_032.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_herorun_west_033.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_herorun_west_034.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_herorun_west_035.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_herorun_west_036.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_herorun_west_037.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_herorun_west_038.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_herorun_west_039.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_herorun_west_040.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_herorun_west_041.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_herorun_west_042.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_herorun_west_043.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_herorun_west_044.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_herorun_west_045.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_herorun_west_046.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_herorun_west_047.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_herorun_west_048.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_herorun_west_049.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_herorun_west_050.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_herorun_west_051.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_herorun_west_052.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_herorun_west_053.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_herorun_west_054.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_herorun_west_055.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_herorun_west_056.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_herorun_west_057.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_herorun_west_058.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_herorun_west_059.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion herorun south",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "s@0.9-2.30",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_herorun_south_000.png",
+    "expect": [
+     "state.player.anim.gait == 'run'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_herorun_south_001.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_herorun_south_002.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_herorun_south_003.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_herorun_south_004.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_herorun_south_005.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_herorun_south_006.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_herorun_south_007.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_herorun_south_008.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_herorun_south_009.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_herorun_south_010.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_herorun_south_011.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_herorun_south_012.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_herorun_south_013.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_herorun_south_014.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_herorun_south_015.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_herorun_south_016.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_herorun_south_017.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_herorun_south_018.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_herorun_south_019.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_herorun_south_020.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_herorun_south_021.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_herorun_south_022.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_herorun_south_023.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_herorun_south_024.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_herorun_south_025.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_herorun_south_026.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_herorun_south_027.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_herorun_south_028.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_herorun_south_029.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_herorun_south_030.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_herorun_south_031.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_herorun_south_032.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_herorun_south_033.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_herorun_south_034.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_herorun_south_035.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_herorun_south_036.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_herorun_south_037.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_herorun_south_038.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_herorun_south_039.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_herorun_south_040.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_herorun_south_041.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_herorun_south_042.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_herorun_south_043.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_herorun_south_044.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_herorun_south_045.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_herorun_south_046.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_herorun_south_047.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_herorun_south_048.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_herorun_south_049.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_herorun_south_050.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_herorun_south_051.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_herorun_south_052.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_herorun_south_053.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_herorun_south_054.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_herorun_south_055.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_herorun_south_056.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_herorun_south_057.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_herorun_south_058.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_herorun_south_059.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion herorun north",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "w@0.9-2.30",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_herorun_north_000.png",
+    "expect": [
+     "state.player.anim.gait == 'run'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_herorun_north_001.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_herorun_north_002.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_herorun_north_003.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_herorun_north_004.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_herorun_north_005.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_herorun_north_006.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_herorun_north_007.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_herorun_north_008.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_herorun_north_009.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_herorun_north_010.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_herorun_north_011.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_herorun_north_012.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_herorun_north_013.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_herorun_north_014.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_herorun_north_015.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_herorun_north_016.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_herorun_north_017.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_herorun_north_018.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_herorun_north_019.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_herorun_north_020.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_herorun_north_021.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_herorun_north_022.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_herorun_north_023.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_herorun_north_024.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_herorun_north_025.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_herorun_north_026.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_herorun_north_027.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_herorun_north_028.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_herorun_north_029.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_herorun_north_030.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_herorun_north_031.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_herorun_north_032.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_herorun_north_033.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_herorun_north_034.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_herorun_north_035.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_herorun_north_036.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_herorun_north_037.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_herorun_north_038.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_herorun_north_039.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_herorun_north_040.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_herorun_north_041.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_herorun_north_042.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_herorun_north_043.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_herorun_north_044.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_herorun_north_045.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_herorun_north_046.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_herorun_north_047.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_herorun_north_048.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_herorun_north_049.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_herorun_north_050.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_herorun_north_051.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_herorun_north_052.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_herorun_north_053.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_herorun_north_054.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_herorun_north_055.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_herorun_north_056.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_herorun_north_057.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_herorun_north_058.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_herorun_north_059.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion womanwalk east",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "d@0.9-2.50",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "body",
+      "woman"
+     ],
+     [
+      "hair",
+      "braids",
+      "wheat"
+     ],
+     [
+      "slicelook",
+      "a3woman",
+      "outfit=1",
+      "weapon=0"
+     ],
+     [
+      "skill",
+      "sneak",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_womanwalk_east_000.png",
+    "expect": [
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_womanwalk_east_001.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_womanwalk_east_002.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_womanwalk_east_003.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_womanwalk_east_004.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_womanwalk_east_005.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_womanwalk_east_006.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_womanwalk_east_007.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_womanwalk_east_008.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_womanwalk_east_009.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_womanwalk_east_010.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_womanwalk_east_011.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_womanwalk_east_012.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_womanwalk_east_013.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_womanwalk_east_014.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_womanwalk_east_015.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_womanwalk_east_016.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_womanwalk_east_017.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_womanwalk_east_018.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_womanwalk_east_019.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_womanwalk_east_020.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_womanwalk_east_021.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_womanwalk_east_022.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_womanwalk_east_023.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_womanwalk_east_024.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_womanwalk_east_025.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_womanwalk_east_026.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_womanwalk_east_027.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_womanwalk_east_028.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_womanwalk_east_029.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_womanwalk_east_030.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_womanwalk_east_031.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_womanwalk_east_032.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_womanwalk_east_033.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_womanwalk_east_034.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_womanwalk_east_035.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_womanwalk_east_036.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_womanwalk_east_037.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_womanwalk_east_038.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_womanwalk_east_039.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_womanwalk_east_040.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_womanwalk_east_041.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_womanwalk_east_042.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_womanwalk_east_043.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_womanwalk_east_044.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_womanwalk_east_045.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_womanwalk_east_046.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_womanwalk_east_047.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_womanwalk_east_048.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_womanwalk_east_049.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_womanwalk_east_050.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_womanwalk_east_051.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_womanwalk_east_052.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_womanwalk_east_053.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_womanwalk_east_054.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_womanwalk_east_055.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_womanwalk_east_056.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_womanwalk_east_057.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_womanwalk_east_058.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_womanwalk_east_059.png"
+   },
+   {
+    "at": "132f",
+    "shot": "p2b_motion_womanwalk_east_060.png"
+   },
+   {
+    "at": "133f",
+    "shot": "p2b_motion_womanwalk_east_061.png"
+   },
+   {
+    "at": "134f",
+    "shot": "p2b_motion_womanwalk_east_062.png"
+   },
+   {
+    "at": "135f",
+    "shot": "p2b_motion_womanwalk_east_063.png"
+   },
+   {
+    "at": "136f",
+    "shot": "p2b_motion_womanwalk_east_064.png"
+   },
+   {
+    "at": "137f",
+    "shot": "p2b_motion_womanwalk_east_065.png"
+   },
+   {
+    "at": "138f",
+    "shot": "p2b_motion_womanwalk_east_066.png"
+   },
+   {
+    "at": "139f",
+    "shot": "p2b_motion_womanwalk_east_067.png"
+   },
+   {
+    "at": "140f",
+    "shot": "p2b_motion_womanwalk_east_068.png"
+   },
+   {
+    "at": "141f",
+    "shot": "p2b_motion_womanwalk_east_069.png"
+   },
+   {
+    "at": "142f",
+    "shot": "p2b_motion_womanwalk_east_070.png"
+   },
+   {
+    "at": "143f",
+    "shot": "p2b_motion_womanwalk_east_071.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion womanwalk west",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "a@0.9-2.50",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "body",
+      "woman"
+     ],
+     [
+      "hair",
+      "braids",
+      "wheat"
+     ],
+     [
+      "slicelook",
+      "a3woman",
+      "outfit=1",
+      "weapon=0"
+     ],
+     [
+      "skill",
+      "sneak",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_womanwalk_west_000.png",
+    "expect": [
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_womanwalk_west_001.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_womanwalk_west_002.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_womanwalk_west_003.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_womanwalk_west_004.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_womanwalk_west_005.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_womanwalk_west_006.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_womanwalk_west_007.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_womanwalk_west_008.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_womanwalk_west_009.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_womanwalk_west_010.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_womanwalk_west_011.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_womanwalk_west_012.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_womanwalk_west_013.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_womanwalk_west_014.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_womanwalk_west_015.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_womanwalk_west_016.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_womanwalk_west_017.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_womanwalk_west_018.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_womanwalk_west_019.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_womanwalk_west_020.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_womanwalk_west_021.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_womanwalk_west_022.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_womanwalk_west_023.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_womanwalk_west_024.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_womanwalk_west_025.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_womanwalk_west_026.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_womanwalk_west_027.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_womanwalk_west_028.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_womanwalk_west_029.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_womanwalk_west_030.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_womanwalk_west_031.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_womanwalk_west_032.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_womanwalk_west_033.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_womanwalk_west_034.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_womanwalk_west_035.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_womanwalk_west_036.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_womanwalk_west_037.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_womanwalk_west_038.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_womanwalk_west_039.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_womanwalk_west_040.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_womanwalk_west_041.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_womanwalk_west_042.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_womanwalk_west_043.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_womanwalk_west_044.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_womanwalk_west_045.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_womanwalk_west_046.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_womanwalk_west_047.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_womanwalk_west_048.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_womanwalk_west_049.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_womanwalk_west_050.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_womanwalk_west_051.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_womanwalk_west_052.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_womanwalk_west_053.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_womanwalk_west_054.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_womanwalk_west_055.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_womanwalk_west_056.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_womanwalk_west_057.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_womanwalk_west_058.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_womanwalk_west_059.png"
+   },
+   {
+    "at": "132f",
+    "shot": "p2b_motion_womanwalk_west_060.png"
+   },
+   {
+    "at": "133f",
+    "shot": "p2b_motion_womanwalk_west_061.png"
+   },
+   {
+    "at": "134f",
+    "shot": "p2b_motion_womanwalk_west_062.png"
+   },
+   {
+    "at": "135f",
+    "shot": "p2b_motion_womanwalk_west_063.png"
+   },
+   {
+    "at": "136f",
+    "shot": "p2b_motion_womanwalk_west_064.png"
+   },
+   {
+    "at": "137f",
+    "shot": "p2b_motion_womanwalk_west_065.png"
+   },
+   {
+    "at": "138f",
+    "shot": "p2b_motion_womanwalk_west_066.png"
+   },
+   {
+    "at": "139f",
+    "shot": "p2b_motion_womanwalk_west_067.png"
+   },
+   {
+    "at": "140f",
+    "shot": "p2b_motion_womanwalk_west_068.png"
+   },
+   {
+    "at": "141f",
+    "shot": "p2b_motion_womanwalk_west_069.png"
+   },
+   {
+    "at": "142f",
+    "shot": "p2b_motion_womanwalk_west_070.png"
+   },
+   {
+    "at": "143f",
+    "shot": "p2b_motion_womanwalk_west_071.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion womanwalk south",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "s@0.9-2.50",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "body",
+      "woman"
+     ],
+     [
+      "hair",
+      "braids",
+      "wheat"
+     ],
+     [
+      "slicelook",
+      "a3woman",
+      "outfit=1",
+      "weapon=0"
+     ],
+     [
+      "skill",
+      "sneak",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_womanwalk_south_000.png",
+    "expect": [
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_womanwalk_south_001.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_womanwalk_south_002.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_womanwalk_south_003.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_womanwalk_south_004.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_womanwalk_south_005.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_womanwalk_south_006.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_womanwalk_south_007.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_womanwalk_south_008.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_womanwalk_south_009.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_womanwalk_south_010.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_womanwalk_south_011.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_womanwalk_south_012.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_womanwalk_south_013.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_womanwalk_south_014.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_womanwalk_south_015.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_womanwalk_south_016.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_womanwalk_south_017.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_womanwalk_south_018.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_womanwalk_south_019.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_womanwalk_south_020.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_womanwalk_south_021.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_womanwalk_south_022.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_womanwalk_south_023.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_womanwalk_south_024.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_womanwalk_south_025.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_womanwalk_south_026.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_womanwalk_south_027.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_womanwalk_south_028.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_womanwalk_south_029.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_womanwalk_south_030.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_womanwalk_south_031.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_womanwalk_south_032.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_womanwalk_south_033.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_womanwalk_south_034.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_womanwalk_south_035.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_womanwalk_south_036.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_womanwalk_south_037.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_womanwalk_south_038.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_womanwalk_south_039.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_womanwalk_south_040.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_womanwalk_south_041.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_womanwalk_south_042.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_womanwalk_south_043.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_womanwalk_south_044.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_womanwalk_south_045.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_womanwalk_south_046.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_womanwalk_south_047.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_womanwalk_south_048.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_womanwalk_south_049.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_womanwalk_south_050.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_womanwalk_south_051.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_womanwalk_south_052.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_womanwalk_south_053.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_womanwalk_south_054.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_womanwalk_south_055.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_womanwalk_south_056.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_womanwalk_south_057.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_womanwalk_south_058.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_womanwalk_south_059.png"
+   },
+   {
+    "at": "132f",
+    "shot": "p2b_motion_womanwalk_south_060.png"
+   },
+   {
+    "at": "133f",
+    "shot": "p2b_motion_womanwalk_south_061.png"
+   },
+   {
+    "at": "134f",
+    "shot": "p2b_motion_womanwalk_south_062.png"
+   },
+   {
+    "at": "135f",
+    "shot": "p2b_motion_womanwalk_south_063.png"
+   },
+   {
+    "at": "136f",
+    "shot": "p2b_motion_womanwalk_south_064.png"
+   },
+   {
+    "at": "137f",
+    "shot": "p2b_motion_womanwalk_south_065.png"
+   },
+   {
+    "at": "138f",
+    "shot": "p2b_motion_womanwalk_south_066.png"
+   },
+   {
+    "at": "139f",
+    "shot": "p2b_motion_womanwalk_south_067.png"
+   },
+   {
+    "at": "140f",
+    "shot": "p2b_motion_womanwalk_south_068.png"
+   },
+   {
+    "at": "141f",
+    "shot": "p2b_motion_womanwalk_south_069.png"
+   },
+   {
+    "at": "142f",
+    "shot": "p2b_motion_womanwalk_south_070.png"
+   },
+   {
+    "at": "143f",
+    "shot": "p2b_motion_womanwalk_south_071.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion womanwalk north",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "w@0.9-2.50",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "body",
+      "woman"
+     ],
+     [
+      "hair",
+      "braids",
+      "wheat"
+     ],
+     [
+      "slicelook",
+      "a3woman",
+      "outfit=1",
+      "weapon=0"
+     ],
+     [
+      "skill",
+      "sneak",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_womanwalk_north_000.png",
+    "expect": [
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_womanwalk_north_001.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_womanwalk_north_002.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_womanwalk_north_003.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_womanwalk_north_004.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_womanwalk_north_005.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_womanwalk_north_006.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_womanwalk_north_007.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_womanwalk_north_008.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_womanwalk_north_009.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_womanwalk_north_010.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_womanwalk_north_011.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_womanwalk_north_012.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_womanwalk_north_013.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_womanwalk_north_014.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_womanwalk_north_015.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_womanwalk_north_016.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_womanwalk_north_017.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_womanwalk_north_018.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_womanwalk_north_019.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_womanwalk_north_020.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_womanwalk_north_021.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_womanwalk_north_022.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_womanwalk_north_023.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_womanwalk_north_024.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_womanwalk_north_025.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_womanwalk_north_026.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_womanwalk_north_027.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_womanwalk_north_028.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_womanwalk_north_029.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_womanwalk_north_030.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_womanwalk_north_031.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_womanwalk_north_032.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_womanwalk_north_033.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_womanwalk_north_034.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_womanwalk_north_035.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_womanwalk_north_036.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_womanwalk_north_037.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_womanwalk_north_038.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_womanwalk_north_039.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_womanwalk_north_040.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_womanwalk_north_041.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_womanwalk_north_042.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_womanwalk_north_043.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_womanwalk_north_044.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_womanwalk_north_045.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_womanwalk_north_046.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_womanwalk_north_047.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_womanwalk_north_048.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_womanwalk_north_049.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_womanwalk_north_050.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_womanwalk_north_051.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_womanwalk_north_052.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_womanwalk_north_053.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_womanwalk_north_054.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_womanwalk_north_055.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_womanwalk_north_056.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_womanwalk_north_057.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_womanwalk_north_058.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_womanwalk_north_059.png"
+   },
+   {
+    "at": "132f",
+    "shot": "p2b_motion_womanwalk_north_060.png"
+   },
+   {
+    "at": "133f",
+    "shot": "p2b_motion_womanwalk_north_061.png"
+   },
+   {
+    "at": "134f",
+    "shot": "p2b_motion_womanwalk_north_062.png"
+   },
+   {
+    "at": "135f",
+    "shot": "p2b_motion_womanwalk_north_063.png"
+   },
+   {
+    "at": "136f",
+    "shot": "p2b_motion_womanwalk_north_064.png"
+   },
+   {
+    "at": "137f",
+    "shot": "p2b_motion_womanwalk_north_065.png"
+   },
+   {
+    "at": "138f",
+    "shot": "p2b_motion_womanwalk_north_066.png"
+   },
+   {
+    "at": "139f",
+    "shot": "p2b_motion_womanwalk_north_067.png"
+   },
+   {
+    "at": "140f",
+    "shot": "p2b_motion_womanwalk_north_068.png"
+   },
+   {
+    "at": "141f",
+    "shot": "p2b_motion_womanwalk_north_069.png"
+   },
+   {
+    "at": "142f",
+    "shot": "p2b_motion_womanwalk_north_070.png"
+   },
+   {
+    "at": "143f",
+    "shot": "p2b_motion_womanwalk_north_071.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion womanrun east",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "d@0.9-2.30",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "body",
+      "woman"
+     ],
+     [
+      "hair",
+      "braids",
+      "wheat"
+     ],
+     [
+      "slicelook",
+      "a3woman",
+      "outfit=1",
+      "weapon=0"
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_womanrun_east_000.png",
+    "expect": [
+     "state.player.anim.gait == 'run'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_womanrun_east_001.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_womanrun_east_002.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_womanrun_east_003.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_womanrun_east_004.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_womanrun_east_005.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_womanrun_east_006.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_womanrun_east_007.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_womanrun_east_008.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_womanrun_east_009.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_womanrun_east_010.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_womanrun_east_011.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_womanrun_east_012.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_womanrun_east_013.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_womanrun_east_014.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_womanrun_east_015.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_womanrun_east_016.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_womanrun_east_017.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_womanrun_east_018.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_womanrun_east_019.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_womanrun_east_020.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_womanrun_east_021.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_womanrun_east_022.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_womanrun_east_023.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_womanrun_east_024.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_womanrun_east_025.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_womanrun_east_026.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_womanrun_east_027.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_womanrun_east_028.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_womanrun_east_029.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_womanrun_east_030.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_womanrun_east_031.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_womanrun_east_032.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_womanrun_east_033.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_womanrun_east_034.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_womanrun_east_035.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_womanrun_east_036.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_womanrun_east_037.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_womanrun_east_038.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_womanrun_east_039.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_womanrun_east_040.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_womanrun_east_041.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_womanrun_east_042.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_womanrun_east_043.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_womanrun_east_044.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_womanrun_east_045.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_womanrun_east_046.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_womanrun_east_047.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_womanrun_east_048.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_womanrun_east_049.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_womanrun_east_050.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_womanrun_east_051.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_womanrun_east_052.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_womanrun_east_053.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_womanrun_east_054.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_womanrun_east_055.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_womanrun_east_056.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_womanrun_east_057.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_womanrun_east_058.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_womanrun_east_059.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion womanrun west",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "a@0.9-2.30",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "body",
+      "woman"
+     ],
+     [
+      "hair",
+      "braids",
+      "wheat"
+     ],
+     [
+      "slicelook",
+      "a3woman",
+      "outfit=1",
+      "weapon=0"
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_womanrun_west_000.png",
+    "expect": [
+     "state.player.anim.gait == 'run'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_womanrun_west_001.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_womanrun_west_002.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_womanrun_west_003.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_womanrun_west_004.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_womanrun_west_005.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_womanrun_west_006.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_womanrun_west_007.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_womanrun_west_008.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_womanrun_west_009.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_womanrun_west_010.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_womanrun_west_011.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_womanrun_west_012.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_womanrun_west_013.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_womanrun_west_014.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_womanrun_west_015.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_womanrun_west_016.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_womanrun_west_017.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_womanrun_west_018.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_womanrun_west_019.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_womanrun_west_020.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_womanrun_west_021.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_womanrun_west_022.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_womanrun_west_023.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_womanrun_west_024.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_womanrun_west_025.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_womanrun_west_026.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_womanrun_west_027.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_womanrun_west_028.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_womanrun_west_029.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_womanrun_west_030.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_womanrun_west_031.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_womanrun_west_032.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_womanrun_west_033.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_womanrun_west_034.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_womanrun_west_035.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_womanrun_west_036.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_womanrun_west_037.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_womanrun_west_038.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_womanrun_west_039.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_womanrun_west_040.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_womanrun_west_041.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_womanrun_west_042.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_womanrun_west_043.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_womanrun_west_044.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_womanrun_west_045.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_womanrun_west_046.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_womanrun_west_047.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_womanrun_west_048.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_womanrun_west_049.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_womanrun_west_050.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_womanrun_west_051.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_womanrun_west_052.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_womanrun_west_053.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_womanrun_west_054.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_womanrun_west_055.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_womanrun_west_056.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_womanrun_west_057.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_womanrun_west_058.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_womanrun_west_059.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion herowalk east hidden",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "d@0.9-2.50",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ],
+     [
+      "skill",
+      "sneak",
+      1
+     ],
+     [
+      "hideplayer",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_herowalk_east_000_nb.png",
+    "expect": [
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_herowalk_east_001_nb.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_herowalk_east_002_nb.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_herowalk_east_003_nb.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_herowalk_east_004_nb.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_herowalk_east_005_nb.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_herowalk_east_006_nb.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_herowalk_east_007_nb.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_herowalk_east_008_nb.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_herowalk_east_009_nb.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_herowalk_east_010_nb.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_herowalk_east_011_nb.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_herowalk_east_012_nb.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_herowalk_east_013_nb.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_herowalk_east_014_nb.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_herowalk_east_015_nb.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_herowalk_east_016_nb.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_herowalk_east_017_nb.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_herowalk_east_018_nb.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_herowalk_east_019_nb.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_herowalk_east_020_nb.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_herowalk_east_021_nb.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_herowalk_east_022_nb.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_herowalk_east_023_nb.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_herowalk_east_024_nb.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_herowalk_east_025_nb.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_herowalk_east_026_nb.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_herowalk_east_027_nb.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_herowalk_east_028_nb.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_herowalk_east_029_nb.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_herowalk_east_030_nb.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_herowalk_east_031_nb.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_herowalk_east_032_nb.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_herowalk_east_033_nb.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_herowalk_east_034_nb.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_herowalk_east_035_nb.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_herowalk_east_036_nb.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_herowalk_east_037_nb.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_herowalk_east_038_nb.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_herowalk_east_039_nb.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_herowalk_east_040_nb.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_herowalk_east_041_nb.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_herowalk_east_042_nb.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_herowalk_east_043_nb.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_herowalk_east_044_nb.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_herowalk_east_045_nb.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_herowalk_east_046_nb.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_herowalk_east_047_nb.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_herowalk_east_048_nb.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_herowalk_east_049_nb.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_herowalk_east_050_nb.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_herowalk_east_051_nb.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_herowalk_east_052_nb.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_herowalk_east_053_nb.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_herowalk_east_054_nb.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_herowalk_east_055_nb.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_herowalk_east_056_nb.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_herowalk_east_057_nb.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_herowalk_east_058_nb.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_herowalk_east_059_nb.png"
+   },
+   {
+    "at": "132f",
+    "shot": "p2b_motion_herowalk_east_060_nb.png"
+   },
+   {
+    "at": "133f",
+    "shot": "p2b_motion_herowalk_east_061_nb.png"
+   },
+   {
+    "at": "134f",
+    "shot": "p2b_motion_herowalk_east_062_nb.png"
+   },
+   {
+    "at": "135f",
+    "shot": "p2b_motion_herowalk_east_063_nb.png"
+   },
+   {
+    "at": "136f",
+    "shot": "p2b_motion_herowalk_east_064_nb.png"
+   },
+   {
+    "at": "137f",
+    "shot": "p2b_motion_herowalk_east_065_nb.png"
+   },
+   {
+    "at": "138f",
+    "shot": "p2b_motion_herowalk_east_066_nb.png"
+   },
+   {
+    "at": "139f",
+    "shot": "p2b_motion_herowalk_east_067_nb.png"
+   },
+   {
+    "at": "140f",
+    "shot": "p2b_motion_herowalk_east_068_nb.png"
+   },
+   {
+    "at": "141f",
+    "shot": "p2b_motion_herowalk_east_069_nb.png"
+   },
+   {
+    "at": "142f",
+    "shot": "p2b_motion_herowalk_east_070_nb.png"
+   },
+   {
+    "at": "143f",
+    "shot": "p2b_motion_herowalk_east_071_nb.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion herowalk west hidden",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "a@0.9-2.50",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ],
+     [
+      "skill",
+      "sneak",
+      1
+     ],
+     [
+      "hideplayer",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_herowalk_west_000_nb.png",
+    "expect": [
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_herowalk_west_001_nb.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_herowalk_west_002_nb.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_herowalk_west_003_nb.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_herowalk_west_004_nb.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_herowalk_west_005_nb.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_herowalk_west_006_nb.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_herowalk_west_007_nb.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_herowalk_west_008_nb.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_herowalk_west_009_nb.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_herowalk_west_010_nb.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_herowalk_west_011_nb.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_herowalk_west_012_nb.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_herowalk_west_013_nb.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_herowalk_west_014_nb.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_herowalk_west_015_nb.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_herowalk_west_016_nb.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_herowalk_west_017_nb.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_herowalk_west_018_nb.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_herowalk_west_019_nb.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_herowalk_west_020_nb.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_herowalk_west_021_nb.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_herowalk_west_022_nb.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_herowalk_west_023_nb.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_herowalk_west_024_nb.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_herowalk_west_025_nb.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_herowalk_west_026_nb.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_herowalk_west_027_nb.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_herowalk_west_028_nb.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_herowalk_west_029_nb.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_herowalk_west_030_nb.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_herowalk_west_031_nb.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_herowalk_west_032_nb.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_herowalk_west_033_nb.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_herowalk_west_034_nb.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_herowalk_west_035_nb.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_herowalk_west_036_nb.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_herowalk_west_037_nb.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_herowalk_west_038_nb.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_herowalk_west_039_nb.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_herowalk_west_040_nb.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_herowalk_west_041_nb.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_herowalk_west_042_nb.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_herowalk_west_043_nb.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_herowalk_west_044_nb.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_herowalk_west_045_nb.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_herowalk_west_046_nb.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_herowalk_west_047_nb.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_herowalk_west_048_nb.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_herowalk_west_049_nb.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_herowalk_west_050_nb.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_herowalk_west_051_nb.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_herowalk_west_052_nb.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_herowalk_west_053_nb.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_herowalk_west_054_nb.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_herowalk_west_055_nb.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_herowalk_west_056_nb.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_herowalk_west_057_nb.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_herowalk_west_058_nb.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_herowalk_west_059_nb.png"
+   },
+   {
+    "at": "132f",
+    "shot": "p2b_motion_herowalk_west_060_nb.png"
+   },
+   {
+    "at": "133f",
+    "shot": "p2b_motion_herowalk_west_061_nb.png"
+   },
+   {
+    "at": "134f",
+    "shot": "p2b_motion_herowalk_west_062_nb.png"
+   },
+   {
+    "at": "135f",
+    "shot": "p2b_motion_herowalk_west_063_nb.png"
+   },
+   {
+    "at": "136f",
+    "shot": "p2b_motion_herowalk_west_064_nb.png"
+   },
+   {
+    "at": "137f",
+    "shot": "p2b_motion_herowalk_west_065_nb.png"
+   },
+   {
+    "at": "138f",
+    "shot": "p2b_motion_herowalk_west_066_nb.png"
+   },
+   {
+    "at": "139f",
+    "shot": "p2b_motion_herowalk_west_067_nb.png"
+   },
+   {
+    "at": "140f",
+    "shot": "p2b_motion_herowalk_west_068_nb.png"
+   },
+   {
+    "at": "141f",
+    "shot": "p2b_motion_herowalk_west_069_nb.png"
+   },
+   {
+    "at": "142f",
+    "shot": "p2b_motion_herowalk_west_070_nb.png"
+   },
+   {
+    "at": "143f",
+    "shot": "p2b_motion_herowalk_west_071_nb.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion herowalk south hidden",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "s@0.9-2.50",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ],
+     [
+      "skill",
+      "sneak",
+      1
+     ],
+     [
+      "hideplayer",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_herowalk_south_000_nb.png",
+    "expect": [
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_herowalk_south_001_nb.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_herowalk_south_002_nb.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_herowalk_south_003_nb.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_herowalk_south_004_nb.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_herowalk_south_005_nb.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_herowalk_south_006_nb.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_herowalk_south_007_nb.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_herowalk_south_008_nb.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_herowalk_south_009_nb.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_herowalk_south_010_nb.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_herowalk_south_011_nb.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_herowalk_south_012_nb.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_herowalk_south_013_nb.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_herowalk_south_014_nb.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_herowalk_south_015_nb.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_herowalk_south_016_nb.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_herowalk_south_017_nb.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_herowalk_south_018_nb.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_herowalk_south_019_nb.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_herowalk_south_020_nb.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_herowalk_south_021_nb.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_herowalk_south_022_nb.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_herowalk_south_023_nb.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_herowalk_south_024_nb.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_herowalk_south_025_nb.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_herowalk_south_026_nb.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_herowalk_south_027_nb.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_herowalk_south_028_nb.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_herowalk_south_029_nb.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_herowalk_south_030_nb.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_herowalk_south_031_nb.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_herowalk_south_032_nb.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_herowalk_south_033_nb.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_herowalk_south_034_nb.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_herowalk_south_035_nb.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_herowalk_south_036_nb.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_herowalk_south_037_nb.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_herowalk_south_038_nb.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_herowalk_south_039_nb.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_herowalk_south_040_nb.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_herowalk_south_041_nb.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_herowalk_south_042_nb.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_herowalk_south_043_nb.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_herowalk_south_044_nb.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_herowalk_south_045_nb.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_herowalk_south_046_nb.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_herowalk_south_047_nb.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_herowalk_south_048_nb.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_herowalk_south_049_nb.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_herowalk_south_050_nb.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_herowalk_south_051_nb.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_herowalk_south_052_nb.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_herowalk_south_053_nb.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_herowalk_south_054_nb.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_herowalk_south_055_nb.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_herowalk_south_056_nb.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_herowalk_south_057_nb.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_herowalk_south_058_nb.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_herowalk_south_059_nb.png"
+   },
+   {
+    "at": "132f",
+    "shot": "p2b_motion_herowalk_south_060_nb.png"
+   },
+   {
+    "at": "133f",
+    "shot": "p2b_motion_herowalk_south_061_nb.png"
+   },
+   {
+    "at": "134f",
+    "shot": "p2b_motion_herowalk_south_062_nb.png"
+   },
+   {
+    "at": "135f",
+    "shot": "p2b_motion_herowalk_south_063_nb.png"
+   },
+   {
+    "at": "136f",
+    "shot": "p2b_motion_herowalk_south_064_nb.png"
+   },
+   {
+    "at": "137f",
+    "shot": "p2b_motion_herowalk_south_065_nb.png"
+   },
+   {
+    "at": "138f",
+    "shot": "p2b_motion_herowalk_south_066_nb.png"
+   },
+   {
+    "at": "139f",
+    "shot": "p2b_motion_herowalk_south_067_nb.png"
+   },
+   {
+    "at": "140f",
+    "shot": "p2b_motion_herowalk_south_068_nb.png"
+   },
+   {
+    "at": "141f",
+    "shot": "p2b_motion_herowalk_south_069_nb.png"
+   },
+   {
+    "at": "142f",
+    "shot": "p2b_motion_herowalk_south_070_nb.png"
+   },
+   {
+    "at": "143f",
+    "shot": "p2b_motion_herowalk_south_071_nb.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion herowalk north hidden",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "w@0.9-2.50",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ],
+     [
+      "skill",
+      "sneak",
+      1
+     ],
+     [
+      "hideplayer",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_herowalk_north_000_nb.png",
+    "expect": [
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_herowalk_north_001_nb.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_herowalk_north_002_nb.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_herowalk_north_003_nb.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_herowalk_north_004_nb.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_herowalk_north_005_nb.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_herowalk_north_006_nb.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_herowalk_north_007_nb.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_herowalk_north_008_nb.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_herowalk_north_009_nb.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_herowalk_north_010_nb.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_herowalk_north_011_nb.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_herowalk_north_012_nb.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_herowalk_north_013_nb.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_herowalk_north_014_nb.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_herowalk_north_015_nb.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_herowalk_north_016_nb.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_herowalk_north_017_nb.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_herowalk_north_018_nb.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_herowalk_north_019_nb.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_herowalk_north_020_nb.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_herowalk_north_021_nb.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_herowalk_north_022_nb.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_herowalk_north_023_nb.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_herowalk_north_024_nb.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_herowalk_north_025_nb.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_herowalk_north_026_nb.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_herowalk_north_027_nb.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_herowalk_north_028_nb.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_herowalk_north_029_nb.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_herowalk_north_030_nb.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_herowalk_north_031_nb.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_herowalk_north_032_nb.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_herowalk_north_033_nb.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_herowalk_north_034_nb.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_herowalk_north_035_nb.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_herowalk_north_036_nb.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_herowalk_north_037_nb.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_herowalk_north_038_nb.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_herowalk_north_039_nb.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_herowalk_north_040_nb.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_herowalk_north_041_nb.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_herowalk_north_042_nb.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_herowalk_north_043_nb.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_herowalk_north_044_nb.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_herowalk_north_045_nb.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_herowalk_north_046_nb.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_herowalk_north_047_nb.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_herowalk_north_048_nb.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_herowalk_north_049_nb.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_herowalk_north_050_nb.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_herowalk_north_051_nb.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_herowalk_north_052_nb.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_herowalk_north_053_nb.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_herowalk_north_054_nb.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_herowalk_north_055_nb.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_herowalk_north_056_nb.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_herowalk_north_057_nb.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_herowalk_north_058_nb.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_herowalk_north_059_nb.png"
+   },
+   {
+    "at": "132f",
+    "shot": "p2b_motion_herowalk_north_060_nb.png"
+   },
+   {
+    "at": "133f",
+    "shot": "p2b_motion_herowalk_north_061_nb.png"
+   },
+   {
+    "at": "134f",
+    "shot": "p2b_motion_herowalk_north_062_nb.png"
+   },
+   {
+    "at": "135f",
+    "shot": "p2b_motion_herowalk_north_063_nb.png"
+   },
+   {
+    "at": "136f",
+    "shot": "p2b_motion_herowalk_north_064_nb.png"
+   },
+   {
+    "at": "137f",
+    "shot": "p2b_motion_herowalk_north_065_nb.png"
+   },
+   {
+    "at": "138f",
+    "shot": "p2b_motion_herowalk_north_066_nb.png"
+   },
+   {
+    "at": "139f",
+    "shot": "p2b_motion_herowalk_north_067_nb.png"
+   },
+   {
+    "at": "140f",
+    "shot": "p2b_motion_herowalk_north_068_nb.png"
+   },
+   {
+    "at": "141f",
+    "shot": "p2b_motion_herowalk_north_069_nb.png"
+   },
+   {
+    "at": "142f",
+    "shot": "p2b_motion_herowalk_north_070_nb.png"
+   },
+   {
+    "at": "143f",
+    "shot": "p2b_motion_herowalk_north_071_nb.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion herorun east hidden",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "d@0.9-2.30",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ],
+     [
+      "hideplayer",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_herorun_east_000_nb.png",
+    "expect": [
+     "state.player.anim.gait == 'run'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_herorun_east_001_nb.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_herorun_east_002_nb.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_herorun_east_003_nb.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_herorun_east_004_nb.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_herorun_east_005_nb.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_herorun_east_006_nb.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_herorun_east_007_nb.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_herorun_east_008_nb.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_herorun_east_009_nb.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_herorun_east_010_nb.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_herorun_east_011_nb.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_herorun_east_012_nb.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_herorun_east_013_nb.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_herorun_east_014_nb.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_herorun_east_015_nb.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_herorun_east_016_nb.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_herorun_east_017_nb.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_herorun_east_018_nb.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_herorun_east_019_nb.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_herorun_east_020_nb.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_herorun_east_021_nb.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_herorun_east_022_nb.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_herorun_east_023_nb.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_herorun_east_024_nb.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_herorun_east_025_nb.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_herorun_east_026_nb.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_herorun_east_027_nb.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_herorun_east_028_nb.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_herorun_east_029_nb.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_herorun_east_030_nb.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_herorun_east_031_nb.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_herorun_east_032_nb.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_herorun_east_033_nb.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_herorun_east_034_nb.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_herorun_east_035_nb.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_herorun_east_036_nb.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_herorun_east_037_nb.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_herorun_east_038_nb.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_herorun_east_039_nb.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_herorun_east_040_nb.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_herorun_east_041_nb.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_herorun_east_042_nb.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_herorun_east_043_nb.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_herorun_east_044_nb.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_herorun_east_045_nb.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_herorun_east_046_nb.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_herorun_east_047_nb.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_herorun_east_048_nb.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_herorun_east_049_nb.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_herorun_east_050_nb.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_herorun_east_051_nb.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_herorun_east_052_nb.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_herorun_east_053_nb.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_herorun_east_054_nb.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_herorun_east_055_nb.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_herorun_east_056_nb.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_herorun_east_057_nb.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_herorun_east_058_nb.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_herorun_east_059_nb.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion herorun west hidden",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "a@0.9-2.30",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ],
+     [
+      "hideplayer",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_herorun_west_000_nb.png",
+    "expect": [
+     "state.player.anim.gait == 'run'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_herorun_west_001_nb.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_herorun_west_002_nb.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_herorun_west_003_nb.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_herorun_west_004_nb.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_herorun_west_005_nb.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_herorun_west_006_nb.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_herorun_west_007_nb.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_herorun_west_008_nb.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_herorun_west_009_nb.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_herorun_west_010_nb.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_herorun_west_011_nb.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_herorun_west_012_nb.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_herorun_west_013_nb.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_herorun_west_014_nb.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_herorun_west_015_nb.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_herorun_west_016_nb.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_herorun_west_017_nb.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_herorun_west_018_nb.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_herorun_west_019_nb.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_herorun_west_020_nb.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_herorun_west_021_nb.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_herorun_west_022_nb.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_herorun_west_023_nb.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_herorun_west_024_nb.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_herorun_west_025_nb.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_herorun_west_026_nb.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_herorun_west_027_nb.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_herorun_west_028_nb.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_herorun_west_029_nb.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_herorun_west_030_nb.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_herorun_west_031_nb.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_herorun_west_032_nb.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_herorun_west_033_nb.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_herorun_west_034_nb.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_herorun_west_035_nb.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_herorun_west_036_nb.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_herorun_west_037_nb.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_herorun_west_038_nb.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_herorun_west_039_nb.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_herorun_west_040_nb.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_herorun_west_041_nb.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_herorun_west_042_nb.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_herorun_west_043_nb.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_herorun_west_044_nb.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_herorun_west_045_nb.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_herorun_west_046_nb.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_herorun_west_047_nb.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_herorun_west_048_nb.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_herorun_west_049_nb.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_herorun_west_050_nb.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_herorun_west_051_nb.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_herorun_west_052_nb.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_herorun_west_053_nb.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_herorun_west_054_nb.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_herorun_west_055_nb.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_herorun_west_056_nb.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_herorun_west_057_nb.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_herorun_west_058_nb.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_herorun_west_059_nb.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion herorun south hidden",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "s@0.9-2.30",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ],
+     [
+      "hideplayer",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_herorun_south_000_nb.png",
+    "expect": [
+     "state.player.anim.gait == 'run'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_herorun_south_001_nb.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_herorun_south_002_nb.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_herorun_south_003_nb.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_herorun_south_004_nb.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_herorun_south_005_nb.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_herorun_south_006_nb.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_herorun_south_007_nb.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_herorun_south_008_nb.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_herorun_south_009_nb.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_herorun_south_010_nb.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_herorun_south_011_nb.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_herorun_south_012_nb.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_herorun_south_013_nb.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_herorun_south_014_nb.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_herorun_south_015_nb.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_herorun_south_016_nb.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_herorun_south_017_nb.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_herorun_south_018_nb.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_herorun_south_019_nb.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_herorun_south_020_nb.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_herorun_south_021_nb.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_herorun_south_022_nb.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_herorun_south_023_nb.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_herorun_south_024_nb.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_herorun_south_025_nb.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_herorun_south_026_nb.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_herorun_south_027_nb.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_herorun_south_028_nb.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_herorun_south_029_nb.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_herorun_south_030_nb.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_herorun_south_031_nb.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_herorun_south_032_nb.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_herorun_south_033_nb.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_herorun_south_034_nb.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_herorun_south_035_nb.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_herorun_south_036_nb.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_herorun_south_037_nb.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_herorun_south_038_nb.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_herorun_south_039_nb.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_herorun_south_040_nb.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_herorun_south_041_nb.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_herorun_south_042_nb.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_herorun_south_043_nb.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_herorun_south_044_nb.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_herorun_south_045_nb.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_herorun_south_046_nb.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_herorun_south_047_nb.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_herorun_south_048_nb.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_herorun_south_049_nb.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_herorun_south_050_nb.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_herorun_south_051_nb.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_herorun_south_052_nb.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_herorun_south_053_nb.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_herorun_south_054_nb.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_herorun_south_055_nb.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_herorun_south_056_nb.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_herorun_south_057_nb.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_herorun_south_058_nb.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_herorun_south_059_nb.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion herorun north hidden",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "w@0.9-2.30",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ],
+     [
+      "hideplayer",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_herorun_north_000_nb.png",
+    "expect": [
+     "state.player.anim.gait == 'run'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_herorun_north_001_nb.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_herorun_north_002_nb.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_herorun_north_003_nb.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_herorun_north_004_nb.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_herorun_north_005_nb.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_herorun_north_006_nb.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_herorun_north_007_nb.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_herorun_north_008_nb.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_herorun_north_009_nb.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_herorun_north_010_nb.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_herorun_north_011_nb.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_herorun_north_012_nb.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_herorun_north_013_nb.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_herorun_north_014_nb.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_herorun_north_015_nb.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_herorun_north_016_nb.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_herorun_north_017_nb.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_herorun_north_018_nb.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_herorun_north_019_nb.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_herorun_north_020_nb.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_herorun_north_021_nb.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_herorun_north_022_nb.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_herorun_north_023_nb.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_herorun_north_024_nb.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_herorun_north_025_nb.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_herorun_north_026_nb.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_herorun_north_027_nb.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_herorun_north_028_nb.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_herorun_north_029_nb.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_herorun_north_030_nb.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_herorun_north_031_nb.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_herorun_north_032_nb.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_herorun_north_033_nb.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_herorun_north_034_nb.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_herorun_north_035_nb.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_herorun_north_036_nb.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_herorun_north_037_nb.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_herorun_north_038_nb.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_herorun_north_039_nb.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_herorun_north_040_nb.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_herorun_north_041_nb.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_herorun_north_042_nb.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_herorun_north_043_nb.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_herorun_north_044_nb.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_herorun_north_045_nb.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_herorun_north_046_nb.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_herorun_north_047_nb.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_herorun_north_048_nb.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_herorun_north_049_nb.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_herorun_north_050_nb.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_herorun_north_051_nb.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_herorun_north_052_nb.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_herorun_north_053_nb.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_herorun_north_054_nb.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_herorun_north_055_nb.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_herorun_north_056_nb.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_herorun_north_057_nb.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_herorun_north_058_nb.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_herorun_north_059_nb.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion womanwalk east hidden",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "d@0.9-2.50",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "body",
+      "woman"
+     ],
+     [
+      "hair",
+      "braids",
+      "wheat"
+     ],
+     [
+      "slicelook",
+      "a3woman",
+      "outfit=1",
+      "weapon=0"
+     ],
+     [
+      "skill",
+      "sneak",
+      1
+     ],
+     [
+      "hideplayer",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_womanwalk_east_000_nb.png",
+    "expect": [
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_womanwalk_east_001_nb.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_womanwalk_east_002_nb.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_womanwalk_east_003_nb.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_womanwalk_east_004_nb.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_womanwalk_east_005_nb.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_womanwalk_east_006_nb.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_womanwalk_east_007_nb.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_womanwalk_east_008_nb.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_womanwalk_east_009_nb.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_womanwalk_east_010_nb.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_womanwalk_east_011_nb.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_womanwalk_east_012_nb.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_womanwalk_east_013_nb.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_womanwalk_east_014_nb.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_womanwalk_east_015_nb.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_womanwalk_east_016_nb.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_womanwalk_east_017_nb.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_womanwalk_east_018_nb.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_womanwalk_east_019_nb.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_womanwalk_east_020_nb.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_womanwalk_east_021_nb.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_womanwalk_east_022_nb.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_womanwalk_east_023_nb.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_womanwalk_east_024_nb.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_womanwalk_east_025_nb.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_womanwalk_east_026_nb.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_womanwalk_east_027_nb.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_womanwalk_east_028_nb.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_womanwalk_east_029_nb.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_womanwalk_east_030_nb.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_womanwalk_east_031_nb.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_womanwalk_east_032_nb.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_womanwalk_east_033_nb.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_womanwalk_east_034_nb.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_womanwalk_east_035_nb.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_womanwalk_east_036_nb.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_womanwalk_east_037_nb.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_womanwalk_east_038_nb.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_womanwalk_east_039_nb.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_womanwalk_east_040_nb.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_womanwalk_east_041_nb.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_womanwalk_east_042_nb.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_womanwalk_east_043_nb.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_womanwalk_east_044_nb.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_womanwalk_east_045_nb.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_womanwalk_east_046_nb.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_womanwalk_east_047_nb.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_womanwalk_east_048_nb.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_womanwalk_east_049_nb.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_womanwalk_east_050_nb.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_womanwalk_east_051_nb.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_womanwalk_east_052_nb.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_womanwalk_east_053_nb.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_womanwalk_east_054_nb.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_womanwalk_east_055_nb.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_womanwalk_east_056_nb.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_womanwalk_east_057_nb.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_womanwalk_east_058_nb.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_womanwalk_east_059_nb.png"
+   },
+   {
+    "at": "132f",
+    "shot": "p2b_motion_womanwalk_east_060_nb.png"
+   },
+   {
+    "at": "133f",
+    "shot": "p2b_motion_womanwalk_east_061_nb.png"
+   },
+   {
+    "at": "134f",
+    "shot": "p2b_motion_womanwalk_east_062_nb.png"
+   },
+   {
+    "at": "135f",
+    "shot": "p2b_motion_womanwalk_east_063_nb.png"
+   },
+   {
+    "at": "136f",
+    "shot": "p2b_motion_womanwalk_east_064_nb.png"
+   },
+   {
+    "at": "137f",
+    "shot": "p2b_motion_womanwalk_east_065_nb.png"
+   },
+   {
+    "at": "138f",
+    "shot": "p2b_motion_womanwalk_east_066_nb.png"
+   },
+   {
+    "at": "139f",
+    "shot": "p2b_motion_womanwalk_east_067_nb.png"
+   },
+   {
+    "at": "140f",
+    "shot": "p2b_motion_womanwalk_east_068_nb.png"
+   },
+   {
+    "at": "141f",
+    "shot": "p2b_motion_womanwalk_east_069_nb.png"
+   },
+   {
+    "at": "142f",
+    "shot": "p2b_motion_womanwalk_east_070_nb.png"
+   },
+   {
+    "at": "143f",
+    "shot": "p2b_motion_womanwalk_east_071_nb.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion womanwalk west hidden",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "a@0.9-2.50",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "body",
+      "woman"
+     ],
+     [
+      "hair",
+      "braids",
+      "wheat"
+     ],
+     [
+      "slicelook",
+      "a3woman",
+      "outfit=1",
+      "weapon=0"
+     ],
+     [
+      "skill",
+      "sneak",
+      1
+     ],
+     [
+      "hideplayer",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_womanwalk_west_000_nb.png",
+    "expect": [
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_womanwalk_west_001_nb.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_womanwalk_west_002_nb.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_womanwalk_west_003_nb.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_womanwalk_west_004_nb.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_womanwalk_west_005_nb.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_womanwalk_west_006_nb.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_womanwalk_west_007_nb.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_womanwalk_west_008_nb.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_womanwalk_west_009_nb.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_womanwalk_west_010_nb.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_womanwalk_west_011_nb.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_womanwalk_west_012_nb.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_womanwalk_west_013_nb.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_womanwalk_west_014_nb.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_womanwalk_west_015_nb.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_womanwalk_west_016_nb.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_womanwalk_west_017_nb.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_womanwalk_west_018_nb.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_womanwalk_west_019_nb.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_womanwalk_west_020_nb.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_womanwalk_west_021_nb.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_womanwalk_west_022_nb.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_womanwalk_west_023_nb.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_womanwalk_west_024_nb.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_womanwalk_west_025_nb.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_womanwalk_west_026_nb.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_womanwalk_west_027_nb.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_womanwalk_west_028_nb.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_womanwalk_west_029_nb.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_womanwalk_west_030_nb.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_womanwalk_west_031_nb.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_womanwalk_west_032_nb.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_womanwalk_west_033_nb.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_womanwalk_west_034_nb.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_womanwalk_west_035_nb.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_womanwalk_west_036_nb.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_womanwalk_west_037_nb.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_womanwalk_west_038_nb.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_womanwalk_west_039_nb.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_womanwalk_west_040_nb.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_womanwalk_west_041_nb.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_womanwalk_west_042_nb.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_womanwalk_west_043_nb.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_womanwalk_west_044_nb.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_womanwalk_west_045_nb.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_womanwalk_west_046_nb.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_womanwalk_west_047_nb.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_womanwalk_west_048_nb.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_womanwalk_west_049_nb.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_womanwalk_west_050_nb.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_womanwalk_west_051_nb.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_womanwalk_west_052_nb.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_womanwalk_west_053_nb.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_womanwalk_west_054_nb.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_womanwalk_west_055_nb.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_womanwalk_west_056_nb.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_womanwalk_west_057_nb.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_womanwalk_west_058_nb.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_womanwalk_west_059_nb.png"
+   },
+   {
+    "at": "132f",
+    "shot": "p2b_motion_womanwalk_west_060_nb.png"
+   },
+   {
+    "at": "133f",
+    "shot": "p2b_motion_womanwalk_west_061_nb.png"
+   },
+   {
+    "at": "134f",
+    "shot": "p2b_motion_womanwalk_west_062_nb.png"
+   },
+   {
+    "at": "135f",
+    "shot": "p2b_motion_womanwalk_west_063_nb.png"
+   },
+   {
+    "at": "136f",
+    "shot": "p2b_motion_womanwalk_west_064_nb.png"
+   },
+   {
+    "at": "137f",
+    "shot": "p2b_motion_womanwalk_west_065_nb.png"
+   },
+   {
+    "at": "138f",
+    "shot": "p2b_motion_womanwalk_west_066_nb.png"
+   },
+   {
+    "at": "139f",
+    "shot": "p2b_motion_womanwalk_west_067_nb.png"
+   },
+   {
+    "at": "140f",
+    "shot": "p2b_motion_womanwalk_west_068_nb.png"
+   },
+   {
+    "at": "141f",
+    "shot": "p2b_motion_womanwalk_west_069_nb.png"
+   },
+   {
+    "at": "142f",
+    "shot": "p2b_motion_womanwalk_west_070_nb.png"
+   },
+   {
+    "at": "143f",
+    "shot": "p2b_motion_womanwalk_west_071_nb.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion womanwalk south hidden",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "s@0.9-2.50",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "body",
+      "woman"
+     ],
+     [
+      "hair",
+      "braids",
+      "wheat"
+     ],
+     [
+      "slicelook",
+      "a3woman",
+      "outfit=1",
+      "weapon=0"
+     ],
+     [
+      "skill",
+      "sneak",
+      1
+     ],
+     [
+      "hideplayer",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_womanwalk_south_000_nb.png",
+    "expect": [
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_womanwalk_south_001_nb.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_womanwalk_south_002_nb.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_womanwalk_south_003_nb.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_womanwalk_south_004_nb.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_womanwalk_south_005_nb.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_womanwalk_south_006_nb.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_womanwalk_south_007_nb.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_womanwalk_south_008_nb.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_womanwalk_south_009_nb.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_womanwalk_south_010_nb.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_womanwalk_south_011_nb.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_womanwalk_south_012_nb.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_womanwalk_south_013_nb.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_womanwalk_south_014_nb.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_womanwalk_south_015_nb.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_womanwalk_south_016_nb.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_womanwalk_south_017_nb.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_womanwalk_south_018_nb.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_womanwalk_south_019_nb.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_womanwalk_south_020_nb.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_womanwalk_south_021_nb.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_womanwalk_south_022_nb.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_womanwalk_south_023_nb.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_womanwalk_south_024_nb.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_womanwalk_south_025_nb.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_womanwalk_south_026_nb.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_womanwalk_south_027_nb.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_womanwalk_south_028_nb.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_womanwalk_south_029_nb.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_womanwalk_south_030_nb.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_womanwalk_south_031_nb.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_womanwalk_south_032_nb.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_womanwalk_south_033_nb.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_womanwalk_south_034_nb.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_womanwalk_south_035_nb.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_womanwalk_south_036_nb.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_womanwalk_south_037_nb.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_womanwalk_south_038_nb.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_womanwalk_south_039_nb.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_womanwalk_south_040_nb.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_womanwalk_south_041_nb.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_womanwalk_south_042_nb.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_womanwalk_south_043_nb.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_womanwalk_south_044_nb.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_womanwalk_south_045_nb.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_womanwalk_south_046_nb.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_womanwalk_south_047_nb.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_womanwalk_south_048_nb.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_womanwalk_south_049_nb.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_womanwalk_south_050_nb.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_womanwalk_south_051_nb.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_womanwalk_south_052_nb.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_womanwalk_south_053_nb.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_womanwalk_south_054_nb.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_womanwalk_south_055_nb.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_womanwalk_south_056_nb.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_womanwalk_south_057_nb.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_womanwalk_south_058_nb.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_womanwalk_south_059_nb.png"
+   },
+   {
+    "at": "132f",
+    "shot": "p2b_motion_womanwalk_south_060_nb.png"
+   },
+   {
+    "at": "133f",
+    "shot": "p2b_motion_womanwalk_south_061_nb.png"
+   },
+   {
+    "at": "134f",
+    "shot": "p2b_motion_womanwalk_south_062_nb.png"
+   },
+   {
+    "at": "135f",
+    "shot": "p2b_motion_womanwalk_south_063_nb.png"
+   },
+   {
+    "at": "136f",
+    "shot": "p2b_motion_womanwalk_south_064_nb.png"
+   },
+   {
+    "at": "137f",
+    "shot": "p2b_motion_womanwalk_south_065_nb.png"
+   },
+   {
+    "at": "138f",
+    "shot": "p2b_motion_womanwalk_south_066_nb.png"
+   },
+   {
+    "at": "139f",
+    "shot": "p2b_motion_womanwalk_south_067_nb.png"
+   },
+   {
+    "at": "140f",
+    "shot": "p2b_motion_womanwalk_south_068_nb.png"
+   },
+   {
+    "at": "141f",
+    "shot": "p2b_motion_womanwalk_south_069_nb.png"
+   },
+   {
+    "at": "142f",
+    "shot": "p2b_motion_womanwalk_south_070_nb.png"
+   },
+   {
+    "at": "143f",
+    "shot": "p2b_motion_womanwalk_south_071_nb.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion womanwalk north hidden",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "w@0.9-2.50",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "body",
+      "woman"
+     ],
+     [
+      "hair",
+      "braids",
+      "wheat"
+     ],
+     [
+      "slicelook",
+      "a3woman",
+      "outfit=1",
+      "weapon=0"
+     ],
+     [
+      "skill",
+      "sneak",
+      1
+     ],
+     [
+      "hideplayer",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_womanwalk_north_000_nb.png",
+    "expect": [
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_womanwalk_north_001_nb.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_womanwalk_north_002_nb.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_womanwalk_north_003_nb.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_womanwalk_north_004_nb.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_womanwalk_north_005_nb.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_womanwalk_north_006_nb.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_womanwalk_north_007_nb.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_womanwalk_north_008_nb.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_womanwalk_north_009_nb.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_womanwalk_north_010_nb.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_womanwalk_north_011_nb.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_womanwalk_north_012_nb.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_womanwalk_north_013_nb.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_womanwalk_north_014_nb.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_womanwalk_north_015_nb.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_womanwalk_north_016_nb.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_womanwalk_north_017_nb.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_womanwalk_north_018_nb.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_womanwalk_north_019_nb.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_womanwalk_north_020_nb.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_womanwalk_north_021_nb.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_womanwalk_north_022_nb.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_womanwalk_north_023_nb.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_womanwalk_north_024_nb.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_womanwalk_north_025_nb.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_womanwalk_north_026_nb.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_womanwalk_north_027_nb.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_womanwalk_north_028_nb.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_womanwalk_north_029_nb.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_womanwalk_north_030_nb.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_womanwalk_north_031_nb.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_womanwalk_north_032_nb.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_womanwalk_north_033_nb.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_womanwalk_north_034_nb.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_womanwalk_north_035_nb.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_womanwalk_north_036_nb.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_womanwalk_north_037_nb.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_womanwalk_north_038_nb.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_womanwalk_north_039_nb.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_womanwalk_north_040_nb.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_womanwalk_north_041_nb.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_womanwalk_north_042_nb.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_womanwalk_north_043_nb.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_womanwalk_north_044_nb.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_womanwalk_north_045_nb.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_womanwalk_north_046_nb.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_womanwalk_north_047_nb.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_womanwalk_north_048_nb.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_womanwalk_north_049_nb.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_womanwalk_north_050_nb.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_womanwalk_north_051_nb.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_womanwalk_north_052_nb.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_womanwalk_north_053_nb.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_womanwalk_north_054_nb.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_womanwalk_north_055_nb.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_womanwalk_north_056_nb.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_womanwalk_north_057_nb.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_womanwalk_north_058_nb.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_womanwalk_north_059_nb.png"
+   },
+   {
+    "at": "132f",
+    "shot": "p2b_motion_womanwalk_north_060_nb.png"
+   },
+   {
+    "at": "133f",
+    "shot": "p2b_motion_womanwalk_north_061_nb.png"
+   },
+   {
+    "at": "134f",
+    "shot": "p2b_motion_womanwalk_north_062_nb.png"
+   },
+   {
+    "at": "135f",
+    "shot": "p2b_motion_womanwalk_north_063_nb.png"
+   },
+   {
+    "at": "136f",
+    "shot": "p2b_motion_womanwalk_north_064_nb.png"
+   },
+   {
+    "at": "137f",
+    "shot": "p2b_motion_womanwalk_north_065_nb.png"
+   },
+   {
+    "at": "138f",
+    "shot": "p2b_motion_womanwalk_north_066_nb.png"
+   },
+   {
+    "at": "139f",
+    "shot": "p2b_motion_womanwalk_north_067_nb.png"
+   },
+   {
+    "at": "140f",
+    "shot": "p2b_motion_womanwalk_north_068_nb.png"
+   },
+   {
+    "at": "141f",
+    "shot": "p2b_motion_womanwalk_north_069_nb.png"
+   },
+   {
+    "at": "142f",
+    "shot": "p2b_motion_womanwalk_north_070_nb.png"
+   },
+   {
+    "at": "143f",
+    "shot": "p2b_motion_womanwalk_north_071_nb.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion womanrun east hidden",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "d@0.9-2.30",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "body",
+      "woman"
+     ],
+     [
+      "hair",
+      "braids",
+      "wheat"
+     ],
+     [
+      "slicelook",
+      "a3woman",
+      "outfit=1",
+      "weapon=0"
+     ],
+     [
+      "hideplayer",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_womanrun_east_000_nb.png",
+    "expect": [
+     "state.player.anim.gait == 'run'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_womanrun_east_001_nb.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_womanrun_east_002_nb.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_womanrun_east_003_nb.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_womanrun_east_004_nb.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_womanrun_east_005_nb.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_womanrun_east_006_nb.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_womanrun_east_007_nb.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_womanrun_east_008_nb.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_womanrun_east_009_nb.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_womanrun_east_010_nb.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_womanrun_east_011_nb.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_womanrun_east_012_nb.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_womanrun_east_013_nb.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_womanrun_east_014_nb.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_womanrun_east_015_nb.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_womanrun_east_016_nb.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_womanrun_east_017_nb.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_womanrun_east_018_nb.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_womanrun_east_019_nb.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_womanrun_east_020_nb.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_womanrun_east_021_nb.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_womanrun_east_022_nb.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_womanrun_east_023_nb.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_womanrun_east_024_nb.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_womanrun_east_025_nb.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_womanrun_east_026_nb.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_womanrun_east_027_nb.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_womanrun_east_028_nb.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_womanrun_east_029_nb.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_womanrun_east_030_nb.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_womanrun_east_031_nb.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_womanrun_east_032_nb.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_womanrun_east_033_nb.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_womanrun_east_034_nb.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_womanrun_east_035_nb.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_womanrun_east_036_nb.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_womanrun_east_037_nb.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_womanrun_east_038_nb.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_womanrun_east_039_nb.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_womanrun_east_040_nb.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_womanrun_east_041_nb.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_womanrun_east_042_nb.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_womanrun_east_043_nb.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_womanrun_east_044_nb.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_womanrun_east_045_nb.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_womanrun_east_046_nb.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_womanrun_east_047_nb.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_womanrun_east_048_nb.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_womanrun_east_049_nb.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_womanrun_east_050_nb.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_womanrun_east_051_nb.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_womanrun_east_052_nb.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_womanrun_east_053_nb.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_womanrun_east_054_nb.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_womanrun_east_055_nb.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_womanrun_east_056_nb.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_womanrun_east_057_nb.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_womanrun_east_058_nb.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_womanrun_east_059_nb.png"
+   }
+  ]
+ },
+ {
+  "name": "slice motion womanrun west hidden",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "input": "a@0.9-2.30",
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "skill",
+      "clearing",
+      12
+     ],
+     [
+      "ui",
+      0
+     ],
+     [
+      "ring",
+      0
+     ],
+     [
+      "body",
+      "woman"
+     ],
+     [
+      "hair",
+      "braids",
+      "wheat"
+     ],
+     [
+      "slicelook",
+      "a3woman",
+      "outfit=1",
+      "weapon=0"
+     ],
+     [
+      "hideplayer",
+      1
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "call": [
+     [
+      "camhold",
+      1
+     ]
+    ]
+   },
+   {
+    "at": "72f",
+    "shot": "p2b_motion_womanrun_west_000_nb.png",
+    "expect": [
+     "state.player.anim.gait == 'run'"
+    ]
+   },
+   {
+    "at": "73f",
+    "shot": "p2b_motion_womanrun_west_001_nb.png"
+   },
+   {
+    "at": "74f",
+    "shot": "p2b_motion_womanrun_west_002_nb.png"
+   },
+   {
+    "at": "75f",
+    "shot": "p2b_motion_womanrun_west_003_nb.png"
+   },
+   {
+    "at": "76f",
+    "shot": "p2b_motion_womanrun_west_004_nb.png"
+   },
+   {
+    "at": "77f",
+    "shot": "p2b_motion_womanrun_west_005_nb.png"
+   },
+   {
+    "at": "78f",
+    "shot": "p2b_motion_womanrun_west_006_nb.png"
+   },
+   {
+    "at": "79f",
+    "shot": "p2b_motion_womanrun_west_007_nb.png"
+   },
+   {
+    "at": "80f",
+    "shot": "p2b_motion_womanrun_west_008_nb.png"
+   },
+   {
+    "at": "81f",
+    "shot": "p2b_motion_womanrun_west_009_nb.png"
+   },
+   {
+    "at": "82f",
+    "shot": "p2b_motion_womanrun_west_010_nb.png"
+   },
+   {
+    "at": "83f",
+    "shot": "p2b_motion_womanrun_west_011_nb.png"
+   },
+   {
+    "at": "84f",
+    "shot": "p2b_motion_womanrun_west_012_nb.png"
+   },
+   {
+    "at": "85f",
+    "shot": "p2b_motion_womanrun_west_013_nb.png"
+   },
+   {
+    "at": "86f",
+    "shot": "p2b_motion_womanrun_west_014_nb.png"
+   },
+   {
+    "at": "87f",
+    "shot": "p2b_motion_womanrun_west_015_nb.png"
+   },
+   {
+    "at": "88f",
+    "shot": "p2b_motion_womanrun_west_016_nb.png"
+   },
+   {
+    "at": "89f",
+    "shot": "p2b_motion_womanrun_west_017_nb.png"
+   },
+   {
+    "at": "90f",
+    "shot": "p2b_motion_womanrun_west_018_nb.png"
+   },
+   {
+    "at": "91f",
+    "shot": "p2b_motion_womanrun_west_019_nb.png"
+   },
+   {
+    "at": "92f",
+    "shot": "p2b_motion_womanrun_west_020_nb.png"
+   },
+   {
+    "at": "93f",
+    "shot": "p2b_motion_womanrun_west_021_nb.png"
+   },
+   {
+    "at": "94f",
+    "shot": "p2b_motion_womanrun_west_022_nb.png"
+   },
+   {
+    "at": "95f",
+    "shot": "p2b_motion_womanrun_west_023_nb.png"
+   },
+   {
+    "at": "96f",
+    "shot": "p2b_motion_womanrun_west_024_nb.png"
+   },
+   {
+    "at": "97f",
+    "shot": "p2b_motion_womanrun_west_025_nb.png"
+   },
+   {
+    "at": "98f",
+    "shot": "p2b_motion_womanrun_west_026_nb.png"
+   },
+   {
+    "at": "99f",
+    "shot": "p2b_motion_womanrun_west_027_nb.png"
+   },
+   {
+    "at": "100f",
+    "shot": "p2b_motion_womanrun_west_028_nb.png"
+   },
+   {
+    "at": "101f",
+    "shot": "p2b_motion_womanrun_west_029_nb.png"
+   },
+   {
+    "at": "102f",
+    "shot": "p2b_motion_womanrun_west_030_nb.png"
+   },
+   {
+    "at": "103f",
+    "shot": "p2b_motion_womanrun_west_031_nb.png"
+   },
+   {
+    "at": "104f",
+    "shot": "p2b_motion_womanrun_west_032_nb.png"
+   },
+   {
+    "at": "105f",
+    "shot": "p2b_motion_womanrun_west_033_nb.png"
+   },
+   {
+    "at": "106f",
+    "shot": "p2b_motion_womanrun_west_034_nb.png"
+   },
+   {
+    "at": "107f",
+    "shot": "p2b_motion_womanrun_west_035_nb.png"
+   },
+   {
+    "at": "108f",
+    "shot": "p2b_motion_womanrun_west_036_nb.png"
+   },
+   {
+    "at": "109f",
+    "shot": "p2b_motion_womanrun_west_037_nb.png"
+   },
+   {
+    "at": "110f",
+    "shot": "p2b_motion_womanrun_west_038_nb.png"
+   },
+   {
+    "at": "111f",
+    "shot": "p2b_motion_womanrun_west_039_nb.png"
+   },
+   {
+    "at": "112f",
+    "shot": "p2b_motion_womanrun_west_040_nb.png"
+   },
+   {
+    "at": "113f",
+    "shot": "p2b_motion_womanrun_west_041_nb.png"
+   },
+   {
+    "at": "114f",
+    "shot": "p2b_motion_womanrun_west_042_nb.png"
+   },
+   {
+    "at": "115f",
+    "shot": "p2b_motion_womanrun_west_043_nb.png"
+   },
+   {
+    "at": "116f",
+    "shot": "p2b_motion_womanrun_west_044_nb.png"
+   },
+   {
+    "at": "117f",
+    "shot": "p2b_motion_womanrun_west_045_nb.png"
+   },
+   {
+    "at": "118f",
+    "shot": "p2b_motion_womanrun_west_046_nb.png"
+   },
+   {
+    "at": "119f",
+    "shot": "p2b_motion_womanrun_west_047_nb.png"
+   },
+   {
+    "at": "120f",
+    "shot": "p2b_motion_womanrun_west_048_nb.png"
+   },
+   {
+    "at": "121f",
+    "shot": "p2b_motion_womanrun_west_049_nb.png"
+   },
+   {
+    "at": "122f",
+    "shot": "p2b_motion_womanrun_west_050_nb.png"
+   },
+   {
+    "at": "123f",
+    "shot": "p2b_motion_womanrun_west_051_nb.png"
+   },
+   {
+    "at": "124f",
+    "shot": "p2b_motion_womanrun_west_052_nb.png"
+   },
+   {
+    "at": "125f",
+    "shot": "p2b_motion_womanrun_west_053_nb.png"
+   },
+   {
+    "at": "126f",
+    "shot": "p2b_motion_womanrun_west_054_nb.png"
+   },
+   {
+    "at": "127f",
+    "shot": "p2b_motion_womanrun_west_055_nb.png"
+   },
+   {
+    "at": "128f",
+    "shot": "p2b_motion_womanrun_west_056_nb.png"
+   },
+   {
+    "at": "129f",
+    "shot": "p2b_motion_womanrun_west_057_nb.png"
+   },
+   {
+    "at": "130f",
+    "shot": "p2b_motion_womanrun_west_058_nb.png"
+   },
+   {
+    "at": "131f",
+    "shot": "p2b_motion_womanrun_west_059_nb.png"
+   }
+  ]
+ }
+]

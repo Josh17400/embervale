@@ -1,5 +1,6 @@
-// The one translation unit that compiles the Witness adapter (engine/witness.h, STB-style). Built only with the
-// EMBERVALE_WITNESS option (desktop; the web build has no sockets): see CMakeLists.txt and rpg/main.cpp.
+// The one translation unit that compiles the Witness adapter (engine/witness.h, STB-style). Built with the
+// EMBERVALE_WITNESS option (desktop, sockets) or EMBERVALE_WITNESS_WEB (the Emscripten test variant: no sockets, the
+// web bridge through engine/witness_emscripten.js): see CMakeLists.txt, rpg/main.cpp and tools/witness_web/README.md.
 #define WITNESS_IMPLEMENTATION
 #include "engine/witness.h"
 #include <cstdlib>

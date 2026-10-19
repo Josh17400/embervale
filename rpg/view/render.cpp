@@ -932,6 +932,7 @@ void View::rigBakeQueue(const Game& g) {
         q.push_back(j);
       };
       want(art::RigPart::Loco);
+      if (a.player || a.gait) want(art::RigPart::Run);   // (P2b) the run's own drawings, before the hero breaks into one
       if (a.player || (a.hostile && (a.aggro || d2 < 200.0f * 200.0f))) want(art::RigPart::Action);
     }
     std::sort(q.begin(), q.end(), [](const RigJob& x, const RigJob& y) { return x.d2 < y.d2; });
@@ -1836,6 +1837,10 @@ void View::update(Game& g, float dt) {
   if (herald_.t > 0 && g.mode == Mode::Play) herald_.t -= dt;
   if (toasts_.size() > 5) toasts_.erase(toasts_.begin(), toasts_.begin() + (toasts_.size() - 5));
   // camera follows with a little lead in the aim direction (P2a: framing the world view, VW x VH world px)
+  // (P2b `camhold`, Witness reset param camera:"hold": the same flag) the camera stays where it was drawn: no follow, no
+  // zoom recentring, no shake (a window shift still carries it with the world, a snap or a map change still cuts)
+  const bool camHeld = p2b.camHold && g.mode != Mode::Title;
+  const Vec2 heldCam = cam_;
   cam_ += s_camRes;   // (P2a slice) the eased camera again: the draw read it rounded (rvSnapCamera, below)
   s_camRes = Vec2();
   lensUpdate(g, dt);
@@ -1907,6 +1912,7 @@ void View::update(Game& g, float dt) {
     cam_ = rvSnapCamera(eased, g.mode != Mode::Title ? g.pl().p : eased, g.mode != Mode::Title, dt);
     s_camRes = eased - cam_;
   }
+  if (camHeld) { cam_ = heldCam; s_camRes = Vec2(); }
   // (M6 BEASTS) what the view hears and shows of the foes' moves: the harpy's shriek as it rears for the swoop, the
   // golem's slam (a shake and dust), the sting when an elite or a champion first comes into view, a world boss's roar
   // when it turns on the player, and a boss passing a phase (a roar, a shake, a white-hot flash). The sim may also play
@@ -1966,7 +1972,7 @@ void View::update(Game& g, float dt) {
     }
   }
   shake_ = std::max(0.0f, shake_ - dt * 12);
-  shakeOff_ = shake_ > 0.1f ? Vec2(std::sin(t_ * 91) * shake_, std::cos(t_ * 77) * shake_ * 0.7f) : Vec2();
+  shakeOff_ = shake_ > 0.1f && !camHeld ? Vec2(std::sin(t_ * 91) * shake_, std::cos(t_ * 77) * shake_ * 0.7f) : Vec2();
   for (size_t i = 0; i < parts_.size();) {
     Particle& q = parts_[i];
     q.life -= dt;
@@ -2711,6 +2717,11 @@ void View::drawWorld(Game& g) {
     if (d.kind == 3) {
       const Actor& a = g.actors[d.idx];
       if (a.st == AState::Dead) continue;
+#ifdef EMB_WITNESS
+      // (Witness reset param hide) no contact shadow or ring. The actor stays in the sorted list (the passes skip it), so
+      // the order of every other drawable, ties included, is the same as without the param: only its own pixels go
+      if (!wHide.empty() && witnessHides(g, a)) continue;
+#endif
       if (a.player && g.homeRiding()) { drawMountShadow(g, a, cam); continue; }   // (M7) the horse's shadow
       if (a.comp) {   // (M8) the hound's, a rider's horse's, the blood under the downed (party_view.cpp)
         bool done = false;
@@ -3431,6 +3442,9 @@ void View::drawWorld(Game& g) {
       }
       case 3: {
         const Actor& a = g.actors[d.idx];
+#ifdef EMB_WITNESS
+        if (!wHide.empty() && witnessHides(g, a)) break;   // (Witness reset param hide) no body, no silhouette through a roof
+#endif
         if (a.player && g.homeRiding() && drawMounted(g, a, cam)) {   // (M7) the rider on the horse (home_view.cpp)
           if (rideGhost_.t) {   // hidden behind a roof or a crown: the rider's silhouette shows through (as on foot)
             ghostTex = rideGhost_.t; ghostFr = rideGhost_.fr; ghostRow = rideGhost_.row; ghostFlip = rideGhost_.flip;

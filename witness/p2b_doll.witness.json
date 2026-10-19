@@ -1,0 +1,304 @@
+[
+ {
+  "name": "p2b doll: the hooks answer at rig 2 (the doll's state on the hero and the folk, lineup, camhold, dollpart off)",
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true
+  },
+  "steps": [
+   {
+    "at": 0.1,
+    "shot": "p2b_doll_t0_0.png"
+   },
+   {
+    "at": 0.2,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "typeof state.player.sprite.doll.covered == 'boolean'",
+     "Array.isArray(state.player.sprite.doll.missing)",
+     "state.player.sprite.doll.pool >= 0",
+     "state.player.anim.gait == 'walk'"
+    ]
+   },
+   {
+    "at": 0.3,
+    "call": [
+     [
+      "lineup",
+      "heartland",
+      "villager",
+      4,
+      "mixed"
+     ],
+     [
+      "camhold",
+      1
+     ]
+    ],
+    "expect": [
+     "entities.filter(e => e.id >= 910000 && e.id < 920000).length == 4",
+     "entities.filter(e => e.id >= 910000 && e.id < 920000).every(e => e.doll && typeof e.doll.covered == 'boolean')"
+    ]
+   },
+   {
+    "at": 0.5,
+    "shot": "p2b_doll_hooks.png"
+   },
+   {
+    "at": 0.6,
+    "call": [
+     [
+      "camhold",
+      0
+     ],
+     [
+      "dollpart",
+      "off"
+     ]
+    ],
+    "expect": "state.player.sprite.drawn"
+   }
+  ]
+ },
+ {
+  "name": "p2b doll: a look the doll does not cover is drawn whole on v1 (never a half-made person)",
+  "params": {
+   "rig": 2,
+   "hour": 11
+  },
+  "steps": [
+   {
+    "at": 0.7,
+    "shot": "p2b_doll_t1_0.png"
+   },
+   {
+    "at": 0.8,
+    "expect": [
+     "state.player.sprite.doll.covered || (state.player.sprite.drawn && state.player.sprite.boxH <= 24)",
+     "state.player.sprite.doll.covered || state.player.sprite.doll.missing.length > 0"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "p2b target (B6): the A3 hero is covered at rig 2: drawn by the doll, 32 px (34 with the cowlick)",
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true
+  },
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ]
+    ]
+   },
+   {
+    "at": 0.5,
+    "shot": "p2b_doll_hero.png"
+   },
+   {
+    "at": 0.6,
+    "expect": [
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.boxH >= 32 && state.player.sprite.boxH <= 34"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "p2b target (B6): the woman hero and the start village's folk are covered: no person drawn from a v1 sheet",
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "female": true
+  },
+  "steps": [
+   {
+    "at": 0.6,
+    "expect": [
+     "state.player.sprite.doll.covered",
+     "entities.filter(e => e.kind == 'person' && e.doll).every(e => e.doll.covered)",
+     "state.screen.v1Draws == 0"
+    ],
+    "shot": "p2b_doll_village.png"
+   }
+  ]
+ },
+ {
+  "name": "p2b target (B5): the gait follows the speed: the hero runs above 54 px/s from the RUN atlas, walks below",
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true
+  },
+  "input": "d@0.3-1.6",
+  "steps": [
+   {
+    "at": 0.9,
+    "shot": "p2b_doll_t4_0.png"
+   },
+   {
+    "at": 1.0,
+    "expect": [
+     "state.player.anim.speed > 54",
+     "state.player.anim.gait == 'run'",
+     "state.player.sprite.part == 'run'"
+    ]
+   },
+   {
+    "at": 2.1,
+    "shot": "p2b_doll_t4_2.png"
+   },
+   {
+    "at": 2.2,
+    "expect": [
+     "state.player.anim.clip == 'idle'",
+     "state.player.sprite.part == 'loco'"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "p2b target (B5): the sheathed / drawn pick: Idle variant 1 (drawn) for 4 s after a swing, then variant 0 (sheathed)",
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true
+  },
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     "skill",
+     "kit",
+     "sword",
+     "none"
+    ]
+   },
+   {
+    "at": 0.4,
+    "expect": [
+     "state.player.anim.clip == 'idle'",
+     "state.player.anim.variant == 0"
+    ]
+   },
+   {
+    "at": 0.5,
+    "input": "j@0-0.1"
+   },
+   {
+    "at": 1.6,
+    "expect": [
+     "state.player.anim.clip == 'idle'",
+     "state.player.anim.variant == 1"
+    ]
+   },
+   {
+    "at": 5.4,
+    "expect": [
+     "state.player.anim.clip == 'idle'",
+     "state.player.anim.variant == 0"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "p2b target (B11): the hero falls on the doll: Fall, then Lying within 0.45 s from his DEATH atlas, head toward the fall side",
+  "params": {
+   "rig": 2,
+   "hour": 11
+  },
+  "steps": [
+   {
+    "at": 0.3,
+    "call": [
+     "die"
+    ]
+   },
+   {
+    "at": 0.32,
+    "expect": "state.player.anim.clip == 'fall' || state.player.anim.clip == 'lying'"
+   },
+   {
+    "at": 0.7,
+    "shot": "p2b_doll_fallen.png"
+   },
+   {
+    "at": 0.8,
+    "expect": [
+     "state.player.anim.clip == 'lying'",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.part == 'death'",
+     "state.player.sprite.boxH <= 16"
+    ]
+   }
+  ]
+ },
+ {
+  "name": "p2b target (B11): the rider: the hero on a horse is drawn by the doll (the Ride posture on HOLDERS' saddle)",
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true
+  },
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "walk",
+      "east",
+      2.5
+     ]
+    ]
+   },
+   {
+    "at": 3.0,
+    "call": [
+     [
+      "home",
+      "lot",
+      "medium"
+     ],
+     [
+      "gold",
+      99999
+     ],
+     [
+      "home",
+      "fill"
+     ],
+     [
+      "home",
+      "ride"
+     ]
+    ]
+   },
+   {
+    "at": 3.7,
+    "shot": "p2b_doll_rider.png"
+   },
+   {
+    "at": 3.8,
+    "expect": [
+     "state.player.sprite.drawn",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.part == 'posture'"
+    ]
+   }
+  ]
+ }
+]

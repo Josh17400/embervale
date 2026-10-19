@@ -1,0 +1,13 @@
+# rpg/art/doll/maps/legend/woman.legend: character -> slot and step (STYLE_P2 6; rpg/art/doll/doll.h)
+# written by tools/doll/from_a3.py from A3's character legend (docs/ref/style_a3/pal.py)
+# used on top of person.legend: the woman's chemise (linen), apron (cloth3), ribbon (accent) and lip
+legend v linen 0
+legend w linen 1
+legend x linen 2
+legend y linen 3
+legend A cloth3 0
+legend B cloth3 1
+legend C cloth3 2
+legend D cloth3 3
+legend R accent 1
+legend S accent 3

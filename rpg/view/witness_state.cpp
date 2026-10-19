@@ -4,6 +4,7 @@
 // playtests) the public buildings' doors outside, the exit and stairs inside.
 #ifdef EMB_WITNESS
 #include "rpg/view/witness_state.h"
+#include "rpg/art/doll/doll.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -68,6 +69,31 @@ const char* stateName(AState s) {
   return (size_t)s < sizeof(n) / sizeof(n[0]) ? n[(int)s] : "other";
 }
 const char* questState(QState s) { return s == QState::Active ? "active" : s == QState::Complete ? "complete" : "done"; }
+// an actor's entity type as state.entities names it: Player; a village or farm animal by its kind; a person by role;
+// else a beast by its monster type (a companion hound, the toll bridge's troll). The reset param hide matches it too.
+const char* entityType(const Actor& a) {
+  if (a.player) return "Player";
+  if (a.critter != 0) return critterType((art::Critter)(a.critter - 1));
+  return a.human ? roleName(a.role) : monsterType(a.mon);
+}
+// a cell a step onto changes the scene (Witness PLAYTEST.md "Cells to keep off": map '+'): outside, a building's door or
+// walk-in bay (bldgEntryAt) and a cave's or ruin's mouth; inside, the way out and the stairs (Game::update's triggers)
+bool doorCell(const Game& g, const Map& m, int x, int y) {
+  if (!m.in(x, y)) return false;
+  if (!g.inside) {
+    const int bi = m.bldgAt[(size_t)y * m.w + x];
+    if (bi >= 0 && bi < (int)m.bldgs.size() && bldgEntryAt(m.bldgs[(size_t)bi], x, y)) return true;
+    const int pr = m.propAt(x, y);
+    if (pr == (int)art::Prop::CaveEntrance + 1 || pr == (int)art::Prop::IronDoor + 1) {
+      const int si = g.world.siteAt(x, y);
+      return si >= 0 && (g.world.sites[(size_t)si].type == SiteType::Cave || g.world.sites[(size_t)si].type == SiteType::Ruin);
+    }
+    return false;
+  }
+  if (m.isExit(x, y)) return true;
+  const int pr = m.propAt(x, y);
+  return (g.sub.up.valid() && pr == (int)art::Prop::StairsUp + 1) || (g.sub.down.valid() && pr == (int)art::Prop::StairsDown + 1);
+}
 // to 1/100 (positions in tiles, hp, the hour): the double nearest the 2-decimal value, so the JSON stays short
 double r2(double v) {
   char b[48];
@@ -91,7 +117,9 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     j.key("dialogue").begin_object().field("speaker", g.dlg.speaker).field("text", g.dlg.text.substr(0, 1200)).key("options").begin_array();
     for (const DlgOpt& o : g.dlg.opts) j.value(o.label);
     j.end_array().end_object();
-  }
+  } else j.key("dialogue").value(nullptr);   // (Witness 0.6 playtest-ready: null while none is open)
+  // (Witness 0.6/0.7) the outcome: trace --xy and heatmap mark deaths from it, a playtest wakes on it
+  j.field("dead", g.mode == Mode::Dead);
   if (g.noticeT > 0 && !g.notice.empty()) j.field("notice", g.notice);
 
   // the player
@@ -125,13 +153,30 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
       j.field("boxH", hs.by1 - hs.by0 + 1);   // the opaque height in art px
     }
     j.key("pivot").vec(r2(wl.offX + hs.pivX * wl.scale), r2(wl.offY + hs.pivY * wl.scale));
+    if (hs.part >= 0) j.field("part", hs.part == 0 ? "loco" : hs.part == 1 ? "action" : hs.part == 2 ? "death" : hs.part == 3 ? "run" : "posture");
+    {   // (P2b) the doll: whether it covers the hero's look (rig 2 draws the doll, else v1 whole) and what it still lacks
+      const bool cov = art::rig2Covers(P.look);
+      j.key("doll").begin_object().field("covered", cov).field("pool", art::doll::partCount());
+      j.key("missing").begin_array();
+      if (!cov) {
+        int n = 0;
+        for (const art::doll::Missing& m : art::doll::dollMissing(P.look)) { if (n++ >= 12) break; j.value(m.what()); }
+      }
+      j.end_array();
+      if (!v.p2b.dollPart.empty()) j.field("part", v.p2b.dollPart);
+      j.end_object();
+    }
     j.end_object();
   }
   {   // (P2a) what the hero shows (rpg/sim/anim.h animPick, or the frozen `pose`)
     AnimPick k = animPick(g, P);
     if (v.p2a.poseOn) { k.clip = v.p2a.poseClip; k.family = v.p2a.poseFamily; k.variant = (uint8_t)v.p2a.poseVariant; k.frame = (uint8_t)v.p2a.poseFrame; }
+    // (P2b) the gait the speed asks for (walk, or run above art::doll::kGaitSwitch px/s) and the speed itself
+    // (vel when the sim sets it, else the walker's own speed: the hero's movement is not kept in vel)
+    const float sp = P.st == AState::Walk ? (len(P.vel) > 0.5f ? len(P.vel) : P.speed) : len(P.vel);
     j.key("anim").begin_object().field("clip", art::clipName(k.clip)).field("family", art::familyName(k.family)).field("variant", (int)k.variant)
-        .field("frame", (int)k.frame).field("frames", (int)k.frames).field("frozen", v.p2a.poseOn).end_object();
+        .field("frame", (int)k.frame).field("frames", (int)k.frames).field("frozen", v.p2a.poseOn)
+        .field("speed", r2(sp)).field("gait", sp > art::doll::kGaitSwitch ? "run" : "walk").end_object();
   }
   j.end_object();
 
@@ -157,11 +202,39 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     j.end_object();
   }
 
+  // where a quest's next step happens, outside: the objective's tile centre in the frame `pos` uses (Game::questTarget,
+  // else the quest's own place: a den, a camp), global tiles as pos is outside; false inside or when it has no place
+  auto questPos = [&](const Quest& q, double& x, double& y) -> bool {
+    if (g.inside || q.state == QState::Done) return false;
+    int tx = 0, ty = 0;
+    if (!g.questTarget(q.id, tx, ty)) {
+      if (!q.hasPos) return false;
+      tx = q.tgx - g.world.ox; ty = q.tgy - g.world.oy;
+    }
+    x = g.world.ox + tx + 0.5; y = g.world.oy + ty + 0.5;
+    return true;
+  };
   // quests (the tracked one first, then by id)
-  j.key("quests").begin_array();
   std::vector<const Quest*> qs;
   for (const Quest& q : g.quests) qs.push_back(&q);
   std::stable_sort(qs.begin(), qs.end(), [&](const Quest* a, const Quest* b) { return (a->id == g.trackedQuest) > (b->id == g.trackedQuest); });
+  {   // (Witness 0.6 playtest-ready) the goal: the tracked open quest (else the first active one), its count and next step,
+      // and where that happens (witness.json play.goal words it the same way and adds the other quests' count)
+    const Quest* gq = nullptr;
+    for (const Quest* q : qs) if (q->state != QState::Done && q->id == g.trackedQuest) { gq = q; break; }
+    if (!gq) for (const Quest* q : qs) if (q->state == QState::Active) { gq = q; break; }
+    if (gq) {
+      std::string text = gq->title;
+      if (gq->need) text += " (" + std::to_string(gq->have) + "/" + std::to_string(gq->need) + ")";
+      const std::string st = g.questStatus(*gq);
+      if (!st.empty()) text += ": " + st;
+      j.key("goal").begin_object().field("text", text).field("quest", gq->id);
+      double x = 0, y = 0;
+      if (questPos(*gq, x, y)) j.key("pos").vec(x, y);
+      j.end_object();
+    } else j.key("goal").value(nullptr);
+  }
+  j.key("quests").begin_array();
   for (size_t i = 0; i < qs.size() && i < 24; i++) {
     const Quest& q = *qs[i];
     j.begin_object().field("id", q.id).field("title", q.title).field("type", (int)q.type).field("state", questState(q.state))
@@ -170,13 +243,8 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     // objective's tile centre in the frame `pos` uses (Game::questTarget, else the quest's own place: a den, a camp)
     if (q.state != QState::Done) {
       j.field("status", g.questStatus(q));
-      int tx = 0, ty = 0;
-      bool at = false;
-      if (!g.inside) {
-        if (g.questTarget(q.id, tx, ty)) at = true;
-        else if (q.hasPos) { tx = q.tgx - g.world.ox; ty = q.tgy - g.world.oy; at = true; }
-      }
-      if (at) j.key("pos").vec(g.world.ox + tx + 0.5, g.world.oy + ty + 0.5);   // (global, as pos is outside)
+      double x = 0, y = 0;
+      if (questPos(q, x, y)) j.key("pos").vec(x, y);   // (global, as pos is outside)
     }
     j.end_object();
   }
@@ -208,11 +276,14 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     if (g.inside) std::snprintf(id, sizeof id, "in:%d:%d:%d", g.subSite, g.subBldg, g.subFloor);
     else std::snprintf(id, sizeof id, "ow:global");
     const int ox = g.inside ? 0 : g.world.ox, oy = g.inside ? 0 : g.world.oy;
-    j.key("map").begin_object().field("id", std::string(id)).field("cell", 1).key("origin").vec(ox + px - R, oy + py - R).field("solid", "#");
+    // '+': a door, a walk-in bay, a cave mouth, the way out or the stairs (doorCell): stepping on it changes the scene, so
+    // a playtest's paths keep off it unless it is the goal (Witness 0.6 "Cells to keep off")
+    j.key("map").begin_object().field("id", std::string(id)).field("cell", 1).key("origin").vec(ox + px - R, oy + py - R).field("solid", "#")
+        .field("door", "+");
     j.key("rows").begin_array();
     std::string row((size_t)(2 * R + 1), '.');
     for (int y = py - R; y <= py + R; y++) {
-      for (int x = px - R; x <= px + R; x++) row[(size_t)(x - px + R)] = m.blocked(x, y) ? '#' : '.';
+      for (int x = px - R; x <= px + R; x++) row[(size_t)(x - px + R)] = m.blocked(x, y) ? '#' : doorCell(g, m, x, y) ? '+' : '.';
       j.value(row);
     }
     j.end_array().end_object();
@@ -236,7 +307,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
     const bool animal = a.critter != 0, person = a.human && !animal;
     const bool talk = a.npc && !animal && !a.hostile && a.st != AState::Dead && !(a.aggro && a.target == P.id);
     if (a.hostile && a.st != AState::Dead) hostiles++;
-    j.begin_object().field("id", a.id).field("type", animal ? critterType((art::Critter)(a.critter - 1)) : person ? roleName(a.role) : monsterType(a.mon))
+    j.begin_object().field("id", a.id).field("type", entityType(a))
         .field("kind", a.comp ? "companion" : animal ? "animal" : person ? "person" : "beast").field("talk", talk).field("name", a.name);
     j.key("pos"); tilePos(j, a.p, g);
     j.field("dist", r2(near[i].first)).field("hp", r2(a.hp)).field("maxHp", r2(a.maxHp)).field("level", a.level)
@@ -247,6 +318,16 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
           .field("frame", (int)k.frame).field("frames", (int)k.frames).end_object();
     }
     if (a.st == AState::Dead) j.key("corpse").begin_object().field("age", r2(a.stT)).end_object();
+    if (a.human && !animal) {   // (P2b) the doll covers this person (rig 2 draws the doll), else the first value it lacks
+      const bool cov = art::rig2Covers(a.look);
+      j.key("doll").begin_object().field("covered", cov);
+      if (!cov && art::doll::partCount() > 0) {
+        const std::vector<art::doll::Missing> m = art::doll::dollMissing(a.look);
+        j.field("missing", (int)m.size());
+        if (!m.empty()) j.field("first", m[0].what());
+      }
+      j.end_object();
+    }
     j.end_object();
   }
   // (agent playtests) outside: the doors of the public buildings within 40 tiles, nearest first (at most 8), so "goto
@@ -266,15 +347,27 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
       const Bldg& b = B[(size_t)doors[i].bi];
       const int32_t gx = g.world.ox + b.doorX(), gy = g.world.oy + b.doorY();
       const int id = 50000000 + (int)(((uint32_t)gx & 0xFFFu) << 12 | ((uint32_t)gy & 0xFFFu));
-      j.begin_object().field("id", id).field("type", buildingType(b.type)).field("kind", "building").field("talk", false);
+      // door: the playtest keeps off it unless it is the goal; leadsTo: `goto Inn` enters by it
+      j.begin_object().field("id", id).field("type", buildingType(b.type)).field("kind", "building").field("talk", false)
+          .field("door", true).field("leadsTo", buildingType(b.type));
       j.key("pos").vec(gx + 0.5, gy + 0.5);
       j.field("dist", r2(doors[i].d)).field("hostile", false).end_object();
     }
   }
+  // (Witness 0.6 playtest-ready) every open quest with a place to go, as a marker thing at that place (type Quest, named
+  // by its title, quest: the title, objective: true), so `goto "<title>"` walks there; ids 49100000 + the quest's id
+  for (const Quest* q : qs) {
+    double x = 0, y = 0;
+    if (!questPos(*q, x, y)) continue;
+    j.begin_object().field("id", 49100000 + q->id).field("type", "Quest").field("kind", "quest").field("name", q->title)
+        .field("quest", q->title).field("objective", true).field("talk", false).field("hostile", false);
+    j.key("pos").vec(x, y);
+    j.field("dist", r2(std::hypot(x - (g.world.ox + P.p.x / TILE), y - (g.world.oy + P.p.y / TILE)))).end_object();
+  }
   // inside: the way out (stepping onto it leaves) and the stairs, so "goto Exit" / "goto StairsUp" work
   if (g.inside && inWorld) {
     auto place = [&](int id, const char* type, int tx, int ty) {
-      j.begin_object().field("id", id).field("type", type).field("kind", "place").field("talk", false);
+      j.begin_object().field("id", id).field("type", type).field("kind", "place").field("talk", false).field("door", true);
       j.key("pos").vec(tx + 0.5, ty + 0.5);
       j.field("dist", r2(std::hypot(tx + 0.5f - P.p.x / TILE, ty + 0.5f - P.p.y / TILE))).field("hostile", false).end_object();
     };
@@ -314,6 +407,15 @@ std::string witnessDigest(const Game& g) {
   }
   std::snprintf(b, sizeof b, "|g%d xp%d k%d inv%zu q%zu p%zu", g.gold, g.plXp, g.kills, g.inv.size(), g.quests.size(), g.pickups.size());
   return s + b;
+}
+
+bool View::witnessHides(const Game& g, const Actor& a) const {
+  (void)g;
+  for (int id : wHide.ids) if (id == a.id) return true;
+  if (wHide.types.empty()) return false;
+  const char* t = entityType(a);
+  for (const std::string& s : wHide.types) if (s == t) return true;
+  return false;
 }
 
 void View::witnessRelease() {

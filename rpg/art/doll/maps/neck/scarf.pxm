@@ -1,0 +1,51 @@
+# neck/scarf: the scarf (A3's hero): the wrap and knot; the tail hangs at rest and flies in side walks (neck keys)
+# The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role neck scarf
+layer neck
+anchor neck
+keys neck
+
+view D key rest origin 5 0
+|mpnnnnnnom
+|.mponnnm..
+
+view U key rest origin 5 0
+|mpooooonnm
+
+view R key flow origin 12 0
+|.....mnmpooonnm
+|-moonnnn.......
+|.m--...m.......
+
+view R key flow2 origin 11 1
+|..mm..........
+|.moon.mpooonnm
+|...nnnn.......
+|---...m.......
+
+view R key rest origin 6 0
+|.mpooonnm
+|mn.......
+|.m.......
+
+view L key flow origin 3 0
+|mpooonnnm...
+|......-nnoom
+|........--m.
+
+view L key flow2 origin 3 1
+|.........mm
+|mpooonnmoom
+|......nnn..
+|.......--..
+
+view L key rest origin 3 0
+|mpooonnm.
+|.......nm
+|........m
+
+view L key lie origin 3 0
+|mpooonnm
+|......nm

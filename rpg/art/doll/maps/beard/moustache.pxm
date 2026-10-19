@@ -1,0 +1,23 @@
+# beard/moustache: Moustache: drooping either side of the mouth
+# The slice (P2b wave 1, FOLK-BODY; to HAIR in wave 2). On the head box (STYLE_P2 21). Format: rpg/art/doll/doll.h.
+use person
+body man
+role beard moustache
+layer beard
+anchor head
+keys rest
+
+view D key rest origin -5 -12
+|abb.bba
+|a.....a
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -11 -11
+|abb
+|a..
+
+view L key rest origin -2 -11
+|abb
+|..a

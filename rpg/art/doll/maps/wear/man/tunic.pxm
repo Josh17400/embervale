@@ -1,0 +1,110 @@
+# wear/man/tunic: the man's tunic (A3): lit chest plane, the belt and buckle, clean skirt folds, solid lit hem
+# The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+use person
+body man
+role garment tunic
+layer torso
+anchor neck
+keys torso
+
+view D key drawn origin 8 -1
+|.698.......765
+|6976..8877766.
+|...58...87666.
+|....887...766.
+|...588777...6.
+|...f877776..5.
+|...fihhPOhhgf.
+|...5886776765.
+|...5876776665.
+|...598685876..
+
+view D key rest origin 7 0
+|...5qrrrrq5..
+|59889rrrr7765
+|..6888877766.
+|..6888887666.
+|..6887777766.
+|..6887777666.
+|..g877776665.
+|..fihhPOhhgf.
+|..6886776765.
+|..6876776665.
+|..5986857765.
+
+view D key rest origin 7 -1 when elder
+|-...........-
+
+view U key rest origin 7 0
+|..5988777665..
+|59887777777665
+|..6887777666..
+|..6887776665..
+|..6887777665..
+|..6887777665..
+|..6887777665..
+|..fihhhhhggf..
+|..6887776765..
+|..6877767665..
+|..5988858765..
+
+view U key rest origin 7 -1 when elder
+|-............-
+
+view R key idle origin 5 0
+|..5qrrq5...
+|.598877765.
+|.5877777665
+|.5877777665
+|.5877777665
+|.5877777665
+|.5877777665
+|.fihhhhhggf
+|.5877777765
+|58877776665
+|59868868765
+
+view R key rest origin 5 0
+|..5qrrq5...
+|.598877765.
+|.5887777665
+|.5887777665
+|.5887777665
+|.5887777665
+|.5887777665
+|.fihhhhhggf
+|.5877777665
+|58877776665
+|59868868765
+
+view R key rest origin 4 -1 when elder
+|-
+
+view L key rest origin 7 0
+|....5qrrq5..
+|..598877765.
+|.58877776656
+|5887777665..
+|5887777665..
+|5887777665..
+|5887777665..
+|fihhhhhggf..
+|5877777665..
+|58877776665.
+|598688868765
+
+view L key rest origin -4 -2 when elder
+|-
+
+view L key lie origin 6 0
+|..58qrrq...
+|..88777665.
+|58877776665
+|58877777665
+|58877777665
+|59877777665
+|.5887777665
+|.5fihhhhggf
+|...58877665
+|....5987665
+|....5566665

@@ -301,10 +301,10 @@ Canvas laidOut(const HumanLook& L, const Body& B, const Kit& K, const HumCtx& ct
 }  // namespace
 }  // namespace rig2
 
-int humanoidCellW2(int species) { return species >= 1 && species <= 3 ? rig2::kCellW[species] : 0; }
-int humanoidCellH2(int species) { return species >= 1 && species <= 3 ? rig2::kCellH[species] : 0; }
+int legacyHumanoidCellW2(int species) { return species >= 1 && species <= 3 ? rig2::kCellW[species] : 0; }
+int legacyHumanoidCellH2(int species) { return species >= 1 && species <= 3 ? rig2::kCellH[species] : 0; }
 
-Canvas humanoidCell2(int species, int frame) {
+Canvas legacyHumanoidCell2(int species, int frame) {
   using namespace rig2;
   if (species < 1 || species > 3) return Canvas();
   const int cw = kCellW[species], ch = kCellH[species];

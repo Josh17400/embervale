@@ -1,0 +1,232 @@
+# kin/child/legs/std: the child's legs: short trousers over chunky boots
+# The slice (P2b wave 1, FOLK-BODY; to KIN-CHILD in wave 2). The child, 21 px (STYLE_P2 3). Format: rpg/art/doll/doll.h.
+use person
+body child
+role legs std
+layer legs
+anchor pivot
+keys legs
+
+view D key buckle origin 6 5
+|..12222221..
+|..12211221..
+|.fiihffiihf.
+|.fhhgffhhgf.
+|fjihgffhhggf
+|KKKKKKKKKKKK
+
+view D key idle origin 6 5
+|..12222221..
+|..12211221..
+|.fiihffiihf.
+|.fhhgffhhgf.
+|fjihgffhhggf
+|KKKKKKKKKKKK
+
+view D key walkA origin 6 5
+|..12222221..
+|..12211221..
+|.fiihffiihf.
+|fjihgffhhgf.
+|KKKKKKfhhggf
+|......KKKKKK
+
+view D key walkB origin 6 5
+|..12222221..
+|..12211221..
+|.fiihffiihf.
+|.fhhgffhhgf.
+|fjihgffhhggf
+|KKKKKKKKKKKK
+
+view D key walkC origin 6 5
+|..12222221..
+|..12211221..
+|.fiihffiihf.
+|.fhhgffhhggf
+|fjihgfKKKKKK
+|KKKKKK......
+
+view D key walkD origin 6 5
+|..12222221..
+|..12211221..
+|.fiihffiihf.
+|.fhhgffhhgf.
+|fjihgffhhggf
+|KKKKKKKKKKKK
+
+view U key buckle origin 6 5
+|..12222221..
+|..12211221..
+|.fiihffiihf.
+|.fhhgffhhgf.
+|fjihgffhhggf
+|KKKKKKKKKKKK
+
+view U key idle origin 6 5
+|..12222221..
+|..12211221..
+|.fiihffiihf.
+|.fhhgffhhgf.
+|fjihgffhhggf
+|KKKKKKKKKKKK
+
+view U key walkA origin 6 5
+|..12222221..
+|..12211221..
+|.fiihffiihf.
+|fjihgffhhgf.
+|KKKKKKfhhggf
+|......KKKKKK
+
+view U key walkB origin 6 5
+|..12222221..
+|..12211221..
+|.fiihffiihf.
+|.fhhgffhhgf.
+|fjihgffhhggf
+|KKKKKKKKKKKK
+
+view U key walkC origin 6 5
+|..12222221..
+|..12211221..
+|.fiihffiihf.
+|.fhhgffhhggf
+|fjihgfKKKKKK
+|KKKKKK......
+
+view U key walkD origin 6 5
+|..12222221..
+|..12211221..
+|.fiihffiihf.
+|.fhhgffhhgf.
+|fjihgffhhggf
+|KKKKKKKKKKKK
+
+view R key buckle origin 4 5
+|.1222221...
+|.1222221...
+|fhgffiihf..
+|fhgffhhgf..
+|fhhgfihhggf
+|KKKKKKKKKKK
+
+view R key idle origin 4 5
+|.1222221...
+|.1222221...
+|fhgffiihf..
+|fhgffhhgf..
+|fhhgfihhggf
+|KKKKKKKKKKK
+
+view R key walkA origin 5 5
+|..1222221...
+|.1221.1221..
+|fhgf..fiihf.
+|fggf..fhhgf.
+|fhgf..fihhgf
+|.KKK..KKKKK.
+
+view R key walkA2 origin 6 5
+|...1222221.
+|..12211221.
+|fhgf.fiihf.
+|fggf.fhhgf.
+|fhgf.fihhgf
+|.KK..KKKKK.
+
+view R key walkB2 origin 6 5
+|...1222221
+|..1214321.
+|fhgfiihf..
+|fggfhhgf..
+|KKKfihhgf.
+|...KKKKK..
+
+view R key walkC origin 5 5
+|..1222221..
+|.1432.1321.
+|fiihf.fhgf.
+|fhhf..fggf.
+|fihf..fhggf
+|.KKK..KKKKK
+
+view R key walkC2 origin 6 5
+|...1222221
+|..14321321
+|fiihffhgf.
+|fhhf.fggf.
+|fihf.fhggf
+|.KK..KKKKK
+
+view R key walkD2 origin 3 5
+|1222221
+|1314321
+|fhfiihf
+|fgfhhgf
+|fhKKKKK
+|KKKKK..
+
+view L key buckle origin 6 5
+|...1222221..
+|...1222221..
+|..fiihffhgf.
+|..fhhgffhgf.
+|fjihhgffhggf
+|KKKKKKKKKKKK
+
+view L key idle origin 6 5
+|...1222221..
+|...1222221..
+|..fiihffhgf.
+|..fhhgffhgf.
+|fjihhgffhggf
+|KKKKKKKKKKKK
+
+view L key walkA origin 6 5
+|...1222221..
+|..1221.1221.
+|.fiihf..fhgf
+|.fihgf..fggf
+|fjihgf..fhgf
+|.KKKKK..KKK.
+
+view L key walkA2 origin 4 5
+|.1222221...
+|.12211221..
+|.fiihf.fhgf
+|.fihgf.fggf
+|fjihgf.fhgf
+|.KKKKK..KK.
+
+view L key walkB2 origin 3 5
+|1222221...
+|.1214321..
+|..fhgfiihf
+|..fggfhhgf
+|.KKKfihhgf
+|..KKKKK...
+
+view L key walkC origin 5 5
+|..1222221..
+|.1321.1432.
+|.fhgf.fiihf
+|.fggf..fhhf
+|fhggf..fihf
+|KKKKK..KKK.
+
+view L key walkC2 origin 3 5
+|1222221...
+|14321321..
+|.fiihffhgf
+|.fggf.fhhf
+|fhggf.fihf
+|KKKKK..KK.
+
+view L key walkD2 origin 3 5
+|1222221
+|1314321
+|fhfiihf
+|fgfhhgf
+|fhKKKKK
+|..KKKKK

@@ -1,0 +1,26 @@
+# hair/adult/tousled_tuft: Tousled's cowlick tip: it stretches as the head drops, flattens as it rises (tuft keys)
+# The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role hair tousled
+layer hairFront
+anchor head
+keys tuft
+z 1
+
+view D key down origin -10 1
+|a
+
+view D key fierce origin -13 -9
+|s
+
+view D key up origin -9 0
+|--
+|.a
+
+view U key down origin -6 1
+|a
+
+view U key up origin -5 0
+|--
+|.a

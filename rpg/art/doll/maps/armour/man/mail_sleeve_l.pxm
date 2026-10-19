@@ -1,0 +1,148 @@
+# armour/man/mail_sleeve_l: Mail's sleeve over the arm: the upper arm in the mail brick to the elbow
+# The slice (P2b wave 1, FOLK-BODY; armour and helms to P2c's ARMOUR / HELMS). Format: rpg/art/doll/doll.h.
+use person
+body man
+role armour mail
+layer armNear
+anchor shoulderL
+keys armL
+side L
+z 1
+
+view D key back origin 1 -1
+|xwv
+|wxv
+|xwv
+
+view D key back origin 1 -1 when armed replace
+|xwv
+|wxv
+|xwv
+|wxv
+
+view D key fwd origin 1 -1
+|xwv
+|wxv
+|xwv
+|wxv
+|xwv
+
+view D key fwd origin 1 -1 when armed replace
+|xwv
+|wxv
+|xwv
+|wxv
+
+view D key idle origin 1 -1
+|xwv
+|wxv
+|xwv
+|wxv
+
+view D key idle origin 1 -1 when armed replace
+|xwv
+|wxv
+|xwv
+|wxv
+
+view D key lap origin 1 -1
+|xwv
+|wxv
+|xwv
+|wxv
+
+view U key back origin 1 -1
+|vxx
+|vyw
+|vxx
+|vyw
+
+view U key back origin 1 -1 when armed replace
+|vxx
+|vyw
+|vxx
+|vyw
+
+view U key fwd origin 1 -1
+|vxx
+|vyw
+|vxx
+|vyw
+
+view U key fwd origin 1 -1 when armed replace
+|vxx
+|vyw
+|vxx
+|vyw
+
+view U key idle origin 1 -1
+|vxx
+|vyw
+|vxx
+|vyw
+
+view U key lap origin 1 -1
+|vxx
+|vyw
+|vxx
+|vyw
+
+view R key back origin 4 -6
+|v
+
+view R key back origin 0 0 when armed replace
+|.
+
+view L key B origin 4 -1
+|vywxv..
+|.vywxv.
+|.vxxwv.
+|..vxxwv
+
+view L key B origin 7 -1 when armed replace
+|..vxxwv
+|.vxxwv.
+|.vywxv.
+|vywxv..
+
+view L key F origin 6 -1
+|..vywxv
+|.vywxv.
+|.vxxwv.
+|vxxwv..
+
+view L key F origin 7 -1 when armed replace
+|..vxxwv
+|.vxxwv.
+|.vywxv.
+|vywxv..
+
+view L key N origin 4 -1
+|vywxv
+|vxxwv
+|vywxv
+|vxxwv
+
+view L key N origin 7 -1 when armed replace
+|..vxxwv
+|.vxxwv.
+|.vywxv.
+|vywxv..
+
+view L key idle origin 4 -1
+|vywxv
+|vxxwv
+|vywxv
+|vxxwv
+
+view L key idle origin 7 -1 when armed replace
+|..vxxwv
+|.vxxwv.
+|.vywxv.
+|vywxv..
+
+view L key lie origin 0 0
+|vywxw.
+|vxxwxv
+|vywxwv
+|vxxwxv

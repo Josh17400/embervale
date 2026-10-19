@@ -1,0 +1,104 @@
+# headwear/cloth/hood: the Hood: cloth over the head and hair, the face framed, a cowl on the shoulders (the braid falls out below it)
+# The slice (P2b wave 1, FOLK-BODY; armour and helms to P2c's ARMOUR / HELMS). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role headwear hood
+role headwear legacyhood
+layer headwear
+anchor head
+keys hatpose
+legend Q head 0
+legend R head 1
+legend S head 2
+legend T head 3
+legend U head 4
+
+view D key rest origin 0 -1
+|.....QQQQQQ.....
+|...QQTUUTTSQQ...
+|..QTUUTTSSSRRQ..
+|.QTUTTSSSSSRRRQ.
+|.QTTSQQQQQQSRRQ.
+|QTTSQ......QRRRQ
+|QTSQ........QRRQ
+|QTSQ........QRRQ
+|QTQ..........QRQ
+|QTQ..........QRQ
+|QTSQ........QRRQ
+|QTTSQ......QRRRQ
+|.QTTSQ....QRRRQ.
+|QTTTSSQQQQRRRRRQ
+|QTTSSSSRRRRRRRRQ
+|.QQQQQQQQQQQQQQ.
+
+view U key rest origin 0 -1
+|.....QQQQQQ.....
+|...QQTUUTTSQQ...
+|..QTUUTTSSSRRQ..
+|.QTUTTSSSSSRRRQ.
+|.QTTTSSSSSSRRRQ.
+|QTTTSSSSSSSSRRRQ
+|QTTSSSSSSSSSRRRQ
+|QTTSSSSSSSSRRRRQ
+|QTTSSSSSSSSRRRRQ
+|QTSSSSSSSSSRRRRQ
+|QTSSSSSSSSRRRRRQ
+|.QTSSSSSSRRRRRQ.
+|.QTSSSSSRRRRRRQ.
+|QTTSSSSSRRRRRRRQ
+|QTTSSSSRRRRRRRRQ
+|.QQQQQQQQQQQQQQ.
+
+view R key rest origin 1 -1
+|......QQQQQQ....
+|....QQTUUTTSQQ..
+|...QTUUTTSSSRRQ.
+|..QTUTTSSSSSRRRQ
+|.QTTTSSSSSSRRRQ.
+|QTTSSSSSSSRRQ...
+|QTTSSSSSSSRQ....
+|QTSSSSSSSRQ.....
+|QTSSSSSSSRQ.....
+|QTSSSSSSSRQ.....
+|QTSSSSSSSRRQ....
+|.QTSSSSSSRRRQ...
+|.QTSSSSSRRRRQ...
+|QTTSSSSRRRRRRQ..
+|QTTSSSRRRRRRRRQ.
+|.QQQQQQQQQQQQQ..
+
+view L key rest origin -1 -1
+|....QQQQQQ......
+|..QQTUUTTSQQ....
+|.QTUUTTSSSRRQ...
+|QTUTTSSSSSRRRQ..
+|.QTTTSSSSSSRRRQ.
+|...QTTSSSSSSSRRQ
+|....QTTSSSSSSSRQ
+|.....QTSSSSSSSRQ
+|.....QTSSSSSSSRQ
+|.....QTSSSSSSSRQ
+|....QTSSSSSSSRRQ
+|...QTSSSSSSRRRQ.
+|...QTSSSSSRRRRQ.
+|..QTTSSSSRRRRRRQ
+|.QTTSSSRRRRRRRRQ
+|..QQQQQQQQQQQQQ.
+
+view L key lie origin -1 -1
+|....QQQQQQ....
+|..QQTUUTTSQQ..
+|.QTUUTTSSSRRQ.
+|QTUTTSSSSSRRRQ
+|.QTTTSSSSSSRRQ
+|...QTTSSSSSSRQ
+|....QTTSSSSSSQ
+|.....QTSSSSSSQ
+|.....QTSSSSSSQ
+|.....QTSSSSSSQ
+|....QTSSSSSSSQ
+|...QTSSSSSSRRQ
+|...QTSSSSSRRRQ
+|..QTTSSSSRRRRQ
+|.QTTSSSRRRRRRQ
+|..QQQQQQQQQQQ.

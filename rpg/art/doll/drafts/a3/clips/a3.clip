@@ -1,0 +1,100 @@
+# rpg/art/doll/drafts/a3/clips/a3.clip: A3's frames as doll clips (tools/doll/from_a3.py). Format: rpg/art/doll/doll.h.
+# Walk frames run contact, down, pass, contact, down, pass; A3's 28 px cycle (FOLK-BODY re-registers to 19 / 20 px).
+
+body man
+anchors D head=-8,-33 neck=0,-19 hip=0,-10 shoulderR=-7,-18 shoulderL=6,-18
+anchors U head=-8,-33 neck=0,-19 hip=0,-10 shoulderR=6,-18 shoulderL=-7,-18
+anchors R head=-8,-33 neck=0,-19 hip=0,-10 shoulderR=-1,-18 shoulderL=-1,-18
+anchors L head=-8,-33 neck=0,-19 hip=0,-10 shoulderR=-1,-18 shoulderL=-1,-18
+clip idle D
+f legs=idle sheath=rest torso=rest
+clip idle U
+f legs=idle sheath=rest torso=rest
+clip idle R
+f hilt=- legs=idle sheath=rest torso=idle
+clip idle L
+f legs=idle sheath=rest torso=rest
+clip walk D cycle 28
+f armR=back legs=walkA sheath=rest torso=rest
+f armR=back legs=walkA sheath=rest torso=rest tuft=down bob=1
+f legs=walkB sheath=rest torso=rest tuft=up bob=-1
+f armR=fwd legs=walkC sheath=rest torso=rest
+f armR=fwd legs=walkC sheath=rest torso=rest tuft=down bob=1
+f legs=walkD sheath=rest torso=rest tuft=up bob=-1
+clip walk U cycle 28
+f armR=fwd legs=walkA sheath=rest torso=rest
+f armR=fwd legs=walkA sheath=rest torso=rest tuft=down bob=1
+f legs=walkB sheath=rest torso=rest tuft=up bob=-1
+f armR=back legs=walkC sheath=rest torso=rest
+f armR=back legs=walkC sheath=rest torso=rest tuft=down bob=1
+f legs=walkD sheath=rest torso=rest tuft=up bob=-1
+clip walk R cycle 28
+f armR=B hilt=rest legs=walkA neck=flow sheath=rest torso=rest
+f armR=B hilt=rest legs=walkA neck=flow2 sheath=rest torso=rest bob=1
+f armR=N hilt=rest legs=walkB neck=flow sheath=rest torso=rest bob=-1
+f armR=F hilt=rest legs=walkC neck=flow sheath=rest torso=rest
+f armR=F hilt=rest legs=walkC neck=flow2 sheath=rest torso=rest bob=1
+f armR=N hilt=rest legs=walkD neck=flow sheath=rest torso=rest bob=-1
+clip walk L cycle 28
+f legs=walkA neck=flow sheath=rest torso=rest
+f legs=walkA neck=flow2 sheath=lag torso=rest bob=1
+f legs=walkB neck=flow sheath=rest torso=rest bob=-1
+f armR=back legs=walkC neck=flow sheath=rest torso=rest
+f armR=back legs=walkC neck=flow2 sheath=lag torso=rest bob=1
+f legs=walkD neck=flow sheath=rest torso=rest bob=-1
+clip windup R family sword variant 0
+f armR=- held=r0 hilt=- legs=walkA neck=- sheath=rest torso=rest bob=1 lean=-1 ms=70
+clip strike R family sword variant 0
+f armR=- expr=fierce fx=a1 held=r1 hilt=- legs=lunge neck=- sheath=rest torso=rest bob=1 lean=1 ms=110
+clip follow R family sword variant 0
+f armR=- expr=fierce fx=a2 held=r2 hilt=- legs=lunge neck=- sheath=rest torso=rest bob=2 lean=1 ms=70
+f armR=- held=r3 hilt=- legs=walkA neck=- sheath=rest torso=rest ms=60
+clip windup D family sword variant 0
+f expr=lit held=d0 legs=drawn sheath=drawn torso=drawn bob=1 lean=-1 hip=-1,0 ms=70
+clip strike D family sword variant 0
+f expr=fierce fx=a1 held=d1 legs=drawn sheath=drawn torso=drawn bob=1 lean=1 hip=1,0 ms=110
+clip follow D family sword variant 0
+f expr=fierce fx=a2 held=d2 legs=drawn sheath=drawn torso=drawn bob=1 lean=2 hip=2,0 ms=70
+f expr=lit held=d3 legs=drawn sheath=drawn torso=drawn ms=60
+
+body woman
+anchors D head=-8,-32 neck=0,-19 hip=0,-10 shoulderR=-7,-18 shoulderL=6,-18
+anchors U head=-8,-32 neck=0,-19 hip=0,-10 shoulderR=6,-18 shoulderL=-7,-18
+anchors R head=-8,-32 neck=0,-19 hip=0,-10 shoulderR=-1,-18 shoulderL=-1,-18
+anchors L head=-8,-32 neck=0,-19 hip=0,-10 shoulderR=-1,-18 shoulderL=-1,-18
+clip idle D
+f hang=idle legs=- torso=idle
+clip idle U
+f hang=idle legs=- torso=idle
+clip idle R
+f hang=idle legs=- torso=idle
+clip idle L
+f hang=idle legs=- torso=idle
+clip walk D cycle 28
+f armL=down armR=up hang=rest legs=L torso=rest sway=-1
+f armL=down armR=up hair=swing1 hang=rest legs=L torso=rest bob=1 sway=-1
+f hang=rest legs=L torso=rest bob=-1
+f armL=up armR=down hang=rest legs=R torso=rest sway=1
+f armL=up armR=down hair=swing4 hang=rest legs=R torso=rest bob=1 sway=1
+f hang=rest legs=R torso=rest bob=-1
+clip walk U cycle 28
+f armL=down armR=up hang=rest legs=L torso=rest sway=-1
+f armL=down armR=up hair=swing hang=rest legs=L torso=rest bob=1 sway=-1
+f hang=rest legs=L torso=rest bob=-1
+f armL=up armR=down hang=rest legs=R torso=rest sway=1
+f armL=up armR=down hair=swing hang=rest legs=R torso=rest bob=1 sway=1
+f hang=rest legs=R torso=rest bob=-1
+clip walk R cycle 28
+f armR=B hang=wide legs=A torso=rest
+f armR=B hair=swing hang=wide legs=A torso=rest bob=1
+f armR=N hang=rest legs=B torso=rest bob=-1
+f armR=F hang=wide legs=C torso=rest
+f armR=F hair=swing hang=wide legs=C torso=rest bob=1
+f armR=N hang=rest legs=B torso=rest bob=-1
+clip walk L cycle 28
+f armL=B hang=wide legs=A torso=rest
+f armL=B hair=swing hang=wide legs=A torso=rest bob=1
+f armL=N hang=rest legs=B torso=rest bob=-1
+f armL=F hang=wide legs=C torso=rest
+f armL=F hair=swing hang=wide legs=C torso=rest bob=1
+f armL=N hang=rest legs=B torso=rest bob=-1

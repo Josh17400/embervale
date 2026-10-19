@@ -34,7 +34,7 @@ using art::Posture;
 
 const char* const kPostureName[] = {"NONE", "SIT", "SITEAT", "SITDRNK", "EAT", "DRINK", "CHEER", "HAMMER", "HOE", "SWEEP",
                                     "CHOP", "STIR", "CARRY", "FISH", "SLEEP", "WAVE", "PLAY", "DANCE", "LUTE", "DRUM",
-                                    "FLUTE", "PRAY", "BEG", "LAMP", "READ", "SITFLR", "FLREAT", "FLRDRNK", "RIDE", "DOWNED", "KNEEL"};
+                                    "FLUTE", "PRAY", "BEG", "LAMP", "READ", "SITFLR", "FLREAT", "FLRDRNK", "RIDE", "DOWNED", "KNEEL", "ROW"};
 static_assert(sizeof(kPostureName) / sizeof(kPostureName[0]) == (size_t)Posture::COUNT, "posture names");
 
 Canvas cellOf(const Canvas& sheet, int col, int row, int w, int h) {

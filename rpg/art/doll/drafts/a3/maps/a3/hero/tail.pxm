@@ -1,0 +1,31 @@
+# a3/hero/tail: a draft of A3's parts (tools/doll/from_a3.py; docs/ref/style_a3). A starting point: hand-check it.
+part a3/hero/tail
+tags draft a3
+use person
+body man
+role neck scarf
+layer neck
+anchor neck
+keys neck
+
+view R key flow origin 12 0
+|.....mn
+|-moonnn
+|.m--...
+
+view R key flow2 origin 11 1
+|..mm..
+|.moon.
+|...nnn
+|---...
+
+view L key flow origin -3 0
+|.nm...
+|-nnoom
+|..--m.
+
+view L key flow2 origin -3 1
+|...mm
+|.moom
+|nnn..
+|.--..

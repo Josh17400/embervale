@@ -43,10 +43,22 @@ else()
   set_source_files_properties(${RPG_CULTURE} PROPERTIES COMPILE_OPTIONS "-ffp-contract=off;-fno-fast-math")
 endif()
 if(EXISTS ${CMAKE_SOURCE_DIR}/rpg/art/art_core.cpp)
-  # P2a Clear Sight: the v2 rig's painters (rpg/art/rig: RIG-BODY, RIG-ARMS, POSES) build into the art library
-  file(GLOB RPG_ART CONFIGURE_DEPENDS rpg/art/*.cpp rpg/art/rig/*.cpp)
+  # P2a Clear Sight: the v2 rig's painters (rpg/art/rig) build into the art library. P2b New People: the DOLL
+  # (rpg/art/doll: the pool, compositor, resolver, ramps; gen/doll_pool.cpp is tools/doll/pxc.mjs's generated pool, one
+  # chunked translation unit) draws rig 2; rpg/art/rig stays compiled, detached (legacy*), for tools/preview/rigdraft.cpp
+  # and art_fx.cpp's arc until the P2c flip deletes it
+  # The doll's DATA (the pool: doll_pool.cpp + the generated gen/doll_pool.cpp; the body sets and walk tables:
+  # doll_walk.cpp) is its own library, rpg_doll, below both rpg_sim and rpg_art: the simulation reads the walk and run
+  # tables (rpg/sim/anim.cpp: the gait, the walk clock), so a target that links rpg_sim without the painters (save_test)
+  # still links. No painter, no SDL: headers only from engine/ (pix.h, color.h), like rpg_culture.
+  set(RPG_DOLL_DATA ${CMAKE_SOURCE_DIR}/rpg/art/doll/doll_pool.cpp ${CMAKE_SOURCE_DIR}/rpg/art/doll/doll_walk.cpp
+                    ${CMAKE_SOURCE_DIR}/rpg/art/doll/gen/doll_pool.cpp)
+  add_library(rpg_doll STATIC ${RPG_DOLL_DATA})
+  target_include_directories(rpg_doll PUBLIC ${CMAKE_SOURCE_DIR})
+  file(GLOB RPG_ART CONFIGURE_DEPENDS rpg/art/*.cpp rpg/art/rig/*.cpp rpg/art/doll/*.cpp)
+  list(REMOVE_ITEM RPG_ART ${RPG_DOLL_DATA})
   add_library(rpg_art STATIC ${RPG_ART})
-  target_link_libraries(rpg_art PUBLIC engine rpg_culture)
+  target_link_libraries(rpg_art PUBLIC engine rpg_culture rpg_doll)
   if(EXISTS ${CMAKE_SOURCE_DIR}/tools/art_preview.cpp)
     add_executable(art_preview tools/art_preview.cpp)
     target_link_libraries(art_preview PRIVATE rpg_art)
@@ -55,6 +67,8 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/rpg/art/art_core.cpp)
   target_link_libraries(art_hash PRIVATE rpg_art)
   # per-lane art galleries: every tools/preview/<name>.cpp is an executable <name> (helpers: tools/preview/preview_util.h)
   file(GLOB PREVIEW_SRCS CONFIGURE_DEPENDS tools/preview/*.cpp)
+  # (P2b) the rejected procedural rig's galleries give way to doll_gallery (their sources go with the P2c flip)
+  list(FILTER PREVIEW_SRCS EXCLUDE REGEX "/(rig_gallery|rigarms_gallery|rigposes_gallery)\.cpp$")
   foreach(src ${PREVIEW_SRCS})
     get_filename_component(pname ${src} NAME_WE)
     add_executable(${pname} ${src})
@@ -90,6 +104,10 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/rpg/sim/game.cpp)
   add_library(rpg_sim STATIC ${RPG_SIM} ${RPG_WORLD} ${RPG_STORY})
   target_include_directories(rpg_sim PUBLIC ${CMAKE_SOURCE_DIR})
   target_link_libraries(rpg_sim PUBLIC rpg_culture)
+  # (P2b) the doll's walk and run tables (rpg/sim/anim.cpp) come from its data library (rpg_doll, above)
+  if(TARGET rpg_doll)
+    target_link_libraries(rpg_sim PUBLIC rpg_doll)
+  endif()
   file(GLOB RPG_TESTS CONFIGURE_DEPENDS tools/tests/*.cpp)
   add_executable(rpg_test ${RPG_TESTS})
   target_link_libraries(rpg_test PRIVATE rpg_sim)
@@ -111,19 +129,29 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/rpg/main.cpp AND TARGET rpg_art)
   add_executable(embervale WIN32 rpg/main.cpp ${RPG_VIEW})
   target_link_libraries(embervale PRIVATE rpg_sim rpg_art engine)
   # Witness (engine/witness.h): a test harness drives the game headless over a local socket when it is started with
-  # WITNESS_ADDR set or --witness (rpg/main.cpp). Desktop only: the web build has no sockets.
+  # WITNESS_ADDR set or --witness (rpg/main.cpp). On by default on the desktop.
+  # The web build has no sockets: EMBERVALE_WITNESS_WEB (default OFF, so the deployed web build is unchanged) builds the
+  # Witness web bridge instead (adapters/cpp/GUIDE.md section 13): witness.h talks through engine/witness_emscripten.js
+  # (linked with --pre-js), which holds a WebSocket to the CLI and is active only when the page URL has ?witness=host:port.
+  # A test variant (.github/workflows/web-witness.yml, tools/witness_web/README.md), never deployed.
   if(EMSCRIPTEN)
-    set(EMBERVALE_WITNESS_DEFAULT OFF)
+    option(EMBERVALE_WITNESS_WEB "Witness web bridge in the web build (a test variant; never deployed)" OFF)
+    set(EMB_WITNESS_ON ${EMBERVALE_WITNESS_WEB})
   else()
-    set(EMBERVALE_WITNESS_DEFAULT ON)
+    option(EMBERVALE_WITNESS "Witness test harness in the game (desktop)" ON)
+    set(EMB_WITNESS_ON ${EMBERVALE_WITNESS})
   endif()
-  option(EMBERVALE_WITNESS "Witness test harness in the game (desktop)" ${EMBERVALE_WITNESS_DEFAULT})
-  if(EMBERVALE_WITNESS)
+  if(EMB_WITNESS_ON)
     target_sources(embervale PRIVATE engine/witness_impl.cpp)
     target_compile_definitions(embervale PRIVATE EMB_WITNESS=1)
     # the adapter's sockets: MSVC (and clang-cl) link ws2_32 through the header's #pragma comment; MinGW needs it named
     if(WIN32 AND NOT MSVC)
       target_link_libraries(embervale PRIVATE ws2_32)
+    endif()
+    if(EMSCRIPTEN)
+      # the browser half of the bridge, part of embervale.js (it does nothing without ?witness= in the page URL)
+      target_link_options(embervale PRIVATE "SHELL:--pre-js ${CMAKE_SOURCE_DIR}/engine/witness_emscripten.js")
+      set_property(TARGET embervale APPEND PROPERTY LINK_DEPENDS ${CMAKE_SOURCE_DIR}/engine/witness_emscripten.js)
     endif()
   endif()
   if(EMSCRIPTEN)

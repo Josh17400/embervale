@@ -420,8 +420,15 @@ int main(int argc, char** argv) {
   if (saveOverride && *saveOverride && !scripted && !witness) g_savePath = saveOverride;
 
   Pix pix;
-  // (Witness) a hidden 960x540 window (the 480x270 canvas at 2x), no vsync, no audio device (the mix is rendered per step)
-  if (!(witness ? pix.init("EMBERVALE", 960, 540, false, true) : pix.init("EMBERVALE", winW, winH, vsync))) return 1;
+  // (Witness) a hidden 960x540 window (the 480x270 canvas at 2x), no vsync, no audio device (the mix is rendered per step).
+  // The web build's window is the page's canvas (SDL_WINDOW_FILL_DOCUMENT): shown, so the harness's browser lays it out
+  // as a phone would (witness doctor --device), and the canvas stays pinned at 480 x 270 (screen::init below)
+#ifdef __EMSCRIPTEN__
+  constexpr bool kWitnessHidden = false;
+#else
+  constexpr bool kWitnessHidden = true;
+#endif
+  if (!(witness ? pix.init("EMBERVALE", 960, 540, false, kWitnessHidden) : pix.init("EMBERVALE", winW, winH, vsync))) return 1;
   if (witness) pix.markTextures();   // (a reset destroys every texture made after this: Pix::destroyUnmarked)
 #ifdef EMB_WITNESS
   if (watch) {
@@ -1815,11 +1822,6 @@ int main(int argc, char** argv) {
     pix.end();
     std::fflush(stdout);
   };
-#ifdef __EMSCRIPTEN__
-  // simulate_infinite_loop keeps main's stack frame (and everything the lambda references) alive
-  static std::function<void()>* loopFn = new std::function<void()>(frame);
-  emscripten_set_main_loop([] { (*loopFn)(); }, 0, 1);
-#else
 #ifdef EMB_WITNESS
   if (witness) {
     // ---- Witness (engine/witness.h; github.com/Josh17400/witness): a harness launched this run with WITNESS_ADDR set
@@ -1917,6 +1919,19 @@ int main(int argc, char** argv) {
       view.init(pix, audio);
       view.witness = true;
       view.touchUI = touchUIStart;
+      // Witness's reserved reset params (PROTOCOL.md reset): camera "hold" keeps the camera where the reset puts it for the
+      // whole run (no follow, no shake: the `camhold` script command's flag, View::P2bHooks::camHold); hide [ids or type
+      // names] leaves those actors undrawn (drawing only: View::wHide), so `measure figure` diffs an exact silhouette
+      view.p2b.camHold = params["camera"].type() == WITNESS_STRING && std::string(params["camera"].str("")) == "hold";
+      {
+        const witness::Value hide = params["hide"];
+        auto hideOne = [&](const witness::Value& e) {
+          if (e.type() == WITNESS_STRING) view.wHide.types.push_back(e.str(""));
+          else if (e.type() == WITNESS_NUMBER) view.wHide.ids.push_back((int)e.integer(-1));
+        };
+        if (hide.type() == WITNESS_ARRAY) for (size_t k = 0; k < hide.size(); k++) hideOne(hide.at(k));
+        else hideOne(hide);   // (a lone id or type name)
+      }
       mouseX = mouseY = 0;
       wAudioHash = 1469598103934665603ull;
       wAudioN = 0;
@@ -2154,17 +2169,35 @@ int main(int argc, char** argv) {
     hello.audio_sample_rate = Audio::kSampleRate;
     hello.audio_channels = 1;
     hello.touch = 1;   // touch events reach the touch path; Witness sends no mouse copy of finger 0
+    // (Witness 0.6) every sound the game starts is a protocol "sound" event (its name and volume, stamped with the step's
+    // frame), so `witness listen` / `effect` can name sounds and match them to their causes. Nothing else changes
+    Audio::setPlayListener([](const char* name, float vol) { witness_sound_ex(name, vol, 0, 0.0, 0.0); });
     if (witness::connect(hello, h)) {
+#ifdef __EMSCRIPTEN__
+      // (web, EMBERVALE_WITNESS_WEB) the page's ?witness=host:port: witness_run() hands control back to the browser and
+      // keeps the runtime alive (emscripten_exit_with_live_runtime, like simulate_infinite_loop: main's frame and
+      // everything the handlers reference stay alive, nothing after this line runs). The game then steps only inside the
+      // harness's commands (witness_emscripten.js calls in): emscripten_set_main_loop is never started in witness mode
+      witness_run();
+#else
       // (watch mode) between commands the window's events keep being pumped about every 30 ms, so the OS never marks
       // it "not responding" and it can be moved; queued input stays queued for the next step, real input is filtered
       if (watch) while (witness_poll(30)) SDL_PumpEvents();
       else witness_run();
+#endif
     } else std::printf("witness: could not connect to the harness\n");
     witness_shutdown();
   } else
 #endif
-  while (running) frame();
+  {
+#ifdef __EMSCRIPTEN__
+    // simulate_infinite_loop keeps main's stack frame (and everything the lambda references) alive
+    static std::function<void()>* loopFn = new std::function<void()>(frame);
+    emscripten_set_main_loop([] { (*loopFn)(); }, 0, 1);
+#else
+    while (running) frame();
 #endif
+  }
 
 #ifdef EMB_WITNESS
   if (recordSync && witness_recording()) {

@@ -1,0 +1,61 @@
+# head/adult/man/oval: the man's Oval head (A3): the skull, the face, the eyes and the mouth; hair, brows, nose and ears are their own parts
+# The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+use person
+body man
+role head oval
+layer head
+anchor head
+keys rest
+
+view D key rest origin -2 -3
+mark face 1 5
+|...qqqqqq...
+|.qqtuuttsqq.
+|qtuuttttssrq
+|qttutttsssrq
+|qttttttttsrq
+|qtttttssssrq
+|tt##tsss##rr
+|st@EtsssE@rr
+|qt@GssssG@rq
+|.qtsssMssrq.
+|..qssssrrq..
+
+view U key rest origin -2 -3
+|...qqqqqq...
+|.qqtuuttsqq.
+|qtuuttttssrq
+|qttutttsssrq
+|qtttttssssrq
+|qttttsssssrq
+|tttsssssssrr
+|ttsssssssrrr
+|.qtssssssrq.
+|..qrrrrrq...
+|...qrrrrq...
+
+view R key rest origin -1 -3
+|....qqqqqqq...
+|..qqtuutttsqq.
+|.qtuuttttssssq
+|qttutttttsssrq
+|qtttttttssssrq
+|qttttttsstsstq
+|qttts..stt##tq
+|qtsss..sts@Es.
+|.qssr..ssssssq
+|..qrqrqrssssMq
+|....qrrqqrssq.
+
+view L key rest origin -1 -3
+|...qqqqqqq....
+|.qqtuuttssqq..
+|qtuuttttsssrq.
+|qtuttttttsssrq
+|qtttttttsssrrq
+|qttttttssssrrq
+|qt##tss..srrq.
+|.tE@sss..rrq..
+|qttssss..rq...
+|qMssssrqrqrq..
+|.qssrqqrrq....

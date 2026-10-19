@@ -5016,22 +5016,24 @@ void seatSlab(Canvas& c, int x0, int x1, int y0, int lip, int apron, const Ramp&
 void chair(Canvas& c) {   // 14 x 24: a ladder-back chair, the back to the north
   const Ramp& R = kWood;
   const int W = c.w, F = c.h - 1, lip = F - kSeat, st = lip - kSeatDepth;
-  // the back: two posts with finials, a curved top rail, a middle rail and a splat
-  for (int y = 1; y < st; y++) { c.set(1, y, R[3]); c.set(2, y, R[2]); c.set(W - 3, y, R[2]); c.set(W - 2, y, R[1]); }
-  c.set(1, 0, R[4]); c.set(2, 0, R[3]); c.set(W - 3, 0, R[3]); c.set(W - 2, 0, R[2]);
+  // the back: two posts with finials, a curved top rail, a middle rail and a splat; 9 rows over the seat whatever its
+  // height (P2b: the seat at A3's knee leaves the canvas's top rows clear)
+  const int t = std::max(0, st - 9);
+  for (int y = t + 1; y < st; y++) { c.set(1, y, R[3]); c.set(2, y, R[2]); c.set(W - 3, y, R[2]); c.set(W - 2, y, R[1]); }
+  c.set(1, t, R[4]); c.set(2, t, R[3]); c.set(W - 3, t, R[3]); c.set(W - 2, t, R[2]);
   for (int x = 3; x <= W - 4; x++) {
     const int lift = (x >= 5 && x <= W - 6) ? 1 : 0;   // the top rail bows up between the posts
-    c.set(x, 2 - lift, R[4]); c.set(x, 3 - lift, R[3]); c.set(x, 4 - lift, R[1]);
+    c.set(x, t + 2 - lift, R[4]); c.set(x, t + 3 - lift, R[3]); c.set(x, t + 4 - lift, R[1]);
     c.set(x, st - 3, R[3]); c.set(x, st - 2, R[1]);
   }
-  for (int y = 4; y <= st - 4; y++) { c.set(W / 2 - 1, y, R[3]); c.set(W / 2, y, R[1]); }
-  // the seat and its legs, a stretcher between the front legs
+  for (int y = t + 4; y <= st - 4; y++) { c.set(W / 2 - 1, y, R[3]); c.set(W / 2, y, R[1]); }
+  // the seat and its legs, a stretcher between the front legs where they are long enough for one
   seatSlab(c, 1, W - 2, st, lip, 2, R);
   leg2(c, 3, lip + 3, F - 3, R, true);
   leg2(c, W - 5, lip + 3, F - 3, R, true);
   leg2(c, 1, lip + 3, F, R, false);
   leg2(c, W - 3, lip + 3, F, R, false);
-  hline(c, 3, W - 4, F - 4, R[2]);
+  if (F - 4 > lip + 3) hline(c, 3, W - 4, F - 4, R[2]);
 }
 
 void stool(Canvas& c) {   // 14 x 16: a round three-legged stool
@@ -5040,7 +5042,7 @@ void stool(Canvas& c) {   // 14 x 16: a round three-legged stool
   line(c, cx - 3, lip + 2, cx - 5, F, R[3]); line(c, cx - 2, lip + 2, cx - 4, F, R[2]);
   line(c, cx + 2, lip + 2, cx + 4, F, R[1]); line(c, cx + 1, lip + 2, cx + 3, F, R[2]);
   vline(c, cx, lip + 2, F - 2, R[1]); vline(c, cx - 1, lip + 2, F - 2, R[0]);
-  hline(c, cx - 4, cx + 3, F - 4, R[1]);                         // the rung
+  if (F - 4 > lip + 2) hline(c, cx - 4, cx + 3, F - 4, R[1]);    // the rung (where the legs are long enough)
   ellipse(c, cx - 0.5, lip - 1.0, 5.6, 2.6, R[2]);              // the seat, thick, lit from the top-left
   ellipse(c, cx - 0.5, lip - 1.6, 5.2, 2.0, R[3]);
   ellipse(c, cx - 1.2, lip - 2.0, 3.4, 1.2, R[4]);

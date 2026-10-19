@@ -40,6 +40,7 @@ PostureInfo postureInfo(Posture p) {
     case Posture::Ride: i.frames = 1; i.fps = 1; break;   // (M7) the view seats it on the horse (art::riderSeat)
     case Posture::Downed: i.frames = 2; i.fps = 0.8f; break;   // (M8) slumped on one knee: two laboured breaths
     case Posture::Kneel: i.frames = 2; i.fps = 1.0f; break;    // (M8) on one knee: winding the linen (variant 1: bowed, breathing)
+    case Posture::Row: i.frames = 4; i.fps = 2.0f; i.seated = true; break;   // (P2b) reach, catch, pull, recover (synced to the oars)
     default: break;
   }
   return i;

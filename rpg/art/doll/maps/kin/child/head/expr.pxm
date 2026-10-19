@@ -1,0 +1,88 @@
+# kin/child/head/expr: the child's expressions: blink, hurt, closed, talk, fierce
+# The slice (P2b wave 1, FOLK-BODY; to KIN-CHILD in wave 2). The child, 21 px (STYLE_P2 3). Format: rpg/art/doll/doll.h.
+use person
+body child
+role expr blink
+role expr hurt
+role expr closed
+role expr talk
+role expr fierce
+layer face
+anchor head
+keys expr
+z 2
+tags overlay mirror-ok
+
+view D key blink origin -2 -5
+|tt....ss
+|##....##
+|ss....sr
+
+view D key closed origin -2 -5
+|tt....ss
+|##....##
+|ss....sr
+
+view D key fierce origin -5 -8
+|MM
+
+view D key hurt origin -2 -5
+|t#....#s
+|#t....s#
+|ss....sr
+|...MM...
+
+view D key talk origin -6 -8
+|M
+|M
+
+view U key blink origin 0 0
+|.
+
+view U key closed origin 0 0
+|.
+
+view U key fierce origin 0 0
+|.
+
+view U key hurt origin 0 0
+|.
+
+view U key talk origin 0 0
+|.
+
+view R key blink origin -9 -5
+|tt
+|##
+
+view R key closed origin -9 -5
+|tt
+|##
+
+view R key fierce origin -9 -8
+|MM
+
+view R key hurt origin -9 -5
+|t#
+|#s
+
+view R key talk origin -9 -8
+|MM
+
+view L key blink origin -1 -5
+|tt
+|##
+
+view L key closed origin -1 -5
+|tt
+|##
+
+view L key fierce origin -1 -8
+|MM
+
+view L key hurt origin -1 -5
+|#t
+|s#
+
+view L key talk origin -1 -8
+|MM

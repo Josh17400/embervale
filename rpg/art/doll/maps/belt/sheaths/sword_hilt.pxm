@@ -1,0 +1,28 @@
+# belt/sheaths/sword_hilt: A3's sheathed hilt at the hip in side views (brass guard and pommel, the leather grip)
+# The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role sheath sword
+layer belt
+anchor hip
+keys hilt
+z 1
+
+view R key idle origin -4 5
+|....v.
+|...vPv
+|..vhv.
+|hPfv..
+|NOv...
+
+view R key rest origin -4 5
+|....v.
+|...vPv
+|..vhv.
+|.Pfv..
+|NOv...
+
+view L key rest origin 10 1
+|.v....P..
+|vP....O..
+|.v...hNgh

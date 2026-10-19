@@ -1,0 +1,530 @@
+// doll_gallery (DOLL; P2b phase A skeleton by the lead): the look-and-adjust loop (STYLE_P2 24). The doll's parts, looks
+// and clips on grass and dirt with the contact shadow at 1x, 2x and 4x (<board>_1x.png, <board>_2x.png, <board>.png), and
+// one part or frame at 12x with a pixel grid and row numbers (A3's look.py contact sheet).
+//   doll_gallery <outDir> [--pool FILE] [--who hero|woman] [--look k=v,...] [--palette a3|look] [board...]
+//     looks       the look (the A3 hero and woman by default): idle and walk in four facings, the run, on grass and dirt
+//     clips       every clip of the look's LOCO, RUN, ACTION and DEATH atlases, frame by frame on one ground line
+//     parts       every part of the pool: its base views by facing and key, labelled with its name
+//     lineup      a 12-person lineup of three peoples (idle facing down), the same seeds as the owner pack's
+//     onion       the walk and the run in each facing: every frame at 30 % over the others (registration at a glance),
+//                 then the frames side by side on one ground line with the sole row's span marked
+//     death       the falls (both sides) and the lying figures (head west, head east) of every facing
+//     sleep       the sleeper in each of the 10 berths over a plain quilt
+//     stats       the look's atlas KB per part and bake ms (B10), colours per frame (B8), printed and boarded
+//     ramps       the curated skins and hair, the generator's cloth, elves, elders and eyes, on the look's figure
+//     part:<name>[:<D|U|R|L>[:<key>]]   one part's view alone at 12x with its pixel grid and row numbers
+//     frame:<loco|run|action|death>:<D|U|R|L>:<clip>:<i>[:<variant>]   one composed frame of the look at 12x
+//   --look sets the look's fields on top of the chosen A3 look: body hair hairVar build people age pattern headwear hood
+//   beard beardStyle head nose brow marks neck garb cut outfit weapon cloak jewellery facePaint (numbers) and skin hairColor
+//   topColor bottomColor tabardColor patternColor cloakColor headColor eyeColor (#RRGGBB); --palette look colours it by
+//   rampsOf (the curated tables and the generator) instead of A3's palettes. (default boards: looks clips parts lineup onion)
+//   The drafts before a map exists: node tools/doll/pxc.mjs --root rpg/art/doll/drafts/a3 --bin <scratch>/a3.pool --no-cpp
+//   then doll_gallery <dir> --pool <scratch>/a3.pool. `node tools/doll/pxc.mjs --watch --gallery <exe> <dir> [boards]`
+//   re-renders on every save.
+#include <algorithm>
+#include <chrono>
+#include <cstdlib>
+#include <cstring>
+#include <functional>
+#include <set>
+#include "rpg/art/art_holders2.h"
+#include "rpg/art/doll/doll.h"
+#include "rpg/culture/culture.h"
+#include "rpg/sim/world.h"
+#include "tools/preview/rig_preview.h"
+
+namespace census {
+struct Rank { bool royal = false, capital = false; };
+void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult::Culture& C, const cult::Culture& owner, uint64_t seed,
+           const Rank& rank);
+}  // namespace census
+
+namespace {
+namespace doll = art::doll;
+using art::Clip;
+using art::RigPart;
+using art::RigSheet;
+
+uint32_t hexc(uint32_t rgb) { return 0xFF000000u | (rgb & 0xFF) << 16 | (rgb & 0xFF00) | (rgb >> 16 & 0xFF); }
+art::HumanLook a3Look(int who) {
+  art::HumanLook L;
+  if (who == 0) {
+    L.hair = art::Hair::Short; L.hairVar = 2; L.neck = 1; L.weapon = 1;
+    L.skin = hexc(0xE9A077); L.hairColor = hexc(0xAA4A2C); L.topColor = hexc(0x28728C); L.bottomColor = hexc(0x4F4B6B); L.tabardColor = hexc(0xC83E38);
+    L.eyeColor = hexc(0x3A78B0);
+  } else {
+    L.body = 1; L.hair = art::Hair::Braids; L.outfit = art::Outfit::Dress;
+    L.skin = hexc(0xEEAA86); L.hairColor = hexc(0xC79346); L.topColor = hexc(0x922F60); L.tabardColor = hexc(0x28728C);
+    L.eyeColor = hexc(0x3F8A5A);
+  }
+  return L;
+}
+
+// ---------------------------------------------------------------- the options
+int g_who = 0;
+bool g_lookPalette = false;
+std::string g_lookSpec;
+
+bool applyField(art::HumanLook& L, const std::string& k, const std::string& v) {
+  auto num = [&]() { return (int)std::strtol(v.c_str(), nullptr, 0); };
+  auto col = [&]() { return hexc((uint32_t)std::strtoul(v.c_str() + (v[0] == '#' ? 1 : 0), nullptr, 16)); };
+  if (k == "body") L.body = (uint8_t)num();
+  else if (k == "hair") L.hair = (art::Hair)num();
+  else if (k == "hairVar") L.hairVar = (uint8_t)num();
+  else if (k == "build") L.build = (uint8_t)num();
+  else if (k == "people") L.people = (uint8_t)num();
+  else if (k == "age") L.age = (uint8_t)num();
+  else if (k == "pattern") L.pattern = (uint8_t)num();
+  else if (k == "headwear") L.headwear = (uint8_t)num();
+  else if (k == "hood") L.hood = num() != 0;
+  else if (k == "beard") L.beard = num() != 0;
+  else if (k == "beardStyle") L.beardStyle = (uint8_t)num();
+  else if (k == "head") L.head = (uint8_t)num();
+  else if (k == "nose") L.nose = (uint8_t)num();
+  else if (k == "brow") L.brow = (uint8_t)num();
+  else if (k == "marks") L.marks = (uint8_t)num();
+  else if (k == "neck") L.neck = (uint8_t)num();
+  else if (k == "garb") L.garb = (uint8_t)num();
+  else if (k == "cut") L.cut = (uint8_t)num();
+  else if (k == "outfit") L.outfit = (art::Outfit)num();
+  else if (k == "weapon") L.weapon = (uint8_t)num();
+  else if (k == "cloak") L.cloak = (uint8_t)num();
+  else if (k == "jewellery") L.jewellery = (uint8_t)num();
+  else if (k == "facePaint") L.facePaint = (uint8_t)num();
+  else if (k == "skin") L.skin = col();
+  else if (k == "hairColor") L.hairColor = col();
+  else if (k == "topColor") L.topColor = col();
+  else if (k == "bottomColor") L.bottomColor = col();
+  else if (k == "tabardColor") L.tabardColor = col();
+  else if (k == "patternColor") L.patternColor = col();
+  else if (k == "cloakColor") L.cloakColor = col();
+  else if (k == "headColor") L.headColor = col();
+  else if (k == "eyeColor") L.eyeColor = col();
+  else return false;
+  return true;
+}
+art::HumanLook theLook(int who) {
+  art::HumanLook L = a3Look(who);
+  size_t a = 0;
+  while (a < g_lookSpec.size()) {
+    size_t b = g_lookSpec.find(',', a);
+    if (b == std::string::npos) b = g_lookSpec.size();
+    const std::string kv = g_lookSpec.substr(a, b - a);
+    const size_t eq = kv.find('=');
+    if (eq != std::string::npos && !applyField(L, kv.substr(0, eq), kv.substr(eq + 1))) std::printf("doll_gallery: --look: unknown field %s\n", kv.c_str());
+    a = b + 1;
+  }
+  return L;
+}
+doll::DollRecipe recipeOf(int who) {
+  doll::DollRecipe r = doll::resolve(theLook(who));
+  if (!g_lookPalette) r.ramps = doll::a3Palette(theLook(who).body == 1 ? 1 : 0);
+  return r;
+}
+
+// ---------------------------------------------------------------- drawing helpers
+// the ground: half grass, half dirt, the contact shadow under each figure (the renderer's ellipse, STYLE_P2 7)
+void dirt(Board& b, int y0, int y1) {
+  for (int y = y0; y < y1 && y < b.c.h; y++)
+    for (int x = b.c.w / 2; x < b.c.w; x++) {
+      const uint32_t n = hash2(x / 2, y / 2) % 100;
+      b.c.set(x, y, n < 20 ? rgba(110, 86, 60) : n > 90 ? rgba(140, 112, 80) : rgba(123, 95, 66));
+    }
+}
+void plain(Board& b, uint32_t c) { for (uint32_t& p : b.c.px) p = c; }
+void shadow(Board& b, int cx, int cy, int w) {
+  for (int dy = -2; dy <= 2; dy++)
+    for (int dx = -w / 2; dx <= w / 2; dx++) {
+      const float e = (dx * dx) / (float)(w * w / 4) + (dy * dy) / 6.25f;
+      if (e <= 1.0f) b.c.set(cx + dx, cy + dy, art::shade(b.c.get(cx + dx, cy + dy), 0.72f));
+    }
+}
+void putFrame(Board& b, const RigSheet& s, int facing, Clip c, int v, int i, int x, int ground, bool shade = true) {
+  int px, py;
+  const Canvas f = rigpv::frameCanvas(s, facing, c, v, i, px, py);
+  if (f.w <= 0) return;
+  if (shade) shadow(b, x, ground, std::min(24, std::max(10, f.w - 4)));
+  b.put(f, x - px, ground - py);
+}
+void save3(const Board& b, const std::string& dir, const std::string& name) {
+  rigpv::saveBoth(b, dir, name);
+  savePng(b.c, dir + "/" + name + "_2x.png", 2);
+}
+Canvas zoom12(const Canvas& f, int pivX, int pivY) {
+  const int k = 12, lm = 30;
+  Canvas z(f.w * k + lm, f.h * k + 2);
+  for (size_t i = 0; i < z.px.size(); i++) z.px[i] = rgba(40, 36, 46);
+  for (int y = 0; y < f.h; y++)
+    for (int x = 0; x < f.w; x++) {
+      const uint32_t p = f.get(x, y);
+      for (int dy = 0; dy < k; dy++)
+        for (int dx = 0; dx < k; dx++) {
+          const bool grid = dx == 0 || dy == 0;
+          uint32_t c = (p >> 24) ? (p | 0xFF000000u) : ((x + y) & 1 ? rgba(58, 54, 66) : rgba(50, 46, 58));
+          if (grid) c = art::shade(c, 0.8f);
+          z.set(lm + x * k + dx, y * k + dy, c);
+        }
+    }
+  if (pivX >= 0) for (int dx = 0; dx < k; dx++) z.set(lm + pivX * k + dx, pivY * k + k - 1, rgba(242, 193, 78));
+  return z;
+}
+void rowNumbers(Board& b, int x, int y0, int h, int pivY) {
+  for (int y = 0; y < h; y++)
+    if ((pivY - y) % 2 == 0) b.text(x, y0 + y * 12 + 2, "F" + (pivY - y ? "-" + std::to_string(pivY - y) : std::string()), rgba(200, 196, 180));
+}
+
+// ---------------------------------------------------------------- boards
+void boardLooks(const std::string& dir) {
+  Board b(900, 300);
+  dirt(b, 0, 300);
+  for (int who = 0; who < 2; who++) {
+    const doll::DollRecipe r = recipeOf(who);
+    const RigSheet s = doll::compose(r, RigPart::Loco), run = doll::compose(r, RigPart::Run);
+    const int g0 = 80 + who * 130;
+    b.text(4, g0 - 66, std::string(who ? "WOMAN" : "HERO") + (g_lookPalette ? " (LOOK PALETTE)" : " (A3 PALETTE)") + (g_lookSpec.empty() ? "" : " " + g_lookSpec));
+    if (s.empty()) {
+      b.text(4, g0 - 20, "NOT COVERED: NO CLIPS FOR THIS BODY SET", rgba(232, 96, 60));
+      for (const doll::Missing& m : doll::dollMissing(theLook(who), RigPart::Loco)) { b.text(4, g0 - 8, m.what(), rgba(232, 96, 60)); break; }
+      continue;
+    }
+    int x = 24;
+    for (int f = 0; f < 4; f++) { putFrame(b, s, f, Clip::Idle, 0, 0, x, g0); x += 32; }
+    x += 16;
+    for (int f = 0; f < 4; f++) {
+      for (int i = 0; i < s.count(f, Clip::Walk); i++) { putFrame(b, s, f, Clip::Walk, 0, i, x, g0); x += 24; }
+      x += 8;
+    }
+    if (!run.empty()) {
+      b.text(x, g0 - 56, "RUN");
+      for (int f = 2; f < 4; f++)
+        for (int i = 0; i < run.count(f, Clip::Walk); i++) { putFrame(b, run, f, Clip::Walk, 0, i, x, g0); x += 26; }
+    }
+  }
+  save3(b, dir, "doll_looks");
+}
+void boardClips(const std::string& dir) {
+  const doll::DollRecipe r = recipeOf(g_who);
+  Board b(1400, 560);
+  int y = 70;
+  for (RigPart p : {RigPart::Loco, RigPart::Run, RigPart::Action, RigPart::Death}) {
+    const RigSheet s = doll::compose(r, p);
+    for (int c = 0; c < art::CLIP_COUNT; c++)
+      for (int v = 0; v < art::RIG_VARIANTS; v++) {
+        bool any = false;
+        for (int f = 0; f < 4; f++) any = any || s.count(f, (Clip)c, v) > 0;
+        if (!any || (v && s.frame(0, (Clip)c, v, 0) == s.frame(0, (Clip)c, 0, 0))) continue;
+        rigpv::clipRow(b, s, (Clip)c, v, 70, y, 30, std::string(p == RigPart::Run ? "RUN " : "") + art::clipName((Clip)c) + (v ? " v" + std::to_string(v) : ""));
+        y += 48;
+        if (y > b.c.h - 10) break;
+      }
+  }
+  if (y == 70) b.text(10, 40, "NO CLIPS IN THE POOL", rgba(232, 96, 60));
+  save3(b, dir, "doll_clips");
+}
+void boardParts(const std::string& dir) {
+  const int n = doll::partCount();
+  Board b(1200, std::max(120, 20 + n * 56));
+  int y = 50;
+  static const char* const keys[] = {"rest", "idle", "walkA", "walkA2", "walkB", "walkC", "walkC2", "walkD", "run1", "run2", "run3", "run4",
+                                     "run5", "run6", "hurt", "fwd", "back", "flow", "B", "N", "F", "A", "C", "L", "R", "up", "down",
+                                     "swing", "wide", "flare", "lie"};
+  for (int p = 0; p < n; p++) {
+    b.text(4, y - 40, doll::partName(p));
+    doll::DollRecipe r = recipeOf(doll::partServes(p, doll::BodySet::Woman) && !doll::partServes(p, doll::BodySet::Man) ? 1 : 0);
+    int x = 40;
+    for (int f = 0; f < 4; f++)
+      for (const char* key : keys) {
+        const RigSheet s = doll::composePart(r, doll::partName(p), f, key);
+        if (s.empty()) continue;
+        int px, py;
+        const Canvas c = rigpv::frameCanvas(s, f, Clip::Idle, 0, 0, px, py);
+        if (c.w <= 0) continue;
+        b.put(c, x - px, y - py);
+        x += std::max(16, c.w + 4);
+        if (x > b.c.w - 40) break;
+      }
+    y += 56;
+  }
+  if (!n) b.text(10, 40, "THE POOL HAS NO PARTS YET", rgba(232, 96, 60));
+  save3(b, dir, "doll_parts");
+}
+void boardLineup(const std::string& dir) {
+  Board b(480, 130);
+  dirt(b, 0, 130);
+  static const cult::Archetype arch[3] = {cult::Archetype::Fjordfolk, cult::Archetype::Dune, cult::Archetype::Jade};
+  int x = 20;
+  for (int k = 0; k < 12; k++) {   // four villagers of each people, women and men by turns (census::dress)
+    const cult::Culture C = cult::Atlas::make(arch[k / 4], 4242u + (uint32_t)arch[k / 4] * 97u);
+    art::HumanLook L;
+    std::string name;
+    census::dress(L, name, Role::Villager, (k & 1) != 0, C, C, 0x11E0Bull * (uint64_t)(k + 1) ^ (uint64_t)arch[k / 4] << 32, census::Rank{});
+    const RigSheet s = doll::compose(L, RigPart::Loco);
+    if (s.empty()) b.text(x, 60, "-", rgba(232, 96, 60));
+    putFrame(b, s, 0, Clip::Idle, 0, 0, x + 12, 90);
+    x += 36;
+  }
+  b.text(4, 4, "LINEUP (12, THREE PEOPLES) - IDLE DOWN");
+  save3(b, dir, "doll_lineup");
+}
+// the walk and run registration board: per facing an onion skin (every frame at 30 %) and the strip of frames on one
+// ground line, the lowest row's span under each frame (the planted foot) in Ember Gold
+void boardOnion(const std::string& dir) {
+  const doll::DollRecipe r = recipeOf(g_who);
+  Board b(760, 250);
+  int row = 0;
+  for (RigPart part : {RigPart::Loco, RigPart::Run}) {
+    const RigSheet s = doll::compose(r, part);
+    const int g0 = 80 + row * 110;
+    b.text(4, g0 - 70, part == RigPart::Run ? "RUN: ONION SKIN (30 %) AND FRAMES" : "WALK: ONION SKIN (30 %) AND FRAMES");
+    for (int y = g0 - 50; y < g0 + 16; y++)   // a neutral panel under the onion skins (30 % reads on it, not on grass)
+      for (int x = 2; x < 182; x++) b.c.set(x, y, rgba(196, 190, 176));
+    for (int f = 0; f < 4; f++) {
+      const int cx = 24 + f * 44;
+      const int n = s.count(f, Clip::Walk);
+      for (int i = 0; i < n; i++) {
+        int px, py;
+        const Canvas c = rigpv::frameCanvas(s, f, Clip::Walk, 0, i, px, py);
+        for (int y = 0; y < c.h; y++)
+          for (int x = 0; x < c.w; x++) {
+            const uint32_t p = c.get(x, y);
+            if (p >> 24) b.c.set(cx - px + x, g0 - py + y, art::mix(b.c.get(cx - px + x, g0 - py + y), p | 0xFF000000u, 0.3f));
+          }
+      }
+      b.c.set(cx, g0 + 2, rgba(200, 60, 40));
+      b.text(cx - 3, g0 + 5, std::string(1, "DURL"[f]), rgba(40, 36, 46));
+    }
+    int x = 210;
+    for (int f = 2; f < 4; f++) {
+      const int n = s.count(f, Clip::Walk);
+      for (int i = 0; i < n; i++) {
+        int px, py;
+        const Canvas c = rigpv::frameCanvas(s, f, Clip::Walk, 0, i, px, py);
+        if (c.w <= 0) continue;
+        b.put(c, x - px, g0 - py);
+        for (int xx = 0; xx < c.w; xx++) if (c.get(xx, c.h - 1) >> 24) b.c.set(x - px + xx, g0 + 2, rgba(242, 193, 78));
+        b.c.set(x, g0 + 4, rgba(255, 255, 255));
+        x += 28;
+      }
+      x += 14;
+    }
+    if (s.empty()) b.text(210, g0 - 20, "NO CLIPS", rgba(232, 96, 60));
+    row++;
+  }
+  save3(b, dir, "doll_onion");
+}
+void boardDeath(const std::string& dir) {
+  const doll::DollRecipe r = recipeOf(g_who);
+  const RigSheet s = doll::compose(r, RigPart::Death);
+  Board b(900, 260);
+  dirt(b, 0, 260);
+  if (s.empty()) b.text(10, 40, "NO DEATH CLIPS FOR THIS BODY SET", rgba(232, 96, 60));
+  for (int v = 0; v < 2; v++) {
+    const int g0 = 80 + v * 110;
+    b.text(4, g0 - 66, v ? "FALL EAST, THEN LYING HEAD EAST" : "FALL WEST, THEN LYING HEAD WEST");
+    int x = 30;
+    for (int f = 0; f < 4; f++) {
+      for (int i = 0; i < s.count(f, Clip::Fall, v); i++) { putFrame(b, s, f, Clip::Fall, v, i, x, g0); x += 40; }
+      x += 12;
+    }
+    int px, py;
+    const Canvas ly = rigpv::frameCanvas(s, 0, Clip::Lying, v, 0, px, py);
+    if (ly.w > 0) {
+      shadow(b, x + 20, g0, ly.w);
+      b.put(ly, x + 20 - px, g0 - py);
+      b.text(x, g0 + 8, std::to_string(ly.w) + "X" + std::to_string(ly.h));
+    }
+  }
+  save3(b, dir, "doll_death");
+}
+void boardSleep(const std::string& dir) {
+  const art::HumanLook L = theLook(g_who);
+  Board b(560, 120);
+  plain(b, rgba(60, 50, 44));
+  int x = 8;
+  for (int k = 0; k < (int)art::Berth::COUNT; k++) {
+    const art::holders::Berth2 g = art::holders::berth2((art::Berth)k, -1);
+    Canvas quilt(g.w, g.h);
+    for (int y = 0; y < g.h; y++)
+      for (int xx = 0; xx < g.w; xx++) {
+        const bool cover = g.across ? (xx >= g.quiltTop && xx <= g.quiltEnd) : (y >= g.quiltTop && y <= g.quiltEnd);
+        quilt.set(xx, y, cover ? rgba(150, 70, 60) : rgba(214, 206, 186));
+      }
+    b.put(quilt, x, 20);
+    const Canvas c = doll::sleeper(L, (art::Berth)k, -1, 0);
+    if (c.w > 0) b.put(c, x, 20); else b.text(x, 30, "V1", rgba(232, 96, 60));
+    x += std::max(g.w, 24) + 8;
+  }
+  b.text(4, 4, "SLEEPERS IN THE 10 BERTHS (OVER A PLAIN QUILT)");
+  save3(b, dir, "doll_sleep");
+}
+void boardStats(const std::string& dir) {
+  const doll::DollRecipe r = recipeOf(g_who);
+  Board b(520, 120);
+  plain(b, rgba(40, 36, 46));
+  int y = 6;
+  auto line = [&](const std::string& s) { std::printf("  %s\n", s.c_str()); b.text(6, y, s); y += 10; };
+  static const char* const nm[4] = {"LOCO", "ACTION", "DEATH", "RUN"};
+  static const int budget[4] = {128, 512, 48, 64};
+  for (int p = 0; p < 4; p++) {
+    const auto t0 = std::chrono::steady_clock::now();
+    const RigSheet s = doll::compose(r, (RigPart)p);
+    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+    int maxCols = 0;
+    long long area = 0;
+    std::set<std::pair<int, int>> seenRect;
+    for (const art::FrameRect& f : s.frames) if (seenRect.insert({f.x, f.y}).second) area += (long long)f.w * f.h;
+    for (size_t i = 0; i < s.frames.size(); i++) {
+      const art::FrameRect& f = s.frames[i];
+      std::set<uint32_t> cols;
+      for (int yy = 0; yy < f.h; yy++) for (int xx = 0; xx < f.w; xx++) { const uint32_t px = s.atlas.get(f.x + xx, f.y + yy); if (px >> 24) cols.insert(px); }
+      maxCols = std::max(maxCols, (int)cols.size());
+    }
+    char buf[160];
+    std::snprintf(buf, sizeof buf, "%-6s %3zu FRAMES %6.1f KB (BUDGET %d) PACKED %2.0f%%  BAKE %.3f MS  COLOURS %d (48)", nm[p], s.frames.size(), s.bytes() / 1024.0,
+                  budget[p], s.bytes() ? 400.0 * area / s.bytes() : 0.0, ms, maxCols);
+    line(buf);
+  }
+  doll::ComposeOpts one;
+  one.onlyFacing = 2;
+  std::vector<double> t;
+  for (int i = 0; i < 40; i++) {
+    const auto t0 = std::chrono::steady_clock::now();
+    const RigSheet s = doll::compose(r, RigPart::Loco, &one);
+    t.push_back(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
+    (void)s;
+  }
+  std::sort(t.begin(), t.end());
+  char buf[160];
+  std::snprintf(buf, sizeof buf, "ONE FACING'S LOCO: P50 %.3f P95 %.3f MS (GATE 0.385)", t[t.size() / 2], t[t.size() * 95 / 100]);
+  line(buf);
+  const doll::PoolStats ps = doll::poolStats();
+  std::snprintf(buf, sizeof buf, "POOL %d PARTS %d VIEWS %d CLIPS %.3f MB (1.0)", ps.parts, ps.views, ps.clips, ps.bytes / 1048576.0);
+  line(buf);
+  save3(b, dir, "doll_stats");
+}
+// the curated tables and the generator on the look: the hero in each of the culture's 12 skins and the creator's 8,
+// in the creator's 10 hair colours and the cultures' darkest, the woman in the creator's 12 shirts; elves and elders;
+// with each ramp's five steps as a swatch under the figure
+void boardRamps(const std::string& dir) {
+  static const uint32_t skins[20] = {rgba(250, 222, 200), rgba(244, 204, 168), rgba(236, 188, 146), rgba(232, 180, 140), rgba(218, 164, 120),
+                                     rgba(200, 146, 104), rgba(180, 124, 86),  rgba(160, 108, 74),  rgba(150, 100, 70),  rgba(128, 84, 58),
+                                     rgba(110, 72, 50),   rgba(88, 58, 42),    rgba(250, 220, 190), rgba(242, 204, 166), rgba(236, 188, 146),
+                                     rgba(214, 160, 116), rgba(190, 134, 94),  rgba(160, 104, 70),  rgba(124, 80, 56),   rgba(92, 60, 46)};
+  static const uint32_t hairs[14] = {rgba(36, 30, 34),  rgba(70, 44, 30),   rgba(120, 70, 36),   rgba(150, 64, 36),  rgba(200, 104, 44),
+                                     rgba(220, 180, 100), rgba(232, 220, 182), rgba(150, 148, 150), rgba(228, 226, 218), rgba(120, 50, 110),
+                                     rgba(24, 20, 20),  rgba(30, 24, 22),   rgba(60, 42, 30),    rgba(196, 160, 100)};
+  static const uint32_t shirts[12] = {rgba(70, 110, 150), rgba(150, 50, 44), rgba(60, 110, 64), rgba(196, 170, 120), rgba(110, 70, 140), rgba(200, 120, 40),
+                                      rgba(80, 80, 88),   rgba(226, 220, 200), rgba(40, 60, 100), rgba(130, 40, 70),  rgba(70, 130, 130), rgba(140, 100, 60)};
+  Board b(760, 330);
+  dirt(b, 0, 330);
+  auto swatch = [&](int x, int y, const uint32_t* c) { for (int i = 0; i < 5; i++) for (int dy = 0; dy < 3; dy++) for (int dx = 0; dx < 3; dx++) b.c.set(x + i * 3 + dx, y + dy, c[i] | 0xFF000000u); };
+  auto figure = [&](const art::HumanLook& L, int x, int g, art::doll::Slot slot) {
+    doll::DollRecipe r = doll::resolve(L);
+    const RigSheet s = doll::compose(r, RigPart::Loco);
+    putFrame(b, s, 0, Clip::Idle, 0, 0, x, g);
+    swatch(x - 7, g + 4, r.ramps.c[(int)slot]);
+  };
+  b.text(4, 4, "SKINS: CULTURE 12, CREATOR 8 (CURATED FROM A3'S FOUR)");
+  for (int i = 0; i < 20; i++) { art::HumanLook L = a3Look(0); L.skin = skins[i]; figure(L, 14 + i * 36, 52, doll::Slot::Skin); }
+  b.text(4, 74, "HAIR: CREATOR 10, CULTURE DARKS; ELF AND ELDER LAST");
+  for (int i = 0; i < 14; i++) { art::HumanLook L = a3Look(0); L.hairColor = hairs[i]; figure(L, 14 + i * 36, 122, doll::Slot::Hair); }
+  { art::HumanLook L = a3Look(0); L.people = 2; figure(L, 14 + 14 * 36, 122, doll::Slot::Skin); }
+  { art::HumanLook L = a3Look(0); L.age = 3; figure(L, 14 + 15 * 36, 122, doll::Slot::Hair); }
+  { art::HumanLook L = a3Look(0); L.age = 3; L.hairColor = rgba(220, 180, 100); figure(L, 14 + 16 * 36, 122, doll::Slot::Hair); }
+  b.text(4, 144, "CLOTH: THE CREATOR'S 12 SHIRTS (THE GENERATOR)");
+  for (int i = 0; i < 12; i++) { art::HumanLook L = a3Look(1); L.topColor = shirts[i]; figure(L, 14 + i * 36, 192, doll::Slot::Cloth1); }
+  b.text(4, 214, "CLOTH: THE CREATOR'S 12 SHIRTS ON THE HERO");
+  for (int i = 0; i < 12; i++) { art::HumanLook L = a3Look(0); L.topColor = shirts[i]; figure(L, 14 + i * 36, 262, doll::Slot::Cloth1); }
+  b.text(4, 284, "EYES: AUTO BY SKIN AND HAIR (0), THE CREATOR'S 6");
+  static const uint32_t eyes[7] = {0, rgba(96, 58, 32), rgba(60, 112, 196), rgba(56, 140, 80), rgba(120, 132, 146), rgba(206, 146, 40), rgba(136, 80, 176)};
+  for (int i = 0; i < 7; i++) {
+    art::HumanLook L = a3Look(0); L.eyeColor = eyes[i];
+    const doll::DollRecipe r = doll::resolve(L);
+    for (int k = 2; k < 4; k++) for (int dy = 0; dy < 6; dy++) for (int dx = 0; dx < 6; dx++) b.c.set(14 + i * 36 + (k - 2) * 7 + dx, 300 + dy, r.ramps.c[(int)doll::Slot::Eyes][k] | 0xFF000000u);
+  }
+  save3(b, dir, "doll_ramps");
+}
+int facingOf(const std::string& s) { return s == "U" ? 1 : s == "R" ? 2 : s == "L" ? 3 : 0; }
+std::vector<std::string> split(const std::string& s) {
+  std::vector<std::string> v;
+  size_t a = 0;
+  for (size_t b2; (b2 = s.find(':', a)) != std::string::npos; a = b2 + 1) v.push_back(s.substr(a, b2 - a));
+  v.push_back(s.substr(a));
+  return v;
+}
+void boardZoom(const std::string& dir, const std::string& arg) {
+  const std::vector<std::string> w = split(arg);
+  RigSheet s;
+  int facing = 0, idx = 0, variant = 0;
+  Clip clip = Clip::Idle;
+  if (w[0] == "part" && w.size() >= 2) {
+    facing = w.size() > 2 ? facingOf(w[2]) : 0;
+    const int p = doll::findPart(w[1]);
+    const doll::DollRecipe r = recipeOf(p >= 0 && doll::partServes(p, doll::BodySet::Woman) && !doll::partServes(p, doll::BodySet::Man) ? 1 : 0);
+    s = doll::composePart(r, w[1], facing, w.size() > 3 ? w[3] : "rest");
+  } else if (w[0] == "frame" && w.size() >= 5) {
+    // frame:<part>:<facing>:<clip>:<i>[:<variant>] (the old frame:<who>:... form is read too)
+    size_t o = 1;
+    int who = g_who;
+    if (w[1] == "hero" || w[1] == "woman") { who = w[1] == "woman" ? 1 : 0; o = 2; }
+    if (w.size() < o + 4) { std::printf("doll_gallery: %s: frame:<part>:<facing>:<clip>:<i>[:<variant>]\n", arg.c_str()); return; }
+    const RigPart part = w[o] == "run" ? RigPart::Run : w[o] == "action" ? RigPart::Action : w[o] == "death" ? RigPart::Death : RigPart::Loco;
+    s = doll::compose(recipeOf(who), part);
+    facing = facingOf(w[o + 1]);
+    for (int c = 0; c < art::CLIP_COUNT; c++) if (w[o + 2] == art::clipName((Clip)c)) clip = (Clip)c;
+    idx = std::atoi(w[o + 3].c_str());
+    if (w.size() > o + 4) variant = std::atoi(w[o + 4].c_str());
+  }
+  int px, py;
+  const Canvas f = rigpv::frameCanvas(s, facing, clip, variant, idx, px, py);
+  if (f.w <= 0) { std::printf("doll_gallery: %s: nothing to show\n", arg.c_str()); return; }
+  const Canvas z = zoom12(f, px, py);
+  Board b(z.w + 4, z.h + 24);
+  plain(b, rgba(40, 36, 46));
+  b.put(z, 2, 20);
+  rowNumbers(b, 2, 20, f.h, py);
+  b.text(4, 4, arg);
+  std::string name = "doll_zoom_" + arg;
+  for (char& ch : name) if (ch == ':' || ch == '/' || ch == '\\') ch = '_';
+  savePng(b.c, dir + "/" + name + ".png", 1);
+}
+}  // namespace
+
+int main(int argc, char** argv) {
+  if (argc < 2) {
+    std::printf("doll_gallery <outDir> [--pool FILE] [--who hero|woman] [--look k=v,...] [--palette a3|look] [looks clips parts lineup onion death sleep stats "
+                "part:<name>[:<facing>[:<key>]] frame:<part>:<facing>:<clip>:<i>[:<variant>]]\n");
+    return 1;
+  }
+  const std::string dir = argv[1];
+  std::vector<std::string> boards;
+  for (int i = 2; i < argc; i++) {
+    if (!std::strcmp(argv[i], "--pool") && i + 1 < argc) {
+      std::string err;
+      if (!doll::loadPoolFile(argv[++i], &err)) { std::printf("doll_gallery: --pool: %s\n", err.c_str()); return 1; }
+      continue;
+    }
+    if (!std::strcmp(argv[i], "--who") && i + 1 < argc) { g_who = !std::strcmp(argv[++i], "woman") ? 1 : 0; continue; }
+    if (!std::strcmp(argv[i], "--look") && i + 1 < argc) { g_lookSpec = argv[++i]; continue; }
+    if (!std::strcmp(argv[i], "--palette") && i + 1 < argc) { g_lookPalette = !std::strcmp(argv[++i], "look"); continue; }
+    boards.push_back(argv[i]);
+  }
+  if (boards.empty()) boards = {"looks", "clips", "parts", "lineup", "onion"};
+  art::setRigVersion(2);
+  const doll::PoolStats ps = doll::poolStats();
+  std::printf("doll_gallery: pool %d parts, %d clips (%s)\n", ps.parts, ps.clips, ps.embedded ? "embedded" : "loaded");
+  for (const std::string& b : boards) {
+    if (b == "looks") boardLooks(dir);
+    else if (b == "clips") boardClips(dir);
+    else if (b == "parts") boardParts(dir);
+    else if (b == "lineup") boardLineup(dir);
+    else if (b == "onion") boardOnion(dir);
+    else if (b == "death") boardDeath(dir);
+    else if (b == "sleep") boardSleep(dir);
+    else if (b == "stats") boardStats(dir);
+    else if (b == "ramps") boardRamps(dir);
+    else if (b.rfind("part:", 0) == 0 || b.rfind("frame:", 0) == 0) boardZoom(dir, b);
+    else std::printf("doll_gallery: unknown board %s\n", b.c_str());
+  }
+  return 0;
+}

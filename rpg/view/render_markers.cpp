@@ -162,6 +162,9 @@ void View::drawBubbles(Game& g, Vec2 cam) {
   live.clear();
   for (const Actor& a : g.actors) {
     if (a.bubble == art::Bubble::None || !(a.bubbleT > 0) || a.st == AState::Dead) continue;
+#ifdef EMB_WITNESS
+    if (!wHide.empty() && witnessHides(g, a)) continue;   // (Witness reset param hide)
+#endif
     if (a.p.x < cam.x - 24 || a.p.x > cam.x + Pix::W + 24 || a.p.y < cam.y - 8 || a.p.y > cam.y + Pix::H + 48) continue;
     live.push_back(a.id);
     BubbleSeen& bs = bubbleSeen_[a.id];
@@ -299,6 +302,9 @@ void View::drawMarkers(Game& g, Vec2 cam) {
     if (q.type == QType::Missing && q.state == QState::Active && !q.subject.empty()) escorts.push_back(&q.subject);
   for (const Actor& a : g.actors) {
     if (!a.npc || a.st == AState::Dead) continue;
+#ifdef EMB_WITNESS
+    if (!wHide.empty() && witnessHides(g, a)) continue;   // (Witness reset param hide)
+#endif
     if (a.p.x < cam.x - 20 || a.p.x > cam.x + Pix::W + 20 || a.p.y < cam.y - 10 || a.p.y > cam.y + Pix::H + 40) continue;
     bool escort = false;
     for (const std::string* s : escorts) if (a.name.find(*s) != std::string::npos || s->find(a.name) == 0) escort = true;

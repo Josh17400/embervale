@@ -111,7 +111,29 @@ struct HumanLook {
   //      v1 pixel moves); mixed into key() only when set, so every earlier look keeps its key. Derived, never saved:
   //      looks.cpp sets body from the census `female`, gear_look.cpp from Appearance::female.
   uint8_t body = 0;          // 0 man, 1 woman
-  uint8_t age = 0;           // 0 adult, 1 child, 2 youth
+  uint8_t age = 0;           // 0 adult, 1 child, 2 youth (P2b: census children aged 10-14), 3 elder (P2b: census age 60+)
+
+  // ---- P2b New People (VISION_PLAN 15.36 "The look fields"; rpg/art/doll/doll.h): what the doll draws a face and a cut
+  //      from. Derived, never saved: looks.cpp fills them from its own hash stream at the end of census::dress (after
+  //      every existing draw), gear_look.cpp from a hash of the Appearance. v1 ignores them (no v1 pixel moves) and they
+  //      enter key() only at rig 2 (rig 1's keys, caches and goldens stay identical until the flip). 0 = A3's.
+  uint8_t head = 0;          // head type (doll::headTypeName): man 0 oval 1 square 2 round 3 long 4 craggy 5 heavy, 6 fine
+                             //   7 sharp 8 long-elven; woman 0 oval 1 heart 2 round 3 long 4 square 5 full, 6-8 the elven;
+                             //   youth the soft four of its sex (oval round long fine); child 0 round 1 oval 2 pointed 3 elfin
+  uint8_t nose = 0;          // man 0 button 1 straight 2 long 3 hooked 4 broad; woman 0 button 1 straight 2 upturned 3 aquiline
+  uint8_t brow = 0;          // man 0 straight 1 heavy 2 arched 3 thin; woman 0 arched 1 straight 2 thin 3 full
+  uint8_t marks = 0;         // bits: 1 freckles, 2 scar, 4 beauty mark, 8 weathered, 16 lined, 32 gaunt (never on kids)
+  uint8_t hairVar = 0;       // the style within the hair family (doll::hairStyleOf): Bald (bald, shaved); Short (short,
+                             //   cropped, tousled, spiky, receding); Long (long loose, long wavy, shag, bob); Ponytail
+                             //   (ponytail, high ponytail, pigtails); Mohawk (mohawk, topknot); Braids (braid, twin braids,
+                             //   locs, crown braid); Bun (bun, top bun); Curls (curly, big curls)
+  uint8_t beardStyle = 0;    // when beard: 0 full 1 stubble 2 short boxed 3 long 4 braided 5 goatee 6 moustache 7 Van Dyke
+                             //   8 mutton chops 9 handlebar
+  uint8_t neck = 0;          // neckwear: 0 none 1 scarf 2 kerchief 3 collar (torc and amulet come from jewellery / amulet)
+  uint8_t garb = 0;          // a role's work garment over the outfit and cut: 0 none (they decide) 1 work apron (smith,
+                             //   shipwright) 2 smock (farmer, labourer) 3 jerkin (hunter); (FOLK-SIM, added) the
+                             //   commoners' own wear beside the culture's cut: 4 dress 5 tunic (shirt and trousers) 6 coat
+                             //   7 culture tunic 8 kilt 9 gown (the doll draws it; v1 keeps the cut)
 
   // Identity of the painted sheet: equal keys must mean identical sheets. The renderer caches baked sheets by it,
   // so every field that changes pixels must be mixed in here (art_human.cpp).

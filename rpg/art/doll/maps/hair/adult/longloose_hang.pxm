@@ -1,0 +1,73 @@
+# hair/adult/longloose_hang: Long loose's hanging ends: on the shoulders in front, down the back to the shoulder blades (hair keys)
+# The slice (P2b wave 1, FOLK-BODY; to HAIR in wave 2). On the adult head box (STYLE_P2 21). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role hair longloose
+layer hairFront
+anchor head
+keys hair
+z 1
+
+view D key rest origin 0 -15
+|adcb........bcba
+|.adb........bba.
+|.aa..........aa.
+
+view D key swing origin -1 -15
+|adcb......bcba
+|adb........bba
+|.aa........aa.
+
+view U key rest origin -1 -15
+|adcbcccbccbbba
+|.acbccbcccbba.
+|.acbccbccbcba.
+|..abcbccbcba..
+|..abccbcbba...
+|...abbbbbba...
+|....aaaaaa....
+
+view U key swing origin -1 -15
+|adcbcccbccbbba
+|.acbccbcccbba.
+|.acbccbccbcba.
+|..abcbccbcba..
+|..............
+|..abccbcbba...
+|...abbbbbba...
+|....aaaaaa....
+
+view R key rest origin 1 -14
+|abdcbba
+|abdcba.
+|abdcba.
+|.abcba.
+|.abba..
+|..aa...
+
+view R key swing origin 2 -14
+|abdcbba
+|abdcba.
+|abdcba.
+|abdcba.
+|abba...
+|.aa....
+
+view L key rest origin -10 -14
+|abdcbba
+|.abdcba
+|.abdcba
+|.abcba.
+|..abba.
+|...aa..
+
+view L key swing origin -11 -14
+|abdcbba
+|.abdcba
+|.abdcba
+|.abdcba
+|...abba
+|....aa.
+
+view L key lie origin 0 0
+|.

@@ -1,0 +1,25 @@
+# kin/child/head/ears_human: the child's human ears
+# The slice (P2b wave 1, FOLK-BODY; to KIN-CHILD in wave 2). The child, 21 px (STYLE_P2 3). Format: rpg/art/doll/doll.h.
+use person
+body child
+role ears human
+layer head
+anchor head
+keys rest
+z 1
+
+view D key rest origin 1 -5
+|q............q
+|q............q
+
+view U key rest origin 1 -5
+|q...........q
+|q...........q
+
+view R key rest origin -5 -5
+|ts
+|sr
+
+view L key rest origin -6 -5
+|.ts
+|sr.

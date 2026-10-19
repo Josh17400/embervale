@@ -1,0 +1,81 @@
+# hair/adult/tousled: Tousled (A3's hero): locks over the brow, the cowlick
+# The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role hair tousled
+layer hairFront
+anchor head
+keys hairpose
+
+view D key rest origin -1 0
+|........aa....
+|....aaa.adca..
+|..aaddddaddcca
+|.adeeeddddccca
+|adeedddccccbba
+|addddcccccbbba
+|acddbddcbccbba
+|acd...cb...bba
+|abc...cb...bba
+|.b..........b.
+|.b..........b.
+
+view U key rest origin -1 0
+|....aa........
+|..adea.aaa....
+|aaddcdddddca..
+|addddcddddcca.
+|adeeeeddddccba
+|aedddcdddcccba
+|acdcbdccbccbba
+|acdcbccbcbcbba
+|accbcccbccbbba
+|.bcbccbcbcbbb.
+|.abcbccbcbbba.
+|.abbaccbacba..
+|..a.......a...
+
+view R key rest origin 2 0
+|..........aa......
+|......aaaaadca....
+|.....addeedddcca..
+|....adeeedddcccca.
+|...adeedddccccccba
+|..adddddccccccccba
+|.acddccbccccbcccba
+|abcddccbccccbcccca
+|..abccbccbcc......
+|..accbcc..b.......
+|.abccbcb..b.......
+|..aabbba..........
+|.....aa...........
+
+view L key rest origin 0 0
+|......aa..........
+|....addaaaaa......
+|..adeddddccca.....
+|.adeeedddcccca....
+|addeedddcccccba...
+|addddddccccccbba..
+|acddccbccccbccbba.
+|acddccccbccccbcbba
+|......ccbccbccba..
+|.......b..cbcbba..
+|.......b..bcbcbba.
+|..........abbbaa..
+|...........aa.....
+
+view L key lie origin 0 0
+|......aa.......
+|....addaaaaaa..
+|..adeddddcccba.
+|.adeeedddcccbba
+|addeedddcccccba
+|addddddccccccca
+|acddccbccccbcba
+|acddccccbccccca
+|......ccbccbcba
+|.......b..cbcca
+|.......b..bcbba
+|..........abba.
+|...........aa..

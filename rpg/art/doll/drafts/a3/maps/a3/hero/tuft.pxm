@@ -1,0 +1,23 @@
+# a3/hero/tuft: a draft of A3's parts (tools/doll/from_a3.py; docs/ref/style_a3). A starting point: hand-check it.
+part a3/hero/tuft
+tags draft a3
+use person
+body man
+role hair tousled
+layer hairFront
+anchor head
+keys tuft
+
+view D key down origin -10 1
+|a
+
+view D key up origin -9 0
+|--
+|.a
+
+view U key down origin -6 1
+|a
+
+view U key up origin -5 0
+|--
+|.a

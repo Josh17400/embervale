@@ -1,0 +1,90 @@
+# hair/adult/longloose: Long loose: parted in the middle, straight past the shoulders, the ears hidden
+# The slice (P2b wave 1, FOLK-BODY; to HAIR in wave 2). On the adult head box (STYLE_P2 21). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role hair longloose
+layer hairFront
+anchor head
+keys hairpose
+
+view D key rest origin 0 -1
+|......aaaa......
+|....aaeeddaa....
+|...adeedbccca...
+|..adeedbbcccba..
+|.adddcb..bccbba.
+|.acdcb....bcbba.
+|.adcb......cbba.
+|adeb........bbba
+|-dcb........bcb-
+|-dcb........bcb-
+|adcb........bcba
+|adcb........bcba
+|adeb........bcba
+|adcb........bcba
+
+view U key rest origin 0 -1
+|......aaaa......
+|....aaddddaa....
+|...adddddccca...
+|..adeeddcccbba..
+|.adeeddccccbbba.
+|.addddcccccbbba.
+|.acddccccccbbba.
+|abddccbcccccbbba
+|abdcccbcccbcbbba
+|abdcccbcccbcbbba
+|abdccbccccbcbbba
+|abdccbcccbccbbba
+|.adcbccccbccbba.
+|.adcbcccbcccbba.
+
+view R key rest origin 1 -1
+|.....aaaaaaaa....
+|....aaddeeddcca..
+|...adeeedddcccca.
+|..adeedddccccccba
+|.adddddccccccccba
+|acddccbcccccccba.
+|abddcbcccbcbcba..
+|abdccbccbcba.....
+|abdcbcbcba.......
+|abdcbcbcba.......
+|abdcbcbba........
+|abdcbcba.........
+|abdcbba..........
+
+view L key rest origin 0 -1
+|....aaaaaaaa.....
+|..aaddeeddcca....
+|.adeeedddcccca...
+|adeedddccccccba..
+|adddddccccccccba.
+|.acddccbcccccccba
+|..abddcbcccbcbcba
+|.....abdccbccbcba
+|.......abdcbcbcba
+|.......abdcbcbcba
+|........abdcbcbba
+|.........abdcbcba
+|..........abdcbba
+
+view L key lie origin 0 4
+|............aa.
+|...........adba
+|..........aacba
+|..........adbca
+|...........ccba
+|....aaaaaaaabba
+|..aaddeeddcbcca
+|.adeeedddcccbba
+|adeedddccccccba
+|adddddcccccccca
+|.acddccbcccccca
+|..abddcbcccbcba
+|.....abdccbccba
+|.......abdcbcba
+|.......abdcbcba
+|........abdcbca
+|.........abdcba
+|..........abdca

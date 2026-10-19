@@ -1,0 +1,37 @@
+# kin/child/head/round: the child's Round head: a big round face, A3's eyes (lash, white and iris, white and glint), a 1 px mouth
+# The slice (P2b wave 1, FOLK-BODY; to KIN-CHILD in wave 2). The child, 21 px (STYLE_P2 3). Format: rpg/art/doll/doll.h.
+use person
+body child
+role head round
+layer head
+anchor head
+keys rest
+
+view D key rest origin -1 -4
+mark face 1 1
+|..ttt..tt.
+|t##tsss##r
+|t@EtsssE@r
+|t@Gss.sG@r
+|qtsssMssrq
+|.qssssrrq.
+
+view U key rest origin -2 -8
+|qrrrrrrq
+|qrrrrrrq
+
+view R key rest origin -4 -4
+|....t.q..
+|....t##q.
+|....t@Es.
+|qrssssssq
+|qrssssMq.
+|qrrssq...
+
+view L key rest origin 0 -4
+|.qt......
+|q##tts...
+|tE@ts....
+|qtssssrq.
+|.qMssssrq
+|..qssrrq.

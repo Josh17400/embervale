@@ -1,0 +1,48 @@
+# hair/adult/receding: Receding: the crown thin, the forehead high, full at the sides and the back (elders)
+# The slice (P2b wave 1, FOLK-BODY; to HAIR in wave 2). On the adult head box (STYLE_P2 21). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role hair receding
+layer hairFront
+anchor head
+keys rest
+
+view D key rest origin -1 -4
+|..ab......ba..
+|.adb......bba.
+|adcb......bcba
+|acb........bba
+|ab..........ba
+|ab..........ba
+|a............a
+
+view U key rest origin -1 -4
+|..ab......ba..
+|.adb......bba.
+|adcbaa..aabcba
+|acdcbcbcbcbbba
+|abdcbcbcbcbbba
+|abcbcbcbcbbbba
+|.abcbcbcbbbba.
+|..abbbbbbbba..
+|...aaaaaaaa...
+
+view R key rest origin -1 -4
+|..ab..
+|.adcb.
+|adccba
+|acdcba
+|abccba
+|abcba.
+|abba..
+|.aa...
+
+view L key rest origin -9 -4
+|..ab..
+|.adcb.
+|adccba
+|acdcba
+|abccba
+|.abcba
+|..abba
+|...aa.

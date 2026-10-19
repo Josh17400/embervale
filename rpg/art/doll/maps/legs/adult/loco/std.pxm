@@ -1,0 +1,717 @@
+# legs/adult/loco/std: the adult legs in trousers and boots, shared by the man and the woman (regions: T thigh, K knee, S shin, B boot, O sole)
+# The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role legs std
+layer legs
+anchor pivot
+keys legs
+
+view D key buckle origin 8 6
+|...1222112221..
+|...1432113321..
+|.fiiihf.fiihhf.
+|.fhhhgf.fhhggf.
+|fjihhgf.fhhgggf
+|fhhhggf.fhggggf
+|KKKKKKK.KKKKKKK
+
+view D key drawn origin 7 8
+|..2222112221..
+|..2432113321..
+|..2432113321..
+|.giiihffiihhf.
+|.ghhhgffhhggf.
+|.ghhggffhgggf.
+|gjihhgffhhgggf
+|ghhhggffhggggf
+|KKKKKKKKKKKKKK
+
+view D key idle origin 7 9
+|..1222112221..
+|..1222112221..
+|..1432113321..
+|..1432113321..
+|.fiiihffiihhf.
+|.fhhhgffhhggf.
+|.fhhggffhgggf.
+|fjihhgffhhgggf
+|fhhhggffhggggf
+|KKKKKKKKKKKKKK
+
+view D key run1 origin 6 9
+|.1222112221.
+|.1222112221.
+|.1432113321.
+|fiiihf13321.
+|fhhhgf13321.
+|fjihhgfiihhf
+|KKKKKKfhhggf
+|......fhgggf
+|.....fhhgggf
+|.....KKKKKKK
+
+view D key run2 origin 6 9
+|.1222112221.
+|.1222112221.
+|.1432113321.
+|fiiihf13321.
+|fhhhgf13321.
+|fjihhgfiihhf
+|KKKKKKfhhggf
+|......fhgggf
+|.....fhhgggf
+|.....KKKKKKK
+
+view D key run3 origin 7 11
+|..1222112221..
+|..1222112221..
+|..1432113321..
+|..1432113321..
+|.fiiihffiihhf.
+|.fhhhgffhhggf.
+|.fhhggffhgggf.
+|fjihhgffhhgggf
+|KKKKKKKKKKKKKK
+
+view D key run4 origin 7 9
+|..1222112221.
+|..1222112221.
+|..1432113321.
+|..14321fiihhf
+|..14321fhhggf
+|.fiiihffhgggf
+|.fhhhgfKKKKKK
+|.fhhggf......
+|fjihhgf......
+|KKKKKKK......
+
+view D key run5 origin 7 9
+|..1222112221.
+|..1222112221.
+|..1432113321.
+|..14321fiihhf
+|..14321fhhggf
+|.fiiihffhgggf
+|.fhhhgfKKKKKK
+|.fhhggf......
+|fjihhgf......
+|KKKKKKK......
+
+view D key run6 origin 7 11
+|..1222112221..
+|..1222112221..
+|..1432113321..
+|..1432113321..
+|.fiiihffiihhf.
+|.fhhhgffhhggf.
+|.fhhggffhgggf.
+|fjihhgffhhgggf
+|KKKKKKKKKKKKKK
+
+view D key sit origin 8 7
+mark hip 8 0
+|..1222221122222.
+|.144444311444431
+|1443333211433321
+|1433332.1433221.
+|.11fiihf.fiih11.
+|..fjihgf.fhhgf..
+|..fhhggf.fhggf..
+|..KKKKKK.KKKKK..
+
+view D key walkA origin 7 9
+|..1222112221.
+|..1222112221.
+|..14321fiihhf
+|..14321fhhggf
+|.fiiihffhgggf
+|.fhhhgffhhggf
+|.fhhggfKKKKKK
+|fhihhgf......
+|fhhhggf......
+|KKKKKKK......
+
+view D key walkB origin 7 9
+|..1222112221..
+|..1222112221..
+|..1432113321..
+|..14321fiihhf.
+|.fiiihffhhggf.
+|.fhhhgffhgggf.
+|.fhhggffhhggf.
+|fhihhgffhggggf
+|fhhhggfKKKKKKK
+|KKKKKKK.......
+
+view D key walkC origin 6 9
+|.1222112221..
+|.1222112221..
+|fiiihf13321..
+|fhhhgf13321..
+|fhhggffiihhf.
+|fhhhgffhhggf.
+|KKKKKKfhgggf.
+|......fhhgggf
+|......fhhgggf
+|......KKKKKKK
+
+view D key walkD origin 7 9
+|..1222112221..
+|..1222112221..
+|..1432113321..
+|.fiiihf13321..
+|.fhhhgffiihhf.
+|.fhhggffhhggf.
+|.fhhhgffhgggf.
+|fhhhggffhhgggf
+|KKKKKKKfhggggf
+|.......KKKKKKK
+
+view U key buckle origin 8 6
+|...1222112221..
+|...1432113321..
+|.fiiihf.fiihhf.
+|.fhhhgf.fhhggf.
+|fjihhgf.fhhgggf
+|fhhhggf.fhggggf
+|KKKKKKK.KKKKKKK
+
+view U key drawn origin 7 8
+|..2222112221..
+|..2432113321..
+|..2432113321..
+|.giiihffiihhf.
+|.ghhhgffhhggf.
+|.ghhggffhgggf.
+|gjihhgffhhgggf
+|ghhhggffhggggf
+|KKKKKKKKKKKKKK
+
+view U key idle origin 7 9
+|..1222112221..
+|..1222112221..
+|..1432113321..
+|..1432113321..
+|.fiiihffiihhf.
+|.fhhhgffhhggf.
+|.fhhggffhgggf.
+|fhhhhgffhhgggf
+|fhhhggffhggggf
+|KKKKKKKKKKKKKK
+
+view U key run1 origin 6 9
+|.1222112221.
+|.1222112221.
+|.1432113321.
+|fiiihf13321.
+|fhhhgf13321.
+|fjihhgfiihhf
+|KKKKKKfhhggf
+|......fhgggf
+|.....fhhgggf
+|.....KKKKKKK
+
+view U key run2 origin 6 9
+|.1222112221.
+|.1222112221.
+|.1432113321.
+|fiiihf13321.
+|fhhhgf13321.
+|fjihhgfiihhf
+|KKKKKKfhhggf
+|......fhgggf
+|.....fhhgggf
+|.....KKKKKKK
+
+view U key run3 origin 7 11
+|..1222112221..
+|..1222112221..
+|..1432113321..
+|..1432113321..
+|.fiiihffiihhf.
+|.fhhhgffhhggf.
+|.fhhggffhgggf.
+|fjihhgffhhgggf
+|KKKKKKKKKKKKKK
+
+view U key run4 origin 7 9
+|..1222112221.
+|..1222112221.
+|..1432113321.
+|..14321fiihhf
+|..14321fhhggf
+|.fiiihffhgggf
+|.fhhhgfKKKKKK
+|.fhhggf......
+|fjihhgf......
+|KKKKKKK......
+
+view U key run5 origin 7 9
+|..1222112221.
+|..1222112221.
+|..1432113321.
+|..14321fiihhf
+|..14321fhhggf
+|.fiiihffhgggf
+|.fhhhgfKKKKKK
+|.fhhggf......
+|fjihhgf......
+|KKKKKKK......
+
+view U key run6 origin 7 11
+|..1222112221..
+|..1222112221..
+|..1432113321..
+|..1432113321..
+|.fiiihffiihhf.
+|.fhhhgffhhggf.
+|.fhhggffhgggf.
+|fjihhgffhhgggf
+|KKKKKKKKKKKKKK
+
+view U key sit origin 7 7
+mark hip 7 0
+|..1222211222221
+
+view U key walkA origin 7 9
+|..1222112221.
+|..1222112221.
+|..14321fiihhf
+|..14321fhhggf
+|.fiiihffhgggf
+|.fhhhgffhhggf
+|.fhhggfKKKKKK
+|fhihhgf......
+|fhhhggf......
+|KKKKKKK......
+
+view U key walkB origin 7 9
+|..1222112221..
+|..1222112221..
+|..1432113321..
+|..14321fiihhf.
+|.fiiihffhhggf.
+|.fhhhgffhgggf.
+|.fhhggffhhggf.
+|fhihhgffhggggf
+|fhhhggfKKKKKKK
+|KKKKKKK.......
+
+view U key walkC origin 6 9
+|.1222112221..
+|.1222112221..
+|fiiihf13321..
+|fhhhgf13321..
+|fhhggffiihhf.
+|fhhhgffhhggf.
+|KKKKKKfhgggf.
+|......fhhgggf
+|......fhhgggf
+|......KKKKKKK
+
+view U key walkD origin 7 9
+|..1222112221..
+|..1222112221..
+|..1432113321..
+|.fiiihf13321..
+|.fhhhgffiihhf.
+|.fhhggffhhggf.
+|.fhhhgffhgggf.
+|fhhhggffhhgggf
+|KKKKKKKfhggggf
+|.......KKKKKKK
+
+view R key buckle origin 6 6
+|...1222221.....
+|...13214321....
+|...1321..14321.
+|..fhgf...fiihhf
+|.fggf...fhhgf..
+|fhgggf.fihhggf.
+|.KKKKK.KKKKKKK.
+
+view R key idle origin 4 9
+|.12222221..
+|.12212221..
+|.13214321..
+|.13214321..
+|.fihfiihf..
+|.fhgfhhgf..
+|.fhgfhhgf..
+|fhhgfhhhgf.
+|fhggfihhggf
+|KKKKKKKKKKK
+
+view R key lunge origin 9 9
+|......1222221.......
+|......13214321......
+|.....1321..14321....
+|....1321....14321...
+|...1321.....fiihhf..
+|..fhgf.......fhhgf..
+|.fggf........fhhgf..
+|fgggf........fhhhgf.
+|fhgggf.......fihhggf
+|.KKKKK.......KKKKKKK
+
+view R key run1 origin 9 9
+|......1222221.....
+|.....13214321.....
+|....1321.14321....
+|...1321...14321...
+|..fhgf.....fiihhf.
+|.fggf......fhhgf..
+|fgggf......fhhgf..
+|KKKK.......fhhhgf.
+|...........fihhggf
+|...........KKKKKKK
+
+view R key run2 origin 3 9
+|1222221.....
+|13213221....
+|143211321...
+|14321.1321..
+|fiihhf.fhgf.
+|fhhgf..fggf.
+|fhhgf.fhgggf
+|fhhhgfKKKKKK
+|fihhggf.....
+|KKKKKKK.....
+
+view R key run3 origin 9 11
+|......1222221.....
+|.....13214321.....
+|....14321.1321....
+|...14321...1321...
+|..fiihf.....1321..
+|.fihf.......fhgf..
+|fihhf.......fhgf..
+|KKKK........fhggf.
+|............fhgggf
+|............KKKKKK
+
+view R key run4 origin 9 9
+|......1222221....
+|.....14321321....
+|....14321.1321...
+|...14321...1321..
+|..fiihf....fhhgf.
+|.fihf......fhgf..
+|fihhf......fhgf..
+|KKKK.......fhggf.
+|...........fhgggf
+|...........KKKKKK
+
+view R key run5 origin 3 9
+|1222221.....
+|14314321....
+|1321.14321..
+|1321..14321.
+|fhhgf..fiihf
+|fhgf...fihf.
+|fhgf..fihhgf
+|fhggf.KKKKKK
+|fhgggf......
+|KKKKKK......
+
+view R key run6 origin 9 11
+|......1222221......
+|.....14321321......
+|....1321.14321.....
+|...1321...14321....
+|..fhgf.....fiihf...
+|.fggf.......fihf...
+|fgggf.......fihhf..
+|KKKK........fihhgf.
+|............fjihhgf
+|............KKKKKKK
+
+view R key sit origin 5 10
+mark hip 5 3
+|.111111111111..
+|14444443333331.
+|12222222222231.
+|.11111111222231
+|........13221..
+|........fiihhf.
+|........fihhgf.
+|........fhhhgf.
+|........fhhhggf
+|........fihhggf
+|........KKKKKKK
+
+view R key walkA origin 7 9
+|....1222221......
+|....13214321.....
+|...1321.14321....
+|..1321...14321...
+|.fhhgf...fiihhf..
+|fghgf.....fhhgf..
+|fgggf.....fhhgf..
+|fggggf....fhhhgf.
+|.fhgggf...fihhggf
+|..KKKKK...KKKKKKK
+
+view R key walkA2 origin 8 9
+|.....1222221...
+|....132114321..
+|...1321..14321.
+|..1321...14321.
+|.fhgf....fiihhf
+|fhgf....fhhgf..
+|fggf....fhhgf..
+|fgggf...fhhhgf.
+|.fhgf...fihhggf
+|..KKK...KKKKKKK
+
+view R key walkB2 origin 6 9
+|...1222221.
+|...13214321
+|...1314321.
+|...114321..
+|.fhfiihhf..
+|fggfhhgf...
+|fggfhhgf...
+|KKKfhhhgf..
+|...fihhggf.
+|...KKKKKKK.
+
+view R key walkC origin 7 9
+|....1222221......
+|....14321321.....
+|...14321.1321....
+|..14321...1321...
+|.fiihhf...fhhgf..
+|.fhhgf.....fhgf..
+|fhhgf......fhgf..
+|fhhhgf.....fhggf.
+|.fihhgf....fhgggf
+|..KKKKK....KKKKKK
+
+view R key walkC2 origin 8 9
+|.....1222221...
+|....14321321...
+|...14321.1321..
+|..14321...1321.
+|.fiihf....fhhgf
+|fihf.....fhgf..
+|fhhf.....fhgf..
+|fihhf....fhggf.
+|.fhhf....fhgggf
+|..KKK....KKKKKK
+
+view R key walkD2 origin 3 9
+|1222221.
+|1143211.
+|.14321..
+|.114321.
+|.ffiihhf
+|.ffhhgf.
+|.fhhhgf.
+|.KKKKKK.
+|.fhgggf.
+|.KKKKKK.
+
+view L key buckle origin 8 6
+|.....1222221...
+|....14321321...
+|.14321..1321...
+|fiihhf...fhgf..
+|..fihgf...fggf.
+|.fjihhgf.fhgggf
+|.KKKKKKK.KKKKK.
+
+view L key idle origin 7 9
+|..1222222221
+|..1222221221
+|..1432132221
+|..14321321..
+|..fiihfhgf..
+|..fhhgfhgf..
+|..fhhgfhgf..
+|.fhhhgfhggf.
+|fihhggfhggf.
+|KKKKKKKKKKK.
+
+view L key lunge origin 10 9
+|.......1222221......
+|......13214321......
+|....14321..1321.....
+|...14321....1321....
+|..fiihhf.....1321...
+|..fhhgf.......fhgf..
+|..fhhgf........fggf.
+|.fhhhgf........fgggf
+|fihhggf.......fhgggf
+|KKKKKKK.......KKKKK.
+
+view L key run1 origin 8 9
+|.....1222221......
+|.....13214321.....
+|....14321.1321....
+|...14321...1321...
+|.fiihhf.....fhgf..
+|..fhhgf......fggf.
+|..fhhgf......fgggf
+|.fhhhgf.......KKKK
+|fihhggf...........
+|KKKKKKK...........
+
+view L key run2 origin 8 9
+|.....1222221
+|....13213221
+|...143211321
+|..1321.14321
+|.fhgf.fiihhf
+|.fggf..fhhgf
+|fhgggf.fhhgf
+|fhhhgfKKKKKK
+|.....fihhggf
+|.....KKKKKKK
+
+view L key run3 origin 8 11
+|.....1222221......
+|.....13214321.....
+|....1321.14321....
+|...1321...14321...
+|..1321.....fiihf..
+|..fhgf.......fihf.
+|..fhgf.......fihhf
+|.fhggf........KKKK
+|fhgggf............
+|KKKKKK............
+
+view L key run4 origin 7 9
+|....1222221......
+|....14321321.....
+|...1321.14321....
+|..1321...14321...
+|.fhhgf....fiihf..
+|..fhgf......fihf.
+|..fhgf......fihhf
+|.fhggf.......KKKK
+|fhgggf...........
+|KKKKKK...........
+
+view L key run5 origin 8 9
+|.....1222221
+|....14314321
+|..14321.1321
+|.14321..1321
+|fiihf..fhhgf
+|.fihf...fhgf
+|fihhgf..fhgf
+|KKKKKK.fhggf
+|......fhgggf
+|......KKKKKK
+
+view L key run6 origin 9 11
+|......1222221......
+|......14321321.....
+|.....14321.1321....
+|....14321...1321...
+|...fiihf.....fhgf..
+|...fihf.......fggf.
+|..fihhf.......fgggf
+|.fihhgf........KKKK
+|fjihhgf............
+|KKKKKKK............
+
+view L key sit origin 9 10
+mark hip 9 3
+|..111111111111.
+|.14444443333331
+|.13222222222221
+|13222211111111.
+|..12231........
+|.fiihhf........
+|.fihhgf........
+|.fhhhgf........
+|fjihhgf........
+|fihhggf........
+|KKKKKKK........
+
+view L key walkA origin 9 9
+|......1222221....
+|.....14321321....
+|....14321.1321...
+|...14321...1321..
+|..fiihhf...fhhgf.
+|..fihgf.....fhggf
+|..fihgf.....fgggf
+|.fihhgf....fggggf
+|fjihhgf...fhgggf.
+|KKKKKKK...KKKKK..
+
+view L key walkA2 origin 6 9
+|...1222221.....
+|..143211321....
+|.14321..1321...
+|.14321...1321..
+|fiihhf....fhgf.
+|..fihgf....fhgf
+|..fihgf....fggf
+|.fihhgf...fgggf
+|fjihhgf...fhgf.
+|KKKKKKK...KKK..
+
+view L key walkB2 origin 4 9
+|.1222221...
+|14321321...
+|.1432121...
+|..143211...
+|..fiihhfhf.
+|...fihgfggf
+|...fihgfggf
+|..fihhgfKKK
+|.fjihhgf...
+|.KKKKKKK...
+
+view L key walkC origin 9 9
+|......1222221....
+|.....13211432....
+|....1321.14321...
+|...1321...14321..
+|..fhhgf...fiihhf.
+|..fhgf.....fihgf.
+|..fhgf......fihgf
+|.fhggf.....fihhgf
+|fhgggf....fjihgf.
+|KKKKKK....KKKKK..
+
+view L key walkC2 origin 6 9
+|...1222221.....
+|...13211432....
+|..1321.14321...
+|.1321...14321..
+|fhhgf....fiihf.
+|..fhgf.....fihf
+|..fhgf.....fihf
+|.fhggf....fihhf
+|fhgggf....fihf.
+|KKKKKK....KKK..
+
+view L key walkD2 origin 3 9
+|1222221
+|.143211
+|.14321.
+|143211.
+|fiihhff
+|.fihgff
+|.fihhgf
+|.KKKKKK
+|fhgggf.
+|KKKKKK.
+
+view L key lie origin 3 9
+|...13221
+|...14321
+|...14321
+|...1432f
+|...fiihf
+|...fhhgf
+|..fhhhgf
+|.fhhhhgf
+|fiihhggf
+|KKKKKKKK

@@ -64,6 +64,10 @@ using art::Prop;
 using art::Posture;
 using art::Bubble;
 
+namespace census {   // (P2b FOLK-SIM, rpg/sim/looks.cpp) the census age on a look: child, youth, adult, elder
+void ageLook(art::HumanLook& L, int years, bool childRole, bool elder, uint64_t seed);
+}  // namespace census
+
 namespace {
 
 // ---------------------------------------------------------------- identities and bits
@@ -887,6 +891,14 @@ struct LifeOps {
     }
     if (r.job == life::Job::Lamplighter) a.look.weapon = 4;   // the pole
     if (r.job == life::Job::Smith) a.look.weapon = 6;
+    // (P2b FOLK-SIM) the doll's census look: the age (child, youth 10-14, elder from 60), the trades' work garments by
+    // job (a labourer's smock, a woodcutter's jerkin, a smith's apron), a beggar's gaunt face (v1 ignores every one)
+    census::ageLook(a.look, r.age, r.job == life::Job::Child, r.job == life::Job::Elder, (uint64_t)r.lookSeed);
+    if (r.job == life::Job::Labourer || r.job == life::Job::Herder) a.look.garb = 2;
+    else if (r.job == life::Job::Woodcutter) a.look.garb = 3;
+    else if (r.job == life::Job::Smith) a.look.garb = 1;
+    else if (r.job == life::Job::Miner || ((r.job == life::Job::Stablehand || r.job == life::Job::Servant) && !a.look.garb)) a.look.garb = 5;   // shirt and trousers
+    if (r.job == life::Job::Beggar && (mixu(r.lookSeed, 0x6A07ull) & 1u)) a.look.marks = (uint8_t)(a.look.marks | 32);
   }
   static uint32_t tint(uint32_t c, uint32_t to, float t) {
     auto ch = [&](int sh) {

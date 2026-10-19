@@ -1,0 +1,74 @@
+# P2b New People: the slice's contrast (FOLK-BODY; VISION_PLAN 15.36 "The slice gate" item 4, STYLE_P2 8): the A3 hero
+# and an unlit slice villager (picked from the variety row: `npcstage pick`) on grass and road, 11:00 and 23:00, NORMAL
+# (D3), rig 2. Hero pairs: `shotpair` (body / ring) with `ui 0`; villager pairs: `npcpair` (the hero 8 tiles east).
+#   embervale.exe --script tools/scripts/p2b_slice_contrast.txt      (p2b_con_*.png in the working directory)
+#   node tools/p2_measure.mjs contrast p2b_con_grass_day_hero.png p2b_con_grass_day_hero_nb.png --d 3
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.0 hair short copper
++0.1 slicelook a3
++0.1 expect doll covered
++0.1 at -140 -432
++2.5 slicelook a3
++0.1 slicelineup variety
++0.3 npcstage pick
++0.1 slicelineup clear
+# ---- grass
++0.1 gotoground grass
++0.05 hour 11
++1.2 slicelook a3
++0.1 pose idle sword 0 0
++0.0 ui 0
++0.2 shotpair p2b_con_grass_day_hero.png p2b_con_grass_day_hero_nb.png
++0.1 shotpair p2b_con_grass_day_ring.png p2b_con_grass_day_ring_nb.png ring
++0.0 ui 1
++0.1 hour 23
++1.0 ui 0
++0.2 shotpair p2b_con_grass_night_hero.png p2b_con_grass_night_hero_nb.png
++0.1 shotpair p2b_con_grass_night_ring.png p2b_con_grass_night_ring_nb.png ring
++0.0 ui 1
++0.1 pose off
++0.05 hour 11
++0.05 npcstage 8
++1.2 log settle
++0.0 ui 0
++0.1 npcpair p2b_con_grass_day_npc.png p2b_con_grass_day_npc_nb.png
++0.0 ui 1
++0.1 hour 23
++1.0 shot p2b_con_grass_night.png
++0.0 ui 0
++0.1 npcpair p2b_con_grass_night_npc.png p2b_con_grass_night_npc_nb.png
++0.0 ui 1
+# ---- road
++0.1 gotoground road
++0.05 hour 11
++1.2 slicelook a3
++0.1 pose idle sword 0 0
++0.0 ui 0
++0.2 shotpair p2b_con_road_day_hero.png p2b_con_road_day_hero_nb.png
++0.1 shotpair p2b_con_road_day_ring.png p2b_con_road_day_ring_nb.png ring
++0.0 ui 1
++0.1 hour 23
++1.0 ui 0
++0.2 shotpair p2b_con_road_night_hero.png p2b_con_road_night_hero_nb.png
++0.1 shotpair p2b_con_road_night_ring.png p2b_con_road_night_ring_nb.png ring
++0.0 ui 1
++0.1 pose off
++0.05 hour 11
++0.05 npcstage 8
++1.2 log settle
++0.0 ui 0
++0.1 npcpair p2b_con_road_day_npc.png p2b_con_road_day_npc_nb.png
++0.0 ui 1
++0.1 hour 23
++1.0 shot p2b_con_road_night.png
++0.0 ui 0
++0.1 npcpair p2b_con_road_night_npc.png p2b_con_road_night_npc_nb.png
++0.0 ui 1
++0.2 quit

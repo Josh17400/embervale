@@ -1,0 +1,12 @@
+{
+  "name": "embervale-web",
+  "launch": {
+    "url": "http://127.0.0.1:8090/index.html",
+    "server": "python -m http.server 8090 --bind 127.0.0.1 -d ../../site-witness",
+    "device": "iphone-15-landscape"
+  },
+  "tests": "witness",
+  "seed": 1,
+  "timeout": 180,
+  "replay": { "ignore": ["player.sprite", "screen"] }
+}

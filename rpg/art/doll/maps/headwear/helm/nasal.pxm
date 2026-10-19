@@ -1,0 +1,67 @@
+# headwear/helm/nasal: the Nasal helm: a steel cap to the brows, a brass-riveted rim, the nasal bar down the nose; hair above the rim hidden
+# The slice (P2b wave 1, FOLK-BODY; armour and helms to P2c's ARMOUR / HELMS). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role helm form1
+role helm band2
+layer headwear
+anchor head
+keys rest
+tags overlay
+
+view D key rest origin 2 1
+|--------------------
+|--------------------
+|--------vvvv--------
+|------vvzyyxvv------
+|-----vzyyxxxwwv-----
+|----vyyxxxxxwwwv----
+|----vyxxxxxxwwwv----
+|----vyxxxxxxxwwv----
+|...vyyyyyNyxxxxwv...
+|...vvvvvvOvvvvvvv...
+|.........vxv........
+|.........vxv........
+|.........vwv........
+
+view U key rest origin 2 1
+|--------------------
+|--------------------
+|--------vvvv--------
+|------vvyyyxvv------
+|-----vyzyxxxwwv-----
+|----vyyxxxxxwwwv----
+|----vyxxxxxxwwwv----
+|----vyxxxxxxxwwv----
+|...vyyyyyyyxxxxwv...
+|...vvvvvvvvvvvvvv...
+
+view R key rest origin 3 1
+|---------------------
+|---------------------
+|---------vvvv--------
+|-------vvzyyxvv------
+|------vzyyxxxwwv-----
+|-----vyyxxxxxxwwv----
+|----vyyxxxxxxxxwwv---
+|----vyxxxxxxxxxxwv---
+|...vyyyyyyyyNyxxxwv..
+|...vvvvvvvvvOvvvvvvv.
+|.................vxv.
+|.................vxv.
+|.................vwv.
+
+view L key rest origin 2 1
+|---------------------
+|---------------------
+|--------vvvv---------
+|------vvzyyxvv-------
+|-----vzyyxxxwwv------
+|----vyyxxxxxxwwv-----
+|---vyyxxxxxxxxwwv----
+|---vyxxxxxxxxxxwv----
+|..vyyyyyyyyNyxxxwv...
+|.vvvvvvvvvOvvvvvvv...
+|.vxv.................
+|.vxv.................
+|.vwv.................

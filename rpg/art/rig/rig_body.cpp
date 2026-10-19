@@ -443,7 +443,7 @@ void steelArc(Canvas& c, int frame) {
 // true when every field of the look is painted on v2 (P2a: the plain looks RIG-BODY covers, R3 99 % of a census's plain
 // looks; P2b makes it real per gear field and `rpg_test --rig-coverage` names what is missing). Until it holds, the view
 // keeps drawing the look's v1 sheet, so `rig 2` never shows a half-painted person.
-bool rig2Covers(const HumanLook& L) {
+bool legacyRig2Covers(const HumanLook& L) {
   // the civilian base (RIG-BODY): every body, build, people and age; skins; the 8 hair styles and the beard; Tunic,
   // Dress, Robe and Rags with the 8 culture cuts and the 6 patterns; the 8 culture headwear kinds and the legacy hood;
   // face paint and jewellery. Gear is P2b's: armour, helms, cloaks and capes, shields, gloves, boots, back items, the
@@ -465,7 +465,7 @@ bool rig2Covers(const HumanLook& L) {
 }
 
 // humanFigureStill at rig 2 (statues and other props reuse the rig): an empty canvas = not painted yet (v1 is drawn)
-Canvas humanFigureStill2(const HumanLook& look, int facing) {
+Canvas legacyFigureStill2(const HumanLook& look, int facing) {
   (void)look; (void)facing;
   return Canvas();
 }

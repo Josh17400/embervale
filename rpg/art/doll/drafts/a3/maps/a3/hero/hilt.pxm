@@ -1,0 +1,17 @@
+# a3/hero/hilt: a draft of A3's parts (tools/doll/from_a3.py; docs/ref/style_a3). A starting point: hand-check it.
+part a3/hero/hilt
+tags draft a3
+use person
+body man
+role sheath sword
+layer belt
+anchor hip
+keys hilt
+z 1
+
+view R key rest origin -4 5
+|....v.
+|...vPv
+|..vhv.
+|.Pfv..
+|NOv...

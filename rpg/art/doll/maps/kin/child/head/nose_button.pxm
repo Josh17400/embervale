@@ -1,0 +1,21 @@
+# kin/child/head/nose_button: the child's button nose
+# The slice (P2b wave 1, FOLK-BODY; to KIN-CHILD in wave 2). The child, 21 px (STYLE_P2 3). Format: rpg/art/doll/doll.h.
+use person
+body child
+role nose button
+layer face
+anchor head
+keys rest
+tags mirror-ok
+
+view D key rest origin -6 -7
+|r
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -12 -6
+|q
+
+view L key rest origin 1 -6
+|q

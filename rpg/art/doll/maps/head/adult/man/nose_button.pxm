@@ -1,0 +1,20 @@
+# head/adult/man/nose_button: the man's button nose (A3): one skin-shadow pixel between the eyes; the profile bump in side views
+# The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+use person
+body man
+role nose button
+layer face
+anchor head
+keys rest
+
+view D key rest origin -8 -11
+|r
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -14 -10
+|sq
+
+view L key rest origin 0 -10
+|qt

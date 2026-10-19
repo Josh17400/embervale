@@ -8,21 +8,14 @@
 // The switch, the body scale and the metrics are header-only (inline) so rpg/sim (anim.cpp, game.cpp) reads them
 // without linking rpg_art. The painters (humanRig, humanPosture2, sleeper2...) live in rpg_art.
 //
-// Which file implements what (one owner each, VISION_PLAN 15.36 "Areas"):
-//   art_rig.cpp            (lead)      humanRig's dispatch, the RigSheet helpers, holderName
-//   rig/rig_core.cpp       (RIG-BODY)  the skeleton, pose solver, depth order, atlas packer, the v2 outline
-//   rig/rig_body.cpp       (RIG-BODY)  bodies, builds, peoples, skins; rigLoco (Idle 3, Walk 6, Hurt); humanFigureStill2;
-//                                      rig2Covers (which looks v2 covers: R3)
-//   rig/rig_face.cpp, rig_hair.cpp, rig_cloth.cpp (RIG-BODY)  faces and hands, hair and beard, garments and headwear
-//   rig/rig_death.cpp      (RIG-BODY)  rigDeath (Fall 3, Lying 2)
-//   rig/rig_arms.cpp       (RIG-ARMS)  the base weapons rasterized at 16 angles
-//   rig/rig_actions.cpp    (RIG-ARMS)  rigAction (every swing family x 3 variants, Cast, Draw / Release, Block, Roll)
-//   rig/rig_poses.cpp      (POSES)     humanPosture2 (the 31 postures on v2), seatFit2
-//   rig/rig_sleep.cpp      (POSES)     sleeper2 (the 10 berths on v2), bedFit2
-//   art_fx.cpp             (RIG-ARMS)  the 9 family effects (art::Fx::SwingArc..Twang: their sizes in kFxInfo)
+// Which file implements what (P2b phase A: the art-direction change, VISION_PLAN 15.36): the rejected procedural painters
+// (rpg/art/rig/*.cpp) are DETACHED: nothing calls them at rig 2 (their entry points are renamed legacy*, kept compiled only
+// for tools/preview/rigdraft.cpp until the P2c flip deletes them). Rig 2 draws the DOLL (rpg/art/doll/doll.h):
+//   art_rig.cpp            (lead)      the dispatch to the doll (humanRig, humanPosture2, sleeper2, humanFigureStill2,
+//                                      humanoidCell2, rig2Covers), the RigSheet helpers, holderName
+//   doll/*.cpp             (DOLL)      the pool, the compositor, the resolver and coverage, the ramps, seatFit2 / bedFit2
+//   art_fx.cpp             (P2c)       the 9 family effects (art::Fx::SwingArc..Twang: their sizes in kFxInfo)
 //   art_props.cpp          (HOLDERS)   holderPx (with the holders' painters: art_building, art_home, art_sea...)
-//   rig/rig_kin.cpp        (POSES)     youth and child bodies (HumanLook::age)
-//   rig/rig_humanoid.cpp   (POSES)     humanoidCell2 and its cell sizes (skeleton, draugr, goblin on v2)
 #pragma once
 #include <cmath>
 #include <cstdint>
@@ -102,6 +95,8 @@ struct RigMetrics {
   int fxLift = 8;                   // px above the feet of the swing FX centre
   int bathVis = 14, bathUnder = 5;  // the bathing / swimming crop: rows shown in the air, rows tinted under the water
   int figH(int body, int age, int people) const {
+    // (P2b) age 3, the elder: the adult body with the head stack a pixel lower at rig 2 (STYLE_P2 3, 14); v1's adult at rig 1
+    if (age == 3) return figH(body, 0, people) - (version >= 2 ? 1 : 0);
     return fig[body < 0 ? 0 : body > 1 ? 1 : body][age < 0 ? 0 : age > 2 ? 2 : age][people < 0 ? 0 : people > 2 ? 2 : people];
   }
   int figH(const HumanLook& L) const { return figH(L.body, L.age, L.people); }
@@ -128,7 +123,7 @@ inline const RigMetrics& rig(int v) {
       m.fig[0][1][p] = m.fig[1][1][p] = 21;                                       // child
       m.fig[0][2][p] = m.fig[1][2][p] = 26;                                       // youth
     }
-    m.headTop = 31; m.eyeRow = 24; m.handRow = 10;
+    m.headTop = 31; m.eyeRow = 22; m.handRow = 10;   // (P2b) A3's rows: crown F-31 (woman F-30), eyes F-23..F-22, hands F-11..F-10
     m.markerY = 36; m.bubbleY = 42; m.plateY = 38; m.barY = 36;   // 4 px of air over the hair (STYLE_P2 17)
     m.ringW = 24; m.ringH = 9;
     m.shadowW = 16; m.shadowH = 6;
@@ -161,8 +156,12 @@ struct RigAnchors {
   int16_t gripX = kNoAnchor, gripY = kNoAnchor;    // where the weapon is held (under the fist)
   int16_t tipX = kNoAnchor, tipY = kNoAnchor;      // the weapon's tip (blade point, axe / mace head, spear point, staff end)
   bool weaponBehind = false;                        // the weapon is drawn behind the body this frame (STYLE_P2 11)
+  int16_t topY = kNoAnchor;                         // (P2b) the frame's top row (its highest opaque pixel: hair, a hat, a
+                                                    // crest): markers and plates float over it (STYLE_P2 17)
 };
-enum class RigPart : uint8_t { Loco, Action, Death, COUNT };   // LOCO all humans; ACTION fighters; DEATH when someone falls
+// LOCO all humans; ACTION fighters; DEATH when someone falls; (P2b) RUN movers above the gait switch (54 px/s: clip Walk
+// holds the run cycle)
+enum class RigPart : uint8_t { Loco, Action, Death, Run, COUNT };
 // A look's atlas for one part: the trimmed frames packed into one canvas, indexed by facing x clip x variant.
 struct RigSheet {
   struct Span { int16_t first = -1; uint8_t count = 0; };

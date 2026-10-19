@@ -1,0 +1,68 @@
+# wear/man/robe: the man's Robe: the torso of one long garment, a sash at the waist, the collar crossed at the neck
+# The slice (P2b wave 1, FOLK-BODY; to GARB-M / GARB-W in wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person
+body man
+role garment robe
+layer torso
+anchor neck
+keys rest
+
+view D key rest origin 7 0
+|...5qrrrrq5..
+|59889rrrr7765
+|..6888877766.
+|..6888887666.
+|..6887777766.
+|..6887777666.
+|..6877776665.
+|..mppooonnnm.
+|..688677on65.
+|..687677nm65.
+
+view D key rest origin 7 -1 when elder
+|-...........-
+
+view U key rest origin 7 0
+|..5988777665..
+|59887777777665
+|..6887777666..
+|..6887776665..
+|..6887777665..
+|..6887777665..
+|..6887777665..
+|..mppooonnnm..
+|..6887776765..
+|..6877767665..
+
+view U key rest origin 7 -1 when elder
+|-............-
+
+view R key rest origin 5 0
+|..5qrrq5...
+|.598877765.
+|.5887777665
+|.5887777665
+|.5887777665
+|.5887777665
+|.5887777665
+|.mppooonnnm
+|.5877777665
+|58877776665
+
+view R key rest origin 4 -1 when elder
+|-
+
+view L key rest origin 7 0
+|....5qrrq5..
+|..598877765.
+|.58877776656
+|5887777665..
+|5887777665..
+|5887777665..
+|5887777665..
+|mppooonnnm..
+|5877777665..
+|58877776665.
+
+view L key rest origin -4 -2 when elder
+|-

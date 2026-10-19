@@ -1619,7 +1619,7 @@ void pzHook(Fig& f, const Body& B, const Kit& K, const PoseX& X, int layer, cons
 }  // namespace rig2
 
 // the 31 postures on v2: clip Idle variant 0 holds the posture's frames (postureInfo's count) in four facings
-RigSheet humanPosture2(const HumanLook& look, Posture p, uint8_t variant) {
+RigSheet legacyPosture2(const HumanLook& look, Posture p, uint8_t variant) {
   using namespace rig2;
   if (p == Posture::None || (int)p >= (int)Posture::COUNT) return RigSheet();
   const Body B = bodyOf(look);
@@ -1631,7 +1631,7 @@ RigSheet humanPosture2(const HumanLook& look, Posture p, uint8_t variant) {
   if (p == Posture::Sleep) {
     // the generic sleeper (one row: the classic bed's fit; sleeper2 fits every berth): its two breathing frames
     for (int f = 0; f < nf; f++) {
-      const Canvas c = sleeper2(look, Berth::Bed, -1, f);
+      const Canvas c = legacySleeper2(look, Berth::Bed, -1, f);
       if (c.w <= 0) continue;
       Cut cut;
       cut.c = c;
@@ -1670,7 +1670,7 @@ RigSheet humanPosture2(const HumanLook& look, Posture p, uint8_t variant) {
 // row in every facing; the posture paints them kChairHip rows over its pivot, so the pivot lands on the floor row (the
 // feet on the floor). Floor seats (cushion, mat, bedroll, rug, the bare ground): cross-legged, the hips 2 px over the
 // pivot (the floor, or the cushion's plump top).
-SeatFit seatFit2(Prop seat, int kit, int facing) {
+SeatFit legacySeatFit2(Prop seat, int kit, int facing) {
   (void)kit;
   SeatFit f;
   const int fc = facing == 3 ? 2 : facing;

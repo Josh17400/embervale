@@ -1,0 +1,66 @@
+# rpg/art/doll/clips/actions/sword.clip: A3's sword swing (the slice; ACTIONS owns the families in P2c). Format: rpg/art/doll/doll.h.
+
+body man
+clip windup R family sword variant 0
+f armL=- armR=- held=r0 hilt=- legs=walkA neck=rest sheath=rest torso=rest tuft=- bob=1 lean=-1 ms=70
+clip strike R family sword variant 0
+f armL=- armR=- expr=fierce fx=a1 held=r1 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=110
+clip follow R family sword variant 0
+f armL=- armR=- expr=fierce fx=a2 held=r2 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=2 lean=1 ms=70
+f armL=- armR=- held=r3 hilt=- legs=walkA neck=rest sheath=rest torso=rest tuft=- ms=60
+clip windup D family sword variant 0
+f armL=idle armR=- held=d0 legs=drawn neck=rest sheath=drawn torso=drawn tuft=- bob=1 lean=-1 hip=-1,0 ms=70
+clip strike D family sword variant 0
+f armL=idle armR=- expr=fierce fx=a1 held=d1 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=1 hip=1,0 ms=110
+clip follow D family sword variant 0
+f armL=idle armR=- expr=fierce fx=a2 held=d2 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=2 hip=2,0 ms=70
+f armL=idle armR=- held=d3 legs=drawn neck=rest sheath=drawn torso=drawn tuft=- ms=60
+
+# hit 1 facing left (the right hand, the far one: behind the body on the wind-up) and up (the sweep away, mostly hidden)
+clip windup L family sword variant 0
+f armL=lie armR=- held=l0 hilt=- legs=walkA neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=70
+clip strike L family sword variant 0
+f armL=lie armR=- expr=fierce fx=a1 held=l1 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=-1 ms=110
+clip follow L family sword variant 0
+f armL=lie armR=- expr=fierce fx=a2 held=l2 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=2 lean=-1 ms=70
+f armL=lie armR=- held=l3 hilt=- legs=walkA neck=rest sheath=rest torso=rest tuft=- ms=60
+clip windup U family sword variant 0
+f armL=idle armR=- held=u0 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=1 hip=1,0 ms=70
+clip strike U family sword variant 0
+f armL=idle armR=- fx=a1 held=u1 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=-1 hip=-1,0 ms=110
+clip follow U family sword variant 0
+f armL=idle armR=- fx=a2 held=u2 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=-2 hip=-2,0 ms=70
+f armL=idle armR=- held=u3 legs=drawn neck=rest sheath=drawn torso=rest tuft=- ms=60
+
+# the woman hero (the shirt and trousers): the same swing on her body (her head a row lower; the arm overlays are A3's)
+body woman
+clip windup R family sword variant 0
+f armL=- armR=- held=r0 hilt=- legs=walkA neck=rest sheath=rest torso=rest tuft=- bob=1 lean=-1 ms=70
+clip strike R family sword variant 0
+f armL=- armR=- expr=fierce fx=a1 held=r1 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=110
+clip follow R family sword variant 0
+f armL=- armR=- expr=fierce fx=a2 held=r2 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=2 lean=1 ms=70
+f armL=- armR=- held=r3 hilt=- legs=walkA neck=rest sheath=rest torso=rest tuft=- ms=60
+clip windup D family sword variant 0
+f armL=idle armR=- held=d0 legs=drawn neck=rest sheath=drawn torso=drawn tuft=- bob=1 lean=-1 hip=-1,0 ms=70
+clip strike D family sword variant 0
+f armL=idle armR=- expr=fierce fx=a1 held=d1 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=1 hip=1,0 ms=110
+clip follow D family sword variant 0
+f armL=idle armR=- expr=fierce fx=a2 held=d2 legs=drawn neck=rest sheath=drawn torso=drawn tuft=fierce bob=1 lean=2 hip=2,0 ms=70
+f armL=idle armR=- held=d3 legs=drawn neck=rest sheath=drawn torso=drawn tuft=- ms=60
+
+# her hit 1 facing left (the right hand, the far one: behind the body on the wind-up) and up (the sweep away, mostly hidden)
+clip windup L family sword variant 0
+f armL=lie armR=- held=l0 hilt=- legs=walkA neck=rest sheath=rest torso=rest tuft=- bob=1 lean=1 ms=70
+clip strike L family sword variant 0
+f armL=lie armR=- expr=fierce fx=a1 held=l1 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=1 lean=-1 ms=110
+clip follow L family sword variant 0
+f armL=lie armR=- expr=fierce fx=a2 held=l2 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=2 lean=-1 ms=70
+f armL=lie armR=- held=l3 hilt=- legs=walkA neck=rest sheath=rest torso=rest tuft=- ms=60
+clip windup U family sword variant 0
+f armL=idle armR=- held=u0 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=1 hip=1,0 ms=70
+clip strike U family sword variant 0
+f armL=idle armR=- fx=a1 held=u1 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=-1 hip=-1,0 ms=110
+clip follow U family sword variant 0
+f armL=idle armR=- fx=a2 held=u2 legs=drawn neck=rest sheath=drawn torso=rest tuft=- bob=1 lean=-2 hip=-2,0 ms=70
+f armL=idle armR=- held=u3 legs=drawn neck=rest sheath=drawn torso=rest tuft=- ms=60

@@ -1,6 +1,10 @@
 /build*/
 !rpg/build/
 site/
+site-witness/
+tools/witness_web/witness/shots/
+tools/witness_web/witness/replays/
+tools/witness_web/node_modules/
 *.png
 !web/*.png
 !assets/**/*.png

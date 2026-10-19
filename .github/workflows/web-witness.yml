@@ -1,0 +1,53 @@
+# The Witness web variant (manual): the same web build as web.yml with the Witness bridge linked in
+# (-DEMBERVALE_WITNESS_WEB=ON: engine/witness.h's web bridge + engine/witness_emscripten.js as --pre-js; Witness
+# adapters/cpp/GUIDE.md section 13). It never touches the deployed site: its own build folder, no Pages upload, no
+# deploy, no shared concurrency group; web.yml's flags are unchanged. The bridge does nothing unless the page URL has
+# ?witness=host:port (the Witness CLI adds it), so the artifact also plays normally.
+#
+# Run it from the Actions tab (Run workflow), download the "embervale-web-witness" artifact into site-witness/ and
+# follow tools/witness_web/README.md to run `witness doctor --device iphone-15-landscape --engine webkit` against it.
+name: Web build (Witness variant)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web-witness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: latest
+
+      - name: Build for the web with the Witness bridge
+        run: |
+          emcc --version | head -1
+          emcmake cmake -S . -B build-web-witness -DCMAKE_BUILD_TYPE=Release -DEMBERVALE_WITNESS_WEB=ON
+          cmake --build build-web-witness --target embervale -j4
+
+      # the bridge made it into the bundle: the shim (--pre-js) and the C side's exports it calls back into
+      - name: Check the bridge is linked
+        run: |
+          grep -q 'WitnessEmscripten' build-web-witness/embervale.js
+          for f in witness_emscripten_inbuf witness_emscripten_recv witness_emscripten_closed; do
+            grep -q "_$f" build-web-witness/embervale.js || { echo "missing export $f"; exit 1; }
+          done
+          ls -la build-web-witness/embervale.js build-web-witness/embervale.wasm
+
+      - name: Assemble the test site
+        run: |
+          mkdir -p site-witness
+          cp web/* site-witness/
+          cp build-web-witness/embervale.js build-web-witness/embervale.wasm site-witness/
+          ls -la site-witness
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: embervale-web-witness
+          path: site-witness
+          retention-days: 14

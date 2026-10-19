@@ -1,0 +1,69 @@
+# P2b New People: POSTURES, RIDERS, ROWERS AND SLEEPERS on the phone (the iPhone 15 Pro Home Screen app, 2556x1179, FILL: NORMAL is D5, NEAR D6) (VISION_PLAN 15.36 "Tests and scripts",
+# B11; phase A harness, frozen). Seed 7, rig 2, NORMAL (D5): the tavern (every seat taken), the smithy, the farm, a hut's
+# bed at night, the temple, a festival, the bard, a horse ridden from the stable, a rowboat out, and a bandit's fall. A
+# posture the doll does not cover yet is drawn on v1 (POSES-B paints them on the doll).
+# (the phone twin of p2b_poses.txt: the same steps, shots named p2b_poses_phone_*)
+#   embervale.exe --script tools/scripts/p2b_poses_phone.txt          (p2b_poses_phone_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
+# ---- the tavern: every seat taken by the nearest townsfolk
++0.2 enter inn
++0.5 seatall
++1.5 shot p2b_poses_phone_tavern.png
++0.1 posture sitdrink 6
++0.8 shot p2b_poses_phone_tavern_drink.png
++0.1 leave
+# ---- the smith's and the farmer's work (the nearest townsfolk take the posture)
++0.3 posture hammer 2
++0.8 shot p2b_poses_phone_smithy.png
++0.2 gotojob farmer
++0.4 posture hoe 3
++0.8 shot p2b_poses_phone_farm.png
++0.1 posture carry 3
++0.8 shot p2b_poses_phone_carry.png
+# ---- the temple and the bard
++0.2 posture pray 4
++0.8 shot p2b_poses_phone_pray.png
++0.1 posture lute 1
++0.8 shot p2b_poses_phone_bard.png
+# ---- a festival: dancing and cheering
++0.1 festival on
++0.6 posture dance 6
++0.8 shot p2b_poses_phone_festival.png
++0.1 posture cheer 6
++0.8 shot p2b_poses_phone_cheer.png
++0.1 festival off
++0.1 posture none 12
+# ---- a hut's bed at night
++0.2 hour 23
++0.2 enter hut
++0.3 seatall sleep
++1.5 shot p2b_poses_phone_bed.png
++0.1 leave
++0.2 hour 11
+# ---- a horse from the stable (the rider on HOLDERS' saddle): a plot of our own, its showcase farm and stable
++0.3 walk east 2.5
++0.2 home lot medium
++0.1 gold 99999
++0.1 home fill
++0.1 home ride
++0.1 expect home riding 1
++0.8 shot p2b_poses_phone_ride.png
++0.1 walk east 0.6
++0.4 shot p2b_poses_phone_ride_walk.png
++0.2 home dismount
+# ---- a rowboat out from the harbour (the rower on the thwart, synced to the oars)
++0.2 sea port
++1.0 boat give rowboat
++0.5 boat board
++1.0 shot p2b_poses_phone_rowboat.png
++0.1 walk south 0.8
++0.5 shot p2b_poses_phone_rowing.png
++0.2 boat leave

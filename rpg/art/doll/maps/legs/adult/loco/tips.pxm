@@ -1,0 +1,240 @@
+# legs/adult/loco/tips: shoe tips under a long hem (A3's woman): drawn over the hem's under-edge
+# The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+use person woman
+body adult
+role legs tips
+layer hangFront
+anchor pivot
+keys legs
+z 9
+
+view D key buckle origin 4 1
+|fih..fhg
+|KKK..KKK
+
+view D key idle origin 4 1
+|fih..fhg
+|KKK..KKK
+
+view D key run1 origin 4 1
+|fih
+|KKK
+
+view D key run2 origin 4 1
+|fih
+|KKK
+
+view D key run3 origin 4 1
+|fih
+|KKK
+
+view D key run4 origin -1 1
+|fhg
+|KKK
+
+view D key run5 origin -1 1
+|fhg
+|KKK
+
+view D key run6 origin -1 1
+|fhg
+|KKK
+
+view D key sit origin 6 1
+mark hip 6 -6
+|fih......fhg
+|KKK......KKK
+
+view D key walkA origin 4 1
+|fih
+|KKK
+
+view D key walkB origin 4 1
+|fih
+|KKK
+
+view D key walkC origin -1 1
+|fhg
+|KKK
+
+view D key walkD origin -1 1
+|fhg
+|KKK
+
+view U key buckle origin 4 1
+|fhg..fhg
+|KKK..KKK
+
+view U key idle origin 4 1
+|fhg..fhg
+|KKK..KKK
+
+view U key run1 origin 4 1
+|fhg
+|KKK
+
+view U key run2 origin 4 1
+|fhg
+|KKK
+
+view U key run3 origin 4 1
+|fhg
+|KKK
+
+view U key run4 origin -1 1
+|fhg
+|KKK
+
+view U key run5 origin -1 1
+|fhg
+|KKK
+
+view U key run6 origin -1 1
+|fhg
+|KKK
+
+view U key sit origin 0 0
+mark hip 0 -7
+|.
+
+view U key walkA origin 4 1
+|fhg
+|KKK
+
+view U key walkB origin 4 1
+|fhg
+|KKK
+
+view U key walkC origin -1 1
+|fhg
+|KKK
+
+view U key walkD origin -1 1
+|fhg
+|KKK
+
+view R key buckle origin 1 1
+|fihhgf.
+|KKKKKKK
+
+view R key idle origin 1 1
+|fihhgf.
+|KKKKKKK
+
+view R key run1 origin -2 1
+|fihhgf
+|KKKKKK
+
+view R key run2 origin 3 1
+|fihhgf
+|KKKKKK
+
+view R key run3 origin -3 2
+|fhhggf
+|KKKKKK
+
+view R key run4 origin -2 1
+|fhhggf
+|KKKKKK
+
+view R key run5 origin 3 1
+|fhhggf
+|KKKKKK
+
+view R key run6 origin -3 2
+|fihhgf
+|KKKKKK
+
+view R key sit origin -5 1
+mark hip -5 -6
+|fihhgf.
+|KKKKKKK
+
+view R key walkA origin 7 1
+|fhgf.....fihhgf
+|KKKK.....KKKKKK
+
+view R key walkA2 origin 1 1
+|fihhgf
+|KKKKKK
+
+view R key walkB2 origin 4 1
+|fihhgf
+|KKKKKK
+
+view R key walkC origin 7 1
+|fihf.....fhhggf
+|KKKK.....KKKKKK
+
+view R key walkC2 origin 1 1
+|fhhggf
+|KKKKKK
+
+view R key walkD2 origin 4 1
+|fhhggf
+|KKKKKK
+
+view L key buckle origin 6 1
+|.fihhgf
+|KKKKKKK
+
+view L key idle origin 6 1
+|.fihhgf
+|KKKKKKK
+
+view L key run1 origin 7 1
+|fihhgf
+|KKKKKK
+
+view L key run2 origin 2 1
+|fihhgf
+|KKKKKK
+
+view L key run3 origin 8 2
+|fhhggf
+|KKKKKK
+
+view L key run4 origin 7 1
+|fhhggf
+|KKKKKK
+
+view L key run5 origin 2 1
+|fhhggf
+|KKKKKK
+
+view L key run6 origin 8 2
+|fihhgf
+|KKKKKK
+
+view L key sit origin 12 1
+mark hip 12 -6
+|.fihhgf
+|KKKKKKK
+
+view L key walkA origin 8 1
+|fihhgf.....fhgf
+|KKKKKK.....KKKK
+
+view L key walkA2 origin 5 1
+|fihhgf
+|KKKKKK
+
+view L key walkB2 origin 2 1
+|fihhgf
+|KKKKKK
+
+view L key walkC origin 8 1
+|fhhggf.....fihf
+|KKKKKK.....KKKK
+
+view L key walkC2 origin 5 1
+|fhhggf
+|KKKKKK
+
+view L key walkD2 origin 2 1
+|fhhggf
+|KKKKKK
+
+view L key lie origin 2 1
+|fihhgf
+|KKKKKK

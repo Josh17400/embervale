@@ -1,0 +1,61 @@
+# a3/hero/sheath: a draft of A3's parts (tools/doll/from_a3.py; docs/ref/style_a3). A starting point: hand-check it.
+part a3/hero/sheath
+tags draft a3
+use person
+body man
+role sheath sword
+layer belt
+anchor hip
+keys sheath
+
+view D key drawn origin -5 -2
+|fhgf..
+|fhgf..
+|.ghgf.
+|fghgf.
+|f.ghgf
+|f.wxwv
+|gf.vv.
+
+view D key rest origin -5 -2
+|fhgf..
+|fhgf..
+|.fhgf.
+|ffhgf.
+|f.fhgf
+|f.vxwv
+|gf.vv.
+
+view U key rest origin 11 -2
+|..fhgf
+|..fhgf
+|.fhgf.
+|.fhgff
+|fhgf.f
+|vxwv.f
+|.vv.fh
+|....fh
+
+view R key rest origin 11 -2 layer back
+|....fhg
+|...fhgf
+|..fhgf.
+|.fhgf..
+|vxwv...
+|vvv....
+
+view L key lag origin 4 -2
+|fghhgf..........
+|....fhhgf.......
+|........fhhgf...
+|..........fhhgf.
+|............vxwv
+|.............vv.
+
+view L key rest origin 5 -2
+|fghhgf..........
+|....fhhgf.......
+|........fhhgf...
+|..........fhhgf.
+|............vxwv
+|.............vv.

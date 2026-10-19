@@ -1,0 +1,36 @@
+# beard/full: Full beard: the cheeks, the jaw and a pointed chin in the hair ramp, the mouth showing
+# The slice (P2b wave 1, FOLK-BODY; to HAIR in wave 2). On the head box (STYLE_P2 21). Format: rpg/art/doll/doll.h.
+use person
+body man
+role beard full
+layer beard
+anchor head
+keys rest
+
+view D key rest origin -2 -11
+|ab........ba
+|abcdcc.ccbba
+|abcdcccccbba
+|.abdcccbbba.
+|..abccbba...
+|...aaaa.....
+
+view U key rest origin -2 -11
+|a..........a
+|a..........a
+
+view R key rest origin -5 -10
+|...abb...
+|abdccc...
+|abcdccca.
+|.abdccbba
+|..abbba..
+|...aa....
+
+view L key rest origin -2 -10
+|...abb...
+|...abdccc
+|.abcdccca
+|abdccbba.
+|..abbba..
+|....aa...

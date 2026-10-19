@@ -21,10 +21,11 @@ mkdir -p "$LOGS"
 
 files=()
 if [ $# -eq 0 ]; then
-  files=(tools/scripts/*.txt)
+  # (P2b) *_playtests.txt are witness play batch goal lists (VISION_PLAN 15.36 B13), not game scripts
+  for f in tools/scripts/*.txt; do case "$f" in *_playtests.txt) ;; *) files+=("$f") ;; esac; done
 else
   for a in "$@"; do
-    if [ -f "$a" ]; then files+=("$a"); else for f in tools/scripts/"$a"*.txt; do [ -f "$f" ] && files+=("$f"); done; fi
+    if [ -f "$a" ]; then files+=("$a"); else for f in tools/scripts/"$a"*.txt; do case "$f" in *_playtests.txt) continue ;; esac; [ -f "$f" ] && files+=("$f"); done; fi
   done
 fi
 [ ${#files[@]} -gt 0 ] || { echo "run_scripts: no scripts matched"; exit 255; }

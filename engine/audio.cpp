@@ -352,19 +352,48 @@ void Audio::shutdown() {
   if (stream_) { SDL_DestroyAudioStream(stream_); stream_ = nullptr; }  // stops the callback before returning
 }
 
+// ---- (Witness 0.6 sound events) the names a listener hears (engine/audio.h setPlayListener)
+namespace {
+Audio::PlayListener g_playListener = nullptr;
+}  // namespace
+void Audio::setPlayListener(PlayListener f) { g_playListener = f; }
+const char* Audio::sfxName(Sfx s) {
+  static const char* const n[] = {
+    "swing", "hit", "hit_heavy", "block", "hurt", "player_hurt", "enemy_die", "death", "arrow", "arrow_hit",
+    "fireball", "explode", "frost", "heal", "roll", "step", "pickup", "coin", "chest", "door", "buy", "talk",
+    "level_up", "quest_start", "quest_done", "discover", "menu_move", "menu_select", "menu_back", "roar", "splash",
+    "bell", "bark", "cluck", "meow", "cheer", "harpy_shriek", "golem_slam", "elite_sting", "boss_roar", "hoof",
+    "revive", "knell", "howl", "zap", "rebirth", "loot_chime", "spell_hum", "spell_charge", "spell_fizzle",
+    "fire_cast", "fire_burst", "frost_cast", "frost_shatter", "storm_cast", "thunder", "holy_cast", "holy_bloom",
+    "rift_tear", "summon_rise", "shimmer", "dream_pulse", "stone_grind", "stone_slam", "star_chime", "meteor_fall",
+    "ward_ring", "sizzle", "spell_motif", "wave_crash", "sail_flap", "oar_stroke", "reel_click", "line_snap",
+    "fish_plop", "serpent_roar", "kraken_rumble", "merrow_chatter", "hull_crack", "mist_whisper", "mist_chime",
+    "ship_bell",};
+  static_assert(sizeof(n) / sizeof(n[0]) == (size_t)Sfx::COUNT, "a name for every Sfx");
+  return (int)s < (int)Sfx::COUNT ? n[(int)s] : "sfx";
+}
+const char* Audio::stingName(Sting s) {
+  static const char* const n[] = {"sting_drum_roll", "sting_fanfare", "sting_horn_call", "sting_war_alarm", "sting_seal"};
+  static_assert(sizeof(n) / sizeof(n[0]) == (size_t)Sting::COUNT, "a name for every Sting");
+  return (int)s < (int)Sting::COUNT ? n[(int)s] : "sting";
+}
+
 void Audio::play(Sfx s, float pitch, float vol) {
   if ((int)s >= (int)Sfx::COUNT || !(vol > 0.0f)) return;
   if (!(pitch > 0.0f)) pitch = 1.0f;
+  if (g_playListener) g_playListener(sfxName(s), vol);
   push(Event{s, clampf(pitch, 0.25f, 4.0f), clampf(vol, 0.0f, 2.0f), 0});
 }
 void Audio::playMotif(uint8_t motif, uint8_t scale, uint8_t timbre, int root, float vol) {
   if (!(vol > 0.0f)) return;
+  if (g_playListener) g_playListener("spell_motif", vol);
   const uint32_t arg = (uint32_t)motif | (uint32_t)(scale % (uint8_t)Scale::COUNT) << 8 | (uint32_t)(timbre & 15) << 12 |
                        (uint32_t)(root < 36 ? 36 : root > 96 ? 96 : root) << 16 | 1u << 31;
   push(Event{Sfx::SpellMotif, 1.0f, clampf(vol, 0.0f, 2.0f), arg});
 }
 void Audio::playSting(Sting s, float pitch, float vol) {
   if ((int)s >= (int)Sting::COUNT || !(vol > 0.0f)) return;
+  if (g_playListener) g_playListener(stingName(s), vol);
   if (!(pitch > 0.0f)) pitch = 1.0f;
   push(Event{Sfx::SpellMotif, clampf(pitch, 0.25f, 4.0f), clampf(vol, 0.0f, 2.0f), (uint32_t)s | 1u << 30});
 }

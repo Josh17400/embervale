@@ -1,0 +1,78 @@
+# a3/hero/arm_r: a draft of A3's parts (tools/doll/from_a3.py; docs/ref/style_a3). A starting point: hand-check it.
+part a3/hero/arm_r
+tags draft a3
+use person
+body man
+role arms std
+layer armNear
+anchor shoulderR
+keys armR
+side R
+
+view D key back origin 1 -4
+|fih
+|fih
+|qts
+|qsr
+|-qq
+|---
+
+view D key fwd origin 1 -5
+|587
+|fih
+|fih
+|qts
+|qsr
+|.qq
+
+view U key back origin 2 -5
+|fhgf
+|.hgf
+|.srq
+|.rrq
+|.qq.
+
+view U key fwd origin 2 -5
+|fhgf
+|.srq
+|.rrq
+|.qq-
+|.---
+
+view R key B origin 3 -1
+|...58765
+|..58765.
+|..58765.
+|.58765..
+|.fihgf..
+|fihgf...
+|qtsq....
+|qsrq....
+|.qq.....
+
+view R key F origin 0 -1
+|58765...
+|.58765..
+|.58765..
+|..58765.
+|..fihgf.
+|...fihgf
+|...qtsq.
+|...qsrq.
+|....qq..
+
+view R key N origin 0 -1
+|58765
+|58765
+|58765
+|58765
+|fihgf
+|fihgf
+|qtsq.
+|qsrq.
+|.qq..
+
+view L key back origin -5 -6 layer armFar
+|5.
+|qr
+|qq

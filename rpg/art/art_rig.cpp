@@ -1,7 +1,9 @@
-// EMBERVALE art: the Clear Sight rig contract's shared pieces (art_rig.h; P2a phase A, lead). The painters live in
-// rpg/art/rig/*.cpp (one owner each: see art_rig.h); this file dispatches to them and holds the atlas helpers.
+// EMBERVALE art: the Clear Sight rig contract's shared pieces (art_rig.h; P2a phase A, lead) and, from P2b phase A, the
+// dispatch to the DOLL (rpg/art/doll/doll.h): rig 2 draws hand-placed part maps composed by the doll, never the rejected
+// procedural painters (rpg/art/rig, detached: their entry points are legacy*). A look the doll does not cover is drawn
+// whole on v1 (rig2Covers), so `rig 2` never shows a half-made person.
 #include "rpg/art/art_rig.h"
-#include "rpg/art/rig/rig_internal.h"
+#include "rpg/art/doll/doll.h"
 
 namespace art {
 
@@ -56,15 +58,20 @@ const char* holderName(Holder h) {
   return (int)h < (int)Holder::COUNT ? n[(int)h] : "?";
 }
 
-RigSheet humanRig(const HumanLook& look, RigPart part) {
-  switch (part) {
-    case RigPart::Loco: return rig2::rigLoco(look);
-    case RigPart::Action: return rig2::rigAction(look);
-    case RigPart::Death: return rig2::rigDeath(look);
-    default: return RigSheet();
-  }
-}
+RigSheet humanRig(const HumanLook& look, RigPart part) { return doll::compose(look, part); }
+RigSheet humanPosture2(const HumanLook& look, Posture p, uint8_t variant) { return doll::composePosture(look, p, variant); }
+Canvas sleeper2(const HumanLook& look, Berth b, int kit, int frame) { return doll::sleeper(look, b, kit, frame); }
+Canvas humanFigureStill2(const HumanLook& look, int facing) { return doll::figureStill(look, facing); }
+// the humanoid monsters on the doll are P2c's (HUMANOIDS): v1's cells until then
+Canvas humanoidCell2(int species, int frame) { (void)species; (void)frame; return Canvas(); }
+int humanoidCellW2(int species) { (void)species; return 0; }
+int humanoidCellH2(int species) { (void)species; return 0; }
 
-// (rig2Covers lives in rig/rig_body.cpp: RIG-BODY says which looks the v2 painters cover)
+// the doll covers what this look needs: LOCO and DEATH always, ACTION when it carries a weapon (the census's fighters)
+bool rig2Covers(const HumanLook& look) {
+  if (!doll::dollCovers(look, RigPart::Loco) || !doll::dollCovers(look, RigPart::Death)) return false;
+  const bool armed = look.weapon >= 1 && look.weapon <= 8;
+  return !armed || doll::dollCovers(look, RigPart::Action);
+}
 
 }  // namespace art

@@ -1,0 +1,144 @@
+# armour/woman/mail: Mail on the woman: the hauberk cut to her torso (the waist a pixel in, the bust by one step-1 row), a skirt to the knee
+# The slice (P2b wave 1, FOLK-BODY; armour and helms to P2c's ARMOUR / HELMS). Format: rpg/art/doll/doll.h.
+use person
+body woman
+role armour mail
+layer torso
+anchor neck
+keys torso
+z 2
+
+view D key drawn origin 8 -1
+|.....vxywxv.....
+|vxyxvxyxxwxvxwxv
+|vyxyxyxywxwvwxwv
+|vxyxyxyxxwxvxwxv
+|...vwwwwwwwwv...
+|...vyxyxxwxwv...
+|...vxyxywxwxv...
+|...xyxyxxvxwv...
+|...fihhhwxhgf...
+|..vxyxyxxwxwxv..
+|..vyxyxywxwxwv..
+|..vyyyyyxwxwxv..
+|..vvvvvvvvvvvv..
+
+view D key rest origin 8 -1
+|.....vxywxv.....
+|vxyxvxyxxwxvxwxv
+|vyxyxyxywxwvwxwv
+|vxyxyxyxxwxvxwxv
+|...vwwwwwwwwv...
+|...vyxyxxwxwv...
+|...vxyxywxwxv...
+|...xyxyxxvxwv...
+|...fihhhwxhgf...
+|..vxyxyxxwxwxv..
+|..vyxyxywxwxwv..
+|..vyyyyyxwxwxv..
+|..vvvvvvvvvvvv..
+
+view D key swing origin 8 -1
+|.....vxywxv.....
+|vxyxvxyxxwxvxwxv
+|vyxyxyxywxwvwxwv
+|vxyxyxyxxwxvxwxv
+|...vwwwwwwwwv...
+|...vyxyxxwxwv...
+|...vxyxywxwxv...
+|...xyxyxxvxwv...
+|...fihhhwxhgf...
+|..vxyxyxxwxwxv..
+|..vyxyxywxwxwv..
+|..vyyyyyxwxwxv..
+|..vvvvvvvvvvvv..
+
+view U key rest origin 8 -1
+|.....vxywxvv....
+|vxyxvxyxxwxwxwxv
+|vyxyxvxywxwxwxwv
+|vxyxyxyxxwxwxwxv
+|...vvyxywxwvv...
+|...xyxyvvwxwx...
+|...yvyxywxwvw...
+|...xyxvxxvxwx...
+|...fihhhhhggf...
+|..vxyxyvxwxwxv..
+|..vyxyxywxwxwv..
+|..vyyyyyxwxwxv..
+|..vvvvvvvvvvvv..
+
+view R key rest origin 6 -1
+|......vrrvv..
+|..vxvxywxvv..
+|..vyvyxxwvv..
+|..vxvxywvwv..
+|..vyxyxxwx...
+|vxyxyxywxwvwv
+|.vvyxyxxwxwv.
+|..vxyxywxwxv.
+|..fihhhhhggf.
+|.vyxyxywxwxv.
+|.vxyxywxwxwv.
+|.vyyyyywxwxwv
+|.vvvvvvvvvvvv
+
+view R key swing origin 6 -1
+|......vrrvv..
+|..vxvxywxvv..
+|..vyvyxxwvv..
+|..vxvxywvwv..
+|..vyxyxxwx...
+|vxyxyxywxwvwv
+|.vvyxyxxwxwv.
+|..vxyxywxwxv.
+|..fihhhhhggf.
+|.vyxyxywxwxv.
+|.vxyxywxwxwv.
+|.vyyyyywxwxwv
+|.vvvvvvvvvvvv
+
+view L key lie origin 8 -1
+|...vvrrv.....
+|...vvxxwxvxv.
+|..vvxywxwvwv.
+|...vyxxvxwxv.
+|....xywxwxwv.
+|.vyvyxxwxwxwv
+|..vyxywxwxwvv
+|..vxyxxwxwxv.
+|..fihhhhhggf.
+|......vwxwxwv
+|......vxwxwxv
+|......vyxwxwv
+|......vvvvvvv
+
+view L key rest origin 8 -1
+|...vvrrv......
+|...vvxxwxvxv..
+|..vvxywxwvwv..
+|...vyxxvxwxv..
+|....xywxwxwv..
+|.vyvyxxwxwxwxv
+|..vyxywxwxwvv.
+|..vxyxxwxwxv..
+|..fihhhhhggf..
+|..vxyxxwxwxwxv
+|.vxyxyxxwxwxv.
+|vyyyyyywxwxwv.
+|vvvvvvvvvvvvv.
+
+view L key swing origin 8 -1
+|...vvrrv......
+|...vvxxwxvxv..
+|..vvxywxwvwv..
+|...vyxxvxwxv..
+|....xywxwxwv..
+|.vyvyxxwxwxwxv
+|..vyxywxwxwvv.
+|..vxyxxwxwxv..
+|..fihhhhhggf..
+|..vxyxxwxwxwxv
+|.vxyxyxxwxwxv.
+|vyyyyyywxwxwv.
+|vvvvvvvvvvvvv.

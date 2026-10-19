@@ -205,6 +205,33 @@ uint32_t metalTint(const Item& it, const Metal& m) {
   if (m.light) return m.light;
   return it.tint ? it.tint : rgba(200, 205, 215);
 }
+
+// (P2b FOLK-SIM) the hero's doll fields (VISION_PLAN 15.36 "The look fields": from a hash of the Appearance until P3's
+// creator saves real choices). The hero who has not been through the creator is A3's: the oval head, the button nose,
+// the straight brows (the heroine's arched), the scarf and the tousled cut. A created hero's face (head type, nose,
+// brows) comes from the hash of what the player chose, so it never changes while those stay; the hair keeps the
+// family's own style (Short: A3's tousled) and the beard its full style (what the creator shows by name). Elves the
+// three elven heads, half-breeds all nine.
+uint64_t fnv(uint64_t h, uint64_t v) {
+  for (int i = 0; i < 8; i++) { h ^= (v >> (8 * i)) & 255u; h *= 0x100000001B3ull; }
+  return h;
+}
+void heroFeatures(art::HumanLook& L, const Appearance& app) {
+  L.head = L.nose = L.brow = L.marks = L.hairVar = L.beardStyle = L.garb = 0;
+  L.age = 0;
+  L.neck = 1;                                            // A3's hero and heroine wear the scarf
+  if (L.hair == art::Hair::Short) L.hairVar = 2;         // the hero's short hair is A3's tousled cut with the cowlick
+  if (!app.created) return;
+  uint64_t h = 0xCBF29CE484222325ull;
+  for (char c : app.name) h = fnv(h, (uint8_t)c);
+  h = fnv(h, app.female); h = fnv(h, app.build); h = fnv(h, app.skinTone); h = fnv(h, app.hair); h = fnv(h, app.hairColor);
+  h = fnv(h, app.beard); h = fnv(h, app.people); h = fnv(h, app.homeland);
+  h ^= h >> 29; h *= 0xBF58476D1CE4E5B9ull; h ^= h >> 32;
+  const int people = std::min<int>(app.people, 2);
+  L.head = (uint8_t)(people == 2 ? 6 + (int)(h % 3u) : people == 1 ? (int)(h % 9u) : (int)(h % 6u));
+  L.nose = (uint8_t)((h >> 8) % (app.female ? 4u : 5u));
+  L.brow = (uint8_t)((h >> 16) % 4u);
+}
 }  // namespace
 
 art::HumanLook appearanceLook(const Appearance& app, const cult::Culture* home) {
@@ -231,6 +258,7 @@ art::HumanLook appearanceLook(const Appearance& app, const cult::Culture* home) 
       L.patternColor = home->dress.trim ? (home->dress.trim | 0xFF000000u) : 0;
     }
   }
+  heroFeatures(L, app);
   return L;
 }
 

@@ -1,0 +1,121 @@
+# armour/man/mail: Mail on the man: a belted hauberk in the mail brick, the collar up, a skirt to the knee
+# The slice (P2b wave 1, FOLK-BODY; armour and helms to P2c's ARMOUR / HELMS). Format: rpg/art/doll/doll.h.
+use person
+body man
+role armour mail
+layer torso
+anchor neck
+keys torso
+z 2
+
+view D key drawn origin 7 0
+|...vxyxxwxv..
+|vxyxyxywxwxwv
+|..xyxyxxwxwx.
+|..yxyxywxwxw.
+|..xyxyxxwxwx.
+|..yxyxywxwxw.
+|..gyxyxxwxwv.
+|..fihhywhhgf.
+|..xyxyxxwxwv.
+|..yxyxywxwxv.
+|..vyxyxvwxwv.
+|.vyxyxywxwxwv
+|.vyyyyyxwxwxv
+|.vvvvvvvvvvvv
+
+view D key rest origin 7 0
+|...vxyxxwxv..
+|vxyxyxywxwxwv
+|..xyxyxxwxwx.
+|..yxyxywxwxw.
+|..xyxyxxwxwx.
+|..yxyxywxwxw.
+|..gyxyxxwxwv.
+|..fihhywhhgf.
+|..xyxyxxwxwv.
+|..yxyxywxwxv.
+|..vyxyxvwxwv.
+|.vyxyxywxwxwv
+|.vyyyyyxwxwxv
+|.vvvvvvvvvvvv
+
+view U key rest origin 7 0
+|..vvxyxxwxvv..
+|vxyxyxywxwxwxv
+|..xyxyxxwxwx..
+|..yxyxywxwxv..
+|..xyxyxxwxwv..
+|..yxyxywxwxv..
+|..xyxyxxwxwv..
+|..fihhhhhggf..
+|..xyxyxxwxwv..
+|..yxyxywxwxv..
+|..vyxyxvwxwv..
+|.vyxyxywxwxwv.
+|.vyyyyyxwxwxv.
+|.vvvvvvvvvvvv.
+
+view R key idle origin 5 0
+|..vyxywv....
+|.vyxyxxwxv..
+|.vxyxywxwxv.
+|.vyxyxxwxwv.
+|.vxyxywxwxv.
+|.vyxyxxwxwv.
+|.vxyxywxwxv.
+|.fihhhhhggf.
+|.vxyxywxwxv.
+|vxyxyxxwxwv.
+|vyxyxywxwxv.
+|vxyxywxwxwv.
+|vyyyyywxwxwv
+|vvvvvvvvvvvv
+
+view R key rest origin 5 0
+|..vyxywv....
+|.vyxyxxwxv..
+|.vxyxywxwxv.
+|.vyxyxxwxwv.
+|.vxyxywxwxv.
+|.vyxyxxwxwv.
+|.vxyxywxwxv.
+|.fihhhhhggf.
+|.vxyxywxwxv.
+|vxyxyxxwxwv.
+|vyxyxywxwxv.
+|vxyxywxwxwv.
+|vyyyyywxwxwv
+|vvvvvvvvvvvv
+
+view L key lie origin 8 0
+|.....vxwxwv..
+|...vxywxwxwv.
+|..vxyxxwxwxvx
+|.vxyxywxwxv..
+|.vyxyxxwxwv..
+|.vxyxywxwxv..
+|.vyxyxxwxwv..
+|.fihhhhhggf..
+|......vywwxv.
+|......vxxxwxv
+|......vywwxwv
+|......vxxxwxv
+|......vyywxwv
+|......vvvvvvv
+
+view L key rest origin 8 0
+|.....vxwxwv..
+|...vxywxwxwv.
+|..vxyxxwxwxvx
+|.vxyxywxwxv..
+|.vyxyxxwxwv..
+|.vxyxywxwxv..
+|.vyxyxxwxwv..
+|.fihhhhhggf..
+|.vyxyxxwxwv..
+|.vxyxywxwxwv.
+|.vyxyxxwxwxwv
+|.vxyxyxxwxwxv
+|vyyyyyywxwxwv
+|vvvvvvvvvvvvv

@@ -76,6 +76,17 @@ class View {
   // kept outside View is reset. The caller then rebuilds the View in place and init()s it again, so no picture or
   // sound of an earlier run carries into the next.
   void witnessRelease();
+  // (Witness reset param hide: [ids or type names], sent by `witness measure figure`) these actors are not drawn this run:
+  // no body, contact shadow, ring, silhouette through a roof, bubble or marker. Drawing only: the sim, the snapshot and
+  // every other picture stay as they are, so the shot minus this run's is the actor's exact silhouette. An id matches
+  // Actor::id, a name matches the snapshot's entity type (Player, Villager, Guard, Wolf, Hen...; witness_state.cpp).
+  struct WitnessHide {
+    std::vector<int> ids;
+    std::vector<std::string> types;
+    bool empty() const { return ids.empty() && types.empty(); }
+  };
+  WitnessHide wHide;
+  bool witnessHides(const Game& g, const Actor& a) const;   // (witness_state.cpp, EMB_WITNESS builds)
   bool wantsQuit = false;
   bool wantNewGame = false, wantContinue = false, wantSave = false;
   bool touchUI = false;                  // show on-screen controls
@@ -121,6 +132,18 @@ class View {
     int poseVariant = 0, poseFrame = 0;
   };
   P2aHooks p2a;
+  // (P2b phase A) test hooks (script commands and Witness calls: rpg/view/script_p2b.cpp)
+  struct P2bHooks {
+    bool camHold = false;          // `camhold 1|0`: the camera stays where it is (a body crosses still ground: witness
+                                   // measure motion reads the walk's registration); no follow, no shake. Witness's
+                                   // reserved reset param camera:"hold" (--hold-camera) sets the same flag (rpg/main.cpp)
+    std::string dollPart;          // `dollpart <part> <view> [key]`: the hero drawn as that one doll part alone at rig 2
+    int dollFacing = 0;            //   (its view D U R L, its key), for an artist's review in the game ("" off)
+    std::string dollKey = "rest";
+  };
+  P2bHooks p2b;
+  // (script_p2b.cpp) the `dollpart` frame for a look: baked and cached with the v2 atlases (not ready: drawn as usual)
+  RigTex dollPartTex(const art::HumanLook& L);
   // the hero as drawn last frame (world-layer px, relative to the world view's top-left): the cell's top-left, size and
   // frame, the opaque box inside the cell (v1: from the baked sheet), the pivot (the feet point) and the rig it came from
   struct HeroSprite {
@@ -131,6 +154,7 @@ class View {
     bool flip = false;
     int bx0 = 0, by0 = 0, bx1 = -1, by1 = -1;   // opaque box in the cell (inclusive; bx1 < bx0: unknown)
     float pivX = 0, pivY = 0;
+    int part = -1;   // (P2b) the art::RigPart the rig-2 frame came from (VIEW-B sets it on every v2 path; -1: v1 or unknown)
   };
   HeroSprite heroSprite;
   // people frames drawn from v1 sheets (P2b gate B2): v1Draws counts during a draw and holds the last drawn frame's count
@@ -640,6 +664,7 @@ class View {
   void drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float alpha, float flash, HumanGhost& ghost);
   void drawSwingFx(const Game& g, const Actor& a, Vec2 cam);   // a human's melee strike effect (after its body)
   friend struct P2aScriptOps;   // (rpg/view/script_p2a.cpp: the P2a test commands)
+  friend struct P2bScriptOps;   // (rpg/view/script_p2b.cpp: the P2b test commands)
   // v2 atlases by (look key x part x child): the canvas is baked and dropped, its frames kept (LENS: MB caps, bake queue)
   struct RigEntry { Tex tex; art::RigSheet sheet; float used = 0; };
   std::unordered_map<uint64_t, RigEntry> rigTex_;

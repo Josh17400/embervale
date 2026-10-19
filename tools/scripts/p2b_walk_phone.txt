@@ -1,0 +1,64 @@
+# P2b New People: THE WALK AND THE RUN on still ground (VISION_PLAN 15.36 B5 and the slice gate item 5; phase A harness,
+# frozen). Seed 7, rig 2, the phone (2556x1179) at NORMAL (D5), `camhold 1`: the camera stays put while the hero walks and
+# runs across it, so a body crosses still ground (bursts of shots one 60 Hz frame apart; `witness measure motion` reads
+# the same runs live: witness/p2b_doll.witness.json). The hero moves at 74 px/s (a run above the 54 px/s gait switch);
+# a lineup of villagers stands for the front and back views' walking in place (FOLK-SIM's pick decides what they show).
+# (the phone twin of p2b_walk.txt: the same steps, shots named p2b_walk_phone_*)
+#   embervale.exe --script tools/scripts/p2b_walk_phone.txt           (p2b_walk_phone_*.png in the working directory)
+phone
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.2 walk west 0.6
+# ---- east across still ground (side view: the planted foot's registration)
++0.5 camhold 1
++0.1 walk east 1.0
++0.20 shot p2b_walk_phone_e_00.png
++0.0167 shot p2b_walk_phone_e_01.png
++0.0167 shot p2b_walk_phone_e_02.png
++0.0167 shot p2b_walk_phone_e_03.png
++0.0167 shot p2b_walk_phone_e_04.png
++0.0167 shot p2b_walk_phone_e_05.png
++0.0167 shot p2b_walk_phone_e_06.png
++0.0167 shot p2b_walk_phone_e_07.png
++0.0167 shot p2b_walk_phone_e_08.png
++0.0167 shot p2b_walk_phone_e_09.png
++0.0167 shot p2b_walk_phone_e_10.png
++0.0167 shot p2b_walk_phone_e_11.png
++0.8 camhold 0
+# ---- west (the painted left facing)
++0.4 camhold 1
++0.1 walk west 1.0
++0.20 shot p2b_walk_phone_w_00.png
++0.0167 shot p2b_walk_phone_w_01.png
++0.0167 shot p2b_walk_phone_w_02.png
++0.0167 shot p2b_walk_phone_w_03.png
++0.0167 shot p2b_walk_phone_w_04.png
++0.0167 shot p2b_walk_phone_w_05.png
++0.8 camhold 0
+# ---- south and north (front and back views walk in place on the body: the pivot steady)
++0.4 camhold 1
++0.1 walk south 0.8
++0.20 shot p2b_walk_phone_s_00.png
++0.0167 shot p2b_walk_phone_s_01.png
++0.0167 shot p2b_walk_phone_s_02.png
++0.0167 shot p2b_walk_phone_s_03.png
++0.6 camhold 0
++0.4 camhold 1
++0.1 walk north 0.8
++0.20 shot p2b_walk_phone_n_00.png
++0.0167 shot p2b_walk_phone_n_01.png
++0.0167 shot p2b_walk_phone_n_02.png
++0.0167 shot p2b_walk_phone_n_03.png
++0.6 camhold 0
+# ---- a row of villagers and an elder beside the hero (their idles; the elder's stoop)
++0.3 lineup heartland villager 4 mixed
++0.5 shot p2b_walk_phone_villagers.png
++0.1 lineup heartland villager 3 mixed elder
++0.5 shot p2b_walk_phone_elders.png

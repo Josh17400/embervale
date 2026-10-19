@@ -58,6 +58,9 @@ enum class Posture : uint8_t {
   Kneel,      // kneeling on one knee: binding a friend's wounds, mourning at a grave (ART phase B: variant 0 binds the
               //   wounds, both hands low before the knee winding linen; variant 1 mourns, the head bowed, a hand on the
               //   raised knee: humanPostureSheet(look, Kneel, 1) at a grave)
+  // ---- P2b New People (lead, phase A; POSES-B paints it on the doll, VIEW-B syncs it to the oars): seated on a rowboat's
+  //      thwart: reach, catch and pull. v1 stand-in (rig 1 never asks for it): the seated sheet
+  Row,
   COUNT
 };
 constexpr int POSTURE_FRAMES = 4;   // columns per pose sheet

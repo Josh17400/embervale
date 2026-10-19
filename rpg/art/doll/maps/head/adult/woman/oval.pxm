@@ -1,0 +1,61 @@
+# head/adult/woman/oval: the woman's Oval head (A3): the skull, the face, the lifted lash, lips and blush
+# The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role head oval
+layer head
+anchor head
+keys rest
+
+view D key rest origin -2 -3
+mark face 1 5
+|...qqqqqq...
+|.qqtuuttsqq.
+|qtuuttttssrq
+|qttutttsssrq
+|qtttttssssrq
+|qtttttssssrq
+|q###tsss###q
+|qt@EtsssE@sq
+|qt@GssssG@sq
+|.qYssLMsYrq.
+|...qssssq...
+
+view U key rest origin -2 -3
+|...qqqqqq...
+|.qqtuuttsqq.
+|qtuuttttssrq
+|qttutttsssrq
+|qtttttssssrq
+|qttttsssssrq
+|tttsssssssrr
+|ttsssssssrrr
+|qtsssssssrrq
+|.qtssssssrq.
+|..qqrrrrq...
+
+view R key rest origin -1 -3
+|....qqqqqq....
+|..qqtuuttsq...
+|.qtuuttttsssq.
+|qttutttttsssrq
+|qttttttssssttq
+|qtttssssst..tq
+|qtsss..stt##tq
+|qsssr..sts@Es.
+|.qsrr..ssYsssq
+|..qrrqqsssssMq
+|...qq..qrssLq.
+
+view L key rest origin -1 -3
+|....qqqqqqq...
+|...qqtuuttssq.
+|.qtuuttttsssrq
+|qtuttttttsssrq
+|qtttttttssssrq
+|qtttttssssrrq.
+|qt##tts..srrq.
+|tsE@sss..rrq..
+|qttsYss..rq...
+|qMtssssqrrq...
+|.qLssrq..qq...

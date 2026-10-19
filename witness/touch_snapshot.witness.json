@@ -35,13 +35,13 @@
   { "name": "snapshot: the walkability window is 41 x 41 tiles round the player, who stands on open ground, as everyone else does",
     "input": "d@0.2-2.2",
     "steps": [ { "at": 0.1, "expect": [
-      "state.map.cell == 1 && state.map.solid == '#' && state.map.rows.length == 41 && state.map.rows.every(r => r.length == 41 && /^[#.]+$/.test(r))",
+      "state.map.cell == 1 && state.map.solid == '#' && state.map.door == '+' && state.map.rows.length == 41 && state.map.rows.every(r => r.length == 41 && /^[#.+]+$/.test(r))",
       "state.map.origin[0] == Math.floor(state.player.pos[0]) - 20 && state.map.origin[1] == Math.floor(state.player.pos[1]) - 20",
       "state.map.rows[20][20] == '.'", "state.map.rows.join('').includes('#')", "state.map.id.startsWith('ow:')"] },
                { "at": 2.5, "expect": [
       "state.player.moved >= 4",
       "state.map.origin[0] == Math.floor(state.player.pos[0]) - 20 && state.map.rows[20][20] == '.'",
-      "entities.filter(e => e.kind == 'person' && Math.abs(e.pos[0] - state.player.pos[0]) < 20 && Math.abs(e.pos[1] - state.player.pos[1]) < 20).every(e => state.map.rows[Math.floor(e.pos[1]) - state.map.origin[1]][Math.floor(e.pos[0]) - state.map.origin[0]] == '.')"] } ] },
+      "entities.filter(e => e.kind == 'person' && Math.abs(e.pos[0] - state.player.pos[0]) < 20 && Math.abs(e.pos[1] - state.player.pos[1]) < 20).every(e => state.map.rows[Math.floor(e.pos[1]) - state.map.origin[1]][Math.floor(e.pos[0]) - state.map.origin[0]] != '#')"] } ] },
   { "name": "snapshot: inside a building the window is the building's floor, walled round",
     "seed": 4, "scene": "town", "params": { "hour": 15 },
     "steps": [ { "at": 0.5, "call": ["enter", "inn"] },

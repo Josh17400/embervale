@@ -1,0 +1,35 @@
+# a3/woman/braid: a draft of A3's parts (tools/doll/from_a3.py; docs/ref/style_a3). A starting point: hand-check it.
+part a3/woman/braid
+tags draft a3
+use person
+use woman
+body woman
+role hair braid
+layer hairFront
+anchor head
+keys hair
+
+view D key swing1 origin -1 -20
+|ts.....abda6ts.
+|sr.....58656sr.
+|.q......db6.qq-
+|........a.6.5-.
+
+view D key swing4 origin 0 -20
+|.ts.....abda6ts
+|.sr.....58656sr
+|-qq......db6.q.
+|.-5......a.6...
+
+view U key swing origin -1 -16
+|abda5
+
+view R key swing origin -12 -19 layer neck
+|C585
+|.Dd.
+|.Db.
+
+view L key swing origin 0 -19 layer neck
+|585D
+|.dD.
+|.bD.

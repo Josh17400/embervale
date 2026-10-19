@@ -75,7 +75,7 @@ Canvas headAndShoulders(const HumanLook& look, const Body& B, const Kit& K, int 
 }  // namespace
 }  // namespace rig2
 
-BedFit bedFit2(Berth b, int kit) {
+BedFit legacyBedFit2(Berth b, int kit) {
   using namespace rig2;
   const holders::Berth2 g = geo(b, kit);
   BedFit f;
@@ -94,7 +94,7 @@ BedFit bedFit2(Berth b, int kit) {
   return f;
 }
 
-Canvas sleeper2(const HumanLook& look, Berth b, int kit, int frame) {
+Canvas legacySleeper2(const HumanLook& look, Berth b, int kit, int frame) {
   using namespace rig2;
   const holders::Berth2 g = geo(b, kit);
   if (g.w <= 0 || g.h <= 0) return Canvas();

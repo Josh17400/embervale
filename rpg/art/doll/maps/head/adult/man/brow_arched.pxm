@@ -1,0 +1,25 @@
+# head/adult/man/brow_arched: the man's arched brows: raised, the outer ends down
+# The slice (P2b wave 1, FOLK-BODY; to FACES in wave 2). Every head type keeps A3's eye rows and columns, the nose pixel
+# and the mouth row (STYLE_P2 4), so expressions, marks and paint fit them all. Format: rpg/art/doll/doll.h.
+use person
+body man
+role brow arched
+layer face
+anchor head
+keys rest
+tags mirror-ok
+
+view D key rest origin -3 -7
+|.bb....bb.
+|b........b
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -11 -7
+|bb.
+|..b
+
+view L key rest origin -2 -7
+|.bb
+|b..

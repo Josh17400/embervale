@@ -1,0 +1,62 @@
+# head/adult/woman/heart: the woman's Heart head: wide cheekbones, a pointed 4 px chin
+# The slice (P2b wave 1, FOLK-BODY; to FACES in wave 2). Every head type keeps A3's eye rows and columns, the nose pixel
+# and the mouth row (STYLE_P2 4), so expressions, marks and paint fit them all. Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role head heart
+layer head
+anchor head
+keys rest
+
+view D key rest origin -2 -3
+mark face 1 5
+|...qqqqqq...
+|.qqtuuttsqq.
+|qtuuttttssrq
+|qttutttsssrq
+|qtttttssssrq
+|qtttttssssrq
+|q###tsss###q
+|qt@EtsssE@sq
+|qt@GssssG@sq
+|.qYssLMsYrq.
+|....qssq....
+
+view U key rest origin -2 -3
+|...qqqqqq...
+|.qqtuuttsqq.
+|qtuuttttssrq
+|qttutttsssrq
+|qtttttssssrq
+|qttttsssssrq
+|tttsssssssrr
+|ttsssssssrrr
+|qtsssssssrrq
+|.qtssssssrq.
+|...qrrrrq...
+
+view R key rest origin -1 -3
+|....qqqqqq....
+|..qqtuuttsq...
+|.qtuuttttsssq.
+|qttutttttsssrq
+|qttttttssssttq
+|qtttssssst..tq
+|qtsss..stt##tq
+|qsssr..sts@Es.
+|.qsrr..ssYsssq
+|..qrrqqsssssMq
+|...qq...qrsLq.
+
+view L key rest origin -1 -3
+|....qqqqqqq...
+|...qqtuuttssq.
+|.qtuuttttsssrq
+|qtuttttttsssrq
+|qtttttttssssrq
+|qtttttssssrrq.
+|qt##tts..srrq.
+|tsE@sss..rrq..
+|qttsYss..rq...
+|qMtssssqrrq...
+|.qLsrq...qq...

@@ -4943,8 +4943,17 @@ uint64_t HumanLook::key() const {
     mx(m6); mx((uint64_t)armourTint << 32 | armourTint2); mx(glowColor);
   }
   if (shieldField || shieldDevice) mx((uint64_t)shieldField << 32 | shieldDevice);
-  // P2a the v2 body base (mixed only when set, so every earlier look keeps its key)
-  if (body || age) mx(0x9D2A0000ull | (uint64_t)body | (uint64_t)age << 8);
+  // P2a the v2 body base (mixed only when set, so every earlier look keeps its key). (P2b) youth (2) and elder (3) enter
+  // the key only at rig 2: at rig 1 they key as the adult v1 paints them
+  const bool r2 = rigVersion() >= 2;
+  const uint8_t ageK = r2 || age == 1 ? age : 0;
+  if (body || ageK) mx(0x9D2A0000ull | (uint64_t)body | (uint64_t)ageK << 8);
+  // P2b the doll's look fields: only at rig 2 (rig 1's keys, caches and goldens hold until the flip)
+  if (r2) {
+    const uint64_t p2b = (uint64_t)head | (uint64_t)nose << 8 | (uint64_t)brow << 16 | (uint64_t)marks << 24 | (uint64_t)hairVar << 32 |
+                         (uint64_t)beardStyle << 40 | (uint64_t)neck << 48 | (uint64_t)garb << 56;
+    if (p2b) mx(0xD011000000000000ull ^ p2b);
+  }
   return k;
 }
 

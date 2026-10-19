@@ -1,0 +1,205 @@
+# rpg/art/doll/clips/loco.clip: the adult bodies' LOCO clips (FOLK-BODY; the P2b style slice). Format: rpg/art/doll/doll.h.
+# Idle: neutral (A3), breathe (the upper body a pixel up), blink. Walk: contact, down, pass, contact, down, pass. The front and
+# back walks are A3's (walking in place); the side walks are re-registered to their plant anchors (STYLE_P2 10): the contact
+# drawings are A3's, the down and pass drawings new, so the planted foot lands where it stood (man 18.5 px a cycle, woman 20).
+# Arms: both swing for anyone unarmed; a fighter's left hand stays on the sheathed hilt (the arm maps' `when armed replace`).
+# Hurt: the flinch face, the shoulders up.
+
+body man
+anchors D head=-8,-33 neck=0,-19 hip=0,-10 shoulderR=-7,-18 shoulderL=6,-18
+anchors U head=-8,-33 neck=0,-19 hip=0,-10 shoulderR=6,-18 shoulderL=-7,-18
+anchors R head=-8,-33 neck=0,-19 hip=0,-10 shoulderR=-1,-18 shoulderL=-1,-18
+anchors L head=-8,-33 neck=0,-19 hip=0,-10 shoulderR=-1,-18 shoulderL=-1,-18
+
+clip idle D
+f armL=idle armR=idle legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=idle legs=idle neck=rest sheath=rest torso=rest bob=-1
+f armL=idle armR=idle legs=idle neck=rest sheath=rest torso=rest expr=blink
+clip idle U
+f armL=idle armR=idle legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=idle legs=idle neck=rest sheath=rest torso=rest bob=-1
+f armL=idle armR=idle legs=idle neck=rest sheath=rest torso=rest
+clip idle R
+f armL=- armR=idle hilt=idle legs=idle neck=rest sheath=rest torso=idle
+f armL=- armR=idle hilt=idle legs=idle neck=rest sheath=rest torso=idle bob=-1
+f armL=- armR=idle hilt=idle legs=idle neck=rest sheath=rest torso=idle expr=blink
+clip idle L
+f armL=idle armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=-1
+f armL=idle armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest expr=blink
+
+clip walk D
+f armL=fwd armR=back legs=walkA neck=rest sheath=rest torso=rest sway=-1 plant=6:3
+f armL=fwd armR=back legs=walkA neck=rest sheath=rest torso=rest tuft=down hair=swing bob=1 sway=-1 plant=3:0
+f armL=idle armR=idle legs=walkB neck=rest sheath=rest torso=rest tuft=up bob=-1 plant=0:-3
+f armL=back armR=fwd legs=walkC neck=rest sheath=rest torso=rest sway=1 plant=6.5:3.5
+f armL=back armR=fwd legs=walkC neck=rest sheath=rest torso=rest tuft=down hair=swing bob=1 sway=1 plant=3.5:0.5
+f armL=idle armR=idle legs=walkD neck=rest sheath=rest torso=rest tuft=up bob=-1 plant=0.5:-3
+clip walk U
+f armL=back armR=fwd legs=walkA neck=rest sheath=rest torso=rest sway=-1 plant=6:3
+f armL=back armR=fwd legs=walkA neck=rest sheath=rest torso=rest tuft=down hair=swing bob=1 sway=-1 plant=3:0
+f armL=idle armR=idle legs=walkB neck=rest sheath=rest torso=rest tuft=up bob=-1 plant=0:-3
+f armL=fwd armR=back legs=walkC neck=rest sheath=rest torso=rest sway=1 plant=6.5:3.5
+f armL=fwd armR=back legs=walkC neck=rest sheath=rest torso=rest tuft=down hair=swing bob=1 sway=1 plant=3.5:0.5
+f armL=idle armR=idle legs=walkD neck=rest sheath=rest torso=rest tuft=up bob=-1 plant=0.5:-3
+clip walk R
+f hang=wide armL=- armR=B hilt=rest legs=walkA neck=flow sheath=rest torso=rest plant=6:3
+f hang=wide armL=- armR=B hilt=rest legs=walkA2 neck=flow2 sheath=rest torso=rest hair=swing bob=1 plant=3:0
+f hang=rest armL=- armR=N hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest bob=-1 plant=0:-3
+f hang=wide armL=back armR=F hilt=rest legs=walkC neck=flow sheath=rest torso=rest plant=6.5:3.5
+f hang=wide armL=back armR=F hilt=rest legs=walkC2 neck=flow2 sheath=rest torso=rest hair=swing bob=1 plant=3.5:0.5
+f hang=rest armL=- armR=N hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest bob=-1 plant=0.5:-3
+clip walk L
+f hang=wide armL=B armR=- hilt=rest legs=walkA neck=flow sheath=rest torso=rest plant=6:3
+f hang=wide armL=B armR=- hilt=rest legs=walkA2 neck=flow2 sheath=lag torso=rest hair=swing bob=1 plant=3:0
+f hang=rest armL=N armR=- hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest bob=-1 plant=0:-3
+f hang=wide armL=F armR=back hilt=rest legs=walkC neck=flow sheath=rest torso=rest plant=6.5:3.5
+f hang=wide armL=F armR=back hilt=rest legs=walkC2 neck=flow2 sheath=lag torso=rest hair=swing bob=1 plant=3.5:0.5
+f hang=rest armL=N armR=- hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest bob=-1 plant=0.5:-3
+
+clip hurt D
+f armL=idle armR=idle legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1
+clip hurt U
+f armL=idle armR=idle legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip hurt R
+f armL=- armR=idle hilt=idle legs=idle neck=rest sheath=rest torso=idle expr=hurt bob=-1
+clip hurt L
+f armL=idle armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1
+
+# the run (RUN part, above the gait switch): contact, push, flight x 2; the torso a pixel forward in side views; low on the
+# push, high in flight; the arms bent and pumping; hangs flare and lag
+clip run D
+f armL=runF armR=back legs=run1 neck=rest sheath=rest torso=rest hang=flare sway=-1 plant=5:0
+f armL=runF armR=back legs=run2 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down bob=1 sway=-1 plant=0:-5
+f armL=idle armR=idle legs=run3 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-2 plant=-5:-13
+f armL=back armR=runF legs=run4 neck=rest sheath=rest torso=rest hang=flare sway=1 plant=4.5:-0.5
+f armL=back armR=runF legs=run5 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down bob=1 sway=1 plant=-0.5:-5.5
+f armL=idle armR=idle legs=run6 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-2 plant=-5.5:-13.5
+clip run U
+f armL=back armR=runF legs=run1 neck=rest sheath=rest torso=rest hang=flare sway=-1 plant=5:0
+f armL=back armR=runF legs=run2 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down bob=1 sway=-1 plant=0:-5
+f armL=idle armR=idle legs=run3 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-2 plant=-5:-13
+f armL=runF armR=back legs=run4 neck=rest sheath=rest torso=rest hang=flare sway=1 plant=4.5:-0.5
+f armL=runF armR=back legs=run5 neck=rest sheath=lag torso=rest hang=flare hair=swing tuft=down bob=1 sway=1 plant=-0.5:-5.5
+f armL=idle armR=idle legs=run6 neck=rest sheath=rest torso=rest hang=flare tuft=up bob=-2 plant=-5.5:-13.5
+clip run R
+f armL=- armR=runB hilt=rest legs=run1 neck=flow2 sheath=rest torso=rest hang=flare lean=1 plant=5:0
+f armL=- armR=N hilt=rest legs=run2 neck=flow2 sheath=lag torso=rest hang=flare hair=swing lean=1 bob=1 plant=0:-5
+f armL=back armR=runF hilt=rest legs=run3 neck=flow sheath=rest torso=rest hang=flare lean=1 bob=-2 plant=-5:-13
+f armL=back armR=runF hilt=rest legs=run4 neck=flow2 sheath=rest torso=rest hang=flare lean=1 plant=4.5:-0.5
+f armL=- armR=N hilt=rest legs=run5 neck=flow2 sheath=lag torso=rest hang=flare hair=swing lean=1 bob=1 plant=-0.5:-5.5
+f armL=- armR=runB hilt=rest legs=run6 neck=flow sheath=rest torso=rest hang=flare lean=1 bob=-2 plant=-5.5:-13.5
+clip run L
+f armL=runB armR=- hilt=rest legs=run1 neck=flow2 sheath=rest torso=rest hang=flare lean=-1 plant=5:0
+f armL=N armR=- hilt=rest legs=run2 neck=flow2 sheath=lag torso=rest hang=flare hair=swing lean=-1 bob=1 plant=0:-5
+f armL=runF armR=back hilt=rest legs=run3 neck=flow sheath=rest torso=rest hang=flare lean=-1 bob=-2 plant=-5:-13
+f armL=runF armR=back hilt=rest legs=run4 neck=flow2 sheath=rest torso=rest hang=flare lean=-1 plant=4.5:-0.5
+f armL=N armR=- hilt=rest legs=run5 neck=flow2 sheath=lag torso=rest hang=flare hair=swing lean=-1 bob=1 plant=-0.5:-5.5
+f armL=runB armR=- hilt=rest legs=run6 neck=flow sheath=rest torso=rest hang=flare lean=-1 bob=-2 plant=-5.5:-13.5
+
+body woman
+anchors D head=-8,-32 neck=0,-19 hip=0,-10 shoulderR=-7,-18 shoulderL=6,-18
+anchors U head=-8,-32 neck=0,-19 hip=0,-10 shoulderR=6,-18 shoulderL=-7,-18
+anchors R head=-8,-32 neck=0,-19 hip=0,-10 shoulderR=-1,-18 shoulderL=-1,-18
+anchors L head=-8,-32 neck=0,-19 hip=0,-10 shoulderR=-1,-18 shoulderL=-1,-18
+
+clip idle D
+f armL=idle armR=idle hair=rest hang=idle legs=idle torso=rest
+f armL=idle armR=idle hair=rest hang=idle legs=idle torso=rest bob=-1
+f armL=idle armR=idle hair=rest hang=idle legs=idle torso=rest expr=blink
+clip idle U
+f armL=idle armR=idle hair=rest hang=idle legs=idle torso=rest
+f armL=idle armR=idle hair=rest hang=idle legs=idle torso=rest bob=-1
+f armL=idle armR=idle hair=rest hang=idle legs=idle torso=rest
+clip idle R
+f armL=- armR=idle hair=rest hang=idle legs=idle torso=rest
+f armL=- armR=idle hair=rest hang=idle legs=idle torso=rest bob=-1
+f armL=- armR=idle hair=rest hang=idle legs=idle torso=rest expr=blink
+clip idle L
+f armL=idle armR=- hair=rest hang=idle legs=idle torso=rest
+f armL=idle armR=- hair=rest hang=idle legs=idle torso=rest bob=-1
+f armL=idle armR=- hair=rest hang=idle legs=idle torso=rest expr=blink
+
+clip walk D
+f armL=down armR=up hair=rest hang=rest legs=walkA torso=rest sway=-1 plant=4.5:1.5
+f armL=down1 armR=up1 hair=swing hang=rest legs=walkA torso=swing bob=1 sway=-1 plant=1.5:-1.5
+f armL=idle armR=idle hair=rest hang=rest legs=walkB torso=rest bob=-1 plant=-1.5:-5.5
+f armL=up armR=down hair=rest hang=rest legs=walkC torso=rest sway=1 plant=4.5:1.5
+f armL=up1 armR=down1 hair=swing hang=rest legs=walkC torso=swing bob=1 sway=1 plant=1.5:-1.5
+f armL=idle armR=idle hair=rest hang=rest legs=walkD torso=rest bob=-1 plant=-1.5:-5.5
+clip walk U
+f armL=down armR=up hair=rest hang=rest legs=walkA torso=rest sway=-1 plant=4.5:1.5
+f armL=down armR=up hair=swing hang=rest legs=walkA torso=rest bob=1 sway=-1 plant=1.5:-1.5
+f armL=idle armR=idle hair=rest hang=rest legs=walkB torso=rest bob=-1 plant=-1.5:-5.5
+f armL=up armR=down hair=rest hang=rest legs=walkC torso=rest sway=1 plant=4.5:1.5
+f armL=up armR=down hair=swing hang=rest legs=walkC torso=rest bob=1 sway=1 plant=1.5:-1.5
+f armL=idle armR=idle hair=rest hang=rest legs=walkD torso=rest bob=-1 plant=-1.5:-5.5
+clip walk R
+f armL=- armR=B hair=rest hang=wide legs=walkA torso=rest plant=4.5:1.5
+f armL=- armR=B hair=swing hang=wide legs=walkA2 torso=swing bob=1 plant=1.5:-1.5
+f armL=- armR=N hair=rest hang=rest legs=walkB2 torso=rest bob=-1 plant=-1.5:-5.5
+f armL=- armR=F hair=rest hang=wide legs=walkC torso=rest plant=4.5:1.5
+f armL=- armR=F hair=swing hang=wide legs=walkC2 torso=swing bob=1 plant=1.5:-1.5
+f armL=- armR=N hair=rest hang=rest legs=walkD2 torso=rest bob=-1 plant=-1.5:-5.5
+clip walk L
+f armL=B armR=- hair=rest hang=wide legs=walkA torso=rest plant=5.5:2.5
+f armL=B armR=- hair=swing hang=wide legs=walkA2 torso=swing bob=1 plant=2.5:-0.5
+f armL=N armR=- hair=rest hang=rest legs=walkB2 torso=rest bob=-1 plant=-0.5:-4.5
+f armL=F armR=- hair=rest hang=wide legs=walkC torso=rest plant=5.5:2.5
+f armL=F armR=- hair=swing hang=wide legs=walkC2 torso=swing bob=1 plant=2.5:-0.5
+f armL=N armR=- hair=rest hang=rest legs=walkD2 torso=rest bob=-1 plant=-0.5:-4.5
+
+clip hurt D
+f armL=idle armR=idle hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1
+clip hurt U
+f armL=idle armR=idle hair=rest hang=idle legs=idle torso=rest bob=-1
+clip hurt R
+f armL=- armR=idle hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1
+clip hurt L
+f armL=idle armR=- hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1
+
+# the run: her shoe tips under the skirt, the skirt flaring, the braid lagging, the arms pumping
+clip run D
+f armL=runF armR=up hair=swing hang=flare legs=run1 torso=rest sway=-1 plant=4.5:-0.5
+f armL=runF armR=up hair=swing hang=flare legs=run2 torso=rest bob=1 sway=-1 plant=-0.5:-5.5
+f armL=idle armR=idle hair=rest hang=flare legs=run3 torso=rest bob=-2 plant=-5.5:-13.5
+f armL=up armR=runF hair=swing hang=flare legs=run4 torso=rest sway=1 plant=4.5:-0.5
+f armL=up armR=runF hair=swing hang=flare legs=run5 torso=rest bob=1 sway=1 plant=-0.5:-5.5
+f armL=idle armR=idle hair=rest hang=flare legs=run6 torso=rest bob=-2 plant=-5.5:-13.5
+clip run U
+f armL=up armR=runF hair=swing hang=flare legs=run1 torso=rest sway=-1 plant=4.5:-0.5
+f armL=up armR=runF hair=swing hang=flare legs=run2 torso=rest bob=1 sway=-1 plant=-0.5:-5.5
+f armL=idle armR=idle hair=rest hang=flare legs=run3 torso=rest bob=-2 plant=-5.5:-13.5
+f armL=runF armR=up hair=swing hang=flare legs=run4 torso=rest sway=1 plant=4.5:-0.5
+f armL=runF armR=up hair=swing hang=flare legs=run5 torso=rest bob=1 sway=1 plant=-0.5:-5.5
+f armL=idle armR=idle hair=rest hang=flare legs=run6 torso=rest bob=-2 plant=-5.5:-13.5
+clip run R
+f armL=- armR=runB hair=swing hang=flare legs=run1 torso=rest lean=1 plant=4.5:-0.5
+f armL=- armR=N hair=swing hang=flare legs=run2 torso=rest lean=1 bob=1 plant=-0.5:-5.5
+f armL=- armR=runF hair=rest hang=flare legs=run3 torso=rest lean=1 bob=-2 plant=-5.5:-13.5
+f armL=- armR=runF hair=swing hang=flare legs=run4 torso=rest lean=1 plant=4.5:-0.5
+f armL=- armR=N hair=swing hang=flare legs=run5 torso=rest lean=1 bob=1 plant=-0.5:-5.5
+f armL=- armR=runB hair=rest hang=flare legs=run6 torso=rest lean=1 bob=-2 plant=-5.5:-13.5
+clip run L
+f armL=runB armR=- hair=swing hang=flare legs=run1 torso=rest lean=-1 plant=4.5:-0.5
+f armL=N armR=- hair=swing hang=flare legs=run2 torso=rest lean=-1 bob=1 plant=-0.5:-5.5
+f armL=runF armR=- hair=rest hang=flare legs=run3 torso=rest lean=-1 bob=-2 plant=-5.5:-13.5
+f armL=runF armR=- hair=swing hang=flare legs=run4 torso=rest lean=-1 plant=4.5:-0.5
+f armL=N armR=- hair=swing hang=flare legs=run5 torso=rest lean=-1 bob=1 plant=-0.5:-5.5
+f armL=runB armR=- hair=rest hang=flare legs=run6 torso=rest lean=-1 bob=-2 plant=-5.5:-13.5
+
+# the elder (STYLE_P2 14): the man's clips, the head stack a pixel lower (a pixel forward in side views); the shoulders round
+# (the garments' `when elder` views); the elder never runs (FOLK-SIM walks him at 0.8)
+body man.elder
+anchors D head=-8,-32 neck=0,-19 hip=0,-10 shoulderR=-7,-18 shoulderL=6,-18
+anchors U head=-8,-32 neck=0,-19 hip=0,-10 shoulderR=6,-18 shoulderL=-7,-18
+anchors R head=-7,-32 neck=0,-19 hip=0,-10 shoulderR=-1,-18 shoulderL=-1,-18
+anchors L head=-9,-32 neck=0,-19 hip=0,-10 shoulderR=-1,-18 shoulderL=-1,-18
+
+# the woman elder (STYLE_P2 14): her clips, the head stack a pixel lower (a pixel forward in side views); the shoulders round
+# (her garments' `when elder` views); she never runs
+body woman.elder
+anchors D head=-8,-31 neck=0,-19 hip=0,-10 shoulderR=-7,-18 shoulderL=6,-18
+anchors U head=-8,-31 neck=0,-19 hip=0,-10 shoulderR=6,-18 shoulderL=-7,-18
+anchors R head=-7,-31 neck=0,-19 hip=0,-10 shoulderR=-1,-18 shoulderL=-1,-18
+anchors L head=-9,-31 neck=0,-19 hip=0,-10 shoulderR=-1,-18 shoulderL=-1,-18

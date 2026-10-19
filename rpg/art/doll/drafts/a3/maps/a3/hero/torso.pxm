@@ -1,0 +1,92 @@
+# a3/hero/torso: a draft of A3's parts (tools/doll/from_a3.py; docs/ref/style_a3). A starting point: hand-check it.
+part a3/hero/torso
+tags draft a3
+use person
+body man
+role garment tunic
+role neck scarf
+layer torso
+anchor neck
+keys torso
+
+view D key drawn origin 8 0
+|...npnnnnnnom...
+|.698mponnnm765..
+|6976ih8877766765
+|...58gih87666765
+|...5887gih766765
+|...588777gih6765
+|...f877776gg5hgf
+|...fihhPOhhgfhgf
+|...5886776765tsq
+|...5876776665srq
+|...598685876fhgf
+
+view D key rest origin 8 0
+mark handL 13 8
+mark handR 0 8
+|...mpnnnnnnom....
+|.598mponnnm765...
+|5976ih8877766765.
+|59768gih87666765.
+|5976887gih766765.
+|597688777gih6765.
+|fihg877776gg5hgf.
+|fihfihhPOhhgfhgf.
+|qts6886776765tsq.
+|qsr6876776665srq.
+|.qq598685776vOPOv
+
+view U key rest origin 8 0
+mark handL 0 8
+mark handR 13 8
+|...mpooooonnm...
+|.5988777777ih65.
+|597688777ihgg765
+|5976887ihgg65765
+|59768ihgg7665765
+|597ihgg777665765
+|fihgg87777665hgf
+|fihfihhhhhggfhgf
+|qts6887776765srq
+|qsr6877767665rrq
+|.qq5988858765qq.
+
+view R key idle origin 6 0
+|.mpooonnm.......
+|mn598877765.....
+|.m5875876565....
+|..5875876565....
+|..5875876565..v.
+|..5875876565.vPv
+|..587fihgf65vhv.
+|..fihfihgfhPfv..
+|..587qtsq7NOv...
+|.5887qsrq665....
+|.59868qq8765....
+
+view R key rest origin 6 0
+|.mpooonnm...
+|mn598877765.
+|.m5887777665
+|..5887777665
+|..5887777665
+|..5887777665
+|..5887777665
+|..fihhhhhggf
+|..5877777665
+|.58877776665
+|.59868868765
+
+view L key rest origin 10 0
+|.......mpooonnm.
+|.....598877765nm
+|....58765776656m
+|...5876577665...
+|...5876577665...
+|..58765777665...
+|..fihgf777665...
+|.fihgfhhhhggf...
+|.vqtsqP777665...
+|vPqsrqO7776665..
+|.v.qqhNgh868765.

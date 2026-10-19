@@ -1,0 +1,85 @@
+# a3/woman/hang: a draft of A3's parts (tools/doll/from_a3.py; docs/ref/style_a3). A starting point: hand-check it.
+part a3/woman/hang
+tags draft a3
+use person
+use woman
+body woman
+role garment dress
+layer hangFront
+anchor hip
+keys hang
+sway 5
+
+view D key idle origin 8 -5
+|5877DCBCCBCB7665
+|5876ADBDDBDA6765
+|58766AAAAAA66765
+|5988888887777765
+|.555fih55fhg555.
+|....KKK..KKK....
+
+view D key rest origin 8 -5
+|5877DCBCCBCB7665
+|5876ADBDDBDA6765
+|58766AAAAAA66765
+|5988888887777765
+|.555555555555555
+
+view U key idle origin 8 -5
+|5877767777676665
+|5877767777676665
+|5877767777676665
+|5988888887777765
+|.555fhg55fhg555.
+|....KKK..KKK....
+
+view U key rest origin 8 -5
+|5877767777676665
+|5877767777676665
+|5877767777676665
+|5988888887777765
+|.555555555555555
+
+view R key idle origin 8 -5
+|.58767776BCBCDA.
+|.58767776ADBDDA.
+|5876777766AAAA65
+|5988888887777765
+|.555555fihhgf55.
+|.......KKKKKKK..
+
+view R key rest origin 8 -5
+|.58767776BCBCDA.
+|.58767776ADBDDA.
+|5876777766AAAA65
+|5988888887777765
+|.555555555555...
+
+view R key wide origin 9 -5
+|..58767776BCBCDA..
+|..58767776ADBDDA..
+|58767777766AAAA665
+|598888888887777765
+|.5555555555555555.
+
+view L key idle origin 8 -5
+|.ADCBCB77767665.
+|.ADDBDA77767665.
+|58AAAA7777676665
+|5988888887777765
+|.55fihhgf555555.
+|..KKKKKKK.......
+
+view L key rest origin 8 -5
+|.ADCBCB77767665.
+|.ADDBDA77767665.
+|58AAAA7777676665
+|5988888887777765
+|...555555555555.
+
+view L key wide origin 9 -5
+|..ADCBCB77767665..
+|..ADDBDA77767665..
+|58AAAA77777676665.
+|598888888887777765
+|.5555555555555555.

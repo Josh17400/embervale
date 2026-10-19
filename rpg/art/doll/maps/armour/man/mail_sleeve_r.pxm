@@ -1,0 +1,85 @@
+# armour/man/mail_sleeve_r: Mail's sleeve over the arm: the upper arm in the mail brick to the elbow
+# The slice (P2b wave 1, FOLK-BODY; armour and helms to P2c's ARMOUR / HELMS). Format: rpg/art/doll/doll.h.
+use person
+body man
+role armour mail
+layer armNear
+anchor shoulderR
+keys armR
+side R
+z 1
+
+view D key back origin 1 -1
+|vxx
+|vyw
+|vxx
+
+view D key fwd origin 1 -1
+|vxx
+|vyw
+|vxx
+|vyw
+|vxx
+
+view D key idle origin 1 -1
+|vxx
+|vyw
+|vxx
+|vyw
+
+view D key lap origin 1 -1
+|vxx
+|vyw
+|vxx
+|vyw
+
+view U key back origin 1 -1
+|xwv
+|wxv
+|xwv
+|wxv
+
+view U key fwd origin 1 -1
+|xwv
+|wxv
+|xwv
+|wxv
+
+view U key idle origin 1 -1
+|xwv
+|wxv
+|xwv
+|wxv
+
+view U key lap origin 1 -1
+|xwv
+|wxv
+|xwv
+|wxv
+
+view R key B origin 2 -1
+|..vywxv
+|.vywxv.
+|.vxxwv.
+|vxxwv..
+
+view R key F origin 0 -1
+|vywxv..
+|.vywxv.
+|.vxxwv.
+|..vxxwv
+
+view R key N origin 0 -1
+|vywxv
+|vxxwv
+|vywxv
+|vxxwv
+
+view R key idle origin 0 -1
+|vywxv
+|vxxwv
+|vywxv
+|vxxwv
+
+view L key back origin -5 -6
+|v

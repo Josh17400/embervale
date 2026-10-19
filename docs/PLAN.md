@@ -1596,3 +1596,72 @@ Baselines (phase A; the world is drawn at the UI's fit until LENS):
 - P2a's open items carried into the re-plan: H2 / H3 (HOLDERS-B, P2b), riders on the doll and the posture path at rig 2,
   the hidden-hero silhouette, the contact shadow under corpses (VIEW-B, P2b), kids' walk cycles (KIN areas, P2b),
   SLICE-WALK-SLIDE (answered: A3's stride gives a 19 / 20 px walk and a run above 54 px/s, STYLE_P2 section 10).
+
+## P2b, "New People": the hand-drawn folk on the doll (VISION_PLAN 15.36 P2b; art direction docs/STYLE_P2.md, reference docs/ref/style_a3)
+
+### Phase A (lead), 2026-10-18: done (the frozen contract and harness; the areas ADD, never rename)
+- The reference and its drafts: `tools/doll/from_a3.py` loads A3's modules (hero.py, woman.py, swing.py; the raw grids
+  before their finishing pass) and writes .pxm drafts of the parts A3 composed from (18 parts, 121 views: the heads, the
+  torsos, the legs D/U/R/L with every walk key, the scabbard and hilt, the arm swings, the cowlick tufts, the scarf's
+  tails, the fierce face, the swing overlays and arcs; the woman's skirt with its sway, shoes, arm patches and braid
+  swings) and a draft clip table into rpg/art/doll/drafts/a3/ (not compiled into the game). Its reference model of the
+  doll (`--verify`) composes all 64 A3 frames from them at 0 px differing.
+- The doll contract (rpg/art/doll/doll.h; the .pxm format, the clip format and the pool are written out in its header):
+  slots, regions, the layer table, anchors, body sets, roles and their value vocabulary, DollRecipe / resolve,
+  dollCovers / dollMissing / markReached / deadParts, compose / composePosture / composePart / figureStill / sleeper,
+  walkTable (kGaitSwitch 54 px/s), rampA3 / rampGenerate / a3Ramps / a3Palette / rampsOf, the pool (embedded or
+  loadPool / loadPoolFile for tools). First implementations (DOLL owns them now): doll_pool.cpp, doll_compose.cpp (the
+  finishing pass = A3's selout; P2a's SheetBuilder as the packer), doll_resolve.cpp, doll_ramps.cpp, doll_fit.cpp
+  (seatFit2 / bedFit2 moved with their numbers unchanged).
+- art_rig.cpp's dispatch goes to the doll (humanRig, humanPosture2, sleeper2, humanFigureStill2, humanoidCell2 (P2c),
+  rig2Covers = the doll covers LOCO and DEATH, and ACTION when armed). The procedural painters are detached: their entry
+  points are renamed legacy* (rpg/art/rig/rig_internal.h), kept compiled for tools/preview/rigdraft.cpp and art_fx's arc;
+  rig_gallery / rigarms_gallery / rigposes_gallery leave the build (doll_gallery replaces them).
+- The tools: tools/doll/pxc.mjs (validates every map: legend, origins, views, keys, mirrored left views; craft warnings:
+  orphans, the top-left light, missing facings, dead parts; writes rpg/art/doll/gen/doll_pool.cpp in chunks of 60 KB;
+  `--check` (CI), `--report`, `--strict`, `--root`, `--bin`); tools/doll/draft.mjs (mirror-and-relight drafts of left
+  views); tools/preview/rigdraft.cpp (P2a's pose numbers per frame, the 9 base weapons at 16 directions and the 9 family
+  effects as .pxm drafts); tools/preview/doll_gallery.cpp (looks, clips, parts, lineup, onion skin, part / frame at 12x;
+  `--pool`). CMake globs rpg/art/doll/*.cpp and gen/*.cpp.
+- Look fields (art_human.h; derived, never saved; v1 ignores them; key() mixes them only at rig 2): head, nose, brow,
+  marks, hairVar, beardStyle, neck, garb (a role's work garment: apron, smock, jerkin); age 3 = elder; youth and elder key
+  as the adult at rig 1. RigPart::Run, RigAnchors::topY, Posture::Row (v1 stand-in: seated), RigMetrics r2 eyeRow 22
+  (A3), figH of an elder = the adult - 1 at rig 2.
+- Test hooks (rpg/view/script_p2b.cpp): `camhold 1|0`, `lineup <archetype> <role> [n] [female|male|mixed]
+  [child|youth|adult|elder]`, `dollpart <part> <D|U|R|L> [key] | off`, `expect doll covered|missing [<role>=<value>]`;
+  Witness state `player.sprite.doll` {covered, pool, missing[], part}, `player.sprite.part` (VIEW-B sets
+  HeroSprite::part), `player.anim.speed` / `gait`, `entities[].doll` {covered, missing, first}.
+- Harness (frozen): `rpg_test --doll [--gates] [--parity] [--report] [--pool f] [--dump dir]` (tools/tests/
+  test_doll.cpp: the contract always; B1 parity, B2 heights, faces and hands, B8 craft, B9 fitted pairs, B10 atlas and
+  speed, the ramp calibration with --gates), `--doll-coverage [--seeds A..B] [--scope civil|all] [--gates]` (B6: sources
+  A, B, D, E), `--doll-variety [--seeds A..B] [--gates]` (B7); `--rig` restated for A3 (the doll's atlases; R4 is A3's
+  face rows and 3 x 2 hands); tools/tests/png_read.cpp (readPng); scripts p2b_slice, p2b_folk, p2b_poses, p2b_walk,
+  p2b_holders and their _phone twins; witness/p2b_doll.witness.json (2 hook tests that pass now, 6 P2b targets);
+  tools/scripts/p2b_playtests.txt (the B13 goals as a witness play batch list: T1-T3 x 3 testers, the phone window,
+  rig 2; tools/run_scripts.sh skips *_playtests.txt). CI: `node tools/doll/pxc.mjs --check`, `--rig` (its gates now
+  measure the doll: without --gates until the areas pass), `--doll`, `--doll-coverage --seeds 1..3`.
+
+Baselines (phase A, before the areas):
+- Parity: the A3 drafts through pxc.mjs, the pool and the C++ compositor (`rpg_test --doll --parity --pool <drafts>`):
+  48 kept frames 0 px differing, the 16 side frames 0 px (A3's own; the slice re-registers them).
+- Coverage (B6, `--doll-coverage --seeds 1..3`, civil): 0 of 8,880 distinct looks (0 %; A 139, B 5,862, D 2,879), 0 dead
+  parts (the production pool is empty: rig 2 draws v1 whole).
+- Variety (B7, seeds 1..3): 7 of 24 hair styles, 1 of 9 beards, 1 head type per body, 2 / 1 garments (the look fields
+  are not filled yet: FOLK-SIM).
+- Bake (the drafts, `--doll --gates --pool`): one facing's LOCO p50 0.246 ms, p95 0.256 ms (v1 sheet p95 0.098 ms on
+  this PC; the plan's 0.385 ms).
+- The ramp generator (`rampGenerate`, phase A's LCh fit): worst step tunic 0 at delta E 13.5 (gate 6; DOLL tunes it).
+- Render and people memory (tools/scripts/p2a_lead_perf.txt, the phone window, the capital at 15:00, this PC, median of
+  each phase's last 5 seconds; at rig 2 the doll covers nobody yet, so v1 is drawn): View::draw 0.31 ms at NORMAL rig 1
+  (people textures 3.4 MB), 0.33 ms at FAR, 0.29 ms at NORMAL rig 2 (2.5 MB: the rig switch flushed the caches). v1
+  character sheet bake (EMB_TIMING, 141 sheets): p50 0.294 ms, p95 0.399 ms.
+- Rig 1 unchanged (verified): art_hash every category and every sprite identical to the pre-phase-A build (TOTAL
+  317eef6efe4d8229); golden_village_art 65 groups, 0 changed; `--anim --gates` output identical (golden_anim_v1); `--rig`
+  contract 0 failures; MSVC every target (BDIR=build) and an EMBERVALE_WITNESS=OFF configure + build of embervale (595
+  ninja steps) link; the 10 new p2b scripts pass.
+- Script sweep (tools/run_scripts.sh, 371 scripts incl. the 10 new): 370 passed; m8_integ_tour_s12 failed once ("expect
+  party state: BLEEDING OUT" after the bind) and passed on its rerun (timing under 3 parallel games; phase A changes no
+  rpg/sim file). Witness: 45 / 45 existing tests pass; witness/p2b_doll: the 2 hook tests pass, the 6 P2b targets fail
+  as expected until the areas land (B5 gait / drawn pick, B6 covered looks, B11 fall and rider).
+- WSL clang 18 -fsyntax-only on every new and changed C++ file: no errors (the usual missing-field-initializer
+  warnings of the Gate structs, as test_rig.cpp's).

@@ -91,7 +91,7 @@ int v1ColumnOf(art::Clip c, int frame) {
 
 void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float alpha, float flash, HumanGhost& ghost) {
   Pix& P = *pix_;
-  if (a.player) heroSprite.on = false;
+  if (a.player) { heroSprite.on = false; heroSprite.part = -1; }
   if (a.player && p2a.hidePlayer) return;   // (P2a `hideplayer`) the shot pair's second shot: no body, no silhouette
   const bool child = a.role == Role::Child;   // (M5) a shorter body (childBody)
   // (M12) the enlisted hero wears the sworn realm's tabard and the rank's mark (render_rise.cpp)
@@ -199,6 +199,14 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
       // (the roof silhouette, HumanGhost, is cell-based: v2's needs a source rect, LENS)
     }
   };
+  // (P2b `dollpart`) the hero drawn as one doll part alone at its anchor, for an artist's review in the game
+  if (a.player && !p2b.dollPart.empty() && art::rigVersion() >= 2) {
+    const RigTex dt2 = dollPartTex(look);
+    if (dt2.ready()) {
+      const art::FrameRect* f2 = dt2.sheet->frame(p2b.dollFacing, art::Clip::Idle, 0, 0);
+      if (f2) { drawV2(*dt2.tex, *f2, dt2.sheet->anchorsOf(p2b.dollFacing, art::Clip::Idle, 0, 0), at, alpha, false, 0, p2b.dollFacing); return; }
+    }
+  }
   // the rower: the v2 Sit posture (POSES, the chair-height sitter) in his facing, its seat point (the hip anchor) on the
   // thwart's seat line and the body cut there; the column on the boat's own (its anchor, floored as its cell is). He
   // keeps the posture's own slow breath; the boat's bob and its oars' stroke (art::shipCell frames) move him with it.
@@ -219,6 +227,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
         // the pivot (the floor under the hips) hipY rows under the seat line: whole rows, so drawV2's rounding is exact
         const Vec2 feet(std::floor(a.p.x - cam.x) + cam.x, std::floor(a.p.y - cam.y) + cam.y - rowerDy - (float)hipY);
         drawV2(*rt.tex, *f2, an, feet, alpha, false, fi, fc);
+        if (a.player) heroSprite.part = 4;   // (a posture atlas)
         m5Count_.posed++;
         return;
       }
@@ -235,16 +244,22 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     RigTex rt;
     const art::FrameRect* fr2 = nullptr;
     const art::RigAnchors* an = nullptr;
-    auto tryClip = [&](art::Clip c, int variant, int frame) {
+    // (P2b slice fix, SLICE-RUN-INGAME) the part the anim key picked first (the RUN part above the gait switch: its
+    // own drawings on its own table, so the soles register; the ACTION part's drawn walk / idle), then the clip's
+    // usual part (a part whose atlas lacks the clip, is not baked yet or is empty for this look)
+    int partDrawn = -1;
+    auto tryPart = [&](art::RigPart part, art::Clip c, int variant, int frame) {
       if (fr2) return;
-      RigTex r = rigTex(lookP, partOf(c), child);
+      RigTex r = rigTex(lookP, part, child);
       if (!r.ready()) return;
       const art::FrameRect* f = r.sheet->frame(facing, c, variant, frame);
       int fc = facing;
       if (!f && (c == art::Clip::Lying || c == art::Clip::Fall)) { f = r.sheet->frame(0, c, variant, frame); fc = 0; }
       if (!f) return;
-      rt = r; fr2 = f; an = r.sheet->anchorsOf(fc, c, variant, frame);
+      rt = r; fr2 = f; an = r.sheet->anchorsOf(fc, c, variant, frame); partDrawn = (int)part;
     };
+    auto tryClip = [&](art::Clip c, int variant, int frame) { tryPart(partOf(c), c, variant, frame); };
+    if (k.part != partOf(k.clip) && !(a.player && p2a.poseOn)) tryPart(k.part, k.clip, k.variant, k.frame);
     tryClip(k.clip, k.variant, k.frame);
     switch (k.clip) {   // a clip this look's atlas lacks: the nearest it has (never a v1 frame mid-swing)
       case art::Clip::Draw: case art::Clip::Release: case art::Clip::Block: tryClip(art::Clip::Cast, 0, k.clip == art::Clip::Draw ? 0 : 1); [[fallthrough]];
@@ -256,6 +271,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     if (fr2 && rt.ready()) {
       const float alpha2 = a.st == AState::Dead ? animCorpseAlpha(a, 2) : alpha;
       drawV2(*rt.tex, *fr2, an, at, alpha2, k.clip == art::Clip::Lying, k.frame, facing);
+      if (a.player) heroSprite.part = partDrawn;
       return;
     }
   }
@@ -364,6 +380,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
                      false, Color(1, 1, 1, alpha));
           }
           drawV2(*rt.tex, *f2, rt.sheet->anchorsOf(fc, art::Clip::Idle, 0, fi), at2, alpha, false, fi, fc);
+          if (a.player) heroSprite.part = 4;
           m5Count_.posed++;
           return;
         }

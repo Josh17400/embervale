@@ -1,0 +1,123 @@
+# a3/woman/torso: a draft of A3's parts (tools/doll/from_a3.py; docs/ref/style_a3). A starting point: hand-check it.
+part a3/woman/torso
+tags draft a3
+use person
+use woman
+body woman
+role garment dress
+role overlay apron
+layer torso
+anchor neck
+keys torso
+
+view D key idle origin 8 -2
+|vyyx5yyyxxadcaxv
+|vyxw8xxww6abdawv
+|vxww887776adcawv
+|qts587776acbasrq
+|qsr5DDCCCadcarrq
+|qts5DCCCBabdatsq
+|qsr6DCCCB5865srq
+|.qq6DCCCBBdb6qq.
+|..58DCCCBCaa65..
+|.587DCCBCCCB665.
+|.587DCBCCCBB765.
+|.587DCBCCBCB765.
+
+view D key rest origin 8 -2
+|vyyx5yyyxxadcaxv
+|vyxw8xxww6abdawv
+|vxww887776adcawv
+|qts587776acbasrq
+|qsr5DDCCCadcarrq
+|qts5DCCCBabdatsq
+|qsr6DCCCB5865srq
+|.qq6DCCCBBdb6qq.
+|..58DCCCBCaa65..
+|.587DCCBCCCB665.
+|.587DCBCCCBB765.
+|.587DCBCCBCB765.
+
+view U key idle origin 8 -2
+|vyyxadca7776xxwv
+|vyabda877776xwwv
+|vxww88777766wwwv
+|qts5ADC77CBA5srq
+|qsrDDCCAACBBBrrq
+|qts6ACBCBBBA6tsq
+|qsr67CA77AB76srq
+|.qq67C7777B76qq.
+|..5877B77A7665..
+|.58776777676665.
+|.58776777676665.
+|.58776777676665.
+
+view U key rest origin 8 -2
+|vyyxadca7776xxwv
+|vyabda877776xwwv
+|vxww88777766wwwv
+|qts5ADC77CBA5srq
+|qsrDDCCAACBBBrrq
+|qts6ACBCBBBA6tsq
+|qsr67CA77AB76srq
+|.qq67C7777B76qq.
+|..5877B77A7665..
+|.58776777676665.
+|.58776777676665.
+|.58776777676665.
+
+view R key idle origin 7 -2
+|...58vyyxxvada
+|...58vyxxwvaca
+|...58vxwwv7ada
+|...587qtsq6aca
+|.ABDBBqsrqC585
+|..A587qtsqCDd.
+|...587qsrqCDb.
+|..58777qqCCDA.
+|..587776BCCDA.
+|.5877767BCCDA.
+|.5877677BCCCDA
+|58776777BCCCDA
+
+view R key rest origin 7 -2
+|...58vyyxxvada
+|...58vyxxwvaca
+|...58vxwwv7ada
+|...58777776aca
+|.ABDBBCCCCC585
+|..A5877776CDd.
+|...5877776CDb.
+|..5877776CCDA.
+|..587776BCCDA.
+|.5877767BCCDA.
+|.5877677BCCCDA
+|58776777BCCCDA
+
+view L key idle origin 7 -2
+|..5vyyada65...
+|.5vyadawv65...
+|adaxwwv7765...
+|aca8qtsq765...
+|585CqsrqBBDBA.
+|.dDCqtsq765A..
+|.bDCqsrq765...
+|.ADCCqq77665..
+|.ADCCB777665..
+|.ADCCB7776665.
+|ADCCCB7776765.
+|ADCCCB77776765
+
+view L key rest origin 7 -2
+|..5vyyada65...
+|.5vyadawv65...
+|adaxwwv7765...
+|aca88777765...
+|585CCCBBBBDBA.
+|.dDCCB77765A..
+|.bDCCB77765...
+|.ADCCB777665..
+|.ADCCB777665..
+|.ADCCB7776665.
+|ADCCCB7776765.
+|ADCCCB77776765

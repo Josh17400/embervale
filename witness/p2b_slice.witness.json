@@ -1,0 +1,214 @@
+[
+ {
+  "name": "p2b slice: every slice look resolves on the doll (the A3 pair; the variety, armour, elders and swaps rows; the woman in shirt and trousers, as an elder, in mail and helm)",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ],
+     [
+      "hair",
+      "short",
+      "copper"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ]
+    ]
+   },
+   {
+    "at": 0.4,
+    "expect": [
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.rig == 2"
+    ]
+   },
+   {
+    "at": 0.5,
+    "call": [
+     [
+      "slicelineup",
+      "variety"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ]
+    ]
+   },
+   {
+    "at": 0.8,
+    "expect": [
+     "entities.filter(e => e.id >= 930000 && e.id < 940000).length >= 4",
+     "entities.filter(e => e.id >= 930000 && e.id < 940000).every(e => e.doll && e.doll.covered)",
+     "JSON.stringify(entities.filter(e => e.id >= 930000 && e.id < 940000).filter(e => !(e.doll && e.doll.covered)).map(e => [e.id, e.doll.first])) == '[]'"
+    ]
+   },
+   {
+    "at": 1.1,
+    "call": [
+     [
+      "slicelineup",
+      "armour"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ]
+    ]
+   },
+   {
+    "at": 1.4,
+    "expect": [
+     "entities.filter(e => e.id >= 930000 && e.id < 940000).length >= 4",
+     "entities.filter(e => e.id >= 930000 && e.id < 940000).every(e => e.doll && e.doll.covered)",
+     "JSON.stringify(entities.filter(e => e.id >= 930000 && e.id < 940000).filter(e => !(e.doll && e.doll.covered)).map(e => [e.id, e.doll.first])) == '[]'"
+    ]
+   },
+   {
+    "at": 1.7,
+    "call": [
+     [
+      "slicelineup",
+      "elders"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ]
+    ]
+   },
+   {
+    "at": 2.0,
+    "expect": [
+     "entities.filter(e => e.id >= 930000 && e.id < 940000).length >= 4",
+     "entities.filter(e => e.id >= 930000 && e.id < 940000).every(e => e.doll && e.doll.covered)",
+     "JSON.stringify(entities.filter(e => e.id >= 930000 && e.id < 940000).filter(e => !(e.doll && e.doll.covered)).map(e => [e.id, e.doll.first])) == '[]'"
+    ]
+   },
+   {
+    "at": 2.3,
+    "call": [
+     [
+      "slicelineup",
+      "swaps"
+     ],
+     [
+      "slicelook",
+      "a3"
+     ]
+    ]
+   },
+   {
+    "at": 2.6,
+    "expect": [
+     "entities.filter(e => e.id >= 930000 && e.id < 940000).length >= 4",
+     "entities.filter(e => e.id >= 930000 && e.id < 940000).every(e => e.doll && e.doll.covered)",
+     "JSON.stringify(entities.filter(e => e.id >= 930000 && e.id < 940000).filter(e => !(e.doll && e.doll.covered)).map(e => [e.id, e.doll.first])) == '[]'"
+    ]
+   },
+   {
+    "at": 2.9,
+    "call": [
+     [
+      "slicelineup",
+      "clear"
+     ],
+     [
+      "body",
+      "woman"
+     ],
+     [
+      "hair",
+      "braids",
+      "wheat"
+     ],
+     [
+      "slicelook",
+      "a3woman"
+     ]
+    ]
+   },
+   {
+    "at": 3.2,
+    "expect": [
+     "state.player.sprite.doll.covered"
+    ]
+   },
+   {
+    "at": 3.4,
+    "call": [
+     [
+      "slicelook",
+      "a3woman",
+      "outfit=1",
+      "weapon=0"
+     ]
+    ]
+   },
+   {
+    "at": 3.5,
+    "expect": [
+     "state.player.sprite.doll.covered",
+     "JSON.stringify(state.player.sprite.doll.missing) == '[]'"
+    ]
+   },
+   {
+    "at": 3.7,
+    "call": [
+     [
+      "slicelook",
+      "a3woman",
+      "age=3",
+      "weapon=0"
+     ]
+    ]
+   },
+   {
+    "at": 3.8,
+    "expect": [
+     "state.player.sprite.doll.covered",
+     "JSON.stringify(state.player.sprite.doll.missing) == '[]'"
+    ]
+   },
+   {
+    "at": 4.0,
+    "call": [
+     [
+      "slicelook",
+      "a3woman",
+      "bodyform=3",
+      "helmform=1"
+     ]
+    ]
+   },
+   {
+    "at": 4.1,
+    "expect": [
+     "state.player.sprite.doll.covered",
+     "JSON.stringify(state.player.sprite.doll.missing) == '[]'"
+    ]
+   }
+  ]
+ }
+]

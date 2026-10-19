@@ -67,7 +67,257 @@ art::Hair hairFor(Stream& h, uint16_t bits, bool female, art::Hair fallback) {
   const int i = std::min(h.pick(n), h.pick(n));
   return opts[i];
 }
+
+// ---- (P2b FOLK-SIM) the doll's look fields (VISION_PLAN 15.36 "How the census picks"; art_human.h "P2b New People").
+// Integer weights only (one draw per pick); every table row sums above 0. Archetype order is cult::Archetype's.
+template <size_t N> int weighted(Stream& h, const uint8_t (&w)[N]) {
+  int tot = 0;
+  for (uint8_t x : w) tot += x;
+  if (tot <= 0) return 0;
+  int r = (int)(h.next() % (uint32_t)tot);
+  for (size_t i = 0; i < N; i++) {
+    if (r < (int)w[i]) return (int)i;
+    r -= (int)w[i];
+  }
+  return (int)N - 1;
+}
+constexpr int kArch = (int)cult::Archetype::COUNT;
+// the six human head types (man: oval square round long craggy heavy; woman: oval heart round long square full)
+const uint8_t kHeadMan[kArch + 1][6] = {
+    {3, 3, 1, 3, 4, 3},   // Fjordfolk: long, craggy and heavy faces
+    {2, 5, 1, 2, 5, 3},   // Highland favours craggy and square
+    {4, 3, 4, 3, 2, 2},   // Heartland
+    {3, 4, 2, 4, 2, 2},   // Imperial
+    {3, 2, 2, 5, 3, 2},   // Dune
+    {2, 4, 5, 1, 2, 4},   // Steppe: round and broad
+    {3, 2, 4, 2, 3, 4},   // Marsh
+    {5, 2, 4, 3, 1, 2},   // Jade
+    {4, 3, 3, 3, 2, 3},   // River
+    {3, 3, 3, 4, 2, 3},   // SunTemple
+    {4, 2, 2, 4, 1, 1},   // Sylvan (its humans and half-breeds)
+    {4, 2, 2, 4, 1, 2},   // Starspire
+    {3, 3, 3, 3, 3, 3},   // no culture (the wayside)
+};
+const uint8_t kHeadWoman[kArch + 1][6] = {
+    {3, 2, 2, 4, 3, 3}, {3, 2, 3, 2, 4, 3}, {4, 4, 3, 3, 2, 3}, {4, 3, 2, 4, 2, 2}, {3, 4, 2, 4, 1, 3}, {2, 3, 5, 1, 3, 4},
+    {3, 2, 4, 2, 2, 4}, {4, 4, 4, 2, 1, 2}, {4, 3, 3, 3, 2, 3}, {3, 4, 3, 3, 2, 3}, {4, 4, 2, 4, 1, 1}, {4, 3, 2, 4, 1, 2},
+    {3, 3, 3, 3, 3, 3},
+};
+// noses: man button straight long hooked broad; woman button straight upturned aquiline
+const uint8_t kNoseMan[kArch + 1][5] = {
+    {2, 4, 3, 2, 2}, {3, 3, 2, 2, 3}, {3, 4, 2, 2, 2}, {1, 4, 3, 4, 1}, {1, 2, 3, 5, 2}, {4, 2, 1, 1, 4}, {3, 2, 2, 2, 4},
+    {4, 3, 1, 1, 3}, {3, 3, 2, 2, 3}, {2, 3, 3, 3, 3}, {2, 5, 3, 1, 1}, {2, 4, 3, 2, 1}, {3, 3, 3, 3, 3},
+};
+const uint8_t kNoseWoman[kArch + 1][4] = {
+    {3, 4, 2, 2}, {3, 3, 4, 1}, {4, 3, 3, 2}, {2, 4, 1, 4}, {2, 3, 1, 5}, {5, 2, 3, 1}, {4, 3, 3, 1},
+    {5, 3, 2, 1}, {3, 3, 3, 2}, {3, 3, 2, 3}, {2, 5, 2, 2}, {2, 4, 2, 3}, {3, 3, 3, 3},
+};
+// brows: man straight heavy arched thin; woman arched straight thin full
+const uint8_t kBrowMan[kArch + 1][4] = {
+    {3, 5, 1, 1}, {3, 5, 2, 1}, {4, 3, 2, 2}, {4, 2, 3, 2}, {3, 4, 3, 1}, {3, 4, 2, 2}, {3, 4, 1, 2},
+    {3, 1, 2, 4}, {4, 3, 2, 2}, {3, 3, 3, 2}, {2, 1, 4, 4}, {2, 1, 4, 3}, {4, 3, 2, 2},
+};
+const uint8_t kBrowWoman[kArch + 1][4] = {
+    {3, 4, 2, 3}, {3, 4, 2, 3}, {4, 3, 3, 2}, {5, 2, 3, 1}, {4, 2, 1, 5}, {3, 3, 2, 3}, {3, 4, 2, 3},
+    {3, 2, 5, 1}, {4, 3, 3, 2}, {4, 2, 2, 4}, {5, 1, 4, 1}, {4, 2, 4, 1}, {4, 3, 3, 2},
+};
+// beards: full stubble boxed long braided goatee moustache vandyke chops handlebar (Fjordfolk braid theirs)
+const uint8_t kBeard[kArch + 1][10] = {
+    {5, 2, 2, 4, 6, 1, 1, 0, 1, 0},   // Fjordfolk
+    {5, 2, 2, 2, 1, 1, 2, 1, 4, 1},   // Highland
+    {4, 4, 4, 1, 0, 2, 2, 1, 2, 1},   // Heartland
+    {1, 5, 5, 0, 0, 2, 1, 3, 1, 1},   // Imperial
+    {4, 2, 2, 4, 1, 3, 1, 1, 0, 1},   // Dune
+    {1, 2, 1, 1, 1, 3, 4, 1, 1, 4},   // Steppe
+    {4, 5, 1, 2, 1, 1, 2, 0, 2, 1},   // Marsh
+    {0, 2, 1, 3, 0, 4, 5, 1, 0, 2},   // Jade
+    {3, 3, 4, 1, 0, 2, 2, 1, 3, 2},   // River
+    {2, 3, 4, 1, 0, 3, 1, 4, 0, 1},   // SunTemple
+    {2, 3, 2, 1, 1, 2, 2, 2, 1, 1},   // Sylvan (half-breeds)
+    {2, 3, 3, 1, 0, 2, 2, 3, 1, 1},   // Starspire
+    {4, 4, 3, 1, 1, 2, 2, 1, 1, 1},   // no culture
+};
+// the style within a hair family (art::Hair order; doll::hairStyleOf): per family up to 5 variants, per archetype
+struct VarW { uint8_t w[kArch + 1][5]; };
+const VarW kHairVar[(int)art::Hair::COUNT] = {
+    // Bald: bald, shaved (Steppe and Jade shave)
+    {{{3, 2}, {3, 2}, {3, 2}, {3, 2}, {3, 3}, {1, 5}, {3, 2}, {2, 4}, {3, 2}, {2, 3}, {3, 2}, {3, 2}, {3, 2}}},
+    // Short: short, cropped, tousled, spiky, receding
+    {{{3, 2, 4, 1, 2}, {2, 1, 5, 2, 2}, {4, 3, 3, 2, 2}, {3, 5, 1, 1, 2}, {3, 4, 2, 1, 2}, {2, 4, 2, 2, 1}, {3, 1, 3, 1, 4},
+      {3, 4, 1, 2, 1}, {4, 2, 3, 3, 1}, {3, 4, 2, 1, 2}, {3, 2, 4, 2, 1}, {3, 3, 2, 3, 1}, {4, 3, 3, 2, 2}}},
+    // Long: long loose, long wavy, shag, bob (Sylvan long loose hair)
+    {{{4, 3, 3, 1}, {2, 3, 4, 1}, {3, 3, 2, 3}, {2, 2, 1, 5}, {3, 4, 1, 2}, {4, 2, 3, 1}, {2, 2, 5, 1},
+      {4, 1, 1, 4}, {3, 3, 2, 3}, {3, 4, 1, 3}, {7, 3, 1, 1}, {3, 5, 1, 2}, {4, 3, 2, 2}}},
+    // Ponytail: ponytail, high ponytail, pigtails
+    {{{4, 3, 2}, {4, 2, 2}, {4, 3, 2}, {4, 3, 1}, {4, 3, 2}, {3, 4, 1}, {4, 2, 3},
+      {3, 4, 1}, {5, 2, 2}, {4, 3, 2}, {4, 3, 2}, {2, 5, 1}, {4, 3, 2}}},
+    // Mohawk: mohawk, topknot (Steppe topknots)
+    {{{4, 2}, {4, 2}, {3, 2}, {2, 3}, {2, 3}, {1, 5}, {4, 1}, {1, 4}, {3, 2}, {2, 3}, {2, 3}, {2, 3}, {3, 2}}},
+    // Braids: braid, twin braids, locs, crown braid (Fjordfolk braids, Sylvan crown braids)
+    {{{5, 5, 1, 1}, {4, 3, 1, 2}, {4, 3, 2, 2}, {4, 2, 1, 3}, {2, 2, 5, 1}, {4, 4, 1, 1}, {2, 2, 4, 1},
+      {4, 2, 1, 3}, {3, 3, 3, 2}, {2, 1, 6, 1}, {2, 2, 1, 6}, {3, 2, 1, 4}, {4, 3, 2, 2}}},
+    // Bun: bun, top bun (Jade top buns)
+    {{{4, 2}, {4, 2}, {4, 2}, {3, 3}, {3, 2}, {3, 3}, {4, 1}, {1, 5}, {4, 2}, {3, 3}, {3, 3}, {2, 4}, {4, 2}}},
+    // Curls: curly, big curls
+    {{{4, 2}, {4, 2}, {4, 2}, {4, 2}, {3, 3}, {4, 2}, {4, 2}, {4, 1}, {3, 3}, {2, 4}, {4, 2}, {3, 3}, {4, 2}}},
+};
+bool fighterRole(Role r) {
+  return r == Role::Guard || r == Role::Soldier || r == Role::Captain || r == Role::Bandit || r == Role::Warlord || r == Role::Hunter ||
+         r == Role::Pirate || r == Role::Jarl || r == Role::King;
+}
+bool outdoorRole(Role r) {
+  return r == Role::Farmer || r == Role::Fisher || r == Role::Hunter || r == Role::Sailor || r == Role::Shipwright || r == Role::Traveller ||
+         r == Role::Refugee || r == Role::Soldier || r == Role::Bandit || r == Role::Pirate || r == Role::Warlord || r == Role::Herbalist;
+}
+bool civilRole(Role r) {
+  return r == Role::Villager || r == Role::Merchant || r == Role::Innkeeper || r == Role::Farmer || r == Role::Fisher || r == Role::Traveller ||
+         r == Role::Refugee || r == Role::Child || r == Role::Herbalist || r == Role::Sailor || r == Role::Harbourmaster || r == Role::Steward ||
+         r == Role::Envoy || r == Role::Priest || r == Role::Mage || r == Role::Smith || r == Role::Shipwright;
+}
+int lumaOf(uint32_t c) { return ((int)(c & 255) * 3 + (int)((c >> 8) & 255) * 6 + (int)((c >> 16) & 255)) / 10; }
+// HumanLook::garb (art_human.h): the doll's garment over the outfit and cut (doll_resolve.cpp garmentOf maps it)
+constexpr uint8_t kGarbApron = 1, kGarbSmock = 2, kGarbJerkin = 3, kGarbDress = 4, kGarbTunic = 5, kGarbCoat = 6, kGarbCultureTunic = 7,
+                  kGarbKilt = 8, kGarbGown = 9;
 }  // namespace
+
+// The doll's look fields from their own hash stream (after every existing draw, so no other look moves): the head type by
+// people, sex and culture; nose and brows; marks; the hair style within the drawn family; the beard's style; neckwear for
+// commoners; the role's work garment. arch: cult::Archetype, or -1 for a person with no culture (the wayside); manTunic:
+// the culture's men wear its tunic (a working woman may too).
+void features(art::HumanLook& L, Role r, bool female, int arch, uint64_t seed, bool manTunic) {
+  Stream h(seed * 0x9E3779B97F4A7C15ull ^ 0x50324246594C4B53ull);   // "P2BFOLKS"
+  const int a = arch >= 0 && arch < kArch ? arch : kArch;
+  const bool kid = r == Role::Child;
+  // ---- the head type (humans their six, elves the three elven, half-breeds all nine; children the child four)
+  if (kid) {
+    static const uint8_t human[4] = {4, 4, 2, 0}, half[4] = {3, 3, 3, 2}, elf[4] = {0, 1, 1, 6};
+    L.head = (uint8_t)weighted(h, L.people == 2 ? elf : L.people == 1 ? half : human);
+  } else {
+    const uint8_t(&hw)[6] = female ? kHeadWoman[a] : kHeadMan[a];
+    if (L.people == 2) {
+      static const uint8_t elven[3] = {3, 3, 3};
+      L.head = (uint8_t)(6 + weighted(h, elven));
+    } else if (L.people == 1) {
+      const uint8_t all[9] = {hw[0], hw[1], hw[2], hw[3], hw[4], hw[5], 2, 2, 2};
+      L.head = (uint8_t)weighted(h, all);
+    } else L.head = (uint8_t)weighted(h, hw);
+  }
+  // ---- nose and brows (elves: straight noses, fine arched brows)
+  if (female) {
+    static const uint8_t elfN[4] = {2, 5, 2, 2}, elfB[4] = {5, 1, 4, 1};
+    L.nose = (uint8_t)weighted(h, L.people == 2 ? elfN : kNoseWoman[a]);
+    L.brow = (uint8_t)weighted(h, L.people == 2 ? elfB : kBrowWoman[a]);
+  } else {
+    static const uint8_t elfN[5] = {1, 4, 3, 1, 0}, elfB[4] = {1, 0, 4, 4};
+    L.nose = (uint8_t)weighted(h, L.people == 2 ? elfN : kNoseMan[a]);
+    L.brow = (uint8_t)weighted(h, L.people == 2 ? elfB : kBrowMan[a]);
+  }
+  // ---- marks (bits: 1 freckles, 2 scar, 4 beauty mark, 8 weathered, 16 lined (ageLook), 32 gaunt): never on children
+  {
+    uint8_t m = 0;
+    const int lum = lumaOf(L.skin);
+    if (h.chance(lum > 190 ? 64 : lum > 160 ? 18 : 4)) m |= 1;
+    if (h.chance(fighterRole(r) ? 52 : 6)) m |= 2;
+    if (h.chance(female ? 22 : 5)) m |= 4;
+    if (h.chance(outdoorRole(r) ? 80 : 10)) m |= 8;
+    if (h.chance(r == Role::Refugee ? 100 : (r == Role::Herbalist || r == Role::Mage) ? 26 : 5)) m |= 32;
+    if ((m & 1) && (m & 8) && h.chance(128)) m &= (uint8_t)~1u;   // a weathered face mostly hides its freckles
+    L.marks = kid ? 0 : m;
+  }
+  // ---- the hair style within the family the culture drew
+  {
+    const int fam = std::clamp((int)L.hair, 0, (int)art::Hair::COUNT - 1);
+    uint8_t w[5];
+    for (int i = 0; i < 5; i++) w[i] = kHairVar[fam].w[a][i];
+    if (L.people == 2 && fam == (int)art::Hair::Long) { w[0] = (uint8_t)(w[0] + 3); w[2] = 0; }   // elves: no shag
+    if (!female) {
+      if (fam == (int)art::Hair::Long) w[3] = (uint8_t)(w[3] / 2);        // few men wear a bob
+      if (fam == (int)art::Hair::Ponytail) w[2] = 0;                      // nor pigtails
+      if (fam == (int)art::Hair::Braids) w[3] = (uint8_t)(w[3] / 2);      // nor a crown braid
+    } else if (fam == (int)art::Hair::Long) w[2] = (uint8_t)(w[2] > 1 ? w[2] - 1 : w[2]);
+    if (kid && fam == (int)art::Hair::Short) w[4] = 0;                    // no child recedes
+    L.hairVar = (uint8_t)weighted(h, w);
+  }
+  // ---- the beard's style (drawn whether or not a beard is worn, so a change of beard keeps the person's own)
+  L.beardStyle = (uint8_t)weighted(h, kBeard[a]);
+  // ---- neckwear for commoners (the armed, the armoured and the court's regalia wear none)
+  {
+    uint8_t neck = 0;
+    const bool cold = a == (int)cult::Archetype::Fjordfolk || a == (int)cult::Archetype::Highland || a == (int)cult::Archetype::Steppe;
+    const int p = !civilRole(r) ? 0 : kid ? 34 : (r == Role::Sailor || r == Role::Fisher) ? 110 : cold ? 84 : 58;
+    if (h.chance(p)) {
+      static const uint8_t formal[3] = {1, 1, 4}, sea[3] = {1, 4, 0}, work[3] = {3, 3, 1}, chill[3] = {6, 2, 1}, child[3] = {3, 2, 0};
+      const bool court = r == Role::Merchant || r == Role::Innkeeper || r == Role::Steward || r == Role::Envoy || r == Role::Priest ||
+                         r == Role::Mage || r == Role::Harbourmaster;
+      const uint8_t(&w)[3] = kid ? child : (r == Role::Sailor || r == Role::Fisher) ? sea : court ? formal : cold ? chill : work;
+      neck = (uint8_t)(1 + weighted(h, w));
+    }
+    L.neck = neck;
+  }
+  // ---- the role's garment on the doll over the outfit and cut (STYLE_P2 22; v1 keeps drawing the cut): smith and
+  //      shipwright the work apron, farmer the smock (a woodsman or a herder now and then the jerkin), hunter the jerkin;
+  //      innkeepers and some shopkeepers the apron. Then the commoners' own wear beside the culture's cut, which stays
+  //      what most of a people wear: a village woman's long robe is A3's dress (bodice, chemise, skirt) on the doll; a
+  //      shopkeeper now and then the coat; a working man the plain shirt and trousers; a fisherwoman the culture's tunic
+  //      where its men wear one; the highland woman the kilt; an elven man the high-collared gown
+  {
+    uint8_t garb = 0;
+    const int roll = (int)(h.next() & 255u), roll2 = (int)(h.next() & 255u);
+    const bool commoner = r == Role::Villager || r == Role::Merchant || r == Role::Innkeeper || r == Role::Fisher || r == Role::Traveller ||
+                          r == Role::Refugee;
+    const int cutI = (int)L.cut - 1;   // cult::Cut, -1 none
+    switch (r) {
+      case Role::Smith: case Role::Shipwright: garb = kGarbApron; break;
+      case Role::Farmer: garb = roll < 192 ? kGarbSmock : kGarbJerkin; break;
+      case Role::Hunter: garb = kGarbJerkin; break;
+      case Role::Innkeeper: garb = roll < 104 ? kGarbApron : 0; break;
+      case Role::Merchant: garb = roll < 40 ? kGarbApron : roll < 96 ? kGarbCoat : 0; break;
+      default: break;
+    }
+    if (!garb && commoner) {
+      if (female) {
+        if (cutI == (int)cult::Cut::Robe && roll2 < 180) garb = kGarbDress;
+        else if (a == (int)cult::Archetype::Highland && roll2 < 80) garb = kGarbKilt;
+        else if (r == Role::Fisher || (r == Role::Villager && roll2 >= 216)) garb = manTunic ? kGarbCultureTunic : kGarbTunic;
+      } else {
+        if (L.people == 2 && roll2 < 100) garb = kGarbGown;
+        else if ((r == Role::Villager || r == Role::Fisher) && roll2 >= 200) garb = kGarbTunic;
+      }
+    }
+    // (P2b slice fix, SLICE-DEAD-PART) children: two in five wear the plain child's tunic (a hand-me-down; the census's cut
+    // is always set, so without this no child ever reached it), the rest their people's cut like their elders
+    if (kid && roll2 < 104) garb = kGarbTunic;
+    L.garb = garb;
+  }
+}
+
+// The census age on a look (life_game.cpp spawnResident; tests and lineups call it too): years under 10 in the Child role
+// a child (1), 10-14 a youth (2), 60 and over (or `elder`) an elder (3), else an adult. A youth's head becomes the soft
+// four of its sex (oval round long fine) and loses the beard; an elder gains the lined mark and, now and then, a receding
+// line or a fuller beard. Never draws from anyone's Rng (its own stream from seed).
+void ageLook(art::HumanLook& L, int years, bool childRole, bool elder, uint64_t seed) {
+  Stream h(seed * 0xD1B54A32D192ED03ull ^ 0x4147454C4F4F4B21ull);
+  if (childRole) {
+    const bool youth = years >= 10 && years <= 14;
+    if (youth && L.age != 2) {
+      static const uint8_t toYouth[4] = {2, 0, 3, 6};   // child round oval pointed elfin -> youth round oval long fine
+      L.head = toYouth[std::min<int>(L.head, 3)];
+      L.age = 2;
+    } else if (!youth) L.age = 1;
+    L.beard = false;
+    L.marks = 0;
+    return;
+  }
+  if (elder || years >= 60) {
+    L.age = 3;
+    L.marks = (uint8_t)(L.marks | 16);
+    if (L.hair == art::Hair::Short && L.hairVar != 4 && h.chance(100)) L.hairVar = 4;   // receding
+    if (L.beard && L.beardStyle == 1 && h.chance(160)) L.beardStyle = 0;                  // the stubble grown full
+    if (L.beard && L.beardStyle == 2 && h.chance(90)) L.beardStyle = 3;                   // and long
+    return;
+  }
+  L.age = 0;
+}
 
 void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult::Culture& C, const cult::Culture& owner,
            uint64_t seed, const Rank& rank) {
@@ -519,6 +769,8 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
       name = nm;
     }
   }
+  // ---- (P2b FOLK-SIM) the doll's look fields, last: their own stream (v1 ignores them; rig 1 keys never see them)
+  features(L, r, female, (int)C.archetype, seed, D.cutM == cult::Cut::Tunic);
 }
 
 }  // namespace census
@@ -652,6 +904,7 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
       L.plumeColor = K.color2 ? (K.color2 | 0xFF000000u) : 0;
     }
     if (KC || PC) a.culture = KC ? KC->id : PC->id;   // (M6) whose arms they wear: their loot is that culture's make
+    else census::features(L, r, female, -1, entry ^ ((uint64_t)(uint32_t)(a.slot + 1) << 24) ^ a.realm, true);   // (P2b) no culture
     return;
   }
   if (const Kingdom* K = world.kingdomOf(home)) {
@@ -683,5 +936,8 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
     // (M6) whose arms they wear: a guard its owner's, a bandit the land's own (their loot is that culture's make)
     if (r == Role::Guard || r == Role::King || r == Role::Jarl) a.culture = owner ? owner->id : C->id;
     else if (r == Role::Bandit) a.culture = C->id;
+  } else {
+    // (P2b FOLK-SIM) a person of no settlement's culture (the wayside, the wilds): the doll's look fields still vary
+    census::features(L, r, female, -1, entry ^ ((uint64_t)(uint32_t)(a.bldg + 1) << 20) ^ (uint64_t)(uint32_t)a.slot, true);
   }
 }

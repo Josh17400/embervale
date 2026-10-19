@@ -1,0 +1,28 @@
+# head/adult/marks_lined: the Lined mark (age): a crease at each outer eye corner and from the nose to the mouth
+# The slice (P2b wave 1, FOLK-BODY; to FACES in wave 2). An overlay at the face rows every head type keeps. Format: rpg/art/doll/doll.h.
+use person
+body adult
+role marks lined
+layer face
+anchor head
+keys rest
+z 1
+tags overlay mirror-ok
+
+view D key rest origin -3 -10
+|r........r
+|..........
+|...r...r..
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -10 -10
+|r.
+|..
+|.r
+
+view L key rest origin -4 -10
+|.r
+|..
+|r.

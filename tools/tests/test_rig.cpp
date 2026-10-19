@@ -1,18 +1,20 @@
 // rpg_test --rig and --rig-coverage (P2a Clear Sight, VISION_PLAN 15.36 item 11: the lead's frozen harness; a lane
-// reports a harness problem instead of editing it). The rig contract (rpg/art/art_rig.h) and the v2 painters' gates,
-// measured from the atlases and their pose data (art::RigSheet, art::RigAnchors) and the holders' metadata.
+// reports a harness problem instead of editing it). RESTATED at P2b phase A for A3 (VISION_PLAN 15.36 "What P2a keeps,
+// adapts and retires"): humanRig, humanPosture2, sleeper2 and rig2Covers are the DOLL's now (rpg/art/doll/doll.h), so
+// every gate below measures the doll's atlases; the procedural painters are detached and no longer measured.
 //   rpg_test --rig [--gates] [--report]
 //   rpg_test --rig-coverage [--seeds A..B] [--gates]
-// Always (phase A, CI): the contract: metrics (STYLE_P2 3, 8), families, bodyPx identity at rig 1, the atlas index,
+// Always (CI): the contract: metrics (STYLE_P2 3, 8: A3's rows), families, bodyPx identity at rig 1, the atlas index,
 // the weapon ids (the greatsword paints as the sword on v1, the herald's horn as before), the ink outer outline on
 // every v1 character sheet (Ink / Lit Ink, never #000000, the sheet == outlineInk(raw cell)), the legacy outline hook,
-// the holders at rig 1.
-// --gates (the P2a DONE gates the art lanes work to; FAIL until they land): R2 heights, R4 faces and hands, R5 holes,
-// scratch edge and pivots, R6 atlas sizes and bake time, R7 / R9 strike frames distinct by family and by variant, R8
-// tip paths, R10 painted left frames and the weapon hand, P1 postures, P2 seats and pillows, P3 youth, child and the
-// humanoid monsters, H2 the holders' ratios at rig 2. --report: every measurement, not only the failures.
-// --rig-coverage: R3, the share of a census's plain looks (no armour, helm, cloak, shield or culture weapon form) that
-// rig2Covers (99 % or more with --gates).
+// the holders at rig 1, the key: body and the child move it at rig 1, youth and elder only at rig 2.
+// --gates (the doll's: FAIL until the areas land): R2 heights (STYLE_P2 3, the hair's 2 px rise allowed), R4 A3's face
+// rows and 3 x 2 hands (from the marks), R5 holes, scratch edge and pivots, R6 atlas sizes and bake time, R7 / R9 strike
+// frames distinct by family and by variant, R8 tip paths, R10 painted left frames and the weapon hand, P1 postures, P2
+// seats and pillows, P3 youth, child and the humanoid monsters, H2 the holders' ratios at rig 2. --report: every
+// measurement, not only the failures. (P2c restates R7-R10 for its families; B1-B12 are rpg_test --doll's.)
+// --rig-coverage: R3 as the doll's census of a seed's plain looks (no armour, helm, cloak, shield or culture weapon form)
+// that rig2Covers (99 % or more with --gates); rpg_test --doll-coverage is B6's full census.
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -22,6 +24,7 @@
 #include <string>
 #include <vector>
 #include "rpg/art/art_internal.h"
+#include "rpg/art/doll/doll.h"
 #include "rpg/sim/game.h"
 #include "tools/tests/tests.h"
 
@@ -109,8 +112,10 @@ void checkWeaponIds() {
   HumanLook n = h; n.weapon = 0;
   if (humanSheet(h).px == humanSheet(n).px) cfail("the herald's horn (12) is painted");
   HumanLook bd; bd.body = 1;
-  HumanLook ag; ag.age = 2;
-  if (bd.key() == HumanLook().key() || ag.key() == HumanLook().key()) cfail("body and age move the key");
+  HumanLook ag; ag.age = 1;
+  if (bd.key() == HumanLook().key() || ag.key() == HumanLook().key()) cfail("body and the child move the key");
+  HumanLook yo; yo.age = 2;
+  if (rigVersion() < 2 && yo.key() != HumanLook().key()) cfail("(P2b) the youth keys as the adult at rig 1");
   if (humanSheet(bd).px != humanSheet(HumanLook()).px) cfail("v1 ignores the body field (no v1 pixel moves)");
 }
 // the ink outer outline: every silhouette edge Ink (bottom / right) or Lit Ink (top / left), never #000000
@@ -263,50 +268,45 @@ void gateHeights(Gate& g) {   // R2 (and P3's youth and child)
             int x0, y0, x1, y1;
             box(f.c, x0, y0, x1, y1);
             const int h = y1 - y0 + 1, want = rig(2).figH(L);
-            if (h != want) g.bad(who + fmt(": %.0f px tall (%.0f)", h, want)); else g.ok();
+            if (h < want || h > want + 2) g.bad(who + fmt(": %.0f px tall (%.0f; the hair may rise 2 more)", h, want)); else g.ok();
             if (y1 != f.py) g.bad(who + fmt(": the sole row %.0f is not the pivot row %.0f", y1, f.py));
           }
         }
 }
-void gateFaces(Gate& g, Gate& hands) {   // R4
+void gateFaces(Gate& g, Gate& hands) {   // R4, restated for A3 (STYLE_P2 4 and 5): the face's rows from its mark
   const HumanLook L = bodyLook(0, 0, 0, 0);
   const RigSheet s = humanRig(L, RigPart::Loco);
-  const Ramp sk = ramp(L.skin, 0.8f);
+  uint32_t sk[5];
+  doll::rampA3(L.skin, doll::Material::Skin, sk);
   const float skinL = lumaOf(sk[2]);
   auto face = [&](const Fr& f, const std::string& who) {
-    if (!f.ok || !f.an || f.an->faceX == kNoAnchor) { g.bad(who + ": no face anchor"); return; }
-    const int fx = f.an->faceX, fy = f.an->faceY;
+    if (!f.ok || !f.an || f.an->faceX == kNoAnchor) { g.bad(who + ": no face mark"); return; }
+    const int fx = f.an->faceX, fy = f.an->faceY;   // the brows' row, the 10 px face's column 0
     int bad = 0;
-    for (int col : {3, 6}) {
-      const uint32_t lash = at(f, fx + col, fy + 1), iris = at(f, fx + col, fy + 2), brow = at(f, fx + col, fy);
-      if (skinL - lumaOf(lash) < 60 || skinL - lumaOf(iris) < 60) bad |= 1;
-      if (skinL - lumaOf(brow) < 30) bad |= 2;
-    }
-    if (skinL - lumaOf(at(f, fx + 4, fy + 1)) > 30 || skinL - lumaOf(at(f, fx + 5, fy + 1)) > 30) bad |= 4;   // nothing between the eyes
-    const bool nose = lumaOf(at(f, fx + 5, fy + 3)) < skinL - 8 || lumaOf(at(f, fx + 6, fy + 3)) < skinL - 8;
-    if (!nose) bad |= 8;
-    const bool mouth = lumaOf(at(f, fx + 4, fy + 4)) < skinL - 20 && lumaOf(at(f, fx + 5, fy + 4)) < skinL - 20;
-    if (!mouth) bad |= 16;
-    if (bad) g.bad(who + ": face missing" + std::string(bad & 1 ? " eyes" : "") + (bad & 2 ? " brows" : "") + (bad & 4 ? " gap" : "") +
-                   (bad & 8 ? " nose" : "") + (bad & 16 ? " mouth" : ""));
+    for (int col : {1, 2, 7, 8}) if (skinL - lumaOf(at(f, fx + col, fy + 1)) < 60) bad |= 1;      // the lashes
+    if (lumaOf(at(f, fx + 1, fy + 2)) < skinL && lumaOf(at(f, fx + 8, fy + 2)) < skinL) bad |= 2;  // eye whites (A3)
+    if (!(lumaOf(at(f, fx + 5, fy + 3)) < skinL - 8 || lumaOf(at(f, fx + 4, fy + 3)) < skinL - 8)) bad |= 8;
+    if (!(lumaOf(at(f, fx + 5, fy + 4)) < skinL - 20 || lumaOf(at(f, fx + 4, fy + 4)) < skinL - 20)) bad |= 16;
+    if (bad) g.bad(who + ": face missing" + std::string(bad & 1 ? " lashes" : "") + (bad & 2 ? " whites" : "") + (bad & 8 ? " nose" : "") +
+                   (bad & 16 ? " mouth" : ""));
     else g.ok();
   };
-  for (int i = 0; i < 2; i++) face(cut(s, 0, Clip::Idle, 0, i), fmt("down idle %.0f", i));   // (frame 2 is the blink)
-  for (int i = 0; i < 6; i++) face(cut(s, 0, Clip::Walk, 0, i), fmt("down walk %.0f", i));
+  for (int i = 0; i < std::max(1, s.count(0, Clip::Idle)) && i < 2; i++) face(cut(s, 0, Clip::Idle, 0, i), fmt("down idle %.0f", i));   // (frame 2 is the blink)
+  for (int i = 0; i < std::max(1, s.count(0, Clip::Walk)); i++) face(cut(s, 0, Clip::Walk, 0, i), fmt("down walk %.0f", i));
   for (int facing = 0; facing < 2; facing++)
     for (Clip c : {Clip::Idle, Clip::Walk})
       for (int i = 0; i < s.count(facing, c); i++) {
         const Fr f = cut(s, facing, c, 0, i);
         const std::string who = fmt("facing %.0f ", facing) + clipName(c) + fmt(" %.0f", i);
-        if (!f.an || f.an->handRX == kNoAnchor || f.an->handLX == kNoAnchor) { hands.bad(who + ": no hand anchors"); continue; }
+        if (!f.an || f.an->handRX == kNoAnchor || f.an->handLX == kNoAnchor) { hands.bad(who + ": no hand marks"); continue; }
         int skinPx = 0;
         for (int hnd = 0; hnd < 2; hnd++)
           for (int dy = 0; dy < 2; dy++)
-            for (int dx = 0; dx < 2; dx++) {
+            for (int dx = 0; dx < 3; dx++) {   // A3's 3 x 2 hand
               const uint32_t p = hnd ? at(f, f.an->handLX + dx, f.an->handLY + dy) : at(f, f.an->handRX + dx, f.an->handRY + dy);
-              skinPx += chA(p) && std::fabs(lumaOf(p) - skinL) < 60;
+              skinPx += chA(p) && std::fabs(lumaOf(p) - skinL) < 90;
             }
-        if (skinPx < 8) hands.bad(who + fmt(": %.0f of 8 hand pixels in skin", skinPx)); else hands.ok();
+        if (skinPx < 8) hands.bad(who + fmt(": %.0f of 12 hand pixels in skin", skinPx)); else hands.ok();
       }
   if (!s.count(0, Clip::Idle)) hands.bad("no LOCO sheet");
 }
@@ -689,7 +689,7 @@ int rigCmd(int argc, char** argv) {
   std::printf(bad ? "rig: %d failure(s)\n" : "rig: 0 failures\n", bad);
   return bad ? 1 : 0;
 }
-RPG_TEST_CMD("--rig", "P2a rig contract [--gates: R2 R4-R10 P1-P3 H2] [--report]", rigCmd);
+RPG_TEST_CMD("--rig", "P2a rig contract, restated for A3 at P2b [--gates: the doll: R2 R4-R10 P1-P3 H2] [--report]", rigCmd);
 
 // R3: the census's plain looks drawn on v2
 int coverageCmd(int argc, char** argv) {

@@ -1,0 +1,94 @@
+# kin/child/arms/arm_l: the child's left arm
+# The slice (P2b wave 1, FOLK-BODY; to KIN-CHILD in wave 2). The child, 21 px (STYLE_P2 3). Format: rpg/art/doll/doll.h.
+use person
+body child
+role arms std
+layer armNear
+anchor shoulderL
+keys armL
+side L
+
+view D key back origin 1 0
+mark handL 0 1
+|765
+|tsq
+|srq
+|qq.
+
+view D key fwd origin 1 0
+mark handL 0 3
+|765
+|765
+|765
+|tsq
+|srq
+|qq.
+
+view D key idle origin 1 0
+|765
+|765
+|tsq
+|srq
+|qq.
+
+view U key back origin 1 0
+mark handL 0 3
+|597
+|597
+|597
+|qts
+|qsr
+|.qq
+
+view U key fwd origin 1 0
+mark handL 0 1
+|597
+|qts
+|qsr
+|.qq
+
+view U key idle origin 1 0
+|597
+|597
+|qts
+|qsr
+|.qq
+
+view L key B origin 1 0
+mark handL 1 2
+|587..
+|.587.
+|.qtsq
+|.qsrq
+|..qq.
+
+view L key F origin 4 0
+mark handL 0 2
+|...587
+|..587.
+|qtsq..
+|qsrq..
+|.qq...
+
+view L key N origin 2 0
+mark handL 0 2
+|.587
+|.587
+|qtsq
+|qsrq
+|.qq.
+
+view L key idle origin 2 0
+|.587
+|.587
+|qtsq
+|qsrq
+|.qq.
+
+view L key lie origin 2 0
+mark handL 0 2
+|.587
+|.587
+|qtsq
+|qsrq
+|.qq.

@@ -24,6 +24,14 @@ struct AnimPick {
   uint8_t frame = 0;     // rig 1: the v1 sheet column; rig 2: the frame within the clip
   uint8_t frames = 1;    // frames in the clip (rig 1: the v1 columns the clip cycles through)
   float t = 0;           // seconds into the clip (the actor's state time; the walk's distance clock for Walk)
+  // (P2b FOLK-SIM, added) rig 2: the atlas part that holds the frame (rig 1: Loco), the gait and the weapon's state.
+  //   Loco    idle, walk and hurt with any weapon sheathed (variant 0)
+  //   Run     the run cycle (clip Walk) above the gait switch: variant 0 sheathed, 1 drawn
+  //   Action  the drawn idle and walk (clips Idle / Walk, variant 1), the swings, cast, the bow, block and roll
+  //   Death   fall and lying
+  art::RigPart part = art::RigPart::Loco;
+  uint8_t gait = 0;      // 0 walk, 1 run (art::doll::Gait)
+  bool drawn = false;    // a sheathable weapon (sword, axe, dagger, mace / hammer) is in hand
 };
 
 // what a human shows now. Non-humans (monsters, critters) get the Idle pick; the view keeps their own frame logic.
@@ -73,6 +81,35 @@ constexpr float kGreatswordPace = 1.18f;
 constexpr int kWalkCycle = 28;
 int animWalkFrame(int px);
 int animWalkBegin(int px);
+
+// ---- (P2b FOLK-SIM, added) the doll's walk, run and weapon state at rig 2 (VISION_PLAN 15.36 FOLK-SIM; anim.cpp)
+// The run and sheathing are new looks the owner settles at the slice sign-off: each is ONE switch here.
+constexpr bool kRunOn = true;        // movers above art::doll::kGaitSwitch (54 px/s) run (false: everyone walks)
+constexpr bool kSheatheOn = true;    // sheathable weapons ride sheathed out of a fight (false: always drawn, as v1)
+constexpr float kDrawnHold = 4.0f;   // s a weapon stays drawn after the last swing state
+constexpr float kThreatHold = 0.6f;  // s it stays drawn after the last hostile leaves the body's aggro radius
+constexpr float kGaitBack = 2.0f;    // px/s of hysteresis: a runner walks again below kGaitSwitch - kGaitBack
+constexpr float kGaitTau = 0.08f;    // s: the drawn speed's smoothing while moving (a body sets off on its own speed: animSetOff)
+// the walk (gait 0) or run (1) table of the actor's body (its BodySet; an elder's own walk when the pool has one), from
+// art::doll::walkTable; frames 0 when the pool has no clip (the pick then keeps the 28 px kWalkAt table)
+struct WalkTableRef { int frames = 0; float cycle = 0; const float* start = nullptr; int frameAt(float px) const; };
+WalkTableRef animWalkTable(const Actor& a, int gait);
+// the px count a walk starts from on this body's table: its last frame (the passing frame whose planted foot is the
+// idle stance's back foot); animWalkBegin(px) when the body has no table
+int animWalkBegin(const Actor& a, int px);
+// the gait the actor may take (elders and children always walk; kRunOn)
+bool animMayRun(const Actor& a);
+// the sheathable weapon is drawn now (swing, threat, or kSheatheOn off)
+bool animDrawn(const Actor& a);
+// rig 2, once per sim step after the body moved (Game::update): moved = the world px it travelled this step. Smooths the
+// drawn speed (Actor::moveV), picks the gait with the switch at 54 px/s (the walk clock re-phased onto the new table, so
+// the feet never jump a stride), and runs the drawn clock (Actor::drawnT: kDrawnHold after a swing state, kThreatHold
+// while a hostile is within the body's aggro radius)
+void animStep(const Game& g, Actor& a, float moved, float dt);
+// (P2b slice fix, SLICE-RUN-INGAME) rig 2, on the step a body sets off (Game::update, before its walk clock starts):
+// the drawn speed is the step's own (v px/s) and the gait follows it at once, so a body that sets off at a run starts on
+// the run's drawings and table instead of six frames of walk and a mid-stride switch
+void animSetOff(Actor& a, float v);
 
 // the sim's internals the animation needs (Game befriends it; the ANIM lane ADDs here)
 struct AnimOps {

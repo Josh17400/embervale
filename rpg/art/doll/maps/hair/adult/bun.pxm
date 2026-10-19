@@ -1,0 +1,71 @@
+# hair/adult/bun: Bun: the hair drawn back from a centre part into a low chignon at the nape; the ears clear
+# The slice (P2b wave 1, FOLK-BODY; to HAIR in wave 2). On the adult head box (STYLE_P2 21). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role hair bun
+layer hairFront
+anchor head
+keys hairpose
+
+view D key rest origin -2 -2
+|....aaaa....
+|..aaeeddaa..
+|.adeedbccca.
+|addddcbcccba
+|acddc.bccbba
+|acd......cba
+|ab........ba
+
+view U key rest origin -1 -2
+|.....aaaa.....
+|...aaddddaa...
+|..adeeddcccaa.
+|.adeedddcccbba
+|.adddcdccccbba
+|acddcdccbcbbba
+|acdcdcbcbcbbba
+|.acdcadcabbba.
+|..aaadeccbaa..
+|....adecbba...
+|....acdcbba...
+|.....abbba....
+|......aaa.....
+
+view R key rest origin 2 -2
+|......aaaaa.....
+|....aadeeddcaa..
+|...adeedddcccba.
+|..adddddccccccba
+|..acdddcccccba..
+|.aacddccccba....
+|adeacccbba......
+|adecabba........
+|acdcba..........
+|abcbba..........
+|.abba...........
+
+view L key rest origin -2 -2
+|.....aaaaa......
+|..aadeeddcaa....
+|.adeedddcccba...
+|adddddccccccba..
+|..acdddcccccba..
+|....aacddccccba.
+|......adeacccbba
+|........adecabba
+|..........acdcba
+|..........abcbba
+|...........abba.
+
+view L key lie origin -2 -2
+|.....aaaaa...
+|..aadeeddca..
+|.adeedddccca.
+|adddddcccccba
+|..acdddccccca
+|....aacddccca
+|......adedcbb
+|........acabb
+|........acdcb
+|........abcbb
+|.........abba

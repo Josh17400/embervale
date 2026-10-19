@@ -80,6 +80,10 @@ struct Actor {
   Vec2 p, vel, knock, aim{0, 1};
   int face = 0;            // 0 down, 1 up, 2 right, 3 left
   float animT = 0;
+  // (P2b FOLK-SIM, never saved; rig 2, rpg/sim/anim.cpp animStep) the drawn speed smoothed (px/s), the gait (0 walk,
+  // 1 run) and the seconds a sheathable weapon stays drawn
+  float moveV = 0, drawnT = 0;
+  uint8_t gait = 0;
   float hp = 10, maxHp = 10, dmg = 1, speed = 40, armor = 0, radius = 5;
   float range = 14, aggroR = 100, windup = 0.3f;
   AState st = AState::Idle;

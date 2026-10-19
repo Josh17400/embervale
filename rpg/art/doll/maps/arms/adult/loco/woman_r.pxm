@@ -1,0 +1,130 @@
+# arms/adult/loco/woman_r: the woman's right arm (bare below the chemise's puff sleeve)
+# The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role arms std
+layer armNear
+anchor shoulderR
+keys armR
+side R
+
+view D key down origin 1 -4
+|qts
+|qsr
+|qsr
+|qts
+|qsr
+|.qq
+
+view D key down1 origin 1 -4
+|qts
+|qsr
+|qts
+|qsr
+|.qq
+
+view D key idle origin 1 -4
+|qts
+|qsr
+|qts
+|qsr
+|.qq
+
+view D key runF origin 1 -4
+|qts
+|qsr
+|.qq
+
+view D key up origin 1 -4
+|qts
+|qts
+|qsr
+|qqq
+
+view D key up1 origin 1 -4
+|qts
+|qts
+|qts
+|qsr
+|..q
+
+view D key lap origin 1 -4
+|qts..
+|qsr..
+|.qts.
+|.qsr.
+|..qts
+|..qsr
+|...qq
+
+view U key down origin 1 -4
+|srq
+|rrq
+|rrq
+|tsq
+|srq
+|qq.
+
+view U key idle origin 1 -4
+|srq
+|rrq
+|tsq
+|srq
+|qq.
+
+view U key runF origin 1 -4
+|srq
+|rrq
+|qq.
+
+view U key up origin 1 -4
+|srq
+|tsq
+|srq
+|qqq
+
+view U key lap origin 1 -4
+|srq
+|rrq
+|rqq
+
+view R key B origin 3 -4
+|..qtsq
+|.qsrq.
+|qtsq..
+|qsrq..
+|.qq...
+
+view R key F origin -1 -4
+|qtsq..
+|.qsrq.
+|..qtsq
+|..qsrq
+|...qq.
+
+view R key N origin 0 -4
+|qtsq
+|qsrq
+|qtsq
+|qsrq
+|.qq.
+
+view R key idle origin 0 -4
+|qtsq
+|qsrq
+|qtsq
+|qsrq
+|.qq.
+
+view R key runB origin 3 -4
+|..qtsq
+|.qsrq.
+|qtsq..
+|qsrq..
+|.qq...
+
+view R key runF origin 0 -4
+|qtsq.qq.
+|.qssqtsq
+|....qsrq
+|.....qq.

@@ -1,0 +1,149 @@
+# P2b New People: the owner pack's lineups in the engine (FOLK-BODY; STYLE_P2 19 item 6): seed 7, rig 2, the meadow by
+# OSLARS cleared, NEAR (D4), the world alone (`ui 0`), the hero's body hidden; each row (`slicelineup`) turned to the four
+# facings (`slicelineup face`): the variety lineup (12 people of three cultures), the armour row (mail and the nasal helm
+# on both bodies, the hood), the elders and children, A3's villager swaps.
+# Each row also leaves its empty ground (p2b_pack_<row>_empty.png: the row cleared, the same camera) for the crop masks.
+# Then Sit on real seats: the variety row (both bodies) seated by `seatall` in the start village's inn, NEAR (D4) and
+# NORMAL (D3). tools/doll/owner_pack.py runs this script and assembles the owner pack (STYLE_P2 19 item 6) from it.
+#   embervale.exe --script tools/scripts/p2b_slice_pack.txt      (p2b_pack_<row>_<facing>.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.0 hair short copper
++0.1 slicelook a3
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 slicelook a3
++0.1 ui 0
++0.0 ring 0
+# ---- variety
++0.1 slicelineup variety
++0.1 hideplayer 1
++0.1 zoom near
++0.4 expect doll covered
++0.1 slicelineup face 0
++0.3 shot p2b_pack_variety_down.png
++0.1 slicelineup face 2
++0.3 shot p2b_pack_variety_right.png
++0.1 slicelineup face 3
++0.3 shot p2b_pack_variety_left.png
++0.1 slicelineup face 1
++0.3 shot p2b_pack_variety_up.png
++0.1 slicelineup clear
++0.3 shot p2b_pack_variety_empty.png
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- armour
++0.1 slicelineup armour
++0.1 hideplayer 1
++0.1 zoom near
++0.4 expect doll covered
++0.1 slicelineup face 0
++0.3 shot p2b_pack_armour_down.png
++0.1 slicelineup face 2
++0.3 shot p2b_pack_armour_right.png
++0.1 slicelineup face 3
++0.3 shot p2b_pack_armour_left.png
++0.1 slicelineup face 1
++0.3 shot p2b_pack_armour_up.png
++0.1 slicelineup clear
++0.3 shot p2b_pack_armour_empty.png
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- elders
++0.1 slicelineup elders
++0.1 hideplayer 1
++0.1 zoom near
++0.4 expect doll covered
++0.1 slicelineup face 0
++0.3 shot p2b_pack_elders_down.png
++0.1 slicelineup face 2
++0.3 shot p2b_pack_elders_right.png
++0.1 slicelineup face 3
++0.3 shot p2b_pack_elders_left.png
++0.1 slicelineup face 1
++0.3 shot p2b_pack_elders_up.png
++0.1 slicelineup clear
++0.3 shot p2b_pack_elders_empty.png
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- swaps
++0.1 slicelineup swaps
++0.1 hideplayer 1
++0.1 zoom near
++0.4 expect doll covered
++0.1 slicelineup face 0
++0.3 shot p2b_pack_swaps_down.png
++0.1 slicelineup face 2
++0.3 shot p2b_pack_swaps_right.png
++0.1 slicelineup face 3
++0.3 shot p2b_pack_swaps_left.png
++0.1 slicelineup face 1
++0.3 shot p2b_pack_swaps_up.png
++0.1 slicelineup clear
++0.3 shot p2b_pack_swaps_empty.png
++0.1 hideplayer 0
++0.1 zoom normal
+# ---- the hero's fall and lying, both sides (variant 0 west, 1 east), the sword dropped beside the hand; then the run
++0.1 slicelineup clear
++0.1 zoom near
++0.1 walk south 0.12
++0.2 walk south 0.12
++0.3 pose fall sword 0 0
++0.2 shot p2b_pack_fall_down_v0_f0.png
++0.3 pose fall sword 0 1
++0.2 shot p2b_pack_fall_down_v0_f1.png
++0.3 pose fall sword 0 2
++0.2 shot p2b_pack_fall_down_v0_f2.png
++0.3 pose lying sword 0 0
++0.2 shot p2b_pack_lying_down_v0.png
++0.3 pose fall sword 1 0
++0.2 shot p2b_pack_fall_down_v1_f0.png
++0.3 pose fall sword 1 1
++0.2 shot p2b_pack_fall_down_v1_f1.png
++0.3 pose fall sword 1 2
++0.2 shot p2b_pack_fall_down_v1_f2.png
++0.3 pose lying sword 1 0
++0.2 shot p2b_pack_lying_down_v1.png
++0.1 pose off
++0.2 walk east 0.12
++0.3 pose fall sword 0 0
++0.2 shot p2b_pack_fall_right_v0_f0.png
++0.3 pose fall sword 0 1
++0.2 shot p2b_pack_fall_right_v0_f1.png
++0.3 pose fall sword 0 2
++0.2 shot p2b_pack_fall_right_v0_f2.png
++0.3 pose lying sword 0 0
++0.2 shot p2b_pack_lying_right_v0.png
++0.3 pose fall sword 1 0
++0.2 shot p2b_pack_fall_right_v1_f0.png
++0.3 pose fall sword 1 1
++0.2 shot p2b_pack_fall_right_v1_f1.png
++0.3 pose fall sword 1 2
++0.2 shot p2b_pack_fall_right_v1_f2.png
++0.3 pose lying sword 1 0
++0.2 shot p2b_pack_lying_right_v1.png
++0.1 pose off
++0.1 zoom normal
+# ---- Sit on real seats (the inn: chairs and benches in several facings)
++0.1 hideplayer 0
++0.1 ui 1
++0.2 enter inn
++1.0 slicelineup variety
++0.2 slicelineup face 0
++0.3 seatall
++0.1 zoom near
++1.5 shot p2b_pack_sit_inn_d4.png
++0.1 ui 0
++0.0 hideplayer 1
++0.2 shot p2b_pack_sit_inn_d4_world.png
++0.1 zoom normal
++0.5 shot p2b_pack_sit_inn_d3_world.png
++0.1 hideplayer 0
++0.1 ui 1
++0.2 quit

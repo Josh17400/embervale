@@ -1,0 +1,140 @@
+# wear/woman/tunic: the woman's shirt over trousers: fitted, cap sleeves, a belt, the hem at the hips (her waist a pixel in)
+# The slice (P2b wave 1, FOLK-BODY; to GARB-M / GARB-W in wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role garment tunic
+layer torso
+anchor neck
+keys torso
+
+view D key drawn origin 8 -1
+|......qrrq......
+|5887588877757775
+|5876877666657665
+|5766887776656665
+|...5877766665...
+|...5887776765...
+|...5877766765...
+|...6877765865...
+|...fihhhPOhgf...
+|..598688687765..
+
+view D key drawn origin 8 -2 when elder
+|-..............-
+
+view D key rest origin 8 -1
+|......qrrq......
+|5887588877757775
+|5876877666657665
+|5766887776656665
+|...5877766665...
+|...5887776765...
+|...5877766765...
+|...6877765865...
+|...fihhhPOhgf...
+|..598688687765..
+
+view D key rest origin 8 -2 when elder
+|-..............-
+
+view D key swing origin 8 -1
+|......qrrq......
+|5887588877757775
+|5876877666657665
+|5766887776656665
+|...5877766665...
+|...5887776765...
+|...5877766765...
+|...6877765865...
+|...fihhhPOhgf...
+|..598688687765..
+
+view D key swing origin 8 -2 when elder
+|-..............-
+
+view U key rest origin 8 -1
+|.....qrrrrrq....
+|5887588777767765
+|5876658777767665
+|5766887777666665
+|...5587777655...
+|...8877557666...
+|...6576766656...
+|...6775775676...
+|...fihhhhhggf...
+|..598885888765..
+
+view U key rest origin 8 -2 when elder
+|-..............-
+
+view R key rest origin 6 -1
+|......qrrqq..
+|..585887755..
+|..585877655..
+|..585766575..
+|..58777776...
+|5686677777585
+|.55877776785.
+|..5877776785.
+|..fihhhhhggf.
+|.59868868765.
+
+view R key rest origin 4 -2 when elder
+|-
+
+view R key swing origin 6 -1
+|......qrrqq..
+|..585887755..
+|..585877655..
+|..585766575..
+|..58777776...
+|5686677777585
+|.55877776785.
+|..5877776785.
+|..fihhhhhggf.
+|.59868868765.
+
+view R key swing origin 4 -2 when elder
+|-
+
+view L key lie origin 7 -1
+|..qqrrq....
+|..558877565
+|.5587766565
+|..576657765
+|...88777765
+|58577766665
+|.5877677765
+|.5877677765
+|.fihhhhhggf
+|.....588685
+
+view L key rest origin 7 -1
+|..qqrrq......
+|..558877565..
+|.5587766565..
+|..576657765..
+|...88777765..
+|5857776666865
+|.58776777655.
+|.5877677765..
+|.fihhhhhggf..
+|.598688868765
+
+view L key rest origin -3 -2 when elder
+|-
+
+view L key swing origin 7 -1
+|..qqrrq......
+|..558877565..
+|.5587766565..
+|..576657765..
+|...88777765..
+|5857776666865
+|.58776777655.
+|.5877677765..
+|.fihhhhhggf..
+|.598688868765
+
+view L key swing origin -3 -2 when elder
+|-

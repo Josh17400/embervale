@@ -344,4 +344,26 @@ void paintBow(Fig& f, const Kit& K, int bowX, int bowY, int aim, int half, int s
               int& tipY);
 
 }  // namespace rig2
+
+// (P2b phase A, lead) the procedural rig DETACHED: its public entry points renamed, so art::humanPosture2, sleeper2,
+// seatFit2, bedFit2, rig2Covers, humanFigureStill2 and humanoidCell2 are the doll's (art_rig.cpp, rpg/art/doll). Nothing in
+// the game calls these; tools/preview/rigdraft.cpp exports their pose numbers and pixels once as drafts. The P2c flip
+// deletes rpg/art/rig with v1.
+bool legacyRig2Covers(const HumanLook& L);
+Canvas legacyFigureStill2(const HumanLook& look, int facing);
+RigSheet legacyPosture2(const HumanLook& look, Posture p, uint8_t variant);
+SeatFit legacySeatFit2(Prop seat, int kit, int facing);
+BedFit legacyBedFit2(Berth b, int kit);
+Canvas legacySleeper2(const HumanLook& look, Berth b, int kit, int frame);
+int legacyHumanoidCellW2(int species);
+int legacyHumanoidCellH2(int species);
+Canvas legacyHumanoidCell2(int species, int frame);
+inline RigSheet legacyRig(const HumanLook& look, RigPart part) {
+  switch (part) {
+    case RigPart::Loco: return rig2::rigLoco(look);
+    case RigPart::Action: return rig2::rigAction(look);
+    case RigPart::Death: return rig2::rigDeath(look);
+    default: return RigSheet();
+  }
+}
 }  // namespace art

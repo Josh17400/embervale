@@ -1,0 +1,52 @@
+# wear/man/robe_sleeve_r: the Robe's wide sleeve over the arm: the forearm in the robe's cloth, the cuff flaring at the wrist
+# The slice (P2b wave 1, FOLK-BODY; to GARB-M / GARB-W in wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person
+body man
+role garment robe
+layer armNear
+anchor shoulderR
+keys armR
+side R
+z 1
+
+view D key back origin 2 -4
+|.587
+|5587
+
+view D key fwd origin 2 -6
+|.587
+|5587
+
+view D key idle origin 2 -5
+|.587
+|5587
+
+view U key back origin 2 -5
+|5765.
+|.7655
+
+view U key fwd origin 2 -5
+|57655
+
+view U key idle origin 1 -5
+|765.
+|7655
+
+view R key B origin 3 -5
+|.58765
+|58765.
+
+view R key F origin -2 -5
+|58765.
+|.58765
+
+view R key N origin 0 -5
+|58765
+|58765
+
+view R key idle origin 0 -5
+|58765
+|58765
+
+view L key back origin 0 0
+|.

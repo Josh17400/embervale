@@ -791,7 +791,10 @@ void Game::update(float dt, const Input& in) {
         const float drawn = std::fabs(s.x) >= std::fabs(s.y) ? std::fabs(std::floor(a.p.x + 0.5f) - std::floor(w->p.x + 0.5f))
                                                               : std::fabs(std::floor(a.p.y + 0.5f) - std::floor(w->p.y + 0.5f));
         int n = (int)std::floor(a.animT * sp + 0.5f);   // the whole px walked so far (animT keeps them over the speed)
-        if (!w->walking) n = animWalkBegin(n);
+        if (!w->walking) {   // (P2b) setting off: the gait by the step's own speed, then the body's own walk / run table
+          if (dt > 0) animSetOff(a, d / dt);
+          n = animWalkBegin(a, n);
+        }
         const float before = (float)n / sp;
         a.animT = (float)(n + (int)drawn) / sp;
         // the hero's footstep every 0.29 s of walk clock (updatePlayer's rule at rig 1), counted here where the clock
@@ -802,6 +805,9 @@ void Game::update(float dt, const Input& in) {
           if (!homeRiding()) sfx((int)Sfx::Step, a.p, pitch, 0.5f);
         }
       } else a.animT += dt;
+      // (P2b FOLK-SIM) the gait (switch at 54 px/s, the drawn speed smoothed), the walk clock re-phased on a switch, and
+      // the sheathed / drawn clock (rpg/sim/anim.cpp animStep)
+      animStep(*this, a, d >= 0 && d < 32.0f ? d : -1.0f, dt);
     }
   }
 }

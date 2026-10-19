@@ -1,0 +1,180 @@
+# rpg/art/doll/clips/death.clip: the adult bodies' DEATH clips (FOLK-BODY; the P2b style slice). Format: rpg/art/doll/doll.h.
+# Fall (STYLE_P2 13; 0.10, 0.12, 0.12 s): recoil (the body jolts up, the hurt face, the head snapped back), buckle (the knees
+# give way, the head bowed), topple (the lying figure itself, 2 px up and 2 px toward where the body stood). Variant 0 falls
+# west (head west), 1 east. Lying (SLICE-LYING-READ): the left view laid down by the doll's turn (by variant: 0 west, 1 east;
+# one lying clip serves every facing) from painted lying keys (STYLE_P2 24): legs straight with the boots toes-up (`lie`),
+# the near arm limp along the side with the hand on the ground (`lie`), the garment and the skirt draped to the ground
+# (torso / hang `lie`), the hair pressed flat under the head (hairpose / hair `lie`: no lock below the back; a hood's drape the same, hatpose), the scarf's
+# tail tucked (neck `lie`), the head forward 2 px so the skull's back rests on the ground with the back's; eyes closed. The
+# body is 15 px tall. The sword lies on the ground in front, its grip under the hand (held `drop`, 4 px under the body's
+# back): the sword's own clips (family sword, first, so they win) lift the pivot 4 px back onto the body's back, so the
+# contact shadow and the corpse's baseline stay under the body.
+
+body man
+clip fall D variant 0 family sword
+f armL=idle armR=idle legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1
+f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=0,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,2
+clip fall D variant 1 family sword
+f armL=idle armR=idle legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1
+f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=0,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,2
+clip fall U variant 0 family sword
+f armL=idle armR=idle legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest bob=3 head=0,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,2
+clip fall U variant 1 family sword
+f armL=idle armR=idle legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest bob=3 head=0,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,2
+clip fall R variant 0 family sword
+f armL=- armR=idle hilt=idle legs=idle neck=rest sheath=rest torso=idle expr=hurt bob=-1 lean=-1
+f armL=- armR=idle hilt=idle legs=buckle neck=rest sheath=rest torso=idle expr=hurt bob=3 head=1,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,2
+clip fall R variant 1 family sword
+f armL=- armR=idle hilt=idle legs=idle neck=rest sheath=rest torso=idle expr=hurt bob=-1 lean=-1
+f armL=- armR=idle hilt=idle legs=buckle neck=rest sheath=rest torso=idle expr=hurt bob=3 head=1,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,2
+clip fall L variant 0 family sword
+f armL=idle armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 lean=1
+f armL=idle armR=- hilt=rest legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=-1,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,2
+clip fall L variant 1 family sword
+f armL=idle armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 lean=1
+f armL=idle armR=- hilt=rest legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=-1,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,2
+clip lying L variant 0 family sword
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 at=0,4
+clip lying L variant 1 family sword
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 at=0,4
+clip fall D variant 0
+f armL=idle armR=idle legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1
+f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=0,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,-2
+clip fall D variant 1
+f armL=idle armR=idle legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1
+f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=0,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,-2
+clip fall U variant 0
+f armL=idle armR=idle legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest bob=3 head=0,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,-2
+clip fall U variant 1
+f armL=idle armR=idle legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+f armL=idle armR=idle legs=buckle neck=rest sheath=rest torso=rest bob=3 head=0,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,-2
+clip fall R variant 0
+f armL=- armR=idle hilt=idle legs=idle neck=rest sheath=rest torso=idle expr=hurt bob=-1 lean=-1
+f armL=- armR=idle hilt=idle legs=buckle neck=rest sheath=rest torso=idle expr=hurt bob=3 head=1,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,-2
+clip fall R variant 1
+f armL=- armR=idle hilt=idle legs=idle neck=rest sheath=rest torso=idle expr=hurt bob=-1 lean=-1
+f armL=- armR=idle hilt=idle legs=buckle neck=rest sheath=rest torso=idle expr=hurt bob=3 head=1,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,-2
+clip fall L variant 0
+f armL=idle armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 lean=1
+f armL=idle armR=- hilt=rest legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=-1,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,-2
+clip fall L variant 1
+f armL=idle armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 lean=1
+f armL=idle armR=- hilt=rest legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=-1,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,-2
+clip lying L variant 0
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0
+clip lying L variant 1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0
+
+body woman
+clip fall D variant 0 family sword
+f armL=idle armR=idle hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1
+f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=0,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,2
+clip fall D variant 1 family sword
+f armL=idle armR=idle hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1
+f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=0,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,2
+clip fall U variant 0 family sword
+f armL=idle armR=idle hair=rest hang=idle legs=idle torso=rest bob=-1 head=0,-1
+f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest bob=3 head=0,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,2
+clip fall U variant 1 family sword
+f armL=idle armR=idle hair=rest hang=idle legs=idle torso=rest bob=-1 head=0,-1
+f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest bob=3 head=0,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,2
+clip fall R variant 0 family sword
+f armL=- armR=idle hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=-1
+f armL=- armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=1,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,2
+clip fall R variant 1 family sword
+f armL=- armR=idle hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=-1
+f armL=- armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=1,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,2
+clip fall L variant 0 family sword
+f armL=idle armR=- hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=1
+f armL=idle armR=- hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=-1,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,2
+clip fall L variant 1 family sword
+f armL=idle armR=- hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=1
+f armL=idle armR=- hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=-1,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,2
+clip lying L variant 0 family sword
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 at=0,4
+clip lying L variant 1 family sword
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 at=0,4
+clip fall D variant 0
+f armL=idle armR=idle hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1
+f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=0,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,-2
+clip fall D variant 1
+f armL=idle armR=idle hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1
+f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=0,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,-2
+clip fall U variant 0
+f armL=idle armR=idle hair=rest hang=idle legs=idle torso=rest bob=-1 head=0,-1
+f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest bob=3 head=0,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,-2
+clip fall U variant 1
+f armL=idle armR=idle hair=rest hang=idle legs=idle torso=rest bob=-1 head=0,-1
+f armL=idle armR=idle hair=rest hang=kneel legs=idle torso=rest bob=3 head=0,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,-2
+clip fall R variant 0
+f armL=- armR=idle hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=-1
+f armL=- armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=1,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,-2
+clip fall R variant 1
+f armL=- armR=idle hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=-1
+f armL=- armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=1,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,-2
+clip fall L variant 0
+f armL=idle armR=- hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=1
+f armL=idle armR=- hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=-1,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=west at=2,-2
+clip fall L variant 1
+f armL=idle armR=- hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 lean=1
+f armL=idle armR=- hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=-1,1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0 turn=east at=-2,-2
+clip lying L variant 0
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0
+clip lying L variant 1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-2,0
+
+# Elders lie with the same body: their side views carry the head 1 px forward already (the stoop), so the lying head
+# moves 1 px, not 2 (the falls are the adult's)
+body man.elder
+clip lying L variant 0 family sword
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-1,0 at=0,4
+clip lying L variant 1 family sword
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-1,0 at=0,4
+clip lying L variant 0
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-1,0
+clip lying L variant 1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-1,0
+body woman.elder
+clip lying L variant 0 family sword
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-1,0 at=0,4
+clip lying L variant 1 family sword
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-1,0 at=0,4
+clip lying L variant 0
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-1,0
+clip lying L variant 1
+f armL=lie armR=- hilt=- legs=lie neck=lie sheath=- torso=lie hang=lie hair=lie held=drop expr=closed hairpose=lie hatpose=lie head=-1,0

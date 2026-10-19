@@ -1,0 +1,51 @@
+# a3/woman/shoes: a draft of A3's parts (tools/doll/from_a3.py; docs/ref/style_a3). A starting point: hand-check it.
+part a3/woman/shoes
+tags draft a3
+use person
+use woman
+body woman
+role legs tips
+layer belt
+anchor pivot
+keys legs
+z -1
+
+view D key L origin 4 1
+|fih
+|KKK
+
+view D key R origin -1 1
+|fhg
+|KKK
+
+view U key L origin 4 1
+|fhg
+|KKK
+
+view U key R origin -1 1
+|fhg
+|KKK
+
+view R key A origin 7 1
+|fhgf.....fihhgf
+|KKKK.....KKKKKK
+
+view R key B origin 1 1
+|fihhgf
+|KKKKKK
+
+view R key C origin 7 1
+|fihf.....fhhggf
+|KKKK.....KKKKKK
+
+view L key A origin 8 1
+|fihhgf.....fhgf
+|KKKKKK.....KKKK
+
+view L key B origin 5 1
+|fihhgf
+|KKKKKK
+
+view L key C origin 8 1
+|fhhggf.....fihf
+|KKKKKK.....KKKK

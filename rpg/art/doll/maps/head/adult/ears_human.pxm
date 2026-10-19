@@ -1,0 +1,27 @@
+# head/adult/ears_human: human ears on the adult head box (under the hair: long styles hide them)
+# The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role ears human
+layer head
+anchor head
+keys rest
+z 1
+
+view D key rest origin 0 -9
+|qt............sq
+|qs............rq
+
+view U key rest origin 0 -9
+|qt............sq
+|qs............rq
+
+view R key rest origin -6 -9
+|ts
+|sr
+|qr
+
+view L key rest origin -8 -9
+|ts
+|sr
+|rq

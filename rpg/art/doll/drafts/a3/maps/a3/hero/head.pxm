@@ -1,0 +1,78 @@
+# a3/hero/head: a draft of A3's parts (tools/doll/from_a3.py; docs/ref/style_a3). A starting point: hand-check it.
+part a3/hero/head
+tags draft a3
+use person
+body man
+role head oval
+role hair tousled
+role nose button
+role brow straight
+role ears human
+layer head
+anchor head
+keys rest
+
+view D key rest origin 0 0
+mark face 3 8
+|.........aa.....
+|.....aaa.adca...
+|...aaddddaddcca.
+|..adeeeddddccca.
+|.adeedddccccbba.
+|.addddcccccbbba.
+|.acddbddcbccbba.
+|.acdtttcbttsbba.
+|.abcbbtcbsbbbba.
+|qtbt##tsss##rbsq
+|qsbt@EtsssE@rbrq
+|..qt@GssrsG@rq..
+|...qtsssMssrq...
+|....qssssrrq....
+
+view U key rest origin 0 0
+|.....aa.........
+|...adea.aaa.....
+|.aaddcdddddca...
+|.addddcddddcca..
+|.adeeeeddddccba.
+|.aedddcdddcccba.
+|.acdcbdccbccbba.
+|.acdcbccbcbcbba.
+|.accbcccbccbbba.
+|qtbcbccbcbcbbbsq
+|qsabcbccbcbbbarq
+|..abbaccbacba...
+|...aqrrrrrqa....
+|.....qrrrrq.....
+
+view R key rest origin 2 0
+|..........aa......
+|......aaaaadca....
+|.....addeedddcca..
+|....adeeedddcccca.
+|...adeedddccccccba
+|..adddddccccccccba
+|.acddccbccccbcccba
+|abcddccbccccbcccca
+|..abccbccbcctbbtq.
+|..accbcctsbtt##tq.
+|.abccbcbsrbts@Essq
+|..aabbbaqrssssssq.
+|.....aaqrqrssssMq.
+|.......qrrqqrssq..
+
+view L key rest origin 0 0
+|......aa..........
+|....addaaaaa......
+|..adeddddccca.....
+|.adeeedddcccca....
+|addeedddcccccba...
+|addddddccccccbba..
+|acddccbccccbccbba.
+|acddccccbccccbcbba
+|.qtbbtccbccbccba..
+|.qt##tsbtscbcbba..
+|qttE@ssbsrbcbcbba.
+|.qttssssrqabbbaa..
+|.qMssssrqrqaa.....
+|..qssrqqrrq.......

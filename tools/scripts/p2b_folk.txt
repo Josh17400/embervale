@@ -1,0 +1,84 @@
+# P2b New People: THE FOLK on the 1440x810 desktop (VISION_PLAN 15.36 "Tests and scripts": lineups of every people by
+# role, sex and age at 11:00 and 22:00; B7 "peoples told apart by their lineups in 10 seconds", B9 the man / woman fit;
+# phase A harness, frozen). Seed 7, rig 2, NORMAL (D3): `lineup <people> <role> [n] [sex] [age]` puts a row of census
+# people east of the hero (census::dress, as the world dresses them); each row is shot, then replaced.
+#   embervale.exe --script tools/scripts/p2b_folk.txt           (p2b_folk_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.2 walk south 0.3
+# ---- every people's villagers, women and men by turns
++0.3 lineup fjordfolk villager 8 mixed
++0.5 shot p2b_folk_fjordfolk.png
++0.1 lineup highland villager 8 mixed
++0.5 shot p2b_folk_highland.png
++0.1 lineup heartland villager 8 mixed
++0.5 shot p2b_folk_heartland.png
++0.1 lineup imperial villager 8 mixed
++0.5 shot p2b_folk_imperial.png
++0.1 lineup dune villager 8 mixed
++0.5 shot p2b_folk_dune.png
++0.1 lineup steppe villager 8 mixed
++0.5 shot p2b_folk_steppe.png
++0.1 lineup marsh villager 8 mixed
++0.5 shot p2b_folk_marsh.png
++0.1 lineup jade villager 8 mixed
++0.5 shot p2b_folk_jade.png
++0.1 lineup river villager 8 mixed
++0.5 shot p2b_folk_river.png
++0.1 lineup suntemple villager 8 mixed
++0.5 shot p2b_folk_suntemple.png
++0.1 lineup sylvan villager 8 mixed
++0.5 shot p2b_folk_sylvan.png
++0.1 lineup starspire villager 8 mixed
++0.5 shot p2b_folk_starspire.png
+# ---- the trades read from their looks (the smith's apron, the farmer's smock, the hunter's jerkin...)
++0.1 lineup heartland smith 4 mixed
++0.5 shot p2b_folk_smiths.png
++0.1 lineup heartland farmer 4 mixed
++0.5 shot p2b_folk_farmers.png
++0.1 lineup heartland hunter 4 mixed
++0.5 shot p2b_folk_hunters.png
++0.1 lineup heartland innkeeper 4 mixed
++0.5 shot p2b_folk_innkeepers.png
++0.1 lineup heartland priest 4 mixed
++0.5 shot p2b_folk_priests.png
++0.1 lineup heartland merchant 4 mixed
++0.5 shot p2b_folk_merchants.png
++0.1 lineup fjordfolk fisher 4 mixed
++0.5 shot p2b_folk_fishers.png
++0.1 lineup imperial herbalist 4 mixed
++0.5 shot p2b_folk_herbalists.png
+# ---- ages: children, youths, elders
++0.1 lineup heartland child 8 mixed child
++0.5 shot p2b_folk_children.png
++0.1 lineup heartland child 8 mixed youth
++0.5 shot p2b_folk_youths.png
++0.1 lineup heartland villager 8 mixed elder
++0.5 shot p2b_folk_elders.png
++0.1 lineup sylvan villager 8 mixed elder
++0.5 shot p2b_folk_elders_sylvan.png
+# ---- the man / woman fit: the same people and role, all men then all women
++0.1 lineup jade villager 8 male
++0.5 shot p2b_folk_jade_men.png
++0.1 lineup jade villager 8 female
++0.5 shot p2b_folk_jade_women.png
++0.1 lineup steppe villager 8 male
++0.5 shot p2b_folk_steppe_men.png
++0.1 lineup steppe villager 8 female
++0.5 shot p2b_folk_steppe_women.png
+# ---- 22:00 (the night lift on the folk)
++0.1 hour 22
++0.3 lineup heartland villager 8 mixed
++0.6 shot p2b_folk_night_heartland.png
++0.1 ui 0
++0.2 shotpair p2b_folk_night_world.png p2b_folk_night_nohero.png
++0.1 ui 1
++0.1 lineup dune villager 8 mixed
++0.6 shot p2b_folk_night_dune.png
++0.1 hour 11

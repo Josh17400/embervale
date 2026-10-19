@@ -1,0 +1,64 @@
+# P2b New People: THE HOLDERS on the doll's bodies, 1440x810 at NORMAL (D3) (VISION_PLAN 15.36 B12 and P2a H2 / H3:
+# gate, arch and city-gate clearance 1.25 of the body or more, the hedge, the rowboat's gunwale and the deck rail; phase A
+# harness, frozen). Seed 7, rig 2: the cottage door, the inn's seats, a bed, a fence and a hedge, the rowboat and the
+# sloop with the hero aboard, the capital's gate; then rig 1 at the same village spot. Shot pairs (`shotpair`, `ui 0`)
+# where a figure is measured against what it uses (witness measure box, p2_measure.mjs mask).
+#   embervale.exe --script tools/scripts/p2b_holders.txt        (p2b_holders_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.3 shot p2b_holders_village.png
+# ---- the cottage door: in and back out, on the doorstep facing out
++0.1 enter hut
++0.5 walkto exit 20
++0.6 ui 0
++0.2 shotpair p2b_holders_door.png p2b_holders_door_nohero.png
++0.1 ui 1
+# ---- the inn: every seat taken by the nearest townsfolk
++0.2 enter inn
++0.5 seatall
++1.5 shot p2b_holders_inn.png
++0.1 leave
+# ---- a hut's bed at night
++0.2 hour 23
++0.2 enter hut
++0.3 seatall sleep
++1.5 shot p2b_holders_bed.png
++0.1 leave
++0.2 hour 11
+# ---- the harbour: the rowboat and the sloop, the hero aboard
++0.2 sea port
++1.0 boat give rowboat
++0.5 boat board
++1.0 ui 0
++0.2 shotpair p2b_holders_rowboat.png p2b_holders_rowboat_nohero.png
++0.1 ui 1
++0.2 boat leave
++0.5 boat give sloop
++0.5 boat board
++1.0 ui 0
++0.2 shotpair p2b_holders_sloop.png p2b_holders_sloop_nohero.png
++0.1 ui 1
++0.2 boat leave
+# ---- the capital: the market's stalls and carts, the city gate (the passage's clearance over the body)
++0.3 travel city 40
++0.1 waittravel
++0.5 cityspot heart
++0.6 shot p2b_holders_market.png
++0.3 gate 1 out
++0.6 ui 0
++0.2 shotpair p2b_holders_gate.png p2b_holders_gate_nohero.png
++0.1 ui 1
++0.2 gate 1 on
++0.6 shot p2b_holders_gate_on.png
+# ---- the same village spot on rig 1 (today's holders and people)
++0.3 travel start
++0.1 waittravel
++0.5 rig 1
++0.0 expect rig 1
++0.6 shot p2b_holders_village_rig1.png

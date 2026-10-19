@@ -1,0 +1,62 @@
+# a3/woman/arm_l: a draft of A3's parts (tools/doll/from_a3.py; docs/ref/style_a3). A starting point: hand-check it.
+part a3/woman/arm_l
+tags draft a3
+use person
+use woman
+body woman
+role arms std
+layer armNear
+anchor shoulderL
+keys armL
+side L
+
+view D key down origin 1 -4
+|srq
+|rrq
+|rrq
+|tsq
+|srq
+|qq.
+
+view D key up origin 1 -4
+|srq
+|tsq
+|srq
+|qq.
+|5--
+
+view U key down origin 1 -4
+|qts
+|qsr
+|qsr
+|qts
+|qsr
+|.qq
+
+view U key up origin 1 -4
+|qts
+|qts
+|qsr
+|.qq
+|--5
+
+view L key B origin 1 -4
+|qtsq..
+|.qsrq.
+|..qtsq
+|..qsrq
+|...qq.
+
+view L key F origin 5 -4
+|..qtsq
+|.qsrq.
+|qtsq..
+|qsrq..
+|.qq...
+
+view L key N origin 2 -4
+|qtsq
+|qsrq
+|qtsq
+|qsrq
+|.qq.

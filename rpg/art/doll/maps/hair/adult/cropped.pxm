@@ -1,0 +1,54 @@
+# hair/adult/cropped: Cropped: close on the sides, a short top, the ears and the brows clear
+# The slice (P2b wave 1, FOLK-BODY; to HAIR in wave 2). On the adult head box (STYLE_P2 21). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role hair cropped
+layer hairFront
+anchor head
+keys rest
+
+view D key rest origin -2 -2
+|...aaaaaa...
+|.aadeeddcaa.
+|adeedddccbba
+|adddcccccbba
+|acdcbccbcbba
+|ab........ba
+|ab........ba
+|a..........a
+
+view U key rest origin -2 -2
+|...aaaaaa...
+|.aaddddccaa.
+|adeeddcccbba
+|adddcdccbbba
+|acdcbcbcbbba
+|acbcbcbcbbba
+|abcbcbcbbbba
+|abbcbbcbbbba
+|.abbbbbbbba.
+|..aabbbbaa..
+
+view R key rest origin -1 -2
+|....aaaaaaa...
+|..aadeeddcaa..
+|.adeeddddccbaa
+|adddddccccccba
+|acdddcccccba..
+|acddcccba.....
+|abccbba.......
+|abba...a......
+|abba..........
+|.aa...........
+
+view L key rest origin -1 -2
+|...aaaaaaa....
+|..aadeeddcaa..
+|adeeddddccbaa.
+|adddddccccccba
+|..acdddcccccba
+|.....acddcccba
+|.......abccbba
+|......a...abba
+|..........abba
+|...........aa.

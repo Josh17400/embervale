@@ -1,0 +1,187 @@
+# P2b New People: THE STYLE SLICE's own look review on the 1440x810 desktop (FOLK-BODY, wave 1; VISION_PLAN 15.36 P2b
+# "The slice gate", STYLE_P2 19). Seed 7, the start village OSLARS, rig 2. The hero's doll fields are set by `slicelook`
+# (rpg/view/script_p2b_slice.cpp: until FOLK-SIM fills them from the Appearance) so the hero is A3's; the owner-pack rows
+# by `slicelineup` (which also steps the hero to clear ground). NORMAL (D3) and NEAR (D4), 11:00 and 22:00; shot pairs
+# with `ui 0` for witness measure.
+#   embervale.exe --script tools/scripts/p2b_slice_look.txt          (p2b_look_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.0 hair short copper
++0.1 slicelook a3
++0.1 expect doll covered
++0.3 expect zoom normal
+# ---- to the open meadow east of the village square (the town banner fades meanwhile)
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 slicelook a3
+# ---- the owner-pack rows (the hero two tiles south of each, facing the camera)
++0.1 slicelineup variety
++0.1 slicelook a3
++0.6 shot p2b_look_d3_variety.png
++0.1 ui 0
++0.2 shotpair p2b_look_d3_variety_world.png p2b_look_d3_variety_nohero.png
++0.1 ui 1
++0.1 zoom near
++0.4 shot p2b_look_d4_variety.png
++0.1 ui 0
++0.2 shot p2b_look_d4_variety_world.png
++0.1 ui 1
++0.1 zoom normal
++0.2 slicelineup armour
++0.6 shot p2b_look_d3_armour.png
++0.1 ui 0
++0.2 shot p2b_look_d3_armour_world.png
++0.1 ui 1
++0.1 zoom near
++0.4 shot p2b_look_d4_armour.png
++0.1 ui 0
++0.2 shot p2b_look_d4_armour_world.png
++0.1 ui 1
++0.1 zoom normal
++0.2 slicelineup elders
++0.6 shot p2b_look_d3_elders.png
++0.1 ui 0
++0.2 shot p2b_look_d3_elders_world.png
++0.1 ui 1
++0.2 slicelineup swaps
++0.6 shot p2b_look_d3_swaps.png
++0.1 ui 0
++0.2 shot p2b_look_d3_swaps_world.png
++0.1 ui 1
+# ---- the A3 hero alone on clear ground, idle in the four facings
++0.2 slicelineup clear
++0.1 walk south 0.15
++0.1 slicelook a3
++0.3 pose idle sword 0 0
++0.2 shot p2b_look_d3_down.png
++0.1 ui 0
++0.2 shotpair p2b_look_d3_down_world.png p2b_look_d3_down_nohero.png
++0.2 shotpair p2b_look_d3_ring_on.png p2b_look_d3_ring_off.png ring
++0.1 ui 1
++0.1 pose off
++0.1 walk east 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2b_look_d3_right.png
++0.1 ui 0
++0.2 shotpair p2b_look_d3_right_world.png p2b_look_d3_right_nohero.png
++0.1 ui 1
++0.1 pose off
++0.1 walk north 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2b_look_d3_up.png
++0.1 pose off
++0.1 walk west 0.15
++0.3 pose idle sword 0 0
++0.2 shot p2b_look_d3_left.png
++0.1 pose off
++0.1 walk south 0.15
++0.3 zoom near
++0.4 shot p2b_look_d4_down.png
++0.1 ui 0
++0.2 shotpair p2b_look_d4_down_world.png p2b_look_d4_down_nohero.png
++0.1 ui 1
++0.1 zoom close
++0.4 shot p2b_look_d5_down.png
++0.1 ui 0
++0.2 shotpair p2b_look_d5_down_world.png p2b_look_d5_down_nohero.png
++0.1 ui 1
++0.1 zoom normal
+# ---- the sword's keys facing right and down
++0.1 walk east 0.15
++0.3 pose windup sword 0 0
++0.2 shot p2b_look_d3_windup.png
++0.1 pose strike sword 0 0
++0.2 shot p2b_look_d3_strike.png
++0.1 pose off
+# ---- the woman hero (the shirt and trousers, the sword)
++0.2 body woman
++0.0 hair braids wheat
++0.1 slicelook a3woman
++0.1 expect doll covered
++0.3 pose idle sword 0 0
++0.2 shot p2b_look_d3_woman.png
++0.1 ui 0
++0.2 shotpair p2b_look_d3_woman_world.png p2b_look_d3_woman_nohero.png
++0.1 ui 1
++0.1 pose off
++0.1 body man
++0.0 hair short copper
++0.1 slicelook a3
+# ---- slice gate 2: the body boxes (shot pairs, ui 0, the idle facing the camera): the man without the cowlick (Cropped),
+# the woman hero, the child, the elders, at D3 / D4 / D5 (hero: the D3-D5 pairs above)
++0.1 walk south 0.15
++0.2 ui 0
++0.1 slicelook a3 hairvar=1
++0.1 expect doll covered
++0.3 pose idle sword 0 0
++0.2 shotpair p2b_size_man_d3.png p2b_size_man_d3_nb.png
++0.1 zoom near
++0.4 shotpair p2b_size_man_d4.png p2b_size_man_d4_nb.png
++0.1 zoom close
++0.4 shotpair p2b_size_man_d5.png p2b_size_man_d5_nb.png
++0.1 zoom normal
++0.1 pose off
++0.1 slicelook a3 age=1 weapon=0 neck=0 hairvar=1
++0.1 expect doll covered
++0.3 pose idle unarmed 0 0
++0.2 shotpair p2b_size_child_d3.png p2b_size_child_d3_nb.png
++0.1 pose off
++0.1 slicelook a3 age=1 weapon=0 neck=0
++0.1 expect doll covered
++0.3 pose idle unarmed 0 0
++0.2 shotpair p2b_size_childtuft_d3.png p2b_size_childtuft_d3_nb.png
++0.1 pose off
++0.1 slicelook a3 age=3 weapon=0 hairvar=4
++0.1 expect doll covered
++0.3 pose idle unarmed 0 0
++0.2 shotpair p2b_size_elder_d3.png p2b_size_elder_d3_nb.png
++0.1 pose off
++0.1 slicelook a3 age=3 weapon=0 hairvar=1
++0.1 expect doll covered
++0.3 pose idle unarmed 0 0
++0.2 shotpair p2b_size_eldercrop_d3.png p2b_size_eldercrop_d3_nb.png
++0.1 pose off
++0.2 body woman
++0.0 hair braids wheat
++0.1 slicelook a3woman
++0.3 pose idle sword 0 0
++0.2 shotpair p2b_size_woman_d3.png p2b_size_woman_d3_nb.png
++0.1 zoom near
++0.4 shotpair p2b_size_woman_d4.png p2b_size_woman_d4_nb.png
++0.1 zoom close
++0.4 shotpair p2b_size_woman_d5.png p2b_size_woman_d5_nb.png
++0.1 zoom normal
++0.1 pose off
++0.1 slicelook a3woman age=3 weapon=0
++0.1 expect doll covered
++0.3 pose idle unarmed 0 0
++0.2 shotpair p2b_size_womanelder_d3.png p2b_size_womanelder_d3_nb.png
++0.1 pose off
++0.1 body man
++0.0 hair short copper
++0.1 slicelook a3
++0.1 ui 1
+# ---- 22:00
++0.2 slicelineup variety
++0.1 slicelook a3
++0.3 hour 22
++0.6 shot p2b_look_d3_night.png
++0.1 ui 0
++0.2 shotpair p2b_look_d3_night_world.png p2b_look_d3_night_nohero.png
++0.2 shotpair p2b_look_d3_night_ring_on.png p2b_look_d3_night_ring_off.png ring
++0.1 ui 1
++0.1 ui 0
++0.2 slicelineup clear
++0.3 pose idle sword 0 0
++0.2 shotpair p2b_look_d3_night_hero.png p2b_look_d3_night_hero_nb.png
++0.1 pose off
++0.1 ui 1
++0.1 hour 11
++0.2 quit
