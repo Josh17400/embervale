@@ -1,0 +1,65 @@
+# kin/youth/wear/culturetunic: the youth's culture tunic: the tunic cut longer, a sash in the accent at the waist (in
+# place of the belt); culturetunic_hang is its three-row skirt ending in an embroidered accent band
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. The girl's (`when girl replace`) narrows a pixel at the waist.
+use person
+body youth
+role garment culturetunic
+layer torso
+anchor neck
+keys rest
+
+view D key rest origin 6 0
+|...5qrrq5...
+|5988qrrq7765
+|..68888766..
+|..68877666..
+|..mpooonnm..
+
+view D key rest origin 6 0 when girl replace
+|...5qrrq5...
+|5989qrrq7765
+|..68887766..
+|...688766...
+|...mponnm...
+
+view U key rest origin 6 0
+|...588765...
+|598877777665
+|..68877766..
+|..68777666..
+|..mpooonnm..
+
+view U key rest origin 6 0 when girl replace
+|...588765...
+|598877777665
+|..68877766..
+|...687766...
+|...mponnm...
+
+view R key rest origin 4 0
+|..5qrq5.
+|.5988765
+|58877665
+|58877665
+|mpooonnm
+
+view R key rest origin 4 0 when girl replace
+|..5qrq5.
+|.5988765
+|58877665
+|.588765.
+|.mponnm.
+view L key rest origin 4 0
+|.5qrq5..
+|5988765.
+|58877665
+|58877665
+|mpooonnm
+
+view L key rest origin 4 0 when girl replace
+|.5qrq5..
+|5988765.
+|58877665
+|.588765.
+|.mponnm.
+

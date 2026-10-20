@@ -1,0 +1,23 @@
+# kin/child/face/paint_stripes: the child's face paint: two short stripes on each cheek (the accent; the people's own paint)
+# (KIN-CHILD, P2b wave 2; the child, STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person
+body child
+role paint stripes
+layer face
+anchor head
+keys rest
+z 3
+tags overlay mirror-ok
+
+view D key rest origin -2 -8
+|oo....oo
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -8 -8
+|oo
+
+view L key rest origin -2 -8
+|oo
+

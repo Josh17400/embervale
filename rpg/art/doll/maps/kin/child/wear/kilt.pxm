@@ -1,0 +1,39 @@
+# kin/child/wear/kilt: the kilt: a linen shirt with the plaid over the left shoulder in the accent, the pleated kilt from the belt (the knee bare: regionsOf)
+# (KIN-CHILD, P2b wave 2; the child's torso is 6 rows, F-10..F-5, STYLE_P2 3 and 22). Format: rpg/art/doll/doll.h.
+use person woman
+body child
+role garment kilt
+layer torso
+keys rest
+
+view D key rest origin 6 0
+|vxyyxxxmoonm
+|..xyyxmoonw.
+|..xyxmoonww.
+|..fihPOhgf..
+|.5978797875.
+|.5978797875.
+
+view U key rest origin 6 0
+|mnoopxxxwwwv
+|..nopxxxww..
+|..wnopxxww..
+|..fghhhhif..
+|.5787978795.
+|.5787978795.
+
+view R key rest origin 4 0
+|.vyyxxwv.
+|vyyxonmv.
+|vyxonmwv.
+|fihhhhgf.
+|597879785
+|597879785
+
+view L key rest origin 4 0
+|.vyyxxwv.
+|.vmyyxonv
+|.vyxonmwv
+|.fihhhhgf
+|597879785
+|597879785

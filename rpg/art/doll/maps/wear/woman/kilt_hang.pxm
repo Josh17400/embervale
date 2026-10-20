@@ -1,0 +1,171 @@
+# wear/woman/kilt_hang: the kilt: knife pleats (step-1 lines every other pixel), the lit hem band to the knee (the edge region), a
+# pleat apron that swings on the stride; her knees show bare below it
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role garment kilt
+layer hangFront
+anchor hip
+keys hang
+sway 2
+
+view D key idle origin 8 -1
+|..588678676665..
+|.58867867676665.
+|.59989989887765.
+
+view D key rest origin 8 -1
+|..588678676665..
+|.58867867676665.
+|.59989989887765.
+
+view D key wide origin 8 -1
+|..588678676665..
+|.58867867676665.
+|.59989989887765.
+
+view D key flare origin 8 -1
+|.58867867676665.
+|5886786767676665
+|5998998988877765
+
+view D key kneel origin 8 -1
+|..588678676665..
+|.59989989887765.
+
+view D key sit origin 8 -1
+|..588678676665..
+|.599899898877765
+
+view D key floor origin 8 -1
+|..588678676665..
+|.599899898877765
+
+view D key ride origin 8 -1
+|..588678676665..
+|.599899898877765
+
+view U key idle origin 8 -1
+|..588678676665..
+|.58867867676665.
+|.59989989887765.
+
+view U key rest origin 8 -1
+|..588678676665..
+|.58867867676665.
+|.59989989887765.
+
+view U key wide origin 8 -1
+|..588678676665..
+|.58867867676665.
+|.59989989887765.
+
+view U key flare origin 8 -1
+|.58867867676665.
+|5886786767676665
+|5998998988877765
+
+view U key kneel origin 8 -1
+|..588678676665..
+|.59989989887765.
+
+view U key sit origin 8 -1
+|..598989888765..
+|..555555555555..
+
+view U key floor origin 8 -1
+|..598989888765..
+|..555555555555..
+
+view U key ride origin 8 -1
+|..598989888765..
+|..555555555555..
+
+view R key idle origin 8 -1
+|....5886786765..
+|...588678676665.
+|...599899887765.
+
+view R key rest origin 8 -1
+|....5886786765..
+|...588678676665.
+|...599899887765.
+
+view R key wide origin 8 -1
+|....5886786765..
+|...5886785676665
+|..5998995.598876
+
+view R key flare origin 8 -1
+|....5886786765..
+|..58867867676665
+|...59985.5988765
+
+view R key kneel origin 8 -1
+|....5886786765..
+|...599899887765.
+
+view R key sit origin 8 2
+|.............7895
+|.............6795
+|.............6785
+|....5555555555555
+
+view R key floor origin 8 2
+|.............7895
+|.............6795
+|.............6785
+|....5555555555555
+
+view R key ride origin 8 2
+|.............7895
+|.............6795
+|.............6785
+|....5555555555555
+
+view L key idle origin 8 -1
+|..5886786765....
+|.588678676665...
+|.599899888765...
+
+view L key rest origin 8 -1
+|..5886786765....
+|.588678676665...
+|.599899888765...
+
+view L key wide origin 8 -1
+|..5886786765....
+|5886785676665...
+|998995.5988765..
+
+view L key flare origin 8 -1
+|..5886786765....
+|58867867676665..
+|59985.5988765...
+
+view L key kneel origin 8 -1
+|..5886786765....
+|.599899888765...
+
+view L key sit origin 12 2
+|...5987..........
+|...5976..........
+|...5876..........
+|...5555555555555.
+
+view L key floor origin 12 2
+|...5987..........
+|...5976..........
+|...5876..........
+|...5555555555555.
+
+view L key ride origin 12 2
+|...5987..........
+|...5976..........
+|...5876..........
+|...5555555555555.
+
+view L key lie origin 8 -1
+|..5886786765....
+|.588678676665...
+|.599899888765...

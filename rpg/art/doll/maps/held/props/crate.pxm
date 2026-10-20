@@ -1,0 +1,55 @@
+# held/props/crate: a slatted wooden crate carried before the belly in both hands for the Carry posture (PROPS, P2b;
+# variant 2): pale planks (cloth 3) with darker slats. Format: rpg/art/doll/doll.h. Between the pose arms' hold grips,
+# anchored on the right shoulder; under the fists, which grip its sides.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held crate
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin -2 -2 layer neck
+|QQQQQQQQQQ
+|QTTSTTSTSQ
+|QSQQQQQQRQ
+|QSQTSTSQRQ
+|QSQSRSRQRQ
+|QRQQQQQQRQ
+|QQQQQQQQQQ
+
+view U key hold origin 11 -2 layer heldBack
+|QQQQQQQQQQ
+|QTSTSSTSSQ
+|QUQQQQQQTQ
+|QUQTSTSQTQ
+|QUQUTUTQTQ
+|QUQQQQQQUQ
+|QQQQQQQQQQ
+
+view R key hold origin -5 -2 layer neck
+|QQQQQQQ
+|QTSTSSQ
+|QSQQQRQ
+|QSQSRRQ
+|QRQQQRQ
+|QQQQQQQ
+
+view L key hold origin 11 -2 layer neck
+|QQQQQQQ
+|QTTSTSQ
+|QUQQQTQ
+|QUUTQTQ
+|QUQQQUQ
+|QQQQQQQ

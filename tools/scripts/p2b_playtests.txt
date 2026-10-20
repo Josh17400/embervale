@@ -1,29 +1,74 @@
 [
-  {"name": "t1a", "persona": "newbie", "minutes": 8, "seed": 7,
-   "params": {"rig": 2, "window": [2556, 1179], "safe": [177, 0, 177, 63], "screen": "fill", "hour": 11},
-   "goal": "P2b T1 (newbie). In the start village, find the smith, the innkeeper and an elder and talk to each. Tell them apart by how they LOOK (their clothes, aprons, age, grey hair) before you talk: take a `witness play shot` of each before talking and say what made you pick them. Note anything that looks broken (floating, missing, flickering, a person on the wrong layer, a face or a body that looks wrong) with a shot."},
-  {"name": "t1b", "persona": "newbie", "minutes": 8, "seed": 7,
-   "params": {"rig": 2, "window": [2556, 1179], "safe": [177, 0, 177, 63], "screen": "fill", "hour": 11},
-   "goal": "P2b T1 (newbie). In the start village, find the smith, the innkeeper and an elder and talk to each. Tell them apart by how they LOOK (their clothes, aprons, age, grey hair) before you talk: take a `witness play shot` of each before talking and say what made you pick them. Note anything that looks broken (floating, missing, flickering, a person on the wrong layer, a face or a body that looks wrong) with a shot."},
-  {"name": "t1c", "persona": "newbie", "minutes": 8, "seed": 7,
-   "params": {"rig": 2, "window": [2556, 1179], "safe": [177, 0, 177, 63], "screen": "fill", "hour": 11},
-   "goal": "P2b T1 (newbie). In the start village, find the smith, the innkeeper and an elder and talk to each. Tell them apart by how they LOOK (their clothes, aprons, age, grey hair) before you talk: take a `witness play shot` of each before talking and say what made you pick them. Note anything that looks broken (floating, missing, flickering, a person on the wrong layer, a face or a body that looks wrong) with a shot."},
-  {"name": "t2a", "persona": "explorer", "minutes": 12, "seed": 7,
-   "params": {"rig": 2, "window": [2556, 1179], "safe": [177, 0, 177, 63], "screen": "fill", "hour": 11},
-   "goal": "P2b T2 (explorer). Visit towns of two DIFFERENT peoples (use the map; fast travel is fine) and say how their people dress: cuts, colours, headwear, hair, beards. Take a `witness play shot` of a crowd in each town. Could you tell the two peoples apart at a glance? Note anything that looks broken (floating, missing, flickering, wrong layer, clones standing side by side) with a shot."},
-  {"name": "t2b", "persona": "explorer", "minutes": 12, "seed": 7,
-   "params": {"rig": 2, "window": [2556, 1179], "safe": [177, 0, 177, 63], "screen": "fill", "hour": 11},
-   "goal": "P2b T2 (explorer). Visit towns of two DIFFERENT peoples (use the map; fast travel is fine) and say how their people dress: cuts, colours, headwear, hair, beards. Take a `witness play shot` of a crowd in each town. Could you tell the two peoples apart at a glance? Note anything that looks broken (floating, missing, flickering, wrong layer, clones standing side by side) with a shot."},
-  {"name": "t2c", "persona": "explorer", "minutes": 12, "seed": 7,
-   "params": {"rig": 2, "window": [2556, 1179], "safe": [177, 0, 177, 63], "screen": "fill", "hour": 11},
-   "goal": "P2b T2 (explorer). Visit towns of two DIFFERENT peoples (use the map; fast travel is fine) and say how their people dress: cuts, colours, headwear, hair, beards. Take a `witness play shot` of a crowd in each town. Could you tell the two peoples apart at a glance? Note anything that looks broken (floating, missing, flickering, wrong layer, clones standing side by side) with a shot."},
-  {"name": "t3a", "persona": "breaker", "minutes": 12, "seed": 7,
-   "params": {"rig": 2, "window": [2556, 1179], "safe": [177, 0, 177, 63], "screen": "fill", "hour": 11, "god": true},
-   "goal": "P2b T3 (breaker). Sit in the tavern, sleep in a bed, ride a horse, take a rowboat out, and watch a bandit fall. Take a `witness play shot` at each. Look hard at the bodies: hips on the seat, the head on the pillow, the rider on the saddle with hands at the reins, the rower on the thwart, the fallen lying flat. Note anything floating, sunk, missing, flickering or on the wrong layer with a shot."},
-  {"name": "t3b", "persona": "breaker", "minutes": 12, "seed": 7,
-   "params": {"rig": 2, "window": [2556, 1179], "safe": [177, 0, 177, 63], "screen": "fill", "hour": 11, "god": true},
-   "goal": "P2b T3 (breaker). Sit in the tavern, sleep in a bed, ride a horse, take a rowboat out, and watch a bandit fall. Take a `witness play shot` at each. Look hard at the bodies: hips on the seat, the head on the pillow, the rider on the saddle with hands at the reins, the rower on the thwart, the fallen lying flat. Note anything floating, sunk, missing, flickering or on the wrong layer with a shot."},
-  {"name": "t3c", "persona": "breaker", "minutes": 12, "seed": 7,
-   "params": {"rig": 2, "window": [2556, 1179], "safe": [177, 0, 177, 63], "screen": "fill", "hour": 11, "god": true},
-   "goal": "P2b T3 (breaker). Sit in the tavern, sleep in a bed, ride a horse, take a rowboat out, and watch a bandit fall. Take a `witness play shot` at each. Look hard at the bodies: hips on the seat, the head on the pillow, the rider on the saddle with hands at the reins, the rower on the thwart, the fallen lying flat. Note anything floating, sunk, missing, flickering or on the wrong layer with a shot."}
+ {
+  "name": "t1a",
+  "persona": "newbie",
+  "minutes": 8,
+  "wallMinutes": 28,
+  "seed": 7,
+  "goal": "P2b T1 (newbie). In the start village OSLARS, find the smith, the innkeeper and a child, and talk to each. Before you talk to each one, take a play shot with that person in it (the shot shows the world close up, without the HUD) and say what in their LOOK fits the role: the smith's apron or work clothes, the innkeeper's apron, the child's small size. If you also see an old person (grey or white hair, a stoop), take a shot of them too. Note anything that looks broken (floating, missing, flickering, a person on the wrong layer, a face or a body that looks wrong) with a shot. The goal is met when you have talked to all three and described each one's look from a shot."
+ },
+ {
+  "name": "t1b",
+  "persona": "newbie",
+  "minutes": 8,
+  "wallMinutes": 28,
+  "seed": 7,
+  "goal": "P2b T1 (newbie). In the start village OSLARS, find the smith, the innkeeper and a child, and talk to each. Before you talk to each one, take a play shot with that person in it (the shot shows the world close up, without the HUD) and say what in their LOOK fits the role: the smith's apron or work clothes, the innkeeper's apron, the child's small size. If you also see an old person (grey or white hair, a stoop), take a shot of them too. Note anything that looks broken (floating, missing, flickering, a person on the wrong layer, a face or a body that looks wrong) with a shot. The goal is met when you have talked to all three and described each one's look from a shot."
+ },
+ {
+  "name": "t1c",
+  "persona": "newbie",
+  "minutes": 8,
+  "wallMinutes": 28,
+  "seed": 7,
+  "goal": "P2b T1 (newbie). In the start village OSLARS, find the smith, the innkeeper and a child, and talk to each. Before you talk to each one, take a play shot with that person in it (the shot shows the world close up, without the HUD) and say what in their LOOK fits the role: the smith's apron or work clothes, the innkeeper's apron, the child's small size. If you also see an old person (grey or white hair, a stoop), take a shot of them too. Note anything that looks broken (floating, missing, flickering, a person on the wrong layer, a face or a body that looks wrong) with a shot. The goal is met when you have talked to all three and described each one's look from a shot."
+ },
+ {
+  "name": "t2a",
+  "persona": "explorer",
+  "minutes": 10,
+  "wallMinutes": 32,
+  "seed": 7,
+  "goal": "P2b T2 (explorer). Compare two peoples. First look at the folk of your start village OSLARS: walk its streets and take a play shot of a group of people (the shot shows the world close up, without the HUD). Then travel to a town of ANOTHER people with the order: call gotoculture other town (a fast-travel stand-in; it puts you at the edge of that town, so walk in to its crowds, market and inn). Take a shot of a crowd there too. Say how each people dresses (cuts, colours, headwear, hair, beards) and whether you could tell the two apart at a glance. Note anything that looks broken (floating, missing, flickering, wrong layer, clones standing side by side) with a shot. The goal is met when you have shot and described both peoples."
+ },
+ {
+  "name": "t2b",
+  "persona": "explorer",
+  "minutes": 10,
+  "wallMinutes": 32,
+  "seed": 7,
+  "goal": "P2b T2 (explorer). Compare two peoples. First look at the folk of your start village OSLARS: walk its streets and take a play shot of a group of people (the shot shows the world close up, without the HUD). Then travel to a town of ANOTHER people with the order: call gotoculture other town (a fast-travel stand-in; it puts you at the edge of that town, so walk in to its crowds, market and inn). Take a shot of a crowd there too. Say how each people dresses (cuts, colours, headwear, hair, beards) and whether you could tell the two apart at a glance. Note anything that looks broken (floating, missing, flickering, wrong layer, clones standing side by side) with a shot. The goal is met when you have shot and described both peoples."
+ },
+ {
+  "name": "t2c",
+  "persona": "explorer",
+  "minutes": 10,
+  "wallMinutes": 32,
+  "seed": 7,
+  "goal": "P2b T2 (explorer). Compare two peoples. First look at the folk of your start village OSLARS: walk its streets and take a play shot of a group of people (the shot shows the world close up, without the HUD). Then travel to a town of ANOTHER people with the order: call gotoculture other town (a fast-travel stand-in; it puts you at the edge of that town, so walk in to its crowds, market and inn). Take a shot of a crowd there too. Say how each people dresses (cuts, colours, headwear, hair, beards) and whether you could tell the two apart at a glance. Note anything that looks broken (floating, missing, flickering, wrong layer, clones standing side by side) with a shot. The goal is met when you have shot and described both peoples."
+ },
+ {
+  "name": "t3a",
+  "persona": "breaker",
+  "minutes": 12,
+  "wallMinutes": 38,
+  "seed": 7,
+  "goal": "P2b T3 (breaker). Check five body states, take a play shot of each (the shot shows the world close up, without the HUD) and look hard at the bodies. A fresh hero has no sit button, horse or boat, so use these setup orders (allowed test cheats), each as a play order, in this order. 1 SITTERS: call hour 20, goto Inn, call seatall, wait 1 (the evening crowd sits on every chair, stool and bench): are the hips on the seats? 2 SLEEP: talk Innkeeper, choose WHAT CAN YOU OFFER, choose RENT A ROOM, choose GO UP TO BED, then interact (you sleep in your room behind a fade); then see sleepers: go back outside (goto StairsDown, goto Exit), call hour 23, call enter hut, call seatall sleep, wait 1: are the heads on the pillows? Then call leave and call hour 11. 3 RIDE: go e 12, call home lot medium, call gold 99999, call home fill, call home ride, then walk about: is the rider on the saddle with hands at the reins? Then call home dismount. 4 FALL: call die (the hero falls on the spot; armoured bandits are drawn on the old rig until P2c, so the hero's own fall is the P2b body to judge), wait 1, shoot: is the hero lying flat on the ground, head to one side, nothing floating? Then respawn. 5 ROWBOAT (last): call sea port 1, call boat give rowboat, call boat board, then hold s 3 and hold d 2 (the cell in the header does not change while you row; the shots show the boat move): is the rower on the thwart, pulling the oars? Note anything floating, sunk, missing, flickering or on the wrong layer with a shot. The goal is met when all five states are shot and judged."
+ },
+ {
+  "name": "t3b",
+  "persona": "breaker",
+  "minutes": 12,
+  "wallMinutes": 38,
+  "seed": 7,
+  "goal": "P2b T3 (breaker). Check five body states, take a play shot of each (the shot shows the world close up, without the HUD) and look hard at the bodies. A fresh hero has no sit button, horse or boat, so use these setup orders (allowed test cheats), each as a play order, in this order. 1 SITTERS: call hour 20, goto Inn, call seatall, wait 1 (the evening crowd sits on every chair, stool and bench): are the hips on the seats? 2 SLEEP: talk Innkeeper, choose WHAT CAN YOU OFFER, choose RENT A ROOM, choose GO UP TO BED, then interact (you sleep in your room behind a fade); then see sleepers: go back outside (goto StairsDown, goto Exit), call hour 23, call enter hut, call seatall sleep, wait 1: are the heads on the pillows? Then call leave and call hour 11. 3 RIDE: go e 12, call home lot medium, call gold 99999, call home fill, call home ride, then walk about: is the rider on the saddle with hands at the reins? Then call home dismount. 4 FALL: call die (the hero falls on the spot; armoured bandits are drawn on the old rig until P2c, so the hero's own fall is the P2b body to judge), wait 1, shoot: is the hero lying flat on the ground, head to one side, nothing floating? Then respawn. 5 ROWBOAT (last): call sea port 1, call boat give rowboat, call boat board, then hold s 3 and hold d 2 (the cell in the header does not change while you row; the shots show the boat move): is the rower on the thwart, pulling the oars? Note anything floating, sunk, missing, flickering or on the wrong layer with a shot. The goal is met when all five states are shot and judged."
+ },
+ {
+  "name": "t3c",
+  "persona": "breaker",
+  "minutes": 12,
+  "wallMinutes": 38,
+  "seed": 7,
+  "goal": "P2b T3 (breaker). Check five body states, take a play shot of each (the shot shows the world close up, without the HUD) and look hard at the bodies. A fresh hero has no sit button, horse or boat, so use these setup orders (allowed test cheats), each as a play order, in this order. 1 SITTERS: call hour 20, goto Inn, call seatall, wait 1 (the evening crowd sits on every chair, stool and bench): are the hips on the seats? 2 SLEEP: talk Innkeeper, choose WHAT CAN YOU OFFER, choose RENT A ROOM, choose GO UP TO BED, then interact (you sleep in your room behind a fade); then see sleepers: go back outside (goto StairsDown, goto Exit), call hour 23, call enter hut, call seatall sleep, wait 1: are the heads on the pillows? Then call leave and call hour 11. 3 RIDE: go e 12, call home lot medium, call gold 99999, call home fill, call home ride, then walk about: is the rider on the saddle with hands at the reins? Then call home dismount. 4 FALL: call die (the hero falls on the spot; armoured bandits are drawn on the old rig until P2c, so the hero's own fall is the P2b body to judge), wait 1, shoot: is the hero lying flat on the ground, head to one side, nothing floating? Then respawn. 5 ROWBOAT (last): call sea port 1, call boat give rowboat, call boat board, then hold s 3 and hold d 2 (the cell in the header does not change while you row; the shots show the boat move): is the rower on the thwart, pulling the oars? Note anything floating, sunk, missing, flickering or on the wrong layer with a shot. The goal is met when all five states are shot and judged."
+ }
 ]

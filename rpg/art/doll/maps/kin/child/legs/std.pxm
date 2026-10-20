@@ -1,5 +1,9 @@
-# kin/child/legs/std: the child's legs: short trousers over chunky boots
-# The slice (P2b wave 1, FOLK-BODY; to KIN-CHILD in wave 2). The child, 21 px (STYLE_P2 3). Format: rpg/art/doll/doll.h.
+# kin/child/legs/std: the child's legs (KIN-CHILD, P2b wave 2; first drawn in the slice by FOLK-BODY): short trousers over
+# chunky boots (each boot 5 px, 6 at the toe), 21 px body (STYLE_P2 3). Regions: T thigh (the hip row), K knee (the one
+# trouser row that shows), B boot, O sole: rags bare the feet, kilts bare the knee. The walk keeps the idle's leg mass:
+# boots never rotated (the idle boot moved and lifted a row), the planted leg straight under the hips; front and back
+# walk in place (walkA: the screen-left foot lifted, walkC: the screen-right); side views 6 drawings over a 12 px cycle
+# (the planted foot steps 2 / 2 / 2 px). Format: rpg/art/doll/doll.h.
 use person
 body child
 role legs std
@@ -7,226 +11,520 @@ layer legs
 anchor pivot
 keys legs
 
-view D key buckle origin 6 5
-|..12222221..
-|..12211221..
+view D key idle origin 6 5 stretch 1
+|..13222221..
+|..14311321..
 |.fiihffiihf.
 |.fhhgffhhgf.
 |fjihgffhhggf
 |KKKKKKKKKKKK
+regions
+|..TTTTTTTT..
+|..KKKKKKKK..
+|.BBBBBBBBBB.
+|.BBBBBBBBBB.
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
 
-view D key idle origin 6 5
-|..12222221..
-|..12211221..
-|.fiihffiihf.
-|.fhhgffhhgf.
-|fjihgffhhggf
-|KKKKKKKKKKKK
-
-view D key walkA origin 6 5
-|..12222221..
-|..12211221..
-|.fiihffiihf.
+view D key walkA origin 6 5 stretch 1
+|..13222221..
+|.fiihf1321..
+|.fhhgffiihf.
 |fjihgffhhgf.
 |KKKKKKfhhggf
 |......KKKKKK
+regions
+|..TTTTTTTT..
+|.BBBBBKKKK..
+|.BBBBBBBBBB.
+|BBBBBBBBBBB.
+|OOOOOOBBBBBB
+|......OOOOOO
 
-view D key walkB origin 6 5
-|..12222221..
-|..12211221..
-|.fiihffiihf.
-|.fhhgffhhgf.
-|fjihgffhhggf
-|KKKKKKKKKKKK
-
-view D key walkC origin 6 5
-|..12222221..
-|..12211221..
-|.fiihffiihf.
+view D key walkC origin 6 5 stretch 1
+|..13222221..
+|..1431fiihf.
+|.fiihffhhgf.
 |.fhhgffhhggf
 |fjihgfKKKKKK
 |KKKKKK......
+regions
+|..TTTTTTTT..
+|..KKKKBBBBB.
+|.BBBBBBBBBB.
+|.BBBBBBBBBBB
+|BBBBBBOOOOOO
+|OOOOOO......
 
-view D key walkD origin 6 5
-|..12222221..
-|..12211221..
+view D key buckle origin 6 5 stretch 1
+|.1322222221.
+|.1431..1321.
 |.fiihffiihf.
 |.fhhgffhhgf.
 |fjihgffhhggf
 |KKKKKKKKKKKK
+regions
+|.TTTTTTTTTT.
+|.KKKK..KKKK.
+|.BBBBBBBBBB.
+|.BBBBBBBBBB.
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
 
-view U key buckle origin 6 5
-|..12222221..
-|..12211221..
+view U key idle origin 6 5 stretch 1
+|..13222221..
+|..14311321..
 |.fiihffiihf.
 |.fhhgffhhgf.
-|fjihgffhhggf
+|fihhgffihhgf
 |KKKKKKKKKKKK
+regions
+|..TTTTTTTT..
+|..KKKKKKKK..
+|.BBBBBBBBBB.
+|.BBBBBBBBBB.
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
 
-view U key idle origin 6 5
-|..12222221..
-|..12211221..
-|.fiihffiihf.
-|.fhhgffhhgf.
-|fjihgffhhggf
-|KKKKKKKKKKKK
+view U key walkA origin 6 5 stretch 1
+|..13222221..
+|..1431fiihf.
+|.fiihffhhgf.
+|.fhhgffihhgf
+|fihhgfKKKKKK
+|KKKKKK......
+regions
+|..TTTTTTTT..
+|..KKKKBBBBB.
+|.BBBBBBBBBB.
+|.BBBBBBBBBBB
+|BBBBBBOOOOOO
+|OOOOOO......
 
-view U key walkA origin 6 5
-|..12222221..
-|..12211221..
-|.fiihffiihf.
-|fjihgffhhgf.
-|KKKKKKfhhggf
+view U key walkC origin 6 5 stretch 1
+|..13222221..
+|.fiihf1321..
+|.fhhgffiihf.
+|fihhgffhhgf.
+|KKKKKKfihhgf
 |......KKKKKK
+regions
+|..TTTTTTTT..
+|.BBBBBKKKK..
+|.BBBBBBBBBB.
+|BBBBBBBBBBB.
+|OOOOOOBBBBBB
+|......OOOOOO
 
-view U key walkB origin 6 5
-|..12222221..
-|..12211221..
+view U key buckle origin 6 5 stretch 1
+|.1322222221.
+|.1431..1321.
+|.fiihffiihf.
+|.fhhgffhhgf.
+|fihhgffihhgf
+|KKKKKKKKKKKK
+regions
+|.TTTTTTTTTT.
+|.KKKK..KKKK.
+|.BBBBBBBBBB.
+|.BBBBBBBBBB.
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view R key idle origin 4 5 stretch 1
+|.1322221.
+|.1321431.
+|fhgfiihf.
+|fhgfihhf.
+|fhgfihhgf
+|KKKKKKKKK
+regions
+|.TTTTTTT.
+|.KKKKKKK.
+|BBBBBBBB.
+|BBBBBBBB.
+|BBBBBBBBB
+|OOOOOOOOO
+
+view R key walkA origin 5 5 stretch 1
+|..1322221...
+|.1321.1431..
+|fhggf.fiihf.
+|fhggf.fihhf.
+|fhgggffihhgf
+|KKKKKKKKKKKK
+regions
+|..TTTTTTT...
+|.KKKK.KKKK..
+|BBBBB.BBBBB.
+|BBBBB.BBBBB.
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view R key walkA2 origin 5 5 stretch 1
+|..1322221.
+|fhgg1431..
+|fhggfiihf.
+|fhggfihhf.
+|KKKKfihhgf
+|....KKKKKK
+regions
+|..TTTTTTT.
+|BBBBKKKK..
+|BBBBBBBBB.
+|BBBBBBBBB.
+|OOOOBBBBBB
+|....OOOOOO
+
+view R key walkB2 origin 3 5 stretch 1
+|1322221..
+|.1431ggf.
+|fiihfggf.
+|fihhfgggf
+|fihhgfKKK
+|KKKKKK...
+regions
+|TTTTTTT..
+|.KKKKBBB.
+|BBBBBBBB.
+|BBBBBBBBB
+|BBBBBBOOO
+|OOOOOO...
+
+view R key walkC origin 5 5 stretch 1
+|..1322221...
+|.1431.1321..
+|fiihf.fhggf.
+|fihhf.fhggf.
+|fihhgffhgggf
+|KKKKKKKKKKKK
+regions
+|..TTTTTTT...
+|.KKKK.KKKK..
+|BBBBB.BBBBB.
+|BBBBB.BBBBB.
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view R key walkC2 origin 5 5 stretch 1
+|..1322221.
+|fiihf321..
+|fihhfhggf.
+|fihhgfggf.
+|KKKKKKgggf
+|....KKKKKK
+regions
+|..TTTTTTT.
+|BBBBBKKK..
+|BBBBBBBBB.
+|BBBBBBBBB.
+|OOOOOOBBBB
+|....OOOOOO
+
+view R key walkD2 origin 3 5 stretch 1
+|1322221..
+|.13fiihf.
+|fhgfihhf.
+|fhgfihhgf
+|fhgKKKKKK
+|KKKKKK...
+regions
+|TTTTTTT..
+|.KKBBBBB.
+|BBBBBBBB.
+|BBBBBBBBB
+|BBBOOOOOO
+|OOOOOO...
+
+view L key idle origin 4 5 stretch 1
+|.1322221.
+|.1431321.
+|.fiihfggf
+|.fihhfggf
+|fihhgfggf
+|KKKKKKKKK
+regions
+|.TTTTTTT.
+|.KKKKKKK.
+|.BBBBBBBB
+|.BBBBBBBB
+|BBBBBBBBB
+|OOOOOOOOO
+
+view L key walkA origin 6 5 stretch 1
+|...1322221..
+|..1431.1321.
+|.fiihf.fhggf
+|.fihhf.fhggf
+|fihhgffhgggf
+|KKKKKKKKKKKK
+regions
+|...TTTTTTT..
+|..KKKK.KKKK.
+|.BBBBB.BBBBB
+|.BBBBB.BBBBB
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view L key walkA2 origin 4 5 stretch 1
+|.1322221..
+|..1431hggf
+|.fiihfhggf
+|.fihhfgggf
+|fihhgfKKKK
+|KKKKKK....
+regions
+|.TTTTTTT..
+|..KKKKBBBB
+|.BBBBBBBBB
+|.BBBBBBBBB
+|BBBBBBOOOO
+|OOOOOO....
+
+view L key walkB2 origin 5 5 stretch 1
+|..1322221
+|.fhg1431.
+|.fhgfiihf
+|fhggfihhf
+|KKKfihhgf
+|...KKKKKK
+regions
+|..TTTTTTT
+|.BBBKKKK.
+|.BBBBBBBB
+|BBBBBBBBB
+|OOOBBBBBB
+|...OOOOOO
+
+view L key walkC origin 6 5 stretch 1
+|...1322221..
+|..1321.1431.
+|.fhggf.fiihf
+|.fhggf.fihhf
+|fhgggffihhgf
+|KKKKKKKKKKKK
+regions
+|...TTTTTTT..
+|..KKKK.KKKK.
+|.BBBBB.BBBBB
+|.BBBBB.BBBBB
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view L key walkC2 origin 4 5 stretch 1
+|.1322221..
+|..132fiihf
+|.fhggfihhf
+|.fhgfihhgf
+|fhggKKKKKK
+|KKKKKK....
+regions
+|.TTTTTTT..
+|..KKKBBBBB
+|.BBBBBBBBB
+|.BBBBBBBBB
+|BBBBOOOOOO
+|OOOOOO....
+
+view L key walkD2 origin 5 5 stretch 1
+|..1322221
+|.fiihf21.
+|.fihhfggf
+|fihhgfggf
+|KKKKKKggf
+|...KKKKKK
+regions
+|..TTTTTTT
+|.BBBBBKK.
+|.BBBBBBBB
+|BBBBBBBBB
+|OOOOOOBBB
+|...OOOOOO
+
+view R key buckle origin 4 5 stretch 1
+|.1322221.
+|.1321431.
+|fhgfiihf.
+|fhgfihhf.
+|fhgfihhgf
+|KKKKKKKKK
+regions
+|.TTTTTTT.
+|.KKKKKKK.
+|BBBBBBBB.
+|BBBBBBBB.
+|BBBBBBBBB
+|OOOOOOOOO
+
+view L key buckle origin 4 5 stretch 1
+|.1322221.
+|.1431321.
+|.fiihfggf
+|.fihhfggf
+|fihhgfggf
+|KKKKKKKKK
+regions
+|.TTTTTTT.
+|.KKKKKKK.
+|.BBBBBBBB
+|.BBBBBBBB
+|BBBBBBBBB
+|OOOOOOOOO
+
+# ---- the kids' pose legs (KIN-CHILD): hop (tag: the idle legs off the ground by 2, the body with them), sit (a chair:
+# the hips on the seat line 7 rows up, the boots dangling 2 px over the floor), cross (cross-legged, the hips 2 over the floor)
+view D key hop origin 6 7 stretch 1
+|..13222221..
+|..14311321..
 |.fiihffiihf.
 |.fhhgffhhgf.
 |fjihgffhhggf
 |KKKKKKKKKKKK
+regions
+|..TTTTTTTT..
+|..TTTTTTTT..
+|.BBBBBBBBBB.
+|.BBBBBBBBBB.
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
 
-view U key walkC origin 6 5
-|..12222221..
-|..12211221..
+view U key hop origin 6 7 stretch 1
+|..13222221..
+|..14311321..
 |.fiihffiihf.
-|.fhhgffhhggf
-|fjihgfKKKKKK
-|KKKKKK......
+|.fhhgffhhgf.
+|fihhgffihhgf
+|KKKKKKKKKKKK
+regions
+|..TTTTTTTT..
+|..TTTTTTTT..
+|.BBBBBBBBBB.
+|.BBBBBBBBBB.
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
 
-view U key walkD origin 6 5
-|..12222221..
-|..12211221..
+view R key hop origin 4 7 stretch 1
+|.1322221.
+|.1321431.
+|fhgfiihf.
+|fhgfihhf.
+|fhgfihhgf
+|KKKKKKKKK
+regions
+|.TTTTTTT.
+|.TTTTTTT.
+|BBBBBBBB.
+|BBBBBBBB.
+|BBBBBBBBB
+|OOOOOOOOO
+
+view L key hop origin 4 7 stretch 1
+|.1322221.
+|.1431321.
+|.fiihfggf
+|.fihhfggf
+|fihhgfggf
+|KKKKKKKKK
+regions
+|.TTTTTTT.
+|.KKKKKKK.
+|.BBBBBBBB
+|.BBBBBBBB
+|BBBBBBBBB
+|OOOOOOOOO
+
+view D key sit origin 6 7 stretch 1
+|..13222221..
+|.1432113321.
 |.fiihffiihf.
 |.fhhgffhhgf.
 |fjihgffhhggf
 |KKKKKKKKKKKK
+regions
+|..TTTTTTTT..
+|.TTTTTTTTTT.
+|.BBBBBBBBBB.
+|.BBBBBBBBBB.
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
 
-view R key buckle origin 4 5
-|.1222221...
-|.1222221...
-|fhgffiihf..
-|fhgffhhgf..
-|fhhgfihhggf
-|KKKKKKKKKKK
-
-view R key idle origin 4 5
-|.1222221...
-|.1222221...
-|fhgffiihf..
-|fhgffhhgf..
-|fhhgfihhggf
-|KKKKKKKKKKK
-
-view R key walkA origin 5 5
-|..1222221...
-|.1221.1221..
-|fhgf..fiihf.
-|fggf..fhhgf.
-|fhgf..fihhgf
-|.KKK..KKKKK.
-
-view R key walkA2 origin 6 5
-|...1222221.
-|..12211221.
-|fhgf.fiihf.
-|fggf.fhhgf.
-|fhgf.fihhgf
-|.KK..KKKKK.
-
-view R key walkB2 origin 6 5
-|...1222221
-|..1214321.
-|fhgfiihf..
-|fggfhhgf..
-|KKKfihhgf.
-|...KKKKK..
-
-view R key walkC origin 5 5
-|..1222221..
-|.1432.1321.
-|fiihf.fhgf.
-|fhhf..fggf.
-|fihf..fhggf
-|.KKK..KKKKK
-
-view R key walkC2 origin 6 5
-|...1222221
-|..14321321
-|fiihffhgf.
-|fhhf.fggf.
-|fihf.fhggf
-|.KK..KKKKK
-
-view R key walkD2 origin 3 5
-|1222221
-|1314321
-|fhfiihf
-|fgfhhgf
-|fhKKKKK
-|KKKKK..
-
-view L key buckle origin 6 5
-|...1222221..
-|...1222221..
-|..fiihffhgf.
-|..fhhgffhgf.
-|fjihhgffhggf
+view U key sit origin 6 7 stretch 1
+|..13222221..
+|.1432113321.
+|.fiihffiihf.
+|.fhhgffhhgf.
+|fihhgffihhgf
 |KKKKKKKKKKKK
+regions
+|..TTTTTTTT..
+|.TTTTTTTTTT.
+|.BBBBBBBBBB.
+|.BBBBBBBBBB.
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
 
-view L key idle origin 6 5
-|...1222221..
-|...1222221..
-|..fiihffhgf.
-|..fhhgffhgf.
-|fjihhgffhggf
-|KKKKKKKKKKKK
+view R key sit origin 3 7 stretch 1
+|13222221...
+|14322221...
+|.....fiihf.
+|.....fihhf.
+|.....fihhgf
+|.....KKKKKK
+regions
+|TTTTTTTT...
+|TTTTTTTT...
+|.....BBBBB.
+|.....BBBBB.
+|.....BBBBBB
+|.....OOOOOO
 
-view L key walkA origin 6 5
-|...1222221..
-|..1221.1221.
-|.fiihf..fhgf
-|.fihgf..fggf
-|fjihgf..fhgf
-|.KKKKK..KKK.
+view L key sit origin 7 7 stretch 1
+|...13222221
+|...14322221
+|.fiihf.....
+|.fihhf.....
+|fihhgf.....
+|KKKKKK.....
+regions
+|...TTTTTTTT
+|...TTTTTTTT
+|.BBBBB.....
+|.BBBBB.....
+|BBBBBB.....
+|OOOOOO.....
 
-view L key walkA2 origin 4 5
-|.1222221...
-|.12211221..
-|.fiihf.fhgf
-|.fihgf.fggf
-|fjihgf.fhgf
-|.KKKKK..KK.
+view D key cross origin 7 2 stretch 0
+|...13222221...
+|fiihf4332fhhgf
+|KKKKK1111KKKKK
+regions
+|...TTTTTTTT...
+|BBBBBTTTTBBBBB
+|OOOOOTTTTOOOOO
 
-view L key walkB2 origin 3 5
-|1222221...
-|.1214321..
-|..fhgfiihf
-|..fggfhhgf
-|.KKKfihhgf
-|..KKKKK...
+view U key cross origin 7 2 stretch 0
+|...13222221...
+|fiihf4332fhhgf
+|KKKKK1111KKKKK
+regions
+|...TTTTTTTT...
+|BBBBBTTTTBBBBB
+|OOOOOTTTTOOOOO
 
-view L key walkC origin 5 5
-|..1222221..
-|.1321.1432.
-|.fhgf.fiihf
-|.fggf..fhhf
-|fhggf..fihf
-|KKKKK..KKK.
+view R key cross origin 4 2 stretch 0
+|13222221...
+|1432fiihf..
+|1111KKKKK..
+regions
+|TTTTTTTT...
+|TTTTBBBBB..
+|TTTTOOOOO..
 
-view L key walkC2 origin 3 5
-|1222221...
-|14321321..
-|.fiihffhgf
-|.fggf.fhhf
-|fhggf.fihf
-|KKKKK..KK.
-
-view L key walkD2 origin 3 5
-|1222221
-|1314321
-|fhfiihf
-|fgfhhgf
-|fhKKKKK
-|..KKKKK
+view L key cross origin 6 2 stretch 0
+|...13222221
+|..fiihf1432
+|..KKKKK1111
+regions
+|...TTTTTTTT
+|..BBBBBTTTT
+|..OOOOOTTTT

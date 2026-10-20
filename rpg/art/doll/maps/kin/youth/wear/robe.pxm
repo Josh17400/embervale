@@ -1,0 +1,65 @@
+# kin/youth/wear/robe: the youth's robe: one long garment in cloth1, the tunic's V neck, a sash in the accent at the
+# waist (robe_hang falls from it to the ankles; the cuffs are trimmed in the accent through the arm regions)
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. The girl's (`when girl replace`) narrows a pixel at the waist.
+use person
+body youth
+role garment robe
+layer torso
+anchor neck
+keys rest
+
+view D key rest origin 6 0
+|...5qrrq5...
+|5988qrrq7765
+|..68888766..
+|..68877666..
+|..mpooonnm..
+
+view D key rest origin 6 0 when girl replace
+|...5qrrq5...
+|5989qrrq7765
+|..68887766..
+|...688766...
+|...mpoonm...
+
+view U key rest origin 6 0
+|...588765...
+|598877777665
+|..68877766..
+|..68777666..
+|..mpooonnm..
+
+view U key rest origin 6 0 when girl replace
+|...588765...
+|598877777665
+|..68877766..
+|...687766...
+|...mponnm...
+
+view R key rest origin 4 0
+|..5qrq5.
+|.5988765
+|58877665
+|58877665
+|mpooonnm
+
+view R key rest origin 4 0 when girl replace
+|..5qrq5.
+|.5988765
+|58877665
+|.588765.
+|.mpoonm.
+view L key rest origin 4 0
+|.5qrq5..
+|5988765.
+|58877665
+|58877665
+|mpooonnm
+
+view L key rest origin 4 0 when girl replace
+|.5qrq5..
+|5988765.
+|58877665
+|.588765.
+|.mpoonm.
+

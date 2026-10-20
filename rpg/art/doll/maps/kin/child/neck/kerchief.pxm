@@ -1,0 +1,28 @@
+# kin/child/neck/kerchief: the child's kerchief (accent): a band tied at the throat, the knot and its point on the chest
+# (KIN-CHILD, P2b wave 2; the child, STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person
+body child
+role neck kerchief
+layer neck
+anchor neck
+keys rest
+
+view D key rest origin 3 0
+|mnoopnm
+|.mpoom.
+|..mnm..
+
+view U key rest origin 3 0
+|mnooonm
+|.mnonm.
+|..mnm..
+
+view R key rest origin 3 0
+|mnoopm
+|.mmpom
+|...mm.
+
+view L key rest origin 2 0
+|mpoonm
+|mpomm.
+|.mm...

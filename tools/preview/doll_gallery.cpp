@@ -89,6 +89,7 @@ bool applyField(art::HumanLook& L, const std::string& k, const std::string& v) {
   else if (k == "outfit") L.outfit = (art::Outfit)num();
   else if (k == "weapon") L.weapon = (uint8_t)num();
   else if (k == "cloak") L.cloak = (uint8_t)num();
+  else if (k == "cape") L.cape = num() != 0;   // (OUTER: the cape, HumanLook::cape)
   else if (k == "jewellery") L.jewellery = (uint8_t)num();
   else if (k == "facePaint") L.facePaint = (uint8_t)num();
   else if (k == "skin") L.skin = col();
@@ -261,6 +262,12 @@ void boardLineup(const std::string& dir) {
     const RigSheet s = doll::compose(L, RigPart::Loco);
     if (s.empty()) b.text(x, 60, "-", rgba(232, 96, 60));
     putFrame(b, s, 0, Clip::Idle, 0, 0, x + 12, 90);
+    // a look the doll does not cover yet draws v1 in the game: marked, with what it misses first
+    if (!doll::dollCovers(L, RigPart::Loco)) {
+      b.text(x + 9, 96, "X", rgba(232, 96, 60));
+      const std::vector<doll::Missing> m = doll::dollMissing(L, RigPart::Loco);
+      if (!m.empty()) std::printf("  lineup %d: not covered: %s\n", k + 1, m[0].what().c_str());
+    }
     x += 36;
   }
   b.text(4, 4, "LINEUP (12, THREE PEOPLES) - IDLE DOWN");
@@ -268,32 +275,63 @@ void boardLineup(const std::string& dir) {
 }
 // the walk and run registration board: per facing an onion skin (every frame at 30 %) and the strip of frames on one
 // ground line, the lowest row's span under each frame (the planted foot) in Ember Gold
+// Then, for the side views, the same onion skin with every frame moved on by the walk table's travel (walkTable: where
+// each frame starts in the cycle), as the game places it: the planted foot must stay on one spot (a foot that slides
+// smears sideways); the ground line and the pivot column ruled in; the crown's rows over each onion (the bob).
+void onionAt(Board& b, const RigSheet& s, int f, int cx, int g0, const doll::WalkTable* travel) {
+  const int n = s.count(f, Clip::Walk);
+  for (int i = 0; i < n; i++) {
+    int px, py;
+    const Canvas c = rigpv::frameCanvas(s, f, Clip::Walk, 0, i, px, py);
+    const int dx = travel && travel->frames ? (int)std::lround(travel->start[std::min(i, travel->frames - 1)]) * (f == 3 ? -1 : 1) : 0;
+    for (int y = 0; y < c.h; y++)
+      for (int x = 0; x < c.w; x++) {
+        const uint32_t p = c.get(x, y);
+        const int X = cx + dx - px + x, Y = g0 - py + y;
+        if (p >> 24) b.c.set(X, Y, art::mix(b.c.get(X, Y), p | 0xFF000000u, 0.3f));
+      }
+  }
+}
 void boardOnion(const std::string& dir) {
   const doll::DollRecipe r = recipeOf(g_who);
-  Board b(760, 250);
+  const art::HumanLook look = theLook(g_who);
+  Board b(900, 250);
   int row = 0;
+  const uint32_t panel = rgba(196, 190, 176), rule = rgba(170, 160, 146), ink = rgba(40, 36, 46);
   for (RigPart part : {RigPart::Loco, RigPart::Run}) {
     const RigSheet s = doll::compose(r, part);
     const int g0 = 80 + row * 110;
-    b.text(4, g0 - 70, part == RigPart::Run ? "RUN: ONION SKIN (30 %) AND FRAMES" : "WALK: ONION SKIN (30 %) AND FRAMES");
+    b.text(4, g0 - 70, part == RigPart::Run ? "RUN: ONION SKIN (30 %, CROWN ROWS), MOVED ON BY THE TABLE; FRAMES" : "WALK: ONION SKIN (30 %, CROWN ROWS), MOVED ON BY THE TABLE; FRAMES");
     for (int y = g0 - 50; y < g0 + 16; y++)   // a neutral panel under the onion skins (30 % reads on it, not on grass)
-      for (int x = 2; x < 182; x++) b.c.set(x, y, rgba(196, 190, 176));
+      for (int x = 2; x < 330; x++) b.c.set(x, y, panel);
+    for (int x = 2; x < 330; x++) b.c.set(x, g0 + 1, rule);   // the ground line under the sole row
     for (int f = 0; f < 4; f++) {
       const int cx = 24 + f * 44;
-      const int n = s.count(f, Clip::Walk);
-      for (int i = 0; i < n; i++) {
-        int px, py;
-        const Canvas c = rigpv::frameCanvas(s, f, Clip::Walk, 0, i, px, py);
-        for (int y = 0; y < c.h; y++)
-          for (int x = 0; x < c.w; x++) {
-            const uint32_t p = c.get(x, y);
-            if (p >> 24) b.c.set(cx - px + x, g0 - py + y, art::mix(b.c.get(cx - px + x, g0 - py + y), p | 0xFF000000u, 0.3f));
-          }
-      }
+      for (int y = g0 - 48; y <= g0; y++) if (y % 2 == 0) b.c.set(cx, y, rule);   // the pivot column, dotted
+      onionAt(b, s, f, cx, g0, nullptr);
       b.c.set(cx, g0 + 2, rgba(200, 60, 40));
-      b.text(cx - 3, g0 + 5, std::string(1, "DURL"[f]), rgba(40, 36, 46));
+      b.text(cx - 3, g0 + 5, std::string(1, "DURL"[f]), ink);
+      // the crown's rows over the frames (the bob)
+      int top0 = 99, top1 = -99;
+      for (int i = 0; i < s.count(f, Clip::Walk); i++) {
+        const art::FrameRect* fr = s.frame(f, Clip::Walk, 0, i);
+        const art::RigAnchors* an = s.anchorsOf(f, Clip::Walk, 0, i);
+        if (!fr) continue;
+        if (an) { top0 = std::min<int>(top0, -an->topY); top1 = std::max<int>(top1, -an->topY); }
+      }
+      if (top1 >= 0) {
+        const std::string t = top0 == top1 ? std::to_string(top0) : std::to_string(top0) + "-" + std::to_string(top1);
+        b.text(cx - (int)t.size() * 3, g0 - 48, t, ink);
+      }
     }
-    int x = 210;
+    // the side views moved on by the table: the planted foot stays put
+    for (int f = 2; f < 4; f++) {
+      const doll::WalkTable t = doll::walkTable(look, part == RigPart::Run ? doll::Gait::Run : doll::Gait::Walk, f);
+      const int cx = f == 2 ? 196 : 300;
+      onionAt(b, s, f, cx, g0, &t);
+      b.text(cx - 12, g0 + 5, std::string(f == 2 ? "R+" : "L-") + std::to_string((int)std::lround(t.cycle)), ink);
+    }
+    int x = 350;
     for (int f = 2; f < 4; f++) {
       const int n = s.count(f, Clip::Walk);
       for (int i = 0; i < n; i++) {
@@ -469,7 +507,10 @@ void boardZoom(const std::string& dir, const std::string& arg) {
     if (w[1] == "hero" || w[1] == "woman") { who = w[1] == "woman" ? 1 : 0; o = 2; }
     if (w.size() < o + 4) { std::printf("doll_gallery: %s: frame:<part>:<facing>:<clip>:<i>[:<variant>]\n", arg.c_str()); return; }
     const RigPart part = w[o] == "run" ? RigPart::Run : w[o] == "action" ? RigPart::Action : w[o] == "death" ? RigPart::Death : RigPart::Loco;
-    s = doll::compose(recipeOf(who), part);
+    // (OUTER) frame:posture:<facing>:<posture number (art::Posture)>:<i>: one frame of a posture (the cloaks' sit, floor,
+    // kneel and ride drapes)
+    if (w[o] == "posture") s = doll::composePosture(recipeOf(who), (art::Posture)std::atoi(w[o + 2].c_str()), 0);
+    else s = doll::compose(recipeOf(who), part);
     facing = facingOf(w[o + 1]);
     for (int c = 0; c < art::CLIP_COUNT; c++) if (w[o + 2] == art::clipName((Clip)c)) clip = (Clip)c;
     idx = std::atoi(w[o + 3].c_str());

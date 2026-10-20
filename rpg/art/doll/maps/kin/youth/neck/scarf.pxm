@@ -1,0 +1,50 @@
+# kin/youth/neck/scarf: the youth's scarf (the A3 hero's, cut to the youth's neck): the wrap and the knot in the accent;
+# the tail hangs behind at rest and flies in the side walk and run (flow, flow2), lies flat when lying
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h.
+use person
+body youth
+role neck scarf
+layer neck
+anchor neck
+keys neck
+
+view D key rest origin 4 0
+|mpnnnnom
+|.mponm..
+
+view U key rest origin 4 0
+|mpoooonm
+
+view R key rest origin 4 0
+|.mpoonm
+|mn.....
+|.m.....
+
+view R key flow origin 8 0
+|...mnmpoonm
+|.moonnn....
+|.m.........
+
+view R key flow2 origin 8 1
+|.mm........
+|moon.mpoonm
+|..nnnn.....
+
+view L key rest origin 3 0
+|mpoonm.
+|.....nm
+|.....m.
+
+view L key flow origin 3 0
+|mpoonnmnm..
+|....nnnoom.
+|.........m.
+
+view L key flow2 origin 3 1
+|........mm.
+|mpoonm.moom
+|.....nnnn..
+
+view L key lie origin 3 0
+|mpoonm
+|....nm

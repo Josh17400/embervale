@@ -1,0 +1,76 @@
+# kin/child/headwear/hood: the hood (also the legacy and the travel cloak's hood): over the head and the ears, the face open under a shadowed rim, a little cape on the shoulders, a point behind
+# (KIN-CHILD, P2b wave 2; the child's headwear, STYLE_P2 23). Format: rpg/art/doll/doll.h.
+use person
+body child
+role headwear hood
+role headwear legacyhood
+role headwear cloakhood
+legend F head 0
+legend H head 1
+legend I head 2
+legend J head 3
+legend Z head 4
+layer headwear
+anchor head
+keys rest
+
+view D key rest origin 1 1
+|....FFFFFF....
+|..FFIJJJIHFF..
+|.FIJJIIIIHHHF.
+|.FIJIIIIIIHHF.
+|FIJHHHHHHHHHHF
+|FIF........FHF
+|FIF........FHF
+|FIF........FHF
+|FIJF......FHHF
+|.FIJF....FHHF.
+|FIJIJF..FHHHHF
+|FIIIHF..FHHHHF
+|.FFFF....FFFF.
+
+view U key rest origin 1 2
+|.....FF.......
+|....FJIFF.....
+|..FFIJJJIHFF..
+|.FIJJIIIIHHHF.
+|.FIJIIIIIIHHF.
+|FIJIIIIIIIHHHF
+|FIJIIIIIHIHHHF
+|FIJIIIIHIIHHHF
+|FIIIIIIHIIHHHF
+|FIIIIIIHIHHHHF
+|.FIIIIHIIHHHF.
+|FIJIIIHIIHHHHF
+|FIIIIIHIHHHHHF
+|.FFFFFFFFFFFF.
+
+view R key rest origin 2 1
+|.....FFFFFF...
+|...FFIJJJIHF..
+|..FIJJIIIIIHF.
+|.FIJIIIIIIIHHF
+|FIJIIIIIIHHHF.
+|FIIIIIIIF.....
+|FIIIIIHF......
+|FIIIIHHF......
+|.FIIIHHF......
+|.FIIIHHFF.....
+|FIIIIHHHHF....
+|FIIIHHHHHF....
+|.FFFFFFFF.....
+
+view L key rest origin -1 1
+|...FFFFFF.....
+|..FIJJJIHFF...
+|.FIJJIIIIIHF..
+|FIJIIIIIIIHHF.
+|.FIJIIIIIIHHHF
+|.....FIIIIIIIF
+|......FIIIIIHF
+|......FIIIIHHF
+|......FIIIHHF.
+|.....FFIIIHHF.
+|....FIIIIHHHHF
+|....FIIIHHHHHF
+|.....FFFFFFFF.

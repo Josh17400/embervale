@@ -1,0 +1,29 @@
+# head/adult/marks_freckles: freckles: a scatter over the nose and the cheeks in skin step 1 (STYLE_P2 4)
+# P2b FACES (wave 2). Inside A3's fixed face rows, so they fit every head type. Format: rpg/art/doll/doll.h.
+use person
+body adult
+role marks freckles
+layer face
+anchor head
+keys rest
+z 1
+tags overlay mirror-ok
+
+view D key rest origin -5 -11
+|.r..r.
+|r....r
+
+view D key rest when woman replace
+|.r..r.
+|r.....
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -9 -11
+|r.r
+|.r.
+
+view L key rest origin -4 -11
+|r.r
+|.r.

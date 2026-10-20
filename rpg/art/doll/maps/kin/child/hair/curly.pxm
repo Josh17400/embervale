@@ -1,0 +1,80 @@
+# kin/child/hair/curly: Curly: a cloud of short curls, a lumpy lit outline, curls over the brow
+# (KIN-CHILD, P2b wave 2; the child's 11 px head, STYLE_P2 3 and 21). Format: rpg/art/doll/doll.h.
+use person
+body child
+role hair curly
+layer hairFront
+anchor head
+keys rest
+
+view D key rest origin 1 1
+|...aa.aa.aa...
+|..adaadaadda..
+|.adeddeddcdca.
+|adeddedccdccba
+|acddcdccdccbba
+|abdca.dcb.cbba
+|ab..........ba
+|.ab........ba.
+|..a........a..
+
+view D key rest origin 1 -4 when capped,!circlet replace
+|ab..........ba
+|ab..........ba
+|.ab........ba.
+|..a........a..
+
+view U key rest origin 1 1
+|...aa.aa.aa...
+|..adaadaadda..
+|.adeddeddcdca.
+|adeddedccdccba
+|acddcdccdccbba
+|abdcbdcbdcbcba
+|abcdbcdbcbcbba
+|.abcbcbbcbcba.
+|..abaabaabba..
+
+view U key rest origin 1 -4 when capped,!circlet replace
+|ab..........ba
+|abcdbcdbcbcbba
+|.abcbcbbcbcba.
+|..abaabaabba..
+
+view R key rest origin 2 1
+|....aa.aa.aa..
+|...adaadaadda.
+|..adeddeddcca.
+|.adeddedccdcba
+|acddcdccdccba.
+|abdcbdcbdca...
+|acdbcdca......
+|abcbcba.......
+|.abcba........
+|..aaa.........
+
+view R key rest origin 2 -4 when capped,!circlet replace
+|abdcbdc.......
+|acdbcdca......
+|abcbcba.......
+|.abcba........
+|..aaa.........
+
+view L key rest origin -1 1
+|..aa.aa.aa....
+|.adaadaadda...
+|.adeddeddcca..
+|adeddedccdcba.
+|.acddcdccdccba
+|...abdcbdcbdca
+|......acdbcdca
+|.......abcbcba
+|........abcba.
+|.........aaa..
+
+view L key rest origin -1 -4 when capped,!circlet replace
+|.......bdcbdca
+|......acdbcdca
+|.......abcbcba
+|........abcba.
+|.........aaa..

@@ -1,0 +1,58 @@
+# head/adult/youth/brow_straight: the youth's straight brows
+# P2b FACES (wave 2): GENERATED from the adult maps by the FACES spec (the boy = the man's views, the girl = the
+# woman's as `when girl replace`); edit the adult maps, then regenerate. Format: rpg/art/doll/doll.h.
+use person
+body youth
+role brow straight
+layer face
+anchor head
+keys rest
+tags mirror-ok
+
+view D key rest origin -4 -8
+|bb....bb
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -11 -8
+|bb
+
+view L key rest origin -3 -8
+|bb
+
+view D key rest origin -4 -7 when boy,elf replace
+|b......b
+|.b....b.
+
+view R key rest origin -11 -7 when boy,elf replace
+|b.
+|.b
+
+view L key rest origin -3 -7 when boy,elf replace
+|.b
+|b.
+
+view D key rest origin -4 -7 when girl,elf replace
+|c......c
+|.b....b.
+
+view R key rest origin -11 -7 when girl,elf replace
+|c.
+|.b
+
+view L key rest origin -3 -7 when girl,elf replace
+|.c
+|b.
+
+view D key rest origin -3 -8 when girl replace
+|cbb....bbc
+
+view U key rest origin 0 0 when girl replace
+|.
+
+view R key rest origin -11 -8 when girl replace
+|bc
+
+view L key rest origin -3 -8 when girl replace
+|cb

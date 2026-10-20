@@ -1,4 +1,4 @@
-# hair/adult/twinbraids_hang: Twin braids' hanging braids: one over each shoulder, swinging out of phase (hair keys)
+# hair/adult/twinbraids_hang: Twin braids' hanging braids: one over each shoulder, swinging out of phase (hair keys: the swing key lags one braid; sway: the tips follow the hips, so the step on each foot differs)
 # The slice (P2b wave 1, FOLK-BODY; to HAIR in wave 2). On the adult head box (STYLE_P2 21). Format: rpg/art/doll/doll.h.
 use person
 body adult
@@ -6,6 +6,7 @@ role hair twinbraids
 layer neck
 anchor head
 keys hair
+sway 3
 z 1
 
 view D key rest origin -1 -14

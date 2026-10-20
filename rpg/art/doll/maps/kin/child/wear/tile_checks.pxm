@@ -1,0 +1,16 @@
+# kin/child/wear/tile_checks: the child's checks pattern (a fine check): a tile laid over the garment's cloth in the pattern
+# slot, the cloth's shading kept (tags tile; doll.h). Child-sized: the adult's period halved where it would crowd 6 rows.
+use person
+body child
+role overlay checks
+legend X pattern 2
+layer torso
+anchor neck
+keys rest
+tags tile
+
+view D key rest origin 0 0
+|XX..
+|XX..
+|..XX
+|..XX

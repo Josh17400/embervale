@@ -1,0 +1,89 @@
+# held/props/spoon: a wooden spoon in the right hand and the bowl it eats from in the left (PROPS, P2b) for SitEat and
+# SitFloorEat. Format: rpg/art/doll/doll.h. The bowl sits at the left hand's grip (arms/adult/pose man_l hold), the spoon
+# at the right's: up to the mouth, down to the bowl.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held spoon
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin -3 -3 layer neck
+|.f........
+|fj........
+|f...VXYXYV
+|....fVWWVf
+|.....fhgf.
+
+view D key mouth origin -4 3 layer beard
+|.v.......
+|vx.......
+|f........
+|.........
+|.........
+|.........
+|.........
+|.........
+|...VXYXYV
+|...fVWWVf
+|....fhgf.
+
+view U key hold origin 6 -18 layer heldBack
+|.
+
+view U key mouth origin 6 -18 layer heldBack
+|.
+
+view R key hold origin -3 -3 layer neck
+|....f.
+|...fj.
+|VXYf.V
+|fVWWVf
+|.fhgf.
+
+view R key mouth origin -3 4 layer hairFront
+|.....v
+|....vx
+|....f.
+|......
+|......
+|......
+|......
+|......
+|......
+|VXYXYV
+|fVWWVf
+|.fhgf.
+
+view L key hold origin 9 -3 layer hairBack
+|...f..
+|..fj..
+|VXf.YV
+|fVWWVf
+|.fhgf.
+
+view L key mouth origin 9 4 layer hairBack
+|..v...
+|.vx...
+|.f....
+|......
+|......
+|......
+|......
+|......
+|......
+|VXYXYV
+|fVWWVf
+|.fhgf.

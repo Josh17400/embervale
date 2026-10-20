@@ -24,6 +24,24 @@ int WalkTable::frameAt(float px) const {
   while (f + 1 < frames && d >= start[f + 1]) f++;
   return f;
 }
+// (P2b integration) the hair family table lives in the data library, so the simulation (gear_look.cpp: the created
+// hero's style within the family) links without the painters (save_test)
+namespace {
+// family x variant -> style (art::Hair order: Bald, Short, Long, Ponytail, Mohawk, Braids, Bun, Curls)
+const int kFamilyStyles[8][5] = {{0, 1, -1, -1, -1}, {3, 2, 4, 5, 7}, {12, 13, 11, 10, -1}, {14, 15, 22, -1, -1},
+                                 {8, 9, -1, -1, -1}, {16, 17, 19, 20, -1}, {18, 21, -1, -1, -1}, {6, 23, -1, -1, -1}};
+}  // namespace
+int hairVariants(Hair f) {
+  const int fi = std::clamp((int)f, 0, 7);
+  int n = 0;
+  while (n < 5 && kFamilyStyles[fi][n] >= 0) n++;
+  return n;
+}
+int hairStyleOf(Hair f, uint8_t v) {
+  const int fi = std::clamp((int)f, 0, 7);
+  const int n = hairVariants(f);
+  return kFamilyStyles[fi][std::min((int)v, n - 1)];
+}
 namespace {
 WalkTable walkTableOf(BodySet set, const std::string& bodyKey, Gait gait, int facing) {
   using namespace pool;

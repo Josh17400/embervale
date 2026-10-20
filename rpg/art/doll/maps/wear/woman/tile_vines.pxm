@@ -1,0 +1,18 @@
+# wear/woman/tile_vines: the woman's vines: a climbing vine, a stem zigzagging up the cloth with a leaf at each turn;
+# laid as a tile over her garments' cloth in the pattern slot, the cloth's shading kept (tags tile; doll.h). GARB-W (P2b).
+use person
+body woman
+role overlay vines
+legend X pattern 2
+layer torso
+anchor neck
+keys rest
+tags tile
+
+view D key rest origin 0 0
+|X...
+|.X..
+|.XX.
+|.X..
+|X...
+|XX..

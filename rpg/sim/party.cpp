@@ -7,6 +7,11 @@
 #include "rpg/sim/common.h"
 #include "rpg/sim/life.h"
 
+namespace census {   // (P2b FOLK-SIM, rpg/sim/looks.cpp) the doll's look fields and the census age on a look
+void features(art::HumanLook& L, Role r, bool female, int arch, uint64_t seed, int manCut);
+void ageLook(art::HumanLook& L, int years, bool childRole, bool elder, uint64_t seed);
+}  // namespace census
+
 namespace party {
 
 // ---------------------------------------------------------------- names
@@ -271,6 +276,19 @@ void writeLook(BinW& w, const art::HumanLook& L) {
     w.u8(b);
   w.u16(L.armsOrnament);
 }
+// (P2b fix, SAVELOAD-COMPANION-LOOK) the doll's look fields (P2a body/age, P2b head .. garb), appended to the member record
+// after the look: a companion's look is fixed at join and its census is gone after a load, so these are saved with it
+// (the record is length-prefixed: an older record simply ends before this block and readMember derives them instead)
+constexpr uint8_t kDollTag = 0xD2;
+void writeDoll(BinW& w, const art::HumanLook& L) {
+  w.u8(kDollTag);
+  for (uint8_t b : {L.body, L.age, L.head, L.nose, L.brow, L.marks, L.hairVar, L.beardStyle, L.neck, L.garb}) w.u8(b);
+}
+bool readDoll(BinR& r, art::HumanLook& L) {
+  if (r.u8() != kDollTag) return false;
+  for (uint8_t* b : {&L.body, &L.age, &L.head, &L.nose, &L.brow, &L.marks, &L.hairVar, &L.beardStyle, &L.neck, &L.garb}) *b = r.u8();
+  return !r.bad && L.body <= 1 && L.age <= 3;
+}
 bool readLook(BinR& r, art::HumanLook& L) {
   for (uint32_t* c : {&L.skin, &L.hairColor, &L.topColor, &L.bottomColor, &L.tabardColor, &L.weaponColor, &L.eyeColor, &L.cloakColor, &L.trimColor,
                       &L.headColor, &L.patternColor, &L.plumeColor, &L.armourTint, &L.armourTint2, &L.glowColor, &L.shieldField, &L.shieldDevice})
@@ -308,6 +326,7 @@ void writeMember(BinW& w, const Member& m) {
   w.i32(m.leftDay); w.u64(m.hiredAt); w.u8(m.mercSlot); w.i32(m.mountedDay);   // (v2)
   w.u8(m.hasLook ? 1 : 0);   // (v3)
   if (m.hasLook) writeLook(w, m.look);
+  if (m.hasLook) writeDoll(w, m.look);   // (P2b) the doll's fields, last in the record
 }
 bool readMember(BinR& r, Member& m) {
   m = Member();
@@ -346,6 +365,19 @@ bool readMember(BinR& r, Member& m) {
   m.leftDay = r.i32(); m.hiredAt = r.u64(); m.mercSlot = r.u8(); m.mountedDay = r.i32();   // (v2)
   m.hasLook = r.u8() != 0;   // (v3)
   if (m.hasLook && !readLook(r, m.look)) return false;
+  if (m.hasLook) {
+    if (r.p < r.b.size()) {
+      if (!readDoll(r, m.look)) return false;
+    } else {
+      // a record saved before the doll's block: derive the fields once from what was saved (their people, hair family,
+      // cut and skin) and their own seed, so the companion is a person of their own and stays it (the next save keeps it)
+      art::HumanLook& L = m.look;
+      L.body = m.female ? 1 : 0;
+      const life::Job j = (life::Job)m.job;
+      census::features(L, j == life::Job::Child ? Role::Child : Role::Villager, m.female, -1, (uint64_t)m.lookSeed, -1);
+      census::ageLook(L, m.age, j == life::Job::Child, j == life::Job::Elder, (uint64_t)m.lookSeed);
+    }
+  }
   if (m.mercSlot >= MERC_MAX || m.downT < 0 || m.downT > DOWNED_SECS + 1 || m.hp > 1e6f) return false;
   return !r.bad;
 }

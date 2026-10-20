@@ -1,0 +1,25 @@
+# head/adult/man/wince_round: a round or square man's wince: the cheeks bunch up lit and the mouth gapes
+# P2b FACES (wave 2), over the generic hurt face (expr, z 2). Format: rpg/art/doll/doll.h.
+use person
+body man
+role head round
+role head square
+layer face
+anchor head
+keys expr
+z 3
+tags overlay mirror-ok
+
+view D key hurt origin -3 -12
+|u.......
+|.....M..
+
+view R key hurt origin -10 -11
+|u...
+|....
+|...M
+
+view L key hurt origin -2 -11
+|..u
+|...
+|M..

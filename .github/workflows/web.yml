@@ -174,13 +174,15 @@ jobs:
       # measure the doll's atlases, so they run without --gates until the P2b areas pass them. The doll's pool is
       # generated (tools/doll/pxc.mjs --check fails when rpg/art/doll/gen/doll_pool.cpp is stale), --doll checks the
       # contract, --doll-coverage reports B6. Each integrator adds --gates as its gates pass. Blocking.
+      # (P2b integration, 2026-10-19) --doll --gates (B1, B2, faces, hands, B8, B9, B10, ramps, B11) passes on MSVC and
+      # clang; --doll-coverage stays without --gates (B6's dead parts) and --rig without (R5-R10 are P2c's, H2 the seats).
       - name: Clear Sight rig and animation test
         run: |
           node tools/doll/pxc.mjs --check
           ./build-native/rpg_test --rig
           ./build-native/rpg_test --anim --gates
           ./build-native/rpg_test --rig-coverage --seeds 1..3
-          ./build-native/rpg_test --doll
+          ./build-native/rpg_test --doll --gates
           ./build-native/rpg_test --doll-coverage --seeds 1..3
 
       # M7 Home (VISION_PLAN 8, 15.22): crops and seasons, deterministic offline catch-up, a 1000-placement fuzz, the

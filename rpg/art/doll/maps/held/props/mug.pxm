@@ -1,0 +1,132 @@
+# held/props/mug: the tankard (PROPS, P2b): a wooden mug with a brass band and a head of foam, in the right hand for
+# Drink, SitDrink, SitFloorDrink and Cheer (doll_internal.h postureProp). Format: rpg/art/doll/doll.h. Drawn around the pose
+# arms' grips (arms/adult/pose: hold, mouth, raise, wave2) and anchored on the right shoulder, so it rides the arm; under
+# the hand (the fist covers the handle), on hairFront where the arm comes before the face, behind the body from behind.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held mug
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin -5 -3 layer neck
+|.ZYW.
+|fjihf
+|IPONI
+|fihgf
+|.fff.
+
+view D key mouth origin -4 5 layer beard
+|.ZYW.
+|fjihf
+|IPONI
+|fihgf
+|.fff.
+
+view D key raise origin 5 16 layer neck
+|.ZYW.
+|fjihf
+|IPONI
+|fihgf
+|.fff.
+
+view D key wave2 origin 6 12 layer neck
+|.ZYW.
+|fjihf
+|IPONI
+|fihgf
+|.fff.
+
+view U key hold origin 9 -3 layer heldBack
+|.ZYW.
+|fjihf
+|IPONI
+|fihgf
+|.fff.
+
+view U key mouth origin 6 -18 layer heldBack
+|.
+
+view U key raise origin -1 16 layer heldBack
+|.ZYW.
+|fjihf
+|IPONI
+|fihgf
+|.fff.
+
+view U key wave2 origin -2 12 layer heldBack
+|.ZYW.
+|fjihf
+|IPONI
+|fihgf
+|.fff.
+
+view R key hold origin -8 -3 layer neck
+|.ZYW.
+|fjihf
+|IPONI
+|fihgf
+|.fff.
+
+view R key mouth origin -6 7 layer hairFront
+|..ff..
+|.fihf.
+|fjihgf
+|IPONI.
+|.ZYWf.
+|..VV..
+
+view R key raise origin 5 16 layer hairFront
+|.ZYW.
+|fjihf
+|IPONI
+|fihgf
+|.fff.
+
+view R key wave2 origin -5 10 layer hairFront
+|.ZYW.
+|fjihf
+|IPONI
+|fihgf
+|.fff.
+
+view L key hold origin 12 -3 layer hairBack
+|.ZYW.
+|fjihf
+|IPONI
+|fihgf
+|.fff.
+
+view L key mouth origin 11 7 layer hairBack
+|..ff..
+|.fihf.
+|fjihgf
+|.IPONI
+|.fZYW.
+|..VV..
+
+view L key raise origin -1 16 layer hairBack
+|.ZYW.
+|fjihf
+|IPONI
+|fihgf
+|.fff.
+
+view L key wave2 origin 9 10 layer hairBack
+|.ZYW.
+|fjihf
+|IPONI
+|fihgf
+|.fff.

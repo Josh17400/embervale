@@ -1,10 +1,8 @@
-# kin/child/hair/short: the child's Short hair: a round mop, the fringe (Cropped and Tousled too; Tousled adds kin/child/hair/tuft)
-# The slice (P2b wave 1, FOLK-BODY; to KIN-CHILD in wave 2). The child, 21 px (STYLE_P2 3). Format: rpg/art/doll/doll.h.
+# kin/child/hair/short: Short: a round mop, the fringe parted over the brow
+# (KIN-CHILD, P2b wave 2; the child's 11 px head, STYLE_P2 3 and 21). Format: rpg/art/doll/doll.h.
 use person
 body child
 role hair short
-role hair tousled
-role hair cropped
 layer hairFront
 anchor head
 keys rest
@@ -15,9 +13,15 @@ view D key rest origin 0 0
 |adeedddcccba
 |adddddccccba
 |acd...cb..ba
-|b..........b
-|b..........b
-|b..........b
+|a..........a
+|a..........a
+|a..........a
+
+view D key rest origin 0 -4 when capped,!circlet replace
+|a..........a
+|a..........a
+|a..........a
+|a..........a
 
 view U key rest origin 0 0
 |..aaaaaaaa..
@@ -25,29 +29,50 @@ view U key rest origin 0 0
 |adeeddddccba
 |aeedddddccba
 |acdcbdcccbba
-|acdcbccbcba.
-|abcbccbcbba.
-|abbccbcbcba.
-|.a........a.
+|acdcbccbcbba
+|abcbccbcbbba
+|.abbccbcbba.
+|..aa....aa..
+
+view U key rest origin 0 -4 when capped,!circlet replace
+|a..........a
+|acdcbccbcbba
+|abcbccbcbbba
+|.abbccbcbba.
+|..aa....aa..
 
 view R key rest origin 1 0
-|....aaaaa...
-|..aadeedca..
-|.adeedddcca.
-|adddddccccba
-|acddccbcc.b.
-|abccbc..b...
-|abcbcb..b...
-|.abba.......
-|...aa.......
+|....aaaaaa...
+|..addeedcaa..
+|.adeeddddcca.
+|adddddcccccba
+|acdccbcbca...
+|accbca.......
+|abcbca.......
+|.abcba.......
+|..aba........
+
+view R key rest origin 1 -4 when capped,!circlet replace
+|acdccb.......
+|accbca.......
+|abcbca.......
+|.abcba.......
+|..aba........
 
 view L key rest origin -1 0
-|...aaaaa.....
-|..adeedcaa...
-|.adeeddccca..
-|abdddddccccba
-|..ddcbcccbba.
-|.....b..cbcba
-|....b..bcbcba
-|.......abbba.
-|........aa...
+|...aaaaaa....
+|..aaddeedca..
+|.adeeddddcca.
+|adddddcccccba
+|...acdccbcbca
+|.......accbca
+|.......abcbca
+|.......abcba.
+|........aba..
+
+view L key rest origin -1 -4 when capped,!circlet replace
+|.......cbcbca
+|.......accbca
+|.......abcbca
+|.......abcba.
+|........aba..

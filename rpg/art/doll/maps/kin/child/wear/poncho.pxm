@@ -1,0 +1,41 @@
+# kin/child/wear/poncho: the poncho: a wide drape over the shoulders and the arms (drawn over them), a striped band in the accent, a fringe at the hem; the hands peek out below
+# (KIN-CHILD, P2b wave 2; the child's torso is 6 rows, F-10..F-5, STYLE_P2 3 and 22). Format: rpg/art/doll/doll.h.
+use person woman
+body child
+role garment poncho
+layer armNear
+keys rest
+anchor neck
+z 5
+
+view D key rest origin 7 0
+|...598877665...
+|.5988877776665.
+|59888877776665.
+|5nooonnnnmmmm5.
+|59888777766665.
+|.5.5.5.5.5.5.5.
+
+view U key rest origin 7 0
+|...598877766...
+|.5988877776665.
+|59888877776665.
+|5mmmnoooonnnn5.
+|59888877776665.
+|.5.5.5.5.5.5.5.
+
+view R key rest origin 5 0
+|...59885..
+|.598877655
+|5988877665
+|5noonnnmm5
+|5988776665
+|.5.5.5.5..
+
+view L key rest origin 4 0
+|..59885...
+|559887765.
+|5988877665
+|5mmnoonnn5
+|5988776665
+|..5.5.5.5.

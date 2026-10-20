@@ -1,7 +1,8 @@
 # neck/scarf: the scarf (A3's hero): the wrap and knot; the tail hangs at rest and flies in side walks (neck keys)
 # The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+# GARB-W (wave 2): fitted to the man only (his collar row is F-19); the woman wears her own, neck/woman/scarf.
 use person
-body adult
+body man
 role neck scarf
 layer neck
 anchor neck

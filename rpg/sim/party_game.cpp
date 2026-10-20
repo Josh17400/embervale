@@ -960,6 +960,7 @@ art::HumanLook Game::partyLook(const Member& m) const {
   art::HumanLook L;
   if (m.hasLook) L = m.look;
   else PartyOps::baseLook(const_cast<Game&>(*this), m, L);
+  L.civil = 0;   // (P2b fix TRADES-DRAWN-ON-V1) a companion fights: a recruited smith's or hunter's tool is a weapon again
   auto at = [&](int s) -> const Item* { const int e = m.eq[(size_t)s]; return e >= 0 && e < (int)m.inv.size() ? &m.inv[(size_t)e] : nullptr; };
   WornGear wg;
   wg.weapon = at(party::S_WEAPON); wg.bow = at(party::S_BOW); wg.staff = at(party::S_STAFF); wg.armor = at(party::S_ARMOR);

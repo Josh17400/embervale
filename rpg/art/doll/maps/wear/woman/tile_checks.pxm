@@ -1,0 +1,15 @@
+# wear/woman/tile_checks: the woman's checks: a woven check, a pattern line every third row and every fourth column;
+# laid as a tile over her garments' cloth in the pattern slot, the cloth's shading kept (tags tile; doll.h). GARB-W (P2b).
+use person
+body woman
+role overlay checks
+legend X pattern 2
+layer torso
+anchor neck
+keys rest
+tags tile
+
+view D key rest origin 0 0
+|XXXX
+|X...
+|X...

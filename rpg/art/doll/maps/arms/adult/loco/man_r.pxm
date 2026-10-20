@@ -1,4 +1,11 @@
-# arms/adult/loco/man_r: the man's right arm: sleeve, bracer, hand (regions: U upper arm, F forearm, H hand)
+# arms/adult/loco/man_r: the man's right arm: sleeve, bracer, hand
+# The arm library (P2b production, FOLK-BODY): every view carries regions (U upper arm: the first two sleeve rows; F
+# forearm: the rest of the sleeve; C cuff: the leather bracer; H hand), so a garment's sleeve recolours one drawing (doll_
+# resolve.cpp regionsOf: rags bare arms, apron / smock rolled sleeves, a jerkin's linen shirt, a coat's or robe's trimmed
+# cuff; P2c gloves and gauntlets). THE ARM KEYS (a sleeve or armour part on the armR / armL channels draws the same keys,
+# or it vanishes on those frames): idle; walk D/U fwd back, R/L B F N; run D/U runF, R/L runB runF; lap; L lie; fling
+# (the fall's recoil, D U R/L); guard (armR: the drawn weapon's ready guard, D U R L, its `grip` mark); the off hand while
+# a weapon is out (armL): D/U oidle ofwd oback orunF, L oidle oB oF oN orunB orunF, R oback.
 # The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
 use person
 body man
@@ -18,6 +25,15 @@ mark handR 0 5
 |qts
 |qsr
 |.qq
+regions
+|UUU
+|UUU
+|FFF
+|CCC
+|CCC
+|HHH
+|HHH
+|.HH
 
 view D key fwd origin 1 -1
 mark handR 0 7
@@ -31,6 +47,17 @@ mark handR 0 7
 |qts
 |qsr
 |.qq
+regions
+|UUU
+|UUU
+|FFF
+|FFF
+|FFF
+|CCC
+|CCC
+|HHH
+|HHH
+|.HH
 
 view D key idle origin 1 -1
 mark handR 0 6
@@ -43,6 +70,16 @@ mark handR 0 6
 |qts
 |qsr
 |.qq
+regions
+|UUU
+|UUU
+|FFF
+|FFF
+|CCC
+|CCC
+|HHH
+|HHH
+|.HH
 
 view D key runF origin 1 -1
 mark handR 0 3
@@ -52,6 +89,13 @@ mark handR 0 3
 |qts
 |qsr
 |.qq
+regions
+|UUU
+|UUU
+|FFF
+|HHH
+|HHH
+|.HH
 
 view D key lap origin 1 -1
 mark handR 3 9
@@ -66,6 +110,18 @@ mark handR 3 9
 |..qts
 |..qsr
 |...qq
+regions
+|UUU..
+|UUU..
+|FFF..
+|FFF..
+|CCC..
+|.CCC.
+|.CCC.
+|..CCC
+|..HHH
+|..HHH
+|...HH
 
 view U key back origin 2 -1
 mark handR 1 6
@@ -78,6 +134,16 @@ mark handR 1 6
 |.srq
 |.rrq
 |.qq.
+regions
+|.UUU
+|.UUU
+|.FFF
+|.FFF
+|CCCC
+|.CCC
+|.HHH
+|.HHH
+|.HH.
 
 view U key fwd origin 2 -1
 mark handR 1 5
@@ -89,6 +155,15 @@ mark handR 1 5
 |.srq
 |.rrq
 |.qq.
+regions
+|.UUU
+|.UUU
+|.FFF
+|.FFF
+|CCCC
+|.HHH
+|.HHH
+|.HH.
 
 view U key idle origin 1 -1
 mark handR 0 6
@@ -101,6 +176,16 @@ mark handR 0 6
 |srq
 |rrq
 |qq.
+regions
+|UUU
+|UUU
+|FFF
+|FFF
+|CCC
+|CCC
+|HHH
+|HHH
+|HH.
 
 view U key runF origin 2 -1
 mark handR 1 3
@@ -110,6 +195,13 @@ mark handR 1 3
 |fhgf
 |.srq
 |.qq.
+regions
+|.UUU
+|.UUU
+|.FFF
+|CCCC
+|.HHH
+|.HH.
 
 view U key lap origin 1 -1
 mark handR 0 5
@@ -119,6 +211,13 @@ mark handR 0 5
 |765
 |hgf
 |fgf
+regions
+|UUU
+|UUU
+|FFF
+|FFF
+|CCC
+|CCC
 
 view R key B origin 3 -1
 mark handR 0 6
@@ -131,6 +230,16 @@ mark handR 0 6
 |qtsq....
 |qsrq....
 |.qq.....
+regions
+|...UUUUU
+|..UUUUU.
+|..FFFFF.
+|.FFFFF..
+|.CCCCC..
+|CCCCC...
+|HHHH....
+|HHHH....
+|.HH.....
 
 view R key F origin 0 -1
 mark handR 3 6
@@ -143,6 +252,16 @@ mark handR 3 6
 |...qtsq.
 |...qsrq.
 |....qq..
+regions
+|UUUUU...
+|.UUUUU..
+|.FFFFF..
+|..FFFFF.
+|..CCCCC.
+|...CCCCC
+|...HHHH.
+|...HHHH.
+|....HH..
 
 view R key N origin 0 -1
 mark handR 0 6
@@ -155,6 +274,16 @@ mark handR 0 6
 |qtsq.
 |qsrq.
 |.qq..
+regions
+|UUUUU
+|UUUUU
+|FFFFF
+|FFFFF
+|CCCCC
+|CCCCC
+|HHHH.
+|HHHH.
+|.HH..
 
 view R key idle origin 0 -1
 mark handR 0 6
@@ -167,6 +296,16 @@ mark handR 0 6
 |qtsq.
 |qsrq.
 |.qq..
+regions
+|UUUUU
+|UUUUU
+|FFFFF
+|FFFFF
+|CCCCC
+|CCCCC
+|HHHH.
+|HHHH.
+|.HH..
 
 view R key runB origin 4 -1
 mark handR 0 5
@@ -178,6 +317,15 @@ mark handR 0 5
 |qtsq.....
 |qsrq.....
 |.qq......
+regions
+|....UUUUU
+|..UUUUU..
+|.FFFFF...
+|CCCCC....
+|CCCCC....
+|HHHH.....
+|HHHH.....
+|.HH......
 
 view R key runF origin 0 -1
 mark handR 6 1
@@ -186,8 +334,154 @@ mark handR 6 1
 |5876fiqsrq
 |.fihgf....
 |.......qq.
+regions
+|UUUUU.....
+|UUUUU.HHHH
+|FFFFCCHHHH
+|.CCCCC....
+|.......HH.
 
 view L key back origin -5 -6
 |5.
 |qr
 |qq
+regions
+|U.
+|HH
+|HH
+
+# ---- the drawn-weapon LOCO (P2b production, FOLK-BODY): `guard`, the weapon hand in a ready guard; its `grip` mark is
+# where held weapons hang their `guard` views (held/weapons/sword.pxm). R and L are A3's recover arm (swing.py r3 / l3)
+# split from its blade, so the composed guard is A3's recover pixel for pixel; D and U hold the blade out to the weapon
+# side (up-left facing down, up-right facing up), clear of the face and of the off hand.
+view D key guard origin 1 -1
+mark handR 0 5
+mark grip 0 5
+|597
+|597
+|597
+|fih
+|fih
+|qts
+|qsr
+|.qq
+regions
+|UUU
+|UUU
+|FFF
+|CCC
+|CCC
+|HHH
+|HHH
+|.HH
+
+view U key guard origin 1 -1
+mark handR 0 5
+mark grip 2 5
+|765
+|765
+|765
+|hgf
+|hgf
+|srq
+|rrq
+|qq.
+regions
+|UUU
+|UUU
+|FFF
+|CCC
+|CCC
+|HHH
+|HHH
+|HH.
+
+view R key guard origin -2 1
+mark handR 6 2
+mark grip 6 2
+|.58878....
+|5876fhqq..
+|587fihqtsq
+|.5fihqsrq.
+|..ff.qqq..
+regions
+|.UUUUU....
+|UUUUCCHH..
+|FFFCCCHHHH
+|.FCCCHHHH.
+|..CC.HHH..
+
+view L key guard origin 15 1 layer armNear
+mark handR 12 2
+mark grip 12 2
+|.........57777..
+|........5766fhqq
+|......576fhgqsrq
+|.......5fhgqrrq.
+|........ff.qqq..
+regions
+|.........UUUUU..
+|........UUUUCCHH
+|......FFFCCCHHHH
+|.......FCCCHHHH.
+|........CC.HHH..
+
+# ---- the fall's recoil (P2b production, FOLK-BODY): `fling`, the arm thrown out by the killing blow (the body jolts up,
+# the arms fly out before the knees give): facing down and up both arms spread out and down from the shoulders, facing
+# right the near arm flung back behind the body as it snaps back
+view D key fling origin 5 -1
+|....597
+|...5976
+|..5976.
+|.fihg..
+|fihg...
+|qtsq...
+|qsrq...
+|.qq....
+regions
+|....UUU
+|...UUUU
+|..FFFF.
+|.CCCC..
+|CCCC...
+|HHHH...
+|HHHH...
+|.HH....
+
+view U key fling origin 1 -1
+|765....
+|8765...
+|.8765..
+|..ihgf.
+|...ihgf
+|...qtsq
+|...qsrq
+|....qq.
+regions
+|UUU....
+|UUUU...
+|.FFFF..
+|..CCCC.
+|...CCCC
+|...HHHH
+|...HHHH
+|....HH.
+
+view R key fling origin 9 -1
+|........58765
+|......58765..
+|....58765....
+|...fihgf.....
+|.fihgf.......
+|qtsq.........
+|qsrq.........
+|.qq..........
+regions
+|........UUUUU
+|......UUUUU..
+|....FFFFF....
+|...CCCCC.....
+|.CCCCC.......
+|HHHH.........
+|HHHH.........
+|.HH..........

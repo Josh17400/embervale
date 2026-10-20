@@ -1,0 +1,133 @@
+# wear/woman/jerkin: the woman's hunting jerkin (STYLE_P2 22 "Jerkin"): fitted leather over a cloth1 shirt (its collar at the
+# throat, its long sleeves ending in leather bracers), laced down the front in linen, a dark belt with a brass buckle; the
+# jerkin's short skirt and a pouch on the left hip are the hang
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role garment jerkin
+layer torso
+anchor neck
+keys torso
+
+view D key rest origin 8 -1
+|......qrrq......
+|598fii8776hhf765
+|588fihf66fhgf765
+|588fihhxhgggf665
+|...fihhhxhggf...
+|...fihhxhhggf...
+|...fhhhhxgggf...
+|...fihhhhhggf...
+|...fgggPOgggf...
+
+view D key rest origin 8 -2 when elder
+|-..............-
+
+view D key swing origin 8 -1
+|......qrrq......
+|598fii8776hhf765
+|588fihf66fhgf765
+|588fihhxhgggf665
+|...fihhhxhggf...
+|...fihhxhhggf...
+|...fhhhhxgggf...
+|...fihhhhhggf...
+|...fgggPOgggf...
+
+view D key swing origin 8 -2 when elder
+|-..............-
+
+view D key drawn origin 8 -1
+|......qrrq......
+|598fii8776hhf765
+|588fihf66fhgf765
+|588fihhxhgggf665
+|...fihhhxhggf...
+|...fihhxhhggf...
+|...fhhhhxgggf...
+|...fihhhhhggf...
+|...fgggPOgggf...
+
+view D key drawn origin 8 -2 when elder
+|-..............-
+
+view U key rest origin 8 -1
+|.....qrrrrrq....
+|598fiiihhhhhf765
+|588fihhhhhhgf765
+|588fihhhhhggf665
+|...fihhhhhggf...
+|...fihhhhhggf...
+|...fhhhhhgggf...
+|...fihhhhhggf...
+|...fgggggfggf...
+
+view U key rest origin 8 -2 when elder
+|-..............-
+
+view R key rest origin 6 -1
+|......qrrqq..
+|..fih5988hf..
+|..fih5887hhf.
+|..fhh5998hgf.
+|..fihhhhhxgf.
+|..fihhhhxgf..
+|..fhhhhhhgf..
+|..fihhhhhgf..
+|..fggggggPOf.
+
+view R key rest origin 4 -2 when elder
+|-
+
+view R key swing origin 6 -1
+|......qrrqq..
+|..fih5988hf..
+|..fih5887hhf.
+|..fhh5998hgf.
+|..fihhhhhxgf.
+|..fihhhhxgf..
+|..fhhhhhhgf..
+|..fihhhhhgf..
+|..fggggggPOf.
+
+view R key swing origin 4 -2 when elder
+|-
+
+view L key rest origin 7 -1
+|..qqrrq......
+|..fi9885hgf..
+|..fi8875hgf..
+|.fii9985hgf..
+|.fixhhhhhgf..
+|..fixhhhhgf..
+|..fihhhhhgf..
+|..fihhhhhgf..
+|.fOPggggggf..
+
+view L key rest origin -3 -2 when elder
+|-
+
+view L key swing origin 7 -1
+|..qqrrq......
+|..fi9885hgf..
+|..fi8875hgf..
+|.fii9985hgf..
+|.fixhhhhhgf..
+|..fixhhhhgf..
+|..fihhhhhgf..
+|..fihhhhhgf..
+|.fOPggggggf..
+
+view L key swing origin -3 -2 when elder
+|-
+
+view L key lie origin 7 -1
+|..qqrrq......
+|..fi9885hgf..
+|..fi8875hgf..
+|.fii9985hgf..
+|.fixhhhhhgf..
+|..fixhhhhgf..
+|..fihhhhhgf..
+|..fihhhhhgf..
+|.fOPggggggf..

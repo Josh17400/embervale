@@ -1,0 +1,20 @@
+# kin/child/neck/torc: a brass torc round the neck, open at the throat (metal2)
+# (KIN-CHILD, P2b wave 2; the child, STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person
+body child
+role neck torc
+layer neck
+anchor neck
+keys rest
+
+view D key rest origin 3 0
+|NOP.PON
+
+view U key rest origin 3 0
+|NOOPPON
+
+view R key rest origin 2 0
+|NOPPO
+
+view L key rest origin 2 0
+|NPPOO

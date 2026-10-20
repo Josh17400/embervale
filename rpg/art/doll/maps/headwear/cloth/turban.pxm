@@ -1,0 +1,74 @@
+# headwear/cloth/turban: the Turban (OUTER, P2b wave 2): a long cloth wound round the head in lit bands that cross at the front,
+# a brass brooch where they cross, the last wrap lit over the brow; the hair is wound in (mask: 18-20 px over the head),
+# long lengths below it still show. Format: rpg/art/doll/doll.h.
+use person
+body adult
+role headwear turban
+layer headwear
+anchor head
+keys hatpose
+legend Q head 0
+legend R head 1
+legend S head 2
+legend T head 3
+legend U head 4
+
+view D key rest origin 1 2
+|.....QQQQQQQQ.....
+|...QTUUUTTSSSRQ...
+|..QTUTTTTSSSSSRQ..
+|.QRRTTTTTSSSSSRRQ.
+|.QTTRRTTTSSSRRSSQ.
+|QRRTTTRRTSRRSSSRRQ
+|QTTRRTTTPOSSSRRSSQ
+|QTTTTRRTONSRRSSSRQ
+|QTTTTTTRRRRSSSSSRQ
+|.QQQQQQQQQQQQQQQQ.
+
+view U key rest origin 1 2
+|.....QQQQQQQQ.....
+|...QTUUUTTSSSRQ...
+|..QTUTTTTSSSSSRQ..
+|.QTRRRTTTSSSSSRRQ.
+|.QTTTTRRRSSSSSRRQ.
+|QTTTTTTTSRRRSSSSRQ
+|QRRRTTTTSSSSRRRSRQ
+|QTTTRRRTSSSSSSSRRQ
+|QTTTTTTRRRSSSSSSRQ
+|.QQQQQQQQQQQQQQQQ.
+
+view R key rest origin 3 2
+|......QQQQQQQQ......
+|....QTUUUTTSSSRQ....
+|...QTUTTTTSSSSSRQ...
+|..QRRTTTTSSSSSSSRQ..
+|.QTTTRRTTTSSSSSSSRQ.
+|QRRTTTTRRTTSSSSSSSRQ
+|QTTRRTTTTRRSSSSSSNPQ
+|QTTTTRRTTTTRRSSSSONQ
+|QTTTTTTTRRTTTRRSSSQ.
+|.QQQQQQQQQQQQQQQQQ..
+
+view L key rest origin 1 2
+|......QQQQQQQQ......
+|....QTUUUTTSSSRQ....
+|...QTUUTTTSSSSSRQ...
+|..QTTTTSSSSSSSRRRQ..
+|.QTTTTTSSSSSRRSSSRQ.
+|QTTTTTSSSSRRSSSSRRRQ
+|QPOTTTSSRRSSSSRRSSRQ
+|QONTTTRRSSSSRRSSSSRQ
+|.QTTRRSSSSRRSSSSSSRQ
+|..QQQQQQQQQQQQQQQQQ.
+
+view L key lie origin 1 2
+|......QQQQQQQQ...
+|....QTUUUTTSSSRQ.
+|...QTUUTTTSSSSSRQ
+|..QTTTTSSSSSSSRRQ
+|.QTTTTTSSSSSRRSRQ
+|QTTTTTSSSSRRSSSRQ
+|QPOTTTSSRRSSSSRRQ
+|QONTTTRRSSSSRRSRQ
+|.QTTRRSSSSRRSSSRQ
+|..QQQQQQQQQQQQQQQ

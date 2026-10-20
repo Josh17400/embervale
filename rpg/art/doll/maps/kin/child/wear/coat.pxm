@@ -1,0 +1,39 @@
+# kin/child/wear/coat: the coat: open down the front over the tunic, brass buttons, a turned collar; the skirts to the knee
+# (KIN-CHILD, P2b wave 2; the child's torso is 6 rows, F-10..F-5, STYLE_P2 3 and 22). Format: rpg/art/doll/doll.h.
+use person woman
+body child
+role garment coat
+layer torso
+keys rest
+
+view D key rest origin 6 0
+|5988yw576665
+|.598NywO665.
+|.5986yw7665.
+|.598NywO665.
+|.5988yw7665.
+|.59885577665
+
+view U key rest origin 6 0
+|598887777665
+|.5988777766.
+|.5988777766.
+|.5988777766.
+|.5988777766.
+|.5988777766.
+
+view R key rest origin 4 0
+|.598N765.
+|5887N665.
+|58877665.
+|5887N665.
+|588776655
+|588776655
+
+view L key rest origin 4 0
+|.598N765.
+|.5887N665
+|.58877665
+|.5887N665
+|558877665
+|558877665

@@ -104,6 +104,16 @@ std::vector<const ClipRec*> clipsOf(const std::string& bodyKey, uint8_t part, in
 // a part's view for (facing, key, when id 0 = base); nullptr: none
 const ViewRec* viewOf(const PartRec& p, int facing, uint16_t key, uint16_t when = 0);
 
+// (POSES-B, P2b) a posture's clips for a variant: per facing the variant's own clips, else variant 0's (never both)
+std::vector<const ClipRec*> postureClips(const std::string& bodyKey, int family, int posture, uint8_t variant);
+
 }  // namespace pool
+
+// (POSES-B, P2b) what a posture puts in the hand (STYLE_P2 15): the `held` value of the prop maps (maps/held/props/**,
+// PROPS: `role held <value>`, `keys held`, anchored on the grip; the posture clip's `held=<key>` names the gripping arm's
+// key). nullptr: nothing in hand. doll_resolve.cpp holds the table.
+const char* postureProp(Posture p, uint8_t variant);
+// the recipe with the posture's prop added (its need and the parts serving it)
+DollRecipe withPosture(const DollRecipe& r, Posture p, uint8_t variant);
 }  // namespace doll
 }  // namespace art

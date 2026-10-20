@@ -39,7 +39,11 @@ const char* kBubble[14] = {
 const char* kBang[12] = {".ooo.", "oHYSo", "oHYSo", "oHYSo", "oHYSo", ".oYSo", ".oYo.", ".oYo.", "..o..", ".ooo.", "oHYSo", ".ooo."};
 // (P2a) the line the over-head marks hang from: v1's HUMAN_H (24) at rig 1, from the rig's markerY (the mark's foot
 // markerY px over the feet: 4 px of air over the hair) for a person drawn on v2
-int headLine(const Actor& a) { return a.human ? View::rigFor(a.look).markerY - 6 : art::HUMAN_H; }
+// (P2b VIEW-B) moved by the drawn doll frame's top (View::topLift: a child, a sitter, a hat), set while drawMarkers runs
+const View* s_markView = nullptr;
+int headLine(const Actor& a) {
+  return a.human ? View::rigFor(a.look).markerY - 6 + (s_markView ? (int)std::lround(s_markView->topLift(a)) : 0) : art::HUMAN_H;
+}
 // (P2a LENS fix r1, L9) the marks were drawn a pixel at a time (a P.rect per pixel and per pass: about 250 calls for a
 // giver's bubble); a capital's crowd of tale-tellers cost 0.4 ms a frame on the phone window. Each mark is baked once
 // per layer and drawn in two or three blits, the same pixels: layer 0 the mark (opaque), layer 1 its drop shadow's mask
@@ -286,6 +290,7 @@ void View::drawIncidentGround(Game& g, Vec2 cam) {
 void View::drawMarkers(Game& g, Vec2 cam) {
   Pix& P = *pix_;
   drawBubbles(g, cam);
+  s_markView = this;   // (P2b VIEW-B) headLine reads the drawn frames' tops
   const Color outline(0.09f, 0.06f, 0.08f);
   const Color hi(1.0f, 0.86f, 0.38f), gold(1.0f, 0.64f, 0.10f), goldShade(0.74f, 0.33f, 0.05f);
   // (P2a LENS) the marks, baked once (paintMark)

@@ -1,0 +1,24 @@
+# kin/child/head/nose_straight: the child's small straight nose: a lit bridge over the shadow pixel; a longer profile
+# The child's small straight nose (KIN-CHILD). Format: rpg/art/doll/doll.h.
+use person
+body child
+role nose straight
+layer face
+anchor head
+keys rest
+tags mirror-ok overlay
+
+view D key rest origin -6 -6
+|t
+|r
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -12 -6
+|q
+|q
+
+view L key rest origin 0 -6
+|q
+|q

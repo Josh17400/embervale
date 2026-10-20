@@ -1,0 +1,128 @@
+# wear/man/kilt_hang: the kilt's knife pleats from the belt to the knee, each pleat a lit edge, its cloth and its fold, a
+# solid lit hem; it swings with the step, splays over the striding legs and kicks out in the run
+# GARB-M (P2b wave 2); fitted to the man (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person
+body man
+role garment kilt
+layer hangFront
+anchor hip
+keys hang
+sway 1
+
+view D key rest origin 6 -2
+|587687687665
+|598898898775
+regions
+|............
+|EEEEEEEEEEEE
+build
+|..+.....x+..
+
+view D key flare origin 7 -2
+|.587687687665.
+|59889889889775
+regions
+|..............
+|EEEEEEEEEEEEEE
+
+view D key kneel origin 6 -2
+|598898898775
+
+view D key sit origin 7 -2
+|.5876876876655
+|59889889889775
+
+view U key rest origin 6 -2
+|587687687665
+|598898898775
+regions
+|............
+|EEEEEEEEEEEE
+build
+|..+.....x+..
+
+view U key flare origin 7 -2
+|.587687687665.
+|59889889889775
+
+view U key kneel origin 6 -2
+|598898898775
+
+view U key sit origin 0 0
+|.
+
+view R key rest origin 6 -2
+|587687687665
+|598898898775
+regions
+|............
+|EEEEEEEEEEEE
+build
+|..+x........
+
+view R key wide origin 7 -2
+|.587687687665.
+|59889889889775
+
+view R key flare origin 8 -2
+|.5876876876655
+|598898898897775
+
+view R key kneel origin 6 -2
+|598898898775
+
+view R key sit origin 5 0
+|5876876876655
+|5988988988775
+
+view L key rest origin 7 -2
+|587687687665
+|598898898775
+regions
+|............
+|EEEEEEEEEEEE
+build
+|........x+..
+
+view L key wide origin 8 -2
+|.587687687665.
+|59889889889775
+
+view L key flare origin 7 -2
+|5876876876655.
+|598898898897775
+
+view L key kneel origin 7 -2
+|598898898775
+
+view L key sit origin 8 0
+|5876876876655
+|5988988988775
+
+view L key lie origin 7 -2
+|587687687665
+|598898898775
+
+view D key floor origin 0 0
+|.
+
+view D key ride origin 0 0
+|.
+
+view U key floor origin 0 0
+|.
+
+view U key ride origin 0 0
+|.
+
+view R key floor origin 0 0
+|.
+
+view R key ride origin 0 0
+|.
+
+view L key floor origin 0 0
+|.
+
+view L key ride origin 0 0
+|.

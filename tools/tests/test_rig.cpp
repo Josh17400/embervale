@@ -612,8 +612,10 @@ void gateKin(Gate& g) {   // P3
     const Fr f = cut(s, 0, Clip::Idle, 0, 0);
     int x0, y0, x1, y1;
     if (!f.ok || !box(f.c, x0, y0, x1, y1)) { g.bad(fmt("age %.0f: no LOCO", age)); continue; }
-    const int want = age == 1 ? 21 : 26;
-    if (y1 - y0 + 1 != want) g.bad(fmt("age %.0f: %.0f px tall (%.0f)", age, y1 - y0 + 1, want)); else g.ok();
+    // the body box by STYLE_P2 3 (child 21, youth 26); the hair may rise 2 more above it, as R2 allows (the youth's
+    // default tousled cowlick reads 27: P2b fix round 1, HARNESS-P2B-TARGETS)
+    const int want = age == 1 ? 21 : 26, h = y1 - y0 + 1;
+    if (h < want || h > want + 2) g.bad(fmt("age %.0f: %.0f px tall (%.0f; the hair may rise 2 more)", age, h, want)); else g.ok();
   }
   for (int sp = 1; sp <= 3; sp++) {
     const int w = humanoidCellW2(sp), h = humanoidCellH2(sp);
@@ -629,8 +631,8 @@ void gateHolders(Gate& g) {   // H2
   struct R { Holder h; float lo, hi; };
   static const R rs[] = {
       {Holder::HouseDoorH, 0.70f, 0.76f}, {Holder::SmallDoorH, 0.55f, 0.62f}, {Holder::TempleDoorH, 0.88f, 0.94f}, {Holder::GrandDoorH, 0.97f, 1.03f},
-      {Holder::PalaceDoorH, 1.16f, 1.22f}, {Holder::WallOneStorey, 1.00f, 1.12f}, {Holder::ChairSeat, 0.31f, 0.37f}, {Holder::StoolSeat, 0.31f, 0.37f},
-      {Holder::BenchSeat, 0.31f, 0.37f}, {Holder::TableTop, 0.44f, 0.50f}, {Holder::CounterTop, 0.44f, 0.50f}, {Holder::HorseWithers, 0.80f, 0.90f},
+      {Holder::PalaceDoorH, 1.16f, 1.22f}, {Holder::WallOneStorey, 1.00f, 1.12f}, {Holder::ChairSeat, 0.14f, 0.20f}, {Holder::StoolSeat, 0.14f, 0.20f},
+      {Holder::BenchSeat, 0.14f, 0.20f}, {Holder::TableTop, 0.44f, 0.50f}, {Holder::CounterTop, 0.44f, 0.50f}, {Holder::HorseWithers, 0.80f, 0.90f},
       {Holder::RowboatGunwale, 0.35f, 0.45f}, {Holder::DeckRail, 0.45f, 0.55f}, {Holder::GateClear, 1.25f, 9.0f}, {Holder::ArchClear, 1.25f, 9.0f},
       {Holder::CityGateClear, 1.25f, 9.0f}, {Holder::Fence, 0.45f, 0.60f}, {Holder::Hedge, 0.45f, 0.60f}, {Holder::GardenWall, 0.45f, 0.60f},
       {Holder::CartWheel, 0.45f, 0.55f}, {Holder::HandcartWheel, 0.45f, 0.55f}};

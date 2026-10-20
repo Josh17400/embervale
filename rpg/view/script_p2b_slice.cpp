@@ -4,7 +4,7 @@
 //   slicelook <preset|field=value ...>   the hero's look: presets a3 (A3's hero: tousled copper hair, the scarf, the
 //                                        sword at the hip), a3woman (the woman hero: wheat braid, the shirt and trousers,
 //                                        the sword); fields head nose brow marks hairfamily hairvar beard beardstyle neck
-//                                        garb age people build outfit cut headwear hood bodyform helmform weapon, and the
+//                                        garb age people build outfit cut headwear hood cloak cape bodyform helmform weapon, and the
 //                                        colours skin hair top bottom accent eyes (hex RRGGBB)
 //   slicelineup variety|armour|elders|swaps|clear   a row of the slice's people on clear ground before the hero, facing
 //                                        the camera (ids from 930000; a new row replaces the last): variety = 12 people of
@@ -75,6 +75,8 @@ bool setField(art::HumanLook& L, const std::string& k, const std::string& v) {
   else if (k == "cut") L.cut = (uint8_t)n;
   else if (k == "headwear") L.headwear = (uint8_t)n;
   else if (k == "hood") L.hood = n != 0;
+  else if (k == "cloak") L.cloak = (uint8_t)n;   // (OUTER, P2b wave 2: the cloaks)
+  else if (k == "cape") L.cape = n != 0;
   else if (k == "bodyform") L.bodyForm = (uint8_t)n;
   else if (k == "helmform") { L.helmForm = (uint8_t)n; L.helmet = n != 0; }
   else if (k == "weapon") L.weapon = (uint8_t)n;

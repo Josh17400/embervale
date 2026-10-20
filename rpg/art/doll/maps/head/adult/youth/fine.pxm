@@ -1,0 +1,114 @@
+# head/adult/youth/fine: the youth's Fine head (the soft adult types: STYLE_P2 4)
+# P2b FACES (wave 2): GENERATED from the adult maps by the FACES spec (the boy = the man's views, the girl = the
+# woman's as `when girl replace`); edit the adult maps, then regenerate. Format: rpg/art/doll/doll.h.
+use person
+body youth
+role head fine
+layer head
+anchor head
+keys rest
+
+view D key rest origin -1 -3
+mark face 2 5
+|....qqqqqq....
+|..qqtuuttsqq..
+|.qtuuttttssrq.
+|.qttutttsssrq.
+|.qttttttttsrq.
+|.qtttttssssrq.
+|.ttq#tsss#qrr.
+|.su@EtsssE@tr.
+|.qt@GssssG@rq.
+|...qtssMsrq...
+|....qssrrq....
+
+view U key rest origin -2 -3
+|...qqqqqq...
+|.qqtuuttsqq.
+|qtuuttttssrq
+|qttutttsssrq
+|qtttttssssrq
+|qttttsssssrq
+|tttsssssssrr
+|ttsssssssrrr
+|.qtssssssrq.
+|..qqrrrrqq..
+|....qrrq....
+
+view R key rest origin 0 -3
+|.....qqqqqqq....
+|...qqtuutttsqq..
+|..qtuuttttssssq.
+|.qttutttttsssrq.
+|.qtttttttssssrq.
+|.qttttttsstsstq.
+|.qttts..stt##tq.
+|.qtsss..stu@Es..
+|..qssr..ssssssq.
+|...qrrrrrssssMq.
+|.....qqqqqrssq..
+
+view L key rest origin 0 -3
+|....qqqqqqq.....
+|..qqtuuttssqq...
+|.qtuuttttsssrq..
+|.qtuttttttsssrq.
+|.qtttttttsssrrq.
+|.qttttttssssrrq.
+|.qt##tss..srrq..
+|..tE@uts..rrq...
+|.qttssss..rq....
+|.qMssssrrrrq....
+|..qssrqqqq......
+
+view D key rest origin -1 -3 when girl replace
+mark face 2 5
+|....qqqqqq....
+|..qqtuuttsqq..
+|.qtuuttttssrq.
+|.qttutttsssrq.
+|.qtttttssssrq.
+|.qtttttssssrq.
+|.qq##tsss##qq.
+|.qu@EtsssE@tq.
+|.qt@GssssG@sq.
+|...YssLMsYq...
+|.....qssq.....
+
+view U key rest origin -1 -3 when girl replace
+|....qqqqqq....
+|..qqtuuttsqq..
+|.qtuuttttssrq.
+|.qttutttsssrq.
+|.qtttttssssrq.
+|.qttttsssssrq.
+|.tttsssssssrr.
+|.ttsssssssrrr.
+|..qtsssssrq...
+|....qrrrq.....
+
+view R key rest origin 0 -3 when girl replace
+|.....qqqqqq.....
+|...qqtuuttsq....
+|..qtuuttttsssq..
+|.qttutttttsssrq.
+|.qttttttssssttq.
+|.qtttsssssststq.
+|.qtsss..stt##tq.
+|.qsssr..stu@Es..
+|..qsrr..ssYsssq.
+|...qrrrrrssssMq.
+|.....qqqqqrsLq..
+
+view L key rest origin 0 -3 when girl replace
+|.....qqqqqqq....
+|....qqtuuttssq..
+|..qtuuttttsssrq.
+|.qtuttttttsssrq.
+|.qtttttttssssrq.
+|.qtttttssssrrq..
+|.qt##tts..srrq..
+|.tsE@uts..rrq...
+|.qttsYss..rq....
+|.qMtssssrrrq....
+|..qLsrqqqq......

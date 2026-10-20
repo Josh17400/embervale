@@ -1,0 +1,88 @@
+# kin/child/hair/bob: Bob: chin length, a straight fringe across the brow, the ears covered
+# (KIN-CHILD, P2b wave 2; the child's 11 px head, STYLE_P2 3 and 21). Format: rpg/art/doll/doll.h.
+use person
+body child
+role hair bob
+layer hairFront
+anchor head
+keys rest
+
+view D key rest origin 1 0
+|...aaaaaaaa...
+|..adeedddcca..
+|.adeeddddccca.
+|.addddcccccba.
+|.adcdcbcbcbba.
+|ad..........ba
+|ac..........ba
+|ac..........ba
+|ab..........ba
+|.aa........aa.
+
+view D key rest origin 1 -4 when capped,!circlet replace
+|.a..........a.
+|ad..........ba
+|ac..........ba
+|ac..........ba
+|ab..........ba
+|.aa........aa.
+
+view U key rest origin 1 0
+|...aaaaaaaa...
+|..adddddccca..
+|.adeeddddccba.
+|adeedddddccbba
+|acdddcdccccbba
+|acdcbdccbcbbba
+|acdcbcdcbcbbba
+|abcbcbccbcbbba
+|abcbbcbbcbbbba
+|.aaaaaaaaaaaa.
+
+view U key rest origin 1 -4 when capped,!circlet replace
+|ac..........ba
+|acdcbdccbcbbba
+|acdcbcdcbcbbba
+|abcbcbccbcbbba
+|abcbbcbbcbbbba
+|.aaaaaaaaaaaa.
+
+view R key rest origin 1 0
+|....aaaaaa....
+|..addeedcaa...
+|.adeeddddcca..
+|adddddcccccba.
+|acdccbcbccba..
+|accbccba......
+|acbcbcba......
+|acbcbcba......
+|abcbcbba......
+|.aaaaaa.......
+
+view R key rest origin 1 -4 when capped,!circlet replace
+|acdccb........
+|accbccba......
+|acbcbcba......
+|acbcbcba......
+|abcbcbba......
+|.aaaaaa.......
+
+view L key rest origin 0 0
+|....aaaaaa....
+|...aaddeedca..
+|..adeeddddcca.
+|.adddddcccccba
+|..acdccbcbccba
+|......accbccba
+|......acbcbcba
+|......acbcbcba
+|......abcbcbba
+|.......aaaaaa.
+
+view L key rest origin 0 -4 when capped,!circlet replace
+|........cbccba
+|......accbccba
+|......acbcbcba
+|......acbcbcba
+|......abcbcbba
+|.......aaaaaa.

@@ -1,0 +1,131 @@
+# legs/adult/pose/tips: shoe tips under a long hem in the postures (POSES-B, P2b wave 2; like legs/adult/loco/tips):
+# drawn over the hem's under-edge (the dress, robe, gown, kaftan and wrap hangs' floor, kneel and ride keys cover the legs).
+# Regions: B shoe, O sole (rags: bare feet).
+#   cross  the two shoe tips peeking out toe to toe under the lap's hem
+#   kneel  the planted shoe before the hem and the kneeling foot's sole behind it
+#   ride   the boots below the ridden-up hem, in the stirrups either side of the barrel
+use person woman
+body adult
+role legs tips
+layer hangFront
+anchor pivot
+keys legs
+z 9
+
+view D key cross origin 6 1
+mark hip 6 -1
+|..fiihgf..
+|..KKKKKK..
+regions
+|..BBBBBB..
+|..OOOOOO..
+
+view U key cross origin 0 0
+mark hip 0 -2
+|.
+regions
+|.
+
+view R key cross origin 3 1
+mark hip 3 -1
+|..fihhgf
+|..KKKKKK
+regions
+|..BBBBBB
+|..OOOOOO
+
+view L key cross origin 6 1
+mark hip 6 -1
+|fihhgf..
+|KKKKKK..
+regions
+|BBBBBB..
+|OOOOOO..
+
+view D key kneel origin 7 2
+mark hip 7 -3
+|.fiih..........
+|fjihhf.........
+|KKKKKK.........
+regions
+|.BBBB..........
+|BBBBBB.........
+|OOOOOO.........
+
+view U key kneel origin 7 2
+mark hip 7 -3
+|...............
+|.fhhgf.........
+|.KKKKK.........
+regions
+|...............
+|.BBBBB.........
+|.OOOOO.........
+
+view R key kneel origin 7 2
+mark hip 7 -4
+|...........fihf..
+|fhgf......fjiihhf
+|KKKK.....KKKKKKKK
+regions
+|...........BBBB..
+|BBBB......BBBBBBB
+|OOOO.....OOOOOOOO
+
+view L key kneel origin 9 2
+mark hip 9 -4
+|..fihf...........
+|fjiihhf......fhgf
+|KKKKKKKK.....KKKK
+regions
+|..BBBB...........
+|BBBBBBB......BBBB
+|OOOOOOOO.....OOOO
+
+view D key ride origin 11 3
+mark hip 11 -5
+|.fiihf..........fhhgf.
+|fjiihf..........fhhggf
+|fiihhf..........fhhggf
+|KKKKKK..........KKKKKK
+regions
+|.BBBBB..........BBBBB.
+|BBBBBB..........BBBBBB
+|BBBBBB..........BBBBBB
+|OOOOOO..........OOOOOO
+
+view U key ride origin 11 3
+mark hip 11 -5
+|.fhhgf..........fhhgf.
+|fhhhgf..........fhhggf
+|fhhggf..........fhhggf
+|KKKKKK..........KKKKKK
+regions
+|.BBBBB..........BBBBB.
+|BBBBBB..........BBBBBB
+|BBBBBB..........BBBBBB
+|OOOOOO..........OOOOOO
+
+view R key ride origin 3 3
+mark hip 3 -5
+|...fiiihf..
+|..fjiihhgf.
+|..fiihhggf.
+|..KKKKKKKK.
+regions
+|...BBBBBB..
+|..BBBBBBBB.
+|..BBBBBBBB.
+|..OOOOOOOO.
+
+view L key ride origin 7 3
+mark hip 7 -5
+|..fiiihf...
+|.fjiihhgf..
+|.fiihhggf..
+|.KKKKKKKK..
+regions
+|..BBBBBB...
+|.BBBBBBBB..
+|.BBBBBBBB..
+|.OOOOOOOO..

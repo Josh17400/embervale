@@ -1,0 +1,131 @@
+# held/props/woodaxe: the woodcutter's axe for the Chop posture (PROPS, P2b): a bearded iron head with a lit edge on a pale
+# ash haft; swung up over the head (raise) and down into the block (low). Format: rpg/art/doll/doll.h. Around the pose arms'
+# grips, anchored on the right shoulder; raised, it hangs behind the head.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held woodaxe
+anchor shoulderR
+keys held
+z 40
+
+view D key raise origin 5 20 layer neck
+|vv....
+|vzv...
+|vyxvQQ
+|vxwvTQ
+|vv..TQ
+|...TQ.
+|...TQ.
+|...TQ.
+|...TQ.
+|..TQ..
+|..QQ..
+
+view D key low origin -5 -5 layer neck
+|.QQ
+|.TQ
+|.TQ
+|.TQ
+|.TQ
+|.TQ
+|.TQ
+|.TQ
+|.QQ
+|...
+|vvv
+|vzv
+|vyv
+|vxv
+|.v.
+
+view U key raise origin -1 20 layer heldBack
+|...vv
+|..vwv
+|Qvyxv
+|Tvzyv
+|.TQvv
+|.TQ..
+|.TQ..
+|.TQ..
+|..TQ.
+|..TQ.
+|..QQ.
+
+view U key low origin 7 -5 layer heldBack
+|.QQ
+|.TQ
+|.TQ
+|.TQ
+|.TQ
+|.TQ
+|.TQ
+|.TQ
+|.QQ
+|...
+|vvv
+|vzv
+|vyv
+|vxv
+|.v.
+
+view R key raise origin 11 11 layer hairBack
+|.........Q
+|.......TTQ
+|......TQQ.
+|.....TQ...
+|...TTQ....
+|..QQQ.....
+|.vvv......
+|vzyv......
+|vxwv......
+|.vvv......
+
+view R key low origin -4 -5 layer neck
+|Q.........
+|QT........
+|.QT.......
+|..QTT.....
+|...QQT....
+|.....QT...
+|......QQ..
+|......vvv.
+|......vzyv
+|......vxwv
+|.......vvv
+
+view L key raise origin -2 11 layer hairBack
+|Q.........
+|QTT.......
+|.QQT......
+|...QT.....
+|....QTT...
+|.....QQQ..
+|......vvv.
+|......vxwv
+|......vzyv
+|......vvv.
+
+view L key low origin 13 -5 layer hairBack
+|.........Q
+|........TQ
+|.......TQ.
+|.....TTQ..
+|....TQQ...
+|...TQ.....
+|..QQ......
+|.vvv......
+|vxwv......
+|vzyv......
+|vvv.......

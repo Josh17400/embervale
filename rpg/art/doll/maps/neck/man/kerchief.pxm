@@ -1,0 +1,57 @@
+# neck/man/kerchief: the man's neckerchief in accent: the band about his neck, its point down his chest, the knot at the nape
+# with two tails that hang at rest and fly back in the side walks and the run (neck keys flow / flow2, A3's scarf timing)
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person
+body man
+role neck kerchief
+layer neck
+anchor neck
+keys neck
+
+view D key rest origin 4 0
+|mppooonm
+|.mppnnm.
+|..mpnm..
+|...mm...
+
+view U key rest origin 4 0
+|mppooonm
+|..mppm..
+|.mn..nm.
+
+view R key rest origin 6 0
+|.mnmppoonm.
+|mn......om.
+|m........m.
+
+view R key flow origin 6 0
+|mnnmppoonm.
+|.mm.....om.
+|.........m.
+
+view R key flow2 origin 6 1
+|mm.........
+|nmnmppoonm.
+|.........om
+|..........m
+
+view L key rest origin 4 0
+|.mppoonmnm.
+|.mo......nm
+|.m........m
+
+view L key flow origin 4 0
+|.mppoonmnnm
+|.mo.....mm.
+|.m.........
+
+view L key flow2 origin 4 1
+|.........mm
+|.mppoonmnmn
+|mo.........
+|m..........
+
+view L key lie origin 4 0
+|.mppoonmnm.
+|.mo......nm
+|.m........m

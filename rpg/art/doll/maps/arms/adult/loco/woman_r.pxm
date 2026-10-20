@@ -1,4 +1,8 @@
 # arms/adult/loco/woman_r: the woman's right arm (bare below the chemise's puff sleeve)
+# The arm library (P2b production, FOLK-BODY): her arms are bare below her garment's sleeve; every view carries regions (F
+# forearm, H hand; U where the upper arm shows: the raised keys) so a jerkin's shirt sleeve or P2c gloves recolour it.
+# Her keys: idle; walk D/U down down1 up up1, R/L B F N; run runF runB; lap; L lie; fling (the fall's recoil); guard
+# (armR: the drawn weapon's ready guard, its `grip` mark where the man's is). A sleeve part on her arm channels draws them.
 # The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
 use person woman
 body woman
@@ -9,46 +13,87 @@ keys armR
 side R
 
 view D key down origin 1 -4
+mark handR 0 3
 |qts
 |qsr
 |qsr
 |qts
 |qsr
 |.qq
+regions
+|FFF
+|FFF
+|FFF
+|HHH
+|HHH
+|.HH
 
 view D key down1 origin 1 -4
+mark handR 0 2
 |qts
 |qsr
 |qts
 |qsr
 |.qq
+regions
+|FFF
+|FFF
+|HHH
+|HHH
+|.HH
 
 view D key idle origin 1 -4
+mark handR 0 2
 |qts
 |qsr
 |qts
 |qsr
 |.qq
+regions
+|FFF
+|FFF
+|HHH
+|HHH
+|.HH
 
 view D key runF origin 1 -4
+mark handR 0 0
 |qts
 |qsr
 |.qq
+regions
+|HHH
+|HHH
+|.HH
 
 view D key up origin 1 -4
+mark handR 0 1
 |qts
 |qts
 |qsr
 |qqq
+regions
+|FFF
+|HHH
+|HHH
+|HHH
 
 view D key up1 origin 1 -4
+mark handR 0 2
 |qts
 |qts
 |qts
 |qsr
 |..q
+regions
+|FFF
+|FFF
+|HHH
+|HHH
+|..H
 
 view D key lap origin 1 -4
+mark handR 2 4
 |qts..
 |qsr..
 |.qts.
@@ -56,75 +101,278 @@ view D key lap origin 1 -4
 |..qts
 |..qsr
 |...qq
+regions
+|FFF..
+|FFF..
+|.FFF.
+|.FFF.
+|..HHH
+|..HHH
+|...HH
 
 view U key down origin 1 -4
+mark handR 0 3
 |srq
 |rrq
 |rrq
 |tsq
 |srq
 |qq.
+regions
+|FFF
+|FFF
+|FFF
+|HHH
+|HHH
+|HH.
 
 view U key idle origin 1 -4
+mark handR 0 2
 |srq
 |rrq
 |tsq
 |srq
 |qq.
+regions
+|FFF
+|FFF
+|HHH
+|HHH
+|HH.
 
 view U key runF origin 1 -4
+mark handR 0 0
 |srq
 |rrq
 |qq.
+regions
+|HHH
+|HHH
+|HH.
 
 view U key up origin 1 -4
+mark handR 0 1
 |srq
 |tsq
 |srq
 |qqq
+regions
+|FFF
+|HHH
+|HHH
+|HHH
 
 view U key lap origin 1 -4
+mark handR 0 0
 |srq
 |rrq
 |rqq
+regions
+|HHH
+|HHH
+|HHH
 
 view R key B origin 3 -4
+mark handR 0 2
 |..qtsq
 |.qsrq.
 |qtsq..
 |qsrq..
 |.qq...
+regions
+|..FFFF
+|.FFFF.
+|HHHH..
+|HHHH..
+|.HH...
 
 view R key F origin -1 -4
+mark handR 2 2
 |qtsq..
 |.qsrq.
 |..qtsq
 |..qsrq
 |...qq.
+regions
+|FFFF..
+|.FFFF.
+|..HHHH
+|..HHHH
+|...HH.
 
 view R key N origin 0 -4
+mark handR 0 2
 |qtsq
 |qsrq
 |qtsq
 |qsrq
 |.qq.
+regions
+|FFFF
+|FFFF
+|HHHH
+|HHHH
+|.HH.
 
 view R key idle origin 0 -4
+mark handR 0 2
 |qtsq
 |qsrq
 |qtsq
 |qsrq
 |.qq.
+regions
+|FFFF
+|FFFF
+|HHHH
+|HHHH
+|.HH.
 
 view R key runB origin 3 -4
+mark handR 0 2
 |..qtsq
 |.qsrq.
 |qtsq..
 |qsrq..
 |.qq...
+regions
+|..FFFF
+|.FFFF.
+|HHHH..
+|HHHH..
+|.HH...
 
 view R key runF origin 0 -4
+mark handR 4 1
 |qtsq.qq.
 |.qssqtsq
 |....qsrq
 |.....qq.
+regions
+|FFFF.FF.
+|.HHHHHHH
+|....HHHH
+|.....HH.
+
+# ---- the drawn-weapon LOCO (P2b production, FOLK-BODY): `guard`, her weapon hand in the ready guard; its `grip` mark lands
+# where the man's does, so held weapons' `guard` views serve both bodies. Her forearm is bare (her garment's sleeve ends
+# above it); raised facing right and left, the upper arm shows in her sleeve's colour (region U: the dress's linen puff,
+# the tunic's cloth), the forearm in skin (region F: a jerkin's linen shirt) and the hand (H).
+view D key guard origin 1 -4
+mark handR 0 2
+mark grip 0 2
+|qts
+|qsr
+|qts
+|qsr
+|.qq
+regions
+|FFF
+|FFF
+|HHH
+|HHH
+|.HH
+
+view U key guard origin 1 -4
+mark handR 0 2
+mark grip 2 2
+|srq
+|rrq
+|tsq
+|srq
+|qq.
+regions
+|FFF
+|FFF
+|HHH
+|HHH
+|HH.
+
+view R key guard origin -2 1
+mark handR 6 2
+mark grip 6 2
+|.58878....
+|5876qtqq..
+|587qtsqtsq
+|.5qsrqsrq.
+|..qq.qqq..
+regions
+|.UUUUU....
+|UUUUFFHH..
+|UUUFFFHHHH
+|.UFFFHHHH.
+|..FF.HHH..
+
+view L key guard origin 15 1 layer armNear
+mark handR 12 2
+mark grip 12 2
+|.........57777..
+|........5766qtqq
+|......576qtsqsrq
+|.......5qsrqrrq.
+|........qq.qqq..
+regions
+|.........UUUUU..
+|........UUUUFFHH
+|......UUUFFFHHHH
+|.......UFFFHHHH.
+|........FF.HHH..
+
+# ---- the fall's recoil (P2b production, FOLK-BODY): `fling`, her arm thrown out (man_r.pxm says how): the upper arm out
+# of her sleeve in the sleeve's colour (region U), the bare forearm (F) and the hand (H)
+view D key fling origin 5 -1
+|....597
+|...5976
+|..5976.
+|.qtsq..
+|qtsq...
+|qtsq...
+|qsrq...
+|.qq....
+regions
+|....UUU
+|...UUUU
+|..UUUU.
+|.FFFF..
+|FFFF...
+|HHHH...
+|HHHH...
+|.HH....
+
+view U key fling origin 1 -1
+|765....
+|8765...
+|.8765..
+|..qtsq.
+|...qtsq
+|...qtsq
+|...qsrq
+|....qq.
+regions
+|UUU....
+|UUUU...
+|.UUUU..
+|..FFFF.
+|...FFFF
+|...HHHH
+|...HHHH
+|....HH.
+
+view R key fling origin 9 -1
+|........58765
+|......58765..
+|....58765....
+|...qtssq.....
+|.qtssq.......
+|qtsq.........
+|qsrq.........
+|.qq..........
+regions
+|........UUUUU
+|......UUUUU..
+|....UUUUU....
+|...FFFFF.....
+|.FFFFF.......
+|HHHH.........
+|HHHH.........
+|.HH..........

@@ -1,0 +1,69 @@
+# headwear/cloth/cap: the Cap (OUTER, P2b wave 2): a soft cloth cap (the herald's, the clerk's, the townsman's), its full crown
+# flopping over to the right, a lit headband over the brow; the fringe and the hair below the band show. Hair mask: the
+# crown covers the hair's top rows (14-17 px); volume styles draw capped. Format: rpg/art/doll/doll.h.
+use person
+body adult
+role headwear cap
+layer headwear
+anchor head
+keys hatpose
+legend Q head 0
+legend R head 1
+legend S head 2
+legend T head 3
+legend U head 4
+
+view D key rest origin 1 1
+|.......QQQQQ......
+|.....QQTUUTSQQ....
+|...QQTUUUTTSSSQQ..
+|..QTUUTTTSSSSSSSQ.
+|.QTUTTTSSSSSSSSRRQ
+|.QTTSSSSSSSSSSRRRQ
+|..QRRRRRRRRRRQRRRQ
+|..QTTUTTTTTSSQRRQ.
+|..QQQQQQQQQQQQQQ..
+
+view U key rest origin 1 1
+|......QQQQQ.......
+|....QQTUUTSSQQ....
+|..QQTUUUTTSSSSQQ..
+|.QTUUTTTSSSSSSRQ..
+|QTUTTTSSSSSSSSSRQ.
+|QTTTSSSSSSSSSSSRQ.
+|QTTTQRRRRRRRRRRQ..
+|.QTTQTTTTTSSSSSQ..
+|..QQQQQQQQQQQQQQ..
+
+view R key rest origin 3 1
+|.........QQQQQ......
+|.......QQTUUTSQQ....
+|.....QQTUUUTTSSSQ...
+|...QQTUUTTTSSSSSSQ..
+|..QTUTTTSSSSSSSSSSQ.
+|.QTTTSSSSSSSSSSSSSQ.
+|QTTSSSQRRRRRRRRRRRQ.
+|QSRRSQTTTUTTTTTSSQ..
+|.QQQQQQQQQQQQQQQQ...
+
+view L key rest origin 1 1
+|......QQQQQ.........
+|....QQTUUTSQQ.......
+|...QTUUUTTSSSQQ.....
+|..QTUUTTTSSSSSSQQ...
+|.QTUTTTSSSSSSSSSRQ..
+|.QTTSSSSSSSSSSSSSRQ.
+|.QRRRRRRRRRRRQSSSRRQ
+|..QTTUTTTTTSSSQSRRSQ
+|...QQQQQQQQQQQQQQQQ.
+
+view L key lie origin 1 1
+|......QQQQQ......
+|....QQTUUTSQQ....
+|...QTUUUTTSSSQQ..
+|..QTUUTTTSSSSSSQ.
+|.QTUTTTSSSSSSSSRQ
+|.QTTSSSSSSSSSSSRQ
+|.QRRRRRRRRRRRRRRQ
+|..QTTUTTTTTSSSSQ.
+|...QQQQQQQQQQQQ..

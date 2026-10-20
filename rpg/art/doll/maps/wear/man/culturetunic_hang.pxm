@@ -1,0 +1,134 @@
+# wear/man/culturetunic_hang: the culture tunic's skirt two rows past A3's hem, a little fuller, ending in a solid band of
+# the trim colour (the garment's edge); it swings with the step and splays over the striding legs
+# GARB-M (P2b wave 2); fitted to the man (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person
+body man
+role garment culturetunic
+layer hangFront
+anchor hip
+keys hang
+sway 1
+
+view D key rest origin 6 -2
+|568767766665
+|mppoooonnnnm
+regions
+|............
+|EEEEEEEEEEEE
+build
+|..+.....x+..
+
+view D key flare origin 7 -2
+|.568767766665.
+|mppooooonnnnnm
+regions
+|..............
+|EEEEEEEEEEEEEE
+
+view D key kneel origin 6 -2
+|mppoooonnnnm
+
+view D key sit origin 7 -2
+|.5687677666655
+|mppooooonnnnnm
+
+view U key rest origin 6 -2
+|568777767665
+|mppoooonnnnm
+regions
+|............
+|EEEEEEEEEEEE
+build
+|..+.....x+..
+
+view U key flare origin 7 -2
+|.568777767665.
+|mppooooonnnnnm
+
+view U key kneel origin 6 -2
+|mppoooonnnnm
+
+view U key sit origin 0 0
+|.
+
+view R key rest origin 6 -2
+|588677676665
+|mppoooonnnnm
+regions
+|............
+|EEEEEEEEEEEE
+build
+|..+x........
+
+view R key wide origin 7 -2
+|.588677676665.
+|mppooooonnnnnm
+regions
+|..............
+|EEEEEEEEEEEEEE
+
+view R key flare origin 8 -2
+|.5886776766665
+|mppoooonnnnnm.
+
+view R key kneel origin 6 -2
+|mppoooonnnnm
+
+view R key sit origin 5 0
+|5886776766665
+|mppoooonnnnnm
+
+view L key rest origin 7 -2
+|598867767665
+|mppoooonnnnm
+regions
+|............
+|EEEEEEEEEEEE
+build
+|........x+..
+
+view L key wide origin 8 -2
+|.598867767665.
+|mppooooonnnnnm
+regions
+|..............
+|EEEEEEEEEEEEEE
+
+view L key flare origin 7 -2
+|5988677676665.
+|.mppoooonnnnnm
+
+view L key kneel origin 7 -2
+|mppoooonnnnm
+
+view L key sit origin 8 0
+|5988677676665
+|mppoooonnnnnm
+
+view L key lie origin 7 -2
+|598867767665
+|mppoooonnnnm
+
+view D key floor origin 0 0
+|.
+
+view D key ride origin 0 0
+|.
+
+view U key floor origin 0 0
+|.
+
+view U key ride origin 0 0
+|.
+
+view R key floor origin 0 0
+|.
+
+view R key ride origin 0 0
+|.
+
+view L key floor origin 0 0
+|.
+
+view L key ride origin 0 0
+|.

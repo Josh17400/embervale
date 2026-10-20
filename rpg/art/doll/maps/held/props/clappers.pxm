@@ -1,0 +1,98 @@
+# held/props/clappers: a pair of wooden clappers for the Drum posture's Wood variant (PROPS, P2b), one slab in each hand,
+# apart (hold) and clapped together at the chest (pray). Format: rpg/art/doll/doll.h. Anchored on the right shoulder.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held clappers
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin -3 -3 layer neck
+|ff....ff
+|ji....hg
+|ih....ih
+|ih....ih
+|hg....ji
+|ff....ff
+
+view D key pray origin -4 -1 layer neck
+|ff..ff
+|ji..hg
+|ih..ih
+|ih..ih
+|hg..ji
+|ff..ff
+
+view D key pray origin -3 -1 layer neck when woman replace
+|ff....ff
+|ji....hg
+|ih....ih
+|ih....ih
+|hg....ji
+|ff....ff
+
+view U key hold origin 6 -18 layer heldBack
+|.
+
+view U key pray origin 6 -18 layer heldBack
+|.
+
+view R key hold origin -6 -3 layer neck
+|ff
+|ji
+|ih
+|ih
+|hg
+|ff
+
+view R key pray origin -7 -1 layer neck
+|ff
+|ji
+|ih
+|ih
+|hg
+|ff
+
+view R key pray origin -4 -1 layer neck when woman replace
+|ff
+|ji
+|ih
+|ih
+|hg
+|ff
+
+view L key hold origin 7 -3 layer hairBack
+|ff
+|hg
+|ih
+|ih
+|ji
+|ff
+
+view L key pray origin 7 -1 layer hairBack
+|ff
+|hg
+|ih
+|ih
+|ji
+|ff
+
+view L key pray origin 5 -1 layer hairBack when woman replace
+|ff
+|hg
+|ih
+|ih
+|ji
+|ff

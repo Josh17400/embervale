@@ -1,0 +1,151 @@
+# wear/man/coat_hang: the knee coat's skirt: two panels parted over the trousers (the legs show in the opening), a solid
+# lit hem over its outline, a back vent; the front leg parts it in side views and the run kicks the tails out behind
+# GARB-M (P2b wave 2); fitted to the man (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person
+body man
+role garment coat
+layer hangFront
+anchor hip
+keys hang
+sway 2
+
+view D key rest origin 7 -2
+|.58796..57665..
+|.59896..58775..
+|.55555..55555..
+regions
+|....E...E......
+|.EEEEE..EEEEE..
+|...............
+build
+|...+.....x+....
+
+view D key flare origin 7 -2
+|.58796..57665..
+|598896..588775.
+|555555..555555.
+build
+|...+.....x+....
+
+view D key kneel origin 7 -2
+|.59889..58775..
+|.55555..55555..
+
+view D key sit origin 8 -2
+|.588796..577665.
+|.598896..588775.
+|.555555..555555.
+
+view U key rest origin 7 -2
+|.587767577665..
+|.598887588775..
+|.555555.55555..
+regions
+|...............
+|.EEEEEEEEEEEE..
+|...............
+build
+|...+.....x+....
+
+view U key flare origin 7 -2
+|.587767577665..
+|59988875887765.
+|5555555.555555.
+build
+|...+.....x+....
+
+view U key kneel origin 7 -2
+|.598887588775..
+|.555555.55555..
+
+view U key sit origin 0 0
+|.
+
+view R key rest origin 7 -2
+|.58877677779.
+|598888887779.
+|555555555555.
+regions
+|...........E.
+|EEEEEEEEEEEE.
+|.............
+build
+|...+x........
+
+view R key wide origin 8 -2
+|.58877677779..
+|59888888779...
+|55555555555...
+
+view R key flare origin 9 -2
+|.58877677779..
+|59888888779...
+|5555555555....
+
+view R key kneel origin 7 -2
+|598888887779.
+|555555555555.
+
+view R key sit origin 6 0
+|58877777777795
+|59888888888895
+|.555555555555.
+
+view L key rest origin 7 -2
+|.988776776665.
+|.9988888877765
+|.5555555555555
+regions
+|.E............
+|.EEEEEEEEEEEEE
+|..............
+build
+|.........x+...
+
+view L key wide origin 7 -2
+|...98877677665..
+|....99888887765.
+|....55555555555.
+
+view L key flare origin 7 -2
+|....98877677665.
+|.....99888887765
+|......5555555555
+
+view L key kneel origin 7 -2
+|.9988888877765
+|.5555555555555
+
+view L key sit origin 8 0
+|59887777777765
+|59888888888895
+|.555555555555.
+
+view L key lie origin 6 -2
+|98877677665
+|99888887765
+|55555555555
+
+view D key floor origin 0 0
+|.
+
+view D key ride origin 0 0
+|.
+
+view U key floor origin 0 0
+|.
+
+view U key ride origin 0 0
+|.
+
+view R key floor origin 0 0
+|.
+
+view R key ride origin 0 0
+|.
+
+view L key floor origin 0 0
+|.
+
+view L key ride origin 0 0
+|.

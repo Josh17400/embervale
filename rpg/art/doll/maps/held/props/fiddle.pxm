@@ -1,0 +1,105 @@
+# held/props/fiddle: the fiddle and its bow for the Lute posture's Fiddle variant (PROPS, P2b): the fiddle under the chin at
+# the left shoulder (held by the left hand, pose arms: shoulder), the bow drawn across it by the right hand (hold, reach).
+# Format: rpg/art/doll/doll.h. Anchored on the right shoulder (the left shoulder is a fixed offset in each view).
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held fiddle
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin -3 2 layer neck
+|.....fff.X
+|....fhihXV
+|....fjXXgf
+|....fXhgf.
+|....Xfgf..
+|..XXV.f...
+|.XVV......
+|XV........
+|V.........
+
+view D key reach origin -1 2 layer neck
+|.......ffX..
+|......fXXhf.
+|.....XXjNhgf
+|...XXVfihgf.
+|.XXVV..fgf..
+|XVV.....f...
+|V...........
+
+view U key hold origin 12 2 layer heldBack
+|..fff.
+|.fihif
+|fjiPgf
+|.fjihf
+|..fjf.
+|...f..
+
+view U key reach origin 12 2 layer heldBack
+|..fff.
+|.fihif
+|fjiPgf
+|.fjihf
+|..fjf.
+|...f..
+
+view R key hold origin 0 3 layer neck
+|...ff..
+|..fhif.
+|Xfjhgf.
+|.XiNgf.
+|.Xfgf..
+|..XV...
+|...XV..
+|...XV..
+|....XV.
+|....XV.
+|.....XV
+
+view R key reach origin -1 4 layer neck
+|..XV.....
+|..fXV....
+|.fhXf....
+|fjhgXV...
+|fiNgfXV..
+|.fgf.XV..
+|......XV.
+|......XV.
+|.......XV
+
+view L key hold origin 5 3 layer hairBack
+|.ff....
+|.fhif..
+|.fjigXV
+|.fjPXf.
+|..fjXV.
+|...XV..
+|...XV..
+|..XV...
+|.XV....
+|.XV....
+|XV.....
+
+view L key reach origin 8 4 layer hairBack
+|.....XV..
+|....Xf...
+|....Xhif.
+|...Xfjigf
+|...XfjPhf
+|..XV.fjf.
+|.XV......
+|.XV......
+|XV.......

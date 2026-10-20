@@ -1,0 +1,153 @@
+# hair/adult/shag: Shag: layered and choppy to the shoulders, a swept fringe in points, the layers flaring at the jaw; the ears hidden
+# P2b wave 2, HAIR. On the adult head box (STYLE_P2 21; man and woman). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role hair shag
+layer hairFront
+anchor head
+keys rest
+
+view D key rest origin 0 0
+|................
+|.....aaaaaa.....
+|...aaeeedddaa...
+|..adeeeddddcca..
+|.adeedddddccbba.
+|.addddcdacccbba.
+|adcdcb.adbcbcbba
+|acdb.a..abb.abba
+|acb.........abba
+|adb..........bca
+|acdb........bcba
+|abca........abba
+|acb..........bba
+|adcb........bcba
+|abca........acba
+|.aa..........aa.
+
+view U key rest origin 0 0
+|................
+|.....aaaaaa.....
+|...aadeeedcaa...
+|..adeeddddccca..
+|.adeddcdcdccbba.
+|.adddcdcdccbcba.
+|accbdccbdcbbccba
+|accbdccbdcbbccba
+|accbdccbdcbbccba
+|abcbdbcbdbbbcbba
+|abdccbdccbccbbca
+|abdccbdccbccbbca
+|abdccbdccbccbbca
+|abdccbdccbccbbca
+|.acba.abda.acca.
+|..aa...aa...aa..
+
+view R key rest origin 2 0
+|.................
+|.......aaaaaa....
+|.....aaeeeddcaa..
+|....adeeeddddcca.
+|...adeedddddcdcca
+|..adddddcdccbcbba
+|.adcddcdccbbbba..
+|adcdcbcdcbbba....
+|acdcbcdccba......
+|.acdcbcdcba......
+|adcdcbcdcba......
+|acbcbcbcbba......
+|.abcbcbcba.......
+|abcbabcbba.......
+|.aa..abba........
+|......aa.........
+
+view L key rest origin -1 0
+|.................
+|....aaaaaa.......
+|..aaeeeddcaa.....
+|.adeeeddddcca....
+|adeedddddcdcca...
+|adddddcdccbcbba..
+|..adcddcdccbbbba.
+|....adcdcbcdcbbba
+|......acdcbcdccba
+|......acdcbcdcba.
+|......adcdcbcdcba
+|......acbcbcbcbba
+|.......abcbcbcba.
+|.......abcbbacbba
+|........abba..aa.
+|.........aa......
+
+# capped (under a hat, a hood or a helm; a circlet shows the whole style): the style kept inside the headwear
+view D key rest when capped,!circlet replace
+|................
+|................
+|...aaaaaaaaaa...
+|..adeeeddddcca..
+|.adeedddddccbba.
+|.addddcdacccbba.
+|adcdcb.adbcbcbba
+|acdb.a..abb.abba
+|acb.........abba
+|adb..........bca
+|acdb........bcba
+|abca........abba
+|acb..........bba
+|adcb........bcba
+|abca........acba
+|.aa..........aa.
+
+view U key rest when capped,!circlet replace
+|................
+|................
+|...aaaaaaaaaa...
+|..adeeddddccca..
+|.adeddcdcdccbba.
+|.adddcdcdccbcba.
+|accbdccbdcbbccba
+|accbdccbdcbbccba
+|accbdccbdcbbccba
+|abcbdbcbdbbbcbba
+|abdccbdccbccbbca
+|abdccbdccbccbbca
+|abdccbdccbccbbca
+|abdccbdccbccbbca
+|.acba.abda.acca.
+|..aa...aa...aa..
+
+view R key rest when capped,!circlet replace
+|.................
+|.................
+|.....aaaaaaaaaa..
+|....adeeeddddcca.
+|...adeedddddcdcca
+|..adddddcdccbcbba
+|.adcddcdccbbbba..
+|.acdcbcdcbbba....
+|.adcbcdccba......
+|.acdcbcdcba......
+|.acdcbcdcba......
+|.abcbcbcbba......
+|.abcbcbcba.......
+|.acbabcbba.......
+|.aa..abba........
+|......aa.........
+
+view L key rest when capped,!circlet replace
+|.................
+|.................
+|..aaaaaaaaaa.....
+|.adeeeddddcca....
+|adeedddddcdcca...
+|adddddcdccbcbba..
+|..adcddcdccbbbba.
+|....adcdcbcdcbba.
+|......acdcbcdcca.
+|......acdcbcdcba.
+|......adcdcbcdca.
+|......acbcbcbcba.
+|.......abcbcbcba.
+|.......abcbbacba.
+|........abba..aa.
+|.........aa......

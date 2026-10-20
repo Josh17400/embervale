@@ -1,0 +1,32 @@
+# kin/child/neck/scarf: the child's scarf (accent): wound round the neck over the collar, a tail down the chest in front
+# and trailing behind in the side views
+# (KIN-CHILD, P2b wave 2; the child, STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person
+body child
+role neck scarf
+layer neck
+anchor neck
+keys rest
+
+view D key rest origin 4 1
+|mnoopoonm
+|.mnoponm.
+|.....mpm.
+|.....mom.
+|......m..
+
+view U key rest origin 4 1
+|mnooooonm
+|.mnnoonm.
+
+view R key rest origin 5 1
+|.mnoopom
+|mnopnnm.
+|mom.....
+|.m......
+
+view L key rest origin 2 1
+|mopoonm.
+|.mnponnm
+|.....mom
+|......m.

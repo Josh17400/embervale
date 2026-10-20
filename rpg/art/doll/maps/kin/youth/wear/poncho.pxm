@@ -1,0 +1,56 @@
+# kin/youth/wear/poncho: the youth's poncho: a wide drape over the shoulders and the arms (drawn over the arms, under the
+# head), an accent band woven across it, a lit hem and a fringe; the hands peek through the fringe
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. One shape for boy and girl (a drape hides the waist); the girl's
+# neck opening is rounder.
+use person
+body youth
+role garment poncho
+layer head
+anchor neck
+keys rest
+z -1
+
+view D key rest origin 7 0
+|....5qrrq5....
+|.5988qrrq7765.
+|58888877776665
+|5ppppoooonnnm5
+|58887777766665
+|59888887777765
+|.6.7.6.6.6.6..
+
+view D key rest origin 7 0 when girl replace
+|....5qrrq5....
+|.5989qrrq7765.
+|58888877776665
+|5ppppoooonnnm5
+|58887777766665
+|59888887777765
+|.6.7.6.6.6.6..
+
+view U key rest origin 7 0
+|....588765....
+|.598877777665.
+|58887777776665
+|5ppppoooonnnm5
+|58887777766665
+|59888887777765
+|..6.6.7.6.6.6.
+
+view R key rest origin 5 0
+|...5qrq5..
+|.59888765.
+|5888777665
+|5pppoonnm5
+|5887777665
+|5988887765
+|.6.7.6.6..
+view L key rest origin 5 0
+|..5qrq5...
+|.59888765.
+|5888777665
+|5pppoonnm5
+|5887777665
+|5988887765
+|..6.7.6.6.
+

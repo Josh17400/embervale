@@ -1,0 +1,29 @@
+# head/adult/marks_gaunt: gaunt: hollows under lit cheekbones (an elder's or a starveling's face)
+# P2b FACES (wave 2). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role marks gaunt
+layer face
+anchor head
+keys rest
+z 1
+tags overlay mirror-ok
+
+view D key rest origin -3 -11
+|u........r
+|.r......q.
+
+view D key rest when woman replace
+|u........r
+|..r.....q.
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -9 -11
+|u.
+|rr
+
+view L key rest origin -4 -11
+|.u
+|rr

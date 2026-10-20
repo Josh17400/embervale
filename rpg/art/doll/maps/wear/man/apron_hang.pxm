@@ -1,0 +1,102 @@
+# wear/man/apron_hang: the work apron's leather skirt from the belt to mid-thigh, a solid lit hem; it swings a row with
+# the step, the front leg pushes it forward in side views, it flaps out in the run, lies on the lap seated
+# GARB-M (P2b wave 2); fitted to the man (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+legend Z linen 4
+body man
+role garment apron
+layer hangFront
+anchor hip
+keys hang
+sway 1
+
+view D key rest origin 5 -2
+|fihhhghggf
+|fjiiiiihhf
+build
+|.+.....x+.
+
+view D key flare origin 6 -2
+|.fihhhghggf.
+|fjiiiiiihhgf
+build
+|..+.....x+..
+
+view D key sit origin 5 -2
+|fihhhghggf
+|fjiiiiihhf
+view D key kneel origin 5 -2
+|fjiiiiihhf
+
+view U key rest origin 0 0
+|.
+view U key flare origin 0 0
+|.
+view U key sit origin 0 0
+|.
+view U key kneel origin 0 0
+|.
+
+view R key rest origin -2 -2
+|fihhf
+|fjiif
+
+view R key wide origin -2 -2
+|fihhf.
+|.fjiif
+
+view R key flare origin -2 -2
+|fihhhf.
+|.fjiiif
+
+view R key sit origin -1 0
+|fihhhhhf
+|fjiiiiif
+view R key kneel origin -2 -2
+|fjiif
+
+view L key rest origin 7 -2
+|fiihf
+|fjiif
+
+view L key wide origin 8 -2
+|.fiihf
+|fjiif.
+
+view L key flare origin 9 -2
+|.fiihhf
+|fjiiif.
+
+view L key sit origin 7 0
+|fiihhhhf
+|fjiiiiif
+view L key kneel origin 7 -2
+|fjiif
+
+view L key lie origin 7 -2
+|fiihf
+|fjiif
+
+view D key floor origin 0 0
+|.
+
+view D key ride origin 0 0
+|.
+
+view U key floor origin 0 0
+|.
+
+view U key ride origin 0 0
+|.
+
+view R key floor origin 0 0
+|.
+
+view R key ride origin 0 0
+|.
+
+view L key floor origin 0 0
+|.
+
+view L key ride origin 0 0
+|.

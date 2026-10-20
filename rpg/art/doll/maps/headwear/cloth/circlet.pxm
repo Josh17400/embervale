@@ -1,0 +1,28 @@
+# headwear/cloth/circlet: the Circlet (OUTER, P2b wave 2): a thin band of the person's trim metal (brass by default) round the brow,
+# over the hair, a gem in the accent colour at the front; it hides no hair (the hair keeps its full style).
+# Format: rpg/art/doll/doll.h.
+use person
+body adult
+role headwear circlet
+layer headwear
+anchor head
+keys hatpose
+legend m accent 0
+legend p accent 3
+
+view D key rest origin 0 -4
+|.......mm.......
+|.POOOOOmpOONNNN.
+|.......mm.......
+
+view U key rest origin 0 -6
+|POOOOOOONNNNNNNN
+
+view R key rest origin 0 -5
+|POOOONNNNNNNNpm
+
+view L key rest origin -1 -5
+|mpOOOOONNNNNNNN
+
+view L key lie origin -1 -5
+|mpOOOOONNNNNNNN

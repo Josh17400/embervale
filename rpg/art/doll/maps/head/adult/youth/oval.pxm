@@ -1,0 +1,115 @@
+# head/adult/youth/oval: the youth's Oval head (the soft adult types: STYLE_P2 4)
+# P2b FACES (wave 2): GENERATED from the adult maps by the FACES spec (the boy = the man's views, the girl = the
+# woman's as `when girl replace`); edit the adult maps, then regenerate. Format: rpg/art/doll/doll.h.
+use person
+body youth
+role head oval
+layer head
+anchor head
+keys rest
+
+view D key rest origin -2 -3
+mark face 1 5
+|...qqqqqq...
+|.qqtuuttsqq.
+|qtuuttttssrq
+|qttutttsssrq
+|qttttttttsrq
+|qtttttssssrq
+|tt##tsss##rr
+|st@EtsssE@rr
+|qt@GssssG@rq
+|.qtsssMssrq.
+|..qssssrrq..
+
+view U key rest origin -2 -3
+|...qqqqqq...
+|.qqtuuttsqq.
+|qtuuttttssrq
+|qttutttsssrq
+|qtttttssssrq
+|qttttsssssrq
+|tttsssssssrr
+|ttsssssssrrr
+|.qtssssssrq.
+|..qrrrrrq...
+|...qrrrrq...
+
+view R key rest origin -1 -3
+|....qqqqqqq...
+|..qqtuutttsqq.
+|.qtuuttttssssq
+|qttutttttsssrq
+|qtttttttssssrq
+|qttttttsstsstq
+|qttts..stt##tq
+|qtsss..sts@Es.
+|.qssr..ssssssq
+|..qrqrqrssssMq
+|....qrrqqrssq.
+
+view L key rest origin -1 -3
+|...qqqqqqq....
+|.qqtuuttssqq..
+|qtuuttttsssrq.
+|qtuttttttsssrq
+|qtttttttsssrrq
+|qttttttssssrrq
+|qt##tss..srrq.
+|.tE@sss..rrq..
+|qttssss..rq...
+|qMssssrqrqrq..
+|.qssrqqrrq....
+
+view D key rest origin -2 -3 when girl replace
+mark face 1 5
+|...qqqqqq...
+|.qqtuuttsqq.
+|qtuuttttssrq
+|qttutttsssrq
+|qtttttssssrq
+|qtttttssssrq
+|q###tsss###q
+|qt@EtsssE@sq
+|qt@GssssG@sq
+|.qYssLMsYrq.
+|...qssssq...
+
+view U key rest origin -2 -3 when girl replace
+|...qqqqqq...
+|.qqtuuttsqq.
+|qtuuttttssrq
+|qttutttsssrq
+|qtttttssssrq
+|qttttsssssrq
+|tttsssssssrr
+|ttsssssssrrr
+|qtsssssssrrq
+|.qtssssssrq.
+|..qqrrrrq...
+
+view R key rest origin -1 -3 when girl replace
+|....qqqqqq....
+|..qqtuuttsq...
+|.qtuuttttsssq.
+|qttutttttsssrq
+|qttttttssssttq
+|qtttssssststtq
+|qtsss..stt##tq
+|qsssr..sts@Es.
+|.qsrr..ssYsssq
+|..qrrqqsssssMq
+|...qq..qrssLq.
+
+view L key rest origin -1 -3 when girl replace
+|....qqqqqqq...
+|...qqtuuttssq.
+|.qtuuttttsssrq
+|qtuttttttsssrq
+|qtttttttssssrq
+|qtttttssssrrq.
+|qt##tts..srrq.
+|tsE@sss..rrq..
+|qttsYss..rq...
+|qMtssssqrrq...
+|.qLssrq..qq...

@@ -1,0 +1,143 @@
+# kin/youth/wear/kilt_hang: the pleated kilt to the knee: alternating lit and shadowed pleats, a lit hem; the pleats
+# fan on the side walk and in the run
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. Keys: rest, wide, flare, kneel, lie.
+use person
+body youth
+role garment kilt
+layer hangFront
+anchor hip
+keys hang
+sway 1
+
+view D key rest origin 6 0
+|.5878787665.
+|.5878787665.
+|.5989898765.
+
+view D key rest origin 6 0 when girl replace
+|..58787665..
+|.5878787665.
+|.5989898765.
+
+view D key wide origin 6 0
+|.5878787665.
+|.5878787665.
+|.5989898765.
+
+view D key flare origin 6 0
+|.5878787665.
+|587878787665
+|598989898765
+
+view D key kneel origin 6 0
+|.5878787665.
+|598989898765
+
+view U key rest origin 6 0
+|.5878787665.
+|.5878787665.
+|.5989898765.
+
+view U key rest origin 6 0 when girl replace
+|..58787665..
+|.5878787665.
+|.5989898765.
+
+view U key wide origin 6 0
+|.5878787665.
+|.5878787665.
+|.5989898765.
+
+view U key flare origin 6 0
+|.5878787665.
+|587878787665
+|598989898765
+
+view U key kneel origin 6 0
+|.5878787665.
+|598989898765
+
+view R key rest origin 5 0
+|.58787665.
+|.58787665.
+|5989898765
+
+view R key wide origin 5 0
+|.58787665.
+|5878787665
+|59898987655
+
+view R key flare origin 6 0
+|..58787665.
+|.5878787665
+|598989898765
+
+view R key kneel origin 5 0
+|.58787665.
+|59898987655
+
+view L key rest origin 5 0
+|.58787665.
+|.58787665.
+|5989898765
+
+view L key wide origin 6 0
+|..58787665.
+|.5878787665
+|59898987655
+
+view L key flare origin 6 0
+|..58787665..
+|.5878787665.
+|598989898765
+
+view L key kneel origin 6 0
+|..58787665.
+|59898987655
+
+view L key lie origin 5 0
+|.58787665.
+|.58787665.
+|5989898765
+
+# ---- postures (KIN-YOUTH): sit (seated on a chair: over the lap; the long skirts down the front over
+# the shins), floor (cross-legged: pooled over the lap, three rows over the floor)
+view D key sit origin 6 0
+|.5878787665.
+|.5878787665.
+|.5989898765.
+
+view D key floor origin 6 0
+|.5878787665.
+|587878787665
+|598989898765
+
+view U key sit origin 6 0
+|.5878787665.
+|.5878787665.
+|.5989898765.
+
+view U key floor origin 6 0
+|.5878787665.
+|587878787665
+|598989898765
+
+view R key sit origin 5 0
+|.58787665.
+|5878787665
+|59898987655
+
+view R key floor origin 5 0
+|.58787665.
+|5878787665
+|59898987655
+
+view L key sit origin 6 0
+|..58787665.
+|.5878787665
+|59898987655
+
+view L key floor origin 6 0
+|..58787665.
+|.5878787665
+|59898987655

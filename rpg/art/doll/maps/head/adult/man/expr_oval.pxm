@@ -1,0 +1,19 @@
+# head/adult/man/expr_oval: the Oval head's chin under A3's fierce face (the swing's jaw pixel; A3 swing.py)
+# P2b FACES (wave 2). Format: rpg/art/doll/doll.h.
+use person
+body man
+role head oval
+layer face
+anchor head
+keys expr
+z 2
+tags overlay mirror-ok
+
+view D key fierce origin -4 -13
+|r
+
+view R key fierce origin 0 0
+|.
+
+view L key fierce origin 0 0
+|.

@@ -198,6 +198,7 @@ constexpr int codeStep(uint8_t c) { return (c - 2) % 5; }
 // elf, amulet, ring, armed, pattern and the pattern's name (stripes checks border dots embroidery vines), capped (any hat,
 // hood or helm), the headwear's name (hood cap turban furhat veil circlet conical headscarf), hood (the legacy hood), beard,
 // kid (child or youth), glint (a legendary glow), earrings, and each mark (freckles scar beauty weathered lined gaunt)
+// (set by the compositor, not the look) posture (withPosture: a posture's frames) and run (the RUN part's frames)
 // The hair styles (HumanLook::hair family x HumanLook::hairVar, STYLE_P2 21): 24 for adults (man, woman, youth)
 constexpr int HAIR_STYLES = 24, CHILD_HAIR_STYLES = 10;
 int hairStyleOf(Hair family, uint8_t hairVar);   // 0..23 (an out-of-range variant clamps to the family's last)
@@ -251,6 +252,10 @@ std::vector<Missing> dollMissing(const HumanLook& look);
 bool dollCovers(const HumanLook& look, RigPart part);
 // a posture at rig 2 composes with nothing missing
 bool dollCoversPosture(const HumanLook& look, Posture p);
+// (POSES-B, P2b) the same for a posture's variant (the bard's instrument, the kneel's mourning, the carried load), with the
+// posture's prop in hand (doll_internal.h postureProp); and what it lacks
+bool dollCoversPosture(const HumanLook& look, Posture p, uint8_t variant);
+std::vector<Missing> dollMissingPosture(const HumanLook& look, Posture p, uint8_t variant);
 // parts no look of the census reaches are DEAD (B6 wants 0): the harness marks what it reached here
 void markReached(const DollRecipe& r);
 void clearReached();

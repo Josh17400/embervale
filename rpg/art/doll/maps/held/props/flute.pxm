@@ -1,0 +1,64 @@
+# held/props/flute: the transverse flute for the Flute posture: a pale wooden tube with dark finger holes and brass ends (PROPS, P2b). Format: rpg/art/doll/doll.h. At the mouth (pose arms: mouth), anchored on
+# the right shoulder; before the face on the beard layer facing down, behind the far hand facing left, hidden from behind.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held flute
+anchor shoulderR
+keys held
+z 40
+
+view D key mouth origin 2 4 layer beard
+|IVVVVVVVVVI
+|PXfXfXfXWWN
+|IVVVVVVVVVI
+
+view D key hold origin 2 4 layer beard
+|IVVVVVVVVVI
+|PXfXfXfXWWN
+|IVVVVVVVVVI
+
+view U key mouth origin 6 -18 layer heldBack
+|.
+
+view U key hold origin 6 -18 layer heldBack
+|.
+
+view R key mouth origin -6 4 layer hairFront
+|IV....
+|NXVV..
+|.VfXVV
+|...VWX
+|....VN
+
+view R key hold origin -6 4 layer hairFront
+|IV....
+|NXVV..
+|.VfXVV
+|...VWX
+|....VN
+
+view L key mouth origin 9 4 layer hairBack
+|....VI
+|..VVXN
+|VVXfV.
+|XWV...
+|PV....
+
+view L key hold origin 9 4 layer hairBack
+|....VI
+|..VVXN
+|VVXfV.
+|XWV...
+|PV....

@@ -1,6 +1,6 @@
-# head/adult/man/square: the man's Square head: flat jaw corners, a 6 px chin, a broader skull
-# The slice (P2b wave 1, FOLK-BODY; to FACES in wave 2). Every head type keeps A3's eye rows and columns, the nose pixel
-# and the mouth row (STYLE_P2 4), so expressions, marks and paint fit them all. Format: rpg/art/doll/doll.h.
+# head/adult/man/square: the man's Square head: a flat crown, the jaw straight down to square corners, a 10 px chin
+# P2b FACES (wave 2). Every head type keeps A3's eye rows and columns, the nose pixel and the mouth row
+# (STYLE_P2 4), so expressions, marks and paint fit them all. Format: rpg/art/doll/doll.h.
 use person
 body man
 role head square
@@ -8,19 +8,19 @@ layer head
 anchor head
 keys rest
 
-view D key rest origin -2 -3
-mark face 1 5
-|..qqqqqqqq..
-|.qtuutttssq.
-|qtuuttttssrq
-|qttutttsssrq
-|qttttttttsrq
-|qtttttssssrq
-|tt##tsss##rr
-|st@EtsssE@rr
-|qt@GssssG@rq
-|qttsssMsssrq
-|.qqssssrrqq.
+view D key rest origin -1 -3
+mark face 2 5
+|...qqqqqqqq...
+|..qtuutttssq..
+|.qtuuttttssrq.
+|.qttutttsssrq.
+|.qttttttttsrq.
+|.qtttttssssrq.
+|.tt##tsss##rr.
+|.st@EtsssE@rr.
+|.qt@GssssG@rq.
+|.qttsssMssrrq.
+|.qtssssssrrrq.
 
 view U key rest origin -2 -3
 |..qqqqqqqq..
@@ -35,28 +35,28 @@ view U key rest origin -2 -3
 |.qqrrrrrrqq.
 |...qrrrrq...
 
-view R key rest origin -1 -3
-|....qqqqqqq...
-|..qqtuutttsqq.
-|.qtuuttttssssq
-|qttutttttsssrq
-|qtttttttssssrq
-|qttttttsstsstq
-|qttts..stt##tq
-|qtsss..sts@Es.
-|.qssr..ssssssq
-|..qrrrrsssssMq
-|...qqrrrrssssq
+view R key rest origin 0 -3
+|....qqqqqqqqq...
+|...qtuuttttttq..
+|..qtuuttttssssq.
+|.qttutttttsssrq.
+|.qtttttttssssrq.
+|.qttttttsstsstq.
+|.qttts..stt##tq.
+|.qtsss..sts@Es..
+|.qtssr..ssssssq.
+|..qsrrrrrssssMq.
+|...qqqrrrrsssssq
 
-view L key rest origin -1 -3
-|...qqqqqqq....
-|.qqtuuttssqq..
-|qtuuttttsssrq.
-|qtuttttttsssrq
-|qtttttttsssrrq
-|qttttttssssrrq
-|qt##tss..srrq.
-|.tE@sss..rrq..
-|qttssss..rq...
-|qMsssssrrrrq..
-|qssssrrrrqq...
+view L key rest origin 0 -3
+|...qqqqqqqqq....
+|..qtuuttttttq...
+|.qtuuttttsssrq..
+|.qtuttttttsssrq.
+|.qtttttttsssrrq.
+|.qttttttssssrrq.
+|.qt##tss..srrq..
+|..tE@sss..rrq...
+|.qttssss..rrq...
+|.qMtsssrrrrrq...
+|qtsssssrrrqqq...

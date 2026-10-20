@@ -70,7 +70,9 @@ int humanoidCellH2(int species) { (void)species; return 0; }
 // the doll covers what this look needs: LOCO and DEATH always, ACTION when it carries a weapon (the census's fighters)
 bool rig2Covers(const HumanLook& look) {
   if (!doll::dollCovers(look, RigPart::Loco) || !doll::dollCovers(look, RigPart::Death)) return false;
-  const bool armed = look.weapon >= 1 && look.weapon <= 8;
+  // (P2b fix TRADES-DRAWN-ON-V1) ACTION is needed only for looks that fight: a civil trade's tool (the smith's hammer, the
+  // hunter's bow, the scholar's staff, the lamplighter's pole) rides at rest, and an attack falls back to the walk
+  const bool armed = look.weapon >= 1 && look.weapon <= 8 && !look.civil;
   return !armed || doll::dollCovers(look, RigPart::Action);
 }
 

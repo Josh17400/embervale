@@ -1,0 +1,40 @@
+# head/adult/man/nose_long: a long nose: the bridge's shadow from the lash row down to the tip; in profile it reaches
+# a pixel further and droops at the tip
+# P2b FACES (wave 2). Format: rpg/art/doll/doll.h.
+use person
+body man
+role nose long
+layer face
+anchor head
+keys rest
+
+view D key rest origin -8 -9
+|r
+|r
+|r
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -14 -9
+|tq.
+|ssq
+|rsq
+
+view L key rest origin 1 -9
+|.qt
+|qss
+|qss
+
+# (P2b FACES) elven fineness: thinner, swept-up brows and a finer nose for elves (when elf replace)
+view D key rest origin -8 -10 when elf replace
+|r
+|r
+
+view R key rest origin -14 -9 when elf replace
+|tq
+|sq
+
+view L key rest origin 0 -9 when elf replace
+|qu
+|qs

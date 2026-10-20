@@ -1,0 +1,93 @@
+# held/props/harp: the small frame harp for the Lute posture's Harp variant (PROPS, P2b): a carved wooden frame with linen
+# strings, held against the chest, the right hand plucking (hold, reach). Format: rpg/art/doll/doll.h. Anchored on the right
+# shoulder, under the hands.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held harp
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin -4 0 layer neck
+|ff.....
+|fjf....
+|fihf...
+|fiXhf..
+|fiXXhf.
+|fiXXXhf
+|fffffff
+
+view D key reach origin -4 0 layer neck
+|ff.....
+|fjf....
+|fihf...
+|fiXhf..
+|fiXXhf.
+|fiXXXhf
+|fffffff
+
+view U key hold origin 10 0 layer heldBack
+|.....ff
+|....fgf
+|...fihf
+|..fiXhf
+|.fiXXhf
+|fiXXXhf
+|fffffff
+
+view U key reach origin 10 0 layer heldBack
+|.....ff
+|....fgf
+|...fihf
+|..fiXhf
+|.fiXXhf
+|fiXXXhf
+|fffffff
+
+view R key hold origin -3 0 layer neck
+|ff.....
+|fjf....
+|fihf...
+|fiXhf..
+|fiXXhf.
+|fiXXXhf
+|fffffff
+
+view R key reach origin -3 0 layer neck
+|ff.....
+|fjf....
+|fihf...
+|fiXhf..
+|fiXXhf.
+|fiXXXhf
+|fffffff
+
+view L key hold origin 8 0 layer neck
+|.....ff
+|....fgf
+|...fihf
+|..fiXhf
+|.fiXXhf
+|fiXXXhf
+|fffffff
+
+view L key reach origin 8 0 layer neck
+|.....ff
+|....fgf
+|...fihf
+|..fiXhf
+|.fiXXhf
+|fiXXXhf
+|fffffff

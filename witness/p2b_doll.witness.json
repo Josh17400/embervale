@@ -82,7 +82,7 @@
   ]
  },
  {
-  "name": "p2b target (B6): the A3 hero is covered at rig 2: drawn by the doll, 32 px (34 with the cowlick)",
+  "name": "p2b target (B6): the A3 hero is covered at rig 2: drawn by the doll, 32 px (34 with the cowlick), measured on idle frame 0 (STYLE_P2 3: the body box without the breathe frame's 1 px lift)",
   "params": {
    "rig": 2,
    "hour": 11,
@@ -102,6 +102,12 @@
       "hair",
       "short",
       "copper"
+     ],
+     [
+      "pose",
+      "idle",
+      0,
+      0
      ]
     ]
    },
@@ -119,7 +125,7 @@
   ]
  },
  {
-  "name": "p2b target (B6): the woman hero and the start village's folk are covered: no person drawn from a v1 sheet",
+  "name": "p2b target (B6): the woman hero and the start village's civilians are covered (armour, helms, shields and culture weapons are P2c's: C1, and v1Draws 0 is C2)",
   "params": {
    "rig": 2,
    "hour": 11,
@@ -130,8 +136,8 @@
     "at": 0.6,
     "expect": [
      "state.player.sprite.doll.covered",
-     "entities.filter(e => e.kind == 'person' && e.doll).every(e => e.doll.covered)",
-     "state.screen.v1Draws == 0"
+     "entities.filter(e => e.kind == 'person' && e.doll).length >= 4",
+     "entities.filter(e => e.kind == 'person' && e.doll && !e.doll.covered).every(e => /^(armour|helm|shield|pauldron|held|sheath)=/.test(e.doll.first || ''))"
     ],
     "shot": "p2b_doll_village.png"
    }

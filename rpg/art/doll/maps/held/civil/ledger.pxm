@@ -1,0 +1,72 @@
+# held/civil/ledger: the ledger (art weapon 10) at rest, carried by its top edge in the near hand (PROPS, P2b): a thick
+# account book in a pale vellum binding, its spine and corners in the person's leather, a brass clasp on a strap.
+# Format: rpg/art/doll/doll.h. On the grip (the fist's top-left) and the held channel (LOCO and RUN; `drop` by a corpse);
+# the fist is drawn over its top edge (it sits under armNear). Front and right: the front board face-on, the spine toward
+# the body; back: the back board; left (the far hand, hidden): only its lower corner behind the legs.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held ledger
+layer neck
+anchor grip
+keys held
+z 40
+
+view D key rest origin 2 -1
+|fVVVVf
+|fYYXXV
+|fYXXWV
+|fXIOXV
+|fXXWWV
+|ffVVVf
+
+view U key rest origin 0 -1 layer heldBack
+|fVVVVf
+|VYXXWf
+|VXXXWf
+|VXXWWf
+|VXWWWf
+|fVVVff
+
+view R key rest origin 1 -1
+|fVVVVVf
+|fYYXXXV
+|fYXXXWV
+|fXXIOXV
+|fXXXWWV
+|ffVVVVf
+
+view L key rest origin -3 -3 layer heldBack
+|VVVVf
+|XXWWf
+|XWWWf
+|VVVff
+
+view D key rest origin 0 0 when posture replace
+|.
+
+view U key rest origin 0 0 when posture replace
+|.
+
+view R key rest origin 0 0 when posture replace
+|.
+
+view L key rest origin 0 0 when posture replace
+|.
+
+view L key drop origin 3 2
+|.VVVVVf.
+|VYXXXXWf
+|VXIOXWWf
+|fVVVVVff

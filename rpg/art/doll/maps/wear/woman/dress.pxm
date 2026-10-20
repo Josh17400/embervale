@@ -1,5 +1,6 @@
 # wear/woman/dress: the woman's dress (A3): the bodice in cloth 1, the chemise's puff sleeves and neckline in linen, the apron bib in cloth 3
 # The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
+# GARB-W (wave 2): the drawn key (the sword's facing-down frames) added as a copy of rest; A3's views unchanged.
 use person woman
 body woman
 role garment dress
@@ -115,3 +116,17 @@ view L key lie origin 7 -1
 |.ADCCB7776A
 |.ADCCB77765
 |.ADCCB77765
+
+view D key drawn origin 8 -1
+|......qrrq......
+|vyyx5yyyxxx5xxxv
+|vyxw8xxww665xwwv
+|vxww88777665wwwv
+|...5877766665...
+|...5DDCCCB765...
+|...5DCCCBB765...
+|...6DCCCB5865...
+|..56DCCCBB7665..
+
+view D key drawn origin 8 -2 when elder
+|-..............-

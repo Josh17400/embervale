@@ -1,0 +1,21 @@
+# head/adult/man/wince_elf: an elf's wince (man): restrained, the lips pressed to one pixel under the squeezed eyes
+# P2b FACES (wave 2), over the generic hurt face (expr, z 2). Format: rpg/art/doll/doll.h.
+use person
+body man
+role head fine
+role head sharp
+role head longelf
+layer face
+anchor head
+keys expr
+z 3
+tags overlay mirror-ok
+
+view D key hurt origin -7 -12
+|s
+
+view R key hurt origin -12 -12
+|s
+
+view L key hurt origin -3 -12
+|t

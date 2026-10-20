@@ -133,7 +133,12 @@ struct HumanLook {
   uint8_t garb = 0;          // a role's work garment over the outfit and cut: 0 none (they decide) 1 work apron (smith,
                              //   shipwright) 2 smock (farmer, labourer) 3 jerkin (hunter); (FOLK-SIM, added) the
                              //   commoners' own wear beside the culture's cut: 4 dress 5 tunic (shirt and trousers) 6 coat
-                             //   7 culture tunic 8 kilt 9 gown (the doll draws it; v1 keeps the cut)
+                             //   7 culture tunic 8 kilt 9 gown (the doll draws it; v1 keeps the cut); (P2b production)
+                             //   10 rags (the poorest) 11 kaftan 12 wrap 13 poncho (a woman in her people's men's cut)
+  uint8_t civil = 0;         // (P2b fix TRADES-DRAWN-ON-V1) 1: a civil trade (smith, shipwright, hunter, scholar,
+                             //   lamplighter) that never fights: its v1 leathers are work clothes (the doll draws its
+                             //   garb, no armour: doll_resolve.cpp armourOf) and its tool rides at rest (no ACTION:
+                             //   art_rig.cpp rig2Covers). Derived, never saved; v1 ignores it; in key() only at rig 2
 
   // Identity of the painted sheet: equal keys must mean identical sheets. The renderer caches baked sheets by it,
   // so every field that changes pixels must be mixed in here (art_human.cpp).

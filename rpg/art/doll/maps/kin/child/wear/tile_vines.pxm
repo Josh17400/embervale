@@ -1,0 +1,16 @@
+# kin/child/wear/tile_vines: the child's vines pattern (a winding vine): a tile laid over the garment's cloth in the pattern
+# slot, the cloth's shading kept (tags tile; doll.h). Child-sized: the adult's period halved where it would crowd 6 rows.
+use person
+body child
+role overlay vines
+legend X pattern 2
+layer torso
+anchor neck
+keys rest
+tags tile
+
+view D key rest origin 0 0
+|X...
+|.X..
+|..X.
+|.X..

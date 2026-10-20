@@ -177,6 +177,9 @@ class View {
   static const art::RigMetrics& rigFor(const art::HumanLook& L) {
     return art::rigVersion() >= 2 && art::rig2Covers(L) ? art::rig(2) : art::rig(1);
   }
+  // (P2b VIEW-B, added) px a person's drawn doll frame top lies above (+) or below (-) the 32 px reference crown the rig's
+  // markerY / plateY / barY assume (a child, a seated body, a hat); 0 for a v1 figure or one not drawn lately
+  float topLift(const Actor& a) const;
   struct LensStats { int pips = 0; float ringA = 0; int liftFigs = 0; int rigQueued = 0, rigBaked = 0; double rigBakeMs = 0, rigMB = 0; };
   LensStats lensStats;
 
@@ -730,7 +733,9 @@ class View {
   bool buffTap(Game& g, Vec2 p);   // (fixer M5 r3) a tap on the HUD's buff icons explains them (true: taken)
   // (fixer M5 r3) where each human figure was actually drawn this frame (map px: x centre, y the cell's top; t_ when):
   // the bubble rides on the drawn head, whatever posture or seat fit moved it
-  struct DrawnHead { float x = 0, y = 0, t = -1; };
+  // (P2b VIEW-B, added) v2: y is the doll frame's top (RigAnchors::topY of the look's rest frame, moved with the head in a
+  // posture), so markers, plates and bubbles float over hair, a hat or a crest (STYLE_P2 17)
+  struct DrawnHead { float x = 0, y = 0, t = -1; bool v2 = false; };
   std::unordered_map<int, DrawnHead> drawnHead_;
   // festival: bunting strung between eaves across the streets of a festive settlement (drawn over the scene: it hangs
   // overhead), paper lanterns at doors and stalls lit at night (festLights_: their glow for the light pass)

@@ -1,0 +1,20 @@
+# head/adult/woman/wince_long: a long or square woman's wince: the jaw drops, the mouth a tall gape
+# P2b FACES (wave 2), over the generic hurt face (expr, z 2). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role head long
+role head square
+layer face
+anchor head
+keys expr
+z 3
+tags overlay mirror-ok
+
+view D key hurt origin -7 -13
+|MM
+
+view R key hurt origin -12 -13
+|MM
+
+view L key hurt origin -2 -13
+|MM

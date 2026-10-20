@@ -121,7 +121,7 @@ inline const RigMetrics& rig(int v) {
       const int elf = p == 2 ? 1 : 0;
       m.fig[0][0][p] = (uint8_t)(32 + elf); m.fig[1][0][p] = (uint8_t)(31 + elf);   // adult man 32, woman 31; elf +1
       m.fig[0][1][p] = m.fig[1][1][p] = 21;                                       // child
-      m.fig[0][2][p] = m.fig[1][2][p] = 26;                                       // youth
+      m.fig[0][2][p] = m.fig[1][2][p] = (uint8_t)(26 + elf);                      // youth (KIN-YOUTH: elf +1, as the adult's)
     }
     m.headTop = 31; m.eyeRow = 22; m.handRow = 10;   // (P2b) A3's rows: crown F-31 (woman F-30), eyes F-23..F-22, hands F-11..F-10
     m.markerY = 36; m.bubbleY = 42; m.plateY = 38; m.barY = 36;   // 4 px of air over the hair (STYLE_P2 17)
@@ -216,7 +216,7 @@ BedFit bedFit2(Berth b, int kit);                   // rig_sleep.cpp (POSES)
 enum class Holder : uint8_t {
   HouseDoorH, HouseDoorW, SmallDoorH, TempleDoorH, GrandDoorH, PalaceDoorH,   // door openings (height 0.70-0.76 of the figure)
   WallOneStorey,                    // a one-storey wall (1.00-1.12)
-  ChairSeat, StoolSeat, BenchSeat, ThroneSeat,   // the seat surface above the floor (0.31-0.37)
+  ChairSeat, StoolSeat, BenchSeat, ThroneSeat,   // the seat surface above the floor (0.14-0.20 at rig 2: A3's knee)
   TableTop, CounterTop,             // (0.44-0.50)
   HorseWithers,                     // the ridden horse's withers above the ground (0.80-0.90)
   RowboatGunwale, DeckRail,         // (0.35-0.45, 0.45-0.55)

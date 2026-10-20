@@ -1,0 +1,61 @@
+# kin/child/wear/kaftan_skirt: the kaftan's long skirt to F-2, swaying a pixel in the walk (the shoe tips under it)
+# (KIN-CHILD, P2b wave 2; the child's torso is 6 rows, F-10..F-5, STYLE_P2 3 and 22). Format: rpg/art/doll/doll.h.
+use person woman
+body child
+role garment kaftan
+layer hangFront
+keys hang
+anchor hip
+sway 2
+
+view D key rest origin 6 -1
+|.688OxO6665.
+|5688OxO66665
+|5999OxO87765
+
+view U key rest origin 6 -1
+|.5688777766.
+|58887777666.
+|598887777665
+
+view R key rest origin 5 -1
+|5887O66655.
+|5887Ox66655
+|59998O87765
+
+view L key rest origin 5 -1
+|.55887O6665
+|55887Ox6665
+|59998O87765
+
+view D key sit origin 6 -1
+|.688OxO6665.
+|5999OxO87765
+
+view U key sit origin 6 -1
+|.5688777766.
+|598887777665
+
+view R key sit origin 5 -1
+|5887O66655.
+|59998O87765
+
+view L key sit origin 5 -1
+|.55887O6665
+|59998O87765
+
+view D key floor origin 7 -1
+|.5688OxO66665.
+|5999OxO8776665
+
+view U key floor origin 7 -1
+|.58887777666..
+|59888777766665
+
+view R key floor origin 5 -1
+|5887Ox66655.
+|59998O877655
+
+view L key floor origin 6 -1
+|.55887Ox6665
+|559998O87765

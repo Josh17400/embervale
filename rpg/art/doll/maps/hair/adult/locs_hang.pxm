@@ -1,0 +1,70 @@
+# hair/adult/locs_hang: the Locs' rope ends: on the shoulders in front, down the back to the shoulder blades, each end rounded;
+# they lag the step (hair keys) and sway (sway); pressed flat under a lying head (lie: none)
+# P2b wave 2, HAIR. On the adult head box (STYLE_P2 21). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role hair locs
+layer hairFront
+anchor head
+keys hair
+sway 2
+z 1
+
+view D key rest origin 1 -15
+|acbbda......abbbca
+|adcbda......acbbca
+|aacaca......acabaa
+|.a.a.........a.a..
+
+view D key swing origin 1 -15
+|acbbda......abbbca
+|.acbdca....abcbba.
+|.aababa....ababaa.
+|..a.a.......a.a...
+
+view U key rest origin 1 -15
+|acbbdcbcbbdbbbbba.
+|adcbdcbdcbdbbcbba.
+|adcbcbbdcbcbbcbba.
+|.dcbdcbdcbdbbcba..
+|.abadababadababa..
+|..a.a.a.a.a.a.a...
+
+view U key swing origin 1 -15
+|acbbdcbcbbdbbbbba.
+|adcbdcbdcbdbbcbba.
+|.acbcbbdcbcbbcbbba
+|..cbdcbdcbcbbcbba.
+|..abacacababababa.
+|...a.a.a.a.a.a.a..
+
+view R key rest origin 2 -15
+|abcbbdcbca
+|abdcbdcbda
+|.bdcbcbba.
+|.adabacaa.
+|..a.a.a...
+
+view R key swing origin 3 -15
+|.abcbbdcbca
+|acbdcbdcba.
+|abbdcbcba..
+|acadabaa...
+|.a.a.a.....
+
+view L key lie origin 0 0
+|.
+
+view L key rest origin -8 -15
+|adcbcbbdca
+|adcbdcbdca
+|.abbdcbcb.
+|.aabacada.
+|...a.a.a..
+
+view L key swing origin -8 -15
+|adcbcbbdca.
+|.acbdcbdcba
+|..abdcbcbba
+|...aacadaba
+|.....a.a.a.

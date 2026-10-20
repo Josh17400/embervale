@@ -1,0 +1,134 @@
+# wear/woman/poncho: the woman's poncho (STYLE_P2 22 "Poncho"; the highland and plains peoples): a wide woven drape from a slit at
+# the throat over her shoulders and arms, a woven band in accent across the chest and shoulders, a lit hem at the waist; its
+# sides cover her forearms (the drape parts on the arm channels) so only the hands show; a knotted fringe hangs from the hem
+# (the hang) over her trousers
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role garment poncho
+layer torso
+anchor neck
+keys torso
+
+view D key rest origin 9 -1
+|.......qrrq.......
+|.5988886ts6777765.
+|.5888888667777665.
+|5pppppppoooooonnn5
+|588887777777776665
+|588877777777776665
+|599888888888877765
+|....5888888775....
+|.....59888875.....
+
+view D key rest origin 9 -2 when elder
+|.-..............-
+
+view D key swing origin 9 -1
+|.......qrrq.......
+|.5988886ts6777765.
+|.5888888667777665.
+|5pppppppoooooonnn5
+|588887777777776665
+|588877777777776665
+|599888888888877765
+|....5888888775....
+|.....59888875.....
+
+view D key swing origin 9 -2 when elder
+|.-..............-
+
+view D key drawn origin 9 -1
+|.......qrrq.......
+|.5988886ts6777765.
+|.5888888667777665.
+|5pppppppoooooonnn5
+|588887777777776665
+|588877777777776665
+|599888888888877765
+|....5888888775....
+|.....59888875.....
+
+view D key drawn origin 9 -2 when elder
+|.-..............-
+
+view U key rest origin 9 -1
+|......qrrrrrq.....
+|.5988888777777765.
+|.5888887777777665.
+|5pppppppoooooonnn5
+|588887777777776665
+|588877777777776665
+|599888888888877765
+|....5888888775....
+|.....59888875.....
+
+view U key rest origin 9 -2 when elder
+|.-..............-
+
+view R key rest origin 6 -1
+|......qrrqq..
+|..588888865..
+|.58888888665.
+|.mpppooonnnm.
+|.58877777665.
+|.58877777665.
+|.58777777665.
+|.58777777665.
+|.59888888775.
+
+view R key rest origin 4 -2 when elder
+|-
+
+view R key swing origin 6 -1
+|......qrrqq..
+|..588888865..
+|.58888888665.
+|.mpppooonnnm.
+|.58877777665.
+|.58877777665.
+|.58777777665.
+|.58777777665.
+|.59888888775.
+
+view R key swing origin 4 -2 when elder
+|-
+
+view L key rest origin 7 -1
+|..qqrrq......
+|..588888865..
+|.58888887665.
+|.mppppooonnm.
+|.58887777665.
+|.58887777665.
+|.58877777665.
+|.58877777665.
+|.59888888775.
+
+view L key rest origin -3 -2 when elder
+|-
+
+view L key swing origin 7 -1
+|..qqrrq......
+|..588888865..
+|.58888887665.
+|.mppppooonnm.
+|.58887777665.
+|.58887777665.
+|.58877777665.
+|.58877777665.
+|.59888888775.
+
+view L key swing origin -3 -2 when elder
+|-
+
+view L key lie origin 7 -1
+|..qqrrq......
+|..588888865..
+|.58888887665.
+|.mppppooonnm.
+|.58887777665.
+|.58887777665.
+|.58877777665.
+|.58877777665.
+|.59888888775.

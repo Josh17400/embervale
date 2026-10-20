@@ -1,0 +1,101 @@
+# held/props/framedrum: the frame drum for the Drum posture (PROPS, P2b; the default and Frame): a pale hide (linen) on a
+# wooden rim, held up by the left hand before the chest, struck by the right (hold: on the skin, wave2: the hand raised).
+# Format: rpg/art/doll/doll.h. Anchored on the right shoulder, under the hands.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held framedrum
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin -4 0 layer neck
+|..fffff..
+|.fRSSSRf.
+|fRSTSSRRf
+|fSTSSRRRf
+|fSSSRRRQf
+|fRSRRRQQf
+|.fRRQQQf.
+|..fffff..
+
+view D key wave2 origin -4 0 layer neck
+|..fffff..
+|.fRSSSRf.
+|fRSTSSRRf
+|fSTSSRRRf
+|fSSSRRRQf
+|fRSRRRQQf
+|.fRRQQQf.
+|..fffff..
+
+view U key hold origin 12 0 layer heldBack
+|..fffff..
+|.fUTTTUf.
+|fUUTTSTUf
+|fUUUTTSTf
+|fQUUUTTTf
+|fQQUUUTUf
+|.fQQQUUf.
+|..fffff..
+
+view U key wave2 origin 12 0 layer heldBack
+|..fffff..
+|.fUTTTUf.
+|fUUTTSTUf
+|fUUUTTSTf
+|fQUUUTTTf
+|fQQUUUTUf
+|.fQQQUUf.
+|..fffff..
+
+view R key hold origin -4 0 layer neck
+|.ff
+|fXf
+|fYf
+|fXf
+|fXf
+|fWf
+|fVf
+|.ff
+
+view R key wave2 origin -4 0 layer hairFront
+|.ff
+|fXf
+|fYf
+|fXf
+|fXf
+|fWf
+|fVf
+|.ff
+
+view L key hold origin 5 0 layer neck
+|ff.
+|fYf
+|fXf
+|fXf
+|fWf
+|fWf
+|fVf
+|ff.
+
+view L key wave2 origin 5 0 layer neck
+|ff.
+|fYf
+|fXf
+|fXf
+|fWf
+|fWf
+|fVf
+|ff.

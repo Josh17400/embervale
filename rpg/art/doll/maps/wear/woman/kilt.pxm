@@ -1,0 +1,133 @@
+# wear/woman/kilt: the woman's highland dress (STYLE_P2 22 "Kilt"): a linen blouse with puffed shoulders, the plaid (cloth1, so a
+# checked pattern makes it tartan) over her right shoulder and across to the left hip, pinned with a brass brooch, a leather belt
+# with a centred buckle; the pleated kilt (the hang) to the knee leaves her knees bare (the leg library's knee region in skin)
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role garment kilt
+layer torso
+anchor neck
+keys torso
+
+view D key rest origin 8 -1
+|......qrrq......
+|vy887yyyxxxxxxxv
+|vyxPN5yxxxwwxxwv
+|vxww875xxwwwwwwv
+|...1487533221...
+|...1438753221...
+|...1343875221...
+|...1433387521...
+|...fihhPOhhgf...
+
+view D key rest origin 8 -2 when elder
+|-..............-
+
+view D key swing origin 8 -1
+|......qrrq......
+|vy887yyyxxxxxxxv
+|vyxPN5yxxxwwxxwv
+|vxww875xxwwwwwwv
+|...1487533221...
+|...1438753221...
+|...1343875221...
+|...1433387521...
+|...fihhPOhhgf...
+
+view D key swing origin 8 -2 when elder
+|-..............-
+
+view D key drawn origin 8 -1
+|......qrrq......
+|vy887yyyxxxxxxxv
+|vyxPN5yxxxwwxxwv
+|vxww875xxwwwwwwv
+|...1487533221...
+|...1438753221...
+|...1343875221...
+|...1433387521...
+|...fihhPOhhgf...
+
+view D key drawn origin 8 -2 when elder
+|-..............-
+
+view U key rest origin 8 -1
+|.....qrrrrrq....
+|vyyxxxxxxxx788xv
+|vyxxxxxxxx587wwv
+|vxwwxxxxx587wwwv
+|...1433358721...
+|...1433587221...
+|...1435873221...
+|...1458733221...
+|...fihhhhhhgf...
+
+view U key rest origin 8 -2 when elder
+|-..............-
+
+view R key rest origin 6 -1
+|......qrrqq..
+|..vy88887xv..
+|..vyvyxx875..
+|..vxvxwwv875.
+|..1433332751.
+|..143333221..
+|..133333221..
+|..143333221..
+|..fihhhhhhgf.
+
+view R key rest origin 4 -2 when elder
+|-
+
+view R key swing origin 6 -1
+|......qrrqq..
+|..vy88887xv..
+|..vyvyxx875..
+|..vxvxwwv875.
+|..1433332751.
+|..143333221..
+|..133333221..
+|..143333221..
+|..fihhhhhhgf.
+
+view R key swing origin 4 -2 when elder
+|-
+
+view L key rest origin 7 -1
+|..qqrrq......
+|..v78yyxxwv..
+|..vy875xwwv..
+|.vyxy875wwv..
+|.1443332321..
+|..143333221..
+|..143333221..
+|..143333221..
+|.fihhhhhhgf..
+
+view L key rest origin -3 -2 when elder
+|-
+
+view L key swing origin 7 -1
+|..qqrrq......
+|..v78yyxxwv..
+|..vy875xwwv..
+|.vyxy875wwv..
+|.1443332321..
+|..143333221..
+|..143333221..
+|..143333221..
+|.fihhhhhhgf..
+
+view L key swing origin -3 -2 when elder
+|-
+
+view L key lie origin 7 -1
+|..qqrrq......
+|..v78yyxxwv..
+|..vy875xwwv..
+|.vyxy875wwv..
+|.1443332321..
+|..143333221..
+|..143333221..
+|..143333221..
+|.fihhhhhhgf..

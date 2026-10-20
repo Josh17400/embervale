@@ -1665,3 +1665,104 @@ Baselines (phase A, before the areas):
   as expected until the areas land (B5 gait / drawn pick, B6 covered looks, B11 fall and rider).
 - WSL clang 18 -fsyntax-only on every new and changed C++ file: no errors (the usual missing-field-initializer
   warnings of the Gate structs, as test_rig.cpp's).
+
+### Wave 2 areas and integration (integrator), 2026-10-19: done (the gates table of VISION_PLAN 15.36 carries every measured number)
+- Areas landed: FOLK-BODY (drawn idle / walk / run, hurt flinch, fall fling, elders' stoop, regions), FACES (9 + 9 head
+  types in D/R/L/U, noses, brows, marks, paints, earrings, winces, youth faces), HAIR (24 styles, 10 beards, hangs,
+  capped variants, lying views), GARB-M (13), GARB-W (14, neckwear, tiles), OUTER (8 headwears, legacy hood, 4 cloaks),
+  POSES-B (31 postures and Row, both bodies), PROPS (32 props, 8 civil items), KIN-YOUTH (26 px body, 9 garments),
+  KIN-CHILD (21 px body, 62 maps), HOLDERS-B (rig-2 sea / gate fixes in VIEW-B files), DOLL (sleepers without a Sleep
+  clip, family clip precedence, helm over headwear, shared tile grid, pxc warnings and atomic writes), FOLK-SIM (garb
+  mix, created hero's style and beard), VIEW-B (per-part coverage, RUN / DEATH bake queue, corpse shadow, topLift,
+  Row on the oar clock). pxc: 403 parts, 6005 views, 670 clips, pool 679,573 bytes (hash 625873f6ab13a5bc), 0 errors,
+  2 craft warnings, `--check` up to date.
+- Integration fixes: save_test failed to link (gear_look.cpp calls doll::hairVariants, defined in rpg_art's
+  doll_resolve.cpp): the hair family table, hairVariants and hairStyleOf moved to doll_walk.cpp (rpg_doll, the data
+  library rpg_sim links). Witness state: the mounted hero never filled View::heroSprite (drawHumanBody is not called
+  for a rider), so state.player.sprite read drawn false: home_view.cpp drawMounted now fills it (part posture at rig 2);
+  the B11 rider target passes, the 10 riding scripts pass. Test-only: rpg/main.cpp's reset takes EMB_WPLAY_RIG /
+  WINDOW / SAFE / SCREEN / HOUR / GOD as defaults when a param is absent (the playtest configs witness.play*.json set
+  them through launch.env: a goal or a --params with backticks or escaped quotes is denied to the testers).
+- Regression (the one full run): all 69 CI commands of web.yml pass on MSVC (rpg_test --seeds 1..20 20 / 20, save_test
+  ALL OK) and all 66 generated CI commands pass on WSL clang 18 (CLANG_FAILS=0); script sweep 377 scripts, 0 failed
+  (3,955 s); Witness `test --repeat 2` 118 / 124 (both passes identical): the 3 failing P2b targets were the rider
+  (fixed, passes 2 / 2), the A3 hero's boxH 35 (the idle's breathe frame, bob -1: the target's 32-34 needs 35 or frame
+  0; the lead's harness) and the start village's folk "every person covered" (21 guards in plate and 1 villager in
+  leather: armour is P2c's); art_hash v1 categories identical (TOTAL 317eef6efe4d8229, every +new line as recorded;
+  art_hash has no doll category: the pool hash stands for it); golden_village_art 65 groups, 0 changed; `--anim
+  --gates` 0 failures; EMBERVALE_WITNESS=OFF configure + build of embervale (598 ninja lines) links (exe 18.07 MB vs
+  18.24 MB with Witness).
+- Gates: B1, B2, B3, B4 (marginal), B7, B8, B9 (structure), B11 PASS; FAIL: B5 (the youth girl's walk slips 2 px),
+  B6 (69 dead parts, 100 % covered), B10 (an armed look's RUN atlas about 152 KB), B12 (H2 seats), B13 (below).
+  `--rig --gates` fails R5-R10 (P2c families), P3 (the youth's cowlick in the harness look; the humanoids are P2d's)
+  and H2. CI: `rpg_test --doll` now runs with `--gates` (passes on both compilers).
+- B13 playtests (witness play batch, Sonnet low, 20 game minutes, the phone window at rig 2 through launch.env, T3 with
+  god; reports in witness/playtests): T1 3 / 3 talked to the smith and the innkeeper but found them by place (the play
+  shots are 639 x 295, people about 20 px: aprons and grey hair unreadable), an elder 1 / 3 (t1c, a white-haired
+  villager); T2 1 / 3 reached a second people (t2b: Vontve plain earth tunics, bare heads vs Vorol striped shirts, dark
+  caps and tricorns: "told apart roughly"); T3 0 / 3. Triage: no person drawn broken in any shot; "no corpse after a
+  bandit falls" (t3a, t3b, t3c) not reproduced: p2a_death's bandit lies through 20 s at rig 2 (testers' shots were in
+  forest or crowds, low-res); "four clone soldiers by the wrecked wagon" (t2b) and "4-5 near-identical villagers at
+  Vant's well at night" (t2c): the soldiers are v1 armour (P2c), the villagers FOLK-SIM's Vontve tunic mix (open);
+  "the hero stands on open water" (t3a): the shallows' wading, by design; "RENT A ROOM closes the dialogue, no gold
+  taken" (t3a, t3b, t3c): the rent works (m0b_inn scripts), the testers' `choose N` landed on another option (Witness
+  issue); "no sit on tavern chairs": the player has no sit action (the T3 goal needs restating: seated folk are P1 /
+  P2's); "no horse or rowboat": both need a homestead or a purchase (goal setup); villagers' ids renewed after a scene
+  change, stairs re-triggering, "talk X opens a neighbour", goblins in the village at the start: not P2b (the game's
+  scene and talk logic, balance).
+- Open for the next round (owners): KIN-YOUTH: the girl's walk registration (2 px), youth-length hangs (HAIR);
+  FOLK-BODY / FOLK-SIM: an armed look's RUN atlas (move the drawn run into ACTION or restate the budget per armed look);
+  lead: B6's dead-part scope (count withPosture props and role looks, leave armour and the hero's sword out of civil),
+  the B2 / P3 cowlick and the hero boxH target (breathe frame); FOLK-SIM: face paints, dots tiles and amulets in the
+  census, Vontve's tunic variety at night; planner: H2 seat range (0.14-0.20 proposed by HOLDERS-B), the B13 goals (T1
+  needs labelled or bigger shots, T2 a reachable second people, T3 setup for a horse, a boat and a rented bed; no
+  player sit); VIEW-B: the rider's Ride frame per horse frame, the talk mouth during a plate (FACES), the dust puff
+  (FOLK-BODY); GARB-M / GARB-W / P2c: sleeves on FOLK-BODY's new arm keys (guard, fling, o*, orunF), build masks need
+  DOLL's arm anchors to move.
+
+### Fix round 1, OTHER (B13 playtests, harness targets), 2026-10-19
+- Harness targets restated to P2b's scope: witness/p2b_doll "the A3 hero" freezes idle frame 0 (`pose idle 0 0`: the
+  body box without the breathe frame's 1 px lift, STYLE_P2 3); "the start village's folk" checks civilians only (an
+  uncovered person must lack only armour, helm, shield, pauldron, held or sheath parts; v1Draws 0 moves to P2c's C2: the
+  21 plate guards and the leather villager are P2c's); `--rig --gates` P3 lets the hair rise 2 px over the 21 / 26 body
+  as R2 does (the youth's tousled cowlick read 27). Result: p2b_doll 8 / 8 pass (B11 fall included); `--rig --gates` P3
+  fails only the 3 humanoids (P2d), H2 23 / 0.
+- Playtest plumbing: the dialogue snapshot (witness_state.cpp) listed every option, the grouped ones too, while the
+  screen shows only the page's options, so a tester's `choose 6) RENT A ROOM` pressed FAREWELL (the "rent silently fails"
+  of round 1): it now lists only `dlg.shows()` options in screen order (rent: gold 30 -> 20, "ROOM 1. UP THE STAIRS...",
+  GO UP TO BED, sleep). rpg/main.cpp: EMB_WPLAY_SHOT world:K makes a tester's shot the world layer at K x K per art px
+  (world:3: 1536 x 708, people 96 px instead of ~20). witness.play.json: the phone window at rig 2, god, allowCalls,
+  world:3 shots. The goals (tools/scripts/p2b_playtests.txt) restated: T1 smith, innkeeper and a child, each described
+  from a shot; T2 OSLARS and `call gotoculture other town`; T3 the five states through named setup calls (sitters at
+  20:00 with `seatall`, rented sleep and `seatall sleep` sleepers, the homestead ride, the hero's own fall (`die`), the
+  Sae rowboat (`sea port 1`)).
+- B13 batch (witness play batch, Sonnet low, seed 7; reports witness/playtests/r2_t1a-c, r2_t2a-c (T1, T2) and r4_t3a-c
+  (T3); two batches started in the same minute share one batch-MMDDhhmm.md, so the per-tester report.md files are the
+  record): T1 3 / 3 (talked to all three, each described from a shot), T2 3 / 3
+  (Vontve OSLARS vs the steppe ATEKENT: "clearly distinct at a glance"), T3 3 / 3 (all five shot and judged: sitters,
+  sleepers, rider and the hero's fall read right in 3 / 3; the rower on the thwart in 3 / 3, the boat moving in 1 / 3).
+- Triage of every note with a shot:
+  - "the innkeeper's / smith's apron not readable", "the child among villagers not clearly smaller" (r2_t1a-c): looks
+    read at 96 px; role cues weak: GARB-M / GARB-W (aprons by role), KIN-CHILD noted; not broken.
+  - "a child beside the innkeeper cannot be targeted" (r2_t1a/b): the figure is Villager REGOONTERT (hooded); the child
+    ROLGEJE is outside: no bug.
+  - "two identical purple-robed conical-hat merchants side by side" (r2_t2a, Atekent): FOLK-SIM variety (open, as
+    the Vontve tunic note).
+  - "a red-capped Oslars-style figure in Atekent" (r2_t2b): a traveller / trader of another people: by design.
+  - "the hero stands beside the bed after sleeping" (all T3): the sleep is behind a fade; the sleepers are checked with
+    `seatall sleep` (heads on pillows 3 / 3): by design.
+  - "the boat lies on the sand / the Oslars pier nook and will not move" (r2_t3a, r3_t3*, r4_t3a/c): SeaOps::giveBoat
+    places a rowboat on the shore edge at port 0 (the Oslars pier nook: wedged, no direction moves) and sometimes at
+    port 1 (Sae): open for the sea owner (repro: seed 7 `sea port` / `sea port 1`, `boat give rowboat`, `boat board`,
+    hold w / s 3 s: the boat stays). The rower reads seated on the thwart in every shot.
+  - "the oar is one vertical pole, no stroke" (r4_t3a): the Row frame between strokes; VIEW-B (Row synced to the oars).
+  - "the dismounted horse stands over the fallen hero" (r4_t3a/b), "the horse is brown ridden, grey loose" (r4_t3b/c):
+    the loose horse is drawn after the lying hero (sort by feet row: the horse's feet are lower) and the ridden horse
+    uses another coat: HOLDERS-B / VIEW-B (open).
+  - "bandit corpses vanish or stand upright" (r2_t3a, r3_t3a-c): armoured bandits are not covered by the doll at rig 2
+    and are drawn whole on v1, whose dead frame is its hurt frame 3 px lower (render_anim.cpp: v1 never had a lying
+    frame): P2c (C3 "a lying body keeps its gear"); the corpse lies 60 s (state dead / lying in the snapshot, corpse age
+    1.0 -> 3.4 s probed). Hence T3 judges the hero's own fall.
+  - "wheat tufts drawn over a corpse" (r3_t3a): tall-grass tufts in front of a lying v1 body by feet row: P2c with
+    the corpses above.
+  - "go e 12 walked into a house; home ride says NOT INDOORS" (r3/r4 T3): the testers' route; not P2b.

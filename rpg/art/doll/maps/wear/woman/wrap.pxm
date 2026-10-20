@@ -1,0 +1,134 @@
+# wear/woman/wrap: the woman's wrap (STYLE_P2 22 "Wrap"; the southern and island peoples): a long cloth1 garment wound about her,
+# its end (the drape, in accent) thrown over her left shoulder: the right shoulder and arm bare, the drape crossing her front from
+# the left shoulder to under the right arm and falling down her back; the skirt (the hang) to the ankles, the wound edge running
+# across it as one fold, the drape's end down the back
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role garment wrap
+layer torso
+anchor neck
+keys torso
+
+view D key rest origin 8 -1
+|......qrrq......
+|qttsssssrmppoonm
+|qtssssrmppon7765
+|qsrqsmppon777665
+|...mppon77665...
+|...mon87777665..
+|...5887777665...
+|...5877777665...
+|..588777776665..
+
+view D key rest origin 8 -2 when elder
+|-..............-
+
+view D key swing origin 8 -1
+|......qrrq......
+|qttsssssrmppoonm
+|qtssssrmppon7765
+|qsrqsmppon777665
+|...mppon77665...
+|...mon87777665..
+|...5887777665...
+|...5877777665...
+|..588777776665..
+
+view D key swing origin 8 -2 when elder
+|-..............-
+
+view D key drawn origin 8 -1
+|......qrrq......
+|qttsssssrmppoonm
+|qtssssrmppon7765
+|qsrqsmppon777665
+|...mppon77665...
+|...mon87777665..
+|...5887777665...
+|...5877777665...
+|..588777776665..
+
+view D key drawn origin 8 -2 when elder
+|-..............-
+
+view U key rest origin 8 -1
+|.....qrrrrrq....
+|mppoonnmqsssstsq
+|mpooonm777765srq
+|mpooonm777765tsq
+|...pooonm7665...
+|...pooonm7765...
+|...poooom7665...
+|...pooonm7765...
+|..5poooom77665..
+
+view U key rest origin 8 -2 when elder
+|-..............-
+
+view R key rest origin 6 -1
+|......qrrqq..
+|..mpqtssssr..
+|..mpqtsrq7p..
+|..mp5tsrq7o5.
+|..mp7777776o.
+|..mo777776o..
+|..5n777777o..
+|..587777765..
+|.5877777665..
+
+view R key rest origin 4 -2 when elder
+|-
+
+view R key swing origin 6 -1
+|......qrrqq..
+|..mpqtssssr..
+|..mpqtsrq7p..
+|..mp5tsrq7o5.
+|..mp7777776o.
+|..mo777776o..
+|..5n777777o..
+|..587777765..
+|.5877777665..
+
+view R key swing origin 4 -2 when elder
+|-
+
+view L key rest origin 7 -1
+|..qqrrq......
+|.mpo9885op...
+|.mp89885on...
+|.mp899885on..
+|.5o877776n5..
+|..5o87776n5..
+|..587777765..
+|..587777765..
+|..5877777665.
+
+view L key rest origin -3 -2 when elder
+|-
+
+view L key swing origin 7 -1
+|..qqrrq......
+|.mpo9885op...
+|.mp89885on...
+|.mp899885on..
+|.5o877776n5..
+|..5o87776n5..
+|..587777765..
+|..587777765..
+|..5877777665.
+
+view L key swing origin -3 -2 when elder
+|-
+
+view L key lie origin 7 -1
+|..qqrrq......
+|.mpo9885op...
+|.mp89885on...
+|.mp899885on..
+|.5o877776n5..
+|..5o87776n5..
+|..587777765..
+|..587777765..
+|..5877777665.

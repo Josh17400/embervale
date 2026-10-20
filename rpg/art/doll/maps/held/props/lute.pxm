@@ -1,0 +1,105 @@
+# held/props/lute: the lute for the Lute posture (PROPS, P2b): a pear-shaped body of the person's wood (leather ramp) with a brass rose, a neck and its pegbox bent back. Format: rpg/art/doll/doll.h. The strumming
+# right hand (hold, low) over the body, the neck to the left hand (pose arms: reach); anchored on the right shoulder,
+# under the hands; from behind only the neck's head shows past the shoulder.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held lute
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin 1 -1 layer neck
+|......fffff
+|.....fghiif
+|..ffhhff.ff
+|.ffTTf.....
+|fTUTSRf....
+|fTSffRf....
+|fSSffRf....
+|fSSRRRf....
+|.fRRRf.....
+|..fff......
+
+view D key low origin 1 -1 layer neck
+|......fffff
+|.....fghiif
+|..ffhhff.ff
+|.ffTTf.....
+|fTUTSRf....
+|fTSffRf....
+|fSSffRf....
+|fSSRRRf....
+|.fRRRf.....
+|..fff......
+
+view U key hold origin 8 -1 layer heldBack
+|fffff......
+|fhhijf.....
+|ff.ffiiff..
+|.....fSSff.
+|....fUTSRSf
+|....fUffTSf
+|....fUffTTf
+|....fUUUTTf
+|.....fUUUf.
+|......fff..
+
+view U key low origin 8 -1 layer heldBack
+|fffff......
+|fhhijf.....
+|ff.ffiiff..
+|.....fSSff.
+|....fUTSRSf
+|....fUffTSf
+|....fUffTTf
+|....fUUUTTf
+|.....fUUUf.
+|......fff..
+
+view R key hold origin -3 -2 layer neck
+|.....fff
+|..fffhf.
+|.ffif...
+|fifTf...
+|fhfSf...
+|fhfSf...
+|.fff....
+
+view R key low origin -3 -2 layer neck
+|.....fff
+|..fffhf.
+|.ffif...
+|fifTf...
+|fhfSf...
+|fhfSf...
+|.fff....
+
+view L key hold origin 9 -2 layer neck
+|fff.....
+|.fifff..
+|...fhff.
+|...fSfhf
+|...fTfif
+|...fTfif
+|....fff.
+
+view L key low origin 9 -2 layer neck
+|fff.....
+|.fifff..
+|...fhff.
+|...fSfhf
+|...fTfif
+|...fTfif
+|....fff.

@@ -197,6 +197,10 @@ struct SeaViewOps {
   }
   // the bob: whole frames, each boat on its own clock (the hero aboard rides the same clock)
   static int bobFrame(const View& v, int i, float speed) { return (int)(v.t_ * (1.05f + std::min(0.6f, speed * 0.05f)) + i * 0.37f) & 1; }
+  // (P2b VIEW-B) the same clock as a phase in [0, 2): (int)phase is bobFrame
+  static float oarPhase(const View& v, int i, float speed) {
+    return std::fmod(std::max(0.0f, v.t_ * (1.05f + std::min(0.6f, speed * 0.05f)) + i * 0.37f), 2.0f);
+  }
   static art::ShipStyle aboardStyle(Game& g, const sea::Boat& b) {
     art::ShipStyle s = styleOf(cultureById(g, b.culture), false);
     const sea::Sea::Live& L = g.sea.live;
@@ -386,6 +390,13 @@ float seaHeroLift(View& v, const Game& g) {
   if (!g.sea.atSea()) return 0;
   const sea::Boat& b = g.sea.boats[(size_t)g.sea.aboard];
   return (float)(art::shipDeckY((int)b.hull) - SeaViewOps::bobFrame(v, g.sea.aboard, std::fabs(g.sea.live.speed)));
+}
+// (P2b VIEW-B, the rower) the rowboat's stroke as a phase in [0, 2): the same clock as bobFrame, whose whole frames
+// alternate the oars (art::shipCell frame 0: blades forward, the catch; frame 1: blades aft, the finish), so the Row
+// posture's reach / catch / pull / recover keys change on the half-frames and the oars change between catch and pull
+float seaOarPhase(View& v, const Game& g) {
+  if (!g.sea.atSea()) return 0;
+  return SeaViewOps::oarPhase(v, g.sea.aboard, std::fabs(g.sea.live.speed));
 }
 bool seaHeroUnderRig(View& v) { return SeaViewOps::st(v).heroUnderRig; }
 void seaArtEvent(View& v, Game& g, const Event& e) { SeaViewOps::event(v, g, e); }
@@ -1016,7 +1027,15 @@ void View::drawSeaSorted(Game& g, int idx, Vec2 cam) {
   // render's ghost shows him through it; the cell goes down at full strength except a little thinner over his body
   const float x0 = std::floor(scr.x) - (float)art::shipAnchorX(hull), y0 = std::floor(scr.y) - (float)art::shipAnchorY(hull);
   const float lift = seaHeroLift(*this, g);
-  const float hx0 = std::floor(scr.x) - 6, hx1 = std::floor(scr.x) + 6, hy0 = std::floor(scr.y) - lift - 21, hy1 = std::floor(scr.y) - lift;
+  float hx0 = std::floor(scr.x) - 6, hx1 = std::floor(scr.x) + 6, hy0 = std::floor(scr.y) - lift - 21, hy1 = std::floor(scr.y) - lift;
+  if (art::rigVersion() >= 2) {
+    // (P2b HOLDERS-B) rig 2: the floor lies inside the hull (art_holders2.h kGunwale2 / kDeckRail2), so the near side
+    // always hides the legs below the gunwale or rail, as a real boat does. Only what stands before the body over the
+    // rail (a sail, a shroud) counts as cover: the hull is never thinned over him, and his legs never show through it
+    const int rail = art::holderPx(hull <= 0 ? art::Holder::RowboatGunwale : art::Holder::DeckRail);
+    hx0 = std::floor(scr.x) - 8; hx1 = std::floor(scr.x) + 8;
+    hy0 = std::floor(scr.y) - lift - 33; hy1 = std::floor(scr.y) - lift - (float)rail;
+  }
   // does the front layer cover the hero's body? (sample its alpha mask: the cell's canvas is cheap to re-ask at the
   // fine heading; once per frame for the one boat)
   const int fx0 = (int)(hx0 - x0), fy0 = (int)(hy0 - y0), fx1 = (int)(hx1 - x0), fy1 = (int)(hy1 - y0);
@@ -1031,7 +1050,9 @@ void View::drawSeaSorted(Game& g, int idx, Vec2 cam) {
       for (int x = fx0; x < fx1; x++) if ((c.get(x, y) >> 24) > 0) cover++;
     lastCover = cover;
   }
-  S.heroUnderRig = lastCover > 30;
+  // (P2b HOLDERS-B) rig 2: a rowboat has no sail; the oars before the rower are in his hands, never cover to see through
+  // and over the 16 x 17 box above a sloop's rail a mast alone (3 px wide) is no cover either: a sail is (90 px or more)
+  S.heroUnderRig = art::rigVersion() >= 2 ? hull > 0 && lastCover >= 90 : lastCover > 30;
   const float cw = (float)t.w, chh = (float)t.h;
   if (!S.heroUnderRig) { P.blitEx(t, 0, 0, t.w, t.h, x0, y0, cw, chh); return; }
   // full strength round the hero, a touch see-through over him (the ghost silhouette does the rest)

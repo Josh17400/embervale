@@ -59,6 +59,7 @@
 #include "rpg/sim/war.h"
 #include "rpg/story/story_internal.h"   // (P1b, REQUESTS lane) overheard gossip of the new items: tellerOffer, the library
 #include "rpg/world/economy.h"
+#include "rpg/art/art_rig.h"   // (P2b fix) art::rigVersion
 
 using art::Prop;
 using art::Posture;
@@ -891,6 +892,9 @@ struct LifeOps {
     }
     if (r.job == life::Job::Lamplighter) a.look.weapon = 4;   // the pole
     if (r.job == life::Job::Smith) a.look.weapon = 6;
+    // (P2b fix TRADES-DRAWN-ON-V1) the trades that carry a tool never fight with it: the doll draws it at rest (no ACTION)
+    if (r.job == life::Job::Smith || r.job == life::Job::Hunter || r.job == life::Job::Scholar || r.job == life::Job::Lamplighter)
+      a.look.civil = 1;
     // (P2b FOLK-SIM) the doll's census look: the age (child, youth 10-14, elder from 60), the trades' work garments by
     // job (a labourer's smock, a woodcutter's jerkin, a smith's apron), a beggar's gaunt face (v1 ignores every one)
     census::ageLook(a.look, r.age, r.job == life::Job::Child, r.job == life::Job::Elder, (uint64_t)r.lookSeed);
@@ -899,6 +903,14 @@ struct LifeOps {
     else if (r.job == life::Job::Smith) a.look.garb = 1;
     else if (r.job == life::Job::Miner || ((r.job == life::Job::Stablehand || r.job == life::Job::Servant) && !a.look.garb)) a.look.garb = 5;   // shirt and trousers
     if (r.job == life::Job::Beggar && (mixu(r.lookSeed, 0x6A07ull) & 1u)) a.look.marks = (uint8_t)(a.look.marks | 32);
+    // (P2b fix, B6) at rig 2 a small child's patterned smock is now and then a spotted one, like the grown-ups' market
+    // cloth (looks.cpp dress; only once the census age says child, not youth: a youth has no dots tile)
+    // (a striped, checked or vined one half the time; a plain one one time in six)
+    if (art::rigVersion() >= 2 && a.look.age == 1) {
+      const uint32_t roll = (uint32_t)(mixu(r.lookSeed, 0xD075ull) & 255u);
+      const bool tiled = a.look.pattern == 1 || a.look.pattern == 2 || a.look.pattern == 6;
+      if ((tiled && roll < 128u) || (a.look.pattern == 0 && roll < 42u)) a.look.pattern = 4;
+    }
   }
   static uint32_t tint(uint32_t c, uint32_t to, float t) {
     auto ch = [&](int sh) {

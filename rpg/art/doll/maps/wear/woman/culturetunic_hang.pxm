@@ -1,0 +1,171 @@
+# wear/woman/culturetunic_hang: the culture tunic's two-row skirt to mid-thigh: the hips, the split skirt, the lit hem band (the
+# edge region); it parts at the side slits on the stride (wide), flares in the run, lies on the lap seated
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role garment culturetunic
+layer hangFront
+anchor hip
+keys hang
+sway 2
+
+view D key idle origin 8 -1
+|..588877777665..
+|.58887767776665.
+|.59998898877665.
+
+view D key rest origin 8 -1
+|..588877777665..
+|.58887767776665.
+|.59998898877665.
+
+view D key wide origin 8 -1
+|..588877777665..
+|.58887767776665.
+|.59998898877665.
+
+view D key flare origin 8 -1
+|.58887777776665.
+|5888776777766665
+|5999889887777665
+
+view D key kneel origin 8 -1
+|..588877777665..
+|.59998898877665.
+
+view D key sit origin 8 -1
+|..588877777665..
+|.599988988777765
+
+view D key floor origin 8 -1
+|..588877777665..
+|.599988988777765
+
+view D key ride origin 8 -1
+|..588877777665..
+|.599988988777765
+
+view U key idle origin 8 -1
+|..588877777665..
+|.58887777776665.
+|.59998888877665.
+
+view U key rest origin 8 -1
+|..588877777665..
+|.58887777776665.
+|.59998888877665.
+
+view U key wide origin 8 -1
+|..588877777665..
+|.58887777776665.
+|.59998888877665.
+
+view U key flare origin 8 -1
+|.58887777776665.
+|5888777777766665
+|5999888887777665
+
+view U key kneel origin 8 -1
+|..588877777665..
+|.59998888877665.
+
+view U key sit origin 8 -1
+|..598888888865..
+|..555555555555..
+
+view U key floor origin 8 -1
+|..598888888865..
+|..555555555555..
+
+view U key ride origin 8 -1
+|..598888888865..
+|..555555555555..
+
+view R key idle origin 8 -1
+|....5887777665..
+|...588777677665.
+|...599889887765.
+
+view R key rest origin 8 -1
+|....5887777665..
+|...588777677665.
+|...599889887765.
+
+view R key wide origin 8 -1
+|....5887777665..
+|...58877.5776665
+|..599885.5988776
+
+view R key flare origin 8 -1
+|....5887777665..
+|..59887767776665
+|...59985.5988765
+
+view R key kneel origin 8 -1
+|....5887777665..
+|...599889887765.
+
+view R key sit origin 8 2
+|.............7895
+|.............7795
+|.............6785
+|....5555555555555
+
+view R key floor origin 8 2
+|.............7895
+|.............7795
+|.............6785
+|....5555555555555
+
+view R key ride origin 8 2
+|.............7895
+|.............7795
+|.............6785
+|....5555555555555
+
+view L key idle origin 8 -1
+|..5887777665....
+|.588767777665...
+|.598898888665...
+
+view L key rest origin 8 -1
+|..5887777665....
+|.588767777665...
+|.598898888665...
+
+view L key wide origin 8 -1
+|..5887777665....
+|5887775.776665..
+|998865.59887665.
+
+view L key flare origin 8 -1
+|..5887777665....
+|59988767777665..
+|59988.5899865...
+
+view L key kneel origin 8 -1
+|..5887777665....
+|.598898888665...
+
+view L key sit origin 12 2
+|...5987..........
+|...5998..........
+|...5877..........
+|...5555555555555.
+
+view L key floor origin 12 2
+|...5987..........
+|...5998..........
+|...5877..........
+|...5555555555555.
+
+view L key ride origin 12 2
+|...5987..........
+|...5998..........
+|...5877..........
+|...5555555555555.
+
+view L key lie origin 8 -1
+|..5887777665....
+|.588767777665...
+|.598898888665...

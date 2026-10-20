@@ -1,0 +1,66 @@
+# kin/youth/wear/gown: the elven youth's gown. The boy's: a long high-collared robe, the collar closed to the chin, a
+# gilt girdle (metal2) at the waist. The girl's (`when girl replace`): a fitted bodice with a scooped neck, the waist a
+# pixel in on each side, the gilt girdle; gown_hang falls from it with a gilt hem
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h.
+use person
+body youth
+role garment gown
+layer torso
+anchor neck
+keys rest
+
+view D key rest origin 6 0
+|...588765...
+|598889877665
+|..68888766..
+|..68877666..
+|..5PPOONN5..
+
+view D key rest origin 6 0 when girl replace
+|...5qrrq5...
+|5989qrrq7765
+|..68887766..
+|...688766...
+|...PPOONN...
+
+view U key rest origin 6 0
+|...588765...
+|598877777665
+|..68877766..
+|..68777666..
+|..5PPOONN5..
+
+view U key rest origin 6 0 when girl replace
+|...588765...
+|598877777665
+|..68877766..
+|...687766...
+|...PPOONN...
+
+view R key rest origin 4 0
+|..58875.
+|.5988765
+|58877665
+|58877665
+|5PPOONN5
+
+view R key rest origin 4 0 when girl replace
+|..5qrq5.
+|.5988765
+|58877665
+|.588765.
+|.PPOONN.
+view L key rest origin 4 0
+|.58875..
+|5988765.
+|58877665
+|58877665
+|5PPOONN5
+
+view L key rest origin 4 0 when girl replace
+|.5qrq5..
+|5988765.
+|58877665
+|.588765.
+|.PPOONN.
+

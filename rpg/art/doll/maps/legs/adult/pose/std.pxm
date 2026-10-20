@@ -1,0 +1,233 @@
+# legs/adult/pose/std: the adult legs in trousers and boots in the postures (POSES-B, P2b wave 2), shared by the man and
+# the woman like the slice's legs/adult/loco/std (regions: T thigh, K knee, S shin, B boot, O sole). Keys:
+#   cross  cross-legged on the floor or a cushion (SitFloor, its eat and drink, Beg): the hips 2 rows over the floor
+#          (seatFit2's floor seats; the clip's bob 8), the knees out past the hips, the shins folded in before the lap
+#          with the boots tucked toe to toe (front: drawn over the hem, the lap's front edge)
+#   kneel  on the left knee, the right foot planted (Kneel, Downed): the hips 5 rows over the floor (bob 5); facing right
+#          the planted leg is the near one, facing left the kneeling one
+#   ride   astride (Ride): the hips on the saddle 8 rows over the stirrups' soles (bob 2), the thighs out over the barrel,
+#          the knees bent, the boots down in the stirrups; the `hip` mark is the point the view puts on the saddle
+# Chunky like the slice (the owner's rule): every leg keeps the standing leg's 5 px trouser block and 7 px boot.
+use person
+body adult
+role legs std
+layer legs
+anchor pivot
+keys legs
+
+# ============================================================ cross
+view D key cross origin 11 3 layer hangFront
+mark hip 11 1
+|...12221......12221...
+|..1443321....1233221..
+|.144333321..123333221.
+|.14333322222223333221.
+|..1332fiihffhhgf221...
+|...11fjiihffhhggf11...
+|.....KKKKKKKKKKKK.....
+regions
+|...TTTTT......TTTTT...
+|..KKKKKKK....KKKKKKK..
+|.KKKKKKKKK..KKKKKKKKK.
+|.SSSSSSSSSSSSSSSSSSSS.
+|..SSSSBBBBBBBBBBSSS...
+|...SSBBBBBBBBBBBBSS...
+|.....OOOOOOOOOOOO.....
+
+view U key cross origin 11 4
+mark hip 11 2
+|..12221........12221..
+|.1433321......1233221.
+|.1333221......1222221.
+|..11111........11111..
+regions
+|..KKKKK........KKKKK..
+|.KKKKKKK......KKKKKKK.
+|.KKKKKKK......KKKKKKK.
+|..KKKKK........KKKKK..
+
+view R key cross origin 5 4 layer hangFront
+mark hip 5 2
+|..12222222221.
+|.1444444333321
+|.1333333322221
+|..1fiiihhhggf.
+|...KKKKKKKKK..
+regions
+|..TTTTTTTTKKK.
+|.TTTTTTTTTKKKK
+|.SSSSSSSSSKKKK
+|..BBBBBBBBBBB.
+|...OOOOOOOOO..
+
+view L key cross origin 8 4 layer hangFront
+mark hip 8 2
+|.12222222221..
+|14444433333321
+|13333322222221
+|.fiiihhhggggf.
+|..KKKKKKKKK...
+regions
+|.KKKTTTTTTTT..
+|KKKKTTTTTTTTT.
+|KKKKSSSSSSSSS.
+|.BBBBBBBBBBBB.
+|..OOOOOOOOO...
+
+# ============================================================ kneel
+view D key kneel origin 7 5 layer hangFront
+mark hip 7 0
+|.122221........
+|.144332........
+|.143332.1222221
+|.fiihhgf1333321
+|fjiihhgf1333221
+|KKKKKKKKKKKKKKK
+regions
+|.KKKKKK........
+|.KKKKKK........
+|.SSSSSS.KKKKKKK
+|.BBBBBBBKKKKKKK
+|BBBBBBBBKKKKKKK
+|OOOOOOOOOOOOOOO
+
+view U key kneel origin 7 5
+mark hip 7 0
+|........122221.
+|.1222221133321.
+|.1333221133321.
+|.13332211fhhgf.
+|.fhhhgff1fhggf.
+|.KKKKKKK.KKKKK.
+regions
+|........KKKKKK.
+|.SSSSSSSSSSSSS.
+|.SSSSSSSSSSSSS.
+|.SSSSSSSSBBBBB.
+|.OOOOOOOSBBBBB.
+|.KKKKKKK.OOOOO.
+
+view R key kneel origin 7 6 layer hangFront
+mark hip 7 1
+|......12222221...
+|.....1444433331..
+|.....1333333321..
+|......12214321...
+|......1321fiihf..
+|fgggf22231fjiihhf
+|KKKKKKKKKKKKKKKKK
+regions
+|......TTTTTTTK...
+|.....TTTTTTTTKK..
+|.....TTTTTTTTKK..
+|......SSSSSSSS...
+|......SSSSBBBBB..
+|BBBBBSSSSSBBBBBBB
+|OOOOOOOOOOOOOOOOO
+
+view L key kneel origin 9 6 layer hangFront
+mark hip 9 1
+|...12222221......
+|..1444443331.....
+|..1333332221.....
+|..14321221.......
+|..fiihf1221......
+|fjiihhgf13221gggf
+|KKKKKKKKKKKKKKKKK
+regions
+|...KTTTTTTT......
+|..KKTTTTTTTT.....
+|..KKTTTTTTTT.....
+|..SSSSSSSS.......
+|..BBBBBSSSS......
+|BBBBBBBSSSSSBBBBB
+|OOOOOOOOOOOOOOOOO
+
+# ============================================================ ride
+view D key ride origin 11 8
+mark hip 11 0
+|....1222221122221.....
+|...144333211233221....
+|..1443321....1233221..
+|.144321........123321.
+|.14321..........12321.
+|.fiihf..........fhhgf.
+|fjiihf..........fhhggf
+|fiihhf..........fhhggf
+|KKKKKK..........KKKKKK
+regions
+|....TTTTTTTTTTTTT.....
+|...TTTTTTTTTTTTTT.....
+|..TTTTTTT....TTTTTTT..
+|.KKKKKK........KKKKKK.
+|.SSSSS..........SSSSS.
+|.BBBBB..........BBBBB.
+|BBBBBB..........BBBBBB
+|BBBBBB..........BBBBBB
+|OOOOOO..........OOOOOO
+
+view U key ride origin 11 8
+mark hip 11 0
+|....1222211222221.....
+|...14333211233321.....
+|..1433321....1222221..
+|.143321........122221.
+|.14321..........12221.
+|.fhhgf..........fhhgf.
+|fhhhgf..........fhhggf
+|fhhggf..........fhhggf
+|KKKKKK..........KKKKKK
+regions
+|....TTTTTTTTTTTTT.....
+|...TTTTTTTTTTTTTT.....
+|..TTTTTTT....TTTTTTT..
+|.KKKKKK........KKKKKK.
+|.SSSSS..........SSSSS.
+|.BBBBB..........BBBBB.
+|BBBBBB..........BBBBBB
+|BBBBBB..........BBBBBB
+|OOOOOO..........OOOOOO
+
+view R key ride origin 3 8
+mark hip 3 0
+|.12222221..
+|.144443331.
+|..133333321
+|...1333321.
+|...1333321.
+|...fiiihf..
+|..fjiihhgf.
+|..fiihhggf.
+|..KKKKKKKK.
+regions
+|.TTTTTTTT..
+|.TTTTTTTKK.
+|..SSSSSSKK.
+|...SSSSSS..
+|...SSSSSS..
+|...BBBBBB..
+|..BBBBBBBB.
+|..BBBBBBBB.
+|..OOOOOOOO.
+
+view L key ride origin 7 8
+mark hip 7 0
+|..12222221.
+|.144443331.
+|1344333321.
+|.1333321...
+|.1333321...
+|..fiiihf...
+|.fjiihhgf..
+|.fiihhggf..
+|.KKKKKKKK..
+regions
+|..TTTTTTTT.
+|.KKTTTTTTT.
+|KKSSSSSSSS.
+|.SSSSSS....
+|.SSSSSS....
+|..BBBBBB...
+|.BBBBBBBB..
+|.BBBBBBBB..
+|.OOOOOOOO..

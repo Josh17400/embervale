@@ -4953,6 +4953,7 @@ uint64_t HumanLook::key() const {
     const uint64_t p2b = (uint64_t)head | (uint64_t)nose << 8 | (uint64_t)brow << 16 | (uint64_t)marks << 24 | (uint64_t)hairVar << 32 |
                          (uint64_t)beardStyle << 40 | (uint64_t)neck << 48 | (uint64_t)garb << 56;
     if (p2b) mx(0xD011000000000000ull ^ p2b);
+    if (civil) mx(0xC1F1000000000000ull | civil);   // (P2b fix) a civil trade's leathers are work clothes on the doll
   }
   return k;
 }

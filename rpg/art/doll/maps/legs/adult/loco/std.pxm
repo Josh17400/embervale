@@ -29,6 +29,14 @@ view D key buckle origin 8 6
 |fjihhgf.fhhgggf
 |fhhhggf.fhggggf
 |KKKKKKK.KKKKKKK
+regions
+|...TTTTTTTTTT..
+|...KKKKKKKKKK..
+|.SSSSSS.SSSSSS.
+|.SSSSSS.SSSSSS.
+|BBBBBBB.BBBBBBB
+|BBBBBBB.BBBBBBB
+|OOOOOOO.OOOOOOO
 
 view D key drawn origin 7 8
 |..2222112221..
@@ -40,6 +48,16 @@ view D key drawn origin 7 8
 |gjihhgffhhgggf
 |ghhhggffhggggf
 |KKKKKKKKKKKKKK
+regions
+|..TTTTTTTTTT..
+|..TTTTTTTTTT..
+|..KKKKKKKKKK..
+|.SSSSSSSSSSSS.
+|.SSSSSSSSSSSS.
+|.SSSSSSSSSSSS.
+|BBBBBBBBBBBBBB
+|BBBBBBBBBBBBBB
+|OOOOOOOOOOOOOO
 
 view D key idle origin 7 9
 |..1222112221..
@@ -52,6 +70,17 @@ view D key idle origin 7 9
 |fjihhgffhhgggf
 |fhhhggffhggggf
 |KKKKKKKKKKKKKK
+regions
+|..TTTTTTTTTT..
+|..TTTTTTTTTT..
+|..TTTTTTTTTT..
+|..KKKKKKKKKK..
+|.SSSSSSSSSSSS.
+|.SSSSSSSSSSSS.
+|.SSSSSSSSSSSS.
+|BBBBBBBBBBBBBB
+|BBBBBBBBBBBBBB
+|OOOOOOOOOOOOOO
 
 view D key run1 origin 7 9
 |..1222112221..
@@ -201,6 +230,15 @@ mark hip 8 0
 |..fjihgf.fhhgf..
 |..fhhggf.fhggf..
 |..KKKKKK.KKKKK..
+regions
+|..TTTTTTTTTTTTT.
+|.TTTTTTTTTTTTTTT
+|TTTTTTTTTTTTTTTT
+|TTTKKKK.KKKKKTT.
+|.KKSSSSS.SSSSKK.
+|..BBBBBB.BBBBB..
+|..BBBBBB.BBBBB..
+|..OOOOOO.OOOOO..
 
 view D key walkA origin 7 9
 |..1222112221..
@@ -302,6 +340,14 @@ view U key buckle origin 8 6
 |fjihhgf.fhhgggf
 |fhhhggf.fhggggf
 |KKKKKKK.KKKKKKK
+regions
+|...TTTTTTTTTT..
+|...KKKKKKKKKK..
+|.SSSSSS.SSSSSS.
+|.SSSSSS.SSSSSS.
+|BBBBBBB.BBBBBBB
+|BBBBBBB.BBBBBBB
+|OOOOOOO.OOOOOOO
 
 view U key drawn origin 7 8
 |..2222112221..
@@ -313,6 +359,16 @@ view U key drawn origin 7 8
 |gjihhgffhhgggf
 |ghhhggffhggggf
 |KKKKKKKKKKKKKK
+regions
+|..TTTTTTTTTT..
+|..TTTTTTTTTT..
+|..KKKKKKKKKK..
+|.SSSSSSSSSSSS.
+|.SSSSSSSSSSSS.
+|.SSSSSSSSSSSS.
+|BBBBBBBBBBBBBB
+|BBBBBBBBBBBBBB
+|OOOOOOOOOOOOOO
 
 view U key idle origin 7 9
 |..1222112221..
@@ -325,6 +381,17 @@ view U key idle origin 7 9
 |fhhhhgffhhgggf
 |fhhhggffhggggf
 |KKKKKKKKKKKKKK
+regions
+|..TTTTTTTTTT..
+|..TTTTTTTTTT..
+|..TTTTTTTTTT..
+|..KKKKKKKKKK..
+|.SSSSSSSSSSSS.
+|.SSSSSSSSSSSS.
+|.SSSSSSSSSSSS.
+|BBBBBBBBBBBBBB
+|BBBBBBBBBBBBBB
+|OOOOOOOOOOOOOO
 
 view U key run1 origin 7 9
 |..1222112221..
@@ -467,6 +534,8 @@ regions
 view U key sit origin 7 7
 mark hip 7 0
 |..1222211222221
+regions
+|..TTTTTTTTTTTTT
 
 view U key walkA origin 7 9
 |..1222112221..
@@ -568,6 +637,14 @@ view R key buckle origin 6 6
 |.fggf...fhhgf..
 |fhgggf.fihhggf.
 |.KKKKK.KKKKKKK.
+regions
+|...TTTTTTT.....
+|...TTTTTTTT....
+|...KKKK..KKKKK.
+|..SSSB...SSSSBB
+|.BBBB...BBBBB..
+|BBBBBB.BBBBBBB.
+|.OOOOO.OOOOOOO.
 
 view R key idle origin 4 9
 |.12222221..
@@ -580,6 +657,17 @@ view R key idle origin 4 9
 |fhhgfhhhgf.
 |fhggfihhggf
 |KKKKKKKKKKK
+regions
+|.TTTTTTTT..
+|.TTTTTTTT..
+|.TTTTTTTT..
+|.KKKKKKKK..
+|.SSSSSSSS..
+|.SSSSSSSS..
+|.SSSSSSSS..
+|BBBBBBBBBB.
+|BBBBBBBBBBB
+|OOOOOOOOOOO
 
 view R key lunge origin 9 9
 |......1222221.......
@@ -592,6 +680,17 @@ view R key lunge origin 9 9
 |fgggf........fhhhgf.
 |fhgggf.......fihhggf
 |.KKKKK.......KKKKKKK
+regions
+|......TTTTTTT.......
+|......TTTTTTTT......
+|.....TTTT..TTTTT....
+|....TTTT....KKKKK...
+|...KKKK.....BSSSSS..
+|..SSSB.......SSSSS..
+|.SSSS........SSSSS..
+|BBBBB........BBBBBB.
+|BBBBBB.......BBBBBBB
+|.OOOOO.......OOOOOOO
 
 view R key run1 origin 8 9
 |....122212221....
@@ -744,6 +843,18 @@ mark hip 5 3
 |........fhhhggf
 |........fihhggf
 |........KKKKKKK
+regions
+|.TTTTTTTTTTTT..
+|TTTTTTTTTTTTTT.
+|TTTTTTTTTTTTTT.
+|.TTTTTTTTTTTTTT
+|........KKKKK..
+|........SSSSSS.
+|........SSSSSS.
+|........SSSSSS.
+|........BBBBBBB
+|........BBBBBBB
+|........OOOOOOO
 
 view R key walkA origin 6 9
 |..1222112221....
@@ -891,6 +1002,14 @@ view L key buckle origin 8 6
 |..fihgf...fggf.
 |.fjihhgf.fhgggf
 |.KKKKKKK.KKKKK.
+regions
+|.....TTTTTTT...
+|....TTTTTTTT...
+|.KKKKK..KKKK...
+|BBSSSS...BSSS..
+|..BBBBB...BBBB.
+|.BBBBBBB.BBBBBB
+|.OOOOOOO.OOOOO.
 
 view L key idle origin 7 9
 |..1222222221
@@ -903,6 +1022,17 @@ view L key idle origin 7 9
 |.fhhhgfhggf.
 |fihhggfhggf.
 |KKKKKKKKKKK.
+regions
+|..TTTTTTTTTT
+|..TTTTTTTTTT
+|..TTTTTTTTTT
+|..KKKKKKKK..
+|..SSSSSSSS..
+|..SSSSSSSS..
+|..SSSSSSSS..
+|.BBBBBBBBBB.
+|BBBBBBBBBBB.
+|OOOOOOOOOOO.
 
 view L key lunge origin 10 9
 |.......1222221......
@@ -915,6 +1045,17 @@ view L key lunge origin 10 9
 |.fhhhgf........fgggf
 |fihhggf.......fhgggf
 |KKKKKKK.......KKKKK.
+regions
+|.......TTTTTTT......
+|......TTTTTTTT......
+|....TTTTT..TTTT.....
+|...KKKKK....TTTT....
+|..SSSSSB.....KKKK...
+|..SSSSS.......BSSS..
+|..SSSSS........SSSS.
+|.BBBBBB........BBBBB
+|BBBBBBB.......BBBBBB
+|OOOOOOO.......OOOOO.
 
 view L key run1 origin 9 9
 |....122212221....
@@ -1067,6 +1208,18 @@ mark hip 9 3
 |fjihhgf........
 |fihhggf........
 |KKKKKKK........
+regions
+|..TTTTTTTTTTTT.
+|.TTTTTTTTTTTTTT
+|.TTTTTTTTTTTTTT
+|TTTTTTTTTTTTTT.
+|..KKKKK........
+|.SSSSSS........
+|.SSSSSS........
+|.SSSSSS........
+|BBBBBBB........
+|BBBBBBB........
+|OOOOOOO........
 
 view L key walkA origin 10 9
 |....1222112221..
@@ -1217,6 +1370,17 @@ view L key lie origin 3 9
 |.fhhhhgf
 |fiihhggf
 |KKKKKKKK
+regions
+|...TTTTT
+|...TTTTT
+|...TTTTK
+|...KKKKS
+|...SSSSS
+|...SSSSS
+|..SSSSSS
+|.BBBBBBB
+|BBBBBBBB
+|OOOOOOOO
 
 view R key stance origin 7 9
 |....1222221......
@@ -2551,3 +2715,137 @@ regions
 |.BBBBBBBBBB..
 |BBBBBBBBBBB..
 |OOOOOOOOOOO..
+
+
+# ---- the drawn-weapon LOCO (P2b production, FOLK-BODY): `guard`, the side views' ready stance while a weapon is out (the
+# front and back views stand on `drawn`, A3's swing stance). The walk's sturdy contact legs a pixel closer and a row
+# shorter (the knees give: the clip lowers the hips 1 px): upright trouser blocks, the near leg forward, flat boots on
+# the ground row, a 1 px gap at the knee and at the sole so the two legs read apart. The left view a pixel forward.
+view R key guard origin 6 8
+|..1222112221....
+|..1322114321....
+|..13221.14321...
+|.fihgf...fiihf..
+|.fhggf...fhhgf..
+|.fhggf...fhhgf..
+|.fhhggf..fhhhgf.
+|.fhhgggf.fihhggf
+|.KKKKKKK.KKKKKKK
+regions
+|..TTTTTTTTTT....
+|..TTTTTTTTTT....
+|..KKKKK.KKKKK...
+|.SSSSS...SSSSS..
+|.SSSSS...SSSSS..
+|.SSSSS...SSSSS..
+|.BBBBBB..BBBBBB.
+|.BBBBBBB.BBBBBBB
+|.OOOOOOO.OOOOOOO
+
+view L key guard origin 10 8
+|....1222112221..
+|....1432113221..
+|...14321.13221..
+|..fiihf...fihgf.
+|..fhhgf...fhggf.
+|..fhhgf...fhggf.
+|.fhhhgf..fhhggf.
+|fihhggf.fhhgggf.
+|KKKKKKK.KKKKKKK.
+regions
+|....TTTTTTTTTT..
+|....TTTTTTTTTT..
+|...KKKKK.KKKKK..
+|..SSSSS...SSSSS.
+|..SSSSS...SSSSS.
+|..SSSSS...SSSSS.
+|.BBBBBB..BBBBBB.
+|BBBBBBB.BBBBBBB.
+|OOOOOOO.OOOOOOO.
+
+# her guard and swing stance (P2b production, FOLK-BODY): her own legs (her hips a pixel fuller at the back, the ankle in),
+# so the trousered woman keeps her fit when the weapon comes out; `drawn` is her idle a row shorter (the knees give)
+view D key drawn origin 7 8 when woman replace
+|.122221122221.
+|..1432113321..
+|..1432113321..
+|..fiihffiihf..
+|..fhhgffhhgf..
+|..fhggffhggf..
+|fjihhgffhhgggf
+|fhhhggffhggggf
+|KKKKKKKKKKKKKK
+regions
+|.TTTTTTTTTTTT.
+|..TTTTTTTTTT..
+|..KKKKKKKKKK..
+|..SSSSSSSSSS..
+|..SSSSSSSSSS..
+|..SSSSSSSSSS..
+|BBBBBBBBBBBBBB
+|BBBBBBBBBBBBBB
+|OOOOOOOOOOOOOO
+
+view U key drawn origin 7 8 when woman replace
+|.122221122221.
+|..1432113321..
+|..1432113321..
+|..fiihffiihf..
+|..fhhgffhhgf..
+|..fhggffhggf..
+|fhhhhgffhhgggf
+|fhhhggffhggggf
+|KKKKKKKKKKKKKK
+regions
+|.TTTTTTTTTTTT.
+|..TTTTTTTTTT..
+|..KKKKKKKKKK..
+|..SSSSSSSSSS..
+|..SSSSSSSSSS..
+|..SSSSSSSSSS..
+|BBBBBBBBBBBBBB
+|BBBBBBBBBBBBBB
+|OOOOOOOOOOOOOO
+
+view R key guard origin 6 8 when woman replace
+|.12222112221....
+|.13222114321....
+|..13221.14321...
+|.fihgf...fiihf..
+|.fhggf...fhhgf..
+|..fggf....fhgf..
+|.fhhggf..fhhhgf.
+|.fhhgggf.fihhggf
+|.KKKKKKK.KKKKKKK
+regions
+|.TTTTTTTTTTT....
+|.TTTTTTTTTTT....
+|..KKKKK.KKKKK...
+|.BSSSS...BSSSS..
+|.BSSSS...BSSSS..
+|..SSSS....SSSS..
+|.BBBBBB..BBBBBB.
+|.BBBBBBB.BBBBBBB
+|.OOOOOOO.OOOOOOO
+
+view L key guard origin 10 8 when woman replace
+|....12221122221.
+|....14321132221.
+|...14321.13221..
+|..fiihf...fihgf.
+|..fhhgf...fhggf.
+|..fhhf....fhgf..
+|.fhhhgf..fhhggf.
+|fihhggf.fhhgggf.
+|KKKKKKK.KKKKKKK.
+regions
+|....TTTTTTTTTTT.
+|....TTTTTTTTTTT.
+|...KKKKK.KKKKK..
+|..SSSSB...SSSSB.
+|..SSSSB...SSSSB.
+|..SSSS....SSSS..
+|.BBBBBB..BBBBBB.
+|BBBBBBB.BBBBBBB.
+|OOOOOOO.OOOOOOO.
+

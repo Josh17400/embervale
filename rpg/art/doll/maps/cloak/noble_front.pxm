@@ -1,0 +1,49 @@
+# cloak/noble_front: the noble cloak over the shoulders with gilt edges, and a gilt chain between two clasps across the chest.
+# Rigid (its own channel, so it never vanishes on a frame's hang key): facing down it lies over the shoulders above the
+# arms (the head layer, under the head); facing right and left it wraps the near shoulder; facing up the panel (drawn
+# after, in cloakFront) covers the shoulder caps it keeps there. Format: rpg/art/doll/doll.h.
+use person
+body adult
+role cloak noble
+layer head
+anchor neck
+keys cloakfront
+z -5
+legend Q cloak 0
+legend R cloak 1
+legend S cloak 2
+legend T cloak 3
+legend U cloak 4
+
+view U key rest origin 9 0 layer head
+|..QQQQ......QQQQ..
+|.QTTSQ......QSSRQ.
+
+view D key rest origin 9 1 layer head
+|.QQQQQQ.....QQQQQQ.
+|QPTTSSQ.....QSSRNQ.
+|QPTTSPOOPONNOPSRRNQ
+|QPTSQ.........QSRNQ
+|.QPQ...........QNQ.
+
+view R key rest origin 7 1
+|............
+|..QQQ.......
+|.QPTSQ...PO.
+|.QPTSRQOO...
+|.QPTSRQ.....
+|.QPTRQ......
+|.QPTRQ......
+|.QPRQ.......
+|..QQ........
+
+view L key rest origin 4 1
+|............
+|.......QQQ..
+|.PO...QSSOQ.
+|...PPQTSSOQ.
+|.....QTSSOQ.
+|......QTSOQ.
+|......QTSOQ.
+|.......QTOQ.
+|........QQ..

@@ -1,0 +1,166 @@
+# head/adult/youth/expr: the youth's expressions (blink, hurt, closed, talk, fierce)
+# P2b FACES (wave 2): GENERATED from the adult maps by the FACES spec (the boy = the man's views, the girl = the
+# woman's as `when girl replace`); edit the adult maps, then regenerate. Format: rpg/art/doll/doll.h.
+use person
+body youth
+role expr blink
+role expr hurt
+role expr closed
+role expr talk
+role expr fierce
+layer face
+anchor head
+keys expr
+z 2
+tags overlay mirror-ok
+
+view D key blink origin -4 -9
+|tt....ss
+|##....##
+|ss....sr
+
+view D key closed origin -4 -9
+|tt....ss
+|##....##
+|ss....sr
+
+view D key fierce origin -2 -8
+|..aa....aa...
+|.#.....#....q-
+|.............
+|.............
+|.....M.......
+
+view D key hurt origin -4 -9
+|t#....#s
+|#t....s#
+|ss....sr
+|...MM...
+
+view D key talk origin -8 -12
+|M
+|M
+
+view R key blink origin -11 -9
+|tt
+|##
+
+view R key closed origin -11 -9
+|tt
+|##
+
+view R key fierce origin -5 -8
+|........b
+|.........
+|.........
+|.........
+|.......M.
+|r........
+
+view R key hurt origin -11 -9
+|t#.
+|#s.
+|...
+|.MM
+
+view R key talk origin -12 -12
+|MM
+
+view L key blink origin -3 -9
+|tt
+|##
+
+view L key closed origin -3 -9
+|tt
+|##
+
+view L key fierce origin -2 -8
+|baa
+|...
+|...
+|...
+|MM.
+
+view L key hurt origin -2 -9
+|.#t
+|.s#
+|...
+|MM.
+
+view L key talk origin -2 -12
+|MM
+
+view D key blink origin -3 -9 when girl replace
+|#tt....ss#
+|.##....##.
+|.ts....ss.
+
+view D key closed origin -3 -9 when girl replace
+|#tt....ss#
+|.##....##.
+|.ts....ss.
+
+view D key fierce origin -4 -8 when girl replace
+|aa....aa
+|........
+|........
+|........
+|...MM...
+
+view D key hurt origin -3 -9 when girl replace
+|tt#....#ss
+|.#t....s#.
+|.ts....ss.
+|....MM....
+
+view D key talk origin -8 -12 when girl replace
+|M
+|M
+
+view R key blink origin -11 -9 when girl replace
+|tt
+|##
+
+view R key closed origin -11 -9 when girl replace
+|tt
+|##
+
+view R key fierce origin -10 -8 when girl replace
+|aa..
+|....
+|....
+|....
+|..MM
+
+view R key hurt origin -11 -9 when girl replace
+|t#.
+|#s.
+|...
+|.MM
+
+view R key talk origin -12 -12 when girl replace
+|MM
+
+view L key blink origin -3 -9 when girl replace
+|tt
+|##
+
+view L key closed origin -3 -9 when girl replace
+|tt
+|##
+
+view L key fierce origin -2 -8 when girl replace
+|..aa
+|....
+|....
+|....
+|MM..
+
+view L key hurt origin -2 -9 when girl replace
+|.t#
+|.#s
+|...
+|MM.
+
+view L key talk origin -2 -12 when girl replace
+|MM

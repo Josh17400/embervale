@@ -1,0 +1,28 @@
+# neck/woman/collar: the woman's linen collar: a rounded collar lying on her shoulders under the neck, its two halves meeting at
+# the throat (rigid)
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role neck collar
+layer neck
+anchor neck
+keys rest
+
+view D key rest origin 5 -1
+|vyyx.xwwv.
+|.vyyxwwv..
+|..vvvvv...
+
+view U key rest origin 5 -1
+|vyyxxxxwv.
+|.vvvvvvv..
+
+view R key rest origin 5 -1
+|.vyyxxwv..
+|..vvyxwv..
+|.....vv...
+
+view L key rest origin 4 -1
+|..vyyxwwv.
+|..vyyvv...
+|...vv.....

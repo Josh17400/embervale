@@ -16,16 +16,13 @@
 
 // render.cpp's helpers this draw shares (defined there, beside the rest of the sorted pass)
 float seaHeroLift(View& v, const Game& g);
+float seaOarPhase(View& v, const Game& g);                                        // (P2b) the rowboat's stroke, [0, 2)
 bool rvBathing(const Game& g, const Map& m, const Actor& a);                      // a townsperson in a bath's pool
 art::Berth rvBerthAt(const Map& m, int tx, int ty, int& kit);                     // the berth a bed prop is
 Canvas rvFloorCushion(uint64_t key);                                              // the cushion under a floor sitter
 void rvPushGlow(const Tex* t, int sx, int sw, int sh, float x, float y, bool flip, float a);   // the after-lighting list
 
 namespace {
-// (P2a ANIM) the hero's fall under the death screen runs on view time (the sim stands still in Mode::Dead)
-float s_heroDeadT0 = 0;
-bool s_heroDeadShown = false;
-
 // the weapon art id that swings as a family (the `pose` hook's family on a look of another)
 uint8_t weaponOfFamily(art::Family f) {
   switch (f) {
@@ -115,16 +112,8 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
   // (M8) a downed companion lies in Posture::Downed, the player binding them kneels (party_view.cpp partyPosture)
   const art::Posture pzA = (a.comp || a.player) ? partyPosture(g, a) : a.posture;
   const bool posing = pzA != art::Posture::None && (a.st == AState::Idle || a.st == AState::Walk || ((a.st == AState::Down || a.st == AState::Dead) && pzA == art::Posture::Downed));
-  // (P2a ANIM) the hero's death screen: the fall runs on view time from the moment it shows
-  if (a.player) {
-    const bool deadScreen = g.mode == Mode::Dead && a.st == AState::Dead;
-    if (deadScreen && (!s_heroDeadShown || t_ < s_heroDeadT0)) s_heroDeadT0 = t_;
-    s_heroDeadShown = deadScreen;
-    // rig 2: the body's state time follows the view's clock under the death screen (the sim is still there), so what
-    // animPick, `expect anim` and Witness's state.player.anim report is the frame shown (set, never added: a frame may
-    // be drawn twice, as a shot pair does)
-    if (deadScreen && art::rigVersion() >= 2) g.pl().stT = std::max(g.pl().stT, t_ - s_heroDeadT0);
-  }
+  // (P2b B11) the hero's fall under the death screen runs on the sim's clock (Game::update steps the body's state time
+  // in Mode::Dead every step, drawn or not); the draw keeps no state of its own, so nothing leaks across resets
   // ---- (P2a ANIM) rig 2: a look the v2 painters cover is drawn from its atlas frame, the pivot on the feet, never
   // flipped (STYLE_P2 9, 10). A posture draws from its v2 posture atlas (POSES: humanPosture2, seated by seatFit2, the
   // sleeper by sleeper2 / bedFit2); a frame not painted or not baked yet falls back to v1 whole.
@@ -150,7 +139,14 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
   }
   // one v2 frame by its pivot (feet: the pivot's world point): the bather's waterline crop, the corpse's stain, the hit
   // flash and the burn flicker; the head's top for bubbles and plates; the hero's sprite for Witness
-  auto drawV2 = [&](const Tex& tx, const art::FrameRect& f2, const art::RigAnchors* an, Vec2 feet, float alpha2, bool stain, int frameNo, int facing) {
+  // (P2b VIEW-B) the look's rest frame (LOCO idle frame 0 of a facing): its top (hair, a hat, a crest) is where markers,
+  // plates and bubbles float, steady through the walk's bob and a swing's raised blade; a posture moves it with the head
+  auto restAnchors = [&](int facing) -> const art::RigAnchors* {
+    const RigTex lt = rigTex(look, art::RigPart::Loco, child);
+    return lt.ready() ? lt.sheet->anchorsOf(facing, art::Clip::Idle, 0, 0) : nullptr;
+  };
+  auto drawV2 = [&](const Tex& tx, const art::FrameRect& f2, const art::RigAnchors* an, Vec2 feet, float alpha2, bool stain, int frameNo, int facing,
+                    bool follow = false) {
     const float bob2 = a.player && g.sea.atSea() ? -seaHeroLift(*this, g) : 0.0f;
     const float pivX = std::floor(feet.x - cam.x + 0.5f), pivY = std::floor(feet.y + bob2 - cam.y + 0.5f);
     const float x2 = pivX - f2.px, y2 = pivY - f2.py;
@@ -187,9 +183,21 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
       if (a.burnT > 0 && ((int)(t_ * 10) & 1) && hv == f2.h)
         P.rectAdd(x2 + f2.w / 2 - 3, y2 + f2.h * 0.3f, 6, std::max(4.0f, f2.h * 0.4f), Color(0.6f, 0.25f, 0.05f, 0.6f));
     }
-    // the head's top for bubbles and plates: the head box when painted, else the frame's top
-    const float headY = an && an->headY != art::kNoAnchor ? pivY + an->headY : y2;
-    drawnHead_[a.id] = DrawnHead{feet.x, headY + cam.y, t_};
+    // (P2b VIEW-B) the frame's top for markers, plates and bubbles (RigAnchors::topY, STYLE_P2 17): the rest frame's top
+    // (steady while walking, running or swinging), moved by the head's drop in a posture (seated, kneeling, a rower);
+    // a lying body its own frame's top; else the head box, else the frame's rect
+    const art::RigAnchors* ra = stain ? nullptr : restAnchors(facing);
+    float topRel = (float)(y2 - pivY);
+    if (ra && ra->topY != art::kNoAnchor) {
+      topRel = (float)ra->topY;
+      if (follow && an && an->headY != art::kNoAnchor && ra->headY != art::kNoAnchor) topRel += (float)(an->headY - ra->headY);
+    } else if (an && an->topY != art::kNoAnchor) {
+      topRel = (float)an->topY;
+    } else if (an && an->headY != art::kNoAnchor) {
+      topRel = (float)an->headY;
+    }
+    // world y, exact against the feet (no camera rounding: View::topLift reads feet minus top as whole px)
+    drawnHead_[a.id] = DrawnHead{feet.x, feet.y + bob2 + topRel, t_, true};
     if (a.player) {
       HeroSprite& hs = heroSprite;
       hs.on = true; hs.rig = 2; hs.x = x2; hs.y = y2; hs.w = f2.w; hs.h = f2.h; hs.fr = frameNo; hs.row = facing; hs.flip = false;
@@ -210,12 +218,19 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
   // the rower: the v2 Sit posture (POSES, the chair-height sitter) in his facing, its seat point (the hip anchor) on the
   // thwart's seat line and the body cut there; the column on the boat's own (its anchor, floored as its cell is). He
   // keeps the posture's own slow breath; the boat's bob and its oars' stroke (art::shipCell frames) move him with it.
+  // (P2b VIEW-B) Row (STYLE_P2 15: reach, catch, pull, recover) where the doll covers it, its keys on the oars' stroke
+  // (seaOarPhase: the boat cell's own clock, so the hands reach as the blades swing forward and pull as they go aft);
+  // the Sit posture until then
   if (rower) {
-    const RigTex rt = rigPoseTex(look, art::Posture::Sit, 0);
+    RigTex rt = rigPoseTex(look, art::Posture::Row, 0);
+    const bool rowing = rt.ready() && rt.sheet->count(std::clamp(a.face, 0, 3), art::Clip::Idle, 0) > 0;
+    if (!rowing) rt = rigPoseTex(look, art::Posture::Sit, 0);
     if (rt.ready()) {
-      const art::PostureInfo pi = art::postureInfo(art::Posture::Sit);
+      const art::PostureInfo pi = art::postureInfo(rowing ? art::Posture::Row : art::Posture::Sit);
       const float clock = t_ + (float)(hash32((uint32_t)a.id * 2654435761u) % 997u) * 0.0131f;
-      const int pf = (int)(clock * std::max(0.1f, pi.fps)) % std::clamp((int)pi.frames, 1, art::POSTURE_FRAMES);
+      const int nfr = std::clamp((int)pi.frames, 1, art::POSTURE_FRAMES);
+      const int pf = rowing ? std::clamp((int)(seaOarPhase(*this, g) * 2.0f), 0, 3) * nfr / 4
+                            : (int)(clock * std::max(0.1f, pi.fps)) % nfr;
       int fc = std::clamp(a.face, 0, 3);
       const art::FrameRect* f2 = rt.sheet->frame(fc, art::Clip::Idle, 0, pf);
       if (!f2) { fc = 0; f2 = rt.sheet->frame(0, art::Clip::Idle, 0, pf); }
@@ -226,7 +241,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
         const int hipY = an && an->hipY != art::kNoAnchor ? an->hipY : -(art::holders::kSeat + 2);
         // the pivot (the floor under the hips) hipY rows under the seat line: whole rows, so drawV2's rounding is exact
         const Vec2 feet(std::floor(a.p.x - cam.x) + cam.x, std::floor(a.p.y - cam.y) + cam.y - rowerDy - (float)hipY);
-        drawV2(*rt.tex, *f2, an, feet, alpha, false, fi, fc);
+        drawV2(*rt.tex, *f2, an, feet, alpha, false, fi, fc, true);
         if (a.player) heroSprite.part = 4;   // (a posture atlas)
         m5Count_.posed++;
         return;
@@ -260,6 +275,8 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     };
     auto tryClip = [&](art::Clip c, int variant, int frame) { tryPart(partOf(c), c, variant, frame); };
     if (k.part != partOf(k.clip) && !(a.player && p2a.poseOn)) tryPart(k.part, k.clip, k.variant, k.frame);
+    // (P2b fix r1) a drawn run (ACTION walk variant 2) whose ACTION atlas lacks it or is not baked yet: the sheathed run
+    if (k.gait && k.part == art::RigPart::Action) tryPart(art::RigPart::Run, k.clip, 0, k.frame);
     tryClip(k.clip, k.variant, k.frame);
     switch (k.clip) {   // a clip this look's atlas lacks: the nearest it has (never a v1 frame mid-swing)
       case art::Clip::Draw: case art::Clip::Release: case art::Clip::Block: tryClip(art::Clip::Cast, 0, k.clip == art::Clip::Draw ? 0 : 1); [[fallthrough]];
@@ -277,6 +294,18 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
   }
   if (posing) {
     art::Posture pz = pzA;
+    // (P2b fix r2, B6: the POSES instrument variants no draw asked for) rig 2 only, rig 1 unchanged: between tunes the
+    // musician takes up his people's drum (MusicStyle::perc: the drum's variant below) one tune in three, each player on
+    // his own phase of the sim's 30 s tune
+    if (v2Look && (pz == art::Posture::Lute || pz == art::Posture::Flute) && a.st == AState::Idle) {
+      const int cs = g.inside && g.subBldg >= 0 && g.subBldg < (int)g.world.over.bldgs.size() ? g.world.over.bldgs[(size_t)g.subBldg].site : a.site;
+      const cult::Culture* C = cs >= 0 ? g.world.cultureOf(cs) : nullptr;
+      if (C && C->music.perc != PercKind::None) {
+        const uint32_t ph = hash32((uint32_t)a.id * 0x9E3779B1u ^ 0xD2D2u) % 30u;
+        const int tune = (int)std::floor(((float)g.time + (float)ph) / 30.0f);
+        if (((tune % 3) + 3) % 3 == 2) pz = art::Posture::Drum;
+      }
+    }
     const art::PostureInfo pi = art::postureInfo(pz);
     const int nf = std::clamp((int)pi.frames, 1, art::POSTURE_FRAMES);
     const bool stride = a.st == AState::Walk && (pz == art::Posture::Carry || pz == art::Posture::Play || pz == art::Posture::Dance);
@@ -284,6 +313,8 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
     const int pf = stride ? (int)(a.animT * 9) % nf : (int)(clock * std::max(0.1f, pi.fps)) % nf;
     uint8_t variant = 0;
     if (pz == art::Posture::Kneel && story::isStoryPerson(a)) variant = 1;   // (P1b) a bout's yield: the head bowed
+    // (P2b fix r2, B6) rig 2 only: a carrier's load is his own (POSES "carry loads (sack, basket, crate)"), by his id
+    if (v2Look && pz == art::Posture::Carry) variant = (uint8_t)(hash32((uint32_t)a.id * 2246822519u ^ 0xCA44u) % 3u);
     // (ART seatFit) on a seat: the posture for its kind (chair height or cross-legged) and the sitter's feet
     // where its seat line lands on the seat's surface; a facing the seat does not take keeps the figure where it is
     // (P2a ANIM) at rig 2 the v2 sitter's pivot by seatFit2 (POSES: the floor under the hips), kept beside v1's so a
@@ -379,7 +410,7 @@ void View::drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float 
             P.blitEx(ct, 0, 0, ct.w, ct.h, std::floor(at2.x - 9.0f - cam.x + 0.5f), std::floor(at2.y - 5.0f - cam.y + 0.5f), (float)ct.w, (float)ct.h,
                      false, Color(1, 1, 1, alpha));
           }
-          drawV2(*rt.tex, *f2, rt.sheet->anchorsOf(fc, art::Clip::Idle, 0, fi), at2, alpha, false, fi, fc);
+          drawV2(*rt.tex, *f2, rt.sheet->anchorsOf(fc, art::Clip::Idle, 0, fi), at2, alpha, false, fi, fc, true);
           if (a.player) heroSprite.part = 4;
           m5Count_.posed++;
           return;

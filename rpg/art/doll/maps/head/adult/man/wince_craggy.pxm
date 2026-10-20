@@ -1,0 +1,31 @@
+# head/adult/man/wince_craggy: a craggy man's wince: the brow knots into a furrow, the mouth bares a wide grimace
+# P2b FACES (wave 2), over the generic hurt face (expr, z 2). Format: rpg/art/doll/doll.h.
+use person
+body man
+role head craggy
+layer face
+anchor head
+keys expr
+z 3
+tags overlay mirror-ok
+
+view D key hurt origin -6 -8
+|.r
+|.r
+|..
+|..
+|M.
+
+view R key hurt origin -11 -8
+|..r
+|...
+|...
+|...
+|M..
+
+view L key hurt origin -2 -8
+|r..
+|...
+|...
+|...
+|..M

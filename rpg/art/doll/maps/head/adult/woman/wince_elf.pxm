@@ -1,0 +1,21 @@
+# head/adult/woman/wince_elf: an elf's wince (woman): restrained, the lip kept, the mouth a single pixel
+# P2b FACES (wave 2), over the generic hurt face (expr, z 2). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role head fine
+role head sharp
+role head longelf
+layer face
+anchor head
+keys expr
+z 3
+tags overlay mirror-ok
+
+view D key hurt origin -7 -12
+|L
+
+view R key hurt origin -12 -12
+|s
+
+view L key hurt origin -3 -12
+|t

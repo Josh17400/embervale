@@ -1,0 +1,130 @@
+# headwear/cloth/legacyhood: the legacy hood (OUTER, P2b wave 2): the bandit's, the mage's, the herbalist's and the traveller's
+# hood, cut from the hose's cloth (P2a's rule: cloth2). A pointed peak falling back off the crown, a pointed arch over the
+# brow (the forehead in the hood's shadow, the brows and eyes clear), and a short shoulder capelet (to the chest) with a
+# solid lit hem: a different silhouette from the round culture hood. Hair mask as the hood's: 18 px over the head; long lengths below the capelet show.
+use person
+body adult
+role headwear legacyhood
+layer headwear
+anchor head
+keys hatpose
+legend Q cloth2 0
+legend R cloth2 1
+legend S cloth2 2
+legend T cloth2 3
+legend U cloth2 4
+
+view D key rest origin 1 2
+|..........QQ......
+|.........QTRQ.....
+|......QQQTSRQQ....
+|....QQTUUTSSRRQ...
+|..QQTUUUTTSSSRQQ..
+|.QTUUTTTSSSSSSSRQ.
+|QTUTTTSSSSSSSSSRRQ
+|QTTTSSSSSSSSSSSRRQ
+|QTTTSSTQQQQTSSSRRQ
+|QTTSTQQ....QQSSRRQ
+|QTTQQ........QQSRQ
+|QTTQ..........QSRQ
+|QTSQ..........QSRQ
+|QTTQ..........QSRQ
+|.QTTQ........QSRQ.
+|.QTSTQ......QSSRQ.
+|QTTSTSQQQQQQSRSSRQ
+|QTTTSRSSSSSSSRSSRQ
+|QTTSSRSSSSSSSRSSRQ
+|.QTTTTTTTTTSSSSRQ.
+|..QQQQQQQQQQQQQQ..
+
+view U key rest origin 1 2
+|.........QQ.......
+|........QTRQ......
+|......QQTTSRQQ....
+|....QQTUUTSSRRQ...
+|..QQTUUUTTSSSRQQ..
+|.QTUUTTTSSSSSRRRQ.
+|QTUTTTSSSRSSSRRRRQ
+|QTTTTSSSSRSSSRRRRQ
+|QTTTTSSSSRSSRRRRRQ
+|QTTTSSSSSRSSRRRRRQ
+|QTTTSSSSSRSSRRRRRQ
+|QTTSSSSSSRSSRRRRRQ
+|QTTSSSSSSRSSRRRRRQ
+|.QTSSSSSSRSSRRRRQ.
+|.QTSSSSSSRSSRRRRQ.
+|..QRRSSSRRRSRRRQ..
+|.QTTTTTSSRSSSRRRQ.
+|QTTTSSRSSSRSSRRRRQ
+|QTTSSRSSSSSRSRQRRQ
+|.QTTTTTTTTTTSRRRQ.
+|..QQQQQQQQQQQQQQ..
+
+view R key rest origin 2 2
+|..QQ...............
+|..QTQQ.............
+|...QTTQQQQQQ.......
+|...QTTUUUTTSQQ.....
+|....QTUUUTTSSSSQ...
+|...QTUUTTTSSSSSSQ..
+|..QTUTTTSSSSSSSSSQ.
+|.QTUTTSSSSSSSTTTTTQ
+|QTTTTSSSSSSRQQQQQQ.
+|QTTTSSSSSRQQQ......
+|QTTSSSSSSRQ........
+|QTTSSSSSRRQ........
+|QTTSSSSSRRQ........
+|.QTSSSSSRRQ........
+|.QTTSSSRRRQ........
+|..QTSSSSRRRQ.......
+|...QTSSSRRRRQ......
+|..QTTSSSSSRRRRQ....
+|..QTTSSSSSRRRRRQ...
+|.QTTTTTTTTSSSSSSQ..
+|..QQQQQQQQQQQQQQ...
+
+view L key rest origin 1 2
+|...............QQ..
+|.............QQSQ..
+|.......QQQQQQSRQ...
+|.....QQTUUUTTSRQ...
+|...QTUUUTTSSSRQ....
+|..QTUUTTTSSSSSRQ...
+|.QTUTTTSSSSSSSRRQ..
+|QTUUTTSSSSSSSSRRRQ.
+|.QQQQQQTSSSSSSSRRRQ
+|......QQQTSSSSSRRRQ
+|........QTSSSSSSRRQ
+|........QTTSSSSSRRQ
+|........QTSSSSSSRRQ
+|........QTSSSSSRRQ.
+|........QTTSSSSRRQ.
+|.......QTSSSSSRRQ..
+|......QTSSSSSRRQ...
+|....QTTSSSSSSRRRQ..
+|...QTTSSSSSSSRRRQ..
+|..QTTTTTTTTSSSSSSQ.
+|...QQQQQQQQQQQQQQ..
+
+view L key lie origin 1 2
+|.................
+|.................
+|.......QQQQQQQ...
+|.....QQTUUUTTSQ..
+|...QTUUUTTSSSRQ..
+|..QTUUTTTSSSSSRQ.
+|.QTUTTTSSSSSSSRQ.
+|QTUUTTSSSSSSSSRRQ
+|.QQQQQQTSSSSSSSRQ
+|......QQQTSSSSSRQ
+|........QTSSSSSRQ
+|........QTTSSSSRQ
+|........QTSSSSSRQ
+|........QTSSSSSRQ
+|........QTTSSSSRQ
+|.......QTSSSSSRRQ
+|......QTSSSSSRRQ.
+|....QTTSSSSSSRRQ.
+|...QTTSSSSSSSRRQ.
+|..QTTTTTTTTSSSSQ.
+|...QQQQQQQQQQQQ..

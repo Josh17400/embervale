@@ -1,0 +1,72 @@
+# kin/child/hair/pigtails: Pigtails: parted down the middle, gathered into two tails tied at the sides (the tails: pigtails_hang)
+# (KIN-CHILD, P2b wave 2; the child's 11 px head, STYLE_P2 3 and 21). Format: rpg/art/doll/doll.h.
+use person
+body child
+role hair pigtails
+layer hairFront
+anchor head
+keys rest
+
+view D key rest origin 0 0
+|..aaaaaaaa..
+|.adeedadcca.
+|adeeddbbccba
+|adddcdbbccba
+|acda.....cba
+|a..........a
+|a..........a
+
+view D key rest origin 0 -4 when capped,!circlet replace
+|a..........a
+|a..........a
+|a..........a
+
+view U key rest origin 0 0
+|..aaaaaaaa..
+|.adeedadcca.
+|adeeddbbccba
+|addddcabccba
+|acdcbcabcbba
+|acdcbdabcbba
+|abcbbcabbcba
+|.abbba.abba.
+|..aaa..aaa..
+
+view U key rest origin 0 -4 when capped,!circlet replace
+|a..........a
+|acdcbdabcbba
+|abcbbcabbcba
+|.abbba.abba.
+|..aaa..aaa..
+
+view R key rest origin 1 0
+|....aaaaaa...
+|..addeedcaa..
+|.adeeeddddca.
+|adddddccccca.
+|acdccbcbba...
+|acbcba.......
+|abcbca.......
+|.abba........
+
+view R key rest origin 1 -4 when capped,!circlet replace
+|acdccb.......
+|acbcba.......
+|abcbca.......
+|.abba........
+
+view L key rest origin -1 0
+|...aaaaaa....
+|..aaddeedca..
+|.adeeeddddca.
+|.adddddccccca
+|...acdccbcbba
+|.......acbcba
+|.......abcbca
+|........abba.
+
+view L key rest origin -1 -4 when capped,!circlet replace
+|.......cbcbba
+|.......acbcba
+|.......abcbca
+|........abba.

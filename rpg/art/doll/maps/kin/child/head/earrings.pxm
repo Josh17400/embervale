@@ -1,0 +1,21 @@
+# kin/child/head/earrings: brass studs at the earlobes (metal2)
+# (KIN-CHILD, P2b wave 2; the child, STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person
+body child
+role earring earrings
+layer ears
+anchor head
+keys rest
+tags overlay mirror-ok
+
+view D key rest origin 1 -7
+|O............O
+
+view U key rest origin 1 -7
+|O............O
+
+view R key rest origin -5 -7
+|O
+
+view L key rest origin -7 -7
+|O

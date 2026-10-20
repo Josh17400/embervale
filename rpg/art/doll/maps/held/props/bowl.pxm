@@ -1,0 +1,60 @@
+# held/props/bowl: a wooden begging bowl for the Beg posture (PROPS, P2b), in the right hand: in the lap (hold) and held out
+# (reach). Format: rpg/art/doll/doll.h. Around the pose arms' grips, anchored on the right shoulder; the fist under it.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held bowl
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin -1 -4 layer armNear
+|fiihgf
+|.fhgf.
+|..ff..
+
+view D key reach origin 1 -2 layer armNear
+|fiihgf
+|.fhgf.
+|..ff..
+
+view U key hold origin 6 -4 layer heldBack
+|fjihhf
+|.fjif.
+|..ff..
+
+view U key reach origin 4 -2 layer heldBack
+|fjihhf
+|.fjif.
+|..ff..
+
+view R key hold origin -4 -4 layer armNear
+|fiihgf
+|.fhgf.
+|..ff..
+
+view R key reach origin -7 -1 layer armNear
+|fiihgf
+|.fhgf.
+|..ff..
+
+view L key hold origin 9 -4 layer armNear
+|fjihhf
+|.fjif.
+|..ff..
+
+view L key reach origin 12 -1 layer armNear
+|fjihhf
+|.fjif.
+|..ff..

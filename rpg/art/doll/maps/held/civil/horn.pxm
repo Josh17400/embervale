@@ -1,0 +1,144 @@
+# held/civil/horn: the herald's horn (art weapon 12), slung at the right hip on a cord (PROPS, P2b): a curved horn of pale
+# horn (the cloth 3 ramp: bone and ivory) tapering from its brass-banded bell to the mouthpiece. Format: rpg/art/doll/doll.h.
+# It hangs at the hip anchor on the sheath channel like a scabbard (rest; lag a pixel behind the bob; sit on the seat;
+# gone where a clip names `-`, and while a posture's horn is in hand: prop-horn); under armNear, so the swinging hand
+# passes over it. The played horn is held/props/horn.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held horn
+layer belt
+anchor hip
+keys sheath
+z 30
+
+view D key rest origin 7 2
+|....QQ
+|..QQTQ
+|QQTSRQ
+|NOSRQ.
+|IIQQ..
+
+view D key lag origin 7 1
+|....QQ
+|..QQTQ
+|QQTSRQ
+|NOSRQ.
+|IIQQ..
+
+view D key sit origin 8 3
+|....QQ
+|..QQTQ
+|QQTSRQ
+|NOSRQ.
+|IIQQ..
+
+view U key rest origin -2 2
+|QQ....
+|QTQQ..
+|QTSRQQ
+|.QSROP
+|..QQII
+
+view U key lag origin -2 1
+|QQ....
+|QTQQ..
+|QTSRQQ
+|.QSROP
+|..QQII
+
+view U key sit origin -3 3
+|QQ....
+|QTQQ..
+|QTSRQQ
+|.QSROP
+|..QQII
+
+view R key rest origin 5 2
+|...QQ
+|..QTQ
+|QQTRQ
+|OSRQ.
+|IQQ..
+
+view R key lag origin 6 1
+|...QQ
+|..QTQ
+|QQTRQ
+|OSRQ.
+|IQQ..
+
+view R key sit origin 7 3
+|...QQ
+|..QTQ
+|QQTRQ
+|OSRQ.
+|IQQ..
+
+view L key rest origin -1 2 layer heldBack
+|QQ...
+|QTQ..
+|QTSQQ
+|.QTRO
+|..QQI
+
+view L key lag origin -2 1 layer heldBack
+|QQ...
+|QTQ..
+|QTSQQ
+|.QTRO
+|..QQI
+
+view L key sit origin -3 3 layer heldBack
+|QQ...
+|QTQ..
+|QTSQQ
+|.QTRO
+|..QQI
+
+view D key rest origin 0 0 when prop-horn replace
+|.
+
+view D key lag origin 0 0 when prop-horn replace
+|.
+
+view D key sit origin 0 0 when prop-horn replace
+|.
+
+view U key rest origin 0 0 when prop-horn replace
+|.
+
+view U key lag origin 0 0 when prop-horn replace
+|.
+
+view U key sit origin 0 0 when prop-horn replace
+|.
+
+view R key rest origin 0 0 when prop-horn replace
+|.
+
+view R key lag origin 0 0 when prop-horn replace
+|.
+
+view R key sit origin 0 0 when prop-horn replace
+|.
+
+view L key rest origin 0 0 when prop-horn replace
+|.
+
+view L key lag origin 0 0 when prop-horn replace
+|.
+
+view L key sit origin 0 0 when prop-horn replace
+|.

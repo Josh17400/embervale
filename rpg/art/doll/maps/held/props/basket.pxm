@@ -1,0 +1,57 @@
+# held/props/basket: a wicker basket on the arm for the Carry posture (PROPS, P2b; variant 1): woven cloth 3 (straw) with a
+# bent handle in the right fist, carried at the side. Format: rpg/art/doll/doll.h. Around the pose arms' hold grip, anchored
+# on the right shoulder; under the fist.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held basket
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin 0 -6 layer neck
+|..QQQQQ..
+|.Q.....Q.
+|QQQQQQQQQ
+|QTSTSTSRQ
+|QSRSRSRRQ
+|.QRSRSRQ.
+|..QQQQQ..
+
+view U key hold origin 8 -6 layer heldBack
+|..QQQQQ..
+|.Q.....Q.
+|QQQQQQQQQ
+|QUTSTSTSQ
+|QUUTUTUTQ
+|.QUTUTUQ.
+|..QQQQQ..
+
+view R key hold origin -4 -6 layer neck
+|..QQQQQ..
+|.Q.....Q.
+|QQQQQQQQQ
+|QTSTSTSRQ
+|QSRSRSRRQ
+|.QRSRSRQ.
+|..QQQQQ..
+
+view L key hold origin 12 -6 layer neck
+|..QQQQQ..
+|.Q.....Q.
+|QQQQQQQQQ
+|QUTSTSTSQ
+|QUUTUTUTQ
+|.QUTUTUQ.
+|..QQQQQ..

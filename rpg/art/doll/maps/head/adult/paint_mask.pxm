@@ -1,0 +1,25 @@
+# head/adult/paint_mask: a band of paint across the eyes in the culture's dark accent (the eyes stay clear)
+# P2b FACES (wave 2). Inside A3's fixed face rows, so it fits every head type. Format: rpg/art/doll/doll.h.
+use person
+body adult youth
+role paint mask
+layer face
+anchor head
+keys rest
+z 2
+tags overlay mirror-ok
+
+view D key rest origin -3 -9
+|n..nnnn..m
+|n..nnnn..m
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -8 -9
+|nnn..n
+|nnn..
+
+view L key rest origin -1 -9
+|nn..nnn
+|.n..nnn

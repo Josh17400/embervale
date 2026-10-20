@@ -1,0 +1,160 @@
+# kin/youth/wear/tunic_hang: the tunic's skirt: two rows to the lit hem over the trousers; it widens on the side walk's
+# contact and down frames (wide) and flares in the run; kneel (the fall's buckle) spreads it; lie (lying) drapes it
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. The girl's skirt starts from her narrower waist.
+use person
+body youth
+role garment tunic
+layer hangBack
+anchor hip
+keys hang
+sway 1
+
+view D key rest origin 6 0
+|.6886776765.
+|.5986857765.
+
+view D key rest origin 6 0 when girl replace
+|..68877665..
+|.5986857765.
+
+view D key wide origin 6 0
+|.6886776765.
+|.5986857765.
+
+view D key wide origin 6 0 when girl replace
+|..68877665..
+|.5986857765.
+
+view D key flare origin 6 0
+|.6886776765.
+|598685877665
+
+view D key flare origin 6 0 when girl replace
+|..68877665..
+|598685877665
+
+view D key kneel origin 6 0
+|.6886776765.
+|598685877665
+
+view U key rest origin 6 0
+|.6887777665.
+|.5988858765.
+
+view U key rest origin 6 0 when girl replace
+|..68777665..
+|.5988858765.
+
+view U key wide origin 6 0
+|.6887777665.
+|.5988858765.
+
+view U key wide origin 6 0 when girl replace
+|..68777665..
+|.5988858765.
+
+view U key flare origin 6 0
+|.6887777665.
+|598885877665
+
+view U key flare origin 6 0 when girl replace
+|..68777665..
+|598885877665
+
+view U key kneel origin 6 0
+|.6887777665.
+|598885877665
+
+view R key rest origin 5 0
+|.58877665
+|5986868765
+
+view R key rest origin 5 0 when girl replace
+|..5887665
+|5986868765
+
+view R key wide origin 5 0
+|588777665.
+|59868868765
+
+view R key wide origin 5 0 when girl replace
+|.58877665.
+|59868868765
+
+view R key flare origin 5 0
+|588777665.
+|59868868765
+
+view R key flare origin 5 0 when girl replace
+|.58877665.
+|59868868765
+
+view R key kneel origin 5 0
+|588777665.
+|59868868765
+
+view L key rest origin 5 0
+|.58877665.
+|5986868765
+
+view L key rest origin 5 0 when girl replace
+|.5887665..
+|5986868765
+
+view L key wide origin 6 0
+|..588777665
+|59868868765
+
+view L key wide origin 6 0 when girl replace
+|..58877665.
+|59868868765
+
+view L key flare origin 6 0
+|..588777665
+|59868868765
+
+view L key flare origin 6 0 when girl replace
+|..58877665.
+|59868868765
+
+view L key kneel origin 6 0
+|..588777665
+|59868868765
+
+view L key lie origin 5 0
+|.58877665.
+|5986868765
+
+# ---- postures (KIN-YOUTH): sit (seated on a chair: over the lap; the long skirts down the front over
+# the shins), floor (cross-legged: pooled over the lap, three rows over the floor)
+view D key sit origin 6 0
+|.6886776765.
+|.5986857765.
+
+view D key floor origin 6 0
+|.6886776765.
+|598685877665
+
+view U key sit origin 6 0
+|.6887777665.
+|.5988858765.
+
+view U key floor origin 6 0
+|.6887777665.
+|598885877665
+
+view R key sit origin 5 0
+|588777665.
+|59868868765
+
+view R key floor origin 5 0
+|588777665.
+|59868868765
+
+view L key sit origin 6 0
+|..588777665
+|59868868765
+
+view L key floor origin 6 0
+|..588777665
+|59868868765

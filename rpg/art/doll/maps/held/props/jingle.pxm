@@ -1,0 +1,84 @@
+# held/props/jingle: a jingle ring of little brass bells on a wooden hoop for the Drum posture's Bells variant (PROPS, P2b),
+# shaken high (raise) and out (wave2) in the right hand. Format: rpg/art/doll/doll.h. Anchored on the right shoulder.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held jingle
+anchor shoulderR
+keys held
+z 40
+
+view D key raise origin 5 15 layer neck
+|.ffff.
+|fJ..Pf
+|N....N
+|f....f
+|fP..Jf
+|.ffff.
+
+view D key wave2 origin 5 10 layer neck
+|.ffff.
+|fJ..Pf
+|N....N
+|f....f
+|fP..Jf
+|.ffff.
+
+view U key raise origin 0 15 layer heldBack
+|.ffff.
+|fN..Jf
+|P....P
+|f....f
+|fJ..Nf
+|.ffff.
+
+view U key wave2 origin 0 10 layer heldBack
+|.ffff.
+|fN..Jf
+|P....P
+|f....f
+|fJ..Nf
+|.ffff.
+
+view R key raise origin 5 15 layer hairFront
+|.ffff.
+|fJ..Pf
+|N....N
+|f....f
+|fP..Jf
+|.ffff.
+
+view R key wave2 origin -4 8 layer hairFront
+|.ffff.
+|fJ..Pf
+|N....N
+|f....f
+|fP..Jf
+|.ffff.
+
+view L key raise origin 0 15 layer hairBack
+|.ffff.
+|fN..Jf
+|P....P
+|f....f
+|fJ..Nf
+|.ffff.
+
+view L key wave2 origin 9 8 layer hairBack
+|.ffff.
+|fN..Jf
+|P....P
+|f....f
+|fJ..Nf
+|.ffff.

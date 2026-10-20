@@ -1,0 +1,39 @@
+# head/adult/youth/nose_long: the youth's long nose (boys)
+# P2b FACES (wave 2): GENERATED from the adult maps by the FACES spec (the boy = the man's views, the girl = the
+# woman's as `when girl replace`); edit the adult maps, then regenerate. Format: rpg/art/doll/doll.h.
+use person
+body youth
+role nose long
+layer face
+anchor head
+keys rest
+
+view D key rest origin -8 -9
+|r
+|r
+|r
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -14 -9
+|tq.
+|ssq
+|rsq
+
+view L key rest origin 1 -9
+|.qt
+|qss
+|qss
+
+view D key rest origin -8 -10 when boy,elf replace
+|r
+|r
+
+view R key rest origin -14 -9 when boy,elf replace
+|tq
+|sq
+
+view L key rest origin 0 -9 when boy,elf replace
+|qu
+|qs

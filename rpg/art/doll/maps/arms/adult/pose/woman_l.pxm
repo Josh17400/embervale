@@ -1,0 +1,591 @@
+# arms/adult/pose/woman_l: the woman's left arm in the postures (POSES-B, P2b wave 2): sleeve, bracer, hand (regions and the
+# keys as man_r's header). Front: the screen's right, the shade side; back: the screen's left, the lit side; facing left
+# the near arm, facing right the far one (behind the body). `gripL` marks where a prop held in the left hand goes.
+# Blocked in from man_r's views mirrored and relit for this side, then checked by hand.
+use person woman
+body woman
+role arms std
+layer armNear
+anchor shoulderL
+keys armL
+side L
+
+# ============================================================ front (D)
+view D key hold origin 5 -1
+mark handL 2 5
+mark gripL 2 5
+|.......
+|.......
+|...s...
+|..srqsq
+|.qtsqq.
+|.qsrq..
+|..qq...
+
+view D key mouth origin 5 1
+mark handL 2 0
+mark gripL 2 0
+|qtsq...
+|qsrq...
+|qsrq...
+|.qrq...
+|..qs...
+|...qqq.
+
+view D key raise origin 2 12
+mark handL 5 0
+mark gripL 5 0
+|....qtsq
+|....qsrq
+|....qsrq
+|....qsrq
+|....qsrq
+|...qsrq.
+|...qsrq.
+|...qsrq.
+|..qsrq..
+|..qsrq..
+|..qsrq..
+|qsrrq...
+|srrq....
+|........
+|........
+
+view D key wave origin 1 8
+mark handL 5 1
+|....qtq.
+|...qqtsq
+|...qssrq
+|...qsrq.
+|...qsrq.
+|...qsrq.
+|...qsrq.
+|..qsrrq.
+|qsrrrrq.
+|....qq..
+|........
+
+view D key wave2 origin 1 8
+mark handL 4 1
+|...qtq..
+|..qqtsq.
+|..qssrq.
+|..qsrq..
+|..qsrq..
+|...qsrq.
+|...qsrq.
+|..qsrrq.
+|qsrrrrq.
+|....qq..
+|........
+
+view D key pray origin 5 -1
+mark handL 1 1
+|...s...
+|.qsr...
+|qtqr...
+|qsqqq..
+|.qq....
+
+view D key reach origin 2 -1
+mark handL 1 3
+mark gripL 1 3
+|....
+|....
+|q...
+|qtsq
+|qsrq
+|.qq.
+
+view D key pull origin 3 -1
+mark handL 2 4
+mark gripL 2 4
+|......
+|.s....
+|.q....
+|.qsrqq
+|qtsqq.
+|qsrq..
+|.qq...
+
+view D key high origin 1 8
+mark handL 5 1
+mark gripL 5 1
+|........
+|...qtsq.
+|..qttsrq
+|..qssrrq
+|...qsrq.
+|...qsrq.
+|...qsrq.
+|..qsrrq.
+|qsrrrrq.
+|....qq..
+|........
+
+view D key low origin 5 -1
+mark handL 1 7
+mark gripL 1 7
+|.......
+|.......
+|...s...
+|...srrq
+|..srrq.
+|.qsrq..
+|qtsq...
+|qsrq...
+|.qq....
+
+view D key shoulder origin 3 1
+mark handL 3 0
+mark gripL 3 0
+|.qtsq.
+|.qsrq.
+|.q....
+|.q....
+|......
+|..qqq.
+
+view D key knee origin 1 -1
+mark handL 2 7
+|....
+|....
+|....
+|srrq
+|qsrq
+|qsrq
+|.srq
+|qtsq
+|qsrq
+|.qq.
+
+# ============================================================ back (U)
+view U key hold origin 1 -1
+|...
+|...
+|...
+|qts
+|qts
+|qsq
+
+view U key mouth origin 2 -1
+|....
+|q...
+|q...
+|qts.
+|.qq.
+
+view U key raise origin 6 12
+mark handL 2 0
+|..qts..
+|..qsr..
+|..qts..
+|..qts..
+|..qts..
+|...qts.
+|...qts.
+|...qts.
+|....qts
+|....qts
+|....qts
+|...qtss
+|....qss
+|.......
+|.......
+
+view U key wave origin 7 8
+mark handL 2 1
+|.qts....
+|qtssr...
+|.qsrr...
+|.qsrq...
+|..qts...
+|..qts...
+|..qts...
+|..qtss..
+|..qtssss
+|...qqq..
+|.....q..
+
+view U key wave2 origin 7 8
+mark handL 3 1
+|..qts...
+|.qtssr..
+|..qsrr..
+|..qsrq..
+|...qts..
+|..qts...
+|..qts...
+|..qtss..
+|..qtssss
+|...qqq..
+|.....q..
+
+view U key pray origin 2 -1
+|....
+|q...
+|q...
+|.qq.
+
+view U key reach origin 1 -1
+|...
+|...
+|...
+|.qq
+
+view U key pull origin 2 -1
+|....
+|q...
+|q...
+|qqts
+|.qsq
+|.qq.
+
+view U key high origin 7 8
+mark handL 2 1
+|........
+|.qtss...
+|qtssrr..
+|.qsrrr..
+|..qts...
+|..qts...
+|..qts...
+|..qtss..
+|..qtssss
+|...qqq..
+|.....q..
+
+view U key low origin 1 -1
+|...
+|...
+|...
+|qts
+|qts
+|qts
+|qsq
+
+view U key shoulder origin 2 1
+mark handL 2 0
+|.qts
+|.qsr
+|q...
+|q...
+|q...
+|qqq.
+
+view U key knee origin 2 -1
+|....
+|....
+|....
+|qtss
+|qtsq
+|qts.
+|qts.
+|qsr.
+|.qq.
+
+# ============================================================ left (L): the near arm
+view L key hold origin 8 -1
+mark handL 2 5
+mark gripL 2 5
+|....qts..
+|....qts..
+|....qts..
+|....qtsrq
+|..qttssrq
+|.qtsqqqq.
+|qsrq.....
+|.qq......
+
+view L key mouth origin 8 2 layer ears
+mark handL 2 0
+mark gripL 2 0
+|qtsq.....
+|qsrq.....
+|qtsq.....
+|qtsrqts..
+|qtsrrts..
+|.qtsrts..
+|..qsrtsrq
+|....qqqq.
+
+view L key raise origin 2 12 layer ears
+mark handL 5 0
+mark gripL 5 0
+|...qtsq.
+|...qsrq.
+|...qtsq.
+|...qtsq.
+|..qtsrq.
+|..qtsrq.
+|.qtsrq..
+|.qtsrq..
+|.qtsrq..
+|qtsrq...
+|qtsrq...
+|qtsrq...
+|qtsrq...
+|q.......
+|........
+
+view L key wave origin 8 6 layer ears
+mark handL 3 1
+|..qtq....
+|.qqtsq...
+|.qssrq...
+|..qsrq...
+|..qtsq...
+|..qtsq...
+|..qtsrq..
+|...qtsr..
+|....qts..
+|....qts..
+|....qtsrq
+|.....qqq.
+
+view L key wave2 origin 8 6 layer ears
+mark handL 2 1
+|.qtq.....
+|qqtsq....
+|qssrq....
+|.qsrq....
+|..qtsq...
+|..qtsq...
+|..qtsrq..
+|...qtsr..
+|....qts..
+|....qts..
+|....qtsrq
+|.....qqq.
+
+view L key pray origin 7 -1
+mark handL 1 2
+|...qts..
+|...qts..
+|qtsrts..
+|tqsqqqq.
+|qq......
+
+view L key reach origin 10 -1
+mark handL 1 2
+mark gripL 1 2
+|......qts..
+|..qqqttts..
+|qtsttsrrr..
+|qsrqqqqqqq.
+|.qq........
+
+view L key pull origin 4 -1
+mark handL 5 5
+mark gripL 5 5
+|qts.....
+|.qt.....
+|..q.....
+|...qtsrq
+|...qtsrq
+|...qtsq.
+|...qsrq.
+|....qq..
+
+view L key high origin 4 5 layer ears
+mark handL 7 1
+mark gripL 7 1
+|.....qtsq.
+|....qttsrq
+|....qssrrq
+|.....qtsq.
+|....qtsq..
+|..qtsrq...
+|.qt.......
+|qts.......
+|qts.......
+|.qqq......
+
+view L key low origin 7 -1
+mark handL 1 6
+mark gripL 1 6
+|...qts..
+|...qts..
+|..qtsr..
+|.qtsrq..
+|.qtsq...
+|qtssq...
+|qtsq....
+|qsrq....
+|.qq.....
+
+view L key shoulder origin 5 1 layer ears
+mark handL 3 0
+mark gripL 3 0
+|.qtsq.
+|.qsrq.
+|qrts..
+|.qts..
+|.qts..
+|..qqq.
+
+view L key knee origin 6 -1
+mark handL 2 7
+|..qts..
+|..qts..
+|..qts..
+|.qtsrq.
+|.qtsrq.
+|.qtsq..
+|.qtsq..
+|.qtsq..
+|.qsrq..
+|..qq...
+
+# ============================================================ right (R): the far arm (behind the body)
+view R key hold origin 0 -1
+mark handL 6 5
+mark gripL 6 5
+|.........
+|.........
+|.........
+|qsrrq....
+|qrssrrq..
+|.qqqqtsq.
+|.....qsrq
+|......qq.
+
+view R key mouth origin 0 2
+mark handL 6 0
+mark gripL 6 0
+|.....qtsq
+|.....qsrq
+|.....qsrq
+|.....qsrq
+|.....qsrq
+|.....srq.
+|qsrrqrq..
+|.qqqq....
+
+view R key raise origin 5 12
+mark handL 2 0
+mark gripL 2 0
+|.qtsq...
+|.qsrq...
+|.qsrq...
+|.qsrq...
+|.qsrrq..
+|.qsrrq..
+|..qsrrq.
+|..qsrrq.
+|..qsrrq.
+|...qsrrq
+|...qsrrq
+|...qsrrq
+|...qsrrq
+|...q....
+|........
+
+view R key wave origin 0 6
+mark handL 5 1
+|....qtq..
+|...qtsqq.
+|...qssrq.
+|...qsrq..
+|...qsrq..
+|...qsrq..
+|..qsrrq..
+|.....q...
+|.........
+|.........
+|qsrrq....
+|.qqq.....
+
+view R key wave2 origin 0 6
+mark handL 6 1
+|.....qtq.
+|....qtsqq
+|....qssrq
+|....qsrq.
+|...qsrq..
+|...qsrq..
+|..qsrrq..
+|.....q...
+|.........
+|.........
+|qsrrq....
+|.qqq.....
+
+view R key pray origin 0 -1
+mark handL 6 2
+|........
+|........
+|.....srq
+|.qqqqrqt
+|......qq
+
+view R key reach origin 0 -1
+mark handL 9 2
+mark gripL 9 2
+|...........
+|.....rqqq..
+|.....ssrtsq
+|.qqqqqqqsrq
+|........qq.
+
+view R key pull origin 3 -1
+mark handL 2 5
+mark gripL 2 5
+|........
+|........
+|.q......
+|qsrrq...
+|qrsrq...
+|.qtsq...
+|.qsrq...
+|..qq....
+
+view R key high origin 5 5
+mark handL 2 1
+mark gripL 2 1
+|.qtsq.....
+|qttsrq....
+|qssrrq....
+|.qsrq.....
+|..qsrq....
+|...qsrrq..
+|..........
+|..........
+|..........
+|......qqq.
+
+view R key low origin 0 -1
+mark handL 6 6
+mark gripL 6 6
+|........
+|........
+|.....q..
+|..qsrrq.
+|...qsrq.
+|...qsrrq
+|....qtsq
+|....qsrq
+|.....qq.
+
+view R key shoulder origin 0 1
+mark handL 2 0
+mark gripL 2 0
+|.qtsq.
+|.qsrq.
+|.....q
+|......
+|......
+|.qqq..
+
+view R key knee origin 0 -1
+mark handL 4 7
+|.......
+|.......
+|.......
+|.qsrrq.
+|.qsrrq.
+|..qsrq.
+|..qsrq.
+|..qtsq.
+|..qsrq.
+|...qq..

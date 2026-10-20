@@ -1,0 +1,22 @@
+# head/adult/man/wince_heavy: a heavy man's wince: the mouth stretches and the jowls crease
+# P2b FACES (wave 2), over the generic hurt face (expr, z 2). Format: rpg/art/doll/doll.h.
+use person
+body man
+role head heavy
+layer face
+anchor head
+keys expr
+z 3
+tags overlay mirror-ok
+
+view D key hurt origin -4 -12
+|..MM....
+|r......r
+
+view R key hurt origin -9 -12
+|..M.
+|r...
+
+view L key hurt origin -1 -12
+|...M..
+|.....r

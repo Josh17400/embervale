@@ -1,0 +1,30 @@
+# head/adult/marks_scar: a fighter's scar: a pale skin-step-3 cut through the left brow and down the cheek under the eye
+# (the face's left, seen in the down and right views). P2b FACES (wave 2). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role marks scar
+layer face
+anchor head
+keys rest
+z 1
+tags overlay mirror-ok
+
+view D key rest origin -11 -8
+|t.
+|..
+|..
+|.t
+|t.
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -11 -8
+|t.
+|..
+|..
+|.t
+|t.
+
+view L key rest origin 0 0
+|.

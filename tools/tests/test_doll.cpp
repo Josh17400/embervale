@@ -27,7 +27,12 @@
 //   hair, beard, build, people, skin and sex, with and without each homeland; E the party, story people and statues as the
 //   world holds them), the share whose LOCO, DEATH (RUN when it may run, ACTION when armed) compose with nothing missing,
 //   the missing values by count, and the dead parts. --scope civil (default) leaves out armour, helms, shields and the
-//   culture weapon forms (P2c's). --gates: 100 % and 0 dead parts.
+//   culture weapon forms (P2c's). --gates: 100 % and 0 dead parts. (P2b fix r2) A census resident is dressed by the game's
+//   resident path (Game::dressAsResident). The dead parts count every recipe the game draws on the doll at rig 2: the
+//   coverage sources plus the roles (Game::makeLook), the towns, every archetype's musicians, the companions and the
+//   creator in worn gear, each look in the postures the game gives it (Reach, posesOf below); --scope civil lists the
+//   armour roles' parts and the parts only P2c-held looks want (armour, action families) as "P2c part"; --report names
+//   each counted source and why a dead part is not drawn.
 // --doll-variety: B7: per settlement of the seeds' start regions, the distinct head recipes (head type, nose, brows, hair
 //   style and colour, beard, headwear), the largest group sharing one, the hair styles and beards seen, head types per
 //   body, civilian garments per body. --gates: no recipe shared by more than 2 folk of a village or 3 % of a town or city;
@@ -43,6 +48,7 @@
 #include <vector>
 #include "rpg/art.h"
 #include "rpg/art/doll/doll.h"
+#include "rpg/art/doll/doll_internal.h"   // (B6) withPosture, the pool's part roles
 #include "rpg/culture/culture.h"
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
@@ -426,8 +432,19 @@ void gateAtlas(Gate& g) {   // B10
     L.hair = (art::Hair)(i % 8); L.hairVar = (uint8_t)(i % 3); L.topColor = rgba(40 + i * 9, 90, 160 - i * 4);
     looks.push_back(L);
   }
+  // (P2b fix r1, B10-ARMED-RUN-ATLAS) armed looks too: the A3 hero with his sword and an armed woman, every build; their
+  // RUN holds the sheathed run only (the drawn run is ACTION's walk variant 2), and ACTION stays in its 512 KB
+  const size_t nUnarmed = looks.size();
+  for (int i = 0; i < 6; i++) {
+    HumanLook L = bodyLook(i & 1, i % 3, (i / 2) % 3, 0);
+    L.weapon = 1;
+    looks.push_back(L);
+  }
+  looks.push_back(a3Hero());
   std::vector<double> v1ms, locoMs;
-  for (const HumanLook& L : looks) {
+  for (size_t li = 0; li < looks.size(); li++) {
+    const HumanLook& L = looks[li];
+    const bool armed = li >= nUnarmed;
     auto t0 = std::chrono::steady_clock::now();
     const Canvas s1 = art::humanSheet(L);
     v1ms.push_back(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
@@ -439,11 +456,100 @@ void gateAtlas(Gate& g) {   // B10
     locoMs.push_back(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
     (void)s1; (void)lo1;
     struct B { RigPart p; size_t kb; const char* n; };
-    for (const B& b : {B{RigPart::Loco, 128, "LOCO"}, B{RigPart::Run, 64, "RUN"}, B{RigPart::Death, 48, "DEATH"}}) {
+    for (const B& b : {B{RigPart::Loco, 128, "LOCO"}, B{RigPart::Run, 64, "RUN"}, B{RigPart::Death, 48, "DEATH"}, B{RigPart::Action, 512, "ACTION"}}) {
+      if (b.p == RigPart::Action && !armed) continue;
       const RigSheet s = doll::compose(r, b.p);
-      if (s.empty()) { g.bad(std::string(b.n) + ": no atlas"); continue; }
-      if (s.bytes() > b.kb * 1024) g.bad(std::string(b.n) + fmt(" %.0f KB (%.0f)", s.bytes() / 1024.0, (double)b.kb)); else g.ok();
+      const std::string who = std::string(armed ? "armed " : "") + doll::bodySetName(r.body) + fmt(" look %.0f ", (double)li);
+      if (s.empty()) { g.bad(who + b.n + ": no atlas"); continue; }
+      if (s.bytes() > b.kb * 1024) g.bad(who + b.n + fmt(" %.1f KB (%.0f)", s.bytes() / 1024.0, (double)b.kb)); else g.ok();
+      // the drawn run: in ACTION (walk variant 2, six frames a facing), never in RUN
+      if (armed && b.p == RigPart::Action)
+        for (int fc = 0; fc < 4; fc++) {
+          // (count and frame fall back to variant 0 for a missing variant: the drawn run is its own frames, not the walk's)
+          const art::FrameRect* f2 = s.frame(fc, Clip::Walk, 2, 0);
+          if (s.count(fc, Clip::Walk, 2) == 6 && f2 && f2 != s.frame(fc, Clip::Walk, 1, 0) && f2 != s.frame(fc, Clip::Walk, 0, 0)) g.ok();
+          else g.bad(who + fmt("ACTION facing %.0f: %.0f drawn-run frames (6 of its own)", fc, s.count(fc, Clip::Walk, 2)));
+        }
+      if (armed && b.p == RigPart::Run) {   // the sheathed run alone: six walk frames a facing, nothing else
+        int run0 = 0;
+        for (int fc = 0; fc < 4; fc++) run0 += s.count(fc, Clip::Walk, 0);
+        if (run0 == 24 && s.frames.size() == 24) g.ok();
+        else g.bad(who + fmt("RUN: %.0f frames, %.0f of them the sheathed run (24, 24)", (double)s.frames.size(), run0));
+      }
     }
+  }
+  if (g_report) {   // every armed body, build, people and age: the largest RUN and ACTION (the sample's worst case)
+    double worstRun = 0, worstAct = 0, runContent = 0;
+    std::string wr, wa;
+    for (int body = 0; body < 2; body++)
+      for (int age = 0; age < 4; age++)
+        for (int people = 0; people < 3; people++)
+          for (int build = 0; build < 3; build++) {
+            HumanLook L = bodyLook(body, build, people, age);
+            L.weapon = 1;
+            const doll::DollRecipe r = doll::resolve(L);
+            const RigSheet rs = doll::compose(r, RigPart::Run), as = doll::compose(r, RigPart::Action);
+            const std::string nm = std::string(doll::bodySetName(r.body)) + fmt(" age %.0f people %.0f build %.0f", age, people, build);
+            if (rs.bytes() / 1024.0 > worstRun) {
+              worstRun = rs.bytes() / 1024.0; wr = nm;
+              runContent = 0;
+              std::vector<std::pair<int, int>> seen;   // (the atlas keeps one copy of a repeated frame)
+              for (const art::FrameRect& f : rs.frames) {
+                if (std::find(seen.begin(), seen.end(), std::make_pair((int)f.x, (int)f.y)) != seen.end()) continue;
+                seen.emplace_back(f.x, f.y);
+                runContent += f.w * f.h * 4 / 1024.0;
+              }            }
+            if (as.bytes() / 1024.0 > worstAct) { worstAct = as.bytes() / 1024.0; wa = nm; }
+          }
+    std::printf("  B10 armed sweep: worst RUN %.1f KB (%s; frames %.1f KB), worst ACTION %.1f KB (%s)\n", worstRun, wr.c_str(), runContent, worstAct, wa.c_str());
+  }
+  // (P2b fix B10-CIVIL-STAFF-RUN-ATLAS) the civil trades carry their tool on the doll's LOCO and RUN (HumanLook::civil: the
+  // hunter's bow 3, the scholar's and lamplighter's staff 4, the smith's hammer 6, the elder's stick 9): every body, age,
+  // people and build with each, plus the widest scholars the census dresses (the conical hat; the legacy hood over
+  // pigtails and a robe), within LOCO 128, RUN 64, DEATH 48 and POSTURE 64 KB
+  {
+    std::vector<HumanLook> civ;
+    for (int weapon : {3, 4, 6, 9})
+      for (int body = 0; body < 2; body++)
+        for (int age = 0; age < 4; age++)
+          for (int people = 0; people < 3; people++)
+            for (int build = 0; build < 3; build++) {
+              HumanLook L = bodyLook(body, build, people, age);
+              L.weapon = (uint8_t)weapon; L.civil = 1;
+              civ.push_back(L);
+            }
+    for (int body = 0; body < 2; body++) {
+      HumanLook L = bodyLook(body, 0, 1, 0);   // the conical hat (LAISHAN's scholars, seed 3)
+      L.weapon = 4; L.civil = 1; L.outfit = art::Outfit::Robe; L.headwear = 7; L.neck = 3; L.cut = 2; L.pattern = 3;
+      L.hair = art::Hair::Long; L.hairVar = 0;
+      civ.push_back(L);
+      L = bodyLook(body, 0, 0, 0);             // the legacy hood over pigtails (JEI #285, seed 16)
+      L.weapon = 4; L.civil = 1; L.outfit = art::Outfit::Robe; L.hood = true; L.hair = art::Hair::Ponytail; L.hairVar = 2;
+      L.cut = 8; L.head = 1; L.pattern = 3;
+      civ.push_back(L);
+    }
+    double worst[4] = {};
+    std::string worstWho[4];
+    const char* names[4] = {"LOCO", "RUN", "DEATH", "POSTURE"};
+    const double kbs[4] = {128, 64, 48, 64};
+    int over = 0;
+    for (const HumanLook& L : civ) {
+      const doll::DollRecipe r = doll::resolve(L);
+      const std::string who = fmt("civil tool %.0f ", L.weapon) + doll::bodySetName(r.body) +
+                              fmt(" age %.0f people %.0f build %.0f", L.age, L.people, L.build) + (L.headwear ? " hat" : L.hood ? " hood" : "");
+      double kb[4] = {doll::compose(r, RigPart::Loco).bytes() / 1024.0, doll::compose(r, RigPart::Run).bytes() / 1024.0,
+                      doll::compose(r, RigPart::Death).bytes() / 1024.0, 0};
+      for (int p = 1; p < (int)art::Posture::COUNT; p++)
+        if ((art::Posture)p != art::Posture::Sleep) kb[3] = std::max(kb[3], doll::composePosture(r, (art::Posture)p, 0).bytes() / 1024.0);
+      for (int i = 0; i < 4; i++) {
+        if (kb[i] > worst[i]) { worst[i] = kb[i]; worstWho[i] = who; }
+        if (kb[i] > kbs[i]) { g.bad(who + " " + names[i] + fmt(" %.1f KB (%.0f)", kb[i], kbs[i])); over++; }
+        else g.ok();
+      }
+    }
+    if (g_report || over)
+      std::printf("  B10 civil tool sweep (%zu looks): worst LOCO %.1f (%s), RUN %.1f (%s), DEATH %.1f, POSTURE %.1f KB\n", civ.size(),
+                  worst[0], worstWho[0].c_str(), worst[1], worstWho[1].c_str(), worst[2], worst[3]);
   }
   for (int p = 1; p < (int)art::Posture::COUNT; p++) {
     if ((art::Posture)p == art::Posture::Sleep) continue;
@@ -657,45 +763,60 @@ RPG_TEST_CMD("--doll", "P2b doll contract [--parity: B1] [--gates: B1 B2 faces B
 
 // ---------------------------------------------------------------- the census (B6, B7)
 bool civil(const HumanLook& L) {
-  const bool armour = L.armorStyle || L.bodyForm || L.outfit == art::Outfit::Leather || L.outfit == art::Outfit::Chain || L.outfit == art::Outfit::Plate ||
+  // (P2b fix TRADES-DRAWN-ON-V1) a civil trade's leathers are its work clothes (HumanLook::civil): it is counted
+  const bool armour = L.armorStyle || L.bodyForm || (L.outfit == art::Outfit::Leather && !L.civil) || L.outfit == art::Outfit::Chain || L.outfit == art::Outfit::Plate ||
                       L.outfit == art::Outfit::Elven || L.outfit == art::Outfit::Ebony || L.outfit == art::Outfit::Guard;
   if (armour || L.helmet || L.helmStyle || L.helmForm || L.shield || L.shieldStyle || L.shieldForm) return false;
   if (L.bladeForm || L.polearmForm > 1 || L.bowForm || L.pauldron || L.skirt || L.crest || L.gloves || L.boots) return false;
   return true;
 }
-struct Who { HumanLook look; char src; std::string site; int tier = 0; };   // tier: 0 village, 1 town, 2 city
+// tier: 0 village, 1 town, 2 city; job: the census resident's life::Job (-1: none); role: the Role it was dressed as
+// (-1: none); music: its culture's (the bard's instrument); who: 'H' the hero, 'E' a companion, else 0
+struct Who {
+  HumanLook look; char src; std::string site; int tier = 0;
+  int job = -1, role = -1; char who = 0;
+  bool hasMusic = false; decltype(cult::Culture::music) music{};   // its culture's music (by value: the census Game is gone)
+  void culture(const cult::Culture* c) { hasMusic = c != nullptr; if (c) music = c->music; }
+  uint8_t traits = 0;   // the resident's life::TR_* (a sociable soul plays the tavern's tune when the bard is not free)
+};
 
+// (P2b fix r2, B6) the start region's census residents dressed by the GAME's resident path (Game::dressAsResident: the
+// TOWNSFOLK rules of dressResident: the lamplighter's pole, the smith's hammer, the census ages, the trades' garments,
+// the beggar's rags and marks, the small child's dots), never a mirror of it
 void censusA(uint64_t seed, std::vector<Who>& out, bool withResidents) {
   Game g(seed);
   g.newEndlessGame(seed);
   g.mode = Mode::Play;
   for (int f = 0; f < 60; f++) { g.update(SIM_DT, Input()); g.events.clear(); g.mode = Mode::Play; }
-  for (const Actor& x : g.actors) if (x.human) out.push_back({x.look, x.comp ? 'E' : 'A', "", 0});
+  for (const Actor& x : g.actors)
+    if (x.human) {
+      Who w{x.look, x.comp ? 'E' : 'A', "", 0};
+      w.role = (int)x.role;
+      w.culture(x.site >= 0 ? g.world.cultureOf(x.site) : nullptr);
+      w.who = x.player ? 'H' : x.comp ? 'E' : 0;
+      out.push_back(w);
+    }
   if (!withResidents) return;
   const Site& home = g.world.sites[(size_t)g.world.startSite];
   for (size_t si = 0; si < g.world.sites.size(); si++) {
     const Site& s = g.world.sites[si];
     if (s.type != SiteType::Village && s.type != SiteType::Town && s.type != SiteType::City) continue;
     if (std::abs(s.r.cx() - home.r.cx()) > 160 || std::abs(s.r.cy() - home.r.cy()) > 160) continue;
-    life::Census c;
-    life::buildCensus(g.world, (int)si, c);
+    g.world.ensureSiteRecords((int)si);   // (a site outside the window: its buildings, as the census needs them)
+    const life::Census* c = g.life.census(g.world, (int)si);
+    if (!c) continue;
     const int tier = s.type == SiteType::Village ? 0 : s.type == SiteType::Town ? 1 : 2;
-    for (const life::Resident& r : c.res) {
+    const cult::Culture* C = g.world.cultureOf((int)si);
+    for (size_t idx = 0; idx < c->res.size(); idx++) {
       Actor a;
-      a.human = true; a.site = (int)si; a.role = life::jobRole(r.job);
-      for (uint32_t k = 0; k < 12; k++) {   // (life_game.cpp dressResident: the look from the resident's seed, its census sex)
-        Rng rr(r.lookSeed + k * 7919u);
-        Rng probe = rr;
-        const bool fem = probe.f() < 0.45f;
-        if (fem != r.female && k + 1 < 12) continue;
-        HomeOps::makeLook(g, a, a.role, rr);   // (Game::makeLook through its friend)
-        break;
-      }
-      if (r.job == life::Job::Beggar) a.look.outfit = art::Outfit::Rags;
-      // the census ages (VISION_PLAN 15.36: youth for children aged 10-14, elder from 60 or Job::Elder)
-      if (r.job == life::Job::Child) a.look.age = (r.age >= 10 && r.age <= 14) ? 2 : 1;
-      else if (r.job == life::Job::Elder || r.age >= 60) a.look.age = 3;
-      out.push_back({a.look, 'A', s.name, tier});
+      a.human = true;
+      if (!g.dressAsResident(a, s.id, (int)idx)) continue;
+      Who w{a.look, 'A', s.name, tier};
+      w.job = (int)c->res[idx].job;
+      w.role = (int)life::jobRole(c->res[idx].job);
+      w.traits = c->res[idx].traits;
+      w.culture(C);
+      out.push_back(w);
     }
   }
 }
@@ -746,6 +867,244 @@ void censusD(uint64_t seed, std::vector<Who>& out) {
               }
 }
 
+// ---------------------------------------------------------------- (P2b fix r2) B6's dead parts: every source drawn
+// A part is alive when a recipe the GAME draws on the doll at rig 2 uses it: a look the game dresses (each source below)
+// that art::rig2Covers (else the view draws it on v1, and none of its parts is drawn), and each posture the game puts that
+// look in that the doll covers (render.cpp rigPoseTex: dollCoversPosture, else v1) with the posture's prop in hand
+// (doll_internal.h withPosture). The sources:
+//   residents  the start region's census through the game's resident path (Game::dressAsResident), each in its job's
+//              postures; the world's humans after 60 frames (the hero, the key persons, the companions)
+//   cultures   every culture of the seed x every role x both sexes x the ages (census::dress, as Game::makeLook calls it)
+//   roles      Game::makeLook itself for every role at one settlement of each culture and each kingdom's capital (the
+//              key persons, the wayside, the harbour, the court: the tool or weapon each role carries, the hoods and
+//              capes), in the role's trade postures
+//   creator    the character creator's looks (hair, beard, build, people, skin, sex, homeland)
+//   gear       the creator's looks in worn gear (wearGear: each weapon type, the staff, the bow, each cloak, the
+//              amulet and the ring), as the hero and a companion are drawn, in the hero's postures (kneel, ride, row)
+//   companions census residents recruited (party_recruit.cpp: the vocation's weapon), in the hero's postures
+//   towns      every culture's first village, town and city through the resident path (the trades a start region
+//              lacks), in their jobs' postures
+//   peoples    every archetype's people (cult::Atlas::make): its musicians in their people's instruments
+// --scope civil lists the parts only P2c's armour roles serve (armour, helm, shield, pauldron) apart: P2c's census
+// reaches them (--scope all counts them dead).
+using art::Posture;
+struct PoseUse { Posture p; uint8_t v; };
+uint64_t lookKey(const HumanLook& L) {
+  return L.key() ^ (uint64_t)L.head << 7 ^ (uint64_t)L.hairVar << 13 ^ (uint64_t)L.age << 19 ^ (uint64_t)L.garb << 23 ^ (uint64_t)L.civil << 31;
+}
+// the postures the game gives a person (life_game.cpp): the everyday seats (chair and floor), meals, prayers and
+// greetings; the grown-ups' tavern (a drink, a toast, a dance); the children's games; the trade's work postures by job
+// (beginAct's field hoe, rod, axe and pick, the labourer's load, the sweepers; workAt's anvil, oven, lectern, altar and
+// workbench; the lamplighter's round, the beggar's bowl); the bard's instrument by his people's music (render_anim.cpp's
+// variant: the drum by MusicStyle::perc, else bardVariant); the hero's and a companion's kneel (binding wounds), ride,
+// row and downed (party_game.cpp, home). At rig 2 the view gives each carrier his own load (sack, basket, crate) and
+// the musician his people's drum one tune in three (render_anim.cpp).
+void posesOf(const Who& w, std::vector<PoseUse>& out) {
+  out.clear();
+  auto add = [&](Posture p, uint8_t v = 0) { out.push_back({p, v}); };
+  for (Posture p : {Posture::Sit, Posture::SitEat, Posture::SitFloor, Posture::SitFloorEat, Posture::Eat, Posture::Wave, Posture::Pray}) add(p);
+  if (w.look.age == 1 || w.look.age == 2) { add(Posture::Play); add(Posture::Dance); return; }
+  for (Posture p : {Posture::SitDrink, Posture::SitFloorDrink, Posture::Drink, Posture::Cheer, Posture::Dance}) add(p);
+  if (w.who == 'H' || w.who == 'E') for (Posture p : {Posture::Kneel, Posture::Ride, Posture::Row, Posture::Downed}) add(p);
+  using J = life::Job;
+  J job = w.job >= 0 ? (J)w.job : J::COUNT;
+  if (job == J::COUNT && w.role >= 0) switch ((Role)w.role) {   // a role's trade (life::jobRole inverted)
+      case Role::Smith: case Role::Shipwright: job = J::Smith; break;
+      case Role::Farmer: job = J::Farmer; break;
+      case Role::Fisher: job = J::Fisher; break;
+      case Role::Innkeeper: job = J::Innkeeper; break;
+      case Role::Merchant: job = J::Merchant; break;
+      case Role::Priest: job = J::Priest; break;
+      case Role::Mage: job = J::Scholar; break;
+      case Role::Jarl: job = J::Noble; break;
+      default: break;
+    }
+  switch (job) {
+    case J::Farmer: add(Posture::Hoe); break;
+    case J::Fisher: add(Posture::Fish); break;
+    case J::Woodcutter: add(Posture::Chop); break;
+    case J::Miner: add(Posture::Hammer); add(Posture::Chop); break;
+    case J::Smith: add(Posture::Hammer); add(Posture::Sweep); break;
+    case J::Baker: add(Posture::Stir); add(Posture::Sweep); break;
+    case J::Scholar: add(Posture::Read); break;
+    case J::Lamplighter: add(Posture::Lamp); break;
+    case J::Beggar: add(Posture::Beg); break;
+    case J::Labourer: for (uint8_t v = 0; v < 3; v++) add(Posture::Carry, v); break;   // (rig 2: each carrier's own load)
+    case J::Servant: case J::Server: case J::Stablehand: case J::Innkeeper: case J::Merchant: add(Posture::Sweep); break;
+    default: break;
+  }
+  // the evening's musician (life_game.cpp tavern night: the town's bard if free, else a sociable soul) plays his people's
+  // lead (Act::Perform: bardPosture), the view's variant by its music (render_anim.cpp)
+  if (job == J::Bard || (w.job >= 0 && (w.traits & life::TR_SOCIABLE))) {
+    if (w.hasMusic) {
+      const Posture bp = art::bardPosture(w.music);
+      add(bp, bp == Posture::Drum ? (uint8_t)w.music.perc : art::bardVariant(w.music));
+      // (rig 2) one tune in three on his people's drum (render_anim.cpp)
+      if (bp != Posture::Drum && w.music.perc != PercKind::None) add(Posture::Drum, (uint8_t)w.music.perc);
+    } else add(Posture::Lute, 0);
+  }
+}
+struct Reach {
+  struct Src { int looks = 0, doll = 0, poses = 0, only = 0; };
+  std::vector<std::string> names;
+  std::vector<Src> src;
+  std::vector<uint32_t> partMask;   // which sources reached each part
+  std::set<std::pair<uint64_t, int>> seenLook;
+  std::set<uint64_t> seenPose;
+  std::vector<PoseUse> poses;
+  int id(const char* name) {
+    for (size_t i = 0; i < names.size(); i++) if (names[i] == name) return (int)i;
+    names.push_back(name); src.push_back({});
+    return (int)names.size() - 1;
+  }
+  void mark(const doll::DollRecipe& r, int s) {
+    doll::markReached(r);
+    if (partMask.size() < (size_t)doll::partCount()) partMask.resize((size_t)doll::partCount(), 0);
+    for (int p : r.parts) if (p >= 0 && (size_t)p < partMask.size()) partMask[(size_t)p] |= 1u << s;
+  }
+  // why a part a source wants is not drawn (the first look or posture that wanted it, and what it lacks); wait: the
+  // parts wanted only by looks that P2c's scope holds back (armour, helms, shields, the action families: VISION_PLAN
+  // 15.36 "Armour, helms, shields and the action families are P2c's"), with the first such look's P2c need
+  std::map<int, std::string> why, wait;
+  static bool p2cNeed(const doll::Missing& m) {
+    if (m.role == doll::Role::Armour || m.role == doll::Role::Helm || m.role == doll::Role::Shield || m.role == doll::Role::Pauldron) return true;
+    return m.role == doll::Role::Body && m.value.find("action") != std::string::npos;
+  }
+  static bool p2cHeld(const std::vector<doll::Missing>& m) {
+    if (m.empty()) return false;
+    for (const doll::Missing& x : m) if (!p2cNeed(x)) return false;
+    return true;
+  }
+  void wanted(const doll::DollRecipe& r, const std::vector<doll::Missing>& m, const char* source, const char* what) {
+    std::map<int, std::string>& to = p2cHeld(m) ? wait : why;
+    for (int p : r.parts) {
+      if (to.count(p)) continue;
+      to[p] = std::string(source) + " " + what + (m.empty() ? std::string(": not drawn") : ": " + m[0].what());
+    }
+  }
+  void add(const Who& w, const char* source) {
+    const int s = id(source);
+    const uint64_t k = lookKey(w.look);
+    if (!seenLook.insert({k, s}).second) return;
+    src[(size_t)s].looks++;
+    const doll::DollRecipe r = doll::resolve(w.look);
+    if (!art::rig2Covers(w.look)) {   // drawn on v1 (render.cpp rigTex): none of its doll parts is drawn
+      const std::vector<doll::Missing> m = doll::dollMissing(w.look);
+      wanted(r, m, source, "look drawn on v1");
+      if (p2cHeld(m)) {   // its postures' props wait on P2c with it
+        posesOf(w, poses);
+        for (const PoseUse& u : poses) wanted(doll::withPosture(r, u.p, u.v), m, source, "look drawn on v1");
+      }
+      return;
+    }
+    src[(size_t)s].doll++;
+    mark(r, s);
+    posesOf(w, poses);
+    for (const PoseUse& u : poses) {
+      const uint64_t pk = (k * 0x9E3779B97F4A7C15ull) ^ ((uint64_t)u.p + 1) << 40 ^ (uint64_t)u.v << 52 ^ (uint64_t)s << 58;
+      if (!seenPose.insert(pk).second) continue;
+      if (!doll::dollCoversPosture(w.look, u.p, u.v)) {   // drawn on v1 (render.cpp rigPoseTex)
+        wanted(doll::withPosture(r, u.p, u.v), doll::dollMissingPosture(w.look, u.p, u.v), source, "posture drawn on v1");
+        continue;
+      }
+      src[(size_t)s].poses++;
+      mark(doll::withPosture(r, u.p, u.v), s);
+    }
+  }
+};
+// a part only P2c's armour serves (every role it takes is armour, helm, shield or pauldron)
+bool p2cPart(int part) {
+  const auto& P = doll::pool::get();
+  if (part < 0 || (size_t)part >= P.parts.size() || P.parts[(size_t)part].roles.empty()) return false;
+  for (const auto& rr : P.parts[(size_t)part].roles) {
+    const doll::Role ro = (doll::Role)rr.cat;
+    if (ro != doll::Role::Armour && ro != doll::Role::Helm && ro != doll::Role::Shield && ro != doll::Role::Pauldron) return false;
+  }
+  return true;
+}
+// the creator's look in worn heartland gear (wearGear), by its index: each weapon type, the staff, the bow; each cloak
+// (a cloak, a fur mantle, a fine cloak of tier 3); the amulet and the ring on every other look
+HumanLook gearLook(const HumanLook& base, size_t i) {
+  HumanLook L = base;
+  Item wpn, staff, bow, cloak, ring, amulet;
+  WornGear wg;
+  const int w = (int)(i % 9u), c = (int)(i / 9u % 4u);
+  if (w >= 1 && w <= (int)WeaponType::COUNT) { wpn.kind = ItemKind::Weapon; wpn.sub = (uint8_t)(w - 1); wpn.name = "IRON"; wg.weapon = &wpn; }
+  if (w == 7) { staff.kind = ItemKind::Staff; staff.name = "STAFF"; wg.staff = &staff; }
+  if (w == 8) { bow.kind = ItemKind::Bow; bow.name = "BOW"; wg.bow = &bow; }
+  if (c) {
+    cloak.kind = ItemKind::Cloak;
+    cloak.name = c == 2 ? "FUR MANTLE" : "CLOAK";
+    cloak.tier = (uint8_t)(c == 3 ? 3 : 0);
+    wg.cloak = &cloak;
+  }
+  if (i & 1) { ring.kind = ItemKind::Ring; amulet.kind = ItemKind::Amulet; wg.ring = &ring; wg.amulet = &amulet; }
+  wearGear(L, wg, CultureLookup());
+  return L;
+}
+// every people the world generator makes (cult::Atlas::make for each archetype): its musicians (a bard and a sociable
+// soul of each sex, census::dress) in their people's instruments, the instruments a seed range may never roll
+void censusM(uint64_t seed, std::vector<Who>& out) {
+  for (int ar = 0; ar < (int)cult::Archetype::COUNT; ar++) {
+    const cult::Culture C = cult::Atlas::make((cult::Archetype)ar, (uint32_t)(seed * 2654435761u + (uint64_t)ar));
+    for (int female = 0; female < 2; female++)
+      for (uint64_t ps = 0; ps < 2; ps++) {
+        HumanLook L;
+        std::string name;
+        census::dress(L, name, Role::Villager, female != 0, C, C, 7919u * (ps + 1) ^ C.id ^ (uint64_t)ar << 40, census::Rank{});
+        Who w{L, 'M', "", 0};
+        w.job = (int)(ps ? life::Job::Bard : life::Job::Farmer);
+        w.traits = ps ? 0 : life::TR_SOCIABLE;
+        w.culture(&C);
+        out.push_back(w);
+      }
+  }
+}
+// Game::makeLook for every role at one settlement of each culture and at each kingdom's capital
+void censusK(uint64_t seed, std::vector<Who>& out) {
+  Game g(seed);
+  g.newEndlessGame(seed);
+  std::set<uint64_t> seen;
+  for (size_t si = 0; si < g.world.sites.size(); si++) {
+    const Site& s = g.world.sites[si];
+    if (!s.settlement()) continue;
+    const cult::Culture* C = g.world.cultureOf((int)si);
+    if (!s.capital && (!C || !seen.insert(C->id).second)) continue;
+    for (int role = 0; role < (int)Role::COUNT; role++)
+      for (int slot = 0; slot < 6; slot++) {
+        Actor a;
+        a.human = true; a.site = (int)si; a.slot = slot; a.bldg = -1;
+        Rng rr(seed * 1000003u ^ (uint64_t)si * 7919u ^ (uint64_t)role * 131u ^ (uint64_t)slot * 104729u);
+        HomeOps::makeLook(g, a, (Role)role, rr);
+        Who w{a.look, 'K', "", 0};
+        w.role = role; w.culture(C);
+        out.push_back(w);
+      }
+  }
+  // the towns: every culture's first village, town and city, its census dressed by the game's resident path (the trades
+  // a start region lacks: the baker, the bard and his people's instrument, the scholar, the lamplighter, the beggar)
+  std::set<std::pair<uint64_t, int>> kinds;
+  for (size_t si = 0; si < g.world.sites.size(); si++) {
+    const Site& s = g.world.sites[si];
+    const cult::Culture* C = g.world.cultureOf((int)si);
+    if (!s.settlement() || !C || !kinds.insert({C->id, (int)s.type}).second) continue;
+    g.world.ensureSiteRecords((int)si);
+    const life::Census* c = g.life.census(g.world, (int)si);
+    if (!c) continue;
+    for (size_t idx = 0; idx < c->res.size(); idx++) {
+      Actor a;
+      a.human = true;
+      if (!g.dressAsResident(a, s.id, (int)idx)) continue;
+      Who w{a.look, 'T', s.name, 0};
+      w.job = (int)c->res[idx].job;
+      w.role = (int)life::jobRole(c->res[idx].job);
+      w.traits = c->res[idx].traits;
+      w.culture(C);
+      out.push_back(w);
+    }
+  }
+}
+
 int coverageCmd(int argc, char** argv) {
   bool gates = false, all = false;
   uint64_t a = 1, b = 3;
@@ -759,22 +1118,49 @@ int coverageCmd(int argc, char** argv) {
   const int was = art::rigVersion();
   art::setRigVersion(2);
   doll::clearReached();
+  Reach reach;
   std::map<std::string, int> missing;
   std::map<char, std::pair<int, int>> bySrc;   // covered / total
   int total = 0, covered = 0;
   std::set<uint64_t> done;
+  const auto t0 = std::chrono::steady_clock::now();
   for (uint64_t s = a; s <= b; s++) {
     std::vector<Who> looks;
     censusA(s, looks, true);
     censusB(s, looks);
     if (s == a) censusD(s, looks);
+    std::vector<Who> extra;   // (the dead parts' sources beyond the coverage census)
+    censusK(s, extra);
+    censusM(s, extra);
+    size_t ci = 0;
+    for (const Who& w : looks) {
+      if (w.src == 'A' && !w.site.empty() && w.look.age != 1 && w.look.age != 2) {   // a resident recruited
+        static const uint8_t voc[4] = {1, 2, 3, 4};   // sword (fighter), axe (rogue), bow (archer), staff (mage)
+        Who e = w;
+        e.look.weapon = voc[ci++ % 4u];
+        e.src = 'E'; e.who = 'E';
+        extra.push_back(e);
+      }
+      if (w.src == 'D') {
+        Who h = w;
+        for (size_t gi = 0; gi < 2; gi++) {   // each creator look in two gear sets of the 36
+          h.look = gearLook(w.look, ci * 2 + gi);
+          h.src = 'G'; h.who = (gi & 1) ? 'E' : 'H';
+          extra.push_back(h);
+        }
+        ci++;
+      }
+    }
+    for (const Who& w : looks)
+      reach.add(w, w.src == 'B' ? "cultures" : w.src == 'D' ? "creator" : w.site.empty() ? "world" : "residents");
+    for (const Who& w : extra)
+      reach.add(w, w.src == 'K' ? "roles" : w.src == 'T' ? "towns" : w.src == 'M' ? "peoples" : w.src == 'G' ? "gear" : "companions");
     for (const Who& w : looks) {
       if (!all && !civil(w.look)) continue;
       // (each distinct look once: the census repeats many)
-      const uint64_t k = w.look.key() ^ (uint64_t)w.look.head << 7 ^ (uint64_t)w.look.hairVar << 13 ^ (uint64_t)w.look.age << 19 ^ (uint64_t)w.look.garb << 23;
+      const uint64_t k = lookKey(w.look);
       if (!done.insert(k).second) continue;
       total++;
-      doll::markReached(doll::resolve(w.look));
       const std::vector<doll::Missing> m = doll::dollMissing(w.look);
       bySrc[w.src].second++;
       if (m.empty()) { covered++; bySrc[w.src].first++; continue; }
@@ -785,19 +1171,50 @@ int coverageCmd(int argc, char** argv) {
       }
     }
   }
-  const std::vector<std::string> dead = doll::deadParts();
+  std::vector<std::string> dead, p2c;
+  {
+    const std::vector<std::string> d = doll::deadParts();
+    const std::set<std::string> ds(d.begin(), d.end());
+    for (int p = 0; p < doll::partCount(); p++) {
+      if (!ds.count(doll::partName(p))) {   // alive: the sources that reach it (a part one source alone reaches)
+        const uint32_t m = (size_t)p < reach.partMask.size() ? reach.partMask[(size_t)p] : 0;
+        for (size_t s = 0; s < reach.names.size(); s++) if (m == (1u << s)) reach.src[s].only++;
+        continue;
+      }
+      const bool waits = reach.wait.count(p) && !reach.why.count(p);   // wanted only by looks P2c holds back
+      if (!all && (p2cPart(p) || waits)) {
+        p2c.push_back(std::string(doll::partName(p)) + (p2cPart(p) ? " (armour)" : " (waits on P2c: " + reach.wait[p] + ")"));
+        continue;
+      }
+      dead.push_back(doll::partName(p));
+    }
+  }
   art::setRigVersion(was);
+  const double secs = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
   const double share = total ? 100.0 * covered / total : 0.0;
   std::printf("B6 doll coverage (%s, seeds %llu..%llu): %d of %d distinct looks covered (%.1f %%)", all ? "all" : "civil", (unsigned long long)a,
               (unsigned long long)b, covered, total, share);
   for (const auto& kv : bySrc) std::printf("; %c %d/%d", kv.first, kv.second.first, kv.second.second);
-  std::printf("; %zu dead part(s)\n", dead.size());
+  std::printf("; %zu dead part(s)", dead.size());
+  if (!all) std::printf("; %zu P2c part(s) apart", p2c.size());
+  std::printf(" (%.0f s)\n", secs);
+  for (size_t s = 0; s < reach.names.size(); s++)
+    if (g_report)
+      std::printf("  counted source: %-10s %6d looks, %6d drawn on the doll, %6d posture recipes; %3d parts it alone reaches\n", reach.names[s].c_str(),
+                  reach.src[s].looks, reach.src[s].doll, reach.src[s].poses, reach.src[s].only);
   std::vector<std::pair<int, std::string>> top;
   for (const auto& kv : missing) top.push_back({kv.second, kv.first});
   std::sort(top.begin(), top.end(), [](const auto& x, const auto& y) { return x.first != y.first ? x.first > y.first : x.second < y.second; });
   for (size_t i = 0; i < top.size() && (g_report || i < 25); i++) std::printf("  missing in %5d looks: %s\n", top[i].first, top[i].second.c_str());
   if (top.size() > 25 && !g_report) std::printf("  ... %zu more (--report)\n", top.size() - 25);
-  for (size_t i = 0; i < dead.size() && (g_report || i < 10); i++) std::printf("  dead part: %s\n", dead[i].c_str());
+  for (size_t i = 0; i < dead.size() && (g_report || i < 10); i++) {
+    int p = -1;
+    for (int q = 0; q < doll::partCount() && p < 0; q++) if (dead[i] == doll::partName(q)) p = q;
+    const auto it = reach.why.find(p);
+    const std::string why = it != reach.why.end() ? it->second : "no source asks for it";
+    std::printf("  dead part: %s%s%s%s\n", dead[i].c_str(), g_report ? " (" : "", g_report ? why.c_str() : "", g_report ? ")" : "");
+  }
+  for (size_t i = 0; i < p2c.size() && g_report; i++) std::printf("  P2c part: %s\n", p2c[i].c_str());
   if (gates && (share < 100.0 || !dead.empty())) { std::printf("FAIL: B6 %.1f %% covered (100), %zu dead parts (0)\n", share, dead.size()); return 1; }
   return 0;
 }

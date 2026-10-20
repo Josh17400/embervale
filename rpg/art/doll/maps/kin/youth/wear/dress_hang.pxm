@@ -1,0 +1,237 @@
+# kin/youth/wear/dress_hang: the youth girl's dress skirt from the waist to the ankles with A3's apron (cloth 3, pleated,
+# its lower edge in shadow) over the front; the lit hem band and the dark under-edge, the shoe tips (legs tips) under it.
+# KIN-YOUTH (P2b fix round 1). Format: rpg/art/doll/doll.h. Keys as robe_hang: rest (front and back: the bottom rows
+# swing a pixel with the walk, sway 4), wide (the side walk's contact and down: the hem opens front and back), flare
+# (the run), kneel (the fall's buckle: two rows shorter), lie (lying: the left view draped), sit and floor (postures).
+# The apron's columns line up with the bib (dress.pxm) in every facing; the back shows the apron's tie strings.
+use person woman
+body youth
+role garment dress
+layer hangFront
+anchor hip
+keys hang
+sway 4
+
+view D key rest origin 6 0
+|..58DCCB65..|
+|.587DCCBC65.|
+|.587DCBCB65.|
+|5877DCBCB765|
+|5876ADBDA765|
+|58766AAA6765|
+|598888877765|
+|.5555555555.|
+
+view D key wide origin 6 0
+|..58DCCB65..|
+|.587DCCBC65.|
+|.587DCBCB65.|
+|5877DCBCB765|
+|5876ADBDA765|
+|58766AAA6765|
+|598888877765|
+|.5555555555.|
+
+view D key flare origin 7 0
+|...58DCCB65...|
+|..587DCCBC65..|
+|.5877DCBCB765.|
+|.5876DCBCB765.|
+|58876ADBDA7665|
+|588766AAA67665|
+|59888888777765|
+|.555555555555.|
+
+view D key kneel origin 7 0
+|...58DCCB65...|
+|.5877DCBCB765.|
+|58876ADBDA7665|
+|588766AAA67665|
+|59888888777765|
+|.555555555555.|
+
+view U key rest origin 6 0
+|..587B7A65..|
+|.5877B7A665.|
+|.5877677665.|
+|588776776655|
+|588776776655|
+|588776776655|
+|598888877765|
+|.5555555555.|
+
+view U key wide origin 6 0
+|..587B7A65..|
+|.5877B7A665.|
+|.5877677665.|
+|588776776655|
+|588776776655|
+|588776776655|
+|598888877765|
+|.5555555555.|
+
+view U key flare origin 7 0
+|...587B7A65...|
+|..5877B7A665..|
+|.588776776655.|
+|.588776776655.|
+|58887767766655|
+|58887767766655|
+|59888888777765|
+|.555555555555.|
+
+view U key kneel origin 7 0
+|...587B7A65...|
+|.588776776655.|
+|58887767766655|
+|58887767766655|
+|59888888777765|
+|.555555555555.|
+
+view R key rest origin 5 0
+|.5877BCDA..|
+|.5877BCCDA.|
+|58776BCCCDA|
+|58767BCBCDA|
+|58767ADBDDA|
+|587677AAAA5|
+|59888887765|
+|.555555555.|
+
+view R key wide origin 6 0
+|..5877BCDA..|
+|..5877BCCDA.|
+|.58776BCCCDA|
+|587677BCBCDA|
+|587677ADBDDA|
+|5876777AAAA5|
+|598888877765|
+|.5555555555.|
+
+view R key flare origin 7 0
+|...5877BCDA..|
+|...5877BCCDA.|
+|..58776BCCCDA|
+|.587767BCCCDA|
+|5887677ADBDDA|
+|58876777AAA65|
+|5988888777765|
+|.55555555555.|
+
+view R key kneel origin 6 0
+|..5877BCDA..|
+|.58767BCCCDA|
+|587677ADBDDA|
+|5876777AAAA5|
+|598888877765|
+|.5555555555.|
+
+view L key rest origin 6 0
+|..ADCB7765.|
+|.ADCCB7765.|
+|ADCCCB77665|
+|ADCBCB76765|
+|ADDBDA76765|
+|5AAAA767665|
+|59888887765|
+|.555555555.|
+
+view L key wide origin 6 0
+|..ADCB7765..|
+|.ADCCB7765..|
+|ADCCCB77665.|
+|ADCBCB767665|
+|ADDBDA767665|
+|5AAAA7767665|
+|598888877765|
+|.5555555555.|
+
+view L key flare origin 6 0
+|..ADCB7765...|
+|.ADCCB7765...|
+|ADCCCB77665..|
+|ADCCCB777665.|
+|ADDBDA7776655|
+|5AAA777767665|
+|5988888777765|
+|.55555555555.|
+
+view L key kneel origin 6 0
+|..ADCB7765..|
+|ADCCCB76765.|
+|ADDBDA767665|
+|5AAAA7767665|
+|598888877765|
+|.5555555555.|
+
+view L key lie origin 6 0
+|..ADCB7765.|
+|.ADCCB7765.|
+|ADCCCB77665|
+|ADCBCB76765|
+|ADDBDA76765|
+|5AAAA767665|
+|59888887765|
+|.555555555.|
+
+# ---- postures: sit (seated on a chair: the skirt and the apron over the lap, then down the front over the shins),
+# floor (cross-legged: pooled over the lap, three rows over the floor, the apron in front)
+view D key sit origin 7 0
+|...58DCCB65...|
+|..587DCCBC65..|
+|.5877DCBCB765.|
+|.5876DCBCB765.|
+|58876ADBDA7665|
+|588766AAA67665|
+|59888888777765|
+|.555555555555.|
+
+view U key sit origin 7 0
+|...587B7A65...|
+|..5877B7A665..|
+|.588776776655.|
+|.588776776655.|
+|58887767766655|
+|58887767766655|
+|59888888777765|
+|.555555555555.|
+
+view R key sit origin 4 0
+|.588777DDDDA..|
+|58887777CCCCDA|
+|59888888BCCCDA|
+|.......576BCDA|
+|.......576BCDA|
+|.......5766AA5|
+|.......5988765|
+|........55555.|
+
+view L key sit origin 10 0
+|..ADDDD777665.|
+|ADCCCC77766655|
+|ADCCCB88777765|
+|ADCB765.......|
+|ADCB765.......|
+|5AA6765.......|
+|5988765.......|
+|.55555........|
+
+view D key floor origin 9 0
+|...5887DCCB7665...|
+|..58887DCBCB6665..|
+|..598888AAAA7765..|
+
+view U key floor origin 9 0
+|...588877776665...|
+|..58888777766665..|
+|..59888888777765..|
+
+view R key floor origin 5 0
+|.58887BCDA.|
+|5888777BCDA|
+|598888AAAA5|
+
+view L key floor origin 6 0
+|.ADCB7765..|
+|ADCCB777665|
+|5AAAA888765|

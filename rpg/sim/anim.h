@@ -26,8 +26,8 @@ struct AnimPick {
   float t = 0;           // seconds into the clip (the actor's state time; the walk's distance clock for Walk)
   // (P2b FOLK-SIM, added) rig 2: the atlas part that holds the frame (rig 1: Loco), the gait and the weapon's state.
   //   Loco    idle, walk and hurt with any weapon sheathed (variant 0)
-  //   Run     the run cycle (clip Walk) above the gait switch: variant 0 sheathed, 1 drawn
-  //   Action  the drawn idle and walk (clips Idle / Walk, variant 1), the swings, cast, the bow, block and roll
+  //   Run     the run cycle (clip Walk) above the gait switch: variant 0 sheathed (the drawn run: ACTION walk variant 2)
+  //   Action  the drawn idle and walk (clips Idle / Walk, variant 1), the drawn run (Walk variant 2), the swings, cast, the bow, block and roll
   //   Death   fall and lying
   art::RigPart part = art::RigPart::Loco;
   uint8_t gait = 0;      // 0 walk, 1 run (art::doll::Gait)

@@ -1,0 +1,28 @@
+# kin/child/face/paint_mask: the child's face paint: a band across the brow and down beside the eyes (the accent; the people's own paint)
+# (KIN-CHILD, P2b wave 2; the child, STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person
+body child
+role paint mask
+layer face
+anchor head
+keys rest
+z 3
+tags overlay mirror-ok
+
+view D key rest origin -1 -4
+|nnnnnnnnnn
+|n........n
+|n........n
+|n........n
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -6 -4
+|nnnnnn
+|n.....
+
+view L key rest origin -1 -4
+|nnnnnn
+|.....n
+

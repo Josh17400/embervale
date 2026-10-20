@@ -1,0 +1,26 @@
+# head/adult/paint_sun: a sun mark: a small gilt disc with rays on the brow between the eyes
+# P2b FACES (wave 2). Format: rpg/art/doll/doll.h.
+use person
+body adult youth
+role paint sun
+layer face
+anchor head
+keys rest
+z 2
+tags overlay mirror-ok
+
+view D key rest origin -6 -7
+|.PO.
+|POON
+|.ON.
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -12 -7
+|P.
+|ON
+
+view L key rest origin -2 -7
+|.P
+|PO

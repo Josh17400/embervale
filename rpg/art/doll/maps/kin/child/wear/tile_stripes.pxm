@@ -1,0 +1,15 @@
+# kin/child/wear/tile_stripes: the child's stripes pattern (stripes a row apart): a tile laid over the garment's cloth in the pattern
+# slot, the cloth's shading kept (tags tile; doll.h). Child-sized: the adult's period halved where it would crowd 6 rows.
+use person
+body child
+role overlay stripes
+legend X pattern 2
+layer torso
+anchor neck
+keys rest
+tags tile
+
+view D key rest origin 0 0
+|X
+|.
+|.

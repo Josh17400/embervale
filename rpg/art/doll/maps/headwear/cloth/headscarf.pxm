@@ -1,0 +1,89 @@
+# headwear/cloth/headscarf: the Headscarf (OUTER, P2b wave 2): a kerchief drawn over the crown with a lit front hem, the hairline
+# and the hair below it showing, tied at the nape in a knot whose two tails hang behind. Mask: the hair's top rows.
+# Format: rpg/art/doll/doll.h.
+use person
+body adult
+role headwear headscarf
+layer headwear
+anchor head
+keys hatpose
+legend Q head 0
+legend R head 1
+legend S head 2
+legend T head 3
+legend U head 4
+
+view D key rest origin 0 0
+|.....QQQQQQ.....
+|...QQTUUTTSQQ...
+|..QTUUTTTSSSRQ..
+|.QTUTTTSSSSSRRQ.
+|.QTTTSSSSSSSRRQ.
+|QTUUTTTTTTSSSRRQ
+|QTTSQQQQQQQQQSRQ
+|QTSQ........QSRQ
+|QTQ..........QRQ
+|.Q............Q.
+
+view U key rest origin 0 0
+|.....QQQQQQ.....
+|...QQTUUTTSQQ...
+|..QTUUTTTSSSRQ..
+|.QTUTTTSSSSSRRQ.
+|.QTTTSSSSSSSRRQ.
+|QTTTSSSSSSSSSRRQ
+|QTTSSSSSSSSSRRRQ
+|QTTSSSSSSSSSRRRQ
+|.QTTSSSQQSSRRRQ.
+|..QQQSQTSQSRQQ..
+|.....QTUTSRQ....
+|.....QTSQSRQ....
+|.....QTSQQRQ....
+|.....QTQ.QSQ....
+|......Q...QQ....
+
+view R key rest origin 2 0
+|.......QQQQQQ......
+|.....QQTUUTTSQQ....
+|....QTUUUTTSSSSQ...
+|...QTUUTTTSSSSSSQ..
+|..QTUTTTSSSSSSSSQ..
+|.QTTSSSSSSSSTTTTTQ.
+|.QTSSSSSSSSRQQQQQQ.
+|QTTSSSSSSRQ........
+|QTTQQSSSRQ.........
+|QTUTQSSRQ..........
+|QTSTQQQQ...........
+|QTSSQ..............
+|QTSRQ..............
+|.QSQ...............
+|..Q................
+
+view L key rest origin 1 0
+|......QQQQQQ.......
+|....QQTUUTTSQQ.....
+|...QTUUUTTSSSRQ....
+|..QTUUTTTSSSSSRQ...
+|..QTUTTSSSSSSSSRQ..
+|.QTUUTTSSSSSSSSRRQ.
+|.QQQQQQTSSSSSSSSRQ.
+|........QTSSSSSSRRQ
+|.........QTSSSQQSRQ
+|..........QTSSQTSRQ
+|...........QQQQTSRQ
+|..............QTSRQ
+|..............QTRRQ
+|...............QRQ.
+|................Q..
+
+view L key lie origin 1 0
+|......QQQQQQ.....
+|....QQTUUTTSQQ...
+|...QTUUUTTSSSRQ..
+|..QTUUTTTSSSSSRQ.
+|..QTUTTSSSSSSSSRQ
+|.QTUUTTSSSSSSSSRQ
+|.QQQQQQTSSSSSSSRQ
+|........QTSSSSSRQ
+|.........QTSSSSRQ
+|..........QQQQQQ.

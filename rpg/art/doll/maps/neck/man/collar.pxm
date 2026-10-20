@@ -1,0 +1,27 @@
+# neck/man/collar: the man's linen collar, turned down over his garment's neck in two points at the front (rigid)
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+body man
+role neck collar
+layer neck
+anchor neck
+keys rest
+
+view D key rest origin 4 0
+|vyyxxxwv
+|vyxvvxwv
+|.vv..vv.
+
+view U key rest origin 4 0
+|vyyxxxwv
+|.vvvvvv.
+
+view R key rest origin 5 0
+|.vyxxxwv.
+|..vvvxwv.
+|.....vv..
+
+view L key rest origin 4 0
+|.vyxxxwv.
+|.vyxvvv..
+|..vv.....

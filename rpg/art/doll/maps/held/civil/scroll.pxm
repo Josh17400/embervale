@@ -1,0 +1,78 @@
+# held/civil/scroll: the sealed letter (art weapon 11) at rest in the near hand (PROPS, P2b): a rolled parchment tied
+# with a ribbon in the person's accent (the court's colour) under the fist. Format: rpg/art/doll/doll.h. On the grip and
+# the held channel (LOCO and RUN; `drop` by a corpse). Front and back: hanging upright under the fist; right: carried
+# pointing forward and down; left (the far hand, hidden): its end peeking behind the hip.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held scroll
+layer neck
+anchor grip
+keys held
+z 40
+
+view D key rest origin 1 -1
+|.VVV.
+|VXZYV
+|VXYWV
+|mopnm
+|VXYWV
+|VXYWV
+|VXYWV
+|.VWV.
+
+view U key rest origin -1 -1 layer heldBack
+|.VVV.
+|VXYWV
+|VXYWV
+|mopnm
+|VXYWV
+|VXYWV
+|VXYWV
+|.VWV.
+
+view R key rest origin -2 -1
+|.VV.....
+|VXYV....
+|VXYWV...
+|.VXomV..
+|..mpnWV.
+|...VXYWV
+|....VXWV
+|.....VV.
+
+view L key rest origin -3 0 layer heldBack
+|...VV
+|..VYV
+|.VXWV
+|VXWV.
+|.VV..
+
+view D key rest origin 0 0 when posture replace
+|.
+
+view U key rest origin 0 0 when posture replace
+|.
+
+view R key rest origin 0 0 when posture replace
+|.
+
+view L key rest origin 0 0 when posture replace
+|.
+
+view L key drop origin 4 1
+|.VVVVmVVV.
+|VXZYYoYYWV
+|VWWWWnWWWV
+|.VVVVmVVV.

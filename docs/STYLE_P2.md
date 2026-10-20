@@ -31,7 +31,7 @@ timing model (frames by distance walked, swings by the family's pace), the swing
 | Ink #1E162A outer outline with Lit Ink on every person | coloured outlines: each material outlined in its own darkest step; the finishing pass lights the outline pixels that face the top-left to the next step. Ink only on the sole line. The Ink outline stays on v1 sheets and creatures until those are redrawn | 8 |
 | ramps from the creator hexes, spread 0.8-1.3 | A3's hue-shifted 5-step ramps: curated tables for skin and hair, a generator calibrated on A3 for every other colour | 6 |
 | dither at light-band edges on wide cloth | no dither on people: solid lit bands, clean folds, no single-pixel trims | 7 |
-| walk: 6 frames over a 28 px cycle | the cycle comes from the drawings' planted feet: man 19 px, woman 20 px; a RUN (about 36 px) above 54 px/s | 10 |
+| walk: 6 frames over a 28 px cycle | the cycle comes from the drawings' planted feet; after the owner's walk fix (2026-10-19) both bodies walk an 18 px cycle with chunky legs and flat boots; a RUN (36 px) above 54 px/s | 10 |
 | weapons rasterized procedurally at 16 angles | weapons are authored maps at 16 angles (drafted from P2a's rasterizer, then cleaned by hand) | 11 |
 | fighters hold the weapon in every clip | out of combat the blade rides sheathed (A3: the sword at the hip, the hand on the hilt); in hand while fighting (the owner confirms at the slice) | 11 |
 | fall: recoil, buckle, a painted topple | recoil, buckle, then the lying figure itself lifted for one frame; lying is the composed side view turned a quarter | 13 |
@@ -81,7 +81,8 @@ rows; ZOOM offers FAR (D0 - 1), NORMAL, NEAR (D0 + 1), CLOSE (D0 + 2) where V al
 **The body.** The A3 man is 32 px from the sole row F to the crown's outline row (F-31), with up to 2 px of hair above it
 (the hero's cowlick: 34 px in all). The A3 woman is 31 px (crown F-30). A3 sits exactly on P2a's 32 px rig, so **every
 body-holder P2a sized at k = 32 / 22 = 1.45 stays**: doors 0.70-0.76 of the figure, the one-storey wall 1.00-1.12, seats
-0.31-0.37, tables 0.44-0.50, horse withers 0.80-0.90, gunwale 0.35-0.45, rails 0.45-0.55, gate clearance 1.25 or more,
+0.14-0.20 (restated P2b fix r1: at A3's knee, not P2a's 0.31-0.37; A3's legs are 8 rows, so a P2a-height seat put a
+sitter's hips above a standing man's), tables 0.44-0.50, horse withers 0.80-0.90, gunwale 0.35-0.45, rails 0.45-0.55, gate clearance 1.25 or more,
 fences 0.45-0.60, wheels 0.45-0.55, rungs every 6 px. The ratios are measured against the 32 px body box, never against
 hair. Everything else (trees, rocks, crops, roofs' pitch, wall courses) keeps its size.
 
@@ -360,9 +361,26 @@ POSTURE (per posture in use). The clip list and its timing model are P2a's (anim
 | Fall | 3: recoil, buckle, topple | 0.10, 0.12, 0.12 s | the body gives way |
 | Lying | head west, head east | 60 s, fading the last 5 | the dead lie down |
 
-**The walk fits A3's stride.** Measured on A3's side walks (docs/ref/style_a3, the soles' Ink spans): the man's planted
+**The owner's walk fix (2026-10-19; binding, supersedes the stride notes below where they differ).** After three review
+rounds the owner rejected the walk drawn from A3's leg drawings ("his legs all of a sudden get super skinny") and signed
+off a redrawn walk and run. The A3 idles and the swing keys stay pixel for pixel (0 px parity); **every walk and run frame,
+side, front and back, was redrawn** and is no longer A3's. The redrawn walk keeps A's chunky legs and the A3 silhouette:
+- every walk and run frame keeps 90 % or more of the idle's visible leg area and the idle's hip width (the hip row, the
+  first visible leg row, at most 1 px narrower); no visible leg run under 3 px (no sliver of a leg);
+- boots are never drawn rotated: a flat sole, the idle's boot moved and lifted; clean knee and ankle joints, the bend at
+  the knee;
+- the hip bob at most 1 px (0 / +1 / 0; the hip row within 1 px of the contact frame's, no squat); the planted leg straight
+  under the hips; no splayed stance (a down frame no wider than its contact);
+- **both bodies walk an 18 px cycle; the run is 36 px** (above 54 px/s, signed off); the frame table still comes from the
+  plant anchors (section 24);
+- the woman's legs are drawn and gated in trousers and bare legs as well as under the skirt (her skirt keeps 90 % of the
+  idle's area).
+These are gated by `rpg_test --doll --gates` (B11 leg mass: leg area, hip row, narrowest run, hip bob, stance; `--report`
+prints every frame), not by A3 parity. Every new leg set, garment and armour piece that shows legs passes the same checks.
+
+**The walk fits A3's stride** (the study's measurements, kept as history; the cycle lengths above win). Measured on A3's side walks (docs/ref/style_a3, the soles' Ink spans): the man's planted
 foot travels 9 px from heel strike to toe-off (centre 18 > 15 > 9 on the near leg; 18.5 > 14 > 9 on the far leg), the
-woman's 10 px (16.5 > 13.5 > 6.5). A walk cycle is two steps, so **the man's cycle is 19 px and the woman's 20 px**.
+woman's 10 px (16.5 > 13.5 > 6.5). A walk cycle is two steps, so the study gave the man a 19 px cycle and the woman 20 px (the owner's walk fix set both to 18 px).
 (A2's notes asked for a longer cycle for A2's longer legs; A3 keeps A's shorter legs. On the 28 px cycle A3's feet skate
 forward about 4.5 px a step, and A3's contact and down frames share one leg drawing, so the planted foot cannot move
 between them.) The fix, painted in the slice: each side view gets 6 leg drawings. A3's contact drawings stay pixel for
@@ -372,9 +390,9 @@ new down drawings bend the knees with the planted foot 3 px behind contact. The 
 (section 24). At 40 px/s the man's walk runs at 12.6 fps (2.1 cycles a second); a 20 px/s stroll at 6.3 fps. Front and
 back views walk in place (the 16-bit convention, A3's drawings).
 
-**The run (new; the owner confirms at the slice).** A3's walk at the hero's 74 px/s would be 3.9 cycles a second, a
-scurry. Above 54 px/s people run: 6 frames, the torso leaning 1 px forward in side views, a 2 px bob (low on push, high
-in flight), arms bent and pumping, every hanging part lagging 2 px. The planted foot travels about 10 px in the two stance
+**The run (signed off by the owner, 2026-10-19).** A3's walk at the hero's 74 px/s would be 3.9 cycles a second, a
+scurry. Above 54 px/s people run: 6 frames, the torso leaning 1 px forward in side views, the hips bobbing 1 px at most
+(the owner's walk fix above; the first plan's 2 px bob is superseded), the legs keeping the idle's mass, arms bent and pumping, every hanging part lagging 2 px. The planted foot travels about 10 px in the two stance
 frames and the flight adds about 8 px a half-cycle, so the cycle is **about 36 px** (the drawings' anchors decide): at
 74 px/s, 2.06 cycles a second and 12.3 fps, close to the cadence of A3's approved walk GIF (2.6 cycles a second). Kids
 run with the Play posture's frames; elders never run.
@@ -545,8 +563,11 @@ the owner signs it off from the screenshots.
 1. **A3 in the engine.** The A3 hero and woman as layered part maps, composed by the doll at `rig 2`: idle, walk and the
    sword's hit 1 in all four facings (A3's right and down swings, plus up and left painted new); the scabbard, the hand on
    the hilt, the scarf, the braid, every secondary motion. With A3's palettes, every frame A3 drew that this file keeps
-   (idles, front and back walks, side contact frames, swings) is pixel-identical to docs/ref/style_a3/frames.
-2. **The side walks re-registered** (section 10): the pass drawings moved, the down drawings new.
+   (the idles and the swing keys) is pixel-identical to docs/ref/style_a3/frames. (As built: the walk frames, side, front
+   and back, were redrawn at the owner's request on 2026-10-19, section 10 "The owner's walk fix"; they are gated by the
+   leg-mass, hip-row and stance checks of `rpg_test --doll --gates`, not by A3 parity.)
+2. **The walks redrawn** (section 10): chunky legs, flat boots, clean knees, a 0 / +1 / 0 bob, both bodies on an 18 px
+   cycle (first planned as the side walks re-registered: the pass drawings moved, the down drawings new).
 3. **The run**: the hero (and the woman) in four facings.
 4. **Variety on the same pipeline** (idle and walk, four facings): 2 more head types per body (man Square and Long; woman
    Heart and Round) with 2 noses and 2 brows each; elf and half-breed ears; 2 more hair styles per body (man Cropped and
@@ -560,7 +581,8 @@ the owner signs it off from the screenshots.
    (seed 7, the start village OSLARS: desktop 1440x810 at NORMAL D3 and NEAR D4, phone 2556x1179 at NORMAL D5, 11:00 and
    22:00), with A3's scene_phone_zoom.png beside the same spot.
 
-**Acceptance** (measured; the full protocol is VISION_PLAN 15.36 P2b "The slice gate"): A3 parity 0 px on the kept frames;
+**Acceptance** (measured; the full protocol is VISION_PLAN 15.36 P2b "The slice gate"): A3 parity 0 px on the kept frames
+(the 8 idles and 8 swing keys; the redrawn walk and run frames by the leg-mass gates of section 10);
 heights by section 3; every world pixel a whole D x D block; contrast by section 8; walk and run registration by section
 10; every slice look covered by authored parts; the craft checks of section 24 at 0 failures; the ramps generator within
 delta E 6 of A3; then the judge's look review (A3's look held on every new part, the top-left light on all four facings,
@@ -582,6 +604,20 @@ which also settles the two open looks: the run above 54 px/s, and sheathed weapo
 - No exaggerated anatomy on either body; no armour that sculpts a body; no garment shared between the man and the woman.
 - No head type that moves A3's eye rows, eye columns or mouth row; no beard on a woman or a kid.
 - No text in the world layer; no body-holder left at its pre-P2 size once the doll ships.
+
+**The owner's rules (hard, from the owner's own reviews; every part that draws bodies, legs, clothing or poses obeys them):**
+- No skinny legs. Keep A's CHUNKY proportions: sturdy legs and boots, the A3 silhouette (the owner rejected skinny legs
+  twice).
+- No walk or run frame under 90 % of the idle's leg area or narrower than the idle's hip width; no rotated boot (a flat
+  sole, the idle boot moved and lifted); no mushy knee or ankle (clean joints, the bend at the knee); no hip bob over 1 px
+  (0 / +1 / 0); no planted leg off the line under the hips; no splayed stance (a down frame no wider than contact).
+  `rpg_test --doll --gates` measures these.
+- No woman's body judged only in a dress: develop and judge women's legs and bodies in trousers and bare legs too (they
+  wear trousers, armour, short garments). No clothing or armour shared between the bodies: each is fitted separately for
+  men and for women.
+- No thin variety: many head types, lots of hair styles (the plan's 9 + 9 heads, 24 hair styles, 9 beards), garments per
+  body; nothing that reads as one head recoloured.
+- Nothing crappy or half baked: the bar is triple-A pixel art (Sea of Stars / Chained Echoes craft at 32 px).
 
 ---
 

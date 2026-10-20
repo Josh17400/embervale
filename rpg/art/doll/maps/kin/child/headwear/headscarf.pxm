@@ -1,0 +1,63 @@
+# kin/child/headwear/headscarf: the headscarf: cloth tied over the head and the ears, the rim over the brow, knotted at the nape with two short tails
+# (KIN-CHILD, P2b wave 2; the child's headwear, STYLE_P2 23). Format: rpg/art/doll/doll.h.
+use person
+body child
+role headwear headscarf
+legend F head 0
+legend H head 1
+legend I head 2
+legend J head 3
+legend Z head 4
+layer headwear
+anchor head
+keys rest
+
+view D key rest origin 1 1
+|....FFFFFF....
+|..FFJJJIIHFF..
+|.FJJIIIIIHHHF.
+|FJIIIIIIIIHHHF
+|FIJHHHHHHHHIHF
+|FIF........FHF
+|FIF........FHF
+|.FF........FF.
+
+view U key rest origin 1 1
+|....FFFFFF....
+|..FFJJJIIHFF..
+|.FJJIIIIIHHHF.
+|FJIIIIIIIIHHHF
+|FJIIIIIHIIHHHF
+|FIIIIIIHIIHHHF
+|FIIIIIHIIHHHHF
+|.FFIIFJJFIIFF.
+|...FFJZJIF....
+|....FJIIF.....
+|...FIF.FIF....
+|...FF...FF....
+
+view R key rest origin 2 1
+|.....FFFFFF...
+|...FFJJJIIHF..
+|..FJJIIIIIHHF.
+|.FJIIIIIIIIHHF
+|FJIIIIIIHHHHF.
+|FIIIIIIIF.....
+|FIJIIIHF......
+|FJZJFFF.......
+|FIIF..........
+|.FIF..........
+|..F...........
+
+view L key rest origin -1 1
+|...FFFFFF.....
+|..FJJJIIHFF...
+|.FJJIIIIIHHF..
+|FJIIIIIIIIHHF.
+|.FJIIIIIIHHHHF
+|.....FIIIIIIIF
+|......FIJIIIHF
+|.......FFFJZJF
+|..........FIIF
+|..........FIF.
+|...........F..

@@ -1,0 +1,39 @@
+# kin/child/wear/kaftan: the kaftan: long and open down the front over a linen inner garment, trimmed edges in brass, a sash; the skirt is kaftan_skirt
+# (KIN-CHILD, P2b wave 2; the child's torso is 6 rows, F-10..F-5, STYLE_P2 3 and 22). Format: rpg/art/doll/doll.h.
+use person woman
+body child
+role garment kaftan
+layer torso
+keys rest
+
+view D key rest origin 6 0
+|5988Ox.O7665
+|..688OxO66..
+|..688OxO66..
+|..mnooonm...
+|..688OxO65..
+|..688OxO65..
+
+view U key rest origin 6 0
+|598887777665
+|..68877766..
+|..68877766..
+|..mnoooonm..
+|..68877766..
+|..68877766..
+
+view R key rest origin 4 0
+|.598O765
+|5887Ox65
+|5887O665
+|mnooonnm
+|5887O665
+|5887O665
+
+view L key rest origin 3 0
+|598O765.
+|5887Ox65
+|5887O665
+|mnooonnm
+|5887O665
+|5887O665

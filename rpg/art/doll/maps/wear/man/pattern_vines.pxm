@@ -1,0 +1,17 @@
+# wear/man/pattern_vines: the man's vine-printed cloth (a winding stem with a leaf every turn, in the pattern colour)
+# GARB-M (P2b wave 2). Format: rpg/art/doll/doll.h.
+use person
+legend T pattern 2
+body man
+role overlay vines
+tags tile overlay
+
+view D key rest origin 0 0
+|.T....
+|T.T...
+|.T....
+|..T...
+|...T.T
+|....T.
+|...T..
+|..T...

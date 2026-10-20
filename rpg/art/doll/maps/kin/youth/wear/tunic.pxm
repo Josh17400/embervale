@@ -1,0 +1,66 @@
+# kin/youth/wear/tunic: the youth's shirt and tunic (the A3 tunic at 26 px): the collar's V, square shoulders, the lit
+# chest plane, the belt and buckle; the skirt (tunic_hang) holds still while the chest bobs
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. Fitted per sex: the girl's (`when girl replace`) a rounder neck,
+# the waist a pixel in on each side under the chest, the belt shorter.
+use person
+body youth
+role garment tunic
+layer torso
+anchor neck
+keys rest
+
+view D key rest origin 6 0
+|...5qrrq5...
+|5988qrrq7765
+|..68888766..
+|..68877666..
+|..fihPOhgf..
+
+view D key rest origin 6 0 when girl replace
+|...5qrrq5...
+|5989qrrq7765
+|..68887766..
+|...688766...
+|...fhPOgf...
+
+view U key rest origin 6 0
+|...588765...
+|598877777665
+|..68877766..
+|..68777666..
+|..fihhhhgf..
+
+view U key rest origin 6 0 when girl replace
+|...588765...
+|598877777665
+|..68877766..
+|...687766...
+|...fihhgf...
+
+view R key rest origin 4 0
+|..5qrq5.
+|.5988765
+|58877665
+|58877665
+|fihhhhgf
+
+view R key rest origin 4 0 when girl replace
+|..5qrq5.
+|.5988765
+|58877665
+|.588765.
+|.fihhgf.
+
+view L key rest origin 4 0
+|.5qrq5..
+|5988765.
+|58877665
+|58877665
+|fihhhhgf
+
+view L key rest origin 4 0 when girl replace
+|.5qrq5..
+|5988765.
+|58877665
+|.588765.
+|.fihhgf.

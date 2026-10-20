@@ -1,0 +1,69 @@
+# head/adult/woman/long: the woman's Long head: a tall crown, a narrow face and the chin a row lower
+# P2b FACES (wave 2). Every head type keeps A3's eye rows and columns, the nose pixel and the mouth row
+# (STYLE_P2 4), so expressions, marks and paint fit them all. Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role head long
+layer head
+anchor head
+keys rest
+
+view D key rest origin -1 -2
+mark face 2 6
+|.....qqqq.....
+|...qqtuutqq...
+|..qtuuttttsq..
+|.qtuuttttssrq.
+|.qttutttsssrq.
+|.qtttttssssrq.
+|.qtttttssssrq.
+|.q###tsss###q.
+|.qt@EtsssE@sq.
+|.qt@GssssG@sq.
+|..qYssLMsYrq..
+|...qtsssrrq...
+|....qsssrq....
+
+view U key rest origin -1 -2
+|.....qqqq.....
+|...qqtuutqq...
+|..qtuuttttsq..
+|.qtuuttttssrq.
+|.qttutttsssrq.
+|.qtttttssssrq.
+|.qttttsssssrq.
+|.tttsssssssrr.
+|.ttsssssssrrr.
+|..qtssssssrq..
+|...qrrrrrrq...
+|....qrrrrq....
+
+view R key rest origin 0 -2
+|.......qqqq.....
+|.....qqtuutq....
+|...qqtuuttsq....
+|..qtuuttttsssq..
+|.qttutttttsssrq.
+|.qttttttssssttq.
+|.qtttsssssststq.
+|.qtsss..stt##tq.
+|.qsssr..sts@Es..
+|..qsrr..ssYsssq.
+|...qrrrrsssssMq.
+|....qqqrrrssLq..
+|.......qqrssq...
+
+view L key rest origin 0 -2
+|.....qqqq.......
+|....qqtuutqq....
+|....qtuuttssq...
+|..qtuuttttsssrq.
+|.qtuttttttsssrq.
+|.qtttttttssssrq.
+|.qtttttssssrrq..
+|.qt##tts..srrq..
+|.tsE@sss..rrq...
+|.qttsYss..rq....
+|.qMtssssrrq.....
+|..qLssrrrqqq....
+|...qssrqq.......

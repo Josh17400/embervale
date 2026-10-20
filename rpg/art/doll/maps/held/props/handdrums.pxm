@@ -1,0 +1,89 @@
+# held/props/handdrums: a pair of small hand drums at the waist for the Drum posture's Hand and Tabla variants (PROPS, P2b):
+# a tall and a squat drum with pale heads, the hands beating in turn (hold, low). Format: rpg/art/doll/doll.h. Anchored on
+# the right shoulder, under the hands.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held handdrums
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin -1 -7 layer neck
+|.fff..fffff..
+|fXYXf.fXYXWf.
+|fffff.fffffff
+|fhjif.fhiiggf
+|fihgf.fihhggf
+|fhggf..fhggf.
+|.fff....fff..
+
+view D key low origin -1 -7 layer neck
+|.fff..fffff..
+|fXYXf.fXYXWf.
+|fffff.fffffff
+|fhjif.fhiiggf
+|fihgf.fihhggf
+|fhggf..fhggf.
+|.fff....fff..
+
+view U key hold origin 12 -7 layer heldBack
+|.fffff..fff..
+|fZXYXf.fXYXf.
+|fffffff.fffff
+|fjjhhif.fhgif
+|fjjiihf.fjihf
+|.fjjif..fjjif
+|..fff....fff.
+
+view U key low origin 12 -7 layer heldBack
+|.fffff..fff..
+|fZXYXf.fXYXf.
+|fffffff.fffff
+|fjjhhif.fhgif
+|fjjiihf.fjihf
+|.fjjif..fjjif
+|..fff....fff.
+
+view R key hold origin -3 -7 layer neck
+|.fff.
+|fXYXf
+|fffff
+|fhjif
+|fihgf
+|.fff.
+
+view R key low origin -3 -7 layer neck
+|.fff.
+|fXYXf
+|fffff
+|fhjif
+|fihgf
+|.fff.
+
+view L key hold origin 6 -7 layer neck
+|.fff.
+|fYXWf
+|fffff
+|fjihf
+|fihgf
+|.fff.
+
+view L key low origin 6 -7 layer neck
+|.fff.
+|fYXWf
+|fffff
+|fjihf
+|fihgf
+|.fff.

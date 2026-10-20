@@ -1,0 +1,23 @@
+# head/adult/paint_stripes: war stripes: two bars of red ochre under each eye (the mouth's red, derived from the skin)
+# P2b FACES (wave 2). Inside A3's fixed face rows, so they fit every head type. Format: rpg/art/doll/doll.h.
+use person
+body adult youth
+role paint stripes
+layer face
+anchor head
+keys rest
+z 2
+tags overlay mirror-ok
+
+view D key rest origin -4 -12
+|MM....MM
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -9 -11
+|MM
+|..
+
+view L key rest origin -5 -11
+|MM

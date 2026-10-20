@@ -1,0 +1,181 @@
+# held/props/ladle: the cook's ladle for the Stir posture (PROPS, P2b): a pale wooden handle and an iron bowl dipped into
+# the pot before the cook (hold, low, pull, reach). Format: rpg/art/doll/doll.h. Around the pose arms' grips, anchored on the
+# right shoulder; under the fist.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held ladle
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin -3 -6 layer neck
+|TQ..
+|TQ..
+|TQ..
+|.TQ.
+|.TQ.
+|vyxv
+|vxwv
+|.vv.
+
+view D key low origin -4 -8 layer neck
+|TQ..
+|TQ..
+|TQ..
+|.TQ.
+|.TQ.
+|vyxv
+|vxwv
+|.vv.
+
+view D key pull origin -1 -5 layer neck
+|TQ..
+|TQ..
+|TQ..
+|.TQ.
+|.TQ.
+|vyxv
+|vxwv
+|.vv.
+
+view D key reach origin -1 -4 layer neck
+|TQ..
+|TQ..
+|TQ..
+|.TQ.
+|.TQ.
+|vyxv
+|vxwv
+|.vv.
+
+view U key hold origin 6 -6 layer heldBack
+|..QS
+|..QS
+|..QS
+|.QS.
+|.QS.
+|vyxv
+|vzyv
+|.vv.
+
+view U key low origin 7 -8 layer heldBack
+|..QS
+|..QS
+|..QS
+|.QS.
+|.QS.
+|vyxv
+|vzyv
+|.vv.
+
+view U key pull origin 4 -5 layer heldBack
+|..QS
+|..QS
+|..QS
+|.QS.
+|.QS.
+|vyxv
+|vzyv
+|.vv.
+
+view U key reach origin 4 -4 layer heldBack
+|..QS
+|..QS
+|..QS
+|.QS.
+|.QS.
+|vyxv
+|vzyv
+|.vv.
+
+view R key hold origin -6 -6 layer neck
+|TQ..
+|TQ..
+|TQ..
+|.TQ.
+|.TQ.
+|vyxv
+|vxwv
+|.vv.
+
+view R key low origin -6 -7 layer neck
+|TQ..
+|TQ..
+|TQ..
+|.TQ.
+|.TQ.
+|vyxv
+|vxwv
+|.vv.
+
+view R key pull origin 1 -6 layer neck
+|TQ..
+|TQ..
+|TQ..
+|.TQ.
+|.TQ.
+|vyxv
+|vxwv
+|.vv.
+
+view R key reach origin -9 -3 layer neck
+|TQ..
+|TQ..
+|TQ..
+|.TQ.
+|.TQ.
+|vyxv
+|vxwv
+|.vv.
+
+view L key hold origin 9 -6 layer hairBack
+|..QS
+|..QS
+|..QS
+|.QS.
+|.QS.
+|vyxv
+|vzyv
+|.vv.
+
+view L key low origin 9 -7 layer hairBack
+|..QS
+|..QS
+|..QS
+|.QS.
+|.QS.
+|vyxv
+|vzyv
+|.vv.
+
+view L key pull origin 2 -6 layer hairBack
+|..QS
+|..QS
+|..QS
+|.QS.
+|.QS.
+|vyxv
+|vzyv
+|.vv.
+
+view L key reach origin 12 -3 layer hairBack
+|..QS
+|..QS
+|..QS
+|.QS.
+|.QS.
+|vyxv
+|vzyv
+|.vv.

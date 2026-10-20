@@ -1,0 +1,65 @@
+# held/props/bread: a round loaf, broken (PROPS, P2b), in the right hand for Eat. Format: rpg/art/doll/doll.h. Cloth 3 is
+# the crust (straw and bread), anchored on the right shoulder around the pose arms' grips (hold, mouth).
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held bread
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin -5 -4 layer neck
+|.QQQ.
+|QUTSQ
+|QTSRQ
+|.QQQ.
+
+view D key mouth origin -4 4 layer beard
+|.QQQ.
+|QUTSQ
+|QTSRQ
+|.QQQ.
+
+view U key hold origin 9 -4 layer heldBack
+|.QQQ.
+|QUTSQ
+|QTSRQ
+|.QQQ.
+
+view U key mouth origin 6 -18 layer heldBack
+|.
+
+view R key hold origin -8 -4 layer neck
+|.QQQ.
+|QUTSQ
+|QTSRQ
+|.QQQ.
+
+view R key mouth origin -8 4 layer hairFront
+|.QQQ.
+|QUTSQ
+|QTSRQ
+|.QQQ.
+
+view L key hold origin 12 -4 layer hairBack
+|.QQQ.
+|QUTSQ
+|QTSRQ
+|.QQQ.
+
+view L key mouth origin 12 4 layer hairBack
+|.QQQ.
+|QUTSQ
+|QTSRQ
+|.QQQ.

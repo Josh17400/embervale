@@ -1,0 +1,294 @@
+# kin/youth/wear/gown_hang: the gown's skirt to the ankles: the boy's straight with a gilt front panel down the middle,
+# the girl's flowing from her narrow waist in long folds; both end in a gilt hem band (metal2) over the shoe tips
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. Keys as robe_hang (rest, wide, flare, kneel, lie).
+use person
+body youth
+role garment gown
+layer hangFront
+anchor hip
+keys hang
+sway 4
+
+view D key rest origin 6 0
+|.5887PN7665.
+|.5887PN7665.
+|.5887PN6665.
+|58887PN76655
+|58887PN76655
+|58887PN76655
+|5PPPPOOONNN5
+|.5555555555.
+
+view D key rest origin 6 0 when girl replace
+|..58877665..
+|.5887787665.
+|.5887787665.
+|588878776655
+|588878776655
+|588878776655
+|5PPPPOOONNN5
+|.5555555555.
+
+view D key wide origin 6 0
+|.5887PN7665.
+|.5887PN7665.
+|.5887PN6665.
+|58887PN76655
+|58887PN76655
+|58887PN76655
+|5PPPPOOONNN5
+|.5555555555.
+
+view D key wide origin 6 0 when girl replace
+|..58877665..
+|.5887787665.
+|.5887787665.
+|588878776655
+|588878776655
+|588878776655
+|5PPPPOOONNN5
+|.5555555555.
+
+view D key flare origin 7 0
+|..5887PN7665..
+|..5887PN7665..
+|.58887PN76655.
+|.58887PN76655.
+|588887PN766655
+|588887PN766655
+|5PPPPPOOONNNN5
+|.555555555555.
+
+view D key flare origin 7 0 when girl replace
+|...58877665...
+|..5887787665..
+|.588878776655.
+|.588878776655.
+|58888787766655
+|58888787766655
+|5PPPPPOOONNNN5
+|.555555555555.
+
+view D key kneel origin 7 0
+|..5887PN7665..
+|.58887PN76655.
+|588887PN766655
+|588887PN766655
+|5PPPPPOOONNNN5
+|.555555555555.
+
+view U key rest origin 6 0
+|.5887777665.
+|.5887777665.
+|.5887776665.
+|588877776655
+|588877776655
+|588877776655
+|5PPPPOOONNN5
+|.5555555555.
+
+view U key rest origin 6 0 when girl replace
+|..58777665..
+|.5887777665.
+|.5887776665.
+|588877776655
+|588877776655
+|588877776655
+|5PPPPOOONNN5
+|.5555555555.
+
+view U key wide origin 6 0
+|.5887777665.
+|.5887777665.
+|.5887776665.
+|588877776655
+|588877776655
+|588877776655
+|5PPPPOOONNN5
+|.5555555555.
+
+view U key flare origin 7 0
+|..5887777665..
+|..5887777665..
+|.588877776655.
+|.588877776655.
+|58888777766655
+|58888777766655
+|5PPPPPOOONNNN5
+|.555555555555.
+
+view U key kneel origin 7 0
+|..5887777665..
+|.588877776655.
+|58888777766655
+|58888777766655
+|5PPPPPOOONNNN5
+|.555555555555.
+
+view R key rest origin 5 0
+|.58877665.
+|.58877665.
+|588777665.
+|588777665.
+|5887776655
+|5887776655
+|5PPPOOONN5
+|.55555555.
+
+view R key rest origin 5 0 when girl replace
+|..5887665.
+|.58877665.
+|588777665.
+|588777665.
+|5887776655
+|5887776655
+|5PPPOOONN5
+|.55555555.
+
+view R key wide origin 6 0
+|..58877665..
+|..58877665..
+|.588777665..
+|.5887776665.
+|588777766655
+|588777766655
+|5PPPPOOONNN5
+|.5555555555.
+
+view R key flare origin 7 0
+|...58877665..
+|...58877665..
+|..588777665..
+|.58877776665.
+|5888777766655
+|5888777766655
+|5PPPPPOOONNN5
+|.55555555555.
+
+view R key kneel origin 6 0
+|..58877665..
+|.5887776665.
+|588777766655
+|588777766655
+|5PPPPOOONNN5
+|.5555555555.
+
+view L key rest origin 5 0
+|.58877665.
+|.58877665.
+|.588777665
+|.588777665
+|5887776655
+|5887776655
+|5PPPOOONN5
+|.55555555.
+
+view L key rest origin 5 0 when girl replace
+|.5887665..
+|.58877665.
+|.588777665
+|.588777665
+|5887776655
+|5887776655
+|5PPPOOONN5
+|.55555555.
+
+view L key wide origin 6 0
+|..58877665..
+|..58877665..
+|..588777665.
+|.5887776665.
+|588777766655
+|588777766655
+|5PPPPOOONNN5
+|.5555555555.
+
+view L key flare origin 6 0
+|..58877665...
+|..58877665...
+|..588777665..
+|.58877776665.
+|5888777766655
+|5888777766655
+|5PPPPPOOONNN5
+|.55555555555.
+
+view L key kneel origin 6 0
+|..58877665..
+|.5887776665.
+|588777766655
+|588777766655
+|5PPPPOOONNN5
+|.5555555555.
+
+view L key lie origin 5 0
+|.58877665.
+|.58877665.
+|.588777665
+|.588777665
+|5887776655
+|5887776655
+|5PPPOOONN5
+|.55555555.
+
+# ---- postures (KIN-YOUTH): sit (seated on a chair: over the lap; the long skirts down the front over
+# the shins), floor (cross-legged: pooled over the lap, three rows over the floor)
+view D key sit origin 7 0
+|..5887PN7665..
+|..5887PN7665..
+|.58887PN76655.
+|.58887PN76655.
+|588887PN766655
+|588887PN766655
+|5PPPPPOOONNNN5
+|.555555555555.
+
+view U key sit origin 7 0
+|..5887777665..
+|..5887777665..
+|.588877776655.
+|.588877776655.
+|58888777766655
+|58888777766655
+|5PPPPPOOONNNN5
+|.555555555555.
+
+view R key sit origin 4 0
+|.588777665....
+|58887777666655
+|59888888777765
+|.......5877665
+|.......5877665
+|.......5877665
+|.......5PPOON5
+|........55555.
+
+view D key floor origin 9 0
+|...588877776665...
+|..58888777766665..
+|..59888PPOON7765..
+
+view U key floor origin 9 0
+|...588877776665...
+|..58888777766665..
+|..59888888777765..
+
+view R key floor origin 5 0
+|.588877665.
+|58888777665
+|5PPOON88765
+
+view L key sit origin 10 0
+|....588777665.
+|58887777666655
+|59888888777765
+|5877665.......
+|5877665.......
+|5877665.......
+|5PPOON5.......
+|.55555........
+
+view L key floor origin 6 0
+|.588877665.
+|58888777665
+|5PPOON88765

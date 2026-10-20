@@ -1,0 +1,61 @@
+# kin/child/wear/gown_skirt: the gown's long skirt to F-2, swaying a pixel in the walk (the shoe tips under it)
+# (KIN-CHILD, P2b wave 2; the child's torso is 6 rows, F-10..F-5, STYLE_P2 3 and 22). Format: rpg/art/doll/doll.h.
+use person woman
+body child
+role garment gown
+layer hangFront
+keys hang
+anchor hip
+sway 2
+
+view D key rest origin 6 -1
+|.6888N76665.
+|56888N766665
+|5998NPN87765
+
+view U key rest origin 6 -1
+|.5688777766.
+|588877776665
+|598887777665
+
+view R key rest origin 5 -1
+|5887N66655.
+|58887N66655
+|599988N7765
+
+view L key rest origin 5 -1
+|.55887N6665
+|558887N6665
+|599988N7765
+
+view D key sit origin 6 -1
+|.6888N76665.
+|5998NPN87765
+
+view U key sit origin 6 -1
+|.5688777766.
+|598887777665
+
+view R key sit origin 5 -1
+|5887N66655.
+|599988N7765
+
+view L key sit origin 5 -1
+|.55887N6665
+|599988N7765
+
+view D key floor origin 7 -1
+|.56888N766665.
+|5998NPN8776665
+
+view U key floor origin 7 -1
+|.588877776665.
+|59888777766665
+
+view R key floor origin 5 -1
+|58887N66655.
+|599988N77655
+
+view L key floor origin 6 -1
+|.558887N6665
+|5599988N7765

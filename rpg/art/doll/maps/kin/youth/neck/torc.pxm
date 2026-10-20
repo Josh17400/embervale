@@ -1,0 +1,36 @@
+# kin/youth/neck/torc: the youth's torc: a ring of metal2 at the collar, lit at the front left, its open ends at the
+# throat (front view); rigid (the flow keys are its rest)
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h.
+use person
+body youth
+role neck torc
+layer neck
+anchor neck
+keys neck
+
+view D key rest origin 3 0
+|NPP.ON
+
+view U key rest origin 3 0
+|NPOOON
+
+view R key rest origin 2 0
+|NPPON
+
+view R key flow origin 2 0
+|NPPON
+
+view R key flow2 origin 2 0
+|NPPON
+
+view L key rest origin 3 0
+|PPOON
+
+view L key flow origin 3 0
+|PPOON
+
+view L key flow2 origin 3 0
+|PPOON
+
+view L key lie origin 3 0
+|PPOON

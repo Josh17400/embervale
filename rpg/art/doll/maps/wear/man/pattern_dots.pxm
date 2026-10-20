@@ -1,0 +1,16 @@
+# wear/man/pattern_dots: the man's dotted cloth (two-pixel polka dots of the pattern colour, staggered: a
+# print that reads at 1x, never single-pixel specks)
+# GARB-M (P2b wave 2). Format: rpg/art/doll/doll.h.
+use person
+legend T pattern 2
+body man
+role overlay dots
+tags tile overlay
+
+view D key rest origin 0 0
+|TT....
+|TT....
+|......
+|...TT.
+|...TT.
+|......

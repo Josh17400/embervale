@@ -1,0 +1,125 @@
+# hair/adult/curly: Curly: short curls in a lumpy lit outline, each curl a lit top-left and a shadowed lower right
+# P2b wave 2, HAIR. On the adult head box (STYLE_P2 21; man and woman; a volume style: 16 px). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role hair curly
+layer hairFront
+anchor head
+keys rest
+
+view D key rest origin 0 0
+|................
+|....aaa..aaa....
+|...adeeaaddcaa..
+|..adeedddddcbba.
+|.aadedbddcbccbba
+|.adddbcdccbbcba.
+|adcdccbbcccbcbba
+|acbcb.abcb.abba.
+|.ab..........ba.
+|..ab........ba..
+|..b..........b..
+
+view U key rest origin 0 0
+|................
+|....aaa..aaa....
+|...adeeaaddcaa..
+|..adeedddddcbba.
+|.aadedbddcbccbba
+|.adddbcdccbbcba.
+|adcdccbbcccbcbba
+|acddbbccbbcbbba.
+|abccdcbbccbcbba.
+|.abbccbcbbcbba..
+|.abcbbabcbbbba..
+|..abbaabbabba...
+|...aa..aa.aa....
+
+view R key rest origin 2 0
+|.................
+|.......aaa..aaa..
+|.....aadeeaaddca.
+|....adeedddddcbba
+|..aadeedbddcbccba
+|.adedddbcdccbbca.
+|adeddccbbcccbca..
+|acddbbdcbbcba....
+|abccdcbbccba.....
+|.abbccbcbba......
+|.abcbbabcba......
+|..abbaabba.......
+|...aa..aa........
+
+view L key rest origin -1 0
+|.................
+|..aaa..aaa.......
+|.addeaadddaa.....
+|addeedddddcba....
+|addedbddcbccbaa..
+|.addbcdccbbcbbca.
+|..accbbcccbcbbbca
+|....adcbbcbbbbcba
+|.....abccbcbbccba
+|......abbcbbcbba.
+|......acbbabbcba.
+|.......abbaabba..
+|........aa..aa...
+
+# capped (under a hat, a hood or a helm; a circlet shows the whole style): the style kept inside the headwear
+view D key rest when capped,!circlet replace
+|................
+|................
+|...aaaaaaaaaaa..
+|..adeedddddcbba.
+|.aadedbddcbccbba
+|.adddbcdccbbcba.
+|adcdccbbcccbcbba
+|acbcb.abcb.abba.
+|.ab..........ba.
+|..ab........ba..
+|..b..........b..
+
+view U key rest when capped,!circlet replace
+|................
+|................
+|...aaaaaaaaaaa..
+|..adeedddddcbba.
+|.aadedbddcbccbba
+|.adddbcdccbbcba.
+|adcdccbbcccbcbba
+|acddbbccbbcbbba.
+|abccdcbbccbcbba.
+|.abbccbcbbcbba..
+|.abcbbabcbbbba..
+|..abbaabbabba...
+|...aa..aa.aa....
+
+view R key rest when capped,!circlet replace
+|.................
+|.................
+|.....aaaaaaaaaaa.
+|....adeedddddcbba
+|..aadeedbddcbccba
+|.adedddbcdccbbca.
+|.aeddccbbcccbca..
+|.addbbdcbbcba....
+|.accdcbbccba.....
+|.abbccbcbba......
+|.abcbbabcba......
+|..abbaabba.......
+|...aa..aa........
+
+view L key rest when capped,!circlet replace
+|.................
+|.................
+|.aaaaaaaaaaa.....
+|addeedddddcba....
+|addedbddcbccbaa..
+|.addbcdccbbcbbca.
+|..accbbcccbcbbba.
+|....adcbbcbbbbca.
+|.....abccbcbbcca.
+|......abbcbbcbba.
+|......acbbabbcba.
+|.......abbaabba..
+|........aa..aa...

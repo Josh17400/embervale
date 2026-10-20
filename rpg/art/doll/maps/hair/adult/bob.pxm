@@ -1,0 +1,76 @@
+# hair/adult/bob: Bob: chin-length, a blunt straight fringe over the forehead, the ends turned in at the jaw; the ears hidden
+# P2b wave 2, HAIR. On the adult head box (STYLE_P2 21; man and woman). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role hair bob
+layer hairFront
+anchor head
+keys rest
+
+view D key rest origin 0 0
+|................
+|.....aaaaaa.....
+|...aaeeeddcaa...
+|..adeeeddddcca..
+|.adeedddddccbba.
+|.addddddcdcbbba.
+|.acdddcdccbcbba.
+|.acbbbbbbbbbbba.
+|.acb........bba.
+|-adb........bba-
+|-acb........bca-
+|.acb........bba.
+|.adb........bca.
+|.acbb......bbba.
+|..aaa......aaa..
+
+view U key rest origin 0 0
+|................
+|.....aaaaaa.....
+|...aadeeedcaa...
+|..adeeeddddcca..
+|.adeeddddcdcbba.
+|.adddddcddccbba.
+|.acdddcdcdcbcba.
+|.acddcdccdcbcba.
+|.acdcdccdcbcbba.
+|-acdcdccdcbcbba-
+|-acdcbccdcbcbba-
+|.acdcbcbdcbcbba.
+|.abccbcbccbcbba.
+|.abbbbbbbbbbbba.
+|..aaaaaaaaaaaa..
+
+view R key rest origin 1 0
+|................
+|......aaaaaa....
+|....aaeeeddcaa..
+|...adeeedddddca.
+|..adeedddddddcca
+|.adddddcdccccbba
+|.acdddcdccbbbbba
+|.acddcdccbbbbba.
+|.acdcdcccba.....
+|.acdcdccba......
+|.acdcdccba......
+|.acdcbccba......
+|.abcbcbcba......
+|.abbbbbbbba.....
+|..aaaaaaaa......
+
+view L key rest origin -1 0
+|................
+|....aaaaaa......
+|..aaeeeddcaa....
+|.adeeedddddca...
+|adeedddddddcca..
+|adddddcdccccbba.
+|acdddcdccbbbbba.
+|.acddcdccbbbbba.
+|.....acdcdcccba.
+|......acdcdccba.
+|......acdcdccba.
+|......acdcbccba.
+|......abcbcbcba.
+|.....abbbbbbbba.
+|......aaaaaaaa..

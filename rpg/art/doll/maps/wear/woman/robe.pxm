@@ -1,0 +1,133 @@
+# wear/woman/robe: the woman's robe (STYLE_P2 22 "Robe"; priests, mages, scholars, the robed peoples): one long garment cut to her,
+# a crossover V trimmed in accent, the overlapping front's edge running down as one fold, a two-row sash in accent knotted at
+# her left hip; wide sleeves flaring at the wrist; the skirt (the hang) to the ankles with the sash's tails, her shoe tips under it
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role garment robe
+layer torso
+anchor neck
+keys torso
+
+view D key rest origin 8 -1
+|......qrrq......
+|59868ptssro75765
+|588688psro775765
+|5886887po7765665
+|...5898767665...
+|...5887776765...
+|...5687777665...
+|...mppoooonnm...
+|...mpoooopnnm...
+
+view D key rest origin 8 -2 when elder
+|-..............-
+
+view D key swing origin 8 -1
+|......qrrq......
+|59868ptssro75765
+|588688psro775765
+|5886887po7765665
+|...5898767665...
+|...5887776765...
+|...5687777665...
+|...mppoooonnm...
+|...mpoooopnnm...
+
+view D key swing origin 8 -2 when elder
+|-..............-
+
+view D key drawn origin 8 -1
+|......qrrq......
+|59868ptssro75765
+|588688psro775765
+|5886887po7765665
+|...5898767665...
+|...5887776765...
+|...5687777665...
+|...mppoooonnm...
+|...mpoooopnnm...
+
+view D key drawn origin 8 -2 when elder
+|-..............-
+
+view U key rest origin 8 -1
+|.....qrrrrrq....
+|5986oppppoon5765
+|5886887777665765
+|5886877777765665
+|...5887777665...
+|...5887777665...
+|...5687776665...
+|...mppoooonnm...
+|...mpoooonnnm...
+
+view U key rest origin 8 -2 when elder
+|-..............-
+
+view R key rest origin 6 -1
+|......qrrqq..
+|..5875988po..
+|..58658877p5.
+|..5865887765.
+|..5876777765.
+|..587677765..
+|..577777765..
+|..mppoooonnm.
+|..mpoooonnm..
+
+view R key rest origin 4 -2 when elder
+|-
+
+view R key swing origin 6 -1
+|......qrrqq..
+|..5875988po..
+|..58658877p5.
+|..5865887765.
+|..5876777765.
+|..587677765..
+|..577777765..
+|..mppoooonnm.
+|..mpoooonnm..
+
+view R key swing origin 4 -2 when elder
+|-
+
+view L key rest origin 7 -1
+|..qqrrq......
+|..op9885765..
+|.5p89885765..
+|.5889885765..
+|.5887776765..
+|..587776765..
+|..587777765..
+|.mpoooonnnm..
+|..mpooonnnm..
+
+view L key rest origin -3 -2 when elder
+|-
+
+view L key swing origin 7 -1
+|..qqrrq......
+|..op9885765..
+|.5p89885765..
+|.5889885765..
+|.5887776765..
+|..587776765..
+|..587777765..
+|.mpoooonnnm..
+|..mpooonnnm..
+
+view L key swing origin -3 -2 when elder
+|-
+
+view L key lie origin 7 -1
+|..qqrrq......
+|..op9885765..
+|.5p89885765..
+|.5889885765..
+|.5887776765..
+|..587776765..
+|..587777765..
+|.mpoooonnnm..
+|..mpooonnnm..

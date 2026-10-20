@@ -1,0 +1,185 @@
+# kin/youth/wear/coat_hang: the coat's skirts to the knee, parted at the front (the trousers show between them), a lit
+# hem; a vent at the back; they open on the side walk and kick out behind in the run
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. Keys: rest, wide, flare, kneel, lie.
+use person
+body youth
+role garment coat
+layer hangFront
+anchor hip
+keys hang
+sway 2
+
+view D key rest origin 6 0
+|.5887..7665.
+|.5887..7665.
+|.5887..7665.
+|58887..76655
+|59888..77765
+
+view D key rest origin 6 0 when girl replace
+|..587..765..
+|.5887..7665.
+|.5887..7665.
+|58887..76655
+|59888..77765
+
+view D key wide origin 6 0
+|.5887..7665.
+|.5887..7665.
+|.5887..7665.
+|58887..76655
+|59888..77765
+
+view D key flare origin 7 0
+|..5887..7665..
+|..5887..7665..
+|.58887..76655.
+|.58887..76655.
+|598888..777765
+
+view D key kneel origin 7 0
+|..5887..7665..
+|.58887..76655.
+|598888..777765
+
+view U key rest origin 6 0
+|.5887777665.
+|.5887776665.
+|.5887776665.
+|58887.766655
+|59888.777765
+
+view U key rest origin 6 0 when girl replace
+|..58777665..
+|.5887776665.
+|.5887776665.
+|58887.766655
+|59888.777765
+
+view U key wide origin 6 0
+|.5887777665.
+|.5887776665.
+|.5887776665.
+|58887.766655
+|59888.777765
+
+view U key flare origin 7 0
+|..5887777665..
+|..5887776665..
+|.588877766655.
+|.58887..76655.
+|598888..777765
+
+view U key kneel origin 7 0
+|..5887777665..
+|.588877766655.
+|598888..777765
+
+view R key rest origin 5 0
+|.58877665.
+|.58877665.
+|588777665.
+|588777665.
+|5988887765
+
+view R key wide origin 6 0
+|..58877665..
+|.588777665..
+|.5887776665.
+|588777766655
+|598888877765
+
+view R key flare origin 7 0
+|...58877665.
+|..588777665.
+|.5887776665.
+|58887776665.
+|59888887765.
+
+view R key kneel origin 6 0
+|..58877665..
+|.5887776665.
+|598888877765
+
+view L key rest origin 5 0
+|.58877665.
+|.58877665.
+|.588777665
+|.588777665
+|5988887765
+
+view L key wide origin 6 0
+|..58877665..
+|..588777665.
+|.5887776665.
+|588777766655
+|598888877765
+
+view L key flare origin 4 0
+|58877665...
+|588777665..
+|5887776665.
+|58887776665
+|59888887765
+
+view L key kneel origin 6 0
+|..58877665..
+|.5887776665.
+|598888877765
+
+view L key lie origin 5 0
+|.58877665.
+|.58877665.
+|.588777665
+|.588777665
+|5988887765
+
+# ---- postures (KIN-YOUTH): sit (seated on a chair: over the lap; the long skirts down the front over
+# the shins), floor (cross-legged: pooled over the lap, three rows over the floor)
+view D key sit origin 6 0
+|.5887..7665.
+|.5887..7665.
+|.5887..7665.
+|58887..76655
+|59888..77765
+
+view D key floor origin 7 0
+|..5887..7665..
+|.58887..76655.
+|598888..777765
+
+view U key sit origin 6 0
+|.5887777665.
+|.5887776665.
+|.5887776665.
+|58887.766655
+|59888.777765
+
+view U key floor origin 7 0
+|..5887..7665..
+|.58887..76655.
+|598888..777765
+
+view R key sit origin 6 0
+|..58877665..
+|.588777665..
+|.5887776665.
+|588777766655
+|598888877765
+
+view R key floor origin 6 0
+|.5887776665.
+|588777766655
+|598888877765
+
+view L key sit origin 6 0
+|..58877665..
+|..588777665.
+|.5887776665.
+|588777766655
+|598888877765
+
+view L key floor origin 6 0
+|.5887776665.
+|588777766655
+|598888877765

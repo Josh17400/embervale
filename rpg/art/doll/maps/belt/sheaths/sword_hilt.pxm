@@ -26,3 +26,11 @@ view L key rest origin 10 1
 |.v....P..
 |vP....O..
 |.v...hNgh
+
+# facing down and up the sheathed hilt is the scabbard's own (belt/sheaths/sword rest): empty views, so every clip that
+# leaves the hilt channel at rest finds one (P2b production, FOLK-BODY)
+view D key rest origin 0 0
+|.
+
+view U key rest origin 0 0
+|.

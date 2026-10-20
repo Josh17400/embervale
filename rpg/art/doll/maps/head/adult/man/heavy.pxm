@@ -1,0 +1,67 @@
+# head/adult/man/heavy: the man's Heavy head: a broad skull, jowls past the jaw, no chin, a thick neck under its shadow
+# P2b FACES (wave 2). Every head type keeps A3's eye rows and columns, the nose pixel and the mouth row
+# (STYLE_P2 4), so expressions, marks and paint fit them all. Format: rpg/art/doll/doll.h.
+use person
+body man
+role head heavy
+layer head
+anchor head
+keys rest
+
+view D key rest origin -1 -3
+mark face 2 5
+|...qqqqqqqq...
+|..qtuutttssq..
+|.qtuuttttsssq.
+|.qttutttsssrq.
+|.qttttttttsrq.
+|.qtttttssssrq.
+|.tt##tsss##rr.
+|.st@EtsssE@rr.
+|.qt@GssssG@rq.
+|qttssssMsssrrq
+|qtsssssssssrrq
+|..qrrsssrrrq..
+
+view U key rest origin -1 -3
+|...qqqqqqqq...
+|..qtuutttssq..
+|.qtuuttttsssq.
+|.qttutttsssrq.
+|.qtttttssssrq.
+|.qttttsssssrq.
+|.tttsssssssrr.
+|.ttsssssssrrr.
+|.qtsssssssrrq.
+|qttsssssssrrrq
+|qtssssssssrrrq
+|.qrrrrrrrrrrq.
+|..qrrrrrrrrq..
+
+view R key rest origin 0 -3
+|....qqqqqqqqq...
+|...qtuuttttttq..
+|..qtuuttttssssq.
+|.qttutttttsssrq.
+|.qtttttttssssrq.
+|.qttttttsstsstq.
+|.qttts..stt##tq.
+|.qtsss..sts@Es..
+|.qtssr..sssssssq
+|.qtsrrrrsrsssMq.
+|..qrrrrrrssssssq
+|...qrrrrrrrrrrq.
+
+view L key rest origin 0 -3
+|...qqqqqqqqq....
+|..qtuuttttttq...
+|.qtuuttttsssrq..
+|.qtuttttttsssrq.
+|.qtttttttsssrrq.
+|.qttttttssssrrq.
+|.qt##tss..srrq..
+|..tE@sss..rrq...
+|qtttssss..rrrq..
+|.qMsssrsrrrrrrq.
+|qtssssssrrrrrrq.
+|.qrrrrrrrrrrq...

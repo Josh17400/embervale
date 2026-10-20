@@ -56,30 +56,58 @@ struct AtlasBuilder {
   RigSheet finish() {
     RigSheet s;
     if (cuts.empty()) return s;
-    std::vector<int> order(cuts.size());
-    for (size_t i = 0; i < order.size(); i++) order[i] = (int)i;
-    std::sort(order.begin(), order.end(), [&](int a, int b) { return cuts[(size_t)a].c.h != cuts[(size_t)b].c.h ? cuts[(size_t)a].c.h > cuts[(size_t)b].c.h : a < b; });
-    int maxW = 0, area = 0;
-    for (const Cut& c : cuts) { maxW = std::max(maxW, c.c.w); area += c.c.w * c.c.h; }
-    int bestW = 0, bestH = 1 << 30;
-    std::vector<int> bx(cuts.size()), by(cuts.size()), ow(cuts.size()), oh(cuts.size());
-    for (size_t k = 0; k < order.size(); k++) { ow[k] = cuts[(size_t)order[k]].c.w; oh[k] = cuts[(size_t)order[k]].c.h; }
-    auto pack = [&](int width, bool write) {
-      int x = 0, y = 0, shelfH = 0;
-      for (size_t k = 0; k < ow.size(); k++) {
-        if (x + ow[k] > width) { y += shelfH; x = 0; shelfH = 0; }
-        if (write) { bx[(size_t)order[k]] = x; by[(size_t)order[k]] = y; }
-        x += ow[k];
-        shelfH = std::max(shelfH, oh[k]);
-      }
-      return y + shelfH;
-    };
+    // shelves, the largest cross size first (P2b fix r1, B10-ARMED-RUN-ATLAS: the atlas's waste is what a shelf leaves
+    // beside its shorter cuts and at its end): rows (tallest first) or columns (widest first: the walk and run frames come
+    // in a few widths and many heights, so columns waste less), filled next fit (the shelf being filled) or first fit (any
+    // shelf with room left), at every shelf length; the smallest atlas wins (the first found on a tie: deterministic)
+    const size_t n = cuts.size();
+    int area = 0;
+    for (const Cut& c : cuts) area += c.c.w * c.c.h;
     const int root = (int)std::sqrt((double)area);
-    for (int w = maxW; w <= std::max(maxW, root * 5 / 2); w += 2) {
-      const int h = pack(w, false);
-      if ((long long)w * h < (long long)bestW * bestH || bestW == 0) { bestW = w; bestH = h; }
+    std::vector<int> order(n), bx(n), by(n), ol(n), oc(n), shelfPos, shelfLen;
+    auto pack = [&](int length, bool firstFit, bool cols, bool write) {
+      shelfPos.clear(); shelfLen.clear();
+      int top = 0;
+      for (size_t k = 0; k < n; k++) {
+        int s = -1;
+        if (firstFit) { for (size_t i = 0; i < shelfLen.size() && s < 0; i++) if (shelfLen[i] + ol[k] <= length) s = (int)i; }
+        else if (!shelfLen.empty() && shelfLen.back() + ol[k] <= length) s = (int)shelfLen.size() - 1;
+        if (s < 0) { shelfPos.push_back(top); shelfLen.push_back(0); top += oc[k]; s = (int)shelfLen.size() - 1; }
+        if (write) {
+          const size_t i = (size_t)order[k];
+          (cols ? by : bx)[i] = shelfLen[(size_t)s];
+          (cols ? bx : by)[i] = shelfPos[(size_t)s];
+        }
+        shelfLen[(size_t)s] += ol[k];
+      }
+      return top;
+    };
+    auto setup = [&](bool cols) {
+      for (size_t i = 0; i < n; i++) order[i] = (int)i;
+      auto cross = [&](int i) { return cols ? cuts[(size_t)i].c.w : cuts[(size_t)i].c.h; };
+      std::sort(order.begin(), order.end(), [&](int a, int b) { return cross(a) != cross(b) ? cross(a) > cross(b) : a < b; });
+      int maxL = 0;
+      for (size_t k = 0; k < n; k++) {
+        const Canvas& c = cuts[(size_t)order[k]].c;
+        ol[k] = cols ? c.h : c.w; oc[k] = cols ? c.w : c.h;
+        maxL = std::max(maxL, ol[k]);
+      }
+      return maxL;
+    };
+    long long bestA = -1;
+    int bestL = 0, bestS = 0;
+    bool bestFF = false, bestCols = false;
+    for (bool cols : {false, true}) {
+      const int maxL = setup(cols);
+      for (int L = maxL; L <= std::max(maxL, root * 5 / 2); L++)
+        for (bool ff : {false, true}) {
+          const int S = pack(L, ff, cols, false);
+          if (bestA < 0 || (long long)L * S < bestA) { bestA = (long long)L * S; bestL = L; bestS = S; bestFF = ff; bestCols = cols; }
+        }
     }
-    pack(bestW, true);
+    setup(bestCols);
+    pack(bestL, bestFF, bestCols, true);
+    const int bestW = bestCols ? bestS : bestL, bestH = bestCols ? bestL : bestS;
     s.atlas = Canvas(bestW, bestH);
     for (size_t i = 0; i < cuts.size(); i++) {
       const Canvas& c = cuts[i].c;
@@ -108,6 +136,7 @@ struct Item {
   Anchor anchor = Anchor::Pivot;
   bool garment = false;   // a garment layer item (torso / hangs) whose cloth takes the pattern tile
   int ax = 0, ay = 0;     // the anchor's canvas position
+  int tx = 0, ty = 0;     // the pattern tile's origin: the neck's rest point moved by this item's own anchor
 };
 struct Tile { const ViewRec* v = nullptr; Slot on = Slot::Cloth1; };
 
@@ -285,6 +314,9 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
   auto place = [&](Item& it) {
     const Pt& a = o.anchors[(int)it.anchor];
     it.ax = CPX + a.x; it.ay = CPY + a.y;
+    // (torso and hangs share one tile grid at rest, so a stripe runs on from the bodice into the skirt; each item's grid
+    // rides its own anchor's motion, so the pattern never slides over the cloth)
+    it.tx = it.ax - base[(int)it.anchor].x + base[(int)Anchor::Neck].x; it.ty = it.ay - base[(int)it.anchor].y + base[(int)Anchor::Neck].y;
     for (uint8_t m = 0; m < it.view->nMarks; m++) {
       const MarkRec& mk = P.marks[it.view->firstMark + m];
       const int s = markSlot(o, mk.name);
@@ -333,10 +365,10 @@ void composeFrame(const DollRecipe& r, int facing, const FrameRec& f, FrameOut& 
             if (c == kErase) { o.code[(size_t)Y * CW + X] = 0; continue; }
             uint8_t w = c;
             // the pattern tile: a cloth pixel (not its outline) takes the tile's slot where the tile marks it, keeping
-            // the cloth's own step (so the garment's shading runs through the pattern); the tile rides the item's anchor
+            // the cloth's own step (so the garment's shading runs through the pattern); the tile's grid: Item::tx, ty
             if (tiled && (uint8_t)codeSlot(c) == tileOn && codeStep(c) >= 1) {
               const ViewRec& t = *tile.v;
-              int tx = (X - it.ax + t.ox) % t.w, ty = (Y - it.ay + t.oy) % t.h;
+              int tx = (X - it.tx + t.ox) % t.w, ty = (Y - it.ty + t.oy) % t.h;
               if (tx < 0) tx += t.w;
               if (ty < 0) ty += t.h;
               const uint8_t tc = t.cells[(size_t)ty * t.w + tx];
@@ -490,9 +522,14 @@ uint8_t partOf(RigPart p) { return (uint8_t)p; }
 }  // namespace
 
 // ---------------------------------------------------------------- the public calls
-RigSheet compose(const DollRecipe& r, RigPart part, const ComposeOpts* opts) {
+RigSheet compose(const DollRecipe& r0, RigPart part, const ComposeOpts* opts) {
   const ComposeOpts op = opts ? *opts : ComposeOpts{};
   const Pool& P = get();
+  // (P2b fix B10-CIVIL-STAFF-RUN-ATLAS) the flag `run` while the RUN part composes: a long carried tool (the staff) draws
+  // its run carry there (`when run replace`: held close and upright, so the run's frames stay inside B10's 64 KB)
+  DollRecipe runR;
+  if (part == RigPart::Run) { runR = r0; runR.flags.push_back("run"); }
+  const DollRecipe& r = part == RigPart::Run ? runR : r0;
   AtlasBuilder ab;
   std::vector<const ClipRec*> sorted = clipsOf(r.bodyKey, partOf(part), r.family, -1);
   // facing, then clip, then variant: the atlas index order
@@ -532,13 +569,14 @@ RigSheet compose(const DollRecipe& r, RigPart part, const ComposeOpts* opts) {
 }
 RigSheet compose(const HumanLook& look, RigPart part) { return compose(resolve(look), part); }
 
-RigSheet composePosture(const DollRecipe& r, Posture p, uint8_t variant) {
+RigSheet composePosture(const DollRecipe& r0, Posture p, uint8_t variant) {
   const Pool& P = get();
   AtlasBuilder ab;
   const ComposeOpts op;
   static thread_local FrameOut fo;
-  for (const ClipRec* c : clipsOf(r.bodyKey, kPartPosture, r.family, (int)p)) {
-    if (c->variant != variant && !(variant && c->variant == 0)) continue;
+  // (POSES-B) the posture's prop in hand; per facing the variant's own clips, else variant 0's (never both)
+  const DollRecipe r = withPosture(r0, p, variant);
+  for (const ClipRec* c : postureClips(r.bodyKey, r.family, (int)p, variant)) {
     for (uint16_t i = 0; i < c->nFrames; i++) {
       const FrameRec& f = P.frames[c->firstFrame + i];
       Cut cut = composeOne(r, c->facing, f, f.turn, fo, op);
@@ -582,9 +620,44 @@ Canvas figureStill(const HumanLook& look, int facing) {
 // shows as a mound DERIVED from the composed body (its silhouette's lit and shaded flanks, alpha only over the quilt),
 // so the mound is the drawn body's own shape. No Sleep clip: an empty canvas (the view draws v1).
 namespace {
+// what a sleeper keeps: no headwear or helm (hats off in bed), nothing in hand, no sheath, shield or effect
 bool notHeadwear(const PartRec& p) {
-  if (p.layer == (uint8_t)Layer::Headwear) return false;
-  for (const RoleRec& rr : p.roles) if (rr.cat == (uint8_t)Role::Headwear || rr.cat == (uint8_t)Role::Helm) return false;
+  switch ((Layer)p.layer) {
+    case Layer::Headwear: case Layer::Held: case Layer::HeldBack: case Layer::Shield: case Layer::Fx: case Layer::FxBack: return false;
+    default: break;
+  }
+  for (const RoleRec& rr : p.roles)
+    if (rr.cat == (uint8_t)Role::Headwear || rr.cat == (uint8_t)Role::Helm || rr.cat == (uint8_t)Role::Held || rr.cat == (uint8_t)Role::Sheath ||
+        rr.cat == (uint8_t)Role::Shield || rr.cat == (uint8_t)Role::Fx)
+      return false;
+  return true;
+}
+// the frame a sleeper is composed from: the Sleep posture's (POSES-B) when the body set has one for that facing; else the
+// doll's own: north-south berths the LOCO idle's front frame, across berths the DEATH lying frame (the side view with the
+// lying arms and legs, the pose a corpse is turned from); both with the eyes closed
+bool sleeperFrame(const DollRecipe& r, int want, int frame, FrameRec& out) {
+  const Pool& P = get();
+  const ClipRec* clip = nullptr;
+  const std::vector<const ClipRec*> cs = clipsOf(r.bodyKey, kPartPosture, r.family, (int)Posture::Sleep);
+  for (const ClipRec* c : cs) if (c->facing == want && c->variant == 0) clip = c;
+  if (!clip) for (const ClipRec* c : cs) if (c->facing == want) clip = c;
+  if (clip && clip->nFrames) { out = P.frames[clip->firstFrame + (uint16_t)(frame & 1) % clip->nFrames]; return true; }
+  const bool across = want == 3;
+  for (const ClipRec* c : clipsOf(r.bodyKey, across ? (uint8_t)RigPart::Death : (uint8_t)RigPart::Loco, r.family, -1)) {
+    if (c->clip != (uint8_t)(across ? Clip::Lying : Clip::Idle) || !c->nFrames) continue;
+    if (!across && c->facing != 0) continue;
+    if (clip && c->variant > clip->variant) continue;
+    clip = c;
+  }
+  if (!clip) return false;
+  out = P.frames[clip->firstFrame];
+  out.turn = 0; out.atX = out.atY = 0; out.bob = 0;
+  const uint16_t expr = P.strId("expr"), closed = P.strId("closed");
+  if (expr != 0xFFFF && closed != 0xFFFF) {
+    bool set = false;
+    for (KeyRec& k : out.keys) if (k.channel == expr) { k.key = closed; set = true; }
+    if (!set) out.keys.push_back(KeyRec{expr, closed});
+  }
   return true;
 }
 }  // namespace
@@ -592,15 +665,12 @@ bool notHeadwear(const PartRec& p) {
 Canvas sleeper(const HumanLook& look, Berth b, int kit, int frame) {
   const holders::Berth2 g = holders::berth2(b, kit);
   if (g.w <= 0 || g.h <= 0) return Canvas();
+  if (!dollCovers(look, RigPart::Loco) || !dollCovers(look, RigPart::Death)) return Canvas();
   const DollRecipe r = resolve(look);
   const Pool& P = get();
-  std::vector<const ClipRec*> cs = clipsOf(r.bodyKey, kPartPosture, r.family, (int)Posture::Sleep);
   const int want = g.across ? 3 : 0;
-  const ClipRec* clip = nullptr;
-  for (const ClipRec* c : cs) if (c->facing == want && c->variant == 0) clip = c;
-  if (!clip) for (const ClipRec* c : cs) if (c->facing == want) clip = c;
-  if (!clip || !clip->nFrames) return Canvas();
-  const FrameRec& f = P.frames[clip->firstFrame + (uint16_t)(frame & 1) % clip->nFrames];
+  FrameRec f;
+  if (!sleeperFrame(r, want, frame, f)) return Canvas();
   static thread_local FrameOut fo;
   composeFrame(r, want, f, fo, nullptr, nullptr, notHeadwear);
   if (fo.bx1 < fo.bx0) return Canvas();

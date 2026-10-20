@@ -69,3 +69,39 @@ view L key lie origin -2 -2
 |........acdcb
 |........abcbb
 |.........abba
+
+view D key lie origin -2 -2
+|....aaaa....
+|..aaeeddaa..
+|.adeedbccca.
+|addddcbcccba
+|acddc.bccbba
+|acd......cba
+|ab........ba
+
+# capped (under a hat, a hood or a helm; a circlet shows the whole style): the style kept inside the headwear
+view R key rest when capped,!circlet replace
+|......aaaaa.....
+|....aadeeddcaa..
+|...adeedddcccba.
+|..adddddccccccba
+|..acdddcccccba..
+|.aacddccccba....
+|.aeacccbba......
+|.aecabba........
+|.adcba..........
+|.acbba..........
+|.abba...........
+
+view L key rest when capped,!circlet replace
+|.....aaaaa......
+|..aadeeddcaa....
+|.adeedddcccba...
+|adddddccccccba..
+|..acdddcccccba..
+|....aacddccccba.
+|......adeacccba.
+|........adecaba.
+|..........acdca.
+|..........abcba.
+|...........abba.

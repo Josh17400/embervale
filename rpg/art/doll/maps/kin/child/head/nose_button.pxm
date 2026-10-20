@@ -14,8 +14,8 @@ view D key rest origin -6 -7
 view U key rest origin 0 0
 |.
 
-view R key rest origin -12 -6
+view R key rest origin -12 -7
 |q
 
-view L key rest origin 1 -6
+view L key rest origin 0 -7
 |q

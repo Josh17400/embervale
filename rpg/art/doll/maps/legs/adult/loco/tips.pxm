@@ -15,10 +15,16 @@ z 9
 view D key buckle origin 4 1
 |fih..fhg
 |KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
 
 view D key idle origin 4 1
 |fih..fhg
 |KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
 
 view D key run1 origin 4 2
 |.....fhg
@@ -70,6 +76,9 @@ view D key sit origin 6 1
 mark hip 6 -6
 |fih......fhg
 |KKK......KKK
+regions
+|BBB......BBB
+|OOO......OOO
 
 view D key walkA origin 4 2
 |fih.....
@@ -110,10 +119,16 @@ regions
 view U key buckle origin 4 1
 |fhg..fhg
 |KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
 
 view U key idle origin 4 1
 |fhg..fhg
 |KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
 
 view U key run1 origin 4 2
 |.....fhg
@@ -164,6 +179,8 @@ regions
 view U key sit origin 0 0
 mark hip 0 -7
 |.
+regions
+|.
 
 view U key walkA origin 4 2
 |fhg.....
@@ -204,10 +221,16 @@ regions
 view R key buckle origin 1 1
 |fihhgf.
 |KKKKKKK
+regions
+|BBBBBB.
+|OOOOOOO
 
 view R key idle origin 1 1
 |fihhgf.
 |KKKKKKK
+regions
+|BBBBBB.
+|OOOOOOO
 
 view R key run1 origin 9 3
 |fhhggf............
@@ -275,6 +298,9 @@ view R key sit origin -5 1
 mark hip -5 -6
 |fihhgf.
 |KKKKKKK
+regions
+|BBBBBB.
+|OOOOOOO
 
 view R key walkA origin 6 1
 |fhhggf...fihhgf.
@@ -325,10 +351,16 @@ regions
 view L key buckle origin 6 1
 |.fihhgf
 |KKKKKKK
+regions
+|.BBBBBB
+|OOOOOOO
 
 view L key idle origin 6 1
 |.fihhgf
 |KKKKKKK
+regions
+|.BBBBBB
+|OOOOOOO
 
 view L key run1 origin 9 3
 |............fhhggf
@@ -396,6 +428,9 @@ view L key sit origin 12 1
 mark hip 12 -6
 |.fihhgf
 |KKKKKKK
+regions
+|.BBBBBB
+|OOOOOOO
 
 view L key walkA origin 10 1
 |.fihhgf...fhhggf
@@ -446,6 +481,9 @@ regions
 view L key lie origin 2 1
 |fihhgf
 |KKKKKK
+regions
+|BBBBBB
+|OOOOOO
 
 view D key walkA2 origin 4 1
 |fih..fhg
@@ -488,3 +526,48 @@ view L key stance origin 8 1
 regions
 |BBBBBB.....BBBB
 |OOOOOO.....OOOO
+
+
+# ---- the drawn-weapon LOCO and the swing (P2b production, FOLK-BODY): the shoes under a long hem on the guard stance
+# (R / L `guard`, the side views' ready stance), A3's swing stance facing down and up (`drawn`) and the lunge
+view D key drawn origin 4 1
+|fih..fhg
+|KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
+
+view U key drawn origin 4 1
+|fhg..fhg
+|KKK..KKK
+regions
+|BBB..BBB
+|OOO..OOO
+
+view R key guard origin 6 1
+|.fhhggf..fihhgf.
+|.KKKKKKK.KKKKKKK
+regions
+|.BBBBBB..BBBBBB.
+|.OOOOOOO.OOOOOOO
+
+view L key guard origin 10 1
+|.fihhgf..fhhggf.
+|KKKKKKK.KKKKKKK.
+regions
+|.BBBBBB..BBBBBB.
+|OOOOOOO.OOOOOOO.
+
+view R key lunge origin 9 1
+|.fhggf.......fihhgf.
+|.KKKKK.......KKKKKKK
+regions
+|.BBBBB.......BBBBBB.
+|.OOOOO.......OOOOOOO
+
+view L key lunge origin 10 1
+|.fihhgf.......fhggf.
+|KKKKKKK.......KKKKK.
+regions
+|.BBBBBB.......BBBBB.
+|OOOOOOO.......OOOOO.

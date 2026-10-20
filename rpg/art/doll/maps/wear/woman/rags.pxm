@@ -1,0 +1,133 @@
+# wear/woman/rags: the woman's rags (STYLE_P2 22 "Rags"; beggars, prisoners, refugees): a worn shift, the sleeves torn off above
+# the elbow (her upper arms bare under ragged edges), a cloth3 patch stitched on the chest, a frayed rope for a belt; the shift
+# (the hang) ends at the knee in torn teeth over her bare shins and feet (the leg library's regions in skin)
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role garment rags
+layer torso
+anchor neck
+keys torso
+
+view D key rest origin 8 -1
+|......qrrq......
+|5988866ss6777765
+|5866888667776565
+|qts58CD777665srq
+|...58BC777665...
+|...5877766665...
+|...5876777665...
+|...5877767665...
+|...fihihihhgf...
+
+view D key rest origin 8 -2 when elder
+|-..............-
+
+view D key swing origin 8 -1
+|......qrrq......
+|5988866ss6777765
+|5866888667776565
+|qts58CD777665srq
+|...58BC777665...
+|...5877766665...
+|...5876777665...
+|...5877767665...
+|...fihihihhgf...
+
+view D key swing origin 8 -2 when elder
+|-..............-
+
+view D key drawn origin 8 -1
+|......qrrq......
+|5988866ss6777765
+|5866888667776565
+|qts58CD777665srq
+|...58BC777665...
+|...5877766665...
+|...5876777665...
+|...5877767665...
+|...fihihihhgf...
+
+view D key drawn origin 8 -2 when elder
+|-..............-
+
+view U key rest origin 8 -1
+|.....qrrrrrq....
+|5988888777777765
+|5866887777776565
+|qts5877777665srq
+|...5887777665...
+|...5877767665...
+|...5876777665...
+|...5877777665...
+|...fihihihhgf...
+
+view U key rest origin 8 -2 when elder
+|-..............-
+
+view R key rest origin 6 -1
+|......qrrqq..
+|..5875888765.
+|..5865887765.
+|..586qts7765.
+|..5877CD7765.
+|..5877BC765..
+|..577776765..
+|..587777765..
+|..fihihihhgf.
+
+view R key rest origin 4 -2 when elder
+|-
+
+view R key swing origin 6 -1
+|......qrrqq..
+|..5875888765.
+|..5865887765.
+|..586qts7765.
+|..5877CD7765.
+|..5877BC765..
+|..577776765..
+|..587777765..
+|..fihihihhgf.
+
+view R key swing origin 4 -2 when elder
+|-
+
+view L key rest origin 7 -1
+|..qqrrq......
+|..5888875765.
+|.5887885665..
+|.5887stq565..
+|.58DC777665..
+|..5CB77665...
+|..576777765..
+|..587777765..
+|.fihihihhgf..
+
+view L key rest origin -3 -2 when elder
+|-
+
+view L key swing origin 7 -1
+|..qqrrq......
+|..5888875765.
+|.5887885665..
+|.5887stq565..
+|.58DC777665..
+|..5CB77665...
+|..576777765..
+|..587777765..
+|.fihihihhgf..
+
+view L key swing origin -3 -2 when elder
+|-
+
+view L key lie origin 7 -1
+|..qqrrq......
+|..5888875765.
+|.5887885665..
+|.5887stq565..
+|.58DC777665..
+|..5CB77665...
+|..576777765..
+|..587777765..
+|.fihihihhgf..

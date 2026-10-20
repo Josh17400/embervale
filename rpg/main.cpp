@@ -446,6 +446,16 @@ int main(int argc, char** argv) {
 #endif
   static Audio audio;   // ~175 KB: keep it off the stack
   if (!witness) audio.init();
+#ifdef __EMSCRIPTEN__
+  // (Witness 0.7.1, cpp GUIDE section 13) web witness mode opens the audio device too, fed SILENCE (no callback, never
+  // SDL_PutAudioStreamData): the page gets its AudioContext, so doctor --no-auto-unlock and web.audio.state can check
+  // the iPhone unlock path. What listen hears still comes from witness_audio_write() in step (deterministic).
+  if (witness && (SDL_WasInit(SDL_INIT_AUDIO) || SDL_InitSubSystem(SDL_INIT_AUDIO))) {
+    const SDL_AudioSpec spec{SDL_AUDIO_F32, 1, 44100};
+    if (SDL_AudioStream* dev = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr))
+      SDL_ResumeAudioStreamDevice(dev);   // kept open for the page's life
+  }
+#endif
 
   uint64_t startSeed = seed ? seed : witness ? 1 : (uint64_t)SDL_GetTicks() * 2654435761ull + 12345;
   Game game(startSeed);
@@ -1587,6 +1597,7 @@ int main(int argc, char** argv) {
   auto simStep = [&](float dt) {
     Input in = view.input(game);
     if (game.mode == Mode::Play) game.update(dt, in);
+    else if (game.mode == Mode::Dead) game.update(dt, Input());   // (P2b B11) the hero's fall runs on the sim's clock
     else if (game.mode == Mode::Title) game.time += dt;
     view.update(game, dt);
   };
@@ -1777,6 +1788,8 @@ int main(int argc, char** argv) {
     } else {
       acc = 0;
       if (game.mode == Mode::Title) game.time += (float)frameDt;
+      // (P2b B11) under the death screen the sim steps only the hero's fall (Game::update: stT, then it returns)
+      else if (game.mode == Mode::Dead) game.update((float)frameDt, Input());
     }
     simT1 = SDL_GetPerformanceCounter();
     view.update(game, (float)frameDt);
@@ -1906,13 +1919,22 @@ int main(int argc, char** argv) {
         if (params["window"].size() == 2) { ww = (int)params["window"][0].integer(); wh = (int)params["window"][1].integer(); }
         if (params["safe"].size() == 4) { hasSafe = true; for (int k = 0; k < 4; k++) safe[k] = (int)params["safe"][k].integer(); }
         if (params["screen"].exists()) mode = std::string(params["screen"].str("fill")) == "pixel" ? (int)screen::PixelPerfect : (int)screen::Fill;
+        // (P2b integration, test only) defaults for a run whose harness cannot pass params (witness play batch testers:
+        // a --params JSON in their start line is denied): EMB_WPLAY_WINDOW "2556x1179", EMB_WPLAY_SAFE "l,t,r,b",
+        // EMB_WPLAY_SCREEN fill|pixel, EMB_WPLAY_RIG, EMB_WPLAY_HOUR, EMB_WPLAY_GOD; a param that is given wins
+        if (const char* e = std::getenv("EMB_WPLAY_WINDOW"); e && params["window"].size() != 2) std::sscanf(e, "%dx%d", &ww, &wh);
+        if (const char* e = std::getenv("EMB_WPLAY_SAFE"); e && !hasSafe)
+          hasSafe = std::sscanf(e, "%d,%d,%d,%d", &safe[0], &safe[1], &safe[2], &safe[3]) == 4;
+        if (const char* e = std::getenv("EMB_WPLAY_SCREEN"); e && !params["screen"].exists())
+          mode = std::string(e) == "pixel" ? (int)screen::PixelPerfect : (int)screen::Fill;
         if (params["zoom"].exists()) {
           if (params["zoom"].type() == WITNESS_STRING) keep = std::string(params["zoom"].str("")) == "keep";
           else zoom = (int)params["zoom"].integer(0);
         }
         if ((hasSafe || mode >= 0) && ww <= 0) { ww = 960; wh = 540; }   // a safe area or a mode alone: the harness window, unpinned
         screen::witnessScreen(pix, ww, wh, hasSafe ? safe : nullptr, mode, zoom, keep);
-        art::setRigVersion((int)params["rig"].integer(1));   // a fresh view follows: no cache carries the other rig's pixels
+        const char* envRig = std::getenv("EMB_WPLAY_RIG");
+        art::setRigVersion((int)params["rig"].integer(envRig ? std::atoi(envRig) : 1));   // a fresh view follows: no cache carries the other rig's pixels
       }
       new (&audio) Audio();
       new (&view) View();
@@ -1938,10 +1960,11 @@ int main(int argc, char** argv) {
       startSeed = (uint64_t)s;
       // then a brand-new Game and the start the params ask for (applyStart: the same steps a recorded --play took)
       StartSpec sp;
-      sp.god = params["god"].boolean();
+      sp.god = params["god"].boolean() || (!params["god"].exists() && std::getenv("EMB_WPLAY_GOD"));
       sp.scene = scene && *scene ? scene : params["scene"].str("");
       sp.enter = params["enter"].boolean();
       if (params["hour"].exists()) sp.hour = (float)params["hour"].num();
+      else if (const char* e = std::getenv("EMB_WPLAY_HOUR")) sp.hour = (float)std::atof(e);
       if (params["at"].size() == 2) { sp.atSet = true; sp.atX = (int32_t)params["at"][0].integer(); sp.atY = (int32_t)params["at"][1].integer(); }
       sp.talk = (int)params["talk"].integer(-1);
       sp.menu = (int)params["menu"].integer(-1);
@@ -2034,7 +2057,25 @@ int main(int argc, char** argv) {
     h.screenshot = [&](witness_image& img) -> bool {
       drawFrame();
       int w = 0, hh = 0;
-      const bool ok = pix.readCanvas(wShot, w, hh);
+      // (P2b fix round 1, test only) EMB_WPLAY_SHOT "world:K": a playtester's shot is the world layer at world px (one
+      // pixel per art px, the UI left out), each pixel repeated K x K (1-4), so people read at 32 x K px instead of the
+      // UI canvas's ~20 px (the phone window's UI scale samples the world below its own resolution)
+      int worldK = 0;
+      if (const char* e = std::getenv("EMB_WPLAY_SHOT"); e && std::strncmp(e, "world", 5) == 0)
+        worldK = std::clamp(e[5] == ':' ? std::atoi(e + 6) : 1, 1, 4);
+      bool ok;
+      if (worldK > 0) {
+        std::vector<uint8_t> src;
+        ok = pix.readWorld(src, w, hh);
+        if (ok && worldK > 1) {
+          const int W = w * worldK, H = hh * worldK;
+          wShot.assign((size_t)W * H * 4, 0);
+          for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+              std::memcpy(&wShot[((size_t)y * W + x) * 4], &src[((size_t)(y / worldK) * w + x / worldK) * 4], 4);
+          w = W; hh = H;
+        } else if (ok) wShot.swap(src);
+      } else ok = pix.readCanvas(wShot, w, hh);
       pix.end();
       if (!ok) { witness::fail(std::string("screenshot: ") + SDL_GetError()); return false; }
       img.rgba = wShot.data(); img.width = w; img.height = hh;

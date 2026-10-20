@@ -1,0 +1,44 @@
+# cloak/fur_front: the fur mantle's collar: a thick ring of fur round the neck and over the shoulders, meeting at a brass clasp.
+# Rigid (its own channel, so it never vanishes on a frame's hang key): facing down it lies over the shoulders above the
+# arms (the head layer, under the head); facing right and left it wraps the near shoulder; facing up the panel (drawn
+# after, in cloakFront) covers the shoulder caps it keeps there. Format: rpg/art/doll/doll.h.
+use person
+body adult
+role cloak fur
+layer head
+anchor neck
+keys cloakfront
+z -5
+legend Q cloak 0
+legend R cloak 1
+legend S cloak 2
+legend T cloak 3
+legend U cloak 4
+
+view U key rest origin 9 0 layer head
+|..QQQQ......QQQQ..
+|.QTTSQ......QSSRQ.
+
+view D key rest origin 9 2 layer head
+|...ffff....ffff...
+|..fiijhf..fhhggf..
+|.fiijihhffhhhgggf.
+|fiijiihhPOhhhghggf
+|fhiihhgf..fhhggggf
+|.ffhgf......fgfff.
+
+view R key rest origin 8 2
+|...ffff.......
+|.fiijhhff..ff.
+|fiijiihhhffhgf
+|fhiihhhhhhhggf
+|.fhhgghhggff..
+|..ffffffff....
+
+view L key rest origin 5 2
+|.......ffff...
+|.ff..ffhhhggf.
+|fihffhhhgghggf
+|fiihhhhhhhgghf
+|..ffiihhiihhf.
+|....ffffffff..

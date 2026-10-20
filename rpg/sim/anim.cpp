@@ -111,12 +111,13 @@ AnimPick pickV2(const Game& g, const Actor& a) {
       k.clip = art::Clip::Walk; k.frames = 6; k.t = dist;
       const int px = (int)std::floor(dist + 0.5f);
       // (P2b) the body's own walk or run table (the doll's clips: man 19, woman 20 px a cycle, the run about 36); the
-      // run is the RUN part (variant 1 drawn), the drawn walk the ACTION part's variant 1, the sheathed walk LOCO's 0
+      // sheathed run is the RUN part, the drawn run ACTION walk variant 2, the drawn walk the ACTION part's variant 1, the sheathed walk LOCO's 0
       k.gait = (uint8_t)(a.gait && animMayRun(a) ? 1 : 0);
       const WalkTableRef T = animWalkTable(a, k.gait);
       if (T.frames > 0) { k.frames = (uint8_t)T.frames; k.frame = (uint8_t)T.frameAt((float)px); }
       else k.frame = (uint8_t)animWalkFrame(px);
-      if (k.gait) { k.part = art::RigPart::Run; k.variant = (uint8_t)(k.drawn ? 1 : 0); }
+      // (P2b fix r1, B10) the drawn run lives in the ACTION atlas (walk variant 2), so RUN stays the sheathed run only
+      if (k.gait) { k.part = k.drawn ? art::RigPart::Action : art::RigPart::Run; k.variant = (uint8_t)(k.drawn ? 2 : 0); }
       else { k.part = k.drawn ? art::RigPart::Action : art::RigPart::Loco; k.variant = (uint8_t)(k.drawn ? 1 : 0); }
       break;
     }

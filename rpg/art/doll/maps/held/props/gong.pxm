@@ -1,0 +1,142 @@
+# held/props/gong: a small brass gong hung in a wooden frame stood before the player, for the Drum posture's Gong variant
+# (PROPS, P2b), struck with a padded mallet in the right hand (high: raised, reach: on the gong). Format:
+# rpg/art/doll/doll.h. Anchored on the right shoulder.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held gong
+anchor shoulderR
+keys held
+z 40
+
+view D key high origin 4 13 layer neck
+|.n...................
+|non..................
+|.m...................
+|.TQ..................
+|.TQ..................
+|TQ...................
+|TQ...................
+|TQ...................
+|.....................
+|.....................
+|.....................
+|.....................
+|.....................
+|...........ffffffff..
+|...........f..IIII.f.
+|...........f.IPJPNI.f
+|...........f.IJPONI.f
+|...........f.IPONNI.f
+|...........f..IIII.f.
+|...........f......f..
+|...........f......f..
+
+view D key reach origin -1 2 layer neck
+|.n..............
+|non.............
+|.m....ffffffff..
+|.TQ...f..IIII.f.
+|.TQ...f.IPJPNI.f
+|TQ....f.IJPONI.f
+|TQ....f.IPONNI.f
+|TQ....f..IIII.f.
+|......f......f..
+|......f......f..
+
+view U key high origin 14 0 layer heldBack
+|ffffffff..
+|f.IIII..f.
+|f.IPNJNI.f
+|f.IPONJI.f
+|f.IPPONI.f
+|f.IIII..f.
+|f......f..
+|f......f..
+
+view U key reach origin 14 0 layer heldBack
+|ffffffff..
+|f.IIII..f.
+|f.IPNJNI.f
+|f.IPONJI.f
+|f.IPPONI.f
+|f.IIII..f.
+|f......f..
+|f......f..
+
+view R key high origin 3 10 layer hairFront
+|.n..............
+|non.............
+|.m..............
+|.TQ.............
+|.TQ.............
+|TQ..............
+|TQ..............
+|TQ..............
+|................
+|.............f..
+|.............fI.
+|.............fPI
+|.............fJN
+|.............fOI
+|.............fI.
+|.............f..
+|.............f..
+|.............f..
+
+view R key reach origin -9 3 layer neck
+|.n..
+|non.
+|.m..
+|.TI.
+|.TPI
+|TfJN
+|TfOI
+|TfI.
+|.f..
+|.f..
+|.f..
+
+view L key high origin 10 10 layer neck
+|............n..
+|...........non.
+|............m..
+|............TQ.
+|............TQ.
+|.............TQ
+|.............TQ
+|.............TQ
+|...............
+|.f.............
+|If.............
+|IPf............
+|NJf............
+|IOf............
+|If.............
+|.f.............
+|.f.............
+|.f.............
+
+view L key reach origin 11 3 layer neck
+|.n..
+|non.
+|.m..
+|.Tf.
+|.TPf
+|.NTf
+|.ITf
+|.ITQ
+|..f.
+|..f.
+|..f.

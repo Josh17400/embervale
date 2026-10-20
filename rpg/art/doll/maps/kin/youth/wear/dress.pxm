@@ -1,0 +1,39 @@
+# kin/youth/wear/dress: the youth girl's dress (the A3 woman's dress at 26 px): the bodice in cloth 1 with the waist a
+# pixel in on each side, the chemise (linen) at the round neckline and the puff caps of the shoulders (the arms draw the
+# puff sleeve: regionsOf's dress sets U linen, C skin), the apron's bib (cloth 3) over the belly; dress_hang carries the
+# skirt and the apron to the ankles. A girl's garment: one fit (the A3 woman's), so no `when girl` replacements.
+# KIN-YOUTH (P2b fix round 1: before it the youth had no dress, and rig 2 drew a girl in a dress with v1's whole sprite).
+use person woman
+body youth
+role garment dress
+layer torso
+anchor neck
+keys rest
+
+view D key rest origin 6 0
+|...xqrrqx...|
+|vyx9yyxx76xv|
+|..68xxw766..|
+|...6DCCB6...|
+|...5DCCB5...|
+
+view U key rest origin 6 0
+|...5xyyx5...|
+|vyx8777776xv|
+|..68777766..|
+|...687766...|
+|...5ACCA5...|
+
+view R key rest origin 4 0
+|..5qrqx.|
+|.59887x5|
+|58877665|
+|.587BDA.|
+|.587BCDA|
+
+view L key rest origin 4 0
+|.xqrq5..|
+|5x98765.|
+|58877665|
+|.ADB765.|
+|ADCB765.|

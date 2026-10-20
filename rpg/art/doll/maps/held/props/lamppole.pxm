@@ -1,0 +1,113 @@
+# held/props/lamppole: the lamplighter's pole for the Lamp posture (PROPS, P2b): a long dark pole raised to the lamp, a
+# brass hook and a lit taper at its head. Format: rpg/art/doll/doll.h. Around the raised right grip, anchored on the right
+# shoulder; it stands past the head, its taper the brightest pixel.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held lamppole
+anchor shoulderR
+keys held
+z 40
+
+view D key raise origin 5 24 layer neck
+|.J..
+|PNP.
+|IIf.
+|.if.
+|.if.
+|.if.
+|.if.
+|.if.
+|.if.
+|.if.
+|.if.
+|..if
+|..if
+|..if
+|..if
+|..if
+|..if
+|..if
+|..if
+|..if
+|..ff
+
+view U key raise origin -3 24 layer heldBack
+|.J.
+|NPN
+|.II
+|.if
+|.if
+|.if
+|.if
+|.if
+|.if
+|.if
+|.if
+|.if
+|if.
+|if.
+|if.
+|if.
+|if.
+|if.
+|if.
+|if.
+|ff.
+
+view R key raise origin 3 24 layer hairFront
+|..J.
+|.PNP
+|.IIf
+|..if
+|..if
+|..if
+|..if
+|.if.
+|.if.
+|.if.
+|.if.
+|.if.
+|.if.
+|.if.
+|.if.
+|.if.
+|if..
+|if..
+|if..
+|if..
+|ff..
+
+view L key raise origin 0 24 layer hairBack
+|.J...
+|NPN..
+|.II..
+|.if..
+|.if..
+|.if..
+|.if..
+|..if.
+|..if.
+|..if.
+|..if.
+|..if.
+|..if.
+|..if.
+|..if.
+|..if.
+|...if
+|...if
+|...if
+|...if
+|...ff

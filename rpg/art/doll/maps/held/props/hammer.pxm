@@ -1,0 +1,113 @@
+# held/props/hammer: the smith's forging hammer in the right hand for the Hammer posture (PROPS, P2b): an iron head with a
+# lit face on a pale ash handle; raised (high) and struck down on the anvil (low). Format: rpg/art/doll/doll.h. Drawn around
+# the pose arms' grips, anchored on the right shoulder; under the fist.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held hammer
+anchor shoulderR
+keys held
+z 40
+
+view D key high origin 6 15 layer neck
+|vvvvv
+|vyxwv
+|vxwwv
+|.vvv.
+|..QQ.
+|..TQ.
+|..TQ.
+|..TQ.
+|..TQ.
+|..TQ.
+|..QQ.
+
+view D key low origin -2 -6 layer neck
+|..QQ.
+|..TQ.
+|..TQ.
+|..TQ.
+|..TQ.
+|..QQ.
+|.vvv.
+|vyxwv
+|vxwwv
+|.vvv.
+
+view U key high origin -2 15 layer heldBack
+|vvvvv
+|vzyxv
+|vzzyv
+|.vvv.
+|..QQ.
+|..TQ.
+|..TQ.
+|..TQ.
+|..TQ.
+|..TQ.
+|..QQ.
+
+view U key low origin 6 -6 layer heldBack
+|..QQ.
+|..TQ.
+|..TQ.
+|..TQ.
+|..TQ.
+|..QQ.
+|.vvv.
+|vzyxv
+|vzzyv
+|.vvv.
+
+view R key high origin 12 11 layer hairBack
+|.vvv........
+|vyxwv.......
+|vxxwv.......
+|vxwwv.......
+|.vvv.QQ.....
+|......TQ....
+|.......TQ...
+|........TQ..
+|.........TQ.
+|..........QQ
+
+view R key low origin -5 -6 layer neck
+|Q........
+|QTT......
+|.QQTTvvv.
+|...Qvyxwv
+|....vxxwv
+|....vxwwv
+|.....vvv.
+
+view L key high origin -2 11 layer hairBack
+|.......vvv.
+|......vzyxv
+|......vzyyv
+|......vzzyv
+|.....QQvvv.
+|....TQ.....
+|...TQ......
+|..TQ.......
+|.TQ........
+|QQ.........
+
+view L key low origin 13 -6 layer hairBack
+|........Q
+|......TTQ
+|.vvvTTQQ.
+|vzyxvQ...
+|vzyyv....
+|vzzyv....
+|.vvv.....

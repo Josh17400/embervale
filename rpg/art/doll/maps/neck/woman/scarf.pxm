@@ -1,0 +1,205 @@
+# neck/woman/scarf: the woman's scarf in accent: wound twice about her neck below the chin, the knot on her right with its tail
+# down her chest; in the side views the tail trails behind on the walk and streams back in the run (keys hang: her clips' sway
+# key moves it with her stride)
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role neck scarf
+layer neck
+anchor neck
+keys hang
+
+view D key idle origin 5 -1
+|mppooonnnm
+|.mpoonnnm.
+|.mpm......
+|.mpm......
+|..m.......
+
+view D key rest origin 5 -1
+|mppooonnnm
+|.mpoonnnm.
+|.mpm......
+|.mpm......
+|..m.......
+
+view D key wide origin 5 -1
+|mppooonnnm
+|.mpoonnnm.
+|.mpm......
+|.mpm......
+|..m.......
+
+view D key flare origin 5 -1
+|mppooonnnm
+|.mpoonnnm.
+|.mpm......
+|.mpm......
+|..m.......
+
+view D key kneel origin 5 -1
+|mppooonnnm
+|.mpoonnnm.
+|.mpm......
+|.mpm......
+|..m.......
+
+view D key sit origin 5 -1
+|mppooonnnm
+|.mpoonnnm.
+|.mpm......
+|.mpm......
+|..m.......
+
+view D key floor origin 5 -1
+|mppooonnnm
+|.mpoonnnm.
+|.mpm......
+|.mpm......
+|..m.......
+
+view D key ride origin 5 -1
+|mppooonnnm
+|.mpoonnnm.
+|.mpm......
+|.mpm......
+|..m.......
+
+view U key idle origin 5 -1
+|mppoooonnm
+|.mnnnnnnm.
+
+view U key rest origin 5 -1
+|mppoooonnm
+|.mnnnnnnm.
+
+view U key wide origin 5 -1
+|mppoooonnm
+|.mnnnnnnm.
+
+view U key flare origin 5 -1
+|mppoooonnm
+|.mnnnnnnm.
+
+view U key kneel origin 5 -1
+|mppoooonnm
+|.mnnnnnnm.
+
+view U key sit origin 5 -1
+|mppoooonnm
+|.mnnnnnnm.
+
+view U key floor origin 5 -1
+|mppoooonnm
+|.mnnnnnnm.
+
+view U key ride origin 5 -1
+|mppoooonnm
+|.mnnnnnnm.
+
+view R key idle origin 6 -1
+|..mppoonnm.
+|.mpoonnnm..
+|.mpm.......
+|.mpm.......
+|..m........
+
+view R key rest origin 6 -1
+|.mmppoonnm.
+|mpmpoonnm..
+|m..........
+
+view R key wide origin 6 -1
+|.mmppoonnm.
+|mpmpoonnm..
+|m..........
+
+view R key flare origin 6 0
+|mm.........
+|mpmppoonnm.
+|.mmpoonnm..
+
+view R key kneel origin 6 -1
+|..mppoonnm.
+|.mpoonnnm..
+|.mpm.......
+|.mpm.......
+|..m........
+
+view R key sit origin 6 -1
+|..mppoonnm.
+|.mpoonnnm..
+|.mpm.......
+|.mpm.......
+|..m........
+
+view R key floor origin 6 -1
+|..mppoonnm.
+|.mpoonnnm..
+|.mpm.......
+|.mpm.......
+|..m........
+
+view R key ride origin 6 -1
+|..mppoonnm.
+|.mpoonnnm..
+|.mpm.......
+|.mpm.......
+|..m........
+
+view L key idle origin 4 -1
+|.mppoonnm..
+|..mpoonnnm.
+|.......mpm.
+|.......mpm.
+|........m..
+
+view L key rest origin 4 -1
+|.mppoonnmm.
+|..mpoonnmpm
+|..........m
+
+view L key wide origin 4 -1
+|.mppoonnmm.
+|..mpoonnmpm
+|..........m
+
+view L key flare origin 4 0
+|.........mm
+|.mppoonnmpm
+|..mpoonnmm.
+
+view L key kneel origin 4 -1
+|.mppoonnm..
+|..mpoonnnm.
+|.......mpm.
+|.......mpm.
+|........m..
+
+view L key sit origin 4 -1
+|.mppoonnm..
+|..mpoonnnm.
+|.......mpm.
+|.......mpm.
+|........m..
+
+view L key floor origin 4 -1
+|.mppoonnm..
+|..mpoonnnm.
+|.......mpm.
+|.......mpm.
+|........m..
+
+view L key ride origin 4 -1
+|.mppoonnm..
+|..mpoonnnm.
+|.......mpm.
+|.......mpm.
+|........m..
+
+view L key lie origin 4 -1
+|.mppoonnm..
+|..mpoonnnm.
+|.......mpm.
+|.......mpm.
+|........m..

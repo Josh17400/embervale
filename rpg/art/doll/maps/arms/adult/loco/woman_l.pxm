@@ -1,4 +1,8 @@
 # arms/adult/loco/woman_l: the woman's left arm (bare below the chemise's puff sleeve)
+# The arm library (P2b production, FOLK-BODY): her arms are bare below her garment's sleeve; every view carries regions (F
+# forearm, H hand; U where the upper arm shows: the raised keys) so a jerkin's shirt sleeve or P2c gloves recolour it.
+# Her keys: idle; walk D/U down down1 up up1, R/L B F N; run runF runB; lap; L lie; fling (the fall's recoil); guard
+# (armR: the drawn weapon's ready guard, its `grip` mark where the man's is). A sleeve part on her arm channels draws them.
 # The slice (P2b wave 1, FOLK-BODY); A3's pixels are the reference (docs/ref/style_a3). Format: rpg/art/doll/doll.h.
 use person woman
 body woman
@@ -9,46 +13,87 @@ keys armL
 side L
 
 view D key down origin 1 -4
+mark handL 0 3
 |srq
 |rrq
 |rrq
 |tsq
 |srq
 |qq.
+regions
+|FFF
+|FFF
+|FFF
+|HHH
+|HHH
+|HH.
 
 view D key down1 origin 1 -4
+mark handL 0 2
 |srq
 |rrq
 |tsq
 |srq
 |qq.
+regions
+|FFF
+|FFF
+|HHH
+|HHH
+|HH.
 
 view D key idle origin 1 -4
+mark handL 0 2
 |srq
 |rrq
 |tsq
 |srq
 |qq.
+regions
+|FFF
+|FFF
+|HHH
+|HHH
+|HH.
 
 view D key runF origin 1 -4
+mark handL 0 0
 |tsq
 |srq
 |qq.
+regions
+|HHH
+|HHH
+|HH.
 
 view D key up origin 1 -4
+mark handL 0 1
 |srq
 |tsq
 |srq
 |qqq
+regions
+|FFF
+|HHH
+|HHH
+|HHH
 
 view D key up1 origin 1 -4
+mark handL 0 2
 |srq
 |tsq
 |tsq
 |srq
 |q..
+regions
+|FFF
+|FFF
+|HHH
+|HHH
+|H..
 
 view D key lap origin 3 -4
+mark handL 0 4
 |..srq
 |..rrq
 |.tsq.
@@ -56,65 +101,132 @@ view D key lap origin 3 -4
 |tsq..
 |srq..
 |qq...
+regions
+|..FFF
+|..FFF
+|.FFF.
+|.FFF.
+|HHH..
+|HHH..
+|HH...
 
 view U key down origin 1 -4
+mark handL 0 3
 |qts
 |qsr
 |qsr
 |qts
 |qsr
 |.qq
+regions
+|FFF
+|FFF
+|FFF
+|HHH
+|HHH
+|.HH
 
 view U key idle origin 1 -4
+mark handL 0 2
 |qts
 |qsr
 |qts
 |qsr
 |.qq
+regions
+|FFF
+|FFF
+|HHH
+|HHH
+|.HH
 
 view U key runF origin 1 -4
+mark handL 0 0
 |qts
 |qsr
 |.qq
+regions
+|HHH
+|HHH
+|.HH
 
 view U key up origin 1 -4
+mark handL 0 1
 |qts
 |qts
 |qsr
 |qqq
+regions
+|FFF
+|HHH
+|HHH
+|HHH
 
 view U key lap origin 1 -4
+mark handL 0 0
 |qts
 |qsr
 |qqr
+regions
+|HHH
+|HHH
+|HHH
 
 view L key B origin 1 -4
+mark handL 2 2
 |qtsq..
 |.qsrq.
 |..qtsq
 |..qsrq
 |...qq.
+regions
+|FFFF..
+|.FFFF.
+|..HHHH
+|..HHHH
+|...HH.
 
 view L key F origin 5 -4
+mark handL 0 2
 |..qtsq
 |.qsrq.
 |qtsq..
 |qsrq..
 |.qq...
+regions
+|..FFFF
+|.FFFF.
+|HHHH..
+|HHHH..
+|.HH...
 
 view L key N origin 2 -4
+mark handL 0 2
 |qtsq
 |qsrq
 |qtsq
 |qsrq
 |.qq.
+regions
+|FFFF
+|FFFF
+|HHHH
+|HHHH
+|.HH.
 
 view L key idle origin 2 -4
+mark handL 0 2
 |qtsq
 |qsrq
 |qtsq
 |qsrq
 |.qq.
+regions
+|FFFF
+|FFFF
+|HHHH
+|HHHH
+|.HH.
 
 view L key lie origin 0 -3
 |qrq...
@@ -125,16 +237,96 @@ view L key lie origin 0 -3
 |..qsrq
 |..qtsq
 |...qq.
+regions
+|FFF...
+|FFFF..
+|FFFF..
+|.FFFF.
+|.FFFFF
+|..HHHH
+|..HHHH
+|...HH.
 
 view L key runB origin 1 -4
+mark handL 2 2
 |qtsq..
 |.qsrq.
 |..qtsq
 |..qsrq
 |...qq.
+regions
+|FFFF..
+|.FFFF.
+|..HHHH
+|..HHHH
+|...HH.
 
 view L key runF origin 6 -4
+mark handL 0 1
 |.qq.qtsq
 |qssqtsq.
 |qsrq....
 |.qq.....
+regions
+|.FF.FFFF
+|HHHHHHH.
+|HHHH....
+|.HH.....
+
+# ---- the fall's recoil (P2b production, FOLK-BODY): `fling` (woman_r.pxm says how)
+view D key fling origin 1 -1
+|765....
+|8765...
+|.8765..
+|..qtsq.
+|...qtsq
+|...qtsq
+|...qsrq
+|....qq.
+regions
+|UUU....
+|UUUU...
+|.UUUU..
+|..FFFF.
+|...FFFF
+|...HHHH
+|...HHHH
+|....HH.
+
+view U key fling origin 5 -1
+|....597
+|...5976
+|..5976.
+|.qtsq..
+|qtsq...
+|qtsq...
+|qsrq...
+|.qq....
+regions
+|....UUU
+|...UUUU
+|..UUUU.
+|.FFFF..
+|FFFF...
+|HHHH...
+|HHHH...
+|.HH....
+
+view L key fling origin 3 -1
+|58765........
+|..58765......
+|....58765....
+|.....qtssq...
+|.......qtssq.
+|.........qtsq
+|.........qsrq
+|..........qq.
+regions
+|UUUUU........
+|..UUUUU......
+|....UUUUU....
+|.....FFFFF...
+|.......FFFFF.
+|.........HHHH
+|.........HHHH
+|..........HH.

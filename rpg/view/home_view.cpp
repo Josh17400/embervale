@@ -541,6 +541,14 @@ bool View::drawMounted(Game& g, const Actor& a, Vec2 cam) {
   }
   if (v2) rideGhost_ = g2;
   else { rideGhost_.t = &rider; rideGhost_.fr = rfr; rideGhost_.row = row; rideGhost_.flip = flip; rideGhost_.x = rx; rideGhost_.y = ry; }
+  if (a.player) {   // (P2b integration) the hero as drawn, for Witness (state.player.sprite): the rider's frame, not stale
+    HeroSprite& hs = heroSprite;   // (drawHumanBody, which fills it on foot, is not called for the rider)
+    hs = HeroSprite();
+    hs.on = true; hs.rig = v2 ? 2 : 1; hs.row = row; hs.flip = v2 ? g2.flip : flip;
+    if (v2) { hs.x = g2.x; hs.y = g2.y; hs.w = g2.w; hs.h = g2.h; hs.bx1 = g2.w - 1; hs.by1 = g2.h - 1; hs.part = 4; }
+    else { hs.x = rx; hs.y = ry; hs.w = art::HUMAN_W; hs.h = art::HUMAN_H; hs.fr = rfr; }
+    hs.pivX = fx + sdx; hs.pivY = fy + sdy;   // (screen px of the world layer, as drawHumanBody's)
+  }
   drawnHead_[a.id] = DrawnHead{fx + cam.x, (v2 ? g2.y : ry) + cam.y, t_};
   return true;
 }

@@ -1,0 +1,85 @@
+# kin/child/hair/braid_hang: the braid: over the child's left shoulder in front, down the back from behind and in the side views; plaits lit 3 / 1, a ribbon tie; the tip swings a pixel behind the bob
+# (KIN-CHILD, P2b wave 2; the child's 11 px head, STYLE_P2 3 and 21). Format: rpg/art/doll/doll.h.
+use person
+body child
+role hair braid
+layer hairFront
+anchor head
+keys hair
+z 1
+
+view D key rest origin -9 -5
+|ad...
+|acd..
+|abca.
+|.acba
+|.abca
+|..mpm
+|..ada
+|...a.
+
+view D key swing origin -9 -5
+|ad....
+|acd...
+|abca..
+|.acba.
+|..abca
+|..mpm.
+|...ada
+|....a.
+
+view U key rest origin -3 -7
+|.acba.
+|.abca.
+|.acba.
+|.abca.
+|.acba.
+|..mpm.
+|..ada.
+|...a..
+
+view U key swing origin -3 -7
+|.acba.
+|.abca.
+|.acba.
+|..abca
+|..acba
+|..mpm.
+|...ada
+|...a..
+
+view R key rest origin 1 -6
+|acba.
+|abca.
+|acba.
+|.abca
+|.mpm.
+|.ada.
+|..a..
+
+view R key swing origin 2 -6
+|acba.
+|abca.
+|.acba
+|.abca
+|..mpm
+|..ada
+|...a.
+
+view L key rest origin -10 -6
+|abca.
+|acba.
+|abca.
+|acba.
+|mpm..
+|ada..
+|.a...
+
+view L key swing origin -10 -6
+|abca.
+|acba.
+|abca.
+|acba.
+|mpm..
+|ada..
+|a....

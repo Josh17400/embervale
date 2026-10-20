@@ -1,0 +1,45 @@
+# kin/child/headwear/cap: the cap: a round cloth crown with a stiff brim over the brow (its shadow on the forehead)
+# (KIN-CHILD, P2b wave 2; the child's headwear, STYLE_P2 23). Format: rpg/art/doll/doll.h.
+use person
+body child
+role headwear cap
+legend F head 0
+legend H head 1
+legend I head 2
+legend J head 3
+legend Z head 4
+layer headwear
+anchor head
+keys rest
+
+view D key rest origin 0 1
+|...FFFFFF...
+|..FIJJIIHF..
+|.FIJJIIIHHF.
+|FIJIIIIIHHHF
+|FZJJJJJJJIIF
+|.FHHHHHHHHF.
+
+view U key rest origin 0 1
+|...FFFFFF...
+|..FIJJIIHF..
+|.FIJJIIIHHF.
+|FIJIIIIIHHHF
+|FIIIIIIHHHHF
+|FHHHHHHHHHHF
+
+view R key rest origin 1 1
+|....FFFFFF....
+|..FIJJIIHHF...
+|.FIJJIIIHHHF..
+|FIJIIIIIIHHF..
+|FHHHHHHHZJJJJF
+|........FFFFF.
+
+view L key rest origin 0 1
+|....FFFFFF....
+|...FIJJIIHHF..
+|..FIJJIIIHHHF.
+|..FIJIIIIIIHHF
+|FHHHHHHHZJJJJF
+|.FFFFF........

@@ -1,21 +1,22 @@
-# kin/child/head/brow_soft: the child's soft brows: under the fringe (none drawn on the Short cut)
-# The slice (P2b wave 1, FOLK-BODY; to KIN-CHILD in wave 2). The child, 21 px (STYLE_P2 3). Format: rpg/art/doll/doll.h.
+# kin/child/head/brow_soft: the child's soft brows: 2 px of hair step 2 on the row above the lash (they show where the
+# fringe parts)
+# The child's soft brows (KIN-CHILD). Format: rpg/art/doll/doll.h.
 use person
 body child
 role brow soft
 layer face
 anchor head
 keys rest
-tags overlay
+tags overlay mirror-ok
 
-view D key rest origin 0 0
-|.
+view D key rest origin -2 -4
+|cc....cc
 
 view U key rest origin 0 0
 |.
 
-view R key rest origin 0 0
-|.
+view R key rest origin -9 -4
+|cc
 
-view L key rest origin 0 0
-|.
+view L key rest origin -2 -4
+|cc

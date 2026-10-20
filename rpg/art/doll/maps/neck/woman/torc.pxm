@@ -1,0 +1,24 @@
+# neck/woman/torc: the woman's torc: a slender twisted metal2 ring at the base of her neck, open at the throat with two knobs (rigid)
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person
+body woman
+role neck torc
+layer neck
+anchor neck
+keys rest
+
+view D key rest origin 4 -1
+|.NPOPON.
+|..PN.O..
+
+view U key rest origin 4 -1
+|.NPOPON.
+|..NNNN..
+
+view R key rest origin 5 -1
+|..NOPOPO.
+|.......P.
+
+view L key rest origin 4 -1
+|.PPOPN...
+|.O.......

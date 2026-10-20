@@ -1,0 +1,66 @@
+# kin/youth/wear/wrap: the youth's wrap: a long cloth (cloth1) draped over the left shoulder and wound across the chest
+# to the right hip, its lit edge running down the diagonal; the under-tunic (cloth2) shows at the right shoulder; no
+# belt. wrap_hang winds on to the ankles with its overlapping front edge
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. The girl's (`when girl replace`) narrows a pixel at the waist.
+use person
+body youth
+role garment wrap
+layer torso
+anchor neck
+keys rest
+
+view D key rest origin 6 0
+|...5qrrq5...
+|1432qrrq8765
+|..43298766..
+|..42987666..
+|..29877666..
+
+view D key rest origin 6 0 when girl replace
+|...5qrrq5...
+|1432qrrq8765
+|..43298766..
+|...298766...
+|...987766...
+
+view U key rest origin 6 0
+|...588765...
+|598877773321
+|..68779321..
+|..68777921..
+|..68777792..
+
+view U key rest origin 6 0 when girl replace
+|...588765...
+|598877773321
+|..68779321..
+|...677921...
+|...677792...
+
+view R key rest origin 4 0
+|..5qrq5.
+|.1439865
+|14398765
+|14987665
+|19877665
+
+view R key rest origin 4 0 when girl replace
+|..5qrq5.
+|.1439865
+|14398765
+|.149765.
+|.198765.
+
+view L key rest origin 4 0
+|.5qrq5..
+|5988765.
+|58877665
+|58877665
+|58876765
+
+view L key rest origin 4 0 when girl replace
+|.5qrq5..
+|5988765.
+|58877665
+|.588765.
+|.587665.

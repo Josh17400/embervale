@@ -1,0 +1,549 @@
+# kin/youth/legs/tips: the youth's shoe tips under a long hem (robe, gown, kaftan, wrap): drawn over the hem's under-edge
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. Each drawing is the lower toe row and the sole of the youth's
+# own boots in the same key (legs/std), so the tips stand, step and lift exactly where the legs would: both shoes show
+# in every front and back frame, a lifted shoe rises a row over the hem, the run's flight lifts both; seated and
+# cross-legged the toes peek under the skirt. Regions: B shoe, O sole.
+use person
+body youth
+role legs tips
+layer hangFront
+anchor pivot
+keys legs
+z 9
+
+view D key idle origin 6 1
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view D key walkA origin 6 2
+|fhhggf......
+|KKKKKKfhgggf
+|......KKKKKK
+regions
+|BBBBBB......
+|OOOOOOBBBBBB
+|......OOOOOO
+
+view D key walkA2 origin 6 1
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view D key walkB origin 6 2
+|......fhgggf
+|fhhggfKKKKKK
+|KKKKKK......
+regions
+|......BBBBBB
+|BBBBBBOOOOOO
+|OOOOOO......
+
+view D key walkC origin 6 2
+|......fhgggf
+|fhhggfKKKKKK
+|KKKKKK......
+regions
+|......BBBBBB
+|BBBBBBOOOOOO
+|OOOOOO......
+
+view D key walkC2 origin 6 1
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view D key walkD origin 6 2
+|fhhggf......
+|KKKKKKfhgggf
+|......KKKKKK
+regions
+|BBBBBB......
+|OOOOOOBBBBBB
+|......OOOOOO
+
+view D key run1 origin 6 2
+|......fhgggf
+|fhhggfKKKKKK
+|KKKKKK......
+regions
+|......BBBBBB
+|BBBBBBOOOOOO
+|OOOOOO......
+
+view D key run2 origin 6 1
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view D key run3 origin 6 2
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view D key run4 origin 6 2
+|fhhggf......
+|KKKKKKfhgggf
+|......KKKKKK
+regions
+|BBBBBB......
+|OOOOOOBBBBBB
+|......OOOOOO
+
+view D key run5 origin 6 1
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view D key run6 origin 6 2
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view D key buckle origin 6 1
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view U key idle origin 6 1
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view U key walkA origin 6 2
+|fhhggf......
+|KKKKKKfhgggf
+|......KKKKKK
+regions
+|BBBBBB......
+|OOOOOOBBBBBB
+|......OOOOOO
+
+view U key walkA2 origin 6 1
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view U key walkB origin 6 2
+|......fhgggf
+|fhhggfKKKKKK
+|KKKKKK......
+regions
+|......BBBBBB
+|BBBBBBOOOOOO
+|OOOOOO......
+
+view U key walkC origin 6 2
+|......fhgggf
+|fhhggfKKKKKK
+|KKKKKK......
+regions
+|......BBBBBB
+|BBBBBBOOOOOO
+|OOOOOO......
+
+view U key walkC2 origin 6 1
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view U key walkD origin 6 2
+|fhhggf......
+|KKKKKKfhgggf
+|......KKKKKK
+regions
+|BBBBBB......
+|OOOOOOBBBBBB
+|......OOOOOO
+
+view U key run1 origin 6 2
+|......fhgggf
+|fhhggfKKKKKK
+|KKKKKK......
+regions
+|......BBBBBB
+|BBBBBBOOOOOO
+|OOOOOO......
+
+view U key run2 origin 6 1
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view U key run3 origin 6 2
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view U key run4 origin 6 2
+|fhhggf......
+|KKKKKKfhgggf
+|......KKKKKK
+regions
+|BBBBBB......
+|OOOOOOBBBBBB
+|......OOOOOO
+
+view U key run5 origin 6 1
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view U key run6 origin 6 2
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view U key buckle origin 6 1
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view R key idle origin 3 1
+|fhgfihhgf
+|KKKKKKKKK
+regions
+|BBBBBBBBB
+|OOOOOOOOO
+
+view R key walkA origin 5 1
+|fhgggf..fihhgf
+|KKKKKK..KKKKKK
+regions
+|BBBBBB..BBBBBB
+|OOOOOO..OOOOOO
+
+view R key walkA2 origin 5 2
+|fhggg......
+|KKKKKfihhgf
+|.....KKKKKK
+regions
+|BBBBB......
+|OOOOOBBBBBB
+|.....OOOOOO
+
+view R key walkB2 origin 3 3
+|.....fhgggf
+|.....KKKKKK
+|fihhgf.....
+|KKKKKK.....
+regions
+|.....BBBBBB
+|.....OOOOOO
+|BBBBBB.....
+|OOOOOO.....
+
+view R key walkC origin 5 1
+|fihhgf..fhgggf
+|KKKKKK..KKKKKK
+regions
+|BBBBBB..BBBBBB
+|OOOOOO..OOOOOO
+
+view R key walkC2 origin 5 2
+|fihhgf.....
+|KKKKKKhgggf
+|.....KKKKKK
+regions
+|BBBBBB.....
+|OOOOOOBBBBB
+|.....OOOOOO
+
+view R key walkD2 origin 3 3
+|.....fihhgf
+|.....KKKKKK
+|fhgggf.....
+|KKKKKK.....
+regions
+|.....BBBBBB
+|.....OOOOOO
+|BBBBBB.....
+|OOOOOO.....
+
+view R key run1 origin 7 3
+|fhgggf........
+|KKKKKK........
+|........fihhgf
+|........KKKKKK
+regions
+|BBBBBB........
+|OOOOOO........
+|........BBBBBB
+|........OOOOOO
+
+view R key run2 origin 3 3
+|.....fhgggf
+|.....KKKKKK
+|fihhgf.....
+|KKKKKK.....
+regions
+|.....BBBBBB
+|.....OOOOOO
+|BBBBBB.....
+|OOOOOO.....
+
+view R key run3 origin 7 4
+|fihhgf..........
+|KKKKKK....fhgggf
+|..........KKKKKK
+regions
+|BBBBBB..........
+|OOOOOO....BBBBBB
+|..........OOOOOO
+
+view R key run4 origin 7 3
+|fihhgf........
+|KKKKKK........
+|........fhgggf
+|........KKKKKK
+regions
+|BBBBBB........
+|OOOOOO........
+|........BBBBBB
+|........OOOOOO
+
+view R key run5 origin 3 3
+|.....fihhgf
+|.....KKKKKK
+|fhgggf.....
+|KKKKKK.....
+regions
+|.....BBBBBB
+|.....OOOOOO
+|BBBBBB.....
+|OOOOOO.....
+
+view R key run6 origin 7 4
+|fhgggf..........
+|KKKKKK....fihhgf
+|..........KKKKKK
+regions
+|BBBBBB..........
+|OOOOOO....BBBBBB
+|..........OOOOOO
+
+view L key idle origin 6 1
+|fihhgfggf
+|KKKKKKKKK
+regions
+|BBBBBBBBB
+|OOOOOOOOO
+
+view L key walkA origin 9 1
+|fihhgf..fhgggf
+|KKKKKK..KKKKKK
+regions
+|BBBBBB..BBBBBB
+|OOOOOO..OOOOOO
+
+view L key walkA2 origin 6 2
+|......hgggf
+|fihhgfKKKKK
+|KKKKKK.....
+regions
+|......BBBBB
+|BBBBBBOOOOO
+|OOOOOO.....
+
+view L key walkB2 origin 8 3
+|fhgggf.....
+|KKKKKK.....
+|.....fihhgf
+|.....KKKKKK
+regions
+|BBBBBB.....
+|OOOOOO.....
+|.....BBBBBB
+|.....OOOOOO
+
+view L key walkC origin 9 1
+|fhgggf..fihhgf
+|KKKKKK..KKKKKK
+regions
+|BBBBBB..BBBBBB
+|OOOOOO..OOOOOO
+
+view L key walkC2 origin 6 2
+|.....fihhgf
+|fhgggKKKKKK
+|KKKKKK.....
+regions
+|.....BBBBBB
+|BBBBBOOOOOO
+|OOOOOO.....
+
+view L key walkD2 origin 8 3
+|fihhgf.....
+|KKKKKK.....
+|.....fhgggf
+|.....KKKKKK
+regions
+|BBBBBB.....
+|OOOOOO.....
+|.....BBBBBB
+|.....OOOOOO
+
+view L key run1 origin 7 3
+|........fhgggf
+|........KKKKKK
+|fihhgf........
+|KKKKKK........
+regions
+|........BBBBBB
+|........OOOOOO
+|BBBBBB........
+|OOOOOO........
+
+view L key run2 origin 8 3
+|fhgggf.....
+|KKKKKK.....
+|.....fihhgf
+|.....KKKKKK
+regions
+|BBBBBB.....
+|OOOOOO.....
+|.....BBBBBB
+|.....OOOOOO
+
+view L key run3 origin 9 4
+|..........fihhgf
+|fhgggf....KKKKKK
+|KKKKKK..........
+regions
+|..........BBBBBB
+|BBBBBB....OOOOOO
+|OOOOOO..........
+
+view L key run4 origin 7 3
+|........fihhgf
+|........KKKKKK
+|fhgggf........
+|KKKKKK........
+regions
+|........BBBBBB
+|........OOOOOO
+|BBBBBB........
+|OOOOOO........
+
+view L key run5 origin 8 3
+|fihhgf.....
+|KKKKKK.....
+|.....fhgggf
+|.....KKKKKK
+regions
+|BBBBBB.....
+|OOOOOO.....
+|.....BBBBBB
+|.....OOOOOO
+
+view L key run6 origin 9 4
+|..........fhgggf
+|fihhgf....KKKKKK
+|KKKKKK..........
+regions
+|..........BBBBBB
+|BBBBBB....OOOOOO
+|OOOOOO..........
+
+view R key buckle origin 3 1
+|fhgfihhgf
+|KKKKKKKKK
+regions
+|BBBBBBBBB
+|OOOOOOOOO
+
+view L key buckle origin 6 1
+|fihhgfggf
+|KKKKKKKKK
+regions
+|BBBBBBBBB
+|OOOOOOOOO
+
+view L key lie origin 3 1
+|fiihhggf
+|KKKKKKKK
+regions
+|BBBBBBBB
+|OOOOOOOO
+
+view D key sit origin 6 1
+|fhhggffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view R key sit origin 3 1
+|.......fihhgf
+|.......KKKKKK
+regions
+|.......BBBBBB
+|.......OOOOOO
+
+view L key sit origin 9 1
+|fihhgf.......
+|KKKKKK.......
+regions
+|BBBBBB.......
+|OOOOOO.......
+
+view D key cross origin 8 1 layer hangFront
+|...fiihffhhgf...
+|...KKKKKKKKKK...
+regions
+|...BBBBBBBBBB...
+|...OOOOOOOOOO...
+
+view R key cross origin 3 1 layer hangFront
+|.fiihhggf.
+|.KKKKKKKK.
+regions
+|.BBBBBBBB.
+|.OOOOOOOO.
+
+view L key cross origin 6 1 layer hangFront
+|.fiihhggf.
+|.KKKKKKKK.
+regions
+|.BBBBBBBB.
+|.OOOOOOOO.
+
+
+# seated from behind the feet are hidden by the body (empty grids keep the postures covered)
+view U key sit origin 0 0
+|.
+
+view U key cross origin 0 0
+|.

@@ -1,0 +1,133 @@
+# wear/woman/smock: the woman's smock (STYLE_P2 22 "Smock"; farmers and labourers): loose, gathered at a round neck (one row of
+# smocking under it), the sleeves pushed up past the elbow in a lit roll (bare forearms), a twisted rope belt; it falls (the hang)
+# to the knee in loose folds over her trousers, the rope's tail hanging from the knot
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role garment smock
+layer torso
+anchor neck
+keys torso
+
+view D key rest origin 8 -1
+|......qrrq......
+|5988886ts6777765
+|5888968676767765
+|5998878777767885
+|...5888777765...
+|...5887776765...
+|...5877776765...
+|...5877776665...
+|...fihihihhgf...
+
+view D key rest origin 8 -2 when elder
+|-..............-
+
+view D key swing origin 8 -1
+|......qrrq......
+|5988886ts6777765
+|5888968676767765
+|5998878777767885
+|...5888777765...
+|...5887776765...
+|...5877776765...
+|...5877776665...
+|...fihihihhgf...
+
+view D key swing origin 8 -2 when elder
+|-..............-
+
+view D key drawn origin 8 -1
+|......qrrq......
+|5988886ts6777765
+|5888968676767765
+|5998878777767885
+|...5888777765...
+|...5887776765...
+|...5877776765...
+|...5877776665...
+|...fihihihhgf...
+
+view D key drawn origin 8 -2 when elder
+|-..............-
+
+view U key rest origin 8 -1
+|.....qrrrrrq....
+|5988888777777765
+|5888898787677765
+|5998877777767885
+|...5887777765...
+|...5887776765...
+|...5877776765...
+|...5877776665...
+|...fihihihhgf...
+
+view U key rest origin 8 -2 when elder
+|-..............-
+
+view R key rest origin 6 -1
+|......qrrqq..
+|..588888865..
+|..5888978675.
+|..5875998775.
+|..5887777765.
+|..5887776765.
+|..5877776765.
+|..5877776665.
+|..fihihihhgf.
+
+view R key rest origin 4 -2 when elder
+|-
+
+view R key swing origin 6 -1
+|......qrrqq..
+|..588888865..
+|..5888978675.
+|..5875998775.
+|..5887777765.
+|..5887776765.
+|..5877776765.
+|..5877776665.
+|..fihihihhgf.
+
+view R key swing origin 4 -2 when elder
+|-
+
+view L key rest origin 7 -1
+|..qqrrq......
+|..588888875..
+|.58789888875.
+|.5899988775..
+|.5887777665..
+|.5887677665..
+|.5887677765..
+|.5886677765..
+|.fihihihhgf..
+
+view L key rest origin -3 -2 when elder
+|-
+
+view L key swing origin 7 -1
+|..qqrrq......
+|..588888875..
+|.58789888875.
+|.5899988775..
+|.5887777665..
+|.5887677665..
+|.5887677765..
+|.5886677765..
+|.fihihihhgf..
+
+view L key swing origin -3 -2 when elder
+|-
+
+view L key lie origin 7 -1
+|..qqrrq......
+|..588888875..
+|.58789888875.
+|.5899988775..
+|.5887777665..
+|.5887677665..
+|.5887677765..
+|.5886677765..
+|.fihihihhgf..

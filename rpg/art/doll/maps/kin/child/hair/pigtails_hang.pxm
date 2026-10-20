@@ -1,0 +1,65 @@
+# kin/child/hair/pigtails_hang: the pigtails' two tails, tied at the sides with ribbons in the accent; they swing out of step with the bob
+# (KIN-CHILD, P2b wave 2; the child's 11 px head, STYLE_P2 3 and 21). Format: rpg/art/doll/doll.h.
+use person
+body child
+role hair pigtails
+layer hairFront
+anchor head
+keys hair
+z 1
+
+view D key rest origin 3 -4
+|.mpm..........mpm.
+|adca..........acba
+|acba..........abca
+|.aba..........aba.
+|..a............a..
+
+view D key swing origin 3 -4
+|.mpm..........mpm.
+|.adca........acba.
+|.acba........abca.
+|..aba........aba..
+|...a..........a...
+
+view U key rest origin 3 -4
+|.mpm..........mpm.
+|acba..........abca
+|abba..........abba
+|.aba..........aba.
+|..a............a..
+
+view U key swing origin 3 -4
+|.mpm..........mpm.
+|.acba........abca.
+|.abba........abba.
+|..aba........aba..
+|...a..........a...
+
+view R key rest origin 2 -3 layer hairBack
+|mpm..
+|adca.
+|acba.
+|.aba.
+|..a..
+
+view R key swing origin 2 -3 layer hairBack
+|mpm..
+|adca.
+|.acba
+|.aba.
+|..a..
+
+view L key rest origin -10 -3 layer hairBack
+|..mpm
+|.adca
+|.acba
+|.aba.
+|..a..
+
+view L key swing origin -10 -3 layer hairBack
+|..mpm
+|.acda
+|acba.
+|.aba.
+|..a..

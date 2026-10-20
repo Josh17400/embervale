@@ -1,0 +1,277 @@
+# kin/child/legs/tips: the child's shoe tips under a long skirt (robe, kaftan, wrap, gown): the boot toes and soles of the
+# std legs' F-1 row, stepping with them (a lifted foot hides under the hem). (KIN-CHILD.) Format: rpg/art/doll/doll.h.
+use person
+body child
+role legs tips
+layer legs
+anchor pivot
+keys legs
+
+view D key idle origin 6 1 stretch 0
+|fjihgffhhggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view D key walkA origin 6 1 stretch 0
+|KKKKKKfhhggf
+|......KKKKKK
+regions
+|OOOOOOBBBBBB
+|......OOOOOO
+
+view D key walkC origin 6 1 stretch 0
+|fjihgfKKKKKK
+|KKKKKK......
+regions
+|BBBBBBOOOOOO
+|OOOOOO......
+
+view D key buckle origin 6 1 stretch 0
+|fjihgffhhggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view U key idle origin 6 1 stretch 0
+|fihhgffihhgf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view U key walkA origin 6 1 stretch 0
+|fihhgfKKKKKK
+|KKKKKK......
+regions
+|BBBBBBOOOOOO
+|OOOOOO......
+
+view U key walkC origin 6 1 stretch 0
+|KKKKKKfihhgf
+|......KKKKKK
+regions
+|OOOOOOBBBBBB
+|......OOOOOO
+
+view U key buckle origin 6 1 stretch 0
+|fihhgffihhgf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view R key idle origin 4 1 stretch 0
+|fhgfihhgf
+|KKKKKKKKK
+regions
+|BBBBBBBBB
+|OOOOOOOOO
+
+view R key walkA origin 5 1 stretch 0
+|fhgggffihhgf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view R key walkA2 origin 5 1 stretch 0
+|KKKKfihhgf
+|....KKKKKK
+regions
+|OOOOBBBBBB
+|....OOOOOO
+
+view R key walkB2 origin 3 1 stretch 0
+|fihhgfKKK
+|KKKKKK...
+regions
+|BBBBBBOOO
+|OOOOOO...
+
+view R key walkC origin 5 1 stretch 0
+|fihhgffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view R key walkC2 origin 5 1 stretch 0
+|KKKKKKgggf
+|....KKKKKK
+regions
+|OOOOOOBBBB
+|....OOOOOO
+
+view R key walkD2 origin 3 1 stretch 0
+|fhgKKKKKK
+|KKKKKK...
+regions
+|BBBOOOOOO
+|OOOOOO...
+
+view L key idle origin 4 1 stretch 0
+|fihhgfggf
+|KKKKKKKKK
+regions
+|BBBBBBBBB
+|OOOOOOOOO
+
+view L key walkA origin 6 1 stretch 0
+|fihhgffhgggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view L key walkA2 origin 4 1 stretch 0
+|fihhgfKKKK
+|KKKKKK....
+regions
+|BBBBBBOOOO
+|OOOOOO....
+
+view L key walkB2 origin 5 1 stretch 0
+|KKKfihhgf
+|...KKKKKK
+regions
+|OOOBBBBBB
+|...OOOOOO
+
+view L key walkC origin 6 1 stretch 0
+|fhgggffihhgf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view L key walkC2 origin 4 1 stretch 0
+|fhggKKKKKK
+|KKKKKK....
+regions
+|BBBBOOOOOO
+|OOOOOO....
+
+view L key walkD2 origin 5 1 stretch 0
+|KKKKKKggf
+|...KKKKKK
+regions
+|OOOOOOBBB
+|...OOOOOO
+
+view R key buckle origin 4 1 stretch 0
+|fhgfihhgf
+|KKKKKKKKK
+regions
+|BBBBBBBBB
+|OOOOOOOOO
+
+view L key buckle origin 4 1 stretch 0
+|fihhgfggf
+|KKKKKKKKK
+regions
+|BBBBBBBBB
+|OOOOOOOOO
+
+# ---- pose keys: hop, sit (the dangling boots' last two rows), cross
+view D key hop origin 6 3 stretch 0
+|fjihgffhhggf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view U key hop origin 6 3 stretch 0
+|fihhgffihhgf
+|KKKKKKKKKKKK
+regions
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view R key hop origin 4 3 stretch 0
+|fhgfihhgf
+|KKKKKKKKK
+regions
+|BBBBBBBBB
+|OOOOOOOOO
+
+view L key hop origin 4 3 stretch 0
+|fihhgfggf
+|KKKKKKKKK
+regions
+|BBBBBBBBB
+|OOOOOOOOO
+
+view D key sit origin 6 5 stretch 0
+|.fiihffiihf.
+|.fhhgffhhgf.
+|fjihgffhhggf
+|KKKKKKKKKKKK
+regions
+|.BBBBBBBBBB.
+|.BBBBBBBBBB.
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view U key sit origin 6 5 stretch 0
+|.fiihffiihf.
+|.fhhgffhhgf.
+|fihhgffihhgf
+|KKKKKKKKKKKK
+regions
+|.BBBBBBBBBB.
+|.BBBBBBBBBB.
+|BBBBBBBBBBBB
+|OOOOOOOOOOOO
+
+view R key sit origin 3 5 stretch 0
+|.....fiihf.
+|.....fihhf.
+|.....fihhgf
+|.....KKKKKK
+regions
+|.....BBBBB.
+|.....BBBBB.
+|.....BBBBBB
+|.....OOOOOO
+
+view L key sit origin 7 5 stretch 0
+|.fiihf.....
+|.fihhf.....
+|fihhgf.....
+|KKKKKK.....
+regions
+|.BBBBB.....
+|.BBBBB.....
+|BBBBBB.....
+|OOOOOO.....
+
+view D key cross origin 7 1 stretch 0
+|fiihf4332fhhgf
+|KKKKK1111KKKKK
+regions
+|BBBBBTTTTBBBBB
+|OOOOOTTTTOOOOO
+
+view U key cross origin 7 1 stretch 0
+|fiihf4332fhhgf
+|KKKKK1111KKKKK
+regions
+|BBBBBTTTTBBBBB
+|OOOOOTTTTOOOOO
+
+view R key cross origin 4 1 stretch 0
+|1432fiihf..
+|1111KKKKK..
+regions
+|TTTTBBBBB..
+|TTTTOOOOO..
+
+view L key cross origin 6 1 stretch 0
+|..fiihf1432
+|..KKKKK1111
+regions
+|..BBBBBTTTT
+|..OOOOOTTTT

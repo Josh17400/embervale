@@ -1,5 +1,7 @@
-# kin/child/head/round: the child's Round head: a big round face, A3's eyes (lash, white and iris, white and glint), a 1 px mouth
-# The slice (P2b wave 1, FOLK-BODY; to KIN-CHILD in wave 2). The child, 21 px (STYLE_P2 3). Format: rpg/art/doll/doll.h.
+# kin/child/head/round: the child's Round head: a big round face with full cheeks, A3's eyes (lash, white and iris,
+# white and glint), a 1 px mouth; the side views a round skull with a soft snub profile (KIN-CHILD; the front first drawn
+# in the slice). Hair, brows, nose and ears are their own parts. Every child head keeps the eye rows and columns, the
+# nose pixel and the mouth row (expressions fit them all). Format: rpg/art/doll/doll.h.
 use person
 body child
 role head round
@@ -9,29 +11,43 @@ keys rest
 
 view D key rest origin -1 -4
 mark face 1 1
-|..ttt..tt.
+|tuttttttsr
 |t##tsss##r
 |t@EtsssE@r
 |t@Gss.sG@r
-|qtsssMssrq
+|qYsssMssYq
 |.qssssrrq.
 
-view U key rest origin -2 -8
-|qrrrrrrq
-|qrrrrrrq
+view U key rest origin -1 -4
+|.qtttttsrq
+|qttttsssrq
+|qtttssssrq
+|qttsssssrq
+|.qssssrrq.
+|..qrrrrq..
 
-view R key rest origin -4 -4
-|....t.q..
-|....t##q.
-|....t@Es.
-|qrssssssq
-|qrssssMq.
-|qrrssq...
+view R key rest origin 0 0
+mark face 7 5
+|...qqqqqq...
+|.qqtuuttsqq.
+|qtuutttttssq
+|qtutttttsssq
+|qttttttttssq
+|qttttsstt##q
+|qtsssrrts@Es
+|.qssrrssssss
+|..qrrsssssMq
+|....qrrrrsq.
 
-view L key rest origin 0 -4
-|.qt......
-|q##tts...
-|tE@ts....
-|qtssssrq.
-|.qMssssrq
-|..qssrrq.
+view L key rest origin -1 0
+mark face 1 5
+|...qqqqqq...
+|.qqtuuttsqq.
+|qtuutttttsrq
+|qtutttttsssq
+|qtttttttsssq
+|q##tttsssssq
+|tE@tsssssrrq
+|tttssssrrsq.
+|qMtssssrrq..
+|.qtssrrq....

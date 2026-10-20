@@ -1,0 +1,22 @@
+# kin/child/head/brow_thin: the child's thin brows: a darker, finer line (hair step 1) lifted at the outer end
+# The child's thin brows (KIN-CHILD). Format: rpg/art/doll/doll.h.
+use person
+body child
+role brow thin
+layer face
+anchor head
+keys rest
+tags overlay mirror-ok
+
+view D key rest origin -2 -3
+|b......b
+|.b....b.
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -9 -4
+|bb
+
+view L key rest origin -2 -4
+|bb

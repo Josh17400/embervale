@@ -1,0 +1,199 @@
+# held/civil/axe: the hand axe (art weapon 2) at rest, hung by its head through the belt on the left hip where a sword
+# would ride, so the off hand rests on it (the arms' `armed` views) (PROPS, P2b; P2c swings it and owns the culture
+# forms): a bearded iron head with a lit edge over a pale ash haft. Format: rpg/art/doll/doll.h. It serves the look's sheath
+# and its held item at rest (role sheath axe, role held axe) on the sheath channel at the hip: rest, lag, sit; none where
+# the clip draws it (drawn) or lays the body down (-), and none while the Chop posture's axe is in hand (prop-woodaxe).
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role sheath axe
+role held axe
+layer belt
+anchor hip
+keys sheath
+z 30
+
+view D key rest origin -1 3
+|vv...
+|vzvv.
+|vyxQ.
+|vxwQ.
+|vv.Q.
+|..QTQ
+|..QSQ
+|..QSQ
+|..QRQ
+|...Q.
+
+view D key lag origin -1 2
+|vv...
+|vzvv.
+|vyxQ.
+|vxwQ.
+|vv.Q.
+|..QTQ
+|..QSQ
+|..QSQ
+|..QRQ
+|...Q.
+
+view D key sit origin -2 4
+|vv...
+|vzvv.
+|vyxQ.
+|vxwQ.
+|vv.Q.
+|..QTQ
+|..QSQ
+|..QSQ
+|..QRQ
+|...Q.
+
+view U key rest origin 5 3
+|..vv
+|vvyv
+|Qxyv
+|Qwxv
+|Q.vv
+|QTQ.
+|QSQ.
+|QSQ.
+|QRQ.
+|.Q..
+
+view U key lag origin 5 2
+|..vv
+|vvyv
+|Qxyv
+|Qwxv
+|Q.vv
+|QTQ.
+|QSQ.
+|QSQ.
+|QRQ.
+|.Q..
+
+view U key sit origin 6 4
+|..vv
+|vvyv
+|Qxyv
+|Qwxv
+|Q.vv
+|QTQ.
+|QSQ.
+|QSQ.
+|QRQ.
+|.Q..
+
+view R key rest origin 6 3 layer back
+|vv.
+|vyv
+|.QQ
+|QTQ
+|QSQ
+|QSQ
+|QRQ
+|.Q.
+
+view R key lag origin 7 2 layer back
+|vv.
+|vyv
+|.QQ
+|QTQ
+|QSQ
+|QSQ
+|QRQ
+|.Q.
+
+view R key sit origin 8 4 layer back
+|vv.
+|vyv
+|.QQ
+|QTQ
+|QSQ
+|QSQ
+|QRQ
+|.Q.
+
+view L key rest origin 6 3
+|.vvv..
+|vzyvQ.
+|vyxvQ.
+|vxwv..
+|.vv.Q.
+|...QTQ
+|...QSQ
+|...QSQ
+|...QRQ
+|....Q.
+
+view L key lag origin 5 2
+|.vvv..
+|vzyvQ.
+|vyxvQ.
+|vxwv..
+|.vv.Q.
+|...QTQ
+|...QSQ
+|...QSQ
+|...QRQ
+|....Q.
+
+view L key sit origin 4 4
+|.vvv..
+|vzyvQ.
+|vyxvQ.
+|vxwv..
+|.vv.Q.
+|...QTQ
+|...QSQ
+|...QSQ
+|...QRQ
+|....Q.
+
+view D key rest origin 0 0 when prop-woodaxe replace
+|.
+
+view D key lag origin 0 0 when prop-woodaxe replace
+|.
+
+view D key sit origin 0 0 when prop-woodaxe replace
+|.
+
+view U key rest origin 0 0 when prop-woodaxe replace
+|.
+
+view U key lag origin 0 0 when prop-woodaxe replace
+|.
+
+view U key sit origin 0 0 when prop-woodaxe replace
+|.
+
+view R key rest origin 0 0 when prop-woodaxe replace
+|.
+
+view R key lag origin 0 0 when prop-woodaxe replace
+|.
+
+view R key sit origin 0 0 when prop-woodaxe replace
+|.
+
+view L key rest origin 0 0 when prop-woodaxe replace
+|.
+
+view L key lag origin 0 0 when prop-woodaxe replace
+|.
+
+view L key sit origin 0 0 when prop-woodaxe replace
+|.

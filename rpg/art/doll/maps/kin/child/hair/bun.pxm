@@ -1,0 +1,80 @@
+# kin/child/hair/bun: Bun: drawn back smooth into a round bun on the crown
+# (KIN-CHILD, P2b wave 2; the child's 11 px head, STYLE_P2 3 and 21). Format: rpg/art/doll/doll.h.
+use person
+body child
+role hair bun
+layer hairFront
+anchor head
+keys rest
+
+view D key rest origin 0 3
+|....aaaa....
+|...adeeca...
+|...abddba...
+|..aaaaaaaa..
+|.adeeeddcca.
+|adeedddcccba
+|adddcbbcccba
+|acda....bcba
+|a..........a
+|a..........a
+
+view D key rest origin 0 -4 when capped,!circlet replace
+|a..........a
+|a..........a
+|a..........a
+
+view U key rest origin 0 3
+|....aaaa....
+|...adeeca...
+|...abddba...
+|..aaaaaaaa..
+|.adeeeddcca.
+|adeedddcccba
+|addddcdcccba
+|acdcbdccbcba
+|acdcbdccbcba
+|abcbbdcbbcba
+|.abbbcbbbba.
+|..aaaaaaaa..
+
+view U key rest origin 0 -4 when capped,!circlet replace
+|a..........a
+|acdcbdccbcba
+|abcbbdcbbcba
+|.abbbcbbbba.
+|..aaaaaaaa..
+
+view R key rest origin 1 3
+|..aaaa.......
+|.adeeca......
+|.abddbaaaa...
+|..aaddeedcaa.
+|.adeeeddddca.
+|adddddccccca.
+|acdccbcbba...
+|acbcba.......
+|abcbca.......
+|.abba........
+
+view R key rest origin 1 -4 when capped,!circlet replace
+|acbcba.......
+|abcbca.......
+|.abba........
+
+view L key rest origin -1 3
+|.......aaaa..
+|......adeeca.
+|...aaaabddba.
+|.aaddeedcaa..
+|.adeeeddddca.
+|.adddddccccca
+|...acdccbcbba
+|.......acbcba
+|.......abcbca
+|........abba.
+
+view L key rest origin -1 -4 when capped,!circlet replace
+|.......acbcba
+|.......abcbca
+|........abba.

@@ -1,0 +1,148 @@
+# hair/adult/pigtails_hang: the two Pigtails below their ribbons: flared, then tapering over the shoulders; the near tail in side
+# views. They swing out of phase (hair keys: one tail lags out while the other swings in) and lie flat under a lying head
+# P2b wave 2, HAIR. On the adult head box (STYLE_P2 21). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role hair pigtails
+layer hairFront
+anchor head
+keys hair
+z 1
+
+view D key rest origin 2 -10
+|.mna...............mna.
+|.moa..............amoa.
+|adcba............adcba.
+|adecba..........adcbba.
+|acdcba..........acdcba.
+|.acdba..........abdca..
+|.acba............abca..
+|..aba............aba...
+|...a..............a....
+
+view D key swing origin 2 -10
+|.mna...............mna.
+|.moa..............amoa.
+|adcba............adcba.
+|adecba..........adcbba.
+|.acdcba........acdcba..
+|..acdba........abdca...
+|..acba........abca.....
+|...aba........aba......
+|....a.........a........
+
+view U key rest origin 2 -10
+|.mna...............mna.
+|.moa..............amoa.
+|adcba............adcba.
+|adecba..........adcbba.
+|acdcba..........acdcba.
+|.acdba..........abdca..
+|.acba............abca..
+|..aba............aba...
+|...a..............a....
+
+view U key swing origin 2 -10
+|.mna...............mna.
+|.moa..............amoa.
+|adcba............adcba.
+|adecba..........adcbba.
+|.acdcba........acdcba..
+|..acdba........abdca...
+|..acba........abca.....
+|...aba........aba......
+|....a.........a........
+
+# (P2b fix B10-CIVIL-STAFF-RUN-ATLAS) in the run (the flag run: the RUN part) the tails stream back behind the head, so
+# facing down or up they hang a column nearer it each side (the widest run look, a hooded pigtailed scholar with her staff,
+# stays in B10's 64 KB)
+view D key rest origin 2 -10 when run replace
+|..mna.............mna..
+|..moa............amoa..
+|.adcba..........adcba..
+|.adecba........adcbba..
+|.acdcba........acdcba..
+|..acdba........abdca...
+|..acba..........abca...
+|...aba..........aba....
+|....a............a.....
+
+view D key swing origin 2 -10 when run replace
+|..mna.............mna..
+|..moa............amoa..
+|.adcba..........adcba..
+|.adecba........adcbba..
+|..acdcba......acdcba...
+|...acdba......abdca....
+|...acba......abca......
+|....aba......aba.......
+|.....a.......a.........
+
+view U key rest origin 2 -10 when run replace
+|..mna.............mna..
+|..moa............amoa..
+|.adcba..........adcba..
+|.adecba........adcbba..
+|.acdcba........acdcba..
+|..acdba........abdca...
+|..acba..........abca...
+|...aba..........aba....
+|....a............a.....
+
+view U key swing origin 2 -10 when run replace
+|..mna.............mna..
+|..moa............amoa..
+|.adcba..........adcba..
+|.adecba........adcbba..
+|..acdcba......acdcba...
+|...acdba......abdca....
+|...acba......abca......
+|....aba......aba.......
+|.....a.......a.........
+
+view R key rest origin -2 -10
+|.mna..
+|amoa..
+|adcba.
+|adecba
+|acdcba
+|.acdba
+|.acba.
+|.aba..
+|..a...
+
+view R key swing origin -1 -10
+|..mna..
+|.amoa..
+|.adcba.
+|adecba.
+|acdcba.
+|acdba..
+|acba...
+|aba....
+|.a.....
+
+view L key lie origin 0 0
+|.
+
+view L key rest origin -8 -10
+|..anm.
+|..aoma
+|.adcba
+|adecba
+|acdcba
+|acdba.
+|.acba.
+|..aba.
+|...a..
+
+view L key swing origin -8 -10
+|..anm..
+|..aoma.
+|.adcba.
+|.adecba
+|.acdcba
+|..acdba
+|...acba
+|....aba
+|.....a.

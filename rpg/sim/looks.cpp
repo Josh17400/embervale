@@ -177,14 +177,16 @@ bool civilRole(Role r) {
 int lumaOf(uint32_t c) { return ((int)(c & 255) * 3 + (int)((c >> 8) & 255) * 6 + (int)((c >> 16) & 255)) / 10; }
 // HumanLook::garb (art_human.h): the doll's garment over the outfit and cut (doll_resolve.cpp garmentOf maps it)
 constexpr uint8_t kGarbApron = 1, kGarbSmock = 2, kGarbJerkin = 3, kGarbDress = 4, kGarbTunic = 5, kGarbCoat = 6, kGarbCultureTunic = 7,
-                  kGarbKilt = 8, kGarbGown = 9;
+                  kGarbKilt = 8, kGarbGown = 9, kGarbRags = 10,
+                  kGarbKaftan = 11, kGarbWrap = 12, kGarbPoncho = 13;
 }  // namespace
 
 // The doll's look fields from their own hash stream (after every existing draw, so no other look moves): the head type by
 // people, sex and culture; nose and brows; marks; the hair style within the drawn family; the beard's style; neckwear for
 // commoners; the role's work garment. arch: cult::Archetype, or -1 for a person with no culture (the wayside); manTunic:
-// the culture's men wear its tunic (a working woman may too).
-void features(art::HumanLook& L, Role r, bool female, int arch, uint64_t seed, bool manTunic) {
+// the culture's men's cut (cult::Cut; -1 none): a working woman may wear it too (the tunic, a coat, the kilt, a kaftan).
+void features(art::HumanLook& L, Role r, bool female, int arch, uint64_t seed, int manCut) {
+  const bool manTunic = manCut == (int)cult::Cut::Tunic;
   Stream h(seed * 0x9E3779B97F4A7C15ull ^ 0x50324246594C4B53ull);   // "P2BFOLKS"
   const int a = arch >= 0 && arch < kArch ? arch : kArch;
   const bool kid = r == Role::Child;
@@ -264,11 +266,13 @@ void features(art::HumanLook& L, Role r, bool female, int arch, uint64_t seed, b
     uint8_t garb = 0;
     const int roll = (int)(h.next() & 255u), roll2 = (int)(h.next() & 255u);
     const bool commoner = r == Role::Villager || r == Role::Merchant || r == Role::Innkeeper || r == Role::Fisher || r == Role::Traveller ||
-                          r == Role::Refugee;
+                          r == Role::Refugee || r == Role::Farmer;
     const int cutI = (int)L.cut - 1;   // cult::Cut, -1 none
     switch (r) {
       case Role::Smith: case Role::Shipwright: garb = kGarbApron; break;
-      case Role::Farmer: garb = roll < 192 ? kGarbSmock : kGarbJerkin; break;
+      // (P2b production) a farmer the smock (two in five) or now and then the jerkin; the rest work in their people's own
+      // cut, so a village's lineup still reads as its people (the smock on every farmer erased it)
+      case Role::Farmer: garb = roll < 104 ? kGarbSmock : roll < 140 ? kGarbJerkin : 0; break;
       case Role::Hunter: garb = kGarbJerkin; break;
       case Role::Innkeeper: garb = roll < 104 ? kGarbApron : 0; break;
       case Role::Merchant: garb = roll < 40 ? kGarbApron : roll < 96 ? kGarbCoat : 0; break;
@@ -276,17 +280,30 @@ void features(art::HumanLook& L, Role r, bool female, int arch, uint64_t seed, b
     }
     if (!garb && commoner) {
       if (female) {
-        if (cutI == (int)cult::Cut::Robe && roll2 < 180) garb = kGarbDress;
+        if (cutI == (int)cult::Cut::Robe && roll2 < 150) garb = kGarbDress;
         else if (a == (int)cult::Archetype::Highland && roll2 < 80) garb = kGarbKilt;
-        else if (r == Role::Fisher || (r == Role::Villager && roll2 >= 216)) garb = manTunic ? kGarbCultureTunic : kGarbTunic;
+        // (P2b production) one working woman in four wears her people's men's cut where it differs from her own: the
+        // long coat, the kilt, the kaftan, the wrap or the poncho (B7: every garment fitted to the woman is worn by one)
+        else if (roll2 >= 150 && roll2 < 216 && manCut != cutI && manCut >= (int)cult::Cut::Kaftan && manCut <= (int)cult::Cut::Poncho)
+          garb = manCut == (int)cult::Cut::Coat ? kGarbCoat : manCut == (int)cult::Cut::Kilt ? kGarbKilt : manCut == (int)cult::Cut::Kaftan ? kGarbKaftan
+               : manCut == (int)cult::Cut::Wrap ? kGarbWrap : kGarbPoncho;
+        else if (r == Role::Fisher || ((r == Role::Villager || r == Role::Farmer) && roll2 >= 216)) garb = manTunic ? kGarbCultureTunic : kGarbTunic;
       } else {
         if (L.people == 2 && roll2 < 100) garb = kGarbGown;
-        else if ((r == Role::Villager || r == Role::Fisher) && roll2 >= 200) garb = kGarbTunic;
+        else if ((r == Role::Villager || r == Role::Fisher || r == Role::Farmer) && roll2 >= 200) garb = kGarbTunic;
       }
     }
     // (P2b slice fix, SLICE-DEAD-PART) children: two in five wear the plain child's tunic (a hand-me-down; the census's cut
     // is always set, so without this no child ever reached it), the rest their people's cut like their elders
     if (kid && roll2 < 104) garb = kGarbTunic;
+    // (P2b fix 2, B6-YOUTH-DRESS-UNWORN) a girl of a robed people wears the little dress (bodice, chemise, skirt) more
+    // often than the robe, and now and then a girl of any people does: KIN-YOUTH's youth dress then reaches the census
+    // youths (ageLook ages the same look), and a child's dress is drawn by the child robe (`role garment dress`)
+    else if (kid && female && ((cutI == (int)cult::Cut::Robe && roll2 < 200) || roll2 >= 228)) garb = kGarbDress;
+    // (P2b production) the village's poorest: one plain villager in about twenty-five goes in worn-through clothes, bare
+    // shins and feet (a beggar's rags come from the outfit; this draw is the stream's last, so nothing else moves)
+    const int roll3 = (int)(h.next() & 255u);
+    if (!kid && (r == Role::Villager || r == Role::Refugee || r == Role::Farmer) && (garb == 0 || garb == kGarbTunic || garb == kGarbDress) && roll3 < 10) garb = kGarbRags;
     L.garb = garb;
   }
 }
@@ -314,6 +331,10 @@ void ageLook(art::HumanLook& L, int years, bool childRole, bool elder, uint64_t 
     if (L.hair == art::Hair::Short && L.hairVar != 4 && h.chance(100)) L.hairVar = 4;   // receding
     if (L.beard && L.beardStyle == 1 && h.chance(160)) L.beardStyle = 0;                  // the stubble grown full
     if (L.beard && L.beardStyle == 2 && h.chance(90)) L.beardStyle = 3;                   // and long
+    // (P2b fix, B6) STYLE_P2 14 "often a walking stick": an elder whose hands are free leans on one, a little over half
+    // of them (the draw is the stream's last, so nothing above moves; v1 has painted weapon 9 since M4).
+    // (P2b fix 2, RIG1-ELDER-STICK) at rig 2 only: v1 paints weapon 9 as the refugee's stick, so rig 1 keeps every v1 look
+    if (art::rigVersion() >= 2 && L.weapon == 0 && h.chance(150)) L.weapon = 9;
     return;
   }
   L.age = 0;
@@ -770,7 +791,27 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
     }
   }
   // ---- (P2b FOLK-SIM) the doll's look fields, last: their own stream (v1 ignores them; rig 1 keys never see them)
-  features(L, r, female, (int)C.archetype, seed, D.cutM == cult::Cut::Tunic);
+  features(L, r, female, (int)C.archetype, seed, (int)D.cutM);
+  // ---- (P2b fix, B6) the doll's finery at rig 2 (rig 1 keeps every v1 pixel: these fields are ones v1 paints), from its
+  //      own stream so no draw above moves. A people that paints faces paints them in more than one motif (its own most
+  //      often; a priest the sun mark); a patterned cloth is now and then a spotted one bought at market (dots); a charm
+  //      on a cord (the amulet) on the devout, the herb-wise and the odd commoner.
+  if (art::rigVersion() >= 2) {
+    Stream f(seed * 0xA24BAED4963EE407ull ^ 0x46494E4552593242ull);   // "FINERY2B"
+    const int paintRoll = (int)(f.next() & 255u), paintPick = f.pick(4);
+    if (L.facePaint >= 1 && L.facePaint <= 4) {
+      if (r == Role::Priest) L.facePaint = 4;
+      else if (paintRoll < 112) L.facePaint = (uint8_t)(1 + paintPick);
+    }
+    const int dotsRoll = (int)(f.next() & 255u);
+    const bool tiled = L.pattern == (uint8_t)cult::Pattern::Stripes || L.pattern == (uint8_t)cult::Pattern::Checks ||
+                       L.pattern == (uint8_t)cult::Pattern::Vines;
+    // (not on the Child role: a youth, aged later by ageLook, has no dots tile yet: KIN-YOUTH)
+    if (tiled && civilRole(r) && r != Role::Child && dotsRoll < 40) L.pattern = (uint8_t)cult::Pattern::Dots;
+    const int charmRoll = (int)(f.next() & 255u);
+    const int charmP = r == Role::Priest ? 150 : (r == Role::Herbalist || r == Role::Mage) ? 110 : r == Role::Child ? 0 : civilRole(r) ? 14 : 0;
+    if (!L.amulet && charmRoll < charmP) L.amulet = true;
+  }
 }
 
 }  // namespace census
@@ -867,6 +908,10 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
       break;
     default: break;
   }
+  // (P2b fix TRADES-DRAWN-ON-V1) the civil trades never fight: at rig 2 the doll draws their leathers as the work garb
+  // (census::dress: the apron, the jerkin) and their tool at rest (VISION_PLAN 15.36: a civil trade's v1 leathers and its
+  // tool at rest are P2b's; ACTION only for looks that fight). No draw, no v1 pixel: rig 1 is unchanged
+  L.civil = (uint8_t)(r == Role::Smith || r == Role::Shipwright || r == Role::Hunter || r == Role::Mage ? 1 : 0);
   // M1 kingdom identity (VISION_PLAN 15.8): guards wear their kingdom's colours; the king's cloak and the royal guard
   // (the palace and its barracks) carry the royal banner. (Colours only: the look's random draws above are unchanged.)
   const int home = a.site >= 0 ? a.site : (a.bldg >= 0 && a.bldg < (int)world.over.bldgs.size() ? world.over.bldgs[(size_t)a.bldg].site : -1);
@@ -904,7 +949,7 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
       L.plumeColor = K.color2 ? (K.color2 | 0xFF000000u) : 0;
     }
     if (KC || PC) a.culture = KC ? KC->id : PC->id;   // (M6) whose arms they wear: their loot is that culture's make
-    else census::features(L, r, female, -1, entry ^ ((uint64_t)(uint32_t)(a.slot + 1) << 24) ^ a.realm, true);   // (P2b) no culture
+    else census::features(L, r, female, -1, entry ^ ((uint64_t)(uint32_t)(a.slot + 1) << 24) ^ a.realm, (int)cult::Cut::Tunic);   // (P2b) no culture
     return;
   }
   if (const Kingdom* K = world.kingdomOf(home)) {
@@ -938,6 +983,6 @@ void Game::makeLook(Actor& a, Role r, Rng& rr) {
     else if (r == Role::Bandit) a.culture = C->id;
   } else {
     // (P2b FOLK-SIM) a person of no settlement's culture (the wayside, the wilds): the doll's look fields still vary
-    census::features(L, r, female, -1, entry ^ ((uint64_t)(uint32_t)(a.bldg + 1) << 20) ^ (uint64_t)(uint32_t)a.slot, true);
+    census::features(L, r, female, -1, entry ^ ((uint64_t)(uint32_t)(a.bldg + 1) << 20) ^ (uint64_t)(uint32_t)a.slot, (int)cult::Cut::Tunic);
   }
 }

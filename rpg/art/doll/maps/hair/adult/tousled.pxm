@@ -79,3 +79,75 @@ view L key lie origin 0 0
 |.......b..bcbba
 |..........abba.
 |...........aa..
+
+view D key lie origin -1 0
+|........aa....
+|....aaa.adca..
+|..aaddddaddcca
+|.adeeeddddccca
+|adeedddccccbba
+|addddcccccbbba
+|acddbddcbccbba
+|acd...cb...bba
+|abc...cb...bba
+|.b..........b.
+|.b..........b.
+
+# capped (under a hat, a hood or a helm; a circlet shows the whole style): the style kept inside the headwear
+view D key rest when capped,!circlet replace
+|..............
+|..............
+|..aaaaaaaaaaaa
+|.adeeeddddccca
+|adeedddccccbba
+|addddcccccbbba
+|acddbddcbccbba
+|acd...cb...bba
+|abc...cb...bba
+|.b..........b.
+|.b..........b.
+
+view U key rest when capped,!circlet replace
+|..............
+|..............
+|aaaaaaaaaaaa..
+|addddcddddcca.
+|adeeeeddddccba
+|aedddcdddcccba
+|acdcbdccbccbba
+|acdcbccbcbcbba
+|accbcccbccbbba
+|.bcbccbcbcbbb.
+|.abcbccbcbbba.
+|.abbaccbacba..
+|..a.......a...
+
+view R key rest when capped,!circlet replace
+|..................
+|..................
+|.....aaaaaaaaaaa..
+|....adeeedddcccca.
+|...adeedddcccccca.
+|..adddddcccccccca.
+|.acddccbccccbccca.
+|.acddccbccccbccca.
+|..abccbccbcc......
+|..accbcc..b.......
+|.abccbcb..b.......
+|..aabbba..........
+|.....aa...........
+
+view L key rest when capped,!circlet replace
+|..................
+|..................
+|..aaaaaaaaaaa.....
+|.adeeedddcccca....
+|.adeedddcccccba...
+|.adddddccccccbba..
+|.addccbccccbccbba.
+|.addccccbccccbcba.
+|......ccbccbccba..
+|.......b..cbcbba..
+|.......b..bcbcbba.
+|..........abbbaa..
+|...........aa.....

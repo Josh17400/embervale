@@ -24,3 +24,32 @@ view U key down origin -6 1
 view U key up origin -5 0
 |--
 |.a
+
+view R key down origin -9 1
+|a
+
+view L key down origin -6 1
+|a
+|d
+
+# capped (under a hat, a hood or a helm; a circlet shows the whole style): the style kept inside the headwear
+view D key down when capped,!circlet replace
+|.
+
+view D key fierce when capped,!circlet replace
+|.
+
+view D key up when capped,!circlet replace
+|.
+
+view U key down when capped,!circlet replace
+|.
+
+view U key up when capped,!circlet replace
+|.
+
+view R key down when capped,!circlet replace
+|.
+
+view L key down when capped,!circlet replace
+|.

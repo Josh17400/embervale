@@ -19,6 +19,7 @@
 #include "rpg/sim/game.h"
 #include "rpg/sim/game_internal.h"
 #include "rpg/sim/gear.h"
+#include "rpg/sim/gear_look.h"
 #include "rpg/sim/life.h"
 #include "tools/tests/tests.h"
 
@@ -192,8 +193,8 @@ int folkSimCmd(int argc, char** argv) {
       for (const auto& kv : garb[b]) std::printf(" %s %d", kv.first.c_str(), kv.second);
       std::printf("\n");
     }
-    std::printf("  neck: none %d scarf %d kerchief %d collar %d; garb (0-9):", neck[0], neck[1], neck[2], neck[3]);
-    for (int i = 0; i <= 9; i++) std::printf(" %d", garbN[i]);
+    std::printf("  neck: none %d scarf %d kerchief %d collar %d; garb (0-13):", neck[0], neck[1], neck[2], neck[3]);
+    for (int i = 0; i <= 13; i++) std::printf(" %d", garbN[i]);
     std::printf("\n");
     check(ageWrong == 0, "F1 census ages", fmt("%d of %zu folk with the wrong age (child <10, youth 10-14, elder 60+)", ageWrong, folk.size()));
     check(youths > 0 && elders > 0 && children > 0, "F1 ages present", fmt("youths %d, children %d, elders %d", youths, children, elders));
@@ -331,12 +332,12 @@ int folkSimCmd(int argc, char** argv) {
     k = animPick(g, g.pl(), 2);
     check(still && !k.drawn && k.variant == 0 && k.part == art::RigPart::Loco, "F9 sheathed after 4 s",
           fmt("3.85 s drawn %d; 4.15 s drawn %d variant %d", (int)still, (int)k.drawn, k.variant));
-    // walking drawn: the ACTION part's walk variant 1; running drawn: RUN variant 1
+    // walking drawn: the ACTION part's walk variant 1; running drawn: the ACTION part's walk variant 2 (P2b fix r1, B10)
     tick(g, in);
     for (int f = 0; f < 40; f++) tick(g, Input());
     Run rr = walkEast(g, 1.0f, 0.5f);
     k = animPick(g, g.pl(), 2);
-    check(k.drawn && k.part == art::RigPart::Run && k.variant == 1, "F9 drawn run", fmt("gait %d part %d variant %d", rr.gait, (int)k.part, k.variant));
+    check(k.drawn && k.gait == 1 && k.part == art::RigPart::Action && k.variant == 2, "F9 drawn run", fmt("gait %d part %d variant %d", rr.gait, (int)k.part, k.variant));
     // a hostile within the hero's aggro radius draws the sword; gone, it is sheathed kThreatHold later
     standStill(g, 4.5f);
     const int bi = AnimOps::spawnBandit(g, g.pl().p + Vec2(60, 0), -1);
@@ -353,6 +354,66 @@ int folkSimCmd(int argc, char** argv) {
     for (int f = 0; f < 30; f++) tick(g, Input());
     k = animPick(g, g.pl(), 2);
     check(!k.drawn && k.part != art::RigPart::Action, "F10 unarmed", fmt("drawn %d part %d", (int)k.drawn, (int)k.part));
+  }
+
+  // ---- F11: B7's garments as the variety harness sees them (test_doll.cpp censusA: makeLook per resident of the start
+  //      region's settlements, a beggar in rags, the census ages; every civil resident of any age): man 13, woman 14
+  {
+    art::setRigVersion(2);
+    std::map<std::string, int> seen[2];
+    for (uint64_t s = sa; s <= sb; s++) {
+      Game g(s);
+      g.newEndlessGame(s);
+      const Site& home = g.world.sites[(size_t)g.world.startSite];
+      for (size_t si = 0; si < g.world.sites.size(); si++) {
+        const Site& st = g.world.sites[si];
+        if (st.type != SiteType::Village && st.type != SiteType::Town && st.type != SiteType::City) continue;
+        if (std::abs(st.r.cx() - home.r.cx()) > 160 || std::abs(st.r.cy() - home.r.cy()) > 160) continue;
+        life::Census c;
+        life::buildCensus(g.world, (int)si, c);
+        for (const life::Resident& r : c.res) {
+          Actor a;
+          a.human = true; a.site = (int)si; a.role = life::jobRole(r.job);
+          for (uint32_t k = 0; k < 12; k++) {
+            Rng rr(r.lookSeed + k * 7919u);
+            Rng probe = rr;
+            const bool fem = probe.f() < 0.45f;
+            if (fem != r.female && k + 1 < 12) continue;
+            HomeOps::makeLook(g, a, a.role, rr);
+            break;
+          }
+          if (r.job == life::Job::Beggar) a.look.outfit = art::Outfit::Rags;
+          if (!civil(a.look)) continue;
+          for (const doll::Need& n : doll::resolve(a.look).needs)
+            if (n.role == doll::Role::Garment) seen[a.look.body ? 1 : 0][n.value]++;
+        }
+      }
+    }
+    for (int b = 0; b < 2; b++) {
+      std::printf("  B7 garments %s:", b ? "woman" : "man");
+      for (const auto& kv : seen[b]) std::printf(" %s %d", kv.first.c_str(), kv.second);
+      std::printf("\n");
+    }
+    check(seen[0].size() >= 13 && seen[1].size() >= 14, "F11 B7 garments", fmt("man %zu (13), woman %zu (14)", seen[0].size(), seen[1].size()));
+  }
+
+  // ---- F12: a created hero reaches every hair style and every beard (the hash of the Appearance)
+  {
+    std::set<int> styles, beards;
+    const cult::Culture* home = nullptr;
+    for (int i = 0; i < 4000; i++) {
+      Appearance app;
+      app.created = true;
+      app.name = fmt("HERO%d", i);
+      app.female = (i & 1) != 0;
+      app.hair = (uint8_t)(i / 2 % (int)art::Hair::COUNT);
+      app.beard = !app.female;
+      app.people = (uint8_t)(i / 16 % 3);
+      const art::HumanLook L = appearanceLook(app, home);
+      styles.insert(doll::hairStyleOf(L.hair, L.hairVar));
+      if (L.beard) beards.insert(L.beardStyle);
+    }
+    check(styles.size() == 24 && beards.size() >= 9, "F12 hero styles", fmt("%zu of 24 hair styles, %zu of 9 beards", styles.size(), beards.size()));
   }
   art::setRigVersion(was);
   std::printf("folk-sim: %d checks, %d failed\n", g_checks, g_fails);

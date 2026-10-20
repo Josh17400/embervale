@@ -1,0 +1,300 @@
+# wear/man/kaftan_hang: the kaftan's long skirts parted over the linen under-robe, trimmed down both edges and along the
+# hem, the shoes under it; the skirts sway by whole rows, spread over the striding legs and stream in the run
+# GARB-M (P2b wave 2); fitted to the man (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+legend Z linen 4
+body man
+role garment kaftan
+layer hangFront
+anchor hip
+keys hang
+z 10
+# (z 10: over the shoe tips (legs/adult/loco/tips, z 9), so a foot lifted behind the hem stays under it)
+sway 4
+# (an elf stands a pixel taller in the legs: each view's stretch row doubles, so the hem still meets the shoes)
+
+view D key rest origin 7 -2 stretch 2
+|.5877pxwn7665.
+|.5876pxwn6765.
+|58776pyxwn7665
+|58767pxxwn6765
+|58776pxxwn7665
+|mppoopyxwnnnnm
+|mmmmmmvvvmmmmm
+regions
+|.....E..E.....
+|.....E..E.....
+|.....E...E....
+|.....E...E....
+|.....E...E....
+|EEEEEE...EEEEE
+|..............
+build
+|...+.....x+...
+view D key flare origin 8 -2 stretch 2
+|..5877pxwn7665..
+|..5876pxwn6765..
+|.58776pyxwn7665.
+|.58767pxxwn6765.
+|587776pxxwn76665
+|mppooopyxwnnnnnm
+|mmmmmmmvvvmmmmmm
+
+view D key sit origin 8 -1 stretch 4
+|..588pyxwn7665..
+|.5988pyxxwn76665
+|58777pyxxwn76665
+|57666pwwwvn66665
+|.5767pyxwn76665.
+|.mppoopyxwnnnnm.
+|.mmmmmmvvvmmmmm.
+view U key rest origin 7 -2 stretch 2
+|.587776777665.
+|.587767776665.
+|58777677766665
+|58777677766665
+|58777677766665
+|mppoooooonnnnm
+|mmmmmmmmmmmmmm
+regions
+|..............
+|..............
+|..............
+|..............
+|..............
+|EEEEEEEEEEEEEE
+|..............
+build
+|...+.....x+...
+view U key flare origin 8 -2 stretch 2
+|..587776777665..
+|..587767776665..
+|.58777677766665.
+|.58777677766665.
+|5877767777666665
+|mppooooooonnnnnm
+|mmmmmmmmmmmmmmmm
+
+view U key sit origin 0 0
+|.
+
+view R key rest origin 7 -2 stretch 2
+|..586777677pv.
+|.5876777677pv.
+|.58767776777pv
+|.58767776777pv
+|587767776777pv
+|mppoooooonnnnv
+|mmmmmmmmmmmmmv
+regions
+|..............
+|..............
+|..............
+|..............
+|..............
+|EEEEEEEEEEEEEE
+|..............
+build
+|..+x..........
+
+view R key wide origin 8 -2 stretch 2
+|...586777677pv...
+|..58767776777pv..
+|.587767776777pv..
+|.5877677767777pv.
+|58777677767777pv.
+|mppoooooooonnnnnv
+|mmmmmmmmmmmmmmmmv
+
+view R key flare origin 9 -2 stretch 2
+|...5867776777pv...
+|..587677767777pv..
+|.5877677767777pv..
+|.58776777677777pv.
+|587776777677777pv.
+|mppoooooooonnnnnnv
+|mmmmmmmmmmmmmmmmmv
+
+
+view R key sit origin 5 2 stretch 5
+|.5988888888pv
+|58877777777pv
+|58776666677pv
+|55555557667pv
+|......57667pv
+|......57667pv
+|......57667pv
+|......57666pv
+|......mppoonv
+|......mmmmmmv
+
+view L key rest origin 8 -2 stretch 2
+|.vp7776777665..
+|.vp77767776765.
+|vp777767776765.
+|vp777767776765.
+|vp7777677767765
+|vppoooooonnnnnm
+|vmmmmmmmmmmmmmm
+regions
+|...............
+|...............
+|...............
+|...............
+|...............
+|EEEEEEEEEEEEEEE
+|...............
+build
+|...........x+..
+
+view L key wide origin 10 -2 stretch 2
+|...vp7776777665...
+|..vp777767776765..
+|..vp7777677767765.
+|.vp77777677767765.
+|.vp777776777677765
+|vppoooooooonnnnnnm
+|vmmmmmmmmmmmmmmmmm
+
+view L key flare origin 10 -2 stretch 2
+|...vp77776777665...
+|..vp7777767776765..
+|..vp77777677767765.
+|.vp777777677767765.
+|.vp7777776777677765
+|vppooooooooonnnnnnm
+|vmmmmmmmmmmmmmmmmmm
+
+
+view L key sit origin 7 2 stretch 5
+|vp8888888895.
+|vp77777777885
+|vp77666667785
+|vp77667555555
+|vp77667......
+|vp67667......
+|vp77667......
+|vp66667......
+|vpponnm......
+|vmmmmmm......
+
+view L key lie origin 6 -2 stretch 2
+|vp877767765
+|vp876777665
+|vp877767765
+|vp876777665
+|vp777677665
+|vpooonnnnnm
+|vmmmmmmmmmm
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+view D key floor origin 11 1
+|..588888888877777765..
+|5877777777777777777765
+|mppooooooooooonnnnnnnm
+|mmmmmmmmmmmmmmmmmmmmmm
+
+view U key floor origin 10 1
+|.588888888877777765.
+|58777777777777777765
+|mppooooooooonnnnnnnm
+|mmmmmmmmmmmmmmmmmmmm
+
+view R key floor origin 6 2
+|.5888888877765..
+|587777777777765.
+|5877777777777765
+|mppooooooonnnnnm
+|mmmmmmmmmmmmmmmm
+
+view L key floor origin 10 2
+|..5888888877765.
+|.587777777777765
+|5877777777777765
+|mppooooooonnnnnm
+|mmmmmmmmmmmmmmmm
+
+view D key kneel origin 7 0
+|.5888888877765.
+|587767777677765
+|587767777677765
+|587767777677765
+|mppoooooonnnnnm
+|mmmmmmmmmmmmmmm
+
+view U key kneel origin 7 0
+|.5888888877765.
+|587767777677765
+|587767777677765
+|587767777677765
+|mppoooooonnnnnm
+|mmmmmmmmmmmmmmm
+
+view R key kneel origin 7 1
+|.....588887765...
+|....58777777765..
+|..58777777777765.
+|.587777777777765.
+|58777777777777765
+|mppoooooooonnnnnm
+|mmmmmmmmmmmmmmmmm
+
+view L key kneel origin 10 1
+|...588887765.....
+|..58777777765....
+|.58777777777765..
+|.587777777777765.
+|58777777777777765
+|mppoooooooonnnnnm
+|mmmmmmmmmmmmmmmmm
+
+view D key ride origin 11 0
+|...588888888777765....
+|..58777767777677765...
+|.58777765....58777765.
+|5877765........5877765
+|mpponm..........mpponm
+|mmmmmm..........mmmmmm
+
+view U key ride origin 11 0
+|...588888888777765....
+|..58777767777677765...
+|.58777765....58777765.
+|5877765........5877765
+|mpponm..........mpponm
+|mmmmmm..........mmmmmm
+
+view R key ride origin 5 0
+|588888877765.
+|5877777777765
+|.587777777765
+|.58777777765.
+|.mppoooonnnm.
+|.mmmmmmmmmmm.
+
+view L key ride origin 8 0
+|.588888877765
+|5877777777765
+|587777777765.
+|.58777777765.
+|.mppoooonnnm.
+|.mmmmmmmmmmm.

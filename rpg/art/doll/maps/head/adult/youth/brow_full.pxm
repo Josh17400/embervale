@@ -1,0 +1,34 @@
+# head/adult/youth/brow_full: the youth's full brows (girls)
+# P2b FACES (wave 2): GENERATED from the adult maps by the FACES spec (the boy = the man's views, the girl = the
+# woman's as `when girl replace`); edit the adult maps, then regenerate. Format: rpg/art/doll/doll.h.
+use person woman
+body youth
+role brow full
+layer face
+anchor head
+keys rest
+tags mirror-ok
+
+view D key rest origin -3 -8
+|bbb....bbb
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -10 -8
+|bb
+
+view L key rest origin -4 -8
+|bb
+
+view D key rest origin -4 -7 when elf replace
+|b......b
+|.bb..bb.
+
+view R key rest origin -11 -7 when elf replace
+|b.
+|.b
+
+view L key rest origin -3 -7 when elf replace
+|.b
+|b.

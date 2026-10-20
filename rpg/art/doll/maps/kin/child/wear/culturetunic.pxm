@@ -1,0 +1,39 @@
+# kin/child/wear/culturetunic: the culture's tunic: longer, a trimmed neckline and placket in the accent, belted, a two-row skirt to the knee with a slit and a trimmed hem
+# (KIN-CHILD, P2b wave 2; the child's torso is 6 rows, F-10..F-5, STYLE_P2 3 and 22). Format: rpg/art/doll/doll.h.
+use person woman
+body child
+role garment culturetunic
+layer torso
+keys rest
+
+view D key rest origin 6 0
+|59887op76665
+|..6887o766..
+|..68877666..
+|..fihPOhgf..
+|.5688776665.
+|.598n.onnn5.
+
+view U key rest origin 6 0
+|598887777665
+|..68877766..
+|..68877666..
+|..fihhhhgf..
+|.5688777766.
+|.5ponnnonn5.
+
+view R key rest origin 4 0
+|.5988op5.
+|58877o65.
+|58877665.
+|fihhhhgf.
+|588776655
+|5onnnnnm5
+
+view L key rest origin 4 0
+|.5988op5.
+|.58877o65
+|.58877665
+|.fihhhhgf
+|558877665
+|5monnnnn5

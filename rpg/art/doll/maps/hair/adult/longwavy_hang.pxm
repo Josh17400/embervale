@@ -1,0 +1,82 @@
+# hair/adult/longwavy_hang: Long wavy's hanging ends: wavy locks on the shoulders in front, a wavy mass to mid-back behind; they
+# lag the step (hair keys) and sway with the hips (sway); pressed flat under a lying head (lie: none)
+# P2b wave 2, HAIR. On the adult head box (STYLE_P2 21). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role hair longwavy
+layer hairFront
+anchor head
+keys hair
+sway 2
+z 1
+
+view D key rest origin 1 -15
+|.acdb........bcba.
+|adcba........abcba
+|acdb..........bcba
+|.aba..........aba.
+
+view D key swing origin 1 -15
+|.acdb........bcba.
+|.adcba......abcba.
+|.acdb........bcba.
+|..aba........aba..
+
+view U key rest origin 1 -15
+|adeddcdcdccbcbcba.
+|acdcdcdcdcbcbcbba.
+|.acdcdccdcbcbcba..
+|.adcdcdcdcbcdbba..
+|.acdcbcdcbcbcba...
+|..adcbcdcbcbba....
+|..acba.abcba.aa...
+|...aa...aaa.......
+
+view U key swing origin 1 -15
+|adeddcdcdccbcbcba.
+|acdcdcdcdcbcbcbba.
+|.acdcdccdcbcbcba..
+|.adcdcdcdcbcdbba..
+|..acdcbcdcbcbcba..
+|...adcbcdcbcbba...
+|...acba.abcba.aa..
+|....aa...aaa......
+
+view R key rest origin 2 -15
+|adcdcdcba.
+|acdcdcba..
+|.acdcdba..
+|adcdcba...
+|acdcbba...
+|.abba.....
+|..aa......
+
+view R key swing origin 3 -15
+|.adcdcdcba
+|.acdcdcba.
+|acdcdcba..
+|adcdcba...
+|acdcbba...
+|.abba.....
+|..aa......
+
+view L key lie origin 0 0
+|.
+
+view L key rest origin -8 -15
+|.adcdcdcba
+|..acdcdcba
+|..acdcdba.
+|...adcdcba
+|...acdcbba
+|.....abba.
+|......aa..
+
+view L key swing origin -9 -15
+|adcdcdcba.
+|.acdcdcba.
+|..acdcdcba
+|...adcdcba
+|...acdcbba
+|.....abba.
+|......aa..

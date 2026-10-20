@@ -1,0 +1,1055 @@
+# arms/adult/pose/man_l: the man's left arm in the postures (POSES-B, P2b wave 2): sleeve, bracer, hand (regions and the
+# keys as man_r's header). Front: the screen's right, the shade side; back: the screen's left, the lit side; facing left
+# the near arm, facing right the far one (behind the body). `gripL` marks where a prop held in the left hand goes.
+# Blocked in from man_r's views mirrored and relit for this side, then checked by hand.
+use person
+body man
+role arms std
+layer armNear
+anchor shoulderL
+keys armL
+side L
+
+# ============================================================ front (D)
+view D key hold origin 5 -1
+mark handL 2 5
+mark gripL 2 5
+|....765
+|....765
+|...7665
+|..hgf75
+|.qtsq5.
+|.qsrq..
+|..qq...
+regions
+|....UUU
+|....UUU
+|...FUUU
+|..CCCUU
+|.HHHHU.
+|.HHHH..
+|..HH...
+
+view D key mouth origin 5 1
+mark handL 2 0
+mark gripL 2 0
+|qtsq...
+|qsrq...
+|fhgf765
+|.f65765
+|..f7665
+|...555.
+regions
+|HHHH...
+|HHHH...
+|CCCCUUU
+|.FFFUUU
+|..FFUUU
+|...UUU.
+
+view D key raise origin 2 12
+mark handL 5 0
+mark gripL 5 0
+|....qtsq
+|....qsrq
+|....fhgf
+|....fhgf
+|....5765
+|...5765.
+|...5765.
+|...5765.
+|..5765..
+|..5765..
+|..5765..
+|57665...
+|7665....
+|.765....
+|.555....
+regions
+|....HHHH
+|....HHHH
+|....CCCC
+|....CCCC
+|....FFFF
+|...FFFF.
+|...FFFF.
+|...UUUU.
+|..UUUU..
+|..UUUU..
+|..UUUU..
+|UUUUU...
+|UUUU....
+|.UUU....
+|.UUU....
+
+view D key wave origin 1 8
+mark handL 5 1
+|....qtq.
+|...qqtsq
+|...qssrq
+|...qsrq.
+|...fhgf.
+|...fhgf.
+|...5765.
+|..57665.
+|5766665.
+|765555..
+|555.....
+regions
+|....HHH.
+|...HHHHH
+|...HHHHH
+|...HHHH.
+|...CCCC.
+|...CCCC.
+|...FFFF.
+|..FFFFF.
+|UUUUUUU.
+|UUUUUU..
+|UUU.....
+
+view D key wave2 origin 1 8
+mark handL 4 1
+|...qtq..
+|..qqtsq.
+|..qssrq.
+|..qsrq..
+|..fhgf..
+|...fhgf.
+|...5765.
+|..57665.
+|5766665.
+|765555..
+|555.....
+regions
+|...HHH..
+|..HHHHH.
+|..HHHHH.
+|..HHHH..
+|..CCCC..
+|...CCCC.
+|...FFFF.
+|..FFFFF.
+|UUUUUUU.
+|UUUUUU..
+|UUU.....
+
+view D key pray origin 5 -1
+mark handL 1 1
+|...7665
+|.qhgf75
+|qtqgf5.
+|qsq55..
+|.qq....
+regions
+|...FUUU
+|.HCCCUU
+|HHHCCU.
+|HHHUU..
+|.HH....
+
+view D key reach origin 2 -1
+mark handL 1 3
+mark gripL 1 3
+|.765
+|.765
+|fhgf
+|qtsq
+|qsrq
+|.qq.
+regions
+|.UUU
+|.UUU
+|CCCC
+|HHHH
+|HHHH
+|.HH.
+
+view D key pull origin 3 -1
+mark handL 2 4
+mark gripL 2 4
+|..765.
+|.7665.
+|.57665
+|.5hgf5
+|qtsqf.
+|qsrq..
+|.qq...
+regions
+|..UUU.
+|.UUUU.
+|.UUUUU
+|.UCCCU
+|HHHHC.
+|HHHH..
+|.HH...
+
+view D key high origin 1 8
+mark handL 5 1
+mark gripL 5 1
+|........
+|...qtsq.
+|..qttsrq
+|..qssrrq
+|...fhgf.
+|...fhgf.
+|...5765.
+|..57665.
+|5766665.
+|765555..
+|555.....
+regions
+|........
+|...HHHH.
+|..HHHHHH
+|..HHHHHH
+|...CCCC.
+|...CCCC.
+|...FFFF.
+|..FFFFF.
+|UUUUUUU.
+|UUUUUU..
+|UUU.....
+
+view D key low origin 5 -1
+mark handL 1 7
+mark gripL 1 7
+|....765
+|....765
+|...7665
+|...7665
+|..hgf5.
+|.fhgf..
+|qtsq...
+|qsrq...
+|.qq....
+regions
+|....UUU
+|....UUU
+|...FUUU
+|...FUUU
+|..CCCU.
+|.CCCC..
+|HHHH...
+|HHHH...
+|.HH....
+
+view D key shoulder origin 3 1
+mark handL 3 0
+mark gripL 3 0
+|.qtsq.
+|.qsrq.
+|.fhgf5
+|.5g765
+|..7665
+|..555.
+regions
+|.HHHH.
+|.HHHH.
+|.CCCCU
+|..CUUU
+|..FUUU
+|..UUU.
+
+view D key knee origin 1 -1
+mark handL 2 7
+|765.
+|765.
+|765.
+|7665
+|5765
+|fhgf
+|.hgf
+|qtsq
+|qsrq
+|.qq.
+regions
+|UUU.
+|UUU.
+|UUU.
+|UUUU
+|FFFF
+|CCCC
+|.CCC
+|HHHH
+|HHHH
+|.HH.
+
+# ============================================================ back (U)
+view U key hold origin 1 -1
+|597
+|597
+|597
+|597
+|fih
+|fhf
+regions
+|UUU
+|UUU
+|UUU
+|UUU
+|CCC
+|CCC
+
+view U key mouth origin 2 -1
+|.597
+|5977
+|597.
+|fih.
+|.ff.
+regions
+|.UUU
+|UUUU
+|UUU.
+|CCC.
+|.CC.
+
+view U key raise origin 6 12
+mark handL 2 0
+|..qts..
+|..qsr..
+|..fih..
+|..fih..
+|..597..
+|...597.
+|...597.
+|...597.
+|....597
+|....597
+|....597
+|...5977
+|....577
+|.....57
+|.....55
+regions
+|..HHH..
+|..HHH..
+|..CCC..
+|..CCC..
+|..FFF..
+|...FFF.
+|...FFF.
+|...UUU.
+|....UUU
+|....UUU
+|....UUU
+|...UUUU
+|....UUU
+|.....UU
+|.....UU
+
+view U key wave origin 7 8
+mark handL 2 1
+|.qts....
+|qtssr...
+|.qsrr...
+|.qsrq...
+|..fih...
+|..fih...
+|..597...
+|..5977..
+|..597777
+|...55597
+|.....555
+regions
+|.HHH....
+|HHHHH...
+|.HHHH...
+|.HHHH...
+|..CCC...
+|..CCC...
+|..FFF...
+|..FFFF..
+|..UUUUUU
+|...UUUUU
+|.....UUU
+
+view U key wave2 origin 7 8
+mark handL 3 1
+|..qts...
+|.qtssr..
+|..qsrr..
+|..qsrq..
+|...fih..
+|..fih...
+|..597...
+|..5977..
+|..597777
+|...55597
+|.....555
+regions
+|..HHH...
+|.HHHHH..
+|..HHHH..
+|..HHHH..
+|...CCC..
+|..CCC...
+|..FFF...
+|..FFFF..
+|..UUUUUU
+|...UUUUU
+|.....UUU
+
+view U key pray origin 2 -1
+|.597
+|5977
+|fih.
+|.ff.
+regions
+|.UUU
+|UUUU
+|CCC.
+|.CC.
+
+view U key reach origin 1 -1
+|597
+|597
+|fih
+|.ff
+regions
+|UUU
+|UUU
+|CCC
+|.CC
+
+view U key pull origin 2 -1
+|.597
+|5977
+|5977
+|5fih
+|.fhf
+|.ff.
+regions
+|.UUU
+|UUUU
+|UUUU
+|UCCC
+|.CCC
+|.CC.
+
+view U key high origin 7 8
+mark handL 2 1
+|........
+|.qtss...
+|qtssrr..
+|.qsrrr..
+|..fih...
+|..fih...
+|..597...
+|..5977..
+|..597777
+|...55597
+|.....555
+regions
+|........
+|.HHHH...
+|HHHHHH..
+|.HHHHH..
+|..CCC...
+|..CCC...
+|..FFF...
+|..FFFF..
+|..UUUUUU
+|...UUUUU
+|.....UUU
+
+view U key low origin 1 -1
+|597
+|597
+|597
+|597
+|fih
+|fih
+|fhf
+regions
+|UUU
+|UUU
+|UUU
+|UUU
+|CCC
+|CCC
+|CCC
+
+view U key shoulder origin 2 1
+mark handL 2 0
+|.qts
+|.qsr
+|f597
+|5977
+|597.
+|555.
+regions
+|.HHH
+|.HHH
+|CUUU
+|UUUU
+|UUU.
+|UUU.
+
+view U key knee origin 2 -1
+|.597
+|.597
+|.597
+|5977
+|5975
+|fih.
+|fih.
+|qsr.
+|.qq.
+regions
+|.UUU
+|.UUU
+|.UUU
+|UUUU
+|FFFF
+|CCC.
+|CCC.
+|HHH.
+|.HH.
+
+# ============================================================ left (L): the near arm
+view L key hold origin 8 -1
+mark handL 2 5
+mark gripL 2 5
+|....58765
+|....58765
+|....58765
+|....58765
+|..fiihhf5
+|.qtsqff5.
+|qsrq.....
+|.qq......
+regions
+|....UUUUU
+|....UUUUU
+|....UUUUU
+|....UUUUU
+|..CCCCCCU
+|.HHHHCCU.
+|HHHH.....
+|.HH......
+
+view L key mouth origin 8 2 layer ears
+mark handL 2 0
+mark gripL 2 0
+|qtsq.....
+|qsrq.....
+|fihf.....
+|fihf58765
+|fihf58765
+|.fih58765
+|..fhf8765
+|....5555.
+regions
+|HHHH.....
+|HHHH.....
+|CCCC.....
+|CCCCUUUUU
+|CCCCUUUUU
+|.CCCUUUUU
+|..CCCUUUU
+|....UUUU.
+
+view L key raise origin 2 12 layer ears
+mark handL 5 0
+mark gripL 5 0
+|...qtsq.
+|...qsrq.
+|...fihf.
+|...fihf.
+|..58765.
+|..58765.
+|.58765..
+|.58765..
+|.58765..
+|58765...
+|58765...
+|58765...
+|58765...
+|58765...
+|.555....
+regions
+|...HHHH.
+|...HHHH.
+|...CCCC.
+|...CCCC.
+|..FFFFF.
+|..FFFFF.
+|.FFFFF..
+|.UUUUU..
+|.UUUUU..
+|UUUUU...
+|UUUUU...
+|UUUUU...
+|UUUUU...
+|UUUUU...
+|.UUU....
+
+view L key wave origin 8 6 layer ears
+mark handL 3 1
+|..qtq....
+|.qqtsq...
+|.qssrq...
+|..qsrq...
+|..fihf...
+|..fihf...
+|..58765..
+|...58765.
+|....58765
+|....58765
+|....f8765
+|.....555.
+regions
+|..HHH....
+|.HHHHH...
+|.HHHHH...
+|..HHHH...
+|..CCCC...
+|..CCCC...
+|..FFFFF..
+|...FFFFF.
+|....UUUUU
+|....UUUUU
+|....FUUUU
+|.....UUU.
+
+view L key wave2 origin 8 6 layer ears
+mark handL 2 1
+|.qtq.....
+|qqtsq....
+|qssrq....
+|.qsrq....
+|..fihf...
+|..fihf...
+|..58765..
+|...58765.
+|....58765
+|....58765
+|....f8765
+|.....555.
+regions
+|.HHH.....
+|HHHHH....
+|HHHHH....
+|.HHHH....
+|..CCCC...
+|..CCCC...
+|..FFFFF..
+|...FFFFF.
+|....UUUUU
+|....UUUUU
+|....FUUUU
+|.....UUU.
+
+view L key pray origin 7 -1
+mark handL 1 2
+|...58765
+|...58765
+|qihf8765
+|tqhf555.
+|qq......
+regions
+|...UUUUU
+|...UUUUU
+|HCCCUUUU
+|HHCCUUU.
+|HH......
+
+view L key reach origin 10 -1
+mark handL 1 2
+mark gripL 1 2
+|......58765
+|..qq5888765
+|qtsiihf6665
+|qsrqff5555.
+|.qq........
+regions
+|......UUUUU
+|..HHUUUUUUU
+|HHHHCCCUUUU
+|HHHHCCUUUU.
+|.HH........
+
+view L key pull origin 4 -1
+mark handL 5 5
+mark gripL 5 5
+|58765...
+|.58765..
+|..58765.
+|...58765
+|...fihf5
+|...qtsq.
+|...qsrq.
+|....qq..
+regions
+|UUUUU...
+|.UUUUU..
+|..UUUUU.
+|...UUUUU
+|...CCCCU
+|...HHHH.
+|...HHHH.
+|....HH..
+
+view L key high origin 4 5 layer ears
+mark handL 7 1
+mark gripL 7 1
+|.....qtsq.
+|....qttsrq
+|....qssrrq
+|.....fihf.
+|....fihf..
+|..58765...
+|.58765....
+|58765.....
+|58765.....
+|.555......
+regions
+|.....HHHH.
+|....HHHHHH
+|....HHHHHH
+|.....CCCC.
+|....CCCC..
+|..UUUUU...
+|.UUUUU....
+|UUUUU.....
+|UUUUU.....
+|.UUU......
+
+view L key low origin 7 -1
+mark handL 1 6
+mark gripL 1 6
+|...58765
+|...58765
+|..58765.
+|.58765..
+|.fihf...
+|fihhf...
+|qtsq....
+|qsrq....
+|.qq.....
+regions
+|...UUUUU
+|...UUUUU
+|..UUUUU.
+|.UUUUU..
+|.CCCC...
+|CCCCC...
+|HHHH....
+|HHHH....
+|.HH.....
+
+view L key shoulder origin 5 1 layer ears
+mark handL 3 0
+mark gripL 3 0
+|.qtsq.
+|.qsrq.
+|5fihf5
+|.58765
+|.58765
+|..555.
+regions
+|.HHHH.
+|.HHHH.
+|UCCCCU
+|.UUUUU
+|.UUUUU
+|..UUU.
+
+view L key knee origin 6 -1
+mark handL 2 7
+|..58765
+|..58765
+|..58765
+|.58765.
+|.58765.
+|.fihf..
+|.fihf..
+|.qtsq..
+|.qsrq..
+|..qq...
+regions
+|..UUUUU
+|..UUUUU
+|..UUUUU
+|.UUUUU.
+|.FFFFF.
+|.CCCC..
+|.CCCC..
+|.HHHH..
+|.HHHH..
+|..HH...
+
+# ============================================================ right (R): the far arm (behind the body)
+view R key hold origin 0 -1
+mark handL 6 5
+mark gripL 6 5
+|57665....
+|57665....
+|57665....
+|57665....
+|5fhhggf..
+|.5ffqtsq.
+|.....qsrq
+|......qq.
+regions
+|UUUUU....
+|UUUUU....
+|UUUUU....
+|UUUUU....
+|UCCCCCC..
+|.UCCHHHH.
+|.....HHHH
+|......HH.
+
+view R key mouth origin 0 2
+mark handL 6 0
+mark gripL 6 0
+|.....qtsq
+|.....qsrq
+|.....fhgf
+|57665fhgf
+|57665fhgf
+|57665hgf.
+|5766fgf..
+|.5555....
+regions
+|.....HHHH
+|.....HHHH
+|.....CCCC
+|UUUUUCCCC
+|UUUUUCCCC
+|UUUUUCCC.
+|UUUUCCC..
+|.UUUU....
+
+view R key raise origin 5 12
+mark handL 2 0
+mark gripL 2 0
+|.qtsq...
+|.qsrq...
+|.fhgf...
+|.fhgf...
+|.57665..
+|.57665..
+|..57665.
+|..57665.
+|..57665.
+|...57665
+|...57665
+|...57665
+|...57665
+|...57665
+|....555.
+regions
+|.HHHH...
+|.HHHH...
+|.CCCC...
+|.CCCC...
+|.FFFFF..
+|.FFFFF..
+|..FFFFF.
+|..UUUUU.
+|..UUUUU.
+|...UUUUU
+|...UUUUU
+|...UUUUU
+|...UUUUU
+|...UUUUU
+|....UUU.
+
+view R key wave origin 0 6
+mark handL 5 1
+|....qtq..
+|...qtsqq.
+|...qssrq.
+|...qsrq..
+|...fhgf..
+|...fhgf..
+|..57665..
+|.57665...
+|57665....
+|57665....
+|5766f....
+|.555.....
+regions
+|....HHH..
+|...HHHHH.
+|...HHHHH.
+|...HHHH..
+|...CCCC..
+|...CCCC..
+|..FFFFF..
+|.FFFFF...
+|UUUUU....
+|UUUUU....
+|UUUUF....
+|.UUU.....
+
+view R key wave2 origin 0 6
+mark handL 6 1
+|.....qtq.
+|....qtsqq
+|....qssrq
+|....qsrq.
+|...fhgf..
+|...fhgf..
+|..57665..
+|.57665...
+|57665....
+|57665....
+|5766f....
+|.555.....
+regions
+|.....HHH.
+|....HHHHH
+|....HHHHH
+|....HHHH.
+|...CCCC..
+|...CCCC..
+|..FFFFF..
+|.FFFFF...
+|UUUUU....
+|UUUUU....
+|UUUUF....
+|.UUU.....
+
+view R key pray origin 0 -1
+mark handL 6 2
+|57665...
+|57665...
+|5766fhgq
+|.555fgqt
+|......qq
+regions
+|UUUUU...
+|UUUUU...
+|UUUUCCCH
+|.UUUCCHH
+|......HH
+
+view R key reach origin 0 -1
+mark handL 9 2
+mark gripL 9 2
+|57665......
+|5777665qq..
+|5666fhhgtsq
+|.5555ffqsrq
+|........qq.
+regions
+|UUUUU......
+|UUUUUUUHH..
+|UUUUCCCHHHH
+|.UUUUCCHHHH
+|........HH.
+
+view R key pull origin 3 -1
+mark handL 2 5
+mark gripL 2 5
+|...57665
+|..57665.
+|.57665..
+|57665...
+|5fhgf...
+|.qtsq...
+|.qsrq...
+|..qq....
+regions
+|...UUUUU
+|..UUUUU.
+|.UUUUU..
+|UUUUU...
+|UCCCC...
+|.HHHH...
+|.HHHH...
+|..HH....
+
+view R key high origin 5 5
+mark handL 2 1
+mark gripL 2 1
+|.qtsq.....
+|qttsrq....
+|qssrrq....
+|.fhgf.....
+|..fhgf....
+|...57665..
+|....57665.
+|.....57665
+|.....57665
+|......555.
+regions
+|.HHHH.....
+|HHHHHH....
+|HHHHHH....
+|.CCCC.....
+|..CCCC....
+|...UUUUU..
+|....UUUUU.
+|.....UUUUU
+|.....UUUUU
+|......UUU.
+
+view R key low origin 0 -1
+mark handL 6 6
+mark gripL 6 6
+|57665...
+|57665...
+|.57665..
+|..57665.
+|...fhgf.
+|...fhggf
+|....qtsq
+|....qsrq
+|.....qq.
+regions
+|UUUUU...
+|UUUUU...
+|.UUUUU..
+|..UUUUU.
+|...CCCC.
+|...CCCCC
+|....HHHH
+|....HHHH
+|.....HH.
+
+view R key shoulder origin 0 1
+mark handL 2 0
+mark gripL 2 0
+|.qtsq.
+|.qsrq.
+|5fhgf5
+|57665.
+|57665.
+|.555..
+regions
+|.HHHH.
+|.HHHH.
+|UCCCCU
+|UUUUU.
+|UUUUU.
+|.UUU..
+
+view R key knee origin 0 -1
+mark handL 4 7
+|57665..
+|57665..
+|57665..
+|.57665.
+|.57665.
+|..fhgf.
+|..fhgf.
+|..qtsq.
+|..qsrq.
+|...qq..
+regions
+|UUUUU..
+|UUUUU..
+|UUUUU..
+|.UUUUU.
+|.FFFFF.
+|..CCCC.
+|..CCCC.
+|..HHHH.
+|..HHHH.
+|...HH..
+

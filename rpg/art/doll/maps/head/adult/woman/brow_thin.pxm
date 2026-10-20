@@ -20,3 +20,16 @@ view R key rest origin -11 -8
 
 view L key rest origin -4 -8
 |c
+
+# (P2b FACES) elven fineness: thinner, swept-up brows and a finer nose for elves (when elf replace)
+view D key rest origin -4 -7 when elf replace
+|c......c
+|.c....c.
+
+view R key rest origin -11 -7 when elf replace
+|c.
+|.c
+
+view L key rest origin -3 -7 when elf replace
+|.c
+|c.

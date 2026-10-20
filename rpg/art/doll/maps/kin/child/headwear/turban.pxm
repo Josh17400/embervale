@@ -1,0 +1,49 @@
+# kin/child/headwear/turban: the turban: cloth wound round the head in diagonal folds, rising a little over the crown, the edge across the brow
+# (KIN-CHILD, P2b wave 2; the child's headwear, STYLE_P2 23). Format: rpg/art/doll/doll.h.
+use person
+body child
+role headwear turban
+legend F head 0
+legend H head 1
+legend I head 2
+legend J head 3
+legend Z head 4
+layer headwear
+anchor head
+keys rest
+
+view D key rest origin 1 2
+|....FFFFF.....
+|..FFJJIIHFF...
+|.FJJIIHHIIHF..
+|FJIIHHIIIHHHF.
+|FIHHIIIHHIIHF.
+|FJIIIHHIIIHHHF
+|.FJJJJIIIIHHF.
+
+view U key rest origin 1 2
+|.....FFFFF....
+|...FFJJIIHFF..
+|..FJJIIHHIIHF.
+|.FJIIHHIIIHHHF
+|.FIHHIIIHHIIHF
+|FJIIIHHIIIHHHF
+|.FJJJJIIIIHHF.
+
+view R key rest origin 1 2
+|....FFFFF....
+|..FFJJIIHFF..
+|.FJJIIHHIIHF.
+|FJIIHHIIIHHHF
+|FIHHIIIHHIIHF
+|FJIIIHHIIIHHF
+|.FJJJIIIIHF..
+
+view L key rest origin -1 2
+|....FFFFF....
+|..FFJJIIHFF..
+|.FJJIIHHIIHF.
+|FJIIHHIIIHHHF
+|FIHHIIIHHIIHF
+|FJIIIHHIIIHHF
+|..FJJJIIIIHF.

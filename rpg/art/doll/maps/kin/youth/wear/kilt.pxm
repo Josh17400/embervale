@@ -1,0 +1,66 @@
+# kin/youth/wear/kilt: the youth's kilt dress: a linen shirt (kept in its shadow and base steps, so it does not glare)
+# with the plaid (cloth1) over the left shoulder and across the chest, a leather belt and buckle; kilt_hang is the
+# pleated kilt to the knee (the knees bare: the legs' K region)
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. The girl's (`when girl replace`) narrows a pixel at the waist.
+use person woman
+body youth
+role garment kilt
+layer torso
+anchor neck
+keys rest
+
+view D key rest origin 6 0
+|...vqrrqv...
+|vxwwqrrq8775
+|..xwww987w..
+|..xww987ww..
+|..fihPOhgf..
+
+view D key rest origin 6 0 when girl replace
+|...vqrrqv...
+|vxwwqrrq8775
+|..xwww987w..
+|...xw987w...
+|...fhPOgf...
+
+view U key rest origin 6 0
+|...vxwwv....
+|5788xwwwwwwv
+|..w987xwwv..
+|..ww987wwv..
+|..fihhhhgf..
+
+view U key rest origin 6 0 when girl replace
+|...vxwwv....
+|5788xwwwwwwv
+|..w987xwwv..
+|...w987wv...
+|...fihhgf...
+
+view R key rest origin 4 0
+|..vqrqv.
+|.vw98775
+|vxw98775
+|vxww9875
+|fihhhhgf
+
+view R key rest origin 4 0 when girl replace
+|..vqrqv.
+|.vw98775
+|vxw98775
+|.vxw987.
+|.fihhgf.
+
+view L key rest origin 4 0
+|.vqrqv..
+|5988775.
+|5987wwwv
+|x9877wwv
+|fihhhhgf
+
+view L key rest origin 4 0 when girl replace
+|.vqrqv..
+|5988775.
+|5987wwwv
+|.x987wv.
+|.fihhgf.

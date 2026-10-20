@@ -11,6 +11,8 @@
 #include <SDL3/SDL.h>
 #include "rpg/art/art_city.h"
 #include "rpg/art/art_parts.h"
+#include "rpg/art/doll/doll.h"
+#include "rpg/sim/anim.h"
 #include "rpg/sim/deco.h"
 #include "rpg/sim/foes.h"
 #include "rpg/sim/gear_look.h"
@@ -625,8 +627,12 @@ void View::drawRing(const Game& g, const Actor& a, Vec2 cam) {
 // replays that order into its own target: a figure blit first clears the lift under it (its own body hides what it stands before),
 // then adds its lift; every later blit clears the lift by its alpha. The target is then added over the lit world.
 namespace {
-std::vector<Pix::BlitRec> g_occRecs;
+// (P2b VIEW-B fix r3, RIG2-ROOF-OVER-YARD) each building sprite's first opaque row per column (-1: an empty column),
+// by bldgKey, filled with the sprite (storeBldg) and dropped with it: the sorted pass hides a rig-2 villager standing
+// behind a roof by how deep his feet are under that column's top (drawWorld, case 3)
+std::unordered_map<uint64_t, std::vector<int16_t>> g_bldgColTop;
 Tex g_liftT;
+std::vector<Pix::BlitRec> g_occRecs;
 int g_liftEpoch = 0;
 // dst.rgb *= 1 - src.a (the blit's coverage clears the lift under it)
 SDL_BlendMode liftEraseMode() {
@@ -839,6 +845,10 @@ constexpr float kStreamR = 34.0f * 16.0f;   // the stream radius (px): folk insi
 View::RigTex View::rigTex(const art::HumanLook& L, art::RigPart part, bool child) {
   RigTex r;
   if (art::rigVersion() < 2 || !art::rig2Covers(L)) return r;   // v1 is drawn: nothing to bake
+  // (P2b VIEW-B) per-part coverage: rig2Covers holds LOCO and DEATH (and ACTION for the armed); the RUN and an unarmed
+  // body's ACTION are drawn only where the doll covers them too (else the caller's next part: the walk, the idle), so a
+  // part with a missing map never shows a hole
+  if ((part == art::RigPart::Run || part == art::RigPart::Action) && !art::doll::dollCovers(L, part)) return r;
   const uint64_t k = rigKey(L, part, child);
   auto it = rigTex_.find(k);
   if (it == rigTex_.end()) {
@@ -877,7 +887,9 @@ View::RigTex View::rigPoseTex(const art::HumanLook& L, art::Posture p, uint8_t v
     if (!witness && !rigBakeBudget()) return r;   // next frame (drawn v1 meanwhile)
     const auto t0 = std::chrono::steady_clock::now();
     RigEntry e;
-    e.sheet = art::humanPosture2(L, p, variant);
+    // (P2b VIEW-B) per-part coverage: a posture the doll does not cover for this look (a map missing in its legs, arms,
+    // hang or prop keys) stays an empty entry: v1's posture sheet draws the whole figure, never a doll with a hole
+    if (art::doll::dollCoversPosture(L, p, variant)) e.sheet = art::humanPosture2(L, p, variant);
     if (!e.sheet.empty() && e.sheet.atlas.w > 0) { e.tex = pix_->bake(e.sheet.atlas); liftMaskFor(e.sheet.atlas, e.tex); }
     e.sheet.atlas = Canvas();
     it = rigTex_.emplace(k, std::move(e)).first;
@@ -907,6 +919,16 @@ bool View::drawRiderV2(const art::HumanLook& L, int facing, float hipX, float hi
   if (ghost) { ghost->t = rt.tex; ghost->sx = f->x; ghost->sy = f->y; ghost->w = f->w; ghost->h = f->h; ghost->flip = false; ghost->x = x; ghost->y = y; }
   return true;
 }
+// (P2b VIEW-B) the drawn doll frame's top against the rig's 32 px reference crown (markerY 36 = 4 px of air over it):
+// markers, telegraphs, plates and bars move by this, so they sit over a child's head, a hat's crown or a seated body
+// as they do over the reference man. A body not drawn on the doll within the last quarter second keeps the metrics.
+float View::topLift(const Actor& a) const {
+  if (art::rigVersion() < 2 || !a.human) return 0;
+  auto it = drawnHead_.find(a.id);
+  if (it == drawnHead_.end() || !it->second.v2 || t_ - it->second.t > 0.25f || t_ < it->second.t) return 0;
+  const float above = std::floor(a.p.y + 0.5f) - std::floor(it->second.y + 0.5f);
+  return above - (float)(art::rig(2).markerY - 4);
+}
 bool View::rigBakeBudget() {
   if (rigBakeFrameT_ != t_) { rigBakeFrameT_ = t_; rigBakeFrameMs_ = 0; lensStats.rigBaked = 0; }
   return rigBakeFrameMs_ < kRigBakeMs;
@@ -926,14 +948,22 @@ void View::rigBakeQueue(const Game& g) {
       const float d2 = len2(a.p - pp);
       if (d2 > kStreamR * kStreamR || !art::rig2Covers(a.look)) continue;
       const bool child = a.role == Role::Child;
-      auto want = [&](art::RigPart part) {
+      // (P2b VIEW-B) a part joins the queue only where the doll covers it (rigTex would draw the fallback anyway)
+      auto want = [&](art::RigPart part, float bias = 0) {
         if (rigTex_.count(rigKey(a.look, part, child))) return;
-        RigJob j; j.look = a.look; j.part = part; j.child = child; j.d2 = d2;
+        if ((part == art::RigPart::Run || part == art::RigPart::Action) && !art::doll::dollCovers(a.look, part)) return;
+        RigJob j; j.look = a.look; j.part = part; j.child = child; j.d2 = d2 + bias;
         q.push_back(j);
       };
       want(art::RigPart::Loco);
-      if (a.player || a.gait) want(art::RigPart::Run);   // (P2b) the run's own drawings, before the hero breaks into one
-      if (a.player || (a.hostile && (a.aggro || d2 < 200.0f * 200.0f))) want(art::RigPart::Action);
+      // (P2b) the run's own drawings before a body breaks into one: the hero, a runner, and anyone who may run already
+      // moving near the switch (a guard or a bandit giving chase), so the run never starts on v1 or the walk's frames
+      const bool fighting = a.hostile && (a.aggro || d2 < 200.0f * 200.0f);
+      if (animMayRun(a) && (a.player || a.gait || a.moveV > art::doll::kGaitSwitch * 0.6f || fighting)) want(art::RigPart::Run, 64.0f * 64.0f);
+      if (a.player || fighting) want(art::RigPart::Action);
+      // a fighter in the fray may fall: its DEATH baked beforehand, so the fall's first frame is the doll's (after the
+      // nearer LOCO and ACTION atlases)
+      if (a.player || (fighting && a.aggro)) want(art::RigPart::Death, 96.0f * 96.0f);
     }
     std::sort(q.begin(), q.end(), [](const RigJob& x, const RigJob& y) { return x.d2 < y.d2; });
     rigQueue_.swap(q);
@@ -978,7 +1008,7 @@ void View::rigChanged() {
   drop(humans_); humanUsed_.clear(); humanBoxes_.clear();
   drop(poseTex_); poseUsed_.clear();
   drop(monsterLooks_);
-  drop(bldgTex_); bldgUsed_.clear(); drop(bldgNight_); drop(bldgGlow_); bldgTopRow_.clear(); bldgSmoke_.clear();
+  drop(bldgTex_); bldgUsed_.clear(); drop(bldgNight_); drop(bldgGlow_); bldgTopRow_.clear(); g_bldgColTop.clear(); bldgSmoke_.clear();
   drop(styledProps_); drop(homeTex_); drop(laneTex_); drop(critterTex_); drop(partyTex_); drop(mythicAura_);
   drop(lampDark_); drop(warPropTex_); drop(armsTex_);
   for (auto& kv : rigTex_) pix_->destroy(kv.second.tex);
@@ -1149,7 +1179,7 @@ void View::trimCaches() {
     if (n != bldgNight_.end()) { pix_->destroy(n->second); bldgNight_.erase(n); }
     auto gl = bldgGlow_.find(k);
     if (gl != bldgGlow_.end()) { pix_->destroy(gl->second); bldgGlow_.erase(gl); }
-    bldgSmoke_.erase(k); bldgTopRow_.erase(k); bldgWin_.erase(k);
+    bldgSmoke_.erase(k); bldgTopRow_.erase(k); g_bldgColTop.erase(k); bldgWin_.erase(k);
   });
   trim(humans_, humanUsed_, 320, [](uint64_t) {});
   trim(poseTex_, poseUsed_, 160, [](uint64_t) {});   // (M5) pose sheets: a busy tavern holds a few dozen
@@ -1352,6 +1382,19 @@ const Tex& View::storeBldg(BldgPaint& p) {
   const uint64_t k = p.key;
   bldgSmoke_[k] = std::move(p.smoke);
   bldgTopRow_[k] = p.topRow;
+  {
+    std::vector<int16_t>& ct = g_bldgColTop[k];   // per column: the first opaque row and the last row of its run
+    ct.assign((size_t)p.c.w * 2, (int16_t)-1);
+    for (int x = 0; x < p.c.w; x++)
+      for (int y = std::max(0, p.topRow - 1); y < p.c.h; y++)
+        if ((p.c.get(x, y) >> 24) > 96) {
+          int e = y;
+          while (e + 1 < p.c.h && (p.c.get(x, e + 1) >> 24) > 96) e++;
+          ct[(size_t)x * 2] = (int16_t)y;
+          ct[(size_t)x * 2 + 1] = (int16_t)e;
+          break;
+        }
+  }
   bldgWin_[k] = std::move(p.wins);
   {
     auto gl = bldgGlow_.find(k);
@@ -1682,7 +1725,8 @@ void View::spawnParticles(const Event& e, Game& g) {
           if (const Actor* sp = speakerOf(g, (int)e.id - 1)) {
             ft.actor = sp->id; ft.off = e.p - sp->p;
             // (P2a) the sim places lines over a v1 head: a speaker drawn on v2 is that much taller
-            if (sp->human) { const float lift = (float)(rigFor(sp->look).headTop - art::rig(1).headTop); ft.off.y -= lift; ft.p.y -= lift; }
+            // (P2b VIEW-B) and by the doll frame's own top (a child, a sitter, a hat)
+            if (sp->human) { const float lift = (float)(rigFor(sp->look).headTop - art::rig(1).headTop) + topLift(*sp); ft.off.y -= lift; ft.p.y -= lift; }
           }
         int words = 1;
         for (char ch : e.s) if (ch == ' ') words++;
@@ -2560,11 +2604,31 @@ void View::drawWorld(Game& g) {
       uint32_t wk = wallKeys_.empty() ? 0u : wallKeys_[(size_t)ty * m.w + tx];
       if (wk) list.push_back({ty * 16.0f + ((wk & art::WALL_BIT_TOWER) ? 15.3f : 15.0f), 2, (int)wk, tx, ty});
     }
+  // (P2b VIEW-B fix r3, RIG2-ROOF-OVER-YARD) rig 2's taller walls carry roofs up over the ground behind them, so a villager
+  // working a step or two behind a house showed his head over its ridge (a hat read as a blob under the next worker's
+  // boots): the buildings in view, for the sorted pass's behind-a-roof test (rig 2 only; rig 1 draws as before)
+  struct RoofOcc { float x0, y0, bottom; const std::vector<int16_t>* cols; };
+  static std::vector<RoofOcc> roofOcc;
+  const bool rig2Roofs = art::rigVersion() >= 2 && m.kind == MapKind::Overworld && g.mode != Mode::Title && !g.inside;
+  roofOcc.clear();
   {
     static std::vector<int> vis;
     bldgsIn(g, m, cam.x, cam.y, cam.x + Pix::W, cam.y + Pix::H, vis);
     for (int bi : vis)   // (M7) a player's house under construction is drawn as its building site (homeCollect)
-      if (m.bldgs[bi].home != 3) list.push_back({(m.bldgs[bi].r.y + m.bldgs[bi].r.h) * 16.0f - 1.0f, 1, bi, 0, 0});
+      if (m.bldgs[bi].home != 3) {
+        list.push_back({(m.bldgs[bi].r.y + m.bldgs[bi].r.h) * 16.0f - 1.0f, 1, bi, 0, 0});
+        if (rig2Roofs) {   // its sprite's place and column profile (painted now if not yet, as its draw below would)
+          const Bldg& b = m.bldgs[(size_t)bi];
+          const uint64_t key = bldgKey(m, b, bi);
+          auto tt = bldgTex_.find(key);
+          if (tt == bldgTex_.end() && (witness || !(g.sleepFade > 0.5f || fade_ > 0.5f))) { bldgTex(b, bi); tt = bldgTex_.find(key); }
+          auto ct = g_bldgColTop.find(key);
+          if (tt != bldgTex_.end() && tt->second.t && ct != g_bldgColTop.end()) {
+            const float bottom = (b.r.y + b.r.h) * 16.0f;
+            roofOcc.push_back({b.r.x * 16.0f - art::BLDG_PAD_X, bottom + art::BLDG_PAD_B - tt->second.h, bottom, &ct->second});
+          }
+        }
+      }
   }
   // paint the sprites of buildings near the player ahead of time, at most one per frame, so walking into a town
   // never stalls on a burst of building paints
@@ -2716,7 +2780,34 @@ void View::drawWorld(Game& g) {
     }
     if (d.kind == 3) {
       const Actor& a = g.actors[d.idx];
-      if (a.st == AState::Dead) continue;
+      if (a.st == AState::Dead) {
+        // (P2b VIEW-B) rig 2: the contact shadow under a corpse drawn on the doll: as long as the lying figure (its own
+        // frame's width), its middle under the body's back row, grown from the standing shadow over the fall (eased on
+        // the clip's time, so it spreads as the body goes down instead of stepping per frame) and fading with the corpse;
+        // under it the body pass lays STYLE_P2 13's stain. v1's dead keep none (rig 1 unchanged).
+        if (a.human && !a.comp && art::rigVersion() >= 2 && art::rig2Covers(a.look)) {
+          const AnimPick k = animPick(g, a, 2);
+          const RigTex rt = k.clip == art::Clip::Fall || k.clip == art::Clip::Lying ? rigTex(a.look, art::RigPart::Death, a.role == Role::Child) : RigTex();
+          if (rt.ready()) {
+            int fc = std::clamp(a.face, 0, 3);
+            const art::FrameRect* lie = rt.sheet->frame(fc, art::Clip::Lying, k.clip == art::Clip::Lying ? k.variant : 0, 0);
+            if (!lie) { fc = 0; lie = rt.sheet->frame(0, art::Clip::Lying, k.clip == art::Clip::Lying ? k.variant : 0, 0); }
+            if (lie) {
+              float u = k.clip == art::Clip::Lying ? 1.0f : clampf(k.t / 0.34f, 0, 1);
+              u = u * u * (3.0f - 2.0f * u);
+              const float lw = (float)lie->w + 2.0f, lcx = a.p.x - (float)lie->px + lie->w * 0.5f;
+              // (3/4 view: the lying body's shadow peeks 2-3 rows out under its back, as a standing body's under its soles)
+              const float w = std::round(14.0f + (lw - 14.0f) * u), h = std::round(6.0f + u);
+              const float cx = a.p.x + (lcx - a.p.x) * u, cy = a.p.y + u;
+              const float ca = animCorpseAlpha(a, 2);
+              if (ca > 0.01f)
+                P.blitEx(shadowBig_, 0, 0, shadowBig_.w, shadowBig_.h, std::floor(cx - w * 0.5f - cam.x + 0.5f), std::floor(cy - h * 0.5f - cam.y + 0.5f), w, h,
+                         false, Color(1, 1, 1, 0.9f * ca));
+            }
+          }
+        }
+        continue;
+      }
 #ifdef EMB_WITNESS
       // (Witness reset param hide) no contact shadow or ring. The actor stays in the sorted list (the passes skip it), so
       // the order of every other drawable, ties included, is the same as without the param: only its own pixels go
@@ -2803,8 +2894,35 @@ void View::drawWorld(Game& g) {
       }
     } else if (d.kind == 6) {
       // the gate passage lies in the gatehouse's shade, deepest under the vault
-      P.rect(d.tx * 16 + 3 - cam.x, d.ty * 16 - cam.y, 42, 16, Color(0.10f, 0.07f, 0.20f, 0.28f));
-      P.rect(d.tx * 16 + 3 - cam.x, d.ty * 16 - cam.y, 42, 10, Color(0.10f, 0.07f, 0.20f, 0.22f));
+      if (art::rigVersion() >= 2) {
+        // (P2b HOLDERS-B) rig 2: the 41 px passages show their whole floor and the light beyond, so the shade is shaped
+        // by the form and feathered (no hard box): a vault's shade deep inside and thinning to the sunlit far mouth and
+        // the jambs; a moon gate's thin wall a light one; the living arch's canopy dappled; the hedge gap's open sky none
+        bld::FortParts fp;
+        const bld::GateForm gf = fortPartsOfSite(g, g.world.siteAt(d.tx + 1, d.ty, 3), fp) ? fp.gate : bld::GateForm::DrumTowers;
+        const float k = gf == bld::GateForm::HedgeGap ? 0.0f : gf == bld::GateForm::MoonGate ? 0.45f : gf == bld::GateForm::LivingArch ? 0.6f : 1.0f;
+        const float gx0 = d.tx * 16 + 3 - cam.x, gy0 = d.ty * 16 - cam.y;
+        for (int r = -3; k > 0 && r < 16; r++) {
+          static const float kRow[19] = {0.05f, 0.10f, 0.17f, 0.30f, 0.38f, 0.42f, 0.44f, 0.44f, 0.44f, 0.44f, 0.42f,
+                                         0.40f, 0.36f, 0.33f, 0.30f, 0.27f, 0.24f, 0.21f, 0.18f};
+          const float a = kRow[r + 3] * k;
+          const Color sh(0.10f, 0.07f, 0.20f, a * 0.5f);
+          if (gf == bld::GateForm::LivingArch) {   // light through the leaves: each row in three or four pieces
+            int x = (int)(ew::mix64((uint64_t)(d.tx * 31 + r) * 0x9E37ull) % 5);
+            for (int s = 0; x < 42 && s < 5; s++) {
+              const int w = 6 + (int)(ew::mix64((uint64_t)(d.ty * 17 + r * 5 + s)) % 9);
+              P.rect(gx0 + x, gy0 + r, (float)std::min(w, 42 - x), 1, Color(0.10f, 0.07f, 0.20f, a));
+              x += w + 2 + (int)(ew::mix64((uint64_t)(r * 7 + s * 13 + d.tx)) % 4);
+            }
+            continue;
+          }
+          P.rect(gx0, gy0 + r, 42, 1, sh);           // the jambs' columns at half strength,
+          P.rect(gx0 + 1, gy0 + r, 40, 1, sh);       // the middle at full
+        }
+      } else {
+        P.rect(d.tx * 16 + 3 - cam.x, d.ty * 16 - cam.y, 42, 16, Color(0.10f, 0.07f, 0.20f, 0.28f));
+        P.rect(d.tx * 16 + 3 - cam.x, d.ty * 16 - cam.y, 42, 10, Color(0.10f, 0.07f, 0.20f, 0.22f));
+      }
     }
   }
   bool ghost = false;   // the hero is hidden behind a building or a tree crown: show a silhouette over it
@@ -2830,6 +2948,31 @@ void View::drawWorld(Game& g) {
   // (P2a LENS fix r3) every plain blit of the sorted pass is recorded (g_occRecs), and for each figure blit how many of
   // those came before it: the night lift then lifts only what shows (drawNightLift)
   const bool recOcc = g.mode != Mode::Title && !g.inside;
+  // (P2b VIEW-B fix r3, RIG2-ROOF-OVER-YARD) how much of a figure standing at a.p shows past the buildings in view: 1 in
+  // the open (or his feet only just behind a roof's edge), 0 once his feet are 12 px or more under the top of the sprite
+  // columns he stands in and inside their opaque run (that building sorts after him); smoothsteps between
+  auto behindRoofAlpha = [&](const Actor& a) {
+    float k = 1.0f;
+    for (const RoofOcc& o : roofOcc) {
+      if (a.p.y >= o.bottom - 4.0f || a.p.y < o.y0) continue;   // in front of (or level with) its walls: drawn after it
+      // the columns under the body's middle (9 px): his feet hidden in a column (under its top, inside its opaque run)
+      // count by how deep; walking out past a gable's end or from under an eave he comes back column by column
+      const std::vector<int16_t>& cv = *o.cols;
+      const int w = (int)cv.size() / 2;
+      const int c0 = (int)std::floor(a.p.x - o.x0);
+      if (c0 + 4 < 0 || c0 - 4 >= w) continue;
+      const float y0 = o.y0;
+      auto smooth = [](float v) { v = std::clamp(v, 0.0f, 1.0f); return v * v * (3.0f - 2.0f * v); };
+      float hid = 0;
+      for (int c = c0 - 4; c <= c0 + 4; c++) {
+        if (c < 0 || c >= w || cv[(size_t)c * 2] < 0) continue;
+        const float top = y0 + cv[(size_t)c * 2], end = y0 + cv[(size_t)c * 2 + 1];
+        hid += smooth((a.p.y - top - 2.0f) / 10.0f) * smooth((end + 2.0f - a.p.y) / 6.0f);
+      }
+      k = std::min(k, 1.0f - hid / 9.0f);
+    }
+    return k;
+  };
   for (const Drawable& d : list) {
     P.recordOthers(recOcc ? &g_occRecs : nullptr);
     switch (d.kind) {
@@ -3456,6 +3599,10 @@ void View::drawWorld(Game& g) {
         float flash = a.flash > 0 ? a.flash / 0.12f : 0;
         float alpha = a.st == AState::Dead ? clampf(1.0f - (a.stT - 4.0f) / 2.0f, 0, 1) : 1.0f;
         if (a.player && a.iframes > 0 && a.st != AState::Roll && ((int)(t_ * 20) & 1)) alpha *= 0.5f;
+        // (P2b VIEW-B fix r3, RIG2-ROOF-OVER-YARD) rig 2: a villager whose feet are behind a building's sprite (it is drawn
+        // after him) is hidden by it whole, not cut to a head over the ridge; he fades over 10 px of depth as he steps in
+        // or out behind the roof's edge, so nothing pops
+        if (!roofOcc.empty() && a.human && !a.player && !a.comp && a.st != AState::Dead) alpha *= behindRoofAlpha(a);
         // (P2a slice) facing up, the Steel Arc of hits 1 and 2 sweeps beyond the body: drawn first, the body hides its middle
         const bool fxBehind = rvSwingFxBehind(g, a);
         if (fxBehind) drawSwingFx(g, a, cam);
@@ -3476,7 +3623,8 @@ void View::drawWorld(Game& g) {
             const HeroSprite& hs = heroSprite;
             for (size_t i = rec0; i < liftRecs_.size(); i++) {
               const Pix::BlitRec& r = liftRecs_[i];
-              if (r.sw == hs.w && r.sh == hs.h && std::fabs(r.dx - hs.x) < 0.5f && std::fabs(r.dy - hs.y) < 0.5f) {
+              // (P2b VIEW-B) the frame's rows may be cut (a rower at the thwart's line): its width and top-left decide
+              if (r.sw == hs.w && r.sh <= hs.h && r.sh > 0 && std::fabs(r.dx - hs.x) < 0.5f && std::fabs(r.dy - hs.y) < 0.5f) {
                 ghostRec = r; ghostTex = nullptr; break;
               }
             }
@@ -3626,7 +3774,7 @@ void View::drawWorld(Game& g) {
         if (!fxBehind) drawSwingFx(g, a, cam);
         // attack telegraph
         if (a.hostile && a.st == AState::Windup && a.mon != Monster::Dragon) {
-          float lift = a.human ? (float)rigFor(a.look).markerY : art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a) + 6.0f;
+          float lift = a.human ? (float)rigFor(a.look).markerY + topLift(a) : art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a) + 6.0f;   // (P2b VIEW-B: over the doll frame's top)
           float pulse = 0.6f + 0.4f * std::sin(t_ * 30);
           if (a.heavy) {
             // heavy slam: a ground ring that fills in as the blow comes, and a double "!!" - roll out (or through)
@@ -3671,7 +3819,7 @@ void View::drawWorld(Game& g) {
         if (a.hostile && a.st != AState::Dead && a.st != AState::Down && beasts::marked(a)) {
           const float d2 = len2(a.p - g.pl().p);
           if (a.aggro || d2 < 90.0f * 90.0f) {
-            const float top = a.human ? (float)rigFor(a.look).plateY : art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a) + 2.0f;
+            const float top = a.human ? (float)rigFor(a.look).plateY + topLift(a) : art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a) + 2.0f;
             beasts::plates.push_back({d.idx, a.p.x, a.p.y - top - (a.fly ? 34.0f : a.flying ? 7.0f : 0.0f), d2, a.p.y});
             plated = true;
           }
@@ -3679,7 +3827,7 @@ void View::drawWorld(Game& g) {
         // health bar for damaged enemies
         if (!plated && a.hostile && a.st != AState::Dead && a.st != AState::Down && a.hp < a.maxHp && !a.boss && a.rank != (uint8_t)foes::Rank::WorldBoss) {
           float lift = a.fly ? 34 : 0;
-          float bw = 16, x = a.p.x - bw / 2 - cam.x, y = a.p.y - (a.human ? rigFor(a.look).barY : art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a) + 2) - lift - cam.y;
+          float bw = 16, x = a.p.x - bw / 2 - cam.x, y = a.p.y - (a.human ? (float)rigFor(a.look).barY + topLift(a) : art::lookCellH(beasts::lookOf(a)) * beasts::drawScale(a) + 2.0f) - lift - cam.y;
           P.rect(x - 1, y - 1, bw + 2, 4, Color(0.05f, 0.03f, 0.05f, 0.8f));
           P.rect(x, y, bw * clampf(a.hp / a.maxHp, 0, 1), 2, Color(0.85f, 0.2f, 0.18f));
         }
@@ -3790,8 +3938,20 @@ void View::drawWorld(Game& g) {
     P.blitEx(*ghostTex, sx, sy, sw, sh, ghostX, ghostY, (float)sw, (float)sh, ghostFlip, Color(0.42f, 0.48f, 0.72f, 0.55f));
     P.blitEx(*ghostTex, sx, sy, sw, sh, ghostX, ghostY, (float)sw, (float)sh, ghostFlip, Color(0.18f, 0.22f, 0.36f, 0.5f), 1);
   } else if (ghost && ghostRec.t && g.mode != Mode::Title) {   // (P2a) the v2 hero's frame, the same two passes
-    P.blitRec(ghostRec, Color(0.42f, 0.48f, 0.72f, 0.55f), 0);
-    P.blitRec(ghostRec, Color(0.18f, 0.22f, 0.36f, 0.5f), 1);
+    // (P2b HOLDERS-B) aboard at rig 2 the floor lies inside the hull: the silhouette (a sail before him) stops at the
+    // gunwale / rail, so his legs never show through the hull's side
+    if (g.sea.atSea() && art::rigVersion() >= 2 && ghostRec.dh > 0) {
+      const int hull = (int)g.sea.boats[(size_t)g.sea.aboard].hull;
+      const float lim = std::floor(g.pl().p.y - cam.y) - seaHeroLift(*this, g) - (float)art::holderPx(hull <= 0 ? art::Holder::RowboatGunwale : art::Holder::DeckRail);
+      const float s = ghostRec.sh > 0 ? ghostRec.dh / (float)ghostRec.sh : 1.0f;   // device rows per source row
+      const float keep = std::clamp(lim - ghostRec.dy, 0.0f, ghostRec.dh);
+      ghostRec.sh = (int)std::floor(keep / s + 0.001f);
+      ghostRec.dh = ghostRec.sh * s;
+    }
+    if (ghostRec.sh > 0) {
+      P.blitRec(ghostRec, Color(0.42f, 0.48f, 0.72f, 0.55f), 0);
+      P.blitRec(ghostRec, Color(0.18f, 0.22f, 0.36f, 0.5f), 1);
+    }
   }
   // (M5) a festival's bunting hangs overhead, over everyone walking under it
   if (g.mode != Mode::Title && m.kind == MapKind::Overworld) {

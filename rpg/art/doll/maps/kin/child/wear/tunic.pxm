@@ -1,10 +1,10 @@
-# kin/child/wear/tunic: the child's tunic: belted, a lit hem
-# The slice (P2b wave 1, FOLK-BODY; to KIN-CHILD in wave 2). The child, 21 px (STYLE_P2 3). Format: rpg/art/doll/doll.h.
-use person
+# kin/child/wear/tunic: the plain tunic (a hand-me-down): a lit chest plane, a fold under the belt, a solid lit hem over the trousers
+# (KIN-CHILD, P2b wave 2; the child's torso is 6 rows, F-10..F-5, STYLE_P2 3 and 22). Format: rpg/art/doll/doll.h.
+use person woman
 body child
 role garment tunic
+role garment rags
 layer torso
-anchor neck
 keys rest
 
 view D key rest origin 6 0
@@ -16,11 +16,11 @@ view D key rest origin 6 0
 |..59888765..
 
 view U key rest origin 6 0
-|598877776665
+|598887777665
 |..68877766..
 |..68877666..
 |..fihhhhgf..
-|..68877765..
+|..56887676..
 |..59888765..
 
 view R key rest origin 4 0
@@ -32,7 +32,7 @@ view R key rest origin 4 0
 |59888765
 
 view L key rest origin 3 0
-|.5988765
+|5988765.
 |58877665
 |58877665
 |fihhhhgf

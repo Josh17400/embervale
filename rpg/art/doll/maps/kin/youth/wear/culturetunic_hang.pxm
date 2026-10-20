@@ -1,0 +1,158 @@
+# kin/youth/wear/culturetunic_hang: the culture tunic's skirt: two rows of cloth with its folds, then the embroidered
+# accent band at the hem (lit at the left); it widens on the side walk and flares in the run
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. Keys: rest, wide, flare, kneel, lie.
+use person
+body youth
+role garment culturetunic
+layer hangBack
+anchor hip
+keys hang
+sway 1
+
+view D key rest origin 6 0
+|.6886776765.
+|.6876776665.
+|.5ppooonnm5.
+
+view D key rest origin 6 0 when girl replace
+|..68877665..
+|.6876776665.
+|.5ppooonnm5.
+
+view D key wide origin 6 0
+|.6886776765.
+|.6876776665.
+|.5ppooonnm5.
+
+view D key wide origin 6 0 when girl replace
+|..68877665..
+|.6876776665.
+|.5ppooonnm5.
+
+view D key flare origin 6 0
+|.6886776765.
+|568767766655
+|5pppooonnnm5
+
+view D key kneel origin 6 0
+|.6886776765.
+|5pppooonnnm5
+
+view U key rest origin 6 0
+|.6887777665.
+|.6877777665.
+|.5ppooonnm5.
+
+view U key rest origin 6 0 when girl replace
+|..68777665..
+|.6877777665.
+|.5ppooonnm5.
+
+view U key wide origin 6 0
+|.6887777665.
+|.6877777665.
+|.5ppooonnm5.
+
+view U key flare origin 6 0
+|.6887777665.
+|568777776655
+|5pppooonnnm5
+
+view U key kneel origin 6 0
+|.6887777665.
+|5pppooonnnm5
+
+view R key rest origin 5 0
+|.58877665
+|588777665
+|5ppoonnm5
+
+view R key rest origin 5 0 when girl replace
+|..5887665
+|588777665
+|5ppoonnm5
+
+view R key wide origin 5 0
+|588777665.
+|5887776655
+|5pppoonnm5
+
+view R key flare origin 6 0
+|.588777665
+|58877776655
+|5ppppoonnm5
+
+view R key kneel origin 5 0
+|588777665.
+|5pppoonnm5
+
+view L key rest origin 4 0
+|58877665.
+|588777665
+|5ppoonnm5
+
+view L key rest origin 4 0 when girl replace
+|5887665..
+|588777665
+|5ppoonnm5
+
+view L key wide origin 5 0
+|.588777665
+|5887776655
+|5pppoonnm5
+
+view L key flare origin 5 0
+|.588777665.
+|58877776655
+|5ppppoonnm5
+
+view L key kneel origin 5 0
+|.588777665
+|5pppoonnm5
+
+view L key lie origin 4 0
+|58877665.
+|588777665
+|5ppoonnm5
+
+# ---- postures (KIN-YOUTH): sit (seated on a chair: over the lap; the long skirts down the front over
+# the shins), floor (cross-legged: pooled over the lap, three rows over the floor)
+view D key sit origin 6 0
+|.6886776765.
+|.6876776665.
+|.5ppooonnm5.
+
+view D key floor origin 6 0
+|.6886776765.
+|568767766655
+|5pppooonnnm5
+
+view U key sit origin 6 0
+|.6887777665.
+|.6877777665.
+|.5ppooonnm5.
+
+view U key floor origin 6 0
+|.6887777665.
+|568777776655
+|5pppooonnnm5
+
+view R key sit origin 5 0
+|588777665.
+|5887776655
+|5pppoonnm5
+
+view R key floor origin 5 0
+|588777665.
+|5887776655
+|5pppoonnm5
+
+view L key sit origin 5 0
+|.588777665
+|5887776655
+|5pppoonnm5
+
+view L key floor origin 5 0
+|.588777665
+|5887776655
+|5pppoonnm5

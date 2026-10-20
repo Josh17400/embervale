@@ -1,0 +1,14 @@
+# wear/man/pattern_checks: the man's checked cloth: a grid of the pattern colour every four pixels (a plaid; on the kilt
+# it reads as a tartan), the cloth's shading kept through it
+# GARB-M (P2b wave 2). Format: rpg/art/doll/doll.h.
+use person
+legend T pattern 2
+body man
+role overlay checks
+tags tile overlay
+
+view D key rest origin 0 0
+|.T..
+|TTTT
+|.T..
+|.T..

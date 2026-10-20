@@ -1,0 +1,28 @@
+# kin/child/head/ears_half: the half-breed child's ears: the human ear with a 1 px tip up, over the hair
+# The child's half-breed ears (KIN-CHILD). Format: rpg/art/doll/doll.h.
+use person
+body child
+role ears half
+layer ears
+anchor head
+keys rest
+
+view D key rest origin 1 -4
+|q............q
+|t............t
+|q............q
+
+view U key rest origin 1 -4
+|q............q
+|t............t
+|q............q
+
+view R key rest origin -5 -4
+|.q
+|ts
+|sr
+
+view L key rest origin -6 -4
+|q.
+|tt
+|rs

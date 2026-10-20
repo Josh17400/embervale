@@ -1,0 +1,98 @@
+# held/props/reed: the shawm for the Flute posture's Reed variant: a dark wooden pipe widening to a flared bell, held bell down (PROPS, P2b). Format: rpg/art/doll/doll.h. At the mouth (pose arms: mouth), anchored on
+# the right shoulder; before the face on the beard layer facing down, behind the far hand facing left, hidden from behind.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held reed
+anchor shoulderR
+keys held
+z 40
+
+view D key mouth origin -5 2 layer beard
+|.f...
+|fif..
+|fif..
+|fhf..
+|fhf..
+|fihf.
+|fjhgf
+|INNNI
+
+view D key hold origin -5 2 layer beard
+|.f...
+|fif..
+|fif..
+|fhf..
+|fhf..
+|fihf.
+|fjhgf
+|INNNI
+
+view U key mouth origin 6 -18 layer heldBack
+|.
+
+view U key hold origin 6 -18 layer heldBack
+|.
+
+view R key mouth origin -7 2 layer hairFront
+|if.....
+|.if....
+|.if....
+|..if...
+|..if...
+|...if..
+|...if..
+|....if.
+|...fjf.
+|...fihf
+|...INNI
+
+view R key hold origin -7 2 layer hairFront
+|if.....
+|.if....
+|.if....
+|..if...
+|..if...
+|...if..
+|...if..
+|....if.
+|...fjf.
+|...fihf
+|...INNI
+
+view L key mouth origin 12 2 layer hairBack
+|.....jf
+|.....jf
+|....jf.
+|....jf.
+|...jf..
+|...jf..
+|..jf...
+|..jf...
+|fjf....
+|fihf...
+|INNI...
+
+view L key hold origin 12 2 layer hairBack
+|.....jf
+|.....jf
+|....jf.
+|....jf.
+|...jf..
+|...jf..
+|..jf...
+|..jf...
+|fjf....
+|fihf...
+|INNI...

@@ -245,18 +245,21 @@ const BodyRec* bodyOf(const std::string& bodyKey) {
 std::vector<const ClipRec*> clipsOf(const std::string& bodyKey, uint8_t part, int family, int posture) {
   const Pool& P = get();
   std::vector<const ClipRec*> out;
+  // the family's own clips first, then the generic ones, whatever their order in the clip files (a generic clip never
+  // doubles a family clip's slot); the modifier set's clips win over the base set's for the same slot
   auto take = [&](const std::string& key) {
     const uint16_t id = P.strId(key);
     if (id == 0xFFFF) return;
-    for (const ClipRec& c : P.clips) {
-      if (c.body != id || c.part != part) continue;
-      if (posture >= 0 ? c.posture != posture : c.posture != kNone8) continue;
-      if (c.family != kNone8 && c.family != family) continue;
-      bool dup = false;   // the modifier set's clip wins over the base set's for the same slot
-      for (const ClipRec* o : out)
-        if (o->clip == c.clip && o->facing == c.facing && o->variant == c.variant && (o->family == c.family || c.family == kNone8)) dup = true;
-      if (!dup) out.push_back(&c);
-    }
+    for (int generic = 0; generic < 2; generic++)
+      for (const ClipRec& c : P.clips) {
+        if (c.body != id || c.part != part) continue;
+        if (posture >= 0 ? c.posture != posture : c.posture != kNone8) continue;
+        if (generic ? c.family != kNone8 : (c.family == kNone8 || c.family != family)) continue;
+        bool dup = false;
+        for (const ClipRec* o : out)
+          if (o->clip == c.clip && o->facing == c.facing && o->variant == c.variant) dup = true;
+        if (!dup) out.push_back(&c);
+      }
   };
   take(bodyKey);
   const size_t dot = bodyKey.find('.');

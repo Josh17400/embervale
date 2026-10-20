@@ -1,0 +1,134 @@
+# held/props/bodhran: the bodhran for the Drum posture's Bodhran variant (PROPS, P2b): a broad frame drum with a cross-bar
+# held in the left hand, beaten with a double-headed tipper in the right (hold, wave2). Format: rpg/art/doll/doll.h.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held bodhran
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin 0 1 layer neck
+|......ffffff..
+|.....fXYYYXWf.
+|....fXYZZYXWWf
+|....fYZYYXXWWf
+|jf..fXYXXXWWWf
+|.jf.fXYXXWWWVf
+|..jffXXXWWWWVf
+|..jf.fWWWWWVf.
+|...jf.ffffff..
+|....jf........
+
+view D key wave2 origin 6 10 layer neck
+|jf..................
+|.jf.................
+|..jf................
+|..jf................
+|...jf...............
+|....jf..............
+|....................
+|....................
+|....................
+|............ffffff..
+|...........fXYYYXWf.
+|..........fXYZZYXWWf
+|..........fYZYYXXWWf
+|..........fXYXXXWWWf
+|..........fXYXXWWWVf
+|..........fXXXWWWWVf
+|...........fWWWWWVf.
+|............ffffff..
+
+view U key hold origin 13 1 layer heldBack
+|..ffffff..
+|.fZXYYYXf.
+|fZZXYWWYXf
+|fZZXXYYWYf
+|fZZZXXXYXf
+|fVZZZXXYXf
+|fVZZZZXXXf
+|.fVZZZZZf.
+|..ffffff..
+
+view U key wave2 origin 13 1 layer heldBack
+|..ffffff..
+|.fZXYYYXf.
+|fZZXYWWYXf
+|fZZXXYYWYf
+|fZZZXXXYXf
+|fVZZZXXYXf
+|fVZZZZXXXf
+|.fVZZZZZf.
+|..ffffff..
+
+view R key hold origin -3 1 layer neck
+|..ff..
+|.fXf..
+|.fYf..
+|.fXf..
+|jfXf..
+|.jXf..
+|.fjf..
+|.fjf..
+|..fjf.
+|....jf
+
+view R key wave2 origin -3 8 layer hairFront
+|jf....
+|.jf...
+|..jf..
+|..jf..
+|...jf.
+|....jf
+|......
+|..ff..
+|.fXf..
+|.fYf..
+|.fXf..
+|.fXf..
+|.fXf..
+|.fWf..
+|.fVf..
+|..ff..
+
+view L key hold origin 7 1 layer neck
+|..ff..
+|..fYf.
+|..fXf.
+|..fXf.
+|..fXjf
+|..fjf.
+|..jWf.
+|..jVf.
+|.jff..
+|jf....
+
+view L key wave2 origin 7 8 layer neck
+|....jf
+|...jf.
+|..jf..
+|..jf..
+|.jf...
+|jf....
+|......
+|..ff..
+|..fYf.
+|..fXf.
+|..fXf.
+|..fXf.
+|..fWf.
+|..fWf.
+|..fVf.
+|..ff..

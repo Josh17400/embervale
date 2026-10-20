@@ -1,0 +1,197 @@
+# held/civil/hammer: the smith's hammer (art weapon 6, the mace / hammer family) at rest, hung by its head through the belt
+# on the left hip where a sword would ride, so the off hand rests on it (the arms' `armed` views) (PROPS, P2b; P2c swings
+# it): an iron head over a pale ash handle. Format: rpg/art/doll/doll.h. It serves the look's sheath and its held item at
+# rest (role sheath mace, role held mace), on the sheath channel at the hip anchor: rest, lag a pixel behind the bob, sit
+# (on the seat); `drawn` and `-` none (in hand), and none while the Hammer posture's hammer is in hand (prop-hammer). Facing right it is on the far hip,
+# its handle showing behind the back leg.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role sheath mace
+role held mace
+layer belt
+anchor hip
+keys sheath
+z 30
+
+view D key rest origin -1 3
+|vvvvv
+|vzyxv
+|vxxwv
+|.vQv.
+|.QTQ.
+|.QSQ.
+|.QSQ.
+|.QRQ.
+|..Q..
+
+view D key lag origin -1 2
+|vvvvv
+|vzyxv
+|vxxwv
+|.vQv.
+|.QTQ.
+|.QSQ.
+|.QSQ.
+|.QRQ.
+|..Q..
+
+view D key sit origin -2 4
+|vvvvv
+|vzyxv
+|vxxwv
+|.vQv.
+|.QTQ.
+|.QSQ.
+|.QSQ.
+|.QRQ.
+|..Q..
+
+view U key rest origin 6 3
+|vvvvv
+|vyyxv
+|vxwwv
+|.vQv.
+|.QTQ.
+|.QSQ.
+|.QSQ.
+|.QRQ.
+|..Q..
+
+view U key lag origin 6 2
+|vvvvv
+|vyyxv
+|vxwwv
+|.vQv.
+|.QTQ.
+|.QSQ.
+|.QSQ.
+|.QRQ.
+|..Q..
+
+view U key sit origin 7 4
+|vvvvv
+|vyyxv
+|vxwwv
+|.vQv.
+|.QTQ.
+|.QSQ.
+|.QSQ.
+|.QRQ.
+|..Q..
+
+view R key rest origin 6 3 layer back
+|vvv.
+|vyxv
+|vxwv
+|.QQ.
+|QTQ.
+|QSQ.
+|QSQ.
+|QRQ.
+|.Q..
+
+view R key lag origin 7 2 layer back
+|vvv.
+|vyxv
+|vxwv
+|.QQ.
+|QTQ.
+|QSQ.
+|QSQ.
+|QRQ.
+|.Q..
+
+view R key sit origin 8 4 layer back
+|vvv.
+|vyxv
+|vxwv
+|.QQ.
+|QTQ.
+|QSQ.
+|QSQ.
+|QRQ.
+|.Q..
+
+view L key rest origin 6 3
+|vvvvv
+|vzyxv
+|vxxwv
+|vxwwv
+|.vQv.
+|.QTQ.
+|.QSQ.
+|.QSQ.
+|.QRQ.
+|..Q..
+
+view L key lag origin 5 2
+|vvvvv
+|vzyxv
+|vxxwv
+|vxwwv
+|.vQv.
+|.QTQ.
+|.QSQ.
+|.QSQ.
+|.QRQ.
+|..Q..
+
+view L key sit origin 4 4
+|vvvvv
+|vzyxv
+|vxxwv
+|vxwwv
+|.vQv.
+|.QTQ.
+|.QSQ.
+|.QSQ.
+|.QRQ.
+|..Q..
+
+view D key rest origin 0 0 when prop-hammer replace
+|.
+
+view D key lag origin 0 0 when prop-hammer replace
+|.
+
+view D key sit origin 0 0 when prop-hammer replace
+|.
+
+view U key rest origin 0 0 when prop-hammer replace
+|.
+
+view U key lag origin 0 0 when prop-hammer replace
+|.
+
+view U key sit origin 0 0 when prop-hammer replace
+|.
+
+view R key rest origin 0 0 when prop-hammer replace
+|.
+
+view R key lag origin 0 0 when prop-hammer replace
+|.
+
+view R key sit origin 0 0 when prop-hammer replace
+|.
+
+view L key rest origin 0 0 when prop-hammer replace
+|.
+
+view L key lag origin 0 0 when prop-hammer replace
+|.
+
+view L key sit origin 0 0 when prop-hammer replace
+|.

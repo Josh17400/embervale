@@ -1,0 +1,1358 @@
+# rpg/art/doll/clips/postures.clip: the 31 postures and Row on the adult bodies (POSES-B, P2b wave 2; STYLE_P2 13, 15, 16;
+# VISION_PLAN 15.36 "The variety solution": a posture = a leg mode + arm keys + a prop + offsets). Format: rpg/art/doll/doll.h.
+# Frame counts and paces are postureInfo's (art_life.cpp); every facing natively (STYLE_P2 9); the elders take these with
+# their own anchors (the stoop). The prop in hand is the doll's postureProp (doll_internal.h: the prop maps are PROPS');
+# `held=<key>` names the gripping arm's key, so a prop map draws one view per key it is held in, anchored on the arm's
+# `grip` mark (the left hand's `gripL`). The props (`role held <value>`) and the keys they are held in, every facing:
+#   mug (mouth hold raise wave2) spoon bread (mouth hold) hammer woodaxe hoe (high low; woodaxe raise low) broom (low hold)
+#   ladle (hold reach low pull) sack (shoulder) basket crate (hold) rod (reach hold) bowl (reach hold) lamppole (raise)
+#   book (hold reach) linen (low hold) lute oud (hold low) fiddle (reach hold) harp (hold reach) flute pipes reed horn
+#   (mouth) handbells (raise hold) framedrum bodhran (wave2 hold) taiko (high low) handdrums (hold low) gong (high reach)
+#   clappers (hold pray) jingle (raise wave2). Carry's frames sway (sway=-1/0/1/0): a load declaring `sway <rows>` swings.
+#
+# Leg modes (maps/legs/adult/pose/std.pxm and tips.pxm, and the slice's `sit` in legs/adult/loco):
+#   stand  legs=idle (the standing legs), or the walk / run keys for the striding postures (Carry, Play, Dance)
+#   chair  legs=sit, bob=2: the hips on the seat line 7 rows over the floor (seatFit2's kSeat + 2), the feet on the floor
+#          (SLICE-SIT-HEIGHT; the slice's Sit folded in here from clips/sit.clip)
+#   floor  legs=cross, bob=8: cross-legged, the hips 2 rows over the floor or the cushion (seatFit2's floor seats)
+#   kneel  legs=kneel, bob=5: on the left knee, the right foot planted (the head about 27 px)
+#   ride   legs=ride, bob=2: astride, the thighs over the barrel, the boots in the stirrups (the hip mark on the saddle)
+# Hang keys (the GARB areas' hangs): rest, sit, floor, kneel, ride. Sheath keys: rest standing and kneeling (facing down
+# also seated), sit seated, floor and riding.
+# Arm keys (maps/arms/adult/pose; the loco idle, lap, F, N, B, back and fwd): hold mouth raise wave wave2 pray reach pull
+# high low shoulder knee (arms/adult/pose/man_r.pxm's header says what each is). Facing right the right arm is the near
+# one (armL=- where the far arm hides behind the body); facing left the right hand still does the work, as the far arm,
+# showing past the body (STYLE_P2 9: no thing changes hands between facings).
+
+body man
+# ---- Sit: the hands on the thighs (front and back), the near hand on the knee (sides); one frame
+clip idle D posture sit
+f armL=lap armR=lap hang=sit legs=sit neck=rest sheath=rest torso=rest bob=2
+clip idle U posture sit
+f armL=lap armR=lap hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+clip idle R posture sit
+f armL=- armR=F hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+clip idle L posture sit
+f armL=F armR=- hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+
+# ---- SitEat: the spoon to the mouth and down to the bowl in the left hand
+clip idle D posture siteat
+f armL=hold armR=mouth held=mouth hang=sit legs=sit neck=rest sheath=rest torso=rest bob=2
+f armL=hold armR=hold held=hold hang=sit legs=sit neck=rest sheath=rest torso=rest bob=2
+clip idle U posture siteat
+f armL=hold armR=mouth held=mouth hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=hold armR=hold held=hold hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+clip idle R posture siteat
+f armL=- armR=mouth held=mouth hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=- armR=hold held=hold hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+clip idle L posture siteat
+f armL=hold armR=mouth held=mouth hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=hold armR=hold held=hold hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+
+# ---- SitDrink: the mug to the mouth, then lowered; the other hand on the thigh
+clip idle D posture sitdrink
+f armL=lap armR=mouth held=mouth hang=sit legs=sit neck=rest sheath=rest torso=rest bob=2
+f armL=lap armR=hold held=hold hang=sit legs=sit neck=rest sheath=rest torso=rest bob=2
+clip idle U posture sitdrink
+f armL=lap armR=mouth held=mouth hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=lap armR=hold held=hold hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+clip idle R posture sitdrink
+f armL=- armR=mouth held=mouth hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=- armR=hold held=hold hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+clip idle L posture sitdrink
+f armL=F armR=mouth held=mouth hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=F armR=hold held=hold hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+
+# ---- Eat, Drink: standing, bread or a mug to the mouth and down
+clip idle D posture eat
+f armL=idle armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture eat
+f armL=idle armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture eat
+f armL=- armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture eat
+f armL=idle armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture drink
+f armL=idle armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture drink
+f armL=idle armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture drink
+f armL=- armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture drink
+f armL=idle armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+
+# ---- Cheer: the mug raised high, then tipped out (a toast)
+clip idle D posture cheer
+f armL=idle armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=wave2 held=wave2 legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle U posture cheer
+f armL=idle armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=wave2 held=wave2 legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle R posture cheer
+f armL=- armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=wave2 held=wave2 hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle L posture cheer
+f armL=idle armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=wave2 held=wave2 hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=-1
+
+# ---- Hammer: the hammer up over the shoulder, then down on the anvil; the left hand holds the work
+clip idle D posture hammer
+f armL=reach armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=reach armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle U posture hammer
+f armL=reach armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=reach armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle R posture hammer
+f armL=- armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1 bob=1
+clip idle L posture hammer
+f armL=reach armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1
+f armL=reach armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1 bob=1
+
+# ---- Hoe: both hands on the haft, raised over the right shoulder, then down into the soil
+clip idle D posture hoe
+f armL=hold armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle U posture hoe
+f armL=hold armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle R posture hoe
+f armL=- armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1 bob=1
+clip idle L posture hoe
+f armL=hold armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1
+f armL=low armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1 bob=1
+
+# ---- Sweep: the broom low, swept from one side to the other
+clip idle D posture sweep
+f armL=hold armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture sweep
+f armL=hold armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture sweep
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture sweep
+f armL=hold armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1
+f armL=low armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+
+# ---- Chop: the axe up over the head in both hands, then down into the block
+clip idle D posture chop
+f armL=raise armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest bob=-1
+f armL=low armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle U posture chop
+f armL=raise armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest bob=-1
+f armL=low armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle R posture chop
+f armL=raise armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1 bob=-1
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1 bob=1
+clip idle L posture chop
+f armL=raise armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1 bob=-1
+f armL=low armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1 bob=1
+
+# ---- Stir: the ladle round the pot (four beats)
+clip idle D posture stir
+f armL=idle armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=pull held=pull legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture stir
+f armL=idle armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=pull held=pull legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture stir
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=pull held=pull hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture stir
+f armL=idle armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=pull held=pull hilt=rest legs=idle neck=rest sheath=rest torso=rest
+
+# ---- Carry: a sack on the right shoulder (variant 1 a basket on the hip, 2 a crate in both hands), walking: the view
+#      steps these four frames by the distance walked
+clip idle D posture carry
+f armL=fwd armR=shoulder held=shoulder legs=walkA neck=rest sheath=rest torso=rest sway=-1
+f armL=idle armR=shoulder held=shoulder legs=walkB neck=rest sheath=rest torso=rest
+f armL=back armR=shoulder held=shoulder legs=walkC neck=rest sheath=rest torso=rest sway=1
+f armL=idle armR=shoulder held=shoulder legs=walkD neck=rest sheath=rest torso=rest
+clip idle U posture carry
+f armL=back armR=shoulder held=shoulder legs=walkA neck=rest sheath=rest torso=rest sway=-1
+f armL=idle armR=shoulder held=shoulder legs=walkB neck=rest sheath=rest torso=rest
+f armL=fwd armR=shoulder held=shoulder legs=walkC neck=rest sheath=rest torso=rest sway=1
+f armL=idle armR=shoulder held=shoulder legs=walkD neck=rest sheath=rest torso=rest
+clip idle R posture carry
+f hang=wide armL=- armR=shoulder held=shoulder hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
+f hang=rest armL=- armR=shoulder held=shoulder hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest
+f hang=wide armL=- armR=shoulder held=shoulder hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
+f hang=rest armL=- armR=shoulder held=shoulder hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest
+clip idle L posture carry
+f hang=wide armL=B armR=shoulder held=shoulder hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
+f hang=rest armL=N armR=shoulder held=shoulder hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest
+f hang=wide armL=F armR=shoulder held=shoulder hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
+f hang=rest armL=N armR=shoulder held=shoulder hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest
+clip idle D posture carry variant 1
+f armL=fwd armR=hold held=hold legs=walkA neck=rest sheath=rest torso=rest sway=-1
+f armL=idle armR=hold held=hold legs=walkB neck=rest sheath=rest torso=rest
+f armL=back armR=hold held=hold legs=walkC neck=rest sheath=rest torso=rest sway=1
+f armL=idle armR=hold held=hold legs=walkD neck=rest sheath=rest torso=rest
+clip idle U posture carry variant 1
+f armL=back armR=hold held=hold legs=walkA neck=rest sheath=rest torso=rest sway=-1
+f armL=idle armR=hold held=hold legs=walkB neck=rest sheath=rest torso=rest
+f armL=fwd armR=hold held=hold legs=walkC neck=rest sheath=rest torso=rest sway=1
+f armL=idle armR=hold held=hold legs=walkD neck=rest sheath=rest torso=rest
+clip idle R posture carry variant 1
+f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
+f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest
+f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
+f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest
+clip idle L posture carry variant 1
+f hang=wide armL=B armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
+f hang=rest armL=N armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest
+f hang=wide armL=F armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
+f hang=rest armL=N armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest
+clip idle D posture carry variant 2
+f armL=hold armR=hold held=hold legs=walkA neck=rest sheath=rest torso=rest sway=-1
+f armL=hold armR=hold held=hold legs=walkB neck=rest sheath=rest torso=rest bob=-1
+f armL=hold armR=hold held=hold legs=walkC neck=rest sheath=rest torso=rest sway=1
+f armL=hold armR=hold held=hold legs=walkD neck=rest sheath=rest torso=rest bob=-1
+clip idle U posture carry variant 2
+f armL=hold armR=hold held=hold legs=walkA neck=rest sheath=rest torso=rest sway=-1
+f armL=hold armR=hold held=hold legs=walkB neck=rest sheath=rest torso=rest bob=-1
+f armL=hold armR=hold held=hold legs=walkC neck=rest sheath=rest torso=rest sway=1
+f armL=hold armR=hold held=hold legs=walkD neck=rest sheath=rest torso=rest bob=-1
+clip idle R posture carry variant 2
+f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
+f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest bob=-1
+f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
+f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest bob=-1
+clip idle L posture carry variant 2
+f hang=wide armL=hold armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
+f hang=rest armL=hold armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest bob=-1
+f hang=wide armL=hold armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
+f hang=rest armL=hold armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest bob=-1
+
+# ---- Fish: the rod held out in both hands, then a twitch
+clip idle D posture fish
+f armL=reach armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+f armL=reach armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture fish
+f armL=reach armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+f armL=reach armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture fish
+f armL=- armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture fish
+f armL=reach armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=reach armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+
+# ---- Wave: the open hand up beside the head, waved (facing left the near hand waves)
+clip idle D posture wave
+f armL=idle armR=wave legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=wave2 legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture wave
+f armL=idle armR=wave legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=wave2 legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture wave
+f armL=- armR=wave hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=wave2 hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture wave
+f armL=wave armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=wave2 armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest
+
+# ---- Play: tag, arms up, hopping on the run's legs
+clip idle D posture play
+f armL=wave2 armR=raise legs=run1 neck=rest sheath=rest torso=rest hang=flare
+f armL=raise armR=wave legs=run3 neck=rest sheath=rest torso=rest hang=flare bob=-1
+f armL=wave2 armR=raise legs=run4 neck=rest sheath=rest torso=rest hang=flare
+f armL=raise armR=wave legs=run6 neck=rest sheath=rest torso=rest hang=flare bob=-1
+clip idle U posture play
+f armL=wave2 armR=raise legs=run1 neck=rest sheath=rest torso=rest hang=flare
+f armL=raise armR=wave legs=run3 neck=rest sheath=rest torso=rest hang=flare bob=-1
+f armL=wave2 armR=raise legs=run4 neck=rest sheath=rest torso=rest hang=flare
+f armL=raise armR=wave legs=run6 neck=rest sheath=rest torso=rest hang=flare bob=-1
+clip idle R posture play
+f armL=raise armR=raise hilt=rest legs=run1 neck=flow2 sheath=rest torso=rest hang=flare
+f armL=- armR=wave hilt=rest legs=run3 neck=flow sheath=rest torso=rest hang=flare bob=-1
+f armL=raise armR=raise hilt=rest legs=run4 neck=flow2 sheath=rest torso=rest hang=flare
+f armL=- armR=wave hilt=rest legs=run6 neck=flow sheath=rest torso=rest hang=flare bob=-1
+clip idle L posture play
+f armL=raise armR=raise hilt=rest legs=run1 neck=flow2 sheath=rest torso=rest hang=flare
+f armL=wave armR=- hilt=rest legs=run3 neck=flow sheath=rest torso=rest hang=flare bob=-1
+f armL=raise armR=raise hilt=rest legs=run4 neck=flow2 sheath=rest torso=rest hang=flare
+f armL=wave armR=- hilt=rest legs=run6 neck=flow sheath=rest torso=rest hang=flare bob=-1
+
+# ---- Dance: a turning step, the arms up and out by turns
+clip idle D posture dance
+f armL=hold armR=raise legs=walkA neck=rest sheath=rest torso=rest
+f armL=wave2 armR=wave legs=idle neck=rest sheath=rest torso=rest bob=-1
+f armL=raise armR=hold legs=walkC neck=rest sheath=rest torso=rest
+f armL=wave armR=wave2 legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle U posture dance
+f armL=hold armR=raise legs=walkA neck=rest sheath=rest torso=rest
+f armL=wave2 armR=wave legs=idle neck=rest sheath=rest torso=rest bob=-1
+f armL=raise armR=hold legs=walkC neck=rest sheath=rest torso=rest
+f armL=wave armR=wave2 legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle R posture dance
+f armL=- armR=raise hilt=rest legs=walkA neck=flow sheath=rest torso=rest hang=wide
+f armL=raise armR=wave hilt=rest legs=idle neck=flow2 sheath=rest torso=rest bob=-1
+f armL=- armR=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest hang=wide
+f armL=raise armR=wave2 hilt=rest legs=idle neck=flow2 sheath=rest torso=rest bob=-1
+clip idle L posture dance
+f armL=raise armR=- hilt=rest legs=walkA neck=flow sheath=rest torso=rest hang=wide
+f armL=wave armR=raise hilt=rest legs=idle neck=flow2 sheath=rest torso=rest bob=-1
+f armL=hold armR=- hilt=rest legs=walkC neck=flow sheath=rest torso=rest hang=wide
+f armL=wave2 armR=raise hilt=rest legs=idle neck=flow2 sheath=rest torso=rest bob=-1
+
+# ---- Lute (and the oud): the left hand on the neck, the right strumming at the belly (variant 6 the fiddle at the
+#      shoulder and its bow; 9 the harp before the chest in both hands)
+clip idle D posture lute
+f armL=reach armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=reach armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture lute
+f armL=reach armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=reach armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture lute
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture lute
+f armL=reach armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=reach armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture lute variant 6
+f armL=shoulder armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest head=-1,0
+f armL=shoulder armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest head=-1,0
+clip idle U posture lute variant 6
+f armL=shoulder armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+f armL=shoulder armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture lute variant 6
+f armL=- armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture lute variant 6
+f armL=shoulder armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=shoulder armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture lute variant 9
+f armL=hold armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture lute variant 9
+f armL=hold armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture lute variant 9
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture lute variant 9
+f armL=hold armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+
+# ---- Drum (the frame drum, the bodhran): held up in the left hand, beaten with the right (variant 3 / 9 the barrel drum
+#      on its strap, two sticks; 4 / 5 the hand drums by turns; 6 the gong; 7 the clappers; 8 the jingle ring)
+clip idle D posture drum
+f armL=hold armR=wave2 held=wave2 legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture drum
+f armL=hold armR=wave2 held=wave2 legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture drum
+f armL=- armR=wave2 held=wave2 hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture drum
+f armL=hold armR=wave2 held=wave2 hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture drum variant 3
+f armL=high armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle U posture drum variant 3
+f armL=high armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle R posture drum variant 3
+f armL=- armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle L posture drum variant 3
+f armL=high armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle D posture drum variant 9
+f armL=high armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle U posture drum variant 9
+f armL=high armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle R posture drum variant 9
+f armL=- armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle L posture drum variant 9
+f armL=high armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle D posture drum variant 4
+f armL=low armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture drum variant 4
+f armL=low armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture drum variant 4
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture drum variant 4
+f armL=low armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture drum variant 5
+f armL=low armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture drum variant 5
+f armL=low armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture drum variant 5
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture drum variant 5
+f armL=low armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture drum variant 6
+f armL=idle armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture drum variant 6
+f armL=idle armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture drum variant 6
+f armL=- armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture drum variant 6
+f armL=idle armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture drum variant 7
+f armL=hold armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=pray armR=pray held=pray legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture drum variant 7
+f armL=hold armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=pray armR=pray held=pray legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture drum variant 7
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=pray held=pray hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture drum variant 7
+f armL=hold armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=pray armR=pray held=pray hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture drum variant 8
+f armL=idle armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=wave2 held=wave2 legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture drum variant 8
+f armL=idle armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=wave2 held=wave2 legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture drum variant 8
+f armL=- armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=wave2 held=wave2 hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture drum variant 8
+f armL=idle armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=wave2 held=wave2 hilt=rest legs=idle neck=rest sheath=rest torso=rest
+
+# ---- Flute (pipes and the reed the same): both hands at the mouth, a breath (variant 2 / 10 the horn raised in the
+#      right hand; 7 the hand bells; 11 the voice: a hand on the heart, the other open)
+clip idle D posture flute
+f armL=mouth armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest
+f armL=mouth armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle U posture flute
+f armL=mouth armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest
+f armL=mouth armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle R posture flute
+f armL=- armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle L posture flute
+f armL=mouth armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=mouth armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle D posture flute variant 2
+f armL=hold armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest head=0,-1
+f armL=hold armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+clip idle U posture flute variant 2
+f armL=hold armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle R posture flute variant 2
+f armL=- armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1
+f armL=- armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1 bob=-1
+clip idle L posture flute variant 2
+f armL=hold armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1
+f armL=hold armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1 bob=-1
+clip idle D posture flute variant 10
+f armL=hold armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest head=0,-1
+f armL=hold armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+clip idle U posture flute variant 10
+f armL=hold armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle R posture flute variant 10
+f armL=- armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1
+f armL=- armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1 bob=-1
+clip idle L posture flute variant 10
+f armL=hold armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1
+f armL=hold armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1 bob=-1
+clip idle D posture flute variant 7
+f armL=hold armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest
+f armL=raise armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture flute variant 7
+f armL=hold armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest
+f armL=raise armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture flute variant 7
+f armL=- armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=raise armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture flute variant 7
+f armL=hold armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=raise armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture flute variant 11
+f armL=reach armR=pray legs=idle neck=rest sheath=rest torso=rest head=0,-1 expr=talk
+f armL=wave2 armR=pray legs=idle neck=rest sheath=rest torso=rest head=0,-1
+clip idle U posture flute variant 11
+f armL=reach armR=pray legs=idle neck=rest sheath=rest torso=rest
+f armL=wave2 armR=pray legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture flute variant 11
+f armL=- armR=pray hilt=rest legs=idle neck=rest sheath=rest torso=rest expr=talk
+f armL=- armR=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture flute variant 11
+f armL=reach armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest expr=talk
+f armL=wave2 armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest
+
+# ---- Pray: the hands joined at the chest, the head bowed, a slow breath
+clip idle D posture pray
+f armL=pray armR=pray legs=idle neck=rest sheath=rest torso=rest head=0,1 expr=closed
+f armL=pray armR=pray legs=idle neck=rest sheath=rest torso=rest head=0,1 bob=-1 expr=closed
+clip idle U posture pray
+f armL=pray armR=pray legs=idle neck=rest sheath=rest torso=rest head=0,1
+f armL=pray armR=pray legs=idle neck=rest sheath=rest torso=rest head=0,1 bob=-1
+clip idle R posture pray
+f armL=- armR=pray hilt=rest legs=idle neck=rest sheath=rest torso=rest head=1,1 expr=closed
+f armL=- armR=pray hilt=rest legs=idle neck=rest sheath=rest torso=rest head=1,1 bob=-1 expr=closed
+clip idle L posture pray
+f armL=pray armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest head=-1,1 expr=closed
+f armL=pray armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest head=-1,1 bob=-1 expr=closed
+
+# ---- Beg: sitting on the ground, the bowl held out, then drawn in
+clip idle D posture beg
+f armL=knee armR=reach held=reach hang=floor legs=cross neck=rest sheath=- torso=rest bob=8
+f armL=knee armR=hold held=hold hang=floor legs=cross neck=rest sheath=- torso=rest bob=8 head=0,1
+clip idle U posture beg
+f armL=knee armR=reach held=reach hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=knee armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8 head=0,1
+clip idle R posture beg
+f armL=- armR=reach held=reach hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=- armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8 head=1,1
+clip idle L posture beg
+f armL=knee armR=reach held=reach hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=knee armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8 head=-1,1
+
+# ---- Lamp: the pole raised to the lamp in both hands, stretching up
+clip idle D posture lamp
+f armL=high armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest head=0,-1
+f armL=high armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+clip idle U posture lamp
+f armL=high armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest
+f armL=high armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle R posture lamp
+f armL=- armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest head=0,-1
+f armL=- armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+clip idle L posture lamp
+f armL=high armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest head=0,-1
+f armL=high armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+
+# ---- Read: the book open before the chest, the head bowed; a page turned
+clip idle D posture read
+f armL=hold armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest head=0,1
+f armL=hold armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest head=0,1
+clip idle U posture read
+f armL=hold armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest head=0,1
+f armL=hold armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest head=0,1
+clip idle R posture read
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest head=1,1
+f armL=- armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest head=1,1
+clip idle L posture read
+f armL=hold armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest head=-1,1
+f armL=hold armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest head=-1,1
+
+# ---- SitFloor (and its eat and drink): cross-legged, the hands on the knees
+clip idle D posture sitfloor
+f armL=knee armR=knee hang=floor legs=cross neck=rest sheath=- torso=rest bob=8
+clip idle U posture sitfloor
+f armL=knee armR=knee hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+clip idle R posture sitfloor
+f armL=- armR=knee hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+clip idle L posture sitfloor
+f armL=knee armR=- hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+clip idle D posture sitfloordrink
+f armL=knee armR=mouth held=mouth hang=floor legs=cross neck=rest sheath=- torso=rest bob=8
+f armL=knee armR=hold held=hold hang=floor legs=cross neck=rest sheath=- torso=rest bob=8
+clip idle U posture sitfloordrink
+f armL=knee armR=mouth held=mouth hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=knee armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+clip idle R posture sitfloordrink
+f armL=- armR=mouth held=mouth hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=- armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+clip idle L posture sitfloordrink
+f armL=knee armR=mouth held=mouth hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=knee armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+clip idle D posture sitflooreat
+f armL=hold armR=mouth held=mouth hang=floor legs=cross neck=rest sheath=- torso=rest bob=8
+f armL=hold armR=hold held=hold hang=floor legs=cross neck=rest sheath=- torso=rest bob=8
+clip idle U posture sitflooreat
+f armL=hold armR=mouth held=mouth hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=hold armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+clip idle R posture sitflooreat
+f armL=- armR=mouth held=mouth hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=- armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+clip idle L posture sitflooreat
+f armL=hold armR=mouth held=mouth hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=hold armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+
+# ---- Ride: astride, the hands forward at the reins (the horse's own tack); the hip mark on the saddle
+clip idle D posture ride
+f armL=reach armR=reach hang=ride legs=ride neck=rest sheath=rest torso=rest bob=2
+clip idle U posture ride
+f armL=reach armR=reach hang=ride legs=ride neck=rest sheath=sit torso=rest bob=2
+clip idle R posture ride
+f armL=- armR=reach hilt=rest hang=ride legs=ride neck=rest sheath=sit torso=rest bob=2
+clip idle L posture ride
+f armL=reach armR=- hilt=rest hang=ride legs=ride neck=rest sheath=sit torso=rest bob=2
+
+# ---- Downed: slumped on one knee, a hand pressed to the wound, the other on the knee, the head low; two laboured breaths
+clip idle D posture downed
+f armL=knee armR=hold hang=kneel legs=kneel neck=rest sheath=- torso=rest bob=5 head=0,1 expr=hurt
+f armL=knee armR=hold hang=kneel legs=kneel neck=rest sheath=- torso=rest bob=6 head=0,1 expr=hurt
+clip idle U posture downed
+f armL=knee armR=hold hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=0,1
+f armL=knee armR=hold hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=6 head=0,1
+clip idle R posture downed
+f armL=- armR=hold hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=1,2 lean=1 expr=hurt
+f armL=- armR=hold hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=6 head=1,2 lean=1 expr=hurt
+clip idle L posture downed
+f armL=knee armR=hold hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=-1,2 lean=-1 expr=hurt
+f armL=knee armR=hold hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=6 head=-1,2 lean=-1 expr=hurt
+
+# ---- Kneel: variant 0 binding a friend's wounds (both hands low before the knee winding the linen), variant 1 mourning
+#      at a grave (the head bowed, a hand on the raised knee)
+clip idle D posture kneel
+f armL=low armR=low held=low hang=kneel legs=kneel neck=rest sheath=- torso=rest bob=5 head=0,1
+f armL=low armR=hold held=hold hang=kneel legs=kneel neck=rest sheath=- torso=rest bob=5 head=0,1
+clip idle U posture kneel
+f armL=low armR=low held=low hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=0,1
+f armL=low armR=hold held=hold hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=0,1
+clip idle R posture kneel
+f armL=- armR=low held=low hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=1,1 lean=1
+f armL=- armR=hold held=hold hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=1,1 lean=1
+clip idle L posture kneel
+f armL=low armR=low held=low hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=-1,1 lean=-1
+f armL=low armR=hold held=hold hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=-1,1 lean=-1
+clip idle D posture kneel variant 1
+f armL=idle armR=knee hang=kneel legs=kneel neck=rest sheath=- torso=rest bob=5 head=0,1 expr=closed
+f armL=idle armR=knee hang=kneel legs=kneel neck=rest sheath=- torso=rest bob=6 head=0,1 expr=closed
+clip idle U posture kneel variant 1
+f armL=idle armR=knee hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=0,1
+f armL=idle armR=knee hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=6 head=0,1
+clip idle R posture kneel variant 1
+f armL=- armR=knee hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=1,2 expr=closed
+f armL=- armR=knee hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=6 head=1,2 expr=closed
+clip idle L posture kneel variant 1
+f armL=knee armR=- hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=-1,2 expr=closed
+f armL=knee armR=- hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=6 head=-1,2 expr=closed
+
+# ---- Row: on the thwart (the hull hides the legs): reach, catch, pull, recover, synced to the oars by the view
+clip idle D posture row
+f armL=reach armR=reach hang=sit legs=sit neck=rest sheath=rest torso=rest bob=3
+f armL=reach armR=reach hang=sit legs=sit neck=rest sheath=rest torso=rest bob=2
+f armL=pull armR=pull hang=sit legs=sit neck=rest sheath=rest torso=rest bob=1
+f armL=hold armR=hold hang=sit legs=sit neck=rest sheath=rest torso=rest bob=2
+clip idle U posture row
+f armL=reach armR=reach hang=sit legs=sit neck=rest sheath=sit torso=rest bob=3
+f armL=reach armR=reach hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=pull armR=pull hang=sit legs=sit neck=rest sheath=sit torso=rest bob=1
+f armL=hold armR=hold hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+clip idle R posture row
+f armL=- armR=reach hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2 lean=1
+f armL=- armR=reach hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=- armR=pull hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2 lean=-1
+f armL=- armR=hold hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+clip idle L posture row
+f armL=reach armR=- hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2 lean=-1
+f armL=reach armR=- hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=pull armR=- hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2 lean=1
+f armL=hold armR=- hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+
+# ---- Sleep: lying in the berth (doll::sleeper composes the down view for north-south berths, the left view turned for
+#      the across ones; hats off, the body under the berth's blanket): the hands on the chest over the sheet; the breath
+#      lifts the chest a pixel (the head stays on the pillow)
+clip idle D posture sleep
+f armL=hold armR=hold legs=idle neck=rest sheath=- hilt=- torso=rest expr=closed hairpose=lie
+f armL=hold armR=hold legs=idle neck=rest sheath=- hilt=- torso=rest expr=closed hairpose=lie bob=-1 head=0,1
+clip idle L posture sleep
+f armL=hold armR=- legs=idle neck=rest sheath=- hilt=- torso=rest expr=closed hairpose=lie
+f armL=hold armR=- legs=idle neck=rest sheath=- hilt=- torso=rest expr=closed hairpose=lie bob=-1 head=0,1
+
+# ======== the woman: the same postures on her body (her own arm and leg maps)
+body woman
+# ---- Sit: the hands on the thighs (front and back), the near hand on the knee (sides); one frame
+clip idle D posture sit
+f armL=lap armR=lap hang=sit legs=sit neck=rest sheath=rest torso=rest bob=2
+clip idle U posture sit
+f armL=lap armR=lap hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+clip idle R posture sit
+f armL=- armR=F hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+clip idle L posture sit
+f armL=F armR=- hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+
+# ---- SitEat: the spoon to the mouth and down to the bowl in the left hand
+clip idle D posture siteat
+f armL=hold armR=mouth held=mouth hang=sit legs=sit neck=rest sheath=rest torso=rest bob=2
+f armL=hold armR=hold held=hold hang=sit legs=sit neck=rest sheath=rest torso=rest bob=2
+clip idle U posture siteat
+f armL=hold armR=mouth held=mouth hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=hold armR=hold held=hold hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+clip idle R posture siteat
+f armL=- armR=mouth held=mouth hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=- armR=hold held=hold hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+clip idle L posture siteat
+f armL=hold armR=mouth held=mouth hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=hold armR=hold held=hold hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+
+# ---- SitDrink: the mug to the mouth, then lowered; the other hand on the thigh
+clip idle D posture sitdrink
+f armL=lap armR=mouth held=mouth hang=sit legs=sit neck=rest sheath=rest torso=rest bob=2
+f armL=lap armR=hold held=hold hang=sit legs=sit neck=rest sheath=rest torso=rest bob=2
+clip idle U posture sitdrink
+f armL=lap armR=mouth held=mouth hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=lap armR=hold held=hold hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+clip idle R posture sitdrink
+f armL=- armR=mouth held=mouth hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=- armR=hold held=hold hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+clip idle L posture sitdrink
+f armL=F armR=mouth held=mouth hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=F armR=hold held=hold hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+
+# ---- Eat, Drink: standing, bread or a mug to the mouth and down
+clip idle D posture eat
+f armL=idle armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture eat
+f armL=idle armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture eat
+f armL=- armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture eat
+f armL=idle armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture drink
+f armL=idle armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture drink
+f armL=idle armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture drink
+f armL=- armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture drink
+f armL=idle armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+
+# ---- Cheer: the mug raised high, then tipped out (a toast)
+clip idle D posture cheer
+f armL=idle armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=wave2 held=wave2 legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle U posture cheer
+f armL=idle armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=wave2 held=wave2 legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle R posture cheer
+f armL=- armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=wave2 held=wave2 hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle L posture cheer
+f armL=idle armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=wave2 held=wave2 hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=-1
+
+# ---- Hammer: the hammer up over the shoulder, then down on the anvil; the left hand holds the work
+clip idle D posture hammer
+f armL=reach armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=reach armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle U posture hammer
+f armL=reach armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=reach armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle R posture hammer
+f armL=- armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1 bob=1
+clip idle L posture hammer
+f armL=reach armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1
+f armL=reach armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1 bob=1
+
+# ---- Hoe: both hands on the haft, raised over the right shoulder, then down into the soil
+clip idle D posture hoe
+f armL=hold armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle U posture hoe
+f armL=hold armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle R posture hoe
+f armL=- armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1 bob=1
+clip idle L posture hoe
+f armL=hold armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1
+f armL=low armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1 bob=1
+
+# ---- Sweep: the broom low, swept from one side to the other
+clip idle D posture sweep
+f armL=hold armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture sweep
+f armL=hold armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture sweep
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture sweep
+f armL=hold armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1
+f armL=low armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+
+# ---- Chop: the axe up over the head in both hands, then down into the block
+clip idle D posture chop
+f armL=raise armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest bob=-1
+f armL=low armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle U posture chop
+f armL=raise armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest bob=-1
+f armL=low armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle R posture chop
+f armL=raise armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1 bob=-1
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1 bob=1
+clip idle L posture chop
+f armL=raise armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1 bob=-1
+f armL=low armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1 bob=1
+
+# ---- Stir: the ladle round the pot (four beats)
+clip idle D posture stir
+f armL=idle armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=pull held=pull legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture stir
+f armL=idle armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=pull held=pull legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture stir
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=pull held=pull hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture stir
+f armL=idle armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=pull held=pull hilt=rest legs=idle neck=rest sheath=rest torso=rest
+
+# ---- Carry: a sack on the right shoulder (variant 1 a basket on the hip, 2 a crate in both hands), walking: the view
+#      steps these four frames by the distance walked
+clip idle D posture carry
+f armL=up armR=shoulder held=shoulder legs=walkA neck=rest sheath=rest torso=rest sway=-1
+f armL=idle armR=shoulder held=shoulder legs=walkB neck=rest sheath=rest torso=rest
+f armL=down armR=shoulder held=shoulder legs=walkC neck=rest sheath=rest torso=rest sway=1
+f armL=idle armR=shoulder held=shoulder legs=walkD neck=rest sheath=rest torso=rest
+clip idle U posture carry
+f armL=down armR=shoulder held=shoulder legs=walkA neck=rest sheath=rest torso=rest sway=-1
+f armL=idle armR=shoulder held=shoulder legs=walkB neck=rest sheath=rest torso=rest
+f armL=up armR=shoulder held=shoulder legs=walkC neck=rest sheath=rest torso=rest sway=1
+f armL=idle armR=shoulder held=shoulder legs=walkD neck=rest sheath=rest torso=rest
+clip idle R posture carry
+f hang=wide armL=- armR=shoulder held=shoulder hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
+f hang=rest armL=- armR=shoulder held=shoulder hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest
+f hang=wide armL=- armR=shoulder held=shoulder hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
+f hang=rest armL=- armR=shoulder held=shoulder hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest
+clip idle L posture carry
+f hang=wide armL=B armR=shoulder held=shoulder hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
+f hang=rest armL=N armR=shoulder held=shoulder hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest
+f hang=wide armL=F armR=shoulder held=shoulder hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
+f hang=rest armL=N armR=shoulder held=shoulder hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest
+clip idle D posture carry variant 1
+f armL=up armR=hold held=hold legs=walkA neck=rest sheath=rest torso=rest sway=-1
+f armL=idle armR=hold held=hold legs=walkB neck=rest sheath=rest torso=rest
+f armL=down armR=hold held=hold legs=walkC neck=rest sheath=rest torso=rest sway=1
+f armL=idle armR=hold held=hold legs=walkD neck=rest sheath=rest torso=rest
+clip idle U posture carry variant 1
+f armL=down armR=hold held=hold legs=walkA neck=rest sheath=rest torso=rest sway=-1
+f armL=idle armR=hold held=hold legs=walkB neck=rest sheath=rest torso=rest
+f armL=up armR=hold held=hold legs=walkC neck=rest sheath=rest torso=rest sway=1
+f armL=idle armR=hold held=hold legs=walkD neck=rest sheath=rest torso=rest
+clip idle R posture carry variant 1
+f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
+f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest
+f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
+f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest
+clip idle L posture carry variant 1
+f hang=wide armL=B armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
+f hang=rest armL=N armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest
+f hang=wide armL=F armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
+f hang=rest armL=N armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest
+clip idle D posture carry variant 2
+f armL=hold armR=hold held=hold legs=walkA neck=rest sheath=rest torso=rest sway=-1
+f armL=hold armR=hold held=hold legs=walkB neck=rest sheath=rest torso=rest bob=-1
+f armL=hold armR=hold held=hold legs=walkC neck=rest sheath=rest torso=rest sway=1
+f armL=hold armR=hold held=hold legs=walkD neck=rest sheath=rest torso=rest bob=-1
+clip idle U posture carry variant 2
+f armL=hold armR=hold held=hold legs=walkA neck=rest sheath=rest torso=rest sway=-1
+f armL=hold armR=hold held=hold legs=walkB neck=rest sheath=rest torso=rest bob=-1
+f armL=hold armR=hold held=hold legs=walkC neck=rest sheath=rest torso=rest sway=1
+f armL=hold armR=hold held=hold legs=walkD neck=rest sheath=rest torso=rest bob=-1
+clip idle R posture carry variant 2
+f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
+f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest bob=-1
+f hang=wide armL=- armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
+f hang=rest armL=- armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest bob=-1
+clip idle L posture carry variant 2
+f hang=wide armL=hold armR=hold held=hold hilt=rest legs=walkA neck=flow sheath=rest torso=rest sway=-1
+f hang=rest armL=hold armR=hold held=hold hilt=rest legs=walkB2 neck=flow sheath=rest torso=rest bob=-1
+f hang=wide armL=hold armR=hold held=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest sway=1
+f hang=rest armL=hold armR=hold held=hold hilt=rest legs=walkD2 neck=flow sheath=rest torso=rest bob=-1
+
+# ---- Fish: the rod held out in both hands, then a twitch
+clip idle D posture fish
+f armL=reach armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+f armL=reach armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture fish
+f armL=reach armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+f armL=reach armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture fish
+f armL=- armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture fish
+f armL=reach armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=reach armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+
+# ---- Wave: the open hand up beside the head, waved (facing left the near hand waves)
+clip idle D posture wave
+f armL=idle armR=wave legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=wave2 legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture wave
+f armL=idle armR=wave legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=wave2 legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture wave
+f armL=- armR=wave hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=wave2 hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture wave
+f armL=wave armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=wave2 armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest
+
+# ---- Play: tag, arms up, hopping on the run's legs
+clip idle D posture play
+f armL=wave2 armR=raise legs=run1 neck=rest sheath=rest torso=rest hang=flare
+f armL=raise armR=wave legs=run3 neck=rest sheath=rest torso=rest hang=flare bob=-1
+f armL=wave2 armR=raise legs=run4 neck=rest sheath=rest torso=rest hang=flare
+f armL=raise armR=wave legs=run6 neck=rest sheath=rest torso=rest hang=flare bob=-1
+clip idle U posture play
+f armL=wave2 armR=raise legs=run1 neck=rest sheath=rest torso=rest hang=flare
+f armL=raise armR=wave legs=run3 neck=rest sheath=rest torso=rest hang=flare bob=-1
+f armL=wave2 armR=raise legs=run4 neck=rest sheath=rest torso=rest hang=flare
+f armL=raise armR=wave legs=run6 neck=rest sheath=rest torso=rest hang=flare bob=-1
+clip idle R posture play
+f armL=raise armR=raise hilt=rest legs=run1 neck=flow2 sheath=rest torso=rest hang=flare
+f armL=- armR=wave hilt=rest legs=run3 neck=flow sheath=rest torso=rest hang=flare bob=-1
+f armL=raise armR=raise hilt=rest legs=run4 neck=flow2 sheath=rest torso=rest hang=flare
+f armL=- armR=wave hilt=rest legs=run6 neck=flow sheath=rest torso=rest hang=flare bob=-1
+clip idle L posture play
+f armL=raise armR=raise hilt=rest legs=run1 neck=flow2 sheath=rest torso=rest hang=flare
+f armL=wave armR=- hilt=rest legs=run3 neck=flow sheath=rest torso=rest hang=flare bob=-1
+f armL=raise armR=raise hilt=rest legs=run4 neck=flow2 sheath=rest torso=rest hang=flare
+f armL=wave armR=- hilt=rest legs=run6 neck=flow sheath=rest torso=rest hang=flare bob=-1
+
+# ---- Dance: a turning step, the arms up and out by turns
+clip idle D posture dance
+f armL=hold armR=raise legs=walkA neck=rest sheath=rest torso=rest
+f armL=wave2 armR=wave legs=idle neck=rest sheath=rest torso=rest bob=-1
+f armL=raise armR=hold legs=walkC neck=rest sheath=rest torso=rest
+f armL=wave armR=wave2 legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle U posture dance
+f armL=hold armR=raise legs=walkA neck=rest sheath=rest torso=rest
+f armL=wave2 armR=wave legs=idle neck=rest sheath=rest torso=rest bob=-1
+f armL=raise armR=hold legs=walkC neck=rest sheath=rest torso=rest
+f armL=wave armR=wave2 legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle R posture dance
+f armL=- armR=raise hilt=rest legs=walkA neck=flow sheath=rest torso=rest hang=wide
+f armL=raise armR=wave hilt=rest legs=idle neck=flow2 sheath=rest torso=rest bob=-1
+f armL=- armR=hold hilt=rest legs=walkC neck=flow sheath=rest torso=rest hang=wide
+f armL=raise armR=wave2 hilt=rest legs=idle neck=flow2 sheath=rest torso=rest bob=-1
+clip idle L posture dance
+f armL=raise armR=- hilt=rest legs=walkA neck=flow sheath=rest torso=rest hang=wide
+f armL=wave armR=raise hilt=rest legs=idle neck=flow2 sheath=rest torso=rest bob=-1
+f armL=hold armR=- hilt=rest legs=walkC neck=flow sheath=rest torso=rest hang=wide
+f armL=wave2 armR=raise hilt=rest legs=idle neck=flow2 sheath=rest torso=rest bob=-1
+
+# ---- Lute (and the oud): the left hand on the neck, the right strumming at the belly (variant 6 the fiddle at the
+#      shoulder and its bow; 9 the harp before the chest in both hands)
+clip idle D posture lute
+f armL=reach armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=reach armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture lute
+f armL=reach armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=reach armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture lute
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture lute
+f armL=reach armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=reach armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture lute variant 6
+f armL=shoulder armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest head=-1,0
+f armL=shoulder armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest head=-1,0
+clip idle U posture lute variant 6
+f armL=shoulder armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+f armL=shoulder armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture lute variant 6
+f armL=- armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture lute variant 6
+f armL=shoulder armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=shoulder armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture lute variant 9
+f armL=hold armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture lute variant 9
+f armL=hold armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture lute variant 9
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture lute variant 9
+f armL=hold armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+
+# ---- Drum (the frame drum, the bodhran): held up in the left hand, beaten with the right (variant 3 / 9 the barrel drum
+#      on its strap, two sticks; 4 / 5 the hand drums by turns; 6 the gong; 7 the clappers; 8 the jingle ring)
+clip idle D posture drum
+f armL=hold armR=wave2 held=wave2 legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture drum
+f armL=hold armR=wave2 held=wave2 legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture drum
+f armL=- armR=wave2 held=wave2 hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture drum
+f armL=hold armR=wave2 held=wave2 hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture drum variant 3
+f armL=high armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle U posture drum variant 3
+f armL=high armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle R posture drum variant 3
+f armL=- armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle L posture drum variant 3
+f armL=high armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle D posture drum variant 9
+f armL=high armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle U posture drum variant 9
+f armL=high armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=low held=low legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle R posture drum variant 9
+f armL=- armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle L posture drum variant 9
+f armL=high armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=low armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=1
+clip idle D posture drum variant 4
+f armL=low armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture drum variant 4
+f armL=low armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture drum variant 4
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture drum variant 4
+f armL=low armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture drum variant 5
+f armL=low armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture drum variant 5
+f armL=low armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=low held=low legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture drum variant 5
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture drum variant 5
+f armL=low armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=low held=low hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture drum variant 6
+f armL=idle armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture drum variant 6
+f armL=idle armR=high held=high legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture drum variant 6
+f armL=- armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture drum variant 6
+f armL=idle armR=high held=high hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture drum variant 7
+f armL=hold armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=pray armR=pray held=pray legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture drum variant 7
+f armL=hold armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+f armL=pray armR=pray held=pray legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture drum variant 7
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=pray held=pray hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture drum variant 7
+f armL=hold armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=pray armR=pray held=pray hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture drum variant 8
+f armL=idle armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=wave2 held=wave2 legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture drum variant 8
+f armL=idle armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=wave2 held=wave2 legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture drum variant 8
+f armL=- armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=wave2 held=wave2 hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture drum variant 8
+f armL=idle armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=idle armR=wave2 held=wave2 hilt=rest legs=idle neck=rest sheath=rest torso=rest
+
+# ---- Flute (pipes and the reed the same): both hands at the mouth, a breath (variant 2 / 10 the horn raised in the
+#      right hand; 7 the hand bells; 11 the voice: a hand on the heart, the other open)
+clip idle D posture flute
+f armL=mouth armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest
+f armL=mouth armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle U posture flute
+f armL=mouth armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest
+f armL=mouth armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle R posture flute
+f armL=- armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=- armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle L posture flute
+f armL=mouth armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=mouth armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle D posture flute variant 2
+f armL=hold armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest head=0,-1
+f armL=hold armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+clip idle U posture flute variant 2
+f armL=hold armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle R posture flute variant 2
+f armL=- armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1
+f armL=- armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1 bob=-1
+clip idle L posture flute variant 2
+f armL=hold armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1
+f armL=hold armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1 bob=-1
+clip idle D posture flute variant 10
+f armL=hold armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest head=0,-1
+f armL=hold armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+clip idle U posture flute variant 10
+f armL=hold armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest
+f armL=hold armR=mouth held=mouth legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle R posture flute variant 10
+f armL=- armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1
+f armL=- armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=-1 bob=-1
+clip idle L posture flute variant 10
+f armL=hold armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1
+f armL=hold armR=mouth held=mouth hilt=rest legs=idle neck=rest sheath=rest torso=rest lean=1 bob=-1
+clip idle D posture flute variant 7
+f armL=hold armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest
+f armL=raise armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle U posture flute variant 7
+f armL=hold armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest
+f armL=raise armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture flute variant 7
+f armL=- armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=raise armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture flute variant 7
+f armL=hold armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest
+f armL=raise armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle D posture flute variant 11
+f armL=reach armR=pray legs=idle neck=rest sheath=rest torso=rest head=0,-1 expr=talk
+f armL=wave2 armR=pray legs=idle neck=rest sheath=rest torso=rest head=0,-1
+clip idle U posture flute variant 11
+f armL=reach armR=pray legs=idle neck=rest sheath=rest torso=rest
+f armL=wave2 armR=pray legs=idle neck=rest sheath=rest torso=rest
+clip idle R posture flute variant 11
+f armL=- armR=pray hilt=rest legs=idle neck=rest sheath=rest torso=rest expr=talk
+f armL=- armR=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest
+clip idle L posture flute variant 11
+f armL=reach armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest expr=talk
+f armL=wave2 armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest
+
+# ---- Pray: the hands joined at the chest, the head bowed, a slow breath
+clip idle D posture pray
+f armL=pray armR=pray legs=idle neck=rest sheath=rest torso=rest head=0,1 expr=closed
+f armL=pray armR=pray legs=idle neck=rest sheath=rest torso=rest head=0,1 bob=-1 expr=closed
+clip idle U posture pray
+f armL=pray armR=pray legs=idle neck=rest sheath=rest torso=rest head=0,1
+f armL=pray armR=pray legs=idle neck=rest sheath=rest torso=rest head=0,1 bob=-1
+clip idle R posture pray
+f armL=- armR=pray hilt=rest legs=idle neck=rest sheath=rest torso=rest head=1,1 expr=closed
+f armL=- armR=pray hilt=rest legs=idle neck=rest sheath=rest torso=rest head=1,1 bob=-1 expr=closed
+clip idle L posture pray
+f armL=pray armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest head=-1,1 expr=closed
+f armL=pray armR=- hilt=rest legs=idle neck=rest sheath=rest torso=rest head=-1,1 bob=-1 expr=closed
+
+# ---- Beg: sitting on the ground, the bowl held out, then drawn in
+clip idle D posture beg
+f armL=knee armR=reach held=reach hang=floor legs=cross neck=rest sheath=- torso=rest bob=8
+f armL=knee armR=hold held=hold hang=floor legs=cross neck=rest sheath=- torso=rest bob=8 head=0,1
+clip idle U posture beg
+f armL=knee armR=reach held=reach hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=knee armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8 head=0,1
+clip idle R posture beg
+f armL=- armR=reach held=reach hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=- armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8 head=1,1
+clip idle L posture beg
+f armL=knee armR=reach held=reach hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=knee armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8 head=-1,1
+
+# ---- Lamp: the pole raised to the lamp in both hands, stretching up
+clip idle D posture lamp
+f armL=high armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest head=0,-1
+f armL=high armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+clip idle U posture lamp
+f armL=high armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest
+f armL=high armR=raise held=raise legs=idle neck=rest sheath=rest torso=rest bob=-1
+clip idle R posture lamp
+f armL=- armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest head=0,-1
+f armL=- armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+clip idle L posture lamp
+f armL=high armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest head=0,-1
+f armL=high armR=raise held=raise hilt=rest legs=idle neck=rest sheath=rest torso=rest bob=-1 head=0,-1
+
+# ---- Read: the book open before the chest, the head bowed; a page turned
+clip idle D posture read
+f armL=hold armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest head=0,1
+f armL=hold armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest head=0,1
+clip idle U posture read
+f armL=hold armR=hold held=hold legs=idle neck=rest sheath=rest torso=rest head=0,1
+f armL=hold armR=reach held=reach legs=idle neck=rest sheath=rest torso=rest head=0,1
+clip idle R posture read
+f armL=- armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest head=1,1
+f armL=- armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest head=1,1
+clip idle L posture read
+f armL=hold armR=hold held=hold hilt=rest legs=idle neck=rest sheath=rest torso=rest head=-1,1
+f armL=hold armR=reach held=reach hilt=rest legs=idle neck=rest sheath=rest torso=rest head=-1,1
+
+# ---- SitFloor (and its eat and drink): cross-legged, the hands on the knees
+clip idle D posture sitfloor
+f armL=knee armR=knee hang=floor legs=cross neck=rest sheath=- torso=rest bob=8
+clip idle U posture sitfloor
+f armL=knee armR=knee hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+clip idle R posture sitfloor
+f armL=- armR=knee hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+clip idle L posture sitfloor
+f armL=knee armR=- hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+clip idle D posture sitfloordrink
+f armL=knee armR=mouth held=mouth hang=floor legs=cross neck=rest sheath=- torso=rest bob=8
+f armL=knee armR=hold held=hold hang=floor legs=cross neck=rest sheath=- torso=rest bob=8
+clip idle U posture sitfloordrink
+f armL=knee armR=mouth held=mouth hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=knee armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+clip idle R posture sitfloordrink
+f armL=- armR=mouth held=mouth hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=- armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+clip idle L posture sitfloordrink
+f armL=knee armR=mouth held=mouth hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=knee armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+clip idle D posture sitflooreat
+f armL=hold armR=mouth held=mouth hang=floor legs=cross neck=rest sheath=- torso=rest bob=8
+f armL=hold armR=hold held=hold hang=floor legs=cross neck=rest sheath=- torso=rest bob=8
+clip idle U posture sitflooreat
+f armL=hold armR=mouth held=mouth hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=hold armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+clip idle R posture sitflooreat
+f armL=- armR=mouth held=mouth hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=- armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+clip idle L posture sitflooreat
+f armL=hold armR=mouth held=mouth hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+f armL=hold armR=hold held=hold hang=floor legs=cross neck=rest sheath=sit torso=rest bob=8
+
+# ---- Ride: astride, the hands forward at the reins (the horse's own tack); the hip mark on the saddle
+clip idle D posture ride
+f armL=reach armR=reach hang=ride legs=ride neck=rest sheath=rest torso=rest bob=2
+clip idle U posture ride
+f armL=reach armR=reach hang=ride legs=ride neck=rest sheath=sit torso=rest bob=2
+clip idle R posture ride
+f armL=- armR=reach hilt=rest hang=ride legs=ride neck=rest sheath=sit torso=rest bob=2
+clip idle L posture ride
+f armL=reach armR=- hilt=rest hang=ride legs=ride neck=rest sheath=sit torso=rest bob=2
+
+# ---- Downed: slumped on one knee, a hand pressed to the wound, the other on the knee, the head low; two laboured breaths
+clip idle D posture downed
+f armL=knee armR=hold hang=kneel legs=kneel neck=rest sheath=- torso=rest bob=5 head=0,1 expr=hurt
+f armL=knee armR=hold hang=kneel legs=kneel neck=rest sheath=- torso=rest bob=6 head=0,1 expr=hurt
+clip idle U posture downed
+f armL=knee armR=hold hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=0,1
+f armL=knee armR=hold hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=6 head=0,1
+clip idle R posture downed
+f armL=- armR=hold hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=1,2 lean=1 expr=hurt
+f armL=- armR=hold hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=6 head=1,2 lean=1 expr=hurt
+clip idle L posture downed
+f armL=knee armR=hold hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=-1,2 lean=-1 expr=hurt
+f armL=knee armR=hold hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=6 head=-1,2 lean=-1 expr=hurt
+
+# ---- Kneel: variant 0 binding a friend's wounds (both hands low before the knee winding the linen), variant 1 mourning
+#      at a grave (the head bowed, a hand on the raised knee)
+clip idle D posture kneel
+f armL=low armR=low held=low hang=kneel legs=kneel neck=rest sheath=- torso=rest bob=5 head=0,1
+f armL=low armR=hold held=hold hang=kneel legs=kneel neck=rest sheath=- torso=rest bob=5 head=0,1
+clip idle U posture kneel
+f armL=low armR=low held=low hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=0,1
+f armL=low armR=hold held=hold hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=0,1
+clip idle R posture kneel
+f armL=- armR=low held=low hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=1,1 lean=1
+f armL=- armR=hold held=hold hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=1,1 lean=1
+clip idle L posture kneel
+f armL=low armR=low held=low hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=-1,1 lean=-1
+f armL=low armR=hold held=hold hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=-1,1 lean=-1
+clip idle D posture kneel variant 1
+f armL=idle armR=knee hang=kneel legs=kneel neck=rest sheath=- torso=rest bob=5 head=0,1 expr=closed
+f armL=idle armR=knee hang=kneel legs=kneel neck=rest sheath=- torso=rest bob=6 head=0,1 expr=closed
+clip idle U posture kneel variant 1
+f armL=idle armR=knee hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=0,1
+f armL=idle armR=knee hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=6 head=0,1
+clip idle R posture kneel variant 1
+f armL=- armR=knee hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=1,2 expr=closed
+f armL=- armR=knee hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=6 head=1,2 expr=closed
+clip idle L posture kneel variant 1
+f armL=knee armR=- hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=5 head=-1,2 expr=closed
+f armL=knee armR=- hilt=rest hang=kneel legs=kneel neck=rest sheath=sit torso=rest bob=6 head=-1,2 expr=closed
+
+# ---- Row: on the thwart (the hull hides the legs): reach, catch, pull, recover, synced to the oars by the view
+clip idle D posture row
+f armL=reach armR=reach hang=sit legs=sit neck=rest sheath=rest torso=rest bob=3
+f armL=reach armR=reach hang=sit legs=sit neck=rest sheath=rest torso=rest bob=2
+f armL=pull armR=pull hang=sit legs=sit neck=rest sheath=rest torso=rest bob=1
+f armL=hold armR=hold hang=sit legs=sit neck=rest sheath=rest torso=rest bob=2
+clip idle U posture row
+f armL=reach armR=reach hang=sit legs=sit neck=rest sheath=sit torso=rest bob=3
+f armL=reach armR=reach hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=pull armR=pull hang=sit legs=sit neck=rest sheath=sit torso=rest bob=1
+f armL=hold armR=hold hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+clip idle R posture row
+f armL=- armR=reach hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2 lean=1
+f armL=- armR=reach hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=- armR=pull hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2 lean=-1
+f armL=- armR=hold hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+clip idle L posture row
+f armL=reach armR=- hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2 lean=-1
+f armL=reach armR=- hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+f armL=pull armR=- hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2 lean=1
+f armL=hold armR=- hang=sit legs=sit neck=rest sheath=sit torso=rest bob=2
+
+# ---- Sleep: lying in the berth (doll::sleeper composes the down view for north-south berths, the left view turned for
+#      the across ones; hats off, the body under the berth's blanket): the hands on the chest over the sheet; the breath
+#      lifts the chest a pixel (the head stays on the pillow)
+clip idle D posture sleep
+f armL=hold armR=hold legs=idle neck=rest sheath=- hilt=- torso=rest expr=closed hairpose=lie
+f armL=hold armR=hold legs=idle neck=rest sheath=- hilt=- torso=rest expr=closed hairpose=lie bob=-1 head=0,1
+clip idle L posture sleep
+f armL=hold armR=- legs=idle neck=rest sheath=- hilt=- torso=rest expr=closed hairpose=lie
+f armL=hold armR=- legs=idle neck=rest sheath=- hilt=- torso=rest expr=closed hairpose=lie bob=-1 head=0,1

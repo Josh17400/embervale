@@ -3,7 +3,7 @@
 #
 #   tools/slot.sh <command> [args...]
 #
-# Takes one of EMB_SLOTS (default 3) slots, runs the command, releases the slot and returns the command's exit
+# Takes one of EMB_SLOTS (default 5) slots, runs the command, releases the slot and returns the command's exit
 # code. Slots are directories created with mkdir (atomic), so every agent on the machine shares the same cap no
 # matter which repo copy or build directory it works in. A slot whose holder process is gone, or that is older
 # than EMB_SLOT_MAX_AGE seconds (default 3 hours), is treated as stale and removed.
@@ -14,11 +14,11 @@
 #   tools/slot.sh build_hero/embervale.exe --script tools/scripts/creator.txt
 #   tools/slot.sh --status          # list the current holders
 #
-# Environment: EMB_SLOTS (cap, default 3), EMB_SLOT_ROOT (lock directory), EMB_SLOT_WAIT (max seconds to wait
+# Environment: EMB_SLOTS (cap, default 5), EMB_SLOT_ROOT (lock directory), EMB_SLOT_WAIT (max seconds to wait
 # for a slot, default 3600; exit code 75 on timeout), EMB_SLOT_MAX_AGE (stale age, default 10800).
 
 set -u
-N="${EMB_SLOTS:-3}"
+N="${EMB_SLOTS:-5}"
 MAXAGE="${EMB_SLOT_MAX_AGE:-10800}"
 MAXWAIT="${EMB_SLOT_WAIT:-3600}"
 if [ -n "${EMB_SLOT_ROOT:-}" ]; then

@@ -1,0 +1,55 @@
+# kin/youth/neck/kerchief: the youth's kerchief: a triangle of the accent knotted at the throat, its point on the chest,
+# the knot's ends behind the neck (the back view); flow keys keep it still (it is short)
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h.
+use person
+body youth
+role neck kerchief
+layer neck
+anchor neck
+keys neck
+
+view D key rest origin 4 0
+|mpnnnnom
+|.mponnm.
+|..mpnm..
+|...mm...
+
+view U key rest origin 4 0
+|mpooonnm
+|...mnm..
+|...mm...
+
+view R key rest origin 4 0
+|.mpoonm
+|m...mpm
+|.....mm
+
+view R key flow origin 4 0
+|.mpoonm
+|m...mpm
+|.....mm
+
+view R key flow2 origin 4 0
+|.mpoonm
+|mm..mpm
+|.....mm
+
+view L key rest origin 3 0
+|mpoonm.
+|mpm...m
+|mm.....
+
+view L key flow origin 3 0
+|mpoonm.
+|mpm...m
+|mm.....
+
+view L key flow2 origin 3 0
+|mpoonm.
+|mpm..mm
+|mm.....
+
+view L key lie origin 3 0
+|mpoonm.
+|mpm...m
+|mm.....

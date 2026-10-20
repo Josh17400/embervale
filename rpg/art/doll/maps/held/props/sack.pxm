@@ -1,0 +1,57 @@
+# held/props/sack: a full grain sack slung on the right shoulder for the Carry posture (PROPS, P2b; variant 0): burlap in
+# cloth 3, the neck in the fist. Format: rpg/art/doll/doll.h. Around the shoulder grip of the pose arms, anchored on the
+# right shoulder; it rides behind the head (neck), over the back when seen from behind.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held sack
+anchor shoulderR
+keys held
+z 40
+
+view D key shoulder origin 6 5 layer neck
+|...QQQQ..
+|.QQSTSRQQ
+|QSTTSSRRQ
+|QSTSSRRRQ
+|QSSSRRRQ.
+|QRSRRRQR.
+|.QRRQQ...
+
+view U key shoulder origin 1 5 layer neck
+|...QQQQ..
+|.QQSTSRQQ
+|QSTTSSRRQ
+|QSTSSRRRQ
+|QSSSRRRQ.
+|QRSRRRQR.
+|.QRRQQ...
+
+view R key shoulder origin 8 3 layer hairFront
+|..QQQQ..
+|.QSTSRQ.
+|QSTTSRRQ
+|QSTSSRRQ
+|QSSSRRRQ
+|.QRRRRQR
+|..QQQQ..
+
+view L key shoulder origin -4 8 layer hairBack
+|..QQQQ..
+|.QSTSRQ.
+|QSTTSRRQ
+|QSTSSRRQ
+|QSSSRRRQ
+|QQRRRRQ.
+|..QQQQ..

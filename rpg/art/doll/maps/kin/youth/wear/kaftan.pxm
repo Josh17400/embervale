@@ -1,0 +1,65 @@
+# kin/youth/wear/kaftan: the youth's kaftan: long and open down the front over a linen inner garment, the edges trimmed
+# in gilt (metal2), a sash in the accent at the waist; kaftan_hang carries the opening to the hem
+# KIN-YOUTH (P2b wave 2). Format: rpg/art/doll/doll.h. The girl's (`when girl replace`) narrows a pixel at the waist.
+use person woman
+body youth
+role garment kaftan
+layer torso
+anchor neck
+keys rest
+
+view D key rest origin 6 0
+|...5qrrq5...
+|5988PxwN7765
+|..68PxwN66..
+|..68PxwN66..
+|..mnoppnnm..
+
+view D key rest origin 6 0 when girl replace
+|...5qrrq5...
+|5989PxwN7765
+|..68PxwN66..
+|...6PxwN6...
+|...noppnm...
+
+view U key rest origin 6 0
+|...588765...
+|598877777665
+|..68877766..
+|..68777666..
+|..mnoppnnm..
+
+view U key rest origin 6 0 when girl replace
+|...588765...
+|598877777665
+|..68877766..
+|...687766...
+|...noppnm...
+
+view R key rest origin 4 0
+|..5qrq5.
+|.598876P
+|588776xP
+|588776xP
+|mnoppnnm
+
+view R key rest origin 4 0 when girl replace
+|..5qrq5.
+|.598876P
+|588776xP
+|.58876P.
+|.noppnm.
+
+view L key rest origin 4 0
+|.5qrq5..
+|P988765.
+|Px887665
+|Px887665
+|mnoppnnm
+
+view L key rest origin 4 0 when girl replace
+|.5qrq5..
+|P988765.
+|Px887665
+|.Px8765.
+|.noppnm.

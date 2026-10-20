@@ -1,0 +1,73 @@
+# held/props/book: an open book for the Read posture (PROPS, P2b): two pages of linen in a leather binding with a brass
+# clasp hanging, held open in both hands before the chest (hold) and held out to read (reach). Format: rpg/art/doll/doll.h.
+# Between the pose arms' grips, anchored on the right shoulder; under the fists.
+use person
+legend V linen 0
+legend W linen 1
+legend X linen 2
+legend Y linen 3
+legend Z linen 4
+legend Q cloth3 0
+legend R cloth3 1
+legend S cloth3 2
+legend T cloth3 3
+legend U cloth3 4
+legend I metal2 0
+legend J metal2 4
+body man woman
+role held book
+anchor shoulderR
+keys held
+z 40
+
+view D key hold origin -3 -3 layer neck
+|fff.fff
+|fYXfXWf
+|fYXfXWf
+|fXWfWWf
+|.ffJff.
+
+view D key reach origin -3 0 layer neck
+|fff.fff
+|fYXfXWf
+|fYXfXWf
+|fXWfWWf
+|.ffJff.
+
+view U key hold origin 10 -3 layer heldBack
+|fff.fff
+|fZXfXYf
+|fZXfXYf
+|fZZfZXf
+|.ffJff.
+
+view U key reach origin 10 0 layer heldBack
+|fff.fff
+|fZXfXYf
+|fZXfXYf
+|fZZfZXf
+|.ffJff.
+
+view R key hold origin -4 -3 layer neck
+|ff..ff
+|fYffWf
+|fYXfXf
+|.fffff
+
+view R key reach origin -7 0 layer neck
+|ff..ff
+|fYffWf
+|fYXfXf
+|.fffff
+
+view L key hold origin 9 -3 layer neck
+|ff..ff
+|fZffYf
+|fXfXYf
+|fffff.
+
+view L key reach origin 12 0 layer neck
+|ff..ff
+|fZffYf
+|fXfXYf
+|fffff.

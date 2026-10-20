@@ -1,0 +1,13 @@
+# wear/man/pattern_stripes: the man's striped cloth: a pattern tile laid over his garments' cloth (every third row in the
+# pattern colour, the cloth's own shading kept through it: doll.h `tags tile`), riding the garment's anchor
+# GARB-M (P2b wave 2). Format: rpg/art/doll/doll.h.
+use person
+legend T pattern 2
+body man
+role overlay stripes
+tags tile overlay
+
+view D key rest origin 0 0
+|T
+|.
+|.

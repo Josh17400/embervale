@@ -1,0 +1,34 @@
+# head/adult/woman/brow_straight: straight brows: a level 3 px line, the outer end a step lighter
+# P2b FACES (wave 2). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role brow straight
+layer face
+anchor head
+keys rest
+tags mirror-ok
+
+view D key rest origin -3 -8
+|cbb....bbc
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -11 -8
+|bc
+
+view L key rest origin -3 -8
+|cb
+
+# (P2b FACES) elven fineness: thinner, swept-up brows and a finer nose for elves (when elf replace)
+view D key rest origin -4 -7 when elf replace
+|c......c
+|.b....b.
+
+view R key rest origin -11 -7 when elf replace
+|c.
+|.b
+
+view L key rest origin -3 -7 when elf replace
+|.c
+|b.

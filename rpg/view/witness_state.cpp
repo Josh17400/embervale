@@ -115,7 +115,10 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   if (g.mode == Mode::Menu) j.field("menu", v.menuTab());
   if (g.mode == Mode::Dialogue) {
     j.key("dialogue").begin_object().field("speaker", g.dlg.speaker).field("text", g.dlg.text.substr(0, 1200)).key("options").begin_array();
-    for (const DlgOpt& o : g.dlg.opts) j.value(o.label);
+    // only the options on show (the page the player sees: the first page's headers, or the open group's options), in
+    // screen order, so a playtester's `choose N` (N - 1 arrow presses) lands on the option it named (P2b fix round 1:
+    // listing the grouped options too made "choose 6) RENT A ROOM" press FAREWELL)
+    for (const DlgOpt& o : g.dlg.opts) if (g.dlg.shows(o)) j.value(o.label);
     j.end_array().end_object();
   } else j.key("dialogue").value(nullptr);   // (Witness 0.6 playtest-ready: null while none is open)
   // (Witness 0.6/0.7) the outcome: trace --xy and heatmap mark deaths from it, a playtest wakes on it
@@ -200,6 +203,16 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
         .field("safe", std::to_string(Pix::SL) + " " + std::to_string(Pix::ST) + " " + std::to_string(Pix::SR) + " " + std::to_string(Pix::SB))
         .field("v1Draws", v.v1Draws).field("peopleMB", r2(v.peopleMB())).field("figShare", r2(ph > 0 && v.heroSprite.on && v.heroSprite.by1 >= v.heroSprite.by0 ? 100.0 * (v.heroSprite.by1 - v.heroSprite.by0 + 1) * wl.scale / ph : 0.0));
     j.end_object();
+    // (Witness 0.7.1) the layers in screen pixels, so measure scale / doctor read each one at its own scale: the world
+    // layer (integer D) and the UI layer (its fit scale); rect [x, y, w, h]
+    auto layer = [&](const char* name, const Pix::Layer& l) {
+      j.begin_object().field("name", name).key("rect").begin_array().value(l.offX).value(l.offY)
+          .value((int)std::lround(l.w * l.scale)).value((int)std::lround(l.h * l.scale)).end_array().end_object();
+    };
+    j.key("layers").begin_array();
+    layer("world", wl);
+    layer("ui", ul);
+    j.end_array();
   }
 
   // where a quest's next step happens, outside: the objective's tile centre in the frame `pos` uses (Game::questTarget,
@@ -349,7 +362,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
       const int id = 50000000 + (int)(((uint32_t)gx & 0xFFFu) << 12 | ((uint32_t)gy & 0xFFFu));
       // door: the playtest keeps off it unless it is the goal; leadsTo: `goto Inn` enters by it
       j.begin_object().field("id", id).field("type", buildingType(b.type)).field("kind", "building").field("talk", false)
-          .field("door", true).field("leadsTo", buildingType(b.type));
+          .field("door", true).field("leadsTo", buildingType(b.type)).field("enter", "w");   // doors face south: push up
       j.key("pos").vec(gx + 0.5, gy + 0.5);
       j.field("dist", r2(doors[i].d)).field("hostile", false).end_object();
     }
@@ -366,14 +379,15 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
   }
   // inside: the way out (stepping onto it leaves) and the stairs, so "goto Exit" / "goto StairsUp" work
   if (g.inside && inWorld) {
-    auto place = [&](int id, const char* type, int tx, int ty) {
+    auto place = [&](int id, const char* type, int tx, int ty, const char* enter) {
       j.begin_object().field("id", id).field("type", type).field("kind", "place").field("talk", false).field("door", true);
+      if (enter) j.field("enter", enter);   // the push direction that uses it (the way out is on the south wall)
       j.key("pos").vec(tx + 0.5, ty + 0.5);
       j.field("dist", r2(std::hypot(tx + 0.5f - P.p.x / TILE, ty + 0.5f - P.p.y / TILE))).field("hostile", false).end_object();
     };
-    if (g.sub.exitY >= 0) place(49000001, "Exit", g.sub.exitX, g.sub.exitY);
-    if (g.sub.up.valid()) place(49000002, "StairsUp", g.sub.up.x, g.sub.up.y);
-    if (g.sub.down.valid()) place(49000003, "StairsDown", g.sub.down.x, g.sub.down.y);
+    if (g.sub.exitY >= 0) place(49000001, "Exit", g.sub.exitX, g.sub.exitY, "s");
+    if (g.sub.up.valid()) place(49000002, "StairsUp", g.sub.up.x, g.sub.up.y, nullptr);
+    if (g.sub.down.valid()) place(49000003, "StairsDown", g.sub.down.x, g.sub.down.y, nullptr);
   }
   j.end_array();
 

@@ -1,0 +1,133 @@
+# headwear/cloth/veil: the Veil (OUTER, P2b wave 2): a fine cloth over the hair, set back to show the hairline, falling straight
+# beside the face over the shoulders and in long folds down the back to the shoulder blades (a lit hem); no cowl, so it
+# reads apart from the hood. Hair mask: 18 px over the head.
+# Format: rpg/art/doll/doll.h.
+use person
+body adult
+role headwear veil
+layer headwear
+anchor head
+keys hatpose
+legend Q head 0
+legend R head 1
+legend S head 2
+legend T head 3
+legend U head 4
+
+view D key rest origin 1 1
+|......QQQQQQ......
+|....QQTUUTTSQQ....
+|...QTUUTTTSSSRQ...
+|..QTUTTTSSSSSSRQ..
+|.QTUTTSSSSSSSSRRQ.
+|.QTTQQQQQQQQQQSRQ.
+|QTTQ..........QSRQ
+|QTTQ..........QSRQ
+|QTSQ..........QSRQ
+|QTTQ..........QSRQ
+|QTTQ..........QSRQ
+|QTTQ..........QSRQ
+|QTSQ..........QSRQ
+|QTTQ..........QSRQ
+|QTTQ..........QSRQ
+|QTTSQ........QSSRQ
+|QTTSSQ......QSRSRQ
+|QTTTSQ......QSSRRQ
+|QTTSRQ......QSRSRQ
+|.QTTSQ......QSSRQ.
+|.QQQQ........QQQQ.
+
+view U key rest origin 1 1
+|......QQQQQQ......
+|....QQTUUTTSQQ....
+|...QTUUTTTSSSRQ...
+|..QTUUTTTSSSSRRQ..
+|.QTUTTTSSSSSSRRRQ.
+|.QTTTTSSRSSSSRRRQ.
+|.QTTTSSSRTSSSRRRQ.
+|.QTTSSSRTSSSSRRRQ.
+|.QTTSSSRTSRSSRRRQ.
+|.QTSSSRTSSRTSRRRQ.
+|.QTSSSRTSSRTSRRRQ.
+|.QTSSRTSSSRTSRRRQ.
+|.QTSSRTSSSRTSRRRQ.
+|.QTSSRTSSSRTSRRRQ.
+|QTTSRTTSSSRTSRQRRQ
+|QTTSRTTSSSRTSRQRRQ
+|QTTSRTTSSSRTSRQRRQ
+|QTTSRTTSSSRTSRQRRQ
+|QTTSRTTSSRRTSRQRRQ
+|QTTRRTTSSRRTSRQRRQ
+|QTTTTTTTTTTTTSRRRQ
+|.QQQQQQQQQQQQQQQQ.
+
+view R key rest origin 2 1
+|.......QQQQQQ......
+|.....QQTUUTTSQQ....
+|....QTUUUTTSSSSQ...
+|...QTUUTTTSSSSSSQ..
+|..QTUTTTSSSSSSSSSQ.
+|.QTUTTSSSSSSSSSQQ..
+|QTTTTSSSSSSRQQQ....
+|QTTTSSSSSRQ........
+|QTTSSSSSSRQ........
+|QTTSSSSSRRQ........
+|QTTSSSSSRRQ........
+|QTTSSSSSRRQ........
+|QTTSSSSRRQ.........
+|QTTSSSSRRQ.........
+|QTTSSSSRQ..........
+|QTTSSSRRQ..........
+|QTTSSSRQ...........
+|QTSRSSRQ...........
+|QTSRSSRQ...........
+|QTSRSRQ............
+|QTSRSRQ............
+|QTTTTTQ............
+|.QQQQQ.............
+
+view L key rest origin 1 1
+|......QQQQQQ.......
+|....QQTUUTTSQQ.....
+|...QTUUUTTSSSRQ....
+|..QTUUTTTSSSSSRQ...
+|.QTUTTTSSSSSSSSRQ..
+|..QQTTSSSSSSSSSRRQ.
+|....QQQTSSSSSSSSRRQ
+|........QTSSSSSSRRQ
+|........QTSSSSSSSRQ
+|........QTTSSSSSRRQ
+|........QTTSSSSSRRQ
+|........QTTSSSSSRRQ
+|.........QTSSSSSRRQ
+|.........QTSSSSSRRQ
+|..........QTSSSSRRQ
+|..........QTTSSSRRQ
+|...........QTSSSRRQ
+|...........QTSRSRRQ
+|...........QTSRSRRQ
+|............QTSRSRQ
+|............QTSRSRQ
+|............QTTTSSQ
+|.............QQQQQ.
+
+view L key lie origin 1 1
+|......QQQQQQ.....
+|....QQTUUTTSQQ...
+|...QTUUUTTSSSRQ..
+|..QTUUTTTSSSSSRQ.
+|.QTUTTTSSSSSSSSRQ
+|..QQTTSSSSSSSSSRQ
+|....QQQTSSSSSSSRQ
+|........QTSSSSSRQ
+|........QTSSSSSRQ
+|........QTTSSSSRQ
+|........QTTSSSSRQ
+|........QTTSSSSRQ
+|.........QTSSSSRQ
+|.........QTSSSSRQ
+|..........QTSSSRQ
+|..........QTTSSRQ
+|...........QTSSRQ
+|...........QTSRRQ
+|............QQQQ.

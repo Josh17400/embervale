@@ -1,0 +1,133 @@
+# wear/woman/coat: the woman's coat (STYLE_P2 22 "Coat"; merchants, the well-off): cut to her, the lapels open on a linen stock at
+# the throat, brass buttons down the closed bodice, the waist nipped by a step-1 seam; the skirt (the hang) falls open from the
+# waist to the knee over her trousers; long sleeves with turned-back cuffs in accent
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role garment coat
+layer torso
+anchor neck
+keys torso
+
+view D key rest origin 8 -1
+|......qrrq......
+|598689yxxw975765
+|5886889xw6765765
+|5886888966765665
+|...5888P676665..
+|...5888876665...
+|...5687P66665...
+|...5877876665...
+|...5667P66665...
+
+view D key rest origin 8 -2 when elder
+|-..............-
+
+view D key swing origin 8 -1
+|......qrrq......
+|598689yxxw975765
+|5886889xw6765765
+|5886888966765665
+|...5888P676665..
+|...5888876665...
+|...5687P66665...
+|...5877876665...
+|...5667P66665...
+
+view D key swing origin 8 -2 when elder
+|-..............-
+
+view D key drawn origin 8 -1
+|......qrrq......
+|598689yxxw975765
+|5886889xw6765765
+|5886888966765665
+|...5888P676665..
+|...5888876665...
+|...5687P66665...
+|...5877876665...
+|...5667P66665...
+
+view D key drawn origin 8 -2 when elder
+|-..............-
+
+view U key rest origin 8 -1
+|.....qrrrrrq....
+|5986988777765765
+|5886887777665765
+|5886887777765665
+|...5887777665...
+|...5887777665...
+|...5687776665...
+|...5877777665...
+|...5667776665...
+
+view U key rest origin 8 -2 when elder
+|-..............-
+
+view R key rest origin 6 -1
+|......qrrqq..
+|..58759889y..
+|..5865887x95.
+|..5865887795.
+|..58767777P5.
+|..587677765..
+|..56777776P5.
+|..587777765..
+|..56677776P5.
+
+view R key rest origin 4 -2 when elder
+|-
+
+view R key swing origin 6 -1
+|......qrrqq..
+|..58759889y..
+|..5865887x95.
+|..5865887795.
+|..58767777P5.
+|..587677765..
+|..56777776P5.
+|..587777765..
+|..56677776P5.
+
+view R key swing origin 4 -2 when elder
+|-
+
+view L key rest origin 7 -1
+|..qqrrq......
+|..y98895765..
+|.59x7885765..
+|.5978885765..
+|.5P77776765..
+|..587776765..
+|.5P77777765..
+|.5677777765..
+|.5P67777665..
+
+view L key rest origin -3 -2 when elder
+|-
+
+view L key swing origin 7 -1
+|..qqrrq......
+|..y98895765..
+|.59x7885765..
+|.5978885765..
+|.5P77776765..
+|..587776765..
+|.5P77777765..
+|.5677777765..
+|.5P67777665..
+
+view L key swing origin -3 -2 when elder
+|-
+
+view L key lie origin 7 -1
+|..qqrrq......
+|..y98895765..
+|.59x7885765..
+|.5978885765..
+|.5P77776765..
+|..587776765..
+|.5P77777765..
+|.5677777765..
+|.5P67777665..

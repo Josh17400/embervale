@@ -1,0 +1,18 @@
+# wear/woman/tile_dots: the woman's dots: scattered dots, staggered from row to row;
+# laid as a tile over her garments' cloth in the pattern slot, the cloth's shading kept (tags tile; doll.h). GARB-W (P2b).
+use person
+body woman
+role overlay dots
+legend X pattern 2
+layer torso
+anchor neck
+keys rest
+tags tile
+
+view D key rest origin 0 0
+|X.....
+|......
+|......
+|...X..
+|......
+|......

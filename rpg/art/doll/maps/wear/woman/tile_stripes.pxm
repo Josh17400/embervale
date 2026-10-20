@@ -1,0 +1,15 @@
+# wear/woman/tile_stripes: the woman's stripes: a pattern-coloured stripe every third row, so the stripes run on from the bodice to the skirt across the waist;
+# laid as a tile over her garments' cloth in the pattern slot, the cloth's shading kept (tags tile; doll.h). GARB-W (P2b).
+use person
+body woman
+role overlay stripes
+legend X pattern 2
+layer torso
+anchor neck
+keys rest
+tags tile
+
+view D key rest origin 0 0
+|X
+|.
+|.

@@ -1,0 +1,53 @@
+# kin/child/headwear/furhat: the fur hat: a round cap of fur, a lumpy lit outline, a deep fur band over the brow and the ears
+# (KIN-CHILD, P2b wave 2; the child's headwear, STYLE_P2 23). Format: rpg/art/doll/doll.h.
+use person
+body child
+role headwear furhat
+legend F head 0
+legend H head 1
+legend I head 2
+legend J head 3
+legend Z head 4
+layer headwear
+anchor head
+keys rest
+
+view D key rest origin 1 2
+|...FF.FF.FF...
+|..FJFFJFFIFF..
+|.FJZJJIJIIHHF.
+|FJZJJIIJIIHHHF
+|FJJIIJIIHIHHHF
+|FZJJIJIIJIHIHF
+|FIJIIHIIHIHHHF
+|.FF........FF.
+
+view U key rest origin 1 2
+|...FF.FF.FF...
+|..FJFFJFFIFF..
+|.FJZJJIJIIHHF.
+|FJZJJIIJIIHHHF
+|FJJIIJIIHIHHHF
+|FIJJIJIIJIHIHF
+|FIJIIHIIHIHHHF
+|.FIJIIHIIHHHF.
+
+view R key rest origin 2 2
+|....FF.FF.FF..
+|...FJFFJFFIFF.
+|..FJZJJIJIIHHF
+|.FJZJJIIJIIHHF
+|FJJIIJIIHIHHHF
+|FZJJIJIIJIHIHF
+|FIJIIHIIHIHHF.
+|.FIJIIHHF.....
+
+view L key rest origin -1 2
+|..FF.FF.FF....
+|.FFJFFJFFIF...
+|FJZJJIJIIHHF..
+|FJZJJIIJIIHHF.
+|FJJIIJIIHIHHHF
+|FZJJIJIIJIHIHF
+|.FIJIIHIIHIHHF
+|.....FIJIIHHF.

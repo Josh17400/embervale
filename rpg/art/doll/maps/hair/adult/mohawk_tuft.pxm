@@ -1,0 +1,60 @@
+# hair/adult/mohawk_tuft: the Mohawk crest's tip: it stretches a pixel as the head drops and flattens as it rises (tuft keys)
+# P2b wave 2, HAIR. On the adult head box (STYLE_P2 21). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role hair mohawk
+layer hairFront
+anchor head
+keys tuft
+z 1
+
+view D key down origin 0 0
+|......aaaa......
+|......adda......
+
+view D key up origin 0 0
+|................
+|......----......
+|.....aaeeaa.....
+
+view U key down origin 0 0
+|......aaaa......
+|......adda......
+
+view U key up origin 0 0
+|................
+|......----......
+|.....aaddaa.....
+
+# (the hurt flinch facing sideways: the crest and the knot hold still)
+view R key down origin 0 0
+|.
+
+view L key down origin 0 0
+|.
+
+# (the sword's fierce face: the crest and the knot as they are)
+view D key fierce origin 0 0
+|.
+
+# capped (under a hat, a hood or a helm; a circlet shows the whole style): the style kept inside the headwear
+view D key down when capped,!circlet replace
+|.
+
+view D key up when capped,!circlet replace
+|.
+
+view U key down when capped,!circlet replace
+|.
+
+view U key up when capped,!circlet replace
+|.
+
+view R key down when capped,!circlet replace
+|.
+
+view L key down when capped,!circlet replace
+|.
+
+view D key fierce when capped,!circlet replace
+|.

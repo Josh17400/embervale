@@ -1,0 +1,19 @@
+# kin/youth/wear/tile_vines: the youth's vines pattern: a tile laid over the garment's cloth in the pattern slot, the cloth's
+# shading kept (tags tile; doll.h). Youth-sized: between the child's fine repeat and the adult's.
+# KIN-YOUTH (P2b wave 2).
+use person
+body youth
+role overlay vines
+legend X pattern 2
+layer torso
+anchor neck
+keys rest
+tags tile
+
+view D key rest origin 0 0
+|X.....
+|.X....
+|..X..X
+|...XX.
+|..X...
+|.X....

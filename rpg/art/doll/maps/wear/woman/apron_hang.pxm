@@ -1,0 +1,158 @@
+# wear/woman/apron_hang: the work apron's skirt: leather to the knee with a lit hem and its own outline row over the boots, the
+# shirt's hem at the hips beside it; from behind the shirt and the bow's tails; it swings forward on the stride
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role garment apron
+layer hangFront
+anchor hip
+keys hang
+sway 3
+
+view D key idle origin 8 -1
+|..58fihhhggf65..
+|....fihhhhgf....
+|....fjiiihgf....
+
+view D key rest origin 8 -1
+|..58fihhhggf65..
+|....fihhhhgf....
+|....fjiiihgf....
+
+view D key wide origin 8 -1
+|..58fihhhggf65..
+|....fihhhhgf....
+|....fjiiihgf....
+
+view D key flare origin 8 -1
+|..58fihhhggf65..
+|....fihhhhgf....
+|....fjiiihgf....
+
+view D key kneel origin 8 -1
+|..58fihhhggf65..
+|....fjiiihgf....
+
+view D key sit origin 8 -1
+|..58fihhhggf65..
+|...fjiiihhhggf..
+
+view D key floor origin 8 -1
+|..58fihhhggf65..
+|...fjiiihhhggf..
+
+view D key ride origin 8 -1
+|..58fihhhggf65..
+|...fjiiihhhggf..
+
+view U key idle origin 8 -1
+|..59887gg76665..
+|......g..g......
+
+view U key rest origin 8 -1
+|..59887gg76665..
+|......g..g......
+
+view U key wide origin 8 -1
+|..59887gg76665..
+|......g..g......
+
+view U key flare origin 8 -1
+|..59887gg76665..
+|......g..g......
+
+view U key kneel origin 8 -1
+|..59887gg76665..
+|......g..g......
+
+view U key sit origin 8 -1
+|..59887gg76665..
+
+view U key floor origin 8 -1
+|..59887gg76665..
+
+view U key ride origin 8 -1
+|..59887gg76665..
+
+view R key idle origin 8 -1
+|....5887766fhhf.
+|...........fhhf.
+|...........fjif.
+
+view R key rest origin 8 -1
+|....5887766fhhf.
+|...........fhhf.
+|...........fjif.
+
+view R key wide origin 8 -1
+|....5887766fhhf.
+|...........fhhhf
+|............fjif
+
+view R key flare origin 8 -1
+|....5887766fhhhf
+|............fhhf
+|.............fif
+
+view R key kneel origin 8 -1
+|....5887766fhhf.
+|...........fjif.
+
+view R key sit origin 8 2
+|.............fhhf
+|.............fjif
+|....5555555555...
+
+view R key floor origin 8 2
+|.............fhhf
+|.............fjif
+|....5555555555...
+
+view R key ride origin 8 2
+|.............fhhf
+|.............fjif
+|....5555555555...
+
+view L key idle origin 8 -1
+|.fhhf8877665....
+|.fhhf...........
+|.fjif...........
+
+view L key rest origin 8 -1
+|.fhhf8877665....
+|.fhhf...........
+|.fjif...........
+
+view L key wide origin 8 -1
+|.fhhf8877665....
+|fhhhf...........
+|fjif............
+
+view L key flare origin 8 -1
+|fhhhf8877665....
+|fhhf............
+|fif.............
+
+view L key kneel origin 8 -1
+|.fhhf8877665....
+|.fjif...........
+
+view L key sit origin 11 2
+|..fhhf...........
+|..fjif...........
+|....5555555555...
+
+view L key floor origin 11 2
+|..fhhf...........
+|..fjif...........
+|....5555555555...
+
+view L key ride origin 11 2
+|..fhhf...........
+|..fjif...........
+|....5555555555...
+
+view L key lie origin 8 -1
+|.fhhf8877665....
+|.fhhf...........
+|.fjif...........

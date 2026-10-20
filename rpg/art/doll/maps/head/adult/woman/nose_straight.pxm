@@ -1,0 +1,28 @@
+# head/adult/woman/nose_straight: a straight nose: a fine bridge shadow over the tip; in profile a straight line
+# P2b FACES (wave 2). Format: rpg/art/doll/doll.h.
+use person woman
+body woman
+role nose straight
+layer face
+anchor head
+keys rest
+
+view D key rest origin -8 -10
+|s
+|r
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -14 -9
+|s
+|sq
+
+view L key rest origin 0 -9
+|.t
+|qs
+
+# (P2b FACES) elven fineness: thinner, swept-up brows and a finer nose for elves (when elf replace)
+view D key rest origin -7 -10 when elf replace
+|t.
+|.r

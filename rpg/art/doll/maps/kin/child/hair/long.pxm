@@ -1,0 +1,112 @@
+# kin/child/hair/long: Long: straight to the shoulders, parted in the middle, falling beside the face and down the back
+# (KIN-CHILD, P2b wave 2; the child's 11 px head, STYLE_P2 3 and 21). Format: rpg/art/doll/doll.h.
+use person
+body child
+role hair long
+layer hairFront
+anchor head
+keys rest
+
+view D key rest origin 1 0
+|...aaaaaaaa...
+|..adeedcdcca..
+|.adeeddcddcca.
+|.addddcbdccba.
+|.acdda..adcba.
+|adca......acba
+|adc........cba
+|acb........bca
+|acb........bca
+|acb........bca
+|abb........bba
+|.ab........ba.
+|..a........a..
+
+view D key rest origin 1 -4 when capped,!circlet replace
+|.a..........a.
+|adca......acba
+|adc........cba
+|acb........bca
+|acb........bca
+|acb........bca
+|abb........bba
+|.ab........ba.
+|..a........a..
+
+view U key rest origin 1 0
+|...aaaaaaaa...
+|..adddddccca..
+|.adeeddddccba.
+|adeedddddccbba
+|acdddcdccccbba
+|acdcbdccbcbbba
+|acdcbcdcbcbbba
+|acdcbcdcbcbbba
+|abcbcbccbcbbba
+|abcbcbccbcbbba
+|abcbbcbbcbbbba
+|.abcbbcbbcbba.
+|..aabaabaabaa.
+
+view U key rest origin 1 -4 when capped,!circlet replace
+|ac..........ba
+|acdcbdccbcbbba
+|acdcbcdcbcbbba
+|acdcbcdcbcbbba
+|abcbcbccbcbbba
+|abcbcbccbcbbba
+|abcbbcbbcbbbba
+|.abcbbcbbcbba.
+|..aabaabaabaa.
+
+view R key rest origin 1 0
+|....aaaaaa....
+|..addeedcaa...
+|.adeeddddcca..
+|adddddcccccba.
+|acdccbcbcba...
+|accbcca.......
+|acbccba.......
+|acbcbba.......
+|acbcbba.......
+|abcbcba.......
+|abcbba........
+|.abba.........
+|..aa..........
+
+view R key rest origin 1 -4 when capped,!circlet replace
+|acdccb........
+|accbcca.......
+|acbccba.......
+|acbcbba.......
+|acbcbba.......
+|abcbcba.......
+|abcbba........
+|.abba.........
+|..aa..........
+
+view L key rest origin 0 0
+|....aaaaaa....
+|...aaddeedca..
+|..adeeddddcca.
+|.adddddcccccba
+|...acdccbcbcba
+|.......accbcca
+|.......acbccba
+|.......acbcbba
+|.......acbcbba
+|.......abcbcba
+|........abcbba
+|.........abba.
+|..........aa..
+
+view L key rest origin 0 -4 when capped,!circlet replace
+|........bcbcba
+|.......accbcca
+|.......acbccba
+|.......acbcbba
+|.......acbcbba
+|.......abcbcba
+|........abcbba
+|.........abba.
+|..........aa..

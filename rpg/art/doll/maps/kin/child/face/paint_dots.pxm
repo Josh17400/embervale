@@ -1,0 +1,26 @@
+# kin/child/face/paint_dots: the child's face paint: three dots on each cheek (the accent; the people's own paint)
+# (KIN-CHILD, P2b wave 2; the child, STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person
+body child
+role paint dots
+layer face
+anchor head
+keys rest
+z 3
+tags overlay mirror-ok
+
+view D key rest origin -2 -8
+|o.o..o.o
+|.o....o.
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -8 -8
+|o.o
+|.o.
+
+view L key rest origin -1 -8
+|o.o
+|.o.
+

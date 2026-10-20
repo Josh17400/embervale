@@ -1,9 +1,10 @@
-# headwear/cloth/hood: the Hood: cloth over the head and hair, the face framed, a cowl on the shoulders (the braid falls out below it)
-# The slice (P2b wave 1, FOLK-BODY; armour and helms to P2c's ARMOUR / HELMS). Format: rpg/art/doll/doll.h.
+# headwear/cloth/hood: the culture Hood (OUTER, P2b wave 2; first drawn by the slice): a soft round hood over the head and hair,
+# a lit folded rim over the brow, the hood's shadowed inside framing the face, a seam over the crown, a cowl on the shoulders.
+# Hair mask: 18 px wide over the head (the hair's 14-18 px box), so no lock of a capped style shows outside it; the fringe
+# shows under the rim; long lengths, braids and tails below the cowl still show (STYLE_P2 21). Format: rpg/art/doll/doll.h.
 use person
 body adult
 role headwear hood
-role headwear legacyhood
 layer headwear
 anchor head
 keys hatpose
@@ -13,92 +14,109 @@ legend S head 2
 legend T head 3
 legend U head 4
 
-view D key rest origin 0 -1
-|.....QQQQQQ.....
-|...QQTUUTTSQQ...
-|..QTUUTTSSSRRQ..
-|.QTUTTSSSSSRRRQ.
-|.QTTSQQQQQQSRRQ.
-|QTTSQ......QRRRQ
-|QTSQ........QRRQ
-|QTSQ........QRRQ
-|QTQ..........QRQ
-|QTQ..........QRQ
-|QTSQ........QRRQ
-|QTTSQ......QRRRQ
-|.QTTSQ....QRRRQ.
-|QTTTSSQQQQRRRRRQ
-|QTTSSSSRRRRRRRRQ
-|.QQQQQQQQQQQQQQ.
+view D key rest origin 1 0
+|......QQQQQQ......
+|....QQTUUTTSQQ....
+|..QQTUUUTTSSRSQQ..
+|.QTUUUTTTSSSRSSRQ.
+|QTUUTTTSSSSSSRSSRQ
+|QTTTTUUTTTTTSSSRRQ
+|QTTSQQQQQQQQQQSSRQ
+|QTTQ..........QSRQ
+|QTTQ..........QSRQ
+|QTSQ..........QSRQ
+|QTTQ..........QSRQ
+|QTTQ..........QSRQ
+|.QTTQ........QSRQ.
+|.QTSTQ......QSSRQ.
+|QTTSTSQQQQQQSRSSRQ
+|QTTTSRSSSSSSSRSSRQ
+|.QTTSSRSSSSSSRSRQ.
+|..QQTSSSSSSSSRQQ..
+|....QQQQQQQQQQ....
 
-view U key rest origin 0 -1
-|.....QQQQQQ.....
-|...QQTUUTTSQQ...
-|..QTUUTTSSSRRQ..
-|.QTUTTSSSSSRRRQ.
-|.QTTTSSSSSSRRRQ.
-|QTTTSSSSSSSSRRRQ
-|QTTSSSSSSSSSRRRQ
-|QTTSSSSSSSSRRRRQ
-|QTTSSSSSSSSRRRRQ
-|QTSSSSSSSSSRRRRQ
-|QTSSSSSSSSRRRRRQ
-|.QTSSSSSSRRRRRQ.
-|.QTSSSSSRRRRRRQ.
-|QTTSSSSSRRRRRRRQ
-|QTTSSSSRRRRRRRRQ
-|.QQQQQQQQQQQQQQ.
+view U key rest origin 1 0
+|......QQQQQQ......
+|....QQTUUTTSQQ....
+|..QQTUUUTTSSSSQQ..
+|.QTUUTTTTSSSSSRRQ.
+|QTUTTTTTSSSSSSRRRQ
+|QTUTTTTSSRSSSRRRRQ
+|QTTTTTSSSRSSSRRRRQ
+|QTTTTSSSSRSSRRRRRQ
+|QTTTSSSSSRSSRRRRRQ
+|QTTTSSSSSRSSRRRRRQ
+|QTTSSSSSSRSSRRRRRQ
+|.QTTSSSSSRSSRRRRQ.
+|.QTTSSSSSRSRRRRRQ.
+|..QTRRSSRRRSRRRQ..
+|.QTTTTTSSRSSSRRRQ.
+|QTTTSSRSSSRSSRRRRQ
+|QTTSSRSSSSSRSRQRRQ
+|.QTTTTTTTTTTSRRRQ.
+|...QQQTSRSSRQQQ...
+|......QTSRRQ......
+|.......QQQQ.......
 
-view R key rest origin 1 -1
-|......QQQQQQ....
-|....QQTUUTTSQQ..
-|...QTUUTTSSSRRQ.
-|..QTUTTSSSSSRRRQ
-|.QTTTSSSSSSRRRQ.
-|QTTSSSSSSSRRQ...
-|QTTSSSSSSSRQ....
-|QTSSSSSSSRQ.....
-|QTSSSSSSSRQ.....
-|QTSSSSSSSRQ.....
-|QTSSSSSSSRRQ....
-|.QTSSSSSSRRRQ...
-|.QTSSSSSRRRRQ...
-|QTTSSSSRRRRRRQ..
-|QTTSSSRRRRRRRRQ.
-|.QQQQQQQQQQQQQ..
+view R key rest origin 2 0
+|.......QQQQQQ......
+|.....QQTUUTTSQQ....
+|....QTUUUTTSSSSQ...
+|...QTUUTTTSSSSSSQ..
+|..QTUTTTSSSSSSSSSQ.
+|.QTUTTSSSSSSSTTTTTQ
+|QTTTTSSSSSSRQQQQQQ.
+|QTTTSSSSSRQ........
+|QTTSSSSSSRQ........
+|QTTSSSSSRRQ........
+|QTTSSSSSRRQ........
+|.QTSSSSSRRQ........
+|.QTTSSSRRRQ........
+|..QTSSSSRRRQ.......
+|...QTSSSRRRRQ......
+|...QTTSSSSRRRRQ....
+|...QTTTSSSRRRRRQ...
+|....QQTSSRRRRQQ....
+|......QQQQQQQQ.....
 
-view L key rest origin -1 -1
-|....QQQQQQ......
-|..QQTUUTTSQQ....
-|.QTUUTTSSSRRQ...
-|QTUTTSSSSSRRRQ..
-|.QTTTSSSSSSRRRQ.
-|...QTTSSSSSSSRRQ
-|....QTTSSSSSSSRQ
-|.....QTSSSSSSSRQ
-|.....QTSSSSSSSRQ
-|.....QTSSSSSSSRQ
-|....QTSSSSSSSRRQ
-|...QTSSSSSSRRRQ.
-|...QTSSSSSRRRRQ.
-|..QTTSSSSRRRRRRQ
-|.QTTSSSRRRRRRRRQ
-|..QQQQQQQQQQQQQ.
+view L key rest origin 1 0
+|......QQQQQQ.......
+|....QQTUUTTSQQ.....
+|...QTUUUTTSSSSQ....
+|..QTUUTTTSSSSSRQ...
+|.QTUTTTSSSSSSSRRQ..
+|QTUUTTSSSSSSSSRRRQ.
+|.QQQQQQTSSSSSSSRRRQ
+|........QTSSSSSRRRQ
+|........QTSSSSSSRRQ
+|........QTTSSSSSRRQ
+|........QTSSSSSSRRQ
+|........QTSSSSSRRQ.
+|........QTTSSSSRRQ.
+|.......QTSSSSSRRQ..
+|......QTSSSSSRRQ...
+|....QTTSSSSSSRRQ...
+|...QTTSSSSSSRRRQ...
+|....QQTSSSSRRQQ....
+|.....QQQQQQQQ......
 
-view L key lie origin -1 -1
-|....QQQQQQ....
-|..QQTUUTTSQQ..
-|.QTUUTTSSSRRQ.
-|QTUTTSSSSSRRRQ
-|.QTTTSSSSSSRRQ
-|...QTTSSSSSSRQ
-|....QTTSSSSSSQ
-|.....QTSSSSSSQ
-|.....QTSSSSSSQ
-|.....QTSSSSSSQ
-|....QTSSSSSSSQ
-|...QTSSSSSSRRQ
-|...QTSSSSSRRRQ
-|..QTTSSSSRRRRQ
-|.QTTSSSRRRRRRQ
-|..QQQQQQQQQQQ.
+view L key lie origin 1 0
+|......QQQQQQ.....
+|....QQTUUTTSQQ...
+|...QTUUUTTSSSSQ..
+|..QTUUTTTSSSSSRQ.
+|.QTUTTTSSSSSSSRRQ
+|QTUUTTSSSSSSSSRRQ
+|.QQQQQQTSSSSSSSRQ
+|........QTSSSSSRQ
+|........QTSSSSSRQ
+|........QTTSSSSRQ
+|........QTSSSSSRQ
+|........QTSSSSSRQ
+|........QTTSSSSRQ
+|.......QTSSSSSRRQ
+|......QTSSSSSRRQ.
+|....QTTSSSSSSRRQ.
+|...QTTSSSSSSRRRQ.
+|....QQTSSSSRRQQ..
+|.....QQQQQQQQ....

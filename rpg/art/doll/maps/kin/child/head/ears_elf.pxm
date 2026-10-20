@@ -1,0 +1,32 @@
+# kin/child/head/ears_elf: the elven child's ears: swept up and back past the head's outline, over the hair
+# The child's elven ears (KIN-CHILD). Format: rpg/art/doll/doll.h.
+use person
+body child
+role ears elf
+layer ears
+anchor head
+keys rest
+
+view D key rest origin 2 -3
+|q..............q
+|tq............qt
+|qt............sq
+|.q............q.
+
+view U key rest origin 2 -3
+|q..............q
+|tq............qt
+|qt............sq
+|.q............q.
+
+view R key rest origin -4 -3
+|q..
+|tq.
+|qts
+|.sr
+
+view L key rest origin -6 -3
+|..q
+|.qt
+|tsq
+|rs.

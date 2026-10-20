@@ -69,20 +69,20 @@ view R key hurt origin -9 -5
 view R key talk origin -9 -8
 |MM
 
-view L key blink origin -1 -5
+view L key blink origin -2 -5
 |tt
 |##
 
-view L key closed origin -1 -5
+view L key closed origin -2 -5
 |tt
 |##
 
-view L key fierce origin -1 -8
+view L key fierce origin -2 -8
 |MM
 
-view L key hurt origin -1 -5
+view L key hurt origin -2 -5
 |#t
 |s#
 
-view L key talk origin -1 -8
+view L key talk origin -2 -8
 |MM

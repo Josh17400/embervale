@@ -17,6 +17,7 @@
 #include "rpg/culture/culture.h"
 #include "rpg/sim/gear.h"
 #include "rpg/art/art_rig.h"
+#include "rpg/art/doll/doll.h"
 
 namespace {
 // an armour piece's M5 material band (art::HumanLook): 1 leather, 2 iron, 3 steel, 4 gilded, 5 jade, 6 obsidian, 7 ember
@@ -231,6 +232,11 @@ void heroFeatures(art::HumanLook& L, const Appearance& app) {
   L.head = (uint8_t)(people == 2 ? 6 + (int)(h % 3u) : people == 1 ? (int)(h % 9u) : (int)(h % 6u));
   L.nose = (uint8_t)((h >> 8) % (app.female ? 4u : 5u));
   L.brow = (uint8_t)((h >> 16) % 4u);
+  // (P2b production) the style within the chosen family and the beard's style from the same hash, so a created hero
+  // reaches every one of the 24 styles and 9 beards (the creator names the family; the cut within it is the hero's own)
+  const int vars = art::doll::hairVariants(L.hair);
+  if (vars > 1) L.hairVar = (uint8_t)((h >> 24) % (uint64_t)vars);
+  L.beardStyle = (uint8_t)((h >> 40) % 9u);
 }
 }  // namespace
 

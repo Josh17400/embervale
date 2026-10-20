@@ -1,0 +1,54 @@
+# kin/child/head/oval: the child's Oval head: a neat oval, the cheeks tucked in under the eyes, a 6 px chin; a straighter profile. Hair, brows, nose and ears are their own parts; A3's eye rows and the mouth row kept. Format: rpg/art/doll/doll.h.
+# white and glint), a 1 px mouth; the side views a round skull with a soft snub profile (KIN-CHILD; the front first drawn
+# in the slice). Hair, brows, nose and ears are their own parts. Every child head keeps the eye rows and columns, the
+# nose pixel and the mouth row (expressions fit them all). Format: rpg/art/doll/doll.h.
+use person
+body child
+role head oval
+layer head
+anchor head
+keys rest
+
+view D key rest origin -1 -4
+mark face 1 1
+|tuttttttsr
+|t##tsss##r
+|t@EtsssE@r
+|t@Gss.sG@r
+|.qtssMssq.
+|.qtssssrq.
+|..qssrrq..
+
+view U key rest origin -1 -4
+|.qtttttsrq
+|qttttsssrq
+|qtttssssrq
+|qttsssssrq
+|.qssssrrq.
+|..qrrrrq..
+
+view R key rest origin 0 0
+mark face 7 5
+|...qqqqqq...
+|.qqtuuttsqq.
+|qtuutttttssq
+|qtutttttsssq
+|qttttttttssq
+|qttttsstt##q
+|qtsssrrts@Es
+|.qssrrssssss
+|..qrrssssMsq
+|.....qrrrq..
+
+view L key rest origin -1 0
+mark face 1 5
+|...qqqqqq...
+|.qqtuuttsqq.
+|qtuutttttsrq
+|qtutttttsssq
+|qtttttttsssq
+|q##tttsssssq
+|tE@tsssssrrq
+|tttssssrrsq.
+|qMtssssrrq..
+|..qrrrq.....

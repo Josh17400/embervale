@@ -17,7 +17,8 @@
 //   node tools/doll/pxc.mjs --watch --gallery <doll_gallery exe> <outDir> [board ...]   and re-render the gallery each time
 //   node tools/doll/pxc.mjs --no-cache      parse every map (default: maps whose text and legends are unchanged since the
 //                                           last compile come from the cache in the system temp folder: incremental)
-// Exit codes: 0 ok, 1 errors (or stale with --check), 2 bad arguments.
+// Exit codes: 0 ok, 1 errors (or stale with --check), 2 bad arguments. A map with an error is LEFT OUT of the pool (named;
+// the rest is written, so one area's broken map never stops the others); a clip, legend or --strict error writes nothing.
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -68,7 +69,7 @@ function defaultChannel(layer, side) {
 }
 const POOL_VERSION = 2;   // 2: views carry flags (replace), frames carry turn and at
 const CHUNK = 60000;      // bytes per generated array (MSVC: arrays of 64 KB or less)
-const CACHE_VERSION = 4;  // bump when a parse or a check changes (old cache entries are dropped)
+const CACHE_VERSION = 5;  // bump when a parse or a check changes (old cache entries are dropped)
 
 // ---------------------------------------------------------------------------------------------- arguments
 const args = process.argv.slice(2);
@@ -313,13 +314,46 @@ function buildPart(P, legends) {
     for (let y = 0; y < V.h && same; y++) for (let x = 0; x < V.w && same; x++) if (V.cells[y * V.w + x] !== R.cells[y * V.w + (V.w - 1 - x)]) same = false;
     if (same) err(`${P.file}:${V.line}`, `view L key ${V.key} is the plain mirror of view R: repaint it for the top-left light (tools/doll/draft.mjs only drafts it)`);
   }
-  // every key in all four facings (the coverage census is the gate; this is the compiler's early word); a tile serves
-  // every facing from one view
-  if (!P.tags.includes('tile')) {
-    const keys = new Map();
-    for (const V of P.views) if (!V.when) { if (!keys.has(V.key)) keys.set(V.key, new Set()); keys.get(V.key).add(V.facing); }
-    for (const [k, fs4] of keys) if (fs4.size < 4) warn(P.file, `key ${k}: views ${[...fs4].map((f) => FACINGS[f]).join('')} of DURL`, P);
+  // (a key's missing facings are checked against the clips that use it, after the clips are read: facingChecks)
+}
+
+// every key of a part in each facing the clips draw it in (the coverage census is the gate; this is the compiler's early
+// word): a key is wanted in a facing when a frame of a body set the part serves names it on the part's channel there (a
+// rigid part, or a channel the frame does not name, draws "rest"); turned frames (lying, a topple) are composed in the
+// left view, so their keys are wanted in L only. A tile serves every facing from one view. Not cached: it reads the clips.
+function facingChecks(parts, clips) {
+  const BASES = ['man', 'woman', 'youth', 'child'];
+  const framesOf = new Map(BASES.map((b) => [b, []]));   // base -> [{ facing, keys: Map(channel -> key), where }]
+  for (const c of clips) {
+    const base = c.body.split('.')[0];
+    if (!framesOf.has(base)) continue;
+    const lying = CLIPS[c.clip] === 'lying';
+    c.frames.forEach((fr) => {
+      framesOf.get(base).push({ facing: fr.turn || lying ? 3 : c.facing, keys: new Map(fr.keys.map((k) => [k.channel, k.key])), where: `${c.file}:${c.line}` });
+    });
   }
+  const out = [];
+  for (const P of parts) {
+    if (P.tags.includes('tile')) continue;
+    const have = new Map();
+    for (const V of P.views) if (!V.when) { if (!have.has(V.key)) have.set(V.key, new Set()); have.get(V.key).add(V.facing); }
+    for (const [k, fs4] of have) {
+      const want = new Map();   // facing -> the first clip that wants it
+      BASES.forEach((b, bi) => {
+        if (!(P.bodyMask >> bi & 1)) return;
+        for (const f of framesOf.get(b)) {
+          const key = P.channel === 'rest' ? 'rest' : (f.keys.get(P.channel) ?? 'rest');
+          if (key === k && !want.has(f.facing)) want.set(f.facing, f.where);
+        }
+      });
+      const miss = [...want.keys()].filter((f) => !fs4.has(f)).sort();
+      if (miss.length) {
+        out.push({ where: P.file, msg: `key ${k}: no view ${miss.map((f) => FACINGS[f]).join('')} (the clips draw it there: ${want.get(miss[0])})`,
+          draft: P.tags.includes('draft') });
+      }
+    }
+  }
+  return out;
 }
 
 // STYLE_P2 24's craft checks on a map:
@@ -436,7 +470,13 @@ function loadCache() {
 }
 function saveCache() {
   if (!opt.cache) return;
-  try { fs.mkdirSync(path.dirname(CACHE_FILE), { recursive: true }); fs.writeFileSync(CACHE_FILE, JSON.stringify(cache)); } catch { /* best effort */ }
+  // (written beside and renamed over: several areas compile at once, and a reader never sees half a file)
+  try {
+    fs.mkdirSync(path.dirname(CACHE_FILE), { recursive: true });
+    const tmp = `${CACHE_FILE}.${process.pid}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(cache));
+    fs.renameSync(tmp, CACHE_FILE);
+  } catch { /* best effort */ }
 }
 
 // ---------------------------------------------------------------------------------------------- clips
@@ -662,7 +702,7 @@ function compile() {
   loadCache();
   const { legends, sig: legendSig } = readLegends();
   const files = walk(MAPS, '.pxm');
-  const parts = [];
+  const parts = [], left = [];
   let parsed = 0;
   const live = new Set();
   for (const f of files) {
@@ -684,8 +724,11 @@ function compile() {
     }
     errors.push(...msgs.errors);
     warnings.push(...msgs.warnings);
-    parts.push(P);
+    // a map with an error is left out of the pool (and named): one area's broken map never stops the others compiling;
+    // the run still fails (exit 1) and --check never passes while it is broken
+    if (msgs.errors.length) left.push(r); else parts.push(P);
   }
+  const mapErrors = errors.length;
   for (const k of Object.keys(cache.files)) if (!live.has(k)) delete cache.files[k];
   saveCache();
   const byName = new Map();
@@ -694,11 +737,12 @@ function compile() {
     byName.set(P.name, P);
   }
   const { bodySets, clips } = readClips();
+  warnings.push(...facingChecks(parts, clips));
   const pk = pack(parts, bodySets, clips);
   const src = cppSource(parts, clips, pk);
   for (const x of warnings) if (opt.strict && !x.draft) errors.push(`${x.where}: ${x.msg} (--strict)`);
   const ms = Number(process.hrtime.bigint() - t0) / 1e6;
-  return { errors, warnings, parts, bodySets, clips, pk, src, ms, parsed, files: files.length };
+  return { errors, warnings, parts, bodySets, clips, pk, src, ms, parsed, files: files.length, left, globalErrors: errors.length - mapErrors };
 }
 
 function report(c) {
@@ -721,7 +765,11 @@ function writeOutputs(c, binPath) {
   if (opt.cpp) {
     fs.mkdirSync(path.dirname(OUT), { recursive: true });
     const have = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : '';
-    if (have !== c.src) fs.writeFileSync(OUT, c.src);   // (unchanged: left alone, so a build does not recompile it)
+    if (have !== c.src) {   // (unchanged: left alone, so a build does not recompile it; renamed over: never half written)
+      const tmp = `${OUT}.${process.pid}.tmp`;
+      fs.writeFileSync(tmp, c.src);
+      try { fs.renameSync(tmp, OUT); } catch { fs.writeFileSync(OUT, c.src); fs.rmSync(tmp, { force: true }); }
+    }
   }
   if (binPath) { fs.mkdirSync(path.dirname(binPath), { recursive: true }); fs.writeFileSync(binPath, c.pk.pool); }
 }
@@ -732,7 +780,12 @@ function once() {
   if (opt.report) report(c);
   for (const e of c.errors) console.error(`error ${e}`);
   if (!opt.report && !opt.quiet && c.warnings.length) console.log(`pxc: ${c.warnings.length} craft warning(s) (--report lists them)`);
-  if (c.errors.length) { console.error(`pxc: ${c.errors.length} error(s); nothing written`); return 1; }
+  if (c.errors.length && (c.globalErrors || opt.check)) { console.error(`pxc: ${c.errors.length} error(s); nothing written`); return 1; }
+  if (c.errors.length) {
+    writeOutputs(c, opt.bin);
+    console.error(`pxc: ${c.errors.length} error(s) in ${c.left.length} map(s), LEFT OUT of the pool until fixed: ${c.left.join(' ')}; the other ${c.parts.length} parts written (${c.pk.pool.length} bytes, hash ${c.pk.hash})`);
+    return 1;
+  }
   if (opt.check) {
     const have = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8').replace(/\r\n/g, '\n') : '';
     if (have !== c.src) { console.error(`pxc --check: ${path.relative(REPO, OUT)} is stale: run node tools/doll/pxc.mjs`); return 1; }
@@ -759,8 +812,9 @@ if (!opt.watch) {
       const c = compile();
       const stamp = new Date().toLocaleTimeString();
       for (const e of c.errors) console.error(`error ${e}`);
-      if (c.errors.length) console.error(`[${stamp}] pxc: ${c.errors.length} error(s); nothing written`);
+      if (c.errors.length && c.globalErrors) console.error(`[${stamp}] pxc: ${c.errors.length} error(s); nothing written`);
       else {
+        if (c.errors.length) console.error(`[${stamp}] pxc: ${c.left.length} map(s) LEFT OUT until fixed: ${c.left.join(' ')}`);
         writeOutputs(c, bin);
         console.log(`[${stamp}] pxc: ${c.parts.length} parts, ${c.clips.length} clips, ${c.pk.pool.length} bytes; ${c.ms.toFixed(0)} ms (${c.parsed} map(s) parsed); ${c.warnings.length} warning(s)`);
         if (opt.gallery) {

@@ -1,0 +1,73 @@
+# kin/child/headwear/veil: the veil: a light cloth over the head falling soft to the shoulders, the face open, a band at the brow
+# (KIN-CHILD, P2b wave 2; the child's headwear, STYLE_P2 23). Format: rpg/art/doll/doll.h.
+use person
+body child
+role headwear veil
+legend F head 0
+legend H head 1
+legend I head 2
+legend J head 3
+legend Z head 4
+layer headwear
+anchor head
+keys rest
+
+view D key rest origin 1 1
+|....FFFFFF....
+|..FFJJJJIHFF..
+|.FJJIIIIIIHHF.
+|.FJIIIIIIIHHF.
+|FJIHHHHHHHHIHF
+|FJF........FHF
+|FJF........FHF
+|FIF........FHF
+|FIJF......FHHF
+|FIJF......FHHF
+|FIJJF....FHHHF
+|FIIJIF..FHHHHF
+|.FFFFF..FFFFF.
+
+view U key rest origin 1 1
+|....FFFFFF....
+|..FFJJJJIHFF..
+|.FJJIIIIIIHHF.
+|.FJIIIIIIIHHF.
+|FJIIIIIIIIHHHF
+|FJIIIIIHIIHHHF
+|FJIIIIIHIIHHHF
+|FIIIIIHIIIHHHF
+|FIIIIIHIIHHHHF
+|FIIIIIHIIHHHHF
+|FIIIIHIIIHHHHF
+|FIIIIHIIHHHHHF
+|.FFFFFFFFFFFF.
+
+view R key rest origin 2 1
+|.....FFFFFF...
+|...FFJJJJIHF..
+|..FJJIIIIIIHF.
+|.FJIIIIIIIIHHF
+|FJIIIIIIIHHHF.
+|FJIIIIIIF.....
+|FIIIIIIHF.....
+|FIIIIIHHF.....
+|FIIIIHHHF.....
+|FIIIIHHHF.....
+|FIIIIHHHHF....
+|FIIIHHHHHF....
+|.FFFFFFFF.....
+
+view L key rest origin -1 1
+|...FFFFFF.....
+|..FJJJJIHFF...
+|.FJJIIIIIIHF..
+|FJIIIIIIIIHHF.
+|.FJIIIIIIIHHHF
+|.....FJIIIIIIF
+|.....FIIIIIIHF
+|.....FIIIIIHHF
+|.....FIIIIHHHF
+|.....FIIIIHHHF
+|....FIIIIHHHHF
+|....FIIIHHHHHF
+|.....FFFFFFFF.

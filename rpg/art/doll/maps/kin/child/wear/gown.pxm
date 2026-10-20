@@ -1,0 +1,39 @@
+# kin/child/wear/gown: the gown (elven): fitted and high-collared, brass trim at the collar and down the front, a fine belt; the skirt is gown_skirt
+# (KIN-CHILD, P2b wave 2; the child's torso is 6 rows, F-10..F-5, STYLE_P2 3 and 22). Format: rpg/art/doll/doll.h.
+use person woman
+body child
+role garment gown
+layer torso
+keys rest
+
+view D key rest origin 6 0
+|5988NPN76665
+|..688N7766..
+|..688N7666..
+|..6NOOON65..
+|..688N7665..
+|..688N7665..
+
+view U key rest origin 6 0
+|598887777665
+|..68877766..
+|..68877766..
+|..66NOOON6..
+|..68877766..
+|..68877766..
+
+view R key rest origin 4 0
+|.5988N65
+|588N7665
+|588N7665
+|6NOOON65
+|588N7665
+|588N7665
+
+view L key rest origin 3 0
+|5988N65.
+|588N7665
+|588N7665
+|56NOOON6
+|588N7665
+|588N7665

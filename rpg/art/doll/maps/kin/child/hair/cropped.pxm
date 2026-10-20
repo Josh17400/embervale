@@ -1,0 +1,62 @@
+# kin/child/hair/cropped: Cropped: close on the sides and the back, a short brushed top, the brow clear
+# (KIN-CHILD, P2b wave 2; the child's 11 px head, STYLE_P2 3 and 21). Format: rpg/art/doll/doll.h.
+use person
+body child
+role hair cropped
+layer hairFront
+anchor head
+keys rest
+
+view D key rest origin 0 0
+|...aaaaaa...
+|.aaccdddcaa.
+|abcdddcccbba
+|abccbccbcbba
+|a..........a
+|a..........a
+
+view D key rest origin 0 -4 when capped,!circlet replace
+|a..........a
+|a..........a
+
+view U key rest origin 0 0
+|...aaaaaa...
+|.aacdddccaa.
+|abcdddcccbba
+|abccbccbcbba
+|abcbccbcbbba
+|.abcbcbcbba.
+|..aaaaaaaa..
+
+view U key rest origin 0 -4 when capped,!circlet replace
+|a..........a
+|.abcbcbcbba.
+|..aaaaaaaa..
+
+view R key rest origin 0 0
+|...aaaaaa...
+|.aabccdcaa..
+|abccdddccca.
+|abcbccbcbba.
+|abcbcba.....
+|abcba.......
+|.aba........
+
+view R key rest origin 0 -4 when capped,!circlet replace
+|abcbc.......
+|abcba.......
+|.aba........
+
+view L key rest origin -1 0
+|...aaaaaa...
+|..aabccdcaa.
+|.abccdddccca
+|.abcbccbcbba
+|.....abcbcba
+|.......abcba
+|........aba.
+
+view L key rest origin -1 -4 when capped,!circlet replace
+|.......cbcba
+|.......abcba
+|........aba.

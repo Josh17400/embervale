@@ -1,0 +1,25 @@
+# head/adult/earrings: gilt earrings: a ring under each ear lobe (in metal 2), the lit one brighter
+# P2b FACES (wave 2). Over the hair (ears layer) so they read through long hair. Format: rpg/art/doll/doll.h.
+use person
+body adult youth
+role earring earrings
+layer ears
+anchor head
+keys rest
+z 1
+
+view D key rest origin -1 -11
+|P............N
+|O............N
+
+view U key rest origin -1 -11
+|P............N
+|O............N
+
+view R key rest origin -7 -12
+|P
+|O
+
+view L key rest origin -8 -12
+|P
+|N

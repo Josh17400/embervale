@@ -1,0 +1,23 @@
+# head/adult/man/nose_broad: a broad nose: wide nostrils in shadow under a lit tip; in profile a heavy rounded tip
+# P2b FACES (wave 2). Format: rpg/art/doll/doll.h.
+use person
+body man
+role nose broad
+layer face
+anchor head
+keys rest
+
+view D key rest origin -7 -10
+|.t.
+|rqr
+
+view U key rest origin 0 0
+|.
+
+view R key rest origin -14 -10
+|tq
+|sq
+
+view L key rest origin 0 -10
+|qu
+|qr

@@ -1,0 +1,153 @@
+# neck/man/amulet: the man's amulet: a metal2 pendant on a leather cord at the chest; its gem flashes white on the idle's blink frame
+# (keys expr: a glint every few seconds, phased per person like the blink)
+# GARB-W (P2b wave 2). Fitted to one body (STYLE_P2 22). Format: rpg/art/doll/doll.h.
+use person
+body man
+role neck amulet
+layer neck
+anchor neck
+keys expr
+
+view D key rest origin 4 0
+|.g....g.
+|..g..g..
+|...NO...
+|...OP...
+|....N...
+
+view D key blink origin 4 0
+|.g....g.
+|..g..g..
+|...NO...
+|...Oz...
+|....N...
+
+view D key hurt origin 4 0
+|.g....g.
+|..g..g..
+|...NO...
+|...OP...
+|....N...
+
+view D key fierce origin 4 0
+|.g....g.
+|..g..g..
+|...NO...
+|...OP...
+|....N...
+
+view D key closed origin 4 0
+|.g....g.
+|..g..g..
+|...NO...
+|...OP...
+|....N...
+
+view D key talk origin 4 0
+|.g....g.
+|..g..g..
+|...NO...
+|...OP...
+|....N...
+
+view U key rest origin 4 0
+|.gggggg.
+
+view U key blink origin 4 0
+|.gggggg.
+
+view U key hurt origin 4 0
+|.gggggg.
+
+view U key fierce origin 4 0
+|.gggggg.
+
+view U key closed origin 4 0
+|.gggggg.
+
+view U key talk origin 4 0
+|.gggggg.
+
+view R key rest origin 5 0
+|.g....g..
+|......g..
+|......gNO
+|.......OP
+|.......N.
+
+view R key blink origin 5 0
+|.g....g..
+|......g..
+|......gNO
+|.......Oz
+|.......N.
+
+view R key hurt origin 5 0
+|.g....g..
+|......g..
+|......gNO
+|.......OP
+|.......N.
+
+view R key fierce origin 5 0
+|.g....g..
+|......g..
+|......gNO
+|.......OP
+|.......N.
+
+view R key closed origin 5 0
+|.g....g..
+|......g..
+|......gNO
+|.......OP
+|.......N.
+
+view R key talk origin 5 0
+|.g....g..
+|......g..
+|......gNO
+|.......OP
+|.......N.
+
+view L key rest origin 4 0
+|..g....g.
+|..g......
+|PNg......
+|OO.......
+|.N.......
+
+view L key blink origin 4 0
+|..g....g.
+|..g......
+|zNg......
+|OO.......
+|.N.......
+
+view L key hurt origin 4 0
+|..g....g.
+|..g......
+|PNg......
+|OO.......
+|.N.......
+
+view L key fierce origin 4 0
+|..g....g.
+|..g......
+|PNg......
+|OO.......
+|.N.......
+
+view L key closed origin 4 0
+|..g....g.
+|..g......
+|PNg......
+|OO.......
+|.N.......
+
+view L key talk origin 4 0
+|..g....g.
+|..g......
+|PNg......
+|OO.......
+|.N.......

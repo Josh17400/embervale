@@ -1,0 +1,42 @@
+# cloak/cape_front: the cape over the shoulders: two small drapes and a clasp of the person's trim metal at the throat.
+# Rigid (its own channel, so it never vanishes on a frame's hang key): facing down it lies over the shoulders above the
+# arms (the head layer, under the head); facing right and left it wraps the near shoulder; facing up the panel (drawn
+# after, in cloakFront) covers the shoulder caps it keeps there. Format: rpg/art/doll/doll.h.
+use person
+body adult
+role cloak cape
+layer head
+anchor neck
+keys cloakfront
+z -5
+legend Q accent 0
+legend R accent 1
+legend S accent 2
+legend T accent 3
+legend U accent 4
+
+view U key rest origin 9 0 layer head
+|..QQQQ......QQQQ..
+|.QTTSQ......QSSRQ.
+
+view D key rest origin 9 1 layer head
+|..QQQQ......QQQQ..
+|.QTTSQQ.PO.QQSSRQ.
+|QTTSQ........QSRRQ
+|.QTQ..........QRQ.
+
+view R key rest origin 7 1
+|............
+|..QQQ....PO.
+|.QTSSQ......
+|.QTSRQ......
+|.QTRQ.......
+|..QQ........
+
+view L key rest origin 4 1
+|............
+|.PO....QQQ..
+|......QSSSQ.
+|......QTSSQ.
+|.......QTSQ.
+|........QQ..

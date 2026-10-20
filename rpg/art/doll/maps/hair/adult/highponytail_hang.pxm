@@ -1,0 +1,222 @@
+# hair/adult/highponytail_hang: the High ponytail's tail: it arcs back from the crown ribbon and falls behind the head to the
+# shoulders; it lags the step (hair keys) and lies flat under a lying head (lie: none)
+# P2b wave 2, HAIR. On the adult head box (STYLE_P2 21). Format: rpg/art/doll/doll.h.
+use person
+body adult
+role hair highponytail
+layer hairBack
+anchor head
+keys hair
+z 1
+
+view D key rest origin -10 -2
+|.aaa..
+|adcba.
+|adcba.
+|acdcba
+|.adcba
+|.acdba
+|.acdba
+|..acba
+|..acba
+|..abba
+|...aa.
+
+view D key swing origin -10 -2
+|.aaa...
+|adcba..
+|adcba..
+|acdcba.
+|.adcba.
+|..acdba
+|..acdba
+|..acdba
+|...acba
+|...abba
+|....aa.
+
+view U key rest origin -5 -2 layer hairFront
+|.aaaa.
+|adeeca
+|adddca
+|acddba
+|acdcba
+|acdcba
+|.acdcba
+|.adcba.
+|.acdba.
+|.acdba.
+|.acba..
+|.acba..
+|.abba..
+|..aa...
+
+view U key swing origin -5 -2 layer hairFront
+|.aaaa..
+|adeeca.
+|adddca.
+|acddba.
+|acdcba.
+|.acdcba
+|.acdcba
+|..adcba
+|..acdba
+|..acdba
+|..acba.
+|..acba.
+|..abba.
+|...aa..
+
+view R key rest origin 4 -1
+|.......aaaa.
+|....aaadeeda
+|..aadddcccba
+|.adddcccbba.
+|adcccbbaa...
+|acdcba......
+|acdcba......
+|acdba.......
+|.acdba......
+|.acdba......
+|.acba.......
+|.acba.......
+|.abba.......
+|..aa........
+
+view R key swing origin 5 -1
+|........aaaa.
+|.....aaadeeda
+|...aadddcccba
+|.aadddcccbba.
+|adcccbbaa....
+|acdcba.......
+|acdcba.......
+|acdba........
+|acdba........
+|acdba........
+|acba.........
+|acba.........
+|abba.........
+|.aa..........
+
+view L key lie origin 0 0
+|.
+
+view L key rest origin -8 -1
+|.aaaa.......
+|adeedaaa....
+|adddcccbaa..
+|.adddcccbba.
+|...aadcccbba
+|......acdcba
+|......acdcba
+|.......acdba
+|......acdba.
+|......acdba.
+|.......acba.
+|.......acba.
+|.......abba.
+|........aa..
+
+view L key swing origin -8 -1
+|.aaaa........
+|adeedaaa.....
+|adddcccbaa...
+|.adddcccbbaa.
+|....aadcccbba
+|.......acdcba
+|.......acdcba
+|........acdba
+|........acdba
+|........acdba
+|.........acba
+|.........acba
+|.........abba
+|..........aa.
+
+# capped: under a hat or a hood the tail falls from the nape, as the low ponytail
+view D key rest origin 0 -12 layer hairBack when capped,!circlet replace
+|.....abba.....
+|.....acba.....
+|.....acba.....
+
+view D key swing origin 0 -12 layer hairBack when capped,!circlet replace
+|.....abba.....
+|......acba....
+|.......aba....
+
+view U key rest origin -5 -11 layer hairFront when capped,!circlet replace
+|.mnna.
+|.mona.
+|acdcba
+|adcdba
+|acdcba
+|.adcba
+|.acdba
+|.acba.
+|.abba.
+|..aa..
+
+view U key swing origin -5 -11 layer hairFront when capped,!circlet replace
+|.mnna.
+|.mona.
+|acdcba
+|adcdba
+|.acdcba
+|.adcba
+|..acdba
+|..acba
+|..abba
+|...aa.
+
+view R key rest origin 1 -11 layer hairBack when capped,!circlet replace
+|.mna..
+|amoa..
+|acdba.
+|adcba.
+|acdba.
+|acdba.
+|.acba.
+|.adba.
+|.acba.
+|.aba..
+|..a...
+
+view R key swing origin 2 -11 layer hairBack when capped,!circlet replace
+|..mna.
+|.amoa.
+|.acdba
+|adcba.
+|acdba.
+|acdba.
+|acba..
+|adba..
+|acba..
+|aba...
+|.a....
+
+view L key rest origin -11 -11 layer hairBack when capped,!circlet replace
+|..anm.
+|..aoma
+|.acdba
+|.adcba
+|.acdba
+|.acdba
+|.acba.
+|.adba.
+|.acba.
+|..aba.
+|...a..
+
+view L key swing origin -12 -11 layer hairBack when capped,!circlet replace
+|.anm..
+|.aoma.
+|acdba.
+|.adcba
+|.acdba
+|.acdba
+|..acba
+|..adba
+|..acba
+|...aba
+|....a.

@@ -1,12 +1,13 @@
-# rpg/art/doll/clips/kin_child.clip: the child's LOCO and DEATH clips (FOLK-BODY's slice; to KIN-CHILD in wave 2). Format:
-# rpg/art/doll/doll.h. The child is 21 px (STYLE_P2 3); the walk's planted foot steps 2 / 2 / 2 px (a 12 px cycle); kids never
-# run on the RUN part (they run with the Play posture's frames).
+# rpg/art/doll/clips/kin_child.clip: the child's LOCO, DEATH and posture clips (KIN-CHILD, P2b wave 2; first drawn in the
+# slice by FOLK-BODY). Format: rpg/art/doll/doll.h. The child is 21 px (STYLE_P2 3); the walk's planted foot steps 2 / 2 / 2 px
+# (a 12 px cycle); kids never run on the RUN part (they run with the Play posture's frames: tag, hopping).
 
 body child
 anchors D head=-6,-20 neck=0,-10 hip=0,-5 shoulderR=-6,-9 shoulderL=5,-9
 anchors U head=-6,-20 neck=0,-10 hip=0,-5 shoulderR=5,-9 shoulderL=-6,-9
 anchors R head=-6,-20 neck=0,-10 hip=0,-5 shoulderR=-1,-9 shoulderL=-1,-9
 anchors L head=-6,-20 neck=0,-10 hip=0,-5 shoulderR=0,-9 shoulderL=0,-9
+# idle: neutral, breathe (the upper body a pixel up), blink
 clip idle D
 f armL=idle armR=idle legs=idle
 f armL=idle armR=idle legs=idle bob=-1
@@ -23,33 +24,36 @@ clip idle L
 f armL=N armR=- legs=idle
 f armL=N armR=- legs=idle bob=-1
 f armL=N armR=- legs=idle expr=blink
+# the walk: front and back step in place (a foot lifted a row; the body rises a pixel on the pass); side views plant the
+# foot 2 / 2 / 2 px (a 12 px cycle). The hips stay within a pixel of the contact frame's (0 / 0 / -1: the rise on the pass
+# shows more leg, never less). A long skirt sways a pixel with the step; tails and braids swing on the down frames
 clip walk D
-f armL=fwd armR=back legs=walkA plant=3:1
-f armL=fwd armR=back legs=walkA bob=1 plant=1:-1
-f armL=idle armR=idle legs=walkB bob=-1 plant=-1:-3
-f armL=back armR=fwd legs=walkC plant=3:1
-f armL=back armR=fwd legs=walkC bob=1 plant=1:-1
-f armL=idle armR=idle legs=walkD bob=-1 plant=-1:-3
+f armL=fwd armR=back legs=walkA sway=-1 plant=3:1
+f armL=fwd armR=back legs=idle hair=swing sway=-1 plant=1:-1
+f armL=idle armR=idle legs=walkC bob=-1 plant=-1:-3
+f armL=back armR=fwd legs=walkC sway=1 plant=3:1
+f armL=back armR=fwd legs=idle hair=swing sway=1 plant=1:-1
+f armL=idle armR=idle legs=walkA bob=-1 plant=-1:-3
 clip walk U
-f armL=back armR=fwd legs=walkA plant=3:1
-f armL=back armR=fwd legs=walkA bob=1 plant=1:-1
-f armL=idle armR=idle legs=walkB bob=-1 plant=-1:-3
-f armL=fwd armR=back legs=walkC plant=3:1
-f armL=fwd armR=back legs=walkC bob=1 plant=1:-1
-f armL=idle armR=idle legs=walkD bob=-1 plant=-1:-3
+f armL=back armR=fwd legs=walkA sway=-1 plant=3:1
+f armL=back armR=fwd legs=idle hair=swing sway=-1 plant=1:-1
+f armL=idle armR=idle legs=walkC bob=-1 plant=-1:-3
+f armL=fwd armR=back legs=walkC sway=1 plant=3:1
+f armL=fwd armR=back legs=idle hair=swing sway=1 plant=1:-1
+f armL=idle armR=idle legs=walkA bob=-1 plant=-1:-3
 clip walk R
-f armL=- armR=B legs=walkA plant=3:1
-f armL=- armR=B legs=walkA2 bob=1 plant=1:-1
+f armL=- armR=B legs=walkA sway=-1 plant=3:1
+f armL=- armR=B legs=walkA2 hair=swing sway=-1 plant=1:-1
 f armL=- armR=N legs=walkB2 bob=-1 plant=-1:-3
-f armL=- armR=F legs=walkC plant=3:1
-f armL=- armR=F legs=walkC2 bob=1 plant=1:-1
+f armL=- armR=F legs=walkC sway=1 plant=3:1
+f armL=- armR=F legs=walkC2 hair=swing sway=1 plant=1:-1
 f armL=- armR=N legs=walkD2 bob=-1 plant=-1:-3
 clip walk L
-f armR=- armL=B legs=walkA plant=3:1
-f armR=- armL=B legs=walkA2 bob=1 plant=1:-1
+f armR=- armL=B legs=walkA sway=-1 plant=3:1
+f armR=- armL=B legs=walkA2 hair=swing sway=-1 plant=1:-1
 f armR=- armL=N legs=walkB2 bob=-1 plant=-1:-3
-f armR=- armL=F legs=walkC plant=3:1
-f armR=- armL=F legs=walkC2 bob=1 plant=1:-1
+f armR=- armL=F legs=walkC sway=1 plant=3:1
+f armR=- armL=F legs=walkC2 hair=swing sway=1 plant=1:-1
 f armR=- armL=N legs=walkD2 bob=-1 plant=-1:-3
 clip hurt D
 f armL=idle armR=idle legs=idle expr=hurt bob=-1
@@ -97,3 +101,245 @@ clip lying L variant 0
 f armL=lie armR=- legs=idle expr=closed
 clip lying L variant 1
 f armL=lie armR=- legs=idle expr=closed
+
+# ---------------------------------------------------------------- the kids' postures (KIN-CHILD; frame counts and paces
+# are postureInfo's, art_life.cpp). Leg modes: stand (idle, or the walk keys while striding), hop (tag: off the ground by 2,
+# the body with them: bob=-2), sit (a chair: the hips on the seat line 7 rows up, so the body rises 2: bob=-2, the boots
+# dangling), cross (cross-legged on the floor: the hips 2 over it, bob=3). The prop in hand is the doll's postureProp at the
+# right hand (`held=<key>`, PROPS' maps), as on the adults; facing left the right arm works as the far arm.
+clip idle D posture play
+f armL=up armR=raise legs=walkA hair=swing
+f armL=raise armR=up legs=hop bob=-2
+f armL=up armR=raise legs=walkC hair=swing
+f armL=raise armR=up legs=hop bob=-2 expr=talk
+clip idle U posture play
+f armL=up armR=raise legs=walkA hair=swing
+f armL=raise armR=up legs=hop bob=-2
+f armL=up armR=raise legs=walkC hair=swing
+f armL=raise armR=up legs=hop bob=-2
+clip idle R posture play
+f armL=- armR=up legs=walkA hair=swing
+f armL=- armR=raise legs=hop bob=-2
+f armL=- armR=up legs=walkC hair=swing
+f armL=- armR=raise legs=hop bob=-2 expr=talk
+clip idle L posture play
+f armL=up armR=- legs=walkA hair=swing
+f armL=raise armR=- legs=hop bob=-2
+f armL=up armR=- legs=walkC hair=swing
+f armL=raise armR=- legs=hop bob=-2 expr=talk
+clip idle D posture carry
+f armL=fwd armR=shoulder held=shoulder legs=walkA
+f armL=idle armR=shoulder held=shoulder legs=idle
+f armL=back armR=shoulder held=shoulder legs=walkC
+f armL=idle armR=shoulder held=shoulder legs=idle
+clip idle U posture carry
+f armL=back armR=shoulder held=shoulder legs=walkA
+f armL=idle armR=shoulder held=shoulder legs=idle
+f armL=fwd armR=shoulder held=shoulder legs=walkC
+f armL=idle armR=shoulder held=shoulder legs=idle
+clip idle R posture carry
+f armL=- armR=shoulder held=shoulder legs=walkA
+f armL=- armR=shoulder held=shoulder legs=walkA2
+f armL=- armR=shoulder held=shoulder legs=walkC
+f armL=- armR=shoulder held=shoulder legs=walkC2
+clip idle L posture carry
+f armL=B armR=shoulder held=shoulder legs=walkA
+f armL=N armR=shoulder held=shoulder legs=walkA2
+f armL=F armR=shoulder held=shoulder legs=walkC
+f armL=N armR=shoulder held=shoulder legs=walkC2
+clip idle D posture carry variant 1
+f armL=fwd armR=hold held=hold legs=walkA
+f armL=idle armR=hold held=hold legs=idle
+f armL=back armR=hold held=hold legs=walkC
+f armL=idle armR=hold held=hold legs=idle
+clip idle U posture carry variant 1
+f armL=back armR=hold held=hold legs=walkA
+f armL=idle armR=hold held=hold legs=idle
+f armL=fwd armR=hold held=hold legs=walkC
+f armL=idle armR=hold held=hold legs=idle
+clip idle R posture carry variant 1
+f armL=- armR=hold held=hold legs=walkA
+f armL=- armR=hold held=hold legs=walkA2
+f armL=- armR=hold held=hold legs=walkC
+f armL=- armR=hold held=hold legs=walkC2
+clip idle L posture carry variant 1
+f armL=B armR=hold held=hold legs=walkA
+f armL=N armR=hold held=hold legs=walkA2
+f armL=F armR=hold held=hold legs=walkC
+f armL=N armR=hold held=hold legs=walkC2
+clip idle D posture carry variant 2
+f armL=fwd armR=hold held=hold legs=walkA
+f armL=idle armR=hold held=hold legs=idle
+f armL=back armR=hold held=hold legs=walkC
+f armL=idle armR=hold held=hold legs=idle
+clip idle U posture carry variant 2
+f armL=back armR=hold held=hold legs=walkA
+f armL=idle armR=hold held=hold legs=idle
+f armL=fwd armR=hold held=hold legs=walkC
+f armL=idle armR=hold held=hold legs=idle
+clip idle R posture carry variant 2
+f armL=- armR=hold held=hold legs=walkA
+f armL=- armR=hold held=hold legs=walkA2
+f armL=- armR=hold held=hold legs=walkC
+f armL=- armR=hold held=hold legs=walkC2
+clip idle L posture carry variant 2
+f armL=B armR=hold held=hold legs=walkA
+f armL=N armR=hold held=hold legs=walkA2
+f armL=F armR=hold held=hold legs=walkC
+f armL=N armR=hold held=hold legs=walkC2
+clip idle D posture wave
+f armL=idle armR=wave legs=idle expr=talk
+f armL=idle armR=wave2 legs=idle
+clip idle U posture wave
+f armL=idle armR=wave legs=idle
+f armL=idle armR=wave2 legs=idle
+clip idle R posture wave
+f armL=- armR=wave legs=idle expr=talk
+f armL=- armR=wave2 legs=idle
+clip idle L posture wave
+f armL=wave armR=- legs=idle expr=talk
+f armL=wave2 armR=- legs=idle
+clip idle D posture eat
+f armL=hold armR=mouth held=mouth legs=idle
+f armL=hold armR=hold held=hold legs=idle
+clip idle U posture eat
+f armL=hold armR=mouth held=mouth legs=idle
+f armL=hold armR=hold held=hold legs=idle
+clip idle R posture eat
+f armL=- armR=mouth held=mouth legs=idle
+f armL=- armR=hold held=hold legs=idle
+clip idle L posture eat
+f armL=idle armR=mouth held=mouth legs=idle
+f armL=idle armR=hold held=hold legs=idle
+clip idle D posture drink
+f armL=hold armR=mouth held=mouth legs=idle
+f armL=hold armR=hold held=hold legs=idle
+clip idle U posture drink
+f armL=hold armR=mouth held=mouth legs=idle
+f armL=hold armR=hold held=hold legs=idle
+clip idle R posture drink
+f armL=- armR=mouth held=mouth legs=idle
+f armL=- armR=hold held=hold legs=idle
+clip idle L posture drink
+f armL=idle armR=mouth held=mouth legs=idle
+f armL=idle armR=hold held=hold legs=idle
+clip idle D posture cheer
+f armL=hold armR=raise held=raise legs=idle
+f armL=hold armR=wave2 held=wave2 legs=idle bob=-1
+clip idle U posture cheer
+f armL=hold armR=raise held=raise legs=idle
+f armL=hold armR=wave2 held=wave2 legs=idle bob=-1
+clip idle R posture cheer
+f armL=- armR=raise held=raise legs=idle
+f armL=- armR=wave2 held=wave2 legs=idle bob=-1
+clip idle L posture cheer
+f armL=idle armR=raise held=raise legs=idle
+f armL=idle armR=wave2 held=wave2 legs=idle bob=-1
+clip idle D posture pray
+f armL=pray armR=pray legs=idle head=0,1 expr=closed
+f armL=pray armR=pray legs=idle head=0,1 bob=-1 expr=closed
+clip idle U posture pray
+f armL=pray armR=pray legs=idle head=0,1
+f armL=pray armR=pray legs=idle head=0,1 bob=-1
+clip idle R posture pray
+f armL=- armR=pray legs=idle head=0,1 expr=closed
+f armL=- armR=pray legs=idle head=0,1 bob=-1 expr=closed
+clip idle L posture pray
+f armL=pray armR=- legs=idle head=0,1 expr=closed
+f armL=pray armR=- legs=idle head=0,1 bob=-1 expr=closed
+clip idle D posture dance
+f armL=hold armR=raise legs=walkA
+f armL=wave2 armR=wave legs=hop bob=-2
+f armL=raise armR=hold legs=walkC
+f armL=wave armR=wave2 legs=hop bob=-2 expr=talk
+clip idle U posture dance
+f armL=hold armR=raise legs=walkA
+f armL=wave2 armR=wave legs=hop bob=-2
+f armL=raise armR=hold legs=walkC
+f armL=wave armR=wave2 legs=hop bob=-2
+clip idle R posture dance
+f armL=- armR=raise legs=walkA
+f armL=- armR=wave legs=hop bob=-2
+f armL=- armR=raise legs=walkC
+f armL=- armR=wave2 legs=hop bob=-2 expr=talk
+clip idle L posture dance
+f armL=raise armR=- legs=walkA
+f armL=wave armR=- legs=hop bob=-2
+f armL=raise armR=- legs=walkC
+f armL=wave2 armR=- legs=hop bob=-2 expr=talk
+clip idle D posture sit
+f armL=idle armR=idle legs=sit hang=sit bob=-2
+clip idle U posture sit
+f armL=idle armR=idle legs=sit hang=sit bob=-2
+clip idle R posture sit
+f armL=- armR=N legs=sit hang=sit bob=-2
+clip idle L posture sit
+f armL=N armR=- legs=sit hang=sit bob=-2
+clip idle D posture siteat
+f armL=hold armR=mouth held=mouth legs=sit hang=sit bob=-2
+f armL=hold armR=hold held=hold legs=sit hang=sit bob=-2
+clip idle U posture siteat
+f armL=hold armR=mouth held=mouth legs=sit hang=sit bob=-2
+f armL=hold armR=hold held=hold legs=sit hang=sit bob=-2
+clip idle R posture siteat
+f armL=- armR=mouth held=mouth legs=sit hang=sit bob=-2
+f armL=- armR=hold held=hold legs=sit hang=sit bob=-2
+clip idle L posture siteat
+f armL=idle armR=mouth held=mouth legs=sit hang=sit bob=-2
+f armL=idle armR=hold held=hold legs=sit hang=sit bob=-2
+clip idle D posture sitdrink
+f armL=hold armR=mouth held=mouth legs=sit hang=sit bob=-2
+f armL=hold armR=hold held=hold legs=sit hang=sit bob=-2
+clip idle U posture sitdrink
+f armL=hold armR=mouth held=mouth legs=sit hang=sit bob=-2
+f armL=hold armR=hold held=hold legs=sit hang=sit bob=-2
+clip idle R posture sitdrink
+f armL=- armR=mouth held=mouth legs=sit hang=sit bob=-2
+f armL=- armR=hold held=hold legs=sit hang=sit bob=-2
+clip idle L posture sitdrink
+f armL=idle armR=mouth held=mouth legs=sit hang=sit bob=-2
+f armL=idle armR=hold held=hold legs=sit hang=sit bob=-2
+clip idle D posture sitfloor
+f armL=idle armR=idle legs=cross hang=floor bob=3
+clip idle U posture sitfloor
+f armL=idle armR=idle legs=cross hang=floor bob=3
+clip idle R posture sitfloor
+f armL=- armR=N legs=cross hang=floor bob=3
+clip idle L posture sitfloor
+f armL=N armR=- legs=cross hang=floor bob=3
+clip idle D posture sitflooreat
+f armL=hold armR=mouth held=mouth legs=cross hang=floor bob=3
+f armL=hold armR=hold held=hold legs=cross hang=floor bob=3
+clip idle U posture sitflooreat
+f armL=hold armR=mouth held=mouth legs=cross hang=floor bob=3
+f armL=hold armR=hold held=hold legs=cross hang=floor bob=3
+clip idle R posture sitflooreat
+f armL=- armR=mouth held=mouth legs=cross hang=floor bob=3
+f armL=- armR=hold held=hold legs=cross hang=floor bob=3
+clip idle L posture sitflooreat
+f armL=idle armR=mouth held=mouth legs=cross hang=floor bob=3
+f armL=idle armR=hold held=hold legs=cross hang=floor bob=3
+clip idle D posture sitfloordrink
+f armL=hold armR=mouth held=mouth legs=cross hang=floor bob=3
+f armL=hold armR=hold held=hold legs=cross hang=floor bob=3
+clip idle U posture sitfloordrink
+f armL=hold armR=mouth held=mouth legs=cross hang=floor bob=3
+f armL=hold armR=hold held=hold legs=cross hang=floor bob=3
+clip idle R posture sitfloordrink
+f armL=- armR=mouth held=mouth legs=cross hang=floor bob=3
+f armL=- armR=hold held=hold legs=cross hang=floor bob=3
+clip idle L posture sitfloordrink
+f armL=idle armR=mouth held=mouth legs=cross hang=floor bob=3
+f armL=idle armR=hold held=hold legs=cross hang=floor bob=3
+clip idle D posture sleep
+f armL=idle armR=idle legs=idle expr=closed
+f armL=idle armR=idle legs=idle bob=-1 expr=closed
+clip idle U posture sleep
+f armL=idle armR=idle legs=idle
+f armL=idle armR=idle legs=idle bob=-1
+clip idle R posture sleep
+f armL=- armR=N legs=idle expr=closed
+f armL=- armR=N legs=idle bob=-1 expr=closed
+clip idle L posture sleep
+f armL=N armR=- legs=idle expr=closed
+f armL=N armR=- legs=idle bob=-1 expr=closed
