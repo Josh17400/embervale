@@ -362,7 +362,7 @@ void witnessState(witness::Json& j, const Game& g, const View& v, const WitnessE
       const int id = 50000000 + (int)(((uint32_t)gx & 0xFFFu) << 12 | ((uint32_t)gy & 0xFFFu));
       // door: the playtest keeps off it unless it is the goal; leadsTo: `goto Inn` enters by it
       j.begin_object().field("id", id).field("type", buildingType(b.type)).field("kind", "building").field("talk", false)
-          .field("door", true).field("leadsTo", buildingType(b.type)).field("enter", "w");   // doors face south: push up
+          .field("door", true).field("leadsTo", buildingType(b.type)).field("enter", "n");   // doors face south: push north (up) onto the door tile
       j.key("pos").vec(gx + 0.5, gy + 0.5);
       j.field("dist", r2(doors[i].d)).field("hostile", false).end_object();
     }

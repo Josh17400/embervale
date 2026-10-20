@@ -274,7 +274,7 @@ SDL_Scancode keyFromName(std::string s) {
   else if (u == "RSHIFT") s = "Right Shift";
   else if (u == "CTRL") s = "Left Ctrl";
   else if (u == "ALT") s = "Left Alt";
-  else if (u == "SUPER") s = "Left GUI";
+  else if (u == "META" || u == "SUPER") s = "Left GUI";   // (Witness 0.7.3) the OS key is "meta"; "super" kept for old scripts
   else if (u == "MINUS") s = "-";        // (P2a) the ZOOM keys: - and =
   else if (u == "EQUALS" || u == "PLUS") s = "=";
   return SDL_GetScancodeFromName(s.c_str());

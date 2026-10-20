@@ -9,6 +9,7 @@ tools/witness_web/node_modules/
 !web/*.png
 !assets/**/*.png
 !docs/ref/style_a3/frames/*.png
+!witness/refs/*.png
 
 # stray tool output / agent worktrees
 *.wav

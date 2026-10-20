@@ -39,6 +39,8 @@
     },
     "alert": 8,
     "brief": "Embervale: an open-world pixel RPG (think Skyrim in pixels). Distances are in tiles. The goal line is the tracked quest and its next step; 'goto goal' walks to where that step happens (a door, a den, a camp). Public buildings are listed by their doors (Inn, Shop, Smithy, Temple...): 'goto Inn' walks in, and inside you talk to the people there (talk Innkeeper) and leave by 'goto Exit'. Entering or leaving a building interrupts the order: give the next one. Stall keepers are talked to from the front of their counter. A newly accepted quest does not replace the tracked one in the goal line (the game says NEW QUEST: ...); every open quest with a place to go is also listed as a Quest thing named by its title: goto \"<title>\" walks there (a den, a camp, a door). There is no block: fights roll away from telegraphed bites (dodge, the default); wolves wind up before they bite, and a badly hurt one runs off: 'fight' it again to finish it. People can be talked to; animals (hens, dogs, goats...) cannot. Dialogue options are picked with choose N; walking away or choosing FAREWELL ends a conversation.",
-    "npc": "e.talk"
+    "npc": "e.talk",
+    "clock": "state.day*24 + state.hour",
+    "stuckDead": 20
   }
 }
