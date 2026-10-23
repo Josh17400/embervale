@@ -1,0 +1,243 @@
+# P2c Arms and Armour: THE LADDER SLICE in the engine (docs/PLAN.md "## P2c" > "The ladder slice", STYLE_P2 27; LADDER-DOLL).
+# Seed 7, the start village OSLARS, rig 2. The hero changes kits (`ladderkit`: T1..T6, the Mythic, the heroine's T6), each
+# checked on the doll (`expect doll covered`, `expect doll tier`, `expect doll gear`); the rows (`p2cline ladder`, `flavour`,
+# `ranks`) by day and by night; the living finish shot every 0.1 s over one 2.2 s breath (p2c_ladder_breath_<n>.png).
+#   embervale.exe --script tools/scripts/p2c_ladder.txt          (p2c_ladder_*.png in the working directory)
+seed 7
+0.3  newgame
++0.1 god 1
++0.05 hour 11
++0.0 weather clear
++0.1 rig 2
++0.0 expect rig 2
++0.1 zoom normal
++0.1 skill kit sword none
++0.1 at -140 -432
++2.5 skill clearing 16
++0.1 ui 0
++0.0 ring 0
+# ---- the hero's road: each tier on the doll, its armour and shield
++0.1 ladderkit lt1
++0.3 expect doll covered
++0.0 expect doll tier 1
++0.0 expect doll gear armour=padded
++0.0 expect doll gear shield=form1
++0.1 zoom near
++0.3 shot p2c_ladder_hero_t1.png
++0.1 zoom normal
++0.1 ladderkit lt2
++0.3 expect doll covered
++0.0 expect doll tier 2
++0.0 expect doll gear armour=leather
++0.0 expect doll gear shield=form1
++0.1 zoom near
++0.3 shot p2c_ladder_hero_t2.png
++0.1 zoom normal
++0.1 ladderkit lt3
++0.3 expect doll covered
++0.0 expect doll tier 3
++0.0 expect doll gear armour=mail
++0.0 expect doll gear shield=form2
++0.1 zoom near
++0.3 shot p2c_ladder_hero_t3.png
++0.1 zoom normal
++0.1 ladderkit lt4
++0.3 expect doll covered
++0.0 expect doll tier 4
++0.0 expect doll gear armour=plate
++0.0 expect doll gear shield=form3
++0.1 zoom near
++0.3 shot p2c_ladder_hero_t4.png
++0.1 zoom normal
++0.1 ladderkit lt5
++0.3 expect doll covered
++0.0 expect doll tier 5
++0.0 expect doll gear armour=plate
++0.0 expect doll gear shield=form3
++0.1 zoom near
++0.3 shot p2c_ladder_hero_t5.png
++0.1 zoom normal
++0.1 ladderkit lt6
++0.3 expect doll covered
++0.0 expect doll tier 6
++0.0 expect doll gear armour=plate
++0.0 expect doll gear shield=form3
++0.1 zoom near
++0.3 shot p2c_ladder_hero_t6.png
++0.1 zoom normal
++0.1 ladderkit lt6m
++0.3 expect doll covered
++0.0 expect doll tier 6
++0.1 zoom near
++0.3 shot p2c_ladder_hero_t6m.png
++0.1 zoom normal
++0.1 ladderkit lt6w
++0.3 expect doll covered
++0.0 expect doll tier 6
++0.0 expect doll gear held=spear.spear
++0.1 zoom near
++0.3 shot p2c_ladder_heroine_t6.png
++0.1 zoom normal
+# ---- the living finish: the T6 hero, one breath (2.2 s) at night, shot every 0.1 s
++0.1 ladderkit lt6
++0.1 hour 22
++0.1 zoom near
++0.5 shot p2c_ladder_breath_00.png
++0.1 shot p2c_ladder_breath_01.png
++0.1 shot p2c_ladder_breath_02.png
++0.1 shot p2c_ladder_breath_03.png
++0.1 shot p2c_ladder_breath_04.png
++0.1 shot p2c_ladder_breath_05.png
++0.1 shot p2c_ladder_breath_06.png
++0.1 shot p2c_ladder_breath_07.png
++0.1 shot p2c_ladder_breath_08.png
++0.1 shot p2c_ladder_breath_09.png
++0.1 shot p2c_ladder_breath_10.png
++0.1 shot p2c_ladder_breath_11.png
++0.1 shot p2c_ladder_breath_12.png
++0.1 shot p2c_ladder_breath_13.png
++0.1 shot p2c_ladder_breath_14.png
++0.1 shot p2c_ladder_breath_15.png
++0.1 shot p2c_ladder_breath_16.png
++0.1 shot p2c_ladder_breath_17.png
++0.1 shot p2c_ladder_breath_18.png
++0.1 shot p2c_ladder_breath_19.png
++0.1 shot p2c_ladder_breath_20.png
++0.1 shot p2c_ladder_breath_21.png
++0.1 shot p2c_ladder_breath_22.png
++0.1 hour 11
++0.5 shot p2c_ladder_day_00.png
++0.1 shot p2c_ladder_day_01.png
++0.1 shot p2c_ladder_day_02.png
++0.1 shot p2c_ladder_day_03.png
++0.1 shot p2c_ladder_day_04.png
++0.1 shot p2c_ladder_day_05.png
++0.1 shot p2c_ladder_day_06.png
++0.1 shot p2c_ladder_day_07.png
++0.1 shot p2c_ladder_day_08.png
++0.1 shot p2c_ladder_day_09.png
++0.1 shot p2c_ladder_day_10.png
++0.1 shot p2c_ladder_day_11.png
++0.1 shot p2c_ladder_day_12.png
++0.1 shot p2c_ladder_day_13.png
++0.1 shot p2c_ladder_day_14.png
++0.1 shot p2c_ladder_day_15.png
++0.1 shot p2c_ladder_day_16.png
++0.1 shot p2c_ladder_day_17.png
++0.1 shot p2c_ladder_day_18.png
++0.1 shot p2c_ladder_day_19.png
++0.1 shot p2c_ladder_day_20.png
++0.1 shot p2c_ladder_day_21.png
++0.1 shot p2c_ladder_day_22.png
++0.1 zoom normal
+# ---- the edge spark: the T6 hero's sword drawn (the drawn idle frozen), at night, shot every 0.06 s over 3.6 s
++0.1 ladderkit lt6
++0.1 hour 22
++0.1 zoom near
++0.1 pose idle sword 1 0
++0.3 shot p2c_ladder_spark_00.png
++0.06 shot p2c_ladder_spark_01.png
++0.06 shot p2c_ladder_spark_02.png
++0.06 shot p2c_ladder_spark_03.png
++0.06 shot p2c_ladder_spark_04.png
++0.06 shot p2c_ladder_spark_05.png
++0.06 shot p2c_ladder_spark_06.png
++0.06 shot p2c_ladder_spark_07.png
++0.06 shot p2c_ladder_spark_08.png
++0.06 shot p2c_ladder_spark_09.png
++0.06 shot p2c_ladder_spark_10.png
++0.06 shot p2c_ladder_spark_11.png
++0.06 shot p2c_ladder_spark_12.png
++0.06 shot p2c_ladder_spark_13.png
++0.06 shot p2c_ladder_spark_14.png
++0.06 shot p2c_ladder_spark_15.png
++0.06 shot p2c_ladder_spark_16.png
++0.06 shot p2c_ladder_spark_17.png
++0.06 shot p2c_ladder_spark_18.png
++0.06 shot p2c_ladder_spark_19.png
++0.06 shot p2c_ladder_spark_20.png
++0.06 shot p2c_ladder_spark_21.png
++0.06 shot p2c_ladder_spark_22.png
++0.06 shot p2c_ladder_spark_23.png
++0.06 shot p2c_ladder_spark_24.png
++0.06 shot p2c_ladder_spark_25.png
++0.06 shot p2c_ladder_spark_26.png
++0.06 shot p2c_ladder_spark_27.png
++0.06 shot p2c_ladder_spark_28.png
++0.06 shot p2c_ladder_spark_29.png
++0.06 shot p2c_ladder_spark_30.png
++0.06 shot p2c_ladder_spark_31.png
++0.06 shot p2c_ladder_spark_32.png
++0.06 shot p2c_ladder_spark_33.png
++0.06 shot p2c_ladder_spark_34.png
++0.06 shot p2c_ladder_spark_35.png
++0.06 shot p2c_ladder_spark_36.png
++0.06 shot p2c_ladder_spark_37.png
++0.06 shot p2c_ladder_spark_38.png
++0.06 shot p2c_ladder_spark_39.png
++0.06 shot p2c_ladder_spark_40.png
++0.06 shot p2c_ladder_spark_41.png
++0.06 shot p2c_ladder_spark_42.png
++0.06 shot p2c_ladder_spark_43.png
++0.06 shot p2c_ladder_spark_44.png
++0.06 shot p2c_ladder_spark_45.png
++0.06 shot p2c_ladder_spark_46.png
++0.06 shot p2c_ladder_spark_47.png
++0.06 shot p2c_ladder_spark_48.png
++0.06 shot p2c_ladder_spark_49.png
++0.06 shot p2c_ladder_spark_50.png
++0.06 shot p2c_ladder_spark_51.png
++0.06 shot p2c_ladder_spark_52.png
++0.06 shot p2c_ladder_spark_53.png
++0.06 shot p2c_ladder_spark_54.png
++0.06 shot p2c_ladder_spark_55.png
++0.06 shot p2c_ladder_spark_56.png
++0.06 shot p2c_ladder_spark_57.png
++0.06 shot p2c_ladder_spark_58.png
++0.06 shot p2c_ladder_spark_59.png
++0.06 shot p2c_ladder_spark_60.png
++0.1 pose off
++0.1 zoom normal
+# ---- the rows: the ladder, the flavour row, rank to tier; by day and by night
++0.1 ladderkit lt1
++0.1 p2cline ladder
++0.1 hideplayer 1
++0.1 zoom near
++0.1 hour 11
++0.5 shot p2c_ladder_row_ladder_day.png
++0.1 hour 22
++0.5 shot p2c_ladder_row_ladder_night.png
++0.1 p2cline face 1
++0.3 shot p2c_ladder_row_ladder_night_r.png
++0.1 p2cline face 0
++0.1 hideplayer 0
++0.1 zoom normal
++0.1 ladderkit lt1
++0.1 p2cline flavour
++0.1 hideplayer 1
++0.1 zoom near
++0.1 hour 11
++0.5 shot p2c_ladder_row_flavour_day.png
++0.1 hour 22
++0.5 shot p2c_ladder_row_flavour_night.png
++0.1 p2cline face 1
++0.3 shot p2c_ladder_row_flavour_night_r.png
++0.1 p2cline face 0
++0.1 hideplayer 0
++0.1 zoom normal
++0.1 ladderkit lt1
++0.1 p2cline ranks
++0.1 hideplayer 1
++0.1 zoom near
++0.1 hour 11
++0.5 shot p2c_ladder_row_ranks_day.png
++0.1 hour 22
++0.5 shot p2c_ladder_row_ranks_night.png
++0.1 p2cline face 1
++0.3 shot p2c_ladder_row_ranks_night_r.png
++0.1 p2cline face 0
++0.1 hideplayer 0
++0.1 zoom normal
++0.1 p2cline clear
++0.1 hour 11
++0.3 expect doll tier 1

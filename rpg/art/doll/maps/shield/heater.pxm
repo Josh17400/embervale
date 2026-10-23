@@ -1,0 +1,446 @@
+# shield/heater: the Heater shield (P2c ladder slice, LADDER-HEAD; form3, shape2): the heartland's alloy shield from T4.
+# A flat top and curved sides to a point; a steel rim (R: brass at T4, gilt at T5), the field lit as a convex face (P:
+# etched at T4, filigree at T5), a device chevron over a boss (G: a metal-2 boss at T4, the gem at T5).
+# Keys (STYLE_P2 25.5; the kite's layout): rest (hangs still on the off arm), guard (raised to the chest; also the hurt
+# hold), block (squared to the threat, a size up, a glint on the rim's top-left: the delight), lie (flat on the ground
+# beside the corpse: `anchor pivot`, laid level under the turned body), back (slung for seated and kneeling postures).
+# Layers: facing down and left the face is in front; facing up its back (boards, strap, buckle) behind the arm; facing
+# right its back behind the body, raised edge-on before the chest (layer neck) for guard and block. Regions (contracts
+# 3b): R the rim, P the field round the device, G the boss, N the boards, W wear. Written by the LADDER-HEAD area's
+# gen_shields.py from shape masks and checked by eye at 1x and 8x. Format: rpg/art/doll/doll.h.
+use person
+body adult
+role shield form3
+role shield shape2
+layer shield
+anchor gripL
+keys shield
+tags overlay
+legend R field 1
+legend S field 2
+legend T field 3
+legend F device 2
+legend J device 3
+
+view D key rest origin 3 6
+|vvvvvvvvv
+|vyyyyyyxv
+|vyJTTSFxv
+|vyTTSSSxv
+|vyTSzxSxv
+|vySSxwSwv
+|vySSSSRwv
+|vxSSSRRwv
+|.vxSRRwv.
+|.vvwwwvv.
+|...vvv...
+regions
+|.........
+|.RRRRRRR.
+|.R.PPP.R.
+|.RPPPPPR.
+|.RPPGGPR.
+|.RPPGGPR.
+|.RPPPPPR.
+|.RPPPPPR.
+|..RPPPR..
+|...RRR...
+|.........
+
+view D key guard origin 3 5
+|vvvvvvvvv
+|vyyyyyyxv
+|vyJTTSFxv
+|vyTTSSSxv
+|vyTSzxSxv
+|vySSxwSwv
+|vySSSSRwv
+|vxSSSRRwv
+|.vxSRRwv.
+|.vvwwwvv.
+|...vvv...
+regions
+|.........
+|.RRRRRRR.
+|.R.PPP.R.
+|.RPPPPPR.
+|.RPPGGPR.
+|.RPPGGPR.
+|.RPPPPPR.
+|.RPPPPPR.
+|..RPPPR..
+|...RRR...
+|.........
+
+view D key block origin 5 6
+|vvvvvvvvvvv
+|vzyyyyyyyxv
+|vyTJJTFFSxv
+|vyTTTSSSSxv
+|vyJTzxSSFxv
+|vyTSxwSSSwv
+|vySSSSSSRwv
+|vySSSSSRRwv
+|vxSSSSRRRwv
+|.vxSSRRRwv.
+|..vwwwwwv..
+|...vvvvv...
+regions
+|...........
+|.RRRRRRRRR.
+|.RP..P..PR.
+|.RPPPPPPPR.
+|.R.PGGPP.R.
+|.RPPGGPPPR.
+|.RPPPPPPPR.
+|.RPPPPPPPR.
+|.RPPPPPPPR.
+|..RPPPPPR..
+|...RRRRR...
+|...........
+
+view U key rest origin 5 5 layer armFar
+|vvvvvvvvv
+|vxxxxxxwv
+|vxhhghhwv
+|vxhhghgwv
+|vxffOffwv
+|vxhhgggwv
+|vxhggggwv
+|vwgggggwv
+|.vwgggwv.
+|.vvwwwvv.
+|...vvv...
+regions
+|.........
+|.RRRRRRR.
+|.R..N..R.
+|.R..N..R.
+|.R.....R.
+|.R..N..R.
+|.R..N..R.
+|.R..N..R.
+|..R.N.R..
+|...RRR...
+|.........
+
+view U key guard origin 6 5 layer back
+|vvvvvvvvv
+|vxxxxxxwv
+|vxhhghhwv
+|vxhhghgwv
+|vxffOffwv
+|vxhhgggwv
+|vxhggggwv
+|vwgggggwv
+|.vwgggwv.
+|.vvwwwvv.
+|...vvv...
+regions
+|.........
+|.RRRRRRR.
+|.R..N..R.
+|.R..N..R.
+|.R.....R.
+|.R..N..R.
+|.R..N..R.
+|.R..N..R.
+|..R.N.R..
+|...RRR...
+|.........
+
+view U key block origin 8 9 layer back
+|vvvvvvvvvvv
+|vxxxxxxxxwv
+|vxhhghhghwv
+|vxhhghhggwv
+|vxfffOfffwv
+|vxhhghgggwv
+|vxhhgggggwv
+|vxhggggggwv
+|vwgggggggwv
+|.vwgggggwv.
+|..vwwwwwv..
+|...vvvvv...
+regions
+|...........
+|.RRRRRRRRR.
+|.R..N..N.R.
+|.R..N..N.R.
+|.R.......R.
+|.R..N..N.R.
+|.R..N..N.R.
+|.R..N..N.R.
+|.R..N..N.R.
+|..R.N..NR..
+|...RRRRR...
+|...........
+
+view R key rest origin 2 6 layer back
+|vvvvvvvvv
+|vxxxxxxwv
+|vxhhghhwv
+|vxhhghgwv
+|vxffOffwv
+|vxhhgggwv
+|vxhggggwv
+|vwgggggwv
+|.vwgggwv.
+|.vvwwwvv.
+|...vvv...
+regions
+|.........
+|.RRRRRRR.
+|.R..N..R.
+|.R..N..R.
+|.R.....R.
+|.R..N..R.
+|.R..N..R.
+|.R..N..R.
+|..R.N.R..
+|...RRR...
+|.........
+
+view R key guard origin -1 4 layer neck
+|vvvvvvvv
+|vyyyyyxv
+|vyJTSSxv
+|vyTSSSxv
+|vySzxSxv
+|vySxwSwv
+|vxSSSRwv
+|vxSSRRwv
+|vxSRRRwv
+|.vwwwwv.
+|..vvvv..
+regions
+|........
+|.RRRRRR.
+|.R.PPPR.
+|.RPPPPR.
+|.RPGGPR.
+|.RPGGPR.
+|.RPPPPR.
+|.RPPPPR.
+|.RPPPPR.
+|..RRRR..
+|........
+
+view R key block origin 0 6 layer neck
+|vvvvvvvv
+|vzyyyyxv
+|vyJTSSxv
+|vyTSSSxv
+|vySzxSxv
+|vySxwSwv
+|vxSSSRwv
+|vxSSRRwv
+|vxSRRRwv
+|.vwwwwv.
+|..vvvv..
+regions
+|........
+|.RRRRRR.
+|.R.PPPR.
+|.RPPPPR.
+|.RPGGPR.
+|.RPGGPR.
+|.RPPPPR.
+|.RPPPPR.
+|.RPPPPR.
+|..RRRR..
+|........
+
+view L key rest origin 2 6
+|vvvvvvvvv
+|vyyyyyyxv
+|vyJTTSFxv
+|vyTTSSSxv
+|vyTSzxSxv
+|vySSxwSwv
+|vySSSSRwv
+|vxSSSRRwv
+|.vxSRRwv.
+|.vvwwwvv.
+|...vvv...
+regions
+|.........
+|.RRRRRRR.
+|.R.PPP.R.
+|.RPPPPPR.
+|.RPPGGPR.
+|.RPPGGPR.
+|.RPPPPPR.
+|.RPPPPPR.
+|..RPPPR..
+|...RRR...
+|.........
+
+view L key guard origin 2 5
+|vvvvvvvvv
+|vyyyyyyxv
+|vyJTTSFxv
+|vyTTSSSxv
+|vyTSzxSxv
+|vySSxwSwv
+|vySSSSRwv
+|vxSSSRRwv
+|.vxSRRwv.
+|.vvwwwvv.
+|...vvv...
+regions
+|.........
+|.RRRRRRR.
+|.R.PPP.R.
+|.RPPPPPR.
+|.RPPGGPR.
+|.RPPGGPR.
+|.RPPPPPR.
+|.RPPPPPR.
+|..RPPPR..
+|...RRR...
+|.........
+
+view L key block origin 3 6
+|vvvvvvvvvvv
+|vzyyyyyyyxv
+|vyTJJTFFSxv
+|vyTTTSSSSxv
+|vyJTzxSSFxv
+|vyTSxwSSSwv
+|vySSSSSSRwv
+|vySSSSSRRwv
+|vxSSSSRRRwv
+|.vxSSRRRwv.
+|..vwwwwwv..
+|...vvvvv...
+regions
+|...........
+|.RRRRRRRRR.
+|.RP..P..PR.
+|.RPPPPPPPR.
+|.R.PGGPP.R.
+|.RPPGGPPPR.
+|.RPPPPPPPR.
+|.RPPPPPPPR.
+|.RPPPPPPPR.
+|..RPPPPPR..
+|...RRRRR...
+|...........
+
+# (iteration 3) lying face up beside the corpse in 3/4: the far rim lit, the field and its device or boss, the near rim
+# in shadow; laid over the body's lower edge, never hung under it
+# (iteration 3) lying face up beside the corpse in 3/4: the far rim lit, the field and its device or boss, the near rim
+# in shadow; laid over the body's lower edge, never hung under it
+# (iteration 3) lying face up beside the corpse in 3/4: the far rim lit, the field and its device or boss, the near rim
+# in shadow; laid over the body's lower edge, never hung under it
+# (iteration 3) lying face up beside the corpse in 3/4: the far rim lit, the field and its device or boss, the near rim
+# in shadow; laid over the body's lower edge, never hung under it
+view L key lie origin 9 -4 anchor pivot
+|...vvvvvvvvv
+|.vvyyyyyyyxv
+|vxyTTTTJTTwv
+|.vvwSSJFJRwv
+|...vvwwwwwvv
+regions
+|............
+|...RRRRRRRR.
+|.RRPPPP.PPR.
+|...RPP...PR.
+|.....RRRRR..
+
+view D key back origin 4 1 layer back anchor neck
+|vvvvvvvvv
+|vxxxxxxwv
+|vxhhghhwv
+|vxhhghgwv
+|vxffOffwv
+|vxhhgggwv
+|vxhggggwv
+|vwgggggwv
+|.vwgggwv.
+|.vvwwwvv.
+|...vvv...
+regions
+|.........
+|.RRRRRRR.
+|.R..N..R.
+|.R..N..R.
+|.R.....R.
+|.R..N..R.
+|.R..N..R.
+|.R..N..R.
+|..R.N.R..
+|...RRR...
+|.........
+
+view U key back origin 4 0 anchor neck
+|vvvvvvvvv
+|vyyyyyyxv
+|vyJTTSFxv
+|vyTTSSSxv
+|vyTSzxSxv
+|vySSxwSwv
+|vySSSSRwv
+|vxSSSRRwv
+|.vxSRRwv.
+|.vvwwwvv.
+|...vvv...
+regions
+|.........
+|.RRRRRRR.
+|.R.PPP.R.
+|.RPPPPPR.
+|.RPPGGPR.
+|.RPPGGPR.
+|.RPPPPPR.
+|.RPPPPPR.
+|..RPPPR..
+|...RRR...
+|.........
+
+view R key back origin 8 0 layer back anchor neck
+|vvvvvv
+|vyyyyv
+|vyTSxv
+|vyzxxv
+|vyxwxv
+|vxSSwv
+|vxSSwv
+|vxSRwv
+|.vwwv.
+|..vv..
+regions
+|......
+|.RRRR.
+|.RPPR.
+|.RGGR.
+|.RGGR.
+|.RPPR.
+|.RPPR.
+|.RPPR.
+|..RR..
+|......
+
+view L key back origin -4 0 layer back anchor neck
+|vvvvvv
+|vyyyyv
+|vyTSxv
+|vyzxxv
+|vyxwxv
+|vxSSwv
+|vxSSwv
+|vxSRwv
+|.vwwv.
+|..vv..
+regions
+|......
+|.RRRR.
+|.RPPR.
+|.RGGR.
+|.RGGR.
+|.RPPR.
+|.RPPR.
+|.RPPR.
+|..RR..
+|......

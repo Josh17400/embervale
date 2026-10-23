@@ -185,6 +185,35 @@ struct RigSheet {
   const RigAnchors* anchorsOf(int facing, Clip c, int variant, int i) const;
   bool empty() const { return frames.empty(); }
   size_t bytes() const { return (size_t)atlas.w * atlas.h * 4; }
+  // (P2c ladder, contracts 6b) the glow plane: each frame's Glow-slot pixels (gems, runes, the eye slit) after the finishing
+  // pass, cropped and packed into their own atlas; rects parallel to frames (x, y, w, h in glow.atlas; px, py the crop's
+  // offset from the frame's top-left; w 0: none), count the glow pixels of the frame. Empty for a look with none. The
+  // view draws it after the lighting, additively, pulsed by art::finish (rig 2 only).
+  // (ladder i2, C13) the crop is cut into tiles (8x8 cells, each trimmed to its pixels) and equal tiles are packed once, so
+  // a spear's runes and a helm's slit far apart cost their pixels, not the box between them: rects[i] is frame i's box
+  // (w 0: none; x, y unused), tiles[first[i] .. first[i] + tileCount[i]) its tiles (x, y, w, h in atlas; px, py from the
+  // frame's top-left). each() walks a frame's glow pixels in frame coordinates.
+  struct GlowPlane {
+    Canvas atlas;
+    std::vector<FrameRect> rects;
+    std::vector<uint16_t> count;
+    std::vector<FrameRect> tiles;
+    std::vector<uint32_t> first;
+    std::vector<uint16_t> tileCount;
+    bool empty() const { return atlas.w <= 0; }
+    template <class F> void each(size_t fi, F&& f) const {
+      if (fi >= first.size()) return;
+      for (uint32_t k = first[fi]; k < first[fi] + tileCount[fi]; k++) {
+        const FrameRect& t = tiles[k];
+        for (int y = 0; y < t.h; y++)
+          for (int x = 0; x < t.w; x++) {
+            const uint32_t c = atlas.get(t.x + x, t.y + y);
+            if (c >> 24) f(t.px + x, t.py + y, c);
+          }
+      }
+    }
+  };
+  GlowPlane glow;
 };
 
 // the v2 atlas of a look's part (empty until the painters fill it: art_rig.cpp dispatches to rigLoco / rigAction /

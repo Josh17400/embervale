@@ -79,19 +79,40 @@ struct Line {
 };
 
 // ---------------------------------------------------------------- the looks
-const char* kSliceLooks =
+const char* kSliceLooks =   // (P2c ladder) the gates' matrix: tools/doll/ladder_looks.txt (tools/doll/embed_looks.py writes it)
     "hero     man    -  walk,run,dwalk,drun,didle,hit1,fall,lying\n"
+    "lt1      man    hero=1,kit=heartland:1:7,palette=look  stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying\n"
+    "lt2      man    hero=1,kit=heartland:2:7,palette=look  stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying\n"
+    "lt3      man    hero=1,kit=heartland:3:7,palette=look  stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying\n"
+    "lt4      man    hero=1,kit=heartland:4:7,palette=look  stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying\n"
+    "lt5      man    hero=1,kit=heartland:5:7,palette=look  stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying\n"
+    "lt6      man    hero=1,kit=heartland:6:7,palette=look  stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying\n"
+    "lt6m     man    hero=1,kit=heartland:6:7,rarity=mythic,palette=look  stay,walk,run,didle,hit1\n"
+    "lt6w     woman  heroine=1,kit=heartland:6:7,wpn=spear,hairColor=#8C5A2A,palette=look  stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying\n"
+    "lt1w     woman  heroine=1,kit=heartland:1:7,palette=look  stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying\n"
+    "jade3    man    kit=jade:3:1,wpn=spear,head=6,hair=1,hairVar=1,hairColor=#1E1A22,skin=#E2B58A,palette=look  stay,walk,run,didle,hit1,hurt,"
+    "fall,lying\n"
+    "imp3     man    kit=imperial:3:2,wpn=sword,head=2,hair=1,hairVar=0,hairColor=#3A2418,beard=1,beardStyle=2,skin=#C98E64,palette=look  stay,"
+    "walk,run,didle,hit1,hurt,fall,lying\n"
+    "fjord3   man    kit=fjordfolk:3:5,wpn=sword,head=4,hair=2,hairVar=1,hairColor=#B87A3E,beard=1,beardStyle=4,skin=#EAC0A0,palette=look  stay,"
+    "walk,run,didle,hit1,hurt,fall,lying\n"
+    "nband    man    npc=heartland:bandit:0:7,palette=look  stay,walk,run,hit1,fall,lying\n"
+    "nroyal   woman  npc=heartland:guard:2:7,palette=look  stay,walk,run,didle,hit1,fall,lying\n"
+    "nking    man    npc=heartland:king:0:7,palette=look  stay,walk\n"
     "guard    man    outfit=8,armorStyle=2,bodyForm=3,tabardColor=#A8322E,helmet=1,helmStyle=2,helmForm=1,shield=1,shieldStyle=3,shieldForm=2,"
     "shieldDevice=#E8C25A,weapon=1,bladeForm=1,gloves=1,boots=1,pauldron=1,neck=0,head=1,hair=1,hairVar=1,hairColor=#4A3022,beard=1,beardStyle=0,"
-    "skin=#D9A07A,palette=look  walk,run,dwalk,drun,didle,hit1,block,hurt,fall,lying\n"
-    "knight   woman  outfit=5,armorStyle=3,bodyForm=7,pauldron=3,skirt=2,gloves=3,boots=3,helmet=1,helmStyle=3,helmForm=9,crest=3,plumeColor=#B83A32,"
-    "weapon=8,polearmForm=1,hair=5,hairVar=0,hairColor=#2E1E18,skin=#E8B08A,palette=look  walk,run,dwalk,drun,didle,hit1,block,hurt,fall,lying\n"
-    "archer   man    outfit=3,armorStyle=1,bodyForm=2,armsOrnament=16,helmet=1,helmStyle=1,weapon=3,bowForm=1,gloves=1,boots=1,neck=0,topColor=#5E6A3A,"
-    "bottomColor=#4A3A2C,hair=1,hairVar=2,hairColor=#6A4426,beard=1,beardStyle=1,skin=#B98060,palette=look  walk,run,dwalk,drun,didle,draw,hurt,fall,lying\n"
-    "knightm  man    outfit=5,armorStyle=3,bodyForm=7,pauldron=3,skirt=2,gloves=3,boots=3,helmet=1,helmStyle=3,helmForm=9,crest=3,plumeColor=#B83A32,"
-    "weapon=0,neck=0,head=4,beard=1,beardStyle=2,palette=look  walk,run,hurt,fall,lying\n"
-    "archerw  woman  outfit=3,armorStyle=1,bodyForm=2,armsOrnament=16,helmet=1,helmStyle=1,weapon=0,gloves=1,boots=1,topColor=#5E6A3A,"
-    "bottomColor=#4A3A2C,hair=3,hairVar=0,hairColor=#3A2418,palette=look  walk,run,hurt,fall,lying\n";
+    "skin=#D9A07A,tier=2,palette=look  walk,run,dwalk,drun,didle,hit1,block,hurt,fall,lying\n"
+    "knight   woman  outfit=5,armorStyle=3,bodyForm=7,pauldron=3,skirt=2,gloves=3,boots=3,helmet=1,helmStyle=3,helmForm=9,crest=3,"
+    "plumeColor=#B83A32,weapon=8,polearmForm=1,hair=5,hairVar=0,hairColor=#2E1E18,skin=#E8B08A,tier=4,palette=look  stay,walk,run,dwalk,drun,"
+    "didle,hit1,block,hurt,fall,lying\n"
+    "archer   man    outfit=3,armorStyle=1,bodyForm=2,armsOrnament=16,helmet=1,helmStyle=1,weapon=3,bowForm=1,gloves=1,boots=1,neck=0,"
+    "topColor=#6F8F45,bottomColor=#4A3A2C,hair=1,hairVar=2,hairColor=#8A5A30,beard=1,beardStyle=1,skin=#CA8E66,tier=2,palette=look  walk,run,"
+    "dwalk,drun,didle,draw,hurt,fall,lying\n"
+    "knightm  man    outfit=5,armorStyle=3,bodyForm=7,pauldron=3,skirt=2,gloves=3,boots=3,helmet=1,helmStyle=3,helmForm=9,crest=3,"
+    "plumeColor=#B83A32,weapon=1,bladeForm=1,neck=0,head=4,beard=1,beardStyle=2,hairColor=#5A3A26,tier=4,palette=look  walk,run,didle,hit1,hurt,"
+    "fall,lying\n"
+    "archerw  woman  outfit=3,armorStyle=1,bodyForm=2,armsOrnament=16,helmet=1,helmStyle=1,weapon=3,bowForm=1,gloves=1,boots=1,topColor=#6F8F45,"
+    "bottomColor=#4A3A2C,hair=3,hairVar=0,hairColor=#3A2418,tier=2,palette=look  walk,run,didle,draw,hurt,fall,lying\n";
 
 uint32_t hexc(uint32_t rgb) { return 0xFF000000u | (rgb & 0xFF) << 16 | (rgb & 0xFF00) | (rgb >> 16 & 0xFF); }
 HumanLook a3Hero() {
@@ -414,13 +435,15 @@ std::string gripCheck(const doll::FrameProbe& p, const doll::FrameProbe* bare, b
 // e: lying keeps its gear
 std::string lyingCheck(const doll::FrameProbe& p, bool helm, bool shield, bool weapon) {
   int helmPx = 0;
-  std::vector<int> body, sh, wp, hand;
+  std::vector<int> body, sh, wp, hand, figure;   // figure: every opaque pixel that is not the weapon or the shield
   for (int k = 0; k < p.w * p.h; k++) {
     if (!opaque(p, k)) continue;
     const doll::FrameProbe::It* it = itemAt(p, k);
+    if (!it || !(it->has(doll::Role::Held) || it->has(doll::Role::Shield))) figure.push_back(k);
     if (!it) continue;
     if (isHelm(*it)) helmPx++;
-    if (isShield(*it)) sh.push_back(k);
+    // (P2c ladder i1: the lie views lie flat beside the corpse, `anchor pivot`: the shield on the ground still counts)
+    if (isShield(*it) || (it->has(doll::Role::Shield) && it->anchor == art::doll::Anchor::Pivot)) sh.push_back(k);
     else if (it->has(doll::Role::Held)) wp.push_back(k);
     else body.push_back(k);
     if (p.region[(size_t)k] == (uint8_t)doll::Region::Hand) hand.push_back(k);
@@ -432,7 +455,11 @@ std::string lyingCheck(const doll::FrameProbe& p, bool helm, bool shield, bool w
   };
   if (helm && !helmPx) return "the helm is gone";
   if (shield) { if (sh.empty()) return "the shield is gone"; if (gap(sh, body) > 4) return fmt("the shield %.0f px from the body (4)", gap(sh, body)); }
-  if (weapon && !wp.empty() && !hand.empty() && gap(wp, hand) > 6) return fmt("the weapon %.0f px from a hand (6)", gap(wp, hand));
+  // (P2c ladder i1, the owner: "gear floating over them": the dropped weapon lies flat along the corpse's lower edge, so
+  // it reads on the ground beside the body: within 6 px of a hand or of the figure, never off on its own;
+  // the probe measures the lying frame before it is laid down, where the drop sits below the soles)
+  if (weapon && !wp.empty() && !hand.empty() && gap(wp, hand) > 6 && gap(wp, figure) > 6)
+    return fmt("the weapon %.0f px from a hand (6) and %.0f px from the figure (6)", gap(wp, hand), gap(wp, figure));
   return "";
 }
 
@@ -539,6 +566,14 @@ void gateC4(Line& g, const std::vector<Look>& looks) {
     // over the chest is the same pixels in both figures and only dilutes the share
     HumanLook worn = b.L;
     worn.shield = 0; worn.weapon = 0;
+    // (ladder i2) and with no cloak on either side: the ladder's travel and noble cloaks are the same pixels over both
+    // figures' backs and edges (lt6 D measured the plate's outline as 0 px moved behind its cloak)
+    worn.cloak = 0; worn.cape = 0;
+    // (ladder i2, integration) and beardless on both sides: the Fjordfolk's braided beard covers the chest in both figures
+    // (fjord3 D measured 13 % with the mail under it), the same pixels the cloak was
+    worn.beard = 0; worn.hood = false;   // a cloth hood's mantle over the shoulders: the same (nband R measured 13 %)
+    worn.neck = 0;   // the hero's scarf over the collar and chest: the same (lt1w D measured 14 %)
+    if (worn.hair == art::Hair::Long || worn.hair == art::Hair::Braids) worn.hair = art::Hair::Short;   // long hair over the shoulders: the same
     HumanLook bare = worn;
     bare.outfit = art::Outfit::Tunic; bare.armorStyle = 0; bare.bodyForm = 0; bare.pauldron = 0; bare.skirt = 0; bare.gloves = 0; bare.boots = 0;
     doll::DollRecipe ra = doll::resolve(worn), rb = doll::resolve(bare);

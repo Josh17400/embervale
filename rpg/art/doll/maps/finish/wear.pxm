@@ -1,0 +1,69 @@
+# finish/wear: T1's wear, mended never broken (STYLE_P2 27.3; P2C_CONTRACTS 3b W; LADDER-FINISH, ladder slice i3).
+# A STAMP set (proposed `tags stamp`): laid once per connected W blob of a part's composed view, its origin on the blob's
+# top-left; the view is picked by the blob: one row tall -> `hem` (repeated along the row from its left end: a notch every
+# 6 px, the hem pixel dropped to the material's step 0 so the outline stays closed); else `<cloth|metal><w>x<h>` (w, h
+# capped at 3; metal when most of the blob is Metal / Metal2 / Blade), cells off the blob skipped. Cells:
+#   ~ (ink 1)  the patch: the piece's own material one step darker (i3: i2's leather-2 scrap matched the wooden shield
+#              and the buff quilt read it as dirt; the linen stitch dots read as a pair of eyes on the shield)
+#   ^ (ink 3)  the patch's lit top-left edge, one step lighter: at 3x a sewn / nailed-on piece, at 1x a darker inset
+#   + linen 3  (spare) pale thread
+#   $ leather 2 (spare)
+#   % leather 1 tarnish: a warm rust-brown cluster, 2-3 px, only where the piece owner put W (the metal's shadow side)
+#   = (ink 0)  the frayed hem's notch
+# Proposed rules (LADDER-DOLL): in a stamp an ink cell keeps the slot and MOVES the step by (k - 2), clamped 0..4; a cell
+# of any other slot writes slot and step absolutely; outlines (step 0) never change. Piece owners: one or two W blobs a
+# piece, a patch 3x2 (2x2 shows a single stitch), wear 6 % of the piece at most (C12 d). `rest` is the periodic fallback.
+use person
+body adult
+role overlay finish.wear
+legend ~ ink 1
+legend + linen 3
+legend $ leather 2
+legend % leather 1
+legend = ink 0
+legend ^ ink 3
+tags tile overlay stamp
+on-region W
+
+view D key cloth2x2 origin 0 0
+|^~
+|~~
+
+view D key cloth3x2 origin 0 0
+|^^~
+|~~~
+
+view D key cloth2x3 origin 0 0
+|^~
+|~~
+|~~
+
+view D key cloth3x3 origin 0 0
+|^^~
+|~~~
+|~~~
+
+view D key metal2x2 origin 0 0
+|.%
+|%%
+
+view D key metal3x2 origin 0 0
+|.%.
+|%%.
+
+view D key metal2x3 origin 0 0
+|.%
+|%%
+|..
+
+view D key metal3x3 origin 0 0
+|.%.
+|%%.
+|...
+
+view D key hem origin 0 0
+|.=....
+
+view D key rest origin 0 0
+|+~
+|~~

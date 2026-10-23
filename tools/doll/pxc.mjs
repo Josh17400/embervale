@@ -37,8 +37,8 @@ const REPO = path.resolve(HERE, '..', '..');
 // ---------------------------------------------------------------------------------------------- the frozen tables
 // (rpg/art/doll/doll.h mirrors every list: ADD at the end, never reorder or rename)
 export const SLOTS = ['skin', 'hair', 'eyes', 'face', 'ink', 'cloth1', 'cloth2', 'accent', 'linen', 'cloth3', 'leather', 'metal',
-  'metal2', 'head', 'cloak', 'pattern', 'plume', 'field', 'device', 'glow', 'fx'];
-export const REGIONS = { U: 1, F: 2, C: 3, H: 4, X: 5, T: 6, K: 7, S: 8, B: 9, O: 10, E: 11 };   // upper fore cuff hand flare thigh knee shin boot sole edge
+  'metal2', 'head', 'cloak', 'pattern', 'plume', 'field', 'device', 'glow', 'fx', 'blade'];
+export const REGIONS = { U: 1, F: 2, C: 3, H: 4, X: 5, T: 6, K: 7, S: 8, B: 9, O: 10, E: 11, R: 12, P: 13, G: 14, N: 15, W: 16 };   // upper fore cuff hand flare thigh knee shin boot sole edge; (P2c ladder) trim panel gem seam wear
 export const LAYERS = ['fxBack', 'heldBack', 'back', 'cloakBack', 'hairBack', 'armFar', 'legs', 'shoes', 'hangBack', 'torso',
   'hangFront', 'belt', 'neck', 'armNear', 'head', 'face', 'beard', 'hairFront', 'ears', 'headwear', 'held', 'shield',
   'cloakFront', 'fx'];
@@ -382,7 +382,7 @@ function parsePart(file, text) {
       // move it one down / up, 0 and 4 set it (outlines never change). Kept in the pool as the tag on-region:<letters>
       case 'on-region': {
         const rs = toks.slice(1).join('');
-        if (!rs || [...rs].some((c) => !(c in REGIONS) || c === 'O' || c === 'E')) err(where, 'on-region <U F C H X T K S B> ...');
+        if (!rs || [...rs].some((c) => !(c in REGIONS) || c === 'O' || c === 'E')) err(where, 'on-region <U F C H X T K S B R P G N W> ...');
         else P.tags.push('on-region:' + rs);
         break;
       }

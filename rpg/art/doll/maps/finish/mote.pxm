@@ -1,0 +1,53 @@
+# finish/mote: the living finish's mote (STYLE_P2 27.7; P2C_CONTRACTS 6b `fx mote`; LADDER-FINISH, ladder slice i3): a
+# rising spark drawn by the view as a particle: a1 (its first third) a 1x2 streak, white head over a Glow 2 tail so it
+# reads as moving up; a2 (the middle third) one Glow 3 pixel; a3 (the last third) one Glow 2 pixel, its light fading.
+use person
+body adult
+role fx mote
+legend 2 glow 2
+legend 3 glow 3
+legend 4 glow 4
+layer fx
+anchor pivot
+keys fx
+tags overlay
+
+view D key a1 origin 0 0
+|4
+|2
+
+view D key a2 origin 0 0
+|3
+
+view D key a3 origin 0 0
+|2
+
+view U key a1 origin 0 0
+|4
+|2
+
+view U key a2 origin 0 0
+|3
+
+view U key a3 origin 0 0
+|2
+
+view R key a1 origin 0 0
+|4
+|2
+
+view R key a2 origin 0 0
+|3
+
+view R key a3 origin 0 0
+|2
+
+view L key a1 origin 0 0
+|4
+|2
+
+view L key a2 origin 0 0
+|3
+
+view L key a3 origin 0 0
+|2

@@ -2,6 +2,8 @@
 # rollout, 2026-10-22): the reach keys (walkB2, walkD2) draw the hang's frozen rest view, so mail_hang cannot carry the skirt
 # there; these views do, pixel for pixel the rows mail.pxm's run view drew before. Every other key draws nothing.
 # Format: rpg/art/doll/doll.h.
+# (LADDER-ARMOUR i3) the 1px checker re-laid as STYLE_P2 25.2's brick: lit side courses yyx / xyy (steps 3/2), shadow side xww / wwx
+# (steps 2/1), alternate rows offset, so mail reads as rings and a fine grey fabric, never a chessboard (the blind panel).
 use person
 body man
 role armour mail
@@ -23,26 +25,38 @@ view U key walkD2 origin 0 0
 |.
 
 view R key walkB2 origin 6 -1
-|vyxyxywxwxwv.
-|vyyyyyywxwxwv
+|vyxyyxxwwxwv.
+|vyyyyyywxwwxv
+regions
+|.............
+|.RRRRR.......
 build
 |...+.........
 
 view R key walkD2 origin 6 -1
-|vyxyxywxwxwv.
-|vyyyyyywxwxwv
+|vyxyyxxwwxwv.
+|vyyyyyywxwwxv
+regions
+|.............
+|.RRRRR.......
 build
 |...+.........
 
 view L key walkB2 origin 8 -1
-|.vyxyxxwxwxwwv
-|vyyyyyywxwxwxv
+|.vyyxywwxwwxwv
+|vyyyyyyxwwxwwv
+regions
+|..............
+|.RRRRRR.......
 build
 |..........+...
 
 view L key walkD2 origin 8 -1
-|.vyxyxxwxwxwwv
-|vyyyyyywxwxwxv
+|.vyyxywwxwwxwv
+|vyyyyyyxwwxwwv
+regions
+|..............
+|.RRRRRR.......
 build
 |..........+...
 

@@ -1,0 +1,14 @@
+# armour/tiles/scale: scale units over the scale (and mail-finer) sleeve region (U): 3 px units, the top row keeps its drawn
+# step and the unit's lower edge falls a step, the courses offset, so the upper arm reads as the body's scale (STYLE_P2 25.2).
+# Format: rpg/art/doll/doll.h; `on-region` is P2C_CONTRACTS 4.
+use person
+body adult
+role overlay scale
+tags tile overlay
+on-region U
+
+view D key rest origin 0 0
+|xxwxxw
+|xwwxww
+|wxxwxx
+|wxwwxw

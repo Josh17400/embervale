@@ -1,0 +1,210 @@
+# armour/shared/pauldron_plate4_r: the LARGE plate pauldron on the right shoulder (plate.4; LADDER-ARMOUR, STYLE_P2 25.6,
+# 27.4): the medium cop a pixel broader and a lame deeper, 3 px past the shoulder line (the Heartland's shoulders from its
+# first alloy: T4-T6); the cop lit at its top-left with one step-4 ridge pixel (its glint), two lames below the seam.
+# It rides the lean and the bob and lifts a pixel on wind-ups (`up`). Finish regions: R the lower lame's hem, P the cop's
+# face, N the seams, W a spot on the shadow side. Shared by both bodies. Format: rpg/art/doll/doll.h.
+# (LADDER-ARMOUR i3) D U and the near side view redrawn: a raised haute-piece (the neck flange, R: gilt from T3) over the domed
+# cop and a lit lame, inside the old box (origin a row lower for the flange); N dropped (runes live on the breastplate).
+use person
+role pauldron plate.4
+layer armNear
+anchor shoulderR
+keys pauld
+z 5
+side R
+
+view D key rest origin 3 3
+|....vv.
+|.vvvyxv
+|vzyyxwv
+|vyxxwwv
+|vxwwwwv
+|vyyxxwv
+|vwwwwwv
+|.vvvvv.
+regions
+|.......
+|....RR.
+|..PP...
+|.PPPWW.
+|....WW.
+|.RRR...
+|.......
+|.......
+
+view D key up origin 3 4
+|....vv.
+|.vvvyxv
+|vzyyxwv
+|vyxxwwv
+|vxwwwwv
+|vyyxxwv
+|vwwwwwv
+|.vvvvv.
+regions
+|.......
+|....RR.
+|..PP...
+|.PPPWW.
+|....WW.
+|.RRR...
+|.......
+|.......
+
+view D key lie origin 3 3
+|....vv.
+|.vvvyxv
+|vzyyxwv
+|vyxxwwv
+|vxwwwwv
+|vyyxxwv
+|vwwwwwv
+|.vvvvv.
+regions
+|.......
+|....RR.
+|..PP...
+|.PPPWW.
+|....WW.
+|.RRR...
+|.......
+|.......
+
+view U key rest origin 3 3
+|.vv....
+|vxyvvv.
+|vyxxwwv
+|vxwwwwv
+|vwwwwwv
+|vxxwwwv
+|vwwwwwv
+|.vvvvv.
+regions
+|.......
+|.RR....
+|.......
+|....WW.
+|....WW.
+|.RRR...
+|.......
+|.......
+
+view U key up origin 3 4
+|.vv....
+|vxyvvv.
+|vyxxwwv
+|vxwwwwv
+|vwwwwwv
+|vxxwwwv
+|vwwwwwv
+|.vvvvv.
+regions
+|.......
+|.RR....
+|.......
+|....WW.
+|....WW.
+|.RRR...
+|.......
+|.......
+
+view U key lie origin 3 3
+|.vv....
+|vxyvvv.
+|vyxxwwv
+|vxwwwwv
+|vwwwwwv
+|vxxwwwv
+|vwwwwwv
+|.vvvvv.
+regions
+|.......
+|.RR....
+|.......
+|....WW.
+|....WW.
+|.RRR...
+|.......
+|.......
+
+view R key rest origin 2 3
+|...vv...
+|.vvyxvv.
+|vzyyxxwv
+|vyyxxwwv
+|vxwwwwwv
+|vyyxxwwv
+|vwwwwwwv
+|.vvvvvv.
+regions
+|........
+|...RR...
+|..PPP...
+|.PPPPWW.
+|.....WW.
+|.RRR....
+|........
+|........
+
+view R key up origin 2 4
+|...vv...
+|.vvyxvv.
+|vzyyxxwv
+|vyyxxwwv
+|vxwwwwwv
+|vyyxxwwv
+|vwwwwwwv
+|.vvvvvv.
+regions
+|........
+|...RR...
+|..PPP...
+|.PPPPWW.
+|.....WW.
+|.RRR....
+|........
+|........
+
+view R key lie origin 2 2
+|.vvvvv.
+|vzyyxwv
+|vyxxwwv
+|.vvvvv.
+regions
+|.......
+|..PPP..
+|.PPPWW.
+|.......
+
+view L key rest origin 1 2
+|.vvvvv..
+|vxxwwwv.
+|vxwwwwwv
+|vwwwwwwv
+|vwwwwwwv
+|vvvvvvvv
+regions
+|........
+|.PPP....
+|.PPPWW..
+|........
+|.RRR....
+|........
+
+view L key up origin 1 3
+|.vvvvv..
+|vxxwwwv.
+|vxwwwwwv
+|vwwwwwwv
+|vwwwwwwv
+|vvvvvvvv
+regions
+|........
+|.PPP....
+|.PPPWW..
+|........
+|.RRR....
+|........
+
+view L key lie origin 0 0
+|.

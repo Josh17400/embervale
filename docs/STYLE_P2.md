@@ -37,6 +37,11 @@ timing model (frames by distance walked, swings by the family's pace), the swing
 | fall: recoil, buckle, a painted topple | recoil, buckle, then the lying figure itself lifted for one frame; lying is the composed side view turned a quarter | 13 |
 | the P2a style slice (procedural; passed 2026-10-18) | the A3 doll slice, P2b wave 1, signed off by the owner; P2a's record kept in the appendix | 19 |
 
+**2026-10-23, the gear ladder.** After approving the P2c slice's direction, the owner asked for a rags-to-riches
+progression: beginner gear okay / mid, steadily cooler, late gear animated, built on the culture armour generator. Section
+27 is that ladder. "Bands are ramps, never shapes" now reads "materials are ramps; tiers are finish and the culture's
+dials" (22, 25.2, 25.12).
+
 ---
 
 ## 0. The feel
@@ -49,6 +54,7 @@ Hems are solid lit bands. A braid swings a pixel behind the step, a scarf tail f
 drops. The hero walks with the sword sheathed at the hip and a hand on the hilt; in a fight it comes out in a coiled
 back-swing and a thick, three-tone arc. Thousands of people in a procedural world, and no two neighbours look like copies:
 different jaws, noses, brows, 24 hair styles, beards, cuts and cultures, and armour that visibly changes a man or a woman.
+The hero's gear tells the story of the road: a mended gambeson at the start, living legendary steel at the end (27).
 Everything stays crisp: one pixel grid, whole-number scale, no blur, no mixels.
 
 ---
@@ -755,7 +761,9 @@ anchors (chest, hem, cuffs).
 
 The legacy outfits map onto these: Leather > Leather, Chain > Mail, Plate > Plate, Elven > Leaf (jade and gold), Ebony >
 Plate in the obsidian band with spikes, Guard > Mail with the tabard. The bands (leather, iron, steel, gilded, jade,
-obsidian, emberforged), bronze, the culture alloys and their sheens, and Mythic tempering are ramps, never new shapes.
+obsidian, emberforged), bronze, the culture alloys and their sheens, and Mythic tempering are ramps, never new shapes;
+the gear ladder's tiers (section 27) add finish and grow the silhouette only through the culture's dials, helms, shields,
+cloaks and plumes.
 Pauldrons (dial: none, small, medium, large) come in three families (plate, leather and fur, scale and lamellar) at the
 shoulder anchors. Skirts (dial) use the armour hangs (short tassets, knee mail or scale). Gloves recolour the hand
 (leather, metal) and add the gauntlet flare region at steel and up; boots recolour the boot region, run tall leather up
@@ -853,11 +861,13 @@ far-leg-whole leg the owner approved.
   ridge**: a step-4 line or run where the plane turns, on the lit side. White glints (step 4 pixels) sit at the top-left
   of convex shapes only, and a figure shows **three at most** in a frame. In the walk they may move a pixel with the bob
   and in the turn they jump to the new lit edge (the delight: plate catching the light as the body turns).
-- **Bands and alloys are ramps, never shapes**: leather, iron (dark, matte, narrow spread), steel (A3's), gilded (warm,
-  steps 3-4 toward yellow), jade (green-gold), obsidian (purple-black, one violet glint), emberforged (red-orange, the visor
-  or seams in the glow slot). Sheens change the spread: matte compresses it, bright widens it with a white step 4, dark
-  shifts it down, banded alternates step rows on the plates, iridescent hue-shifts the steps, glowing adds a glow-slot rim,
-  pale lifts it, burnished warms steps 3-4. Mythic tempering is gear_look's ember red, read through the same ramp.
+- **Bands and alloys are ramps, never shapes** (a tier's finish and dials are section 27): leather, bronze (warm
+  gold-brown, never the gilded yellow), iron (dark, matte, narrow spread), steel (A3's), gilded (warm, steps 3-4 toward
+  yellow), jade (green-gold), obsidian (purple-black, one violet glint), emberforged (red-orange; its visor or seams take
+  the glow slot from T5, 27.3), starmetal (pale blue-white, the heartland's band 7). Sheens change the spread: matte
+  compresses it, bright widens it with a white step 4, dark shifts it down, banded alternates step rows on the plates,
+  iridescent hue-shifts the steps, glowing adds a glow-slot rim, pale lifts it, burnished warms steps 3-4. Mythic
+  tempering is gear_look's ember red, read through the same ramp.
 - **Mail**: the metal ramp in a **brick**: 2x1 cells in horizontal courses, offset a pixel each row, steps 2/3 on the lit
   side and 1/2 on the shadow side. Never more than three brick rows run unbroken: a belt, a fold, a tabard hem or the
   collar breaks them. The mail's edges (hem, sleeve end, coif rim) are a **solid step-1 band** with no brick, so the edge
@@ -953,7 +963,9 @@ far-leg-whole leg the owner approved.
   wood (steps 2 and 3), outlined only where they cross a part of similar value. **Heads read by shape**: the axe's bearded
   head (5x6) has a steel edge line and a dark cheek; the mace's flanged head (4x5) has two glints; the spear's leaf head
   (5 px) has a white tip; the staff's 3x3 head has a glow pixel. **Bows** are a 1 px stave (wood or horn) curved by
-  stepped runs of 1-3 px with a 1 px string in linen step 3. The crossbow is 12x10 with the prod across.
+  stepped runs of 1-3 px with a 1 px string in linen step 3; facing down and up, where a bow is seen edge-on, it is drawn
+  at three-quarters, 2 px at the grip, its curve spanning 3 columns or more (the owner, 2026-10-23: "too thin to read").
+  The crossbow is 12x10 with the prod across.
 - **The silhouette test**: fill a held weapon black at 1x on the phone and its class must still be clear (cross guard,
   bearded head, flanged head, leaf point, long two-hand grip, curve and string).
 - **The hand holds the hilt** (section 5): the fist is drawn over the grip, with the guard showing on one side and the
@@ -977,7 +989,7 @@ The sim's clocks are fixed (no balance change). The doll's frames are timed agai
 | foes | 220-380 ms by family (dagger 0.22 ... greatsword 0.38; the bandits' mean held at 0.36) | 280 ms (heavy 400) | 350 ms (heavy 750) | the same frames, held longer |
 | guards and militia | 300 ms | 250 ms | 300 ms | the same |
 | the bow | the draw over the windup: nock, chest, cheek | release 80 ms | the drawn idle | 3 / 1 / - |
-| block | 150 ms flash on a parry (no sim state) | | | 1 |
+| block | 150 ms flash on a parry (no sim state): raise 30, impact 50, brace 70 ms | | | 3 |
 | roll | 4 x 85 ms | | | 4 |
 | cast | gather while the spell is held | release | | 2 |
 
@@ -987,7 +999,8 @@ about 40 ms, so it must read in one glance. A foe's loaded pose is held 120-210 
 
 1. **Anticipation**: every blow starts with a coil against its direction. Weight goes on the back foot and the weapon
    goes behind (A3's sword: the hand behind the back shoulder, the blade cocked clear of the jaw). The loaded frame is
-   the family's strongest silhouette.
+   the family's strongest silhouette. The spear's wind-up takes two frames (both fists drawn back to the hip, the body
+   leaning back 2 px), never a static poke (the owner, 2026-10-23).
 2. **Impact**: the strike's first frame. The weapon is fully visible at the end of its travel or its fastest point (never
    edge-on and never hidden in side views). The body commits with lunge legs and a 1-2 px lean, the face is fierce and
    the effect is at full width.
@@ -1015,8 +1028,11 @@ about 40 ms, so it must read in one glance. A foe's loaded pose is held 120-210 
    anchor: the bow arm straight, the elbow up, held for the rest of the windup), *release* (the string snaps forward, the
    bow hand recoils a pixel, the arrow is gone because the projectile is the game's), then back to the drawn idle. The
    crossbow aims with the stock at the shoulder, shoots as the prod snaps, and cranks as its follow.
-7. **Block**: one held pose. With a shield, the shield is square to the threat with the eyes over its rim and the knees
-   bent. Without one (the sword's parry), the blade or haft is across the body at 45 degrees.
+7. **Block**: three beats inside the 150 ms flash (the owner, 2026-10-23: "one held frame"): raise, impact (a 1 px
+   recoil and a spark, `fx spark`), brace. With a shield, the shield is square to the threat with the eyes over its rim
+   and the knees bent, and the sword arm is cocked high and back, so the side view never reads as a sword held low.
+   Without one (the sword's parry), the blade or haft is across the body at 45 degrees; the spear's block raises both
+   arms with the haft high.
 8. **Roll**: crouch, tuck (the crouch turned a quarter toward the roll), over (the other quarter), rise. The shield
    leads the tuck as the bash.
 9. **Cast**: *gather* (the hands meet at the chest with the glow between them, weight back), then *release* (the arms or
@@ -1026,8 +1042,10 @@ about 40 ms, so it must read in one glance. A foe's loaded pose is held 120-210 
     the body with the shield at the chest. The spear is levelled at the hip, tip forward. The greatsword is angled up in
     front in both hands, the staff held across, the bow low in the left hand with an arrow nocked, the fists up. The
     breathe frame lifts weapon and shield with the upper body.
-12. **Death with gear** (section 13): recoil, buckle, topple. The weapon lands beside the near hand, the shield falls flat
-    beside the body, the helm stays on, and back items lie under the body.
+12. **Death with gear** (section 13): recoil, buckle, topple. The weapon lands flat on the ground beside the near hand
+    (never level over the head, standing up or arcing in the air: the owner, 2026-10-23), the shield falls flat beside
+    the body, the helm stays on, back items lie under the body, and the lying body reads as head, torso and legs (a
+    painted lie view wherever the turn makes a lump).
 
 ### 25.9 Gear in motion (the shipped method holds)
 
@@ -1042,7 +1060,9 @@ gear widens a near-budget look's side run frames (B10).
 
 The nine family effects are re-cut to A3's three-tone construction (edge, body, core), using section 6's named colours.
 They are drawn from maps in side and down orientations (mirrored and turned for the others, since FX carry no light),
-with the finisher by tint (`#FFE6A0`) and P2a's sizes. An effect peaks on the impact frame and ends with the strike state
+with the finisher by tint (`#FFE6A0`) and P2a's sizes. A3's arc itself is re-cut smaller (the owner, 2026-10-23: the
+swoosh was oversized and dropped below the feet facing down): every effect stays inside the figure's box plus the
+weapon's reach, and above the sole row. An effect peaks on the impact frame and ends with the strike state
 within a frame. The Thrust Streak runs from the spear tip back along the shaft's line. The Twang is the string's
 vibration lines for one frame. The delight is sparks (`#FFD87A`) when a mace meets metal.
 
@@ -1051,13 +1071,15 @@ vibration lines for one frame. The delight is sparks (`#FFD87A`) when a mace mee
 48 colours or fewer per composed figure (B8). Gear shares slots. The tabard is the accent. The shield's field defaults to
 the accent, and a separate field ramp appears only for a maker's paint. The device takes 3 steps and the plume 3-4. Every
 metal piece shares metal and metal 2 (the body armour's band tints them all, gear_look's rule), and every leather piece
-shares leather.
+shares leather. The weapon in hand keeps its own metal (the blade slot: the same ramp when the metals match, so it adds
+no colour then). T5-T6 looks may add up to 3 glow-slot steps beyond the 48, and touching materials part by value (27.5).
 
 ### 25.12 P2c don'ts
 
 - No armour that widens a leg or reshapes a boot; no per-key sleeve map where a region tile does the job.
 - No mail that reads as dither; no more than three glints in a frame; no glints on leather; no pillow-shaded plate.
-- No new shape for a band or an alloy (they are ramps); no torso, skirt or tabard shared between the bodies.
+- No new torso, helm or skirt shape for a band, an alloy or a tier (materials are ramps; tiers are finish and the
+  culture's dials: 27); no torso, skirt or tabard shared between the bodies.
 - No tool-rotated weapon map: every angle is hand-cleaned. No weapon changing hands between facings.
 - No weapon, shield, plume or effect over a face in any idle, walk or run frame; no helm floating a row above the head.
 - No hidden or edge-on weapon on an impact frame in side views; no recover that pops back to the guard.
@@ -1117,6 +1139,200 @@ draw and release (archer); the fall and lying on both sides, with gear. The twin
   spear carried upright, the tabard over mail, mail sleeves by tile or drawn, and the DRAWN atlas split.
 
 After the sign-off this section records the slice's measured numbers, and every later P2c part matches the slice.
+
+**The owner's verdict (2026-10-23): the direction is approved**, with these items open (all fixed in the ladder slice,
+27.9): the spear crosses the knight's helm and face in the side walk and run; the spear vanishes for a frame on a hit and
+is then held stiff; the thrust is a static poke (no wind-up, lean or weight); blocks are one held frame, and the guard's
+side block reads as a sword held low; deaths are illegible lumps with gear floating over them (the spear level over the
+head, the bow arcing in the air, the sword standing up); the archer is brown on brown and lost on dark ground; the
+knight's plate is pale and flat; the guard's beard reads as a mask facing R / L; the bow is too thin facing D / U; the
+sword's swoosh is oversized and drops below the feet facing D; knightm and archerw have no attack frames. The owner then
+asked for the gear ladder (section 27). The slice's measured numbers are in docs/PLAN.md "Slice results" (iteration 3).
+
+---
+
+## 27. The gear ladder: rags to riches (planner, 2026-10-23; binding on every P2c art area)
+
+The owner, after approving the P2c slice's direction (2026-10-23): "my personal style is a rag to riches evolution I want
+beginners gear to look okay/mid and then slowly progresses throughout the game where you get cooler and cooler gear I'm
+thinking too late stage gear could be animated in some way", built on the culture armour generator and the game's rules.
+This section is how gear looks at each step and how it moves at the top. docs/PLAN.md "## P2c" ("The gear ladder") maps
+the steps onto items, ranks and hours; docs/P2C_CONTRACTS.md 3b and 6b hold the data and the runtime. Sections 22-25
+still hold: a piece's **material** is its ramp (25.2), its **maker culture** its shapes (25.3-25.7), and its **tier** its
+finish, how far the culture's silhouette dials grow, and, at the top, how it moves.
+
+### 27.1 The feel
+
+The hero leaves home in a mended gambeson, a borrowed iron sword and a plain wooden shield: dull, patched at the
+shoulder, a frayed hem, but whole and honest; you could walk into any town in it. A few hours later the patches are gone
+and a buckle shines. By the first city the hero wears a soldier's steel with a thin brass edge, a nasal helm and a
+painted device. Far from home the metal takes on a people's strange colour, the plates are etched, the shoulders broaden
+and a cape falls behind. Near the end the trim is gold and filigreed, a gem breathes at the chest, the cloak stirs when
+the hero stands still, and a legendary blade carries runes that glow with the hero's breath while a spark runs up its
+edge now and then. Every step reads at arm's length on a phone, the way a 16-bit party shows its strength at a glance.
+Nobody ever looks broken: the cheapest kit is plain, never shabby.
+
+### 27.2 The six tiers
+
+| | T1 Scrap | T2 Common | T3 Sturdy | T4 Fine | T5 Masterwork | T6 Legendary |
+|---|---|---|---|---|---|---|
+| reads as | worn, mended, honest | clean, serviceable | a soldier's kit | an officer's kit | a champion's kit | a legend: it lives |
+| metal | its material's ramp compressed (steps 1-3), matte | the full ramp | bright, one lit ridge a plate | the people's alloy: its hue and sheen | the masterwork alloy, broad bright planes | as T5; Mythic ember tempered |
+| leather and cloth | steps 1-3, one shine at most | the full ramp, one shine | stitched edges | dyed panels | tooled gilt | as T5 |
+| glints (white step 4, convex metal only) | 0 | 1 | 2 | 3 | 3 | 3, one may travel |
+| wear (W) | a patch or tarnish a piece, a frayed hem | none | none | none | none | none |
+| trim (R) | none: edges in the material | one fitting (a buckle, a rivet pair) | brass edges, 3-8 % of the piece | edges and rivet rows, 6-12 % | gold edges (gilding), 10-20 % | as T5 |
+| panel (P) | plain | plain | plain | etched | filigree | filigree and a glyph |
+| gem (G) | a stud in the material | a stud | a metal-2 boss | a metal-2 boss | a gem (glow slot), a faint breath | a gem, breathing |
+| seams (N) | drawn | drawn | drawn | drawn | drawn | runes (glow slot), breathing |
+| dials | no pauldrons, skirt short; no crest, plume or cape | pauldrons small, skirt mid, crest small | the people's own | the people's + its alloy's step | as T4, + a plume on a helm made for one | as T5 |
+| helm | none, a hood or a soft cap | the soft form, or a plain metal one | the people's metal form | + crest or plume | + a gilt rim, a brow gem | + a glowing eye slit or brow rune |
+| shield | plain wood: an unpainted field, a leather rim | the field painted (no device; livery keeps the kingdom's) | field, device (2 colours), metal rim | a 3-colour device, a metal-2 rim, a boss | a gilt rim, a gem boss | the device or boss glowing |
+| weapon | its material, matte; an iron guard, a leather grip | clean; an iron guard | steel, a brass guard | an etched fuller, a shaped guard | a gold guard, a gem pommel | rune inlay, the edge spark |
+| cloak | none | none | the people's cape | the people's cape or a travel cloak | the long noble cloak | the cloak stirs |
+| moves | | | | | the gem breathes | runes breathe, the spark, motes; Mythic: the flame |
+
+Each worn piece keeps its own tier: a Legendary sword glows on a common gambeson. From T1 to T3 the steps are mostly
+material and silhouette (soft to steel, bare shoulders to the people's own); from T3 to T6 mostly finish and light, the
+alloy's colour and the cape. The ladder spends hours on each step (PLAN), so every step up is felt. A blade keeps its
+white tip pixel at every tier (C6): T1's dullness is in its flats and guard, never in its point.
+
+### 27.3 The finish language
+
+Finish lives in five regions every armour, helm, shield and weapon map marks once in its base views (contracts 3b):
+**R trim** (edges, hems, rims, the guard and pommel), **P panel** (the decorated plane: the breastplate's centre, a
+pauldron's face, a helm's brow band, the field round the device, a blade's flat), **G gem** (1-4 px sockets: chest,
+brow, pommel, boss, clasp), **N seam** (the lines between plates, lames and scales, the fuller, a shield's boards) and
+**W wear** (one or two 2x2-3x3 spots a piece). The doll recolours them and lays the finish tiles over them by the piece's
+own tier, so one drawing serves all six tiers. One hand (the FINISH area) draws the tiles, so the language matches on
+every piece.
+
+- **Wear (T1): mended, never broken.** A patch is a 2x2 to 3x3 block a cloth or leather step off the piece, edged on its
+  lit side by a 1 px stitch line (linen step 2-3): it reads as a repair. Tarnish is a 2-3 px cluster of a warm rust-brown
+  step 1 on the metal's shadow side, never on the lit plane. A frayed hem loses one hem pixel every 4-6 px, but the
+  outline stays closed and the step-0 ring whole. No holes through the body, no rips, no smears; wear covers 6 % of a
+  piece at most. At 1x the T1 hero reads as plain and used; at 3x the patches are plainly stitched.
+- **Trim (T2-T6)**: 1 px, on edges only, lit on the top-left of each edge: brass at T3, gold at T5. Inside a plane only
+  rivet rows (a 3 px grid on lit planes).
+- **Etching (T4)**: on P, 1 px step-1 lines on step-3 planes in a motif (a scroll, a chevron, a knot) that repeats no
+  tighter than 5 px; never a checker, never dither. At 1x it reads as finer metal, at 3x as engraving.
+- **Filigree (T5-T6)**: on P, metal-2 scrolls 1 px wide with a step-4 point at each scroll's lit end, in the maker
+  people's motif (PLAN's table: the Heartland's oak leaves, knotwork, laurel, cloud scrolls, sun rays, leaf veins,
+  stars...).
+- **Gems (T5-T6)**: G in the glow slot, 2 steps (rim 2, core 4) with a step-4 point at the top-left: 1x1 on a pommel,
+  2x2 on a brow or a clasp, 3x2 on a chest or a boss.
+- **Runes (T6)**: N in the glow slot, broken by the rune tile into 2-3 px dashes and ticks so the light reads as writing,
+  not as a neon outline; step 2 at rest, lit by the living finish (27.7).
+- **The glow colour** is the piece's own: a people's alloy's light key (Jade's jadesilver green, Starspire's iridescent),
+  warm gold on gilded metal, cold blue-white on steel and starmetal, violet on obsidian, ember red-orange on emberforged
+  and Mythic pieces.
+
+### 27.4 Silhouettes grow inside the people's own style
+
+The culture generator (ArmsStyle: forms, dials, ornament, alloys) decides what a people's gear is; the ladder decides how
+much of it shows. A tier never borrows another people's form: Highlanders never sprout plate pauldrons, their finery is a
+longer sash, a plume and a gold-studded targe.
+- **Forms by material** (the generator's rule, unchanged): soft pieces (leather, cloth) take the people's everyday helm and
+  body (helm[1], body[1]), metal pieces their signature forms (helm[0], body[0]), alloys a finer cut (mail to scale,
+  padded or leather to lamellar, brigandine to plate); an item's own form wins. So T1-T2 are mostly soft, T3 the
+  signature metal, and T4 and up the finer cut.
+- **Dials by tier**: T1 hides the pauldrons, crest, plume and cape and caps the skirt at short; T2 caps pauldrons at
+  small, the skirt at mid and the crest at small; T3 shows the people's dials; T4 adds the alloy's step (+1 pauldron and
+  crest, the generator's rule); T5 adds a plume on a helm drawn for one, and the noble cloak where it is worn. Ranks lift
+  people's dials as the census does (the capital +1, royals and kings +2); the ladder never lifts twice. So the
+  Heartland's shoulders go none, small, medium, then large from its first alloy.
+- **Heartland pieces** (no maker culture) climb the heartland's own line: leather at T1, mail at T2, plate from T3;
+  pauldrons none, small, medium, medium, large, large; skirts short, short, mid, mid, knee, knee.
+- **Flavour at every tier**: the same tier reads differently in each people because forms, dials, ornament, palette and
+  heraldry are theirs, while the finish (27.3) is shared, so two peoples' T3 kits read as the same grade. At T3: a
+  Heartland man-at-arms in steel mail with a nasal helm and a kite bearing his device; a Jade lancer in a masked helm,
+  lamellar with a mid-length skirt, scalloped and tasselled hems, broad lamellar shoulders and a glaive, no shield; an
+  Imperial swordsman in a crested helm with a tall crest in his people's plume colour, scale with tassets, a tower shield
+  and a long cloak; a Fjordfolk warrior in a spangenhelm, mail with fur trim, small scale shoulders, a round shield, a
+  broadsword and a long cloak.
+
+### 27.5 Colour and value
+
+- T1 uses the fewest colours (a piece's material in 3 steps, a patch in 2): about 34-38 a figure. T6 uses up to 48 plus
+  3 glow steps (B8 counts the glow slot apart, 3 at most).
+- **Value first** (C14): touching materials part by 18 luma or more at step 2 (cloth over leather, leather over trousers,
+  hair against a helm, a beard under a cheek guard), so no kit reads as one brown or grey lump; on the darkest day ground
+  the figure's lit top-left edge stands 40 or more over it. The style slice's archer, brown on brown, is the
+  counter-example.
+- Metals stay themselves (25.2). A heartland IRON piece looks iron, STEEL steel, GILDED gilded, and so on to STARMETAL:
+  the band the player reads on the item.
+- Plate is never pale and flat: the lit plane (step 3) and the shadow side (step 1) stand 60 luma or more apart, with one
+  ridge (the style slice's knight).
+
+### 27.6 People on the ladder
+
+Rank is a tier: bandits, militia and pirates T1 (the local poor kit); bandit chiefs, the village watch and soldiers T2;
+the capital watch, heralds, envoys and warlords T3; captains, the royal guard, jarls and story knights T4; kings T5.
+Guards and soldiers wear their kingdom's livery and device from T2. A late hero (T5-T6) outshines any king of any people.
+Far, dangerous lands field finer soldiers (depth: a tier up from band 4).
+
+### 27.7 The living finish (T5-T6)
+
+Late gear moves quietly, as light over the drawn frame (no extra frames, no new atlas per phase), on the body's own clock:
+- **Breath**: gems and runes brighten and dim together on a 2.2 s cycle (two of the idle's breaths), peaking on the
+  breathe frame while idle and free-running in motion: additive light from 0.30 to 0.85 at T6, 0.15 to 0.45 for a T5
+  gem. Every wearer has its own phase. By day a shimmer, at night a soft glow.
+- **The edge spark** (a T6 weapon): a small four-point star runs from the grip to the tip in 0.33 s once every 3.3 s, and
+  flashes once at the tip on the strike's impact frame. It is one of the three glints.
+- **Motes** (T6): 1 px sparks in the glow colour, three alive at most, born on the glow pixels every 0.45 s, rising 8 px
+  over 1.0 s as they fade.
+- **The cloak and plume stir** (T5-T6): on the idle's breathe frame the cloak's hem swings out a pixel and the plume
+  lifts; in the run the cloak's flare is a pixel wider.
+- **Mythic**: the ember-tempered metal, the white-hot blade and the flame that hugs the silhouette (M8b's aura on doll
+  frames: light only within 3 px of the outline).
+- **Readable, never noisy**: 32 animated pixels a figure at most (ladder i2: was 24); no pixel's light jumps by more than a quarter between
+  two 60 Hz frames; nothing blinks faster than twice a second (the spark's run aside); two wearers never pulse in step.
+  If it reads as noise at 1x, it is wrong.
+
+### 27.8 Ladder don'ts
+
+- No broken, torn or ugly T1 gear: worn means mended and whole; no holes in a silhouette.
+- No new torso, helm or skirt shape for a tier: tiers are finish and dials, materials are ramps.
+- No people borrowing another people's forms at any tier.
+- No trim inside a plane (but rivet rows); no etching or filigree that reads as dither; no glow below T5 (but white
+  glints).
+- No animation that blinks, strobes or moves the silhouette; no light wider than the figure plus 3 px (Mythic's flame
+  aside).
+- No kit whose touching materials share a value.
+
+### 27.9 The ladder slice (wave 1b; the owner signs it off)
+
+The smallest finished piece that locks the ladder before any production map (docs/PLAN.md "The ladder slice"):
+1. **The hero's road**: the A3 hero in the Heartland kit at T1 to T6 (27.2 as one man's story), sword and shield; T6
+   alive; the Mythic flame as depth.
+2. **The heroine at the top**: the same T6 on the woman, in the open crested helm, with a runed spear.
+3. **Flavour at T3**: the Jade lancer, the Imperial swordsman and the Fjordfolk warrior of 27.4, beside the hero's T3.
+4. **Rank to tier**: a bandit (T1), the village watch (T2: the style slice's guard), the royal guard (T4), and a king (T5)
+   as depth.
+5. **The style slice's looks**, every open item of section 26 fixed.
+
+**Clips, in all four facings**: idle, walk, run, hurt, the drawn idle, walk and run, hit 1, the fall and lying; T6 with
+the living finish.
+
+**The owner pack** (every image 8000 px or less on its long side):
+1. The ladder strip: T1 to T6 side by side, idle facing down and right, at 1x and 3x, on grass and on dark ground, by
+   day and by night.
+2. Each tier in four facings at 3x.
+3. Walk and run strips (8x, the hip-to-boot trace) and 3x game-speed GIFs, both side facings, per tier.
+4. Hit 1 per tier at game speed and at quarter speed.
+5. The living finish: the T6 man and woman idle, walking, running and striking as 3x GIFs at game speed (4.4 s), a
+   one-cycle frame strip, and night shots; the Mythic flame if built.
+6. Flavour: the Heartland, Jade, Imperial and Fjordfolk T3 kits in four facings, side by side.
+7. Rank to tier: the bandit, the watch, the royal guard (and the king).
+8. The open items, before and after.
+9. In the world (seed 7, the start village; desktop 1440x810 at D3 and D4, phone 2556x1179 at D5; 11:00 and 22:00): the
+   T1 hero at the gate beside the watch; the T6 hero in the square at night; the flavour row in the market.
+10. The gates and budgets table, with the ladder's numbers per tier.
+
+**Acceptance**: measured first (PLAN's ladder slice gate), then the judge's look review: each tier a clear step at 1x;
+T1 okay / mid (plain, mended, whole, never ugly); the finish reads as craft, never noise; the living finish quiet and
+readable; the peoples distinct at the same tier; every open item closed. Then the owner's sign-off, which also settles
+PLAN D13-D23. After it, this section records the measured numbers and every later part matches the ladder slice.
 
 ---
 

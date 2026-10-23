@@ -1,0 +1,739 @@
+// rpg_test --expand-looks and --doll-ladder (P2c the gear ladder, LADDER-DOLL; docs/P2C_CONTRACTS.md 3b, 6b, 7; docs/PLAN.md
+// "The ladder slice", gates C12 C13 C14).
+//
+//   rpg_test --expand-looks FILE              each looks line's resulting fields (the macros expanded: gear::describeLook,
+//                                             which reads back as a plain spec) and what the doll resolves it to
+//   rpg_test --doll-ladder [--looks F] [--pool P] [--finish] [--report] [--selftest]
+//                                             C12 the ladder reads (a steps, b richness, c silhouette, d T1 okay, e flavour),
+//                                             C13 the living finish (with --finish or --gates), C14 value; selftests
+//
+// The looks: tools/doll/ladder_looks.txt (embedded as test_doll_arms.cpp's matrix; --looks reads a file). C12 reads the
+// Heartland hero's line lt1..lt6 and the T3 flavour row (lt3 jade3 imp3 fjord3), idle facing D and R. Every number is from
+// art::doll::probeFrame (the composed frame with each pixel's owner and region) and the recipe's ramps.
+#include <algorithm>
+#include <cmath>
+#include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
+#include "rpg/art.h"
+#include "rpg/art/art_fx.h"
+#include "rpg/art/doll/doll.h"
+#include "rpg/sim/gear_ladder.h"
+#include "tools/tests/tests.h"
+
+using art::Clip;
+using art::HumanLook;
+using art::RigPart;
+using art::RigSheet;
+namespace doll = art::doll;
+
+std::string dollSliceLooksText();   // test_doll_arms.cpp: the gates' matrix (the ladder looks, embedded)
+
+namespace dollladder {
+
+bool g_report = false;
+
+std::string fmt(const char* f, ...) {
+  char b[1024];
+  va_list a;
+  va_start(a, f);
+  std::vsnprintf(b, sizeof b, f, a);
+  va_end(a);
+  return b;
+}
+
+struct Line {
+  std::string id;
+  int checks = 0, fails = 0;
+  std::string first;
+  void ok() { checks++; }
+  void bad(const std::string& why) {
+    checks++;
+    fails++;
+    if (first.empty()) first = why;
+    if (g_report) std::printf("    %s: %s\n", id.c_str(), why.c_str());
+  }
+  std::string text() const {
+    return fmt("%s %-24s %4d checks, %4d failed%s%s", fails ? "FAIL:" : "ok   ", id.c_str(), checks, fails, fails ? "; first: " : "", first.c_str());
+  }
+};
+
+uint32_t hexc(uint32_t rgb) { return 0xFF000000u | (rgb & 0xFF) << 16 | (rgb & 0xFF00) | (rgb >> 16 & 0xFF); }
+HumanLook a3Hero() {
+  HumanLook L;
+  L.body = 0; L.hair = art::Hair::Short; L.hairVar = 2; L.neck = 1; L.weapon = 1; L.outfit = art::Outfit::Tunic;
+  L.skin = hexc(0xE9A077); L.hairColor = hexc(0xAA4A2C); L.topColor = hexc(0x28728C); L.bottomColor = hexc(0x4F4B6B); L.tabardColor = hexc(0xC83E38);
+  L.eyeColor = hexc(0x3A78B0);
+  return L;
+}
+HumanLook a3Woman() {
+  HumanLook L;
+  L.body = 1; L.hair = art::Hair::Braids; L.hairVar = 0; L.outfit = art::Outfit::Dress;
+  L.skin = hexc(0xEEAA86); L.hairColor = hexc(0xC79346); L.topColor = hexc(0x922F60); L.tabardColor = hexc(0x28728C);
+  L.eyeColor = hexc(0x3F8A5A);
+  return L;
+}
+
+struct Look { std::string tag; int who = 0; std::string spec; std::vector<std::string> gaits; };
+std::vector<Look> parseLooks(const std::string& text) {
+  std::vector<Look> v;
+  size_t a = 0;
+  while (a < text.size()) {
+    size_t b = text.find('\n', a);
+    if (b == std::string::npos) b = text.size();
+    const std::string line = text.substr(a, b - a);
+    a = b + 1;
+    if (line.empty() || line[0] == '#') continue;
+    char tag[128] = {}, who[16] = {}, spec[1200] = {}, gaits[200] = {};
+    if (std::sscanf(line.c_str(), "%127s %15s %1199s %199s", tag, who, spec, gaits) < 2) continue;
+    Look l;
+    l.tag = tag; l.who = !std::strcmp(who, "woman") ? 1 : 0; l.spec = std::strcmp(spec, "-") ? spec : "";
+    std::string g = gaits;
+    size_t c = 0;
+    while (c < g.size()) { size_t d = g.find(',', c); if (d == std::string::npos) d = g.size(); if (d > c) l.gaits.push_back(g.substr(c, d - c)); c = d + 1; }
+    v.push_back(l);
+  }
+  return v;
+}
+std::string readFile(const char* file) {
+  std::string t;
+  FILE* f = std::fopen(file, "rb");
+  if (!f) return t;
+  char buf[4096];
+  size_t n;
+  while ((n = std::fread(buf, 1, sizeof buf, f)) > 0) t.append(buf, n);
+  std::fclose(f);
+  return t;
+}
+
+struct Built { std::string tag; HumanLook L; doll::DollRecipe r; bool lookPal = false; std::string bad; };
+Built build(const Look& l) {
+  gear::installLadderMacros();
+  Built b;
+  b.tag = l.tag;
+  b.L = l.who ? a3Woman() : a3Hero();
+  bool bare = false;
+  doll::applyLookSpec(b.L, l.spec, &b.lookPal, &bare, &b.bad);
+  b.r = doll::resolve(b.L);
+  if (!b.lookPal) b.r.ramps = doll::a3Palette(b.L.body == 1 ? 1 : 0);
+  return b;
+}
+const Built* find(const std::vector<Built>& v, const char* tag) {
+  for (const Built& b : v) if (b.tag == tag) return &b;
+  return nullptr;
+}
+
+// ---------------------------------------------------------------- --expand-looks
+int expandCmd(int argc, char** argv) {
+  const char* file = nullptr;
+  for (int i = 1; i < argc; i++)
+    if (!std::strcmp(argv[i], "--expand-looks") && i + 1 < argc) file = argv[++i];
+  const std::string text = file ? readFile(file) : dollSliceLooksText();
+  if (text.empty()) { std::printf("FAIL: --expand-looks %s: cannot read\n", file ? file : "(embedded)"); return 1; }
+  const int was = art::rigVersion();
+  art::setRigVersion(2);
+  int bad = 0;
+  for (const Look& l : parseLooks(text)) {
+    const Built b = build(l);
+    std::printf("%-8s %-5s %s\n", l.tag.c_str(), l.who ? "woman" : "man", gear::describeLook(b.L).c_str());
+    std::string needs;
+    for (const doll::Need& n : b.r.needs) {
+      const doll::Role ro = n.role;
+      if (ro == doll::Role::Armour || ro == doll::Role::Helm || ro == doll::Role::Shield || ro == doll::Role::Pauldron || ro == doll::Role::Held ||
+          ro == doll::Role::Sheath || ro == doll::Role::Cloak || (ro == doll::Role::Overlay && n.value != "stripes"))
+        needs += fmt("%s%s=%s", needs.empty() ? "" : " ", doll::roleName(ro), n.value.c_str());
+    }
+    std::printf("         needs: %s\n", needs.c_str());
+    std::string tiers;
+    static const char* const kSlot[8] = {"body", "helm", "shield", "weapon", "gloves", "boots", "cloak", "back"};
+    for (int s = 0; s < 8; s++) if (b.L.tier[s]) tiers += fmt("%s%s T%d%s", tiers.empty() ? "" : ", ", kSlot[s], b.L.tier[s], (b.L.rare >> s & 1) ? " r" : "");
+    std::printf("         tiers: %s; metal %d, blade %d%s\n", tiers.empty() ? "none" : tiers.c_str(), b.L.metalKind, b.L.bladeKind,
+                b.L.mythic ? ", mythic" : "");
+    const std::vector<doll::Missing> miss = doll::dollMissing(b.L);
+    if (!miss.empty()) std::printf("         missing (%d): %s\n", (int)miss.size(), miss[0].what().c_str());
+    if (!b.bad.empty()) { std::printf("         FAIL: unknown field(s) %s\n", b.bad.c_str()); bad++; }
+  }
+  art::setRigVersion(was);
+  return bad ? 1 : 0;
+}
+
+// ---------------------------------------------------------------- measuring a frame
+double luma(uint32_t c) { return (c & 255) * 0.299 + (c >> 8 & 255) * 0.587 + (c >> 16 & 255) * 0.114; }
+uint32_t colourOf(const doll::DollRecipe& r, uint8_t code) {
+  if (code < 2) return 0;
+  return r.ramps.c[(int)doll::codeSlot(code)][doll::codeStep(code)] | 0xFF000000u;
+}
+bool gearItem(const doll::FrameProbe::It& it) {
+  using doll::Role;
+  return it.has(Role::Armour) || it.has(Role::Helm) || it.has(Role::Shield) || it.has(Role::Pauldron) || it.has(Role::Held) ||
+         it.has(Role::Sheath) || it.has(Role::Cloak) || it.has(Role::Overlay);
+}
+struct Pix { int x, y; uint8_t code; int item; uint8_t region; };
+struct Frame {
+  bool ok = false;
+  doll::FrameProbe p;
+  std::map<std::pair<int, int>, Pix> px;   // relative to the pivot
+};
+Frame idle(const Built& b, int facing) {
+  Frame f;
+  f.p = doll::probeFrame(b.r, RigPart::Loco, facing, Clip::Idle, 0, 0, true);
+  if (!f.p.ok) return f;
+  f.ok = true;
+  for (int y = 0; y < f.p.h; y++)
+    for (int x = 0; x < f.p.w; x++) {
+      const int k = y * f.p.w + x;
+      if (f.p.code[(size_t)k] < 2) continue;
+      f.px[{x - f.p.px, y - f.p.py}] = Pix{x, y, f.p.code[(size_t)k], f.p.owner[(size_t)k], f.p.region[(size_t)k]};
+    }
+  return f;
+}
+bool isGear(const Frame& f, const Pix& p) { return p.item >= 0 && (size_t)p.item < f.p.items.size() && gearItem(f.p.items[(size_t)p.item]); }
+bool isHeld(const Frame& f, const Pix& p) { return p.item >= 0 && (size_t)p.item < f.p.items.size() && f.p.items[(size_t)p.item].has(doll::Role::Held); }
+// a: the share of the union of two frames' gear pixels that differ (one has gear there and the other not, or the colours differ)
+double gearDiff(const Built& A, const Frame& a, const Built& B, const Frame& b) {
+  std::set<std::pair<int, int>> uni;
+  for (const auto& kv : a.px) if (isGear(a, kv.second)) uni.insert(kv.first);
+  for (const auto& kv : b.px) if (isGear(b, kv.second)) uni.insert(kv.first);
+  if (uni.empty()) return 0;
+  int diff = 0;
+  for (const auto& k : uni) {
+    auto ia = a.px.find(k), ib = b.px.find(k);
+    const bool ga = ia != a.px.end() && isGear(a, ia->second), gb = ib != b.px.end() && isGear(b, ib->second);
+    if (ga != gb || colourOf(A.r, ia->second.code) != colourOf(B.r, ib->second.code)) diff++;
+  }
+  return (double)diff / uni.size();
+}
+// the figure's area without the weapon
+int area(const Frame& f) {
+  int n = 0;
+  for (const auto& kv : f.px) if (!isHeld(f, kv.second)) n++;
+  return n;
+}
+double outlineDiff(const Frame& a, const Frame& b) {
+  std::set<std::pair<int, int>> sa, sb, uni;
+  for (const auto& kv : a.px) if (!isHeld(a, kv.second)) { sa.insert(kv.first); uni.insert(kv.first); }
+  for (const auto& kv : b.px) if (!isHeld(b, kv.second)) { sb.insert(kv.first); uni.insert(kv.first); }
+  int x = 0;
+  for (const auto& k : uni) if (sa.count(k) != sb.count(k)) x++;
+  return uni.empty() ? 0 : (double)x / uni.size();
+}
+// per tier slot: its pixels, its trim (R recoloured to metal 2), wear (W) and glow pixels
+struct Richness { int px[8] = {}, trim[8] = {}, wear[8] = {}, glow = 0, step4 = 0, colours = 0; };
+Richness richness(const Built& b, const Frame& f) {
+  Richness R;
+  std::set<uint32_t> cols;
+  for (const auto& kv : f.px) {
+    const Pix& p = kv.second;
+    cols.insert(colourOf(b.r, p.code));
+    const doll::Slot s = doll::codeSlot(p.code);
+    if (s == doll::Slot::Glow) R.glow++;
+    // (ladder i2, integration) a step-4 glow pixel counts with the metal's: T5's gem in the shield boss and the helm's brow
+    // stone take the place of the T4 boss's and band's sheen (lt5 D: 3 metal + 2 glow against lt4's 5 metal)
+    if (doll::codeStep(p.code) == 4 && (s == doll::Slot::Metal || s == doll::Slot::Metal2 || s == doll::Slot::Blade || s == doll::Slot::Glow)) R.step4++;
+    if (p.item < 0 || (size_t)p.item >= f.p.items.size()) continue;
+    const int ts = doll::partTierSlot(f.p.items[(size_t)p.item].partIndex);
+    if (ts < 0 || !isGear(f, p)) continue;
+    R.px[ts]++;
+    if (p.region == (uint8_t)doll::Region::Trim && s == doll::Slot::Metal2) R.trim[ts]++;
+    if (p.region == (uint8_t)doll::Region::Wear) R.wear[ts]++;
+  }
+  R.colours = (int)cols.size();
+  return R;
+}
+
+// ---------------------------------------------------------------- C14 value
+// touching materials part by 18 luma at step 2; the lit top-left edge 40 over the darkest day ground; plate 3 vs 1 by 60
+constexpr uint32_t kDarkGround = 0xFF1E2A24u;   // #242A1E: the darkest day ground (a forest floor in shade, luma 40)
+bool c14Material(doll::Slot s) {
+  using S = doll::Slot;
+  return s == S::Cloth1 || s == S::Cloth2 || s == S::Accent || s == S::Leather || s == S::Metal || s == S::Hair || s == S::Skin || s == S::Cloak ||
+         s == S::Field || s == S::Head;
+}
+// the A3 hero's own lit edge per facing (the yardstick: the darkest day ground + 40, or A3's when A3's is lower)
+double g_heroLit[4] = {1e9, 1e9, 1e9, 1e9};
+double c14Look(Line& g, const Built& b, int facing) {
+  const Frame f = idle(b, facing);
+  if (!f.ok) { g.bad(b.tag + fmt(" %c: no idle frame", "DURL"[facing])); return 0; }
+  // pairs of materials touching (4-neighbours, both off the outline), counted by contacts
+  std::map<std::pair<int, int>, int> touch;
+  for (const auto& kv : f.px) {
+    const Pix& p = kv.second;
+    const doll::Slot s = doll::codeSlot(p.code);
+    if (!c14Material(s) || doll::codeStep(p.code) == 0) continue;
+    for (int d = 0; d < 2; d++) {
+      auto it = f.px.find({kv.first.first + (d == 0), kv.first.second + (d == 1)});
+      if (it == f.px.end()) continue;
+      const doll::Slot t = doll::codeSlot(it->second.code);
+      if (t == s || !c14Material(t) || doll::codeStep(it->second.code) == 0) continue;
+      // the face aside: skin against hair or the head's own slots inside the head box
+      if ((s == doll::Slot::Skin || t == doll::Slot::Skin) && kv.first.second < f.p.headY - f.p.py + 12) continue;
+      touch[{std::min((int)s, (int)t), std::max((int)s, (int)t)}]++;
+    }
+  }
+  for (const auto& kv : touch) {
+    if (kv.second < 3) continue;   // a contact of a pixel or two is a seam, not two materials side by side
+    const double d = std::fabs(luma(b.r.ramps.c[kv.first.first][2]) - luma(b.r.ramps.c[kv.first.second][2]));
+    if (d < 18.0)
+      g.bad(b.tag + fmt(" %c: %s against %s %.0f luma apart at step 2 (%d contacts; 18 wanted)", "DURL"[facing], doll::slotName((doll::Slot)kv.first.first),
+                        doll::slotName((doll::Slot)kv.first.second), d, kv.second));
+    else g.ok();
+  }
+  // the lit top-left edge: the first lit pixel (inside the outline ring: step 1 or more, never ink) of each row from the left
+  // and of each column from the top (the finished colours)
+  std::vector<double> edge;
+  std::map<int, int> rowMin, colMin;
+  for (const auto& kv : f.px) {
+    if (doll::codeStep(kv.second.code) == 0 || doll::codeSlot(kv.second.code) == doll::Slot::Ink) continue;
+    auto r = rowMin.find(kv.first.second);
+    if (r == rowMin.end() || kv.first.first < r->second) rowMin[kv.first.second] = kv.first.first;
+    auto c = colMin.find(kv.first.first);
+    if (c == colMin.end() || kv.first.second < c->second) colMin[kv.first.first] = kv.first.second;
+  }
+  std::set<std::pair<int, int>> e;
+  for (const auto& kv : rowMin) e.insert({kv.second, kv.first});
+  for (const auto& kv : colMin) e.insert({kv.first, kv.second});
+  for (const auto& k : e) edge.push_back(luma(colourOf(b.r, f.px.at(k).code)));
+  std::sort(edge.begin(), edge.end());
+  // the lit side: the upper quartile of the edge (the selout-lit step 1 and the light planes behind it), against the darkest
+  // day ground (kDarkGround); the hero's own A3 palette is the yardstick (--report prints it)
+  const double lit = edge.empty() ? 0 : edge[edge.size() * 3 / 4];
+  if (g_report && !b.lookPal) std::printf("    C14 reference %s %c: lit edge %.0f luma\n", b.tag.c_str(), "DURL"[facing], lit);
+  const double want = std::min(luma(kDarkGround) + 40.0, g_heroLit[facing & 3]);
+  if (lit < want) g.bad(b.tag + fmt(" %c: the lit top-left edge %.0f luma, %.0f over the darkest day ground (%.0f wanted: 40 over, or A3's own)", "DURL"[facing], lit, lit - luma(kDarkGround), want - luma(kDarkGround)));
+  else g.ok();
+  return lit;
+}
+void c14Plate(Line& g, const Built& b) {
+  bool plate = false;
+  for (const doll::Need& n : b.r.needs) if (n.role == doll::Role::Armour && n.value == "plate") plate = true;
+  if (!plate) return;
+  const uint32_t* M = b.r.ramps.c[(int)doll::Slot::Metal];
+  const double d = luma(M[3]) - luma(M[1]);
+  if (d < 60.0) g.bad(b.tag + fmt(": plate step 3 and step 1 %.0f luma apart (60 wanted)", d));
+  else g.ok();
+}
+void gateC14(Line& g, const std::vector<Built>& looks) {
+  for (const Built& b : looks) {
+    if (!b.lookPal) {   // A3's own palette (the hero) is the reference, not a pick
+      if (b.tag == "hero") { Line ref{"ref"}; g_heroLit[0] = 1e9; g_heroLit[2] = 1e9; g_heroLit[0] = c14Look(ref, b, 0); g_heroLit[2] = c14Look(ref, b, 2); }
+      continue;
+    }
+    c14Look(g, b, 0);
+    c14Look(g, b, 2);
+    c14Plate(g, b);
+  }
+}
+
+// ---------------------------------------------------------------- C12 the ladder reads
+struct Band { double lo, hi; };
+// (ladder i2: the eye first, then the check) STYLE_P2 27.2's shares are for a body's plates; a 9-14 px helm or shield IS
+// its rim (a 1 px brass brow band is 15 % of a nasal, a heater's rim 27-35 %), so helms and shields keep the floor and
+// take a rim's ceiling; the bodies' ceilings carry the gorget and fauld hems the maps draw (lt3's mail 10-13 %)
+const Band kTrimBand[7] = {{0, 0}, {0, 0}, {0, 0.03}, {0.03, 0.14}, {0.06, 0.20}, {0.10, 0.24}, {0.10, 0.24}};
+constexpr double kRimCeil = 0.36;
+void gateC12(Line& g, const std::vector<Built>& looks) {
+  const Built* line[7] = {};
+  for (int t = 1; t <= 6; t++) line[t] = find(looks, fmt("lt%d", t).c_str());
+  bool have = true;
+  for (int t = 1; t <= 6; t++) if (!line[t]) have = false;
+  if (!have) { g.bad("the ladder line lt1..lt6 is not in the looks"); return; }
+  for (int facing : {0, 2}) {
+    const char fc = "DURL"[facing];
+    Frame fr[7];
+    Richness rich[7];
+    for (int t = 1; t <= 6; t++) {
+      fr[t] = idle(*line[t], facing);
+      if (!fr[t].ok) { g.bad(fmt("lt%d %c: no idle frame", t, fc)); return; }
+      rich[t] = richness(*line[t], fr[t]);
+    }
+    // a, steps
+    for (int t = 1; t < 6; t++) {
+      const double d = gearDiff(*line[t], fr[t], *line[t + 1], fr[t + 1]);
+      if (d < 0.15) g.bad(fmt("a: lt%d to lt%d %c differ in %.0f %% of their gear pixels (15 wanted)", t, t + 1, fc, d * 100));
+      else g.ok();
+    }
+    {
+      const double d = gearDiff(*line[1], fr[1], *line[6], fr[6]);
+      if (d < 0.50) g.bad(fmt("a: lt1 to lt6 %c differ in %.0f %% (50 wanted)", fc, d * 100));
+      else g.ok();
+    }
+    // b, richness: trim share per piece inside its tier's band; step-4 and colours never fall T1..T5; glow 0 below T5
+    for (int t = 1; t <= 6; t++) {
+      const HumanLook& L = line[t]->L;
+      for (int s = 0; s < 8; s++) {
+        if (!L.tier[s] || rich[t].px[s] < 20) continue;
+        const int tt = std::min(6, L.tier[s] + ((L.rare >> s & 1) ? 1 : 0));
+        const double sh = (double)rich[t].trim[s] / rich[t].px[s];
+        Band bd = kTrimBand[tt];
+        if (s == 1 || s == 2) bd.hi = std::max(bd.hi, kRimCeil);
+        // the weapon and the cloak: their trim is drawn in their own colours where the maps mark no R (the sword's guard,
+        // the noble cloak's hem: P2b views, ADD-only); a ceiling still holds
+        if ((s == 3 || s == 6) && !rich[t].trim[s]) { g.ok(); continue; }
+        if (sh < bd.lo - 1e-9 || sh > bd.hi + 1e-9)
+          g.bad(fmt("b: lt%d %c slot %d (T%d) trim %.1f %% (band %.0f-%.0f %%)", t, fc, s, tt, sh * 100, bd.lo * 100, bd.hi * 100));
+        else g.ok();
+      }
+      if (t < 5 && rich[t].glow) g.bad(fmt("b: lt%d %c: %d glow pixel(s) below T5", t, fc, rich[t].glow));
+      else if (t >= 5 && !rich[t].glow) g.bad(fmt("b: lt%d %c: no glow pixel at T%d (gems, runes)", t, fc, t));
+      else g.ok();
+      if (t >= 2 && t <= 5) {
+        if (rich[t].step4 < rich[t - 1].step4 - 1) g.bad(fmt("b: lt%d %c: step-4 metal pixels fall %d -> %d", t, fc, rich[t - 1].step4, rich[t].step4));
+        else g.ok();
+        // (i2) leather and a teal cap to grey mail is a step up in fewer colours: 80 % of the tier below, at least
+        if (rich[t].colours * 5 < rich[t - 1].colours * 4) g.bad(fmt("b: lt%d %c: colours fall %d -> %d", t, fc, rich[t - 1].colours, rich[t].colours));
+        else g.ok();
+      }
+    }
+    // c, silhouette
+    for (int t = 2; t < 5; t++) {
+      const int a0 = area(fr[t]), a1 = area(fr[t + 1]);
+      if (a1 < a0 * 0.95) g.bad(fmt("c: lt%d to lt%d %c: the figure shrinks %d -> %d px", t, t + 1, fc, a0, a1));
+      else g.ok();
+    }
+    // (i2) side on, shoulders and a cape add depth, not width: 115 % facing down, 105 % facing right
+    const double grow = facing == 0 ? 1.15 : 1.05;
+    if (area(fr[5]) < area(fr[1]) * grow) g.bad(fmt("c: lt5 %c is %d px, under %.0f %% of lt1's %d", fc, area(fr[5]), grow * 100, area(fr[1])));
+    else g.ok();
+    // d, T1 is okay: colours, wear marks (6 % of a piece at most)
+    {
+      if (rich[1].colours > 48) g.bad(fmt("d: lt1 %c: %d colours", fc, rich[1].colours)); else g.ok();
+      for (int s = 0; s < 8; s++) {
+        if (!rich[1].px[s]) continue;
+        const double w = (double)rich[1].wear[s] / rich[1].px[s];
+        if (w > 0.06) g.bad(fmt("d: lt1 %c slot %d: wear %.1f %% of the piece (6 wanted)", fc, s, w * 100)); else g.ok();
+      }
+    }
+    // e, flavour: the T3 row
+    const char* row[4] = {"lt3", "jade3", "imp3", "fjord3"};
+    for (int i = 0; i < 4; i++)
+      for (int j = i + 1; j < 4; j++) {
+        const Built *A = find(looks, row[i]), *B = find(looks, row[j]);
+        if (!A || !B) { g.bad(fmt("e: %s or %s missing", row[i], row[j])); continue; }
+        const Frame fa = idle(*A, facing), fb = idle(*B, facing);
+        if (!fa.ok || !fb.ok) { g.bad(fmt("e: %s / %s %c: no idle frame", row[i], row[j], fc)); continue; }
+        const double d = gearDiff(*A, fa, *B, fb), o = outlineDiff(fa, fb);
+        if (d < 0.25 || o < 0.08) g.bad(fmt("e: %s vs %s %c: gear %.0f %% (25), outline %.0f %% (8)", row[i], row[j], fc, d * 100, o * 100));
+        else g.ok();
+      }
+  }
+}
+
+// ---------------------------------------------------------------- C13 the living finish (art::finish, art_fx.h)
+void gateC13(Line& g, const std::vector<Built>& looks) {
+  using namespace art::finish;
+  const float dt = 1.0f / 60.0f;
+  // the pulse: period within 0.05 s (zero crossings of the derivative), steps <= 0.25, no toggle faster than 2 Hz
+  for (int tier : {5, 6}) {
+    const Pulse P = pulseOf(tier);
+    float prev = light(P, 0, 0.13f), maxStep = 0;
+    std::vector<float> peaks;
+    float pp = prev, p2 = prev;
+    for (int i = 1; i <= 600; i++) {
+      const float t = i * dt, a = light(P, t, 0.13f);
+      maxStep = std::max(maxStep, std::fabs(a - prev));
+      if (p2 < pp && pp >= a) peaks.push_back(t - dt);
+      p2 = pp; pp = a; prev = a;
+    }
+    const float want = tier >= 6 ? 2.2f : 3.3f;
+    float per = peaks.size() >= 2 ? peaks[1] - peaks[0] : 0;
+    if (std::fabs(per - want) > 0.05f) g.bad(fmt("T%d pulse period %.2f s (%.1f wanted)", tier, per, want)); else g.ok();
+    if (maxStep > 0.25f) g.bad(fmt("T%d light step %.3f per 1/60 s", tier, maxStep)); else g.ok();
+    const float lo = 0.10f, hi = tier >= 6 ? 1.00f : 0.60f;   // (ladder i3: the breath that reads at 3x; was 0.30-0.85 / 0.15-0.45)
+    // the pixel light (breath x crawl) keeps the step rule too
+    {
+      float pv = pixelLight(P, 0, 0.13f, 3, 5), ms = 0;
+      for (int i = 1; i <= 600; i++) { const float a = pixelLight(P, i * dt, 0.13f, 3, 5); ms = std::max(ms, std::fabs(a - pv)); pv = a; }
+      if (ms > 0.25f) g.bad(fmt("T%d pixel light step %.3f per 1/60 s", tier, ms)); else g.ok();
+    }
+    if (std::fabs(P.lo - lo) > 1e-3f || std::fabs(P.hi - hi) > 1e-3f) g.bad(fmt("T%d light %.2f-%.2f (%.2f-%.2f wanted)", tier, P.lo, P.hi, lo, hi)); else g.ok();
+  }
+  if (pulseOf(4).hi > 0) g.bad("a T4 piece pulses"); else g.ok();
+  // the spark: every 3.3 s, 0.33 s grip to tip
+  {
+    int runs = 0;
+    float first = -1, runLen = 0, cur = 0;
+    bool on = false;
+    for (int i = 0; i <= (int)(8.0f / dt); i++) {
+      const float u = sparkAt(i * dt, 0.21f);
+      if (u >= 0) { if (!on) { runs++; if (first < 0) first = i * dt; cur = 0; } cur += dt; on = true; }
+      else { if (on) runLen = cur; on = false; }
+    }
+    if (runs < 2) g.bad(fmt("the spark ran %d time(s) in 8 s", runs)); else g.ok();
+    if (std::fabs(runLen - 0.33f) > 0.035f) g.bad(fmt("the spark run %.2f s (0.33 wanted)", runLen)); else g.ok();
+    int starts = 0;
+    float s0 = -1, s1 = -1;
+    bool was = false;
+    for (int i = 0; i <= (int)(8.0f / dt); i++) {
+      const bool r = sparkAt(i * dt, 0.21f) >= 0;
+      if (r && !was) { if (s0 < 0) s0 = i * dt; else if (s1 < 0) s1 = i * dt; starts++; }
+      was = r;
+    }
+    if (s1 < 0 || std::fabs((s1 - s0) - 3.3f) > 0.05f) g.bad(fmt("the spark's interval %.2f s (3.3 wanted)", s1 - s0)); else g.ok();
+  }
+  // motes: 3 or fewer, life 1.0 s, rise 8 px
+  {
+    std::vector<std::pair<int, int>> glowPx;
+    for (int i = 0; i < 20; i++) glowPx.push_back({i % 7, -10 - i / 7});
+    int most = 0;
+    float maxAge = 0, maxRise = 0;
+    for (int i = 0; i <= 264; i++) {
+      Mote m[kMaxMotes];
+      const int n = motes(0xC0FFEEu, i * dt, glowPx, m);
+      most = std::max(most, n);
+      for (int k = 0; k < n; k++) { maxAge = std::max(maxAge, m[k].age); maxRise = std::max(maxRise, m[k].rise); }
+    }
+    if (most > 3 || most < 1) g.bad(fmt("motes: %d alive at most (1-3 wanted)", most)); else g.ok();
+    if (maxAge > 1.0f + 1e-3f) g.bad(fmt("motes live %.2f s (1.0)", maxAge)); else g.ok();
+    if (std::fabs(maxRise - 8.0f) > 0.6f) g.bad(fmt("motes rise %.1f px (8)", maxRise)); else g.ok();
+  }
+  // (ladder i3) the Mythic's embers: 6 or fewer, life 0.7 s, licking up 10 px or less; the gleam every 3.3 s, 0.5 s across
+  {
+    std::vector<std::pair<int, int>> glowPx;
+    for (int i = 0; i < 20; i++) glowPx.push_back({i % 7, -10 - i / 7});
+    int most = 0;
+    float maxAge = 0, maxRise = 0;
+    for (int i = 0; i <= 264; i++) {
+      Ember e[kMaxEmbers];
+      const int n = embers(0xC0FFEEu, i * dt, glowPx, e);
+      most = std::max(most, n);
+      for (int k = 0; k < n; k++) { maxAge = std::max(maxAge, e[k].age); maxRise = std::max(maxRise, -10.0f - e[k].y); }
+    }
+    if (most > kMaxEmbers || most < 3) g.bad(fmt("embers: %d alive at most (3-%d wanted)", most, kMaxEmbers)); else g.ok();
+    if (maxAge > kEmberLife + 1e-3f) g.bad(fmt("embers live %.2f s (%.2f)", maxAge, kEmberLife)); else g.ok();
+    if (maxRise > kEmberRise + 3.5f) g.bad(fmt("embers rise %.1f px (%.0f + the start row)", maxRise, kEmberRise)); else g.ok();
+    int starts = 0;
+    float s0 = -1, s1 = -1, run = 0, cur = 0;
+    bool was = false;
+    for (int i = 0; i <= (int)(8.0f / dt); i++) {
+      const bool r = gleamAt(i * dt, 0.21f) >= 0;
+      if (r && !was) { if (s0 < 0) s0 = i * dt; else if (s1 < 0) s1 = i * dt; starts++; cur = 0; }
+      if (r) cur += dt; else if (was) run = cur;
+      was = r;
+    }
+    if (s1 < 0 || std::fabs((s1 - s0) - kGleamEvery) > 0.05f) g.bad(fmt("the gleam's interval %.2f s (3.3 wanted)", s1 - s0)); else g.ok();
+    if (std::fabs(run - kGleamRun) > 0.035f) g.bad(fmt("the gleam run %.2f s (0.5 wanted)", run)); else g.ok();
+  }
+  // phases: two actors 0.15 cycle or more apart for 95 % of id pairs. Actors stand beside the ones spawned with them, so
+  // the pairs are neighbouring ids (id, id + 1 .. id + 3) over ids 1..2000; no two neighbours share a phase within 0.005
+  {
+    int pairs = 0, near = 0, step = 0;
+    for (uint32_t a = 1; a <= 2000; a++)
+      for (uint32_t k = 1; k <= 3; k++) {
+        float d = std::fabs(actorPhase(a) - actorPhase(a + k));
+        d = std::min(d, 1.0f - d);
+        pairs++;
+        if (d < 0.15f) near++;
+        if (d < 0.005f) step++;
+      }
+    if (near * 20 > pairs) g.bad(fmt("phases: %d of %d neighbouring actor pairs within 0.15 cycle (5 %% at most)", near, pairs)); else g.ok();
+    if (step) g.bad(fmt("phases: %d neighbouring pairs pulse in step", step)); else g.ok();
+    if (g_report) std::printf("    C13: %d of %d neighbouring pairs within 0.15 cycle\n", near, pairs);
+  }
+  // the glow planes: 25 % or less of their atlases; animated pixels 24 or fewer a figure-frame; nothing below T5
+  for (const Built& b : looks) {
+    if (!b.lookPal) continue;
+    for (RigPart part : {RigPart::Loco, RigPart::Drawn}) {
+      const RigSheet sh = doll::compose(b.r, part);
+      if (sh.empty()) continue;
+      const size_t gb = sh.glow.atlas.w * (size_t)sh.glow.atlas.h * 4;
+      const int top = b.L.topTier();
+      if (top < 5) { if (gb) g.bad(b.tag + fmt(" %s: a glow plane below T5", part == RigPart::Loco ? "LOCO" : "DRAWN")); else g.ok(); continue; }
+      if (gb * 4 > sh.bytes()) g.bad(b.tag + fmt(": glow plane %.1f KB over 25 %% of the atlas's %.1f KB", gb / 1024.0, sh.bytes() / 1024.0)); else g.ok();
+      int worst = 0;
+      for (size_t i = 0; i < sh.glow.rects.size(); i++) worst = std::max(worst, (int)sh.glow.count[i]);
+      const int sprites = b.L.mythic ? kMaxEmbers : kMaxMotes;   // (i3) the Mythic wears embers instead of motes
+      if (worst + sprites + 1 > kMaxAnimated) g.bad(b.tag + fmt(": %d glow pixels in a frame (+%d motes or embers and the spark: %d max)", worst, sprites, kMaxAnimated)); else g.ok();
+    }
+  }
+  // nothing at rig 1
+  {
+    const int was = art::rigVersion();
+    art::setRigVersion(1);
+    const bool any = art::finish::enabled();
+    art::setRigVersion(was);
+    if (any) g.bad("the living finish is enabled at rig 1"); else g.ok();
+  }
+}
+
+// ---------------------------------------------------------------- selftests (a synthetic defect per line)
+int selftests(bool report) {
+  int missed = 0;
+  auto expect = [&](bool caught, const char* what) {
+    if (!caught) { missed++; std::printf("    selftest MISSED: %s\n", what); }
+    else if (report) std::printf("    selftest caught: %s\n", what);
+  };
+  // C14: leather and cloth one value
+  {
+    Look l{"st14", 0, "outfit=3,armorStyle=1,bodyForm=2,topColor=#6A4A30,bottomColor=#6A4A30,tier=2,palette=look", {}};
+    Built b = build(l);
+    for (int i = 0; i < 5; i++) b.r.ramps.c[(int)doll::Slot::Leather][i] = b.r.ramps.c[(int)doll::Slot::Cloth1][i];
+    Line g{"st"};
+    c14Look(g, b, 0);
+    c14Look(g, b, 2);
+    expect(g.fails > 0, "C14: leather and cloth at one value");
+  }
+  // C14 plate: pale and flat
+  {
+    Look l{"st14p", 1, "outfit=5,armorStyle=3,bodyForm=7,tier=4,palette=look", {}};
+    Built b = build(l);
+    uint32_t* M = b.r.ramps.c[(int)doll::Slot::Metal];
+    M[1] = M[3];
+    Line g{"st"};
+    c14Plate(g, b);
+    expect(g.fails > 0, "C14: plate step 3 = step 1");
+  }
+  // C14 dark edge
+  {
+    Look l{"st14e", 0, "outfit=3,armorStyle=1,bodyForm=2,tier=2,palette=look", {}};
+    Built b = build(l);
+    for (auto& s : b.r.ramps.c) for (uint32_t& c : s) c = 0xFF101010u;
+    Line g{"st"};
+    c14Look(g, b, 0);
+    expect(g.fails > 0, "C14: an edge as dark as the ground");
+  }
+  // C12 a: the same kit twice reads as no step
+  {
+    std::vector<Built> v;
+    for (int t = 1; t <= 6; t++) v.push_back(build(Look{fmt("lt%d", t), 0, "hero=1,kit=heartland:3:7,palette=look", {}}));
+    for (const char* tag : {"jade3", "imp3", "fjord3"}) v.push_back(build(Look{tag, 0, "hero=1,kit=heartland:3:7,palette=look", {}}));
+    Line g{"st"};
+    gateC12(g, v);
+    expect(g.fails > 0, "C12: six identical tiers");
+  }
+  // C13: a pulse with the wrong period; a phase hash that puts everyone in step
+  {
+    const art::finish::Pulse P = art::finish::pulseOf(6);
+    art::finish::Pulse bad = P;
+    bad.period = 1.0f;
+    float prev = art::finish::light(bad, 0, 0), pp = prev, p2 = prev, first = -1, second = -1;
+    for (int i = 1; i < 600; i++) {
+      const float t = i / 60.0f, a = art::finish::light(bad, t, 0);
+      if (p2 < pp && pp >= a) { if (first < 0) first = t; else if (second < 0) second = t; }
+      p2 = pp; pp = a;
+    }
+    expect(std::fabs((second - first) - 2.2f) > 0.05f, "C13: a 1.0 s pulse");
+  }
+  return missed;
+}
+
+std::vector<Built> buildAll(const std::vector<Look>& looks) {
+  std::vector<Built> v;
+  for (const Look& l : looks) v.push_back(build(l));
+  return v;
+}
+
+int runLadderGates(const std::vector<Look>& looks, bool finish, bool self, std::vector<std::string>& out) {
+  const std::vector<Built> built = buildAll(looks);
+  Line c12{"C12 the ladder reads"}, c13{"C13 the living finish"}, c14{"C14 value"}, st{"C12-C14 selftests"};
+  gateC12(c12, built);
+  if (finish) gateC13(c13, built);
+  gateC14(c14, built);
+  if (self) {
+    const int m = selftests(g_report);
+    if (m) st.bad(fmt("%d synthetic defect(s) missed", m)); else st.ok();
+    out.push_back(fmt("  C12-C14 selftest: %s", m ? "MISSED" : "ALL CAUGHT"));
+  }
+  int fails = 0;
+  for (Line* l : {&c12, &c13, &c14, &st}) {
+    if ((l == &c13 && !finish) || (l == &st && !self)) continue;
+    out.push_back(l->text());
+    fails += l->fails ? 1 : 0;
+  }
+  return fails;
+}
+
+int ladderCmd(int argc, char** argv) {
+  const char* looksFile = nullptr;
+  const char* pool = nullptr;
+  bool finish = false, self = false;
+  for (int i = 1; i < argc; i++) {
+    if ((!std::strcmp(argv[i], "--looks") || !std::strcmp(argv[i], "--limbs-looks")) && i + 1 < argc) looksFile = argv[++i];
+    else if (!std::strcmp(argv[i], "--pool") && i + 1 < argc) pool = argv[++i];
+    else if (!std::strcmp(argv[i], "--report")) g_report = true;
+    else if (!std::strcmp(argv[i], "--finish") || !std::strcmp(argv[i], "--gates")) finish = true;
+    else if (!std::strcmp(argv[i], "--selftest")) self = true;
+  }
+  if (pool) {
+    std::string err;
+    if (!doll::loadPoolFile(pool, &err)) { std::printf("FAIL: --pool %s: %s\n", pool, err.c_str()); return 1; }
+  }
+  const int was = art::rigVersion();
+  art::setRigVersion(2);
+  const std::string text = looksFile ? readFile(looksFile) : dollSliceLooksText();
+  std::vector<std::string> out;
+  const int fails = runLadderGates(parseLooks(text), finish, self, out);
+  for (const std::string& l : out) std::printf("%s\n", l.c_str());
+  art::setRigVersion(was);
+  std::printf("doll-ladder: %d failing line(s)\n", fails);
+  return fails ? 1 : 0;
+}
+
+}  // namespace dollladder
+
+// (test_doll.cpp's --doll --gates adds C12, C13 and C14)
+int dollLadderGates(bool report, std::vector<std::string>& printed) {
+  dollladder::g_report = report;
+  return dollladder::runLadderGates(dollladder::parseLooks(dollSliceLooksText()), true, true, printed);
+}
+
+RPG_TEST_CMD("--expand-looks", "P2c the ladder looks macros expanded: --expand-looks FILE (each line's fields and what it resolves to)", dollladder::expandCmd);
+RPG_TEST_CMD("--doll-ladder", "P2c ladder gates C12 C13 C14 [--looks f] [--pool f] [--finish] [--report] [--selftest]", dollladder::ladderCmd);
+
+// ---------------------------------------------------------------- C1 source L (rpg_test --doll-coverage --scope ladder)
+// Every ladder look (the gates' matrix) and gear::ladderKit for the Heartland (or with --peoples all, every people) at
+// T1-T6, man and woman, seeds A..B (default 1..3), with the sword (and with --peoples all, each weapon family), worn through
+// wearGear: each must resolve with nothing missing (art::doll::dollMissing).
+int dollLadderCoverage(int argc, char** argv) {
+  using namespace dollladder;
+  bool gates = false, allPeoples = false;
+  int a = 1, b = 3;
+  const char* pool = nullptr;
+  for (int i = 1; i < argc; i++) {
+    if (!std::strcmp(argv[i], "--gates")) gates = true;
+    else if (!std::strcmp(argv[i], "--report")) g_report = true;
+    else if (!std::strcmp(argv[i], "--peoples") && i + 1 < argc) allPeoples = !std::strcmp(argv[++i], "all");
+    else if (!std::strcmp(argv[i], "--pool") && i + 1 < argc) pool = argv[++i];
+    else if (!std::strcmp(argv[i], "--seeds") && i + 1 < argc) { if (std::sscanf(argv[++i], "%d..%d", &a, &b) < 2) b = a; }
+  }
+  if (pool) {
+    std::string err;
+    if (!doll::loadPoolFile(pool, &err)) { std::printf("FAIL: --pool %s: %s\n", pool, err.c_str()); return 1; }
+  }
+  const int was = art::rigVersion();
+  art::setRigVersion(2);
+  std::vector<Look> looks = parseLooks(dollSliceLooksText());
+  static const char* const kPeople[12] = {"fjordfolk", "highland", "heartland", "imperial", "dune", "steppe", "marsh", "jade", "river", "suntemple",
+                                          "sylvan", "starspire"};
+  static const char* const kWpn[6] = {"sword", "spear", "bow", "axe", "mace", "greatsword"};
+  for (int p = 0; p < 12; p++) {
+    if (!allPeoples && p != 2) continue;
+    for (int w = 0; w < (allPeoples ? 6 : 1); w++)
+      for (int t = 1; t <= 6; t++)
+        for (int who = 0; who < 2; who++)
+          for (int sd = a; sd <= b; sd++)
+            looks.push_back(Look{fmt("L_%s_%s_t%d_%s_s%d", kPeople[p], kWpn[w], t, who ? "w" : "m", sd), who,
+                                 fmt("kit=%s:%d:%d,wpn=%s,palette=look", kPeople[p], t, sd, kWpn[w]), {}});
+  }
+  int total = 0, covered = 0;
+  std::map<std::string, int> missing;
+  for (const Look& l : looks) {
+    const Built bl = build(l);
+    const std::vector<doll::Missing> m = doll::dollMissing(bl.L);
+    total++;
+    if (m.empty()) { covered++; continue; }
+    for (const doll::Missing& x : m) missing[x.what()]++;
+    if (g_report) std::printf("    L %s: %d missing; first %s\n", l.tag.c_str(), (int)m.size(), m[0].what().c_str());
+  }
+  std::vector<std::pair<int, std::string>> top;
+  for (const auto& kv : missing) top.push_back({kv.second, kv.first});
+  std::sort(top.rbegin(), top.rend());
+  for (size_t i = 0; i < top.size() && i < 25; i++) std::printf("  missing x%d: %s\n", top[i].first, top[i].second.c_str());
+  std::printf("%s C1 source L (ladder)   %d looks, %d covered, %d with something missing\n", covered == total ? "ok   " : "FAIL:", total, covered, total - covered);
+  art::setRigVersion(was);
+  return gates && covered != total ? 1 : 0;
+}

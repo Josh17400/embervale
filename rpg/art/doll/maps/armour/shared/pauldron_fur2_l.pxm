@@ -1,0 +1,180 @@
+# armour/shared/pauldron_fur2_l: the small leather shoulder pad on the left shoulder (fur.2; LADDER-ARMOUR, STYLE_P2 25.6):
+# the right one's cap lit from the top-left as it falls on this side; `when furtrim` a fur edge on its rim.
+# Finish regions: R the rim, P the cap's face, W a spot on the shadow side. Format: rpg/art/doll/doll.h.
+use person
+role pauldron fur.2
+layer armNear
+anchor shoulderL
+keys pauld
+z 5
+side L
+
+view D key rest origin 3 2
+|.fff.
+|fihgf
+|fhggf
+|.fff.
+regions
+|.....
+|.PP..
+|.RRW.
+|.....
+
+view D key rest when furtrim
+|.....
+|.....
+|.....
+|fhghf
+
+view D key up origin 3 3
+|.fff.
+|fihgf
+|fhggf
+|.fff.
+regions
+|.....
+|.PP..
+|.RRW.
+|.....
+
+view D key up when furtrim
+|.....
+|.....
+|.....
+|fhghf
+
+view D key lie origin 3 2
+|.fff.
+|fihgf
+|fhggf
+|.fff.
+regions
+|.....
+|.PP..
+|.RRW.
+|.....
+
+view D key lie when furtrim
+|.....
+|.....
+|.....
+|fhghf
+
+view U key rest origin 1 2
+|.fff.
+|fjihf
+|fhggf
+|.fff.
+regions
+|.....
+|.....
+|.RRW.
+|.....
+
+view U key rest when furtrim
+|.....
+|.....
+|.....
+|fihif
+
+view U key up origin 1 3
+|.fff.
+|fjihf
+|fhggf
+|.fff.
+regions
+|.....
+|.....
+|.RRW.
+|.....
+
+view U key up when furtrim
+|.....
+|.....
+|.....
+|fihif
+
+view U key lie origin 1 2
+|.fff.
+|fjihf
+|fhggf
+|.fff.
+regions
+|.....
+|.....
+|.RRW.
+|.....
+
+view U key lie when furtrim
+|.....
+|.....
+|.....
+|fihif
+
+view R key rest origin 3 2
+|.ffff.
+|fhhggf
+|fggggf
+|.ffff.
+regions
+|......
+|.PP...
+|.RRRW.
+|......
+
+view R key up origin 3 3
+|.ffff.
+|fhhggf
+|fggggf
+|.ffff.
+regions
+|......
+|.PP...
+|.RRRW.
+|......
+
+view R key lie origin 0 0
+|.
+
+view L key rest origin 4 2
+|.ffff.
+|fjiihf
+|fhhggf
+|.ffff.
+regions
+|......
+|.PPP..
+|.RRRW.
+|......
+
+view L key rest when furtrim
+|......
+|......
+|......
+|fihihf
+
+view L key up origin 4 3
+|.ffff.
+|fjiihf
+|fhhggf
+|.ffff.
+regions
+|......
+|.PPP..
+|.RRRW.
+|......
+
+view L key up when furtrim
+|......
+|......
+|......
+|fihihf
+
+view L key lie origin 4 2
+|.ffff.
+|fjihgf
+|.ffff.
+regions
+|......
+|.PPP..
+|......

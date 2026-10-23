@@ -480,3 +480,78 @@ regions
 |.HHHH..UUUUU
 |.HHHHCUUUUU.
 |..HHCCCUUU..
+
+# (LADDER-ARMS i1) sp_load: the off arm of the loaded pose: hanging straight, the fist on the haft at the hip, 7 px in
+# front of the drawn-back rear fist (gripL on the haft line).
+view R key sp_load origin 2 -1
+mark gripL 1 8
+mark handL 1 8
+|..56665
+|..56665
+|.56665.
+|.56665.
+|.fhggf.
+|.fhggf.
+|.fhggf.
+|qrrq...
+|qrrq...
+|.qq....
+regions
+|..UUUUU
+|..UUUUU
+|.UUUUU.
+|.UUUUU.
+|.CCCCC.
+|.CCCCC.
+|.CCCCC.
+|HHHH...
+|HHHH...
+|.HH....
+
+view L key sp_load origin 4 -1 layer held
+mark gripL 5 8
+mark handL 5 8
+|58765..
+|58765..
+|.58765.
+|.58765.
+|.fihgf.
+|.fihgf.
+|.fihgf.
+|...qtsq
+|...qsrq
+|....qq.
+regions
+|UUUUU..
+|UUUUU..
+|.UUUUU.
+|.UUUUU.
+|.CCCCC.
+|.CCCCC.
+|.CCCCC.
+|...HHHH
+|...HHHH
+|....HH.
+
+# (LADDER-ARMS i1) sp_hi: the off arm of the spear's block, raised forward to the shoulder line, the fist high on the haft.
+view R key sp_hi origin 0 -1
+mark gripL 8 0
+mark handL 8 0
+|56665..qrrq
+|.56665fqrrq
+|........qq.
+regions
+|UUUUU..HHHH
+|.UUUUUCHHHH
+|........HH.
+
+view L key sp_hi origin 10 -1 layer held
+mark gripL 2 0
+mark handL 2 0
+|qtsq..58765
+|qsrqf58765.
+|.qq........
+regions
+|HHHH..UUUUU
+|HHHHCUUUUU.
+|.HH........

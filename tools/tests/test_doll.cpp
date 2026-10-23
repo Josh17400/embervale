@@ -117,6 +117,8 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
 // (P2c SLICE-DOLL) the gear gates C3-C6 and the slice looks (test_doll_arms.cpp)
 int dollArmsGates(bool report, std::vector<std::string>& printed);
 std::string dollSliceLooksText();
+int dollLadderGates(bool report, std::vector<std::string>& printed);   // test_doll_ladder.cpp
+int dollLadderCoverage(int argc, char** argv);   // test_doll_ladder.cpp: --doll-coverage --scope ladder (C1 source L)
 namespace {
 
 using art::HumanLook;
@@ -270,9 +272,38 @@ int parity(Gate& g, const char* dumpDir) {
       if (p.kept) g.bad(nm + ": the doll has no such frame");
       continue;
     }
+    // (P2c ladder i1, the owner 2026-10-23: "the sword swoosh is oversized and drops below the feet facing down": the
+    // steel arc was re-cut smaller, so the strike keys compare the figure without its arc: the doll's arc pixels (the
+    // probe's fx item) and A3's (its colours where the doll's figure is clear) are left out; every other pixel stays 0)
+    const bool strike = p.clip == Clip::Strike;
+    std::vector<uint8_t> fxMask;
+    std::vector<uint32_t> arcCols;
+    if (strike) {
+      const doll::FrameProbe q = doll::probeFrame(a3Recipe(p.who), p.part, p.facing, p.clip, 0, p.index);
+      fxMask.assign((size_t)f.c.w * f.c.h, 0);
+      if (q.ok)
+        for (int y = 0; y < q.h; y++)
+          for (int x = 0; x < q.w; x++) {
+            const int o = q.owner[(size_t)y * q.w + x];
+            if (o < 0 || !q.items[(size_t)o].has(doll::Role::Fx)) continue;
+            const int ax = f.px + (x - q.px), ay = f.py + (y - q.py);
+            if (ax >= 0 && ay >= 0 && ax < f.c.w && ay < f.c.h) fxMask[(size_t)ay * f.c.w + ax] = 1;
+          }
+    }
+    auto figAt = [&](int ax, int ay) {
+      if (ax < 0 || ay < 0 || ax >= f.c.w || ay >= f.c.h) return false;
+      return (f.c.get(ax, ay) >> 24) != 0 && !(strike && fxMask[(size_t)ay * f.c.w + ax]);
+    };
     // the union of both boxes aligned at the pivots
     int diff = 0;
     const int x0 = -std::max(f.px, rpx), x1 = std::max(f.c.w - f.px, rw - rpx), y0 = -std::max(f.py, rpy), y1 = std::max(f.c.h - f.py, rh - rpy);
+    if (strike)
+      for (int y = y0; y < y1; y++)
+        for (int x = x0; x < x1; x++) {
+          const int rx = rpx + x, ry = rpy + y;
+          const uint32_t cr = rx >= 0 && ry >= 0 && rx < rw && ry < rh ? ref[(size_t)ry * rw + rx] : 0;
+          if ((cr >> 24) && !figAt(f.px + x, f.py + y) && std::find(arcCols.begin(), arcCols.end(), cr) == arcCols.end()) arcCols.push_back(cr);
+        }
     for (int y = y0; y < y1; y++)
       for (int x = x0; x < x1; x++) {
         const int ax = f.px + x, ay = f.py + y, rx = rpx + x, ry = rpy + y;
@@ -280,6 +311,21 @@ int parity(Gate& g, const char* dumpDir) {
         uint32_t cr = rx >= 0 && ry >= 0 && rx < rw && ry < rh ? ref[(size_t)ry * rw + rx] : 0;
         if (!(ca >> 24)) ca = 0;
         if (!(cr >> 24)) cr = 0;
+        if (strike) {
+          if (!figAt(ax, ay)) continue;   // the doll's arc, or clear (A3's arc there)
+          if (cr && std::find(arcCols.begin(), arcCols.end(), cr) != arcCols.end()) continue;   // A3's arc over the figure
+          // the outline beside either arc (the finishing pass inks an edge by what lies next to it)
+          bool besideArc = false;
+          for (int dy = -1; dy <= 1 && !besideArc; dy++)
+            for (int dx = -1; dx <= 1 && !besideArc; dx++) {
+              const int bx = ax + dx, by = ay + dy, qx = rx + dx, qy = ry + dy;
+              const bool docArc = bx >= 0 && by >= 0 && bx < f.c.w && by < f.c.h && fxMask[(size_t)by * f.c.w + bx] && (f.c.get(bx, by) >> 24);
+              const uint32_t cq = qx >= 0 && qy >= 0 && qx < rw && qy < rh ? ref[(size_t)qy * rw + qx] : 0;
+              const bool a3Arc = (cq >> 24) && !figAt(bx, by);
+              besideArc = docArc || a3Arc;
+            }
+          if (besideArc) continue;
+        }
         diff += ca != cr;
       }
     if (dumpDir) writeSideBySide(std::string(dumpDir) + "/" + nm + ".png", f.c, f.px, f.py, ref, rw, rh, rpx, rpy);
@@ -299,9 +345,12 @@ int parity(Gate& g, const char* dumpDir) {
 // ---------------------------------------------------------------- the contract (always)
 void contract() {
   using doll::Slot;
-  if (doll::SLOT_COUNT != 21 || std::string(doll::slotName(Slot::Fx)) != "fx" || std::string(doll::slotName(Slot::Skin)) != "skin") cfail("the slot table");
+  // (P2c ladder ADD: Slot::Blade after Fx; the finish regions R P G N W after Edge)
+  if (doll::SLOT_COUNT != 22 || std::string(doll::slotName(Slot::Fx)) != "fx" || std::string(doll::slotName(Slot::Skin)) != "skin" ||
+      std::string(doll::slotName(Slot::Blade)) != "blade") cfail("the slot table");
   if (doll::LAYER_COUNT != 24 || std::string(doll::layerName(doll::Layer::Fx)) != "fx" || std::string(doll::layerName(doll::Layer::FxBack)) != "fxBack") cfail("the layer table");
-  if (doll::ANCHOR_COUNT != 8 || doll::REGION_COUNT != 12 || doll::regionChar(doll::Region::Sole) != 'O') cfail("the anchors and regions");
+  if (doll::ANCHOR_COUNT != 8 || doll::REGION_COUNT != 17 || doll::regionChar(doll::Region::Sole) != 'O' || doll::regionChar(doll::Region::Trim) != 'R' ||
+      doll::regionChar(doll::Region::Wear) != 'W') cfail("the anchors and regions");
   if (doll::ROLE_COUNT != 26 || std::string(doll::roleName(doll::Role::Hair)) != "hair") cfail("the role table");
   if (doll::code(Slot::Metal, 4) != 2 + 11 * 5 + 4 || doll::codeSlot(doll::code(Slot::Cloth3, 3)) != Slot::Cloth3 || doll::codeStep(doll::code(Slot::Cloth3, 3)) != 3) cfail("pixel codes");
   // hair: 24 styles from the 8 families, every name distinct
@@ -426,7 +475,8 @@ void gateFaces(Gate& faces, Gate& hands) {   // A3's face (STYLE_P2 4) and hands
     }
   }
 }
-void craftFrame(Gate& g, const Canvas& c, const std::string& who) {
+// (P2c ladder, B8 restated: D18) glow: the look's Glow-slot colours, up to 3 of which a T5-T6 figure may add over the 48
+void craftFrame(Gate& g, const Canvas& c, const std::string& who, const std::set<uint32_t>* glow = nullptr) {
   int orphans = 0, black = 0;
   std::set<uint32_t> cols;
   for (int y = 0; y < c.h; y++)
@@ -446,8 +496,13 @@ void craftFrame(Gate& g, const Canvas& c, const std::string& who) {
     }
   if (orphans) g.bad(who + fmt(": %.0f orphan pixel(s)", orphans));
   else if (black) g.bad(who + ": #000000");
-  else if (cols.size() > 48) g.bad(who + fmt(": %.0f colours (48)", (double)cols.size()));
-  else g.ok();
+  else {
+    int glowCols = 0;
+    if (glow) for (uint32_t p : cols) glowCols += glow->count(p) ? 1 : 0;
+    const int n = (int)cols.size() - std::min(glowCols, 3);
+    if (n > 48) g.bad(who + fmt(": %.0f colours (48", (double)n) + (glow ? " + 3 glow)" : ")"));
+    else g.ok();
+  }
 }
 void gateCraft(Gate& g) {   // B8 on composed frames: the A3 looks and a census sample
   std::vector<HumanLook> looks{a3Hero(), a3Woman()};
@@ -469,6 +524,39 @@ void gateCraft(Gate& g) {   // B8 on composed frames: the A3 looks and a census 
           }
     }
   }
+  // (P2c ladder) the gates' matrix (the ladder looks): 48 colours a figure plus up to 3 Glow steps on T5-T6 looks (D18)
+  {
+    const std::string t = dollSliceLooksText();
+    size_t a = 0;
+    while (a < t.size()) {
+      size_t e = t.find('\n', a);
+      if (e == std::string::npos) e = t.size();
+      const std::string line = t.substr(a, e - a);
+      a = e + 1;
+      char tag[128] = {}, who[16] = {}, spec[1200] = {};
+      if (line.empty() || line[0] == '#' || std::sscanf(line.c_str(), "%127s %15s %1199s", tag, who, spec) < 2) continue;
+      HumanLook L = !std::strcmp(who, "woman") ? a3Woman() : a3Hero();
+      bool lookPal = false;
+      doll::applyLookSpec(L, std::strcmp(spec, "-") ? spec : "", &lookPal);
+      doll::DollRecipe r = doll::resolve(L);
+      if (!lookPal) r.ramps = doll::a3Palette(L.body == 1 ? 1 : 0);
+      std::set<uint32_t> glow;
+      if (L.topTier() >= 5) for (int k = 0; k < 5; k++) glow.insert(r.ramps.c[(int)doll::Slot::Glow][k] | 0xFF000000u);
+      const bool fights = L.weapon >= 1 && L.weapon <= 8 && !L.civil;
+      for (RigPart part : {RigPart::Loco, RigPart::Death, RigPart::Run, RigPart::Drawn}) {
+        if (part == RigPart::Drawn && !fights) continue;
+        const RigSheet sh = doll::compose(r, part);
+        for (int fc = 0; fc < 4; fc++)
+          for (int c = 0; c < art::CLIP_COUNT; c++)
+            for (int v = 0; v < art::RIG_VARIANTS; v++)
+              for (int i = 0; i < sh.count(fc, (Clip)c, v); i++) {
+                if (v && sh.frame(fc, (Clip)c, v, i) == sh.frame(fc, (Clip)c, 0, i)) continue;
+                const Fr f = cut(sh, fc, (Clip)c, v, i);
+                if (f.ok) craftFrame(g, f.c, std::string(tag) + " " + art::clipName((Clip)c) + fmt(" v%.0f f%.0f #%.0f", v, fc, i), glow.empty() ? nullptr : &glow);
+              }
+      }
+    }
+  }
 }
 void gateFit(Gate& g) {   // B9's structure: every civilian garment a fitted pair (never one part for both bodies)
   for (int p = 0; p < doll::partCount(); p++) {
@@ -481,7 +569,7 @@ void gateFit(Gate& g) {   // B9's structure: every civilian garment a fitted pai
   }
 }
 // (P2c SLICE-DOLL) the slice looks' atlases (B10): per look and part its KB and budget (-1 KB: no atlas)
-struct SliceAtlas { std::string who, part; double kb = 0, budget = 0; };
+struct SliceAtlas { std::string who, part; double kb = 0, budget = 0, base = 0; };   // (ladder) base: the part's base budget; budget: D19's for T5-T6
 std::vector<SliceAtlas> sliceAtlases() {
   std::vector<SliceAtlas> v;
   const std::string t = dollSliceLooksText();
@@ -491,20 +579,39 @@ std::vector<SliceAtlas> sliceAtlases() {
     if (e == std::string::npos) e = t.size();
     const std::string line = t.substr(a, e - a);
     a = e + 1;
-    char tag[128] = {}, who[16] = {}, spec[800] = {};
-    if (line.empty() || line[0] == '#' || std::sscanf(line.c_str(), "%127s %15s %799s", tag, who, spec) < 2) continue;
+    char tag[128] = {}, who[16] = {}, spec[1200] = {};
+    if (line.empty() || line[0] == '#' || std::sscanf(line.c_str(), "%127s %15s %1199s", tag, who, spec) < 2) continue;
     HumanLook L = !std::strcmp(who, "woman") ? a3Woman() : a3Hero();
     bool lookPal = false;
     doll::applyLookSpec(L, std::strcmp(spec, "-") ? spec : "", &lookPal);
     doll::DollRecipe r = doll::resolve(L);
     r.ramps = lookPal ? doll::rampsOf(L) : doll::a3Palette(L.body == 1 ? 1 : 0);
     const bool fights = L.weapon >= 1 && L.weapon <= 8 && !L.civil;
-    struct B { RigPart p; double kb; const char* n; };
-    for (const B& b : {B{RigPart::Loco, 128, "LOCO"}, B{RigPart::Run, 64, "RUN"}, B{RigPart::Drawn, 256, "DRAWN"}, B{RigPart::Action, 512, "ACTION"},
-                       B{RigPart::Death, 48, "DEATH"}}) {
+    // (P2c ladder, D19) T5-T6 looks may use LOCO 160, RUN 80 and DRAWN 320 KB (reported beside the base budget)
+    const bool top = L.topTier() >= 5;
+    // (ladder i2, integration) two shape allowances, measured: a crest or plume stands 2-3 rows over the helm in every run
+    // frame (24 frames: about 4 KB), so a crested look's RUN may use 68 KB; a polearm falls with its wearer, a 40-45 px
+    // shaft across the fall and lying frames, so a polearm look's DEATH may use 56 KB. D19 (T5-T6) stays above both
+    bool crest = false, polearm = false;
+    {
+      const auto& P = doll::pool::get();
+      for (int pi : r.parts) {
+        if (pi < 0 || pi >= (int)P.parts.size()) continue;
+        const std::string& nm = P.s(P.parts[(size_t)pi].name);
+        if (nm.find("_crest") != std::string::npos || nm.find("_plume") != std::string::npos) crest = true;
+        if (nm.find("held/weapons/spear") != std::string::npos || nm.find("held/weapons/glaive") != std::string::npos ||
+            nm.find("held/weapons/halberd") != std::string::npos) polearm = true;
+      }
+    }
+    struct B { RigPart p; double kb, d19; const char* n; };
+    for (const B& b : {B{RigPart::Loco, 128, 160, "LOCO"}, B{RigPart::Run, 64, 80, "RUN"}, B{RigPart::Drawn, 256, 320, "DRAWN"},
+                       B{RigPart::Action, 512, 512, "ACTION"}, B{RigPart::Death, 48, 48, "DEATH"}}) {
       if ((b.p == RigPart::Drawn || b.p == RigPart::Action) && !fights) continue;
       const RigSheet sh = doll::compose(r, b.p);
-      v.push_back(SliceAtlas{tag, b.n, sh.empty() ? -1.0 : sh.bytes() / 1024.0, b.kb});
+      double base = b.kb;
+      if (b.p == RigPart::Run && crest) base = 68;
+      if (b.p == RigPart::Death && polearm) base = 56;
+      v.push_back(SliceAtlas{tag, b.n, sh.empty() ? -1.0 : sh.bytes() / 1024.0, top ? std::max(base, b.d19) : base, base});
     }
   }
   return v;
@@ -567,8 +674,10 @@ void gateAtlas(Gate& g) {   // B10
   // ACTION), each part's atlas composed from the look's recipe
   for (const SliceAtlas& sa : sliceAtlases()) {
     if (sa.kb < 0) { g.bad(sa.who + " " + sa.part + ": no atlas"); continue; }
-    if (g_report) std::printf("  B10 slice %-8s %-6s %6.1f KB (%.0f)\n", sa.who.c_str(), sa.part.c_str(), sa.kb, sa.budget);
-    if (sa.kb > sa.budget) g.bad(fmt("slice ") + sa.who + " " + sa.part + fmt(" %.1f KB (%.0f)", sa.kb, sa.budget)); else g.ok();
+    if (g_report || (sa.budget > sa.base && sa.kb > sa.base))
+      std::printf("  B10 ladder %-8s %-6s %6.1f KB (base %.0f%s)\n", sa.who.c_str(), sa.part.c_str(), sa.kb, sa.base,
+                  sa.budget > sa.base ? fmt(", D19 %.0f", sa.budget).c_str() : "");
+    if (sa.kb > sa.budget) g.bad(fmt("ladder ") + sa.who + " " + sa.part + fmt(" %.1f KB (%.0f)", sa.kb, sa.budget)); else g.ok();
   }
   if (g_report) {   // every armed body, build, people and age: the largest RUN and ACTION (the sample's worst case)
     double worstRun = 0, worstAct = 0, runContent = 0;
@@ -661,7 +770,7 @@ void gateAtlas(Gate& g) {   // B10
     if (fs.empty()) g.ok();
   }
   const doll::PoolStats ps = doll::poolStats();
-  if (ps.bytes > 1024 * 1024) g.bad(fmt("the pool %.2f MB (1.0)", ps.bytes / 1048576.0)); else g.ok();
+  if (ps.bytes > 1.75 * 1024 * 1024) g.bad(fmt("the pool %.2f MB (1.75: D21)", ps.bytes / 1048576.0)); else g.ok();
 }
 void gateRamps(Gate& g) {   // the generator within delta E 6 per step of A3's 14 hand ramps (given their bases)
   float worst = 0;
@@ -1142,7 +1251,6 @@ LimbM measure(const LimbFrame& f, const SoleTab& T) {
 }
 // the looks: B11 limbs' list (MOTION_P2 9) and --limbs-looks files ("tag who spec [gaits]" a line; who hero|woman;
 // spec k=v,... as doll_gallery's --look plus palette=look and bare=1, "-" for none; gaits walk,run,dwalk,drun)
-bool applyField(HumanLook& L, const std::string& k, const std::string& v) { return doll::applyLookField(L, k, v); }   // (P2c: the one list, doll.h)
 struct LimbLook { std::string tag; int who = 0; std::string spec; bool walk = true, run = true, dwalk = false, drun = false, bare = false, lookPal = false;
                   std::vector<std::string> gaits; };   // (P2c) every gait the line names (the strips: all four facings)
 std::vector<LimbLook> gateLooks() {
@@ -1160,21 +1268,14 @@ std::vector<LimbLook> gateLooks() {
   return v;
 }
 HumanLook lookOf(LimbLook& l) {
+  // (P2c ladder) the one looks parser (doll::applyLookSpec): the macros (hero= kit= npc= wpn= rarity= tier=) through the
+  // simulation's hook, the plain fields through applyLookField
   HumanLook L = l.who ? a3Woman() : a3Hero();
-  size_t a = 0;
-  while (a < l.spec.size()) {
-    size_t b = l.spec.find(',', a);
-    if (b == std::string::npos) b = l.spec.size();
-    const std::string kv = l.spec.substr(a, b - a);
-    const size_t eq = kv.find('=');
-    if (eq != std::string::npos) {
-      const std::string k = kv.substr(0, eq), val = kv.substr(eq + 1);
-      if (k == "palette") l.lookPal = val == "look";
-      else if (k == "bare") l.bare = val == "1";
-      else if (!applyField(L, k, val)) std::printf("  limbs: %s: unknown field %s\n", l.tag.c_str(), kv.c_str());
-    }
-    a = b + 1;
-  }
+  bool pal = l.lookPal, bare = l.bare;
+  std::string bad;
+  doll::applyLookSpec(L, l.spec, &pal, &bare, &bad);
+  l.lookPal = pal; l.bare = bare;
+  if (!bad.empty()) std::printf("  limbs: %s: unknown field(s) %s\n", l.tag.c_str(), bad.c_str());
   return L;
 }
 doll::DollRecipe recipeOf(LimbLook& l) {
@@ -1394,14 +1495,20 @@ void writeGaitStrips(const char* dir, LimbLook& l) {
   };
   FILE* o = std::fopen((std::string(dir) + "/" + l.tag + "_gaits.json").c_str(), "w");
   if (!o) { std::printf("FAIL: --limbs %s: cannot write\n", dir); return; }
-  std::fprintf(o, "{\"tag\":\"%s\",\"spec\":\"%s\",\"gaits\":[\n", l.tag.c_str(), jsonEsc(l.spec).c_str());
+  {
+    const HumanLook LL = lookOf(l);
+    const uint32_t* G = r.ramps.c[(int)doll::Slot::Glow];
+    std::fprintf(o, "{\"tag\":\"%s\",\"spec\":\"%s\",\"topTier\":%d,\"weaponTier\":%d,\"glowRamp\":[%u,%u,%u,%u,%u],\"gaits\":[\n", l.tag.c_str(),
+                 jsonEsc(l.spec).c_str(), (int)LL.topTier(), (int)LL.tier[art::HumanLook::TIER_WEAPON], G[0], G[1], G[2], G[3], G[4]);
+  }
   bool firstG = true;
   int missing = 0;
   for (const std::string& g : l.gaits) {
     const std::vector<GSeg> segs = gaitSegs(g);
     if (segs.empty()) { std::printf("  limbs: %s: unknown gait %s\n", l.tag.c_str(), g.c_str()); continue; }
     for (int fc = 0; fc < 4; fc++) {
-      std::vector<Fr> fs;
+      std::vector<Fr> fs, gs;
+      bool anyGlow = false;
       std::string frames;
       for (const GSeg& sg : segs) {
         const RigSheet& s = sheetOf(sg.part);
@@ -1409,19 +1516,37 @@ void writeGaitStrips(const char* dir, LimbLook& l) {
         if (!n) { missing++; std::printf("  limbs: %s %s %c: no %s v%d frames\n", l.tag.c_str(), g.c_str(), "DURL"[fc], art::clipName(sg.clip), sg.variant); }
         for (int i = 0; i < n; i++) {
           fs.push_back(cut(s, fc, sg.clip, sg.variant, i));
+          // (P2c ladder) the frame's glow plane on the same canvas (<base>_glow.png: the living finish's previews)
+          {
+            Fr gfr;
+            const Fr& f0 = fs.back();
+            if (f0.ok) {
+              gfr.ok = true; gfr.px = f0.px; gfr.py = f0.py; gfr.c = Canvas(f0.c.w, f0.c.h);
+              const art::FrameRect* fr = s.frame(fc, sg.clip, sg.variant, i);
+              const size_t gi = fr ? (size_t)(fr - s.frames.data()) : (size_t)-1;
+              if (!s.glow.empty() && gi < s.glow.rects.size() && s.glow.rects[gi].w > 0) {
+                s.glow.each(gi, [&](int gx, int gy, uint32_t lc) { gfr.c.set(gx, gy, lc); });
+                anyGlow = true;
+              }
+            }
+            gs.push_back(gfr);
+          }
           const doll::FrameInfo fi = doll::frameInfo(r, sg.part, fc, sg.clip, sg.variant, i);
           const Fr& f = fs.back();
           std::string parts;
           for (const doll::FrameInfo::P& p : fi.parts)
             parts += (parts.empty() ? "" : ",") + std::string("{\"part\":\"") + jsonEsc(p.part) + "\",\"layer\":\"" + p.layer + "\",\"key\":\"" + jsonEsc(p.key) + "\"}";
           char hd[400];
-          std::snprintf(hd, sizeof hd, "{\"clip\":\"%s\",\"variant\":%d,\"i\":%d,\"w\":%d,\"h\":%d,\"px\":%d,\"py\":%d,\"ms\":%d,\"turn\":%d,\"weapon\":%d,",
-                        art::clipName(sg.clip), sg.variant, i, f.c.w, f.c.h, f.px, f.py, fi.ms, fi.turn, fi.weapon);
+          const int NA = art::kNoAnchor;
+          const int gX = f.an ? f.an->gripX : NA, gY = f.an ? f.an->gripY : NA, tX = f.an ? f.an->tipX : NA, tY = f.an ? f.an->tipY : NA;
+          std::snprintf(hd, sizeof hd, "{\"clip\":\"%s\",\"variant\":%d,\"i\":%d,\"w\":%d,\"h\":%d,\"px\":%d,\"py\":%d,\"ms\":%d,\"turn\":%d,\"weapon\":%d,\"grip\":[%d,%d],\"tip\":[%d,%d],",
+                        art::clipName(sg.clip), sg.variant, i, f.c.w, f.c.h, f.px, f.py, fi.ms, fi.turn, fi.weapon, gX, gY, tX, tY);
           frames += std::string(frames.empty() ? "" : ",\n    ") + hd + "\"parts\":[" + parts + "]}";
         }
       }
       const std::string base = std::string(dir) + "/" + l.tag + "_" + g + "_" + "DURL"[fc];
       if (!fs.empty()) { writeStrip(base + ".png", fs, 1); writeStrip(base + "_x4.png", fs, 4); }
+      if (anyGlow) writeStrip(base + "_glow.png", gs, 1);
       std::fprintf(o, "%s  {\"gait\":\"%s\",\"facing\":\"%c\",\"png\":\"%s\",\"frames\":[\n    %s]}", firstG ? "" : ",\n", g.c_str(), "DURL"[fc],
                    fs.empty() ? "" : (l.tag + "_" + g + "_" + "DURL"[fc] + ".png").c_str(), frames.c_str());
       firstG = false;
@@ -1718,12 +1843,16 @@ int dollCmd(int argc, char** argv) {
     gateLimbs(b11l, b12, b11w, b11s);
     std::vector<std::string> armsLines;
     const int armsFails = dollArmsGates(g_report, armsLines);   // (P2c) C3 gear, C4 armour change, C5 families, C6 weapons
+    std::vector<std::string> ladderLines;
+    const int ladderFails = dollLadderGates(g_report, ladderLines);   // (P2c ladder) C12 C13 C14 and their selftests
     for (Gate* g : {&b2, &fc, &hd, &b8, &b9, &b10, &rp, &b11, &b11l, &b11w, &b12, &b11s}) {
       std::printf("%s %-24s %4d checks, %4d failed%s%s\n", g->fails ? "FAIL:" : "ok   ", g->id, g->checks, g->fails, g->fails ? "; first: " : "", g->first.c_str());
       gateFails += g->fails ? 1 : 0;
     }
     for (const std::string& l : armsLines) std::printf("%s\n", l.c_str());
     gateFails += armsFails;
+    for (const std::string& l : ladderLines) std::printf("%s\n", l.c_str());
+    gateFails += ladderFails;
   }
   art::setRigVersion(was);
   const int bad = g_contract + gateFails;
@@ -2077,6 +2206,8 @@ void censusK(uint64_t seed, std::vector<Who>& out) {
 }
 
 int coverageCmd(int argc, char** argv) {
+  for (int i = 1; i + 1 < argc; i++)
+    if (!std::strcmp(argv[i], "--scope") && !std::strcmp(argv[i + 1], "ladder")) return dollLadderCoverage(argc, argv);
   bool gates = false, all = false;
   uint64_t a = 1, b = 3;
   for (int i = 1; i < argc; i++) {
@@ -2193,7 +2324,7 @@ int coverageCmd(int argc, char** argv) {
   if (gates && (share < 100.0 || !dead.empty())) { std::printf("FAIL: B6 %.1f %% covered (100), %zu dead parts (0)\n", share, dead.size()); return 1; }
   return 0;
 }
-RPG_TEST_CMD("--doll-coverage", "P2b B6 doll coverage of a census [--seeds A..B] [--scope civil|all] [--gates] [--pool f] [--report]", coverageCmd);
+RPG_TEST_CMD("--doll-coverage", "P2b B6 doll coverage of a census [--seeds A..B] [--scope civil|all|ladder] [--gates] [--pool f] [--report]", coverageCmd);
 
 int varietyCmd(int argc, char** argv) {
   bool gates = false;

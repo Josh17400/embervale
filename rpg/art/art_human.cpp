@@ -4954,6 +4954,11 @@ uint64_t HumanLook::key() const {
                          (uint64_t)beardStyle << 40 | (uint64_t)neck << 48 | (uint64_t)garb << 56;
     if (p2b) mx(0xD011000000000000ull ^ p2b);
     if (civil) mx(0xC1F1000000000000ull | civil);   // (P2b fix) a civil trade's leathers are work clothes on the doll
+    // (P2c ladder, contracts 3b) the tiers, marks and metals: only when set, so every earlier rig-2 look keeps its key
+    uint64_t t8 = 0;
+    for (int i = 0; i < TIER_SLOTS; i++) t8 |= (uint64_t)tier[i] << (8 * i);
+    const uint64_t lad = (uint64_t)rare | (uint64_t)metalKind << 8 | (uint64_t)bladeKind << 16 | (uint64_t)mythic << 24 | (uint64_t)motif << 32;
+    if (t8 || lad || gemColor) { mx(0x7A1D000000000000ull ^ t8); mx(lad); mx(gemColor); }
   }
   return k;
 }

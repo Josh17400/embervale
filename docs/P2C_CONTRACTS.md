@@ -1,9 +1,11 @@
 # P2C_CONTRACTS: the shapes the P2c areas share (planner, 2026-10-23)
 
-The plan is docs/PLAN.md "## P2c"; the art direction is docs/STYLE_P2.md 25-26. The doll's format stays rpg/art/doll/doll.h
+The plan is docs/PLAN.md "## P2c"; the art direction is docs/STYLE_P2.md 25-27. The doll's format stays rpg/art/doll/doll.h
 (FROZEN: areas ADD names, enum values at the end before COUNT, and functions; never rename or change a meaning). Where
 this file says "P2c restates", that change is made once, by the code owner (SLICE-DOLL in wave 1, DOLL-C in wave 2),
 because no map depends on the old meaning. SLICE-DOLL / DOLL-C append "as built" notes at the end; nothing above is edited.
+**The ladder re-plan (2026-10-23)** adds the ladder slice's ownership (1), its freezes (2), vocabulary (3), the ladder's
+data (3b), the living finish (6b) and test hooks (7); LADDER-DOLL is the code owner in wave 1b.
 
 ## 1. Ownership (one owner per file; disjoint)
 
@@ -13,6 +15,14 @@ because no map depends on the old meaning. SLICE-DOLL / DOLL-C append "as built"
 | SLICE-ARMOUR (artist) | rpg/art/doll/maps/armour/** |
 | SLICE-HELM-SHIELD (artist) | rpg/art/doll/maps/headwear/helm/**, maps/shield/** |
 | SLICE-ARMS (artist) | rpg/art/doll/maps/arms/adult/action/**, legs/adult/action/**, held/weapons/**, belt/sheaths/**, back/**, fx/** |
+
+| area | files (wave 1b, the ladder slice) |
+|---|---|
+| LADDER-DOLL (engineer) | rpg/art/doll/*.h, *.cpp, gen/**, clips/**, maps/legend/** (ADD only); tools/doll/**; rpg/art/art_rig.*, art_fx.*; art_human.h (HumanLook ADD) and art_human.cpp's key() only; rpg/sim/anim.*, gear_look.* (ADD only), looks.cpp (rank tiers only), gear_ladder.* (new); rpg/view/render.cpp (people bake, glow pass), render_anim.cpp, view.h, loot_ui.cpp, witness_state.cpp, script_p2c.cpp; tools/tests/test_doll*.cpp, doll_motion.h, test_anim.cpp, test_folk_sim.cpp; tools/preview/doll_gallery.cpp; CMakeLists.txt (gear_ladder.cpp only); tools/scripts/p2c_slice*, p2c_ladder*; witness/p2c_slice, p2c_ladder; this file's section 8; PLAN "Ladder slice results" |
+| LADDER-ARMOUR (artist) | rpg/art/doll/maps/armour/**; maps/cloak/** (ADD only) |
+| LADDER-HEAD (artist) | maps/headwear/helm/**, maps/shield/**; maps/beard/** (ADD only: `when capped` R / L views) |
+| LADDER-ARMS (artist) | maps/arms/adult/action/**, legs/adult/action/**, held/weapons/**, belt/sheaths/**, back/**, fx/** (but `fx glint` and `fx mote`) |
+| LADDER-FINISH (artist) | maps/finish/** (new) |
 
 Wave 2 ownership is in docs/PLAN.md "Production areas". Art areas never build: they compile isolated pools and use the
 published exes (section 7).
@@ -29,6 +39,12 @@ art_rig and art_fx, rpg/sim but anim.*): art_hash TOTAL 317eef6efe4d8229, `city_
 existing views; areas ADD views. A3's sword is the one exception: it is re-cut into the arm (arms/adult/action/onehand)
 and the blade (held/weapons/sword), and every composed frame keeps its pixels (B1 16 / 16 at 0 px, the freeze check 0).
 
+**The ladder (2026-10-23)** keeps all of this and adds: wearGear's, gearIcon's, census::dress's and makeLook's existing
+outputs are frozen until the flip (the ladder writes only its new fields; art_hash, village-art and `--arms` prove it);
+HumanLook only gains fields that v1 ignores and key() mixes at rig 2 only. ADD-only exceptions: maps/cloak (`breeze` keys,
+`when` views), maps/beard (`when capped` views facing R / L). Restated: A3's arc is re-cut (the owner), and B1 compares
+the figure only (the doll composes without fx; A3's Fx colours are left out of the reference).
+
 ## 3. The resolver's P2c vocabulary (`role <category> <value>`, doll_resolve.cpp)
 
 | role | values (P2c ADDs; a map may declare several) |
@@ -40,7 +56,8 @@ and the blade (held/weapons/sword), and every composed frame keeps its pixels (B
 | pauldron | P2c restates: `<family>.<size>`, family plate (plate brigandine leaf), fur (padded leather), scale (mail scale lamellar); size 2 small, 3 medium, 4 large from the dial. **Dial 1 = none: no need** |
 | held | fighters (not `civil`): `<weapon>.<form>`: sword.{straight leaf falchion scimitar khopesh wavy broad curved glaive}, greatsword.{same}, axe.bearded, mace.flanged, dagger.straight, spear.{spear glaive halberd}, staff.plain, bow.{classic self recurve composite crossbow longbow}, stick.crook. Civil tools keep P2b's bare names (`held bow` is the hunter's carried bow). A3's sword map serves `sword.straight` (and `sword` until the resolver switches) |
 | sheath | sword dagger axe mace (exist); greatsword (across the back) quiver (every bow fighter) bowback (the bow out of combat) staffback shieldback (postures) |
-| fx | arc (A3) heavy chop smash glint thrust swish punch twang (drawn from maps by art_fx: section 6) |
+| fx | arc (A3; re-cut 2026-10-23) heavy chop smash glint thrust swish punch twang (drawn from maps by art_fx: section 6); ladder: `spark` (the block's impact), and `glint` (the edge spark) and `mote`, the living finish's sprites, drawn by the view and never baked (6b) |
+| overlay (ladder) | the finish tiles `finish.wear finish.etch finish.filigree finish.rune` (`tags tile`, `on-region W P N`: 3b) |
 
 **Flags** (`when`): band1..band7 bronze alloy; sheen-{matte bright dark banded iridescent glowing pale burnished};
 plumes furtrim gilding horsetail studs etching tassels scallops rivets filigree; skirt1..skirt4; crest1..crest4;
@@ -53,6 +70,67 @@ blade-<form> pole-<form> bow-<form>; glint-weapon glint-body glint-helm glint-sh
 Sleeves by form: mail U F + mail tile; scale and lamellar U + their tiles; plate U F metal (+ lames tile); leather F
 leather (bracer) + stitch tile; padded U F cloth1 + quilt tile; brigandine U F cloth1 + rivets tile; leaf U metal + leaf
 tile. The slice decides by eye whether the mail tile replaces P2b's drawn mail sleeves (decision D3).
+
+## 3b. The gear ladder in data (re-plan 2026-10-23; STYLE_P2 27, PLAN "The gear ladder")
+
+- **HumanLook ADD** (art_human.h; derived, never saved; v1 ignores them; key() mixes them only at rig 2 and only when
+  set): `tier[8]` (0 none, 1-6; slots body helm shield weapon gloves boots cloak back: `weapon` is what is in hand,
+  `back` the bow or staff on the back), `rare` (bits by slot: the Rare mark), `metalKind` (0 legacy; 1 leather 2 bronze
+  3 iron 4 steel 5 gilded 6 jade 7 obsidian 8 ember 9 starmetal 10 alloy (armourTint) 11 mythic), `bladeKind` (the
+  same codes for the piece in hand; 0 = metalKind), `gemColor` (0: the glow colour, else the metal's default).
+- **gear_ladder.h/.cpp** (rpg/sim, new; pure): `lookTier(const Item&)` (PLAN's table), `ladderKit(people, tier, body,
+  wpn, rarity, seed)` (real Items, the kit table below, for `cult::Atlas::make(people, seed)`), `applyLadderField` (the
+  looks macros). **wearGear** fills tier, rare, metalKind, bladeKind and gemColor for every worn slot and changes no
+  existing output. **census::dress** sets each role's tiers at the end of the role (PLAN's table; no draw).
+- **The kit** (ladderKit; for Heartland the ladder slice's forms are Item::form picks):
+
+| tier | band (ilvl), rarity | body | helm | shield | weapon | gloves, boots | cloak |
+|---|---|---|---|---|---|---|---|
+| 1 | 1 (3), Common | soft (the people's soft form) | none | round, wood (heartland) | band-1 bronze (Heartland: the OLD BLADE) | none, leather boots | none |
+| 2 | 1 (6), Rare | leather | the soft helm (Heartland: the leather cap) | round, painted | iron, band 2 (ilvl 10) Common | leather, leather | none |
+| 3 | 3 (20), Common | steel, metal form | steel, metal form | the people's shield | steel | leather (band 1 Rare), iron boots (tall: band 2) | a travel cloak if the cape dial is 2 |
+| 4 | 4 (28), Common | the first alloy (Heartland: plate) | alloy (Heartland: great helm) | alloy (Heartland: heater) | alloy | metal (gauntlets, greaves) | a travel cloak |
+| 5 | 6 (47), Rare | the masterwork alloy | masterwork | masterwork | masterwork | metal (flared, sabatons) | the noble cloak (band 6) |
+| 6 | 6 (47), Legendary | as T5 | as T5 | as T5 | as T5 | as T5 | as T5, Legendary |
+
+- **Flags** (flagsOf): `<slot>.t1`..`<slot>.t6` cumulative (`armour.t3` holds at T3-T6; exactly T1 is
+  `armour.t1,!armour.t2`) for slots armour helm shield held gloves boots cloak back (tier[] in that order: armour is the
+  body, held the weapon in hand); `<slot>.r` (the Rare mark);
+  `tier1`..`tier6` (the figure's highest piece, cumulative); `breeze` (a T5+ cloak, or a T5+ helm with a plume or crest
+  region); `metal-<kind>`; `mythic` (exists).
+- **Regions** (ADD to Region before COUNT; pxc mirrors): **R** trim, **P** panel, **G** gem, **N** seam, **W** wear. A
+  part's regions take its own piece's tier (the recipe gains a per-role region table: armour, overlay tabard and
+  pauldrons follow the body; helm; shield; held and sheath follow the weapon; cloak):
+
+| region | T1 | T2 | T3 | T4 | T5 | T6 |
+|---|---|---|---|---|---|---|
+| R | as drawn | as drawn (+ a `when <slot>.t2` fitting) | metal 2 (brass) | metal 2 | metal 2, gold | gold |
+| P | as drawn | as drawn | as drawn | finish.etch | finish.filigree | finish.filigree + finish.rune |
+| G | as drawn | as drawn | metal 2 | metal 2 | Glow, 2 steps | Glow |
+| N | as drawn | as drawn | as drawn | as drawn | as drawn | Glow + finish.rune |
+| W | finish.wear | as drawn | as drawn | as drawn | as drawn | as drawn |
+
+  The Rare mark gives R the next tier's column. A finish tile applies only to parts whose piece's tier the table gives
+  it. Maps draw R P G N W pixels in the piece's own material, so "as drawn" is the plain piece.
+- **Dials** (the resolver's effective dials; the look's fields stay as they are): T1 no pauldron, skirt short, no crest,
+  plume or cape; T2 pauldron small, skirt mid, crest small; T3-T4 the look's own; T5-T6 the look's plus `plumes` on a
+  helm with a plume or crest region. A look with a tier and no culture dials (0) takes the heartland line: pauldron none
+  small medium medium large large, skirt short short mid mid knee knee, and (no bodyForm) its armour form from metalKind:
+  leather leather, bronze and iron mail, steel and up plate. Tiers never add a lift the sim gave (the alloy's +1, the
+  census's +1 / +2).
+- **Ramps** (rampsOf): Metal from armourTint / armourTint2 / sheen (art::metalRampKeys), else from metalKind (iron,
+  steel = A3's, gilded, jade, obsidian, ember, starmetal, bronze), else A3's steel (a look with no tier keeps today's
+  pixels). T1 compresses metal (step 4 = step 3, but a blade's tip pixel: C6) and leather (one shine); Mythic tempers
+  (gear_look's ember). Metal 2
+  turns gold at T5-T6. **Slot::Blade** (ADD after Fx): the held part's Metal pixels draw with it, from bladeKind or
+  weaponColor (equal to Metal when the metals match). Glow from glowColor, else gemColor, else the metal's default
+  (STYLE_P2 27.3). Leather parts from Cloth1 / Cloth2 by 18 luma (C14), the trouser lifts' way.
+- **Colours**: B8 counts 48 + up to 3 Glow steps (T5-T6). Over the cap the resolver merges, in order: the field into the
+  accent, the blade into the metal, the plume into the accent, the device to 2 steps.
+- **Looks macros** (`gear::applyLadderField`, called by every looks reader before doll::applyLookField): `hero=1` /
+  `heroine=1` (A3's face, hair and colours; the scarf through T3), `kit=<people>:<tier>[:<seed>]`, `wpn=<family>`,
+  `rarity=<common..mythic>`, `npc=<people>:<role>[:<rank>][:<seed>]` (census::dress), `tier=<n>` and `tierBody=` ..
+  `tierBack=`. People: fjordfolk highland heartland imperial dune steppe marsh jade river suntemple sylvan starspire.
 
 ## 4. Parts: anchors, layers, channels, keys
 
@@ -100,6 +178,26 @@ in the slice Block is reached by `pose block` and the dump). The bow's Draw / Re
 Atlas budgets per look: LOCO 128, RUN 64, DRAWN 256 (NEW), ACTION 512, DEATH 48, POSTURE 64 KB. Effects are drawn from
 their maps by art_fx at the frame's pivot plus the clip's fx offset, not baked into each look's atlas. The doll composes
 them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's arc is pixel-identical on screen.
+(The ladder re-plan: A3's arc is re-cut, so "pixel-identical" now means the re-cut arc on screen as in the compose.)
+
+## 6b. The living finish (T5-T6; rig 2 only; STYLE_P2 27.7)
+
+- **The glow plane**: compose also returns, per RigSheet, the Glow-slot pixels of each frame after the finishing pass,
+  cropped to their box and packed (`RigSheet::glow`: an atlas plus a rect and offset per frame; empty when the look has
+  none). The view bakes it beside the atlas (at most 12 looks cached) and draws it after the lighting, additively, with
+  light a(t) = lo + (hi - lo)(0.5 - 0.5 cos 2pi(t / P + phase)): T6 P 2.2 s, 0.30-0.85; a T5 gem P 3.3 s, 0.15-0.45;
+  phase = the actor's anim phase (anim.cpp's per-actor number); while idle the peak locks to the breathe frame. Depth,
+  the rune crawl: three sub-planes by (x + y) / 2 mod 3, a third of a cycle apart.
+- **The edge spark**: `fx glint` (3 frames) travels the frame's RigAnchors grip to tip in 0.33 s every 3.3 s (each actor
+  offset), and flashes once at the tip on the strike's impact frame, for a T6 piece in hand with a tip mark.
+- **Motes**: view particles, no atlas: 3 a figure at most, born every 0.45 s on a glow-plane pixel of the current frame,
+  rising 8 px over 1.0 s in glow steps 3 then 2, fading; seeded per actor (deterministic under Witness).
+- **The stir**: conditioned clips (`clip idle <F> when breeze`) name `cloak=breeze` and `crest=breeze` on the breathe
+  frame; the run's cloak `flare` has a `when cloak.t5` view. No new frame; the frozen loco walk and run lines unchanged.
+- **Mythic** (ladder slice depth; C7 in production): the aura rebuilt per doll frame as a cropped ring plane (two
+  flicker variants), light only within 3 px of the silhouette.
+- **Budgets** (C13): 32 animated pixels a figure-frame at most (ladder i2 integration: was 24; T6 runes 21-24 px + 3 motes + the spark, the owner's animated late gear); light changes 0.25 or less per 1/60 s; a glow plane 25 %
+  or less of its atlas; 8 T6 figures cost the city frame 0.3 ms or less. Nothing draws at rig 1.
 
 ## 7. Test hooks
 
@@ -137,6 +235,14 @@ them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's
      `<root>\report.txt` (what changed, measures, strips, proposed clip lines and region slots). Never write
      gen/doll_pool.cpp, never edit another area's file, and validate proposed clip lines with pxc first.
   `LATEST.txt` beside the exes names the newest; SLICE-DOLL publishes s1 within its first working block.
+- **The ladder's hooks** (wave 1b): tools/doll/ladder_looks.txt (the macros of 3b) and `rpg_test --expand-looks F` (each
+  line's resulting fields); `rpg_test --doll-ladder [--looks F] [--finish] [--report] [--selftest]` (C12, C13, C14;
+  `--doll --gates` adds the three lines); `--doll-coverage --scope ladder [--seeds]` (source L); doll_gallery boards
+  `ladder` (a look's kit T1-T6, four facings, 1x and 3x, grass and dark ground) and `finish:<tag>` (one living-finish cycle
+  as 12 frames and a 3x GIF); script `ladderkit <people> <tier> [wpn]` (the hero's worn items, test only) and `expect doll
+  tier <slot>=<n>`; Witness `player.sprite.doll.tier`, `entities[].doll.tier`, `player.finish` {glow, spark, motes}. The
+  artists' roots: `%TEMP%\claude\emb_P2c\ladder\<area>\doll\`; LADDER-DOLL publishes s5 (fields, flags, regions,
+  macros) within its first working block, and the artists use s4 for the open items until then.
 
 ## 8. As built (SLICE-DOLL / DOLL-C append here)
 
@@ -217,3 +323,109 @@ them too, for parity, previews and the gallery (`ComposeOpts::withFx`), and A3's
 - (i3) The shield bearer's hurt facing R / L holds the shield at the chest (sharm=guard shield=guard, at=-1 / +1): facing R
   the rest view sat wholly behind the body. The guard's block cocks the sword back (the windup's arm and blade, sw_<f>0 /
   a3<f>0) while the shield squares up; p2c_weight.py steps every block 2 px back and the spear block crouches (bob 2).
+
+### LADDER-DOLL, ladder iteration 1 (2026-10-23)
+- **HumanLook ADD** (art_human.h): tier[8] (TIER_BODY..TIER_BACK), rare, metalKind, bladeKind, gemColor as 3b, plus
+  `mythic` (bits by slot: a Mythic piece) and `motif` (the filigree's motif by the body's maker people: 0 oak 1 clouds
+  2 laurel 3 knot). key() mixes them at rig 2 only and only when set; dollCovers' cache key mixes them at every rig.
+- **gear_ladder.h/.cpp** (rpg/sim): lookTier, metalKindOf, fillLadder (wearGear calls it last; existing outputs unchanged),
+  rankTiers (census::dress calls it last: bandits/pirates T1, soldiers and the village watch T2, capital watch, heralds,
+  envoys, warlords T3, captains, royal guard, jarls T4, kings T5), ladderKit (Atlas::make(people, seed) with a test id
+  0x1ADD...; Heartland forms by Item::form; the woman's T4+ helm is the open crested helm; a MANTLE name gives way to the
+  kit's travel / noble cloak), applyLadderSpec + describeLook.
+- **The macros' hook**: the looks-field parser (applyLookField / applyLookSpec) moved from doll_resolve.cpp to doll_walk.cpp
+  (rpg_doll, below rpg_sim, so save_test links); `doll::setLookSpecHook` (doll.h ADD) takes gear::applyLadderSpec, which
+  gear_ladder.cpp installs at static init and every reader calls (installLadderMacros). Order: hero/heroine, kit or npc
+  (with wpn, rarity), the plain fields as written, then tier / tierBody..tierBack / rare / metalKind / motif. `npc=` sets
+  Game::makeLook's fixed role base (outfit, helmet, shield, weapon, royal plate) before census::dress.
+- **Regions** R P G N W = Region 12..16 (pxc letters), **Slot::Blade** after Fx (pxc `blade`; maps never name it: a library
+  held part's Metal pixels draw in it when DollRecipe::blade, i.e. its ramp differs). DollRecipe ADD: fin[8][5], finTiles[8],
+  pieceTier[8], blade, motif; `doll::partTierSlot(part)`; FIN_TILE_* incl. GEM (T5+) and GLYPH (T6).
+- **The compositor**: finish regions by each part's tier slot (the outline ring keeps its slot); region tiles: masks 32-bit,
+  stacked last-listed first, LADDER-FINISH's `tags fit` and `tags stamp` placements, ink cells move the step by k - 2,
+  stamps and Glow cells absolute (see LATEST s6). With a finish.rune part N stays as drawn (the tile writes the dashes).
+- **The glow plane**: RigSheet::glow (art_rig.h ADD: atlas, rects parallel to frames with the crop's offset, counts), built
+  in compose from each cut's Glow-slot pixels after the finishing pass. **art::finish** (art_fx.h): pulseOf, light,
+  actorPhase (stride 0.2754 of a cycle: ids up to 3 apart are 0.17+ apart), sparkAt / sparkFrame, motes, enabled().
+- **Gates**: the gates' matrix (test_doll_arms.cpp kSliceLooks) is tools/doll/ladder_looks.txt, written by
+  tools/doll/embed_looks.py (`--check`). B8 adds the matrix with 3 Glow colours allowed on T5-T6; B10 prints D19 beside
+  the base for T5-T6; the pool gate is 1.75 MB. test_doll_ladder.cpp: --expand-looks, --doll-ladder (C12 C13 C14 and
+  selftests; also in --doll --gates), --doll-coverage --scope ladder [--peoples all] (source L). C14's lit edge is the upper
+  quartile of the first lit pixel per row / column from the top-left, against #242A1E (luma 40), wanting 40 over it or A3's
+  own hero's edge in that facing when lower (A3's hero facing R is 67: the plan's number fails A3 itself; planner to rule).
+  C13's phase line reads neighbouring ids (id, id+1..3): uniform phases cannot keep 95 % of all pairs 0.15 apart.
+- **Not built in iteration 1**: the view's glow pass (render.cpp / render_anim.cpp), the spark and motes on screen, Witness
+  `player.finish`, script `ladderkit` / `expect doll tier`, p2c_ladder scripts, witness/p2c_ladder, owner_pack --ladder,
+  the clip open items (spear hurt hold, 3-frame blocks and thrust, RUN_CARRY, lying placement), the Mythic aura on doll
+  frames, the rune crawl, the regional tier lift, F9.
+
+### LADDER-DOLL, ladder iteration 2 (2026-10-23)
+- **The top of the ladder** (the blind panel: T4 "pink clay", T5 = T6, the Mythic "a carrot", the great helm "a bucket",
+  the glow invisible in play):
+  - rampsOf: an alloy's Metal ramp is **metalized** (value kept, its hue a tint over A3's steel: chroma caps 12-16, the
+    highlight L 92+), so a people's alloy reads as a cast of steel, never paint; a heartland high metal (metalKind 5-9:
+    gilded, jade, obsidian, ember, starmetal) draws as itself, not gear_look's band tint (D20; iron and steel keep the tint);
+    the Mythic row (11) is ember-TEMPERED steel (#14080E #6A2A36 #8E3632 #CC644A #FFC890), the plume pale gold, the cloak
+    smoke-black; the Glow ramp is **light** (glowLight: chroma 48+, L 54-62 at rest so the breath has room, and a warm glow
+    beside gold trim turns to the steel's cold blue-white, the Mythic excepted); a T6 shield's Device takes the Glow
+    ramp (drawn, no pulse); Leather step 1 lifted to 82 luma (C14's lit edge on soft kits).
+  - ladderKit: the Heartland's T6 is **STARMETAL** (band-7 steel, ilvl 55: its own pale blue-white metal is the step up
+    from T5's masterwork alloy); the Heartland helm from T4 is the **open crested helm on both bodies** (the great helm
+    stays in the library and is one word to bring back); the hero's crest and plume in his tabard colour.
+- **The glow plane in tiles** (art_rig.h GlowPlane ADD tiles / first / tileCount / each()): each frame's crop is cut into
+  8x8 cells trimmed to their pixels, equal tiles packed once (lt6w's plane 51.2 KB -> inside 25 %). rects[i] stays the
+  frame's box (x, y unused); readers walk pixels with GlowPlane::each.
+- **The view's living finish** (render.cpp / render_anim.cpp / view.h): RigEntry/RigTex carry the plane (glowTex baked as
+  its light key); View::queueLivingFinish queues, per rig-2 T5-T6 body frame drawn (not the dead): every glow pixel as a
+  1x1 additive light in the glow colour half-way to white, breathing on art::finish::light with the actor's phase **and
+  the rune crawl** (band (x + y) / 2 mod 3, a third of a cycle apart); T6: the edge spark (a 1 px core + 1-2 px arms, 3
+  frames) grip (else the weapon fist) to tip every 3.3 s, and up to 3 motes; drawn in drawWeather's tail after the
+  lighting (a shimmer by day 0.6, a glow at night 1.0). compose: a T6 piece in hand whose held view marks no tip gets its
+  farthest cell from the grip origin as the tip (and the grip anchor as the grip), T6 looks only.
+- **Scripts**: `ladderkit <tag|spec>` (the ladder looks lt1..lt6 lt6m lt6w lt1w, the flavour row, the census ranks; or a
+  spec through the macros), `p2cline ladder|flavour|ranks`, `expect doll tier <n>`; tools/scripts/p2c_ladder.txt (each
+  tier on the doll, the T6 breath by day and night every 0.1 s, the edge spark every 0.06 s, the three rows by day and
+  night): 0 failures.
+- **Gates made to agree with the eye** (each looked at 8x first): C12 b's trim ceilings carry the maps' hems (T3 3-14 %,
+  T4 6-20 %, T5-T6 10-24 %), helms and shields take a rim's ceiling (36 %), a weapon or cloak with no R drawn passes,
+  colours may fall to 80 % of the tier below (leather to mail), step-4 by 1; C12 c: a figure may shrink 5 % a step and lt5
+  over lt1 is 115 % facing D, 105 % facing R; W8: a cloak's back may trail 2 columns (selftest moved to 3); C4 measures
+  armour with no cloak on either side. The looks gain **lt1w** (the heroine at T1: the woman's padded coverage); fjord3's
+  hair #B87A3E (C14 against mail).
+- **C14, the archer** (the panel: "over-corrected: the outfit peach, reads as bare skin"): rampsOf parts the Leather from
+  the Skin too (18 luma at step 2); the ladder archer's skin #8A583C (was #B98060: a tan jerkin on tan skin), so his
+  jerkin keeps its value against the dark ground and his hair.
+
+### LADDER-DOLL, ladder iteration 3 (2026-10-23; the i2 blind panel: the top of the ladder)
+- **The living finish reads at 3x** (all five panelists: "no animation I could see", "about 11 sprite px change").
+  `art::finish::frameLights` is the one light model (render.cpp and doll_gallery's boards both call it): each glow pixel's
+  light is the figure's breath times (0.7 + 0.3 x the rune crawl), so the whole piece brightens and dims while the light
+  runs along the seams (i2's crawl alone averaged the figure to a constant); the **halo** (kHalo 0.32 of that light, the
+  glow's colour) spills onto the 4 non-glow neighbours (light, not sprite pixels: C13's pixel budget is unchanged and
+  still measured on the plane); the **gleam** (T6): a slanted 3 px band of the figure's own colours added back at 0.8
+  sweeps the whole figure in 0.5 s every 3.3 s, half a cycle after the spark (the Mythic's in its fire); by day the
+  finish draws at 0.85-1.0 of its light (was 0.6-1.0). **Sign-off wanted (owner or planner):** C13's pulse numbers move
+  to T6 0.10-1.00 (was 0.30-0.85) and T5 0.10-0.60 (was 0.15-0.45); the gate checks the new numbers, the pixel light's
+  step (<= 0.25 per 1/60 s) and the gleam's 3.3 s / 0.5 s.
+- **The Mythic's flame**: `art::finish::embers` (6 alive at most, born every 0.12 s on the upper glow pixels, licking
+  10 px up over 0.7 s with a sway, white-yellow -> amber -> red, 2 px tall while hot) replaces the motes on a Mythic look;
+  C13 counts them in the frame budget (glow + 6 + the spark <= 32) and checks count, life and rise.
+- **Mythic metal** (kMetalKind[11]) is BLACKENED steel (#3C3846 / #625E70 / #9E98AA, a white-hot highlight); its glow
+  rests hot amber (L 68); the hero's Mythic crest a flame (#F06A1E), his cloak a black crimson (#480A14). Gold trim as T5.
+- **The dye climbs with the cloak's tier** (looks macros, the hero / heroine): T4 the arms' colour at 55 % (travel), T5 a
+  crimson from the arms (0.74 / 0.5 / 0.62 of R G B), T6 royal blue #23387A, the Mythic black crimson: the back views of
+  T4, T5, T6 and the Mythic now differ (the panel: "the same brown cloak three times").
+- **A T6 piece wears T5's dials at least** (ladderLook): pauldron 4 where one is worn, crest 2 (so the plume) where a
+  crest is worn. The heartland's band-7 STARMETAL is steel, so gear_look gave it the people's plain dials, under the
+  masterwork alloy's: T6 had lost T5's plume and large pauldrons. A lift at T6 only, rig 2 only.
+- **metalize** keeps less of an alloy's colour (chroma caps 7 8 9 7 3, shares 0.25-0.34): the heartland T4 alloy no
+  longer "mauve putty", the T5 masterwork no longer "beige cloth"; both read as steel with a cast.
+- **Drawn forms** (`drawnForm`, needsOf): a culture's helm or shield form the library has not drawn yet wears the nearest
+  drawn one (helms: kettle -> nasal, great helm / plumed -> crested, horned / conical / winged / masked -> spangen ->
+  nasal; shields: crescent -> round, oval / leaf -> kite). Dune, Marsh, Highland and Steppe T3 kits are no longer
+  bare-headed. Still undrawn (art areas): helm form2 kettle, form7 conical-aventail (and horned, plumed, winged).
+- **The stir** (compose): an idle's breathe frame (frame 1) of a look flagged `breeze` draws every rest-key part's
+  `breeze` view (the T5-T6 cloaks' hem, the crest's tail), so the art LADDER-ARMOUR / LADDER-HEAD drew now moves.
+- **Lying**: the corpse's dropped weapon or shield (screen items) lies 3 px up, under the body (was a line 2-3 px below it).
+- **The archer** (the panel: "garish speckled orange"): skin #CA8E66, hair #8A5A30 (the leather pick a dark woodsman
+  brown, the hair parted from it for C14).

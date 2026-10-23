@@ -1,0 +1,254 @@
+[
+ {
+  "name": "p2c ladder: the hero changes kits through T1-T6, the Mythic, the heroine's T6 and T1, each resolving on the doll at rig 2 with the planned body armour; the ladder, flavour and rank rows are covered",
+  "seed": 7,
+  "params": {
+   "rig": 2,
+   "hour": 11,
+   "god": true,
+   "at": [
+    -140,
+    -432
+   ]
+  },
+  "steps": [
+   {
+    "at": 0.2,
+    "call": [
+     [
+      "weather",
+      "clear"
+     ],
+     [
+      "skill",
+      "kit",
+      "sword",
+      "none"
+     ]
+    ]
+   },
+   {
+    "at": 0.4,
+    "call": [
+     [
+      "ladderkit",
+      "lt1"
+     ]
+    ]
+   },
+   {
+    "at": 0.6,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.gear.armour == 'padded'"
+    ]
+   },
+   {
+    "at": 0.75,
+    "call": [
+     [
+      "ladderkit",
+      "lt2"
+     ]
+    ]
+   },
+   {
+    "at": 0.95,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.gear.armour == 'leather'"
+    ]
+   },
+   {
+    "at": 1.1,
+    "call": [
+     [
+      "ladderkit",
+      "lt3"
+     ]
+    ]
+   },
+   {
+    "at": 1.3,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.gear.armour == 'mail'"
+    ]
+   },
+   {
+    "at": 1.45,
+    "call": [
+     [
+      "ladderkit",
+      "lt4"
+     ]
+    ]
+   },
+   {
+    "at": 1.65,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.gear.armour == 'plate'"
+    ]
+   },
+   {
+    "at": 1.8,
+    "call": [
+     [
+      "ladderkit",
+      "lt5"
+     ]
+    ]
+   },
+   {
+    "at": 2.0,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.gear.armour == 'plate'"
+    ]
+   },
+   {
+    "at": 2.15,
+    "call": [
+     [
+      "ladderkit",
+      "lt6"
+     ]
+    ]
+   },
+   {
+    "at": 2.35,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered",
+     "state.player.sprite.doll.gear.armour == 'plate'"
+    ]
+   },
+   {
+    "at": 2.5,
+    "call": [
+     [
+      "ladderkit",
+      "lt6m"
+     ]
+    ]
+   },
+   {
+    "at": 2.7,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered"
+    ]
+   },
+   {
+    "at": 2.85,
+    "call": [
+     [
+      "ladderkit",
+      "lt6w"
+     ]
+    ]
+   },
+   {
+    "at": 3.05,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered"
+    ]
+   },
+   {
+    "at": 3.2,
+    "call": [
+     [
+      "ladderkit",
+      "lt1w"
+     ]
+    ]
+   },
+   {
+    "at": 3.4,
+    "expect": [
+     "state.player.sprite.rig == 2",
+     "state.player.sprite.doll.covered"
+    ]
+   },
+   {
+    "at": 3.55,
+    "call": [
+     [
+      "p2cline",
+      "ladder"
+     ],
+     [
+      "ladderkit",
+      "lt1"
+     ]
+    ]
+   },
+   {
+    "at": 3.8,
+    "expect": [
+     "entities.filter(e => e.id >= 940000 && e.id < 941000).length == 7",
+     "entities.filter(e => e.id >= 940000 && e.id < 941000).every(e => e.doll && e.doll.covered)",
+     "JSON.stringify(entities.filter(e => e.id >= 940000 && e.id < 941000).filter(e => !(e.doll && e.doll.covered)).map(e => [e.name, e.doll.first])) == '[]'"
+    ]
+   },
+   {
+    "at": 3.95,
+    "call": [
+     [
+      "p2cline",
+      "flavour"
+     ],
+     [
+      "ladderkit",
+      "lt1"
+     ]
+    ]
+   },
+   {
+    "at": 4.2,
+    "expect": [
+     "entities.filter(e => e.id >= 940000 && e.id < 941000).length == 4",
+     "entities.filter(e => e.id >= 940000 && e.id < 941000).every(e => e.doll && e.doll.covered)",
+     "JSON.stringify(entities.filter(e => e.id >= 940000 && e.id < 941000).filter(e => !(e.doll && e.doll.covered)).map(e => [e.name, e.doll.first])) == '[]'"
+    ]
+   },
+   {
+    "at": 4.35,
+    "call": [
+     [
+      "p2cline",
+      "ranks"
+     ],
+     [
+      "ladderkit",
+      "lt1"
+     ]
+    ]
+   },
+   {
+    "at": 4.6,
+    "expect": [
+     "entities.filter(e => e.id >= 940000 && e.id < 941000).length == 5",
+     "entities.filter(e => e.id >= 940000 && e.id < 941000).every(e => e.doll && e.doll.covered)",
+     "JSON.stringify(entities.filter(e => e.id >= 940000 && e.id < 941000).filter(e => !(e.doll && e.doll.covered)).map(e => [e.name, e.doll.first])) == '[]'"
+    ]
+   },
+   {
+    "at": 4.75,
+    "call": [
+     [
+      "p2cline",
+      "clear"
+     ]
+    ]
+   }
+  ]
+ }
+]

@@ -1,0 +1,314 @@
+# shield/buckler: the Buckler (P2c ladder slice, LADDER-HEAD; form7): the bandit's small fist shield. A round board with
+# a leather rim (R), the field (P), a big iron boss over the fist (G). No device.
+# Keys (STYLE_P2 25.5; the kite's layout): rest (hangs still on the off arm), guard (raised to the chest; also the hurt
+# hold), block (squared to the threat, a size up, a glint on the rim's top-left: the delight), lie (flat on the ground
+# beside the corpse: `anchor pivot`, laid level under the turned body), back (slung for seated and kneeling postures).
+# Layers: facing down and left the face is in front; facing up its back (boards, strap, buckle) behind the arm; facing
+# right its back behind the body, raised edge-on before the chest (layer neck) for guard and block. Regions (contracts
+# 3b): R the rim, P the field round the device, G the boss, N the boards, W wear. Written by the LADDER-HEAD area's
+# gen_shields.py from shape masks and checked by eye at 1x and 8x. Format: rpg/art/doll/doll.h.
+use person
+body adult
+role shield form7
+layer shield
+anchor gripL
+keys shield
+tags overlay
+legend R field 1
+legend S field 2
+legend T field 3
+legend F device 2
+legend J device 3
+
+view D key rest origin 3 3
+|.vvvvv.
+|viiiihv
+|vizyxhv
+|viyyxgv
+|vhxxwgv
+|vhhgggv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.RGGGR.
+|.RGGGR.
+|.RGGGR.
+|.RRRRR.
+|.......
+
+view D key guard origin 3 3
+|.vvvvv.
+|viiiihv
+|vizyxhv
+|viyyxgv
+|vhxxwgv
+|vhhgggv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.RGGGR.
+|.RGGGR.
+|.RGGGR.
+|.RRRRR.
+|.......
+
+view D key block origin 4 4
+|..vvvvv..
+|.viiiiiv.
+|viTzyxShv
+|viSyyxShv
+|viSxxwRgv
+|vhSSSRRgv
+|.vhggggv.
+|..vvvvv..
+regions
+|.........
+|..RRRRR..
+|.RPGGGPR.
+|.RPGGGPR.
+|.RPGGGPR.
+|.RPPPPPR.
+|..RRRRR..
+|.........
+
+view U key rest origin 3 3 layer armFar
+|.vvvvv.
+|vhhhhgv
+|vhfOfgv
+|vhhggfv
+|vggggfv
+|vggfffv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R..NR.
+|.R..NR.
+|.RRRRR.
+|.......
+
+view U key guard origin 3 3 layer back
+|.vvvvv.
+|vhhhhgv
+|vhfOfgv
+|vhhggfv
+|vggggfv
+|vggfffv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R..NR.
+|.R..NR.
+|.RRRRR.
+|.......
+
+view U key block origin 5 4 layer back
+|..vvvvv..
+|.vhhhhhv.
+|vhffOffgv
+|vhhhggggv
+|vhhggggfv
+|vggggggfv
+|.vgffffv.
+|..vvvvv..
+regions
+|.........
+|..RRRRR..
+|.R.....R.
+|.R..N..R.
+|.R..N..R.
+|.R..N..R.
+|..RRRRR..
+|.........
+
+view R key rest origin 2 3 layer back
+|.vvvvv.
+|vhhhhgv
+|vhfOfgv
+|vhhggfv
+|vggggfv
+|vggfffv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R..NR.
+|.R..NR.
+|.RRRRR.
+|.......
+
+view R key guard origin 0 2 layer neck
+|.vvvv.
+|viiihv
+|vizyxv
+|viyyxv
+|vhxxwv
+|vhgggv
+|.vvvv.
+regions
+|......
+|.RRRR.
+|.RGGG.
+|.RGGG.
+|.RGGG.
+|.RRRR.
+|......
+
+view R key block origin 0 3 layer neck
+|.vvvv.
+|viiihv
+|vizyxv
+|viyyxv
+|vhxxwv
+|vhgggv
+|.vvvv.
+regions
+|......
+|.RRRR.
+|.RGGG.
+|.RGGG.
+|.RGGG.
+|.RRRR.
+|......
+
+view L key rest origin 2 3
+|.vvvvv.
+|viiiihv
+|vizyxhv
+|viyyxgv
+|vhxxwgv
+|vhhgggv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.RGGGR.
+|.RGGGR.
+|.RGGGR.
+|.RRRRR.
+|.......
+
+view L key guard origin 2 3
+|.vvvvv.
+|viiiihv
+|vizyxhv
+|viyyxgv
+|vhxxwgv
+|vhhgggv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.RGGGR.
+|.RGGGR.
+|.RGGGR.
+|.RRRRR.
+|.......
+
+view L key block origin 3 4
+|..vvvvv..
+|.viiiiiv.
+|viTzyxShv
+|viSyyxShv
+|viSxxwRgv
+|vhSSSRRgv
+|.vhggggv.
+|..vvvvv..
+regions
+|.........
+|..RRRRR..
+|.RPGGGPR.
+|.RPGGGPR.
+|.RPGGGPR.
+|.RPPPPPR.
+|..RRRRR..
+|.........
+
+# (iteration 3) lying face up beside the corpse in 3/4: the far rim lit, the field and its device or boss, the near rim
+# in shadow; laid over the body's lower edge, never hung under it
+# (iteration 3) lying face up beside the corpse in 3/4: the far rim lit, the field and its device or boss, the near rim
+# in shadow; laid over the body's lower edge, never hung under it
+# (iteration 3) lying face up beside the corpse in 3/4: the far rim lit, the field and its device or boss, the near rim
+# in shadow; laid over the body's lower edge, never hung under it
+# (iteration 3) lying face up beside the corpse in 3/4: the far rim lit, the field and its device or boss, the near rim
+# in shadow; laid over the body's lower edge, never hung under it
+view L key lie origin 7 -4 anchor pivot
+|.vvvvvv.
+|vyyzyyxv
+|vxwyxwwv
+|.vvvvvv.
+regions
+|........
+|.RRGGRR.
+|.RRGGRR.
+|........
+
+view D key back origin 3 -1 layer back anchor neck
+|.vvvvv.
+|vhhhhgv
+|vhfOfgv
+|vhhggfv
+|vggggfv
+|vggfffv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.R...R.
+|.R..NR.
+|.R..NR.
+|.RRRRR.
+|.......
+
+view U key back origin 3 -2 anchor neck
+|.vvvvv.
+|viiiihv
+|vizyxhv
+|viyyxgv
+|vhxxwgv
+|vhhgggv
+|.vvvvv.
+regions
+|.......
+|.RRRRR.
+|.RGGGR.
+|.RGGGR.
+|.RGGGR.
+|.RRRRR.
+|.......
+
+view R key back origin 8 -2 layer back anchor neck
+|.vvv.
+|viihv
+|vzyxv
+|vyyxv
+|vxxwv
+|.vvv.
+regions
+|.....
+|.RRR.
+|.GGG.
+|.GGG.
+|.GGG.
+|.....
+
+view L key back origin -4 -2 layer back anchor neck
+|.vvv.
+|viihv
+|vzyxv
+|vyyxv
+|vxxwv
+|.vvv.
+regions
+|.....
+|.RRR.
+|.GGG.
+|.GGG.
+|.GGG.
+|.....

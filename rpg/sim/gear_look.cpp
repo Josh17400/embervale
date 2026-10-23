@@ -16,6 +16,7 @@
 #include <initializer_list>
 #include "rpg/culture/culture.h"
 #include "rpg/sim/gear.h"
+#include "rpg/sim/gear_ladder.h"
 #include "rpg/art/art_rig.h"
 #include "rpg/art/doll/doll.h"
 
@@ -371,6 +372,9 @@ void wearGear(art::HumanLook& L, const WornGear& g, const CultureLookup& culture
       L.glow |= (uint8_t)(1u << i);
       L.glowColor = kMythicGlow;
     }
+  // (P2c ladder, contracts 3b) each worn piece's look tier, the Rare and Mythic marks and the metals: the ladder's own
+  // fields only (every output above is unchanged; rig 1 never reads them)
+  gear::fillLadder(L, g, cultureOf);
 }
 
 art::IconLook gearIcon(const Item& it, const cult::Culture* maker) {

@@ -1,14 +1,15 @@
-# armour/tiles/lames: plate lames over the plate sleeve and thigh regions (U F, T: the cuisses; greaves come with the boots dial): a step-1 line every third row, the
-# arm's planes kept between them, so a vambrace or a cuisse reads as rigid overlapping plates (never a gradient).
+# armour/tiles/lames: plate lames over the plate's sleeve, thigh and greave regions (U F, T the cuisses, S the greaves)
+# (P2c slice; re-cut by LADDER-ARMOUR against the owner's "pale and flat"): every third row keeps its drawn step (the
+# lame's lit top edge), the two rows under it fall a step (the lame's body in its own shadow), so a vambrace, a cuisse or
+# a greave reads as overlapping rigid plates with a lit rim each, never as one pale tube.
 # Format: rpg/art/doll/doll.h; `on-region` is P2C_CONTRACTS 4 (the regions after the word).
 use person
 body adult
 role overlay lames
 tags tile overlay
-on-region U F T
+on-region U F T S
 
 view D key rest origin 0 0
 |x
-|x
 |w
-
+|w

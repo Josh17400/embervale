@@ -187,6 +187,27 @@ std::string heldOf(const HumanLook& L) {
   return pool::get().partsWithRole(Role::Held, lib).empty() ? bare : lib;
 }
 
+// (ladder i3) a culture's helm or shield form the library has not drawn yet wears the nearest drawn form (the blind panel
+// saw the Dune, Marsh and Highland T3 kits bare-headed: kettle, conical-aventail and the like have no part yet; a people
+// never loses its helm or shield to a missing drawing). The form named stays the look's; only the part it draws changes.
+// Chains (HelmForm + 1): kettle 2 -> nasal 1; great helm 3 -> crested 9; horned 5, conical 7, winged 10, masked 8 ->
+// spangen 4 -> nasal 1; plumed 6 -> crested 9. Shields (ShieldForm + 1): crescent 5 -> round 1; oval 6, leaf 8 -> kite 2.
+std::string drawnForm(Role role, int form) {
+  const pool::Pool& P = pool::get();
+  auto has = [&](int f) { return !P.partsWithRole(role, "form" + std::to_string(f)).empty(); };
+  int f = form;
+  for (int guard = 0; guard < 4 && f > 0 && !has(f); guard++) {
+    if (role == Role::Helm) {
+      static const int kNext[11] = {0, 0, 1, 9, 1, 4, 9, 4, 4, 1, 4};
+      f = f <= 10 ? kNext[f] : 0;
+    } else {
+      static const int kNext[9] = {0, 0, 0, 0, 0, 1, 2, 0, 2};
+      f = f <= 8 ? kNext[f] : 0;
+    }
+  }
+  return "form" + std::to_string(f > 0 && has(f) ? f : form);
+}
+
 void needsOf(const HumanLook& L, DollRecipe& r) {
   auto need = [&](Role role, const std::string& v) { if (!v.empty()) r.needs.push_back(Need{role, v}); };
   const bool kid = r.body == BodySet::Child || r.body == BodySet::Youth;
@@ -196,13 +217,13 @@ void needsOf(const HumanLook& L, DollRecipe& r) {
   need(Role::Garment, g);
   if (const char* a = armourOf(L)) need(Role::Armour, a);
   // (P2c) the helm: form1..form10 (HelmForm + 1), else the band (band1..band7; a legacy helmet's band by its outfit)
-  if (const int hb = helmBandOf(L)) need(Role::Helm, L.helmForm ? "form" + std::to_string(L.helmForm) : "band" + std::to_string(hb));
-  else if (L.helmForm) need(Role::Helm, "form" + std::to_string(L.helmForm));
+  if (const int hb = helmBandOf(L)) need(Role::Helm, L.helmForm ? drawnForm(Role::Helm, L.helmForm) : "band" + std::to_string(hb));
+  else if (L.helmForm) need(Role::Helm, drawnForm(Role::Helm, L.helmForm));
   // (P2c) the shield: the shield arm for every bearer, plus its form (form1..8) or shape (shape0 legacy round, 1..4);
   // form9 is ShieldForm::None: no shield at all (v1's hasShield rule)
   if (shieldOf(L)) {
     need(Role::Shield, "arm");
-    need(Role::Shield, L.shieldForm ? "form" + std::to_string(L.shieldForm) : "shape" + std::to_string(L.shieldStyle));
+    need(Role::Shield, L.shieldForm ? drawnForm(Role::Shield, L.shieldForm) : "shape" + std::to_string(L.shieldStyle));
   }
   // (P2c restated) pauldrons: <family>.<size> (plate: plate brigandine leaf; fur: padded leather; scale: mail scale
   // lamellar), size 2 small, 3 medium, 4 large from the dial; dial 1 is none
@@ -291,7 +312,8 @@ void regionsOf(const HumanLook& L, const std::string& g, DollRecipe& r) {
     else if (m == "scale" || m == "lamellar" || m == "leaf") set(Region::Upper, Slot::Metal);
     else if (m == "plate") { set(Region::Upper, Slot::Metal); set(Region::Fore, Slot::Metal); }
     else if (m == "leather") set(Region::Fore, Slot::Leather);
-    else if (m == "padded" || m == "brigandine") { set(Region::Upper, Slot::Cloth1); set(Region::Fore, Slot::Cloth1); }
+    else if (m == "padded") { const Slot q = L.body == 1 ? Slot::Linen : Slot::Cloth3; set(Region::Upper, q); set(Region::Fore, q); }   // (ladder i2) the quilt: buff, hers linen
+    else if (m == "brigandine") { set(Region::Upper, Slot::Cloth1); set(Region::Fore, Slot::Cloth1); }
   }
   if (L.gloves) {
     set(Region::Hand, L.gloves >= 2 ? Slot::Metal : Slot::Leather);
@@ -357,13 +379,98 @@ void flagsOf(const HumanLook& L, DollRecipe& r) {
       else if (L.weapon == 3) flagS("bow-" + form);
     }
   }
+  if (L.glow && L.glowColor == 0xFF2868FFu) flag("mythic");   // (P2c ladder) gear_look.h kMythicGlow
   static const char* const kGlint[5] = {"glint-weapon", "glint-body", "glint-helm", "glint-shield", "glint-cloak"};
   for (int b = 0; b < 5; b++) if (L.glow >> b & 1) flag(kGlint[b]);
 }
 
+// ---------------------------------------------------------------- (P2c ladder, contracts 3b) the tiers
+// The resolver's effective dials by tier (the look's fields stay as they are): T1 no pauldron, skirt short, no crest or
+// plume; T2 pauldron small, skirt mid, crest small; T3-T4 the look's own; T5-T6 the look's plus `plumes` on a helm with
+// a crest. A look with a tier and no culture dials takes the heartland line (pauldron none small medium medium large
+// large; skirt short short mid mid knee knee) and, with no body form, its armour form from its metal (leather leather,
+// bronze and iron mail, steel and up plate). Tiers only cap what the sim gave, never lift it.
+HumanLook ladderLook(const HumanLook& L) {
+  if (!L.topTier()) return L;
+  HumanLook E = L;
+  const int tb = L.tier[HumanLook::TIER_BODY], th = L.tier[HumanLook::TIER_HELM];
+  if (tb && !L.pauldron && !L.skirt && !L.crest) {
+    static const uint8_t kPd[7] = {0, 1, 2, 3, 3, 4, 4}, kSk[7] = {0, 2, 2, 3, 3, 4, 4};
+    E.pauldron = kPd[tb];
+    E.skirt = kSk[tb];
+    if (!L.bodyForm && L.metalKind && (L.armorStyle || L.outfit == Outfit::Leather || L.outfit == Outfit::Chain || L.outfit == Outfit::Plate)) {
+      const int m = L.metalKind;
+      E.bodyForm = (uint8_t)(m == 1 ? 2 : (m == 2 || m == 3) ? 3 : 7);   // BodyArm + 1: leather 2, mail 3, plate 7
+    }
+  }
+  if (tb == 1) { E.pauldron = std::min<uint8_t>(E.pauldron, 1); if (E.skirt) E.skirt = std::min<uint8_t>(E.skirt, 2); }
+  else if (tb == 2) { E.pauldron = std::min<uint8_t>(E.pauldron, 2); if (E.skirt) E.skirt = std::min<uint8_t>(E.skirt, 3); }
+  if (th == 1) { if (E.crest) E.crest = 1; E.armsOrnament &= (uint16_t)~1u; }   // no crest, no plume (ARM_PLUMES)
+  else if (th == 2) { if (E.crest) E.crest = std::min<uint8_t>(E.crest, 2); E.armsOrnament &= (uint16_t)~1u; }
+  // (ladder i3) the top never steps down: a T6 piece wears T5's dials at least (the heartland's band-7 STARMETAL is steel,
+  // so gear_look gave it the people's plain dials, one under the masterwork alloy's: the blind panel saw T6 lose the T5
+  // plume and the large pauldrons). A lift only where the piece is worn; rig 2 only (the resolver).
+  if (tb >= 6 && E.pauldron && E.pauldron < 4) E.pauldron = 4;
+  if (th >= 6 && E.crest && E.crest < 2) E.crest = 2;
+  if (th >= 5 && E.crest >= 2) E.armsOrnament |= 1u;   // a plume on a helm made for one
+  return E;
+}
+
+// the finish by each piece's own tier (contracts 3b's table); the Rare mark gives R the next tier's column
+void ladderOf(const HumanLook& L, DollRecipe& r) {
+  if (!L.topTier()) return;
+  const pool::Pool& P = pool::get();
+  uint8_t used = 0;
+  for (int s = 0; s < 8; s++) {
+    const int t = L.tier[s];
+    r.pieceTier[s] = (uint8_t)t;
+    if (!t) continue;
+    const int tr = std::min(6, t + ((L.rare >> s & 1) ? 1 : 0));
+    uint8_t* f = r.fin[s];
+    if (tr >= 3) f[0] = (uint8_t)Slot::Metal2;                              // R: brass from T3, gold from T5 (the Metal2 ramp)
+    if (t >= 3 && t <= 4) f[2] = (uint8_t)Slot::Metal2;                     // G: a metal-2 boss
+    if (t >= 5) f[2] = (uint8_t)Slot::Glow;                                 //    a gem
+    if (t >= 6) f[3] = (uint8_t)Slot::Glow;                                 // N: runes
+    uint8_t tiles = 0;
+    if (t == 1) tiles |= FIN_TILE_WEAR;
+    if (t == 4) tiles |= FIN_TILE_ETCH;
+    if (t >= 5) tiles |= FIN_TILE_FILIGREE | FIN_TILE_GEM;
+    if (t >= 6) tiles |= FIN_TILE_RUNE | FIN_TILE_GLYPH;
+    r.finTiles[s] = tiles;
+    used |= tiles;
+  }
+  // the finish tiles the pool draws (a decoration, never a hole: a missing tile is no need)
+  static const char* const kTile[6] = {"finish.wear", "finish.etch", "finish.filigree", "finish.rune", "finish.gem", "finish.glyph"};
+  bool runeTile = false;
+  for (int b = 0; b < 6; b++)
+    if (used >> b & 1)
+      if (!P.partsWithRole(Role::Overlay, kTile[b]).empty()) {
+        r.needs.push_back(Need{Role::Overlay, kTile[b]});
+        if (b == 3) runeTile = true;
+      }
+  // (LADDER-FINISH's ruling) the rune tile writes the Glow on its dashes and the gaps keep the seam as drawn: N is recoloured
+  // to Glow wholesale only while no rune tile is drawn
+  if (runeTile) for (auto& f : r.fin) f[3] = 0xFF;
+  static const char* const kMotif[4] = {"oak", "clouds", "laurel", "knot"};
+  r.motif = kMotif[L.motif < 4 ? L.motif : 0];
+  auto flagS = [&](const std::string& f) { r.flags.push_back(f); };
+  static const char* const kSlotFlag[8] = {"armour", "helm", "shield", "held", "gloves", "boots", "cloak", "back"};
+  for (int s = 0; s < 8; s++) {
+    for (int t = 1; t <= L.tier[s] && t <= 6; t++) flagS(std::string(kSlotFlag[s]) + ".t" + std::to_string(t));
+    if (L.tier[s] && (L.rare >> s & 1)) flagS(std::string(kSlotFlag[s]) + ".r");
+  }
+  for (int t = 1; t <= L.topTier() && t <= 6; t++) flagS("tier" + std::to_string(t));
+  if (L.tier[HumanLook::TIER_CLOAK] >= 5 || (L.tier[HumanLook::TIER_HELM] >= 5 && (L.crest >= 2 || (L.armsOrnament & 1u)))) flagS("breeze");
+  static const char* const kMetal[12] = {"", "leather", "bronze", "iron", "steel", "gilded", "jade", "obsidian", "ember", "starmetal", "alloy", "mythic"};
+  if (L.metalKind >= 1 && L.metalKind <= 11) flagS(std::string("metal-") + kMetal[L.metalKind]);
+  if (L.mythic && !r.has("mythic")) flagS("mythic");
+}
+
 }  // namespace
 
-DollRecipe resolve(const HumanLook& L) {
+DollRecipe resolve(const HumanLook& L0) {
+  // (P2c ladder) the effective dials by tier (the look as given at no tier)
+  const HumanLook L = ladderLook(L0);
   DollRecipe r;
   r.body = bodySetOf(L);
   r.bodyKey = bodySetName(r.body);
@@ -377,7 +484,10 @@ DollRecipe resolve(const HumanLook& L) {
   needsOf(L, r);
   regionsOf(L, garmentOf(L), r);
   flagsOf(L, r);
+  ladderOf(L, r);
   r.ramps = rampsOf(L);
+  // (P2c ladder) the held part's metal draws in Slot::Blade where its ramp differs from the armour's
+  for (int i = 0; i < 5; i++) if (r.ramps.c[(int)Slot::Blade][i] != r.ramps.c[(int)Slot::Metal][i]) r.blade = true;
   const pool::Pool& P = pool::get();
   // (KIN-YOUTH) the youth wears the adult head box (STYLE_P2 14): heads, faces, ears, hair and headwear drawn for the
   // adult of its own sex (a part for both adults serves both); every other part serves it by `body youth`
@@ -527,6 +637,8 @@ void missingIn(const DollRecipe& r, uint8_t poolPart, int posture, std::vector<M
       for (int pi : r.parts) {
         const PartRec& p = P.parts[(size_t)pi];
         if (tileId != 0xFFFF && std::find(p.tags.begin(), p.tags.end(), tileId) != p.tags.end()) {   // a tile: any view (D serves all)
+          // (P2c ladder) a fit or stamp tile (LADDER-FINISH) is placed by its keyed views: any view serves, `rest` is optional
+          if (partTagged(pi, "fit") || partTagged(pi, "stamp")) { if (!p.nViews) report(pi, facing, restId); continue; }
           if (!viewOf(p, facing, restId) && !viewOf(p, 0, restId)) report(pi, facing, restId);
           continue;
         }
@@ -594,7 +706,12 @@ bool dollCovers(const HumanLook& look, RigPart part) {
   // (the doll's own fields mixed in whatever the rig: key() holds them only at rig 2)
   const uint64_t f = (uint64_t)look.head | (uint64_t)look.nose << 8 | (uint64_t)look.brow << 16 | (uint64_t)look.marks << 24 |
                      (uint64_t)look.hairVar << 32 | (uint64_t)look.beardStyle << 40 | (uint64_t)look.neck << 48 | (uint64_t)look.garb << 56;
-  const uint64_t k = (look.key() * 0x9E3779B97F4A7C15ull ^ f * 0xBF58476D1CE4E5B9ull ^ (uint64_t)look.age << 3 ^ (uint64_t)look.civil << 11) + ((uint64_t)part + 1) * 0xC2B2AE3D27D4EB4Full;
+  uint64_t t8 = 0;   // (P2c ladder) the tiers and metals (key() holds them only at rig 2)
+  for (int i = 0; i < HumanLook::TIER_SLOTS; i++) t8 |= (uint64_t)look.tier[i] << (8 * i);
+  const uint64_t lad = (uint64_t)look.rare | (uint64_t)look.metalKind << 8 | (uint64_t)look.bladeKind << 16 | (uint64_t)look.mythic << 24 |
+                       (uint64_t)look.motif << 32;
+  const uint64_t k = (look.key() * 0x9E3779B97F4A7C15ull ^ f * 0xBF58476D1CE4E5B9ull ^ (uint64_t)look.age << 3 ^ (uint64_t)look.civil << 11 ^
+                      t8 * 0x94D049BB133111EBull ^ lad * 0x2545F4914F6CDD1Dull) + ((uint64_t)part + 1) * 0xC2B2AE3D27D4EB4Full;
   auto it = c.map.find(k);
   if (it != c.map.end()) return it->second;
   if (c.map.size() > 50000) c.map.clear();
@@ -616,110 +733,47 @@ std::vector<Missing> dollMissingPosture(const HumanLook& look, Posture p, uint8_
   return m;
 }
 
+int partTierSlot(int part) {
+  static uint32_t gen = 0xFFFFFFFFu;
+  static std::vector<int8_t> memo;
+  const pool::Pool& P = pool::get();
+  if (gen != pool::generation() || memo.size() != P.parts.size()) {
+    gen = pool::generation();
+    memo.assign(P.parts.size(), -1);
+    for (size_t i = 0; i < P.parts.size(); i++) {
+      int8_t s = -1;
+      for (const pool::RoleRec& rr : P.parts[i].roles) {
+        const std::string& v = P.s(rr.value);
+        switch ((Role)rr.cat) {
+          case Role::Armour: case Role::Pauldron: s = HumanLook::TIER_BODY; break;
+          case Role::Overlay: if (v == "tabard") s = HumanLook::TIER_BODY; break;
+          case Role::Helm: s = HumanLook::TIER_HELM; break;
+          case Role::Shield: s = HumanLook::TIER_SHIELD; break;
+          case Role::Held: s = HumanLook::TIER_WEAPON; break;
+          case Role::Sheath: s = (v == "bowback" || v == "staffback" || v == "quiver") ? HumanLook::TIER_BACK : HumanLook::TIER_WEAPON; break;
+          case Role::Cloak: s = HumanLook::TIER_CLOAK; break;
+          case Role::Arms: s = HumanLook::TIER_GLOVES; break;
+          case Role::Legs: s = HumanLook::TIER_BOOTS; break;
+          default: break;
+        }
+        if (s >= 0) break;
+      }
+      memo[i] = s;
+    }
+  }
+  return part >= 0 && (size_t)part < memo.size() ? memo[(size_t)part] : -1;
+}
+
 void markReached(const DollRecipe& r) { for (int p : r.parts) reached().insert(p); }
 void clearReached() { reached().clear(); }
 std::vector<std::string> deadParts() {
   std::vector<std::string> out;
-  for (int i = 0; i < partCount(); i++) if (!reached().count(i)) out.push_back(partName(i));
+  // (P2c ladder) the living finish's sprites (`fx glint`, `fx mote`) are drawn by the view, never by a recipe
+  for (int i = 0; i < partCount(); i++)
+    if (!reached().count(i) && !partHasRole(i, Role::Fx, "glint") && !partHasRole(i, Role::Fx, "mote")) out.push_back(partName(i));
   return out;
 }
 
 }  // namespace doll
 }  // namespace art
 
-// ---------------------------------------------------------------- (P2c SLICE-DOLL) the looks-file fields, one list
-namespace art {
-namespace doll {
-bool applyLookField(HumanLook& L, const std::string& k, const std::string& v) {
-  const int n = (int)std::strtol(v.c_str(), nullptr, 0);
-  auto col = [&]() {
-    const uint32_t rgb = (uint32_t)std::strtoul(v.c_str() + (!v.empty() && v[0] == '#' ? 1 : 0), nullptr, 16);
-    return 0xFF000000u | (rgb & 0xFF) << 16 | (rgb & 0xFF00) | (rgb >> 16 & 0xFF);
-  };
-  auto col0 = [&]() { return v == "0" ? 0u : col(); };   // fields where 0 means "derived"
-  auto u8 = [&]() { return (uint8_t)std::clamp(n, 0, 255); };
-  if (k == "body") L.body = u8();
-  else if (k == "build") L.build = u8();
-  else if (k == "people") L.people = u8();
-  else if (k == "age") L.age = u8();
-  else if (k == "garb") L.garb = u8();
-  else if (k == "cut") L.cut = u8();
-  else if (k == "outfit") L.outfit = (Outfit)std::clamp(n, 0, (int)Outfit::COUNT - 1);
-  else if (k == "weapon") L.weapon = u8();
-  else if (k == "civil") L.civil = u8();
-  else if (k == "pattern") L.pattern = u8();
-  else if (k == "cloak") L.cloak = u8();
-  else if (k == "cape") L.cape = n != 0;
-  else if (k == "hair") L.hair = (Hair)std::clamp(n, 0, (int)Hair::COUNT - 1);
-  else if (k == "hairVar") L.hairVar = u8();
-  else if (k == "beard") L.beard = n != 0;
-  else if (k == "beardStyle") L.beardStyle = u8();
-  else if (k == "headwear") L.headwear = u8();
-  else if (k == "hood") L.hood = n != 0;
-  else if (k == "neck") L.neck = u8();
-  else if (k == "jewellery") L.jewellery = u8();
-  else if (k == "amulet") L.amulet = n != 0;
-  else if (k == "ring") L.ring = n != 0;
-  else if (k == "head") L.head = u8();
-  else if (k == "nose") L.nose = u8();
-  else if (k == "brow") L.brow = u8();
-  else if (k == "marks") L.marks = u8();
-  else if (k == "facePaint") L.facePaint = u8();
-  else if (k == "helmet") L.helmet = n != 0;
-  else if (k == "helmStyle") L.helmStyle = u8();
-  else if (k == "helmForm") L.helmForm = u8();
-  else if (k == "armorStyle" || k == "armourStyle") L.armorStyle = u8();
-  else if (k == "bodyForm") L.bodyForm = u8();
-  else if (k == "shield") L.shield = n != 0;
-  else if (k == "shieldStyle") L.shieldStyle = u8();
-  else if (k == "shieldForm") L.shieldForm = u8();
-  else if (k == "bladeForm") L.bladeForm = u8();
-  else if (k == "polearmForm") L.polearmForm = u8();
-  else if (k == "bowForm") L.bowForm = u8();
-  else if (k == "pauldron") L.pauldron = u8();
-  else if (k == "skirt") L.skirt = u8();
-  else if (k == "crest") L.crest = u8();
-  else if (k == "armsOrnament") L.armsOrnament = (uint16_t)std::clamp(n, 0, 65535);
-  else if (k == "gloves") L.gloves = u8();
-  else if (k == "boots") L.boots = u8();
-  else if (k == "backItem") L.backItem = u8();
-  else if (k == "sheen") L.sheen = u8();
-  else if (k == "glow") L.glow = u8();
-  else if (k == "skin") L.skin = col();
-  else if (k == "hairColor") L.hairColor = col();
-  else if (k == "topColor") L.topColor = col();
-  else if (k == "bottomColor") L.bottomColor = col();
-  else if (k == "tabardColor") L.tabardColor = col();
-  else if (k == "cloakColor") L.cloakColor = col();
-  else if (k == "headColor") L.headColor = col0();
-  else if (k == "patternColor") L.patternColor = col0();
-  else if (k == "eyeColor") L.eyeColor = col0();
-  else if (k == "plumeColor") L.plumeColor = col0();
-  else if (k == "armourTint" || k == "armorTint") L.armourTint = col0();
-  else if (k == "armourTint2" || k == "armorTint2") L.armourTint2 = col0();
-  else if (k == "glowColor") L.glowColor = col0();
-  else if (k == "shieldField") L.shieldField = col0();
-  else if (k == "shieldDevice") L.shieldDevice = col0();
-  else if (k == "trimColor") L.trimColor = col0();
-  else if (k == "weaponColor") L.weaponColor = col();
-  else return false;
-  return true;
-}
-void applyLookSpec(HumanLook& L, const std::string& spec, bool* lookPal, bool* bare, std::string* bad) {
-  if (spec.empty() || spec == "-") return;
-  size_t a = 0;
-  while (a < spec.size()) {
-    size_t b = spec.find(',', a);
-    if (b == std::string::npos) b = spec.size();
-    const std::string kv = spec.substr(a, b - a);
-    a = b + 1;
-    const size_t eq = kv.find('=');
-    if (eq == std::string::npos) { if (!kv.empty() && bad) *bad += (bad->empty() ? "" : ",") + kv; continue; }
-    const std::string k = kv.substr(0, eq), v = kv.substr(eq + 1);
-    if (k == "palette") { if (lookPal) *lookPal = v == "look"; }
-    else if (k == "bare") { if (bare) *bare = v == "1"; }
-    else if (!applyLookField(L, k, v) && bad) *bad += (bad->empty() ? "" : ",") + k;
-  }
-}
-}  // namespace doll
-}  // namespace art

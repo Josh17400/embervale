@@ -1797,6 +1797,13 @@ docs/P2B_MOTION_ROLLOUT.md). Where it differs from VISION_PLAN 15.36's P2c plan 
 gate names are kept. Art direction: docs/STYLE_P2.md 25 (arms and armour) and 26 (the P2c style slice). Shared shapes,
 ownership and test hooks: docs/P2C_CONTRACTS.md. The humanoid monsters move to P2d (decision D8).
 
+**Re-planned again on 2026-10-23 (the gear ladder).** The owner approved the style slice's direction and asked for a
+rags-to-riches progression built on the culture armour generator and the game's rules. What changed: "The gear ladder"
+(new: rules and data), "The ladder slice" (new: wave 1b, signed off before production; it also fixes every open slice
+item), gates C12-C14 and the restated B1, B8, C1, C3e, C5, C6, C8 and C10, constants, decisions D13-D23, the production
+areas (the ladder in every art area, a new FINISH area), waves, the judge's focus and the risks. Art direction:
+docs/STYLE_P2.md 27; data and runtime: docs/P2C_CONTRACTS.md 3b and 6b.
+
 ### Vision (and how it should feel)
 
 Every fighter in Embervale is drawn on the doll with A3's craft. Town guards wear their kingdom's tabard over mail.
@@ -1809,6 +1816,14 @@ draw, then the string snaps. A soldier who falls keeps his helm, his shield lies
 hand. Then comes the flip: rig 2 becomes the game, v1's 16 x 24 people and the rejected procedural rig are deleted, every
 menu figure and portrait is the doll, and no player ever sees two kinds of people again. It should feel like a finished
 16-bit RPG whose cast was drawn by one hand, at 1x and zoomed.
+
+And the gear tells the hero's story (the owner's rags to riches). The hero leaves home in a mended gambeson with an old
+iron sword and a plain wooden shield: plain and a little dull, but whole and decent. Each upgrade is visibly better: clean
+leather, then a soldier's steel with a brass edge and a painted device, then a far people's alloy, etched, with broader
+shoulders and a cape, then gold filigree and a gem that breathes, and at last legendary gear whose runes glow with the
+hero's breath while a spark runs up the blade. Each step lasts hours, follows the game's own bands, rarities and prices,
+and keeps each people's style: a Jade lancer and a Fjordfolk warrior of the same grade look like different peoples and
+like the same grade. Guards and soldiers follow the ladder by rank, so a late hero outshines a king.
 
 ### Where P2c starts (measured 2026-10-23, main at 390c485, build/ MSVC)
 
@@ -1855,6 +1870,112 @@ menu figure and portrait is the doll, and no player ever sees two kinds of peopl
     resolved at all, so it is silently not drawn;
   - the hunter's carried bow and a fighter's bow share the value `bow`.
 
+### The gear ladder (re-plan 2026-10-23: the owner's rags to riches)
+
+The owner, after approving the slice's direction (2026-10-23): "my personal style is a rag to riches evolution I want
+beginners gear to look okay/mid and then slowly progresses throughout the game where you get cooler and cooler gear I'm
+thinking too late stage gear could be animated in some way, I also know we have a bit of an armor generator for our
+cultures system so just make sure you get it to work with that along with our current game rules/ plans". How each tier
+looks: docs/STYLE_P2.md 27. The data and the runtime: docs/P2C_CONTRACTS.md 3b and 6b. This part says how the ladder
+sits on the game.
+
+**It changes no game rule.** A tier is derived from what every item already carries (its ilvl and band, rarity,
+material, alloy, maker culture and form) and, for people, from the census rank. There is no new item field, no SAVE_VER
+bump, no new RNG draw in the loot rolls or the census, and no balance change. The game's rules decide when each tier can
+appear, and the ladder follows them:
+- bands stay materials (VISION 7.2, 15.11): leather and bronze, iron, steel, then the culture alloys, or the heartland's
+  gilded, obsidian, emberforged and starmetal. The ladder's finish sits on top;
+- the rarity floors (15.27.4: Rare from level 5, Epic 12, Legendary 20, Mythic 30), the shop caps (7.5.4: Rare, Epic in a
+  capital at Honoured, Legendaries never sold), attunement (1 / 2 / 3 legendaries at levels 10 / 25 / 40) and the slow
+  economy (15.9) decide when a tier shows up;
+- the hero still starts in a shirt (T0: the homeland's cut);
+- rig 1 never sees a tier: the fields are rig 2's and enter key() only at rig 2.
+
+**A piece's tier** (gear::lookTier, a pure function; contracts 3b). Rows are the item's band (gear::bandOf of its ilvl),
+columns its rarity:
+
+| band (ilvl) | Common, Uncommon | Rare | Epic | Legendary | Mythic |
+|---|---|---|---|---|---|
+| 1 (1-8) | T1 | T2 | T2 | T6 | T6 + the flame |
+| 2 (9-16) | T2 | T2 r | T3 | T6 | T6 + the flame |
+| 3 (17-24) | T3 | T3 r | T4 | T6 | T6 + the flame |
+| 4 (25-32) | T4 | T4 r | T5 | T6 | T6 + the flame |
+| 5 (33-42) | T4 | T4 r | T5 | T6 | T6 + the flame |
+| 6 (43-52) | T5 | T5 r | T5 | T6 | T6 + the flame |
+| 7 (53-60) | T5 | T5 r | T5 | T6 | T6 + the flame |
+
+- **r**, the Rare mark: the piece wears the next tier's trim (STYLE_P2 27.3), so a Rare find is visibly finer than a
+  Common one of its band. A band-1 Rare escapes the scrap look outright.
+- A culture's masterwork alloy (tierStep 3) is T5 at least. Legendary is always T6. Mythic is T6 with the flame (the
+  ember tempering and the aura).
+- Shops sell Rare at most (Epic in an Honoured capital), so a shop never stocks above T(band) with the Rare mark (one tier
+  more in an Honoured capital). T5 is bought only from band 6 on, or as an Honoured capital's band-4 or band-5 Epic. T6 is
+  never bought, except from the hidden-kingdom focus vendor.
+
+**When each tier shows up** (VISION 1.4's pacing with the floors above):
+
+| tier | first seen | worn for most of | from |
+|---|---|---|---|
+| T0 shirt | the start | the first quest | the homeland's cut |
+| T1 Scrap | the OLD BLADE and the first band-1 buys and drops | hours 0-3 | village shops, bandits, chests |
+| T2 Common | a band-1 Rare (level 5, about 0.5 h), band 2 (level 8-10) | hours 3-10 | town shops, quests |
+| T3 Sturdy | a band-2 Epic (level 12, about 6 h), band 3 | hours 10-25 | city shops, smiths, dungeons |
+| T4 Fine | a band-3 Epic, band 4 (D 25 and up, about 28 h): the first culture alloys | hours 25-60 | far cities, culture smiths, bosses |
+| T5 Masterwork | a band-4 or band-5 Epic, band 6 (about 60 h), a masterwork alloy | hours 60-100 | masterwork smiths, hoards, the hidden kingdoms |
+| T6 Legendary | level 20 (about 12 h) at the earliest: bosses, hoards, campaign and saga finales | one piece from level 10, two at 25, three at 40 (attunement) | earned, never bought |
+
+**Slots.** Every worn slot keeps its own tier (body, helm, shield, weapon in hand, gloves, boots, cloak, back), so a
+legendary sword glows on a common gambeson. Every metal piece shares the body armour's metal ramp (gear_look's rule and
+the 48-colour cap). The weapon in hand keeps its own metal (the Blade slot, contracts 3).
+
+**People** (census::dress sets the tiers from the role and rank at the end of each role, with no draw; STYLE_P2 27.6):
+
+| who | tier | notes |
+|---|---|---|
+| bandits, militia, pirates | T1 | the local culture's poor kit (looks.cpp kKit) |
+| bandit chiefs, the village watch (rank 0), soldiers | T2 | the watch and soldiers in their kingdom's livery and device |
+| the capital watch (rank 1), heralds, envoys, warlords | T3 | |
+| captains, the royal guard (rank 2), jarls, story knights | T4 | the realm's alloy |
+| kings | T5 | regalia |
+| the hero, companions | their items (wearGear) | |
+
+Depth: soldiers, bandits and the watch one tier finer in lands of band 4 or more (the place's danger at makeLook).
+
+**The culture generator feeds every tier** (rpg/culture ArmsStyle, through gear_look's forms; STYLE_P2 27.4). Soft pieces
+take a people's everyday forms, metal pieces its signature forms, its alloys a finer cut; the dials grow by tier inside
+the people's own style (the survey of priors.cpp, 2026-10-23; "/" separates the generator's weighted picks):
+
+| people | soft (T1-T2): helm / body | metal (T3): helm / body | alloy cut (T4-T6) | shield, blade, polearm, bow | dials (pauldron skirt crest cape) | ornament | T5 filigree |
+|---|---|---|---|---|---|---|---|
+| Fjordfolk | nasal / leather or padded | spangen or nasal / mail | scale | round, broad, spear, self | 1 2 0 2 | fur trim, etching | knotwork |
+| Highland | nasal / leather | kettle or nasal / brigandine or mail | plate or scale | buckler, broad, halberd, longbow | 0 1 0 3 | studs | knotwork |
+| Heartland | kettle / padded | nasal or great helm / mail or plate | scale or plate | kite or heater, straight, halberd, longbow or crossbow | 2 1 0 1 | rivets | oak leaves |
+| Imperial | plumed / leather | crested / scale, plate or brigandine | scale or plate | tower, straight, spear, composite | 2 2 3 2 | plumes, gilding | laurel |
+| Dune | masked / padded | aventail / mail or scale | scale | crescent or round, scimitar, spear, composite | 1 2 1 3 | tassels, etching | arabesque |
+| Steppe | spangen / leather or padded | plumed or aventail / lamellar | lamellar | round or buckler, curved, spear, composite | 1 2 2 0 | horsetail, studs | running horses |
+| Marsh | nasal / leather | kettle / brigandine | plate | oval, leaf, spear, self | 0 1 0 0 | tassels | reeds |
+| Jade | crested / leather | masked / lamellar | lamellar | none or oval, curved, glaive, longbow or composite | 3 2 2 0 | scallops, tassels | cloud scrolls |
+| River | nasal / padded | kettle or crested / brigandine | plate | heater, falchion or straight, halberd, crossbow | 2 1 1 0 | rivets, plumes | waves |
+| Sun Temple | masked / leather | winged or plumed / brigandine | plate | round, broad, spear, self | 0 1 3 1 | plumes, gilding, tassels | sun rays |
+| Sylvan | masked / leather | crested or winged / leaf | leaf | leaf, leaf, glaive, longbow | 1 2 1 2 | etching, filigree | leaf veins |
+| Starspire | crested / leather | winged / plate or scale | plate or scale | kite, glaive, glaive, longbow | 2 2 2 2 | filigree, gilding | stars |
+
+Guards and soldiers wear the owner kingdom's arms (so occupation shows), bandits the local poor kit, and the far,
+mist-hidden peoples their strange metals (priors.cpp hiddenLook, culture.cpp hiddenMetal), which the ladder shows from
+T4 as their alloys. C1's source L (below) proves that every people's output resolves on the doll at every tier it can
+produce.
+
+**Rules the game lacks: proposals, not in P2c** (each needs a rules batch with the balance sim, VISION 15.9):
+1. **Light armour has no ladder.** Leather and cloth stop at band 1 (gear.cpp matFor, matBandCap) and are always Light
+   (skills.cpp weightOf). Proposal: each people's leathers above band 1 (hides and dyed or tooled leathers, bands 2-5),
+   so a light build climbs T1-T5 too. Until then a leather piece rises by rarity (T1, T2, the Rare mark, T6). (D23)
+2. **The heartland's band names and looks disagree.** gear_look.cpp bandOf (tier + 2) draws a band-2 IRON piece as steel,
+   STEEL as gilded, GILDED as jade, and STARMETAL as ember. The doll draws each piece's own metal (contracts 3b
+   metalKind); rig 1 keeps its looks until the flip. (D20)
+3. **No measured gear-over-time curve exists** (15.9 asks for gold per hour and gear tier at 1 / 5 / 20 / 50 h).
+   FOLK-SIM-C adds `rpg_test --ladder-pace`: the tiers the shops stock and the drops roll at each pacing stage's danger,
+   from shopStock and rollDropC over 1,000 rolls, so the hours above are measured, not assumed.
+
 ### In and out
 
 **IN**
@@ -1879,9 +2000,15 @@ menu figure and portrait is the doll, and no player ever sees two kinds of peopl
   - hurt and death with gear;
   - armoured postures (riders, kneelers, sitters, the throne).
 - The family effects, re-cut and drawn from maps.
+- **The gear ladder** (re-plan 2026-10-23): six tiers for every worn piece from its item, and for people from their rank;
+  the finish regions and tiles (wear, trim, etching, filigree, gems, runes); the dials by tier; the doll's metals from
+  each item's material (bronze, iron, steel, every culture alloy, the heartland's bands, Mythic tempering) and the blade's
+  own metal; the living finish on T5-T6 (the breathing glow, the edge spark, motes, the cloak and plume stirring, the
+  Mythic flame on doll frames); every people's arms at every tier it can produce (C1 source L); the ladder slice before
+  production.
 - Every remaining human draw path on the doll. Then the flip: rig 2 is the only rig, v1 people and the procedural rig are
   deleted, and art_hash and the goldens are re-recorded once.
-- Gates C1-C11, and playtests T4-T6.
+- Gates C1-C14, and playtests T4-T7.
 
 **OUT**
 - The humanoid monsters (skeleton, draugr, goblin), the creatures, the village animals, and the props the P2c judge lists
@@ -1893,6 +2020,10 @@ menu figure and portrait is the doll, and no player ever sees two kinds of peopl
 - The creator's flow (P3). P2b leftovers that are not gear: the talk mouth, the dust puff, the loose horse's coat.
 - Any change to the shipped walk and run, or to front and back walks.
 - Any SAVE_VER, ENDLESS_GEN_VER or SAGA_GEN_VER bump. save_v23.bin and the town, world and endless goldens never change.
+- Any change to item generation or the rules for the ladder's sake: culture leathers above band 1 (proposal 1, D23), the
+  heartland's band names in the sim (proposal 2), shop stock, drop rates and prices.
+- The ladder on item icons (D22: art_hash `icons` holds); any change to wearGear's, census::dress's or gearIcon's existing
+  outputs before the flip (the ladder writes only new fields).
 
 ### Inventory: what the game puts on people (code read 2026-10-23)
 
@@ -1996,7 +2127,7 @@ form9 means no shield.
 | drawn walk, run | walk variants 1 and 2 (DRAWN) | 6, 6 | moving while drawn | the loco legs and plants under the guard arms |
 | swings | windup, strike, follow x 3 variants (ACTION) | 1-2, 1-2, 2 | attacks: foes cycle the variants, the hero combos | 8 melee families: unarmed, dagger, sword, greatsword, axe, mace, spear (with glaive and halberd), staff |
 | bow | draw, release (ACTION) | 3, 1 | the bow's windup and shot; the hero's Cast with a bow | the crossbow: aim, shoot, crank |
-| block | block (ACTION) | 1 | a 0.15 s flash on the sword's parry and a shield bearer's parry | no sim state |
+| block | block (ACTION) | 3 | a 0.15 s flash on the sword's parry and a shield bearer's parry | no sim state; raise 30, impact 50 (a 1 px recoil, the spark), brace 70 ms (the owner, 2026-10-23) |
 | roll | roll (ACTION) | 4 | the dodge | turned crouch frames; the shield bash |
 | cast | cast (ACTION) | 2 | spells | gather, release |
 | hurt | hurt (LOCO) | 1 | being hit | gear rides it |
@@ -2006,7 +2137,8 @@ form9 means no shield.
 ### The flip (wave 3)
 
 - **What makes rig 2 the default.** All of these:
-  - C1 at 100 % over sources A-E (seeds 1..20);
+  - C1 at 100 % over sources A-E and L (seeds 1..20; L seeds 1..3);
+  - C12-C14 green over the matrices and source L;
   - C3-C6 and C8 green at rig 2;
   - the wave-2 judge's look review passed;
   - the owner's go on the flip pack: before / after pairs at rig 1 and rig 2 of the reference screens, the start village,
@@ -2054,13 +2186,34 @@ form9 means no shield.
 | C2 v1 draws | 0 people frames from a v1 sheet after the flip | Witness `v1Draws` over the full script sweep and every Witness test |
 | C3 gear on every frame | 0 failures, every frame of LOCO, RUN, DRAWN, ACTION, DEATH and POSTURE, for every armed or armoured look in the matrix. **a, no holes**: every gear part has a view (empty or not) for every key its channel takes, and no frame has an enclosed hole (the bow's string gap is exempt: R5's question, answered). **b, helm on the head**: helm pixels inside the head box ± 1 column, except crest, plume, horns and wings (up to F-37) and an aventail to the shoulders; the helm moves exactly with the head anchor; no hair above a masking rim. **c, shield on the off arm**: its origin on gripL; attached; behind the torso facing right, in front facing left and down; clear of the boots and over at most 1 column of a shin; inside the run box + 1. **d, grips**: the weapon's grip inside the gripping fist, and no weapon pixel over that fist's H pixels; the right hand in every facing, the bow in the left; for two-handed weapons the off fist on the haft line within 1 px; a tip mark at the far end. **e, lying keeps gear**: the helm on the turned head, the shield flat within 4 px of the body, the weapon's drop within 6 px of the near hand, back items under the body. **f, motion with gear**: B11 limbs, B11 wear (W1-W10, T1, T2) and B12 boots over every armour form x body x build and every carried weapon, with W4 and HEAD extended to pauldrons, the tabard and helms, W7 to weapons and shields, and W10 to shields. | `rpg_test --doll --gates` (lines C3, B11, B12); `--doll-arms` |
 | C4 armour shows | For every form x band x body, at least 25 % of the idle figure's pixels (facing down and facing right) change against the same look bare (15 % for padded and leather). The medium and heavy forms change the outline (shoulders, skirt line or head). Equipped in game, as shot pairs of the hero before and after `gear6` / `kit6`, with `witness measure box` and a diff. The judge reviews the man / woman fit. | `--doll --gates` C4; the p2c_gear script |
-| C5 families | strike frames of every family pair 25 % apart (of their union) per facing; a family's three variants 25 % apart; tip paths side-on (the sword's over the head; the spear's forward 8 px or more with under 4 px of drift; axe and mace down 10 px or more; the greatsword's 14); left frames painted (never the plain mirror of the right) with the weapon in the right hand; the effect ending with the strike state within a frame; bow 3 + 1, block 1, roll 4 and cast 2 present for every body | `--doll --gates` C5; `--anim --gates` A2 restated |
+| C5 families | strike frames of every family pair 25 % apart (of their union) per facing; a family's three variants 25 % apart; tip paths side-on (the sword's over the head; the spear's forward 8 px or more with under 4 px of drift; axe and mace down 10 px or more; the greatsword's 14); left frames painted (never the plain mirror of the right) with the weapon in the right hand; the effect ending with the strike state within a frame; bow 3 + 1, block 3 (restated below), roll 4 and cast 2 present for every body | `--doll --gates` C5; `--anim --gates` A2 restated |
 | C6 the library | every weapon map at its 16 angles (bows: their aim views); the lit edge toward the top-left in every view; a tip mark, and a bright tip pixel on blades; no orphans; no doubled pixels or L-jaggies along a line; the grip origin on the haft; lengths per STYLE_P2 11 ± 1 px | `--doll --gates` C6; pxc craft |
 | C7 menus | the paperdoll, creator preview, HUD hero, party list, portraits and loot previews show doll frames at whole multiples; the Mythic aura hugs doll frames (alpha only within 3 px of the silhouette) | the p2c_menus script, Witness, the judge |
-| C8 speed | per look: LOCO 128, RUN 64, DRAWN 256, ACTION 512, DEATH 48, POSTURE 64 KB over the M12 heavy-kit sweep; people 24 MB or less in the capital at 15:00; the city-arrival worst frame within baseline + 4 ms; View::draw at NORMAL within baseline + 10 %; one facing's LOCO bake p95 0.385 ms or less, an ACTION atlas 6 ms or less; the pool 1.5 MB or less; embervale.wasm within today's + 1.0 MB | `--doll --gates` B10, p2a_lead_perf.txt, EMB_TIMING, the web build |
+| C8 speed | per look: LOCO 128, RUN 64, DRAWN 256, ACTION 512, DEATH 48, POSTURE 64 KB over the M12 heavy-kit sweep; people 24 MB or less in the capital at 15:00; the city-arrival worst frame within baseline + 4 ms; View::draw at NORMAL within baseline + 10 %; one facing's LOCO bake p95 0.385 ms or less, an ACTION atlas 6 ms or less; the pool 1.75 MB or less (D21); embervale.wasm within today's + 1.0 MB | `--doll --gates` B10, p2a_lead_perf.txt, EMB_TIMING, the web build |
 | C9 art_hash and goldens | unchanged through waves 1-2 (rig 1); re-recorded once at the flip with before / after pairs (above) | art_hash, `city_gallery --village-art-check`, `--arms` |
 | C10 playtests | **T4 fighter**: "fight bandits with each weapon family: does each swing look different?" **T5 outfitter**: "as a man, then as a woman (the `female` reset), buy and equip leather, mail and plate, and take a shot after each." **T6 watch**: "find guards in three peoples' towns and soldiers of two realms, and say how each is armed." Each goal met by 2 of 3 testers; every note with a shot triaged | `witness play batch` (P2b B13's setup: the phone window, rig 2, world:3 shots) |
 | C11 fighters' faces | no head recipe (type, nose, brows, beard, hair colour) shared by more than 2 guards of a settlement or 2 soldiers of a squad under open helms (the playtest's "four clone soldiers") | `--doll-variety --gates` (fighters) |
+| C12 the ladder reads | Over each ladder line (the ladder slice: the Heartland hero T1-T6; production: every people's kit T1-T6, man and woman), idle facing D and R. **a, steps**: consecutive tiers differ in 15 % or more of the union of their gear pixels, T1 against T6 in 50 % or more. **b, richness**: the trim share of each piece inside its tier's band (T1 0, T2 3 % or less, T3 3-8 %, T4 6-12 %, T5-T6 10-20 %); step-4 pixels and gear colours never fall from T1 to T5; glow pixels 0 below T5, present at T5 (gems) and at T6 (runes). **c, silhouette**: the idle figure's area without the weapon never shrinks by more than 2 % from one tier to the next between T2 and T5, and T5 is 15 % or more over T1. **d, T1 is okay**: B8 clean, the step-0 ring closed, C14 holds, at most 2 wear marks a piece and wear 6 % or less of a piece. **e, flavour**: two peoples' kits of one tier differ in 25 % or more of their gear pixels and 8 % or more of their outline, with trim share and glints inside the tier's band. The judge's eye has the last word (process) | `rpg_test --doll-ladder --gates` (line C12) |
+| C13 the living finish | Over 4.4 s stepped at 60 Hz (deterministic): the pulse period 2.2 s (a T5 gem 3.3 s) within 0.05 s; the spark every 3.3 s, 0.33 s from grip to tip; 3 motes or fewer, life 1.0 s; no glow pixel's light changes by more than 0.25 between two steps, and nothing toggles faster than 2 Hz (the spark's run aside); 32 animated pixels or fewer a figure-frame (ladder i2: was 24); glints (white step 4 and the spark) 3 or fewer; two actors' phases 0.15 cycle or more apart for 95 % of id pairs; glow plane bytes 25 % or less of their atlas; the city frame within baseline + 0.3 ms with 8 T6 figures; nothing drawn at rig 1 | `--doll-ladder --finish`; EMB_TIMING; the judge at 1x |
+| C14 value | On every composed idle frame of every matrix look, touching materials (cloth 1, cloth 2, accent, leather, metal, hair, skin, cloak, field, head) differ by 18 luma or more at step 2 (the face, and pixels inside one material, aside); the figure's lit top-left edge stands 40 luma or more over the darkest day ground; plate's step 3 and step 1 stand 60 luma or more apart | `--doll --gates` C14 |
+
+**Restated by the ladder re-plan (2026-10-23):**
+- **B1** compares the figure: the doll composes without effects, and A3's Fx colours (#7FA8D8 #C9E6F4 #FFFDF4) are left
+  out of the reference frames. A3's arc is re-cut (the owner: oversized, dropping below the feet facing D; D17).
+- **B8**: 48 colours or fewer per figure, plus at most 3 Glow-slot steps on T5-T6 looks (D18).
+- **C1** adds source L, gear::ladderKit for every people x tier (T1-T6) x weapon family x body, seeds 1..3, and gives
+  source B the census's rank tiers. `--scope ladder` runs L alone.
+- **C3e**: a dropped weapon lies flat (its long axis within 1 px per 8 px of level) on the corpse's ground band (its
+  lowest pixel within 3 rows of the body's), within 6 px of the near hand, never above the head's top row; a bow lies
+  flat; a shield lies flat within 4 px.
+- **C5**: the spear's windup has 2 frames, and its loaded frame leans back 2 px or more; its strike leans forward 3 px or
+  more with the front foot planted; a block has 3 frames (raise; impact, with a 1 px recoil and the spark; brace); every
+  hurt frame keeps the held part (C3a); an effect stays inside the frame's box plus the reach, and above the sole row.
+- **C6**: a bow's D and U views show a 2 px stave at the grip and a curve over 3 columns or more.
+- **C8** adds: the glow planes inside the people budget (25 % or less of their atlases, at most 12 cached), D19's
+  top-tier atlases, and the pool at 1.75 MB (D21).
+- **C10** adds **T7 ladder**: "start a new game and play the first hour, then use the `ladderkit` reset for tiers 1 to 6
+  and take a shot at each: does the first kit look okay, and is each a step up?"
 
 ### Constants that interact (budgets and timing)
 
@@ -2075,11 +2228,20 @@ form9 means no shield.
 | DEATH | 48 KB | 26 frames; today's worst 39.8. A dropped spear widens the lying frames by about 10 columns: about 45 KB |
 | people textures | 24 MB in the capital at 15:00 | 80 folk x LOCO 100 KB (8.0 MB) + 12 fighters x (DRAWN 220 + ACTION 420 KB) (7.7 MB) + 10 runners x 60 KB (0.6) + 40 postures x 50 KB (2.0) + 24 dead x 45 KB (1.1) = 19.4 MB |
 | bake | LOCO p95 0.385 ms a facing; the queue 2 ms a frame (1.2 on the web) | An ACTION atlas (about 110 frames) bakes in 2-4 ms. It is queued when a hostile enters aggro (130 px: 1.75 s, or 105 frames, at 74 px/s), so it is ready before the first blow. |
-| pool | 1.5 MB (P2b's 1.0 MB restated: D11) | Today 794 KB for 7,504 views (106 B a view). P2c adds about 5,000 views: armour 16 torso sets x 4 facings x 7 keys = 450, hangs 600, helms 60, shields 300, pauldrons 110, the library 640, action arms about 2,400, legs 300, sheaths 150, fx 130. At about 100 B each that is + 0.5 MB, so about 1.3 MB. |
+| pool | 1.5 MB (P2b's 1.0 MB restated: D11; 1.75 MB with the ladder: D21, below) | Today 794 KB for 7,504 views (106 B a view). P2c adds about 5,000 views: armour 16 torso sets x 4 facings x 7 keys = 450, hangs 600, helms 60, shields 300, pauldrons 110, the library 640, action arms about 2,400, legs 300, sheaths 150, fx 130. At about 100 B each that is + 0.5 MB, so about 1.3 MB. |
 | colours | 48 a figure | The guard: skin 5 + hair 5 + eyes 2 + face 3 + ink 1 + cloth1 5 + cloth2 4 + accent (tabard and field) 4 + leather 5 + metal 5 + metal2 3 + device 3 = 45. The field shares the accent, or the look goes over. |
 | timing | hero 70 / 110 / 130 ms x pace (sword 1.0, dagger 0.8, axe 1.08, spear 1.1, mace 1.25, greatsword 1.18, fists 0.9); foes 220-380 / 280 (heavy 400) / 350 (750); folk 300 / 250 / 300; release 80; block flash 150; roll 4 x 85; fall 100 / 120 / 120 | The pick splits each state at 45 / 40 / 50 %, so the hero's loaded pose shows about 40 ms and a foe's 120-210 ms (the telegraph). Hence one strongest silhouette per windup (STYLE_P2 25.8). |
 | reach and effects | rig(2).reach {9 12 16 22 16 16 30 22 12} px, fxLift 12 | the doll's tip marks agree within 3 px (R8 restated) |
 | weapon lengths | sword 15, greatsword 24, spear 34 + 5, staff 30, bows 22 / 28 / 20 px | a spear carried upright tops out near F-40, and the marker rides topY |
+| tiers (the ladder) | T1-T6 a piece | band 1-7 gives T 1 2 3 4 4 5 5; Epic + 1; Rare wears the next tier's trim (a band-1 Rare is T2); a masterwork alloy is T5 at least; Legendary and Mythic are T6 |
+| pacing | T1 hours 0-3, T2 3-10, T3 10-25, T4 25-60, T5 60-100, T6 from about 12 h (rare) | VISION 1.4: levels 5 / 10 / 20 / 30 / 40 / 50 at 0.5 / 3 / 12 / 28 / 55 / 100 h; bands by D 1-8 / 9-16 / 17-24 / 25-32 / 33-42 / 43-52 / 53-60; floors Rare 5, Epic 12, Legendary 20, Mythic 30 |
+| trim share | T1 0, T2 3 % or less, T3 3-8 %, T4 6-12 %, T5-T6 10-20 % of a piece | STYLE_P2 25.2's 15 % cap, with gilding (T5-T6) excepted as before |
+| glints | T1 0, T2 1, T3 2, T4-T6 3 (the spark counts) | STYLE_P2 25.2's three |
+| colours by tier | T1 about 34-38; T6 48 + 3 glow | a T1 piece: 3 material steps + a patch's 2. The T6 hero under a great helm: skin 3 + eyes 1 + face 1 + ink 1 + cloth 4 + cloak 5 + leather 3 + metal 5 + gold 4 + blade 4 + field 3 + device 3 + plume 3 = 40, + glow 3. An open helm, a beard and a tabard is the worst case: the colour fallbacks (contracts 3b) |
+| the living finish | runes 2.2 s (two 1.1 s breaths), light 0.30-0.85; a T5 gem 3.3 s, 0.15-0.45; the spark every 3.3 s, 0.33 s from grip to tip; motes 3 at most, born every 0.45 s, life 1.0 s, rise 8 px; the stir on the idle's 0.55 s frames | 32 animated px a figure-frame at most (i2: was 24); light changes 0.25 or less per 1/60 s; 1 pulse blit + up to 4 sprite blits a T6 figure |
+| glow memory | a glow plane is 25 % or less of its look's atlas; at most 12 looks cached | a T6 look's atlases are about 1 MB, so its plane about 0.25 MB; 6 T5-T6 looks in a city = 1.5 MB inside the 24 MB people budget (19.4 MB estimated) |
+| top-tier atlases (D19) | T5-T6: LOCO 160, RUN 80, DRAWN 320 KB; any tier (ladder i2 integration, measured): a crested or plumed helm RUN 68 KB, a polearm DEATH 56 KB | the M7 cloak watch's LOCO is 127.6 KB; large pauldrons (+2 columns a side facing D / U, about + 10 %) and a shield give about 145 KB. Six such looks add about 0.7 MB to a city. The fallback without D19: a T5-T6 look with a shield wears the short cape |
+| pool (D21) | 1.75 MB | 943 KB at slice iteration 3 + the rest of production about 0.35 MB + the ladder about 0.2 MB (new forms, region planes about + 5 %, finish tiles, stir views, the spark and motes) = about 1.5 MB, with room; test_doll.cpp still checks 1.0 MB |
 
 ### Decisions taken by default (confirm or overrule)
 
@@ -2087,7 +2249,8 @@ form9 means no shield.
   sword is re-cut onto it at 0 px (B1). Fallback, if the re-cut cannot hold 0 px: A3's overlays stay as the straight
   sword's named views, and every other weapon and form uses the library.
 - **D2. The drawn idle, walk and run move to a new DRAWN atlas** (256 KB), so ACTION (512 KB) holds the families.
-  Effects are drawn from their maps as separate sprites, and A3's arc stays pixel-identical on screen.
+  Effects are drawn from their maps as separate sprites, and A3's arc stays pixel-identical on screen (until D17's
+  re-cut, which the owner asked for on 2026-10-23).
 - **D3. Sleeves and leg armour are region recolours with hand-drawn material tiles**, never per-key sleeve maps.
   Silhouettes change only through torsos, skirts, pauldrons, helms and shields. The slice decides by eye whether the mail
   tile replaces P2b's drawn mail sleeves.
@@ -2109,6 +2272,33 @@ form9 means no shield.
 - **D12. Shields and weapons in postures**: seated, kneeling and lying postures sling the shield on the back and set the
   held weapon aside (not drawn). Ride keeps the shield on the arm and the weapon at rest. The king's sword across his lap
   on the throne is depth.
+
+The ladder re-plan (2026-10-23) adds:
+- **D13. The ladder is per piece and derived** ("The gear ladder"): six tiers from each item's band and rarity, people's
+  from their rank. Nothing is saved, no rule or balance changes, and rig 1 never sees it.
+- **D14. Tiers are finish and dials, never new shapes.** Materials stay ramps (STYLE_P2 25.2). A tier adds wear, trim,
+  etching, filigree, gems and runes through five regions every map marks once, and grows the silhouette only through the
+  people's own dials, helms, shields, cloaks and plumes (STYLE_P2 27). STYLE_P2 25.12's "no new shape for a band" now
+  covers tiers too.
+- **D15. One armour metal, the blade its own**: all armour shares the body armour's metal ramp (gear_look's rule); the
+  weapon in hand keeps its metal (Slot::Blade, the same ramp when it matches).
+- **D16. The living finish is light over drawn frames**: a cropped glow plane pulsed per tick, a spark sprite on the
+  grip-to-tip line, view motes, and stir views on the idle's existing frames. No baked phases, no new frames, no change to
+  the walk or run; rig 2 only.
+- **D17. B1 covers the figure, and A3's arc is re-cut** smaller for every sword look (the owner, 2026-10-23).
+- **D18. B8 allows 3 glow steps** beyond the 48 on T5-T6 looks.
+- **D19. Top-tier atlases** (the owner's call): T5-T6 looks may use LOCO 160, RUN 80 and DRAWN 320 KB (only a handful
+  are ever in a scene: about 0.7 MB in a city). Fallback: a T5-T6 look with a shield wears the short cape, not the long
+  cloak.
+- **D20. Heartland pieces draw their own metal on the doll**: IRON looks iron, STEEL steel, GILDED gilded, OBSIDIAN
+  obsidian, EMBERFORGED ember, STARMETAL its own pale ramp, and the form follows the metal (leather leather, iron mail,
+  steel and up plate; contracts 3b metalKind). Rig 1 keeps its tier + 2 looks until the flip.
+- **D21. The pool budget is 1.75 MB** (D11's 1.5 MB restated: the ladder adds about 0.2 MB); embervale.wasm stays within
+  today's + 1.0 MB. With D19 it is the owner's call.
+- **D22. Item icons do not change in P2c** (art_hash `icons` holds through the flip); the ladder on icons is a later UI
+  pass.
+- **D23. The light-armour ladder is a later rules batch** (proposal 1); in P2c a leather or cloth piece rises by rarity
+  only.
 
 ### The style slice (wave 1; the owner signs it off before any production map)
 
@@ -2263,10 +2453,256 @@ verify only their items):
 12. The look review (STYLE_P2 26 acceptance) at 1x on the phone and at 3x / 8x / 12x.
 13. The owner's sign-off on the owner pack. It also settles D1 and D3-D6.
 
+The owner approved the style slice's direction on 2026-10-23 (D1, D3-D6 stand as built: the library re-cut, shields on
+the arm at rest, the spear carried upright, the tabard over mail, the DRAWN split) and asked for the gear ladder.
+
+### The ladder slice (wave 1b; the owner signs it off before production)
+
+The style slice locked steel, leather, mail, a shield, a spear and a bow on the doll. The ladder slice locks the ladder
+before any production map: one fighter at every tier, the top tier alive, the same tier in three other peoples, rank to
+tier for people, and every open item of the style slice fixed. STYLE_P2 27.9 lists the look and the owner pack.
+
+**Looks** (tools/doll/ladder_looks.txt, through contracts 3b's macros; LADDER-DOLL picks the seeds that give these forms
+and records `rpg_test --expand-looks` beside the file):
+
+| tag | body | tier | people | the kit (real items through wearGear, or the census) | it proves |
+|---|---|---|---|---|---|
+| lt1 | man, the A3 hero (head, hair, scarf, colours) | T1 | Heartland | a mended padded gambeson, the OLD BLADE, a plain wooden round shield, worn leather boots; no helm | scrap reads okay / mid |
+| lt2 | man, the hero | T2 | Heartland | clean studded leather (a band-1 Rare) with small leather shoulder pads, the leather cap, the round shield painted in his arms, an iron sword, leather gloves and boots | the first step: clean |
+| lt3 | man, the hero | T3 | Heartland | steel mail with a brass edge, medium scale pauldrons, the nasal helm, the kite bearing his device, a steel sword, tall boots | a soldier's kit |
+| lt4 | man, the hero | T4 | Heartland | the people's alloy as etched plate, large plate pauldrons (the alloy's step), the great helm with a small crest, a heater with a 3-colour device and a boss, gauntlets and greaves, a travel cloak | an officer's kit |
+| lt5 | man, the hero | T5 | Heartland | masterwork plate with gold edges and oak-leaf filigree, large pauldrons, the great helm crested, plumed and gilt with a brow gem, the gilt heater with a gem boss, the masterwork sword, the noble cloak | a champion's kit; the gem's breath |
+| lt6 | man, the hero | T6 | Heartland | lt5's kit Legendary: runes on the seams, the glowing eye slit, the runed blade's spark, motes, the stirring cloak | the living finish |
+| lt6m | man, the hero | T6 Mythic | Heartland | lt6 Mythic (depth) | the flame on doll frames |
+| lt6w | woman, the A3 woman | T6 | Heartland | the T6 kit on her: plate, the crested helm (open), large pauldrons, the noble cloak, a runed spear | the top on both bodies |
+| jade3 | man | T3 | Jade | the masked helm, lamellar with a mid skirt and scalloped, tasselled hems, large lamellar shoulders, a glaive, no shield | flavour |
+| imp3 | man | T3 | Imperial | the crested helm with a tall crest, scale with tassets, medium scale shoulders, a tower shield, a straight sword, a travel cloak | flavour |
+| fjord3 | man | T3 | Fjordfolk | the spangenhelm, mail with fur trim, small scale shoulders, a round shield, a broadsword (A3's straight blade until the library draws the broad), a travel cloak | flavour |
+| nband | man | T1 | Heartland bandit | the census's bandit kit (a hood, leather, a buckler, a sword) | rank to tier |
+| nroyal | woman | T4 | Heartland royal guard | the census's royal guard | rank to tier |
+| nking | man | T5 | Heartland king | the census's king (depth) | rank to tier |
+| guard, knight, archer, knightm, archerw | | T2, T4, T2, T4, T2 | | the style slice's looks with their tiers; knightm armed with a sword, archerw with a bow | the open items fixed |
+| hero | man | | | A3 | B1 |
+
+The lines (LADDER-DOLL copies them into tools/doll/ladder_looks.txt; it may retune the archer's colours for C14 and the
+seeds for the planned forms, and records the change):
+
+```
+# tag    who    spec                                                                        gaits
+hero     man    -                                                                           walk,run,dwalk,drun,didle,hit1,fall,lying
+lt1      man    hero=1,kit=heartland:1:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt2      man    hero=1,kit=heartland:2:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt3      man    hero=1,kit=heartland:3:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt4      man    hero=1,kit=heartland:4:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt5      man    hero=1,kit=heartland:5:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt6      man    hero=1,kit=heartland:6:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt6m     man    hero=1,kit=heartland:6:7,rarity=mythic,palette=look                         stay,walk,run,didle,hit1
+lt6w     woman  heroine=1,kit=heartland:6:7,wpn=spear,palette=look                          stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+jade3    man    kit=jade:3:11,wpn=spear,head=6,hair=1,hairVar=1,hairColor=#1E1A22,skin=#E2B58A,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying
+imp3     man    kit=imperial:3:3,wpn=sword,head=2,hair=1,hairVar=0,hairColor=#3A2418,beard=1,beardStyle=2,skin=#C98E64,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying
+fjord3   man    kit=fjordfolk:3:5,wpn=sword,head=4,hair=2,hairVar=1,hairColor=#C8A060,beard=1,beardStyle=4,skin=#EAC0A0,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying
+nband    man    npc=heartland:bandit:0:7,palette=look                                       stay,walk,run,hit1,fall,lying
+nroyal   woman  npc=heartland:guard:2:7,palette=look                                        stay,walk,run,didle,hit1,fall,lying
+nking    man    npc=heartland:king:0:7,palette=look                                         stay,walk
+guard    man    outfit=8,armorStyle=2,bodyForm=3,tabardColor=#A8322E,helmet=1,helmStyle=2,helmForm=1,shield=1,shieldStyle=3,shieldForm=2,shieldDevice=#E8C25A,weapon=1,bladeForm=1,gloves=1,boots=1,pauldron=1,neck=0,head=1,hair=1,hairVar=1,hairColor=#4A3022,beard=1,beardStyle=0,skin=#D9A07A,tier=2,palette=look  walk,run,dwalk,drun,didle,hit1,block,hurt,fall,lying
+knight   woman  outfit=5,armorStyle=3,bodyForm=7,pauldron=3,skirt=2,gloves=3,boots=3,helmet=1,helmStyle=3,helmForm=9,crest=3,plumeColor=#B83A32,weapon=8,polearmForm=1,hair=5,hairVar=0,hairColor=#2E1E18,skin=#E8B08A,tier=4,palette=look  stay,walk,run,dwalk,drun,didle,hit1,block,hurt,fall,lying
+archer   man    outfit=3,armorStyle=1,bodyForm=2,armsOrnament=16,helmet=1,helmStyle=1,weapon=3,bowForm=1,gloves=1,boots=1,neck=0,topColor=#5E6A3A,bottomColor=#4A3A2C,hair=1,hairVar=2,hairColor=#6A4426,beard=1,beardStyle=1,skin=#B98060,tier=2,palette=look  walk,run,dwalk,drun,didle,draw,hurt,fall,lying
+knightm  man    outfit=5,armorStyle=3,bodyForm=7,pauldron=3,skirt=2,gloves=3,boots=3,helmet=1,helmStyle=3,helmForm=9,crest=3,plumeColor=#B83A32,weapon=1,bladeForm=1,neck=0,head=4,beard=1,beardStyle=2,hairColor=#5A3A26,tier=4,palette=look  walk,run,didle,hit1,hurt,fall,lying
+archerw  woman  outfit=3,armorStyle=1,bodyForm=2,armsOrnament=16,helmet=1,helmStyle=1,weapon=3,bowForm=1,gloves=1,boots=1,topColor=#5E6A3A,bottomColor=#4A3A2C,hair=3,hairVar=0,hairColor=#3A2418,tier=2,palette=look  walk,run,didle,draw,hurt,fall,lying
+```
+
+**Clips, in four facings**, for every ladder look: idle, walk, run, hurt, the drawn idle, walk and run, hit 1, the fall and
+lying; lt6, lt6w and lt6m with the living finish. The style slice's looks keep their clips, fixed.
+
+**The open items, fixed first** (the owner, 2026-10-23; each with its check):
+
+| item | areas | the check |
+|---|---|---|
+| the spear crosses the knight's helm and face in the side walk and run | LADDER-ARMS: forward-leaning side carry views, a 38 px run carry; LADDER-DOLL: the clips, `RUN_CARRY` | W7: no spear pixel in the head box in any R / L loco, run or drawn frame; B10 RUN in budget |
+| the spear vanishes for a frame on a hit, then is held stiff | LADDER-DOLL: hurt lines keep `held`, a one-step knock-back angle; LADDER-ARMS: the hurt arm key | C3a: the held part in every hurt frame; the hurt angle one step off the idle's |
+| the thrust is a static poke | LADDER-ARMS: a wind-up drawn back to the hip, a lunge, a recoil, with action legs; LADDER-DOLL: the clips | C5 restated; the judge at game speed |
+| blocks are one held frame; the guard's side block reads as a sword held low | LADDER-ARMS: raise, impact and brace keys, the sword cocked high and back in side views, the spear's block with both arms raised, `fx spark`; LADDER-DOLL: 3-frame block clips | C5 restated; the judge reads the side block |
+| deaths are lumps with gear floating: the spear level over the head, the bow arcing in the air, the sword standing up | LADDER-ARMS: drop views lying flat; LADDER-HEAD: the kite and helms lying; LADDER-ARMOUR: legible `lie` views; LADDER-DOLL: the placement | C3e restated; the judge reads each corpse at 1x |
+| the archer is brown on brown, lost on dark ground | LADDER-DOLL: C14, leather parting from cloth in rampsOf, the archer's colours; LADDER-ARMOUR: the leather's values | C14 |
+| the knight's plate is pale and flat | LADDER-ARMOUR: the plate's planes (a deeper shadow side, one ridge, fewer light pixels); LADDER-DOLL: the steel ramp | C14's plate line; the judge |
+| the guard's beard reads as a mask facing R / L | LADDER-HEAD: the nasal's side view, a `when capped` beard view | the eye, nose and mouth pixels show; beard and helm 25 luma apart; the judge |
+| the bow is too thin facing D / U | LADDER-ARMS | C6 restated |
+| the sword's swoosh is oversized and drops below the feet facing D | LADDER-ARMS: the arc re-cut; LADDER-DOLL: B1 restated | C5's effect line |
+| knightm and archerw have no attack frames | LADDER-DOLL: weapons and gaits | hit 1 and draw present |
+| iteration 3's asks: the knight's block with both arms raised, helm sizes and faces, the archer's hair and beard noise, knightm's beard colour | LADDER-ARMS, LADDER-HEAD, LADDER-DOLL | the judge |
+
+**Areas** (5, files disjoint; contracts 1). Art areas edit only their maps, preview on isolated pools
+(`%TEMP%\claude\emb_P2c\ladder\<area>\doll\`), and propose clip lines and region slots in their reports. LADDER-DOLL owns
+every code, clip and gate change. Each art area fixes its open items first, then draws the ladder.
+
+- **LADDER-DOLL** (engineer; a hard-systems area, run at engineer-high where the workflow allows, and escalate after two
+  failed attempts; BDIR build-p2c-ladder).
+  - Files: rpg/art/doll/*.h, *.cpp, gen/** (at delivery), clips/** (every clip file; the frozen loco walk and run numbers
+    stay), maps/legend/** (ADD only); tools/doll/**; rpg/art/art_rig.h/.cpp, art_fx.h/.cpp; rpg/art/art_human.h (ADD the
+    ladder fields to HumanLook) and art_human.cpp's key() (rig 2 only, no painter line); rpg/sim/anim.h/.cpp,
+    gear_look.h/.cpp (ADD the ladder fields only), looks.cpp (the rank tiers only), gear_ladder.h/.cpp (new);
+    rpg/view/render.cpp (the people bake and the glow pass), render_anim.cpp, view.h, loot_ui.cpp (the Mythic aura),
+    witness_state.cpp, script_p2c.cpp; tools/tests/test_doll*.cpp, doll_motion.h, test_anim.cpp, test_folk_sim.cpp (F9);
+    tools/preview/doll_gallery.cpp; CMakeLists.txt (gear_ladder.cpp only); tools/scripts/p2c_slice*.txt and
+    p2c_ladder*.txt; witness/p2c_slice.witness.json and p2c_ladder.witness.json; docs/P2C_CONTRACTS.md 8 (as built); this
+    section's "Ladder slice results" (append).
+  - Core:
+    - the ladder data (contracts 3b): the HumanLook fields; gear::lookTier and gear::ladderKit; wearGear filling the tiers,
+      metal kinds and gem colour; census::dress's rank tiers; the looks macros (hero, heroine, kit, npc, wpn, rarity,
+      tier) in every looks reader, and `rpg_test --expand-looks`;
+    - the resolver: the slot tier flags, the dials by tier (the caps, the heartland line), the finish regions R P G N W
+      by each piece's own tier, the finish tiles by tier, the Metal ramp from the tint or the metal kind (with T1's
+      compression and C14's plate contrast), the Blade slot, the Glow ramp from the glow or gem colour, B8's glow
+      allowance and the colour fallbacks; leather parting from cloth (C14);
+    - the living finish (contracts 6b): the glow plane composed with each atlas (cropped, packed) and drawn as pulsed
+      additive light after the lighting with each actor's phase; the edge spark on the grip-to-tip line; the motes; the
+      stir clips; all at rig 2 only;
+    - the open items' code: the spear's hurt lines; the thrust and block clips from LADDER-ARMS's proposals;
+      `RUN_CARRY` with the 38 px carry; the lying placement (C3e restated); the twins' weapons and gaits; B1 restated;
+      test_folk_sim's F9 (the drawn frames moved to RigPart::Drawn);
+    - the gates: the C12, C13 and C14 lines; C1 source L for the ladder looks; C3e, C5 and C6 restated; B8 restated;
+      B10 with the ladder looks (D19's allowance shown beside the base budget); the pool gate at 1.75 MB (test_doll.cpp
+      checks 1.0 today); a selftest for every new line;
+    - the scripts p2c_ladder, _phone and _pack (the hero changes kits in the start village: `ladderkit`);
+      witness/p2c_ladder; `tools/doll/owner_pack.py --ladder`; exes s5 and on, s5 published in its first working block
+      (the fields, flags, regions and macros, so the artists see their regions recoloured by tier).
+  - Depth: the Mythic aura on doll frames (C7's aura line, lt6m); the rune crawl (three phases by position, so the light
+    runs along the seams); the regional tier lift.
+  - Delight: the gallery's `ladder` board (a look through T1-T6 in four facings) and `finish` board (one living-finish
+    cycle as 12 frames and a 3x GIF).
+  - Done:
+    - `node tools/doll/pxc.mjs --check` is clean;
+    - `rpg_test --doll --gates --parity` exits 0 with the ladder looks in its matrices: B1 16 / 16 at 0 px on the figure,
+      B8 0, B10 within budget (T5-T6 within D19's allowance, reported beside the base budget), B11 limbs, B11 wear and
+      B12 0, C3-C6 0, C12, C13 and C14 0, the selftests ALL CAUGHT;
+    - `rpg_test --doll-coverage --scope ladder --gates` finds nothing missing for every ladder look and for the
+      Heartland kit at every tier, man and woman, seeds 1..3;
+    - `rpg_test --doll --motion --limbs-looks tools/doll/ladder_looks.txt --report` shows 0 failures;
+    - every open item's check passes;
+    - witness/p2c_ladder and witness/p2c_slice pass; the p2c_ladder scripts show 0 failures; the owner pack builds;
+    - rig 1 is unchanged (art_hash TOTAL 317eef6efe4d8229, village-art 65 / 0, `--anim` 0, `--arms` unchanged); the full
+      `rpg_test` is ALL OK; save_test is ALL OK;
+    - the WSL clang 18 build passes `--doll --gates` (no memcmp on padded structs; paths through EMB_SOURCE_DIR).
+- **LADDER-ARMOUR** (artist, at xhigh effort).
+  - Files: rpg/art/doll/maps/armour/** (torsos, hangs, sleeves, pauldrons, tiles); rpg/art/doll/maps/cloak/** (ADD only:
+    `breeze` keys and `when` views; P2b's views untouched).
+  - Core:
+    - the Heartland bodies on the man: the padded gambeson (new torso and hang, with T1's wear spots), the studded leather
+      (T2), the mail with its brass edge (T3), and the plate re-shaded (T4-T6: a deeper shadow side, one ridge, fewer
+      light pixels: the knight's "pale and flat");
+    - the flavour bodies on the man: scale with tassets (Imperial), lamellar with a mid skirt and its scallops and tassels
+      as ornament regions (Jade), mail with fur trim (Fjordfolk);
+    - the woman's plate with its finish regions (lt6w, the knight);
+    - pauldrons fur.2, scale.2, scale.3, scale.4 and plate.4 (shared), riding the lean and lifting on wind-ups;
+    - the finish regions R P G N W in every base view of every armour map the ladder looks use (contracts 3b);
+    - legible `lie` views wherever the turned torso reads as a lump;
+    - the cloak's stir: `breeze` views on the idle keys of the noble and travel cloaks (the hem out a pixel), and a run
+      flare a pixel wider `when cloak.t5`;
+    - proposed region slots and clip lines in the report.
+  - Depth: plate catching the lit edge as the body turns; the brass edge on the mail glinting with the bob.
+  - Delight: the T1 gambeson's shoulder patch, where the T2 leather shows a clean seam.
+  - Done: C3a 0 for the armour parts on every ladder frame; B11 limbs, B11 wear and B12 0 on every ladder look; C4 (plate
+    25 %, leather and padded 15 %, both bodies); B8 0; LOCO and RUN within budget (T5-T6 within D19); C14 on the leathers
+    and the plate; the judge's fit review (man against woman) and read of each body at 1x.
+- **LADDER-HEAD** (artist).
+  - Files: rpg/art/doll/maps/headwear/helm/**, maps/shield/**; maps/beard/** (ADD only: `when capped` views of the full
+    beard facing R / L; P2b's views untouched).
+  - Core:
+    - helms: the great helm (form3 / band3: closed, an eye slit as an N region that glows at T6, crest regions for T5, a
+      gilt-rim R region); the masked helm (form8, Jade); the spangenhelm (form4, Fjordfolk); the crested and nasal helms
+      with their finish regions; the leather cap re-checked at T2;
+    - shields: the round (form1, shape1 and shape0: plain wood with an unpainted field at T1, painted at T2), the heater
+      (form3 / shape2), the tower (form4 / shape4), the buckler (form7, the bandit), and the kite's finish regions; each
+      in every key (rest, guard, block, lie, back, the hurt and run holds) with field, device, rim (R), boss (G) and boards
+      (N) regions and per-facing layers;
+    - every shield's `lie` flat beside the corpse (the guard's "red box");
+    - the guard's beard under the nasal facing R / L (the mask);
+    - the helm sizes and faces the style slice's panel asked for.
+  - Depth: the crest bobbing a pixel behind the walk; a plume lifting on the breathe frame (`crest=breeze`).
+  - Delight: the T6 great helm's slit breathing light in the dark.
+  - Done: C3b and C3c 0 on every ladder frame, the lean and lying included; W7 (no shield over a face); C3e (shields
+    flat); B8 0; LOCO 128 and RUN 64 KB or less with every shield (T5-T6 within D19); the guard's eye, nose and mouth
+    show facing R / L, the beard 25 luma off the helm; the judge reads every helm and shield at 1x on the phone.
+- **LADDER-ARMS** (artist, at xhigh effort).
+  - Files: rpg/art/doll/maps/arms/adult/action/**, legs/adult/action/**, held/weapons/**, belt/sheaths/**, back/**,
+    fx/** (not `fx glint` or `fx mote`: LADDER-FINISH's).
+  - Core:
+    - the spear: forward-leaning side carry views (`carryR`, `carryL`) and a 38 px run carry, so the haft never crosses a
+      face; a hurt arm key that keeps the spear; the thrust with a wind-up (both fists drawn back to the hip, the weight
+      back), a lunge (the front foot planted, the lean) and a recoil, with action legs; the block with both arms raised
+      and the haft high;
+    - the guard's block in three keys (raise, impact, brace) with the sword cocked high and back in the side views; the
+      knight's the same; `fx spark`;
+    - drop views that lie flat (the spear, the sword and the bow on the ground beside the hand: `anchor pivot`);
+    - the bow facing D / U at three-quarters, the stave 2 px at the grip, its curve readable;
+    - A3's arc re-cut smaller for every sword look (inside the frame's box plus reach, never below the soles facing D);
+    - the glaive head at 16 angles, with carry and drop (Jade);
+    - the finish regions on every angle view of the straight sword (R guard and pommel, P flat, G pommel gem, N fuller),
+      the spear and the glaive (R socket, N rune line, G);
+    - proposed clip lines (frames, ms, weapon angle and depth, `at=` steps) for LADDER-DOLL.
+  - Depth: a hit-stop beat on the thrust's impact; the off hand sliding along the haft.
+  - Delight: the T6 blade's runes catching the swing.
+  - Done: C6 0 on every weapon map (with the bow's D / U line); C3d 0; C5 restated (the thrust, the block, the effect
+    line); C3e (drops flat); W7 (no weapon over a face in loco, run or drawn frames); B10 DRAWN and ACTION within budget;
+    B8 0; the judge at game speed: the thrust has weight, the blocks brace, nothing crosses a face.
+- **LADDER-FINISH** (artist, at xhigh effort).
+  - Files: rpg/art/doll/maps/finish/** (new): the finish tiles (`role overlay finish.<name>`, `tags tile`, `on-region`),
+    gem stamps, rune glyph tiles, and the living finish's sprites (`fx glint`, `fx mote`).
+  - Core:
+    - STYLE_P2 27.3's finish language, drawn once for the whole ladder: wear (patches with stitch lines on cloth and
+      leather, tarnish on metal, a frayed hem's notches), etching, filigree (the Heartland's oak leaves; Jade's cloud
+      scrolls, Imperial laurel and Fjordfolk knotwork for the flavour row), gems (1x1, 2x2, 3x2), rune glyphs for seams;
+    - the glow colours per metal (27.3) and the living finish's numbers (periods, light, motes) proposed to LADDER-DOLL,
+      tuned by eye at game speed on lt5, lt6 and lt6w;
+    - the edge spark (a 3x3 to 5x5 four-point star in three frames) and the mote;
+    - the line review: the Heartland ladder T1-T6 and the flavour row at 1x and 3x on grass and on dark ground, with
+      asks to the other areas in its report.
+  - Depth: the rune crawl's phase pattern; each people's rune glyphs.
+  - Delight: the T6 runes flaring once on the strike's impact frame.
+  - Done: every finish tile and sprite B8 0 (no orphans, no noise, the tier's colour steps); C12 b and d on the
+    Heartland line; C13 0 on lt5, lt6 and lt6w; the judge reads T1 as worn but whole, etching and filigree as decoration
+    (never noise) at 1x and 3x, and the six tiers as six steps at 1x.
+
+**The ladder slice gate** (the judge measures first and states the whole protocol in round 1; at most 4 rounds; fix rounds
+verify only their items):
+1. Coverage: every ladder look resolves with nothing missing (C1 source L on the slice looks).
+2. B1 restated: 16 / 16 at 0 px on the figure.
+3. Motion: B11 limbs, B11 wear and B12 at 0 on every ladder look.
+4. Gear: C3 a-f at 0, with C3e restated.
+5. C4; C5 and C6 restated.
+6. C12, C13, C14.
+7. B8 at 0 (48 + 3 glow); B10 within budget, T5-T6 within D19's allowance (the pack shows the short-cape fallback beside
+   it for the owner's call).
+8. Size, crispness and contrast (as the style slice's item 10).
+9. Rig 1 unchanged.
+10. The look review at 1x on the phone and at 3x / 8x / 12x (STYLE_P2 27.9's acceptance), with every open item closed.
+11. The owner's sign-off on the ladder pack. It also settles D13-D23.
+
 ### Production areas (wave 2) and the flip (wave 3)
 
 Files are disjoint (docs/P2C_CONTRACTS.md 1 gives the slice's split; this list is wave 2's). Every art area keeps the
 slice's look and conventions, previews on isolated pools, and reruns the gates on its own looks before it delivers.
+
+**The ladder in production** (re-plan 2026-10-23). Every area keeps its list below and adds the ladder, matching the
+ladder slice:
+- **DOLL-C**: the ladder for every form, helm, shield, weapon and role (flags, dials, finish regions and tiles, ramps, the
+  Blade and Glow slots); C1 source L (every people x tier x weapon family x body, seeds 1..3); C12-C14 over the matrices
+  M8-M12 and L; the living finish at scale (glow planes inside C8's people budget). Files add maps/legend/** (ADD only)
+  and rpg/sim/gear_ladder.* (from LADDER-DOLL).
+- **FOLK-SIM-C**: the rank tiers for every role (the census, makeLook, story knights; companions through wearGear), the
+  regional lift, and `rpg_test --ladder-pace` (proposal 3).
+- **ARMOUR-M, ARMOUR-W, ARMOUR-X, HELMS, SHIELDS, WEAPONS**: the finish regions R P G N W in every base view, T1's wear
+  spots, T5-T6's gems and seams, and every dial part the ladder reaches (every pauldron size, long tassets, crest sizes).
+  ARMOUR-X adds the cloak's stir (maps/cloak, ADD only).
+- **FINISH** (artist, at xhigh effort). Files: maps/finish/**.
+  - Core: the finish tiles for every material (cloth, leather, metal); the twelve peoples' filigree motifs and rune
+    glyphs (the ladder table's last column); gem stamps; the living finish's sprites at scale; the glow colour of every
+    alloy checked on its people's T5-T6 kit.
+  - Depth: the hidden peoples' strange finishes (hiddenLook's filigree and gilding).
+  - Delight: a Legendary's runes in its maker people's own script.
+  - Done: C12 and C13 over source L, B8, and the judge's ladder review per people (T1-T6 boards, man and woman).
+- **SWITCH**: the living finish in every draw path (the paperdoll at whole multiples, the party list, portraits, the
+  creator preview), and the Mythic aura on doll frames if the ladder slice left it.
 
 - **DOLL-C** (engineer-high).
   - Files: rpg/art/doll/*.h, *.cpp, gen/**; clips/{loco, death, postures, kin_youth, kin_child}.clip; tools/doll/**;
@@ -2390,17 +2826,22 @@ slice's look and conventions, previews on isolated pools, and reruns the gates o
 
 ### Waves
 
-1. **Wave 0** (the planner; done): this section, STYLE_P2 25-26, docs/P2C_CONTRACTS.md and the slice looks.
-2. **Wave 1, the slice.**
-   - SLICE-DOLL lands the contract code and publishes exe s1 in its first working block: the resolver values, the looks
-     fields and gaits, and the four-facing dump.
-   - The three art areas start at once, by eye, on isolated pools (build-proto's exe for loco gaits until s1).
-   - Then the slice gate: the judge, at most 4 rounds.
-   - Then the owner pack, and the owner's sign-off.
-3. **Wave 2, production.** All 13 areas start at once after the sign-off. DOLL-C and FOLK-SIM-C publish their contract
-   pieces in their first working block. SWITCH ports the menus behind rig 2 and deletes nothing yet.
-4. **The barrier**: every area delivered, then C1, C3-C6 and C8 green at rig 2, then the owner's go on the flip pack.
-5. **Wave 3, the flip** (SWITCH, serial), then **integration**: the one full regression.
+1. **Wave 0** (the planner; done, and again on 2026-10-23 for the ladder): this section, STYLE_P2 25-27,
+   docs/P2C_CONTRACTS.md, the slice looks and the ladder looks.
+2. **Wave 1, the style slice** (done: three iterations, committed on branch p2c-slice). The owner approved its direction
+   on 2026-10-23, listed the open items and asked for the ladder.
+3. **Wave 1b, the ladder slice.**
+   - LADDER-DOLL lands the ladder's contract code and publishes exe s5 in its first working block: the HumanLook fields,
+     the flags, the finish regions recoloured by tier, the looks macros and `--expand-looks`.
+   - The four art areas start at once, by eye, on isolated pools: open items first, then the ladder (the s4 exe until
+     s5 for the fixes).
+   - Then the ladder slice gate: the judge, at most 4 rounds.
+   - Then the ladder pack, and the owner's sign-off (D13-D23, D9 still open).
+4. **Wave 2, production.** All 14 areas start at once after the ladder sign-off. DOLL-C and FOLK-SIM-C publish their
+   contract pieces in their first working block. SWITCH ports the menus behind rig 2 and deletes nothing yet.
+5. **The barrier**: every area delivered, then C1, C3-C6, C8 and C12-C14 green at rig 2, then the owner's go on the flip
+   pack.
+6. **Wave 3, the flip** (SWITCH, serial), then **integration**: the one full regression.
    - Every CI command on MSVC and on WSL clang 18; `rpg_test --seeds 1..20`; save_test.
    - The script sweep; Witness `test --repeat 2`.
    - The web build (EMBERVALE_WITNESS=OFF) and its size.
@@ -2417,7 +2858,12 @@ slice's look and conventions, previews on isolated pools, and reruns the gates o
    - anticipation and impact;
    - every material reading as itself, and the woman's fit;
    - corpses keeping their gear and lying under the grass correctly;
-   - nothing floating, sliding, clipping, vanishing or crossing a face.
+   - nothing floating, sliding, clipping, vanishing or crossing a face;
+   - **the ladder**: the Heartland hero's T1-T6 line and each people's kits at 1x on the phone, on grass and on dark
+     ground, by day and at night: six clear steps; T1 okay / mid (plain, mended, whole, never ugly); the finish reading
+     as craft, never noise; the living finish quiet, readable and never in step between two wearers; the peoples
+     distinct at one tier; people by rank (a bandit, the village watch, the royal guard, a king), and a late hero
+     outshining the king.
 2. **The gates table**: rig 1 unchanged until the flip; at the flip, the before / after pairs.
 3. **Protocol**: the judge states its full test protocol in round 1, tests from the state a player starts in (a new game,
    seed 7; after the flip, rig 2 by default), and reruns every area's done with the area's own commands. An agent's
@@ -2439,6 +2885,18 @@ slice's look and conventions, previews on isolated pools, and reruns the gates o
   the flip lands as one serial step behind a verifier gate.
 - **The frozen doll contract**: P2c only ADDs; the one restatement (pauldron values) breaks no map.
 - **City bake hitches**: baking on aggro, measured by C8's city-arrival worst frame.
+- **The ladder's art volume**: regions are marked once per base view, and finishes are tiles and recolours, never
+  per-tier views; the dial parts were already production's.
+- **Finish reads as noise at 1x**: LADDER-FINISH tunes at 1x first; a motif that fails drops its tier back to trim only.
+- **The 48-colour cap** on rich kits: the colour fallbacks (contracts 3b) in a fixed order, B8 measured over source L.
+- **Double dial lifts** (the census's ranks, the alloy's step, the tiers): tiers only cap (T1-T2) and add T5's plume;
+  the lifts stay the sim's.
+- **Rig 1 safety**: the ladder writes only new fields; art_hash, village-art, `--anim` and `--arms` prove it at every
+  delivery.
+- **The living finish costs frames or memory**: the glow plane is cropped and cached (12 looks); C13 measures the city
+  frame with 8 T6 figures.
+- **T6 too early or too common**: the tiers follow the game's floors and caps, and `--ladder-pace` measures them; if
+  the owner wants a slower climb, a rule changes (the band table), never the art.
 
 ### Process (the owner's rules for P2c)
 
@@ -2513,4 +2971,62 @@ e42c15b04e2ab7a9; exe s4 published).** The blind panel's code items:
     hairColor);
   - the hero's 0.4 s recovery hold, which is A3 timing (B1).
 
+**The owner's verdict (2026-10-23)**: the direction is approved. Open items (all fixed in the ladder slice): the spear
+over the knight's helm and face in the side walk and run; the spear vanishing for a frame on a hit, then held stiff; the
+thrust a static poke; single-frame blocks, the guard's side block reading as a sword held low; illegible deaths with gear
+floating (the spear level over the head, the bow arcing in the air, the sword standing up); the archer brown on brown and
+lost on dark ground; the knight's plate pale and flat; the guard's beard reading as a mask facing R / L; the bow too thin
+facing D / U; the sword's swoosh oversized and dropping below the feet facing D; knightm and archerw with no attack
+frames. Then the gear ladder ("The gear ladder", "The ladder slice"). D9 (rig 1 deleted at the flip) is still open.
+
+### Ladder slice results (LADDER-DOLL fills at the ladder slice gate)
+
+**Iteration 1 (LADDER-DOLL, 2026-10-23; BDIR build-p2c-ladder; exes s5, s6).** The ladder runs end to end at rig 2: items ->
+lookTier -> HumanLook tiers (wearGear, census::dress) -> the resolver's dials, finish regions and tiles, metals, Blade and
+Glow ramps -> compose (glow plane). Seeds picked for the planned forms (`rpg_test --expand-looks`, recorded in
+tools/doll/ladder_looks.expanded.txt): jade:3:1 (masked helm, lamellar, large shoulders, glaive, scallops and tassels;
+seed 11 gave scale), imperial:3:2 (crested helm, tall crest, scale, tower, cloak; seed 3 gave mail), fjordfolk:3:5 and
+heartland:*:7 kept. Retuned for C14: archer top #6F8F45 and hair #3E2818, archerw top #6F8F45, lt6w hair #8C5A2A, fjord3
+hair #E0BC78. Measured on the tree pool (art areas' deliveries so far): rig 1 unchanged (art_hash 317eef6efe4d8229,
+village-art 65 / 0, --anim 0, --arms ALL OK); full rpg_test ALL OK; save_test ALL OK; motion on ladder_looks.txt 20 looks
+708 side frames 0 failures; coverage --scope ladder 56 / 56; --doll --gates: B1 16 / 16 0 px, B2 B9 B11 limbs B11 leg B12
+C5 C6 C13 ok; open: B8 (orphans in jade3 walk), B10 (RUN 65.6-68.9 KB on T4 and jade3 over 64; T5-T6 within D19; lt6w
+DEATH 49.2), B11 wear (COVER padded woman), C3 (C3e lying shields: round and heater lie views), C4 (padded 10 %), C12
+(trim share over band on helms and shields, none yet on blades and cloaks; lt5 to lt6 2 %: no runes drawn yet), C14 (lit
+edge lt2 / lt4 / lt6m a few luma short).
+
+**Iteration 2 (LADDER-DOLL, 2026-10-23; BDIR build-p2c-ladder; the blind panel's top-of-ladder findings).** The top now steps:
+T4 steel plate (the alloy metalized: the "pink clay" gone), T5 the same steel gilt with the cyan gem's breath, T6 the
+Heartland's STARMETAL (pale blue-white) with glowing runes, gem and device, the Mythic ember-tempered crimson-black with
+an ember glow, a pale-gold crest and a smoke-black cloak; the hero keeps his face from T4 in the open crested helm (the
+great helm is one word in ladderKit to bring back: the owner's call), crest and plume in his own red. The game draws the
+living finish now (render.cpp after the lighting): every glow pixel breathes with the actor's phase and the rune crawl,
+the T6 blade's spark runs grip to tip every 3.3 s, motes rise; tools/scripts/p2c_ladder.txt shoots it (0 failures);
+witness/p2c_ladder 33 / 33 and witness/p2c_slice 238 / 238 pass. Gates on the tree pool of the art areas' work in flight
+(pxc f90054c2ae9ee1a0): B1 16 / 16, C12 a and c, C14, C5, C6, B12, B2, B9 ok; coverage --scope ladder 57 / 57; rig 1
+unchanged (art_hash 317eef6efe4d8229, village-art 65 / 0, --anim 0, --arms ALL OK); full rpg_test ALL OK; save_test
+ALL OK. Open, all in the art areas' maps or the owner's budget: B8 12 and W5 12 (the jade glaive: orphan pixels, the head
+floating), C3 13 (the woman's round shield facing R: a 1-2 px hole, found by the new lt1w), B11 FARWIDTH 3 (the round
+and heater shields' run hold facing L), C4 8 (padded 10-13 %, fjord3 mail, imp3 scale under their shares), C13 6 (the
+rune tile now puts 22 glow pixels in a T6 frame: 20 is the budget with 3 motes and the spark), C12 1 (lt5's filigree
+covers two step-4 glints), B10 5 (RUN 64-69 KB for T3-T4 caped looks, DEATH lt6w 52.6: content, the packer is within
+5 % of the frames' area; D19 covers only T5-T6: the owner's call).
+
+
+**Iteration 3 (LADDER-DOLL, 2026-10-23; BDIR build-p2c-ladder; the i2 blind panel's top of the ladder and animation).**
+The living finish now reads at 3x: one light model (art::finish::frameLights, shared by the game and doll_gallery) where
+the whole piece breathes (T6 0.10-1.00, T5 0.10-0.60: sign-off wanted, was 0.30-0.85 / 0.15-0.45) with the rune crawl
+rippling a third of it, a halo of light round each glow pixel, a T6 gleam (a slanted band of light across the figure,
+0.5 s every 3.3 s), the Mythic's embers (6, licking 10 px up) instead of motes, the T5-T6 cloak and crest stir on the
+idle's breathe frame (the `breeze` views the art drew), and the day draw at 0.85-1.0. The Mythic is blackened steel with
+gold trim, amber runes, a flame crest and a black-crimson cloak; T6 keeps T5's plume and large pauldrons; the cloak's dye
+climbs (T4 travel brown, T5 crimson, T6 royal blue, Mythic black crimson), so the back views differ; the alloy keeps only
+a cast (T4 no longer mauve, T5 no longer beige). Culture helms and shields the library has not drawn wear the nearest
+drawn form (Dune, Marsh, Highland, Steppe T3 no longer bare). Dropped weapons lie 3 px up under the corpse. The archer
+skin #CA8E66, hair #8A5A30. Measured on a snapshot of the art areas' maps (LADDER-DOLL/x.pool): --doll --gates --parity
+0 failures (C12 118, C13 73, C14 171 checks); motion 21 looks 780 side frames 0; coverage --scope ladder 57 / 57;
+witness p2c_ladder 33 / 33, p2c_slice pass; rig 1 unchanged (art_hash 317eef6efe4d8229, village-art 65 / 0, --anim 0,
+--arms ALL OK). Open (art areas): helm forms kettle and conical-aventail undrawn; no glow on the cloak's back (a rune hem
+`N` region on the noble cloak would give the T6 / Mythic back view its light); the guard's beard mask (R / L); the mail tile's
+1 px checker.
 ### Production results and the flip (the integrator fills)

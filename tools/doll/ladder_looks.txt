@@ -1,0 +1,26 @@
+# P2c ladder slice looks (docs/PLAN.md "The ladder slice"; docs/P2C_CONTRACTS.md 3b macros): tag who spec gaits.
+# Macros: hero=1 / heroine=1 (A3's face, hair, colours; the scarf through T3), kit=<people>:<tier>:<seed> (gear::ladderKit's
+# real items worn through wearGear), npc=<people>:<role>:<rank>:<seed> (census::dress), wpn=<family>, rarity=<name>, tier=<n>.
+# The expanded fields: rpg_test --expand-looks tools/doll/ladder_looks.txt (recorded in tools/doll/ladder_looks.expanded.txt).
+#tag     who    spec                                                                        gaits
+hero     man    -                                                                           walk,run,dwalk,drun,didle,hit1,fall,lying
+lt1      man    hero=1,kit=heartland:1:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt2      man    hero=1,kit=heartland:2:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt3      man    hero=1,kit=heartland:3:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt4      man    hero=1,kit=heartland:4:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt5      man    hero=1,kit=heartland:5:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt6      man    hero=1,kit=heartland:6:7,palette=look                                       stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt6m     man    hero=1,kit=heartland:6:7,rarity=mythic,palette=look                         stay,walk,run,didle,hit1
+lt6w     woman  heroine=1,kit=heartland:6:7,wpn=spear,hairColor=#8C5A2A,palette=look                          stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+lt1w     woman  heroine=1,kit=heartland:1:7,palette=look                                     stay,walk,run,dwalk,drun,didle,hit1,hurt,fall,lying
+jade3    man    kit=jade:3:1,wpn=spear,head=6,hair=1,hairVar=1,hairColor=#1E1A22,skin=#E2B58A,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying
+imp3     man    kit=imperial:3:2,wpn=sword,head=2,hair=1,hairVar=0,hairColor=#3A2418,beard=1,beardStyle=2,skin=#C98E64,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying
+fjord3   man    kit=fjordfolk:3:5,wpn=sword,head=4,hair=2,hairVar=1,hairColor=#B87A3E,beard=1,beardStyle=4,skin=#EAC0A0,palette=look  stay,walk,run,didle,hit1,hurt,fall,lying
+nband    man    npc=heartland:bandit:0:7,palette=look                                       stay,walk,run,hit1,fall,lying
+nroyal   woman  npc=heartland:guard:2:7,palette=look                                        stay,walk,run,didle,hit1,fall,lying
+nking    man    npc=heartland:king:0:7,palette=look                                         stay,walk
+guard    man    outfit=8,armorStyle=2,bodyForm=3,tabardColor=#A8322E,helmet=1,helmStyle=2,helmForm=1,shield=1,shieldStyle=3,shieldForm=2,shieldDevice=#E8C25A,weapon=1,bladeForm=1,gloves=1,boots=1,pauldron=1,neck=0,head=1,hair=1,hairVar=1,hairColor=#4A3022,beard=1,beardStyle=0,skin=#D9A07A,tier=2,palette=look  walk,run,dwalk,drun,didle,hit1,block,hurt,fall,lying
+knight   woman  outfit=5,armorStyle=3,bodyForm=7,pauldron=3,skirt=2,gloves=3,boots=3,helmet=1,helmStyle=3,helmForm=9,crest=3,plumeColor=#B83A32,weapon=8,polearmForm=1,hair=5,hairVar=0,hairColor=#2E1E18,skin=#E8B08A,tier=4,palette=look  stay,walk,run,dwalk,drun,didle,hit1,block,hurt,fall,lying
+archer   man    outfit=3,armorStyle=1,bodyForm=2,armsOrnament=16,helmet=1,helmStyle=1,weapon=3,bowForm=1,gloves=1,boots=1,neck=0,topColor=#6F8F45,bottomColor=#4A3A2C,hair=1,hairVar=2,hairColor=#8A5A30,beard=1,beardStyle=1,skin=#CA8E66,tier=2,palette=look  walk,run,dwalk,drun,didle,draw,hurt,fall,lying
+knightm  man    outfit=5,armorStyle=3,bodyForm=7,pauldron=3,skirt=2,gloves=3,boots=3,helmet=1,helmStyle=3,helmForm=9,crest=3,plumeColor=#B83A32,weapon=1,bladeForm=1,neck=0,head=4,beard=1,beardStyle=2,hairColor=#5A3A26,tier=4,palette=look  walk,run,didle,hit1,hurt,fall,lying
+archerw  woman  outfit=3,armorStyle=1,bodyForm=2,armsOrnament=16,helmet=1,helmStyle=1,weapon=3,bowForm=1,gloves=1,boots=1,topColor=#6F8F45,bottomColor=#4A3A2C,hair=3,hairVar=0,hairColor=#3A2418,tier=2,palette=look  walk,run,didle,draw,hurt,fall,lying

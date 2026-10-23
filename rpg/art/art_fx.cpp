@@ -1,4 +1,5 @@
 // EMBERVALE art: effects. See rpg/art.h for the contract and rpg/art/art_internal.h for the shared helpers.
+#include <cmath>
 #include "rpg/art/art_internal.h"
 #include "rpg/art/rig/rig_internal.h"   // (P2a style slice) rig2::steelArc, the Steel Arc
 
@@ -520,5 +521,147 @@ Canvas auraSprite(uint32_t color, int w) {
   }
   return c;
 }
+
+// ---------------------------------------------------------------- P2c the living finish (art_fx.h; contracts 6b)
+namespace finish {
+Pulse pulseOf(int t) {
+  if (t >= 6) return Pulse{2.2f, 0.10f, 1.00f};
+  if (t == 5) return Pulse{3.3f, 0.10f, 0.60f};
+  return Pulse{};
+}
+float light(const Pulse& p, float t, float phase) {
+  if (p.period <= 0) return 0;
+  const float u = t / p.period + phase;
+  return p.lo + (p.hi - p.lo) * (0.5f - 0.5f * std::cos(6.2831853f * u));
+}
+// a stride of 0.2754 cycle: neighbouring ids (actors spawned together, up to 3 apart) land 0.17 cycle or more apart
+float actorPhase(uint32_t id) {
+  const double u = (double)id * 0.2754;
+  return (float)(u - std::floor(u));
+}
+float sparkAt(float t, float phase) {
+  float u = std::fmod(t + phase * kSparkEvery, kSparkEvery);
+  if (u < 0) u += kSparkEvery;
+  return u < kSparkRun ? u / kSparkRun : -1.0f;
+}
+int sparkFrame(float u) { return u < 0 ? -1 : u < 0.25f ? 0 : u < 0.75f ? 1 : 2; }
+int motes(uint32_t seed, float t, const std::vector<std::pair<int, int>>& glowPx, Mote out[kMaxMotes]) {
+  if (glowPx.empty() || t < 0) return 0;
+  const float off = (seed % 1000u) / 1000.0f * kMoteEvery;
+  const long long last = (long long)std::floor((t - off) / kMoteEvery);
+  int n = 0;
+  for (long long k = last; k > last - 4 && n < kMaxMotes; k--) {
+    const float birth = (float)k * kMoteEvery + off, age = t - birth;
+    if (age < 0 || age >= kMoteLife) continue;
+    uint32_t h = seed ^ (uint32_t)(k * 0x27D4EB2Dll);
+    h ^= h >> 15; h *= 0x2C1B3C6Du; h ^= h >> 12;
+    const std::pair<int, int>& p = glowPx[h % glowPx.size()];
+    Mote m;
+    m.age = age;
+    m.rise = kMoteRise * age / kMoteLife;
+    m.x = (float)p.first;
+    m.y = (float)p.second - m.rise;
+    m.step = age < kMoteLife * 0.5f ? 3 : 2;
+    m.alpha = 1.0f - age / kMoteLife;
+    out[n++] = m;
+  }
+  return n;
+}
+int embers(uint32_t seed, float t, const std::vector<std::pair<int, int>>& glowPx, Ember out[kMaxEmbers]) {
+  if (glowPx.empty() || t < 0) return 0;
+  const float off = (seed % 997u) / 997.0f * kEmberEvery;
+  const long long last = (long long)std::floor((t - off) / kEmberEvery);
+  int n = 0;
+  for (long long k = last; k > last - 8 && n < kMaxEmbers; k--) {
+    const float birth = (float)k * kEmberEvery + off, age = t - birth;
+    if (age < 0 || age >= kEmberLife) continue;
+    uint32_t h = seed * 0x9E3779B1u ^ (uint32_t)(k * 0x85EBCA6Bll);
+    h ^= h >> 13; h *= 0xC2B2AE35u; h ^= h >> 16;
+    // born on the upper glow pixels mostly (a flame climbs off the shoulders and helm, not the greaves)
+    size_t pick = h % glowPx.size();
+    const size_t alt = (h >> 11) % glowPx.size();
+    if (glowPx[alt].second < glowPx[pick].second) pick = alt;
+    const float u = age / kEmberLife;
+    Ember e;
+    e.age = age;
+    const float sway = ((h >> 20) & 1 ? 1.0f : -1.0f) * std::sin(u * 3.1415927f * 1.5f) * 1.4f;
+    e.x = (float)glowPx[pick].first + sway;
+    e.y = (float)glowPx[pick].second - kEmberRise * (u * (2.0f - u)) - 1.0f;   // fast off the metal, slowing as it cools
+    e.heat = u < 0.3f ? 0 : u < 0.65f ? 1 : 2;
+    e.tall = u < 0.6f;
+    e.alpha = u < 0.1f ? u / 0.1f : 1.0f - (u - 0.1f) / 0.9f;
+    out[n++] = e;
+  }
+  return n;
+}
+float gleamAt(float t, float phase) {
+  float u = std::fmod(t + phase * kGleamEvery + kGleamEvery * 0.5f, kGleamEvery);
+  if (u < 0) u += kGleamEvery;
+  return u < kGleamRun ? u / kGleamRun : -1.0f;
+}
+float pixelLight(const Pulse& p, float t, float phase, int x, int y) {
+  if (p.period <= 0) return 0;
+  const int band = (((x + y) / 2) % 3 + 3) % 3;
+  const float breath = light(p, t, phase);
+  const float crawl = 0.5f - 0.5f * std::cos(6.2831853f * (2.0f * t / p.period + phase + band / 3.0f));
+  return breath * (0.7f + 0.3f * crawl);
+}
+void frameLights(int topTier, bool mythic, uint32_t seed, float t, float phase, const std::vector<GlowPx>& px, std::vector<Light>& out) {
+  if (topTier < 5 || px.empty()) return;
+  const Pulse P = pulseOf(topTier);
+  auto ch = [](uint32_t c, int sh) { return (int)(c >> sh & 255u); };
+  auto up = [&](uint32_t c, float k) {
+    auto u = [&](int v) { return (uint32_t)std::min(255, (int)(v + (255 - v) * k)); };
+    return 0xFF000000u | u(ch(c, 16)) << 16 | u(ch(c, 8)) << 8 | u(ch(c, 0));
+  };
+  int x0 = 1 << 30, y0 = 1 << 30, x1 = -(1 << 30), y1 = -(1 << 30);
+  uint32_t hot = 0;
+  int hotL = -1;
+  for (const GlowPx& g : px) {
+    x0 = std::min(x0, g.x); y0 = std::min(y0, g.y); x1 = std::max(x1, g.x); y1 = std::max(y1, g.y);
+    const int l = ch(g.c, 0) * 3 + ch(g.c, 8) * 6 + ch(g.c, 16);
+    if (l > hotL) { hotL = l; hot = g.c; }
+  }
+  // the halo's grid (1 px border): the brightest light that spills onto each non-glow cell
+  const int W = x1 - x0 + 3, H = y1 - y0 + 3;
+  std::vector<float> spill((size_t)W * H, 0.0f);
+  std::vector<uint32_t> spillC((size_t)W * H, 0u);
+  std::vector<uint8_t> isGlow((size_t)W * H, 0);
+  for (const GlowPx& g : px) isGlow[(size_t)(g.y - y0 + 1) * W + (g.x - x0 + 1)] = 1;
+  for (const GlowPx& g : px) {
+    const float a = pixelLight(P, t, phase, g.x, g.y);
+    out.push_back({(float)g.x, (float)g.y, 1, 1, up(g.c, 0.55f), a});
+    static const int kN[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    for (const auto& d : kN) {
+      const size_t i = (size_t)(g.y + d[1] - y0 + 1) * W + (g.x + d[0] - x0 + 1);
+      if (isGlow[i]) continue;
+      if (a * kHalo > spill[i]) { spill[i] = a * kHalo; spillC[i] = g.c; }
+    }
+  }
+  for (int y = 0; y < H; y++)
+    for (int x = 0; x < W; x++) {
+      const size_t i = (size_t)y * W + x;
+      if (spill[i] > 0.004f) out.push_back({(float)(x + x0 - 1), (float)(y + y0 - 1), 1, 1, spillC[i], spill[i]});
+    }
+  if (topTier < 6) return;
+  std::vector<std::pair<int, int>> xy;
+  xy.reserve(px.size());
+  for (const GlowPx& g : px) xy.push_back({g.x, g.y});
+  if (mythic) {
+    Ember e[kMaxEmbers];
+    const int n = embers(seed, t, xy, e);
+    static const uint32_t kHeat[3] = {0xFF9CF4FFu, 0xFF2AA8FFu, 0xFF2040E8u};   // rgba: #FFF49C, #FFA82A, #E84020
+    for (int k = 0; k < n; k++) {
+      const float ex = std::floor(e[k].x + 0.5f), ey = std::floor(e[k].y + 0.5f);
+      out.push_back({ex, ey, 1, e[k].tall ? 2.0f : 1.0f, kHeat[e[k].heat], 0.95f * e[k].alpha});
+    }
+  } else {
+    Mote m[kMaxMotes];
+    const int n = motes(seed, t, xy, m);
+    for (int k = 0; k < n; k++) out.push_back({std::floor(m[k].x), std::floor(m[k].y), 1, 1, m[k].step >= 3 ? up(hot, 0.6f) : up(hot, 0.3f), 0.95f * m[k].alpha});
+  }
+}
+bool enabled() { return rigVersion() >= 2; }
+}  // namespace finish
 
 }  // namespace art

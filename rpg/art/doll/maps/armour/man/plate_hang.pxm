@@ -1,8 +1,10 @@
-# armour/man/plate_hang: the man's plate tassets (short, the skirt dial's 2): the last fauld lame and two rigid plates
-# over the thighs. They hinge and never bend (STYLE_P2 25.6): `wide` (the walk) opens the front plate a pixel forward and the
-# back plate a pixel back over the stride, `flare` (the run) trails the pair a pixel behind, the lie lays them along the
-# thighs. Seated keys (sit floor kneel ride) keep the rest plates (postures are wave 2's to tune).
-# Format: rpg/art/doll/doll.h.
+# armour/man/plate_hang: the plate tassets on the man (P2c slice; re-shaded by LADDER-ARMOUR, STYLE_P2 25.2 / 25.6 / 27.5):
+# two rigid plates hinged at the belt (the fork between them), each lit at its top-left corner (step 3) over step-2 and
+# step-1 planes, a lower lame; tassets shift whole by a pixel in the run's flare and never bend. Finish regions: R the
+# lower lame's edge (the hem), N the hinge line between the lames, W a spot on the shadow tasset.
+# Keys: the hang channel (rest wide flare lie idle sit floor kneel ride) in D U R L. Format: rpg/art/doll/doll.h.
+# (LADDER-ARMOUR i3) N (T6 runes) only on the breastplate's lower edge: one designed rune band, not specks over the gorget,
+# the chest and the tassets (the blind panel: "scattered 1px specks that look like noise").
 use person
 body man
 role armour plate
@@ -12,198 +14,357 @@ keys hang
 z 10
 
 view D key rest origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
-|vxxxwvvwwwwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
+|vwxwwwvwwwwv
 |vvvvvv.vvvvv
+regions
+|............
+|.........WW.
+|.RRR...RRR..
+|............
 
 view D key wide origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
-|vxxxwvvwwwwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
+|vwxwwwvwwwwv
 |vvvvvv.vvvvv
+regions
+|............
+|.........WW.
+|.RRR...RRR..
+|............
 
 view D key flare origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
 |vvvvvvvvvvvv
+regions
+|............
+|.RRR...RRWW.
+|............
 
 view D key lie origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
-|vxxxwvvwwwwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
+|vwxwwwvwwwwv
 |vvvvvv.vvvvv
+regions
+|............
+|.........WW.
+|.RRR...RRR..
+|............
 
 view D key idle origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
-|vxxxwvvwwwwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
+|vwxwwwvwwwwv
 |vvvvvv.vvvvv
+regions
+|............
+|.........WW.
+|.RRR...RRR..
+|............
 
 view D key sit origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
-|vxxxwvvwwwwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
+|vwxwwwvwwwwv
 |vvvvvv.vvvvv
+regions
+|............
+|.........WW.
+|.RRR...RRR..
+|............
 
 view D key floor origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
-|vxxxwvvwwwwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
+|vwxwwwvwwwwv
 |vvvvvv.vvvvv
+regions
+|............
+|.........WW.
+|.RRR...RRR..
+|............
 
 view D key kneel origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
-|vxxxwvvwwwwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
+|vwxwwwvwwwwv
 |vvvvvv.vvvvv
+regions
+|............
+|.........WW.
+|.RRR...RRR..
+|............
 
 view D key ride origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
-|vxxxwvvwwwwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
+|vwxwwwvwwwwv
 |vvvvvv.vvvvv
+regions
+|............
+|.........WW.
+|.RRR...RRR..
+|............
 
 view U key rest origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
-|vxxxwvvwwwwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
+|vwxwwwvwwwwv
 |vvvvvv.vvvvv
+regions
+|............
+|.........WW.
+|.RRR...RRR..
+|............
 
 view U key wide origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
-|vxxxwvvwwwwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
+|vwxwwwvwwwwv
 |vvvvvv.vvvvv
+regions
+|............
+|.........WW.
+|.RRR...RRR..
+|............
 
 view U key flare origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
 |vvvvvvvvvvvv
+regions
+|............
+|.RRR...RRWW.
+|............
 
 view U key lie origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
-|vxxxwvvwwwwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
+|vwxwwwvwwwwv
 |vvvvvv.vvvvv
+regions
+|............
+|.........WW.
+|.RRR...RRR..
+|............
 
 view U key idle origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
-|vxxxwvvwwwwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
+|vwxwwwvwwwwv
 |vvvvvv.vvvvv
+regions
+|............
+|.........WW.
+|.RRR...RRR..
+|............
 
 view U key sit origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
-|vxxxwvvwwwwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
+|vwxwwwvwwwwv
 |vvvvvv.vvvvv
+regions
+|............
+|.........WW.
+|.RRR...RRR..
+|............
 
 view U key floor origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
-|vxxxwvvwwwwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
+|vwxwwwvwwwwv
 |vvvvvv.vvvvv
+regions
+|............
+|.........WW.
+|.RRR...RRR..
+|............
 
 view U key kneel origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
-|vxxxwvvwwwwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
+|vwxwwwvwwwwv
 |vvvvvv.vvvvv
+regions
+|............
+|.........WW.
+|.RRR...RRR..
+|............
 
 view U key ride origin 6 -1
-|.vyyyyxxxwv.
-|vyyyxvvxxxwv
-|vxxxwvvwwwwv
+|.vxyxwvxxwv.
+|vxyxwwvxwwwv
+|vwxwwwvwwwwv
 |vvvvvv.vvvvv
+regions
+|............
+|.........WW.
+|.RRR...RRR..
+|............
 
 view R key rest origin 6 -1
-|.vyyyyxxxxwv.
-|vyyyxvvxxxwwv
+|.vxyyxwxxxwv.
+|vxyxwwvxwwwwv
 |vvvvvvvvvvvvv
+regions
+|.............
+|.RRR...RRWW..
+|.............
 
 view R key wide origin 6 -1
-|.vyyyyxxxxwv.
-|vyyyxvvxxxwwv
+|.vxyyxwxxxwv.
+|vxyxwwvxwwwwv
 |vvvvvvvvvvvvv
+regions
+|.............
+|.RRR...RRWW..
+|.............
 
 view R key flare origin 7 -1
-|.vyyyyyxxxxwv.
-|vyyyxvvxxxxwwv
+|.vxyyxwxxxxwv.
+|vxyxwwvxxwwwwv
 |vvvvvvvvvvvvvv
+regions
+|..............
+|.RRR...RR.WW..
+|..............
 
 view R key lie origin 6 -1
-|.vyyyyxxxxwv.
-|vyyyxvvxxxwwv
+|.vxyyxwxxxwv.
+|vxyxwwvxwwwwv
 |vvvvvvvvvvvvv
+regions
+|.............
+|.RRR...RRWW..
+|.............
 
 view R key idle origin 6 -1
-|.vyyyyxxxxwv.
-|vyyyxvvxxxwwv
+|.vxyyxwxxxwv.
+|vxyxwwvxwwwwv
 |vvvvvvvvvvvvv
+regions
+|.............
+|.RRR...RRWW..
+|.............
 
 view R key sit origin 6 -1
-|.vyyyyxxxxwv.
-|vyyyxvvxxxwwv
+|.vxyyxwxxxwv.
+|vxyxwwvxwwwwv
 |vvvvvvvvvvvvv
+regions
+|.............
+|.RRR...RRWW..
+|.............
 
 view R key floor origin 6 -1
-|.vyyyyxxxxwv.
-|vyyyxvvxxxwwv
+|.vxyyxwxxxwv.
+|vxyxwwvxwwwwv
 |vvvvvvvvvvvvv
+regions
+|.............
+|.RRR...RRWW..
+|.............
 
 view R key kneel origin 6 -1
-|.vyyyyxxxxwv.
-|vyyyxvvxxxwwv
+|.vxyyxwxxxwv.
+|vxyxwwvxwwwwv
 |vvvvvvvvvvvvv
+regions
+|.............
+|.RRR...RRWW..
+|.............
 
 view R key ride origin 6 -1
-|.vyyyyxxxxwv.
-|vyyyxvvxxxwwv
+|.vxyyxwxxxwv.
+|vxyxwwvxwwwwv
 |vvvvvvvvvvvvv
+regions
+|.............
+|.RRR...RRWW..
+|.............
 
 view L key rest origin 7 -1
-|.vyyyyxxxxwv.
-|vyyxvvxxxwwwv
+|.vxyyxwxxxwv.
+|vxyxwvxxwwwwv
 |vvvvvvvvvvvvv
+regions
+|.............
+|.RR...RR.WW..
+|.............
 
 view L key wide origin 7 -1
-|.vyyyyxxxxwv.
-|vyyyxvvxxxwwv
+|.vxyyxwxxxwv.
+|vxyxwvxxwwwwv
 |vvvvvvvvvvvvv
+regions
+|.............
+|.RR...RR.WW..
+|.............
 
 view L key flare origin 7 -1
-|.vyyyyxxxxwwv.
-|vyyyxvvxxxxwwv
+|.vxyyxwxxxxwv.
+|vxyxwwvxxwwwwv
 |vvvvvvvvvvvvvv
+regions
+|..............
+|.RRR...RR.WW..
+|..............
 
 view L key lie origin 6 -1
-|....vyyxxwv
-|....vyxxwwv
+|....vyyxwwv
+|....vxxwwwv
 |....vvvvvvv
+regions
+|........WW.
+|.....RRR...
+|...........
 
 view L key idle origin 7 -1
-|.vyyyyxxxxwv.
-|vyyxvvxxxwwwv
+|.vxyyxwxxxwv.
+|vxyxwvxxwwwwv
 |vvvvvvvvvvvvv
+regions
+|.............
+|.RR...RR.WW..
+|.............
 
 view L key sit origin 7 -1
-|.vyyyyxxxxwv.
-|vyyxvvxxxwwwv
+|.vxyyxwxxxwv.
+|vxyxwvxxwwwwv
 |vvvvvvvvvvvvv
+regions
+|.............
+|.RR...RR.WW..
+|.............
 
 view L key floor origin 7 -1
-|.vyyyyxxxxwv.
-|vyyxvvxxxwwwv
+|.vxyyxwxxxwv.
+|vxyxwvxxwwwwv
 |vvvvvvvvvvvvv
+regions
+|.............
+|.RR...RR.WW..
+|.............
 
 view L key kneel origin 7 -1
-|.vyyyyxxxxwv.
-|vyyxvvxxxwwwv
+|.vxyyxwxxxwv.
+|vxyxwvxxwwwwv
 |vvvvvvvvvvvvv
+regions
+|.............
+|.RR...RR.WW..
+|.............
 
 view L key ride origin 7 -1
-|.vyyyyxxxxwv.
-|vyyxvvxxxwwwv
+|.vxyyxwxxxwv.
+|vxyxwvxxwwwwv
 |vvvvvvvvvvvvv
-
+regions
+|.............
+|.RR...RR.WW..
+|.............

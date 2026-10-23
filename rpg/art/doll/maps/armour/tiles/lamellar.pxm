@@ -1,0 +1,13 @@
+# armour/tiles/lamellar: lamellar plates over the lamellar sleeve region (U): vertical plates (every other column a step
+# down: the seams) laced every third row in the accent (the cord between the plates), as the body (STYLE_P2 25.2).
+# Format: rpg/art/doll/doll.h; `on-region` is P2C_CONTRACTS 4.
+use person
+body adult
+role overlay lamellar
+tags tile overlay
+on-region U
+
+view D key rest origin 0 0
+|xw
+|xw
+|xo

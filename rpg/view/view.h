@@ -115,6 +115,7 @@ class View {
   struct RigTex {
     const Tex* tex = nullptr;
     const art::RigSheet* sheet = nullptr;   // the atlas's frames (the canvas itself is dropped once baked)
+    const Tex* glowTex = nullptr;           // (P2c ladder) the glow plane's texture (null: the look has none)
     bool ready() const { return tex && tex->t && sheet && !sheet->empty(); }
   };
   RigTex rigTex(const art::HumanLook& L, art::RigPart part, bool child = false);
@@ -666,10 +667,14 @@ class View {
   struct HumanGhost { const Tex* t = nullptr; int fr = 0, row = 0; bool flip = false; float x = 0, y = 0; };   // (as RideGhost)
   void drawHumanBody(Game& g, const Map& m, const Actor& a, Vec2 cam, float alpha, float flash, HumanGhost& ghost);
   void drawSwingFx(const Game& g, const Actor& a, Vec2 cam);   // a human's melee strike effect (after its body)
+  // (P2c ladder, contracts 6b) the living finish of a rig-2 frame just drawn (T5-T6): its glow plane pulsed with the
+  // actor's phase, the edge spark, the motes; queued and drawn additively after the lighting (render.cpp)
+  void queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigTex& rt, const art::FrameRect& f, const art::RigAnchors* an,
+                         float x2, float y2, float pivX, float pivY, float alpha);
   friend struct P2aScriptOps;   // (rpg/view/script_p2a.cpp: the P2a test commands)
   friend struct P2bScriptOps;   // (rpg/view/script_p2b.cpp: the P2b test commands)
   // v2 atlases by (look key x part x child): the canvas is baked and dropped, its frames kept (LENS: MB caps, bake queue)
-  struct RigEntry { Tex tex; art::RigSheet sheet; float used = 0; };
+  struct RigEntry { Tex tex; art::RigSheet sheet; float used = 0; Tex glowTex; };   // (ladder) glowTex: the glow plane
   std::unordered_map<uint64_t, RigEntry> rigTex_;
   // (Witness) each v1 standing sheet's opaque box per cell (state.player.sprite.box), by humans_ key; filled only for a
   // harness run

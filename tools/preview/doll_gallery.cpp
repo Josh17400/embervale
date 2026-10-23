@@ -28,6 +28,13 @@
 //                 the tip's path drawn through them
 //     silhouette  the slice's strike frames (the sword's, the spear's, the bow's release) filled flat, side by side in four
 //                 facings, so the families read by shape alone
+//   (P2c LADDER-DOLL)
+//     ladder[:<tag,tag,...>|:flavour|:rank|:top]   looks side by side (default the hero's road lt1..lt6), idle in four
+//                 facings, on grass and on the darkest day ground, by day and by night: doll_ladder[_<set>]_1x.png and _3x.png
+//     finish:<tag>[:<D|U|R|L>]   one living-finish cycle (2.2 s, 12 frames) of a look's drawn idle (else its idle): the glow
+//                 plane pulsed additively, the edge spark on the grip-to-tip line, the motes; by day and by night:
+//                 doll_finish_<tag>_strip_3x.png and doll_finish_<tag>_<day|night>_fNN.png (3x; owner_pack.py makes the GIFs)
+//   --looks FILE (default tools/doll/ladder_looks.txt) --tag <tag>: a looks-file line (its macros, fields and palette)
 //   --slice <tag> takes a slice look (tools/doll/slice_looks.txt: hero guard knight archer knightm archerw) with its palette
 //   --look sets the look's fields on top of the chosen A3 look: body hair hairVar build people age pattern headwear hood
 //   beard beardStyle head nose brow marks neck garb cut outfit weapon cloak jewellery facePaint (numbers) and skin hairColor
@@ -39,14 +46,18 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
 #include <map>
 #include <set>
 #include "rpg/art/art_holders2.h"
+#include "rpg/art/art_fx.h"
 #include "rpg/art/doll/doll.h"
 #include "rpg/culture/culture.h"
+#include "rpg/sim/gear_ladder.h"
 #include "rpg/sim/world.h"
 #include "tools/preview/rig_preview.h"
 
@@ -109,16 +120,44 @@ doll::DollRecipe sliceRecipe(const SliceLook& sl, art::HumanLook* out = nullptr)
 }
 art::HumanLook theLook(int who) {
   art::HumanLook L = a3Look(who);
-  size_t a = 0;
-  while (a < g_lookSpec.size()) {
-    size_t b = g_lookSpec.find(',', a);
-    if (b == std::string::npos) b = g_lookSpec.size();
-    const std::string kv = g_lookSpec.substr(a, b - a);
-    const size_t eq = kv.find('=');
-    if (eq != std::string::npos && !applyField(L, kv.substr(0, eq), kv.substr(eq + 1))) std::printf("doll_gallery: --look: unknown field %s\n", kv.c_str());
-    a = b + 1;
-  }
+  // (P2c ladder) the one spec reader: the looks macros (hero kit npc wpn rarity tier) and every field
+  std::string bad;
+  bool pal = g_lookPalette;
+  doll::applyLookSpec(L, g_lookSpec, &pal, nullptr, &bad);
+  if (!bad.empty()) std::printf("doll_gallery: --look: unknown field(s) %s\n", bad.c_str());
   return L;
+}
+// (P2c ladder) a looks file's lines (tag who spec gaits)
+std::string g_looksFile = "tools/doll/ladder_looks.txt";
+struct FileLook { std::string tag; int who = 0; std::string spec; bool pal = false; };
+std::vector<FileLook> readLooksFile() {
+  std::vector<FileLook> v;
+  FILE* f = std::fopen(g_looksFile.c_str(), "rb");
+  if (!f) return v;
+  char line[4096];
+  while (std::fgets(line, sizeof line, f)) {
+    if (line[0] == '#' || line[0] == '\n' || line[0] == '\r') continue;
+    char tag[128] = {}, who[16] = {}, spec[3000] = {};
+    if (std::sscanf(line, "%127s %15s %2999s", tag, who, spec) < 2) continue;
+    FileLook l;
+    l.tag = tag; l.who = !std::strcmp(who, "woman") ? 1 : 0; l.spec = std::strcmp(spec, "-") ? spec : "";
+    l.pal = l.spec.find("palette=look") != std::string::npos;
+    v.push_back(l);
+  }
+  std::fclose(f);
+  return v;
+}
+bool fileLookRecipe(const std::string& tag, doll::DollRecipe& r, art::HumanLook& L) {
+  for (const FileLook& fl : readLooksFile()) {
+    if (fl.tag != tag) continue;
+    L = a3Look(fl.who);
+    bool pal = false;
+    doll::applyLookSpec(L, fl.spec, &pal);
+    r = doll::resolve(L);
+    if (!pal) r.ramps = doll::a3Palette(L.body == 1 ? 1 : 0);
+    return true;
+  }
+  return false;
 }
 doll::DollRecipe recipeOf(int who) {
   doll::DollRecipe r = doll::resolve(theLook(who));
@@ -604,6 +643,173 @@ void boardKit(const std::string& dir) {
     }
   save3(b, dir, "doll_kit");
 }
+// ---------------------------------------------------------------- (P2c ladder) the ladder and the living finish
+const uint32_t kDarkGround = rgba(36, 42, 30);   // the darkest day ground (#242A1E: test_doll_ladder.cpp C14)
+void darkGround(Board& b, int y0, int y1) {
+  for (int y = y0; y < y1 && y < b.c.h; y++)
+    for (int x = 0; x < b.c.w; x++) {
+      const uint32_t n = hash2(x / 2, y / 2) % 100;
+      b.c.set(x, y, n < 20 ? rgba(30, 36, 26) : n > 90 ? rgba(44, 50, 36) : kDarkGround);
+    }
+}
+// night: the frame darkened (the moonwash's floor) before the living light is added
+uint32_t nightOf(uint32_t c) {
+  const int r = c & 255, g = c >> 8 & 255, bl = c >> 16 & 255;
+  return rgba((int)(r * 0.30f + 4), (int)(g * 0.32f + 6), (int)(bl * 0.40f + 14)) | (c & 0xFF000000u);
+}
+uint32_t addLight(uint32_t base, uint32_t light, float a) {
+  auto ch = [&](int sh) { return std::min(255, (int)((base >> sh & 255) + (light >> sh & 255) * a)); };
+  return rgba(ch(0), ch(8), ch(16)) | (base & 0xFF000000u);
+}
+void boardLadder(const std::string& dir, const std::string& arg) {
+  std::string set = arg.size() > 7 ? arg.substr(7) : "";
+  std::string list = set;
+  if (set.empty()) list = "lt1,lt2,lt3,lt4,lt5,lt6";
+  else if (set == "flavour") list = "lt3,jade3,imp3,fjord3";
+  else if (set == "rank") list = "nband,guard,nroyal,nking";
+  else if (set == "top") list = "lt5,lt6,lt6m,lt6w";
+  std::vector<std::string> tags;
+  for (size_t a = 0; a <= list.size();) { size_t e = list.find(',', a); if (e == std::string::npos) e = list.size(); if (e > a) tags.push_back(list.substr(a, e - a)); a = e + 1; }
+  const int colW = 4 * 34 + 20, rowH = 64;
+  Board b((int)tags.size() * colW + 20, 4 * rowH + 30);
+  darkGround(b, 18 + rowH * 1, 18 + rowH * 2);
+  darkGround(b, 18 + rowH * 3, 18 + rowH * 4);
+  b.text(4, 4, "LADDER " + list + ": IDLE D U R L; GRASS AND THE DARKEST DAY GROUND; DAY, THEN NIGHT");
+  for (size_t t = 0; t < tags.size(); t++) {
+    doll::DollRecipe r;
+    art::HumanLook L;
+    const int x0 = 14 + (int)t * colW;
+    if (!fileLookRecipe(tags[t], r, L)) { b.text(x0, 30, tags[t] + ": NOT IN " + g_looksFile, rgba(232, 96, 60)); continue; }
+    const RigSheet s = doll::compose(r, RigPart::Loco);
+    b.text(x0, 12 + 8, tags[t] + (L.topTier() ? " T" + std::to_string(L.topTier()) : std::string()));
+    for (int band = 0; band < 4; band++) {
+      const int g0 = 18 + rowH * band + rowH - 8;
+      for (int fc = 0; fc < 4; fc++) {
+        int px, py;
+        Canvas f = rigpv::frameCanvas(s, fc, Clip::Idle, 0, 0, px, py);
+        if (f.w <= 0) continue;
+        if (band >= 2) for (uint32_t& c : f.px) if (c >> 24) c = nightOf(c);
+        // the glow plane over the frame (night: at its peak; day: its mean)
+        const art::RigSheet::GlowPlane& gp = s.glow;
+        const art::FrameRect* fr = s.frame(fc, Clip::Idle, 0, 0);
+        if (!gp.empty() && fr) {
+          const size_t fi = (size_t)(fr - s.frames.data());
+          if (fi < gp.rects.size() && gp.rects[fi].w > 0) {
+            const art::FrameRect& g = gp.rects[fi];
+            // (ladder i3) art::finish::frameLights, as the game: night at the breath's peak, day at its mean (motes off)
+            const art::finish::Pulse P = art::finish::pulseOf(L.topTier());
+            std::vector<art::finish::GlowPx> gpx;
+            gp.each(fi, [&](int gx, int gy, uint32_t lc) { gpx.push_back({gx, gy, lc}); });
+            std::vector<art::finish::Light> lights;
+            art::finish::frameLights(L.topTier(), L.mythic != 0, 1, band >= 2 ? P.period * 0.5f : P.period * 0.25f, 0, gpx, lights);
+            for (const art::finish::Light& q : lights)
+              for (int yy = 0; yy < (int)q.h; yy++)
+                for (int xx = 0; xx < (int)q.w; xx++) {
+                  const int X = (int)q.x + xx, Y = (int)q.y + yy;
+                  if (X >= 0 && Y >= 0 && X < f.w && Y < f.h && (f.get(X, Y) >> 24)) f.set(X, Y, addLight(f.get(X, Y), q.c, q.a));
+                }
+          }
+        }
+        shadow(b, x0 + 16 + fc * 34, g0, std::min(24, std::max(10, f.w - 4)));
+        b.put(f, x0 + 16 + fc * 34 - px, g0 - py);
+      }
+    }
+  }
+  const std::string name = "doll_ladder" + (set.empty() ? std::string() : "_" + set);
+  savePng(b.c, dir + "/" + name + "_1x.png", 1);
+  savePng(b.c, dir + "/" + name + "_3x.png", 3);
+}
+void boardFinish(const std::string& dir, const std::string& arg) {
+  // finish:<tag>[:<facing>]
+  std::string rest = arg.substr(7), tag = rest;
+  int facing = 0;
+  const size_t c = rest.find(':');
+  if (c != std::string::npos) { tag = rest.substr(0, c); const char f = rest[c + 1]; facing = f == 'U' ? 1 : f == 'R' ? 2 : f == 'L' ? 3 : 0; }
+  doll::DollRecipe r;
+  art::HumanLook L;
+  if (!fileLookRecipe(tag, r, L)) { std::printf("doll_gallery: finish: %s not in %s\n", tag.c_str(), g_looksFile.c_str()); return; }
+  const bool fights = L.weapon >= 1 && L.weapon <= 8 && !L.civil;
+  const RigSheet s = doll::compose(r, fights ? RigPart::Drawn : RigPart::Loco);
+  const Clip clip = Clip::Idle;
+  const int variant = fights ? 1 : 0;
+  const art::finish::Pulse P = art::finish::pulseOf(L.topTier());
+  const uint32_t id = 7;
+  const float phase = art::finish::actorPhase(id);
+  // the spark's sprite (role fx glint) in the look's glow ramp
+  int glintPart = -1;
+  for (int p = 0; p < doll::partCount(); p++) if (doll::partHasRole(p, doll::Role::Fx, "glint")) { glintPart = p; break; }
+  RigSheet star[3];
+  for (int k = 0; k < 3 && glintPart >= 0; k++) star[k] = doll::composePart(r, doll::partName(glintPart), facing, k == 0 ? "a1" : k == 1 ? "a2" : "a3");
+  const int frames = 12, W = 64, H = 64;
+  Board strip(frames * W, 2 * H + 12);
+  plain(strip, rgba(86, 140, 62));
+  darkGround(strip, H + 6, 2 * H + 12);
+  for (int night = 0; night < 2; night++)
+    for (int k = 0; k < frames; k++) {
+      const float t = 2.2f * k / frames;
+      const int n = s.count(facing, clip, variant);
+      if (n <= 0) continue;
+      const int i = (int)(t / 0.55f) % n;   // the idle's breath frames (0.55 s each)
+      int px, py;
+      Canvas f = rigpv::frameCanvas(s, facing, clip, variant, i, px, py);
+      if (f.w <= 0) continue;
+      Canvas big(W, H);
+      const int ox = W / 2 - px, oy = H - 8 - py;
+      for (int y = 0; y < f.h; y++) for (int x = 0; x < f.w; x++) if (f.get(x, y) >> 24) big.set(ox + x, oy + y, night ? nightOf(f.get(x, y)) : f.get(x, y));
+      const art::FrameRect* fr = s.frame(facing, clip, variant, i);
+      // (ladder i3) the game's light model (art::finish::frameLights): breath and crawl, the halo, motes or embers
+      if (fr && !s.glow.empty()) {
+        const size_t fi = (size_t)(fr - s.frames.data());
+        std::vector<art::finish::GlowPx> gpx;
+        if (fi < s.glow.rects.size() && s.glow.rects[fi].w > 0) s.glow.each(fi, [&](int gx, int gy, uint32_t lc) { gpx.push_back({gx, gy, lc}); });
+        std::vector<art::finish::Light> lights;
+        art::finish::frameLights(L.topTier(), L.mythic != 0, id * 2654435761u, t + 1.0f, phase, gpx, lights);
+        for (const art::finish::Light& q : lights)
+          for (int yy = 0; yy < (int)q.h; yy++)
+            for (int xx = 0; xx < (int)q.w; xx++) {
+              const int X = ox + (int)q.x + xx, Y = oy + (int)q.y + yy;
+              if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
+              const uint32_t under = (big.get(X, Y) >> 24) ? big.get(X, Y) : (night ? kDarkGround : rgba(86, 140, 62));
+              big.set(X, Y, addLight(under, q.c, q.a));
+            }
+      }
+      // (ladder i3) the gleam (T6): the board forces one sweep across the cycle's frames 5-8 so it shows
+      if (L.topTier() >= 6 && k >= 5 && k <= 8) {
+        const float u = (k - 5 + 0.5f) / 4.0f;
+        for (int y = 0; y < f.h; y++)
+          for (int c = art::finish::gleamCol(u, f.w, f.h, y & ~1), x = c; x < c + art::finish::kGleamW; x++) {
+            if (x < 0 || x >= f.w || !(f.get(x, y) >> 24)) continue;
+            const int X = ox + x, Y = oy + y;
+            if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
+            uint32_t src = f.get(x, y);
+            if (L.mythic) src = rgba((int)((src & 255)), (int)((src >> 8 & 255) * 0.62f), (int)((src >> 16 & 255) * 0.3f));
+            big.set(X, Y, addLight(big.get(X, Y), src, art::finish::kGleamA));
+          }
+      }
+      // the edge spark on the grip-to-tip line (a T6 piece in hand with a tip mark)
+      const art::RigAnchors* an = s.anchorsOf(facing, clip, variant, i);
+      if (L.tier[art::HumanLook::TIER_WEAPON] >= 6 && an && an->tipX != art::kNoAnchor && an->gripX != art::kNoAnchor && glintPart >= 0) {
+        // (the strip forces one run across the cycle so the board shows it)
+        const float u = (float)k / (frames - 1);
+        const int fk = art::finish::sparkFrame(u);
+        if (fk >= 0 && !star[fk].empty()) {
+          int sx, sy;
+          const Canvas sc = rigpv::frameCanvas(star[fk], facing, Clip::Idle, 0, 0, sx, sy);
+          const int cx = ox + px + an->gripX + (int)std::lround((an->tipX - an->gripX) * u), cy = oy + py + an->gripY + (int)std::lround((an->tipY - an->gripY) * u);
+          for (int y = 0; y < sc.h; y++) for (int x = 0; x < sc.w; x++) if (sc.get(x, y) >> 24) big.set(cx - sx + x, cy - sy + y, sc.get(x, y));
+        }
+      }
+      // the frame on the strip and as its own 3x file
+      for (int y = 0; y < H; y++) for (int x = 0; x < W; x++) if (big.get(x, y) >> 24) strip.c.set(k * W + x, night * (H + 6) + y, big.get(x, y));
+      Board one(W, H);
+      if (night) darkGround(one, 0, H); else plain(one, rgba(86, 140, 62));
+      for (int y = 0; y < H; y++) for (int x = 0; x < W; x++) if (big.get(x, y) >> 24) one.c.set(x, y, big.get(x, y));
+      char nm[64];
+      std::snprintf(nm, sizeof nm, "/doll_finish_%s_%s_f%02d.png", tag.c_str(), night ? "night" : "day", k);
+      savePng(one.c, dir + nm, 3);
+    }
+  savePng(strip.c, dir + "/doll_finish_" + tag + "_strip_3x.png", 3);
+}
 void boardActions(const std::string& dir) {
   const doll::DollRecipe r = recipeOf(g_who);
   struct Row { RigPart part; Clip clip; int variant; };
@@ -760,6 +966,7 @@ void boardSilhouette(const std::string& dir) {
 }  // namespace
 
 int main(int argc, char** argv) {
+  gear::installLadderMacros();   // (P2c ladder) the looks macros (hero kit npc wpn rarity tier) in --look and --slice
   if (argc < 2) {
     std::printf("doll_gallery <outDir> [--pool FILE] [--who hero|woman] [--look k=v,...] [--palette a3|look] [looks clips parts lineup onion death sleep stats "
                 "part:<name>[:<facing>[:<key>]] frame:<part>:<facing>:<clip>:<i>[:<variant>]]\n");
@@ -776,6 +983,15 @@ int main(int argc, char** argv) {
     if (!std::strcmp(argv[i], "--who") && i + 1 < argc) { g_who = !std::strcmp(argv[++i], "woman") ? 1 : 0; continue; }
     if (!std::strcmp(argv[i], "--look") && i + 1 < argc) { g_lookSpec = argv[++i]; continue; }
     if (!std::strcmp(argv[i], "--palette") && i + 1 < argc) { g_lookPalette = !std::strcmp(argv[++i], "look"); continue; }
+    if (!std::strcmp(argv[i], "--looks") && i + 1 < argc) { g_looksFile = argv[++i]; continue; }
+    if (!std::strcmp(argv[i], "--tag") && i + 1 < argc) {   // (P2c ladder) a looks-file line: its spec and palette
+      const std::string t = argv[++i];
+      bool found = false;
+      for (const FileLook& fl : readLooksFile())
+        if (fl.tag == t) { g_who = fl.who; g_lookSpec = fl.spec; g_lookPalette = fl.pal; found = true; }
+      if (!found) { std::printf("doll_gallery: --tag: %s not in %s\n", t.c_str(), g_looksFile.c_str()); return 1; }
+      continue;
+    }
     if (!std::strcmp(argv[i], "--slice") && i + 1 < argc) {   // (P2c) a slice look: its fields and its palette
       const char* t = argv[++i];
       bool found = false;
@@ -806,6 +1022,8 @@ int main(int argc, char** argv) {
     else if (b == "actions") boardActions(dir);
     else if (b == "silhouette") boardSilhouette(dir);
     else if (b.rfind("grip:", 0) == 0) boardGrip(dir, b);
+    else if (b == "ladder" || b.rfind("ladder:", 0) == 0) boardLadder(dir, b);
+    else if (b.rfind("finish:", 0) == 0) boardFinish(dir, b);
     else std::printf("doll_gallery: unknown board %s\n", b.c_str());
   }
   return 0;

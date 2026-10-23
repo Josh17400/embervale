@@ -106,13 +106,21 @@ clip follow L family sword variant 0 when shield
 f armL=- armR=sw_l2 expr=fierce fx=a2 held=a3l2 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=2 lean=-1 ms=70 sharm=shtuck shield=guard at=-1,0
 f armL=- armR=sw_l3 held=a3l3 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- ms=60 sharm=guard shield=guard
 clip block D family sword when shield
-f armL=- armR=sw_blk weapon=157.5,front legs=buckle neck=rest sheath=drawn torso=rest tuft=- bob=2 sharm=block shield=block ms=150 at=0,-1
+f armL=- armR=sw_d0 held=a3d0 legs=drawn neck=rest sheath=drawn torso=rest tuft=- sharm=guard shield=guard bob=1 ms=30 at=0,-1
+f armL=- armR=sw_d0 held=a3d0 legs=buckle neck=rest sheath=drawn torso=rest tuft=- sharm=block shield=block bob=2 fx=spark ms=50 at=0,-2
+f armL=- armR=sw_d0 held=a3d0 legs=buckle neck=rest sheath=drawn torso=rest tuft=- sharm=block shield=block bob=2 ms=70 at=0,-1
 clip block U family sword when shield
-f armL=- armR=sw_blk weapon=22.5,back legs=buckle neck=rest sheath=drawn torso=rest tuft=- bob=2 sharm=block shield=block ms=150 at=0,1
+f armL=- armR=sw_u0 held=a3u0 legs=drawn neck=rest sheath=drawn torso=rest tuft=- sharm=guard shield=guard bob=1 ms=30 at=0,1
+f armL=- armR=sw_u0 held=a3u0 legs=buckle neck=rest sheath=drawn torso=rest tuft=- sharm=block shield=block bob=2 fx=spark ms=50 at=0,2
+f armL=- armR=sw_u0 held=a3u0 legs=buckle neck=rest sheath=drawn torso=rest tuft=- sharm=block shield=block bob=2 ms=70 at=0,1
 clip block R family sword when shield
-f armL=- armR=sw_blk weapon=0,front hilt=- legs=buckle neck=rest sheath=rest torso=rest tuft=- bob=2 sharm=block shield=block ms=150 at=-2,0 lean=-1
+f armL=- armR=sw_r0 held=a3r0 hilt=- legs=buckle neck=rest sheath=rest torso=rest tuft=- sharm=guard shield=guard lean=-1 bob=1 ms=30 at=-1,0
+f armL=- armR=sw_r0 held=a3r0 hilt=- legs=buckle neck=rest sheath=rest torso=rest tuft=- sharm=block shield=block lean=-1 bob=2 fx=spark ms=50 at=-3,0
+f armL=- armR=sw_r0 held=a3r0 hilt=- legs=buckle neck=rest sheath=rest torso=rest tuft=- sharm=block shield=block lean=-1 bob=2 ms=70 at=-2,0
 clip block L family sword when shield
-f armL=- armR=sw_blk weapon=180,back hilt=- legs=buckle neck=rest sheath=rest torso=rest tuft=- bob=2 sharm=block shield=block ms=150 at=2,0 lean=1
+f armL=- armR=sw_l0 held=a3l0 hilt=- legs=buckle neck=rest sheath=rest torso=rest tuft=- sharm=guard shield=guard lean=1 bob=1 ms=30 at=1,0
+f armL=- armR=sw_l0 held=a3l0 hilt=- legs=buckle neck=rest sheath=rest torso=rest tuft=- sharm=block shield=block lean=1 bob=2 fx=spark ms=50 at=3,0
+f armL=- armR=sw_l0 held=a3l0 hilt=- legs=buckle neck=rest sheath=rest torso=rest tuft=- sharm=block shield=block lean=1 bob=2 ms=70 at=2,0
 clip fall D variant 0 family sword when shield
 f armL=- armR=fling legs=idle neck=rest sheath=rest torso=rest expr=hurt bob=-1 head=0,-1 crest=up sharm=fling
 f armL=- armR=idle legs=buckle neck=rest sheath=rest torso=rest expr=hurt bob=3 head=0,1 sharm=rest
@@ -252,13 +260,21 @@ clip follow L family sword variant 0 when shield
 f armL=- armR=sw_l2 expr=fierce fx=a2 held=a3l2 hilt=- legs=lunge neck=rest sheath=rest torso=rest tuft=- bob=2 lean=-1 ms=70 sharm=shtuck shield=guard at=-1,0
 f armL=- armR=sw_l3 held=a3l3 hilt=- legs=stance neck=rest sheath=rest torso=rest tuft=- ms=60 sharm=guard shield=guard
 clip block D family sword when shield
-f armL=- armR=sw_blk weapon=157.5,front legs=buckle neck=rest sheath=drawn torso=rest tuft=- bob=2 sharm=block shield=block ms=150 at=0,-1
+f armL=- armR=sw_d0 held=a3d0 legs=drawn neck=rest sheath=drawn torso=rest tuft=- sharm=guard shield=guard bob=1 ms=30 at=0,-1
+f armL=- armR=sw_d0 held=a3d0 legs=buckle neck=rest sheath=drawn torso=rest tuft=- sharm=block shield=block bob=2 fx=spark ms=50 at=0,-2
+f armL=- armR=sw_d0 held=a3d0 legs=buckle neck=rest sheath=drawn torso=rest tuft=- sharm=block shield=block bob=2 ms=70 at=0,-1
 clip block U family sword when shield
-f armL=- armR=sw_blk weapon=22.5,back legs=buckle neck=rest sheath=drawn torso=rest tuft=- bob=2 sharm=block shield=block ms=150 at=0,1
+f armL=- armR=sw_u0 held=a3u0 legs=drawn neck=rest sheath=drawn torso=rest tuft=- sharm=guard shield=guard bob=1 ms=30 at=0,1
+f armL=- armR=sw_u0 held=a3u0 legs=buckle neck=rest sheath=drawn torso=rest tuft=- sharm=block shield=block bob=2 fx=spark ms=50 at=0,2
+f armL=- armR=sw_u0 held=a3u0 legs=buckle neck=rest sheath=drawn torso=rest tuft=- sharm=block shield=block bob=2 ms=70 at=0,1
 clip block R family sword when shield
-f armL=- armR=sw_blk weapon=0,front hilt=- legs=buckle neck=rest sheath=rest torso=rest tuft=- bob=2 sharm=block shield=block ms=150 at=-2,0 lean=-1
+f armL=- armR=sw_r0 held=a3r0 hilt=- legs=buckle neck=rest sheath=rest torso=rest tuft=- sharm=guard shield=guard lean=-1 bob=1 ms=30 at=-1,0
+f armL=- armR=sw_r0 held=a3r0 hilt=- legs=buckle neck=rest sheath=rest torso=rest tuft=- sharm=block shield=block lean=-1 bob=2 fx=spark ms=50 at=-3,0
+f armL=- armR=sw_r0 held=a3r0 hilt=- legs=buckle neck=rest sheath=rest torso=rest tuft=- sharm=block shield=block lean=-1 bob=2 ms=70 at=-2,0
 clip block L family sword when shield
-f armL=- armR=sw_blk weapon=180,back hilt=- legs=buckle neck=rest sheath=rest torso=rest tuft=- bob=2 sharm=block shield=block ms=150 at=2,0 lean=1
+f armL=- armR=sw_l0 held=a3l0 hilt=- legs=buckle neck=rest sheath=rest torso=rest tuft=- sharm=guard shield=guard lean=1 bob=1 ms=30 at=1,0
+f armL=- armR=sw_l0 held=a3l0 hilt=- legs=buckle neck=rest sheath=rest torso=rest tuft=- sharm=block shield=block lean=1 bob=2 fx=spark ms=50 at=3,0
+f armL=- armR=sw_l0 held=a3l0 hilt=- legs=buckle neck=rest sheath=rest torso=rest tuft=- sharm=block shield=block lean=1 bob=2 ms=70 at=2,0
 clip fall D variant 0 family sword when shield
 f armL=- armR=fling hair=rest hang=idle legs=idle torso=rest expr=hurt bob=-1 head=0,-1 braid=rest crest=up sharm=fling
 f armL=- armR=idle hair=rest hang=kneel legs=idle torso=rest expr=hurt bob=3 head=0,1 braid=rest sharm=rest

@@ -1,0 +1,60 @@
+// P2c the gear ladder (docs/P2C_CONTRACTS.md 3b; docs/PLAN.md "The gear ladder"; docs/STYLE_P2.md 27): the owner's rags to
+// riches. Six look tiers per worn piece, DERIVED from what every item already carries (its item level's band, rarity,
+// material, alloy) and, for people, from the census rank. No new item field, no save change, no RNG draw in the loot rolls
+// or the census, no rule or balance change; rig 1 never sees a tier (HumanLook's ladder fields enter key() at rig 2 only).
+// Pure functions (LADDER-DOLL).
+#pragma once
+#include <cstdint>
+#include <string>
+#include "rpg/art.h"
+#include "rpg/culture/culture.h"
+#include "rpg/sim/gear_look.h"
+#include "rpg/sim/items.h"
+
+namespace gear {
+
+// A piece's look tier (PLAN's table): rows the item's band (gear::bandOf of its ilvl), columns its rarity. tier 0: not a
+// worn piece (rings, amulets, goods). rare: the Rare mark (the next tier's trim). flame: Mythic (T6 with the ember).
+// maker: the culture whose alloy the piece is made of (a masterwork alloy, tierStep 3, is T5 at least); may be null.
+struct LookTier { uint8_t tier = 0; bool rare = false; bool flame = false; };
+LookTier lookTier(const Item& it, const cult::Culture* maker = nullptr);
+// the metal a piece is drawn in (HumanLook::metalKind codes): 1 leather 2 bronze 3 iron 4 steel 5 gilded 6 jade 7 obsidian
+// 8 ember 9 starmetal 10 alloy 11 mythic; 0 cloth, wood or nothing. A heartland steel piece above band 3 is the band's
+// metal (GILDED band 4, OBSIDIAN 5, EMBERFORGED 6, STARMETAL 7: gear.cpp matWord), D20.
+uint8_t metalKindOf(const Item& it);
+
+// wearGear's ladder half (gear_look.cpp calls it last): each worn slot's tier, the Rare and Mythic marks, the armour's
+// metal (the body's, else the helm's, gloves', boots') and the metal in hand. Writes only the ladder fields.
+void fillLadder(art::HumanLook& L, const WornGear& g, const CultureLookup& cultureOf);
+
+// census::dress's ladder half: every slot the look wears takes `tier` (PLAN "People"); the metal from the look's band or
+// alloy tint. Writes only the ladder fields (no draw).
+void rankTiers(art::HumanLook& L, int tier);
+
+// ---- the ladder kit (contracts 3b "The kit"): real Items for one people at one tier, from cult::Atlas::make(people,
+// seed); the Heartland's forms are Item::form picks (padded, leather, mail, plate; the leather cap, nasal, great helm; round,
+// kite, heater). wpn: the weapon family name (sword axe mace dagger greatsword spear bow staff; "" the people's sword).
+// rarity -1: the kit's own, else every piece's (Rarity).
+struct LadderKit {
+  cult::Culture culture;
+  Item weapon, bow, staff, armor, helmet, shield, gloves, boots, cloak;
+  bool hasWeapon = false, hasBow = false, hasStaff = false, hasArmor = false, hasHelmet = false, hasShield = false, hasGloves = false,
+       hasBoots = false, hasCloak = false;
+  WornGear worn() const;
+  CultureLookup lookup() const;   // resolves culture.id (only valid while this kit lives)
+};
+bool peopleOf(const std::string& name, cult::Archetype& out);   // fjordfolk highland heartland imperial dune steppe marsh jade
+                                                                 // river suntemple sylvan starspire
+LadderKit ladderKit(cult::Archetype people, int tier, int body, const std::string& wpn, int rarity, uint32_t seed);
+
+// ---- the looks macros (contracts 3b), installed as art::doll's LookSpecHook so every looks reader (rpg_test --limbs,
+// the gates' matrices, doll_gallery --look, script_p2c) takes them: hero=1 heroine=1 kit=<people>:<tier>[:<seed>] wpn=
+// rarity= npc=<people>:<role>[:<rank>][:<seed>] tier=<n> tierBody= tierHelm= tierShield= tierWeapon= tierGloves=
+// tierBoots= tierCloak= tierBack= rare=<bits>. Order: hero / heroine, then the kit or the npc (with wpn and rarity), then
+// the plain fields in the order written, then the tiers.
+void applyLadderSpec(art::HumanLook& L, const std::string& spec, bool* lookPal, bool* bare, std::string* bad);
+void installLadderMacros();   // idempotent (also done at static init where the linker keeps this file)
+// every field of L that differs from a default HumanLook, as a looks spec (`k=v,...`; rpg_test --expand-looks)
+std::string describeLook(const art::HumanLook& L);
+
+}  // namespace gear

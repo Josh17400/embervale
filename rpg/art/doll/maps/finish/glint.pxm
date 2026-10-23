@@ -1,0 +1,83 @@
+# finish/glint: the edge spark (STYLE_P2 27.7; P2C_CONTRACTS 6b `fx glint`; LADDER-FINISH, ladder slice i3): a four-point
+# star in three frames, drawn by the view OPAQUE in the piece's Glow ramp (2 saturated, 3 pale, 4 white) on the
+# grip-to-tip line: a1 (3x3: white core, pale arms) the first 25 % of the run, a2 (5x5: white core, pale inner arms,
+# saturated tips, so it tapers like a real star) the middle, a3 (3x3, dimmer) at the tip; a2 alone flashes on the
+# strike's impact frame. Identical in every facing (a star has no side).
+use person
+body adult
+role fx glint
+legend 2 glow 2
+legend 3 glow 3
+legend 4 glow 4
+layer fx
+anchor pivot
+keys fx
+tags overlay
+
+view D key a1 origin 1 1
+|.3.
+|343
+|.3.
+
+view D key a2 origin 2 2
+|..2..
+|..3..
+|23432
+|..3..
+|..2..
+
+view D key a3 origin 1 1
+|.2.
+|232
+|.2.
+
+view U key a1 origin 1 1
+|.3.
+|343
+|.3.
+
+view U key a2 origin 2 2
+|..2..
+|..3..
+|23432
+|..3..
+|..2..
+
+view U key a3 origin 1 1
+|.2.
+|232
+|.2.
+
+view R key a1 origin 1 1
+|.3.
+|343
+|.3.
+
+view R key a2 origin 2 2
+|..2..
+|..3..
+|23432
+|..3..
+|..2..
+
+view R key a3 origin 1 1
+|.2.
+|232
+|.2.
+
+view L key a1 origin 1 1
+|.3.
+|343
+|.3.
+
+view L key a2 origin 2 2
+|..2..
+|..3..
+|23432
+|..3..
+|..2..
+
+view L key a3 origin 1 1
+|.2.
+|232
+|.2.

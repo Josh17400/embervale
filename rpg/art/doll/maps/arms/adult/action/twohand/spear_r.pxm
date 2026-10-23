@@ -530,3 +530,238 @@ regions
 |HHHH.....
 |HHHH.....
 |.HH......
+
+# (LADDER-ARMS i1) sp_carry: the walking carry facing R / L, the spear shouldered: the fist before the chest and the haft
+# sloping back over the shoulder behind the head (spear carryR / carryL), so it never crosses the helm or the face.
+view R key sp_carry origin 0 -1 layer held
+mark grip 6 3
+mark handR 6 3
+|58765....
+|58765....
+|5876fqtsq
+|.5fihqsrq
+|..ff..qq.
+regions
+|UUUUU....
+|UUUUU....
+|FFFCCHHHH
+|.FCCCHHHH
+|..CC..HH.
+
+view L key sp_carry origin 8 -1
+mark grip 2 3
+mark handR 2 3
+|....56665
+|....56665
+|qrrqh6665
+|qrrqgfh5.
+|.qq..ff..
+regions
+|....UUUUU
+|....UUUUU
+|HHHHCCFFF
+|HHHHCCCF.
+|.HH..CC..
+
+# (LADDER-ARMS i1) empty views: the spear arm draws only sp_carry in the side loco; on the other loco keys the loco arm
+# draws (W1: declared empty, not vanished)
+view R key idle origin 0 0
+|.
+
+view R key N origin 0 0
+|.
+
+view R key B origin 0 0
+|.
+
+view R key F origin 0 0
+|.
+
+view R key back origin 0 0
+|.
+
+view R key fwd origin 0 0
+|.
+
+view R key pN origin 0 0
+|.
+
+view R key pB origin 0 0
+|.
+
+view R key pF origin 0 0
+|.
+
+view R key pM origin 0 0
+|.
+
+view R key pK origin 0 0
+|.
+
+view R key runB origin 0 0
+|.
+
+view L key idle origin 0 0
+|.
+
+view L key N origin 0 0
+|.
+
+view L key B origin 0 0
+|.
+
+view L key F origin 0 0
+|.
+
+view L key back origin 0 0
+|.
+
+view L key fwd origin 0 0
+|.
+
+view L key pN origin 0 0
+|.
+
+view L key pB origin 0 0
+|.
+
+view L key pF origin 0 0
+|.
+
+view L key pM origin 0 0
+|.
+
+view L key pK origin 0 0
+|.
+
+view L key runB origin 0 0
+|.
+
+
+# (LADDER-ARMS i1) sp_hurt: the flinch facing R / L keeps the spear: the carrying fist jolted a pixel down and back toward
+# the chest (the haft knocked one step further back: spear a135 / a045, behind the head).
+view R key sp_hurt origin 0 -1 layer held
+mark grip 6 4
+mark handR 6 4
+|58765....
+|58765....
+|58765....
+|.5fihqtsq
+|..ffhqsrq
+|......qq.
+regions
+|UUUUU....
+|UUUUU....
+|FFFFF....
+|.FCCCHHHH
+|..CCCHHHH
+|......HH.
+
+view L key sp_hurt origin 8 -1
+mark grip 2 4
+mark handR 2 4
+|....56665
+|....56665
+|....56665
+|qrrqhgf5.
+|qrrqhff..
+|.qq......
+regions
+|....UUUUU
+|....UUUUU
+|....FFFFF
+|HHHHCCCF.
+|HHHHCCC..
+|.HH......
+
+# (LADDER-ARMS i1) sp_load: the thrust's loaded pose (the windup's 2nd frame after sp_wind): the rear fist drawn far
+# back past the back hip, the elbow cocked behind, the haft level, the weight back (STYLE_P2 25.8: never a static poke).
+view R key sp_load origin 9 -1 layer held
+mark grip 1 7
+mark handR 1 7
+|.........58765
+|.......58765..
+|.....58765....
+|...58765......
+|.fihgf........
+|fihgf.........
+|qtsq..........
+|qsrq..........
+|.qq...........
+regions
+|.........UUUUU
+|.......UUUUU..
+|.....UUUUU....
+|...FFFFF......
+|.CCCCC........
+|CCCCC.........
+|HHHH..........
+|HHHH..........
+|.HH...........
+
+view L key sp_load origin 4 -1
+mark grip 12 7
+mark handR 12 7
+|56665.........
+|..56665.......
+|....56665.....
+|......56665...
+|........fhggf.
+|.........fhggf
+|..........qrrq
+|..........qrrq
+|...........qq.
+regions
+|UUUUU.........
+|..UUUUU.......
+|....UUUUU.....
+|......UUUUU...
+|........CCCCC.
+|.........CCCCC
+|..........HHHH
+|..........HHHH
+|...........HH.
+
+# (LADDER-ARMS i1) sp_hi: the spear's block facing R / L, both arms raised: the rear fist forward at the belt, the off
+# fist up at the shoulder, the haft standing steep before the body (a067 / a112), clear of the face.
+view R key sp_hi origin 0 -1 layer held
+mark grip 6 6
+mark handR 6 6
+|58765....
+|.58765...
+|..58765..
+|...fihgf.
+|....fihgf
+|.....qtsq
+|.....qsrq
+|......qq.
+regions
+|UUUUU....
+|.UUUUU...
+|..UUUUU..
+|...CCCCC.
+|....CCCCC
+|.....HHHH
+|.....HHHH
+|......HH.
+
+view L key sp_hi origin 8 -1
+mark grip 2 6
+mark handR 2 6
+|....56665
+|...56665.
+|..56665..
+|.fhggf...
+|fhggf....
+|qrrq.....
+|qrrq.....
+|.qq......
+regions
+|....UUUUU
+|...UUUUU.
+|..UUUUU..
+|.CCCCC...
+|CCCCC....
+|HHHH.....
+|HHHH.....
+|.HH......

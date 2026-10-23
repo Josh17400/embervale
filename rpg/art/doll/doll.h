@@ -151,18 +151,23 @@ namespace doll {
 // ---------------------------------------------------------------- the frozen tables (pxc.mjs mirrors every list)
 enum class Slot : uint8_t {
   Skin, Hair, Eyes, Face, Ink, Cloth1, Cloth2, Accent, Linen, Cloth3, Leather, Metal, Metal2, Head, Cloak, Pattern, Plume,
-  Field, Device, Glow, Fx, COUNT
+  Field, Device, Glow, Fx, Blade, COUNT
 };
 // Face's steps: 0 lash, 1 eye white, 2 mouth, 3 lip tint, 4 blush. Eyes: 2 iris, 3 glint. Ink: 0. Fx: 0 edge, 1 body,
 // 2 core (A3's arc). Every other slot is a 5-step material ramp: 0 outline, 1 shadow, 2 base, 3 light, 4 highlight.
+// (P2c ladder, contracts 3b) Blade: the held weapon's Metal pixels draw in it (its own metal: bladeKind or weaponColor; equal
+// to Metal when the metals match). Maps never name it: the compositor moves a held part's metal there.
 constexpr int SLOT_COUNT = (int)Slot::COUNT;
 const char* slotName(Slot s);
 // the finishing pass lights step 0 -> 1 on every slot but Ink, Face, Eyes and Fx (STYLE_P2 8)
 inline bool slotLit(Slot s) { return s != Slot::Ink && s != Slot::Face && s != Slot::Eyes && s != Slot::Fx; }
 
-enum class Region : uint8_t { None, Upper, Fore, Cuff, Hand, Flare, Thigh, Knee, Shin, Boot, Sole, Edge, COUNT };
+enum class Region : uint8_t { None, Upper, Fore, Cuff, Hand, Flare, Thigh, Knee, Shin, Boot, Sole, Edge,
+                              Trim, Panel, Gem, Seam, Wear,   // (P2c ladder, contracts 3b) R P G N W: the finish regions
+                              COUNT };
 constexpr int REGION_COUNT = (int)Region::COUNT;
-char regionChar(Region r);   // 'U' 'F' 'C' 'H' 'X' 'T' 'K' 'S' 'B' 'O' 'E' ('.' for None)
+constexpr int FIN_REGIONS = 5;   // Trim .. Wear (index = region - Region::Trim)
+char regionChar(Region r);   // 'U' 'F' 'C' 'H' 'X' 'T' 'K' 'S' 'B' 'O' 'E' 'R' 'P' 'G' 'N' 'W' ('.' for None)
 const char* regionName(Region r);
 
 // the layer table (STYLE_P2 24), back to front; a view may name its own
@@ -252,10 +257,23 @@ struct DollRecipe {
   std::vector<std::string> flags;    // the conditions `when` views test (ornaments, dials, "elder", "broad", "elf"...)
   uint8_t region[REGION_COUNT];      // the slot each region draws in (0xFF: as drawn)
   DollRamps ramps;
-  DollRecipe() { for (uint8_t& r : region) r = 0xFF; }
+  // (P2c ladder, contracts 3b) the finish by the piece's own tier: per tier slot (HumanLook::TIER_*: body helm shield weapon
+  // gloves boots cloak back) the slot each finish region (R P G N W) draws in (0xFF as drawn), the finish tiles laid over
+  // its parts (bits FIN_TILE_*), and the piece's tier (0 none). A part takes the tier slot of its role (armour, overlay
+  // tabard and pauldrons: body; helm; shield; held: weapon or back; sheath: weapon; cloak; arms: gloves; legs: boots).
+  uint8_t fin[8][FIN_REGIONS];
+  uint8_t finTiles[8] = {};
+  uint8_t pieceTier[8] = {};
+  bool blade = false;                // the held part's metal draws in Slot::Blade
+  std::string motif = "oak";         // the filigree tile's motif (`tags fit` views <motif><w>x<h>)
+  DollRecipe() { for (uint8_t& r : region) r = 0xFF; for (auto& f : fin) for (uint8_t& x : f) x = 0xFF; }
   bool has(const char* flag) const;
 };
 DollRecipe resolve(const HumanLook& look);
+// (P2c ladder) the finish tiles (`role overlay finish.<name>`): bits of DollRecipe::finTiles
+enum : uint8_t { FIN_TILE_WEAR = 1, FIN_TILE_ETCH = 2, FIN_TILE_FILIGREE = 4, FIN_TILE_RUNE = 8, FIN_TILE_GEM = 16, FIN_TILE_GLYPH = 32 };
+// (P2c ladder) the tier slot (HumanLook::TIER_*) a part's finish follows (-1: none; see DollRecipe::fin)
+int partTierSlot(int part);
 
 // ---------------------------------------------------------------- (P2c SLICE-DOLL) the looks-file fields, one list
 // Every tool that reads a looks line (`tag who spec [gaits]`: rpg_test --limbs, --doll --motion, --doll-arms, the gates'
@@ -271,6 +289,13 @@ bool applyLookField(HumanLook& look, const std::string& key, const std::string& 
 // a whole spec "k=v,k=v" ("-" or "" for none): unknown fields are listed in *bad (comma separated); palette=look sets
 // *lookPal, bare=1 sets *bare (either pointer may be null)
 void applyLookSpec(HumanLook& look, const std::string& spec, bool* lookPal = nullptr, bool* bare = nullptr, std::string* bad = nullptr);
+// (P2c ladder, contracts 3b) the looks macros (hero heroine kit npc wpn rarity tier tierBody..tierBack) live in the
+// simulation (rpg/sim/gear_ladder.cpp: real items through wearGear, the census): it installs this hook, and applyLookSpec
+// hands it the whole spec when set (the hook applies the plain fields through applyLookField itself)
+using LookSpecHook = void (*)(HumanLook& look, const std::string& spec, bool* lookPal, bool* bare, std::string* bad);
+void setLookSpecHook(LookSpecHook hook);
+// the plain loop (no macros): what the hook calls for the fields it does not own
+void applyLookSpecPlain(HumanLook& look, const std::string& spec, bool* lookPal = nullptr, bool* bare = nullptr, std::string* bad = nullptr);
 
 // ---------------------------------------------------------------- coverage (the census reads these)
 struct Missing {

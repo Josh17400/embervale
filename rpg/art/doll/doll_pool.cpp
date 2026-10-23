@@ -18,17 +18,18 @@ extern const char kPoolHash[];
 // ---------------------------------------------------------------- names (the frozen tables: pxc.mjs mirrors them)
 const char* slotName(Slot s) {
   static const char* n[] = {"skin", "hair", "eyes", "face", "ink", "cloth1", "cloth2", "accent", "linen", "cloth3", "leather", "metal",
-                            "metal2", "head", "cloak", "pattern", "plume", "field", "device", "glow", "fx"};
+                            "metal2", "head", "cloak", "pattern", "plume", "field", "device", "glow", "fx", "blade"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)SLOT_COUNT, "a name for every slot");
   return (int)s < SLOT_COUNT ? n[(int)s] : "?";
 }
 char regionChar(Region r) {
-  static const char c[] = ".UFCHXTKSBOE";
+  static const char c[] = ".UFCHXTKSBOERPGNW";
   static_assert(sizeof(c) - 1 == (size_t)REGION_COUNT, "a character for every region");
   return (int)r < REGION_COUNT ? c[(int)r] : '?';
 }
 const char* regionName(Region r) {
-  static const char* n[] = {"none", "upper", "fore", "cuff", "hand", "flare", "thigh", "knee", "shin", "boot", "sole", "edge"};
+  static const char* n[] = {"none", "upper", "fore", "cuff", "hand", "flare", "thigh", "knee", "shin", "boot", "sole", "edge",
+                            "trim", "panel", "gem", "seam", "wear"};
   static_assert(sizeof(n) / sizeof(n[0]) == (size_t)REGION_COUNT, "a name for every region");
   return (int)r < REGION_COUNT ? n[(int)r] : "?";
 }

@@ -140,6 +140,22 @@ struct HumanLook {
                              //   garb, no armour: doll_resolve.cpp armourOf) and its tool rides at rest (no ACTION:
                              //   art_rig.cpp rig2Covers). Derived, never saved; v1 ignores it; in key() only at rig 2
 
+  // ---- P2c the gear ladder (docs/P2C_CONTRACTS.md 3b; rpg/sim/gear_ladder.h): derived, never saved; v1 ignores them and
+  //      key() mixes them only at rig 2 and only when set. Filled by wearGear (each worn piece's tier) and census::dress
+  //      (the rank's tier); the looks macros (gear::applyLadderSpec) for tools.
+  enum : int { TIER_BODY, TIER_HELM, TIER_SHIELD, TIER_WEAPON, TIER_GLOVES, TIER_BOOTS, TIER_CLOAK, TIER_BACK, TIER_SLOTS };
+  uint8_t tier[TIER_SLOTS] = {};  // 0 none, 1-6 (T1 Scrap .. T6 Legendary) per slot: body helm shield weapon (in hand)
+                                  // gloves boots cloak back (the bow or staff on the back)
+  uint8_t rare = 0;          // bits by slot (1 << TIER_*): the Rare mark (the piece wears the next tier's trim)
+  uint8_t metalKind = 0;     // the armour's metal: 0 legacy; 1 leather 2 bronze 3 iron 4 steel 5 gilded 6 jade 7 obsidian
+                             // 8 ember 9 starmetal 10 alloy (armourTint) 11 mythic
+  uint8_t bladeKind = 0;     // the same codes for the piece in hand (0: metalKind)
+  uint8_t mythic = 0;        // bits by slot: a Mythic piece (T6 with the flame)
+  uint32_t gemColor = 0;     // 0: the glow colour, else the metal's default glow
+  uint8_t motif = 0;         // the filigree's motif by the body's maker people: 0 oak (Heartland, default) 1 clouds (Jade)
+                             // 2 laurel (Imperial) 3 knot (Fjordfolk, Highland)
+  int topTier() const { int t = 0; for (uint8_t v : tier) t = v > t ? v : t; return t; }
+
   // Identity of the painted sheet: equal keys must mean identical sheets. The renderer caches baked sheets by it,
   // so every field that changes pixels must be mixed in here (art_human.cpp).
   uint64_t key() const;

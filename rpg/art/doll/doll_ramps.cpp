@@ -346,6 +346,70 @@ constexpr double kTrouserBody = 101.0;   // the lit trouser body over the game's
 
 uint32_t mixHash(uint32_t h, uint32_t v) { h ^= v + 0x9E3779B9u + (h << 6) + (h >> 2); return h; }
 
+// ---- (P2c ladder, contracts 3b; STYLE_P2 25.2, 27.3) the metals a piece is drawn in (HumanLook::metalKind) and their glow
+// iron dark and matte, steel A3's, gilded the trim gold, obsidian violet-black, emberforged forge red, starmetal pale
+// blue-white, jade green, bronze warm gold-brown; the glow colours: warm gold on gilded and bronze, cold blue-white on
+// steel, iron and starmetal, violet on obsidian, ember on emberforged and Mythic, green on jade
+const uint32_t kMetalKind[12][5] = {
+    {0x201C31, 0x525C7A, 0x95A2BC, 0xD5DEEA, 0xFFFFFF},   // 0 legacy: A3's steel
+    {0x2C1621, 0x5B3129, 0x8D5536, 0xBF8249, 0xE7B672},   // 1 leather (A3's)
+    {0x2E1A10, 0x6E3E1C, 0xA8682E, 0xD49A52, 0xF2CC8A},   // 2 bronze
+    {0x1A1820, 0x4A4C58, 0x74788A, 0xA0A4B0, 0xCDD0D8},   // 3 iron (step 1 lit enough for the edge on dark ground: C14)
+    {0x201C31, 0x525C7A, 0x95A2BC, 0xD5DEEA, 0xFFFFFF},   // 4 steel (A3's)
+    {0x3A2410, 0x8A5A14, 0xD8A32C, 0xF6D660, 0xFFF4C0},   // 5 gilded
+    {0x0E2A22, 0x1F5A46, 0x3E9474, 0x7CC8A0, 0xD0F4E0},   // 6 jade
+    {0x140E1C, 0x30244A, 0x56447A, 0x8C78B4, 0xC8B8EC},   // 7 obsidian
+    {0x2A0C0C, 0x6E1E14, 0xB0402A, 0xE47A48, 0xFFC890},   // 8 emberforged
+    {0x262C44, 0x5E6E9A, 0xA6B8E0, 0xDCE6FF, 0xFFFFFF},   // 9 starmetal
+    {0x201C31, 0x525C7A, 0x95A2BC, 0xD5DEEA, 0xFFFFFF},   // 10 alloy: from the tint (this row is the fallback)
+    // 11 mythic (ladder i3; i2's crimson-black read as "rust", "a red cap", "a step down" to all five of the blind panel):
+    // BLACKENED steel, a cold gunmetal whose highlight runs white-hot at the edge, so the ember runes, the gold trim and the
+    // crimson cloak carry the colour and burn on it (dark metal, bright fire: the top reads by contrast, never by a tint)
+    {0x0C080E, 0x3C3846, 0x625E70, 0x9E98AA, 0xFFF0E0},
+};
+const uint32_t kGlowOf[12] = {0xBFE4FF, 0xFFC860, 0xFFC860, 0xBFE4FF, 0xBFE4FF, 0xFFD060, 0x7CF0B0, 0xC890FF, 0xFF7A3A, 0xD8ECFF, 0xBFE4FF, 0xFF6828};
+// (ladder i2) an alloy reads as METAL (the panel: the heartland alloy's T4 plate "pink clay", its masterwork "tan cloth"):
+// its value kept, its hue a tint over A3's steel (the people's alloy shows as a cast of the steel, never a paint), the
+// highlight near white. Jade's jadesilver keeps a green cast, a rose alloy a warm one; nothing reads as cloth or skin.
+void metalize(uint32_t M[5]) {
+  // (ladder i3: the panel still read the heartland T4 alloy "mauve putty", the T5 masterwork "beige cloth": a cast, no more)
+  static const double kW[5] = {0.25, 0.30, 0.34, 0.30, 0.15};   // the alloy's share of the colour per step
+  static const double kCap[5] = {7, 8, 9, 7, 3};                // the chroma it may keep per step
+  for (int i = 0; i < 5; i++) {
+    const Lab a = toLab(M[i]), st = toLab(hex(kMetalKind[4][i]));
+    Lab o{a.L * 0.8 + st.L * 0.2, a.a * kW[i] + st.a * (1 - kW[i]), a.b * kW[i] + st.b * (1 - kW[i])};
+    const double c = std::hypot(o.a, o.b);
+    if (c > kCap[i]) { o.a *= kCap[i] / c; o.b *= kCap[i] / c; }
+    if (i == 4) o.L = std::max(o.L, 92.0);
+    M[i] = fromLab(o) | 0xFF000000u;
+  }
+}
+// (ladder i2) the glow is LIGHT: bright and saturated in its own hue (a grey or a tint, e.g. an alloy's pale light key,
+// would read as more metal: the panel saw "a few white sparkle pixels"), and it parts from the gold trim it sits beside
+// (a warm glow on gold gilding vanishes): then the steel's cold blue-white light
+uint32_t glowLight(uint32_t base, bool goldTrim, bool fire = false) {
+  Lab g = toLab(base);
+  double c = std::hypot(g.a, g.b);
+  const double hue = std::atan2(g.b, g.a) * 57.29578;   // gold sits near 70-95
+  if (c < 12.0 || (goldTrim && hue > 40.0 && hue < 110.0)) { g = toLab(hex(0x7FD4FF)); c = std::hypot(g.a, g.b); }
+  const double want = std::max(c, 48.0);
+  g.a *= want / std::max(c, 1e-6); g.b *= want / std::max(c, 1e-6);
+  // at rest a deep, saturated light (the in-game breath adds up to 0.85 of it again: a rest colour already near white
+  // saturated and the pulse read as nothing, the panel's "brightness within 0.3/255"); the peak lands bright
+  g.L = std::clamp(g.L, 54.0, 62.0);
+  // (ladder i3) the Mythic's fire rests HOT (amber, L 68): on the blackened steel a deep orange read as rust, never as flame
+  if (fire) {
+    const Lab amber = toLab(hex(0xFF9A2A));
+    g.a = amber.a; g.b = amber.b; g.L = 68.0;
+  }
+  return fromLab(g) | 0xFF000000u;
+}
+// a ramp's brightness scaled (RGB, hue kept): the leather's parting from the cloth (C14)
+uint32_t scaleRgb(uint32_t c, double k) {
+  auto ch = [&](int v) { return (int)std::clamp(std::lround(v * k), 0L, 255L); };
+  return rgba(ch(chR(c)), ch(chG(c)), ch(chB(c)));
+}
+
 }  // namespace
 
 const std::vector<A3Ramp>& a3Ramps() { return table(); }
@@ -408,6 +472,7 @@ DollRamps a3Palette(int who) {
   fill(Slot::Cloth3, Material::Cloth);
   for (Slot s : {Slot::Head, Slot::Cloak, Slot::Pattern, Slot::Plume, Slot::Field, Slot::Device, Slot::Glow})
     for (int i = 0; i < 5; i++) R.c[(int)s][i] = R.c[(int)Slot::Accent][i];
+  for (int i = 0; i < 5; i++) R.c[(int)Slot::Blade][i] = R.c[(int)Slot::Metal][i];   // (P2c ladder) the blade: A3's steel
   return R;
 }
 
@@ -549,6 +614,93 @@ DollRamps rampsOf(const HumanLook& L) {
     else rampA3(L.trimColor, Material::Metal, R.c[(int)Slot::Metal2]);
   }
   if (L.glowColor) rampA3(L.glowColor, Material::Metal, R.c[(int)Slot::Glow]);
+  // (P2c ladder, contracts 3b) the blade's own slot defaults to the armour's metal (a look with no tier: A3's steel)
+  for (int i = 0; i < 5; i++) R.c[(int)Slot::Blade][i] = R.c[(int)Slot::Metal][i];
+  if (const int top = L.topTier()) {
+    // Metal from the alloy's tint (art::metalRampKeys, as the icons), else from the metal kind, else A3's steel
+    const int mk = std::clamp((int)L.metalKind, 0, 11);
+    auto metalRamp = [&](int kind, uint32_t out[5]) {
+      if (kind == 10 && L.armourTint) { metalRampKeys(L.armourTint, L.armourTint2, L.sheen, out); metalize(out); }
+      else setHex(out, kMetalKind[std::clamp(kind, 0, 11)]);
+      for (int i = 0; i < 5; i++) out[i] |= 0xFF000000u;
+    };
+    // (ladder i2, D20) a heartland high metal (gilded, jade, obsidian, ember, starmetal) draws as itself, not gear_look's band tint
+    // (which draws a band-7 STARMETAL piece as ember); an alloy (10) or a look with no kind takes the tint
+    if (L.armourTint && (mk == 10 || mk <= 4)) {
+      metalRampKeys(L.armourTint, L.armourTint2, L.sheen, R.c[(int)Slot::Metal]);
+      if (mk == 10) metalize(R.c[(int)Slot::Metal]);
+    } else if (mk) metalRamp(mk, R.c[(int)Slot::Metal]);
+    for (int i = 0; i < 5; i++) R.c[(int)Slot::Metal][i] |= 0xFF000000u;
+    // T1 compresses: the metal's and the leather's highlight is their light step (matte, one shine)
+    if (L.tier[HumanLook::TIER_BODY] == 1 || (!L.tier[HumanLook::TIER_BODY] && top == 1)) {
+      R.c[(int)Slot::Metal][4] = R.c[(int)Slot::Metal][3];
+      R.c[(int)Slot::Leather][4] = R.c[(int)Slot::Leather][3];
+    }
+    // plate is never pale and flat (C14): the lit plane (3) 60 luma or more over the shadow side (1)
+    {
+      uint32_t* M = R.c[(int)Slot::Metal];
+      for (int it = 0; it < 12 && luma(M[3]) - luma(M[1]) < 60.0; it++) { M[1] = scaleRgb(M[1], 0.88); M[0] = scaleRgb(M[0], 0.9); }
+    }
+    // the blade: its own metal (bladeKind; a Mythic blade white-hot), the armour's when they match
+    const int bk = std::clamp((int)L.bladeKind, 0, 11);
+    for (int i = 0; i < 5; i++) R.c[(int)Slot::Blade][i] = R.c[(int)Slot::Metal][i];
+    if (bk == 11) setHex(R.c[(int)Slot::Blade], kMetalKind[9]);   // white-hot steel (gear_look's Mythic blade)
+    else if (bk && bk != mk && bk != 1) metalRamp(bk, R.c[(int)Slot::Blade]);
+    // trim: gold at T5-T6 (Metal 2), brass below (A3's)
+    int topR = 0;
+    for (int s = 0; s < 8; s++) if (L.tier[s]) topR = std::max(topR, std::min(6, L.tier[s] + ((L.rare >> s & 1) ? 1 : 0)));
+    if (topR >= 5) setHex(R.c[(int)Slot::Metal2], kTrim[1]);
+    // Glow: the glow colour, else the gem colour, else the metal's own
+    {
+      const uint32_t g0 = L.glowColor ? L.glowColor : L.gemColor ? L.gemColor : (mk == 10 && L.armourTint ? L.armourTint : hex(kGlowOf[mk]));
+      rampA3(glowLight(g0, topR >= 5 && !L.mythic && mk != 11, L.mythic != 0 || mk == 11), Material::Metal, R.c[(int)Slot::Glow]);
+    }
+    // T6: the shield's device burns in the glow's light (STYLE_P2 27.2: "the device or boss glowing"), drawn (no pulse)
+    if (L.tier[HumanLook::TIER_SHIELD] >= 6)
+      for (int i = 1; i < 5; i++) R.c[(int)Slot::Device][i] = R.c[(int)Slot::Glow][std::min(4, i)];
+    // the T1 shield: plain wood, an unpainted field (the device is the field)
+    if (L.tier[HumanLook::TIER_SHIELD] == 1) {
+      static const uint32_t kWood[5] = {0x2E1C14, 0x5E3E26, 0x8A6440, 0xB08A5C, 0xD2B07E};
+      setHex(R.c[(int)Slot::Field], kWood);
+      setHex(R.c[(int)Slot::Device], kWood);
+    }
+    // C14 value: touching materials part by 18 luma at step 2 (STYLE_P2 27.5). The cloths, the leather, the cloak, the
+    // accent and the shield's field move (RGB scaled, hue kept: the trouser lifts' way; the smallest change, darker or lighter,
+    // that clears every partner; the outline ring keeps its own step 0 and stays 40 under the base); skin, hair and the
+    // metals stay themselves. Rig 2's tiered looks only.
+    {
+      using S = Slot;
+      auto part = [&](S who, std::initializer_list<S> partners, bool lighterOnly, double floor1 = 0) {
+        uint32_t* T = R.c[(int)who];
+        auto apart = [&](const uint32_t* t) {
+          for (S p : partners) if (std::fabs(luma(t[2]) - luma(R.c[(int)p][2])) < 18.0) return false;
+          return luma(t[2]) - luma(T[0]) >= 40.0 && luma(t[1]) >= floor1;
+        };
+        if (apart(T)) return;
+        for (int k = 1; k <= 40; k++)
+          for (double dir : {-1.0, 1.0}) {
+            if (lighterOnly && dir < 0) continue;
+            const double f = 1.0 + dir * 0.025 * k;
+            if (f <= 0.2) continue;
+            uint32_t t[5];
+            t[0] = T[0];
+            for (int q = 1; q < 5; q++) t[q] = scaleRgb(T[q], f);
+            if (apart(t)) { for (int q = 1; q < 5; q++) T[q] = t[q]; return; }
+          }
+      };
+      part(S::Leather, {S::Cloth1, S::Cloth2, S::Hair, S::Metal, S::Skin}, false);   // (i2) and the skin: the archer's jerkin read as bare skin
+      part(S::Cloth2, {S::Cloth1, S::Leather, S::Hair}, true, kTrouserFloor);
+      part(S::Accent, {S::Cloth1, S::Metal, S::Hair, S::Leather}, false);
+      part(S::Cloak, {S::Metal, S::Hair, S::Accent, S::Cloth1, S::Leather}, false);
+      part(S::Field, {S::Metal, S::Accent}, false);
+    }
+    // (ladder i2, C14) the leather's step 1 is the lit edge of a soft kit's silhouette (A3's brown at 58 luma sank into dark
+    // ground: lt2's edge 35 over the forest floor): lifted to 82 luma, under its step 2, the outline untouched
+    {
+      uint32_t* Lr = R.c[(int)Slot::Leather];
+      for (int it = 0; it < 20 && luma(Lr[1]) < 82.0 && luma(scaleRgb(Lr[1], 1.05)) < luma(Lr[2]) - 8.0; it++) Lr[1] = scaleRgb(Lr[1], 1.05);
+    }
+  }
   // eyes: the look's colour as iris + glint; 0 picks by skin and hair (dark: brown; else blue, green or grey by person)
   uint32_t eye = L.eyeColor;
   if (!eye) {

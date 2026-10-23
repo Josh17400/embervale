@@ -13,6 +13,7 @@
 #include "rpg/sim/game_internal.h"
 #include "rpg/art/art_rise.h"
 #include "rpg/art/art_rig.h"
+#include "rpg/sim/gear_ladder.h"
 
 // ------------------------------------------------------------------ the census look (M3, VISION_PLAN 5.6 "NPCs")
 // Dresses a person in a culture: people from its mix, skin and hair from its ranges, the dress cut per sex, headwear,
@@ -811,6 +812,22 @@ void dress(art::HumanLook& L, std::string& name, Role r, bool female, const cult
     const int charmRoll = (int)(f.next() & 255u);
     const int charmP = r == Role::Priest ? 150 : (r == Role::Herbalist || r == Role::Mage) ? 110 : r == Role::Child ? 0 : civilRole(r) ? 14 : 0;
     if (!L.amulet && charmRoll < charmP) L.amulet = true;
+  }
+  // ---- (P2c ladder, PLAN "People"; STYLE_P2 27.6) rank is a tier: bandits and pirates T1; the village watch and soldiers
+  //      T2; the capital watch, heralds, envoys and warlords T3; captains, the royal guard and jarls T4; kings T5. The
+  //      ladder's own fields only, no draw (rig 1 never reads them).
+  {
+    int t = 0;
+    switch (r) {
+      case Role::Bandit: case Role::Pirate: t = 1; break;
+      case Role::Soldier: t = 2; break;
+      case Role::Guard: t = rank.royal ? 4 : rank.capital ? 3 : 2; break;
+      case Role::Herald: case Role::Envoy: case Role::Warlord: t = 3; break;
+      case Role::Captain: case Role::Jarl: t = 4; break;
+      case Role::King: t = 5; break;
+      default: break;
+    }
+    gear::rankTiers(L, t);
   }
 }
 

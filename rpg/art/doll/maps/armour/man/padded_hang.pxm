@@ -1,0 +1,380 @@
+# armour/man/padded_hang: the gambeson's short quilted skirt on the man (LADDER-ARMOUR, STYLE_P2 25.2 / 27.2: T1's skirt is
+# short): one stuffed row bulging past the seam, lit at the top-left, its hem a closed outline; it opens over the stride
+# (wide) and trails in the run (flare). Finish regions: R the hem row, W a 2-pixel fray mark on the shadow side.
+# Keys: the hang channel in D U R L. Format: rpg/art/doll/doll.h. Source: LADDER-ARMOUR's expand.py.
+# (LADDER-ARMOUR i3) the quilt softened: the lit side's seam rows a step up (8/7, not 8/6), so the T1 coat reads as stuffed
+# cloth and not as bandage stripes; the shadow side keeps its flat step 1.
+use person
+body man
+role armour padded
+layer hangFront
+anchor hip
+keys hang
+z 10
+# (ladder i2, integration) the quilt in undyed buff (cloth3), not the tunic's cloth1: a gambeson over a same-colour
+# tunic read as the bare tunic at 1x (C4 12 %); the T1 coat now reads as a coat
+legend 5 cloth3 0
+legend 6 cloth3 1
+legend 7 cloth3 2
+legend 8 cloth3 3
+legend 9 cloth3 4
+
+view D key rest origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view D key wide origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view D key flare origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view D key lie origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view D key idle origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view D key sit origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view D key floor origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view D key kneel origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view D key ride origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view U key rest origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view U key wide origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view U key flare origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view U key lie origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view U key idle origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view U key sit origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view U key floor origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view U key kneel origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view U key ride origin 6 -1
+|.5888776665.
+|.5777776665.
+|588887776665
+|.5555555555.
+regions
+|............
+|............
+|.RRRRRRRWW..
+|............
+
+view R key rest origin 5 -1
+|58887766665
+|58888776665
+|55555555555
+regions
+|...........
+|.RRRRRRWW..
+|...........
+
+view R key wide origin 6 -1
+|.588887766665
+|5888887766665
+|5555555555555
+regions
+|.............
+|.RRRRRRRRWW..
+|.............
+
+view R key flare origin 7 -1
+|.5888877666665
+|58888877666665
+|55555555555555
+regions
+|..............
+|.RRRRRRRRRWW..
+|..............
+
+view R key lie origin 5 -1
+|58887766665
+|58888776665
+|55555555555
+regions
+|...........
+|.RRRRRRWW..
+|...........
+
+view R key idle origin 5 -1
+|58887766665
+|58888776665
+|55555555555
+regions
+|...........
+|.RRRRRRWW..
+|...........
+
+view R key sit origin 5 -1
+|58887766665
+|58888776665
+|55555555555
+regions
+|...........
+|.RRRRRRWW..
+|...........
+
+view R key floor origin 5 -1
+|58887766665
+|58888776665
+|55555555555
+regions
+|...........
+|.RRRRRRWW..
+|...........
+
+view R key kneel origin 5 -1
+|58887766665
+|58888776665
+|55555555555
+regions
+|...........
+|.RRRRRRWW..
+|...........
+
+view R key ride origin 5 -1
+|58887766665
+|58888776665
+|55555555555
+regions
+|...........
+|.RRRRRRWW..
+|...........
+
+view L key rest origin 6 -1
+|58887766665
+|58888776665
+|55555555555
+regions
+|...........
+|.RRRRRRWW..
+|...........
+
+view L key wide origin 7 -1
+|.588887766665
+|5888887766665
+|5555555555555
+regions
+|.............
+|.RRRRRRRRWW..
+|.............
+
+view L key flare origin 7 -1
+|.5888877666665
+|58888877666665
+|55555555555555
+regions
+|..............
+|.RRRRRRRRRWW..
+|..............
+
+view L key lie origin 6 -1
+|....5887665
+|....5888765
+|....5555555
+regions
+|........WW.
+|.....RRRRR.
+|...........
+
+view L key idle origin 6 -1
+|58887766665
+|58888776665
+|55555555555
+regions
+|...........
+|.RRRRRRWW..
+|...........
+
+view L key sit origin 6 -1
+|58887766665
+|58888776665
+|55555555555
+regions
+|...........
+|.RRRRRRWW..
+|...........
+
+view L key floor origin 6 -1
+|58887766665
+|58888776665
+|55555555555
+regions
+|...........
+|.RRRRRRWW..
+|...........
+
+view L key kneel origin 6 -1
+|58887766665
+|58888776665
+|55555555555
+regions
+|...........
+|.RRRRRRWW..
+|...........
+
+view L key ride origin 6 -1
+|58887766665
+|58888776665
+|55555555555
+regions
+|...........
+|.RRRRRRWW..
+|...........

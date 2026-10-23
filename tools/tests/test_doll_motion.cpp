@@ -61,25 +61,14 @@ art::HumanLook a3Woman() {
   L.eyeColor = hexc(0x3F8A5A);
   return L;
 }
-bool applyField(art::HumanLook& L, const std::string& k, const std::string& v) { return art::doll::applyLookField(L, k, v); }   // (P2c: the one list, doll.h)
 struct LookOpts { art::HumanLook L; bool lookPal = false, bare = false; };
 LookOpts lookOf(const Look& l) {
+  // (P2c ladder) the one looks parser: the macros through the simulation's hook, the plain fields through applyLookField
   LookOpts o;
   o.L = l.who ? a3Woman() : a3Hero();
-  size_t a = 0;
-  while (a < l.spec.size()) {
-    size_t b = l.spec.find(',', a);
-    if (b == std::string::npos) b = l.spec.size();
-    const std::string kv = l.spec.substr(a, b - a);
-    const size_t eq = kv.find('=');
-    if (eq != std::string::npos) {
-      const std::string k = kv.substr(0, eq), val = kv.substr(eq + 1);
-      if (k == "palette") o.lookPal = val == "look";
-      else if (k == "bare") o.bare = val == "1";
-      else if (!applyField(o.L, k, val)) std::printf("  motion: %s: unknown field %s\n", l.tag.c_str(), kv.c_str());
-    }
-    a = b + 1;
-  }
+  std::string bad;
+  art::doll::applyLookSpec(o.L, l.spec, &o.lookPal, &o.bare, &bad);
+  if (!bad.empty()) std::printf("  motion: %s: unknown field(s) %s\n", l.tag.c_str(), bad.c_str());
   return o;
 }
 // the probe palette: every (slot, step) its own colour, the code in the low byte; the leg regions recoded so T K S B O

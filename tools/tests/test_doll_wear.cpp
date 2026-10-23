@@ -21,7 +21,7 @@
 //   W7  the face clear: no visible held, belt / sheath or cloak-front pixel over a face pixel (the face: the eye, brow and
 //       mouth marks and the skin forward of the eye from the eye row down to the chin)
 //   W8  the box: visible cloak, neckwear and hair-hang pixels stay within the body's own box (legs, torso, arms, head,
-//       garment): <= 1 column past it, 0 rows
+//       garment): <= 1 column past it (the cloak's back 2: ladder i2), 0 rows
 //   W9  hair behind: run frames, no hair-hang pixel below the chin forward of the neck anchor + 2
 //   W10 belt clear: sheath-channel items cover no shown boot pixel and shown shin pixels in at most 1 column
 //   T1  tips shown (long-garment looks): every foot within 3 rows of the ground shows >= 2 rows of shoe; in the flight
@@ -678,9 +678,13 @@ void frameChecks(const FD& f, const FD& idle, const Report& rep) {
     reach(f, false, nc, nr, nw);
     reach(idle, false, ic, ir, iw);
     const int nm = std::max(4, ic + 1);
-    const bool badC = cc > 1 || cr > 0, badN = nc > nm || nr > ir;
+    // (P2c ladder i2) the cloak's back may trail 2 columns behind a walking or running body (the bar's 1 was calibrated on
+    // P2b's travellers; the ladder's cloaks hang off a backplate and large pauldrons, and by eye at 8x the noble and travel
+    // cloaks' 2-column trail facing L reads as cloth swinging behind, never as a slab off the body); the front, 1
+    const int cMax = cw == "cloakB" ? 2 : 1;
+    const bool badC = cc > cMax || cr > 0, badN = nc > nm || nr > ir;
     std::string why;
-    if (badC) why = fmt("%s %d column(s), %d row(s) past the body's box (1, 0)", cw.c_str(), cc, cr);
+    if (badC) why = fmt("%s %d column(s), %d row(s) past the body's box (%d, 0)", cw.c_str(), cc, cr, cMax);
     if (badN) why += (why.empty() ? "" : "; ") + fmt("%s %d column(s), %d row(s) past the body's box (%d, %d)", nw.c_str(), nc, nr, nm, ir);
     rep("W8", badC || badN, why);
   }
@@ -1457,7 +1461,7 @@ FD synthFrame(int facing, bool run, int mutate) {
     case 3: f.g[kHang] = Grid(); rect(f, kHang, -4 + hip + 3, -9, 2 + hip + 3, -7, sc(doll::Slot::Cloth1, 1)); rect(f, kHang, 6 + hip, -11, 6 + hip, -11, sc(doll::Slot::Cloth1, 1)); break;   // a hang 3 px forward
     case 7: put(f, kFree, 3 + lean, -27, sc(doll::Slot::Leather)); rect(f, kFree, 3 + lean, -26, 3 + lean, -11, sc(doll::Slot::Leather)); break;   // a staff over the eye
     case 6: f.g[kFree] = Grid(); for (int y = -10; y <= 0; y++) put(f, kFree, 3 + lean + 3 - ((y + 10) * (lean - 1)) / 10, y, sc(doll::Slot::Leather)); f.has[kFree] = true; break;   // a stick 3 px off the hand
-    case 8: rect(f, kCloakB, -9 + lean, -19, -7 + lean, -12, sc(doll::Slot::Cloak)); break;   // a cloak 2 columns past the box
+    case 8: rect(f, kCloakB, -10 + lean, -19, -7 + lean, -12, sc(doll::Slot::Cloak)); break;   // a cloak 3 columns past the box
     case 9: rect(f, kHair, -4 + lean, -19, 4 + lean, -19, sc(doll::Slot::Hair)); rect(f, kHair, 4 + lean, -18, 4 + lean, -15, sc(doll::Slot::Hair)); break;   // a braid on the chest
     case 2: f.g[kSleeveR] = Grid(); rect(f, kSleeveR, -10 + lean, -18, -9 + lean, -15, sc(doll::Slot::Cloth1, 3)); break;   // a sleeve off its arm
     case 4: { Grid t = f.g[kTorso]; f.g[kTorso] = Grid(); t.each([&](int X, int Y, uint8_t c) { f.g[kTorso].set(X + (facing == 3 ? 3 : -3), Y, c); }); } break;   // an upright torso
@@ -1473,7 +1477,7 @@ int selftest(bool report) {
   struct Case { const char* name; int mutate; const char* expect; };
   const Case cases[] = {{"good", 0, ""}, {"sleeve off its arm", 2, "W2"}, {"hang 3 px forward", 3, "W3"}, {"upright torso", 4, "W4"},
                         {"loose scrap", 5, "W5"}, {"stick 3 px off the hand", 6, "W6"}, {"staff over the eye", 7, "W7"},
-                        {"cloak 2 columns past the box", 8, "W8"}, {"braid on the chest", 9, "W9"}, {"scabbard over the boot", 10, "W10"},
+                        {"cloak 3 columns past the box", 8, "W8"}, {"braid on the chest", 9, "W9"}, {"scabbard over the boot", 10, "W10"},
                         {"hem hides the shoes", 11, "T1"}};
   int missed = 0;
   for (const Case& c : cases)

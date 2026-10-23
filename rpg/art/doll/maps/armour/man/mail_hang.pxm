@@ -4,6 +4,8 @@
 # for pixel, `flare` (the run) the leaning run view's (the lean drawn, the back corner trailing a pixel). The reach frames
 # (hang=rest, the frozen idle key) take the same rows from mail_stride; every rest view is empty, so idles, hurts, falls,
 # swings and postures draw exactly as before (the idle's knee skirt is mail.pxm's own rest view). Format: rpg/art/doll/doll.h.
+# (LADDER-ARMOUR i3) the 1px checker re-laid as STYLE_P2 25.2's brick: lit side courses yyx / xyy (steps 3/2), shadow side xww / wwx
+# (steps 2/1), alternate rows offset, so mail reads as rings and a fine grey fabric, never a chessboard (the blind panel).
 use person
 body man
 role armour mail
@@ -28,14 +30,20 @@ view R key rest origin 0 0
 |.
 
 view R key wide origin 6 -1
-|vyxyxywxwxwv.
-|vyyyyyywxwxwv
+|vyxyyxxwwxwv.
+|vyyyyyywxwwxv
+regions
+|.............
+|.RRRRR.......
 build
 |...+.........
 
 view R key flare origin 7 -1
-|.vyxyxywxwxwv.
-|vyyyyyyywxwxwv
+|.vyxyyxxwwxwv.
+|vyyyyyyywxwwxv
+regions
+|..............
+|.RRRRRR.......
 build
 |....+.........
 
@@ -43,14 +51,20 @@ view L key rest origin 0 0
 |.
 
 view L key wide origin 8 -1
-|.vyxyxxwxwxwwv
-|vyyyyyywxwxwxv
+|.vyyxywwxwwxwv
+|vyyyyyyxwwxwwv
+regions
+|..............
+|.RRRRRR.......
 build
 |..........+...
 
 view L key flare origin 8 -1
-|.vyxyxxwxwxwwv.
-|vyyyyyywxwxwwxv
+|.vyyxywwxwwxwv.
+|vyyyyyyxwwxwwxv
+regions
+|...............
+|.RRRRRR........
 build
 |..........+....
 

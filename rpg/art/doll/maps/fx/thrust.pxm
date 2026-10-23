@@ -92,3 +92,42 @@ view L key a2 origin 33 13
 |...BCCCCCC
 |BBB.......
 
+
+# (LADDER-ARMS i1) `spark`: the block's impact (STYLE_P2 25.8 item 7, 25.10): a 7 px four-point star in brass light
+# and white, high on the raised haft where the blow lands (above the helm's front, never on the face); shown on the block's impact frame only (fx=spark), inside the figure's box plus reach.
+view R key spark origin -8 32
+|...O...
+|.O.P.O.
+|..PAP..
+|OPAAAPO
+|..PAP..
+|.O.P.O.
+|...O...
+
+view L key spark origin 14 32
+|...O...
+|.O.P.O.
+|..PAP..
+|OPAAAPO
+|..PAP..
+|.O.P.O.
+|...O...
+
+view D key spark origin -6 27
+|...O...
+|.O.P.O.
+|..PAP..
+|OPAAAPO
+|..PAP..
+|.O.P.O.
+|...O...
+
+view U key spark origin 12 27
+|...O...
+|.O.P.O.
+|..PAP..
+|OPAAAPO
+|..PAP..
+|.O.P.O.
+|...O...
+

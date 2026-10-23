@@ -1,0 +1,12 @@
+# armour/tiles/quilt: the gambeson's quilting over its sleeves (U F; padded and the herald): every second row falls a step,
+# straight and never alternating (STYLE_P2 25.2), so the sleeve reads as the coat's stuffed cloth.
+# Format: rpg/art/doll/doll.h; `on-region` is P2C_CONTRACTS 4.
+use person
+body adult
+role overlay quilt
+tags tile overlay
+on-region U F
+
+view D key rest origin 0 0
+|7
+|6

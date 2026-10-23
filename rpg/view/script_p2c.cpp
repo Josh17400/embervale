@@ -23,6 +23,7 @@
 #include "rpg/art/doll/doll.h"
 #include "rpg/sim/anim.h"
 #include "rpg/sim/game.h"
+#include "rpg/sim/gear_ladder.h"
 #include "rpg/view/script_api.h"
 
 namespace {
@@ -65,6 +66,7 @@ const SliceLook* sliceLook(const std::string& tag) {
   return nullptr;
 }
 void applySlice(art::HumanLook& L, const SliceLook& s) {
+  gear::installLadderMacros();
   if (s.who) a3Woman(L); else a3Hero(L);
   art::doll::applyLookSpec(L, s.spec);
 }
@@ -80,6 +82,36 @@ bool cmdSliceGear(ScriptCtx& c) {
   return true;
 }
 EMB_SCRIPT_CMD("slicegear", "slicegear <guard|knight|archer|knightm|archerw|hero|field=value ...>: the hero's doll gear fields (P2c slice, test only)", cmdSliceGear);
+
+// (P2c ladder) the ladder slice's looks (tools/doll/ladder_looks.txt: the same lines) and `ladderkit <tag|spec>`: the hero's
+// look from a ladder tag, or from a spec through the looks macros (hero=1 heroine=1 kit= npc= wpn= rarity= tier= ...)
+const SliceLook kLadder[] = {
+    {"lt1", 0, "hero=1,kit=heartland:1:7"}, {"lt2", 0, "hero=1,kit=heartland:2:7"}, {"lt3", 0, "hero=1,kit=heartland:3:7"},
+    {"lt4", 0, "hero=1,kit=heartland:4:7"}, {"lt5", 0, "hero=1,kit=heartland:5:7"}, {"lt6", 0, "hero=1,kit=heartland:6:7"},
+    {"lt6m", 0, "hero=1,kit=heartland:6:7,rarity=mythic"}, {"lt6w", 1, "heroine=1,kit=heartland:6:7,wpn=spear,hairColor=#8C5A2A"},
+    {"lt1w", 1, "heroine=1,kit=heartland:1:7"},
+    {"jade3", 0, "kit=jade:3:1,wpn=spear,head=6,hair=1,hairVar=1,hairColor=#1E1A22,skin=#E2B58A"},
+    {"imp3", 0, "kit=imperial:3:2,wpn=sword,head=2,hair=1,hairVar=0,hairColor=#3A2418,beard=1,beardStyle=2,skin=#C98E64"},
+    {"fjord3", 0, "kit=fjordfolk:3:5,wpn=sword,head=4,hair=2,hairVar=1,hairColor=#B87A3E,beard=1,beardStyle=4,skin=#EAC0A0"},
+    {"nband", 0, "npc=heartland:bandit:0:7"}, {"nroyal", 1, "npc=heartland:guard:2:7"}, {"nking", 0, "npc=heartland:king:0:7"},
+};
+const SliceLook* ladderLook(const std::string& tag) {
+  for (const SliceLook& s : kLadder) if (tag == s.tag) return &s;
+  return nullptr;
+}
+bool cmdLadderKit(ScriptCtx& c) {
+  art::HumanLook& L = c.game.pl().look;
+  const std::string w = c.arg(1);
+  if (w.empty()) { c.fail("ladderkit <lt1..lt6|lt6m|lt6w|lt1w|jade3|imp3|fjord3|nband|nroyal|nking|spec>"); return true; }
+  if (const SliceLook* s = ladderLook(w)) { applySlice(L, *s); return true; }
+  gear::installLadderMacros();
+  a3Hero(L);
+  std::string bad;
+  art::doll::applyLookSpec(L, w, nullptr, nullptr, &bad);
+  if (!bad.empty()) c.fail("ladderkit: unknown " + bad);
+  return true;
+}
+EMB_SCRIPT_CMD("ladderkit", "ladderkit <ladder tag|spec>: the hero's look from the ladder slice (lt1..lt6, lt6m, lt6w, the flavour row, the census ranks) or a looks spec with the ladder macros (P2c ladder, test only)", cmdLadderKit);
 
 constexpr int kRowId = 940000;
 std::vector<int>& foes() { static std::vector<int> v; return v; }   // (p2cline foe: the bandits spawned, removed by clear)
@@ -143,6 +175,14 @@ bool cmdP2cLine(ScriptCtx& c) {
         row.push_back({std::string(f[0]) + (who ? " woman" : " man"), L});
       }
     spawnRow(g, row);
+  } else if (w == "ladder" || w == "flavour" || w == "ranks") {   // (P2c ladder) T1..T6 and the Mythic; the T3 peoples; rank to tier
+    static const char* const kRow[3][8] = {{"lt1", "lt2", "lt3", "lt4", "lt5", "lt6", "lt6m", nullptr},
+                                           {"lt3", "jade3", "imp3", "fjord3", nullptr},
+                                           {"nband", "nroyal", "nking", "lt6", "lt6w", nullptr}};
+    const int k = w == "ladder" ? 0 : w == "flavour" ? 1 : 2;
+    std::vector<std::pair<std::string, art::HumanLook>> row;
+    for (int i = 0; i < 8 && kRow[k][i]; i++) { art::HumanLook L; applySlice(L, *ladderLook(kRow[k][i])); row.push_back({kRow[k][i], L}); }
+    spawnRow(g, row);
   } else if (w == "face") {
     const int f = std::clamp(std::atoi(c.arg(2).c_str()), 0, 3);
     for (Actor& a : g.actors) if (inRow(a)) a.face = (uint8_t)f;
@@ -157,10 +197,10 @@ bool cmdP2cLine(ScriptCtx& c) {
     g.actors.erase(std::remove_if(g.actors.begin() + 1, g.actors.end(),
                                   [&](const Actor& a) { return inRow(a) || std::find(f.begin(), f.end(), a.id) != f.end(); }), g.actors.end());
     f.clear();
-  } else c.fail("p2cline slice|fit|face <0-3>|foe [weapon]|clear");
+  } else c.fail("p2cline slice|fit|ladder|flavour|ranks|face <0-3>|foe [weapon]|clear");
   return true;
 }
-EMB_SCRIPT_CMD("p2cline", "p2cline slice|fit|face <0-3>|foe [weapon]|clear: the P2c slice's rows before the hero (test only)", cmdP2cLine);
+EMB_SCRIPT_CMD("p2cline", "p2cline slice|fit|ladder|flavour|ranks|face <0-3>|foe [weapon]|clear: the P2c slice's rows before the hero (test only)", cmdP2cLine);
 
 // `expect doll gear <role>=<value>`; every other `expect doll ...` goes on to P2b's check (script_p2b.cpp)
 bool expDollGear(ScriptCtx& c);
@@ -192,6 +232,12 @@ std::string gearOf(const art::HumanLook& L, const std::string& role) {
   return out;
 }
 bool expDollGear(ScriptCtx& c) {
+  // (P2c ladder) `expect doll tier <n>`: the hero's highest piece's tier (HumanLook::topTier)
+  if (c.arg(2) == "tier") {
+    const int want = std::atoi(c.arg(3).c_str()), have = c.game.pl().look.topTier();
+    if (have != want) c.fail("expect doll tier " + c.arg(3) + ": the hero's top tier is " + std::to_string(have));
+    return true;
+  }
   if (c.arg(2) != "gear") return otherExpDoll(c);
   const std::string want = c.arg(3);
   const size_t eq = want.find('=');

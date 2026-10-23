@@ -52,6 +52,11 @@ struct Glow { const Tex* t; int sx, sw, sh; float x, y; bool flip; float a; };
 struct Plate { int idx; float x, y, d2, feet; };
 struct Memo { uint8_t st = 255, phase = 0; float flashT = 0, shriekT = 0, lastT = 0; bool seen = false, roared = false; };
 std::vector<Glow> glows;
+// (P2c ladder, contracts 6b) the living finish queued by the sorted pass: glow-plane tiles (t set) and light points (the
+// spark's star and the motes: t null, a w x h block), drawn additively after the lighting
+struct Finish { const Tex* t; int sx, sy, sw, sh; float x, y, w, h; Color c; };
+std::vector<Finish> finish;
+int finishFigures = 0;
 // (M6 fixer) the ranked foes and the flyers, drawn again as a faint ghost over everything once the world is down, so a
 // named unique in its bamboo, a world boss under the canopy or a harpy behind a ruin's wall still shows where it is
 std::vector<Glow> xray;
@@ -864,6 +869,18 @@ View::RigTex View::rigTex(const art::HumanLook& L, art::RigPart part, bool child
     if (!e.sheet.empty() && e.sheet.atlas.w > 0) {
       e.tex = pix_->bake(e.sheet.atlas);
       liftMaskFor(e.sheet.atlas, e.tex);   // (P2a slice) the night lift's interior mask: v2 people rise inside their ink
+      // (P2c ladder) the glow plane beside it (its small canvas kept: the motes are born on its pixels)
+      // the light it adds is the glow's colour half-way to white: a saturated rest colour added to itself only clips its
+      // full channels (the first in-game breath measured +14/255), its pale light whitens the gem and runes as they breathe
+      if (!e.sheet.glow.empty()) {
+        Canvas lightKey = e.sheet.glow.atlas;
+        for (uint32_t& c : lightKey.px)
+          if (c >> 24) {
+            auto up = [](uint32_t v) { return (uint32_t)(v + (255u - v) * 55u / 100u); };
+            c = 0xFF000000u | up(c >> 16 & 255u) << 16 | up(c >> 8 & 255u) << 8 | up(c & 255u);
+          }
+        e.glowTex = pix_->bake(lightKey);
+      }
     }
     e.sheet.atlas = Canvas();   // the frames are kept; the pixels live in the texture
     it = rigTex_.emplace(k, std::move(e)).first;
@@ -874,7 +891,74 @@ View::RigTex View::rigTex(const art::HumanLook& L, art::RigPart part, bool child
   it->second.used = t_;
   r.tex = &it->second.tex;
   r.sheet = &it->second.sheet;
+  if (it->second.glowTex.t) r.glowTex = &it->second.glowTex;
   return r;
+}
+// (P2c ladder, contracts 6b; STYLE_P2 27.7) the living finish of the rig-2 frame just drawn at (x2, y2) (its pivot at
+// pivX, pivY; world-view px): the glow plane breathing on the actor's own phase (T6 2.2 s 0.10-1.00, a T5 gem 3.3 s
+// 0.10-0.60), the T6 blade's edge spark running grip to tip every 3.3 s, and T6's motes rising off the glow pixels.
+// Queued here (the sorted pass), drawn additively after the lighting (drawWeather's tail). Rig 2 only.
+void View::queueLivingFinish(const Actor& a, const art::HumanLook& L, const RigTex& rt, const art::FrameRect& f, const art::RigAnchors* an,
+                             float x2, float y2, float pivX, float pivY, float alpha) {
+  if (!art::finish::enabled() || !rt.ready() || alpha <= 0.02f) return;
+  const int top = L.topTier();
+  if (top < 5) return;
+  const art::RigSheet& S = *rt.sheet;
+  const size_t fi = (size_t)(&f - S.frames.data());
+  if (fi >= S.frames.size()) return;
+  const float phase = art::finish::actorPhase((uint32_t)a.id);
+  // (ladder i3) the light model is art::finish::frameLights (doll_gallery's boards draw the same): the breath over the
+  // whole piece rippled by the rune crawl, the halo spilling round each glow pixel, T6 motes or the Mythic's embers
+  std::vector<art::finish::GlowPx> gpx;
+  if (fi < S.glow.first.size()) S.glow.each(fi, [&](int gx, int gy, uint32_t c) { gpx.push_back({gx, gy, c}); });
+  uint32_t hot = 0;
+  {
+    int hotL = -1;
+    for (const auto& g : gpx) { const int l = (int)(g.c & 255) * 3 + (int)(g.c >> 8 & 255) * 6 + (int)(g.c >> 16 & 255); if (l > hotL) { hotL = l; hot = g.c; } }
+  }
+  {
+    std::vector<art::finish::Light> lights;
+    art::finish::frameLights(top, L.mythic != 0, (uint32_t)a.id * 2654435761u + 0x5EEDu, t_, phase, gpx, lights);
+    for (const art::finish::Light& q : lights)
+      beasts::finish.push_back({nullptr, 0, 0, 0, 0, x2 + q.x, y2 + q.y, q.w, q.h,
+                                Color((q.c & 255) / 255.0f, (q.c >> 8 & 255) / 255.0f, (q.c >> 16 & 255) / 255.0f, q.a * alpha)});
+  }
+  if (top < 6) { beasts::finishFigures++; return; }
+  const Color hc = hot ? Color((hot & 255) / 255.0f, (hot >> 8 & 255) / 255.0f, (hot >> 16 & 255) / 255.0f, 1) : Color(0.75f, 0.9f, 1.0f, 1);
+  auto mixW = [](const Color& c, float k) { return Color(c.r + (1 - c.r) * k, c.g + (1 - c.g) * k, c.b + (1 - c.b) * k, c.a); };
+  auto point = [&](float x, float y, float w, float h, Color c, float aa) { c.a = aa; beasts::finish.push_back({nullptr, 0, 0, 0, 0, x, y, w, h, c}); };
+  // the edge spark (a T6 piece in hand, its grip and tip known this frame): a four-point star, 3 frames along the run
+  // (the grip: its mark, else the weapon hand's fist)
+  const bool gripOn = an && an->gripX != art::kNoAnchor, handOn = an && an->handRX != art::kNoAnchor;
+  if (L.tier[art::HumanLook::TIER_WEAPON] >= 6 && an && (gripOn || handOn) && an->tipX != art::kNoAnchor) {
+    const float u = art::finish::sparkAt(t_, phase);
+    const float gx = gripOn ? an->gripX : an->handRX + 1.0f, gy = gripOn ? an->gripY : an->handRY + 1.0f;
+    if (u >= 0) {
+      const float sx = std::floor(pivX + gx + (an->tipX - gx) * u + 0.5f);
+      const float sy = std::floor(pivY + gy + (an->tipY - gy) * u + 0.5f);
+      const int fr = art::finish::sparkFrame(u);
+      const int arm = fr == 1 ? 2 : 1;
+      const Color w = mixW(hc, 0.6f);
+      point(sx, sy, 1, 1, Color(1, 1, 1, 1), 0.95f * alpha);
+      point(sx - arm, sy, (float)arm, 1, w, 0.7f * alpha);
+      point(sx + 1, sy, (float)arm, 1, w, 0.7f * alpha);
+      point(sx, sy - arm, 1, (float)arm, w, 0.7f * alpha);
+      point(sx, sy + 1, 1, (float)arm, w, 0.7f * alpha);
+    }
+  }
+  // (ladder i3) the gleam: the figure's own pixels added back through a slanted 2 px band sweeping across it
+  {
+    const float u = art::finish::gleamAt(t_, phase);
+    if (u >= 0) {
+      const Color gc = L.mythic ? Color(1.0f, 0.62f, 0.3f, art::finish::kGleamA * alpha) : Color(1, 1, 1, art::finish::kGleamA * alpha);
+      for (int y = 0; y < f.h; y += 2) {
+        const int c0 = std::max(0, art::finish::gleamCol(u, f.w, f.h, y)), c1 = std::min<int>(f.w, art::finish::gleamCol(u, f.w, f.h, y) + art::finish::kGleamW);
+        const int rh = std::min(2, f.h - y);
+        if (c1 > c0) beasts::finish.push_back({rt.tex, f.x + c0, f.y + y, c1 - c0, rh, x2 + c0, y2 + y, (float)(c1 - c0), (float)rh, gc});
+      }
+    }
+  }
+  beasts::finishFigures++;
 }
 // a v2 posture atlas (art::humanPosture2: the posture's frames as clip Idle, variant 0, in four facings), cached with the
 // v2 atlases and baked within the same budget; not ready while the painters do not cover the look
@@ -995,6 +1079,7 @@ void View::trimRigCaches() {
     b -= (double)it->second.tex.w * it->second.tex.h * 4;
     dropLiftMask(it->second.tex);   // (a later texture may reuse the pointer)
     pix_->destroy(it->second.tex);
+    if (it->second.glowTex.t) pix_->destroy(it->second.glowTex);
     rigTex_.erase(it);
   }
   lensStats.rigMB = b / (1024.0 * 1024.0);
@@ -1011,7 +1096,7 @@ void View::rigChanged() {
   drop(bldgTex_); bldgUsed_.clear(); drop(bldgNight_); drop(bldgGlow_); bldgTopRow_.clear(); g_bldgColTop.clear(); bldgSmoke_.clear();
   drop(styledProps_); drop(homeTex_); drop(laneTex_); drop(critterTex_); drop(partyTex_); drop(mythicAura_);
   drop(lampDark_); drop(warPropTex_); drop(armsTex_);
-  for (auto& kv : rigTex_) pix_->destroy(kv.second.tex);
+  for (auto& kv : rigTex_) { pix_->destroy(kv.second.tex); if (kv.second.glowTex.t) pix_->destroy(kv.second.glowTex); }
   rigTex_.clear();
   rigQueue_.clear();
   for (Tex& t : monsters_) pix_->destroy(t);
@@ -2337,6 +2422,7 @@ void View::drawWorld(Game& g) {
   Vec2 cam(std::floor(cam_.x + shakeOff_.x), std::floor(cam_.y + shakeOff_.y));
   trimCaches();
   beasts::glows.clear();    // (M6 BEASTS) this frame's glow sheets and name plates (drawn after the lighting)
+  beasts::finish.clear(); beasts::finishFigures = 0;   // (P2c ladder) the living finish
   beasts::plates.clear();
   beasts::last = beasts::cur;
   beasts::cur = beasts::Stats();
@@ -4216,6 +4302,15 @@ void View::drawWeather(Game& g, float dt) {
     for (const beasts::Glow& q : beasts::glows)
       P.blitEx(*q.t, q.sx, 0, q.sw, q.sh, q.x, q.y, (float)q.sw, (float)q.sh, q.flip, Color(1, 1, 1, ga * q.a), 1);
     beasts::glows.clear();
+    // (P2c ladder) the living finish: a shimmer by day, a soft glow at night (STYLE_P2 27.7)
+    const float fa = 0.85f + 0.15f * dk;   // (ladder i3) by day too: the panel could not see the breath at 0.6
+    for (const beasts::Finish& q : beasts::finish) {
+      Color c = q.c;
+      c.a *= fa;
+      if (q.t) P.blitEx(*q.t, q.sx, q.sy, q.sw, q.sh, q.x, q.y, q.w, q.h, false, c, 1);
+      else P.rectAdd(q.x, q.y, q.w, q.h, c);
+    }
+    beasts::finish.clear();
   };
   beasts::OnExit<decltype(beastsOver)> beastsAfter{beastsOver};
   drawWeatherSky(g);
